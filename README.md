@@ -33,12 +33,32 @@ This collection includes several discrete modules:
 - **Legacy Target**: Restores targeting indicators to previous styles.
 
 ## 🚀 How to Run
-1. **Locate Game Directory**: Navigate to your Deadlock game installation (e.g., `steamapps\common\Deadlock\game\citadel\addons`).
-2. **Copy Modules**: Copy the folder of the mod you want (e.g., `buff_timer_top_bar`) into the `addons` directory.
-3. **Launch Game**: Run Deadlock. The scripts should load automatically or require a console command (e.g., `reload_mods`) depending on the mod type.
 
-> [!NOTE]
-> Ensure you have `cl_panorama_script_debug_mode` enabled if you are developing or testing actively.
+### Prerequisite: Enable Mod Loading
+Before mods can work, you must tell the game to look for them.
+
+1.  Navigate to your Deadlock installation directory:
+    -   Usually: `C:\Program Files (x86)\Steam\steamapps\common\Deadlock\game\citadel`
+2.  Open **`gameinfo.gi`** with a text editor (Notepad, VS Code, etc.).
+3.  Locate the `SearchPaths` section.
+4.  Add the line `Game citadel/addons` **ABOVE** the `Game citadel` line. It should look like this:
+
+    ```text
+    SearchPaths
+    {
+        Game citadel/addons   <-- ADD THIS LINE
+        Game citadel
+        Game core
+        ...
+    }
+    ```
+5.  Save and close the file.
+
+### Installing Mods
+1.  Create a folder named `addons` in `Deadlock\game\citadel\` if it doesn't exist.
+2.  Copy the compiled mod folder (e.g., `buff_timer_top_bar`) into `Deadlock\game\citadel\addons\`.
+    -   *Note: Ensure the mod folder has the correct structure (e.g., `addons\my_mod\panorama\...`).*
+3.  Launch Deadlock. The mod should be active.
 
 ## 🧠 Process & Learnings
 *Building this collection involved reverse-engineering the existing HUD XML layouts.*
