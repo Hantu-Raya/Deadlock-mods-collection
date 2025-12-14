@@ -13,7 +13,6 @@ Whether you're looking to customize your own HUD or understand how Deadlock's UI
 ## 🛠️ Tech Stack
 - **Valve Panorama UI**: The underlying UI framework used by Deadlock (and Dota 2/CS2).
 - **JavaScript / XML / CSS**: Core technologies for layout and logic.
-- **VScript (Lua)**: Server-side logic integration (where applicable).
 
 ## ✨ Features
 This collection includes several discrete modules:
@@ -22,11 +21,9 @@ This collection includes several discrete modules:
 - **Buff Timer (Top Bar)**: Moves active buff timers to the top bar for better visibility during combat.
 - **Radar Tweaks**: Custom modifications to the minimap/radar for clarity.
 - **Rank Display (`showrank`)**: A widget to display MMR or rank badges in-game.
-- **Unlock Progress**: Visualizes the progression of unlocks directly on the HUD.
 
 ### ❤️ Health & Status
 - **Custom Health Bars**: Modified health bars (`hp`, `self_hp`) including color-blind friendly options.
-- **Soma Passive**: Dedicated indicator for Soma's passive ability state.
 
 ### 📊 Utility
 - **Recent Purchase Tracker**: Keeps a history of items bought in the current session.
@@ -75,8 +72,7 @@ Before mods can work, you must tell the game to look for them.
 - **Improvement**: Future versions could use a centralized loader instead of separate folders for easier management.
 
 ## 🎥 Preview
-<!-- Insert a GIF or Screenshot of the mods in action here -->
-> *[Place a screenshot of your custom HUD here]*
+
 
 ---
 *Disclaimer: This project is a fan modification and is not affiliated with Valve Software.*
