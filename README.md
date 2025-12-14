@@ -72,7 +72,7 @@ Before mods can work, you must tell the game to look for them.
 - **Improvement**: Future versions could use a centralized loader instead of separate folders for easier management.
 
 ## 🎥 Preview
-
+https://gamebanana.com/mods/embeddables/601444?type=large
 
 ---
 *Disclaimer: This project is a fan modification and is not affiliated with Valve Software.*
