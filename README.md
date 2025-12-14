@@ -61,7 +61,7 @@ Before mods can work, you must tell the game to look for them.
 ### Installing Mods
 1.  Create a folder named `addons` in `Deadlock\game\citadel\` if it doesn't exist.
 2.  Copy the compiled mod folder (e.g., `buff_timer_top_bar`) into `Deadlock\game\citadel\addons\`.
-    -   *Note: Ensure the mod folder has the correct structure (e.g., `addons\my_mod\panorama\...`).*
+    -   *Note: Ensure the mod folder has the correct structure (e.g., `addons\XXpak.vpk\...`).*
 3.  Launch Deadlock. The mod should be active.
 
 ## 🧠 Process & Learnings
