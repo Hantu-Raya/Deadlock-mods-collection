@@ -32,6 +32,13 @@ This collection includes several discrete modules:
 - **Recent Purchase Tracker**: Keeps a history of items bought in the current session.
 - **Legacy Target**: Restores targeting indicators to previous styles.
 
+## 🏗️ Building from Source
+**Note**: This repository contains the raw source code. before installing, you must compile the mods.
+
+1.  **Compile Source**: Use the **Dota 2 Workshop Tools** to compile the scripts and layout files.
+2.  **Create VPK Structure**: After compiling, you need to pack the files into a VPK format or folder structure. 
+    -   *The game requires this format to load the mods correctly.*
+
 ## 🚀 How to Run
 
 ### Prerequisite: Enable Mod Loading
