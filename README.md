@@ -2,7 +2,7 @@
 
 ![Status](https://img.shields.io/badge/Status-Experimental-orange)
 ![Game](https://img.shields.io/badge/Game-Deadlock-red)
-![Platform](https://img.shields.io/badge/Platform-Windows-blue)
+![Platform](https://img.shields.io/badge/Platform-Windows_&_Linux-blue)
 
 ## 📖 Introduction
 Welcome to the **Deadlock Mods Collection**. This repository houses a set of custom HUD modifications and gameplay scripts for Valve's *Deadlock*. 
