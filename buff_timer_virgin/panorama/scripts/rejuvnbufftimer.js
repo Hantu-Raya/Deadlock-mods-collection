@@ -1,628 +1,325 @@
 (() => {
   "use strict";
 
-  // ================
-  // CONFIG (OPTIMIZED V2)
-  // ================
-  const GATE_CHECK_INTERVAL = 30;
-  const RUN_CHECK_INTERVAL = 60;
-  const INITIAL_GATE_DELAY = 0.1;
-  const REJUV_DURATION = 240;
-  const BRIDGE_DURATION = 300;
-  const SCAN_INTERVAL = 3;
-
-  // Adaptive tick rates - faster near spawns, slower during long waits
-  const TICK_FAST = 0.1; // 100ms - near spawn events
-  const TICK_NORMAL = 1; // 1s - standard countdown
-  const TICK_SLOW = 2; // 2s - long waits (>60s remaining)
-  const SPAWN_THRESHOLD = 10; // seconds before spawn to switch to fast tick
-
-  const PREFERRED_GAME_TIME_IDS = ["HudGameTime", "GameTime", "MainGameTime"];
-
+  // CONFIG
+  const REJUV_DUR = 240, BRIDGE_DUR = 300, SPAWN_TH = 10;
+  const TICK_FAST = 0.1, TICK_NORM = 1, TICK_IDLE = 3;
   const SEQ = [
-    { name: "initial", dur: 600, num: "1" },
-    { name: "firstCd", dur: 420, num: "2" },
-    { name: "secondCd", dur: 360, num: "3" },
-    { name: "thirdCd", dur: 300, num: "3" },
+    { d: 600, n: "1" },
+    { d: 420, n: "2" },
+    { d: 360, n: "3" },
+    { d: 300, n: "3" },
   ];
+  const REJUV_CLS = ["RejuvCount_1", "RejuvCount_2", "RejuvCount_3", "RejuvCount_4"];
+  const TIME_IDS = ["HudGameTime", "GameTime", "MainGameTime"];
 
-  // Rejuv count tokens (hoisted outside function for memory efficiency)
-  const REJUV_TOKENS = [
-    "RejuvCount_1",
-    "RejuvCount_2",
-    "RejuvCount_3",
-    "RejuvCount_4",
-  ];
+  // STATIC STATE (Zero-Alloc)
+  let hnd = null, running = false, inHideout = true, spawnWait = false;
+  let idx = 0, counter = 0, phaseStart = 0, claimCnt = 0;
+  let buffStart = 0, buffCnt = 0, lastSec = -1, lastGlobalSec = -1;
+  let lastGateChk = 0, lastRunChk = 0, lastScan = 0, tick = TICK_NORM;
+  let lastFound = false;
 
-  // ================
-  // OPTIMIZATION: Single master timer handle
-  // ================
-  let masterLoopHandle = null;
-
-  // Master loop timing state
-  const loopState = {
-    lastGateCheck: 0,
-    lastRunCheck: 0,
-    lastScan: 0,
-    currentTickRate: TICK_NORMAL,
+  // DOM CACHE (Hard)
+  const UI = {
+    root: null, hud: null, gameTimePanel: null,
+    rLab: null, rNum: null, rImg: null,
+    buffLab: null, rejuvBuff: null, rejuvBuffTime: null,
+    rejuvFriendly: null, rejuvEnemy: null,
   };
 
-  // DOM cache (single lookup per session)
-  const uiCache = {
-    rLab: null,
-    rNum: null,
-    rImg: null,
-    buffLabel: null,
-    rejuvBuff: null,
-    rejuvBuffTime: null,
-    root: null,
-    cachedGameTimePanel: null,
-    // Pre-cached Hud reference
-    hud: null,
-  };
-
-  // Lightweight state object
-  const state = {
-    idx: 0,
-    counter: 0,
-    phaseStart: 0,
-    claimCount: 0,
-    running: false,
-    spawnWaiting: false,
-    lastScanFound: false,
-    buffStartTime: 0,
-    buffCounter: 0,
-    lastSec: -1,
-    lastGlobalSec: -1,
-    // Track hideout state to avoid repeated checks
-    inHideout: true,
-  };
-
-  // GameTime optimization - extended cache TTL to 500ms
-  const gameTimeCache = {
-    value: 0,
-    ts: 0,
-    ttl: 500, // OPTIMIZATION: Extended from 100ms to 500ms
-  };
-
-  // Rejuv charges cache - throttled lookup
-  const rejuvCache = {
-    topBar: null,
-    charges: null,
-    friendly: null,
-    enemy: null,
-    lastLookup: 0,
-    ttl: 500,
-  };
-
-  // ================
   // BOOT
-  // ================
   function boot() {
     const root = findRoot($.GetContextPanel());
-    uiCache.root = root;
+    UI.root = root;
+    UI.hud = root.FindChildTraverse("Hud");
+    UI.rLab = root.FindChildTraverse("RejuvTime");
+    UI.rNum = root.FindChildTraverse("RejuvNum");
+    UI.rImg = root.FindChildTraverse("RejuvImg");
+    UI.buffLab = root.FindChildTraverse("BuffTime");
+    UI.rejuvBuff = root.FindChildTraverse("RejuvBuff");
+    UI.rejuvBuffTime = root.FindChildTraverse("RejuvTimeBuff");
 
-    // Batch DOM queries - single traversal
-    uiCache.rLab = root.FindChildTraverse("RejuvTime");
-    uiCache.rNum = root.FindChildTraverse("RejuvNum");
-    uiCache.rImg = root.FindChildTraverse("RejuvImg");
-    uiCache.buffLabel = root.FindChildTraverse("BuffTime");
-    uiCache.rejuvBuff = root.FindChildTraverse("RejuvBuff");
-    uiCache.rejuvBuffTime = root.FindChildTraverse("RejuvTimeBuff");
+    const topBar = root.FindChildTraverse("TopBar") || root.FindChildTraverse("CitadelHudTopBar");
+    if (topBar) {
+      const charges = topBar.FindChildTraverse("RejuvenatorCharges");
+      if (charges) {
+        UI.rejuvFriendly = charges.FindChildTraverse("RejuvenatorFriendly");
+        UI.rejuvEnemy = charges.FindChildTraverse("RejuvenatorEnemy");
+      }
+    }
 
-    // OPTIMIZATION: Pre-cache Hud reference
-    uiCache.hud = root.FindChildTraverse("Hud");
-
-    if (!uiCache.rLab || !uiCache.rNum || !uiCache.rImg || !uiCache.buffLabel) {
+    if (!UI.rLab || !UI.rNum || !UI.rImg || !UI.buffLab) {
       return $.Schedule(0.5, boot);
     }
 
-    stopMasterLoop(true);
-    startMasterLoop();
+    reset(true);
+    loop();
   }
 
-  // ================
-  // OPTIMIZATION: Consolidated Master Loop
-  // Replaces 4 separate timers with single unified loop
-  // ================
-  function startMasterLoop() {
-    if (masterLoopHandle) {
-      $.CancelScheduled(masterLoopHandle);
-    }
-    loopState.lastGateCheck = 0;
-    loopState.lastRunCheck = 0;
-    loopState.lastScan = 0;
-    loopState.currentTickRate = TICK_NORMAL;
-    masterLoop();
-  }
-
-  function stopMasterLoop(reset) {
-    if (masterLoopHandle) {
-      $.CancelScheduled(masterLoopHandle);
-      masterLoopHandle = null;
-    }
-
-    if (reset) {
-      state.idx = 0;
-      state.counter = 0;
-      state.phaseStart = 0;
-      state.claimCount = 0;
-      state.buffStartTime = 0;
-      state.buffCounter = 0;
-      state.lastSec = -1;
-      state.lastGlobalSec = -1;
-      state.spawnWaiting = false;
-      state.lastScanFound = false;
-      state.running = false;
-      state.inHideout = true;
-
-      if (uiCache.rLab) uiCache.rLab.text = fmt(SEQ[0].dur);
-      if (uiCache.rNum) uiCache.rNum.text = SEQ[0].num;
-      resetImg();
-      endRejuvBuff();
-    }
-  }
-
-  function masterLoop() {
-    const now = gameSec();
+  // MASTER LOOP (Zero-Alloc)
+  function loop() {
+    const now = gTime();
     const realNow = Date.now();
 
-    // ---- GATE CHECK (every 30s when in hideout) ----
-    if (!state.running) {
-      if (realNow - loopState.lastGateCheck >= GATE_CHECK_INTERVAL * 1000) {
-        loopState.lastGateCheck = realNow;
-        state.inHideout = isConnectedToHideout();
-
-        if (!state.inHideout) {
-          startRunning(now);
-        }
+    // GATE CHECK (Idle in hideout)
+    if (!running) {
+      if (realNow - lastGateChk >= 30000) {
+        lastGateChk = realNow;
+        inHideout = isHideout();
+        if (!inHideout) startRun(now);
       }
-      // Schedule next loop - slow poll when waiting
-      masterLoopHandle = $.Schedule(1, masterLoop);
+      hnd = $.Schedule(TICK_IDLE, loop);
       return;
     }
 
-    // ---- RUN CHECK (every 60s when running) ----
-    if (realNow - loopState.lastRunCheck >= RUN_CHECK_INTERVAL * 1000) {
-      loopState.lastRunCheck = realNow;
-      if (isConnectedToHideout()) {
-        stopMasterLoop(true);
-        startMasterLoop();
-        return;
-      }
+    // RUN CHECK (Every 60s)
+    if (realNow - lastRunChk >= 60000) {
+      lastRunChk = realNow;
+      if (isHideout()) { reset(true); loop(); return; }
     }
 
-    // ---- ROUND RESET DETECTION ----
-    if (
-      state.lastGlobalSec >= 0 &&
-      (now + 5 < state.lastGlobalSec || (state.lastGlobalSec > 30 && now <= 2))
-    ) {
-      stopMasterLoop(true);
-      startMasterLoop();
-      return;
+    // ROUND RESET
+    if (lastGlobalSec >= 0 && (now + 5 < lastGlobalSec || (lastGlobalSec > 30 && now <= 2))) {
+      reset(true); loop(); return;
     }
-    state.lastGlobalSec = now;
+    lastGlobalSec = now;
 
-    // ---- PHASE COUNTDOWN ----
-    if (now !== state.lastSec) {
-      state.lastSec = now;
-      const dur = SEQ[state.idx].dur;
-      const remaining = Math.max(0, dur - (now - state.phaseStart));
-
-      if (remaining <= 0) {
+    // PHASE COUNTDOWN
+    if (now !== lastSec) {
+      lastSec = now;
+      const rem = Math.max(0, SEQ[idx].d - (now - phaseStart));
+      if (rem <= 0) {
         showSpawn();
       } else {
-        state.counter = remaining;
-        uiCache.rLab.text = fmt(remaining);
+        counter = rem;
+        UI.rLab.text = fmt(rem);
       }
-
-      // OPTIMIZATION: Adaptive tick rate based on remaining time
-      updateTickRate(remaining);
+      tick = spawnWait || rem <= SPAWN_TH ? TICK_FAST : rem > 30 ? TICK_NORM : TICK_NORM;
     }
 
-    // ---- REJUV BUFF COUNTDOWN ----
-    if (state.buffStartTime > 0) {
-      const elapsed = now - state.buffStartTime;
-      state.buffCounter = Math.max(0, REJUV_DURATION - elapsed);
-
-      if (uiCache.rejuvBuffTime) {
-        uiCache.rejuvBuffTime.text = fmt(state.buffCounter);
-      }
-
-      if (state.buffCounter <= 0) {
-        endRejuvBuff();
-      }
+    // BUFF COUNTDOWN
+    if (buffStart > 0) {
+      buffCnt = Math.max(0, REJUV_DUR - (now - buffStart));
+      if (UI.rejuvBuffTime) UI.rejuvBuffTime.text = fmt(buffCnt);
+      if (buffCnt <= 0) endBuff();
     }
 
-    // ---- BRIDGE LABEL (5m cycle) ----
-    const remainingBridge = BRIDGE_DURATION - (now % BRIDGE_DURATION);
-    uiCache.buffLabel.text = fmt(remainingBridge);
+    // BRIDGE LABEL
+    UI.buffLab.text = fmt(BRIDGE_DUR - (now % BRIDGE_DUR));
 
-    // ---- SCAN FOR REJUV (every 3s) ----
-    if (realNow - loopState.lastScan >= SCAN_INTERVAL * 1000) {
-      loopState.lastScan = realNow;
+    // SCAN (Every 3s)
+    if (realNow - lastScan >= 3000) {
+      lastScan = realNow;
       doScan(now);
     }
 
-    // Schedule next iteration with adaptive rate
-    masterLoopHandle = $.Schedule(loopState.currentTickRate, masterLoop);
+    hnd = $.Schedule(tick, loop);
   }
 
-  // OPTIMIZATION: Adaptive tick rate
-  function updateTickRate(remaining) {
-    if (state.spawnWaiting || remaining <= SPAWN_THRESHOLD) {
-      loopState.currentTickRate = TICK_FAST;
-    } else if (remaining > 60) {
-      loopState.currentTickRate = TICK_SLOW;
-    } else {
-      loopState.currentTickRate = TICK_NORMAL;
+  // SCAN
+  function doScan(now) {
+    if (!running) return;
+    const found = hasRejuv();
+    if (spawnWait && found && !lastFound) {
+      claimCnt++;
+      startBuff(now);
+      startPhase(claimCnt > 2 ? 3 : claimCnt, now);
     }
+    lastFound = found;
   }
 
-  function startRunning(now) {
-    state.running = true;
-    state.claimCount = 0;
-    state.lastScanFound = false;
-    state.spawnWaiting = false;
-    state.inHideout = false;
-
-    loopState.lastRunCheck = Date.now();
-    loopState.lastScan = 0;
-
-    startPhaseAuto(now);
+  // REJUV CHECK (BHasClass Priority, Zero-Alloc)
+  function hasRejuv() {
+    return panelHas(UI.rejuvFriendly) || panelHas(UI.rejuvEnemy);
   }
 
-  // ================
-  // PHASE TIMERS
-  // ================
+  function panelHas(p) {
+    if (!p) return false;
+    for (let i = 0; i < REJUV_CLS.length; i++) {
+      try { if (p.BHasClass(REJUV_CLS[i])) return true; } catch {}
+    }
+    try {
+      const kids = p.Children();
+      for (let j = 0; j < kids.length; j++) {
+        for (let i = 0; i < REJUV_CLS.length; i++) {
+          try { if (kids[j].BHasClass(REJUV_CLS[i])) return true; } catch {}
+        }
+      }
+    } catch {}
+    return false;
+  }
+
+  // PHASE
+  function startPhase(tgt, now) {
+    spawnWait = false;
+    idx = clamp(tgt, 0, SEQ.length - 1);
+    counter = SEQ[idx].d;
+    phaseStart = now;
+    UI.rLab.text = fmt(counter);
+    UI.rNum.text = SEQ[idx].n;
+    setImg(idx);
+  }
+
   function startPhaseAuto(now) {
-    state.spawnWaiting = false;
-    now = now ?? gameSec(true);
-    const computed = calcPhaseAt(now);
-
-    state.idx = computed.idx;
-    state.counter = computed.counter;
-    state.phaseStart = computed.phaseStart;
-
-    updatePhaseUI();
-  }
-
-  function startPhaseManual(targetIdx, now) {
-    state.spawnWaiting = false;
-    state.idx = clamp(targetIdx, 0, SEQ.length - 1);
-    state.counter = SEQ[state.idx].dur;
-    state.phaseStart = now ?? gameSec(true);
-
-    updatePhaseUI();
-  }
-
-  function updatePhaseUI() {
-    uiCache.rLab.text = fmt(state.counter);
-    uiCache.rNum.text = SEQ[state.idx].num;
-    setPhaseImage(SEQ[state.idx].name);
+    spawnWait = false;
+    let cum = 0;
+    for (let i = 0; i < SEQ.length; i++) {
+      if (now < cum + SEQ[i].d) {
+        idx = i; phaseStart = cum; counter = cum + SEQ[i].d - now;
+        UI.rLab.text = fmt(counter); UI.rNum.text = SEQ[i].n; setImg(i);
+        return;
+      }
+      cum += SEQ[i].d;
+    }
+    const li = SEQ.length - 1, ld = SEQ[li].d;
+    const mod = (now - cum) % BRIDGE_DUR, within = mod % ld;
+    idx = li; phaseStart = now - within; counter = ld - within;
+    UI.rLab.text = fmt(counter); UI.rNum.text = SEQ[li].n; setImg(li);
   }
 
   function showSpawn() {
-    uiCache.rLab.text = "Spawn";
-    uiCache.rNum.text = SEQ[state.idx].num;
-    resetImg();
-    uiCache.rImg.AddClass("white");
-
-    state.spawnWaiting = true;
-    state.lastScanFound = false;
-    loopState.currentTickRate = TICK_FAST; // Fast polling during spawn
+    UI.rLab.text = "Spawn";
+    UI.rNum.text = SEQ[idx].n;
+    resetImg(); UI.rImg.AddClass("white");
+    spawnWait = true; lastFound = false; tick = TICK_FAST;
   }
 
-  // ================
-  // SCAN LOOP (integrated into master loop)
-  // ================
-  function doScan(now) {
-    if (!state.running) return;
-
-    const found = hasRejuvCount();
-
-    if (state.spawnWaiting && found && !state.lastScanFound) {
-      state.claimCount++;
-      startRejuvBuff(now);
-
-      const targetIdx = state.claimCount > 2 ? 3 : state.claimCount;
-      startPhaseManual(targetIdx, now);
+  // BUFF
+  function startBuff(now) {
+    buffStart = now; buffCnt = REJUV_DUR;
+    if (UI.rejuvBuff) {
+      UI.rejuvBuff.RemoveClass("pop-in");
+      UI.rejuvBuff.AddClass("pop-out");
+      UI.rejuvBuff.style.opacity = "1";
     }
-
-    state.lastScanFound = found;
+    if (UI.rejuvBuffTime) UI.rejuvBuffTime.text = fmt(buffCnt);
   }
 
-  // ================
-  // REJUV BUFF
-  // ================
-  function startRejuvBuff(now) {
-    state.buffStartTime = now ?? gameSec(true);
-    state.buffCounter = REJUV_DURATION;
-
-    if (uiCache.rejuvBuff) {
-      uiCache.rejuvBuff.RemoveClass("pop-in");
-      uiCache.rejuvBuff.AddClass("pop-out");
-      uiCache.rejuvBuff.style.opacity = "1";
-    }
-
-    if (uiCache.rejuvBuffTime) {
-      uiCache.rejuvBuffTime.text = fmt(state.buffCounter);
+  function endBuff() {
+    buffStart = 0; buffCnt = 0;
+    if (UI.rejuvBuff) {
+      UI.rejuvBuff.RemoveClass("pop-out");
+      UI.rejuvBuff.AddClass("pop-in");
+      $.Schedule(0.5, () => { if (UI.rejuvBuff) UI.rejuvBuff.style.opacity = "0"; });
     }
   }
 
-  function endRejuvBuff() {
-    state.buffStartTime = 0;
-    state.buffCounter = 0;
-
-    if (uiCache.rejuvBuff) {
-      uiCache.rejuvBuff.RemoveClass("pop-out");
-      uiCache.rejuvBuff.AddClass("pop-in");
-      $.Schedule(0.5, () => {
-        if (uiCache.rejuvBuff) {
-          uiCache.rejuvBuff.style.opacity = "0";
-        }
-      });
-    }
-  }
-
-  // ================
   // HELPERS
-  // ================
-  function setPhaseImage(name) {
+  function startRun(now) {
+    running = true; claimCnt = 0; lastFound = false; spawnWait = false; inHideout = false;
+    lastRunChk = Date.now(); lastScan = 0;
+    startPhaseAuto(now);
+  }
+
+  function reset(full) {
+    if (hnd) { $.CancelScheduled(hnd); hnd = null; }
+    if (full) {
+      idx = 0; counter = 0; phaseStart = 0; claimCnt = 0;
+      buffStart = 0; buffCnt = 0; lastSec = -1; lastGlobalSec = -1;
+      spawnWait = false; lastFound = false; running = false; inHideout = true;
+      if (UI.rLab) UI.rLab.text = fmt(SEQ[0].d);
+      if (UI.rNum) UI.rNum.text = SEQ[0].n;
+      resetImg(); endBuff();
+    }
+  }
+
+  function setImg(i) {
     resetImg();
-    if (name.endsWith("Buff")) {
-      uiCache.rImg.AddClass("buff");
-      uiCache.rImg.AddClass("rotating");
-      $.Schedule(0.8, () => uiCache.rImg.RemoveClass("rotating"));
-    } else if (name.endsWith("Cd")) {
-      uiCache.rImg.AddClass("reverse");
-      uiCache.rImg.AddClass("rotating");
-      $.Schedule(0.8, () => uiCache.rImg.RemoveClass("rotating"));
+    if (i > 0) {
+      UI.rImg.AddClass("reverse");
+      UI.rImg.AddClass("rotating");
+      $.Schedule(0.8, () => UI.rImg.RemoveClass("rotating"));
     }
   }
 
   function resetImg() {
-    uiCache.rImg.RemoveClass("rotating");
-    uiCache.rImg.RemoveClass("buff");
-    uiCache.rImg.RemoveClass("reverse");
-    uiCache.rImg.RemoveClass("white");
+    UI.rImg.RemoveClass("rotating");
+    UI.rImg.RemoveClass("buff");
+    UI.rImg.RemoveClass("reverse");
+    UI.rImg.RemoveClass("white");
   }
 
-  // ================
-  // GAME TIME (OPTIMIZED - 500ms TTL)
-  // ================
-  function gameSec(force) {
+  // TIME CACHE (200ms TTL to reduce parsing overhead)
+  let _tCache = 0, _tCacheTs = 0;
+  const _tCacheTTL = 200;
+
+  function gTime() {
     const now = Date.now();
-
-    // Cache hit with extended TTL
-    if (
-      !force &&
-      gameTimeCache.ts &&
-      now - gameTimeCache.ts < gameTimeCache.ttl
-    ) {
-      return gameTimeCache.value;
-    }
-
-    const a = apiSec();
-    if (a != null) {
-      gameTimeCache.value = a;
-      gameTimeCache.ts = now;
-      return a;
-    }
-
-    const u = uiSec(force);
-    gameTimeCache.value = u;
-    gameTimeCache.ts = now;
-    return u;
+    if (now - _tCacheTs < _tCacheTTL) return _tCache;
+    
+    // Try native APIs first (fast path)
+    let t = 0;
+    try { t = typeof Game !== "undefined" && Game.GetGameTime?.() | 0; } catch {}
+    if (t > 0) { _tCache = t; _tCacheTs = now; return t; }
+    try { t = typeof Game !== "undefined" && Game.GetDOTATime?.() | 0; } catch {}
+    if (t > 0) { _tCache = t; _tCacheTs = now; return t; }
+    try { t = typeof GameUI !== "undefined" && GameUI.GetGameTime?.() | 0; } catch {}
+    if (t > 0) { _tCache = t; _tCacheTs = now; return t; }
+    
+    // Fallback: Parse UI (only if panel cached)
+    t = uiTime();
+    _tCache = t; _tCacheTs = now;
+    return t;
   }
 
-  function apiSec() {
-    try {
-      if (typeof Game !== "undefined") {
-        if (typeof Game.GetDOTATime === "function") {
-          const t = Game.GetDOTATime();
-          if (typeof t === "number" && !isNaN(t)) return t | 0;
-        }
-        if (typeof Game.GetGameTime === "function") {
-          const t = Game.GetGameTime();
-          if (typeof t === "number" && !isNaN(t)) return t | 0;
-        }
-        if (typeof Game.Time === "number") {
-          return Game.Time | 0;
-        }
-        if (typeof Game.GameTime === "number") {
-          return Game.GameTime | 0;
-        }
-      }
-      // OPTIMIZATION: GameUI.GetGameTime prioritized per research
-      if (
-        typeof GameUI !== "undefined" &&
-        typeof GameUI.GetGameTime === "function"
-      ) {
-        const t = GameUI.GetGameTime();
-        if (typeof t === "number" && !isNaN(t)) return t | 0;
-      }
-    } catch {}
-    return null;
-  }
-
-  function uiSec(force) {
-    if (!force && uiCache.cachedGameTimePanel) {
-      return parseSec(uiCache.cachedGameTimePanel.text);
+  function uiTime() {
+    // Fast path: cached panel
+    if (UI.gameTimePanel) {
+      try { return parseSec(UI.gameTimePanel.text); } catch {}
     }
-
-    const preferredIds = PREFERRED_GAME_TIME_IDS;
-    for (let i = 0; i < preferredIds.length; i++) {
-      const p = uiCache.root.FindChildTraverse(preferredIds[i]);
-      if (p && p.text) {
-        uiCache.cachedGameTimePanel = p;
-        return parseSec(p.text);
-      }
-    }
-
-    // Use pre-cached hud reference
-    const arr = uiCache.hud
-      ? uiCache.hud.FindChildrenWithClassTraverse("GameTime")
-      : null;
-
-    if (!arr || !arr.length) {
-      const rootArr = uiCache.root.FindChildrenWithClassTraverse("GameTime");
-      uiCache.cachedGameTimePanel =
-        rootArr && rootArr.length ? rootArr[0] : null;
-    } else {
-      uiCache.cachedGameTimePanel = arr[0];
-    }
-
-    return parseSec(uiCache.cachedGameTimePanel?.text);
-  }
-
-  function parseSec(text) {
-    if (!text) return 0;
-    const m = String(text).match(/(\d+):(\d{1,2})/);
-    if (!m) return 0;
-    const mm = parseInt(m[1], 10) || 0;
-    let ss = parseInt(m[2], 10) || 0;
-    if (ss > 59) ss %= 60;
-    return mm * 60 + ss;
-  }
-
-  function calcPhaseAt(t) {
-    if (t <= 2) {
-      return { idx: 0, phaseStart: 0, counter: SEQ[0].dur };
-    }
-
-    let cum = 0;
-    for (let i = 0; i < SEQ.length; i++) {
-      const dur = SEQ[i].dur;
-      if (t < cum + dur) {
-        return {
-          idx: i,
-          phaseStart: cum,
-          counter: cum + dur - t,
-        };
-      }
-      cum += dur;
-    }
-
-    const lastIdx = SEQ.length - 1;
-    const lastDur = SEQ[lastIdx].dur;
-    const mod = (t - cum) % BRIDGE_DURATION;
-    const within = mod % lastDur;
-
-    return {
-      idx: lastIdx,
-      phaseStart: t - within,
-      counter: lastDur - within,
-    };
-  }
-
-  // OPTIMIZATION: Throttled rejuv scan with native BHasClass preference
-  function hasRejuvCount() {
-    const now = Date.now();
-
-    if (!rejuvCache.topBar || now - rejuvCache.lastLookup > rejuvCache.ttl) {
-      rejuvCache.lastLookup = now;
-      rejuvCache.topBar =
-        uiCache.root.FindChildTraverse("TopBar") ||
-        uiCache.root.FindChildTraverse("CitadelHudTopBar");
-      rejuvCache.charges = rejuvCache.topBar
-        ? rejuvCache.topBar.FindChildTraverse("RejuvenatorCharges")
-        : null;
-      rejuvCache.friendly = rejuvCache.charges
-        ? rejuvCache.charges.FindChildTraverse("RejuvenatorFriendly")
-        : null;
-      rejuvCache.enemy = rejuvCache.charges
-        ? rejuvCache.charges.FindChildTraverse("RejuvenatorEnemy")
-        : null;
-    }
-
-    return (
-      panelHasAnyToken(rejuvCache.friendly) ||
-      panelHasAnyToken(rejuvCache.enemy)
-    );
-  }
-
-  // OPTIMIZATION: Simplified token check using native BHasClass first
-  function panelHasAnyToken(panel) {
-    if (!panel) return false;
-
-    // Check panel itself
-    if (checkPanelTokens(panel)) return true;
-
-    // Check children
-    try {
-      const kids = panel.Children?.() || [];
-      for (let i = 0; i < kids.length; i++) {
-        if (checkPanelTokens(kids[i])) return true;
-      }
-    } catch {}
-
-    return false;
-  }
-
-  // OPTIMIZATION: Native BHasClass prioritized, string indexOf as fallback
-  function checkPanelTokens(panel) {
-    if (!panel) return false;
-
-    // Native BHasClass is fastest - try it first for all tokens
-    if (panel.BHasClass) {
-      for (let i = 0; i < REJUV_TOKENS.length; i++) {
-        try {
-          if (panel.BHasClass(REJUV_TOKENS[i])) return true;
-        } catch {}
-      }
-    }
-
-    // Fallback to string check only if BHasClass unavailable
-    if (!panel.BHasClass) {
+    // Slow path: find panel once
+    for (let i = 0; i < TIME_IDS.length; i++) {
       try {
-        const cls = safeAttr(panel, "class") || panel.className || "";
-        const clsStr = String(cls);
-        for (let i = 0; i < REJUV_TOKENS.length; i++) {
-          if (clsStr.indexOf(REJUV_TOKENS[i]) !== -1) return true;
-        }
+        const p = UI.root.FindChildTraverse(TIME_IDS[i]);
+        if (p?.text) { UI.gameTimePanel = p; return parseSec(p.text); }
       } catch {}
     }
-
-    return false;
+    try {
+      const arr = (UI.hud || UI.root).FindChildrenWithClassTraverse("GameTime");
+      if (arr?.[0]?.text) { UI.gameTimePanel = arr[0]; return parseSec(arr[0].text); }
+    } catch {}
+    return 0;
   }
 
-  // OPTIMIZATION: Use pre-cached hud reference
-  function isConnectedToHideout() {
-    const hud = uiCache.hud || uiCache.root.FindChildTraverse("Hud");
-    if (!hud || !hud.BHasClass) return false;
+  // Zero-alloc string parsing (no regex)
+  function parseSec(txt) {
+    if (!txt) return 0;
+    const s = String(txt), colonIdx = s.indexOf(":");
+    if (colonIdx < 0) return 0;
+    let mm = 0, ss = 0, c;
+    // Parse minutes (left of colon)
+    for (let i = 0; i < colonIdx; i++) {
+      c = s.charCodeAt(i);
+      if (c >= 48 && c <= 57) mm = mm * 10 + (c - 48);
+    }
+    // Parse seconds (right of colon, max 2 digits)
+    for (let i = colonIdx + 1, cnt = 0; i < s.length && cnt < 2; i++, cnt++) {
+      c = s.charCodeAt(i);
+      if (c >= 48 && c <= 57) ss = ss * 10 + (c - 48);
+      else break;
+    }
+    return mm * 60 + (ss > 59 ? ss % 60 : ss);
+  }
 
-    return (
-      hud.BHasClass("connectedToHideout") ||
-      hud.BHasClass("connectedtoHideout") ||
-      hud.BHasClass("connectedtohideout")
-    );
+  function isHideout() {
+    if (!UI.hud || !UI.hud.BHasClass) return false;
+    try {
+      return UI.hud.BHasClass("connectedToHideout") ||
+             UI.hud.BHasClass("connectedtoHideout") ||
+             UI.hud.BHasClass("connectedtohideout");
+    } catch {}
+    return false;
   }
 
   function fmt(s) {
     s = Math.max(0, s | 0);
-    const m = (s / 60) | 0;
-    const ss = s % 60;
+    const m = (s / 60) | 0, ss = s % 60;
     return (m < 10 ? "0" + m : "" + m) + ":" + (ss < 10 ? "0" + ss : "" + ss);
   }
 
-  function findRoot(p) {
-    while (p.GetParent?.()) p = p.GetParent();
-    return p;
-  }
-
-  function clamp(v, a, b) {
-    return Math.max(a, Math.min(b, v));
-  }
-
-  function safeAttr(panel, attr) {
-    try {
-      if (!panel || !panel.GetAttributeString) return null;
-      return panel.GetAttributeString(attr, "");
-    } catch {
-      return null;
-    }
-  }
+  function findRoot(p) { while (p.GetParent?.()) p = p.GetParent(); return p; }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
   boot();
 })();
