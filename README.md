@@ -72,7 +72,14 @@ Before mods can work, you must tell the game to look for them.
 - **Improvement**: Future versions could use a centralized loader instead of separate folders for easier management.
 
 ## 🎥 Preview
-https://gamebanana.com/mods/embeddables/601444?type=large
+<img width="530" height="280" alt="image" src="https://github.com/user-attachments/assets/8dae2040-129b-4af3-9c08-dde441d0ba22" />
+<img width="630" height="991" alt="image" src="https://github.com/user-attachments/assets/1b4d8704-4df8-4bb2-bdcd-c0002bba9266" />
+<img width="782" height="516" alt="image" src="https://github.com/user-attachments/assets/5dc2b32e-958b-4e45-ae1c-ec144408def2" />
+<img width="431" height="100" alt="image" src="https://github.com/user-attachments/assets/28a68dcc-3885-469b-92da-2798e964bfde" />
+<img width="619" height="348" alt="image" src="https://github.com/user-attachments/assets/5d0c7997-43c7-4211-963c-f5c30ee91149" />
+
+
+
 
 ---
 *Disclaimer: This project is a fan modification and is not affiliated with Valve Software.*
