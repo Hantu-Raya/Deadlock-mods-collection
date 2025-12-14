@@ -1,0 +1,12 @@
+@import url("s2r://panorama/styles/base/citadel_hud_hero_shop.vcss_c");
+
+#RecentPurchasesPanel
+{
+    opacity: 1;
+    visibility: visible;
+}
+
+#RecentPurchasesContainer
+{
+    margin-right: 2%;
+}

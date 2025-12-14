@@ -1,0 +1,206 @@
+@import url("s2r://panorama/styles/base/hud.vcss_c");
+#hud_passive_items
+{
+	height: 60px;
+	width: 600px;
+	margin: 20px;
+	margin-top: -6%;
+	visibility: visible;
+	horizontal-align: center;
+	vertical-align: top;
+	ui-scale: 105%;
+}
+
+#Buff
+{
+	background-color: rgba(12, 12, 12, 0.6);
+	width: 32%;
+    height: 10%;
+    margin-bottom: 10%;
+	margin-right: 7%;
+    vertical-align: bottom;
+    horizontal-align: right;
+    perspective: 900;
+    opacity: 1;
+    transform: translateX(0px);
+    transition-property: width,height;
+    transition-duration: 0.15s;
+	world-blur: ingameHudBlur;
+	z-index: 99999;
+    border-radius: 10px;
+}
+
+#Rejuv
+{
+	background-color: rgba(12, 12, 12, 0.6);
+	width: 32%;
+    height: 10%;
+    margin-bottom: 10%;
+	margin-left: 7%;
+    vertical-align: bottom;
+    horizontal-align: left;
+    perspective: 900;
+    opacity: 1;
+    transform: translateX(0px);
+    transition-property: width,height;
+    transition-duration: 0.15s;
+	world-blur: ingameHudBlur;
+	z-index: 99999;
+    border-radius: 10px;
+}
+
+#BuffTime
+{
+	font-size: 24px;
+    color: offWhite&90;
+    horizontal-align: center;
+    vertical-align: center;
+    width: 100%;
+    height: 70%;
+    margin-right: 30%;
+    margin-bottom: 5%;
+    font-weight: semi-bold;
+    text-align: center;
+    font-family: sansMono;
+	z-index: 999999;
+}
+
+#RejuvTime
+{
+	font-size: 24px;
+    color: offWhite&90;
+    horizontal-align: center;
+    vertical-align: center;
+    width: 100%;
+    height: 70%;
+    margin-left: 30%;
+    margin-bottom: 5%;
+    font-weight: semi-bold;
+    text-align: center;
+    font-family: sansMono;
+	z-index: 999999;
+}
+
+#BuffImg
+{
+    horizontal-align: right;
+    vertical-align: center;
+    height: 80%;
+    width: 25%;
+    margin-right: 13%;
+}
+
+#RejuvImg
+{
+    horizontal-align: left;
+    vertical-align: center;
+    height: 80%;
+    width: 25%;
+    margin-left: 13%;
+    transform: rotateY(0deg);
+}
+
+#RejuvNum
+{
+    font-size: 16px;
+    color: offBlack;
+    horizontal-align: center;
+    vertical-align: center;
+    width: 10%;
+    height: 70%;
+    margin-right: 50%;
+    margin-top: 30%;
+    font-weight: semidd-bold;
+    text-align: center;
+    font-family: sansMono;
+	z-index: 999999;
+}
+
+@keyframes 'rotate'
+{
+    0%
+    {
+        transform: rotateY(0deg);
+    }
+    
+    25%
+    {
+        transform: rotateY(90deg);
+    }
+    
+    50%
+    {
+        transform: rotateY(180deg);
+    }
+
+    75%
+    {
+        transform: rotateY(270deg);
+    }
+    
+    100%
+    {
+        transform: rotateY(360deg);
+    }
+    
+}
+
+@keyframes 'rotate-reverse'
+{
+    0%
+    {
+        transform: rotateY(0deg);
+    }
+    
+    25%
+    {
+        transform: rotateY(-90deg);
+    }
+    
+    50%
+    {
+        transform: rotateY(-180deg);
+    }
+
+    75%
+    {
+        transform: rotateY(-270deg);
+    }
+    
+    100%
+    {
+        transform: rotateY(-360deg);
+    }
+    
+}
+
+#RejuvImg.rotating 
+{
+    animation-duration: 0.8s;
+    animation-iteration-count: 1;
+}
+  
+#RejuvImg.rotating.buff 
+{
+    animation-name: rotate;
+}
+  
+#RejuvImg.rotating.reverse 
+{
+    animation-name: rotate-reverse;
+}
+
+#RejuvImg.buff 
+{
+    wash-color: yellow;
+}
+  
+#RejuvImg.reverse 
+{
+    wash-color: grey;
+}
+
+#RejuvImg.white 
+{
+    wash-color: white;
+}

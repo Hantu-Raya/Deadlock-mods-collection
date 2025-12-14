@@ -1,0 +1,32 @@
+@import url("s2r://panorama/styles/base/hud_damage_impact.vcss_c");
+
+.playerName
+{
+	flow-children: right;
+	font-size: 18px;
+	color: #242400;
+	margin-left: 4px;
+	vertical-align: center;
+}
+
+#healthRemaining
+{
+	flow-children: right;
+	width: 120px;
+	height: 100%;
+	background-color: yellow;
+	border-bottom: 2px solid #bafd11;
+	transition-property: width, background-color;
+	transition-duration: 0.5s;
+}
+
+#heroIcon.heroDead
+{
+	wash-color: yellow;
+}
+
+.is_heal #healthRemaining
+{
+	background-color: #bc22ab;
+	border-bottom: 2px solid #bc22ab;
+}

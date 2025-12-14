@@ -1,0 +1,7 @@
+@import url("s2r://panorama/styles/base/citadel_hud_top_bar.vcss_c");
+
+.objDamageContainer
+{
+	margin-top: 2px;
+	visibility: visible;
+}

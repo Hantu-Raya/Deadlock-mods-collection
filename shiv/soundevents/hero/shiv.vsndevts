@@ -1,0 +1,797 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	Shiv.Wpn.Fire = 
+	{
+		base = "Base.Weapon"
+		volume = 2.000000
+		recency_bias_max_scale = 0.800000
+		preload_vsnds = true
+		vsnd_files = 
+		[
+			"sounds/weapons/shiv/fire/01.vsnd",
+			"sounds/weapons/shiv/fire/02.vsnd",
+			"sounds/weapons/shiv/fire/03.vsnd",
+			"sounds/weapons/shiv/fire/04.vsnd",
+			"sounds/weapons/shiv/fire/05.vsnd",
+			"sounds/weapons/shiv/fire/06.vsnd",
+			"sounds/weapons/shiv/fire/07.vsnd",
+			"sounds/weapons/shiv/fire/08.vsnd",
+			"sounds/weapons/shiv/fire/09.vsnd",
+			"sounds/weapons/shiv/fire/10.vsnd",
+			"sounds/weapons/shiv/fire/11.vsnd",
+			"sounds/weapons/shiv/fire/12.vsnd",
+			"sounds/weapons/shiv/fire/13.vsnd",
+			"sounds/weapons/shiv/fire/14.vsnd",
+			"sounds/weapons/shiv/fire/15.vsnd",
+			"sounds/weapons/shiv/fire/16.vsnd",
+			"sounds/weapons/shiv/fire/17.vsnd",
+			"sounds/weapons/shiv/fire/18.vsnd",
+			"sounds/weapons/shiv/fire/19.vsnd",
+			"sounds/weapons/shiv/fire/20.vsnd",
+			"sounds/weapons/shiv/fire/21.vsnd",
+			"sounds/weapons/shiv/fire/22.vsnd",
+			"sounds/weapons/shiv/fire/23.vsnd",
+			"sounds/weapons/shiv/fire/24.vsnd",
+			"sounds/weapons/shiv/fire/25.vsnd",
+			"sounds/weapons/shiv/fire/26.vsnd",
+			"sounds/weapons/shiv/fire/27.vsnd",
+			"sounds/weapons/shiv/fire/28.vsnd",
+			"sounds/weapons/shiv/fire/29.vsnd",
+			"sounds/weapons/shiv/fire/30.vsnd",
+			"sounds/weapons/shiv/fire/31.vsnd",
+			"sounds/weapons/shiv/fire/32.vsnd",
+			"sounds/weapons/shiv/fire/33.vsnd",
+			"sounds/weapons/shiv/fire/34.vsnd",
+			"sounds/weapons/shiv/fire/35.vsnd",
+			"sounds/weapons/shiv/fire/36.vsnd",
+			"sounds/weapons/shiv/fire/37.vsnd",
+			"sounds/weapons/shiv/fire/38.vsnd",
+			"sounds/weapons/shiv/fire/39.vsnd",
+			"sounds/weapons/shiv/fire/40.vsnd",
+			"sounds/weapons/shiv/fire/41.vsnd",
+			"sounds/weapons/shiv/fire/42.vsnd",
+			"sounds/weapons/shiv/fire/43.vsnd",
+			"sounds/weapons/shiv/fire/44.vsnd",
+			"sounds/weapons/shiv/fire/45.vsnd",
+			"sounds/weapons/shiv/fire/46.vsnd",
+			"sounds/weapons/shiv/fire/47.vsnd",
+			"sounds/weapons/shiv/fire/48.vsnd",
+			"sounds/weapons/shiv/fire/49.vsnd",
+			"sounds/weapons/shiv/fire/50.vsnd",
+			"sounds/weapons/shiv/fire/51.vsnd",
+			"sounds/weapons/shiv/fire/52.vsnd",
+			"sounds/weapons/shiv/fire/53.vsnd",
+			"sounds/weapons/shiv/fire/54.vsnd",
+			"sounds/weapons/shiv/fire/55.vsnd",
+			"sounds/weapons/shiv/fire/56.vsnd",
+			"sounds/weapons/shiv/fire/57.vsnd",
+			"sounds/weapons/shiv/fire/58.vsnd",
+			"sounds/weapons/shiv/fire/59.vsnd",
+		]
+		vsnd_duration = 5.412896
+	}
+	Shiv.Wpn.Alt.Fire = 
+	{
+		base = "Base.Weapon.Shotgun"
+		volume = 2.000000
+		recency_bias_max_scale = 0.800000
+		vsnd_files = 
+		[
+			"sounds/weapons/shiv/shiv_weapon_fire_alt_01.vsnd",
+			"sounds/weapons/shiv/shiv_weapon_fire_alt_02.vsnd",
+			"sounds/weapons/shiv/shiv_weapon_fire_alt_03.vsnd",
+			"sounds/weapons/shiv/shiv_weapon_fire_alt_04.vsnd",
+			"sounds/weapons/shiv/shiv_weapon_fire_alt_05.vsnd",
+			"sounds/weapons/shiv/shiv_weapon_fire_alt_06.vsnd",
+		]
+		vsnd_duration = 4.630114
+	}
+	Shiv.Wpn.Zoom.In = 
+	{
+        	base = "Base.Weapon.Foley"
+		volume = -32.000000
+		pitch_rand_min = -0.100000
+		pitch_rand_max = 0.100000
+		volume_rand_min = -0.300000
+		volume_rand_max = 0.100000
+		vsnd_files = "sounds/weapons/shiv/zoom/in.vsnd"
+		vsnd_duration = 1.309833
+	}
+	Shiv.Wpn.Zoom.Out = 
+	{
+        	base = "Base.Weapon.Foley"
+		volume = -32.000000
+		pitch_rand_min = -0.050000
+		pitch_rand_max = 0.050000
+		volume_rand_min = -0.300000
+		volume_rand_max = 0.100000
+		pitch = 1.100000
+		vsnd_files = "sounds/weapons/shiv/zoom/out.vsnd"
+		vsnd_duration = 1.358688
+	}
+	Shiv.Wpn.Reload.Clip.Out = 
+	{
+       	base = "Base.Weapon.Foley"
+		volume = -15.000000
+		pitch_rand_min = -0.150000
+		pitch_rand_max = 0.100000
+		volume_rand_min = -0.300000
+		volume_rand_max = 0.100000
+		pitch = 0.960000
+		vsnd_files = "sounds/weapons/shiv/reload/clip_out.vsnd"
+		vsnd_duration = 1.432854
+	}
+	Shiv.Reload.ClipIn = 
+	{
+       	base = "Base.Weapon.Foley"
+		volume = -15.000000
+		pitch = 1.100000
+		pitch_rand_min = -0.050000
+		pitch_rand_max = 0.050000
+		volume_rand_min = -0.300000
+		volume_rand_max = 0.100000
+		vsnd_files = "sounds/weapons/shiv/reload/clip_in.vsnd"
+		vsnd_duration = 1.606375
+	}
+    Shiv.Wpn.Reload.Start = 
+    {
+        base = "Base.Weapon.Foley"
+        volume = -2.000000
+        mono_downmix_enabled = 0.000000
+        vsnd_files = 
+        [
+            "sounds/weapons/shiv/reload/shiv_wpn_reload_start_01.vsnd",
+            "sounds/weapons/shiv/reload/shiv_wpn_reload_start_02.vsnd",
+            "sounds/weapons/shiv/reload/shiv_wpn_reload_start_03.vsnd",
+        ]
+        vsnd_duration = 0.883311
+    }
+    Shiv.Wpn.Reload.Mid = 
+    {
+        base = "Base.Weapon.Foley"
+        volume = -2.000000
+        mono_downmix_enabled = 0.000000
+        vsnd_files = 
+        [
+            "sounds/weapons/shiv/reload/shiv_wpn_reload_mid_01.vsnd",
+            "sounds/weapons/shiv/reload/shiv_wpn_reload_mid_02.vsnd",
+            "sounds/weapons/shiv/reload/shiv_wpn_reload_mid_03.vsnd",
+        ]
+        vsnd_duration = 1.378594
+    }
+    Shiv.Wpn.Reload.End = 
+    {
+        base = "Base.Weapon.Foley"
+        volume = -2.000000
+        mono_downmix_enabled = 0.000000
+        vsnd_files = 
+        [
+            "sounds/weapons/shiv/reload/shiv_wpn_reload_end_01.vsnd",
+            "sounds/weapons/shiv/reload/shiv_wpn_reload_end_02.vsnd",
+            "sounds/weapons/shiv/reload/shiv_wpn_reload_end_03.vsnd",
+        ]
+        vsnd_duration = 0.474580
+    }
+	Shiv.ShivDagger.Surface.Impact = 
+	{
+		base = "Base.Ability"
+		volume = -4.000000
+		vsnd_files = 
+		[
+			"sounds/abilities/shiv/a1_thrown_shiv/surf_imp_pop_01.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/surf_imp_pop_02.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/surf_imp_pop_03.vsnd",
+		]
+		vsnd_duration = 1.498917
+	}
+	Shiv.ShivDagger.Whizby = 
+	{
+		base = "Base.Bullet.Whizby"
+		volume = -9.000000
+		vsnd_files = 
+		[
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_01.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_02.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_03.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_04.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_05.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_06.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_07.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_08.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_09.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_10.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_11.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_12.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_13.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_14.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_15.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_16.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_17.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_18.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_19.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_20.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_21.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_22.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_23.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_24.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_25.vsnd",
+			"sounds/abilities/shiv/a1_thrown_shiv/whizby_26.vsnd",
+		]
+		vsnd_duration = 1.868125
+	}
+	Shiv.ShivDagger.Hit = 
+	{
+		base = "Base.Ability.Hit"
+		volume = 9.000000
+		pitch = 1.100000
+		vsnd_files = "sounds/abilities/shiv/shiv_a1_dagger_hit.vsnd"
+		vsnd_duration = 0.509524
+	}
+	Shiv.ShivDagger.ProjectileLoop = 
+	{
+		base = "Base.Ability"
+		volume_falloff_min = 100.000000
+		pitch = 1.100000
+		volume = -3.000000
+		vsnd_files = "sounds/abilities/shiv/shiv_throw_fly.vsnd"
+	}
+	Shiv.Ability.ShivFlash.ChargeUp = 
+	{
+		base = "Base.Ability"
+		vsnd_files = "sounds/abilities/sumo/tackle_charge_up.vsnd"
+	}
+	Shiv.Ability.ShivFlash.Leap = 
+	{
+		base = "Base.Ability.Ult"
+		volume = 10.000000
+		vsnd_files = "sounds/abilities/shiv/killing_blow_cast.vsnd"
+		volume_fade_in = 0.000000
+		volume_fade_out = 0.000000
+		vsnd_duration = 2.720000
+	}
+	Shiv.Ability.ShivFlash.Impact = 
+	{
+		type = "citadel_start_multi"
+		soundevent_01 = "Shiv.Ability.ShivFlash.Impact_01"
+		soundevent_02 = "Shiv.Ability.ShivFlash.Impact_02"
+		soundevent_03 = "Shiv.Ability.ShivFlash.Impact_03"
+		volume = 1.000000
+		use_01 = 1.000000
+		use_02 = 1.000000
+		use_03 = 1.000000
+	}
+	Shiv.Ability.ShivFlash.Impact_01 = 
+	{
+		base = "Base.Ability"
+		volume = 10.500000
+		vsnd_files = "sounds/abilities/shiv/killing_blow_impact.vsnd"
+		vsnd_duration = 2.285986
+	}
+	Shiv.Ability.ShivFlash.Impact_02 = 
+	{
+		base = "Base.Ability"
+		volume = 11.500000
+		delay = 0.350000
+		vsnd_files = "sounds/vo/shiv/shiv_monster_kill_anyhero_04.vsnd"
+		vsnd_duration = 1.147000
+	}
+	Shiv.Ability.ShivFlash.Impact_03 = 
+	{
+		context_name = "shiv"
+		base = "Base.Ability"
+		volume = 8.000000
+		delay = 2.850000
+		vsnd_files = 
+		[
+			"sounds/vo/shiv/shiv_angry_01.vsnd",
+			"sounds/vo/shiv/shiv_angry_02.vsnd",
+			"sounds/vo/shiv/shiv_angry_03.vsnd",
+			"sounds/vo/shiv/shiv_angry_04.vsnd",
+			"sounds/vo/shiv/shiv_angry_05.vsnd",
+			"sounds/vo/shiv/shiv_angry_06.vsnd",
+			"sounds/vo/shiv/shiv_angry_07.vsnd",
+			"sounds/vo/shiv/shiv_angry_08.vsnd",
+			"sounds/vo/shiv/shiv_angry_09.vsnd",
+			"sounds/vo/shiv/shiv_angry_10.vsnd",
+			"sounds/vo/shiv/shiv_desperation_power4_01.vsnd",
+			"sounds/vo/shiv/shiv_desperation_power4_02.vsnd",
+			"sounds/vo/shiv/shiv_desperation_power4_03.vsnd",
+			"sounds/vo/shiv/shiv_desperation_power4_04.vsnd",
+			"sounds/vo/shiv/shiv_desperation_power4_05.vsnd",
+		]
+		vsnd_duration = 3.085986
+	}
+	Shiv.Ability.ShivDash.Miss = 
+	{
+		type = "citadel_start_multi"
+		soundevent_01 = "Shiv.Ability.ShivDash.Miss.01"
+		soundevent_02 = "Shiv.Ability.ShivDash.Miss.02"
+		volume = 2.000000
+		use_01 = 1.000000
+		use_02 = 1.000000
+	}
+	Shiv.Ability.ShivDash.Miss.01 = 
+	{
+		base = "Base.Ability"
+		pitch = 0.800000
+		pitch_rand_min = -0.070000
+		pitch_rand_max = 0.100000
+		volume_rand_min = -0.300000
+		volume_rand_max = 0.100000
+		volume = -6.000000
+		vsnd_files = "sounds/abilities/shiv/shiv_dash_cast_lyr1.vsnd"
+		vsnd_duration = 3.218563
+	}
+	Shiv.Ability.ShivDash.Miss.02 = 
+	{
+		base = "Base.Ability"
+		pitch = 1.100000
+		pitch_rand_min = -0.080000
+		pitch_rand_max = 0.100000
+		volume_rand_min = -0.300000
+		volume_rand_max = 0.100000
+		volume = -9.000000
+		vsnd_files = "sounds/abilities/shiv/shiv_dash_cast_lyr2.vsnd"
+		vsnd_duration = 2.767000
+	}
+	Shiv.Ability.ShivDash.HitEnemy = 
+	{
+		base = "Base.Ability"
+		volume = 2.000000
+		vsnd_files = "sounds/abilities/shiv/shiv_dash_impact.vsnd"
+		vsnd_duration = 2.424438
+	}
+	Shiv.Ability.ShivTwist.HitEnemy = 
+	{
+		base = "Base.Ability"
+		vsnd_files = "sounds/abilities/hook_impact.vsnd"
+	}
+	Shiv.Ability.ShivTwist.Cast = 
+	{
+		base = "Base.Ability"
+		vsnd_files = "sounds/abilities/attackspeedslow_cast.vsnd"
+	}
+	Shiv.Ability.GatherFoes.Target = 
+	{
+		base = "Base.Ability"
+		vsnd_files = "sounds/abilities/sumo/tackle_charge_up.vsnd"
+	}
+	Shiv.Ability.GatherFoes.Cast = 
+	{
+		base = "Base.Ability"
+		vsnd_files = "sounds/abilities/bull_leap_takeoff.vsnd"
+	}
+	Shiv.Ability.BloodVision.Target.Lp = 
+	{
+		base = "Base.Ability"
+		volume = -9.000000
+		volume_falloff_min = 50.000000
+		volume_falloff_max = 3000.000000
+		block_distance_max = 4000.000000
+		volume_fade_out = 0.500000
+		vsnd_files = "sounds/abilities/shiv/blood_vision_lp2.vsnd"
+		vsnd_duration = 8.005667
+	}
+	Shiv.Ability.BloodVision.Activate = 
+	{
+		base = "Base.Ability"
+		volume = 0.000000
+		volume_fade_out = 0.500000
+		vsnd_files = "sounds/abilities/shiv/blood_vision_activate.vsnd"
+		vsnd_duration = 8.345479
+	}
+	Shiv.Ability.BountyPickup = 
+	{
+		base = "Base.Ability"
+		volume_rand_min = -0.100000
+		pitch = 0.900000
+		pitch_rand_max = 0.010000
+		pitch_rand_min = -0.010000
+		volume = -14.000000
+		vsnd_files = "sounds/abilities/shiv/hairspray_bounty_pickup.vsnd"
+		vsnd_duration = 0.921646
+	}
+	Shiv.Wpn.Impact = 
+	{
+		base = "Base.Bullet.Impact"
+		vsnd_files = 
+		[
+			"sounds/weapons/shiv/impact/01.vsnd",
+			"sounds/weapons/shiv/impact/02.vsnd",
+			"sounds/weapons/shiv/impact/03.vsnd",
+			"sounds/weapons/shiv/impact/04.vsnd",
+			"sounds/weapons/shiv/impact/05.vsnd",
+			"sounds/weapons/shiv/impact/06.vsnd",
+			"sounds/weapons/shiv/impact/07.vsnd",
+			"sounds/weapons/shiv/impact/08.vsnd",
+			"sounds/weapons/shiv/impact/08.vsnd",
+			"sounds/weapons/shiv/impact/10.vsnd",
+			"sounds/weapons/shiv/impact/11.vsnd",
+			"sounds/weapons/shiv/impact/12.vsnd",
+			"sounds/weapons/shiv/impact/13.vsnd",
+			"sounds/weapons/shiv/impact/14.vsnd",
+			"sounds/weapons/shiv/impact/15.vsnd",
+			"sounds/weapons/shiv/impact/16.vsnd",
+			"sounds/weapons/shiv/impact/17.vsnd",
+			"sounds/weapons/shiv/impact/18.vsnd",
+			"sounds/weapons/shiv/impact/19.vsnd",
+			"sounds/weapons/shiv/impact/20.vsnd",
+			"sounds/weapons/shiv/impact/21.vsnd",
+			"sounds/weapons/shiv/impact/22.vsnd",
+		]
+		vsnd_duration = 0.787604
+	}
+	Shiv.Footstep = 
+	{
+		base = "Base.Footsteps"
+		vsnd_track2_vol_offset_db = -6.000000
+		vsnd_files = 
+		[
+			"sounds/player/footsteps/shiv/shiv_footstep_01.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_02.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_03.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_04.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_05.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_06.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_07.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_08.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_09.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_10.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_11.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_12.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_13.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_14.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_15.vsnd",
+		]
+		vsnd_files_track2 = 
+		[
+			"sounds/player/movement/shiv/shiv_movement_foley_short_01.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_02.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_03.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_04.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_05.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_06.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_07.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_08.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_09.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_10.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_11.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_12.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_13.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_14.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_15.vsnd",
+		]
+		vsnd_duration = 0.464989
+	}
+	Shiv.Movement.Short = 
+	{
+		base = "Base.Movement"
+		volume = -2.000000
+		vsnd_files = 
+		[
+			"sounds/player/movement/shiv/shiv_movement_foley_short_01.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_02.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_03.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_04.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_05.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_06.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_07.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_08.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_09.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_10.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_11.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_12.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_13.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_14.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_15.vsnd",
+		]
+		vsnd_duration = 0.433039
+	}
+	Shiv.Movement.Long = 
+	{
+		base = "Base.Movement"
+	}
+	Shiv.JumpLand = 
+	{
+		base = "Base.Footsteps.JumpLand"
+		volume = 3.000000
+		vsnd_track2_vol_offset_db = -7.000000
+		vsnd_files = 
+		[
+			"sounds/player/footsteps/shiv/shiv_footstep_01.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_02.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_03.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_04.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_05.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_06.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_07.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_08.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_09.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_10.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_11.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_12.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_13.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_14.vsnd",
+			"sounds/player/footsteps/shiv/shiv_footstep_15.vsnd",
+		]
+		vsnd_files_track2 = 
+		[
+			"sounds/player/movement/generic/foley_light/default_foley_01.vsnd",
+			"sounds/player/movement/generic/foley_light/default_foley_02.vsnd",
+			"sounds/player/movement/generic/foley_light/default_foley_03.vsnd",
+			"sounds/player/movement/generic/foley_light/default_foley_04.vsnd",
+			"sounds/player/movement/generic/foley_light/default_foley_05.vsnd",
+			"sounds/player/movement/generic/foley_light/default_foley_06.vsnd",
+			"sounds/player/movement/generic/foley_light/default_foley_07.vsnd",
+			"sounds/player/movement/generic/foley_light/default_foley_08.vsnd",
+			"sounds/player/movement/generic/foley_light/default_foley_09.vsnd",
+		]
+		vsnd_duration = 0.730000
+	}
+	Shiv.Mantle = 
+	{
+		base = "Base.Movement"
+		volume = -2.000000
+	}
+	Shiv.Melee.Swing = 
+	{
+		base = "Base.Movement.Melee"
+		vsnd_files = 
+		[
+			"sounds/player/melee/shared/swing_short_01.vsnd",
+			"sounds/player/melee/shared/swing_short_02.vsnd",
+			"sounds/player/melee/shared/swing_short_03.vsnd",
+			"sounds/player/melee/shared/swing_short_04.vsnd",
+			"sounds/player/melee/shared/swing_short_05.vsnd",
+			"sounds/player/melee/shared/swing_short_06.vsnd",
+			"sounds/player/melee/shared/swing_short_07.vsnd",
+			"sounds/player/melee/shared/swing_short_08.vsnd",
+			"sounds/player/melee/shared/swing_short_09.vsnd",
+			"sounds/player/melee/shared/swing_short_10.vsnd",
+			"sounds/player/melee/shared/swing_short_11.vsnd",
+			"sounds/player/melee/shared/swing_short_12.vsnd",
+			"sounds/player/melee/shared/swing_short_13.vsnd",
+			"sounds/player/melee/shared/swing_short_14.vsnd",
+			"sounds/player/melee/shared/swing_short_15.vsnd",
+			"sounds/player/melee/shared/swing_short_16.vsnd",
+			"sounds/player/melee/shared/swing_short_17.vsnd",
+			"sounds/player/melee/shared/swing_short_18.vsnd",
+			"sounds/player/melee/shared/swing_short_19.vsnd",
+			"sounds/player/melee/shared/swing_short_20.vsnd",
+			"sounds/player/melee/shared/swing_short_21.vsnd",
+			"sounds/player/melee/shared/swing_short_22.vsnd",
+			"sounds/player/melee/shared/swing_short_23.vsnd",
+			"sounds/player/melee/shared/swing_short_24.vsnd",
+		]
+		vsnd_files_track2 = 
+		[
+			"sounds/player/movement/shiv/shiv_movement_foley_short_01.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_02.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_03.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_04.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_05.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_06.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_07.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_08.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_09.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_10.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_11.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_12.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_13.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_14.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_15.vsnd",
+		]
+		vsnd_duration = 1.062208
+	}
+	Shiv.Melee.Swing.Charged = 
+	{
+		base = "Base.Movement.Melee"
+		vsnd_track2_vol_offset_db = 0.000000
+		vsnd_files = 
+		[
+			"sounds/player/melee/shared/swing_long_01.vsnd",
+			"sounds/player/melee/shared/swing_long_02.vsnd",
+			"sounds/player/melee/shared/swing_long_03.vsnd",
+			"sounds/player/melee/shared/swing_long_04.vsnd",
+			"sounds/player/melee/shared/swing_long_05.vsnd",
+			"sounds/player/melee/shared/swing_long_06.vsnd",
+			"sounds/player/melee/shared/swing_long_07.vsnd",
+			"sounds/player/melee/shared/swing_long_08.vsnd",
+			"sounds/player/melee/shared/swing_long_09.vsnd",
+			"sounds/player/melee/shared/swing_long_10.vsnd",
+			"sounds/player/melee/shared/swing_long_11.vsnd",
+			"sounds/player/melee/shared/swing_long_12.vsnd",
+			"sounds/player/melee/shared/swing_long_13.vsnd",
+			"sounds/player/melee/shared/swing_long_14.vsnd",
+			"sounds/player/melee/shared/swing_long_15.vsnd",
+			"sounds/player/melee/shared/swing_long_16.vsnd",
+			"sounds/player/melee/shared/swing_long_17.vsnd",
+			"sounds/player/melee/shared/swing_long_18.vsnd",
+			"sounds/player/melee/shared/swing_long_19.vsnd",
+			"sounds/player/melee/shared/swing_long_20.vsnd",
+			"sounds/player/melee/shared/swing_long_21.vsnd",
+			"sounds/player/melee/shared/swing_long_22.vsnd",
+			"sounds/player/melee/shared/swing_long_23.vsnd",
+			"sounds/player/melee/shared/swing_long_24.vsnd",
+			"sounds/player/melee/shared/swing_long_25.vsnd",
+		]
+		vsnd_files_track2 = 
+		[
+			"sounds/player/movement/shiv/shiv_movement_foley_short_01.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_02.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_03.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_04.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_05.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_06.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_07.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_08.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_09.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_10.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_11.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_12.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_13.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_14.vsnd",
+			"sounds/player/movement/shiv/shiv_movement_foley_short_15.vsnd",
+		]
+		vsnd_duration = 1.399792
+	}
+	Shiv.Transform.Cast = 
+	{
+		base = "Base.Ability.Ult"
+		vsnd_files = "sounds/abilities/shiv/shiv_transform.vsnd"
+		vsnd_duration = 3.611338
+	}
+	Shiv.Dive.Falling.Lp = 
+	{
+		base = "Base.Ability.Ult"
+		volume = 0.000000
+		delay_rand_max = -5.000000
+		volume_fade_in = 0.750000
+		volume_fade_out = 0.100000
+		pitch_rand_min = -0.310000
+		pitch_rand_max = -0.350000
+		param_envelope_enabled = 1.000000
+		param_envelope_duration = 10.000000
+		pitch_envelope_scale_min = 0.950000
+		pitch_envelope_scale_max = 1.250000
+		vsnd_files = "sounds/abilities/archer/archer_guided_arrow_lp.vsnd"
+		vsnd_duration = 36.432926
+	}
+	Shiv.ShivDagger.Cast = 
+	{
+		type = "citadel_start_multi"
+		soundevent_01 = "Shiv.ShivDagger.Cast.Bounce"
+		soundevent_02 = "Shiv.ShivDagger.Cast.Growl"
+		soundevent_03 = "Shiv.ShivDagger.Cast.Low"
+		soundevent_04 = "Shiv.ShivDagger.Cast.Stab"
+		volume = 3.500000
+		use_01 = 1.000000
+		use_02 = 1.000000
+		use_03 = 1.000000
+		use_04 = 1.000000
+	}
+	Shiv.ShivDagger.Cast.Bounce = 
+	{
+		base = "Base.Ability"
+		volume = 0.000000
+		vsnd_files = "sounds/abilities/shiv/a1_thrown_shiv/cast_bounce.vsnd"
+		vsnd_duration = 1.088333
+	}
+	Shiv.ShivDagger.Cast.Growl = 
+	{
+		base = "Base.Ability"
+		volume = -9.000000
+		vsnd_files = "sounds/abilities/shiv/a1_thrown_shiv/cast_growl.vsnd"
+		vsnd_duration = 1.398792
+	}
+	Shiv.ShivDagger.Cast.Low = 
+	{
+		base = "Base.Ability"
+		volume = 0.000000
+		vsnd_files = "sounds/abilities/shiv/a1_thrown_shiv/cast_low.vsnd"
+		vsnd_duration = 1.520771
+	}
+	Shiv.ShivDagger.Cast.Stab = 
+	{
+		base = "Base.Ability"
+		volume = -12.000000
+		vsnd_files = "sounds/abilities/shiv/a1_thrown_shiv/cast_stab.vsnd"
+		vsnd_duration = 1.347875
+	}
+	Shiv.Ability.ShivDash.Start = 
+	{
+		type = "citadel_start_multi"
+		soundevent_01 = "Shiv.Ability.ShivDash.Start_01"
+		soundevent_02 = "Shiv.Ability.ShivDash.Start_02"
+		volume = 1.000000
+		use_01 = 1.000000
+		use_02 = 1.000000
+	}
+	Shiv.Ability.ShivDash.Start_01 = 
+	{
+		base = "Base.Ability"
+        	pitch_rand_min = 0.000000
+        	pitch_rand_max = 0.000000
+        	volume_rand_min = 0.000000
+        	volume_rand_max = 0.000000
+		volume = -1.000000
+		vsnd_files = "sounds/abilities/shiv/shiv_dash_cast_lyr1.vsnd"
+		vsnd_duration = 3.218563
+	}
+	Shiv.Ability.ShivDash.Start_02 = 
+	{
+		base = "Base.Ability"
+        	pitch_rand_min = 0.000000
+        	pitch_rand_max = 0.000000
+        	volume_rand_min = 0.000000
+        	volume_rand_max = 0.000000
+        	volume = -1.000000
+		vsnd_files = "sounds/abilities/shiv/shiv_dash_cast_lyr2.vsnd"
+		vsnd_duration = 2.767000
+	}
+	Shiv.Rage.Full_Start = 
+	{
+		base = "Base.Ability"
+		pitch_rand_min = 0.000000
+		pitch_rand_max = 0.000000
+		volume_rand_min = -0.300000
+		volume_rand_max = 0.100000
+		volume = 1.000000
+		vsnd_files = "sounds/abilities/shiv/shiv_rage_full.vsnd"
+		vsnd_duration = 2.168911
+	}
+	Shiv.Rage.Full_End = 
+	{
+		base = "Base.Ability"
+		pitch_rand_min = 0.000000
+		pitch_rand_max = 0.000000
+		volume_rand_min = -0.300000
+		volume_rand_max = 0.100000
+		volume = 1.000000
+		pitch = 0.800000
+		vsnd_files = "sounds/abilities/shiv/shiv_rage_end.vsnd"
+		vsnd_duration = 1.880952
+	}
+	Shiv.Ability.ShivDash.Start_Clone = 
+	{
+		base = "Base.Ability"
+		pitch_rand_min = 0.000000
+		pitch_rand_max = 0.000000
+		volume_rand_min = 0.000000
+		volume_rand_max = 0.000000
+		volume = 0.000000
+		pitch = 1.500000
+		vsnd_files = "sounds/abilities/shiv/shiv_dash_cast_lyr1.vsnd"
+		vsnd_duration = 1.587120
+	}
+	Shiv.Ability.ShivFlash.Impact_Kill = 
+	{
+		base = "Base.Ability.Hit"
+		pitch = 0.900000
+		volume = 10.500000
+		vsnd_files = "sounds/abilities/shiv/killing_blow_impact.vsnd"
+		vsnd_duration = 2.285986
+	}
+    Shiv.Progession.Page.Win.VO = 
+    {
+        base = "Base.HeroPick.VO.2d"
+        context_name = "shiv"
+        vsnd_files = 
+        [
+            "sounds/vo/shiv/shiv_kill_anyhero_10.vsnd",
+            "sounds/vo/shiv/shiv_happy_06.vsnd",
+            "sounds/vo/shiv/shiv_happy_08.vsnd",
+        ]
+        vsnd_duration = 2.228367
+    }
+    Shiv.Progession.Page.Lose.VO = 
+    {
+        base = "Base.HeroPick.VO.2d"
+        context_name = "shiv"
+        vsnd_files = 
+        [
+            "sounds/vo/shiv/shiv_near_miss_03.vsnd",
+        ]
+        vsnd_duration = 1.293175
+    }
+}
