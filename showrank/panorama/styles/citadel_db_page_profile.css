@@ -1,0 +1,5 @@
+@import url("s2r://panorama/styles/base/citadel_db_page_profile.vcss_c");
+#AllStats,#CoreRating
+{
+    visibility: visible;
+}

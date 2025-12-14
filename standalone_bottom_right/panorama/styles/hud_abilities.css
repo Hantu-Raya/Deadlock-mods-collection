@@ -1,0 +1,12 @@
+@import url("s2r://panorama/styles/base/hud_abilities.vcss_c");
+.items .ability_container.item_passive.Hidden
+{
+	visibility: visible;
+}
+
+#hud_passive_items #abilities
+{
+	height: 100%;
+	overflow: noclip;
+	horizontal-align: left;
+}

@@ -1,0 +1,361 @@
+{| class="wikitable"
+! Event
+! Panel Event
+! Description
+|-
+| <code>AddStyle(panoramasymbol class)</code>
+| Yes
+| Add a CSS class to a panel.
+|-
+| <code>AddStyleAfterDelay(panoramasymbol class, float pre-delay)</code>
+| Yes
+| Add a CSS class to a panel after a specified delay. 
+|-
+| <code>AddStyleToEachChild(panoramasymbol class)</code>
+| Yes
+| Add a CSS class to all children of this panel.
+|-
+| <code>AddTimedStyle(panoramasymbol class, float duration, float pre-delay)</code>
+| Yes
+| Add a class for a specified duration, with optional pre-delay; clears existing timers when called with same class. 
+|-
+| <code>AsyncEvent(float delay, event eventToFire)</code>
+| No
+| Fire another event after a delay (in seconds).
+|-
+| <code>CitadelHideAbilityDetailsRadialTooltip()</code>
+| Yes
+| Hide the item Abillity.
+|-
+| <code>CitadelHideAbilityDetailsTooltip()</code>
+| Yes
+| Hide the item Abillity.
+|-
+| <code>CitadelHideBookTOCTooltip()</code>
+| Yes
+| Hide the Citadel table of contents tooltip.
+|-
+| <code>CitadelHideDamageReportAbilitySummaryTooltip()</code>
+| Yes
+| Hide the ability damage breakdown tooltip
+|-
+| <code>CitadelHideDamageReportHeroSummaryTooltip()</code>
+| Yes
+| Hide the hero summary tooltip
+|-
+| <code>CitadelHideLevelRewardsTooltip()</code>
+| Yes
+| Hide the level rewards tooltip.
+|-
+| <code>CitadelHideMatchDetailsAwardTooltip()</code>
+| Yes
+| Hide the player awards tooltip.
+|-
+| <code>CitadelHideModBonusDisplay()</code>
+| Yes
+| Hides the Mod Bonus Display Tooltip
+|-
+| <code>CitadelHideModTooltip(class CUtlStringToken, class CPlayerSlot)</code>
+| Yes
+| Hide the ability tooltip.
+|-
+| <code>CitadelHideObjectiveTooltip()</code>
+| Yes
+| Hide the objective tooltip.
+|-
+| <code>CitadelHidePartyRostersForHeroTooltip()</code>
+| Yes
+| Hide the player list and rosters of party members that have this hero in their roster
+|-
+| <code>CitadelHideProfileCardTooltip()</code>
+| Yes
+| Hide the profile card tooltip.
+|-
+| <code>CitadelHideProgressBarDelta()</code>
+| Yes
+| Hides the delta on the tooltips if you unhover an item in the shop
+|-
+| <code>CitadelHideRankedBadgeTooltip()</code>
+| Yes
+| Hides the ranked badge tooltip
+|-
+| <code>CitadelHideReadOnlyAbilityDetailsTooltip()</code>
+| Yes
+| Hide the item Abillity.
+|-
+| <code>CitadelHideStatFormulaTooltip()</code>
+| Yes
+| Hide the stat formula for a base stat
+|-
+| <code>CitadelHideStatsPanelTooltip()</code>
+| Yes
+| Hides the stats panel tooltip
+|-
+| <code>CitadelHideTierBonusTooltip()</code>
+| Yes
+| Hide the tier bonus tooltip when you unhover a tier in the shop
+|-
+| <code>CitadelShowAbilityDetailsRadialTooltip(class CUtlStringToken Ability ID, class CPlayerSlot)</code>
+| Yes
+| Show the tooltip of an Ability
+|-
+| <code>CitadelShowAbilityDetailsTooltip(class CUtlStringToken Ability ID, class CPlayerSlot)</code>
+| Yes
+| Show the tooltip of an Ability
+|-
+| <code>CitadelShowAbilityDetailsTooltipFromSignoutData(class CUtlStringToken Ability ID, class CMsgMatchMetaDataContents_Players const * __ptr64, enum EAbilitySlots_t)</code>
+| Yes
+| Show the tooltip of an Ability
+|-
+| <code>CitadelShowBookTOCTooltip(string Title, string Description, string Image, bool)</code>
+| Yes
+| Show the table of contents tooltip
+|-
+| <code>CitadelShowDamageReportAbilitySummaryTooltip(class HeroID_t, bool)</code>
+| Yes
+| Shows detailed damage breakdown by ability in the Damage Report
+|-
+| <code>CitadelShowDamageReportHeroSummaryTooltip(class HeroID_t)</code>
+| Yes
+| Shows detailed information about a hero in the Damage Report
+|-
+| <code>CitadelShowLevelRewardsTooltip(class HeroID_t, bool)</code>
+| Yes
+| Show the tooltip of level rewards for heroes
+|-
+| <code>CitadelShowMatchDetailsAwardTooltip(struct CitadelPostGameAwardStrings_t, uint32, uint32)</code>
+| Yes
+| Show the player awards tooltip
+|-
+| <code>CitadelShowModBonusDisplay(enum EItemSlotTypes_t, class CPlayerSlot)</code>
+| Yes
+| Shows the Mod Bonus Display Tooltip
+|-
+| <code>CitadelShowModTooltip(class CUtlStringToken Ability ID, class CPlayerSlot)</code>
+| Yes
+| Show the tooltip of an Ability by ID
+|-
+| <code>CitadelShowModTooltipFromSearch(class CUtlStringToken Ability ID, class CPlayerSlot, string)</code>
+| Yes
+| Show the tooltip of an Ability by ID with search highlighting
+|-
+| <code>CitadelShowModTooltipFromSignoutData(class CUtlStringToken Ability ID, class MatchID_t, class CPlayerSlot)</code>
+| Yes
+| Show the tooltip of an Ability by ID with match signout data
+|-
+| <code>CitadelShowObjectiveTooltip(uint64 Team0 Objective Mask, uint64 Team1 Objective Mask)</code>
+| Yes
+| Show the tooltip of objective map given a mask of which are alive
+|-
+| <code>CitadelShowObjectiveTooltipLegacy(int32 Objective Mask)</code>
+| Yes
+| Show the tooltip of objective map given a mask of which are alive
+|-
+| <code>CitadelShowPartyRostersForHeroTooltip(class HeroID_t)</code>
+| Yes
+| Show the player list and rosters of party members that have this hero in their roster
+|-
+| <code>CitadelShowProfileCardTooltip(uint64 steamID)</code>
+| Yes
+| Show a user's profile card.
+|-
+| <code>CitadelShowProfileCardWithHeroTooltip(uint64 steamID, class HeroID_t heroID)</code>
+| Yes
+| Show a user's profile card.
+|-
+| <code>CitadelShowProgressBarDelta(enum EItemSlotTypes_t, uint32, uint32)</code>
+| Yes
+| Shows the delta on the tooltips if you're hovering an item in the shop
+|-
+| <code>CitadelShowRankedBadgeTooltip(uint32, uint32)</code>
+| Yes
+| Shows the ranked badge tooltip
+|-
+| <code>CitadelShowReadOnlyAbilityDetailsTooltip(class CUtlStringToken Ability ID, class HeroID_t, int32, enum EAbilitySlots_t)</code>
+| Yes
+| Show the tooltip of an Ability
+|-
+| <code>CitadelShowStatFormulaTooltip(class CPlayerSlot, enum EStatsType)</code>
+| Yes
+| Show the stat formula for a base stat
+|-
+| <code>CitadelShowStatsPanelTooltip(enum EItemSlotTypes_t)</code>
+| Yes
+| Shows the stats panel tooltip
+|-
+| <code>CitadelShowStatsPanelTooltipRosterSelect(enum EItemSlotTypes_t, class HeroID_t)</code>
+| Yes
+| Shows the stats panel tooltip with Hero ID
+|-
+| <code>CitadelShowStatsPanelTooltipSignout(enum EItemSlotTypes_t, class MatchID_t, class CPlayerSlot)</code>
+| Yes
+| Shows the stats panel tooltip with Signout Data
+|-
+| <code>CitadelShowStatsPanelTooltipTopBar(enum EItemSlotTypes_t, class CPlayerSlot)</code>
+| Yes
+| Shows the stats panel tooltip for player slot
+|-
+| <code>CitadelShowTierBonusTooltip(enum EItemSlotTypes_t, enum EModTier_t)</code>
+| Yes
+| Shows the tier bonus tooltip when you hover a tier in the shop
+|-
+| <code>CitadelUIHideTextTooltip(string)</code>
+| Yes
+| Hide the Citadel text tooltip.
+|-
+| <code>CitadelUIShowTextTooltip(string Loc String, string, string)</code>
+| Yes
+| Show the tooltip in Citadel so we can have custom styling from the normal UIShowTextTooltip
+|-
+| <code>DropInputFocus()</code>
+| Yes
+| Drop focus entirely from the window containing this panel.
+|-
+| <code>IfHasClassEvent(panoramasymbol class, event eventToFire)</code>
+| Yes
+| Fire another event if this panel has a given class.
+|-
+| <code>IfHoverOtherEvent(string otherPanelID, event eventToFire)</code>
+| Yes
+| Fire another event if currently hovering over a panel with the given ID.
+|-
+| <code>IfNotHasClassEvent(panoramasymbol class, event eventToFire)</code>
+| Yes
+| Fire another event if this panel does not have a given class.
+|-
+| <code>IfNotHoverOtherEvent(string otherPanelID, event eventToFire)</code>
+| Yes
+| Fire another event if not currently hovering over a panel with the given ID.
+|-
+| <code>MovePanelDown(int32 repeatCount)</code>
+| Yes
+| Move down from the panel. By default, this will change the focus position, but other panel types may implement this differently.
+|-
+| <code>MovePanelLeft(int32 repeatCount)</code>
+| Yes
+| Move left from the panel. By default, this will change the focus position, but other panel types may implement this differently.
+|-
+| <code>MovePanelRight(int32 repeatCount)</code>
+| Yes
+| Move right from the panel. By default, this will change the focus position, but other panel types may implement this differently.
+|-
+| <code>MovePanelUp(int32 repeatCount)</code>
+| Yes
+| Move up from the panel. By default, this will change the focus position, but other panel types may implement this differently.
+|-
+| <code>PageDown()</code>
+| No
+| Scroll the panel down by one page.
+|-
+| <code>PageLeft()</code>
+| No
+| Scroll the panel left by one page.
+|-
+| <code>PagePanelDown()</code>
+| Yes
+| Scroll the panel down by one page.
+|-
+| <code>PagePanelLeft()</code>
+| Yes
+| Scroll the panel left by one page.
+|-
+| <code>PagePanelRight()</code>
+| Yes
+| Scroll the panel left by one page.
+|-
+| <code>PagePanelUp()</code>
+| Yes
+| Scroll the panel up by one page.
+|-
+| <code>PageRight()</code>
+| No
+| Scroll the panel right by one page.
+|-
+| <code>PageUp()</code>
+| No
+| Scroll the panel up by one page.
+|-
+| <code>RemoveStyle(panoramasymbol class)</code>
+| Yes
+| Remove a CSS class from a panel.
+|-
+| <code>RemoveStyleAfterDelay(panoramasymbol class, float pre-delay)</code>
+| Yes
+| Remove a CSS class from a panel after a specified delay. 
+|-
+| <code>RemoveStyleFromEachChild(panoramasymbol class)</code>
+| Yes
+| Remove a CSS class from all children of this panel.
+|-
+| <code>ScrollDown()</code>
+| No
+| Scroll the panel down by one line.
+|-
+| <code>ScrollLeft()</code>
+| No
+| Scroll the panel left by one line.
+|-
+| <code>ScrollPanelDown()</code>
+| Yes
+| Scroll the panel down by one line.
+|-
+| <code>ScrollPanelLeft()</code>
+| Yes
+| Scroll the panel left by one line.
+|-
+| <code>ScrollPanelRight()</code>
+| Yes
+| Scroll the panel right by one line.
+|-
+| <code>ScrollPanelUp()</code>
+| Yes
+| Scroll the panel up by one line.
+|-
+| <code>ScrollRight()</code>
+| No
+| Scroll the panel right by one line.
+|-
+| <code>ScrollToBottom()</code>
+| Yes
+| Scroll this panel to the bottom.
+|-
+| <code>ScrollToTop()</code>
+| Yes
+| Scroll this panel to the top.
+|-
+| <code>ScrollUp()</code>
+| No
+| Scroll the panel up by one line.
+|-
+| <code>SetChildPanelsSelected(bool selected)</code>
+| Yes
+| Set whether any child panels are :selected.
+|-
+| <code>SetInputFocus()</code>
+| Yes
+| Set focus to this panel.
+|-
+| <code>SetPanelEnabled(bool enabled)</code>
+| Yes
+| Sets whether the given panel is enabled
+|-
+| <code>SetPanelSelected(bool selected)</code>
+| Yes
+| Set whether this panel is :selected.
+|-
+| <code>SwitchStyle(panoramasymbol slot, panoramasymbol class)</code>
+| Yes
+| Switch which class the panel has for a given attribute slot. Allows easily changing between multiple states.
+|-
+| <code>TogglePanelSelected()</code>
+| Yes
+| Toggle whether this panel is :selected.
+|-
+| <code>ToggleStyle(panoramasymbol class)</code>
+| Yes
+| Toggle whether a panel has the given CSS class.
+|-
+| <code>TriggerStyle(panoramasymbol class)</code>
+| Yes
+| Remove then immediately add back a CSS class from a panel. Useful to re-trigger events like animations or sound effects.
+|}

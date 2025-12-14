@@ -1,0 +1,21 @@
+@import url("s2r://panorama/styles/base/hud_minimap.vcss_c");
+
+.map_button.idol_return_enemy .idolReturnTarget
+{
+	wash-color: #DCDC2FFF;
+}
+
+.map_button.enemy.boss .boss_image
+{
+	wash-color: #DCDC2FFF;
+}
+
+.enemy.player #BackgroundImage
+{
+	background-color: #FFEA0D;
+}
+
+.friend.player #BackgroundImage
+{
+	background-color: #bc22ab;
+}

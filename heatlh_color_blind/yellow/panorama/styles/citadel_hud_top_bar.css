@@ -1,0 +1,11 @@
+@import url("s2r://panorama/styles/base/citadel_hud_top_bar.vcss_c");
+
+.team1.friend #HeroHealth_Left,.team2.friend #HeroHealth_Left
+{
+	background-color: #bc22ab;
+}
+
+.team1.enemy #HeroHealth_Left,.team2.enemy #HeroHealth_Left
+{
+	background-color: yellow;
+}

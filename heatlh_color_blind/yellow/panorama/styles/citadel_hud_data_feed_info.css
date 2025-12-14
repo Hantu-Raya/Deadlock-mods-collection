@@ -1,0 +1,40 @@
+@import url("s2r://panorama/styles/base/citadel_hud_data_feed_info.vcss_c");
+
+.enemyDied .victimContainer,.teammateDied .killerContainer,.killedSelf .victimContainer
+{
+	background-color: #FFFF56;
+}
+
+.enemyDied .victimImageContainer,.teammateDied .killerImageContainer,.killedSelf .victimImageContainer
+{
+	background-color: #828200;
+}
+
+.teammateDied CitadelHeroImage.assister
+{
+	border: 2px solid #FFFF56;
+}
+
+.enemyDied CitadelHeroImage.assister
+{
+	border: 2px solid #F7D7FF90;
+}
+
+.enemyDied .killerContainer,.teammateDied .victimContainer
+{
+	background-color: #F7D7FF;
+}
+
+.enemyDied .killerImageContainer,.teammateDied .victimImageContainer
+{
+	background-color: #B797BD;
+}
+
+CitadelHeroImage.assister
+{
+	height: 100%;
+	width: 20px;
+	border: 2px solid #F7D7FF90;
+	background-color: #F7D7FF30;
+	margin-right: 3px;
+}

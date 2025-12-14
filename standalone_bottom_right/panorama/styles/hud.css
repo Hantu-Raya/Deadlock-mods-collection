@@ -1,0 +1,15 @@
+/* Prettified by Source 2 Viewer 13.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud.vcss_c");
+#hud_passive_items
+{
+    height: 60px;
+    width: 600px;
+    margin: 20px;
+    margin-bottom: 20%;
+    margin-right: -30.4%;
+    visibility: visible;
+    horizontal-align: right;
+    vertical-align: bottom;
+    ui-scale: 105%;
+}

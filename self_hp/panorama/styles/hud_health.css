@@ -1,0 +1,31 @@
+/* Prettified by Source 2 Viewer 15.0.0.0 - https://valveresourceformat.github.io */
+@import url("s2r://panorama/styles/base/hud_health.vcss_c");
+
+#cd_icons {
+    visibility: collapse;
+    width: 23%;
+    height: 10.5%;
+    margin-top: 11%;
+}
+
+.fortitude_img {
+    width: 100%;
+    height: 100%;
+    z-index: 99999;
+    opacity: 0.4;
+}
+
+#fort_cd {
+    font-size: 16px;
+    color: offWhite;
+    horizontal-align: center;
+    vertical-align: center;
+    width: 100%;
+    height: 100%;
+    margin-top: 15%;
+    font-weight: semi-bold;
+    text-align: center;
+    font-family: sansMono;
+    z-index: 999999;
+    opacity: 1;
+}

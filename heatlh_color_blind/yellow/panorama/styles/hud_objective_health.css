@@ -1,0 +1,173 @@
+@import url("s2r://panorama/styles/base/hud_objective_health.vcss_c");
+
+#healthbar_progress .ProgressBarLeft
+{
+	visibility: visible;
+	background-color: yellow;
+	height: 100%;
+}
+
+@keyframes 'is_transforming_pulse_friend'
+{
+	0%
+	{
+		background-color: yellow;
+	}
+	
+	50%
+	{
+		background-color: offBlack;
+	}
+	
+	100%
+	{
+		background-color: yellow;
+	}
+	
+}
+
+@keyframes 'laneYellow_is_being_attacked'
+{
+	0%
+	{
+		background-color: rgba(192, 192, 65, 0.8);
+	}
+	
+	50%
+	{
+		background-color: yellow ;
+	}
+	
+	100%
+	{
+		background-color: rgba(192, 192, 65, 0.8);
+	}
+	
+}
+
+@keyframes 'laneOrange_is_being_attacked'
+{
+	0%
+	{
+		background-color: rgba(221, 120, 37, 0.8);
+	}
+	
+	50%
+	{
+		background-color: yellow ;
+	}
+	
+	100%
+	{
+		background-color: rgba(221, 120, 37, 0.8);
+	}
+	
+}
+
+@keyframes 'laneBlue_is_being_attacked'
+{
+	0%
+	{
+		background-color: rgba(65, 122, 192, 0.8);
+	}
+	
+	50%
+	{
+		background-color: yellow ;
+	}
+	
+	100%
+	{
+		background-color: rgba(65, 122, 192, 0.8);
+	}
+	
+}
+
+@keyframes 'lanePurple_is_being_attacked'
+{
+	0%
+	{
+		background-color: rgba(105, 65, 192, 0.8);
+	}
+	
+	50%
+	{
+		background-color: yellow ;
+	}
+	
+	100%
+	{
+		background-color: rgba(105, 65, 192, 0.8);
+	}
+	
+}
+
+@keyframes 'laneGreen_is_being_attacked'
+{
+	0%
+	{
+		background-color: laneGreenColor&80;
+	}
+	
+	50%
+	{
+		background-color: yellow ;
+	}
+	
+	100%
+	{
+		background-color: laneGreenColor&80;
+	}
+	
+}
+
+@keyframes 'team1_is_being_attacked'
+{
+	0%
+	{
+		background-color: team1Color&80;
+	}
+	
+	50%
+	{
+		background-color: yellow;
+	}
+	
+	100%
+	{
+		background-color: team1Color&80;
+	}
+	
+}
+
+@keyframes 'team2_is_being_attacked'
+{
+	0%
+	{
+		background-color: team2Color&80;
+	}
+	
+	50%
+	{
+		background-color: yellow;
+	}
+	
+	100%
+	{
+		background-color: team2Color&80;
+	}
+	
+}
+
+.on_damaged #healthbar_progress .ProgressBarMiddle
+{
+	background-color: red;
+	opacity: 1;
+	transition-property: background-color, opacity;
+	transition-duration: 0.5s;
+}
+
+.friend #healthbar_progress .ProgressBarLeft
+{
+	background-color: #bc22ab;
+}

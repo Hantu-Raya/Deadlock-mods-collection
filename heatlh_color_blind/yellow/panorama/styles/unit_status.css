@@ -1,0 +1,31 @@
+@import url("s2r://panorama/styles/base/unit_status.vcss_c");
+
+.enemy #unit_ult_ready_icon
+{
+	wash-color: yellow;
+}
+
+.enemy #unit_healthbar_lagging
+{
+	wash-color: yellow;
+}
+
+.enemy #state_progressbar
+{
+	wash-color: yellow;
+}
+
+.friend #unit_ult_ready_icon
+{
+	wash-color: #bc22ab;
+}
+
+.friend #unit_healthbar_lagging
+{
+	wash-color: #bc22ab;
+}
+
+.friend #state_progressbar
+{
+	wash-color: #bc22ab;
+}
