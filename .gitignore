@@ -1,0 +1,15 @@
+# Compiled/Generated directories
+*_compiled/
+
+# Binaries
+*.exe
+*.dll
+*.pdb
+*.vpk
+
+# Temp files
+*.tmp
+
+# Editor/System files
+.vscode/
+Thumbs.db
