@@ -1,0 +1,272 @@
+#Buff
+{
+	background-color: rgba(12, 12, 12, 0.6);
+	width: 32%;
+    height: 10%;
+    margin-bottom: 10%;
+	margin-right: 7%;
+    vertical-align: bottom;
+    horizontal-align: right;
+    perspective: 900;
+    opacity: 1;
+    transform: translateX(0px);
+    transition-property: width,height;
+    transition-duration: 0.15s;
+	world-blur: ingameHudBlur;
+	z-index: 99999;
+    border-radius: 10px;
+}
+
+#Rejuv
+{
+	background-color: rgba(12, 12, 12, 0.6);
+	width: 32%;
+    height: 10%;
+    margin-bottom: 10%;
+	margin-left: 7%;
+    vertical-align: bottom;
+    horizontal-align: left;
+    perspective: 900;
+    opacity: 1;
+    transform: translateX(0px);
+    transition-property: width,height;
+    transition-duration: 0.15s;
+	world-blur: ingameHudBlur;
+	z-index: 99999;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#RejuvBuff
+{
+	background-color: rgba(12, 12, 12, 0.6);
+	width: 16%;
+    height: 6%;
+    margin-bottom: 5%;
+	margin-left: 23%;
+    vertical-align: bottom;
+    horizontal-align: left;
+    perspective: 900;
+    opacity: 0;
+    transform: translateX(0px);
+    transition-property: width,height;
+    transition-duration: 0.15s;
+	world-blur: ingameHudBlur;
+	z-index: 9999;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#RejuvBuff.pop-out
+{
+    animation-name: pop-out;
+    animation-duration: 0.5s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+    opacity: 1;
+}
+
+#RejuvBuff.pop-in
+{
+    animation-name: pop-in;
+    animation-duration: 0.5s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+    opacity: 0;
+}
+
+#BuffTime
+{
+	font-size: 24px;
+    color: offWhite&90;
+    horizontal-align: center;
+    vertical-align: center;
+    width: 100%;
+    height: 70%;
+    margin-right: 30%;
+    margin-bottom: 5%;
+    font-weight: semi-bold;
+    text-align: center;
+    font-family: sansMono;
+	z-index: 999999;
+}
+
+#RejuvTime
+{
+	font-size: 24px;
+    color: offWhite&90;
+    horizontal-align: center;
+    vertical-align: center;
+    width: 100%;
+    height: 70%;
+    margin-left: 30%;
+    margin-bottom: 5%;
+    font-weight: semi-bold;
+    text-align: center;
+    font-family: sansMono;
+	z-index: 999999;
+}
+
+#RejuvTimeBuff
+{
+	font-size: 18px;
+    color: yellow;
+    horizontal-align: center;
+    vertical-align: center;
+    width: 100%;
+    height: 70%;
+    margin-bottom: 20%;
+    font-weight: semi-bold;
+    text-align: center;
+    font-family: sansMono;
+	z-index: 999999;
+}
+
+#BuffImg
+{
+    horizontal-align: right;
+    vertical-align: center;
+    height: 80%;
+    width: 25%;
+    margin-right: 13%;
+}
+
+#RejuvImg
+{
+    horizontal-align: left;
+    vertical-align: center;
+    height: 80%;
+    width: 25%;
+    margin-left: 13%;
+    transform: rotateY(0deg);
+    z-index: 999999;
+}
+
+
+#RejuvNum
+{
+    font-size: 16px;
+    color: offBlack;
+    horizontal-align: center;
+    vertical-align: center;
+    width: 10%;
+    height: 70%;
+    margin-right: 50%;
+    margin-top: 30%;
+    font-weight: semi-bold;
+    text-align: center;
+    font-family: sansMono;
+	z-index: 999999;
+}
+
+@keyframes 'rotate'
+{
+    0%
+    {
+        transform: rotateY(0deg);
+    }
+    
+    25%
+    {
+        transform: rotateY(90deg);
+    }
+    
+    50%
+    {
+        transform: rotateY(180deg);
+    }
+
+    75%
+    {
+        transform: rotateY(270deg);
+    }
+    
+    100%
+    {
+        transform: rotateY(360deg);
+    }
+    
+}
+
+@keyframes 'rotate-reverse'
+{
+    0%
+    {
+        transform: rotateY(0deg);
+    }
+    
+    25%
+    {
+        transform: rotateY(-90deg);
+    }
+    
+    50%
+    {
+        transform: rotateY(-180deg);
+    }
+
+    75%
+    {
+        transform: rotateY(-270deg);
+    }
+    
+    100%
+    {
+        transform: rotateY(-360deg);
+    }
+    
+}
+
+@keyframes 'pop-out'
+{
+    0%
+    {
+        opacity: 0;
+    }
+    
+    100%
+    {
+        opacity: 1;
+    }
+    
+}
+
+@keyframes 'pop-in'
+{
+    0%
+    {
+        opacity: 1;
+    }
+    
+    100%
+    {
+        opacity: 0;
+    }
+    
+}
+
+#RejuvImg.rotating 
+{
+    animation-duration: 0.8s;
+    animation-iteration-count: 1;
+}
+  
+#RejuvImg.rotating.buff 
+{
+    animation-name: rotate;
+}
+  
+#RejuvImg.rotating.reverse 
+{
+    animation-name: rotate-reverse;
+}
+
+#RejuvImg.reverse 
+{
+    wash-color: grey;
+}
+
+#RejuvImg.white 
+{
+    wash-color: white;
+}

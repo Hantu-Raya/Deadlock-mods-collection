@@ -1,0 +1,48 @@
+/* Prettified by Source 2 Viewer 13.0.0.0 - https://valveresourceformat.github.io */
+
+CitadelStatusEffect
+{
+	height: 190px;
+	width: fit-children;
+	vertical-align: bottom;
+	horizontal-align: middle;
+}
+
+.creature CitadelStatusEffect
+{
+	margin-bottom: 8px;
+}
+
+CitadelHud CitadelStatusEffect
+{
+	ui-scale: 20%;
+}
+
+#HealthBarContent CitadelStatusEffect
+{
+	vertical-align: top;
+	horizontal-align: right;
+	margin-top: 233px;
+	margin-right: 285px;
+	height: fit-children;
+	z-index: 2;
+}
+
+#HealthBarContent #StatusEffectContainer
+{
+	flow-children: down;
+	height: fit-children;
+}
+
+#LowerLeft CitadelStatusEffect
+{
+	margin-bottom: 175px;
+	horizontal-align: right;
+	margin-right: 130px;
+}
+
+.gShopOpen CitadelStatusEffect
+{
+	visibility: collapse;
+}
+

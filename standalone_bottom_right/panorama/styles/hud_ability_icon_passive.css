@@ -1,0 +1,62 @@
+@import url("s2r://panorama/styles/base/hud_ability_icon_passive.vcss_c");
+.ability_container
+{
+	flow-children: up;
+	vertical-align: center;
+	overflow: noclip;
+	tooltip-position: right;
+	transition-property: transform, wash-color, margin;
+	transition-duration: 0.2s;
+	opacity: 0.6;
+}
+
+.items .ability_container.item_passive.Hidden
+{
+	visibility: visible;
+}
+
+#hud_passive_items .ability_bg,#hud_passive_items .ability_ring,#hud_items .ability_ring
+{
+	visibility: visible;
+}
+
+#hud_passive_items .cooldown_timer
+{
+	visibility: visible;
+}
+
+.passiveOffCooldown
+{
+	animation-name: passivePop;
+	animation-duration: 1s;
+	opacity: 0.9;
+}
+
+@keyframes 'passivePop'
+{
+    0%
+    {
+        pre-transform-scale2d: 1.0;
+    }
+    
+    25%
+    {
+        pre-transform-scale2d: 1.4;
+    }
+    
+    50%
+    {
+        pre-transform-scale2d: 1.0;
+    }
+    
+    75%
+    {
+        pre-transform-scale2d: 1.4;
+    }
+    
+    100%
+    {
+        pre-transform-scale2d: 1.0;
+    }
+    
+}

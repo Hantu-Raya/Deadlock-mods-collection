@@ -1,0 +1,6 @@
+@import url("s2r://panorama/styles/base/hud_event_indicator.vcss_c");
+
+.WindowRoot
+{
+	opacity: 0.0;
+}

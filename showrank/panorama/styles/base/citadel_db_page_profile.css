@@ -1,0 +1,1327 @@
+/* Prettified by Source 2 Viewer 14.1.0.0 - https://valveresourceformat.github.io */
+
+CitadelProfilePage
+{
+	width: 100%;
+	height: 100%;
+	background-size: 100% 100%;
+	flow-children: right;
+	background-color: #00000090;
+}
+
+.MainContents
+{
+	width: 1700px;
+	height: 900px;
+	flow-children: right;
+	margin-left: 100px;
+	margin-top: 80px;
+	animation-name: contentAppear;
+	animation-duration: 0.5s;
+}
+
+@keyframes 'contentAppear'
+{
+	0%
+	{
+		opacity: 0;
+		transform: translateX(300px);
+	}
+	
+	100%
+	{
+		opacity: 1;
+		transform: translateX(0px);
+	}
+	
+}
+
+.LeftPanel
+{
+	width: 25%;
+	height: 100%;
+}
+
+.RightPanel
+{
+	width: 75%;
+	flow-children: down;
+	height: 100%;
+}
+
+.AspectRatio16x10 .RightPanel
+{
+	width: 70%;
+}
+
+.ProfileSection
+{
+	width: 100%;
+	height: 210px;
+	flow-children: right;
+	padding: 0px 20px;
+	margin-bottom: 30px;
+}
+
+#ProfileInfo
+{
+	flow-children: down;
+}
+
+#MatchBlockBigContainer,#MatchBlockMiniContainer
+{
+	flow-children: right;
+	visibility: collapse;
+}
+
+.hasBigMatchBlocks #MatchBlockBigContainer,.hasMiniMatchBlocks #MatchBlockMiniContainer
+{
+	visibility: visible;
+}
+
+#HeroScenePanel
+{
+	width: 550px;
+	height: 70%;
+	horizontal-align: left;
+	vertical-align: middle;
+	ignore-parent-flow: true;
+	ignore-parent-flow: true;
+	margin-bottom: 0px;
+	opacity-brush: gradient( linear, 0% 70%, 0% 100%, from( #ffffff ), to( #ffffff00 ) );
+}
+
+#HeroInfoArea
+{
+	ignore-parent-flow: true;
+	vertical-align: bottom;
+	flow-children: down;
+	margin-bottom: 150px;
+	margin-left: 70px;
+}
+
+.bigHeroName
+{
+	font-family: serif;
+	font-size: 50px;
+	text-transform: uppercase;
+	font-weight: bold;
+	margin-bottom: -10px;
+}
+
+.bigHeroLabel
+{
+	text-transform: uppercase;
+	font-weight: bold;
+	font-size: 20px;
+	opacity: 0.6;
+}
+
+.StatsSectionLoading
+{
+	visibility: collapse;
+	width: 100%;
+	height: 100%;
+	background-color: #00000050;
+	ignore-parent-flow: true;
+}
+
+.StatsSectionLoading Label
+{
+	horizontal-align: center;
+	vertical-align: center;
+	font-size: 30px;
+	color: offWhite;
+	font-weight: bold;
+}
+
+.isLoadingStats .StatsSectionLoading
+{
+	visibility: visible;
+}
+
+.isLoadingStats #StatsSection,.isLoadingStats #GamesPlayed,.isLoadingStats #MatchHistoryArea,.isLoadingStats #RankedPerformanceTab
+{
+	visibility: collapse;
+}
+
+#StatsSection
+{
+	width: 100%;
+	height: fill-parent-flow( 1.0 );
+	flow-children: down;
+	overflow: clip scroll;
+	visibility: collapse;
+}
+
+.StatsFooter
+{
+	width: 100%;
+	height: 150px;
+	visibility: collapse;
+	flow-children: right;
+	padding: 0px 20px;
+	visibility: collapse;
+}
+
+.StatRow
+{
+	width: 100%;
+	flow-children: right;
+	padding: 10px 0px;
+}
+
+.StatValue
+{
+	vertical-align: center;
+	width: 190px;
+	margin-right: 20px;
+}
+
+.StatValue Label
+{
+	color: offWhite;
+	font-size: 28px;
+	font-weight: bold;
+	horizontal-align: right;
+	font-family: sansMono;
+}
+
+.StatName
+{
+	vertical-align: center;
+	width: fill-parent-flow( 1.0 );
+}
+
+.StatName Label
+{
+	color: #a4a4a4;
+	font-size: 26px;
+}
+
+#SelfImage
+{
+	width: 60px;
+	height: 60px;
+	margin: 0px 15px;
+	border-radius: 50%;
+}
+
+#SelfName
+{
+	vertical-align: center;
+}
+
+#SelfName Label
+{
+	font-weight: bold;
+	font-size: 26px;
+}
+
+#FavoriteHeroImage
+{
+	width: 80px;
+	height: 100px;
+	vertical-align: center;
+	margin-right: 20px;
+	padding: 1px;
+}
+
+#FavoriteHeroImage:hover
+{
+	border: 1px solid white;
+	padding: 0px;
+}
+
+.HeroRightCol
+{
+	flow-children: down;
+	vertical-align: center;
+}
+
+.MostPlayedLabel
+{
+	font-size: 22px;
+	color: #888888;
+}
+
+.MostPlayedNameLabel
+{
+	font-size: 30px;
+	color: white;
+}
+
+#HeroFeatureArea
+{
+	flow-children: down;
+	ignore-parent-flow: true;
+	vertical-align: bottom;
+	margin-bottom: 120px;
+	margin-left: 60px;
+	visibility: collapse;
+}
+
+.showingAllHeroes #HeroFeatureArea
+{
+	visibility: visible;
+}
+
+#HeroFeatureLabel
+{
+	font-size: 22px;
+	font-weight: bold;
+	text-transform: uppercase;
+	color: offWhite;
+	opacity: 0.3;
+}
+
+#HeroFeatureName
+{
+	font-size: 40px;
+	font-family: serif;
+	font-weight: bold;
+	text-transform: uppercase;
+	color: offWhite;
+}
+
+.rankDesc
+{
+	opacity: 0;
+}
+
+.viewingSelf .rankDesc
+{
+	opacity: 1;
+}
+
+#MatchHistoryArea
+{
+	flow-children: down;
+	width: 100%;
+}
+
+.titleArea
+{
+	flow-children: right;
+}
+
+#MatchHistoryArea .titleArea
+{
+	width: 100%;
+	margin-bottom: 8px;
+}
+
+#MatchHistoryArea #showcaseLabel
+{
+	margin-left: 20px;
+	opacity: 0.3;
+	visibility: collapse;
+}
+
+.hasShowcaseBlocks #MatchHistoryArea #showcaseLabel
+{
+	visibility: visible;
+}
+
+#MatchHistoryArea #ShowcaseList
+{
+	width: 100%;
+	height: 140px;
+	visibility: collapse;
+	background-color: #000000ee;
+	border-radius: 5px;
+}
+
+#MatchHistoryArea #ShowcaseList #Seasonal2024
+{
+	width: 128px;
+	height: 128px;
+	background-image: url("s2r://panorama/images/seasonal/2024/achievement_icon_psd.vtex");
+	background-size: 60%;
+	background-position: 50% 30%;
+	margin-left: 20px;
+	vertical-align: center;
+	padding: 8px 8px 16px 8px;
+	background-repeat: no-repeat;
+}
+
+#MatchHistoryArea #ShowcaseList #Seasonal2024 Label
+{
+	color: offWhite&cc;
+	vertical-align: bottom;
+	horizontal-align: center;
+	font-weight: bold;
+	font-size: 14px;
+	text-shadow: 0px 0px 12px #00000088;
+}
+
+.showShowcaseTab #MatchHistoryArea #ShowcaseList
+{
+	visibility: visible;
+}
+
+.hideMatchHistoryTab #MatchHistoryArea #MatchHistoryList
+{
+	visibility: collapse;
+}
+
+.showShowcaseTab #MatchHistoryArea #showcaseLabel
+{
+	opacity: 1.0;
+}
+
+.hideMatchHistoryTab #matchHistoryLabel
+{
+	opacity: 0.3;
+}
+
+.profileTab
+{
+	padding: 8px 16px;
+	background-color: #000805f8;
+	margin: 0px 8px 8px 0px;
+	border-radius: 5px;
+	transition: all 0.15s ease-in-out;
+	pre-transform-scale2d: 0.98;
+}
+
+.profileTab:hover
+{
+	pre-transform-scale2d: 1;
+}
+
+.sortedGamesPlayed #GamesPlayedTab,.sortedPerformance #RankedPerformanceTab
+{
+	background-color: offBlack;
+	pre-transform-scale2d: 1;
+}
+
+.sortedPerformance #GamesPlayedTab .smallTitle,.sortedGamesPlayed #RankedPerformanceTab .smallTitle
+{
+	color: #FFEFD740;
+}
+
+.profileTab .smallTitle
+{
+	color: offWhite;
+	text-shadow: 0px 0px 12px #00000088;
+}
+
+#AllStats,#CoreRating
+{
+	visibility: collapse;
+}
+
+.sortedGamesPlayed #AllStats,.sortedPerformance #CoreRating
+{
+	visibility: visible;
+}
+
+#CoreRating
+{
+	height: 64px;
+	padding: 0px 0px 0px 0px;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #76767604 ), to( #76767610) );
+	box-shadow: inset 0px 0px 20px #00000022;
+	margin-bottom: 4px;
+}
+
+.smallTitle
+{
+	font-weight: bold;
+	font-size: 20px;
+}
+
+#RankedPerformanceTab:disabled
+{
+	opacity: 0;
+}
+
+#MatchHistoryButton
+{
+	horizontal-align: right;
+	flow-children: right;
+	opacity: 0.3;
+	transition-property: opacity;
+	transition-duration: 0.15s;
+	transition-timing-function: ease-in-out;
+}
+
+#MatchHistoryButton:hover
+{
+	opacity: 1;
+}
+
+#allHistoryIcon
+{
+	width: 18px;
+	height: 18px;
+	vertical-align: middle;
+	margin-left: 5px;
+	background-image: url("s2r://panorama/images/icons/arrow_east.vsvg");
+	background-size: contain;
+	background-repeat: no-repeat;
+	wash-color: offWhite;
+}
+
+#MatchHistoryButton .smallTitle
+{
+	font-weight: semi-bold;
+	font-size: 20px;
+	text-transform: none;
+}
+
+#MatchHistoryList
+{
+	flow-children: right;
+	height: 140px;
+}
+
+.MiniMatchBlock
+{
+	flow-children: right;
+	width: 415px;
+	height: 136px;
+	margin-left: 0px;
+}
+
+.AspectRatio16x10 .MiniMatchBlock
+{
+	width: 360px;
+}
+
+#GamesPlayed
+{
+	width: 100%;
+	height: fill-parent-flow(1.0);
+	flow-children: down;
+	margin-top: 30px;
+}
+
+.viewingSelf #GamesPlayed
+{
+	margin-top: 0px;
+}
+
+.datesContainer
+{
+	horizontal-align: right;
+	vertical-align: middle;
+	margin-right: 20px;
+	font-weight: medium;
+	opacity: 0.3;
+}
+
+.rankMatchHistoryRow
+{
+	width: 100%;
+	height: 60px;
+	padding: 5px;
+	border-bottom: 1px solid offWhite&05;
+	transition-property: background-color;
+	transition-duration: 0.1s;
+}
+
+.rankMatchHistoryRow:hover
+{
+	background-color: offWhite&05;
+}
+
+.rowContent
+{
+	height: 100%;
+	vertical-align: middle;
+}
+
+CitadelRankedBadgeMini
+{
+	vertical-align: middle;
+	text-align: left;
+	ui-scale: 94%;
+}
+
+.rankName
+{
+	vertical-align: middle;
+	font-weight: bold;
+	font-family: serif;
+	text-transform: uppercase;
+	font-size: 24px;
+	padding: 0px 10px;
+	margin-top: 3px;
+	min-width: 170px;
+}
+
+.gamesPlayed
+{
+	vertical-align: middle;
+	font-weight: semi-bold;
+	color: offWhite&50;
+	horizontal-align: middle;
+	font-style: italic;
+}
+
+#TabsContainer
+{
+	width: 100%;
+	margin-top: 28px;
+	visibility: collapse;
+	flow-children: right;
+}
+
+.viewingSelf #TabsContainer
+{
+	visibility: visible;
+}
+
+.SortByLabel
+{
+	vertical-align: center;
+	font-weight: bold;
+	margin: 0px 8px 8px 0px;
+	color: #FFEFD740;
+}
+
+#StatsContent
+{
+	flow-children: right;
+	width: 100%;
+	height: 100%;
+	border-radius: 5px;
+}
+
+#HeroList
+{
+	height: 100%;
+	width: 275px;
+	background-color: #000805;
+	flow-children: down;
+	overflow: squish scroll;
+}
+
+.heroRowContents,.coreRating
+{
+	margin-left: 0px;
+}
+
+.AllHeroesRow .heroRowContents
+{
+	vertical-align: center;
+}
+
+.coreRating
+{
+	height: 64px;
+}
+
+.performanceArrow
+{
+	background-size: 100% 100%;
+	height: 20px;
+	width: 0px;
+	vertical-align: middle;
+	img-shadow: 0px 0px 12px #00000088;
+	margin: 4px;
+	opacity: 0.4;
+	wash-color: offWhite;
+	transition: all 0.15s ease-in-out;
+	tooltip-position: left;
+}
+
+.sortedPerformance .performanceArrow
+{
+	width: 20px;
+}
+
+.sortedPerformance .heroRowContents,.sortedPerformance .coreRating
+{
+	margin-left: 28px;
+}
+
+.sortedPerformance .infoButton
+{
+	width: 20px;
+	height: 20px;
+	vertical-align: center;
+	text-align: left;
+	img-shadow: 0px 0px 12px #00000088;
+	margin: 16px 6px 6px 12px;
+	opacity: 0.3;
+	wash-color: offWhite;
+	background-image: url("s2r://panorama/images/profile/info.vsvg");
+	background-size: contain;
+	background-repeat: no-repeat;
+	wash-color: offWhite;
+	transition-property: opacity;
+	transition-duration: 0.15s;
+	transition-timing-function: ease-in-out;
+	tooltip-position: left;
+}
+
+.infoButton:hover
+{
+	opacity: 0.6;
+	sound: soundMainMenuHover;
+}
+
+.relativeMMR2 .performanceArrow
+{
+	background-image: url("s2r://panorama/images/profile/double_up.vsvg");
+	wash-color: #62E762;
+}
+
+.relativeMMR1 .performanceArrow
+{
+	background-image: url("s2r://panorama/images/profile/single_up.vsvg");
+	wash-color: #419941;
+}
+
+.relativeMMR0 .performanceArrow
+{
+	background-image: url("s2r://panorama/images/profile/double_down.vsvg");
+	wash-color: #403c3c;
+}
+
+.relativeMMR-1 .performanceArrow
+{
+	background-image: url("s2r://panorama/images/profile/single_down.vsvg");
+	wash-color: #726B6B;
+}
+
+.relativeMMR-2 .performanceArrow
+{
+	background-image: url("s2r://panorama/images/profile/double_down.vsvg");
+	wash-color: #726B6B;
+}
+
+#StatsBlock
+{
+	height: 100%;
+	width: fill-parent-flow(1.0);
+	background-color: offBlack&f8;
+	box-shadow: inset -20px 0px 220px #00000088;
+	background-img-opacity: 0.4;
+	flow-children: right;
+}
+
+#StatsTitle
+{
+	ignore-parent-flow: true;
+	width: 100%;
+	height: 170px;
+	padding-left: 50px;
+	flow-children: down;
+	padding-top: 50px;
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #76767630 ), to( #ffffff00 ) );
+}
+
+.hero_orion #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( orionColor&10 ), to( orionColor&00 ) );
+}
+
+.hero_astro #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( astroColor&10 ), to( astroColor&00 ) );
+}
+
+.hero_bebop #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( bebopColor&10 ), to( bebopColor&00 ) );
+}
+
+.hero_atlas #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( atlasColor&10 ), to( atlasColor&00 ) );
+}
+
+.hero_chrono #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( chronoColor&10 ), to( chronoColor&00 ) );
+}
+
+.hero_forge #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( forgeColor&10 ), to( forgeColor&00 ) );
+}
+
+.hero_ghost #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( ghostColor&10 ), to( ghostColor&00 ) );
+}
+
+.hero_gigawatt #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( gigawattColor&10 ), to( gigawattColor&00 ) );
+}
+
+.hero_haze #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( hazeColor&10 ), to( hazeColor&00 ) );
+}
+
+.hero_hornet #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( hornetColor&10 ), to( hornetColor&00 ) );
+}
+
+.hero_inferno #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( infernoColor&10 ), to( infernoColor&00 ) );
+}
+
+.hero_kelvin #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( kelvinColor&10 ), to( kelvinColor&00 ) );
+}
+
+.hero_lash #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( lashColor&10 ), to( lashColor&00 ) );
+}
+
+.hero_krill #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( krillColor&10 ), to( krillColor&00 ) );
+}
+
+.hero_shiv #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( shivColor&10 ), to( shivColor&00 ) );
+}
+
+.hero_dynamo #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( dynamoColor&10 ), to( dynamoColor&00 ) );
+}
+
+.hero_viscous #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( viscousColor&10 ), to( viscousColor&00 ) );
+}
+
+.hero_warden #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( wardenColor&10 ), to( wardenColor&00 ) );
+}
+
+.hero_wraith #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( wraithColor&10 ), to( wraithColor&00 ) );
+}
+
+.hero_yamato #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( yamatoColor&10 ), to( yamatoColor&00 ) );
+}
+
+.hero_tengu #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( tenguColor&10 ), to( tenguColor&00 ) );
+}
+
+.hero_mirage #StatsTitle
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( mirageColor&10 ), to( mirageColor&00 ) );
+}
+
+.statSectionLabel
+{
+	font-size: 22px;
+	font-weight: bold;
+	text-transform: uppercase;
+	color: offWhite;
+	opacity: 0.3;
+}
+
+.statSectionName
+{
+	font-size: 44px;
+	font-weight: bold;
+	margin-bottom: 20px;
+	vertical-align: middle;
+	text-shadow: 0px 0px 20px #00000044;
+	max-width: 360px;
+	text-overflow: shrink;
+}
+
+#StatsLeft
+{
+	width: 40%;
+	height: 100%;
+	flow-children: down;
+	padding: 30px;
+	margin-top: 150px;
+}
+
+#StatsRight
+{
+	width: 60%;
+	height: 100%;
+	flow-children: right-wrap;
+	padding-top: 80px;
+}
+
+.StatRow
+{
+	flow-children: right;
+}
+
+.statValue
+{
+	font-weight: bold;
+}
+
+.statLabel
+{
+	font-weight: semi-bold;
+	opacity: 0.9;
+}
+
+.TextStat
+{
+	flow-children: down;
+	margin-right: 30px;
+	margin-bottom: 20px;
+	width: 40%;
+}
+
+.TextStat.largeStat .statValue
+{
+	font-size: 50px;
+	max-height: 60px;
+	text-overflow: shrink;
+	font-weight: semi-bold;
+}
+
+.TextStat .statValue
+{
+	font-size: 40px;
+	max-height: 50px;
+	text-overflow: shrink;
+	font-weight: semi-bold;
+}
+
+.BlockStat
+{
+	flow-children: down;
+	height: 220px;
+	width: 140px;
+	margin: 0px 10px;
+}
+
+.BlockStat .statValue
+{
+	font-size: 50px;
+	font-weight: semi-bold;
+	margin-top: 10px;
+	max-height: 45px;
+	margin: 20px 10px 0px 10px;
+	text-overflow: shrink;
+	text-align: center;
+}
+
+.BlockStat .labelContainer
+{
+	horizontal-align: center;
+	height: 60px;
+}
+
+.BlockStat .statLabel
+{
+	text-align: center;
+	vertical-align: middle;
+	font-size: 18px;
+	padding: 0px 10px;
+	opacity: 0.6;
+}
+
+.subStat
+{
+	font-size: 16px;
+	text-transform: uppercase;
+	opacity: 0.5;
+	visibility: collapse;
+}
+
+.BlockStat.isZeroValue,.TextStat.isZeroValue
+{
+	wash-color: #575953;
+	saturation: 0.4;
+}
+
+.blockBacker
+{
+	width: 100%;
+	height: 78%;
+	ignore-parent-flow: true;
+	vertical-align: bottom;
+	border-radius: 3px;
+	box-shadow: 0px 0px 30px #00000090;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #3e3b3b ), to( #03030300 ) );
+	border: 3px solid #ffffff05;
+}
+
+.BlockStat .statValue,.BlockStat .statLabel,.BlockStat .subStat
+{
+	horizontal-align: center;
+}
+
+.BlockStat .subInfo
+{
+	horizontal-align: center;
+}
+
+.StatIcon
+{
+	width: 60px;
+	height: 60px;
+	background-image: url("s2r://panorama/images/post_game/stat_objective_damage_png.vtex");
+	background-size: contain;
+	horizontal-align: center;
+	img-shadow: 0px 0px 12px 5.0 #000000;
+	margin-top: 20px;
+}
+
+.Kills .StatIcon
+{
+	background-image: url("s2r://panorama/images/post_game/stat_kills_png.vtex");
+	wash-color: #FF5D5D;
+}
+
+.Assists .StatIcon
+{
+	background-image: url("s2r://panorama/images/post_game/stat_assists_png.vtex");
+	wash-color: #A230CA;
+}
+
+.ObjectiveDmg .StatIcon
+{
+	background-image: url("s2r://panorama/images/post_game/stat_objective_damage_png.vtex");
+	wash-color: #E4A833;
+}
+
+.PlayerDmg .StatIcon
+{
+	background-image: url("s2r://panorama/images/post_game/stat_hero_damage_png.vtex");
+	wash-color: #2972FF;
+}
+
+.Healing .StatIcon
+{
+	background-image: url("s2r://panorama/images/post_game/stat_healing_png.vtex");
+	wash-color: #AEF022;
+}
+
+.Networth .StatIcon
+{
+	background-image: url("s2r://panorama/images/post_game/stat_networth_png.vtex");
+	wash-color: shardColor;
+}
+
+#ForumButton
+{
+	vertical-align: bottom;
+	horizontal-align: center;
+	margin-bottom: 20px;
+	opacity: 0.3;
+	visibility: collapse;
+	flow-children: right;
+	transition-property: brigntness;
+	transition-duration: 0.15s;
+	transition-timing-function: ease-in-out;
+}
+
+#ForumButton:hover
+{
+	sound: soundMainMenuHover;
+	brightness: 2;
+}
+
+#ForumButton:active
+{
+	sound: soundMainMenuActivate;
+}
+
+.hasJoinedForum #ForumButton
+{
+	visibility: visible;
+}
+
+.ForumIcon
+{
+	width: 16px;
+	height: 16px;
+	wash-color: offWhite&44;
+	vertical-align: middle;
+	margin-top: 3px;
+	opacity: 1;
+	margin-right: 8px;
+	background-image: url("s2r://panorama/images/icons/icon_feedback.vsvg");
+	background-size: contain;
+	opacity: 0.2;
+}
+
+.defaultText
+{
+	font-weight: semi-bold;
+	font-size: 16px;
+	color: offWhite&44;
+}
+
+.hero_orion #HeroRowBackground
+{
+	background-color: orionColor;
+}
+
+.hero_astro #HeroRowBackground
+{
+	background-color: astroColor;
+}
+
+.hero_bebop #HeroRowBackground
+{
+	background-color: bebopColor;
+}
+
+.hero_atlas #HeroRowBackground
+{
+	background-color: atlasColor;
+}
+
+.hero_chrono #HeroRowBackground
+{
+	background-color: chronoColor;
+}
+
+.hero_forge #HeroRowBackground
+{
+	background-color: forgeColor;
+}
+
+.hero_ghost #HeroRowBackground
+{
+	background-color: ghostColor;
+}
+
+.hero_gigawatt #HeroRowBackground
+{
+	background-color: gigawattColor;
+}
+
+.hero_haze #HeroRowBackground
+{
+	background-color: hazeColor;
+}
+
+.hero_hornet #HeroRowBackground
+{
+	background-color: hornetColor;
+}
+
+.hero_inferno #HeroRowBackground
+{
+	background-color: infernoColor;
+}
+
+.hero_kelvin #HeroRowBackground
+{
+	background-color: kelvinColor;
+}
+
+.hero_lash #HeroRowBackground
+{
+	background-color: lashColor;
+}
+
+.hero_krill #HeroRowBackground
+{
+	background-color: krillColor;
+}
+
+.hero_shiv #HeroRowBackground
+{
+	background-color: shivColor;
+}
+
+.hero_synth #HeroRowBackground
+{
+	background-color: synthColor;
+}
+
+.hero_dynamo #HeroRowBackground
+{
+	background-color: dynamoColor;
+}
+
+.hero_viscous #HeroRowBackground
+{
+	background-color: viscousColor;
+}
+
+.hero_warden #HeroRowBackground
+{
+	background-color: wardenColor;
+}
+
+.hero_wraith #HeroRowBackground
+{
+	background-color: wraithColor;
+}
+
+.hero_yamato #HeroRowBackground
+{
+	background-color: yamatoColor;
+}
+
+.hero_tengu #HeroRowBackground
+{
+	background-color: tenguColor;
+}
+
+.hero_mirage #HeroRowBackground
+{
+	background-color: mirageColor;
+}
+
+.heroRow
+{
+	width: 264px;
+	height: 48px;
+	border-top: 2px solid offWhite&00;
+	border-bottom: 2px solid offWhite&00;
+	opacity: 0.5;
+	transition-property: opacity;
+	transition-duration: 0.15s;
+	transition-timing-function: ease-in-out;
+}
+
+.heroRow:selected
+{
+	opacity: 1;
+}
+
+.heroRow:hover
+{
+	opacity: 0.8;
+}
+
+#HeroRowImage
+{
+	height: 48px;
+	width: 48px;
+	saturation: 0.3;
+	transition-property: transform;
+	transition-duration: 0.1s;
+}
+
+.AllHeroesRow #HeroRowImage
+{
+	img-shadow: 0px 0px 12px #00000044;
+	padding: 4px;
+}
+
+.AllHeroesRow
+{
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #76767604 ), to( #76767610) );
+	box-shadow: inset 0px 0px 20px #00000022;
+	margin-bottom: 4px;
+	height: 64px;
+	vertical-align: center;
+}
+
+.heroRow:selected #HeroRowImage,.heroRow:selected .heroRowName
+{
+	transform: translateX(10px);
+	saturation: 1;
+}
+
+.heroRowName
+{
+	margin-left: 60px;
+	margin-right: 10px;
+	vertical-align: center;
+	font-weight: bold;
+	font-size: 18px;
+	margin-top: 4px;
+	text-overflow: shrink;
+	color: offWhite&88;
+	transition-property: transform;
+	transition-duration: 0.15s;
+	width: 200px;
+	text-shadow: 0px 0px 12px #00000066;
+}
+
+.heroRow:selected .heroRowName
+{
+	color: offWhite;
+}
+
+#CoreRating.heroRow .heroRowName
+{
+	transform: none;
+	margin-top: 0px;
+}
+
+#CoreRating.heroRow
+{
+	margin-top: -10px;
+	transition-property: none;
+	transform: none;
+}
+
+.coreRatingLabel
+{
+	margin: 30px 10px 0px 60px;
+	vertical-align: center;
+	font-weight: normal;
+	font-size: 14px;
+	text-overflow: shrink;
+	color: offWhite&33;
+	transition-property: transform;
+	transition-duration: 0.15s;
+}
+
+.heroRow:selected .coreRatingLabel
+{
+	margin-left: 60px;
+}
+
+#HeroRowBackground
+{
+	height: 100%;
+	width: 100%;
+	opacity-brush: gradient( linear, 100% 0%, 0% 0%, from( #ffffff ), to( #ffffff20 ) );
+}
+
+.sortedPerformance #HeroRowBackground
+{
+	background-color: none;
+}
+
+#ViewLeaderboardContainer
+{
+	horizontal-align: right;
+	vertical-align: center;
+	opacity: 0.3;
+	transition-property: opacity;
+	transition-duration: 0.15s;
+	transition-timing-function: ease-in-out;
+}
+
+#ViewLeaderboardContainer:hover
+{
+	opacity: 1;
+}
+
+#ViewLeaderboardsLabel
+{
+	font-weight: semi-bold;
+	font-size: 20px;
+}
+
+#HeroesSeasonalAchievement2024TooltipContainer
+{
+	background-color: red;
+}
+

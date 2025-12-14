@@ -1,0 +1,29 @@
+@import url("s2r://panorama/styles/base/profile_card.vcss_c");
+#AccountID
+{
+    visibility: visible;
+    width: 100%;
+    background-color: black;
+}
+
+#BottomRow
+{
+    flow-children: right;
+    width: 100%;
+    visibility: visible;
+}
+
+#CardMain
+{
+    width: 100%;
+    visibility: visible;
+}
+
+#StatItems
+{
+    flow-children: right;
+    vertical-align: middle;
+    width: fill-parent-flow( 1.0 );
+    height: 50px;
+    visibility: visible;
+}
