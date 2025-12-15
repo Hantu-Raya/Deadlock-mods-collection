@@ -679,8 +679,8 @@
 
 }
 
-/* Low HP pulse animation - CSS-driven for GPU acceleration */
-.low_hp_pulse {
+/* Low HP pulse animation for health bar - CSS-driven for GPU acceleration */
+.low_hp_bar_pulse {
 	animation-name: low_hp_pulse_anim;
 	animation-duration: 0.8s;
 	animation-iteration-count: infinite;
@@ -689,7 +689,7 @@
 }
 
 /* HP counter gets larger font and adjusted position when low HP */
-#hp_counter.low_hp_pulse {
+#hp_counter.low_hp_text_large {
 	font-size: 135px;
 	margin-top: -210%;
 }
@@ -713,28 +713,12 @@
 	}
 }
 
-/* Ult icon uses brighter pulse */
-.low_hp_pulse_ult {
-	animation-name: low_hp_pulse_ult_anim;
-	animation-duration: 0.8s;
-	animation-iteration-count: infinite;
-	animation-timing-function: ease-in-out;
-	animation-direction: alternate;
+/* Ult icon static style when low HP - no animation, no brightness change */
+.low_hp_ult_static {
+	animation: none;
 }
 
-@keyframes 'low_hp_pulse_ult_anim'
 
-	{
-	0% {
-		wash-color: rgb(225, 97, 97);
-		brightness: 1.3;
-	}
-
-	100% {
-		wash-color: rgb(155, 63, 63);
-		brightness: 1.0;
-	}
-}
 
 
 
