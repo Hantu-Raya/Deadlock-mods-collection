@@ -1,71 +1,132 @@
-# AGENTS.md - Dota 2 Panorama UI Modding
+# AGENTS.md - Deadlock/Dota 2 Panorama UI Modding
 
 ## Build/Lint/Test Commands
-- Build: `"F:\Users\Shiv\Desktop\New folder (3)\New folder.exe" "F:\Users\Shiv\Desktop\New folder (3)\hp"`
-- Test: Load mod in Dota 2, verify health bar colors/HP accuracy
-- Run single test: Check HP counter display (e.g., "Current / Max" values in-game)
+
+- Build: Use Dota 2 Workshop Tools to compile, then pack to VPK
+- Repo: `F:\Users\Shiv\Desktop\Deadlock-mods-collection`
+- Test: Load mod in Deadlock, verify HUD elements display correctly
 
 ## Code Style Guidelines
-- Structure: IIFE `(function(){...})();`, early returns, constants grouped at top
+
+- Structure: IIFE `(()=>{"use strict";...})();`, early returns, constants grouped at top
 - Naming: camelCase vars/funcs, ALL_CAPS constants, descriptive names
 - Declarations: `const` for immutable, `let` for mutable, no `var`
 - Functions: Named declarations for logic, anonymous for callbacks
 - Imports: None (Panorama JS), use Panorama APIs directly
-- Formatting: 2-space indentation, semicolons required, single quotes for strings
-- Types: No TypeScript, use JSDoc for complex functions
+- Formatting: 2-space indentation, semicolons required
 - Error Handling: Null checks, try-catch blocks, graceful degradation
-- Minification: Remove comments, shorten variable names, single-line for production
+- Compacting: Remove blank lines, merge declarations, inline small helpers
 
 ## Performance Optimization (Zero-Allocation)
-### FindChildTraverse Caching
-- **NEVER** call `FindChildTraverse` inside update loops (O(N) operation)
-- Cache all panels ONCE at init with retry logic
-- Use `panel.IsValid()` to revalidate cached panels
-- Stop retrying after `MAX_CACHE_ATTEMPTS` (e.g., 10)
 
-### Dirty Checking (The Golden Rule)
+### FindChildTraverse Caching
+
+- **NEVER** call `FindChildTraverse` inside update loops (O(N) operation)
+- Cache all panels ONCE at boot with retry logic
+- Use `panel?.IsValid?.()` for optional chaining safety
+
+### Hard DOM Caching Pattern
+
+```javascript
+const UI = { root: null, hud: null, myPanel: null };
+function boot() {
+  const r = findRoot($.GetContextPanel());
+  UI.root = r;
+  UI.hud = r.FindChildTraverse("Hud");
+  UI.myPanel = r.FindChildTraverse("MyPanel");
+  if (!UI.myPanel) return $.Schedule(0.5, boot); // Retry
+  loop();
+}
+```
+
+### Game Time Retrieval (Deadlock)
+
+- Native APIs may not exist, always have UI fallback
+- Cache parsed time with TTL (200ms recommended)
+
+```javascript
+let _tCache = 0,
+  _tCacheTs = 0;
+function gTime() {
+  const n = Date.now();
+  if (n - _tCacheTs < 200) return _tCache;
+  let t = 0;
+  try {
+    t = Game.GetGameTime?.() | 0;
+  } catch {}
+  if (t > 0) {
+    _tCache = t;
+    _tCacheTs = n;
+    return t;
+  }
+  t = uiTime(); // Fallback to parsing HUD label
+  _tCache = t;
+  _tCacheTs = n;
+  return t;
+}
+```
+
+### Zero-Alloc String Parsing (No Regex)
+
+```javascript
+function parseSec(t) {
+  if (!t) return 0;
+  const s = String(t),
+    ci = s.indexOf(":");
+  if (ci < 0) return 0;
+  let mm = 0,
+    ss = 0,
+    c;
+  for (let i = 0; i < ci; i++) {
+    c = s.charCodeAt(i);
+    if (c >= 48 && c <= 57) mm = mm * 10 + (c - 48);
+  }
+  for (let i = ci + 1, n = 0; i < s.length && n < 2; i++, n++) {
+    c = s.charCodeAt(i);
+    if (c >= 48 && c <= 57) ss = ss * 10 + (c - 48);
+    else break;
+  }
+  return mm * 60 + (ss > 59 ? ss % 60 : ss);
+}
+```
+
+### Dirty Checking
+
 - **Bad**: `panel.style.washColor = color;` (triggers layout even if same)
-- **Good**: `if (lastColor !== color) { panel.style.washColor = color; lastColor = color; }`
-- Apply to ALL DOM writes: `washColor`, `visibility`, `text`, class changes
+- **Good**: `if(lastColor!==color){panel.style.washColor=color;lastColor=color;}`
 
 ### GC Avoidance
+
 - Pre-allocate constants: `const EMPTY_STRING = '';`
 - No `new Array`, `new Object` in loops
-- Move string generation (like `rgb()`) to static lookup tables
-- Use `charCodeAt()` instead of `charAt()` for parsing
+- Use `charCodeAt()` instead of regex for parsing
 
 ### Adaptive Scheduling
-| Condition | Interval |
-|-----------|----------|
-| Neutral units | 1.5s |
-| Friendly units | 0.4s |
-| Idle (2s no change) | 1.0s |
-| Active combat | 0.15s |
-| Stable values | Exponential backoff |
 
-### CSS Animation for Pulse Effects
-- Use CSS `@keyframes` for animations (GPU-accelerated)
-- JS toggles classes: `panel.AddClass('low_hp_pulse')` / `panel.RemoveClass('low_hp_pulse')`
-- Benefits: No JS polling, no GC, smoother animation
+| Condition         | Interval |
+| ----------------- | -------- |
+| Hideout / Idle    | 3.0s     |
+| Normal countdown  | 1.0s     |
+| Near spawn (≤10s) | 0.1s     |
+| Active combat     | 0.15s    |
+
+### BHasClass Priority
+
+- Always use `panel.BHasClass("className")` instead of `className.indexOf()`
+- Native C++ binding, faster and no string allocation
 
 ## Panorama Guidelines
-- CSS: `@import` base styles, `wash-color` for tinting, `border-image` for scaling
-- JS APIs: `$.GetContextPanel()`, `FindChildTraverse()`, `element.style`, `$.Schedule()`
-- Global search: `$('#panel_id')` searches from root (useful for panels outside local tree)
-- Best Practices: `'use strict'`, test in-game, document integrations, avoid global pollution
 
-## Variable Naming (Minified Code)
-| Pattern | Example | Purpose |
-|---------|---------|---------|
-| `hb` | healthBar | Main panel |
-| `cp` | containerPanel | Parent reference |
-| `ct`, `cf` | cachedTeam, cachedFlags | State cache |
-| `lc`, `luc` | lastColor, lastUiColor | Dirty check |
-| `sC`, `sU` | setColor, setUltColor | Setter functions |
-| `u` | update | Main loop |
+- CSS: `@import` base styles, `wash-color` for tinting
+- JS APIs: `$.GetContextPanel()`, `FindChildTraverse()`, `$.Schedule()`
+- Best Practices: `'use strict'`, test in-game, avoid global pollution
 
-## Max HP Estimation & Display
-- **Per-Instance Context**: Scripts attached to repeated XML layouts run in independent scopes
-- **Robust Parsing**: Use `charCodeAt()` for counting pipes/quotes, avoid `split()` (GC)
-- **Dynamic Calculation**: Always recalculate Max HP from pip label, don't cache stale values
-- **Hover Detection**: Use `$.GetContextPanel().BHasHoverStyle()` for reliable hover detection
+## Variable Naming (Compacted Code)
+
+| Pattern      | Example      | Purpose        |
+| ------------ | ------------ | -------------- |
+| `r`, `tb`    | root, topBar | DOM references |
+| `hnd`        | handle       | Timer handle   |
+| `idx`, `cnt` | index, count | Loop state     |
+| `_tCache`    | timeCache    | Cached values  |
+| `UI`         | UICache      | All DOM refs   |
