@@ -1891,6 +1891,7 @@ CitadelHudModifierIcons
 	height: 60px;
 	width: 600px;
 	margin: 20px;
+	margin-top: -6%;
 	margin-bottom: 150px;
 	visibility: collapse;
 	horizontal-align: center;
