@@ -1,0 +1,599 @@
+/* Prettified by Source 2 Viewer 15.0.0.0 - https://valveresourceformat.github.io */
+
+#gold_and_ap_container
+{
+	flow-children: right;
+	horizontal-align: left;
+	vertical-align: bottom;
+	margin-left: 26px;
+	margin-bottom: 142px;
+	margin-top: 30px;
+	ui-scale: 100%;
+	width: 400px;
+	overflow: noclip;
+	transition-property: ui-scale, transform, margin-bottom, margin-left, opacity;
+	transition-duration: 0.02s;
+	transition-timing-function: ease-out;
+}
+
+#gold_and_ap_container.gShopOpen
+{
+	margin-left: 20px;
+	margin-bottom: 180px;
+	transform: translateX(0px) translateY(0px);
+	visibility: visible;
+}
+
+#hudGoldContainer
+{
+	margin-top: 5px;
+}
+
+#HudCurrentAPContainer,#hudGoldContainer
+{
+	width: fit-children;
+	flow-children: right;
+	margin-left: 10px;
+}
+
+.CurrencyLabel
+{
+	font-size: 32px;
+	vertical-align: middle;
+	color: blueAPTextColor;
+	font-weight: bold;
+	font-family: sansMono;
+	text-shadow: 0px 0px 0px 4.0 offBlack;
+	overflow: noclip;
+	border: 15px;
+}
+
+.goldIncreaseEvent_Min .CurrencyLabel
+{
+	animation-name: animGoldIncreaseEvent_min;
+	animation-duration: 0.125s;
+}
+
+.goldIncreaseEvent_Med .CurrencyLabel
+{
+	animation-name: animGoldIncreaseEvent_med;
+	animation-duration: 0.5s;
+}
+
+.goldIncreaseEvent_Max .CurrencyLabel
+{
+	animation-name: animGoldIncreaseEvent_max;
+	animation-duration: 1.5s;
+}
+
+@keyframes 'animGoldIncreaseEvent_min'
+{
+	0%
+	{
+		transform: scaleX(1.025) scaleY(1.025);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 4.4 offBlack;
+	}
+	
+	25%
+	{
+		transform: scaleX(1.05) scaleY(1.05);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 5.0 offBlack;
+	}
+	
+	100%
+	{
+		transform: scaleX(1) scaleY(1);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 4.0 offBlack;
+	}
+	
+}
+
+@keyframes 'animGoldIncreaseEvent_med'
+{
+	0%
+	{
+		transform: scaleX(1.05) scaleY(1.05);
+		color: offWhite;
+		text-shadow: 0px 0px 0px 5.0 blueAPTextColor;
+	}
+	
+	25%
+	{
+		transform: scaleX(1.1) scaleY(1.1);
+		color: offWhite;
+		text-shadow: 0px 0px 0px 6.0 blueAPTextColor;
+	}
+	
+	100%
+	{
+		transform: scaleX(1) scaleY(1);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 4.0 offBlack;
+	}
+	
+}
+
+@keyframes 'animGoldIncreaseEvent_max'
+{
+	0%
+	{
+		transform: scaleX(1.15) scaleY(1.15);
+		color: offWhite;
+		text-shadow: 0px 0px 0px 6.0 blueAPTextColor;
+	}
+	
+	25%
+	{
+		transform: scaleX(1.2) scaleY(1.2);
+		color: colorGold;
+		text-shadow: 0px 0px 0px 7.0 blueAPTextColor;
+	}
+	
+	100%
+	{
+		transform: scaleX(1) scaleY(1);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 4.0 offBlack;
+	}
+	
+}
+
+.goldDecreaseEvent_Min .CurrencyLabel
+{
+	animation-name: animGoldDecreaseEvent_min;
+	animation-duration: 0.125s;
+}
+
+.goldeDecreaseEvent_Med .CurrencyLabel
+{
+	animation-name: animGoldDecreaseEvent_med;
+	animation-duration: 0.25s;
+}
+
+.goldDecreaseEvent_Max .CurrencyLabel
+{
+	animation-name: animGoldDecreaseEvent_max;
+	animation-duration: 0.75s;
+}
+
+@keyframes 'animGoldDecreaseEvent_min'
+{
+	0%
+	{
+		transform: scaleX(0.95) scaleY(0.95);
+		color: offBlack;
+		text-shadow: 0px 0px 0px 4.0 colorEnemy;
+	}
+	
+	50%
+	{
+		transform: scaleX(0.9) scaleY(0.9);
+		color: offBlack;
+		text-shadow: 0px 0px 0px 10.0 colorEnemy;
+	}
+	
+	100%
+	{
+		transform: scaleX(1) scaleY(1);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 4.0 offBlack;
+	}
+	
+}
+
+@keyframes 'animGoldDecreaseEvent_med'
+{
+	0%
+	{
+		transform: scaleX(0.95) scaleY(0.95);
+		color: offBlack;
+		text-shadow: 0px 0px 0px 4.0 colorEnemy;
+	}
+	
+	50%
+	{
+		transform: scaleX(0.9) scaleY(0.9);
+		color: offBlack;
+		text-shadow: 0px 0px 0px 10.0 colorEnemy;
+	}
+	
+	100%
+	{
+		transform: scaleX(1) scaleY(1);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 4.0 offBlack;
+	}
+	
+}
+
+@keyframes 'animGoldDecreaseEvent_max'
+{
+	0%
+	{
+		transform: scaleX(0.95) scaleY(0.95);
+		color: offBlack;
+		text-shadow: 0px 0px 0px 7.0 colorEnemy;
+	}
+	
+	50%
+	{
+		transform: scaleX(0.9) scaleY(0.9);
+		color: offBlack;
+		text-shadow: 0px 0px 0px 10.0 colorEnemy;
+	}
+	
+	100%
+	{
+		transform: scaleX(1) scaleY(1);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 4.0 offBlack;
+	}
+	
+}
+
+#HudCurrentAPContainer .CurrencyLabel
+{
+	color: spiritLightColor;
+}
+
+#hudGoldContainer .CurrencyLabel
+{
+	color: shardColor;
+}
+
+.hudItemGoldContainer #hudGoldLabel
+{
+	margin-bottom: 8px;
+}
+
+.infiniteMoney #hudAPInfinite
+{
+	visibility: visible;
+	height: 30px;
+	width: 30px;
+	vertical-align: middle;
+}
+
+#hudAPInfinite
+{
+	visibility: collapse;
+}
+
+#hudAPPointsAvailable
+{
+	margin-left: -8px;
+	height: 40px;
+	width: 65px;
+	background-color: #10130D;
+	vertical-align: center;
+}
+
+.bottomCurrencyContainer
+{
+	flow-children: right;
+	margin-left: 20px;
+}
+
+#CurrentGoldAmount
+{
+	flow-children: right;
+	vertical-align: middle;
+	margin-bottom: 5px;
+}
+
+#CurrentGoldAmount:hover
+{
+	sound: soundMainMenuHover;
+}
+
+#hudCurGoldIcon
+{
+	horizontal-align: center;
+	height: 40px;
+	background-image: url("s2r://panorama/images/hud/icons/icon_soul.vsvg");
+	background-size: contain;
+	background-repeat: no-repeat;
+	width: 24px;
+	margin-right: 5px;
+	vertical-align: middle;
+	wash-color: shardColor;
+}
+
+#hudGoldLabel
+{
+	font-size: 14px;
+	text-transform: uppercase;
+	color: offWhite;
+	opacity: 0.4;
+	vertical-align: bottom;
+	margin-bottom: 5px;
+	margin-left: 5px;
+	text-overflow: shrink;
+	max-width: 80px;
+	max-height: 26px;
+}
+
+.infiniteMoney #CurrentGoldAmount,.infiniteMoney .hudDeathGoldContainer
+{
+	visibility: collapse;
+}
+
+.infiniteMoney .hudItemGoldContainer
+{
+	visibility: visible;
+}
+
+#hudGoldInfinite
+{
+	visibility: collapse;
+}
+
+.infiniteMoney #hudGoldInfinite
+{
+	visibility: visible;
+	height: 30px;
+	width: 30px;
+	vertical-align: center;
+	wash-color: offWhite;
+	vertical-align: bottom;
+}
+
+.death_penalty_gold
+{
+	vertical-align: bottom;
+	horizontal-align: right;
+	color: offWhite;
+	text-align: right;
+	opacity: 0.5;
+	visibility: visible;
+}
+
+.hudDeathGoldContainer
+{
+	visibility: collapse;
+	flow-children: right;
+	vertical-align: center;
+	margin-left: 10px;
+	margin-top: 14px;
+}
+
+.hudItemGoldContainer
+{
+	visibility: collapse;
+	flow-children: right;
+	vertical-align: center;
+	margin-left: 3px;
+	margin-top: 7px;
+}
+
+#hudDealthGoldLabel
+{
+	margin-right: 3px;
+}
+
+.hudDeathGoldContainer Label
+{
+	font-size: 14px;
+	color: #ffffff;
+	font-weight: semi-bold;
+	font-family: sansMono;
+	text-align: center;
+	horizontal-align: center;
+	text-transform: uppercase;
+}
+
+#hudUnsecuredLabel
+{
+	opacity: 0.2;
+}
+
+@keyframes 'death_penalty_danger_pulse'
+{
+	0%
+	{
+		opacity: 0.2;
+	}
+	
+	50%
+	{
+		opacity: 1;
+	}
+	
+	100%
+	{
+		opacity: 0.2;
+	}
+	
+}
+
+.death_penalty_gold_danger_level_2 .hudDeathGoldContainer
+{
+	color: rgb(255, 145, 145);
+	animation-name: death_penalty_danger_pulse;
+	animation-duration: 1.2s;
+	animation-iteration-count: infinite;
+}
+
+.death_penalty_gold_danger_level_3 .hudDeathGoldContainer
+{
+	color: rgb(255, 64, 64);
+	text-shadow: 2px 2px 20px 2 rgb(100, 12, 12);
+	animation-name: death_penalty_danger_pulse;
+	animation-duration: 1.2s;
+	animation-iteration-count: infinite;
+}
+
+.death_penalty_gold_danger_level_4 .hudDeathGoldContainer
+{
+	color: rgb(255, 64, 64);
+	text-shadow: 2px 2px 20px 2 rgb(100, 12, 12);
+	font-size: 25px;
+	animation-name: death_penalty_danger_pulse;
+	animation-duration: 0.6s;
+	animation-iteration-count: infinite;
+}
+
+.death_penalty_gold_danger_level_2 .death_penalty_gold
+{
+	color: rgb(255, 145, 145);
+}
+
+.death_penalty_gold_danger_level_4 .death_penalty_gold,.death_penalty_gold_danger_level_3 .death_penalty_gold
+{
+	color: rgb(255, 64, 64);
+	text-shadow: 2px 2px 20px 2 rgb(100, 12, 12);
+}
+
+.death_penalty_gold_danger_level_1 .hudDeathGoldContainer,.death_penalty_gold_danger_level_2 .hudDeathGoldContainer,.death_penalty_gold_danger_level_3 .hudDeathGoldContainer,.death_penalty_gold_danger_level_4 .hudDeathGoldContainer
+{
+	visibility: visible;
+	width: fit-children;
+}
+
+.gShopOpen .hudDeathGoldContainer
+{
+	visibility: collapse;
+}
+
+#hudDeathGoldIcon
+{
+	vertical-align: center;
+	horizontal-align: center;
+	width: 12px;
+	height: 12px;
+	opacity: 0.3;
+	margin-right: 3px;
+	wash-color: colorEnemy;
+}
+
+@keyframes 'death_penalty_gold_gained_anim'
+{
+	0%
+	{
+		opacity: 1;
+	}
+	
+	50%
+	{
+		opacity: 1;
+	}
+	
+	100%
+	{
+		opacity: 0;
+	}
+	
+}
+
+#death_penalty_gold_flash
+{
+	vertical-align: bottom;
+	horizontal-align: left;
+	background-color: gradient( linear, 0% 0%, 0% 50%, from( #ff000000 ), to( #ff0000 ) );
+	width: 250px;
+	height: 20px;
+	opacity: 0;
+}
+
+.death_penalty_gold_gained #death_penalty_gold_flash
+{
+	height: 80px;
+	opacity: 0.6;
+	transition-property: opacity, height;
+	transition-duration: 1s;
+	transition-timing-function: ease-in;
+}
+
+#PlayerLevelContainer
+{
+	flow-children: right;
+	ignore-parent-flow: true;
+	max-width: 200px;
+	horizontal-align: right;
+	margin-left: 20px;
+	opacity: 0;
+}
+
+.gShopOpen #PlayerLevelContainer,.gScoreboardOpen #PlayerLevelContainer
+{
+	opacity: 1;
+}
+
+.boon_bg
+{
+	height: 26px;
+	width: 90%;
+	ignore-parent-flow: true;
+	vertical-align: bottom;
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( shardColor&40 ), to( shardColor&00 ) );
+	margin-top: 15px;
+}
+
+#PlayerLevelInfo
+{
+	flow-children: down;
+	padding: 5px 10px;
+	vertical-align: bottom;
+}
+
+#LevelAmount
+{
+	flow-children: right;
+	horizontal-align: right;
+	margin-top: 38px;
+	margin-right: 35px;
+	ignore-parent-flow: true;
+	z-index: 10;
+}
+
+#HeroLevelIcon
+{
+	width: 35px;
+	height: 20px;
+	background-color: #ffffff30;
+	margin-right: 5px;
+	margin-top: 3px;
+}
+
+#HeroLevelNumber
+{
+	color: offWhite;
+	font-weight: bold;
+}
+
+.subLabel
+{
+	font-size: 14px;
+	text-transform: uppercase;
+	text-overflow: shrink;
+	max-width: 80px;
+	max-height: 18px;
+	margin-top: 5px;
+	font-weight: bold;
+	color: offBlack;
+	opacity: 0.7;
+	vertical-align: middle;
+}
+
+CitadelPlayerLevel
+{
+	horizontal-align: right;
+}
+
+.ScalingStatImage
+{
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: left;
+	background-image: url("s2r://panorama/images/shop/keystat_boon_arrow_png.vtex");
+}
+
+#HeroImage
+{
+	margin-left: 8px;
+	ui-scale: 50%;
+}
+
