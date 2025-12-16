@@ -1,15 +1,15 @@
-<!-- xml reconstructed by Source 2 Viewer 14.1.0.0 - https://valveresourceformat.github.io -->
+<!-- xml reconstructed by Source 2 Viewer 15.0.0.0 - https://valveresourceformat.github.io -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
 		<include src="s2r://panorama/styles/hud_common.vcss_c" />
 		<include src="s2r://panorama/styles/npc_icons.vcss_c" />
 		<include src="s2r://panorama/styles/hud.vcss_c" />
-				<include src="s2r://panorama/styles/hud_timer.vcss_c" />
+		<include src="s2r://panorama/styles/hud_timer.vcss_c" />
 	</styles>
 	<scripts>
 		<include src="s2r://panorama/scripts/rejuvnbufftimer.vjs_c" />
-    </scripts>
+	</scripts>
 	<snippets>
 		<snippet name="OffscreenEnemySnippet">
 			<Panel class="damage_offscreen">
@@ -37,6 +37,19 @@
 				<Image class="pingPlayerPulse2 playerPulse" src="s2r://panorama/images/hud/ping/ping_player.vsvg" />
 				<Image class="pingPlayerPulse3 playerPulse" src="s2r://panorama/images/hud/ping/ping_player.vsvg" />
 				<Image id="hero_icon" />
+			</Panel>
+		</snippet>
+		<snippet name="SeasonalKillToast">
+			<Panel class="SeasonalKillToast" toast_duration_override="4s" toast_appear_sound="UI.SeasonalAchievement">
+				<Panel class="Left">
+					<CitadelHeroImage id="KillerHeroImage" heroimagestyle="small" />
+					<Image id="SnowballImage" src="s2r://panorama/images/items/seasonal/2025_snowball_psd.vtex" />
+					<CitadelHeroImage id="VictimHeroImage" heroimagestyle="small" />
+				</Panel>
+				<Panel class="Right">
+					<Label html="true" class="snowballLine1" text="#Citadel_Hud_Toast_SeasonalKill" />
+					<Label html="true" class="snowballLine2" text="#Citadel_Hud_Toast_SeasonalKill2" />
+				</Panel>
 			</Panel>
 		</snippet>
 	</snippets>
@@ -200,16 +213,16 @@
 				<Panel class="clamp_width" hittest="false">
 					<HudDataFeed id="DataFeed" />
 					<GlobalClassListener id="minimap_persp" hittest="false" classes="gDetailView gScoreboardOpen gAbilityUpgradeMenu">
-						<Panel id="Buff" class="BuffP" hittest="false" >
+						<Panel id="Buff" class="BuffP" hittest="false">
 							<Label id="BuffTime" text="0:00" />
 							<Image id="BuffImg" src="s2r://panorama/images/hud/modifiers/icon_powerup.svg" />
 						</Panel>
-						<Panel id="Rejuv" hittest="false" >
+						<Panel id="Rejuv" hittest="false">
 							<Label id="RejuvTime" text="0:00" />
 							<Image id="RejuvImg" src="s2r://panorama/images/hud/modifiers/icon_rejuvenator.svg" />
 							<Label id="RejuvNum" text="1" />
 						</Panel>
-						<Panel id="RejuvBuff" hittest="false" >
+						<Panel id="RejuvBuff" hittest="false">
 							<Label id="RejuvTimeBuff" text="0:00" />
 						</Panel>
 						<Panel id="minimap_container" hittest="false">
@@ -329,7 +342,8 @@
 				</Panel>
 				<CitadelHudPassiveAbilities id="hud_passive_items" class="items passive_items" hittest="false" hittestchildren="false" />
 				<CitadelHudAbilities id="hud_signature" class="abilities" slots="signature_1 signature_2 signature_3 signature_4" />
-				<ActiveAbilitiesMenu id="ActiveAbilitiesMenu" slots="item_1 item_2 item_3 item_4" />
+				<ActiveAbilitiesMenu id="ActiveAbilitiesMenu" class="active_abilities" slots="item_1 item_2 item_3 item_4" />
+				<ActiveAbilitiesMenu id="CosmeticAbilitiesMenu" class="active_abilities" slots="cosmetic_1" />
 				<Panel id="APContainer">
 					<Panel class="APValues">
 						<Panel class="APCurrencyIcon" />
