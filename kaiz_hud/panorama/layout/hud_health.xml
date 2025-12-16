@@ -1,0 +1,47 @@
+<!-- xml reconstructed by Source 2 Viewer 15.0.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/hud_common.vcss_c" />
+		<include src="s2r://panorama/styles/hud_health.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="file://{resources}/scripts/health_bar_color.js" />
+	</scripts>
+	<Panel class="bars_container" hittest="false">
+
+		<Panel class="health_bar_line">
+			<Panel class="health_bar_border">
+				<ProgressBarWithMiddle id="health_bar" class="large_progress_bar" vertical="true">
+					<Panel class="progress_bar_numbers">
+						<Panel class="bar_num_col_right">
+							<Label id="current_health" class="progress_bar_current" />
+							<Label id="max_health" />
+						</Panel>
+					</Panel>
+				</ProgressBarWithMiddle>
+				<ProgressBarWithMiddle id="pending_incoming_damage" class="large_progress_bar" vertical="true" />
+				<ProgressBarWithMiddle id="pending_incoming_heal" class="large_progress_bar" vertical="true" />
+				<Panel id="healthBottomEdge" />
+				<Panel id="health_bar_frame" />
+			</Panel>
+			<Panel class="regen_container">
+				<Image class="regen_image" />
+				<Label class="regen_value" />
+			</Panel>
+			<Panel id="RejuvenatorContainer" />
+		</Panel>
+		<ProgressBarWithMiddle id="tech_shield_bar" class="small_progress_bar" vertical="true">
+			<Panel class="progress_bar_numbers">
+				<Label class="progress_bar_current" />
+				<Label class="progress_bar_max" />
+			</Panel>
+		</ProgressBarWithMiddle>
+		<ProgressBarWithMiddle id="shield_bar" class="small_progress_bar" vertical="true">
+			<Panel class="progress_bar_numbers">
+				<Label class="progress_bar_current" />
+				<Label class="progress_bar_max" />
+			</Panel>
+		</ProgressBarWithMiddle>
+	</Panel>
+</root>
