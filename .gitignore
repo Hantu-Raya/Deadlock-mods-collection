@@ -6,6 +6,8 @@
 *.dll
 *.pdb
 *.vpk
+*.bat
+*.py
 
 # Temp files
 *.tmp
