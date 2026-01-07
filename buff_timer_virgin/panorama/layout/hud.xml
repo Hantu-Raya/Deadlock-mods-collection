@@ -213,10 +213,13 @@
 				<Panel class="clamp_width" hittest="false">
 					<HudDataFeed id="DataFeed" />
 					<GlobalClassListener id="minimap_persp" hittest="false" classes="gDetailView gScoreboardOpen gAbilityUpgradeMenu">
-						<Panel id="Buff" class="BuffP" hittest="false">
-							<Label id="BuffTime" text="0:00" />
-							<Image id="BuffImg" src="s2r://panorama/images/hud/modifiers/icon_powerup.svg" />
-						</Panel>
+					<Panel id="SoulTimer" hittest="false">
+						<Label id="SoulTimerLabel" class="hidden" text="--:--" />
+					</Panel>
+					<Panel id="Buff" class="BuffP" hittest="false">
+						<Label id="BuffTime" text="0:00" />
+						<Image id="BuffImg" src="s2r://panorama/images/hud/modifiers/icon_powerup.svg" />
+					</Panel>
 						<Panel id="Rejuv" hittest="false">
 							<Label id="RejuvTime" text="0:00" />
 							<Image id="RejuvImg" src="s2r://panorama/images/hud/modifiers/icon_rejuvenator.svg" />

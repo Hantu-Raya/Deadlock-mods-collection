@@ -1,5 +1,36 @@
 # AGENTS.md - Deadlock/Dota 2 Panorama UI Modding
 
+## Overview
+
+Multi-mod collection for Deadlock HUD customization. Each mod = source folder + `_compiled` sibling.
+
+## Structure
+
+```
+./
+├── {mod}/                    # Source (JS/CSS/XML/vdata)
+│   └── panorama/
+│       ├── scripts/          # .js logic
+│       ├── styles/           # .css styling  
+│       ├── layout/           # .xml structure
+│       └── images/           # .svg assets
+├── {mod}_compiled/           # Compiled output (.vjs_c, .vcss_c, .vxml_c)
+├── abilities/                # VData + Python helpers (see .agent/workflows/)
+├── post/                     # Post-processing configs
+└── hp/                       # COMPLEX: Multiple healthbar variants (see hp/AGENTS.md)
+```
+
+## Where to Look
+
+| Task | Location |
+|------|----------|
+| Buff/Rejuv timers | `buff_timer_*/panorama/scripts/` |
+| Health bar coloring | `kaiz_hud/`, `hp/`, `self_hp/` |
+| Ability icons | `standalone*/`, `hud/` |
+| Rank display | `showrank/` |
+| Color blind options | `heatlh_color_blind/` |
+| Abilities compile | `.agent/workflows/abilities-compile.md` |
+
 ## Build/Lint/Test Commands
 
 - Build: Use Dota 2 Workshop Tools to compile, then pack to VPK
