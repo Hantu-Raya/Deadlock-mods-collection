@@ -3,15 +3,28 @@ const REJUV_DUR=240,BRIDGE_DUR=300,SPAWN_TH=10,TICK_FAST=0.1,TICK_NORM=1,TICK_ID
 const SEQ=[{d:600,n:"1"},{d:420,n:"2"},{d:360,n:"3"},{d:300,n:"3"}];
 const REJUV_CLS=["RejuvCount_1","RejuvCount_2","RejuvCount_3","RejuvCount_4"];
 const TIME_IDS=["HudGameTime","GameTime","MainGameTime"];
+
+// Soul Timer Constants
+const SOUL_BASE_FLAT=1.6,SOUL_FLAT_GROWTH=0.08,SOUL_PCT_DRAIN=0.005,SOUL_STEP=0.1,SOUL_MAX_TIME=600;
+const SOUL_COLOR_RED=1000,SOUL_COLOR_YELLOW=500,SOUL_SHOW_MS=300;
+
 let hnd,running=false,inHideout=true,spawnWait=false,idx=0,counter=0,phaseStart=0,claimCnt=0;
 let buffStart=0,buffCnt=0,lastSec=-1,lastGlobalSec=-1,lastGateChk=0,lastRunChk=0,lastScan=0,tick=TICK_NORM,lastFound=false;
 let _tCache=0,_tCacheTs=0;
-const UI={root:null,hud:null,gameTimePanel:null,rLab:null,rNum:null,rImg:null,buffLab:null,rejuvBuff:null,rejuvBuffTime:null,rejuvFriendly:null,rejuvEnemy:null};
+
+// Soul Timer State
+let _soulLastSouls=-1,_soulLastText=null,_soulLastColor=null,_soulLastVisible=false;
+
+const UI={root:null,hud:null,gameTimePanel:null,rLab:null,rNum:null,rImg:null,buffLab:null,rejuvBuff:null,rejuvBuffTime:null,rejuvFriendly:null,rejuvEnemy:null,
+  soulPanel:null,soulLabel:null,unsecuredLabel:null};
 
 function boot(){
   const r=findRoot($.GetContextPanel());UI.root=r;UI.hud=r.FindChildTraverse("Hud");
   UI.rLab=r.FindChildTraverse("RejuvTime");UI.rNum=r.FindChildTraverse("RejuvNum");UI.rImg=r.FindChildTraverse("RejuvImg");
   UI.buffLab=r.FindChildTraverse("BuffTime");UI.rejuvBuff=r.FindChildTraverse("RejuvBuff");UI.rejuvBuffTime=r.FindChildTraverse("RejuvTimeBuff");
+  // Soul Timer panels
+  UI.soulPanel=r.FindChildTraverse("SoulTimer");UI.soulLabel=r.FindChildTraverse("SoulTimerLabel");
+  UI.unsecuredLabel=r.FindChildTraverse("hudDealthGoldLabel");
   const tb=r.FindChildTraverse("TopBar")||r.FindChildTraverse("CitadelHudTopBar");
   if(tb){const ch=tb.FindChildTraverse("RejuvenatorCharges");if(ch){UI.rejuvFriendly=ch.FindChildTraverse("RejuvenatorFriendly");UI.rejuvEnemy=ch.FindChildTraverse("RejuvenatorEnemy");}}
   if(!UI.rLab||!UI.rNum||!UI.rImg||!UI.buffLab)return $.Schedule(0.5,boot);
@@ -20,13 +33,14 @@ function boot(){
 
 function loop(){
   const now=gTime(),rn=Date.now();
-  if(!running){if(rn-lastGateChk>=30000){lastGateChk=rn;inHideout=isHideout();if(!inHideout)startRun(now);}hnd=$.Schedule(TICK_IDLE,loop);return;}
+  if(!running){if(rn-lastGateChk>=30000){lastGateChk=rn;inHideout=isHideout();if(!inHideout)startRun(now);}updateSoulTimer(now/60);hnd=$.Schedule(TICK_IDLE,loop);return;}
   if(rn-lastRunChk>=60000){lastRunChk=rn;if(isHideout()){reset(1);loop();return;}}
   if(lastGlobalSec>=0&&(now+5<lastGlobalSec||(lastGlobalSec>30&&now<=2))){reset(1);loop();return;}
   lastGlobalSec=now;
   if(now!==lastSec){lastSec=now;const rem=Math.max(0,SEQ[idx].d-(now-phaseStart));if(rem<=0)showSpawn();else{counter=rem;UI.rLab.text=fmt(rem);}tick=spawnWait||rem<=SPAWN_TH?TICK_FAST:TICK_NORM;}
   if(buffStart>0){buffCnt=Math.max(0,REJUV_DUR-(now-buffStart));if(UI.rejuvBuffTime)UI.rejuvBuffTime.text=fmt(buffCnt);if(buffCnt<=0)endBuff();}
   UI.buffLab.text=fmt(BRIDGE_DUR-(now%BRIDGE_DUR));
+  updateSoulTimer(now/60);
   if(rn-lastScan>=3000){lastScan=rn;doScan(now);}
   hnd=$.Schedule(tick,loop);
 }
@@ -46,6 +60,74 @@ function startRun(now){running=true;claimCnt=0;lastFound=false;spawnWait=false;i
 function reset(f){if(hnd){$.CancelScheduled(hnd);hnd=null;}if(f){idx=0;counter=0;phaseStart=0;claimCnt=0;buffStart=0;buffCnt=0;lastSec=-1;lastGlobalSec=-1;spawnWait=false;lastFound=false;running=false;inHideout=true;if(UI.rLab)UI.rLab.text=fmt(SEQ[0].d);if(UI.rNum)UI.rNum.text="1";resetImg();endBuff();}}
 function setImg(i){resetImg();if(i>0){UI.rImg.AddClass("reverse");UI.rImg.AddClass("rotating");$.Schedule(0.8,()=>UI.rImg.RemoveClass("rotating"));}}
 function resetImg(){UI.rImg.RemoveClass("rotating");UI.rImg.RemoveClass("buff");UI.rImg.RemoveClass("reverse");UI.rImg.RemoveClass("white");}
+
+// ============================================================================
+// SOUL TIMER FUNCTIONS
+// ============================================================================
+function parseSoulValue(text){
+  if(!text)return 0;
+  const str=String(text);
+  let result=0,c;
+  for(let i=0;i<str.length;i++){
+    c=str.charCodeAt(i);
+    if(c>=48&&c<=57)result=result*10+(c-48);
+  }
+  return result;
+}
+
+function calcSoulTime(souls,gameMin){
+  let s=souls,elapsed=0;
+  while(s>0&&elapsed<SOUL_MAX_TIME){
+    const gm=gameMin+(elapsed/60);
+    const flat=SOUL_BASE_FLAT*(1+SOUL_FLAT_GROWTH*gm);
+    const drain=(s*SOUL_PCT_DRAIN)+flat;
+    s-=drain*SOUL_STEP;
+    elapsed+=SOUL_STEP;
+  }
+  return elapsed>0?elapsed:0;
+}
+
+function fmtSoulTime(sec,showMs){
+  if(sec<=0)return"0:00";
+  const ts=sec|0,mm=(ts/60)|0,ss=ts%60;
+  const mmS=mm<10?"0"+mm:""+mm,ssS=ss<10?"0"+ss:""+ss;
+  if(!showMs)return mmS+":"+ssS;
+  const ms=((sec-ts)*100)|0,msS=ms<10?"0"+ms:""+ms;
+  return mmS+":"+ssS+"."+msS;
+}
+
+function getSoulColor(souls){
+  if(souls>=SOUL_COLOR_RED)return"red";
+  if(souls>=SOUL_COLOR_YELLOW)return"yellow";
+  return"green";
+}
+
+function updateSoulTimer(gameMin){
+  const panel=UI.soulPanel,label=UI.soulLabel;
+  if(!panel||!label)return;
+  const unsec=UI.unsecuredLabel;
+  const souls=unsec?.text?parseSoulValue(unsec.text):0;
+  const shouldShow=souls>0;
+  if(shouldShow!==_soulLastVisible){
+    if(shouldShow){panel.RemoveClass("hidden");label.RemoveClass("hidden");}
+    else{panel.AddClass("hidden");label.AddClass("hidden");}
+    _soulLastVisible=shouldShow;
+  }
+  if(!shouldShow){_soulLastSouls=0;return;}
+  if(souls!==_soulLastSouls){
+    const timeToZero=calcSoulTime(souls,gameMin);
+    const showMs=souls>=SOUL_SHOW_MS;
+    const txt=fmtSoulTime(timeToZero,showMs);
+    const col=getSoulColor(souls);
+    if(txt!==_soulLastText){label.text=txt;_soulLastText=txt;}
+    if(col!==_soulLastColor){
+      label.RemoveClass("red");label.RemoveClass("yellow");label.RemoveClass("green");
+      label.AddClass(col);
+      _soulLastColor=col;
+    }
+    _soulLastSouls=souls;
+  }
+}
 
 function gTime(){const n=Date.now();if(n-_tCacheTs<200)return _tCache;let t=0;try{t=typeof Game!=="undefined"&&Game.GetGameTime?.()|0;}catch{}if(t>0){_tCache=t;_tCacheTs=n;return t;}try{t=typeof Game!=="undefined"&&Game.GetDOTATime?.()|0;}catch{}if(t>0){_tCache=t;_tCacheTs=n;return t;}try{t=typeof GameUI!=="undefined"&&GameUI.GetGameTime?.()|0;}catch{}if(t>0){_tCache=t;_tCacheTs=n;return t;}t=uiTime();_tCache=t;_tCacheTs=n;return t;}
 function uiTime(){if(UI.gameTimePanel){try{return parseSec(UI.gameTimePanel.text);}catch{}}for(let i=0;i<3;i++){try{const p=UI.root.FindChildTraverse(TIME_IDS[i]);if(p?.text){UI.gameTimePanel=p;return parseSec(p.text);}}catch{}}try{const a=(UI.hud||UI.root).FindChildrenWithClassTraverse("GameTime");if(a?.[0]?.text){UI.gameTimePanel=a[0];return parseSec(a[0].text);}}catch{}return 0;}
