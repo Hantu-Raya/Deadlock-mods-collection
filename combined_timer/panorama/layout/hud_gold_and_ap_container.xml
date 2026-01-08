@@ -4,7 +4,7 @@
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
 		<include src="s2r://panorama/styles/hud_common.vcss_c" />
 		<include src="s2r://panorama/styles/hud_gold_and_ap_container.vcss_c" />
-		<include src="file://{resources}/styles/soul_timer.css" />
+		<include src="s2r://panorama/styles/soul_timer.vcss_c" />
 	</styles>
 	<CitadelHudSoulAPContainer>
 		<GlobalClassListener classes="gShopOpen" />
