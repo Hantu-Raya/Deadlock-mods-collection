@@ -26,9 +26,18 @@ function set(cls){
 }
 function run(){
   if(!rdy){boot();if(!rdy)return $.Schedule(0.1,run);}
+  
   const p=pct();
-  set(p<28?"health_red":p<50?"health_orange":p<65?"health_yellow":"health_white");
-  $.Schedule(0.05,run);
+  const cls = p<28?"health_red":p<50?"health_orange":p<65?"health_yellow":"health_white";
+  set(cls);
+
+  // Adaptive polling: Slow down if static, speed up if changing
+  // 0.05s (20 ticks/sec) when active, 0.5s (2 ticks/sec) when idle
+  const isStatic = (Math.abs(p - (UI.lastPct || 0)) < 0.1);
+  UI.lastPct = p;
+  
+  const next = isStatic ? 0.25 : 0.05;
+  $.Schedule(next, run);
 }
 boot();run();
 })();
