@@ -49,7 +49,7 @@
 #InfoHealthContainer {
 	width: fit-children;
 	height: fit-children;
-	height: 120px;
+	height: 300px;
 	horizontal-align: center;
 	vertical-align: bottom;
 	flow-children: right;
@@ -219,21 +219,73 @@
 	background-size: 100%;
 }
 
-#unit_level_label {
-	font-size: 120px;
-	color: UnitPowerLevelColor_Default;
-	visibility: visible;
-	text-align: center;
-	font-weight: bold;
-	font-family: sans;
-	text-transform: uppercase;
-	vertical-align: bottom;
-	text-shadow: 0px 0px 10px 12 DropshadowColor;
-	text-align: center;
+/* Level container - circle around level number */
+.NP_playerlevel_container {
+	height: 70%;
+	width: height-percentage(100%);
+	border: 20px solid Team1Color;
+	border-radius: 50%;
 	vertical-align: middle;
-	horizontal-align: center;
+	margin-top: 8%;
+	margin-right: -2%;
+	visibility: collapse; /* Hidden by default */
+	
+	/* Competitive visibility background */
+	background-color: #0a0a0ae6;
+	box-shadow: inset 0px 0px 10px #000000;
+}
+
+/* Only show for enemy players */
+.enemy.player .NP_playerlevel_container {
 	visibility: visible;
-	z-index: 2;
+}
+
+/* Team colors for circle border */
+.team1.enemy .NP_playerlevel_container {
+	border-color: Team1Color;
+}
+
+.team2.enemy .NP_playerlevel_container {
+	border-color: Team2Color;
+}
+
+/* Level label inside circle */
+.NP_playerlevel {
+	height: fit-children;
+	width: 100%;
+	horizontal-align: center;
+	vertical-align: middle;
+	color: white;
+	font-size: 100px;
+	font-weight: bold;
+	text-align: center;
+	text-shadow: 0px 1px 2px #000000; /* Crisp hard shadow */
+}
+
+/* Hide when health is hidden */
+.health_hidden .NP_playerlevel_container {
+	visibility: collapse;
+}
+
+/* Level tier border colors (threat-based) - higher specificity to override team colors */
+.level_tier2.enemy .NP_playerlevel_container,
+.enemy.level_tier2 .NP_playerlevel_container {
+	border-color: #f0d000;
+}
+
+.level_tier3.enemy .NP_playerlevel_container,
+.enemy.level_tier3 .NP_playerlevel_container {
+	border-color: #ff8c00;
+}
+
+.level_tier4.enemy .NP_playerlevel_container,
+.enemy.level_tier4 .NP_playerlevel_container {
+	border-color: #e53935;
+}
+
+.level_tier5.enemy .NP_playerlevel_container,
+.enemy.level_tier5 .NP_playerlevel_container {
+	border-color: #8b0000;
 }
 
 #bounty_gold_label {

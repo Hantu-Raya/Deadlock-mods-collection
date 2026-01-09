@@ -1,0 +1,122 @@
+﻿"lang"
+{
+	"Language"		"np"
+	"Tokens"
+	{
+		"Citadel_GameName"										"Neon Prime"
+		"Citadel_PlaytestWarningBody"							"Thank you for using the Neon Prime Hud Mod!"
+		"Citadel_Shop_TierBonus_Tech"							"Tech Power"
+		"ping_jar_call"											"Idol is here!"
+
+		"guide_upgrades_buy_mods_header"						"Buy Mods"
+		"guide_upgrades_buy_mods_desc"							"Mods can modify a variety of things like ammo count, melee damage or health regeneration.  Mods that increase Tech Power improve the effectiveness of your abilities.<br><br>There is a Suggested Mods tab with hand-picked recommendations for each hero."
+
+		"spirit_permanent_pickup_label"							"+2 Tech"
+		"spirit_permanent_pickup_label_lv2"						"+3 Tech"
+
+		"CitadelShop_SearchExampleAlt"							"Try searching by <span class=\"highlight\">Mod Name</span> or by stat such as <span class=\"highlight_weapon\">Ammo</span>, <span class=\"highlight_vitality\">Lifesteal</span> or <span class=\"highlight_spirit\">Tech Power</span>."
+
+		"CitadelCategoryTech"									"Tech"
+
+		"EShopFilterMagicDamage"								"Tech Damage"
+		"CitadelHeroStats_SpiritPower_Desc"						"Tech Power increases the effectiveness of your Abilities and Mods."
+		"CitadelHeroStats_SpiritPower_Impact"					"Tech Power Impact"
+		"CitadelHeroStats_Spirit"								"Tech Stats"
+		"CitadelHeroStats_Vitality"								"Armor Stats"
+		"Citadel_ShopStats_SpiritScaling"						"Tech"
+		"Citadel_ShopFilter_MagicDamage"						"Tech Damage"
+
+		"Citadel_Hero_Stats_Tooltip_Spirit_IconDesc"			"Look for the <span class=\"spirit_color\">Tech Power</span> icon on your Abilities to see its effect."
+
+		"Citadel_Hero_Stats_Tooltip_Spirit"						"<span class=\"spirit_color\">Tech Power</span> increases the effectiveness of your Abilities. Tech Power is gained from buying mods in the Tech tree"
+
+		"Citadel_Player_Level_SpiritAmp"						"Tech Damage Amp"
+
+		"Citadel_HUD_IdolPickedUp"								"Idol Picked Up!"
+		"Citadel_HUD_IdolReturned"								"Idol Returned!"
+
+		"menu_browseshop"										"Browse Mods"
+		"menu_play_normal"										"Play Neon Prime"
+		"Citadel_Exit_Game_Confirm"								"Are you sure you want to exit Neon Prime?"
+
+		"team_msg_TitanDefeated_Title"							"Titan destroyed"
+		"team_msg_YourTitanDefeated_Desc"						"Your Titan has been destroyed"
+		"team_msg_TheirTitanDefeated_Desc"						"Your team has defeated the enemy Titan"
+		"team_msg_TitanDefeated_Desc"							"A Titan has been destroyed"
+
+		"Citadel_TeamMsg_EnemyTitanKilledTitle"					"Enemy Titan"
+		"Citadel_TeamMsg_TitanKilledTitle"						"Your Titan"
+
+		"Citadel_Hero_Stats_Tooltip_HealthMult"					"Total Bonus to your Base Health gained from buying items in the Armor tree"
+
+		"CitadelCategoryArmor"									"Armor"
+
+		"CITADEL_ABILITY_INVALID_SILENCED"						"Can't use Abilities while EMP'd"
+		"CITADEL_ABILITY_INVALID_SILENCED_IDOL"					"Can't use Abilities while Holding Idol"
+
+		"citadel_ability_tier3boss_laser_beam"					"Titan Laser"
+
+		"modifier_neutral_gold_pickup_aura/aura_target/timer"	"Picking up Unsecured Gold"
+		"modifier_idol_pickup_aura/aura_target/timer"			"Picking up Idol"
+
+		"Citadel_LaneStats_Souls"								"Gold"
+
+		"Citadel_Graph_Souls_Treasure"							"Idol"
+		"Citadel_GraphType_SoulsBySource"						"Gold by Source"
+		"Citadel_GraphType_NetWorth"							"Gold Collected"
+		"Citadel_GraphType_NetWorthPerMin"						"Gold per Minute"
+
+		"Citadel_MatchDetails_NetWorth"							"Total Networth"
+
+
+
+
+
+		"Objective_Friendly_T1"									"Friendly Guardian"
+		"Objective_Enemy_T1"									"Enemy Guardian"
+		"Objective_Team1_T1"									"East Guardian"
+		"Objective_Team2_T1"									"West Guardian"
+
+		"Objective_Friendly_T2"									"Friendly Walker"
+		"Objective_Enemy_T2"									"Enemy Walker"
+		"Objective_Team1_T2"									"East Walker"
+		"Objective_Team2_T2"									"West Walker"
+
+		"Objective_Friendly_T3"									"Friendly Patron"
+		"Objective_Enemy_T3"									"Enemy Patron"
+		"Objective_Team1_T3"									"East Patron"
+		"Objective_Team2_T3"									"West Patron"
+
+		"Objective_Friendly_BarrackBoss"						"Friendly Base Boss"
+		"Objective_Enemy_BarrackBoss"							"Enemy Base Boss"
+		"Objective_Team1_BarrackBoss"							"East Base Boss"
+		"Objective_Team2_BarrackBoss"							"West Base Boss"
+
+		"Objective_Friendly_ShieldGenerator"					"Friendly Shrine"
+		"Objective_Enemy_ShieldGenerator"						"Enemy Shrine"
+		"Objective_Team1_ShieldGenerator"						"East Shrine"
+		"Objective_Team2_ShieldGenerator"						"West Shrine"
+		
+		"Objective_Friendly_Final"								"Friendly Patron (weakened)"
+		"Objective_Enemy_Final"									"Enemy Patron (weakened)"
+		"Objective_Team1_Final"									"East Patron (weakened)"
+		"Objective_Team2_Final"									"West Patron (weakened)"
+
+		"Objective_Message_Patron_Transforming" 				"The Patron is Transforming..."
+
+		"Citadel_Team1_Name"									"The East Hand"
+		"Citadel_Team2_Name"									"The West Flame"
+
+		"citadel_east_team_name"								"EAST"
+		"citadel_west_team_name"								"WEST"
+
+
+		"citadel_keybind_minimap_view_amber_team"				"East Minimap View"
+		"citadel_keybind_minimap_view_sapphire_team"			"West Minimap View"
+		"citadel_keybind_minimap_view_spectator_team"			"Both Team's Minimap View"
+		"citadel_keybind_minimap_view_targets_team"				"Target's Minimap View"
+
+		"hud_spectate_minimap_view_sapphire" 					"West"
+		"hud_spectate_minimap_view_amber" 						"East"
+	}
+}

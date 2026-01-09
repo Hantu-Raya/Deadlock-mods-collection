@@ -45,8 +45,11 @@
 		<Label id="name" text="{s:name}" />
 		<Panel id="UnitStatus" hittest="false">
 			<CitadelStatusEffect id="StatusEffects" />
-			<Panel id="InfoHealthContainer">
-				<Panel id="UnitInfoContainer" />
+		<Panel id="InfoHealthContainer">
+			<Panel id="LevelContainer" class="NP_playerlevel_container">
+				<Label id="unit_level_label" class="NP_playerlevel" text="{d:player_level}" />
+			</Panel>
+			<Panel id="UnitInfoContainer" />
 				<Panel id="UnitHealthbarContainer">
 					<Panel id="unit_healthbar_bg">
 						<Panel id="unit_healthbar_missing">
