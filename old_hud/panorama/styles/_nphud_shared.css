@@ -1,0 +1,105 @@
+/* Prettified by Source 2 Viewer 15.0.0.0 - https://valveresourceformat.github.io */
+
+@define healthbarWidth: 340px;
+@define healthbarHeight: 40px;
+@define NP_healthbarBRadius:4px;
+@define NP_BR_panels: 5px;
+@define NP_Passive_Mod_BR: 60px;
+@define NP_Active_Mod_BR: 5px;
+@define NP_original_Mod_BR: 5px;
+@define Team1Color: #2EBA36;
+@define Team2Color: #F5555D;
+@define NP_Shop_BG: #3c2205;
+@define NP_BG_Grey: #131313;
+@define NP_Offwhite: #ffffff;
+@define NP_Primary: #12909a;
+@define NP_Primary_Light: #2af4fe;
+@define NP_Secondary: #1d5dbc;
+@define NP_Secondary_Light: #6193ff;
+@keyframes 'scanlines'
+{
+	0%
+	{
+		opacity-mask: url("s2r://panorama/images/scanline_anim/1.vtex") 0.8;
+	}
+	
+	25%
+	{
+		opacity-mask: url("s2r://panorama/images/scanline_anim/2.vtex") 0.8;
+	}
+	
+	50%
+	{
+		opacity-mask: url("s2r://panorama/images/scanline_anim/3.vtex") 0.8;
+	}
+	
+	75%
+	{
+		opacity-mask: url("s2r://panorama/images/scanline_anim/4.vtex") 0.8;
+	}
+	
+	100%
+	{
+		opacity-mask: url("s2r://panorama/images/scanline_anim/1.vtex") 0.8;
+	}
+	
+}
+
+@keyframes 'scanlines_2'
+{
+	0%
+	{
+		opacity-mask: url("s2r://panorama/images/scanline_anim_2/1.vtex") 0.5;
+	}
+	
+	12%
+	{
+		opacity-mask: url("s2r://panorama/images/scanline_anim_2/2.vtex") 0.5;
+	}
+	
+	25%
+	{
+		opacity-mask: url("s2r://panorama/images/scanline_anim_2/3.vtex") 0.5;
+	}
+	
+	37%
+	{
+		opacity-mask: url("s2r://panorama/images/scanline_anim_2/4.vtex") 0.5;
+	}
+	
+	50%
+	{
+		opacity-mask: url("s2r://panorama/images/scanline_anim_2/5.vtex") 0.5;
+	}
+	
+	62%
+	{
+		opacity-mask: url("s2r://panorama/images/scanline_anim_2/6.vtex") 0.5;
+	}
+	
+	75%
+	{
+		opacity-mask: url("s2r://panorama/images/scanline_anim_2/7.vtex") 0.5;
+	}
+	
+	87%
+	{
+		opacity-mask: url("s2r://panorama/images/scanline_anim_2/8.vtex") 0.5;
+	}
+	
+	100%
+	{
+		opacity-mask: url("s2r://panorama/images/scanline_anim_2/1.vtex") 0.5;
+	}
+	
+}
+
+.ignorethis_im_just_using_this_for_vscode_colorpicker
+{
+	color: #12909a;
+	color: #2af4fe;
+	color: #6193ff;
+	color: #1d5dbc;
+	color: #defdff;
+}
+
