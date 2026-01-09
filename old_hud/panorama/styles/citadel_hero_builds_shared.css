@@ -1,0 +1,7 @@
+/* Prettified by Source 2 Viewer 15.0.0.0 - https://valveresourceformat.github.io */
+
+@define citadelBuildsColorLightBlue: #FFDB4C;
+@define citadelBuildsColorDarkBlue: #c2a42d;
+@define citadelBuildsColorBackgroundGray: gradient ( linear, 0% 0%, 0% 100%, from (#000000), to(#343434));
+@define citadelBuildsColorContainerBackground: #61616199;
+@define citadelBuildsColorInnerGray: #D9D9D926;

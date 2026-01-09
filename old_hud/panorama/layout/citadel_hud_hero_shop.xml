@@ -1,0 +1,175 @@
+<!-- xml reconstructed by Source 2 Viewer 15.0.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_shared_colors.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_hud_hero_shop.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/neonprimehud.vjs_c" />
+	</scripts>
+	<CitadelHudHeroShop class="CitadelHudHeroShop gShopOpen" oncancel="CitadelExitUpgradeShop();" onactivate="">
+		<GlobalClassListener classes="gBrowsingBuilds gEditingBuilds gShopOpen" />
+		<Panel id="Shop">
+			<Panel id="NP_Statpanel">
+				<Panel id="HeroPanel">
+					<ScenePanel id="HeroScenePanel" map="ui/hero_shop/abrams_shop" use_shop_map="true" sound="PORTRAIT_SOUND_MODE_ALL_SOUNDS" shop_hero_animgraph_enum="ShopBase" parent_entity_name="hero_root" camera="point_camera" rotateonhover="true" allowrotation="false" require-composition-layer="true" />
+					<Image id="HeroImage" scaling="stretch-to-fit-y-preserve-aspect" />
+					<Panel id="SoulsContainer">
+						<Panel id="SoulAmount">
+							<Panel class="SoulsImage" />
+							<Label class="AbilitiesLabel" text="{i:total_souls}" />
+						</Panel>
+						<Label class="totalSouls" text="Total Souls Collected" />
+					</Panel>
+				</Panel>
+				<Panel id="NP_name_and_level_container">
+					<Label class="HeroFavoritesHeaderLabel" text="{s:hero_name}" />
+					<CitadelPlayerLevel id="PlayerLevel" />
+					<Panel id="NP_infobuttons">
+						<Panel id="SoulRewards" onmouseout="CitadelHideLevelRewardsTooltip();">
+							<Label text="View Soul Rewards" />
+						</Panel>
+						<Panel id="HeroStatsBtn" onmouseout="CitadelShowHeroStatsTooltip();">
+							<Label text="View Hero Stats" />
+						</Panel>
+					</Panel>
+				</Panel>
+				<Panel id="NP_infoStats">
+					<CitadelHeroStats id="HeroStats" on_dashboard="false" />
+				</Panel>
+				<Panel class="ModsPurchasedContainer">
+					<Panel class="ModsAndActivesContainer">
+						<Panel id="SecondaryPanel">
+							<Panel id="ModBarGraphContainer">
+								<CitadelHudModBarGraph id="ModBarGraph" />
+							</Panel>
+							<Panel id="ActivesPanel" />
+						</Panel>
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="NavPanel" class="TopBottomFlow">
+				<Panel id="NP_container_Abilities_and_upgrades">
+					<Panel id="NP_arrowbg" />
+					<Label text="TECH UPGRADES" id="tech_upgrades_label" />
+					<CitadelHudAbilities id="hud_signature" class="abilities" slots="signature_1 signature_2 signature_3 signature_4" />
+					<Panel id="APContainer">
+						<Panel class="APCurrencyIcon" />
+						<Label class="APCurrencyAmount" text="{d:current_ap}" />
+						<Image id="hudAPInfinite" src="s2r://panorama/images/upgrades/infinity_psd.vtex" />
+						<Label class="APCurrency_AP" text="AP" />
+					</Panel>
+				</Panel>
+				<Panel id="NP_container_Mods_and_currency">
+					<Label text="MODS SHOP" id="mods_shop_label" />
+					<Panel class="ModsContainer" hittest="false">
+						<Panel id="WeaponModsContainer" class="ModSection WeaponMods" onmouseactivate="CitadelShopModsActivate( EItemSlotType_WeaponMod ); TogglePanelSelected();" onmouseover="CitadelShowStatsTooltip( EItemSlotType_WeaponMod );" onmouseout="CitadelHideStatsTooltip();">
+							<Panel class="modsBacker" />
+							<CitadelModBonus id="WeaponBonus" bonus_type="Weapon" />
+							<CitadelModsPurchasedPanel id="ModPurchasedPanelWeapon" class="mod_weapon modsButton" mod_category="Weapon" show_cooldowns="true" show_spectating_player_items="false" />
+						</Panel>
+						<Panel id="ArmorModsContainer" class="ModSection ArmorMods" onmouseactivate="CitadelShopModsActivate( EItemSlotType_Armor )" onmouseover="CitadelShowStatsTooltip( EItemSlotType_Armor ); TogglePanelSelected();" onmouseout="CitadelHideStatsTooltip();">
+							<Panel class="modsBacker" />
+							<CitadelModBonus id="ArmorBonus" bonus_type="Armor" />
+							<CitadelModsPurchasedPanel id="ModPurchasedPanelArmor" class="mod_armor modsButton" mod_category="Armor" show_cooldowns="true" show_spectating_player_items="true" />
+						</Panel>
+						<Panel id="TechModsContainer" class="ModSection TechMods" onmouseactivate="CitadelShopModsActivate( EItemSlotType_Tech )" onmouseover="CitadelShowStatsTooltip( EItemSlotType_Tech ); TogglePanelSelected();" onmouseout="CitadelHideStatsTooltip();">
+							<Panel class="modsBacker" />
+							<CitadelModBonus id="SpiritBonus" bonus_type="Tech" />
+							<CitadelModsPurchasedPanel id="ModPurchasedPanelTech" class="mod_tech modsButton" mod_category="Tech" show_cooldowns="true" show_spectating_player_items="true" />
+						</Panel>
+						<Panel id="NPH_panel_favs_and_flex" class="ModSection">
+							<Panel id="NP_BuildButton" class="NP_BuildButton_Color" onmouseactivate="CitadelShopModsActivate( EItemSlotType_Favorites ); TogglePanelSelected();">
+								<Image id="NP_icon_builds_fav" src="s2r://panorama/images/upgrades/recommended_star_psd.vtex" />
+							</Panel>
+							<Panel class="FlexMods" hittest="false">
+								<CitadelModsPurchasedPanel id="ModPurchasedPanelUniversal" class="mod_universal modsButton" mod_category="Locked Universal" show_cooldowns="true" show_spectating_player_items="true" />
+							</Panel>
+						</Panel>
+					</Panel>
+					<ActiveAbilitiesMenu id="ActiveAbilitiesMenu" slots="item_1 item_2 item_3 item_4" />
+					<CitadelHudSoulAPContainer id="gold_and_ap_container" />
+				</Panel>
+			</Panel>
+			<Panel id="MainPanel" class="shop_default">
+				<Panel id="SearchExamples">
+					<Label html="true" class="SearchExampleHeader" text="#CitadelShop_SearchExampleAlt" />
+				</Panel>
+				<Panel id="ShopModsContainer" class="TopBottomFlow">
+					<Panel id="ShopNavigation">
+						<Panel class="NP_Shop_line" />
+						<Label text="WEAPON MODS" id="NP_Shop_title_weapon" />
+						<Label text="ARMOR MODS" id="NP_Shop_title_armor" />
+						<Label text="TECH MODS" id="NP_Shop_title_tech" />
+						<Label text="BUILD MODS" id="NP_Shop_title_build" />
+						<Label text="SEARCH MODS" id="NP_Shop_title_search" />
+						<Panel class="NP_Shop_line" />
+						<Panel id="FavoritesNav" class="NavigationButton" onmouseactivate="CitadelShopModsActivate( EItemSlotType_Favorites );  CitadelPlayUISound( EShopFilterFavoritesClicked );">
+							<Panel class="NavHeaderColor" />
+							<Panel class="NavIconContainer LeftRightFlow">
+								<Panel class="NavCategoryIcon" />
+								<Label class="NavLabel" text="#Citadel_HeroBuilds_TabName" />
+							</Panel>
+						</Panel>
+						<Panel id="WeaponNav" class="NavigationButton" onmouseactivate="CitadelShopModsActivate( EItemSlotType_WeaponMod ); CitadelPlayUISound( EShopFilterWeaponClicked );">
+							<Panel class="NavHeaderColor" />
+							<Panel class="NavIconContainer LeftRightFlow">
+								<Panel class="NavCategoryIcon" />
+								<Label class="NavLabel" text="#CitadelCategoryWeapon" />
+							</Panel>
+						</Panel>
+						<Panel id="ArmorNav" class="NavigationButton" onmouseactivate="CitadelShopModsActivate( EItemSlotType_Armor ); CitadelPlayUISound( EShopFilterVitalityClicked );">
+							<Panel class="NavHeaderColor" />
+							<Panel class="NavIconContainer LeftRightFlow">
+								<Panel class="NavCategoryIcon" />
+								<Label class="NavLabel" text="#CitadelCategoryArmor" />
+							</Panel>
+						</Panel>
+						<Panel id="TechNav" class="NavigationButton" onmouseactivate="CitadelShopModsActivate( EItemSlotType_Tech ); CitadelPlayUISound( EShopFilterMagicClicked );">
+							<Panel class="NavHeaderColor" />
+							<Panel class="NavIconContainer LeftRightFlow">
+								<Panel class="NavCategoryIcon" />
+								<Label class="NavLabel" text="#CitadelCategoryTech" />
+							</Panel>
+						</Panel>
+						<Panel id="NP_ShopButtonsContainer">
+							<ToggleButton text="EXPAND" id="NP_shopexpandbutton" onactivate="NP_ExpandShop();" />
+							<ToggleButton text="MOD SHAPE" id="NP_ToggleModShapeButton" onactivate="NP_ToggleModShape();" />
+						</Panel>
+						<Panel id="SearchContainer">
+							<Panel id="SearchBox">
+								<Panel id="ShopSearchIcon" onactivate="SetSearchFocus();" />
+								<TextEntry id="SearchTextEntry" acceptsfocus="true" acceptsinput="true" placeholder="#CitadelShopSearch" ontextentrychange="CitadelShopSearchTextEntryChanged();" onfocus="CitadelShopSearchTextEntryChanged()" />
+								<Button id="ClearSearchButton" onactivate="NP_ClearShopSearch(); CitadelShopSearchTextEntryChanged()" />
+							</Panel>
+						</Panel>
+					</Panel>
+					<Panel id="ShopModListsContainer">
+						<CitadelShopModsList id="ShopModsListWeapon" category="Weapon" />
+						<CitadelShopModsList id="ShopModsListArmor" category="Armor" />
+						<CitadelShopModsList id="ShopModsListTech" category="Tech" />
+						<CitadelShopModsBuild id="ShopModsSelectedBuild" />
+						<CitadelShopModsList id="ShopModsListAll" category="All" />
+					</Panel>
+				</Panel>
+				<Panel id="AbilityPanelsContainer" onactivate="" hittest="false" hittestchildren="false">
+					<CitadelAbilityDetailsPanel id="AbilityDetailsPanel1" class="abilityDetailsPanels" ability_slot="1" />
+					<CitadelAbilityDetailsPanel id="AbilityDetailsPanel2" class="abilityDetailsPanels" ability_slot="2" />
+					<CitadelAbilityDetailsPanel id="AbilityDetailsPanel3" class="abilityDetailsPanels" ability_slot="3" />
+					<CitadelAbilityDetailsPanel id="AbilityDetailsPanel4" class="abilityDetailsPanels" ability_slot="4" />
+				</Panel>
+			</Panel>
+			<Panel id="BackButton">
+				<Panel id="LeftCommandPanel" class="LeftRightFlow commandPanel" onactivate="CitadelExitUpgradeShop();">
+					<Panel class="FooterCommand DefaultESC">
+						<Panel class="controlKeyBind">
+							<Label text="#Citadel_Key_Escape" html="true" />
+						</Panel>
+						<Label class="FooterCommandLabel" text="#menu_exit_db_page" />
+					</Panel>
+				</Panel>
+			</Panel>
+		</Panel>
+	</CitadelHudHeroShop>
+</root>
