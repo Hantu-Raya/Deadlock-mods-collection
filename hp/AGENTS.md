@@ -10,6 +10,7 @@ Multiple healthbar logic variants for enemy unit coloring. Choose ONE `healthbar
 | `interp/` | Smooth interpolation | Continuous gradient between thresholds |
 | `team based fixed/` | Fixed + team colors | Amber (team1), Blue (team2) at high HP |
 | `team based interp/` | Interp + team colors | Gradient with team-specific high HP colors |
+| `team based fix no max health/` | Fixed + team, no HP text | Color only, no "cur/max" display |
 
 ## File Selection
 
