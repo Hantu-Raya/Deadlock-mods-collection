@@ -135694,6 +135694,7 @@
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_TARGET_THROUGH_WALLS | CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED | CITADEL_ABILITY_BEHAVIOR_COOLDOWN_ON_CHANNEL_END"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY"
+		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/magician/magician_magicbolt.psd"
 		m_strCastSound = soundevent:"Magician.VexingBolt.Cast"
 		m_vecAbilityUpgrades = 
