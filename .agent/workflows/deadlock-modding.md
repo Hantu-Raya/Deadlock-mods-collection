@@ -48,9 +48,29 @@ Best for mods that need smooth animations but expensive data scraping (e.g., Sou
 
 ## 🛠️ Mod Management Commands
 
-### Compile a Mod
-**Usage:** `Compile <mod_folder_name>`
-Runs the Source 2 Resource Compiler on the specified mod directory.
+### Compile a Mod (REQUIRED after code changes)
+**Command:**
+```powershell
+"F:\Users\Shiv\Desktop\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\{mod_name}"
+```
+
+**Examples:**
+```powershell
+# Compile buff_timer_virgin
+"F:\Users\Shiv\Desktop\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\buff_timer_virgin"
+
+# Compile soul_timer
+"F:\Users\Shiv\Desktop\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\soul_timer"
+
+# Compile hp
+"F:\Users\Shiv\Desktop\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\hp"
+```
+
+**Protocol:** 
+1. Make code changes in `{mod}/panorama/` 
+2. Run compile command above
+3. Output goes to `{mod}_compiled/`
+4. Test in-game
 
 ### Scaffold New Mod
 **Usage:** `Scaffold <new_mod_name>`
