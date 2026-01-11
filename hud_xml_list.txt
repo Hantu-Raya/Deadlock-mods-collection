@@ -1,4 +1,0 @@
-buff_timer_top_bar 
-buff_timer_virgin 
-buff_timer_virgin_only 
-hud 
