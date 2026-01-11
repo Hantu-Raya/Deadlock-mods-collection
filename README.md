@@ -22,6 +22,8 @@ This collection includes several discrete modules:
 
 ### 🎮 HUD Enhancements
 
+- **Soul Timer (`soul_timer`)**: A countdown timer for unsecured soul drainage, positioned above the soul counter.
+- **Soul Timer Warning (`soul_timer_warning_addon`)**: Adds a "Radioactive Breath" pulse animation to the Soul Timer when souls are at risk (≥1000).
 - **Buff Timer (Top Bar)**: Moves active buff timers to the top bar for better visibility during combat.
 - **Radar Tweaks**: Custom modifications to the minimap/radar for clarity.
 - **Rank Display (`showrank`)**: A widget to display MMR or rank badges in-game.
@@ -73,6 +75,7 @@ _Building this collection involved reverse-engineering the existing HUD XML layo
 
 - **Challenge**: Finding the correct parent panels to attach custom elements to was trial-and-error.
 - **Learning**: Learned how to hook into game events (like `OnTakeDamage` or `OnBuyItem`) using the Panorama event system.
+- **Technique**: Discovered the "CSS Hijack" pattern to override game styles without modifying XML, by creating CSS files with matching names and using `@import` to load the base styles.
 - **Improvement**: Future versions could use a centralized loader instead of separate folders for easier management.
 
 ## 🎥 Preview
