@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-01-10
-**Commit:** fd9181b
+**Generated:** 2026-01-11
+**Commit:** 468295a
 **Branch:** main
 
 ## OVERVIEW
@@ -22,6 +22,7 @@ Deadlock Panorama UI mod collection. 23 source mods compiling to VPK-ready struc
 | Task | Location | Notes |
 |------|----------|-------|
 | Soul Timer | `soul_timer/` | Drain formula, root re-parenting, watchdog pattern |
+| Soul Timer Warning | `soul_timer_warning_addon/` | CSS addon: pre-transform-scale2d pulse + glow (requires soul_timer) |
 | Buff/Rejuv Timers | `buff_timer_*/` | Phase tracking (Initial->Buff->CD), top bar variants |
 | Health Bars | `hp/` | 5 variants (fixed, interp, team-based). See hp/AGENTS.md |
 | Combined | `combined_timer/` | Soul + Buff merged into single mod |
@@ -43,7 +44,7 @@ Deadlock Panorama UI mod collection. 23 source mods compiling to VPK-ready struc
 ## CONVENTIONS
 - **JS**: IIFE + `'use strict'`. Cache `FindChildTraverse` at boot. Single-letter vars OK.
 - **CSS**: `wash-color` for tinting. `overflow: noclip` for overlays. `z-index: 99999+`.
-- **XML**: `hittest="false"` for overlays. `file://{resources}/` (source), `s2r://` (compiled).
+- **XML**: `hittest="false"` for overlays. `s2r://` paths use `.vcss_c`/`.vxml_c` (compiled extensions).
 - **Tick Rates**: 0.1s (fast/render), 1s (normal/state), 3s (idle/background).
 
 ## ANTI-PATTERNS (CRITICAL)
@@ -54,6 +55,8 @@ Deadlock Panorama UI mod collection. 23 source mods compiling to VPK-ready struc
 | Trust `visible` alone | Ghost panels | Check `actualvisibility !== "collapse"` too |
 | Bare panel access | Crash on reload | Wrap in try-catch + `?.IsValid?.()` |
 | `Game.GetGameTime()` unwrapped | Returns 0 | Try-catch + fallback to UI clock parse |
+| `transform: scale3d` with text-shadow | Clipping artifacts | Use `pre-transform-scale2d` instead |
+| `font-size` animation in keyframes | Layout jitter/crash | Use `pre-transform-scale2d` |
 
 ## KNOWN ENGINE BUGS
 | Bug | Symptom | Workaround |
@@ -62,6 +65,31 @@ Deadlock Panorama UI mod collection. 23 source mods compiling to VPK-ready struc
 | Shop Pause | Timer freezes | Watchdog timer (2s check, 5s stall = restart) |
 | GetGameTime=0 | Timers stuck | Fallback chain: `Game.GetGameTime()` -> `GameUI.GetGameTime()` -> parse clock text |
 | Panel Crash | JS Exception on HUD reload | Wrap ALL panel access in try-catch |
+| Scale3d + text-shadow | Shadow clipped/blurred | Use `pre-transform-scale2d` for text scaling |
+
+## CSS PATTERNS (PANORAMA-SPECIFIC)
+```css
+/* Animation scaling - use pre-transform-scale2d, NOT transform: scale3d */
+@keyframes 'pulse'
+{
+    0%   { pre-transform-scale2d: 1.0; }
+    50%  { pre-transform-scale2d: 1.5; }
+    100% { pre-transform-scale2d: 1.0; }
+}
+
+/* Fixed layout box for scaling without jitter */
+#AnimatedLabel {
+    width: 100px;
+    height: 100px;
+    text-align: center;
+    padding-top: 25%;
+    overflow: noclip;
+}
+
+/* Future-proof CSS override pattern */
+@import url("s2r://panorama/styles/base/original.vcss_c");
+/* your overrides here */
+```
 
 ## PERFORMANCE PATTERNS
 ```javascript
