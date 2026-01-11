@@ -2,6 +2,7 @@
 /* Future-proof: imports base, then adds only our changes */
 
 @import url("s2r://panorama/styles/base/hud_gold_and_ap_container.vcss_c");
+@import url("s2r://panorama/styles/soul_timer_warning.vcss_c");
 
 /* Wider container to accommodate scale */
 #HudCurrentAPContainer,#hudGoldContainer
