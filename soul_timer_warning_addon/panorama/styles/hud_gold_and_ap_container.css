@@ -1,0 +1,26 @@
+/* Soul Timer Warning Addon - hud_gold_and_ap_container overrides */
+/* Future-proof: imports base, then adds only our changes */
+
+@import url("s2r://panorama/styles/base/hud_gold_and_ap_container.vcss_c");
+
+/* Wider container to accommodate scale */
+#HudCurrentAPContainer,#hudGoldContainer
+{
+	width: 400px;
+}
+
+/* Override danger level 3 with static scale */
+.death_penalty_gold_danger_level_3 .hudDeathGoldContainer
+{
+	transform: scale3d(1.3, 1.3, 1.0);
+	transform-origin: 0% 100%;
+	overflow: noclip;
+}
+
+/* Override danger level 4 with static scale */
+.death_penalty_gold_danger_level_4 .hudDeathGoldContainer
+{
+	transform: scale3d(1.3, 1.3, 1.0);
+	transform-origin: 0% 100%;
+	overflow: noclip;
+}

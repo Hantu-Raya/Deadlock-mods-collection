@@ -82,6 +82,48 @@ Generates a optimized boilerplate:
 
 ---
 
+## ⛔ DO NOT (Critical Anti-Patterns)
+
+### CSS/XML Mistakes
+| ❌ Wrong | ✅ Correct | Why |
+|----------|-----------|-----|
+| `file://{resources}/styles/foo.css` | `s2r://panorama/styles/foo.css` | `s2r://` is the standard path format for all includes |
+| `@keyframes my-animation` | `@keyframes 'my-animation'` | Panorama requires **quoted** keyframe names |
+| Missing base CSS in addon | Include base CSS before addon CSS | Addon CSS overrides won't work without base definitions |
+| `<include src="panorama/styles/...">` | `<include src="s2r://panorama/styles/...">` | Always use full `s2r://` prefix |
+
+### CSS Include Order (Addons)
+When creating addon mods that override base mod styles:
+```xml
+<styles>
+    <!-- Game base styles first -->
+    <include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+    <include src="s2r://panorama/styles/hud_common.vcss_c" />
+    <!-- Base mod CSS (REQUIRED) -->
+    <include src="s2r://panorama/styles/soul_timer.css" />
+    <!-- Addon CSS last (overrides base) -->
+    <include src="s2r://panorama/styles/soul_timer_warning.css" />
+</styles>
+```
+
+### JavaScript Mistakes
+| ❌ Wrong | ✅ Correct | Why |
+|----------|-----------|-----|
+| `$.GetContextPanel()` in loops | Cache in `UI.root` at boot | Performance - O(1) vs O(N) |
+| `new Array()` / `new Object()` in render | Pre-allocate outside loops | GC pressure causes micro-stutters |
+| Bare `panel.text` access | `try { panel.text } catch {}` | Panels can become invalid on HUD reload |
+| Trust `panel.visible` alone | Check `visible && actualvisibility !== "collapse"` | Ghost panels retain stale values |
+| `Game.GetGameTime()` unwrapped | Wrap in try-catch + fallback | Returns 0 in certain contexts |
+
+### Build Mistakes
+| ❌ Wrong | ✅ Correct | Why |
+|----------|-----------|-----|
+| Test without compiling | Always compile before testing | Game loads compiled `.vcss_c` / `.vjs_c` files |
+| Edit files in `{mod}_compiled/` | Edit source in `{mod}/panorama/` | Compiled folder is OUTPUT, gets overwritten |
+| Forget to include dependencies | Check all CSS/JS includes exist | Missing includes = silent failures |
+
+---
+
 ## 📡 API Best Practices
 
 | Category | Preferred API | Instead of... |
@@ -102,3 +144,19 @@ Generates a optimized boilerplate:
 - `hp/`: Complex logic for health visualization.
 - `soul_timer/`: Reference for **Dual-Loop** architecture.
 - `buff_timer_virgin/`: Reference for **Adaptive Polling** & **Time Caching**.
+- `soul_timer_warning_addon/`: Reference for **CSS-only addon** pattern (keyframes, style overrides).
+
+---
+
+## 🔧 Agent Protocol: Compile After Changes
+
+**MANDATORY:** After creating or modifying any mod files, run the compile command:
+
+```powershell
+"F:\Users\Shiv\Desktop\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\{mod_name}"
+```
+
+The agent MUST:
+1. Run this command after writing/editing files
+2. Verify compile succeeds (no errors in output)
+3. Report compile status to user
