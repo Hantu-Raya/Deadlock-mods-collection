@@ -6,6 +6,7 @@ CSS-only addon that adds a "Radioactive Breath" animation to the Soul Timer when
 **Requires:** `soul_timer` base mod installed.
 
 ## VERSION HISTORY
+- **v3.3**: Implemented "CSS Hijack" strategy. Removed custom XML to improve compatibility.
 - **v3.2**: Tuned Layout (100x100px box), reduced bloom (12px), slower pulse (2s), static scale on danger levels.
 - **v3.1**: Structural Update - using `pre-transform-scale2d` instead of `transform` (fixes clipping).
 - **v2.1**: Font-size pulse (18px -> 20px) + glow bloom + threat floor (1.2s cycle).
@@ -51,20 +52,13 @@ CORRECT: Subtle color transitions (pale red -> white) with glow bloom.
 
 ## LESSONS LEARNED: DO
 
-### 1. Use the "CSS Hijack" Pattern (Optional but Powerful)
+### 1. Use the "CSS Hijack" Pattern (Implemented)
 To override game CSS without modifying XML structure:
 1. Create a CSS file with the same name as the game's file (e.g., `hud_gold_and_ap_container.css`).
 2. `@import` the original game CSS: `@import url("s2r://panorama/styles/base/hud_gold_and_ap_container.vcss_c");`.
-3. Add your overrides after the import.
+3. Add your overrides after the import (including `@import` for your custom CSS).
 
-### 2. Explicit XML Includes
-Current setup uses explicit includes for clarity:
-```xml
-<include src="s2r://panorama/styles/soul_timer.vcss_c" />
-<include src="s2r://panorama/styles/soul_timer_warning.vcss_c" />
-```
-
-### 3. Use `overflow: noclip`
+### 2. Use `overflow: noclip`
 Essential when animating text shadows or scaling elements to prevent bounding box clipping.
 
 ---
@@ -73,8 +67,7 @@ Essential when animating text shadows or scaling elements to prevent bounding bo
 | File | Purpose |
 |------|---------|
 | `soul_timer_warning.css` | `@keyframes 'soul-critical-breath'` + `.red` override |
-| `hud_gold_and_ap_container.css` | Overrides container width & danger level scales |
-| `hud_gold_and_ap_container.xml` | Injects base + warning CSS into HUD |
+| `hud_gold_and_ap_container.css` | Hijacks base CSS to import warning styles + overrides |
 
 ## DEPENDENCY
 - **Base mod:** `soul_timer/` must be installed (provides `soul_timer.vcss_c` + `soul_timer.js`)
