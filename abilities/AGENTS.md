@@ -16,6 +16,9 @@ Modifies ability visibility flags via VData files. Uses Python scripts to toggle
 | `scripts/passive.bat` | Windows wrapper for passive.py |
 
 ## BUILD PROCESS
+
+**Agent Capability:** I can execute these commands directly via bash.
+
 ```powershell
 # 1. Remove _include block (lines 4-59) from abilities.vdata
 # 2. Copy to external working directory
