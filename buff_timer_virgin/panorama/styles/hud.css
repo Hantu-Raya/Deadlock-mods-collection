@@ -283,3 +283,119 @@
 	animation-iteration-count: 6;
 	animation-timing-function: ease-in-out;
 }
+
+/* ============================================
+   HERO CLAIM INDICATOR BOXES
+   ============================================ */
+
+/* Container Positioning */
+.minimap-claim-box {
+	width: 40px;
+	height: 40px;
+	overflow: noclip;
+	opacity: 1;
+	pre-transform-scale2d: 1.0;
+	z-index: 99998;
+	vertical-align: bottom;
+	background-color: red;
+}
+
+.claim-left {
+	horizontal-align: left;
+	margin-left: 7%;
+	margin-bottom: 2%;
+}
+
+.claim-right {
+	horizontal-align: right;
+	margin-right: 7%;
+	margin-bottom: 2%;
+}
+
+/* Glass Background */
+.claim-bg {
+	width: 100%;
+	height: 100%;
+	world-blur: ingameHudBlur;
+	border-radius: 5px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	background-color: gradient(linear, 0% 0%, 100% 100%, 
+		from(rgba(30, 30, 40, 0.8)), 
+		color-stop(0.5, rgba(30, 30, 40, 0.4)), 
+		to(rgba(30, 30, 40, 0.0))
+	);
+	z-index: 1;
+}
+
+/* Hero Icon */
+.claim-icon {
+	position: absolute;
+	width: 80%;
+	height: 80%;
+	horizontal-align: center;
+	vertical-align: center;
+	opacity: 1;
+	pre-transform-scale2d: 1.0;
+	z-index: 2;
+	background-image: url("s2r://panorama/images/heroes/generic_vertical.psd");
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+}
+
+/* STATE: Ally Claim (Cyan/Green) */
+.minimap-claim-box.ally-claim .claim-bg {
+	background-color: gradient(linear, 0% 0%, 100% 100%, 
+		from(rgba(0, 255, 200, 0.3)), 
+		to(rgba(0, 0, 0, 0))
+	);
+	border: 1px solid rgba(100, 255, 200, 0.3);
+}
+
+/* STATE: Enemy Claim (Red) */
+.minimap-claim-box.enemy-claim .claim-bg {
+	background-color: gradient(linear, 0% 0%, 100% 100%, 
+		from(rgba(255, 50, 50, 0.3)), 
+		to(rgba(0, 0, 0, 0))
+	);
+	border: 1px solid rgba(255, 100, 100, 0.3);
+}
+
+/* Active State - triggers animations */
+.minimap-claim-box.active {
+	opacity: 1;
+	animation-name: BoxReveal;
+	animation-duration: 0.4s;
+	animation-timing-function: ease-out;
+	animation-fill-mode: forwards;
+}
+
+.minimap-claim-box.active .claim-icon {
+	opacity: 1;
+	pre-transform-scale2d: 1.0;
+}
+
+@keyframes 'BoxReveal' {
+	0% {
+		opacity: 0;
+		pre-transform-scale2d: 0.6;
+	}
+	100% {
+		opacity: 1;
+		pre-transform-scale2d: 1.0;
+	}
+}
+
+@keyframes 'IconPop' {
+	0% {
+		opacity: 0;
+		pre-transform-scale2d: 0.4;
+	}
+	70% {
+		pre-transform-scale2d: 1.2;
+	}
+	100% {
+		opacity: 1;
+		pre-transform-scale2d: 1.0;
+	}
+}
