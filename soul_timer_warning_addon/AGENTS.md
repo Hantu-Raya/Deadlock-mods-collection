@@ -79,6 +79,9 @@ Essential when animating text shadows or scaling elements to prevent bounding bo
 3. Install BOTH mods.
 
 ## BUILD
+
+**Agent Capability:** I can execute this command directly via bash.
+
 ```powershell
 "F:\Users\Shiv\Desktop\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\soul_timer_warning_addon"
 ```
