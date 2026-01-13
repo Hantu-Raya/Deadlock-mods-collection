@@ -1,0 +1,285 @@
+@import url("s2r://panorama/styles/base/hud.vcss_c");
+
+#HudMinimapContainer {
+	overflow: noclip;
+}
+
+.minimap-glow {
+	position: absolute;
+	width: 135%;
+	height: 135%;
+	vertical-align: center;
+	horizontal-align: center;
+	border-radius: 50%;
+	overflow: noclip;
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.3s;
+}
+
+.glow-left-top, .glow-left-bot, .glow-right-top, .glow-right-bot {
+	width: 120%;
+	height: 120%;
+}
+
+@keyframes 'glowPulse' {
+	0%   { opacity: 0.5; pre-transform-scale2d: 1.0; }
+	50%  { opacity: 1.0; pre-transform-scale2d: 1.05; }
+	100% { opacity: 0.5; pre-transform-scale2d: 1.0; }
+}
+
+@keyframes 'enemyPulse' {
+	0%   { opacity: 0.6; pre-transform-scale2d: 1.0; }
+	50%  { opacity: 1.0; pre-transform-scale2d: 1.08; }
+	100% { opacity: 0.6; pre-transform-scale2d: 1.0; }
+}
+
+.glow-left.glow-survival {
+	background-color: gradient(linear, 0% 50%, 60% 50%, from(rgba(100,255,100,0.9)), color-stop(0.25, rgba(100,255,100,0.3)), to(rgba(100,255,100,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-left-top.glow-survival {
+	background-color: gradient(linear, 8% 8%, 55% 55%, from(rgba(100,255,100,0.7)), color-stop(0.3, rgba(100,255,100,0)), to(rgba(100,255,100,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-left-bot.glow-survival {
+	background-color: gradient(linear, 8% 92%, 55% 45%, from(rgba(100,255,100,0.7)), color-stop(0.3, rgba(100,255,100,0)), to(rgba(100,255,100,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+
+.glow-right.glow-survival {
+	background-color: gradient(linear, 100% 50%, 40% 50%, from(rgba(100,255,100,0.9)), color-stop(0.25, rgba(100,255,100,0.3)), to(rgba(100,255,100,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-right-top.glow-survival {
+	background-color: gradient(linear, 92% 8%, 45% 55%, from(rgba(100,255,100,0.7)), color-stop(0.3, rgba(100,255,100,0)), to(rgba(100,255,100,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-right-bot.glow-survival {
+	background-color: gradient(linear, 92% 92%, 45% 45%, from(rgba(100,255,100,0.7)), color-stop(0.3, rgba(100,255,100,0)), to(rgba(100,255,100,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+
+.glow-left.glow-casting {
+	background-color: gradient(linear, 0% 50%, 60% 50%, from(rgba(180,100,255,0.9)), color-stop(0.25, rgba(180,100,255,0.3)), to(rgba(180,100,255,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-left-top.glow-casting {
+	background-color: gradient(linear, 8% 8%, 55% 55%, from(rgba(180,100,255,0.7)), color-stop(0.3, rgba(180,100,255,0)), to(rgba(180,100,255,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-left-bot.glow-casting {
+	background-color: gradient(linear, 8% 92%, 55% 45%, from(rgba(180,100,255,0.7)), color-stop(0.3, rgba(180,100,255,0)), to(rgba(180,100,255,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+
+.glow-right.glow-casting {
+	background-color: gradient(linear, 100% 50%, 40% 50%, from(rgba(180,100,255,0.9)), color-stop(0.25, rgba(180,100,255,0.3)), to(rgba(180,100,255,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-right-top.glow-casting {
+	background-color: gradient(linear, 92% 8%, 45% 55%, from(rgba(180,100,255,0.7)), color-stop(0.3, rgba(180,100,255,0)), to(rgba(180,100,255,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-right-bot.glow-casting {
+	background-color: gradient(linear, 92% 92%, 45% 45%, from(rgba(180,100,255,0.7)), color-stop(0.3, rgba(180,100,255,0)), to(rgba(180,100,255,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+
+.glow-left.glow-movement {
+	background-color: gradient(linear, 0% 50%, 60% 50%, from(rgba(100,200,255,0.9)), color-stop(0.25, rgba(100,200,255,0.3)), to(rgba(100,200,255,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-left-top.glow-movement {
+	background-color: gradient(linear, 8% 8%, 55% 55%, from(rgba(100,200,255,0.7)), color-stop(0.3, rgba(100,200,255,0)), to(rgba(100,200,255,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-left-bot.glow-movement {
+	background-color: gradient(linear, 8% 92%, 55% 45%, from(rgba(100,200,255,0.7)), color-stop(0.3, rgba(100,200,255,0)), to(rgba(100,200,255,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+
+.glow-right.glow-movement {
+	background-color: gradient(linear, 100% 50%, 40% 50%, from(rgba(100,200,255,0.9)), color-stop(0.25, rgba(100,200,255,0.3)), to(rgba(100,200,255,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-right-top.glow-movement {
+	background-color: gradient(linear, 92% 8%, 45% 55%, from(rgba(100,200,255,0.7)), color-stop(0.3, rgba(100,200,255,0)), to(rgba(100,200,255,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-right-bot.glow-movement {
+	background-color: gradient(linear, 92% 92%, 45% 45%, from(rgba(100,200,255,0.7)), color-stop(0.3, rgba(100,200,255,0)), to(rgba(100,200,255,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+
+.glow-left.glow-gun {
+	background-color: gradient(linear, 0% 50%, 60% 50%, from(rgba(255,180,80,0.9)), color-stop(0.25, rgba(255,180,80,0.3)), to(rgba(255,180,80,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-left-top.glow-gun {
+	background-color: gradient(linear, 8% 8%, 55% 55%, from(rgba(255,180,80,0.7)), color-stop(0.3, rgba(255,180,80,0)), to(rgba(255,180,80,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-left-bot.glow-gun {
+	background-color: gradient(linear, 8% 92%, 55% 45%, from(rgba(255,180,80,0.7)), color-stop(0.3, rgba(255,180,80,0)), to(rgba(255,180,80,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+
+.glow-right.glow-gun {
+	background-color: gradient(linear, 100% 50%, 40% 50%, from(rgba(255,180,80,0.9)), color-stop(0.25, rgba(255,180,80,0.3)), to(rgba(255,180,80,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-right-top.glow-gun {
+	background-color: gradient(linear, 92% 8%, 45% 55%, from(rgba(255,180,80,0.7)), color-stop(0.3, rgba(255,180,80,0)), to(rgba(255,180,80,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+.glow-right-bot.glow-gun {
+	background-color: gradient(linear, 92% 92%, 45% 45%, from(rgba(255,180,80,0.7)), color-stop(0.3, rgba(255,180,80,0)), to(rgba(255,180,80,0)));
+	opacity: 1;
+	animation-name: glowPulse;
+	animation-duration: 2.0s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+
+.glow-left.glow-enemy {
+	background-color: gradient(linear, 0% 50%, 60% 50%, from(rgba(255,50,50,1.0)), color-stop(0.2, rgba(255,50,50,0.4)), to(rgba(255,50,50,0)));
+	opacity: 1;
+	animation-name: enemyPulse;
+	animation-duration: 0.5s;
+	animation-iteration-count: 6;
+	animation-timing-function: ease-in-out;
+}
+.glow-left-top.glow-enemy {
+	background-color: gradient(linear, 8% 8%, 55% 55%, from(rgba(255,50,50,0.8)), color-stop(0.25, rgba(255,50,50,0)), to(rgba(255,50,50,0)));
+	opacity: 1;
+	animation-name: enemyPulse;
+	animation-duration: 0.5s;
+	animation-iteration-count: 6;
+	animation-timing-function: ease-in-out;
+}
+.glow-left-bot.glow-enemy {
+	background-color: gradient(linear, 8% 92%, 55% 45%, from(rgba(255,50,50,0.8)), color-stop(0.25, rgba(255,50,50,0)), to(rgba(255,50,50,0)));
+	opacity: 1;
+	animation-name: enemyPulse;
+	animation-duration: 0.5s;
+	animation-iteration-count: 6;
+	animation-timing-function: ease-in-out;
+}
+
+.glow-right.glow-enemy {
+	background-color: gradient(linear, 100% 50%, 40% 50%, from(rgba(255,50,50,1.0)), color-stop(0.2, rgba(255,50,50,0.4)), to(rgba(255,50,50,0)));
+	opacity: 1;
+	animation-name: enemyPulse;
+	animation-duration: 0.5s;
+	animation-iteration-count: 6;
+	animation-timing-function: ease-in-out;
+}
+.glow-right-top.glow-enemy {
+	background-color: gradient(linear, 92% 8%, 45% 55%, from(rgba(255,50,50,0.8)), color-stop(0.25, rgba(255,50,50,0)), to(rgba(255,50,50,0)));
+	opacity: 1;
+	animation-name: enemyPulse;
+	animation-duration: 0.5s;
+	animation-iteration-count: 6;
+	animation-timing-function: ease-in-out;
+}
+.glow-right-bot.glow-enemy {
+	background-color: gradient(linear, 92% 92%, 45% 45%, from(rgba(255,50,50,0.8)), color-stop(0.25, rgba(255,50,50,0)), to(rgba(255,50,50,0)));
+	opacity: 1;
+	animation-name: enemyPulse;
+	animation-duration: 0.5s;
+	animation-iteration-count: 6;
+	animation-timing-function: ease-in-out;
+}
