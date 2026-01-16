@@ -5,6 +5,10 @@ const REJUV_CLS=["RejuvCount_1","RejuvCount_2","RejuvCount_3","RejuvCount_4"];
 const POWERUP_TYPES=["powerup_gun","powerup_survival","powerup_casting","powerup_movement"];
 const POWERUP_CHECK_TH=10,POWERUP_LINGER=1500;
 const MONITOR_INTERVAL=300,CLAIM_RADIUS=8,PRETRACK_INTERVAL=750;
+const CLAIM_DISPLAY_DUR=4.0;
+const DEATH_GRACE_MS=2000;
+const BUTTON_CACHE_TTL=400;
+
 let hnd,running=false,inHideout=true,spawnWait=false,idx=0,counter=0,phaseStart=0,claimCnt=0;
 let buffStart=0,buffCnt=0,lastSec=-1,lastGlobalSec=-1,lastGateChk=0,lastRunChk=0,lastScan=0,tick=TICK_NORM,lastFound=false;
 let lastPowerupScan=0,prevBuffRem=300,buffResetTs=0;
@@ -17,9 +21,21 @@ let pretrackData={left:{minAlly:Infinity,minEnemy:Infinity},right:{minAlly:Infin
 let knownSpawnPos=null;
 let _claimTimeoutLeft=null,_claimTimeoutRight=null;
 let _gameTimePanel=null;
+let _tCache=0,_tCacheTs=0;
+let _playerCache=null,_playerCacheTs=0;
+let _playerState={};
+const _posResult={x:0,y:0};
+
 const UI={root:null,hud:null,minimap:null,glowLeft:null,glowRight:null,rLab:null,rNum:null,rImg:null,buffLab:null,rejuvBuff:null,rejuvBuffTime:null,rejuvFriendly:null,rejuvEnemy:null,claimLeft:null,claimRight:null,claimIconLeft:null,claimIconRight:null};
-const CLAIM_DISPLAY_DUR=4.0;
-const GENERIC_HERO_IMG="s2r://panorama/images/heroes/generic_vertical.psd";
+
+const POWERUP_ICONS={
+  powerup_gun:"s2r://panorama/images/minimap/powerup_weapon.vsvg",
+  powerup_survival:"s2r://panorama/images/minimap/powerup_health.vsvg",
+  powerup_casting:"s2r://panorama/images/minimap/powerup_magic.vsvg",
+  powerup_movement:"s2r://panorama/images/minimap/powerup_movement.vsvg"
+};
+
+const GLOW_CLASSES=["glow-survival","glow-casting","glow-movement","glow-gun","glow-enemy"];
 
 function boot(){
   const r=findRoot($.GetContextPanel());UI.root=r;UI.hud=r.FindChildTraverse("Hud");
@@ -28,8 +44,6 @@ function boot(){
   UI.glowLeft=r.FindChildTraverse("MinimapGlowLeft");UI.glowRight=r.FindChildTraverse("MinimapGlowRight");
   UI.claimLeft=r.FindChildTraverse("MinimapBuffClaimLeft");UI.claimRight=r.FindChildTraverse("MinimapBuffClaimRight");
   UI.claimIconLeft=r.FindChildTraverse("ClaimIconLeft");UI.claimIconRight=r.FindChildTraverse("ClaimIconRight");
-  $.Msg("[BT-P] BOOT: claimLeft="+(UI.claimLeft?"found":"NULL")+" claimRight="+(UI.claimRight?"found":"NULL")+"\n");
-  $.Msg("[BT-P] BOOT: claimIconLeft="+(UI.claimIconLeft?"found":"NULL")+" claimIconRight="+(UI.claimIconRight?"found":"NULL")+"\n");
   const tb=r.FindChildTraverse("TopBar")||r.FindChildTraverse("CitadelHudTopBar");
   if(tb){const ch=tb.FindChildTraverse("RejuvenatorCharges");if(ch){UI.rejuvFriendly=ch.FindChildTraverse("RejuvenatorFriendly");UI.rejuvEnemy=ch.FindChildTraverse("RejuvenatorEnemy");}}
   if(!UI.rLab||!UI.rNum||!UI.rImg||!UI.buffLab)return $.Schedule(0.5,boot);
@@ -49,7 +63,6 @@ function loop(){
   if(buffRem<=POWERUP_CHECK_TH&&!pretrackActive&&!monitoringActive&&knownSpawnPos){
     pretrackActive=true;
     pretrackData={left:{minAlly:Infinity,minEnemy:Infinity},right:{minAlly:Infinity,minEnemy:Infinity}};
-    $.Msg("[BT-P] PRE-TRACK started (buffRem="+buffRem+"s, using cached positions)\n");
   }
   
   if(pretrackActive&&knownSpawnPos&&rn-lastPretrackCheck>=PRETRACK_INTERVAL){
@@ -61,7 +74,6 @@ function loop(){
     buffResetTs=rn;
     trackedPowerups=[];
     monitoringActive=false;
-    $.Msg("[BT-P] RESET DETECTED - lingering 5s\n");
   }
   prevBuffRem=buffRem;
   
@@ -95,43 +107,13 @@ function doPretrack(){
   if(nearLeft.enemy<pretrackData.left.minEnemy)pretrackData.left.minEnemy=nearLeft.enemy;
   if(nearRight.ally<pretrackData.right.minAlly)pretrackData.right.minAlly=nearRight.ally;
   if(nearRight.enemy<pretrackData.right.minEnemy)pretrackData.right.minEnemy=nearRight.enemy;
-  
-  $.Msg("[BT-P] PRE-TRACK: L ally="+nearLeft.ally.toFixed(0)+"(min="+pretrackData.left.minAlly.toFixed(0)+") enemy="+nearLeft.enemy.toFixed(0)+"(min="+pretrackData.left.minEnemy.toFixed(0)+") | R ally="+nearRight.ally.toFixed(0)+"(min="+pretrackData.right.minAlly.toFixed(0)+") enemy="+nearRight.enemy.toFixed(0)+"(min="+pretrackData.right.minEnemy.toFixed(0)+")\n");
 }
 
 function doScan(now){if(!running)return;const f=hasRejuv();if(spawnWait&&f&&!lastFound){claimCnt++;startBuff(now);startPhase(claimCnt>2?3:claimCnt,now);}lastFound=f;}
 function hasRejuv(){return panelHas(UI.rejuvFriendly)||panelHas(UI.rejuvEnemy);}
 function panelHas(p){if(!p)return false;for(let i=0;i<4;i++){try{if(p.BHasClass(REJUV_CLS[i]))return true;}catch{}}try{const k=p.Children();for(let j=0;j<k.length;j++)for(let i=0;i<4;i++){try{if(k[j].BHasClass(REJUV_CLS[i]))return true;}catch{}}}catch{}return false;}
 
-function findMinimap(){if(UI.minimap?.IsValid?.())return UI.minimap;try{UI.minimap=UI.root.FindChildTraverse("hud_minimap");$.Msg("[BT-P] Minimap: "+(UI.minimap?"found":"null")+"\n");}catch(e){$.Msg("[BT-P][ERR] findMinimap: "+e+"\n");}return UI.minimap;}
-
-const GLOW_CLASSES=["glow-survival","glow-casting","glow-movement","glow-gun","glow-enemy"];
-
-function clearGlows(){
-  const panels=[UI.glowLeft,UI.glowRight];
-  for(let p=0;p<panels.length;p++){
-    const panel=panels[p];if(!panel)continue;
-    for(let i=0;i<GLOW_CLASSES.length;i++){try{panel.RemoveClass(GLOW_CLASSES[i]);}catch{}}
-  }
-}
-
-function applyGlow(side,type){
-  const panel=side==="LEFT"?UI.glowLeft:UI.glowRight;
-  if(!panel||!type)return;
-  const shortType=type.replace("powerup_","");
-  const cls="glow-"+shortType;
-  try{panel.AddClass(cls);$.Msg("[BT-P] Applied glow: "+cls+" to "+side+"\n");}catch{}
-}
-
-function applyEnemyClaim(side){
-  const panel=side==="LEFT"?UI.glowLeft:UI.glowRight;
-  if(!panel)return;
-  try{
-    panel.AddClass("glow-enemy");
-    $.Msg("[BT-P] Applied enemy claim pulse to "+side+"\n");
-    $.Schedule(3,()=>{try{panel.RemoveClass("glow-enemy");}catch{}});
-  }catch{}
-}
+function findMinimap(){if(UI.minimap?.IsValid?.())return UI.minimap;try{UI.minimap=UI.root.FindChildTraverse("hud_minimap");}catch(e){$.Msg("[BT-P][ERR] findMinimap: "+e+"\n");}return UI.minimap;}
 
 function clearSideGlow(side){
   const panel=side==="LEFT"?UI.glowLeft:UI.glowRight;
@@ -139,60 +121,44 @@ function clearSideGlow(side){
   for(let i=0;i<GLOW_CLASSES.length;i++){try{panel.RemoveClass(GLOW_CLASSES[i]);}catch{}}
 }
 
-function showClaimIndicator(side,isEnemy,claimerBtn){
+function clearGlows(){
+  clearSideGlow("LEFT");
+  clearSideGlow("RIGHT");
+}
+
+function applyGlow(side,type){
+  const panel=side==="LEFT"?UI.glowLeft:UI.glowRight;
+  if(!panel||!type)return;
+  const shortType=type.replace("powerup_","");
+  const cls="glow-"+shortType;
+  try{panel.AddClass(cls);}catch{}
+}
+
+function applyEnemyClaim(side){
+  const panel=side==="LEFT"?UI.glowLeft:UI.glowRight;
+  if(!panel)return;
   try{
-    $.Msg("[BT-P] showClaimIndicator called: side="+side+" isEnemy="+isEnemy+" claimerBtn="+(claimerBtn?"exists":"null")+"\n");
+    panel.AddClass("glow-enemy");
+    $.Schedule(3,()=>{try{panel.RemoveClass("glow-enemy");}catch{}});
+  }catch{}
+}
+
+function showClaimIndicator(side,isEnemy,claimerBtn,powerupType){
+  try{
     const isLeft=side==="LEFT";
     const claimBox=isLeft?UI.claimLeft:UI.claimRight;
     const claimIcon=isLeft?UI.claimIconLeft:UI.claimIconRight;
-    $.Msg("[BT-P] claimBox="+(claimBox?"exists":"null")+" valid="+(claimBox?.IsValid?.())+"\n");
-    $.Msg("[BT-P] claimIcon="+(claimIcon?"exists":"null")+" valid="+(claimIcon?.IsValid?.())+"\n");
-    if(!claimBox?.IsValid?.()||!claimIcon?.IsValid?.()){$.Msg("[BT-P][ERR] Claim panels invalid\n");return;}
+    if(!claimBox?.IsValid?.()||!claimIcon?.IsValid?.())return;
     const prevTimeout=isLeft?_claimTimeoutLeft:_claimTimeoutRight;
     if(prevTimeout){try{$.CancelScheduled(prevTimeout);}catch{}}
     claimBox.RemoveClass("active");claimBox.RemoveClass("ally-claim");claimBox.RemoveClass("enemy-claim");
-    let heroSrc=GENERIC_HERO_IMG;
-    $.Msg("[BT-P] claimerBtn valid="+(claimerBtn?.IsValid?.())+"\n");
-    if(claimerBtn?.IsValid?.()){
-      try{
-        $.Msg("[BT-P] claimerBtn id="+claimerBtn.id+"\n");
-        try{
-          const classes=claimerBtn.GetAttributeString("class","")||"";
-          $.Msg("[BT-P] claimerBtn classes='"+classes+"'\n");
-        }catch{}
-        try{
-          const heroAttr=claimerBtn.GetAttributeString("hero","")||"";
-          $.Msg("[BT-P] claimerBtn hero attr='"+heroAttr+"'\n");
-        }catch{}
-        try{
-          const dataHero=claimerBtn.GetAttributeString("data-hero","")||"";
-          $.Msg("[BT-P] claimerBtn data-hero='"+dataHero+"'\n");
-        }catch{}
-        try{
-          const heroId=claimerBtn.heroid||claimerBtn.heroId||claimerBtn.hero_id||"";
-          $.Msg("[BT-P] claimerBtn heroid prop='"+heroId+"'\n");
-        }catch{}
-        const mainImg=claimerBtn.FindChildTraverse("MainImage");
-        if(mainImg?.IsValid?.()){
-          try{
-            const imgStyle=mainImg.style?.backgroundImage||"";
-            $.Msg("[BT-P] MainImage style.backgroundImage='"+imgStyle+"'\n");
-          }catch{}
-        }
-      }catch(e){$.Msg("[BT-P] Could not get hero icon: "+e+"\n");}
-    }
-    $.Msg("[BT-P] Setting heroSrc="+heroSrc+"\n");
-    try{
-      claimIcon.style.backgroundImage='url("'+heroSrc+'")';
-      $.Msg("[BT-P] style.backgroundImage set success\n");
-    }catch(e){$.Msg("[BT-P][ERR] Set backgroundImage failed: "+e+"\n");}
+    const iconSrc=POWERUP_ICONS[powerupType];
+    if(iconSrc){try{claimIcon.style.backgroundImage='url("'+iconSrc+'")';}catch{}}
     claimBox.SetHasClass("ally-claim",!isEnemy);
     claimBox.SetHasClass("enemy-claim",isEnemy);
-    $.Msg("[BT-P] Classes set: ally-claim="+(!isEnemy)+" enemy-claim="+isEnemy+"\n");
-    $.Schedule(0.016,()=>{try{if(claimBox?.IsValid?.()){claimBox.AddClass("active");$.Msg("[BT-P] Added 'active' class\n");}}catch{}});
+    $.Schedule(0.016,()=>{try{if(claimBox?.IsValid?.()){claimBox.AddClass("active");}}catch{}});
     const timeoutHandle=$.Schedule(CLAIM_DISPLAY_DUR,()=>{hideClaimIndicator(side);});
     if(isLeft)_claimTimeoutLeft=timeoutHandle;else _claimTimeoutRight=timeoutHandle;
-    $.Msg("[BT-P] "+side+" claim indicator DONE\n");
   }catch(e){$.Msg("[BT-P][ERR] showClaimIndicator: "+e+"\n");}
 }
 
@@ -246,15 +212,12 @@ function getPanelPos(panel){
       }
     }
   }catch(e){$.Msg("[BT-P][ERR] getPanelPos: "+e+"\n");}
-  return {x:x,y:y};
+  _posResult.x=x;
+  _posResult.y=y;
+  return _posResult;
 }
 
 function dist(p1,p2){const dx=p1.x-p2.x,dy=p1.y-p2.y;return Math.sqrt(dx*dx+dy*dy);}
-
-const DEATH_GRACE_MS=2000;
-const BUTTON_CACHE_TTL=400;
-let _playerCache=null,_playerCacheTs=0;
-let _playerState={};  // {id:{x,y,deadTs}}
 
 function getPlayersNearPowerup(mm,pwPos){
   let nearestAlly=Infinity,nearestEnemy=Infinity;
@@ -302,10 +265,10 @@ function getPlayersNearPowerup(mm,pwPos){
 
 function scanPowerups(){
   const mm=findMinimap();
-  if(!mm){$.Msg("[BT-P] No minimap panel\n");return;}
+  if(!mm)return;
   try{
     const buttons=mm.FindChildrenWithClassTraverse("map_button");
-    if(!buttons?.length){$.Msg("[BT-P] No map_buttons\n");return;}
+    if(!buttons?.length)return;
     let powerups=[];
     for(let i=0;i<buttons.length;i++){
       const btn=buttons[i];
@@ -318,18 +281,16 @@ function scanPowerups(){
         powerups.push({type:type,x:pos.x,y:pos.y,panel:btn,claimed:false,minAllyDist:Infinity,minEnemyDist:Infinity,closestAllyBtn:null,closestEnemyBtn:null});
       }catch{}
     }
-    if(powerups.length===0){$.Msg("[BT-P] No active powerups yet\n");return;}
+    if(powerups.length===0)return;
     
     powerups.sort((a,b)=>a.y-b.y);
     clearGlows();
     for(let i=0;i<powerups.length;i++){
       powerups[i].pos=i===0?"LEFT":"RIGHT";
-      $.Msg("[BT-P] LOCKED "+powerups[i].pos+": "+powerups[i].type+" (x="+powerups[i].x+",y="+powerups[i].y+")\n");
       applyGlow(powerups[i].pos,powerups[i].type);
     }
     
     knownSpawnPos={left:{x:powerups[0].x,y:powerups[0].y},right:powerups[1]?{x:powerups[1].x,y:powerups[1].y}:{x:powerups[0].x,y:powerups[0].y}};
-    $.Msg("[BT-P] Cached spawn positions for next cycle\n");
     
     if(pretrackActive){
       powerups[0].minAllyDist=pretrackData.left.minAlly;
@@ -338,21 +299,19 @@ function scanPowerups(){
         powerups[1].minAllyDist=pretrackData.right.minAlly;
         powerups[1].minEnemyDist=pretrackData.right.minEnemy;
       }
-      $.Msg("[BT-P] Transferred pre-track data: L ally="+pretrackData.left.minAlly.toFixed(0)+" enemy="+pretrackData.left.minEnemy.toFixed(0)+" | R ally="+pretrackData.right.minAlly.toFixed(0)+" enemy="+pretrackData.right.minEnemy.toFixed(0)+"\n");
       pretrackActive=false;
     }
     
     trackedPowerups=powerups;
     monitoringActive=true;
     buffResetTs=0;
-    $.Msg("[BT-P] MONITORING "+powerups.length+" powerup(s)\n");
   }catch(e){$.Msg("[BT-P][ERR] scanPowerups: "+e+"\n");}
 }
 
 function monitorPowerups(){
   if(trackedPowerups.length===0){monitoringActive=false;return;}
   const mm=findMinimap();
-  if(!mm){$.Msg("[BT-P] Lost minimap\n");return;}
+  if(!mm)return;
   
   let allClaimed=true;
   for(let i=0;i<trackedPowerups.length;i++){
@@ -370,10 +329,7 @@ function monitorPowerups(){
     
     if(stillActive){
       allClaimed=false;
-      $.Msg("[BT-P] "+p.pos+" tracking: ally="+nearest.ally.toFixed(1)+" (min="+p.minAllyDist.toFixed(1)+") enemy="+nearest.enemy.toFixed(1)+" (min="+p.minEnemyDist.toFixed(1)+")\n");
     }else{
-      $.Msg("[BT-P] "+p.pos+" GONE - minAlly="+p.minAllyDist.toFixed(1)+" minEnemy="+p.minEnemyDist.toFixed(1)+"\n");
-      
       const allyClose=p.minAllyDist<=CLAIM_RADIUS;
       const enemyClose=p.minEnemyDist<=CLAIM_RADIUS;
       const allyCloser=p.minAllyDist<p.minEnemyDist;
@@ -381,29 +337,22 @@ function monitorPowerups(){
       let claimerBtn=null;
       
       if(allyClose&&allyCloser){
-        $.Msg("[BT-P] "+p.pos+" ("+p.type+"): ALLY claimed (ally="+p.minAllyDist.toFixed(1)+" < enemy="+p.minEnemyDist.toFixed(1)+")\n");
         claimerBtn=p.closestAllyBtn;
-        $.Msg("[BT-P] closestAllyBtn="+(claimerBtn?"exists":"NULL")+" valid="+(claimerBtn?.IsValid?.())+"\n");
       }else if(enemyClose&&!allyCloser){
-        $.Msg("[BT-P] "+p.pos+" ("+p.type+"): ENEMY claimed (enemy="+p.minEnemyDist.toFixed(1)+" < ally="+p.minAllyDist.toFixed(1)+")\n");
         enemyClaimed=true;
         claimerBtn=p.closestEnemyBtn;
-        $.Msg("[BT-P] closestEnemyBtn="+(claimerBtn?"exists":"NULL")+" valid="+(claimerBtn?.IsValid?.())+"\n");
       }else{
-        $.Msg("[BT-P] "+p.pos+" ("+p.type+"): ENEMY claimed (no ally near, ally="+p.minAllyDist.toFixed(1)+")\n");
         enemyClaimed=true;
         claimerBtn=p.closestEnemyBtn;
-        $.Msg("[BT-P] closestEnemyBtn="+(claimerBtn?"exists":"NULL")+" valid="+(claimerBtn?.IsValid?.())+"\n");
       }
       clearSideGlow(p.pos);
       if(enemyClaimed)applyEnemyClaim(p.pos);
-      showClaimIndicator(p.pos,enemyClaimed,claimerBtn);
+      showClaimIndicator(p.pos,enemyClaimed,claimerBtn,p.type);
       p.claimed=true;
     }
   }
   
   if(allClaimed){
-    $.Msg("[BT-P] All powerups claimed - stopping monitor\n");
     clearGlows();
     monitoringActive=false;
     trackedPowerups=[];
@@ -423,9 +372,15 @@ function setImg(i){resetImg();if(i>0){UI.rImg.AddClass("reverse");UI.rImg.AddCla
 function resetImg(){UI.rImg.RemoveClass("rotating");UI.rImg.RemoveClass("reverse");UI.rImg.RemoveClass("white");}
 
 function gTime(){
-  if(_gameTimePanel?.IsValid?.()){try{return parseSec(_gameTimePanel.text);}catch{}}
-  try{const tb=UI.root.FindChildTraverse("TopBar");if(tb){const a=tb.FindChildrenWithClassTraverse("GameTime");if(a?.[0]?.text){_gameTimePanel=a[0];return parseSec(a[0].text);}}}catch{}
-  return 0;
+  const n=Date.now();
+  if(n-_tCacheTs<200)return _tCache;
+  let t=0;
+  if(_gameTimePanel?.IsValid?.()){try{t=parseSec(_gameTimePanel.text);}catch{}}
+  if(!t){
+    try{const tb=UI.root.FindChildTraverse("TopBar");if(tb){const a=tb.FindChildrenWithClassTraverse("GameTime");if(a?.[0]?.text){_gameTimePanel=a[0];t=parseSec(a[0].text);}}}catch{}
+  }
+  if(t>0){_tCache=t;_tCacheTs=n;}
+  return t;
 }
 function parseSec(t){if(!t)return 0;const s=String(t),ci=s.indexOf(":");if(ci<0)return 0;let mm=0,ss=0,c;for(let i=0;i<ci;i++){c=s.charCodeAt(i);if(c>=48&&c<=57)mm=mm*10+(c-48);}for(let i=ci+1,n=0;i<s.length&&n<2;i++,n++){c=s.charCodeAt(i);if(c>=48&&c<=57)ss=ss*10+(c-48);else break;}return mm*60+(ss>59?ss%60:ss);}
 function isHideout(){if(!UI.hud?.BHasClass)return false;try{return UI.hud.BHasClass("connectedToHideout")||UI.hud.BHasClass("connectedtoHideout")||UI.hud.BHasClass("connectedtohideout");}catch{}return false;}

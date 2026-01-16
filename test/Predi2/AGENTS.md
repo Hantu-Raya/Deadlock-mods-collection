@@ -287,7 +287,7 @@ When `IS_DEV: 1`, console shows:
 **Agent Capability:** I can execute this command directly via bash.
 
 ```powershell
-"F:\Users\Shiv\Desktop\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\test\Predi2"
+"F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\test\Predi2"
 ```
 
 ## INSTALLATION

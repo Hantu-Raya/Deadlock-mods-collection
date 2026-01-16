@@ -1,7 +1,7 @@
 # BUFF TIMER KNOWLEDGE BASE (buff_timer_virgin)
 
-**Last Updated:** 2026-01-13
-**Status:** Operational (v3 - Dead Player Detection + Optimized Timing)
+**Last Updated:** 2026-01-16
+**Status:** Production Ready (v5 - Hero Detection Confirmed Impossible)
 
 ## OVERVIEW
 Comprehensive HUD modification for Deadlock that provides countdown timers for Rejuvenator and Bridge Buff spawns. Features advanced powerup claim detection via minimap analysis, dead player handling, and visual glow feedback with curved gradient overlays.
@@ -12,7 +12,8 @@ buff_timer_virgin/
 ├── AGENTS.md                           ← This knowledge base
 ├── panorama/
 │   ├── layout/
-│   │   └── hud.xml                     ← Layout + 6 glow overlay panels
+│   │   ├── hud.xml                     ← Layout + 6 glow overlay panels
+│   │   └── hud_minimap.xml             ← Minimap snippets (reference)
 │   ├── scripts/
 │   │   └── rejuvnbufftimer.js          ← Main logic: timers, detection, glow management
 │   └── styles/
@@ -135,6 +136,10 @@ IDLE ──(timer reset)──► SCANNING ──(found powerups)──► MONIT
 | `glowLeft` | MinimapGlowLeft | Main left glow overlay |
 | `glowRight` | MinimapGlowRight | Main right glow overlay |
 | `minimap` | hud_minimap | Reference for dimension calculations |
+| `claimLeft` | MinimapBuffClaimLeft | Left claim indicator box |
+| `claimRight` | MinimapBuffClaimRight | Right claim indicator box |
+| `claimIconLeft` | ClaimIconLeft | Left claim hero/powerup icon |
+| `claimIconRight` | ClaimIconRight | Right claim hero/powerup icon |
 
 ## PANORAMA CSS LEARNINGS (CRITICAL)
 
@@ -197,10 +202,41 @@ IDLE ──(timer reset)──► SCANNING ──(found powerups)──► MONIT
 
 ## BUILD COMMAND
 ```powershell
-"F:\Users\Shiv\Desktop\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\buff_timer_virgin"
+"F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\buff_timer_virgin"
 ```
 
 ## CHANGELOG
+
+### 2026-01-16: v5.1 - Production Cleanup
+- Deleted orphaned `api_test.js` diagnostic file (134 lines removed)
+- Removed `GENERIC_HERO_IMG` dead constant (hero detection impossible)
+- Removed 22 debug `$.Msg` statements (kept 3 error logs)
+- Added TTL cache to `gTime()` for reduced DOM traversals
+- Consolidated `clearGlows()`/`clearSideGlow()` functions (DRY)
+- Reused position object in `getPanelPos()` to reduce GC pressure
+- **Net reduction: ~150 lines of code**
+
+### 2026-01-16: v5 - Hero Detection CONFIRMED IMPOSSIBLE
+- **CONCLUSION**: Hero identity detection is NOT possible via Panorama JS
+- Tested approaches (ALL FAILED):
+  - `Image.src` property: **write-only** (returns `undefined`)
+  - `GetAttributeString("src")`: returns empty string
+  - `style.backgroundImage`: returns `null`
+  - CSS attribute selectors `[src*="hero"]`: not supported in Panorama
+  - CSS brightness trick: Panorama doesn't support `[src*=""]` selectors
+  - Hero CSS classes on minimap buttons: **none applied** (GetClass returns empty)
+- MainImage panel has NO accessible image source property
+- Debugger shows `src="file://{images}/heroes/..."` but JS sandbox blocks access
+- **FINAL SOLUTION**: Powerup type icons (gun/survival/casting/movement) + team color borders (cyan=ally, red=enemy)
+- Removed diagnostic code, cleaned up to production state
+
+### 2026-01-13: v4 - Claim Indicator Feature
+- Added claim indicators at minimap corners showing powerup type + team color
+- New panels: `MinimapBuffClaimLeft`, `MinimapBuffClaimRight` with child `ClaimIconLeft`/`ClaimIconRight`
+- Uses `style.backgroundImage` for dynamic icon setting
+- Animation: BoxReveal (0.4s scale 0.6→1.0 + fade in)
+- Auto-hide after 4 seconds (`CLAIM_DISPLAY_DUR`)
+- CSS: ally-claim (cyan/green border), enemy-claim (red border)
 
 ### 2026-01-13: v3 - Dead Player Detection + Timing Optimization
 - Added `playerdead` class detection for dead players
