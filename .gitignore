@@ -15,3 +15,5 @@
 # Editor/System files
 .vscode/
 Thumbs.db
+/.tmp.driveupload
+nul
