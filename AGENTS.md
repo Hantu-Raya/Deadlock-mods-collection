@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-01-12
-**Commit:** 7232f3e
+**Generated:** 2026-01-16
+**Commit:** 990cefa
 **Branch:** main
 
 ## OVERVIEW
@@ -130,7 +130,7 @@ boot();
 
 ```powershell
 # Compile after ANY code change
-"F:\Users\Shiv\Desktop\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\{mod_name}"
+"F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\{mod_name}"
 ```
 
 ## NON-STANDARD STRUCTURES

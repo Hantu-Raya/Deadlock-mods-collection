@@ -293,11 +293,12 @@
 	width: 40px;
 	height: 40px;
 	overflow: noclip;
-	opacity: 1;
-	pre-transform-scale2d: 1.0;
+	opacity: 0;
+	pre-transform-scale2d: 0.6;
 	z-index: 99998;
 	vertical-align: bottom;
-	background-color: red;
+	transition-property: opacity, pre-transform-scale2d;
+	transition-duration: 0.3s;
 }
 
 .claim-left {
