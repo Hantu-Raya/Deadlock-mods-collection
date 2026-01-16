@@ -47,7 +47,7 @@ HIGH2=[100,133,252] // Team2 blue
 **Agent Capability:** I can execute compile commands directly via bash.
 
 ```powershell
-"F:\Users\Shiv\Desktop\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\hp"
+"F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\hp"
 ```
 
 See `.agent/workflows/compile.md`
