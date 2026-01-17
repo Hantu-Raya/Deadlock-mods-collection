@@ -6,6 +6,7 @@ const POWERUP_TYPES=["powerup_gun","powerup_survival","powerup_casting","powerup
 const POWERUP_CHECK_TH=10,POWERUP_LINGER=1500;
 const MONITOR_INTERVAL=300,CLAIM_RADIUS=8,PRETRACK_INTERVAL=750;
 const CLAIM_DISPLAY_DUR=4.0;
+const POWERUP_BUFF_DUR=180;
 const DEATH_GRACE_MS=2000;
 const BUTTON_CACHE_TTL=400;
 
@@ -20,13 +21,14 @@ let lastPretrackCheck=0;
 let pretrackData={left:{minAlly:Infinity,minEnemy:Infinity},right:{minAlly:Infinity,minEnemy:Infinity}};
 let knownSpawnPos=null;
 let _claimTimeoutLeft=null,_claimTimeoutRight=null;
+let _claimStartLeft=0,_claimStartRight=0;
 let _gameTimePanel=null;
 let _tCache=0,_tCacheTs=0;
 let _playerCache=null,_playerCacheTs=0;
 let _playerState={};
 const _posResult={x:0,y:0};
 
-const UI={root:null,hud:null,minimap:null,glowLeft:null,glowRight:null,rLab:null,rNum:null,rImg:null,buffLab:null,rejuvBuff:null,rejuvBuffTime:null,rejuvFriendly:null,rejuvEnemy:null,claimLeft:null,claimRight:null,claimIconLeft:null,claimIconRight:null};
+const UI={root:null,hud:null,minimap:null,glowLeft:null,glowRight:null,rLab:null,rNum:null,rImg:null,buffLab:null,rejuvBuff:null,rejuvBuffTime:null,rejuvFriendly:null,rejuvEnemy:null,claimLeft:null,claimRight:null,claimIconLeft:null,claimIconRight:null,claimRingLeft:null,claimRingRight:null,claimTimerLeft:null,claimTimerRight:null};
 
 const POWERUP_ICONS={
   powerup_gun:"s2r://panorama/images/minimap/powerup_weapon.vsvg",
@@ -44,6 +46,8 @@ function boot(){
   UI.glowLeft=r.FindChildTraverse("MinimapGlowLeft");UI.glowRight=r.FindChildTraverse("MinimapGlowRight");
   UI.claimLeft=r.FindChildTraverse("MinimapBuffClaimLeft");UI.claimRight=r.FindChildTraverse("MinimapBuffClaimRight");
   UI.claimIconLeft=r.FindChildTraverse("ClaimIconLeft");UI.claimIconRight=r.FindChildTraverse("ClaimIconRight");
+  UI.claimRingLeft=r.FindChildTraverse("ClaimRingLeft");UI.claimRingRight=r.FindChildTraverse("ClaimRingRight");
+  UI.claimTimerLeft=r.FindChildTraverse("ClaimTimerLeft");UI.claimTimerRight=r.FindChildTraverse("ClaimTimerRight");
   const tb=r.FindChildTraverse("TopBar")||r.FindChildTraverse("CitadelHudTopBar");
   if(tb){const ch=tb.FindChildTraverse("RejuvenatorCharges");if(ch){UI.rejuvFriendly=ch.FindChildTraverse("RejuvenatorFriendly");UI.rejuvEnemy=ch.FindChildTraverse("RejuvenatorEnemy");}}
   if(!UI.rLab||!UI.rNum||!UI.rImg||!UI.buffLab)return $.Schedule(0.5,boot);
@@ -93,6 +97,7 @@ function loop(){
   }
   
   if(rn-lastScan>=3000){lastScan=rn;doScan(now);}
+  updateClaimProgress(now);
   hnd=$.Schedule(tick,loop);
 }
 
@@ -148,6 +153,7 @@ function showClaimIndicator(side,isEnemy,claimerBtn,powerupType){
     const isLeft=side==="LEFT";
     const claimBox=isLeft?UI.claimLeft:UI.claimRight;
     const claimIcon=isLeft?UI.claimIconLeft:UI.claimIconRight;
+    const claimTimer=isLeft?UI.claimTimerLeft:UI.claimTimerRight;
     if(!claimBox?.IsValid?.()||!claimIcon?.IsValid?.())return;
     const prevTimeout=isLeft?_claimTimeoutLeft:_claimTimeoutRight;
     if(prevTimeout){try{$.CancelScheduled(prevTimeout);}catch{}}
@@ -156,8 +162,11 @@ function showClaimIndicator(side,isEnemy,claimerBtn,powerupType){
     if(iconSrc){try{claimIcon.style.backgroundImage='url("'+iconSrc+'")';}catch{}}
     claimBox.SetHasClass("ally-claim",!isEnemy);
     claimBox.SetHasClass("enemy-claim",isEnemy);
+    if(claimTimer?.IsValid?.()){try{claimTimer.text=fmt(POWERUP_BUFF_DUR);}catch{}}
+    const claimTime=gTime();
+    if(isLeft)_claimStartLeft=claimTime;else _claimStartRight=claimTime;
     $.Schedule(0.016,()=>{try{if(claimBox?.IsValid?.()){claimBox.AddClass("active");}}catch{}});
-    const timeoutHandle=$.Schedule(CLAIM_DISPLAY_DUR,()=>{hideClaimIndicator(side);});
+    const timeoutHandle=$.Schedule(POWERUP_BUFF_DUR,()=>{hideClaimIndicator(side);});
     if(isLeft)_claimTimeoutLeft=timeoutHandle;else _claimTimeoutRight=timeoutHandle;
   }catch(e){$.Msg("[BT-P][ERR] showClaimIndicator: "+e+"\n");}
 }
@@ -170,14 +179,42 @@ function hideClaimIndicator(side){
       $.Schedule(0.4,()=>{try{if(claimBox?.IsValid?.()){claimBox.RemoveClass("ally-claim");claimBox.RemoveClass("enemy-claim");}}catch{}});
     }
   }catch{}
-  if(side==="LEFT")_claimTimeoutLeft=null;else _claimTimeoutRight=null;
+  if(side==="LEFT"){_claimTimeoutLeft=null;_claimStartLeft=0;}else{_claimTimeoutRight=null;_claimStartRight=0;}
 }
 
 function clearClaimIndicators(){
   if(_claimTimeoutLeft){try{$.CancelScheduled(_claimTimeoutLeft);}catch{}_claimTimeoutLeft=null;}
   if(_claimTimeoutRight){try{$.CancelScheduled(_claimTimeoutRight);}catch{}_claimTimeoutRight=null;}
+  _claimStartLeft=0;_claimStartRight=0;
   try{UI.claimLeft?.RemoveClass?.("active");UI.claimLeft?.RemoveClass?.("ally-claim");UI.claimLeft?.RemoveClass?.("enemy-claim");}catch{}
   try{UI.claimRight?.RemoveClass?.("active");UI.claimRight?.RemoveClass?.("ally-claim");UI.claimRight?.RemoveClass?.("enemy-claim");}catch{}
+}
+
+function updateClaimProgress(now){
+  if(_claimStartLeft>0){
+    const elapsed=now-_claimStartLeft;
+    const rem=Math.max(0,POWERUP_BUFF_DUR-elapsed);
+    const pct=rem/POWERUP_BUFF_DUR;
+    try{if(UI.claimTimerLeft?.IsValid?.())UI.claimTimerLeft.text=fmt(rem);}catch{}
+    try{if(UI.claimRingLeft?.IsValid?.()){
+      const sc=0.5+pct*0.5;
+      UI.claimRingLeft.style.preTransformScale2d=sc;
+      UI.claimRingLeft.style.opacity=0.3+pct*0.7;
+    }}catch{}
+    if(rem<=0)hideClaimIndicator("LEFT");
+  }
+  if(_claimStartRight>0){
+    const elapsed=now-_claimStartRight;
+    const rem=Math.max(0,POWERUP_BUFF_DUR-elapsed);
+    const pct=rem/POWERUP_BUFF_DUR;
+    try{if(UI.claimTimerRight?.IsValid?.())UI.claimTimerRight.text=fmt(rem);}catch{}
+    try{if(UI.claimRingRight?.IsValid?.()){
+      const sc=0.5+pct*0.5;
+      UI.claimRingRight.style.preTransformScale2d=sc;
+      UI.claimRingRight.style.opacity=0.3+pct*0.7;
+    }}catch{}
+    if(rem<=0)hideClaimIndicator("RIGHT");
+  }
 }
 
 function getPanelPos(panel){
@@ -283,7 +320,7 @@ function scanPowerups(){
     }
     if(powerups.length===0)return;
     
-    powerups.sort((a,b)=>a.y-b.y);
+    powerups.sort((a,b)=>a.x-b.x);
     clearGlows();
     for(let i=0;i<powerups.length;i++){
       powerups[i].pos=i===0?"LEFT":"RIGHT";

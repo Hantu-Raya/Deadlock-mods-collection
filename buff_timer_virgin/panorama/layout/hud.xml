@@ -6,6 +6,7 @@
 		<include src="s2r://panorama/styles/npc_icons.vcss_c" />
 		<include src="s2r://panorama/styles/hud.vcss_c" />
 		<include src="s2r://panorama/styles/hud_timer.vcss_c" />
+		<include src="s2r://panorama/styles/buff_claim.vcss_c" />
 	</styles>
 	<scripts>
 		<include src="s2r://panorama/scripts/rejuvnbufftimer.vjs_c" />
@@ -213,9 +214,6 @@
 				<Panel class="clamp_width" hittest="false">
 					<HudDataFeed id="DataFeed" />
 					<GlobalClassListener id="minimap_persp" hittest="false" classes="gDetailView gScoreboardOpen gAbilityUpgradeMenu">
-					<Panel id="SoulTimer" hittest="false">
-						<Label id="SoulTimerLabel" class="hidden" text="--:--" />
-					</Panel>
 					<Panel id="Buff" class="BuffP" hittest="false">
 						<Label id="BuffTime" text="0:00" />
 						<Image id="BuffImg" src="s2r://panorama/images/hud/modifiers/icon_powerup.svg" />
@@ -228,14 +226,18 @@
 <Panel id="RejuvBuff" hittest="false">
 						<Label id="RejuvTimeBuff" text="0:00" />
 					</Panel>
-					<Panel id="MinimapBuffClaimLeft" class="minimap-claim-box claim-left" hittest="false">
-						<Panel class="claim-bg" />
-						<Panel id="ClaimIconLeft" class="claim-icon" />
-					</Panel>
-					<Panel id="MinimapBuffClaimRight" class="minimap-claim-box claim-right" hittest="false">
-						<Panel class="claim-bg" />
-						<Panel id="ClaimIconRight" class="claim-icon" />
-					</Panel>
+<Panel id="MinimapBuffClaimLeft" class="minimap-claim-box claim-left" hittest="false">
+					<Panel class="claim-bg" />
+					<Panel id="ClaimRingLeft" class="claim-ring" />
+					<Panel id="ClaimIconLeft" class="claim-icon" />
+					<Label id="ClaimTimerLeft" class="claim-timer" text="" />
+				</Panel>
+				<Panel id="MinimapBuffClaimRight" class="minimap-claim-box claim-right" hittest="false">
+					<Panel class="claim-bg" />
+					<Panel id="ClaimRingRight" class="claim-ring" />
+					<Panel id="ClaimIconRight" class="claim-icon" />
+					<Label id="ClaimTimerRight" class="claim-timer" text="" />
+				</Panel>
 					<Panel id="minimap_container" hittest="false">
 							<Panel id="minimap_blur" hittest="false" />
 <Panel id="HudMinimapContainer">
