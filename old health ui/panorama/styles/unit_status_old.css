@@ -1,0 +1,312 @@
+/* Prettified by Source 2 Viewer 15.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/citadel_base_styles.vcss_c");
+@import url("s2r://panorama/styles/unit_status_icons.vcss_c");
+@define Team1Color: #E7B659;
+@define Team2Color: #5B79E6;
+@define TeamNeutralColor: #7DDAB0;
+.WindowRoot
+{
+	width: 100%;
+	height: 100%;
+}
+
+.verticalHealthbars .WindowRoot
+{
+	transform: rotateZ(-90deg);
+}
+
+#UnitStatus
+{
+	width: 100%;
+	height: fit-children;
+	flow-children: down;
+	margin-top: 70px;
+}
+
+.beingSpectatedInEye #UnitStatus
+{
+	visibility: collapse;
+}
+
+.verticalHealthbars #UnitStatus
+{
+	margin-bottom: 250px;
+}
+
+#CriticalHealth
+{
+	border: 1px solid red;
+	horizontal-align: center;
+	flow-children: down;
+	ignore-parent-flow: true;
+	margin-top: 60px;
+	padding: 0px 6px;
+}
+
+#CriticalHealth .critical_icon
+{
+	width: 80px;
+	height: 80px;
+	horizontal-align: middle;
+	background-image: url("s2r://panorama/images/hud/icons/icon_critical_png.vtex");
+	background-size: contain;
+	margin-bottom: -16px;
+}
+
+#CriticalHealth Label
+{
+	font-size: 40px;
+	font-weight: bold;
+	text-transform: uppercase;
+	color: red;
+	text-shadow: 0px 0px 5.0 white;
+}
+
+#LevelHealthContainer
+{
+	width: fit-children;
+	horizontal-align: center;
+	flow-children: right;
+	visibility: visible;
+}
+
+.health_hidden #LevelHealthContainer
+{
+	visibility: collapse;
+}
+
+.health_particle_active #LevelHealthContainer
+{
+	visibility: collapse;
+}
+
+.player #PlayerLevel
+{
+	visibility: visible;
+}
+
+#level Label
+{
+	width: 100%;
+	text-align: center;
+	horizontal-align: center;
+	vertical-align: middle;
+}
+
+#range_indicator
+{
+	width: 45px;
+	height: 45px;
+	border-radius: 50%;
+	vertical-align: bottom;
+	margin-bottom: 30px;
+	visibility: collapse;
+}
+
+.enemy.player #range_indicator
+{
+	visibility: visible;
+}
+
+.pip_only #healthpips
+{
+	visibility: collapse;
+}
+
+#pip_image
+{
+	horizontal-align: center;
+	width: 50px;
+	height: 50px;
+	wash-color: TeamNeutralColor;
+	opacity: 0.7;
+	visibility: collapse;
+}
+
+.pip_only #pip_image
+{
+	visibility: visible;
+}
+
+.team1 #pip_image
+{
+	wash-color: Team1Color;
+}
+
+.team2 #pip_image
+{
+	wash-color: Team2Color;
+}
+
+.friend #pip_image
+{
+	wash-color: lightgreen;
+}
+
+.enemy #pip_image
+{
+	wash-color: red;
+}
+
+#stacks
+{
+	width: fit-children;
+	height: fit-children;
+	font-size: 35px;
+	color: #ffffffff;
+	text-align: center;
+	visibility: collapse;
+	vertical-align: bottom;
+	horizontal-align: right;
+	text-shadow: 0px 0px 2px 5 #000000;
+}
+
+#name
+{
+	height: 28px;
+	font-size: 25px;
+	color: #ffffff90;
+	text-align: center;
+	font-weight: bold;
+	font-family: sans;
+	text-transform: uppercase;
+	vertical-align: bottom;
+	width: 100%;
+	visibility: collapse;
+}
+
+#NameVoiceContainer
+{
+	flow-children: right;
+	horizontal-align: center;
+	height: 25px;
+	overflow: noclip;
+	width: 100%;
+}
+
+.health_hidden #NameVoiceContainer
+{
+	margin-bottom: 40px;
+}
+
+.GameStatePreGame.player #name,.hideoutMap.playerIsHuman #name,.player.show_name #name
+{
+	visibility: visible;
+}
+
+.show_bounty.enemy #bounty
+{
+	color: gold;
+	visibility: visible;
+}
+
+.player .team_color
+{
+	visibility: visible;
+}
+
+.statusEffect
+{
+	height: 50px;
+	width: 50px;
+	img-shadow: 0px 0px 0.0 0.0 DropshadowColor;
+}
+
+#status_container
+{
+	height: 100%;
+	width: fit-children;
+	margin-bottom: 0px;
+	horizontal-align: center;
+	flow-children: right;
+}
+
+/* Ult indicator panel styles */
+@define TeamEnemyColor: #e16161;
+@define TeamFriendColor: #FFEFD7;
+@define DropshadowColor: #12101880;
+
+#UnitInfoContainer.unit_info_panel {
+	width: 55px;
+	height: width-percentage(100%);
+	vertical-align: middle;
+	horizontal-align: left;
+	z-index: 3;
+	margin-right: 6px;
+}
+
+#unit_info_bg {
+	width: 100%;
+	height: 100%;
+	visibility: visible;
+	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_bg_psd.vtex");
+	background-size: 100% 100%;
+	horizontal-align: center;
+	vertical-align: middle;
+	z-index: 3;
+}
+
+.team_neutral #unit_info_bg {
+	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_neutral_1_psd.vtex");
+}
+
+.boss_tier1 #unit_info_bg,
+.boss_tier2 #unit_info_bg,
+.boss_tier3 #unit_info_bg {
+	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_boss_bg_psd.vtex");
+}
+
+.sentry #unit_info_bg {
+	visibility: collapse;
+}
+
+#unit_ult_ready_icon {
+	width: 100%;
+	height: 100%;
+	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_ultready_bg_psd.vtex");
+	background-size: 100%;
+	visibility: collapse;
+	brightness: 2;
+}
+
+.boss_tier1 #unit_ult_ready_icon {
+	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_ultready_boss_tier1_psd.vtex");
+}
+
+.boss_tier2 #unit_ult_ready_icon {
+	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_ultready_boss_tier2_psd.vtex");
+}
+
+.boss_tier3 #unit_ult_ready_icon {
+	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_ultready_boss_tier3_psd.vtex");
+}
+
+.boss_barracks #unit_ult_ready_icon {
+	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_ultready_boss_barracks_psd.vtex");
+}
+
+.team1 #unit_ult_ready_icon {
+	wash-color: Team1Color;
+}
+
+.team2 #unit_ult_ready_icon {
+	wash-color: Team2Color;
+}
+
+.team_neutral #unit_ult_ready_icon {
+	wash-color: TeamNeutralColor;
+}
+
+.enemy #unit_ult_ready_icon {
+	wash-color: TeamEnemyColor;
+}
+
+.friend #unit_ult_ready_icon {
+	wash-color: TeamFriendColor;
+}
+
+.health_hidden #UnitInfoContainer {
+	visibility: collapse;
+}
+
