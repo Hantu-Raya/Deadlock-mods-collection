@@ -1,0 +1,60 @@
+<!-- xml reconstructed by Source 2 Viewer 15.0.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/unit_status_old.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/ult_indicator.vjs_c" />
+	</scripts>
+	<snippets>
+		<snippet name="StatusPanelSnippet">
+			<Panel class="status_panel">
+				<Label id="status" text="{s:status}" />
+				<Label id="stacks" text="{i:stacks}" />
+				<Panel id="status_duration_bg">
+					<Panel id="status_duration" />
+				</Panel>
+			</Panel>
+		</snippet>
+		<snippet name="HealthPipSnippet">
+			<Panel class="pip_container">
+				<Panel id="pip_border">
+					<ProgressBarWithMiddle id="pip_fill" />
+				</Panel>
+			</Panel>
+		</snippet>
+		<snippet name="StatusEffect">
+			<Panel class="statusEffect">
+				<Panel class="immuneImage" />
+				<Label id="stacks" text="{i:stacks}" />
+				<Panel class="statusEffectContainer">
+					<Panel id="StatusEffectsBorder" />
+					<Panel id="StatusEffectCooldownOverlay" />
+					<Panel id="StatusEffectInner" />
+					<Panel class="statusEffectImage" />
+				</Panel>
+			</Panel>
+		</snippet>
+	<snippet name="UnitInfoPanelSnippet">
+			<Panel class="unit_info_panel">
+				<Panel id="unit_info_bg">
+					<Image id="unit_ult_ready_icon" />
+				</Panel>
+			</Panel>
+		</snippet>
+	</snippets>
+	<Panel class="WindowRoot" hittest="false">
+		<Panel id="UnitStatus" class="UnitStatusOld" hittest="false">
+			<CitadelStatusEffect id="StatusEffects" />
+			<Panel id="NameVoiceContainer">
+				<Label id="name" text="{s:name}" />
+			</Panel>
+			<Panel id="LevelHealthContainer">
+				<Panel id="UnitInfoContainer" />
+				<Citadel_HealthPips id="healthpips" />
+				<Image id="pip_image" src="s2r://panorama/images/control_icons/arrow_solid_down_png.vtex" />
+			</Panel>
+		</Panel>
+		<Panel id="range_indicator" />
+	</Panel>
+</root>
