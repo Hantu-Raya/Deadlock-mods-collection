@@ -1,159 +1,91 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-01-16
-**Commit:** 990cefa
+**Generated:** 2026-01-19
+**Commit:** 4c38eef
 **Branch:** main
 
 ## OVERVIEW
-Deadlock Panorama UI mod collection. 25 source mods compiling to VPK-ready structure via Source 2 resourcecompiler.
+Deadlock Panorama UI mod collection. 25+ source mods compiling to VPK-ready structure via Source 2 resourcecompiler. Key features include soul timers, buff/rejuv trackers, and custom health bars.
 
 ## STRUCTURE
 ```
 ./
 ├── {mod}/                    # Source (panorama/{scripts,styles,layout,images})
 ├── {mod}_compiled/           # Output (.vjs_c, .vcss_c, .vxml_c)
-├── abilities/                # VData definitions + Python scripts (non-Panorama)
-├── post/                     # Post-processing (.vpost, non-Panorama)
-├── shiv/                     # Audio mod (soundevents, non-Panorama)
-└── test/                     # Archive: kaiz_hud, old_hud, Predi2
+├── buff_timer_virgin/         # v5.1 Production Rejuv/Buff tracker
+├── combined_timer_v2/        # Latest high-complexity merge (v4.2 + v5.1)
+├── abilities/                # Core VData definitions (260k lines) + Python toggles
+├── self_hp/                  # Revitalizer tracker with damage detection
+├── shiv/                     # Audio mod (soundevents + randomizer logic)
+├── sr2compiler/              # Custom Source 2 ResourceCompiler tool
+└── test/                     # Archive: kaiz_hud, old_hud (archival reference)
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| Soul Timer | `soul_timer/` | Drain formula, root re-parenting, watchdog pattern |
-| Soul Timer Warning | `soul_timer_warning_addon/` | CSS addon: pre-transform-scale2d pulse + glow |
-| Buff/Rejuv Timers | `buff_timer_*/` | Phase tracking. `virgin` has minimap claim detection + glows |
-| Health Bars | `hp/` | 5 variants (fixed, interp, team-based). See hp/AGENTS.md |
-| Combined | `combined_timer/` | Soul + Buff merged |
-| Self HP | `self_hp/` | Revitalizer tracker. WARNING: DEBUG=true |
-| Radar | `radar/fgH/` | Minimap (anomaly: extra nesting) |
-| Rank Display | `showrank/` | CSS-only |
-| Abilities | `abilities/` | VData mod, Python scripts |
-| Legacy | `test/old_hud/` | NeonPrime reference (107+ files, archival) |
+| Soul Timer | `soul_timer/` | Drain formula, root re-parenting, v4.2 optimized |
+| Combined v2 | `combined_timer_v2/` | Merged Soul + Buff, newest logic |
+| Buff/Rejuv | `buff_timer_virgin/` | v5.1 Prod: 8-unit proximity scan, 6-panel glow |
+| Health Bars | `hp/` | Logic variants (fixed, interp, team-based) |
+| Self HP | `self_hp/` | Item cooldown logic via damage detection |
+| Abilities | `abilities/` | Core VData definitions (260k lines). Python scripts (active.py/passive.py) toggle m_bShowInPassiveItemsArea. |
+| Audio | `shiv/` | Hero-specific sound event overrides |
+| Legacy | `test/old_hud/` | NeonPrime reference (107+ files) |
 
-## MOD TYPES
-| Type | Has Scripts | Examples |
-|------|-------------|----------|
-| Full Panorama | Yes | `soul_timer`, `hp`, `combined_timer`, `buff_timer_virgin` |
-| CSS-only | No | `showrank`, `event`, `soul_timer_warning_addon` |
-| Non-Panorama | N/A | `abilities/` (VData), `post/` (vpost), `shiv/` (audio) |
+## MOD SPECIFICS
+
+### Buff Timer Virgin (v5.1)
+- **Status**: Production Ready.
+- **Hero Detection**: Confirmed impossible via Panorama; uses proximity scan (8 unit radius) for claim detection.
+- **Dead Handling**: Hybrid system with 2s grace period to prevent flickering on death.
+- **Visuals**: 6-panel curved glow system for enhanced visibility.
 
 ## CONVENTIONS
 
-### JavaScript
-```javascript
-(()=>{"use strict";
-const UI={root:null,label:null};  // Panel cache at module scope
-let _tCache=0,_tCacheTs=0;        // Leading underscore = private
+### JavaScript (Resilient Patterns)
+- **4-Tier Game Time**: `gTime()` uses `Game` API -> `GameUI` -> `Game.GetDOTATime` -> UI Clock Parsing.
+- **Adaptive Polling**: 0.05s when values change, 0.25s-0.5s when static (see `kaiz_hud`).
+- **Boot & Retry**: Scripts must check `$.GetContextPanel()?.IsValid()` and retry if HUD isn't ready.
+- **Panel Caching**: Always cache traverses at boot scope (e.g., `UI.label = UI.root.FindChildTraverse("...")`).
 
-function boot(){
-  UI.root=$.GetContextPanel();
-  UI.label=UI.root.FindChildTraverse("MyLabel");
-  if(!UI.label?.IsValid?.())return $.Schedule(0.5,boot);  // Retry pattern
-  loop();
-}
-
-function gTime(){  // MANDATORY for timers
-  const n=Date.now();
-  if(n-_tCacheTs<200)return _tCache;
-  let t=0;
-  try{t=Game.GetGameTime?.()|0;}catch{}
-  if(t>0){_tCache=t;_tCacheTs=n;return t;}
-  try{t=GameUI.GetGameTime?.()|0;}catch{}
-  if(t>0){_tCache=t;_tCacheTs=n;return t;}
-  return uiClockTime();  // Fallback: parse clock text
-}
-
-boot();
-})();
-```
-
-### CSS
-```css
-@import url("s2r://panorama/styles/base/original.vcss_c");  /* CSS Hijack */
-
-@keyframes 'pulse' {
-    0%   { pre-transform-scale2d: 1.0; }  /* NOT scale3d */
-    50%  { pre-transform-scale2d: 1.5; }
-    100% { pre-transform-scale2d: 1.0; }
-}
-
-#AnimatedLabel {
-    width: 100px; height: 100px;  /* Fixed box for scaling */
-    overflow: noclip;             /* MANDATORY for glows */
-}
-```
-
-### Tick Rates
-| Use Case | Rate |
-|----------|------|
-| Render | 0.05s - 0.1s |
-| State | 0.5s - 1.0s |
-| Background | 2.0s - 3.0s |
+### CSS (Hijack Pattern)
+- **CSS Hijacking**: Create file with game name, `@import` original, then add custom overrides.
+- **Pre-transform-scale2d**: MUST use for pulsing text with shadows (avoids clipping/blurring).
+- **Noclip Overflow**: Use `overflow: noclip;` to prevent glow/shadow clipping at panel bounds.
 
 ## ANTI-PATTERNS (CRITICAL)
 | Pattern | Why Bad | Fix |
 |---------|---------|-----|
-| `$.GetContextPanel()` in loops | Performance | Cache at boot |
-| `new Array/Object` in render | GC pressure | Reuse objects |
-| Trust `visible` alone | Ghost panels | Check `actualvisibility !== "collapse"` |
-| Bare panel access | Crash on reload | `try-catch` + `?.IsValid?.()` |
-| `Game.GetGameTime()` unwrapped | Returns 0 | Use `gTime()` with fallback |
-| `transform: scale3d` + text-shadow | Clipping | Use `pre-transform-scale2d` |
-| `font-size` animation | Jitter/crash | Use `pre-transform-scale2d` |
-| `box-shadow` | Doesn't render | Use gradient overlay panels |
-| Radial gradients | Unreliable | Use linear gradients |
-| `clip: rect()` | Ignored | Use separate panels |
+| `SetParent()` to engine root | Floating panels, centering bugs | Parent to `HudCore` or `CitadelHud` |
+| `Game.GetGameTime()` unwrapped | Returns 0 in menus | Use 4-tier `gTime()` fallback |
+| `transform: scale3d` + shadow | Clipping/Blurring | Use `pre-transform-scale2d` |
+| `font-size` animation | Layout jitter/crashes | Use `pre-transform-scale2d` |
+| Bare ID root parenting | Compile error if on root | Put ID on first child (e.g., `id="Hud"` on `HudCore`) |
 
-## KNOWN ENGINE BUGS
-| Bug | Symptom | Workaround |
-|-----|---------|------------|
-| Ghost Panel | Stale values after reload | `visible===true && actualvisibility!=="collapse"` |
-| Shop Pause | Timer freezes | Watchdog (2s check, 5s stall = restart) |
-| GetGameTime=0 | Returns 0 in menus | 4-tier fallback chain |
-| Panel Crash | Exception on reload | Wrap ALL panel access in try-catch |
-| Scale3d + shadow | Clipped/blurred | `pre-transform-scale2d` |
+## SHARED CODE (Refactor Candidates)
+| Function | Purpose |
+|----------|---------|
+| `gTime()` | Robust game time with 4-tier fallback |
+| `findRoot()` | Hierarchical root discovery |
+| `validPanel()` | Recursive visibility/validity check |
+| `parseSec()` | Time string (MM:SS) to seconds |
+| `detectDamage()` | Change detection for health status |
 
-## PANORAMA CSS LEARNINGS
-| Feature | Status | Alternative |
-|---------|--------|-------------|
-| `box-shadow` | ❌ No effect | Gradient overlay panels |
-| `clip: rect()` | ❌ Unreliable | Separate panels per region |
-| Radial gradients | ❌ Don't render | Linear gradients |
-| Linear gradients | ✅ Works | `gradient(linear, ...)` |
-| `overflow: noclip` | ✅ Required | For effects beyond bounds |
-| `pre-transform-scale2d` | ✅ Required | For text scaling |
-| `border-radius: 50%` | ✅ Works | Circular panels |
+## GOTCHAS
+- **Abilities VData Size**: `abilities.vdata` and `abilities2.vdata` are massive (~260k lines each). Conventional text editors may struggle; use stream-based processing or high-performance editors.
+- **Hardcoded Paths**: The VData compilation workflow often requires external working directories due to hardcoded paths in helper scripts/batch files. Not fully portable.
 
 ## BUILD
-
 ```powershell
 # Compile after ANY code change
 "F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\{mod_name}"
 ```
 
-## NON-STANDARD STRUCTURES
-| Path | Issue | Impact |
-|------|-------|--------|
-| `radar/fgH/` | Extra nesting | Inconsistent paths |
-| `legacytarget/` | No `panorama/` wrapper | Files at root |
-| `heatlh_color_blind/` | Typo + variant subdirs | Should be split |
-| `hud/` | Mixed vdata + panorama | Ambiguous mod type |
-
-## SHARED CODE (Refactor Candidates)
-| Function | Found In | Purpose |
-|----------|----------|---------|
-| `gTime()` | soul_timer, buff_timer_*, combined_timer | Game time with cache+fallback |
-| `findRoot()` | Multiple timer mods | HUD root discovery |
-| `parseSec()` | Multiple | Clock text → seconds |
-| Color constants | hp/, kaiz_hud/ | `r=[225,97,97]` etc. |
-
 ## DEBUG
 | Tag | Module |
 |-----|--------|
 | `[ST-S]` | Soul Timer |
-| `[ST-B]` | Buff Timer |
 | `[BT-P]` | Buff Timer Position |
 | `[WD]` | Watchdog |
 | `[ERR]` | Exception |
