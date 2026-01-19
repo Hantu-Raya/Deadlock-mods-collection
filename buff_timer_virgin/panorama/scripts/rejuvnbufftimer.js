@@ -116,7 +116,7 @@ function doPretrack(nowMs){
 
 function doScan(now){if(!running)return;const f=hasRejuv();if(spawnWait&&f&&!lastFound){claimCnt++;startBuff(now);startPhase(claimCnt>2?3:claimCnt,now);}lastFound=f;}
 function hasRejuv(){return panelHas(UI.rejuvFriendly)||panelHas(UI.rejuvEnemy);}
-function panelHas(p){if(!p)return false;for(let i=0;i<4;i++){try{if(p.BHasClass(REJUV_CLS[i]))return true;}catch{}}try{const k=p.Children();for(let j=0;j<k.length;j++)for(let i=0;i<4;i++){try{if(k[j].BHasClass(REJUV_CLS[i]))return true;}catch{}}}catch{}return false;}
+function panelHas(p){if(!p)return false;try{for(let i=0;i<4;i++)if(p.BHasClass(REJUV_CLS[i]))return true;const k=p.Children();if(k)for(let j=0;j<k.length;j++)for(let i=0;i<4;i++)if(k[j].BHasClass(REJUV_CLS[i]))return true;}catch{}return false;}
 
 function findMinimap(){if(UI.minimap?.IsValid?.())return UI.minimap;try{UI.minimap=UI.root.FindChildTraverse("hud_minimap");}catch(e){$.Msg("[BT-P][ERR] findMinimap: "+e+"\n");}return UI.minimap;}
 
