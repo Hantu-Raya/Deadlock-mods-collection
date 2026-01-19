@@ -25,6 +25,7 @@ let _gameTimePanel=null;
 let _tCache=0,_tCacheTs=0;
 let _playerCache=null,_playerCacheTs=0;
 let _playerState={};
+let _lastRejuvText="",_lastBuffText="",_lastRejuvBuffText="",_lastRejuvNum="",_lastClaimTimerL="",_lastClaimTimerR="";
 const _posResult={x:0,y:0};
 
 const UI={root:null,hud:null,minimap:null,glowLeft:null,glowRight:null,rLab:null,rNum:null,rImg:null,buffLab:null,rejuvBuff:null,rejuvBuffTime:null,rejuvFriendly:null,rejuvEnemy:null,claimLeft:null,claimRight:null,claimIconLeft:null,claimIconRight:null,claimRingLeft:null,claimRingRight:null,claimTimerLeft:null,claimTimerRight:null};
@@ -59,9 +60,9 @@ function loop(){
   if(rn-lastRunChk>=60000){lastRunChk=rn;if(isHideout()){reset(1);loop();return;}}
   if(lastGlobalSec>=0&&(now+5<lastGlobalSec||(lastGlobalSec>30&&now<=2))){reset(1);loop();return;}
   lastGlobalSec=now;
-  if(now!==lastSec){lastSec=now;const rem=Math.max(0,SEQ[idx].d-(now-phaseStart));if(rem<=0)showSpawn();else{counter=rem;UI.rLab.text=fmt(rem);}tick=spawnWait||rem<=SPAWN_TH?TICK_FAST:TICK_NORM;}
-  if(buffStart>0){buffCnt=Math.max(0,REJUV_DUR-(now-buffStart));if(UI.rejuvBuffTime)UI.rejuvBuffTime.text=fmt(buffCnt);if(buffCnt<=0)endBuff();}
-  const buffRem=BRIDGE_DUR-(now%BRIDGE_DUR);UI.buffLab.text=fmt(buffRem);
+  if(now!==lastSec){lastSec=now;const rem=Math.max(0,SEQ[idx].d-(now-phaseStart));if(rem<=0)showSpawn();else{counter=rem;const t=fmt(rem);if(t!==_lastRejuvText){UI.rLab.text=t;_lastRejuvText=t;}}tick=spawnWait||rem<=SPAWN_TH?TICK_FAST:TICK_NORM;}
+  if(buffStart>0){buffCnt=Math.max(0,REJUV_DUR-(now-buffStart));if(UI.rejuvBuffTime){const t=fmt(buffCnt);if(t!==_lastRejuvBuffText){UI.rejuvBuffTime.text=t;_lastRejuvBuffText=t;}}if(buffCnt<=0)endBuff();}
+  const buffRem=BRIDGE_DUR-(now%BRIDGE_DUR);{const t=fmt(buffRem);if(t!==_lastBuffText){UI.buffLab.text=t;_lastBuffText=t;}}
   
   if(buffRem<=POWERUP_CHECK_TH&&!pretrackActive&&!monitoringActive&&knownSpawnPos){
     pretrackActive=true;
@@ -194,7 +195,7 @@ function updateClaimProgress(now){
     const elapsed=now-_claimStartLeft;
     const rem=Math.max(0,POWERUP_BUFF_DUR-elapsed);
     const pct=rem/POWERUP_BUFF_DUR;
-    try{if(UI.claimTimerLeft?.IsValid?.())UI.claimTimerLeft.text=fmt(rem);}catch{}
+    try{if(UI.claimTimerLeft?.IsValid?.()){const t=fmt(rem);if(t!==_lastClaimTimerL){UI.claimTimerLeft.text=t;_lastClaimTimerL=t;}}}catch{}
     try{if(UI.claimRingLeft?.IsValid?.()){
       const sc=0.5+pct*0.5;
       UI.claimRingLeft.style.preTransformScale2d=sc;
@@ -206,7 +207,7 @@ function updateClaimProgress(now){
     const elapsed=now-_claimStartRight;
     const rem=Math.max(0,POWERUP_BUFF_DUR-elapsed);
     const pct=rem/POWERUP_BUFF_DUR;
-    try{if(UI.claimTimerRight?.IsValid?.())UI.claimTimerRight.text=fmt(rem);}catch{}
+    try{if(UI.claimTimerRight?.IsValid?.()){const t=fmt(rem);if(t!==_lastClaimTimerR){UI.claimTimerRight.text=t;_lastClaimTimerR=t;}}}catch{}
     try{if(UI.claimRingRight?.IsValid?.()){
       const sc=0.5+pct*0.5;
       UI.claimRingRight.style.preTransformScale2d=sc;
