@@ -8,8 +8,8 @@ Modifies ability visibility flags via VData files. Uses Python scripts to toggle
 ## FILES
 | File | Purpose |
 |------|---------|
-| `scripts/abilities.vdata` | Main ability definitions (6.6MB) |
-| `scripts/abilities2.vdata` | Extended definitions (6.6MB) |
+| `scripts/abilities.vdata` | Main ability definitions (260k lines) |
+| `scripts/abilities2.vdata` | Extended definitions (260k lines) |
 | `scripts/active.py` | Removes passive flags (shows in active area) |
 | `scripts/passive.py` | Adds passive flags (shows in passive area) |
 | `scripts/active.bat` | Windows wrapper for active.py |
@@ -36,6 +36,7 @@ py active.py abilities.vdata
 - Python scripts use simple string replacement (no VData parser)
 
 ## GOTCHAS
-- Files are 6MB+ each. Edit carefully.
+- Files are ~260k lines each (6MB+). Conventional text editors may struggle; use stream-based processing or high-performance editors.
+- Hardcoded external paths in helper scripts/batch files require external working directories. Not fully portable.
 - `_include` block must be removed before processing (restored after).
 - Scripts in `.gitignore` but tracked from before ignore was added.

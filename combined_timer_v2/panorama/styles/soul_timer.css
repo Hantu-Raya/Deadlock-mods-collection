@@ -1,0 +1,93 @@
+/* Soul Timer v3.3 - Positioned above unsecured souls */
+
+/* Overlay container */
+#SoulTimerOverlay {
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    overflow: noclip;
+}
+
+/* Main timer display */
+#SoulTimerLabel {
+    font-family: sansMono, monospace;
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+    text-shadow: 0px 0px 3px 1.5 #000000;
+    
+    /* Layout Box */
+    width: 100px;
+    height: 100px;
+    text-align: center;
+    padding-top: 25%;
+    
+    vertical-align: bottom;
+    margin-bottom: 12.2%;
+    
+    /* Default / 16:9 Position */
+    margin-left: 9.4%;
+    
+    opacity: 1.0;
+    transition-property: opacity, color;
+    transition-duration: 0.15s;
+}
+
+/* Aspect Ratio Specific Overrides - Higher Specificity */
+/* Targeting through root CitadelHud classes */
+
+.AspectRatio16x10 #SoulTimerLabel,
+.AspectRatio16x10 #SoulTimerOverlay #SoulTimerLabel {
+    margin-left: 10.7%;
+}
+
+.AspectRatio16x9 #SoulTimerLabel,
+.AspectRatio16x9 #SoulTimerOverlay #SoulTimerLabel {
+    margin-left: 9.4%;
+}
+
+.AspectRatio21x9 #SoulTimerLabel,
+.AspectRatio21x9 #SoulTimerOverlay #SoulTimerLabel {
+    /* Estimate for ultrawide if needed, usually centered content needs less margin relative to edge? */
+    /* Or if HUD is centered, margin from left edge changes. */
+    /* For now, stick to default */
+}
+
+#SoulTimerLabel.hidden {
+    visibility: collapse;
+    opacity: 0.0;
+}
+
+/* Color states */
+#SoulTimerLabel.white {
+    color: #ffffff;
+    text-shadow: 0px 0px 3px 1.0 #888888;
+}
+
+#SoulTimerLabel.yellow {
+    color: #fbbf24;
+    text-shadow: 0px 0px 4px 1.0 #f59e0b;
+}
+
+#SoulTimerLabel.red {
+    color: #f87171;
+    text-shadow: 0px 0px 4px 1.0 #ef4444;
+}
+
+/* Fallback class selectors */
+.soul-timer {
+    font-family: sansMono, monospace;
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+    text-shadow: 0px 0px 3px 1.5 #000000;
+}
+
+.soul-timer.hidden {
+    visibility: collapse;
+    opacity: 0.0;
+}
+
+.soul-timer.white { color: #ffffff; }
+.soul-timer.yellow { color: #fbbf24; }
+.soul-timer.red { color: #f87171; }
