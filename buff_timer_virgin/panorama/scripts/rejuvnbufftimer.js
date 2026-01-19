@@ -71,7 +71,7 @@ function loop(){
   
   if(pretrackActive&&knownSpawnPos&&rn-lastPretrackCheck>=PRETRACK_INTERVAL){
     lastPretrackCheck=rn;
-    doPretrack();
+    doPretrack(rn);
   }
   
   if(prevBuffRem<=POWERUP_CHECK_TH&&prevBuffRem>0&&buffRem>POWERUP_CHECK_TH){
@@ -93,7 +93,7 @@ function loop(){
   
   if(monitoringActive&&rn-lastMonitorCheck>=MONITOR_INTERVAL){
     lastMonitorCheck=rn;
-    monitorPowerups();
+    monitorPowerups(rn);
   }
   
   if(rn-lastScan>=3000){lastScan=rn;doScan(now);}
@@ -101,12 +101,12 @@ function loop(){
   hnd=$.Schedule(tick,loop);
 }
 
-function doPretrack(){
+function doPretrack(nowMs){
   const mm=findMinimap();
   if(!mm||!knownSpawnPos)return;
   
-  const nearLeft=getPlayersNearPowerup(mm,knownSpawnPos.left);
-  const nearRight=getPlayersNearPowerup(mm,knownSpawnPos.right);
+  const nearLeft=getPlayersNearPowerup(mm,knownSpawnPos.left,nowMs);
+  const nearRight=getPlayersNearPowerup(mm,knownSpawnPos.right,nowMs);
   
   if(nearLeft.ally<pretrackData.left.minAlly)pretrackData.left.minAlly=nearLeft.ally;
   if(nearLeft.enemy<pretrackData.left.minEnemy)pretrackData.left.minEnemy=nearLeft.enemy;
@@ -256,9 +256,9 @@ function getPanelPos(panel){
 
 function distSq(p1,p2){const dx=p1.x-p2.x,dy=p1.y-p2.y;return dx*dx+dy*dy;}
 
-function getPlayersNearPowerup(mm,pwPos){
+function getPlayersNearPowerup(mm,pwPos,nowMs){
   let nearestAlly=Infinity,nearestEnemy=Infinity;
-  const now=Date.now();
+  const now=nowMs||Date.now();
   try{
     let buttons=_playerCache;
     if(!buttons||now-_playerCacheTs>BUTTON_CACHE_TTL){
@@ -344,7 +344,7 @@ function scanPowerups(){
   }catch(e){$.Msg("[BT-P][ERR] scanPowerups: "+e+"\n");}
 }
 
-function monitorPowerups(){
+function monitorPowerups(nowMs){
   if(trackedPowerups.length===0){monitoringActive=false;return;}
   const mm=findMinimap();
   if(!mm)return;
@@ -358,7 +358,7 @@ function monitorPowerups(){
     try{if(p.panel?.IsValid?.()){stillActive=p.panel.BHasClass("active");}}catch{}
     
     const pwPos={x:p.x,y:p.y};
-    const nearest=getPlayersNearPowerup(mm,pwPos);
+    const nearest=getPlayersNearPowerup(mm,pwPos,nowMs);
     
     if(nearest.ally<p.minAllyDist){p.minAllyDist=nearest.ally;}
     if(nearest.enemy<p.minEnemyDist){p.minEnemyDist=nearest.enemy;}
