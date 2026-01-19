@@ -1,4 +1,4 @@
-# Buff Timer Virgin Performance Optimization v2
+# Buff Timer Virgin Performance Optimization
 
 ## Context
 
@@ -15,20 +15,13 @@ Optimize the script `buff_timer_virgin/` for optimal performance on gaming and l
 - Existing patterns are solid: `_playerCache` (400ms TTL), `_tCache` (200ms TTL), `_posResult` reuse
 - Multi-rate loop with TICK_FAST (0.1s) / TICK_NORM (1s) / TICK_IDLE (3s) is appropriate
 - CSS correctly uses `pre-transform-scale2d` (no scale3d anti-pattern)
+- One verified dead constant: `CLAIM_DISPLAY_DUR` declared but never used
 
-**NEW Critical Findings (from deep analysis)**:
-1. **Math.sqrt() in hot path** - Called for every player (10-20) every 300ms
-2. **Object allocation in loops** - Creates new objects every proximity scan
-3. **Dead XML panels** - `hero_pos_debug` and unused snippets waste memory
-4. **Debug logging** - `$.Msg()` calls in production code
-
-### Gap Analysis
-**Gaps Addressed**:
+### Metis Review
+**Identified Gaps** (addressed):
 - Verification strategy for "no behavioral changes" → Added explicit before/after verification steps
 - Risk of over-optimization → Constrained to measurable improvements only
 - Edge case: script reload behavior → Preserve existing reset() mechanism
-- NEW: Math.sqrt() elimination → Use squared distance comparison
-- NEW: Object pooling → Update in-place instead of recreating
 
 ---
 
@@ -38,17 +31,15 @@ Optimize the script `buff_timer_virgin/` for optimal performance on gaming and l
 Reduce CPU usage during gameplay by optimizing hot paths and removing dead code, while preserving all existing functionality.
 
 ### Concrete Deliverables
-- Optimized `rejuvnbufftimer.js` with reduced allocations, eliminated sqrt, and improved cache usage
-- Cleaned `hud.xml` with unused panels removed
-- Removal of verified dead code and debug logging
+- Optimized `rejuvnbufftimer.js` with reduced allocations and improved cache usage
+- Removal of verified dead code
 - No behavioral changes to timer logic or claim detection
 
 ### Definition of Done
 - [ ] Script compiles without errors via sr2compiler
 - [ ] All timer displays work identically (Rejuv countdown, Buff countdown, claim indicators)
 - [ ] No new console errors in F7 debug console
-- [ ] Dead code removed (CLAIM_DISPLAY_DUR, debug panels, unused snippets)
-- [ ] Math.sqrt eliminated from proximity calculations
+- [ ] Dead code removed (specifically `CLAIM_DISPLAY_DUR`)
 
 ### Must Have
 - Preserve exact timing behavior (REJUV_DUR=240, BRIDGE_DUR=300, phase sequences)
@@ -59,10 +50,10 @@ Reduce CPU usage during gameplay by optimizing hot paths and removing dead code,
 ### Must NOT Have (Guardrails)
 - **NO behavioral changes** - timers must display identical values at identical times
 - **NO new dependencies** - no external libraries or additional files
+- **NO CSS or XML modifications** - scope is JS only
 - **NO feature additions** - this is pure optimization
 - **NO micro-optimizations with negligible impact** - focus on measurable gains
 - **NO removal of try/catch in error-prone areas** - maintain resilience
-- **NO changes to claim detection accuracy** - proximity logic must remain identical
 
 ---
 
@@ -97,70 +88,47 @@ Each TODO includes detailed verification using the game's debug console (F7) and
 ## Task Flow
 
 ```
-Task 1 (Dead Code JS) ──┬── Task 2 (Dead Code XML) [PARALLEL]
-                        │
-                        v
-                  Task 3 (Math.sqrt Elimination) [HIGHEST IMPACT]
-                        │
-                        v
-                  Task 4 (Object Pooling)
-                        │
-                        v
-                  Task 5 (String Formatting)
-                        │
-                        v
-                  Task 6 (Loop Frequency)
-                        │
-                        v
-                  Task 7 (Final Verification)
+Task 1 (Dead Code) → Task 2 (String Optimization) → Task 3 (Cache Optimization)
+                                                          ↓
+                                                    Task 4 (Loop Optimization)
+                                                          ↓
+                                                    Task 5 (Final Verification)
 ```
 
 ## Parallelization
 
-| Group | Tasks | Reason |
-|-------|-------|--------|
-| A | 1, 2 | Independent files (JS vs XML) |
-
 | Task | Depends On | Reason |
 |------|------------|--------|
-| 3 | 1 | Build on clean JS codebase |
-| 4 | 3 | Object pooling builds on distance optimization |
-| 5 | 4 | String optimization after core logic |
-| 6 | 5 | Frequency tuning after other optimizations |
-| 7 | 6 | Final verification requires all changes |
+| 1 | None | Independent dead code removal |
+| 2 | 1 | Build on clean codebase |
+| 3 | 2 | Build on string optimizations |
+| 4 | 3 | Build on cache optimizations |
+| 5 | 4 | Final verification requires all changes |
 
 ---
 
 ## TODOs
 
-- [x] 1. Remove Verified Dead Code (JavaScript)
+- [ ] 1. Remove Verified Dead Code
 
   **What to do**:
   - Delete `CLAIM_DISPLAY_DUR=4.0` constant on line 8 (declared but never referenced)
-  - Remove or conditionalize debug `$.Msg()` calls (lines 121, 171, 251, 345)
-  - Option A: Remove entirely (production mode)
-  - Option B: Wrap in `if(DEBUG)` flag (development flexibility)
   - Search entire file for any other unreferenced constants or variables
+  - Verify no other code references the removed constant
 
   **Must NOT do**:
-  - Remove any constants that ARE referenced
+  - Remove any constants that ARE referenced (even if seemingly unused)
   - Remove commented code that serves as documentation
-  - Break error handling paths
 
-  **Parallelizable**: YES (with Task 2)
+  **Parallelizable**: NO (first task)
 
   **References**:
   
   **Pattern References**:
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:1-30` - Constants section
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:121` - findMinimap error log
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:171` - showClaimIndicator error log
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:251` - getPanelPos error log
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:345` - scanPowerups error log
+  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:1-30` - Constants section, verify which are used
   
   **Search Commands**:
   - Search for `CLAIM_DISPLAY_DUR` usage → should return 0 matches (only declaration)
-  - Search for `$.Msg` → should find 4 occurrences to evaluate
 
   **Acceptance Criteria**:
   
@@ -168,134 +136,183 @@ Task 1 (Dead Code JS) ──┬── Task 2 (Dead Code XML) [PARALLEL]
   - [ ] Grep for `CLAIM_DISPLAY_DUR` in file → 0 matches after removal
   - [ ] Compile: `sr2compiler "buff_timer_virgin"` → SUCCESS
   - [ ] No errors in F7 console when loading HUD
-  - [ ] Script still handles edge cases gracefully (no silent failures)
 
   **Commit**: YES
-  - Message: `perf(buff_timer): remove unused CLAIM_DISPLAY_DUR and debug logging`
+  - Message: `perf(buff_timer): remove unused CLAIM_DISPLAY_DUR constant`
   - Files: `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js`
   - Pre-commit: Compile with sr2compiler
 
 ---
 
-- [x] 2. Remove Dead XML Panels (SKIPPED - snippets used by engine)
+- [ ] 2. Optimize String Formatting
 
   **What to do**:
-  - Remove `hero_pos_debug` panel block (lines 106-116 in hud.xml)
-  - Remove unused snippets section (lines 15-55):
-    - `OffscreenEnemySnippet`
-    - `OffscreenPingSnippet`
-    - `SeasonalKillToast`
-  - These are copied from game files but never used by this mod
+  - Pre-compute padded minute/second strings in a lookup table (similar to `PAD` pattern in soul_timer)
+  - Replace `fmt()` function's string concatenation with array lookup
+  - Current: `(m<10?"0"+m:""+m)+":"+(ss<10?"0"+ss:""+ss)` creates 4+ string objects
+  - Optimized: `PAD[m]+":"+PAD[ss]` creates 1 string object
 
-  **Must NOT do**:
-  - Remove any panels referenced by the JavaScript
-  - Break the XML structure or hierarchy
-  - Remove panels that are part of the game's base HUD (only remove additions)
-
-  **Parallelizable**: YES (with Task 1)
-
-  **References**:
-  
-  **Pattern References**:
-  - `buff_timer_virgin/panorama/layout/hud.xml:15-55` - Unused snippets block
-  - `buff_timer_virgin/panorama/layout/hud.xml:106-116` - hero_pos_debug panel
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:31-50` - UI object to verify which panels ARE used
-
-  **WHY Each Reference Matters**:
-  - The UI object in JS shows exactly which panel IDs are required
-  - Snippets are never instantiated by the script
-  - hero_pos_debug was likely for development and never removed
-
-  **Acceptance Criteria**:
-  
-  **Manual Execution Verification:**
-  - [ ] Grep for `hero_pos_debug` in JS → 0 matches (confirms unused)
-  - [ ] Grep for `OffscreenEnemySnippet` in JS → 0 matches
-  - [ ] Compile: `sr2compiler "buff_timer_virgin"` → SUCCESS
-  - [ ] In-game: HUD loads without errors
-  - [ ] In-game: All timer/glow/claim panels still work
-
-  **Commit**: YES
-  - Message: `perf(buff_timer): remove unused XML panels and snippets`
-  - Files: `buff_timer_virgin/panorama/layout/hud.xml`
-  - Pre-commit: Compile with sr2compiler
-
----
-
-- [x] 3. Eliminate Math.sqrt() in Distance Calculation [HIGHEST IMPACT]
-
-  **What to do**:
-  - Replace `dist()` function with squared distance comparison
-  - Add pre-computed squared radius constant
-  - Update all distance comparisons to use squared values
-
-  **Current Code (Line 257)**:
+  **Implementation**:
   ```javascript
-  function dist(p1,p2){const dx=p1.x-p2.x,dy=p1.y-p2.y;return Math.sqrt(dx*dx+dy*dy);}
+  // Add near top with other constants
+  const PAD=[];for(let i=0;i<60;i++)PAD[i]=i<10?"0"+i:""+i;
+  
+  // Replace fmt() function
+  function fmt(s){s=Math.max(0,s|0);return PAD[(s/60)|0]+":"+PAD[s%60];}
   ```
 
-  **Optimized Code**:
-  ```javascript
-  const CLAIM_RADIUS_SQ=CLAIM_RADIUS*CLAIM_RADIUS; // Add near line 7
-  function distSq(p1,p2){const dx=p1.x-p2.x,dy=p1.y-p2.y;return dx*dx+dy*dy;}
-  ```
-
-  **Update Comparisons**:
-  - Line 291: `const d=dist(pos,pwPos);` → `const dSq=distSq(pos,pwPos);`
-  - Line 370: `p.minAllyDist<=CLAIM_RADIUS` → `p.minAllyDistSq<=CLAIM_RADIUS_SQ`
-  - Line 371: `p.minEnemyDist<=CLAIM_RADIUS` → `p.minEnemyDistSq<=CLAIM_RADIUS_SQ`
-  - All distance comparisons must use squared values
-
-  **Impact Analysis**:
-  - `Math.sqrt()` is called for 10-20 players every 300ms during monitoring
-  - That's 33-66 sqrt calls per second during active powerup phase
-  - Squared comparison is ~10x faster than sqrt
-
   **Must NOT do**:
-  - Change the effective claim radius (8 units must remain 8 units)
-  - Break the "closer ally vs enemy" comparison logic
-  - Mix squared and non-squared distances in comparisons
+  - Change the output format (must remain "MM:SS")
+  - Break negative number handling (must clamp to 0)
 
   **Parallelizable**: NO (depends on Task 1)
 
   **References**:
   
   **Pattern References**:
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:257` - Current dist() function
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:291` - Distance calculation in getPlayersNearPowerup
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:370-372` - CLAIM_RADIUS comparisons
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:7` - CLAIM_RADIUS constant definition
-
-  **Mathematical Correctness**:
-  - If `sqrt(dx²+dy²) < R` then `dx²+dy² < R²`
-  - For R=8: R²=64, so `distSq < 64` is equivalent to `dist < 8`
+  - `soul_timer/panorama/scripts/soul_timer.js` - Look for PAD array pattern if exists
+  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:424` - Current `fmt()` implementation
+  
+  **Why This Matters**:
+  - `fmt()` is called every loop iteration (0.1s-1s frequency)
+  - String concatenation creates garbage for GC
+  - Lookup table trades 60 pre-allocated strings for repeated allocation
 
   **Acceptance Criteria**:
   
   **Manual Execution Verification:**
   - [ ] Compile: `sr2compiler "buff_timer_virgin"` → SUCCESS
-  - [ ] In-game: Stand near powerup spawn point when it spawns
-  - [ ] Verify: Claim detection still triggers at ~8 unit radius
-  - [ ] Verify: Ally/Enemy distinction still works correctly
-  - [ ] Verify: Pre-tracking min distance still updates correctly
+  - [ ] In-game: Rejuv timer displays "10:00", "09:59", etc. correctly
+  - [ ] In-game: Buff timer displays "05:00", "04:59", etc. correctly
+  - [ ] Edge case: Timer at 0 displays "00:00"
+  - [ ] Edge case: Timer at 599 (9:59) displays correctly
 
   **Commit**: YES
-  - Message: `perf(buff_timer): eliminate Math.sqrt with squared distance comparison`
+  - Message: `perf(buff_timer): use lookup table for time formatting`
   - Files: `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js`
   - Pre-commit: Compile with sr2compiler
 
 ---
 
-- [x] 4. Implement Object Pooling for Player State
-- [x] 5. Optimize String Formatting with Lookup Table
-- [x] 6. Optimize Loop Frequency and Inline Glow Removal
-- [x] 7. Final Verification and Cleanup
+- [ ] 3. Optimize Cache Patterns
+
+  **What to do**:
+  - Move `GLOW_CLASSES` iteration to use direct property access instead of loop
+  - Pre-compute glow class set for O(1) lookup in `clearSideGlow()`
+  - Reduce redundant `Date.now()` calls in hot paths
+
+  **Implementation Details**:
+  
+  A. **Consolidate Date.now() calls in loop()**:
+  ```javascript
+  // Current: Date.now() called multiple times
+  const now=gTime(),rn=Date.now();
+  // ... later ...
+  if(rn-lastPretrackCheck>=PRETRACK_INTERVAL)
+  // ... later ...
+  if(rn-lastPowerupScan>=200)
+  ```
+  This is already optimized - `rn` is reused. No change needed here.
+
+  B. **Optimize clearSideGlow()**:
+  Current iterates 5-element array every call. Convert to direct method:
+  ```javascript
+  function clearSideGlow(side){
+    const panel=side==="LEFT"?UI.glowLeft:UI.glowRight;
+    if(!panel)return;
+    try{
+      panel.RemoveClass("glow-survival");
+      panel.RemoveClass("glow-casting");
+      panel.RemoveClass("glow-movement");
+      panel.RemoveClass("glow-gun");
+      panel.RemoveClass("glow-enemy");
+    }catch{}
+  }
+  ```
+  This eliminates loop overhead and array access for a fixed 5-element set.
+
+  **Must NOT do**:
+  - Remove any glow classes from the clear operation
+  - Break the try/catch error handling
+
+  **Parallelizable**: NO (depends on Task 2)
+
+  **References**:
+  
+  **Pattern References**:
+  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:123-127` - Current `clearSideGlow()` implementation
+  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:40` - `GLOW_CLASSES` constant
+
+  **Acceptance Criteria**:
+  
+  **Manual Execution Verification:**
+  - [ ] Compile: `sr2compiler "buff_timer_virgin"` → SUCCESS
+  - [ ] In-game: Glow effects appear on minimap when powerup spawns
+  - [ ] In-game: Glow effects clear properly when powerup is claimed
+  - [ ] In-game: Enemy claim shows red pulse, then clears
+
+  **Commit**: YES
+  - Message: `perf(buff_timer): inline glow class removal for reduced loop overhead`
+  - Files: `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js`
+  - Pre-commit: Compile with sr2compiler
+
+---
+
+- [ ] 4. Optimize Loop Frequency
+
+  **What to do**:
+  - Increase `PRETRACK_INTERVAL` from 750ms to 1000ms (pre-tracking doesn't need sub-second precision)
+  - This reduces CPU wake-ups during the 10-second pre-spawn window
+
+  **Implementation**:
+  ```javascript
+  // Line 7: Change from
+  const PRETRACK_INTERVAL=750;
+  // To
+  const PRETRACK_INTERVAL=1000;
+  ```
+
+  **Justification**:
+  - Pre-tracking starts 10s before spawn (`POWERUP_CHECK_TH=10`)
+  - At 750ms interval: 13-14 checks before spawn
+  - At 1000ms interval: 10 checks before spawn
+  - Proximity detection accuracy is unchanged (we track min distance, not instantaneous)
+
+  **Must NOT do**:
+  - Change `MONITOR_INTERVAL` (300ms) - needed for accurate claim detection
+  - Change `BUTTON_CACHE_TTL` (400ms) - already optimized
+  - Change main loop tick rates
+
+  **Parallelizable**: NO (depends on Task 3)
+
+  **References**:
+  
+  **Pattern References**:
+  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:7` - `PRETRACK_INTERVAL` constant
+  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:72-75` - Pre-track logic
+
+  **Acceptance Criteria**:
+  
+  **Manual Execution Verification:**
+  - [ ] Compile: `sr2compiler "buff_timer_virgin"` → SUCCESS
+  - [ ] In-game: Pre-tracking still detects approaching players correctly
+  - [ ] In-game: Claim attribution (ally vs enemy) remains accurate
+  - [ ] In-game: No noticeable delay in claim indicator appearance
+
+  **Commit**: YES
+  - Message: `perf(buff_timer): reduce pretrack frequency from 750ms to 1000ms`
+  - Files: `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js`
+  - Pre-commit: Compile with sr2compiler
+
+---
+
+- [ ] 5. Final Verification and Cleanup
 
   **What to do**:
   - Run full compile
   - Test complete game flow in Deadlock
   - Verify no regressions in functionality
-  - Update AGENTS.md to reflect v5.2
+  - Document any edge cases encountered
 
   **Must NOT do**:
   - Skip any verification step
@@ -306,7 +323,7 @@ Task 1 (Dead Code JS) ──┬── Task 2 (Dead Code XML) [PARALLEL]
   **References**:
   
   **Documentation**:
-  - `buff_timer_virgin/AGENTS.md` - Module documentation to update
+  - `buff_timer_virgin/AGENTS.md` - Module documentation
 
   **Acceptance Criteria**:
   
@@ -324,12 +341,12 @@ Task 1 (Dead Code JS) ──┬── Task 2 (Dead Code XML) [PARALLEL]
   - [ ] Enemy claims powerup - red pulse, then indicator
   
   **Console Verification:**
-  - [ ] F7 console shows no `[BT-P][ERR]` messages (or none if removed)
+  - [ ] F7 console shows no `[BT-P][ERR]` messages
   - [ ] No JavaScript exceptions in console
 
   **Commit**: YES
   - Message: `perf(buff_timer): v5.2 performance optimization complete`
-  - Files: `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js`, `buff_timer_virgin/AGENTS.md`
+  - Files: `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js`
   - Pre-commit: Full verification above
 
 ---
@@ -338,13 +355,11 @@ Task 1 (Dead Code JS) ──┬── Task 2 (Dead Code XML) [PARALLEL]
 
 | After Task | Message | Files | Verification |
 |------------|---------|-------|--------------|
-| 1 | `perf(buff_timer): remove unused CLAIM_DISPLAY_DUR and debug logging` | rejuvnbufftimer.js | Compile |
-| 2 | `perf(buff_timer): remove unused XML panels and snippets` | hud.xml | Compile |
-| 3 | `perf(buff_timer): eliminate Math.sqrt with squared distance comparison` | rejuvnbufftimer.js | Compile + claim test |
-| 4 | `perf(buff_timer): use object pooling for player state tracking` | rejuvnbufftimer.js | Compile + dead player test |
-| 5 | `perf(buff_timer): use lookup table for time formatting` | rejuvnbufftimer.js | Compile + timer display |
-| 6 | `perf(buff_timer): optimize loop frequency and inline glow removal` | rejuvnbufftimer.js | Compile + glow test |
-| 7 | `perf(buff_timer): v5.2 performance optimization complete` | rejuvnbufftimer.js, AGENTS.md | Full verification |
+| 1 | `perf(buff_timer): remove unused CLAIM_DISPLAY_DUR constant` | rejuvnbufftimer.js | Compile |
+| 2 | `perf(buff_timer): use lookup table for time formatting` | rejuvnbufftimer.js | Compile + timer display |
+| 3 | `perf(buff_timer): inline glow class removal for reduced loop overhead` | rejuvnbufftimer.js | Compile + glow test |
+| 4 | `perf(buff_timer): reduce pretrack frequency from 750ms to 1000ms` | rejuvnbufftimer.js | Compile + claim test |
+| 5 | `perf(buff_timer): v5.2 performance optimization complete` | rejuvnbufftimer.js | Full verification |
 
 ---
 
@@ -357,22 +372,10 @@ Task 1 (Dead Code JS) ──┬── Task 2 (Dead Code XML) [PARALLEL]
 # Expected: SUCCESS, output files in buff_timer_virgin_compiled/
 ```
 
-### Performance Improvements Expected
-| Optimization | Impact | Frequency |
-|--------------|--------|-----------|
-| Math.sqrt elimination | ~10x faster distance calc | 33-66 calls/sec during monitor |
-| Object pooling | Eliminates 40-80 allocs/sec | Every proximity scan |
-| String lookup table | Reduces string allocs | Every loop iteration |
-| Pretrack interval | 25% fewer wake-ups | Pre-spawn window |
-| Dead code removal | Cleaner codebase | One-time |
-
 ### Final Checklist
 - [ ] All timer displays work identically to before
 - [ ] Glow effects appear and clear correctly
 - [ ] Claim detection attributes to correct team
-- [ ] Dead player grace period still works
 - [ ] No console errors
-- [ ] Dead code removed (CLAIM_DISPLAY_DUR, debug panels, snippets)
-- [ ] Math.sqrt eliminated from hot path
-- [ ] Object pooling implemented
-- [ ] Script file size reduced
+- [ ] Dead code (`CLAIM_DISPLAY_DUR`) removed
+- [ ] Script file size reduced (minor, ~50-100 bytes from dead code removal)
