@@ -30,9 +30,9 @@ Create a light-minified version of `soul_timer.js` that removes comments and whi
 - Test folder cleaned up
 
 ### Definition of Done
-- [ ] `soul_timer.js` in main folder is minified (no comments, no empty lines, minimal whitespace)
-- [ ] Compiled output works in-game (timer displays correctly)
-- [ ] `min_soul_timer/` folder is deleted
+- [x] `soul_timer.js` in main folder is minified (no comments, no empty lines, minimal whitespace)
+- [x] Compiled output works in-game (timer displays correctly)
+- [x] `min_soul_timer/` folder is deleted
 
 ### Must Have
 - All functionality preserved (drain calculation, color states, watchdog, etc.)
@@ -76,7 +76,7 @@ All tasks are sequential (each depends on previous).
 
 ## TODOs
 
-- [ ] 1. Create test folder structure
+- [x] 1. Create test folder structure
 
   **What to do**:
   - Create `min_soul_timer/` directory
@@ -99,7 +99,7 @@ All tasks are sequential (each depends on previous).
 
 ---
 
-- [ ] 2. Apply light minification to the script
+- [x] 2. Apply light minification to the script
 
   **What to do**:
   - Edit `min_soul_timer/panorama/scripts/soul_timer.js`
@@ -142,7 +142,7 @@ All tasks are sequential (each depends on previous).
 
 ---
 
-- [ ] 3. Compile and test the minified script
+- [x] 3. Compile and test the minified script
 
   **What to do**:
   - Run sr2compiler on `min_soul_timer/` folder
@@ -170,7 +170,7 @@ All tasks are sequential (each depends on previous).
 
 ---
 
-- [ ] 4. Migrate minified script to main folder
+- [x] 4. Migrate minified script to main folder
 
   **What to do**:
   - Copy `min_soul_timer/panorama/scripts/soul_timer.js` to `soul_timer/panorama/scripts/soul_timer.js`
@@ -198,7 +198,7 @@ All tasks are sequential (each depends on previous).
 
 ---
 
-- [ ] 5. Delete test folder
+- [x] 5. Delete test folder
 
   **What to do**:
   - Remove `min_soul_timer/` directory and all contents
@@ -240,8 +240,8 @@ All tasks are sequential (each depends on previous).
 ```
 
 ### Final Checklist
-- [ ] `soul_timer.js` is minified (no comments, no empty lines)
-- [ ] Variable names are still readable
-- [ ] File compiles without errors
-- [ ] Timer works correctly in-game
-- [ ] Test folder `min_soul_timer/` is deleted
+- [x] `soul_timer.js` is minified (no comments, no empty lines)
+- [x] Variable names are still readable
+- [x] File compiles without errors
+- [x] Timer works correctly in-game
+- [x] Test folder `min_soul_timer/` is deleted
