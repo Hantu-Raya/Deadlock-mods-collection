@@ -4,7 +4,7 @@ const SEQ=[{d:600,n:"1"},{d:420,n:"2"},{d:360,n:"3"},{d:300,n:"3"}];
 const REJUV_CLS=["RejuvCount_1","RejuvCount_2","RejuvCount_3","RejuvCount_4"];
 const POWERUP_TYPES=["powerup_gun","powerup_survival","powerup_casting","powerup_movement"];
 const POWERUP_CHECK_TH=10,POWERUP_LINGER=1500;
-const MONITOR_INTERVAL=300,CLAIM_RADIUS=8,PRETRACK_INTERVAL=750;
+const MONITOR_INTERVAL=300,CLAIM_RADIUS=8,CLAIM_RADIUS_SQ=64,PRETRACK_INTERVAL=750;
 const POWERUP_BUFF_DUR=180;
 const DEATH_GRACE_MS=2000;
 const BUTTON_CACHE_TTL=400;
@@ -253,7 +253,7 @@ function getPanelPos(panel){
   return _posResult;
 }
 
-function dist(p1,p2){const dx=p1.x-p2.x,dy=p1.y-p2.y;return Math.sqrt(dx*dx+dy*dy);}
+function distSq(p1,p2){const dx=p1.x-p2.x,dy=p1.y-p2.y;return dx*dx+dy*dy;}
 
 function getPlayersNearPowerup(mm,pwPos){
   let nearestAlly=Infinity,nearestEnemy=Infinity;
@@ -286,7 +286,7 @@ function getPlayersNearPowerup(mm,pwPos){
           _playerState[id]={x:pos.x,y:pos.y,deadTs:0};
         }
         
-        const d=dist(pos,pwPos);
+        const d=distSq(pos,pwPos);
         if(btn.BHasClass("friend")||btn.BHasClass("ally")||btn.BHasClass("team1")){
           if(d<nearestAlly){nearestAlly=d;}
         }else if(btn.BHasClass("enemy")||btn.BHasClass("team2")){
@@ -365,8 +365,8 @@ function monitorPowerups(){
     if(stillActive){
       allClaimed=false;
     }else{
-      const allyClose=p.minAllyDist<=CLAIM_RADIUS;
-      const enemyClose=p.minEnemyDist<=CLAIM_RADIUS;
+      const allyClose=p.minAllyDist<=CLAIM_RADIUS_SQ;
+      const enemyClose=p.minEnemyDist<=CLAIM_RADIUS_SQ;
       const allyCloser=p.minAllyDist<p.minEnemyDist;
       let enemyClaimed=false;
       
