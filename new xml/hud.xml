@@ -1,15 +1,11 @@
-<!-- xml reconstructed by Source 2 Viewer 13.0.0.0 - https://valveresourceformat.github.io -->
+<!-- xml reconstructed by Source 2 Viewer 15.0.0.0 - https://valveresourceformat.github.io -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
 		<include src="s2r://panorama/styles/hud_common.vcss_c" />
 		<include src="s2r://panorama/styles/npc_icons.vcss_c" />
 		<include src="s2r://panorama/styles/hud.vcss_c" />
-		<include src="s2r://panorama/styles/hud_timer.vcss_c" />
 	</styles>
-	<scripts>
-		<include src="s2r://panorama/scripts/rejuvnbufftimer.vjs_c" />
-    </scripts>
 	<snippets>
 		<snippet name="OffscreenEnemySnippet">
 			<Panel class="damage_offscreen">
@@ -39,9 +35,22 @@
 				<Image id="hero_icon" />
 			</Panel>
 		</snippet>
+		<snippet name="SeasonalKillToast">
+			<Panel class="SeasonalKillToast" toast_duration_override="4s" toast_appear_sound="UI.SeasonalAchievement">
+				<Panel class="Left">
+					<CitadelHeroImage id="KillerHeroImage" heroimagestyle="small" />
+					<Image id="SnowballImage" src="s2r://panorama/images/items/seasonal/2025_snowball_psd.vtex" />
+					<CitadelHeroImage id="VictimHeroImage" heroimagestyle="small" />
+				</Panel>
+				<Panel class="Right">
+					<Label html="true" class="snowballLine1" text="#Citadel_Hud_Toast_SeasonalKill" />
+					<Label html="true" class="snowballLine2" text="#Citadel_Hud_Toast_SeasonalKill2" />
+				</Panel>
+			</Panel>
+		</snippet>
 	</snippets>
-	<CitadelHud class="WindowRoot" hittest="false">
-		<Panel class="HudCore" hittest="false">
+	<CitadelHud class="WindowRoot" hittest="false" disallowedstyleflags="hover,descendantfocus">
+		<Panel class="HudCore" hittest="false" disallowedstyleflags="hover,descendantfocus">
 			<CitadelPingIndicator id="PingIndicator" hittest="false" />
 			<Panel id="GameOverButtonContainer">
 				<TextButton id="DisconnectButton" class="ButtonBevel gameOverButtons Green" text="#Citadel_Hud_Disconnect" onactivate="CitadelDisconnectFromGame()" />
@@ -54,7 +63,7 @@
 			<CitadelPlayerLevelUpBonuses id="LevelUpBonuses" />
 			<CitadelFlexUnlockMessage id="FlexUnlockMessage" />
 			<CitadelHudQuickResponse id="CitadelQuickResponse" />
-			<CitadelRadialAbilities id="RadialAbilitiesMenu" />
+			<CitadelRadialAbilities id="RadialAbilitiesMenu" startangle="-55" endangle="55" />
 			<Panel id="SafeToAbandonIndicator">
 				<Button class="MinimizeSafeToLeave CloseButton" onactivate="$.GetContextPanel().ToggleClass(&apos;MinimizeSafeToLeave&apos;)" />
 				<Label class="SafeToAbandonLabel" text="#SafeToAbandon_Text" />
@@ -64,7 +73,7 @@
 				<GlobalClassListener classes="gDetailView" />
 				<Panel id="citadel_ability_zip_line" class="action_zip_line context_action">
 					<Panel id="zipline_sign" />
-					<Label class="action_binding" text="#Citadel_Hud_RideZipLine" html="true" />
+					<Label class="light action_binding" text="#Citadel_Hud_RideZipLine" html="true" />
 					<Panel id="zipline_cooldown_indicator">
 						<Label class="zipline_cooldown_value" text="#Citadel_Hud_RideZipLineOnCooldownValue" html="true" />
 						<Label class="zipline_cooldown_label" text="#Citadel_Hud_RideZipLineOnCooldown" html="true" />
@@ -72,14 +81,16 @@
 				</Panel>
 				<Panel class="action_upgrade context_action">
 					<Image id="shop_sign" scaling="stretch-to-fit-preserve-aspect" src="s2r://panorama/images/shop/shop_logo_ui_psd.vtex" />
-					<Label class="action_binding" text="#Citadel_Hud_OpenShop" html="true" />
+					<Label class="light action_binding" text="#Citadel_Hud_OpenShop" html="true" />
+				</Panel>
+				<Panel class="action_hideout_interact context_action">
+					<Label class="light action_binding" text="{s:hideout_interact}" html="true" />
 				</Panel>
 			</Panel>
 			<CitadelHudPersonalBest />
 			<Panel id="death_replay_loading">
 				<Label text="#Citadel_Hud_LoadingDeathReplay" />
 			</Panel>
-			<Label id="clientserver_stats" text="#Citadel_Hud_DebugStats" />
 			<Panel id="mispredict_indicator" />
 			<CitadelHudAbilityResource id="ability_resource" />
 			<Panel id="deathReplayNoticeLower" class="deathReplayBar" />
@@ -152,6 +163,7 @@
 					<Label id="low_ammo_label" text="#Citadel_Hud_LowAmmo" />
 					<Label id="out_of_mana_label" text="#Citadel_Hud_NotEnoughEnergy" />
 					<Panel id="cast_failed_box">
+						<GlobalClassListener hittest="false" classes="gDetailView" />
 						<Label id="invalid_cast_ability" text="{s:failed_ability_name}" />
 						<Panel class="invalid_cast_line">
 							<Label id="invalid_cast_reason" text="{s:invalid_cast_reason}" />
@@ -196,16 +208,7 @@
 				<Label id="damage_meter" text="#Citadel_Hud_DPS" />
 				<Panel class="clamp_width" hittest="false">
 					<HudDataFeed id="DataFeed" />
-					<GlobalClassListener id="minimap_persp" hittest="false" classes="gDetailView gScoreboardOpen">
-						<Panel id="Buff" class="BuffP" hittest="false" >
-							<Label id="BuffTime" text="0:00" />
-							<Image id="BuffImg" src="s2r://panorama/images/hud/modifiers/icon_powerup.svg" />
-						</Panel>
-						<Panel id="Rejuv" hittest="false" >
-							<Label id="RejuvTime" text="0:00" />
-							<Image id="RejuvImg" src="s2r://panorama/images/hud/modifiers/icon_rejuvenator.svg" />
-							<Label id="RejuvNum" text="1" />
-						</Panel>
+					<GlobalClassListener id="minimap_persp" hittest="false" classes="gDetailView gScoreboardOpen gAbilityUpgradeMenu">
 						<Panel id="minimap_container" hittest="false">
 							<Panel id="minimap_blur" hittest="false" />
 							<Panel id="HudMinimapContainer">
@@ -214,7 +217,6 @@
 							<Panel id="minimap_frame" hittest="false" />
 						</Panel>
 					</GlobalClassListener>
-					<CitadelZiplineBoostIcon hittest="false" hittestchildren="false" id="ZiplineBoostIcon" onmouseover="CitadelUIShowTextTooltip( #Citadel_ZiplineBoostDesc, &apos;&apos;, &apos;&apos; );" onmouseout="CitadelUIHideTextTooltip()" />
 					<CitadelHudModifiers id="hud_aura_modifiers" display_location="left" />
 					<CitadelHudActivePlayerStats id="hudPlayerStats" />
 				</Panel>
@@ -287,7 +289,7 @@
 				</Panel>
 			</Panel>
 			<Panel id="StatsAndModsContainer" hittest="false">
-				<GlobalClassListener id="DamageReportGlobalClassListener" classes="gEditingBuilds gShopOpen gScoreboardOpen" />
+				<GlobalClassListener id="DamageReportGlobalClassListener" classes="gEditingBuilds gShopOpen gScoreboardOpen gAbilityUpgradeMenu" />
 				<Panel id="LowerLeft" hittest="false">
 					<CitadelModBonusDisplay id="ModBonusDisplay" />
 					<CitadelStatusEffect id="StatusEffects" display_location="bottom_left" />
@@ -312,29 +314,43 @@
 				</Panel>
 			</Panel>
 			<Panel id="AbilitiesContainer" class="abilitiesContainer" hittest="false">
-				<GlobalClassListener classes="gDetailView gShopOpen" />
+				<GlobalClassListener classes="gDetailView gShopOpen gAbilityUpgradeMenu" />
 				<Panel class="unlockMessage upgradeReminderUI">
 					<Label html="true" text="#Citadel_HUD_AbilityUnlockAvailable" />
 				</Panel>
 				<Panel class="upgradeMessage upgradeReminderUI">
 					<Label html="true" text="#Citadel_HUD_AbilityUpgradeAvailable" />
 				</Panel>
+				<Panel class="radialMessage upgradeReminderUI">
+					<Label html="true" text="#Citadel_HUD_AbilityUpgradeAvailableRadial" />
+				</Panel>
 				<CitadelHudPassiveAbilities id="hud_passive_items" class="items passive_items" hittest="false" hittestchildren="false" />
 				<CitadelHudAbilities id="hud_signature" class="abilities" slots="signature_1 signature_2 signature_3 signature_4" />
-				<ActiveAbilitiesMenu id="ActiveAbilitiesMenu" slots="item_1 item_2 item_3 item_4" />
+				<ActiveAbilitiesMenu id="ActiveAbilitiesMenu" class="active_abilities" slots="item_1 item_2 item_3 item_4" />
+				<ActiveAbilitiesMenu id="CosmeticAbilitiesMenu" class="active_abilities" slots="cosmetic_1" />
 				<Panel id="APContainer">
-					<Panel class="APCurrencyIcon" />
-					<Label class="APCurrencyAmount" text="{d:current_ap}" />
-					<Image id="hudAPInfinite" src="s2r://panorama/images/upgrades/infinity_psd.vtex" />
+					<Panel class="APValues">
+						<Panel class="APCurrencyIcon" />
+						<Label class="APCurrencyAmount" text="{d:current_ap}" />
+						<Image id="hudAPInfinite" src="s2r://panorama/images/upgrades/infinity_psd.vtex" />
+					</Panel>
+					<CitadelBinding id="UnlockBinding" class="APUnlockBinding" action="Scoreboard" />
 				</Panel>
 			</Panel>
 			<CitadelHudChat id="HudChat" />
+			<CitadelChat id="Chat" />
+			<CitadelHudHideout id="CitadelHudHideout" />
 		</Panel>
 		<CitadelHudEscapeMenu id="EscapeMenu" />
+		<Panel id="CitadelPartyContainer" hittest="false">
+			<GlobalClassListener classes="gShopOpen" />
+			<CitadelParty id="CitadelParty" hittest="false" />
+		</Panel>
 		<ToastManager id="ToastManager" hittest="false" toastduration="5s" maxtoastsvisible="4" />
 		<PopupManager id="PopupManager" hittest="false" />
 		<CitadelContextMenuManager id="ContextMenuManager" hittest="false" />
 		<CitadelTooltipManager id="TooltipManager" hittest="false" />
 		<HudPerfStatsBasics hittest="false" />
+		<CitadelHudMovementSpeed id="MovementSpeedPanel" />
 	</CitadelHud>
 </root>

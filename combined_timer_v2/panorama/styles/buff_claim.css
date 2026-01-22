@@ -451,3 +451,47 @@
 .minimap-claim-box.active .claim-timer {
 	opacity: 1;
 }
+
+/* ============================================
+   ENEMY LINGER INDICATORS (v5.4)
+   CS:GO-style last-seen indicators
+   ============================================ */
+
+.linger-overlay {
+	position: absolute;
+	width: 24px;
+	height: 24px;
+	opacity: 0;
+	overflow: noclip;
+	z-index: 99999;
+	transition-property: opacity;
+	transition-duration: 0.3s;
+}
+
+.linger-overlay.active {
+	opacity: 1;
+}
+
+.linger-hero-icon {
+	width: 100%;
+	height: 100%;
+	horizontal-align: center;
+	vertical-align: center;
+	opacity: 0.7;
+	z-index: 1;
+}
+
+.linger-question {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	horizontal-align: center;
+	vertical-align: center;
+	text-align: center;
+	font-size: 18px;
+	font-weight: bold;
+	color: white;
+	text-shadow: 0px 0px 4px 2.0 #ff3333;
+	line-height: 24px;
+	z-index: 2;
+}

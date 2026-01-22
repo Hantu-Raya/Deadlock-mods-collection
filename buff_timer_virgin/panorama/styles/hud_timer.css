@@ -69,7 +69,7 @@
     perspective: 900;
     opacity: 1;
     transform: translateX(0px);
-    transition-property: width,height;
+    transition-property: opacity;
     transition-duration: 0.15s;
 	world-blur: ingameHudBlur;
 	z-index: 99999;
@@ -88,7 +88,7 @@
     perspective: 900;
     opacity: 1;
     transform: translateX(0px);
-    transition-property: width,height;
+    transition-property: opacity;
     transition-duration: 0.15s;
 	world-blur: ingameHudBlur;
 	z-index: 99999;
@@ -108,7 +108,7 @@
     perspective: 900;
     opacity: 0;
     transform: translateX(0px);
-    transition-property: width,height;
+    transition-property: opacity;
     transition-duration: 0.15s;
 	world-blur: ingameHudBlur;
 	z-index: 9999;

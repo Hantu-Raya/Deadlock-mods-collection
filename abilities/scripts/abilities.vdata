@@ -4137,21 +4137,21 @@
 			}
 			BulletResist = 
 			{
-				m_strValue = "50"
+				m_strValue = "30"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST"
 				m_eDisplayType = "EBulletArmorDamageReduction"
 				m_strCSSClass = "bullet_armor_up"
 			}
 			TechResist = 
 			{
-				m_strValue = "50"
+				m_strValue = "30"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_ARMOR_DAMAGE_RESIST"
 				m_eDisplayType = "ETechArmorDamageReduction"
 				m_strCSSClass = "tech_armor_up"
 			}
 			DropOffTimer = 
 			{
-				m_strValue = "2"
+				m_strValue = "0.1"
 			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -88930,6 +88930,7 @@
 				m_nPriority = 1
 				m_ModelName = resource_name:"models/abilities/nano_catform_model.vmdl"
 			}
+			m_nEnabledStateMask = "MODIFIER_STATE_IS_TINY_CHARACTER"
 			m_flModelScale = 1.000000
 			m_cameraSequenceCreated = 
 			{
@@ -135694,6 +135695,7 @@
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_TARGET_THROUGH_WALLS | CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED | CITADEL_ABILITY_BEHAVIOR_COOLDOWN_ON_CHANNEL_END"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY"
+		m_nAbilityTargetFlags = "CITADEL_UNIT_TARGET_FLAG_PENETRATE_INVULNERABLE"
 		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/magician/magician_magicbolt.psd"
 		m_strCastSound = soundevent:"Magician.VexingBolt.Cast"
@@ -135789,7 +135791,6 @@
 		m_TriggerButtonPreReqButton = ""
 		m_TriggerButtonOverride = ""
 		m_eAbilitySpectatePriority = "CITADELTV_ABILITY_SPECTATE_PRIORITY_NONE"
-		m_nAbilityTargetFlags = ""
 		m_TargetAbilityEffectsToApply = ""
 		m_bShowTargetingPreviewWhileChanneling = false
 		m_bShowTargetingPreviewWhileCasting = false
@@ -188448,7 +188449,7 @@
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 			m_VictimParticleEffect = resource_name:"particles/abilities/drifter/drifter_ult_victim_debuff_test.vpcf"
 			m_BlindedStatusParticle = resource_name:"particles/abilities/drifter/drifter_darkness_blinded.vpcf"
-			m_sAmbientLoopingSound = soundevent:"Drifter.Terror.Victim.Active.Holiday"
+			m_sAmbientLoopingSound = soundevent:"Drifter.Terror.Victim.Active"
 			m_sExpiredSound = soundevent:"Drifter.Terror.Victim.End"
 			m_nAmbientLoopingSoundRecipients = "MODIFIER_SOUND_RECIPIENT_PARENT_IS_LOCAL_PLAYER"
 			m_nAuraShapeType = "eSphere"

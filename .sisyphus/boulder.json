@@ -6,7 +6,13 @@
       "completed_at": "2026-01-20T00:00:00.000Z",
       "status": "complete",
       "summary": "v5.2 → v5.3: Removed dead code, squared distance optimization, DOM write guards, Date.now() caching, panelHas() optimization. 6 commits, 428→423 lines."
+    },
+    {
+      "plan": "F:\\Users\\Shiv\\Desktop\\Deadlock-mods-collection\\.sisyphus\\plans\\enemy-linger.md",
+      "completed_at": "2026-01-20T08:00:00.000Z",
+      "status": "complete",
+      "summary": "v5.4: Added CS:GO-style enemy linger feature. 6 overlay panels, .active class detection, 5s duration, round-robin allocation. 4 files modified (hud.xml, rejuvnbufftimer.js, buff_claim.css, AGENTS.md). Awaiting user in-game testing."
     }
   ],
-  "last_updated": "2026-01-20T00:00:00.000Z"
+  "last_updated": "2026-01-20T08:00:00.000Z"
 }

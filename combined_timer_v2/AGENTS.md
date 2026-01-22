@@ -1,7 +1,7 @@
 # AGENTS: Combined Timer v2 (Soul + Buff)
 
 ## OVERVIEW
-High-complexity merge of Soul Timer (v4.2) and Buff/Rejuv Timer (v5.3) with production-grade claim detection and performance optimizations.
+High-complexity merge of Soul Timer (v4.2) and Buff/Rejuv Timer (v5.4 - Production Ready) with production-grade claim detection, enemy linger indicators, and performance optimizations.
 
 ## STRUCTURE
 ```
@@ -20,19 +20,28 @@ combined_timer_v2/
 
 ## WHERE TO LOOK
 - **Claim Logic**: `rejuvnbufftimer.js` -> `monitorPowerups()`. Uses squared distance heuristics (`CLAIM_RADIUS_SQ: 64`) for minimap buttons.
+- **Enemy Linger**: `rejuvnbufftimer.js` -> `checkEnemyLinger()`. CS:GO-style last-seen indicators triggered when enemies lose `.active` class. 6-panel round-robin system with 5s duration.
 - **Soul Math**: `soul_timer.js` -> `DRAIN_TBL`. Pre-computed drain curves (0.5% + flat growth).
 - **Re-parenting**: `hud.xml` defines `HudCore` (ID: `Hud`). Scripts boot by finding this specifically to ensure layout stability.
-- **Performance**: v5.3 optimizations applied - squared distance, DOM write guards, timestamp caching, optimized panelHas().
+- **Performance**: v5.4 optimizations applied - squared distance, DOM write guards, timestamp caching, optimized panelHas(), production-ready linger with no debug overhead.
 
 ## CONVENTIONS
 - **Dual-Tick Timing**: `soul_timer.js` uses 150ms for display and 2s for expensive state polling.
 - **Minimap Heuristics**: Buff tracking relies on `FindChildrenWithClassTraverse("map_button")` on the minimap panel.
 - **Claim Indicators**: Minimap glows (`glow-survival`, etc.) combined with sidebar status panels.
-- **Performance Patterns** (v5.3):
+- **Enemy Linger System** (v5.4):
+  - Continuous monitoring every 300ms using shared player cache
+  - 6 pre-defined overlay panels (round-robin allocation)
+  - Map button opacity set to 0.5 when enemy enters fog
+  - "?" overlay displayed at last known position
+  - 5-second duration with auto-cleanup
+  - Cancels on death, reappearance, hideout, or reset
+- **Performance Patterns** (v5.4):
   - Squared distance comparison (`distSq()` + `CLAIM_RADIUS_SQ: 64`) eliminates `Math.sqrt()`
   - DOM write guards on all timer text updates (`_lastRejuvText`, `_lastBuffText`, `_lastRejuvBuffText`, `_lastClaimTimerL`, `_lastClaimTimerR`)
-  - Single `Date.now()` per tick, passed to `doPretrack()`, `monitorPowerups()`, `getPlayersNearPowerup()`
+  - Single `Date.now()` per tick, passed to `doPretrack()`, `monitorPowerups()`, `getPlayersNearPowerup()`, `checkEnemyLinger()`
   - Single try-catch wrapper in `panelHas()` instead of nested loops
+  - No debug logging in production build
 
 ## ANTI-PATTERNS
 - **Engine Root Parenting**: DO NOT use `SetParent(root)`. MUST use `HudCore` to prevent UI drift.

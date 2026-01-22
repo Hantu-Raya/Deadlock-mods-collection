@@ -1,10 +1,12 @@
+/* Prettified by Source 2 Viewer 15.0.0.0 - https://valveresourceformat.github.io */
+
 #Buff
 {
-	background-color: rgba(12, 12, 12, 0.6);
-	width: 32%;
+    background-color: rgba(12, 12, 12, 0.6);
+    width: 32%;
     height: 10%;
     margin-bottom: 10%;
-	margin-right: 7%;
+    margin-right: 7%;
     vertical-align: bottom;
     horizontal-align: right;
     perspective: 900;
@@ -12,18 +14,18 @@
     transform: translateX(0px);
     transition-property: width,height;
     transition-duration: 0.15s;
-	world-blur: ingameHudBlur;
-	z-index: 99999;
+    world-blur: ingameHudBlur;
+    z-index: 99999;
     border-radius: 10px;
 }
 
 #Rejuv
 {
-	background-color: rgba(12, 12, 12, 0.6);
-	width: 32%;
+    background-color: rgba(12, 12, 12, 0.6);
+    width: 32%;
     height: 10%;
     margin-bottom: 10%;
-	margin-left: 7%;
+    margin-left: 7%;
     vertical-align: bottom;
     horizontal-align: left;
     perspective: 900;
@@ -31,19 +33,19 @@
     transform: translateX(0px);
     transition-property: width,height;
     transition-duration: 0.15s;
-	world-blur: ingameHudBlur;
-	z-index: 99999;
+    world-blur: ingameHudBlur;
+    z-index: 99999;
     border-radius: 10px;
     overflow: hidden;
 }
 
 #RejuvBuff
 {
-	background-color: rgba(12, 12, 12, 0.6);
-	width: 16%;
+    background-color: rgba(12, 12, 12, 0.6);
+    width: 16%;
     height: 6%;
     margin-bottom: 5%;
-	margin-left: 23%;
+    margin-left: 23%;
     vertical-align: bottom;
     horizontal-align: left;
     perspective: 900;
@@ -51,8 +53,8 @@
     transform: translateX(0px);
     transition-property: width,height;
     transition-duration: 0.15s;
-	world-blur: ingameHudBlur;
-	z-index: 9999;
+    world-blur: ingameHudBlur;
+    z-index: 9999;
     border-radius: 8px;
     overflow: hidden;
 }
@@ -77,7 +79,7 @@
 
 #BuffTime
 {
-	font-size: 24px;
+    font-size: 24px;
     color: offWhite&90;
     horizontal-align: center;
     vertical-align: center;
@@ -88,12 +90,12 @@
     font-weight: semi-bold;
     text-align: center;
     font-family: sansMono;
-	z-index: 999999;
+    z-index: 999999;
 }
 
 #RejuvTime
 {
-	font-size: 24px;
+    font-size: 24px;
     color: offWhite&90;
     horizontal-align: center;
     vertical-align: center;
@@ -104,12 +106,12 @@
     font-weight: semi-bold;
     text-align: center;
     font-family: sansMono;
-	z-index: 999999;
+    z-index: 999999;
 }
 
 #RejuvTimeBuff
 {
-	font-size: 18px;
+    font-size: 18px;
     color: yellow;
     horizontal-align: center;
     vertical-align: center;
@@ -119,7 +121,7 @@
     font-weight: semi-bold;
     text-align: center;
     font-family: sansMono;
-	z-index: 999999;
+    z-index: 999999;
 }
 
 #BuffImg
@@ -142,7 +144,6 @@
     z-index: 999999;
 }
 
-
 #RejuvNum
 {
     font-size: 16px;
@@ -156,7 +157,7 @@
     font-weight: semi-bold;
     text-align: center;
     font-family: sansMono;
-	z-index: 999999;
+    z-index: 999999;
 }
 
 @keyframes 'rotate'
@@ -175,7 +176,7 @@
     {
         transform: rotateY(180deg);
     }
-
+    
     75%
     {
         transform: rotateY(270deg);
@@ -204,7 +205,7 @@
     {
         transform: rotateY(-180deg);
     }
-
+    
     75%
     {
         transform: rotateY(-270deg);
@@ -245,28 +246,29 @@
     
 }
 
-#RejuvImg.rotating 
+#RejuvImg.rotating
 {
     animation-duration: 0.8s;
     animation-iteration-count: 1;
 }
-  
-#RejuvImg.rotating.buff 
+
+#RejuvImg.rotating.buff
 {
     animation-name: rotate;
 }
-  
-#RejuvImg.rotating.reverse 
+
+#RejuvImg.rotating.reverse
 {
     animation-name: rotate-reverse;
 }
 
-#RejuvImg.reverse 
+#RejuvImg.reverse
 {
     wash-color: grey;
 }
 
-#RejuvImg.white 
+#RejuvImg.white
 {
     wash-color: white;
 }
+
