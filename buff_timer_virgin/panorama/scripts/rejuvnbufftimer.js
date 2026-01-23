@@ -253,8 +253,7 @@ function showLinger(enemyId,btn){
     if(panel?.IsValid?.()){
       const bx=btn.actualxoffset||0,by=btn.actualyoffset||0;
       const bw=btn.actualwidth||16,bh=btn.actualheight||16;
-      panel.style.marginLeft=(bx+bw/2-12)+"px";
-      panel.style.marginTop=(by+bh/2-12)+"px";
+      panel.style.position=(bx+bw/2-12)+"px "+(by+bh/2-12)+"px 0px";
       panel.AddClass("active");
     }
     const hideHandle=$.Schedule(LINGER_DURATION,()=>{hideLinger(enemyId);});
