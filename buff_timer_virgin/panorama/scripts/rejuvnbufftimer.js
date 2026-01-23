@@ -251,8 +251,14 @@ function showLinger(enemyId,btn){
     btn.AddClass("linger-hidden");
     const panel=UI.lingerPanels[slotIdx];
     if(panel?.IsValid?.()){
-      const bx=btn.actualxoffset||0,by=btn.actualyoffset||0;
+      const bx=btn.actualxoffset||0;
+      let by=btn.actualyoffset||0;
       const bw=btn.actualwidth||16,bh=btn.actualheight||16;
+      const mm=UI.minimap;
+      if(mm?.IsValid?.()&&mm.BHasClass?.("invert_map")){
+        const mh=mm.contentheight||200;
+        by=mh-by-bh;
+      }
       panel.style.position=(bx+bw/2-12)+"px "+(by+bh/2-12)+"px 0px";
       panel.AddClass("active");
     }
