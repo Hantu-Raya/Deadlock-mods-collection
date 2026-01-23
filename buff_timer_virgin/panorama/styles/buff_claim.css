@@ -295,21 +295,21 @@
 	opacity: 0;
 	pre-transform-scale2d: 0.6;
 	z-index: 99998;
-	vertical-align: top;
+	vertical-align: bottom;
 	transition-property: opacity, pre-transform-scale2d;
 	transition-duration: 0.3s;
 }
 
 .claim-left {
 	horizontal-align: left;
-	margin-left: 3%;
-	margin-top: 8%;
+	margin-left: 30%;
+	margin-bottom: 8%;
 }
 
 .claim-right {
 	horizontal-align: right;
-	margin-right: 3%;
-	margin-top: 8%;
+	margin-right: 30%;
+	margin-bottom: 8%;
 }
 
 /* Glass Background */
