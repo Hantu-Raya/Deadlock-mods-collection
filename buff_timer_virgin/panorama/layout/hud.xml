@@ -248,12 +248,12 @@
 								<Panel id="MinimapGlowRight" class="minimap-glow glow-right" hittest="false" />
 								<Panel id="MinimapGlowRightTop" class="minimap-glow glow-right-top" hittest="false" />
 <Panel id="MinimapGlowRightBot" class="minimap-glow glow-right-bot" hittest="false" />
-								<Panel id="LingerOverlay0" class="linger-overlay" hittest="false"><Image class="linger-hero-icon" /><Label class="linger-question" text="?" /></Panel>
-								<Panel id="LingerOverlay1" class="linger-overlay" hittest="false"><Image class="linger-hero-icon" /><Label class="linger-question" text="?" /></Panel>
-								<Panel id="LingerOverlay2" class="linger-overlay" hittest="false"><Image class="linger-hero-icon" /><Label class="linger-question" text="?" /></Panel>
-								<Panel id="LingerOverlay3" class="linger-overlay" hittest="false"><Image class="linger-hero-icon" /><Label class="linger-question" text="?" /></Panel>
-								<Panel id="LingerOverlay4" class="linger-overlay" hittest="false"><Image class="linger-hero-icon" /><Label class="linger-question" text="?" /></Panel>
-								<Panel id="LingerOverlay5" class="linger-overlay" hittest="false"><Image class="linger-hero-icon" /><Label class="linger-question" text="?" /></Panel>
+								<Panel id="LingerOverlay0" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
+								<Panel id="LingerOverlay1" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
+								<Panel id="LingerOverlay2" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
+								<Panel id="LingerOverlay3" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
+								<Panel id="LingerOverlay4" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
+								<Panel id="LingerOverlay5" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
 							</Panel>
 							<Panel id="minimap_frame" hittest="false" />
 						</Panel>
