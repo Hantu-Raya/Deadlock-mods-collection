@@ -166,6 +166,14 @@ Enable: `-dev -tools` launch options. Console: F7.
 | `hp/` | Health bar variants | 5 versions |
 | `standalone_redesign/` | Ability icon redesign | Production |
 
+### Standalone Redesign CSS Customizations
+- **File**: `panorama/styles/base/hud_ability_icon_passive.css`
+- **Approach**: Full CSS override with customizations appended at end of file
+- **Custom Rules** (lines 1303-1325):
+  - `#hud_passive_items #cooldown_mask`: `opacity-mask: status_border_psd.vtex`, `height: 37px`, `background-color: offWhite`, `margin-top: 10%`
+  - `.cooling_down #cooldown_mask,.ability_not_ready #cooldown_mask`: Repositioned to end for override priority
+  - `.ability_not_ready .ability_image`: `wash-color: #222222aa`
+
 ## GOTCHAS
 
 - **VData files are huge**: `abilities.vdata` is 260k lines. Use stream processing.
