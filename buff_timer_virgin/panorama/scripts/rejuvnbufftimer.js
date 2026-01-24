@@ -251,12 +251,16 @@ function showLinger(enemyId,btn){
     btn.AddClass("linger-hidden");
     const panel=UI.lingerPanels[slotIdx];
     if(panel?.IsValid?.()){
-      const bx=btn.actualxoffset||0;
+      let bx=btn.actualxoffset||0;
       let by=btn.actualyoffset||0;
       const bw=btn.actualwidth||16,bh=btn.actualheight||16;
       const mm=UI.minimap;
-      if(mm?.IsValid?.()&&mm.BHasClass?.("invert_map")){
-        const mh=mm.contentheight||200;
+      const container=panel.GetParent?.();
+      const inverted=mm?.IsValid?.()&&mm.BHasClass?.("invert_map");
+      if(inverted){
+        const mw=container?.IsValid?.()?container.contentwidth:(mm?.contentwidth||404);
+        const mh=container?.IsValid?.()?container.contentheight:(mm?.contentheight||404);
+        bx=mw-bx-bw;
         by=mh-by-bh;
       }
       panel.style.position=(bx+bw/2-12)+"px "+(by+bh/2-12)+"px 0px";
@@ -387,16 +391,24 @@ function scanPowerups(){
     
     powerups.sort((a,b)=>a.x-b.x);
     clearGlows();
-    for(let i=0,len=powerups.length;i<len;i++){powerups[i].pos=i===0?"LEFT":"RIGHT";applyGlow(powerups[i].pos,powerups[i].type);}
+    const inverted=mm.BHasClass?.("invert_map");
+    for(let i=0,len=powerups.length;i<len;i++){
+      const base=i===0?"LEFT":"RIGHT";
+      powerups[i].pos=inverted?(base==="LEFT"?"RIGHT":"LEFT"):base;
+      applyGlow(powerups[i].pos,powerups[i].type);
+    }
     
-    knownSpawnPos={left:{x:powerups[0].x,y:powerups[0].y},right:powerups[1]?{x:powerups[1].x,y:powerups[1].y}:{x:powerups[0].x,y:powerups[0].y}};
+    const p0=powerups[0],p1=powerups[1]||p0;
+    knownSpawnPos=inverted?{left:{x:p1.x,y:p1.y},right:{x:p0.x,y:p0.y}}:{left:{x:p0.x,y:p0.y},right:{x:p1.x,y:p1.y}};
     
     if(pretrackActive){
-      powerups[0].minAllyDist=pretrackData.left.minAlly;
-      powerups[0].minEnemyDist=pretrackData.left.minEnemy;
+      const ptL=inverted?pretrackData.right:pretrackData.left;
+      const ptR=inverted?pretrackData.left:pretrackData.right;
+      powerups[0].minAllyDist=ptL.minAlly;
+      powerups[0].minEnemyDist=ptL.minEnemy;
       if(powerups[1]){
-        powerups[1].minAllyDist=pretrackData.right.minAlly;
-        powerups[1].minEnemyDist=pretrackData.right.minEnemy;
+        powerups[1].minAllyDist=ptR.minAlly;
+        powerups[1].minEnemyDist=ptR.minEnemy;
       }
       pretrackActive=false;
     }
