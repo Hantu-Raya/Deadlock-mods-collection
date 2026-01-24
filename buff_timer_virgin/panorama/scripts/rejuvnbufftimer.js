@@ -28,6 +28,7 @@ let _tCache=0,_tCacheTs=0;
 let _playerCache=null,_playerCacheTs=0;
 let _playerState={};
 let _lastRejuvText="",_lastBuffText="",_lastRejuvBuffText="",_lastRejuvNum="",_lastClaimTimerL="",_lastClaimTimerR="";
+let _lastRejuvClip="",_lastBuffClip="",_lastBuffClipColor="";
 let _lastRingScaleL=-1,_lastRingOpacityL=-1,_lastRingScaleR=-1,_lastRingOpacityR=-1;
 const _posResult={x:0,y:0};
 const _nearResult={ally:Infinity,enemy:Infinity};
@@ -37,7 +38,7 @@ let _enemySlots={};
 let _slotUsed=[false,false,false,false,false,false];
 
 
-const UI={root:null,hud:null,minimap:null,glowLeft:null,glowRight:null,rLab:null,rNum:null,rImg:null,buffLab:null,rejuvBuff:null,rejuvBuffTime:null,rejuvFriendly:null,rejuvEnemy:null,claimLeft:null,claimRight:null,claimIconLeft:null,claimIconRight:null,claimRingLeft:null,claimRingRight:null,claimTimerLeft:null,claimTimerRight:null,lingerPanels:[]};
+const UI={root:null,hud:null,minimap:null,glowLeft:null,glowRight:null,rLab:null,rLabClip:null,rNum:null,rImg:null,buffLab:null,buffLabClip:null,rejuvBuff:null,rejuvBuffTime:null,rejuvFriendly:null,rejuvEnemy:null,claimLeft:null,claimRight:null,claimIconLeft:null,claimIconRight:null,claimRingLeft:null,claimRingRight:null,claimTimerLeft:null,claimTimerRight:null,lingerPanels:[]};
 
 const POWERUP_ICONS={
   powerup_gun:"s2r://panorama/images/minimap/powerup_weapon.vsvg",
@@ -53,7 +54,7 @@ let _activeGlowLeft=null,_activeGlowRight=null;
 function boot(){
   const r=findRoot($.GetContextPanel());UI.root=r;UI.hud=r.FindChildTraverse("Hud");
   UI.rLab=r.FindChildTraverse("RejuvTime");UI.rNum=r.FindChildTraverse("RejuvNum");UI.rImg=r.FindChildTraverse("RejuvImg");
-  UI.buffLab=r.FindChildTraverse("BuffTime");UI.rejuvBuff=r.FindChildTraverse("RejuvBuff");UI.rejuvBuffTime=r.FindChildTraverse("RejuvTimeBuff");
+  UI.buffLab=r.FindChildTraverse("BuffTime");UI.rLabClip=r.FindChildTraverse("RejuvTimeClip");UI.buffLabClip=r.FindChildTraverse("BuffTimeClip");UI.rejuvBuff=r.FindChildTraverse("RejuvBuff");UI.rejuvBuffTime=r.FindChildTraverse("RejuvTimeBuff");
   UI.glowLeft=r.FindChildTraverse("MinimapGlowLeft");UI.glowRight=r.FindChildTraverse("MinimapGlowRight");
   UI.claimLeft=r.FindChildTraverse("MinimapBuffClaimLeft");UI.claimRight=r.FindChildTraverse("MinimapBuffClaimRight");
   UI.claimIconLeft=r.FindChildTraverse("ClaimIconLeft");UI.claimIconRight=r.FindChildTraverse("ClaimIconRight");
@@ -72,9 +73,9 @@ function loop(){
   if(rn-lastRunChk>=60000){lastRunChk=rn;if(isHideout()){reset(1);loop();return;}}
   if(lastGlobalSec>=0&&(now+5<lastGlobalSec||(lastGlobalSec>30&&now<=2))){reset(1);loop();return;}
   lastGlobalSec=now;
-  if(now!==lastSec){lastSec=now;const rem=Math.max(0,SEQ[idx].d-(now-phaseStart));if(rem<=0)showSpawn();else{counter=rem;const t=fmt(rem);if(t!==_lastRejuvText){UI.rLab.text=t;_lastRejuvText=t;}}tick=spawnWait||rem<=SPAWN_TH?TICK_FAST:TICK_NORM;}
+  if(now!==lastSec){lastSec=now;const rem=Math.max(0,SEQ[idx].d-(now-phaseStart));if(rem<=0)showSpawn();else{counter=rem;const t=fmt(rem);if(t!==_lastRejuvText){UI.rLab.text=t;_lastRejuvText=t;}const rejuvPct=spawnWait?100:Math.floor((1-counter/SEQ[idx].d)*100);const rejuvClip="inset(0% "+(100-rejuvPct)+"% 0% 0%)";if(rejuvClip!==_lastRejuvClip&&UI.rLabClip?.IsValid?.()){UI.rLabClip.style.clipPath=rejuvClip;UI.rLabClip.text=spawnWait?"Spawn":t;_lastRejuvClip=rejuvClip;}}tick=spawnWait||rem<=SPAWN_TH?TICK_FAST:TICK_NORM;}
   if(buffStart>0){buffCnt=Math.max(0,REJUV_DUR-(now-buffStart));if(UI.rejuvBuffTime){const t=fmt(buffCnt);if(t!==_lastRejuvBuffText){UI.rejuvBuffTime.text=t;_lastRejuvBuffText=t;}}if(buffCnt<=0)endBuff();}
-  const buffRem=BRIDGE_DUR-(now%BRIDGE_DUR);{const t=fmt(buffRem);if(t!==_lastBuffText){UI.buffLab.text=t;_lastBuffText=t;}}
+  const buffRem=BRIDGE_DUR-(now%BRIDGE_DUR);{const t=fmt(buffRem);if(t!==_lastBuffText){UI.buffLab.text=t;_lastBuffText=t;}const buffPct=Math.floor((1-buffRem/BRIDGE_DUR)*100);const buffClip="inset(0% 0% 0% "+(100-buffPct)+"%)";if(buffClip!==_lastBuffClip&&UI.buffLabClip?.IsValid?.()){UI.buffLabClip.style.clipPath=buffClip;UI.buffLabClip.text=t;_lastBuffClip=buffClip;const g=Math.floor(255*(1-buffPct/100));const newColor="rgb(255,"+g+","+g+")";if(newColor!==_lastBuffClipColor){UI.buffLabClip.style.color=newColor;_lastBuffClipColor=newColor;}}}
   
   if(buffRem<=POWERUP_CHECK_TH&&!pretrackActive&&!monitoringActive&&knownSpawnPos){
     pretrackActive=true;
@@ -466,7 +467,7 @@ function monitorPowerups(nowMs){
   }
 }
 
-function startPhase(t,now){spawnWait=false;idx=t<0?0:t>3?3:t;counter=SEQ[idx].d;phaseStart=now;UI.rLab.text=fmt(counter);UI.rNum.text=SEQ[idx].n;setImg(idx);}
+function startPhase(t,now){spawnWait=false;idx=t<0?0:t>3?3:t;counter=SEQ[idx].d;phaseStart=now;UI.rLab.text=fmt(counter);UI.rNum.text=SEQ[idx].n;setImg(idx);_lastRejuvClip="";if(UI.rLabClip?.IsValid?.()){UI.rLabClip.style.clipPath="inset(0% 100% 0% 0%)";UI.rLabClip.text="";}}
 function startPhaseAuto(now){spawnWait=false;let c=0;for(let i=0;i<4;i++){if(now<c+SEQ[i].d){idx=i;phaseStart=c;counter=c+SEQ[i].d-now;UI.rLab.text=fmt(counter);UI.rNum.text=SEQ[i].n;setImg(i);return;}c+=SEQ[i].d;}const ld=SEQ[3].d,w=(now-c)%BRIDGE_DUR%ld;idx=3;phaseStart=now-w;counter=ld-w;UI.rLab.text=fmt(counter);UI.rNum.text="3";setImg(3);}
 function showSpawn(){UI.rLab.text="Spawn";UI.rNum.text=SEQ[idx].n;resetImg();UI.rImg.AddClass("white");spawnWait=true;lastFound=false;tick=TICK_FAST;}
 
@@ -474,7 +475,7 @@ function startBuff(now){buffStart=now;buffCnt=REJUV_DUR;if(UI.rejuvBuff){UI.reju
 function endBuff(){buffStart=0;buffCnt=0;if(UI.rejuvBuff){UI.rejuvBuff.RemoveClass("pop-out");UI.rejuvBuff.AddClass("pop-in");$.Schedule(0.5,()=>{if(UI.rejuvBuff)UI.rejuvBuff.style.opacity="0";});}}
 
 function startRun(now){running=true;claimCnt=0;lastFound=false;spawnWait=false;inHideout=false;lastRunChk=Date.now();lastScan=0;trackedPowerups=[];monitoringActive=false;pretrackActive=false;startPhaseAuto(now);}
-function reset(f){if(hnd){$.CancelScheduled(hnd);hnd=null;}if(f){idx=0;counter=0;phaseStart=0;claimCnt=0;buffStart=0;buffCnt=0;lastSec=-1;lastGlobalSec=-1;spawnWait=false;lastFound=false;running=false;inHideout=true;trackedPowerups.length=0;monitoringActive=false;pretrackActive=false;_playerCache=null;_playerCacheTs=0;_playerState={};clearGlows();clearClaimIndicators();_enemySlots={};_slotUsed[0]=_slotUsed[1]=_slotUsed[2]=_slotUsed[3]=_slotUsed[4]=_slotUsed[5]=false;clearAllLingers();if(UI.rLab)UI.rLab.text=fmt(SEQ[0].d);if(UI.rNum)UI.rNum.text="1";resetImg();endBuff();}}
+function reset(f){if(hnd){$.CancelScheduled(hnd);hnd=null;}if(f){idx=0;counter=0;phaseStart=0;claimCnt=0;buffStart=0;buffCnt=0;lastSec=-1;lastGlobalSec=-1;spawnWait=false;lastFound=false;running=false;inHideout=true;trackedPowerups.length=0;monitoringActive=false;pretrackActive=false;_playerCache=null;_playerCacheTs=0;_playerState={};clearGlows();clearClaimIndicators();_enemySlots={};_slotUsed[0]=_slotUsed[1]=_slotUsed[2]=_slotUsed[3]=_slotUsed[4]=_slotUsed[5]=false;clearAllLingers();if(UI.rLab)UI.rLab.text=fmt(SEQ[0].d);if(UI.rNum)UI.rNum.text="1";resetImg();endBuff();_lastRejuvClip="";_lastBuffClip="";_lastBuffClipColor="";if(UI.rLabClip?.IsValid?.()){UI.rLabClip.style.clipPath="inset(0% 100% 0% 0%)";UI.rLabClip.text="";}if(UI.buffLabClip?.IsValid?.()){UI.buffLabClip.style.clipPath="inset(0% 0% 0% 100%)";UI.buffLabClip.text="";UI.buffLabClip.style.color="#ffffff";}}}
 function setImg(i){resetImg();if(i>0){UI.rImg.AddClass("reverse");UI.rImg.AddClass("rotating");$.Schedule(0.8,()=>UI.rImg.RemoveClass("rotating"));}}
 function resetImg(){UI.rImg.RemoveClass("rotating");UI.rImg.RemoveClass("reverse");UI.rImg.RemoveClass("white");}
 
