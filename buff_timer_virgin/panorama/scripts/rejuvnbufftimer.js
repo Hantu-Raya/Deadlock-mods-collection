@@ -28,6 +28,7 @@ let _tCache=0,_tCacheTs=0;
 let _playerCache=null,_playerCacheTs=0;
 let _playerState={};
 let _lastRejuvText="",_lastBuffText="",_lastRejuvBuffText="",_lastRejuvNum="",_lastClaimTimerL="",_lastClaimTimerR="";
+let _lastRingScaleL=-1,_lastRingOpacityL=-1,_lastRingScaleR=-1,_lastRingOpacityR=-1;
 const _posResult={x:0,y:0};
 const _nearResult={ally:Infinity,enemy:Infinity};
 const _pwPos={x:0,y:0};
@@ -46,6 +47,8 @@ const POWERUP_ICONS={
 };
 
 const GLOW_CLASSES=["glow-survival","glow-casting","glow-movement","glow-gun","glow-enemy"];
+const GLOW_CLASS_MAP={powerup_gun:"glow-gun",powerup_survival:"glow-survival",powerup_casting:"glow-casting",powerup_movement:"glow-movement"};
+let _activeGlowLeft=null,_activeGlowRight=null;
 
 function boot(){
   const r=findRoot($.GetContextPanel());UI.root=r;UI.hud=r.FindChildTraverse("Hud");
@@ -64,7 +67,7 @@ UI.claimTimerLeft=r.FindChildTraverse("ClaimTimerLeft");UI.claimTimerRight=r.Fin
 }
 
 function loop(){
-  const now=gTime(),rn=Date.now();
+  const rn=Date.now(),now=gTime(rn);
   if(!running){if(rn-lastGateChk>=30000){lastGateChk=rn;inHideout=isHideout();if(!inHideout)startRun(now);}hnd=$.Schedule(30,loop);return;}
   if(rn-lastRunChk>=60000){lastRunChk=rn;if(isHideout()){reset(1);loop();return;}}
   if(lastGlobalSec>=0&&(now+5<lastGlobalSec||(lastGlobalSec>30&&now<=2))){reset(1);loop();return;}
@@ -128,9 +131,12 @@ function panelHas(p){if(!p)return false;try{if(p.BHasClass("RejuvCount_1")||p.BH
 function findMinimap(){if(UI.minimap?.IsValid?.())return UI.minimap;try{UI.minimap=UI.root.FindChildTraverse("hud_minimap");}catch(e){$.Msg("[BT-P][ERR] findMinimap: "+e+"\n");}return UI.minimap;}
 
 function clearSideGlow(side){
-  const panel=side==="LEFT"?UI.glowLeft:UI.glowRight;
-  if(!panel)return;
-  for(let i=0;i<GLOW_CLASSES.length;i++){try{panel.RemoveClass(GLOW_CLASSES[i]);}catch{}}
+  const isLeft=side==="LEFT";
+  const panel=isLeft?UI.glowLeft:UI.glowRight;
+  const current=isLeft?_activeGlowLeft:_activeGlowRight;
+  if(!panel||!current)return;
+  try{panel.RemoveClass(current);}catch{}
+  if(isLeft)_activeGlowLeft=null;else _activeGlowRight=null;
 }
 
 function clearGlows(){
@@ -139,11 +145,14 @@ function clearGlows(){
 }
 
 function applyGlow(side,type){
-  const panel=side==="LEFT"?UI.glowLeft:UI.glowRight;
-  if(!panel||!type)return;
-  const shortType=type.replace("powerup_","");
-  const cls="glow-"+shortType;
+  const isLeft=side==="LEFT";
+  const panel=isLeft?UI.glowLeft:UI.glowRight;
+  const cls=GLOW_CLASS_MAP[type];
+  if(!panel||!cls)return;
+  if((isLeft?_activeGlowLeft:_activeGlowRight)===cls)return;
+  clearSideGlow(side);
   try{panel.AddClass(cls);}catch{}
+  if(isLeft)_activeGlowLeft=cls;else _activeGlowRight=cls;
 }
 
 function applyEnemyClaim(side){
@@ -182,8 +191,7 @@ function hideClaimIndicator(side){
   try{
     const claimBox=side==="LEFT"?UI.claimLeft:UI.claimRight;
     if(claimBox?.IsValid?.()){
-      claimBox.RemoveClass("active");
-      $.Schedule(0.4,()=>{try{if(claimBox?.IsValid?.()){claimBox.RemoveClass("ally-claim");claimBox.RemoveClass("enemy-claim");}}catch{}});
+      claimBox.RemoveClass("active");claimBox.RemoveClass("ally-claim");claimBox.RemoveClass("enemy-claim");
     }
   }catch{}
   if(side==="LEFT"){_claimTimeoutLeft=null;_claimStartLeft=0;}else{_claimTimeoutRight=null;_claimStartRight=0;}
@@ -204,9 +212,9 @@ function updateClaimProgress(now){
     const pct=rem/POWERUP_BUFF_DUR;
     try{if(UI.claimTimerLeft?.IsValid?.()){const t=fmt(rem);if(t!==_lastClaimTimerL){UI.claimTimerLeft.text=t;_lastClaimTimerL=t;}}}catch{}
     try{if(UI.claimRingLeft?.IsValid?.()){
-      const sc=0.5+pct*0.5;
-      UI.claimRingLeft.style.preTransformScale2d=sc;
-      UI.claimRingLeft.style.opacity=0.3+pct*0.7;
+      const sc=0.5+pct*0.5,op=0.3+pct*0.7;
+      if(sc!==_lastRingScaleL){UI.claimRingLeft.style.preTransformScale2d=sc;_lastRingScaleL=sc;}
+      if(op!==_lastRingOpacityL){UI.claimRingLeft.style.opacity=op;_lastRingOpacityL=op;}
     }}catch{}
     if(rem<=0)hideClaimIndicator("LEFT");
   }
@@ -216,9 +224,9 @@ function updateClaimProgress(now){
     const pct=rem/POWERUP_BUFF_DUR;
     try{if(UI.claimTimerRight?.IsValid?.()){const t=fmt(rem);if(t!==_lastClaimTimerR){UI.claimTimerRight.text=t;_lastClaimTimerR=t;}}}catch{}
     try{if(UI.claimRingRight?.IsValid?.()){
-      const sc=0.5+pct*0.5;
-      UI.claimRingRight.style.preTransformScale2d=sc;
-      UI.claimRingRight.style.opacity=0.3+pct*0.7;
+      const sc=0.5+pct*0.5,op=0.3+pct*0.7;
+      if(sc!==_lastRingScaleR){UI.claimRingRight.style.preTransformScale2d=sc;_lastRingScaleR=sc;}
+      if(op!==_lastRingOpacityR){UI.claimRingRight.style.opacity=op;_lastRingOpacityR=op;}
     }}catch{}
     if(rem<=0)hideClaimIndicator("RIGHT");
   }
@@ -275,7 +283,7 @@ function hideLinger(enemyId){
   const state=_lingerState[enemyId];
   if(!state)return;
   try{
-    if(state.btn?.IsValid?.()){state.btn.style.opacity=null;state.btn.RemoveClass("linger-hidden");state.btn.RemoveClass("linger-active");}
+    if(state.btn?.IsValid?.()){state.btn.style.opacity=null;state.btn.RemoveClass("linger-hidden");}
     const panel=UI.lingerPanels[state.slotIdx];
     if(panel?.IsValid?.())panel.RemoveClass("active");
   }catch{}
@@ -287,7 +295,7 @@ function cancelLinger(enemyId){
   if(!state)return;
   try{
     $.CancelScheduled(state.hideHandle);
-    if(state.btn?.IsValid?.()){state.btn.style.opacity=null;state.btn.RemoveClass("linger-hidden");state.btn.RemoveClass("linger-active");}
+    if(state.btn?.IsValid?.()){state.btn.style.opacity=null;state.btn.RemoveClass("linger-hidden");}
     const panel=UI.lingerPanels[state.slotIdx];
     if(panel?.IsValid?.())panel.RemoveClass("active");
   }catch{}
@@ -297,7 +305,7 @@ function cancelLinger(enemyId){
 function clearAllLingers(){
   for(const id in _lingerState){
     try{$.CancelScheduled(_lingerState[id].hideHandle);}catch{}
-    try{if(_lingerState[id].btn?.IsValid?.()){_lingerState[id].btn.style.opacity=null;_lingerState[id].btn.RemoveClass("linger-hidden");_lingerState[id].btn.RemoveClass("linger-active");}}catch{}
+    try{if(_lingerState[id].btn?.IsValid?.()){_lingerState[id].btn.style.opacity=null;_lingerState[id].btn.RemoveClass("linger-hidden");}}catch{}
     try{UI.lingerPanels[_lingerState[id].slotIdx]?.RemoveClass?.("active");}catch{}
   }
   _lingerState={};_enemySlots={};_slotUsed[0]=_slotUsed[1]=_slotUsed[2]=_slotUsed[3]=_slotUsed[4]=_slotUsed[5]=false;
@@ -373,7 +381,9 @@ function scanPowerups(){
   const mm=findMinimap();
   if(!mm)return;
   try{
-    const buttons=mm.FindChildrenWithClassTraverse("map_button");
+    const nowMs=Date.now();
+    let buttons=_playerCache;
+    if(!buttons||nowMs-_playerCacheTs>BUTTON_CACHE_TTL){buttons=mm.FindChildrenWithClassTraverse("map_button");_playerCache=buttons;_playerCacheTs=nowMs;}
     if(!buttons?.length)return;
     let powerups=[];
     for(let i=0;i<buttons.length;i++){
@@ -441,15 +451,7 @@ function monitorPowerups(nowMs){
       const allyClose=p.minAllyDist<=CLAIM_RADIUS_SQ;
       const enemyClose=p.minEnemyDist<=CLAIM_RADIUS_SQ;
       const allyCloser=p.minAllyDist<p.minEnemyDist;
-      let enemyClaimed=false;
-      
-      if(allyClose&&allyCloser){
-        enemyClaimed=false;
-      }else if(enemyClose&&!allyCloser){
-        enemyClaimed=true;
-      }else{
-        enemyClaimed=true;
-      }
+      const enemyClaimed=!(allyClose&&allyCloser);
       clearSideGlow(p.pos);
       if(enemyClaimed)applyEnemyClaim(p.pos);
       showClaimIndicator(p.pos,enemyClaimed,p.type);
@@ -476,8 +478,8 @@ function reset(f){if(hnd){$.CancelScheduled(hnd);hnd=null;}if(f){idx=0;counter=0
 function setImg(i){resetImg();if(i>0){UI.rImg.AddClass("reverse");UI.rImg.AddClass("rotating");$.Schedule(0.8,()=>UI.rImg.RemoveClass("rotating"));}}
 function resetImg(){UI.rImg.RemoveClass("rotating");UI.rImg.RemoveClass("reverse");UI.rImg.RemoveClass("white");}
 
-function gTime(){
-  const n=Date.now();
+function gTime(nowMs){
+  const n=nowMs||Date.now();
   if(n-_tCacheTs<200)return _tCache;
   let t=0;
   if(_gameTimePanel?.IsValid?.()){try{t=parseSec(_gameTimePanel.text);}catch{}}
