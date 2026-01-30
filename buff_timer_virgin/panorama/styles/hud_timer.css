@@ -134,74 +134,58 @@
     opacity: 0;
 }
 
-#BuffTime
+.timer-wrapper
+{
+	flow-children: none;
+	width: 100%;
+	height: 70%;
+	margin-bottom: 5%;
+	horizontal-align: center;
+	vertical-align: center;
+}
+
+#Buff .timer-wrapper
+{
+	margin-right: 30%;
+}
+
+#Rejuv .timer-wrapper
+{
+	margin-left: 30%;
+}
+
+/* Base Label (Background/Inactive) */
+#BuffTime, #RejuvTime
 {
 	font-size: 24px;
 	color: #808080;
 	horizontal-align: center;
 	vertical-align: center;
 	width: 100%;
-	height: 70%;
-	margin-right: 30%;
-	margin-bottom: 5%;
+	height: 100%;
 	font-weight: semi-bold;
 	text-align: center;
 	font-family: sansMono;
-	text-shadow: 0px 0px 0px 6 black;
-	z-index: 999999;
+	text-shadow: 0px 0px 4px 2.0 black;
+	z-index: 1;
+	letter-spacing: 1px;
 }
 
-#BuffTimeClip
+/* Clip Label (Foreground/Active) */
+#BuffTimeClip, #RejuvTimeClip
 {
 	font-size: 24px;
 	color: #ffffff;
 	horizontal-align: center;
 	vertical-align: center;
 	width: 100%;
-	height: 70%;
-	margin-right: 30%;
-	margin-bottom: 5%;
+	height: 100%;
 	font-weight: semi-bold;
 	text-align: center;
 	font-family: sansMono;
-	text-shadow: 0px 0px 0px 6 black;
-	clip-path: inset(0% 0% 0% 100%);
-	z-index: 1000000;
-}
-
-#RejuvTime
-{
-	font-size: 24px;
-	color: #808080;
-	horizontal-align: center;
-	vertical-align: center;
-	width: 100%;
-	height: 70%;
-	margin-left: 30%;
-	margin-bottom: 5%;
-	font-weight: semi-bold;
-	text-align: center;
-	font-family: sansMono;
-	text-shadow: 0px 0px 0px 6 black;
-	z-index: 999999;
-}
-
-#RejuvTimeClip
-{
-	font-size: 24px;
-	color: #ffffff;
-	horizontal-align: center;
-	vertical-align: center;
-	width: 100%;
-	height: 70%;
-	margin-left: 30%;
-	margin-bottom: 5%;
-	font-weight: semi-bold;
-	text-align: center;
-	font-family: sansMono;
-	text-shadow: 0px 0px 0px 6 black;
-	clip-path: inset(0% 100% 0% 0%);
-	z-index: 1000000;
+	z-index: 2;
+	letter-spacing: 1px;
+    clip: rect(0%, 100%, 100%, 0%);
 }
 
 #RejuvTimeBuff

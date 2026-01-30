@@ -10,3 +10,17 @@
 - **Dead XML Panels**: `hero_pos_debug` was leftover dev junk. Removing it reduces DOM complexity.
 - **Snippets**: Snippets that are not instantiated by `$.CreatePanelWithSnippet` are dead weight.
 - **Polling Interval**: Increasing the pretrack interval from 750ms to 1000ms reduces wake-ups without sacrificing accuracy.
+### XML Cleanup (2026-01-26)
+- Removed 6 unused `LingerOverlay` panels and the associated comment from `buff_timer_virgin/panorama/layout/hud.xml`.
+- These panels were identified as redundant because the JavaScript implementation uses dynamic panel creation (`$.CreatePanel`) for linger indicators.
+- Verified that `MinimapGlow` and `MinimapBuffClaim` panels were preserved as they are still in use.
+## 2026-01-26 - Buff Timer Optimization
+- Removed dead code (GLOW_CLASSES array) and debug logging ($.Msg calls).
+- Streamlined checkEnemyLinger by removing linger log throttle logic (_lingerLogTs).
+- Preserved empty catch blocks for error isolation as requested.
+- Verified removal of all $.Msg calls via grep.
+## v5.6 Documentation Update
+- Updated Buff Timer Virgin AGENTS.md to reflect v5.6 architectural changes.
+- Documented shift from static XML-defined linger overlays to dynamic $.CreatePanel approach.
+- Removed outdated debug tag references as $.Msg calls were purged for production.
+- Verified line count update to ~1380 lines reflecting the expanded codebase.

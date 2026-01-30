@@ -1,10 +1,10 @@
-# AGENTS: Buff Timer Virgin (v5.5)
+# AGENTS: Buff Timer Virgin (v5.6)
 
 ## OVERVIEW
 Production-ready Rejuvenator and Bridge Buff tracker for Deadlock. Implements proximity-based claim detection, high-fidelity minimap glow system, and CS:GO-style enemy linger indicators. Heavily optimized for minimal CPU usage.
 
 ## STRUCTURE
-- `panorama/scripts/rejuvnbufftimer.js`: Main logic (569 lines). Timers, proximity scan, state machine.
+- `panorama/scripts/rejuvnbufftimer.js`: Main logic (~1380 lines). Timers, proximity scan, state machine.
 - `panorama/layout/hud.xml`: Defines 6 dedicated glow overlay panels, claim indicators, and linger overlays.
 - `panorama/styles/hud_timer.css`: CSS animations and layout for countdowns.
 - `panorama/styles/buff_claim.css`: Glow effects, claim indicators, linger styling.
@@ -29,11 +29,10 @@ Since Panorama JS cannot read hero identity from image paths, claim detection re
 ## ENEMY LINGER FEATURE (v5.4+)
 CS:GO-style "last seen" indicator for enemies who enter fog-of-war.
 
-### Architecture (v5.5 - 1:1 Slot Pairing)
-- **6 Overlay Panels**: Pre-defined `LingerOverlay0` through `LingerOverlay5` in `hud.xml`
-- **1:1 Slot Assignment**: Each enemy gets dedicated slot via `_enemySlots{}` and `_slotUsed[6]`
-- **State Tracking**: `_lingerState[enemyId] = {slotIdx, hideHandle, btn, heroSrc}`
-- **Visibility**: Map button set to 0.5 opacity when lingering, overlay shows "?" at last position
+### Architecture (v5.6 - Dynamic Panels)
+- **Dynamic Creation**: Uses `$.CreatePanel("Label", container, qId)` with `linger-question-child` class
+- **State Tracking**: `_lingerState[enemyId] = {hideHandle, btn, qLabel}`
+- **Visibility**: Map button set to 0.5 opacity when lingering, dynamically created "?" label at last position
 
 ### Detection Method
 - Uses `.active` class on enemy `map_button` panels to detect visibility changes
@@ -45,10 +44,10 @@ CS:GO-style "last seen" indicator for enemies who enter fog-of-war.
 - `LINGER_CHECK_INTERVAL = 300` (milliseconds)
 
 ### Reset Behavior
-- Slots cleared on fresh game start (10:00 timer / phase 0)
-- `clearAllLingers()` resets `_enemySlots`, `_slotUsed`, and all overlay panels
+- State cleared on fresh game start (10:00 timer / phase 0)
+- `clearAllLingers()` resets `_lingerState` and destroys all dynamic panels
 
-## PERFORMANCE OPTIMIZATIONS (v5.5)
+## PERFORMANCE OPTIMIZATIONS (v5.6)
 
 ### Removed Dead Fallbacks (Telemetry-Verified)
 | Removed | Reason |
@@ -59,6 +58,11 @@ CS:GO-style "last seen" indicator for enemies who enter fog-of-war.
 | `marginLeft/Top` fallback | Never needed |
 | `CitadelHudTopBar` fallback | `TopBar` always found |
 | `HeroImage`, `Image` fallbacks | Hero icon extraction not working |
+| `GLOW_CLASSES` array | Only `GLOW_CLASS_MAP` used |
+| `$.Msg` debug calls | Production cleanup |
+| `LingerOverlay0-5` XML | Dynamic panels used instead |
+| `.linger-overlay` CSS | `.linger-question-child` used instead |
+| `_lingerLogTs` throttle | Debug logging removed |
 
 ### Retained Safety Patterns
 | Pattern | Location | Reason |
@@ -92,18 +96,14 @@ CS:GO-style "last seen" indicator for enemies who enter fog-of-war.
 - **Engine Hero Detection**: DO NOT attempt to read `Image.src`; it is write-only in JS sandbox.
 - **Box-Shadow Glows**: Panorama ignores `box-shadow`; MUST use gradient panels.
 - **Scale3d Animation**: Causes text-shadow artifacts; use `pre-transform-scale2d`.
+- **clip-path in JS**: DO NOT use `style.clipPath` or `clip-path: inset()`; use `style.clip` with `rect(top%, right%, bottom%, left%)`.
 - **Nested try-catch in loops**: High overhead; use single wrapper.
 - **Redundant DOM writes**: Always guard with change detection.
 - **Multiple fallbacks in hot path**: Measure with telemetry, remove dead branches.
 
 ## DEBUG
 Enable `-dev -tools` launch options. Console: F7.
-
-| Tag | Module |
-|-----|--------|
-| `[BT-P]` | Buff Timer Position |
-| `[DBG]` | Debug output (powerup sorting) |
-| `[ERR]` | Exception |
+Debug logging removed in v5.6 for production. Re-add `$.Msg` calls if needed for troubleshooting.
 
 ## BUILD
 ```powershell

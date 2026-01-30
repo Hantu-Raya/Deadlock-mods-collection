@@ -12,7 +12,13 @@
       "completed_at": "2026-01-20T08:00:00.000Z",
       "status": "complete",
       "summary": "v5.4: Added CS:GO-style enemy linger feature. 6 overlay panels, .active class detection, 5s duration, round-robin allocation. 4 files modified (hud.xml, rejuvnbufftimer.js, buff_claim.css, AGENTS.md). Awaiting user in-game testing."
+    },
+    {
+      "plan": "F:\\Users\\Shiv\\Desktop\\Deadlock-mods-collection\\.sisyphus\\plans\\clip-progress-bar.md",
+      "completed_at": "2026-01-24T19:30:00.000Z",
+      "status": "complete",
+      "summary": "v5.5: Added clip-based progress bars to RejuvTime (L→R white fill) and BuffTime (R→L white→red fill). 3 files modified (hud.xml, hud_timer.css, rejuvnbufftimer.js). Mod compiles successfully."
     }
   ],
-  "last_updated": "2026-01-20T08:00:00.000Z"
+  "last_updated": "2026-01-24T19:30:00.000Z"
 }
