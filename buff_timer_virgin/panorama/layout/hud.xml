@@ -1,4 +1,4 @@
-<!-- xml reconstructed by Source 2 Viewer 15.0.0.0 - https://valveresourceformat.github.io -->
+<!-- xml reconstructed by Source 2 Viewer 17.0.0.0 - https://valveresourceformat.github.io -->
 <root>
     <styles>
         <include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
@@ -191,13 +191,17 @@
                     <GlobalClassListener id="minimap_persp" hittest="false" classes="gDetailView gScoreboardOpen gAbilityUpgradeMenu">
                         <!-- MOD: Timer panels -->
                         <Panel id="Buff" class="BuffP" hittest="false">
-                            <Label id="BuffTime" text="0:00" />
-                            <Label id="BuffTimeClip" text="" hittest="false" />
+                            <Panel id="BuffTimeWrapper" class="timer-wrapper">
+                                <Label id="BuffTime" text="0:00" />
+                                <Label id="BuffTimeClip" text="0:00" hittest="false" />
+                            </Panel>
                             <Image id="BuffImg" src="s2r://panorama/images/hud/modifiers/icon_powerup.svg" />
                         </Panel>
                         <Panel id="Rejuv" hittest="false">
-                            <Label id="RejuvTime" text="0:00" />
-                            <Label id="RejuvTimeClip" text="" hittest="false" />
+                            <Panel id="RejuvTimeWrapper" class="timer-wrapper">
+                                <Label id="RejuvTime" text="0:00" />
+                                <Label id="RejuvTimeClip" text="0:00" hittest="false" />
+                            </Panel>
                             <Image id="RejuvImg" src="s2r://panorama/images/hud/modifiers/icon_rejuvenator.svg" />
                             <Label id="RejuvNum" text="1" />
                         </Panel>
@@ -228,13 +232,6 @@
                                 <Panel id="MinimapGlowRight" class="minimap-glow glow-right" hittest="false" />
                                 <Panel id="MinimapGlowRightTop" class="minimap-glow glow-right-top" hittest="false" />
                                 <Panel id="MinimapGlowRightBot" class="minimap-glow glow-right-bot" hittest="false" />
-                                <!-- MOD: Linger overlays -->
-                                <Panel id="LingerOverlay0" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
-                                <Panel id="LingerOverlay1" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
-                                <Panel id="LingerOverlay2" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
-                                <Panel id="LingerOverlay3" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
-                                <Panel id="LingerOverlay4" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
-                                <Panel id="LingerOverlay5" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
                             </Panel>
                             <Panel id="minimap_frame" hittest="false" />
                         </Panel>
@@ -279,12 +276,6 @@
                 <CitadelPartyInviteList id="partyinvites" />
             </Panel>
             <CitadelHudSandboxTutorial id="hud_sandbox_tutorial" hittest="false" />
-            <Panel id="AbilityPanelsContainer" onactivate="" hittest="false" hittestchildren="false">
-                <CitadelAbilityDetailsPanel id="AbilityDetailsPanel1" class="abilityDetailsPanels" ability_slot="1" />
-                <CitadelAbilityDetailsPanel id="AbilityDetailsPanel2" class="abilityDetailsPanels" ability_slot="2" />
-                <CitadelAbilityDetailsPanel id="AbilityDetailsPanel3" class="abilityDetailsPanels" ability_slot="3" />
-                <CitadelAbilityDetailsPanel id="AbilityDetailsPanel4" class="abilityDetailsPanels" ability_slot="4" />
-            </Panel>
             <CitadelPaused id="PausedInfo" />
             <CitadelHudSubtitles id="HudSubtitles" />
             <Panel id="CheaterVoteBox">

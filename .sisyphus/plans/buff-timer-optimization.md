@@ -1,353 +1,352 @@
-# Buff Timer Virgin Performance Optimization
+# Buff Timer Virgin: Dead Code Removal & Minimal Minification
 
 ## Context
 
 ### Original Request
-Optimize the script `buff_timer_virgin/` for optimal performance on gaming and low CPU usage, and remove verified dead code of the script.
+Optimize and clean up `buff_timer_virgin/` mod - remove verified dead code, and create a minimal minified version for ease of editing.
 
 ### Interview Summary
 **Key Discussions**:
-- Script is 428 lines, production-ready v5.1 with proximity-based claim detection
-- Already follows "Resilient Panorama" patterns (TTL caching, multi-rate polling, object reuse)
-- Intent is surgical REFACTORING - preserve behavior, improve performance
+- Target files: `rejuvnbufftimer.js` (1435 lines), `buff_claim.css` (522 lines), `hud_timer.css` (379 lines), `hud.xml` (392 lines)
+- Goal: Remove verified dead code, clean up unused assets, keep code readable
 
 **Research Findings**:
-- Existing patterns are solid: `_playerCache` (400ms TTL), `_tCache` (200ms TTL), `_posResult` reuse
-- Multi-rate loop with TICK_FAST (0.1s) / TICK_NORM (1s) / TICK_IDLE (3s) is appropriate
-- CSS correctly uses `pre-transform-scale2d` (no scale3d anti-pattern)
-- One verified dead constant: `CLAIM_DISPLAY_DUR` declared but never used
-
-### Metis Review
-**Identified Gaps** (addressed):
-- Verification strategy for "no behavioral changes" → Added explicit before/after verification steps
-- Risk of over-optimization → Constrained to measurable improvements only
-- Edge case: script reload behavior → Preserve existing reset() mechanism
+- AGENTS.md documents "1:1 Slot Pairing" for linger feature but JS uses dynamic `$.CreatePanel` instead
+- `LingerOverlay0-5` XML panels are never referenced - JS creates panels dynamically
+- `GLOW_CLASSES` array declared but only `GLOW_CLASS_MAP` is used
+- Extensive `$.Msg` debug logging throughout (~15 calls)
+- CSS has unused `.linger-overlay`, `.linger-question`, `.linger-hidden` selectors
 
 ---
 
 ## Work Objectives
 
 ### Core Objective
-Reduce CPU usage during gameplay by optimizing hot paths and removing dead code, while preserving all existing functionality.
+Remove verified dead code from JS/CSS/XML and create a clean, minimal version for easier maintenance.
 
 ### Concrete Deliverables
-- Optimized `rejuvnbufftimer.js` with reduced allocations and improved cache usage
-- Removal of verified dead code
-- No behavioral changes to timer logic or claim detection
+- `rejuvnbufftimer.js` - debug logging removed, unused constants removed (~50 lines saved)
+- `buff_claim.css` - unused linger selectors removed (~35 lines saved)
+- `hud.xml` - unused LingerOverlay panels removed (6 lines saved)
+- `AGENTS.md` - updated to reflect actual code state
 
 ### Definition of Done
-- [ ] Script compiles without errors via sr2compiler
-- [ ] All timer displays work identically (Rejuv countdown, Buff countdown, claim indicators)
-- [ ] No new console errors in F7 debug console
-- [ ] Dead code removed (specifically `CLAIM_DISPLAY_DUR`)
+- [ ] All `$.Msg` debug calls removed from JS
+- [ ] Unused `GLOW_CLASSES` array removed
+- [ ] Unused `_lingerLogTs` and logging logic removed
+- [ ] Unused CSS selectors removed (`.linger-overlay`, `.linger-question`, `.linger-hidden`, `lingerPulse`)
+- [ ] Unused `LingerOverlay0-5` XML panels removed
+- [ ] Mod compiles successfully with sr2compiler
+- [ ] All safety patterns preserved
 
 ### Must Have
-- Preserve exact timing behavior (REJUV_DUR=240, BRIDGE_DUR=300, phase sequences)
-- Preserve proximity claim detection logic (CLAIM_RADIUS=8)
-- Preserve TTL caching mechanisms
-- Preserve multi-rate polling behavior
+- Remove all debug `$.Msg` logging
+- Remove verified dead constants/variables
+- Remove unused CSS selectors and keyframes
+- Remove unused XML panels
+- Preserve all functional behavior
 
 ### Must NOT Have (Guardrails)
-- **NO behavioral changes** - timers must display identical values at identical times
-- **NO new dependencies** - no external libraries or additional files
-- **NO CSS or XML modifications** - scope is JS only
-- **NO feature additions** - this is pure optimization
-- **NO micro-optimizations with negligible impact** - focus on measurable gains
-- **NO removal of try/catch in error-prone areas** - maintain resilience
+- DO NOT remove `?.IsValid?.()` safety patterns
+- DO NOT remove try-catch wrappers (keep structure, remove only `$.Msg` inside)
+- DO NOT remove DOM write guards (`if (t !== _lastRejuvText)` etc.)
+- DO NOT remove object pooling (`_posResult`, `_nearResult`, `_pwPos`)
+- DO NOT change timing constants or game logic
+- DO NOT aggressively minify (keep readable)
 
 ---
 
 ## Verification Strategy (MANDATORY)
 
 ### Test Decision
-- **Infrastructure exists**: NO (no test framework in project)
-- **User wants tests**: Manual-only (project convention)
-- **Framework**: None
+- **Infrastructure exists**: NO (Source 2 mods, no automated tests)
+- **User wants tests**: Manual-only
+- **Framework**: sr2compiler for compilation
 
 ### Manual QA Procedure
-Each TODO includes detailed verification using the game's debug console (F7) and visual inspection.
-
-**Verification Commands:**
-```powershell
-# Compile after changes
-"F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\buff_timer_virgin"
-```
-
-**In-Game Verification:**
-1. Launch Deadlock with `-dev -tools` flags
-2. Open F7 console, filter for `[BT-P]` tags
-3. Verify timers display correctly during:
-   - Pre-game (hideout detection)
-   - First Rejuv spawn (10:00)
-   - Subsequent Rejuv spawns
-   - Bridge buff cycle (5:00 intervals)
-   - Powerup claim detection
+Each task uses sr2compiler verification + in-game visual checks.
 
 ---
 
 ## Task Flow
 
 ```
-Task 1 (Dead Code) → Task 2 (String Optimization) → Task 3 (Cache Optimization)
-                                                          ↓
-                                                    Task 4 (Loop Optimization)
-                                                          ↓
-                                                    Task 5 (Final Verification)
+Task 1 (JS cleanup) ─┐
+Task 2 (CSS cleanup) ├→ Task 4 (AGENTS.md) → Task 5 (Final verify)
+Task 3 (XML cleanup) ─┘
 ```
 
 ## Parallelization
 
+| Group | Tasks | Reason |
+|-------|-------|--------|
+| A | 1, 2, 3 | Independent file changes |
+
 | Task | Depends On | Reason |
 |------|------------|--------|
-| 1 | None | Independent dead code removal |
-| 2 | 1 | Build on clean codebase |
-| 3 | 2 | Build on string optimizations |
-| 4 | 3 | Build on cache optimizations |
-| 5 | 4 | Final verification requires all changes |
+| 4 | 1, 2, 3 | Needs final code state |
+| 5 | 4 | Final verification |
 
 ---
 
 ## TODOs
 
-- [ ] 1. Remove Verified Dead Code
+- [ ] 1. Remove Dead Code from rejuvnbufftimer.js
 
   **What to do**:
-  - Delete `CLAIM_DISPLAY_DUR=4.0` constant on line 8 (declared but never referenced)
-  - Search entire file for any other unreferenced constants or variables
-  - Verify no other code references the removed constant
+  
+  A. **Remove all `$.Msg` debug logging** (~15 calls):
+  - Line 458: `$.Msg("[BT-P][ERR] findMinimap: " + e + "\n");`
+  - Line 599: `$.Msg("[BT-P][ERR] showClaimIndicator: " + e + "\n");`
+  - Line 748: `$.Msg("[BT-P][ERR] getPanelPos: " + e + "\n");`
+  - Line 767: `$.Msg("[LINGER] showLinger called for: " + enemyId + "\n");`
+  - Line 768: `$.Msg("[LINGER] Already has state, skipping\n");`
+  - Line 769: `$.Msg("[LINGER] Invalid btn\n");`
+  - Line 773: `$.Msg("[LINGER] No minimapContainer\n");`
+  - Line 788: `$.Msg("[LINGER] btn pos: x=" + bx + " y=" + by + " inverted=" + inverted + "\n");`
+  - Line 802: `$.Msg("[LINGER] Positioned at " + bx + "px " + by + "px\n");`
+  - Line 813: `$.Msg("[LINGER][ERR] showLinger: " + e + "\n");`
+  - Line 899: `$.Msg("[LINGER] Enemy " + id + " | active=" + isActive + " wasActive=" + wasActive + " dead=" + isDead + "\n");`
+  - Line 913: `$.Msg("[LINGER] TRIGGER: " + id + " went from active to inactive\n");`
+  - Line 916: `$.Msg("[LINGER] Enemy " + id + " reappeared, canceling linger\n");`
+  - Line 921: `$.Msg("[LINGER] Found " + enemyCount + " enemies this tick\n");`
+  - Line 922: `$.Msg("[LINGER][ERR] checkEnemyLinger: " + e + "\n");`
+  - Line 1087: `$.Msg("[BT-P][ERR] scanPowerups: " + e + "\n");`
+
+  B. **Remove unused `GLOW_CLASSES` array** (Lines 155-161):
+  ```javascript
+  const GLOW_CLASSES = [
+    "glow-survival",
+    "glow-casting",
+    "glow-movement",
+    "glow-gun",
+    "glow-enemy"
+  ];
+  ```
+  Only `GLOW_CLASS_MAP` (Lines 163-168) is actually used.
+
+  C. **Remove `_lingerLogTs` and conditional logging logic**:
+  - Line 858: `let _lingerLogTs = 0;`
+  - Lines 864-865: `const shouldLog = now - _lingerLogTs > 3000; if (shouldLog) _lingerLogTs = now;`
+  - Lines 898-900: `if (shouldLog) { $.Msg(...); }`
+  - Line 921: `if (shouldLog) $.Msg(...);`
+
+  D. **Keep empty catch blocks** - they're intentional for error isolation
 
   **Must NOT do**:
-  - Remove any constants that ARE referenced (even if seemingly unused)
-  - Remove commented code that serves as documentation
+  - Do NOT remove `?.IsValid?.()` safety patterns
+  - Do NOT remove try-catch wrappers (keep empty `catch {}`)
+  - Do NOT remove DOM write guards
+  - Do NOT remove object pooling
 
-  **Parallelizable**: NO (first task)
+  **Parallelizable**: YES (with 2, 3)
 
   **References**:
-  
-  **Pattern References**:
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:1-30` - Constants section, verify which are used
-  
-  **Search Commands**:
-  - Search for `CLAIM_DISPLAY_DUR` usage → should return 0 matches (only declaration)
+  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js` - Full source (1435 lines)
+  - `buff_timer_virgin/AGENTS.md:Retained Safety Patterns` - Patterns to preserve
 
   **Acceptance Criteria**:
-  
-  **Manual Execution Verification:**
-  - [ ] Grep for `CLAIM_DISPLAY_DUR` in file → 0 matches after removal
-  - [ ] Compile: `sr2compiler "buff_timer_virgin"` → SUCCESS
-  - [ ] No errors in F7 console when loading HUD
+  - [ ] `Select-String -Path "...\rejuvnbufftimer.js" -Pattern '\$\.Msg'` returns no matches
+  - [ ] `Select-String -Path "...\rejuvnbufftimer.js" -Pattern 'GLOW_CLASSES'` returns no matches
+  - [ ] `Select-String -Path "...\rejuvnbufftimer.js" -Pattern '_lingerLogTs'` returns no matches
+  - [ ] File still contains `?.IsValid?.()` patterns
+  - [ ] sr2compiler compiles without error
 
   **Commit**: YES
-  - Message: `perf(buff_timer): remove unused CLAIM_DISPLAY_DUR constant`
+  - Message: `refactor(buff_timer): remove debug logging and dead code`
   - Files: `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js`
-  - Pre-commit: Compile with sr2compiler
+  - Pre-commit: sr2compiler build
 
 ---
 
-- [ ] 2. Optimize String Formatting
+- [ ] 2. Clean Up buff_claim.css
 
   **What to do**:
-  - Pre-compute padded minute/second strings in a lookup table (similar to `PAD` pattern in soul_timer)
-  - Replace `fmt()` function's string concatenation with array lookup
-  - Current: `(m<10?"0"+m:""+m)+":"+(ss<10?"0"+ss:""+ss)` creates 4+ string objects
-  - Optimized: `PAD[m]+":"+PAD[ss]` creates 1 string object
-
-  **Implementation**:
-  ```javascript
-  // Add near top with other constants
-  const PAD=[];for(let i=0;i<60;i++)PAD[i]=i<10?"0"+i:""+i;
   
-  // Replace fmt() function
-  function fmt(s){s=Math.max(0,s|0);return PAD[(s/60)|0]+":"+PAD[s%60];}
-  ```
-
-  **Must NOT do**:
-  - Change the output format (must remain "MM:SS")
-  - Break negative number handling (must clamp to 0)
-
-  **Parallelizable**: NO (depends on Task 1)
-
-  **References**:
+  Remove unused linger-related styles (JS uses `.linger-question-child` via dynamic panel creation, not these static classes):
   
-  **Pattern References**:
-  - `soul_timer/panorama/scripts/soul_timer.js` - Look for PAD array pattern if exists
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:424` - Current `fmt()` implementation
-  
-  **Why This Matters**:
-  - `fmt()` is called every loop iteration (0.1s-1s frequency)
-  - String concatenation creates garbage for GC
-  - Lookup table trades 60 pre-allocated strings for repeated allocation
-
-  **Acceptance Criteria**:
-  
-  **Manual Execution Verification:**
-  - [ ] Compile: `sr2compiler "buff_timer_virgin"` → SUCCESS
-  - [ ] In-game: Rejuv timer displays "10:00", "09:59", etc. correctly
-  - [ ] In-game: Buff timer displays "05:00", "04:59", etc. correctly
-  - [ ] Edge case: Timer at 0 displays "00:00"
-  - [ ] Edge case: Timer at 599 (9:59) displays correctly
-
-  **Commit**: YES
-  - Message: `perf(buff_timer): use lookup table for time formatting`
-  - Files: `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js`
-  - Pre-commit: Compile with sr2compiler
-
----
-
-- [ ] 3. Optimize Cache Patterns
-
-  **What to do**:
-  - Move `GLOW_CLASSES` iteration to use direct property access instead of loop
-  - Pre-compute glow class set for O(1) lookup in `clearSideGlow()`
-  - Reduce redundant `Date.now()` calls in hot paths
-
-  **Implementation Details**:
-  
-  A. **Consolidate Date.now() calls in loop()**:
-  ```javascript
-  // Current: Date.now() called multiple times
-  const now=gTime(),rn=Date.now();
-  // ... later ...
-  if(rn-lastPretrackCheck>=PRETRACK_INTERVAL)
-  // ... later ...
-  if(rn-lastPowerupScan>=200)
-  ```
-  This is already optimized - `rn` is reused. No change needed here.
-
-  B. **Optimize clearSideGlow()**:
-  Current iterates 5-element array every call. Convert to direct method:
-  ```javascript
-  function clearSideGlow(side){
-    const panel=side==="LEFT"?UI.glowLeft:UI.glowRight;
-    if(!panel)return;
-    try{
-      panel.RemoveClass("glow-survival");
-      panel.RemoveClass("glow-casting");
-      panel.RemoveClass("glow-movement");
-      panel.RemoveClass("glow-gun");
-      panel.RemoveClass("glow-enemy");
-    }catch{}
+  A. **Remove `.linger-overlay` block** (Lines 459-470):
+  ```css
+  .linger-overlay {
+    position: absolute;
+    width: 24px;
+    ...
   }
   ```
-  This eliminates loop overhead and array access for a fixed 5-element set.
 
-  **Must NOT do**:
-  - Remove any glow classes from the clear operation
-  - Break the try/catch error handling
-
-  **Parallelizable**: NO (depends on Task 2)
-
-  **References**:
-  
-  **Pattern References**:
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:123-127` - Current `clearSideGlow()` implementation
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:40` - `GLOW_CLASSES` constant
-
-  **Acceptance Criteria**:
-  
-  **Manual Execution Verification:**
-  - [ ] Compile: `sr2compiler "buff_timer_virgin"` → SUCCESS
-  - [ ] In-game: Glow effects appear on minimap when powerup spawns
-  - [ ] In-game: Glow effects clear properly when powerup is claimed
-  - [ ] In-game: Enemy claim shows red pulse, then clears
-
-  **Commit**: YES
-  - Message: `perf(buff_timer): inline glow class removal for reduced loop overhead`
-  - Files: `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js`
-  - Pre-commit: Compile with sr2compiler
-
----
-
-- [ ] 4. Optimize Loop Frequency
-
-  **What to do**:
-  - Increase `PRETRACK_INTERVAL` from 750ms to 1000ms (pre-tracking doesn't need sub-second precision)
-  - This reduces CPU wake-ups during the 10-second pre-spawn window
-
-  **Implementation**:
-  ```javascript
-  // Line 7: Change from
-  const PRETRACK_INTERVAL=750;
-  // To
-  const PRETRACK_INTERVAL=1000;
+  B. **Remove `.linger-overlay.active` block** (Lines 472-474):
+  ```css
+  .linger-overlay.active {
+    opacity: 1;
+  }
   ```
 
-  **Justification**:
-  - Pre-tracking starts 10s before spawn (`POWERUP_CHECK_TH=10`)
-  - At 750ms interval: 13-14 checks before spawn
-  - At 1000ms interval: 10 checks before spawn
-  - Proximity detection accuracy is unchanged (we track min distance, not instantaneous)
+  C. **Remove `.linger-question` block** (Lines 476-489):
+  ```css
+  .linger-question {
+    position: absolute;
+    ...
+  }
+  ```
+
+  D. **Remove `.linger-hidden` block** (Lines 491-494):
+  ```css
+  .linger-hidden {
+    opacity: 0 !important;
+    visibility: collapse;
+  }
+  ```
+
+  E. **Remove `lingerPulse` keyframe** (Lines 516-520):
+  ```css
+  @keyframes 'lingerPulse' {
+    0% { pre-transform-scale2d: 1.0; }
+    50% { pre-transform-scale2d: 1.15; }
+    100% { pre-transform-scale2d: 1.0; }
+  }
+  ```
+
+  F. **KEEP `.linger-question-child` styles** (Lines 496-514) - these ARE used by JS
 
   **Must NOT do**:
-  - Change `MONITOR_INTERVAL` (300ms) - needed for accurate claim detection
-  - Change `BUTTON_CACHE_TTL` (400ms) - already optimized
-  - Change main loop tick rates
+  - Do NOT remove any `.glow-*` classes
+  - Do NOT remove `.minimap-claim-box` styles
+  - Do NOT remove `.linger-question-child` class
 
-  **Parallelizable**: NO (depends on Task 3)
+  **Parallelizable**: YES (with 1, 3)
 
   **References**:
-  
-  **Pattern References**:
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:7` - `PRETRACK_INTERVAL` constant
-  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:72-75` - Pre-track logic
+  - `buff_timer_virgin/panorama/styles/buff_claim.css:459-520` - Dead linger styles
+  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:795` - `$.CreatePanel("Label", container, qId)` with `linger-question-child` class
 
   **Acceptance Criteria**:
-  
-  **Manual Execution Verification:**
-  - [ ] Compile: `sr2compiler "buff_timer_virgin"` → SUCCESS
-  - [ ] In-game: Pre-tracking still detects approaching players correctly
-  - [ ] In-game: Claim attribution (ally vs enemy) remains accurate
-  - [ ] In-game: No noticeable delay in claim indicator appearance
+  - [ ] `.linger-overlay` selector no longer in file
+  - [ ] `.linger-question` selector (not `.linger-question-child`) no longer in file
+  - [ ] `.linger-hidden` selector no longer in file
+  - [ ] `lingerPulse` keyframe no longer in file
+  - [ ] `.linger-question-child` styles still present
+  - [ ] sr2compiler compiles without error
 
   **Commit**: YES
-  - Message: `perf(buff_timer): reduce pretrack frequency from 750ms to 1000ms`
-  - Files: `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js`
-  - Pre-commit: Compile with sr2compiler
+  - Message: `refactor(buff_timer): remove unused CSS linger selectors`
+  - Files: `buff_timer_virgin/panorama/styles/buff_claim.css`
+  - Pre-commit: sr2compiler build
 
 ---
 
-- [ ] 5. Final Verification and Cleanup
+- [ ] 3. Clean Up hud.xml
 
   **What to do**:
-  - Run full compile
-  - Test complete game flow in Deadlock
-  - Verify no regressions in functionality
-  - Document any edge cases encountered
+  
+  Remove unused `LingerOverlay0-5` panels (Lines 236-241). The linger system uses dynamic `$.CreatePanel` instead of these pre-defined slots.
+
+  Remove these 6 lines:
+  ```xml
+  <Panel id="LingerOverlay0" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
+  <Panel id="LingerOverlay1" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
+  <Panel id="LingerOverlay2" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
+  <Panel id="LingerOverlay3" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
+  <Panel id="LingerOverlay4" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
+  <Panel id="LingerOverlay5" class="linger-overlay" hittest="false"><Label class="linger-question" text="?" /></Panel>
+  ```
 
   **Must NOT do**:
-  - Skip any verification step
-  - Merge if any timer displays incorrectly
+  - Do NOT remove `MinimapGlowLeft/Right` panels
+  - Do NOT remove `MinimapBuffClaimLeft/Right` panels
+  - Do NOT remove `HudMinimapContainer`
 
-  **Parallelizable**: NO (final task)
+  **Parallelizable**: YES (with 1, 2)
 
   **References**:
+  - `buff_timer_virgin/panorama/layout/hud.xml:236-241` - Unused panels
+  - `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js:792-801` - Dynamic panel creation
+
+  **Acceptance Criteria**:
+  - [ ] `Select-String -Path "...\hud.xml" -Pattern 'LingerOverlay'` returns no matches
+  - [ ] `MinimapGlowLeft` still present in file
+  - [ ] `MinimapBuffClaimLeft` still present in file
+  - [ ] sr2compiler compiles without error
+
+  **Commit**: YES
+  - Message: `refactor(buff_timer): remove unused LingerOverlay XML panels`
+  - Files: `buff_timer_virgin/panorama/layout/hud.xml`
+  - Pre-commit: sr2compiler build
+
+---
+
+- [ ] 4. Update AGENTS.md Documentation
+
+  **What to do**:
   
-  **Documentation**:
-  - `buff_timer_virgin/AGENTS.md` - Module documentation
+  A. **Update STRUCTURE section**: Line count will be reduced (~1380 lines after cleanup)
+  
+  B. **Update ENEMY LINGER FEATURE section**: Remove outdated "1:1 Slot Pairing" architecture:
+  - Remove "6 Overlay Panels" description
+  - Remove "_enemySlots" and "_slotUsed" references (don't exist in code)
+  - Document actual dynamic panel creation: `$.CreatePanel("Label", container, qId)` with `linger-question-child` class
+  
+  C. **Add entry to "Removed Dead Fallbacks" table**:
+  ```markdown
+  | `GLOW_CLASSES` array | Only `GLOW_CLASS_MAP` used |
+  | `$.Msg` debug calls | Production cleanup |
+  | `LingerOverlay0-5` XML | Dynamic panels used |
+  | `.linger-overlay` CSS | `.linger-question-child` used |
+  ```
+
+  **Must NOT do**:
+  - Do NOT change performance tuning values
+  - Do NOT change polling interval documentation
+
+  **Parallelizable**: NO (depends on 1, 2, 3)
+
+  **References**:
+  - `buff_timer_virgin/AGENTS.md` - Current documentation
+  - Final code state after Tasks 1-3
+
+  **Acceptance Criteria**:
+  - [ ] Line count updated in STRUCTURE section
+  - [ ] ENEMY LINGER section describes dynamic `$.CreatePanel` approach
+  - [ ] No references to `LingerOverlay0-5` or slot pairing
+
+  **Commit**: YES
+  - Message: `docs(buff_timer): update AGENTS.md for v5.6 cleanup`
+  - Files: `buff_timer_virgin/AGENTS.md`
+  - Pre-commit: None
+
+---
+
+- [ ] 5. Final Compilation & Verification
+
+  **What to do**:
+  - Run sr2compiler on full mod directory
+  - Verify all compiled outputs exist
+  - Launch Deadlock with `-dev -tools` and verify functionality
+
+  **Must NOT do**:
+  - Do NOT skip any verification step
+
+  **Parallelizable**: NO (depends on 1, 2, 3, 4)
+
+  **References**:
+  - Build: `"F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\buff_timer_virgin"`
 
   **Acceptance Criteria**:
   
-  **Compilation Verification:**
-  - [ ] `sr2compiler "buff_timer_virgin"` → SUCCESS, no warnings
+  **Compilation:**
+  - [ ] sr2compiler exits successfully
+  - [ ] `buff_timer_virgin_compiled/panorama/scripts/rejuvnbufftimer.vjs_c` exists
+  - [ ] `buff_timer_virgin_compiled/panorama/styles/buff_claim.vcss_c` exists
+  - [ ] `buff_timer_virgin_compiled/panorama/layout/hud.vxml_c` exists
   
-  **In-Game Full Flow Test:**
-  - [ ] Start new match, wait in hideout
-  - [ ] Observe hideout detection works (timer doesn't run prematurely)
-  - [ ] First Rejuv spawn at 10:00 - timer shows "Spawn" state
-  - [ ] Claim Rejuv - buff timer appears, shows 4:00 countdown
-  - [ ] Bridge buff cycle at 5:00 intervals - timer accurate
-  - [ ] Powerup spawn - glow appears on correct minimap side
-  - [ ] Claim powerup - glow clears, claim indicator appears
-  - [ ] Enemy claims powerup - red pulse, then indicator
-  
-  **Console Verification:**
-  - [ ] F7 console shows no `[BT-P][ERR]` messages
-  - [ ] No JavaScript exceptions in console
+  **In-Game (launch with `-dev -tools`):**
+  - [ ] Rejuv timer displays countdown correctly
+  - [ ] Buff timer displays countdown correctly
+  - [ ] Minimap glows appear when powerups spawn
+  - [ ] Claim indicators appear when powerups claimed
+  - [ ] Linger "?" appears when enemies enter fog (uses dynamic panels)
+  - [ ] F7 console shows NO `[BT-P]` or `[LINGER]` debug messages
 
-  **Commit**: YES
-  - Message: `perf(buff_timer): v5.2 performance optimization complete`
-  - Files: `buff_timer_virgin/panorama/scripts/rejuvnbufftimer.js`
-  - Pre-commit: Full verification above
+  **Commit**: NO (verification only)
 
 ---
 
@@ -355,11 +354,10 @@ Task 1 (Dead Code) → Task 2 (String Optimization) → Task 3 (Cache Optimizati
 
 | After Task | Message | Files | Verification |
 |------------|---------|-------|--------------|
-| 1 | `perf(buff_timer): remove unused CLAIM_DISPLAY_DUR constant` | rejuvnbufftimer.js | Compile |
-| 2 | `perf(buff_timer): use lookup table for time formatting` | rejuvnbufftimer.js | Compile + timer display |
-| 3 | `perf(buff_timer): inline glow class removal for reduced loop overhead` | rejuvnbufftimer.js | Compile + glow test |
-| 4 | `perf(buff_timer): reduce pretrack frequency from 750ms to 1000ms` | rejuvnbufftimer.js | Compile + claim test |
-| 5 | `perf(buff_timer): v5.2 performance optimization complete` | rejuvnbufftimer.js | Full verification |
+| 1 | `refactor(buff_timer): remove debug logging and dead code` | rejuvnbufftimer.js | sr2compiler |
+| 2 | `refactor(buff_timer): remove unused CSS linger selectors` | buff_claim.css | sr2compiler |
+| 3 | `refactor(buff_timer): remove unused LingerOverlay XML panels` | hud.xml | sr2compiler |
+| 4 | `docs(buff_timer): update AGENTS.md for v5.6 cleanup` | AGENTS.md | None |
 
 ---
 
@@ -367,15 +365,30 @@ Task 1 (Dead Code) → Task 2 (String Optimization) → Task 3 (Cache Optimizati
 
 ### Verification Commands
 ```powershell
-# Compile the mod
+# Compile mod
 "F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\buff_timer_virgin"
-# Expected: SUCCESS, output files in buff_timer_virgin_compiled/
+
+# Verify no debug logging
+Select-String -Path "buff_timer_virgin\panorama\scripts\rejuvnbufftimer.js" -Pattern '\$\.Msg'
+# Expected: No matches
+
+# Verify unused code removed
+Select-String -Path "buff_timer_virgin\panorama\scripts\rejuvnbufftimer.js" -Pattern 'GLOW_CLASSES'
+# Expected: No matches
+
+Select-String -Path "buff_timer_virgin\panorama\layout\hud.xml" -Pattern 'LingerOverlay'
+# Expected: No matches
+
+Select-String -Path "buff_timer_virgin\panorama\styles\buff_claim.css" -Pattern '\.linger-overlay[^-]'
+# Expected: No matches (but .linger-question-child should exist)
 ```
 
 ### Final Checklist
-- [ ] All timer displays work identically to before
-- [ ] Glow effects appear and clear correctly
-- [ ] Claim detection attributes to correct team
-- [ ] No console errors
-- [ ] Dead code (`CLAIM_DISPLAY_DUR`) removed
-- [ ] Script file size reduced (minor, ~50-100 bytes from dead code removal)
+- [ ] All `$.Msg` debug calls removed
+- [ ] `GLOW_CLASSES` array removed
+- [ ] `LingerOverlay0-5` panels removed from XML
+- [ ] Unused CSS linger selectors removed
+- [ ] `.linger-question-child` CSS preserved (still used)
+- [ ] All safety patterns preserved (`?.IsValid?.()`, try-catch, DOM guards)
+- [ ] Mod compiles and runs correctly
+- [ ] AGENTS.md accurately documents current code
