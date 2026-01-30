@@ -1,4 +1,4 @@
-/* Prettified by Source 2 Viewer 14.1.0.0 - https://valveresourceformat.github.io */
+/* Prettified by Source 2 Viewer 17.0.0.0 - https://valveresourceformat.github.io */
 
 @define unlearnedWashColor: rgba(255, 255, 255, 0.2);
 @define abilityOffsetX: 440px;
@@ -1001,6 +1001,15 @@ Label.ability_key
 	visibility: collapse;
 }
 
+.cooling_down #cooldown_mask,.ability_not_ready #cooldown_mask
+{
+	width: 100%;
+	height: 100%;
+	background-color: offBlack&ee;
+	opacity: 0.90;
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_standard.vsvg");
+}
+
 #hud_items #cooldown_mask
 {
 	opacity-mask: url("s2r://panorama/images/hud/core/ability_active_backer.vsvg");
@@ -1010,6 +1019,15 @@ Label.ability_key
 	margin-top: 3px;
 }
 
+#hud_passive_items #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/masks/no_mask_png.vtex");
+	height: 30px;
+	height: 35px;
+	background-size: cover;
+	background-repeat: no-repeat;
+	margin-top: 0px;
+}
 
 .Tier0.cooling_down #cooldown_mask,.Tier0.ability_not_ready #cooldown_mask
 {
@@ -1301,26 +1319,3 @@ CitadelHudAbilities CitadelHudAbilityUpgradePips
 	
 }
 
-#hud_passive_items #cooldown_mask
-{
-	opacity-mask: url("s2r://panorama/images/hud/world_space/status_border_psd.vtex");
-	height: 37px;
-	background-color: offWhite;
-	background-size: cover;
-	background-repeat: no-repeat;
-	margin-top: 10%;
-}
-
-.cooling_down #cooldown_mask,.ability_not_ready #cooldown_mask
-{
-	width: 100%;
-	height: 100%;
-	background-color: offBlack&ee;
-	opacity: 0.90;
-	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_standard.vsvg");
-}
-
-.ability_not_ready .ability_image
-{
-	wash-color: #222222aa;
-}
