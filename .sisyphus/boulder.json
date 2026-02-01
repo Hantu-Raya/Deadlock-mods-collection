@@ -18,7 +18,13 @@
       "completed_at": "2026-01-24T19:30:00.000Z",
       "status": "complete",
       "summary": "v5.5: Added clip-based progress bars to RejuvTime (L→R white fill) and BuffTime (R→L white→red fill). 3 files modified (hud.xml, hud_timer.css, rejuvnbufftimer.js). Mod compiles successfully."
+    },
+    {
+      "plan": "F:\\Users\\Shiv\\Desktop\\Deadlock-mods-collection\\.sisyphus\\plans\\4by3-hud-css-merge.md",
+      "completed_at": "2026-01-30T21:35:00.000Z",
+      "status": "complete",
+      "summary": "Merged game update CSS into 4:3 HUD mod. Strategy: new base + 4:3 overlay. Applied margin-right: 70% override to #health_and_abilities_container. Added new selectors (StreetBrawl, ItemDraft, HudTakeover). Updated fonts (sansMono → numericOracle). Removed deprecated selectors. 4 CSS files updated, compilation successful."
     }
   ],
-  "last_updated": "2026-01-24T19:30:00.000Z"
+  "last_updated": "2026-01-30T21:35:00.000Z"
 }
