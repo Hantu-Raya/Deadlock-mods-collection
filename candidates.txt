@@ -1,0 +1,553 @@
+ai_async_queue_debug | sv | Default: 0<br>Dump the ai async work queue jobs each tick.  0 = off, 1 = on, 2 = also dump entries
+ai_async_queue_max_jobs | sv | Default: -1<br>Limit on number of jobs that will be run(serially) in a frame. - 1 = no limit
+ai_async_queue_stop_on_request | sv | Default: true<br>Should queue stop processing new jobs when the frame stop request happens?
+ai_disable | sv, cheat | Bi-passes all AI logic routines and puts all NPCs into their idle animations.  Can be used to get NPCs out of your way and to test effect of AI logic routines on frame rate
+ai_facingservices_generated_target_min_duration | sv | Default: 1.2<br>
+ai_gather_conditions_async | sv | Default: false<br>Allow gathering of conditions to be done asynchronously.
+ai_lod_auto_enabled | sv | Default: false<br>
+ai_lod_debug_display | sv | Default: 0<br>
+ai_motor_use_fast_move_heading_bad_zone_pass | sv, cheat | Default: true<br>
+ai_navigator_repath_tolerance_min_speed | sv, cheat | Default: 100<br>When calculating repathing tolerance, clamp entity speed to be at least this value (i.e. consider slow entities to be this fast).
+ai_path_return_parallel_speed | sv | Default: 100<br>
+ai_think_interval_lod_low | sv | Default: 0.5<br>Time interval between NPC thinks when set to AI LOD low.
+ai_think_interval_lod_med | sv | Default: 0.25<br>Time interval between NPC thinks when set to AI LOD medium.
+ai_think_interval_lod_very_low | sv | Default: 1<br>Time interval between NPC thinks when set to AI LOD very low.
+ai_threaded_pathfind | sv | Default: true<br>
+ai_use_async_ragdoll_fixup | sv | Default: false<br>
+ainet_generate_report | sv | Generate a report to the console.
+ainet_generate_report_only | sv | Generate a report to the console.
+animgraph2_enable_parallel_update | sv, cl, rep | Default: true<br>
+animgraph_debug_set_filter_params | sv, cl, rep | Default: <br>Comma separated list of params to filter against when drawing debug text overlays
+animgraph_debug_set_filter_tags | sv, cl, rep | Default: <br>Comma separated list of tags to filter against when drawing debug text overlays
+animgraph_enable_parallel_op_evaluation | sv, cl, rep | Default: false<br>
+animgraph_enable_parallel_preupdate | sv, cl, rep | Default: false<br>
+animgraph_enable_parallel_update | sv, cl, rep | Default: true<br>
+animgraph_parallel_postdataupdate | cl | Default: true<br>
+audio_enclosure_speed | sv, cl, rep | Default: 0.45<br>Adjusts rate of change for enclosure value over time.
+autosave_fully_async | sv | Default: true<br>Set to 1 to have autosaves execute completely on the save thread, forces 'render only' mode while the save completes
+battery_saver | a | Default: false<br>OBSOLETE replaced by mobile_frame_rate_* - Battery saver mode. 0=off, 1=on
+buildsparseshadowtree | cl | Build Sparse Shadow Tree
+cc_flush | cl | Flushes async'd captions.
+cc_showblocks | cl | Toggles showing which blocks are pending/loaded async.
+cc_vr_caption_speed | cl, a | Default: 1<br>0 = slow, 1 = medium (default), 2 = fast
+citadel_abrams_fastcharge_lagcomp | sv | Default: 0.15<br>
+citadel_action_refresh_interval | cl | Default: 0.1<br>
+citadel_ag2_controller_parallel_update_enabled | sv, cl, rep | Default: true<br>
+citadel_aim_debug_name_filter | sv, cl, rep | Default: <br>Enter space separated names of calls to DebugDrawAimTrace() to only draw them.
+citadel_aircontrol_speed_fast | sv, cl, rep, cheat | Default: 50<br>
+citadel_bot_brain_aim_inaccuracy_speed | sv, rep, release | Default: 0.01<br>How fast the inaccuracy moves - mimic mouse movement correction
+citadel_bot_brain_infrequent_tick_rate | sv, rep, release | Default: 60<br>
+citadel_bot_brain_move_max_fallback_path_length | sv, rep, release | Default: 1750<br>If a bot fails its (fast) flowmap check, how far should we allow the nav system to look when generating a fallback path? Keep this value lower for performance reasons
+citadel_bot_use_ability_rate | sv, rep, release | Default: -1<br>Interval in seconds that the bot attempts to use an ability
+citadel_botmatch_tick_rate_override | sv, cl, rep, release | Default: 32<br>
+citadel_brawl_hero_roster | cl, a, release | Default: <br>A comma separated list of hero IDs that hold the currently selected brawl roster heroes
+citadel_brawl_hero_roster_high_priority | cl, a, release | Default: <br>A comma separated list of hero IDs that hold the currently high priority brawl roster heroes
+citadel_brawl_hero_roster_preferred | cl, a, release | Default: <br>A comma separated list of hero IDs that hold the currently preferred brawl roster heroes
+citadel_bullet_time_warp_decay_speed | sv, cl, rep | Default: 1<br>How fast bullets return to their normal speed after exiting a time warp
+citadel_camera_parrot_smoothing_rate | cl | Default: 60<br>When the camera stops being clipped, smooth the motion back to the desired resting position.
+citadel_camera_soft_collision_multi_thread | cl | Default: 8<br>Experimental: Use Multithreaded implementation. 0: Use regular style. &gt; 0 number of jobs to chunk the 128 traces into. Power of 2 only, please. 8 is great.
+citadel_capture_point_enable_fast_capture | sv, cl, rep, cheat | Default: false<br>
+citadel_control_point_capture_rate_scale | sv, cl, rep | Default: 1<br>
+citadel_control_point_decay_rate | sv, cl, rep | Default: 0.1<br>
+citadel_control_point_max_capture_rate | sv, cl, rep | Default: 2<br>
+citadel_crate_client_notification_time | sv, cheat | Default: 30<br>
+citadel_crate_delivery_base_payoff | sv, cheat | Default: 0<br>
+citadel_crate_delivery_overtime_bonus | sv, cheat | Default: 50<br>
+citadel_crate_disable_early_spawn |  | 
+citadel_crate_early_spawn_delay |  | 
+citadel_crate_early_to_trooper_spawn_delay |  | 
+citadel_crate_respawn_interval | sv, cheat | Default: 300<br>
+citadel_crate_reward_base | sv | Default: 1300<br>
+citadel_crate_reward_time_multiplier | sv | Default: 230<br>
+citadel_crate_spawn_enabled | sv | Default: true<br>
+citadel_crate_spawn_initial_delay | sv, cheat | Default: 600<br>
+citadel_dev_simulate_mm_response | cl | Default: -1<br>Allows for forcing MM to act like it returned the specified error for UI testing
+citadel_disable_fast_cooldowns | sv, cheat | Disable fast cooldowns
+citadel_disable_fast_stamina | sv, cheat | Disable fast stamina
+citadel_enable_fast_cooldowns | sv, cheat | Enables fast cooldowns
+citadel_enable_fast_stamina | sv, cheat | Enables fast stamina
+citadel_enable_ping_rate_limiting | sv | Default: false<br>
+citadel_exonerate_account | cl, release | &lt;Account ID&gt; Clear recent cheat reports on this account.
+citadel_fibonacci_sphere_trace | sv, cheat | Draws the LOS check generated by our fibonacci sphere trace algorithm
+citadel_fly_accelerate | sv, cl, rep, cheat | Default: 2<br>
+citadel_force_resolution | cl | Force a resolution change even if it's not supported on your monitor. \[h\] \[w\] \[refresh rate\]
+citadel_guided_bot_match_hint_time_mult | cl, release | Default: 0.25<br>How much faster/slower to show hints in guided bot match mode
+citadel_hero_demo_enable_fast_stamina | sv, cl, a, rep, release | Default: false<br>Do we enable fast stamina cooldowns
+citadel_hero_roster | cl, a, release | Default: <br>A comma separated list of hero IDs that hold the currently selected roster heroes
+citadel_hero_roster_high_priority | cl, a, release | Default: <br>A comma separated list of hero IDs that hold the currently high priority roster heroes
+citadel_hero_roster_preferred | cl, a, release | Default: <br>A comma separated list of hero IDs that hold the currently preferred roster heroes
+citadel_hitbox_body_to_headshot_threshold | sv, cl, rep | Default: 15<br>Distance threshold that we allow bullet to penetrate body to headshot.
+citadel_item_draft_force_draw | sv | Default: <br>Comma-separated list of localized item names to force draft.  Ignores tier requirements.  ex, spirit lifesteal, extra charge
+citadel_item_pickup_fallrate | sv, cheat | Default: 5<br>
+citadel_match_data_allow_meta_prefix | sv | Default: <br>A comma separated list of prefixes that will allow for recording of track groups to the metadata file
+citadel_match_data_block_meta_prefix | sv | Default: <br>A comma separated list of prefixes that will block recording of track groups to the metadata file
+citadel_match_intro_duration_simple | sv, cheat | Default: 5<br>How long pre-match is until we start the match in the simple version.
+citadel_match_intro_style | sv, cl, rep | Default: 1<br>0 = none, 1 = pregame simple, 2 = pregame full, 3 = in map
+citadel_min_accel_speed | sv, cl, rep, cheat | Default: 400<br>How fast we accelerate depends on our move speed - this lower bound ensures it doesn't go below ground friction
+citadel_minimum_fire_rate | sv, cl, rep, cheat | Default: -50<br>Minimum value possible for fire rate
+citadel_npc_trooper_celebration_percent | sv | Default: 0.7<br>percent amount of troopers in the area to celebrate
+citadel_player_data_velocity_bucket_fast | sv | Default: 800<br>
+citadel_player_move_speed_scale | sv, cl, rep, cheat | Default: 1<br>Scales how fast players can move
+citadel_player_neutral_gold_fallrate | sv | Default: 300<br>
+citadel_pregame_fake_team_reveal_heroes_1 | cl | Default: <br>Comma separated hero names or hero ids for the team reveal screen.
+citadel_pregame_fake_team_reveal_heroes_2 | cl | Default: <br>Comma separated hero names or hero ids for the team reveal screen.
+citadel_replay_manager_download_simultaneous_requests | cl, a | Default: 3<br>
+citadel_secure_gold_rate | sv | Default: 1<br>
+citadel_send_gc_match_info_s | sv, cl, rep, release | Default: 30<br>Determines the rate that we should submit match info up to the GC, 0 disables this functionality
+citadel_spew_rate_limited_suppressed_sounds | sv, cl, rep | Default: false<br>
+citadel_ui_watch_active_game_refresh_s | cl, release | Default: 5<br>The number of seconds to wait between refreshes of the active matches while on the watch page
+citadel_unit_status_delta_decay_rate | cl | Default: 3<br>
+citadel_unit_status_old_update_rate | cl | Default: 30<br>How many times per second the unit status can update (0 = every frame).
+citadel_visibility_queue_rate | cl | Default: 2<br>
+citadel_wall_jump_fatigue_recovery | sv, cl, rep | Default: 1<br>Modifies how much we allow the wall jump fatigue to recover during other moves (i.e. heavy melee, air dash). 0.0 = Pause recovery totally. 1.0 = ignore and recover at the normal rate.
+citadel_weapon_normalize_recoil_with_firerate | sv, cl, rep, cheat | Default: true<br>Keep recoil constant even with fire rate changes.
+cl_async_client_shatter | cl | Default: true<br>spawn client glass shards asynchronously during demos or when remotely connected.
+cl_async_restore_server_authoritative_state | cl | Default: false<br>
+cl_async_usercmd_send |  | Default: false<br>
+cl_async_usercmd_send_recvmargin_min |  | Default: 1<br>Min size of the recv margin queue when async usercmd send is disabled
+cl_boxmove_speed | cl | Default: 1<br>how fast to run (1 to use player max run speed).
+cl_cameraoverride_shadow_depth_bias | cl | Default: 0.006<br>
+cl_cameraoverride_shadow_end | cl | Default: 0.8<br>
+cl_clock_buffer_ticks |  | Default: 1<br>Clock sync will try to maintain an additional margin of N ticks.  This is intended to smooth over packet loss, and is a replacement for cl_interp_ratio / cl_interp.  This value is simply added to cl_clock_recvmargin_desired
+cl_clock_recvmargin_adjust_limit_speedup |  | Default: 106<br>Clock sync will not speed up time faster than N%
+cl_draw_simulating_entities | cl, cheat | Default: false<br>
+cl_draw_simulating_entities_distance | cl | Default: false<br>
+cl_dump_projected_texture_count | cl | Print out number of active projected textures
+cl_fasttempentcollision | cl | Default: 20<br>
+cl_generate_postdataupdatepreserved |  | Default: true<br>Do we invoke PostDataUpdatePreserved callbacks for entities that had no changes but are still in the PVS?
+cl_globallight_shadow_mode | cl | Default: 0<br>
+cl_hud_telemetry_net_misdelivery_poor | cl, a, release | Default: 5<br>Packet delivery anomaly rate (0..100) higher than this is considered 'poor'.
+cl_interp | cl, release | Read the effective client simulation interpolation amount in terms of time.
+cl_interp_animationvars | cl | Default: true<br>Interpolate LATCH_ANIMATION_BIT vars if interpolation interval is greater than simulation interval
+cl_interp_parallel | cl | Default: true<br>Run interpolation in parallel for entities with no children.
+cl_interp_ratio | cl, user | Default: 0<br>Sets the client simulation interpolation amount, in terms of server updates (final amount is cl_interp_ratio / cl_updaterate).
+cl_interp_simulationvars | cl | Default: true<br>Interpolate LATCH_SIMULATION_BIT vars if interpolation interval is greater than animation interval
+cl_interp_threadmodeticks | cl | Default: 0<br>Additional interpolation ticks to use when interpolating with threaded engine mode set.
+cl_modifier_parallel_gather_status_effect_updates | cl, rep | Default: false<br>
+cl_parallel_readpacketentities |  | Default: true<br>Set to 1 to use threading snapshot reading (if game supports and server is sending bitcounts).
+cl_parallel_readpacketentities_threshold |  | Default: 4<br>Use parallel processing of snapshot reading if above this many entries.
+cl_particle_sim_fallback_base_multiplier |  | Default: 5<br>How aggressive the switch to fallbacks will be depending on how far over the cl_particle_sim_fallback_threshold_ms the sim time is.  Higher numbers are more aggressive.
+cl_particle_sim_fallback_threshold_ms |  | Default: 0<br>Amount of simulation time that can elapse before new systems start falling back to cheaper versions
+cl_particle_simulate | cheat | Default: true<br>Enables/Disables Particle Simulation
+cl_particles_dumpsimlist | cl | Dump all simulating particles, optional name substring.
+cl_phys_assume_fixed_tick_interval | cl | Default: true<br>If true, we assume the client uses a fixed tickrate like the server (which may not always be true). If false, we recalculate the number of physics substeps in each client tick based on the actual elapsed time in the tick.
+cl_phys_enabled | cl, cheat | Default: true<br>Enable all physics simulation
+cl_phys_list | cl | List all physics component contents of every entity in the game;<br>    -stream \[1\|0\]         initiate\|terminate streaming to physics debugger<br>    -allents              include non-physical entities<br>    -classes              print class names<br>    -sdk                  Rubikon-wide memory short status<br>    -sdk -struct          Rubikon-wide memory use per struct<br>    -sdk -rebuildsvms     Rubikon-wide SVM force rebuild and status<br>    -world                current state of the world<br>    -world -touch         list body pairs (bodies in contact)<br>    -world -save &lt;name&gt;   save world to a file<br>    -world -mem           memory dump (separately per game dll)<br>    -world -snapshots     Start/Stop dumping snapshots of the world into the current directory<br>    -world -agg           current aggregate data registry (loaded resources)<br>
+cl_precacheinfo |  | Show precache info (client).
+cl_pred_parallel_postnetwork | cl | Default: true<br>
+cl_predictioncopy_print | cl | Print simple description of prediction copy fields for entindex
+cl_printframe_rate | cl | Print information from cl_showframe_rate.
+cl_report_simthinklist | cl | Lists all simulating/thinking entities
+cl_resetframe_rate | cl | Reset information from cl_showframe_rate.
+cl_showframe_rate | cl, release | Default: 0<br>Draw frame_rate meter at top of screen (1 = frame_rate, 2 = smooth frame_rate, 3 = server MS, 4 = Show frame_rate and Log to file )
+cl_simulate_dormant_entities | cl | Default: true<br>
+cl_tickpacket_send_every_tick |  | Default: true<br>Send a network packet each time we generate a new usercommand, even if our frame rate is slow and we generate multiple commands in one frame
+cl_updaterate | cl, a, user | Default: 20<br>Number of packets per second of updates you are requesting from the server
+cl_usesocketsforloopback |  | Default: true<br>When connecting to local listen server (for example, using the 'map' command), default to loopback=false, which connects to '127.0.0.1' instead of 'loopback'.  This uses the network stack so that fake lag/loss can be simulated.
+cloth_sim_on_tick | cl | Default: false<br>
+cq_enable | sv, cl, rep | Default: true<br>Run one usercmd per server tick and maintain a buffer.  Client speeds up/slows down it's usercmd tick rate to maintain server command queue buffering.
+crash | cheat | Crash the client. Optional parameter -- type of crash:<br> 0: read from NULL<br> 1: write to NULL<br> 2: force an Assert<br> 3: infinite loop<br> 4: stack buffer overrun<br> 5: multiple asserts across multiple threads. Optional number of threads (default 5)<br> 6: looping memory leak until we're out of memory. Optional allocation size in bytes (default 1048576/1MB)
+crash_error | cheat | Cause the engine to crash by Plat_FatalError on main thread (Debug!!)
+crash_error_job | cheat | Cause the engine to crash by Plat_FatalError on job thread (Debug!!)
+crash_error_thread | cheat | Cause the engine to crash by Plat_FatalError on non-main thread (Debug!!)
+crash_job | cheat | Cause the engine to crash in a job thread (Debug!!)
+crash_thread | cheat | Cause the engine to crash in a brand new non-main thread (Debug!!)
+csm_cascade_viewdir_shadow_bias_scale | cheat | Default: 2<br>
+csm_max_num_cascades_override |  | Default: -1<br>Number of cascades in sunlight shadow
+csm_max_shadow_dist_override |  | Default: 0<br>
+csm_shadow_worldview_align_x_to_u | cheat | Default: false<br>
+csm_shadow_worldview_shear_align_z_to_v | cheat | Default: false<br>
+csm_sst_shadow_focus_region_maxz | cheat | Default: 2000<br>
+csm_sst_shadow_focus_region_minz | cheat | Default: -2000<br>
+csm_viewdir_shadow_bias | cheat | Default: 0<br>
+csm_viewmodel_max_shadow_dist | cheat | Default: 21<br>
+csm_viewmodel_shadows |  | Default: false<br>
+cv_collect_assert_stack_for_gc | sv, cl, rep | Default: false<br>When enabled and collecting asserts for the GC, this will generate stacks for the asserts
+debug_async_data_panel_override_state | cl | Default: -1<br>Force ALL async data panels to be in a specific state. -1:disabled, 0:failure, 1:loading, 2:success
+debug_physimpact | sv | Default: false<br>
+demo_usefastgoto |  | Default: true<br>Use fast frame skipping when available for demo_goto commands.
+demo_writefullupdate_rate |  | Default: 60<br>Interval time in seconds to write full updates to demo.
+dev_simulate_gcdown | cl | &lt;state&gt; Turn on/off simulated GC communications failure (GC is down in a way that we know it is down)
+dumpstringtable |  | Usage:  dumpstringtable &lt;tablename \|all&gt; &lt;sv \| cl&gt; &lt;verbose \| simple&gt; &lt;element&gt;      Print string tables to console, verbose to dump data, simple to show name and count only, can specifiy a single numeric element index to restrict spew.
+engine_accurate_input_processing_delta_time |  | Default: false<br>When true, elapsed time given to the input processing will be the time elapsed since the last input processing. This is only relevant when input is processed multiple times per frame ( i.e. multiple ticks per frame)
+engine_allow_multiple_simulates_per_frame |  | Default: false<br>When the client is catching up in low frame rate situations, should we run client simulate more than once a frame?
+engine_allow_multiple_ticks_per_frame |  | Default: true<br>When the client is catching up in low frame rate situations, should we run tick more than once a frame?
+engine_frametime_warnings_enable |  | Default: true<br>Enable framerate-related warnings, such as sv_long_frame_ms.  Disabling warnings is useful when running in situations such a debug where a slow frame rate is expected
+engine_low_latency_sleep_after_client_tick | release | Default: false<br>When r_low_latency is enabled, this moves the low latency sleep on tick frames to happen after client simulation.
+engine_max_ticks_to_simulate |  | Default: 33<br>Max number of ticks to simulate per frame, after which simulation will start to slow down compared to real time.
+engine_rendersystem_meets_min_dx_110_simple |  | Default: Unknown<br>Rendersystem meets min DX110 feature level (changing this does not change the shader model).
+exec_async | cheat, norecord | Execute a cfg file over time
+experimental_citadel_tick_rate_override | sv, cl, rep, release | Default: 0<br>
+explode | sv, cheat | Kills the player with explosive damage
+explodevector | sv, cheat | Kills a player applying an explosive force. Usage: explodevector &lt;player&gt; &lt;x value&gt; &lt;y value&gt; &lt;z value&gt;
+filter_player_simulation_time | sv, cl, rep | Default: true<br>
+fog_color | cl, cheat | Default: -1 -1 -1<br>
+fog_colorskybox | cl, cheat | Default: -1 -1 -1<br>
+fog_enable | cl, cheat | Default: true<br>Enable fog
+fog_enableskybox | cl, cheat | Default: true<br>
+fog_end | cl, cheat | Default: -1<br>
+fog_endskybox | cl, cheat | Default: -1<br>
+fog_hdrcolorscale | cl, cheat | Default: -1<br>
+fog_hdrcolorscaleskybox | cl, cheat | Default: -1<br>
+fog_maxdensity | cl, cheat | Default: -1<br>
+fog_maxdensityskybox | cl, cheat | Default: -1<br>
+fog_override | cl, cheat | Default: 0<br>Overrides the map's fog settings (-1 populates fog_ vars with map's values)
+fog_override_color | cheat | Sets the fog color override
+fog_override_enable | cheat | Default: false<br>Use fog_override convars instead of world fog data
+fog_override_end | cheat | Default: 3500<br>
+fog_override_exponent | cheat | Default: 2<br>
+fog_override_max_density | cheat | Default: 0.4<br>
+fog_override_start | cheat | Default: 1000<br>
+fog_start | cl, cheat | Default: -1<br>
+fog_startskybox | cl, cheat | Default: -1<br>
+fog_volume_debug | sv | Default: false<br>If enabled, prints diagnostic information about the current fog volume
+frame_rate_max | a, release | Default: 400<br>Frame rate limiter.  0=no limit.  Does not apply to dedicated server.
+frame_rate_max_tools | a | Default: 120<br>Additional frame rate limit while in tools mode and a window other than the game window has focus. Note that frame_rate_max still applies, this only allows the maximum frame rate for tools mode to be lower. 0=no tools specific limit.
+frame_rate_max_ui | a | Default: 120<br>Frame rate limiter while the game UI is displayed.  0=no limit.  Does not apply to dedicated server.
+freecamera_fog_end | cl | Default: 2500<br>Fog end for Free Camera.
+freecamera_fog_start | cl | Default: 1800<br>Fog start for Free Camera.
+fs_async_threads |  | Default: -1<br>Number of IO threads in async filesystem (-1 == auto)
+fs_fake_read_delay_ms | release | Default: 0<br>Add N ms of delay to every low-level read operation, to simulate a slow disk
+fs_report_async_io |  | Default: false<br>
+fs_warning_mode |  | Default: 0<br>0:Off, 1:Warn main thread, 2:Warn other threads
+func_mover_async_movable_navmesh_updates | sv | Default: true<br>
+gameinstructor_start_sound_cooldown | cl | Default: 4<br>Number of seconds forced between similar lesson start sounds.
+generate_minidump_comment |  | Generate a minidump comment and spew the results to the console
+generate_null_container |  | Generated a nulled out container.
+generate_trash_synth |  | Args: \[Asset directory Path\]
+hairsim_force_fixed_timestep | cheat | Default: true<br>
+hairsim_reset | cheat | Default: false<br>
+host_framerate | release | Default: 0<br>Set to lock per-frame time elapse.
+hud_fastswitch | cl, a | Default: 0<br>
+iv_parallel_latch | cl | Default: true<br>
+iv_parallel_restore | cl | Default: false<br>
+iv_wrapped_parallel_latch | cl | Default: true<br>
+kelvin_ice_path_health | sv, cl, rep | Default: 21<br>Normalized against base firerate, 100 is 1 second
+lb_allow_shadow_rotation | cheat | Default: true<br>SceneSystem/LightBinner/Shadow Rotation
+lb_allow_time_sliced_shadow_map_rendering |  | Default: true<br>Allow time-sliced shadow buffer rendering when enabled via gameinfo.gi
+lb_barnlight_shadow_use_precomputed_vis |  | Default: true<br>
+lb_barnlight_shadowmap_scale | release | Default: 0.5<br>Scale for computed barnlight shadowmap size
+lb_csm_receiver_plane_depth_bias |  | Default: 2e-05<br>Shader depth bias applied to shadow receiver (Note this conflicts with renderstate depth bias, both now default to 0)
+lb_csm_receiver_plane_depth_bias_transmissive_backface |  | Default: 0.0002<br>Depth bias applied to shadow receiver for transmissive backface geo (based on renderstate depthbias being 0)
+lb_debug_shadow_atlas | cheat | Default: false<br>SceneSystem/LightBinner/Debug Shadow Atlas
+lb_debug_shadowtile_atlas | cheat | Default: false<br>SceneSystem/LightBinner/Debug ShadowTile Atlas
+lb_debug_visualize_fog_shadowed_lights | cheat | Default: 0<br>SceneSystem/LightBinner/Debug Visualize Fog Shadowed Lights
+lb_debug_visualize_shadowed_light_details | cheat | Default: false<br>
+lb_debug_visualize_shadowed_lights | cheat | Default: 0<br>SceneSystem/LightBinner/Debug Visualize Shadowed Lights
+lb_dynamic_shadow_penumbra |  | Default: true<br>Adjust shadow penumbra based on light size
+lb_dynamic_shadow_resolution |  | Default: true<br>Dynamically adjust shadow resolution
+lb_dynamic_shadow_resolution_base |  | Default: 256<br>Base resolution for dynamic shadowmap sizing.  Shadowmap size of a screen sized light
+lb_dynamic_shadow_resolution_base_cmp_shadowmapsize | cheat | Default: false<br>take min of lb_dynamic_shadow_resolution and barnlight shadowmapsize as base shadowmapsize
+lb_dynamic_shadow_resolution_delay |  | Default: 0.85<br>Update delay for shadow size
+lb_dynamic_shadow_resolution_hysteresis |  | Default: 0.33<br>Update hysteresis for shadow size
+lb_dynamic_shadow_resolution_quantization |  | Default: 64<br>Quantization of dynamically computed shadow size
+lb_enable_baked_shadows | cheat | Default: true<br>SceneSystem/LightBinner/Enable Baked Shadows
+lb_enable_fog_mixed_shadows | cheat | Default: false<br>SceneSystem/LightBinner/Enable Fog Mixed Shadows
+lb_enable_shadow_casting |  | Default: false<br>Allow stationary/dynamic lights to cast shadows.
+lb_mixed_shadows | cheat | Default: true<br>SceneSystem/LightBinner/Enable Mixed Shadows
+lb_override_barn_light_shadow_fade_sizes | cheat | Default: 0.1 0.05<br>
+lb_precomputed_shadowmap_depth_bias |  | Default: 0.0001<br>
+lb_precomputed_shadowmap_enable |  | Default: true<br>
+lb_shadow_map_cull_empty_mixed | cheat | Default: false<br>Don't render shadows for mixed shadowmaps with no dynamics objects in view
+lb_shadow_map_culling | cheat | Default: true<br>
+lb_shadow_texture_height_override |  | Default: -1<br>Override height of shadow atlas texture
+lb_shadow_texture_width_override |  | Default: -1<br>Override width of shadow atlas texture
+lb_sun_csm_size_cull_threshold_texels |  | Default: 30<br>Size, in texels, where we will cull an object in the shadowmap
+lb_timesliced_shadows_dynamic_size |  | Default: true<br>
+mat_async_shader_load | release | Default: false<br>
+mat_depthbias_shadowmap | cl | Default: 0.0005<br>
+mat_print_textures |  | Print loaded textures in alphabetical order. Takes an optional substring as an argument.
+mat_print_textures_size |  | Print loaded textures in ascending size order. Takes an optional substring as an argument.
+mat_print_textures_size_in_memory |  | Print loaded textures in ascending size order as they are in memory. Takes an optional substring as an argument.
+mat_shadowmap_luxels | cheat | Default: false<br>
+mat_slopescaledepthbias_shadowmap | cl | Default: 4<br>
+mat_tonemap_force_accelerate_exposure_down | cheat | Default: -1<br>
+mat_tonemap_force_rate | cheat | Default: -1<br>
+minimap_update_rate_hz | sv, release | Default: 30<br>
+mobile_frame_rate_increase_during_charging | a | Default: false<br>MOBILE_frame_rate_CONTROL: If true we increase framerate limit while charging
+mobile_frame_rate_increase_during_hfr_animations |  | Default: true<br>MOBILE_frame_rate_CONTROL: If true we increase framerate limit during HFR-tagged animations and transitions.
+mobile_frame_rate_increase_during_touch | a | Default: true<br>MOBILE_frame_rate_CONTROL: If true we increase framerate limit during touch
+mobile_frame_rate_limit | a | Default: 30<br>MOBILE_frame_rate_CONTROL: Mobile frame_rate limit - 15, 30, 60
+nav_gen_oriented_angle_tol | sv, cheat | Default: 15<br>Max abrupt orientation difference an NPC can tolerate when moving through the mesh (degrees).
+nav_obstruction_async_update | sv | Default: false<br>
+nav_pathfind_multithread | sv, cheat | Default: false<br>
+nav_test_bfs_lattice_hex | sv, cheat | Default: false<br>Demonstrates searching hexagonal lattice over nav mesh.
+nav_test_bfs_lattice_simple | sv, cheat | Default: false<br>
+nav_test_bfs_simple | sv, cheat | Default: false<br>
+nav_test_find_random_connected | sv, cheat | Default: false<br>Demonstrates finding random points that are connected in the nav mesh to the start point.
+navlocal_parallel_trace_path_for_obstacle | sv | Default: true<br>
+net_async_clientconnect |  | Default: true<br>Enable async client connect optimization
+net_async_job_random_sleep |  | Default: 0<br>Sleep randomly 0..net_async_job_random_sleep ms in the parallel server jobs; sleep is per job
+net_captureculldata |  | Captures low-level data to replay path culling algorithm behavior in controlled unit test environment
+net_culloptimization |  | Default: true<br>Enable optimization of slow path that makes HLTV CPU consumption high in AnimGraph-using mods. Will switch to this on by default soon.
+net_fakeclear | release | Clear all simulated network conditions
+net_fakestatus | release | Print current simulated network condifions
+net_use_delta_property_fastpath |  | Default: 1<br>
+panorama_allow_texture_composition_layer_fast_path |  | Default: true<br>
+panorama_async_compute_mipgen | cl | Default: true<br>use asynchronous compute for mipmap generation.
+panorama_box_shadow_no_comp_layer |  | Default: true<br>
+panorama_disable_box_shadow |  | Default: true<br>
+panorama_disable_draw_text_shadow |  | Default: false<br>
+panorama_generate_layout_xsd |  | Generate the Layout XML Schema Definition for the current run-time (types are dependent on which game DLL is running).
+panorama_hsbc_through_fast_path |  | Default: true<br>
+panorama_max_frame_rate |  | Default: 60<br>
+panorama_max_oof_overlay_up_frame_rate |  | Default: 4<br>
+panorama_max_overlay_frame_rate |  | Default: 30<br>
+panorama_max_text_shadow_strength |  | Default: 10<br>
+panorama_movie_async_load_size_bytes | cl | Default: 20971520<br>
+panorama_show_frame_rate |  | Default: false<br>
+panorama_show_frame_rate_scale |  | Default: 1<br>
+panorama_simple_borders_no_comp_layer |  | Default: true<br>
+panorama_spew_async_event_substring |  | Default: <br>If non-empty, print debug info about async event queue and dispatch behavior for events containing the substring.
+panorama_transition_time_factor |  | Default: 1<br>A float representing a scale factor for transitions. 1.0 is normal, 2.0 would be twice as fast as normal, 0.5 half as fast
+panorama_worldpanel_update_cull_distance | cl | Default: 1000<br>
+panorama_worldpanel_update_cull_size_threshold | cl | Default: 5<br>
+panorama_worldpanel_update_culling | cl | Default: false<br>
+parallel_perform_invalidate_physics | sv, cl, rep | Default: false<br>
+parallel_update_surrounding_bounds_in_spatial_partition_update | sv, cl, rep | Default: false<br>
+particle_powsimd_random_range_exp |  | Default: true<br>
+phys_cull_internal_mesh_contacts | rep | Default: false<br>
+phys_list | sv | List all physics component contents of every entity in the game;<br>    -stream \[1\|0\]         initiate\|terminate streaming to physics debugger<br>    -allents              include non-physical entities<br>    -classes              print class names<br>    -sdk                  Rubikon-wide memory short status<br>    -sdk -struct          Rubikon-wide memory use per struct<br>    -sdk -rebuildsvms     Rubikon-wide SVM force rebuild and status<br>    -world                current state of the world<br>    -world -touch         list body pairs (bodies in contact)<br>    -world -save &lt;name&gt;   save world to a file<br>    -world -mem           memory dump (separately per game dll)<br>    -world -snapshots     Start/Stop dumping snapshots of the world into the current directory<br>    -world -agg           current aggregate data registry (loaded resources)<br>
+phys_multithreading_enabled | sv, cl, rep | Default: true<br>Enable/Disable Multithreading in VPhysics
+phys_step_threaded |  | Default: true<br>
+phys_threaded_cloth_bone_update | sv, cl, rep | Default: false<br>
+phys_threaded_kinematic_bone_update | sv, cl, rep | Default: false<br>
+phys_threaded_transform_update | sv, cl, rep | Default: false<br>
+r_aoproxy_cull_dist |  | Default: 12<br>Distance to cull the AO proxy as a factor of size
+r_async_compute_fog | cl | Default: false<br>
+r_async_shader_compile_notify_frequency |  | Default: 10<br>
+r_character_decal_resolution |  | Default: 1<br>Resolution of character decal texture.
+r_citadel_depth_prepass_cull_threshold | cl | Default: 60<br>
+r_citadel_distancefield_max_distance | cl | Default: 2048<br>Maximum distance before culling
+r_citadel_distancefield_min_screen_space_size | cl | Default: 0.015<br>Minimum screen space size before culling
+r_citadel_distancefield_shadows | cl | Default: true<br>
+r_citadel_fog_quality | cl | Default: 1<br>Fog Quality
+r_citadel_gpu_culling | cl | Default: true<br>Citadel/Graphics/GPU Culling
+r_citadel_gpu_culling_shadows | cl | Default: true<br>Citadel/Graphics/GPU Cull Shadow Views
+r_citadel_gpu_culling_two_pass | cl | Default: true<br>Citadel/Graphics/GPU Culling (Two Pass)
+r_citadel_gpu_preview_baked_shadows | cl | Default: true<br>
+r_citadel_gpu_preview_denoise_shadow_passes | cl | Default: 1<br>
+r_citadel_shadow_caching | cl | Default: true<br>
+r_citadel_shadow_caching_stats | cl | Print information about shadow caching
+r_citadel_shadow_quality | cl | Default: 1<br>Shadow Quality
+r_citadel_shadowdb | cl | Default: 2048<br>
+r_citadel_sun_shadow_slope_scale_depth_bias | cl | Default: 1<br>
+r_enable_cubemap_fog | cl | Default: false<br>Citadel/Graphics/Fog/Enable Cubemap Fog
+r_enable_gradient_fog | cl | Default: false<br>Citadel/Graphics/Fog/Enable Gradient Fog
+r_enable_volume_fog | cl | Default: false<br>Citadel/Graphics/Fog/Enable Volume Fog
+r_fallback_texture_lod_scale | cheat | Default: 2<br>Scale factor for requested texture size (texture streaming) - used for geo that doesn't have a precomputed UV density measure
+r_farz | cl, cheat | Default: -1<br>Override the far clipping plane. -1 means to use the value in env_fog_controller.
+r_flashlightshadowatten | cl, cheat | Default: 0.35<br>
+r_freezeparticles | cheat | Default: false<br>Pause particle simulation
+r_hair_shadowtile |  | Default: true<br>
+r_haircull_percent | cheat | Default: -1<br>
+r_legacy_vsync |  | Default: false<br>Use legacy vsync mode -- for testing for a couple user machines.
+r_max_texture_pool_size |  | Default: 0<br>Upper limit on texture pool size.
+r_mixed_shadows_fade_in_time | sv, cl, rep | Default: 0.5<br>
+r_mixed_shadows_fade_out_time | sv, cl, rep | Default: 0.5<br>
+r_particle_cables_cast_shadows |  | Default: false<br>
+r_particle_cables_culling |  | Default: 1<br>
+r_particle_cables_culling_bounds_scale |  | Default: 1.2<br>
+r_particle_debug_force_simulation |  | Default: 0<br>-1 for all asleep, 1 for all awake
+r_particle_enable_fastpath |  | Default: true<br>
+r_particle_gpu_implicit_cull_columns |  | Default: true<br>
+r_particle_max_size_cull |  | Default: 800<br>Particle systems larger than this in every dimension skip culling to save CPU.  They will be drawn anyway.
+r_particle_max_texture_layers |  | Default: -1<br>
+r_particle_min_timestep |  | Default: 0<br>A minimum on particle simulation time, particle simulation happening more frequently than this will lerp.
+r_particle_model_per_thread_count |  | Default: 32<br>
+r_particle_render_refreshes_sleep_timer |  | Default: true<br>Disable to get a better look at what's happening offscreen
+r_particle_skip_postsim |  | Default: false<br>
+r_particles_memset_at_init |  | Default: 1<br>0=don't clear particle attrs at init 1=clear to zero 2=clear to 0xdb -1=clear to zero at first sim
+r_pipeline_stats_flush_before_sleeping |  | Default: false<br>Experimental: Set to 1 to enable GPU pipeline flushes right before the render thread sleeps to wait for more work.
+r_print_texture_stats |  | Texture stats
+r_renderdoc_auto_shader_pdbs |  | Default: true<br>Automatically generate shader debug info on capture
+r_shadows | cheat | Default: false<br>
+r_shadowtile_waveops |  | Default: false<br>
+r_showsunshadowdebugrendertargets | cheat | Default: false<br>Set to render sun shadow render targets
+r_showsunshadowdebugsplitvis | cheat | Default: false<br>Set to render sun shadow split visibility debugger
+r_size_cull_threshold |  | Default: 1.2<br>Threshold of screen size percentage below which objects get culled
+r_size_cull_threshold_fade |  | Default: 0<br>% above the screen size percentage where we will start fading out (==0 will disable fading).
+r_size_cull_threshold_shadow | cheat | Default: 100<br>Threshold of shadow map size percentage below which objects get culled
+r_skip_precache_validation_check |  | Default: false<br>
+r_texture_budget_dynamic |  | Default: true<br>Dynamically adjust texture streaming budget based on GPU memory usage.
+r_texture_budget_threshold |  | Default: 0.9<br>Reduce texture memory pool size when this percentage of the budget is full.
+r_texture_budget_update_period |  | Default: 0.1<br>Time (in seconds) between updating texture memory budget.
+r_texture_eager_eviction |  | Default: false<br>
+r_texture_hookup_uses_threadpool |  | Default: true<br>Async Texture hookup uses its own threadpool instead of the global pool.
+r_texture_lod_scale | cheat | Default: 1<br>Scale factor for requested texture size (texture streaming)
+r_texture_nonstreaming_load |  | Default: true<br>Allow immediately loading mips of textures (when possible) when their headers are loaded, saving IO & reducing latency.
+r_texture_pool_increase_rate |  | Default: 64<br>Increase texture memory pool size by this many MB / s when under budget.
+r_texture_pool_reduce_rate |  | Default: 256<br>Reduce texture memory pool size by this many MB / s when over budget.
+r_texture_pool_size |  | Default: 1600<br>Total size of the texture pool in MB
+r_texture_stream_max_resolution |  | Default: 2147483647<br>Maximum resolution for top mip level in streaming textures
+r_texture_stream_mip_bias |  | Default: 0<br>Biases the mip level the texture streaming system choses to stream for each texture.
+r_texture_stream_resolution_bias |  | Default: 1<br>
+r_texture_stream_resolution_bias_decrease_rate |  | Default: 0.1<br>
+r_texture_stream_resolution_bias_increase_rate |  | Default: 0.05<br>
+r_texture_stream_resolution_bias_min |  | Default: 1<br>
+r_texture_stream_resolution_bias_update_period |  | Default: 0.5<br>
+r_texture_stream_throttle_amount |  | Default: 10<br>
+r_texture_stream_throttle_count |  | Default: 3<br>
+r_texture_stream_throttle_count_over_budget |  | Default: 1<br>
+r_texture_streaming_timesliced |  | Default: true<br>
+r_texture_streamout_unthrottle_ms |  | Default: 0.2<br>After hitting throttling limits for streamout, allow it to continue up to this number of milliseconds.
+r_texturefilteringquality |  | Default: 0<br>0: Bilinear, 1: Trilinear, 2: Aniso 2x, 3: Aniso 4x, 4: Aniso 8x, 5: Aniso 16x
+r_textures_evict_all |  | Evict all resident texture.
+r_threaded_particle_creation |  | Default: true<br>
+r_threaded_particles |  | Default: true<br>
+r_threaded_scene_object_update | cl | Default: true<br>
+r_use_memory_budget_model |  | Default: false<br>Use a model of GPU memory use to determine budget rather than querying the OS.
+r_validate_texture_streaming |  | Default: false<br>Dumps state of texture streaming at the next frame boundary.
+ragdoll_parallel_pose_control | sv, cl, rep | Default: false<br>
+rate | a, user | Default: 786432<br>Min bytes/sec the host can receive data
+report_cliententitysim | cl, cheat | Default: false<br>List all clientside simulations and time - will report and turn itself off.
+report_simthinklist | sv | Lists all simulating/thinking entities
+rr_debugresponses | sv, cl, rep | Default: 0<br>Show verbose matching output (1 for simple, 2 for rule scoring, 3 for noisy). If set to 4, it will only show response success/failure for npc_selected NPCs.
+rtx_texture_resolution |  | Default: 512<br>Sets the texture resolution the raytracer will mark to stream in
+run_voicecontainer_async |  | Default: false<br>
+save_async | sv | Default: true<br>
+save_fake_hitch | sv | Default: 0<br>Force a busy wait for the specified number of milliseconds during save to simulate a hitch
+save_finish_async | sv | 
+save_parallel | sv, cl, rep | Default: false<br>
+sc_aggregate_gpu_culling |  | Default: true<br>Toggles GPU culling of aggregate meshes
+sc_aggregate_gpu_culling_conservative_bounds |  | Default: false<br>
+sc_aggregate_gpu_culling_show_culled |  | Default: false<br>SceneSystem/Aggregates/Show GPU Culled Meshes
+sc_aggregate_gpu_occlusion_culling |  | Default: true<br>
+sc_aggregate_gpu_vis_culling |  | Default: true<br>
+sc_allow_dithered_lod |  | Default: true<br>Allow use of dithered lod transitions
+sc_clutter_density_full_size |  | Default: 0.0075<br>Screen-size where clutter will be full density
+sc_clutter_density_none_size |  | Default: 0.0035<br>Screen-size where clutter will be gone
+sc_clutter_desity_override |  | Default: false<br>
+sc_clutter_enable |  | Default: true<br>SceneSystem/Clutter/Draw Clutter
+sc_disable_culling_boxes | cheat | Default: false<br>
+sc_disable_shadow_fastpath | cheat | Default: false<br>
+sc_disable_spotlight_shadows | cheat | Default: true<br>
+sc_dithered_lod_transition_amt |  | Default: 0.075<br>Percentage of the transition between two lods we will apply a dither
+sc_force_lod_level | cheat | Default: -1<br>
+sc_instanced_gpu_culling_show_culled |  | Default: false<br>SceneSystem/Instanced/Show GPU Culled Meshlets
+sc_instanced_mesh_gpu_culling |  | Default: true<br>Toggles GPU culling of instanced meshes
+sc_instanced_mesh_gpu_density_culling |  | Default: true<br>Toggles density culling (if enabled)
+sc_instanced_mesh_gpu_occlusion_culling |  | Default: true<br>Toggles GPU occlusion of instanced meshes
+sc_instanced_mesh_gpu_vis_culling |  | Default: true<br>Toggles GPU vis of instanced meshes
+sc_instanced_mesh_lod_bias |  | Default: 10<br>Bias for LOD selection of instanced meshes
+sc_instanced_mesh_lod_bias_shadow |  | Default: 10<br>Bias for LOD selection of instanced meshes in shadowmaps
+sc_instanced_mesh_size_cull_bias |  | Default: 10<br>Bias for size culling of instanced meshes
+sc_instanced_mesh_size_cull_bias_shadow |  | Default: 10<br>Bias for size culling instanced meshes in shadowmaps
+sc_mesh_backface_culling |  | Default: true<br>
+sc_no_cull |  | Default: false<br>
+sc_only_render_shadowcasters | cheat | Default: false<br>
+sc_screen_size_lod_scale_override | cheat | Default: -1<br>
+sc_shadow_depth_bias |  | Default: 256<br>
+sc_shadow_depth_bias_clamp |  | Default: 0<br>
+sc_shadow_depth_bias_state_override |  | Default: false<br>
+sc_shadow_slopescale_depth_bias |  | Default: 2.13<br>
+sc_show_texture_visualizer | cheat | Default: false<br>SceneSystem/Texture Visualizer
+shadowcachedebugger_showdebugwindow | cl, a, rep, cheat | Default: false<br>Citadel/Graphics/Shadow Cache Debugger
+skeleton_instance_lod_optimization | sv, cl, rep | Default: true<br>Compute LOD mask internally like since 2016, i.e. force all LOD groups' bones to compute
+snd_async_flush |  | Flush all unlocked async audio data
+snd_async_showmem |  | Show async memory stats
+snd_async_showmem_music |  | Show async memory stats for just non-streamed music
+snd_async_showmem_summary |  | Show brief async memory stats
+snd_async_spew_blocking |  | Default: 0<br>Spew message to console any time async sound loading blocks on file i/o.
+snd_boxverb_simd |  | Default: true<br>Enable SIMD code path for shoebox reverb processor.
+snd_boxverb_simd_svf |  | Default: 1<br>0 = use biquad instead of svf, 1 = use vectorized svf, 2 = use scalar svf
+snd_diffusor_simd |  | Default: false<br>Enable SIMD code path for diffusor processor.
+snd_envelope_rate | cheat | Default: 100<br>
+snd_mix_async | cheat | Default: true<br>
+snd_opvar_set_point_update_interval_fast | sv, cl, rep | Default: 0.0333<br>
+snd_sos_hide_simple_parameter_overwrite_warnings |  | Default: true<br>
+snd_sos_print_frame_rate | cheat | Default: false<br>
+snd_soundmixer_update_maximum_frame_rate | cheat | Default: 0<br>
+snd_steamaudio_halton_sequence | cheat | Generate Halton Sequence for a given order and number of samples.
+snd_steamaudio_max_convolution_sources | cheat | Default: 4<br>The maximum number of simultaneous sources that can be modeled by Steam Audio.
+snd_steamaudio_num_threads | cheat | Default: 2<br>Sets the number of threads used for realtime reflection by Steam Audio.
+snd_steamaudio_pathing_order | cheat | Default: 1<br>The amount of directional detail in the simulated by Steam Audio.
+snd_steamaudio_reverb_order |  | Default: 1<br>Ambisonics order to use for simulating reverb.
+snd_steamaudio_reverb_update_rate |  | Default: 10<br>Set the maximum update rate (in Hz) for reverb.
+snd_steamaudio_source_pathing_debug_duration |  | Default: 0.01<br>Duration for which path remains visible. Should be close to update rate of the sound operator stack.
+soundsystem_update_async |  | Default: true<br>
+sparseshadowtree_cascade_mask |  | Default: 4<br>Bitfield describing which cascades to generate/use SST for. (OR'd 1UL&lt;&lt;cascadeIndex, default is 1UL&lt;&lt;2 only, i.e. just cascade 2)
+sparseshadowtree_copy_to_shadow_atlas_ps |  | Default: true<br>Copy layer from CS output to shadow atlas uses PS copy (vs CopyTexture).
+sparseshadowtree_cs_debug_colors |  | Default: false<br>Output debug colors for SST CS.
+sparseshadowtree_cs_exclude_next_cascade_region |  | Default: true<br>Exclude the inner region of a cascade during CS unpack if there is a higher resolution cascade that will cover that area.
+sparseshadowtree_cs_unpack_mode |  | Default: 1<br>Unpack mode in cs, 0 - one leaf per thread (16 output pixels), 1 (default) - one leaf row per thread (4 output pixels), 2 - one pixel out per thread.
+sparseshadowtree_debug_tile_range_xmax |  | Default: 1<br>SST Tile range for renderdoc/debug capturing.
+sparseshadowtree_debug_tile_range_xmin |  | Default: 0<br>SST Tile range for renderdoc/debug capturing.
+sparseshadowtree_debug_tile_range_ymax |  | Default: 1<br>SST Tile range for renderdoc/debug capturing.
+sparseshadowtree_debug_tile_range_ymin |  | Default: 0<br>SST Tile range for renderdoc/debug capturing.
+sparseshadowtree_disable_add_layers |  | Default: false<br>Disable SST runtime layers, for debugging (will exclude geo that CAN render into SST if SST otherwise enabled)
+sparseshadowtree_disable_for_viewmodel |  | Default: true<br>Disable SST generation and runtime for viewmodel (use original CSM rendering).
+sparseshadowtree_enable_rendering |  | Default: false<br>Enable use of SST at runtime (static geo rendered into cascades via SST).
+sparseshadowtree_leaf_compress_scaleoffset |  | Default: true<br>Compress leaf node depths using scale & offset.
+sparseshadowtree_leaf_precision |  | Default: 0.0004<br>precision for depth compression at SST leaf nodes.
+sparseshadowtree_leaf_precision_viewmodel |  | Default: 0.0005<br>(viewmodel) precision for depth compression at SST leaf nodes.
+sparseshadowtree_parallel_generation |  | Default: 2<br>Split SST tile generation into threadjobs (0 - disabled, 1 - wait on readpixels for job batch, 2 - async readpixels).
+sparseshadowtree_plane_incr_per_step |  | Default: 0.0001<br>depth to increment candidate plane values per iteration to satisfy selection.
+sparseshadowtree_plane_incr_per_step_viewmodel |  | Default: 0.0025<br>(viewmodel) depth to increment candidate plane values per iteration to satisfy selection.
+sparseshadowtree_plane_max_error |  | Default: 0.0004<br>max error (distance away in depth) candidate plane is allowed before rejecting.
+sparseshadowtree_plane_max_error_viewmodel |  | Default: 0.01<br>(viewmodel) max error (distance away in depth) candidate plane is allowed before rejecting.
+sparseshadowtree_plane_num_iter |  | Default: 5<br>number of steps to push candidate plane behind depths.
+sparseshadowtree_render_cables |  | Default: false<br>Render cables into SST.
+sparseshadowtree_renderdoc_capture_generation |  | Default: false<br>Capture dual shadow maps during sparseshadowtree generation.
+sparseshadowtree_unpack_direct_to_shadow_atlas |  | Default: false<br>unpack SST directly into shadow atlas cascade vs via staging texture PS copy (NOTE - rendersystem fix reqd for AMD + driver fix required for NV + VK only.
+sparseshadowtree_uv_frac_offset_x |  | Default: 0<br>uv x offset during copy to cascade.
+sparseshadowtree_uv_frac_offset_y |  | Default: 0<br>uv y offset during copy to cascade.
+spec_replay_on_death | rep, release | Default: false<br>When &gt; 0, sets the mode whereas players see delayed replay, and are segregated into a domain of chat and voice separate from the alive players
+spec_replay_rate_base | rep, release | Default: 1<br>Base time scale of Killer Replay.Experimental.
+spec_replay_rate_limit | rep, release | Default: 3<br>Minimum allowable pause between replay requests in seconds
+spec_replay_rate_slowdown | cl | Default: 1<br>The part of Killer Replay right before death is played at this rate
+spec_replay_rate_slowdown_length | cl | Default: 0.5<br>The part of Killer Replay right before death is played at this rate
+sv_accelerate | sv, cl, nf, rep, release | Default: 10<br>
+sv_ag2_low_skel_lod | sv | Default: false<br>
+sv_airaccelerate | sv, cl, nf, rep, release | Default: 10<br>
+sv_bounce | sv, cl, nf, rep, release | Default: 0<br>Bounce multiplier for when physically simulated objects collide with other objects.
+sv_clientrates |  | Show client rates.
+sv_dev_simulate_gcdown | sv | &lt;state&gt; Turn on/off simulated GC communications failure (GC is down in a way that we know it is down)
+sv_enable_delta_packing | release | Default: true<br>When enabled, this allows for entity packing to use the property changes for building up the data. This is many times faster, but can be disabled for error checking.
+sv_frame_rate_max |  | Default: 0<br>Dedicated server frame rate limiter. 0=tick rate. Only applies to the dedicated server.
+sv_maxrate | rep, release | Default: 0<br>Max bandwidth rate allowed on server, 0 == unlimited
+sv_maxupdaterate | sv, cl, rep, release | Default: 60<br>Maximum updates per second that the server will allow
+sv_minrate | rep, release | Default: 98304<br>Min bandwidth rate allowed on server, 0 == unlimited
+sv_minupdaterate | sv, cl, rep, release | Default: 10<br>Minimum updates per second that the server will allow
+sv_noclipaccelerate | sv, cl, a, nf, rep | Default: 5<br>
+sv_parallel_checktransmit | sv, release | Default: 0<br>Set to 1 to use threaded checkentities for transmit/pvs on listen servers, 2 for dedicated servers.
+sv_parallel_packentities | release | Default: 2<br>Set to 1 to use threaded snapshot sending on listen servers, 2 for dedicated servers.
+sv_parallel_prepare_client_updates |  | Default: false<br>
+sv_parallel_sendsnapshot | release | Default: 2<br>0: run all send jobs on main thread; 1: send jobs run asynchronously (except on dedicated server); 2: send jobs asynchronously; 3: send jobs run in parallel but block to not overlap the next tick; 4: main server clients' send jobs run in parallel, then HLTV server jobs; this approximately matches pre-async profile for a single HLTV server configuration
+sv_phys_async_buoyancy_update | sv, rep | Default: false<br>If true, server buoyancy motion controllers are updated in an async job after the tick has completed.
+sv_phys_enabled | sv, cheat | Default: true<br>Enable all physics simulation
+sv_pvs_shadows_include_env | sv, rep, release | Default: false<br>
+sv_recipients_check | release | Default: true<br>When packing entities, check that recipient bits match for fast path packing.
+sv_skyname | sv, cl, a, rep | Default: sky_urb01<br>Current name of the skybox texture
+sv_specaccelerate | sv, cl, a, nf, rep | Default: 5<br>
+sv_tags | nf, release | Default: <br>Server tags. Used to provide extra information to clients when they're browsing for servers. Separate tags with a comma.
+sv_tick_parallel_with_client |  | Default: false<br>Runs the final server tick of the frame in parallel with client work
+sv_wateraccelerate | sv, cl, nf, rep, release | Default: 10<br>
+test_shipping_assert | release | Generate an assert to test shipping assertion code
+thread_pool_option | release | Default: -1<br>Thread pool option
+tv_instant_replay_full_frame_build_threaded |  | Default: false<br>Build the full frames on a seperate job thread
+tv_maxrate | release | Default: 0<br>Max SourceTV spectator bandwidth rate allowed, 0 == unlimited
+tv_playcast_slow_playback_when_fragment_requests_fail | release | Default: true<br>Whether or not we slow playback rate if we start running out of buffered stream fragments.
+tv_rate_multiplier |  | Default: 2<br>Multiply requested rate by this value to adjust Dota TV send rate
+tv_relay_rate |  | Default: 500000<br>default rate for relays
+tv_relay_secret_code |  | Default: true<br>When enabled, this will use a uniquely generated server code to authenticate relay to relay connections. This code is coordinated via the GC or some external means rather than by clients directly
+tv_secret_code |  | Default: true<br>When enabled, this will use a uniquely generated server code to authenticate relay connections. This code is coordinated via the GC or some external means rather than by clients directly
+tv_snapshotrate | rep, release | Default: 20<br>Snapshots broadcast per second
+tv_snapshotrate1 | release | Default: 32<br>Snapshots broadcast per second, GOTV\[1\]
+tv_threaded_merge_entity_deltas |  | Default: true<br>Enable SourceTV threading of delta merging
+volume_fog_debug_volumes | cheat | Default: false<br>
+volume_fog_density_scale | cheat | Default: 1<br>Scale global volume fog density
+volume_fog_depth |  | Default: 128<br>Depth of volume fog texture
+volume_fog_depth_warp |  | Default: 7<br>
+volume_fog_depth_warp_debug |  | Default: false<br>
+volume_fog_dither_scale | cheat | Default: 1<br>
+volume_fog_enable_jitter | cheat | Default: true<br>
+volume_fog_height |  | Default: 160<br>Height of volume fog texture
+volume_fog_intermediate_textures_hdr |  | Default: false<br>
+volume_fog_shadow_penumbra_multiplier |  | Default: 3<br>Penumbra size multiplier for shadow sampling, reduces fog shadow aliasing
+volume_fog_temporal_filter |  | Default: true<br>
+volume_fog_temporal_weight |  | Default: 0.9<br>Temporal filtering weight
+volume_fog_width |  | Default: 240<br>Width of volume fog texture
+vprof_generate_report |  | Generate a report to the console.
+vprof_generate_report_budget |  | Generate a report to the console based on budget group.
+vprof_generate_report_hierarchy |  | Generate a report to the console.
