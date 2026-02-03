@@ -1,12 +1,12 @@
-# AGENTS: Buff Timer Virgin (v5.6)
+# AGENTS: Buff Timer Virgin (v6.0)
 
 ## OVERVIEW
-Production-ready Rejuvenator and Bridge Buff tracker for Deadlock. Implements proximity-based claim detection, high-fidelity minimap glow system, and CS:GO-style enemy linger indicators. Heavily optimized for minimal CPU usage.
+Production-ready Rejuvenator and Bridge Buff tracker for Deadlock. Implements proximity-based claim detection, high-fidelity minimap glow system, CS:GO-style enemy linger indicators, and optimized overlay panel clip system. Heavily optimized for minimal CPU and memory usage.
 
 ## STRUCTURE
-- `panorama/scripts/rejuvnbufftimer.js`: Main logic (~1380 lines). Timers, proximity scan, state machine.
-- `panorama/layout/hud.xml`: Defines 6 dedicated glow overlay panels, claim indicators, and linger overlays.
-- `panorama/styles/hud_timer.css`: CSS animations and layout for countdowns.
+- `panorama/scripts/rejuvnbufftimer.js`: Main logic (~1400 lines). Timers, proximity scan, state machine, team caching.
+- `panorama/layout/hud.xml`: Defines timer panels with overlay clip system (BuffOverlay, RejuvOverlay), 6 glow panels, claim indicators, and linger overlays.
+- `panorama/styles/hud_timer.css`: CSS animations, overlay panel styling, and layout for countdowns.
 - `panorama/styles/buff_claim.css`: Glow effects, claim indicators, linger styling.
 
 ## LOGIC
@@ -48,6 +48,54 @@ CS:GO-style "last seen" indicator for enemies who enter fog-of-war.
 - `clearAllLingers()` resets `_lingerState` and destroys all dynamic panels
 
 ## PERFORMANCE OPTIMIZATIONS (v5.6)
+
+## PERFORMANCE OPTIMIZATIONS (v6.0)
+
+### Overlay Panel Clip System
+| Aspect | Before (v5.6) | After (v6.0) |
+|--------|---------------|--------------|
+| DOM Elements | 2 Labels per timer (4 total) | 1 Label + 1 Panel per timer (4 total) |
+| Text Sync | 2 writes per tick | 1 write per tick |
+| Clip Target | Label text color | Panel background-color |
+| CPU Impact | Higher (text layout) | Lower (simpler render) |
+
+**Implementation:**
+- `BuffOverlay` and `RejuvOverlay` Panels with `clip: rect()`
+- `background-color` for fill instead of text color
+- No text synchronization on overlay panels
+
+### Team Classification Caching
+| Metric | Before | After |
+|--------|--------|-------|
+| BHasClass calls per player | 2-3 per iteration | 1 on first sight, 0 thereafter |
+| Cache TTL | 800ms | 800ms + team field persistence |
+| Estimated reduction | - | ~60-70% fewer classification calls |
+
+**Implementation:**
+- `ps.team` field in `_playerState`: 0=unknown, 1=ally, 2=enemy
+- Helper functions: `isAlly(btn)`, `isEnemy(btn)`
+- Cached across `checkEnemyLinger()` and `getPlayersNearPowerup()`
+
+### Memory Cleanup
+| Aspect | Before | After |
+|--------|--------|-------|
+| `_playerState` growth | Unbounded | Bounded by pruning |
+| Pruning trigger | Only on `reset(1)` | Phase transitions + run starts |
+| Linger safety | N/A | Preserves active linger entries |
+
+**Implementation:**
+- `prunePlayerState()` function removes stale entries
+- Called in `startPhase()` and `startRun()`
+- Checks `_lingerState` to preserve active lingers
+
+### Early-Exit Guards
+| Function | Before | After |
+|----------|--------|-------|
+| `updateClaimProgress()` | Runs every tick | Returns early when no claims active |
+| Estimated CPU savings | - | ~99% of claim checks eliminated |
+
+**Implementation:**
+- Early return: `if (_claimStartLeft <= 0 && _claimStartRight <= 0) return;`
 
 ### Removed Dead Fallbacks (Telemetry-Verified)
 | Removed | Reason |
@@ -91,6 +139,9 @@ CS:GO-style "last seen" indicator for enemies who enter fog-of-war.
 - **DOM Write Guards**: All `.text` assignments wrapped with change detection.
 - **Timestamp Passthrough**: `Date.now()` captured once per tick, passed to subfunctions.
 - **Inlined Class Checks**: `panelHas()` uses direct `BHasClass()` calls, no array iteration.
+- **Overlay Panel Pattern**: Use `style.backgroundColor` on overlay Panels instead of `style.color` on clip Labels.
+- **Team Cache Pattern**: Store `ps.team` (0/1/2) in player state objects to avoid repeated BHasClass calls.
+- **Memory Pruning**: Call `prunePlayerState()` on phase transitions to bound memory growth.
 
 ## ANTI-PATTERNS
 - **Engine Hero Detection**: DO NOT attempt to read `Image.src`; it is write-only in JS sandbox.
@@ -100,10 +151,12 @@ CS:GO-style "last seen" indicator for enemies who enter fog-of-war.
 - **Nested try-catch in loops**: High overhead; use single wrapper.
 - **Redundant DOM writes**: Always guard with change detection.
 - **Multiple fallbacks in hot path**: Measure with telemetry, remove dead branches.
+- **Text on Overlay Panels**: DO NOT write `.text` on overlay Panels (they have no text property).
+- **Pruning Active Linger State**: DO NOT prune `_playerState` entries that have active `_lingerState` references.
 
 ## DEBUG
 Enable `-dev -tools` launch options. Console: F7.
-Debug logging removed in v5.6 for production. Re-add `$.Msg` calls if needed for troubleshooting.
+Debug logging removed in v6.0 for production. Re-add `$.Msg` calls if needed for troubleshooting.
 
 ## BUILD
 ```powershell
