@@ -38,6 +38,18 @@
   const LINGER_CHECK_INTERVAL = 300;
 
   // ===========================================
+  // TEAM CLASSIFICATION HELPERS
+  // ===========================================
+
+  function isAlly(btn) {
+    return btn.BHasClass("team1") || btn.BHasClass("friend") || btn.BHasClass("ally");
+  }
+
+  function isEnemy(btn) {
+    return btn.BHasClass("team2") || btn.BHasClass("enemy");
+  }
+
+  // ===========================================
   // STATE VARIABLES
   // ===========================================
 
@@ -272,9 +284,16 @@
         // Clip: Visible from 0% to p% (Left anchored)
         const rejuvClip = "rect(0%," + p + "%,100%,0%)";
 
+        if (t !== _lastRejuvText) {
+          UI.rLab.text = t;
+          if (UI.rLabClip?.IsValid?.()) {
+            UI.rLabClip.text = t;
+          }
+          _lastRejuvText = t;
+        }
+
         if (rejuvClip !== _lastRejuvClip && UI.rLabClip?.IsValid?.()) {
           UI.rLabClip.style.clip = rejuvClip;
-          UI.rLabClip.text = spawnWait ? "Spawn" : t;
           _lastRejuvClip = rejuvClip;
         }
       }
@@ -306,6 +325,9 @@
 
       if (t !== _lastBuffText) {
         UI.buffLab.text = t;
+        if (UI.buffLabClip?.IsValid?.()) {
+          UI.buffLabClip.text = t;
+        }
         _lastBuffText = t;
       }
 
@@ -319,10 +341,9 @@
 
       if (buffClip !== _lastBuffClip && UI.buffLabClip?.IsValid?.()) {
         UI.buffLabClip.style.clip = buffClip;
-        UI.buffLabClip.text = t;
         _lastBuffClip = buffClip;
-        
-        // Color logic for clip label (White -> Red)
+
+        // Color logic for buff clip label (White -> Red)
         const gVal = Math.floor(255 * buffPct);
         const newColor = "rgb(255," + gVal + "," + gVal + ")";
 
@@ -655,6 +676,9 @@
   }
 
   function updateClaimProgress(now) {
+    // Early exit if no claims active (common case)
+    if (_claimStartLeft <= 0 && _claimStartRight <= 0) return;
+
     // Left side
     if (_claimStartLeft > 0) {
       const elapsed = now - _claimStartLeft;
@@ -761,6 +785,17 @@
     const dx = p1.x - p2.x;
     const dy = p1.y - p2.y;
     return dx * dx + dy * dy;
+  }
+
+  // Prune stale _playerState entries not referenced by _lingerState
+  function prunePlayerState() {
+    const keys = Object.keys(_playerState);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      if (!_lingerState[k]) {  // Don't prune if actively lingering
+        delete _playerState[k];
+      }
+    }
   }
 
   // ===========================================
@@ -879,19 +914,30 @@
 
         try {
           if (!btn?.IsValid?.() || !btn.BHasClass("player")) continue;
-          if (!btn.BHasClass("enemy") && !btn.BHasClass("team2")) continue;
 
           const id = btn.id || "enemy_" + i;
+          let ps = _playerState[id];
+
+          // Get or determine team classification (0=unknown, 1=ally, 2=enemy)
+          let team = ps?.team || 0;
+          if (!team) {
+            team = isAlly(btn) ? 1 : isEnemy(btn) ? 2 : 0;
+          }
+
+          // Skip non-enemies using cached team
+          if (team !== 2) continue;
+
           const isDead = btn.BHasClass("playerdead");
           const isActive = btn.BHasClass("active");
           const pos = getPanelPos(btn);
 
-          let ps = _playerState[id];
           const wasActive = ps?.wasActive ?? true;
 
           if (!ps) {
-            ps = { x: 0, y: 0, deadTs: 0, wasActive: true };
+            ps = { x: 0, y: 0, deadTs: 0, wasActive: true, team: team };
             _playerState[id] = ps;
+          } else {
+            ps.team = team;
           }
 
           ps.wasActive = isActive;
@@ -949,9 +995,17 @@
           let ps = _playerState[id];
           const posChanged = !ps || Math.abs(ps.x - pos.x) > 0.5 || Math.abs(ps.y - pos.y) > 0.5;
 
+          // Get or determine team classification (0=unknown, 1=ally, 2=enemy)
+          let team = ps?.team || 0;
+          if (!team) {
+            team = isAlly(btn) ? 1 : isEnemy(btn) ? 2 : 0;
+          }
+
           if (!ps) {
-            ps = { x: 0, y: 0, deadTs: 0, wasActive: true };
+            ps = { x: 0, y: 0, deadTs: 0, wasActive: true, team: team };
             _playerState[id] = ps;
+          } else {
+            ps.team = team;
           }
 
           if (isDead) {
@@ -960,7 +1014,7 @@
             ps.y = pos.y;
             ps.deadTs = deadTs || now;
 
-            if (btn.BHasClass("enemy") || btn.BHasClass("team2")) {
+            if (team === 2) {
               cancelLinger(id);
             }
 
@@ -973,9 +1027,10 @@
 
           const d = distSq(pos, pwPos);
 
-          if (btn.BHasClass("friend") || btn.BHasClass("ally") || btn.BHasClass("team1")) {
+          // Use cached team classification instead of BHasClass
+          if (team === 1) {
             if (d < _nearResult.ally) _nearResult.ally = d;
-          } else if (btn.BHasClass("enemy") || btn.BHasClass("team2")) {
+          } else if (team === 2) {
             if (d < _nearResult.enemy) _nearResult.enemy = d;
           }
         } catch {}
@@ -1155,6 +1210,9 @@
       UI.rLabClip.style.clip = "rect(0%,0%,100%,0%)";
       UI.rLabClip.text = "";
     }
+
+    // Prune stale player state on phase transition
+    prunePlayerState();
   }
 
   function startPhaseAuto(now) {
@@ -1245,6 +1303,9 @@
     monitoringActive = false;
     pretrackActive = false;
     startPhaseAuto(now);
+
+    // Prune stale player state when starting run
+    prunePlayerState();
   }
 
   function reset(f) {
@@ -1294,8 +1355,8 @@
 
       if (UI.buffLabClip?.IsValid?.()) {
         UI.buffLabClip.style.clip = "rect(0%,100%,100%,100%)";
-        UI.buffLabClip.text = "";
         UI.buffLabClip.style.color = "#ffffff";
+        UI.buffLabClip.text = "";
       }
     }
   }
@@ -1397,9 +1458,10 @@
     if (!UI.hud?.BHasClass) return false;
 
     try {
+      // Order by most common casing first for early exit
       return UI.hud.BHasClass("connectedToHideout") ||
-             UI.hud.BHasClass("connectedtoHideout") ||
-             UI.hud.BHasClass("connectedtohideout");
+             UI.hud.BHasClass("connectedtohideout") ||
+             UI.hud.BHasClass("connectedToHideOut");
     } catch {}
 
     return false;

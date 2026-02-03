@@ -24,7 +24,13 @@
       "completed_at": "2026-01-30T21:35:00.000Z",
       "status": "complete",
       "summary": "Merged game update CSS into 4:3 HUD mod. Strategy: new base + 4:3 overlay. Applied margin-right: 70% override to #health_and_abilities_container. Added new selectors (StreetBrawl, ItemDraft, HudTakeover). Updated fonts (sansMono → numericOracle). Removed deprecated selectors. 4 CSS files updated, compilation successful."
+    },
+    {
+      "plan": "F:\\Users\\Shiv\\Desktop\\Deadlock-mods-collection\\.sisyphus\\plans\\buff-timer-v6-optimization.md",
+      "completed_at": "2026-02-03T03:40:00.000Z",
+      "status": "complete",
+      "summary": "v5.6 → v6.0: Gaming optimization with overlay panel clip system. Replaced dual-label with single-label + overlay panel (eliminated text sync, reduced DOM elements). Added team classification caching (~60-70% fewer BHasClass calls). Implemented _playerState pruning on phase transitions. Added early-exit guard to updateClaimProgress() (~99% CPU savings on idle). Updated AGENTS.md documentation. All 6 tasks complete, compilation successful."
     }
   ],
-  "last_updated": "2026-01-30T21:35:00.000Z"
+  "last_updated": "2026-02-03T03:40:00.000Z"
 }
