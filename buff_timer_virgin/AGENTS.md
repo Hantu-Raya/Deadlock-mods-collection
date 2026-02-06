@@ -88,6 +88,21 @@ CS:GO-style "last seen" indicator for enemies who enter fog-of-war.
 - Called in `startPhase()` and `startRun()`
 - Checks `_lingerState` to preserve active lingers
 
+### Cache Helper Function
+| Aspect | Before | After |
+|--------|--------|-------|
+| Duplication | 3 locations with identical cache logic | Single `ensurePlayerCache()` function |
+| Lines of code | ~12 lines duplicated | 4 lines in one function |
+
+**Implementation:**
+```javascript
+function ensurePlayerCache(mm, rn) {
+  if (_playerCache && rn - _playerCacheTs <= BUTTON_CACHE_TTL) return;
+  _playerCache = mm.FindChildrenWithClassTraverse("map_button");
+  _playerCacheTs = rn;
+}
+```
+
 ### Early-Exit Guards
 | Function | Before | After |
 |----------|--------|-------|
@@ -112,12 +127,14 @@ CS:GO-style "last seen" indicator for enemies who enter fog-of-war.
 | `.linger-overlay` CSS | `.linger-question-child` used instead |
 | `_lingerLogTs` throttle | Debug logging removed |
 
-### Retained Safety Patterns
+### Defensive Coding
 | Pattern | Location | Reason |
 |---------|----------|--------|
 | `?? true` for `wasActive` | checkEnemyLinger | Init safety for new players |
 | `?.IsValid?.()` | All panel access | Panorama panel deletion safety |
 | `try-catch` wrappers | getPanelPos, showLinger | Error isolation |
+| SEQ bounds check | loop() | `if (idx < 0 || idx >= SEQ.length) idx = 0;` prevents undefined access |
+| Text sync fix | updateTimerText() | Fixed RejuvTimeClip text desync when clip is active |
 
 ### Polling Intervals
 | State | Interval | Purpose |
