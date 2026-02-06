@@ -50,6 +50,16 @@
   }
 
   // ===========================================
+  // PLAYER CACHE HELPERS
+  // ===========================================
+
+  function ensurePlayerCache(mm, rn) {
+    if (_playerCache && rn - _playerCacheTs <= BUTTON_CACHE_TTL) return;
+    _playerCache = mm.FindChildrenWithClassTraverse("map_button");
+    _playerCacheTs = rn;
+  }
+
+  // ===========================================
   // STATE VARIABLES
   // ===========================================
 
@@ -273,6 +283,9 @@
 
         if (t !== _lastRejuvText) {
           UI.rLab.text = t;
+          if (UI.rLabClip?.IsValid?.()) {
+            UI.rLabClip.text = t;
+          }
           _lastRejuvText = t;
         }
 
@@ -280,17 +293,9 @@
         // rejuvPct is REMAINING percentage (1.0 -> 0.0)
         const rejuvPct = spawnWait ? 1.0 : (counter / SEQ[idx].d);
         const p = Math.floor(rejuvPct * 100);
-        
+
         // Clip: Visible from 0% to p% (Left anchored)
         const rejuvClip = "rect(0%," + p + "%,100%,0%)";
-
-        if (t !== _lastRejuvText) {
-          UI.rLab.text = t;
-          if (UI.rLabClip?.IsValid?.()) {
-            UI.rLabClip.text = t;
-          }
-          _lastRejuvText = t;
-        }
 
         if (rejuvClip !== _lastRejuvClip && UI.rLabClip?.IsValid?.()) {
           UI.rLabClip.style.clip = rejuvClip;
@@ -901,13 +906,8 @@
     const now = nowMs || Date.now();
 
     try {
+      ensurePlayerCache(mm, now);
       let buttons = _playerCache;
-
-      if (!buttons || now - _playerCacheTs > BUTTON_CACHE_TTL) {
-        buttons = mm.FindChildrenWithClassTraverse("map_button");
-        _playerCache = buttons;
-        _playerCacheTs = now;
-      }
 
       for (let i = 0, len = buttons.length; i < len; i++) {
         const btn = buttons[i];
@@ -972,13 +972,8 @@
     const now = nowMs || Date.now();
 
     try {
+      ensurePlayerCache(mm, now);
       let buttons = _playerCache;
-
-      if (!buttons || now - _playerCacheTs > BUTTON_CACHE_TTL) {
-        buttons = mm.FindChildrenWithClassTraverse("map_button");
-        _playerCache = buttons;
-        _playerCacheTs = now;
-      }
 
       for (let i = 0, len = buttons.length; i < len; i++) {
         const btn = buttons[i];
@@ -1051,12 +1046,8 @@
     try {
       const nowMs = Date.now();
 
+      ensurePlayerCache(mm, nowMs);
       let buttons = _playerCache;
-      if (!buttons || nowMs - _playerCacheTs > BUTTON_CACHE_TTL) {
-        buttons = mm.FindChildrenWithClassTraverse("map_button");
-        _playerCache = buttons;
-        _playerCacheTs = nowMs;
-      }
 
       if (!buttons?.length) return;
 
