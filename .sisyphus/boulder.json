@@ -1,5 +1,9 @@
 {
-  "active_plan": null,
+  "active_plan": "F:\\Users\\Shiv\\Desktop\\Deadlock-mods-collection\\.sisyphus\\plans\\buff-timer-perf-and-bugfix.md",
+  "started_at": "2026-02-06T19:58:41.669Z",
+  "session_ids": ["ses_3cb76f805ffeSq23m3XCPFuT7J"],
+  "plan_name": "buff-timer-perf-and-bugfix",
+  "previous_plans": [
   "completed_plans": [
     {
       "plan": "F:\\Users\\Shiv\\Desktop\\Deadlock-mods-collection\\.sisyphus\\plans\\buff-timer-perf-optimization.md",
