@@ -273,6 +273,7 @@
     // Update rejuvenator countdown
     if (now !== lastSec) {
       lastSec = now;
+      if (idx < 0 || idx >= SEQ.length) idx = 0;  // Safety clamp
       const rem = Math.max(0, SEQ[idx].d - (now - phaseStart));
 
       if (rem <= 0) {
