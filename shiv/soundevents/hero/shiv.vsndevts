@@ -740,6 +740,15 @@
 		vsnd_files = "sounds/abilities/shiv/shiv_rage_full.vsnd"
 		vsnd_duration = 2.168911
 	}
+	Shiv.Bloodletting.Cast = 
+	{
+		base = "Base.Ability"
+		volume = 0.000000
+		pitch_rand_min = -0.025000
+		pitch_rand_max = 0.025000
+		vsnd_files = "sounds/abilities/shiv/shiv_a3_bloodletting_cast.vsnd"
+		vsnd_duration = 2.956304
+	}
 	Shiv.Rage.Full_End = 
 	{
 		base = "Base.Ability"
