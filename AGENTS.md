@@ -1,41 +1,57 @@
-# PROJECT KNOWLEDGE BASE
+# AGENT GUIDE: Deadlock Panorama UI Mod Collection
 
-**Project:** Deadlock Panorama UI Mod Collection  
-**Type:** Source 2 Panorama JS/CSS/XML mods  
-**Updated:** 2026-01-23
+**Project:** Source 2 Panorama JS/CSS/XML mods for Deadlock  
+**Architecture:** Distributed mod folders compiled into binary `_compiled` directories.  
+**Agent Role:** Autonomous developer for UI features, performance optimization, and VData processing.
 
-## BUILD COMMANDS
+## 🛠 WORKFLOW & COMMANDS
 
-### Compile a Mod (MANDATORY after any change)
+### Compile a Mod (MANDATORY)
+After any change to `.js`, `.css`, or `.xml`, you MUST run the compiler. It targets the parent folder of the `panorama/` directory.
 ```powershell
 "F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\{mod_name}"
 ```
 
-### Test In-Game
-Launch Deadlock with `-dev -tools`. Press F7 for console.
+### Manual Test Workflow
+There is NO standard linting or automated test runner. Verification is manual:
+1. Compile the mod using the command above.
+2. Launch Deadlock with launch options: `-dev -tools`.
+3. Open the console with **F7** (Panorama Debugger) or **F8** (VConsole).
+4. Use `panorama_reload_layout` or restart the game to see changes.
 
-### No Lint/Test Commands
-This project uses Source 2 resourcecompiler. No npm/eslint/jest.
+### VData Processing (Abilities)
+Located in `abilities/scripts/`. Used to toggle visibility of items/abilities.
+1. Remove `_include` block (lines 4-59) from `abilities.vdata`.
+2. Run processing scripts:
+   ```powershell
+   py passive.py abilities2.vdata
+   py active.py abilities.vdata
+   ```
+3. Restore `_include` block.
 
-## PROJECT STRUCTURE
+## 📂 PROJECT STRUCTURE
 ```
 ./
 ├── {mod}/panorama/           # Source files (scripts/*.js, styles/*.css, layout/*.xml)
 ├── {mod}_compiled/           # Output (.vjs_c, .vcss_c, .vxml_c)
 ├── abilities/                # VData definitions (260k lines) + Python scripts
-├── sr2compiler/              # Custom Source 2 ResourceCompiler
+├── sr2compiler/              # Custom Source 2 ResourceCompiler wrapper
 └── test/                     # Archive/reference mods
 ```
 
-## CODE STYLE
+## 📏 CODE STYLE & CONVENTIONS
 
-### JavaScript
-- **Wrapper**: `(()=>{"use strict"; ... })();` (IIFE + strict mode)
-- **Constants**: `UPPER_SNAKE_CASE` at top of file
-- **Variables**: `camelCase` for state, `_prefixed` for internal/cache
-- **UI Object**: `const UI = { root: null, label: null, ... };` for panel refs
-- **Functions**: `function name() {}` for main logic, `() => {}` for callbacks
-- **Indentation**: 2 spaces preferred
+### Rules Status
+- **No** `.cursorrules` or `.cursor/rules/`
+- **No** `.github/copilot-instructions.md`
+- Guidance is centralized in this `AGENTS.md` file.
+
+### JavaScript (Panorama)
+- **Wrapper**: ALWAYS use IIFE with strict mode: `(() => { "use strict"; ... })();`
+- **Constants**: `UPPER_SNAKE_CASE` at the top of the file.
+- **Variables**: `camelCase` for state, `_prefixed` for internal/cached values.
+- **UI Object**: `const UI = { root: null, label: null, ... };` for panel refs.
+- **Indentation**: 2 spaces.
 
 ### Naming Conventions
 | Type | Convention | Example |
@@ -46,108 +62,90 @@ This project uses Source 2 resourcecompiler. No npm/eslint/jest.
 | UI panels | UI.name | `UI.label`, `UI.glowLeft` |
 | Debug tags | [TAG] | `[BT-P]`, `[ERR]` |
 
-### Error Handling
+### CSS & XML
+- **CSS**: Use `overflow: noclip;` for glows. Use `visibility: collapse;` instead of `display: none;`.
+- **Animations**: Use `pre-transform-scale2d` to avoid blur during scaling.
+- **XML**: Set `hittest="false"` for overlays to prevent blocking mouse input.
+- **Assets**: Use `s2r://` prefix for compiled paths in XML/CSS.
+
+## 🛡 ERROR HANDLING & SAFETY
+- **Panel Guards**: NEVER access a panel without checking validity.
+  ```javascript
+  if (!panel?.IsValid?.()) return;
+  ```
+- **Engine API Guards**: Wrap `Game` or `$.` engine calls in `try-catch` where state is volatile.
+- **Boot Retry**: Panels may not be ready at script load. Use a recursive schedule:
+  ```javascript
+  function boot() {
+    UI.root = findRoot($.GetContextPanel());
+    if (!UI.root?.IsValid?.()) return $.Schedule(0.5, boot);
+    initialize();
+  }
+  ```
+
+## 🚀 PERFORMANCE PATTERNS
+
+### Panel Caching (CRITICAL)
+`FindChildTraverse` is expensive. Cache all references once during `boot()`.
 ```javascript
-if (!panel?.IsValid?.()) return;           // ALWAYS wrap panel access
-try { value = Game.GetGameTime(); } catch {} // Try-catch engine APIs
-function boot() {                           // Boot retry pattern
-  if (!UI.label?.IsValid?.()) return $.Schedule(0.5, boot);
-  loop();
+const UI = { root: null, label: null };
+function initialize() {
+  UI.label = UI.root.FindChildTraverse("MyLabel");
 }
 ```
 
-### CSS
-- `overflow: noclip;` for glows/shadows
-- `visibility: collapse;` (NOT `display: none`)
-- `pre-transform-scale2d` for animations (avoids blur)
-- `z-index: 99999+` for HUD overlays
-
-### XML
-- `hittest="false"` for non-interactive overlays
-- Use `s2r://` paths for compiled assets
-
-## ANTI-PATTERNS (DO NOT USE)
-
-| Bad Pattern | Fix |
-|-------------|-----|
-| `FindChildTraverse` in loops | Cache at boot in `UI` object |
-| `Game.GetGameTime()` unwrapped | Use `gTime()` with fallback |
-| `new Array/Object` in hot path | Reuse pooled objects |
-| `Math.sqrt()` in hot path | Use `distSq()` squared distance |
-| `transform: scale3d` + shadow | Use `pre-transform-scale2d` |
-| Bare panel access | `try-catch` + `?.IsValid?.()` |
-
-## PERFORMANCE PATTERNS
-
-### Panel Caching (MANDATORY)
+### DOM Write Guards
+Prevent layout reflows by only updating properties if the value has changed.
 ```javascript
-const UI = { root: null, hud: null, label: null };
-function boot() {
-  UI.root = findRoot($.GetContextPanel());
-  UI.label = UI.root.FindChildTraverse("MyLabel");
-  if (!UI.label?.IsValid?.()) return $.Schedule(0.5, boot);
-  loop();
+let _lastVal = "";
+function update(newVal) {
+  if (newVal === _lastVal) return;
+  UI.label.text = newVal;
+  _lastVal = newVal;
 }
 ```
 
 ### Adaptive Polling
+Scale polling frequency based on game state (e.g., fast during combat, slow otherwise).
 ```javascript
-const TICK_NORM = 1.0, TICK_FAST = 0.1;
-$.Schedule(timeRemaining < 10 ? TICK_FAST : TICK_NORM, loop);
+function loop() {
+  const delay = inCombat ? 0.1 : 1.0;
+  // ... logic ...
+  $.Schedule(delay, loop);
+}
 ```
 
-### DOM Write Guards
-```javascript
-let _lastText = "";
-if (newText !== _lastText) { UI.label.text = newText; _lastText = newText; }
-```
+## 🚫 ANTI-PATTERNS
+- **NO** `FindChildTraverse` inside `$.Schedule` loops.
+- **NO** `new Array()` or `new Object()` in hot paths; reuse variables.
+- **NO** `Math.sqrt()` for distance checks; use squared distance (`distSq`).
+- **NO** bare `Game.GetGameTime()`; use the `gTime()` utility wrapper.
 
-### Cache with TTL
-```javascript
-let _cache = null, _cacheTs = 0;
-if (!_cache || Date.now() - _cacheTs > 800) { _cache = search(); _cacheTs = Date.now(); }
-```
-
-### Minimap Y-Axis Inversion
-```javascript
-// Game applies .invert_map class for team-based mirroring
-if (mm?.BHasClass?.("invert_map")) { by = mm.contentheight - by - bh; }
-```
-
-## SHARED UTILITIES
-
+## 🔧 SHARED UTILITIES
 | Function | Purpose |
 |----------|---------|
-| `gTime()` | 4-tier game time fallback |
-| `findRoot(p)` | Traverse to engine root |
-| `parseSec(txt)` | "MM:SS" → seconds (charCodeAt) |
-| `distSq(p1,p2)` | Squared distance (no sqrt) |
-| `fmt(sec)` | Seconds → "MM:SS" string |
+| `gTime()` | Returns game time with 4-tier fallback for reliability. |
+| `findRoot(p)` | Helper to find the engine root panel from a child. |
+| `distSq(p1, p2)` | Squared distance calculation (performance optimized). |
+| `fmt(sec)` | Formats seconds into "MM:SS" or "SS.m" strings. |
+| `parseSec(txt)` | Converts "MM:SS" strings back to numeric seconds. |
 
-## DEBUG
+## 💡 GOTCHAS & DOMAIN KNOWLEDGE
+- **VData Scale**: `abilities.vdata` is >260k lines. Use stream processing.
+- **Minimap Mirror**: Game mirrors the Y-axis for certain teams using the `.invert_map` class. Detect this and flip Y coordinates manually in JS.
+- **Hero Detection**: Panorama lacks a direct "GetHeroImage" API. Use proximity scans.
+- **Z-Index**: Use extremely high values (e.g., `99999`) for HUD overlays.
 
-| Tag | Module |
-|-----|--------|
-| `[ST-S]` | Soul Timer |
-| `[BT-P]` | Buff Timer Position |
-| `[ERR]` | Exception |
+## 🔍 DEBUG TAGS & MODULES
+| Tag | Module | Purpose |
+|-----|--------|---------|
+| `[BT-P]` | Buff Timer | Position and layout logic for top-bar timers. |
+| `[ST-S]` | Soul Timer | State synchronization and countdown logic. |
+| `[ERR]` | Core | Caught exceptions or invalid states. |
 
-Enable: `-dev -tools` launch options. Console: F7.
-
-## KEY MODS
-
-| Mod | Purpose | Version |
-|-----|---------|---------|
-| `buff_timer_virgin/` | Rejuv/buff tracker + linger | v5.6 |
-| `soul_timer/` | Soul drain countdown | v4.2 |
-| `combined_timer_v2/` | Merged soul+buff | Latest |
-| `hp/` | Health bar variants | 5 versions |
-| `standalone_redesign/` | Ability icon redesign | Production |
-
-## GOTCHAS
-
-- **VData files are huge**: `abilities.vdata` is 260k lines. Use stream processing.
-- **No hero detection**: Panorama JS cannot read `Image.src`. Use proximity scan.
-- **Ghost panels**: Check `actualvisibility !== "collapse"` + parent chain.
-- **Minimap mirror**: Game uses `.invert_map` class with `scaleY(-1)`. Detect and flip Y coords.
-- **Panel positioning**: Use `style.position = "Xpx Ypx 0px"` for absolute placement on minimap.
+## 📦 KEY MODS & REFERENCE
+- `buff_timer_virgin/`: Top-bar buff tracker with linger support.
+- `soul_timer/`: Unsecured soul drainage countdown widget.
+- `combined_timer_v2/`: Merged implementation of soul and buff tracking.
+- `hp/`: Various health bar redesigns and status indicators.
+- `standalone_redesign/`: Production-grade ability icon and HUD overhaul.

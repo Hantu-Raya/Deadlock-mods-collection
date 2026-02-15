@@ -1,40 +1,8 @@
 {
-  "active_plan": "F:\\Users\\Shiv\\Desktop\\Deadlock-mods-collection\\.sisyphus\\plans\\buff-timer-perf-and-bugfix.md",
-  "started_at": "2026-02-06T19:58:41.669Z",
-  "session_ids": ["ses_3cb76f805ffeSq23m3XCPFuT7J"],
-  "plan_name": "buff-timer-perf-and-bugfix",
-  "previous_plans": [
-  "completed_plans": [
-    {
-      "plan": "F:\\Users\\Shiv\\Desktop\\Deadlock-mods-collection\\.sisyphus\\plans\\buff-timer-perf-optimization.md",
-      "completed_at": "2026-01-20T00:00:00.000Z",
-      "status": "complete",
-      "summary": "v5.2 → v5.3: Removed dead code, squared distance optimization, DOM write guards, Date.now() caching, panelHas() optimization. 6 commits, 428→423 lines."
-    },
-    {
-      "plan": "F:\\Users\\Shiv\\Desktop\\Deadlock-mods-collection\\.sisyphus\\plans\\enemy-linger.md",
-      "completed_at": "2026-01-20T08:00:00.000Z",
-      "status": "complete",
-      "summary": "v5.4: Added CS:GO-style enemy linger feature. 6 overlay panels, .active class detection, 5s duration, round-robin allocation. 4 files modified (hud.xml, rejuvnbufftimer.js, buff_claim.css, AGENTS.md). Awaiting user in-game testing."
-    },
-    {
-      "plan": "F:\\Users\\Shiv\\Desktop\\Deadlock-mods-collection\\.sisyphus\\plans\\clip-progress-bar.md",
-      "completed_at": "2026-01-24T19:30:00.000Z",
-      "status": "complete",
-      "summary": "v5.5: Added clip-based progress bars to RejuvTime (L→R white fill) and BuffTime (R→L white→red fill). 3 files modified (hud.xml, hud_timer.css, rejuvnbufftimer.js). Mod compiles successfully."
-    },
-    {
-      "plan": "F:\\Users\\Shiv\\Desktop\\Deadlock-mods-collection\\.sisyphus\\plans\\4by3-hud-css-merge.md",
-      "completed_at": "2026-01-30T21:35:00.000Z",
-      "status": "complete",
-      "summary": "Merged game update CSS into 4:3 HUD mod. Strategy: new base + 4:3 overlay. Applied margin-right: 70% override to #health_and_abilities_container. Added new selectors (StreetBrawl, ItemDraft, HudTakeover). Updated fonts (sansMono → numericOracle). Removed deprecated selectors. 4 CSS files updated, compilation successful."
-    },
-    {
-      "plan": "F:\\Users\\Shiv\\Desktop\\Deadlock-mods-collection\\.sisyphus\\plans\\buff-timer-v6-optimization.md",
-      "completed_at": "2026-02-03T03:40:00.000Z",
-      "status": "complete",
-      "summary": "v5.6 → v6.0: Gaming optimization with overlay panel clip system. Replaced dual-label with single-label + overlay panel (eliminated text sync, reduced DOM elements). Added team classification caching (~60-70% fewer BHasClass calls). Implemented _playerState pruning on phase transitions. Added early-exit guard to updateClaimProgress() (~99% CPU savings on idle). Updated AGENTS.md documentation. All 6 tasks complete, compilation successful."
-    }
+  "active_plan": "F:\\Users\\Shiv\\Desktop\\Deadlock-mods-collection\\.sisyphus\\plans\\anitaui-cfg-persistence.md",
+  "started_at": "2026-02-14T07:01:04.250Z",
+  "session_ids": [
+    "ses_3a50c078dffenmXYtI0RIg5x2G"
   ],
-  "last_updated": "2026-02-03T03:40:00.000Z"
+  "plan_name": "anitaui-cfg-persistence"
 }
