@@ -139236,7 +139236,6 @@
 			_class = "modifier_citadel_copyult"
 			m_bIsHidden = true
 			_my_subclass_name = "copyult_modifier"
-			m_nEnabledStateMask = "MODIFIER_STATE_NON_ULT_SIGNATURE_ABILITIES_DISABLED"
 			m_strParticleEffect = resource_name:"particles/abilities/magician/magician_ultimate_copied_active.vpcf"
 			m_sStartSound = soundevent:"Magician.CopyUlt.Copied.Activate"
 		}
@@ -187995,7 +187994,6 @@
 		m_strAG2CastingAction = "throw"
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/alchemical_fire.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/alchemical_fire_sm.png"
 	}
 	item_projectile_test_02 = 
 	{
@@ -188236,7 +188234,6 @@
 		m_strAG2CastingAction = "throw"
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/alchemical_fire.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/alchemical_fire_sm.png"
 		m_flDrag = 0.300000
 	}
 	item_projectile_test_03 = 
@@ -188479,7 +188476,6 @@
 		m_strAG2CastingAction = "throw"
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/alchemical_fire.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/alchemical_fire_sm.png"
 		m_flDrag = 0.300000
 	}
 	item_projectile_test_04 = 
@@ -188721,7 +188717,6 @@
 		m_strAG2CastingAction = "throw"
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/alchemical_fire.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/alchemical_fire_sm.png"
 		m_flDrag = 0
 		m_flMinDrag = 0.500000
 		m_flMaxDrag = 2
@@ -188967,7 +188962,6 @@
 		m_strAG2CastingAction = "throw"
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/alchemical_fire.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/alchemical_fire_sm.png"
 		m_flMinDrag = 0.300000
 		m_flMaxDrag = 0.650000
 		m_flMaxGravity = 2.000000
@@ -189211,7 +189205,6 @@
 		m_strAG2CastingAction = "throw"
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/alchemical_fire.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/alchemical_fire_sm.png"
 	}
 	upgrade_clip_size = 
 	{
@@ -189427,7 +189420,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterClipSize"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/basic_magazine.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/basic_magazine_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -189663,7 +189655,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDurability | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/monster_rounds.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/monster_rounds_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -190023,7 +190014,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDurability | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/cultist_sacrifice.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/cultist_sacrifice_sm.png"
 		m_strSelectedLoopSound = soundevent:"Mods.Weapon.CultistSacrifice.Selected.Lp"
 		m_strSelectedSound = soundevent:"Mods.Weapon.CultistSacrifice.Select"
 		m_strUnselectedSound = soundevent:"Mods.Weapon.CultistSacrifice.Deselect"
@@ -190973,7 +190963,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/tesla_bullets.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/tesla_bullets_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -191385,7 +191374,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/capacitor.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/capacitor_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -192083,7 +192071,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/hollow_point.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/hollow_point_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -192367,7 +192354,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/opening_rounds.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/opening_rounds_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -192815,7 +192801,6 @@
 			},
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/high_velocity_rounds_sm.png"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/high_velocity_rounds.psd"
 		m_vecAbilityUpgrades = 
 		[
@@ -193104,7 +193089,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability | EShopFilterMelee | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/melee_lifesteal.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/melee_lifesteal_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -193417,7 +193401,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability | EShopFilterMelee | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/rebuttal.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/rebuttal_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -193759,7 +193742,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability | EShopFilterMelee | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/counterspell.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/counterspell_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -193999,7 +193981,6 @@
 		m_strCSSClass = "closeRange"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_armor/improved_bullet_armor.psd"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/weighted_shots.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/weighted_shots_sm.png"
 		m_vecTooltipSectionInfo = 
 		[
 			
@@ -194269,7 +194250,6 @@
 		m_strCSSClass = "closeRange"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_armor/improved_bullet_armor.psd"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/ancient_shielding.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/ancient_shielding.psd"
 		m_vecTooltipSectionInfo = 
 		[
 			
@@ -194583,7 +194563,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/close_quarters.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/close_quarters_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -194867,7 +194846,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterClipSize"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/long_range.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/long_range_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -195186,7 +195164,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/slowing_bullets.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/slowing_bullets_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -195536,7 +195513,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDisruption | EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/inhibitor.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/inhibitor_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -196024,7 +196000,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/spirit_shredder_bullets.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/spirit_shredder_bullets_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -196873,7 +196848,6 @@
 		m_eShopFilters = "EShopFilterFireRate | EShopFilterHealing | EShopFilterMovement"
 		m_strCastSound = soundevent:"Mods.Weapon.OnslaughtAura.Cast"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/heroic_aura.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/heroic_aura_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -197969,7 +197943,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/silence_glyph.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/silence_glyph_sm.png"
 		m_strHitConfirmSound = soundevent:"Mods.Tech.Silence.Wave.Hit"
 		m_vecAbilityUpgrades = 
 		[
@@ -198295,7 +198268,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/haunting_scream.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/haunting_scream.psd"
 		m_strHitConfirmSound = soundevent:"Mods.Tech.Silence.Wave.Hit"
 		m_vecAbilityUpgrades = 
 		[
@@ -198675,7 +198647,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/silencer.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/silencer_sm.png"
 		m_eShopFilters = "EShopFilterDisruption | EShopFilterWeaponDamage"
 		m_vecAbilityUpgrades = 
 		[
@@ -198970,7 +198941,6 @@
 		]
 		m_eShopFilters = "EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/silencer.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/silencer_sm.png"
 		m_strAbilityChargeReadySound = soundevent:""
 	}
 	upgrade_proc_disarm = 
@@ -199491,7 +199461,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterClipSize | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/berserker.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/berserker_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -199834,7 +199803,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterFireRate | EShopFilterClipSize | EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/frenzy.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/frenzy_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -200216,7 +200184,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/siphon_bullets.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/siphon_bullets_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -200484,7 +200451,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability | EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/headshot_booster.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/headshot_booster_sm.png"
 		m_vecDisabledOnHeroes = 
 		[
 			"hero_necro",
@@ -200795,7 +200761,6 @@
 			m_strParticleEffect = resource_name:"particles/modifiers/armor_suppressor.vpcf"
 		}
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/weakening_headshot.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/weakening_headshot_sm.png"
 		m_vecDisabledOnHeroes = 
 		[
 			"hero_necro",
@@ -201111,7 +201076,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterClipSize"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/sharp_shooter.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/sharp_shooter_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -201448,7 +201412,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/headhunter.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/headhunter_sm.png"
 		m_vecDisabledOnHeroes = 
 		[
 			"hero_necro",
@@ -201812,7 +201775,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterMagicDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/spellslinger_headshots.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/spellslinger_headshots_sm.png"
 		m_vecComponentItems = 
 		[
 			"upgrade_tech_defense_shredders",
@@ -202145,7 +202107,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/crippling_headshot.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/crippling_headshot_sm.png"
 		m_vecDisabledOnHeroes = 
 		[
 			"hero_necro",
@@ -202712,7 +202673,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterMagicDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/mystic_shot.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/mystic_shot_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -202989,7 +202949,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterClipSize"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/lucky_shot.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/lucky_shot_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -203300,7 +203259,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDurability | EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/point_blank.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/point_blank_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -204013,7 +203971,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/toxic_bullets.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/toxic_bullets_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -204676,7 +204633,6 @@
 		m_eShopFilters = "EShopFilterClipSize"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY | CITADEL_UNIT_TARGET_BOSS_ENEMY | CITADEL_UNIT_TARGET_TROOPER_ENEMY | CITADEL_UNIT_TARGET_PROP_ENEMY | CITADEL_UNIT_TARGET_MINION_ENEMY | CITADEL_UNIT_TARGET_NEUTRAL"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/ricochet.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/ricochet_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -204979,7 +204935,6 @@
 		m_eShopFilters = "EShopFilterClipSize"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY | CITADEL_UNIT_TARGET_BOSS_ENEMY | CITADEL_UNIT_TARGET_TROOPER_ENEMY | CITADEL_UNIT_TARGET_PROP_ENEMY | CITADEL_UNIT_TARGET_MINION_ENEMY | CITADEL_UNIT_TARGET_NEUTRAL"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/apex_combat.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/apex_combat.psd"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -205218,7 +205173,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/extra_health.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/extra_health_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -205447,7 +205401,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDurability"
 		m_strShopIconLarge = panorama:""
-		m_strShopIconSmall = panorama:""
 		m_bDisabled = true
 	}
 	upgrade_toughness_3 = 
@@ -205871,7 +205824,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/bullet_resilience.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/bullet_resilience_sm.png"
 	}
 	upgrade_tech_armor = 
 	{
@@ -206080,7 +206032,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/spirit_resilience.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/spirit_resilience_sm.png"
 	}
 	upgrade_health_regen_1 = 
 	{
@@ -206503,7 +206454,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/bullet_lifesteal.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/bullet_lifesteal_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -207403,7 +207353,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/debuff_reducer.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/debuff_reducer_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -207699,7 +207648,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/debuff_remover.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/debuff_remover_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -209271,7 +209219,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/spirit_resilience.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/spirit_resilience_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -209526,7 +209473,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/bullet_resilience.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/bullet_resilience_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -209814,7 +209760,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability | EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/metal_skin.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/metal_skin_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -210099,7 +210044,6 @@
 		]
 		m_eShopFilters = "EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/healing_booster.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/healing_booster_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -210412,7 +210356,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDurability | EShopFilterHealing | EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/fortitude.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/fortitude_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -210710,7 +210653,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/leech.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/leech_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -211193,7 +211135,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterHealing | EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/sprint_boots.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/sprint_boots_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -211505,7 +211446,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterHealing | EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/trophy_collector.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/trophy_collector_sm.png"
 		m_GoldModifier = subclass:
 		{
 			_class = "modifier_trophy_collector"
@@ -211799,7 +211739,6 @@
 		]
 		m_eShopFilters = "EShopFilterMovement | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/enduring_speed.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/enduring_speed_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -212066,7 +212005,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterMovement | EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/stamina_mastery.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/stamina_mastery_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -212332,7 +212270,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterMovement | EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/aerial_mastery.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/aerial_mastery.psd"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -212561,7 +212498,6 @@
 		]
 		m_eShopFilters = "EShopFilterFireRate | EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/rapid_rounds.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/rapid_rounds_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -212789,7 +212725,6 @@
 		]
 		m_eShopFilters = "EShopFilterFireRate | EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/extra_stamina.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/extra_stamina_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -213091,7 +213026,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDisruption | EShopFilterClipSize"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/hunters_aura.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/hunters_aura_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -213766,7 +213700,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/weapon_shielding.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/weapon_shielding_sm.png"
 		m_AutoIntrinsicModifiers = 
 		[
 			subclass:
@@ -214076,7 +214009,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/spirit_shielding.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/spirit_shielding_sm.png"
 		m_AutoIntrinsicModifiers = 
 		[
 			subclass:
@@ -214385,7 +214317,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/battle_vest.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/battle_vest_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -214670,7 +214601,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/enchanters_emblem.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/enchanters_emblem_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -214906,7 +214836,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/extra_spirit.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/extra_spirit_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -215179,7 +215108,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/mystic_regen.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/mystic_regen_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -215435,7 +215363,6 @@
 		]
 		m_eShopFilters = "EShopFilterMovement | EShopFilterMagicDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/improved_spirit.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/improved_spirit_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -215779,7 +215706,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/spiritual_overflow.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/spiritual_overflow_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -216180,7 +216106,6 @@
 		m_eShopFilters = "EShopFilterDurability | EShopFilterMagicDamage | EShopFilterFireRate"
 		m_strCastSound = soundevent:"Mods.Armor.ReturnFire.Cast"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/return_fire.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/return_fire_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -216447,7 +216372,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/greater_expansion.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/greater_expansion_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -216688,7 +216612,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/mystic_reach.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/mystic_reach_sm.png"
 		m_TargetAbilityEffectsToApply = "CITADEL_TARGET_ABILITY_BEHAVIOR_IMBUE_MODIFIER_VALUE"
 		m_vecAbilityUpgrades = 
 		[
@@ -216925,7 +216848,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/extra_charge.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/extra_charge_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -217175,7 +217097,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterHealing | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/spirit_lifesteal.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/spirit_lifesteal_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -217741,7 +217662,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/bullet_resist_shredder.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/bullet_resist_shredder_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -218104,7 +218024,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/mystic_reverb.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/mystic_reverb_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -218361,7 +218280,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/mystic_burst.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/mystic_burst_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -218659,7 +218577,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/tankbuster.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/tankbuster_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -219141,7 +219058,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/mystic_vulnerability.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/mystic_vulnerability_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -219439,7 +219355,6 @@
 		]
 		m_eShopFilters = "EShopFilterHealing | EShopFilterDisruption | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/healbane.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/healbane_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -219737,7 +219652,6 @@
 		]
 		m_eShopFilters = "EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/mystic_slow.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/mystic_slow_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -220046,7 +219960,6 @@
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDurability"
 		m_bInDevelopment = false
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/escalating_exposure.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/escalating_exposure_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -220313,7 +220226,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/rapid_recharge.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/rapid_recharge_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -220613,7 +220525,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/omnicharge_pendant.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/omnicharge_pendant.psd"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -220850,7 +220761,6 @@
 		]
 		m_eShopFilters = "EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/improved_cooldown.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/improved_cooldown_sm.png"
 		m_TargetAbilityEffectsToApply = "CITADEL_TARGET_ABILITY_BEHAVIOR_IMBUE_MODIFIER_VALUE"
 		m_vecAbilityUpgrades = 
 		[
@@ -221096,7 +221006,6 @@
 		]
 		m_eShopFilters = "EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/superior_cooldown.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/superior_cooldown_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -221355,7 +221264,6 @@
 		]
 		m_eShopFilters = "EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/transcendent_cooldown.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/transcendent_cooldown_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -221630,7 +221538,6 @@
 		]
 		m_eShopFilters = "EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/timeless_emblem.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/timeless_emblem.psd"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -221948,7 +221855,6 @@
 		}
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/shadow_step.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/shadow_step.psd"
 	}
 	upgrade_duration_extender = 
 	{
@@ -222680,7 +222586,6 @@
 		]
 		m_eShopFilters = "EShopFilterMovement | EShopFilterDisruption | EShopFilterMagicDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/slowing_hex.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/slowing_hex_sm.png"
 		m_strSelectedSound = soundevent:"Mods.Tech.Immobilize.Select"
 		m_strSelectedLoopSound = soundevent:"Mods.Tech.Immobilize.Select_Lp"
 		m_strUnselectedSound = soundevent:"Mods.Tech.Immobilize.Unselect"
@@ -222979,7 +222884,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/spirit_sap.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/spirit_sap_sm.png"
 		m_AutoIntrinsicModifiers = 
 		[
 			subclass:
@@ -223334,7 +223238,6 @@
 		]
 		m_eShopFilters = "EShopFilterDisruption | EShopFilterMagicDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/focus_lens.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/focus_lens_sm.png"
 		m_strSelectedLoopSound = soundevent:"Mods.Tech.FocusLens.Select.Lp"
 		m_vecComponentItems = 
 		[
@@ -223701,7 +223604,6 @@
 		]
 		m_eShopFilters = "EShopFilterDisruption | EShopFilterMagicDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/rusted_barrel.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/rusted_barrel_sm.png"
 		m_strSelectedLoopSound = soundevent:"Mods.Tech.Rusted.Barrel.Select.Lp"
 		m_strSelectedSound = soundevent:"Mods.Tech.Rusted.Barrel.Select"
 		m_strUnselectedSound = soundevent:"Mods.Tech.Rusted.Barrel.Deselect"
@@ -224018,7 +223920,6 @@
 		]
 		m_eShopFilters = "EShopFilterDisruption | EShopFilterMagicDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/disarming_hex.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/disarming_hex_sm.png"
 		m_strSelectedSound = soundevent:"Mods.Tech.Disarming.Hex.Select"
 		m_strUnselectedSound = soundevent:"Mods.Tech.Disarming.Hex.Unselect"
 		m_strSelectedLoopSound = soundevent:"Mods.Tech.Disarming.Hex.Select.Lp"
@@ -224391,7 +224292,6 @@
 		m_strChannelLoopSound = soundevent:""
 		m_strChannelSound = soundevent:"Mods.Armor.Rescue.Beam.Cast"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/rescue_beam.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/rescue_beam_sm.png"
 		m_strSelectedSound = soundevent:"Mods.Armor.Rescue.Beam.Select"
 		m_strSelectedLoopSound = soundevent:"Mods.Armor.Rescue.Beam.Select.Lp"
 		m_strUnselectedSound = soundevent:"Mods.Armor.Rescue.Beam.Deselect"
@@ -226382,7 +226282,6 @@
 		m_strSelectedLoopSound = soundevent:"Mods.Tech.Decay.Select_Lp"
 		m_strUnselectedSound = soundevent:"Mods.Tech.Decay.Deselect"
 		m_strCastSound = soundevent:"Mods.Tech.Decay.Cast"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/decay_sm.png"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/decay.psd"
 		m_vecAbilityUpgrades = 
 		[
@@ -226743,7 +226642,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/scourge.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/scourge_sm.png"
 		m_strSelectedSound = soundevent:"Mods.Tech.Blightfield.Select"
 		m_strUnselectedSound = soundevent:"Mods.Tech.Blightfield.Unselect"
 		m_strSelectedLoopSound = soundevent:"Mods.Tech.Blightfield.Select_Lp"
@@ -227281,7 +227179,6 @@
 		m_strDamageTakenSound = soundevent:""
 		m_strHitConfirmationSound = soundevent:""
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/knockdown.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/knockdown_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -227629,7 +227526,6 @@
 			]
 		}
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDurability | EShopFilterMovement | EShopFilterDisruption"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/phantom_strike_sm.png"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/phantom_strike.psd"
 		m_strSelectedSound = soundevent:"Mods.Armor.Phantom.Strike.Select"
 		m_strSelectedLoopSound = soundevent:"Mods.Armor.Phantom.Strike.Select.Lp"
@@ -227925,7 +227821,6 @@
 		}
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/warp_stone.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/warp_stone_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -228292,7 +228187,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/vortex_web.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/vortex_web_sm.png"
 		m_strSelectedSound = soundevent:"Mods.Tech.Vacuum.Web.Select"
 		m_strUnselectedSound = soundevent:"Mods.Tech.Vacuum.Web.Deselect"
 		m_strSelectedLoopSound = soundevent:"Mods.Tech.Vacuum.Web.Select.Lp"
@@ -228548,7 +228442,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/refresher.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/refresher_sm.png"
 		m_strCastDelaySound = soundevent:"Mods.Tech.Refresher.Cast.Delay"
 		m_vecAbilityUpgrades = 
 		[
@@ -228830,7 +228723,6 @@
 		]
 		m_eShopFilters = "EShopFilterMovement | EShopFilterMagicDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/echo_shard.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/echo_shard_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -229138,7 +229030,6 @@
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDurability"
 		m_strCastSound = soundevent:""
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/torment_pulse.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/torment_pulse_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -229467,7 +229358,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/cheat_death.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/cheat_death_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -230285,7 +230175,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterFireRate | EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/shadow_weave.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/shadow_weave_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -231377,7 +231266,6 @@
 		}
 		m_eShopFilters = "EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/majestic_leap.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/majestic_leap_sm.png"
 		m_BarrierModifier = subclass:
 		{
 			_class = "modifier_base"
@@ -232040,7 +231928,6 @@
 			m_sStartSound = soundevent:"Mods.Armor.Healing.Nova.Buff"
 		}
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/healing_nova.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/healing_nova_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -232347,7 +232234,6 @@
 		]
 		m_eShopFilters = "EShopFilterHealing | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/restorative_locket.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/restorative_locket_sm.png"
 		m_strSelectedSound = soundevent:"Mods.Armor.RestorativeLocket.Select"
 		m_strUnselectedSound = soundevent:"Mods.Armor.RestorativeLocket.Unselect"
 		m_strStackSound = soundevent:"Mods.Armor.RestorativeLocket.Stack"
@@ -232644,7 +232530,6 @@
 		m_strAltCastButtonLocToken = "#AbilityButtonHint_HealSelf"
 		m_strCastButtonLocToken = "#AbilityButtonHint_HealTarget"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/healing_rite.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/healing_rite_sm.png"
 		m_strSelectedSound = soundevent:"Mods.Armor.Healing.Rite.Select"
 		m_strSelectedLoopSound = soundevent:"Mods.Armor.Healing.Rite.Select.Lp"
 		m_strUnselectedSound = soundevent:"Mods.Armor.Healing.Rite.Deselect"
@@ -232931,7 +232816,6 @@
 		m_strAltCastButtonLocToken = "#AbilityButtonHint_ShrinkTarget"
 		m_strCastButtonLocToken = "#AbilityButtonHint_ShrinkSelf"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/shrink_ray.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/shrink_ray.psd"
 		m_strSelectedSound = soundevent:"Mods.Armor.Healing.Rite.Select"
 		m_strSelectedLoopSound = soundevent:"Mods.Armor.Healing.Rite.Select.Lp"
 		m_strUnselectedSound = soundevent:"Mods.Armor.Healing.Rite.Deselect"
@@ -233276,7 +233160,6 @@
 		m_eShopFilters = "EShopFilterMagicDamage"
 		m_strCastSound = soundevent:"Mods.Armor.Infuser.Cast"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/infuser.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/infuser_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -233608,7 +233491,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability | EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/guardian_ward.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/guardian_ward_sm.png"
 		m_strSelectedSound = soundevent:"Mods.Armor.Guardian.Ward.Select"
 		m_strSelectedLoopSound = soundevent:"Mods.Armor.Guardian.Ward.Select.Lp"
 		m_strUnselectedSound = soundevent:"Mods.Armor.Guardian.Ward.Deselect"
@@ -233940,7 +233822,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability | EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/divine_barrier.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/divine_barrier_sm.png"
 		m_strSelectedSound = soundevent:"Mods.Armor.Divine.Barrier.Select"
 		m_strUnselectedSound = soundevent:"Mods.Armor.Divine.Barrier.Deselect"
 		m_strCastSound = soundevent:"Mods.Armor.Divine.Barrier.Cast"
@@ -234598,7 +234479,6 @@
 		m_strCastSound = soundevent:"Mods.Weapon.Thermal.Detonator.Cast"
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterMagicDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/alchemical_fire.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/alchemical_fire_sm.png"
 		m_strSelectedSound = soundevent:"Mods.Weapon.Alchemical.Fire.Select"
 		m_strUnselectedSound = soundevent:"Mods.Weapon.Alchemical.Fire.Unselect"
 		m_strSelectedLoopSound = soundevent:"Mods.Weapon.Alchemical.Fire.Select.Lp"
@@ -234933,7 +234813,6 @@
 		m_strCastSound = soundevent:"Mods.Weapon.BloodTribute.Activate"
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/blood_tribute.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/blood_tribute_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -235274,7 +235153,6 @@
 		]
 		m_eShopFilters = "EShopFilterClipSize | EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/fleetfoot.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/fleetfoot_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -235576,7 +235454,6 @@
 		]
 		m_eShopFilters = "EShopFilterFireRate | EShopFilterClipSize | EShopFilterMovement | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/kinetic_dash.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/kinetic_dash_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -235921,7 +235798,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterFireRate | EShopFilterClipSize | EShopFilterMovement | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/arcane_surge.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/arcane_surge_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -236875,7 +236751,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability | EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/unstoppable.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/unstoppable_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -237316,7 +237191,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/colossus.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/colossus_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -237671,7 +237545,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDisruption | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/cold_front.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/cold_front_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -238053,7 +237926,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDisruption | EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/arctic_blast.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/arctic_blast_sm.png"
 		m_strCastSound = soundevent:"Mods.Tech.Arctic.Blast.Cast"
 		m_vecAbilityUpgrades = 
 		[
@@ -238712,7 +238584,6 @@
 		]
 		m_eShopFilters = "EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/ethereal_shift.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/ethereal_shift_sm.png"
 		m_strCastSound = soundevent:"Mods.Tech.Stasis.Cast"
 		m_vecAbilityUpgrades = 
 		[
@@ -239663,7 +239534,6 @@
 		]
 		m_eShopFilters = "EShopFilterDisruption | EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/curse.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/curse_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -240155,7 +240025,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/duration_extender.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/duration_extender_sm.png"
 		m_TargetAbilityEffectsToApply = "CITADEL_TARGET_ABILITY_BEHAVIOR_IMBUE_MODIFIER_VALUE"
 		m_vecAbilityUpgrades = 
 		[
@@ -240404,7 +240273,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/superior_duration.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/superior_duration_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -240733,7 +240601,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterClipSize | EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/glass_cannon.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/glass_cannon_sm.png"
 		m_strDeathSound = soundevent:"Mods.Weapon.Glass.Cannon.Stack.Loss"
 		m_strStackSound = soundevent:"Mods.Weapon.Glass.Cannon.Stack.Gain"
 		m_vecAbilityUpgrades = 
@@ -241060,7 +240927,6 @@
 		]
 		m_eShopFilters = "EShopFilterFireRate | EShopFilterWeaponDamage | EShopFilterMovement | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/fury_trance.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/fury_trance_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -241401,7 +241267,6 @@
 		]
 		m_eShopFilters = "EShopFilterFireRate | EShopFilterWeaponDamage | EShopFilterMovement | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/vampiric_burst.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/vampiric_burst_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -242583,7 +242448,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability | EShopFilterMelee | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/lifestrike.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/lifestrike_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -242857,7 +242721,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterMelee"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/spirit_strike.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/spirit_strike_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -243208,7 +243071,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterMelee"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/spirit_snatch.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/spirit_snatch_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -243527,7 +243389,6 @@
 		]
 		m_eShopFilters = "EShopFilterMelee"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/melee_charge.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/melee_charge_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -243931,7 +243792,6 @@
 		]
 		m_eShopFilters = "EShopFilterMelee"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/crushing_fists.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/crushing_fists_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -244686,7 +244546,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDurability | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/diviners_kevlar.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/diviners_kevlar_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -245350,7 +245209,6 @@
 		}
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterMovement | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/radiant_regeneration.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/radiant_regeneration_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -245606,7 +245464,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterMovement | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/boundless_spirit.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/boundless_spirit_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -245909,7 +245766,6 @@
 		]
 		m_eShopFilters = "EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/burst_fire.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/burst_fire_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -246390,7 +246246,6 @@
 		]
 		m_eShopFilters = "EShopFilterClipSize | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/extra_regen.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/extra_regen_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -246939,7 +246794,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterMovement"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/surge_of_power.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/surge_of_power_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -247219,7 +247073,6 @@
 		]
 		m_eShopFilters = "EShopFilterHealing | EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/suppressor.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/suppressor_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -247511,7 +247364,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/quicksilver_reload.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/quicksilver_reload_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -247865,7 +247717,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/mercurial_magnum.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/mercurial_magnum_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -248677,7 +248528,6 @@
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_weapon/auto_reloader.psd"
 		m_strCSSClass = "intensifyingClip"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/intensifying_magazine.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/intensifying_magazine_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -248973,7 +248823,6 @@
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_armor/bullet_armor_plus.psd"
 		m_strCSSClass = "reinforcingCasings"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/escalating_resilience.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/escalating_resilience_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -249246,7 +249095,6 @@
 		]
 		m_eShopFilters = "EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/swift_striker.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/swift_striker_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -249617,7 +249465,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability | EShopFilterClipSize"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/veil_walker.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/veil_walker_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -249898,7 +249745,6 @@
 		m_bShowInPassiveItemsArea = true
 		m_iUpdateTime = 1712007365
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/reactive_barrier.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/reactive_barrier_sm.png"
 		m_BarrierModifier = subclass:
 		{
 			_class = "modifier_base"
@@ -250226,7 +250072,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterHealing"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/restorative_shot.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/restorative_shot_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -250477,7 +250322,6 @@
 		]
 		m_eShopFilters = "EShopFilterClipSize | EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/titanic_magazine.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/titanic_magazine_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -250790,7 +250634,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/split_shot.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/split_shot_sm.png"
 		m_strCastDelaySound = soundevent:""
 		m_strCastSound = soundevent:"Mods.Weapon.SplitShot.Activate"
 		m_vecAbilityUpgrades = 
@@ -251109,7 +250952,6 @@
 		m_FailureParticle = resource_name:"particles/upgrades/active_reload_fail.vpcf"
 		m_strWindowEnteredSound = soundevent:"Mods.Weapon.ActiveReload.WindowEntered"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/active_reload.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/active_reload_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -251491,7 +251333,6 @@
 		m_eShopFilters = "EShopFilterMovement"
 		m_strCastDelaySound = soundevent:"Item.MagicCarpet.Cast_Delay"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/magic_carpet.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/magic_carpet_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -252946,7 +252787,6 @@
 		m_bInDevelopment = false
 		m_iUpdateTime = 1741724072
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/spirit_burn.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/spirit_burn_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -253219,7 +253059,6 @@
 		m_bWarnIfNoAffectedAbilities = 1
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/lightning_scroll.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/spirit/lightning_scroll_sm.png"
 		m_vecTooltipSectionInfo = 
 		[
 			
@@ -253939,7 +253778,6 @@
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDurability"
 		m_iUpdateTime = 1741724072
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/witchmail.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/witchmail_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -254274,7 +254112,6 @@
 		m_eShopFilters = "EShopFilterFireRate | EShopFilterHealing"
 		m_iUpdateTime = 1741724072
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/healing_tempo.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/healing_tempo_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -254651,7 +254488,6 @@
 		}
 		m_iUpdateTime = 1741724072
 		m_strShopIconLarge = panorama:""
-		m_strShopIconSmall = panorama:""
 		m_bDisabledOnExperimental = false
 		m_bDisabled = true
 		m_strAG2CastCompletedAction = "throw_completed"
@@ -255174,7 +255010,6 @@
 		]
 		m_eShopFilters = "EShopFilterClipSize | EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/armor_piercing_rounds.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/armor_piercing_rounds_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -255441,7 +255276,6 @@
 		]
 		m_eShopFilters = "EShopFilterClipSize | EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/infinite_rounds.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/infinite_rounds.psd"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -255720,7 +255554,6 @@
 		m_eShopFilters = "EShopFilterDurability"
 		m_iUpdateTime = 1741724072
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/plated_armor.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/plated_armor_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -255992,7 +255825,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/spellbreaker.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/spellbreaker_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -256317,7 +256149,6 @@
 		]
 		m_eShopFilters = "EShopFilterDurability"
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/juggernaut.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/vitality/juggernaut_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -256620,7 +256451,6 @@
 		]
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/spell_slinger.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/spell_slinger_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -256972,7 +256802,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/backstabber.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/backstabber_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -257301,7 +257130,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/express_shot.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/express_shot_sm.png"
 		m_strOffCooldownSound = soundevent:"Mods.Weapon.Express.Shot.Ready"
 		m_ReadyParticle = resource_name:"particles/upgrades/express_shot_ready.vpcf"
 		m_TracerAdditionParticle = resource_name:"particles/upgrades/express_shot_projectile.vpcf"
@@ -257528,7 +257356,6 @@
 		m_eAbilityRequirements = "ERequirementStreetBrawl"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_utility/sprint_booster.psd"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/icarus_wings.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/icarus_wings.psd"
 		m_vecTooltipSectionInfo = 
 		[
 			
@@ -257833,7 +257660,6 @@
 		m_eAbilityRequirements = "ERequirementStreetBrawl"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_tech/knockdown.psd"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/mystical_piano.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/mystical_piano.psd"
 		m_previewParticle = resource_name:"particles/upgrades/mystical_piano_preview.vpcf"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CIRCLE"
 		m_bShowTargetingPreviewWhileCasting = true
@@ -258240,7 +258066,6 @@
 		]
 		m_eShopFilters = "EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/nullification_aura.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/nullification_aura.psd"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -258470,7 +258295,6 @@
 		m_strCSSClass = "debuffReducer"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_armor/debuff_reducer.psd"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/celestial_guidance.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/celestial_guidance.psd"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_SPHERE"
 		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_CAN_CAST_ON_ZIPLINE | CITADEL_ABILITY_BEHAVIOR_CAN_HEAL_PLAYERS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_FRIENDLY | CITADEL_UNIT_TARGET_TROOPER_FRIENDLY | CITADEL_UNIT_TARGET_MINION_FRIENDLY"
@@ -258782,7 +258606,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/eternal_gift.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/eternal_gift.psd"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -259135,7 +258958,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/patrons_blessing.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/patrons_blessing.psd"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -259472,7 +259294,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterMagicDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/eldritch_shot.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/eldritch_shot.psd"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -259785,7 +259606,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/cloak_of_opportunity.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/cloak_of_opportunity.psd"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -260084,7 +259904,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/runed_gauntlets.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/runed_gauntlets.psd"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -260401,7 +260220,6 @@
 			},
 		]
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/electric_slippers.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/electric_slippers.psd"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -260736,7 +260554,6 @@
 		]
 		m_eShopFilters = "EShopFilterFireRate"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/prism_blast.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/prism_blast.psd"
 		m_strCastSound = soundevent:"Mods.Prism.Blast.Cast"
 		m_vecAbilityUpgrades = 
 		[
@@ -260972,7 +260789,6 @@
 		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_CAN_CAST_ON_ZIPLINE | CITADEL_ABILITY_BEHAVIOR_CASTABLE_WHILE_DODGING"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/unstable_concoction.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/unstable_concoction.psd"
 		m_vecTooltipSectionInfo = 
 		[
 			
@@ -261270,7 +261086,6 @@
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_TargetAbilityEffectsToApply = "CITADEL_TARGET_ABILITY_BEHAVIOR_IMBUE_MODIFIER_VALUE"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/frostbite.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/frostbite.psd"
 		m_vecTooltipSectionInfo = 
 		[
 			
@@ -261594,7 +261409,6 @@
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strShopIconLarge = panorama:"file://{images}/items/brawl/shadow_strike.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/brawl/shadow_strike.psd"
 		m_ShadowStrikeInvisModifier = subclass:
 		{
 			_class = "modifier_shadow_strike_invis"
@@ -261995,7 +261809,6 @@
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/alchemical_seal.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/alchemical_seal_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -262275,7 +262088,6 @@
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDurability"
 		m_iUpdateTime = 1769068800
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/recharging_rounds.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/weapon/recharging_rounds_sm.png"
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -262728,7 +262540,6 @@
 		m_strAG2CastingAction = "throw"
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/seasonal/2025_snowball.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/seasonal/2025_snowball.psd"
 		m_cosmeticInfo = 
 		{
 			m_bIsSeasonal = true
@@ -263028,7 +262839,6 @@
 		m_strSelectedLoopSound = soundevent:""
 		m_eShopFilters = "EShopFilterWeaponDamage"
 		m_strShopIconLarge = panorama:"file://{images}/items/seasonal/voting_poster.psd"
-		m_strShopIconSmall = panorama:"file://{images}/items/seasonal/voting_poster.psd"
 		m_cosmeticInfo = 
 		{
 			m_bIsSeasonal = true
@@ -266597,6 +266407,9 @@
 			m_flBulletLifetime = 5.000000
 			m_szMuzzleFlashEffectName = resource_name:""
 			m_strReloadEndSound = soundevent:""
+			m_flCritBonusStart = 1.300000
+			m_flCritBonusEnd = 1.300000
+			m_flCritBonusAgainstNPCs = 0.200000
 		}
 		m_bitsChannelEnabledStateMask = ""
 		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION | MODIFIER_STATE_HIDE_CROSSHAIR | MODIFIER_STATE_HIDE_AMMO"
@@ -268811,7 +268624,7 @@
 			m_flUpSpeed = 200.000000
 			m_flVerticalAimBias = 0.000000
 			m_particle = resource_name:"particles/abilities/priest/priest_snaptrap_projectile.vpcf"
-			m_flPhysicsRadius = 1.500000
+			m_flPhysicsRadius = 0.100000
 			m_flTriggerRadius = 1.500000
 			m_flBulletOnlyTriggerRadius = 15.000000
 			m_HitWorldSound = soundevent:""
@@ -276370,6 +276183,15 @@
 			{
 				m_strValue = "5"
 			}
+			DashBuffDuration = 
+			{
+				m_strValue = "0"
+			}
+			BulletResist = 
+			{
+				m_strValue = "0"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST"
+			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_MOVEMENT_ABILITY_RESTRICTED | MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
@@ -276446,6 +276268,16 @@
 					{
 						m_strPropertyName = "DashSpeed"
 						m_strBonus = "550"
+					},
+					
+					{
+						m_strPropertyName = "BulletResist"
+						m_strBonus = "60"
+					},
+					
+					{
+						m_strPropertyName = "DashBuffDuration"
+						m_strBonus = "1.5"
 					},
 				]
 			},
@@ -276524,6 +276356,7 @@
 					m_vecBasicProperties = 
 					[
 						"MaxStabs",
+						"BulletResist",
 					]
 				},
 				
@@ -276687,6 +276520,16 @@
 		m_strChargeGlintSound = soundevent:"Fencer.Lunge.Charge.Glint"
 		m_strPerfectDamageHitSound = soundevent:"Fencer.Lunge.HitConfirm.Perfect"
 		m_flPostAttackDuration = 0.030000
+		m_DashBuffModifier = subclass:
+		{
+			_class = "modifier_base"
+			_my_subclass_name = "dashmodifier"
+			m_bIsHidden = true
+			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
+			[
+				"BulletResist",
+			]
+		}
 	}
 	ability_fencer_ultimate = 
 	{
@@ -277152,13 +276995,13 @@
 		{
 			_class = "modifier_fencer_ultimate_target"
 			_my_subclass_name = "cursed"
-			m_sLocalizationName = "modifier_citadel_cursed"
+			m_sLocalizationName = "Citadel_StatusEffectEMP"
 			m_strParticleEffect = resource_name:"particles/abilities/fencer/fencer_ult_root.vpcf"
 			m_strParticleStatusEffect = resource_name:"particles/status_fx/status_fx_chrono_carbine_hit_debuff.vpcf"
 			m_nStatusEffectPriority = 50
 			m_DashImpactEffect = resource_name:"particles/abilities/fencer/fencer_ult_impact_slash.vpcf"
 			m_strDashHitEnemy = soundevent:""
-			m_nEnabledStateMask = "MODIFIER_STATE_DISARMED | MODIFIER_STATE_SILENCED | MODIFIER_STATE_MUTED | MODIFIER_STATE_GLITCHED | MODIFIER_STATE_DASH_DISABLED_DEBUFF | MODIFIER_STATE_SILENCE_MOVEMENT_ABILITES"
+			m_nEnabledStateMask = "MODIFIER_STATE_DISARMED | MODIFIER_STATE_SILENCED | MODIFIER_STATE_MUTED | MODIFIER_STATE_DASH_DISABLED_DEBUFF | MODIFIER_STATE_SILENCE_MOVEMENT_ABILITES"
 			m_flEndTimeScaleForFlinch = 0.900000
 			m_flDamageTimeOffset = 0.400000
 			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
@@ -291897,7 +291740,7 @@
 			}
 			AirControlAccelPercent = 
 			{
-				m_strValue = "25"
+				m_strValue = "18"
 				m_strCSSClass = "move_speed"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_AIR_CONTROL_ACCEL_PERCENT"
 			}
@@ -292032,7 +291875,7 @@
 			m_strZoomOutSound = soundevent:"Yamato.Wpn.Zoom.Out"
 			m_flDamageForce = 50.000000
 			m_bBulletShouldUseVerlet = true
-			m_flBulletDamage = 25
+			m_flBulletDamage = 18
 			m_strShootSound = soundevent:"Unicorn.Wpn.Fire"
 			m_flRecoilRecoveryDelayFactor = 0.800000
 			m_AimingShootSpreadPenalty = 
@@ -293280,8 +293123,8 @@
 				[
 					
 					{
-						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-10"
+						m_strPropertyName = "AbilityLifestealPercentHero"
+						m_strBonus = "15"
 					},
 				]
 			},
@@ -293296,8 +293139,8 @@
 					},
 					
 					{
-						m_strPropertyName = "AbilityLifestealPercentHero"
-						m_strBonus = "15"
+						m_strPropertyName = "AbilityCooldown"
+						m_strBonus = "-10"
 					},
 				]
 			},
@@ -294179,7 +294022,6 @@
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY | CITADEL_UNIT_TARGET_TROOPER_ENEMY | CITADEL_UNIT_TARGET_MINION_ENEMY | CITADEL_UNIT_TARGET_NEUTRAL"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/unicorn/unicorn_orb.psd"
 		m_strCastSound = soundevent:"Unicorn.Dazzling.Orb.Cast"
-		m_flMaxFallSpeedWhileChanneling = 35
 		m_vecAbilityUpgrades = 
 		[
 			
@@ -294321,43 +294163,43 @@
 						{
 							x = 0.000000
 							y = 229.705887
-							m_flSlopeIncoming = 1631.176514
-							m_flSlopeOutgoing = 1631.176514
+							m_flSlopeIncoming = 1347.612915
+							m_flSlopeOutgoing = 1347.612915
 						},
 						
 						{
 							x = 0.250000
-							y = 637.500000
-							m_flSlopeIncoming = 973.188049
-							m_flSlopeOutgoing = 973.188049
+							y = 580
+							m_flSlopeIncoming = 833.966797
+							m_flSlopeOutgoing = 833.966797
 						},
 						
 						{
 							x = 0.700000
-							y = 910.937500
-							m_flSlopeIncoming = 607.638916
-							m_flSlopeOutgoing = 195.111099
+							y = 825
+							m_flSlopeIncoming = 551.049438
+							m_flSlopeOutgoing = 273.228516
 						},
 						
 						{
-							x = 0.900583
-							y = 950.073547
-							m_flSlopeIncoming = 195.111099
-							m_flSlopeOutgoing = 378.002502
+							x = 0.900000
+							y = 875
+							m_flSlopeIncoming = 273.228516
+							m_flSlopeOutgoing = 369.909454
 						},
 						
 						{
 							x = 1.000000
-							y = 1024.338257
-							m_flSlopeIncoming = 747.005005
-							m_flSlopeOutgoing = 747.005005
+							y = 930
+							m_flSlopeIncoming = 590.005310
+							m_flSlopeOutgoing = 590.005310
 						},
 						
 						{
 							x = 1.300000
-							y = 1175.000000
-							m_flSlopeIncoming = 502.205902
-							m_flSlopeOutgoing = 502.205902
+							y = 1100
+							m_flSlopeIncoming = 596.159729
+							m_flSlopeOutgoing = 596.159729
 						},
 					]
 					m_tangents = 
@@ -294491,6 +294333,99 @@
 				m_nEnabledStateMask = "MODIFIER_STATE_PRISMATIC_GUARDED"
 			}
 		}
+		m_flAirDrag = 0.350000
+		m_flAirSpeedMax = 20.000000
+		m_FallSpeedCurve = 
+		{
+			m_spline = 
+			[
+				
+				{
+					x = 0.000000
+					y = 35.000000
+					m_flSlopeIncoming = 0.000000
+					m_flSlopeOutgoing = 0.000000
+				},
+				
+				{
+					x = 3.097333
+					y = 35.000000
+					m_flSlopeIncoming = 42.997856
+					m_flSlopeOutgoing = 42.997856
+				},
+				
+				{
+					x = 3.619167
+					y = 190.616409
+					m_flSlopeIncoming = 139.015610
+					m_flSlopeOutgoing = 139.015610
+				},
+				
+				{
+					x = 4.747000
+					y = 264.329437
+					m_flSlopeIncoming = 68.892685
+					m_flSlopeOutgoing = 68.892685
+				},
+				
+				{
+					x = 5.521333
+					y = 321.661774
+					m_flSlopeIncoming = 85.475822
+					m_flSlopeOutgoing = 85.475822
+				},
+				
+				{
+					x = 5.992667
+					y = 370.803802
+					m_flSlopeIncoming = 104.261696
+					m_flSlopeOutgoing = 104.261696
+				},
+			]
+			m_tangents = 
+			[
+				
+				{
+					m_nIncomingTangent = "CURVE_TANGENT_SPLINE"
+					m_nOutgoingTangent = "CURVE_TANGENT_SPLINE"
+				},
+				
+				{
+					m_nIncomingTangent = "CURVE_TANGENT_SPLINE"
+					m_nOutgoingTangent = "CURVE_TANGENT_SPLINE"
+				},
+				
+				{
+					m_nIncomingTangent = "CURVE_TANGENT_SPLINE"
+					m_nOutgoingTangent = "CURVE_TANGENT_SPLINE"
+				},
+				
+				{
+					m_nIncomingTangent = "CURVE_TANGENT_SPLINE"
+					m_nOutgoingTangent = "CURVE_TANGENT_SPLINE"
+				},
+				
+				{
+					m_nIncomingTangent = "CURVE_TANGENT_SPLINE"
+					m_nOutgoingTangent = "CURVE_TANGENT_SPLINE"
+				},
+				
+				{
+					m_nIncomingTangent = "CURVE_TANGENT_SPLINE"
+					m_nOutgoingTangent = "CURVE_TANGENT_SPLINE"
+				},
+			]
+			m_vDomainMins = 
+			[
+				0.000000,
+				35.000000,
+			]
+			m_vDomainMaxs = 
+			[
+				6.000000,
+				1000.000000,
+			]
+		}
 	}
 	ability_unicorn_luminousstrike = 
 	{
@@ -294499,7 +294434,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "30"
+				m_strValue = "33"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -294643,7 +294578,7 @@
 			}
 			ImpactDamage = 
 			{
-				m_strValue = "60"
+				m_strValue = "55"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_damage"
@@ -294763,7 +294698,7 @@
 					
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-12"
+						m_strBonus = "-15"
 					},
 				]
 			},
