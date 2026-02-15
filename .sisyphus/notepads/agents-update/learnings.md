@@ -1,0 +1,3 @@
+- Source 2 Panorama mods require a custom compiler due to lack of official SDK tools.
+- VData files in Deadlock are massive (>260k lines) and require specialized handling.
+- Panorama UI development involves heavy use of IIFE, panel caching, and adaptive polling for performance.

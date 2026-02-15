@@ -1,0 +1,2 @@
+- Updated AGENTS.md to provide a comprehensive guide for autonomous agents, including build commands, code style, and domain-specific gotchas.
+- Chose to include the Key Mods section to provide reference points for future development.
