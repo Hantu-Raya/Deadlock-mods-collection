@@ -1,0 +1,2 @@
+- 2026-02-17: VPKEdit release assets are easiest to fetch via `releases/expanded_assets/<tag>` when GitHub API rate limits block `releases/latest` API calls.
+- 2026-02-17: `vpkeditcli.exe` can be discovered reliably by extracting the Windows standalone archive and searching recursively for the executable.

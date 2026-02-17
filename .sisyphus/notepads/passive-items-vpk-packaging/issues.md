@@ -1,0 +1,1 @@
+- 2026-02-17: `lsp_diagnostics` initially failed because `csharp-ls` was missing from PATH; fixed by installing `csharp-ls` via `dotnet tool install --global csharp-ls`.

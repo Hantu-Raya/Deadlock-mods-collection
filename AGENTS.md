@@ -1,151 +1,151 @@
-# AGENT GUIDE: Deadlock Panorama UI Mod Collection
+# AGENT GUIDE: Deadlock Mods Collection
 
-**Project:** Source 2 Panorama JS/CSS/XML mods for Deadlock  
-**Architecture:** Distributed mod folders compiled into binary `_compiled` directories.  
-**Agent Role:** Autonomous developer for UI features, performance optimization, and VData processing.
+Project type: Source 2 Panorama UI mods plus VData processing utilities.
+Primary output: compiled assets in sibling `_compiled` folders.
+Audience: coding agents operating in this repository.
 
-## 🛠 WORKFLOW & COMMANDS
+## Scope and Rule Sources
+- This root file defines repo-level workflows and standards.
+- Subfolder `AGENTS.md` files may add stricter local rules.
+- Cursor rules: none found (`.cursorrules` and `.cursor/rules/` absent).
+- Copilot rules: none found (`.github/copilot-instructions.md` absent).
 
-### Compile a Mod (MANDATORY)
-After any change to `.js`, `.css`, or `.xml`, you MUST run the compiler. It targets the parent folder of the `panorama/` directory.
+## Repository Layout
+```text
+./
+├── {mod}/panorama/                 # Raw Panorama source (scripts/styles/layout)
+├── {mod}_compiled/                 # Compiled outputs (.vjs_c/.vcss_c/.vxml_c)
+├── abilities/                      # Large VData files + Python processors
+├── sr2compiler/                    # Legacy Source2 quick compiler wrapper
+├── passive_items_mod/              # Standalone configurable mod + local compiler
+└── test/                           # Archive/experimental mods
+```
+
+## Build, Lint, and Test Commands
+
+### Build: Panorama mods (default)
+Run after any `.js`, `.css`, or `.xml` edit.
 ```powershell
 "F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\{mod_name}"
 ```
 
-### Manual Test Workflow
-There is NO standard linting or automated test runner. Verification is manual:
-1. Compile the mod using the command above.
-2. Launch Deadlock with launch options: `-dev -tools`.
-3. Open the console with **F7** (Panorama Debugger) or **F8** (VConsole).
-4. Use `panorama_reload_layout` or restart the game to see changes.
-
-### VData Processing (Abilities)
-Located in `abilities/scripts/`. Used to toggle visibility of items/abilities.
-1. Remove `_include` block (lines 4-59) from `abilities.vdata`.
-2. Run processing scripts:
-   ```powershell
-   py passive.py abilities2.vdata
-   py active.py abilities.vdata
-   ```
-3. Restore `_include` block.
-
-## 📂 PROJECT STRUCTURE
-```
-./
-├── {mod}/panorama/           # Source files (scripts/*.js, styles/*.css, layout/*.xml)
-├── {mod}_compiled/           # Output (.vjs_c, .vcss_c, .vxml_c)
-├── abilities/                # VData definitions (260k lines) + Python scripts
-├── sr2compiler/              # Custom Source 2 ResourceCompiler wrapper
-└── test/                     # Archive/reference mods
+### Build: passive_items_mod (recommended for that module)
+Generates `mod_settings_data.js` from `settings.json`, detects game, compiles.
+```powershell
+F:\Users\Shiv\Desktop\Deadlock-mods-collection\passive_items_mod\Apply.bat
 ```
 
-## 📏 CODE STYLE & CONVENTIONS
+### Build: passive_items_mod compiler executable (if compiler source changed)
+```powershell
+cd F:\Users\Shiv\Desktop\Deadlock-mods-collection\passive_items_mod\compiler
+dotnet build Compiler.csproj -c Release
+dotnet publish Compiler.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+```
 
-### Rules Status
-- **No** `.cursorrules` or `.cursor/rules/`
-- **No** `.github/copilot-instructions.md`
-- Guidance is centralized in this `AGENTS.md` file.
+### Build: abilities VData scripts
+```powershell
+cd F:\Users\Shiv\Desktop\Deadlock-mods-collection\abilities\scripts
+py passive.py abilities2.vdata
+py active.py abilities.vdata
+```
+Batch wrappers:
+```powershell
+abilities\scripts\passive.bat
+abilities\scripts\active.bat
+```
 
-### JavaScript (Panorama)
-- **Wrapper**: ALWAYS use IIFE with strict mode: `(() => { "use strict"; ... })();`
-- **Constants**: `UPPER_SNAKE_CASE` at the top of the file.
-- **Variables**: `camelCase` for state, `_prefixed` for internal/cached values.
-- **UI Object**: `const UI = { root: null, label: null, ... };` for panel refs.
-- **Indentation**: 2 spaces.
+### Lint/Test status
+- No repository-wide lint command is defined.
+- No automated unit/integration test runner is defined.
+- Validation is manual in Deadlock tools mode.
 
-### Naming Conventions
+### Single-test equivalent
+There is no formal single test command. Use this focused loop:
+1. Compile only the target mod.
+2. Launch Deadlock with `-dev -tools`.
+3. Open Panorama debugger (`F7`) or VConsole (`F8`).
+4. Run `panorama_reload_layout` to validate only changed UI quickly.
+
+## Manual Validation Checklist
+- Compiled output exists in `{mod}_compiled/panorama/...`.
+- No script errors in Panorama debugger console.
+- Target panel is visible and positioned correctly.
+- Overlay does not block gameplay input unexpectedly.
+
+## JavaScript (Panorama) Conventions
+- Wrap each file in IIFE + strict mode:
+  ```javascript
+  (() => {
+    "use strict";
+  })();
+  ```
+- Indentation: 2 spaces.
+- Constants: `UPPER_SNAKE_CASE` near top of file.
+- Variables/state: `camelCase`.
+- Internal cache/private state: `_prefixed`.
+- Group panel refs under one object:
+  `const UI = { root: null, label: null, ... };`
+
+## Imports and Asset References
+- Use Source 2 compiled path style (`s2r://...`) in XML/CSS includes.
+- Keep layout includes minimal and deterministic.
+- Do not add unrelated script/style includes to base HUD layouts.
+
+## Naming Conventions
 | Type | Convention | Example |
-|------|------------|---------|
-| Constants | UPPER_SNAKE | `TICK_FAST`, `CLAIM_RADIUS_SQ` |
-| State vars | camelCase | `buffStart`, `lastSec` |
-| Cache/internal | _prefixed | `_tCache`, `_playerState` |
-| UI panels | UI.name | `UI.label`, `UI.glowLeft` |
-| Debug tags | [TAG] | `[BT-P]`, `[ERR]` |
+|---|---|---|
+| Constants | UPPER_SNAKE_CASE | `TICK_FAST`, `CLAIM_RADIUS_SQ` |
+| State vars | camelCase | `lastSec`, `buffStart` |
+| Internal/cache | _prefix | `_lastText`, `_tCache` |
+| UI refs | UI.field | `UI.container`, `UI.label` |
+| Debug tags | [TAG] | `[BT-P]`, `[ST-S]`, `[ERR]` |
 
-### CSS & XML
-- **CSS**: Use `overflow: noclip;` for glows. Use `visibility: collapse;` instead of `display: none;`.
-- **Animations**: Use `pre-transform-scale2d` to avoid blur during scaling.
-- **XML**: Set `hittest="false"` for overlays to prevent blocking mouse input.
-- **Assets**: Use `s2r://` prefix for compiled paths in XML/CSS.
+## Types and Data Handling
+- Coerce and clamp external values defensively (`Number`, range guards).
+- Keep generated settings payload deterministic and ASCII-safe.
+- For large VData, prefer stream/text transforms over heavy in-memory parsing.
 
-## 🛡 ERROR HANDLING & SAFETY
-- **Panel Guards**: NEVER access a panel without checking validity.
-  ```javascript
-  if (!panel?.IsValid?.()) return;
-  ```
-- **Engine API Guards**: Wrap `Game` or `$.` engine calls in `try-catch` where state is volatile.
-- **Boot Retry**: Panels may not be ready at script load. Use a recursive schedule:
-  ```javascript
-  function boot() {
-    UI.root = findRoot($.GetContextPanel());
-    if (!UI.root?.IsValid?.()) return $.Schedule(0.5, boot);
-    initialize();
-  }
-  ```
+## Error Handling Rules
+- Never access panel members before validity checks:
+  `if (!panel?.IsValid?.()) return;`
+- Wrap volatile engine calls (`Game.*`, `$.*`) in `try/catch` when state can race.
+- Use boot retry for delayed panel availability:
+  `if (!root?.IsValid?.()) return $.Schedule(0.5, boot);`
+- Fail safe in loops; avoid throwing hard exceptions during runtime ticks.
 
-## 🚀 PERFORMANCE PATTERNS
+## Performance Rules (Critical)
+- Do not call `FindChildTraverse` inside scheduled loops.
+- Cache panel references once during boot/init.
+- Guard DOM writes; update only on value change.
+- Prefer squared distance checks (`distSq`) over `Math.sqrt` in hot paths.
+- Use adaptive polling intervals (fast in combat, slow when idle).
 
-### Panel Caching (CRITICAL)
-`FindChildTraverse` is expensive. Cache all references once during `boot()`.
-```javascript
-const UI = { root: null, label: null };
-function initialize() {
-  UI.label = UI.root.FindChildTraverse("MyLabel");
-}
-```
+## CSS and XML Conventions
+- Use `visibility: collapse` for hidden Panorama panels.
+- Use `overflow: noclip` for glow and overflow visual effects.
+- Prefer `pre-transform-scale2d` for cleaner scaling animations.
+- Set `hittest="false"` on overlays that should not capture input.
+- Use intentional high `z-index` for HUD layers when required.
 
-### DOM Write Guards
-Prevent layout reflows by only updating properties if the value has changed.
-```javascript
-let _lastVal = "";
-function update(newVal) {
-  if (newVal === _lastVal) return;
-  UI.label.text = newVal;
-  _lastVal = newVal;
-}
-```
+## Abilities (VData) Notes
+- `abilities.vdata` and `abilities2.vdata` are huge (~260k lines each).
+- Processing scripts in `abilities/scripts` use string replacement patterns.
+- Required preprocess/postprocess steps (for include blocks) must be respected.
 
-### Adaptive Polling
-Scale polling frequency based on game state (e.g., fast during combat, slow otherwise).
-```javascript
-function loop() {
-  const delay = inCombat ? 0.1 : 1.0;
-  // ... logic ...
-  $.Schedule(delay, loop);
-}
-```
+## Anti-Patterns to Avoid
+- Repeated `FindChildTraverse` calls in tick loops.
+- Unconditional text/style writes each frame.
+- Compiling non-asset files as if they were resourcecompiler inputs.
+- Assuming automated tests/lints exist when they do not.
 
-## 🚫 ANTI-PATTERNS
-- **NO** `FindChildTraverse` inside `$.Schedule` loops.
-- **NO** `new Array()` or `new Object()` in hot paths; reuse variables.
-- **NO** `Math.sqrt()` for distance checks; use squared distance (`distSq`).
-- **NO** bare `Game.GetGameTime()`; use the `gTime()` utility wrapper.
+## Recommended Agent Workflow
+1. Identify target module and check local `AGENTS.md` in that folder.
+2. Make minimal source edits in `panorama/` or `abilities/scripts`.
+3. Run the correct build command for that module.
+4. Perform focused manual validation in tools mode.
+5. Report what was verified and what remains manual.
 
-## 🔧 SHARED UTILITIES
-| Function | Purpose |
-|----------|---------|
-| `gTime()` | Returns game time with 4-tier fallback for reliability. |
-| `findRoot(p)` | Helper to find the engine root panel from a child. |
-| `distSq(p1, p2)` | Squared distance calculation (performance optimized). |
-| `fmt(sec)` | Formats seconds into "MM:SS" or "SS.m" strings. |
-| `parseSec(txt)` | Converts "MM:SS" strings back to numeric seconds. |
-
-## 💡 GOTCHAS & DOMAIN KNOWLEDGE
-- **VData Scale**: `abilities.vdata` is >260k lines. Use stream processing.
-- **Minimap Mirror**: Game mirrors the Y-axis for certain teams using the `.invert_map` class. Detect this and flip Y coordinates manually in JS.
-- **Hero Detection**: Panorama lacks a direct "GetHeroImage" API. Use proximity scans.
-- **Z-Index**: Use extremely high values (e.g., `99999`) for HUD overlays.
-
-## 🔍 DEBUG TAGS & MODULES
-| Tag | Module | Purpose |
-|-----|--------|---------|
-| `[BT-P]` | Buff Timer | Position and layout logic for top-bar timers. |
-| `[ST-S]` | Soul Timer | State synchronization and countdown logic. |
-| `[ERR]` | Core | Caught exceptions or invalid states. |
-
-## 📦 KEY MODS & REFERENCE
-- `buff_timer_virgin/`: Top-bar buff tracker with linger support.
-- `soul_timer/`: Unsecured soul drainage countdown widget.
-- `combined_timer_v2/`: Merged implementation of soul and buff tracking.
-- `hp/`: Various health bar redesigns and status indicators.
-- `standalone_redesign/`: Production-grade ability icon and HUD overhaul.
+## Useful References
+- `abilities/AGENTS.md` for VData-specific constraints.
+- `sr2compiler/AGENTS.md` for legacy compiler behavior.
+- `passive_items_mod/Apply.bat` for generated-settings compile flow.
