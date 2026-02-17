@@ -7,6 +7,7 @@
 *.pdb
 *.vpk
 *.bat
+*.7z
 
 # Temp files
 *.tmp
@@ -16,3 +17,4 @@
 Thumbs.db
 /.tmp.driveupload
 nul
+
