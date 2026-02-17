@@ -1,0 +1,2 @@
+- 2026-02-17: Added optional `vpkeditcli` key support in `pref.json`, but defaulted to `compiler/vpkeditcli.exe` so packaging works without extra configuration.
+- 2026-02-17: VPK packaging now runs only after compiled assets are copied to `{modName}_compiled`, matching the existing workflow sequence.
