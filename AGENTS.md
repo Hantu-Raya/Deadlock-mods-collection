@@ -119,6 +119,7 @@ There is no formal single test command. Use this focused loop:
 - Guard DOM writes; update only on value change.
 - Prefer squared distance checks (`distSq`) over `Math.sqrt` in hot paths.
 - Use adaptive polling intervals (fast in combat, slow when idle).
+- Use `transition-property: opacity` for transitions (no layout reflows).
 
 ## CSS and XML Conventions
 - Use `visibility: collapse` for hidden Panorama panels.
@@ -131,12 +132,25 @@ There is no formal single test command. Use this focused loop:
 - `abilities.vdata` and `abilities2.vdata` are huge (~260k lines each).
 - Processing scripts in `abilities/scripts` use string replacement patterns.
 - Required preprocess/postprocess steps (for include blocks) must be respected.
+- Use string replacement, not full VData parsers.
+
+## C# Compiler Conventions
+- TargetFramework: `net9.0`
+- Use nullable reference types (`<Nullable>enable</Nullable>`).
+- Single-file self-contained publish for distribution.
+- TrimMode: `partial` with compression for smaller binaries.
+- Sealed classes for preference/data models.
+- Registry access guarded with `OperatingSystem.IsWindows()`.
 
 ## Anti-Patterns to Avoid
 - Repeated `FindChildTraverse` calls in tick loops.
 - Unconditional text/style writes each frame.
 - Compiling non-asset files as if they were resourcecompiler inputs.
 - Assuming automated tests/lints exist when they do not.
+- `box-shadow` glows (use pre-transform-scale2d panels instead).
+- Reading `Image.src` property (write-only in Panorama).
+- `scale3d` (use pre-transform-scale2d only).
+- `clip-path` (use style.clip instead).
 
 ## Recommended Agent Workflow
 1. Identify target module and check local `AGENTS.md` in that folder.
@@ -149,3 +163,4 @@ There is no formal single test command. Use this focused loop:
 - `abilities/AGENTS.md` for VData-specific constraints.
 - `sr2compiler/AGENTS.md` for legacy compiler behavior.
 - `passive_items_mod/Apply.bat` for generated-settings compile flow.
+- `buff_timer_virgin/AGENTS.md` for advanced performance optimization patterns.
