@@ -4,17 +4,25 @@ using Microsoft.Win32;
 
 class Program
 {
-    const string ContentFolder = "dota_addons";
     const int BatchSize = 50;
     static readonly HashSet<string> CompilableExtensions =
     [
         ".xml", ".css", ".js", ".png", ".jpg", ".jpeg", ".tga", ".vmat", ".vtex"
     ];
 
+    sealed record GameProfile(string ContentFolder, string SteamFolder, string DisplayName);
+
+    static readonly Dictionary<string, GameProfile> GameProfiles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["deadlock"] = new("dota_addons", "dota 2 beta", "Deadlock"),
+        ["cs2"] = new("csgo_addons", "Counter-Strike Global Offensive", "CS2"),
+    };
+
     sealed class CompilerPreferences
     {
         public string? Directory { get; init; }
         public string? VpkEditCli { get; init; }
+        public string? Game { get; init; }
     }
 
     static int Main(string[] args)
@@ -32,16 +40,17 @@ class Program
             return Fail("Error: Could not resolve mod parent folder");
 
         var pref = LoadPreferences();
-        string? gameDir = FindGameDirectory(pref.Directory);
+        var profile = ResolveGameProfile(pref.Game);
+        string? gameDir = FindGameDirectory(pref.Directory, profile);
         if (gameDir == null)
-            return Fail("Error: Could not find Dota 2 directory");
+            return Fail($"Error: Could not find {profile.DisplayName} directory");
 
         Console.WriteLine($"Mod: {modName}");
         Console.WriteLine($"Path: {modFolder}");
-        Console.WriteLine($"Game: {gameDir}");
+        Console.WriteLine($"Game: {profile.DisplayName} ({gameDir})");
 
-        string stagingDir = Path.Combine(gameDir, "content", ContentFolder, modName);
-        string gameOutputDir = Path.Combine(gameDir, "game", ContentFolder, modName);
+        string stagingDir = Path.Combine(gameDir, "content", profile.ContentFolder, modName);
+        string gameOutputDir = Path.Combine(gameDir, "game", profile.ContentFolder, modName);
         string compiledDir = Path.Combine(rootDir, $"{modName}_compiled");
         string vpkPath = Path.Combine(rootDir, "pak99_dir.vpk");
         string rcPath = Path.Combine(gameDir, "game", "bin", "win64", "resourcecompiler.exe");
@@ -105,16 +114,26 @@ class Program
             return new CompilerPreferences
             {
                 Directory = doc.RootElement.TryGetProperty("directory", out var dirProp) ? dirProp.GetString() : null,
-                VpkEditCli = doc.RootElement.TryGetProperty("vpkeditcli", out var cliProp) ? cliProp.GetString() : null
+                VpkEditCli = doc.RootElement.TryGetProperty("vpkeditcli", out var cliProp) ? cliProp.GetString() : null,
+                Game = doc.RootElement.TryGetProperty("game", out var gameProp) ? gameProp.GetString() : null
             };
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"Warning: Could not load pref.json ({ex.Message}), using defaults");
             return new CompilerPreferences();
         }
     }
 
-    static string? FindGameDirectory(string? preferredDirectory)
+    static GameProfile ResolveGameProfile(string? gameName)
+    {
+        if (!string.IsNullOrWhiteSpace(gameName) && GameProfiles.TryGetValue(gameName, out var profile))
+            return profile;
+
+        return GameProfiles["deadlock"];
+    }
+
+    static string? FindGameDirectory(string? preferredDirectory, GameProfile profile)
     {
         if (!string.IsNullOrWhiteSpace(preferredDirectory) && Directory.Exists(preferredDirectory))
             return preferredDirectory;
@@ -135,7 +154,7 @@ class Program
         }
 
         return steamRoots
-            .Select(root => Path.Combine(root, "steamapps", "common", "dota 2 beta"))
+            .Select(root => Path.Combine(root, "steamapps", "common", profile.SteamFolder))
             .FirstOrDefault(Directory.Exists);
     }
 
@@ -148,10 +167,16 @@ class Program
             var batch = files.Skip(i).Take(BatchSize).ToArray();
             Console.WriteLine($"Compiling batch {currentBatch}/{batchCount} ({batch.Length} files)...");
 
+            var sb = new System.Text.StringBuilder(32768);
+            foreach (var f in batch)
+            {
+                sb.Append('"').Append(f).Append("\" ");
+            }
+
             var psi = new ProcessStartInfo
             {
                 FileName = rcPath,
-                Arguments = string.Join(" ", batch.Select(f => $"\"{f}\"")),
+                Arguments = sb.ToString().TrimEnd(),
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -162,9 +187,19 @@ class Program
             if (proc == null)
                 return false;
 
-            string stdout = proc.StandardOutput.ReadToEnd();
-            string stderr = proc.StandardError.ReadToEnd();
-            proc.WaitForExit();
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+            var stderrTask = proc.StandardError.ReadToEndAsync();
+
+            if (!proc.WaitForExit(300000))
+            {
+                try { proc.Kill(); } catch { }
+                Console.WriteLine($"Error: Compilation timeout on batch {currentBatch}");
+                return false;
+            }
+
+            Task.WhenAll(stdoutTask, stderrTask).Wait();
+            string stdout = stdoutTask.Result;
+            string stderr = stderrTask.Result;
 
             if (!string.IsNullOrWhiteSpace(stdout))
                 Console.WriteLine(stdout.TrimEnd());
@@ -218,9 +253,19 @@ class Program
         if (proc == null)
             return false;
 
-        string stdout = proc.StandardOutput.ReadToEnd();
-        string stderr = proc.StandardError.ReadToEnd();
-        proc.WaitForExit();
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+        var stderrTask = proc.StandardError.ReadToEndAsync();
+
+        if (!proc.WaitForExit(300000))
+        {
+            try { proc.Kill(); } catch { }
+            Console.WriteLine("Error: VPK packaging timeout");
+            return false;
+        }
+
+        Task.WhenAll(stdoutTask, stderrTask).Wait();
+        string stdout = stdoutTask.Result;
+        string stderr = stderrTask.Result;
 
         if (!string.IsNullOrWhiteSpace(stdout))
             Console.WriteLine(stdout.TrimEnd());

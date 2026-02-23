@@ -1,0 +1,256 @@
+@import url("s2r://panorama/styles/base/hud_objective_health.vcss_c");
+
+/* Deuteranopia Color Blind Mode - Objective Health Colors
+ * 
+ * Objective health bars for idols, bosses, and other objectives.
+ * Yellow for enemy objectives, Purple for friendly.
+ */
+
+/* --- Global Color Definitions --- */
+:root {
+  --objective-enemy-bright: #FFFF56;
+  --objective-enemy-primary: #FFEA0D;
+  --objective-enemy-gold: #DCDC2F;
+  --objective-enemy-dark: #828200;
+  --objective-friend-primary: #BC22AB;
+  --objective-friend-light: #F7D7FF;
+  --objective-friend-dark: #B797BD;
+}
+
+/* --- Objective Health Bar Container --- */
+
+/* Enemy objective container - Yellow border/accent */
+.ObjectiveHealthBar.enemy,
+.objective-health-bar.enemy {
+  border: 2px solid #FFFF56;
+  background-color: rgba(130, 130, 0, 0.3);
+}
+
+/* Friendly objective container - Purple border/accent */
+.ObjectiveHealthBar.friend,
+.objective-health-bar.friend {
+  border: 2px solid #BC22AB;
+  background-color: rgba(188, 34, 171, 0.3);
+}
+
+/* --- Objective Health Progress --- */
+
+/* Enemy health progress - Yellow fill */
+.ObjectiveHealthBar.enemy .HealthProgress,
+.objective-health-bar.enemy .health-progress,
+.ObjectiveHealthProgress.enemy {
+  background-color: #FFFF56;
+  wash-color: #FFFF56;
+}
+
+/* Friendly health progress - Purple fill */
+.ObjectiveHealthBar.friend .HealthProgress,
+.objective-health-bar.friend .health-progress,
+.ObjectiveHealthProgress.friend {
+  background-color: #BC22AB;
+  wash-color: #BC22AB;
+}
+
+/* --- Objective Shield Progress --- */
+
+/* Enemy shield - Darker yellow */
+.ObjectiveHealthBar.enemy .ShieldProgress,
+.objective-health-bar.enemy .shield-progress,
+.ObjectiveShieldProgress.enemy {
+  background-color: #DCDC2F;
+  wash-color: #DCDC2F;
+}
+
+/* Friendly shield - Lighter purple */
+.ObjectiveHealthBar.friend .ShieldProgress,
+.objective-health-bar.friend .shield-progress,
+.ObjectiveShieldProgress.friend {
+  background-color: #F7D7FF;
+  wash-color: #F7D7FF;
+}
+
+/* --- Objective Name/Label --- */
+
+/* Enemy objective name - Yellow text */
+.ObjectiveHealthBar.enemy .ObjectiveName,
+.objective-health-bar.enemy .objective-name,
+.ObjectiveName.enemy {
+  color: #FFFF56;
+  text-shadow: 0 0 4px #828200;
+}
+
+/* Friendly objective name - Purple text */
+.ObjectiveHealthBar.friend .ObjectiveName,
+.objective-health-bar.friend .objective-name,
+.ObjectiveName.friend {
+  color: #BC22AB;
+  text-shadow: 0 0 4px #B797BD;
+}
+
+/* --- Lane Attack Animations --- */
+
+/* Lane being attacked by enemy - Yellow pulse */
+.lane-attack-animation.enemy,
+.LaneAttackAnimation.enemy,
+.lane-attack.enemy {
+  wash-color: #FFFF56;
+  background-color: rgba(255, 255, 86, 0.3);
+  animation: pulse-lane-attack-enemy 1s ease-in-out infinite;
+}
+
+/* Lane being attacked by friend - Purple pulse */
+.lane-attack-animation.friend,
+.LaneAttackAnimation.friend,
+.lane-attack.friend {
+  wash-color: #BC22AB;
+  background-color: rgba(188, 34, 171, 0.3);
+  animation: pulse-lane-attack-friend 1s ease-in-out infinite;
+}
+
+/* --- Objective Icons --- */
+
+/* Enemy objective icon - Yellow */
+.ObjectiveIcon.enemy,
+.objective-icon.enemy {
+  wash-color: #FFFF56;
+  background-color: #828200;
+}
+
+/* Friendly objective icon - Purple */
+.ObjectiveIcon.friend,
+.objective-icon.friend {
+  wash-color: #BC22AB;
+  background-color: #B797BD;
+}
+
+/* --- Objective Damage Indicators --- */
+
+/* Damage being taken by enemy objective - Yellow flash */
+.ObjectiveHealthBar.enemy.taking-damage,
+.objective-health-bar.enemy.damaged {
+  animation: flash-damage-enemy 0.3s ease-out;
+}
+
+/* Damage being taken by friendly objective - Purple flash */
+.ObjectiveHealthBar.friend.taking-damage,
+.objective-health-bar.friend.damaged {
+  animation: flash-damage-friend 0.3s ease-out;
+}
+
+/* --- Regeneration Indicators --- */
+
+/* Enemy objective regenerating - Yellow pulse */
+.ObjectiveHealthBar.enemy.regenerating,
+.objective-health-bar.enemy.healing {
+  animation: pulse-heal-enemy 1s ease-in-out infinite;
+}
+
+.ObjectiveHealthBar.enemy.regenerating .HealthProgress {
+  background-color: #FFEA0D;
+}
+
+/* Friendly objective regenerating - Purple pulse */
+.ObjectiveHealthBar.friend.regenerating,
+.objective-health-bar.friend.healing {
+  animation: pulse-heal-friend 1s ease-in-out infinite;
+}
+
+.ObjectiveHealthBar.friend.regenerating .HealthProgress {
+  background-color: #F7D7FF;
+}
+
+/* --- Boss-Specific Styles --- */
+
+/* Boss enemy - Gold/Yellow */
+.boss-objective.enemy,
+.BossObjective.enemy {
+  border: 3px solid #DCDC2F;
+  background-color: rgba(220, 220, 47, 0.2);
+}
+
+.boss-objective.enemy .HealthProgress,
+.BossObjective.enemy .HealthProgress {
+  background-color: #DCDC2F;
+}
+
+/* Boss friendly - Light Purple */
+.boss-objective.friend,
+.BossObjective.friend {
+  border: 3px solid #F7D7FF;
+  background-color: rgba(247, 215, 255, 0.2);
+}
+
+.boss-objective.friend .HealthProgress,
+.BossObjective.friend .HealthProgress {
+  background-color: #F7D7FF;
+}
+
+/* --- Idol-Specific Styles --- */
+
+/* Idol enemy - Bright Yellow */
+.idol-objective.enemy,
+.IdolObjective.enemy {
+  border: 2px solid #FFFF56;
+  box-shadow: 0 0 10px #FFFF56;
+}
+
+/* Idol friendly - Bright Purple */
+.idol-objective.friend,
+.IdolObjective.friend {
+  border: 2px solid #BC22AB;
+  box-shadow: 0 0 10px #BC22AB;
+}
+
+/* --- Objective Death State --- */
+
+/* Enemy objective destroyed - Dark Yellow/Grey */
+.objective-dead.enemy,
+.ObjectiveDead.enemy {
+  wash-color: #828200;
+  saturation: 0.0;
+  opacity: 0.5;
+}
+
+/* Friendly objective destroyed - Dark Purple/Grey */
+.objective-dead.friend,
+.ObjectiveDead.friend {
+  wash-color: #B797BD;
+  saturation: 0.0;
+  opacity: 0.5;
+}
+
+@keyframes pulse-lane-attack-enemy {
+  0% { wash-color: #FFFF56; opacity: 1; }
+  50% { wash-color: #FFEA0D; opacity: 0.7; }
+  100% { wash-color: #FFFF56; opacity: 1; }
+}
+
+@keyframes pulse-lane-attack-friend {
+  0% { wash-color: #BC22AB; opacity: 1; }
+  50% { wash-color: #F7D7FF; opacity: 0.7; }
+  100% { wash-color: #BC22AB; opacity: 1; }
+}
+
+@keyframes flash-damage-enemy {
+  0% { background-color: transparent; }
+  50% { background-color: rgba(255, 255, 86, 0.5); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-damage-friend {
+  0% { background-color: transparent; }
+  50% { background-color: rgba(188, 34, 171, 0.5); }
+  100% { background-color: transparent; }
+}
+
+@keyframes pulse-heal-enemy {
+  0% { wash-color: #FFFF56; }
+  50% { wash-color: #FFEA0D; }
+  100% { wash-color: #FFFF56; }
+}
+
+@keyframes pulse-heal-friend {
+  0% { wash-color: #BC22AB; }
+  50% { wash-color: #F7D7FF; }
+  100% { wash-color: #BC22AB; }
+}

@@ -1,0 +1,264 @@
+@import url("s2r://panorama/styles/base/citadel_hud_data_feed_info.vcss_c");
+
+/* Deuteranopia Color Blind Mode - Kill Feed / Data Feed Colors
+ * 
+ * Kill feed shows player deaths and eliminations.
+ * Uses yellow backgrounds for enemy deaths, purple for ally/friendly deaths.
+ */
+
+/* --- Global Color Definitions --- */
+:root {
+  --feed-enemy-bright: #FFFF56;
+  --feed-enemy-primary: #FFFF56;
+  --feed-enemy-dark: #828200;
+  --feed-friend-bright: #F7D7FF;
+  --feed-friend-primary: #BC22AB;
+  --feed-friend-dark: #B797BD;
+}
+
+/* --- Kill Feed Entry Container --- */
+
+/* Enemy killed - Yellow background scheme */
+.data-feed-entry.enemy-killed,
+.DataFeedEntry.enemy-killed,
+.kill-feed-entry.enemy {
+  background-color: #FFFF56;
+  border-left: 4px solid #828200;
+}
+
+/* Friendly/Ally killed - Purple background scheme */
+.data-feed-entry.friend-killed,
+.DataFeedEntry.friend-killed,
+.kill-feed-entry.friend {
+  background-color: #F7D7FF;
+  border-left: 4px solid #B797BD;
+}
+
+/* --- Kill Feed Background Panels --- */
+
+/* Enemy death background - Bright Yellow */
+.data-feed-entry.enemy-killed #BackgroundPanel,
+.DataFeedEntry.enemy-killed .BackgroundPanel,
+.kill-feed-background.enemy {
+  background-color: #FFFF56;
+  wash-color: #FFFF56;
+}
+
+/* Friendly death background - Light Purple */
+.data-feed-entry.friend-killed #BackgroundPanel,
+.DataFeedEntry.friend-killed .BackgroundPanel,
+.kill-feed-background.friend {
+  background-color: #F7D7FF;
+  wash-color: #F7D7FF;
+}
+
+/* --- Alternative Background Styles --- */
+
+/* Secondary enemy style - Dark Yellow variant */
+.data-feed-entry.enemy-killed.alt,
+.DataFeedEntry.enemy-killed.alt {
+  background-color: #828200;
+}
+
+.data-feed-entry.enemy-killed.alt #BackgroundPanel,
+.DataFeedEntry.enemy-killed.alt .BackgroundPanel {
+  background-color: #828200;
+  wash-color: #828200;
+}
+
+/* Secondary friendly style - Muted Purple variant */
+.data-feed-entry.friend-killed.alt,
+.DataFeedEntry.friend-killed.alt {
+  background-color: #B797BD;
+}
+
+.data-feed-entry.friend-killed.alt #BackgroundPanel,
+.DataFeedEntry.friend-killed.alt .BackgroundPanel {
+  background-color: #B797BD;
+  wash-color: #B797BD;
+}
+
+/* --- Kill Feed Text Colors --- */
+
+/* Text on enemy kill entries (dark background needed for yellow) */
+.data-feed-entry.enemy-killed .FeedText,
+.DataFeedEntry.enemy-killed .FeedText,
+.kill-feed-text.enemy {
+  color: #000000;
+  text-shadow: 0 0 2px #FFFF56;
+}
+
+/* Text on friendly kill entries */
+.data-feed-entry.friend-killed .FeedText,
+.DataFeedEntry.friend-killed .FeedText,
+.kill-feed-text.friend {
+  color: #000000;
+  text-shadow: 0 0 2px #F7D7FF;
+}
+
+/* --- Player Name Colors in Kill Feed --- */
+
+/* Enemy player name - Dark text on yellow bg */
+.data-feed-entry.enemy-killed .PlayerName,
+.DataFeedEntry.enemy-killed .PlayerName,
+.kill-feed-name.enemy {
+  color: #000000;
+  font-weight: bold;
+}
+
+/* Friendly player name - Dark text on purple bg */
+.data-feed-entry.friend-killed .PlayerName,
+.DataFeedEntry.friend-killed .PlayerName,
+.kill-feed-name.friend {
+  color: #000000;
+  font-weight: bold;
+}
+
+/* --- Kill Method/Ability Icons --- */
+
+/* Ability icon for enemy kill - Yellow tint */
+.data-feed-entry.enemy-killed .AbilityIcon,
+.DataFeedEntry.enemy-killed .AbilityIcon,
+.kill-feed-ability.enemy {
+  wash-color: #828200;
+  border: 1px solid #828200;
+}
+
+/* Ability icon for friendly kill - Purple tint */
+.data-feed-entry.friend-killed .AbilityIcon,
+.DataFeedEntry.friend-killed .AbilityIcon,
+.kill-feed-ability.friend {
+  wash-color: #B797BD;
+  border: 1px solid #B797BD;
+}
+
+/* --- Hero Portrait in Kill Feed --- */
+
+/* Hero portrait for enemy kill - Yellow border */
+.data-feed-entry.enemy-killed .HeroPortrait,
+.DataFeedEntry.enemy-killed .HeroPortrait,
+.kill-feed-portrait.enemy {
+  border: 2px solid #828200;
+  wash-color: #FFFF56;
+}
+
+/* Hero portrait for friendly kill - Purple border */
+.data-feed-entry.friend-killed .HeroPortrait,
+.DataFeedEntry.friend-killed .HeroPortrait,
+.kill-feed-portrait.friend {
+  border: 2px solid #B797BD;
+  wash-color: #F7D7FF;
+}
+
+/* --- Multi-Kill Indicators --- */
+
+/* Double/Triple kill enemy - Brighter Yellow */
+.data-feed-entry.enemy-killed.double-kill,
+.data-feed-entry.enemy-killed.triple-kill,
+.DataFeedEntry.enemy-killed.multi-kill {
+  background-color: #FFEA0D;
+  box-shadow: 0 0 10px #FFFF56;
+}
+
+/* Double/Triple kill friendly - Brighter Purple */
+.data-feed-entry.friend-killed.double-kill,
+.data-feed-entry.friend-killed.triple-kill,
+.DataFeedEntry.friend-killed.multi-kill {
+  background-color: #BC22AB;
+  box-shadow: 0 0 10px #F7D7FF;
+}
+
+.data-feed-entry.friend-killed.double-kill .FeedText,
+.data-feed-entry.friend-killed.triple-kill .FeedText {
+  color: #FFFFFF;
+}
+
+/* --- Kill Streak Indicators --- */
+
+/* Enemy on killing spree - Yellow glow */
+.data-feed-entry.enemy-killed.spree,
+.kill-feed-spree.enemy {
+  background-color: #FFFF56;
+  box-shadow: 0 0 15px #FFFF56;
+  animation: pulse-spree-enemy 1s ease-in-out infinite;
+}
+
+/* Friendly on killing spree - Purple glow */
+.data-feed-entry.friend-killed.spree,
+.kill-feed-spree.friend {
+  background-color: #BC22AB;
+  box-shadow: 0 0 15px #BC22AB;
+  animation: pulse-spree-friend 1s ease-in-out infinite;
+}
+
+.data-feed-entry.friend-killed.spree .FeedText {
+  color: #FFFFFF;
+}
+
+/* --- Deny/Last Hit Indicators --- */
+
+/* Deny indicator for enemy - Dark Yellow */
+.deny-indicator.enemy,
+.DenyIndicator.enemy {
+  color: #828200;
+  background-color: #FFFF56;
+  border: 1px solid #828200;
+}
+
+/* Deny indicator for friend - Dark Purple */
+.deny-indicator.friend,
+.DenyIndicator.friend {
+  color: #B797BD;
+  background-color: #F7D7FF;
+  border: 1px solid #B797BD;
+}
+
+/* --- Team Wipe Notifications --- */
+
+/* Enemy team wiped - Bright Yellow alert */
+.team-wipe.enemy,
+.TeamWipeNotification.enemy {
+  background-color: #FFFF56;
+  color: #000000;
+  font-size: 20px;
+  text-transform: uppercase;
+  box-shadow: 0 0 20px #FFFF56;
+}
+
+/* Friendly team wiped - Bright Purple alert */
+.team-wipe.friend,
+.TeamWipeNotification.friend {
+  background-color: #BC22AB;
+  color: #FFFFFF;
+  font-size: 20px;
+  text-transform: uppercase;
+  box-shadow: 0 0 20px #BC22AB;
+}
+
+/* --- Objective Kill Feed Entries --- */
+
+/* Enemy objective destroyed - Yellow */
+.data-feed-entry.objective-enemy,
+.DataFeedEntry.objective-enemy {
+  background-color: #DCDC2F;
+  border-left: 4px solid #828200;
+}
+
+/* Friendly objective destroyed - Purple */
+.data-feed-entry.objective-friend,
+.DataFeedEntry.objective-friend {
+  background-color: #F7D7FF;
+  border-left: 4px solid #B797BD;
+}
+
+@keyframes pulse-spree-enemy {
+  0% { box-shadow: 0 0 10px #FFFF56; }
+  50% { box-shadow: 0 0 20px #FFEA0D; }
+  100% { box-shadow: 0 0 10px #FFFF56; }
+}
+
+@keyframes pulse-spree-friend {
+  0% { box-shadow: 0 0 10px #BC22AB; }
+  50% { box-shadow: 0 0 20px #F7D7FF; }
+  100% { box-shadow: 0 0 10px #BC22AB; }
+}
