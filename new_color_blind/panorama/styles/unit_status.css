@@ -1,0 +1,293 @@
+@import url("s2r://panorama/styles/base/unit_status.vcss_c");
+
+.enemy #unit_ult_ready_icon
+{
+	wash-color: yellow;
+}
+
+.friend #unit_ult_ready_icon
+{
+	wash-color: #bc22ab;
+}
+
+.enemy .healthbar_border
+{
+	wash-color: yellow;
+}
+
+.friend .healthbar_border
+{
+	wash-color: offBlack;
+}
+
+.enemy #unit_healthbar_lagging
+{
+	wash-color: yellow;
+}
+
+.friend #unit_healthbar_lagging
+{
+	wash-color: #bc22ab;
+}
+
+.enemy #unit_healthbar_delta
+{
+	wash-color: yellow;
+}
+
+.friend #unit_healthbar_delta
+{
+	wash-color: #bc22ab;
+}
+
+.enemy #unit_healthbar_bullet_shield
+{
+	background-color: #ffff56;
+}
+
+.friend #unit_healthbar_bullet_shield
+{
+	background-color: #bc22ab;
+}
+
+.enemy #state_progressbar
+{
+	wash-color: yellow;
+}
+
+.friend #state_progressbar
+{
+	wash-color: #bc22ab;
+}
+
+.enemy #pip_image
+{
+	wash-color: yellow;
+}
+
+.friend #pip_image
+{
+	wash-color: #bc22ab;
+}
+
+/* --- Unit Status Bar Colors --- */
+
+/* Enemy unit status - Yellow scheme */
+.enemy {
+  wash-color: yellow;
+}
+
+.enemy.npc {
+  wash-color: yellow;
+}
+
+.enemy.hero {
+  wash-color: #FFFF56;
+}
+
+.enemy.miniboss,
+.enemy.boss {
+  wash-color: #FFEA0D;
+}
+
+/* Friendly unit status - Purple scheme */
+.friend {
+  wash-color: #BC22AB;
+}
+
+.friend.npc {
+  wash-color: #BC22AB;
+}
+
+.friend.hero {
+  wash-color: #F7D7FF;
+}
+
+.friend.miniboss,
+.friend.boss {
+  wash-color: #D8A3DF;
+}
+
+/* Team-based overrides for consistency */
+#HeroHealthBar.team1.enemy,
+#HeroHealthBar.team2.enemy,
+.HeroHealthBar.enemy {
+  wash-color: #FFFF56;
+}
+
+#HeroHealthBar.team1.friend,
+#HeroHealthBar.team2.friend,
+.HeroHealthBar.friend {
+  wash-color: #BC22AB;
+}
+
+/* Health bar progress fill colors */
+.HeroHealthProgress.enemy,
+.health-bar-enemy {
+  background-color: #FFFF56;
+}
+
+.HeroHealthProgress.friend,
+.health-bar-friend {
+  background-color: #BC22AB;
+}
+
+/* Shield bars */
+.HeroShieldProgress.enemy,
+.shield-bar-enemy {
+  background-color: #FFEA0D;
+}
+
+.HeroShieldProgress.friend,
+.shield-bar-friend {
+  background-color: #D8A3DF;
+}
+
+/* Stamina bars */
+.HeroStaminaProgress.enemy,
+.stamina-bar-enemy {
+  background-color: #DCDC2F;
+}
+
+.HeroStaminaProgress.friend,
+.stamina-bar-friend {
+  background-color: #B797BD;
+}
+
+/* Health regeneration indicators */
+.regen-indicator-enemy {
+  wash-color: #FFFF56;
+}
+
+.regen-indicator-friend {
+  wash-color: #BC22AB;
+}
+
+/* Unit level badges */
+.unit-level-enemy {
+  background-color: #FFFF56;
+  color: #000000;
+}
+
+.unit-level-friend {
+  background-color: #BC22AB;
+  color: #FFFFFF;
+}
+
+/* Target lock indicators */
+.target-lock-enemy {
+  border: 2px solid #FFFF56;
+}
+
+.target-lock-friend {
+  border: 2px solid #BC22AB;
+}
+
+/* Status effect icons */
+.status-effect-enemy {
+  wash-color: #FFFF56;
+}
+
+.status-effect-friend {
+  wash-color: #BC22AB;
+}
+
+/* Reticle colors */
+.reticle-enemy {
+  background-color: #FFFF56;
+}
+
+.reticle-friend {
+  background-color: #BC22AB;
+}
+
+/* Minion wave indicators */
+.wave-indicator-enemy {
+  wash-color: #FFFF56;
+}
+
+.wave-indicator-friend {
+  wash-color: #BC22AB;
+}
+
+/* Objective markers on unit bars */
+.objective-marker-enemy {
+  background-color: #FFEA0D;
+}
+
+.objective-marker-friend {
+  background-color: #D8A3DF;
+}
+
+/* Death/downed state */
+.death-indicator-enemy {
+  wash-color: #828200;
+  opacity: 0.7;
+}
+
+.death-indicator-friend {
+  wash-color: #B797BD;
+  opacity: 0.7;
+}
+
+/* Soul orb indicators */
+.soul-orb-enemy {
+  wash-color: #FFFF56;
+}
+
+.soul-orb-friend {
+  wash-color: #BC22AB;
+}
+
+/* Ability cooldown indicators */
+.cooldown-indicator-enemy {
+  wash-color: #828200;
+}
+
+.cooldown-indicator-friend {
+  wash-color: #B797BD;
+}
+
+/* Channeling/ultimate indicators */
+.channeling-enemy {
+  background-color: #FFEA0D;
+}
+
+.channeling-friend {
+  background-color: #D8A3DF;
+}
+
+/* Buff/debuff indicators */
+.buff-indicator-enemy {
+  wash-color: #FFFF56;
+}
+
+.buff-indicator-friend {
+  wash-color: #BC22AB;
+}
+
+.debuff-indicator-enemy {
+  wash-color: #828200;
+}
+
+.debuff-indicator-friend {
+  wash-color: #B797BD;
+}
+
+/* Overhead damage numbers */
+.damage-number-enemy {
+  color: #FFFF56;
+}
+
+.damage-number-friend {
+  color: #BC22AB;
+}
+
+/* Heal numbers */
+.heal-number-enemy {
+  color: #DCDC2F;
+}
+
+.heal-number-friend {
+  color: #F7D7FF;
+}
