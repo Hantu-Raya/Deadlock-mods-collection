@@ -1,0 +1,202 @@
+@import url("s2r://panorama/styles/base/hud_damage_impact.vcss_c");
+
+/* Deuteranopia Color Blind Mode - Damage Impact Colors
+ * 
+ * Damage impact UI shows incoming damage direction and amount.
+ * Uses yellow for enemy damage, purple for healing/allies.
+ */
+
+/* --- Global Color Definitions --- */
+:root {
+  --damage-enemy-bright: #FFFF56;
+  --damage-enemy-primary: #FFEA0D;
+  --damage-enemy-dark: #828200;
+  --damage-friend-primary: #BC22AB;
+  --damage-friend-light: #F7D7FF;
+  --damage-friend-dark: #B797BD;
+}
+
+/* --- Damage Impact Indicators --- */
+
+/* Enemy damage indicators - Yellow */
+.damage-impact.enemy,
+.DamageImpact.enemy,
+.DamageIndicator.enemy {
+  wash-color: #FFFF56;
+  background-color: rgba(255, 255, 86, 0.8);
+}
+
+/* Enemy damage direction arrows */
+.damage-arrow.enemy,
+.DamageArrow.enemy {
+  wash-color: #FFEA0D;
+  background-color: #FFEA0D;
+}
+
+/* Enemy damage numbers */
+.damage-number.enemy,
+.DamageNumber.enemy {
+  color: #FFFF56;
+  text-shadow: 0 0 4px #828200;
+}
+
+/* Critical enemy damage - brighter yellow */
+.damage-number.enemy.critical,
+.DamageNumber.enemy.critical {
+  color: #FFFFFF;
+  background-color: #FFFF56;
+  text-shadow: 0 0 8px #FFFF56;
+}
+
+/* --- Health Remaining Bar --- */
+
+/* Health remaining after damage - Yellow for enemy damage */
+.damage-health-remaining.enemy,
+.HealthRemaining.enemy {
+  background-color: #FFFF56;
+  wash-color: #FFFF56;
+}
+
+/* --- Friendly/Healing Indicators --- */
+
+/* Friendly damage/healing - Purple */
+.damage-impact.friend,
+.DamageImpact.friend,
+.DamageIndicator.friend {
+  wash-color: #BC22AB;
+  background-color: rgba(188, 34, 171, 0.8);
+}
+
+/* Healing direction arrows - Purple */
+.damage-arrow.friend,
+.DamageArrow.friend {
+  wash-color: #BC22AB;
+  background-color: #BC22AB;
+}
+
+/* Healing numbers - Light Purple */
+.heal-number,
+.HealNumber,
+.damage-number.friend.heal {
+  color: #F7D7FF;
+  text-shadow: 0 0 4px #BC22AB;
+}
+
+/* Health remaining after heal - Purple */
+.damage-health-remaining.friend,
+.HealthRemaining.friend {
+  background-color: #BC22AB;
+  wash-color: #BC22AB;
+}
+
+/* --- Death/Kill State --- */
+
+/* Hero dead state - Dark Yellow for enemy kills */
+.hero-dead-state.enemy,
+.HeroDeadState.enemy {
+  wash-color: #828200;
+  background-color: rgba(130, 130, 0, 0.9);
+  saturation: 0.0;
+}
+
+/* Hero dead state - Dark Purple for friendly deaths */
+.hero-dead-state.friend,
+.HeroDeadState.friend {
+  wash-color: #B797BD;
+  background-color: rgba(183, 151, 189, 0.9);
+  saturation: 0.0;
+}
+
+/* --- Damage Over Time Effects --- */
+
+/* DOT indicators - Pulsing Yellow */
+.damage-dot.enemy,
+.DamageOverTime.enemy {
+  wash-color: #FFFF56;
+  animation: pulse-damage-enemy 0.5s ease-in-out infinite;
+}
+
+/* DOT indicators - Pulsing Purple */
+.damage-dot.friend,
+.DamageOverTime.friend {
+  wash-color: #BC22AB;
+  animation: pulse-damage-friend 0.5s ease-in-out infinite;
+}
+
+/* --- Shield Impact --- */
+
+/* Shield hit - Yellow tint for enemy */
+.shield-impact.enemy,
+.ShieldImpact.enemy {
+  wash-color: #FFEA0D;
+  background-color: rgba(255, 234, 13, 0.6);
+}
+
+/* Shield hit - Purple tint for friend */
+.shield-impact.friend,
+.ShieldImpact.friend {
+  wash-color: #BC22AB;
+  background-color: rgba(188, 34, 171, 0.6);
+}
+
+/* --- Blocked/Reduced Damage --- */
+
+/* Blocked damage - Dark Yellow */
+.damage-blocked.enemy,
+.DamageBlocked.enemy {
+  color: #828200;
+  text-shadow: 0 0 2px #828200;
+}
+
+/* Blocked damage - Dark Purple */
+.damage-blocked.friend,
+.DamageBlocked.friend {
+  color: #B797BD;
+  text-shadow: 0 0 2px #B797BD;
+}
+
+/* --- Immunity/Invulnerability --- */
+
+/* Damage immunity - Yellow glow for enemy */
+.damage-immunity.enemy,
+.DamageImmunity.enemy {
+  border: 2px solid #FFFF56;
+  box-shadow: 0 0 10px #FFFF56;
+}
+
+/* Damage immunity - Purple glow for friend */
+.damage-immunity.friend,
+.DamageImmunity.friend {
+  border: 2px solid #BC22AB;
+  box-shadow: 0 0 10px #BC22AB;
+}
+
+/* --- Damage Accumulation --- */
+
+/* Accumulated damage display - Yellow */
+.damage-accumulated.enemy,
+.AccumulatedDamage.enemy {
+  color: #FFFF56;
+  background-color: rgba(130, 130, 0, 0.5);
+  border: 1px solid #FFFF56;
+}
+
+/* Accumulated damage display - Purple */
+.damage-accumulated.friend,
+.AccumulatedDamage.friend {
+  color: #BC22AB;
+  background-color: rgba(183, 151, 189, 0.5);
+  border: 1px solid #BC22AB;
+}
+
+@keyframes pulse-damage-enemy {
+  0% { opacity: 1; wash-color: #FFFF56; }
+  50% { opacity: 0.7; wash-color: #FFEA0D; }
+  100% { opacity: 1; wash-color: #FFFF56; }
+}
+
+@keyframes pulse-damage-friend {
+  0% { opacity: 1; wash-color: #BC22AB; }
+  50% { opacity: 0.7; wash-color: #F7D7FF; }
+  100% { opacity: 1; wash-color: #BC22AB; }
+}
