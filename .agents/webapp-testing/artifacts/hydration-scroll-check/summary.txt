@@ -1,0 +1,5 @@
+hydration_hit_count=0
+page_error_count=0
+console_error_count=0
+console_warning_count=1
+response_error_count=0

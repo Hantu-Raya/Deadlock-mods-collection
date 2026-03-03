@@ -36,6 +36,26 @@
   const BUTTON_CACHE_TTL = 800;
   const LINGER_DURATION = 5;
   const LINGER_CHECK_INTERVAL = 300;
+  const MINIMAP_SNAPSHOT_INTERVAL_ACTIVE_MS = 300;
+  const MINIMAP_SNAPSHOT_INTERVAL_IDLE_MS = 500;
+  const MINIMAP_COLLAPSE_INTERVAL_MS = 1000;
+  const MINIMAP_READABILITY_CHECK_MS = 60000;
+  const MINIMAP_DEBUG_SAMPLE_LIMIT = 6;
+  const DEBUG_MINIMAP_COLLAPSE = false;
+  const ENABLE_MINIMAP_COLLAPSE = false;
+  const NEUTRAL_SCAN_INTERVAL_MS = 500;
+  const NEUTRAL_RENDER_INTERVAL_MS = 250;
+  const DEBUG_NEUTRAL_TIMERS = false;
+  const DEBUG_PERF = false;
+  const NEUTRAL_STATE_PURGE_MS = 15000;
+  const NEUTRAL_MATCH_RADIUS_SQ = 4;
+  const NEUTRAL_RESPAWN_SECONDS = {
+    neutral_weak: 85,
+    neutral_medium: 290,
+    neutral_large: 335,
+    neutral_vault: 300
+  };
+  const MINIMAP_COLLAPSE_CLASSES = [];
 
   // ===========================================
   // TEAM CLASSIFICATION HELPERS
@@ -57,6 +77,27 @@
     if (_playerCache && rn - _playerCacheTs <= BUTTON_CACHE_TTL) return;
     _playerCache = mm.FindChildrenWithClassTraverse("map_button");
     _playerCacheTs = rn;
+  }
+
+  function perfMark(counterName, nowMs) {
+    if (!DEBUG_PERF) return;
+
+    _perfCounters[counterName] = (_perfCounters[counterName] || 0) + 1;
+    if (nowMs - _perfLastLogTs < 60000) return;
+
+    _perfLastLogTs = nowMs;
+    $.Msg(
+      "[BT-PERF]",
+      "sweeps=", _perfCounters.snapshotSweeps,
+      "linger=", _perfCounters.lingerChecks,
+      "neutral=", _perfCounters.neutralScans,
+      "prox=", _perfCounters.proximityPasses
+    );
+
+    _perfCounters.snapshotSweeps = 0;
+    _perfCounters.lingerChecks = 0;
+    _perfCounters.neutralScans = 0;
+    _perfCounters.proximityPasses = 0;
   }
 
   // ===========================================
@@ -87,6 +128,10 @@
   let buffResetTs = 0;
 
   let lastLingerCheck = 0;
+  let lastMinimapCollapseCheck = 0;
+  let lastMinimapReadabilityCheck = 0;
+  let lastNeutralScanCheck = 0;
+  let lastNeutralRenderCheck = 0;
   let trackedPowerups = [];
   let monitoringActive = false;
   let lastMonitorCheck = 0;
@@ -106,6 +151,7 @@
   let _gameTimePanel = null;
   let _tCache = 0;
   let _tCacheTs = 0;
+  let _snapshotTs = 0;
   let _playerCache = null;
   let _playerCacheTs = 0;
   let _playerState = {};
@@ -129,8 +175,26 @@
   const _posResult = { x: 0, y: 0 };
   const _nearResult = { ally: Infinity, enemy: Infinity };
   const _pwPos = { x: 0, y: 0 };
+  const _nearestTargets = [];
+  const _tmpTarget = { x: 0, y: 0, minAllyDist: Infinity, minEnemyDist: Infinity };
+  const _minimapSnapshot = {
+    players: [],
+    powerupSpawns: [],
+    neutralCamps: [],
+    ts: 0
+  };
+  const _perfCounters = {
+    snapshotSweeps: 0,
+    lingerChecks: 0,
+    neutralScans: 0,
+    proximityPasses: 0
+  };
+  let _perfLastLogTs = 0;
 
   let _lingerState = {};
+  let _neutralRespawnState = {};
+  let _neutralStateSeq = 0;
+  let _neutralSweepToken = 0;
 
   // ===========================================
   // UI PANEL REFERENCES
@@ -237,6 +301,30 @@
   function loop() {
     const rn = Date.now();
     const now = gTime(rn);
+    let snapshot = null;
+
+    if (ENABLE_MINIMAP_COLLAPSE && rn - lastMinimapCollapseCheck >= MINIMAP_COLLAPSE_INTERVAL_MS) {
+      lastMinimapCollapseCheck = rn;
+      collapseMinimapTargets("tick", false);
+    }
+
+    if (ENABLE_MINIMAP_COLLAPSE && rn - lastMinimapReadabilityCheck >= MINIMAP_READABILITY_CHECK_MS) {
+      lastMinimapReadabilityCheck = rn;
+      collapseMinimapTargets("1m-readability-check", true);
+    }
+
+    if (rn - lastNeutralScanCheck >= NEUTRAL_SCAN_INTERVAL_MS) {
+      lastNeutralScanCheck = rn;
+      snapshot = collectMinimapSnapshot(rn, false);
+      if (snapshot) {
+        scanNeutralRespawnState(snapshot, rn);
+      }
+    }
+
+    if (rn - lastNeutralRenderCheck >= NEUTRAL_RENDER_INTERVAL_MS) {
+      lastNeutralRenderCheck = rn;
+      renderNeutralRespawnTimers(rn);
+    }
 
     // Not running - check hideout status periodically
     if (!running) {
@@ -369,7 +457,8 @@
     // Update pre-track data
     if (pretrackActive && knownSpawnPos && rn - lastPretrackCheck >= PRETRACK_INTERVAL) {
       lastPretrackCheck = rn;
-      doPretrack(rn);
+      snapshot = snapshot || collectMinimapSnapshot(rn, false);
+      doPretrack(rn, snapshot);
     }
 
     // Detect buff cycle reset
@@ -384,18 +473,19 @@
     const lingerActive = buffResetTs > 0 && rn - buffResetTs < POWERUP_LINGER;
     if (lingerActive && !monitoringActive && rn - lastPowerupScan >= 200) {
       lastPowerupScan = rn;
-      scanPowerups();
+      scanPowerups(rn, null, true);
     }
 
     // Fallback scan if no powerups found
     if (!monitoringActive && trackedPowerups.length === 0 && buffResetTs > 0 && rn - buffResetTs >= 3000 && rn - buffResetTs < 4000) {
-      scanPowerups();
+      scanPowerups(rn, null, true);
     }
 
     // Monitor tracked powerups for claims
     if (monitoringActive && rn - lastMonitorCheck >= MONITOR_INTERVAL) {
       lastMonitorCheck = rn;
-      monitorPowerups(rn);
+      snapshot = snapshot || collectMinimapSnapshot(rn, false);
+      monitorPowerups(rn, snapshot);
     }
 
     // Periodic rejuvenator scan
@@ -407,7 +497,8 @@
     // Check for enemy linger (fog of war)
     if (rn - lastLingerCheck >= LINGER_CHECK_INTERVAL) {
       lastLingerCheck = rn;
-      checkEnemyLinger(rn);
+      snapshot = snapshot || collectMinimapSnapshot(rn, false);
+      checkEnemyLinger(rn, snapshot);
     }
 
     updateClaimProgress(now);
@@ -418,17 +509,28 @@
   // PRE-TRACKING
   // ===========================================
 
-  function doPretrack(nowMs) {
-    const mm = findMinimap();
-    if (!mm || !knownSpawnPos) return;
+  function doPretrack(nowMs, snapshot) {
+    if (!knownSpawnPos) return;
 
-    const nearLeft = getPlayersNearPowerup(mm, knownSpawnPos.left, nowMs);
-    const nearRight = getPlayersNearPowerup(mm, knownSpawnPos.right, nowMs);
+    const snap = snapshot || collectMinimapSnapshot(nowMs, false);
+    if (!snap?.players?.length) return;
 
-    if (nearLeft.ally < pretrackData.left.minAlly) pretrackData.left.minAlly = nearLeft.ally;
-    if (nearLeft.enemy < pretrackData.left.minEnemy) pretrackData.left.minEnemy = nearLeft.enemy;
-    if (nearRight.ally < pretrackData.right.minAlly) pretrackData.right.minAlly = nearRight.ally;
-    if (nearRight.enemy < pretrackData.right.minEnemy) pretrackData.right.minEnemy = nearRight.enemy;
+    _nearestTargets.length = 2;
+
+    const leftTarget = _nearestTargets[0] || (_nearestTargets[0] = { x: 0, y: 0, minAllyDist: Infinity, minEnemyDist: Infinity });
+    leftTarget.x = knownSpawnPos.left.x;
+    leftTarget.y = knownSpawnPos.left.y;
+
+    const rightTarget = _nearestTargets[1] || (_nearestTargets[1] = { x: 0, y: 0, minAllyDist: Infinity, minEnemyDist: Infinity });
+    rightTarget.x = knownSpawnPos.right.x;
+    rightTarget.y = knownSpawnPos.right.y;
+
+    computeNearestForTargets(snap.players, _nearestTargets, 2, nowMs, false);
+
+    if (leftTarget.minAllyDist < pretrackData.left.minAlly) pretrackData.left.minAlly = leftTarget.minAllyDist;
+    if (leftTarget.minEnemyDist < pretrackData.left.minEnemy) pretrackData.left.minEnemy = leftTarget.minEnemyDist;
+    if (rightTarget.minAllyDist < pretrackData.right.minAlly) pretrackData.right.minAlly = rightTarget.minAllyDist;
+    if (rightTarget.minEnemyDist < pretrackData.right.minEnemy) pretrackData.right.minEnemy = rightTarget.minEnemyDist;
   }
 
   // ===========================================
@@ -490,6 +592,533 @@
 
 
     return UI.minimap;
+  }
+
+  function collectMinimapSnapshot(nowMs, forceFresh) {
+    const mm = findMinimap();
+    if (!mm) return null;
+
+    const now = nowMs || Date.now();
+    const intervalMs = running ? MINIMAP_SNAPSHOT_INTERVAL_ACTIVE_MS : MINIMAP_SNAPSHOT_INTERVAL_IDLE_MS;
+    if (!forceFresh && _snapshotTs > 0 && now - _snapshotTs < intervalMs) {
+      return _minimapSnapshot;
+    }
+
+    let buttons = null;
+    try {
+      buttons = mm.FindChildrenWithClassTraverse("map_button");
+    } catch {
+      return _minimapSnapshot;
+    }
+
+    if (!buttons?.length) {
+      _minimapSnapshot.players.length = 0;
+      _minimapSnapshot.powerupSpawns.length = 0;
+      _minimapSnapshot.neutralCamps.length = 0;
+      _minimapSnapshot.ts = now;
+      _snapshotTs = now;
+      perfMark("snapshotSweeps", now);
+      return _minimapSnapshot;
+    }
+
+    let playerCount = 0;
+    let powerupCount = 0;
+    let neutralCount = 0;
+
+    try {
+      for (let i = 0, len = buttons.length; i < len; i++) {
+        const btn = buttons[i];
+        if (!btn?.IsValid?.() || !btn.BHasClass?.("map_button")) continue;
+
+      if (btn.BHasClass("player")) {
+        let entry = _minimapSnapshot.players[playerCount];
+        if (!entry) {
+          entry = { id: "", panel: null, isActive: false, isDead: false, team: 0, xPct: 0, yPct: 0, actualX: 0, actualY: 0 };
+          _minimapSnapshot.players[playerCount] = entry;
+        }
+
+        const id = btn.id || ("p" + i);
+        const ps = _playerState[id];
+        let team = ps?.team || 0;
+        if (!team) {
+          team = isAlly(btn) ? 1 : isEnemy(btn) ? 2 : 0;
+        }
+
+        const pos = getPanelPos(btn);
+        entry.id = id;
+        entry.panel = btn;
+        entry.isActive = btn.BHasClass("active");
+        entry.isDead = btn.BHasClass("playerdead");
+        entry.team = team;
+        entry.xPct = pos.x;
+        entry.yPct = pos.y;
+        entry.actualX = btn.actualxoffset || 0;
+        entry.actualY = btn.actualyoffset || 0;
+        playerCount++;
+        continue;
+      }
+
+      if (btn.BHasClass("powerup_spawn")) {
+        let entry = _minimapSnapshot.powerupSpawns[powerupCount];
+        if (!entry) {
+          entry = { id: "", panel: null, isActive: false, type: "unknown", xPct: 0, yPct: 0, actualX: 0, actualY: 0 };
+          _minimapSnapshot.powerupSpawns[powerupCount] = entry;
+        }
+
+        let type = "unknown";
+        for (let j = 0; j < POWERUP_TYPES.length; j++) {
+          if (btn.BHasClass(POWERUP_TYPES[j])) {
+            type = POWERUP_TYPES[j];
+            break;
+          }
+        }
+
+        const pos = getPanelPos(btn);
+        entry.id = btn.id || ("powerup_" + i);
+        entry.panel = btn;
+        entry.isActive = btn.BHasClass("active");
+        entry.type = type;
+        entry.xPct = pos.x;
+        entry.yPct = pos.y;
+        entry.actualX = btn.actualxoffset || 0;
+        entry.actualY = btn.actualyoffset || 0;
+        powerupCount++;
+        continue;
+      }
+
+        const neutralType = getNeutralType(btn);
+        if (!neutralType) continue;
+
+        let entry = _minimapSnapshot.neutralCamps[neutralCount];
+        if (!entry) {
+          entry = { id: "", panel: null, type: "", isActive: false, xPct: 0, yPct: 0, actualX: 0, actualY: 0 };
+          _minimapSnapshot.neutralCamps[neutralCount] = entry;
+        }
+
+        const pos = getPanelPos(btn);
+        entry.id = btn.id || "";
+        entry.panel = btn;
+        entry.type = neutralType;
+        entry.isActive = btn.BHasClass("active");
+        entry.xPct = pos.x;
+        entry.yPct = pos.y;
+        entry.actualX = btn.actualxoffset || 0;
+        entry.actualY = btn.actualyoffset || 0;
+        neutralCount++;
+      }
+    } catch {}
+
+    _minimapSnapshot.players.length = playerCount;
+    _minimapSnapshot.powerupSpawns.length = powerupCount;
+    _minimapSnapshot.neutralCamps.length = neutralCount;
+    _minimapSnapshot.ts = now;
+    _snapshotTs = now;
+    perfMark("snapshotSweeps", now);
+    return _minimapSnapshot;
+  }
+
+  function computeNearestForTargets(players, targets, targetCount, nowMs, accumulate) {
+    if (!players?.length || !targets || targetCount <= 0) return;
+
+    const now = nowMs || Date.now();
+    perfMark("proximityPasses", now);
+
+    for (let i = 0; i < targetCount; i++) {
+      const t = targets[i];
+      if (!t) continue;
+      t._scanAlly = Infinity;
+      t._scanEnemy = Infinity;
+    }
+
+    for (let i = 0, pLen = players.length; i < pLen; i++) {
+      const pl = players[i];
+      if (!pl) continue;
+
+      const id = pl.id || ("p" + i);
+      let ps = _playerState[id];
+      if (!ps) {
+        ps = { x: 0, y: 0, deadTs: 0, wasActive: true, team: pl.team || 0 };
+        _playerState[id] = ps;
+      }
+
+      let team = ps.team || pl.team || 0;
+      if (!team && pl.panel?.IsValid?.()) {
+        team = isAlly(pl.panel) ? 1 : isEnemy(pl.panel) ? 2 : 0;
+      }
+      ps.team = team;
+
+      const posX = pl.xPct;
+      const posY = pl.yPct;
+      const posChanged = Math.abs(ps.x - posX) > 0.5 || Math.abs(ps.y - posY) > 0.5;
+
+      if (pl.isDead) {
+        const deadTs = ps.deadTs || (posChanged ? 0 : now);
+        ps.x = posX;
+        ps.y = posY;
+        ps.deadTs = deadTs || now;
+
+        if (team === 2) {
+          cancelLinger(id);
+        }
+
+        if (!posChanged && now - ps.deadTs >= DEATH_GRACE_MS) {
+          continue;
+        }
+      } else {
+        ps.x = posX;
+        ps.y = posY;
+        ps.deadTs = 0;
+      }
+
+      if (team !== 1 && team !== 2) continue;
+
+      for (let tIdx = 0; tIdx < targetCount; tIdx++) {
+        const target = targets[tIdx];
+        if (!target) continue;
+
+        const dx = posX - target.x;
+        const dy = posY - target.y;
+        const d = dx * dx + dy * dy;
+
+        if (team === 1) {
+          if (d < target._scanAlly) target._scanAlly = d;
+        } else if (d < target._scanEnemy) {
+          target._scanEnemy = d;
+        }
+      }
+    }
+
+    for (let i = 0; i < targetCount; i++) {
+      const t = targets[i];
+      if (!t) continue;
+
+      if (accumulate) {
+        t.minAllyDist = Math.min(t.minAllyDist, t._scanAlly);
+        t.minEnemyDist = Math.min(t.minEnemyDist, t._scanEnemy);
+      } else {
+        t.minAllyDist = t._scanAlly;
+        t.minEnemyDist = t._scanEnemy;
+      }
+    }
+  }
+
+  function isMinimapCollapseTarget(btn) {
+    if (!ENABLE_MINIMAP_COLLAPSE) return false;
+    if (!btn?.IsValid?.() || !btn.BHasClass?.("map_button")) return false;
+    if (btn.BHasClass("player") || btn.BHasClass("powerup_spawn")) return false;
+
+    for (let i = 0; i < MINIMAP_COLLAPSE_CLASSES.length; i++) {
+      if (btn.BHasClass(MINIMAP_COLLAPSE_CLASSES[i])) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function minimapTargetTag(btn, index) {
+    const id = btn.id || ("idx_" + index);
+    let kind = "other";
+
+    if (btn.BHasClass("neutral_large")) kind = "neutral_large";
+    else if (btn.BHasClass("neutral_medium")) kind = "neutral_medium";
+    else if (btn.BHasClass("neutral_weak")) kind = "neutral_weak";
+    else if (btn.BHasClass("neutral_vault")) kind = "neutral_vault";
+    else if (btn.BHasClass("neutral")) kind = "neutral_active";
+
+    return id + ":" + kind;
+  }
+
+  function collapseMinimapTargets(reason, forceLog) {
+    if (!ENABLE_MINIMAP_COLLAPSE) return;
+    const mm = findMinimap();
+    if (!mm) return;
+
+    const now = Date.now();
+
+    try {
+      ensurePlayerCache(mm, now);
+      const buttons = _playerCache;
+      if (!buttons?.length) return;
+
+      let targetCount = 0;
+      let collapsedCount = 0;
+      let changedCount = 0;
+      const sample = [];
+
+      for (let i = 0, len = buttons.length; i < len; i++) {
+        const btn = buttons[i];
+        if (!isMinimapCollapseTarget(btn)) continue;
+
+        targetCount++;
+
+        const wasCollapsed = btn.style?.visibility === "collapse";
+        if (!wasCollapsed) {
+          try {
+            btn.style.visibility = "collapse";
+          } catch {}
+        }
+
+        const isCollapsed = btn.style?.visibility === "collapse";
+        if (isCollapsed) collapsedCount++;
+        if (!wasCollapsed && isCollapsed) changedCount++;
+
+        if (sample.length < MINIMAP_DEBUG_SAMPLE_LIMIT) {
+          sample.push(minimapTargetTag(btn, i));
+        }
+      }
+
+      if (DEBUG_MINIMAP_COLLAPSE && (forceLog || changedCount > 0)) {
+        const readableCount = targetCount - collapsedCount;
+        $.Msg("[BT-MAP] reason=", reason, " targets=", targetCount, " collapsed=", collapsedCount, " readable=", readableCount, " changed=", changedCount);
+        if (sample.length > 0) {
+          $.Msg("[BT-MAP] sample=", sample.join(", "));
+        }
+      }
+    } catch {
+      if (DEBUG_MINIMAP_COLLAPSE) {
+        $.Msg("[BT-MAP][ERR] collapse sweep failed");
+      }
+    }
+  }
+
+  function getNeutralType(btn) {
+    if (!btn?.IsValid?.()) return null;
+    if (btn.BHasClass("neutral_weak")) return "neutral_weak";
+    if (btn.BHasClass("neutral_medium")) return "neutral_medium";
+    if (btn.BHasClass("neutral_large")) return "neutral_large";
+    if (btn.BHasClass("neutral_vault")) return "neutral_vault";
+    return null;
+  }
+
+  function getNeutralTimerId(key) {
+    return "NeutralTimer_" + key.replace(/[^a-zA-Z0-9_]/g, "_");
+  }
+
+  function neutralPosOnContainer(mapX, mapY, container, mm) {
+    const mw = container.contentwidth || 404;
+    const mh = container.contentheight || 404;
+    const inverted = mm?.IsValid?.() && mm.BHasClass?.("invert_map");
+
+    let x = (mapX || 0) + 2;
+    let y = (mapY || 0) + 2;
+
+    if (inverted) {
+      x = mw - x - 24;
+      y = mh - y - 24;
+    }
+
+    _posResult.x = x;
+    _posResult.y = y;
+    return _posResult;
+  }
+
+  function clearNeutralTimerEntry(key, reason) {
+    const st = _neutralRespawnState[key];
+    if (!st) return;
+
+    try {
+      if (st.label?.IsValid?.()) {
+        st.label.DeleteAsync(0);
+      }
+    } catch {}
+
+    if (DEBUG_NEUTRAL_TIMERS && reason) {
+      $.Msg("[BT-NEUTRAL] clear key=", key, " reason=", reason);
+    }
+
+    delete _neutralRespawnState[key];
+  }
+
+  function resolveNeutralStateKey(neutralType, xPct, yPct, explicitId) {
+    if (explicitId) return explicitId;
+
+    const keys = Object.keys(_neutralRespawnState);
+    let bestKey = null;
+    let bestDist = Infinity;
+
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      const st = _neutralRespawnState[k];
+      if (!st || st.type !== neutralType) continue;
+
+      const dx = (st.mapPctX || 0) - xPct;
+      const dy = (st.mapPctY || 0) - yPct;
+      const d = dx * dx + dy * dy;
+
+      if (d < bestDist) {
+        bestDist = d;
+        bestKey = k;
+      }
+    }
+
+    if (bestKey && bestDist <= NEUTRAL_MATCH_RADIUS_SQ) {
+      return bestKey;
+    }
+
+    _neutralStateSeq++;
+    return "neutral_state_" + _neutralStateSeq;
+  }
+
+  function renderNeutralTimer(st, key, now, container, mm) {
+    if (st.respawnEndMs <= 0) {
+      if (st.label?.IsValid?.()) {
+        try { st.label.DeleteAsync(0); } catch {}
+      }
+      st.label = null;
+      st.lastText = "";
+      return;
+    }
+
+    const remSec = Math.max(0, Math.ceil((st.respawnEndMs - now) / 1000));
+
+    let label = st.label;
+    const timerId = getNeutralTimerId(key);
+    if (!label?.IsValid?.()) {
+      label = container.FindChildTraverse(timerId);
+    }
+    if (!label?.IsValid?.()) {
+      label = $.CreatePanel("Label", container, timerId);
+      label.AddClass("neutral-respawn-timer");
+    }
+
+    const pos = neutralPosOnContainer(st.mapX, st.mapY, container, mm);
+    const px = pos.x;
+    const py = pos.y;
+    if (Math.abs((st.lastPosX ?? -9999) - px) > 0.05 || Math.abs((st.lastPosY ?? -9999) - py) > 0.05) {
+      label.style.position = px + "px " + py + "px 0px";
+      st.lastPosX = px;
+      st.lastPosY = py;
+    }
+
+    const text = fmt(remSec);
+    if (text !== st.lastText) {
+      label.text = text;
+      st.lastText = text;
+    }
+
+    st.label = label;
+
+    if (remSec <= 0) {
+      st.respawnEndMs = 0;
+      st.lastText = "";
+      if (st.label?.IsValid?.()) {
+        try { st.label.DeleteAsync(0); } catch {}
+        st.label = null;
+      }
+      if (DEBUG_NEUTRAL_TIMERS) {
+        $.Msg("[BT-NEUTRAL] done key=", key, " type=", st.type);
+      }
+    }
+  }
+
+  function scanNeutralRespawnState(snapshot, nowMs) {
+    const now = nowMs || Date.now();
+    const camps = snapshot?.neutralCamps || [];
+    const token = ++_neutralSweepToken;
+    perfMark("neutralScans", now);
+
+    try {
+      for (let i = 0, len = camps.length; i < len; i++) {
+        const camp = camps[i];
+        if (!camp) continue;
+
+        const key = resolveNeutralStateKey(camp.type, camp.xPct, camp.yPct, camp.id || "");
+        let st = _neutralRespawnState[key];
+        const isActive = camp.isActive;
+        const durationSec = NEUTRAL_RESPAWN_SECONDS[camp.type] || 0;
+
+        if (!st) {
+          st = {
+            type: camp.type,
+            wasActive: isActive,
+            respawnEndMs: 0,
+            label: null,
+            lastText: "",
+            mapPctX: camp.xPct,
+            mapPctY: camp.yPct,
+            mapX: camp.actualX,
+            mapY: camp.actualY,
+            lastSeenMs: now,
+            sweepToken: token,
+            lastPosX: -1,
+            lastPosY: -1
+          };
+          _neutralRespawnState[key] = st;
+        } else {
+          st.type = camp.type;
+        }
+
+        st.mapPctX = camp.xPct;
+        st.mapPctY = camp.yPct;
+        st.mapX = camp.actualX;
+        st.mapY = camp.actualY;
+        st.lastSeenMs = now;
+        st.sweepToken = token;
+
+        if (st.wasActive && !isActive && durationSec > 0) {
+          st.respawnEndMs = now + durationSec * 1000;
+          if (DEBUG_NEUTRAL_TIMERS) {
+            $.Msg("[BT-NEUTRAL] start key=", key, " type=", camp.type, " duration=", durationSec);
+          }
+        } else if (!st.wasActive && isActive) {
+          st.respawnEndMs = 0;
+          st.lastText = "";
+          if (st.label?.IsValid?.()) {
+            try { st.label.DeleteAsync(0); } catch {}
+            st.label = null;
+          }
+          if (DEBUG_NEUTRAL_TIMERS) {
+            $.Msg("[BT-NEUTRAL] clear key=", key, " reason=active_again");
+          }
+        }
+
+        st.wasActive = isActive;
+      }
+
+      for (const key in _neutralRespawnState) {
+        const st = _neutralRespawnState[key];
+        if (!st || st.sweepToken === token) continue;
+        if (st.respawnEndMs > 0) continue;
+        if (now - (st.lastSeenMs || 0) > NEUTRAL_STATE_PURGE_MS) {
+          clearNeutralTimerEntry(key, "stale");
+        }
+      }
+    } catch {
+      if (DEBUG_NEUTRAL_TIMERS) {
+        $.Msg("[BT-NEUTRAL][ERR] scan failed");
+      }
+    }
+  }
+
+  function renderNeutralRespawnTimers(nowMs) {
+    const mm = findMinimap();
+    const container = UI.minimapContainer;
+    if (!mm || !container?.IsValid?.()) return;
+
+    const now = nowMs || Date.now();
+    for (const key in _neutralRespawnState) {
+      const st = _neutralRespawnState[key];
+      if (!st || st.respawnEndMs <= 0) continue;
+      renderNeutralTimer(st, key, now, container, mm);
+    }
+  }
+
+  function updateNeutralRespawnTimers(nowMs) {
+    const snapshot = collectMinimapSnapshot(nowMs, true);
+    if (snapshot) {
+      scanNeutralRespawnState(snapshot, nowMs);
+    }
+    renderNeutralRespawnTimers(nowMs);
+  }
+
+  function clearNeutralRespawnTimers() {
+    for (const key in _neutralRespawnState) {
+      clearNeutralTimerEntry(key, "reset");
+    }
+    _neutralRespawnState = {};
+    _neutralStateSeq = 0;
+    _neutralSweepToken = 0;
   }
 
   // ===========================================
@@ -900,65 +1529,53 @@
   }
 
 
-  function checkEnemyLinger(nowMs) {
-    const mm = findMinimap();
-    if (!mm) return;
-
+  function checkEnemyLinger(nowMs, snapshot) {
     const now = nowMs || Date.now();
+    const snap = snapshot || collectMinimapSnapshot(now, false);
+    const players = snap?.players || [];
+    if (!players.length) return;
+
+    perfMark("lingerChecks", now);
 
     try {
-      ensurePlayerCache(mm, now);
-      let buttons = _playerCache;
+      for (let i = 0, len = players.length; i < len; i++) {
+        const pl = players[i];
+        if (!pl) continue;
 
-      for (let i = 0, len = buttons.length; i < len; i++) {
-        const btn = buttons[i];
+        const id = pl.id || ("enemy_" + i);
+        let ps = _playerState[id];
+        let team = ps?.team || pl.team || 0;
+        if (!team && pl.panel?.IsValid?.()) {
+          team = isAlly(pl.panel) ? 1 : isEnemy(pl.panel) ? 2 : 0;
+        }
 
-        try {
-          if (!btn?.IsValid?.() || !btn.BHasClass("player")) continue;
+        if (team !== 2) continue;
 
-          const id = btn.id || "enemy_" + i;
-          let ps = _playerState[id];
+        const wasActive = ps?.wasActive ?? true;
+        if (!ps) {
+          ps = { x: 0, y: 0, deadTs: 0, wasActive: true, team: team };
+          _playerState[id] = ps;
+        } else {
+          ps.team = team;
+        }
 
-          // Get or determine team classification (0=unknown, 1=ally, 2=enemy)
-          let team = ps?.team || 0;
-          if (!team) {
-            team = isAlly(btn) ? 1 : isEnemy(btn) ? 2 : 0;
-          }
+        ps.wasActive = pl.isActive;
+        ps.x = pl.xPct;
+        ps.y = pl.yPct;
 
-          // Skip non-enemies using cached team
-          if (team !== 2) continue;
+        if (pl.isDead) {
+          ps.deadTs = now;
+          cancelLinger(id);
+          continue;
+        }
 
-          const isDead = btn.BHasClass("playerdead");
-          const isActive = btn.BHasClass("active");
-          const pos = getPanelPos(btn);
-
-          const wasActive = ps?.wasActive ?? true;
-
-          if (!ps) {
-            ps = { x: 0, y: 0, deadTs: 0, wasActive: true, team: team };
-            _playerState[id] = ps;
-          } else {
-            ps.team = team;
-          }
-
-          ps.wasActive = isActive;
-          ps.x = pos.x;
-          ps.y = pos.y;
-
-          if (isDead) {
-            ps.deadTs = now;
-            cancelLinger(id);
-            continue;
-          }
-
-          if (wasActive && !isActive) {
-            showLinger(id, btn);
-          } else if (!wasActive && isActive) {
-            cancelLinger(id);
-          }
-        } catch {}
+        if (wasActive && !pl.isActive) {
+          showLinger(id, pl.panel);
+        } else if (!wasActive && pl.isActive) {
+          cancelLinger(id);
+        }
       }
-    } catch (e) { }
+    } catch {}
   }
 
   // ===========================================
@@ -967,72 +1584,17 @@
   // ===========================================
 
   function getPlayersNearPowerup(mm, pwPos, nowMs) {
-    _nearResult.ally = Infinity;
-    _nearResult.enemy = Infinity;
+    _tmpTarget.x = pwPos.x;
+    _tmpTarget.y = pwPos.y;
+    _tmpTarget.minAllyDist = Infinity;
+    _tmpTarget.minEnemyDist = Infinity;
 
-    const now = nowMs || Date.now();
+    const snap = collectMinimapSnapshot(nowMs, false);
+    const players = snap?.players || [];
+    computeNearestForTargets(players, [_tmpTarget], 1, nowMs, false);
 
-    try {
-      ensurePlayerCache(mm, now);
-      let buttons = _playerCache;
-
-      for (let i = 0, len = buttons.length; i < len; i++) {
-        const btn = buttons[i];
-
-        try {
-          if (!btn?.IsValid?.() || !btn.BHasClass("player")) continue;
-
-          const pos = getPanelPos(btn);
-          if (pos.x === 0 && pos.y === 0) continue;
-
-          const id = btn.id || "p" + i;
-          const isDead = btn.BHasClass("playerdead");
-
-          let ps = _playerState[id];
-          const posChanged = !ps || Math.abs(ps.x - pos.x) > 0.5 || Math.abs(ps.y - pos.y) > 0.5;
-
-          // Get or determine team classification (0=unknown, 1=ally, 2=enemy)
-          let team = ps?.team || 0;
-          if (!team) {
-            team = isAlly(btn) ? 1 : isEnemy(btn) ? 2 : 0;
-          }
-
-          if (!ps) {
-            ps = { x: 0, y: 0, deadTs: 0, wasActive: true, team: team };
-            _playerState[id] = ps;
-          } else {
-            ps.team = team;
-          }
-
-          if (isDead) {
-            const deadTs = ps.deadTs || (posChanged ? 0 : now);
-            ps.x = pos.x;
-            ps.y = pos.y;
-            ps.deadTs = deadTs || now;
-
-            if (team === 2) {
-              cancelLinger(id);
-            }
-
-            if (!posChanged && now - deadTs >= DEATH_GRACE_MS) continue;
-          } else {
-            ps.x = pos.x;
-            ps.y = pos.y;
-            ps.deadTs = 0;
-          }
-
-          const d = distSq(pos, pwPos);
-
-          // Use cached team classification instead of BHasClass
-          if (team === 1) {
-            if (d < _nearResult.ally) _nearResult.ally = d;
-          } else if (team === 2) {
-            if (d < _nearResult.enemy) _nearResult.enemy = d;
-          }
-        } catch {}
-      }
-    } catch {}
-
+    _nearResult.ally = _tmpTarget.minAllyDist;
+    _nearResult.enemy = _tmpTarget.minEnemyDist;
     return _nearResult;
   }
 
@@ -1040,71 +1602,50 @@
   // POWERUP SCANNING & MONITORING
   // ===========================================
 
-  function scanPowerups() {
+  function scanPowerups(nowMs, snapshot, forceFreshSnapshot) {
     const mm = findMinimap();
     if (!mm) return;
 
     try {
-      const nowMs = Date.now();
+      const now = nowMs || Date.now();
+      const snap = snapshot || collectMinimapSnapshot(now, !!forceFreshSnapshot);
+      const allPowerups = snap?.powerupSpawns || [];
+      if (!allPowerups.length) return;
 
-      ensurePlayerCache(mm, nowMs);
-      let buttons = _playerCache;
+      const powerups = [];
+      for (let i = 0, len = allPowerups.length; i < len; i++) {
+        const pw = allPowerups[i];
+        if (!pw?.isActive) continue;
 
-      if (!buttons?.length) return;
-
-      let powerups = [];
-
-      for (let i = 0; i < buttons.length; i++) {
-        const btn = buttons[i];
-
-        try {
-          if (!btn?.BHasClass?.("powerup_spawn")) continue;
-          if (!btn.BHasClass("active")) continue;
-
-          let type = "unknown";
-          for (let j = 0; j < POWERUP_TYPES.length; j++) {
-            if (btn.BHasClass(POWERUP_TYPES[j])) {
-              type = POWERUP_TYPES[j];
-              break;
-            }
-          }
-
-          const pos = getPanelPos(btn);
-          powerups.push({
-            type: type,
-            x: pos.x,
-            y: pos.y,
-            panel: btn,
-            claimed: false,
-            minAllyDist: Infinity,
-            minEnemyDist: Infinity
-          });
-        } catch {}
+        powerups.push({
+          type: pw.type,
+          x: pw.xPct,
+          y: pw.yPct,
+          panel: pw.panel,
+          claimed: false,
+          minAllyDist: Infinity,
+          minEnemyDist: Infinity
+        });
       }
 
       if (powerups.length === 0) return;
 
-      // Sort by X coordinate (left to right)
       powerups.sort((a, b) => a.x - b.x);
-
       clearGlows();
 
       const inverted = mm.BHasClass?.("invert_map");
-
       for (let i = 0, len = powerups.length; i < len; i++) {
         const base = i === 0 ? "LEFT" : "RIGHT";
         powerups[i].pos = inverted ? (base === "LEFT" ? "RIGHT" : "LEFT") : base;
         applyGlow(powerups[i].pos, powerups[i].type);
       }
 
-      // Cache spawn positions for pre-tracking
       const p0 = powerups[0];
       const p1 = powerups[1] || p0;
       knownSpawnPos = inverted
         ? { left: { x: p1.x, y: p1.y }, right: { x: p0.x, y: p0.y } }
         : { left: { x: p0.x, y: p0.y }, right: { x: p1.x, y: p1.y } };
 
-      // Transfer pre-track data
       if (pretrackActive) {
         const ptL = inverted ? pretrackData.right : pretrackData.left;
         const ptR = inverted ? pretrackData.left : pretrackData.right;
@@ -1123,21 +1664,21 @@
       trackedPowerups = powerups;
       monitoringActive = true;
       buffResetTs = 0;
-    } catch (e) {
-    }
+    } catch {}
   }
 
 
-  function monitorPowerups(nowMs) {
+  function monitorPowerups(nowMs, snapshot) {
     if (trackedPowerups.length === 0) {
       monitoringActive = false;
       return;
     }
 
-    const mm = findMinimap();
-    if (!mm) return;
+    const snap = snapshot || collectMinimapSnapshot(nowMs, false);
+    const players = snap?.players || [];
 
     let allClaimed = true;
+    let targetCount = 0;
 
     for (let i = 0, len = trackedPowerups.length; i < len; i++) {
       const p = trackedPowerups[i];
@@ -1150,12 +1691,28 @@
         }
       } catch {}
 
-      _pwPos.x = p.x;
-      _pwPos.y = p.y;
-      const nearest = getPlayersNearPowerup(mm, _pwPos, nowMs);
+      if (stillActive) {
+        allClaimed = false;
+        continue;
+      }
 
-      if (nearest.ally < p.minAllyDist) p.minAllyDist = nearest.ally;
-      if (nearest.enemy < p.minEnemyDist) p.minEnemyDist = nearest.enemy;
+      _nearestTargets[targetCount++] = p;
+    }
+
+    if (targetCount > 0 && players.length > 0) {
+      computeNearestForTargets(players, _nearestTargets, targetCount, nowMs, true);
+    }
+
+    for (let i = 0, len = trackedPowerups.length; i < len; i++) {
+      const p = trackedPowerups[i];
+      if (p.claimed) continue;
+
+      let stillActive = false;
+      try {
+        if (p.panel?.IsValid?.()) {
+          stillActive = p.panel.BHasClass("active");
+        }
+      } catch {}
 
       if (stillActive) {
         allClaimed = false;
@@ -1175,6 +1732,8 @@
         p.claimed = true;
       }
     }
+
+    _nearestTargets.length = 0;
 
     if (allClaimed) {
       clearGlows();
@@ -1294,6 +1853,7 @@
     trackedPowerups = [];
     monitoringActive = false;
     pretrackActive = false;
+    _snapshotTs = 0;
     startPhaseAuto(now);
 
     // Prune stale player state when starting run
@@ -1325,10 +1885,26 @@
       _playerCache = null;
       _playerCacheTs = 0;
       _playerState = {};
+      _snapshotTs = 0;
+      _minimapSnapshot.players.length = 0;
+      _minimapSnapshot.powerupSpawns.length = 0;
+      _minimapSnapshot.neutralCamps.length = 0;
+      _minimapSnapshot.ts = 0;
+      lastMinimapCollapseCheck = 0;
+      lastMinimapReadabilityCheck = 0;
+      lastNeutralScanCheck = 0;
+      lastNeutralRenderCheck = 0;
+      _nearestTargets.length = 0;
+      _perfLastLogTs = 0;
+      _perfCounters.snapshotSweeps = 0;
+      _perfCounters.lingerChecks = 0;
+      _perfCounters.neutralScans = 0;
+      _perfCounters.proximityPasses = 0;
 
       clearGlows();
       clearClaimIndicators();
       clearAllLingers();
+      clearNeutralRespawnTimers();
 
       if (UI.rLab) UI.rLab.text = fmt(SEQ[0].d);
       if (UI.rNum) UI.rNum.text = "1";
