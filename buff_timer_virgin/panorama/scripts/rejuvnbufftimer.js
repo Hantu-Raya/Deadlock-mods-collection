@@ -192,7 +192,6 @@
   let _lastRejuvText = "";
   let _lastBuffText = "";
   let _lastRejuvBuffText = "";
-  let _lastRejuvNum = "";
   let _lastClaimTimerL = "";
   let _lastClaimTimerR = "";
   let _lastRejuvClip = "";
@@ -205,10 +204,7 @@
 
   // Reusable objects to avoid GC
   const _posResult = { x: 0, y: 0 };
-  const _nearResult = { ally: Infinity, enemy: Infinity };
-  const _pwPos = { x: 0, y: 0 };
   const _nearestTargets = [];
-  const _tmpTarget = { x: 0, y: 0, minAllyDist: Infinity, minEnemyDist: Infinity };
   const _minimapSnapshot = {
     players: [],
     powerupSpawns: [],
@@ -1355,16 +1351,6 @@
     }
   }
 
-  function updateNeutralRespawnTimers(nowMs) {
-    const now = nowMs || Date.now();
-    const gameNow = gTime(now);
-    const snapshot = collectMinimapSnapshot(now, true);
-    if (snapshot) {
-      scanNeutralRespawnState(snapshot, now, gameNow);
-    }
-    renderNeutralRespawnTimers(now, gameNow);
-  }
-
   function clearNeutralRespawnTimers() {
     for (const key in _neutralRespawnState) {
       clearNeutralTimerEntry(key, "reset");
@@ -1669,12 +1655,6 @@
     return _posResult;
   }
 
-  function distSq(p1, p2) {
-    const dx = p1.x - p2.x;
-    const dy = p1.y - p2.y;
-    return dx * dx + dy * dy;
-  }
-
   // Prune stale _playerState entries not referenced by _lingerState
   function prunePlayerState() {
     const keys = Object.keys(_playerState);
@@ -1836,21 +1816,6 @@
   // PLAYER PROXIMITY DETECTION
   // ===========================================
 
-  function getPlayersNearPowerup(mm, pwPos, nowMs) {
-    _tmpTarget.x = pwPos.x;
-    _tmpTarget.y = pwPos.y;
-    _tmpTarget.minAllyDist = Infinity;
-    _tmpTarget.minEnemyDist = Infinity;
-
-    const snap = collectMinimapSnapshot(nowMs, false);
-    const players = snap?.players || [];
-    computeNearestForTargets(players, [_tmpTarget], 1, nowMs, false);
-
-    _nearResult.ally = _tmpTarget.minAllyDist;
-    _nearResult.enemy = _tmpTarget.minEnemyDist;
-    return _nearResult;
-  }
-
   // ===========================================
   // POWERUP SCANNING & MONITORING
   // ===========================================
@@ -1971,7 +1936,6 @@
         allClaimed = false;
       } else {
         const allyClose = p.minAllyDist <= CLAIM_RADIUS_SQ;
-        const enemyClose = p.minEnemyDist <= CLAIM_RADIUS_SQ;
         const allyCloser = p.minAllyDist < p.minEnemyDist;
         const enemyClaimed = !(allyClose && allyCloser);
 
