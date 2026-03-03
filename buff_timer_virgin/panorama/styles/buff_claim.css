@@ -476,21 +476,42 @@
 	opacity: 1;
 }
 
-.neutral-respawn-timer {
+.neutral-cooldown-ring {
+	position: absolute;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	border-style: solid;
+	border-width: 1px;
+	border-color: rgba(90, 62, 35, 0.85);
+	background-color: rgba(18, 11, 5, 0.22);
+	overflow: noclip;
+	opacity: 1;
+	z-index: 9999998;
+}
+
+.neutral-cooldown-ring-fill {
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	border-style: solid;
+	border-width: 3px;
+	border-color: rgba(229, 162, 94, 0.98);
+	opacity: 1;
+	clip: radial(50% 50%, 0deg, 360deg);
+}
+
+.neutral-cooldown-timer-detail {
 	position: absolute;
 	width: 36px;
-	height: 18px;
-	margin-left: -6px;
-	margin-top: 2px;
-	font-size: 12px;
+	height: 14px;
+	font-size: 10px;
 	font-family: sansMono;
 	font-weight: semi-bold;
 	text-align: center;
-	color: #ffffff;
+	color: rgba(255, 228, 193, 0.98);
 	text-shadow: 0px 0px 3px 2.0 black;
-	z-index: 9999998;
 	opacity: 1;
+	z-index: 9999999;
 }
-
-/* ============================================
 
