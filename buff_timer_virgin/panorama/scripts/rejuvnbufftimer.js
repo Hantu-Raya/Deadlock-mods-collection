@@ -49,12 +49,44 @@
   const DEBUG_PERF = false;
   const NEUTRAL_STATE_PURGE_MS = 15000;
   const NEUTRAL_MATCH_RADIUS_SQ = 4;
+  const NEUTRAL_RING_SIZE_PX = 18;
+  const NEUTRAL_RING_THICKNESS_PX = 3;
+  const NEUTRAL_ICON_COOLDOWN_OPACITY = 0.45;
+  const NEUTRAL_RADIAL_START_DEG = 0;
   const NEUTRAL_RESPAWN_SECONDS = {
     neutral_weak: 85,
     neutral_medium: 290,
     neutral_large: 335,
     neutral_vault: 300
   };
+  // Tier color map kept in code so visual intent survives context/compaction and stays easy to retune.
+  const NEUTRAL_RING_THEME = {
+    neutral_weak: {
+      fill: "rgba(150, 214, 126, 0.98)",
+      trackBorder: "rgba(63, 95, 55, 0.90)",
+      trackBg: "rgba(18, 30, 16, 0.28)",
+      text: "rgba(220, 247, 206, 0.98)"
+    },
+    neutral_medium: {
+      fill: "rgba(237, 165, 72, 0.98)",
+      trackBorder: "rgba(120, 78, 34, 0.90)",
+      trackBg: "rgba(33, 20, 8, 0.28)",
+      text: "rgba(255, 225, 183, 0.98)"
+    },
+    neutral_large: {
+      fill: "rgba(238, 86, 76, 0.98)",
+      trackBorder: "rgba(122, 36, 33, 0.92)",
+      trackBg: "rgba(38, 11, 11, 0.30)",
+      text: "rgba(255, 198, 190, 0.98)"
+    },
+    neutral_vault: {
+      fill: "rgba(199, 122, 255, 0.98)",
+      trackBorder: "rgba(92, 52, 122, 0.92)",
+      trackBg: "rgba(26, 12, 36, 0.30)",
+      text: "rgba(236, 209, 255, 0.98)"
+    }
+  };
+  const NEUTRAL_RING_THEME_DEFAULT = NEUTRAL_RING_THEME.neutral_medium;
   const MINIMAP_COLLAPSE_CLASSES = [];
 
   // ===========================================
@@ -317,13 +349,13 @@
       lastNeutralScanCheck = rn;
       snapshot = collectMinimapSnapshot(rn, false);
       if (snapshot) {
-        scanNeutralRespawnState(snapshot, rn);
+        scanNeutralRespawnState(snapshot, rn, now);
       }
     }
 
     if (rn - lastNeutralRenderCheck >= NEUTRAL_RENDER_INTERVAL_MS) {
       lastNeutralRenderCheck = rn;
-      renderNeutralRespawnTimers(rn);
+      renderNeutralRespawnTimers(rn, now);
     }
 
     // Not running - check hideout status periodically
@@ -891,8 +923,12 @@
     return null;
   }
 
-  function getNeutralTimerId(key) {
-    return "NeutralTimer_" + key.replace(/[^a-zA-Z0-9_]/g, "_");
+  function getNeutralRingId(key) {
+    return "NeutralCooldownRing_" + key.replace(/[^a-zA-Z0-9_]/g, "_");
+  }
+
+  function getNeutralRingTheme(type) {
+    return NEUTRAL_RING_THEME[type] || NEUTRAL_RING_THEME_DEFAULT;
   }
 
   function neutralPosOnContainer(mapX, mapY, container, mm) {
@@ -913,15 +949,79 @@
     return _posResult;
   }
 
+  function clearNeutralRing(st) {
+    if (!st) return;
+
+    try {
+      if (st.ringRoot?.IsValid?.()) {
+        st.ringRoot.DeleteAsync(0);
+      }
+    } catch {}
+
+    st.ringRoot = null;
+    st.ringFill = null;
+    st.lastClip = "";
+    st.lastFillColor = "";
+    st.lastTrackBorder = "";
+    st.lastTrackBg = "";
+    st.lastPosX = -1;
+    st.lastPosY = -1;
+  }
+
+  function clearNeutralDetailLabel(st) {
+    if (!st) return;
+
+    try {
+      if (st.detailLabel?.IsValid?.()) {
+        st.detailLabel.DeleteAsync(0);
+      }
+    } catch {}
+
+    st.detailLabel = null;
+    st.lastText = "";
+    st.lastTextColor = "";
+    st.lastTextPosX = -1;
+    st.lastTextPosY = -1;
+  }
+
+  function isScoreboardOpen(mm) {
+    try {
+      if (mm?.IsValid?.() && mm.BHasClass?.("gScoreboardOpen")) return true;
+      if (UI.root?.IsValid?.() && UI.root.BHasClass?.("gScoreboardOpen")) return true;
+    } catch {}
+    return false;
+  }
+
+  function setNeutralIconDim(st, shouldDim) {
+    if (!st) return;
+    const panel = st.panel;
+    if (!panel?.IsValid?.()) {
+      if (!shouldDim) st.iconDimApplied = false;
+      return;
+    }
+
+    try {
+      if (shouldDim) {
+        if (!st.iconDimApplied) {
+          panel.style.opacity = String(NEUTRAL_ICON_COOLDOWN_OPACITY);
+          st.iconDimApplied = true;
+        }
+      } else if (st.iconDimApplied) {
+        panel.style.opacity = null;
+        st.iconDimApplied = false;
+      }
+    } catch {}
+  }
+
   function clearNeutralTimerEntry(key, reason) {
     const st = _neutralRespawnState[key];
     if (!st) return;
 
-    try {
-      if (st.label?.IsValid?.()) {
-        st.label.DeleteAsync(0);
-      }
-    } catch {}
+    clearNeutralRing(st);
+    clearNeutralDetailLabel(st);
+    setNeutralIconDim(st, false);
+    st.respawnEndGameSec = 0;
+    st.durationMs = 0;
 
     if (DEBUG_NEUTRAL_TIMERS && reason) {
       $.Msg("[BT-NEUTRAL] clear key=", key, " reason=", reason);
@@ -960,60 +1060,181 @@
     return "neutral_state_" + _neutralStateSeq;
   }
 
-  function renderNeutralTimer(st, key, now, container, mm) {
-    if (st.respawnEndMs <= 0) {
-      if (st.label?.IsValid?.()) {
-        try { st.label.DeleteAsync(0); } catch {}
-      }
-      st.label = null;
-      st.lastText = "";
+  function renderNeutralTimer(st, key, nowMs, gameNowSec, container, mm) {
+    if (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0) {
+      clearNeutralRing(st);
+      clearNeutralDetailLabel(st);
+      setNeutralIconDim(st, false);
+      st.durationMs = 0;
       return;
     }
 
-    const remSec = Math.max(0, Math.ceil((st.respawnEndMs - now) / 1000));
+    const durationMs = st.durationMs > 0
+      ? st.durationMs
+      : (NEUTRAL_RESPAWN_SECONDS[st.type] || 0) * 1000;
 
-    let label = st.label;
-    const timerId = getNeutralTimerId(key);
-    if (!label?.IsValid?.()) {
-      label = container.FindChildTraverse(timerId);
-    }
-    if (!label?.IsValid?.()) {
-      label = $.CreatePanel("Label", container, timerId);
-      label.AddClass("neutral-respawn-timer");
+    if (durationMs <= 0) {
+      st.respawnEndMs = 0;
+      st.respawnEndGameSec = 0;
+      clearNeutralRing(st);
+      clearNeutralDetailLabel(st);
+      setNeutralIconDim(st, false);
+      st.durationMs = 0;
+      return;
     }
 
-    const pos = neutralPosOnContainer(st.mapX, st.mapY, container, mm);
-    const px = pos.x;
-    const py = pos.y;
+    if (!st.iconDimApplied) {
+      setNeutralIconDim(st, true);
+    }
+
+    let ringRoot = st.ringRoot;
+    const ringId = getNeutralRingId(key);
+    if (!ringRoot?.IsValid?.()) {
+      ringRoot = container.FindChildTraverse(ringId);
+    }
+    if (!ringRoot?.IsValid?.()) {
+      ringRoot = $.CreatePanel("Panel", container, ringId);
+      ringRoot.AddClass("neutral-cooldown-ring");
+      ringRoot.style.width = NEUTRAL_RING_SIZE_PX + "px";
+      ringRoot.style.height = NEUTRAL_RING_SIZE_PX + "px";
+    }
+
+    let ringFill = st.ringFill;
+    const ringFillId = ringId + "_fill";
+    if (!ringFill?.IsValid?.()) {
+      ringFill = ringRoot.FindChildTraverse(ringFillId);
+    }
+    if (!ringFill?.IsValid?.()) {
+      ringFill = $.CreatePanel("Panel", ringRoot, ringFillId);
+      ringFill.AddClass("neutral-cooldown-ring-fill");
+      ringFill.style.borderWidth = NEUTRAL_RING_THICKNESS_PX + "px";
+    }
+
+    const theme = getNeutralRingTheme(st.type);
+    if (theme.fill !== st.lastFillColor) {
+      ringFill.style.borderColor = theme.fill;
+      st.lastFillColor = theme.fill;
+    }
+    if (theme.trackBorder !== st.lastTrackBorder) {
+      ringRoot.style.borderColor = theme.trackBorder;
+      st.lastTrackBorder = theme.trackBorder;
+    }
+    if (theme.trackBg !== st.lastTrackBg) {
+      ringRoot.style.backgroundColor = theme.trackBg;
+      st.lastTrackBg = theme.trackBg;
+    }
+
+    let iconX = st.mapX || 0;
+    let iconY = st.mapY || 0;
+    let iconW = st.panelW || 24;
+    let iconH = st.panelH || 24;
+    const iconPanel = st.panel;
+    const hasLivePanel = !!iconPanel?.IsValid?.();
+
+    if (hasLivePanel) {
+      iconX = iconPanel.actualxoffset || iconX;
+      iconY = iconPanel.actualyoffset || iconY;
+      iconW = iconPanel.actuallayoutwidth || iconPanel.contentwidth || iconW;
+      iconH = iconPanel.actuallayoutheight || iconPanel.contentheight || iconH;
+      st.panelW = iconW;
+      st.panelH = iconH;
+    } else {
+      const fallbackPos = neutralPosOnContainer(st.mapX, st.mapY, container, mm);
+      iconX = fallbackPos.x;
+      iconY = fallbackPos.y;
+    }
+
+    const mw = container.contentwidth || 404;
+    const mh = container.contentheight || 404;
+    const inverted = mm?.IsValid?.() && mm.BHasClass?.("invert_map");
+    if (inverted) {
+      iconX = mw - iconX - iconW;
+      iconY = mh - iconY - iconH;
+    }
+
+    const centerX = iconX + iconW * 0.5;
+    const centerY = iconY + iconH * 0.5;
+    const px = centerX - NEUTRAL_RING_SIZE_PX * 0.5;
+    const py = centerY - NEUTRAL_RING_SIZE_PX * 0.5;
     if (Math.abs((st.lastPosX ?? -9999) - px) > 0.05 || Math.abs((st.lastPosY ?? -9999) - py) > 0.05) {
-      label.style.position = px + "px " + py + "px 0px";
+      ringRoot.style.position = px + "px " + py + "px 0px";
       st.lastPosX = px;
       st.lastPosY = py;
     }
 
-    const text = fmt(remSec);
-    if (text !== st.lastText) {
-      label.text = text;
-      st.lastText = text;
+    const now = nowMs || Date.now();
+    let remainingMs = Math.max(0, st.respawnEndMs - now);
+    if (gameNowSec > 0 && st.respawnEndGameSec > 0) {
+      remainingMs = Math.max(0, (st.respawnEndGameSec - gameNowSec) * 1000);
+      const syncedEndMs = now + remainingMs;
+      if (Math.abs((st.respawnEndMs || 0) - syncedEndMs) > 750) {
+        st.respawnEndMs = syncedEndMs;
+      }
+    } else if (gameNowSec > 0 && st.respawnEndGameSec <= 0 && st.respawnEndMs > 0) {
+      st.respawnEndGameSec = gameNowSec + (remainingMs / 1000);
     }
 
-    st.label = label;
+    const pct = Math.max(0, Math.min(1, remainingMs / durationMs));
+    const sweepDeg = (pct * 360).toFixed(2);
+    const clip = "radial(50% 50%, " + NEUTRAL_RADIAL_START_DEG + "deg, " + sweepDeg + "deg)";
+    if (clip !== st.lastClip) {
+      ringFill.style.clip = clip;
+      st.lastClip = clip;
+    }
 
-    if (remSec <= 0) {
-      st.respawnEndMs = 0;
-      st.lastText = "";
-      if (st.label?.IsValid?.()) {
-        try { st.label.DeleteAsync(0); } catch {}
-        st.label = null;
+    st.ringRoot = ringRoot;
+    st.ringFill = ringFill;
+
+    const showDetailText = isScoreboardOpen(mm);
+    if (showDetailText) {
+      let detailLabel = st.detailLabel;
+      const detailId = ringId + "_text";
+      if (!detailLabel?.IsValid?.()) {
+        detailLabel = container.FindChildTraverse(detailId);
       }
+      if (!detailLabel?.IsValid?.()) {
+        detailLabel = $.CreatePanel("Label", container, detailId);
+        detailLabel.AddClass("neutral-cooldown-timer-detail");
+      }
+
+      const textX = centerX - 18;
+      const textY = py + NEUTRAL_RING_SIZE_PX + 1;
+      if (Math.abs((st.lastTextPosX ?? -9999) - textX) > 0.05 || Math.abs((st.lastTextPosY ?? -9999) - textY) > 0.05) {
+        detailLabel.style.position = textX + "px " + textY + "px 0px";
+        st.lastTextPosX = textX;
+        st.lastTextPosY = textY;
+      }
+
+      const text = fmt(Math.ceil(remainingMs / 1000));
+      if (text !== st.lastText) {
+        detailLabel.text = text;
+        st.lastText = text;
+      }
+      if (theme.text !== st.lastTextColor) {
+        detailLabel.style.color = theme.text;
+        st.lastTextColor = theme.text;
+      }
+      st.detailLabel = detailLabel;
+    } else if (st.detailLabel?.IsValid?.()) {
+      clearNeutralDetailLabel(st);
+    }
+
+    if (remainingMs <= 0) {
+      st.respawnEndMs = 0;
+      st.respawnEndGameSec = 0;
+      clearNeutralRing(st);
+      clearNeutralDetailLabel(st);
+      setNeutralIconDim(st, false);
+      st.durationMs = 0;
       if (DEBUG_NEUTRAL_TIMERS) {
         $.Msg("[BT-NEUTRAL] done key=", key, " type=", st.type);
       }
     }
   }
 
-  function scanNeutralRespawnState(snapshot, nowMs) {
+  function scanNeutralRespawnState(snapshot, nowMs, gameNowSec) {
     const now = nowMs || Date.now();
+    const gameNow = gameNowSec > 0 ? gameNowSec : gTime(now);
     const camps = snapshot?.neutralCamps || [];
     const token = ++_neutralSweepToken;
     perfMark("neutralScans", now);
@@ -1033,8 +1254,23 @@
             type: camp.type,
             wasActive: isActive,
             respawnEndMs: 0,
-            label: null,
+            respawnEndGameSec: 0,
+            durationMs: 0,
+            ringRoot: null,
+            ringFill: null,
+            lastClip: "",
+            lastFillColor: "",
+            lastTrackBorder: "",
+            lastTrackBg: "",
+            detailLabel: null,
             lastText: "",
+            lastTextColor: "",
+            lastTextPosX: -1,
+            lastTextPosY: -1,
+            panel: camp.panel || null,
+            panelW: camp.panel?.actuallayoutwidth || camp.panel?.contentwidth || 24,
+            panelH: camp.panel?.actuallayoutheight || camp.panel?.contentheight || 24,
+            iconDimApplied: false,
             mapPctX: camp.xPct,
             mapPctY: camp.yPct,
             mapX: camp.actualX,
@@ -1049,6 +1285,15 @@
           st.type = camp.type;
         }
 
+        if (st.panel !== camp.panel) {
+          setNeutralIconDim(st, false);
+        }
+
+        st.panel = camp.panel || null;
+        if (st.panel?.IsValid?.()) {
+          st.panelW = st.panel.actuallayoutwidth || st.panel.contentwidth || st.panelW || 24;
+          st.panelH = st.panel.actuallayoutheight || st.panel.contentheight || st.panelH || 24;
+        }
         st.mapPctX = camp.xPct;
         st.mapPctY = camp.yPct;
         st.mapX = camp.actualX;
@@ -1057,20 +1302,25 @@
         st.sweepToken = token;
 
         if (st.wasActive && !isActive && durationSec > 0) {
+          st.durationMs = durationSec * 1000;
           st.respawnEndMs = now + durationSec * 1000;
+          st.respawnEndGameSec = gameNow > 0 ? (gameNow + durationSec) : 0;
+          setNeutralIconDim(st, true);
           if (DEBUG_NEUTRAL_TIMERS) {
             $.Msg("[BT-NEUTRAL] start key=", key, " type=", camp.type, " duration=", durationSec);
           }
         } else if (!st.wasActive && isActive) {
           st.respawnEndMs = 0;
-          st.lastText = "";
-          if (st.label?.IsValid?.()) {
-            try { st.label.DeleteAsync(0); } catch {}
-            st.label = null;
-          }
+          st.respawnEndGameSec = 0;
+          st.durationMs = 0;
+          clearNeutralRing(st);
+          clearNeutralDetailLabel(st);
+          setNeutralIconDim(st, false);
           if (DEBUG_NEUTRAL_TIMERS) {
             $.Msg("[BT-NEUTRAL] clear key=", key, " reason=active_again");
           }
+        } else if (st.respawnEndMs > 0 || st.respawnEndGameSec > 0) {
+          setNeutralIconDim(st, true);
         }
 
         st.wasActive = isActive;
@@ -1079,7 +1329,7 @@
       for (const key in _neutralRespawnState) {
         const st = _neutralRespawnState[key];
         if (!st || st.sweepToken === token) continue;
-        if (st.respawnEndMs > 0) continue;
+        if (st.respawnEndMs > 0 || st.respawnEndGameSec > 0) continue;
         if (now - (st.lastSeenMs || 0) > NEUTRAL_STATE_PURGE_MS) {
           clearNeutralTimerEntry(key, "stale");
         }
@@ -1091,25 +1341,28 @@
     }
   }
 
-  function renderNeutralRespawnTimers(nowMs) {
+  function renderNeutralRespawnTimers(nowMs, gameNowSec) {
     const mm = findMinimap();
     const container = UI.minimapContainer;
     if (!mm || !container?.IsValid?.()) return;
 
     const now = nowMs || Date.now();
+    const gameNow = gameNowSec > 0 ? gameNowSec : gTime(now);
     for (const key in _neutralRespawnState) {
       const st = _neutralRespawnState[key];
-      if (!st || st.respawnEndMs <= 0) continue;
-      renderNeutralTimer(st, key, now, container, mm);
+      if (!st || (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0)) continue;
+      renderNeutralTimer(st, key, now, gameNow, container, mm);
     }
   }
 
   function updateNeutralRespawnTimers(nowMs) {
-    const snapshot = collectMinimapSnapshot(nowMs, true);
+    const now = nowMs || Date.now();
+    const gameNow = gTime(now);
+    const snapshot = collectMinimapSnapshot(now, true);
     if (snapshot) {
-      scanNeutralRespawnState(snapshot, nowMs);
+      scanNeutralRespawnState(snapshot, now, gameNow);
     }
-    renderNeutralRespawnTimers(nowMs);
+    renderNeutralRespawnTimers(now, gameNow);
   }
 
   function clearNeutralRespawnTimers() {
