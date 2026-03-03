@@ -11,6 +11,12 @@ These mods were created to experiment with the internal Panorama UI system, unlo
 
 Whether you're looking to customize your own HUD or understand how Deadlock's UI works under the hood, this collection serves as a practical resource.
 
+## Repository Structure
+
+For current layout and cleanup conventions, see
+[WORKSPACE_STRUCTURE.md](WORKSPACE_STRUCTURE.md).
+Archived non-runtime metadata and one-off artifacts are kept in `_archive/`.
+
 ## 🛠️ Tech Stack
 
 - **Valve Panorama UI**: The underlying UI framework used by Deadlock (and Dota 2/CS2).
