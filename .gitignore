@@ -21,3 +21,6 @@ passive_items_mod_release
 frame_rate/
 .sisyphus/notepads/frame_rate-validation/
 .sisyphus/plans/deadlock-frame_rate-v1.md
+[f][p][s]/
+.sisyphus/notepads/[f][p][s]-validation/
+.sisyphus/plans/deadlock-[f][p][s]-v1.md
