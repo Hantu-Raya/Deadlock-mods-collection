@@ -1,10 +1,10 @@
-# AGENTS: Buff Timer Virgin (v6.0)
+# AGENTS: Buff Timer Virgin (v6.1)
 
 ## OVERVIEW
-Production-ready Rejuvenator and Bridge Buff tracker for Deadlock. Implements proximity-based claim detection, high-fidelity minimap glow system, CS:GO-style enemy linger indicators, and optimized overlay panel clip system. Heavily optimized for minimal CPU and memory usage.
+Production-ready Rejuvenator and Bridge Buff tracker for Deadlock. Implements proximity-based claim detection, high-fidelity minimap glow system, CS:GO-style enemy linger indicators, neutral camp respawn overlay timers, and optimized overlay panel clip system. Heavily optimized for minimal CPU and memory usage.
 
 ## STRUCTURE
-- `panorama/scripts/rejuvnbufftimer.js`: Main logic (~1400 lines). Timers, proximity scan, state machine, team caching.
+- `panorama/scripts/rejuvnbufftimer.js`: Main logic (~1700 lines). Timers, proximity scan, state machine, team caching, neutral respawn overlay labels.
 - `panorama/layout/hud.xml`: Defines timer panels with overlay clip system (BuffOverlay, RejuvOverlay), 6 glow panels, claim indicators, and linger overlays.
 - `panorama/styles/hud_timer.css`: CSS animations, overlay panel styling, and layout for countdowns.
 - `panorama/styles/buff_claim.css`: Glow effects, claim indicators, linger styling.
@@ -25,6 +25,35 @@ Since Panorama JS cannot read hero identity from image paths, claim detection re
 ### Visual Feedback
 - **6-Panel Glow**: Curved gradient overlays simulate minimap area illumination.
 - **Claim Indicators**: Sidebar boxes showing powerup type + team color border (cyan=ally, red=enemy).
+- **Neutral Respawn Labels**: Dynamic countdown text rendered on neutral minimap icon positions.
+
+## NEUTRAL RESPAWN TIMERS (v6.1)
+Countdown overlays for neutral camps after a camp icon disappears (`active -> inactive`).
+
+### Durations
+- `neutral_weak = 85s`
+- `neutral_medium = 290s`
+- `neutral_large = 335s`
+- `neutral_vault = 300s`
+
+### Architecture
+- **Dynamic Creation**: Uses `$.CreatePanel("Label", container, timerId)` with `neutral-respawn-timer` class.
+- **State Tracking**: `_neutralRespawnState[key] = { type, wasActive, respawnEndMs, mapX, mapY, label, lastSeenMs }`.
+- **Persistent Rendering**: Active timers keep rendering from last known map position even if button is not seen that tick.
+- **Stable Matching**: States are matched by `id` when available, otherwise by type + nearest stored map percentage (radius threshold).
+
+### Behavior Rules
+- Timer starts only on transition `wasActive && !isActive`.
+- Timer clears on `!wasActive && isActive` (camp visible again).
+- Timer auto-clears at `00:00`.
+- Non-running stale states are purged after `NEUTRAL_STATE_PURGE_MS`.
+- Neutral icons are **not collapsed** by default (`ENABLE_MINIMAP_COLLAPSE = false`) to preserve readability.
+
+### Debug Tags
+- `[BT-NEUTRAL] start ...` timer started
+- `[BT-NEUTRAL] clear ...` timer cleared/reset
+- `[BT-NEUTRAL] done ...` timer reached zero
+- `[BT-NEUTRAL][ERR] ...` update failure
 
 ## ENEMY LINGER FEATURE (v5.4+)
 CS:GO-style "last seen" indicator for enemies who enter fog-of-war.
@@ -49,7 +78,7 @@ CS:GO-style "last seen" indicator for enemies who enter fog-of-war.
 
 ## PERFORMANCE OPTIMIZATIONS (v5.6)
 
-## PERFORMANCE OPTIMIZATIONS (v6.0)
+## PERFORMANCE OPTIMIZATIONS (v6.0+)
 
 ### Overlay Panel Clip System
 | Aspect | Before (v5.6) | After (v6.0) |
@@ -145,10 +174,12 @@ function ensurePlayerCache(mm, rn) {
 | Button cache TTL | 800ms | Reduce DOM traversal |
 | Time cache TTL | 200ms | Reduce string parsing |
 | Pretrack interval | 1000ms | Balanced accuracy |
+| Neutral timer tick | 250ms | Smooth overlay countdown updates |
 
 ### CSS Optimizations
 - `transition-property: opacity` instead of `width,height` (no layout reflows)
 - `.linger-hidden` class for visibility control
+- `.neutral-respawn-timer` is a lightweight text-only overlay (no expensive effects)
 
 ## CONVENTIONS
 - **Adaptive Polling**: 0.1s during active monitoring, 1.0s during idle countdown.
@@ -170,10 +201,13 @@ function ensurePlayerCache(mm, rn) {
 - **Multiple fallbacks in hot path**: Measure with telemetry, remove dead branches.
 - **Text on Overlay Panels**: DO NOT write `.text` on overlay Panels (they have no text property).
 - **Pruning Active Linger State**: DO NOT prune `_playerState` entries that have active `_lingerState` references.
+- **Neutral Visibility Hiding**: DO NOT collapse neutral minimap icons when timer readability is required.
 
 ## DEBUG
 Enable `-dev -tools` launch options. Console: F7.
-Debug logging removed in v6.0 for production. Re-add `$.Msg` calls if needed for troubleshooting.
+Current debug logs:
+- Neutral timers: `[BT-NEUTRAL] ...`
+- Minimap collapse sweep: `[BT-MAP] ...` (collapse logic disabled by default via `ENABLE_MINIMAP_COLLAPSE = false`).
 
 ## BUILD
 ```powershell
