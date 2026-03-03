@@ -476,5 +476,21 @@
 	opacity: 1;
 }
 
+.neutral-respawn-timer {
+	position: absolute;
+	width: 36px;
+	height: 18px;
+	margin-left: -6px;
+	margin-top: 2px;
+	font-size: 12px;
+	font-family: sansMono;
+	font-weight: semi-bold;
+	text-align: center;
+	color: #ffffff;
+	text-shadow: 0px 0px 3px 2.0 black;
+	z-index: 9999998;
+	opacity: 1;
+}
+
 /* ============================================
 

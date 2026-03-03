@@ -1,0 +1,4 @@
+Home overall: 100.0
+Gallery overall: 100.0
+Combined overall: 100.0
+Report: D:\web\bakery\.agents\webapp-testing\artifacts\liquid-blur-contrast-check\score.json

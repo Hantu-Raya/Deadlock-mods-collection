@@ -1,0 +1,26 @@
+{
+  "score": 85,
+  "checks": {
+    "quality_hidden_top": true,
+    "quality_visible_post_zoom": false,
+    "side_hidden_entry": true,
+    "side_visible_mid": true,
+    "cta_hidden_before_hover": true,
+    "cta_visible_on_hover": true,
+    "tilt_applied_on_hover": true
+  },
+  "metrics": {
+    "quality_opacity_top": 0,
+    "post_zoom_active": true,
+    "scroll_y_post_zoom": 840,
+    "quality_opacity_post_zoom": 0,
+    "medovik_opacity_entry": 0,
+    "macarons_opacity_entry": 0,
+    "medovik_opacity_mid": 0.7997,
+    "macarons_opacity_mid": 0.8597,
+    "cta_opacity_before_hover": 0,
+    "cta_opacity_after_hover": 0.968775,
+    "cake_transform_before": "none",
+    "cake_transform_after": "matrix(1.01679, -0.0306151, 0.0306151, 1.01679, 0, 0)"
+  }
+}

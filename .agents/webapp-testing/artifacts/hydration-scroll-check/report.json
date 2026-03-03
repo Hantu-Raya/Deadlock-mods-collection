@@ -1,0 +1,17 @@
+{
+  "url": "http://127.0.0.1:3000",
+  "console_event_count": 3,
+  "page_error_count": 0,
+  "response_error_count": 0,
+  "hydration_hit_count": 0,
+  "hydration_hits": [],
+  "console_errors": [],
+  "console_warnings": [
+    {
+      "type": "warning",
+      "text": "Image with src \"/bakery/thumbs/basque-burnt-cheesecake-thumb.webp\" was detected as the Largest Contentful Paint (LCP). Please add the `loading=\"eager\"` property if this image is above the fold.\nRead more: https://nextjs.org/docs/app/api-reference/components/image#loading"
+    }
+  ],
+  "page_errors": [],
+  "response_errors": []
+}
