@@ -120,7 +120,7 @@ class Entity {
 // - Consider using p5 vectors efficiently
 
 // For smooth animation:
-// - Aim for 60frame_rate
+// - Aim for 60fps
 // - Profile if things are slow
 // - Consider reducing particle counts or simplifying calculations
 

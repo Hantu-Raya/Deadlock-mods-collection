@@ -1,0 +1,128 @@
+--- fps.txt	2026-02-04 02:13:43.925981300 +0800
++++ fpsnew.txt	2026-02-04 02:10:15.841896200 +0800
+@@ -29,6 +29,9 @@
+ "csm_max_shadow_dist_override" "0"
+ "sc_cache_envmap_lpv_lookup" "1"
+ "cl_retire_low_priority_lights" "1"
++"sc_disable_spotlight_shadows" "1"
++"sc_disable_shadow_materials" "1"
++
+ 
+ // ================ FOG & ATMOSPHERE ================
+ "r_enable_volume_fog" "0"
+@@ -58,10 +61,10 @@
+ "r_particle_max_size_cull" "800"
+ "particle_cluster_nodraw" "1"
+ "r_particle_mixed_resolution_viewstart" "800"
+-"cl_particle_sim_fallback_threshold_ms" "0"
+-"cl_parallel_readpacketentities_threshold" "4"
++"cl_particle_sim_fallback_threshold_ms" "1"
++"cl_parallel_readpacketentities_threshold" "2"
++"cl_parallel_readpacketentities" "1"
+ "sc_layer_batch_threshold_fullsort" "80"
+-"r_particle_gpu_implicit_lds_cache" "1" // Enable the GPU LDS cache for implicit particle compute
+ "r_particle_model_new8" "0"
+ "cl_show_splashes" "0"
+ 
+@@ -95,11 +98,12 @@
+ "enable_boneflex" "false"            // cloth flexing
+ 
+ // ================ LOD ================
+-"sc_instanced_mesh_lod_bias" "5"     // Bias for LOD selection of instanced meshes
+-"sc_instanced_mesh_lod_bias_shadow" "5.5" // Bias for LOD selection of instanced meshes in shadowmaps
++"sc_instanced_mesh_lod_bias" "10"     // Bias for LOD selection of instanced meshes
++"sc_instanced_mesh_lod_bias_shadow" "10" // Bias for LOD selection of instanced meshes in shadowmaps
+ "sc_instanced_mesh_motion_vectors" "0" // Set 1 if you use motion blur
+-"sc_instanced_mesh_size_cull_bias" "5" // Bias for size culling of instanced meshes
+-"sc_instanced_mesh_size_cull_bias_shadow" "5.5" // Bias for size culling instanced meshes in shadowmaps
++"sc_instanced_mesh_size_cull_bias" "10" // Bias for size culling of instanced meshes
++"sc_instanced_mesh_size_cull_bias_shadow" "10" // Bias for size culling instanced meshes in shadowmaps
++"sc_fade_distance_scale_override" "180"
+ 
+ // ================ ROPE PHYSICS ================
+ "rope_collide" "0"
+@@ -152,7 +156,7 @@
+ // ================ AUDIO ================
+ "audio_enable_vmix_mastering" "0"
+ "dsp_volume" "0"                    // idk
+-"dsp_off" "0"
++"snd_occlusion_bounces" "0"
+ 
+ // ================ MISC ================
+ "sc_hdr_enabled_override" "0"
+@@ -160,11 +164,70 @@
+ "cl_ragdoll_limit" "0"              // Set it on console if ragdoll still lingers longer
+ "r_pipeline_stats_present_flush" "0"
+ "r_pipeline_stats_command_flush" "0"
+-"sv_ag2_low_skel_lod" "true"
+ "r_max_portal_render_targets" "2"   // Set how many amount to render portals
+ "citadel_hideout_ball_show_juggle_count" "1"
+ "citadel_hideout_ball_show_juggle_fx" "1"
+ "citadel_camera_soft_collision" "0"
+-"cl_input_enable_raw_keyboard" "1"
+ "mat_colcorrection_disableentities" "0" // Disable map color-correction entities
+-"mm_idle_show_warning_at_s" "999"   // How many seconds to wait before showing the idle warning dialog
+\ No newline at end of file
++"mm_idle_show_warning_at_s" "999"   // How many seconds to wait before showing the idle warning dialog
++
++"cl_globallight_shadow_mode" "0"
++"lb_enable_dynamic_lights" "0"
++"lb_enable_lights" "0"
++"lb_max_visible_barn_lights_override" "0"
++"lb_max_visible_envmaps_override" "4"
++"lb_ssss_samples" "0"
++"cl_interp_parallel" "1"
++"r_citadel_npr_outlines_max_dist" "600"
++"cl_clock_buffer_ticks" "0"
++"cl_particle_fallback_multiplier" "10"
++"cl_particle_fallback_base" "5"
++"citadel_camera_wobble_disable" "1"
++"r_particle_max_draw_distance" "700000" //need more testing
++"engine_max_ticks_to_simulate" "33"
++"r_particle_min_timestep" "0.2"
++"citadel_unit_status_use_new" "1"
++
++"lb_enable_stationary_lights" "0"         // Disable stationary lights
++"r_multiscattering" "0"                   // Disable multiscattering (only works with shadows disable)
++"sc_aggregate_bvh_threshold" "64"         // Lower BVH threshold (default: 128)
++"sc_layer_batch_threshold" "64"           // Lower batch threshold (default: 128)
++"sc_clutter_enable" "0"                   // Disable clutter (props/debris)
++"r_citadel_distancefield_farfield_enable" "false"
++"sparseshadowtree_enable_rendering" "0"
++"sparseshadowtree_disable_for_viewmodel" "1"
++"mat_async_shader_load" "1"
++"r_renderdoc_auto_shader_pdbs" "0"
++"ragdoll_parallel_pose_control" "1"
++"panorama_async_compute_mipgen" "1"
++"snd_steamaudio_num_threads" "1"
++"phys_threaded_cloth_bone_update" "1"
++"phys_threaded_kinematic_bone_update" "1"
++"phys_threaded_transform_update" "1"
++"cl_particle_sim_fallback_base_multiplier" "10"
++"cl_particle_fallback_base" "10"
++"cl_particle_fallback_multiplier" "10"
++// ================ TEXTURE STREAMING ================
++// Reduce texture pool size (MB) - lower = less VRAM usage
++"r_texture_pool_size" "800"
++// Aggressive texture LOD bias (higher = blurrier textures, more FPS)
++"r_texture_stream_mip_bias" "2"
++"r_texture_lod_scale" "2"
++"r_fallback_texture_lod_scale" "4"
++// Faster texture streaming adjustment
++"r_texture_budget_update_period" "0.05"
++"r_texture_pool_reduce_rate" "512"
++// ================ MEMORY BUDGET ================
++// Dynamic texture budget adjustment
++"r_texture_budget_dynamic" "1"
++"r_texture_budget_threshold" "0.8"
++"net_async_clientconnect" "1"
++"snd_mix_async" "1"
++"snd_steamaudio_num_threads" "1"
++"soundsystem_update_async" "1"
++"r_particle_skip_postsim" "1"
++"r_limit_particle_job_duration" "1"
++"r_render_hair" "0"
++"r_haircull_percent" "100"
++"sv_waterdist" "0"
++"cl_eye_yaw_multiplier" "0"
+\ No newline at end of file

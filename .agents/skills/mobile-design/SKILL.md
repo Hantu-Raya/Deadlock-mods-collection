@@ -78,7 +78,7 @@ If **any of the following are not explicitly stated**, you MUST ask before proce
 | ----------------------------- | ---------------------------------- | ----------------- |
 | **mobile-design-thinking.md** | Anti-memorization, context-forcing | 🔴 REQUIRED FIRST |
 | **touch-psychology.md**       | Fitts’ Law, thumb zones, gestures  | 🔴 REQUIRED       |
-| **mobile-performance.md**     | 60frame_rate, memory, battery             | 🔴 REQUIRED       |
+| **mobile-performance.md**     | 60fps, memory, battery             | 🔴 REQUIRED       |
 | **mobile-backend.md**         | Offline sync, push, APIs           | 🔴 REQUIRED       |
 | **mobile-testing.md**         | Device & E2E testing               | 🔴 REQUIRED       |
 | **mobile-debugging.md**       | Native vs JS debugging             | 🔴 REQUIRED       |
