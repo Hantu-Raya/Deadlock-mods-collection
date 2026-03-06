@@ -244,7 +244,7 @@ APPROACH:
 |--------|--------|----------------|
 | **App startup** | < 2 seconds | Profiler, Flashlight |
 | **Screen transition** | < 300ms | React DevTools |
-| **List scroll** | 60 frame_rate | Profiler, feel |
+| **List scroll** | 60 FPS | Profiler, feel |
 | **Memory** | Stable, no leaks | Instruments / Android Profiler |
 | **Bundle size** | Minimize | Metro bundler analysis |
 

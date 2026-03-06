@@ -47,11 +47,28 @@
   const NEUTRAL_RENDER_INTERVAL_MS = 250;
   const DEBUG_NEUTRAL_TIMERS = false;
   const DEBUG_PERF = false;
+  // Debug build defaults: keep alignment diagnostics on for repro machines.
+  const DEBUG_NEUTRAL_ALIGN = true;
+  const DEBUG_NEUTRAL_ALIGN_INTERVAL_MS = 750;
+  const DEBUG_NEUTRAL_ALIGN_ONLY_WHEN_ISSUE = false;
+  const DEBUG_NEUTRAL_ALIGN_ALWAYS_PRINT = false;
+  const DEBUG_NEUTRAL_ALIGN_SCAN_LOG = true;
+  const DEBUG_NEUTRAL_ALIGN_SCAN_DROP_VERBOSE = false;
+  const DEBUG_NEUTRAL_ALIGN_SCAN_DROP_SAMPLE_LIMIT = 3;
+  const DEBUG_NEUTRAL_ALIGN_STATE_DUMP = true;
+  const DEBUG_NEUTRAL_ALIGN_TICK_INTERVAL_MS = 1000;
+  const DEBUG_NEUTRAL_ALIGN_MAX_STATE_DUMP = 4;
+  const DEBUG_NEUTRAL_ALIGN_ARM_ON_COOLDOWN = true;
+  const DEBUG_NEUTRAL_ALIGN_ACTIVE_WINDOW_MS = 8000;
+  const DEBUG_NEUTRAL_ALIGN_SCAN_LOG_MAX = 3;
+  const DEBUG_NEUTRAL_ALIGN_KEY_LOG_MAX = 4;
+  const DEBUG_NEUTRAL_ALIGN_TICK_LOG_MAX = 4;
+  const DEBUG_NEUTRAL_ALIGN_PROBE_COUNT = 3;
   const NEUTRAL_STATE_PURGE_MS = 15000;
   const NEUTRAL_MATCH_RADIUS_SQ = 4;
   const NEUTRAL_RING_SIZE_PX = 18;
   const NEUTRAL_RING_THICKNESS_PX = 3;
-  const NEUTRAL_ICON_COOLDOWN_OPACITY = 0.45;
+  const NEUTRAL_ICON_COOLDOWN_OPACITY = 0.60;
   const NEUTRAL_RADIAL_START_DEG = 0;
   const NEUTRAL_RESPAWN_SECONDS = {
     neutral_weak: 85,
@@ -87,6 +104,8 @@
     }
   };
   const NEUTRAL_RING_THEME_DEFAULT = NEUTRAL_RING_THEME.neutral_medium;
+  // Keep explicit gameplay-oriented color notes in source so this survives context compaction.
+  // Weak: green (low threat), Medium: orange (mid threat), Large: red (high threat), Vault: purple (special).
   const MINIMAP_COLLAPSE_CLASSES = [];
 
   // ===========================================
@@ -223,6 +242,14 @@
   let _neutralRespawnState = {};
   let _neutralStateSeq = 0;
   let _neutralSweepToken = 0;
+  let _neutralCoordCache = {};
+  let _alignBootLogged = false;
+  let _alignLastTickLogMs = 0;
+  let _alignDebugArmUntilMs = 0;
+  let _alignDebugKey = "";
+  let _alignScanLogsLeft = 0;
+  let _alignKeyLogsLeft = 0;
+  let _alignTickLogsLeft = 0;
 
   // ===========================================
   // UI PANEL REFERENCES
@@ -316,6 +343,11 @@
 
     if (!UI.rLab || !UI.rNum || !UI.rImg || !UI.buffLab) {
       return $.Schedule(0.5, boot);
+    }
+
+    if (DEBUG_NEUTRAL_ALIGN && !_alignBootLogged) {
+      _alignBootLogged = true;
+      $.Msg("[BT-ALIGN]", "boot", "enabled=1");
     }
 
     reset(1);
@@ -622,11 +654,32 @@
     return UI.minimap;
   }
 
+  function safeMapCoord(v) {
+    const n = Number(v);
+    if (!isFinite(n)) return null;
+    if (Math.abs(n) > 1000000) return null;
+    return n;
+  }
+
+  function clampPct(v) {
+    if (!isFinite(v)) return 0;
+    if (v < 0) return 0;
+    if (v > 100) return 100;
+    return v;
+  }
+
+  function safePanelExtent(v, fallback) {
+    const n = Number(v);
+    if (!isFinite(n) || n <= 0 || n > 512) return fallback;
+    return n;
+  }
+
   function collectMinimapSnapshot(nowMs, forceFresh) {
     const mm = findMinimap();
     if (!mm) return null;
 
     const now = nowMs || Date.now();
+    const alignArmed = isNeutralAlignArmed(now);
     const intervalMs = running ? MINIMAP_SNAPSHOT_INTERVAL_ACTIVE_MS : MINIMAP_SNAPSHOT_INTERVAL_IDLE_MS;
     if (!forceFresh && _snapshotTs > 0 && now - _snapshotTs < intervalMs) {
       return _minimapSnapshot;
@@ -652,6 +705,16 @@
     let playerCount = 0;
     let powerupCount = 0;
     let neutralCount = 0;
+    let neutralCacheHit = 0;
+    let neutralCacheMiss = 0;
+    let neutralInvalidCoord = 0;
+    let neutralDropWeak = 0;
+    let neutralDropMedium = 0;
+    let neutralDropLarge = 0;
+    let neutralDropVault = 0;
+    const neutralDropSamples = [];
+    const mmW = mm.contentwidth || 200;
+    const mmH = mm.contentheight || 200;
 
     try {
       for (let i = 0, len = buttons.length; i < len; i++) {
@@ -659,6 +722,12 @@
         if (!btn?.IsValid?.() || !btn.BHasClass?.("map_button")) continue;
 
       if (btn.BHasClass("player")) {
+        const actualX = safeMapCoord(btn.actualxoffset);
+        const actualY = safeMapCoord(btn.actualyoffset);
+        if (actualX === null || actualY === null) continue;
+        const xPct = clampPct(actualX / mmW * 100);
+        const yPct = clampPct(actualY / mmH * 100);
+
         let entry = _minimapSnapshot.players[playerCount];
         if (!entry) {
           entry = { id: "", panel: null, isActive: false, isDead: false, team: 0, xPct: 0, yPct: 0, actualX: 0, actualY: 0 };
@@ -672,21 +741,26 @@
           team = isAlly(btn) ? 1 : isEnemy(btn) ? 2 : 0;
         }
 
-        const pos = getPanelPos(btn);
         entry.id = id;
         entry.panel = btn;
         entry.isActive = btn.BHasClass("active");
         entry.isDead = btn.BHasClass("playerdead");
         entry.team = team;
-        entry.xPct = pos.x;
-        entry.yPct = pos.y;
-        entry.actualX = btn.actualxoffset || 0;
-        entry.actualY = btn.actualyoffset || 0;
+        entry.xPct = xPct;
+        entry.yPct = yPct;
+        entry.actualX = actualX;
+        entry.actualY = actualY;
         playerCount++;
         continue;
       }
 
       if (btn.BHasClass("powerup_spawn")) {
+        const actualX = safeMapCoord(btn.actualxoffset);
+        const actualY = safeMapCoord(btn.actualyoffset);
+        if (actualX === null || actualY === null) continue;
+        const xPct = clampPct(actualX / mmW * 100);
+        const yPct = clampPct(actualY / mmH * 100);
+
         let entry = _minimapSnapshot.powerupSpawns[powerupCount];
         if (!entry) {
           entry = { id: "", panel: null, isActive: false, type: "unknown", xPct: 0, yPct: 0, actualX: 0, actualY: 0 };
@@ -701,21 +775,67 @@
           }
         }
 
-        const pos = getPanelPos(btn);
         entry.id = btn.id || ("powerup_" + i);
         entry.panel = btn;
         entry.isActive = btn.BHasClass("active");
         entry.type = type;
-        entry.xPct = pos.x;
-        entry.yPct = pos.y;
-        entry.actualX = btn.actualxoffset || 0;
-        entry.actualY = btn.actualyoffset || 0;
+        entry.xPct = xPct;
+        entry.yPct = yPct;
+        entry.actualX = actualX;
+        entry.actualY = actualY;
         powerupCount++;
         continue;
       }
 
         const neutralType = getNeutralType(btn);
         if (!neutralType) continue;
+        const neutralId = btn.id || ("neutral_idx_" + i + "_" + neutralType);
+
+        let actualX = safeMapCoord(btn.actualxoffset);
+        let actualY = safeMapCoord(btn.actualyoffset);
+        if (actualX === null || actualY === null) {
+          neutralInvalidCoord++;
+          const cached = _neutralCoordCache[neutralId];
+          if (!cached) {
+            neutralCacheMiss++;
+            if (neutralType === "neutral_weak") neutralDropWeak++;
+            else if (neutralType === "neutral_medium") neutralDropMedium++;
+            else if (neutralType === "neutral_large") neutralDropLarge++;
+            else if (neutralType === "neutral_vault") neutralDropVault++;
+
+            if (
+              neutralDropSamples.length < DEBUG_NEUTRAL_ALIGN_SCAN_DROP_SAMPLE_LIMIT &&
+              DEBUG_NEUTRAL_ALIGN &&
+              DEBUG_NEUTRAL_ALIGN_SCAN_LOG &&
+              alignArmed
+            ) {
+              neutralDropSamples.push(
+                neutralId + ":" + neutralType + ":raw=" +
+                String(btn.actualxoffset) + "," + String(btn.actualyoffset)
+              );
+            }
+
+            if (DEBUG_NEUTRAL_ALIGN && DEBUG_NEUTRAL_ALIGN_SCAN_LOG && DEBUG_NEUTRAL_ALIGN_SCAN_DROP_VERBOSE && alignArmed) {
+              $.Msg(
+                "[BT-ALIGN]",
+                "scan_drop",
+                "key=", neutralId,
+                "type=", neutralType,
+                "reason=invalid_coord_no_cache",
+                "raw=", String(btn.actualxoffset) + "," + String(btn.actualyoffset),
+                panelDebugSummary(btn)
+              );
+            }
+            continue;
+          }
+          neutralCacheHit++;
+          actualX = cached.x;
+          actualY = cached.y;
+        } else {
+          _neutralCoordCache[neutralId] = { x: actualX, y: actualY };
+        }
+        const xPct = clampPct(actualX / mmW * 100);
+        const yPct = clampPct(actualY / mmH * 100);
 
         let entry = _minimapSnapshot.neutralCamps[neutralCount];
         if (!entry) {
@@ -723,15 +843,14 @@
           _minimapSnapshot.neutralCamps[neutralCount] = entry;
         }
 
-        const pos = getPanelPos(btn);
-        entry.id = btn.id || "";
+        entry.id = neutralId;
         entry.panel = btn;
         entry.type = neutralType;
         entry.isActive = btn.BHasClass("active");
-        entry.xPct = pos.x;
-        entry.yPct = pos.y;
-        entry.actualX = btn.actualxoffset || 0;
-        entry.actualY = btn.actualyoffset || 0;
+        entry.xPct = xPct;
+        entry.yPct = yPct;
+        entry.actualX = actualX;
+        entry.actualY = actualY;
         neutralCount++;
       }
     } catch {}
@@ -741,6 +860,25 @@
     _minimapSnapshot.neutralCamps.length = neutralCount;
     _minimapSnapshot.ts = now;
     _snapshotTs = now;
+    if (DEBUG_NEUTRAL_ALIGN && DEBUG_NEUTRAL_ALIGN_SCAN_LOG && alignArmed && consumeAlignLogBudget("scan")) {
+      $.Msg(
+        "[BT-ALIGN]",
+        "scan",
+        "mm=", mmW.toFixed(1) + "x" + mmH.toFixed(1),
+        "players=", playerCount,
+        "powerups=", powerupCount,
+        "neutrals=", neutralCount,
+        "nInvalid=", neutralInvalidCoord,
+        "nCacheHit=", neutralCacheHit,
+        "nCacheMiss=", neutralCacheMiss,
+        "dropWeak=", neutralDropWeak,
+        "dropMedium=", neutralDropMedium,
+        "dropLarge=", neutralDropLarge,
+        "dropVault=", neutralDropVault,
+        "sample=", neutralDropSamples.length ? neutralDropSamples.join(" ; ") : "none",
+        "states=", Object.keys(_neutralRespawnState).length
+      );
+    }
     perfMark("snapshotSweeps", now);
     return _minimapSnapshot;
   }
@@ -928,8 +1066,10 @@
   }
 
   function neutralPosOnContainer(mapX, mapY, container, mm) {
-    const mw = container.contentwidth || 404;
-    const mh = container.contentheight || 404;
+    const mw = mm?.contentwidth || container.contentwidth || 404;
+    const mh = mm?.contentheight || container.contentheight || 404;
+    const mmOffsetX = mm?.actualxoffset || 0;
+    const mmOffsetY = mm?.actualyoffset || 0;
     const inverted = mm?.IsValid?.() && mm.BHasClass?.("invert_map");
 
     let x = (mapX || 0) + 2;
@@ -940,8 +1080,8 @@
       y = mh - y - 24;
     }
 
-    _posResult.x = x;
-    _posResult.y = y;
+    _posResult.x = mmOffsetX + x;
+    _posResult.y = mmOffsetY + y;
     return _posResult;
   }
 
@@ -960,6 +1100,8 @@
     st.lastFillColor = "";
     st.lastTrackBorder = "";
     st.lastTrackBg = "";
+    st.lastRingSize = -1;
+    st.lastParentMode = "";
     st.lastPosX = -1;
     st.lastPosY = -1;
   }
@@ -988,10 +1130,192 @@
     return false;
   }
 
+  function hasAspectTag(root) {
+    if (!root?.IsValid?.()) return "unknown";
+    try {
+      if (root.BHasClass?.("AspectRatio21x9")) return "21x9";
+      if (root.BHasClass?.("AspectRatio16x10")) return "16x10";
+      if (root.BHasClass?.("AspectRatio16x9")) return "16x9";
+      if (root.BHasClass?.("AspectRatio4x3")) return "4x3";
+    } catch {}
+    return "other";
+  }
+
+  function armNeutralAlignWindow(nowMs, key) {
+    const now = nowMs || Date.now();
+    _alignDebugArmUntilMs = now + DEBUG_NEUTRAL_ALIGN_ACTIVE_WINDOW_MS;
+    _alignDebugKey = key || "";
+    _alignScanLogsLeft = DEBUG_NEUTRAL_ALIGN_SCAN_LOG_MAX;
+    _alignKeyLogsLeft = DEBUG_NEUTRAL_ALIGN_KEY_LOG_MAX;
+    _alignTickLogsLeft = DEBUG_NEUTRAL_ALIGN_TICK_LOG_MAX;
+    _alignLastTickLogMs = 0;
+  }
+
+  function isNeutralAlignArmed(nowMs, key) {
+    if (!DEBUG_NEUTRAL_ALIGN) return false;
+    if (!DEBUG_NEUTRAL_ALIGN_ARM_ON_COOLDOWN) return true;
+
+    const now = nowMs || Date.now();
+    if (now > (_alignDebugArmUntilMs || 0)) return false;
+    if (!key || !_alignDebugKey) return true;
+    return key === _alignDebugKey;
+  }
+
+  function consumeAlignLogBudget(kind) {
+    if (!DEBUG_NEUTRAL_ALIGN) return false;
+
+    if (kind === "scan") {
+      if (_alignScanLogsLeft <= 0) return false;
+      _alignScanLogsLeft--;
+      return true;
+    }
+
+    if (kind === "key") {
+      if (_alignKeyLogsLeft <= 0) return false;
+      _alignKeyLogsLeft--;
+      return true;
+    }
+
+    if (kind === "tick") {
+      if (_alignTickLogsLeft <= 0) return false;
+      _alignTickLogsLeft--;
+      return true;
+    }
+
+    return false;
+  }
+
+  function safeDebugStyle(styleValue) {
+    if (styleValue === null || styleValue === undefined) return "auto";
+    const s = String(styleValue);
+    return s.length > 0 ? s : "auto";
+  }
+
+  function panelDebugSummary(panel) {
+    if (!panel?.IsValid?.()) return "panel=none";
+
+    let parentId = "none";
+    try {
+      const parent = panel.GetParent?.();
+      if (parent?.IsValid?.()) parentId = parent.id || "noid";
+    } catch {}
+
+    let opacity = "auto";
+    let visibility = "auto";
+    try {
+      opacity = safeDebugStyle(panel.style?.opacity);
+      visibility = safeDebugStyle(panel.style?.visibility);
+    } catch {}
+
+    const isActive = panel.BHasClass?.("active") ? "1" : "0";
+    const isWeak = panel.BHasClass?.("neutral_weak") ? "1" : "0";
+    const isMedium = panel.BHasClass?.("neutral_medium") ? "1" : "0";
+    const isLarge = panel.BHasClass?.("neutral_large") ? "1" : "0";
+    const isVault = panel.BHasClass?.("neutral_vault") ? "1" : "0";
+
+    return "panel=" + (panel.id || "noid") +
+      "|parent=" + parentId +
+      "|active=" + isActive +
+      "|weak=" + isWeak +
+      "|med=" + isMedium +
+      "|large=" + isLarge +
+      "|vault=" + isVault +
+      "|op=" + opacity +
+      "|vis=" + visibility;
+  }
+
+  function buildNeutralStateDump(maxCount) {
+    const keys = Object.keys(_neutralRespawnState);
+    if (!keys.length) return "none";
+    const out = [];
+    const cap = Math.max(1, maxCount | 0);
+
+    for (let i = 0; i < keys.length && out.length < cap; i++) {
+      const key = keys[i];
+      const st = _neutralRespawnState[key];
+      if (!st) continue;
+
+      const hasPanel = st.panel?.IsValid?.() ? "1" : "0";
+      const cooldownActive = (st.respawnEndMs > 0 || st.respawnEndGameSec > 0) ? "1" : "0";
+      const pctX = clampPct(st.mapPctX || 0).toFixed(2);
+      const pctY = clampPct(st.mapPctY || 0).toFixed(2);
+      const mapX = (safeMapCoord(st.mapX) ?? -1).toFixed(1);
+      const mapY = (safeMapCoord(st.mapY) ?? -1).toFixed(1);
+
+      out.push(
+        key + ":" +
+        (st.type || "unknown") +
+        "|cd=" + cooldownActive +
+        "|hp=" + hasPanel +
+        "|pm=" + (st.lastParentMode || "none") +
+        "|pct=" + pctX + "," + pctY +
+        "|xy=" + mapX + "," + mapY
+      );
+    }
+
+    return out.join(" ; ");
+  }
+
+  function logNeutralAlign(st, key, nowMs, dbg) {
+    if (!DEBUG_NEUTRAL_ALIGN || !st) return;
+    const now = nowMs || Date.now();
+    if (!isNeutralAlignArmed(now, key)) return;
+    if (!DEBUG_NEUTRAL_ALIGN_ALWAYS_PRINT) {
+      const last = st.lastAlignLogMs || 0;
+      if (now - last < DEBUG_NEUTRAL_ALIGN_INTERVAL_MS) return;
+    }
+    if (!consumeAlignLogBudget("key")) return;
+    st.lastAlignLogMs = now;
+
+    const reasons = [];
+    if (!dbg.hasLivePanel) reasons.push("no_live_panel");
+    if (dbg.usingDefaultIconSize) reasons.push("default_icon_size");
+    if (dbg.iconW <= 0 || dbg.iconH <= 0) reasons.push("invalid_icon_size");
+    if (Math.abs(dbg.iconW - dbg.iconH) > 1) reasons.push("icon_not_square");
+    if (Math.abs(dbg.mw - dbg.mh) > 1) reasons.push("container_not_square");
+    if (dbg.fallbackDelta > 3) reasons.push("panel_vs_fallback_delta");
+    if (Math.abs(dbg.pctDeltaX) > 3 || Math.abs(dbg.pctDeltaY) > 3) reasons.push("panel_vs_pct_delta");
+    if (dbg.mmVsContainerDelta > 1) reasons.push("mm_container_size_delta");
+    if (dbg.doubleInvertRisk) reasons.push("fallback_invert_double");
+    if (dbg.scoreboardOpen) reasons.push("scoreboard_open");
+    if (dbg.inverted) reasons.push("invert_map");
+    if (dbg.enlargeEntry) reasons.push("enlarge_entry");
+
+    if (DEBUG_NEUTRAL_ALIGN_ONLY_WHEN_ISSUE && reasons.length === 0) return;
+
+    $.Msg(
+      "[BT-ALIGN]",
+      "key=", key,
+      "type=", st.type,
+      "reason=", reasons.length ? reasons.join("|") : "none",
+      "asp=", dbg.aspect,
+      "inv=", dbg.inverted ? "1" : "0",
+      "sb=", dbg.scoreboardOpen ? "1" : "0",
+      "live=", dbg.hasLivePanel ? "1" : "0",
+      "src=", dbg.source,
+      "size=", dbg.iconW.toFixed(2) + "x" + dbg.iconH.toFixed(2),
+      "mm=", dbg.mmW.toFixed(2) + "x" + dbg.mmH.toFixed(2),
+      "ct=", dbg.mw.toFixed(2) + "x" + dbg.mh.toFixed(2),
+      "icon=", dbg.iconX.toFixed(2) + "," + dbg.iconY.toFixed(2),
+      "center=", dbg.centerX.toFixed(2) + "," + dbg.centerY.toFixed(2),
+      "ring=", dbg.px.toFixed(2) + "," + dbg.py.toFixed(2),
+      "mapPct=", dbg.mapPctX.toFixed(2) + "," + dbg.mapPctY.toFixed(2),
+      "pctPx=", dbg.pctX.toFixed(2) + "," + dbg.pctY.toFixed(2),
+      "legacyFallback=", dbg.legacyFallbackX.toFixed(2) + "," + dbg.legacyFallbackY.toFixed(2),
+      "fallbackCenter=", dbg.fallbackCenterX.toFixed(2) + "," + dbg.fallbackCenterY.toFixed(2),
+      "fallbackDelta=", dbg.fallbackDelta.toFixed(2),
+      "pctDelta=", dbg.pctDeltaX.toFixed(2) + "," + dbg.pctDeltaY.toFixed(2),
+      panelDebugSummary(st.panel)
+    );
+  }
+
   function setNeutralIconDim(st, shouldDim) {
     if (!st) return;
     const panel = st.panel;
     if (!panel?.IsValid?.()) {
+      if (DEBUG_NEUTRAL_ALIGN && shouldDim) {
+        $.Msg("[BT-ALIGN]", "icon_dim_skip", "reason=panel_invalid", "type=", st.type || "unknown");
+      }
       if (!shouldDim) st.iconDimApplied = false;
       return;
     }
@@ -1001,10 +1325,16 @@
         if (!st.iconDimApplied) {
           panel.style.opacity = String(NEUTRAL_ICON_COOLDOWN_OPACITY);
           st.iconDimApplied = true;
+          if (DEBUG_NEUTRAL_ALIGN) {
+            $.Msg("[BT-ALIGN]", "icon_dim_apply", "opacity=", NEUTRAL_ICON_COOLDOWN_OPACITY, panelDebugSummary(panel));
+          }
         }
       } else if (st.iconDimApplied) {
         panel.style.opacity = null;
         st.iconDimApplied = false;
+        if (DEBUG_NEUTRAL_ALIGN) {
+          $.Msg("[BT-ALIGN]", "icon_dim_clear", panelDebugSummary(panel));
+        }
       }
     } catch {}
   }
@@ -1026,8 +1356,18 @@
     delete _neutralRespawnState[key];
   }
 
-  function resolveNeutralStateKey(neutralType, xPct, yPct, explicitId) {
-    if (explicitId) return explicitId;
+  function resolveNeutralStateKey(neutralType, xPct, yPct, mapX, mapY, panel) {
+    if (panel?.IsValid?.()) {
+      const byPanelKeys = Object.keys(_neutralRespawnState);
+      for (let i = 0; i < byPanelKeys.length; i++) {
+        const k = byPanelKeys[i];
+        const st = _neutralRespawnState[k];
+        if (!st || st.type !== neutralType) continue;
+        if (st.panel?.IsValid?.() && st.panel === panel) {
+          return k;
+        }
+      }
+    }
 
     const keys = Object.keys(_neutralRespawnState);
     let bestKey = null;
@@ -1038,8 +1378,19 @@
       const st = _neutralRespawnState[k];
       if (!st || st.type !== neutralType) continue;
 
-      const dx = (st.mapPctX || 0) - xPct;
-      const dy = (st.mapPctY || 0) - yPct;
+      const sx = safeMapCoord(st.mapX);
+      const sy = safeMapCoord(st.mapY);
+      const cx = safeMapCoord(mapX);
+      const cy = safeMapCoord(mapY);
+      let dx = 0;
+      let dy = 0;
+      if (sx !== null && sy !== null && cx !== null && cy !== null) {
+        dx = sx - cx;
+        dy = sy - cy;
+      } else {
+        dx = (st.mapPctX || 0) - xPct;
+        dy = (st.mapPctY || 0) - yPct;
+      }
       const d = dx * dx + dy * dy;
 
       if (d < bestDist) {
@@ -1048,7 +1399,8 @@
       }
     }
 
-    if (bestKey && bestDist <= NEUTRAL_MATCH_RADIUS_SQ) {
+    // Pixel-space match allows stable pairing even when minimap width oscillates.
+    if (bestKey && bestDist <= 36) {
       return bestKey;
     }
 
@@ -1058,6 +1410,9 @@
 
   function renderNeutralTimer(st, key, nowMs, gameNowSec, container, mm) {
     if (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0) {
+      if (DEBUG_NEUTRAL_ALIGN) {
+        $.Msg("[BT-ALIGN]", "render_skip", "key=", key, "reason=no_cooldown", "type=", st.type || "unknown");
+      }
       clearNeutralRing(st);
       clearNeutralDetailLabel(st);
       setNeutralIconDim(st, false);
@@ -1070,6 +1425,9 @@
       : (NEUTRAL_RESPAWN_SECONDS[st.type] || 0) * 1000;
 
     if (durationMs <= 0) {
+      if (DEBUG_NEUTRAL_ALIGN) {
+        $.Msg("[BT-ALIGN]", "render_skip", "key=", key, "reason=invalid_duration", "type=", st.type || "unknown");
+      }
       st.respawnEndMs = 0;
       st.respawnEndGameSec = 0;
       clearNeutralRing(st);
@@ -1091,8 +1449,11 @@
     if (!ringRoot?.IsValid?.()) {
       ringRoot = $.CreatePanel("Panel", container, ringId);
       ringRoot.AddClass("neutral-cooldown-ring");
-      ringRoot.style.width = NEUTRAL_RING_SIZE_PX + "px";
-      ringRoot.style.height = NEUTRAL_RING_SIZE_PX + "px";
+      ringRoot.hittest = false;
+      ringRoot.hittestchildren = false;
+      if (DEBUG_NEUTRAL_ALIGN) {
+        $.Msg("[BT-ALIGN]", "ring_create", "key=", key, "id=", ringId, "container=", container.id || "noid");
+      }
     }
 
     let ringFill = st.ringFill;
@@ -1104,6 +1465,9 @@
       ringFill = $.CreatePanel("Panel", ringRoot, ringFillId);
       ringFill.AddClass("neutral-cooldown-ring-fill");
       ringFill.style.borderWidth = NEUTRAL_RING_THICKNESS_PX + "px";
+      if (DEBUG_NEUTRAL_ALIGN) {
+        $.Msg("[BT-ALIGN]", "ring_fill_create", "key=", key, "id=", ringFillId);
+      }
     }
 
     const theme = getNeutralRingTheme(st.type);
@@ -1120,45 +1484,200 @@
       st.lastTrackBg = theme.trackBg;
     }
 
-    let iconX = st.mapX || 0;
-    let iconY = st.mapY || 0;
+    let iconLocalX = st.mapX || 0;
+    let iconLocalY = st.mapY || 0;
     let iconW = st.panelW || 24;
     let iconH = st.panelH || 24;
     const iconPanel = st.panel;
     const hasLivePanel = !!iconPanel?.IsValid?.();
+    let source = "panel";
 
     if (hasLivePanel) {
-      iconX = iconPanel.actualxoffset || iconX;
-      iconY = iconPanel.actualyoffset || iconY;
-      iconW = iconPanel.actuallayoutwidth || iconPanel.contentwidth || iconW;
-      iconH = iconPanel.actuallayoutheight || iconPanel.contentheight || iconH;
+      const liveX = safeMapCoord(iconPanel.actualxoffset);
+      const liveY = safeMapCoord(iconPanel.actualyoffset);
+      if (liveX !== null) iconLocalX = liveX;
+      if (liveY !== null) iconLocalY = liveY;
+      iconW = safePanelExtent(iconPanel.actuallayoutwidth || iconPanel.contentwidth, iconW);
+      iconH = safePanelExtent(iconPanel.actuallayoutheight || iconPanel.contentheight, iconH);
       st.panelW = iconW;
       st.panelH = iconH;
     } else {
+      source = "fallback";
       const fallbackPos = neutralPosOnContainer(st.mapX, st.mapY, container, mm);
-      iconX = fallbackPos.x;
-      iconY = fallbackPos.y;
+      iconLocalX = fallbackPos.x - (mm?.actualxoffset || 0);
+      iconLocalY = fallbackPos.y - (mm?.actualyoffset || 0);
+    }
+
+    let usingDefaultIconSize = false;
+    if (iconW <= 0) {
+      iconW = 24;
+      usingDefaultIconSize = true;
+    }
+    if (iconH <= 0) {
+      iconH = 24;
+      usingDefaultIconSize = true;
+    }
+    if (!hasLivePanel) {
+      usingDefaultIconSize = true;
     }
 
     const mw = container.contentwidth || 404;
     const mh = container.contentheight || 404;
+    const mmW = mm?.contentwidth || 0;
+    const mmH = mm?.contentheight || 0;
+    const mmOffsetX = mm?.actualxoffset || 0;
+    const mmOffsetY = mm?.actualyoffset || 0;
     const inverted = mm?.IsValid?.() && mm.BHasClass?.("invert_map");
     if (inverted) {
-      iconX = mw - iconX - iconW;
-      iconY = mh - iconY - iconH;
+      iconLocalX = mmW - iconLocalX - iconW;
+      iconLocalY = mmH - iconLocalY - iconH;
+    }
+
+    const iconX = mmOffsetX + iconLocalX;
+    const iconY = mmOffsetY + iconLocalY;
+    const ringSize = Math.max(NEUTRAL_RING_SIZE_PX, Math.min(iconW, iconH));
+    if (Math.abs((st.lastRingSize ?? -1) - ringSize) > 0.05) {
+      ringRoot.style.width = ringSize + "px";
+      ringRoot.style.height = ringSize + "px";
+      st.lastRingSize = ringSize;
     }
 
     const centerX = iconX + iconW * 0.5;
     const centerY = iconY + iconH * 0.5;
-    const px = centerX - NEUTRAL_RING_SIZE_PX * 0.5;
-    const py = centerY - NEUTRAL_RING_SIZE_PX * 0.5;
-    if (Math.abs((st.lastPosX ?? -9999) - px) > 0.05 || Math.abs((st.lastPosY ?? -9999) - py) > 0.05) {
-      ringRoot.style.position = px + "px " + py + "px 0px";
-      st.lastPosX = px;
-      st.lastPosY = py;
+    const px = centerX - ringSize * 0.5;
+    const py = centerY - ringSize * 0.5;
+    const iconParent = hasLivePanel && iconPanel?.IsValid?.() ? iconPanel.GetParent?.() : null;
+    if (hasLivePanel && iconPanel?.IsValid?.() && iconParent?.IsValid?.()) {
+      if (ringRoot.GetParent?.() !== iconParent) {
+        ringRoot.SetParent(iconParent);
+        st.lastPosX = -9999;
+        st.lastPosY = -9999;
+      }
+      if (st.lastParentMode !== "icon_parent") {
+        ringRoot.style.horizontalAlign = "left";
+        ringRoot.style.verticalAlign = "top";
+        st.lastParentMode = "icon_parent";
+        st.lastPosX = -9999;
+        st.lastPosY = -9999;
+        if (DEBUG_NEUTRAL_ALIGN) {
+          $.Msg("[BT-ALIGN]", "mode_switch", "key=", key, "mode=icon_parent");
+        }
+      }
+      const parentX = safeMapCoord(iconPanel.actualxoffset) ?? 0;
+      const parentY = safeMapCoord(iconPanel.actualyoffset) ?? 0;
+      const localX = parentX + (iconW - ringSize) * 0.5;
+      const localY = parentY + (iconH - ringSize) * 0.5;
+      if (Math.abs((st.lastPosX ?? -9999) - localX) > 0.05 || Math.abs((st.lastPosY ?? -9999) - localY) > 0.05) {
+        ringRoot.style.position = localX + "px " + localY + "px 0px";
+        st.lastPosX = localX;
+        st.lastPosY = localY;
+      }
+    } else if (hasLivePanel && iconPanel?.IsValid?.()) {
+      if (ringRoot.GetParent?.() !== iconPanel) {
+        ringRoot.SetParent(iconPanel);
+        st.lastPosX = -9999;
+        st.lastPosY = -9999;
+      }
+      if (st.lastParentMode !== "icon") {
+        ringRoot.style.horizontalAlign = "center";
+        ringRoot.style.verticalAlign = "center";
+        st.lastParentMode = "icon";
+        st.lastPosX = -9999;
+        st.lastPosY = -9999;
+        if (DEBUG_NEUTRAL_ALIGN) {
+          $.Msg("[BT-ALIGN]", "mode_switch", "key=", key, "mode=icon");
+        }
+      }
+      if (Math.abs((st.lastPosX ?? -9999)) > 0.05 || Math.abs((st.lastPosY ?? -9999)) > 0.05) {
+        ringRoot.style.position = "0px 0px 0px";
+        st.lastPosX = 0;
+        st.lastPosY = 0;
+      }
+    } else {
+      if (ringRoot.GetParent?.() !== container) {
+        ringRoot.SetParent(container);
+        st.lastPosX = -9999;
+        st.lastPosY = -9999;
+      }
+      if (st.lastParentMode !== "container") {
+        ringRoot.style.horizontalAlign = "left";
+        ringRoot.style.verticalAlign = "top";
+        st.lastParentMode = "container";
+        st.lastPosX = -9999;
+        st.lastPosY = -9999;
+        if (DEBUG_NEUTRAL_ALIGN) {
+          $.Msg("[BT-ALIGN]", "mode_switch", "key=", key, "mode=container");
+        }
+      }
+      if (Math.abs((st.lastPosX ?? -9999) - px) > 0.05 || Math.abs((st.lastPosY ?? -9999) - py) > 0.05) {
+        ringRoot.style.position = px + "px " + py + "px 0px";
+        st.lastPosX = px;
+        st.lastPosY = py;
+      }
     }
 
     const now = nowMs || Date.now();
+    const scoreboardOpen = isScoreboardOpen(mm);
+    if (DEBUG_NEUTRAL_ALIGN) {
+      const mapPctX = st.mapPctX || 0;
+      const mapPctY = st.mapPctY || 0;
+      const pctBaseX = mapPctX * 0.01 * mmW;
+      const pctBaseY = mapPctY * 0.01 * mmH;
+      const pctX = mmOffsetX + (inverted ? (mmW - pctBaseX - iconW) : pctBaseX);
+      const pctY = mmOffsetY + (inverted ? (mmH - pctBaseY - iconH) : pctBaseY);
+      const pctCenterX = pctX + iconW * 0.5;
+      const pctCenterY = pctY + iconH * 0.5;
+
+      const rawFallbackX = (st.mapX || 0) + 2;
+      const rawFallbackY = (st.mapY || 0) + 2;
+      const expectedFallbackX = mmOffsetX + (inverted ? (mmW - rawFallbackX - iconW) : rawFallbackX);
+      const expectedFallbackY = mmOffsetY + (inverted ? (mmH - rawFallbackY - iconH) : rawFallbackY);
+      const fallbackCenterX = expectedFallbackX + iconW * 0.5;
+      const fallbackCenterY = expectedFallbackY + iconH * 0.5;
+
+      const legacyFallbackPos = neutralPosOnContainer(st.mapX, st.mapY, container, mm);
+      const mmVsContainerDelta = Math.max(Math.abs(mmW - mw), Math.abs(mmH - mh));
+      const doubleInvertRisk = !hasLivePanel && inverted &&
+        (Math.abs(iconX - expectedFallbackX) > 1 || Math.abs(iconY - expectedFallbackY) > 1);
+      const enlargeEntry = !!(iconPanel?.IsValid?.() && iconPanel.BHasClass?.("enlarge_entry"));
+
+      const dbg = {
+        source: source,
+        aspect: hasAspectTag(UI.root),
+        hasLivePanel: hasLivePanel,
+        usingDefaultIconSize: usingDefaultIconSize,
+        iconW: iconW,
+        iconH: iconH,
+        iconX: iconX,
+        iconY: iconY,
+        centerX: centerX,
+        centerY: centerY,
+        px: px,
+        py: py,
+        mw: mw,
+        mh: mh,
+        mmW: mmW,
+        mmH: mmH,
+        mmVsContainerDelta: mmVsContainerDelta,
+        inverted: !!inverted,
+        scoreboardOpen: scoreboardOpen,
+        enlargeEntry: enlargeEntry,
+        mapPctX: mapPctX,
+        mapPctY: mapPctY,
+        pctX: pctX,
+        pctY: pctY,
+        legacyFallbackX: legacyFallbackPos.x || 0,
+        legacyFallbackY: legacyFallbackPos.y || 0,
+        fallbackCenterX: fallbackCenterX,
+        fallbackCenterY: fallbackCenterY,
+        fallbackDelta: Math.sqrt(Math.pow(centerX - fallbackCenterX, 2) + Math.pow(centerY - fallbackCenterY, 2)),
+        pctDeltaX: centerX - pctCenterX,
+        pctDeltaY: centerY - pctCenterY,
+        doubleInvertRisk: doubleInvertRisk
+      };
+      logNeutralAlign(st, key, now, dbg);
+    }
+
     let remainingMs = Math.max(0, st.respawnEndMs - now);
     if (gameNowSec > 0 && st.respawnEndGameSec > 0) {
       remainingMs = Math.max(0, (st.respawnEndGameSec - gameNowSec) * 1000);
@@ -1181,7 +1700,7 @@
     st.ringRoot = ringRoot;
     st.ringFill = ringFill;
 
-    const showDetailText = isScoreboardOpen(mm);
+    const showDetailText = scoreboardOpen;
     if (showDetailText) {
       let detailLabel = st.detailLabel;
       const detailId = ringId + "_text";
@@ -1191,10 +1710,13 @@
       if (!detailLabel?.IsValid?.()) {
         detailLabel = $.CreatePanel("Label", container, detailId);
         detailLabel.AddClass("neutral-cooldown-timer-detail");
+        if (DEBUG_NEUTRAL_ALIGN) {
+          $.Msg("[BT-ALIGN]", "detail_label_create", "key=", key, "id=", detailId);
+        }
       }
 
       const textX = centerX - 18;
-      const textY = py + NEUTRAL_RING_SIZE_PX + 1;
+      const textY = py + ringSize + 1;
       if (Math.abs((st.lastTextPosX ?? -9999) - textX) > 0.05 || Math.abs((st.lastTextPosY ?? -9999) - textY) > 0.05) {
         detailLabel.style.position = textX + "px " + textY + "px 0px";
         st.lastTextPosX = textX;
@@ -1212,6 +1734,9 @@
       }
       st.detailLabel = detailLabel;
     } else if (st.detailLabel?.IsValid?.()) {
+      if (DEBUG_NEUTRAL_ALIGN) {
+        $.Msg("[BT-ALIGN]", "detail_label_clear", "key=", key, "reason=scoreboard_closed");
+      }
       clearNeutralDetailLabel(st);
     }
 
@@ -1240,7 +1765,7 @@
         const camp = camps[i];
         if (!camp) continue;
 
-        const key = resolveNeutralStateKey(camp.type, camp.xPct, camp.yPct, camp.id || "");
+        const key = resolveNeutralStateKey(camp.type, camp.xPct, camp.yPct, camp.actualX, camp.actualY, camp.panel);
         let st = _neutralRespawnState[key];
         const isActive = camp.isActive;
         const durationSec = NEUTRAL_RESPAWN_SECONDS[camp.type] || 0;
@@ -1255,6 +1780,8 @@
             ringRoot: null,
             ringFill: null,
             lastClip: "",
+            lastRingSize: -1,
+            lastParentMode: "",
             lastFillColor: "",
             lastTrackBorder: "",
             lastTrackBg: "",
@@ -1263,9 +1790,10 @@
             lastTextColor: "",
             lastTextPosX: -1,
             lastTextPosY: -1,
+            lastAlignLogMs: 0,
             panel: camp.panel || null,
-            panelW: camp.panel?.actuallayoutwidth || camp.panel?.contentwidth || 24,
-            panelH: camp.panel?.actuallayoutheight || camp.panel?.contentheight || 24,
+            panelW: safePanelExtent(camp.panel?.actuallayoutwidth || camp.panel?.contentwidth, 24),
+            panelH: safePanelExtent(camp.panel?.actuallayoutheight || camp.panel?.contentheight, 24),
             iconDimApplied: false,
             mapPctX: camp.xPct,
             mapPctY: camp.yPct,
@@ -1277,18 +1805,39 @@
             lastPosY: -1
           };
           _neutralRespawnState[key] = st;
+          if (DEBUG_NEUTRAL_ALIGN && isNeutralAlignArmed(now, key)) {
+            $.Msg(
+              "[BT-ALIGN]",
+              "state_create",
+              "key=", key,
+              "type=", camp.type,
+              "active=", isActive ? "1" : "0",
+              "mapPct=", (camp.xPct || 0).toFixed(2) + "," + (camp.yPct || 0).toFixed(2),
+              panelDebugSummary(camp.panel)
+            );
+          }
         } else {
           st.type = camp.type;
         }
 
         if (st.panel !== camp.panel) {
+          if (DEBUG_NEUTRAL_ALIGN && isNeutralAlignArmed(now, key)) {
+            $.Msg(
+              "[BT-ALIGN]",
+              "panel_switch",
+              "key=", key,
+              "type=", camp.type,
+              "from=", panelDebugSummary(st.panel),
+              "to=", panelDebugSummary(camp.panel)
+            );
+          }
           setNeutralIconDim(st, false);
         }
 
         st.panel = camp.panel || null;
         if (st.panel?.IsValid?.()) {
-          st.panelW = st.panel.actuallayoutwidth || st.panel.contentwidth || st.panelW || 24;
-          st.panelH = st.panel.actuallayoutheight || st.panel.contentheight || st.panelH || 24;
+          st.panelW = safePanelExtent(st.panel.actuallayoutwidth || st.panel.contentwidth, st.panelW || 24);
+          st.panelH = safePanelExtent(st.panel.actuallayoutheight || st.panel.contentheight, st.panelH || 24);
         }
         st.mapPctX = camp.xPct;
         st.mapPctY = camp.yPct;
@@ -1302,6 +1851,18 @@
           st.respawnEndMs = now + durationSec * 1000;
           st.respawnEndGameSec = gameNow > 0 ? (gameNow + durationSec) : 0;
           setNeutralIconDim(st, true);
+          if (DEBUG_NEUTRAL_ALIGN) {
+            armNeutralAlignWindow(now, key);
+            $.Msg(
+              "[BT-ALIGN]",
+              "cooldown_start",
+              "key=", key,
+              "type=", camp.type,
+              "hasPanel=", st.panel?.IsValid?.() ? "1" : "0",
+              "mapPct=", (st.mapPctX || 0).toFixed(2) + "," + (st.mapPctY || 0).toFixed(2),
+              panelDebugSummary(st.panel)
+            );
+          }
           if (DEBUG_NEUTRAL_TIMERS) {
             $.Msg("[BT-NEUTRAL] start key=", key, " type=", camp.type, " duration=", durationSec);
           }
@@ -1312,6 +1873,9 @@
           clearNeutralRing(st);
           clearNeutralDetailLabel(st);
           setNeutralIconDim(st, false);
+          if (DEBUG_NEUTRAL_ALIGN && isNeutralAlignArmed(now, key)) {
+            $.Msg("[BT-ALIGN]", "cooldown_clear", "key=", key, "type=", camp.type);
+          }
           if (DEBUG_NEUTRAL_TIMERS) {
             $.Msg("[BT-NEUTRAL] clear key=", key, " reason=active_again");
           }
@@ -1327,6 +1891,9 @@
         if (!st || st.sweepToken === token) continue;
         if (st.respawnEndMs > 0 || st.respawnEndGameSec > 0) continue;
         if (now - (st.lastSeenMs || 0) > NEUTRAL_STATE_PURGE_MS) {
+          if (DEBUG_NEUTRAL_ALIGN && isNeutralAlignArmed(now, key)) {
+            $.Msg("[BT-ALIGN]", "state_purge", "key=", key, "reason=stale", "type=", st.type || "unknown");
+          }
           clearNeutralTimerEntry(key, "stale");
         }
       }
@@ -1340,14 +1907,82 @@
   function renderNeutralRespawnTimers(nowMs, gameNowSec) {
     const mm = findMinimap();
     const container = UI.minimapContainer;
-    if (!mm || !container?.IsValid?.()) return;
 
     const now = nowMs || Date.now();
+    const alignArmed = isNeutralAlignArmed(now);
+    const allowTickLog =
+      DEBUG_NEUTRAL_ALIGN &&
+      alignArmed &&
+      (DEBUG_NEUTRAL_ALIGN_ALWAYS_PRINT || now - (_alignLastTickLogMs || 0) >= DEBUG_NEUTRAL_ALIGN_TICK_INTERVAL_MS);
+    const statesCount = Object.keys(_neutralRespawnState).length;
+    const aspect = hasAspectTag(UI.root);
+    if (!mm || !container?.IsValid?.()) {
+      if (allowTickLog && consumeAlignLogBudget("tick")) {
+        _alignLastTickLogMs = now;
+        const stateDump = DEBUG_NEUTRAL_ALIGN_STATE_DUMP ? buildNeutralStateDump(DEBUG_NEUTRAL_ALIGN_MAX_STATE_DUMP) : "disabled";
+        $.Msg("[BT-ALIGN]", "tick asp=" + aspect + " mm=" + (mm?.IsValid?.() ? "1" : "0") + " container=" + (container?.IsValid?.() ? "1" : "0") + " states=" + statesCount + " active=0 probe=none dump=" + stateDump);
+      }
+      return;
+    }
+
     const gameNow = gameNowSec > 0 ? gameNowSec : gTime(now);
+    const mmW = mm.contentwidth || 0;
+    const mmH = mm.contentheight || 0;
+    const ctW = container.contentwidth || 0;
+    const ctH = container.contentheight || 0;
+    let activeTimerCount = 0;
+    let sample = null;
     for (const key in _neutralRespawnState) {
       const st = _neutralRespawnState[key];
+      if (!sample && st) {
+        sample = { key: key, st: st };
+      }
       if (!st || (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0)) continue;
+      activeTimerCount++;
+      if (sample && sample.st !== st) {
+        sample = { key: key, st: st };
+      }
       renderNeutralTimer(st, key, now, gameNow, container, mm);
+    }
+
+    if (allowTickLog && consumeAlignLogBudget("tick")) {
+      _alignLastTickLogMs = now;
+      let probeText = "none";
+      if (sample?.st) {
+        const st = sample.st;
+        const hasPanel = !!st.panel?.IsValid?.();
+        const panelX = hasPanel ? (safeMapCoord(st.panel.actualxoffset) ?? -1) : -1;
+        const panelY = hasPanel ? (safeMapCoord(st.panel.actualyoffset) ?? -1) : -1;
+        const panelW = hasPanel ? safePanelExtent(st.panel.actuallayoutwidth || st.panel.contentwidth, 0) : 0;
+        const panelH = hasPanel ? safePanelExtent(st.panel.actuallayoutheight || st.panel.contentheight, 0) : 0;
+        const cooldownActive = (st.respawnEndMs > 0 || st.respawnEndGameSec > 0) ? 1 : 0;
+        const pctX = clampPct(st.mapPctX || 0);
+        const pctY = clampPct(st.mapPctY || 0);
+        const mapX = safeMapCoord(st.mapX) ?? 0;
+        const mapY = safeMapCoord(st.mapY) ?? 0;
+        probeText =
+          "k=" + sample.key +
+          "|t=" + (st.type || "unknown") +
+          "|cd=" + cooldownActive +
+          "|pm=" + (st.lastParentMode || "none") +
+          "|hp=" + (hasPanel ? "1" : "0") +
+          "|p=" + panelX.toFixed(1) + "," + panelY.toFixed(1) +
+          "|sz=" + panelW.toFixed(1) + "x" + panelH.toFixed(1) +
+          "|pct=" + pctX.toFixed(2) + "," + pctY.toFixed(2) +
+          "|xy=" + mapX.toFixed(1) + "," + mapY.toFixed(1);
+      }
+
+      $.Msg(
+        "[BT-ALIGN]",
+        "tick asp=" + aspect +
+        " mm=" + mmW + "x" + mmH +
+        " ct=" + ctW + "x" + ctH +
+        " states=" + statesCount +
+        " active=" + activeTimerCount +
+        " invert=" + (mm.BHasClass?.("invert_map") ? "1" : "0") +
+        " probe=" + probeText +
+        (DEBUG_NEUTRAL_ALIGN_STATE_DUMP ? " dump=" + buildNeutralStateDump(DEBUG_NEUTRAL_ALIGN_MAX_STATE_DUMP) : "")
+      );
     }
   }
 
@@ -2102,6 +2737,7 @@
       _playerCache = null;
       _playerCacheTs = 0;
       _playerState = {};
+      _neutralCoordCache = {};
       _snapshotTs = 0;
       _minimapSnapshot.players.length = 0;
       _minimapSnapshot.powerupSpawns.length = 0;

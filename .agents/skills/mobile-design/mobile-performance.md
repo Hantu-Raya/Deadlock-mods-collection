@@ -1,6 +1,6 @@
 # Mobile Performance Reference
 
-> Deep dive into React Native and Flutter performance optimization, 60frame_rate animations, memory management, and battery considerations.
+> Deep dive into React Native and Flutter performance optimization, 60fps animations, memory management, and battery considerations.
 > **This file covers the #1 area where AI-generated code FAILS.**
 
 ---
@@ -22,8 +22,8 @@ DESKTOP:                          MOBILE:
 
 ```
 Every frame must complete in:
-├── 60frame_rate → 16.67ms per frame
-├── 120frame_rate (ProMotion) → 8.33ms per frame
+├── 60fps → 16.67ms per frame
+├── 120fps (ProMotion) → 8.33ms per frame
 
 If your code takes longer:
 ├── Frame drops → Janky scroll/animation
@@ -189,7 +189,7 @@ const Component = () => {
 };
 
 // Benefits:
-// ├── Runs on UI thread (60frame_rate guaranteed)
+// ├── Runs on UI thread (60fps guaranteed)
 // ├── Can animate any property
 // ├── Gesture-driven animations
 // └── Worklets for complex logic
@@ -463,18 +463,18 @@ class _MyWidgetState extends State<MyWidget> {
 
 ## 4. Animation Performance (Both Platforms)
 
-### The 60frame_rate Imperative
+### The 60fps Imperative
 
 ```
 Human eye detects:
-├── < 24 frame_rate → "Slideshow" (broken)
-├── 24-30 frame_rate → "Choppy" (uncomfortable)
-├── 30-45 frame_rate → "Noticeably not smooth"
-├── 45-60 frame_rate → "Smooth" (acceptable)
-├── 60 frame_rate → "Buttery" (target)
-└── 120 frame_rate → "Premium" (ProMotion devices)
+├── < 24 fps → "Slideshow" (broken)
+├── 24-30 fps → "Choppy" (uncomfortable)
+├── 30-45 fps → "Noticeably not smooth"
+├── 45-60 fps → "Smooth" (acceptable)
+├── 60 fps → "Buttery" (target)
+└── 120 fps → "Premium" (ProMotion devices)
 
-NEVER ship < 60frame_rate animations.
+NEVER ship < 60fps animations.
 ```
 
 ### GPU vs CPU Animation
@@ -669,7 +669,7 @@ COMPRESS: Reduce payload size
 
 | Metric | Target | Tool |
 |--------|--------|------|
-| **Frame rate** | ≥ 60frame_rate | Performance overlay |
+| **Frame rate** | ≥ 60fps | Performance overlay |
 | **Memory** | Stable, no growth | Profiler |
 | **Cold start** | < 2s | Manual timing |
 | **TTI (Time to Interactive)** | < 3s | Lighthouse |
@@ -705,7 +705,7 @@ COMPRESS: Reduce payload size
 - [ ] Profiled memory over extended use
 - [ ] Cold start time measured
 - [ ] List scroll tested with 1000+ items
-- [ ] Animations tested at 60frame_rate
+- [ ] Animations tested at 60fps
 - [ ] Network tested on slow 3G
 ```
 
@@ -758,7 +758,7 @@ void dispose() {
 ```
 Transform/Opacity only ← What to animate
 16.67ms per frame ← Time budget
-60frame_rate minimum ← Target
+60fps minimum ← Target
 Low-end Android ← Test device
 ```
 

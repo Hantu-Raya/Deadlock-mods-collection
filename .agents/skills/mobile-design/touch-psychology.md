@@ -450,7 +450,7 @@ OR the target is:
 What makes touch feel "premium":
 ├── Instant response (< 50ms)
 ├── Appropriate haptic feedback
-├── Smooth 60frame_rate animations
+├── Smooth 60fps animations
 ├── Correct resistance/physics
 ├── Sound feedback (when appropriate)
 └── Attention to spring physics
