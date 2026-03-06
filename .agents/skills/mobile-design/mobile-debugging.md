@@ -93,8 +93,8 @@ Web Debugging:      Mobile Debugging:
 - **React Native:** Performance Monitor (Shake menu).
 - **Android:** "Profile GPU Rendering" in Developer Options.
 - **Issues:**
-    - **JS frame_rate drop:** Heavy calculation in JS thread.
-    - **UI frame_rate drop:** Too many views, intricate hierarchy, heavy images.
+    - **JS FPS drop:** Heavy calculation in JS thread.
+    - **UI FPS drop:** Too many views, intricate hierarchy, heavy images.
 
 ---
 

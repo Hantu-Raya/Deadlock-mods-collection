@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deadlock Mod Configurator // Passive Items</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0c;
+            --panel-bg: #141416;
+            --panel-border: #2a2a2e;
+            --accent-gold: #c5a059;
+            --accent-glow: rgba(197, 160, 89, 0.3);
+            --text-main: #e0e0e0;
+            --text-muted: #6e6e73;
+            --success: #4fffa3;
+            --font-header: 'Cinzel', serif;
+            --font-ui: 'Rajdhani', sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 50% 0%, #1f1f24 0%, transparent 70%),
+                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            color: var(--text-main);
+            font-family: var(--font-ui);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* Main Panel */
+        .panel {
+            width: 480px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            position: relative;
+            padding: 2.5rem;
+            box-shadow: 
+                0 20px 50px rgba(0,0,0,0.5),
+                0 0 0 1px rgba(197, 160, 89, 0.1);
+            clip-path: polygon(
+                0 0, 
+                100% 0, 
+                100% calc(100% - 20px), 
+                calc(100% - 20px) 100%, 
+                0 100%
+            );
+        }
+
+        /* Decorative Corners */
+        .panel::before, .panel::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--accent-gold);
+            transition: all 0.3s ease;
+        }
+        .panel::before { top: 0; left: 0; border-right: none; border-bottom: none; }
+        .panel::after { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            position: relative;
+        }
+        
+        h1 {
+            font-family: var(--font-header);
+            font-size: 1.8rem;
+            margin: 0;
+            letter-spacing: 2px;
+            color: var(--accent-gold);
+            text-transform: uppercase;
+            text-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-top: 0.5rem;
+            font-weight: 600;
+        }
+
+        /* Preview Area */
+        .preview-container {
+            background: #000;
+            border: 1px solid #333;
+            height: 160px;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            border-radius: 4px;
+        }
+
+        .grid-bg {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .hud-mockup {
+            position: absolute;
+            bottom: 20px; /* Base position */
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 4px;
+            transition: bottom 0.1s linear;
+        }
+
+        .hud-item {
+            width: 24px;
+            height: 24px;
+            background: rgba(197, 160, 89, 0.2);
+            border: 1px solid var(--accent-gold);
+            box-shadow: 0 0 10px var(--accent-glow);
+            transform: rotate(45deg);
+        }
+
+        /* Fixed HUD Elements Container */
+        .fixed-hud {
+            position: absolute;
+            bottom: 85px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Crosshair - Blue plus sign */
+        .crosshair-overlay {
+            width: 20px;
+            height: 20px;
+            filter: drop-shadow(0 0 3px rgba(74, 158, 255, 0.6));
+        }
+
+        /* Stamina Bar - 3 curved segments */
+        .stamina-bar {
+            width: 56px;
+            height: 18px;
+        }
+
+        /* Ammo Count */
+        .ammo-count {
+            font-family: var(--font-ui);
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #e0e0e0;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        .preview-label {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            font-size: 0.7rem;
+            color: #444;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        /* Controls */
+        .control-group {
+            margin-bottom: 2.5rem;
+        }
+
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 1rem;
+        }
+
+        label {
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--text-main);
+            text-transform: uppercase;
+        }
+
+        .value-display {
+            font-family: var(--font-header);
+            font-size: 1.5rem;
+            color: var(--accent-gold);
+            font-weight: 700;
+        }
+
+        /* Custom Slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            border: 1px solid #444;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 12px;
+            background: var(--accent-gold);
+            margin-top: -9px;
+            border-radius: 1px;
+            box-shadow: 0 0 10px var(--accent-glow);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]:hover::-webkit-slider-thumb {
+            transform: scale(1.1);
+            background: #fff;
+        }
+
+        /* Button */
+        button {
+            width: 100%;
+            background: transparent;
+            border: 1px solid var(--accent-gold);
+            color: var(--accent-gold);
+            padding: 1rem;
+            font-family: var(--font-ui);
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            clip-path: polygon(
+                10px 0, 100% 0, 
+                100% calc(100% - 10px), 
+                calc(100% - 10px) 100%, 
+                0 100%, 
+                0 10px
+            );
+        }
+
+        button:hover {
+            background: var(--accent-gold);
+            color: #000;
+            box-shadow: 0 0 30px var(--accent-glow);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        /* Instructions */
+        .instructions {
+            margin-top: 2rem;
+            border-top: 1px solid #222;
+            padding-top: 1.5rem;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.8rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .step-num {
+            font-family: var(--font-header);
+            color: var(--accent-gold);
+            margin-right: 1rem;
+            font-size: 1rem;
+            opacity: 0.7;
+        }
+
+        code {
+            background: #222;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #fff;
+            font-family: monospace;
+            margin: 0 4px;
+            border: 1px solid #333;
+        }
+
+        /* Animations */
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+
+        .scanline {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.2) 51%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="scanline"></div>
+    
+    <main class="panel">
+        <header>
+            <h1>Citadel Protocol</h1>
+            <div class="subtitle">Passive Items Configuration</div>
+        </header>
+
+        <div class="preview-container">
+            <div class="grid-bg"></div>
+            <div class="preview-label">VISUAL PREVIEW</div>
+            
+            <!-- Fixed HUD Elements (crosshair, stamina, ammo - don't move) -->
+            <div class="fixed-hud">
+                <!-- Crosshair - Simple blue plus -->
+                <div class="crosshair-overlay">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <line x1="12" y1="4" x2="12" y2="20" stroke="#4a9eff" stroke-width="2.5" stroke-linecap="round"/>
+                        <line x1="4" y1="12" x2="20" y2="12" stroke="#4a9eff" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                
+                <!-- Stamina Bar (3 upward curved segments) -->
+                <div class="stamina-bar">
+                    <svg viewBox="0 0 100 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Arc 1 - Left -->
+                        <path d="M 15 18 Q 25 24 35 18" stroke="#e0e0e0" stroke-width="3" fill="none" stroke-linecap="round"/>
+                        <!-- Arc 2 - Middle -->
+                        <path d="M 40 18 Q 50 24 60 18" stroke="#e0e0e0" stroke-width="3" fill="none" stroke-linecap="round"/>
+                        <!-- Arc 3 - Right -->
+                        <path d="M 65 18 Q 75 24 85 18" stroke="#e0e0e0" stroke-width="3" fill="none" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                
+                <!-- Ammo Count -->
+                <div class="ammo-count">16 / 16</div>
+            </div>
+            
+            <!-- Passive Items (moves with slider) -->
+            <div class="hud-mockup" id="hudMockup">
+                <div class="hud-item"></div>
+                <div class="hud-item"></div>
+                <div class="hud-item"></div>
+                <div class="hud-item"></div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <div class="label-row">
+                <label for="offset">Vertical Offset</label>
+                <div class="value-display"><span id="val">-6</span>%</div>
+            </div>
+            <input type="range" id="offset" min="-40" max="40" value="0" step="1">
+        </div>
+
+        <div style="display: flex; gap: 1rem; flex-direction: column;">
+            <button id="connectBtn" style="background: transparent; border: 1px solid var(--accent-gold); color: var(--accent-gold);">Connect settings.json</button>
+            <button id="saveBtn">Save Settings</button>
+        </div>
+
+        <div class="instructions" id="instructions">
+            <div class="step" id="step1">
+                <span class="step-num">01</span>
+                <span>Click "Connect settings.json" and select the file</span>
+            </div>
+            <div class="step" id="step2">
+                <span class="step-num">02</span>
+                <span>Adjust slider, then click "Save Settings"</span>
+            </div>
+            <div class="step" id="step3">
+                <span class="step-num">03</span>
+                <span>Execute <code>Apply.bat</code> to compile</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const slider = document.getElementById('offset');
+        const valDisplay = document.getElementById('val');
+        const saveBtn = document.getElementById('saveBtn');
+        const connectBtn = document.getElementById('connectBtn');
+        const hudMockup = document.getElementById('hudMockup');
+        const instructions = document.getElementById('instructions');
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+
+        // File System Access API handle
+        let fileHandle = null;
+        let hasFileApi = 'showOpenFilePicker' in window;
+
+        // Base bottom position in pixels for the preview
+        const BASE_BOTTOM = 20; 
+        // How much 1% moves the preview in pixels (approximate scale)
+        const PIXEL_SCALE = 1.5;
+
+        function updatePreview(val) {
+            // Display calibrated value: slider position - 6 (so 0 shows as -6)
+            valDisplay.textContent = parseInt(val) - 6;
+            
+            const offset = parseInt(val);
+            // Calibration: Map -6 (default) to visual position of -22
+            const calibratedOffset = offset - 20;
+            
+            // Invert logic for visual preview: negative offset (up) means MORE bottom pixels
+            const visualShift = calibratedOffset * -PIXEL_SCALE; 
+            
+            // Only passive items move - crosshair/stamina/ammo stay fixed
+            hudMockup.style.bottom = `${BASE_BOTTOM + visualShift}px`;
+        }
+
+        // Init
+        updatePreview(slider.value);
+
+        // Update value display & preview
+        slider.addEventListener('input', (e) => {
+            updatePreview(e.target.value);
+        });
+
+        // Check if File System Access API is supported
+        if (!hasFileApi) {
+            // Browser doesn't support File System Access API
+            connectBtn.style.display = 'none';
+            step1.innerHTML = '<span class="step-num">01</span><span>Adjust the slider to your preference</span>';
+            step2.innerHTML = '<span class="step-num">02</span><span>Click "Save Settings" to download <code>settings.json</code></span>';
+            saveBtn.textContent = 'Download Settings';
+        }
+
+        // Connect button - pick the settings.json file
+        connectBtn.addEventListener('click', async () => {
+            try {
+                [fileHandle] = await window.showOpenFilePicker({
+                    types: [{
+                        description: 'JSON Files',
+                        accept: { 'application/json': ['.json'] }
+                    }],
+                    multiple: false
+                });
+
+                // Verify it's settings.json
+                const file = await fileHandle.getFile();
+                if (file.name !== 'settings.json') {
+                    alert('Please select settings.json file');
+                    fileHandle = null;
+                    return;
+                }
+
+                // Update UI
+                connectBtn.textContent = 'Connected: settings.json';
+                connectBtn.style.background = 'var(--accent-gold)';
+                connectBtn.style.color = 'var(--bg-dark)';
+                connectBtn.style.border = 'none';
+                
+                step1.innerHTML = '<span class="step-num" style="color: var(--accent-gold)">01</span><span style="color: var(--accent-gold)">Connected to settings.json</span>';
+                step2.innerHTML = '<span class="step-num">02</span><span>Adjust slider, then click "Save Settings"</span>';
+                
+                // Read current value and update slider
+                const text = await file.text();
+                try {
+                    const data = JSON.parse(text);
+                    if (data.hud_passive_items_margin_top !== undefined) {
+                        // Convert saved value back to slider position (saved + 6)
+                        slider.value = data.hud_passive_items_margin_top + 6;
+                        updatePreview(slider.value);
+                    }
+                } catch (e) {
+                    console.log('Could not parse existing settings');
+                }
+
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Error selecting file:', err);
+                    alert('Could not access file. Make sure you select settings.json in the mod folder.');
+                }
+            }
+        });
+
+        // Save button - write directly or download
+        saveBtn.addEventListener('click', async () => {
+            const originalText = saveBtn.textContent;
+            saveBtn.textContent = "SAVING...";
+            saveBtn.style.background = "var(--text-main)";
+            saveBtn.style.color = "var(--bg-dark)";
+
+            const settings = {
+                "hud_passive_items_margin_top": parseInt(slider.value) - 6
+            };
+            const content = JSON.stringify(settings, null, 2);
+
+            if (hasFileApi && fileHandle) {
+                // Use File System Access API to write directly
+                try {
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(content);
+                    await writable.close();
+                    
+                    saveBtn.textContent = "SAVED!";
+                    setTimeout(() => {
+                        saveBtn.textContent = originalText;
+                        saveBtn.style.background = "";
+                        saveBtn.style.color = "";
+                    }, 2000);
+                } catch (err) {
+                    console.error('Error writing file:', err);
+                    alert('Could not save file. Try using the download method instead.');
+                    saveBtn.textContent = originalText;
+                    saveBtn.style.background = "";
+                    saveBtn.style.color = "";
+                }
+            } else {
+                // Fallback to download
+                setTimeout(() => {
+                    const blob = new Blob([content], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'settings.json';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    saveBtn.textContent = "DOWNLOADED!";
+                    setTimeout(() => {
+                        saveBtn.textContent = originalText;
+                        saveBtn.style.background = "";
+                        saveBtn.style.color = "";
+                    }, 2000);
+                }, 300);
+            }
+        });
+    </script>
+</body>
+</html>

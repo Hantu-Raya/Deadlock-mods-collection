@@ -1,0 +1,233 @@
+// ================ CORE QUALITY ================
+"gpu_level" "0"                     // Minimum Shader Details Level
+"cpu_level" "0"                     // Minimum Effect Details Level
+"mat_set_shader_quality" "0"
+
+// ================ FOV ================
+"r_aspectratio" "1.75"              // 1.75=80fov | 2.15=90fov | 2.49=100fov
+
+// ================ LIGHTING & SHADOWS ================
+"r_directlighting" "0"
+"r_ssao" "0"                        // Disable ambient occlusion
+"r_shadows" "0"
+"r_rendersun" "0"
+"lb_enable_shadow_casting" "0"
+"lb_csm_draw_alpha_tested" "0"
+"lb_csm_draw_translucent" "0"
+"lb_barnlight_shadowmap_scale" "0.5"
+"lb_csm_cascade_size_override" "1"
+"lb_dynamic_shadow_resolution_quantization" "64"
+"lb_csm_override_staticgeo_cascades_value" "0"
+"lb_csm_receiver_plane_depth_bias" "0.00002"
+"lb_csm_receiver_plane_depth_bias_transmissive_backface" "0.0002"
+"lb_sun_csm_size_cull_threshold_texels" "30"
+"lb_dynamic_shadow_resolution_base" "256"
+"lb_enable_fog_mixed_shadows" "0"
+"r_citadel_sun_shadow_slope_scale_depth_bias" "1.0"
+"r_lightmap_size_directional_irradiance" "4"
+"r_size_cull_threshold_shadow" "100"
+"csm_max_shadow_dist_override" "0"
+"sc_cache_envmap_lpv_lookup" "1"
+"cl_retire_low_priority_lights" "1"
+"sc_disable_spotlight_shadows" "1"
+"sc_disable_shadow_materials" "1"
+
+
+// ================ FOG & ATMOSPHERE ================
+"r_enable_volume_fog" "0"
+"r_enable_gradient_fog" "0"
+"r_enable_cubemap_fog" "0"
+"volume_fog_intermediate_textures_hdr" "0"
+
+// ================ SKY & ENVIRONMENT ================
+"r_draw3dskybox" "0"
+"r_drawskybox" "1"                  // Set to 0 to disable skybox
+"r_monitor_3dskybox" "0"
+"r_world_wind_strength" "0"
+
+// ================ SSAO ================
+"r_citadel_ssao_bent_normals" "false"
+"r_citadel_ssao_denoise_passes" "0"
+"r_citadel_ssao_quality" "0"
+"r_citadel_ssao_radius" "0"
+"r_citadel_ssao_thin_occluder_compensation" "0"
+
+// ================ PARTICLE SYSTEM ================
+"r_particle_max_detail_level" "0"
+"r_particle_cables_cast_shadows" "0"
+"r_RainParticleDensity" "0"
+"r_physics_particle_op_spawn_scale" "0"
+"r_particle_min_timestep" "0"
+"r_particle_max_size_cull" "800"
+"particle_cluster_nodraw" "1"
+"r_particle_mixed_resolution_viewstart" "800"
+"cl_particle_sim_fallback_threshold_ms" "1"
+"cl_parallel_readpacketentities_threshold" "2"
+"cl_parallel_readpacketentities" "1"
+"sc_layer_batch_threshold_fullsort" "80"
+"r_particle_model_new8" "0"
+"cl_show_splashes" "0"
+
+// ================ PHYSICS & CLOTH ================
+"cloth_update" "1"                   // Enable cloth physics
+"cloth_sim_on_tick" "0"
+"presettle_cloth_iterations" "3"
+"pred_cloth_pos_max" "1.0"           // Reduce cloth prediction
+"pred_cloth_pos_multiplier" "0.3"
+"pred_cloth_pos_strength" "0.1"
+"pred_cloth_rot_high" "0.05"
+"pred_cloth_rot_low" "0.005"
+"pred_cloth_rot_multiplier" "0.2"
+"cl_phys_timescale" "1"              // Set 0 to Disable physics
+"cl_fasttempentcollision" "20"
+
+// ================ MODEL & DECAL OPTIMIZATIONS ================
+"r_drawmodeldecals" "0"
+"r_character_decal_resolution" "1"
+"r_decals" "16"                      // Number of Decals being drawn
+"r_propsmaxdist" "800"
+"props_break_max_pieces_perframe" "0"
+"r_citadel_screenspace_particles_full_res" "0"
+"r_citadel_gpu_culling_shadows" "1"
+"skeleton_instance_lod_optimization" "1"
+"r_size_cull_threshold" "1.2"
+"r_hair_ao" "0"
+"ik_final_fixup_enable" "0"
+"ik_fabrik_align_chain" "0"
+"cl_impacteffects" "0"
+"enable_boneflex" "false"            // cloth flexing
+
+// ================ LOD ================
+"sc_instanced_mesh_lod_bias" "10"     // Bias for LOD selection of instanced meshes
+"sc_instanced_mesh_lod_bias_shadow" "10" // Bias for LOD selection of instanced meshes in shadowmaps
+"sc_instanced_mesh_motion_vectors" "0" // Set 1 if you use motion blur
+"sc_instanced_mesh_size_cull_bias" "10" // Bias for size culling of instanced meshes
+"sc_instanced_mesh_size_cull_bias_shadow" "10" // Bias for size culling instanced meshes in shadowmaps
+"sc_fade_distance_scale_override" "180"
+
+// ================ ROPE PHYSICS ================
+"rope_collide" "0"
+"rope_subdiv" "0"
+"rope_wind_dist" "0"
+"rope_smooth_enlarge" "0"
+"rope_smooth_maxalpha" "0"
+"rope_smooth_maxalphawidth" "0"
+"rope_smooth_minalpha" "0"
+"rope_smooth_minwidth" "0"
+"r_ropetranslucent" "0"
+"r_drawropes" "0"
+
+// ================ TERRAIN & FOLIAGE ================
+"r_grass_quality" "0"
+"r_grass_start_fade" "0"
+"r_grass_end_fade" "0"
+
+// ================ UI & HUD ================
+"panorama_disable_box_shadow" "1"
+"r_dashboard_render_quality" "1"
+"closecaption" "false"
+"citadel_hud_objective_health_enabled" "2"  // 0=Off, 1=Shrines, 2=T1/T2, 3=Barracks
+"citadel_boss_glow_disabled" "1"
+"citadel_damage_offscreen_indicator_disabled" "0" // Set 1 to disable
+"citadel_portrait_world_renderer_off" "false" // Set true to disable hero hud
+"panorama_use_new_occlusion_invalidation" "1"
+"panorama_temp_comp_layer_min_dimension" "128"
+"panorama_max_overlay_fps" "30"
+"panorama_max_fps" "60"
+"citadel_damage_text_lifetime" "1.5"
+"citadel_damage_text_lifetime_new" "0.75"
+"citadel_damage_text_lifetime_accumulated_new" "2"
+"citadel_show_new_damage_feedback_numbers" "1" // Set 1 to enable
+"hud_free_cursor" "0"                // Reduces UI input delay in minimap/spectator modes (not sure if this is true)
+
+// ================ NETWORK & PREDICTION ================
+"cl_prediction_savedata_postentitypacketreceived" "1"
+"r_frame_sync_enable" "0"
+"cl_clock_buffer_ticks" "0"          // Testing set 1 to smooth over packet loss
+"cl_async_usercmd_send" "true"
+"cl_smooth" "0"
+"cl_smoothtime" "0.01"
+"cl_smooth_draw_debug" "0"
+
+// ================ AI OPTIMIZATIONS ================
+"ai_strong_optimizations_no_checkstand" "1"
+"ai_expression_optimization" "1"
+
+// ================ AUDIO ================
+"audio_enable_vmix_mastering" "0"
+"dsp_volume" "0"                    // idk
+"snd_occlusion_bounces" "0"
+
+// ================ MISC ================
+"sc_hdr_enabled_override" "0"
+"r_texturefilteringquality" "0"
+"cl_ragdoll_limit" "0"              // Set it on console if ragdoll still lingers longer
+"r_pipeline_stats_present_flush" "0"
+"r_pipeline_stats_command_flush" "0"
+"r_max_portal_render_targets" "2"   // Set how many amount to render portals
+"citadel_hideout_ball_show_juggle_count" "1"
+"citadel_hideout_ball_show_juggle_fx" "1"
+"citadel_camera_soft_collision" "0"
+"mat_colcorrection_disableentities" "0" // Disable map color-correction entities
+"mm_idle_show_warning_at_s" "999"   // How many seconds to wait before showing the idle warning dialog
+
+"cl_globallight_shadow_mode" "0"
+"lb_enable_dynamic_lights" "0"
+"lb_enable_lights" "0"
+"lb_max_visible_barn_lights_override" "0"
+"lb_max_visible_envmaps_override" "4"
+"lb_ssss_samples" "0"
+"cl_interp_parallel" "1"
+"r_citadel_npr_outlines_max_dist" "600"
+"cl_clock_buffer_ticks" "0"
+"cl_particle_fallback_multiplier" "10"
+"cl_particle_fallback_base" "5"
+"citadel_camera_wobble_disable" "1"
+"r_particle_max_draw_distance" "700000" //need more testing
+"engine_max_ticks_to_simulate" "33"
+"r_particle_min_timestep" "0.2"
+"citadel_unit_status_use_new" "1"
+
+"lb_enable_stationary_lights" "0"         // Disable stationary lights
+"r_multiscattering" "0"                   // Disable multiscattering (only works with shadows disable)
+"sc_aggregate_bvh_threshold" "64"         // Lower BVH threshold (default: 128)
+"sc_layer_batch_threshold" "64"           // Lower batch threshold (default: 128)
+"sc_clutter_enable" "0"                   // Disable clutter (props/debris)
+"r_citadel_distancefield_farfield_enable" "false"
+"sparseshadowtree_enable_rendering" "0"
+"sparseshadowtree_disable_for_viewmodel" "1"
+"mat_async_shader_load" "1"
+"r_renderdoc_auto_shader_pdbs" "0"
+"ragdoll_parallel_pose_control" "1"
+"panorama_async_compute_mipgen" "1"
+"snd_steamaudio_num_threads" "1"
+"phys_threaded_cloth_bone_update" "1"
+"phys_threaded_kinematic_bone_update" "1"
+"phys_threaded_transform_update" "1"
+"cl_particle_sim_fallback_base_multiplier" "10"
+"cl_particle_fallback_base" "10"
+"cl_particle_fallback_multiplier" "10"
+// ================ TEXTURE STREAMING ================
+// Reduce texture pool size (MB) - lower = less VRAM usage
+"r_texture_pool_size" "800"
+// Aggressive texture LOD bias (higher = blurrier textures, more FPS)
+"r_texture_stream_mip_bias" "2"
+"r_texture_lod_scale" "2"
+"r_fallback_texture_lod_scale" "4"
+// Faster texture streaming adjustment
+"r_texture_budget_update_period" "0.05"
+"r_texture_pool_reduce_rate" "512"
+// ================ MEMORY BUDGET ================
+// Dynamic texture budget adjustment
+"r_texture_budget_dynamic" "1"
+"r_texture_budget_threshold" "0.8"
+"net_async_clientconnect" "1"
+"snd_mix_async" "1"
+"snd_steamaudio_num_threads" "1"
+"soundsystem_update_async" "1"
+"r_particle_skip_postsim" "1"
+"r_limit_particle_job_duration" "1"
+"r_render_hair" "0"
+"r_haircull_percent" "100"
+"sv_waterdist" "0"
+"cl_eye_yaw_multiplier" "0"

@@ -1,0 +1,185 @@
+# FPS Config Diff: oldfps.txt → fps.txt
+
+**Comparison Date:** February 5, 2026  
+**Files Compared:** oldfps.txt vs fps.txt  
+
+---
+
+## CHANGES SUMMARY
+
+**Total Changes:** 58 commands changed/added/removed
+
+---
+
+## 🔴 ADJUSTED (Value Changes)
+
+### PARTICLE SYSTEM
+| Command | Old Value | New Value |
+|---------|-----------|-----------|
+| `r_particle_min_timestep` | "0" | "0.0019" |
+| `cl_particle_sim_fallback_threshold_ms` | "0" | "1" |
+| `cl_parallel_readpacketentities_threshold` | "4" | "2" |
+
+### LOD & CULLING
+| Command | Old Value | New Value |
+|---------|-----------|-----------|
+| `sc_instanced_mesh_lod_bias` | "5" | "10" |
+| `sc_instanced_mesh_lod_bias_shadow` | "5.5" | "10" |
+| `sc_instanced_mesh_size_cull_bias` | "5" | "10" |
+| `sc_instanced_mesh_size_cull_bias_shadow` | "5.5" | "10" |
+
+---
+
+## 🟢 ADDED (New Commands)
+
+### LIGHTING & SHADOWS
+```
+"sc_disable_spotlight_shadows" "1"
+"sc_disable_shadow_materials" "1"
+"cl_globallight_shadow_mode" "0"
+"lb_enable_dynamic_lights" "0"
+"lb_enable_lights" "0"
+"lb_enable_stationary_lights" "0"
+"lb_max_visible_barn_lights_override" "0"
+"lb_max_visible_envmaps_override" "4"
+"lb_ssss_samples" "0"
+"r_multiscattering" "0"
+```
+
+### SPARSE SHADOW TREE (NEW CATEGORY)
+```
+"sparseshadowtree_enable_rendering" "0"
+"sparseshadowtree_disable_for_viewmodel" "1"
+```
+
+### DISTANCE FIELD (NEW CATEGORY)
+```
+"r_citadel_distancefield_farfield_enable" "false"
+"r_citadel_npr_outlines_max_dist" "600"
+```
+
+### PARTICLE SYSTEM
+```
+"r_particle_max_draw_distance" "550000"
+"r_particle_skip_postsim" "1"
+"r_limit_particle_job_duration" "1"
+"cl_particle_fallback_base" "10"
+"cl_particle_fallback_multiplier" "10"
+"cl_particle_sim_fallback_base_multiplier" "10"
+```
+
+### PHYSICS & CLOTH
+```
+"phys_threaded_cloth_bone_update" "1"
+"phys_threaded_kinematic_bone_update" "1"
+"phys_threaded_transform_update" "1"
+```
+
+### RAGDOLL (NEW CATEGORY)
+```
+"ragdoll_parallel_pose_control" "1"
+```
+
+### MODEL & DECAL
+```
+"r_render_hair" "0"
+"r_haircull_percent" "100"
+```
+
+### LOD & CULLING
+```
+"sc_fade_distance_scale_override" "180"
+"sc_clutter_enable" "0"
+"sc_aggregate_bvh_threshold" "64"
+"sc_layer_batch_threshold" "64"
+```
+
+### UI & HUD
+```
+"panorama_async_compute_mipgen" "1"
+"citadel_camera_wobble_disable" "1"
+"citadel_unit_status_use_new" "1"
+"mm_idle_show_warning_at_s" "999"
+"citadel_hideout_ball_show_juggle_count" "1"
+"citadel_hideout_ball_show_juggle_fx" "1"
+```
+
+### NETWORK & PREDICTION
+```
+"cl_interp_parallel" "1"
+"cl_parallel_readpacketentities" "1"
+"net_async_clientconnect" "1"
+"engine_max_ticks_to_simulate" "33"
+```
+
+### AUDIO
+```
+"snd_steamaudio_num_threads" "1"
+"snd_mix_async" "1"
+"soundsystem_update_async" "1"
+```
+
+### TEXTURE STREAMING
+```
+"r_texture_pool_size" "800"
+"r_texture_stream_mip_bias" "2"
+"r_texture_lod_scale" "2"
+"r_fallback_texture_lod_scale" "4"
+"r_texture_budget_update_period" "0.05"
+"r_texture_pool_reduce_rate" "512"
+```
+
+### MEMORY BUDGET (NEW CATEGORY)
+```
+"r_texture_budget_dynamic" "1"
+"r_texture_budget_threshold" "0.8"
+```
+
+### SHADER & RENDERING (NEW CATEGORY)
+```
+"mat_async_shader_load" "1"
+"r_renderdoc_auto_shader_pdbs" "0"
+"sc_hdr_enabled_override" "0"
+"r_texturefilteringquality" "0"
+"r_max_portal_render_targets" "2"
+"mat_colcorrection_disableentities" "0"
+```
+
+---
+
+## 🟡 REMOVED (Commands in oldfps.txt, not in fps.txt)
+
+### PARTICLE SYSTEM
+```
+"r_particle_gpu_implicit_lds_cache" "1"
+```
+
+### MISC
+```
+"r_pipeline_stats_present_flush" "0"
+"r_pipeline_stats_command_flush" "0"
+"sv_ag2_low_skel_lod" "true"
+"cl_input_enable_raw_keyboard" "1"
+```
+
+---
+
+## VERDICT
+
+**Major upgrade from oldfps.txt to fps.txt:**
+- 45+ new commands added
+- 6 commands adjusted for better FPS
+- 5 commands removed (mostly debug/redundant)
+- New categories: SPARSE SHADOW TREE, DISTANCE FIELD, RAGDOLL, MEMORY BUDGET, SHADER & RENDERING
+
+**Key improvements:**
+- Better particle fallback system
+- More aggressive LOD bias (5→10)
+- Added texture streaming optimization
+- Added physics threading
+- Added network optimization
+- Added audio threading
+
+---
+
+*Generated from diff analysis*
