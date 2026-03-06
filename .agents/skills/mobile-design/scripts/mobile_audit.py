@@ -178,9 +178,9 @@ class MobileAuditor:
             has_native_driver = bool(re.search(r'useNativeDriver:\s*true', content))
             has_native_driver_false = bool(re.search(r'useNativeDriver:\s*false', content))
             if has_animated and has_native_driver_false:
-                self.warnings.append(f"[Performance] {filename}: Animation with useNativeDriver: false. Use true for 60frame_rate (only supports transform/opacity).")
+                self.warnings.append(f"[Performance] {filename}: Animation with useNativeDriver: false. Use true for 60fps (only supports transform/opacity).")
             if has_animated and not has_native_driver:
-                self.warnings.append(f"[Performance] {filename}: Animated component without useNativeDriver. Add useNativeDriver: true for 60frame_rate.")
+                self.warnings.append(f"[Performance] {filename}: Animated component without useNativeDriver. Add useNativeDriver: true for 60fps.")
 
         # 2.6 Memory Leak Check
         if is_react_native:
@@ -205,7 +205,7 @@ class MobileAuditor:
         # Warn if animating expensive properties
         animating_layout = bool(re.search(r'Animated\.timing.*(?:width|height|margin|padding)', content))
         if animating_layout:
-            self.issues.append(f"[Performance] {filename}: Animating layout properties (width/height/margin). Use transform/opacity for 60frame_rate.")
+            self.issues.append(f"[Performance] {filename}: Animating layout properties (width/height/margin). Use transform/opacity for 60fps.")
 
         # --- 3. MOBILE NAVIGATION CHECKS ---
 

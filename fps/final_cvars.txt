@@ -1,0 +1,274 @@
+Other|lb_allow_shadow_rotation|true|SceneSystem/LightBinner/Shadow Rotation|Yes
+Other|lb_allow_time_sliced_shadow_map_rendering|true|Allow time-sliced shadow buffer rendering when enabled via gameinfo.gi|No
+Other|lb_barnlight_shadow_use_precomputed_vis|true||No
+Other|lb_barnlight_shadowmap_scale|0.5|Scale for computed barnlight shadowmap size|No
+Other|lb_bin_slices|8192||No
+Other|lb_convert_to_barn_lights_falloff_match_point|0.15||No
+Other|lb_csm_cascade_size_override|1|Override width/height of individual cascades in the CSM|No
+Other|lb_csm_cross_fade_override|-1|Override CSM cross fade amount|No
+Other|lb_csm_distance_fade_override|-1|Override CSM distance fade|No
+Other|lb_csm_draw_alpha_tested|false||No
+Other|lb_csm_draw_translucent|false||No
+Other|lb_csm_fov_override|-1||Yes
+Other|lb_csm_override_bulb_radius|-1|Override bulb radius for CSM|No
+Other|lb_csm_override_staticgeo_cascades_animated_verts|true|If lb_csm_override_staticgeo_cascades, ensure only objects without animated verts, i.e. SCENEOBJECTFLAG_CAN_RENDER_INTO_SST flag will be excluded (as opposed to all static objects).|No
+Other|lb_csm_override_staticgeo_cascades_value|0|If lb_csm_override_staticgeo_cascades, override value used to determine which cascades render static objects|No
+Other|lb_csm_override_staticgeo_cascades|false|Override Cascades that will render static objects with lb_csm_override_staticgeo_cascades_value|No
+Other|lb_csm_receiver_plane_depth_bias_transmissive_backface|0.0002|Depth bias applied to shadow receiver for transmissive backface geo (based on renderstate depthbias being 0)|No
+Other|lb_csm_receiver_plane_depth_bias|2e-05|Shader depth bias applied to shadow receiver (Note this conflicts with renderstate depth bias, both now default to 0)|No
+Other|lb_cubemap_normalization_max|32||No
+Other|lb_cubemap_normalization_roughness_begin|0.1||No
+Other|lb_debug_light_bounds|false|SceneSystem/LightBinner/Debug Light Bounds|Yes
+Other|lb_debug_shadow_atlas|false|SceneSystem/LightBinner/Debug Shadow Atlas|Yes
+Other|lb_debug_shadowtile_atlas|false|SceneSystem/LightBinner/Debug ShadowTile Atlas|Yes
+Other|lb_debug_silhouette_sum|1|If we should draw normal silhouette or minkowski sum silhouette|Yes
+Other|lb_debug_silhouette||SceneSystem/LightBinner/Debug Silhouettes|Yes
+Other|lb_debug_tiles||SceneSystem/LightBinner/Debug Tiles|Yes
+Other|lb_debug_visualize_fog_shadowed_lights|0|SceneSystem/LightBinner/Debug Visualize Fog Shadowed Lights|Yes
+Other|lb_debug_visualize_lights|0|SceneSystem/LightBinner/Debug Visualize Lights|Yes
+Other|lb_debug_visualize_shadowed_light_details|false||Yes
+Other|lb_debug_visualize_shadowed_lights|0|SceneSystem/LightBinner/Debug Visualize Shadowed Lights|Yes
+Other|lb_dynamic_shadow_penumbra|true|Adjust shadow penumbra based on light size|No
+Other|lb_dynamic_shadow_resolution_base_cmp_shadowmapsize|false|take min of lb_dynamic_shadow_resolution and barnlight shadowmapsize as base shadowmapsize|Yes
+Other|lb_dynamic_shadow_resolution_base|256|Base resolution for dynamic shadowmap sizing.  Shadowmap size of a screen sized light|No
+Other|lb_dynamic_shadow_resolution_delay|0.85|Update delay for shadow size|No
+Other|lb_dynamic_shadow_resolution_hysteresis|0.33|Update hysteresis for shadow size|No
+Other|lb_dynamic_shadow_resolution_quantization|64|Quantization of dynamically computed shadow size|No
+Other|lb_dynamic_shadow_resolution|true|Dynamically adjust shadow resolution|No
+Other|lb_enable_baked_shadows|true|SceneSystem/LightBinner/Enable Baked Shadows|Yes
+Other|lb_enable_binning|true|SceneSystem/LightBinner/Enable Binning|No
+Other|lb_enable_dynamic_lights|false|Allows rendering dynamic lights|Yes
+Other|lb_enable_envmaps|true|SceneSystem/LightBinner/Enable EnvMaps|Yes
+Other|lb_enable_fog_mixed_shadows|false|SceneSystem/LightBinner/Enable Fog Mixed Shadows|Yes
+Other|lb_enable_lights|false|SceneSystem/LightBinner/Enable Lights|Yes
+Other|lb_enable_newsum|true|SceneSystem/LightBinner/Enable New Sum|Yes
+Other|lb_enable_shadow_casting|false|Allow stationary/dynamic lights to cast shadows.|No
+Other|lb_enable_stationary_lights|true|Allows rendering stationary/mixed lights|Yes
+Other|lb_enable_sunlight|true|SceneSystem/LightBinner/Enable Sunlight|Yes
+Other|lb_low_quality_shader_fade_region_rescale|0|For envmaps in low quality shader mode, how much of the fade region to scale the envmap box by.|Yes
+Other|lb_max_visible_barn_lights_override|0|Override maximum visible barn lights|Yes
+Other|lb_max_visible_envmaps_override|-1|Override maximum visible envmaps|Yes
+Other|lb_mixed_shadows|true|SceneSystem/LightBinner/Enable Mixed Shadows|Yes
+Other|lb_override_barn_light_fade_sizes_enable|false||Yes
+Other|lb_override_barn_light_fade_sizes|0.05 0.025||Yes
+Other|lb_override_barn_light_shadow_fade_sizes|0.1 0.05||Yes
+Other|lb_precomputed_shadowmap_depth_bias|0.0001||No
+Other|lb_precomputed_shadowmap_enable|true||No
+Other|lb_shadow_map_cull_empty_mixed|false|Don't render shadows for mixed shadowmaps with no dynamics objects in view|Yes
+Other|lb_shadow_map_culling|true||Yes
+Other|lb_shadow_texture_height_override|-1|Override height of shadow atlas texture|No
+Other|lb_shadow_texture_width_override|-1|Override width of shadow atlas texture|No
+Other|lb_ssss_importance_sample|false||No
+Other|lb_ssss_samples|0|Subsurface sample count|No
+Other|lb_sun_csm_size_cull_threshold_texels|30|Size, in texels, where we will cull an object in the shadowmap|No
+Other|lb_tile_pixels|8||No
+Other|lb_timesliced_shadows_dynamic_size|true||No
+Other|lb_use_ellipsoid_bounds|true||Yes
+Other|lb_use_illumination_silhouette|true|SceneSystem/LightBinner/Use Illumination Bounds|Yes
+Other|r_Citadel_default_post_process_fade_ui|1||No
+Other|r_arealights|true||No
+Other|r_bloom_tent_filter_radius|0|bloom mip up-sample filtering radius (using 3x3 tent filter, radius in mip level texels), 0.0 radius =&gt; box (2x2) filter with (fixed) 1.0 radius|Yes
+Other|r_citadel_allow_particle_only_portraits|true||No
+Other|r_citadel_antialiasing|1||No
+Other|r_citadel_clip_sphere_cone_angle|40||Yes
+Other|r_citadel_clip_sphere_distance_max|75||Yes
+Other|r_citadel_clip_sphere_dist|0.45||Yes
+Other|r_citadel_clip_sphere_min_opacity|0.4||Yes
+Other|r_citadel_clip_sphere_skin|0.4||Yes
+Other|r_citadel_cloak_blur_amount|0.01|cloak|Yes
+Other|r_citadel_cloak_blur_factor_max_roughness|1|cloak|Yes
+Other|r_citadel_cloak_blur_factor_min_roughness|1|cloak|Yes
+Other|r_citadel_cloak_blur_noise_amount|0.5|cloak|Yes
+Other|r_citadel_cloak_color_tint|230 230 230 255|cloak|Yes
+Other|r_citadel_cloak_fresnel_effect|0|cloak|Yes
+Other|r_citadel_cloak_intensity|1|cloak|Yes
+Other|r_citadel_cloak_refract_amount|0|cloak|Yes
+Other|r_citadel_cosmic_veil_fade_dist|32|cosmic veil|Yes
+Other|r_citadel_depth_prepass_cull_threshold|60||No
+Other|r_citadel_depth_prepass_dynamic_objects|true||No
+Other|r_citadel_depthoffield_aperture_diameter|0|Depth of field aperture diameter in inches|No
+Other|r_citadel_depthoffield_debug|false|Enable depth of field debug drawing|No
+Other|r_citadel_depthoffield_enable|false|Enable/Disable Depth of Field|No
+Other|r_citadel_depthoffield_focus_distance|200|Depth of field focus distance in inches|No
+Other|r_citadel_depthoffield_mode|0|Depth of field mode, 0: Normal 1: Near field only 2: Far field only|No
+Other|r_citadel_depthoffield_sensor_size|1|Depth of field sensor size in inches|No
+Other|r_citadel_disable_npr_lighting|false||No
+Other|r_citadel_distancefield_ao_quality|0|Distance Field AO quality|No
+Other|r_citadel_distancefield_blur_depth_threshold|1|Distance field blur depth threshold|No
+Other|r_citadel_distancefield_blur|true|Enable/Disable distance field blur|No
+Other|r_citadel_distancefield_down_sample|1|Distance field down sample factor|No
+Other|r_citadel_distancefield_farfield_enable|true|Distance field far field enable|No
+Other|r_citadel_distancefield_farfield_occlusion_length|192|Distance field far field occlusion length|No
+Other|r_citadel_distancefield_farfield_occlusion_start_offset|16|Distance field far field occlusion start offset|No
+Other|r_citadel_distancefield_farfield_resolution|192|Distance field far field resolution|No
+Other|r_citadel_distancefield_farfield_size|2048|Distance field far field size|No
+Other|r_citadel_distancefield_max_distance|2048|Maximum distance before culling|No
+Other|r_citadel_distancefield_min_screen_space_size|0.015|Minimum screen space size before culling|No
+Other|r_citadel_distancefield_occlusion_length|48|Distance field occlusion length|No
+Other|r_citadel_distancefield_ray_origin_bias_max|3|Distance field ray origin bias max|No
+Other|r_citadel_distancefield_ray_origin_bias_min|0.25|Distance field ray origin bias min|No
+Other|r_citadel_distancefield_shadows|true||No
+Other|r_citadel_dlss_settings_mode|0||No
+Other|r_citadel_enable_pano_world_blur|true|Enable world-blur style|No
+Other|r_citadel_fog_quality|1|Fog Quality|No
+Other|r_citadel_fsr2_sharpness|0.5||No
+Other|r_citadel_fsr3_min_reactiveness|0.1|minimum reactiveness for the FSR3 shader|No
+Other|r_citadel_fsr_enable_mip_bias|true|Apply negative mip bias when rendering with FSR.|No
+Other|r_citadel_fsr_rcas_sharpness|0.25|RCAS sharpness when using FSR + RCAS upsample.|No
+Other|r_citadel_glow_health_bar_debug|false||Yes
+Other|r_citadel_glow_health_bars|true||No
+Other|r_citadel_gpu_culling_shadows|true|Citadel/Graphics/GPU Cull Shadow Views|No
+Other|r_citadel_gpu_culling_two_pass|true|Citadel/Graphics/GPU Culling (Two Pass)|No
+Other|r_citadel_gpu_culling|true|Citadel/Graphics/GPU Culling|No
+Other|r_citadel_gpu_debug_draw|false||No
+Other|r_citadel_gpu_preview_baked_shadows|true||No
+Other|r_citadel_gpu_preview_denoise_depth_phi|20||No
+Other|r_citadel_gpu_preview_denoise_normal_phi|96||No
+Other|r_citadel_gpu_preview_denoise_passes|3||No
+Other|r_citadel_gpu_preview_denoise_shadow_passes|1||No
+Other|r_citadel_gpu_preview_denoise_signal_phi|1||No
+Other|r_citadel_gpu_preview_denoise|true||No
+Other|r_citadel_highlight_particle_only_portraits|false||No
+Other|r_citadel_mboit_bias|5e-06||Yes
+Other|r_citadel_mboit_enabled|false|enable moments oit|No
+Other|r_citadel_mboit_overestimation|0.25||Yes
+Other|r_citadel_mboit_quality|0|MBOIT quality, 0: 4 Moments|No
+Other|r_citadel_npr_force_solid_outline|false||No
+Other|r_citadel_npr_outlines_max_dist|600|Maximum distance at which NPR outlines are rendered|Yes
+Other|r_citadel_npr_outlines|true|Enable/Disable NPR Outlines|Yes
+Other|r_citadel_portrait_allow_particle_only|true||No
+Other|r_citadel_portrait_highlight_particle_only|false||No
+Other|r_citadel_render_game|true|Should you render the main game world|Yes
+Other|r_citadel_screenspace_particles_full_res|false|Render screen space particles at full resolution|No
+Other|r_citadel_see_thru_walls_opacity|0.3|Opacity scale for see-thru UI|Yes
+Other|r_citadel_selection_outline2_alpha|0.8|Selection Outline Alpha|No
+Other|r_citadel_selection_outline2_fade_pow|1.5|Selection Outline Fade Pow|No
+Other|r_citadel_selection_outline2_offset|0.3|Selection Outline Offset: -1 for interior, 0 for centered, 1 for exterior.|No
+Other|r_citadel_selection_outline2_width|4|Selection Outline Width|No
+Other|r_citadel_shadow_caching_stats|N/A|Print information about shadow caching|No
+Other|r_citadel_shadow_caching|true||No
+Other|r_citadel_shadow_quality|1|Shadow Quality|No
+Other|r_citadel_shadowdb|2048||No
+Other|r_citadel_ssao_quality|0||No
+Other|r_citadel_ssao_thin_occluder_compensation|0||No
+Other|r_citadel_sun_shadow_slope_scale_depth_bias|1||No
+Other|r_citadel_upscaling|4||No
+Other|r_depth_of_field|true||No
+Other|r_distancefield_enable|true|Graphics/Enable Distance Field rendering|No
+Other|r_effects_bloom|true||No
+Other|r_frame_sync_enable|false||No
+Other|r_indirectlighting|true|Set to use indirect lighting|Yes
+Other|r_low_latency_trigger_flash|true|NVIDIA Low Latency Trigger Flash|No
+Other|r_low_latency|1|NVIDIA Low Latency/AMD Anti-Lag 2 (0 = off, 1 = on, 2 = NV-only, on + boost)|No
+Other|r_postprocess_enable|true||No
+Other|r_shadows|false||Yes
+Other|r_shadowtile_waveops|false||No
+Other|r_ssao_bias|0.5||No
+Other|r_ssao_blur|true||No
+Other|r_ssao_radius|30||No
+Other|r_ssao_strength|1.2||No
+Other|r_ssao|false|Set to use screen-space ambient occlusion|No
+Other|sc_aggregate_bvh_threshold|128||No
+Other|sc_aggregate_bvh|true||No
+Other|sc_aggregate_debug_draw_meshlets_bounds|false|Visualize meshlet bounds and cone axis. Mesh shader only.|No
+Other|sc_aggregate_debug_draw_meshlets|0|SceneSystem/Aggregates/Visualize Meshlets|No
+Other|sc_aggregate_debug_visualizer|false|SceneSystem/Aggregates/Debug Visualizer|Yes
+Other|sc_aggregate_fragment_merging|true||No
+Other|sc_aggregate_gpu_culling_conservative_bounds|false||No
+Other|sc_aggregate_gpu_culling_show_culled|false|SceneSystem/Aggregates/Show GPU Culled Meshes|No
+Other|sc_aggregate_gpu_culling|true|Toggles GPU culling of aggregate meshes|No
+Other|sc_aggregate_gpu_occlusion_culling|true||No
+Other|sc_aggregate_gpu_vis_culling|true||No
+Other|sc_aggregate_indirect_draw_compaction_threshold|8|Threshold of indirect draws when we will do compaction|No
+Other|sc_aggregate_indirect_draw_compaction|true|Use multidrawindirect...count if the driver/hardware supports it|No
+Other|sc_aggregate_instance_streams|true|Enable instance streams|No
+Other|sc_aggregate_material_solo|||Yes
+Other|sc_aggregate_render_mesh_shader|true|Using mesh shaders if available instead of drawcalls|No
+Other|sc_aggregate_rtproxy_debug_visualizer|false|SceneSystem/Aggregates/RT Proxy Debug Visualizer|Yes
+Other|sc_aggregate_rtproxy_instanced_geo|true||Yes
+Other|sc_aggregate_rtproxy_unique_geo|true||Yes
+Other|sc_aggregate_show_outside_vis|false||No
+Other|sc_allow_dithered_lod|true|Allow use of dithered lod transitions|No
+Other|sc_allow_dynamic_constant_batching|true||No
+Other|sc_allow_precomputed_vismembers|true||No
+Other|sc_allow_write_depth_before_blend|true||No
+Other|sc_barnlight_enable_precomputed_vis|true|Enable use of precomputed vis membership for lights (requires map restart)|No
+Other|sc_batch_layer_cb_updates|true||No
+Other|sc_cache_envmap_lpv_lookup|true||No
+Other|sc_clutter_density_full_size|0.0075|Screen-size where clutter will be full density|No
+Other|sc_clutter_density_none_size|0.0035|Screen-size where clutter will be gone|No
+Other|sc_clutter_desity_override|false||No
+Other|sc_clutter_enable|true|SceneSystem/Clutter/Draw Clutter|No
+Other|sc_disableThreading|false||Yes
+Other|sc_disable_baked_lighting|false||No
+Other|sc_disable_culling_boxes|false||Yes
+Other|sc_disable_procedural_layer_rendering|false||Yes
+Other|sc_disable_shadow_fastpath|false||Yes
+Other|sc_disable_spotlight_shadows|true||Yes
+Other|sc_disable_world_materials|false||Yes
+Other|sc_dithered_lod_transition_amt|0.075|Percentage of the transition between two lods we will apply a dither|No
+Other|sc_draw_aggregate_meshes|true|SceneSystem/Aggregates/Draw Aggregates|No
+Other|sc_dump_lists|||Yes
+Other|sc_dumpworld3d|N/A|Dump the objects in a sceneworld into a 3d geoview buffer (Usage: sc_dumpworld3d &lt;world_index&gt;)|Yes
+Other|sc_dumpworld|N/A|Dump a list of the objects in a sceneworld (Usage: sc_dumpworld &lt;world_index&gt;)|Yes
+Other|sc_enable_discard|true||No
+Other|sc_extended_stats|false||Yes
+Other|sc_fade_distance_scale_override|180||Yes
+Other|sc_force_lod_level|-1||Yes
+Other|sc_force_materials_batchable|false||Yes
+Other|sc_force_single_display_list_per_layer|false||No
+Other|sc_force_translation_in_projection|false|If enabled, the camera's translation will be included in the projection matrix.|Yes
+Other|sc_hdr_enabled_override|0|Override default setting for HDR rendering. -1 default, 0 NoHdr, 1 Hdr, 2 Hdr 1010102 3 Hdr 111110|No
+Other|sc_imgui_show_debug_log|false|SceneSystem/Imgui/Show Debug Log|Yes
+Other|sc_imgui_show_id_stack|false|SceneSystem/Imgui/Show ID Stack Tool|Yes
+Other|sc_imgui_show_metrics|false|SceneSystem/Imgui/Show Metrics|Yes
+Other|sc_instanced_debug_visualizer|false|SceneSystem/Instanced/Debug Visualizer|Yes
+Other|sc_instanced_gpu_culling_show_culled|false|SceneSystem/Instanced/Show GPU Culled Meshlets|No
+Other|sc_instanced_material_solo|||Yes
+Other|sc_instanced_mesh_enable|true|SceneSystem/Instanced/Draw Instanced|Yes
+Other|sc_instanced_mesh_gpu_culling|true|Toggles GPU culling of instanced meshes|No
+Other|sc_instanced_mesh_gpu_density_culling|true|Toggles density culling (if enabled)|No
+Other|sc_instanced_mesh_gpu_occlusion_culling|true|Toggles GPU occlusion of instanced meshes|No
+Other|sc_instanced_mesh_gpu_vis_culling|true|Toggles GPU vis of instanced meshes|No
+Other|sc_instanced_mesh_lod_bias_shadow|10|Bias for LOD selection of instanced meshes in shadowmaps|No
+Other|sc_instanced_mesh_lod_bias|10|Bias for LOD selection of instanced meshes|No
+Other|sc_instanced_mesh_mesh_shader|true|Toggles mesh shader rendering for instanced meshes|No
+Other|sc_instanced_mesh_motion_vectors|false|Toggles motion vector support for instanced meshes|No
+Other|sc_instanced_mesh_opaque_fade|true|Toggles fade support for instanced meshes|No
+Other|sc_instanced_mesh_size_cull_bias_shadow|10|Bias for size culling instanced meshes in shadowmaps|No
+Other|sc_instanced_mesh_size_cull_bias|10|Bias for size culling of instanced meshes|No
+Other|sc_instanced_mesh_solo|||Yes
+Other|sc_keep_all_layers|false||No
+Other|sc_layer_batch_threshold_fullsort|80||No
+Other|sc_layer_batch_threshold|128||No
+Other|sc_list_extradata_allocations|N/A|Prints out the overall extra data allocation counts|No
+Other|sc_listworlds|N/A|List all the active sceneworlds|Yes
+Other|sc_max_framebuffer_copies_per_layer|1||No
+Other|sc_mesh_backface_culling|true||No
+Other|sc_no_cull|false||No
+Other|sc_no_vis|false||No
+Other|sc_only_render_opaque|false||Yes
+Other|sc_only_render_shadowcasters|false||Yes
+Other|sc_particle_debug_visualizer|false|SceneSystem/Particles/Debug Visualizer|Yes
+Other|sc_reject_all_objects|false||Yes
+Other|sc_rendergraph_debug_visualizer|false|SceneSystem/RenderGraph Visualizer|No
+Other|sc_screen_size_lod_scale_override|-1||Yes
+Other|sc_setclassflags|N/A|Low level command to set the flags byte associated with an object class. sc_SetClassFlags &lt;classname&gt; &lt;value&gt;<br>|Yes
+Other|sc_shadow_depth_bias_clamp|0||No
+Other|sc_shadow_depth_bias_state_override|false||No
+Other|sc_shadow_depth_bias|256||No
+Other|sc_shadow_slopescale_depth_bias|2.13||No
+Other|sc_show_cs_skinning_stats|false|SceneSystem/Compute Skinning Stats|Yes
+Other|sc_show_gpu_profiler|false|SceneSystem/GPU Profiler|Yes
+Other|sc_show_hair_debug_ui|false|SceneSystem/Hair Debug UI|Yes
+Other|sc_show_object_browser|false|SceneSystem/SceneObject Browser|Yes
+Other|sc_show_texture_visualizer|false|SceneSystem/Texture Visualizer|Yes
+Other|sc_show_view_profiler|false|SceneSystem/View Profiler|Yes
+Other|sc_showclasses|N/A|List the object class names known by scenesystem<br>|Yes
+Other|sc_skip_traversal|false||Yes
+Other|sc_spew_cmt_usage|false||No
+Other|sc_throw_away_all_layers|false||No
+Other|sc_use_clear_subrect|false||No
+Other|sc_view_profiler_frame_averaging|10||No
+Other|sc_visualize_batches|0|color per batch|No
+Other|sc_visualize_sceneobjects|SCENEOBJECT_VIS_NONE|SceneSystem/Visualize SceneObject Mode|No
