@@ -149,6 +149,83 @@ function Invoke-Compile {
   throw "Compile failed with exit code $LASTEXITCODE."
 }
 
+function Move-ExcludedFiles {
+  param(
+    [string]$Root
+  )
+
+  $patterns = @(
+    "AGENTS.md",
+    "moded soundevents.txt",
+    "og_*.vsndevts",
+    "old_*.vsndevts"
+  )
+
+  $moved = @()
+  $stashRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("codex_deadlock_excluded_" + [guid]::NewGuid().ToString("N"))
+  foreach ($pattern in $patterns) {
+    $matches = Get-ChildItem -Path $Root -Recurse -File -Filter $pattern -ErrorAction SilentlyContinue
+    foreach ($match in $matches) {
+      $relativePath = $match.FullName.Substring($Root.Length).TrimStart('\', '/')
+      $tempPath = Join-Path $stashRoot $relativePath
+      $tempDir = Split-Path -Parent $tempPath
+      New-Item -Path $tempDir -ItemType Directory -Force | Out-Null
+
+      Move-Item -LiteralPath $match.FullName -Destination $tempPath -Force
+      $moved += [pscustomobject]@{
+        Original = $match.FullName
+        Temp = $tempPath
+      }
+    }
+  }
+
+  return @($moved)
+}
+
+function Restore-ExcludedFiles {
+  param(
+    [object[]]$Moved
+  )
+
+  $stashRoots = @{}
+  foreach ($item in @($Moved)) {
+    if ($null -eq $item) {
+      continue
+    }
+
+    if (Test-Path -LiteralPath $item.Temp) {
+      $originalDir = Split-Path -Parent $item.Original
+      New-Item -Path $originalDir -ItemType Directory -Force | Out-Null
+      Move-Item -LiteralPath $item.Temp -Destination $item.Original -Force
+      $stashRoots[(Split-Path -Parent $item.Temp)] = $true
+    }
+  }
+
+  foreach ($item in @($Moved)) {
+    if ($null -eq $item) {
+      continue
+    }
+
+    $root = $item.Temp
+    while ($root -and ($root -ne [System.IO.Path]::GetTempPath().TrimEnd('\'))) {
+      $parent = Split-Path -Parent $root
+      if (-not $parent) {
+        break
+      }
+
+      if ((Test-Path -LiteralPath $root) -and -not (Get-ChildItem -LiteralPath $root -Force -ErrorAction SilentlyContinue)) {
+        Remove-Item -LiteralPath $root -Force -ErrorAction SilentlyContinue
+      }
+
+      $root = $parent
+      if ($root -like "*codex_deadlock_excluded_*") {
+        continue
+      }
+      break
+    }
+  }
+}
+
 if ($PakNumber -lt 0 -or $PakNumber -gt 999) {
   throw "PakNumber must be between 0 and 999."
 }
@@ -162,7 +239,17 @@ if (-not (Test-Path -LiteralPath $vpkCli -PathType Leaf)) {
 }
 
 Write-Host "[1/4] Compile mod"
-Invoke-Compile -ModPath $modDir -ApplyBatPath $applyBat -Sr2CompilerPath $sr2CompilerExe
+$excludedFiles = @()
+try {
+  $excludedFiles = Move-ExcludedFiles -Root $modDir
+  if ($excludedFiles.Count -gt 0) {
+    Write-Host ("Temporarily excluded {0} source file(s) from compile." -f $excludedFiles.Count)
+  }
+
+  Invoke-Compile -ModPath $modDir -ApplyBatPath $applyBat -Sr2CompilerPath $sr2CompilerExe
+} finally {
+  Restore-ExcludedFiles -Moved $excludedFiles
+}
 
 if (-not (Test-Path -LiteralPath $compiledDir -PathType Container)) {
   throw "Compiled directory not found: $compiledDir"
