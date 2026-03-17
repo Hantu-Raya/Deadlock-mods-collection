@@ -1,0 +1,49 @@
+/* jungle_timer.css – neutral camp respawn timer styles only */
+
+/* ==============================
+   NEUTRAL COOLDOWN RING
+   ============================== */
+
+.neutral-cooldown-ring {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border-width: 3px;
+  border-style: solid;
+  border-color: rgba(120, 78, 34, 0.90);     /* overridden per-theme in JS */
+  background-color: rgba(33, 20, 8, 0.28);  /* overridden per-theme in JS */
+  horizontal-align: left;
+  vertical-align: top;
+  overflow: noclip;
+  z-index: 100;
+  transition-property: opacity;
+  transition-duration: 0.4s;
+  transition-timing-function: ease-out;
+}
+
+.neutral-cooldown-ring-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border-width: 3px;
+  border-style: solid;
+  border-color: rgba(237, 165, 72, 0.98);   /* overridden per-theme in JS */
+  background-color: transparent;
+  clip: radial(50% 50%, 0deg, 360deg);       /* driven by JS each render tick */
+}
+
+/* ==============================
+   NEUTRAL TIMER DETAIL LABEL
+   (visible when scoreboard open)
+   ============================== */
+
+.neutral-cooldown-timer-detail {
+  position: absolute;
+  font-size: 10px;
+  font-weight: bold;
+  color: rgba(255, 225, 183, 0.98);         /* overridden per-theme in JS */
+  text-align: center;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.85);
+  z-index: 101;
+}
