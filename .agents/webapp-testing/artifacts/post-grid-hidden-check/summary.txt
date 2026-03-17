@@ -1,6 +1,0 @@
-opacity_top=0
-post_zoom_active=True
-scroll_y_post_zoom=840
-opacity_post_zoom=0
-pass_hidden_after_grid=True
-score=100

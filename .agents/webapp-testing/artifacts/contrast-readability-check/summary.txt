@@ -1,5 +1,0 @@
-nodeCount=571
-aaFailures=394
-aaaFailures=400
-smallTextNodes=133
-report=D:\web\bakery\.agents\webapp-testing\artifacts\contrast-readability-check\report.json

@@ -1,3 +1,0 @@
-interface:
-  display_name: "Deadlock Vpk Override"
-  short_description: "Compile passive_items_mod, pack VPK, and deploy to selected addons path"

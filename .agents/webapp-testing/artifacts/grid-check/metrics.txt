@@ -1,6 +1,0 @@
-00_top: {'scrollY': 0, 'fixedOpacity': 0, 'aboutTop': 2333, 'galleryTop': 4030, 'heroBottom': 864}
-01_hero_progress: {'scrollY': 420, 'fixedOpacity': 0, 'aboutTop': 1913, 'galleryTop': 3610, 'heroBottom': 864}
-02_handoff_progress: {'scrollY': 900, 'fixedOpacity': 0.6149, 'aboutTop': 1433, 'galleryTop': 3130, 'heroBottom': 864}
-03_handoff_end: {'scrollY': 1350, 'fixedOpacity': 1, 'aboutTop': 983, 'galleryTop': 2680, 'heroBottom': 864}
-04_about_entry: {'scrollY': 1700, 'fixedOpacity': 1, 'aboutTop': 633, 'galleryTop': 2330, 'heroBottom': 633}
-05_gallery_pre: {'scrollY': 2550, 'fixedOpacity': 1, 'aboutTop': -217, 'galleryTop': 1480, 'heroBottom': -217}
