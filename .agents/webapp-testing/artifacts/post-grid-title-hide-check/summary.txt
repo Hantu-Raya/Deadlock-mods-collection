@@ -1,6 +1,0 @@
-post_zoom_seen=True
-pass_title_hidden_in_post_zoom=True
-pass_lede_hidden_in_post_zoom=True
-pass_quality_hidden_in_post_zoom=False
-pass_title_stays_hidden_after_leave=True
-score=0
