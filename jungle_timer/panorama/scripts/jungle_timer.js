@@ -12,9 +12,10 @@
   const NEUTRAL_RING_THICKNESS_PX = 3;
   const NEUTRAL_ICON_COOLDOWN_OPACITY = 0.60;
   const NEUTRAL_RADIAL_START_DEG = 0;
-  const NEUTRAL_RING_SHOW_MS = 60000;    // hide ring when > 60 s (unless scoreboard open)
-  const NEUTRAL_RING_FADE_MS = 30000;    // fade-in completes at 30 s — stays semi below this
+  const NEUTRAL_RING_SHOW_MS = 60000;    // opacity reaches 0 when > 60 s (unless scoreboard open)
+  const NEUTRAL_RING_FADE_MS = 30000;    // opacity reaches 0.5 at 30 s and stays there below this
   const NEUTRAL_RING_SEMI_OPACITY = 0.50; // permanent semi-opacity cap
+  const NEUTRAL_DETAIL_TEXT_HEIGHT_PX = 12;
 
   const NEUTRAL_RESPAWN_SECONDS = {
     neutral_weak: 85,
@@ -53,6 +54,9 @@
   const NEUTRAL_RING_THEME_DEFAULT = NEUTRAL_RING_THEME.neutral_medium;
 
   const MINIMAP_SNAPSHOT_INTERVAL_MS = 400;
+  const DEBUG_LOG_INTERVAL_MS = 500;
+  const DEBUG_LOG_ENABLED = true;
+  const DEBUG_BUILD_TAG = "restored-overlay-v9";
 
   // ===========================================
   // STATE VARIABLES
@@ -61,6 +65,8 @@
   let hnd = null;
   let lastNeutralScanCheck = 0;
   let lastNeutralRenderCheck = 0;
+  let lastScoreboardOpen = false;
+  let lastDebugLogCheck = 0;
   let _snapshotTs = 0;
   const _neutralRespawnState = new Map();
   let _neutralStateSeq = 0;
@@ -83,8 +89,10 @@
   const UI = {
     root: null,
     hud: null,
+    scoreboardRoot: null,
     minimap: null,
-    minimapContainer: null
+    minimapContainer: null,
+    neutralOverlay: null
   };
 
   // ===========================================
@@ -116,6 +124,108 @@
     const m = (s / 60) | 0;
     const ss = s % 60;
     return (m < 10 ? "0" + m : "" + m) + ":" + (ss < 10 ? "0" + ss : "" + ss);
+  }
+
+  function debugLogNeutralState(nowMs, gameNowSec, scoreboardOpen, scoreboardJustOpened, mm) {
+    if (!DEBUG_LOG_ENABLED) return;
+
+    const now = nowMs || Date.now();
+    if (now - lastDebugLogCheck < DEBUG_LOG_INTERVAL_MS) return;
+    lastDebugLogCheck = now;
+
+    const stateCount = _neutralRespawnState.size;
+    let activeCount = 0;
+    let visibleCount = 0;
+    let collapsedCount = 0;
+    let hiddenByThresholdCount = 0;
+    let sample = "";
+
+    for (const [key, st] of _neutralRespawnState.entries()) {
+      if (!st) continue;
+
+      const hasTimer = st.respawnEndMs > 0 || st.respawnEndGameSec > 0;
+      if (!hasTimer) continue;
+
+      activeCount++;
+
+      const durationMs = st.durationMs > 0
+        ? st.durationMs
+        : (NEUTRAL_RESPAWN_SECONDS[st.type] || 0) * 1000;
+      const remainingMs = gameNowSec > 0 && st.respawnEndGameSec > 0
+        ? Math.max(0, (st.respawnEndGameSec - gameNowSec) * 1000)
+        : Math.max(0, st.respawnEndMs - now);
+      const thresholdHidden = remainingMs > NEUTRAL_RING_SHOW_MS && !scoreboardOpen;
+      const ringAlive = !!(st.ringRoot?.IsValid?.());
+      const textAlive = !!(st.detailLabel?.IsValid?.());
+
+      if (thresholdHidden) hiddenByThresholdCount++;
+      if (ringAlive && st.ringVisible !== false) visibleCount++;
+      if (st.ringVisible === false) collapsedCount++;
+
+      if (!sample) {
+        const ringCX = Number(st.lastRingPx ?? NaN);
+        const ringCY = Number(st.lastRingPy ?? NaN);
+        const textCX = Number(st.lastTextPosX ?? NaN);
+        const textCY = Number(st.lastTextPosY ?? NaN);
+        const textAbsX = Number(st.lastTextAbsX ?? NaN);
+        const textAbsY = Number(st.lastTextAbsY ?? NaN);
+        const textBoxW = Number(st.lastTextWidth ?? NaN);
+        const textBoxH = Number(st.lastTextHeight ?? NaN);
+        sample = [
+          "key=" + key,
+          "type=" + st.type,
+          "rem=" + fmt(Math.ceil(remainingMs / 1000)),
+          "dur=" + fmt(Math.ceil(durationMs / 1000)),
+          "score=" + (scoreboardOpen ? "1" : "0"),
+          "just=" + (scoreboardJustOpened ? "1" : "0"),
+          "thrHide=" + (thresholdHidden ? "1" : "0"),
+          "ring=" + (ringAlive ? "1" : "0"),
+          "text=" + (textAlive ? "1" : "0"),
+          "parent=" + (st.lastParentMode || "none"),
+          "ringX=" + (st.lastRingPx ?? "na"),
+          "ringY=" + (st.lastRingPy ?? "na"),
+          "ringSz=" + (st.lastRingSize ?? "na"),
+          "txtX=" + (st.lastTextPosX ?? "na"),
+          "txtY=" + (st.lastTextPosY ?? "na"),
+          "txtAbsX=" + (st.lastTextAbsX ?? "na"),
+          "txtAbsY=" + (st.lastTextAbsY ?? "na"),
+          "txtW=" + (st.lastTextWidth ?? "na"),
+          "ringCX=" + (isFinite(ringCX) ? (ringCX + (Number(st.lastRingSize ?? 0) * 0.5)).toFixed(2) : "na"),
+          "ringCY=" + (isFinite(ringCY) ? (ringCY + (Number(st.lastRingSize ?? 0) * 0.5)).toFixed(2) : "na"),
+          "txtCX=" + (isFinite(textCX) ? (textCX + (isFinite(textBoxW) ? textBoxW * 0.5 : 0)).toFixed(2) : "na"),
+          "txtCY=" + (isFinite(textCY) ? (textCY + (isFinite(textBoxH) ? textBoxH * 0.5 : 0)).toFixed(2) : "na"),
+          "dx=" + (isFinite(ringCX) && isFinite(textCX) ? (textCX + (isFinite(textBoxW) ? textBoxW * 0.5 : 0) - (ringCX + (Number(st.lastRingSize ?? 0) * 0.5))).toFixed(2) : "na"),
+          "dy=" + (isFinite(ringCY) && isFinite(textCY) ? (textCY + (isFinite(textBoxH) ? textBoxH * 0.5 : 0) - (ringCY + (Number(st.lastRingSize ?? 0) * 0.5))).toFixed(2) : "na"),
+          "txtBox=" + (isFinite(textBoxW) && isFinite(textBoxH) ? (textBoxW + "x" + textBoxH) : "na"),
+          "gap=" + (st.lastTextGap ?? "na"),
+          "inv=" + (st.lastInverted ? "1" : "0"),
+          "txtOp=" + (st.lastTextOpacity ?? "na"),
+          "txtParent=" + (st.lastTextParentMode || "none"),
+          "tOp=" + (st.lastOpacity || "none"),
+          "vis=" + (st.ringVisible === false ? "collapsed" : "open"),
+          "opacity=" + (st.lastOpacity || "none")
+        ].join(" ");
+      }
+    }
+
+    try {
+      const line = [
+        "[JT-DBG]",
+        "t=" + fmt(Math.ceil(gameNowSec || 0)),
+        "build=" + DEBUG_BUILD_TAG,
+        "score=" + (scoreboardOpen ? "1" : "0"),
+        "just=" + (scoreboardJustOpened ? "1" : "0"),
+        "mm=" + (mm?.IsValid?.() ? "1" : "0"),
+        "states=" + stateCount,
+        "active=" + activeCount,
+        "visible=" + visibleCount,
+        "collapsed=" + collapsedCount,
+        "hiddenByThreshold=" + hiddenByThresholdCount,
+        sample ? ("sample{" + sample + "}") : "sample{none}"
+      ].join(" ");
+      $.Msg(line);
+      $.Warning(line);
+    } catch {}
   }
 
   function findRoot(p) {
@@ -208,8 +318,35 @@
     return UI.minimap;
   }
 
+  function ensureNeutralOverlay(container) {
+    if (UI.neutralOverlay?.IsValid?.()) return UI.neutralOverlay;
+    if (!container?.IsValid?.()) return null;
+
+    const overlayId = "NeutralCooldownOverlayLayer";
+    let overlay = null;
+    try {
+      overlay = container.FindChildTraverse(overlayId);
+    } catch {}
+
+    if (!overlay?.IsValid?.()) {
+      overlay = $.CreatePanel("Panel", container, overlayId);
+      overlay.hittest = false;
+      overlay.hittestchildren = false;
+      overlay.style.position = "0px 0px 0px";
+      overlay.style.width = "100%";
+      overlay.style.height = "100%";
+      overlay.style.overflow = "noclip";
+      overlay.style.zIndex = "2000";
+    }
+
+    UI.neutralOverlay = overlay;
+    return overlay;
+  }
+
   function isScoreboardOpen(mm) {
     try {
+      if (UI.scoreboardRoot?.IsValid?.() && UI.scoreboardRoot.BHasClass?.("gScoreboardOpen")) return true;
+      if (UI.minimapContainer?.IsValid?.() && UI.minimapContainer.BHasClass?.("gScoreboardOpen")) return true;
       if (mm?.IsValid?.() && mm.BHasClass?.("gScoreboardOpen")) return true;
       if (UI.root?.IsValid?.() && UI.root.BHasClass?.("gScoreboardOpen")) return true;
     } catch {}
@@ -394,6 +531,16 @@
     st.lastTextColor = "";
     st.lastTextPosX = -1;
     st.lastTextPosY = -1;
+    st.lastTextWidth = -1;
+    st.lastTextHeight = -1;
+    st.lastTextGap = null;
+    st.lastInverted = false;
+    st.lastTextOpacity = null;
+    st.lastTextParentMode = "";
+    st.lastTextAbsX = -1;
+    st.lastTextAbsY = -1;
+    st.lastRingPx = -1;
+    st.lastRingPy = -1;
   }
 
   function setNeutralIconOpacity(st, opacityVal) {
@@ -476,6 +623,16 @@
             lastTextColor: "",
             lastTextPosX: -1,
             lastTextPosY: -1,
+            lastTextWidth: -1,
+            lastTextHeight: -1,
+            lastTextGap: null,
+            lastInverted: false,
+            lastTextOpacity: null,
+            lastTextParentMode: "",
+            lastTextAbsX: -1,
+            lastTextAbsY: -1,
+            lastRingPx: -1,
+            lastRingPy: -1,
             panel: camp.panel || null,
             panelW: safePanelExtent(camp.panel?.actuallayoutwidth || camp.panel?.contentwidth, 24),
             panelH: safePanelExtent(camp.panel?.actuallayoutheight || camp.panel?.contentheight, 24),
@@ -547,7 +704,7 @@
   // RENDER NEUTRAL TIMER (per-camp)
   // ===========================================
 
-  function renderNeutralTimer(st, key, nowMs, gameNowSec, container, mm) {
+  function renderNeutralTimer(st, key, nowMs, gameNowSec, layer, mm, scoreboardOpen) {
     if (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0) {
       clearNeutralRing(st);
       clearNeutralDetailLabel(st);
@@ -570,36 +727,23 @@
       return;
     }
 
-    // --- Visibility gate: hide ring when > 60s AND scoreboard closed ---
-    const scoreboardOpen = isScoreboardOpen(mm);
-    const nowEarly = nowMs || Date.now();
-    let remainingMsEarly = Math.max(0, st.respawnEndMs - nowEarly);
-    if (gameNowSec > 0 && st.respawnEndGameSec > 0) {
-      remainingMsEarly = Math.max(0, (st.respawnEndGameSec - gameNowSec) * 1000);
-    }
-    
-    // If it's over 60s and Tab is NOT pressed, hide it completely
-    if (remainingMsEarly > NEUTRAL_RING_SHOW_MS && !scoreboardOpen) {
-      if (st.ringRoot?.IsValid?.()) {
-        st.ringRoot.style.visibility = "collapse";
-        st.ringVisible = false;
-      }
-      setNeutralIconOpacity(st, 0); // Hide icon completely
-      clearNeutralDetailLabel(st);
-      return;
-    }
+    // --- Visibility gate removed: active timers stay visible regardless of duration ---
+    const scoreboardVisible = scoreboardOpen ?? isScoreboardOpen(mm);
 
     // --- Create / retrieve ring root ---
     const ringId = getNeutralRingId(key);
     let ringRoot = st.ringRoot;
     if (!ringRoot?.IsValid?.()) {
-      ringRoot = container.FindChildTraverse(ringId);
+      ringRoot = layer.FindChildTraverse(ringId);
     }
     if (!ringRoot?.IsValid?.()) {
-      ringRoot = $.CreatePanel("Panel", container, ringId);
+      ringRoot = $.CreatePanel("Panel", layer, ringId);
       ringRoot.AddClass("neutral-cooldown-ring");
       ringRoot.hittest = false;
       ringRoot.hittestchildren = false;
+      ringRoot.style.horizontalAlign = "left";
+      ringRoot.style.verticalAlign = "top";
+      ringRoot.style.zIndex = "2001";
     }
 
     // --- Create / retrieve ring fill ---
@@ -711,12 +855,15 @@
         st.lastPosX = -9999;
         st.lastPosY = -9999;
       }
-      if (Math.abs((st.lastPosX ?? -9999) - px) > 0.05 || Math.abs((st.lastPosY ?? -9999) - py) > 0.05) {
-        ringRoot.style.position = px + "px " + py + "px 0px";
-        st.lastPosX = px;
-        st.lastPosY = py;
-      }
+    if (Math.abs((st.lastPosX ?? -9999) - px) > 0.05 || Math.abs((st.lastPosY ?? -9999) - py) > 0.05) {
+      ringRoot.style.position = px + "px " + py + "px 0px";
+      st.lastPosX = px;
+      st.lastPosY = py;
     }
+    }
+
+    st.lastRingPx = px;
+    st.lastRingPy = py;
 
     // --- Compute remaining time ---
     const now = nowMs || Date.now();
@@ -732,15 +879,19 @@
       st.respawnEndGameSec = gameNowSec + (remainingMs / 1000);
     }
 
-    // --- Ring opacity: fade in 60s→30s, stay semi below 30s, full when Tab open ---
-    let targetOpacity;
-    if (scoreboardOpen) {
-      targetOpacity = 1;
-    } else if (remainingMs <= NEUTRAL_RING_FADE_MS) {
-      targetOpacity = NEUTRAL_RING_SEMI_OPACITY;
+    // --- Ring opacity: 0 above 60s, fade to 0.5 by 30s, then hold at 0.5 ---
+    let targetOpacity = 1;
+    if (scoreboardVisible) {
+      const t = Math.max(0, Math.min(1, remainingMs / NEUTRAL_RING_SHOW_MS));
+      targetOpacity = 0.55 + ((1 - t) * 0.45);
+    } else if (remainingMs > NEUTRAL_RING_SHOW_MS) {
+      targetOpacity = 0;
+    } else if (remainingMs > NEUTRAL_RING_FADE_MS) {
+      const t = (NEUTRAL_RING_SHOW_MS - remainingMs) /
+        (NEUTRAL_RING_SHOW_MS - NEUTRAL_RING_FADE_MS);
+      targetOpacity = 0.5 * Math.max(0, Math.min(1, t));
     } else {
-      const t = (NEUTRAL_RING_SHOW_MS - remainingMs) / (NEUTRAL_RING_SHOW_MS - NEUTRAL_RING_FADE_MS);
-      targetOpacity = NEUTRAL_RING_SEMI_OPACITY * Math.max(0, Math.min(1, t));
+      targetOpacity = 0.5;
     }
     const opStr = targetOpacity.toFixed(2);
     if (opStr !== st.lastOpacity) {
@@ -768,39 +919,69 @@
     st.ringRoot = ringRoot;
     st.ringFill = ringFill;
 
-    // --- Detail label (shown when scoreboard open) ---
-    // scoreboardOpen already computed above
-    if (scoreboardOpen) {
+    // --- Detail label (scoreboard only) ---
+    {
       const detailId = ringId + "_text";
-      let detailLabel = st.detailLabel;
-      if (!detailLabel?.IsValid?.()) {
-        detailLabel = container.FindChildTraverse(detailId);
-      }
-      if (!detailLabel?.IsValid?.()) {
-        detailLabel = $.CreatePanel("Label", container, detailId);
-        detailLabel.AddClass("neutral-cooldown-timer-detail");
-      }
+      if (scoreboardVisible) {
+        let detailLabel = st.detailLabel;
+        if (!detailLabel?.IsValid?.()) {
+          detailLabel = layer.FindChildTraverse(detailId);
+        }
+        if (!detailLabel?.IsValid?.()) {
+          detailLabel = $.CreatePanel("Label", layer, detailId);
+          detailLabel.AddClass("neutral-cooldown-timer-detail");
+        } else if (detailLabel.GetParent?.() !== layer) {
+          detailLabel.SetParent(layer);
+        }
 
-      const textX = centerX - 18;
-      const textY = py + ringSize + 1;
-      if (Math.abs((st.lastTextPosX ?? -9999) - textX) > 0.05 || Math.abs((st.lastTextPosY ?? -9999) - textY) > 0.05) {
-        detailLabel.style.position = textX + "px " + textY + "px 0px";
-        st.lastTextPosX = textX;
-        st.lastTextPosY = textY;
-      }
+        detailLabel.style.visibility = null;
+        detailLabel.style.zIndex = "2002";
+        detailLabel.hittest = false;
+        detailLabel.hittestchildren = false;
+        detailLabel.style.overflow = "noclip";
+        const detailWidth = Math.max(48, Math.round(ringSize * 2));
+        const detailHeight = Math.max(12, Math.round(ringSize * 0.4));
+        if (Math.abs((st.lastTextWidth ?? -1) - detailWidth) > 0.05) {
+          detailLabel.style.width = detailWidth + "px";
+          st.lastTextWidth = detailWidth;
+        }
+        if (Math.abs((st.lastTextHeight ?? -1) - detailHeight) > 0.05) {
+          detailLabel.style.height = detailHeight + "px";
+          st.lastTextHeight = detailHeight;
+        }
+        const textX = Math.round((ringSize - detailWidth) * 0.5);
+        const textY = Math.round((ringSize - detailHeight) * 0.5) + 1;
+        const absTextX = px + textX;
+        const absTextY = py + textY;
+        if (Math.abs((st.lastTextPosX ?? -9999) - textX) > 0.05 || Math.abs((st.lastTextPosY ?? -9999) - textY) > 0.05) {
+          detailLabel.style.position = absTextX + "px " + absTextY + "px 0px";
+          st.lastTextPosX = textX;
+          st.lastTextPosY = textY;
+        }
+        st.lastTextGap = 1;
+        st.lastInverted = inverted;
+        st.lastTextParentMode = detailLabel.GetParent?.() === layer ? "overlay" : "other";
+        st.lastTextAbsX = absTextX;
+        st.lastTextAbsY = absTextY;
 
-      const text = fmt(Math.ceil(remainingMs / 1000));
-      if (text !== st.lastText) {
-        detailLabel.text = text;
-        st.lastText = text;
+        const text = fmt(Math.ceil(remainingMs / 1000));
+        if (text !== st.lastText) {
+          detailLabel.text = text;
+          st.lastText = text;
+        }
+        if (theme.text !== st.lastTextColor) {
+          detailLabel.style.color = theme.text;
+          st.lastTextColor = theme.text;
+        }
+        const textOpacity = scoreboardVisible ? 1 : targetOpacity;
+        if (st.lastTextOpacity !== textOpacity) {
+          detailLabel.style.opacity = textOpacity.toFixed(2);
+          st.lastTextOpacity = textOpacity;
+        }
+        st.detailLabel = detailLabel;
+      } else if (st.detailLabel?.IsValid?.()) {
+        clearNeutralDetailLabel(st);
       }
-      if (theme.text !== st.lastTextColor) {
-        detailLabel.style.color = theme.text;
-        st.lastTextColor = theme.text;
-      }
-      st.detailLabel = detailLabel;
-    } else if (st.detailLabel?.IsValid?.()) {
-      clearNeutralDetailLabel(st);
     }
 
     // --- Clear timer when expired ---
@@ -818,17 +999,20 @@
   // RENDER ALL NEUTRAL TIMERS
   // ===========================================
 
-  function renderNeutralRespawnTimers(nowMs, gameNowSec) {
+  function renderNeutralRespawnTimers(nowMs, gameNowSec, scoreboardOpen) {
     const mm = findMinimap();
     const container = UI.minimapContainer;
     if (!mm || !container?.IsValid?.()) return;
+    const layer = ensureNeutralOverlay(container);
+    if (!layer?.IsValid?.()) return;
 
     const now = nowMs || Date.now();
     const gameNow = gameNowSec > 0 ? gameNowSec : gTime(now);
+    const scoreboardVisible = scoreboardOpen ?? isScoreboardOpen(mm);
 
     for (const [key, st] of _neutralRespawnState.entries()) {
       if (!st || (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0)) continue;
-      renderNeutralTimer(st, key, now, gameNow, container, mm);
+      renderNeutralTimer(st, key, now, gameNow, layer, mm, scoreboardVisible);
     }
   }
 
@@ -844,10 +1028,13 @@
 
     lastNeutralScanCheck = 0;
     lastNeutralRenderCheck = 0;
+    lastScoreboardOpen = false;
+    lastDebugLogCheck = 0;
     _snapshotTs = 0;
     _neutralCoordCache = {};
     _minimapSnapshot.neutralCamps.length = 0;
     _minimapSnapshot.ts = 0;
+    UI.neutralOverlay = null;
 
     clearNeutralRespawnTimers();
   }
@@ -860,6 +1047,7 @@
     const r = findRoot($.GetContextPanel());
     UI.root = r;
     UI.hud = r.FindChildTraverse("Hud");
+    UI.scoreboardRoot = r.FindChildTraverse("minimap_persp");
     UI.minimapContainer = r.FindChildTraverse("HudMinimapContainer");
 
     if (!UI.minimapContainer?.IsValid?.()) {
@@ -877,8 +1065,14 @@
   function loop() {
     const rn = Date.now();
     const now = gTime(rn);
+    const mm = findMinimap();
+    const scoreboardOpen = isScoreboardOpen(mm);
+    const scoreboardJustOpened = scoreboardOpen && !lastScoreboardOpen;
+    lastScoreboardOpen = scoreboardOpen;
 
-    if (rn - lastNeutralScanCheck >= NEUTRAL_SCAN_INTERVAL_MS) {
+    debugLogNeutralState(rn, now, scoreboardOpen, scoreboardJustOpened, mm);
+
+    if (scoreboardJustOpened || rn - lastNeutralScanCheck >= NEUTRAL_SCAN_INTERVAL_MS) {
       lastNeutralScanCheck = rn;
       const snapshot = collectMinimapSnapshot(rn);
       if (snapshot) {
@@ -886,9 +1080,9 @@
       }
     }
 
-    if (rn - lastNeutralRenderCheck >= NEUTRAL_RENDER_INTERVAL_MS) {
+    if (scoreboardJustOpened || rn - lastNeutralRenderCheck >= NEUTRAL_RENDER_INTERVAL_MS) {
       lastNeutralRenderCheck = rn;
-      renderNeutralRespawnTimers(rn, now);
+      renderNeutralRespawnTimers(rn, now, scoreboardOpen);
     }
 
     hnd = $.Schedule(0.1, loop);
