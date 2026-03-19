@@ -23,3 +23,9 @@ A minimal, standalone mod that displays neutral camp respawn timers (radial ring
 - Guard all panel access. `panel?.IsValid?.()` check is extremely necessary during tick rendering to prevent UI crashes if elements are destroyed or reloading.
 - No player entities or claim logic are tracked. Do not introduce any `.player_icon` tracking unless directly requested.
 - Keep CSS lean. Only rings and labels are necessary.
+
+## Recent Debugging Notes
+- The timer-label crash came from referencing `container` inside `renderNeutralTimer()` after the caller had already switched to passing only the overlay `layer`.
+- The label visibility issue on 1440p was caused by moving the text into the ring panel, which clipped it out of view.
+- Current working path: keep the label parented to the overlay layer, use an explicit fixed-size box for the timer text, and keep the label opacity at full strength while the scoreboard is open.
+- When debugging this again, inspect `txtParent`, `txtAbsX`, `txtAbsY`, `txtW`, and `txtOp` in `[JT-DBG]` before changing the render math.
