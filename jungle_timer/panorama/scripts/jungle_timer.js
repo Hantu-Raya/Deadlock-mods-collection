@@ -54,9 +54,6 @@
   const NEUTRAL_RING_THEME_DEFAULT = NEUTRAL_RING_THEME.neutral_medium;
 
   const MINIMAP_SNAPSHOT_INTERVAL_MS = 400;
-  const DEBUG_LOG_INTERVAL_MS = 500;
-  const DEBUG_LOG_ENABLED = true;
-  const DEBUG_BUILD_TAG = "restored-overlay-v9";
 
   // ===========================================
   // STATE VARIABLES
@@ -66,7 +63,6 @@
   let lastNeutralScanCheck = 0;
   let lastNeutralRenderCheck = 0;
   let lastScoreboardOpen = false;
-  let lastDebugLogCheck = 0;
   let _snapshotTs = 0;
   const _neutralRespawnState = new Map();
   let _neutralStateSeq = 0;
@@ -124,108 +120,6 @@
     const m = (s / 60) | 0;
     const ss = s % 60;
     return (m < 10 ? "0" + m : "" + m) + ":" + (ss < 10 ? "0" + ss : "" + ss);
-  }
-
-  function debugLogNeutralState(nowMs, gameNowSec, scoreboardOpen, scoreboardJustOpened, mm) {
-    if (!DEBUG_LOG_ENABLED) return;
-
-    const now = nowMs || Date.now();
-    if (now - lastDebugLogCheck < DEBUG_LOG_INTERVAL_MS) return;
-    lastDebugLogCheck = now;
-
-    const stateCount = _neutralRespawnState.size;
-    let activeCount = 0;
-    let visibleCount = 0;
-    let collapsedCount = 0;
-    let hiddenByThresholdCount = 0;
-    let sample = "";
-
-    for (const [key, st] of _neutralRespawnState.entries()) {
-      if (!st) continue;
-
-      const hasTimer = st.respawnEndMs > 0 || st.respawnEndGameSec > 0;
-      if (!hasTimer) continue;
-
-      activeCount++;
-
-      const durationMs = st.durationMs > 0
-        ? st.durationMs
-        : (NEUTRAL_RESPAWN_SECONDS[st.type] || 0) * 1000;
-      const remainingMs = gameNowSec > 0 && st.respawnEndGameSec > 0
-        ? Math.max(0, (st.respawnEndGameSec - gameNowSec) * 1000)
-        : Math.max(0, st.respawnEndMs - now);
-      const thresholdHidden = remainingMs > NEUTRAL_RING_SHOW_MS && !scoreboardOpen;
-      const ringAlive = !!(st.ringRoot?.IsValid?.());
-      const textAlive = !!(st.detailLabel?.IsValid?.());
-
-      if (thresholdHidden) hiddenByThresholdCount++;
-      if (ringAlive && st.ringVisible !== false) visibleCount++;
-      if (st.ringVisible === false) collapsedCount++;
-
-      if (!sample) {
-        const ringCX = Number(st.lastRingPx ?? NaN);
-        const ringCY = Number(st.lastRingPy ?? NaN);
-        const textCX = Number(st.lastTextPosX ?? NaN);
-        const textCY = Number(st.lastTextPosY ?? NaN);
-        const textAbsX = Number(st.lastTextAbsX ?? NaN);
-        const textAbsY = Number(st.lastTextAbsY ?? NaN);
-        const textBoxW = Number(st.lastTextWidth ?? NaN);
-        const textBoxH = Number(st.lastTextHeight ?? NaN);
-        sample = [
-          "key=" + key,
-          "type=" + st.type,
-          "rem=" + fmt(Math.ceil(remainingMs / 1000)),
-          "dur=" + fmt(Math.ceil(durationMs / 1000)),
-          "score=" + (scoreboardOpen ? "1" : "0"),
-          "just=" + (scoreboardJustOpened ? "1" : "0"),
-          "thrHide=" + (thresholdHidden ? "1" : "0"),
-          "ring=" + (ringAlive ? "1" : "0"),
-          "text=" + (textAlive ? "1" : "0"),
-          "parent=" + (st.lastParentMode || "none"),
-          "ringX=" + (st.lastRingPx ?? "na"),
-          "ringY=" + (st.lastRingPy ?? "na"),
-          "ringSz=" + (st.lastRingSize ?? "na"),
-          "txtX=" + (st.lastTextPosX ?? "na"),
-          "txtY=" + (st.lastTextPosY ?? "na"),
-          "txtAbsX=" + (st.lastTextAbsX ?? "na"),
-          "txtAbsY=" + (st.lastTextAbsY ?? "na"),
-          "txtW=" + (st.lastTextWidth ?? "na"),
-          "ringCX=" + (isFinite(ringCX) ? (ringCX + (Number(st.lastRingSize ?? 0) * 0.5)).toFixed(2) : "na"),
-          "ringCY=" + (isFinite(ringCY) ? (ringCY + (Number(st.lastRingSize ?? 0) * 0.5)).toFixed(2) : "na"),
-          "txtCX=" + (isFinite(textCX) ? (textCX + (isFinite(textBoxW) ? textBoxW * 0.5 : 0)).toFixed(2) : "na"),
-          "txtCY=" + (isFinite(textCY) ? (textCY + (isFinite(textBoxH) ? textBoxH * 0.5 : 0)).toFixed(2) : "na"),
-          "dx=" + (isFinite(ringCX) && isFinite(textCX) ? (textCX + (isFinite(textBoxW) ? textBoxW * 0.5 : 0) - (ringCX + (Number(st.lastRingSize ?? 0) * 0.5))).toFixed(2) : "na"),
-          "dy=" + (isFinite(ringCY) && isFinite(textCY) ? (textCY + (isFinite(textBoxH) ? textBoxH * 0.5 : 0) - (ringCY + (Number(st.lastRingSize ?? 0) * 0.5))).toFixed(2) : "na"),
-          "txtBox=" + (isFinite(textBoxW) && isFinite(textBoxH) ? (textBoxW + "x" + textBoxH) : "na"),
-          "gap=" + (st.lastTextGap ?? "na"),
-          "inv=" + (st.lastInverted ? "1" : "0"),
-          "txtOp=" + (st.lastTextOpacity ?? "na"),
-          "txtParent=" + (st.lastTextParentMode || "none"),
-          "tOp=" + (st.lastOpacity || "none"),
-          "vis=" + (st.ringVisible === false ? "collapsed" : "open"),
-          "opacity=" + (st.lastOpacity || "none")
-        ].join(" ");
-      }
-    }
-
-    try {
-      const line = [
-        "[JT-DBG]",
-        "t=" + fmt(Math.ceil(gameNowSec || 0)),
-        "build=" + DEBUG_BUILD_TAG,
-        "score=" + (scoreboardOpen ? "1" : "0"),
-        "just=" + (scoreboardJustOpened ? "1" : "0"),
-        "mm=" + (mm?.IsValid?.() ? "1" : "0"),
-        "states=" + stateCount,
-        "active=" + activeCount,
-        "visible=" + visibleCount,
-        "collapsed=" + collapsedCount,
-        "hiddenByThreshold=" + hiddenByThresholdCount,
-        sample ? ("sample{" + sample + "}") : "sample{none}"
-      ].join(" ");
-      $.Msg(line);
-      $.Warning(line);
-    } catch {}
   }
 
   function findRoot(p) {
@@ -950,7 +844,7 @@
           st.lastTextHeight = detailHeight;
         }
         const textX = Math.round((ringSize - detailWidth) * 0.5);
-        const textY = Math.round((ringSize - detailHeight) * 0.5) + 1;
+        const textY = Math.round(ringSize + 1);
         const absTextX = px + textX;
         const absTextY = py + textY;
         if (Math.abs((st.lastTextPosX ?? -9999) - textX) > 0.05 || Math.abs((st.lastTextPosY ?? -9999) - textY) > 0.05) {
@@ -1029,7 +923,6 @@
     lastNeutralScanCheck = 0;
     lastNeutralRenderCheck = 0;
     lastScoreboardOpen = false;
-    lastDebugLogCheck = 0;
     _snapshotTs = 0;
     _neutralCoordCache = {};
     _minimapSnapshot.neutralCamps.length = 0;
@@ -1069,8 +962,6 @@
     const scoreboardOpen = isScoreboardOpen(mm);
     const scoreboardJustOpened = scoreboardOpen && !lastScoreboardOpen;
     lastScoreboardOpen = scoreboardOpen;
-
-    debugLogNeutralState(rn, now, scoreboardOpen, scoreboardJustOpened, mm);
 
     if (scoreboardJustOpened || rn - lastNeutralScanCheck >= NEUTRAL_SCAN_INTERVAL_MS) {
       lastNeutralScanCheck = rn;
