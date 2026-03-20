@@ -52,6 +52,7 @@
     }
   };
   const NEUTRAL_RING_THEME_DEFAULT = NEUTRAL_RING_THEME.neutral_medium;
+  const NEUTRAL_DETAIL_TEXT_GAP_PX = 2;
 
   const MINIMAP_SNAPSHOT_INTERVAL_MS = 400;
 
@@ -212,18 +213,27 @@
     return UI.minimap;
   }
 
-  function ensureNeutralOverlay(container) {
-    if (UI.neutralOverlay?.IsValid?.()) return UI.neutralOverlay;
-    if (!container?.IsValid?.()) return null;
+  function ensureNeutralOverlay(minimap) {
+    if (!minimap?.IsValid?.()) return null;
 
     const overlayId = "NeutralCooldownOverlayLayer";
+    let legacyOverlay = null;
+    try {
+      legacyOverlay = UI.minimapContainer?.FindChildTraverse(overlayId);
+    } catch {}
+    if (legacyOverlay?.IsValid?.() && legacyOverlay.GetParent?.() !== minimap) {
+      try {
+        legacyOverlay.DeleteAsync(0);
+      } catch {}
+    }
+
     let overlay = null;
     try {
-      overlay = container.FindChildTraverse(overlayId);
+      overlay = minimap.FindChildTraverse(overlayId);
     } catch {}
 
     if (!overlay?.IsValid?.()) {
-      overlay = $.CreatePanel("Panel", container, overlayId);
+      overlay = $.CreatePanel("Panel", minimap, overlayId);
       overlay.hittest = false;
       overlay.hittestchildren = false;
       overlay.style.position = "0px 0px 0px";
@@ -813,69 +823,66 @@
     st.ringRoot = ringRoot;
     st.ringFill = ringFill;
 
-    // --- Detail label (scoreboard only) ---
+    // --- Detail label (active timer) ---
     {
       const detailId = ringId + "_text";
-      if (scoreboardVisible) {
-        let detailLabel = st.detailLabel;
-        if (!detailLabel?.IsValid?.()) {
-          detailLabel = layer.FindChildTraverse(detailId);
-        }
-        if (!detailLabel?.IsValid?.()) {
-          detailLabel = $.CreatePanel("Label", layer, detailId);
-          detailLabel.AddClass("neutral-cooldown-timer-detail");
-        } else if (detailLabel.GetParent?.() !== layer) {
-          detailLabel.SetParent(layer);
-        }
-
-        detailLabel.style.visibility = null;
-        detailLabel.style.zIndex = "2002";
-        detailLabel.hittest = false;
-        detailLabel.hittestchildren = false;
-        detailLabel.style.overflow = "noclip";
-        const detailWidth = Math.max(48, Math.round(ringSize * 2));
-        const detailHeight = Math.max(12, Math.round(ringSize * 0.4));
-        if (Math.abs((st.lastTextWidth ?? -1) - detailWidth) > 0.05) {
-          detailLabel.style.width = detailWidth + "px";
-          st.lastTextWidth = detailWidth;
-        }
-        if (Math.abs((st.lastTextHeight ?? -1) - detailHeight) > 0.05) {
-          detailLabel.style.height = detailHeight + "px";
-          st.lastTextHeight = detailHeight;
-        }
-        const textX = Math.round((ringSize - detailWidth) * 0.5);
-        const textY = Math.round(ringSize + 1);
-        const absTextX = px + textX;
-        const absTextY = py + textY;
-        if (Math.abs((st.lastTextPosX ?? -9999) - textX) > 0.05 || Math.abs((st.lastTextPosY ?? -9999) - textY) > 0.05) {
-          detailLabel.style.position = absTextX + "px " + absTextY + "px 0px";
-          st.lastTextPosX = textX;
-          st.lastTextPosY = textY;
-        }
-        st.lastTextGap = 1;
-        st.lastInverted = inverted;
-        st.lastTextParentMode = detailLabel.GetParent?.() === layer ? "overlay" : "other";
-        st.lastTextAbsX = absTextX;
-        st.lastTextAbsY = absTextY;
-
-        const text = fmt(Math.ceil(remainingMs / 1000));
-        if (text !== st.lastText) {
-          detailLabel.text = text;
-          st.lastText = text;
-        }
-        if (theme.text !== st.lastTextColor) {
-          detailLabel.style.color = theme.text;
-          st.lastTextColor = theme.text;
-        }
-        const textOpacity = scoreboardVisible ? 1 : targetOpacity;
-        if (st.lastTextOpacity !== textOpacity) {
-          detailLabel.style.opacity = textOpacity.toFixed(2);
-          st.lastTextOpacity = textOpacity;
-        }
-        st.detailLabel = detailLabel;
-      } else if (st.detailLabel?.IsValid?.()) {
-        clearNeutralDetailLabel(st);
+      const labelParent = layer;
+      let detailLabel = st.detailLabel;
+      if (!detailLabel?.IsValid?.()) {
+        detailLabel = labelParent.FindChildTraverse(detailId);
       }
+      if (!detailLabel?.IsValid?.()) {
+        detailLabel = $.CreatePanel("Label", labelParent, detailId);
+        detailLabel.AddClass("neutral-cooldown-timer-detail");
+      } else if (detailLabel.GetParent?.() !== labelParent) {
+        detailLabel.SetParent(labelParent);
+      }
+
+      detailLabel.style.visibility = null;
+      detailLabel.style.zIndex = "2002";
+      detailLabel.hittest = false;
+      detailLabel.hittestchildren = false;
+      detailLabel.style.overflow = "noclip";
+      const detailWidth = Math.max(48, Math.round(ringSize * 2));
+      const detailHeight = Math.max(12, Math.round(ringSize * 0.4));
+      if (Math.abs((st.lastTextWidth ?? -1) - detailWidth) > 0.05) {
+        detailLabel.style.width = detailWidth + "px";
+        st.lastTextWidth = detailWidth;
+      }
+      if (Math.abs((st.lastTextHeight ?? -1) - detailHeight) > 0.05) {
+        detailLabel.style.height = detailHeight + "px";
+        st.lastTextHeight = detailHeight;
+      }
+      const textX = Math.round((ringSize - detailWidth) * 0.5);
+      const textY = ringSize + NEUTRAL_DETAIL_TEXT_GAP_PX;
+      const absTextX = px + textX;
+      const absTextY = py + textY;
+      if (Math.abs((st.lastTextPosX ?? -9999) - textX) > 0.05 || Math.abs((st.lastTextPosY ?? -9999) - textY) > 0.05) {
+        detailLabel.style.position = absTextX + "px " + absTextY + "px 0px";
+        st.lastTextPosX = textX;
+        st.lastTextPosY = textY;
+      }
+      st.lastTextGap = 1;
+      st.lastInverted = inverted;
+      st.lastTextParentMode = detailLabel.GetParent?.() === layer ? "overlay" : "other";
+      st.lastTextAbsX = absTextX;
+      st.lastTextAbsY = absTextY;
+
+      const text = fmt(Math.ceil(remainingMs / 1000));
+      if (text !== st.lastText) {
+        detailLabel.text = text;
+        st.lastText = text;
+      }
+      if (theme.text !== st.lastTextColor) {
+        detailLabel.style.color = theme.text;
+        st.lastTextColor = theme.text;
+      }
+      const textOpacity = scoreboardVisible ? 1 : targetOpacity;
+      if (st.lastTextOpacity !== textOpacity) {
+        detailLabel.style.opacity = textOpacity.toFixed(2);
+        st.lastTextOpacity = textOpacity;
+      }
+      st.detailLabel = detailLabel;
     }
 
     // --- Clear timer when expired ---
@@ -897,7 +904,7 @@
     const mm = findMinimap();
     const container = UI.minimapContainer;
     if (!mm || !container?.IsValid?.()) return;
-    const layer = ensureNeutralOverlay(container);
+    const layer = ensureNeutralOverlay(mm);
     if (!layer?.IsValid?.()) return;
 
     const now = nowMs || Date.now();
