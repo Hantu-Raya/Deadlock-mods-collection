@@ -5,11 +5,14 @@
   const NEUTRAL_RENDER_INTERVAL_MS = 250;
   const NEUTRAL_STATE_PURGE_MS = 15000;
   const MINIMAP_SNAPSHOT_INTERVAL_MS = 400;
+  const MINIMAP_INVERT_CACHE_MS = 750;
 
   const NEUTRAL_RING_SIZE_PX = 18;
+  const NEUTRAL_RING_SHOW_MS = 60000;
+  const NEUTRAL_RING_FADE_MS = 30000;
+  const NEUTRAL_RING_SEMI_OPACITY = 0.50;
   const NEUTRAL_DETAIL_TEXT_WIDTH_PX = 48;
-  const NEUTRAL_DETAIL_TEXT_HEIGHT_PX = 12;
-  const NEUTRAL_DETAIL_TEXT_GAP_PX = 2;
+  const NEUTRAL_DETAIL_TEXT_GAP_PX = 4;
   const NEUTRAL_RADIAL_START_DEG = 0;
 
   const NEUTRAL_RESPAWN_SECONDS = {
@@ -52,7 +55,8 @@
     hud: null,
     minimap: null,
     minimapContainer: null,
-    scoreboardRoot: null
+    scoreboardRoot: null,
+    neutralOverlay: null
   };
 
   const _neutralRespawnState = new Map();
@@ -69,6 +73,12 @@
   let _neutralStateSeq = 0;
   let _neutralSweepToken = 0;
   let _lastScoreboardOpen = false;
+  let _lowTimeCacheCleared = false;
+  let _minimapInvertCache = {
+    ts: 0,
+    minimap: null,
+    inverted: false
+  };
   let _gameTimePanel = null;
   let _gameTimeCache = 0;
   let _gameTimeCacheTs = 0;
@@ -168,6 +178,12 @@
     const root = findRoot($.GetContextPanel());
     if (!root?.IsValid?.()) return false;
 
+    const prevRoot = UI.root;
+    const prevHud = UI.hud;
+    const prevMinimapContainer = UI.minimapContainer;
+    const prevScoreboardRoot = UI.scoreboardRoot;
+    const prevMinimap = UI.minimap;
+
     UI.root = root;
     UI.hud = root.FindChildTraverse("Hud");
     UI.minimapContainer = root.FindChildTraverse("HudMinimapContainer");
@@ -179,6 +195,16 @@
       } catch {
         UI.minimap = null;
       }
+    }
+
+    if (
+      prevRoot !== UI.root ||
+      prevHud !== UI.hud ||
+      prevMinimapContainer !== UI.minimapContainer ||
+      prevScoreboardRoot !== UI.scoreboardRoot ||
+      prevMinimap !== UI.minimap
+    ) {
+      clearMinimapInvertCache();
     }
 
     return !!(UI.hud?.IsValid?.() && UI.minimapContainer?.IsValid?.() && UI.minimap?.IsValid?.());
@@ -195,18 +221,131 @@
     return UI.minimap;
   }
 
-  function ensureNeutralLayer(minimap) {
-    if (!minimap?.IsValid?.()) return null;
+  function panelHasClassRecursive(panel, className, maxDepth) {
+    let current = panel;
+    let depth = 0;
+    const depthLimit = Number.isFinite(maxDepth) ? maxDepth : 10;
 
-    const legacyId = "NeutralCooldownOverlayLayer";
-    try {
-      const legacyOverlay = minimap.FindChildTraverse(legacyId);
-      if (legacyOverlay?.IsValid?.()) {
-        legacyOverlay.DeleteAsync(0);
+    while (current?.IsValid?.() && depth < depthLimit) {
+      try {
+        if (current.BHasClass?.(className)) return true;
+      } catch {}
+      current = current.GetParent?.();
+      depth++;
+    }
+
+    return false;
+  }
+
+  function describeButtonTeam(btn) {
+    if (!btn?.IsValid?.()) return null;
+
+    const hasFriend =
+      btn.BHasClass?.("friend") ||
+      btn.BHasClass?.("friendly") ||
+      btn.BHasClass?.("ally");
+    const hasEnemy = btn.BHasClass?.("enemy");
+    const hasTeam1 = btn.BHasClass?.("team1");
+    const hasTeam2 = btn.BHasClass?.("team2");
+
+    if (!hasFriend && !hasEnemy && !hasTeam1 && !hasTeam2) return null;
+
+    return {
+      teamId: hasTeam2 ? 2 : hasTeam1 ? 1 : hasEnemy ? 2 : hasFriend ? 1 : 0
+    };
+  }
+
+  function resolveMinimapTeamContext(mm) {
+    const panels = [];
+    if (mm?.IsValid?.()) panels.push(mm);
+    if (UI.minimapContainer?.IsValid?.()) panels.push(UI.minimapContainer);
+    if (UI.hud?.IsValid?.()) panels.push(UI.hud);
+    if (UI.root?.IsValid?.()) panels.push(UI.root);
+    if (UI.scoreboardRoot?.IsValid?.()) panels.push(UI.scoreboardRoot);
+
+    for (const panel of panels) {
+      let buttons = null;
+      try {
+        buttons = panel.FindChildrenWithClassTraverse?.("map_button");
+      } catch {
+        buttons = null;
       }
+
+      if (!buttons?.length) continue;
+
+      let fallback = null;
+      for (let i = 0; i < buttons.length; i++) {
+        const info = describeButtonTeam(buttons[i]);
+        if (!info) continue;
+        if (info.teamId === 1) {
+          return { teamId: info.teamId || 1 };
+        }
+        if (!fallback) fallback = info;
+      }
+
+      if (fallback) {
+        return { teamId: fallback.teamId || 0 };
+      }
+    }
+
+    if (panelHasClassRecursive(mm, "team1", 12)) return { teamId: 1 };
+    if (panelHasClassRecursive(mm, "team2", 12)) return { teamId: 2 };
+
+    return { teamId: 0 };
+  }
+
+  function updateMinimapInvertCache(mm, nowMs) {
+    const now = nowMs || Date.now();
+    if (_minimapInvertCache.minimap === mm && now - _minimapInvertCache.ts < MINIMAP_INVERT_CACHE_MS) {
+      return _minimapInvertCache;
+    }
+
+    const context = resolveMinimapTeamContext(mm);
+    const teamId = context?.teamId || 0;
+    const inverted = teamId === 2 ? true : teamId === 1 ? false : !!(mm?.IsValid?.() && mm.BHasClass?.("invert_map"));
+
+    _minimapInvertCache = {
+      ts: now,
+      minimap: mm,
+      inverted
+    };
+
+    return _minimapInvertCache;
+  }
+
+  function isScoreboardOpen(mm) {
+    try {
+      if (UI.scoreboardRoot?.IsValid?.() && UI.scoreboardRoot.BHasClass?.("gScoreboardOpen")) return true;
+      if (UI.minimapContainer?.IsValid?.() && UI.minimapContainer.BHasClass?.("gScoreboardOpen")) return true;
+      if (mm?.IsValid?.() && mm.BHasClass?.("gScoreboardOpen")) return true;
+      if (UI.root?.IsValid?.() && UI.root.BHasClass?.("gScoreboardOpen")) return true;
+    } catch {}
+    return false;
+  }
+
+  function ensureNeutralOverlay(container) {
+    if (UI.neutralOverlay?.IsValid?.()) return UI.neutralOverlay;
+    if (!container?.IsValid?.()) return null;
+
+    const overlayId = "NeutralCooldownOverlayLayer";
+    let overlay = null;
+    try {
+      overlay = container.FindChildTraverse(overlayId);
     } catch {}
 
-    return minimap;
+    if (!overlay?.IsValid?.()) {
+      overlay = $.CreatePanel("Panel", container, overlayId);
+      overlay.hittest = false;
+      overlay.hittestchildren = false;
+      overlay.style.position = "0px 0px 0px";
+      overlay.style.width = "100%";
+      overlay.style.height = "100%";
+      overlay.style.overflow = "noclip";
+      overlay.style.zIndex = "2000";
+    }
+
+    UI.neutralOverlay = overlay;
+    return overlay;
   }
 
   function getNeutralType(btn) {
@@ -232,11 +371,14 @@
       ringRoot: null,
       ringFill: null,
       detailLabel: null,
+      anchorRoot: null,
       panel: camp.panel || null,
       panelW: safePanelExtent(camp.panel?.actuallayoutwidth || camp.panel?.contentwidth, 24),
       panelH: safePanelExtent(camp.panel?.actuallayoutheight || camp.panel?.contentheight, 24),
       mapPctX: camp.xPct,
       mapPctY: camp.yPct,
+      anchorPctX: Number.isFinite(camp.xPct) ? camp.xPct : null,
+      anchorPctY: Number.isFinite(camp.yPct) ? camp.yPct : null,
       mapX: camp.actualX,
       mapY: camp.actualY,
       lastSeenMs: now,
@@ -255,12 +397,6 @@
       lastTextPosY: -1,
       lastTextOpacity: "",
       lastIconOpacity: "",
-      lastRingPx: -1,
-      lastRingPy: -1,
-      lastTextAbsX: -1,
-      lastTextAbsY: -1,
-      lastParentMode: "",
-      lastTextParentMode: "",
       ringVisible: true
     };
   }
@@ -319,11 +455,18 @@
     st.lastTrackBorder = "";
     st.lastTrackBg = "";
     st.lastRingSize = -1;
-    st.lastParentMode = "";
     st.lastPosX = -1;
     st.lastPosY = -1;
     st.lastOpacity = "";
     st.ringVisible = true;
+  }
+
+  function clearNeutralAnchor(st) {
+    if (!st) return;
+    try {
+      if (st.anchorRoot?.IsValid?.()) st.anchorRoot.DeleteAsync(0);
+    } catch {}
+    st.anchorRoot = null;
   }
 
   function clearNeutralDetailLabel(st) {
@@ -337,9 +480,6 @@
     st.lastTextPosX = -1;
     st.lastTextPosY = -1;
     st.lastTextOpacity = "";
-    st.lastTextParentMode = "";
-    st.lastTextAbsX = -1;
-    st.lastTextAbsY = -1;
   }
 
   function setNeutralIconOpacity(st, opacityVal) {
@@ -367,6 +507,7 @@
     if (!st) return;
     clearNeutralRing(st);
     clearNeutralDetailLabel(st);
+    clearNeutralAnchor(st);
     setNeutralIconOpacity(st, null);
     st.respawnEndMs = 0;
     st.respawnEndGameSec = 0;
@@ -381,6 +522,45 @@
     _neutralRespawnState.clear();
     _neutralStateSeq = 0;
     _neutralSweepToken = 0;
+  }
+
+  function clearNeutralCoordCache() {
+    for (const key of Object.keys(_neutralCoordCache)) {
+      delete _neutralCoordCache[key];
+    }
+  }
+
+  function clearMinimapInvertCache() {
+    _minimapInvertCache.ts = 0;
+    _minimapInvertCache.minimap = null;
+    _minimapInvertCache.inverted = false;
+  }
+
+  function clearNeutralRuntimeCaches() {
+    clearNeutralRespawnTimers();
+    clearNeutralCoordCache();
+    clearMinimapInvertCache();
+    _minimapSnapshot.neutralCamps.length = 0;
+    _minimapSnapshot.ts = 0;
+    _snapshotTs = 0;
+    _lastNeutralScanCheck = 0;
+    _lastNeutralRenderCheck = 0;
+    _lastScoreboardOpen = false;
+    _gameTimeCache = 0;
+    _gameTimeCacheTs = 0;
+    _gameTimePanel = null;
+  }
+
+  function maybeClearNeutralCachesForLowGameTime(gameNowSec) {
+    if (!Number.isFinite(gameNowSec) || gameNowSec < 0) return;
+    if (gameNowSec < 10) {
+      if (_lowTimeCacheCleared) return;
+      clearNeutralRuntimeCaches();
+      _lowTimeCacheCleared = true;
+      return;
+    }
+
+    _lowTimeCacheCleared = false;
   }
 
   function collectMinimapSnapshot(nowMs) {
@@ -494,6 +674,8 @@
         st.panelH = safePanelExtent(camp.panel?.actuallayoutheight || camp.panel?.contentheight, st.panelH || 24);
         st.mapPctX = camp.xPct;
         st.mapPctY = camp.yPct;
+        if (!Number.isFinite(st.anchorPctX) && Number.isFinite(camp.xPct)) st.anchorPctX = camp.xPct;
+        if (!Number.isFinite(st.anchorPctY) && Number.isFinite(camp.yPct)) st.anchorPctY = camp.yPct;
         st.mapX = camp.actualX;
         st.mapY = camp.actualY;
         st.lastSeenMs = now;
@@ -530,22 +712,23 @@
     }
   }
 
-  function ensureRingRoot(minimap, st, key, ringSize, ringX, ringY) {
+  function ensureRingRoot(layer, st, key, ringSize, ringPctX, ringPctY) {
     const ringId = getNeutralRingId(key);
     let ringRoot = st.ringRoot;
 
     if (!ringRoot?.IsValid?.()) {
-      ringRoot = minimap.FindChildTraverse(ringId);
+      ringRoot = layer.FindChildTraverse(ringId);
     }
     if (!ringRoot?.IsValid?.()) {
-      ringRoot = $.CreatePanel("Panel", minimap, ringId);
+      ringRoot = $.CreatePanel("Panel", layer, ringId);
       ringRoot.AddClass("neutral-cooldown-ring");
       ringRoot.hittest = false;
       ringRoot.hittestchildren = false;
       ringRoot.style.horizontalAlign = "left";
       ringRoot.style.verticalAlign = "top";
-    } else if (ringRoot.GetParent?.() !== minimap) {
-      ringRoot.SetParent(minimap);
+      ringRoot.style.zIndex = "2001";
+    } else if (ringRoot.GetParent?.() !== layer) {
+      ringRoot.SetParent(layer);
     }
     ringRoot.style.backgroundColor = "transparent";
     ringRoot.style.borderWidth = "0px";
@@ -558,13 +741,12 @@
       st.lastRingSize = ringSize;
     }
 
-    if (Math.abs((st.lastPosX ?? -9999) - ringX) > 0.05 || Math.abs((st.lastPosY ?? -9999) - ringY) > 0.05) {
-      ringRoot.style.position = ringX + "px " + ringY + "px 0px";
-      st.lastPosX = ringX;
-      st.lastPosY = ringY;
+    if (Math.abs((st.lastPosX ?? -9999) - ringPctX) > 0.05 || Math.abs((st.lastPosY ?? -9999) - ringPctY) > 0.05) {
+      ringRoot.style.position = ringPctX.toFixed(2) + "% " + ringPctY.toFixed(2) + "% 0px";
+      st.lastPosX = ringPctX;
+      st.lastPosY = ringPctY;
     }
 
-    ringRoot.style.opacity = "1";
     if (!st.ringVisible) {
       ringRoot.style.visibility = null;
       st.ringVisible = true;
@@ -594,19 +776,49 @@
     return ringFill;
   }
 
-  function ensureDetailLabel(minimap, st, key) {
+  function ensureAnchorRoot(layer, st, key, inverted) {
+    const anchorId = getNeutralRingId(key) + "_anchor";
+    let anchorRoot = st.anchorRoot;
+
+    if (!anchorRoot?.IsValid?.()) {
+      anchorRoot = layer.FindChildTraverse(anchorId);
+    }
+    if (!anchorRoot?.IsValid?.()) {
+      anchorRoot = $.CreatePanel("Panel", layer, anchorId);
+      anchorRoot.AddClass("neutral-cooldown-anchor");
+      anchorRoot.hittest = false;
+      anchorRoot.hittestchildren = false;
+      anchorRoot.style.position = "0px 0px 0px";
+      anchorRoot.style.width = "100%";
+      anchorRoot.style.height = "100%";
+      anchorRoot.style.overflow = "noclip";
+      anchorRoot.style.zIndex = "2000";
+    } else if (anchorRoot.GetParent?.() !== layer) {
+      anchorRoot.SetParent(layer);
+    }
+
+    const hasInvertClass = !!anchorRoot.BHasClass?.("invert_map");
+    if (hasInvertClass !== !!inverted) {
+      anchorRoot.SetHasClass("invert_map", inverted);
+    }
+
+    st.anchorRoot = anchorRoot;
+    return anchorRoot;
+  }
+
+  function ensureDetailLabel(layer, st, key) {
     const ringId = getNeutralRingId(key);
     const labelId = ringId + "_text";
     let detailLabel = st.detailLabel;
 
     if (!detailLabel?.IsValid?.()) {
-      detailLabel = minimap.FindChildTraverse(labelId);
+      detailLabel = layer.FindChildTraverse(labelId);
     }
     if (!detailLabel?.IsValid?.()) {
-      detailLabel = $.CreatePanel("Label", minimap, labelId);
+      detailLabel = $.CreatePanel("Label", layer, labelId);
       detailLabel.AddClass("neutral-cooldown-timer-detail");
-    } else if (detailLabel.GetParent?.() !== minimap) {
-      detailLabel.SetParent(minimap);
+    } else if (detailLabel.GetParent?.() !== layer) {
+      detailLabel.SetParent(layer);
     }
 
     detailLabel.hittest = false;
@@ -617,7 +829,7 @@
     return detailLabel;
   }
 
-  function renderNeutralTimer(st, key, nowMs, gameNowSec, minimap) {
+  function renderNeutralTimer(st, key, nowMs, gameNowSec, layer, mm, scoreboardOpen, inverted) {
     if (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0) {
       clearNeutralRing(st);
       clearNeutralDetailLabel(st);
@@ -640,48 +852,53 @@
       return;
     }
 
-    let iconLocalX = st.mapX || 0;
-    let iconLocalY = st.mapY || 0;
     let iconW = st.panelW || 24;
     let iconH = st.panelH || 24;
     const iconPanel = st.panel;
     const hasLivePanel = !!iconPanel?.IsValid?.();
+    const mmW = mm?.contentwidth || 0;
+    const mmH = mm?.contentheight || 0;
 
+    let livePctX = null;
+    let livePctY = null;
     if (hasLivePanel) {
       const liveX = safeMapCoord(iconPanel.actualxoffset);
       const liveY = safeMapCoord(iconPanel.actualyoffset);
-      if (liveX !== null) iconLocalX = liveX;
-      if (liveY !== null) iconLocalY = liveY;
+      if (mmW > 0 && liveX !== null) livePctX = clampPct((liveX / mmW) * 100);
+      if (mmH > 0 && liveY !== null) livePctY = clampPct((liveY / mmH) * 100);
       iconW = safePanelExtent(iconPanel.actuallayoutwidth || iconPanel.contentwidth, iconW);
       iconH = safePanelExtent(iconPanel.actuallayoutheight || iconPanel.contentheight, iconH);
       st.panelW = iconW;
       st.panelH = iconH;
-    } else {
-      iconLocalX += 2;
-      iconLocalY += 2;
     }
 
     if (iconW <= 0) iconW = 24;
     if (iconH <= 0) iconH = 24;
 
-    const mmW = minimap?.contentwidth || 0;
-    const mmH = minimap?.contentheight || 0;
-    const mmOffsetX = minimap?.actualxoffset || 0;
-    const mmOffsetY = minimap?.actualyoffset || 0;
-    const inverted = minimap?.IsValid?.() && minimap.BHasClass?.("invert_map");
+    const iconPctW = mmW > 0 ? (iconW / mmW) * 100 : 0;
+    const iconPctH = mmH > 0 ? (iconH / mmH) * 100 : 0;
 
-    if (inverted) {
-      iconLocalX = mmW - iconLocalX - iconW;
-      iconLocalY = mmH - iconLocalY - iconH;
-    }
-
-    const iconX = mmOffsetX + iconLocalX;
-    const iconY = mmOffsetY + iconLocalY;
+    const anchorPctX = Number.isFinite(st.anchorPctX)
+      ? clampPct(st.anchorPctX)
+      : (Number.isFinite(st.mapPctX) ? clampPct(st.mapPctX) : (livePctX !== null ? livePctX : 0));
+    const anchorPctY = Number.isFinite(st.anchorPctY)
+      ? clampPct(st.anchorPctY)
+      : (Number.isFinite(st.mapPctY) ? clampPct(st.mapPctY) : (livePctY !== null ? livePctY : 0));
     const ringSize = Math.max(NEUTRAL_RING_SIZE_PX, Math.min(iconW, iconH));
-    const ringX = Math.round(iconX + (iconW * 0.5) - (ringSize * 0.5));
-    const ringY = Math.round(iconY + (iconH * 0.5) - (ringSize * 0.5));
+    const ringPctW = mmW > 0 ? (ringSize / mmW) * 100 : 0;
+    const ringPctH = mmH > 0 ? (ringSize / mmH) * 100 : 0;
+    const ringPctX = clampPct(anchorPctX + ((iconPctW - ringPctW) * 0.5));
+    const ringPctY = clampPct(anchorPctY + ((iconPctH - ringPctH) * 0.5));
 
-    const ringRoot = ensureRingRoot(minimap, st, key, ringSize, ringX, ringY);
+    const textPctW = mmW > 0 ? (NEUTRAL_DETAIL_TEXT_WIDTH_PX / mmW) * 100 : 0;
+    const gapPct = mmH > 0 ? (NEUTRAL_DETAIL_TEXT_GAP_PX / mmH) * 100 : 0;
+    const textPctX = clampPct(anchorPctX + ((iconPctW - textPctW) * 0.5));
+    const textPctY = clampPct(anchorPctY + iconPctH + gapPct);
+
+    const scoreboardVisible = scoreboardOpen ?? isScoreboardOpen(mm);
+
+    const anchorRoot = ensureAnchorRoot(layer, st, key, inverted);
+    const ringRoot = ensureRingRoot(anchorRoot, st, key, ringSize, ringPctX, ringPctY);
     const ringFill = ensureRingFill(st, ringRoot, key);
     const theme = NEUTRAL_RING_THEME[st.type] || NEUTRAL_RING_THEME_DEFAULT;
 
@@ -691,7 +908,7 @@
       st.lastFillColor = theme.fill;
     }
     if (theme.trackBorder !== st.lastTrackBorder) {
-      ringFill.style.borderColor = theme.fill;
+      ringFill.style.borderColor = theme.trackBorder;
       st.lastTrackBorder = theme.trackBorder;
     }
     if (theme.trackBg !== st.lastTrackBg) {
@@ -712,8 +929,24 @@
       st.respawnEndGameSec = gameNowSec + (remainingMs / 1000);
     }
 
-    ringRoot.style.opacity = "1";
-    setNeutralIconOpacity(st, 1);
+    let targetOpacity = 1;
+    if (scoreboardVisible) {
+      targetOpacity = 1;
+    } else if (remainingMs > NEUTRAL_RING_SHOW_MS) {
+      targetOpacity = 0;
+    } else if (remainingMs > NEUTRAL_RING_FADE_MS) {
+      const t = (NEUTRAL_RING_SHOW_MS - remainingMs) / (NEUTRAL_RING_SHOW_MS - NEUTRAL_RING_FADE_MS);
+      targetOpacity = NEUTRAL_RING_SEMI_OPACITY * Math.max(0, Math.min(1, t));
+    } else {
+      targetOpacity = NEUTRAL_RING_SEMI_OPACITY;
+    }
+
+    const opStr = targetOpacity.toFixed(2);
+    if (opStr !== st.lastOpacity) {
+      ringRoot.style.opacity = opStr;
+      st.lastOpacity = opStr;
+    }
+    setNeutralIconOpacity(st, targetOpacity);
 
     const pct = Math.max(0, Math.min(1, remainingMs / durationMs));
     const sweepDeg = (pct * 360).toFixed(2);
@@ -723,15 +956,7 @@
       st.lastClip = clip;
     }
 
-    const detailLabel = ensureDetailLabel(minimap, st, key);
-    const basePctX = Number.isFinite(st.mapPctX) ? clampPct(st.mapPctX) : (mmW > 0 ? clampPct((iconLocalX / mmW) * 100) : 0);
-    const basePctY = Number.isFinite(st.mapPctY) ? clampPct(st.mapPctY) : (mmH > 0 ? clampPct((iconLocalY / mmH) * 100) : 0);
-    const iconPctW = mmW > 0 ? (iconW / mmW) * 100 : 0;
-    const iconPctH = mmH > 0 ? (iconH / mmH) * 100 : 0;
-    const textPctW = mmW > 0 ? (NEUTRAL_DETAIL_TEXT_WIDTH_PX / mmW) * 100 : 0;
-    const gapPct = mmH > 0 ? (NEUTRAL_DETAIL_TEXT_GAP_PX / mmH) * 100 : 0;
-    const textPctX = clampPct(basePctX + (iconPctW * 0.5) - (textPctW * 0.5));
-    const textPctY = clampPct(basePctY + iconPctH + gapPct);
+    const detailLabel = ensureDetailLabel(anchorRoot, st, key);
     const textPos = textPctX.toFixed(2) + "% " + textPctY.toFixed(2) + "% 0px";
 
     if (Math.abs((st.lastTextPosX ?? -9999) - textPctX) > 0.05 || Math.abs((st.lastTextPosY ?? -9999) - textPctY) > 0.05) {
@@ -739,11 +964,6 @@
       st.lastTextPosX = textPctX;
       st.lastTextPosY = textPctY;
     }
-
-    st.lastTextAbsX = Math.round((textPctX / 100) * mmW);
-    st.lastTextAbsY = Math.round((textPctY / 100) * mmH);
-    st.lastTextParentMode = detailLabel.GetParent?.() === minimap ? "minimap" : "other";
-    st.lastParentMode = ringRoot.GetParent?.() === minimap ? "minimap" : "other";
 
     const text = fmtSeconds(Math.ceil(remainingMs / 1000));
     if (text !== st.lastText) {
@@ -756,16 +976,14 @@
       st.lastTextColor = theme.text;
     }
 
-    if (st.lastTextOpacity !== "1") {
-      detailLabel.style.opacity = "1";
-      st.lastTextOpacity = "1";
+    if (st.lastTextOpacity !== opStr) {
+      detailLabel.style.opacity = opStr;
+      st.lastTextOpacity = opStr;
     }
 
     st.ringRoot = ringRoot;
     st.ringFill = ringFill;
     st.detailLabel = detailLabel;
-    st.lastRingPx = ringX;
-    st.lastRingPy = ringY;
 
     if (remainingMs <= 0) {
       st.respawnEndMs = 0;
@@ -777,18 +995,21 @@
     }
   }
 
-  function renderNeutralRespawnTimers(nowMs, gameNowSec) {
+  function renderNeutralRespawnTimers(nowMs, gameNowSec, scoreboardOpen) {
     const minimap = getMinimap();
-    if (!minimap?.IsValid?.()) return;
-    const layer = ensureNeutralLayer(minimap);
+    const container = UI.minimapContainer;
+    if (!minimap?.IsValid?.() || !container?.IsValid?.()) return;
+    const layer = ensureNeutralOverlay(container);
     if (!layer?.IsValid?.()) return;
 
     const now = nowMs || Date.now();
     const gameNow = gameNowSec > 0 ? gameNowSec : getGameTime(now);
+    const scoreboardVisible = scoreboardOpen ?? isScoreboardOpen(minimap);
+    const invertInfo = updateMinimapInvertCache(minimap, now);
 
     for (const [key, st] of _neutralRespawnState.entries()) {
       if (!st || (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0)) continue;
-      renderNeutralTimer(st, key, now, gameNow, layer);
+      renderNeutralTimer(st, key, now, gameNow, layer, minimap, scoreboardVisible, invertInfo.inverted);
     }
   }
 
@@ -798,18 +1019,8 @@
       _scheduledHandle = null;
     }
 
-    _lastNeutralScanCheck = 0;
-    _lastNeutralRenderCheck = 0;
-    _snapshotTs = 0;
-    _lastScoreboardOpen = false;
-    _gameTimeCache = 0;
-    _gameTimeCacheTs = 0;
-    _gameTimePanel = null;
-
-    _minimapSnapshot.neutralCamps.length = 0;
-    _minimapSnapshot.ts = 0;
-
-    clearNeutralRespawnTimers();
+    _lowTimeCacheCleared = false;
+    clearNeutralRuntimeCaches();
   }
 
   function boot() {
@@ -829,8 +1040,9 @@
 
     const nowMs = Date.now();
     const gameNow = getGameTime(nowMs);
+    maybeClearNeutralCachesForLowGameTime(gameNow);
     const minimap = getMinimap();
-    const scoreboardOpen = !!(UI.scoreboardRoot?.IsValid?.() && UI.scoreboardRoot.BHasClass?.("gScoreboardOpen"));
+    const scoreboardOpen = isScoreboardOpen(minimap);
     const scoreboardJustOpened = scoreboardOpen && !_lastScoreboardOpen;
     _lastScoreboardOpen = scoreboardOpen;
 
@@ -844,7 +1056,7 @@
 
     if (scoreboardJustOpened || nowMs - _lastNeutralRenderCheck >= NEUTRAL_RENDER_INTERVAL_MS) {
       _lastNeutralRenderCheck = nowMs;
-      renderNeutralRespawnTimers(nowMs, gameNow);
+      renderNeutralRespawnTimers(nowMs, gameNow, scoreboardOpen);
     }
 
     _scheduledHandle = $.Schedule(0.1, loop);
