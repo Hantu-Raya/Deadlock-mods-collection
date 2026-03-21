@@ -5,8 +5,12 @@ $modSrc      = "$root\jungle_timer"
 $modCompiled = "$root\jungle_timer_compiled"
 $compiler    = "$root\sr2compiler\New folder.exe"
 $vpkeditcli  = "$root\passive_items_mod\compiler\vpkeditcli.exe"
-$vpkOut      = "$root\pak97_dir.vpk"
-$vpkDest     = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak97_dir.vpk"
+$vpkOut      = "$root\pak98_dir.vpk"
+$vpkDest     = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak98_dir.vpk"
+
+# Clean rebuild: remove stale compiled output and previous pack artifacts.
+if (Test-Path $modCompiled) { Remove-Item -Recurse -Force $modCompiled }
+if (Test-Path $vpkOut) { Remove-Item -Force $vpkOut }
 
 # ── Step 1: Compile ────────────────────────────────────────────────────────────
 Write-Host "`n[1/3] Compiling jungle_timer..." -ForegroundColor Cyan
@@ -14,8 +18,11 @@ Write-Host "`n[1/3] Compiling jungle_timer..." -ForegroundColor Cyan
 # window and wait for the process to exit naturally.
 $proc = Start-Process -FilePath $compiler -ArgumentList "`"$modSrc`"" -PassThru -Wait
 if ($proc.ExitCode -ne 0) {
-    Write-Host "[ERROR] Compiler exited with code $($proc.ExitCode)" -ForegroundColor Red
-    exit 1
+    if (-not (Test-Path "$modCompiled\panorama\scripts\jungle_timer.vjs_c")) {
+        Write-Host "[ERROR] Compiler exited with code $($proc.ExitCode) and no compiled output was produced" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "[WARN] Compiler exited with code $($proc.ExitCode) but compiled output exists; continuing." -ForegroundColor Yellow
 }
 
 # Verify compiled output exists
@@ -32,8 +39,8 @@ Write-Host "`n[2/3] Packing VPK..." -ForegroundColor Cyan
 if (Test-Path $vpkOut) { Remove-Item $vpkOut -Force }
 
 # vpkeditcli packs a directory into a single-file VPK
-# Usage: vpkeditcli --create <output.vpk> <input_dir>
-$packArgs = "--create `"$vpkOut`" `"$modCompiled`""
+# Usage: vpkeditcli <input_dir> -o <output.vpk> -s
+$packArgs = "`"$modCompiled`" -o `"$vpkOut`" -s --no-progress"
 $pack = Start-Process -FilePath $vpkeditcli -ArgumentList $packArgs -PassThru -Wait -NoNewWindow
 if ($pack.ExitCode -ne 0) {
     Write-Host "[ERROR] vpkeditcli failed with code $($pack.ExitCode)" -ForegroundColor Red
