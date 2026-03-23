@@ -57,6 +57,7 @@
   const UI = {
     root: null,
     hud: null,
+    minimapBox: null,
     minimap: null,
     minimapContainer: null,
     scoreboardRoot: null,
@@ -125,22 +126,28 @@
     }
   }
 
-  function resolveMinimapReferenceSize(minimap) {
+  function resolveMinimapReferenceSize(panel) {
+    const reference = panel?.IsValid?.() ? panel : null;
+
     const width = safePanelExtent(
-      minimap?.actuallayoutwidth || minimap?.contentwidth,
+      reference?.actuallayoutwidth || reference?.contentwidth,
       MINIMAP_REFERENCE_SIZE.width
     );
     const height = safePanelExtent(
-      minimap?.actuallayoutheight || minimap?.contentheight,
+      reference?.actuallayoutheight || reference?.contentheight,
       MINIMAP_REFERENCE_SIZE.height
     );
 
-    return { width, height };
+    return {
+      width,
+      height
+    };
   }
 
   function getMinimapScanPanels(mm) {
     const panels = [];
     if (mm?.IsValid?.()) panels.push(mm);
+    if (UI.minimapBox?.IsValid?.()) panels.push(UI.minimapBox);
     if (UI.minimapContainer?.IsValid?.()) panels.push(UI.minimapContainer);
     if (UI.hud?.IsValid?.()) panels.push(UI.hud);
     if (UI.root?.IsValid?.()) panels.push(UI.root);
@@ -225,12 +232,14 @@
 
     const prevRoot = UI.root;
     const prevHud = UI.hud;
+    const prevMinimapBox = UI.minimapBox;
     const prevMinimapContainer = UI.minimapContainer;
     const prevScoreboardRoot = UI.scoreboardRoot;
     const prevMinimap = UI.minimap;
 
     UI.root = root;
     UI.hud = root.FindChildTraverse("Hud");
+    UI.minimapBox = root.FindChildTraverse("minimap_container");
     UI.minimapContainer = root.FindChildTraverse("HudMinimapContainer");
     UI.scoreboardRoot = root.FindChildTraverse("minimap_persp");
 
@@ -245,6 +254,7 @@
     if (
       prevRoot !== UI.root ||
       prevHud !== UI.hud ||
+      prevMinimapBox !== UI.minimapBox ||
       prevMinimapContainer !== UI.minimapContainer ||
       prevScoreboardRoot !== UI.scoreboardRoot ||
       prevMinimap !== UI.minimap
@@ -252,7 +262,7 @@
       clearMinimapInvertCache();
     }
 
-    return !!(UI.hud?.IsValid?.() && UI.minimapContainer?.IsValid?.() && UI.minimap?.IsValid?.());
+    return !!(UI.hud?.IsValid?.() && UI.minimapBox?.IsValid?.() && UI.minimapContainer?.IsValid?.() && UI.minimap?.IsValid?.());
   }
 
   function getMinimap() {
@@ -377,6 +387,7 @@
   function isScoreboardOpen(mm) {
     try {
       if (UI.scoreboardRoot?.IsValid?.() && UI.scoreboardRoot.BHasClass?.("gScoreboardOpen")) return true;
+      if (UI.minimapBox?.IsValid?.() && UI.minimapBox.BHasClass?.("gScoreboardOpen")) return true;
       if (UI.minimapContainer?.IsValid?.() && UI.minimapContainer.BHasClass?.("gScoreboardOpen")) return true;
       if (mm?.IsValid?.() && mm.BHasClass?.("gScoreboardOpen")) return true;
       if (UI.root?.IsValid?.() && UI.root.BHasClass?.("gScoreboardOpen")) return true;
@@ -651,9 +662,9 @@
       return _minimapSnapshot;
     }
 
-    const mmSize = resolveMinimapReferenceSize(minimap);
-    const mmW = mmSize.width;
-    const mmH = mmSize.height;
+    const mmGeometry = resolveMinimapReferenceSize(UI.minimapBox);
+    const mmW = mmGeometry.width;
+    const mmH = mmGeometry.height;
     let count = 0;
 
     try {
@@ -920,9 +931,9 @@
     let iconH = st.panelH || 24;
     const iconPanel = st.panel;
     const hasLivePanel = !!iconPanel?.IsValid?.();
-    const mmSize = resolveMinimapReferenceSize(mm);
-    const mmW = mmSize.width;
-    const mmH = mmSize.height;
+    const mmGeometry = resolveMinimapReferenceSize(UI.minimapBox);
+    const mmW = mmGeometry.width;
+    const mmH = mmGeometry.height;
 
     let livePctX = null;
     let livePctY = null;
@@ -1062,7 +1073,7 @@
 
   function renderNeutralRespawnTimers(nowMs, gameNowSec, scoreboardOpen) {
     const minimap = getMinimap();
-    const container = UI.minimapContainer;
+    const container = UI.minimapBox;
     if (!minimap?.IsValid?.() || !container?.IsValid?.()) return;
     const layer = ensureNeutralOverlay(container);
     if (!layer?.IsValid?.()) return;
