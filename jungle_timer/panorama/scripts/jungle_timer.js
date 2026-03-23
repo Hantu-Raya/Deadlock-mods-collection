@@ -14,6 +14,10 @@
   const NEUTRAL_DETAIL_TEXT_WIDTH_PX = 48;
   const NEUTRAL_DETAIL_TEXT_GAP_PX = 4;
   const NEUTRAL_RADIAL_START_DEG = 0;
+  const MINIMAP_REFERENCE_SIZE = {
+    width: 1512,
+    height: 862
+  };
 
   const NEUTRAL_RESPAWN_SECONDS = {
     neutral_weak: 85,
@@ -77,7 +81,9 @@
   let _minimapInvertCache = {
     ts: 0,
     minimap: null,
-    inverted: false
+    inverted: false,
+    teamId: 0,
+    source: null
   };
   let _gameTimePanel = null;
   let _gameTimeCache = 0;
@@ -101,6 +107,45 @@
     const n = Number(v);
     if (!isFinite(n) || n <= 0 || n > 512) return fallback;
     return n;
+  }
+
+  function setPanelClass(panel, className, enabled) {
+    if (!panel?.IsValid?.()) return;
+
+    const shouldHave = !!enabled;
+    let hasClass = false;
+    try {
+      hasClass = !!panel.BHasClass?.(className);
+    } catch {
+      hasClass = false;
+    }
+
+    if (hasClass !== shouldHave) {
+      panel.SetHasClass(className, shouldHave);
+    }
+  }
+
+  function resolveMinimapReferenceSize(minimap) {
+    const width = safePanelExtent(
+      minimap?.actuallayoutwidth || minimap?.contentwidth,
+      MINIMAP_REFERENCE_SIZE.width
+    );
+    const height = safePanelExtent(
+      minimap?.actuallayoutheight || minimap?.contentheight,
+      MINIMAP_REFERENCE_SIZE.height
+    );
+
+    return { width, height };
+  }
+
+  function getMinimapScanPanels(mm) {
+    const panels = [];
+    if (mm?.IsValid?.()) panels.push(mm);
+    if (UI.minimapContainer?.IsValid?.()) panels.push(UI.minimapContainer);
+    if (UI.hud?.IsValid?.()) panels.push(UI.hud);
+    if (UI.root?.IsValid?.()) panels.push(UI.root);
+    if (UI.scoreboardRoot?.IsValid?.()) panels.push(UI.scoreboardRoot);
+    return panels;
   }
 
   function fmtSeconds(seconds) {
@@ -256,14 +301,7 @@
   }
 
   function resolveMinimapTeamContext(mm) {
-    const panels = [];
-    if (mm?.IsValid?.()) panels.push(mm);
-    if (UI.minimapContainer?.IsValid?.()) panels.push(UI.minimapContainer);
-    if (UI.hud?.IsValid?.()) panels.push(UI.hud);
-    if (UI.root?.IsValid?.()) panels.push(UI.root);
-    if (UI.scoreboardRoot?.IsValid?.()) panels.push(UI.scoreboardRoot);
-
-    for (const panel of panels) {
+    for (const panel of getMinimapScanPanels(mm)) {
       let buttons = null;
       try {
         buttons = panel.FindChildrenWithClassTraverse?.("map_button");
@@ -294,20 +332,43 @@
     return { teamId: 0 };
   }
 
+  function resolveMinimapThemeInfo(mm) {
+    const context = resolveMinimapTeamContext(mm);
+    const teamId = context?.teamId || 0;
+
+    for (const panel of getMinimapScanPanels(mm)) {
+      if (panelHasClassRecursive(panel, "theme_inverted", 12) || panelHasClassRecursive(panel, "theme-inverted", 12)) {
+        return { inverted: true, teamId, source: "theme_inverted" };
+      }
+      if (panelHasClassRecursive(panel, "theme_standard", 12) || panelHasClassRecursive(panel, "theme-standard", 12)) {
+        return { inverted: false, teamId, source: "theme_standard" };
+      }
+      if (panelHasClassRecursive(panel, "invert_map", 12)) {
+        return { inverted: true, teamId, source: "invert_map" };
+      }
+    }
+
+    return {
+      inverted: teamId === 2 ? true : teamId === 1 ? false : !!(mm?.IsValid?.() && mm.BHasClass?.("invert_map")),
+      teamId,
+      source: teamId === 2 ? "team2" : teamId === 1 ? "team1" : "fallback"
+    };
+  }
+
   function updateMinimapInvertCache(mm, nowMs) {
     const now = nowMs || Date.now();
     if (_minimapInvertCache.minimap === mm && now - _minimapInvertCache.ts < MINIMAP_INVERT_CACHE_MS) {
       return _minimapInvertCache;
     }
 
-    const context = resolveMinimapTeamContext(mm);
-    const teamId = context?.teamId || 0;
-    const inverted = teamId === 2 ? true : teamId === 1 ? false : !!(mm?.IsValid?.() && mm.BHasClass?.("invert_map"));
+    const themeInfo = resolveMinimapThemeInfo(mm);
 
     _minimapInvertCache = {
       ts: now,
       minimap: mm,
-      inverted
+      inverted: !!themeInfo?.inverted,
+      teamId: themeInfo?.teamId || 0,
+      source: themeInfo?.source || null
     };
 
     return _minimapInvertCache;
@@ -534,6 +595,8 @@
     _minimapInvertCache.ts = 0;
     _minimapInvertCache.minimap = null;
     _minimapInvertCache.inverted = false;
+    _minimapInvertCache.teamId = 0;
+    _minimapInvertCache.source = null;
   }
 
   function clearNeutralRuntimeCaches() {
@@ -588,8 +651,9 @@
       return _minimapSnapshot;
     }
 
-    const mmW = minimap.contentwidth || 200;
-    const mmH = minimap.contentheight || 200;
+    const mmSize = resolveMinimapReferenceSize(minimap);
+    const mmW = mmSize.width;
+    const mmH = mmSize.height;
     let count = 0;
 
     try {
@@ -776,7 +840,7 @@
     return ringFill;
   }
 
-  function ensureAnchorRoot(layer, st, key, inverted) {
+  function ensureAnchorRoot(layer, st, key, themeInfo) {
     const anchorId = getNeutralRingId(key) + "_anchor";
     let anchorRoot = st.anchorRoot;
 
@@ -797,10 +861,10 @@
       anchorRoot.SetParent(layer);
     }
 
-    const hasInvertClass = !!anchorRoot.BHasClass?.("invert_map");
-    if (hasInvertClass !== !!inverted) {
-      anchorRoot.SetHasClass("invert_map", inverted);
-    }
+    const inverted = !!themeInfo?.inverted;
+    setPanelClass(anchorRoot, "invert_map", inverted);
+    setPanelClass(anchorRoot, "theme-inverted", inverted);
+    setPanelClass(anchorRoot, "theme-standard", !inverted);
 
     st.anchorRoot = anchorRoot;
     return anchorRoot;
@@ -829,7 +893,7 @@
     return detailLabel;
   }
 
-  function renderNeutralTimer(st, key, nowMs, gameNowSec, layer, mm, scoreboardOpen, inverted) {
+  function renderNeutralTimer(st, key, nowMs, gameNowSec, layer, mm, scoreboardOpen, themeInfo) {
     if (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0) {
       clearNeutralRing(st);
       clearNeutralDetailLabel(st);
@@ -856,8 +920,9 @@
     let iconH = st.panelH || 24;
     const iconPanel = st.panel;
     const hasLivePanel = !!iconPanel?.IsValid?.();
-    const mmW = mm?.contentwidth || 0;
-    const mmH = mm?.contentheight || 0;
+    const mmSize = resolveMinimapReferenceSize(mm);
+    const mmW = mmSize.width;
+    const mmH = mmSize.height;
 
     let livePctX = null;
     let livePctY = null;
@@ -897,7 +962,7 @@
 
     const scoreboardVisible = scoreboardOpen ?? isScoreboardOpen(mm);
 
-    const anchorRoot = ensureAnchorRoot(layer, st, key, inverted);
+    const anchorRoot = ensureAnchorRoot(layer, st, key, themeInfo);
     const ringRoot = ensureRingRoot(anchorRoot, st, key, ringSize, ringPctX, ringPctY);
     const ringFill = ensureRingFill(st, ringRoot, key);
     const theme = NEUTRAL_RING_THEME[st.type] || NEUTRAL_RING_THEME_DEFAULT;
@@ -1005,11 +1070,11 @@
     const now = nowMs || Date.now();
     const gameNow = gameNowSec > 0 ? gameNowSec : getGameTime(now);
     const scoreboardVisible = scoreboardOpen ?? isScoreboardOpen(minimap);
-    const invertInfo = updateMinimapInvertCache(minimap, now);
+    const themeInfo = updateMinimapInvertCache(minimap, now);
 
     for (const [key, st] of _neutralRespawnState.entries()) {
       if (!st || (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0)) continue;
-      renderNeutralTimer(st, key, now, gameNow, layer, minimap, scoreboardVisible, invertInfo.inverted);
+      renderNeutralTimer(st, key, now, gameNow, layer, minimap, scoreboardVisible, themeInfo);
     }
   }
 

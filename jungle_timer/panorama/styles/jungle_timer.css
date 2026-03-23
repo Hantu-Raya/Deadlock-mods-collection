@@ -26,12 +26,14 @@
   z-index: 2000;
 }
 
-.neutral-cooldown-anchor.invert_map {
+.neutral-cooldown-anchor.invert_map,
+.neutral-cooldown-anchor.theme-inverted {
   transform: scaleY(-1) scaleX(-1);
   transform-origin: 50% 50%;
 }
 
-.neutral-cooldown-anchor.invert_map .neutral-cooldown-timer-detail {
+.neutral-cooldown-anchor.invert_map .neutral-cooldown-timer-detail,
+.neutral-cooldown-anchor.theme-inverted .neutral-cooldown-timer-detail {
   transform: scaleY(-1) scaleX(-1);
   transform-origin: 50% 50%;
 }
