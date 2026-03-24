@@ -220,7 +220,195 @@
     width: 25%;
     margin-left: 13%;
     transform: rotateY(0deg);
+    opacity: 1;
+    pre-transform-scale2d: 1;
+    transition-property: opacity, pre-transform-scale2d, wash-color;
+    transition-duration: 0.18s;
     z-index: 999999;
+}
+
+#NeutralSpawnBadge
+{
+    horizontal-align: left;
+    vertical-align: top;
+    width: fit-children;
+    height: fit-children;
+    margin-left: 18%;
+    margin-top: -50%;
+    opacity: 0;
+    pre-transform-scale2d: 0.8;
+    transition-property: opacity, pre-transform-scale2d, wash-color;
+    transition-duration: 0.18s;
+    z-index: 1000000;
+}
+
+#Rejuv.neutral-entering #NeutralSpawnBadge
+{
+    opacity: 1;
+    wash-color: rgba(190, 255, 190, 0.98);
+    animation-name: neutral-badge-enter;
+    animation-duration: 0.22s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+}
+
+#Rejuv.neutral-exiting #NeutralSpawnBadge
+{
+    opacity: 1;
+    wash-color: rgba(190, 255, 190, 0.98);
+    animation-name: neutral-badge-exit;
+    animation-duration: 0.20s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+}
+
+#Rejuv.neutral-mode #RejuvImg
+{
+    wash-color: rgba(225, 255, 225, 0.98);
+    pre-transform-scale2d: 1.06;
+}
+
+#Rejuv.neutral-mode #NeutralSpawnBadge
+{
+    opacity: 1;
+    pre-transform-scale2d: 0.8;
+    wash-color: rgba(190, 255, 190, 0.98);
+    animation-name: neutral-badge-pulse;
+    animation-duration: 1.1s;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
+}
+
+#Rejuv.neutral-mode #RejuvNum
+{
+    opacity: 0;
+    pre-transform-scale2d: 0.92;
+}
+
+#Rejuv.neutral-entering #RejuvNum
+{
+    opacity: 0;
+    pre-transform-scale2d: 0.92;
+}
+
+#Rejuv.neutral-exiting #RejuvNum
+{
+    opacity: 1;
+    pre-transform-scale2d: 1;
+}
+
+@keyframes 'neutral-badge-pulse'
+{
+    0%
+    {
+        opacity: 0.78;
+        pre-transform-scale2d: 0.78;
+    }
+
+    100%
+    {
+        opacity: 1;
+        pre-transform-scale2d: 0.84;
+    }
+}
+
+#Rejuv.neutral-mode #RejuvImg
+{
+    animation-name: neutral-icon-pulse;
+    animation-duration: 1.25s;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
+}
+
+#Rejuv.neutral-entering #RejuvImg
+{
+    animation-name: neutral-icon-enter;
+    animation-duration: 0.22s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+}
+
+#Rejuv.neutral-exiting #RejuvImg
+{
+    animation-name: neutral-icon-exit;
+    animation-duration: 0.20s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+}
+
+@keyframes 'neutral-icon-pulse'
+{
+    0%
+    {
+        opacity: 0.88;
+        pre-transform-scale2d: 0.99;
+    }
+
+    100%
+    {
+        opacity: 1;
+        pre-transform-scale2d: 1.08;
+    }
+}
+
+@keyframes 'neutral-badge-enter'
+{
+    0%
+    {
+        opacity: 0;
+        pre-transform-scale2d: 0.72;
+    }
+
+    100%
+    {
+        opacity: 1;
+        pre-transform-scale2d: 0.8;
+    }
+}
+
+@keyframes 'neutral-badge-exit'
+{
+    0%
+    {
+        opacity: 1;
+        pre-transform-scale2d: 0.8;
+    }
+
+    100%
+    {
+        opacity: 0;
+        pre-transform-scale2d: 0.72;
+    }
+}
+
+@keyframes 'neutral-icon-enter'
+{
+    0%
+    {
+        opacity: 0.80;
+        pre-transform-scale2d: 0.95;
+    }
+
+    100%
+    {
+        opacity: 1;
+        pre-transform-scale2d: 1.06;
+    }
+}
+
+@keyframes 'neutral-icon-exit'
+{
+    0%
+    {
+        opacity: 1;
+        pre-transform-scale2d: 1.06;
+    }
+
+    100%
+    {
+        opacity: 0.84;
+        pre-transform-scale2d: 0.98;
+    }
 }
 
 
@@ -237,6 +425,10 @@
     font-weight: semi-bold;
     text-align: center;
     font-family: sansMono;
+    opacity: 1;
+    pre-transform-scale2d: 1;
+    transition-property: opacity, pre-transform-scale2d;
+    transition-duration: 0.18s;
 	z-index: 999999;
 }
 
