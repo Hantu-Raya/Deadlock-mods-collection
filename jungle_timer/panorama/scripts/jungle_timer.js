@@ -1,13 +1,16 @@
 (() => {
   "use strict";
 
+  // --- Timing intervals ---
   const NEUTRAL_SCAN_INTERVAL_MS = 500;
   const NEUTRAL_RENDER_INTERVAL_MS = 250;
   const NEUTRAL_STATE_PURGE_MS = 15000;
   const MINIMAP_SNAPSHOT_INTERVAL_MS = 400;
   const MINIMAP_INVERT_CACHE_MS = 750;
 
-  const NEUTRAL_RING_SIZE_PX = 18;
+  // Ring size in CSS pixels — must match game's .map_button.neutral { width: 24px; height: 24px; }
+  // Do NOT use actuallayoutwidth here; Panorama DPI-scales CSS values, so 24px CSS = 48px actual at 4K.
+  const NEUTRAL_RING_SIZE_PX = 24;
   const NEUTRAL_RING_SHOW_MS = 60000;
   const NEUTRAL_RING_FADE_MS = 30000;
   const NEUTRAL_RING_SEMI_OPACITY = 0.50;
@@ -28,25 +31,21 @@
 
   const NEUTRAL_RING_THEME = {
     neutral_weak: {
-      fill: "rgba(150, 214, 126, 0.98)",
       trackBorder: "rgba(63, 95, 55, 0.90)",
       trackBg: "rgba(18, 30, 16, 0.28)",
       text: "rgba(220, 247, 206, 0.98)"
     },
     neutral_medium: {
-      fill: "rgba(237, 165, 72, 0.98)",
       trackBorder: "rgba(120, 78, 34, 0.90)",
       trackBg: "rgba(33, 20, 8, 0.28)",
       text: "rgba(255, 225, 183, 0.98)"
     },
     neutral_large: {
-      fill: "rgba(238, 86, 76, 0.98)",
       trackBorder: "rgba(122, 36, 33, 0.92)",
       trackBg: "rgba(38, 11, 11, 0.30)",
       text: "rgba(255, 198, 190, 0.98)"
     },
     neutral_vault: {
-      fill: "rgba(199, 122, 255, 0.98)",
       trackBorder: "rgba(92, 52, 122, 0.92)",
       trackBg: "rgba(26, 12, 36, 0.30)",
       text: "rgba(236, 209, 255, 0.98)"
@@ -54,12 +53,16 @@
   };
   const NEUTRAL_RING_THEME_DEFAULT = NEUTRAL_RING_THEME.neutral_medium;
 
+  // Panel hierarchy (important for coordinate transforms):
+  //   minimap_container (UI.minimapBox)      ← overlay parent, ring positions are % of this
+  //     └─ HudMinimapContainer (UI.minimapContainer) ← has XY offset from minimapBox!
+  //          └─ hud_minimap (UI.minimap)     ← icon actualxoffset is relative to this
   const UI = {
     root: null,
     hud: null,
-    minimapBox: null,
-    minimap: null,
-    minimapContainer: null,
+    minimapBox: null,       // minimap_container — overlay parent
+    minimap: null,           // hud_minimap — icon positions are relative to this
+    minimapContainer: null,  // HudMinimapContainer — intermediate panel with offset
     scoreboardRoot: null,
     neutralOverlay: null
   };
@@ -83,8 +86,7 @@
     ts: 0,
     minimap: null,
     inverted: false,
-    teamId: 0,
-    source: null
+    teamId: 0
   };
   let _gameTimePanel = null;
   let _gameTimeCache = 0;
@@ -104,9 +106,10 @@
     return v;
   }
 
-  function safePanelExtent(v, fallback) {
+  function safePanelExtent(v, fallback, maxVal) {
     const n = Number(v);
-    if (!isFinite(n) || n <= 0 || n > 512) return fallback;
+    const cap = maxVal || 512;
+    if (!isFinite(n) || n <= 0 || n > cap) return fallback;
     return n;
   }
 
@@ -131,11 +134,13 @@
 
     const width = safePanelExtent(
       reference?.actuallayoutwidth || reference?.contentwidth,
-      MINIMAP_REFERENCE_SIZE.width
+      MINIMAP_REFERENCE_SIZE.width,
+      8192
     );
     const height = safePanelExtent(
       reference?.actuallayoutheight || reference?.contentheight,
-      MINIMAP_REFERENCE_SIZE.height
+      MINIMAP_REFERENCE_SIZE.height,
+      8192
     );
 
     return {
@@ -227,6 +232,17 @@
   }
 
   function refreshPanels() {
+    if (
+      UI.root?.IsValid?.() &&
+      UI.hud?.IsValid?.() &&
+      UI.minimapBox?.IsValid?.() &&
+      UI.minimapContainer?.IsValid?.() &&
+      UI.scoreboardRoot?.IsValid?.() &&
+      UI.minimap?.IsValid?.()
+    ) {
+      return true;
+    }
+
     const root = findRoot($.GetContextPanel());
     if (!root?.IsValid?.()) return false;
 
@@ -348,20 +364,19 @@
 
     for (const panel of getMinimapScanPanels(mm)) {
       if (panelHasClassRecursive(panel, "theme_inverted", 12) || panelHasClassRecursive(panel, "theme-inverted", 12)) {
-        return { inverted: true, teamId, source: "theme_inverted" };
+        return { inverted: true, teamId };
       }
       if (panelHasClassRecursive(panel, "theme_standard", 12) || panelHasClassRecursive(panel, "theme-standard", 12)) {
-        return { inverted: false, teamId, source: "theme_standard" };
+        return { inverted: false, teamId };
       }
       if (panelHasClassRecursive(panel, "invert_map", 12)) {
-        return { inverted: true, teamId, source: "invert_map" };
+        return { inverted: true, teamId };
       }
     }
 
     return {
       inverted: teamId === 2 ? true : teamId === 1 ? false : !!(mm?.IsValid?.() && mm.BHasClass?.("invert_map")),
-      teamId,
-      source: teamId === 2 ? "team2" : teamId === 1 ? "team1" : "fallback"
+      teamId
     };
   }
 
@@ -377,8 +392,7 @@
       ts: now,
       minimap: mm,
       inverted: !!themeInfo?.inverted,
-      teamId: themeInfo?.teamId || 0,
-      source: themeInfo?.source || null
+      teamId: themeInfo?.teamId || 0
     };
 
     return _minimapInvertCache;
@@ -460,7 +474,6 @@
       lastPosY: -1,
       lastOpacity: "",
       lastClip: "",
-      lastFillColor: "",
       lastTrackBorder: "",
       lastTrackBg: "",
       lastText: "",
@@ -523,7 +536,6 @@
     st.ringRoot = null;
     st.ringFill = null;
     st.lastClip = "";
-    st.lastFillColor = "";
     st.lastTrackBorder = "";
     st.lastTrackBg = "";
     st.lastRingSize = -1;
@@ -607,7 +619,6 @@
     _minimapInvertCache.minimap = null;
     _minimapInvertCache.inverted = false;
     _minimapInvertCache.teamId = 0;
-    _minimapInvertCache.source = null;
   }
 
   function clearNeutralRuntimeCaches() {
@@ -662,7 +673,7 @@
       return _minimapSnapshot;
     }
 
-    const mmGeometry = resolveMinimapReferenceSize(UI.minimapBox);
+    const mmGeometry = resolveMinimapReferenceSize(UI.minimap);
     const mmW = mmGeometry.width;
     const mmH = mmGeometry.height;
     let count = 0;
@@ -787,7 +798,7 @@
     }
   }
 
-  function ensureRingRoot(layer, st, key, ringSize, ringPctX, ringPctY) {
+  function ensureRingRoot(layer, st, key, ringSize, ringPosX, ringPosY) {
     const ringId = getNeutralRingId(key);
     let ringRoot = st.ringRoot;
 
@@ -816,10 +827,10 @@
       st.lastRingSize = ringSize;
     }
 
-    if (Math.abs((st.lastPosX ?? -9999) - ringPctX) > 0.05 || Math.abs((st.lastPosY ?? -9999) - ringPctY) > 0.05) {
-      ringRoot.style.position = ringPctX.toFixed(2) + "% " + ringPctY.toFixed(2) + "% 0px";
-      st.lastPosX = ringPctX;
-      st.lastPosY = ringPctY;
+    if (Math.abs((st.lastPosX ?? -9999) - ringPosX) > 0.05 || Math.abs((st.lastPosY ?? -9999) - ringPosY) > 0.05) {
+      ringRoot.style.position = ringPosX.toFixed(2) + "% " + ringPosY.toFixed(2) + "% 0px";
+      st.lastPosX = ringPosX;
+      st.lastPosY = ringPosY;
     }
 
     if (!st.ringVisible) {
@@ -904,7 +915,7 @@
     return detailLabel;
   }
 
-  function renderNeutralTimer(st, key, nowMs, gameNowSec, layer, mm, scoreboardOpen, themeInfo) {
+  function renderNeutralTimer(st, key, nowMs, gameNowSec, layer, renderCtx) {
     if (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0) {
       clearNeutralRing(st);
       clearNeutralDetailLabel(st);
@@ -927,25 +938,40 @@
       return;
     }
 
-    let iconW = st.panelW || 24;
-    let iconH = st.panelH || 24;
     const iconPanel = st.panel;
     const hasLivePanel = !!iconPanel?.IsValid?.();
-    const mmGeometry = resolveMinimapReferenceSize(UI.minimapBox);
-    const mmW = mmGeometry.width;
-    const mmH = mmGeometry.height;
+    const mmW = renderCtx?.mmW || 0;
+    const mmH = renderCtx?.mmH || 0;
+    const offsetX = renderCtx?.offsetX || 0;
+    const offsetY = renderCtx?.offsetY || 0;
+    let iconW = st.panelW || 24;
+    let iconH = st.panelH || 24;
+    let ringPosX = 0;
+    let ringPosY = 0;
+    let textPosX = 0;
+    let textPosY = 0;
 
+    // Coordinate reference is minimap_container (overlay parent) — all % positions relative to this
+    if (hasLivePanel) {
+      iconW = safePanelExtent(iconPanel.actuallayoutwidth || iconPanel.contentwidth, iconW);
+      iconH = safePanelExtent(iconPanel.actuallayoutheight || iconPanel.contentheight, iconH);
+      st.panelW = iconW;
+      st.panelH = iconH;
+    }
+    // Ring size in CSS pixels — never use actuallayoutwidth (DPI-scaled → would double-scale)
+    const ringSize = NEUTRAL_RING_SIZE_PX;
+
+    // Compute percentage-based anchor from live icon or cached state
+    // Icon actualxoffset is relative to hud_minimap, but overlay lives in minimap_container.
+    // HudMinimapContainer is offset within minimap_container, so we must add that offset.
     let livePctX = null;
     let livePctY = null;
     if (hasLivePanel) {
       const liveX = safeMapCoord(iconPanel.actualxoffset);
       const liveY = safeMapCoord(iconPanel.actualyoffset);
-      if (mmW > 0 && liveX !== null) livePctX = clampPct((liveX / mmW) * 100);
-      if (mmH > 0 && liveY !== null) livePctY = clampPct((liveY / mmH) * 100);
-      iconW = safePanelExtent(iconPanel.actuallayoutwidth || iconPanel.contentwidth, iconW);
-      iconH = safePanelExtent(iconPanel.actuallayoutheight || iconPanel.contentheight, iconH);
-      st.panelW = iconW;
-      st.panelH = iconH;
+      // Accumulate offset: hud_minimap→HudMinimapContainer→minimap_container
+      if (mmW > 0 && liveX !== null) livePctX = clampPct(((liveX + offsetX) / mmW) * 100);
+      if (mmH > 0 && liveY !== null) livePctY = clampPct(((liveY + offsetY) / mmH) * 100);
     }
 
     if (iconW <= 0) iconW = 24;
@@ -954,35 +980,31 @@
     const iconPctW = mmW > 0 ? (iconW / mmW) * 100 : 0;
     const iconPctH = mmH > 0 ? (iconH / mmH) * 100 : 0;
 
-    const anchorPctX = Number.isFinite(st.anchorPctX)
-      ? clampPct(st.anchorPctX)
-      : (Number.isFinite(st.mapPctX) ? clampPct(st.mapPctX) : (livePctX !== null ? livePctX : 0));
-    const anchorPctY = Number.isFinite(st.anchorPctY)
-      ? clampPct(st.anchorPctY)
-      : (Number.isFinite(st.mapPctY) ? clampPct(st.mapPctY) : (livePctY !== null ? livePctY : 0));
-    const ringSize = Math.max(NEUTRAL_RING_SIZE_PX, Math.min(iconW, iconH));
-    const ringPctW = mmW > 0 ? (ringSize / mmW) * 100 : 0;
-    const ringPctH = mmH > 0 ? (ringSize / mmH) * 100 : 0;
-    const ringPctX = clampPct(anchorPctX + ((iconPctW - ringPctW) * 0.5));
-    const ringPctY = clampPct(anchorPctY + ((iconPctH - ringPctH) * 0.5));
+    const anchorPctX = livePctX !== null ? livePctX
+      : (Number.isFinite(st.anchorPctX) ? clampPct(st.anchorPctX)
+      : (Number.isFinite(st.mapPctX) ? clampPct(st.mapPctX) : 0));
+    const anchorPctY = livePctY !== null ? livePctY
+      : (Number.isFinite(st.anchorPctY) ? clampPct(st.anchorPctY)
+      : (Number.isFinite(st.mapPctY) ? clampPct(st.mapPctY) : 0));
 
-    const textPctW = mmW > 0 ? (NEUTRAL_DETAIL_TEXT_WIDTH_PX / mmW) * 100 : 0;
-    const gapPct = mmH > 0 ? (NEUTRAL_DETAIL_TEXT_GAP_PX / mmH) * 100 : 0;
-    const textPctX = clampPct(anchorPctX + ((iconPctW - textPctW) * 0.5));
-    const textPctY = clampPct(anchorPctY + iconPctH + gapPct);
+    // Ring CSS size == icon CSS size (both 24px), so ring top-left = icon top-left
+    ringPosX = anchorPctX;
+    ringPosY = anchorPctY;
 
-    const scoreboardVisible = scoreboardOpen ?? isScoreboardOpen(mm);
+    // Text positioning: CSS pixel constants must be DPI-scaled to match mmW/mmH (DPI-scaled)
+    const dpiScale = NEUTRAL_RING_SIZE_PX > 0 ? (iconW / NEUTRAL_RING_SIZE_PX) : 1;
+    const textPctW = mmW > 0 ? ((NEUTRAL_DETAIL_TEXT_WIDTH_PX * dpiScale) / mmW) * 100 : 0;
+    const gapPct = mmH > 0 ? ((NEUTRAL_DETAIL_TEXT_GAP_PX * dpiScale) / mmH) * 100 : 0;
+    textPosX = clampPct(anchorPctX + ((iconPctW - textPctW) * 0.5));
+    textPosY = clampPct(anchorPctY + iconPctH + gapPct);
 
-    const anchorRoot = ensureAnchorRoot(layer, st, key, themeInfo);
-    const ringRoot = ensureRingRoot(anchorRoot, st, key, ringSize, ringPctX, ringPctY);
-    const ringFill = ensureRingFill(st, ringRoot, key);
+    const scoreboardVisible = !!renderCtx?.scoreboardVisible;
     const theme = NEUTRAL_RING_THEME[st.type] || NEUTRAL_RING_THEME_DEFAULT;
+    const anchorRoot = ensureAnchorRoot(layer, st, key, renderCtx?.themeInfo);
+    const ringRoot = ensureRingRoot(anchorRoot, st, key, ringSize, ringPosX, ringPosY);
+    const ringFill = ensureRingFill(st, ringRoot, key);
+    const detailLabel = ensureDetailLabel(anchorRoot, st, key);
 
-    if (theme.fill !== st.lastFillColor) {
-      ringFill.style.borderColor = theme.fill;
-      ringFill.style.backgroundColor = theme.trackBg;
-      st.lastFillColor = theme.fill;
-    }
     if (theme.trackBorder !== st.lastTrackBorder) {
       ringFill.style.borderColor = theme.trackBorder;
       st.lastTrackBorder = theme.trackBorder;
@@ -1032,13 +1054,12 @@
       st.lastClip = clip;
     }
 
-    const detailLabel = ensureDetailLabel(anchorRoot, st, key);
-    const textPos = textPctX.toFixed(2) + "% " + textPctY.toFixed(2) + "% 0px";
+    const textPos = textPosX.toFixed(2) + "% " + textPosY.toFixed(2) + "% 0px";
 
-    if (Math.abs((st.lastTextPosX ?? -9999) - textPctX) > 0.05 || Math.abs((st.lastTextPosY ?? -9999) - textPctY) > 0.05) {
+    if (Math.abs((st.lastTextPosX ?? -9999) - textPosX) > 0.05 || Math.abs((st.lastTextPosY ?? -9999) - textPosY) > 0.05) {
       detailLabel.style.position = textPos;
-      st.lastTextPosX = textPctX;
-      st.lastTextPosY = textPctY;
+      st.lastTextPosX = textPosX;
+      st.lastTextPosY = textPosY;
     }
 
     const text = fmtSeconds(Math.ceil(remainingMs / 1000));
@@ -1071,9 +1092,10 @@
     }
   }
 
+  // Renders all active respawn timers as radial rings + countdown labels on the minimap overlay
   function renderNeutralRespawnTimers(nowMs, gameNowSec, scoreboardOpen) {
     const minimap = getMinimap();
-    const container = UI.minimapBox;
+    const container = UI.minimapBox; // overlay parent — ring % positions are relative to this
     if (!minimap?.IsValid?.() || !container?.IsValid?.()) return;
     const layer = ensureNeutralOverlay(container);
     if (!layer?.IsValid?.()) return;
@@ -1082,10 +1104,19 @@
     const gameNow = gameNowSec > 0 ? gameNowSec : getGameTime(now);
     const scoreboardVisible = scoreboardOpen ?? isScoreboardOpen(minimap);
     const themeInfo = updateMinimapInvertCache(minimap, now);
+    const mmGeometry = resolveMinimapReferenceSize(UI.minimapBox);
+    const renderCtx = {
+      mmW: mmGeometry.width,
+      mmH: mmGeometry.height,
+      offsetX: (UI.minimap?.IsValid?.() ? (UI.minimap.actualxoffset || 0) : 0) + (UI.minimapContainer?.IsValid?.() ? (UI.minimapContainer.actualxoffset || 0) : 0),
+      offsetY: (UI.minimap?.IsValid?.() ? (UI.minimap.actualyoffset || 0) : 0) + (UI.minimapContainer?.IsValid?.() ? (UI.minimapContainer.actualyoffset || 0) : 0),
+      scoreboardVisible,
+      themeInfo
+    };
 
     for (const [key, st] of _neutralRespawnState.entries()) {
       if (!st || (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0)) continue;
-      renderNeutralTimer(st, key, now, gameNow, layer, minimap, scoreboardVisible, themeInfo);
+      renderNeutralTimer(st, key, now, gameNow, layer, renderCtx);
     }
   }
 

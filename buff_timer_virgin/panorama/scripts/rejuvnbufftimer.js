@@ -373,19 +373,6 @@
       collapseMinimapTargets("1m-readability-check", true);
     }
 
-    if (rn - lastNeutralScanCheck >= NEUTRAL_SCAN_INTERVAL_MS) {
-      lastNeutralScanCheck = rn;
-      snapshot = collectMinimapSnapshot(rn, false);
-      if (snapshot) {
-        scanNeutralRespawnState(snapshot, rn, now);
-      }
-    }
-
-    if (rn - lastNeutralRenderCheck >= NEUTRAL_RENDER_INTERVAL_MS) {
-      lastNeutralRenderCheck = rn;
-      renderNeutralRespawnTimers(rn, now);
-    }
-
     // Not running - check hideout status periodically
     if (!running) {
       if (rn - lastGateChk >= 30000) {
@@ -787,101 +774,17 @@
         continue;
       }
 
-        const neutralType = getNeutralType(btn);
-        if (!neutralType) continue;
-        const neutralId = btn.id || ("neutral_idx_" + i + "_" + neutralType);
-
-        let actualX = safeMapCoord(btn.actualxoffset);
-        let actualY = safeMapCoord(btn.actualyoffset);
-        if (actualX === null || actualY === null) {
-          neutralInvalidCoord++;
-          const cached = _neutralCoordCache[neutralId];
-          if (!cached) {
-            neutralCacheMiss++;
-            if (neutralType === "neutral_weak") neutralDropWeak++;
-            else if (neutralType === "neutral_medium") neutralDropMedium++;
-            else if (neutralType === "neutral_large") neutralDropLarge++;
-            else if (neutralType === "neutral_vault") neutralDropVault++;
-
-            if (
-              neutralDropSamples.length < DEBUG_NEUTRAL_ALIGN_SCAN_DROP_SAMPLE_LIMIT &&
-              DEBUG_NEUTRAL_ALIGN &&
-              DEBUG_NEUTRAL_ALIGN_SCAN_LOG &&
-              alignArmed
-            ) {
-              neutralDropSamples.push(
-                neutralId + ":" + neutralType + ":raw=" +
-                String(btn.actualxoffset) + "," + String(btn.actualyoffset)
-              );
-            }
-
-            if (DEBUG_NEUTRAL_ALIGN && DEBUG_NEUTRAL_ALIGN_SCAN_LOG && DEBUG_NEUTRAL_ALIGN_SCAN_DROP_VERBOSE && alignArmed) {
-              $.Msg(
-                "[BT-ALIGN]",
-                "scan_drop",
-                "key=", neutralId,
-                "type=", neutralType,
-                "reason=invalid_coord_no_cache",
-                "raw=", String(btn.actualxoffset) + "," + String(btn.actualyoffset),
-                panelDebugSummary(btn)
-              );
-            }
-            continue;
-          }
-          neutralCacheHit++;
-          actualX = cached.x;
-          actualY = cached.y;
-        } else {
-          _neutralCoordCache[neutralId] = { x: actualX, y: actualY };
-        }
-        const xPct = clampPct(actualX / mmW * 100);
-        const yPct = clampPct(actualY / mmH * 100);
-
-        let entry = _minimapSnapshot.neutralCamps[neutralCount];
-        if (!entry) {
-          entry = { id: "", panel: null, type: "", isActive: false, xPct: 0, yPct: 0, actualX: 0, actualY: 0 };
-          _minimapSnapshot.neutralCamps[neutralCount] = entry;
-        }
-
-        entry.id = neutralId;
-        entry.panel = btn;
-        entry.type = neutralType;
-        entry.isActive = btn.BHasClass("active");
-        entry.xPct = xPct;
-        entry.yPct = yPct;
-        entry.actualX = actualX;
-        entry.actualY = actualY;
-        neutralCount++;
-      }
-    } catch {}
-
-    _minimapSnapshot.players.length = playerCount;
-    _minimapSnapshot.powerupSpawns.length = powerupCount;
-    _minimapSnapshot.neutralCamps.length = neutralCount;
-    _minimapSnapshot.ts = now;
-    _snapshotTs = now;
-    if (DEBUG_NEUTRAL_ALIGN && DEBUG_NEUTRAL_ALIGN_SCAN_LOG && alignArmed && consumeAlignLogBudget("scan")) {
-      $.Msg(
-        "[BT-ALIGN]",
-        "scan",
-        "mm=", mmW.toFixed(1) + "x" + mmH.toFixed(1),
-        "players=", playerCount,
-        "powerups=", powerupCount,
-        "neutrals=", neutralCount,
-        "nInvalid=", neutralInvalidCoord,
-        "nCacheHit=", neutralCacheHit,
-        "nCacheMiss=", neutralCacheMiss,
-        "dropWeak=", neutralDropWeak,
-        "dropMedium=", neutralDropMedium,
-        "dropLarge=", neutralDropLarge,
-        "dropVault=", neutralDropVault,
-        "sample=", neutralDropSamples.length ? neutralDropSamples.join(" ; ") : "none",
-        "states=", Object.keys(_neutralRespawnState).length
-      );
     }
-    perfMark("snapshotSweeps", now);
-    return _minimapSnapshot;
-  }
+  } catch {}
+
+  _minimapSnapshot.players.length = playerCount;
+  _minimapSnapshot.powerupSpawns.length = powerupCount;
+  _minimapSnapshot.neutralCamps.length = 0;
+  _minimapSnapshot.ts = now;
+  _snapshotTs = now;
+  perfMark("snapshotSweeps", now);
+  return _minimapSnapshot;
+}
 
   function computeNearestForTargets(players, targets, targetCount, nowMs, accumulate) {
     if (!players?.length || !targets || targetCount <= 0) return;
@@ -2757,8 +2660,6 @@
       clearGlows();
       clearClaimIndicators();
       clearAllLingers();
-      clearNeutralRespawnTimers();
-
       if (UI.rLab) UI.rLab.text = fmt(SEQ[0].d);
       if (UI.rNum) UI.rNum.text = "1";
 
