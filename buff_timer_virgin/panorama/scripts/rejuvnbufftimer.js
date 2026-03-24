@@ -10,6 +10,12 @@
   const SPAWN_TH = 10;
   const TICK_FAST = 0.1;
   const TICK_NORM = 1;
+  const REJUV_ICON_SRC = "s2r://panorama/images/hud/modifiers/icon_rejuvenator.svg";
+  const NEUTRAL_BOT_ICON_SRC = "s2r://panorama/images/npcs/neutral_bot_psd.vtex";
+  const NEUTRAL_TRANSITION_MS = 220;
+  const NEUTRAL_BOT_START_SEC = 60;
+  const NEUTRAL_BOT_END_SEC = 120;
+  const NEUTRAL_BOT_PROGRESS_COLOR = "#00ff00";
 
   // Rejuvenator phase sequence: duration (d) and display number (n)
   const SEQ = [
@@ -206,6 +212,8 @@
   let _playerCache = null;
   let _playerCacheTs = 0;
   let _playerState = {};
+  let _neutralBotOverrideActive = false;
+  let _neutralModeHnd = null;
 
   // DOM write guards - prevent redundant updates
   let _lastRejuvText = "";
@@ -214,8 +222,10 @@
   let _lastClaimTimerL = "";
   let _lastClaimTimerR = "";
   let _lastRejuvClip = "";
+  let _lastRejuvClipColor = "";
   let _lastBuffClip = "";
   let _lastBuffClipColor = "";
+  let _lastRejuvImageSrc = "";
   let _lastRingScaleL = -1;
   let _lastRingOpacityL = -1;
   let _lastRingScaleR = -1;
@@ -315,6 +325,7 @@
     UI.rLab = r.FindChildTraverse("RejuvTime");
     UI.rNum = r.FindChildTraverse("RejuvNum");
     UI.rImg = r.FindChildTraverse("RejuvImg");
+    UI.rejuv = r.FindChildTraverse("Rejuv");
     UI.buffLab = r.FindChildTraverse("BuffTime");
     UI.rLabClip = r.FindChildTraverse("RejuvTimeClip");
     UI.buffLabClip = r.FindChildTraverse("BuffTimeClip");
@@ -409,37 +420,41 @@
     if (now !== lastSec) {
       lastSec = now;
       if (idx < 0 || idx >= SEQ.length) idx = 0;  // Safety clamp
-      const rem = Math.max(0, SEQ[idx].d - (now - phaseStart));
+      const neutralBotActive = updateNeutralBotPhase(now);
 
-      if (rem <= 0) {
-        showSpawn();
-      } else {
-        counter = rem;
-        const t = fmt(rem);
+      if (!neutralBotActive) {
+        const rem = Math.max(0, SEQ[idx].d - (now - phaseStart));
 
-        if (t !== _lastRejuvText) {
-          UI.rLab.text = t;
-          if (UI.rLabClip?.IsValid?.()) {
-            UI.rLabClip.text = t;
+        if (rem <= 0) {
+          showSpawn();
+        } else {
+          counter = rem;
+          const t = fmt(rem);
+
+          if (t !== _lastRejuvText) {
+            UI.rLab.text = t;
+            if (UI.rLabClip?.IsValid?.()) {
+              UI.rLabClip.text = t;
+            }
+            _lastRejuvText = t;
           }
-          _lastRejuvText = t;
+
+          // Left Side: Rejuv (Anchor Left, Deplete Right-to-Left)
+          // rejuvPct is REMAINING percentage (1.0 -> 0.0)
+          const rejuvPct = spawnWait ? 1.0 : (counter / SEQ[idx].d);
+          const p = Math.floor(rejuvPct * 100);
+
+          // Clip: Visible from 0% to p% (Left anchored)
+          const rejuvClip = "rect(0%," + p + "%,100%,0%)";
+
+          if (rejuvClip !== _lastRejuvClip && UI.rLabClip?.IsValid?.()) {
+            UI.rLabClip.style.clip = rejuvClip;
+            _lastRejuvClip = rejuvClip;
+          }
         }
 
-        // Left Side: Rejuv (Anchor Left, Deplete Right-to-Left)
-        // rejuvPct is REMAINING percentage (1.0 -> 0.0)
-        const rejuvPct = spawnWait ? 1.0 : (counter / SEQ[idx].d);
-        const p = Math.floor(rejuvPct * 100);
-
-        // Clip: Visible from 0% to p% (Left anchored)
-        const rejuvClip = "rect(0%," + p + "%,100%,0%)";
-
-        if (rejuvClip !== _lastRejuvClip && UI.rLabClip?.IsValid?.()) {
-          UI.rLabClip.style.clip = rejuvClip;
-          _lastRejuvClip = rejuvClip;
-        }
+        tick = (spawnWait || rem <= SPAWN_TH) ? TICK_FAST : TICK_NORM;
       }
-
-      tick = (spawnWait || rem <= SPAWN_TH) ? TICK_FAST : TICK_NORM;
     }
 
     // Update buff duration countdown
@@ -2640,6 +2655,11 @@
       _playerCache = null;
       _playerCacheTs = 0;
       _playerState = {};
+      _neutralBotOverrideActive = false;
+      if (_neutralModeHnd) {
+        $.CancelScheduled(_neutralModeHnd);
+        _neutralModeHnd = null;
+      }
       _neutralCoordCache = {};
       _snapshotTs = 0;
       _minimapSnapshot.players.length = 0;
@@ -2663,15 +2683,20 @@
       if (UI.rLab) UI.rLab.text = fmt(SEQ[0].d);
       if (UI.rNum) UI.rNum.text = "1";
 
+      exitNeutralMode(true);
       resetImg();
+      setRejuvImage(REJUV_ICON_SRC);
       endBuff();
 
       _lastRejuvClip = "";
+      _lastRejuvClipColor = "";
       _lastBuffClip = "";
       _lastBuffClipColor = "";
+      _lastRejuvImageSrc = REJUV_ICON_SRC;
 
       if (UI.rLabClip?.IsValid?.()) {
         UI.rLabClip.style.clip = "rect(0%,0%,100%,0%)";
+        UI.rLabClip.style.color = "#ffffff";
         UI.rLabClip.text = "";
       }
 
@@ -2701,6 +2726,125 @@
     UI.rImg.RemoveClass("rotating");
     UI.rImg.RemoveClass("reverse");
     UI.rImg.RemoveClass("white");
+  }
+
+  function enterNeutralMode() {
+    if (!UI.rejuv?.IsValid?.()) return;
+
+    if (_neutralModeHnd) {
+      $.CancelScheduled(_neutralModeHnd);
+      _neutralModeHnd = null;
+    }
+
+    UI.rejuv.RemoveClass("neutral-exiting");
+    UI.rejuv.AddClass("neutral-mode");
+    UI.rejuv.AddClass("neutral-entering");
+    _neutralModeHnd = $.Schedule(NEUTRAL_TRANSITION_MS / 1000, () => {
+      if (UI.rejuv?.IsValid?.()) {
+        UI.rejuv.RemoveClass("neutral-entering");
+      }
+      _neutralModeHnd = null;
+    });
+  }
+
+  function exitNeutralMode(skipAnimation, onDone) {
+    if (!UI.rejuv?.IsValid?.()) return;
+
+    if (_neutralModeHnd) {
+      $.CancelScheduled(_neutralModeHnd);
+      _neutralModeHnd = null;
+    }
+
+    UI.rejuv.RemoveClass("neutral-entering");
+
+    if (skipAnimation) {
+      UI.rejuv.RemoveClass("neutral-exiting");
+      UI.rejuv.RemoveClass("neutral-mode");
+      return;
+    }
+
+    UI.rejuv.AddClass("neutral-exiting");
+    _neutralModeHnd = $.Schedule(NEUTRAL_TRANSITION_MS / 1000, () => {
+      if (UI.rejuv?.IsValid?.()) {
+        UI.rejuv.RemoveClass("neutral-mode");
+        UI.rejuv.RemoveClass("neutral-exiting");
+      }
+      if (onDone) {
+        try {
+          onDone();
+        } catch {}
+      }
+      _neutralModeHnd = null;
+    });
+  }
+
+  function setRejuvImage(src) {
+    if (!UI.rImg?.IsValid?.()) return;
+    if (src === _lastRejuvImageSrc) return;
+
+    try {
+      if (typeof UI.rImg.SetImage === "function") {
+        UI.rImg.SetImage(src);
+      } else {
+        UI.rImg.src = src;
+      }
+      _lastRejuvImageSrc = src;
+    } catch {}
+  }
+
+  function updateNeutralBotPhase(now) {
+    const active = now >= NEUTRAL_BOT_START_SEC && now <= NEUTRAL_BOT_END_SEC;
+
+    if (!active) {
+      if (_neutralBotOverrideActive) {
+        _neutralBotOverrideActive = false;
+        exitNeutralMode(false, () => {
+          setRejuvImage(REJUV_ICON_SRC);
+          setImg(idx);
+        });
+        if (UI.rLabClip?.IsValid?.() && _lastRejuvClipColor !== "#ffffff") {
+          UI.rLabClip.style.color = "#ffffff";
+          _lastRejuvClipColor = "#ffffff";
+        }
+      }
+      return false;
+    }
+
+    if (!_neutralBotOverrideActive) {
+      _neutralBotOverrideActive = true;
+      enterNeutralMode();
+      setRejuvImage(NEUTRAL_BOT_ICON_SRC);
+      resetImg();
+    }
+
+    const rem = Math.max(0, NEUTRAL_BOT_END_SEC - now);
+    counter = rem;
+    const t = fmt(rem);
+
+    if (t !== _lastRejuvText) {
+      UI.rLab.text = t;
+      if (UI.rLabClip?.IsValid?.()) {
+        UI.rLabClip.text = t;
+      }
+      _lastRejuvText = t;
+    }
+
+    const neutralPct = rem / (NEUTRAL_BOT_END_SEC - NEUTRAL_BOT_START_SEC);
+    const p = Math.floor(neutralPct * 100);
+    const neutralClip = "rect(0%," + p + "%,100%,0%)";
+
+    if (neutralClip !== _lastRejuvClip && UI.rLabClip?.IsValid?.()) {
+      UI.rLabClip.style.clip = neutralClip;
+      _lastRejuvClip = neutralClip;
+    }
+
+    if (UI.rLabClip?.IsValid?.() && _lastRejuvClipColor !== NEUTRAL_BOT_PROGRESS_COLOR) {
+      UI.rLabClip.style.color = NEUTRAL_BOT_PROGRESS_COLOR;
+      _lastRejuvClipColor = NEUTRAL_BOT_PROGRESS_COLOR;
+    }
+
+    tick = TICK_FAST;
+    return true;
   }
 
   // ===========================================
