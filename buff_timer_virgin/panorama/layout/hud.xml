@@ -8,10 +8,12 @@
 		<!-- MOD: Timer styles -->
 		<include src="s2r://panorama/styles/hud_timer.vcss_c" />
 		<include src="s2r://panorama/styles/buff_claim.vcss_c" />
+		<include src="s2r://panorama/styles/jungle_timer.vcss_c" />
 	</styles>
 	<!-- MOD: Timer script -->
 	<scripts>
 		<include src="s2r://panorama/scripts/rejuvnbufftimer.vjs_c" />
+		<include src="s2r://panorama/scripts/jungle_timer.vjs_c" />
 	</scripts>
 	<snippets>
 		<snippet name="OffscreenEnemySnippet">
