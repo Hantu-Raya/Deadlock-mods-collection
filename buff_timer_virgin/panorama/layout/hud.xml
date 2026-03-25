@@ -13,7 +13,6 @@
 	<!-- MOD: Timer script -->
 	<scripts>
 		<include src="s2r://panorama/scripts/rejuvnbufftimer.vjs_c" />
-		<include src="s2r://panorama/scripts/jungle_timer.vjs_c" />
 	</scripts>
 	<snippets>
 		<snippet name="OffscreenEnemySnippet">
@@ -206,12 +205,14 @@
 								<Label id="RejuvTime" text="0:00" />
 								<Label id="RejuvTimeClip" text="0:00" hittest="false" />
 							</Panel>
+							<Image id="NeutralSpawnBadge2" hittest="false" scaling="stretch-to-fit-preserve-aspect" src="s2r://panorama/images/minimap/neutral_large_psd.vtex" />
 							<Image id="RejuvImg" src="s2r://panorama/images/hud/modifiers/icon_rejuvenator.svg" />
 							<Image id="NeutralSpawnBadge" hittest="false" scaling="stretch-to-fit-preserve-aspect" src="s2r://panorama/images/minimap/neutral_small_psd.vtex" />
 							<Label id="RejuvNum" text="1" />
 						</Panel>
-						<Panel id="RejuvBuff" hittest="false">
-							<Label id="RejuvTimeBuff" text="0:00" />
+						<!-- MOD: Mini rejuv card — visible during neutral override or buff active -->
+						<Panel id="RejuvMiniCard" class="rejuv-mini-card" hittest="false">
+							<Label id="RejuvMiniTime" class="rejuv-mini-time" text="" />
 						</Panel>
 						<!-- MOD: Claim indicators -->
 						<Panel id="MinimapBuffClaimLeft" class="minimap-claim-box claim-left" hittest="false">
