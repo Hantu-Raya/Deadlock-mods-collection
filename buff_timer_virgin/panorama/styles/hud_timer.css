@@ -96,10 +96,6 @@
     overflow: hidden;
 }
 
-<<<<<<< HEAD
-=======
-/* Mini rejuv countdown card — visible only while a neutral camp timer is active */
->>>>>>> eaaf7ec98a96e0a5043f6e6978136776b216bf4d
 #RejuvMiniCard
 {
 	background-color: rgba(12, 12, 12, 0.6);
@@ -120,33 +116,7 @@
 #RejuvMiniCard.active
 {
 	opacity: 1;
-<<<<<<< HEAD
-=======
 }
-
-.rejuv-mini-time
-{
-	font-size: 15px;
-	color: #b0b0b0;
-	horizontal-align: center;
-	vertical-align: center;
-	width: 100%;
-	height: 100%;
-	font-weight: semi-bold;
-	text-align: center;
-	font-family: sansMono;
-	text-shadow: 0px 0px 3px 1.5 black;
-	letter-spacing: 1px;
-	transition-property: color;
-	transition-duration: 0.2s;
->>>>>>> eaaf7ec98a96e0a5043f6e6978136776b216bf4d
-}
-
-#RejuvMiniCard.buff-active .rejuv-mini-time
-{
-	color: #ffcc00;
-}
-
 
 .timer-wrapper
 {
@@ -202,7 +172,6 @@
     clip: rect(0%, 100%, 100%, 0%);
 }
 
-<<<<<<< HEAD
 .rejuv-mini-time
 {
 	font-size: 15px;
@@ -224,8 +193,6 @@
 {
 	color: #ffcc00;
 }
-=======
->>>>>>> eaaf7ec98a96e0a5043f6e6978136776b216bf4d
 
 #BuffImg
 {
@@ -249,63 +216,6 @@
     transition-property: opacity, pre-transform-scale2d, wash-color;
     transition-duration: 0.18s;
     z-index: 999999;
-}
-
-#NeutralSpawnBadge2
-{
-    horizontal-align: left;
-    vertical-align: center;
-    height: 80%;
-    width: 25%;
-    margin-left: 16%;
-    margin-top: -5%;
-    opacity: 0;
-    pre-transform-scale2d: 1;
-    pre-transform-rotate2d: 18deg;
-    transition-property: opacity, pre-transform-scale2d, wash-color;
-    transition-duration: 0.18s;
-    z-index: 999997;
-}
-
-#Rejuv.neutral-vault-mode #NeutralSpawnBadge2
-{
-    opacity: 1;
-    pre-transform-scale2d: 1.3;
-    wash-color: rgba(255, 198, 190, 0.98);
-}
-
-#Rejuv.neutral-entering.neutral-vault-mode #NeutralSpawnBadge2
-{
-    animation-name: neutral-badge-enter;
-    animation-duration: 0.22s;
-    animation-iteration-count: 1;
-    animation-fill-mode: forwards;
-}
-
-#Rejuv.neutral-exiting.neutral-vault-mode #NeutralSpawnBadge2
-{
-    animation-name: neutral-badge-exit;
-    animation-duration: 0.20s;
-    animation-iteration-count: 1;
-    animation-fill-mode: forwards;
-}
-
-#Rejuv.neutral-vault-mode #RejuvNum
-{
-    opacity: 0;
-}
-
-#Rejuv.neutral-vault-mode #RejuvImg
-{
-    margin-left: 8%;
-    pre-transform-scale2d: 1.8;
-}
-
-#Rejuv.neutral-vault-mode #NeutralSpawnBadge,
-#Rejuv.neutral-entering.neutral-vault-mode #NeutralSpawnBadge,
-#Rejuv.neutral-exiting.neutral-vault-mode #NeutralSpawnBadge
-{
-    opacity: 0;
 }
 
 #NeutralSpawnBadge
@@ -364,10 +274,6 @@
 {
     wash-color: rgba(225, 255, 225, 0.98);
     pre-transform-scale2d: 1.06;
-    animation-name: neutral-icon-pulse;
-    animation-duration: 1.25s;
-    animation-iteration-count: infinite;
-    animation-timing-function: ease-in-out;
 }
 
 #Rejuv.neutral-mode #NeutralSpawnBadge
@@ -425,6 +331,13 @@
     }
 }
 
+#Rejuv.neutral-mode #RejuvImg
+{
+    animation-name: neutral-icon-pulse;
+    animation-duration: 1.25s;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
+}
 
 #Rejuv.neutral-entering #RejuvImg
 {
