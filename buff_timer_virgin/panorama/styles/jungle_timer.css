@@ -50,7 +50,7 @@
   border-color: rgba(237, 165, 72, 0.98); /* overridden per-theme in JS */
   background-color: rgba(33, 20, 8, 0.28); /* overridden per-theme in JS */
   opacity: 1;
-  clip: radial(50% 50%, 0deg, 360deg); /* driven by JS */
+  clip: radial(50% 50%, 0deg, 360deg); /* driven per-frame by JS */
 }
 
 .neutral-cooldown-timer-detail {

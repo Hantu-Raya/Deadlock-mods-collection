@@ -1,0 +1,38 @@
+/* Prettified by Source 2 Viewer 17.0.0.0 - https://valveresourceformat.github.io */
+
+.powerup_timer_overlay
+{
+	z-index: 9998;
+	color: rgb(199, 195, 189);
+	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
+}
+
+.invert_map .powerup_timer_overlay,.invert_map
+{
+	transform: rotateZ(180deg);
+}
+
+.powerup_timer_overlay
+{
+	background-color: rgba(0, 0, 0, 0.5);
+}
+
+.powerup_timer_overlay
+{
+	font-size: 12px;
+	padding: 2px 4px;
+	border-radius: 4px;
+	visibility: collapse;
+	text-align: center;
+}
+
+.powerup_timer_1
+{
+	position: 26.9% 46.7% 0%;
+}
+
+.powerup_timer_2
+{
+	position: 64.2% 48.0% 0%;
+}
+
