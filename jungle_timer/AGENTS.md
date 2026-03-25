@@ -15,8 +15,12 @@ A minimal, standalone mod that displays neutral camp respawn timers (radial ring
 ## Architecture Notes
 - All functionality is driven by `panorama/scripts/jungle_timer.js`.
 - It continuously polls the minimap using `$.Schedule` loops.
-- `NEUTRAL_SCAN_INTERVAL_MS` (500ms): determines how often we read the minimap to check for camp death/respawn via class inspection (e.g., `.neutral_weak.spawned`).
-- `NEUTRAL_RENDER_INTERVAL_MS` (250ms): determines how often we redraw the cooldown rings using css `clip` properties based on system time `gTime()`.
+- **CSS-driven ring sweep**: The radial cooldown ring animation is offloaded to CSS transitions (`transition-property: clip` on `.neutral-cooldown-ring-fill`). JS sets the start clip (360deg) and end clip (0deg) with `transition-duration` equal to the remaining respawn time. The GPU interpolates smoothly between frames. JS no longer calculates clip values per cycle.
+- **Adaptive loop rate**: The main loop runs at 1.0s by default, 0.5s when any timer has <10s remaining (responsive countdown text), and 2.0s when idle (no active timers and game time >60s). Scan and render happen in a single pass per loop iteration.
+- **Caching**: `FindChildrenWithClassTraverse("map_button")` results are cached for 5s with validity spot-check. `refreshPanels()` results are cached for 2s. Minimap inversion theme info is cached for 30s. Ring panel IDs (`ringId`, `fillId`, `textId`, `anchorId`) are precomputed once in `createState()` and stored on the state object, eliminating per-call regex.
+- **Creation-only styling**: Redundant per-cycle style assignments (ringRoot background/border, ringFill position/size, detailLabel hittest/visibility) are set only during `CreatePanel()`, not every render.
+- **No FindChildTraverse fallback**: Ensure functions go directly from `!IsValid()` → `CreatePanel()`, skipping redundant DOM traversal since `clearNeutralRing()` removes panels via `DeleteAsync(0)`.
+- **Resync handling**: If game time drifts >1.5s from the CSS transition's expected position, the transition is reset: snap to current position with `transitionDuration: 0s`, then re-animate to zero with the corrected remaining time.
 - The ring and countdown label are always children of the `NeutralCooldownOverlayLayer` (inside `minimap_container` / `UI.minimapBox`), never parented to icon panels.
 - Ring size matches the game's neutral icon size (`NEUTRAL_RING_SIZE_PX = 24` CSS pixels).
 - Active timers stay at full opacity while visible.
