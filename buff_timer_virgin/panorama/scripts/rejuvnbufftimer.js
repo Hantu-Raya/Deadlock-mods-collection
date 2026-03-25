@@ -16,6 +16,14 @@
   const NEUTRAL_BOT_START_SEC = 60;
   const NEUTRAL_BOT_END_SEC = 120;
   const NEUTRAL_BOT_PROGRESS_COLOR = "#00ff00";
+  const NEUTRAL_MEDIUM_START_SEC = 300;  // 5:00 game time
+  const NEUTRAL_MEDIUM_END_SEC = 360;    // 6:00 game time
+  const NEUTRAL_LARGE_START_SEC = 420;   // 7:00 game time
+  const NEUTRAL_LARGE_END_SEC = 480;     // 8:00 game time
+  const NEUTRAL_SMALL_BADGE_SRC = "s2r://panorama/images/minimap/neutral_small_psd.vtex";
+  const NEUTRAL_MEDIUM_BADGE_SRC = "s2r://panorama/images/minimap/neutral_medium_psd.vtex";
+  const NEUTRAL_LARGE_BADGE_SRC = "s2r://panorama/images/minimap/neutral_large_psd.vtex";
+  const NEUTRAL_VAULT_BADGE_SRC = "s2r://panorama/images/minimap/neutral_vault_psd.vtex";
 
   // Rejuvenator phase sequence: duration (d) and display number (n)
   const SEQ = [
@@ -72,7 +80,7 @@
   const DEBUG_NEUTRAL_ALIGN_PROBE_COUNT = 3;
   const NEUTRAL_STATE_PURGE_MS = 15000;
   const NEUTRAL_MATCH_RADIUS_SQ = 4;
-  const NEUTRAL_RING_SIZE_PX = 18;
+  const NEUTRAL_RING_SIZE_PX = 24;
   const NEUTRAL_RING_THICKNESS_PX = 3;
   const NEUTRAL_ICON_COOLDOWN_OPACITY = 0.60;
   const NEUTRAL_RADIAL_START_DEG = 0;
@@ -115,17 +123,6 @@
   const MINIMAP_COLLAPSE_CLASSES = [];
 
   // ===========================================
-  // TEAM CLASSIFICATION HELPERS
-  // ===========================================
-
-  function isAlly(btn) {
-    return btn.BHasClass("team1") || btn.BHasClass("friend") || btn.BHasClass("ally");
-  }
-
-  function isEnemy(btn) {
-    return btn.BHasClass("team2") || btn.BHasClass("enemy");
-  }
-
   // ===========================================
   // PLAYER CACHE HELPERS
   // ===========================================
@@ -213,6 +210,8 @@
   let _playerCacheTs = 0;
   let _playerState = {};
   let _neutralBotOverrideActive = false;
+  let _neutralMediumOverrideActive = false;
+  let _neutralCardOverrideActive = false;
   let _neutralModeHnd = null;
 
   // DOM write guards - prevent redundant updates
@@ -249,10 +248,16 @@
   let _perfLastLogTs = 0;
 
   let _lingerState = {};
-  let _neutralRespawnState = {};
+  const _neutralRespawnState = new Map();
   let _neutralStateSeq = 0;
   let _neutralSweepToken = 0;
   let _neutralCoordCache = {};
+  let _mapButtonCache = null;
+  let _mapButtonCacheTs = 0;
+  let _refreshPanelsCacheTs = 0;
+  let _lastScoreboardOpen = false;
+  let _lowTimeCacheCleared = false;
+  let _minimapInvertCache = { ts: 0, minimap: null, inverted: false, directInverted: false, teamId: 0 };
   let _alignBootLogged = false;
   let _alignLastTickLogMs = 0;
   let _alignDebugArmUntilMs = 0;
@@ -270,6 +275,9 @@
     hud: null,
     minimap: null,
     minimapContainer: null,
+    minimapBox: null,
+    scoreboardRoot: null,
+    neutralOverlay: null,
     glowLeft: null,
     glowRight: null,
     rLab: null,
@@ -278,8 +286,6 @@
     rImg: null,
     buffLab: null,
     buffLabClip: null,
-    rejuvBuff: null,
-    rejuvBuffTime: null,
     rejuvFriendly: null,
     rejuvEnemy: null,
     claimLeft: null,
@@ -289,7 +295,9 @@
     claimRingLeft: null,
     claimRingRight: null,
     claimTimerLeft: null,
-    claimTimerRight: null
+    claimTimerRight: null,
+    rejuvMiniCard: null,
+    rejuvMiniTime: null
   };
 
   // ===========================================
@@ -329,8 +337,6 @@
     UI.buffLab = r.FindChildTraverse("BuffTime");
     UI.rLabClip = r.FindChildTraverse("RejuvTimeClip");
     UI.buffLabClip = r.FindChildTraverse("BuffTimeClip");
-    UI.rejuvBuff = r.FindChildTraverse("RejuvBuff");
-    UI.rejuvBuffTime = r.FindChildTraverse("RejuvTimeBuff");
     UI.glowLeft = r.FindChildTraverse("MinimapGlowLeft");
     UI.glowRight = r.FindChildTraverse("MinimapGlowRight");
     UI.claimLeft = r.FindChildTraverse("MinimapBuffClaimLeft");
@@ -342,6 +348,10 @@
     UI.claimTimerLeft = r.FindChildTraverse("ClaimTimerLeft");
     UI.claimTimerRight = r.FindChildTraverse("ClaimTimerRight");
     UI.minimapContainer = r.FindChildTraverse("HudMinimapContainer");
+    UI.spawnBadge = r.FindChildTraverse("NeutralSpawnBadge");
+    UI.spawnBadge2 = r.FindChildTraverse("NeutralSpawnBadge2");
+    UI.rejuvMiniCard = r.FindChildTraverse("RejuvMiniCard");
+    UI.rejuvMiniTime = r.FindChildTraverse("RejuvMiniTime");
 
     const tb = r.FindChildTraverse("TopBar");
     if (tb) {
@@ -356,11 +366,8 @@
       return $.Schedule(0.5, boot);
     }
 
-    if (DEBUG_NEUTRAL_ALIGN && !_alignBootLogged) {
-      _alignBootLogged = true;
-      $.Msg("[BT-ALIGN]", "boot", "enabled=1");
-    }
-
+    refreshPanels();
+    clearNeutralRuntimeCaches();
     reset(1);
     loop();
   }
@@ -373,6 +380,7 @@
     const rn = Date.now();
     const now = gTime(rn);
     let snapshot = null;
+    refreshPanels();
 
     if (ENABLE_MINIMAP_COLLAPSE && rn - lastMinimapCollapseCheck >= MINIMAP_COLLAPSE_INTERVAL_MS) {
       lastMinimapCollapseCheck = rn;
@@ -421,8 +429,10 @@
       lastSec = now;
       if (idx < 0 || idx >= SEQ.length) idx = 0;  // Safety clamp
       const neutralBotActive = updateNeutralBotPhase(now);
+      const neutralMediumActive = updateNeutralMediumPhase(now);
+      const neutralCardActive = updateNeutralCardPhase(now);
 
-      if (!neutralBotActive) {
+      if (!neutralBotActive && !neutralMediumActive && !neutralCardActive) {
         const rem = Math.max(0, SEQ[idx].d - (now - phaseStart));
 
         if (rem <= 0) {
@@ -457,10 +467,10 @@
     if (buffStart > 0) {
       buffCnt = Math.max(0, REJUV_DUR - (now - buffStart));
 
-      if (UI.rejuvBuffTime) {
+      if (UI.rejuvMiniTime?.IsValid?.()) {
         const t = fmt(buffCnt);
         if (t !== _lastRejuvBuffText) {
-          UI.rejuvBuffTime.text = t;
+          UI.rejuvMiniTime.text = t;
           _lastRejuvBuffText = t;
         }
       }
@@ -479,9 +489,9 @@
         UI.buffLab.text = t;
         if (UI.buffLabClip?.IsValid?.()) {
           UI.buffLabClip.text = t;
+        }
+        _lastBuffText = t;
       }
-      _lastBuffText = t;
-    }
 
       const buffPct = buffRem / BRIDGE_DUR;
       const p = Math.floor((1.0 - buffPct) * 100);
@@ -554,8 +564,46 @@
       checkEnemyLinger(rn, snapshot);
     }
 
+    const sbOpen = isScoreboardOpen(findMinimap());
+
+    // Neutral camp respawn scan
+    if (rn - lastNeutralScanCheck >= NEUTRAL_SCAN_INTERVAL_MS) {
+      lastNeutralScanCheck = rn;
+      snapshot = snapshot || collectMinimapSnapshot(rn, false);
+      if (snapshot) {
+        maybeClearNeutralCachesForLowGameTime(now);
+        scanNeutralRespawnState(snapshot, rn, now);
+      }
+    }
+
+    // Neutral camp ring render
+    if (rn - lastNeutralRenderCheck >= NEUTRAL_RENDER_INTERVAL_MS) {
+      lastNeutralRenderCheck = rn;
+      renderNeutralRespawnTimers(rn, now, sbOpen);
+    }
+
+    // Mini rejuv card: visible during neutral override phase OR buff active
+    if (UI.rejuvMiniCard?.IsValid?.()) {
+      const neutralOverride = _neutralBotOverrideActive || _neutralMediumOverrideActive || _neutralCardOverrideActive;
+      const buffActive = buffStart > 0;
+      const miniActive = neutralOverride || buffActive;
+      UI.rejuvMiniCard.SetHasClass("active", miniActive);
+      UI.rejuvMiniCard.SetHasClass("buff-active", buffActive && !neutralOverride);
+      // During neutral override the main rejuv label is not updated — compute
+      // the countdown directly from phaseStart so the mini card stays accurate.
+      if (neutralOverride && !buffActive && UI.rejuvMiniTime?.IsValid?.()) {
+        const safeIdx = (idx >= 0 && idx < SEQ.length) ? idx : 0;
+        const miniRem = Math.max(0, SEQ[safeIdx].d - (now - phaseStart));
+        const miniText = fmt(miniRem);
+        if (miniText !== UI.rejuvMiniTime.text) {
+          UI.rejuvMiniTime.text = miniText;
+        }
+      }
+    }
+
     updateClaimProgress(now);
-    hnd = $.Schedule(tick, loop);
+    const jtInterval = computeJungleTimerInterval(rn, sbOpen);
+    hnd = $.Schedule(Math.min(tick, jtInterval), loop);
   }
 
   // ===========================================
@@ -626,7 +674,7 @@
           }
         }
       }
-    } catch {}
+    } catch { }
 
     return false;
   }
@@ -643,8 +691,169 @@
     } catch (e) {
     }
 
-
     return UI.minimap;
+  }
+
+  // Alias so JT functions can call getGameTime() → gTime()
+  function getGameTime(nowMs) { return gTime(nowMs || Date.now()); }
+  // Alias so JT functions can call fmtSeconds() → fmt()
+  function fmtSeconds(seconds) { return fmt(seconds); }
+  // Alias for JT panel resolution (both look up hud_minimap)
+  function getMinimap() { return findMinimap(); }
+
+  // ===========================================
+  // JT: UTILITY FUNCTIONS
+  // ===========================================
+
+  function setPanelClass(panel, className, enabled) {
+    if (!panel?.IsValid?.()) return;
+    const shouldHave = !!enabled;
+    let hasClass = false;
+    try { hasClass = !!panel.BHasClass?.(className); } catch { hasClass = false; }
+    if (hasClass !== shouldHave) panel.SetHasClass(className, shouldHave);
+  }
+
+  function resolveMinimapReferenceSize(panel) {
+    const reference = panel?.IsValid?.() ? panel : null;
+    const width = safePanelExtent(
+      reference?.actuallayoutwidth || reference?.contentwidth,
+      1512, 8192
+    );
+    const height = safePanelExtent(
+      reference?.actuallayoutheight || reference?.contentheight,
+      862, 8192
+    );
+    return { width, height };
+  }
+
+  function getMinimapScanPanels(mm) {
+    const panels = [];
+    if (mm?.IsValid?.()) panels.push(mm);
+    if (UI.minimapBox?.IsValid?.()) panels.push(UI.minimapBox);
+    if (UI.minimapContainer?.IsValid?.()) panels.push(UI.minimapContainer);
+    if (UI.hud?.IsValid?.()) panels.push(UI.hud);
+    if (UI.root?.IsValid?.()) panels.push(UI.root);
+    if (UI.scoreboardRoot?.IsValid?.()) panels.push(UI.scoreboardRoot);
+    return panels;
+  }
+
+  function panelHasClassRecursive(panel, className, maxDepth) {
+    let current = panel;
+    let depth = 0;
+    const depthLimit = Number.isFinite(maxDepth) ? maxDepth : 10;
+    while (current?.IsValid?.() && depth < depthLimit) {
+      try { if (current.BHasClass?.(className)) return true; } catch {}
+      current = current.GetParent?.();
+      depth++;
+    }
+    return false;
+  }
+
+  function describeButtonTeam(btn) {
+    if (!btn?.IsValid?.()) return null;
+    const hasFriend = btn.BHasClass?.("friend") || btn.BHasClass?.("friendly") || btn.BHasClass?.("ally");
+    const hasEnemy = btn.BHasClass?.("enemy");
+    const hasTeam1 = btn.BHasClass?.("team1");
+    const hasTeam2 = btn.BHasClass?.("team2");
+    if (!hasFriend && !hasEnemy && !hasTeam1 && !hasTeam2) return null;
+    return { teamId: hasTeam2 ? 2 : hasTeam1 ? 1 : hasEnemy ? 2 : hasFriend ? 1 : 0 };
+  }
+
+  function resolveMinimapTeamContext(mm) {
+    for (const panel of getMinimapScanPanels(mm)) {
+      let buttons = null;
+      try { buttons = panel.FindChildrenWithClassTraverse?.("map_button"); } catch { buttons = null; }
+      if (!buttons?.length) continue;
+      let fallback = null;
+      for (let i = 0; i < buttons.length; i++) {
+        const info = describeButtonTeam(buttons[i]);
+        if (!info) continue;
+        if (info.teamId === 1) return { teamId: 1 };
+        if (!fallback) fallback = info;
+      }
+      if (fallback) return { teamId: fallback.teamId || 0 };
+    }
+    if (panelHasClassRecursive(mm, "team1", 12)) return { teamId: 1 };
+    if (panelHasClassRecursive(mm, "team2", 12)) return { teamId: 2 };
+    return { teamId: 0 };
+  }
+
+  function resolveMinimapThemeInfo(mm) {
+    const context = resolveMinimapTeamContext(mm);
+    const teamId = context?.teamId || 0;
+    for (const panel of getMinimapScanPanels(mm)) {
+      if (panelHasClassRecursive(panel, "theme_inverted", 12) || panelHasClassRecursive(panel, "theme-inverted", 12)) return { inverted: true, teamId };
+      if (panelHasClassRecursive(panel, "theme_standard", 12) || panelHasClassRecursive(panel, "theme-standard", 12)) return { inverted: false, teamId };
+      if (panelHasClassRecursive(panel, "invert_map", 12)) return { inverted: true, teamId };
+    }
+    return {
+      inverted: teamId === 2 ? true : teamId === 1 ? false : !!(mm?.IsValid?.() && mm.BHasClass?.("invert_map")),
+      teamId
+    };
+  }
+
+  function updateMinimapInvertCache(mm, nowMs) {
+    const now = nowMs || Date.now();
+    // Cheap direct check — detects if invert_map is on mm itself (e.g. hud_minimap).
+    // Tracked separately so cache invalidates only when THIS value changes, not when
+    // resolveMinimapThemeInfo's richer result (which may detect invert_map on an ancestor)
+    // disagrees with it — that would cause an infinite cache miss.
+    const directInverted = !!(mm?.IsValid?.() && mm.BHasClass?.("invert_map"));
+    if (
+      _minimapInvertCache.minimap === mm &&
+      now - _minimapInvertCache.ts < 45000 &&
+      _minimapInvertCache.directInverted === directInverted
+    ) return _minimapInvertCache;
+    const themeInfo = resolveMinimapThemeInfo(mm);
+    const inverted = directInverted || !!themeInfo?.inverted;
+    _minimapInvertCache = { ts: now, minimap: mm, inverted, directInverted, teamId: themeInfo?.teamId || 0 };
+    return _minimapInvertCache;
+  }
+
+  function clearMinimapInvertCache() {
+    _minimapInvertCache.ts = 0;
+    _minimapInvertCache.minimap = null;
+    _minimapInvertCache.inverted = false;
+    _minimapInvertCache.directInverted = false;
+    _minimapInvertCache.teamId = 0;
+  }
+
+  function refreshPanels() {
+    const nowRp = Date.now();
+    const REFRESH_PANELS_CACHE_TTL_MS = 2000;
+    if (
+      nowRp - _refreshPanelsCacheTs < REFRESH_PANELS_CACHE_TTL_MS &&
+      UI.root?.IsValid?.() && UI.hud?.IsValid?.() &&
+      UI.minimapBox?.IsValid?.() && UI.minimapContainer?.IsValid?.() &&
+      UI.scoreboardRoot?.IsValid?.() && UI.minimap?.IsValid?.()
+    ) return true;
+
+    if (
+      UI.root?.IsValid?.() && UI.hud?.IsValid?.() &&
+      UI.minimapBox?.IsValid?.() && UI.minimapContainer?.IsValid?.() &&
+      UI.scoreboardRoot?.IsValid?.() && UI.minimap?.IsValid?.()
+    ) { _refreshPanelsCacheTs = nowRp; return true; }
+
+    const root = UI.root?.IsValid?.() ? UI.root : null;
+    if (!root) return false;
+
+    const prevMinimapBox = UI.minimapBox;
+    const prevScoreboardRoot = UI.scoreboardRoot;
+    const prevMinimap = UI.minimap;
+
+    UI.minimapBox = root.FindChildTraverse("minimap_container");
+    UI.scoreboardRoot = root.FindChildTraverse("minimap_persp");
+    if (!UI.minimap?.IsValid?.()) {
+      try { UI.minimap = root.FindChildTraverse("hud_minimap"); } catch { UI.minimap = null; }
+    }
+
+    if (prevMinimapBox !== UI.minimapBox || prevScoreboardRoot !== UI.scoreboardRoot || prevMinimap !== UI.minimap) {
+      clearMinimapInvertCache();
+    }
+
+    const ok = !!(UI.hud?.IsValid?.() && UI.minimapBox?.IsValid?.() && UI.minimapContainer?.IsValid?.() && UI.minimap?.IsValid?.());
+    if (ok) _refreshPanelsCacheTs = nowRp;
+    return ok;
   }
 
   function safeMapCoord(v) {
@@ -661,9 +870,10 @@
     return v;
   }
 
-  function safePanelExtent(v, fallback) {
+  function safePanelExtent(v, fallback, maxVal) {
     const n = Number(v);
-    if (!isFinite(n) || n <= 0 || n > 512) return fallback;
+    const cap = maxVal || 512;
+    if (!isFinite(n) || n <= 0 || n > cap) return fallback;
     return n;
   }
 
@@ -672,7 +882,6 @@
     if (!mm) return null;
 
     const now = nowMs || Date.now();
-    const alignArmed = isNeutralAlignArmed(now);
     const intervalMs = running ? MINIMAP_SNAPSHOT_INTERVAL_ACTIVE_MS : MINIMAP_SNAPSHOT_INTERVAL_IDLE_MS;
     if (!forceFresh && _snapshotTs > 0 && now - _snapshotTs < intervalMs) {
       return _minimapSnapshot;
@@ -715,83 +924,108 @@
         const btn = buttons[i];
         if (!btn?.IsValid?.() || !btn.BHasClass?.("map_button")) continue;
 
-      if (btn.BHasClass("player")) {
-        const actualX = safeMapCoord(btn.actualxoffset);
-        const actualY = safeMapCoord(btn.actualyoffset);
-        if (actualX === null || actualY === null) continue;
-        const xPct = clampPct(actualX / mmW * 100);
-        const yPct = clampPct(actualY / mmH * 100);
+        if (btn.BHasClass("player")) {
+          const actualX = safeMapCoord(btn.actualxoffset);
+          const actualY = safeMapCoord(btn.actualyoffset);
+          if (actualX === null || actualY === null) continue;
+          const xPct = clampPct(actualX / mmW * 100);
+          const yPct = clampPct(actualY / mmH * 100);
 
-        let entry = _minimapSnapshot.players[playerCount];
-        if (!entry) {
-          entry = { id: "", panel: null, isActive: false, isDead: false, team: 0, xPct: 0, yPct: 0, actualX: 0, actualY: 0 };
-          _minimapSnapshot.players[playerCount] = entry;
-        }
-
-        const id = btn.id || ("p" + i);
-        const ps = _playerState[id];
-        let team = ps?.team || 0;
-        if (!team) {
-          team = isAlly(btn) ? 1 : isEnemy(btn) ? 2 : 0;
-        }
-
-        entry.id = id;
-        entry.panel = btn;
-        entry.isActive = btn.BHasClass("active");
-        entry.isDead = btn.BHasClass("playerdead");
-        entry.team = team;
-        entry.xPct = xPct;
-        entry.yPct = yPct;
-        entry.actualX = actualX;
-        entry.actualY = actualY;
-        playerCount++;
-        continue;
-      }
-
-      if (btn.BHasClass("powerup_spawn")) {
-        const actualX = safeMapCoord(btn.actualxoffset);
-        const actualY = safeMapCoord(btn.actualyoffset);
-        if (actualX === null || actualY === null) continue;
-        const xPct = clampPct(actualX / mmW * 100);
-        const yPct = clampPct(actualY / mmH * 100);
-
-        let entry = _minimapSnapshot.powerupSpawns[powerupCount];
-        if (!entry) {
-          entry = { id: "", panel: null, isActive: false, type: "unknown", xPct: 0, yPct: 0, actualX: 0, actualY: 0 };
-          _minimapSnapshot.powerupSpawns[powerupCount] = entry;
-        }
-
-        let type = "unknown";
-        for (let j = 0; j < POWERUP_TYPES.length; j++) {
-          if (btn.BHasClass(POWERUP_TYPES[j])) {
-            type = POWERUP_TYPES[j];
-            break;
+          let entry = _minimapSnapshot.players[playerCount];
+          if (!entry) {
+            entry = { id: "", panel: null, isActive: false, isDead: false, team: 0, xPct: 0, yPct: 0, actualX: 0, actualY: 0 };
+            _minimapSnapshot.players[playerCount] = entry;
           }
+
+          const id = btn.id || ("p" + i);
+          const ps = _playerState[id];
+          let team = ps?.team || 0;
+          if (!team) {
+            team = describeButtonTeam(btn)?.teamId || 0;
+          }
+
+          entry.id = id;
+          entry.panel = btn;
+          entry.isActive = btn.BHasClass("active");
+          entry.isDead = btn.BHasClass("playerdead");
+          entry.team = team;
+          entry.xPct = xPct;
+          entry.yPct = yPct;
+          entry.actualX = actualX;
+          entry.actualY = actualY;
+          playerCount++;
+          continue;
         }
 
-        entry.id = btn.id || ("powerup_" + i);
-        entry.panel = btn;
-        entry.isActive = btn.BHasClass("active");
-        entry.type = type;
-        entry.xPct = xPct;
-        entry.yPct = yPct;
-        entry.actualX = actualX;
-        entry.actualY = actualY;
-        powerupCount++;
-        continue;
+        if (btn.BHasClass("powerup_spawn")) {
+          const actualX = safeMapCoord(btn.actualxoffset);
+          const actualY = safeMapCoord(btn.actualyoffset);
+          if (actualX === null || actualY === null) continue;
+          const xPct = clampPct(actualX / mmW * 100);
+          const yPct = clampPct(actualY / mmH * 100);
+
+          let entry = _minimapSnapshot.powerupSpawns[powerupCount];
+          if (!entry) {
+            entry = { id: "", panel: null, isActive: false, type: "unknown", xPct: 0, yPct: 0, actualX: 0, actualY: 0 };
+            _minimapSnapshot.powerupSpawns[powerupCount] = entry;
+          }
+
+          let type = "unknown";
+          for (let j = 0; j < POWERUP_TYPES.length; j++) {
+            if (btn.BHasClass(POWERUP_TYPES[j])) {
+              type = POWERUP_TYPES[j];
+              break;
+            }
+          }
+
+          entry.id = btn.id || ("powerup_" + i);
+          entry.panel = btn;
+          entry.isActive = btn.BHasClass("active");
+          entry.type = type;
+          entry.xPct = xPct;
+          entry.yPct = yPct;
+          entry.actualX = actualX;
+          entry.actualY = actualY;
+          powerupCount++;
+          continue;
+        }
+
+        // Neutral camps
+        const neutralType = getNeutralType(btn);
+        if (neutralType) {
+          const actualX = safeMapCoord(btn.actualxoffset);
+          const actualY = safeMapCoord(btn.actualyoffset);
+          if (actualX !== null && actualY !== null) {
+            const xPct = clampPct(actualX / mmW * 100);
+            const yPct = clampPct(actualY / mmH * 100);
+            let nc = _minimapSnapshot.neutralCamps[neutralCount];
+            if (!nc) {
+              nc = { type: "", panel: null, isActive: false, xPct: 0, yPct: 0, actualX: 0, actualY: 0 };
+              _minimapSnapshot.neutralCamps[neutralCount] = nc;
+            }
+            nc.type = neutralType;
+            nc.panel = btn;
+            nc.isActive = btn.BHasClass("active");
+            nc.xPct = xPct;
+            nc.yPct = yPct;
+            nc.actualX = actualX;
+            nc.actualY = actualY;
+            neutralCount++;
+          }
+          continue;
+        }
+
       }
+    } catch { }
 
-    }
-  } catch {}
-
-  _minimapSnapshot.players.length = playerCount;
-  _minimapSnapshot.powerupSpawns.length = powerupCount;
-  _minimapSnapshot.neutralCamps.length = 0;
-  _minimapSnapshot.ts = now;
-  _snapshotTs = now;
-  perfMark("snapshotSweeps", now);
-  return _minimapSnapshot;
-}
+    _minimapSnapshot.players.length = playerCount;
+    _minimapSnapshot.powerupSpawns.length = powerupCount;
+    _minimapSnapshot.neutralCamps.length = neutralCount;
+    _minimapSnapshot.ts = now;
+    _snapshotTs = now;
+    perfMark("snapshotSweeps", now);
+    return _minimapSnapshot;
+  }
 
   function computeNearestForTargets(players, targets, targetCount, nowMs, accumulate) {
     if (!players?.length || !targets || targetCount <= 0) return;
@@ -819,7 +1053,7 @@
 
       let team = ps.team || pl.team || 0;
       if (!team && pl.panel?.IsValid?.()) {
-        team = isAlly(pl.panel) ? 1 : isEnemy(pl.panel) ? 2 : 0;
+        team = describeButtonTeam(pl.panel)?.teamId || 0;
       }
       ps.team = team;
 
@@ -932,7 +1166,7 @@
         if (!wasCollapsed) {
           try {
             btn.style.visibility = "collapse";
-          } catch {}
+          } catch { }
         }
 
         const isCollapsed = btn.style?.visibility === "collapse";
@@ -971,688 +1205,473 @@
     return "NeutralCooldownRing_" + key.replace(/[^a-zA-Z0-9_]/g, "_");
   }
 
-  function getNeutralRingTheme(type) {
-    return NEUTRAL_RING_THEME[type] || NEUTRAL_RING_THEME_DEFAULT;
-  }
-
-  function neutralPosOnContainer(mapX, mapY, container, mm) {
-    const mw = mm?.contentwidth || container.contentwidth || 404;
-    const mh = mm?.contentheight || container.contentheight || 404;
-    const mmOffsetX = mm?.actualxoffset || 0;
-    const mmOffsetY = mm?.actualyoffset || 0;
-    const inverted = mm?.IsValid?.() && mm.BHasClass?.("invert_map");
-
-    let x = (mapX || 0) + 2;
-    let y = (mapY || 0) + 2;
-
-    if (inverted) {
-      x = mw - x - 24;
-      y = mh - y - 24;
-    }
-
-    _posResult.x = mmOffsetX + x;
-    _posResult.y = mmOffsetY + y;
-    return _posResult;
-  }
-
-  function clearNeutralRing(st) {
-    if (!st) return;
-
-    try {
-      if (st.ringRoot?.IsValid?.()) {
-        st.ringRoot.DeleteAsync(0);
-      }
-    } catch {}
-
-    st.ringRoot = null;
-    st.ringFill = null;
-    st.lastClip = "";
-    st.lastFillColor = "";
-    st.lastTrackBorder = "";
-    st.lastTrackBg = "";
-    st.lastRingSize = -1;
-    st.lastParentMode = "";
-    st.lastPosX = -1;
-    st.lastPosY = -1;
-  }
-
-  function clearNeutralDetailLabel(st) {
-    if (!st) return;
-
-    try {
-      if (st.detailLabel?.IsValid?.()) {
-        st.detailLabel.DeleteAsync(0);
-      }
-    } catch {}
-
-    st.detailLabel = null;
-    st.lastText = "";
-    st.lastTextColor = "";
-    st.lastTextPosX = -1;
-    st.lastTextPosY = -1;
-  }
+  // ===========================================
+  // JT: NEUTRAL RING ACTIVE IMPLEMENTATIONS
+  // ===========================================
 
   function isScoreboardOpen(mm) {
     try {
       if (mm?.IsValid?.() && mm.BHasClass?.("gScoreboardOpen")) return true;
+      if (UI.scoreboardRoot?.IsValid?.() && UI.scoreboardRoot.BHasClass?.("gScoreboardOpen")) return true;
+      if (UI.minimapBox?.IsValid?.() && UI.minimapBox.BHasClass?.("gScoreboardOpen")) return true;
+      if (UI.minimapContainer?.IsValid?.() && UI.minimapContainer.BHasClass?.("gScoreboardOpen")) return true;
       if (UI.root?.IsValid?.() && UI.root.BHasClass?.("gScoreboardOpen")) return true;
     } catch {}
     return false;
   }
 
-  function hasAspectTag(root) {
-    if (!root?.IsValid?.()) return "unknown";
+  function ensureNeutralOverlay(container) {
+    if (UI.neutralOverlay?.IsValid?.()) return UI.neutralOverlay;
+    if (!container?.IsValid?.()) return null;
+    const overlayId = "NeutralCooldownOverlayLayer";
+    let overlay = null;
+    try { overlay = container.FindChildTraverse(overlayId); } catch {}
+    if (!overlay?.IsValid?.()) {
+      overlay = $.CreatePanel("Panel", container, overlayId);
+      overlay.hittest = false;
+      overlay.hittestchildren = false;
+      overlay.style.position = "0px 0px 0px";
+      overlay.style.width = "100%";
+      overlay.style.height = "100%";
+      overlay.style.overflow = "noclip";
+      overlay.style.zIndex = "2000";
+    }
+    UI.neutralOverlay = overlay;
+    return overlay;
+  }
+
+  function createState(camp, now, token, key) {
+    const ringId = getNeutralRingId(key);
+    return {
+      type: camp.type,
+      wasActive: camp.isActive,
+      respawnEndMs: 0,
+      respawnEndGameSec: 0,
+      durationMs: 0,
+      ringRoot: null,
+      ringFill: null,
+      detailLabel: null,
+      anchorRoot: null,
+      panel: camp.panel || null,
+      panelW: safePanelExtent(camp.panel?.actuallayoutwidth || camp.panel?.contentwidth, 24),
+      panelH: safePanelExtent(camp.panel?.actuallayoutheight || camp.panel?.contentheight, 24),
+      mapPctX: camp.xPct,
+      mapPctY: camp.yPct,
+      anchorPctX: Number.isFinite(camp.xPct) ? camp.xPct : null,
+      anchorPctY: Number.isFinite(camp.yPct) ? camp.yPct : null,
+      mapX: camp.actualX,
+      mapY: camp.actualY,
+      lastSeenMs: now,
+      sweepToken: token,
+      ringId: ringId,
+      fillId: ringId + "_fill",
+      textId: ringId + "_text",
+      anchorId: ringId + "_anchor",
+      lastRingSize: -1,
+      lastPosX: -1,
+      lastPosY: -1,
+      lastOpacity: "",
+      lastClip: "",
+      lastTrackBorder: "",
+      lastTrackBg: "",
+      lastText: "",
+      lastTextColor: "",
+      lastTextPosX: -1,
+      lastTextPosY: -1,
+      lastTextOpacity: "",
+      lastIconOpacity: "",
+      ringVisible: true,
+      cssTransitionPending: false,
+      cssTransitionNeedsSeed: false,
+      cssTransitionSeeded: false
+    };
+  }
+
+  function clearNeutralRing(st) {
+    if (!st) return;
+    try { if (st.ringRoot?.IsValid?.()) st.ringRoot.DeleteAsync(0); } catch {}
+    st.ringRoot = null;
+    st.ringFill = null;
+    st.lastClip = "";
+    st.lastTrackBorder = "";
+    st.lastTrackBg = "";
+    st.lastRingSize = -1;
+    st.lastPosX = -1;
+    st.lastPosY = -1;
+    st.lastOpacity = "";
+    st.ringVisible = true;
+    st.cssTransitionPending = false;
+    st.cssTransitionNeedsSeed = false;
+    st.cssTransitionSeeded = false;
+  }
+
+  function seedNeutralRingTransition(ringFill, startClip, endClip, durationSec) {
+    if (!ringFill?.IsValid?.()) return false;
+    const sec = Number(durationSec);
+    if (!isFinite(sec) || sec <= 0) return false;
     try {
-      if (root.BHasClass?.("AspectRatio21x9")) return "21x9";
-      if (root.BHasClass?.("AspectRatio16x10")) return "16x10";
-      if (root.BHasClass?.("AspectRatio16x9")) return "16x9";
-      if (root.BHasClass?.("AspectRatio4x3")) return "4x3";
+      ringFill.style.transitionDuration = "0s";
+      ringFill.style.clip = startClip;
+      void ringFill.actuallayoutwidth;
+      ringFill.style.transitionDuration = sec + "s";
+      ringFill.style.clip = endClip;
+      return true;
     } catch {}
-    return "other";
-  }
-
-  function armNeutralAlignWindow(nowMs, key) {
-    const now = nowMs || Date.now();
-    _alignDebugArmUntilMs = now + DEBUG_NEUTRAL_ALIGN_ACTIVE_WINDOW_MS;
-    _alignDebugKey = key || "";
-    _alignScanLogsLeft = DEBUG_NEUTRAL_ALIGN_SCAN_LOG_MAX;
-    _alignKeyLogsLeft = DEBUG_NEUTRAL_ALIGN_KEY_LOG_MAX;
-    _alignTickLogsLeft = DEBUG_NEUTRAL_ALIGN_TICK_LOG_MAX;
-    _alignLastTickLogMs = 0;
-  }
-
-  function isNeutralAlignArmed(nowMs, key) {
-    if (!DEBUG_NEUTRAL_ALIGN) return false;
-    if (!DEBUG_NEUTRAL_ALIGN_ARM_ON_COOLDOWN) return true;
-
-    const now = nowMs || Date.now();
-    if (now > (_alignDebugArmUntilMs || 0)) return false;
-    if (!key || !_alignDebugKey) return true;
-    return key === _alignDebugKey;
-  }
-
-  function consumeAlignLogBudget(kind) {
-    if (!DEBUG_NEUTRAL_ALIGN) return false;
-
-    if (kind === "scan") {
-      if (_alignScanLogsLeft <= 0) return false;
-      _alignScanLogsLeft--;
-      return true;
-    }
-
-    if (kind === "key") {
-      if (_alignKeyLogsLeft <= 0) return false;
-      _alignKeyLogsLeft--;
-      return true;
-    }
-
-    if (kind === "tick") {
-      if (_alignTickLogsLeft <= 0) return false;
-      _alignTickLogsLeft--;
-      return true;
-    }
-
     return false;
   }
 
-  function safeDebugStyle(styleValue) {
-    if (styleValue === null || styleValue === undefined) return "auto";
-    const s = String(styleValue);
-    return s.length > 0 ? s : "auto";
-  }
-
-  function panelDebugSummary(panel) {
-    if (!panel?.IsValid?.()) return "panel=none";
-
-    let parentId = "none";
-    try {
-      const parent = panel.GetParent?.();
-      if (parent?.IsValid?.()) parentId = parent.id || "noid";
-    } catch {}
-
-    let opacity = "auto";
-    let visibility = "auto";
-    try {
-      opacity = safeDebugStyle(panel.style?.opacity);
-      visibility = safeDebugStyle(panel.style?.visibility);
-    } catch {}
-
-    const isActive = panel.BHasClass?.("active") ? "1" : "0";
-    const isWeak = panel.BHasClass?.("neutral_weak") ? "1" : "0";
-    const isMedium = panel.BHasClass?.("neutral_medium") ? "1" : "0";
-    const isLarge = panel.BHasClass?.("neutral_large") ? "1" : "0";
-    const isVault = panel.BHasClass?.("neutral_vault") ? "1" : "0";
-
-    return "panel=" + (panel.id || "noid") +
-      "|parent=" + parentId +
-      "|active=" + isActive +
-      "|weak=" + isWeak +
-      "|med=" + isMedium +
-      "|large=" + isLarge +
-      "|vault=" + isVault +
-      "|op=" + opacity +
-      "|vis=" + visibility;
-  }
-
-  function buildNeutralStateDump(maxCount) {
-    const keys = Object.keys(_neutralRespawnState);
-    if (!keys.length) return "none";
-    const out = [];
-    const cap = Math.max(1, maxCount | 0);
-
-    for (let i = 0; i < keys.length && out.length < cap; i++) {
-      const key = keys[i];
-      const st = _neutralRespawnState[key];
-      if (!st) continue;
-
-      const hasPanel = st.panel?.IsValid?.() ? "1" : "0";
-      const cooldownActive = (st.respawnEndMs > 0 || st.respawnEndGameSec > 0) ? "1" : "0";
-      const pctX = clampPct(st.mapPctX || 0).toFixed(2);
-      const pctY = clampPct(st.mapPctY || 0).toFixed(2);
-      const mapX = (safeMapCoord(st.mapX) ?? -1).toFixed(1);
-      const mapY = (safeMapCoord(st.mapY) ?? -1).toFixed(1);
-
-      out.push(
-        key + ":" +
-        (st.type || "unknown") +
-        "|cd=" + cooldownActive +
-        "|hp=" + hasPanel +
-        "|pm=" + (st.lastParentMode || "none") +
-        "|pct=" + pctX + "," + pctY +
-        "|xy=" + mapX + "," + mapY
-      );
-    }
-
-    return out.join(" ; ");
-  }
-
-  function logNeutralAlign(st, key, nowMs, dbg) {
-    if (!DEBUG_NEUTRAL_ALIGN || !st) return;
-    const now = nowMs || Date.now();
-    if (!isNeutralAlignArmed(now, key)) return;
-    if (!DEBUG_NEUTRAL_ALIGN_ALWAYS_PRINT) {
-      const last = st.lastAlignLogMs || 0;
-      if (now - last < DEBUG_NEUTRAL_ALIGN_INTERVAL_MS) return;
-    }
-    if (!consumeAlignLogBudget("key")) return;
-    st.lastAlignLogMs = now;
-
-    const reasons = [];
-    if (!dbg.hasLivePanel) reasons.push("no_live_panel");
-    if (dbg.usingDefaultIconSize) reasons.push("default_icon_size");
-    if (dbg.iconW <= 0 || dbg.iconH <= 0) reasons.push("invalid_icon_size");
-    if (Math.abs(dbg.iconW - dbg.iconH) > 1) reasons.push("icon_not_square");
-    if (Math.abs(dbg.mw - dbg.mh) > 1) reasons.push("container_not_square");
-    if (dbg.fallbackDelta > 3) reasons.push("panel_vs_fallback_delta");
-    if (Math.abs(dbg.pctDeltaX) > 3 || Math.abs(dbg.pctDeltaY) > 3) reasons.push("panel_vs_pct_delta");
-    if (dbg.mmVsContainerDelta > 1) reasons.push("mm_container_size_delta");
-    if (dbg.doubleInvertRisk) reasons.push("fallback_invert_double");
-    if (dbg.scoreboardOpen) reasons.push("scoreboard_open");
-    if (dbg.inverted) reasons.push("invert_map");
-    if (dbg.enlargeEntry) reasons.push("enlarge_entry");
-
-    if (DEBUG_NEUTRAL_ALIGN_ONLY_WHEN_ISSUE && reasons.length === 0) return;
-
-    $.Msg(
-      "[BT-ALIGN]",
-      "key=", key,
-      "type=", st.type,
-      "reason=", reasons.length ? reasons.join("|") : "none",
-      "asp=", dbg.aspect,
-      "inv=", dbg.inverted ? "1" : "0",
-      "sb=", dbg.scoreboardOpen ? "1" : "0",
-      "live=", dbg.hasLivePanel ? "1" : "0",
-      "src=", dbg.source,
-      "size=", dbg.iconW.toFixed(2) + "x" + dbg.iconH.toFixed(2),
-      "mm=", dbg.mmW.toFixed(2) + "x" + dbg.mmH.toFixed(2),
-      "ct=", dbg.mw.toFixed(2) + "x" + dbg.mh.toFixed(2),
-      "icon=", dbg.iconX.toFixed(2) + "," + dbg.iconY.toFixed(2),
-      "center=", dbg.centerX.toFixed(2) + "," + dbg.centerY.toFixed(2),
-      "ring=", dbg.px.toFixed(2) + "," + dbg.py.toFixed(2),
-      "mapPct=", dbg.mapPctX.toFixed(2) + "," + dbg.mapPctY.toFixed(2),
-      "pctPx=", dbg.pctX.toFixed(2) + "," + dbg.pctY.toFixed(2),
-      "legacyFallback=", dbg.legacyFallbackX.toFixed(2) + "," + dbg.legacyFallbackY.toFixed(2),
-      "fallbackCenter=", dbg.fallbackCenterX.toFixed(2) + "," + dbg.fallbackCenterY.toFixed(2),
-      "fallbackDelta=", dbg.fallbackDelta.toFixed(2),
-      "pctDelta=", dbg.pctDeltaX.toFixed(2) + "," + dbg.pctDeltaY.toFixed(2),
-      panelDebugSummary(st.panel)
-    );
-  }
-
-  function setNeutralIconDim(st, shouldDim) {
+  function clearNeutralAnchor(st) {
     if (!st) return;
-    const panel = st.panel;
-    if (!panel?.IsValid?.()) {
-      if (DEBUG_NEUTRAL_ALIGN && shouldDim) {
-        $.Msg("[BT-ALIGN]", "icon_dim_skip", "reason=panel_invalid", "type=", st.type || "unknown");
-      }
-      if (!shouldDim) st.iconDimApplied = false;
-      return;
-    }
+    try { if (st.anchorRoot?.IsValid?.()) st.anchorRoot.DeleteAsync(0); } catch {}
+    st.anchorRoot = null;
+  }
 
+  function clearNeutralDetailLabel(st) {
+    if (!st) return;
+    try { if (st.detailLabel?.IsValid?.()) st.detailLabel.DeleteAsync(0); } catch {}
+    st.detailLabel = null;
+    st.lastText = "";
+    st.lastTextColor = "";
+    st.lastTextPosX = -1;
+    st.lastTextPosY = -1;
+    st.lastTextOpacity = "";
+  }
+
+  function setNeutralIconOpacity(st, opacityVal) {
+    if (!st?.panel?.IsValid?.()) return;
     try {
-      if (shouldDim) {
-        if (!st.iconDimApplied) {
-          panel.style.opacity = String(NEUTRAL_ICON_COOLDOWN_OPACITY);
-          st.iconDimApplied = true;
-          if (DEBUG_NEUTRAL_ALIGN) {
-            $.Msg("[BT-ALIGN]", "icon_dim_apply", "opacity=", NEUTRAL_ICON_COOLDOWN_OPACITY, panelDebugSummary(panel));
-          }
-        }
-      } else if (st.iconDimApplied) {
-        panel.style.opacity = null;
-        st.iconDimApplied = false;
-        if (DEBUG_NEUTRAL_ALIGN) {
-          $.Msg("[BT-ALIGN]", "icon_dim_clear", panelDebugSummary(panel));
-        }
+      if (opacityVal === null) {
+        if (st.lastIconOpacity !== null) { st.panel.style.opacity = null; st.lastIconOpacity = null; }
+        return;
       }
+      const opStr = String(opacityVal);
+      if (st.lastIconOpacity !== opStr) { st.panel.style.opacity = opStr; st.lastIconOpacity = opStr; }
     } catch {}
   }
 
-  function clearNeutralTimerEntry(key, reason) {
-    const st = _neutralRespawnState[key];
+  function clearNeutralTimerEntry(key, st) {
+    if (!st) st = _neutralRespawnState.get(key);
     if (!st) return;
-
     clearNeutralRing(st);
     clearNeutralDetailLabel(st);
-    setNeutralIconDim(st, false);
+    clearNeutralAnchor(st);
+    setNeutralIconOpacity(st, null);
+    st.respawnEndMs = 0;
     st.respawnEndGameSec = 0;
     st.durationMs = 0;
+    _neutralRespawnState.delete(key);
+  }
 
-    if (DEBUG_NEUTRAL_TIMERS && reason) {
-      $.Msg("[BT-NEUTRAL] clear key=", key, " reason=", reason);
+  function clearNeutralRespawnTimers() {
+    for (const [key, st] of _neutralRespawnState.entries()) {
+      clearNeutralTimerEntry(key, st);
     }
+    _neutralRespawnState.clear();
+    _neutralStateSeq = 0;
+    _neutralSweepToken = 0;
+  }
 
-    delete _neutralRespawnState[key];
+  function clearNeutralCoordCache() {
+    for (const key of Object.keys(_neutralCoordCache)) {
+      delete _neutralCoordCache[key];
+    }
+  }
+
+  function clearNeutralRuntimeCaches() {
+    clearNeutralRespawnTimers();
+    clearNeutralCoordCache();
+    clearMinimapInvertCache();
+    _minimapSnapshot.neutralCamps.length = 0;
+    _minimapSnapshot.ts = 0;
+    _snapshotTs = 0;
+    _mapButtonCache = null;
+    _mapButtonCacheTs = 0;
+    _refreshPanelsCacheTs = 0;
+    _lastScoreboardOpen = false;
+  }
+
+  function maybeClearNeutralCachesForLowGameTime(gameNowSec) {
+    if (!Number.isFinite(gameNowSec) || gameNowSec < 0) return;
+    if (gameNowSec < 10) {
+      if (_lowTimeCacheCleared) return;
+      clearNeutralRuntimeCaches();
+      _lowTimeCacheCleared = true;
+      return;
+    }
+    _lowTimeCacheCleared = false;
   }
 
   function resolveNeutralStateKey(neutralType, xPct, yPct, mapX, mapY, panel) {
     if (panel?.IsValid?.()) {
-      const byPanelKeys = Object.keys(_neutralRespawnState);
-      for (let i = 0; i < byPanelKeys.length; i++) {
-        const k = byPanelKeys[i];
-        const st = _neutralRespawnState[k];
+      for (const [key, st] of _neutralRespawnState.entries()) {
         if (!st || st.type !== neutralType) continue;
-        if (st.panel?.IsValid?.() && st.panel === panel) {
-          return k;
-        }
+        if (st.panel?.IsValid?.() && st.panel === panel) return key;
       }
     }
-
-    const keys = Object.keys(_neutralRespawnState);
     let bestKey = null;
     let bestDist = Infinity;
-
-    for (let i = 0; i < keys.length; i++) {
-      const k = keys[i];
-      const st = _neutralRespawnState[k];
+    for (const [key, st] of _neutralRespawnState.entries()) {
       if (!st || st.type !== neutralType) continue;
-
       const sx = safeMapCoord(st.mapX);
       const sy = safeMapCoord(st.mapY);
       const cx = safeMapCoord(mapX);
       const cy = safeMapCoord(mapY);
-      let dx = 0;
-      let dy = 0;
+      let dx, dy;
       if (sx !== null && sy !== null && cx !== null && cy !== null) {
-        dx = sx - cx;
-        dy = sy - cy;
+        dx = sx - cx; dy = sy - cy;
       } else {
-        dx = (st.mapPctX || 0) - xPct;
-        dy = (st.mapPctY || 0) - yPct;
+        dx = (st.mapPctX || 0) - xPct; dy = (st.mapPctY || 0) - yPct;
       }
-      const d = dx * dx + dy * dy;
-
-      if (d < bestDist) {
-        bestDist = d;
-        bestKey = k;
-      }
+      const dist = dx * dx + dy * dy;
+      if (dist < bestDist) { bestDist = dist; bestKey = key; }
     }
-
-    // Pixel-space match allows stable pairing even when minimap width oscillates.
-    if (bestKey && bestDist <= 36) {
-      return bestKey;
-    }
-
+    if (bestKey && bestDist <= 36) return bestKey;
     _neutralStateSeq++;
     return "neutral_state_" + _neutralStateSeq;
   }
 
-  function renderNeutralTimer(st, key, nowMs, gameNowSec, container, mm) {
-    if (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0) {
-      if (DEBUG_NEUTRAL_ALIGN) {
-        $.Msg("[BT-ALIGN]", "render_skip", "key=", key, "reason=no_cooldown", "type=", st.type || "unknown");
+  function purgeStaleNeutralStates(now, token) {
+    for (const [key, st] of _neutralRespawnState.entries()) {
+      if (!st || st.sweepToken === token) continue;
+      if (st.respawnEndMs > 0 || st.respawnEndGameSec > 0) continue;
+      if (now - (st.lastSeenMs || 0) > NEUTRAL_STATE_PURGE_MS) {
+        clearNeutralTimerEntry(key, st);
       }
-      clearNeutralRing(st);
-      clearNeutralDetailLabel(st);
-      setNeutralIconDim(st, false);
-      st.durationMs = 0;
-      return;
     }
+  }
 
-    const durationMs = st.durationMs > 0
-      ? st.durationMs
-      : (NEUTRAL_RESPAWN_SECONDS[st.type] || 0) * 1000;
-
-    if (durationMs <= 0) {
-      if (DEBUG_NEUTRAL_ALIGN) {
-        $.Msg("[BT-ALIGN]", "render_skip", "key=", key, "reason=invalid_duration", "type=", st.type || "unknown");
-      }
-      st.respawnEndMs = 0;
-      st.respawnEndGameSec = 0;
-      clearNeutralRing(st);
-      clearNeutralDetailLabel(st);
-      setNeutralIconDim(st, false);
-      st.durationMs = 0;
-      return;
-    }
-
-    if (!st.iconDimApplied) {
-      setNeutralIconDim(st, true);
-    }
-
+  function ensureRingRoot(layer, st, key, ringSize, ringPosX, ringPosY) {
+    const ringId = st.ringId || getNeutralRingId(key);
     let ringRoot = st.ringRoot;
-    const ringId = getNeutralRingId(key);
     if (!ringRoot?.IsValid?.()) {
-      ringRoot = $.CreatePanel("Panel", container, ringId);
+      ringRoot = $.CreatePanel("Panel", layer, ringId);
       ringRoot.AddClass("neutral-cooldown-ring");
       ringRoot.hittest = false;
       ringRoot.hittestchildren = false;
-      if (DEBUG_NEUTRAL_ALIGN) {
-        $.Msg("[BT-ALIGN]", "ring_create", "key=", key, "id=", ringId, "container=", container.id || "noid");
-      }
+      ringRoot.style.horizontalAlign = "left";
+      ringRoot.style.verticalAlign = "top";
+      ringRoot.style.zIndex = "2001";
+      ringRoot.style.backgroundColor = "transparent";
+      ringRoot.style.borderWidth = "0px";
+      ringRoot.style.borderColor = "transparent";
+      ringRoot.style.clip = null;
+    } else if (ringRoot.GetParent?.() !== layer) {
+      ringRoot.SetParent(layer);
     }
-
-    let ringFill = st.ringFill;
-    const ringFillId = ringId + "_fill";
-    if (!ringFill?.IsValid?.()) {
-      ringFill = $.CreatePanel("Panel", ringRoot, ringFillId);
-      ringFill.AddClass("neutral-cooldown-ring-fill");
-      ringFill.style.borderWidth = NEUTRAL_RING_THICKNESS_PX + "px";
-      if (DEBUG_NEUTRAL_ALIGN) {
-        $.Msg("[BT-ALIGN]", "ring_fill_create", "key=", key, "id=", ringFillId);
-      }
-    }
-
-    const theme = getNeutralRingTheme(st.type);
-    if (theme.fill !== st.lastFillColor) {
-      ringFill.style.borderColor = theme.fill;
-      st.lastFillColor = theme.fill;
-    }
-    if (theme.trackBorder !== st.lastTrackBorder) {
-      ringRoot.style.borderColor = theme.trackBorder;
-      st.lastTrackBorder = theme.trackBorder;
-    }
-    if (theme.trackBg !== st.lastTrackBg) {
-      ringRoot.style.backgroundColor = theme.trackBg;
-      st.lastTrackBg = theme.trackBg;
-    }
-
-    let iconLocalX = st.mapX || 0;
-    let iconLocalY = st.mapY || 0;
-    let iconW = st.panelW || 24;
-    let iconH = st.panelH || 24;
-    const iconPanel = st.panel;
-    const hasLivePanel = !!iconPanel?.IsValid?.();
-    let source = "panel";
-
-    if (hasLivePanel) {
-      const liveX = safeMapCoord(iconPanel.actualxoffset);
-      const liveY = safeMapCoord(iconPanel.actualyoffset);
-      if (liveX !== null) iconLocalX = liveX;
-      if (liveY !== null) iconLocalY = liveY;
-      iconW = safePanelExtent(iconPanel.actuallayoutwidth || iconPanel.contentwidth, iconW);
-      iconH = safePanelExtent(iconPanel.actuallayoutheight || iconPanel.contentheight, iconH);
-      st.panelW = iconW;
-      st.panelH = iconH;
-    } else {
-      source = "fallback";
-      const fallbackPos = neutralPosOnContainer(st.mapX, st.mapY, container, mm);
-      iconLocalX = fallbackPos.x - (mm?.actualxoffset || 0);
-      iconLocalY = fallbackPos.y - (mm?.actualyoffset || 0);
-    }
-
-    let usingDefaultIconSize = false;
-    if (iconW <= 0) {
-      iconW = 24;
-      usingDefaultIconSize = true;
-    }
-    if (iconH <= 0) {
-      iconH = 24;
-      usingDefaultIconSize = true;
-    }
-    if (!hasLivePanel) {
-      usingDefaultIconSize = true;
-    }
-
-    const mw = container.contentwidth || 404;
-    const mh = container.contentheight || 404;
-    const mmW = mm?.contentwidth || 0;
-    const mmH = mm?.contentheight || 0;
-    const mmOffsetX = mm?.actualxoffset || 0;
-    const mmOffsetY = mm?.actualyoffset || 0;
-    const inverted = mm?.IsValid?.() && mm.BHasClass?.("invert_map");
-    if (inverted) {
-      iconLocalX = mmW - iconLocalX - iconW;
-      iconLocalY = mmH - iconLocalY - iconH;
-    }
-
-    const iconX = mmOffsetX + iconLocalX;
-    const iconY = mmOffsetY + iconLocalY;
-    const ringSize = Math.max(NEUTRAL_RING_SIZE_PX, Math.min(iconW, iconH));
     if (Math.abs((st.lastRingSize ?? -1) - ringSize) > 0.05) {
       ringRoot.style.width = ringSize + "px";
       ringRoot.style.height = ringSize + "px";
       st.lastRingSize = ringSize;
     }
-
-    const centerX = iconX + iconW * 0.5;
-    const centerY = iconY + iconH * 0.5;
-    const px = centerX - ringSize * 0.5;
-    const py = centerY - ringSize * 0.5;
-    const iconParent = hasLivePanel && iconPanel?.IsValid?.() ? iconPanel.GetParent?.() : null;
-    if (hasLivePanel && iconPanel?.IsValid?.() && iconParent?.IsValid?.()) {
-      if (ringRoot.GetParent?.() !== iconParent) {
-        ringRoot.SetParent(iconParent);
-        st.lastPosX = -9999;
-        st.lastPosY = -9999;
-      }
-      if (st.lastParentMode !== "icon_parent") {
-        ringRoot.style.horizontalAlign = "left";
-        ringRoot.style.verticalAlign = "top";
-        st.lastParentMode = "icon_parent";
-        st.lastPosX = -9999;
-        st.lastPosY = -9999;
-        if (DEBUG_NEUTRAL_ALIGN) {
-          $.Msg("[BT-ALIGN]", "mode_switch", "key=", key, "mode=icon_parent");
-        }
-      }
-      const parentX = safeMapCoord(iconPanel.actualxoffset) ?? 0;
-      const parentY = safeMapCoord(iconPanel.actualyoffset) ?? 0;
-      const localX = parentX + (iconW - ringSize) * 0.5;
-      const localY = parentY + (iconH - ringSize) * 0.5;
-      if (Math.abs((st.lastPosX ?? -9999) - localX) > 0.05 || Math.abs((st.lastPosY ?? -9999) - localY) > 0.05) {
-        ringRoot.style.position = localX + "px " + localY + "px 0px";
-        st.lastPosX = localX;
-        st.lastPosY = localY;
-      }
-    } else if (hasLivePanel && iconPanel?.IsValid?.()) {
-      if (ringRoot.GetParent?.() !== iconPanel) {
-        ringRoot.SetParent(iconPanel);
-        st.lastPosX = -9999;
-        st.lastPosY = -9999;
-      }
-      if (st.lastParentMode !== "icon") {
-        ringRoot.style.horizontalAlign = "center";
-        ringRoot.style.verticalAlign = "center";
-        st.lastParentMode = "icon";
-        st.lastPosX = -9999;
-        st.lastPosY = -9999;
-        if (DEBUG_NEUTRAL_ALIGN) {
-          $.Msg("[BT-ALIGN]", "mode_switch", "key=", key, "mode=icon");
-        }
-      }
-      if (Math.abs((st.lastPosX ?? -9999)) > 0.05 || Math.abs((st.lastPosY ?? -9999)) > 0.05) {
-        ringRoot.style.position = "0px 0px 0px";
-        st.lastPosX = 0;
-        st.lastPosY = 0;
-      }
-    } else {
-      if (ringRoot.GetParent?.() !== container) {
-        ringRoot.SetParent(container);
-        st.lastPosX = -9999;
-        st.lastPosY = -9999;
-      }
-      if (st.lastParentMode !== "container") {
-        ringRoot.style.horizontalAlign = "left";
-        ringRoot.style.verticalAlign = "top";
-        st.lastParentMode = "container";
-        st.lastPosX = -9999;
-        st.lastPosY = -9999;
-        if (DEBUG_NEUTRAL_ALIGN) {
-          $.Msg("[BT-ALIGN]", "mode_switch", "key=", key, "mode=container");
-        }
-      }
-      if (Math.abs((st.lastPosX ?? -9999) - px) > 0.05 || Math.abs((st.lastPosY ?? -9999) - py) > 0.05) {
-        ringRoot.style.position = px + "px " + py + "px 0px";
-        st.lastPosX = px;
-        st.lastPosY = py;
-      }
+    if (Math.abs((st.lastPosX ?? -9999) - ringPosX) > 0.05 || Math.abs((st.lastPosY ?? -9999) - ringPosY) > 0.05) {
+      ringRoot.style.position = ringPosX.toFixed(2) + "% " + ringPosY.toFixed(2) + "% 0px";
+      st.lastPosX = ringPosX;
+      st.lastPosY = ringPosY;
     }
+    if (!st.ringVisible) { ringRoot.style.visibility = null; st.ringVisible = true; }
+    st.ringRoot = ringRoot;
+    return ringRoot;
+  }
 
+  function ensureRingFill(st, ringRoot, key) {
+    const fillId = st.fillId || (getNeutralRingId(key) + "_fill");
+    let ringFill = st.ringFill;
+    if (!ringFill?.IsValid?.()) {
+      ringFill = $.CreatePanel("Panel", ringRoot, fillId);
+      ringFill.AddClass("neutral-cooldown-ring-fill");
+    }
+    st.ringFill = ringFill;
+    return ringFill;
+  }
+
+  function ensureAnchorRoot(layer, st, key, themeInfo) {
+    const anchorId = st.anchorId || (getNeutralRingId(key) + "_anchor");
+    let anchorRoot = st.anchorRoot;
+    if (!anchorRoot?.IsValid?.()) {
+      anchorRoot = $.CreatePanel("Panel", layer, anchorId);
+      anchorRoot.AddClass("neutral-cooldown-anchor");
+      anchorRoot.hittest = false;
+      anchorRoot.hittestchildren = false;
+      anchorRoot.style.position = "0px 0px 0px";
+      anchorRoot.style.width = "100%";
+      anchorRoot.style.height = "100%";
+      anchorRoot.style.overflow = "noclip";
+      anchorRoot.style.zIndex = "2000";
+    } else if (anchorRoot.GetParent?.() !== layer) {
+      anchorRoot.SetParent(layer);
+    }
+    const inverted = !!themeInfo?.inverted;
+    setPanelClass(anchorRoot, "invert_map", inverted);
+    setPanelClass(anchorRoot, "theme-inverted", inverted);
+    setPanelClass(anchorRoot, "theme-standard", !inverted);
+    st.anchorRoot = anchorRoot;
+    return anchorRoot;
+  }
+
+  function ensureDetailLabel(layer, st, key) {
+    const labelId = st.textId || (getNeutralRingId(key) + "_text");
+    let detailLabel = st.detailLabel;
+    if (!detailLabel?.IsValid?.()) {
+      detailLabel = $.CreatePanel("Label", layer, labelId);
+      detailLabel.AddClass("neutral-cooldown-timer-detail");
+      detailLabel.hittest = false;
+      detailLabel.hittestchildren = false;
+      detailLabel.style.visibility = null;
+    } else if (detailLabel.GetParent?.() !== layer) {
+      detailLabel.SetParent(layer);
+    }
+    st.detailLabel = detailLabel;
+    return detailLabel;
+  }
+
+  function renderNeutralTimer(st, key, nowMs, gameNowSec, layer, renderCtx) {
+    if (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0) {
+      clearNeutralRing(st);
+      clearNeutralDetailLabel(st);
+      setNeutralIconOpacity(st, null);
+      st.durationMs = 0;
+      return;
+    }
+    const durationMs = st.durationMs > 0
+      ? st.durationMs
+      : (NEUTRAL_RESPAWN_SECONDS[st.type] || 0) * 1000;
+    if (durationMs <= 0) {
+      st.respawnEndMs = 0;
+      st.respawnEndGameSec = 0;
+      clearNeutralRing(st);
+      clearNeutralDetailLabel(st);
+      setNeutralIconOpacity(st, null);
+      st.durationMs = 0;
+      return;
+    }
+    const iconPanel = st.panel;
+    const hasLivePanel = !!iconPanel?.IsValid?.();
+    const mmW = renderCtx?.mmW || 0;
+    const mmH = renderCtx?.mmH || 0;
+    const offsetX = renderCtx?.offsetX || 0;
+    const offsetY = renderCtx?.offsetY || 0;
+    let iconW = st.panelW || 24;
+    let iconH = st.panelH || 24;
+    if (hasLivePanel) {
+      iconW = safePanelExtent(iconPanel.actuallayoutwidth || iconPanel.contentwidth, iconW);
+      iconH = safePanelExtent(iconPanel.actuallayoutheight || iconPanel.contentheight, iconH);
+      st.panelW = iconW;
+      st.panelH = iconH;
+    }
+    const ringSize = NEUTRAL_RING_SIZE_PX;
+    let livePctX = null;
+    let livePctY = null;
+    if (hasLivePanel) {
+      const liveX = safeMapCoord(iconPanel.actualxoffset);
+      const liveY = safeMapCoord(iconPanel.actualyoffset);
+      if (mmW > 0 && liveX !== null) livePctX = clampPct(((liveX + offsetX) / mmW) * 100);
+      if (mmH > 0 && liveY !== null) livePctY = clampPct(((liveY + offsetY) / mmH) * 100);
+    }
+    if (iconW <= 0) iconW = 24;
+    if (iconH <= 0) iconH = 24;
+    const iconPctW = mmW > 0 ? (iconW / mmW) * 100 : 0;
+    const iconPctH = mmH > 0 ? (iconH / mmH) * 100 : 0;
+    const anchorPctX = livePctX !== null ? livePctX
+      : (Number.isFinite(st.anchorPctX) ? clampPct(st.anchorPctX)
+      : (Number.isFinite(st.mapPctX) ? clampPct(st.mapPctX) : 0));
+    const anchorPctY = livePctY !== null ? livePctY
+      : (Number.isFinite(st.anchorPctY) ? clampPct(st.anchorPctY)
+      : (Number.isFinite(st.mapPctY) ? clampPct(st.mapPctY) : 0));
+    const ringPosX = anchorPctX;
+    const ringPosY = anchorPctY;
+    const dpiScale = NEUTRAL_RING_SIZE_PX > 0 ? (iconW / NEUTRAL_RING_SIZE_PX) : 1;
+    const textPctW = mmW > 0 ? ((48 * dpiScale) / mmW) * 100 : 0;
+    const gapPct = mmH > 0 ? ((4 * dpiScale) / mmH) * 100 : 0;
+    const textPosX = clampPct(anchorPctX + ((iconPctW - textPctW) * 0.5));
+    const textPosY = clampPct(anchorPctY + iconPctH + gapPct);
+    const scoreboardVisible = !!renderCtx?.scoreboardVisible;
+    const theme = NEUTRAL_RING_THEME[st.type] || NEUTRAL_RING_THEME_DEFAULT;
+    const anchorRoot = ensureAnchorRoot(layer, st, key, renderCtx?.themeInfo);
+    const ringRoot = ensureRingRoot(anchorRoot, st, key, ringSize, ringPosX, ringPosY);
+    const ringFill = ensureRingFill(st, ringRoot, key);
+    const detailLabel = ensureDetailLabel(anchorRoot, st, key);
+    if (theme.trackBorder !== st.lastTrackBorder) {
+      ringFill.style.borderColor = theme.trackBorder;
+      st.lastTrackBorder = theme.trackBorder;
+    }
+    if (theme.trackBg !== st.lastTrackBg) {
+      ringFill.style.backgroundColor = theme.trackBg;
+      st.lastTrackBg = theme.trackBg;
+    }
     const now = nowMs || Date.now();
-    const scoreboardOpen = isScoreboardOpen(mm);
-    if (DEBUG_NEUTRAL_ALIGN) {
-      const mapPctX = st.mapPctX || 0;
-      const mapPctY = st.mapPctY || 0;
-      const pctBaseX = mapPctX * 0.01 * mmW;
-      const pctBaseY = mapPctY * 0.01 * mmH;
-      const pctX = mmOffsetX + (inverted ? (mmW - pctBaseX - iconW) : pctBaseX);
-      const pctY = mmOffsetY + (inverted ? (mmH - pctBaseY - iconH) : pctBaseY);
-      const pctCenterX = pctX + iconW * 0.5;
-      const pctCenterY = pctY + iconH * 0.5;
-
-      const rawFallbackX = (st.mapX || 0) + 2;
-      const rawFallbackY = (st.mapY || 0) + 2;
-      const expectedFallbackX = mmOffsetX + (inverted ? (mmW - rawFallbackX - iconW) : rawFallbackX);
-      const expectedFallbackY = mmOffsetY + (inverted ? (mmH - rawFallbackY - iconH) : rawFallbackY);
-      const fallbackCenterX = expectedFallbackX + iconW * 0.5;
-      const fallbackCenterY = expectedFallbackY + iconH * 0.5;
-
-      const legacyFallbackPos = neutralPosOnContainer(st.mapX, st.mapY, container, mm);
-      const mmVsContainerDelta = Math.max(Math.abs(mmW - mw), Math.abs(mmH - mh));
-      const doubleInvertRisk = !hasLivePanel && inverted &&
-        (Math.abs(iconX - expectedFallbackX) > 1 || Math.abs(iconY - expectedFallbackY) > 1);
-      const enlargeEntry = !!(iconPanel?.IsValid?.() && iconPanel.BHasClass?.("enlarge_entry"));
-
-      const dbg = {
-        source: source,
-        aspect: hasAspectTag(UI.root),
-        hasLivePanel: hasLivePanel,
-        usingDefaultIconSize: usingDefaultIconSize,
-        iconW: iconW,
-        iconH: iconH,
-        iconX: iconX,
-        iconY: iconY,
-        centerX: centerX,
-        centerY: centerY,
-        px: px,
-        py: py,
-        mw: mw,
-        mh: mh,
-        mmW: mmW,
-        mmH: mmH,
-        mmVsContainerDelta: mmVsContainerDelta,
-        inverted: !!inverted,
-        scoreboardOpen: scoreboardOpen,
-        enlargeEntry: enlargeEntry,
-        mapPctX: mapPctX,
-        mapPctY: mapPctY,
-        pctX: pctX,
-        pctY: pctY,
-        legacyFallbackX: legacyFallbackPos.x || 0,
-        legacyFallbackY: legacyFallbackPos.y || 0,
-        fallbackCenterX: fallbackCenterX,
-        fallbackCenterY: fallbackCenterY,
-        fallbackDelta: Math.sqrt(Math.pow(centerX - fallbackCenterX, 2) + Math.pow(centerY - fallbackCenterY, 2)),
-        pctDeltaX: centerX - pctCenterX,
-        pctDeltaY: centerY - pctCenterY,
-        doubleInvertRisk: doubleInvertRisk
-      };
-      logNeutralAlign(st, key, now, dbg);
-    }
-
     let remainingMs = Math.max(0, st.respawnEndMs - now);
     if (gameNowSec > 0 && st.respawnEndGameSec > 0) {
       remainingMs = Math.max(0, (st.respawnEndGameSec - gameNowSec) * 1000);
       const syncedEndMs = now + remainingMs;
-      if (Math.abs((st.respawnEndMs || 0) - syncedEndMs) > 750) {
-        st.respawnEndMs = syncedEndMs;
-      }
+      if (Math.abs((st.respawnEndMs || 0) - syncedEndMs) > 750) st.respawnEndMs = syncedEndMs;
     } else if (gameNowSec > 0 && st.respawnEndGameSec <= 0 && st.respawnEndMs > 0) {
       st.respawnEndGameSec = gameNowSec + (remainingMs / 1000);
     }
-
+    let targetOpacity = 1;
+    if (scoreboardVisible) {
+      targetOpacity = 1;
+    } else if (remainingMs > 60000) {
+      targetOpacity = 0;
+    } else if (remainingMs > 30000) {
+      const t = (60000 - remainingMs) / (60000 - 30000);
+      targetOpacity = 0.85 * Math.max(0, Math.min(1, t));
+    } else {
+      targetOpacity = 0.85;
+    }
+    const opStr = targetOpacity.toFixed(2);
+    if (opStr !== st.lastOpacity) { ringRoot.style.opacity = opStr; st.lastOpacity = opStr; }
+    setNeutralIconOpacity(st, targetOpacity);
     if (ringFill?.IsValid?.() && remainingMs > 0) {
       const pct = Math.max(0, Math.min(1, remainingMs / durationMs));
       const sweepDeg = (pct * 360).toFixed(2);
       const clip = "radial(50% 50%, " + NEUTRAL_RADIAL_START_DEG + "deg, " + sweepDeg + "deg)";
-      if (clip !== st.lastClip) {
-        ringFill.style.clip = clip;
-        st.lastClip = clip;
-      }
+      if (clip !== st.lastClip) { ringFill.style.clip = clip; st.lastClip = clip; }
     }
-
+    const textPos = textPosX.toFixed(2) + "% " + textPosY.toFixed(2) + "% 0px";
+    if (Math.abs((st.lastTextPosX ?? -9999) - textPosX) > 0.05 || Math.abs((st.lastTextPosY ?? -9999) - textPosY) > 0.05) {
+      detailLabel.style.position = textPos;
+      st.lastTextPosX = textPosX;
+      st.lastTextPosY = textPosY;
+    }
+    const text = fmt(Math.ceil(remainingMs / 1000));
+    if (text !== st.lastText) { detailLabel.text = text; st.lastText = text; }
+    if (theme.text !== st.lastTextColor) { detailLabel.style.color = theme.text; st.lastTextColor = theme.text; }
+    if (st.lastTextOpacity !== opStr) { detailLabel.style.opacity = opStr; st.lastTextOpacity = opStr; }
     st.ringRoot = ringRoot;
     st.ringFill = ringFill;
-
-    const showDetailText = scoreboardOpen;
-    if (showDetailText) {
-      let detailLabel = st.detailLabel;
-      const detailId = ringId + "_text";
-      if (!detailLabel?.IsValid?.()) {
-        detailLabel = $.CreatePanel("Label", container, detailId);
-        detailLabel.AddClass("neutral-cooldown-timer-detail");
-        if (DEBUG_NEUTRAL_ALIGN) {
-          $.Msg("[BT-ALIGN]", "detail_label_create", "key=", key, "id=", detailId);
-        }
-      }
-
-      const textX = centerX - 18;
-      const textY = py + ringSize + 1;
-      if (Math.abs((st.lastTextPosX ?? -9999) - textX) > 0.05 || Math.abs((st.lastTextPosY ?? -9999) - textY) > 0.05) {
-        detailLabel.style.position = textX + "px " + textY + "px 0px";
-        st.lastTextPosX = textX;
-        st.lastTextPosY = textY;
-      }
-
-      const text = fmt(Math.ceil(remainingMs / 1000));
-      if (text !== st.lastText) {
-        detailLabel.text = text;
-        st.lastText = text;
-      }
-      if (theme.text !== st.lastTextColor) {
-        detailLabel.style.color = theme.text;
-        st.lastTextColor = theme.text;
-      }
-      st.detailLabel = detailLabel;
-    } else if (st.detailLabel?.IsValid?.()) {
-      if (DEBUG_NEUTRAL_ALIGN) {
-        $.Msg("[BT-ALIGN]", "detail_label_clear", "key=", key, "reason=scoreboard_closed");
-      }
-      clearNeutralDetailLabel(st);
-    }
-
+    st.detailLabel = detailLabel;
     if (remainingMs <= 0) {
       st.respawnEndMs = 0;
       st.respawnEndGameSec = 0;
       clearNeutralRing(st);
       clearNeutralDetailLabel(st);
-      setNeutralIconDim(st, false);
+      setNeutralIconOpacity(st, null);
       st.durationMs = 0;
-      if (DEBUG_NEUTRAL_TIMERS) {
-        $.Msg("[BT-NEUTRAL] done key=", key, " type=", st.type);
-      }
+    }
+  }
+
+  function renderNeutralRespawnTimers(nowMs, gameNowSec, scoreboardOpen) {
+    const minimap = findMinimap();
+    const container = UI.minimapBox;
+    if (!minimap?.IsValid?.() || !container?.IsValid?.()) return;
+    const layer = ensureNeutralOverlay(container);
+    if (!layer?.IsValid?.()) return;
+    const now = nowMs || Date.now();
+    const gameNow = gameNowSec > 0 ? gameNowSec : gTime(now);
+    const scoreboardVisible = scoreboardOpen ?? isScoreboardOpen(minimap);
+    const themeInfo = updateMinimapInvertCache(minimap, now);
+    const mmGeometry = resolveMinimapReferenceSize(UI.minimapBox);
+    const renderCtx = {
+      mmW: mmGeometry.width,
+      mmH: mmGeometry.height,
+      offsetX: (UI.minimap?.IsValid?.() ? (UI.minimap.actualxoffset || 0) : 0) + (UI.minimapContainer?.IsValid?.() ? (UI.minimapContainer.actualxoffset || 0) : 0),
+      offsetY: (UI.minimap?.IsValid?.() ? (UI.minimap.actualyoffset || 0) : 0) + (UI.minimapContainer?.IsValid?.() ? (UI.minimapContainer.actualyoffset || 0) : 0),
+      scoreboardVisible,
+      themeInfo
+    };
+    for (const [key, st] of _neutralRespawnState.entries()) {
+      if (!st || (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0)) continue;
+      renderNeutralTimer(st, key, now, gameNow, layer, renderCtx);
     }
   }
 
@@ -1661,242 +1680,73 @@
     const gameNow = gameNowSec > 0 ? gameNowSec : gTime(now);
     const camps = snapshot?.neutralCamps || [];
     const token = ++_neutralSweepToken;
-    perfMark("neutralScans", now);
-
     try {
       for (let i = 0, len = camps.length; i < len; i++) {
         const camp = camps[i];
         if (!camp) continue;
-
         const key = resolveNeutralStateKey(camp.type, camp.xPct, camp.yPct, camp.actualX, camp.actualY, camp.panel);
-        let st = _neutralRespawnState[key];
-        const isActive = camp.isActive;
-        const durationSec = NEUTRAL_RESPAWN_SECONDS[camp.type] || 0;
-
+        let st = _neutralRespawnState.get(key);
         if (!st) {
-          st = {
-            type: camp.type,
-            wasActive: isActive,
-            respawnEndMs: 0,
-            respawnEndGameSec: 0,
-            durationMs: 0,
-            ringRoot: null,
-            ringFill: null,
-            lastClip: "",
-            lastRingSize: -1,
-            lastParentMode: "",
-            lastFillColor: "",
-            lastTrackBorder: "",
-            lastTrackBg: "",
-            detailLabel: null,
-            lastText: "",
-            lastTextColor: "",
-            lastTextPosX: -1,
-            lastTextPosY: -1,
-            lastAlignLogMs: 0,
-            panel: camp.panel || null,
-            panelW: safePanelExtent(camp.panel?.actuallayoutwidth || camp.panel?.contentwidth, 24),
-            panelH: safePanelExtent(camp.panel?.actuallayoutheight || camp.panel?.contentheight, 24),
-            iconDimApplied: false,
-            mapPctX: camp.xPct,
-            mapPctY: camp.yPct,
-            mapX: camp.actualX,
-            mapY: camp.actualY,
-            lastSeenMs: now,
-            sweepToken: token,
-            lastPosX: -1,
-            lastPosY: -1
-          };
-          _neutralRespawnState[key] = st;
-          if (DEBUG_NEUTRAL_ALIGN && isNeutralAlignArmed(now, key)) {
-            $.Msg(
-              "[BT-ALIGN]",
-              "state_create",
-              "key=", key,
-              "type=", camp.type,
-              "active=", isActive ? "1" : "0",
-              "mapPct=", (camp.xPct || 0).toFixed(2) + "," + (camp.yPct || 0).toFixed(2),
-              panelDebugSummary(camp.panel)
-            );
-          }
+          st = createState(camp, now, token, key);
+          _neutralRespawnState.set(key, st);
         } else {
           st.type = camp.type;
         }
-
-        if (st.panel !== camp.panel) {
-          if (DEBUG_NEUTRAL_ALIGN && isNeutralAlignArmed(now, key)) {
-            $.Msg(
-              "[BT-ALIGN]",
-              "panel_switch",
-              "key=", key,
-              "type=", camp.type,
-              "from=", panelDebugSummary(st.panel),
-              "to=", panelDebugSummary(camp.panel)
-            );
-          }
-          setNeutralIconDim(st, false);
+        if (!st.ringId) {
+          st.ringId = getNeutralRingId(key);
+          st.fillId = st.ringId + "_fill";
+          st.textId = st.ringId + "_text";
+          st.anchorId = st.ringId + "_anchor";
         }
-
+        if (st.panel !== camp.panel) setNeutralIconOpacity(st, null);
         st.panel = camp.panel || null;
-        if (st.panel?.IsValid?.()) {
-          st.panelW = safePanelExtent(st.panel.actuallayoutwidth || st.panel.contentwidth, st.panelW || 24);
-          st.panelH = safePanelExtent(st.panel.actuallayoutheight || st.panel.contentheight, st.panelH || 24);
-        }
+        st.panelW = safePanelExtent(camp.panel?.actuallayoutwidth || camp.panel?.contentwidth, st.panelW || 24);
+        st.panelH = safePanelExtent(camp.panel?.actuallayoutheight || camp.panel?.contentheight, st.panelH || 24);
         st.mapPctX = camp.xPct;
         st.mapPctY = camp.yPct;
+        if (!Number.isFinite(st.anchorPctX) && Number.isFinite(camp.xPct)) st.anchorPctX = camp.xPct;
+        if (!Number.isFinite(st.anchorPctY) && Number.isFinite(camp.yPct)) st.anchorPctY = camp.yPct;
         st.mapX = camp.actualX;
         st.mapY = camp.actualY;
         st.lastSeenMs = now;
         st.sweepToken = token;
-
-        if (st.wasActive && !isActive && durationSec > 0) {
+        const durationSec = NEUTRAL_RESPAWN_SECONDS[camp.type] || 0;
+        if (st.wasActive && !camp.isActive && durationSec > 0) {
           st.durationMs = durationSec * 1000;
           st.respawnEndMs = now + durationSec * 1000;
           st.respawnEndGameSec = gameNow > 0 ? (gameNow + durationSec) : 0;
-          setNeutralIconDim(st, true);
-          if (DEBUG_NEUTRAL_ALIGN) {
-            armNeutralAlignWindow(now, key);
-            $.Msg(
-              "[BT-ALIGN]",
-              "cooldown_start",
-              "key=", key,
-              "type=", camp.type,
-              "hasPanel=", st.panel?.IsValid?.() ? "1" : "0",
-              "mapPct=", (st.mapPctX || 0).toFixed(2) + "," + (st.mapPctY || 0).toFixed(2),
-              panelDebugSummary(st.panel)
-            );
-          }
-          if (DEBUG_NEUTRAL_TIMERS) {
-            $.Msg("[BT-NEUTRAL] start key=", key, " type=", camp.type, " duration=", durationSec);
-          }
-        } else if (!st.wasActive && isActive) {
+          st.cssTransitionPending = true;
+          st.cssTransitionNeedsSeed = false;
+          st.cssTransitionSeeded = false;
+        } else if (!st.wasActive && camp.isActive) {
           st.respawnEndMs = 0;
           st.respawnEndGameSec = 0;
           st.durationMs = 0;
+          st.cssTransitionPending = false;
+          st.cssTransitionNeedsSeed = false;
+          st.cssTransitionSeeded = false;
           clearNeutralRing(st);
           clearNeutralDetailLabel(st);
-          setNeutralIconDim(st, false);
-          if (DEBUG_NEUTRAL_ALIGN && isNeutralAlignArmed(now, key)) {
-            $.Msg("[BT-ALIGN]", "cooldown_clear", "key=", key, "type=", camp.type);
-          }
-          if (DEBUG_NEUTRAL_TIMERS) {
-            $.Msg("[BT-NEUTRAL] clear key=", key, " reason=active_again");
-          }
-        } else if (st.respawnEndMs > 0 || st.respawnEndGameSec > 0) {
-          setNeutralIconDim(st, true);
+          setNeutralIconOpacity(st, null);
         }
-
-        st.wasActive = isActive;
+        st.wasActive = camp.isActive;
       }
-
-      for (const key in _neutralRespawnState) {
-        const st = _neutralRespawnState[key];
-        if (!st || st.sweepToken === token) continue;
-        if (st.respawnEndMs > 0 || st.respawnEndGameSec > 0) continue;
-        if (now - (st.lastSeenMs || 0) > NEUTRAL_STATE_PURGE_MS) {
-          if (DEBUG_NEUTRAL_ALIGN && isNeutralAlignArmed(now, key)) {
-            $.Msg("[BT-ALIGN]", "state_purge", "key=", key, "reason=stale", "type=", st.type || "unknown");
-          }
-          clearNeutralTimerEntry(key, "stale");
-        }
-      }
-    } catch {
-      if (DEBUG_NEUTRAL_TIMERS) {
-        $.Msg("[BT-NEUTRAL][ERR] scan failed");
-      }
-    }
+    } catch {}
+    purgeStaleNeutralStates(now, token);
   }
 
-  function renderNeutralRespawnTimers(nowMs, gameNowSec) {
-    const mm = findMinimap();
-    const container = UI.minimapContainer;
-
-    const now = nowMs || Date.now();
-    const alignArmed = isNeutralAlignArmed(now);
-    const allowTickLog =
-      DEBUG_NEUTRAL_ALIGN &&
-      alignArmed &&
-      (DEBUG_NEUTRAL_ALIGN_ALWAYS_PRINT || now - (_alignLastTickLogMs || 0) >= DEBUG_NEUTRAL_ALIGN_TICK_INTERVAL_MS);
-    const statesCount = Object.keys(_neutralRespawnState).length;
-    const aspect = hasAspectTag(UI.root);
-    if (!mm || !container?.IsValid?.()) {
-      if (allowTickLog && consumeAlignLogBudget("tick")) {
-        _alignLastTickLogMs = now;
-        const stateDump = DEBUG_NEUTRAL_ALIGN_STATE_DUMP ? buildNeutralStateDump(DEBUG_NEUTRAL_ALIGN_MAX_STATE_DUMP) : "disabled";
-        $.Msg("[BT-ALIGN]", "tick asp=" + aspect + " mm=" + (mm?.IsValid?.() ? "1" : "0") + " container=" + (container?.IsValid?.() ? "1" : "0") + " states=" + statesCount + " active=0 probe=none dump=" + stateDump);
+  function computeJungleTimerInterval(nowMs, sbOpen) {
+    if (sbOpen) return 0.25;
+    if (_neutralRespawnState.size === 0 && gTime(nowMs) > 60) return 2.0;
+    for (const [, st] of _neutralRespawnState.entries()) {
+      if (st && st.respawnEndMs > 0) {
+        const rem = st.respawnEndMs - nowMs;
+        if (rem > 0 && rem < 10000) return 0.5;
       }
-      return;
     }
-
-    const gameNow = gameNowSec > 0 ? gameNowSec : gTime(now);
-    const mmW = mm.contentwidth || 0;
-    const mmH = mm.contentheight || 0;
-    const ctW = container.contentwidth || 0;
-    const ctH = container.contentheight || 0;
-    let activeTimerCount = 0;
-    let sample = null;
-    for (const key in _neutralRespawnState) {
-      const st = _neutralRespawnState[key];
-      if (!sample && st) {
-        sample = { key: key, st: st };
-      }
-      if (!st || (st.respawnEndMs <= 0 && st.respawnEndGameSec <= 0)) continue;
-      activeTimerCount++;
-      if (sample && sample.st !== st) {
-        sample = { key: key, st: st };
-      }
-      renderNeutralTimer(st, key, now, gameNow, container, mm);
-    }
-
-    if (allowTickLog && consumeAlignLogBudget("tick")) {
-      _alignLastTickLogMs = now;
-      let probeText = "none";
-      if (sample?.st) {
-        const st = sample.st;
-        const hasPanel = !!st.panel?.IsValid?.();
-        const panelX = hasPanel ? (safeMapCoord(st.panel.actualxoffset) ?? -1) : -1;
-        const panelY = hasPanel ? (safeMapCoord(st.panel.actualyoffset) ?? -1) : -1;
-        const panelW = hasPanel ? safePanelExtent(st.panel.actuallayoutwidth || st.panel.contentwidth, 0) : 0;
-        const panelH = hasPanel ? safePanelExtent(st.panel.actuallayoutheight || st.panel.contentheight, 0) : 0;
-        const cooldownActive = (st.respawnEndMs > 0 || st.respawnEndGameSec > 0) ? 1 : 0;
-        const pctX = clampPct(st.mapPctX || 0);
-        const pctY = clampPct(st.mapPctY || 0);
-        const mapX = safeMapCoord(st.mapX) ?? 0;
-        const mapY = safeMapCoord(st.mapY) ?? 0;
-        probeText =
-          "k=" + sample.key +
-          "|t=" + (st.type || "unknown") +
-          "|cd=" + cooldownActive +
-          "|pm=" + (st.lastParentMode || "none") +
-          "|hp=" + (hasPanel ? "1" : "0") +
-          "|p=" + panelX.toFixed(1) + "," + panelY.toFixed(1) +
-          "|sz=" + panelW.toFixed(1) + "x" + panelH.toFixed(1) +
-          "|pct=" + pctX.toFixed(2) + "," + pctY.toFixed(2) +
-          "|xy=" + mapX.toFixed(1) + "," + mapY.toFixed(1);
-      }
-
-      $.Msg(
-        "[BT-ALIGN]",
-        "tick asp=" + aspect +
-        " mm=" + mmW + "x" + mmH +
-        " ct=" + ctW + "x" + ctH +
-        " states=" + statesCount +
-        " active=" + activeTimerCount +
-        " invert=" + (mm.BHasClass?.("invert_map") ? "1" : "0") +
-        " probe=" + probeText +
-        (DEBUG_NEUTRAL_ALIGN_STATE_DUMP ? " dump=" + buildNeutralStateDump(DEBUG_NEUTRAL_ALIGN_MAX_STATE_DUMP) : "")
-      );
-    }
+    return 1.0;
   }
 
-  function clearNeutralRespawnTimers() {
-    for (const key in _neutralRespawnState) {
-      clearNeutralTimerEntry(key, "reset");
-    }
-    _neutralRespawnState = {};
-    _neutralStateSeq = 0;
-    _neutralSweepToken = 0;
-  }
 
   // ===========================================
   // GLOW MANAGEMENT
@@ -1911,7 +1761,7 @@
 
     try {
       panel.RemoveClass(current);
-    } catch {}
+    } catch { }
 
     if (isLeft) {
       _activeGlowLeft = null;
@@ -1937,7 +1787,7 @@
 
     try {
       panel.AddClass(cls);
-    } catch {}
+    } catch { }
 
     if (isLeft) {
       _activeGlowLeft = cls;
@@ -1955,9 +1805,9 @@
       $.Schedule(3, () => {
         try {
           panel.RemoveClass("glow-enemy");
-        } catch {}
+        } catch { }
       });
-    } catch {}
+    } catch { }
   }
 
   // ===========================================
@@ -1978,7 +1828,7 @@
       if (prevTimeout) {
         try {
           $.CancelScheduled(prevTimeout);
-        } catch {}
+        } catch { }
       }
 
       // Reset classes
@@ -1991,7 +1841,7 @@
       if (iconSrc) {
         try {
           claimIcon.style.backgroundImage = 'url("' + iconSrc + '")';
-        } catch {}
+        } catch { }
       }
 
       // Set team class
@@ -2002,7 +1852,7 @@
       if (claimTimer?.IsValid?.()) {
         try {
           claimTimer.text = fmt(POWERUP_BUFF_DUR);
-        } catch {}
+        } catch { }
       }
 
       // Record start time
@@ -2019,7 +1869,7 @@
           if (claimBox?.IsValid?.()) {
             claimBox.AddClass("active");
           }
-        } catch {}
+        } catch { }
       });
 
       // Schedule hide
@@ -2045,7 +1895,7 @@
         claimBox.RemoveClass("ally-claim");
         claimBox.RemoveClass("enemy-claim");
       }
-    } catch {}
+    } catch { }
 
     if (side === "LEFT") {
       _claimTimeoutLeft = null;
@@ -2060,14 +1910,14 @@
     if (_claimTimeoutLeft) {
       try {
         $.CancelScheduled(_claimTimeoutLeft);
-      } catch {}
+      } catch { }
       _claimTimeoutLeft = null;
     }
 
     if (_claimTimeoutRight) {
       try {
         $.CancelScheduled(_claimTimeoutRight);
-      } catch {}
+      } catch { }
       _claimTimeoutRight = null;
     }
 
@@ -2078,13 +1928,13 @@
       UI.claimLeft?.RemoveClass?.("active");
       UI.claimLeft?.RemoveClass?.("ally-claim");
       UI.claimLeft?.RemoveClass?.("enemy-claim");
-    } catch {}
+    } catch { }
 
     try {
       UI.claimRight?.RemoveClass?.("active");
       UI.claimRight?.RemoveClass?.("ally-claim");
       UI.claimRight?.RemoveClass?.("enemy-claim");
-    } catch {}
+    } catch { }
   }
 
   function updateClaimProgress(now) {
@@ -2105,7 +1955,7 @@
             _lastClaimTimerL = t;
           }
         }
-      } catch {}
+      } catch { }
 
       try {
         if (UI.claimRingLeft?.IsValid?.()) {
@@ -2122,7 +1972,7 @@
             _lastRingOpacityL = op;
           }
         }
-      } catch {}
+      } catch { }
 
       if (rem <= 0) {
         hideClaimIndicator("LEFT");
@@ -2143,7 +1993,7 @@
             _lastClaimTimerR = t;
           }
         }
-      } catch {}
+      } catch { }
 
       try {
         if (UI.claimRingRight?.IsValid?.()) {
@@ -2160,7 +2010,7 @@
             _lastRingOpacityR = op;
           }
         }
-      } catch {}
+      } catch { }
 
       if (rem <= 0) {
         hideClaimIndicator("RIGHT");
@@ -2239,7 +2089,7 @@
         qLabel.AddClass("linger-question-child");
         qLabel.text = "?";
       }
-      
+
       qLabel.style.position = bx + "px " + by + "px 0px";
       qLabel.AddClass("active");
 
@@ -2268,7 +2118,7 @@
       if (state.qLabel?.IsValid?.()) {
         state.qLabel.DeleteAsync(0);
       }
-    } catch {}
+    } catch { }
 
     delete _lingerState[enemyId];
   }
@@ -2285,16 +2135,16 @@
       if (state.qLabel?.IsValid?.()) {
         state.qLabel.DeleteAsync(0);
       }
-    } catch {}
+    } catch { }
 
     delete _lingerState[enemyId];
   }
 
   function clearAllLingers() {
     for (const id in _lingerState) {
-      try { $.CancelScheduled(_lingerState[id].hideHandle); } catch {}
-      try { _lingerState[id].btn?.style && (_lingerState[id].btn.style.opacity = null); } catch {}
-      try { _lingerState[id].qLabel?.DeleteAsync?.(0); } catch {}
+      try { $.CancelScheduled(_lingerState[id].hideHandle); } catch { }
+      try { _lingerState[id].btn?.style && (_lingerState[id].btn.style.opacity = null); } catch { }
+      try { _lingerState[id].qLabel?.DeleteAsync?.(0); } catch { }
     }
     _lingerState = {};
   }
@@ -2317,7 +2167,7 @@
         let ps = _playerState[id];
         let team = ps?.team || pl.team || 0;
         if (!team && pl.panel?.IsValid?.()) {
-          team = isAlly(pl.panel) ? 1 : isEnemy(pl.panel) ? 2 : 0;
+          team = describeButtonTeam(pl.panel)?.teamId || 0;
         }
 
         if (team !== 2) continue;
@@ -2346,7 +2196,7 @@
           cancelLinger(id);
         }
       }
-    } catch {}
+    } catch { }
   }
 
   // ===========================================
@@ -2420,7 +2270,7 @@
       trackedPowerups = powerups;
       monitoringActive = true;
       buffResetTs = 0;
-    } catch {}
+    } catch { }
   }
 
 
@@ -2445,7 +2295,7 @@
         if (p.panel?.IsValid?.()) {
           stillActive = p.panel.BHasClass("active");
         }
-      } catch {}
+      } catch { }
 
       if (stillActive) {
         allClaimed = false;
@@ -2468,7 +2318,7 @@
         if (p.panel?.IsValid?.()) {
           stillActive = p.panel.BHasClass("active");
         }
-      } catch {}
+      } catch { }
 
       if (stillActive) {
         allClaimed = false;
@@ -2593,29 +2443,26 @@
     buffStart = now;
     buffCnt = REJUV_DUR;
 
-    if (UI.rejuvBuff) {
-      UI.rejuvBuff.RemoveClass("pop-in");
-      UI.rejuvBuff.AddClass("pop-out");
-      UI.rejuvBuff.style.opacity = "1";
+    if (UI.rejuvMiniCard?.IsValid?.()) {
+      UI.rejuvMiniCard.AddClass("active");
+      UI.rejuvMiniCard.AddClass("buff-active");
     }
-
-    if (UI.rejuvBuffTime) {
-      UI.rejuvBuffTime.text = fmt(buffCnt);
+    if (UI.rejuvMiniTime?.IsValid?.()) {
+      UI.rejuvMiniTime.text = fmt(buffCnt);
     }
   }
 
   function endBuff() {
     buffStart = 0;
     buffCnt = 0;
+    _lastRejuvBuffText = "";
 
-    if (UI.rejuvBuff) {
-      UI.rejuvBuff.RemoveClass("pop-out");
-      UI.rejuvBuff.AddClass("pop-in");
-      $.Schedule(0.5, () => {
-        if (UI.rejuvBuff) {
-          UI.rejuvBuff.style.opacity = "0";
-        }
-      });
+    if (UI.rejuvMiniCard?.IsValid?.()) {
+      UI.rejuvMiniCard.RemoveClass("buff-active");
+      // only hide card if no neutral override is active
+      if (!_neutralBotOverrideActive && !_neutralMediumOverrideActive && !_neutralCardOverrideActive) {
+        UI.rejuvMiniCard.RemoveClass("active");
+      }
     }
   }
 
@@ -2667,11 +2514,15 @@
       _playerCacheTs = 0;
       _playerState = {};
       _neutralBotOverrideActive = false;
+      _neutralMediumOverrideActive = false;
+      _neutralCardOverrideActive = false;
       if (_neutralModeHnd) {
         $.CancelScheduled(_neutralModeHnd);
         _neutralModeHnd = null;
       }
-      _neutralCoordCache = {};
+      clearNeutralCoordCache();
+      clearNeutralRespawnTimers();
+      clearNeutralRuntimeCaches();
       _snapshotTs = 0;
       _minimapSnapshot.players.length = 0;
       _minimapSnapshot.powerupSpawns.length = 0;
@@ -2783,7 +2634,7 @@
       if (onDone) {
         try {
           onDone();
-        } catch {}
+        } catch { }
       }
       _neutralModeHnd = null;
     });
@@ -2800,7 +2651,7 @@
         UI.rImg.src = src;
       }
       _lastRejuvImageSrc = src;
-    } catch {}
+    } catch { }
   }
 
   function updateNeutralBotPhase(now) {
@@ -2869,6 +2720,162 @@
     return true;
   }
 
+  function setSpawnBadgeImage(src) {
+    if (!UI.spawnBadge?.IsValid?.()) return;
+    try {
+      if (typeof UI.spawnBadge.SetImage === "function") UI.spawnBadge.SetImage(src);
+      else UI.spawnBadge.src = src;
+    } catch { }
+  }
+
+  function setSpawnBadge2Image(src) {
+    if (!UI.spawnBadge2?.IsValid?.()) return;
+    try {
+      if (typeof UI.spawnBadge2.SetImage === "function") UI.spawnBadge2.SetImage(src);
+      else UI.spawnBadge2.src = src;
+    } catch { }
+  }
+
+  function enterVaultCardMode() {
+    if (!UI.rejuv?.IsValid?.()) return;
+    if (_neutralModeHnd) { $.CancelScheduled(_neutralModeHnd); _neutralModeHnd = null; }
+    UI.rejuv.RemoveClass("neutral-exiting");
+    UI.rejuv.AddClass("neutral-vault-mode");
+    UI.rejuv.AddClass("neutral-entering");
+    _neutralModeHnd = $.Schedule(NEUTRAL_TRANSITION_MS / 1000, () => {
+      if (UI.rejuv?.IsValid?.()) UI.rejuv.RemoveClass("neutral-entering");
+      _neutralModeHnd = null;
+    });
+  }
+
+  function exitVaultCardMode(onDone) {
+    if (!UI.rejuv?.IsValid?.()) return;
+    if (_neutralModeHnd) { $.CancelScheduled(_neutralModeHnd); _neutralModeHnd = null; }
+    UI.rejuv.RemoveClass("neutral-entering");
+    UI.rejuv.AddClass("neutral-exiting");
+    _neutralModeHnd = $.Schedule(NEUTRAL_TRANSITION_MS / 1000, () => {
+      if (UI.rejuv?.IsValid?.()) {
+        UI.rejuv.RemoveClass("neutral-vault-mode");
+        UI.rejuv.RemoveClass("neutral-exiting");
+      }
+      onDone?.();
+      _neutralModeHnd = null;
+    });
+  }
+
+  function updateNeutralMediumPhase(now) {
+    const active = now >= NEUTRAL_MEDIUM_START_SEC && now <= NEUTRAL_MEDIUM_END_SEC;
+
+    if (!active) {
+      if (_neutralMediumOverrideActive) {
+        _neutralMediumOverrideActive = false;
+        setSpawnBadgeImage(NEUTRAL_SMALL_BADGE_SRC);
+        exitNeutralMode(false, () => {
+          setRejuvImage(REJUV_ICON_SRC);
+          startPhaseAuto(now);
+        });
+        if (UI.rLabClip?.IsValid?.() && _lastRejuvClipColor !== "#ffffff") {
+          UI.rLabClip.style.clip = "rect(0%,100%,100%,0%)";
+          UI.rLabClip.style.color = "#ffffff";
+          _lastRejuvClip = "rect(0%,100%,100%,0%)";
+          _lastRejuvClipColor = "#ffffff";
+        }
+      }
+      return false;
+    }
+
+    if (!_neutralMediumOverrideActive) {
+      _neutralMediumOverrideActive = true;
+      setSpawnBadgeImage(NEUTRAL_MEDIUM_BADGE_SRC);
+      enterNeutralMode();
+      setRejuvImage(NEUTRAL_BOT_ICON_SRC);
+      resetImg();
+      if (UI.rLabClip?.IsValid?.()) {
+        const phaseDur = NEUTRAL_MEDIUM_END_SEC - NEUTRAL_MEDIUM_START_SEC;
+        const remaining = Math.max(0, NEUTRAL_MEDIUM_END_SEC - now);
+        const pct = phaseDur > 0 ? Math.floor((remaining / phaseDur) * 100) : 0;
+        const clip = "rect(0%, " + pct + "%, 100%, 0%)";
+        UI.rLabClip.style.clip = clip;
+        UI.rLabClip.style.color = NEUTRAL_BOT_PROGRESS_COLOR;
+        _lastRejuvClip = clip;
+        _lastRejuvClipColor = NEUTRAL_BOT_PROGRESS_COLOR;
+        UI.rLabClip.text = UI.rLab.text;
+      }
+    }
+
+    const rem = Math.max(0, NEUTRAL_MEDIUM_END_SEC - now);
+    counter = rem;
+    const t = fmt(rem);
+
+    if (t !== _lastRejuvText) {
+      UI.rLab.text = t;
+      if (UI.rLabClip?.IsValid?.()) {
+        UI.rLabClip.text = t;
+      }
+      _lastRejuvText = t;
+    }
+
+    if (UI.rLabClip?.IsValid?.()) {
+      const phaseDur = NEUTRAL_MEDIUM_END_SEC - NEUTRAL_MEDIUM_START_SEC;
+      const pct = phaseDur > 0 ? Math.floor((rem / phaseDur) * 100) : 0;
+      const clip = "rect(0%, " + pct + "%, 100%, 0%)";
+      if (clip !== _lastRejuvClip || _lastRejuvClipColor !== NEUTRAL_BOT_PROGRESS_COLOR) {
+        UI.rLabClip.style.clip = clip;
+        UI.rLabClip.style.color = NEUTRAL_BOT_PROGRESS_COLOR;
+        _lastRejuvClip = clip;
+        _lastRejuvClipColor = NEUTRAL_BOT_PROGRESS_COLOR;
+      }
+    }
+
+    tick = TICK_FAST;
+    return true;
+  }
+
+  function updateNeutralCardPhase(now) {
+    const active = now >= NEUTRAL_LARGE_START_SEC && now <= NEUTRAL_LARGE_END_SEC;
+    if (!active) {
+      if (_neutralCardOverrideActive) {
+        _neutralCardOverrideActive = false;
+        exitVaultCardMode(() => { setRejuvImage(REJUV_ICON_SRC); startPhaseAuto(now); });
+        if (UI.rLabClip?.IsValid?.() && _lastRejuvClipColor !== "#ffffff") {
+          UI.rLabClip.style.clip = "rect(0%,100%,100%,0%)";
+          UI.rLabClip.style.color = "#ffffff";
+          _lastRejuvClip = "rect(0%,100%,100%,0%)";
+          _lastRejuvClipColor = "#ffffff";
+        }
+      }
+      return false;
+    }
+    if (!_neutralCardOverrideActive) {
+      _neutralCardOverrideActive = true;
+      setSpawnBadge2Image(NEUTRAL_LARGE_BADGE_SRC);
+      setRejuvImage(NEUTRAL_VAULT_BADGE_SRC);
+      resetImg();
+      enterVaultCardMode();
+    }
+    const phaseDur = NEUTRAL_LARGE_END_SEC - NEUTRAL_LARGE_START_SEC;
+    const rem = Math.max(0, NEUTRAL_LARGE_END_SEC - now);
+    counter = rem;
+    const t = fmt(rem);
+    if (t !== _lastRejuvText) {
+      UI.rLab.text = t;
+      if (UI.rLabClip?.IsValid?.()) UI.rLabClip.text = t;
+      _lastRejuvText = t;
+    }
+    if (UI.rLabClip?.IsValid?.()) {
+      const pct = phaseDur > 0 ? Math.floor((rem / phaseDur) * 100) : 0;
+      const clip = "rect(0%, " + pct + "%, 100%, 0%)";
+      if (clip !== _lastRejuvClip || _lastRejuvClipColor !== NEUTRAL_BOT_PROGRESS_COLOR) {
+        UI.rLabClip.style.clip = clip;
+        UI.rLabClip.style.color = NEUTRAL_BOT_PROGRESS_COLOR;
+        _lastRejuvClip = clip;
+        _lastRejuvClipColor = NEUTRAL_BOT_PROGRESS_COLOR;
+      }
+    }
+    tick = TICK_FAST;
+    return true;
+  }
+
   // ===========================================
   // TIME UTILITIES
   // ===========================================
@@ -2885,7 +2892,7 @@
     if (_gameTimePanel?.IsValid?.()) {
       try {
         t = parseSec(_gameTimePanel.text);
-      } catch {}
+      } catch { }
     }
 
     // Find game time panel if not cached
@@ -2899,7 +2906,7 @@
             t = parseSec(a[0].text);
           }
         }
-      } catch {}
+      } catch { }
     }
 
     if (t > 0) {
@@ -2948,9 +2955,9 @@
     try {
       // Order by most common casing first for early exit
       return UI.hud.BHasClass("connectedToHideout") ||
-             UI.hud.BHasClass("connectedtohideout") ||
-             UI.hud.BHasClass("connectedToHideOut");
-    } catch {}
+        UI.hud.BHasClass("connectedtohideout") ||
+        UI.hud.BHasClass("connectedToHideOut");
+    } catch { }
 
     return false;
   }
