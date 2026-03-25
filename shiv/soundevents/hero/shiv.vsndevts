@@ -448,6 +448,13 @@
         use_02 = 1.000000
         use_03 = 1.000000
     }
+    Shiv.Flash.Ready = 
+    {
+        base = "Base.Ability.Ult"
+        volume = 4.000000
+        vsnd_files = "sounds/vo/shiv/ping/shiv_ping_use_ability4_01.vsnd"
+        vsnd_duration = 1.000000
+    }
     Shiv.Ability.ShivFlash.Impact_01 = 
     {
         base = "Base.Ability"
