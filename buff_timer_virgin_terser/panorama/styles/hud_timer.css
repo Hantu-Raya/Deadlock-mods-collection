@@ -1,0 +1,579 @@
+#SoulTimer
+{
+	background-color: rgba(12, 12, 12, 0.6);
+	width: 20%;
+	height: 6%;
+	margin-bottom: 21%;
+	margin-right: 7%;
+	vertical-align: bottom;
+	horizontal-align: right;
+	perspective: 900;
+	opacity: 1;
+	transition-property: opacity;
+	transition-duration: 0.3s;
+	world-blur: ingameHudBlur;
+	z-index: 99999;
+	border-radius: 8px;
+}
+
+#SoulTimer.hidden
+{
+	opacity: 0;
+}
+
+#SoulTimerLabel
+{
+	font-size: 18px;
+	color: #00ff00;
+	horizontal-align: center;
+	vertical-align: center;
+	width: 100%;
+	height: 100%;
+	font-weight: bold;
+	text-align: center;
+	font-family: sansMono;
+	text-shadow: 0px 0px 4px 2.0 offBlack;
+	transition-property: color;
+	transition-duration: 0.3s;
+}
+
+#SoulTimerLabel.hidden
+{
+	visibility: collapse;
+}
+
+#SoulTimerLabel.red
+{
+	color: #ff474d;
+}
+
+#SoulTimerLabel.yellow
+{
+	color: #ffcc00;
+}
+
+#SoulTimerLabel.green
+{
+	color: #00ff00;
+}
+
+#Buff
+{
+	background-color: rgba(12, 12, 12, 0.6);
+	width: 32%;
+    height: 10%;
+    margin-top: 10%;
+	margin-right: 7%;
+    vertical-align: top;
+    horizontal-align: right;
+    perspective: 900;
+    opacity: 1;
+    transform: translateX(0px);
+    transition-property: opacity;
+    transition-duration: 0.15s;
+	world-blur: ingameHudBlur;
+	z-index: 99999;
+    border-radius: 10px;
+}
+
+#Rejuv
+{
+	background-color: rgba(12, 12, 12, 0.6);
+	width: 32%;
+    height: 10%;
+    margin-top: 10%;
+	margin-left: 7%;
+    vertical-align: top;
+    horizontal-align: left;
+    perspective: 900;
+    opacity: 1;
+    transform: translateX(0px);
+    transition-property: opacity;
+    transition-duration: 0.15s;
+	world-blur: ingameHudBlur;
+	z-index: 99999;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#RejuvMiniCard
+{
+	background-color: rgba(12, 12, 12, 0.6);
+	width: 11%;
+	height: 4.5%;
+	margin-top: 7.5%;
+	margin-left: 28%;
+	horizontal-align: left;
+	vertical-align: top;
+	border-radius: 6px;
+	world-blur: ingameHudBlur;
+	z-index: 99999;
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.2s;
+}
+
+#RejuvMiniCard.active
+{
+	opacity: 1;
+}
+
+.timer-wrapper
+{
+	flow-children: none;
+	width: 100%;
+	height: 70%;
+	margin-bottom: 5%;
+	horizontal-align: center;
+	vertical-align: center;
+}
+
+#Buff .timer-wrapper
+{
+	margin-right: 30%;
+}
+
+#Rejuv .timer-wrapper
+{
+	margin-left: 30%;
+}
+
+/* Base Label (Background/Inactive) */
+#BuffTime, #RejuvTime
+{
+	font-size: 24px;
+	color: #808080;
+	horizontal-align: center;
+	vertical-align: center;
+	width: 100%;
+	height: 100%;
+	font-weight: semi-bold;
+	text-align: center;
+	font-family: sansMono;
+	text-shadow: 0px 0px 4px 2.0 black;
+	z-index: 1;
+	letter-spacing: 1px;
+}
+
+/* Clip Label (Foreground/Active - Text Fill) */
+#BuffTimeClip, #RejuvTimeClip
+{
+	font-size: 24px;
+	color: #ffffff;
+	horizontal-align: center;
+	vertical-align: center;
+	width: 100%;
+	height: 100%;
+	font-weight: semi-bold;
+	text-align: center;
+	font-family: sansMono;
+	z-index: 2;
+	letter-spacing: 1px;
+    clip: rect(0%, 100%, 100%, 0%);
+}
+
+.rejuv-mini-time
+{
+	font-size: 15px;
+	color: #b0b0b0;
+	horizontal-align: center;
+	vertical-align: center;
+	width: 100%;
+	height: 100%;
+	font-weight: semi-bold;
+	text-align: center;
+	font-family: sansMono;
+	text-shadow: 0px 0px 3px 1.5 black;
+	letter-spacing: 1px;
+	transition-property: color;
+	transition-duration: 0.2s;
+}
+
+#RejuvMiniCard.buff-active .rejuv-mini-time
+{
+	color: #ffcc00;
+}
+
+#BuffImg
+{
+    horizontal-align: right;
+    vertical-align: center;
+    height: 80%;
+    width: 25%;
+    margin-right: 13%;
+}
+
+#RejuvImg
+{
+    horizontal-align: left;
+    vertical-align: center;
+    height: 80%;
+    width: 25%;
+    margin-left: 13%;
+    transform: rotateY(0deg);
+    opacity: 1;
+    pre-transform-scale2d: 1;
+    transition-property: opacity, pre-transform-scale2d, wash-color;
+    transition-duration: 0.18s;
+    z-index: 999999;
+}
+
+#NeutralSpawnBadge
+{
+    horizontal-align: left;
+    vertical-align: top;
+    width: fit-children;
+    height: fit-children;
+    margin-left: 18%;
+    margin-top: -50%;
+    opacity: 0;
+    pre-transform-scale2d: 0.8;
+    transition-property: opacity, pre-transform-scale2d, wash-color;
+    transition-duration: 0.18s;
+    z-index: 1000000;
+}
+
+#NeutralSpawnBadge2
+{
+    horizontal-align: left;
+    vertical-align: center;
+    width: 25%;
+    height: 80%;
+    margin-left: 16%;
+    margin-top: -5%;
+    opacity: 0;
+    pre-transform-scale2d: 1;
+    pre-transform-rotate2d: 18deg;
+    transition-property: opacity, pre-transform-scale2d, wash-color;
+    transition-duration: 0.18s;
+    z-index: 999997;
+}
+
+#Rejuv.neutral-entering #NeutralSpawnBadge
+{
+    opacity: 1;
+    wash-color: rgba(190, 255, 190, 0.98);
+    animation-name: neutral-badge-enter;
+    animation-duration: 0.22s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+}
+
+#Rejuv.neutral-exiting #NeutralSpawnBadge
+{
+    opacity: 1;
+    wash-color: rgba(190, 255, 190, 0.98);
+    animation-name: neutral-badge-exit;
+    animation-duration: 0.20s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+}
+
+#Rejuv.neutral-mode #RejuvImg
+{
+    wash-color: rgba(225, 255, 225, 0.98);
+    pre-transform-scale2d: 1.06;
+}
+
+#Rejuv.neutral-mode #NeutralSpawnBadge
+{
+    opacity: 1;
+    pre-transform-scale2d: 0.8;
+    wash-color: rgba(190, 255, 190, 0.98);
+    animation-name: neutral-badge-pulse;
+    animation-duration: 1.1s;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
+}
+
+#Rejuv.neutral-card-mode #NeutralSpawnBadge2
+{
+    opacity: 1;
+    pre-transform-scale2d: 1.3;
+    wash-color: rgba(255, 198, 190, 0.98);
+    visibility: visible;
+}
+
+#Rejuv.neutral-card-mode #RejuvNum
+{
+    opacity: 0;
+}
+
+#Rejuv.neutral-card-mode #RejuvImg
+{
+    margin-left: 8%;
+    pre-transform-scale2d: 1.8;
+    transform-origin: 50% 50%;
+    transform: rotateY(10deg) rotateZ(-2deg);
+}
+
+#Rejuv.neutral-card-mode #NeutralSpawnBadge
+{
+    opacity: 0;
+    visibility: collapse;
+}
+
+#Rejuv.neutral-mode #RejuvNum
+{
+    opacity: 0;
+    pre-transform-scale2d: 0.92;
+}
+
+#Rejuv.neutral-entering #RejuvNum
+{
+    opacity: 0;
+    pre-transform-scale2d: 0.92;
+}
+
+#Rejuv.neutral-exiting #RejuvNum
+{
+    opacity: 1;
+    pre-transform-scale2d: 1;
+}
+
+@keyframes 'neutral-badge-pulse'
+{
+    0%
+    {
+        opacity: 0.78;
+        pre-transform-scale2d: 0.78;
+    }
+
+    100%
+    {
+        opacity: 1;
+        pre-transform-scale2d: 0.84;
+    }
+}
+
+#Rejuv.neutral-mode #RejuvImg
+{
+    animation-name: neutral-icon-pulse;
+    animation-duration: 1.25s;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
+}
+
+#Rejuv.neutral-entering #RejuvImg
+{
+    animation-name: neutral-icon-enter;
+    animation-duration: 0.22s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+}
+
+#Rejuv.neutral-exiting #RejuvImg
+{
+    animation-name: neutral-icon-exit;
+    animation-duration: 0.20s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+}
+
+@keyframes 'neutral-icon-pulse'
+{
+    0%
+    {
+        opacity: 0.88;
+        pre-transform-scale2d: 0.99;
+    }
+
+    100%
+    {
+        opacity: 1;
+        pre-transform-scale2d: 1.08;
+    }
+}
+
+@keyframes 'neutral-badge-enter'
+{
+    0%
+    {
+        opacity: 0;
+        pre-transform-scale2d: 0.72;
+    }
+
+    100%
+    {
+        opacity: 1;
+        pre-transform-scale2d: 0.8;
+    }
+}
+
+@keyframes 'neutral-badge-exit'
+{
+    0%
+    {
+        opacity: 1;
+        pre-transform-scale2d: 0.8;
+    }
+
+    100%
+    {
+        opacity: 0;
+        pre-transform-scale2d: 0.72;
+    }
+}
+
+@keyframes 'neutral-icon-enter'
+{
+    0%
+    {
+        opacity: 0.80;
+        pre-transform-scale2d: 0.95;
+    }
+
+    100%
+    {
+        opacity: 1;
+        pre-transform-scale2d: 1.06;
+    }
+}
+
+@keyframes 'neutral-icon-exit'
+{
+    0%
+    {
+        opacity: 1;
+        pre-transform-scale2d: 1.06;
+    }
+
+    100%
+    {
+        opacity: 0.84;
+        pre-transform-scale2d: 0.98;
+    }
+}
+
+
+#RejuvNum
+{
+    font-size: 16px;
+    color: offBlack;
+    horizontal-align: center;
+    vertical-align: center;
+    width: 10%;
+    height: 70%;
+    margin-right: 50%;
+    margin-top: 30%;
+    font-weight: semi-bold;
+    text-align: center;
+    font-family: sansMono;
+    opacity: 1;
+    pre-transform-scale2d: 1;
+    transition-property: opacity, pre-transform-scale2d;
+    transition-duration: 0.18s;
+	z-index: 999999;
+}
+
+@keyframes 'rotate'
+{
+    0%
+    {
+        transform: rotateY(0deg);
+    }
+    
+    25%
+    {
+        transform: rotateY(90deg);
+    }
+    
+    50%
+    {
+        transform: rotateY(180deg);
+    }
+
+    75%
+    {
+        transform: rotateY(270deg);
+    }
+    
+    100%
+    {
+        transform: rotateY(360deg);
+    }
+    
+}
+
+@keyframes 'rotate-reverse'
+{
+    0%
+    {
+        transform: rotateY(0deg);
+    }
+    
+    25%
+    {
+        transform: rotateY(-90deg);
+    }
+    
+    50%
+    {
+        transform: rotateY(-180deg);
+    }
+
+    75%
+    {
+        transform: rotateY(-270deg);
+    }
+    
+    100%
+    {
+        transform: rotateY(-360deg);
+    }
+    
+}
+
+@keyframes 'pop-out'
+{
+    0%
+    {
+        opacity: 0;
+    }
+    
+    100%
+    {
+        opacity: 1;
+    }
+    
+}
+
+@keyframes 'pop-in'
+{
+    0%
+    {
+        opacity: 1;
+    }
+    
+    100%
+    {
+        opacity: 0;
+    }
+    
+}
+
+#RejuvImg.rotating 
+{
+    animation-duration: 0.8s;
+    animation-iteration-count: 1;
+}
+  
+#RejuvImg.rotating.buff 
+{
+    animation-name: rotate;
+}
+  
+#RejuvImg.rotating.reverse 
+{
+    animation-name: rotate-reverse;
+}
+
+#RejuvImg.reverse 
+{
+    wash-color: grey;
+}
+
+#RejuvImg.white 
+{
+    wash-color: white;
+}
