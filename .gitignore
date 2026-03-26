@@ -1,0 +1,32 @@
+# Compiled/Generated directories
+*_compiled/
+
+# Binaries
+*.exe
+*.dll
+*.pdb
+*.vpk
+*.bat
+*.7z
+
+# Temp files
+*.tmp
+
+# Editor/System files
+.vscode/
+Thumbs.db
+/.tmp.driveupload
+nul
+passive_items_mod_release
+frame_rate/
+.sisyphus/notepads/frame_rate-validation/
+.sisyphus/plans/deadlock-frame_rate-v1.md
+[f][p][s]/
+.sisyphus/notepads/[f][p][s]-validation/
+.sisyphus/plans/deadlock-[f][p][s]-v1.md
+
+# Obfuscated/minified builds
+buff_timer_virgin_obfuscated/
+buff_timer_virgin_terser/
+build_buff_timer_virgin_obfuscated*.ps1
+build_buff_timer_virgin_terser*.ps1
