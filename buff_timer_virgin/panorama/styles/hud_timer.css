@@ -236,18 +236,17 @@
 #NeutralSpawnBadge2
 {
     horizontal-align: left;
-    vertical-align: top;
-    width: fit-children;
-    height: fit-children;
-    margin-left: 18%;
-    margin-top: -50%;
+    vertical-align: center;
+    width: 25%;
+    height: 80%;
+    margin-left: 16%;
+    margin-top: -5%;
     opacity: 0;
-    pre-transform-scale2d: 0.8;
-    transform-origin: 50% 50%;
-    transform: rotateY(10deg) rotateZ(-2deg);
+    pre-transform-scale2d: 1;
+    pre-transform-rotate2d: 18deg;
     transition-property: opacity, pre-transform-scale2d, wash-color;
     transition-duration: 0.18s;
-    z-index: 1000000;
+    z-index: 999997;
 }
 
 #Rejuv.neutral-entering #NeutralSpawnBadge
@@ -290,12 +289,28 @@
 #Rejuv.neutral-card-mode #NeutralSpawnBadge2
 {
     opacity: 1;
-    pre-transform-scale2d: 0.8;
-    wash-color: rgba(190, 255, 190, 0.98);
-    animation-name: neutral-badge-pulse;
-    animation-duration: 1.1s;
-    animation-iteration-count: infinite;
-    animation-timing-function: ease-in-out;
+    pre-transform-scale2d: 1.3;
+    wash-color: rgba(255, 198, 190, 0.98);
+    visibility: visible;
+}
+
+#Rejuv.neutral-card-mode #RejuvNum
+{
+    opacity: 0;
+}
+
+#Rejuv.neutral-card-mode #RejuvImg
+{
+    margin-left: 8%;
+    pre-transform-scale2d: 1.8;
+    transform-origin: 50% 50%;
+    transform: rotateY(10deg) rotateZ(-2deg);
+}
+
+#Rejuv.neutral-card-mode #NeutralSpawnBadge
+{
+    opacity: 0;
+    visibility: collapse;
 }
 
 #Rejuv.neutral-mode #RejuvNum
