@@ -333,6 +333,19 @@
 
 /* Container Positioning */
 /* Container Positioning - TOP of radar at ~10:30 and ~1:30 positions */
+#ClaimOverlayRoot {
+	width: 440px;
+	height: 440px;
+	margin-bottom: 15px;
+	vertical-align: bottom;
+	horizontal-align: right;
+	perspective: 900;
+	opacity: 1;
+	overflow: noclip;
+	transform: translateX(0px);
+	z-index: 100000;
+}
+
 .minimap-claim-box {
 	width: 48px;
 	height: 48px;
@@ -479,8 +492,8 @@
 	position: absolute;
 	width: 100%;
 	horizontal-align: center;
-	vertical-align: bottom;
-	margin-bottom: -14px;
+	vertical-align: top;
+	margin-top: -14px;
 	font-size: 11px;
 	font-family: sansMono;
 	font-weight: bold;
