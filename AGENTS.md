@@ -164,3 +164,6 @@ There is no formal single test command. Use this focused loop:
 - `sr2compiler/AGENTS.md` for legacy compiler behavior.
 - `passive_items_mod/Apply.bat` for generated-settings compile flow.
 - `buff_timer_virgin/AGENTS.md` for advanced performance optimization patterns.
+
+## Reverse Engineering
+- When analyzing shipped binaries or runtime behavior, prefer the `ida-pro` MCP server in Codex if it is available.
