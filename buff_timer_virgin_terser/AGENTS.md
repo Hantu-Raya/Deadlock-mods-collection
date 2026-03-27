@@ -117,13 +117,18 @@ Small panel at `margin-left: 28%` of the main rejuv timer. Two use cases — nev
 
 Both are called from `loop()` with interval guards using `lastNeutralScanCheck` / `lastNeutralRenderCheck`. The scoreboard-open trigger `scoreboardJustOpened` forces an immediate scan+render when the scoreboard opens. **If these calls are not in `loop()`, the rings never appear regardless of whether the functions are defined.**
 
-**Ring visibility rules:**
+**Ring visibility rules (urgency ramp — improves readability when many camps on cooldown simultaneously):**
 | Remaining | Opacity |
 |---|---|
 | > 60s | 0 (hidden) |
-| 60s → 30s | Fades 0 → 0.50 |
-| < 30s | 0.50 |
+| 60s → 30s | Fades 0 → 0.60 |
+| 30s → 15s | Ramps 0.60 → 0.85 |
+| < 15s | 0.90 (urgent) |
 | Scoreboard open | 1.0 (instant, set on first detection tick — no delay) |
+
+**Ring label position:** Centered inside the ring (not below it). Keeps text bound to its camp at high density. Uses `textPosY = anchorPctY + (iconPctH - textPctH) / 2`. Text panel is 48px wide (overflows ring, horizontally centered) and 14px tall.
+
+**Ring arc:** 4px border on `.neutral-cooldown-ring-fill`. Thicker arc improves visibility in clusters.
 
 **Clip animation:** per-frame `ringFill.style.clip = "radial(50% 50%, 0deg, Xdeg)"`. Guarded by `lastClip` diff. Do not use CSS transitions for this — use per-frame JS writes.
 
@@ -248,6 +253,7 @@ Missing step 3 is the most common failure mode — functions exist, panels exist
 - **Removing `jungle_timer.css`/`jungle_timer.vcss_c` includes from `hud.xml`.** The ring classes (`.neutral-cooldown-ring`, `.neutral-cooldown-ring-fill`, `.neutral-cooldown-timer-detail`, `.neutral-cooldown-anchor`) are defined there. Without it, rings render as invisible unstyled panels.
 - **Using CSS transitions for ring clip animation.** Panorama `radial()` clip transitions are unreliable without a guaranteed layout flush. Use per-frame JS `style.clip` writes with a diff guard instead.
 - **Adding a fade delay for scoreboard-triggered opacity.** `targetOpacity = 1` must be set on the first detection tick. Any delay causes the ring to stay invisible on tick 0.
+- **Moving ring label back to below-icon position** (`textPosY = anchorPctY + iconPctH + gapPct`). Labels from vertically-adjacent camps will overlap at high camp density. Keep the centered-inside-ring formula: `textPosY = anchorPctY + (iconPctH - textPctH) * 0.5`.
 
 ### Other
 - Repeated `FindChildrenWithClassTraverse("map_button")` calls across subsystems in the same tick.
@@ -272,17 +278,35 @@ Log prefixes:
 All disabled by default (`DEBUG_NEUTRAL_TIMERS`, `DEBUG_PERF`, `DEBUG_NEUTRAL_ALIGN`, `DEBUG_MINIMAP_COLLAPSE` all `false`).
 
 ## BUILD
+
+### Normal compile (source only, no pack)
 ```powershell
-# Compile
-"F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\buff_timer_virgin"
+cd "F:\Users\Shiv\Desktop\Deadlock-mods-collection"
+& "sr2compiler\New folder.exe" "buff_timer_virgin"
+# Output: buff_timer_virgin_compiled\
+```
 
-# Pack
-"F:\Users\Shiv\Desktop\Deadlock-mods-collection\passive_items_mod\compiler\vpkeditcli.exe" "buff_timer_virgin_compiled" -o "pak98_dir.vpk" -s --no-progress
+### Terser build + pack + deploy (recommended for release)
+```powershell
+cd "F:\Users\Shiv\Desktop\Deadlock-mods-collection"
+powershell -ExecutionPolicy Bypass -File "build_buff_timer_virgin_terser.ps1"
+powershell -ExecutionPolicy Bypass -File "build_buff_timer_virgin_terser_pack.ps1"
+```
+Steps performed by these scripts:
+1. Copy `buff_timer_virgin` → `buff_timer_virgin_terser`
+2. Minify `rejuvnbufftimer.js` in-place with `npx terser -c -m keep_fnames=true,keep_classnames=true`
+3. Compile `buff_timer_virgin_terser` → `buff_timer_virgin_terser_compiled\`
+4. Pack compiled output → `pak98_dir.vpk` (≈106 KB)
+5. Deploy → `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak98_dir.vpk`
 
-# Deploy
+### Manual pack (from already-compiled normal build)
+```powershell
+cd "F:\Users\Shiv\Desktop\Deadlock-mods-collection"
+& "passive_items_mod\compiler\vpkeditcli.exe" "buff_timer_virgin_compiled" -o "pak98_dir.vpk" -s --no-progress
 Copy-Item "pak98_dir.vpk" "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak98_dir.vpk" -Force
 ```
 
 Build notes:
 - Compiler prints a non-asset warning for `AGENTS.md` — expected, not an error.
-- Wrapper exits non-zero in redirected terminals due to `Console.ReadKey` — assets still compile when output shows `OK: N compiled, 0 failed`.
+- Compiler wrapper exits non-zero in redirected terminals due to `Console.ReadKey` — assets still compile when output shows `OK: N compiled, 0 failed`.
+- Terser minified script: ~35.7 KB. VPK output: ~106 KB.
