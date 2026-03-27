@@ -136,16 +136,6 @@
     return btn.BHasClass("team2") || btn.BHasClass("enemy");
   }
 
-  // ===========================================
-  // PLAYER CACHE HELPERS
-  // ===========================================
-
-  function ensurePlayerCache(mm, rn) {
-    if (_playerCache && rn - _playerCacheTs <= BUTTON_CACHE_TTL) return;
-    _playerCache = mm.FindChildrenWithClassTraverse("map_button");
-    _playerCacheTs = rn;
-  }
-
   function perfMark(counterName, nowMs) {
     if (!DEBUG_PERF) return;
 
@@ -220,8 +210,6 @@
   let _tCache = 0;
   let _tCacheTs = 0;
   let _snapshotTs = 0;
-  let _playerCache = null;
-  let _playerCacheTs = 0;
   let _playerState = {};
   let _playerSeenToken = 0;
   let _stablePlayerKeySeq = 0;
@@ -1860,9 +1848,9 @@
 
     const dpiScale = NEUTRAL_RING_SIZE_PX > 0 ? (iconW / NEUTRAL_RING_SIZE_PX) : 1;
     const textPctW = mmW > 0 ? ((48 * dpiScale) / mmW) * 100 : 0;
-    const gapPct = mmH > 0 ? ((4 * dpiScale) / mmH) * 100 : 0;
+    const textPctH = mmH > 0 ? ((14 * dpiScale) / mmH) * 100 : 0;
     textPosX = clampPct(anchorPctX + ((iconPctW - textPctW) * 0.5));
-    textPosY = clampPct(anchorPctY + iconPctH + gapPct);
+    textPosY = clampPct(anchorPctY + ((iconPctH - textPctH) * 0.5));
 
     const scoreboardVisible = !!renderCtx?.scoreboardVisible;
     const theme = NEUTRAL_RING_THEME[st.type] || NEUTRAL_RING_THEME_DEFAULT;
@@ -1899,10 +1887,16 @@
     } else if (remainingMs > 60000) {
       targetOpacity = 0;
     } else if (remainingMs > 30000) {
-      const t = (60000 - remainingMs) / (60000 - 30000);
-      targetOpacity = 0.50 * Math.max(0, Math.min(1, t));
+      // Fade in 0 → 0.60 as remaining drops from 60s → 30s
+      const t = (60000 - remainingMs) / 30000;
+      targetOpacity = 0.60 * Math.max(0, Math.min(1, t));
+    } else if (remainingMs > 15000) {
+      // Ramp 0.60 → 0.85 as remaining drops from 30s → 15s
+      const t = (30000 - remainingMs) / 15000;
+      targetOpacity = 0.60 + (0.25 * Math.max(0, Math.min(1, t)));
     } else {
-      targetOpacity = 0.50;
+      // Urgent — nearly respawned, full contrast
+      targetOpacity = 0.90;
     }
 
     const opStr = targetOpacity.toFixed(2);
@@ -2867,8 +2861,6 @@
       trackedPowerups.length = 0;
       monitoringActive = false;
       pretrackActive = false;
-      _playerCache = null;
-      _playerCacheTs = 0;
       _playerState = {};
       _neutralBotOverrideActive = false;
       _neutralMediumOverrideActive = false;
