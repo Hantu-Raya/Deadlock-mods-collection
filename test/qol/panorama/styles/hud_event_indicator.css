@@ -1,0 +1,83 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_event_indicator.vcss_c");
+@import url("s2r://panorama/styles/qol_damage_fountain_full.vcss_c");
+@keyframes 'rise_and_fade_custom_disabled'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+		transform: translateX(100px);
+		opacity: 0;
+	}
+	
+	1%
+	{
+		pre-transform-scale2d: 1.3;
+	}
+	
+	3%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	35%
+	{
+		opacity: 1;
+	}
+	
+	55%
+	{
+		opacity: 0;
+	}
+	
+}
+
+.cumulative_dmg_disabled .cumulative,.cumulative_dmg_disabled .batched
+{
+	visibility: collapse;
+	opacity: 0;
+}
+
+.cumulative_dmg_disabled .cumulative .HudIndicatorContainer,.cumulative_dmg_disabled .batched .HudIndicatorContainer,.cumulative_dmg_disabled .cumulative .HudIndicatorText,.cumulative_dmg_disabled .batched .HudIndicatorText,.cumulative_dmg_disabled .cumulative .HudIndicatorIcon,.cumulative_dmg_disabled .batched .HudIndicatorIcon
+{
+	visibility: collapse;
+	opacity: 0;
+}
+
+.cumulative_dmg_disabled .batched.damage_type_gun .HudIndicatorContainer,.cumulative_dmg_disabled .batched.crit .HudIndicatorContainer
+{
+	animation-name: rise_and_fade_custom_disabled;
+}
+
+.cumulative_dmg_disabled .batched .HudIndicatorText,.cumulative_dmg_disabled .batched .HudIndicatorIcon,.cumulative_dmg_disabled .cumulative .HudIndicatorText
+{
+	opacity: 0;
+	visibility: collapse;
+}
+
+.cumulative_dmg_disabled .damage_type_gun .HudIndicatorText,.cumulative_dmg_disabled .damage_type_melee .HudIndicatorText,.cumulative_dmg_disabled .damage_type_ability .HudIndicatorText,.cumulative_dmg_disabled .damage_type_pure .HudIndicatorText,.cumulative_dmg_disabled .damage_type_poison .HudIndicatorText,.cumulative_dmg_disabled .crit .HudIndicatorText
+{
+	opacity: 0.5;
+	transform: scale3d(0.8, 0.8, 1.0);
+}
+
+.cumulative_dmg_disabled .distance_near,.cumulative_dmg_disabled .distance_normal,.cumulative_dmg_disabled .distance_far,.cumulative_dmg_disabled .distance_very_far
+{
+	opacity: 1;
+}
+
+.hide_small_numbers_active .bullet_damage_new .HudIndicatorText,.hide_small_numbers_active .bullet_damage_new.crit .HudIndicatorText,.hide_small_numbers_active .ability_damage_new .HudIndicatorText,.hide_small_numbers_active .melee_damage_new .HudIndicatorText,.hide_small_numbers_active .pure_damage_new .HudIndicatorText,.hide_small_numbers_active .damage.damage_type_gun .HudIndicatorText,.hide_small_numbers_active .damage.damage_type_melee .HudIndicatorText,.hide_small_numbers_active .damage.damage_type_ability .HudIndicatorText,.hide_small_numbers_active .damage.damage_type_pure .HudIndicatorText,.hide_small_numbers_active .damage.damage_type_poison .HudIndicatorText
+{
+	opacity: 0 !important;
+	visibility: collapse;
+	animation-name: none;
+}
+
+.hide_trooper_damage_active #HudEventIndicatorsPanel .trooper,.hide_trooper_damage_active #HudEventIndicatorsPanel .trooper .HudIndicatorContainer,.hide_trooper_damage_active #HudEventIndicatorsPanel .trooper .HudIndicatorText,.hide_trooper_damage_active #HudEventIndicatorsPanel .trooper .HudIndicatorIcon,.hide_trooper_damage_active #HudEventIndicatorsPanel .trooper.HudIndicatorContainer,.hide_trooper_damage_active #HudEventIndicatorsPanel .trooper.HudIndicatorText,.hide_trooper_damage_active #HudEventIndicatorsPanel .trooper.HudIndicatorIcon
+{
+	visibility: collapse !important;
+	opacity: 0 !important;
+	animation-name: none !important;
+}
+

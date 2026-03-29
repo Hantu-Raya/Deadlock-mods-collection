@@ -1,0 +1,129 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_ability_icon_passive.vcss_c");
+.old_item_cooldowns_active .ability_container
+{
+	flow-children: up;
+	vertical-align: center;
+	overflow: noclip;
+	tooltip-position: right;
+	transition-property: transform, wash-color, margin;
+	transition-duration: 0.2s;
+	opacity: 0.6;
+}
+
+.old_item_cooldowns_active .items .ability_container.item_passive.Hidden
+{
+	visibility: visible;
+}
+
+.old_item_cooldowns_active #hud_passive_items .isWeaponSlot .button_container
+{
+	wash-color: #FFFFFF00;
+}
+
+.old_item_cooldowns_active #hud_passive_items .isVitalitySlot .button_container
+{
+	wash-color: #FFFFFF00;
+}
+
+.old_item_cooldowns_active #hud_passive_items .isSpiritSlot .button_container
+{
+	wash-color: #FFFFFF00;
+}
+
+.old_item_cooldowns_active #hud_passive_items .ability_image
+{
+	height: 100%;
+}
+
+.old_item_cooldowns_active #hud_passive_items .button_container
+{
+	width: 100%;
+	height: 100%;
+}
+
+.old_item_cooldowns_active #hud_items .cooldown_timer,.old_item_cooldowns_active #hud_passive_items .cooldown_timer
+{
+	font-size: 18px;
+	vertical-align: bottom;
+	margin-bottom: 24%;
+}
+
+.old_item_cooldowns_active #hud_passive_items #cooldown_mask,#hud_passive_items.old_item_cooldowns_active #cooldown_mask
+{
+	height: 100%;
+	margin-top: 0px;
+	overflow: noclip;
+	transform: scale3d(-1.1, 1.4, 0);
+}
+
+.old_item_cooldowns_active #hud_passive_items .button_container
+{
+	margin-top: 0px;
+	background-color: #cacacaee;
+	border-radius: 100%;
+}
+
+.old_item_cooldowns_active #hud_passive_items .ability_container
+{
+	width: 45px;
+	height: 45px;
+	margin: 0px 5px;
+}
+
+.old_item_cooldowns_active #hud_passive_items .ability_bg,.old_item_cooldowns_active #hud_passive_items .ability_ring,.old_item_cooldowns_active #hud_items .ability_ring
+{
+	visibility: visible;
+}
+
+.old_item_cooldowns_active #hud_passive_items .cooldown_timer
+{
+	visibility: visible;
+}
+
+.passive_cooldown_custom_active .passiveOffCooldown
+{
+	visibility: collapse;
+	animation-name: none;
+	opacity: 0;
+}
+
+.old_item_cooldowns_active .passiveOffCooldown
+{
+	visibility: visible;
+	animation-name: passivePop;
+	animation-duration: 1s;
+	opacity: 0.9;
+	overflow: noclip;
+}
+
+@keyframes 'passivePop'
+{
+	0%
+	{
+		pre-transform-scale2d: 1.0;
+	}
+	
+	25%
+	{
+		pre-transform-scale2d: 1.2;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.0;
+	}
+	
+	75%
+	{
+		pre-transform-scale2d: 1.2;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1.0;
+	}
+	
+}
+

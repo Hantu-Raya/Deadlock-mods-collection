@@ -1,0 +1,280 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/citadel_hud_hero_shop.vcss_c");
+CitadelHudHeroShop.disable_shop_blue_active
+{
+	world-blur: none !important;
+}
+
+.support_4_3_active #Shop
+{
+	width: 1350px !important;
+	horizontal-align: center !important;
+}
+
+.support_4_3_active #NavPanel
+{
+	margin-right: 0px !important;
+	margin-left: 40px !important;
+	width: 500px !important;
+	horizontal-align: left !important;
+}
+
+.support_4_3_active #ShopNav
+{
+	width: 100% !important;
+	margin-left: 0px !important;
+	margin-right: 0px !important;
+}
+
+.support_4_3_active .ShopNavigationTab
+{
+	width: 75px !important;
+}
+
+.support_4_3_active #health_and_abilities_container
+{
+	margin-left: 150px !important;
+	margin-bottom: 0px !important;
+	margin-right: 0px !important;
+	horizontal-align: left !important;
+}
+
+.support_4_3_active .action_binding,.support_4_3_active .context_action
+{
+	height: unset !important;
+	text-overflow: unset !important;
+}
+
+.support_4_3_active .gShopOpen #respawn_timer
+{
+	margin-left: 192px !important;
+	margin-top: 22px !important;
+}
+
+.support_4_3_active #status_bars
+{
+	width: 550px !important;
+}
+
+.support_4_3_active #hud_modifiers
+{
+	width: 850px !important;
+}
+
+.support_4_3_active #StatsAndModsContainer.gShopOpen #LowerLeft
+{
+	transform: translateX(10px) translateY(-10px) !important;
+}
+
+.support_4_3_active #BarGraphContainer
+{
+	width: 60px !important;
+	border-radius: 4px !important;
+}
+
+.support_4_3_active .gShopOpen #BarGraphContainer
+{
+	visibility: collapse;
+}
+
+.support_4_3_active #NavPanel
+{
+	margin-right: -345px !important;
+}
+
+.support_4_3_active #HeroScenePanel
+{
+	height: 70% !important;
+	margin-left: -250px !important;
+	margin-bottom: 200px !important;
+	visibility: collapse;
+}
+
+.support_4_3_active #AbilityPanelsContainer
+{
+	horizontal-align: right !important;
+	vertical-align: middle !important;
+	margin-right: 35px !important;
+	visibility: collapse;
+}
+
+.support_4_3_active .AspectRatio16x10 #AbilityPanelsContainer
+{
+	margin-right: 15px !important;
+}
+
+.support_4_3_active .shopStateAbilities #AbilityPanelsContainer
+{
+	visibility: visible;
+}
+
+.support_4_3_active .commandPanel
+{
+	padding-top: 10px !important;
+	vertical-align: middle !important;
+}
+
+.support_4_3_active CitadelHeroBuildsPage #BackButton,.support_4_3_active CitadelHeroBuildsPage .APHeader,.support_4_3_active CitadelHeroBuildsPage .ModsPurchasedContainer,.support_4_3_active CitadelHeroBuildsPage .HeroStatsContainer,.support_4_3_active CitadelHeroBuildsPage .InnerAbilitiesRow,.support_4_3_active CitadelHeroBuildsPage #RecentPurchasesPanel
+{
+	visibility: collapse;
+}
+
+.support_4_3_active #BackButton
+{
+	padding-left: 20px !important;
+	vertical-align: top !important;
+}
+
+.hero_scene_panel_visible #HeroScenePanel
+{
+	visibility: visible;
+}
+
+.support_4_3_active #BackButton .FooterCommand
+{
+	vertical-align: bottom !important;
+}
+
+.shop_stats_disabled #TestPanel
+{
+	visibility: collapse;
+}
+
+#TestPanel
+{
+	width: 650px;
+	height: 100%;
+	flow-children: down;
+	margin-bottom: 250px;
+	margin-top: 100px;
+}
+
+.AspectRatio16x10 #TestPanel
+{
+	width: 85%;
+}
+
+.gBrowsingBuilds #TestPanel,.gEditingBuilds #TestPanel
+{
+	visibility: collapse;
+}
+
+#HeroStatsWeapon,#HeroStatsArmor,#HeroStatsTech
+{
+	opacity: 1;
+	visibility: visible;
+}
+
+.heroStatsDisplay,#HeroStatsWeapon
+{
+	visibility: visible;
+	vertical-align: top;
+	margin-bottom: 1px;
+	opacity: 1;
+	transition-duration: 0.07s;
+	transition-property: opacity;
+}
+
+#NavPanel
+{
+	width: 750px;
+}
+
+.AspectRatio16x10 #NavPanel
+{
+	width: 650px;
+}
+
+#HeroScenePanel
+{
+	visibility: collapse;
+}
+
+.showingAbility1 #AbilityDetailsPanel1,.showingAbility2 #AbilityDetailsPanel2,.showingAbility3 #AbilityDetailsPanel3,.showingAbility4 #AbilityDetailsPanel4
+{
+	opacity: 1;
+}
+
+#AbilityPanelsContainer
+{
+	horizontal-align: right;
+	vertical-align: middle;
+	margin-right: 35px;
+	visibility: collapse;
+}
+
+.AspectRatio16x10 #AbilityPanelsContainer
+{
+	margin-right: 15px;
+}
+
+.shopStateAbilities #AbilityPanelsContainer
+{
+	visibility: visible;
+}
+
+CitadelHudHeroShop.simplify_shop_active.showingFavorites #ShopModListsContainer
+{
+	background-image: none;
+}
+
+CitadelHudHeroShop.simplify_shop_active.showingSearch #ShopModListsContainer
+{
+	background-image: none;
+}
+
+CitadelHudHeroShop.simplify_shop_active .ShopNavigationTabIcon
+{
+	background-color: #2b2c2b;
+	opacity: 0.6;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListTech
+{
+	background-image: none;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListArmor
+{
+	background-image: none;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListWeapon
+{
+	background-image: none;
+}
+
+CitadelHudHeroShop.simplify_shop_active #MainPanel
+{
+	margin-left: 50px;
+}
+
+CitadelHudHeroShop.simplify_shop_active .ShopNavigationTabBackground
+{
+	background-image: none;
+}
+
+CitadelHudHeroShop.simplify_shop_active .ShopNavigationTabEdgeOverlay
+{
+	background-image: none;
+}
+
+CitadelHudHeroShop.simplify_shop_active .ShopNavigationTab
+{
+	border-radius: 12px;
+}
+
+CitadelHudHeroShop.simplify_shop_active.showingFavorites #FavoritesNav.NavigationButton .ShopNavigationTabIcon,CitadelHudHeroShop.simplify_shop_active.showingWeapon #WeaponNav.NavigationButton .ShopNavigationTabIcon,CitadelHudHeroShop.simplify_shop_active.showingArmor #ArmorNav.NavigationButton .ShopNavigationTabIcon,CitadelHudHeroShop.simplify_shop_active.showingTech #TechNav.NavigationButton .ShopNavigationTabIcon
+{
+	height: 210px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #SearchNav,CitadelHudHeroShop.simplify_shop_active.showingSearch #SearchNav
+{
+	background-image: none;
+	background-color: #2b2c2b;
+	border-radius: 12px;
+	opacity: 0.6;
+}
+

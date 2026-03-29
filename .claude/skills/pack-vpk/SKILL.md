@@ -43,7 +43,7 @@ For unlisted mods: read `build_<mod>.ps1` → `$vpkOut`. If no PS1 exists, ask t
 1b. Resolve `<vpk_name>`:
 - In mapping table → use listed filename.
 - Not in table → find `build_<mod>.ps1` and read its `$vpkOut`.
-- No PS1 → ask: "Which pak number should I use? (e.g. pak97)"
+- No PS1 → ask: "Which pak number should I use? (e.g. pak97)" → when user replies with a number N, set `<vpk_name>` = `pakN_dir.vpk` (e.g. user says "97" → `pak97_dir.vpk`)
 
 ---
 
@@ -65,6 +65,8 @@ powershell -ExecutionPolicy Bypass -File "<root>\build_<mod>.ps1"
 ---
 
 ## Step 3 — Clean
+
+Before running Steps 3–6, substitute all template placeholders with their resolved values: replace `<root>` with `F:\Users\Shiv\Desktop\Deadlock-mods-collection`, `<mod>` with the identified mod folder name, and `<vpk_name>` with the resolved VPK filename.
 
 ```powershell
 if (Test-Path "<root>\<mod>_compiled") { Remove-Item -Recurse -Force "<root>\<mod>_compiled" }
@@ -110,7 +112,13 @@ Copy-Item -Path "<root>\<vpk_name>" `
 
 ## Step 7 — Verify and report
 
-Confirm the VPK exists at the addons destination and report its size in KB.
+Confirm the VPK exists at the addons destination and report its size in KB:
+
+```powershell
+if (Test-Path "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\<vpk_name>") {
+    $size = [math]::Round((Get-Item "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\<vpk_name>").Length / 1KB, 1)
+} else { Write-Error "VPK not found at addons destination" }
+```
 
 - **Success:** "Deployed `<vpk_name>` → addons (`<size> KB`). Launch Deadlock to test."
 - **Failure:** name the failing step and include the error output.

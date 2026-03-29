@@ -1,0 +1,6692 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@define normalDamageInitColor: #FFD18D;
+@define normalDamageColor: #EC9719;
+@define abilityDamageInitColor: #efd9ff;
+@define abilityDamageColor: #CE90FF;
+@define meleeDamageInitColor: #FFD18D;
+@define meleeDamageColor: #EC9719;
+@define pureDamageInitColor: #DDDDDD;
+@define pureDamageColor: #FFFFFF;
+@define poisonDamageInitColor: #227031;
+@define poisonDamageColor: #49B960;
+@define critDamageInitColor: #fee28d;
+@define critDamageColor: rgb(235, 205, 35);
+@define buffedGunDamageInitColor: rgb(255, 255, 220);
+@define buffedGunDamageColor: orange;
+@define buffedAbilityDamageInitColor: rgb(234, 208, 255);
+@define buffedAbilityDamageColor: rgb(172, 255, 253);
+@define buffedMeleeDamageInitColor: rgb(255, 255, 220);
+@define buffedMeleeDamageColor: orange;
+@define buffedPureDamageInitColor: rgb(255, 255, 220);
+@define buffedPureDamageColor: white;
+@define critPureDamageInitColor: rgb(255, 255, 220);
+@define critPureDamageColor: white;
+@define statusEffectInitColor: rgb(79, 50, 50);
+@define statusEffectColor: rgb(255, 255, 255);
+@define numberOffsetX: 40;
+@define cumulativeDamageInitColor: rgb(225, 225, 220);
+@define cumulativeDamageColor: rgb(255, 255, 255);
+@define meleeViscousDamageInitColor: rgb(155, 255, 110);
+@define meleeViscousDamageColor: #EC9719;
+@define cumulative_font_size: 24.30px;
+@define cumulative_lifetime: 0.85s;
+@define melee_font_size: 60px;
+@define melee_lifetime: 1.2s;
+@define healing_font_size: 35px;
+@define healing_icon_size: 40px auto;
+@define healing_icon_position: 3px 107px;
+@define crit_icon_size: 51.9px auto;
+@define crit_icon_size_far: 45.5px auto;
+@define crit_icon_size_very_far: 43px auto;
+@define crit_icon_size_extremely_far: 37.2px auto;
+@define fountain_emphasised_animation: fountain_emphasised_pure_medium;
+@define pure_emphasised_icon_size: 40px 28.8px;
+@define pure_emphasised_icon_position: 12px 22px;
+@define pure_emphasised_lifetime: 1.2s, 1s;
+@define pure_emphasised_left: 140px;
+@define pure_emphasised_near_top: -5px;
+@define pure_emphasised_normal_top: -15px;
+@define pure_emphasised_far_top: 30px;
+@define pure_emphasised_veryfar_top: 60px;
+@define pure_emphasised_extremelyfar_top: 70px;
+@define fountain_font_size: 35px;
+@define fountain_lifetime: 0.61s;
+@define fountain_animation: fountain_medium;
+@define fountain_distance_very_far: fountain_very_far_medium;
+@define fountain_distance_extremely_far: fountain_extremely_far_medium;
+@define fountain_pure_near_left: 175px;
+@define fountain_abillity_near_left: 200px;
+@define fountain_gun_near_left: 169px;
+@define fountain_pure_normal_left: 145px;
+@define fountain_abillity_normal_left: 167px;
+@define fountain_gun_normal_left: 137px;
+@define fountain_pure_far_left: 133px;
+@define fountain_abillity_far_left: 155px;
+@define fountain_gun_far_left: 124px;
+@define fountain_pure_veryfar_left: 135px;
+@define fountain_abillity_veryfar_left: 150px;
+@define fountain_gun_veryfar_left: 109px;
+@define fountain_pure_extremelyfar_left: 157px;
+@define fountain_abillity_extremelyfar_left: 163px;
+@define fountain_gun_extremelyfar_left: 113px;
+@define fountain_pure_near_top: 28px;
+@define fountain_abillity_near_top: -10px;
+@define fountain_gun_near_top: 10px;
+@define fountain_pure_normal_top: 38px;
+@define fountain_abillity_normal_top: -10px;
+@define fountain_gun_normal_top: 10px;
+@define fountain_pure_far_top: 55px;
+@define fountain_abillity_far_top: -1px;
+@define fountain_gun_far_top: 10px;
+@define fountain_pure_veryfar_top: 68px;
+@define fountain_abillity_veryfar_top: 5px;
+@define fountain_gun_veryfar_top: 13px;
+@define fountain_pure_extremelyfar_top: 82px;
+@define fountain_abillity_extremelyfar_top: 17px;
+@define fountain_gun_extremelyfar_top: 27px;
+@keyframes 'desc_text'
+{
+	0%
+	{
+		opacity: 1;
+		pre-transform-scale2d: 1;
+		pre-transform-rotate2d: 0deg;
+		color: rgb(189, 189, 189);
+		text-shadow: 0px 0px 4.0 rgb(25, 25, 25);
+		transform: translateX(20px);
+	}
+	
+	10%
+	{
+		pre-transform-scale2d: 1;
+		pre-transform-rotate2d: 0.1deg;
+		text-shadow: 0px 0px 4.0 rgb(25, 25, 25);
+		transform: translateX(20px);
+	}
+	
+	20%
+	{
+		pre-transform-scale2d: 1;
+		pre-transform-rotate2d: -0.1deg;
+		text-shadow: 0px 0px 4.0 rgb(0, 0, 0);
+		transform: translateX(22px);
+	}
+	
+	30%
+	{
+		pre-transform-scale2d: 1;
+		pre-transform-rotate2d: 0deg;
+		color: rgb(179, 179, 179);
+		transform: translateX(18px);
+	}
+	
+	40%
+	{
+		opacity: 1;
+		pre-transform-scale2d: 1;
+		transform: translateX(20px);
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+		opacity: 0;
+		transform: translateX(20px);
+	}
+	
+}
+
+@keyframes 'healing'
+{
+	0%
+	{
+		text-shadow: 0px 0px 8.0 rgb(20, 120, 20);
+		img-shadow: 0px 0px 3px rgb(80, 150, 20);
+		pre-transform-scale2d: 0.3;
+		transform: translateY(0px) translateX(0px);
+		opacity: 0;
+	}
+	
+	3%
+	{
+		text-shadow: 0px 0px 8.0 rgb(20, 120, 20);
+		pre-transform-scale2d: 0.7;
+		transform: translateY(-15px) translateX(-15px);
+		opacity: .1;
+	}
+	
+	5%
+	{
+		pre-transform-scale2d: 0.85;
+		text-shadow: 0px 0px 8.0 rgb(20, 120, 20);
+	}
+	
+	10%
+	{
+		text-shadow: 0px 0px 5.0 rgb(20, 20, 20);
+		pre-transform-scale2d: 0.7;
+		transform: translateY(-15px) translateX(-15px);
+		opacity: .8;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 0.1;
+		transform: translateY(-65px) translateX(-20px);
+		opacity: 0;
+	}
+	
+}
+
+@keyframes 'gold_pop'
+{
+	0%
+	{
+		opacity: 0.2;
+		pre-transform-scale2d: 0.8;
+		transform: translateX(-10px);
+	}
+	
+	4%
+	{
+		opacity: 0.7;
+		pre-transform-scale2d: 1.2;
+		text-shadow: 0px 0px 12px rgb(0, 220, 160);
+		transform: translateX(30px);
+	}
+	
+	5%
+	{
+		opacity: 0.7;
+		pre-transform-scale2d: 0.8;
+		text-shadow: 0px 0px 12px rgb(0, 220, 160);
+	}
+	
+	30%
+	{
+		opacity: 0;
+		pre-transform-scale2d: 0.8;
+		text-shadow: 0px 0px 5px rgb(0, 0, 10);
+	}
+	
+	100%
+	{
+		opacity: 0;
+		pre-transform-scale2d: 0.3;
+	}
+	
+}
+
+@keyframes 'melee_damage_color'
+{
+	0%
+	{
+		color: normalDamageInitColor;
+		text-shadow: 0px 0px 12.0 rgb(255, 140, 0);
+	}
+	
+	10%
+	{
+		color: normalDamageInitColor;
+		text-shadow: 0px 0px 6.0 rgb(0, 0, 0);
+	}
+	
+	50%
+	{
+		text-shadow: 0px 0px 6.0 rgb(0, 0, 0);
+	}
+	
+	80%
+	{
+		text-shadow: 0px 0px 4.0 rgb(115, 100, 50);
+		color: normalDamageColor;
+	}
+	
+	100%
+	{
+		color: normalDamageColor;
+	}
+	
+}
+
+@keyframes 'damage_color'
+{
+	0%
+	{
+		color: normalDamageInitColor;
+		text-shadow: 0px 0px 5.0 rgb(0, 0, 0);
+	}
+	
+	10%
+	{
+		text-shadow: 0px 0px 5.0 rgb(0, 0, 0);
+	}
+	
+	50%
+	{
+		text-shadow: 0px 0px 4.0 rgb(115, 100, 50);
+	}
+	
+	80%
+	{
+		text-shadow: 0px 0px 4.0 rgb(115, 100, 50);
+		color: normalDamageColor;
+	}
+	
+	100%
+	{
+		color: normalDamageColor;
+	}
+	
+}
+
+@keyframes 'melee_color'
+{
+	0%
+	{
+		color: normalDamageInitColor;
+		text-shadow: 0px 0px 7.0 rgb(0, 0, 0);
+	}
+	
+	5%
+	{
+		text-shadow: 0px 0px 6.0 rgb(0, 0, 0);
+	}
+	
+	50%
+	{
+		text-shadow: 0px 0px 4.0 rgb(115, 100, 50);
+	}
+	
+	80%
+	{
+		text-shadow: 0px 0px 4.0 rgb(115, 100, 50);
+		color: normalDamageColor;
+	}
+	
+	100%
+	{
+		color: normalDamageColor;
+	}
+	
+}
+
+@keyframes 'ability_color'
+{
+	0%
+	{
+		color: abilityDamageInitColor;
+		text-shadow: 0px 0px 6.0 rgb(0, 0, 0);
+	}
+	
+	10%
+	{
+		text-shadow: 0px 0px 5.0 rgb(0, 0, 0);
+	}
+	
+	50%
+	{
+		text-shadow: 0px 0px 5.0 rgb(100, 45, 100);
+	}
+	
+	80%
+	{
+		text-shadow: 0px 0px 5.0 rgb(100, 45, 100);
+		color: abilityDamageColor;
+	}
+	
+	100%
+	{
+		color: abilityDamageColor;
+	}
+	
+}
+
+@keyframes 'crit_color'
+{
+	0%
+	{
+		text-shadow: 0px 0px 5.0 rgb(0, 0, 0);
+		img-shadow: 0px 0px 5px #000000;
+		color: critDamageInitColor;
+	}
+	
+	5%
+	{
+		text-shadow: 0px 0px 5.0 rgb(0, 0, 0);
+		img-shadow: 0px 0px 3px #000000;
+	}
+	
+	50%
+	{
+		text-shadow: 0px 0px 4.0 rgb(155, 100, 0);
+		img-shadow: 0px 0px 3px #000000;
+		color: critDamageColor;
+	}
+	
+	100%
+	{
+		text-shadow: 0px 0px 4.0 rgb(155, 100, 0);
+		img-shadow: 0px 0px 1px rgb(155, 100, 0);
+		color: critDamageColor;
+	}
+	
+}
+
+@keyframes 'pure_emphasised_damage_color'
+{
+	0%
+	{
+		text-shadow: 0px 0px 9.0 rgb(190, 220, 220);
+		color: pureDamageInitColor;
+	}
+	
+	12%
+	{
+		text-shadow: 0px 0px 6.0 rgb(0, 0, 0);
+	}
+	
+	100%
+	{
+		text-shadow: 0px 0px 1.0 rgb(0, 0, 0);
+		color: pureDamageColor;
+	}
+	
+}
+
+@keyframes 'pure_damage_color'
+{
+	0%
+	{
+		text-shadow: 0px 0px 6.0 rgb(0, 0, 0);
+		color: pureDamageInitColor;
+	}
+	
+	3%
+	{
+		text-shadow: 0px 0px 6.0 rgb(0, 0, 0);
+	}
+	
+	4%
+	{
+		text-shadow: 0px 0px 7.0 rgb(190, 220, 220);
+	}
+	
+	14%
+	{
+		text-shadow: 0px 0px 3.0 rgb(190, 220, 220);
+	}
+	
+	15%
+	{
+		text-shadow: 0px 0px 6.0 rgb(0, 0, 0);
+	}
+	
+	100%
+	{
+		text-shadow: 0px 0px 1.0 rgb(0, 0, 0);
+		color: pureDamageColor;
+	}
+	
+}
+
+@keyframes 'damage_pop_small'
+{
+	0%
+	{
+		pre-transform-scale2d: 0.85;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 0.7;
+	}
+	
+}
+
+@keyframes 'damage_pop_batched'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	3%
+	{
+		pre-transform-scale2d: 1.2;
+	}
+	
+	10%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	60%
+	{
+		pre-transform-scale2d: 0.3;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 0.3;
+	}
+	
+}
+
+@keyframes 'crit_flash'
+{
+	0%
+	{
+		text-shadow: 0px 0px 4.0 red;
+	}
+	
+	15%
+	{
+		text-shadow: 0px 0px 4.0 red;
+	}
+	
+	100%
+	{
+		text-shadow: 0px 0px 4.0 orange;
+	}
+	
+}
+
+@keyframes 'crit_color_pure'
+{
+	0%
+	{
+		color: critPureDamageInitColor;
+	}
+	
+	100%
+	{
+		color: critPureDamageColor;
+	}
+	
+}
+
+@keyframes 'crit_flash_pure'
+{
+	0%
+	{
+		text-shadow: 0px 0px 4.0 dodgerblue;
+	}
+	
+	10%
+	{
+		text-shadow: 0px 0px 4.0 dodgerblue;
+	}
+	
+	100%
+	{
+		text-shadow: 0px 0px 4.0 aquamarine;
+	}
+	
+}
+
+@keyframes 'buffed_gun_color'
+{
+	0%
+	{
+		color: buffedGunDamageInitColor;
+	}
+	
+	100%
+	{
+		color: buffedGunDamageColor;
+	}
+	
+}
+
+@keyframes 'buffed_ability_color'
+{
+	0%
+	{
+		color: buffedAbilityDamageInitColor;
+	}
+	
+	100%
+	{
+		color: buffedAbilityDamageColor;
+	}
+	
+}
+
+@keyframes 'buffed_pure_color'
+{
+	0%
+	{
+		color: buffedPureDamageInitColor;
+	}
+	
+	100%
+	{
+		color: buffedPureDamageColor;
+	}
+	
+}
+
+@keyframes 'buffed_melee_color'
+{
+	0%
+	{
+		color: buffedMeleeDamageInitColor;
+	}
+	
+	100%
+	{
+		color: buffedMeleeDamageColor;
+	}
+	
+}
+
+@keyframes 'poison_color'
+{
+	0%
+	{
+		color: poisonDamageInitColor;
+	}
+	
+	100%
+	{
+		color: poisonDamageColor;
+	}
+	
+}
+
+@keyframes 'viscous_melee_color'
+{
+	0%
+	{
+		color: meleeViscousDamageInitColor;
+		text-shadow: 0px 15px 30.0 rgb(25, 255, 25);
+		opacity: 1;
+	}
+	
+	3%
+	{
+		color: meleeViscousDamageInitColor;
+		text-shadow: 0px 0px 25.0 rgb(25, 255, 25);
+		opacity: 1;
+	}
+	
+	5%
+	{
+		color: meleeViscousDamageInitColor;
+		text-shadow: 0px -13px 30.0 rgb(25, 255, 25);
+		opacity: 1;
+	}
+	
+	8%
+	{
+		color: meleeViscousDamageInitColor;
+		text-shadow: 0px 0px 9.0 rgb(25, 155, 25);
+	}
+	
+	11%
+	{
+		color: meleeViscousDamageInitColor;
+		text-shadow: 0px 0px 9.0 rgb(25, 155, 25);
+	}
+	
+	15%
+	{
+		text-shadow: 0px 0px 6.0 #001511;
+	}
+	
+	65%
+	{
+		color: meleeViscousDamageColor;
+	}
+	
+	100%
+	{
+		color: meleeViscousDamageColor;
+		opacity: 0;
+	}
+	
+}
+
+@keyframes 'soul_color'
+{
+	0%
+	{
+		text-shadow: 0px 0px 12.0 #76ffcb;
+		color: #00150d;
+	}
+	
+	3%
+	{
+		color: #70F8C1;
+		text-shadow: 0px 0px 4.0 #001511;
+	}
+	
+	6%
+	{
+		color: #aaffdd;
+	}
+	
+	8%
+	{
+		color: #70F8C1;
+	}
+	
+	10%
+	{
+		color: #aaffdd;
+	}
+	
+	12%
+	{
+		color: #70F8C1;
+	}
+	
+	100%
+	{
+		color: #70F8C1;
+	}
+	
+}
+
+@keyframes 'status_effect_color'
+{
+	0%
+	{
+		color: statusEffectInitColor;
+	}
+	
+	100%
+	{
+		color: statusEffectColor;
+	}
+	
+}
+
+@keyframes 'crit_pop'
+{
+	0%
+	{
+		pre-transform-scale2d: 1.4;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1.4;
+	}
+	
+}
+
+@keyframes 'rise_and_fade_gun'
+{
+	0%
+	{
+		transform: translateX(100px);
+		opacity: 1;
+	}
+	
+	15%
+	{
+		opacity: 0;
+	}
+	
+	100%
+	{
+		transform: translateX(100px);
+		opacity: 0;
+	}
+	
+}
+
+@keyframes 'rise_and_fade_gun_batched'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+		transform: translateX(100px);
+	}
+	
+	1%
+	{
+		pre-transform-scale2d: 1.3;
+	}
+	
+	3%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	35%
+	{
+		opacity: 1;
+	}
+	
+	55%
+	{
+		opacity: 0;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 0.2;
+		transform: translateX(100px);
+		opacity: 0;
+	}
+	
+}
+
+@keyframes 'rise_and_fade_melee'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+		transform: translateY(-40px) translateX(60px);
+	}
+	
+	1%
+	{
+		pre-transform-scale2d: 1.3;
+	}
+	
+	3%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	15%
+	{
+		transform: translateY(-40px) translateX(60px);
+	}
+	
+	30%
+	{
+		transform: translateY(-120px) translateX(60px);
+		opacity: 0;
+	}
+	
+	100%
+	{
+		transform: translateY(-120px) translateX(60px);
+		opacity: 0;
+	}
+	
+}
+
+@keyframes 'rise_and_fade_pure'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+		transform: translateY(-40px) translateX(60px);
+	}
+	
+	1%
+	{
+		pre-transform-scale2d: 1.3;
+	}
+	
+	3%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	15%
+	{
+		transform: translateY(-40px) translateX(60px);
+		opacity: 1;
+	}
+	
+	30%
+	{
+		transform: translateY(-40px) translateX(60px);
+		opacity: 0;
+	}
+	
+	50%
+	{
+		transform: translateY(-50px) translateX(60px);
+	}
+	
+	100%
+	{
+		transform: translateY(-120px) translateX(60px);
+		opacity: 0;
+	}
+	
+}
+
+@keyframes 'rise_and_fade_tech'
+{
+	0%
+	{
+		transform: translateX(50px);
+		opacity: 0.5;
+	}
+	
+	50%
+	{
+		opacity: 0;
+	}
+	
+	100%
+	{
+		transform: translateX(50px);
+		opacity: 0;
+	}
+	
+}
+
+@keyframes 'rise_and_fade_tech_batched'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+		transform: translateX(50px);
+	}
+	
+	1%
+	{
+		pre-transform-scale2d: 1.3;
+	}
+	
+	3%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	35%
+	{
+		opacity: 0.4;
+	}
+	
+	55%
+	{
+		opacity: 0;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 0.2;
+		transform: translateX(50px);
+		opacity: 0;
+	}
+	
+}
+
+.damage_fountain_active .WindowRoot
+{
+	height: 300px;
+	width: 300px;
+	font-size: 30px;
+	flow-children: right;
+	opacity: 1;
+}
+
+.damage_fountain_active .Window
+{
+	height: 300px;
+	width: 300px;
+	font-size: 30px;
+	flow-children: right;
+	opacity: 1;
+}
+
+.damage_fountain_active .HudIndicatorText
+{
+	padding: 200px 0px 10px 100px;
+	padding: 20px 0px 10px 40px;
+	padding: 10px 40px;
+	width: fit-children;
+	height: fit-children;
+	horizontal-align: center;
+	vertical-align: center;
+	text-align: center;
+	font-family: sansMono;
+	font-family: oracle;
+}
+
+.damage_fountain_active .HudIndicatorContainer
+{
+	horizontal-align: center;
+	vertical-align: center;
+	flow-children: right;
+	text-align: right;
+	z-index: -1;
+	transform: translateX(180px);
+}
+
+.damage_fountain_active .HudIndicatorIcon
+{
+	visibility: collapse;
+	width: 30px;
+	height: 30px;
+	margin-left: 10px;
+	horizontal-align: center;
+	vertical-align: center;
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-image: url("s2r://panorama/images/hud/headshot_psd.vtex");
+}
+
+.damage_fountain_active .HudIndicatorContainer
+{
+	animation-duration: 3s;
+}
+
+.damage_fountain_active .position_on_hero
+{
+	horizontal-align: center;
+	vertical-align: bottom;
+	x: 0px;
+	y: -300px;
+}
+
+.damage_fountain_active .damage_type_gun .HudIndicatorContainer
+{
+	horizontal-align: right;
+	vertical-align: center;
+	flow-children: right;
+	z-index: -1;
+	margin-left: 70px;
+	animation-timing-function: linear;
+	animation-name: rise_and_fade_gun;
+}
+
+.damage_fountain_active .batched.damage_type_gun .HudIndicatorContainer
+{
+	vertical-align: center;
+	flow-children: right;
+	z-index: 1;
+	animation-name: rise_and_fade_gun_batched;
+}
+
+.damage_fountain_active .batched.crit .HudIndicatorContainer
+{
+	vertical-align: center;
+	flow-children: right;
+	z-index: 1;
+	animation-name: rise_and_fade_gun_batched;
+}
+
+.damage_fountain_active .damage_type_ability .HudIndicatorContainer
+{
+	horizontal-align: left;
+	vertical-align: center;
+	flow-children: right;
+	z-index: -1;
+	animation-name: rise_and_fade_tech;
+}
+
+.damage_fountain_active .batched.damage_type_ability .HudIndicatorContainer
+{
+	vertical-align: center;
+	flow-children: right;
+	z-index: -1;
+	animation-name: rise_and_fade_tech_batched;
+}
+
+.damage_fountain_active .batched.damage_type_melee .HudIndicatorContainer
+{
+	vertical-align: center;
+	flow-children: right;
+	z-index: -1;
+	animation-name: rise_and_fade_melee;
+}
+
+.damage_fountain_active .damage_type_pure .HudIndicatorContainer
+{
+	horizontal-align: right;
+	vertical-align: center;
+	flow-children: right;
+	z-index: -1;
+	margin-left: 70px;
+	animation-timing-function: linear;
+	animation-name: rise_and_fade_pure;
+}
+
+.damage_fountain_active .batched.damage_type_pure .HudIndicatorContainer
+{
+	vertical-align: center;
+	flow-children: right;
+	z-index: -1;
+	animation-name: rise_and_fade_tech_batched;
+}
+
+.damage_fountain_active .gold .HudIndicatorContainer
+{
+	horizontal-align: center;
+	vertical-align: center;
+	height: fit-children;
+	width: fit-children;
+	flow-children: right;
+	z-index: 10;
+	animation-name: gold_pop;
+	animation-duration: 4s;
+}
+
+.damage_fountain_active .gold .HudIndicatorIcon
+{
+	visibility: visible;
+	wash-color: #70F8C1;
+	height: 36px;
+	margin-left: -45px;
+	background-image: url("s2r://panorama/images/hud/icons/icon_soul.vsvg");
+	img-shadow: 0px 0px 3px #000000;
+	animation-name: soul_color;
+	animation-duration: 3s;
+}
+
+.damage_fountain_active .gold_small .HudIndicatorIcon
+{
+	visibility: visible;
+	wash-color: #70F8C1;
+	height: 36px;
+	margin-left: -45px;
+	background-image: url("s2r://panorama/images/hud/icons/icon_soul.vsvg");
+	img-shadow: 0px 0px 3px #000000;
+	animation-name: soul_color;
+	animation-duration: 3s;
+}
+
+.damage_fountain_active .gold_small .HudIndicatorContainer
+{
+	horizontal-align: center;
+	vertical-align: center;
+	height: fit-children;
+	width: fit-children;
+	flow-children: right;
+	z-index: 10;
+	animation-name: gold_pop;
+	animation-duration: 3s;
+}
+
+.damage_fountain_active .deny .HudIndicatorContainer
+{
+	horizontal-align: center;
+	vertical-align: center;
+	height: fit-children;
+	width: fit-children;
+	flow-children: right;
+	z-index: 10;
+	animation-name: gold_pop;
+	animation-duration: 3s;
+}
+
+.damage_fountain_active #Desc
+{
+	visibility: collapse;
+}
+
+.damage_fountain_active .hasDesc #Desc
+{
+	font-size: 20px;
+	transform: translateX(50px);
+	font-weight: semi-bold;
+	white-space: nowrap;
+	width: fit-children;
+	text-overflow: shrink;
+	animation-name: desc_text;
+	animation-duration: 0.5s;
+	opacity: 0;
+	visibility: visible;
+}
+
+.damage_fountain_active #Effectiveness
+{
+	transform: translateX(60px);
+	visibility: collapse;
+}
+
+.damage_fountain_active .hasEffectiveness #Effectiveness
+{
+	font-size: 15px;
+	font-weight: semi-bold;
+	color: rgb(179, 179, 179);
+	white-space: nowrap;
+	opacity: 1;
+	visibility: visible;
+}
+
+.damage_fountain_active .distance_near.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_near_left;
+	margin-top: fountain_gun_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_near_left;
+	margin-top: fountain_gun_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_near_left;
+	margin-top: fountain_gun_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_near_left;
+	margin-top: fountain_gun_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_near_left;
+	margin-top: fountain_gun_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_near_left;
+	margin-top: fountain_gun_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_near_left;
+	margin-top: fountain_gun_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_near_left;
+	margin-top: fountain_gun_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_near_left;
+	margin-top: fountain_gun_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_near_left;
+	margin-top: fountain_gun_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_normal.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_normal_left;
+	margin-top: fountain_gun_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_normal_left;
+	margin-top: fountain_gun_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_normal_left;
+	margin-top: fountain_gun_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_normal_left;
+	margin-top: fountain_gun_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_normal_left;
+	margin-top: fountain_gun_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_normal_left;
+	margin-top: fountain_gun_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_normal_left;
+	margin-top: fountain_gun_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_normal_left;
+	margin-top: fountain_gun_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_normal_left;
+	margin-top: fountain_gun_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_normal_left;
+	margin-top: fountain_gun_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_far.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_far_left;
+	margin-top: fountain_gun_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_far_left;
+	margin-top: fountain_gun_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_far_left;
+	margin-top: fountain_gun_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_far_left;
+	margin-top: fountain_gun_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_far_left;
+	margin-top: fountain_gun_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_far_left;
+	margin-top: fountain_gun_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_far_left;
+	margin-top: fountain_gun_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_far_left;
+	margin-top: fountain_gun_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_far_left;
+	margin-top: fountain_gun_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_far_left;
+	margin-top: fountain_gun_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_very_far.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_veryfar_left;
+	margin-top: fountain_gun_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_veryfar_left;
+	margin-top: fountain_gun_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_veryfar_left;
+	margin-top: fountain_gun_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_veryfar_left;
+	margin-top: fountain_gun_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_veryfar_left;
+	margin-top: fountain_gun_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_veryfar_left;
+	margin-top: fountain_gun_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_veryfar_left;
+	margin-top: fountain_gun_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_veryfar_left;
+	margin-top: fountain_gun_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_veryfar_left;
+	margin-top: fountain_gun_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_veryfar_left;
+	margin-top: fountain_gun_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_extremelyfar_left;
+	margin-top: fountain_gun_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_extremelyfar_left;
+	margin-top: fountain_gun_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_extremelyfar_left;
+	margin-top: fountain_gun_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_extremelyfar_left;
+	margin-top: fountain_gun_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_extremelyfar_left;
+	margin-top: fountain_gun_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_extremelyfar_left;
+	margin-top: fountain_gun_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_extremelyfar_left;
+	margin-top: fountain_gun_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_extremelyfar_left;
+	margin-top: fountain_gun_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_extremelyfar_left;
+	margin-top: fountain_gun_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_gun_extremelyfar_left;
+	margin-top: fountain_gun_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_near.damage_type_ability.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.ability_damage_new.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.damage_type_ability.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.ability_damage_new.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.damage_type_ability.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.ability_damage_new.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.damage_type_ability.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.ability_damage_new.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.damage_type_ability.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.ability_damage_new.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.damage_type_ability.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.ability_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.damage_type_ability.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.ability_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.damage_type_ability.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.ability_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.damage_type_ability.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.ability_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.damage_type_ability.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.ability_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_near_left;
+	margin-top: fountain_abillity_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_ability.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.ability_damage_new.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_ability.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.ability_damage_new.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_ability.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.ability_damage_new.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_ability.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.ability_damage_new.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_ability.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.ability_damage_new.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_ability.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.ability_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_ability.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.ability_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_ability.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.ability_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_ability.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.ability_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_ability.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.ability_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_normal_left;
+	margin-top: fountain_abillity_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_far.damage_type_ability.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.ability_damage_new.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.damage_type_ability.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.ability_damage_new.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.damage_type_ability.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.ability_damage_new.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.damage_type_ability.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.ability_damage_new.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.damage_type_ability.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.ability_damage_new.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.damage_type_ability.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.ability_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.damage_type_ability.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.ability_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.damage_type_ability.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.ability_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.damage_type_ability.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.ability_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.damage_type_ability.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.ability_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_far_left;
+	margin-top: fountain_abillity_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_ability.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.ability_damage_new.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_ability.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.ability_damage_new.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_ability.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.ability_damage_new.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_ability.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.ability_damage_new.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_ability.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.ability_damage_new.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_ability.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.ability_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_ability.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.ability_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_ability.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.ability_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_ability.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.ability_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_ability.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.ability_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_veryfar_left;
+	margin-top: fountain_abillity_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_ability.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.ability_damage_new.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_ability.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.ability_damage_new.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_ability.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.ability_damage_new.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_ability.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.ability_damage_new.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_ability.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.ability_damage_new.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_ability.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.ability_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_ability.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.ability_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_ability.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.ability_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_ability.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.ability_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_ability.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.ability_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: fountain_abillity_extremelyfar_left;
+	margin-top: fountain_abillity_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_near.damage_type_pure.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_near_left;
+	margin-top: fountain_pure_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.pure_damage_new.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_near_left;
+	margin-top: fountain_pure_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.damage_type_pure.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_near_left;
+	margin-top: fountain_pure_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.pure_damage_new.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_near_left;
+	margin-top: fountain_pure_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.damage_type_pure.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_near_left;
+	margin-top: fountain_pure_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.pure_damage_new.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_near_left;
+	margin-top: fountain_pure_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.damage_type_pure.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_near_left;
+	margin-top: fountain_pure_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.pure_damage_new.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_near_left;
+	margin-top: fountain_pure_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.damage_type_pure.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_near_left;
+	margin-top: fountain_pure_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_near.pure_damage_new.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_near_left;
+	margin-top: fountain_pure_near_top;
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_pure.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_normal_left;
+	margin-top: fountain_pure_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.pure_damage_new.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_normal_left;
+	margin-top: fountain_pure_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_pure.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_normal_left;
+	margin-top: fountain_pure_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.pure_damage_new.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_normal_left;
+	margin-top: fountain_pure_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_pure.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_normal_left;
+	margin-top: fountain_pure_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.pure_damage_new.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_normal_left;
+	margin-top: fountain_pure_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_pure.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_normal_left;
+	margin-top: fountain_pure_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.pure_damage_new.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_normal_left;
+	margin-top: fountain_pure_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_pure.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_normal_left;
+	margin-top: fountain_pure_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.pure_damage_new.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_normal_left;
+	margin-top: fountain_pure_normal_top;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_far.damage_type_pure.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_far_left;
+	margin-top: fountain_pure_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.pure_damage_new.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_far_left;
+	margin-top: fountain_pure_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.damage_type_pure.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_far_left;
+	margin-top: fountain_pure_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.pure_damage_new.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_far_left;
+	margin-top: fountain_pure_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.damage_type_pure.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_far_left;
+	margin-top: fountain_pure_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.pure_damage_new.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_far_left;
+	margin-top: fountain_pure_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.damage_type_pure.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_far_left;
+	margin-top: fountain_pure_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.pure_damage_new.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_far_left;
+	margin-top: fountain_pure_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.damage_type_pure.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_far_left;
+	margin-top: fountain_pure_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_far.pure_damage_new.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_far_left;
+	margin-top: fountain_pure_far_top;
+	ui-scale: 67%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_pure.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_veryfar_left;
+	margin-top: fountain_pure_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.pure_damage_new.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_veryfar_left;
+	margin-top: fountain_pure_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_pure.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_veryfar_left;
+	margin-top: fountain_pure_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.pure_damage_new.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_veryfar_left;
+	margin-top: fountain_pure_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_pure.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_veryfar_left;
+	margin-top: fountain_pure_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.pure_damage_new.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_veryfar_left;
+	margin-top: fountain_pure_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_pure.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_veryfar_left;
+	margin-top: fountain_pure_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.pure_damage_new.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_veryfar_left;
+	margin-top: fountain_pure_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_pure.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_veryfar_left;
+	margin-top: fountain_pure_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.pure_damage_new.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_veryfar_left;
+	margin-top: fountain_pure_veryfar_top;
+	ui-scale: 57%;
+	animation-name: fountain_distance_very_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_extremelyfar_left;
+	margin-top: fountain_pure_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain1 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_extremelyfar_left;
+	margin-top: fountain_pure_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_extremelyfar_left;
+	margin-top: fountain_pure_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain2 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_extremelyfar_left;
+	margin-top: fountain_pure_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_extremelyfar_left;
+	margin-top: fountain_pure_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain3 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_extremelyfar_left;
+	margin-top: fountain_pure_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_extremelyfar_left;
+	margin-top: fountain_pure_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain4 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_extremelyfar_left;
+	margin-top: fountain_pure_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_extremelyfar_left;
+	margin-top: fountain_pure_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain5 .HudIndicatorContainer
+{
+	margin-left: fountain_pure_extremelyfar_left;
+	margin-top: fountain_pure_extremelyfar_top;
+	ui-scale: 45%;
+	animation-name: fountain_distance_extremely_far, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_near.damage_type_pure.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_near_top;
+	ui-scale: 100%;
+}
+
+.damage_fountain_active .distance_near.pure_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_near_top;
+	ui-scale: 100%;
+}
+
+.damage_fountain_active .distance_near.damage_type_pure.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_near_top;
+	ui-scale: 100%;
+}
+
+.damage_fountain_active .distance_near.pure_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_near_top;
+	ui-scale: 100%;
+}
+
+.damage_fountain_active .distance_near.damage_type_pure.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_near_top;
+	ui-scale: 100%;
+}
+
+.damage_fountain_active .distance_near.pure_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_near_top;
+	ui-scale: 100%;
+}
+
+.damage_fountain_active .distance_near.damage_type_pure.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_near_top;
+	ui-scale: 100%;
+}
+
+.damage_fountain_active .distance_near.pure_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_near_top;
+	ui-scale: 100%;
+}
+
+.damage_fountain_active .distance_near.damage_type_pure.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_near_top;
+	ui-scale: 100%;
+}
+
+.damage_fountain_active .distance_near.pure_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_near_top;
+	ui-scale: 100%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_pure.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_normal_top;
+	ui-scale: 90%;
+}
+
+.damage_fountain_active .distance_normal.pure_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_normal_top;
+	ui-scale: 90%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_pure.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_normal_top;
+	ui-scale: 90%;
+}
+
+.damage_fountain_active .distance_normal.pure_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_normal_top;
+	ui-scale: 90%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_pure.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_normal_top;
+	ui-scale: 90%;
+}
+
+.damage_fountain_active .distance_normal.pure_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_normal_top;
+	ui-scale: 90%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_pure.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_normal_top;
+	ui-scale: 90%;
+}
+
+.damage_fountain_active .distance_normal.pure_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_normal_top;
+	ui-scale: 90%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_pure.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_normal_top;
+	ui-scale: 90%;
+}
+
+.damage_fountain_active .distance_normal.pure_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_normal_top;
+	ui-scale: 90%;
+}
+
+.damage_fountain_active .distance_far.damage_type_pure.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_far_top;
+	ui-scale: 70%;
+}
+
+.damage_fountain_active .distance_far.pure_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_far_top;
+	ui-scale: 70%;
+}
+
+.damage_fountain_active .distance_far.damage_type_pure.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_far_top;
+	ui-scale: 70%;
+}
+
+.damage_fountain_active .distance_far.pure_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_far_top;
+	ui-scale: 70%;
+}
+
+.damage_fountain_active .distance_far.damage_type_pure.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_far_top;
+	ui-scale: 70%;
+}
+
+.damage_fountain_active .distance_far.pure_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_far_top;
+	ui-scale: 70%;
+}
+
+.damage_fountain_active .distance_far.damage_type_pure.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_far_top;
+	ui-scale: 70%;
+}
+
+.damage_fountain_active .distance_far.pure_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_far_top;
+	ui-scale: 70%;
+}
+
+.damage_fountain_active .distance_far.damage_type_pure.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_far_top;
+	ui-scale: 70%;
+}
+
+.damage_fountain_active .distance_far.pure_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_far_top;
+	ui-scale: 70%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_pure.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_veryfar_top;
+	ui-scale: 60%;
+}
+
+.damage_fountain_active .distance_very_far.pure_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_veryfar_top;
+	ui-scale: 60%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_pure.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_veryfar_top;
+	ui-scale: 60%;
+}
+
+.damage_fountain_active .distance_very_far.pure_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_veryfar_top;
+	ui-scale: 60%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_pure.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_veryfar_top;
+	ui-scale: 60%;
+}
+
+.damage_fountain_active .distance_very_far.pure_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_veryfar_top;
+	ui-scale: 60%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_pure.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_veryfar_top;
+	ui-scale: 60%;
+}
+
+.damage_fountain_active .distance_very_far.pure_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_veryfar_top;
+	ui-scale: 60%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_pure.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_veryfar_top;
+	ui-scale: 60%;
+}
+
+.damage_fountain_active .distance_very_far.pure_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_veryfar_top;
+	ui-scale: 60%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_extremelyfar_top;
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_extremelyfar_top;
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_extremelyfar_top;
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_extremelyfar_top;
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_extremelyfar_top;
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_extremelyfar_top;
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_extremelyfar_top;
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_extremelyfar_top;
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_extremelyfar_top;
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-top: pure_emphasised_extremelyfar_top;
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_near.damage_type_melee.fountain1 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.melee_damage_new.fountain1 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.damage_type_melee.fountain2 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.melee_damage_new.fountain2 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.damage_type_melee.fountain3 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.melee_damage_new.fountain3 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.damage_type_melee.fountain4 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.melee_damage_new.fountain4 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.damage_type_melee.fountain5 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.melee_damage_new.fountain5 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.damage_type_melee.fountain_emphasised1 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.melee_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.damage_type_melee.fountain_emphasised2 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.melee_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.damage_type_melee.fountain_emphasised3 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.melee_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.damage_type_melee.fountain_emphasised4 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.melee_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.damage_type_melee.fountain_emphasised5 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_near.melee_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	ui-scale: 85%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_melee.fountain1 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.melee_damage_new.fountain1 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_melee.fountain2 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.melee_damage_new.fountain2 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_melee.fountain3 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.melee_damage_new.fountain3 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_melee.fountain4 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.melee_damage_new.fountain4 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_melee.fountain5 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.melee_damage_new.fountain5 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_melee.fountain_emphasised1 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.melee_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_melee.fountain_emphasised2 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.melee_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_melee.fountain_emphasised3 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.melee_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_melee.fountain_emphasised4 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.melee_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.damage_type_melee.fountain_emphasised5 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.melee_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_far.damage_type_melee.fountain1 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.melee_damage_new.fountain1 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.damage_type_melee.fountain2 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.melee_damage_new.fountain2 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.damage_type_melee.fountain3 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.melee_damage_new.fountain3 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.damage_type_melee.fountain4 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.melee_damage_new.fountain4 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.damage_type_melee.fountain5 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.melee_damage_new.fountain5 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.damage_type_melee.fountain_emphasised1 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.melee_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.damage_type_melee.fountain_emphasised2 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.melee_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.damage_type_melee.fountain_emphasised3 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.melee_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.damage_type_melee.fountain_emphasised4 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.melee_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.damage_type_melee.fountain_emphasised5 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_far.melee_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_melee.fountain1 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.melee_damage_new.fountain1 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_melee.fountain2 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.melee_damage_new.fountain2 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_melee.fountain3 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.melee_damage_new.fountain3 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_melee.fountain4 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.melee_damage_new.fountain4 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_melee.fountain5 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.melee_damage_new.fountain5 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_melee.fountain_emphasised1 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.melee_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_melee.fountain_emphasised2 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.melee_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_melee.fountain_emphasised3 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.melee_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_melee.fountain_emphasised4 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.melee_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_melee.fountain_emphasised5 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_very_far.melee_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	ui-scale: 50%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_melee.fountain1 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.melee_damage_new.fountain1 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_melee.fountain2 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.melee_damage_new.fountain2 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_melee.fountain3 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.melee_damage_new.fountain3 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_melee.fountain4 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.melee_damage_new.fountain4 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_melee.fountain5 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.melee_damage_new.fountain5 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_melee.fountain_emphasised1 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.melee_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_melee.fountain_emphasised2 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.melee_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_melee.fountain_emphasised3 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.melee_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_melee.fountain_emphasised4 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.melee_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_melee.fountain_emphasised5 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.melee_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_near.cumulative .HudIndicatorContainer
+{
+	margin-left: 61px;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_normal.cumulative .HudIndicatorContainer
+{
+	margin-left: 68px;
+	ui-scale: 77%;
+}
+
+.damage_fountain_active .distance_far.cumulative .HudIndicatorContainer
+{
+	margin-left: 79px;
+	ui-scale: 65%;
+}
+
+.damage_fountain_active .distance_very_far.cumulative .HudIndicatorContainer
+{
+	margin-left: 103px;
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_extremely_far.cumulative .HudIndicatorContainer
+{
+	margin-left: 110px;
+	ui-scale: 45%;
+}
+
+.damage_fountain_active .distance_near.cumulative
+{
+	opacity: 0.7;
+}
+
+.damage_fountain_active .distance_normal.cumulative
+{
+	opacity: 0.8;
+}
+
+.damage_fountain_active .distance_far.cumulative
+{
+	opacity: 0.75;
+}
+
+.damage_fountain_active .distance_very_far.cumulative
+{
+	opacity: 0.65;
+}
+
+.damage_fountain_active .distance_extremely_far.cumulative
+{
+	opacity: 0.7;
+}
+
+.damage_fountain_active .distance_near.bullet_damage_new .HudIndicatorText
+{
+	opacity: 0.70;
+}
+
+.damage_fountain_active .distance_near.crit.bullet_damage_new .HudIndicatorText
+{
+	opacity: 0.70;
+}
+
+.damage_fountain_active .distance_near.ability_damage_new .HudIndicatorText
+{
+	opacity: 0.70;
+}
+
+.damage_fountain_active .distance_near.pure_damage_new .HudIndicatorText
+{
+	opacity: 0.70;
+}
+
+.damage_fountain_active .distance_normal.bullet_damage_new .HudIndicatorText
+{
+	opacity: 0.87;
+}
+
+.damage_fountain_active .distance_normal.crit.bullet_damage_new .HudIndicatorText
+{
+	opacity: 0.87;
+}
+
+.damage_fountain_active .distance_normal.ability_damage_new .HudIndicatorText
+{
+	opacity: 0.87;
+}
+
+.damage_fountain_active .distance_normal.pure_damage_new .HudIndicatorText
+{
+	opacity: 0.87;
+}
+
+.damage_fountain_active .distance_far.bullet_damage_new .HudIndicatorText
+{
+	opacity: 0.8;
+}
+
+.damage_fountain_active .distance_far.crit.bullet_damage_new .HudIndicatorText
+{
+	opacity: 0.8;
+}
+
+.damage_fountain_active .distance_far.ability_damage_new .HudIndicatorText
+{
+	opacity: 0.8;
+}
+
+.damage_fountain_active .distance_far.pure_damage_new .HudIndicatorText
+{
+	opacity: 0.8;
+}
+
+.damage_fountain_active .distance_very_far.bullet_damage_new .HudIndicatorText
+{
+	opacity: 0.82;
+}
+
+.damage_fountain_active .distance_very_far.crit.bullet_damage_new .HudIndicatorText
+{
+	opacity: 0.82;
+}
+
+.damage_fountain_active .distance_very_far.ability_damage_new .HudIndicatorText
+{
+	opacity: 0.82;
+}
+
+.damage_fountain_active .distance_very_far.pure_damage_new .HudIndicatorText
+{
+	opacity: 0.82;
+}
+
+.damage_fountain_active .distance_extremely_far.bullet_damage_new .HudIndicatorText
+{
+	opacity: 0.9;
+}
+
+.damage_fountain_active .distance_extremely_far.crit.bullet_damage_new .HudIndicatorText
+{
+	opacity: 0.9;
+}
+
+.damage_fountain_active .distance_extremely_far.ability_damage_new .HudIndicatorText
+{
+	opacity: 0.9;
+}
+
+.damage_fountain_active .distance_extremely_far.pure_damage_new .HudIndicatorText
+{
+	opacity: 0.9;
+}
+
+.damage_fountain_active .damage_type_gun .HudIndicatorText
+{
+	opacity: 0.7;
+	text-align: center;
+	color: normalDamageColor;
+	font-size: 48.6px;
+}
+
+.damage_fountain_active .batched.damage_type_gun .HudIndicatorText
+{
+	opacity: 1;
+	text-align: center;
+	animation-name: damage_color;
+	animation-duration: 0.3s;
+}
+
+.damage_fountain_active .batched.buffed.damage_type_gun .HudIndicatorText
+{
+	opacity: 1;
+	text-align: center;
+	color: buffedGunDamageColor;
+	animation-name: buffed_gun_color;
+	animation-duration: 0.3s;
+}
+
+.damage_fountain_active .buffed.damage_type_gun .HudIndicatorText
+{
+	opacity: 0.7;
+	text-align: center;
+	color: buffedGunDamageColor;
+	animation-name: buffed_gun_color;
+	animation-duration: 0.3s;
+}
+
+.damage_fountain_active .crit.damage_type_gun .HudIndicatorText
+{
+	opacity: 0.5;
+	color: critDamageColor;
+	text-align: center;
+	text-shadow: 0px 0px 2.0 orange;
+	animation-name: crit_color, crit_flash;
+	animation-duration: 0.3s, 1s;
+}
+
+.damage_fountain_active .batched.crit.damage_type_gun .HudIndicatorText
+{
+	opacity: 1;
+	color: critDamageColor;
+	text-align: center;
+	pre-transform-scale2d: 1.4;
+	animation-name: crit_color, crit_flash;
+	animation-duration: 0.3s, 0.3s;
+}
+
+.damage_fountain_active .damage_type_melee .HudIndicatorText
+{
+	opacity: 1;
+	color: meleeDamageColor;
+	font-size: 60px;
+	text-align: center;
+	text-shadow: 0px 0px 6px 1.5 black;
+}
+
+.damage_fountain_active .buffed.damage_type_melee .HudIndicatorText
+{
+	opacity: 1;
+	font-size: 60px;
+	text-align: center;
+	text-shadow: 0px 0px 6px 1.5 black;
+	color: buffedMeleeDamageColor;
+	animation-name: buffed_melee_color;
+	animation-duration: 0.3s;
+}
+
+.damage_fountain_active .damage_type_pure .HudIndicatorText
+{
+	opacity: 1;
+	color: pureDamageColor;
+	text-align: center;
+	text-shadow: 2px 2px 10px 5.0 black;
+}
+
+.damage_fountain_active .buffed.damage_type_pure .HudIndicatorText
+{
+	opacity: 1;
+	text-align: center;
+	text-shadow: 2px 2px 10px 5.0 black;
+	color: buffedPureDamageColor;
+	animation-name: buffed_pure_color;
+	animation-duration: 0.3s;
+}
+
+.damage_fountain_active .crit.damage_type_pure .HudIndicatorText
+{
+	opacity: 0.5;
+	color: critPureDamageColor;
+	text-align: center;
+	text-shadow: 0px 0px 2.0 aquamarine;
+	animation-name: crit_color_pure, crit_flash_pure;
+	animation-duration: 0.3s, 1s;
+}
+
+.damage_fountain_active .batched.crit.damage_type_pure .HudIndicatorText
+{
+	opacity: 1;
+	color: critPureDamageColor;
+	text-align: center;
+	pre-transform-scale2d: 1.4;
+	animation-name: crit_color_pure, crit_flash_pure;
+	animation-duration: 0.3s, 0.3s;
+}
+
+.damage_fountain_active .damage_type_ability .HudIndicatorText
+{
+	opacity: 0.3;
+	text-align: center;
+	color: abilityDamageColor;
+	animation-name: ability_color;
+	animation-duration: 0.3s;
+}
+
+.damage_fountain_active .batched.damage_type_ability .HudIndicatorText
+{
+	opacity: 1;
+	text-align: center;
+	color: abilityDamageColor;
+	animation-name: ability_color;
+	animation-duration: 0.3s;
+}
+
+.damage_fountain_active .buffed.damage_type_ability .HudIndicatorText
+{
+	opacity: 1;
+	color: buffedAbilityDamageColor;
+	animation-name: buffed_ability_color;
+	animation-duration: 0.3s;
+	text-align: center;
+	text-shadow: 0px 0px 6px 1.5 blue;
+}
+
+.damage_fountain_active .damage.damage_type_poison .HudIndicatorText
+{
+	color: poisonDamageColor;
+	animation-name: poison_color;
+	animation-duration: 0.3s;
+}
+
+.damage_fountain_active .status_effect .HudIndicatorText
+{
+	color: statusEffectColor;
+	animation-name: status_effect_color;
+	animation-duration: 0.3s;
+	text-transform: uppercase;
+	text-shadow: 2px 2px 10px rgb(79, 50, 50);
+}
+
+.damage_fountain_active .gold .HudIndicatorText
+{
+	font-weight: bolder;
+	font-size: 40px;
+	animation-name: soul_color;
+	animation-duration: 3s;
+}
+
+.damage_fountain_active .gold_small .HudIndicatorText
+{
+	font-weight: bold;
+	font-size: 40px;
+	animation-name: soul_color;
+	animation-duration: 3s;
+}
+
+.damage_fountain_active .xp .HudIndicatorText
+{
+	font-size: 40px;
+	color: white;
+}
+
+.damage_fountain_active .mana_burn .HudIndicatorText
+{
+	color: mediumblue;
+	animation-name: crit_pop;
+	animation-duration: 0.6s;
+}
+
+.damage_fountain_active .deny .HudIndicatorText
+{
+	color: rgb(255, 117, 85);
+	font-weight: bold;
+	font-style: italic;
+	animation-name: crit_pop;
+	animation-duration: 0.6s;
+}
+
+.damage_fountain_active .heal #Value.HudIndicatorText
+{
+	font-size: healing_font_size;
+	font-weight: bold;
+	color: rgb(145, 243, 151);
+	background-image: url("s2r://panorama/images/hud/ping/ping_icon_heal.vsvg");
+	background-repeat: no-repeat;
+	background-position: healing_icon_position;
+	wash-color: rgb(145, 243, 151);
+	background-img-opacity: 0.2;
+	background-size: healing_icon_size;
+	padding: 100px 100px 100px 1px;
+	animation-name: healing;
+	animation-duration: 0.35s;
+	animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+	animation-fill-mode: forwards;
+	z-index: 1;
+}
+
+.damage_fountain_active .modifier .HudIndicatorText
+{
+	color: white;
+	font-size: 30px;
+}
+
+.damage_fountain_active .batched .HudIndicatorText
+{
+	font-weight: bold;
+}
+
+.damage_fountain_active .heal .HudIndicatorContainer
+{
+	transform: translateX(100px) translateY(-20px);
+}
+
+.damage_fountain_active .heal.use_css_position
+{
+	horizontal-align: center;
+	margin-right: 25%;
+	y: 72.5%;
+}
+
+.damage_fountain_active .damage.dpspercent_small
+{
+	font-size: 40px;
+}
+
+.damage_fountain_active .damage.dpspercent_mid
+{
+	font-size: 50px;
+}
+
+.damage_fountain_active .damage.dpspercent_high
+{
+	font-size: 60px;
+}
+
+.damage_fountain_active .crit .HudIndicatorIcon
+{
+	wash-color: critDamageColor;
+	width: 30px;
+	height: 30px;
+}
+
+.damage_fountain_active .distance_far .HudIndicatorIcon
+{
+	width: 20px;
+	height: 20px;
+	margin-left: 5px;
+}
+
+.damage_fountain_active .distance_very_far .HudIndicatorIcon
+{
+	width: 20px;
+	height: 20px;
+	margin-left: 5px;
+}
+
+.damage_fountain_active .distance_extremely_far .HudIndicatorIcon
+{
+	width: 20px;
+	height: 20px;
+	margin-left: 5px;
+}
+
+.damage_fountain_active .distance_far.crit .HudIndicatorIcon
+{
+	width: 20px;
+	height: 20px;
+	margin-left: 5px;
+}
+
+.damage_fountain_active .distance_very_far.crit .HudIndicatorIcon
+{
+	width: 20px;
+	height: 20px;
+	margin-left: 5px;
+}
+
+.damage_fountain_active .distance_extremely_far.crit .HudIndicatorIcon
+{
+	width: 20px;
+	height: 20px;
+	margin-left: 5px;
+}
+
+.damage_fountain_active .juggle
+{
+	width: fit-children;
+	height: fit-children;
+}
+
+.damage_fountain_active .juggle.juggle_increment
+{
+	width: 300px;
+	height: 200px;
+	animation-name: anim_juggle_increment;
+	animation-timing-function: ease-out;
+	animation-iteration-count: 1;
+	animation-duration: 1s;
+}
+
+.damage_fountain_active .juggle.juggle_increment .HudIndicatorContainer
+{
+	horizontal-align: center;
+	vertical-align: middle;
+	width: 300px;
+	height: 200px;
+}
+
+.damage_fountain_active .juggle.juggle_increment .HudIndicatorContainer .HudIndicatorIcon
+{
+	visibility: collapse;
+}
+
+.damage_fountain_active .juggle.juggle_increment .HudIndicatorContainer Label.HudIndicatorText
+{
+	horizontal-align: center;
+	vertical-align: middle;
+	text-align: center;
+	width: 100%;
+	height: 100%;
+	font-size: 108px;
+	color: offWhite;
+	text-shadow: 0px 0px 10.0 vivaciousGreen;
+}
+
+.damage_fountain_active .juggle.juggle_increment .HudIndicatorContainer Label.HudIndicatorText .InlineAttributeIcon
+{
+	width: 50px;
+	height: 50px;
+}
+
+.damage_fountain_active .juggle.juggle_floor
+{
+	width: 300px;
+	height: 200px;
+	animation-name: anim_juggle_floor;
+	animation-timing-function: ease-out;
+	animation-iteration-count: 1;
+	animation-duration: 6s;
+}
+
+.damage_fountain_active .juggle.juggle_floor .HudIndicatorContainer
+{
+	width: 300px;
+	height: 200px;
+}
+
+.damage_fountain_active .juggle.juggle_floor .HudIndicatorContainer .HudIndicatorIcon
+{
+	visibility: collapse;
+}
+
+.damage_fountain_active .juggle.juggle_floor .HudIndicatorContainer Label.HudIndicatorText
+{
+	text-align: center;
+	width: 100%;
+	height: 100%;
+	font-size: 108px;
+	color: #B85D28;
+	text-shadow: 0px 0px 10.0 #2B0E0F;
+}
+
+.damage_fountain_active .juggle.juggle_floor .HudIndicatorContainer Label.HudIndicatorText .InlineAttributeIcon
+{
+	width: 50px;
+	height: 50px;
+}
+
+@keyframes 'anim_juggle_increment'
+{
+	0%
+	{
+		opacity: 0;
+		transform: translateY(30px);
+	}
+	
+	2%
+	{
+		opacity: 0;
+		transform: translateY(30px);
+	}
+	
+	3%
+	{
+		opacity: 0.35;
+		transform: translateY(30px);
+	}
+	
+	30%
+	{
+		opacity: 1;
+		transform: translateY(60px) ;
+	}
+	
+	100%
+	{
+		opacity: 0;
+		transform: translateY(240px);
+	}
+	
+}
+
+@keyframes 'anim_juggle_floor'
+{
+	0%
+	{
+		opacity: 0;
+	}
+	
+	2%
+	{
+		opacity: 0;
+		transform: translateY(0px);
+	}
+	
+	3%
+	{
+		opacity: 0.35;
+		transform: translateY(0px);
+	}
+	
+	10%
+	{
+		opacity: 1;
+		transform: translateY(-120px);
+	}
+	
+	95%
+	{
+		opacity: 1;
+		transform: translateY(-120px);
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 0.2;
+		transform: translateY(-240px);
+		opacity: 0;
+	}
+	
+}
+
+@keyframes 'cumulative_damage_color'
+{
+	0%
+	{
+		color: cumulativeDamageInitColor;
+		text-shadow: 0px 0px 1.0 rgb(20, 20, 20);
+	}
+	
+	3%
+	{
+		color: cumulativeDamageInitColor;
+		text-shadow: 0px 0px 2.0 rgb(20, 20, 20);
+	}
+	
+	4%
+	{
+		color: cumulativeDamageInitColor;
+		text-shadow: 0px 0px 6.0 rgb(20, 20, 20);
+	}
+	
+	50%
+	{
+		color: cumulativeDamageInitColor;
+		text-shadow: 0px 0px 6.0 rgb(20, 20, 20);
+	}
+	
+	100%
+	{
+		text-shadow: 0px 0px 5.0 rgb(35, 35, 35);
+		color: cumulativeDamageColor;
+	}
+	
+}
+
+@keyframes 'fade'
+{
+	0%
+	{
+		opacity: 1;
+	}
+	
+	35%
+	{
+		opacity: 1;
+	}
+	
+	80%
+	{
+		opacity: 0.2;
+	}
+	
+	100%
+	{
+		opacity: 0;
+	}
+	
+}
+
+@keyframes 'fade_single'
+{
+	0%
+	{
+		opacity: 1;
+	}
+	
+	35%
+	{
+		opacity: 1;
+	}
+	
+	80%
+	{
+		opacity: 0.13;
+	}
+	
+	100%
+	{
+		opacity: 0;
+	}
+	
+}
+
+@keyframes 'pop_cumulative'
+{
+	0%
+	{
+		pre-transform-scale2d: 1.4;
+		pre-transform-rotate2d: -6deg;
+		transform: translateY(0px);
+	}
+	
+	4%
+	{
+		pre-transform-scale2d: 1.2;
+		pre-transform-rotate2d: 1deg;
+	}
+	
+	20%
+	{
+		pre-transform-scale2d: 1;
+		pre-transform-rotate2d: 0deg;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1;
+		pre-transform-rotate2d: 0deg;
+		transform: translateY(0px);
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+		pre-transform-rotate2d: 2deg;
+		transform: translateY(3px);
+	}
+	
+}
+
+@keyframes 'pop'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+		pre-transform-rotate2d: -5deg;
+	}
+	
+	5%
+	{
+		pre-transform-scale2d: 1.25;
+	}
+	
+	20%
+	{
+		pre-transform-scale2d: 1;
+		pre-transform-rotate2d: 0deg;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+}
+
+@keyframes 'pop_emphasized'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	33%
+	{
+		pre-transform-scale2d: 1.7;
+		pre-transform-rotate2d: 7deg;
+	}
+	
+	66%
+	{
+		pre-transform-scale2d: 1.5;
+		pre-transform-rotate2d: 0deg;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1.4;
+	}
+	
+}
+
+@keyframes 'melee_pop'
+{
+	0%
+	{
+		pre-transform-scale2d: 1.3;
+		pre-transform-rotate2d: 15deg;
+		text-shadow: 0px 0px 15.0 rgb(255, 230, 0);
+	}
+	
+	4%
+	{
+		pre-transform-scale2d: 1;
+		pre-transform-rotate2d: -14deg;
+		text-shadow: 0px 0px 5.0 rgb(255, 120, 0);
+	}
+	
+	7%
+	{
+		pre-transform-scale2d: 1;
+		pre-transform-rotate2d: 7deg;
+	}
+	
+	12%
+	{
+		pre-transform-scale2d: 1;
+		pre-transform-rotate2d: -6deg;
+		text-shadow: 0px 0px 2.0 rgb(255, 150, 0);
+	}
+	
+	23%
+	{
+		pre-transform-scale2d: 1;
+		pre-transform-rotate2d: 0deg;
+	}
+	
+	66%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+}
+
+@keyframes 'fountain_large'
+{
+	0%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	4%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	5%
+	{
+		transform: translateX(1px) translateY(0px);
+		pre-transform-scale2d: 1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	8%
+	{
+		transform: translateX(1px) translateY(0px);
+		pre-transform-scale2d: 1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	9%
+	{
+		transform: translateX(3px) translateY(-10.8px);
+		pre-transform-scale2d: 0.833;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	14%
+	{
+		transform: translateX(7px) translateY(-20.2px);
+		pre-transform-scale2d: 0.8;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	20%
+	{
+		transform: translateX(10px) translateY(-35.6px);
+		pre-transform-scale2d: 0.7;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	35%
+	{
+		transform: translateX(15.3px) translateY(-24.84px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	50%
+	{
+		transform: translateX(22.1px) translateY(-12.42px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	100%
+	{
+		transform: translateX(31.5px) translateY(86.4px);
+		pre-transform-scale2d: 0.25;
+		pre-transform-rotate2d: 30deg;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+}
+
+@keyframes 'fountain_medium'
+{
+	0%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	4%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	5%
+	{
+		transform: translateX(1px) translateY(0px);
+		pre-transform-scale2d: 1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	8%
+	{
+		transform: translateX(1px) translateY(0px);
+		pre-transform-scale2d: 1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	9%
+	{
+		transform: translateX(2.7px) translateY(-7px);
+		pre-transform-scale2d: 0.833;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	14%
+	{
+		transform: translateX(6.3px) translateY(-10.5px);
+		pre-transform-scale2d: 0.8;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	20%
+	{
+		transform: translateX(9px) translateY(-24.15px);
+		pre-transform-scale2d: 0.7;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	35%
+	{
+		transform: translateX(13.77px) translateY(-16.1px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	50%
+	{
+		transform: translateX(19.89px) translateY(-8.05px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	75%
+	{
+		transform: translateX(22.95px) translateY(19.32px);
+		pre-transform-scale2d: 0.4;
+		pre-transform-rotate2d: 20deg;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	100%
+	{
+		transform: translateX(27.54px) translateY(64.4px);
+		pre-transform-scale2d: 0.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+}
+
+@keyframes 'fountain_small'
+{
+	0%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	4%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	5%
+	{
+		transform: translateX(1px) translateY(0px);
+		pre-transform-scale2d: 1.1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	8%
+	{
+		transform: translateX(1px) translateY(0px);
+		pre-transform-scale2d: 1.1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	11%
+	{
+		transform: translateX(1px) translateY(0px);
+		pre-transform-scale2d: 0.833;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	14%
+	{
+		transform: translateX(2px) translateY(0px);
+		pre-transform-scale2d: 0.8;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	19%
+	{
+		transform: translateX(4px) translateY(-15px);
+		pre-transform-scale2d: 0.7;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	32%
+	{
+		transform: translateX(9px) translateY(-10px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	50%
+	{
+		transform: translateX(13px) translateY(-5px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	75%
+	{
+		transform: translateX(15px) translateY(12px);
+		pre-transform-scale2d: 0.4;
+		pre-transform-rotate2d: 20deg;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	100%
+	{
+		transform: translateX(18px) translateY(40px);
+		pre-transform-scale2d: 0.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+}
+
+@keyframes 'fountain_very_far_large'
+{
+	0%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	4%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	5%
+	{
+		transform: translateX(0.432px) translateY(0px);
+		pre-transform-scale2d: 1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	8%
+	{
+		transform: translateX(0.432px) translateY(0px);
+		pre-transform-scale2d: 1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	9%
+	{
+		transform: translateX(1.296px) translateY(-4.6656px);
+		pre-transform-scale2d: 0.833;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	14%
+	{
+		transform: translateX(3.024px) translateY(-8.7264px);
+		pre-transform-scale2d: 0.8;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	20%
+	{
+		transform: translateX(4.32px) translateY(-15.3792px);
+		pre-transform-scale2d: 0.7;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	35%
+	{
+		transform: translateX(6.6096px) translateY(-10.73088px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	50%
+	{
+		transform: translateX(9.5472px) translateY(-5.36544px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	100%
+	{
+		transform: translateX(13.608px) translateY(37.3248px);
+		pre-transform-scale2d: 0.25;
+		pre-transform-rotate2d: 30deg;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+}
+
+@keyframes 'fountain_extremely_far_large'
+{
+	0%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	4%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	5%
+	{
+		transform: translateX(0.36px) translateY(0px);
+		pre-transform-scale2d: 1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	8%
+	{
+		transform: translateX(0.36px) translateY(0px);
+		pre-transform-scale2d: 1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	9%
+	{
+		transform: translateX(1.08px) translateY(-3.888px);
+		pre-transform-scale2d: 0.833;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	14%
+	{
+		transform: translateX(2.52px) translateY(-7.272px);
+		pre-transform-scale2d: 0.8;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	20%
+	{
+		transform: translateX(3.6px) translateY(-12.816px);
+		pre-transform-scale2d: 0.7;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	35%
+	{
+		transform: translateX(5.508px) translateY(-8.9424px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	50%
+	{
+		transform: translateX(7.956px) translateY(-4.4712px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	100%
+	{
+		transform: translateX(11.34px) translateY(31.104px);
+		pre-transform-scale2d: 0.25;
+		pre-transform-rotate2d: 30deg;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+}
+
+@keyframes 'fountain_very_far_medium'
+{
+	0%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	4%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	5%
+	{
+		transform: translateX(0.432px) translateY(0px);
+		pre-transform-scale2d: 1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	8%
+	{
+		transform: translateX(0.432px) translateY(0px);
+		pre-transform-scale2d: 1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	9%
+	{
+		transform: translateX(1.1664px) translateY(-3.024px);
+		pre-transform-scale2d: 0.833;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	14%
+	{
+		transform: translateX(2.7216px) translateY(-4.536px);
+		pre-transform-scale2d: 0.8;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	20%
+	{
+		transform: translateX(3.888px) translateY(-10.4328px);
+		pre-transform-scale2d: 0.7;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	35%
+	{
+		transform: translateX(5.94864px) translateY(-6.9552px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	50%
+	{
+		transform: translateX(8.59248px) translateY(-3.4776px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	75%
+	{
+		transform: translateX(9.9144px) translateY(8.34624px);
+		pre-transform-scale2d: 0.4;
+		pre-transform-rotate2d: 20deg;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	100%
+	{
+		transform: translateX(11.89728px) translateY(27.8208px);
+		pre-transform-scale2d: 0.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+}
+
+@keyframes 'fountain_extremely_far_medium'
+{
+	0%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	4%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	5%
+	{
+		transform: translateX(0.36px) translateY(0px);
+		pre-transform-scale2d: 1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	8%
+	{
+		transform: translateX(0.36px) translateY(0px);
+		pre-transform-scale2d: 1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	9%
+	{
+		transform: translateX(0.972px) translateY(-2.52px);
+		pre-transform-scale2d: 0.833;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	14%
+	{
+		transform: translateX(2.268px) translateY(-3.78px);
+		pre-transform-scale2d: 0.8;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	20%
+	{
+		transform: translateX(3.24px) translateY(-8.694px);
+		pre-transform-scale2d: 0.7;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	35%
+	{
+		transform: translateX(4.9572px) translateY(-5.796px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	50%
+	{
+		transform: translateX(7.1604px) translateY(-2.898px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	75%
+	{
+		transform: translateX(8.262px) translateY(6.9552px);
+		pre-transform-scale2d: 0.4;
+		pre-transform-rotate2d: 20deg;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	100%
+	{
+		transform: translateX(9.9144px) translateY(23.184px);
+		pre-transform-scale2d: 0.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+}
+
+@keyframes 'fountain_very_far_small'
+{
+	0%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	4%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	5%
+	{
+		transform: translateX(0.432px) translateY(0px);
+		pre-transform-scale2d: 1.1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	8%
+	{
+		transform: translateX(0.432px) translateY(0px);
+		pre-transform-scale2d: 1.1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	11%
+	{
+		transform: translateX(0.432px) translateY(0px);
+		pre-transform-scale2d: 0.833;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	14%
+	{
+		transform: translateX(0.864px) translateY(0px);
+		pre-transform-scale2d: 0.8;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	19%
+	{
+		transform: translateX(1.728px) translateY(-6.48px);
+		pre-transform-scale2d: 0.7;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	32%
+	{
+		transform: translateX(3.888px) translateY(-4.32px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	50%
+	{
+		transform: translateX(5.616px) translateY(-2.16px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	75%
+	{
+		transform: translateX(6.48px) translateY(5.184px);
+		pre-transform-scale2d: 0.4;
+		pre-transform-rotate2d: 20deg;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	100%
+	{
+		transform: translateX(7.776px) translateY(17.28px);
+		pre-transform-scale2d: 0.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+}
+
+@keyframes 'fountain_extremely_far_small'
+{
+	0%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	4%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	5%
+	{
+		transform: translateX(0.36px) translateY(0px);
+		pre-transform-scale2d: 1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	8%
+	{
+		transform: translateX(0.36px) translateY(0px);
+		pre-transform-scale2d: 1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	11%
+	{
+		transform: translateX(0.36px) translateY(0px);
+		pre-transform-scale2d: 0.833;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	14%
+	{
+		transform: translateX(0.72px) translateY(0px);
+		pre-transform-scale2d: 0.8;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	19%
+	{
+		transform: translateX(1.44px) translateY(-5.4px);
+		pre-transform-scale2d: 0.7;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	32%
+	{
+		transform: translateX(3.24px) translateY(-3.6px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	50%
+	{
+		transform: translateX(4.68px) translateY(-1.8px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	75%
+	{
+		transform: translateX(5.4px) translateY(4.32px);
+		pre-transform-scale2d: 0.4;
+		pre-transform-rotate2d: 20deg;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	100%
+	{
+		transform: translateX(6.48px) translateY(14.4px);
+		pre-transform-scale2d: 0.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+}
+
+@keyframes 'fountain_emphasised_pure_large'
+{
+	0%
+	{
+		transform: translateX(0px) translateY(-20px);
+		pre-transform-scale2d: 2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	5%
+	{
+		transform: translateX(0px) translateY(-5px);
+		pre-transform-scale2d: 0.85;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	20%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 0.85;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	70%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 0.85;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	100%
+	{
+		transform: translateX(0px) translateY(-20px);
+		pre-transform-scale2d: 1.5;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+}
+
+@keyframes 'fountain_emphasised_pure_medium'
+{
+	0%
+	{
+		transform: translateX(0px) translateY(-20px);
+		pre-transform-scale2d: 1.6;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	5%
+	{
+		transform: translateX(0px) translateY(-5px);
+		pre-transform-scale2d: 0.75;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	20%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 0.75;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	70%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 0.75;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	100%
+	{
+		transform: translateX(0px) translateY(-20px);
+		pre-transform-scale2d: 1.3;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+}
+
+@keyframes 'fountain_emphasised_pure_small'
+{
+	0%
+	{
+		transform: translateX(0px) translateY(-20px);
+		pre-transform-scale2d: 1.45;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	5%
+	{
+		transform: translateX(0px) translateY(-5px);
+		pre-transform-scale2d: 0.68;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	20%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 0.68;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	70%
+	{
+		transform: translateX(0px) translateY(0px);
+		pre-transform-scale2d: 0.68;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	100%
+	{
+		transform: translateX(0px) translateY(-20px);
+		pre-transform-scale2d: 1.2;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+}
+
+@keyframes 'pure_emphasised_icon_glow'
+{
+	0%
+	{
+		img-shadow: 0px 0px 20px #ffffff;
+	}
+	
+	8%
+	{
+		img-shadow: 0px 0px 20px #ffffff;
+	}
+	
+	20%
+	{
+		img-shadow: 0px 0px 0px #000000;
+	}
+	
+	21%
+	{
+		img-shadow: 0px 0px 0px #000000;
+	}
+	
+	22%
+	{
+		img-shadow: 0px 0px 12px #ffffff;
+	}
+	
+	100%
+	{
+		img-shadow: 0px 0px 4px #ffffff;
+	}
+	
+}
+
+@keyframes 'fountain_melee'
+{
+	0%
+	{
+		transform: translateX(-10px) translateY(-15px);
+		pre-transform-scale2d: 0.8;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	3%
+	{
+		transform: translateX(-10px) translateY(-20px);
+		pre-transform-scale2d: 1.1;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	35%
+	{
+		transform: translateX(-10px) translateY(-3.5px);
+		pre-transform-scale2d: .95;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	70%
+	{
+		transform: translateX(-10px) translateY(-2px);
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+	100%
+	{
+		transform: translateX(-10px) translateY(20px);
+		pre-transform-scale2d: 0.7;
+		animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	}
+	
+}
+
+.damage_fountain_active .trooper .HudIndicatorContainer
+{
+	ui-scale: 80%;
+}
+
+.damage_fountain_active .cumulative .HudIndicatorContainer
+{
+	margin-left: 77px;
+	vertical-align: center;
+	z-index: 1;
+	animation-name: pop_cumulative, fade;
+	animation-duration: cumulative_lifetime, cumulative_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .cumulative.emphasize .HudIndicatorContainer
+{
+	margin-left: 77px;
+	vertical-align: center;
+	z-index: 1;
+	animation-name: pop_cumulative, fade;
+	animation-duration: cumulative_lifetime, cumulative_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .cumulative .HudIndicatorText
+{
+	font-size: cumulative_font_size;
+	font-weight: bold;
+	animation-name: cumulative_damage_color;
+	animation-duration: cumulative_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .cumulative.emphasize .HudIndicatorText
+{
+	font-size: 30px;
+	font-weight: bold;
+	animation-name: cumulative_damage_color;
+	animation-duration: cumulative_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .bullet_damage_new .HudIndicatorText
+{
+	font-weight: bold;
+	font-size: fountain_font_size;
+	animation-name: damage_color;
+	animation-duration: fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .bullet_damage_new.crit .HudIndicatorText
+{
+	animation-name: crit_color;
+	font-weight: bold;
+	font-size: fountain_font_size;
+	background-image: url("s2r://panorama/images/post_game/starburst_team1.vsvg");
+	background-size: crit_icon_size;
+	background-img-opacity: 0.86;
+	background-repeat: no-repeat;
+	background-position: center;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_far.bullet_damage_new.crit .HudIndicatorText
+{
+	background-size: crit_icon_size_far;
+}
+
+.damage_fountain_active .distance_very_far.bullet_damage_new.crit .HudIndicatorText
+{
+	background-size: crit_icon_size_very_far;
+}
+
+.damage_fountain_active .distance_extremely_far.bullet_damage_new.crit .HudIndicatorText
+{
+	background-size: crit_icon_size_extremely_far;
+}
+
+.damage_fountain_active .ability_damage_new .HudIndicatorText
+{
+	font-weight: bold;
+	font-size: fountain_font_size;
+	animation-name: ability_color;
+	animation-duration: fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .melee_damage_new .HudIndicatorText
+{
+	font-weight: bold;
+	font-size: melee_font_size;
+	animation-name: melee_pop, melee_color;
+	animation-duration: melee_lifetime, melee_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .melee_damage_new.emphasize .HudIndicatorText
+{
+	font-weight: bold;
+	font-size: melee_font_size;
+	animation-name: melee_pop, melee_color;
+	animation-duration: melee_lifetime, melee_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_far.melee_damage_new .HudIndicatorText
+{
+	animation-name: melee_pop, viscous_melee_color;
+	animation-duration: melee_lifetime, melee_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_far.damage_type_melee .HudIndicatorText
+{
+	animation-name: melee_pop, viscous_melee_color;
+	animation-duration: melee_lifetime, melee_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.melee_damage_new .HudIndicatorText
+{
+	animation-name: melee_pop, viscous_melee_color;
+	animation-duration: melee_lifetime, melee_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_melee .HudIndicatorText
+{
+	animation-name: melee_pop, viscous_melee_color;
+	animation-duration: melee_lifetime, melee_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.melee_damage_new .HudIndicatorText
+{
+	animation-name: melee_pop, viscous_melee_color;
+	animation-duration: melee_lifetime, melee_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_melee .HudIndicatorText
+{
+	animation-name: melee_pop, viscous_melee_color;
+	animation-duration: melee_lifetime, melee_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new .HudIndicatorText
+{
+	font-weight: bold;
+	font-size: fountain_font_size;
+	animation-name: pure_damage_color;
+	animation-duration: fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain_emphasised1 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain_emphasised1 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain_emphasised2 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain_emphasised2 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain_emphasised3 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain_emphasised3 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain_emphasised4 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain_emphasised4 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain_emphasised5 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain_emphasised5 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_pure.fountain_emphasised1 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.pure_damage_new.fountain_emphasised1 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_pure.fountain_emphasised2 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.pure_damage_new.fountain_emphasised2 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_pure.fountain_emphasised3 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.pure_damage_new.fountain_emphasised3 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_pure.fountain_emphasised4 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.pure_damage_new.fountain_emphasised4 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_pure.fountain_emphasised5 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.pure_damage_new.fountain_emphasised5 .HudIndicatorText
+{
+	background-image: url("s2r://panorama/images/qollock/priest_potent_vapors_cross.vsvg");
+	background-repeat: no-repeat;
+	background-position: pure_emphasised_icon_position;
+	background-size: pure_emphasised_icon_size;
+	padding-left: 45px;
+	animation-name: pure_emphasised_damage_color, pure_emphasised_icon_glow;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .distance_near.damage_type_pure.fountain_emphasised1 .HudIndicatorText,.damage_fountain_active .distance_near.pure_damage_new.fountain_emphasised1 .HudIndicatorText,.damage_fountain_active .distance_near.damage_type_pure.fountain_emphasised2 .HudIndicatorText,.damage_fountain_active .distance_near.pure_damage_new.fountain_emphasised2 .HudIndicatorText,.damage_fountain_active .distance_near.damage_type_pure.fountain_emphasised3 .HudIndicatorText,.damage_fountain_active .distance_near.pure_damage_new.fountain_emphasised3 .HudIndicatorText,.damage_fountain_active .distance_near.damage_type_pure.fountain_emphasised4 .HudIndicatorText,.damage_fountain_active .distance_near.pure_damage_new.fountain_emphasised4 .HudIndicatorText,.damage_fountain_active .distance_near.damage_type_pure.fountain_emphasised5 .HudIndicatorText,.damage_fountain_active .distance_near.pure_damage_new.fountain_emphasised5 .HudIndicatorText
+{
+	background-position: 12px 22px;
+	background-size: 40px 28.8px;
+	padding-left: 45px;
+	height: 54px;
+}
+
+.damage_fountain_active .distance_normal.damage_type_pure.fountain_emphasised1 .HudIndicatorText,.damage_fountain_active .distance_normal.pure_damage_new.fountain_emphasised1 .HudIndicatorText,.damage_fountain_active .distance_normal.damage_type_pure.fountain_emphasised2 .HudIndicatorText,.damage_fountain_active .distance_normal.pure_damage_new.fountain_emphasised2 .HudIndicatorText,.damage_fountain_active .distance_normal.damage_type_pure.fountain_emphasised3 .HudIndicatorText,.damage_fountain_active .distance_normal.pure_damage_new.fountain_emphasised3 .HudIndicatorText,.damage_fountain_active .distance_normal.damage_type_pure.fountain_emphasised4 .HudIndicatorText,.damage_fountain_active .distance_normal.pure_damage_new.fountain_emphasised4 .HudIndicatorText,.damage_fountain_active .distance_normal.damage_type_pure.fountain_emphasised5 .HudIndicatorText,.damage_fountain_active .distance_normal.pure_damage_new.fountain_emphasised5 .HudIndicatorText
+{
+	background-position: 11px 21px;
+	background-size: 39px 28px;
+	padding-left: 43px;
+	height: 52px;
+}
+
+.damage_fountain_active .distance_far.damage_type_pure.fountain_emphasised1 .HudIndicatorText,.damage_fountain_active .distance_far.pure_damage_new.fountain_emphasised1 .HudIndicatorText,.damage_fountain_active .distance_far.damage_type_pure.fountain_emphasised2 .HudIndicatorText,.damage_fountain_active .distance_far.pure_damage_new.fountain_emphasised2 .HudIndicatorText,.damage_fountain_active .distance_far.damage_type_pure.fountain_emphasised3 .HudIndicatorText,.damage_fountain_active .distance_far.pure_damage_new.fountain_emphasised3 .HudIndicatorText,.damage_fountain_active .distance_far.damage_type_pure.fountain_emphasised4 .HudIndicatorText,.damage_fountain_active .distance_far.pure_damage_new.fountain_emphasised4 .HudIndicatorText,.damage_fountain_active .distance_far.damage_type_pure.fountain_emphasised5 .HudIndicatorText,.damage_fountain_active .distance_far.pure_damage_new.fountain_emphasised5 .HudIndicatorText
+{
+	background-position: 10px 18px;
+	background-size: 34px 24px;
+	padding-left: 38px;
+	height: 46px;
+}
+
+.damage_fountain_active .distance_very_far.damage_type_pure.fountain_emphasised1 .HudIndicatorText,.damage_fountain_active .distance_very_far.pure_damage_new.fountain_emphasised1 .HudIndicatorText,.damage_fountain_active .distance_very_far.damage_type_pure.fountain_emphasised2 .HudIndicatorText,.damage_fountain_active .distance_very_far.pure_damage_new.fountain_emphasised2 .HudIndicatorText,.damage_fountain_active .distance_very_far.damage_type_pure.fountain_emphasised3 .HudIndicatorText,.damage_fountain_active .distance_very_far.pure_damage_new.fountain_emphasised3 .HudIndicatorText,.damage_fountain_active .distance_very_far.damage_type_pure.fountain_emphasised4 .HudIndicatorText,.damage_fountain_active .distance_very_far.pure_damage_new.fountain_emphasised4 .HudIndicatorText,.damage_fountain_active .distance_very_far.damage_type_pure.fountain_emphasised5 .HudIndicatorText,.damage_fountain_active .distance_very_far.pure_damage_new.fountain_emphasised5 .HudIndicatorText
+{
+	background-position: 8px 16px;
+	background-size: 29px 21px;
+	padding-left: 32px;
+	height: 40px;
+}
+
+.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain_emphasised1 .HudIndicatorText,.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain_emphasised1 .HudIndicatorText,.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain_emphasised2 .HudIndicatorText,.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain_emphasised2 .HudIndicatorText,.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain_emphasised3 .HudIndicatorText,.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain_emphasised3 .HudIndicatorText,.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain_emphasised4 .HudIndicatorText,.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain_emphasised4 .HudIndicatorText,.damage_fountain_active .distance_extremely_far.damage_type_pure.fountain_emphasised5 .HudIndicatorText,.damage_fountain_active .distance_extremely_far.pure_damage_new.fountain_emphasised5 .HudIndicatorText
+{
+	background-position: 7px 13px;
+	background-size: 23px 17px;
+	padding-left: 26px;
+	height: 34px;
+}
+
+.damage_fountain_active .fountain1 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .fountain2 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .fountain3 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .fountain4 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .fountain5 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .fountain_emphasised1 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .fountain_emphasised2 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .fountain_emphasised3 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .fountain_emphasised4 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .fountain_emphasised5 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.fountain_emphasised1
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.fountain_emphasised2
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.fountain_emphasised3
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.fountain_emphasised4
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.fountain_emphasised5
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_ability.fountain1 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	horizontal-align: right;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .ability_damage_new.fountain1 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	horizontal-align: right;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_ability.fountain2 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	horizontal-align: right;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .ability_damage_new.fountain2 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	horizontal-align: right;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_ability.fountain3 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	horizontal-align: right;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .ability_damage_new.fountain3 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	horizontal-align: right;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_ability.fountain4 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	horizontal-align: right;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .ability_damage_new.fountain4 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	horizontal-align: right;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_ability.fountain5 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	horizontal-align: right;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .ability_damage_new.fountain5 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	horizontal-align: right;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_gun.fountain_emphasised1 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .bullet_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_gun.fountain_emphasised1
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.bullet_damage_new.fountain_emphasised1
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_gun.fountain_emphasised2 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .bullet_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_gun.fountain_emphasised2
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.bullet_damage_new.fountain_emphasised2
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_gun.fountain_emphasised3 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .bullet_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_gun.fountain_emphasised3
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.bullet_damage_new.fountain_emphasised3
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_gun.fountain_emphasised4 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .bullet_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_gun.fountain_emphasised4
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.bullet_damage_new.fountain_emphasised4
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_gun.fountain_emphasised5 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .bullet_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_gun.fountain_emphasised5
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.bullet_damage_new.fountain_emphasised5
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_ability.fountain_emphasised1 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .ability_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_ability.fountain_emphasised1
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.ability_damage_new.fountain_emphasised1
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_ability.fountain_emphasised2 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .ability_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_ability.fountain_emphasised2
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.ability_damage_new.fountain_emphasised2
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_ability.fountain_emphasised3 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .ability_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_ability.fountain_emphasised3
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.ability_damage_new.fountain_emphasised3
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_ability.fountain_emphasised4 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .ability_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_ability.fountain_emphasised4
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.ability_damage_new.fountain_emphasised4
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_ability.fountain_emphasised5 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .ability_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_ability.fountain_emphasised5
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.ability_damage_new.fountain_emphasised5
+{
+	horizontal-align: right;
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain1 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain1 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain2 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain2 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain3 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain3 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain4 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain4 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain5 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain5 .HudIndicatorContainer
+{
+	animation-name: fountain_animation, fade_single;
+	animation-duration: fountain_lifetime, fountain_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_pure.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .pure_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_pure.fountain_emphasised1
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.pure_damage_new.fountain_emphasised1
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_pure.fountain_emphasised2
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.pure_damage_new.fountain_emphasised2
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_pure.fountain_emphasised3
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.pure_damage_new.fountain_emphasised3
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_pure.fountain_emphasised4
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.pure_damage_new.fountain_emphasised4
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_pure.fountain_emphasised5
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.pure_damage_new.fountain_emphasised5
+{
+	margin-left: pure_emphasised_left;
+	animation-name: fountain_emphasised_animation, fade_single;
+	animation-timing-function: cubic-bezier(.06,.2,.4,1);
+	animation-duration: pure_emphasised_lifetime, pure_emphasised_lifetime;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_melee.fountain1 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .melee_damage_new.fountain1 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_melee.fountain2 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .melee_damage_new.fountain2 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_melee.fountain3 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .melee_damage_new.fountain3 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_melee.fountain4 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .melee_damage_new.fountain4 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_melee.fountain5 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .melee_damage_new.fountain5 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_melee.fountain_emphasised1 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .melee_damage_new.fountain_emphasised1 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_melee.fountain_emphasised2 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .melee_damage_new.fountain_emphasised2 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_melee.fountain_emphasised3 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .melee_damage_new.fountain_emphasised3 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_melee.fountain_emphasised4 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .melee_damage_new.fountain_emphasised4 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .damage_type_melee.fountain_emphasised5 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .melee_damage_new.fountain_emphasised5 .HudIndicatorContainer
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_melee.fountain_emphasised1
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.melee_damage_new.fountain_emphasised1
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_melee.fountain_emphasised2
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.melee_damage_new.fountain_emphasised2
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_melee.fountain_emphasised3
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.melee_damage_new.fountain_emphasised3
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_melee.fountain_emphasised4
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.melee_damage_new.fountain_emphasised4
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.damage_type_melee.fountain_emphasised5
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+
+.damage_fountain_active .HudIndicatorContainer.melee_damage_new.fountain_emphasised5
+{
+	animation-name: fountain_melee, fade_single;
+	animation-fill-mode: forwards;
+}
+

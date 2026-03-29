@@ -1,0 +1,1912 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_health.vcss_c");
+#cd_icons
+{
+	visibility: collapse;
+}
+
+@define healthbarHeight: 75px;
+.colored_healthbar_active .bars_container
+{
+	margin-top: 20px;
+	ignore-parent-flow: true;
+	horizontal-align: right;
+	overflow: noclip;
+	flow-children: right;
+	horizontal-align: right;
+	padding: 15px 20px 20px 20px;
+	transform: rotateZ(-20deg);
+	padding: 15px 20px 20px 20px;
+	width: 145px;
+	max-height: 450px;
+	padding: 0px;
+	margin-right: 20px;
+	width: 135px;
+	height: 310px;
+}
+
+@keyframes 'midhealth_pulse'
+{
+	0%
+	{
+		background-color: #FCFF6D00;
+	}
+	
+	50%
+	{
+		background-color: #FCFF6D00;
+	}
+	
+	100%
+	{
+		background-color: #FCFF6D00;
+	}
+	
+}
+
+@keyframes 'health_pulse'
+{
+	0%
+	{
+		background-color: #FF410D00;
+	}
+	
+	50%
+	{
+		background-color: #FF410D00;
+	}
+	
+	100%
+	{
+		background-color: #FF410D00;
+	}
+	
+}
+
+@keyframes 'health_pulse_text'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.08;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+}
+
+@keyframes 'health_pulse_text2'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.03;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+}
+
+@keyframes 'vibrate3'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	30%
+	{
+		pre-transform-scale2d: 1.03;
+	}
+	
+	45%
+	{
+		pre-transform-scale2d: 1.05;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.03;
+	}
+	
+	90%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+}
+
+@keyframes 'vibrate'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	30%
+	{
+		pre-transform-scale2d: 1.1;
+	}
+	
+	45%
+	{
+		pre-transform-scale2d: 1.05;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.1;
+	}
+	
+	90%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+}
+
+.colored_healthbar_active #health_bar
+{
+	background-color: #333333ea;
+	width: 66px;
+	height: 212px;
+	margin: 4px 0px 1px 1px;
+	opacity-mask: url("s2r://panorama/images/hud/healthbar/healthbar_backer_mask.vsvg");
+}
+
+.colored_healthbar_active .healthLow #health_bar
+{
+	transition-property: background-color, transform;
+	transition-duration: 0.4s;
+	animation-duration: 2s;
+	animation-iteration-count: infinite;
+}
+
+.colored_healthbar_active .healthMid #health_bar
+{
+	transition-property: background-color, transform;
+	transition-duration: 0.4s;
+	animation-duration: 1s;
+	animation-iteration-count: 1;
+}
+
+.colored_healthbar_active .healthLow .progress_bar_current
+{
+	color: #FFE3DB;
+	text-shadow: 0px 0px 5px colorEnemy;
+	transition-property: color, text-shadow;
+	transition-duration: 0.4s;
+}
+
+.colored_healthbar_active .progress_bar_numbers
+{
+	height: 100%;
+	flow-children: right;
+	vertical-align: center;
+	visibility: visible;
+	horizontal-align: right;
+	transform: translateY(-2px);
+	visibility: collapse;
+}
+
+.colored_healthbar_active .healthLow #current_health
+{
+	transition-property: pre-transform-scale2d;
+	transition-duration: 0.2s;
+	animation-duration: 1s;
+	animation-iteration-count: infinite;
+}
+
+.colored_healthbar_active .bar_num_col_left
+{
+	horizontal-align: left;
+	vertical-align: center;
+	flow-children: right;
+}
+
+.colored_healthbar_active .bar_num_col_right
+{
+	horizontal-align: right;
+	vertical-align: center;
+	flow-children: right;
+}
+
+.colored_healthbar_active .progress_bar_max
+{
+	font-size: 16px;
+	vertical-align: center;
+	font-weight: bold;
+	horizontal-align: right;
+	text-align: right;
+	padding-right: 5px;
+	color: rgba(255, 255, 255, 0.5);
+}
+
+.colored_healthbar_active .progress_bar_current
+{
+	font-size: 24px;
+	font-weight: bold;
+	padding-left: 6px;
+	margin-top: 0px;
+	color: colorFriendly;
+	color: #ffffff;
+	vertical-align: center;
+	transition-property: color, text-shadow;
+	transition-duration: 0.1s;
+	text-shadow: 1px 1px 0px #0c0c0cee;
+}
+
+.colored_healthbar_active #current_health.healthLost
+{
+	color: white;
+	text-shadow: 0px 0px 5px colorEnemy;
+	transition-property: color, text-shadow;
+	transition-duration: 0.4s;
+}
+
+.colored_healthbar_active #max_health
+{
+	color: #ddddddaa;
+	font-size: 14px;
+	font-weight: semi-bold;
+	margin-left: 2px;
+	margin-right: 8px;
+	vertical-align: middle;
+	margin-top: 3px;
+}
+
+.colored_healthbar_active .large_progress_bar
+{
+	width: 40px;
+	height: healthbarHeight;
+}
+
+.colored_healthbar_active .small_progress_bar
+{
+	height: healthbarHeight;
+	width: 10px;
+	margin-top: 3px;
+}
+
+.colored_healthbar_active .health_bar_line
+{
+	overflow: noclip;
+}
+
+.colored_healthbar_active .healthMid .health_bar_line
+{
+	transition-property: pre-transform-scale2d;
+	animation-name: vibrate3;
+	animation-duration: 0.8s;
+	animation-iteration-count: infinite;
+}
+
+.colored_healthbar_active .healthLow .health_bar_line
+{
+	transition-property: pre-transform-scale2d;
+	transition-duration: 0.2s;
+	animation-name: vibrate;
+	animation-duration: 0.7s;
+	animation-iteration-count: infinite;
+}
+
+.colored_healthbar_active .health_bar_border
+{
+	margin: 30px;
+}
+
+.colored_healthbar_active .regen_container
+{
+	flow-children: right;
+	vertical-align: top;
+	horizontal-align: left;
+	padding: 30px 6px 2px 42px;
+	margin-top: 3px;
+	transition-property: opacity;
+	transition-duration: 0.2s;
+	opacity: 1;
+}
+
+.colored_healthbar_active .health_regen_boosted.regen_container
+{
+	animation-name: regenBoost;
+	animation-iteration-count: infinite;
+	animation-duration: 0.2s;
+}
+
+.colored_healthbar_active .regen_image
+{
+	vertical-align: center;
+	height: 8px;
+	width: 7px;
+	wash-color: offWhite;
+	margin-right: 3px;
+	opacity: 0.3;
+	transition-property: wash-color;
+	transition-duration: 0.2s;
+}
+
+.colored_healthbar_active .health_regen_boosted .regen_image
+{
+	wash-color: colorFriendly;
+}
+
+.colored_healthbar_active .health_regen_negative .regen_image
+{
+	wash-color: colorEnemy;
+	transform: rotateY(180deg);
+}
+
+.colored_healthbar_active .regen_value
+{
+	line-height: 16px;
+	font-size: 10px;
+	color: offWhite;
+	font-family: numericSans;
+	font-weight: semi-bold;
+	transition-property: color;
+	transition-duration: 0.2s;
+}
+
+.colored_healthbar_active .health_regen_boosted .regen_value
+{
+	color: colorFriendly;
+}
+
+@keyframes 'regenBoost'
+{
+	0%
+	{
+		wash-color: none;
+	}
+	
+	50%
+	{
+		wash-color: green;
+	}
+	
+	100%
+	{
+		wash-color: none;
+	}
+	
+}
+
+.colored_healthbar_active .health_regen_boosted .regen_container
+{
+	visibility: visible;
+	opacity: 0.5;
+}
+
+.colored_healthbar_active .health_regen_negative .regen_container
+{
+	visibility: visible;
+	opacity: 1;
+}
+
+.colored_healthbar_active .health_regen_negative .regen_value
+{
+	color: colorEnemy;
+	font-weight: bold;
+}
+
+.colored_healthbar_active #shield_bar,.colored_healthbar_active #tech_shield_bar
+{
+	background-color: rgba(0, 0, 0, 0.6);
+	border: 2px solid offBlack;
+	font-size: 12px;
+	visibility: collapse;
+	border-radius: 3px;
+	ignore-parent-flow: true;
+	horizontal-align: right;
+	transform: rotateZ(12deg);
+	margin-right: 29px;
+	margin-top: 30px;
+}
+
+.colored_healthbar_active .shieldActive #shield_bar
+{
+	visibility: visible;
+}
+
+.colored_healthbar_active .shieldActive #tech_shield_bar
+{
+	margin-right: 12px;
+}
+
+.colored_healthbar_active .techShieldActive #tech_shield_bar
+{
+	visibility: visible;
+}
+
+.colored_healthbar_active #shield_bar .ProgressBarLeft
+{
+	background-color: courageBrightColor;
+	background-color: #4bdc68;
+}
+
+.colored_healthbar_active #tech_shield_bar .ProgressBarLeft
+{
+	background-color: spiritBrightColor;
+}
+
+.colored_healthbar_active #shield_bar .ProgressBarMiddle,.colored_healthbar_active #tech_shield_bar .ProgressBarMiddle
+{
+	background-color: rgba(0, 0, 0, 0);
+}
+
+.colored_healthbar_active #shield_bar .ProgressBarRight,.colored_healthbar_active #tech_shield_bar .ProgressBarRight
+{
+	background-color: rgba(0, 0, 0, 0);
+}
+
+.colored_healthbar_active #shield_bar .progress_bar_current,.colored_healthbar_active #tech_shield_bar .progress_bar_current
+{
+	font-size: 14px;
+	line-height: 14px;
+	margin-top: 1px;
+}
+
+.colored_healthbar_active #shield_bar .progress_bar_divider,.colored_healthbar_active #tech_shield_bar .progress_bar_divider
+{
+	font-size: 14px;
+	line-height: 14px;
+}
+
+.colored_healthbar_active #shield_bar .progress_bar_max,.colored_healthbar_active #tech_shield_bar .progress_bar_max
+{
+	font-size: 12px;
+	line-height: 14px;
+	font-weight: medium;
+	vertical-align: bottom;
+	margin-left: 2px;
+	margin-top: 4px;
+}
+
+.colored_healthbar_active #pending_incoming_damage
+{
+	width: 65px;
+	height: 212px;
+	margin: 4px 0px 1px 1px;
+	opacity-mask: url("s2r://panorama/images/hud/healthbar/healthbar_backer_mask.vsvg");
+}
+
+.colored_healthbar_active #pending_incoming_damage .ProgressBarMiddle
+{
+	background-color: rgb(232, 127, 61);
+}
+
+.colored_healthbar_active #pending_incoming_damage .ProgressBarLeft,.colored_healthbar_active #pending_incoming_damage .ProgressBarRight
+{
+	opacity: 0;
+}
+
+.colored_healthbar_active #pending_incoming_heal
+{
+	width: 65px;
+	height: 212px;
+	margin: 4px 0px 1px 1px;
+	opacity-mask: url("s2r://panorama/images/hud/healthbar/healthbar_backer_mask.vsvg");
+}
+
+.colored_healthbar_active #pending_incoming_heal .ProgressBarMiddle
+{
+	background-color: rgb(122, 165, 69);
+}
+
+.colored_healthbar_active #pending_incoming_heal .ProgressBarLeft,.colored_healthbar_active #pending_incoming_heal .ProgressBarRight
+{
+	opacity: 0;
+}
+
+.colored_healthbar_active #health_bar .ProgressBarLeft
+{
+	background-color: colorLocalHealthbar;
+	background-color: #00FF99;
+	background-color: #FFEFD7;
+	background-size: cover;
+	background-image: url("s2r://panorama/images/hud/healthbar/healthbar_fill_texture_png.vtex");
+}
+
+.colored_healthbar_active .team1 #health_bar .ProgressBarLeft
+{
+	background-image: url("s2r://panorama/images/hud/healthbar/healthbar_fill_texture_team1_png.vtex");
+}
+
+.colored_healthbar_active .team2 #health_bar .ProgressBarLeft
+{
+	background-image: url("s2r://panorama/images/hud/healthbar/healthbar_fill_texture_team2_png.vtex");
+}
+
+.colored_healthbar_active .team1.friend #health_bar .ProgressBarLeft,.colored_healthbar_active .team2.friend #health_bar .ProgressBarLeft
+{
+	background-image: url("s2r://panorama/images/hud/healthbar/healthbar_fill_texture_png.vtex");
+}
+
+.colored_healthbar_active .healthMid #health_bar .ProgressBarLeft
+{
+	background-color: colorLocalHealthbar;
+}
+
+.colored_healthbar_active #health_bar .ProgressBarMiddle
+{
+	background-color: rgba(0, 0, 0, 0);
+}
+
+.colored_healthbar_active #health_bar .ProgressBarRight
+{
+	background-color: rgba(0, 0, 0, 0);
+}
+
+.colored_healthbar_active #health_bar.healthLost .ProgressBarMiddle
+{
+	background-color: #cc340a;
+	transition-duration: 1s;
+	transition-property: background-color;
+}
+
+.colored_healthbar_active .SpectatingTeamWest #health_bar.healthLost .ProgressBarMiddle
+{
+	background-color: #f6805f;
+}
+
+.colored_healthbar_active #healthBottomEdge
+{
+	width: 100%;
+	height: 4px;
+	background-color: rgba(192, 192, 192, 0.3);
+	background-color: #00D37F;
+	vertical-align: middle;
+	z-index: 10;
+	visibility: collapse;
+}
+
+.colored_healthbar_active #healthBottomEdge .tick
+{
+	width: 2px;
+	background-color: rgba(0, 0, 0, 0.521);
+	height: 4px;
+}
+
+.colored_healthbar_active .healthMid #healthBottomEdge
+{
+	background-color: #fff41d87;
+	background-color: #fff41d00;
+}
+
+.colored_healthbar_active .healthLow #healthBottomEdge
+{
+	background-color: #FF410D50;
+	background-color: #FF410D00;
+}
+
+.colored_healthbar_active #health_bar_frame
+{
+	wash-color: #142304;
+	width: 68px;
+	height: 220px;
+	background-size: cover;
+	background-repeat: no-repeat;
+	background-image: url("s2r://panorama/images/hud/healthbar/healthbar_frame_with_regen.vsvg");
+}
+
+.colored_healthbar_active .healthLow #health_bar_frame
+{
+	wash-color: #FF410D;
+	wash-color: #FF5656;
+	wash-color: #cc340a;
+}
+
+.colored_healthbar_active .SpectatingTeamWest .healthLow #health_bar_frame
+{
+	wash-color: #580000;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .bars_container
+{
+	margin-top: 0px;
+	margin-right: 0px;
+	margin-left: 0px;
+	padding: 0px;
+	transform: rotateZ(0deg);
+	horizontal-align: center;
+	overflow: noclip;
+	flow-children: right;
+	ignore-parent-flow: true;
+	width: 100%;
+	height: 100%;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #health_bar
+{
+	background-color: #363636dd;
+	width: 25px;
+	height: 230px;
+	vertical-align: bottom;
+	margin: 0px 0px 265px 25px;
+	opacity-mask: none;
+	opacity-mask-threshold: 0% 100%;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .healthLow #health_bar
+{
+	animation-duration: 0.0s;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .healthMid #health_bar
+{
+	animation-duration: 0.0s;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .small_progress_bar
+{
+	height: 401px;
+	width: 78px;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .health_bar_line
+{
+	width: 100%;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .healthMid .health_bar_line
+{
+	animation-duration: 0.0s;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .healthLow .health_bar_line
+{
+	transition-duration: 0.0s;
+	animation-duration: 0.0s;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .health_bar_border
+{
+	width: 200px;
+	height: 600px;
+	margin-top: -150px;
+	transform: rotateZ(90deg);
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .regen_container
+{
+	padding: 38px 0px 0px 57px;
+	width: 83px;
+	transform: rotateZ(30deg);
+	margin-left: 30px;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .healthMid .health_bar_line
+{
+	animation-name: none;
+	animation-duration: 0s;
+	animation-iteration-count: 1;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .healthLow .health_bar_line
+{
+	animation-name: none;
+	animation-duration: 0s;
+	animation-iteration-count: 1;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .regen_value
+{
+	font-size: 12px;
+	color: white;
+	font-weight: bold;
+	text-overflow: shrink;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #shield_bar,.fg_healthbar_active:not(.minimalist_healthbar_active) #tech_shield_bar
+{
+	font-size: 12px;
+	visibility: collapse;
+	ignore-parent-flow: true;
+	horizontal-align: center;
+	transform: rotateZ(90deg);
+	vertical-align: center;
+	margin-top: 0px;
+	margin-right: 0px;
+	border-radius: 0px;
+	background-color: rgba(0, 0, 0, 0);
+	border: 0px solid transparent;
+	opacity-mask: url("s2r://panorama/images/qollock/qol_fg_healthbar_border.vtex");
+	margin-bottom: 123px;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #shield_bar .ProgressBarLeft
+{
+	background-color: gradient(linear, 0% 0%, 0% 100%, from( none ), to ( lightblue ));
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #tech_shield_bar .ProgressBarLeft
+{
+	background-color: spiritBrightColor;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #pending_incoming_heal
+{
+	width: 25px;
+	height: 230px;
+	vertical-align: bottom;
+	margin: 0px 0px 265px 25px;
+	opacity-mask: none;
+	opacity-mask-threshold: 0% 100%;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #pending_incoming_damage
+{
+	width: 25px;
+	height: 230px;
+	vertical-align: bottom;
+	margin: 0px 0px 265px 25px;
+	opacity-mask: none;
+	opacity-mask-threshold: 0% 100%;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #health_bar .ProgressBarLeft
+{
+	background-color: gradient(linear, 0% 0%, 0% 100%, from( #feeed5 ), to ( #feeed5 ));
+	background-image: none;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .healthMid #health_bar .ProgressBarLeft
+{
+	background-color: gradient(linear, 0% 0%, 0% 100%, from( #feeed5 ), to ( #feeed5 ));
+	background-image: none;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .team1 #health_bar .ProgressBarLeft,.fg_healthbar_active:not(.minimalist_healthbar_active) .team2 #health_bar .ProgressBarLeft,.fg_healthbar_active:not(.minimalist_healthbar_active) .team1.friend #health_bar .ProgressBarLeft,.fg_healthbar_active:not(.minimalist_healthbar_active) .team2.friend #health_bar .ProgressBarLeft
+{
+	background-image: none;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #health_bar_frame
+{
+	wash-color: #2d402a;
+	transition-duration: 0.0s;
+	width: 75px;
+	height: 400px;
+	background-size: cover;
+	background-repeat: no-repeat;
+	background-image: url("s2r://panorama/images/qollock/qol_fg_healthbar_border.vtex");
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .healthLow #health_bar_frame
+{
+	wash-color: #2d402a;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .healthMid #health_bar_frame
+{
+	wash-color: #2d402a;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .SpectatingTeamWest .healthLow #health_bar_frame
+{
+	wash-color: #2d402a;
+}
+
+.colored_healthbar_active #RejuvenatorContainer
+{
+	width: 38px;
+	height: 40px;
+	background-image: url("s2r://panorama/images/hud/healthbar/healthbar_rejuv_png.vtex");
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	horizontal-align: left;
+	overflow: noclip;
+	margin-top: 15px;
+	margin-left: 11px;
+	visibility: collapse;
+}
+
+.colored_healthbar_active .HasRejuvenator #RejuvenatorContainer
+{
+	visibility: visible;
+}
+
+.colored_healthbar_active .healthLow #RejuvenatorContainer
+{
+	background-image: url("s2r://panorama/images/hud/healthbar/healthbar_rejuv_low_png.vtex");
+}
+
+.colored_healthbar_active .energy_bar_line
+{
+	width: 100%;
+	flow-children: right;
+	visibility: collapse;
+}
+
+.colored_healthbar_active .energyActive .energy_bar_line
+{
+	visibility: visible;
+}
+
+.colored_healthbar_active .energy_bar_border
+{
+	border: 1px solid rgba(0, 0, 0, 0.5);
+	border-radius: 8px;
+}
+
+.colored_healthbar_active #energy_bar
+{
+	font-size: 12px;
+	visibility: collapse;
+	height: 24px;
+}
+
+.colored_healthbar_active .energyActive #energy_bar
+{
+	visibility: visible;
+}
+
+.colored_healthbar_active #energy_bar .ProgressBarLeft
+{
+	background-color: rgba(51, 102, 255, 0.8);
+}
+
+.colored_healthbar_active #energy_bar .ProgressBarMiddle
+{
+	background-color: rgba(0, 0, 0, 0);
+}
+
+.colored_healthbar_active #energy_bar .ProgressBarRight
+{
+	background-color: rgba(0, 0, 0, 0);
+}
+
+.colored_healthbar_active #energy_bar .progress_bar_current
+{
+	font-size: 18px;
+	line-height: 18px;
+	color: lightblue;
+	font-weight: bold;
+}
+
+.colored_healthbar_active #energy_bar .progress_bar_max
+{
+	font-size: 16px;
+	line-height: 18px;
+	color: grey;
+	font-weight: bold;
+}
+
+.colored_healthbar_active #energyBottomEdge
+{
+	width: 100%;
+	height: 4px;
+	background-color: rgba(192, 192, 192, 0.3);
+	vertical-align: bottom;
+	z-index: 10;
+}
+
+.colored_healthbar_active #energyBottomEdge .tick
+{
+	width: 2px;
+	background-color: rgba(0, 0, 0, 0.521);
+	height: 4px;
+}
+
+.colored_healthbar_active #energyBottomEdgeLit
+{
+	width: 100%;
+	height: 4px;
+	background-color: blue;
+	vertical-align: bottom;
+}
+
+.colored_healthbar_active .energy_bar_line
+{
+	width: 100%;
+	flow-children: right;
+	visibility: collapse;
+}
+
+.colored_healthbar_active .energyActive .energy_bar_line
+{
+	visibility: visible;
+}
+
+.colored_healthbar_active .energy_bar_border
+{
+	border: 1px solid rgba(0, 0, 0, 0.5);
+	border-radius: 8px;
+}
+
+.colored_healthbar_active #HealingPanel
+{
+	background-color: #00FF0088;
+	z-index: 15;
+	width: 100%;
+}
+
+.colored_healthbar_active #cd_icons
+{
+	visibility: collapse;
+	width: 23%;
+	height: 10.5%;
+	margin-top: 11%;
+}
+
+.colored_healthbar_active .fortitude_img
+{
+	width: 100%;
+	height: 100%;
+	z-index: 99999;
+	opacity: 0.4;
+}
+
+.colored_healthbar_active #fort_cd
+{
+	font-size: 16px;
+	color: offWhite;
+	horizontal-align: center;
+	vertical-align: center;
+	width: 100%;
+	height: 100%;
+	margin-top: 15%;
+	font-weight: semi-bold;
+	text-align: center;
+	font-family: sansMono;
+	z-index: 999999;
+	opacity: 1;
+}
+
+.minimalist_healthbar_active .bars_container
+{
+	margin-top: 33px;
+	horizontal-align: center;
+	transform: rotateZ(0deg);
+	margin-left: 62px;
+	width: 400px;
+	height: 100%;
+}
+
+.minimalist_healthbar_active #health_bar
+{
+	width: 36px;
+	height: 312px;
+	margin: 10px 10px 10px 10px;
+	border: 2px solid offBlack;
+	border-radius: 10px;
+	opacity-mask: none;
+	opacity-mask-threshold: 0% 100%;
+}
+
+.minimalist_healthbar_active .health_bar_line
+{
+	width: 350px;
+	height: 400px;
+}
+
+.minimalist_healthbar_active .healthMid .health_bar_line
+{
+	animation-name: none;
+}
+
+.minimalist_healthbar_active .healthLow .health_bar_line
+{
+	animation-name: none;
+}
+
+.minimalist_healthbar_active .health_bar_border
+{
+	transform: rotateZ(90deg);
+	margin: 0px 10px 0px 10px;
+	horizontal-align: center;
+	margin-top: 60px;
+}
+
+.minimalist_healthbar_active .regen_container
+{
+	padding: 0px;
+	margin-top: 217px;
+	margin-left: 10px;
+}
+
+.minimalist_healthbar_active .regen_image
+{
+	opacity: 0;
+}
+
+.minimalist_healthbar_active .regen_value
+{
+	font-size: 12px;
+	color: offBlack;
+	text-shadow: 0px 0px 0px 2.0 offWhite;
+	margin-left: 8px;
+}
+
+.minimalist_healthbar_active #shield_bar,.minimalist_healthbar_active #tech_shield_bar
+{
+	border-radius: 4px;
+	transform: rotateZ(90deg) translate3d(-188px, 15px, 0);
+	height: 308px;
+	width: 13px;
+}
+
+.minimalist_healthbar_active .shieldActive #tech_shield_bar
+{
+	margin-right: 113px;
+	transform: rotateZ(-90deg);
+}
+
+.minimalist_healthbar_active #pending_incoming_damage
+{
+	width: 36px;
+	height: 312px;
+	margin: 10px 10px 10px 10px;
+	border: 2px solid offBlack;
+	border-radius: 10px;
+	opacity-mask: none;
+	opacity-mask-threshold: 0% 100%;
+}
+
+.minimalist_healthbar_active #pending_incoming_heal
+{
+	width: 36px;
+	height: 312px;
+	margin: 10px 10px 10px 10px;
+	border: 2px solid offBlack;
+	border-radius: 10px;
+	opacity-mask: none;
+	opacity-mask-threshold: 0% 100%;
+}
+
+.minimalist_healthbar_active #health_bar_frame
+{
+	width: 60px;
+	height: 335px;
+	background-image: none;
+}
+
+.minimalist_healthbar_active #RejuvenatorContainer
+{
+	width: 28px;
+	margin-top: 206px;
+	margin-left: 331px;
+	transform: scale3d(0.8, 0.8, 1);
+}
+
+.budhud_healthbar_active .bars_container
+{
+	margin-top: 33px;
+	horizontal-align: center;
+	transform: rotateZ(0deg);
+	margin-left: 62px;
+	width: 400px;
+	height: 100%;
+}
+
+.budhud_healthbar_active #health_bar
+{
+	width: 36px;
+	height: 312px;
+	margin: 10px 10px 10px 10px;
+	border: 2px solid offBlack;
+	border-radius: 10px;
+	opacity-mask: none;
+}
+
+.budhud_healthbar_active .health_bar_line
+{
+	width: 350px;
+	height: 400px;
+}
+
+.budhud_healthbar_active .healthMid .health_bar_line
+{
+	animation-name: none;
+}
+
+.budhud_healthbar_active .healthLow .health_bar_line
+{
+	animation-name: none;
+}
+
+.budhud_healthbar_active .health_bar_border
+{
+	opacity: 0;
+	transform: rotateZ(90deg);
+	margin: 0px 10px 0px 10px;
+	horizontal-align: center;
+	margin-top: 60px;
+}
+
+.budhud_healthbar_active .regen_container
+{
+	padding: 0px;
+	margin-top: 215px;
+	margin-left: 220px;
+}
+
+.budhud_healthbar_active .regen_image
+{
+	opacity: 0;
+}
+
+.budhud_healthbar_active .regen_value
+{
+	font-size: 15px;
+	font-weight: bold;
+	opacity: 0.95;
+	color: offBlack;
+	text-shadow: 0px 0px 0px 2.0 #aaaaaa;
+	margin-left: 4px;
+}
+
+.budhud_healthbar_active #shield_bar,.budhud_healthbar_active #tech_shield_bar
+{
+	border-radius: 4px;
+	transform: rotateZ(90deg) translate3d(-188px, 15px, 0);
+	height: 308px;
+	width: 13px;
+	opacity: 0;
+}
+
+.budhud_healthbar_active .shieldActive #tech_shield_bar
+{
+	margin-right: 113px;
+	transform: rotateZ(-90deg);
+}
+
+.budhud_healthbar_active #pending_incoming_damage
+{
+	width: 36px;
+	height: 312px;
+	margin: 10px 10px 10px 10px;
+	border: 2px solid offBlack;
+	border-radius: 10px;
+	opacity-mask: none;
+}
+
+.budhud_healthbar_active #pending_incoming_heal
+{
+	width: 36px;
+	height: 312px;
+	margin: 10px 10px 10px 10px;
+	border: 2px solid offBlack;
+	border-radius: 10px;
+	opacity-mask: none;
+}
+
+.budhud_healthbar_active #health_bar_frame
+{
+	width: 60px;
+	height: 335px;
+	background-image: none;
+}
+
+.budhud_healthbar_active #RejuvenatorContainer
+{
+	width: 28px;
+	margin-top: 215px;
+	margin-left: 285px;
+}
+
+@define healthbarHeight: 75px;
+.klutz_healthbar_active .progress_bar_numbers
+{
+	height: 100%;
+	flow-children: right;
+	vertical-align: center;
+	visibility: visible;
+	horizontal-align: right;
+	transform: translateY(-2px);
+	visibility: collapse;
+}
+
+.klutz_healthbar_active .progress_bar_max
+{
+	font-size: 16px;
+	vertical-align: center;
+	font-weight: bold;
+	horizontal-align: right;
+	text-align: right;
+	padding-right: 5px;
+	color: rgba(255, 255, 255, 0.5);
+}
+
+.klutz_healthbar_active .progress_bar_current
+{
+	font-size: 24px;
+	font-weight: bold;
+	padding-left: 6px;
+	margin-top: 0px;
+	color: colorFriendly;
+	color: #ffffff;
+	vertical-align: center;
+	transition-property: color, text-shadow;
+	transition-duration: 0.1s;
+	text-shadow: 1px 1px 0px #0c0c0cee;
+}
+
+.klutz_healthbar_active .large_progress_bar
+{
+	width: 40px;
+	height: healthbarHeight;
+}
+
+.klutz_healthbar_active .small_progress_bar
+{
+	height: healthbarHeight;
+	width: 10px;
+	margin-top: 3px;
+}
+
+.klutz_healthbar_active #energy_bar .progress_bar_current
+{
+	font-size: 18px;
+	line-height: 18px;
+	color: lightblue;
+	font-weight: bold;
+}
+
+.klutz_healthbar_active #energy_bar .progress_bar_max
+{
+	font-size: 16px;
+	line-height: 18px;
+	color: grey;
+	font-weight: bold;
+}
+
+.klutz_healthbar_active .bars_container
+{
+	margin-top: 45px;
+	margin-left: 10px;
+	ignore-parent-flow: true;
+	horizontal-align: left;
+	overflow: noclip;
+	flow-children: right;
+	horizontal-align: left;
+	padding: 15px 20px 20px 50px;
+	transform: rotateZ(-270deg);
+	padding: 15px 20px 20px 50px;
+	width: 145px;
+	max-height: 450px;
+	padding: 0px;
+	width: 135px;
+	height: 310px;
+}
+
+@keyframes 'midhealth_pulse'
+{
+	0%
+	{
+		background-color: #FCFF6D00;
+	}
+	
+	50%
+	{
+		background-color: #FCFF6D00;
+	}
+	
+	100%
+	{
+		background-color: #FCFF6D00;
+	}
+	
+}
+
+@keyframes 'health_pulse'
+{
+	0%
+	{
+		background-color: #FF410D00;
+	}
+	
+	50%
+	{
+		background-color: #FF410D00;
+	}
+	
+	100%
+	{
+		background-color: #FF410D00;
+	}
+	
+}
+
+@keyframes 'health_pulse_text'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.08;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+}
+
+@keyframes 'health_pulse_text2'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.03;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+}
+
+@keyframes 'vibrate3'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	30%
+	{
+		pre-transform-scale2d: 1.03;
+	}
+	
+	45%
+	{
+		pre-transform-scale2d: 1.05;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.03;
+	}
+	
+	90%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+}
+
+@keyframes 'vibrate'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	30%
+	{
+		pre-transform-scale2d: 1.1;
+	}
+	
+	45%
+	{
+		pre-transform-scale2d: 1.05;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.1;
+	}
+	
+	90%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+}
+
+.klutz_healthbar_active #health_bar
+{
+	background-color: #333333ea;
+	width: 16px;
+	height: 150px;
+	margin: 4px 0px 1px 1px;
+	margin-right: 60px;
+	opacity-mask: none;
+	opacity-mask-threshold: 0% 100%;
+}
+
+.klutz_healthbar_active #health_bar_frame
+{
+	wash-color: #142304;
+	width: 18px;
+	height: 158px;
+	background-size: 100% 158px;
+	background-repeat: no-repeat;
+	background-image: url("s2r://panorama/images/qollock/qollock_klutz_healthbar_frame_with_regen.vsvg");
+}
+
+.klutz_healthbar_active #shield_bar,.klutz_healthbar_active #tech_shield_bar
+{
+	transform: rotateZ(0deg);
+	margin-right: 75px;
+	margin-top: 30px;
+}
+
+.klutz_healthbar_active .health_bar_border
+{
+	margin: 30px;
+}
+
+.klutz_healthbar_active .health_bar_line
+{
+	overflow: noclip;
+}
+
+.klutz_healthbar_active .healthLow #health_bar
+{
+	transition-property: background-color, transform;
+	transition-duration: 0.4s;
+	animation-duration: 2s;
+	animation-iteration-count: infinite;
+}
+
+.klutz_healthbar_active .healthMid #health_bar
+{
+	transition-property: background-color, transform;
+	transition-duration: 0.4s;
+	animation-duration: 1s;
+	animation-iteration-count: 1;
+}
+
+.klutz_healthbar_active .healthLow .progress_bar_current
+{
+	color: #FFE3DB;
+	text-shadow: 0px 0px 5px colorEnemy;
+	transition-property: color, text-shadow;
+	transition-duration: 0.4s;
+}
+
+.klutz_healthbar_active .healthLow #current_health
+{
+	transition-property: pre-transform-scale2d;
+	transition-duration: 0.2s;
+	animation-duration: 1s;
+	animation-iteration-count: infinite;
+}
+
+.klutz_healthbar_active .bar_num_col_left
+{
+	horizontal-align: left;
+	vertical-align: center;
+	flow-children: right;
+}
+
+.klutz_healthbar_active .bar_num_col_right
+{
+	horizontal-align: right;
+	vertical-align: center;
+	flow-children: right;
+}
+
+.klutz_healthbar_active #current_health.healthLost
+{
+	color: white;
+	text-shadow: 0px 0px 5px colorEnemy;
+	transition-property: color, text-shadow;
+	transition-duration: 0.4s;
+}
+
+.klutz_healthbar_active #max_health
+{
+	color: #ddddddaa;
+	font-size: 14px;
+	font-weight: semi-bold;
+	margin-left: 2px;
+	margin-right: 8px;
+	vertical-align: middle;
+	margin-top: 3px;
+}
+
+.klutz_healthbar_active .healthMid .health_bar_line
+{
+	transition-property: pre-transform-scale2d;
+	animation-name: vibrate3;
+	animation-duration: 0.8s;
+	animation-iteration-count: infinite;
+}
+
+.klutz_healthbar_active .healthLow .health_bar_line
+{
+	transition-property: pre-transform-scale2d;
+	transition-duration: 0.2s;
+	animation-name: vibrate;
+	animation-duration: 0.7s;
+	animation-iteration-count: infinite;
+}
+
+.klutz_healthbar_active .regen_container
+{
+	flow-children: right;
+	vertical-align: top;
+	horizontal-align: left;
+	padding: 30px 6px 2px 42px;
+	margin-top: 20px;
+	margin-bottom: -20px;
+	margin-left: 12px;
+	transform: rotateZ(270deg);
+	transition-property: opacity;
+	transition-duration: 0.2s;
+	opacity: 1;
+}
+
+.klutz_healthbar_active .health_regen_boosted.regen_container
+{
+	animation-name: regenBoost;
+	animation-iteration-count: infinite;
+	animation-duration: 0.2s;
+}
+
+.klutz_healthbar_active .regen_image
+{
+	vertical-align: center;
+	height: 8px;
+	width: 7px;
+	wash-color: offWhite;
+	margin-right: 3px;
+	opacity: 0.3;
+	transition-property: wash-color;
+	transition-duration: 0.2s;
+}
+
+.klutz_healthbar_active .health_regen_boosted .regen_image
+{
+	wash-color: colorFriendly;
+}
+
+.klutz_healthbar_active .health_regen_negative .regen_image
+{
+	wash-color: colorEnemy;
+}
+
+.klutz_healthbar_active .regen_value
+{
+	line-height: 16px;
+	font-size: 10px;
+	color: offWhite;
+	font-family: numericSans;
+	font-weight: semi-bold;
+	transition-property: color;
+	transition-duration: 0.2s;
+}
+
+.klutz_healthbar_active .health_regen_boosted .regen_value
+{
+	color: colorFriendly;
+}
+
+@keyframes 'regenBoost'
+{
+	0%
+	{
+		wash-color: none;
+	}
+	
+	50%
+	{
+		wash-color: green;
+	}
+	
+	100%
+	{
+		wash-color: none;
+	}
+	
+}
+
+.klutz_healthbar_active .health_regen_boosted .regen_container
+{
+	visibility: visible;
+	opacity: 0.5;
+}
+
+.klutz_healthbar_active .health_regen_negative .regen_container
+{
+	visibility: visible;
+	opacity: 1;
+}
+
+.klutz_healthbar_active .health_regen_negative .regen_value
+{
+	color: colorEnemy;
+	font-weight: bold;
+}
+
+.klutz_healthbar_active #pending_incoming_damage
+{
+	width: 14px;
+	height: 100%;
+	margin: 4px 0px 1px 1px;
+	opacity-mask: none !important;
+	opacity-mask-threshold: 0% 100% !important;
+}
+
+.klutz_healthbar_active #pending_incoming_damage .ProgressBarMiddle
+{
+	background-color: rgb(232, 127, 61);
+}
+
+.klutz_healthbar_active #pending_incoming_damage .ProgressBarLeft,.klutz_healthbar_active #pending_incoming_damage .ProgressBarRight
+{
+	opacity: 0;
+}
+
+.klutz_healthbar_active #pending_incoming_heal
+{
+	width: 14px;
+	height: 100%;
+	margin: 4px 0px 1px 1px;
+	opacity-mask: none !important;
+	opacity-mask-threshold: 0% 100% !important;
+}
+
+.klutz_healthbar_active #pending_incoming_damage .ProgressBarLeft,.klutz_healthbar_active #pending_incoming_damage .ProgressBarMiddle,.klutz_healthbar_active #pending_incoming_damage .ProgressBarRight,.klutz_healthbar_active #pending_incoming_heal .ProgressBarLeft,.klutz_healthbar_active #pending_incoming_heal .ProgressBarMiddle,.klutz_healthbar_active #pending_incoming_heal .ProgressBarRight
+{
+	opacity-mask: none !important;
+	opacity-mask-threshold: 0% 100% !important;
+}
+
+.klutz_healthbar_active #pending_incoming_heal .ProgressBarMiddle
+{
+	background-color: rgb(122, 165, 69);
+}
+
+.klutz_healthbar_active #pending_incoming_heal .ProgressBarLeft,.klutz_healthbar_active #pending_incoming_heal .ProgressBarRight
+{
+	opacity: 0;
+}
+
+.klutz_healthbar_active #health_bar .ProgressBarLeft
+{
+	background-color: colorLocalHealthbar;
+	background-color: #00FF99;
+	background-color: #FFEFD7;
+	background-size: cover;
+	background-image: url("s2r://panorama/images/hud/healthbar/healthbar_fill_texture_png.vtex");
+}
+
+.klutz_healthbar_active .team1 #health_bar .ProgressBarLeft
+{
+	background-image: url("s2r://panorama/images/hud/healthbar/healthbar_fill_texture_team1_png.vtex");
+}
+
+.klutz_healthbar_active .team2 #health_bar .ProgressBarLeft
+{
+	background-image: url("s2r://panorama/images/hud/healthbar/healthbar_fill_texture_team2_png.vtex");
+}
+
+.klutz_healthbar_active .team1.friend #health_bar .ProgressBarLeft,.klutz_healthbar_active .team2.friend #health_bar .ProgressBarLeft
+{
+	background-image: url("s2r://panorama/images/hud/healthbar/healthbar_fill_texture_png.vtex");
+}
+
+.klutz_healthbar_active .healthMid #health_bar .ProgressBarLeft
+{
+	background-color: colorLocalHealthbar;
+}
+
+.klutz_healthbar_active #health_bar .ProgressBarMiddle
+{
+	background-color: rgba(0, 0, 0, 0);
+}
+
+.klutz_healthbar_active #health_bar .ProgressBarRight
+{
+	background-color: rgba(0, 0, 0, 0);
+}
+
+.klutz_healthbar_active #health_bar.healthLost .ProgressBarMiddle
+{
+	background-color: #cc340a;
+	transition-duration: 1s;
+	transition-property: background-color;
+}
+
+.klutz_healthbar_active .SpectatingTeamWest #health_bar.healthLost .ProgressBarMiddle
+{
+	background-color: #f6805f;
+}
+
+.klutz_healthbar_active #healthBottomEdge
+{
+	width: 100%;
+	height: 4px;
+	background-color: rgba(192, 192, 192, 0.3);
+	background-color: #00D37F;
+	vertical-align: middle;
+	z-index: 10;
+	visibility: collapse;
+}
+
+.klutz_healthbar_active #healthBottomEdge .tick
+{
+	width: 2px;
+	background-color: rgba(0, 0, 0, 0.521);
+	height: 4px;
+}
+
+.klutz_healthbar_active .healthMid #healthBottomEdge
+{
+	background-color: #fff41d87;
+	background-color: #fff41d00;
+}
+
+.klutz_healthbar_active .healthLow #healthBottomEdge
+{
+	background-color: #FF410D50;
+	background-color: #FF410D00;
+}
+
+.klutz_healthbar_active .healthLow #health_bar_frame
+{
+	wash-color: #FF410D;
+	wash-color: #FF5656;
+	wash-color: #cc340a;
+}
+
+.klutz_healthbar_active .SpectatingTeamWest .healthLow #health_bar_frame
+{
+	wash-color: #580000;
+}
+
+.klutz_healthbar_active #RejuvenatorContainer
+{
+	width: 38px;
+	height: 40px;
+	background-image: url("s2r://panorama/images/hud/healthbar/healthbar_rejuv_png.vtex");
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	horizontal-align: left;
+	overflow: noclip;
+	margin-top: 15px;
+	margin-left: 11px;
+	visibility: collapse;
+}
+
+.klutz_healthbar_active .HasRejuvenator #RejuvenatorContainer
+{
+	visibility: visible;
+}
+
+.klutz_healthbar_active .healthLow #RejuvenatorContainer
+{
+	background-image: url("s2r://panorama/images/hud/healthbar/healthbar_rejuv_low_png.vtex");
+}
+
+.klutz_healthbar_active .energy_bar_line
+{
+	width: 100%;
+	flow-children: right;
+	visibility: collapse;
+}
+
+.klutz_healthbar_active .energyActive .energy_bar_line
+{
+	visibility: visible;
+}
+
+.klutz_healthbar_active .energy_bar_border
+{
+	border: 1px solid rgba(0, 0, 0, 0.5);
+	border-radius: 8px;
+}
+
+.klutz_healthbar_active #energy_bar
+{
+	font-size: 12px;
+	visibility: collapse;
+	height: 24px;
+}
+
+.klutz_healthbar_active .energyActive #energy_bar
+{
+	visibility: visible;
+}
+
+.klutz_healthbar_active #energy_bar .ProgressBarLeft
+{
+	background-color: rgba(51, 102, 255, 0.8);
+}
+
+.klutz_healthbar_active #energy_bar .ProgressBarMiddle
+{
+	background-color: rgba(0, 0, 0, 0);
+}
+
+.klutz_healthbar_active #energy_bar .ProgressBarRight
+{
+	background-color: rgba(0, 0, 0, 0);
+}
+
+.klutz_healthbar_active #energy_bar .progress_bar_current
+{
+	font-size: 18px;
+	line-height: 18px;
+	color: lightblue;
+	font-weight: bold;
+}
+
+.klutz_healthbar_active #energy_bar .progress_bar_max
+{
+	font-size: 16px;
+	line-height: 18px;
+	color: grey;
+	font-weight: bold;
+}
+
+.klutz_healthbar_active #energyBottomEdge
+{
+	width: 100%;
+	height: 4px;
+	background-color: rgba(192, 192, 192, 0.3);
+	vertical-align: bottom;
+	z-index: 10;
+}
+
+.klutz_healthbar_active #energyBottomEdge .tick
+{
+	width: 2px;
+	background-color: rgba(0, 0, 0, 0.521);
+	height: 4px;
+}
+
+.klutz_healthbar_active #energyBottomEdgeLit
+{
+	width: 100%;
+	height: 4px;
+	background-color: blue;
+	vertical-align: bottom;
+}
+
+.klutz_healthbar_active .energy_bar_line
+{
+	width: 100%;
+	flow-children: right;
+	visibility: collapse;
+}
+
+.klutz_healthbar_active .energyActive .energy_bar_line
+{
+	visibility: visible;
+}
+
+.klutz_healthbar_active .energy_bar_border
+{
+	border: 1px solid rgba(0, 0, 0, 0.5);
+	border-radius: 8px;
+}
+
+.klutz_healthbar_active #HealingPanel
+{
+	background-color: #00FF0088;
+	z-index: 15;
+	width: 100%;
+}
+

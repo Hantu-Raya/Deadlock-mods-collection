@@ -1,0 +1,769 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_gold_and_ap_container.vcss_c");
+.InHideout #PlayerLevelContainer,.InHideout #gold_and_ap_container #LevelAmount,.StreetBrawlInterstitial #PlayerLevelContainer,.StreetBrawlInterstitial #gold_and_ap_container #LevelAmount,.GameStatePreGame #PlayerLevelContainer,.GameStatePreGame #gold_and_ap_container #LevelAmount,.GameStatePreGameWait #PlayerLevelContainer,.GameStatePreGameWait #gold_and_ap_container #LevelAmount
+{
+	visibility: collapse;
+	opacity: 0;
+}
+
+.connectedToHeroTesting.GameStatePreGame #PlayerLevelContainer,.connectedToHeroTesting.GameStatePreGame #gold_and_ap_container #LevelAmount,.connectedToHeroTesting.GameStatePreGameWait #PlayerLevelContainer,.connectedToHeroTesting.GameStatePreGameWait #gold_and_ap_container #LevelAmount
+{
+	visibility: visible;
+	opacity: 1;
+}
+
+#LevelAmount
+{
+	visibility: collapse;
+}
+
+.hud_shift_active #gold_and_ap_container
+{
+	margin-left: 40px !important;
+}
+
+.support_16_10_active #PlayerLevelContainer
+{
+	max-width: 200px;
+	horizontal-align: left;
+	opacity: 1;
+	vertical-align: middle;
+	flow-children: down;
+	height: 85px;
+}
+
+.support_16_10_active #hudCurrentAPContainer,.support_16_10_active #hudGoldContainer
+{
+	width: fit-children;
+	flow-children: right;
+	margin-left: 10px;
+	transform: translateX(15%);
+}
+
+.support_16_10_active #gold_and_ap_container
+{
+	horizontal-align: left;
+	vertical-align: bottom;
+	margin-left: 26px;
+	margin-bottom: 142px;
+	margin-top: 30px;
+	ui-scale: 100%;
+	width: 400px;
+	overflow: noclip;
+	transition-property: ui-scale, transform, margin-bottom, margin, opacity;
+	transition-duration: 0.02s;
+	transition-timing-function: ease-out;
+	transform: translateY(3%) translateX(-2%);
+}
+
+.support_16_10_active .hudDeathGoldContainer
+{
+	flow-children: right;
+	margin-top: 0px;
+	margin-left: 4px;
+	transform: translateY(35%) translateX(0%);
+	ui-scale: 110%;
+}
+
+.better_unsecured_active #hudUnsecuredLabel
+{
+	visibility: collapse;
+}
+
+.better_unsecured_active #hudDeathGoldIcon
+{
+	visibility: collapse;
+}
+
+.better_unsecured_active #hudDealthGoldLabel,.better_unsecured_active #hudDeathGoldLabel
+{
+	visibility: collapse;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #gold_and_ap_container
+{
+	horizontal-align: left;
+	vertical-align: bottom;
+	margin-left: 26px !important;
+	margin-bottom: 142px !important;
+	margin-top: 30px !important;
+	ui-scale: 100% !important;
+	overflow: noclip;
+	transform: translateX(0%) translateY(0%) !important;
+	width: 100%;
+	height: 200px;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #gold_and_ap_container.gShopOpen
+{
+	margin-left: 20px !important;
+	margin-bottom: 180px !important;
+	transform: translateX(0px) translateY(0px) !important;
+	width: 200px;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #HudCurrentAPContainer,.fg_healthbar_active:not(.minimalist_healthbar_active) #hudGoldContainer
+{
+	width: fit-children;
+	flow-children: right;
+	margin-left: 10px;
+	transform: translateX(0%) !important;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #hudGoldContainer
+{
+	flow-children: down;
+	vertical-align: bottom;
+	margin-bottom: 8px;
+	margin-left: 68px;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #PlayerLevelContainer
+{
+	max-width: 200px;
+	horizontal-align: left;
+	opacity: 1;
+	vertical-align: bottom;
+	flow-children: down;
+	height: 85px;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #gold_and_ap_container #LevelAmount
+{
+	visibility: visible;
+	ignore-parent-flow: true;
+	horizontal-align: center;
+	vertical-align: center;
+	x: -220px;
+	y: -12px;
+	margin-top: 0px;
+	margin-right: 0px;
+	margin-left: 70px;
+	z-index: 25;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .ScalingStatImage
+{
+	background-image: none;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #gold_and_ap_container #HeroImage
+{
+	margin-left: 0px;
+	ui-scale: 125%;
+}
+
+.fg_healthbar_active.qol_fg_icon_health_mid #gold_and_ap_container #LevelAmount
+{
+	animation-name: healthMid;
+	animation-duration: 0.8s;
+	animation-iteration-count: 1;
+	animation-timing-function: ease-in;
+}
+
+.fg_healthbar_active.qol_fg_icon_health_low #gold_and_ap_container #LevelAmount
+{
+	animation-name: healthLow;
+	animation-duration: 0.8s;
+	animation-iteration-count: 1;
+	animation-timing-function: ease-in;
+}
+
+.klutz_healthbar_active #gold_and_ap_container
+{
+	flow-children: right;
+	horizontal-align: left;
+	vertical-align: bottom;
+	margin-left: 26px;
+	margin-bottom: 142px;
+	margin-top: 30px;
+	ui-scale: 100%;
+	width: 400px;
+	overflow: noclip;
+	transition-property: ui-scale, transform, margin-bottom, margin-left, opacity;
+	transition-duration: 0.02s;
+	transition-timing-function: ease-out;
+}
+
+.klutz_healthbar_active #gold_and_ap_container.gShopOpen
+{
+	margin-left: 20px;
+	margin-bottom: 180px;
+	transform: translateX(0px) translateY(0px);
+	visibility: visible;
+}
+
+.klutz_healthbar_active #hudGoldContainer
+{
+	margin-top: 5px;
+}
+
+.klutz_healthbar_active #HudCurrentAPContainer,.klutz_healthbar_active #hudGoldContainer
+{
+	width: fit-children;
+	flow-children: right;
+	margin-left: 10px;
+}
+
+.klutz_healthbar_active .CurrencyLabel
+{
+	font-size: 32px;
+	vertical-align: middle;
+	color: blueAPTextColor;
+	font-weight: bold;
+	font-family: sansMono;
+	text-shadow: 0px 0px 0px 4.0 offBlack;
+	overflow: noclip;
+	border: 15px;
+}
+
+.klutz_healthbar_active .goldIncreaseEvent_Min .CurrencyLabel
+{
+	animation-name: animGoldIncreaseEvent_min;
+	animation-duration: 0.125s;
+}
+
+.klutz_healthbar_active .goldIncreaseEvent_Med .CurrencyLabel
+{
+	animation-name: animGoldIncreaseEvent_med;
+	animation-duration: 0.5s;
+}
+
+.klutz_healthbar_active .goldIncreaseEvent_Max .CurrencyLabel
+{
+	animation-name: animGoldIncreaseEvent_max;
+	animation-duration: 1.5s;
+}
+
+@keyframes 'animGoldIncreaseEvent_min'
+{
+	0%
+	{
+		transform: scaleX(1.025) scaleY(1.025);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 4.4 offBlack;
+	}
+	
+	25%
+	{
+		transform: scaleX(1.05) scaleY(1.05);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 5.0 offBlack;
+	}
+	
+	100%
+	{
+		transform: scaleX(1) scaleY(1);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 4.0 offBlack;
+	}
+	
+}
+
+@keyframes 'animGoldIncreaseEvent_med'
+{
+	0%
+	{
+		transform: scaleX(1.05) scaleY(1.05);
+		color: offWhite;
+		text-shadow: 0px 0px 0px 5.0 blueAPTextColor;
+	}
+	
+	25%
+	{
+		transform: scaleX(1.1) scaleY(1.1);
+		color: offWhite;
+		text-shadow: 0px 0px 0px 6.0 blueAPTextColor;
+	}
+	
+	100%
+	{
+		transform: scaleX(1) scaleY(1);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 4.0 offBlack;
+	}
+	
+}
+
+@keyframes 'animGoldIncreaseEvent_max'
+{
+	0%
+	{
+		transform: scaleX(1.15) scaleY(1.15);
+		color: offWhite;
+		text-shadow: 0px 0px 0px 6.0 blueAPTextColor;
+	}
+	
+	25%
+	{
+		transform: scaleX(1.2) scaleY(1.2);
+		color: colorGold;
+		text-shadow: 0px 0px 0px 7.0 blueAPTextColor;
+	}
+	
+	100%
+	{
+		transform: scaleX(1) scaleY(1);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 4.0 offBlack;
+	}
+	
+}
+
+.klutz_healthbar_active .goldDecreaseEvent_Min .CurrencyLabel
+{
+	animation-name: animGoldDecreaseEvent_min;
+	animation-duration: 0.125s;
+}
+
+.klutz_healthbar_active .goldeDecreaseEvent_Med .CurrencyLabel
+{
+	animation-name: animGoldDecreaseEvent_med;
+	animation-duration: 0.25s;
+}
+
+.klutz_healthbar_active .goldDecreaseEvent_Max .CurrencyLabel
+{
+	animation-name: animGoldDecreaseEvent_max;
+	animation-duration: 0.75s;
+}
+
+@keyframes 'animGoldDecreaseEvent_min'
+{
+	0%
+	{
+		transform: scaleX(0.95) scaleY(0.95);
+		color: offBlack;
+		text-shadow: 0px 0px 0px 4.0 colorEnemy;
+	}
+	
+	50%
+	{
+		transform: scaleX(0.9) scaleY(0.9);
+		color: offBlack;
+		text-shadow: 0px 0px 0px 10.0 colorEnemy;
+	}
+	
+	100%
+	{
+		transform: scaleX(1) scaleY(1);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 4.0 offBlack;
+	}
+	
+}
+
+@keyframes 'animGoldDecreaseEvent_med'
+{
+	0%
+	{
+		transform: scaleX(0.95) scaleY(0.95);
+		color: offBlack;
+		text-shadow: 0px 0px 0px 4.0 colorEnemy;
+	}
+	
+	50%
+	{
+		transform: scaleX(0.9) scaleY(0.9);
+		color: offBlack;
+		text-shadow: 0px 0px 0px 10.0 colorEnemy;
+	}
+	
+	100%
+	{
+		transform: scaleX(1) scaleY(1);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 4.0 offBlack;
+	}
+	
+}
+
+@keyframes 'animGoldDecreaseEvent_max'
+{
+	0%
+	{
+		transform: scaleX(0.95) scaleY(0.95);
+		color: offBlack;
+		text-shadow: 0px 0px 0px 7.0 colorEnemy;
+	}
+	
+	50%
+	{
+		transform: scaleX(0.9) scaleY(0.9);
+		color: offBlack;
+		text-shadow: 0px 0px 0px 10.0 colorEnemy;
+	}
+	
+	100%
+	{
+		transform: scaleX(1) scaleY(1);
+		color: blueAPTextColor;
+		text-shadow: 0px 0px 0px 4.0 offBlack;
+	}
+	
+}
+
+.klutz_healthbar_active #HudCurrentAPContainer .CurrencyLabel
+{
+	color: spiritLightColor;
+}
+
+.klutz_healthbar_active #hudGoldContainer .CurrencyLabel
+{
+	color: shardColor;
+}
+
+.klutz_healthbar_active .hudItemGoldContainer #hudGoldLabel
+{
+	margin-bottom: 8px;
+}
+
+.klutz_healthbar_active .infiniteMoney #hudAPInfinite
+{
+	visibility: visible;
+	height: 30px;
+	width: 30px;
+	vertical-align: middle;
+}
+
+.klutz_healthbar_active #hudAPInfinite
+{
+	visibility: collapse;
+}
+
+.klutz_healthbar_active #hudAPPointsAvailable
+{
+	margin-left: -8px;
+	height: 40px;
+	width: 65px;
+	background-color: #10130D;
+	vertical-align: center;
+}
+
+.klutz_healthbar_active .bottomCurrencyContainer
+{
+	flow-children: right;
+	margin-left: 20px;
+}
+
+.klutz_healthbar_active #CurrentGoldAmount
+{
+	flow-children: right;
+	vertical-align: middle;
+	margin-bottom: 5px;
+}
+
+.klutz_healthbar_active #CurrentGoldAmount:hover
+{
+	sound: soundMainMenuHover;
+}
+
+.klutz_healthbar_active #hudCurGoldIcon
+{
+	horizontal-align: center;
+	height: 40px;
+	background-image: url("s2r://panorama/images/hud/icons/icon_soul.vsvg");
+	background-size: contain;
+	background-repeat: no-repeat;
+	width: 24px;
+	margin-right: 5px;
+	vertical-align: middle;
+	wash-color: shardColor;
+}
+
+.klutz_healthbar_active #hudGoldLabel
+{
+	font-size: 14px;
+	text-transform: uppercase;
+	color: offWhite;
+	opacity: 0.4;
+	vertical-align: bottom;
+	margin-bottom: 5px;
+	margin-left: 5px;
+	text-overflow: shrink;
+	max-width: 80px;
+	max-height: 26px;
+}
+
+.klutz_healthbar_active .infiniteMoney #CurrentGoldAmount,.klutz_healthbar_active .infiniteMoney .hudDeathGoldContainer
+{
+	visibility: collapse;
+}
+
+.klutz_healthbar_active .infiniteMoney .hudItemGoldContainer
+{
+	visibility: visible;
+}
+
+.klutz_healthbar_active #hudGoldInfinite
+{
+	visibility: collapse;
+}
+
+.klutz_healthbar_active .infiniteMoney #hudGoldInfinite
+{
+	visibility: visible;
+	height: 30px;
+	width: 30px;
+	vertical-align: center;
+	wash-color: offWhite;
+	vertical-align: bottom;
+}
+
+.klutz_healthbar_active .death_penalty_gold
+{
+	vertical-align: bottom;
+	horizontal-align: right;
+	color: offWhite;
+	text-align: right;
+	opacity: 0.5;
+	visibility: visible;
+}
+
+.klutz_healthbar_active .hudDeathGoldContainer
+{
+	visibility: collapse;
+	flow-children: right;
+	vertical-align: center;
+	margin-left: 10px;
+	margin-top: 14px;
+}
+
+.klutz_healthbar_active .hudItemGoldContainer
+{
+	visibility: collapse;
+	flow-children: right;
+	vertical-align: center;
+	margin-left: 3px;
+	margin-top: 7px;
+}
+
+.klutz_healthbar_active #hudDealthGoldLabel
+{
+	margin-right: 3px;
+}
+
+.klutz_healthbar_active .hudDeathGoldContainer Label
+{
+	font-size: 14px;
+	color: #ffffff;
+	font-weight: semi-bold;
+	font-family: sansMono;
+	text-align: center;
+	horizontal-align: center;
+	text-transform: uppercase;
+}
+
+.klutz_healthbar_active #hudUnsecuredLabel
+{
+	opacity: 0.2;
+}
+
+@keyframes 'death_penalty_danger_pulse'
+{
+	0%
+	{
+		opacity: 0.2;
+	}
+	
+	50%
+	{
+		opacity: 1;
+	}
+	
+	100%
+	{
+		opacity: 0.2;
+	}
+	
+}
+
+.klutz_healthbar_active .death_penalty_gold_danger_level_2 .hudDeathGoldContainer
+{
+	color: rgb(255, 145, 145);
+	animation-name: death_penalty_danger_pulse;
+	animation-duration: 1.2s;
+	animation-iteration-count: infinite;
+}
+
+.klutz_healthbar_active .death_penalty_gold_danger_level_3 .hudDeathGoldContainer
+{
+	color: rgb(255, 64, 64);
+	text-shadow: 2px 2px 20px 2 rgb(100, 12, 12);
+	animation-name: death_penalty_danger_pulse;
+	animation-duration: 1.2s;
+	animation-iteration-count: infinite;
+}
+
+.klutz_healthbar_active .death_penalty_gold_danger_level_4 .hudDeathGoldContainer
+{
+	color: rgb(255, 64, 64);
+	text-shadow: 2px 2px 20px 2 rgb(100, 12, 12);
+	font-size: 25px;
+	animation-name: death_penalty_danger_pulse;
+	animation-duration: 0.6s;
+	animation-iteration-count: infinite;
+}
+
+.klutz_healthbar_active .death_penalty_gold_danger_level_2 .death_penalty_gold
+{
+	color: rgb(255, 145, 145);
+}
+
+.klutz_healthbar_active .death_penalty_gold_danger_level_4 .death_penalty_gold,.klutz_healthbar_active .death_penalty_gold_danger_level_3 .death_penalty_gold
+{
+	color: rgb(255, 64, 64);
+	text-shadow: 2px 2px 20px 2 rgb(100, 12, 12);
+}
+
+.klutz_healthbar_active .death_penalty_gold_danger_level_1 .hudDeathGoldContainer,.klutz_healthbar_active .death_penalty_gold_danger_level_2 .hudDeathGoldContainer,.klutz_healthbar_active .death_penalty_gold_danger_level_3 .hudDeathGoldContainer,.klutz_healthbar_active .death_penalty_gold_danger_level_4 .hudDeathGoldContainer
+{
+	visibility: visible;
+	width: fit-children;
+}
+
+.klutz_healthbar_active.gShopOpen .hudDeathGoldContainer
+{
+	visibility: collapse;
+}
+
+.klutz_healthbar_active #hudDeathGoldIcon
+{
+	vertical-align: center;
+	horizontal-align: center;
+	width: 12px;
+	height: 12px;
+	opacity: 0.3;
+	margin-right: 3px;
+	wash-color: colorEnemy;
+}
+
+@keyframes 'death_penalty_gold_gained_anim'
+{
+	0%
+	{
+		opacity: 1;
+	}
+	
+	50%
+	{
+		opacity: 1;
+	}
+	
+	100%
+	{
+		opacity: 0;
+	}
+	
+}
+
+.klutz_healthbar_active #death_penalty_gold_flash
+{
+	vertical-align: bottom;
+	horizontal-align: left;
+	background-color: gradient( linear, 0% 0%, 0% 50%, from( #ff000000 ), to( #ff0000 ) );
+	width: 250px;
+	height: 20px;
+	opacity: 0;
+}
+
+.klutz_healthbar_active .death_penalty_gold_gained #death_penalty_gold_flash
+{
+	height: 80px;
+	opacity: 0.6;
+	transition-property: opacity, height;
+	transition-duration: 1s;
+	transition-timing-function: ease-in;
+}
+
+.klutz_healthbar_active #PlayerLevelContainer
+{
+	flow-children: right;
+	ignore-parent-flow: true;
+	max-width: 200px;
+	horizontal-align: right;
+	margin-left: 20px;
+	opacity: 0;
+}
+
+.klutz_healthbar_active.gShopOpen #PlayerLevelContainer,.klutz_healthbar_active.gScoreboardOpen #PlayerLevelContainer
+{
+	opacity: 1;
+}
+
+.klutz_healthbar_active .boon_bg
+{
+	height: 26px;
+	width: 90%;
+	ignore-parent-flow: true;
+	vertical-align: bottom;
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( shardColor&40 ), to( shardColor&00 ) );
+	margin-top: 15px;
+}
+
+.klutz_healthbar_active #PlayerLevelInfo
+{
+	flow-children: down;
+	padding: 5px 10px;
+	vertical-align: bottom;
+}
+
+.klutz_healthbar_active #LevelAmount
+{
+	flow-children: right;
+	horizontal-align: right;
+	margin-top: 38px;
+	margin-right: 35px;
+	ignore-parent-flow: true;
+	z-index: 10;
+}
+
+.klutz_healthbar_active #HeroLevelIcon
+{
+	width: 35px;
+	height: 20px;
+	background-color: #ffffff30;
+	margin-right: 5px;
+	margin-top: 3px;
+}
+
+.klutz_healthbar_active #HeroLevelNumber
+{
+	color: offWhite;
+	font-weight: bold;
+}
+
+.klutz_healthbar_active .subLabel
+{
+	font-size: 14px;
+	text-transform: uppercase;
+	text-overflow: shrink;
+	max-width: 80px;
+	max-height: 18px;
+	margin-top: 5px;
+	font-weight: bold;
+	color: offBlack;
+	opacity: 0.7;
+	vertical-align: middle;
+}
+
+.klutz_healthbar_active CitadelPlayerLevel
+{
+	horizontal-align: right;
+}
+
+.klutz_healthbar_active .ScalingStatImage
+{
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: left;
+	background-image: url("s2r://panorama/images/shop/keystat_boon_arrow_png.vtex");
+}
+
+.klutz_healthbar_active #HeroImage
+{
+	margin-left: 8px;
+	ui-scale: 50%;
+}
+

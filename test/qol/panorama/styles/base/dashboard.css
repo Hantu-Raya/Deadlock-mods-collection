@@ -1,0 +1,1703 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@define brandGreen: #C4FF47;
+@define ritualGreen: #65951D;
+@define ritualGreenLight: #7CBC1D;
+@define offWhite: #FFEFD7;
+@define offBlack: #10130D;
+@define silvered: #C6C6C6;
+.dashboard
+{
+	background-color: #000000;
+}
+
+.DashboardMain
+{
+	width: 100%;
+	height: 100%;
+	transition-property: blur, wash-color, saturation;
+	transition-duration: 0.2s;
+}
+
+.PopupBackgroundBlur .DashboardMain
+{
+	blur: gaussian( 5 );
+	wash-color: #657b7baa;
+	saturation: 0.25;
+}
+
+#BackgroundContainer
+{
+	width: 100%;
+	height: 100%;
+	overflow: noclip;
+}
+
+#BGColor
+{
+	height: 100%;
+	width: 100%;
+	transition-property: background-color, background-image;
+	transition-duration: 0.3s;
+}
+
+.connectedToGame #BGColor
+{
+	background-color: gradient( linear, 100% 0%, 0% 30%, from( #00000000 ), to( #000000 ) );
+}
+
+.isShowingWatchPage #BGColor,.isShowingPlayPage #BGColor,.isShowingHeroesPage #BGColor,.isShowingLearnPage #BGColor,.isShowingTrainingPage #BGColor,.isShowingHeroDetailsPage #BGColor,.isShowingHeroBuildsPage #BGColor,.isShowingSocialPage #BGColor
+{
+	background-color: #000000;
+	opacity: 0.9;
+}
+
+.isShowingHeroReleaseVotePage #BGColor
+{
+	world-blur: gaussian( .4, .4, 1 );
+}
+
+#ForegroundContainer
+{
+	width: 100%;
+	height: 100%;
+	max-width: 1920px;
+	z-index: 3;
+	horizontal-align: center;
+}
+
+PopupManager
+{
+	z-index: 9999;
+	opacity: 1;
+}
+
+.introMovieActive #ForegroundContainer,.introMovieActive PopupManager
+{
+	opacity: 0;
+	transition-duration: 0.6s;
+	transition-property: opacity;
+	transition-timing-function: ease-in;
+}
+
+.AspectRatio21x9.IsShowingHomePage #ForegroundContainer
+{
+	max-width: 100%;
+}
+
+@keyframes 'SlowPan'
+{
+	0%
+	{
+		transform: translateX(0px);
+	}
+	
+	50%
+	{
+		transform: translateX(-500px);
+	}
+	
+	100%
+	{
+		transform: translateX(0px);
+	}
+	
+}
+
+#HeroScenePanel
+{
+	width: 100%;
+	height: 100%;
+	vertical-align: middle;
+	horizontal-align: center;
+	background-color: #00000001;
+	visibility: collapse;
+}
+
+.connectedToGame #HeroScenePanel,.connectedToHeroTesting #HeroScenePanel,.connectedToTutorial #HeroScenePanel,.connectedToHeroTraining #HeroScenePanel
+{
+	visibility: collapse;
+}
+
+#DashboardContents
+{
+	width: 100%;
+	height: 100%;
+	max-width: 2000px;
+	transition-property: border;
+	transition-duration: 0.8s;
+	transition-delay: 0.1s;
+}
+
+.connectedToGame.connectedToHideout:not(.IsShowingHomePage) #DashboardContents
+{
+	visibility: collapse;
+}
+
+.AspectRatio21x9 #DashboardContents
+{
+	width: 100%;
+	height: 100%;
+	max-width: 3440px;
+}
+
+#LeftStripe
+{
+	padding: 0px 100px;
+	height: 100%;
+	width: 680px;
+	flow-children: down;
+	transition-property: transform;
+	transition-duration: 0.15s;
+	transform: translateX( -600px );
+	background-size: 100%;
+	background-position: right;
+	visibility: collapse;
+	z-index: 8;
+	background-color: gradient( linear, 100% 0%, 10% 0%, from( #04040400 ), to( #040404 ) );
+}
+
+.IsShowingHomePage #LeftStripe
+{
+	transform: translateX( 0px );
+	visibility: visible;
+}
+
+.AspectRatio21x9.connectedToGame #LeftStripe
+{
+	background-color: none;
+}
+
+#LogoArea
+{
+	width: 270px;
+	height: fit-children;
+	flow-children: down;
+	margin: 80px 0px 30px 0px;
+}
+
+#DashboardBlur
+{
+	width: 100%;
+	height: 100%;
+	opacity: 1;
+	blur: menuBlur;
+}
+
+#dashboard_movie
+{
+	horizontal-align: middle;
+	width: 100%;
+	height: 100%;
+	opacity: 1;
+}
+
+.in_matchmaking #dashboard_movie
+{
+	opacity: 0.6;
+	saturation: 0;
+}
+
+.introMovieActive #dashboard_movie
+{
+	opacity: 0;
+}
+
+#intro_movie
+{
+	horizontal-align: middle;
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	z-index: 1;
+}
+
+.introMovieActive #intro_movie
+{
+	opacity: 1;
+	transition-duration: 0.6s;
+	transition-property: opacity;
+	transition-timing-function: ease-in;
+}
+
+.connectedToGame #dashboard_movie
+{
+	visibility: collapse;
+}
+
+#GameTitle
+{
+	horizontal-align: left;
+	background-size: cover;
+	height: 150px;
+	width: 100%;
+	flow-children: down;
+	background-image: url("s2r://panorama/images/main_menu/dl_v1_png.vtex");
+	opacity: 0.9;
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: left;
+	margin-bottom: 0px;
+}
+
+.GameSubtext
+{
+	horizontal-align: center;
+	text-transform: uppercase;
+	font-weight: semi-bold;
+	opacity: 0.2;
+	font-family: sans;
+	font-size: 16px;
+	letter-spacing: 0.1px;
+	text-align: center;
+}
+
+#GameTitle Label
+{
+	font-size: 90px;
+	vertical-align: middle;
+	text-transform: uppercase;
+	color: offWhite;
+	font-family: "House of Cards";
+	font-weight: bold;
+	horizontal-align: left;
+	text-align: left;
+}
+
+#Menu
+{
+	flow-children: down;
+	width: 100%;
+	height: 100%;
+}
+
+.InGameOptions
+{
+	width: 100%;
+	flow-children: down;
+}
+
+.nav_menu_item
+{
+	flow-children: right;
+	transition-property: background-color, brightness;
+	transition-duration: 0.2s;
+}
+
+.nav_menu_item:hover
+{
+	sound: soundMainMenuHover;
+}
+
+.nav_menu_item:active
+{
+	sound: soundMainMenuActivate;
+}
+
+.nav_menu_item:disabled
+{
+	brightness: 0.3;
+}
+
+.nav_menu_item.disabled:hover
+{
+	background-color: #00000000;
+	color: rgba(255, 255, 255, 0.5);
+	brightness: 0.3;
+}
+
+.nav_menu_item.disabled:hover Label
+{
+	color: rgba(255, 255, 255, 0.5);
+	brightness: 0.3;
+}
+
+.nav_menu_item.play
+{
+	background-size: 100% 100%;
+	border-radius: 3px 3px 0px 0px;
+	margin: 0px;
+	margin-bottom: 10px;
+	horizontal-align: middle;
+	width: 200px;
+	height: 65px;
+	margin-right: 65px;
+	transition-property: background-image;
+	transition-duration: 0.2s;
+}
+
+.can_ready_up .nav_menu_item.play
+{
+	margin-bottom: 0px;
+}
+
+#reconnect.nav_menu_item.play
+{
+	width: 340px;
+	height: 110px;
+}
+
+.nav_menu_item.primary
+{
+	margin: 0px;
+	margin-bottom: 2px;
+	width: 400px;
+	padding: 0px 0px;
+	horizontal-align: left;
+	flow-children: right;
+	overflow: noclip;
+}
+
+.menuButtonLabel
+{
+	horizontal-align: middle;
+	white-space: nowrap;
+	text-overflow: shrink;
+}
+
+#quit
+{
+	margin-top: 20px;
+}
+
+.isUsingSteamDeck .nav_menu_item.play
+{
+	background-color: #ffffff15;
+}
+
+.hasNewLearn.hasNeverPlayedMM .nav_menu_item.play
+{
+	background-color: #ffffff15;
+}
+
+.nav_menu_item Label
+{
+	vertical-align: middle;
+	font-style: normal;
+	font-family: serif;
+	font-weight: bold;
+	font-size: 44px;
+	padding: 2px 0px;
+	text-align: left;
+	horizontal-align: left;
+	color: #FFEFD7;
+	letter-spacing: 0.5px;
+	transition-property: color, transform;
+	transition-duration: 0.08s;
+	overflow: noclip;
+}
+
+.nav_menu_item:hover Label.menuButtonLabel
+{
+	color: #7CBC1D;
+	transition-property: color, transform;
+	transition-duration: 0.1s;
+}
+
+#quit.nav_menu_item Label
+{
+	font-weight: bold;
+	font-size: 30px;
+	color: #FFEFD750;
+}
+
+.nav_menu_item.endsession,#quit.nav_menu_item
+{
+	font-size: 30px;
+}
+
+#quit.nav_menu_item:hover Label
+{
+	color: #FF5656;
+}
+
+.endsession Label
+{
+	color: #FF5656;
+}
+
+.nav_menu_item.resume:hover Label
+{
+	color: ritualGreenLight;
+	z-index: 100;
+	font-size: 60px;
+	transform: rotateZ(-1deg);
+}
+
+.hasNewLearn.hasNeverPlayedMM .nav_menu_item.play Label
+{
+	color: #ffffff;
+	font-weight: semi-bold;
+}
+
+.nav_menu_item Label.queueNumber
+{
+	font-size: 16px;
+	font-weight: bold;
+	font-family: sans;
+	text-transform: uppercase;
+	visibility: collapse;
+	letter-spacing: 0px;
+	color: ritualGreen;
+	margin-top: -10px;
+	border-radius: 2px;
+}
+
+.has_users_in_queue .nav_menu_item Label.queueNumber
+{
+	visibility: visible;
+}
+
+.nav_menu_item.endsession
+{
+	margin-bottom: 20px;
+}
+
+.nav_menu_item.endsession:hover Label
+{
+	transform: rotateZ(-2deg);
+	color: #FF5656;
+}
+
+.nav_menu_item.suboption
+{
+	background-color: #7FAE3A;
+	border-radius: 0px 0px 3px 3px;
+	margin: 0px;
+	margin-bottom: 10px;
+	margin-top: 2px;
+	visibility: collapse;
+}
+
+.nav_menu_item.suboption Label
+{
+	color: #262626;
+}
+
+.nav_menu_item.minor
+{
+	background-color: none;
+	padding: 5px 0px;
+	margin: 0px;
+}
+
+.nav_menu_item.minor Label
+{
+	font-size: 20px;
+	height: 30px;
+	font-weight: semi-bold;
+	color:offWhite&40;
+	vertical-align: middle;
+	font-family: sans;
+	transition-property: pre-transform-scale2d, color;
+	transition-duration: 0.1s;
+}
+
+.nav_menu_item:hover Label,.nav_menu_item:active Label
+{
+	transform: none;
+	font-style: normal;
+}
+
+.nav_menu_item:active Label
+{
+	color: brandGreen;
+	pre-transform-scale2d: 0.95;
+}
+
+.nav_menu_item:active Image
+{
+	opacity: 1;
+}
+
+.nav_menu_item.minor:hover Label
+{
+	font-size: 20px;
+	color: ritualGreen;
+	font-style: normal;
+	transition-property: pre-transform-scale2d, color;
+	transition-duration: 0.1s;
+	pre-transform-scale2d: 1;
+}
+
+.PlayContents
+{
+	width: 100%;
+	height: 100%;
+}
+
+.Arrow
+{
+	vertical-align: middle;
+	margin-left: 10px;
+	width: 32px;
+	height: 32px;
+	margin-top: 4px;
+	transition-property: margin, wash-color, transform;
+	transition-duration: 0.1s;
+	wash-color: #FFEFD7;
+}
+
+.major .Arrow
+{
+	wash-color: #FFEFD7;
+	opacity: 0.8;
+}
+
+#matchmakeReadyUp.nav_menu_item.play:hover .Arrow
+{
+	wash-color: offBlack;
+	transform: rotateZ(-20deg) translateY(10px) translateX(-10px);
+}
+
+.resume:hover .Arrow
+{
+	wash-color: ritualGreenLight;
+	margin-bottom: 3px;
+}
+
+.hasNewLearn.hasNeverPlayedMM .Arrow
+{
+	wash-color: #FFEFD7;
+}
+
+.ArrowBack
+{
+	vertical-align: middle;
+	margin-right: 8px;
+	margin-bottom: 4px;
+	width: 20px;
+	height: 20px;
+	opacity: 0.4;
+	transition-property: margin-left, wash-color, transform, width;
+	transition-duration: 0.1s;
+	wash-color: #FFEFD7;
+}
+
+.DiagonalArrow
+{
+	vertical-align: middle;
+	margin-left: 8px;
+	width: 20px;
+	height: 20px;
+	margin-top: 6px;
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.3s;
+}
+
+.nav_menu_item:hover .DiagonalArrow
+{
+	wash-color: ritualGreen;
+	opacity: 1;
+	transition-duration: 0s;
+}
+
+.nav_menu_item:hover .DiagonalArrow
+{
+	wash-color: ritualGreenLight;
+	opacity: 1;
+}
+
+.endsession:hover .ArrowBack
+{
+	wash-color: #FF5656;
+}
+
+.MenuIcon
+{
+	width: 50px;
+	height: 60px;
+	ignore-parent-flow: true;
+	transform: translateY(30px);
+	horizontal-align: left;
+	wash-color: offWhite;
+	background-repeat: no-repeat;
+	background-size: contain;
+	opacity: 0;
+	transition-property: transform, opacity;
+	transition-duration: 0.3s;
+	transition-delay: 0s;
+}
+
+.nav_menu_item:hover .MenuIcon,#rosterDetail:hover .MenuIcon
+{
+	opacity: 0.1;
+	transition-duration: 0s;
+}
+
+#rosterDetail .MenuIcon
+{
+	background-image: url("s2r://panorama/images/main_menu/icons/menu_edit.vsvg");
+	width: 75px;
+	transform: translateX(175px) translateY(30px) rotateZ(-15deg);
+}
+
+#watch .MenuIcon
+{
+	background-image: url("s2r://panorama/images/main_menu/icons/menu_watch.vsvg");
+	width: 75px;
+	transform: translateX(-50px) translateY(5px) rotateZ(-15deg);
+}
+
+#heroes .MenuIcon
+{
+	background-image: url("s2r://panorama/images/main_menu/icons/menu_heroes_cards.vsvg");
+	width: 85px;
+	transform: translateX(152px) translateY(-30px) rotateZ(10deg);
+}
+
+#match_practice .MenuIcon
+{
+	background-image: url("s2r://panorama/images/main_menu/icons/menu_practice.vsvg");
+	width: 55px;
+	transform: translateX(-40px) translateY(0px) rotateZ(0deg);
+}
+
+#learn .MenuIcon
+{
+	background-image: url("s2r://panorama/images/main_menu/icons/menu_learn.vsvg");
+	width: 70px;
+	transform: translateX(-48px) translateY(20px) rotateZ(10deg);
+}
+
+#quit .MenuIcon
+{
+	background-image: url("s2r://panorama/images/main_menu/icons/menu_exit.vsvg");
+	width: 75px;
+	transform: translateX(-40px) translateY(0px) rotateZ(-5deg);
+}
+
+.HeroGrid
+{
+	width: 30px;
+	height: 20px;
+	horizontal-align: right;
+	vertical-align: middle;
+	wash-color: #262626;
+}
+
+.smallIcon
+{
+	width: 20px;
+	height: 20px;
+	opacity: 0.2;
+	margin-right: 6px;
+	vertical-align: middle;
+	wash-color: offWhite;
+	transition-property: opacity, wash-color;
+	transition-duration: 0.3s;
+}
+
+.SendIcon
+{
+	background-image: url("s2r://panorama/images/icons/icon_send.vsvg");
+	background-size: contain;
+	transform: rotateZ(-45deg);
+}
+
+.GearIcon
+{
+	background-image: url("s2r://panorama/images/icons/icon_gear.vsvg");
+	background-size: contain;
+}
+
+.ZooIcon
+{
+	background-image: url("s2r://panorama/images/icons/icon_zoo_psd.vtex");
+	background-size: 80% 80%;
+	background-position: center;
+	background-repeat: no-repeat;
+}
+
+.nav_menu_item.minor:hover Label
+{
+	color: ritualGreenLight;
+}
+
+.nav_menu_item.minor:hover .smallIcon
+{
+	wash-color: ritualGreenLight;
+	opacity: 1;
+}
+
+.highlight
+{
+	color: white;
+}
+
+@keyframes 'violator_rotate'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	
+	50%
+	{
+		transform: rotateZ(180deg);
+	}
+	
+	100%
+	{
+		transform: rotateZ(360deg);
+	}
+	
+}
+
+.violator
+{
+	visibility: collapse;
+	vertical-align: center;
+	animation-name: violator_rotate;
+	animation-duration: 5s;
+	animation-iteration-count: infinite;
+	animation-timing-function: linear;
+	margin-right: 10px;
+}
+
+.QuickGuideNewVersion .quick_guide_violator
+{
+	visibility: visible;
+	wash-color: yellow;
+}
+
+.DebugButton
+{
+	width: 32px;
+	height: 32px;
+	background-size: 20px 20px;
+	background-repeat: no-repeat;
+	background-position: 50% 50%;
+	wash-color: #66aadd;
+}
+
+.DebugButton:hover
+{
+	wash-color: #dcdcdc;
+}
+
+.DebugButton:active
+{
+	wash-color: white;
+}
+
+#DashboardDebugControls
+{
+	flow-children: right;
+	vertical-align: top;
+	horizontal-align: left;
+	z-index: 9998;
+	visibility: collapse;
+}
+
+.ShowDashboardDebugControls #DashboardDebugControls
+{
+	visibility: visible;
+}
+
+#DashboardDebugControls #ReloadPageButton
+{
+	background-image: url("s2r://panorama/images/control_icons/refresh_psd.vtex");
+	opacity: 0.75;
+}
+
+#QuickMute
+{
+	width: 25px;
+	height: 25px;
+	margin-top: 5px;
+	background-image: url("s2r://panorama/images/icons/icon_sound_on.vsvg");
+	background-size: contain;
+	opacity: 0.7;
+	margin-right: 100px;
+	transition-property: opacity, pre-transform-scale2d, background-image;
+	transition-duration: 0.2s;
+}
+
+#QuickMute:hover
+{
+	pre-transform-scale2d: 1.2;
+	saturation: 0.8;
+}
+
+.muted #QuickMute
+{
+	background-image: url("s2r://panorama/images/icons/icon_sound_off.vsvg");
+}
+
+.muted #QuickMute:hover
+{
+	pre-transform-scale2d: 1.2;
+}
+
+#party_ctn
+{
+	width: 400px;
+	horizontal-align: right;
+	vertical-align: top;
+	margin: 500px 20px 0px 0px;
+	flow-children: down;
+	z-index: 1000;
+}
+
+.unranked_mm_paused
+{
+	visibility: collapse;
+}
+
+.UnrankedMMPaused .unranked_mm_paused
+{
+	visibility: visible;
+}
+
+.SecondaryButton
+{
+	margin: 0px;
+}
+
+#PlayerProfileCard
+{
+	width: 100%;
+}
+
+#Avatar
+{
+	width: 40px;
+	height: 40px;
+	background-color: #222222;
+	border-radius: 2px;
+	border: 1px solid #333;
+	margin-right: 15px;
+}
+
+#PlayerName
+{
+	vertical-align: middle;
+	color: #999;
+}
+
+.menu_divider
+{
+	height: 5px;
+}
+
+#matchmakeLeave
+{
+	visibility: collapse;
+}
+
+.force_match_button
+{
+	visibility: collapse;
+}
+
+.force_match_button .menuButtonLabel
+{
+	color: red;
+	font-size: 20px;
+}
+
+.force_match_button .menuButtonLabel:hover
+{
+	transform: translateX(5px);
+	font-size: 20px;
+}
+
+.can_force_mm_unranked #matchmakeForceUnranked
+{
+	visibility: visible;
+}
+
+.can_force_mm_coopbot #matchmakeForceCoopBot
+{
+	visibility: visible;
+}
+
+#matchmakeEnter
+{
+	visibility: visible;
+	flow-children: down;
+}
+
+#matchmakeEnterSteamDeck
+{
+	visibility: collapse;
+}
+
+.isUsingSteamDeck #matchmakeEnterSteamDeck
+{
+	visibility: visible;
+}
+
+#matchmakePartyPlayNotReady .PartyError
+{
+	font-size: 24px;
+}
+
+#matchmakeClearReadyUp
+{
+	horizontal-align: middle;
+	margin-top: 20px;
+}
+
+#matchmakePartySetMode,#matchmakeClearReadyUp
+{
+	visibility: collapse;
+	flow-children: down;
+}
+
+.party_set_mode #matchmakePartySetMode,.party_clear_ready #matchmakeClearReadyUp
+{
+	visibility: visible;
+}
+
+#matchmakeReadyUp,#matchmakePartyPlay,#matchmakePartyPlayNotReady,.can_ready_up #matchmakePartyPlayNotReady,.in_matchmaking #matchmakePartyPlayNotReady,.can_party_play #matchmakePartyPlayNotReady,.connecting_server #matchmakePartyPlayNotReady,.party_set_mode #matchmakePartyPlayNotReady
+{
+	visibility: collapse;
+}
+
+.in_party #matchmakePartyPlayNotReady
+{
+	wash-color: #444444;
+	visibility: visible;
+	flow-children: down;
+}
+
+.in_matchmaking #matchmakePartyPlayNotReady
+{
+	visibility: collapse;
+}
+
+.can_ready_up #matchmakeReadyUp,.can_party_play #matchmakePartyPlay
+{
+	visibility: visible;
+}
+
+.party_clear_ready #matchmakeReadyUp
+{
+	visibility: collapse;
+}
+
+.party_set_mode.in_party #matchmakePartyPlayNotReady
+{
+	visibility: collapse;
+}
+
+.isUsingSteamDeck #matchmakeEnter,.in_party #matchmakeEnter
+{
+	visibility: collapse;
+}
+
+.is_in_lobby #matchmakeReadyUp,.connectedToGame #matchmakeReadyUp,.in_matchmaking #matchmakeReadyUp,.connecting_server #matchmakeReadyUp
+{
+	visibility: collapse;
+}
+
+#rosterDetail,.in_matchmaking.in_party #rosterDetail
+{
+	visibility: collapse;
+}
+
+.in_matchmaking #rosterDetail
+{
+	visibility: visible;
+}
+
+.is_in_lobby #matchmakePartyPlayNotReady,.is_in_lobby #matchmakePartyPlay,.is_in_lobby #matchmakePartySetMode,.connectedToGame #matchmakePartyPlayNotReady,.connectedToGame #matchmakePartyPlay,.connectedToGame #matchmakePartySetMode
+{
+	visibility: collapse;
+}
+
+#StatusIcons
+{
+	horizontal-align: right;
+	margin: 20px 410px 0px 0px;
+	visibility: collapse;
+	z-index: 101;
+}
+
+#Announcements
+{
+	width: 60px;
+	height: 60px;
+	horizontal-align: right;
+	margin: 0px 5px;
+	background-color: offBlack;
+	visibility: collapse;
+	opacity: 0.5;
+	border-radius: 50px;
+	border: 2px solid offWhite&10;
+	z-index: 101;
+}
+
+#Announcements:hover
+{
+	sound: soundMainMenuHover;
+}
+
+#Announcements:active
+{
+	sound: soundMainMenuActivate;
+}
+
+.ShowAnnouncements #Announcements
+{
+	background-color: offBlack;
+	border: 2px solid #ff606050;
+	opacity: 1;
+}
+
+.AnnouncementIcon
+{
+	background-image: url("s2r://panorama/images/icons/icon_announcements.vsvg");
+	background-size: 50% 50%;
+	background-repeat: no-repeat;
+	background-position: center;
+	width: 100%;
+	height: 100%;
+	horizontal-align: center;
+	vertical-align: center;
+	wash-color: offWhite;
+	opacity: 0.2;
+}
+
+.AnnouncementIconClose
+{
+	background-image: url("s2r://panorama/images/icons/icon_x.vsvg");
+	background-size: 40% 40%;
+	background-repeat: no-repeat;
+	background-position: center;
+	width: 100%;
+	height: 100%;
+	horizontal-align: center;
+	vertical-align: center;
+	wash-color: #ff6060;
+	opacity: 0.6;
+	visibility: collapse;
+}
+
+.ShowAnnouncements .AnnouncementIconClose
+{
+	visibility: visible;
+}
+
+.ShowAnnouncements .AnnouncementIcon
+{
+	visibility: collapse;
+}
+
+#Announcements:hover
+{
+	opacity: 1;
+}
+
+.HasAnnouncements.IsShowingHomePage #Announcements
+{
+	visibility: visible;
+}
+
+.newBadge
+{
+	width: 60px;
+	height: 60px;
+	border-radius: 50px;
+	vertical-align: center;
+	horizontal-align: center;
+	background-color: brandGreen;
+	ignore-parent-flow: true;
+	visibility: collapse;
+}
+
+.HasNewAnnouncements.IsShowingHomePage .newBadg
+{
+	visibility: visible;
+	opacity: 0.5;
+	animation-name: announcementPulse;
+	animation-iteration-count: infinite;
+	animation-duration: 2s;
+}
+
+@keyframes 'announcementPulse'
+{
+	0%
+	{
+		opacity: 0.5;
+		pre-transform-scale2d: 1;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1.5;
+		opacity: 0;
+	}
+	
+}
+
+.HasNewAnnouncements #Announcements
+{
+	opacity: 1;
+	border: 3px solid brandGreen;
+	background-color: brandGreen;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( brandGreen ), to( ritualGreen ) );
+}
+
+.HasNewAnnouncements .AnnouncementIcon
+{
+	wash-color: offBlack;
+	opacity: 0.95;
+}
+
+#ControlZooIcon
+{
+	width: 50px;
+	height: 50px;
+	background-color: #00000090;
+	horizontal-align: right;
+	margin: 0px 5px;
+	background-image: url("s2r://panorama/images/icons/envelope.vsvg");
+	background-size: 65% 45%;
+	background-repeat: no-repeat;
+	background-position: center;
+	wash-color: #000000ea;
+}
+
+#LeftStripe
+{
+	transition-property: opacity;
+	transition-duration: 0.3s;
+	transition-delay: 0.3s;
+}
+
+.showPlayMenu #LeftStripe
+{
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0s;
+}
+
+#PlayMenu
+{
+	height: 100%;
+	background-color: #111111f9;
+	z-index: 9;
+	opacity: 0.0;
+	transform: translateX( -20px );
+	transition-property: opacity, transform;
+	transition-duration: 0.2s;
+	transition-timing-function: ease;
+}
+
+.IsShowingHomePage.showPlayMenu #PlayMenu,.connectedToGame.showPlayMenu #PlayMenu
+{
+	opacity: 1.0;
+	transform: none;
+}
+
+.in_matchmaking #matchmakeLeave,.disconnected #connect,.connectedToGame #resume,.connectedToGame #spectate
+{
+	visibility: visible;
+}
+
+.is_in_lobby #matchmakeEnter,.is_in_lobby #rosterDetail,.in_matchmaking #matchmakeEnter,.connecting_server #matchmakeEnter,.entering_mm #matchmakeEnter,.entering_mm #rosterDetail,.is_in_lobby #matchmakeLeave,.connectedToGame #matchmakeEnter,.connectedToGame #learn,.connectedToGame.isSpectator.in_matchmaking #matchmakeEnter,.connectedToGame.isSpectator.in_matchmaking #rosterDetail,.connecting_server #rosterDetail,.connectedToGame #matchmakeLeave,.connectedToGame #rosterDetail,.disconnected.in_matchmaking #matchmakeEnter,.connectedToHeroTesting #spectate,.connectedToNewPlayerSandbox #spectate,#connect,.disconnected #resume,.disconnected #spectate,.gc_disconnected #matchmakeLeave,.connecting_server #match_practice,.connectedToGame #match_practice,.connectedToGame #heroes,.connectedToGame #watch,.connecting_server #watch,.connecting_server #social,.connectedToGame #NewPlayerContainer,.connectedToTutorial #NewPlayerContainer
+{
+	visibility: collapse;
+}
+
+.connectedToGame.isSpectator #matchmakeEnter,.connectedToGame.isSpectator.in_matchmaking #rosterDetail,.connectedToGame.isSpectator.in_matchmaking #matchmakeLeave,.connectedToHeroTesting.in_matchmaking #matchmakeLeave,.connectedToNewPlayerSandbox.in_matchmaking #matchmakeLeave
+{
+	visibility: visible;
+}
+
+#reconnect
+{
+	visibility: collapse;
+}
+
+.reconnect_available #reconnect
+{
+	visibility: visible;
+}
+
+#lobbyleave
+{
+	visibility: collapse;
+}
+
+.connectedToGame #lobbyleave,.reconnect_available #lobbyleave,.leave_lobby_available #lobbyleave
+{
+	visibility: visible;
+}
+
+.SafeToAbandon #lobbyleave #label_abandon,.NoPromptToLeave #lobbyleave #label_abandon,.isSpectator #lobbyleave #label_abandon,.connectedToHeroTesting #lobbyleave #label_abandon,.connectedToNewPlayerSandbox #lobbyleave #label_abandon
+{
+	visibility: collapse;
+}
+
+#lobbyleave #label_leave
+{
+	visibility: collapse;
+}
+
+.SafeToAbandon #lobbyleave #label_leave,.NoPromptToLeave #lobbyleave #label_leave
+{
+	visibility: visible;
+}
+
+.connectedToHeroTesting #lobbyleave #label_leave,.connectedToNewPlayerSandbox #lobbyleave #label_leave,.isSpectator #lobbyleave #label_leave
+{
+	visibility: collapse;
+}
+
+#lobbyleave #label_leave_spectate
+{
+	visibility: collapse;
+}
+
+.isSpectator #lobbyleave #label_leave_spectate
+{
+	visibility: visible;
+}
+
+#lobbyleave #label_leave_testing
+{
+	visibility: collapse;
+}
+
+.connectedToHeroTesting #lobbyleave #label_leave_testing,.connectedToNewPlayerSandbox #lobbyleave #label_leave_testing
+{
+	visibility: visible;
+}
+
+.in_party #matchmakeEnter,.in_party.connectedToGame.isSpectator #matchmakeEnter,.in_party.connectedToGame.isSpectator.in_matchmaking #matchmakeEnter
+{
+	visibility: collapse;
+}
+
+#CitadelQuickGuide
+{
+	width: 100%;
+	height: 100%;
+}
+
+#BuildInfo
+{
+	flow-children: down;
+	margin-bottom: 40px;
+	vertical-align: bottom;
+	horizontal-align: left;
+	ignore-parent-flow: true;
+}
+
+#BuildNumber,.region_label
+{
+	color: #ffffff20;
+	font-size: 14px;
+	text-align: left;
+}
+
+#QueueSize
+{
+	vertical-align: bottom;
+	horizontal-align: right;
+	color: grey;
+	margin-right: 50px;
+	margin-bottom: 170px;
+	font-size: 16px;
+}
+
+#TooltipManager
+{
+	width: 100%;
+	height: 100%;
+	z-index: 10000;
+}
+
+#ContextMenuManager
+{
+	width: 100%;
+	height: 100%;
+	z-index: 9;
+}
+
+.unranked_mm_paused
+{
+	color: red;
+	font-size: 20px;
+	font-weight: bold;
+}
+
+#DashboardPages
+{
+	width: 100%;
+	height: 100%;
+	wash-color: white;
+	transform-origin: 50% 50%;
+	transform: none;
+	transition-property: transform, saturation, wash-color, opacity, hue-rotation, pre-transform-scale2d;
+	transition-duration: 0.45s;
+	transition-delay: 0.0s;
+	transition-timing-function: ease-in;
+}
+
+#announcementList
+{
+	border: 1px solid #ffffff10;
+	background-color: offBlack;
+	horizontal-align: right;
+	margin-right: 420px;
+	margin-top: 90px;
+	visibility: collapse;
+	padding: 10px;
+	z-index: 100;
+	box-shadow: 0px 0px 60px 3.0 offBlack;
+}
+
+.IsShowingHomePage.ShowAnnouncements.HasAnnouncements #announcementList
+{
+	visibility: visible;
+}
+
+#PartyContainer
+{
+	vertical-align: top;
+	horizontal-align: right;
+	width: 340px;
+	height: 160px;
+	ignore-parent-flow: true;
+}
+
+.in_party #PartyContainer
+{
+	width: 470px;
+}
+
+.PartyMemberListRow
+{
+	horizontal-align: center;
+	flow-children: right;
+}
+
+.PartyMemberList
+{
+	flow-children: right;
+	vertical-align: middle;
+}
+
+.PlayBG
+{
+	width: 100%;
+	height: 100%;
+	background-color: #A5DE4F;
+	animation-name: play_bg_anim;
+	animation-iteration-count: infinite;
+	animation-duration: 5s;
+	ignore-parent-flow: true;
+	opacity: 0;
+}
+
+@keyframes 'play_bg_anim'
+{
+	0%
+	{
+		transform: skew(-13deg, -10deg);
+	}
+	
+	50%
+	{
+		transform: skew(3deg, 10deg);
+	}
+	
+	100%
+	{
+		transform: skew(-13deg, -10deg);
+	}
+	
+}
+
+.play:hover .PlayBG
+{
+	opacity: 1;
+}
+
+.watchLiveNow
+{
+	flow-children: right;
+	horizontal-align: right;
+	vertical-align: middle;
+	visibility: collapse;
+	height: 25px;
+	margin-left: 15px;
+}
+
+#watch:hover .watchLiveNow
+{
+	color: offWhite;
+}
+
+.watchIcon
+{
+	width: 15px;
+	height: 15px;
+	vertical-align: middle;
+	wash-color: ritualGreenLight;
+	background-image: url("s2r://panorama/images/icons/icon_watch.vsvg");
+	background-size: auto 100%;
+	background-position: center;
+	margin-right: 8px;
+	transition-duration: 0.1s;
+	transition-property: transform, wash-color;
+}
+
+#watch:hover .watchIcon
+{
+	wash-color: offWhite;
+	transform: translateY(-3px);
+	transition-duration: 0.1s;
+}
+
+#watch .live_matches
+{
+	color: ritualGreenLight;
+	font-family: sans;
+	font-size: 16px;
+	horizontal-align: right;
+	vertical-align: center;
+	font-weight: bold;
+}
+
+#watch:hover .live_matches
+{
+	color: offWhite;
+}
+
+.HasLiveMatches #watch .watchLiveNow
+{
+	visibility: visible;
+}
+
+#friend_list_ctn
+{
+	background-color: #00000090;
+	width: 400px;
+	height: 600px;
+	horizontal-align: right;
+	vertical-align: top;
+	margin: 0px 30px 30px 0px;
+	flow-children: down;
+	padding: 10px;
+	z-index: 5;
+	visibility: collapse;
+}
+
+.ShowFriendsList.IsShowingHomePage #friend_list_ctn
+{
+	visibility: visible;
+}
+
+#friend_list
+{
+	width: 100%;
+	height: 100%;
+}
+
+#Library
+{
+	visibility: collapse;
+}
+
+.ShowBookPrototype.IsShowingHomePage #Library
+{
+	visibility: visible;
+}
+
+#SubOptions
+{
+	ignore-parent-flow: true;
+	width: 100%;
+	height: fit-children;
+	flow-children: down;
+	vertical-align: bottom;
+	margin-bottom: 130px;
+}
+
+#patch_version
+{
+	visibility: collapse;
+}
+
+.HasNewPatchVersion Label.patch_version_text
+{
+	color: brandGreen;
+}
+
+.new_button
+{
+	visibility: collapse;
+	background-color: brandGreen;
+	border-radius: 3px 0px 0px 3px;
+	padding: 2px 3px;
+	horizontal-align: right;
+	vertical-align: top;
+	horizontal-align: right;
+	vertical-align: center;
+	margin-left: 15px;
+	margin-top: 0px;
+	font-family: sans;
+	flow-children: right;
+	padding: 1px 8px;
+	border-radius: 2px;
+	animation-duration: 3s;
+	animation-timing-function: ease;
+	animation-iteration-count: infinite;
+}
+
+#Option_ExploreMap .new_button
+{
+	background-color: #3bcfe9;
+}
+
+.nav_menu_item:hover .new_button
+{
+	margin-right: 0px;
+}
+
+#Option_ExploreMap .new_button
+{
+	visibility: visible;
+	horizontal-align: center;
+	margin-left: 0px;
+	vertical-align: top;
+	ignore-parent-flow: true;
+	horizontal-align: right;
+	border-radius: 0px 0px 0px 3px;
+}
+
+.NewPlayerIcon
+{
+	width: 12px;
+	height: 12px;
+	background-image: url("s2r://panorama/images/icons/icon_thumbsup.vsvg");
+	wash-color: #153D4A;
+	background-size: contain;
+	vertical-align: middle;
+	margin-bottom: 2px;
+	width: 20px;
+	height: 20px;
+}
+
+@keyframes 'newplayer_icon'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+		transform: rotateZ(0deg);
+	}
+	
+	10%
+	{
+		pre-transform-scale2d: 1.5;
+		transform: rotateZ(2deg);
+	}
+	
+	15%
+	{
+		pre-transform-scale2d: 1;
+		transform: rotateZ(0deg);
+	}
+	
+	20%
+	{
+		pre-transform-scale2d: 1.5;
+		transform: rotateZ(-2deg);
+	}
+	
+	35%
+	{
+		pre-transform-scale2d: 1;
+		transform: rotateZ(0deg);
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+		transform: rotateZ(0deg);
+	}
+	
+}
+
+#getting_started_new
+{
+	visibility: collapse;
+}
+
+.HasNewPatchVersion #patch_version_new,.hasNewLearn #learn_new
+{
+	visibility: visible;
+}
+
+.new_button Label,.nav_menu_item .new_button Label
+{
+	color: offBlack;
+	font-size: 14px;
+	font-family: sans;
+	text-transform: uppercase;
+	font-weight: bold;
+	horizontal-align: center;
+	vertical-align: center;
+}
+
+.precache
+{
+	background-image: url("s2r://panorama/images/glyphs/mouse1.vsvg");
+	background-image: url("s2r://panorama/images/glyphs/mouse2.vsvg");
+	background-image: url("s2r://panorama/images/glyphs/mouse3.vsvg");
+	background-image: url("s2r://panorama/images/glyphs/mouse4.vsvg");
+	background-image: url("s2r://panorama/images/glyphs/mouse5.vsvg");
+	background-image: url("s2r://panorama/images/glyphs/keyboard_arrow_up.vsvg");
+	background-image: url("s2r://panorama/images/glyphs/keyboard_arrow_down.vsvg");
+	background-image: url("s2r://panorama/images/glyphs/keyboard_arrow_left.vsvg");
+	background-image: url("s2r://panorama/images/glyphs/keyboard_arrow_right.vsvg");
+}
+
+#TooltipManager #SeasonalAchievementTooltip
+{
+	flow-children: right-wrap;
+	height: fit-children;
+	border-radius: 5px;
+	background-texture-size: 20px 20px;
+	background-image: url("s2r://panorama/images/textures/diagonal_stripes.vsvg");
+	background-color: gradient( radial, 50% 50%, -5% -5%, 60% 60%, from( #cc4848), to( #9b2628 ) );
+	background-img-opacity: 0.03;
+	padding: 4px 4px;
+	max-width: 380px;
+}
+
+#TooltipManager #SeasonalAchievementTooltip CitadelHeroImage
+{
+	width: 52px;
+	margin: 52px;
+	opacity: 1;
+	margin: 4px;
+	background-color: #00000099;
+	box-shadow: inset 0px 0px 8px #00000033;
+	border-radius: 2px;
+	visibility: collapse;
+}
+
+#TooltipManager #SeasonalAchievementTooltip CitadelHeroImage.achievementUnlocked
+{
+	wash-color: #fff;
+	visibility: visible;
+}
+
+#HeroTestingMenu
+{
+	width: 1200px;
+	height: 800px;
+	flow-children: down;
+	x: 500px;
+	y: 100px;
+	background-color: rgba(255, 255, 255, 0.5);
+}
+
