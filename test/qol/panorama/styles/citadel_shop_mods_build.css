@@ -1,0 +1,10 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/citadel_shop_mods_build.vcss_c");
+CitadelHudHeroShop.simplify_shop_active CitadelShopModsBuild .BuildHeaderShared
+{
+	background-image: none;
+	background-color: #2b2c2b;
+	opacity: 0.6;
+}
+

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "copywriting": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "computedHash": "246c121e1115db8fa73ea504fa993364abff4c34279fd51830530c881e6252e3"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "computedHash": "645b891da1edbae76ab79c7b088d4e73397464f8396edaf773c0e01971ce75d6"
+    }
+  }
+}

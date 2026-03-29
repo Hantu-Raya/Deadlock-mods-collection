@@ -1,0 +1,114 @@
+<!-- xml reconstructed by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_db_page_shared.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_db_page_training.vcss_c" />
+	</styles>
+	<CitadelTrainingPage class="DashboardPage" oncancel="CitadelNavigateBack();" dashboardclass="isShowingTrainingPage">
+		<CitadelHudHeroShop id="DashboardShop" class="DashboardShop" read_only="true" />
+		<Panel id="BotTitle" class="PageTitle">
+			<Label text="#menu_resources" />
+		</Panel>
+		<Panel id="PlayOptions">
+			<Panel id="LearnToPlayer" class="playOptionContainer" onactivate="CitadelShowLearnPage()">
+				<Panel class="cardBorder" />
+				<Panel class="playOptionTop">
+					<Panel class="buttonImage" />
+				</Panel>
+				<Panel class="playOptionBottom">
+					<Panel class="bottomOptionContainer">
+						<Panel class="BotsTitle">
+							<Label class="playLabel" text="#menu_learn" />
+							<Label class="playDesc" text="#menu_play_learn_to_play_desc" />
+						</Panel>
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="News" class="playOptionContainer playOptionContainerXS" onactivate="CitadelShowNewsPage()">
+				<Panel class="cardBorder" />
+				<Panel class="playOptionTop">
+					<Panel class="buttonImage" />
+				</Panel>
+				<Panel class="playOptionBottom">
+					<Panel class="bottomOptionContainer">
+						<Label class="playLabel" text="#menu_news" />
+						<Label class="playDesc" text="#Citadel_News_Subtitle" />
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="HeroTesting" class="playOptionContainer" onactivate="CitadelShowPrimaryTabPage( TopBarHeroes )">
+				<Panel class="cardBorder" />
+				<Panel class="playOptionTop">
+					<Panel class="buttonImage" />
+				</Panel>
+				<Panel class="playOptionBottom">
+					<Panel class="bottomOptionContainer">
+						<Label class="playLabel" text="#menu_heroes" />
+						<Label class="playDesc" text="#menu_play_sandbox_desc" />
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="HeroVoting" class="playOptionContainer playOptionContainerXS">
+				<Panel class="cardBorder" />
+				<Panel class="playOptionTop">
+					<Panel class="buttonImage" />
+				</Panel>
+				<Panel class="playOptionBottom">
+					<Panel class="bottomOptionContainer">
+						<Label class="playLabel" text="#Citadel_HeroReleaseVote_VoteButton" />
+						<Label class="playDesc" text="#Citadel_HeroReleaseVote_Title" />
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="LibraryButton" class="playOptionContainer playOptionContainerXS" onactivate="CitadelShowBookLibraryPage()">
+				<Panel class="cardBorder" />
+				<Panel class="playOptionTop">
+					<Panel class="buttonImage" />
+				</Panel>
+				<Panel class="playOptionBottom">
+					<Panel class="bottomOptionContainer">
+						<Label class="playLabel" text="#Citadel_Library_Title" />
+						<Label class="playDesc" text="#Citadel_Library_Welcome" />
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="BrowsableShop" class="playOptionContainer" onactivate="CitadelShowDashboardShop()">
+				<Panel class="cardBorder" />
+				<Panel class="playOptionTop">
+					<Panel class="buttonImage" />
+				</Panel>
+				<Panel class="playOptionBottom">
+					<Panel class="bottomOptionContainer">
+						<Label class="playLabel" text="#menu_browseshop" />
+						<Label class="playDesc" text="#menu_play_browse_shop_desc" />
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="RankedInfo" class="playOptionContainer playOptionContainerXS" onactivate="CitadelShowRankedInfo()">
+				<Panel class="cardBorder" />
+				<Panel class="playOptionTop">
+					<Panel class="buttonImage" />
+				</Panel>
+				<Panel class="playOptionBottom">
+					<Panel class="bottomOptionContainer">
+						<Label class="playLabel" text="#Citadel_GlobalLeaderboard_Desc" />
+						<Label class="playDesc" text="#Citadel_ranked_explainer_button" />
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="GlobalLeaderboard" class="playOptionContainer" onactivate="CitadelShowGlobalLeaderboard()">
+				<Panel class="cardBorder" />
+				<Panel class="playOptionTop">
+					<Panel class="buttonImage" />
+				</Panel>
+				<Panel class="playOptionBottom">
+					<Panel class="bottomOptionContainer">
+						<Label class="playLabel" text="#Citadel_GlobalLeaderboard_Title" />
+						<Label class="playDesc" text="#Citadel_Profile_ViewLeaderboard" />
+					</Panel>
+				</Panel>
+			</Panel>
+		</Panel>
+	</CitadelTrainingPage>
+</root>

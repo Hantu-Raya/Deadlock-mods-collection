@@ -28,7 +28,9 @@
       "Bash(\"F:/Users/Shiv/Desktop/Deadlock-mods-collection/passive_items_mod_release/compiler/vpkeditcli.exe\" -o \"G:/SteamLibrary/steamapps/common/Deadlock/game/citadel/addons/pak98_dir.vpk\" \"F:/Users/Shiv/Desktop/Deadlock-mods-collection/jungle_timer_compiled\" 2>&1)",
       "Bash(\"F:/Users/Shiv/Desktop/Deadlock-mods-collection/passive_items_mod_release/compiler/vpkeditcli.exe\" --single-file -o \"G:/SteamLibrary/steamapps/common/Deadlock/game/citadel/addons/pak98_dir.vpk\" \"F:/Users/Shiv/Desktop/Deadlock-mods-collection/jungle_timer_compiled\" 2>&1)",
       "Bash(\"F:/Users/Shiv/Desktop/Deadlock-mods-collection/sr2compiler/New folder.exe\" \"./jungle_timer\")",
-      "Bash(\"F:/Users/Shiv/Desktop/Deadlock-mods-collection/passive_items_mod_release/compiler/vpkeditcli.exe\" --single-file -o \"G:/SteamLibrary/steamapps/common/Deadlock/game/citadel/addons/pak98_dir.vpk\" \"F:/Users/Shiv/Desktop/Deadlock-mods-collection/jungle_timer_compiled\")"
+      "Bash(\"F:/Users/Shiv/Desktop/Deadlock-mods-collection/passive_items_mod_release/compiler/vpkeditcli.exe\" --single-file -o \"G:/SteamLibrary/steamapps/common/Deadlock/game/citadel/addons/pak98_dir.vpk\" \"F:/Users/Shiv/Desktop/Deadlock-mods-collection/jungle_timer_compiled\")",
+      "Bash(\"F:\\\\Users\\\\Shiv\\\\Desktop\\\\Deadlock-mods-collection\\\\sr2compiler\\\\New folder.exe\" \"F:\\\\Users\\\\Shiv\\\\Desktop\\\\Deadlock-mods-collection\\\\anitaui\")",
+      "Bash(\"F:/Users/Shiv/Desktop/Deadlock-mods-collection/vpk cli/vpkeditcli.exe\" --help)"
     ]
   }
 }

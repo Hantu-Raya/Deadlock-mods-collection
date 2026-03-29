@@ -1,0 +1,339 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+CitadelKeyboardGlyph
+{
+	width: fit-children;
+	height: fit-children;
+	visibility: visible;
+	flow-children: right;
+	vertical-align: middle;
+	horizontal-align: center;
+}
+
+.MouseButtonGlyphContainer,.KeyboardKeyGlyphContainer
+{
+	flow-children: none;
+	width: fit-children;
+	height: fit-children;
+	min-width: 18px;
+	min-height: 18px;
+	vertical-align: middle;
+	horizontal-align: center;
+}
+
+.MouseButtonGlyphContainer .Shim,.KeyboardKeyGlyphContainer .Shim
+{
+	ignore-parent-flow: true;
+	width: 0px;
+	height: 0px;
+	transition-property: width;
+	transition-duration: 0.2s;
+}
+
+#KeyboardKey
+{
+	vertical-align: middle;
+	horizontal-align: center;
+}
+
+.MouseButtonGlyphContainer
+{
+	vertical-align: middle;
+	horizontal-align: center;
+	border-radius: 4px;
+}
+
+.KeyboardKeyGlyphContainer
+{
+	background-color: #333;
+	border-radius: 4px;
+}
+
+.ModifierCombinerContainer Label,.KeyboardKeyGlyphContainer Label,.UnboundGlyph Label
+{
+	vertical-align: middle;
+	horizontal-align: center;
+	font-size: 16px;
+	line-height: 0px;
+	text-shadow: none;
+	color: magenta;
+	text-align: center;
+	text-transform: uppercase;
+	padding: 4px 6px 2px 6px;
+	font-family: block;
+	font-weight: bold;
+}
+
+.ModifierCombinerContainer Label.ModifierCombinerLabel
+{
+	font-family: block;
+	font-size: 14px;
+	font-weight: black;
+	vertical-align: middle;
+	color: offWhite&dd;
+	margin: 2px 0px 0px 0px;
+	padding: 0px 6px;
+}
+
+@keyframes 'SawtoothTransparency'
+{
+	0%
+	{
+		opacity: 1;
+	}
+	
+	100%
+	{
+		opacity: 0.2;
+	}
+	
+}
+
+.MouseGlyphBackground
+{
+	vertical-align: center;
+	horizontal-align: center;
+	width: 24px;
+	height: 24px;
+}
+
+.hud_abilities .ability_key_container .MouseGlyphBackground
+{
+	width: 28px;
+	height: 28px;
+}
+
+.UnboundKeyboardGlyph
+{
+	background-image: url("s2r://panorama/images/glyphs/unbound.vsvg");
+	background-texture-size: 40px 40px;
+	background-size: 100% 100%;
+	background-repeat: no-repeat;
+	animation-name: SawtoothTransparency;
+	animation-duration: 0.5s;
+	animation-iteration-count: infinite;
+	animation-timing-function: linear;
+}
+
+.KeyboardButtonGlyph,.MouseButtonGlyph
+{
+	vertical-align: center;
+	horizontal-align: center;
+	width: 24px;
+	height: 24px;
+	background-texture-size: 24px 24px;
+	background-size: 100%;
+	background-repeat: no-repeat;
+	background-position: center;
+	wash-color: keybindHousingBGColor;
+}
+
+.MouseButtonGlyph
+{
+	width: 20px;
+	height: 20px;
+}
+
+.ability_key_container .MouseButtonGlyph
+{
+	width: 18px;
+	height: 18px;
+	margin-bottom: -1px;
+}
+
+.hud_abilities .ability_key_container .MouseButtonGlyph
+{
+	width: 22px;
+	height: 22px;
+}
+
+.MouseButtonGlyph
+{
+	padding: 1px;
+}
+
+.ModifierCombinerContainer
+{
+	width: 20px;
+	height: fit-children;
+	vertical-align: middle;
+	margin-left: 2px;
+	margin-right: 2px;
+}
+
+.light .MouseGlyphBackground
+{
+	wash-color: keybindHousingBGColor;
+}
+
+.ability_key_container .light .MouseGlyphBackground
+{
+	wash-color: keybindBGColor;
+}
+
+.light .KeyboardKeyGlyphContainer
+{
+	background-color: keybindHousingBGColor;
+}
+
+.ability_key_container .light .KeyboardKeyGlyphContainer
+{
+	background-color: keybindBGColor;
+}
+
+.inHideoutIntro .light .KeyboardKeyGlyphContainer
+{
+	background-color: #96DBD0;
+}
+
+CitadelKeyboardGlyph.light .KeyboardButtonGlyph
+{
+	wash-color: offBlack;
+}
+
+CitadelKeyboardGlyph.light .KeyboardButtonGlyph.UnboundKeyboardGlyph
+{
+	wash-color: white;
+}
+
+CitadelKeyboardGlyph.light Label
+{
+	color: offBlack;
+}
+
+.dark .KeyboardKeyGlyphContainer
+{
+	background-color: #333;
+}
+
+.dark .KeyboardKeyGlyphContainer
+{
+	background-color: #222;
+}
+
+CitadelKeyboardGlyph.dark Label
+{
+	color: #ccc;
+}
+
+.knockout .MouseGlyphBackground
+{
+	visibility: collapse;
+}
+
+.knockout
+{
+	background-color: transparent;
+}
+
+.knockout .UnboundKeyboardGlyphContainer
+{
+	background-color: transparent;
+}
+
+.knockout .KeyboardKeyGlyphContainer
+{
+	background-color: transparent;
+	border: 1px solid #ccc;
+}
+
+CitadelKeyboardGlyph.knockout Label
+{
+	color: #ccc;
+}
+
+#hero_testing_stub .ModifierCombinerContainer,#hero_testing_stub .KeyboardKeyGlyphContainer
+{
+	margin-left: 4px;
+}
+
+.upgradeReminderUI .ModifierCombinerContainer Label,.upgradeReminderUI .KeyboardKeyGlyphContainer Label
+{
+	font-size: 12px;
+}
+
+#MatchmakingStatus CitadelKeyboardGlyph.light Label
+{
+	color: deeplyOminousGreen;
+}
+
+#MatchmakingStatus .light .KeyboardKeyGlyphContainer
+{
+	background-color: transparent;
+}
+
+#MatchmakingStatus.State_WaitingForPartyRosters .light .KeyboardKeyGlyphContainer
+{
+	background-color: offWhite&22;
+}
+
+CitadelMatchInProgressStatus.StatusNotification .Details .Desc .light .KeyboardKeyGlyphContainer
+{
+	background-color: deeplyOminousGreen;
+	margin-top: -6px;
+	padding-top: 4px;
+}
+
+.RatingButton .light .KeyboardKeyGlyphContainer,#Skip .light .KeyboardKeyGlyphContainer
+{
+	background-color: transparent;
+}
+
+.RatingButton CitadelKeyboardGlyph.light Label,#Skip CitadelKeyboardGlyph.light Label
+{
+	color: ominousGreen;
+}
+
+@define inviteColor: #48D595;
+@define declineColor: #9C3333;
+.InviteHotkeyAccept .ModifierCombinerContainer Label,.InviteHotkeyAccept .KeyboardKeyGlyphContainer Label
+{
+	color: inviteColor;
+}
+
+.InviteHotkeyDecline .ModifierCombinerContainer Label,.InviteHotkeyDecline .KeyboardKeyGlyphContainer Label
+{
+	color: declineColor;
+}
+
+.InviteHotkeyAccept .KeyboardKeyGlyphContainer
+{
+	background-color: transparent;
+}
+
+.InviteHotkeyDecline .KeyboardKeyGlyphContainer
+{
+	background-color: transparent;
+}
+
+.customBinding .KeyboardKeyGlyphContainer,.customBinding .MouseGlyphBackground
+{
+	background-color: brandGreen;
+}
+
+.customBinding .MouseGlyphBackground
+{
+	wash-color: brandGreen&00;
+}
+
+.customBinding Label
+{
+	color: offBlack;
+}
+
+.AlreadyBound .KeyboardKeyGlyphContainer,.AlreadyBound .MouseGlyphBackground
+{
+	background-color: colorEnemy;
+	border-radius: 4px;
+}
+
+.AlreadyBound .MouseGlyphBackground
+{
+	wash-color: none;
+}
+
+.AlreadyBound Label
+{
+	color: offBlack;
+}
+
