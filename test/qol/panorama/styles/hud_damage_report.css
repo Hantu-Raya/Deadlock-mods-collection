@@ -1,0 +1,41 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_damage_report.vcss_c");
+.HudDamageReport.Tab
+{
+	border-radius: 0px;
+}
+
+.HudDamageReport.Tab #TextContainer
+{
+	visibility: visible;
+}
+
+.HudDamageReport.Tab #ReportContents
+{
+	opacity: 0.8;
+	background-color: none;
+}
+
+.support_16_10_active .HudDamageReport
+{
+	vertical-align: top;
+	horizontal-align: right;
+	margin-top: 250px;
+	width: 450px;
+	border: 1px solid #ffffff01;
+	font-family: sans;
+	flow-children: right;
+	transform: translateX(-13%) translateY(26%);
+	transition-duration: 0.2s;
+	transition-property: transform, opacity;
+	transition-timing-function: ease-in-out;
+	border-radius: 5px 0px 0px 5px;
+	visibility: collapse;
+}
+
+.hud_shift_active .HudDamageReport.Compact
+{
+	margin-right: 50px;
+}
+

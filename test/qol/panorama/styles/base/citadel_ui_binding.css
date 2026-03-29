@@ -1,0 +1,247 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+CitadelBinding
+{
+	margin: 0px 2px;
+}
+
+.Contents
+{
+	flow-children: right;
+}
+
+#BouncingArrow,#HoldProgressBG,#HoldProgress
+{
+	visibility: collapse;
+}
+
+CitadelBinding.HasHoldAction
+{
+	overflow: noclip;
+}
+
+CitadelBinding.HasHoldAction #BouncingArrow
+{
+	overflow: noclip;
+	margin-top: -3px;
+	background-image: url("s2r://panorama/images/glyphs/bindingholdarrow.vsvg");
+	background-size: 100% 100%;
+	width: 10px;
+	height: 10px;
+	visibility: visible;
+	horizontal-align: center;
+	vertical-align: top;
+	animation-name: AnimBouncingCycle;
+	animation-duration: 1.6s;
+	animation-timing-function: ease-in-out;
+	animation-iteration-count: infinite;
+}
+
+CitadelBinding.HasHoldAction #HoldProgressBG
+{
+	width: 100%;
+	height: 100%;
+	border-radius: 6px;
+	visibility: visible;
+	clip: radial( 50% 50%, 30deg, 300deg );
+}
+
+CitadelBinding.HasHoldAction #HoldProgress
+{
+	overflow: noclip;
+	width: 100%;
+	height: 100%;
+	border: 2px solid offwhite;
+	border-radius: 6px;
+}
+
+CitadelBinding.HasHoldAction .Contents
+{
+	padding: 2px;
+}
+
+CitadelBinding.HasHoldAction.HoldActivated
+{
+	animation-name: ActivatedPulse;
+	animation-duration: 0.2s;
+}
+
+@keyframes 'AnimBouncingCycle'
+{
+	0%
+	{
+		transform: translateY(-3px);
+	}
+	
+	2%
+	{
+		transform: translateY(-4px);
+	}
+	
+	5%
+	{
+		transform: translateY(1px);
+	}
+	
+	6%
+	{
+		transform: translateY(0px);
+	}
+	
+	95%
+	{
+		transform: translateY(0px);
+	}
+	
+	100%
+	{
+		transform: translateY(-3px);
+	}
+	
+}
+
+CitadelBinding.HasHoldAction.IsPressed .Contents
+{
+	transform: translateY( 1px );
+}
+
+CitadelBinding.HasHoldAction.IsPressed #BouncingArrow
+{
+	animation-name: none;
+	visibility: collapse;
+}
+
+CitadelBinding.HasHoldAction.IsPressed #HoldProgressBG
+{
+	animation-name: none;
+	visibility: collapse;
+}
+
+CitadelBinding.HasHoldAction.IsPressed #HoldProgress
+{
+	visibility: visible;
+}
+
+CitadelBinding.HasDownAction.DownActivated:not(.HasUpAction)
+{
+	animation-name: ActivatedPulse;
+	animation-duration: 0.2s;
+}
+
+CitadelBinding.HasUpAction.HasDownAction
+{
+	transition-property: pre-transform-scale2d, brightness;
+	transition-duration: 0.08s;
+}
+
+CitadelBinding.HasUpAction.HasDownAction.IsPressed
+{
+	pre-transform-scale2d: 0.92;
+	brightness: 2.5;
+}
+
+@keyframes 'ActivatedPulse'
+{
+	0%
+	{
+		transform: scale3d( 0.9, 0.9, 1.0 );
+	}
+	
+	100%
+	{
+		transform: scale3d( 1.0, 1.0, 1.0 );
+	}
+	
+}
+
+.hasControllerConnected.isUsingController #HoldProgress
+{
+	height: 100%;
+	width: 100%;
+	border-radius: 40px;
+	horizontal-align: center;
+}
+
+CitadelBinding CitadelGamePadBinding
+{
+	visibility: collapse;
+}
+
+.hasControllerConnected.isUsingController CitadelBinding CitadelKeyboardBinding
+{
+	visibility: visible;
+}
+
+.hasControllerConnected.isUsingController CitadelBinding CitadelGamePadBinding
+{
+	visibility: visible;
+}
+
+.hasControllerConnected.isUsingController CitadelBinding CitadelKeyboardBinding
+{
+	visibility: collapse;
+}
+
+.hasControllerConnected.isUsingController CitadelBinding.ForceKeyboardGlyphs CitadelKeyboardBinding
+{
+	visibility: visible;
+}
+
+.hasControllerConnected.isUsingController .ZooContainerPanelCitadelBinding CitadelBinding CitadelGamePadBinding,.hasControllerConnected.isUsingController .ZooContainerPanelCitadelBinding CitadelBinding CitadelKeyboardBinding
+{
+	visibility: visible;
+}
+
+.abilities .item_passive CitadelBinding
+{
+	visibility: collapse;
+}
+
+#MatchmakingStatus CitadelBinding.HasHoldAction #HoldProgress,#MatchmakingStatus CitadelBinding.HasHoldAction #HoldProgressBG
+{
+	border: 2px solid deeplyOminousGreen;
+}
+
+#MatchmakingStatus CitadelBinding.HasHoldAction #BouncingArrow
+{
+	wash-color: deeplyOminousGreen;
+}
+
+#Survey CitadelBinding.HasHoldAction #BouncingArrow
+{
+	wash-color: ominousGreen;
+}
+
+#Survey CitadelBinding.HasHoldAction #HoldProgress,#Survey CitadelBinding.HasHoldAction #HoldProgressBG
+{
+	border: 2px solid ominousGreen;
+}
+
+@define inviteColor: #48D595;
+@define declineColor: #9C3333;
+.InviteHotkeyAccept CitadelBinding.HasHoldAction #BouncingArrow
+{
+	wash-color: inviteColor;
+}
+
+.InviteHotkeyAccept CitadelBinding.HasHoldAction #HoldProgress,.InviteHotkeyAccept CitadelBinding.HasHoldAction #HoldProgressBG
+{
+	border: 2px solid inviteColor;
+}
+
+.InviteHotkeyDecline CitadelBinding.HasHoldAction #BouncingArrow
+{
+	wash-color: declineColor;
+}
+
+.InviteHotkeyDecline CitadelBinding.HasHoldAction #HoldProgress,.InviteHotkeyDecline CitadelBinding.HasHoldAction #HoldProgressBG
+{
+	border: 2px solid declineColor;
+}
+
+#spectate_container CitadelBinding
+{
+	margin-right: 4px;
+	margin-top: -1px;
+}
+

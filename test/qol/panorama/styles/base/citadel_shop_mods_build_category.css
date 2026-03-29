@@ -1,0 +1,309 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@define ModBuildCategoryTopPadding: 10px;
+@define ModBuildCategoryBottomPadding: 20px;
+@import url("s2r://panorama/styles/citadel_hero_builds_shared.vcss_c");
+CitadelShopModsBuildCategory
+{
+	flow-children: down;
+	height: fit-children;
+	opacity: 1;
+	border: 2px solid #00000060;
+	margin: 5px;
+	tooltip-position: left;
+	max-width: 97%;
+}
+
+.shopClosed CitadelShopModsBuildCategory
+{
+	wash-color: #00000090;
+}
+
+CitadelShopModsBuildCategory.Optional
+{
+	background-color: buildsDarkColor&60;
+	background-color: buildsDarkColor&70;
+}
+
+CitadelShopModsBuildCategory.Optional .BuildCategory .OptionalLabel
+{
+	visibility: visible;
+}
+
+CitadelShopModsBuildCategory .BuildCategory
+{
+	width: 100%;
+	flow-children: right;
+}
+
+CitadelShopModsBuildCategory .BuildCategory .CategoryName
+{
+	vertical-align: center;
+	margin: 4px;
+	color: offWhite;
+	font-weight: bold;
+	font-size: 16px;
+}
+
+CitadelShopModsBuildCategory .BuildCategory .OptionalLabel
+{
+	vertical-align: center;
+	margin: 4px;
+	margin-left: -2px;
+	color: offWhite;
+	font-weight: semi-bold;
+	font-size: 12px;
+	font-weight: bold;
+	background-color: #00000050;
+	border-radius: 2px;
+	padding: 0px 4px;
+	color: buildsLightColor&90;
+	text-transform: uppercase;
+	visibility: collapse;
+}
+
+CitadelShopModsBuildCategory .BuildCategory .CategoryDescription
+{
+	vertical-align: center;
+	margin: 4px;
+	color: offWhite;
+	font-weight: semi-bold;
+	opacity: 0.6;
+	font-size: 15px;
+}
+
+CitadelShopModsBuildCategory .NameAndDesc
+{
+	flow-children: down;
+}
+
+CitadelShopModsBuildCategory #BuildCategoryHeader
+{
+	tooltip-position: left;
+	background-color: offBlack&80;
+}
+
+CitadelShopModsBuildCategory #BuildCategoryHeader .CategoryName
+{
+	margin-left: 12px;
+	margin-top: 6px;
+}
+
+CitadelShopModsBuildCategory #BuildCategoryHeader:hover
+{
+	brightness: 1.3;
+}
+
+CitadelShopModsBuildCategory #BuildCategoryHeader .QuickbuyAllButton
+{
+	vertical-align: center;
+	horizontal-align: right;
+	background-color: green;
+	padding: 3px;
+	margin: 4px;
+}
+
+CitadelShopModsBuildCategory #BuildCategoryHeader .QuickbuyAllButton Label
+{
+	vertical-align: center;
+	horizontal-align: center;
+	color: #FFFFFF88;
+}
+
+CitadelShopModsBuildCategory #BuildCategoryHeaderEdit
+{
+	vertical-align: top;
+	ignore-parent-flow: true;
+	visibility: collapse;
+	height: 40px;
+}
+
+CitadelShopModsBuildCategory #BuildCategoryHeaderEdit #CategoryDragHandle
+{
+	margin-top: 2px;
+	margin-right: 5px;
+	width: 24px;
+	height: 24px;
+	background-image: url("s2r://panorama/images/control_icons/move_png.vtex");
+	background-size: contain;
+	background-position: center;
+	background-repeat: no-repeat;
+}
+
+CitadelShopModsBuildCategory #BuildCategoryHeaderEdit .CategoryName
+{
+	width: 200px;
+	height: 34px;
+}
+
+CitadelShopModsBuildCategory #BuildCategoryHeaderEdit .CategoryDescription
+{
+	width: 500px;
+}
+
+CitadelShopModsBuildCategory #BuildCategoryHeaderEdit .CategoryControls
+{
+	vertical-align: top;
+	horizontal-align: right;
+	ignore-parent-flow: true;
+	flow-children: right;
+	background-color: citadelBuildsColorContainerBackground;
+	padding: 3px;
+	margin: 0px;
+}
+
+CitadelShopModsBuildCategory #BuildCategoryHeaderEdit #OptionalButton
+{
+	vertical-align: center;
+	margin: 4px;
+}
+
+CitadelShopModsBuildCategory #BuildCategoryHeaderEdit #DeleteCategoryButton
+{
+	vertical-align: top;
+	horizontal-align: right;
+}
+
+CitadelShopModsBuildCategory #BuildCategoryHeaderEdit #DeleteCategoryButton .TrashIcon
+{
+	width: 24px;
+	height: 24px;
+	wash-color: #e1d9db;
+	margin: 2px;
+	background-image: url("s2r://panorama/images/control_icons/icon_trash_png.vtex");
+	background-size: contain;
+	background-position: center;
+	background-repeat: no-repeat;
+}
+
+CitadelShopModsBuildCategory #ModFocusBlocker
+{
+	width: 100%;
+	height: 100%;
+	visibility: collapse;
+}
+
+.gEditingBuilds CitadelShopModsBuildCategory .QuickbuyAllButton
+{
+	visibility: collapse;
+}
+
+.gEditingBuilds CitadelShopModsBuildCategory.Focused
+{
+	border: 2px dashed lightgrey;
+}
+
+.gEditingBuilds CitadelShopModsBuildCategory.Focused #BuildCategoryHeaderEdit
+{
+	visibility: visible;
+}
+
+.gEditingBuilds CitadelShopModsBuildCategory.Focused #Overlay #CategoryResizeHandle
+{
+	visibility: visible;
+}
+
+.gEditingBuilds CitadelShopModsBuildCategory.Focused #ModFocusBlocker
+{
+	visibility: visible;
+}
+
+.gEditingBuilds CitadelShopModsBuildCategory:not(.Focused) #Overlay #FocusBlocker
+{
+	visibility: collapse;
+}
+
+.gEditingBuilds .FocusedOnMod CitadelShopModsBuildCategory.BuildModCategory.Focused
+{
+	border: 2px solid #00000060;
+}
+
+.gEditingBuilds .FocusedOnMod CitadelShopModsBuildCategory.BuildModCategory.Focused #Overlay #CategoryResizeHandle,.gEditingBuilds .FocusedOnMod CitadelShopModsBuildCategory.BuildModCategory.Focused #BuildCategoryHeaderEdit
+{
+	visibility: collapse;
+}
+
+CitadelShopModsBuildCategory #Overlay
+{
+	width: 100%;
+	height: 100%;
+	ignore-parent-flow: true;
+}
+
+CitadelShopModsBuildCategory #Overlay #CategoryResizeHandle
+{
+	horizontal-align: right;
+	vertical-align: bottom;
+	width: 20px;
+	height: 20px;
+	border-right: 2px solid #999;
+	border-bottom: 2px solid #999;
+	visibility: collapse;
+}
+
+CitadelShopModsBuildCategory #Overlay #FocusBlocker
+{
+	width: 100%;
+	height: 100%;
+	visibility: collapse;
+}
+
+CitadelShopModsBuildCategory #Overlay #FocusBlocker:hover
+{
+	background-color: #ffffff07;
+}
+
+CitadelShopModsBuildCategory #ModsContainer
+{
+	flow-children: right-wrap;
+	padding: 4px;
+	overflow: clip;
+}
+
+.DragPoint
+{
+	width: 20px;
+	height: 20px;
+	border: 2px solid red;
+}
+
+.gEditingBuilds .Dragging CitadelShopModsBuildCategory:not(.Focused) #Overlay #FocusBlocker
+{
+	visibility: collapse;
+}
+
+.BuildModEntry.DropTarget
+{
+	border: 3px solid blue;
+}
+
+.BuildModCategory.DropTarget
+{
+	border: 2px solid blue;
+}
+
+.gEditingBuilds CitadelShopModsBuildCategory.Focused.DropTarget
+{
+	border: 2px dashed blue;
+}
+
+.BuildModEntry
+{
+	overflow: noclip;
+}
+
+.gEditingBuilds .BuildModEntry.Focused
+{
+	border: 3px dashed white;
+}
+
+.gEditingBuilds .BuildModEntry.Focused.DropTarget
+{
+	border: 3px dashed blue;
+}
+
+.BuildModEntry:hover
+{
+	z-index: 100;
+}
+

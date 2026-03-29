@@ -1,0 +1,42 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/citadel_db_page_profile.vcss_c");
+#AllStats,#CoreRating
+{
+	visibility: visible;
+}
+
+.QOLStatlockerButton
+{
+	horizontal-align: right;
+	vertical-align: bottom;
+	height: 44px;
+	width: 44px;
+	margin-bottom: 4px;
+	margin-right: 8px;
+	padding: 0px;
+	background-color: none;
+	border: 0px solid transparent;
+	border-radius: 4px;
+	box-shadow: none;
+}
+
+.QOLStatlockerImage
+{
+	horizontal-align: center;
+	vertical-align: center;
+	width: 44px;
+	height: 44px;
+	wash-color: #9ca3aa;
+	opacity: 0.92;
+	transition-property: wash-color, opacity;
+	transition-duration: 0.12s;
+	transition-timing-function: ease-in-out;
+}
+
+.QOLStatlockerButton:hover .QOLStatlockerImage
+{
+	wash-color: #ffffff;
+	opacity: 1;
+}
+

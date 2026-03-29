@@ -1,0 +1,131 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/ability_hud_elements/element_progress_bar_text.vcss_c");
+#legacy_progress_container
+{
+	visibility: collapse;
+	flow-children: down;
+	width: 330px;
+	height: fit-children;
+	horizontal-align: center;
+	vertical-align: center;
+}
+
+.legacy_cooldowns_active .ability_element_progress
+{
+	margin-left: 0px;
+	transform: rotateZ(0deg);
+}
+
+.legacy_cooldowns_active #channel_and_name
+{
+	width: 330px;
+}
+
+.legacy_cooldowns_active #text_container
+{
+	visibility: collapse;
+}
+
+.legacy_cooldowns_active #legacy_progress_container
+{
+	visibility: visible;
+}
+
+.legacy_cooldowns_active #legacy_bar_container
+{
+	width: 100%;
+	height: 24px;
+	horizontal-align: center;
+	vertical-align: middle;
+}
+
+.legacy_cooldowns_active .legacy_castbar_name
+{
+	font-size: 20px;
+	color: offWhite;
+	text-transform: uppercase;
+	font-weight: bold;
+	text-shadow: 1px 1px 0px 3.0 vivaciousGreen;
+	font-family: sans;
+	margin-top: 4px;
+	margin-bottom: 4px;
+	horizontal-align: center;
+	vertical-align: center;
+	text-align: center;
+}
+
+.legacy_cooldowns_active #hint_container
+{
+	visibility: collapse;
+}
+
+.legacy_cooldowns_active #legacy_bar_fg_container
+{
+	border-radius: 4px;
+	width: 100%;
+	height: 100%;
+}
+
+.legacy_cooldowns_active #legacy_bar_fg
+{
+	width: 100%;
+	height: 100%;
+	background-image: url("s2r://panorama/images/hud/healthbar/healthbar_fill_texture_png.vtex");
+	background-size: 100% 250%;
+	background-position: center;
+}
+
+.legacy_cooldowns_active .ability_fencer_lunge.ability_element_progress,.legacy_cooldowns_active .flying_cloak_lifetime.ability_element_progress,.legacy_cooldowns_active .ability_vampirebat_batblink.ability_element_progress,.legacy_cooldowns_active .citadel_ability_tangotether.ability_element_progress
+{
+	transform: rotateZ(0deg);
+	ui-scale: 100%;
+	margin-left: 0px;
+}
+
+.legacy_cooldowns_active .citadel_ability_tangotether
+{
+	ui-scale: 100%;
+}
+
+.legacy_cooldowns_active .ability_element_progress.ability_frank_painaura
+{
+	transform: rotateZ(0deg);
+}
+
+.legacy_cooldowns_active .ability_element_progress.ability_frank_revive
+{
+	margin-left: 0px;
+	transform: rotateZ(0deg);
+}
+
+.legacy_cooldowns_active #legacy_bar_bg
+{
+	border-radius: 4px;
+	width: 100%;
+	height: 100%;
+	background-color: vivaciousGreen;
+	align: center center;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) .ability_element_progress
+{
+	margin-bottom: 200px;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #channel_and_name
+{
+	margin-bottom: 85px;
+	margin-left: 20px;
+}
+
+.fg_healthbar_active:not(.minimalist_healthbar_active) #hint_container
+{
+	margin-top: -5px;
+}
+
+.budhud_healthbar_active .ability_element_progress
+{
+	margin-bottom: 180px;
+}
+

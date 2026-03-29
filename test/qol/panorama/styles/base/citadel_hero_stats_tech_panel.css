@@ -1,0 +1,52 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+#SpiritValueContainer
+{
+	width: 45%;
+	height: fit-children;
+	flow-children: down;
+	padding: 10px;
+}
+
+CitadelModifiedAbilities
+{
+	flow-children: down;
+	height: fit-children;
+	width: fill-parent-flow(1.0);
+	padding: 5px 0px;
+}
+
+#StatContainer_TechPower
+{
+	width: 200px;
+}
+
+#SpiritImpactContainer
+{
+	width: 100%;
+}
+
+.SpiritPower
+{
+	width: 100%;
+}
+
+.SpiritPowerImpactLabel
+{
+	text-transform: uppercase;
+	font-weight: bold;
+	font-size: 14px;
+	opacity: 0.6;
+	margin-bottom: 5px;
+}
+
+.SpiritPowerDesc
+{
+	width: 100%;
+	font-size: 14px;
+	opacity: 0.6;
+	font-weight: medium;
+	margin-top: 5px;
+	padding-left: 2px;
+}
+
