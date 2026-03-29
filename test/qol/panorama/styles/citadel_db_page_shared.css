@@ -1,0 +1,27 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/citadel_db_page_shared.vcss_c");
+#MatchTitle
+{
+	margin-left: 0px;
+}
+
+.GameMode
+{
+	font-size: 26px;
+	font-family: serif;
+	opacity: 0.6;
+}
+
+.GameModeRank
+{
+	font-family: serif;
+}
+
+#FooterBar
+{
+	height: 100px;
+	flow-children: right;
+	padding: 0px 50px 30px 50px;
+}
+

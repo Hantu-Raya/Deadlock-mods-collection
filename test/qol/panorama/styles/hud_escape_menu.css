@@ -1,0 +1,126 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_escape_menu.vcss_c");
+#ContextualMenu
+{
+	margin-top: 120px;
+}
+
+.center_esc_active #LeftStripe
+{
+	horizontal-align: center;
+	margin-left: 0px;
+}
+
+.center_friends_list_active #RightSide .FriendsOrPlayersTabs
+{
+	horizontal-align: center;
+	margin: 0px 0px 8px 30%;
+}
+
+.center_friends_list_active #RightSide .FriendsOrPlayersContents
+{
+	width: 420px;
+	horizontal-align: center;
+	margin-left: 30%;
+	padding-right: 0px;
+}
+
+#newgame .MenuIcon,#watchgame .MenuIcon,#guides .MenuIcon
+{
+	background-image: url("s2r://panorama/images/icons/hero_grid.vsvg");
+	width: 60px;
+	transform: translateX(230px) translateY(55px) rotateZ(-12deg);
+}
+
+#newgame,#watchgame,#guides
+{
+	visibility: visible;
+	pre-transform-rotate2d: -1.7deg;
+	vertical-align: bottom;
+	opacity-mask: url("s2r://panorama/images/main_menu/text_speckle_mask_main_psd.vtex") 0.7;
+	opacity-mask-scale: 100% 200%;
+}
+
+#newgame .menuButtonLabel
+{
+	margin-bottom: 490px;
+}
+
+#watchgame .menuButtonLabel
+{
+	margin-bottom: 420px;
+}
+
+#guides .menuButtonLabel
+{
+	margin-bottom: 350px;
+}
+
+#newgame Label.menuButtonLabel,#watchgame Label.menuButtonLabel,#guides Label.menuButtonLabel
+{
+	font-size: 60px;
+}
+
+#newgame:hover,#watchgame:hover,#guides:hover
+{
+	pre-transform-rotate2d: -2.8deg;
+}
+
+#EscapeButton
+{
+	flow-children: right;
+	transition-property: brightness;
+	transition-timing-function: ease-in-out;
+	transition-duration: 0.10s;
+}
+
+#EscapeButton:hover
+{
+	brightness: 2.0;
+}
+
+#EscapeButton > Label
+{
+	margin-left: 6px;
+	font-size: 20px;
+	color: offWhite&88;
+	font-family: block;
+	text-transform: uppercase;
+	vertical-align: center;
+	padding-top: 2px;
+}
+
+.hide_behavior_summary_active #PrivilegedFeatures
+{
+	visibility: collapse;
+}
+
+.specials_active #ModSettingsBtn
+{
+	visibility: collapse;
+}
+
+.specials_active #newgame,.specials_active #watchgame,.specials_active #guides
+{
+	visibility: collapse;
+}
+
+.specials_active .friendSearchContainer,.specials_active #FriendsSearchContainer
+{
+	visibility: collapse;
+}
+
+#ModSettingsBtn #ModSettingsGearIcon
+{
+	visibility: visible;
+	opacity: 0.35;
+	margin-left: 8px;
+	margin-right: 0px;
+}
+
+#ModSettingsBtn:hover #ModSettingsGearIcon
+{
+	opacity: 1;
+}
+

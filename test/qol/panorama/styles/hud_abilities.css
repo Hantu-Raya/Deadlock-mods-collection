@@ -1,0 +1,35 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_abilities.vcss_c");
+.old_item_cooldowns_active .items .ability_container.item_passive.Hidden
+{
+	visibility: visible;
+}
+
+.simplify_ability_icons_active .ability_bg
+{
+	wash-color: #ffffff00;
+}
+
+.support_16_10_active .hud_abilities
+{
+	vertical-align: bottom;
+	margin-bottom: 0px;
+	border-radius: 6px;
+	flow-children: down;
+}
+
+.support_16_10_active .gShopOpen CitadelHudAbilities:hover #abilities,.support_16_10_active .wants_scoreboard #abilities,.support_16_10_active .gDetailView #abilities
+{
+	height: 220px;
+}
+
+.support_16_10_active #abilities
+{
+	width: fit-children;
+	height: 220px;
+	vertical-align: top;
+	flow-children: right;
+	ui-scale: 90%;
+}
+

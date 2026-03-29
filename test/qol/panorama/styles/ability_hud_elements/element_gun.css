@@ -1,0 +1,63 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/ability_hud_elements/element_gun.vcss_c");
+#clip_status
+{
+	visibility: visible;
+}
+
+.hide_ammo_custom #clip_status
+{
+	opacity: 0 !important;
+	visibility: collapse;
+}
+
+.hide_magazine_active #ammo_panel .weapon_ammo_max
+{
+	opacity: 0 !important;
+}
+
+.hide_current_ammo_active #ammo_panel .weapon_ammo
+{
+	opacity: 0 !important;
+	visibility: collapse;
+}
+
+#QOLReloadCooldownText
+{
+	visibility: collapse;
+	horizontal-align: center;
+	vertical-align: center;
+	z-index: 20;
+	color: #e83e38;
+	font-size: 28px;
+	font-weight: bold;
+	text-shadow: 0px 0px 6px #000000dd;
+	opacity: 0.6;
+}
+
+.hide_reload_icon_active #attackDelayedReloading
+{
+	opacity: 0 !important;
+}
+
+.hide_reload_circle_active #reticle_status_progress_bar_bg
+{
+	opacity: 0 !important;
+}
+
+.hide_reload_circle_active #attack_delayed_progress_bar
+{
+	opacity: 0 !important;
+}
+
+.hide_reload_circle_active.hide_reload_circle_exception_active #reticle_status_progress_bar_bg
+{
+	opacity: 0.35 !important;
+}
+
+.hide_reload_circle_active.hide_reload_circle_exception_active #attack_delayed_progress_bar
+{
+	opacity: 1 !important;
+}
+

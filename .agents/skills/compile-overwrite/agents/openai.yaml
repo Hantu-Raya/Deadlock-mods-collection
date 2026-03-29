@@ -1,0 +1,4 @@
+interface:
+  display_name: "Compile Overwrite"
+  short_description: "Compile with repo build scripts and safely replace one target file"
+  default_prompt: "Use the repo's build script when available, compile into staging, back up the existing target if present, and overwrite only the requested file."

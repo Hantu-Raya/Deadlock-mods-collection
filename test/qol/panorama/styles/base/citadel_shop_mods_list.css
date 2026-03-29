@@ -1,0 +1,416 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+CitadelShopModsList
+{
+	height: 100%;
+	width: 100%;
+	overflow: squish scroll;
+	horizontal-align: center;
+	padding-left: 20px;
+}
+
+CitadelShopModsList
+{
+	background-size: cover;
+}
+
+.showingSearch CitadelShopModsList
+{
+	margin-top: 0px;
+	padding-top: 100px;
+}
+
+.showingFavorites CitadelShopModsList VerticalScrollBar .ScrollThumb
+{
+	background-color: buildsLightColor;
+	wash-color: none;
+}
+
+.showingWeapon CitadelShopModsList:hover VerticalScrollBar .ScrollThumb
+{
+	transform-origin: 0% 50%;
+	transform: scale3D(1, 1, 1);
+	background-color: courageBrightColor;
+	wash-color: none;
+}
+
+.showingArmor CitadelShopModsList VerticalScrollBar .ScrollThumb
+{
+	transform-origin: 0% 50%;
+	transform: scale3D(1, 1, 1);
+	background-color: fortitudeColor;
+	wash-color: none;
+}
+
+.showingTech CitadelShopModsList:hover VerticalScrollBar .ScrollThumb
+{
+	transform-origin: 0% 50%;
+	transform: scale3D(1, 1, 1);
+	background-color: spiritBrightColor;
+	wash-color: none;
+}
+
+.showingArmor CitadelShopModsList:hover VerticalScrollBar .ScrollThumb
+{
+	transform-origin: 0% 50%;
+	transform: scale3D(1, 1, 1);
+	background-color: fortitudeBrightColor;
+	wash-color: none;
+}
+
+.showingFavorites CitadelShopModsBuild:hover VerticalScrollBar .ScrollThumb
+{
+	transform-origin: 0% 50%;
+	transform: scale3D(1, 1, 1);
+	background-color: buildsLightColor;
+	wash-color: none;
+}
+
+.shopClosed CitadelShopModsList VerticalScrollBar .ScrollThumb
+{
+	background-color: #4D4D4D;
+	wash-color: none;
+}
+
+.showingWeapon #ShopModsListWeapon
+{
+	visibility: visible;
+	animation-iteration-count: 1;
+	animation-duration: 0.3s;
+	animation-timing-function: ease-in;
+}
+
+.showingTech #ShopModsListTech
+{
+	visibility: visible;
+	animation-iteration-count: 1;
+	animation-duration: 0.3s;
+	animation-timing-function: ease-in;
+}
+
+.showingArmor #ShopModsListArmor
+{
+	visibility: visible;
+	animation-iteration-count: 1;
+	animation-duration: 0.3s;
+	animation-timing-function: ease-in;
+}
+
+.showingFavorites #ShopModsBuild
+{
+	visibility: visible;
+	animation-iteration-count: 1;
+	animation-duration: 0.3s;
+	animation-timing-function: ease-in;
+	border-top: 0px solid #C3B661;
+}
+
+.showingFilters #ShopModsListAll
+{
+	visibility: visible;
+	animation-iteration-count: 1;
+	animation-duration: 0.3s;
+	animation-timing-function: ease-in;
+}
+
+@keyframes 'courageAnimateIn'
+{
+	0%
+	{
+		transform: translate3d( -550px, 0px, 0px );
+		opacity: 0;
+	}
+	
+	100%
+	{
+		transform: translate3d( 0px, 0px, 0px );
+		opacity: 1;
+	}
+	
+}
+
+@keyframes 'spiritAnimateIn'
+{
+	0%
+	{
+		transform: translate3d( 550px, 0px, 0px );
+		opacity: 0;
+	}
+	
+	100%
+	{
+		transform: translate3d( 0px, 0px, 0px );
+		opacity: 1;
+	}
+	
+}
+
+#ShopModsListWeapon #ModTier1
+{
+	width: 45%;
+	height: fit-children;
+	x: 1.8%;
+	y: 18%;
+}
+
+#ShopModsListWeapon #ModTier2
+{
+	width: 50%;
+	height: fit-children;
+	x: 46.7%;
+	y: 4.5%;
+}
+
+#ShopModsListWeapon #ModTier3
+{
+	width: 100%;
+	height: fit-children;
+	x: 0px;
+	y: 450px;
+	width: 50%;
+	height: fit-children;
+	x: 1.8%;
+	y: 54%;
+}
+
+#ShopModsListWeapon #ModTier4
+{
+	width: 100%;
+	height: fit-children;
+	x: 0%;
+	y: 670px;
+	width: 45%;
+	height: fit-children;
+	x: 54.6%;
+	y: 54%;
+}
+
+#ShopModsListWeapon #ModTier5
+{
+	width: 1000px;
+	height: fit-children;
+	x: 0px;
+	y: 670px;
+}
+
+#ShopModsListArmor #ModTier1
+{
+	width: 45%;
+	height: fit-children;
+	x: 1.8%;
+	y: 18%;
+}
+
+#ShopModsListArmor #ModTier2
+{
+	width: 50%;
+	height: fit-children;
+	x: 46.7%;
+	y: 4.5%;
+}
+
+#ShopModsListArmor #ModTier3
+{
+	width: 45%;
+	height: fit-children;
+	x: 1.8%;
+	y: 54%;
+}
+
+#ShopModsListArmor #ModTier4
+{
+	width: 50%;
+	height: fit-children;
+	x: 47%;
+	y: 54%;
+}
+
+#ShopModsListArmor #ModTier5
+{
+	width: 1000px;
+	height: fit-children;
+	x: 0px;
+	y: 650px;
+}
+
+#ShopModsListTech #ModTier1
+{
+	width: 45%;
+	height: fit-children;
+	x: 1.8%;
+	y: 18%;
+}
+
+#ShopModsListTech #ModTier2
+{
+	width: 50%;
+	height: fit-children;
+	x: 46.7%;
+	y: 4.5%;
+}
+
+#ShopModsListTech #ModTier3
+{
+	width: 100%;
+	height: fit-children;
+	x: 0%;
+	y: 420px;
+	width: 45%;
+	height: fit-children;
+	x: 1.8%;
+	y: 54%;
+}
+
+#ShopModsListTech #ModTier4
+{
+	width: 1070px;
+	height: fit-children;
+	x: 0px;
+	y: 650px;
+	width: 50%;
+	height: fit-children;
+	x: 47%;
+	y: 54%;
+}
+
+#ShopModsListTech #ModTier5
+{
+	width: 1070px;
+	height: fit-children;
+	x: 0px;
+	y: 670px;
+}
+
+#HeaderArea
+{
+	width: 35%;
+	height: 100px;
+	background-color: red;
+}
+
+#ShopModsListWeapon #HeaderArea
+{
+	background-color: courageBrightColor;
+}
+
+#ShopModsListArmor #HeaderArea
+{
+	background-color: fortitudeBrightColor;
+}
+
+#ShopModsListTech #HeaderArea
+{
+	background-color: spiritBrightColor;
+}
+
+#PriceTags
+{
+	width: 100%;
+	height: 100%;
+	z-index: 1;
+	visibility: collapse;
+}
+
+#ShopModsListWeapon #PriceTags,#ShopModsListArmor #PriceTags,#ShopModsListTech #PriceTags
+{
+	visibility: visible;
+}
+
+.priceTag
+{
+	background-size: cover;
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	flow-children: right;
+	width: 130px;
+	height: 50px;
+}
+
+.currencySymbol
+{
+	width: 12px;
+	height: 20px;
+	background-image: url("s2r://panorama/images/shop/catalog/price_currency_psd.vtex");
+	background-size: contain;
+	background-repeat: no-repeat;
+	margin-right: 2px;
+	vertical-align: middle;
+}
+
+.priceTag Label
+{
+	font-size: 24px;
+	color: #7eb192;
+	font-weight: bold;
+	vertical-align: middle;
+}
+
+#Tier1PriceTag
+{
+	x: 24px;
+	y: 138px;
+	transform: rotateZ(-6deg);
+}
+
+#Tier2PriceTag
+{
+	transform: rotateZ(-5deg);
+	x: 495px;
+	y: 12px;
+}
+
+#Tier2PriceTag.priceTag Label
+{
+	font-size: 30px;
+	font-weight: bold;
+	vertical-align: middle;
+}
+
+#Tier3PriceTag
+{
+	transform: rotateZ(-7deg);
+	x: 26px;
+	y: 480px;
+}
+
+#Tier3PriceTag.priceTag Label
+{
+	font-size: 32px;
+	font-weight: bold;
+	vertical-align: middle;
+}
+
+#Tier4PriceTag
+{
+	transform: rotateZ(-6deg);
+	x: 495px;
+	y: 472px;
+}
+
+#ShopModsListWeapon #Tier4PriceTag
+{
+	transform: rotateZ(-6deg);
+	x: 590px;
+	y: 471px;
+}
+
+#Tier4PriceTag.priceTag Label
+{
+	font-size: 34px;
+	font-weight: bold;
+	vertical-align: middle;
+}
+
+.cantAfford.priceTag
+{
+	wash-color: rgb(255, 101, 101);
+	brightness: 2;
+}
+
+.infiniteMoney .cantAfford.priceTag
+{
+	wash-color: none;
+	brightness: 1;
+}
+

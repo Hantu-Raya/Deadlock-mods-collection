@@ -1,0 +1,8 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/citadel_hud_item_bar_graph.vcss_c");
+.simplify_items_active #BarsContainer
+{
+	background-color: none;
+}
+

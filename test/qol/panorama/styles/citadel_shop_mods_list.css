@@ -1,0 +1,141 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/citadel_shop_mods_list.vcss_c");
+CitadelHudHeroShop.simplify_shop_active CitadelShopModsList
+{
+	padding-left: -5px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListTech #ModTier1,CitadelHudHeroShop.simplify_shop_active #ShopModsListTech #ModTier2,CitadelHudHeroShop.simplify_shop_active #ShopModsListTech #ModTier3,CitadelHudHeroShop.simplify_shop_active #ShopModsListTech #ModTier4,CitadelHudHeroShop.simplify_shop_active #ShopModsListWeapon #ModTier1,CitadelHudHeroShop.simplify_shop_active #ShopModsListWeapon #ModTier2,CitadelHudHeroShop.simplify_shop_active #ShopModsListWeapon #ModTier3,CitadelHudHeroShop.simplify_shop_active #ShopModsListWeapon #ModTier4,CitadelHudHeroShop.simplify_shop_active #ShopModsListArmor #ModTier1,CitadelHudHeroShop.simplify_shop_active #ShopModsListArmor #ModTier2,CitadelHudHeroShop.simplify_shop_active #ShopModsListArmor #ModTier3,CitadelHudHeroShop.simplify_shop_active #ShopModsListArmor #ModTier4
+{
+	width: 100%;
+	x: 0px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #Tier1PriceTag,CitadelHudHeroShop.simplify_shop_active #Tier2PriceTag,CitadelHudHeroShop.simplify_shop_active #Tier3PriceTag,CitadelHudHeroShop.simplify_shop_active #Tier4PriceTag
+{
+	transform: rotateZ(0deg);
+	x: 15px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #Tier1PriceTag
+{
+	y: 0px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #Tier2PriceTag
+{
+	y: 145px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #Tier3PriceTag
+{
+	y: 375px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #Tier4PriceTag
+{
+	y: 605px;
+}
+
+CitadelHudHeroShop.simplify_shop_active .priceTag
+{
+	width: 100px;
+	background-color: #2b2c2b;
+	border-radius: 6px;
+	opacity: 0.6;
+}
+
+CitadelHudHeroShop.simplify_shop_active .priceTag Label
+{
+	horizontal-align: middle;
+}
+
+CitadelHudHeroShop.simplify_shop_active .currencySymbol
+{
+	margin-left: 5px;
+	margin-right: 0px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #Tier1PriceTag.priceTag Label,CitadelHudHeroShop.simplify_shop_active #Tier2PriceTag.priceTag Label,CitadelHudHeroShop.simplify_shop_active #Tier3PriceTag.priceTag Label,CitadelHudHeroShop.simplify_shop_active #Tier4PriceTag.priceTag Label
+{
+	font-size: 30px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListTech #ModTier1,CitadelHudHeroShop.simplify_shop_active #ShopModsListWeapon #ModTier1,CitadelHudHeroShop.simplify_shop_active #ShopModsListArmor #ModTier1
+{
+	y: 5%;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListTech #ModTier2,CitadelHudHeroShop.simplify_shop_active #ShopModsListWeapon #ModTier2,CitadelHudHeroShop.simplify_shop_active #ShopModsListArmor #ModTier2
+{
+	y: 20%;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListTech #ModTier3,CitadelHudHeroShop.simplify_shop_active #ShopModsListWeapon #ModTier3,CitadelHudHeroShop.simplify_shop_active #ShopModsListArmor #ModTier3
+{
+	y: 45%;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListTech #ModTier4,CitadelHudHeroShop.simplify_shop_active #ShopModsListWeapon #ModTier4,CitadelHudHeroShop.simplify_shop_active #ShopModsListArmor #ModTier4
+{
+	y: 70%;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListWeapon #ModTier1,CitadelHudHeroShop.simplify_shop_active #ShopModsListArmor #ModTier1
+{
+	y: 40px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListWeapon #ModTier2,CitadelHudHeroShop.simplify_shop_active #ShopModsListArmor #ModTier2
+{
+	y: 185px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListWeapon #ModTier3,CitadelHudHeroShop.simplify_shop_active #ShopModsListArmor #ModTier3
+{
+	y: 415px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListWeapon #ModTier4,CitadelHudHeroShop.simplify_shop_active #ShopModsListArmor #ModTier4
+{
+	y: 645px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListTech #ModTier1
+{
+	y: 40px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListTech #ModTier2
+{
+	y: 185px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListTech #ModTier3
+{
+	y: 330px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListTech #ModTier4
+{
+	y: 560px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListTech #Tier3PriceTag
+{
+	y: 290px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListTech #Tier4PriceTag
+{
+	y: 520px;
+}
+
+CitadelHudHeroShop.simplify_shop_active #ShopModsListWeapon #Tier4PriceTag
+{
+	x: 15px;
+	y: 605px;
+	transform: rotateZ(0deg);
+}
+

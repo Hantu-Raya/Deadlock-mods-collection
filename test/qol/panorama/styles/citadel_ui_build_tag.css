@@ -1,0 +1,17 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/citadel_ui_build_tag.vcss_c");
+.support_4_3_active CitadelBuildTag
+{
+	ui-scale: 80%;
+}
+
+.support_4_3_active #AbilityBuildContainer
+{
+	padding: 10px;
+	vertical-align: bottom;
+	horizontal-align: left;
+	height: 160px;
+	width: 350px;
+}
+

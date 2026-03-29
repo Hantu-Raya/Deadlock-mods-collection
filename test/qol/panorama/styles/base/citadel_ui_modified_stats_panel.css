@@ -1,0 +1,202 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+#Icon
+{
+	height: 30px;
+	width: 30px;
+	margin-right: 10px;
+}
+
+#AbilityImage,#StatAbilityImage
+{
+	height: 30px;
+	width: 30px;
+	opacity: 0.6;
+	border-radius: 5px;
+	vertical-align: center;
+	horizontal-align: center;
+	vertical-align: center;
+}
+
+.AffectedAbility #Icon
+{
+	background-color: #ffffff60;
+	border-radius: 50px;
+	padding: 4px;
+}
+
+#AbilityImage
+{
+	wash-color: offBlack;
+	opacity: 1;
+}
+
+.AffectedItem #AbilityImage
+{
+	wash-color: none;
+	opacity: 0.6;
+}
+
+.AffectedAbility.AffectedItem #Icon,.AffectedAbility.AffectedStat #Icon
+{
+	background-color: #ffffff00;
+	border-radius: 50px;
+	padding: 0px;
+}
+
+#StatAbilityImage
+{
+	background-size: contain;
+}
+
+.AffectedAbility,.AffectedItem,.AffectedStat
+{
+	width: 100%;
+	height: fit-children;
+	margin: 5px 0px;
+	font-size: 18px;
+	flow-children: right;
+}
+
+.IsImbued.AffectedAbility
+{
+	background-color: spiritDarkColor;
+}
+
+#AffectedPropertiesContainer
+{
+	width: 90%;
+	height: fit-children;
+	vertical-align: center;
+	flow-children: down;
+}
+
+.AffectedAbilityProperty
+{
+	width: 100%;
+	flow-children: right;
+	vertical-align: center;
+}
+
+.AffectedPropertyName
+{
+	margin-right: 8px;
+	font-weight: semi-bold;
+	color: colorCommonOffWhite;
+	font-size: 16px;
+	width: 170px;
+	height: 22px;
+	text-overflow: shrink;
+}
+
+.AffectedPropertySubText
+{
+	visibility: collapse;
+	font-size: 14px;
+	font-style: italic;
+	opacity: 0.8;
+	font-weight: medium;
+}
+
+.HasSubText .AffectedPropertySubText
+{
+	visibility: visible;
+}
+
+.AffectedValCur
+{
+	font-size: 18px;
+	font-weight: semi-bold;
+	color: colorCommonOffWhite;
+	opacity: 0.5;
+}
+
+.AffectedValDelta
+{
+	color: #66FF99;
+	margin-right: 5px;
+	visibility: collapse;
+}
+
+.AffectedPropertyDeltaContainer
+{
+	ignore-parent-flow: true;
+	horizontal-align: right;
+}
+
+.AffectedValArrow
+{
+	height: 12px;
+	width: 12px;
+	margin-top: 2px;
+	margin-left: 4px;
+	margin-right: 4px;
+	vertical-align: center;
+	wash-color: colorCommonOffWhite;
+	opacity: 0.25;
+}
+
+.AffectedValNew
+{
+	font-size: 18px;
+	font-weight: bold;
+	text-align: center;
+	font-family: sansMono;
+}
+
+.noModifiedAbilities .AffectedValArrow,.noModifiedAbilities .AffectedValNew
+{
+	visibility: collapse;
+}
+
+.WeaponMod .AffectedValNew,.WeaponMod .AffectedValPostfix
+{
+	color: courageBrightColor;
+}
+
+.ArmorMod .AffectedValNew
+{
+	color: fortitudeBrightColor;
+}
+
+.TechMod .AffectedValNew,.TechMod .AffectedValPostfix
+{
+	color: spiritBrightColor;
+}
+
+.AffectedValPostfix
+{
+	vertical-align: center;
+}
+
+.PropertyNameContainer,.AffectedPropertyDeltaContainer
+{
+	vertical-align: center;
+}
+
+#SpiritImpactContainer #AbilityImage,#SpiritImpactContainer #StatAbilityImage
+{
+	width: 23px;
+	height: 23px;
+}
+
+#SpiritImpactContainer .AffectedPropertyName
+{
+	font-size: 16px;
+}
+
+#SpiritImpactContainer .AffectedValCur
+{
+	font-size: 16px;
+}
+
+#SpiritImpactContainer .AffectedValNew
+{
+	font-size: 16px;
+}
+
+#SpiritImpactContainer .AffectedValPrefix,#SpiritImpactContainer .AffectedValPostfix
+{
+	font-size: 14px;
+}
+

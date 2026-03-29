@@ -1,0 +1,65 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/citadel_shop_mod_icon.vcss_c");
+PopupSellMaxItems CitadelModIcon
+{
+	ui-scale: 100%;
+}
+
+PopupSellMaxItems #ModToPurchaseContainer CitadelModIcon,PopupActivatedAbilitiesSelection #ModToPurchaseContainer CitadelModIcon,.largeDragIcon.IsBeingDragged CitadelModIcon
+{
+	width: 128px;
+	height: 128px;
+}
+
+PopupSellMaxItems #ModToPurchaseContainer .mod_icon_single_container,PopupActivatedAbilitiesSelection #ModToPurchaseContainer .mod_icon_single_container,.largeDragIcon.IsBeingDragged .mod_icon_single_container
+{
+	width: 128px;
+	height: 128px;
+}
+
+PopupSellMaxItems #ModToPurchaseContainer .mod_icon_background_container,PopupActivatedAbilitiesSelection #ModToPurchaseContainer .mod_icon_background_container,.largeDragIcon.IsBeingDragged #ModToPurchaseContainer .mod_icon_background_container
+{
+	width: 96px;
+	height: 96px;
+}
+
+.simplify_items_active #StatsAndModsContainer .unowned.mod_icon_single_container
+{
+	background-color: none;
+	border: 2px solid #ffffff05;
+}
+
+#QOLItemMirrorRoot #modIconContainer.just_ready
+{
+	animation-name: qollock_item_mirror_ready_flash;
+	animation-duration: 0.22s;
+	animation-timing-function: ease-out;
+	animation-iteration-count: 1;
+}
+
+@keyframes 'qollock_item_mirror_ready_flash'
+{
+	0%
+	{
+		brightness: 1.0;
+		wash-color: #ffffff00;
+		box-shadow: fill #ffffff00 0px 0px 0px 0px;
+	}
+	
+	45%
+	{
+		brightness: 1.08;
+		wash-color: #ffffff08;
+		box-shadow: fill #ffffff20 0px 0px 6px 0px;
+	}
+	
+	100%
+	{
+		brightness: 1.0;
+		wash-color: #ffffff00;
+		box-shadow: fill #ffffff00 0px 0px 0px 0px;
+	}
+	
+}
+

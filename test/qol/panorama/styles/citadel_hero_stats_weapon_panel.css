@@ -1,0 +1,59 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/citadel_hero_stats_weapon_panel.vcss_c");
+.gShopOpen CitadelHeroStatsWeapon
+{
+	padding-top: 30px;
+}
+
+.gShopOpen #WeaponRangeContainer
+{
+	height: 20px;
+}
+
+.gShopOpen #GunImage
+{
+	width: 160px;
+	height: 80px;
+}
+
+#NAWeaponRangeContainer
+{
+	visibility: collapse;
+}
+
+#NAWeaponRangeLabel
+{
+	horizontal-align: center;
+	font-weight: semi-bold;
+	padding: 5px;
+}
+
+.NoWeaponFalloffRange #NAWeaponRangeContainer
+{
+	width: 100%;
+	visibility: visible;
+}
+
+.NoWeaponFalloffRange #StatContainer_WeaponRangeFalloffMin,.NoWeaponFalloffRange #StatContainer_WeaponRangeFalloffMax,.NoWeaponFalloffRange .RangeArrow
+{
+	visibility: collapse;
+}
+
+.gShopOpen #BulletDPSContainer
+{
+	margin-bottom: 30px;
+}
+
+.gShopOpen #WeaponInfoContainer
+{
+	height: 50px;
+}
+
+.gShopOpen .weaponNameAndAttributes
+{
+	padding: 1%;
+	flow-children: right;
+	vertical-align: bottom;
+}
+

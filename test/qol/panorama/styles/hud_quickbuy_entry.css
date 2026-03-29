@@ -1,0 +1,11 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_quickbuy_entry.vcss_c");
+.support_4_3_active #QuickbuyQueue .QuickbuyItem,.support_4_3_active #QuickbuySellQueue .QuickbuyItem
+{
+	width: 100%;
+	horizontal-align: left;
+	brightness: 0.8;
+	background-color: offWhite&50;
+}
+

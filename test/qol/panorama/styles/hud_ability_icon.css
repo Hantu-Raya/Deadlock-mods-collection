@@ -1,0 +1,353 @@
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_ability_icon.vcss_c");
+.ability_ring,.ability-ring
+{
+	wash-color: none;
+}
+
+.clean_stacks_active CitadelHudTopBarPlayer #PlayerAbilitiesContainer CitadelAbilityIcon
+{
+	width: 15px;
+}
+
+.clean_stacks_active CitadelPostGameScoreboardNew #AbilitiesContainer .ability_container
+{
+	height: 120px;
+	overflow: noclip;
+}
+
+.clean_stacks_active CitadelPostGameScoreboardNew #AbilitiesContainer #BonusContainer
+{
+	visibility: visible;
+	transform: translatey(-33px);
+	ui-scale: 170%;
+}
+
+.clean_stacks_active #BonusContainer
+{
+	ignore-parent-flow: true;
+	margin-top: 85px;
+	hittest: false;
+}
+
+.clean_stacks_active #slot_signature_2 #BonusContainer,.clean_stacks_active #slot_signature_3 #BonusContainer
+{
+	margin-top: 65px;
+}
+
+.clean_stacks_active .bonusBG
+{
+	border: 2px solid rgba(200, 200, 200, 0);
+}
+
+.clean_stacks_active .bonusCounter
+{
+	color: white;
+	text-shadow: 0px 0px 0px 5 offBlack;
+	text-overflow: noclip;
+}
+
+.clean_stacks_active .hasBonusCounter #BonusContainer
+{
+	opacity: 1;
+	transform: translatey(0px);
+	z-index: 1;
+}
+
+.clean_stacks_active .gScoreboardOpen #BonusContainer,.clean_stacks_active .gShopOpen #BonusContainer
+{
+	visibility: visible;
+}
+
+.clean_stacks_inactive #slot_signature_2 #BonusContainer,.clean_stacks_inactive #slot_signature_3 #BonusContainer
+{
+	margin-top: -30px;
+}
+
+@keyframes 'QOLFlashBonusCounterCleanStacks'
+{
+	0%
+	{
+		opacity: 1;
+	}
+	
+	50%
+	{
+		wash-color: spiritLightColor;
+		color: spiritBrightColor;
+		pre-transform-scale2d: 1.2;
+		opacity: 1;
+	}
+	
+	100%
+	{
+		opacity: 1;
+	}
+	
+}
+
+.clean_stacks_active .bonusCounterIncreased #BonusContainer
+{
+	animation-name: QOLFlashBonusCounterCleanStacks;
+	animation-duration: 0.8s;
+}
+
+.hide_ability_suggestion_active .build_next
+{
+	opacity: 0;
+}
+
+.hide_ability_suggestion_active .build_suggestion.ability_upgradable .build_suggestion_container,.hide_ability_suggestion_active .build_suggestion.ability_upgrade_available .build_suggestion_container
+{
+	visibility: collapse;
+}
+
+.hide_ability_suggestion_active .ability_upgradable.build_suggestion .ability_bg,.hide_ability_suggestion_active .ability_upgrade_available .ability_bg
+{
+	wash-color: spiritBrightColor;
+}
+
+.simplify_ability_icons_active #hud_signature .HasKeyBind .ability_key_container
+{
+	visibility: collapse;
+}
+
+.simplify_ability_icons_active .ability_image
+{
+	wash-color: white;
+	brightness: 1;
+	saturation: 1;
+	opacity: 1;
+}
+
+.simplify_ability_icons_active .ability_icon,.simplify_ability_icons_active #SubAbility #SubAbilityImage,.simplify_ability_icons_active CitadelHudTopBarPlayer #PlayerAbilitiesContainer .ability_image,.simplify_ability_icons_active CitadelHudTopBarPlayer #PlayerAbilitiesContainer #SubAbility #SubAbilityImage
+{
+	wash-color: white !important;
+	brightness: 1 !important;
+	saturation: 1 !important;
+	opacity: 1 !important;
+}
+
+.simplify_ability_icons_active #hud_items .ability_image,.simplify_ability_icons_active #hud_passive_items .ability_image,.simplify_ability_icons_active #hud_items #SubAbility #SubAbilityImage,.simplify_ability_icons_active #hud_passive_items #SubAbility #SubAbilityImage
+{
+	wash-color: white !important;
+	brightness: 1 !important;
+	saturation: 1 !important;
+	opacity: 1 !important;
+	background-color: #00000000 !important;
+}
+
+.simplify_ability_icons_active .cooling_down .ability_image,.simplify_ability_icons_active .ability_not_ready .ability_image,.simplify_ability_icons_active .active .ability_image,.simplify_ability_icons_active .toggled_on .ability_image,.simplify_ability_icons_active .channeling .ability_image
+{
+	wash-color: white;
+	brightness: 1;
+	saturation: 1;
+	opacity: 1;
+}
+
+.simplify_ability_icons_active .ability_bg
+{
+	background-image: none;
+	background-color: #ffffff00;
+}
+
+.simplify_ability_icons_active .ability_ring
+{
+	opacity: 0;
+}
+
+.simplify_ability_icons_active CitadelHudTopBarPlayer #PlayerAbilitiesContainer .ability_bg
+{
+	background-image: none !important;
+	background-color: #d9d9d9 !important;
+	border-radius: 13px;
+}
+
+.simplify_ability_icons_active #hud_items .ability_bg,.simplify_ability_icons_active #hud_passive_items .ability_bg
+{
+	background-image: none !important;
+	background-color: #ffffff00 !important;
+}
+
+.simplify_ability_icons_active #ActiveAbilitiesMenu.active_abilities .ability_bg
+{
+	background-color: #ffffff05;
+}
+
+.simplify_ability_icons_active DraggableAbilityIcon .ability_bg
+{
+	opacity: 0;
+}
+
+.simplify_ability_icons_active #SubAbility #SubAbilityImage
+{
+	wash-color: white;
+	brightness: 1;
+	saturation: 1;
+	opacity: 1;
+}
+
+.simplify_ability_icons_active .cooling_down #SubAbility,.simplify_ability_icons_active .ability_not_ready #SubAbility
+{
+	opacity: 1;
+}
+
+.simplify_ability_icons_active #hud_items .cooling_down .image_container .ability_image,.simplify_ability_icons_active #hud_items .ability_not_ready .image_container .ability_image,.simplify_ability_icons_active #hud_passive_items .cooling_down .ability_image,.simplify_ability_icons_active #hud_passive_items .ability_not_ready .ability_image
+{
+	wash-color: white !important;
+	opacity: 1 !important;
+	background-color: #00000000 !important;
+}
+
+.simplify_ability_icons_active #hud_items #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_standard.vsvg") !important;
+	height: 100%;
+	margin-top: 0px;
+}
+
+.simplify_ability_icons_active #ActiveAbilitiesMenu DraggableAbilityIcon #cooldown_mask,.simplify_ability_icons_active #ActiveAbilitiesMenu #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_standard.vsvg") !important;
+	height: 100% !important;
+	margin-top: 0px !important;
+	background-size: 100% 100%;
+	background-repeat: no-repeat;
+}
+
+.simplify_ability_icons_active CitadelAbilityIcon.Tier0.cooling_down #cooldown_mask,.simplify_ability_icons_active CitadelAbilityIcon.Tier0.ability_not_ready #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_passive_0.vsvg");
+}
+
+.simplify_ability_icons_active CitadelAbilityIcon.Tier1.cooling_down #cooldown_mask,.simplify_ability_icons_active CitadelAbilityIcon.Tier1.ability_not_ready #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_passive_1.vsvg");
+}
+
+.simplify_ability_icons_active CitadelAbilityIcon.Tier2.cooling_down #cooldown_mask,.simplify_ability_icons_active CitadelAbilityIcon.Tier2.ability_not_ready #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_passive_2.vsvg");
+}
+
+.simplify_ability_icons_active CitadelAbilityIcon.Tier3.cooling_down #cooldown_mask,.simplify_ability_icons_active CitadelAbilityIcon.Tier3.ability_not_ready #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_passive_3.vsvg");
+}
+
+.simplify_ability_icons_active CitadelHudTopBarPlayer #PlayerAbilitiesContainer .cooling_down #cooldown_mask,.simplify_ability_icons_active CitadelHudTopBarPlayer #PlayerAbilitiesContainer .ability_not_ready #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_standard.vsvg");
+}
+
+.simplify_ability_icons_active CitadelHudTopBarPlayer #PlayerAbilitiesContainer CitadelAbilityIcon.Tier0.cooling_down #cooldown_mask,.simplify_ability_icons_active CitadelHudTopBarPlayer #PlayerAbilitiesContainer CitadelAbilityIcon.Tier0.ability_not_ready #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_0.vsvg");
+}
+
+.simplify_ability_icons_active CitadelHudTopBarPlayer #PlayerAbilitiesContainer CitadelAbilityIcon.Tier1.cooling_down #cooldown_mask,.simplify_ability_icons_active CitadelHudTopBarPlayer #PlayerAbilitiesContainer CitadelAbilityIcon.Tier1.ability_not_ready #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_1.vsvg");
+}
+
+.simplify_ability_icons_active CitadelHudTopBarPlayer #PlayerAbilitiesContainer CitadelAbilityIcon.Tier2.cooling_down #cooldown_mask,.simplify_ability_icons_active CitadelHudTopBarPlayer #PlayerAbilitiesContainer CitadelAbilityIcon.Tier2.ability_not_ready #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_2.vsvg");
+}
+
+.simplify_ability_icons_active CitadelHudTopBarPlayer #PlayerAbilitiesContainer CitadelAbilityIcon.Tier3.cooling_down #cooldown_mask,.simplify_ability_icons_active CitadelHudTopBarPlayer #PlayerAbilitiesContainer CitadelAbilityIcon.Tier3.ability_not_ready #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_3.vsvg");
+}
+
+.clean_stacks_active .AbilityUpgradeFailed .button_container
+{
+	wash-color: keybindBGColor;
+	animation-name: QOLAbilityUpgradeFailedAnimation;
+	animation-timing-function: ease-out;
+	animation-duration: 0.06666s;
+	animation-iteration-count: 4;
+}
+
+@keyframes 'QOLAbilityUpgradeFailedAnimation'
+{
+	0%
+	{
+		transform: translateX(2px);
+		wash-color: apCurrencyColor;
+	}
+	
+	60%
+	{
+		transform: translateX(2px);
+		wash-color: apCurrencyColor;
+	}
+	
+	61%
+	{
+		transform: translateX(-2px);
+		wash-color: keybindBGColor;
+	}
+	
+	100%
+	{
+		transform: translateX(-2px);
+		wash-color: keybindBGColor;
+	}
+	
+}
+
+.AbilityCastFailed .button_container
+{
+	wash-color: keybindBGColor;
+	animation-name: QOLAbilityCastFailedAnimation;
+	animation-timing-function: ease-out;
+	animation-duration: 0.06666s;
+	animation-iteration-count: 4;
+}
+
+#hud_signature CitadelAbilityIcon.signature.qol_signature_cooldown_pressed .button_container
+{
+	wash-color: keybindBGColor;
+	animation-name: QOLAbilityCastFailedAnimation;
+	animation-timing-function: ease-out;
+	animation-duration: 0.06666s;
+	animation-iteration-count: 4;
+}
+
+CitadelHudTopBarPlayer #PlayerAbilitiesContainer .AbilityCastFailed .button_container,CitadelHudTopBarPlayer #PlayerAbilitiesContainer .AbilityUpgradeFailed .button_container
+{
+	animation-name: none;
+	transform: translateX(0px);
+	wash-color: none;
+}
+
+@keyframes 'QOLAbilityCastFailedAnimation'
+{
+	0%
+	{
+		transform: translateX(2px);
+		wash-color: colorEnemy;
+	}
+	
+	60%
+	{
+		transform: translateX(2px);
+		wash-color: colorEnemy;
+	}
+	
+	61%
+	{
+		transform: translateX(-2px);
+		wash-color: keybindBGColor;
+	}
+	
+	100%
+	{
+		transform: translateX(-2px);
+		wash-color: keybindBGColor;
+	}
+	
+}
+
