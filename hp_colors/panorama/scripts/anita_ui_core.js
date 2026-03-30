@@ -123,6 +123,74 @@ var AnitaUILogger = (function () {
 
   const Logger = AnitaUILogger(CONFIG.DEBUG_MODE);
 
+  // Base64url encode/decode — no btoa/atob in Deadlock Panorama
+  var AnitaBase64 = (function () {
+    var CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+    function encode(str) {
+      var bytes = [];
+      for (var i = 0; i < str.length; i++) {
+        var code = str.charCodeAt(i);
+        if (code < 128) {
+          bytes.push(code);
+        } else if (code < 2048) {
+          bytes.push(0xC0 | (code >> 6));
+          bytes.push(0x80 | (code & 0x3F));
+        } else {
+          bytes.push(0xE0 | (code >> 12));
+          bytes.push(0x80 | ((code >> 6) & 0x3F));
+          bytes.push(0x80 | (code & 0x3F));
+        }
+      }
+      var out = "";
+      for (var j = 0; j < bytes.length; j += 3) {
+        var b0 = bytes[j], b1 = bytes[j + 1] || 0, b2 = bytes[j + 2] || 0;
+        out += CHARS[b0 >> 2];
+        out += CHARS[((b0 & 3) << 4) | (b1 >> 4)];
+        out += (j + 1 < bytes.length) ? CHARS[((b1 & 15) << 2) | (b2 >> 6)] : "";
+        out += (j + 2 < bytes.length) ? CHARS[b2 & 63] : "";
+      }
+      return out;
+    }
+
+    function decode(str) {
+      var lookup = {};
+      for (var i = 0; i < CHARS.length; i++) lookup[CHARS[i]] = i;
+      var bytes = [];
+      for (var j = 0; j < str.length; j += 4) {
+        var c0 = lookup[str[j]] || 0;
+        var c1 = lookup[str[j + 1]] || 0;
+        var c2 = str[j + 2] !== undefined ? (lookup[str[j + 2]] || 0) : 0;
+        var c3 = str[j + 3] !== undefined ? (lookup[str[j + 3]] || 0) : 0;
+        bytes.push((c0 << 2) | (c1 >> 4));
+        if (str[j + 2] !== undefined) bytes.push(((c1 & 15) << 4) | (c2 >> 2));
+        if (str[j + 3] !== undefined) bytes.push(((c2 & 3) << 6) | c3);
+      }
+      var out = "";
+      for (var k = 0; k < bytes.length; k++) {
+        var b = bytes[k];
+        if (b < 128) {
+          out += String.fromCharCode(b);
+        } else if (b < 224) {
+          out += String.fromCharCode(((b & 31) << 6) | (bytes[++k] & 63));
+        } else {
+          var b2 = bytes[++k], b3 = bytes[++k];
+          out += String.fromCharCode(((b & 15) << 12) | ((b2 & 63) << 6) | (b3 & 63));
+        }
+      }
+      return out;
+    }
+
+    return { encode: encode, decode: decode };
+  })();
+
+  (function() {
+    var test = '{"version":2,"values":{"hp_enabled":true}}';
+    var encoded = AnitaBase64.encode(test);
+    var decoded = AnitaBase64.decode(encoded);
+    $.Msg("[Anita-UI][Base64] roundtrip ok=" + (decoded === test ? "1" : "0") + " encoded_len=" + encoded.length);
+  })();
+
   function emitUpdate(modTitle, settingId, newValue) {
     var payload = {
       magic_word: "ANITA_UPDATE",
