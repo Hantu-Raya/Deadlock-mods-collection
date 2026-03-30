@@ -163,26 +163,26 @@ var AnitaUILogger = (function () {
         }
         return lookup[ch];
       }
-      var bytes = [];
+      var decodedBytes = [];
       for (var j = 0; j < str.length; j += 4) {
         var c0 = getVal(str[j]);
         var c1 = getVal(str[j + 1]);
         var c2 = str[j + 2] !== undefined ? getVal(str[j + 2]) : 0;
         var c3 = str[j + 3] !== undefined ? getVal(str[j + 3]) : 0;
-        bytes.push((c0 << 2) | (c1 >> 4));
-        if (str[j + 2] !== undefined) bytes.push(((c1 & 15) << 4) | (c2 >> 2));
-        if (str[j + 3] !== undefined) bytes.push(((c2 & 3) << 6) | c3);
+        decodedBytes.push((c0 << 2) | (c1 >> 4));
+        if (str[j + 2] !== undefined) decodedBytes.push(((c1 & 15) << 4) | (c2 >> 2));
+        if (str[j + 3] !== undefined) decodedBytes.push(((c2 & 3) << 6) | c3);
       }
       var out = "";
-      for (var k = 0; k < bytes.length; k++) {
-        var b = bytes[k];
+      for (var k = 0; k < decodedBytes.length; k++) {
+        var b = decodedBytes[k];
         if (b < 128) {
           out += String.fromCharCode(b);
         } else if (b < 224) {
-          out += String.fromCharCode(((b & 31) << 6) | (bytes[++k] & 63));
+          out += String.fromCharCode(((b & 31) << 6) | (decodedBytes[++k] & 63));
         } else {
-          var b2 = bytes[++k], b3 = bytes[++k];
-          out += String.fromCharCode(((b & 15) << 12) | ((b2 & 63) << 6) | (b3 & 63));
+          var cont2 = decodedBytes[++k], cont3 = decodedBytes[++k];
+          out += String.fromCharCode(((b & 15) << 12) | ((cont2 & 63) << 6) | (cont3 & 63));
         }
       }
       return out;
