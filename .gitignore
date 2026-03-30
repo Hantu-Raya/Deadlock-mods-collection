@@ -1,3 +1,6 @@
+# Worktrees
+.worktrees/
+
 # Compiled/Generated directories
 *_compiled/
 
