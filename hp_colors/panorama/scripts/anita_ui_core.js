@@ -156,12 +156,19 @@ var AnitaUILogger = (function () {
     function decode(str) {
       var lookup = {};
       for (var i = 0; i < CHARS.length; i++) lookup[CHARS[i]] = i;
+      function getVal(ch) {
+        if (ch === undefined) return 0;
+        if (!Object.prototype.hasOwnProperty.call(lookup, ch)) {
+          throw new Error("Invalid base64url char: " + ch);
+        }
+        return lookup[ch];
+      }
       var bytes = [];
       for (var j = 0; j < str.length; j += 4) {
-        var c0 = lookup[str[j]] || 0;
-        var c1 = lookup[str[j + 1]] || 0;
-        var c2 = str[j + 2] !== undefined ? (lookup[str[j + 2]] || 0) : 0;
-        var c3 = str[j + 3] !== undefined ? (lookup[str[j + 3]] || 0) : 0;
+        var c0 = getVal(str[j]);
+        var c1 = getVal(str[j + 1]);
+        var c2 = str[j + 2] !== undefined ? getVal(str[j + 2]) : 0;
+        var c3 = str[j + 3] !== undefined ? getVal(str[j + 3]) : 0;
         bytes.push((c0 << 2) | (c1 >> 4));
         if (str[j + 2] !== undefined) bytes.push(((c1 & 15) << 4) | (c2 >> 2));
         if (str[j + 3] !== undefined) bytes.push(((c2 & 3) << 6) | c3);
