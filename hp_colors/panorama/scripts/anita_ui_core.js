@@ -237,6 +237,17 @@ var AnitaUILogger = (function () {
       return this.normalizeNamespace(config && config.storageNamespace).length > 0;
     },
 
+    CONVAR_KEY: "deadlock_hero_debuts_seen",
+    TOKEN_PREFIX: "ANITA-v1-",
+
+    getTokenRegex: function (ns) {
+      return new RegExp("\\[ANITA-v1-" + ns + "\\]:[A-Za-z0-9_-]+");
+    },
+
+    getCleanupRegex: function (ns) {
+      return new RegExp("\\[ANITA-v1-" + ns + "\\]:[A-Za-z0-9_-]*", "g");
+    },
+
     canPersistViaConvar: function () {
       return typeof GameInterfaceAPI !== "undefined" &&
         !!GameInterfaceAPI &&
@@ -354,81 +365,38 @@ var AnitaUILogger = (function () {
     },
 
     readPrimaryPayload: function (config) {
-      if (!this.canReadSettings()) return null;
-      var key = this.getPrimaryKey(config);
-      if (!key) return null;
+      if (!this.canPersistViaConvar()) return null;
+      var ns = this.normalizeNamespace(config && config.storageNamespace);
+      if (!ns) return null;
 
-      var raw = "";
+      var convarRaw = "";
       try {
-        raw = String(GameInterfaceAPI.GetSettingString(key) || "");
+        convarRaw = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
       } catch (e) {
-        Logger.debugThrottled("Primary settings read failed for " + (config.title || "unknown"), 50);
-        this.logForConfig(config, "primary read threw key=" + key + " err=" + e);
+        this.logForConfig(config, "convar read threw: " + e);
         return null;
       }
 
-      if (raw) {
-        this.logForConfig(config, "primary read key=" + key + " len=" + raw.length);
-      } else {
-        this.logForConfig(config, "primary read empty key=" + key);
-      }
-
-      return this.parseStoredPayload(config, raw, "primary");
-    },
-
-    readFallbackPayload: function (config) {
-      if (!this.canUsePersistentStorage()) return null;
-      var key = this.getFallbackKey(config);
-      if (!key) return null;
-
-      var raw = "";
-      try {
-        raw = String($.persistentStorage.getItem(key) || "");
-      } catch (e) {
-        Logger.debugThrottled("Fallback storage read failed for " + (config.title || "unknown"), 50);
-        this.logForConfig(config, "fallback read threw key=" + key + " err=" + e);
+      var match = convarRaw.match(this.getTokenRegex(ns));
+      if (!match) {
+        this.logForConfig(config, "convar token not found in " + this.CONVAR_KEY);
         return null;
       }
 
-      if (raw) {
-        this.logForConfig(config, "fallback read key=" + key + " len=" + raw.length);
-      } else {
-        this.logForConfig(config, "fallback read empty key=" + key);
+      var tokenPart = match[0];
+      var encoded = tokenPart.split("]:")[1] || "";
+      if (!encoded) return null;
+
+      var raw = "";
+      try {
+        raw = AnitaBase64.decode(encoded);
+      } catch (e) {
+        this.logForConfig(config, "base64 decode failed: " + e);
+        return null;
       }
 
-      return this.parseStoredPayload(config, raw, "fallback");
-    },
-
-    readLegacyValues: function (config) {
-      if (!this.canUsePersistentStorage()) return null;
-
-      var prefix = String(config && config.legacyStoragePrefix || "");
-      if (!prefix) return null;
-
-      var values = {};
-      var foundAny = false;
-      var elements = this.getElements(config);
-
-      for (var i = 0; i < elements.length; i++) {
-        var element = elements[i];
-        if (!this.shouldPersistElement(element)) continue;
-
-        var raw = "";
-        try {
-          raw = String($.persistentStorage.getItem(prefix + element.id) || "");
-        } catch (e) {
-          raw = "";
-        }
-        if (!raw) continue;
-
-        try {
-          values[element.id] = this.sanitizeValue(element, JSON.parse(raw));
-          foundAny = true;
-          this.logForConfig(config, "legacy hit key=" + (prefix + element.id));
-        } catch (e2) {}
-      }
-
-      return foundAny ? values : null;
+      this.logForConfig(config, "convar token found ns=" + ns + " encoded_len=" + encoded.length);
+      return this.parseStoredPayload(config, raw, "convar");
     },
 
     applyResolvedValues: function (config, values) {
