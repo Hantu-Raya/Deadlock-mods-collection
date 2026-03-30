@@ -240,12 +240,13 @@ var AnitaUILogger = (function () {
     CONVAR_KEY: "deadlock_hero_debuts_seen",
     TOKEN_PREFIX: "ANITA-v1-",
 
+    // ns is safe to interpolate into regex: normalizeNamespace restricts output to [a-z0-9_]
     getTokenRegex: function (ns) {
-      return new RegExp("\\[ANITA-v1-" + ns + "\\]:[A-Za-z0-9_-]+");
+      return new RegExp("\\[" + this.TOKEN_PREFIX + ns + "\\]:[A-Za-z0-9_-]+");
     },
 
     getCleanupRegex: function (ns) {
-      return new RegExp("\\[ANITA-v1-" + ns + "\\]:[A-Za-z0-9_-]*", "g");
+      return new RegExp("\\[" + this.TOKEN_PREFIX + ns + "\\]:[A-Za-z0-9_-]*", "g");
     },
 
     canPersistViaConvar: function () {
@@ -495,8 +496,14 @@ var AnitaUILogger = (function () {
       }
 
       var ns = this.normalizeNamespace(config.storageNamespace);
-      var encoded = AnitaBase64.encode(raw);
-      var token = "[ANITA-v1-" + ns + "]:" + encoded;
+      var encoded = "";
+      try {
+        encoded = AnitaBase64.encode(raw);
+      } catch (eEnc) {
+        this.logForConfig(config, "base64 encode threw: " + eEnc);
+        return false;
+      }
+      var token = "[" + this.TOKEN_PREFIX + ns + "]:" + encoded;
 
       if (this.canPersistViaConvar()) {
         try {
@@ -513,7 +520,7 @@ var AnitaUILogger = (function () {
           try {
             readBack = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
           } catch (eRB) {}
-          this.logForConfig(config, "convar readback found_token=" + (readBack.indexOf("[ANITA-v1-" + ns + "]") !== -1 ? "1" : "0"));
+          this.logForConfig(config, "convar readback found_token=" + (readBack.indexOf("[" + this.TOKEN_PREFIX + ns + "]") !== -1 ? "1" : "0"));
         } catch (e) {
           this.logForConfig(config, "convar write threw: " + e);
         }
