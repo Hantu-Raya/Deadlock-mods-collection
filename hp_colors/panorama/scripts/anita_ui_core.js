@@ -192,13 +192,6 @@ var AnitaUILogger = (function () {
     return { encode: encode, decode: decode };
   })();
 
-  (function() {
-    var test = '{"version":2,"values":{"hp_enabled":true}}';
-    var encoded = AnitaBase64.encode(test);
-    var decoded = AnitaBase64.decode(encoded);
-    $.Msg("[Anita-UI][Base64] roundtrip ok=" + (decoded === test ? "1" : "0") + " encoded_len=" + encoded.length);
-  })();
-
   function emitUpdate(modTitle, settingId, newValue) {
     var payload = {
       magic_word: "ANITA_UPDATE",
