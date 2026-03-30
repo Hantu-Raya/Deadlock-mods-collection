@@ -423,39 +423,46 @@ var AnitaUILogger = (function () {
 
       if (!this.hasPersistentConfig(config)) {
         config.__anitaLastPersistedRaw = "";
-        this.logForConfig(config, "persistence disabled");
+        this.applyResolvedValues(config, {});
+        this.logForConfig(config, "hydrate skipped (no storageNamespace)");
         return;
       }
 
+      var ns = this.normalizeNamespace(config.storageNamespace);
+
+      // Tier 1: cross-restart convar
       var persisted = this.readPrimaryPayload(config);
       if (persisted) {
-        hydrateSource = "primary";
-      } else {
-        persisted = this.readFallbackPayload(config);
-        if (persisted) hydrateSource = "fallback";
+        hydrateSource = "convar";
       }
 
+      // Tier 2: within-session root panel attribute
+      if (!persisted) {
+        try {
+          var rootPanel = $.GetContextPanel();
+          while (rootPanel && rootPanel.GetParent && rootPanel.GetParent()) rootPanel = rootPanel.GetParent();
+          var sessionEncoded = (rootPanel && rootPanel.GetAttributeString)
+            ? String(rootPanel.GetAttributeString("anita_v1_" + ns, "") || "")
+            : "";
+          if (sessionEncoded) {
+            var sessionRaw = AnitaBase64.decode(sessionEncoded);
+            persisted = this.parseStoredPayload(config, sessionRaw, "session");
+            if (persisted) hydrateSource = "session";
+          }
+        } catch (eSess) {
+          this.logForConfig(config, "session read threw: " + eSess);
+        }
+      }
+
+      // Tier 3: defaults (fall-through)
       if (persisted) {
         this.applyResolvedValues(config, persisted.values);
-        config.__anitaLastPersistedRaw = persisted.raw;
-        this.logForConfig(
-          config,
-          "hydrate source=" + hydrateSource +
-          " primaryKey=" + this.getPrimaryKey(config) +
-          " fallbackKey=" + this.getFallbackKey(config)
-        );
-        return;
+      } else {
+        this.applyResolvedValues(config, {});
       }
 
-      var legacyValues = this.readLegacyValues(config);
-      if (legacyValues) {
-        this.applyResolvedValues(config, legacyValues);
-        hydrateSource = "legacy";
-      }
-
-      this.logForConfig(config, "hydrate source=" + hydrateSource + " primaryKey=" + this.getPrimaryKey(config));
-
-      config.__anitaLastPersistedRaw = "";
+      config.__anitaLastPersistedRaw = persisted ? this.buildStoredPayload(config) : "";
+      this.logForConfig(config, "hydrate source=" + hydrateSource + " ns=" + ns);
     },
 
     buildStoredPayload: function (config) {
