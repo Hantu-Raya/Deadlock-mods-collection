@@ -210,8 +210,6 @@ var AnitaUILogger = (function () {
   }
 
   const AnitaPersistence = {
-    STORAGE_PREFIX: "anita_ui_mod_",
-
     log: function (message) {
       if (!CONFIG.PERSISTENCE_DEBUG) return;
       $.Msg("[Anita-UI][Persist] " + message);
@@ -239,34 +237,11 @@ var AnitaUILogger = (function () {
       return this.normalizeNamespace(config && config.storageNamespace).length > 0;
     },
 
-    getPrimaryKey: function (config) {
-      var namespace = this.normalizeNamespace(config && config.storageNamespace);
-      if (!namespace) return "";
-      return this.STORAGE_PREFIX + namespace + "_v" + this.getVersion(config);
-    },
-
-    getFallbackKey: function (config) {
-      var namespace = this.normalizeNamespace(config && config.storageNamespace);
-      if (!namespace) return "";
-      return this.STORAGE_PREFIX + namespace + "_json_v" + this.getVersion(config);
-    },
-
-    canReadSettings: function () {
+    canPersistViaConvar: function () {
       return typeof GameInterfaceAPI !== "undefined" &&
         !!GameInterfaceAPI &&
-        typeof GameInterfaceAPI.GetSettingString === "function";
-    },
-
-    canWriteSettings: function () {
-      return typeof GameInterfaceAPI !== "undefined" &&
-        !!GameInterfaceAPI &&
-        typeof GameInterfaceAPI.SetSettingString === "function";
-    },
-
-    canUsePersistentStorage: function () {
-      return typeof $ !== "undefined" &&
-        !!$ &&
-        !!$.persistentStorage;
+        typeof GameInterfaceAPI.GetSettingString === "function" &&
+        typeof GameInterfaceAPI.ConsoleCommand === "function";
     },
 
     getElements: function (config) {
