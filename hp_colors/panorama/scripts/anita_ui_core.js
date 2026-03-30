@@ -461,7 +461,7 @@ var AnitaUILogger = (function () {
         this.applyResolvedValues(config, {});
       }
 
-      config.__anitaLastPersistedRaw = persisted ? this.buildStoredPayload(config) : "";
+      config.__anitaLastPersistedRaw = persisted ? persisted.raw : "";
       this.logForConfig(config, "hydrate source=" + hydrateSource + " ns=" + ns);
     },
 
