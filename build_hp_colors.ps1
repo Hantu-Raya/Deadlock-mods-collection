@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'Stop'
 
 $root        = "F:\Users\Shiv\Desktop\Deadlock-mods-collection"
-$modSrc      = "$root\pak96"
-$modCompiled = "$root\pak96_compiled"
+$modSrc      = "$root\hp_colors"
+$modCompiled = "$root\hp_colors_compiled"
 $compiler    = "$root\sr2compiler\New folder.exe"
 $vpkeditcli  = "$root\passive_items_mod\compiler\vpkeditcli.exe"
 $vpkOut      = "$root\pak96_dir.vpk"
@@ -13,7 +13,7 @@ if (Test-Path $modCompiled) { Remove-Item -Recurse -Force $modCompiled }
 if (Test-Path $vpkOut)      { Remove-Item -Force $vpkOut }
 
 # ── Step 1: Compile ────────────────────────────────────────────────────────────
-Write-Host "`n[1/3] Compiling pak96..." -ForegroundColor Cyan
+Write-Host "`n[1/3] Compiling hp_colors..." -ForegroundColor Cyan
 $proc = Start-Process -FilePath $compiler -ArgumentList "`"$modSrc`"" -PassThru -Wait
 if ($proc.ExitCode -ne 0) {
     if (-not (Test-Path "$modCompiled\panorama\scripts\healthbar_logic.vjs_c")) {
