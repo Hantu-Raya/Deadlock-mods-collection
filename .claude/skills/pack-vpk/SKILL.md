@@ -29,7 +29,7 @@ All inline commands run in **PowerShell**.
 
 | Mod folder | VPK filename |
 |------------|-------------|
-| `pak96` | `pak96_dir.vpk` |
+| `hp_colors` | `pak96_dir.vpk` |
 | `jungle_timer` | `pak98_dir.vpk` |
 
 For unlisted mods: read `build_<mod>.ps1` → `$vpkOut`. If no PS1 exists, ask the user which pak number to use.
