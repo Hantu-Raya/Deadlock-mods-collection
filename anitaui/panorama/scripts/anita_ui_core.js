@@ -118,10 +118,79 @@ var AnitaUILogger = (function () {
     UI: {
       TAB_MAX_CHARS: 17,
       MONITOR_INTERVAL: 0.05
-    }
+    },
+    PERSISTENCE_DEBUG: false
   };
 
   const Logger = AnitaUILogger(CONFIG.DEBUG_MODE);
+
+  // Base64url encode/decode — no btoa/atob in Deadlock Panorama
+  var AnitaBase64 = (function () {
+    var CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+    function encode(str) {
+      var bytes = [];
+      for (var i = 0; i < str.length; i++) {
+        var code = str.charCodeAt(i);
+        if (code < 128) {
+          bytes.push(code);
+        } else if (code < 2048) {
+          bytes.push(0xC0 | (code >> 6));
+          bytes.push(0x80 | (code & 0x3F));
+        } else {
+          bytes.push(0xE0 | (code >> 12));
+          bytes.push(0x80 | ((code >> 6) & 0x3F));
+          bytes.push(0x80 | (code & 0x3F));
+        }
+      }
+      var out = "";
+      for (var j = 0; j < bytes.length; j += 3) {
+        var b0 = bytes[j], b1 = bytes[j + 1] || 0, b2 = bytes[j + 2] || 0;
+        out += CHARS[b0 >> 2];
+        out += CHARS[((b0 & 3) << 4) | (b1 >> 4)];
+        out += (j + 1 < bytes.length) ? CHARS[((b1 & 15) << 2) | (b2 >> 6)] : "";
+        out += (j + 2 < bytes.length) ? CHARS[b2 & 63] : "";
+      }
+      return out;
+    }
+
+    function decode(str) {
+      var lookup = {};
+      for (var i = 0; i < CHARS.length; i++) lookup[CHARS[i]] = i;
+      function getVal(ch) {
+        if (ch === undefined) return 0;
+        if (!Object.prototype.hasOwnProperty.call(lookup, ch)) {
+          throw new Error("Invalid base64url char: " + ch);
+        }
+        return lookup[ch];
+      }
+      var decodedBytes = [];
+      for (var j = 0; j < str.length; j += 4) {
+        var c0 = getVal(str[j]);
+        var c1 = getVal(str[j + 1]);
+        var c2 = str[j + 2] !== undefined ? getVal(str[j + 2]) : 0;
+        var c3 = str[j + 3] !== undefined ? getVal(str[j + 3]) : 0;
+        decodedBytes.push((c0 << 2) | (c1 >> 4));
+        if (str[j + 2] !== undefined) decodedBytes.push(((c1 & 15) << 4) | (c2 >> 2));
+        if (str[j + 3] !== undefined) decodedBytes.push(((c2 & 3) << 6) | c3);
+      }
+      var out = "";
+      for (var k = 0; k < decodedBytes.length; k++) {
+        var b = decodedBytes[k];
+        if (b < 128) {
+          out += String.fromCharCode(b);
+        } else if (b < 224) {
+          out += String.fromCharCode(((b & 31) << 6) | (decodedBytes[++k] & 63));
+        } else {
+          var cont2 = decodedBytes[++k], cont3 = decodedBytes[++k];
+          out += String.fromCharCode(((b & 15) << 12) | ((cont2 & 63) << 6) | (cont3 & 63));
+        }
+      }
+      return out;
+    }
+
+    return { encode: encode, decode: decode };
+  })();
 
   function emitUpdate(modTitle, settingId, newValue) {
     var payload = {
@@ -132,6 +201,353 @@ var AnitaUILogger = (function () {
     };
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(payload));
   }
+
+  const AnitaPersistence = {
+    log: function (message) {
+      if (!CONFIG.PERSISTENCE_DEBUG) return;
+      $.Msg("[Anita-UI][Persist] " + message);
+    },
+
+    logForConfig: function (config, message) {
+      var title = (config && config.title) ? String(config.title) : "unknown";
+      this.log(title + " | " + message);
+    },
+
+    normalizeNamespace: function (storageNamespace) {
+      return String(storageNamespace || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+    },
+
+    getVersion: function (config) {
+      var version = Number(config && config.storageVersion);
+      if (!isFinite(version) || version < 1) return 1;
+      return Math.floor(version);
+    },
+
+    hasPersistentConfig: function (config) {
+      return this.normalizeNamespace(config && config.storageNamespace).length > 0;
+    },
+
+    CONVAR_KEY: "deadlock_hero_debuts_seen",
+    TOKEN_PREFIX: "ANITA-v1-",
+
+    // ns is safe to interpolate into regex: normalizeNamespace restricts output to [a-z0-9_]
+    getTokenRegex: function (ns) {
+      return new RegExp("\\[" + this.TOKEN_PREFIX + ns + "\\]:[A-Za-z0-9_-]+");
+    },
+
+    getCleanupRegex: function (ns) {
+      return new RegExp("\\[" + this.TOKEN_PREFIX + ns + "\\]:[A-Za-z0-9_-]*", "g");
+    },
+
+    canPersistViaConvar: function () {
+      return typeof GameInterfaceAPI !== "undefined" &&
+        !!GameInterfaceAPI &&
+        typeof GameInterfaceAPI.GetSettingString === "function" &&
+        typeof GameInterfaceAPI.ConsoleCommand === "function";
+    },
+
+    getElements: function (config) {
+      return (config && Array.isArray(config.elements)) ? config.elements : [];
+    },
+
+    shouldPersistElement: function (element) {
+      return !!(element && element.id && element.type !== "button");
+    },
+
+    sanitizeValue: function (element, value) {
+      if (!element) return value;
+
+      var fallback = element.defaultValue;
+      var type = String(element.type || "");
+
+      if (type === "toggle") {
+        if (value === true || value === false) return value;
+        if (value === 1 || value === "1") return true;
+        if (value === 0 || value === "0") return false;
+        if (typeof value === "string") {
+          var lowered = value.toLowerCase();
+          if (lowered === "true") return true;
+          if (lowered === "false") return false;
+        }
+        return !!fallback;
+      }
+
+      if (type === "cycler") {
+        var count = Array.isArray(element.options) ? element.options.length : 0;
+        var nextIndex = Number(value);
+        if (!isFinite(nextIndex)) nextIndex = Number(fallback);
+        if (!isFinite(nextIndex)) nextIndex = 0;
+        nextIndex = Math.round(nextIndex);
+        if (nextIndex < 0) nextIndex = 0;
+        if (count > 0 && nextIndex >= count) {
+          var fallbackIndex = Number(fallback);
+          if (!isFinite(fallbackIndex) || fallbackIndex < 0 || fallbackIndex >= count) fallbackIndex = 0;
+          nextIndex = fallbackIndex;
+        }
+        return nextIndex;
+      }
+
+      if (type === "stepper") {
+        var nextNumber = Number(value);
+        if (!isFinite(nextNumber)) nextNumber = Number(fallback);
+        if (!isFinite(nextNumber)) nextNumber = 0;
+        var step = Number(element.step);
+        if (!isFinite(step) || step === 0) step = 1;
+        if (Math.round(step) === step) {
+          return Math.round(nextNumber);
+        }
+        return parseFloat(nextNumber.toFixed(2));
+      }
+
+      if (type === "colorpicker") {
+        if (typeof value === "string" && value.length > 0) return value;
+        return (typeof fallback === "string" && fallback.length > 0) ? fallback : "#FFFFFF";
+      }
+
+      if (value !== undefined) return value;
+      return fallback;
+    },
+
+    ensureDefaults: function (config) {
+      var elements = this.getElements(config);
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!this.shouldPersistElement(element)) {
+          if (element.currentValue === undefined && element.defaultValue !== undefined) {
+            element.currentValue = element.defaultValue;
+          }
+          continue;
+        }
+        var sourceValue = (element.currentValue !== undefined) ? element.currentValue : element.defaultValue;
+        element.currentValue = this.sanitizeValue(element, sourceValue);
+      }
+    },
+
+    parseStoredPayload: function (config, raw, sourceLabel) {
+      var text = String(raw || "");
+      if (!text) return null;
+
+      var parsed = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch (e) {
+        Logger.debugThrottled("Persistence parse failed [" + sourceLabel + "] for " + (config.title || "unknown"), 50);
+        return null;
+      }
+
+      if (!parsed || typeof parsed !== "object" || !parsed.values || typeof parsed.values !== "object") {
+        Logger.debugThrottled("Persistence payload invalid [" + sourceLabel + "] for " + (config.title || "unknown"), 50);
+        return null;
+      }
+
+      var values = {};
+      var elements = this.getElements(config);
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!this.shouldPersistElement(element)) continue;
+        if (!Object.prototype.hasOwnProperty.call(parsed.values, element.id)) continue;
+        values[element.id] = this.sanitizeValue(element, parsed.values[element.id]);
+      }
+
+      return {
+        raw: text,
+        values: values
+      };
+    },
+
+    readPrimaryPayload: function (config) {
+      if (!this.canPersistViaConvar()) return null;
+      var ns = this.normalizeNamespace(config && config.storageNamespace);
+      if (!ns) return null;
+
+      var convarRaw = "";
+      try {
+        convarRaw = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
+      } catch (e) {
+        this.logForConfig(config, "convar read threw: " + e);
+        return null;
+      }
+
+      var match = convarRaw.match(this.getTokenRegex(ns));
+      if (!match) {
+        this.logForConfig(config, "convar token not found in " + this.CONVAR_KEY);
+        return null;
+      }
+
+      var tokenPart = match[0];
+      var encoded = tokenPart.split("]:")[1] || "";
+      if (!encoded) return null;
+
+      var raw = "";
+      try {
+        raw = AnitaBase64.decode(encoded);
+      } catch (e) {
+        this.logForConfig(config, "base64 decode failed: " + e);
+        return null;
+      }
+
+      this.logForConfig(config, "convar token found ns=" + ns + " encoded_len=" + encoded.length);
+      return this.parseStoredPayload(config, raw, "convar");
+    },
+
+    applyResolvedValues: function (config, values) {
+      var elements = this.getElements(config);
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!this.shouldPersistElement(element)) {
+          if (element.currentValue === undefined && element.defaultValue !== undefined) {
+            element.currentValue = element.defaultValue;
+          }
+          continue;
+        }
+
+        var nextValue = Object.prototype.hasOwnProperty.call(values || {}, element.id)
+          ? values[element.id]
+          : element.defaultValue;
+        element.currentValue = this.sanitizeValue(element, nextValue);
+      }
+    },
+
+    hydrateConfig: function (config) {
+      this.ensureDefaults(config);
+      var hydrateSource = "defaults";
+
+      if (!this.hasPersistentConfig(config)) {
+        config.__anitaLastPersistedRaw = "";
+        this.applyResolvedValues(config, {});
+        this.logForConfig(config, "hydrate skipped (no storageNamespace)");
+        return;
+      }
+
+      var ns = this.normalizeNamespace(config.storageNamespace);
+
+      // Tier 1: cross-restart convar
+      var persisted = this.readPrimaryPayload(config);
+      if (persisted) {
+        hydrateSource = "convar";
+      }
+
+      // Tier 2: within-session root panel attribute
+      if (!persisted) {
+        try {
+          var rootPanel = $.GetContextPanel();
+          while (rootPanel && rootPanel.GetParent && rootPanel.GetParent()) rootPanel = rootPanel.GetParent();
+          var sessionEncoded = (rootPanel && rootPanel.GetAttributeString)
+            ? String(rootPanel.GetAttributeString("anita_v1_" + ns, "") || "")
+            : "";
+          if (sessionEncoded) {
+            var sessionRaw = AnitaBase64.decode(sessionEncoded);
+            persisted = this.parseStoredPayload(config, sessionRaw, "session");
+            if (persisted) hydrateSource = "session";
+          }
+        } catch (eSess) {
+          this.logForConfig(config, "session read threw: " + eSess);
+        }
+      }
+
+      // Tier 3: defaults (fall-through)
+      if (persisted) {
+        this.applyResolvedValues(config, persisted.values);
+      } else {
+        this.applyResolvedValues(config, {});
+      }
+
+      config.__anitaLastPersistedRaw = persisted ? persisted.raw : "";
+      this.logForConfig(config, "hydrate source=" + hydrateSource + " ns=" + ns);
+    },
+
+    buildStoredPayload: function (config) {
+      var payload = {
+        version: this.getVersion(config),
+        values: {}
+      };
+      var elements = this.getElements(config);
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!this.shouldPersistElement(element)) continue;
+        var value = this.sanitizeValue(
+          element,
+          element.currentValue !== undefined ? element.currentValue : element.defaultValue
+        );
+        element.currentValue = value;
+        payload.values[element.id] = value;
+      }
+      return JSON.stringify(payload);
+    },
+
+    persistConfig: function (config) {
+      if (!this.hasPersistentConfig(config)) return false;
+
+      var raw = this.buildStoredPayload(config);
+      if (!raw) return false;
+      if (raw === String(config.__anitaLastPersistedRaw || "")) {
+        this.logForConfig(config, "write skipped unchanged");
+        return false;
+      }
+
+      var ns = this.normalizeNamespace(config.storageNamespace);
+      var encoded = "";
+      try {
+        encoded = AnitaBase64.encode(raw);
+      } catch (eEnc) {
+        this.logForConfig(config, "base64 encode threw: " + eEnc);
+        return false;
+      }
+      var token = "[" + this.TOKEN_PREFIX + ns + "]:" + encoded;
+
+      if (this.canPersistViaConvar()) {
+        try {
+          var current = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
+          // Use * in cleanup regex to also remove malformed empty-payload tokens
+          var cleaned = current.replace(this.getCleanupRegex(ns), "").replace(/,,+/g, ",").replace(/^,|,$/, "");
+          var finalValue = (cleaned ? cleaned + "," : "") + token;
+          // Double-quote the value to protect [ ] from Source engine console bracket parsing
+          GameInterfaceAPI.ConsoleCommand(this.CONVAR_KEY + ' "' + finalValue + '"');
+          this.logForConfig(config, "convar write ns=" + ns + " encoded_len=" + encoded.length);
+
+          // Verify write round-trips
+          var readBack = "";
+          try {
+            readBack = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
+          } catch (eRB) {}
+          this.logForConfig(config, "convar readback found_token=" + (readBack.indexOf("[" + this.TOKEN_PREFIX + ns + "]") !== -1 ? "1" : "0"));
+        } catch (e) {
+          this.logForConfig(config, "convar write threw: " + e);
+        }
+      } else {
+        this.logForConfig(config, "convar write unavailable (canPersistViaConvar=false)");
+      }
+
+      // Session fallback: always write to root panel attribute for within-session resilience
+      try {
+        var rootPanel = $.GetContextPanel();
+        while (rootPanel && rootPanel.GetParent && rootPanel.GetParent()) rootPanel = rootPanel.GetParent();
+        if (rootPanel && rootPanel.SetAttributeString) {
+          rootPanel.SetAttributeString("anita_v1_" + ns, encoded);
+          this.logForConfig(config, "session write ns=" + ns);
+        }
+      } catch (eSess) {
+        this.logForConfig(config, "session write threw: " + eSess);
+      }
+
+      config.__anitaLastPersistedRaw = raw;
+      return true;
+    },
+
+    applyUpdate: function (config, settingId, value) {
+      var elements = this.getElements(config);
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!element || element.id !== settingId) continue;
+        element.currentValue = this.sanitizeValue(element, value);
+        return true;
+      }
+      return false;
+    }
+  };
 
   const AnitaComponents = {
     createToggle: function (parent, config, modTitle) {
@@ -569,6 +985,92 @@ var AnitaUILogger = (function () {
           }
         });
       }
+
+      // Footer: Save / Copy / Paste (only for mods with storageNamespace)
+      if (config.storageNamespace) {
+        var footer = $.CreatePanel("Panel", container, "");
+        footer.AddClass("AnitaFooterRow");
+
+        function makeFooterBtn(parent, label, id) {
+          var btn = $.CreatePanel("Button", parent, id || "");
+          btn.AddClass("AnitaFooterBtn");
+          var lbl = $.CreatePanel("Label", btn, "");
+          lbl.text = label;
+          return { btn: btn, lbl: lbl };
+        }
+
+        function flashLabel(btn, lbl, msg, durationSec) {
+          var orig = lbl.text;
+          lbl.text = msg;
+          btn.AddClass("AnitaFooterBtnSuccess");
+          $.Schedule(durationSec, function () {
+            if (lbl && lbl.IsValid()) lbl.text = orig;
+            if (btn && btn.IsValid()) btn.RemoveClass("AnitaFooterBtnSuccess");
+          });
+        }
+
+        // Save button — bypasses debounce
+        var saveB = makeFooterBtn(footer, "Save", "");
+        saveB.btn.SetPanelEvent("onactivate", function () {
+          config.__anitaPendingWriteToken = (config.__anitaPendingWriteToken || 0) + 1; // cancel pending debounce
+          AnitaPersistence.persistConfig(config);
+          flashLabel(saveB.btn, saveB.lbl, "Saved!", 1.5);
+        });
+
+        // Copy button
+        var copyB = makeFooterBtn(footer, "Copy", "");
+        copyB.btn.SetPanelEvent("onactivate", function () {
+          var raw = AnitaPersistence.buildStoredPayload(config);
+          var ns = AnitaPersistence.normalizeNamespace(config.storageNamespace);
+          var encoded = AnitaBase64.encode(raw);
+          var token = "[" + AnitaPersistence.TOKEN_PREFIX + ns + "]:" + encoded;
+          try {
+            $.DispatchEvent("CopyStringToClipboard", token);
+            flashLabel(copyB.btn, copyB.lbl, "Copied!", 1.5);
+          } catch (e) {
+            flashLabel(copyB.btn, copyB.lbl, "Failed", 1.5);
+          }
+        });
+
+        // Paste button — uses TextEntry clipboard workaround
+        var pasteB = makeFooterBtn(footer, "Paste", "");
+        var pasteEntry = $.CreatePanel("TextEntry", footer, "");
+        pasteEntry.style.width = "0px";
+        pasteEntry.style.height = "0px";
+        pasteEntry.style.opacity = "0";
+        pasteB.btn.SetPanelEvent("onactivate", function () {
+          try {
+            pasteEntry.text = "";
+            pasteEntry.SetFocus();
+            $.DispatchEvent("TextEntryPasteFromClipboard", pasteEntry);
+            $.Schedule(0.1, function () {
+              var text = pasteEntry.text;
+              if (!text) { flashLabel(pasteB.btn, pasteB.lbl, "Empty", 1.5); return; }
+              var ns = AnitaPersistence.normalizeNamespace(config.storageNamespace);
+              var rx = new RegExp("\\[" + AnitaPersistence.TOKEN_PREFIX + ns + "\\]:[A-Za-z0-9_-]+");
+              var match = text.match(rx);
+              if (!match) { flashLabel(pasteB.btn, pasteB.lbl, "Invalid", 1.5); return; }
+              var encoded = match[0].split("]:")[1] || "";
+              try {
+                var raw = AnitaBase64.decode(encoded);
+                var parsed = AnitaPersistence.parseStoredPayload(config, raw, "paste");
+                if (!parsed) { flashLabel(pasteB.btn, pasteB.lbl, "Invalid", 1.5); return; }
+                AnitaPersistence.applyResolvedValues(config, parsed.values);
+                // Re-render tab to update UI controls
+                AnitaRenderer.renderModSettings(config);
+                // Emit all current values to healthbar_logic
+                AnitaCore.emitCurrentValues(config);
+                AnitaPersistence.persistConfig(config);
+                flashLabel(pasteB.btn, pasteB.lbl, "Applied!", 1.5);
+              } catch (eDec) {
+                flashLabel(pasteB.btn, pasteB.lbl, "Invalid", 1.5);
+              }
+            });
+          } catch (ePaste) {
+            flashLabel(pasteB.btn, pasteB.lbl, "Unavailable", 1.5);
+          }
+        });
+      }
     },
 
   }
@@ -628,6 +1130,8 @@ var AnitaUILogger = (function () {
         AnitaRenderer.contentArea.RemoveAndDeleteChildren();
       }
 
+      AnitaPersistence.hydrateConfig(config);
+
       for (let i = 0; i < this.registeredMods.length; i++) {
         if (this.registeredMods[i].title === config.title) {
           Logger.debugThrottled("Mod already registered: " + config.title, 200);
@@ -647,6 +1151,40 @@ var AnitaUILogger = (function () {
         mod_title: config.title
       }));
       Logger.info("Sent HANDSHAKE to mod: " + config.title);
+
+      this.emitCurrentValues(config);
+    },
+
+    emitCurrentValues: function (config) {
+      if (!config || !Array.isArray(config.elements)) return;
+      for (var i = 0; i < config.elements.length; i++) {
+        var element = config.elements[i];
+        if (!element || !element.id || element.currentValue === undefined) continue;
+        emitUpdate(config.title, element.id, element.currentValue);
+      }
+    },
+
+    findRegisteredMod: function (modTitle) {
+      for (var i = 0; i < this.registeredMods.length; i++) {
+        if (this.registeredMods[i] && this.registeredMods[i].title === modTitle) {
+          return this.registeredMods[i];
+        }
+      }
+      return null;
+    },
+
+    handleUpdateEvent: function (data) {
+      if (!data || !data.mod_title || !data.setting_id) return;
+      var config = this.findRegisteredMod(data.mod_title);
+      if (!config) return;
+      if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) return;
+      // Debounce convar writes: rapid changes (steppers, colorpickers) coalesce into one write
+      var writeToken = (config.__anitaPendingWriteToken || 0) + 1;
+      config.__anitaPendingWriteToken = writeToken;
+      $.Schedule(2.0, function () {
+        if (config.__anitaPendingWriteToken !== writeToken) return;
+        AnitaPersistence.persistConfig(config);
+      });
     },
 
     updateWindowWidth: function () {
@@ -676,6 +1214,8 @@ var AnitaUILogger = (function () {
             if (data && data.magic_word === "ANITA_REGISTER") {
               this.registerMod(data.config);
               Logger.debugThrottled("Event received: REGISTER for " + data.config.title, 200);
+            } else if (data && data.magic_word === "ANITA_UPDATE") {
+              this.handleUpdateEvent(data);
             }
           } catch (e) {
             Logger.debugThrottled("Malformed event received", 200);
