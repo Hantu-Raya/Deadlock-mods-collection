@@ -1099,7 +1099,13 @@ var AnitaUILogger = (function () {
       var config = this.findRegisteredMod(data.mod_title);
       if (!config) return;
       if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) return;
-      AnitaPersistence.persistConfig(config);
+      // Debounce convar writes: rapid changes (steppers, colorpickers) coalesce into one write
+      var writeToken = (config.__anitaPendingWriteToken || 0) + 1;
+      config.__anitaPendingWriteToken = writeToken;
+      $.Schedule(2.0, function () {
+        if (config.__anitaPendingWriteToken !== writeToken) return;
+        AnitaPersistence.persistConfig(config);
+      });
     },
 
     updateWindowWidth: function () {
