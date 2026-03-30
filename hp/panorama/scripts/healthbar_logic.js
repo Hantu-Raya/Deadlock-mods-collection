@@ -1,19 +1,18 @@
 'use strict';
 (function () {
 
-  // ── Settings ────────────────────────────────────────────────────────────────
+  // â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var TITLE = "HP Colors";
-  var SK = function (id) { return "hp_mod_" + id; };
   var DEFAULTS = {
-    hp_enabled:        true,
-    hp_mode:           1,
-    hp_low_threshold:  25,
+    hp_enabled: true,
+    hp_mode: 1,
+    hp_low_threshold: 25,
     hp_high_threshold: 65,
-    hp_color_low:      "#E16161",
-    hp_color_mid:      "#FF7B00",
-    hp_color_high:     "#00FF00",
-    hp_color_neutral:  "#5BEFB5",
-    hp_team_colors:    false
+    hp_color_low: "#E16161",
+    hp_color_mid: "#FF7B00",
+    hp_color_high: "#00FF00",
+    hp_color_neutral: "#5BEFB5",
+    hp_team_colors: false
   };
   var TEAM1_HIGH = "rgb(255,201,97)";
   var TEAM2_HIGH = "rgb(100,133,252)";
@@ -21,38 +20,64 @@
 
   var cfg = {};
 
-  function readStorage(id) {
-    var raw = $.persistentStorage.getItem(SK(id));
-    if (raw === null) return null;
-    try { return JSON.parse(raw); } catch (e) { return null; }
-  }
-
-  function loadCfg() {
+  function loadCfgDefaults() {
     for (var id in DEFAULTS) {
-      var v = readStorage(id);
-      cfg[id] = (v !== null) ? v : DEFAULTS[id];
+      if (Object.prototype.hasOwnProperty.call(DEFAULTS, id)) {
+        cfg[id] = DEFAULTS[id];
+      }
     }
   }
 
-  loadCfg();
+  function coerceCfgValue(id, value) {
+    if (!Object.prototype.hasOwnProperty.call(DEFAULTS, id)) return value;
 
-  // Live updates from anitaui via registrar
+    var fallback = DEFAULTS[id];
+    if (typeof fallback === "boolean") {
+      if (value === true || value === false) return value;
+      if (value === 1 || value === "1") return true;
+      if (value === 0 || value === "0") return false;
+      if (typeof value === "string") {
+        var lowered = value.toLowerCase();
+        if (lowered === "true") return true;
+        if (lowered === "false") return false;
+      }
+      return !!fallback;
+    }
+
+    if (typeof fallback === "number") {
+      var next = Number(value);
+      if (!isFinite(next)) return fallback;
+      return Math.round(next);
+    }
+
+    if (typeof fallback === "string") {
+      return (typeof value === "string" && value.length > 0) ? value : fallback;
+    }
+
+    return value;
+  }
+
+  loadCfgDefaults();
+
+  // Live updates from Anita UI, including boot-time bootstrap values.
   $.RegisterForUnhandledEvent("ClientUI_FireOutput", function (payload) {
     try {
       var d = typeof payload === 'string' ? JSON.parse(payload) : payload;
       if (d && d.magic_word === "ANITA_UPDATE" && d.mod_title === TITLE) {
-        cfg[d.setting_id] = d.value;
+        if (Object.prototype.hasOwnProperty.call(DEFAULTS, d.setting_id)) {
+          cfg[d.setting_id] = coerceCfgValue(d.setting_id, d.value);
+        }
       }
     } catch (e) {}
   });
 
-  // ── Color helpers ────────────────────────────────────────────────────────────
+  // â”€â”€ Color helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function hexToRgb(s) {
     if (!s) return [255, 255, 255];
     if (s.charAt(0) === '#') {
       var h = s.slice(1);
-      if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
-      return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+      if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
     }
     var m = s.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
     if (m) return [+m[1], +m[2], +m[3]];
@@ -61,25 +86,25 @@
 
   function rg(c) { return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; }
   function lerp(a, b, t) { return (a + (b - a) * t) | 0; }
-  function ip(c1, c2, t) { return [lerp(c1[0],c2[0],t), lerp(c1[1],c2[1],t), lerp(c1[2],c2[2],t)]; }
+  function ip(c1, c2, t) { return [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)]; }
 
   // Create a dark variant of a color for the low-HP gradient pulse
-  function darkOf(c) { return [(c[0] * 0.37)|0, (c[1] * 0.29)|0, (c[2] * 0.29)|0]; }
+  function darkOf(c) { return [(c[0] * 0.37) | 0, (c[1] * 0.29) | 0, (c[2] * 0.29) | 0]; }
 
   function getHighColor() {
     if (!cfg.hp_team_colors) return cfg.hp_color_high;
     return tid === 2 ? TEAM2_HIGH : TEAM1_HIGH;
   }
 
-  // ── Panel cache ──────────────────────────────────────────────────────────────
+  // â”€â”€ Panel cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var ctx = $.GetContextPanel();
   var us = null, hc = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null;
   var cached = 0, att = 0;
 
   function fRB() {
     return ctx.FindChildTraverse('unit_healthbar_lagging') ||
-           ctx.FindChildTraverse('health_bar') ||
-           ctx.FindChildTraverse('unit_health');
+      ctx.FindChildTraverse('health_bar') ||
+      ctx.FindChildTraverse('unit_health');
   }
 
   function tryCache() {
@@ -96,7 +121,7 @@
     return 0;
   }
 
-  // ── Team/flag scan (walk up to find team classes) ───────────────────────────
+  // â”€â”€ Team/flag scan (walk up to find team classes) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var tid = 0, fl = 0, lAT = 0;
 
   function scan(p) {
@@ -114,7 +139,7 @@
     tid = t; fl = f;
   }
 
-  // ── Setter helpers (skip redundant writes) ───────────────────────────────────
+  // â”€â”€ Setter helpers (skip redundant writes) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var lCol = null, lUlt = null, lTxt = null;
   var lSH = -1, lSM = -1, lVis = null;
   var lTx = null, cMax = 0;
@@ -130,7 +155,7 @@
     if (lTxt !== c) { hc.style.washColor = c; lTxt = c; }
   }
 
-  // Decode max HP from pip label string (e.g. "|||| ..." → 2000)
+  // Decode max HP from pip label string (e.g. "|||| ..." â†’ 2000)
   function pMax(t) {
     if (t === lTx) return cMax;
     lTx = t; var p = 0, q = 0, li = t.lastIndexOf('|');
@@ -150,7 +175,7 @@
     lSH = cu; lSM = mx;
   }
 
-  // ── Pulse state ──────────────────────────────────────────────────────────────
+  // â”€â”€ Pulse state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var pulse = 0, gp = 0, gq = 1;
 
   function clearPulse() {
@@ -161,10 +186,10 @@
     pulse = 0; lTxt = lUlt = null;
   }
 
-  // ── Poll state ───────────────────────────────────────────────────────────────
+  // â”€â”€ Poll state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var lUT = 0, lW = -1, lPW = -1, lHp = -1, pPct = -1, sFC = 0;
 
-  // ── Main poll loop ───────────────────────────────────────────────────────────
+  // â”€â”€ Main poll loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function gL() {
     try {
       if (!cfg.hp_enabled) {
@@ -187,13 +212,13 @@
         sBC(cfg.hp_color_neutral); sTC('#ffffff'); lUT = now;
         $.Schedule(1.5, gL); return;
       }
-      // Not an enemy — skip coloring
+      // Not an enemy â€” skip coloring
       if (!(fl & 1)) { lUT = now; $.Schedule(0.4, gL); return; }
 
       var w = rb.actuallayoutwidth | 0;
       var pw = cp && cp.actuallayoutwidth !== undefined ? cp.actuallayoutwidth | 0 : 0;
 
-      // No change in width — back off
+      // No change in width â€” back off
       if (w === lW && pw === lPW) {
         if (now - lUT > 2000) { $.Schedule(1, gL); return; }
         $.Schedule(0.15, gL); return;
@@ -205,7 +230,7 @@
       var low = cfg.hp_low_threshold | 0;
       var high = cfg.hp_high_threshold | 0;
 
-      // Small change above low threshold — back off
+      // Small change above low threshold â€” back off
       if (Math.abs(hp - lHp) < 3 && hp > low) { $.Schedule(0.15, gL); return; }
       if (hp === pPct) sFC++; else { sFC = 0; pPct = hp; }
       lHp = hp;
@@ -267,13 +292,13 @@
 
       $.Schedule(sc, gL);
     } catch (e) {
-      // Never die silently — reschedule after a brief pause
+      // Never die silently â€” reschedule after a brief pause
       $.Schedule(0.5, gL);
     }
   }
 
-  // ── Level tier coloring ──────────────────────────────────────────────────────
-  var LT_ = [11, 19, 27, 35], LC_ = ['level_tier2','level_tier3','level_tier4','level_tier5'];
+  // â”€â”€ Level tier coloring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  var LT_ = [11, 19, 27, 35], LC_ = ['level_tier2', 'level_tier3', 'level_tier4', 'level_tier5'];
   var ll = null, lc = null, wr = null, lLv = -1;
 
   function pLv(t) { var v = 0; for (var i = 0; i < t.length; i++) { var c = t.charCodeAt(i) - 48; if (c >= 0 && c <= 9) v = v * 10 + c; } return v; }
@@ -294,7 +319,7 @@
     if (lv === lLv || !lv) return;
     lLv = lv;
     for (var i = 0; i < 4; i++) wr.RemoveClass(LC_[i]);
-    for (var i = 3; i >= 0; i--) { if (lv >= LT_[i]) { wr.AddClass(LC_[i]); break; } }
+    for (var j = 3; j >= 0; j--) { if (lv >= LT_[j]) { wr.AddClass(LC_[j]); break; } }
   }
 
   function lL() { uLT(); $.Schedule(0.5, lL); }
