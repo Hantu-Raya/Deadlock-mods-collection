@@ -992,6 +992,92 @@ var AnitaUILogger = (function () {
           }
         });
       }
+
+      // Footer: Save / Copy / Paste (only for mods with storageNamespace)
+      if (config.storageNamespace) {
+        var footer = $.CreatePanel("Panel", container, "");
+        footer.AddClass("AnitaFooterRow");
+
+        function makeFooterBtn(parent, label, id) {
+          var btn = $.CreatePanel("Button", parent, id || "");
+          btn.AddClass("AnitaFooterBtn");
+          var lbl = $.CreatePanel("Label", btn, "");
+          lbl.text = label;
+          return { btn: btn, lbl: lbl };
+        }
+
+        function flashLabel(btn, lbl, msg, durationSec) {
+          var orig = lbl.text;
+          lbl.text = msg;
+          btn.AddClass("AnitaFooterBtnSuccess");
+          $.Schedule(durationSec, function () {
+            if (lbl && lbl.IsValid()) lbl.text = orig;
+            if (btn && btn.IsValid()) btn.RemoveClass("AnitaFooterBtnSuccess");
+          });
+        }
+
+        // Save button — bypasses debounce
+        var saveB = makeFooterBtn(footer, "Save", "");
+        saveB.btn.SetPanelEvent("onactivate", function () {
+          config.__anitaPendingWriteToken = (config.__anitaPendingWriteToken || 0) + 1; // cancel pending debounce
+          AnitaPersistence.persistConfig(config);
+          flashLabel(saveB.btn, saveB.lbl, "Saved!", 1.5);
+        });
+
+        // Copy button
+        var copyB = makeFooterBtn(footer, "Copy", "");
+        copyB.btn.SetPanelEvent("onactivate", function () {
+          var raw = AnitaPersistence.buildStoredPayload(config);
+          var ns = AnitaPersistence.normalizeNamespace(config.storageNamespace);
+          var encoded = AnitaBase64.encode(raw);
+          var token = "[" + AnitaPersistence.TOKEN_PREFIX + ns + "]:" + encoded;
+          try {
+            $.DispatchEvent("CopyStringToClipboard", token);
+            flashLabel(copyB.btn, copyB.lbl, "Copied!", 1.5);
+          } catch (e) {
+            flashLabel(copyB.btn, copyB.lbl, "Failed", 1.5);
+          }
+        });
+
+        // Paste button — uses TextEntry clipboard workaround
+        var pasteB = makeFooterBtn(footer, "Paste", "");
+        var pasteEntry = $.CreatePanel("TextEntry", footer, "");
+        pasteEntry.style.width = "0px";
+        pasteEntry.style.height = "0px";
+        pasteEntry.style.opacity = "0";
+        pasteB.btn.SetPanelEvent("onactivate", function () {
+          try {
+            pasteEntry.text = "";
+            pasteEntry.SetFocus();
+            $.DispatchEvent("TextEntryPasteFromClipboard", pasteEntry);
+            $.Schedule(0.1, function () {
+              var text = pasteEntry.text;
+              if (!text) { flashLabel(pasteB.btn, pasteB.lbl, "Empty", 1.5); return; }
+              var ns = AnitaPersistence.normalizeNamespace(config.storageNamespace);
+              var rx = new RegExp("\\[" + AnitaPersistence.TOKEN_PREFIX + ns + "\\]:[A-Za-z0-9_-]+");
+              var match = text.match(rx);
+              if (!match) { flashLabel(pasteB.btn, pasteB.lbl, "Invalid", 1.5); return; }
+              var encoded = match[0].split("]:")[1] || "";
+              try {
+                var raw = AnitaBase64.decode(encoded);
+                var parsed = AnitaPersistence.parseStoredPayload(config, raw, "paste");
+                if (!parsed) { flashLabel(pasteB.btn, pasteB.lbl, "Invalid", 1.5); return; }
+                AnitaPersistence.applyResolvedValues(config, parsed.values);
+                // Re-render tab to update UI controls
+                AnitaRenderer.renderModSettings(config);
+                // Emit all current values to healthbar_logic
+                AnitaCore.emitCurrentValues(config);
+                AnitaPersistence.persistConfig(config);
+                flashLabel(pasteB.btn, pasteB.lbl, "Applied!", 1.5);
+              } catch (eDec) {
+                flashLabel(pasteB.btn, pasteB.lbl, "Invalid", 1.5);
+              }
+            });
+          } catch (ePaste) {
+            flashLabel(pasteB.btn, pasteB.lbl, "Unavailable", 1.5);
+          }
+        });
+      }
     },
 
   }
