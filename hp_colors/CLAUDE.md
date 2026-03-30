@@ -71,7 +71,15 @@ Or use the `/pack-vpk` Claude Code skill.
 Output VPK is `pak96_dir.vpk`. Higher pak number = higher priority (overrides lower).
 The compiled folder is `hp_colors_compiled/` — do not edit compiled files directly.
 
-## Known limitations
+## Persistence
 
-- `$.persistentStorage` is unavailable in Deadlock Panorama — settings reset to defaults on game restart
-- No cross-restart persistence until Valve enables the storage API
+Settings are persisted cross-restart by embedding a base64url token inside the archived convar `deadlock_hero_debuts_seen`. The game writes this convar to `cfg/user/game.cfg` on clean exit.
+
+Three-tier persistence:
+1. **Cross-restart**: token `[ANITA-v1-hp_colors]:<base64>` in `deadlock_hero_debuts_seen`
+2. **Within-session**: root panel `SetAttributeString("anita_v1_hp_colors", ...)`
+3. **Manual**: Copy / Paste buttons in the settings panel footer
+
+Settings are debounced 2s before auto-saving. The **Save** button in the footer bypasses the debounce. **Copy** puts the token on the clipboard; **Paste** reads and applies it.
+
+> Persistence requires a clean game exit for settings to survive a restart (same as any archived convar).
