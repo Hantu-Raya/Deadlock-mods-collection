@@ -285,9 +285,9 @@ The footer Save/Copy/Paste buttons are already implemented in `anita_ui_core.js`
   5. Paste the previously copied token into the text field
   6. Click **Apply** — the setting should restore to 40 and the paste row should close
 
-- [ ] **Step 4: Commit (no code changes expected)**
+- [ ] **Step 4: Commit (expected: no code changes needed)**
 
-  If the footer buttons already work without modification, no commit is needed. If any fix was required, commit it:
+  The footer UI is already fully implemented. This step should pass with zero code changes. If something needed fixing, commit it:
 
   ```bash
   git add hp_colors/panorama/scripts/anita_ui_core.js
@@ -302,7 +302,7 @@ The footer Save/Copy/Paste buttons are already implemented in `anita_ui_core.js`
 
 - [ ] **Step 1: Update the Persistence status section**
 
-  Find the `## Persistence status` section and replace it to reflect the working state:
+  Find the `## Persistence status` section and replace it. Also preserve the `## Current debugging signals` section that follows it (do not delete it):
 
   ```markdown
   ## Persistence status
