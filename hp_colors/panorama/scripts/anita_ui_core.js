@@ -483,48 +483,47 @@ var AnitaUILogger = (function () {
       var raw = this.buildStoredPayload(config);
       if (!raw) return false;
       if (raw === String(config.__anitaLastPersistedRaw || "")) {
-        this.logForConfig(config, "write skipped unchanged len=" + raw.length);
+        this.logForConfig(config, "write skipped unchanged");
         return false;
       }
 
-      var primaryKey = this.getPrimaryKey(config);
-      if (primaryKey && this.canWriteSettings()) {
+      var ns = this.normalizeNamespace(config.storageNamespace);
+      var encoded = AnitaBase64.encode(raw);
+      var token = "[ANITA-v1-" + ns + "]:" + encoded;
+
+      if (this.canPersistViaConvar()) {
         try {
-          GameInterfaceAPI.SetSettingString(primaryKey, raw);
-          this.logForConfig(config, "primary write key=" + primaryKey + " len=" + raw.length);
-          if (this.canReadSettings()) {
-            var readBack = "";
-            try {
-              readBack = String(GameInterfaceAPI.GetSettingString(primaryKey) || "");
-            } catch (eReadBack) {
-              readBack = "";
-              this.logForConfig(config, "primary readback threw key=" + primaryKey + " err=" + eReadBack);
-            }
-            this.logForConfig(
-              config,
-              "primary readback key=" + primaryKey + " len=" + readBack.length +
-              " match=" + (readBack === raw ? "1" : "0")
-            );
-          }
+          var current = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
+          // Use * in cleanup regex to also remove malformed empty-payload tokens
+          var cleaned = current.replace(this.getCleanupRegex(ns), "").replace(/,,+/g, ",").replace(/^,|,$/, "");
+          var finalValue = (cleaned ? cleaned + "," : "") + token;
+          // Double-quote the value to protect [ ] from Source engine console bracket parsing
+          GameInterfaceAPI.ConsoleCommand(this.CONVAR_KEY + ' "' + finalValue + '"');
+          this.logForConfig(config, "convar write ns=" + ns + " encoded_len=" + encoded.length);
+
+          // Verify write round-trips
+          var readBack = "";
+          try {
+            readBack = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
+          } catch (eRB) {}
+          this.logForConfig(config, "convar readback found_token=" + (readBack.indexOf("[ANITA-v1-" + ns + "]") !== -1 ? "1" : "0"));
         } catch (e) {
-          Logger.debugThrottled("Primary settings write failed for " + (config.title || "unknown"), 50);
-          this.logForConfig(config, "primary write threw key=" + primaryKey + " err=" + e);
+          this.logForConfig(config, "convar write threw: " + e);
         }
       } else {
-        this.logForConfig(config, "primary write unavailable key=" + primaryKey);
+        this.logForConfig(config, "convar write unavailable (canPersistViaConvar=false)");
       }
 
-      var fallbackKey = this.getFallbackKey(config);
-      if (fallbackKey && this.canUsePersistentStorage()) {
-        try {
-          $.persistentStorage.setItem(fallbackKey, raw);
-          this.logForConfig(config, "fallback write key=" + fallbackKey + " len=" + raw.length);
-        } catch (e2) {
-          Logger.debugThrottled("Fallback storage write failed for " + (config.title || "unknown"), 50);
-          this.logForConfig(config, "fallback write threw key=" + fallbackKey + " err=" + e2);
+      // Session fallback: always write to root panel attribute for within-session resilience
+      try {
+        var rootPanel = $.GetContextPanel();
+        while (rootPanel && rootPanel.GetParent && rootPanel.GetParent()) rootPanel = rootPanel.GetParent();
+        if (rootPanel && rootPanel.SetAttributeString) {
+          rootPanel.SetAttributeString("anita_v1_" + ns, encoded);
+          this.logForConfig(config, "session write ns=" + ns);
         }
-      } else {
-        this.logForConfig(config, "fallback write unavailable key=" + fallbackKey);
+      } catch (eSess) {
+        this.logForConfig(config, "session write threw: " + eSess);
       }
 
       config.__anitaLastPersistedRaw = raw;
