@@ -118,7 +118,8 @@ var AnitaUILogger = (function () {
     UI: {
       TAB_MAX_CHARS: 17,
       MONITOR_INTERVAL: 0.05
-    }
+    },
+    PERSISTENCE_DEBUG: true
   };
 
   const Logger = AnitaUILogger(CONFIG.DEBUG_MODE);
@@ -207,6 +208,397 @@ var AnitaUILogger = (function () {
     };
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(payload));
   }
+
+  const AnitaPersistence = {
+    STORAGE_PREFIX: "anita_ui_mod_",
+
+    log: function (message) {
+      if (!CONFIG.PERSISTENCE_DEBUG) return;
+      $.Msg("[Anita-UI][Persist] " + message);
+    },
+
+    logForConfig: function (config, message) {
+      var title = (config && config.title) ? String(config.title) : "unknown";
+      this.log(title + " | " + message);
+    },
+
+    normalizeNamespace: function (storageNamespace) {
+      return String(storageNamespace || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+    },
+
+    getVersion: function (config) {
+      var version = Number(config && config.storageVersion);
+      if (!isFinite(version) || version < 1) return 1;
+      return Math.floor(version);
+    },
+
+    hasPersistentConfig: function (config) {
+      return this.normalizeNamespace(config && config.storageNamespace).length > 0;
+    },
+
+    getPrimaryKey: function (config) {
+      var namespace = this.normalizeNamespace(config && config.storageNamespace);
+      if (!namespace) return "";
+      return this.STORAGE_PREFIX + namespace + "_v" + this.getVersion(config);
+    },
+
+    getFallbackKey: function (config) {
+      var namespace = this.normalizeNamespace(config && config.storageNamespace);
+      if (!namespace) return "";
+      return this.STORAGE_PREFIX + namespace + "_json_v" + this.getVersion(config);
+    },
+
+    canReadSettings: function () {
+      return typeof GameInterfaceAPI !== "undefined" &&
+        !!GameInterfaceAPI &&
+        typeof GameInterfaceAPI.GetSettingString === "function";
+    },
+
+    canWriteSettings: function () {
+      return typeof GameInterfaceAPI !== "undefined" &&
+        !!GameInterfaceAPI &&
+        typeof GameInterfaceAPI.SetSettingString === "function";
+    },
+
+    canUsePersistentStorage: function () {
+      return typeof $ !== "undefined" &&
+        !!$ &&
+        !!$.persistentStorage;
+    },
+
+    getElements: function (config) {
+      return (config && Array.isArray(config.elements)) ? config.elements : [];
+    },
+
+    shouldPersistElement: function (element) {
+      return !!(element && element.id && element.type !== "button");
+    },
+
+    sanitizeValue: function (element, value) {
+      if (!element) return value;
+
+      var fallback = element.defaultValue;
+      var type = String(element.type || "");
+
+      if (type === "toggle") {
+        if (value === true || value === false) return value;
+        if (value === 1 || value === "1") return true;
+        if (value === 0 || value === "0") return false;
+        if (typeof value === "string") {
+          var lowered = value.toLowerCase();
+          if (lowered === "true") return true;
+          if (lowered === "false") return false;
+        }
+        return !!fallback;
+      }
+
+      if (type === "cycler") {
+        var count = Array.isArray(element.options) ? element.options.length : 0;
+        var nextIndex = Number(value);
+        if (!isFinite(nextIndex)) nextIndex = Number(fallback);
+        if (!isFinite(nextIndex)) nextIndex = 0;
+        nextIndex = Math.round(nextIndex);
+        if (nextIndex < 0) nextIndex = 0;
+        if (count > 0 && nextIndex >= count) {
+          var fallbackIndex = Number(fallback);
+          if (!isFinite(fallbackIndex) || fallbackIndex < 0 || fallbackIndex >= count) fallbackIndex = 0;
+          nextIndex = fallbackIndex;
+        }
+        return nextIndex;
+      }
+
+      if (type === "stepper") {
+        var nextNumber = Number(value);
+        if (!isFinite(nextNumber)) nextNumber = Number(fallback);
+        if (!isFinite(nextNumber)) nextNumber = 0;
+        var step = Number(element.step);
+        if (!isFinite(step) || step === 0) step = 1;
+        if (Math.round(step) === step) {
+          return Math.round(nextNumber);
+        }
+        return parseFloat(nextNumber.toFixed(2));
+      }
+
+      if (type === "colorpicker") {
+        if (typeof value === "string" && value.length > 0) return value;
+        return (typeof fallback === "string" && fallback.length > 0) ? fallback : "#FFFFFF";
+      }
+
+      if (value !== undefined) return value;
+      return fallback;
+    },
+
+    ensureDefaults: function (config) {
+      var elements = this.getElements(config);
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!this.shouldPersistElement(element)) {
+          if (element.currentValue === undefined && element.defaultValue !== undefined) {
+            element.currentValue = element.defaultValue;
+          }
+          continue;
+        }
+        var sourceValue = (element.currentValue !== undefined) ? element.currentValue : element.defaultValue;
+        element.currentValue = this.sanitizeValue(element, sourceValue);
+      }
+    },
+
+    parseStoredPayload: function (config, raw, sourceLabel) {
+      var text = String(raw || "");
+      if (!text) return null;
+
+      var parsed = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch (e) {
+        Logger.debugThrottled("Persistence parse failed [" + sourceLabel + "] for " + (config.title || "unknown"), 50);
+        return null;
+      }
+
+      if (!parsed || typeof parsed !== "object" || !parsed.values || typeof parsed.values !== "object") {
+        Logger.debugThrottled("Persistence payload invalid [" + sourceLabel + "] for " + (config.title || "unknown"), 50);
+        return null;
+      }
+
+      var values = {};
+      var elements = this.getElements(config);
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!this.shouldPersistElement(element)) continue;
+        if (!Object.prototype.hasOwnProperty.call(parsed.values, element.id)) continue;
+        values[element.id] = this.sanitizeValue(element, parsed.values[element.id]);
+      }
+
+      return {
+        raw: text,
+        values: values
+      };
+    },
+
+    readPrimaryPayload: function (config) {
+      if (!this.canReadSettings()) return null;
+      var key = this.getPrimaryKey(config);
+      if (!key) return null;
+
+      var raw = "";
+      try {
+        raw = String(GameInterfaceAPI.GetSettingString(key) || "");
+      } catch (e) {
+        Logger.debugThrottled("Primary settings read failed for " + (config.title || "unknown"), 50);
+        this.logForConfig(config, "primary read threw key=" + key + " err=" + e);
+        return null;
+      }
+
+      if (raw) {
+        this.logForConfig(config, "primary read key=" + key + " len=" + raw.length);
+      } else {
+        this.logForConfig(config, "primary read empty key=" + key);
+      }
+
+      return this.parseStoredPayload(config, raw, "primary");
+    },
+
+    readFallbackPayload: function (config) {
+      if (!this.canUsePersistentStorage()) return null;
+      var key = this.getFallbackKey(config);
+      if (!key) return null;
+
+      var raw = "";
+      try {
+        raw = String($.persistentStorage.getItem(key) || "");
+      } catch (e) {
+        Logger.debugThrottled("Fallback storage read failed for " + (config.title || "unknown"), 50);
+        this.logForConfig(config, "fallback read threw key=" + key + " err=" + e);
+        return null;
+      }
+
+      if (raw) {
+        this.logForConfig(config, "fallback read key=" + key + " len=" + raw.length);
+      } else {
+        this.logForConfig(config, "fallback read empty key=" + key);
+      }
+
+      return this.parseStoredPayload(config, raw, "fallback");
+    },
+
+    readLegacyValues: function (config) {
+      if (!this.canUsePersistentStorage()) return null;
+
+      var prefix = String(config && config.legacyStoragePrefix || "");
+      if (!prefix) return null;
+
+      var values = {};
+      var foundAny = false;
+      var elements = this.getElements(config);
+
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!this.shouldPersistElement(element)) continue;
+
+        var raw = "";
+        try {
+          raw = String($.persistentStorage.getItem(prefix + element.id) || "");
+        } catch (e) {
+          raw = "";
+        }
+        if (!raw) continue;
+
+        try {
+          values[element.id] = this.sanitizeValue(element, JSON.parse(raw));
+          foundAny = true;
+          this.logForConfig(config, "legacy hit key=" + (prefix + element.id));
+        } catch (e2) {}
+      }
+
+      return foundAny ? values : null;
+    },
+
+    applyResolvedValues: function (config, values) {
+      var elements = this.getElements(config);
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!this.shouldPersistElement(element)) {
+          if (element.currentValue === undefined && element.defaultValue !== undefined) {
+            element.currentValue = element.defaultValue;
+          }
+          continue;
+        }
+
+        var nextValue = Object.prototype.hasOwnProperty.call(values || {}, element.id)
+          ? values[element.id]
+          : element.defaultValue;
+        element.currentValue = this.sanitizeValue(element, nextValue);
+      }
+    },
+
+    hydrateConfig: function (config) {
+      this.ensureDefaults(config);
+      var hydrateSource = "defaults";
+
+      if (!this.hasPersistentConfig(config)) {
+        config.__anitaLastPersistedRaw = "";
+        this.logForConfig(config, "persistence disabled");
+        return;
+      }
+
+      var persisted = this.readPrimaryPayload(config);
+      if (persisted) {
+        hydrateSource = "primary";
+      } else {
+        persisted = this.readFallbackPayload(config);
+        if (persisted) hydrateSource = "fallback";
+      }
+
+      if (persisted) {
+        this.applyResolvedValues(config, persisted.values);
+        config.__anitaLastPersistedRaw = persisted.raw;
+        this.logForConfig(
+          config,
+          "hydrate source=" + hydrateSource +
+          " primaryKey=" + this.getPrimaryKey(config) +
+          " fallbackKey=" + this.getFallbackKey(config)
+        );
+        return;
+      }
+
+      var legacyValues = this.readLegacyValues(config);
+      if (legacyValues) {
+        this.applyResolvedValues(config, legacyValues);
+        hydrateSource = "legacy";
+      }
+
+      this.logForConfig(config, "hydrate source=" + hydrateSource + " primaryKey=" + this.getPrimaryKey(config));
+
+      config.__anitaLastPersistedRaw = "";
+    },
+
+    buildStoredPayload: function (config) {
+      var payload = {
+        version: this.getVersion(config),
+        values: {}
+      };
+      var elements = this.getElements(config);
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!this.shouldPersistElement(element)) continue;
+        var value = this.sanitizeValue(
+          element,
+          element.currentValue !== undefined ? element.currentValue : element.defaultValue
+        );
+        element.currentValue = value;
+        payload.values[element.id] = value;
+      }
+      return JSON.stringify(payload);
+    },
+
+    persistConfig: function (config) {
+      if (!this.hasPersistentConfig(config)) return false;
+
+      var raw = this.buildStoredPayload(config);
+      if (!raw) return false;
+      if (raw === String(config.__anitaLastPersistedRaw || "")) {
+        this.logForConfig(config, "write skipped unchanged len=" + raw.length);
+        return false;
+      }
+
+      var primaryKey = this.getPrimaryKey(config);
+      if (primaryKey && this.canWriteSettings()) {
+        try {
+          GameInterfaceAPI.SetSettingString(primaryKey, raw);
+          this.logForConfig(config, "primary write key=" + primaryKey + " len=" + raw.length);
+          if (this.canReadSettings()) {
+            var readBack = "";
+            try {
+              readBack = String(GameInterfaceAPI.GetSettingString(primaryKey) || "");
+            } catch (eReadBack) {
+              readBack = "";
+              this.logForConfig(config, "primary readback threw key=" + primaryKey + " err=" + eReadBack);
+            }
+            this.logForConfig(
+              config,
+              "primary readback key=" + primaryKey + " len=" + readBack.length +
+              " match=" + (readBack === raw ? "1" : "0")
+            );
+          }
+        } catch (e) {
+          Logger.debugThrottled("Primary settings write failed for " + (config.title || "unknown"), 50);
+          this.logForConfig(config, "primary write threw key=" + primaryKey + " err=" + e);
+        }
+      } else {
+        this.logForConfig(config, "primary write unavailable key=" + primaryKey);
+      }
+
+      var fallbackKey = this.getFallbackKey(config);
+      if (fallbackKey && this.canUsePersistentStorage()) {
+        try {
+          $.persistentStorage.setItem(fallbackKey, raw);
+          this.logForConfig(config, "fallback write key=" + fallbackKey + " len=" + raw.length);
+        } catch (e2) {
+          Logger.debugThrottled("Fallback storage write failed for " + (config.title || "unknown"), 50);
+          this.logForConfig(config, "fallback write threw key=" + fallbackKey + " err=" + e2);
+        }
+      } else {
+        this.logForConfig(config, "fallback write unavailable key=" + fallbackKey);
+      }
+
+      config.__anitaLastPersistedRaw = raw;
+      return true;
+    },
+
+    applyUpdate: function (config, settingId, value) {
+      var elements = this.getElements(config);
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!element || element.id !== settingId) continue;
+        element.currentValue = this.sanitizeValue(element, value);
+        return true;
+      }
+      return false;
+    }
+  };
 
   const AnitaComponents = {
     createToggle: function (parent, config, modTitle) {
@@ -703,6 +1095,8 @@ var AnitaUILogger = (function () {
         AnitaRenderer.contentArea.RemoveAndDeleteChildren();
       }
 
+      AnitaPersistence.hydrateConfig(config);
+
       for (let i = 0; i < this.registeredMods.length; i++) {
         if (this.registeredMods[i].title === config.title) {
           Logger.debugThrottled("Mod already registered: " + config.title, 200);
@@ -722,6 +1116,34 @@ var AnitaUILogger = (function () {
         mod_title: config.title
       }));
       Logger.info("Sent HANDSHAKE to mod: " + config.title);
+
+      this.emitCurrentValues(config);
+    },
+
+    emitCurrentValues: function (config) {
+      if (!config || !Array.isArray(config.elements)) return;
+      for (var i = 0; i < config.elements.length; i++) {
+        var element = config.elements[i];
+        if (!element || !element.id || element.currentValue === undefined) continue;
+        emitUpdate(config.title, element.id, element.currentValue);
+      }
+    },
+
+    findRegisteredMod: function (modTitle) {
+      for (var i = 0; i < this.registeredMods.length; i++) {
+        if (this.registeredMods[i] && this.registeredMods[i].title === modTitle) {
+          return this.registeredMods[i];
+        }
+      }
+      return null;
+    },
+
+    handleUpdateEvent: function (data) {
+      if (!data || !data.mod_title || !data.setting_id) return;
+      var config = this.findRegisteredMod(data.mod_title);
+      if (!config) return;
+      if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) return;
+      AnitaPersistence.persistConfig(config);
     },
 
     updateWindowWidth: function () {
@@ -751,6 +1173,8 @@ var AnitaUILogger = (function () {
             if (data && data.magic_word === "ANITA_REGISTER") {
               this.registerMod(data.config);
               Logger.debugThrottled("Event received: REGISTER for " + data.config.title, 200);
+            } else if (data && data.magic_word === "ANITA_UPDATE") {
+              this.handleUpdateEvent(data);
             }
           } catch (e) {
             Logger.debugThrottled("Malformed event received", 200);
