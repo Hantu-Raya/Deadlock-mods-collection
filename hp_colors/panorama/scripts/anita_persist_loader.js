@@ -1,0 +1,533 @@
+'use strict';
+(function () {
+
+  var TITLE = "HP Colors";
+  var STORAGE_NAMESPACE = "hp_colors";
+  var STORAGE_KEY = "anita_v1_hp_colors";
+  var PERSIST_DEBOUNCE_SEC = 0.35;
+
+  var bridgeConfig = null;
+  var currentValues = null;
+  var cachedEncoded = "";
+  var cachedRaw = "";
+  var cachedValues = null;
+  var persistToken = 0;
+  var bootstrapToken = 0;
+  var pendingBootstrapReason = "";
+  var storageSupportLogged = false;
+
+  function log(message) {
+    $.Msg("[Anita-UI][Bridge] " + TITLE + " | " + message);
+  }
+
+  var AnitaBase64 = (function () {
+    var CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+    function encode(str) {
+      var bytes = [];
+      for (var i = 0; i < str.length; i++) {
+        var code = str.charCodeAt(i);
+        if (code < 128) {
+          bytes.push(code);
+        } else if (code < 2048) {
+          bytes.push(0xC0 | (code >> 6));
+          bytes.push(0x80 | (code & 0x3F));
+        } else {
+          bytes.push(0xE0 | (code >> 12));
+          bytes.push(0x80 | ((code >> 6) & 0x3F));
+          bytes.push(0x80 | (code & 0x3F));
+        }
+      }
+
+      var out = "";
+      for (var j = 0; j < bytes.length; j += 3) {
+        var b0 = bytes[j];
+        var b1 = bytes[j + 1] || 0;
+        var b2 = bytes[j + 2] || 0;
+        out += CHARS[b0 >> 2];
+        out += CHARS[((b0 & 3) << 4) | (b1 >> 4)];
+        out += (j + 1 < bytes.length) ? CHARS[((b1 & 15) << 2) | (b2 >> 6)] : "";
+        out += (j + 2 < bytes.length) ? CHARS[b2 & 63] : "";
+      }
+      return out;
+    }
+
+    function decode(str) {
+      var lookup = {};
+      for (var i = 0; i < CHARS.length; i++) lookup[CHARS[i]] = i;
+
+      function getVal(ch) {
+        if (ch === undefined) return 0;
+        if (!Object.prototype.hasOwnProperty.call(lookup, ch)) {
+          throw new Error("Invalid base64url char: " + ch);
+        }
+        return lookup[ch];
+      }
+
+      var decodedBytes = [];
+      for (var j = 0; j < str.length; j += 4) {
+        var c0 = getVal(str[j]);
+        var c1 = getVal(str[j + 1]);
+        var c2 = str[j + 2] !== undefined ? getVal(str[j + 2]) : 0;
+        var c3 = str[j + 3] !== undefined ? getVal(str[j + 3]) : 0;
+        decodedBytes.push((c0 << 2) | (c1 >> 4));
+        if (str[j + 2] !== undefined) decodedBytes.push(((c1 & 15) << 4) | (c2 >> 2));
+        if (str[j + 3] !== undefined) decodedBytes.push(((c2 & 3) << 6) | c3);
+      }
+
+      var out = "";
+      for (var k = 0; k < decodedBytes.length; k++) {
+        var b = decodedBytes[k];
+        if (b < 128) {
+          out += String.fromCharCode(b);
+        } else if (b < 224) {
+          out += String.fromCharCode(((b & 31) << 6) | (decodedBytes[++k] & 63));
+        } else {
+          var cont2 = decodedBytes[++k];
+          var cont3 = decodedBytes[++k];
+          out += String.fromCharCode(((b & 15) << 12) | ((cont2 & 63) << 6) | (cont3 & 63));
+        }
+      }
+      return out;
+    }
+
+    return {
+      encode: encode,
+      decode: decode
+    };
+  })();
+
+  function normalizeNamespace(storageNamespace) {
+    return String(storageNamespace || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9_]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+  }
+
+  function hasPersistentStorage() {
+    try {
+      var supported = !!($ && $.persistentStorage &&
+        typeof $.persistentStorage.setItem === "function" &&
+        typeof $.persistentStorage.getItem === "function");
+      if (!storageSupportLogged) {
+        storageSupportLogged = true;
+        log("storage available=" + (supported ? "1" : "0"));
+      }
+      return supported;
+    } catch (e) {
+      if (!storageSupportLogged) {
+        storageSupportLogged = true;
+        log("storage probe failed: " + e);
+      }
+      return false;
+    }
+  }
+
+  function getRootPanel() {
+    var root = $.GetContextPanel();
+    while (root && root.GetParent && root.GetParent()) {
+      root = root.GetParent();
+    }
+    return root || null;
+  }
+
+  function cloneValues(values) {
+    var out = {};
+    for (var key in values) {
+      if (Object.prototype.hasOwnProperty.call(values, key)) {
+        out[key] = values[key];
+      }
+    }
+    return out;
+  }
+
+  function findElement(settingId) {
+    if (!bridgeConfig || !Array.isArray(bridgeConfig.elements)) return null;
+    for (var i = 0; i < bridgeConfig.elements.length; i++) {
+      var element = bridgeConfig.elements[i];
+      if (element && element.id === settingId) return element;
+    }
+    return null;
+  }
+
+  function sanitizeValue(element, value) {
+    if (!element) return value;
+
+    var fallback = element.defaultValue;
+    var type = String(element.type || "");
+
+    if (type === "toggle") {
+      if (value === true || value === false) return value;
+      if (value === 1 || value === "1") return true;
+      if (value === 0 || value === "0") return false;
+      if (typeof value === "string") {
+        var lowered = value.toLowerCase();
+        if (lowered === "true") return true;
+        if (lowered === "false") return false;
+      }
+      return !!fallback;
+    }
+
+    if (type === "cycler") {
+      var count = Array.isArray(element.options) ? element.options.length : 0;
+      var nextIndex = Number(value);
+      if (!isFinite(nextIndex)) nextIndex = Number(fallback);
+      if (!isFinite(nextIndex)) nextIndex = 0;
+      nextIndex = Math.round(nextIndex);
+      if (nextIndex < 0) nextIndex = 0;
+      if (count > 0 && nextIndex >= count) {
+        var fallbackIndex = Number(fallback);
+        if (!isFinite(fallbackIndex) || fallbackIndex < 0 || fallbackIndex >= count) fallbackIndex = 0;
+        nextIndex = fallbackIndex;
+      }
+      return nextIndex;
+    }
+
+    if (type === "stepper") {
+      var nextNumber = Number(value);
+      if (!isFinite(nextNumber)) nextNumber = Number(fallback);
+      if (!isFinite(nextNumber)) nextNumber = 0;
+      var step = Number(element.step);
+      if (!isFinite(step) || step === 0) step = 1;
+      if (Math.round(step) === step) return Math.round(nextNumber);
+      return parseFloat(nextNumber.toFixed(2));
+    }
+
+    if (type === "colorpicker") {
+      if (typeof value === "string" && value.length > 0) return value;
+      return (typeof fallback === "string" && fallback.length > 0) ? fallback : "#FFFFFF";
+    }
+
+    if (value !== undefined) return value;
+    return fallback;
+  }
+
+  function buildDefaultValues(config) {
+    var values = {};
+    var elements = (config && Array.isArray(config.elements)) ? config.elements : [];
+    for (var i = 0; i < elements.length; i++) {
+      var element = elements[i];
+      if (!element || !element.id || element.type === "button") continue;
+      values[element.id] = sanitizeValue(element, element.defaultValue);
+    }
+    return values;
+  }
+
+  function mergeWithDefaults(values) {
+    var merged = buildDefaultValues(bridgeConfig);
+    for (var key in values) {
+      if (!Object.prototype.hasOwnProperty.call(values, key)) continue;
+      var element = findElement(key);
+      if (!element) continue;
+      merged[key] = sanitizeValue(element, values[key]);
+    }
+    return merged;
+  }
+
+  function parseStoredPayload(raw, sourceLabel) {
+    var text = String(raw || "");
+    if (!text) return null;
+
+    var parsed = null;
+    try {
+      parsed = JSON.parse(text);
+    } catch (eParse) {
+      log("payload parse failed source=" + sourceLabel + " err=" + eParse);
+      return null;
+    }
+
+    if (!parsed || typeof parsed !== "object" || !parsed.values || typeof parsed.values !== "object") {
+      log("payload invalid source=" + sourceLabel);
+      return null;
+    }
+
+    var values = mergeWithDefaults(parsed.values);
+    return {
+      raw: text,
+      values: values
+    };
+  }
+
+  function buildStoredPayload() {
+    if (!bridgeConfig) return "";
+    var payload = {
+      version: Math.max(1, Math.floor(Number(bridgeConfig.storageVersion) || 1)),
+      values: cloneValues(currentValues || buildDefaultValues(bridgeConfig))
+    };
+    return JSON.stringify(payload);
+  }
+
+  function writeSessionMirror(encoded) {
+    var root = getRootPanel();
+    if (!root) return;
+
+    try {
+      if (root.SetAttributeString) root.SetAttributeString(STORAGE_KEY, encoded);
+    } catch (eRoot) {}
+
+    try {
+      var hud = root.FindChildTraverse ? root.FindChildTraverse("Hud") : null;
+      if (hud && hud.SetAttributeString) hud.SetAttributeString(STORAGE_KEY, encoded);
+    } catch (eHud) {}
+  }
+
+  function cachePayload(raw, encoded, values) {
+    cachedRaw = String(raw || "");
+    cachedEncoded = String(encoded || "");
+    cachedValues = cloneValues(values || {});
+    currentValues = cloneValues(values || {});
+    writeSessionMirror(cachedEncoded);
+  }
+
+  function readStoredPayload() {
+    if (cachedRaw && cachedEncoded && cachedValues) {
+      return {
+        raw: cachedRaw,
+        encoded: cachedEncoded,
+        values: cloneValues(cachedValues),
+        source: "cache"
+      };
+    }
+
+    if (!hasPersistentStorage()) {
+      log("persistentStorage unavailable; trying convar fallback");
+
+      var canReadConvar = typeof GameInterfaceAPI !== "undefined" &&
+        GameInterfaceAPI &&
+        typeof GameInterfaceAPI.GetSettingString === "function";
+      if (!canReadConvar) {
+        log("no storage backend available");
+        return null;
+      }
+
+      var convarRaw = "";
+      try {
+        convarRaw = String(GameInterfaceAPI.GetSettingString("deadlock_hero_debuts_seen") || "");
+      } catch (eConvar) {
+        log("convar read threw: " + eConvar);
+        return null;
+      }
+
+      var tokenMatch = convarRaw.match(/\[ANITA-v1-hp_colors\]:([A-Za-z0-9_-]+)/);
+      if (!tokenMatch) {
+        log("convar token not found");
+        return null;
+      }
+
+      var convarEncoded = tokenMatch[1];
+      var convarDecoded = "";
+      try {
+        convarDecoded = AnitaBase64.decode(convarEncoded);
+      } catch (eDecode) {
+        log("convar payload decode failed err=" + eDecode);
+        return null;
+      }
+
+      var convarParsed = parseStoredPayload(convarDecoded, "convar");
+      if (!convarParsed) return null;
+
+      cachePayload(convarParsed.raw, convarEncoded, convarParsed.values);
+      log("convar bootstrap source=convar encoded_len=" + convarEncoded.length);
+      return {
+        raw: convarParsed.raw,
+        encoded: convarEncoded,
+        values: cloneValues(convarParsed.values),
+        source: "convar"
+      };
+    }
+
+    var encoded = "";
+    try {
+      encoded = String($.persistentStorage.getItem(STORAGE_KEY) || "");
+    } catch (eRead) {
+      log("persistentStorage read threw: " + eRead);
+      return null;
+    }
+
+    if (!encoded) {
+      return null;
+    }
+
+    var raw = "";
+    try {
+      raw = AnitaBase64.decode(encoded);
+    } catch (eDecode) {
+      log("payload decode failed err=" + eDecode);
+      return null;
+    }
+
+    var parsed = parseStoredPayload(raw, "persistentStorage");
+    if (!parsed) return null;
+
+    cachePayload(parsed.raw, encoded, parsed.values);
+    return {
+      raw: parsed.raw,
+      encoded: encoded,
+      values: cloneValues(parsed.values),
+      source: "persistentStorage"
+    };
+  }
+
+  function persistCurrentState(reason, forceWrite) {
+    if (!bridgeConfig) return false;
+    if (!currentValues) currentValues = buildDefaultValues(bridgeConfig);
+
+    var raw = buildStoredPayload();
+    if (!raw) return false;
+
+    var encoded = "";
+    try {
+      encoded = AnitaBase64.encode(raw);
+    } catch (eEnc) {
+      log("payload encode failed err=" + eEnc);
+      return false;
+    }
+
+    if (!forceWrite && encoded === cachedEncoded) {
+      writeSessionMirror(encoded);
+      return false;
+    }
+
+    cachePayload(raw, encoded, currentValues);
+
+    if (!hasPersistentStorage()) {
+      log("mirror only; storage unavailable source=" + reason);
+      return false;
+    }
+
+    try {
+      $.persistentStorage.setItem(STORAGE_KEY, encoded);
+      log("persistentStorage write source=" + reason + " encoded_len=" + encoded.length);
+      return true;
+    } catch (eWrite) {
+      log("persistentStorage write threw: " + eWrite);
+      return false;
+    }
+  }
+
+  function schedulePersist(reason, immediate) {
+    var token = ++persistToken;
+    $.Schedule(immediate ? 0.0 : PERSIST_DEBOUNCE_SEC, function () {
+      if (token !== persistToken) return;
+      persistCurrentState(reason, !!immediate);
+    });
+  }
+
+  function replayValues(values, reason) {
+    if (!values) return;
+
+    var count = 0;
+    for (var key in values) {
+      if (!Object.prototype.hasOwnProperty.call(values, key)) continue;
+      $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
+        magic_word: "ANITA_UPDATE",
+        mod_title: TITLE,
+        setting_id: key,
+        value: values[key],
+        update_source: "bridge_bootstrap",
+        skip_bridge_persist: true
+      }));
+      count += 1;
+    }
+    log("bootstrap replay count=" + count + " source=" + reason);
+  }
+
+  function performBootstrap(reason) {
+    if (!bridgeConfig) {
+      pendingBootstrapReason = reason;
+      log("bootstrap deferred (no config) reason=" + reason);
+      return;
+    }
+
+    var stored = readStoredPayload();
+    if (!stored) {
+      log("bootstrap no stored payload source=" + reason);
+      return;
+    }
+
+    currentValues = cloneValues(stored.values);
+    writeSessionMirror(stored.encoded);
+    replayValues(stored.values, reason + ":" + stored.source);
+  }
+
+  function scheduleBootstrap(reason) {
+    pendingBootstrapReason = String(reason || "request");
+    var token = ++bootstrapToken;
+    $.Schedule(0.0, function () {
+      if (token !== bootstrapToken) return;
+      performBootstrap(pendingBootstrapReason);
+    });
+  }
+
+  function captureConfig(config) {
+    if (!config || String(config.title || "") !== TITLE) return false;
+    if (normalizeNamespace(config.storageNamespace) !== STORAGE_NAMESPACE) return false;
+
+    var nextConfig = {
+      title: TITLE,
+      storageNamespace: STORAGE_NAMESPACE,
+      storageVersion: Math.max(1, Math.floor(Number(config.storageVersion) || 1)),
+      elements: []
+    };
+
+    var sourceElements = Array.isArray(config.elements) ? config.elements : [];
+    for (var i = 0; i < sourceElements.length; i++) {
+      var source = sourceElements[i];
+      if (!source || !source.id) continue;
+      nextConfig.elements.push({
+        id: source.id,
+        type: source.type,
+        defaultValue: source.defaultValue,
+        options: Array.isArray(source.options) ? source.options.slice(0) : null,
+        step: source.step
+      });
+    }
+
+    bridgeConfig = nextConfig;
+    if (!currentValues) currentValues = buildDefaultValues(bridgeConfig);
+    log("config captured elements=" + nextConfig.elements.length);
+    return true;
+  }
+
+  $.RegisterForUnhandledEvent("ClientUI_FireOutput", function (payload) {
+    try {
+      var data = (typeof payload === "string") ? JSON.parse(payload) : payload;
+      if (!data) return;
+
+      if (data.magic_word === "ANITA_REGISTER") {
+        if (captureConfig(data.config) && pendingBootstrapReason) {
+          scheduleBootstrap(pendingBootstrapReason);
+        }
+        return;
+      }
+
+      if (data.magic_word === "ANITA_REQUEST_BOOTSTRAP") {
+        if (data.mod_title !== TITLE) return;
+        if (normalizeNamespace(data.storageNamespace) !== STORAGE_NAMESPACE) return;
+        scheduleBootstrap(String(data.reason || "request"));
+        return;
+      }
+
+      if (data.magic_word !== "ANITA_UPDATE" || data.mod_title !== TITLE) return;
+      if (!bridgeConfig || !data.setting_id) return;
+
+      var element = findElement(data.setting_id);
+      if (!element) return;
+
+      if (!currentValues) currentValues = buildDefaultValues(bridgeConfig);
+      currentValues[data.setting_id] = sanitizeValue(element, data.value);
+
+      if (data.skip_bridge_persist || String(data.update_source || "") === "bridge_bootstrap") {
+        return;
+      }
+
+      schedulePersist(String(data.update_source || "ui_update"), !!data.force_persist);
+    } catch (e) {
+      log("event parse failed: " + e);
+    }
+  });
+
+  hasPersistentStorage();
+  log("loader ready");
+
+})();
