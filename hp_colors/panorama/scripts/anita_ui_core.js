@@ -119,7 +119,7 @@ var AnitaUILogger = (function () {
       TAB_MAX_CHARS: 17,
       MONITOR_INTERVAL: 0.05
     },
-    PERSISTENCE_DEBUG: true
+    PERSISTENCE_DEBUG: false
   };
 
   const Logger = AnitaUILogger(CONFIG.DEBUG_MODE);
