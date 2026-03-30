@@ -539,3 +539,41 @@
 	padding-top: 60px;
 }
 
+
+.AnitaFooterRow
+{
+	flow-children: right;
+	margin-top: 10px;
+	padding: 6px 8px;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #1a1a1aaa ), to( #111111aa ) );
+	border-radius: 4px;
+	align: center center;
+}
+
+.AnitaFooterBtn
+{
+	padding: 4px 14px;
+	margin-right: 6px;
+	background-color: #2a2a2a;
+	border-radius: 3px;
+	transition-property: background-color;
+	transition-duration: 0.1s;
+}
+
+.AnitaFooterBtn:hover
+{
+	background-color: #3d3d3d;
+}
+
+.AnitaFooterBtn Label
+{
+	color: #c8c8c8;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+}
+
+.AnitaFooterBtnSuccess Label
+{
+	color: #7fff7f;
+}
