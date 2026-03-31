@@ -281,25 +281,11 @@ var AnitaUILogger = (function () {
       return new RegExp("\\[" + this.TOKEN_PREFIX + ns + "\\]:[A-Za-z0-9_-]*", "g");
     },
 
-    canReadConvar: function () {
-      return typeof GameInterfaceAPI !== "undefined" &&
-        !!GameInterfaceAPI &&
-        typeof GameInterfaceAPI.GetSettingString === "function";
-    },
-
     canWriteConvarDirect: function () {
       return typeof GameInterfaceAPI !== "undefined" &&
         !!GameInterfaceAPI &&
         (typeof GameInterfaceAPI.ConsoleCommand === "function" ||
          typeof GameInterfaceAPI.SetSettingString === "function");
-    },
-
-    canPersistViaStorage: function () {
-      try {
-        return !!($ && $.persistentStorage &&
-          typeof $.persistentStorage.setItem === "function" &&
-          typeof $.persistentStorage.getItem === "function");
-      } catch (e) { return false; }
     },
 
     getStorageKey: function (config) {
@@ -430,16 +416,24 @@ var AnitaUILogger = (function () {
         return nextIndex;
       }
 
-      if (type === "stepper") {
+      if (type === "stepper" || type === "slider") {
         var nextNumber = Number(value);
         if (!isFinite(nextNumber)) nextNumber = Number(fallback);
         if (!isFinite(nextNumber)) nextNumber = 0;
+        var min = Number(element.min);
+        var max = Number(element.max);
+        if (isFinite(min) && nextNumber < min) nextNumber = min;
+        if (isFinite(max) && nextNumber > max) nextNumber = max;
         var step = Number(element.step);
         if (!isFinite(step) || step === 0) step = 1;
         if (Math.round(step) === step) {
-          return Math.round(nextNumber);
+          nextNumber = Math.round(nextNumber);
+        } else {
+          nextNumber = parseFloat(nextNumber.toFixed(2));
         }
-        return parseFloat(nextNumber.toFixed(2));
+        if (isFinite(min) && nextNumber < min) nextNumber = min;
+        if (isFinite(max) && nextNumber > max) nextNumber = max;
+        return nextNumber;
       }
 
       if (type === "colorpicker") {
@@ -496,41 +490,6 @@ var AnitaUILogger = (function () {
         raw: text,
         values: values
       };
-    },
-
-    readPrimaryPayload: function (config) {
-      if (!this.canReadConvar()) return null;
-      var ns = this.normalizeNamespace(config && config.storageNamespace);
-      if (!ns) return null;
-
-      var convarRaw = "";
-      try {
-        convarRaw = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
-      } catch (e) {
-        this.logForConfig(config, "convar read threw: " + e);
-        return null;
-      }
-
-      var match = convarRaw.match(this.getTokenRegex(ns));
-      if (!match) {
-        this.logForConfig(config, "convar token not found in " + this.CONVAR_KEY);
-        return null;
-      }
-
-      var tokenPart = match[0];
-      var encoded = tokenPart.split("]:")[1] || "";
-      if (!encoded) return null;
-
-      var raw = "";
-      try {
-        raw = AnitaBase64.decode(encoded);
-      } catch (e) {
-        this.logForConfig(config, "base64 decode failed: " + e);
-        return null;
-      }
-
-      this.logForConfig(config, "convar token found ns=" + ns + " encoded_len=" + encoded.length);
-      return this.parseStoredPayload(config, raw, "convar");
     },
 
     applyResolvedValues: function (config, values) {
@@ -625,24 +584,18 @@ var AnitaUILogger = (function () {
       var token = "[" + this.TOKEN_PREFIX + ns + "]:" + encoded;
 
       try {
-        var current = this.canReadConvar()
-          ? String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "")
-          : "";
+        var current = "";
+        if (typeof GameInterfaceAPI !== "undefined" &&
+            GameInterfaceAPI &&
+            typeof GameInterfaceAPI.GetSettingString === "function") {
+          current = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
+        }
         var cleaned = current.replace(this.getCleanupRegex(ns), "").replace(/,,+/g, ",").replace(/^,|,$/, "");
         var finalValue = (cleaned ? cleaned + "," : "") + token;
         if (!this.writeConvarBestEffort(this.CONVAR_KEY, finalValue)) {
           this.logForConfig(config, "convar write unavailable (no direct API or command event path)");
         } else {
           this.logForConfig(config, "convar write ns=" + ns + " encoded_len=" + encoded.length);
-          if (this.canReadConvar()) {
-            var readBack = "";
-            try {
-              readBack = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
-            } catch (eRB) {}
-            this.logForConfig(config, "convar readback found_token=" + (readBack.indexOf("[" + this.TOKEN_PREFIX + ns + "]") !== -1 ? "1" : "0"));
-          } else {
-            this.logForConfig(config, "convar readback unavailable (no GetSettingString)");
-          }
         }
       } catch (e) {
         this.logForConfig(config, "convar write threw: " + e);
@@ -773,6 +726,130 @@ var AnitaUILogger = (function () {
       return row;
     },
 
+    createSlider: function (parent, config, modTitle) {
+      const row = $.CreatePanel("Panel", parent, "");
+      row.AddClass("AnitaRow");
+      row.AddClass("AnitaSliderRow");
+      row.style.width = "100%";
+
+      const lbl = $.CreatePanel("Label", row, "");
+      lbl.text = config.label || "Value";
+      lbl.AddClass("AnitaLabel");
+
+      const valueGroup = $.CreatePanel("Panel", row, "");
+      valueGroup.AddClass("AnitaSliderValueGroup");
+      valueGroup.AddClass("SliderValueGroup");
+      valueGroup.style.flowChildren = "right";
+      valueGroup.style.verticalAlign = "center";
+      valueGroup.style.horizontalAlign = "left";
+      valueGroup.style.width = "296px";
+
+      const sliderContainer = $.CreatePanel("Panel", valueGroup, "");
+      sliderContainer.AddClass("AnitaSliderContainer");
+      sliderContainer.AddClass("SliderContainer");
+      sliderContainer.style.width = "230px";
+      sliderContainer.style.height = "26px";
+      sliderContainer.style.padding = "0px";
+      sliderContainer.style.verticalAlign = "center";
+      sliderContainer.style.overflow = "noclip";
+
+      const slider = $.CreatePanel("Slider", sliderContainer, "", { direction: "horizontal" });
+      slider.AddClass("AnitaSlider");
+      slider.AddClass("HorizontalSlider");
+      slider.style.width = "100%";
+      slider.style.height = "100%";
+      slider.style.verticalAlign = "center";
+      slider.style.overflow = "noclip";
+
+      const valueLbl = $.CreatePanel("Label", valueGroup, "");
+      valueLbl.AddClass("AnitaSliderValue");
+
+      const rawMin = Number(config.min);
+      const rawMax = Number(config.max);
+      const rawStep = Number(config.step);
+      const min = isFinite(rawMin) ? rawMin : 0;
+      const max = isFinite(rawMax) ? rawMax : 100;
+      const step = isFinite(rawStep) && rawStep > 0 ? rawStep : 1;
+
+      let val = (config.currentValue !== undefined)
+        ? config.currentValue
+        : (config.defaultValue !== undefined ? config.defaultValue : min);
+      let isSyncing = false;
+
+      AnitaPersistence.logForConfig(config, "slider init min=" + min + " max=" + max + " step=" + step + " value=" + val);
+
+      function normalize(nextVal) {
+        let next = Number(nextVal);
+        if (!isFinite(next)) next = Number(config.defaultValue);
+        if (!isFinite(next)) next = min;
+        if (next < min) next = min;
+        if (next > max) next = max;
+        if (Math.round(step) === step) {
+          next = Math.round(next);
+        } else {
+          next = parseFloat(next.toFixed(2));
+        }
+        if (next < min) next = min;
+        if (next > max) next = max;
+        return next;
+      }
+
+      function syncVisuals(nextVal, emitUpdateEvent) {
+        const normalized = normalize(nextVal);
+        val = normalized;
+        config.currentValue = normalized;
+        valueLbl.text = normalized.toString() + "%";
+
+        if (slider && slider.IsValid && slider.IsValid()) {
+          if (Number(slider.value) !== normalized) {
+            isSyncing = true;
+            try {
+              if (typeof slider.SetValueNoEvents === "function") {
+                slider.SetValueNoEvents(normalized);
+              } else {
+                slider.value = normalized;
+              }
+            } finally {
+              isSyncing = false;
+            }
+          }
+        }
+
+        if (emitUpdateEvent) {
+          AnitaPersistence.logForConfig(config, "slider change value=" + normalized + " raw=" + String(slider.value) + " dir=" + String(slider.direction || "") + " size=" + String(slider.actuallayoutwidth || 0) + "x" + String(slider.actuallayoutheight || 0));
+          if (config.onChange) config.onChange(normalized);
+          if (config.id && modTitle) {
+            emitUpdate(modTitle, config.id, normalized);
+          }
+        }
+      }
+
+      slider.min = min;
+      slider.max = max;
+      slider.increment = step;
+      slider.value = normalize(val);
+
+      if (typeof slider.SetShowDefaultValue === "function") {
+        slider.SetShowDefaultValue(false);
+      }
+      if (typeof slider.SetRequiresSelection === "function") {
+        slider.SetRequiresSelection(false);
+      }
+
+      syncVisuals(val, false);
+
+      slider.SetPanelEvent("onvaluechanged", function () {
+        if (isSyncing) return;
+        syncVisuals(slider.value, true);
+      });
+
+      slider.SetPanelEvent("oncancel", () => {
+        AnitaRenderer.toggle(false);
+      });
+
+      return row;
+    },
+
     createButton: function (parent, config, modTitle) {
       const btn = $.CreatePanel("Button", parent, "");
       btn.AddClass("AnitaActionBtn");
@@ -836,133 +913,2026 @@ var AnitaUILogger = (function () {
     createColorPicker: function (parent, config, modTitle) {
       const row = $.CreatePanel("Panel", parent, "");
       row.AddClass("AnitaRow");
+      row.AddClass("AnitaSliderRow");
       row.style.overflow = "noclip";
+      row.style.width = "100%";
 
       const lbl = $.CreatePanel("Label", row, "");
       lbl.text = config.label || "Color";
       lbl.AddClass("AnitaLabel");
 
-      let currentColor = (config.currentValue !== undefined) ? config.currentValue : (config.defaultValue || "#FF0000");
+      let currentColor = normalizeHexColor((config.currentValue !== undefined) ? config.currentValue : (config.defaultValue || "#FF0000"));
+      let pickerBoxHue = 0;
+      let pickerBoxSat = 1;
+      let colorPopupPanel = null;
+      let colorBoxFrame = null;
+      let colorBoxPanel = null;
+      let colorBoxCursor = null;
+      let colorPickerSyncing = false;
+      let colorPickerPollGeneration = 0;
+      let colorDragging = false;
+      const hasGameUI = (typeof GameUI !== "undefined" && GameUI !== null);
+      let colorDragIdleTicks = 0;
+      let colorDragLastX = -1;
+      let colorDragLastY = -1;
+      let colorDragAnchorX = -1;
+      let colorDragAnchorY = -1;
+      let colorDragSource = "";
+      let popupPreview = null;
+      let popupHexLabel = null;
+      let popupMetaLabel = null;
+      let colorPreview = null;
+      let rowHexLabel = null;
+      let pickerHueSlider = null;
+      let pickerSatSlider = null;
+      let pickerSatTrack = null;
+      let pickerHueValue = null;
+      let pickerSatValue = null;
 
-      const defaultPalette = [
-        { name: "Red", code: "#FF0000" },
-        { name: "Green", code: "#00FF00" },
-        { name: "Blue", code: "#0000FF" },
-        { name: "White", code: "#FFFFFF" },
-        { name: "Cyan", code: "#00FFFF" },
-        { name: "Magenta", code: "#FF00FF" },
-        { name: "Yellow", code: "#FFFF00" },
-        { name: "Black", code: "#000000" }
-      ];
+      function clampByte(value) {
+        let next = Number(value);
+        if (!isFinite(next)) next = 0;
+        if (next < 0) next = 0;
+        if (next > 255) next = 255;
+        return Math.round(next);
+      }
 
+      function byteToHex(value) {
+        const hex = clampByte(value).toString(16).toUpperCase();
+        return hex.length < 2 ? "0" + hex : hex;
+      }
 
-      let customPalette = [];
-      if (config.palette && config.palette.length > 0) {
-        customPalette = config.palette.slice(0, 8);
+      function rgbToHex(r, g, b) {
+        return "#" + byteToHex(r) + byteToHex(g) + byteToHex(b);
+      }
 
-        if (config.defaultValue) {
-          let hasDefault = false;
-          for (let c of customPalette) { if (c.code === config.defaultValue) hasDefault = true; }
-          if (!hasDefault) {
-            for (let c of defaultPalette) { if (c.code === config.defaultValue) hasDefault = true; }
+      function hexToRgbLocal(colorCode) {
+        if (!colorCode) return [255, 255, 255];
+
+        const text = String(colorCode).trim();
+        if (text.charAt(0) === "#") {
+          let hex = text.slice(1);
+          if (hex.length === 3) {
+            hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
           }
+          if (hex.length >= 6) {
+            return [
+              parseInt(hex.slice(0, 2), 16) || 0,
+              parseInt(hex.slice(2, 4), 16) || 0,
+              parseInt(hex.slice(4, 6), 16) || 0
+            ];
+          }
+        }
 
-          if (!hasDefault) {
-            if (customPalette.length < 8) {
-              customPalette.push({ name: "Default", code: config.defaultValue });
-            } else {
-              customPalette.push({ name: "Default", code: config.defaultValue });
+        const match = text.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/i);
+        if (match) {
+          return [
+            clampByte(match[1]),
+            clampByte(match[2]),
+            clampByte(match[3])
+          ];
+        }
+
+        return [255, 255, 255];
+      }
+
+      function hsvToRgb(h, s, v) {
+        var hue = Number(h);
+        var sat = Number(s);
+        var val = Number(v);
+
+        if (!isFinite(hue)) hue = 0;
+        if (!isFinite(sat)) sat = 0;
+        if (!isFinite(val)) val = 0;
+
+        hue = ((hue % 360) + 360) % 360;
+        sat = Math.max(0, Math.min(1, sat));
+        val = Math.max(0, Math.min(1, val));
+
+        var c = val * sat;
+        var x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+        var m = val - c;
+        var r = 0;
+        var g = 0;
+        var b = 0;
+
+        if (hue < 60) {
+          r = c; g = x; b = 0;
+        } else if (hue < 120) {
+          r = x; g = c; b = 0;
+        } else if (hue < 180) {
+          r = 0; g = c; b = x;
+        } else if (hue < 240) {
+          r = 0; g = x; b = c;
+        } else if (hue < 300) {
+          r = x; g = 0; b = c;
+        } else {
+          r = c; g = 0; b = x;
+        }
+
+        return [
+          clampByte((r + m) * 255),
+          clampByte((g + m) * 255),
+          clampByte((b + m) * 255)
+        ];
+      }
+
+      function hsvToHex(h, s, v) {
+        var rgb = hsvToRgb(h, s, v);
+        return rgbToHex(rgb[0], rgb[1], rgb[2]);
+      }
+
+      function rgbToHsv(r, g, b) {
+        var red = clampByte(r) / 255;
+        var green = clampByte(g) / 255;
+        var blue = clampByte(b) / 255;
+        var max = Math.max(red, green, blue);
+        var min = Math.min(red, green, blue);
+        var delta = max - min;
+        var hue = 0;
+        var sat = max === 0 ? 0 : delta / max;
+        var val = max;
+
+        if (delta !== 0) {
+          if (max === red) {
+            hue = 60 * (((green - blue) / delta) % 6);
+          } else if (max === green) {
+            hue = 60 * (((blue - red) / delta) + 2);
+          } else {
+            hue = 60 * (((red - green) / delta) + 4);
+          }
+        }
+
+        if (hue < 0) hue += 360;
+        return [hue, sat, val];
+      }
+
+      function clamp01(value) {
+        var next = Number(value);
+        if (!isFinite(next)) next = 0;
+        if (next < 0) next = 0;
+        if (next > 1) next = 1;
+        return next;
+      }
+
+      function isValidPanel(panel) {
+        return !!(panel && panel.IsValid && panel.IsValid());
+      }
+
+      function parsePoint(candidate) {
+        if (!candidate) return null;
+
+        if (typeof candidate.length === "number" && candidate.length >= 2) {
+          var arrayX = Number(candidate[0]);
+          var arrayY = Number(candidate[1]);
+          if (isFinite(arrayX) && isFinite(arrayY)) {
+            return { x: arrayX, y: arrayY };
+          }
+        }
+
+        if (typeof candidate === "object") {
+          var objectX = Number(candidate.x !== undefined ? candidate.x : candidate[0]);
+          var objectY = Number(candidate.y !== undefined ? candidate.y : candidate[1]);
+          if (isFinite(objectX) && isFinite(objectY)) {
+            return { x: objectX, y: objectY };
+          }
+        }
+
+        return null;
+      }
+
+      function getCursorPosition() {
+        try {
+          if (!hasGameUI || typeof GameUI.GetCursorPosition !== "function") return null;
+          return parsePoint(GameUI.GetCursorPosition());
+        } catch (e) {}
+        return null;
+      }
+
+      function getPanelWindowPosition(panel) {
+        if (!isValidPanel(panel)) return null;
+
+        try {
+          if (typeof panel.GetPositionWithinWindow === "function") {
+            var point = parsePoint(panel.GetPositionWithinWindow());
+            if (point) return point;
+          }
+        } catch (e0) {}
+
+        var left = Number(panel.actualxoffset || panel.actualx || 0);
+        var top = Number(panel.actualyoffset || panel.actualy || 0);
+        if (!isFinite(left)) left = 0;
+        if (!isFinite(top)) top = 0;
+        return { x: left, y: top };
+      }
+
+      function getPanelBounds(panel) {
+        if (!isValidPanel(panel)) {
+          return { left: 0, top: 0, width: 1, height: 1 };
+        }
+
+        var panelPos = getPanelWindowPosition(panel);
+        var left = panelPos ? panelPos.x : Number(panel.actualxoffset || panel.actualx || 0);
+        var top = panelPos ? panelPos.y : Number(panel.actualyoffset || panel.actualy || 0);
+        var width = Number(panel.actuallayoutwidth || panel.contentwidth || panel.width || 1);
+        var height = Number(panel.actuallayoutheight || panel.contentheight || panel.height || 1);
+
+        if (!isFinite(left)) left = 0;
+        if (!isFinite(top)) top = 0;
+        if (!isFinite(width) || width <= 0) width = 1;
+        if (!isFinite(height) || height <= 0) height = 1;
+
+        return { left: left, top: top, width: width, height: height };
+      }
+
+      function getPanelLocalCursorPosition(panel) {
+        if (!isValidPanel(panel)) return null;
+
+        var bounds = getPanelBounds(panel);
+        var panelPos = getPanelWindowPosition(panel);
+
+        try {
+          if (typeof panel.GetCursorPosition === "function") {
+            var rawPoint = parsePoint(panel.GetCursorPosition());
+            if (rawPoint) {
+              var looksLocal =
+                rawPoint.x >= 0 && rawPoint.x <= bounds.width &&
+                rawPoint.y >= 0 && rawPoint.y <= bounds.height;
+
+              if (looksLocal) {
+                return rawPoint;
+              }
+
+              if (panelPos) {
+                var adjustedPoint = {
+                  x: rawPoint.x - panelPos.x,
+                  y: rawPoint.y - panelPos.y
+                };
+                return adjustedPoint;
+              }
+
+              return rawPoint;
             }
           }
+        } catch (e0) {}
+
+        var screenCursor = getCursorPosition();
+        if (!screenCursor || !panelPos) return null;
+
+        return {
+          x: screenCursor.x - panelPos.x,
+          y: screenCursor.y - panelPos.y
+        };
+      }
+
+      function getBoxStateFromColor(colorCode) {
+        var rgb = hexToRgbLocal(colorCode);
+        var hsv = rgbToHsv(rgb[0], rgb[1], rgb[2]);
+        return {
+          hue: Math.round(hsv[0]) % 360,
+          sat: clamp01(hsv[1])
+        };
+      }
+
+      function normalizeBoxState(boxState, fallbackColorCode) {
+        var fallback = getBoxStateFromColor(fallbackColorCode || currentColor);
+        if (!boxState) {
+          return fallback;
+        }
+
+        var hue = Number(boxState.hue);
+        var sat = Number(boxState.sat);
+        if (!isFinite(hue)) hue = fallback.hue;
+        if (!isFinite(sat)) sat = fallback.sat;
+
+        hue = Math.round(hue) % 360;
+        if (hue < 0) hue += 360;
+        sat = clamp01(sat);
+
+        return { hue: hue, sat: sat };
+      }
+
+      function setPickerBoxState(boxState, fallbackColorCode) {
+        var resolved = normalizeBoxState(boxState, fallbackColorCode);
+        pickerBoxHue = resolved.hue;
+        pickerBoxSat = resolved.sat;
+        return resolved;
+      }
+
+      function colorFromBoxState(hue, sat) {
+        return hsvToHex(hue, sat, 1);
+      }
+
+      function hueFromRelX(relX) {
+        var normalized = clamp01(relX);
+        return Math.max(0, Math.min(359, Math.round(normalized * 359)));
+      }
+
+      function hueToSliderPercent(hue) {
+        var nextHue = Number(hue);
+        if (!isFinite(nextHue)) nextHue = 0;
+        nextHue = Math.max(0, Math.min(359, Math.round(nextHue)));
+        return Math.round((nextHue / 359) * 100);
+      }
+
+      function normalizeHexColor(colorCode) {
+        if (!colorCode) return "#FFFFFF";
+
+        if (typeof colorCode === "number") {
+          var packed = Math.max(0, Math.floor(colorCode));
+          var packedHex = packed.toString(16).toUpperCase();
+          while (packedHex.length < 6) packedHex = "0" + packedHex;
+          return "#" + packedHex.slice(-6);
+        }
+
+        if (typeof colorCode === "string") {
+          var text = String(colorCode).trim();
+          if (!text) return "#FFFFFF";
+          if (text.charAt(0) === "#") {
+            var hex = text.slice(1);
+            if (hex.length === 3) {
+              hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+            }
+            if (hex.length >= 6) {
+              return "#" + hex.slice(0, 6).toUpperCase();
+            }
+          }
+
+          var rgbMatch = text.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/i);
+          if (rgbMatch) {
+            return rgbToHex(rgbMatch[1], rgbMatch[2], rgbMatch[3]).toUpperCase();
+          }
+        }
+
+        if (typeof colorCode === "object") {
+          if (colorCode.hex !== undefined) {
+            return normalizeHexColor(colorCode.hex);
+          }
+          if (colorCode.h !== undefined && colorCode.s !== undefined && colorCode.v !== undefined) {
+            return hsvToHex(colorCode.h, colorCode.s, colorCode.v);
+          }
+          if (colorCode.r !== undefined && colorCode.g !== undefined && colorCode.b !== undefined) {
+            return rgbToHex(colorCode.r, colorCode.g, colorCode.b).toUpperCase();
+          }
+          if (colorCode.red !== undefined && colorCode.green !== undefined && colorCode.blue !== undefined) {
+            return rgbToHex(colorCode.red, colorCode.green, colorCode.blue).toUpperCase();
+          }
+        }
+
+        return "#FFFFFF";
+      }
+
+      function getColorBoxMetrics() {
+        var refPanel = isValidPanel(colorBoxFrame) ? colorBoxFrame : colorBoxPanel;
+        if (!isValidPanel(refPanel)) return null;
+
+        var bounds = getPanelBounds(refPanel);
+        var width = Number(refPanel.actuallayoutwidth || bounds.width || 240);
+        var height = Number(refPanel.actuallayoutheight || bounds.height || 240);
+        var cursorWidth = Number(isValidPanel(colorBoxCursor) ? (colorBoxCursor.actuallayoutwidth || colorBoxCursor.contentwidth || colorBoxCursor.width) : 18);
+        var cursorHeight = Number(isValidPanel(colorBoxCursor) ? (colorBoxCursor.actuallayoutheight || colorBoxCursor.contentheight || colorBoxCursor.height) : 18);
+
+        if (!isFinite(width) || width <= 1) width = 240;
+        if (!isFinite(height) || height <= 1) height = 240;
+        if (!isFinite(cursorWidth) || cursorWidth <= 0) cursorWidth = 18;
+        if (!isFinite(cursorHeight) || cursorHeight <= 0) cursorHeight = 18;
+
+        return {
+          panel: refPanel,
+          bounds: { left: bounds.left, top: bounds.top, width: width, height: height },
+          width: width,
+          height: height,
+          cursorWidth: cursorWidth,
+          cursorHeight: cursorHeight,
+          maxCursorX: Math.max(0, width - cursorWidth),
+          maxCursorY: Math.max(0, height - cursorHeight)
+        };
+      }
+
+      function applyColorBoxCursorPosition(cursorX, cursorY) {
+        if (!isValidPanel(colorBoxCursor)) return false;
+
+        var metrics = getColorBoxMetrics();
+        if (!metrics) return false;
+
+        var nextX = Number(cursorX);
+        var nextY = Number(cursorY);
+        if (!isFinite(nextX)) nextX = 0;
+        if (!isFinite(nextY)) nextY = 0;
+        if (nextX < 0) nextX = 0;
+        if (nextY < 0) nextY = 0;
+        if (nextX > metrics.maxCursorX) nextX = metrics.maxCursorX;
+        if (nextY > metrics.maxCursorY) nextY = metrics.maxCursorY;
+        colorDragAnchorX = nextX;
+        colorDragAnchorY = nextY;
+
+        colorBoxCursor.style.x = nextX + "px";
+        colorBoxCursor.style.y = nextY + "px";
+        colorBoxCursor.style.transform = "none";
+        colorBoxCursor.style.zIndex = "20";
+        colorBoxCursor.style.opacity = "1";
+        colorBoxCursor.style.visibility = "visible";
+        colorBoxCursor.style.backgroundColor = "#FFFFFF";
+        colorBoxCursor.style.washColor = "#FFFFFF";
+        return true;
+      }
+
+      function rememberColorDragAnchor(cursorX, cursorY) {
+        var metrics = getColorBoxMetrics();
+        if (!metrics) return false;
+
+        var nextX = Number(cursorX);
+        var nextY = Number(cursorY);
+        if (!isFinite(nextX) || !isFinite(nextY)) return false;
+
+        if (nextX < 0) nextX = 0;
+        if (nextY < 0) nextY = 0;
+        if (nextX > metrics.maxCursorX) nextX = metrics.maxCursorX;
+        if (nextY > metrics.maxCursorY) nextY = metrics.maxCursorY;
+
+        colorDragAnchorX = nextX;
+        colorDragAnchorY = nextY;
+        return true;
+      }
+
+      function syncFromAnchoredCursorPosition(emitUpdateEvent) {
+        var metrics = getColorBoxMetrics();
+        if (!metrics) return false;
+        if (!isFinite(colorDragAnchorX) || !isFinite(colorDragAnchorY) ||
+            colorDragAnchorX < 0 || colorDragAnchorY < 0) {
+          return false;
+        }
+
+        var relX = metrics.maxCursorX > 0 ? clamp01(colorDragAnchorX / metrics.maxCursorX) : 0;
+        var relY = metrics.maxCursorY > 0 ? clamp01(colorDragAnchorY / metrics.maxCursorY) : 0;
+        var hue = hueFromRelX(relX);
+        var sat = clamp01(relY);
+
+        applyColorBoxCursorPosition(colorDragAnchorX, colorDragAnchorY);
+        syncColorVisuals(colorFromBoxState(hue, sat), emitUpdateEvent, false, { hue: hue, sat: sat });
+        return true;
+      }
+
+      function getCursorPositionWithinColorBox() {
+        if (!isValidPanel(colorBoxCursor)) return null;
+
+        var metrics = getColorBoxMetrics();
+        if (!metrics) return null;
+
+        function chooseLocalAxis(layoutValue, boundsValue, maxValue, allowLayoutValue) {
+          var tolerance = 1;
+          var layoutValid = !!allowLayoutValue && isFinite(layoutValue) && layoutValue >= -tolerance && layoutValue <= (maxValue + tolerance);
+          var boundsValid = isFinite(boundsValue) && boundsValue >= -tolerance && boundsValue <= (maxValue + tolerance);
+
+          if (layoutValid && boundsValid) {
+            if (Math.abs(layoutValue - boundsValue) <= 12) return layoutValue;
+            return boundsValue;
+          }
+          if (boundsValid) return boundsValue;
+          if (layoutValid) return layoutValue;
+          if (isFinite(boundsValue)) return boundsValue;
+          if (isFinite(layoutValue)) return layoutValue;
+          return 0;
+        }
+
+        var layoutX = Number(colorBoxCursor.actuallayoutx);
+        var layoutY = Number(colorBoxCursor.actuallayouty);
+        var parentMatches = !!(colorBoxCursor.GetParent && colorBoxCursor.GetParent() === metrics.panel);
+        var cursorBounds = getPanelBounds(colorBoxCursor);
+        var boundsX = cursorBounds.left - metrics.bounds.left;
+        var boundsY = cursorBounds.top - metrics.bounds.top;
+        var localX = chooseLocalAxis(layoutX, boundsX, metrics.maxCursorX, parentMatches);
+        var localY = chooseLocalAxis(layoutY, boundsY, metrics.maxCursorY, parentMatches);
+
+        if (localX < 0) localX = 0;
+        if (localY < 0) localY = 0;
+        if (localX > metrics.maxCursorX) localX = metrics.maxCursorX;
+        if (localY > metrics.maxCursorY) localY = metrics.maxCursorY;
+        rememberColorDragAnchor(localX, localY);
+
+        return {
+          metrics: metrics,
+          x: localX,
+          y: localY
+        };
+      }
+
+      function updateBoxCursorVisual(colorCode) {
+        if (!colorBoxPanel || !colorBoxPanel.IsValid || !colorBoxPanel.IsValid()) return;
+
+        var metrics = getColorBoxMetrics();
+        if (!metrics) return;
+
+        if (!isFinite(pickerBoxHue) || !isFinite(pickerBoxSat)) {
+          setPickerBoxState(null, colorCode);
+        }
+
+        var cursorX = metrics.maxCursorX > 0 ? (pickerBoxHue / 359) * metrics.maxCursorX : 0;
+        var cursorY = metrics.maxCursorY > 0 ? pickerBoxSat * metrics.maxCursorY : 0;
+        applyColorBoxCursorPosition(cursorX, cursorY);
+      }
+
+      function syncFromCursorPanelPosition(emitUpdateEvent) {
+        if (!isValidPanel(colorBoxPanel) || !isValidPanel(colorBoxCursor)) return false;
+
+        var cursorPosition = getCursorPositionWithinColorBox();
+        if (!cursorPosition) return false;
+
+        const metrics = cursorPosition.metrics;
+        const relX = metrics.maxCursorX > 0 ? clamp01(cursorPosition.x / metrics.maxCursorX) : 0;
+        const relY = metrics.maxCursorY > 0 ? clamp01(cursorPosition.y / metrics.maxCursorY) : 0;
+        const hue = hueFromRelX(relX);
+        const sat = clamp01(relY);
+
+        syncColorVisuals(colorFromBoxState(hue, sat), emitUpdateEvent, false, { hue: hue, sat: sat });
+        return true;
+      }
+
+      function syncFromBoxPosition(boxX, boxY, emitUpdateEvent) {
+        if (!isValidPanel(colorBoxPanel)) return false;
+
+        const metrics = getColorBoxMetrics();
+        if (!metrics) return false;
+
+        const relX = clamp01(Number(boxX) / metrics.width);
+        const relY = clamp01(Number(boxY) / metrics.height);
+        const hue = hueFromRelX(relX);
+        const sat = clamp01(relY);
+        syncColorVisuals(colorFromBoxState(hue, sat), emitUpdateEvent, false, { hue: hue, sat: sat });
+        return true;
+      }
+
+      function syncFromScreenCursorPosition(emitUpdateEvent) {
+        var cursor = getCursorPosition();
+        if (!cursor || !isValidPanel(colorBoxPanel)) return false;
+
+        const metrics = getColorBoxMetrics();
+        if (!metrics) return false;
+
+        const bounds = metrics.bounds;
+        const relX = clamp01((cursor.x - bounds.left) / bounds.width);
+        const relY = clamp01((cursor.y - bounds.top) / bounds.height);
+        const hue = hueFromRelX(relX);
+        const sat = clamp01(relY);
+        syncColorVisuals(colorFromBoxState(hue, sat), emitUpdateEvent, false, { hue: hue, sat: sat });
+        return true;
+      }
+
+      function syncFromLocalBoxCursor(emitUpdateEvent) {
+        var localPoint = getPanelLocalCursorPosition(colorBoxPanel);
+        if (!localPoint) return false;
+        return syncFromBoxPosition(localPoint.x, localPoint.y, emitUpdateEvent);
+      }
+
+      function syncFromBestDragSource(emitUpdateEvent) {
+        if (!hasGameUI) {
+          // In fallback: read color from the cursor node's actual position within colorBoxFrame.
+          // This works when Panorama native drag moves the cursor node (no cursor position API needed).
+          if (syncFromCursorPanelPosition(emitUpdateEvent)) return "cursor_panel";
+          return "";
+        }
+        if (syncFromScreenCursorPosition(emitUpdateEvent)) return "screen_cursor";
+        if ((colorDragSource === "cursor" || colorDragSource === "drag_event") &&
+            syncFromCursorPanelPosition(emitUpdateEvent)) return "drag_panel";
+        if (syncFromLocalBoxCursor(emitUpdateEvent)) return "panel_cursor";
+        if (syncFromCursorPanelPosition(emitUpdateEvent)) return "drag_panel";
+        return "";
+      }
+
+      function setMouseCaptureState(active) {
+        var next = !!active;
+        if (isValidPanel(colorBoxPanel) && typeof colorBoxPanel.SetMouseCapture === "function") {
+          try { colorBoxPanel.SetMouseCapture(next); } catch (e0) {}
+        }
+        if (hasGameUI && isValidPanel(colorBoxCursor) && typeof colorBoxCursor.SetMouseCapture === "function") {
+          try { colorBoxCursor.SetMouseCapture(next); } catch (e1) {}
         }
       }
 
-      let palettePanel = null;
+      function beginColorDrag(sourceName, emitUpdateEvent) {
+        colorDragging = true;
+        colorDragSource = String(sourceName || "");
+        colorDragIdleTicks = 0;
+        colorDragLastX = -1;
+        colorDragLastY = -1;
+        if (!syncFromCursorPanelPosition(false)) {
+          updateBoxCursorVisual(currentColor);
+        }
+        if (emitUpdateEvent) {
+          if (colorDragSource === "cursor" || colorDragSource === "drag_event") {
+            if (!syncFromCursorPanelPosition(true)) {
+              syncFromBestDragSource(true);
+            }
+          } else if (!syncFromScreenCursorPosition(true) && !syncFromLocalBoxCursor(true)) {
+            syncFromCursorPanelPosition(true);
+          }
+        }
+        setMouseCaptureState(true);
+        startPickerPolling();
+      }
+
+      function endColorDrag() {
+        colorDragging = false;
+        colorDragSource = "";
+        colorDragIdleTicks = 0;
+        colorDragLastX = -1;
+        colorDragLastY = -1;
+        setMouseCaptureState(false);
+      }
+
+      function stopPickerPolling() {
+        colorPickerPollGeneration++;
+      }
+
+      function startPickerPolling() {
+        if (!colorPopupPanel || !colorPopupPanel.IsValid || !colorPopupPanel.IsValid()) return;
+
+        const generation = ++colorPickerPollGeneration;
+        function tick() {
+          if (generation !== colorPickerPollGeneration) return;
+          if (!colorPopupPanel || !colorPopupPanel.IsValid || !colorPopupPanel.IsValid()) return;
+
+          if (colorDragging) {
+            const dragSyncSource = syncFromBestDragSource(true);
+
+            if (isValidPanel(colorBoxCursor)) {
+              const cursorBounds = getPanelBounds(colorBoxCursor);
+              if (cursorBounds.left === colorDragLastX && cursorBounds.top === colorDragLastY) {
+                colorDragIdleTicks++;
+              } else {
+                colorDragIdleTicks = 0;
+                colorDragLastX = cursorBounds.left;
+                colorDragLastY = cursorBounds.top;
+              }
+            }
+
+            if (hasGameUI && typeof GameUI.IsMouseDown === "function") {
+              if (!GameUI.IsMouseDown(0)) {
+                endColorDrag();
+                return;
+              }
+            }
+            // no-GameUI: drag ends via onmouseup / onmouseout events, not idle-tick timeout
+
+            $.Schedule(0.016, tick);
+            return;
+          }
+
+          $.Schedule(0.05, tick);
+        }
+
+        $.Schedule(0.016, tick);
+      }
+
+      function syncFromCursorPosition(emitUpdateEvent) {
+        if (!syncFromScreenCursorPosition(emitUpdateEvent)) {
+          syncFromBestDragSource(emitUpdateEvent);
+        }
+      }
 
       function closePalette() {
-        if (palettePanel) {
-          palettePanel.DeleteAsync(0);
-          palettePanel = null;
+        stopPickerPolling();
+        endColorDrag();
+
+        if (hasGameUI && typeof GameUI.SetMouseCallback === "function") {
+          try {
+            GameUI.SetMouseCallback(null);
+          } catch (e) {}
+        }
+
+        if (colorPopupPanel && colorPopupPanel.IsValid && colorPopupPanel.IsValid()) {
+          colorPopupPanel.DeleteAsync(0);
+        }
+
+        colorPopupPanel = null;
+        colorBoxFrame = null;
+        colorBoxPanel = null;
+        colorBoxCursor = null;
+        popupPreview = null;
+        popupHexLabel = null;
+        popupMetaLabel = null;
+        colorPickerSyncing = false;
+        colorDragSource = "";
+        pickerHueSlider = null;
+        pickerSatSlider = null;
+        pickerSatTrack = null;
+        pickerHueValue = null;
+        pickerSatValue = null;
+        if (AnitaRenderer.activeColorPickerClose === closePalette) {
+          AnitaRenderer.activeColorPickerClose = null;
         }
       }
 
-      function selectColor(colorCode) {
-        currentColor = colorCode;
+      function syncColorVisuals(colorCode, emitUpdateEvent, closeAfter, boxState) {
+        currentColor = normalizeHexColor(colorCode);
         config.currentValue = currentColor;
+        var pickerState = setPickerBoxState(boxState, currentColor);
 
+        if (colorPreview && colorPreview.IsValid && colorPreview.IsValid()) {
+          colorPreview.style.backgroundColor = currentColor;
+        }
+
+        if (rowHexLabel) {
+          rowHexLabel.text = currentColor;
+        }
+
+        if (popupPreview && popupPreview.IsValid && popupPreview.IsValid()) {
+          popupPreview.style.backgroundColor = currentColor;
+        }
+
+        if (popupHexLabel) {
+          popupHexLabel.text = currentColor;
+        }
+
+        if (popupMetaLabel) {
+          popupMetaLabel.text = "Hue " + pickerState.hue + "\u00B0 | Sat " + Math.round(pickerState.sat * 100) + "%";
+        }
 
         const previewBtn = row.FindChildTraverse("ColorPreviewBtn");
         if (previewBtn) previewBtn.style.backgroundColor = currentColor;
 
-        if (config.id && modTitle) {
-          emitUpdate(modTitle, config.id, currentColor);
-        }
-        if (config.onChange) config.onChange(currentColor);
+        updateBoxCursorVisual(currentColor);
 
-        closePalette();
+        colorPickerSyncing = true;
+        try {
+          if (pickerHueSlider && pickerHueSlider.IsValid && pickerHueSlider.IsValid()) {
+            var hueSliderPct = hueToSliderPercent(pickerState.hue);
+            if (Math.round(Number(pickerHueSlider.value)) !== hueSliderPct) {
+              try {
+                pickerHueSlider.value = hueSliderPct;
+              } catch (e) {}
+            }
+            if (pickerHueValue) pickerHueValue.text = pickerState.hue + "\u00B0";
+          }
+          if (pickerSatSlider && pickerSatSlider.IsValid && pickerSatSlider.IsValid()) {
+            var satPct = Math.round(pickerState.sat * 100);
+            if (Math.round(Number(pickerSatSlider.value)) !== satPct) {
+              try {
+                pickerSatSlider.value = satPct;
+              } catch (e) {}
+            }
+            if (pickerSatValue) pickerSatValue.text = satPct + "%";
+            if (pickerSatTrack && pickerSatTrack.IsValid && pickerSatTrack.IsValid()) {
+              pickerSatTrack.style.backgroundColor = "gradient( linear, 0% 0%, 100% 0%, from( #ffffff ), to( " + hsvToHex(pickerState.hue, 1, 1) + " ) )";
+            }
+          }
+        } finally {
+          colorPickerSyncing = false;
+        }
+
+        if (emitUpdateEvent) {
+          if (config.id && modTitle) {
+            emitUpdate(modTitle, config.id, currentColor);
+          }
+          if (config.onChange) config.onChange(currentColor);
+        }
+
+        if (closeAfter) closePalette();
       }
 
-      function openPalette(colsToShow) {
-        if (palettePanel) {
+      function openPalette() {
+        if (colorPopupPanel) {
           closePalette();
           return;
         }
 
-        palettePanel = $.CreatePanel("Panel", parent, "");
-        palettePanel.AddClass("AnitaColorPalette");
-        const isQuickMode = (customPalette.length > 0);
-        palettePanel.style.transform = isQuickMode ? "translate3d( 152px, 15px, 0px )" : "translate3d( 155px, 45px, 0px )";
-        palettePanel.style.uiScale = isQuickMode ? "100%" : "99%";
-
-        if (colsToShow && colsToShow.length > 0) {
-          colsToShow.forEach(colorDef => {
-            const swatch = $.CreatePanel("Panel", palettePanel, "");
-            swatch.AddClass("AnitaColorSwatch");
-            swatch.style.backgroundColor = colorDef.code;
-            swatch.SetPanelEvent("onactivate", () => selectColor(colorDef.code));
-          });
-          const sep = $.CreatePanel("Panel", palettePanel, "");
-          sep.style.width = "94%";
-          sep.style.height = "1px";
-          sep.style.backgroundColor = "#444";
-          sep.style.margin = "7px 2px";
+        if (AnitaRenderer.activeColorPickerClose &&
+            AnitaRenderer.activeColorPickerClose !== closePalette) {
+          try {
+            AnitaRenderer.activeColorPickerClose();
+          } catch (closeErr) {
+            AnitaPersistence.logForConfig(config, "active picker close failed: " + closeErr);
+          }
         }
 
-        defaultPalette.forEach(colorDef => {
-          const swatch = $.CreatePanel("Panel", palettePanel, "");
-          swatch.AddClass("AnitaColorSwatch");
-          swatch.style.backgroundColor = colorDef.code;
-          swatch.SetPanelEvent("onactivate", () => selectColor(colorDef.code));
+        var colorPopupParent = $.GetContextPanel();
+        colorPopupPanel = $.CreatePanel("Panel", colorPopupParent, "");
+        AnitaRenderer.activeColorPickerClose = closePalette;
+        colorPopupPanel.AddClass("AnitaColorPopup");
+        var colorPopupX = 24;
+        var colorPopupY = 0;
+        try {
+          var colorAnchorBounds = getPanelBounds(parent);
+          colorPopupY = colorAnchorBounds.top + 8;
+        } catch (e) {}
+        colorPopupPanel.style.transform = "translate3d(" + colorPopupX + "px, " + colorPopupY + "px, 0px)";
+        colorPopupPanel.style.uiScale = "100%";
+        colorPopupPanel.style.flowChildren = "down";
+        colorPopupPanel.style.ignoreParentFlow = true;
+        colorPopupPanel.SetPanelEvent("oncancel", closePalette);
+
+        const header = $.CreatePanel("Panel", colorPopupPanel, "");
+        header.AddClass("AnitaColorPopupHeader");
+
+        popupPreview = $.CreatePanel("Panel", header, "ColorPreviewBtn");
+        popupPreview.AddClass("AnitaColorPickerPreview");
+        popupPreview.AddClass("AnitaColorPopupPreview");
+        popupPreview.style.backgroundColor = currentColor;
+
+        popupHexLabel = $.CreatePanel("Label", header, "");
+        popupHexLabel.AddClass("AnitaColorPopupHex");
+        popupHexLabel.text = currentColor;
+
+        popupMetaLabel = $.CreatePanel("Label", colorPopupPanel, "");
+        popupMetaLabel.AddClass("AnitaColorPopupMeta");
+
+        const hint = $.CreatePanel("Label", colorPopupPanel, "");
+        hint.AddClass("AnitaColorPopupHint");
+        hint.text = "Drag the marker or use the sliders below to change hue and saturation.";
+
+        const boxWrap = $.CreatePanel("Panel", colorPopupPanel, "");
+        boxWrap.AddClass("AnitaColorBoxWrap");
+
+        colorBoxFrame = $.CreatePanel("Panel", boxWrap, "");
+        colorBoxFrame.AddClass("AnitaColorBoxFrame");
+
+        const boxHueLayer = $.CreatePanel("Panel", colorBoxFrame, "");
+        boxHueLayer.AddClass("AnitaColorBoxHueLayer");
+
+        const boxSaturationLayer = $.CreatePanel("Panel", colorBoxFrame, "");
+        boxSaturationLayer.AddClass("AnitaColorBoxSaturationLayer");
+
+        colorBoxPanel = $.CreatePanel("Panel", colorBoxFrame, "");
+        colorBoxPanel.AddClass("AnitaColorBox");
+        colorBoxPanel.hittest = true;
+        colorBoxPanel.hittestchildren = true;
+        colorBoxPanel.style.ignoreParentFlow = true;
+        colorBoxPanel.style.width = "100%";
+        colorBoxPanel.style.height = "100%";
+        colorBoxPanel.SetPanelEvent("onmouseactivate", function () {
+          if (!hasGameUI) {
+            // Keep this diagnostic until we find a real click-position API for the no-GameUI context.
+            try {
+              var gcpType = typeof colorBoxPanel.GetCursorPosition;
+              var gcpVal = (gcpType === "function") ? colorBoxPanel.GetCursorPosition() : null;
+              var piwType = typeof colorBoxPanel.GetPositionWithinWindow;
+              var piwVal = (piwType === "function") ? colorBoxPanel.GetPositionWithinWindow() : null;
+              $.Msg("[Anita-UI][PickerDiag] box click gcp=" + gcpType + " val=" + JSON.stringify(gcpVal) + " piw=" + piwType + " val=" + JSON.stringify(piwVal) + " w=" + colorBoxPanel.actuallayoutwidth + " h=" + colorBoxPanel.actuallayoutheight);
+            } catch (diagErr) {
+              $.Msg("[Anita-UI][PickerDiag] diag error: " + diagErr);
+            }
+            return; // Box click has no position data here; drag the marker or use the sliders.
+          }
+          beginColorDrag("box", true);
+        });
+        colorBoxPanel.SetPanelEvent("onactivate", function () {
+          if (!hasGameUI) return;
+          beginColorDrag("box", true);
+        });
+        colorBoxPanel.SetPanelEvent("onmousemove", function () {
+          if (!colorDragging) return;
+          if (!hasGameUI) {
+            if (isValidPanel(colorBoxPanel) && typeof colorBoxPanel.GetCursorPosition === "function") {
+              try {
+                var movePt = parsePoint(colorBoxPanel.GetCursorPosition());
+                if (movePt) { syncFromBoxPosition(movePt.x, movePt.y, true); return; }
+              } catch (e) {}
+            }
+            return;
+          }
+          syncFromBestDragSource(true);
+        });
+        colorBoxPanel.SetPanelEvent("onmouseup", function () {
+          endColorDrag();
+        });
+        colorBoxPanel.SetPanelEvent("onmouseout", function () {
+          if (!colorDragging || hasGameUI) return;
+          endColorDrag();
         });
 
+        colorBoxCursor = $.CreatePanel("Button", colorBoxFrame, "");
+        colorBoxCursor.AddClass("AnitaColorBoxCursor");
+        colorBoxCursor.hittest = true;
+        colorBoxCursor.hittestchildren = false;
+        colorBoxCursor.style.ignoreParentFlow = true;
+        colorBoxCursor.style.align = "left top";
+        colorBoxCursor.style.visibility = "visible";
+        colorBoxCursor.style.opacity = "1";
+        if (typeof colorBoxCursor.SetDraggable === "function") {
+          try {
+            colorBoxCursor.SetDraggable(true);
+          } catch (e) {}
+        }
+        if (typeof colorBoxCursor.SetDisableFocusOnMouseDown === "function") {
+          try {
+            colorBoxCursor.SetDisableFocusOnMouseDown(true);
+          } catch (e) {}
+        }
+        colorBoxCursor.SetPanelEvent("onmouseactivate", function () {
+          beginColorDrag("cursor", true);
+        });
+        colorBoxCursor.SetPanelEvent("onactivate", function () {
+          beginColorDrag("cursor", true);
+        });
+        colorBoxCursor.SetPanelEvent("onmousemove", function () {
+          if (!colorDragging) return;
+          syncFromBestDragSource(true);
+        });
+        colorBoxCursor.SetPanelEvent("onmouseup", function () {
+          endColorDrag();
+        });
+        colorBoxCursor.SetPanelEvent("onmouseout", function () {
+          if (!colorDragging || hasGameUI) return;
+          endColorDrag();
+        });
+        if (typeof $.RegisterEventHandler === "function") {
+          try {
+            $.RegisterEventHandler("DragStart", colorBoxCursor, function (panel, dragEvent) {
+              if (!panel || panel !== colorBoxCursor) return;
+              if (dragEvent) {
+                dragEvent.displayPanel = colorBoxCursor;
+                dragEvent.removePositionBeforeDrop = false;
+              }
+              colorBoxCursor.style.align = "left top";
+              beginColorDrag("drag_event", false);
+            });
+          } catch (dragStartError) {
+            AnitaPersistence.logForConfig(config, "drag start handler install failed: " + dragStartError.message);
+          }
 
-      }
+          try {
+            $.RegisterEventHandler("DragEnd", colorBoxCursor, function (_panel, droppedPanel) {
+              if (droppedPanel && droppedPanel.IsValid && droppedPanel.IsValid() && droppedPanel === colorBoxCursor) {
+                if (colorBoxFrame && colorBoxFrame.IsValid && colorBoxFrame.IsValid() &&
+                    droppedPanel.GetParent && droppedPanel.GetParent() !== colorBoxFrame) {
+                  droppedPanel.SetParent(colorBoxFrame);
+                }
+                droppedPanel.style.align = "left top";
+                AnitaPersistence.logForConfig(config, "color box drag end layout=" + String(Math.round(Number(droppedPanel.actuallayoutx) || 0)) + "," + String(Math.round(Number(droppedPanel.actuallayouty) || 0)));
+                if (!syncFromAnchoredCursorPosition(true)) {
+                  syncFromCursorPanelPosition(true);
+                  updateBoxCursorVisual(currentColor);
+                }
+              }
+              endColorDrag();
+            });
+          } catch (dragEndError) {
+            AnitaPersistence.logForConfig(config, "drag end handler install failed: " + dragEndError.message);
+          }
+        }
 
-      if (customPalette.length === 0) {
-        const previewBtn = $.CreatePanel("Panel", row, "ColorPreviewBtn");
-        previewBtn.AddClass("AnitaColorPickerPreview");
-        previewBtn.style.backgroundColor = currentColor;
+        if (hasGameUI && typeof GameUI.SetMouseCallback === "function") {
+          try {
+            GameUI.SetMouseCallback(function (eventName, arg) {
+              if (!colorPopupPanel || !colorPopupPanel.IsValid || !colorPopupPanel.IsValid()) {
+                return false;
+              }
 
-        previewBtn.SetPanelEvent("onactivate", () => openPalette(null));
-      } else {
-        const quickCount = Math.min(4, customPalette.length);
-        const quickColors = customPalette.slice(0, quickCount);
-        const overflowColors = customPalette.slice(quickCount);
+              if (eventName === "pressed" && arg === 0) {
+                const cursor = getCursorPosition();
+                if (!cursor) return false;
+                const metrics = getColorBoxMetrics();
+                if (!metrics) return false;
+                const bounds = metrics.bounds;
+                const inside = cursor.x >= bounds.left && cursor.x <= (bounds.left + bounds.width) &&
+                  cursor.y >= bounds.top && cursor.y <= (bounds.top + bounds.height);
+                if (inside) {
+                  syncFromCursorPosition(true);
+                  beginColorDrag("gameui", false);
+                  return true;
+                }
+              }
 
-        quickColors.forEach(c => {
-          const swatch = $.CreatePanel("Panel", row, "");
-          swatch.AddClass("AnitaQuickSwatch");
-          swatch.style.backgroundColor = c.code;
-          swatch.SetPanelEvent("onactivate", () => selectColor(c.code));
+              if (eventName === "released" && arg === 0 && colorDragging) {
+                endColorDrag();
+                return true;
+              }
+
+              return false;
+            });
+          } catch (e) {
+            AnitaPersistence.logForConfig(config, "mouse callback install failed: " + e.message);
+          }
+        } else {
+          AnitaPersistence.logForConfig(config, "mouse callback unavailable in this UI context; using panel-local picker drag fallback");
+        }
+
+        // Hue slider row
+        var hueGroup = $.CreatePanel("Panel", colorPopupPanel, "");
+        hueGroup.AddClass("AnitaHueSliderGroup");
+
+        var hueLbl = $.CreatePanel("Label", hueGroup, "");
+        hueLbl.text = "H";
+        hueLbl.AddClass("AnitaHueValue");
+
+        var hueContainer = $.CreatePanel("Panel", hueGroup, "");
+        hueContainer.AddClass("AnitaHueSliderContainer");
+        hueContainer.AddClass("AnitaPickerSliderTrack");
+
+        pickerHueSlider = $.CreatePanel("Slider", hueContainer, "", { direction: "horizontal" });
+        pickerHueSlider.AddClass("AnitaHueSlider");
+        pickerHueSlider.AddClass("HorizontalSlider");
+        pickerHueSlider.min = 0;
+        pickerHueSlider.max = 100;
+        pickerHueSlider.increment = 1;
+        if (typeof pickerHueSlider.SetShowDefaultValue === "function") { try { pickerHueSlider.SetShowDefaultValue(false); } catch (e) {} }
+        if (typeof pickerHueSlider.SetRequiresSelection === "function") { try { pickerHueSlider.SetRequiresSelection(false); } catch (e) {} }
+
+        pickerHueValue = $.CreatePanel("Label", hueGroup, "");
+        pickerHueValue.AddClass("AnitaHueValue");
+
+        pickerHueSlider.SetPanelEvent("onvaluechanged", function () {
+          if (colorPickerSyncing) return;
+          var h = hueFromRelX(clamp01(Number(pickerHueSlider.value) / 100));
+          var newColor = colorFromBoxState(h, pickerBoxSat);
+          if (pickerHueValue) pickerHueValue.text = h + "\u00B0";
+          if (pickerSatTrack && pickerSatTrack.IsValid && pickerSatTrack.IsValid()) {
+            pickerSatTrack.style.backgroundColor = "gradient( linear, 0% 0%, 100% 0%, from( #ffffff ), to( " + hsvToHex(h, 1, 1) + " ) )";
+          }
+          syncColorVisuals(newColor, true, false, { hue: h, sat: pickerBoxSat });
         });
 
-        const plusBtn = $.CreatePanel("Button", row, "");
-        plusBtn.AddClass("AnitaColorPickerPlusBtn");
-        const lblPlus = $.CreatePanel("Label", plusBtn, "");
-        lblPlus.text = "+";
+        // Saturation slider row
+        var satGroup = $.CreatePanel("Panel", colorPopupPanel, "");
+        satGroup.AddClass("AnitaHueSliderGroup");
 
-        plusBtn.SetPanelEvent("onactivate", () => openPalette(overflowColors));
+        var satLbl = $.CreatePanel("Label", satGroup, "");
+        satLbl.text = "S";
+        satLbl.AddClass("AnitaHueValue");
+
+        pickerSatTrack = $.CreatePanel("Panel", satGroup, "");
+        pickerSatTrack.AddClass("AnitaSatSliderContainer");
+        pickerSatTrack.AddClass("AnitaPickerSliderTrack");
+
+        pickerSatSlider = $.CreatePanel("Slider", pickerSatTrack, "", { direction: "horizontal" });
+        pickerSatSlider.AddClass("AnitaHueSlider");
+        pickerSatSlider.AddClass("HorizontalSlider");
+        pickerSatSlider.min = 0;
+        pickerSatSlider.max = 100;
+        pickerSatSlider.increment = 1;
+        if (typeof pickerSatSlider.SetShowDefaultValue === "function") { try { pickerSatSlider.SetShowDefaultValue(false); } catch (e) {} }
+        if (typeof pickerSatSlider.SetRequiresSelection === "function") { try { pickerSatSlider.SetRequiresSelection(false); } catch (e) {} }
+
+        pickerSatValue = $.CreatePanel("Label", satGroup, "");
+        pickerSatValue.AddClass("AnitaHueValue");
+
+        pickerSatSlider.SetPanelEvent("onvaluechanged", function () {
+          if (colorPickerSyncing) return;
+          var s = clamp01(pickerSatSlider.value / 100);
+          var newColor2 = colorFromBoxState(pickerBoxHue, s);
+          if (pickerSatValue) pickerSatValue.text = Math.round(s * 100) + "%";
+          syncColorVisuals(newColor2, true, false, { hue: pickerBoxHue, sat: s });
+        });
+
+        const footer = $.CreatePanel("Panel", colorPopupPanel, "");
+        footer.AddClass("AnitaColorPopupFooter");
+
+        const closeBtn = $.CreatePanel("Button", footer, "");
+        closeBtn.AddClass("AnitaColorPopupBtn");
+        const closeLbl = $.CreatePanel("Label", closeBtn, "");
+        closeLbl.text = "Close";
+        closeBtn.SetPanelEvent("onactivate", closePalette);
+
+        syncColorVisuals(currentColor, false, false);
+        $.Schedule(0.0, function () {
+          if (colorPopupPanel && colorPopupPanel.IsValid && colorPopupPanel.IsValid()) {
+            syncColorVisuals(currentColor, false, false);
+          }
+        });
+
+        const initState = getBoxStateFromColor(currentColor);
+        AnitaPersistence.logForConfig(config, "color box picker init hue=" + initState.hue + " sat=" + Math.round(initState.sat * 100) + "% color=" + currentColor);
       }
+
+      const preview = $.CreatePanel("Panel", row, "ColorPreviewBtn");
+      preview.AddClass("AnitaColorPickerPreview");
+      preview.style.backgroundColor = currentColor;
+      preview.style.marginRight = "6px";
+      preview.SetPanelEvent("onactivate", () => openPalette());
+      colorPreview = preview;
+
+      rowHexLabel = $.CreatePanel("Label", row, "");
+      rowHexLabel.AddClass("AnitaColorHexValue");
+      rowHexLabel.text = currentColor;
+
+      return row;
+    },
+
+    createPositionPicker: function (parent, config, modTitle) {
+      const row = $.CreatePanel("Panel", parent, "");
+      row.AddClass("AnitaRow");
+      row.AddClass("AnitaSliderRow");
+      row.style.overflow = "noclip";
+      row.style.width = "100%";
+
+      const lbl = $.CreatePanel("Label", row, "");
+      lbl.text = config.label || "Position";
+      lbl.AddClass("AnitaLabel");
+
+      function posPickerClamp(value) {
+        var next = Number(value);
+        if (!isFinite(next)) next = 0;
+        if (next < 0) next = 0;
+        if (next > 400) next = 400;
+        return Math.round(next);
+      }
+
+      function posPickerParse(candidate) {
+        var x = 0;
+        var y = 200;
+        var raw = candidate;
+
+        if (raw && typeof raw === "object") {
+          if (Array.isArray(raw)) {
+            if (raw.length > 0) x = posPickerClamp(raw[0]);
+            if (raw.length > 1) y = posPickerClamp(raw[1]);
+          } else {
+            if (Object.prototype.hasOwnProperty.call(raw, "x")) x = posPickerClamp(raw.x);
+            if (Object.prototype.hasOwnProperty.call(raw, "y")) y = posPickerClamp(raw.y);
+          }
+          return { x: x, y: y };
+        }
+
+        if (typeof raw === "string") {
+          var parts = raw.match(/-?\d+(?:\.\d+)?/g);
+          if (parts && parts.length > 0) {
+            x = posPickerClamp(parts[0]);
+            if (parts.length > 1) y = posPickerClamp(parts[1]);
+            return { x: x, y: y };
+          }
+        }
+
+        if (typeof raw === "number") {
+          y = posPickerClamp(raw);
+          return { x: x, y: y };
+        }
+
+        return { x: x, y: y };
+      }
+
+      function posPickerNormalize(candidate) {
+        var parsed = posPickerParse(candidate);
+        return {
+          x: posPickerClamp(parsed.x),
+          y: posPickerClamp(parsed.y)
+        };
+      }
+
+      function posPickerFormat(pos) {
+        var parsed = posPickerNormalize(pos);
+        return Math.round(parsed.x) + "," + Math.round(parsed.y);
+      }
+
+      function posPickerPercent(pos) {
+        var parsed = posPickerNormalize(pos);
+        return Math.round(parsed.x / 4);
+      }
+
+      let posPickerCurrent = posPickerNormalize((config.currentValue !== undefined) ? config.currentValue : (config.defaultValue || "0,200"));
+      let posPickerSyncing = false;
+      const posPickerValueGroup = $.CreatePanel("Panel", row, "");
+      posPickerValueGroup.AddClass("AnitaSliderValueGroup");
+      posPickerValueGroup.AddClass("SliderValueGroup");
+      posPickerValueGroup.style.flowChildren = "down";
+      posPickerValueGroup.style.verticalAlign = "center";
+      posPickerValueGroup.style.horizontalAlign = "left";
+      posPickerValueGroup.style.width = "240px";
+      posPickerValueGroup.style.overflow = "noclip";
+
+      const posPickerXGroup = $.CreatePanel("Panel", posPickerValueGroup, "");
+      posPickerXGroup.AddClass("AnitaHueSliderGroup");
+      posPickerXGroup.style.overflow = "noclip";
+
+      const posPickerXLbl = $.CreatePanel("Label", posPickerXGroup, "");
+      posPickerXLbl.text = "L/R";
+      posPickerXLbl.AddClass("AnitaHueValue");
+      posPickerXLbl.style.width = "22px";
+      posPickerXLbl.style.fontSize = "10px";
+      posPickerXLbl.style.whiteSpace = "nowrap";
+      posPickerXLbl.style.textAlign = "center";
+
+      const posPickerXContainer = $.CreatePanel("Panel", posPickerXGroup, "");
+      posPickerXContainer.AddClass("AnitaSliderContainer");
+      posPickerXContainer.AddClass("SliderContainer");
+      posPickerXContainer.style.width = "100px";
+      posPickerXContainer.style.height = "26px";
+      posPickerXContainer.style.padding = "0px";
+      posPickerXContainer.style.verticalAlign = "center";
+      posPickerXContainer.style.overflow = "noclip";
+
+      const posPickerXSlider = $.CreatePanel("Slider", posPickerXContainer, "", { direction: "horizontal" });
+      posPickerXSlider.AddClass("AnitaSlider");
+      posPickerXSlider.AddClass("HorizontalSlider");
+      posPickerXSlider.style.width = "100%";
+      posPickerXSlider.style.height = "100%";
+      posPickerXSlider.style.verticalAlign = "center";
+      posPickerXSlider.style.overflow = "noclip";
+      posPickerXSlider.min = 0;
+      posPickerXSlider.max = 400;
+      posPickerXSlider.increment = 1;
+      if (typeof posPickerXSlider.SetShowDefaultValue === "function") {
+        try { posPickerXSlider.SetShowDefaultValue(false); } catch (e) {}
+      }
+      if (typeof posPickerXSlider.SetRequiresSelection === "function") {
+        try { posPickerXSlider.SetRequiresSelection(false); } catch (e) {}
+      }
+
+      const posPickerXValueLbl = $.CreatePanel("Label", posPickerXGroup, "");
+      posPickerXValueLbl.AddClass("AnitaSliderValue");
+      posPickerXValueLbl.style.width = "50px";
+      posPickerXValueLbl.style.fontSize = "10px";
+      posPickerXValueLbl.style.whiteSpace = "nowrap";
+      posPickerXValueLbl.style.textAlign = "center";
+      posPickerXValueLbl.style.textOverflow = "clip";
+      posPickerXValueLbl.style.overflow = "noclip";
+
+      const posPickerYGroup = $.CreatePanel("Panel", posPickerValueGroup, "");
+      posPickerYGroup.AddClass("AnitaHueSliderGroup");
+      posPickerYGroup.style.overflow = "noclip";
+
+      const posPickerYLbl = $.CreatePanel("Label", posPickerYGroup, "");
+      posPickerYLbl.text = "T/B";
+      posPickerYLbl.AddClass("AnitaHueValue");
+      posPickerYLbl.style.width = "22px";
+      posPickerYLbl.style.fontSize = "10px";
+      posPickerYLbl.style.whiteSpace = "nowrap";
+      posPickerYLbl.style.textAlign = "center";
+
+      const posPickerYContainer = $.CreatePanel("Panel", posPickerYGroup, "");
+      posPickerYContainer.AddClass("AnitaSliderContainer");
+      posPickerYContainer.AddClass("SliderContainer");
+      posPickerYContainer.style.width = "100px";
+      posPickerYContainer.style.height = "26px";
+      posPickerYContainer.style.padding = "0px";
+      posPickerYContainer.style.verticalAlign = "center";
+      posPickerYContainer.style.overflow = "noclip";
+
+      const posPickerYSlider = $.CreatePanel("Slider", posPickerYContainer, "", { direction: "horizontal" });
+      posPickerYSlider.AddClass("AnitaSlider");
+      posPickerYSlider.AddClass("HorizontalSlider");
+      posPickerYSlider.style.width = "100%";
+      posPickerYSlider.style.height = "100%";
+      posPickerYSlider.style.verticalAlign = "center";
+      posPickerYSlider.style.overflow = "noclip";
+      posPickerYSlider.min = 0;
+      posPickerYSlider.max = 400;
+      posPickerYSlider.increment = 1;
+      if (typeof posPickerYSlider.SetShowDefaultValue === "function") {
+        try { posPickerYSlider.SetShowDefaultValue(false); } catch (e) {}
+      }
+      if (typeof posPickerYSlider.SetRequiresSelection === "function") {
+        try { posPickerYSlider.SetRequiresSelection(false); } catch (e) {}
+      }
+
+      const posPickerYValueLbl = $.CreatePanel("Label", posPickerYGroup, "");
+      posPickerYValueLbl.AddClass("AnitaSliderValue");
+      posPickerYValueLbl.style.width = "50px";
+      posPickerYValueLbl.style.fontSize = "10px";
+      posPickerYValueLbl.style.whiteSpace = "nowrap";
+      posPickerYValueLbl.style.textAlign = "center";
+      posPickerYValueLbl.style.textOverflow = "clip";
+      posPickerYValueLbl.style.overflow = "noclip";
+
+      function syncPosition(nextPos, emitUpdateEvent) {
+        var normalized = posPickerNormalize(nextPos);
+        var nextValue = posPickerFormat(normalized);
+        var changed = String(config.currentValue || "") !== nextValue;
+        posPickerCurrent = normalized;
+        config.currentValue = nextValue;
+
+        if (posPickerXSlider && posPickerXSlider.IsValid && posPickerXSlider.IsValid()) {
+          if (Number(posPickerXSlider.value) !== normalized.x) {
+            posPickerSyncing = true;
+            try {
+              if (typeof posPickerXSlider.SetValueNoEvents === "function") {
+                posPickerXSlider.SetValueNoEvents(normalized.x);
+              } else {
+                posPickerXSlider.value = normalized.x;
+              }
+            } finally {
+              posPickerSyncing = false;
+            }
+          }
+        }
+
+        if (posPickerYSlider && posPickerYSlider.IsValid && posPickerYSlider.IsValid()) {
+          if (Number(posPickerYSlider.value) !== normalized.y) {
+            posPickerSyncing = true;
+            try {
+              if (typeof posPickerYSlider.SetValueNoEvents === "function") {
+                posPickerYSlider.SetValueNoEvents(normalized.y);
+              } else {
+                posPickerYSlider.value = normalized.y;
+              }
+            } finally {
+              posPickerSyncing = false;
+            }
+          }
+        }
+
+        posPickerXValueLbl.text = posPickerPercent(normalized) + "%";
+        posPickerYValueLbl.text = Math.round(normalized.y / 4) + "%";
+
+        if (emitUpdateEvent && changed) {
+          if (config.onChange) config.onChange(nextValue);
+          if (config.id && modTitle) {
+            emitUpdate(modTitle, config.id, nextValue);
+          }
+        }
+      }
+
+      syncPosition(posPickerCurrent, false);
+
+      posPickerXSlider.SetPanelEvent("onvaluechanged", function () {
+        if (posPickerSyncing) return;
+        syncPosition({ x: posPickerXSlider.value, y: posPickerCurrent.y }, true);
+      });
+
+      posPickerYSlider.SetPanelEvent("onvaluechanged", function () {
+        if (posPickerSyncing) return;
+        syncPosition({ x: posPickerCurrent.x, y: posPickerYSlider.value }, true);
+      });
+
+      posPickerXSlider.SetPanelEvent("oncancel", () => {
+        AnitaRenderer.toggle(false);
+      });
+      posPickerYSlider.SetPanelEvent("oncancel", () => {
+        AnitaRenderer.toggle(false);
+      });
+
+      return row;
+
+      function isValidPanel(panel) {
+        return !!(panel && panel.IsValid && panel.IsValid());
+      }
+
+      function clamp01(value) {
+        var next = Number(value);
+        if (!isFinite(next)) next = 0;
+        if (next < 0) next = 0;
+        if (next > 1) next = 1;
+        return next;
+      }
+
+      function parsePoint(candidate) {
+        if (!candidate) return null;
+
+        if (typeof candidate.length === "number" && candidate.length >= 2) {
+          var arrayX = Number(candidate[0]);
+          var arrayY = Number(candidate[1]);
+          if (isFinite(arrayX) && isFinite(arrayY)) {
+            return { x: arrayX, y: arrayY };
+          }
+        }
+
+        if (typeof candidate === "object") {
+          var objectX = Number(candidate.x !== undefined ? candidate.x : candidate[0]);
+          var objectY = Number(candidate.y !== undefined ? candidate.y : candidate[1]);
+          if (isFinite(objectX) && isFinite(objectY)) {
+            return { x: objectX, y: objectY };
+          }
+        }
+
+        return null;
+      }
+
+      function getCursorPosition() {
+        try {
+          if (typeof GameUI === "undefined" || GameUI === null || typeof GameUI.GetCursorPosition !== "function") return null;
+          return parsePoint(GameUI.GetCursorPosition());
+        } catch (e) {}
+        return null;
+      }
+
+      function getPanelWindowPosition(panel) {
+        if (!isValidPanel(panel)) return null;
+
+        try {
+          if (typeof panel.GetPositionWithinWindow === "function") {
+            var point = parsePoint(panel.GetPositionWithinWindow());
+            if (point) return point;
+          }
+        } catch (e0) {}
+
+        var left = Number(panel.actualxoffset || panel.actualx || 0);
+        var top = Number(panel.actualyoffset || panel.actualy || 0);
+        if (!isFinite(left)) left = 0;
+        if (!isFinite(top)) top = 0;
+        return { x: left, y: top };
+      }
+
+      function getPanelBounds(panel) {
+        if (!isValidPanel(panel)) {
+          return { left: 0, top: 0, width: 1, height: 1 };
+        }
+
+        var panelPos = getPanelWindowPosition(panel);
+        var left = panelPos ? panelPos.x : Number(panel.actualxoffset || panel.actualx || 0);
+        var top = panelPos ? panelPos.y : Number(panel.actualyoffset || panel.actualy || 0);
+        var width = Number(panel.actuallayoutwidth || panel.contentwidth || panel.width || 1);
+        var height = Number(panel.actuallayoutheight || panel.contentheight || panel.height || 1);
+
+        if (!isFinite(left)) left = 0;
+        if (!isFinite(top)) top = 0;
+        if (!isFinite(width) || width <= 0) width = 1;
+        if (!isFinite(height) || height <= 0) height = 1;
+
+        return { left: left, top: top, width: width, height: height };
+      }
+
+      function getPanelLocalCursorPosition(panel) {
+        if (!isValidPanel(panel)) return null;
+
+        var bounds = getPanelBounds(panel);
+        var panelPos = getPanelWindowPosition(panel);
+
+        try {
+          if (typeof panel.GetCursorPosition === "function") {
+            var rawPoint = parsePoint(panel.GetCursorPosition());
+            if (rawPoint) {
+              var looksLocal =
+                rawPoint.x >= 0 && rawPoint.x <= bounds.width &&
+                rawPoint.y >= 0 && rawPoint.y <= bounds.height;
+
+              if (looksLocal) {
+                return rawPoint;
+              }
+
+              if (panelPos) {
+                return {
+                  x: rawPoint.x - panelPos.x,
+                  y: rawPoint.y - panelPos.y
+                };
+              }
+
+              return rawPoint;
+            }
+          }
+        } catch (e0) {}
+
+        var screenCursor = getCursorPosition();
+        if (!screenCursor || !panelPos) return null;
+
+        return {
+          x: screenCursor.x - panelPos.x,
+          y: screenCursor.y - panelPos.y
+        };
+      }
+
+      function clampPosition(value) {
+        var next = Number(value);
+        if (!isFinite(next)) next = 0;
+        if (next < 0) next = 0;
+        if (next > 400) next = 400;
+        return Math.round(next);
+      }
+
+      function parsePosition(candidate) {
+        var x = 0;
+        var y = 200;
+        var raw = candidate;
+
+        if (raw && typeof raw === "object") {
+          if (Array.isArray(raw)) {
+            if (raw.length > 0) x = clampPosition(raw[0]);
+            if (raw.length > 1) y = clampPosition(raw[1]);
+          } else {
+            if (Object.prototype.hasOwnProperty.call(raw, "x")) x = clampPosition(raw.x);
+            if (Object.prototype.hasOwnProperty.call(raw, "y")) y = clampPosition(raw.y);
+          }
+          return { x: x, y: y };
+        }
+
+        if (typeof raw === "string") {
+          var parts = raw.match(/-?\d+(?:\.\d+)?/g);
+          if (parts && parts.length > 0) {
+            x = clampPosition(parts[0]);
+            if (parts.length > 1) y = clampPosition(parts[1]);
+            return { x: x, y: y };
+          }
+        }
+
+        if (typeof raw === "number") {
+          y = clampPosition(raw);
+          return { x: x, y: y };
+        }
+
+        return { x: x, y: y };
+      }
+
+      function normalizePosition(candidate) {
+        var parsed = parsePosition(candidate);
+        return {
+          x: clampPosition(parsed.x),
+          y: clampPosition(parsed.y)
+        };
+      }
+
+      function formatPosition(pos) {
+        var parsed = normalizePosition(pos);
+        return Math.round(parsed.x) + "," + Math.round(parsed.y);
+      }
+
+      function shortPositionLabel(pos) {
+        var parsed = normalizePosition(pos);
+        return "X " + Math.round(parsed.x / 4) + "% | Y " + Math.round(parsed.y / 4) + "%";
+      }
+
+      function detailedPositionLabel(pos) {
+        var parsed = normalizePosition(pos);
+        var rightPct = Math.round(parsed.x / 4);
+        var leftPct = Math.round((400 - parsed.x) / 4);
+        var upPct = Math.round(parsed.y / 4);
+        var downPct = Math.round((400 - parsed.y) / 4);
+        return "Left " + leftPct + "% | Right " + rightPct + "% | Down " + downPct + "% | Up " + upPct + "%";
+      }
+
+      let currentPosition = normalizePosition((config.currentValue !== undefined) ? config.currentValue : (config.defaultValue || "0,200"));
+      let positionPopupPanel = null;
+      let positionBoxFrame = null;
+      let positionBoxPanel = null;
+      let positionBoxCursor = null;
+      let positionPickerSyncing = false;
+      let positionPickerPollGeneration = 0;
+      let positionDragging = false;
+      let positionDragSource = "";
+      let positionDragIdleTicks = 0;
+      let positionDragLastX = -1;
+      let positionDragLastY = -1;
+      let positionDragAnchorX = -1;
+      let positionDragAnchorY = -1;
+      let popupPreview = null;
+      let popupValueLabel = null;
+      let popupMetaLabel = null;
+      let valueBtn = null;
+      let valueLbl = null;
+
+      function getPositionMetrics() {
+        var refPanel = isValidPanel(positionBoxFrame) ? positionBoxFrame : positionBoxPanel;
+        if (!isValidPanel(refPanel)) return null;
+
+        var bounds = getPanelBounds(refPanel);
+        var width = Number(refPanel.actuallayoutwidth || bounds.width || 240);
+        var height = Number(refPanel.actuallayoutheight || bounds.height || 240);
+        var cursorWidth = Number(isValidPanel(positionBoxCursor) ? (positionBoxCursor.actuallayoutwidth || positionBoxCursor.contentwidth || positionBoxCursor.width) : 18);
+        var cursorHeight = Number(isValidPanel(positionBoxCursor) ? (positionBoxCursor.actuallayoutheight || positionBoxCursor.contentheight || positionBoxCursor.height) : 18);
+
+        if (!isFinite(width) || width <= 1) width = 240;
+        if (!isFinite(height) || height <= 1) height = 240;
+        if (!isFinite(cursorWidth) || cursorWidth <= 0) cursorWidth = 18;
+        if (!isFinite(cursorHeight) || cursorHeight <= 0) cursorHeight = 18;
+
+        return {
+          panel: refPanel,
+          bounds: { left: bounds.left, top: bounds.top, width: width, height: height },
+          width: width,
+          height: height,
+          cursorWidth: cursorWidth,
+          cursorHeight: cursorHeight,
+          maxCursorX: Math.max(0, width - cursorWidth),
+          maxCursorY: Math.max(0, height - cursorHeight)
+        };
+      }
+
+      function applyPositionCursorVisual(cursorX, cursorY) {
+        if (!isValidPanel(positionBoxCursor)) return false;
+
+        var metrics = getPositionMetrics();
+        if (!metrics) return false;
+
+        var nextX = Number(cursorX);
+        var nextY = Number(cursorY);
+        if (!isFinite(nextX)) nextX = 0;
+        if (!isFinite(nextY)) nextY = 0;
+        if (nextX < 0) nextX = 0;
+        if (nextY < 0) nextY = 0;
+        if (nextX > metrics.maxCursorX) nextX = metrics.maxCursorX;
+        if (nextY > metrics.maxCursorY) nextY = metrics.maxCursorY;
+
+        positionDragAnchorX = nextX;
+        positionDragAnchorY = nextY;
+
+        positionBoxCursor.style.x = nextX + "px";
+        positionBoxCursor.style.y = nextY + "px";
+        positionBoxCursor.style.transform = "none";
+        positionBoxCursor.style.zIndex = "20";
+        positionBoxCursor.style.opacity = "1";
+        positionBoxCursor.style.visibility = "visible";
+        return true;
+      }
+
+      function rememberPositionDragAnchor(cursorX, cursorY) {
+        var metrics = getPositionMetrics();
+        if (!metrics) return false;
+
+        var nextX = Number(cursorX);
+        var nextY = Number(cursorY);
+        if (!isFinite(nextX) || !isFinite(nextY)) return false;
+
+        if (nextX < 0) nextX = 0;
+        if (nextY < 0) nextY = 0;
+        if (nextX > metrics.maxCursorX) nextX = metrics.maxCursorX;
+        if (nextY > metrics.maxCursorY) nextY = metrics.maxCursorY;
+
+        positionDragAnchorX = nextX;
+        positionDragAnchorY = nextY;
+        return true;
+      }
+
+      function syncPositionVisuals(positionValue, emitUpdateEvent) {
+        currentPosition = normalizePosition(positionValue);
+        var nextValue = formatPosition(currentPosition);
+        var changed = String(config.currentValue || "") !== nextValue;
+        config.currentValue = nextValue;
+
+        if (valueLbl) {
+          valueLbl.text = shortPositionLabel(currentPosition);
+        }
+
+        if (popupValueLabel) {
+          popupValueLabel.text = shortPositionLabel(currentPosition);
+        }
+
+        if (popupMetaLabel) {
+          popupMetaLabel.text = detailedPositionLabel(currentPosition);
+        }
+
+        applyPositionCursorVisualFromState();
+
+        if (emitUpdateEvent && changed) {
+          if (config.id && modTitle) {
+            emitUpdate(modTitle, config.id, nextValue);
+          }
+          if (config.onChange) config.onChange(nextValue);
+        }
+      }
+
+      function applyPositionCursorVisualFromState() {
+        var metrics = getPositionMetrics();
+        if (!metrics) return;
+
+        var cursorX = metrics.maxCursorX > 0 ? (currentPosition.x / 400) * metrics.maxCursorX : 0;
+        var cursorY = metrics.maxCursorY > 0 ? (1 - (currentPosition.y / 400)) * metrics.maxCursorY : 0;
+        applyPositionCursorVisual(cursorX, cursorY);
+      }
+
+      function getCursorPositionWithinPositionBox() {
+        if (!isValidPanel(positionBoxCursor)) return null;
+
+        var metrics = getPositionMetrics();
+        if (!metrics) return null;
+
+        function chooseLocalAxis(layoutValue, boundsValue, maxValue, allowLayoutValue) {
+          var tolerance = 1;
+          var layoutValid = !!allowLayoutValue && isFinite(layoutValue) && layoutValue >= -tolerance && layoutValue <= (maxValue + tolerance);
+          var boundsValid = isFinite(boundsValue) && boundsValue >= -tolerance && boundsValue <= (maxValue + tolerance);
+
+          if (layoutValid && boundsValid) {
+            if (Math.abs(layoutValue - boundsValue) <= 12) return layoutValue;
+            return boundsValue;
+          }
+          if (boundsValid) return boundsValue;
+          if (layoutValid) return layoutValue;
+          if (isFinite(boundsValue)) return boundsValue;
+          if (isFinite(layoutValue)) return layoutValue;
+          return 0;
+        }
+
+        var layoutX = Number(positionBoxCursor.actuallayoutx);
+        var layoutY = Number(positionBoxCursor.actuallayouty);
+        var parentMatches = !!(positionBoxCursor.GetParent && positionBoxCursor.GetParent() === metrics.panel);
+        var cursorBounds = getPanelBounds(positionBoxCursor);
+        var boundsX = cursorBounds.left - metrics.bounds.left;
+        var boundsY = cursorBounds.top - metrics.bounds.top;
+        var localX = chooseLocalAxis(layoutX, boundsX, metrics.maxCursorX, parentMatches);
+        var localY = chooseLocalAxis(layoutY, boundsY, metrics.maxCursorY, parentMatches);
+
+        if (localX < 0) localX = 0;
+        if (localY < 0) localY = 0;
+        if (localX > metrics.maxCursorX) localX = metrics.maxCursorX;
+        if (localY > metrics.maxCursorY) localY = metrics.maxCursorY;
+        rememberPositionDragAnchor(localX, localY);
+
+        return {
+          metrics: metrics,
+          x: localX,
+          y: localY
+        };
+      }
+
+      function syncFromCursorPanelPosition(emitUpdateEvent) {
+        if (!isValidPanel(positionBoxPanel) || !isValidPanel(positionBoxCursor)) return false;
+
+        var cursorPosition = getCursorPositionWithinPositionBox();
+        if (!cursorPosition) return false;
+
+        var metrics = cursorPosition.metrics;
+        var relX = metrics.maxCursorX > 0 ? clamp01(cursorPosition.x / metrics.maxCursorX) : 0;
+        var relY = metrics.maxCursorY > 0 ? clamp01(cursorPosition.y / metrics.maxCursorY) : 0;
+        var nextPosition = {
+          x: relX * 400,
+          y: (1 - relY) * 400
+        };
+
+        syncPositionVisuals(nextPosition, emitUpdateEvent);
+        return true;
+      }
+
+      function syncFromBoxPosition(boxX, boxY, emitUpdateEvent) {
+        if (!isValidPanel(positionBoxPanel)) return false;
+
+        var metrics = getPositionMetrics();
+        if (!metrics) return false;
+
+        var relX = clamp01(Number(boxX) / metrics.width);
+        var relY = clamp01(Number(boxY) / metrics.height);
+        var nextPosition = {
+          x: relX * 400,
+          y: (1 - relY) * 400
+        };
+
+        syncPositionVisuals(nextPosition, emitUpdateEvent);
+        return true;
+      }
+
+      function syncFromLocalBoxCursor(emitUpdateEvent) {
+        var localPoint = getPanelLocalCursorPosition(positionBoxPanel);
+        if (!localPoint) return false;
+        return syncFromBoxPosition(localPoint.x, localPoint.y, emitUpdateEvent);
+      }
+
+      function syncFromBestDragSource(emitUpdateEvent) {
+        if (!hasGameUI) {
+          if (syncFromLocalBoxCursor(emitUpdateEvent)) return "panel_cursor";
+          if (syncFromCursorPanelPosition(emitUpdateEvent)) return "cursor_panel";
+          return "";
+        }
+
+        if (syncFromLocalBoxCursor(emitUpdateEvent)) return "panel_cursor";
+        if (syncFromCursorPanelPosition(emitUpdateEvent)) return "drag_panel";
+        return "";
+      }
+
+      function setMouseCaptureState(active) {
+        var next = !!active;
+        if (isValidPanel(positionBoxPanel) && typeof positionBoxPanel.SetMouseCapture === "function") {
+          try { positionBoxPanel.SetMouseCapture(next); } catch (e0) {}
+        }
+        if (isValidPanel(positionBoxCursor) && typeof positionBoxCursor.SetMouseCapture === "function") {
+          try { positionBoxCursor.SetMouseCapture(next); } catch (e1) {}
+        }
+      }
+
+      function beginPositionDrag(sourceName, emitUpdateEvent) {
+        positionDragging = true;
+        positionDragSource = String(sourceName || "");
+        positionDragIdleTicks = 0;
+        positionDragLastX = -1;
+        positionDragLastY = -1;
+        if (!syncFromCursorPanelPosition(false)) {
+          applyPositionCursorVisualFromState();
+        }
+        if (emitUpdateEvent) {
+          if (!syncFromBestDragSource(true)) {
+            syncPositionVisuals(currentPosition, true);
+          }
+        }
+        setMouseCaptureState(true);
+        startPositionPolling();
+      }
+
+      function endPositionDrag() {
+        positionDragging = false;
+        positionDragSource = "";
+        positionDragIdleTicks = 0;
+        positionDragLastX = -1;
+        positionDragLastY = -1;
+        setMouseCaptureState(false);
+      }
+
+      function stopPositionPolling() {
+        positionPickerPollGeneration++;
+      }
+
+      function startPositionPolling() {
+        if (!positionPopupPanel || !positionPopupPanel.IsValid || !positionPopupPanel.IsValid()) return;
+
+        var generation = ++positionPickerPollGeneration;
+        function tick() {
+          if (generation !== positionPickerPollGeneration) return;
+          if (!positionPopupPanel || !positionPopupPanel.IsValid || !positionPopupPanel.IsValid()) return;
+
+          if (positionDragging) {
+            syncFromBestDragSource(true);
+
+            if (isValidPanel(positionBoxCursor)) {
+              var cursorBounds = getPanelBounds(positionBoxCursor);
+              if (cursorBounds.left === positionDragLastX && cursorBounds.top === positionDragLastY) {
+                positionDragIdleTicks++;
+              } else {
+                positionDragIdleTicks = 0;
+                positionDragLastX = cursorBounds.left;
+                positionDragLastY = cursorBounds.top;
+              }
+            }
+
+            if (hasGameUI && typeof GameUI.IsMouseDown === "function") {
+              if (!GameUI.IsMouseDown(0)) {
+                endPositionDrag();
+                return;
+              }
+            }
+
+            $.Schedule(0.016, tick);
+            return;
+          }
+
+          $.Schedule(0.05, tick);
+        }
+
+        $.Schedule(0.016, tick);
+      }
+
+      function closePalette() {
+        stopPositionPolling();
+        endPositionDrag();
+
+        if (positionPopupPanel && positionPopupPanel.IsValid && positionPopupPanel.IsValid()) {
+          positionPopupPanel.DeleteAsync(0);
+        }
+
+        positionPopupPanel = null;
+        positionBoxFrame = null;
+        positionBoxPanel = null;
+        positionBoxCursor = null;
+        popupPreview = null;
+        popupValueLabel = null;
+        popupMetaLabel = null;
+        positionPickerSyncing = false;
+        positionDragSource = "";
+        if (AnitaRenderer.activeColorPickerClose === closePalette) {
+          AnitaRenderer.activeColorPickerClose = null;
+        }
+      }
+
+      function openPalette() {
+        if (positionPopupPanel) {
+          closePalette();
+          return;
+        }
+
+        if (AnitaRenderer.activeColorPickerClose &&
+            AnitaRenderer.activeColorPickerClose !== closePalette) {
+          try {
+            AnitaRenderer.activeColorPickerClose();
+          } catch (closeErr) {
+            AnitaPersistence.logForConfig(config, "active picker close failed: " + closeErr);
+          }
+        }
+
+        var positionPopupParent = $.GetContextPanel();
+        positionPopupPanel = $.CreatePanel("Panel", positionPopupParent, "");
+        AnitaRenderer.activeColorPickerClose = closePalette;
+        positionPopupPanel.AddClass("AnitaColorPopup");
+        var positionPopupX = 24;
+        var positionPopupY = 0;
+        try {
+          var positionAnchorBounds = getPanelBounds(parent);
+          positionPopupY = positionAnchorBounds.top + 8;
+        } catch (e) {}
+        positionPopupPanel.style.transform = "translate3d(" + positionPopupX + "px, " + positionPopupY + "px, 0px)";
+        positionPopupPanel.style.uiScale = "100%";
+        positionPopupPanel.style.flowChildren = "down";
+        positionPopupPanel.style.ignoreParentFlow = true;
+        positionPopupPanel.SetPanelEvent("oncancel", closePalette);
+
+        const header = $.CreatePanel("Panel", positionPopupPanel, "");
+        header.AddClass("AnitaColorPopupHeader");
+
+        popupPreview = $.CreatePanel("Panel", header, "PositionPreviewBtn");
+        popupPreview.AddClass("AnitaColorPickerPreview");
+        popupPreview.AddClass("AnitaColorPopupPreview");
+        popupPreview.style.backgroundColor = "gradient( linear, 0% 0%, 100% 100%, from( #2f2f2f ), to( #575757 ) )";
+
+        popupValueLabel = $.CreatePanel("Label", header, "");
+        popupValueLabel.AddClass("AnitaColorPopupHex");
+        popupValueLabel.text = shortPositionLabel(currentPosition);
+
+        popupMetaLabel = $.CreatePanel("Label", positionPopupPanel, "");
+        popupMetaLabel.AddClass("AnitaColorPopupMeta");
+
+        const hint = $.CreatePanel("Label", positionPopupPanel, "");
+        hint.AddClass("AnitaColorPopupHint");
+        hint.text = "Drag the marker to set left/right and up/down. The value is saved as X,Y.";
+
+        const boxWrap = $.CreatePanel("Panel", positionPopupPanel, "");
+        boxWrap.AddClass("AnitaColorBoxWrap");
+
+        positionBoxFrame = $.CreatePanel("Panel", boxWrap, "");
+        positionBoxFrame.AddClass("AnitaColorBoxFrame");
+        positionBoxFrame.style.backgroundColor = "gradient( linear, 0% 0%, 100% 100%, from( #2a2a2a ), color-stop( 0.5, #404040 ), to( #242424 ) )";
+
+        const xLayer = $.CreatePanel("Panel", positionBoxFrame, "");
+        xLayer.AddClass("AnitaColorBoxHueLayer");
+        xLayer.style.backgroundColor = "gradient( linear, 0% 0%, 100% 0%, from( rgba( 255, 255, 255, 0.10 ) ), to( rgba( 0, 0, 0, 0.10 ) ) )";
+
+        const yLayer = $.CreatePanel("Panel", positionBoxFrame, "");
+        yLayer.AddClass("AnitaColorBoxSaturationLayer");
+        yLayer.style.backgroundColor = "gradient( linear, 0% 0%, 0% 100%, from( rgba( 255, 255, 255, 0.08 ) ), to( rgba( 0, 0, 0, 0.18 ) ) )";
+
+        positionBoxPanel = $.CreatePanel("Panel", positionBoxFrame, "");
+        positionBoxPanel.AddClass("AnitaColorBox");
+        positionBoxPanel.hittest = true;
+        positionBoxPanel.hittestchildren = true;
+        positionBoxPanel.style.ignoreParentFlow = true;
+        positionBoxPanel.style.width = "100%";
+        positionBoxPanel.style.height = "100%";
+        positionBoxPanel.SetPanelEvent("onmouseactivate", function () {
+          beginPositionDrag("box", true);
+        });
+        positionBoxPanel.SetPanelEvent("onactivate", function () {
+          beginPositionDrag("box", true);
+        });
+        positionBoxPanel.SetPanelEvent("onmousemove", function () {
+          if (!positionDragging) return;
+          syncFromBestDragSource(true);
+        });
+        positionBoxPanel.SetPanelEvent("onmouseup", function () {
+          endPositionDrag();
+        });
+        positionBoxPanel.SetPanelEvent("onmouseout", function () {
+          if (!positionDragging || hasGameUI) return;
+          endPositionDrag();
+        });
+
+        positionBoxCursor = $.CreatePanel("Button", positionBoxFrame, "");
+        positionBoxCursor.AddClass("AnitaColorBoxCursor");
+        positionBoxCursor.hittest = true;
+        positionBoxCursor.hittestchildren = false;
+        positionBoxCursor.style.ignoreParentFlow = true;
+        positionBoxCursor.style.align = "left top";
+        positionBoxCursor.style.visibility = "visible";
+        positionBoxCursor.style.opacity = "1";
+        if (typeof positionBoxCursor.SetDraggable === "function") {
+          try { positionBoxCursor.SetDraggable(true); } catch (e) {}
+        }
+        if (typeof positionBoxCursor.SetDisableFocusOnMouseDown === "function") {
+          try { positionBoxCursor.SetDisableFocusOnMouseDown(true); } catch (e) {}
+        }
+        positionBoxCursor.SetPanelEvent("onmouseactivate", function () {
+          beginPositionDrag("cursor", true);
+        });
+        positionBoxCursor.SetPanelEvent("onactivate", function () {
+          beginPositionDrag("cursor", true);
+        });
+        positionBoxCursor.SetPanelEvent("onmousemove", function () {
+          if (!positionDragging) return;
+          syncFromBestDragSource(true);
+        });
+        positionBoxCursor.SetPanelEvent("onmouseup", function () {
+          endPositionDrag();
+        });
+        positionBoxCursor.SetPanelEvent("onmouseout", function () {
+          if (!positionDragging || hasGameUI) return;
+          endPositionDrag();
+        });
+
+        if (typeof $.RegisterEventHandler === "function") {
+          try {
+            $.RegisterEventHandler("DragStart", positionBoxCursor, function (panel, dragEvent) {
+              if (!panel || panel !== positionBoxCursor) return;
+              if (dragEvent) {
+                dragEvent.displayPanel = positionBoxCursor;
+                dragEvent.removePositionBeforeDrop = false;
+              }
+              positionBoxCursor.style.align = "left top";
+              beginPositionDrag("drag_event", false);
+            });
+            $.RegisterEventHandler("DragEnd", positionBoxCursor, function (panel, dragEvent) {
+              if (!panel || panel !== positionBoxCursor) return;
+              endPositionDrag();
+            });
+          } catch (eDrag) {
+            AnitaPersistence.logForConfig(config, "position drag handler install failed: " + eDrag.message);
+          }
+        }
+
+        const footer = $.CreatePanel("Panel", positionPopupPanel, "");
+        footer.AddClass("AnitaColorPopupFooter");
+
+        const closeBtn = $.CreatePanel("Button", footer, "");
+        closeBtn.AddClass("AnitaColorPopupBtn");
+        const closeLbl = $.CreatePanel("Label", closeBtn, "");
+        closeLbl.text = "Close";
+        closeBtn.SetPanelEvent("onactivate", closePalette);
+
+        syncPositionVisuals(currentPosition, false);
+        $.Schedule(0.0, function () {
+          if (positionPopupPanel && positionPopupPanel.IsValid && positionPopupPanel.IsValid()) {
+            syncPositionVisuals(currentPosition, false);
+          }
+        });
+      }
+
+      valueBtn = $.CreatePanel("Button", row, "");
+      valueBtn.AddClass("AnitaCyclerBtn");
+      valueBtn.style.width = "180px";
+      valueBtn.style.marginRight = "6px";
+
+      valueLbl = $.CreatePanel("Label", valueBtn, "");
+      valueLbl.text = shortPositionLabel(currentPosition);
+
+      valueBtn.SetPanelEvent("onactivate", openPalette);
 
       return row;
     }
@@ -976,6 +2946,51 @@ var AnitaUILogger = (function () {
     contentArea: null,
     activeModTitle: "",
     isOpen: false,
+    activeColorPickerClose: null,
+
+    getSaveCodeToken: function (config) {
+      if (!config || !config.storageNamespace) return "";
+
+      var raw = AnitaPersistence.buildStoredPayload(config);
+      if (!raw) return "";
+
+      var ns = AnitaPersistence.normalizeNamespace(config.storageNamespace);
+      if (!ns) return "";
+
+      return "[" + AnitaPersistence.TOKEN_PREFIX + ns + "]:" + AnitaBase64.encode(raw);
+    },
+
+    extractSaveCodeToken: function (config, text) {
+      if (!config || !config.storageNamespace) return "";
+
+      var body = String(text || "").trim();
+      if (!body) return "";
+
+      var ns = AnitaPersistence.normalizeNamespace(config.storageNamespace);
+      if (!ns) return "";
+
+      var scopedMatch = body.match(AnitaPersistence.getTokenRegex(ns));
+      if (scopedMatch && scopedMatch[0]) return scopedMatch[0];
+
+      var genericMatch = body.match(/\[ANITA-v1-[a-z0-9_]+\]:[A-Za-z0-9_-]+/i);
+      if (genericMatch && genericMatch[0]) return genericMatch[0];
+
+      if (/^[A-Za-z0-9_-]+$/.test(body)) {
+        return "[" + AnitaPersistence.TOKEN_PREFIX + ns + "]:" + body;
+      }
+
+      return "";
+    },
+
+    syncSaveCodeInput: function (config) {
+      if (!config || !config.__anitaSaveCodeInput) return;
+      if (!config.__anitaSaveCodeInput.IsValid || !config.__anitaSaveCodeInput.IsValid()) return;
+
+      var token = this.getSaveCodeToken(config);
+      if (String(config.__anitaSaveCodeInput.text || "") === token) return;
+
+      config.__anitaSaveCodeInput.text = token;
+    },
 
     initWindow: function (root) {
       if (root.FindChildTraverse(CONFIG.IDS.WINDOW)) root.FindChildTraverse(CONFIG.IDS.WINDOW).DeleteAsync(0);
@@ -1025,6 +3040,12 @@ var AnitaUILogger = (function () {
       if (this.isOpen) {
         this.mainWindow.SetFocus();
       } else {
+        if (this.activeColorPickerClose) {
+          try {
+            this.activeColorPickerClose();
+          } catch (closeErr) {}
+          this.activeColorPickerClose = null;
+        }
         $.DispatchEvent("DropInputFocus", this.mainWindow);
 
         let root = $.GetContextPanel();
@@ -1115,8 +3136,10 @@ var AnitaUILogger = (function () {
           switch (el.type) {
             case "toggle": AnitaComponents.createToggle(container, el, config.title); break;
             case "stepper": AnitaComponents.createStepper(container, el, config.title); break;
+            case "slider": AnitaComponents.createSlider(container, el, config.title); break;
             case "button": AnitaComponents.createButton(container, el, config.title); break;
             case "cycler": AnitaComponents.createCycler(container, el, config.title); break;
+            case "positionpicker": AnitaComponents.createPositionPicker(container, el, config.title); break;
             case "colorpicker": AnitaComponents.createColorPicker(container, el, config.title); break;
           }
         });
@@ -1139,6 +3162,8 @@ var AnitaUILogger = (function () {
         }
 
         function flashLabel(btn, lbl, msg, durationSec) {
+          if (!btn || !btn.IsValid || !btn.IsValid()) return;
+          if (!lbl || !lbl.IsValid || !lbl.IsValid()) return;
           var orig = lbl.text;
           lbl.text = msg;
           btn.AddClass("AnitaFooterBtnSuccess");
@@ -1149,27 +3174,17 @@ var AnitaUILogger = (function () {
         }
 
         // Save button — bypasses debounce
-        var saveB = makeFooterBtn(footer, "Save", "");
-        saveB.btn.SetPanelEvent("onactivate", function () {
-          config.__anitaPendingWriteToken = (config.__anitaPendingWriteToken || 0) + 1; // cancel pending debounce
-          AnitaPersistence.persistConfig(config, true);
-          AnitaCore.emitCurrentValues(config, {
-            update_source: "ui_save",
-            force_persist: true
-          });
-          flashLabel(saveB.btn, saveB.lbl, "Saved!", 1.5);
-        });
-
         // Copy button
         var copyB = makeFooterBtn(footer, "Copy", "");
         copyB.btn.SetPanelEvent("onactivate", function () {
-          var raw = AnitaPersistence.buildStoredPayload(config);
-          var ns = AnitaPersistence.normalizeNamespace(config.storageNamespace);
-          var encoded = AnitaBase64.encode(raw);
-          var token = "[" + AnitaPersistence.TOKEN_PREFIX + ns + "]:" + encoded;
+          AnitaRenderer.syncSaveCodeInput(config);
+          var token = AnitaRenderer.getSaveCodeToken(config);
+          if (!token) {
+            flashLabel(copyB.btn, copyB.lbl, "Empty", 1.5);
+            return;
+          }
           try {
-            // CopyStringToClipboard requires (panel, string) in Deadlock Panorama
-            $.DispatchEvent("CopyStringToClipboard", $.GetContextPanel(), token);
+            $.DispatchEvent("CopyStringToClipboard", token, $.GetContextPanel());
             AnitaPersistence.logForConfig(config, "copy token len=" + token.length);
             flashLabel(copyB.btn, copyB.lbl, "Copied!", 1.5);
           } catch (e) {
@@ -1179,67 +3194,88 @@ var AnitaUILogger = (function () {
         });
 
         // Paste row — visible TextEntry the user can paste a token into, then Apply
-        var pasteRow = $.CreatePanel("Panel", footerWrap, "");
-        pasteRow.AddClass("AnitaPasteRow");
-        pasteRow.style.visibility = "collapse";
-        pasteRow.hittest = false;
+        var importRowOpen = false;
+        var importToggleBtn = makeFooterBtn(footer, "Import", "");
 
-        var pasteInput = $.CreatePanel("TextEntry", pasteRow, "");
-        pasteInput.AddClass("AnitaPasteInput");
-        pasteInput.placeholder = "Ctrl+V token here...";
+        var importCodeRow = $.CreatePanel("Panel", footerWrap, "");
+        importCodeRow.AddClass("AnitaPasteRow");
+        importCodeRow.AddClass("AnitaPasteRowCompact");
+        importCodeRow.hittest = true;
+        importCodeRow.style.visibility = "collapse";
+        importCodeRow.style.height = "0px";
+        importCodeRow.style.marginTop = "0px";
 
-        var applyB = makeFooterBtn(pasteRow, "Apply", "");
+        var importCodeLabel = $.CreatePanel("Label", importCodeRow, "");
+        importCodeLabel.AddClass("AnitaLabel");
+        importCodeLabel.text = "Import Code";
+        importCodeLabel.style.width = "84px";
+        importCodeLabel.style.fontSize = "12px";
+        importCodeLabel.style.marginRight = "6px";
 
-        function setPasteVisible(visible) {
-          pasteRow.style.visibility = visible ? "visible" : "collapse";
-          pasteRow.hittest = visible;
-          if (!visible) {
-            pasteInput.text = "";
+        var importCodeInput = $.CreatePanel("TextEntry", importCodeRow, "");
+        importCodeInput.AddClass("AnitaPasteInput");
+        importCodeInput.placeholder = "Paste a code to apply...";
+        importCodeInput.style.width = "320px";
+        importCodeInput.style.height = "24px";
+        importCodeInput.style.fontSize = "9px";
+        config.__anitaImportCodeInput = importCodeInput;
+
+        var applyCodeB = makeFooterBtn(importCodeRow, "Apply", "");
+
+        function setImportRowVisible(visible) {
+          importRowOpen = !!visible;
+          if (importCodeRow && importCodeRow.IsValid && importCodeRow.IsValid()) {
+            importCodeRow.style.visibility = importRowOpen ? "visible" : "collapse";
+            importCodeRow.style.height = importRowOpen ? "30px" : "0px";
+            importCodeRow.style.marginTop = importRowOpen ? "6px" : "0px";
+          }
+          if (importToggleBtn && importToggleBtn.lbl) {
+            importToggleBtn.lbl.text = importRowOpen ? "Hide" : "Import";
           }
         }
 
-        function applyPasteInput() {
-          var text = pasteInput.text;
-          if (!text) { flashLabel(applyB.btn, applyB.lbl, "Empty", 1.5); return; }
-          var ns = AnitaPersistence.normalizeNamespace(config.storageNamespace);
-          var rx = new RegExp("\\[" + AnitaPersistence.TOKEN_PREFIX + ns + "\\]:[A-Za-z0-9_-]+");
-          var match = text.match(rx);
-          if (!match) { flashLabel(applyB.btn, applyB.lbl, "Invalid", 1.5); return; }
-          var encoded = match[0].split("]:")[1] || "";
+        importToggleBtn.btn.SetPanelEvent("onactivate", function () {
+          setImportRowVisible(!importRowOpen);
+        });
+
+        function applySaveCodeInput() {
+          var text = String(importCodeInput.text || "").trim();
+          if (!text) { flashLabel(applyCodeB.btn, applyCodeB.lbl, "Empty", 1.5); return; }
+
+          var token = AnitaRenderer.extractSaveCodeToken(config, text);
+          if (!token) { flashLabel(applyCodeB.btn, applyCodeB.lbl, "Invalid", 1.5); return; }
+
+          var encoded = token.split("]:")[1] || "";
           try {
             var raw = AnitaBase64.decode(encoded);
-            var parsed = AnitaPersistence.parseStoredPayload(config, raw, "paste");
-            if (!parsed) { flashLabel(applyB.btn, applyB.lbl, "Invalid", 1.5); return; }
+            var parsed = AnitaPersistence.parseStoredPayload(config, raw, "code");
+            if (!parsed) { flashLabel(applyCodeB.btn, applyCodeB.lbl, "Invalid", 1.5); return; }
+            if (!parsed.values || !Object.keys(parsed.values).length) {
+              flashLabel(applyCodeB.btn, applyCodeB.lbl, "No IDs", 1.5);
+              return;
+            }
+
             AnitaPersistence.applyResolvedValues(config, parsed.values);
             AnitaPersistence.persistConfig(config, true);
-            setPasteVisible(false);
+            AnitaRenderer.syncSaveCodeInput(config);
+            flashLabel(applyCodeB.btn, applyCodeB.lbl, "Applied", 1.5);
             AnitaRenderer.renderModSettings(config);
+            if (config.__anitaImportCodeInput && config.__anitaImportCodeInput.IsValid && config.__anitaImportCodeInput.IsValid()) {
+              config.__anitaImportCodeInput.text = "";
+            }
             AnitaCore.emitCurrentValues(config, {
-              update_source: "ui_paste",
+              update_source: "ui_code_apply",
               force_persist: true
             });
           } catch (eDec) {
-            AnitaPersistence.logForConfig(config, "paste decode failed: " + eDec);
-            flashLabel(applyB.btn, applyB.lbl, "Invalid", 1.5);
+            AnitaPersistence.logForConfig(config, "code decode failed: " + eDec);
+            flashLabel(applyCodeB.btn, applyCodeB.lbl, "Invalid", 1.5);
           }
         }
 
-        applyB.btn.SetPanelEvent("onactivate", applyPasteInput);
-        pasteInput.SetPanelEvent("ontextentrysubmit", applyPasteInput);
-
-        // Paste button toggles the input row visible and focuses it
-        var pasteB = makeFooterBtn(footer, "Paste", "");
-        pasteB.btn.SetPanelEvent("onactivate", function () {
-          var isVisible = pasteRow.style.visibility !== "collapse";
-          setPasteVisible(!isVisible);
-          if (!isVisible) {
-            $.Schedule(0.0, function () {
-              if (pasteInput && pasteInput.IsValid()) {
-                pasteInput.SetFocus();
-              }
-            });
-          }
-        });
+        applyCodeB.btn.SetPanelEvent("onactivate", applySaveCodeInput);
+        importCodeInput.SetPanelEvent("ontextentrysubmit", applySaveCodeInput);
+        setImportRowVisible(false);
       }
     },
 
@@ -1358,6 +3394,11 @@ var AnitaUILogger = (function () {
       var config = this.findRegisteredMod(data.mod_title);
       if (!config) return;
       if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) return;
+      AnitaRenderer.syncSaveCodeInput(config);
+      if (String(data.update_source || "") === "hp_counter_autoposition" && data.setting_id === "hp_counter_position") {
+        this.queueRenderRefresh(config);
+        return;
+      }
       if (String(data.update_source || "") === "bridge_bootstrap") {
         config.__anitaBootstrapReceived = true;
         this.queueRenderRefresh(config);

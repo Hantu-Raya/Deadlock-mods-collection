@@ -2,6 +2,10 @@
 (function () {
 
   var TITLE = "HP Colors";
+  var REGISTER_RETRY_DELAY_SEC = 0.25;
+  var REGISTER_MAX_ATTEMPTS = 24;
+  var didRegister = false;
+  var registerAttempts = 0;
 
   var SCHEMA = [
     { type: "toggle", id: "hp_enabled", label: "Enable", defaultValue: true },
@@ -32,17 +36,68 @@
       title: TITLE,
       description: "Enemy healthbar coloring",
       storageNamespace: "hp_colors",
-      storageVersion: 1,
+      storageVersion: 2,
       legacyStoragePrefix: "hp_mod_",
       elements: elements
     };
   }
 
-  function register() {
+  function getRootPanel() {
+    var panel = $.GetContextPanel();
+    while (panel && panel.GetParent && panel.GetParent()) {
+      panel = panel.GetParent();
+    }
+    return panel;
+  }
+
+  function tryDirectRegister(config) {
+    var root = getRootPanel();
+    if (!root || !root.AnitaUI) return false;
+    if (typeof root.AnitaUI.IsReady === "function" && !root.AnitaUI.IsReady()) return false;
+    if (typeof root.AnitaUI.Register !== "function") return false;
+
+    root.AnitaUI.Register(config);
+    return true;
+  }
+
+  function dispatchRegister(config) {
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
       magic_word: "ANITA_REGISTER",
-      config: buildConfig()
+      config: config
     }));
+  }
+
+  function register() {
+    if (didRegister) return;
+
+    var config = buildConfig();
+    var usedDirect = false;
+
+    try {
+      usedDirect = tryDirectRegister(config);
+    } catch (e0) {
+      $.Msg("[HP Registrar] Direct register failed: " + e0);
+    }
+
+    if (!usedDirect) {
+      try {
+        dispatchRegister(config);
+      } catch (e1) {
+        $.Msg("[HP Registrar] Event register failed: " + e1);
+      }
+    } else {
+      didRegister = true;
+    }
+  }
+
+  function queueRegisterRetry() {
+    if (didRegister || registerAttempts >= REGISTER_MAX_ATTEMPTS) return;
+    registerAttempts += 1;
+    $.Schedule(REGISTER_RETRY_DELAY_SEC, function () {
+      if (didRegister) return;
+      register();
+      queueRegisterRetry();
+    });
   }
 
   $.RegisterForUnhandledEvent("ClientUI_FireOutput", function (payload) {
@@ -51,12 +106,17 @@
       if (!data) return;
       if (data.magic_word === "ANITA_ALIVE") {
         register();
+      } else if (data.magic_word === "ANITA_HANDSHAKE" && data.mod_title === TITLE) {
+        didRegister = true;
       }
     } catch (e) {
       $.Msg("[HP Registrar] Error: " + e);
     }
   });
 
-  $.Schedule(0.05, register);
+  $.Schedule(0.05, function () {
+    register();
+    queueRegisterRetry();
+  });
 
 })();

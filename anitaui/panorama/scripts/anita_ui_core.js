@@ -119,7 +119,7 @@ var AnitaUILogger = (function () {
       TAB_MAX_CHARS: 17,
       MONITOR_INTERVAL: 0.05
     },
-    PERSISTENCE_DEBUG: false
+    PERSISTENCE_DEBUG: true
   };
 
   const Logger = AnitaUILogger(CONFIG.DEBUG_MODE);
@@ -202,6 +202,38 @@ var AnitaUILogger = (function () {
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(payload));
   }
 
+  function runConsoleCommandBestEffort(commandText) {
+    var cmd = String(commandText || "").trim();
+    var didAny = false;
+    if (!cmd) return false;
+
+    try {
+      $.DispatchEvent("CitadelConCommand", cmd);
+      didAny = true;
+    } catch (e0) {}
+
+    try {
+      if (typeof GameInterfaceAPI !== "undefined" &&
+          GameInterfaceAPI &&
+          typeof GameInterfaceAPI.ConsoleCommand === "function") {
+        GameInterfaceAPI.ConsoleCommand(cmd);
+        didAny = true;
+      }
+    } catch (e1) {}
+
+    try {
+      $.DispatchEvent("ConsoleCommand", cmd);
+      didAny = true;
+    } catch (e2) {}
+
+    try {
+      $.DispatchEvent("GameUIRunCommand", cmd);
+      didAny = true;
+    } catch (e3) {}
+
+    return didAny;
+  }
+
   const AnitaPersistence = {
     log: function (message) {
       if (!CONFIG.PERSISTENCE_DEBUG) return;
@@ -242,11 +274,58 @@ var AnitaUILogger = (function () {
       return new RegExp("\\[" + this.TOKEN_PREFIX + ns + "\\]:[A-Za-z0-9_-]*", "g");
     },
 
-    canPersistViaConvar: function () {
+    canReadConvar: function () {
       return typeof GameInterfaceAPI !== "undefined" &&
         !!GameInterfaceAPI &&
-        typeof GameInterfaceAPI.GetSettingString === "function" &&
-        typeof GameInterfaceAPI.ConsoleCommand === "function";
+        typeof GameInterfaceAPI.GetSettingString === "function";
+    },
+
+    canWriteConvarDirect: function () {
+      return typeof GameInterfaceAPI !== "undefined" &&
+        !!GameInterfaceAPI &&
+        (typeof GameInterfaceAPI.ConsoleCommand === "function" ||
+         typeof GameInterfaceAPI.SetSettingString === "function");
+    },
+
+    canPersistViaStorage: function () {
+      try {
+        return !!($ && $.persistentStorage &&
+          typeof $.persistentStorage.setItem === "function" &&
+          typeof $.persistentStorage.getItem === "function");
+      } catch (e) { return false; }
+    },
+
+    writeConvar: function (key, value) {
+      // Prefer ConsoleCommand (handles quoting); fall back to SetSettingString
+      if (typeof GameInterfaceAPI !== "undefined" &&
+          GameInterfaceAPI &&
+          typeof GameInterfaceAPI.ConsoleCommand === "function") {
+        GameInterfaceAPI.ConsoleCommand(key + ' "' + value + '"');
+        this.log("writeConvar via ConsoleCommand key=" + key);
+      } else {
+        GameInterfaceAPI.SetSettingString(key, value);
+        this.log("writeConvar via SetSettingString key=" + key);
+      }
+    },
+
+    writeConvarBestEffort: function (key, value) {
+      var command = String(key || "") + ' "' + String(value || "") + '"';
+
+      if (this.canWriteConvarDirect()) {
+        try {
+          this.writeConvar(key, value);
+          return true;
+        } catch (e0) {
+          this.log("direct convar write failed key=" + key + " err=" + e0);
+        }
+      }
+
+      if (runConsoleCommandBestEffort(command)) {
+        this.log("writeConvar via command events key=" + key);
+        return true;
+      }
+
+      return false;
     },
 
     getElements: function (config) {
@@ -359,7 +438,7 @@ var AnitaUILogger = (function () {
     },
 
     readPrimaryPayload: function (config) {
-      if (!this.canPersistViaConvar()) return null;
+      if (!this.canReadConvar()) return null;
       var ns = this.normalizeNamespace(config && config.storageNamespace);
       if (!ns) return null;
 
@@ -430,7 +509,22 @@ var AnitaUILogger = (function () {
         hydrateSource = "convar";
       }
 
-      // Tier 2: within-session root panel attribute
+      // Tier 2: $.persistentStorage (cross-restart if available in this panel context)
+      if (!persisted && this.canPersistViaStorage()) {
+        try {
+          var storageEncoded = String($.persistentStorage.getItem("anita_v1_" + ns) || "");
+          if (storageEncoded) {
+            var storageRaw = AnitaBase64.decode(storageEncoded);
+            persisted = this.parseStoredPayload(config, storageRaw, "persistentStorage");
+            if (persisted) hydrateSource = "persistentStorage";
+          }
+          this.logForConfig(config, "persistentStorage read ns=" + ns + " found=" + (persisted ? "1" : "0"));
+        } catch (eStorage) {
+          this.logForConfig(config, "$.persistentStorage read threw: " + eStorage);
+        }
+      }
+
+      // Tier 3: within-session root panel attribute
       if (!persisted) {
         try {
           var rootPanel = $.GetContextPanel();
@@ -448,7 +542,7 @@ var AnitaUILogger = (function () {
         }
       }
 
-      // Tier 3: defaults (fall-through)
+      // Tier 4: defaults (fall-through)
       if (persisted) {
         this.applyResolvedValues(config, persisted.values);
       } else {
@@ -478,12 +572,12 @@ var AnitaUILogger = (function () {
       return JSON.stringify(payload);
     },
 
-    persistConfig: function (config) {
+    persistConfig: function (config, forceWrite) {
       if (!this.hasPersistentConfig(config)) return false;
 
       var raw = this.buildStoredPayload(config);
       if (!raw) return false;
-      if (raw === String(config.__anitaLastPersistedRaw || "")) {
+      if (!forceWrite && raw === String(config.__anitaLastPersistedRaw || "")) {
         this.logForConfig(config, "write skipped unchanged");
         return false;
       }
@@ -498,27 +592,40 @@ var AnitaUILogger = (function () {
       }
       var token = "[" + this.TOKEN_PREFIX + ns + "]:" + encoded;
 
-      if (this.canPersistViaConvar()) {
-        try {
-          var current = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
-          // Use * in cleanup regex to also remove malformed empty-payload tokens
-          var cleaned = current.replace(this.getCleanupRegex(ns), "").replace(/,,+/g, ",").replace(/^,|,$/, "");
-          var finalValue = (cleaned ? cleaned + "," : "") + token;
-          // Double-quote the value to protect [ ] from Source engine console bracket parsing
-          GameInterfaceAPI.ConsoleCommand(this.CONVAR_KEY + ' "' + finalValue + '"');
+      try {
+        var current = this.canReadConvar()
+          ? String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "")
+          : "";
+        // Use * in cleanup regex to also remove malformed empty-payload tokens
+        var cleaned = current.replace(this.getCleanupRegex(ns), "").replace(/,,+/g, ",").replace(/^,|,$/, "");
+        var finalValue = (cleaned ? cleaned + "," : "") + token;
+        if (!this.writeConvarBestEffort(this.CONVAR_KEY, finalValue)) {
+          this.logForConfig(config, "convar write unavailable (no direct API or command event path)");
+        } else {
           this.logForConfig(config, "convar write ns=" + ns + " encoded_len=" + encoded.length);
 
-          // Verify write round-trips
-          var readBack = "";
-          try {
-            readBack = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
-          } catch (eRB) {}
-          this.logForConfig(config, "convar readback found_token=" + (readBack.indexOf("[" + this.TOKEN_PREFIX + ns + "]") !== -1 ? "1" : "0"));
-        } catch (e) {
-          this.logForConfig(config, "convar write threw: " + e);
+          if (this.canReadConvar()) {
+            var readBack = "";
+            try {
+              readBack = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
+            } catch (eRB) {}
+            this.logForConfig(config, "convar readback found_token=" + (readBack.indexOf("[" + this.TOKEN_PREFIX + ns + "]") !== -1 ? "1" : "0"));
+          } else {
+            this.logForConfig(config, "convar readback unavailable (no GetSettingString)");
+          }
         }
-      } else {
-        this.logForConfig(config, "convar write unavailable (canPersistViaConvar=false)");
+      } catch (e) {
+        this.logForConfig(config, "convar write threw: " + e);
+      }
+
+      // $.persistentStorage write (cross-restart if available in this panel context)
+      if (this.canPersistViaStorage()) {
+        try {
+          $.persistentStorage.setItem("anita_v1_" + ns, encoded);
+          this.logForConfig(config, "persistentStorage write ns=" + ns);
+        } catch (eStorage) {
+          this.logForConfig(config, "$.persistentStorage write threw: " + eStorage);
+        }
       }
 
       // Session fallback: always write to root panel attribute for within-session resilience
@@ -988,7 +1095,10 @@ var AnitaUILogger = (function () {
 
       // Footer: Save / Copy / Paste (only for mods with storageNamespace)
       if (config.storageNamespace) {
-        var footer = $.CreatePanel("Panel", container, "");
+        var footerWrap = $.CreatePanel("Panel", container, "");
+        footerWrap.AddClass("AnitaFooterWrap");
+
+        var footer = $.CreatePanel("Panel", footerWrap, "");
         footer.AddClass("AnitaFooterRow");
 
         function makeFooterBtn(parent, label, id) {
@@ -1013,7 +1123,7 @@ var AnitaUILogger = (function () {
         var saveB = makeFooterBtn(footer, "Save", "");
         saveB.btn.SetPanelEvent("onactivate", function () {
           config.__anitaPendingWriteToken = (config.__anitaPendingWriteToken || 0) + 1; // cancel pending debounce
-          AnitaPersistence.persistConfig(config);
+          AnitaPersistence.persistConfig(config, true);
           flashLabel(saveB.btn, saveB.lbl, "Saved!", 1.5);
         });
 
@@ -1025,49 +1135,73 @@ var AnitaUILogger = (function () {
           var encoded = AnitaBase64.encode(raw);
           var token = "[" + AnitaPersistence.TOKEN_PREFIX + ns + "]:" + encoded;
           try {
-            $.DispatchEvent("CopyStringToClipboard", token);
+            // CopyStringToClipboard requires (panel, string) in Deadlock Panorama
+            $.DispatchEvent("CopyStringToClipboard", $.GetContextPanel(), token);
+            AnitaPersistence.logForConfig(config, "copy token len=" + token.length);
             flashLabel(copyB.btn, copyB.lbl, "Copied!", 1.5);
           } catch (e) {
+            AnitaPersistence.logForConfig(config, "copy failed: " + e);
             flashLabel(copyB.btn, copyB.lbl, "Failed", 1.5);
           }
         });
 
-        // Paste button — uses TextEntry clipboard workaround
-        var pasteB = makeFooterBtn(footer, "Paste", "");
-        var pasteEntry = $.CreatePanel("TextEntry", footer, "");
-        pasteEntry.style.width = "0px";
-        pasteEntry.style.height = "0px";
-        pasteEntry.style.opacity = "0";
-        pasteB.btn.SetPanelEvent("onactivate", function () {
+        // Paste row — visible TextEntry the user can paste a token into, then Apply
+        var pasteRow = $.CreatePanel("Panel", footerWrap, "");
+        pasteRow.AddClass("AnitaPasteRow");
+        pasteRow.style.visibility = "collapse";
+        pasteRow.hittest = false;
+
+        var pasteInput = $.CreatePanel("TextEntry", pasteRow, "");
+        pasteInput.AddClass("AnitaPasteInput");
+        pasteInput.placeholder = "Ctrl+V token here...";
+
+        var applyB = makeFooterBtn(pasteRow, "Apply", "");
+
+        function setPasteVisible(visible) {
+          pasteRow.style.visibility = visible ? "visible" : "collapse";
+          pasteRow.hittest = visible;
+          if (!visible) {
+            pasteInput.text = "";
+          }
+        }
+
+        function applyPasteInput() {
+          var text = pasteInput.text;
+          if (!text) { flashLabel(applyB.btn, applyB.lbl, "Empty", 1.5); return; }
+          var ns = AnitaPersistence.normalizeNamespace(config.storageNamespace);
+          var rx = new RegExp("\\[" + AnitaPersistence.TOKEN_PREFIX + ns + "\\]:[A-Za-z0-9_-]+");
+          var match = text.match(rx);
+          if (!match) { flashLabel(applyB.btn, applyB.lbl, "Invalid", 1.5); return; }
+          var encoded = match[0].split("]:")[1] || "";
           try {
-            pasteEntry.text = "";
-            pasteEntry.SetFocus();
-            $.DispatchEvent("TextEntryPasteFromClipboard", pasteEntry);
-            $.Schedule(0.1, function () {
-              var text = pasteEntry.text;
-              if (!text) { flashLabel(pasteB.btn, pasteB.lbl, "Empty", 1.5); return; }
-              var ns = AnitaPersistence.normalizeNamespace(config.storageNamespace);
-              var rx = new RegExp("\\[" + AnitaPersistence.TOKEN_PREFIX + ns + "\\]:[A-Za-z0-9_-]+");
-              var match = text.match(rx);
-              if (!match) { flashLabel(pasteB.btn, pasteB.lbl, "Invalid", 1.5); return; }
-              var encoded = match[0].split("]:")[1] || "";
-              try {
-                var raw = AnitaBase64.decode(encoded);
-                var parsed = AnitaPersistence.parseStoredPayload(config, raw, "paste");
-                if (!parsed) { flashLabel(pasteB.btn, pasteB.lbl, "Invalid", 1.5); return; }
-                AnitaPersistence.applyResolvedValues(config, parsed.values);
-                // Re-render tab to update UI controls
-                AnitaRenderer.renderModSettings(config);
-                // Emit all current values to healthbar_logic
-                AnitaCore.emitCurrentValues(config);
-                AnitaPersistence.persistConfig(config);
-                flashLabel(pasteB.btn, pasteB.lbl, "Applied!", 1.5);
-              } catch (eDec) {
-                flashLabel(pasteB.btn, pasteB.lbl, "Invalid", 1.5);
+            var raw = AnitaBase64.decode(encoded);
+            var parsed = AnitaPersistence.parseStoredPayload(config, raw, "paste");
+            if (!parsed) { flashLabel(applyB.btn, applyB.lbl, "Invalid", 1.5); return; }
+            AnitaPersistence.applyResolvedValues(config, parsed.values);
+            AnitaPersistence.persistConfig(config, true);
+            setPasteVisible(false);
+            AnitaRenderer.renderModSettings(config);
+            AnitaCore.emitCurrentValues(config);
+          } catch (eDec) {
+            AnitaPersistence.logForConfig(config, "paste decode failed: " + eDec);
+            flashLabel(applyB.btn, applyB.lbl, "Invalid", 1.5);
+          }
+        }
+
+        applyB.btn.SetPanelEvent("onactivate", applyPasteInput);
+        pasteInput.SetPanelEvent("ontextentrysubmit", applyPasteInput);
+
+        // Paste button toggles the input row visible and focuses it
+        var pasteB = makeFooterBtn(footer, "Paste", "");
+        pasteB.btn.SetPanelEvent("onactivate", function () {
+          var isVisible = pasteRow.style.visibility !== "collapse";
+          setPasteVisible(!isVisible);
+          if (!isVisible) {
+            $.Schedule(0.0, function () {
+              if (pasteInput && pasteInput.IsValid()) {
+                pasteInput.SetFocus();
               }
             });
-          } catch (ePaste) {
-            flashLabel(pasteB.btn, pasteB.lbl, "Unavailable", 1.5);
           }
         });
       }

@@ -173,6 +173,12 @@
 	text-align: center;
 	font-weight: bold;
 	font-family: sans;
+	width: 100%;
+	height: 100%;
+	min-width: 0px;
+	white-space: nowrap;
+	overflow: noclip;
+	text-overflow: clip;
 	text-shadow: 0px 0px 10px #000000, 2px 2px 5px #000000, -2px -2px 5px #000000, 2px -2px 5px #000000, -2px 2px 5px #000000;
 	horizontal-align: center;
 	vertical-align: middle;
@@ -547,11 +553,16 @@
 	letter-spacing: 0px;
 	white-space: nowrap;
 	overflow: clip;
+	text-overflow: clip;
 	z-index: 4;
 	padding-right: -10px;
 	margin-left: 20px;
 	text-shadow: 3px 0px 0px 3 DropshadowColor;
 	pre-transform-scale2d: 1.0, 2.8;
+}
+
+#unit_healthbar_pip_label {
+	visibility: collapse;
 }
 
 #unit_healthbar_fg {
@@ -750,17 +761,14 @@
 
 	{
 	0% {
-		wash-color: rgb(225, 97, 97);
 		brightness: 1.2;
 	}
 
 	50% {
-		wash-color: rgb(155, 63, 63);
 		brightness: 0.9;
 	}
 
 	100% {
-		wash-color: rgb(85, 28, 28);
 		brightness: 0.7;
 	}
 }
@@ -783,6 +791,12 @@
 	text-align: center;
 	font-weight: bold;
 	font-family: sans;
+	width: 100%;
+	height: 100%;
+	min-width: 0px;
+	white-space: nowrap;
+	overflow: noclip;
+	text-overflow: clip;
 	text-shadow: 2px 2px 0px #000000, -2px -2px 0px #000000, 2px -2px 0px #000000, -2px 2px 0px #000000;
 	horizontal-align: center;
 	vertical-align: middle;

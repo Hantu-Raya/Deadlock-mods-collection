@@ -8,6 +8,7 @@
 
   var bridgeConfig = null;
   var currentValues = null;
+  var persistedValues = null;
   var cachedEncoded = "";
   var cachedRaw = "";
   var cachedValues = null;
@@ -156,6 +157,39 @@
     var fallback = element.defaultValue;
     var type = String(element.type || "");
 
+    if (type === "positionpicker") {
+      var posX = 0;
+      var posY = 200;
+      var rawPos = value;
+
+      if (rawPos && typeof rawPos === "object") {
+        if (Array.isArray(rawPos)) {
+          if (rawPos.length > 0) posX = Number(rawPos[0]);
+          if (rawPos.length > 1) posY = Number(rawPos[1]);
+        } else {
+          if (Object.prototype.hasOwnProperty.call(rawPos, "x")) posX = Number(rawPos.x);
+          if (Object.prototype.hasOwnProperty.call(rawPos, "y")) posY = Number(rawPos.y);
+        }
+      } else if (typeof rawPos === "string") {
+        var parts = rawPos.match(/-?\d+(?:\.\d+)?/g);
+        if (parts && parts.length > 0) {
+          posX = Number(parts[0]);
+          if (parts.length > 1) posY = Number(parts[1]);
+        }
+      } else if (typeof rawPos === "number") {
+        posY = Number(rawPos);
+      }
+
+      if (!isFinite(posX)) posX = 0;
+      if (!isFinite(posY)) posY = 200;
+      if (posX < 0) posX = 0;
+      if (posY < 0) posY = 0;
+      if (posX > 400) posX = 400;
+      if (posY > 400) posY = 400;
+
+      return Math.round(posX) + "," + Math.round(posY);
+    }
+
     if (type === "toggle") {
       if (value === true || value === false) return value;
       if (value === 1 || value === "1") return true;
@@ -252,7 +286,7 @@
     if (!bridgeConfig) return "";
     var payload = {
       version: Math.max(1, Math.floor(Number(bridgeConfig.storageVersion) || 1)),
-      values: cloneValues(currentValues || buildDefaultValues(bridgeConfig))
+      values: cloneValues(persistedValues || currentValues || buildDefaultValues(bridgeConfig))
     };
     return JSON.stringify(payload);
   }
@@ -271,11 +305,12 @@
     } catch (eHud) {}
   }
 
-  function cachePayload(raw, encoded, values) {
+  function cachePayload(raw, encoded, values, persisted) {
     cachedRaw = String(raw || "");
     cachedEncoded = String(encoded || "");
     cachedValues = cloneValues(values || {});
     currentValues = cloneValues(values || {});
+    persistedValues = cloneValues(persisted || values || {});
     writeSessionMirror(cachedEncoded);
   }
 
@@ -326,7 +361,7 @@
       var convarParsed = parseStoredPayload(convarDecoded, "convar");
       if (!convarParsed) return null;
 
-      cachePayload(convarParsed.raw, convarEncoded, convarParsed.values);
+      cachePayload(convarParsed.raw, convarEncoded, convarParsed.values, convarParsed.values);
       log("convar bootstrap source=convar encoded_len=" + convarEncoded.length);
       return {
         raw: convarParsed.raw,
@@ -359,7 +394,7 @@
     var parsed = parseStoredPayload(raw, "persistentStorage");
     if (!parsed) return null;
 
-    cachePayload(parsed.raw, encoded, parsed.values);
+    cachePayload(parsed.raw, encoded, parsed.values, parsed.values);
     return {
       raw: parsed.raw,
       encoded: encoded,
@@ -388,7 +423,7 @@
       return false;
     }
 
-    cachePayload(raw, encoded, currentValues);
+    cachePayload(raw, encoded, currentValues, persistedValues);
 
     if (!hasPersistentStorage()) {
       log("mirror only; storage unavailable source=" + reason);
@@ -446,6 +481,7 @@
     }
 
     currentValues = cloneValues(stored.values);
+    persistedValues = cloneValues(stored.values);
     writeSessionMirror(stored.encoded);
     replayValues(stored.values, reason + ":" + stored.source);
   }
@@ -485,6 +521,7 @@
 
     bridgeConfig = nextConfig;
     if (!currentValues) currentValues = buildDefaultValues(bridgeConfig);
+    if (!persistedValues) persistedValues = cloneValues(currentValues);
     log("config captured elements=" + nextConfig.elements.length);
     return true;
   }
@@ -515,7 +552,15 @@
       if (!element) return;
 
       if (!currentValues) currentValues = buildDefaultValues(bridgeConfig);
+      if (!persistedValues) persistedValues = cloneValues(currentValues);
+
+      if (String(data.update_source || "") === "hp_counter_autoposition" && data.setting_id === "hp_counter_position") {
+        currentValues[data.setting_id] = sanitizeValue(element, data.value);
+        return;
+      }
+
       currentValues[data.setting_id] = sanitizeValue(element, data.value);
+      persistedValues[data.setting_id] = sanitizeValue(element, data.value);
 
       if (data.skip_bridge_persist || String(data.update_source || "") === "bridge_bootstrap") {
         return;
