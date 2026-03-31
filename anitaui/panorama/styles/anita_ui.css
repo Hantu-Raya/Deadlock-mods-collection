@@ -540,14 +540,20 @@
 }
 
 
+.AnitaFooterWrap
+{
+	flow-children: down;
+	margin-top: 10px;
+	width: fit-children;
+}
+
 .AnitaFooterRow
 {
 	flow-children: right;
-	margin-top: 10px;
 	padding: 6px 8px;
 	background-color: gradient( linear, 0% 0%, 0% 100%, from( #1a1a1aaa ), to( #111111aa ) );
 	border-radius: 4px;
-	align: center center;
+	align: left center;
 }
 
 .AnitaFooterBtn
@@ -576,4 +582,27 @@
 .AnitaFooterBtnSuccess Label
 {
 	color: #7fff7f;
+}
+
+.AnitaPasteRow
+{
+	flow-children: right;
+	margin-top: 6px;
+	padding: 6px 8px;
+	background-color: #111111cc;
+	border: 1px solid #2f2f2f;
+	border-radius: 4px;
+	align: left center;
+}
+
+.AnitaPasteInput
+{
+	width: 320px;
+	height: 30px;
+	margin-right: 6px;
+	font-size: 10px;
+	padding: 5px 8px 3px 8px;
+	background-color: #0f0f0f;
+	border: 1px solid #3f3f3f;
+	color: #d8d8d8;
 }
