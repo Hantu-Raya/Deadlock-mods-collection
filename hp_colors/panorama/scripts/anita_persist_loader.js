@@ -5,6 +5,7 @@
   var STORAGE_NAMESPACE = "hp_colors";
   var STORAGE_KEY = "anita_v1_hp_colors";
   var PERSIST_DEBOUNCE_SEC = 0.35;
+  var PERSISTENCE_DEBUG = false;
 
   var bridgeConfig = null;
   var currentValues = null;
@@ -18,6 +19,7 @@
   var storageSupportLogged = false;
 
   function log(message) {
+    if (!PERSISTENCE_DEBUG) return;
     $.Msg("[Anita-UI][Bridge] " + TITLE + " | " + message);
   }
 
@@ -553,11 +555,6 @@
 
       if (!currentValues) currentValues = buildDefaultValues(bridgeConfig);
       if (!persistedValues) persistedValues = cloneValues(currentValues);
-
-      if (String(data.update_source || "") === "hp_counter_autoposition" && data.setting_id === "hp_counter_position") {
-        currentValues[data.setting_id] = sanitizeValue(element, data.value);
-        return;
-      }
 
       currentValues[data.setting_id] = sanitizeValue(element, data.value);
       persistedValues[data.setting_id] = sanitizeValue(element, data.value);

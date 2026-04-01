@@ -46,8 +46,6 @@ ADD_BEHAVIOR_BITS_ABILITIES = [
     "citadel_ability_chrono_swap",
     "citadel_ability_shiv_killing_blow",
     "citadel_ability_hook",
-    "citadel_ability_uppercut",
-    "ability_nano_dash",
     "ability_unicorn_radiantblast",
     "ability_werewolf_kickflip",
     "ability_werewolf_maulingleap",
