@@ -9,17 +9,21 @@
   var registerAttempts = 0;
 
   var SCHEMA = [
-    { type: "toggle", id: "hp_enabled", label: "Enable", defaultValue: true },
-    { type: "cycler", id: "hp_mode", label: "Mode", options: ["Fixed", "Gradient"], defaultValue: 1 },
-    { type: "slider", id: "hp_low_threshold", label: "Low HP %", defaultValue: 25, min: 0, max: 100, step: 1 },
-    { type: "toggle", id: "hp_bg_visible", label: "Healthbar bg visible", defaultValue: true },
-    { type: "slider", id: "hp_counter_size", label: "HP counter size (px)", defaultValue: 140, min: 72, max: 320, step: 1 },
-    { type: "positionpicker", id: "hp_counter_position", label: "HP counter position", defaultValue: "20,196" },
-    { type: "colorpicker", id: "hp_color_low", label: "Low color", defaultValue: "#E16161" },
-    { type: "colorpicker", id: "hp_color_mid", label: "Mid color", defaultValue: "#FF7B00" },
-    { type: "colorpicker", id: "hp_color_high", label: "High color", defaultValue: "#00FF00" },
-    { type: "colorpicker", id: "hp_color_neutral", label: "Neutral color", defaultValue: "#5BEFB5" },
-    { type: "toggle", id: "hp_team_colors", label: "Team colors (high HP)", defaultValue: false }
+    { type: "toggle", id: "hp_enabled", label: "Enable", defaultValue: true, category: "Behavior" },
+    { type: "cycler", id: "hp_mode", label: "Mode", options: ["Fixed", "Gradient"], defaultValue: 1, category: "Behavior" },
+    { type: "slider", id: "hp_low_threshold", label: "Low HP %", defaultValue: 25, min: 0, max: 100, step: 1, category: "Behavior" },
+    { type: "slider", id: "hp_high_threshold", label: "High HP %", defaultValue: 65, min: 0, max: 100, step: 1, category: "Behavior" },
+    { type: "toggle", id: "hp_bg_visible", label: "Healthbar bg visible", defaultValue: true, category: "Behavior" },
+    { type: "toggle", id: "hp_team_colors", label: "Team colors (high HP)", defaultValue: false, category: "Behavior" },
+    { type: "colorpicker", id: "hp_color_low", label: "Low color", defaultValue: "#E16161", category: "Bar Colors" },
+    { type: "colorpicker", id: "hp_color_mid", label: "Mid color", defaultValue: "#FF7B00", category: "Bar Colors" },
+    { type: "colorpicker", id: "hp_color_high", label: "High color", defaultValue: "#00FF00", category: "Bar Colors" },
+    { type: "slider", id: "hp_counter_size", label: "HP counter size (px)", defaultValue: 120, min: 72, max: 320, step: 1, category: "Counter Text" },
+    { type: "positionpicker", id: "hp_counter_position", label: "HP counter position (bg visible)", defaultValue: "20,196", category: "Counter Text" },
+    { type: "cycler", id: "hp_text_color_mode", label: "HP text color", options: ["By HP %", "Custom"], defaultValue: 0, category: "Counter Text" },
+    { type: "colorpicker", id: "hp_text_color_low", label: "HP text low color", defaultValue: "#E16161", visibleWhen: { id: "hp_text_color_mode", equals: 1 }, category: "Counter Text" },
+    { type: "colorpicker", id: "hp_text_color_mid", label: "HP text mid color", defaultValue: "#FF7B00", visibleWhen: { id: "hp_text_color_mode", equals: 1 }, category: "Counter Text" },
+    { type: "colorpicker", id: "hp_text_color_high", label: "HP text high color", defaultValue: "#FFFFFF", visibleWhen: { id: "hp_text_color_mode", equals: 1 }, category: "Counter Text" }
   ];
 
   function buildConfig() {
@@ -39,7 +43,7 @@
       title: TITLE,
       description: "Enemy healthbar coloring",
       storageNamespace: "hp_colors",
-      storageVersion: 2,
+      storageVersion: 5,
       legacyStoragePrefix: "hp_mod_",
       elements: elements
     };
