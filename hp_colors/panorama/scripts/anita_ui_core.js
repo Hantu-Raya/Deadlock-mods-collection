@@ -119,7 +119,7 @@ var AnitaUILogger = (function () {
       TAB_MAX_CHARS: 17,
       MONITOR_INTERVAL: 0.05
     },
-    PERSISTENCE_DEBUG: true
+    PERSISTENCE_DEBUG: false
   };
 
   const Logger = AnitaUILogger(CONFIG.DEBUG_MODE);
@@ -663,6 +663,8 @@ var AnitaUILogger = (function () {
         if (config.id) emitUpdate(modTitle, config.id, isOn);
         if (config.onChange) config.onChange(isOn);
       });
+
+      return row;
     },
 
     createStepper: function (parent, config, modTitle) {
@@ -900,6 +902,11 @@ var AnitaUILogger = (function () {
 
         config.currentValue = idx;
 
+        var ownerConfig = AnitaCore.findRegisteredMod(modTitle);
+        if (ownerConfig && AnitaRenderer.hasVisibilityDependents(ownerConfig, config.id)) {
+          AnitaCore.queueRenderRefresh(ownerConfig);
+        }
+
         if (config.id && modTitle) {
           emitUpdate(modTitle, config.id, idx);
         }
@@ -932,9 +939,6 @@ var AnitaUILogger = (function () {
       let colorPickerPollGeneration = 0;
       let colorDragging = false;
       const hasGameUI = (typeof GameUI !== "undefined" && GameUI !== null);
-      let colorDragIdleTicks = 0;
-      let colorDragLastX = -1;
-      let colorDragLastY = -1;
       let colorDragAnchorX = -1;
       let colorDragAnchorY = -1;
       let colorDragSource = "";
@@ -1117,7 +1121,7 @@ var AnitaUILogger = (function () {
             var point = parsePoint(panel.GetPositionWithinWindow());
             if (point) return point;
           }
-        } catch (e0) {}
+        } catch (e) {}
 
         var left = Number(panel.actualxoffset || panel.actualx || 0);
         var top = Number(panel.actualyoffset || panel.actualy || 0);
@@ -1164,17 +1168,16 @@ var AnitaUILogger = (function () {
               }
 
               if (panelPos) {
-                var adjustedPoint = {
+                return {
                   x: rawPoint.x - panelPos.x,
                   y: rawPoint.y - panelPos.y
                 };
-                return adjustedPoint;
               }
 
               return rawPoint;
             }
           }
-        } catch (e0) {}
+        } catch (e) {}
 
         var screenCursor = getCursorPosition();
         if (!screenCursor || !panelPos) return null;
@@ -1486,15 +1489,19 @@ var AnitaUILogger = (function () {
 
       function syncFromBestDragSource(emitUpdateEvent) {
         if (!hasGameUI) {
-          // In fallback: read color from the cursor node's actual position within colorBoxFrame.
-          // This works when Panorama native drag moves the cursor node (no cursor position API needed).
+          if ((colorDragSource === "cursor" || colorDragSource === "drag_event") &&
+              syncFromCursorPanelPosition(emitUpdateEvent)) return "cursor_panel";
+          if (syncFromLocalBoxCursor(emitUpdateEvent)) return "panel_cursor";
           if (syncFromCursorPanelPosition(emitUpdateEvent)) return "cursor_panel";
           return "";
         }
-        if (syncFromScreenCursorPosition(emitUpdateEvent)) return "screen_cursor";
+
         if ((colorDragSource === "cursor" || colorDragSource === "drag_event") &&
             syncFromCursorPanelPosition(emitUpdateEvent)) return "drag_panel";
+        if ((colorDragSource === "box" || colorDragSource === "gameui") &&
+            syncFromScreenCursorPosition(emitUpdateEvent)) return "screen_cursor";
         if (syncFromLocalBoxCursor(emitUpdateEvent)) return "panel_cursor";
+        if (syncFromScreenCursorPosition(emitUpdateEvent)) return "screen_cursor";
         if (syncFromCursorPanelPosition(emitUpdateEvent)) return "drag_panel";
         return "";
       }
@@ -1502,19 +1509,16 @@ var AnitaUILogger = (function () {
       function setMouseCaptureState(active) {
         var next = !!active;
         if (isValidPanel(colorBoxPanel) && typeof colorBoxPanel.SetMouseCapture === "function") {
-          try { colorBoxPanel.SetMouseCapture(next); } catch (e0) {}
+          try { colorBoxPanel.SetMouseCapture(next); } catch (e) {}
         }
         if (hasGameUI && isValidPanel(colorBoxCursor) && typeof colorBoxCursor.SetMouseCapture === "function") {
-          try { colorBoxCursor.SetMouseCapture(next); } catch (e1) {}
+          try { colorBoxCursor.SetMouseCapture(next); } catch (e) {}
         }
       }
 
       function beginColorDrag(sourceName, emitUpdateEvent) {
         colorDragging = true;
         colorDragSource = String(sourceName || "");
-        colorDragIdleTicks = 0;
-        colorDragLastX = -1;
-        colorDragLastY = -1;
         if (!syncFromCursorPanelPosition(false)) {
           updateBoxCursorVisual(currentColor);
         }
@@ -1534,9 +1538,6 @@ var AnitaUILogger = (function () {
       function endColorDrag() {
         colorDragging = false;
         colorDragSource = "";
-        colorDragIdleTicks = 0;
-        colorDragLastX = -1;
-        colorDragLastY = -1;
         setMouseCaptureState(false);
       }
 
@@ -1553,18 +1554,7 @@ var AnitaUILogger = (function () {
           if (!colorPopupPanel || !colorPopupPanel.IsValid || !colorPopupPanel.IsValid()) return;
 
           if (colorDragging) {
-            const dragSyncSource = syncFromBestDragSource(true);
-
-            if (isValidPanel(colorBoxCursor)) {
-              const cursorBounds = getPanelBounds(colorBoxCursor);
-              if (cursorBounds.left === colorDragLastX && cursorBounds.top === colorDragLastY) {
-                colorDragIdleTicks++;
-              } else {
-                colorDragIdleTicks = 0;
-                colorDragLastX = cursorBounds.left;
-                colorDragLastY = cursorBounds.top;
-              }
-            }
+            syncFromBestDragSource(true);
 
             if (hasGameUI && typeof GameUI.IsMouseDown === "function") {
               if (!GameUI.IsMouseDown(0)) {
@@ -1572,7 +1562,6 @@ var AnitaUILogger = (function () {
                 return;
               }
             }
-            // no-GameUI: drag ends via onmouseup / onmouseout events, not idle-tick timeout
 
             $.Schedule(0.016, tick);
             return;
@@ -1586,7 +1575,9 @@ var AnitaUILogger = (function () {
 
       function syncFromCursorPosition(emitUpdateEvent) {
         if (!syncFromScreenCursorPosition(emitUpdateEvent)) {
-          syncFromBestDragSource(emitUpdateEvent);
+          if (!syncFromLocalBoxCursor(emitUpdateEvent)) {
+            syncFromCursorPanelPosition(emitUpdateEvent);
+          }
         }
       }
 
@@ -1612,12 +1603,12 @@ var AnitaUILogger = (function () {
         popupHexLabel = null;
         popupMetaLabel = null;
         colorPickerSyncing = false;
-        colorDragSource = "";
         pickerHueSlider = null;
         pickerSatSlider = null;
         pickerSatTrack = null;
         pickerHueValue = null;
         pickerSatValue = null;
+        colorDragSource = "";
         if (AnitaRenderer.activeColorPickerClose === closePalette) {
           AnitaRenderer.activeColorPickerClose = null;
         }
@@ -1710,11 +1701,14 @@ var AnitaUILogger = (function () {
         AnitaRenderer.activeColorPickerClose = closePalette;
         colorPopupPanel.AddClass("AnitaColorPopup");
         var colorPopupX = 24;
-        var colorPopupY = 0;
+        var colorPopupY = 24;
         try {
-          var colorAnchorBounds = getPanelBounds(parent);
-          colorPopupY = colorAnchorBounds.top + 8;
+          var colorAnchorPanel = (preview && preview.IsValid && preview.IsValid()) ? preview : parent;
+          var colorAnchorBounds = getPanelBounds(colorAnchorPanel);
+          colorPopupX = Math.max(8, Math.round(colorAnchorBounds.left + colorAnchorBounds.width + 12));
+          colorPopupY = Math.max(8, Math.round(colorAnchorBounds.top));
         } catch (e) {}
+        colorPopupPanel.style.align = "left top";
         colorPopupPanel.style.transform = "translate3d(" + colorPopupX + "px, " + colorPopupY + "px, 0px)";
         colorPopupPanel.style.uiScale = "100%";
         colorPopupPanel.style.flowChildren = "down";
@@ -1761,17 +1755,13 @@ var AnitaUILogger = (function () {
         colorBoxPanel.style.height = "100%";
         colorBoxPanel.SetPanelEvent("onmouseactivate", function () {
           if (!hasGameUI) {
-            // Keep this diagnostic until we find a real click-position API for the no-GameUI context.
             try {
-              var gcpType = typeof colorBoxPanel.GetCursorPosition;
-              var gcpVal = (gcpType === "function") ? colorBoxPanel.GetCursorPosition() : null;
-              var piwType = typeof colorBoxPanel.GetPositionWithinWindow;
-              var piwVal = (piwType === "function") ? colorBoxPanel.GetPositionWithinWindow() : null;
-              $.Msg("[Anita-UI][PickerDiag] box click gcp=" + gcpType + " val=" + JSON.stringify(gcpVal) + " piw=" + piwType + " val=" + JSON.stringify(piwVal) + " w=" + colorBoxPanel.actuallayoutwidth + " h=" + colorBoxPanel.actuallayoutheight);
-            } catch (diagErr) {
-              $.Msg("[Anita-UI][PickerDiag] diag error: " + diagErr);
-            }
-            return; // Box click has no position data here; drag the marker or use the sliders.
+              var movePt = getPanelLocalCursorPosition(colorBoxPanel);
+              if (movePt) {
+                syncFromBoxPosition(movePt.x, movePt.y, true);
+              }
+            } catch (e) {}
+            return;
           }
           beginColorDrag("box", true);
         });
@@ -1782,12 +1772,8 @@ var AnitaUILogger = (function () {
         colorBoxPanel.SetPanelEvent("onmousemove", function () {
           if (!colorDragging) return;
           if (!hasGameUI) {
-            if (isValidPanel(colorBoxPanel) && typeof colorBoxPanel.GetCursorPosition === "function") {
-              try {
-                var movePt = parsePoint(colorBoxPanel.GetCursorPosition());
-                if (movePt) { syncFromBoxPosition(movePt.x, movePt.y, true); return; }
-              } catch (e) {}
-            }
+            var movePt = getPanelLocalCursorPosition(colorBoxPanel);
+            if (movePt) syncFromBoxPosition(movePt.x, movePt.y, true);
             return;
           }
           syncFromBestDragSource(true);
@@ -1858,7 +1844,6 @@ var AnitaUILogger = (function () {
                   droppedPanel.SetParent(colorBoxFrame);
                 }
                 droppedPanel.style.align = "left top";
-                AnitaPersistence.logForConfig(config, "color box drag end layout=" + String(Math.round(Number(droppedPanel.actuallayoutx) || 0)) + "," + String(Math.round(Number(droppedPanel.actuallayouty) || 0)));
                 if (!syncFromAnchoredCursorPosition(true)) {
                   syncFromCursorPanelPosition(true);
                   updateBoxCursorVisual(currentColor);
@@ -1914,6 +1899,7 @@ var AnitaUILogger = (function () {
         var hueLbl = $.CreatePanel("Label", hueGroup, "");
         hueLbl.text = "H";
         hueLbl.AddClass("AnitaHueValue");
+        hueLbl.AddClass("AnitaPickerAxisLabel");
 
         var hueContainer = $.CreatePanel("Panel", hueGroup, "");
         hueContainer.AddClass("AnitaHueSliderContainer");
@@ -1930,6 +1916,7 @@ var AnitaUILogger = (function () {
 
         pickerHueValue = $.CreatePanel("Label", hueGroup, "");
         pickerHueValue.AddClass("AnitaHueValue");
+        pickerHueValue.AddClass("AnitaPickerReadout");
 
         pickerHueSlider.SetPanelEvent("onvaluechanged", function () {
           if (colorPickerSyncing) return;
@@ -1949,6 +1936,7 @@ var AnitaUILogger = (function () {
         var satLbl = $.CreatePanel("Label", satGroup, "");
         satLbl.text = "S";
         satLbl.AddClass("AnitaHueValue");
+        satLbl.AddClass("AnitaPickerAxisLabel");
 
         pickerSatTrack = $.CreatePanel("Panel", satGroup, "");
         pickerSatTrack.AddClass("AnitaSatSliderContainer");
@@ -1965,6 +1953,7 @@ var AnitaUILogger = (function () {
 
         pickerSatValue = $.CreatePanel("Label", satGroup, "");
         pickerSatValue.AddClass("AnitaHueValue");
+        pickerSatValue.AddClass("AnitaPickerReadout");
 
         pickerSatSlider.SetPanelEvent("onvaluechanged", function () {
           if (colorPickerSyncing) return;
@@ -2083,28 +2072,28 @@ var AnitaUILogger = (function () {
       const posPickerValueGroup = $.CreatePanel("Panel", row, "");
       posPickerValueGroup.AddClass("AnitaSliderValueGroup");
       posPickerValueGroup.AddClass("SliderValueGroup");
+      posPickerValueGroup.AddClass("AnitaPositionPickerGroup");
       posPickerValueGroup.style.flowChildren = "down";
       posPickerValueGroup.style.verticalAlign = "center";
       posPickerValueGroup.style.horizontalAlign = "left";
-      posPickerValueGroup.style.width = "240px";
+      posPickerValueGroup.style.width = "332px";
       posPickerValueGroup.style.overflow = "noclip";
 
       const posPickerXGroup = $.CreatePanel("Panel", posPickerValueGroup, "");
       posPickerXGroup.AddClass("AnitaHueSliderGroup");
+      posPickerXGroup.AddClass("AnitaPositionSliderRow");
       posPickerXGroup.style.overflow = "noclip";
 
       const posPickerXLbl = $.CreatePanel("Label", posPickerXGroup, "");
       posPickerXLbl.text = "L/R";
       posPickerXLbl.AddClass("AnitaHueValue");
-      posPickerXLbl.style.width = "22px";
-      posPickerXLbl.style.fontSize = "10px";
-      posPickerXLbl.style.whiteSpace = "nowrap";
-      posPickerXLbl.style.textAlign = "center";
+      posPickerXLbl.AddClass("AnitaPositionAxisLabel");
 
       const posPickerXContainer = $.CreatePanel("Panel", posPickerXGroup, "");
       posPickerXContainer.AddClass("AnitaSliderContainer");
       posPickerXContainer.AddClass("SliderContainer");
-      posPickerXContainer.style.width = "100px";
+      posPickerXContainer.AddClass("AnitaPositionSliderContainer");
+      posPickerXContainer.style.width = "230px";
       posPickerXContainer.style.height = "26px";
       posPickerXContainer.style.padding = "0px";
       posPickerXContainer.style.verticalAlign = "center";
@@ -2129,29 +2118,25 @@ var AnitaUILogger = (function () {
 
       const posPickerXValueLbl = $.CreatePanel("Label", posPickerXGroup, "");
       posPickerXValueLbl.AddClass("AnitaSliderValue");
-      posPickerXValueLbl.style.width = "50px";
-      posPickerXValueLbl.style.fontSize = "10px";
-      posPickerXValueLbl.style.whiteSpace = "nowrap";
-      posPickerXValueLbl.style.textAlign = "center";
+      posPickerXValueLbl.AddClass("AnitaPositionReadout");
       posPickerXValueLbl.style.textOverflow = "clip";
       posPickerXValueLbl.style.overflow = "noclip";
 
       const posPickerYGroup = $.CreatePanel("Panel", posPickerValueGroup, "");
       posPickerYGroup.AddClass("AnitaHueSliderGroup");
+      posPickerYGroup.AddClass("AnitaPositionSliderRow");
       posPickerYGroup.style.overflow = "noclip";
 
       const posPickerYLbl = $.CreatePanel("Label", posPickerYGroup, "");
       posPickerYLbl.text = "T/B";
       posPickerYLbl.AddClass("AnitaHueValue");
-      posPickerYLbl.style.width = "22px";
-      posPickerYLbl.style.fontSize = "10px";
-      posPickerYLbl.style.whiteSpace = "nowrap";
-      posPickerYLbl.style.textAlign = "center";
+      posPickerYLbl.AddClass("AnitaPositionAxisLabel");
 
       const posPickerYContainer = $.CreatePanel("Panel", posPickerYGroup, "");
       posPickerYContainer.AddClass("AnitaSliderContainer");
       posPickerYContainer.AddClass("SliderContainer");
-      posPickerYContainer.style.width = "100px";
+      posPickerYContainer.AddClass("AnitaPositionSliderContainer");
+      posPickerYContainer.style.width = "230px";
       posPickerYContainer.style.height = "26px";
       posPickerYContainer.style.padding = "0px";
       posPickerYContainer.style.verticalAlign = "center";
@@ -2176,10 +2161,7 @@ var AnitaUILogger = (function () {
 
       const posPickerYValueLbl = $.CreatePanel("Label", posPickerYGroup, "");
       posPickerYValueLbl.AddClass("AnitaSliderValue");
-      posPickerYValueLbl.style.width = "50px";
-      posPickerYValueLbl.style.fontSize = "10px";
-      posPickerYValueLbl.style.whiteSpace = "nowrap";
-      posPickerYValueLbl.style.textAlign = "center";
+      posPickerYValueLbl.AddClass("AnitaPositionReadout");
       posPickerYValueLbl.style.textOverflow = "clip";
       posPickerYValueLbl.style.overflow = "noclip";
 
@@ -2251,690 +2233,6 @@ var AnitaUILogger = (function () {
       });
 
       return row;
-
-      function isValidPanel(panel) {
-        return !!(panel && panel.IsValid && panel.IsValid());
-      }
-
-      function clamp01(value) {
-        var next = Number(value);
-        if (!isFinite(next)) next = 0;
-        if (next < 0) next = 0;
-        if (next > 1) next = 1;
-        return next;
-      }
-
-      function parsePoint(candidate) {
-        if (!candidate) return null;
-
-        if (typeof candidate.length === "number" && candidate.length >= 2) {
-          var arrayX = Number(candidate[0]);
-          var arrayY = Number(candidate[1]);
-          if (isFinite(arrayX) && isFinite(arrayY)) {
-            return { x: arrayX, y: arrayY };
-          }
-        }
-
-        if (typeof candidate === "object") {
-          var objectX = Number(candidate.x !== undefined ? candidate.x : candidate[0]);
-          var objectY = Number(candidate.y !== undefined ? candidate.y : candidate[1]);
-          if (isFinite(objectX) && isFinite(objectY)) {
-            return { x: objectX, y: objectY };
-          }
-        }
-
-        return null;
-      }
-
-      function getCursorPosition() {
-        try {
-          if (typeof GameUI === "undefined" || GameUI === null || typeof GameUI.GetCursorPosition !== "function") return null;
-          return parsePoint(GameUI.GetCursorPosition());
-        } catch (e) {}
-        return null;
-      }
-
-      function getPanelWindowPosition(panel) {
-        if (!isValidPanel(panel)) return null;
-
-        try {
-          if (typeof panel.GetPositionWithinWindow === "function") {
-            var point = parsePoint(panel.GetPositionWithinWindow());
-            if (point) return point;
-          }
-        } catch (e0) {}
-
-        var left = Number(panel.actualxoffset || panel.actualx || 0);
-        var top = Number(panel.actualyoffset || panel.actualy || 0);
-        if (!isFinite(left)) left = 0;
-        if (!isFinite(top)) top = 0;
-        return { x: left, y: top };
-      }
-
-      function getPanelBounds(panel) {
-        if (!isValidPanel(panel)) {
-          return { left: 0, top: 0, width: 1, height: 1 };
-        }
-
-        var panelPos = getPanelWindowPosition(panel);
-        var left = panelPos ? panelPos.x : Number(panel.actualxoffset || panel.actualx || 0);
-        var top = panelPos ? panelPos.y : Number(panel.actualyoffset || panel.actualy || 0);
-        var width = Number(panel.actuallayoutwidth || panel.contentwidth || panel.width || 1);
-        var height = Number(panel.actuallayoutheight || panel.contentheight || panel.height || 1);
-
-        if (!isFinite(left)) left = 0;
-        if (!isFinite(top)) top = 0;
-        if (!isFinite(width) || width <= 0) width = 1;
-        if (!isFinite(height) || height <= 0) height = 1;
-
-        return { left: left, top: top, width: width, height: height };
-      }
-
-      function getPanelLocalCursorPosition(panel) {
-        if (!isValidPanel(panel)) return null;
-
-        var bounds = getPanelBounds(panel);
-        var panelPos = getPanelWindowPosition(panel);
-
-        try {
-          if (typeof panel.GetCursorPosition === "function") {
-            var rawPoint = parsePoint(panel.GetCursorPosition());
-            if (rawPoint) {
-              var looksLocal =
-                rawPoint.x >= 0 && rawPoint.x <= bounds.width &&
-                rawPoint.y >= 0 && rawPoint.y <= bounds.height;
-
-              if (looksLocal) {
-                return rawPoint;
-              }
-
-              if (panelPos) {
-                return {
-                  x: rawPoint.x - panelPos.x,
-                  y: rawPoint.y - panelPos.y
-                };
-              }
-
-              return rawPoint;
-            }
-          }
-        } catch (e0) {}
-
-        var screenCursor = getCursorPosition();
-        if (!screenCursor || !panelPos) return null;
-
-        return {
-          x: screenCursor.x - panelPos.x,
-          y: screenCursor.y - panelPos.y
-        };
-      }
-
-      function clampPosition(value) {
-        var next = Number(value);
-        if (!isFinite(next)) next = 0;
-        if (next < 0) next = 0;
-        if (next > 400) next = 400;
-        return Math.round(next);
-      }
-
-      function parsePosition(candidate) {
-        var x = 0;
-        var y = 200;
-        var raw = candidate;
-
-        if (raw && typeof raw === "object") {
-          if (Array.isArray(raw)) {
-            if (raw.length > 0) x = clampPosition(raw[0]);
-            if (raw.length > 1) y = clampPosition(raw[1]);
-          } else {
-            if (Object.prototype.hasOwnProperty.call(raw, "x")) x = clampPosition(raw.x);
-            if (Object.prototype.hasOwnProperty.call(raw, "y")) y = clampPosition(raw.y);
-          }
-          return { x: x, y: y };
-        }
-
-        if (typeof raw === "string") {
-          var parts = raw.match(/-?\d+(?:\.\d+)?/g);
-          if (parts && parts.length > 0) {
-            x = clampPosition(parts[0]);
-            if (parts.length > 1) y = clampPosition(parts[1]);
-            return { x: x, y: y };
-          }
-        }
-
-        if (typeof raw === "number") {
-          y = clampPosition(raw);
-          return { x: x, y: y };
-        }
-
-        return { x: x, y: y };
-      }
-
-      function normalizePosition(candidate) {
-        var parsed = parsePosition(candidate);
-        return {
-          x: clampPosition(parsed.x),
-          y: clampPosition(parsed.y)
-        };
-      }
-
-      function formatPosition(pos) {
-        var parsed = normalizePosition(pos);
-        return Math.round(parsed.x) + "," + Math.round(parsed.y);
-      }
-
-      function shortPositionLabel(pos) {
-        var parsed = normalizePosition(pos);
-        return "X " + Math.round(parsed.x / 4) + "% | Y " + Math.round(parsed.y / 4) + "%";
-      }
-
-      function detailedPositionLabel(pos) {
-        var parsed = normalizePosition(pos);
-        var rightPct = Math.round(parsed.x / 4);
-        var leftPct = Math.round((400 - parsed.x) / 4);
-        var upPct = Math.round(parsed.y / 4);
-        var downPct = Math.round((400 - parsed.y) / 4);
-        return "Left " + leftPct + "% | Right " + rightPct + "% | Down " + downPct + "% | Up " + upPct + "%";
-      }
-
-      let currentPosition = normalizePosition((config.currentValue !== undefined) ? config.currentValue : (config.defaultValue || "0,200"));
-      let positionPopupPanel = null;
-      let positionBoxFrame = null;
-      let positionBoxPanel = null;
-      let positionBoxCursor = null;
-      let positionPickerSyncing = false;
-      let positionPickerPollGeneration = 0;
-      let positionDragging = false;
-      let positionDragSource = "";
-      let positionDragIdleTicks = 0;
-      let positionDragLastX = -1;
-      let positionDragLastY = -1;
-      let positionDragAnchorX = -1;
-      let positionDragAnchorY = -1;
-      let popupPreview = null;
-      let popupValueLabel = null;
-      let popupMetaLabel = null;
-      let valueBtn = null;
-      let valueLbl = null;
-
-      function getPositionMetrics() {
-        var refPanel = isValidPanel(positionBoxFrame) ? positionBoxFrame : positionBoxPanel;
-        if (!isValidPanel(refPanel)) return null;
-
-        var bounds = getPanelBounds(refPanel);
-        var width = Number(refPanel.actuallayoutwidth || bounds.width || 240);
-        var height = Number(refPanel.actuallayoutheight || bounds.height || 240);
-        var cursorWidth = Number(isValidPanel(positionBoxCursor) ? (positionBoxCursor.actuallayoutwidth || positionBoxCursor.contentwidth || positionBoxCursor.width) : 18);
-        var cursorHeight = Number(isValidPanel(positionBoxCursor) ? (positionBoxCursor.actuallayoutheight || positionBoxCursor.contentheight || positionBoxCursor.height) : 18);
-
-        if (!isFinite(width) || width <= 1) width = 240;
-        if (!isFinite(height) || height <= 1) height = 240;
-        if (!isFinite(cursorWidth) || cursorWidth <= 0) cursorWidth = 18;
-        if (!isFinite(cursorHeight) || cursorHeight <= 0) cursorHeight = 18;
-
-        return {
-          panel: refPanel,
-          bounds: { left: bounds.left, top: bounds.top, width: width, height: height },
-          width: width,
-          height: height,
-          cursorWidth: cursorWidth,
-          cursorHeight: cursorHeight,
-          maxCursorX: Math.max(0, width - cursorWidth),
-          maxCursorY: Math.max(0, height - cursorHeight)
-        };
-      }
-
-      function applyPositionCursorVisual(cursorX, cursorY) {
-        if (!isValidPanel(positionBoxCursor)) return false;
-
-        var metrics = getPositionMetrics();
-        if (!metrics) return false;
-
-        var nextX = Number(cursorX);
-        var nextY = Number(cursorY);
-        if (!isFinite(nextX)) nextX = 0;
-        if (!isFinite(nextY)) nextY = 0;
-        if (nextX < 0) nextX = 0;
-        if (nextY < 0) nextY = 0;
-        if (nextX > metrics.maxCursorX) nextX = metrics.maxCursorX;
-        if (nextY > metrics.maxCursorY) nextY = metrics.maxCursorY;
-
-        positionDragAnchorX = nextX;
-        positionDragAnchorY = nextY;
-
-        positionBoxCursor.style.x = nextX + "px";
-        positionBoxCursor.style.y = nextY + "px";
-        positionBoxCursor.style.transform = "none";
-        positionBoxCursor.style.zIndex = "20";
-        positionBoxCursor.style.opacity = "1";
-        positionBoxCursor.style.visibility = "visible";
-        return true;
-      }
-
-      function rememberPositionDragAnchor(cursorX, cursorY) {
-        var metrics = getPositionMetrics();
-        if (!metrics) return false;
-
-        var nextX = Number(cursorX);
-        var nextY = Number(cursorY);
-        if (!isFinite(nextX) || !isFinite(nextY)) return false;
-
-        if (nextX < 0) nextX = 0;
-        if (nextY < 0) nextY = 0;
-        if (nextX > metrics.maxCursorX) nextX = metrics.maxCursorX;
-        if (nextY > metrics.maxCursorY) nextY = metrics.maxCursorY;
-
-        positionDragAnchorX = nextX;
-        positionDragAnchorY = nextY;
-        return true;
-      }
-
-      function syncPositionVisuals(positionValue, emitUpdateEvent) {
-        currentPosition = normalizePosition(positionValue);
-        var nextValue = formatPosition(currentPosition);
-        var changed = String(config.currentValue || "") !== nextValue;
-        config.currentValue = nextValue;
-
-        if (valueLbl) {
-          valueLbl.text = shortPositionLabel(currentPosition);
-        }
-
-        if (popupValueLabel) {
-          popupValueLabel.text = shortPositionLabel(currentPosition);
-        }
-
-        if (popupMetaLabel) {
-          popupMetaLabel.text = detailedPositionLabel(currentPosition);
-        }
-
-        applyPositionCursorVisualFromState();
-
-        if (emitUpdateEvent && changed) {
-          if (config.id && modTitle) {
-            emitUpdate(modTitle, config.id, nextValue);
-          }
-          if (config.onChange) config.onChange(nextValue);
-        }
-      }
-
-      function applyPositionCursorVisualFromState() {
-        var metrics = getPositionMetrics();
-        if (!metrics) return;
-
-        var cursorX = metrics.maxCursorX > 0 ? (currentPosition.x / 400) * metrics.maxCursorX : 0;
-        var cursorY = metrics.maxCursorY > 0 ? (1 - (currentPosition.y / 400)) * metrics.maxCursorY : 0;
-        applyPositionCursorVisual(cursorX, cursorY);
-      }
-
-      function getCursorPositionWithinPositionBox() {
-        if (!isValidPanel(positionBoxCursor)) return null;
-
-        var metrics = getPositionMetrics();
-        if (!metrics) return null;
-
-        function chooseLocalAxis(layoutValue, boundsValue, maxValue, allowLayoutValue) {
-          var tolerance = 1;
-          var layoutValid = !!allowLayoutValue && isFinite(layoutValue) && layoutValue >= -tolerance && layoutValue <= (maxValue + tolerance);
-          var boundsValid = isFinite(boundsValue) && boundsValue >= -tolerance && boundsValue <= (maxValue + tolerance);
-
-          if (layoutValid && boundsValid) {
-            if (Math.abs(layoutValue - boundsValue) <= 12) return layoutValue;
-            return boundsValue;
-          }
-          if (boundsValid) return boundsValue;
-          if (layoutValid) return layoutValue;
-          if (isFinite(boundsValue)) return boundsValue;
-          if (isFinite(layoutValue)) return layoutValue;
-          return 0;
-        }
-
-        var layoutX = Number(positionBoxCursor.actuallayoutx);
-        var layoutY = Number(positionBoxCursor.actuallayouty);
-        var parentMatches = !!(positionBoxCursor.GetParent && positionBoxCursor.GetParent() === metrics.panel);
-        var cursorBounds = getPanelBounds(positionBoxCursor);
-        var boundsX = cursorBounds.left - metrics.bounds.left;
-        var boundsY = cursorBounds.top - metrics.bounds.top;
-        var localX = chooseLocalAxis(layoutX, boundsX, metrics.maxCursorX, parentMatches);
-        var localY = chooseLocalAxis(layoutY, boundsY, metrics.maxCursorY, parentMatches);
-
-        if (localX < 0) localX = 0;
-        if (localY < 0) localY = 0;
-        if (localX > metrics.maxCursorX) localX = metrics.maxCursorX;
-        if (localY > metrics.maxCursorY) localY = metrics.maxCursorY;
-        rememberPositionDragAnchor(localX, localY);
-
-        return {
-          metrics: metrics,
-          x: localX,
-          y: localY
-        };
-      }
-
-      function syncFromCursorPanelPosition(emitUpdateEvent) {
-        if (!isValidPanel(positionBoxPanel) || !isValidPanel(positionBoxCursor)) return false;
-
-        var cursorPosition = getCursorPositionWithinPositionBox();
-        if (!cursorPosition) return false;
-
-        var metrics = cursorPosition.metrics;
-        var relX = metrics.maxCursorX > 0 ? clamp01(cursorPosition.x / metrics.maxCursorX) : 0;
-        var relY = metrics.maxCursorY > 0 ? clamp01(cursorPosition.y / metrics.maxCursorY) : 0;
-        var nextPosition = {
-          x: relX * 400,
-          y: (1 - relY) * 400
-        };
-
-        syncPositionVisuals(nextPosition, emitUpdateEvent);
-        return true;
-      }
-
-      function syncFromBoxPosition(boxX, boxY, emitUpdateEvent) {
-        if (!isValidPanel(positionBoxPanel)) return false;
-
-        var metrics = getPositionMetrics();
-        if (!metrics) return false;
-
-        var relX = clamp01(Number(boxX) / metrics.width);
-        var relY = clamp01(Number(boxY) / metrics.height);
-        var nextPosition = {
-          x: relX * 400,
-          y: (1 - relY) * 400
-        };
-
-        syncPositionVisuals(nextPosition, emitUpdateEvent);
-        return true;
-      }
-
-      function syncFromLocalBoxCursor(emitUpdateEvent) {
-        var localPoint = getPanelLocalCursorPosition(positionBoxPanel);
-        if (!localPoint) return false;
-        return syncFromBoxPosition(localPoint.x, localPoint.y, emitUpdateEvent);
-      }
-
-      function syncFromBestDragSource(emitUpdateEvent) {
-        if (!hasGameUI) {
-          if (syncFromLocalBoxCursor(emitUpdateEvent)) return "panel_cursor";
-          if (syncFromCursorPanelPosition(emitUpdateEvent)) return "cursor_panel";
-          return "";
-        }
-
-        if (syncFromLocalBoxCursor(emitUpdateEvent)) return "panel_cursor";
-        if (syncFromCursorPanelPosition(emitUpdateEvent)) return "drag_panel";
-        return "";
-      }
-
-      function setMouseCaptureState(active) {
-        var next = !!active;
-        if (isValidPanel(positionBoxPanel) && typeof positionBoxPanel.SetMouseCapture === "function") {
-          try { positionBoxPanel.SetMouseCapture(next); } catch (e0) {}
-        }
-        if (isValidPanel(positionBoxCursor) && typeof positionBoxCursor.SetMouseCapture === "function") {
-          try { positionBoxCursor.SetMouseCapture(next); } catch (e1) {}
-        }
-      }
-
-      function beginPositionDrag(sourceName, emitUpdateEvent) {
-        positionDragging = true;
-        positionDragSource = String(sourceName || "");
-        positionDragIdleTicks = 0;
-        positionDragLastX = -1;
-        positionDragLastY = -1;
-        if (!syncFromCursorPanelPosition(false)) {
-          applyPositionCursorVisualFromState();
-        }
-        if (emitUpdateEvent) {
-          if (!syncFromBestDragSource(true)) {
-            syncPositionVisuals(currentPosition, true);
-          }
-        }
-        setMouseCaptureState(true);
-        startPositionPolling();
-      }
-
-      function endPositionDrag() {
-        positionDragging = false;
-        positionDragSource = "";
-        positionDragIdleTicks = 0;
-        positionDragLastX = -1;
-        positionDragLastY = -1;
-        setMouseCaptureState(false);
-      }
-
-      function stopPositionPolling() {
-        positionPickerPollGeneration++;
-      }
-
-      function startPositionPolling() {
-        if (!positionPopupPanel || !positionPopupPanel.IsValid || !positionPopupPanel.IsValid()) return;
-
-        var generation = ++positionPickerPollGeneration;
-        function tick() {
-          if (generation !== positionPickerPollGeneration) return;
-          if (!positionPopupPanel || !positionPopupPanel.IsValid || !positionPopupPanel.IsValid()) return;
-
-          if (positionDragging) {
-            syncFromBestDragSource(true);
-
-            if (isValidPanel(positionBoxCursor)) {
-              var cursorBounds = getPanelBounds(positionBoxCursor);
-              if (cursorBounds.left === positionDragLastX && cursorBounds.top === positionDragLastY) {
-                positionDragIdleTicks++;
-              } else {
-                positionDragIdleTicks = 0;
-                positionDragLastX = cursorBounds.left;
-                positionDragLastY = cursorBounds.top;
-              }
-            }
-
-            if (hasGameUI && typeof GameUI.IsMouseDown === "function") {
-              if (!GameUI.IsMouseDown(0)) {
-                endPositionDrag();
-                return;
-              }
-            }
-
-            $.Schedule(0.016, tick);
-            return;
-          }
-
-          $.Schedule(0.05, tick);
-        }
-
-        $.Schedule(0.016, tick);
-      }
-
-      function closePalette() {
-        stopPositionPolling();
-        endPositionDrag();
-
-        if (positionPopupPanel && positionPopupPanel.IsValid && positionPopupPanel.IsValid()) {
-          positionPopupPanel.DeleteAsync(0);
-        }
-
-        positionPopupPanel = null;
-        positionBoxFrame = null;
-        positionBoxPanel = null;
-        positionBoxCursor = null;
-        popupPreview = null;
-        popupValueLabel = null;
-        popupMetaLabel = null;
-        positionPickerSyncing = false;
-        positionDragSource = "";
-        if (AnitaRenderer.activeColorPickerClose === closePalette) {
-          AnitaRenderer.activeColorPickerClose = null;
-        }
-      }
-
-      function openPalette() {
-        if (positionPopupPanel) {
-          closePalette();
-          return;
-        }
-
-        if (AnitaRenderer.activeColorPickerClose &&
-            AnitaRenderer.activeColorPickerClose !== closePalette) {
-          try {
-            AnitaRenderer.activeColorPickerClose();
-          } catch (closeErr) {
-            AnitaPersistence.logForConfig(config, "active picker close failed: " + closeErr);
-          }
-        }
-
-        var positionPopupParent = $.GetContextPanel();
-        positionPopupPanel = $.CreatePanel("Panel", positionPopupParent, "");
-        AnitaRenderer.activeColorPickerClose = closePalette;
-        positionPopupPanel.AddClass("AnitaColorPopup");
-        var positionPopupX = 24;
-        var positionPopupY = 0;
-        try {
-          var positionAnchorBounds = getPanelBounds(parent);
-          positionPopupY = positionAnchorBounds.top + 8;
-        } catch (e) {}
-        positionPopupPanel.style.transform = "translate3d(" + positionPopupX + "px, " + positionPopupY + "px, 0px)";
-        positionPopupPanel.style.uiScale = "100%";
-        positionPopupPanel.style.flowChildren = "down";
-        positionPopupPanel.style.ignoreParentFlow = true;
-        positionPopupPanel.SetPanelEvent("oncancel", closePalette);
-
-        const header = $.CreatePanel("Panel", positionPopupPanel, "");
-        header.AddClass("AnitaColorPopupHeader");
-
-        popupPreview = $.CreatePanel("Panel", header, "PositionPreviewBtn");
-        popupPreview.AddClass("AnitaColorPickerPreview");
-        popupPreview.AddClass("AnitaColorPopupPreview");
-        popupPreview.style.backgroundColor = "gradient( linear, 0% 0%, 100% 100%, from( #2f2f2f ), to( #575757 ) )";
-
-        popupValueLabel = $.CreatePanel("Label", header, "");
-        popupValueLabel.AddClass("AnitaColorPopupHex");
-        popupValueLabel.text = shortPositionLabel(currentPosition);
-
-        popupMetaLabel = $.CreatePanel("Label", positionPopupPanel, "");
-        popupMetaLabel.AddClass("AnitaColorPopupMeta");
-
-        const hint = $.CreatePanel("Label", positionPopupPanel, "");
-        hint.AddClass("AnitaColorPopupHint");
-        hint.text = "Drag the marker to set left/right and up/down. The value is saved as X,Y.";
-
-        const boxWrap = $.CreatePanel("Panel", positionPopupPanel, "");
-        boxWrap.AddClass("AnitaColorBoxWrap");
-
-        positionBoxFrame = $.CreatePanel("Panel", boxWrap, "");
-        positionBoxFrame.AddClass("AnitaColorBoxFrame");
-        positionBoxFrame.style.backgroundColor = "gradient( linear, 0% 0%, 100% 100%, from( #2a2a2a ), color-stop( 0.5, #404040 ), to( #242424 ) )";
-
-        const xLayer = $.CreatePanel("Panel", positionBoxFrame, "");
-        xLayer.AddClass("AnitaColorBoxHueLayer");
-        xLayer.style.backgroundColor = "gradient( linear, 0% 0%, 100% 0%, from( rgba( 255, 255, 255, 0.10 ) ), to( rgba( 0, 0, 0, 0.10 ) ) )";
-
-        const yLayer = $.CreatePanel("Panel", positionBoxFrame, "");
-        yLayer.AddClass("AnitaColorBoxSaturationLayer");
-        yLayer.style.backgroundColor = "gradient( linear, 0% 0%, 0% 100%, from( rgba( 255, 255, 255, 0.08 ) ), to( rgba( 0, 0, 0, 0.18 ) ) )";
-
-        positionBoxPanel = $.CreatePanel("Panel", positionBoxFrame, "");
-        positionBoxPanel.AddClass("AnitaColorBox");
-        positionBoxPanel.hittest = true;
-        positionBoxPanel.hittestchildren = true;
-        positionBoxPanel.style.ignoreParentFlow = true;
-        positionBoxPanel.style.width = "100%";
-        positionBoxPanel.style.height = "100%";
-        positionBoxPanel.SetPanelEvent("onmouseactivate", function () {
-          beginPositionDrag("box", true);
-        });
-        positionBoxPanel.SetPanelEvent("onactivate", function () {
-          beginPositionDrag("box", true);
-        });
-        positionBoxPanel.SetPanelEvent("onmousemove", function () {
-          if (!positionDragging) return;
-          syncFromBestDragSource(true);
-        });
-        positionBoxPanel.SetPanelEvent("onmouseup", function () {
-          endPositionDrag();
-        });
-        positionBoxPanel.SetPanelEvent("onmouseout", function () {
-          if (!positionDragging || hasGameUI) return;
-          endPositionDrag();
-        });
-
-        positionBoxCursor = $.CreatePanel("Button", positionBoxFrame, "");
-        positionBoxCursor.AddClass("AnitaColorBoxCursor");
-        positionBoxCursor.hittest = true;
-        positionBoxCursor.hittestchildren = false;
-        positionBoxCursor.style.ignoreParentFlow = true;
-        positionBoxCursor.style.align = "left top";
-        positionBoxCursor.style.visibility = "visible";
-        positionBoxCursor.style.opacity = "1";
-        if (typeof positionBoxCursor.SetDraggable === "function") {
-          try { positionBoxCursor.SetDraggable(true); } catch (e) {}
-        }
-        if (typeof positionBoxCursor.SetDisableFocusOnMouseDown === "function") {
-          try { positionBoxCursor.SetDisableFocusOnMouseDown(true); } catch (e) {}
-        }
-        positionBoxCursor.SetPanelEvent("onmouseactivate", function () {
-          beginPositionDrag("cursor", true);
-        });
-        positionBoxCursor.SetPanelEvent("onactivate", function () {
-          beginPositionDrag("cursor", true);
-        });
-        positionBoxCursor.SetPanelEvent("onmousemove", function () {
-          if (!positionDragging) return;
-          syncFromBestDragSource(true);
-        });
-        positionBoxCursor.SetPanelEvent("onmouseup", function () {
-          endPositionDrag();
-        });
-        positionBoxCursor.SetPanelEvent("onmouseout", function () {
-          if (!positionDragging || hasGameUI) return;
-          endPositionDrag();
-        });
-
-        if (typeof $.RegisterEventHandler === "function") {
-          try {
-            $.RegisterEventHandler("DragStart", positionBoxCursor, function (panel, dragEvent) {
-              if (!panel || panel !== positionBoxCursor) return;
-              if (dragEvent) {
-                dragEvent.displayPanel = positionBoxCursor;
-                dragEvent.removePositionBeforeDrop = false;
-              }
-              positionBoxCursor.style.align = "left top";
-              beginPositionDrag("drag_event", false);
-            });
-            $.RegisterEventHandler("DragEnd", positionBoxCursor, function (panel, dragEvent) {
-              if (!panel || panel !== positionBoxCursor) return;
-              endPositionDrag();
-            });
-          } catch (eDrag) {
-            AnitaPersistence.logForConfig(config, "position drag handler install failed: " + eDrag.message);
-          }
-        }
-
-        const footer = $.CreatePanel("Panel", positionPopupPanel, "");
-        footer.AddClass("AnitaColorPopupFooter");
-
-        const closeBtn = $.CreatePanel("Button", footer, "");
-        closeBtn.AddClass("AnitaColorPopupBtn");
-        const closeLbl = $.CreatePanel("Label", closeBtn, "");
-        closeLbl.text = "Close";
-        closeBtn.SetPanelEvent("onactivate", closePalette);
-
-        syncPositionVisuals(currentPosition, false);
-        $.Schedule(0.0, function () {
-          if (positionPopupPanel && positionPopupPanel.IsValid && positionPopupPanel.IsValid()) {
-            syncPositionVisuals(currentPosition, false);
-          }
-        });
-      }
-
-      valueBtn = $.CreatePanel("Button", row, "");
-      valueBtn.AddClass("AnitaCyclerBtn");
-      valueBtn.style.width = "180px";
-      valueBtn.style.marginRight = "6px";
-
-      valueLbl = $.CreatePanel("Label", valueBtn, "");
-      valueLbl.text = shortPositionLabel(currentPosition);
-
-      valueBtn.SetPanelEvent("onactivate", openPalette);
-
-      return row;
     }
   };
 
@@ -2947,6 +2245,100 @@ var AnitaUILogger = (function () {
     activeModTitle: "",
     isOpen: false,
     activeColorPickerClose: null,
+
+    findElementById: function (config, elementId) {
+      if (!config || !Array.isArray(config.elements) || !elementId) return null;
+      for (var i = 0; i < config.elements.length; i++) {
+        var element = config.elements[i];
+        if (element && element.id === elementId) return element;
+      }
+      return null;
+    },
+
+    isElementVisible: function (config, element) {
+      if (!element || !element.visibleWhen) return true;
+      var rule = element.visibleWhen;
+      var source = this.findElementById(config, rule.id);
+      if (!source) return true;
+      var current = source.currentValue;
+      if (Array.isArray(rule.equals)) {
+        for (var i = 0; i < rule.equals.length; i++) {
+          if (current === rule.equals[i]) return true;
+        }
+        return false;
+      }
+      if (Object.prototype.hasOwnProperty.call(rule, "equals")) {
+        return current === rule.equals;
+      }
+      return !!current;
+    },
+
+    applyElementVisibility: function (config, element) {
+      if (!element || !element.__anitaRowPanel || !element.__anitaRowPanel.IsValid || !element.__anitaRowPanel.IsValid()) return;
+      var visible = this.isElementVisible(config, element);
+      element.__anitaRowPanel.style.visibility = visible ? "visible" : "collapse";
+      element.__anitaRowPanel.hittest = visible;
+    },
+
+    refreshConditionalVisibility: function (config) {
+      if (!config || !Array.isArray(config.elements)) return;
+      for (var i = 0; i < config.elements.length; i++) {
+        this.applyElementVisibility(config, config.elements[i]);
+      }
+    },
+
+    hasVisibilityDependents: function (config, sourceId) {
+      if (!config || !Array.isArray(config.elements) || !sourceId) return false;
+      for (var i = 0; i < config.elements.length; i++) {
+        var element = config.elements[i];
+        if (!element || !element.visibleWhen) continue;
+        if (element.visibleWhen.id === sourceId) return true;
+      }
+      return false;
+    },
+
+    getElementCategory: function (element) {
+      var label = String((element && element.category) || "General").trim();
+      return label || "General";
+    },
+
+    getCategoryList: function (config) {
+      var categories = [];
+      var seen = {};
+      if (!config || !Array.isArray(config.elements)) return categories;
+      for (var i = 0; i < config.elements.length; i++) {
+        var category = this.getElementCategory(config.elements[i]);
+        if (seen[category]) continue;
+        seen[category] = true;
+        categories.push(category);
+      }
+      return categories;
+    },
+
+    getCategoryElements: function (config, category) {
+      var elements = [];
+      if (!config || !Array.isArray(config.elements)) return elements;
+      for (var i = 0; i < config.elements.length; i++) {
+        var element = config.elements[i];
+        if (this.getElementCategory(element) !== category) continue;
+        elements.push(element);
+      }
+      return elements;
+    },
+
+    ensureActiveCategory: function (config) {
+      var categories = this.getCategoryList(config);
+      if (categories.length === 0) {
+        config.__anitaActiveCategory = "";
+        return "";
+      }
+      var active = String(config.__anitaActiveCategory || "");
+      for (var i = 0; i < categories.length; i++) {
+        if (categories[i] === active) return active;
+      }
+      config.__anitaActiveCategory = categories[0];
+      return categories[0];
+    },
 
     getSaveCodeToken: function (config) {
       if (!config || !config.storageNamespace) return "";
@@ -3131,23 +2523,88 @@ var AnitaUILogger = (function () {
         desc.text = config.description; desc.AddClass("ModDescription");
       }
 
-      if (config.elements) {
-        config.elements.forEach(el => {
-          switch (el.type) {
-            case "toggle": AnitaComponents.createToggle(container, el, config.title); break;
-            case "stepper": AnitaComponents.createStepper(container, el, config.title); break;
-            case "slider": AnitaComponents.createSlider(container, el, config.title); break;
-            case "button": AnitaComponents.createButton(container, el, config.title); break;
-            case "cycler": AnitaComponents.createCycler(container, el, config.title); break;
-            case "positionpicker": AnitaComponents.createPositionPicker(container, el, config.title); break;
-            case "colorpicker": AnitaComponents.createColorPicker(container, el, config.title); break;
-          }
-        });
+      const shell = $.CreatePanel("Panel", container, "");
+      shell.AddClass("AnitaSettingsShell");
+
+      const treePanel = $.CreatePanel("Panel", shell, "");
+      treePanel.AddClass("AnitaTreePanel");
+
+      const treeHeader = $.CreatePanel("Label", treePanel, "");
+      treeHeader.text = "Settings";
+      treeHeader.AddClass("AnitaTreeHeader");
+
+      const treeList = $.CreatePanel("Panel", treePanel, "");
+      treeList.AddClass("AnitaTreeList");
+
+      const detailPanel = $.CreatePanel("Panel", shell, "");
+      detailPanel.AddClass("AnitaDetailPanel");
+
+      const activeCategory = this.ensureActiveCategory(config);
+      const categories = this.getCategoryList(config);
+
+      for (var c = 0; c < categories.length; c++) {
+        var category = categories[c];
+        var categoryBtn = $.CreatePanel("Button", treeList, "");
+        categoryBtn.AddClass("AnitaTreeNode");
+        categoryBtn.SetHasClass("Active", category === activeCategory);
+
+        var categoryGlyph = $.CreatePanel("Label", categoryBtn, "");
+        categoryGlyph.AddClass("AnitaTreeNodeGlyph");
+        categoryGlyph.text = category === activeCategory ? "v" : ">";
+
+        var categoryLabel = $.CreatePanel("Label", categoryBtn, "");
+        categoryLabel.AddClass("AnitaTreeNodeLabel");
+        categoryLabel.text = category;
+
+        var categoryCount = $.CreatePanel("Label", categoryBtn, "");
+        categoryCount.AddClass("AnitaTreeNodeCount");
+        categoryCount.text = String(this.getCategoryElements(config, category).length);
+
+        categoryBtn.SetPanelEvent("onactivate", function (nextCategory) {
+          return function () {
+            config.__anitaActiveCategory = nextCategory;
+            AnitaRenderer.renderModSettings(config);
+          };
+        }(category));
       }
 
-      // Footer: Save / Copy / Paste (only for mods with storageNamespace)
+      const detailHeaderRow = $.CreatePanel("Panel", detailPanel, "");
+      detailHeaderRow.AddClass("AnitaDetailHeaderRow");
+
+      const detailHeader = $.CreatePanel("Label", detailHeaderRow, "");
+      detailHeader.text = activeCategory || config.title;
+      detailHeader.AddClass("AnitaDetailHeader");
+
+      const detailHint = $.CreatePanel("Label", detailPanel, "");
+      detailHint.text = "Select a setting group from the tree on the left.";
+      detailHint.AddClass("AnitaDetailHint");
+
+      const settingsList = $.CreatePanel("Panel", detailPanel, "");
+      settingsList.AddClass("AnitaSettingsList");
+
+      if (config.elements) {
+        config.elements.forEach(el => {
+          el.__anitaRowPanel = null;
+        });
+        this.getCategoryElements(config, activeCategory).forEach(el => {
+          var row = null;
+          switch (el.type) {
+            case "toggle": row = AnitaComponents.createToggle(settingsList, el, config.title); break;
+            case "stepper": row = AnitaComponents.createStepper(settingsList, el, config.title); break;
+            case "slider": row = AnitaComponents.createSlider(settingsList, el, config.title); break;
+            case "button": row = AnitaComponents.createButton(settingsList, el, config.title); break;
+            case "cycler": row = AnitaComponents.createCycler(settingsList, el, config.title); break;
+            case "positionpicker": row = AnitaComponents.createPositionPicker(settingsList, el, config.title); break;
+            case "colorpicker": row = AnitaComponents.createColorPicker(settingsList, el, config.title); break;
+          }
+          el.__anitaRowPanel = row || null;
+        });
+        this.refreshConditionalVisibility(config);
+      }
+
+      // Footer: Copy / Reset / Import (only for mods with storageNamespace)
       if (config.storageNamespace) {
-        var footerWrap = $.CreatePanel("Panel", container, "");
+        var footerWrap = $.CreatePanel("Panel", detailPanel, "");
         footerWrap.AddClass("AnitaFooterWrap");
 
         var footer = $.CreatePanel("Panel", footerWrap, "");
@@ -3173,7 +2630,6 @@ var AnitaUILogger = (function () {
           });
         }
 
-        // Save button — bypasses debounce
         // Copy button
         var copyB = makeFooterBtn(footer, "Copy", "");
         copyB.btn.SetPanelEvent("onactivate", function () {
@@ -3191,6 +2647,19 @@ var AnitaUILogger = (function () {
             AnitaPersistence.logForConfig(config, "copy failed: " + e);
             flashLabel(copyB.btn, copyB.lbl, "Failed", 1.5);
           }
+        });
+
+        var resetB = makeFooterBtn(footer, "Reset", "");
+        resetB.btn.SetPanelEvent("onactivate", function () {
+          AnitaPersistence.applyResolvedValues(config, {});
+          AnitaPersistence.persistConfig(config, true);
+          AnitaRenderer.syncSaveCodeInput(config);
+          flashLabel(resetB.btn, resetB.lbl, "Reset", 1.5);
+          AnitaRenderer.renderModSettings(config);
+          AnitaCore.emitCurrentValues(config, {
+            update_source: "ui_reset",
+            force_persist: true
+          });
         });
 
         // Paste row — visible TextEntry the user can paste a token into, then Apply
@@ -3395,12 +2864,15 @@ var AnitaUILogger = (function () {
       if (!config) return;
       if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) return;
       AnitaRenderer.syncSaveCodeInput(config);
-      if (String(data.update_source || "") === "hp_counter_autoposition" && data.setting_id === "hp_counter_position") {
+      var isBootstrap = String(data.update_source || "") === "bridge_bootstrap";
+      if (isBootstrap) {
+        config.__anitaBootstrapReceived = true;
+      }
+      if (this.hasVisibilityDependents(config, data.setting_id)) {
         this.queueRenderRefresh(config);
         return;
       }
-      if (String(data.update_source || "") === "bridge_bootstrap") {
-        config.__anitaBootstrapReceived = true;
+      if (isBootstrap) {
         this.queueRenderRefresh(config);
         return;
       }
@@ -3454,10 +2926,12 @@ var AnitaUILogger = (function () {
     },
 
     createOverlayButton: function (parent) {
-      if (parent.FindChildTraverse(CONFIG.IDS.OVERLAY_BTN)) parent.FindChildTraverse(CONFIG.IDS.OVERLAY_BTN).DeleteAsync(0);
+      const existing = parent.FindChildTraverse(CONFIG.IDS.OVERLAY_BTN);
+      if (existing) existing.DeleteAsync(0);
 
       const btn = $.CreatePanel("Button", parent, CONFIG.IDS.OVERLAY_BTN);
       btn.AddClass("AnitaOverlayBtn");
+      this._overlayBtn = btn;
 
       btn.SetPanelEvent("onmouseover", () => $.DispatchEvent("UIShowTextTooltip", btn, "Anita-UI Settings"));
       btn.SetPanelEvent("onmouseout", () => $.DispatchEvent("UIHideTextTooltip", btn));
@@ -3466,31 +2940,54 @@ var AnitaUILogger = (function () {
     },
 
     monitorEscapeMenu: function (root) {
-      let hudPanel = root.FindChildTraverse(CONFIG.IDS.HUD_ROOT);
-      const btn = root.FindChildTraverse(CONFIG.IDS.OVERLAY_BTN);
+      let hudPanel = this._hudPanel;
+      let btn = this._overlayBtn;
+      let nextDelay = CONFIG.UI.MONITOR_INTERVAL;
 
-      if (!this._lastEscapeState) this._lastEscapeState = false;
-
-      if (!hudPanel) {
-        let p = $.GetContextPanel();
-        while (p) {
-          if (p.id === CONFIG.IDS.HUD_ROOT) { hudPanel = p; break; }
-          p = p.GetParent();
+      if (!hudPanel || !hudPanel.IsValid || !hudPanel.IsValid()) {
+        hudPanel = root.FindChildTraverse(CONFIG.IDS.HUD_ROOT);
+        if (!hudPanel) {
+          let p = $.GetContextPanel();
+          while (p) {
+            if (p.id === CONFIG.IDS.HUD_ROOT) { hudPanel = p; break; }
+            p = p.GetParent();
+          }
         }
+        this._hudPanel = hudPanel || null;
       }
+
+      if (!btn || !btn.IsValid || !btn.IsValid()) {
+        btn = root.FindChildTraverse(CONFIG.IDS.OVERLAY_BTN);
+        this._overlayBtn = btn || null;
+      }
+
+      if (typeof this._lastEscapeState !== "boolean") this._lastEscapeState = false;
 
       if (hudPanel && btn) {
         const isMenuOpen = hudPanel.BHasClass(CONFIG.CLASSES.ESCAPE_MENU);
-        btn.SetHasClass(CONFIG.CLASSES.VISIBLE, isMenuOpen);
-        btn.hittest = isMenuOpen;
+        const stateChanged = this._lastEscapeState !== isMenuOpen;
 
-        if (isMenuOpen && !this._lastEscapeState) {
-          btn.AddClass(CONFIG.CLASSES.ATTENTION);
-          $.Schedule(4.0, () => {
-            if (btn && btn.IsValid()) {
-              btn.RemoveClass(CONFIG.CLASSES.ATTENTION);
-            }
-          });
+        if (stateChanged || !btn.BHasClass(CONFIG.CLASSES.VISIBLE)) {
+          btn.SetHasClass(CONFIG.CLASSES.VISIBLE, isMenuOpen);
+        }
+        if (!!btn.hittest !== isMenuOpen) {
+          btn.hittest = isMenuOpen;
+        }
+
+        if (stateChanged) {
+          if (isMenuOpen) {
+            const attentionToken = (this._attentionToken || 0) + 1;
+            this._attentionToken = attentionToken;
+            btn.AddClass(CONFIG.CLASSES.ATTENTION);
+            $.Schedule(4.0, () => {
+              if (this._attentionToken !== attentionToken) return;
+              if (btn && btn.IsValid && btn.IsValid()) {
+                btn.RemoveClass(CONFIG.CLASSES.ATTENTION);
+              }
+            });
+          } else {
+            btn.RemoveClass(CONFIG.CLASSES.ATTENTION);
+          }
         }
 
         this._lastEscapeState = isMenuOpen;
@@ -3499,9 +2996,13 @@ var AnitaUILogger = (function () {
           AnitaRenderer.toggle(false);
           Logger.debug("Window closed by escape menu");
         }
+
+        nextDelay = isMenuOpen ? CONFIG.UI.MONITOR_INTERVAL : Math.max(CONFIG.UI.MONITOR_INTERVAL * 8, 0.25);
+      } else {
+        nextDelay = Math.max(CONFIG.UI.MONITOR_INTERVAL * 4, 0.2);
       }
 
-      $.Schedule(0.05, () => this.monitorEscapeMenu(root));
+      $.Schedule(nextDelay, () => this.monitorEscapeMenu(root));
     },
 
     getRoot: function (p) {

@@ -14,6 +14,7 @@
 
 # Temp files
 *.tmp
+_temp/
 
 # Editor/System files
 .vscode/
