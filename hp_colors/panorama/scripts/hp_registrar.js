@@ -8,6 +8,10 @@
   var didRequestBootstrap = false;
   var registerAttempts = 0;
 
+  function log(message) {
+    $.Msg("[HP Registrar] " + message);
+  }
+
   var SCHEMA = [
     { type: "toggle", id: "hp_enabled", label: "Enable", defaultValue: true, category: "Behavior" },
     { type: "cycler", id: "hp_mode", label: "Mode", options: ["Fixed", "Gradient"], defaultValue: 1, category: "Behavior" },
@@ -59,6 +63,8 @@
 
   function tryDirectRegister(config) {
     var root = getRootPanel();
+    log("tryDirectRegister root=" + String((root && root.id) || "root") +
+      " hasAnitaUI=" + String(!!(root && root.AnitaUI)));
     if (!root || !root.AnitaUI) return false;
     if (typeof root.AnitaUI.IsReady === "function" && !root.AnitaUI.IsReady()) return false;
     if (typeof root.AnitaUI.Register !== "function") return false;
@@ -68,6 +74,7 @@
   }
 
   function dispatchRegister(config) {
+    log("dispatch register via event elements=" + String((config && config.elements && config.elements.length) || 0));
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
       magic_word: "ANITA_REGISTER",
       config: config
@@ -77,6 +84,7 @@
   function requestBootstrap(reason) {
     if (didRequestBootstrap) return;
     didRequestBootstrap = true;
+    log("request bootstrap reason=" + String(reason || "registrar_handshake"));
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
       magic_word: "ANITA_REQUEST_BOOTSTRAP",
       mod_title: TITLE,
@@ -90,25 +98,27 @@
 
     var config = buildConfig();
     var usedDirect = false;
+    log("register attempt=" + String(registerAttempts + 1));
 
     try {
       usedDirect = tryDirectRegister(config);
     } catch (e0) {
-      $.Msg("[HP Registrar] Direct register failed: " + e0);
+      log("Direct register failed: " + e0);
     }
 
     if (!usedDirect) {
       try {
         dispatchRegister(config);
       } catch (e1) {
-        $.Msg("[HP Registrar] Event register failed: " + e1);
+        log("Event register failed: " + e1);
       }
     } else {
       didRegister = true;
+      log("direct register succeeded");
       try {
         dispatchRegister(config);
       } catch (e2) {
-        $.Msg("[HP Registrar] Bridge announce failed: " + e2);
+        log("Bridge announce failed: " + e2);
       }
     }
   }
@@ -128,17 +138,20 @@
       var data = (typeof payload === "string") ? JSON.parse(payload) : payload;
       if (!data) return;
       if (data.magic_word === "ANITA_ALIVE") {
+        log("received ANITA_ALIVE");
         register();
       } else if (data.magic_word === "ANITA_HANDSHAKE" && data.mod_title === TITLE) {
         didRegister = true;
+        log("received handshake");
         requestBootstrap("registrar_handshake");
       }
     } catch (e) {
-      $.Msg("[HP Registrar] Error: " + e);
+      log("Error: " + e);
     }
   });
 
   $.Schedule(0.05, function () {
+    log("startup context=" + String(($.GetContextPanel() && $.GetContextPanel().id) || "panel"));
     register();
     queueRegisterRetry();
   });

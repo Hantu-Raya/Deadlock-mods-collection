@@ -166,6 +166,9 @@
   var BOOTSTRAP_NAMESPACE = "hp_colors";
   var BOOTSTRAP_MAX_ATTEMPTS = 8;
   var BOOTSTRAP_RETRY_SEC = 0.5;
+  var SESSION_STORAGE_KEY = "anita_v1_hp_colors";
+  var CONVAR_KEY = "deadlock_hero_debuts_seen";
+  var TOKEN_PREFIX = "ANITA-v1-";
   var SHARED_CFG_RAW_KEY = "hpColorsRuntimeCfgRaw";
   var SHARED_CFG_REV_KEY = "hpColorsRuntimeCfgRev";
   var bootstrapApplied = false;
@@ -174,6 +177,7 @@
   var bootstrapLoopActive = false;
   var settingsDirty = true;
   var sharedCfgRaw = "";
+  var directBootstrapMisses = 0;
 
   function devLog(message) {
     if (!DEV_LOG) return;
@@ -287,6 +291,189 @@
     return applySharedSnapshot(snapshot, reason || "shared_cache");
   }
 
+  function decodeBase64Url(str) {
+    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    var lookup = {};
+    for (var i = 0; i < chars.length; i++) lookup[chars.charAt(i)] = i;
+
+    function getVal(ch) {
+      if (ch === undefined) return 0;
+      if (!Object.prototype.hasOwnProperty.call(lookup, ch)) {
+        throw new Error("Invalid base64url char: " + ch);
+      }
+      return lookup[ch];
+    }
+
+    var decodedBytes = [];
+    for (var j = 0; j < str.length; j += 4) {
+      var c0 = getVal(str[j]);
+      var c1 = getVal(str[j + 1]);
+      var c2 = str[j + 2] !== undefined ? getVal(str[j + 2]) : 0;
+      var c3 = str[j + 3] !== undefined ? getVal(str[j + 3]) : 0;
+      decodedBytes.push((c0 << 2) | (c1 >> 4));
+      if (str[j + 2] !== undefined) decodedBytes.push(((c1 & 15) << 4) | (c2 >> 2));
+      if (str[j + 3] !== undefined) decodedBytes.push(((c2 & 3) << 6) | c3);
+    }
+
+    var out = "";
+    for (var k = 0; k < decodedBytes.length; k++) {
+      var b = decodedBytes[k];
+      if (b < 128) {
+        out += String.fromCharCode(b);
+      } else if (b < 224) {
+        out += String.fromCharCode(((b & 31) << 6) | (decodedBytes[++k] & 63));
+      } else {
+        var cont2 = decodedBytes[++k];
+        var cont3 = decodedBytes[++k];
+        out += String.fromCharCode(((b & 15) << 12) | ((cont2 & 63) << 6) | (cont3 & 63));
+      }
+    }
+    return out;
+  }
+
+  function parseStoredCfgPayload(raw, source) {
+    var text = String(raw || "");
+    if (!text) return null;
+
+    var parsed = null;
+    try {
+      parsed = JSON.parse(text);
+    } catch (eParse) {
+      devLog("direct bootstrap parse failed source=" + String(source || "unknown") + " err=" + String(eParse));
+      return null;
+    }
+
+    if (!parsed || typeof parsed !== "object" || !parsed.values || typeof parsed.values !== "object") {
+      devLog("direct bootstrap payload invalid source=" + String(source || "unknown"));
+      return null;
+    }
+
+    var snapshot = {};
+    for (var id in DEFAULTS) {
+      if (!Object.prototype.hasOwnProperty.call(DEFAULTS, id)) continue;
+      if (!Object.prototype.hasOwnProperty.call(parsed.values, id)) continue;
+      snapshot[id] = coerceCfgValue(id, parsed.values[id]);
+    }
+
+    return {
+      source: String(source || "unknown"),
+      snapshot: snapshot
+    };
+  }
+
+  function getSessionMirrorEncoded() {
+    var root = getRootPanel();
+    var rootEncoded = "";
+    var hudEncoded = "";
+
+    try {
+      if (root && root.GetAttributeString) {
+        rootEncoded = String(root.GetAttributeString(SESSION_STORAGE_KEY, "") || "");
+      }
+    } catch (eRoot) {}
+
+    try {
+      var hud = root && root.FindChildTraverse ? root.FindChildTraverse("Hud") : null;
+      if (hud && hud.GetAttributeString) {
+        hudEncoded = String(hud.GetAttributeString(SESSION_STORAGE_KEY, "") || "");
+      }
+    } catch (eHud) {}
+
+    return rootEncoded || hudEncoded || "";
+  }
+
+  function readSessionMirrorPayload() {
+    var encoded = getSessionMirrorEncoded();
+    if (!encoded) return null;
+
+    try {
+      return parseStoredCfgPayload(decodeBase64Url(encoded), "session_mirror");
+    } catch (eDecode) {
+      devLog("direct bootstrap decode failed source=session_mirror err=" + String(eDecode));
+      return null;
+    }
+  }
+
+  function hasPersistentStorage() {
+    try {
+      return !!($ && $.persistentStorage &&
+        typeof $.persistentStorage.getItem === "function" &&
+        typeof $.persistentStorage.setItem === "function");
+    } catch (eStorage) {
+      return false;
+    }
+  }
+
+  function readPersistentStoragePayload() {
+    if (!hasPersistentStorage()) return null;
+
+    var encoded = "";
+    try {
+      encoded = String($.persistentStorage.getItem(SESSION_STORAGE_KEY) || "");
+    } catch (eRead) {
+      devLog("direct bootstrap persistentStorage read failed err=" + String(eRead));
+      return null;
+    }
+    if (!encoded) return null;
+
+    try {
+      return parseStoredCfgPayload(decodeBase64Url(encoded), "persistentStorage");
+    } catch (eDecode) {
+      devLog("direct bootstrap decode failed source=persistentStorage err=" + String(eDecode));
+      return null;
+    }
+  }
+
+  function readConvarPayload() {
+    if (typeof GameInterfaceAPI === "undefined" ||
+        !GameInterfaceAPI ||
+        typeof GameInterfaceAPI.GetSettingString !== "function") {
+      return null;
+    }
+
+    var convarRaw = "";
+    try {
+      convarRaw = String(GameInterfaceAPI.GetSettingString("deadlock_hero_debuts_seen") || "");
+    } catch (eRead) {
+      devLog("direct bootstrap convar read failed err=" + String(eRead));
+      return null;
+    }
+
+    var tokenMatch = convarRaw.match(/\[ANITA-v1-hp_colors\]:([A-Za-z0-9_-]+)/);
+    if (!tokenMatch) return null;
+
+    try {
+      return parseStoredCfgPayload(decodeBase64Url(String(tokenMatch[1] || "")), "convar");
+    } catch (eDecode) {
+      devLog("direct bootstrap decode failed source=convar err=" + String(eDecode));
+      return null;
+    }
+  }
+
+  function tryApplyDirectBootstrap(reason) {
+    var payload = readSessionMirrorPayload();
+    if (!payload) payload = readPersistentStoragePayload();
+    if (!payload) payload = readConvarPayload();
+
+    if (!payload || !payload.snapshot) {
+      directBootstrapMisses += 1;
+      if (directBootstrapMisses === 1 || directBootstrapMisses % 8 === 0) {
+        devLog("direct bootstrap miss reason=" + String(reason || "request") +
+          " miss_count=" + String(directBootstrapMisses) +
+          " storage=" + String(hasPersistentStorage() ? 1 : 0));
+      }
+      return false;
+    }
+
+    directBootstrapMisses = 0;
+    if (!applySharedSnapshot(payload.snapshot, "direct_" + payload.source)) {
+      return bootstrapApplied;
+    }
+    writeSharedSnapshot("direct_" + payload.source);
+    devLog("direct bootstrap applied source=" + payload.source + " reason=" + String(reason || "request"));
+    return true;
+  }
+
   function requestBootstrap(reason) {
     var root = getRootPanel();
     var now = Date.now ? Date.now() : (new Date()).getTime();
@@ -314,6 +501,10 @@
       bootstrapLoopActive = false;
       return;
     }
+    if (tryApplySharedSnapshot("retry_shared") || tryApplyDirectBootstrap("retry_local")) {
+      bootstrapLoopActive = false;
+      return;
+    }
     if (bootstrapAttempts >= BOOTSTRAP_MAX_ATTEMPTS) {
       bootstrapFinished = true;
       bootstrapLoopActive = false;
@@ -334,6 +525,10 @@
       bootstrapAttempts = 0;
       bootstrapFinished = false;
     }
+    if (tryApplySharedSnapshot(String(reason || "request") + "_shared") ||
+        tryApplyDirectBootstrap(String(reason || "request") + "_local")) {
+      return;
+    }
     if (bootstrapLoopActive) return;
     devLog("ensure bootstrap reason=" + String(reason || "request") + " reset=" + String(!!resetAttempts) + " finished=" + String(bootstrapFinished));
     bootstrapLoopActive = true;
@@ -347,9 +542,22 @@
       if (!d || d.mod_title !== TITLE) return;
 
       if (d.magic_word === "ANITA_UPDATE") {
-        devLog("received update source=" + String(d.update_source || "unknown") + " setting=" + String(d.setting_id || "") + " value=" + String(d.value));
+        var nextValue = null;
         if (Object.prototype.hasOwnProperty.call(DEFAULTS, d.setting_id)) {
-          cfg[d.setting_id] = coerceCfgValue(d.setting_id, d.value);
+          nextValue = coerceCfgValue(d.setting_id, d.value);
+        }
+        var isSyncSource = d.update_source === "bridge_bootstrap" ||
+          d.update_source === "ui_resync" ||
+          d.update_source === "ui_reset" ||
+          d.update_source === "ui_code_apply" ||
+          d.update_source === "core_auto_resync";
+        var valueChanged = Object.prototype.hasOwnProperty.call(DEFAULTS, d.setting_id) &&
+          cfg[d.setting_id] !== nextValue;
+        if (valueChanged || d.update_source !== "core_auto_resync") {
+          devLog("received update source=" + String(d.update_source || "unknown") + " setting=" + String(d.setting_id || "") + " value=" + String(d.value));
+        }
+        if (valueChanged) {
+          cfg[d.setting_id] = nextValue;
           refreshDerivedState();
           invalidateComputedState(
             d.setting_id === "hp_counter_size" ||
@@ -361,10 +569,7 @@
           );
           writeSharedSnapshot(d.update_source || "update");
         }
-        if (d.update_source === "bridge_bootstrap" ||
-            d.update_source === "ui_resync" ||
-            d.update_source === "ui_reset" ||
-            d.update_source === "ui_code_apply") {
+        if (isSyncSource) {
           bootstrapApplied = true;
           bootstrapFinished = true;
           bootstrapLoopActive = false;
@@ -731,7 +936,9 @@
     resetScanCache();
     settingsDirty = true;
     devLog("reset style state for new panels");
-    if (!bootstrapApplied && !tryApplySharedSnapshot("overlay_panel_churn")) {
+    if (!bootstrapApplied &&
+        !tryApplySharedSnapshot("overlay_panel_churn") &&
+        !tryApplyDirectBootstrap("overlay_panel_churn")) {
       ensureBootstrapSync("overlay_panel_churn", true);
     }
   }
@@ -861,7 +1068,9 @@
       ensureScanState(now);
       var isEnemy = !!(fl & 1) && !(fl & 2);
       if (!bootstrapApplied) {
-        tryApplySharedSnapshot("overlay_tick");
+        if (!tryApplySharedSnapshot("overlay_tick")) {
+          tryApplyDirectBootstrap("overlay_tick");
+        }
       }
       if (isEnemy && !bootstrapApplied && !bootstrapLoopActive) {
         ensureBootstrapSync("overlay_enemy_detected", bootstrapFinished);
@@ -1000,7 +1209,10 @@
   gL();
   lL();
   $.Schedule(0.05, function () {
-    tryApplySharedSnapshot("overlay_startup");
+    devLog("overlay startup context=" + String(($.GetContextPanel() && $.GetContextPanel().id) || "panel"));
+    if (!tryApplySharedSnapshot("overlay_startup")) {
+      tryApplyDirectBootstrap("overlay_startup");
+    }
     ensureBootstrapSync("overlay_startup", false);
   });
 })();
