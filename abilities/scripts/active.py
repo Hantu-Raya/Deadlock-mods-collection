@@ -78,6 +78,24 @@ def append_behavior_bits(block, extra_bits):
     replacement = f"{match.group(1)}{updated_bits}{match.group(3)}"
     return block[:match.start()] + replacement + block[match.end():], True
 
+def remove_behavior_bits(block, extra_bits):
+    match = re.search(
+        r'(?m)^(\s*m_AbilityBehaviorsBits\s*=\s*")([^"]*)("\s*)$',
+        block,
+    )
+    if not match:
+        return block, False
+
+    current_bits = [part.strip() for part in match.group(2).split('|') if part.strip()]
+    updated_bits = [bit for bit in current_bits if bit not in extra_bits]
+
+    if updated_bits == current_bits:
+        return block, False
+
+    replacement_bits = " | ".join(updated_bits)
+    replacement = f"{match.group(1)}{replacement_bits}{match.group(3)}"
+    return block[:match.start()] + replacement + block[match.end():], True
+
 def set_targeting_location(block, targeting_value):
     match = re.search(
         r'(?m)^(\s*m_eAbilityTargetingLocation\s*=\s*")([^"]*)("\s*)$',
@@ -114,6 +132,16 @@ def set_targeting_location(block, targeting_value):
     replacement = f'{match.group(1)}{targeting_value}{match.group(3)}'
     return block[:match.start()] + replacement + block[match.end():], True
 
+def remove_targeting_location(block, targeting_value):
+    match = re.search(
+        r'(?m)^(\s*m_eAbilityTargetingLocation\s*=\s*")([^"]*)("\s*)$',
+        block,
+    )
+    if not match or match.group(2) != targeting_value:
+        return block, False
+
+    return block[:match.start()] + block[match.end():], True
+
 def iter_record_spans(content):
     lines = content.splitlines(keepends=True)
     header_pattern = re.compile(r'^[ \t][A-Za-z0-9_]+\s*=\s*$')
@@ -146,7 +174,7 @@ def iter_record_spans(content):
     if block_start is not None:
         yield block_start, len(content), content[block_start:]
 
-def add_passive_item_flag(file_path, output_path=None):
+def add_passive_item_flag(file_path, output_path=None, enable_behavior_bits=True):
     with open(file_path, 'r') as file:
         content = file.read()
 
@@ -157,13 +185,20 @@ def add_passive_item_flag(file_path, output_path=None):
     for start, end, block in iter_record_spans(content):
         block_modified = False
 
-        if any(name in block for name in ADD_BEHAVIOR_BITS_ABILITIES):
-            block, behavior_modified = append_behavior_bits(block, ADD_BEHAVIOR_BITS)
-            block_modified = block_modified or behavior_modified
+        matches_behavior_bits = any(name in block for name in ADD_BEHAVIOR_BITS_ABILITIES)
+        if matches_behavior_bits:
+            if enable_behavior_bits:
+                block, behavior_modified = append_behavior_bits(block, ADD_BEHAVIOR_BITS)
+                block_modified = block_modified or behavior_modified
 
-        if any(name in block for name in ADD_BEHAVIOR_BITS_ABILITIES):
-            block, targeting_modified = set_targeting_location(block, TARGETING_LOCATION_VALUE)
-            block_modified = block_modified or targeting_modified
+                block, targeting_modified = set_targeting_location(block, TARGETING_LOCATION_VALUE)
+                block_modified = block_modified or targeting_modified
+            else:
+                block, behavior_modified = remove_behavior_bits(block, ADD_BEHAVIOR_BITS)
+                block_modified = block_modified or behavior_modified
+
+                block, targeting_modified = remove_targeting_location(block, TARGETING_LOCATION_VALUE)
+                block_modified = block_modified or targeting_modified
 
         if '_upgrade_' in block and '_multibase' in block:
             matched_remove = next((name for name in REMOVE_FLAG_UPGRADES if name in block), None)
