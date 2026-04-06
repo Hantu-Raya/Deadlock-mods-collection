@@ -335,6 +335,7 @@ var AnitaUILogger = (function () {
           typeof $.persistentStorage.getItem === "function" &&
           typeof $.persistentStorage.setItem === "function");
       } catch (eStorage) {
+        return false;
       }
     },
 
