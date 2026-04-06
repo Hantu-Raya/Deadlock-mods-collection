@@ -1,3 +1,8 @@
+Always use the `sequentialthinking` MCP tool for non-trivial reasoning, planning, debugging, and design comparison before taking action.
+
+Skip it only for trivial one-step requests, simple factual lookups, or straightforward command execution where extra decomposition adds no value.
+
+When using `sequentialthinking`, keep thoughts concise, advance them step by step, and revise earlier thoughts explicitly when new evidence changes the plan.
 # AGENT GUIDE: Deadlock Mods Collection
 
 Project type: Source 2 Panorama UI mods plus VData processing utilities.
@@ -47,12 +52,15 @@ dotnet publish Compiler.csproj -c Release -r win-x64 --self-contained true -p:Pu
 cd F:\Users\Shiv\Desktop\Deadlock-mods-collection\abilities\scripts
 py passive.py abilities2.vdata
 py active.py abilities.vdata
+py active_no_behavior.py abilities.vdata
 ```
 Batch wrappers:
 ```powershell
 abilities\scripts\passive.bat
 abilities\scripts\active.bat
+abilities\scripts\active_no_behavior.bat
 ```
+Pack all three variants with `build_abilities_paks.ps1` when you need the staged VPKs and dated archives.
 
 ### Lint/Test status
 - No repository-wide lint command is defined.
@@ -167,3 +175,4 @@ There is no formal single test command. Use this focused loop:
 
 ## Reverse Engineering
 - When analyzing shipped binaries or runtime behavior, prefer the `ida-pro` MCP server in Codex if it is available.
+
