@@ -3,6 +3,7 @@
 
   // â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var TITLE = "HP Colors";
+  var DEV_LOG = true;
   var DEFAULTS = {
     hp_enabled: true,
     hp_mode: 1,
@@ -165,10 +166,27 @@
   var BOOTSTRAP_NAMESPACE = "hp_colors";
   var BOOTSTRAP_MAX_ATTEMPTS = 8;
   var BOOTSTRAP_RETRY_SEC = 0.5;
+  var SHARED_CFG_RAW_KEY = "hpColorsRuntimeCfgRaw";
+  var SHARED_CFG_REV_KEY = "hpColorsRuntimeCfgRev";
   var bootstrapApplied = false;
   var bootstrapAttempts = 0;
   var bootstrapFinished = false;
+  var bootstrapLoopActive = false;
   var settingsDirty = true;
+  var sharedCfgRaw = "";
+
+  function devLog(message) {
+    if (!DEV_LOG) return;
+    $.Msg("[HP Colors][Overlay] " + message);
+  }
+
+  function panelId(panel, fallback) {
+    try {
+      return String((panel && panel.id) || fallback || "panel");
+    } catch (ePanel) {
+      return String(fallback || "panel");
+    }
+  }
 
   function getRootPanel() {
     var panel = $.GetContextPanel();
@@ -176,6 +194,97 @@
       panel = panel.GetParent();
     }
     return panel || null;
+  }
+
+  function getSharedStore() {
+    try {
+      if (typeof GameUI === "object" && GameUI && typeof GameUI.CustomUIConfig === "function") {
+        var customUiConfig = GameUI.CustomUIConfig();
+        if (customUiConfig && typeof customUiConfig === "object") {
+          return customUiConfig;
+        }
+      }
+    } catch (eCfg) {}
+    return getRootPanel();
+  }
+
+  function snapshotCfg() {
+    var out = {};
+    for (var id in DEFAULTS) {
+      if (!Object.prototype.hasOwnProperty.call(DEFAULTS, id)) continue;
+      out[id] = cfg[id];
+    }
+    return out;
+  }
+
+  function applySharedSnapshot(snapshot, reason) {
+    if (!snapshot || typeof snapshot !== "object") return false;
+
+    var changed = false;
+    for (var id in DEFAULTS) {
+      if (!Object.prototype.hasOwnProperty.call(DEFAULTS, id)) continue;
+      if (!Object.prototype.hasOwnProperty.call(snapshot, id)) continue;
+      var nextValue = coerceCfgValue(id, snapshot[id]);
+      if (cfg[id] !== nextValue) {
+        cfg[id] = nextValue;
+        changed = true;
+      }
+    }
+
+    if (!changed && bootstrapApplied) return false;
+
+    refreshDerivedState();
+    invalidateComputedState(true);
+    bootstrapApplied = true;
+    bootstrapFinished = true;
+    bootstrapLoopActive = false;
+    devLog("shared cache applied source=" + String(reason || "shared_cache"));
+    return true;
+  }
+
+  function writeSharedSnapshot(reason) {
+    var store = getSharedStore();
+    if (!store) return;
+
+    var raw = "";
+    try {
+      raw = JSON.stringify(snapshotCfg());
+    } catch (eJson) {
+      raw = "";
+    }
+    if (!raw || raw === sharedCfgRaw) return;
+
+    sharedCfgRaw = raw;
+    try {
+      store[SHARED_CFG_RAW_KEY] = raw;
+      store[SHARED_CFG_REV_KEY] = Math.max(0, Math.floor(Number(store[SHARED_CFG_REV_KEY]) || 0)) + 1;
+      devLog("shared cache write source=" + String(reason || "update") + " rev=" + String(store[SHARED_CFG_REV_KEY]));
+    } catch (eStore) {}
+  }
+
+  function tryApplySharedSnapshot(reason) {
+    var store = getSharedStore();
+    if (!store) return false;
+
+    var raw = "";
+    try {
+      raw = String(store[SHARED_CFG_RAW_KEY] || "");
+    } catch (eRead) {
+      raw = "";
+    }
+    if (!raw) return false;
+    if (raw === sharedCfgRaw && bootstrapApplied) return false;
+
+    var snapshot = null;
+    try {
+      snapshot = JSON.parse(raw);
+    } catch (eParse) {
+      devLog("shared cache parse failed reason=" + String(reason || "shared_cache") + " err=" + String(eParse));
+      return false;
+    }
+
+    sharedCfgRaw = raw;
+    return applySharedSnapshot(snapshot, reason || "shared_cache");
   }
 
   function requestBootstrap(reason) {
@@ -190,6 +299,7 @@
     } catch (eRate) {}
 
     try {
+      devLog("request bootstrap reason=" + String(reason || "overlay_request") + " next_attempt=" + String(bootstrapAttempts + 1));
       $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
         magic_word: "ANITA_REQUEST_BOOTSTRAP",
         mod_title: TITLE,
@@ -199,16 +309,35 @@
     } catch (e) {}
   }
 
-  function scheduleBootstrapRetry() {
-    if (bootstrapApplied || bootstrapFinished) return;
+  function scheduleBootstrapRetry(reason) {
+    if (bootstrapApplied || bootstrapFinished) {
+      bootstrapLoopActive = false;
+      return;
+    }
     if (bootstrapAttempts >= BOOTSTRAP_MAX_ATTEMPTS) {
       bootstrapFinished = true;
+      bootstrapLoopActive = false;
+      devLog("bootstrap retries exhausted applied=" + String(bootstrapApplied));
       return;
     }
 
     bootstrapAttempts += 1;
-    requestBootstrap(bootstrapAttempts === 1 ? "overlay_startup" : "overlay_retry");
-    $.Schedule(BOOTSTRAP_RETRY_SEC, scheduleBootstrapRetry);
+    requestBootstrap(bootstrapAttempts === 1 ? String(reason || "overlay_startup") : "overlay_retry");
+    $.Schedule(BOOTSTRAP_RETRY_SEC, function () {
+      scheduleBootstrapRetry(reason);
+    });
+  }
+
+  function ensureBootstrapSync(reason, resetAttempts) {
+    if (bootstrapApplied) return;
+    if (resetAttempts) {
+      bootstrapAttempts = 0;
+      bootstrapFinished = false;
+    }
+    if (bootstrapLoopActive) return;
+    devLog("ensure bootstrap reason=" + String(reason || "request") + " reset=" + String(!!resetAttempts) + " finished=" + String(bootstrapFinished));
+    bootstrapLoopActive = true;
+    scheduleBootstrapRetry(reason);
   }
 
   // Live updates from Anita UI, including boot-time bootstrap values.
@@ -218,6 +347,7 @@
       if (!d || d.mod_title !== TITLE) return;
 
       if (d.magic_word === "ANITA_UPDATE") {
+        devLog("received update source=" + String(d.update_source || "unknown") + " setting=" + String(d.setting_id || "") + " value=" + String(d.value));
         if (Object.prototype.hasOwnProperty.call(DEFAULTS, d.setting_id)) {
           cfg[d.setting_id] = coerceCfgValue(d.setting_id, d.value);
           refreshDerivedState();
@@ -229,10 +359,16 @@
             d.setting_id === "hp_text_color_mid" ||
             d.setting_id === "hp_text_color_high"
           );
+          writeSharedSnapshot(d.update_source || "update");
         }
-        if (d.update_source === "bridge_bootstrap") {
+        if (d.update_source === "bridge_bootstrap" ||
+            d.update_source === "ui_resync" ||
+            d.update_source === "ui_reset" ||
+            d.update_source === "ui_code_apply") {
           bootstrapApplied = true;
           bootstrapFinished = true;
+          bootstrapLoopActive = false;
+          devLog("bootstrap satisfied source=" + String(d.update_source));
           try {
             var root = getRootPanel();
             if (root) root.__hpColorsBootstrapAppliedAt = Date.now ? Date.now() : (new Date()).getTime();
@@ -335,6 +471,7 @@
         cp = nextCp;
         lastUiPanel = ui;
         lastCpPanel = cp;
+        devLog("panel churn ui=" + panelId(ui, "ult_icon") + " cp=" + panelId(cp, "counter_parent"));
         resetStyleStateForNewPanels();
       }
       return 1;
@@ -384,6 +521,7 @@
         lastLbpPanel = lbp;
         lastUiPanel = ui;
         lastCpPanel = cp;
+        devLog("panel cache rebuilt rb=" + panelId(rb, "rb") + " us=" + panelId(us, "UnitStatus") + " hc=" + panelId(hc, "hp_counter"));
         resetStyleStateForNewPanels();
       }
       cached = 1;
@@ -592,12 +730,17 @@
     lCounterLowMode = false;
     resetScanCache();
     settingsDirty = true;
+    devLog("reset style state for new panels");
+    if (!bootstrapApplied && !tryApplySharedSnapshot("overlay_panel_churn")) {
+      ensureBootstrapSync("overlay_panel_churn", true);
+    }
   }
 
   function applyCurrentSettings(isEnemy) {
     sHBV(!isEnemy || derived.bgVisible);
     sHCS(lCounterLowMode, lCounterText);
     settingsDirty = false;
+    devLog("apply current settings isEnemy=" + String(!!isEnemy) + " team=" + String(tid) + " flags=" + String(fl) + " mode=" + String(cfg.hp_mode) + " teamColors=" + String(!!cfg.hp_team_colors));
   }
 
   // Decode max HP from pip label string (e.g. "|||| ..." â†’ 2000)
@@ -717,6 +860,12 @@
 
       ensureScanState(now);
       var isEnemy = !!(fl & 1) && !(fl & 2);
+      if (!bootstrapApplied) {
+        tryApplySharedSnapshot("overlay_tick");
+      }
+      if (isEnemy && !bootstrapApplied && !bootstrapLoopActive) {
+        ensureBootstrapSync("overlay_enemy_detected", bootstrapFinished);
+      }
       if (settingsDirty) applyCurrentSettings(isEnemy);
       else sHBV(!isEnemy || derived.bgVisible);
 
@@ -850,5 +999,8 @@
 
   gL();
   lL();
-  $.Schedule(0.05, scheduleBootstrapRetry);
+  $.Schedule(0.05, function () {
+    tryApplySharedSnapshot("overlay_startup");
+    ensureBootstrapSync("overlay_startup", false);
+  });
 })();
