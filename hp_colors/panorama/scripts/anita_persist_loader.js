@@ -5,7 +5,7 @@
   var STORAGE_NAMESPACE = "hp_colors";
   var STORAGE_KEY = "anita_v1_hp_colors";
   var PERSIST_DEBOUNCE_SEC = 0.35;
-  var PERSISTENCE_DEBUG = false;
+  var PERSISTENCE_DEBUG = true;
 
   var bridgeConfig = null;
   var currentValues = null;
@@ -477,15 +477,22 @@
     }
 
     var stored = readStoredPayload();
-    if (!stored) {
-      log("bootstrap no stored payload source=" + reason);
+    if (stored) {
+      currentValues = cloneValues(stored.values);
+      persistedValues = cloneValues(stored.values);
+      writeSessionMirror(stored.encoded);
+      replayValues(stored.values, reason + ":" + stored.source);
       return;
     }
 
-    currentValues = cloneValues(stored.values);
-    persistedValues = cloneValues(stored.values);
-    writeSessionMirror(stored.encoded);
-    replayValues(stored.values, reason + ":" + stored.source);
+    var sessionValues = currentValues || persistedValues;
+    if (sessionValues) {
+      replayValues(sessionValues, reason + ":session");
+      log("bootstrap session replay source=" + reason);
+      return;
+    }
+
+    log("bootstrap no stored payload source=" + reason);
   }
 
   function scheduleBootstrap(reason) {
@@ -534,6 +541,7 @@
       if (!data) return;
 
       if (data.magic_word === "ANITA_REGISTER") {
+        log("received register");
         if (captureConfig(data.config) && pendingBootstrapReason) {
           scheduleBootstrap(pendingBootstrapReason);
         }
@@ -543,12 +551,14 @@
       if (data.magic_word === "ANITA_REQUEST_BOOTSTRAP") {
         if (data.mod_title !== TITLE) return;
         if (normalizeNamespace(data.storageNamespace) !== STORAGE_NAMESPACE) return;
+        log("received bootstrap request reason=" + String(data.reason || "request"));
         scheduleBootstrap(String(data.reason || "request"));
         return;
       }
 
       if (data.magic_word !== "ANITA_UPDATE" || data.mod_title !== TITLE) return;
       if (!bridgeConfig || !data.setting_id) return;
+      log("received update source=" + String(data.update_source || "unknown") + " setting=" + String(data.setting_id) + " value=" + String(data.value));
 
       var element = findElement(data.setting_id);
       if (!element) return;

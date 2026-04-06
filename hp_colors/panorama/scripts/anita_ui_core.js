@@ -123,6 +123,12 @@ var AnitaUILogger = (function () {
   };
 
   const Logger = AnitaUILogger(CONFIG.DEBUG_MODE);
+  const HP_DEBUG = true;
+
+  function hpDebug(message) {
+    if (!HP_DEBUG) return;
+    $.Msg("[HP Colors][Core] " + message);
+  }
 
   // Base64url encode/decode — no btoa/atob in Deadlock Panorama
   var AnitaBase64 = (function () {
@@ -2814,6 +2820,9 @@ var AnitaUILogger = (function () {
         }
       }
       this.registeredMods.push(config);
+      if (config.title === "HP Colors") {
+        hpDebug("register mod elements=" + String((config.elements && config.elements.length) || 0));
+      }
 
       AnitaRenderer.addTab(config.title, () => {
         AnitaRenderer.renderModSettings(config);
@@ -2831,6 +2840,9 @@ var AnitaUILogger = (function () {
 
     emitCurrentValues: function (config, meta) {
       if (!config || !Array.isArray(config.elements)) return;
+      if (config.title === "HP Colors") {
+        hpDebug("emit current values source=" + String((meta && meta.update_source) || "unknown") + " count=" + String(config.elements.length));
+      }
       for (var i = 0; i < config.elements.length; i++) {
         var element = config.elements[i];
         if (!element || !element.id || element.currentValue === undefined) continue;
@@ -2862,6 +2874,9 @@ var AnitaUILogger = (function () {
       if (!data || !data.mod_title || !data.setting_id) return;
       var config = this.findRegisteredMod(data.mod_title);
       if (!config) return;
+      if (data.mod_title === "HP Colors") {
+        hpDebug("handle update source=" + String(data.update_source || "unknown") + " setting=" + String(data.setting_id) + " value=" + String(data.value));
+      }
       if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) return;
       AnitaRenderer.syncSaveCodeInput(config);
       var isBootstrap = String(data.update_source || "") === "bridge_bootstrap";
@@ -2882,6 +2897,20 @@ var AnitaUILogger = (function () {
       $.Schedule(2.0, function () {
         if (!config || config.__anitaPendingWriteToken !== writeToken) return;
         AnitaPersistence.persistConfig(config, false);
+      });
+    },
+
+    handleBootstrapRequest: function (data) {
+      if (!data || !data.mod_title) return;
+      var config = this.findRegisteredMod(data.mod_title);
+      if (!config) return;
+      if (data.mod_title === "HP Colors") {
+        hpDebug("bootstrap request reason=" + String(data.reason || "request"));
+      }
+      this.emitCurrentValues(config, {
+        update_source: "bridge_bootstrap",
+        skip_bridge_persist: true,
+        bootstrap_reason: String(data.reason || "request")
       });
     },
 
@@ -2912,6 +2941,8 @@ var AnitaUILogger = (function () {
             if (data && data.magic_word === "ANITA_REGISTER") {
               this.registerMod(data.config);
               Logger.debugThrottled("Event received: REGISTER for " + data.config.title, 200);
+            } else if (data && data.magic_word === "ANITA_REQUEST_BOOTSTRAP") {
+              this.handleBootstrapRequest(data);
             } else if (data && data.magic_word === "ANITA_UPDATE") {
               this.handleUpdateEvent(data);
             }
