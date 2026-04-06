@@ -580,6 +580,6 @@
   });
 
   hasPersistentStorage();
-  log("loader ready");
+  log("loader ready panel=" + String(($.GetContextPanel() && $.GetContextPanel().id) || "panel"));
 
 })();
