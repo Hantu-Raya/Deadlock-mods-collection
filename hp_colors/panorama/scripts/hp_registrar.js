@@ -4,11 +4,13 @@
   var TITLE = "HP Colors";
   var REGISTER_RETRY_DELAY_SEC = 0.25;
   var REGISTER_MAX_ATTEMPTS = 24;
+  var DEBUG_LOG = false;
   var didRegister = false;
   var didRequestBootstrap = false;
   var registerAttempts = 0;
 
   function log(message) {
+    if (!DEBUG_LOG) return;
     $.Msg("[HP Registrar] " + message);
   }
 
@@ -19,6 +21,7 @@
     { type: "slider", id: "hp_high_threshold", label: "High HP %", defaultValue: 65, min: 0, max: 100, step: 1, category: "Behavior" },
     { type: "toggle", id: "hp_bg_visible", label: "Healthbar bg visible", defaultValue: true, category: "Behavior" },
     { type: "toggle", id: "hp_team_colors", label: "Team colors (high HP)", defaultValue: false, category: "Behavior" },
+    { type: "toggle", id: "hp_npc_poll_slow", label: "Slow poll for non-hero enemies", defaultValue: true, category: "Behavior" },
     { type: "colorpicker", id: "hp_color_low", label: "Low color", defaultValue: "#E16161", category: "Bar Colors" },
     { type: "colorpicker", id: "hp_color_mid", label: "Mid color", defaultValue: "#FF7B00", category: "Bar Colors" },
     { type: "colorpicker", id: "hp_color_high", label: "High color", defaultValue: "#00FF00", category: "Bar Colors" },
@@ -47,8 +50,7 @@
       title: TITLE,
       description: "Enemy healthbar coloring",
       storageNamespace: "hp_colors",
-      storageVersion: 5,
-      legacyStoragePrefix: "hp_mod_",
+      storageVersion: 6,
       elements: elements
     };
   }
