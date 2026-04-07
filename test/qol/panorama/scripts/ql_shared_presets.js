@@ -1,7 +1,7 @@
 "use strict";
 
 // Shared preset source-of-truth used by ql_settings.js and ql_core.js.
-var QOL_SCHEMA_SEMVER = "2.2.9";
+var QOL_SCHEMA_SEMVER = "2.3.1";
 var QOL_SCHEMA_WIRE_VERSION = 2;
 
 var QOL_CODEC = (typeof QOL_CODEC === "object" && QOL_CODEC) ? QOL_CODEC : {};
@@ -229,6 +229,161 @@ if (typeof QOL_CODEC.DeserializeCompactBinary !== "function") {
 
 var QOL_SCHEMA_UTILS = (typeof QOL_SCHEMA_UTILS === "object" && QOL_SCHEMA_UTILS) ? QOL_SCHEMA_UTILS : {};
 
+if (typeof QOL_SCHEMA_UTILS.ParseConfigStorageRevision !== "function") {
+    QOL_SCHEMA_UTILS.ParseConfigStorageRevision = function(rawValue) {
+        var n = Number(rawValue);
+        if (!isFinite(n) || n < 0) return 0;
+        return Math.floor(n);
+    };
+}
+
+if (typeof QOL_SCHEMA_UTILS.ResolveConfigStorageTargets !== "function") {
+    QOL_SCHEMA_UTILS.ResolveConfigStorageTargets = function(rootHint, panelHint) {
+        function getRootPanel(panel) {
+            var current = panel || null;
+            while (current && current.GetParent && current.GetParent()) {
+                current = current.GetParent();
+            }
+            return current || null;
+        }
+
+        function getTopLevelChild(root, panel) {
+            var current = panel || null;
+            while (current && current.GetParent && current.GetParent() !== root) {
+                current = current.GetParent();
+            }
+            if (current && current.GetParent && current.GetParent() === root) return current;
+            return null;
+        }
+
+        var contextPanel = panelHint || (($ && $.GetContextPanel) ? $.GetContextPanel() : null);
+        var root = rootHint || getRootPanel(contextPanel);
+        if (!root && $ && $.GetContextPanel) {
+            root = getRootPanel($.GetContextPanel());
+        }
+
+        var hud = null;
+        if (root && root.FindChildTraverse) {
+            try { hud = root.FindChildTraverse("Hud"); } catch (e0) { hud = null; }
+        }
+
+        var panel = panelHint || null;
+        if (!panel && root && root.FindChildTraverse) {
+            var settingsWindow = null;
+            try { settingsWindow = root.FindChildTraverse("SettingsWindow"); } catch (e1) { settingsWindow = null; }
+            if (settingsWindow) {
+                panel = getTopLevelChild(root, settingsWindow);
+            }
+        }
+        if (!panel) panel = contextPanel || null;
+
+        return {
+            root: root || null,
+            panel: panel || null,
+            hud: hud || null
+        };
+    };
+}
+
+if (typeof QOL_SCHEMA_UTILS.ReadConfigStorageState !== "function") {
+    QOL_SCHEMA_UTILS.ReadConfigStorageState = function(rootHint, panelHint) {
+        var storageKey = "Deadlock_Mod_Settings_v1";
+        var revAttr = "QOL_USER_EDIT_REV";
+        var targets = QOL_SCHEMA_UTILS.ResolveConfigStorageTargets(rootHint, panelHint);
+        var entries = [];
+
+        function pushEntry(name, panel, priority) {
+            if (!panel || !panel.GetAttributeString) return;
+            var raw = "";
+            var revision = 0;
+            try { raw = String(panel.GetAttributeString(storageKey, "") || ""); } catch (e0) { raw = ""; }
+            try { revision = QOL_SCHEMA_UTILS.ParseConfigStorageRevision(panel.GetAttributeString(revAttr, "")); } catch (e1) { revision = 0; }
+            entries.push({
+                name: String(name || ""),
+                panel: panel,
+                raw: raw,
+                revision: revision,
+                priority: Number(priority) || 0
+            });
+        }
+
+        pushEntry("panel", targets.panel, 0);
+        pushEntry("root", targets.root, 1);
+        pushEntry("hud", targets.hud, 2);
+
+        var chosenEntry = null;
+        var maxRevision = 0;
+        for (var i = 0; i < entries.length; i++) {
+            var entry = entries[i];
+            if (entry.revision > maxRevision) maxRevision = entry.revision;
+            if (!entry.raw) continue;
+            if (
+                !chosenEntry ||
+                entry.revision > chosenEntry.revision ||
+                (entry.revision === chosenEntry.revision && entry.priority > chosenEntry.priority)
+            ) {
+                chosenEntry = entry;
+            }
+        }
+
+        return {
+            raw: chosenEntry ? chosenEntry.raw : "",
+            revision: chosenEntry ? chosenEntry.revision : 0,
+            maxRevision: maxRevision,
+            source: chosenEntry ? chosenEntry.name : "",
+            targets: targets,
+            entries: entries
+        };
+    };
+}
+
+if (typeof QOL_SCHEMA_UTILS.ReadConfigStorageRaw !== "function") {
+    QOL_SCHEMA_UTILS.ReadConfigStorageRaw = function(rootHint, panelHint) {
+        var state = QOL_SCHEMA_UTILS.ReadConfigStorageState(rootHint, panelHint);
+        return state && state.raw ? String(state.raw) : "";
+    };
+}
+
+if (typeof QOL_SCHEMA_UTILS.WriteConfigStorageRaw !== "function") {
+    QOL_SCHEMA_UTILS.WriteConfigStorageRaw = function(rawText, rootHint, panelHint) {
+        var storageKey = "Deadlock_Mod_Settings_v1";
+        var revAttr = "QOL_USER_EDIT_REV";
+        var state = QOL_SCHEMA_UTILS.ReadConfigStorageState(rootHint, panelHint);
+        var nextRaw = String(rawText || "");
+        var nextRevision = (Number(state && state.maxRevision) || 0) + 1;
+        var uniqueTargets = [];
+        var writtenTargets = [];
+
+        function pushTarget(name, panel) {
+            if (!panel || !panel.SetAttributeString) return;
+            for (var i = 0; i < uniqueTargets.length; i++) {
+                if (uniqueTargets[i].panel === panel) return;
+            }
+            uniqueTargets.push({ name: String(name || ""), panel: panel });
+        }
+
+        pushTarget("panel", state && state.targets ? state.targets.panel : null);
+        pushTarget("root", state && state.targets ? state.targets.root : null);
+        pushTarget("hud", state && state.targets ? state.targets.hud : null);
+
+        for (var j = 0; j < uniqueTargets.length; j++) {
+            var target = uniqueTargets[j];
+            try { target.panel.SetAttributeString(storageKey, nextRaw); } catch (e0) {}
+            try { target.panel.SetAttributeString(revAttr, String(nextRevision)); } catch (e1) {}
+            writtenTargets.push(target);
+        }
+
+        return {
+            raw: nextRaw,
+            revision: nextRevision,
+            count: writtenTargets.length,
+            targets: state ? state.targets : null,
+            entries: state ? state.entries : [],
+            written: writtenTargets
+        };
+    };
+}
+
 if (typeof QOL_SCHEMA_UTILS.NormalizeNeutralCampTierConfig !== "function") {
     QOL_SCHEMA_UTILS.NormalizeNeutralCampTierConfig = function(configTarget, sourceConfig) {
         if (!configTarget) return;
@@ -308,9 +463,11 @@ if (typeof QOL_SCHEMA_UTILS.NormalizeItemCooldownModeConfig !== "function") {
         var source = sourceConfig || configTarget || {};
         var hasOwn = Object.prototype.hasOwnProperty;
         var oldYOffsetBase = 30;
+        var sourceHasPassiveCooldown = !!(source && hasOwn.call(source, "ENABLE_PASSIVE_COOLDOWN"));
+        var sourceHasOldMode = !!(source && hasOwn.call(source, "ENABLE_OLD_ITEM_COOLDOWNS"));
 
         var oldModeEnabled = Number(configTarget.ENABLE_OLD_ITEM_COOLDOWNS) === 1;
-        if (oldModeEnabled) {
+        if (oldModeEnabled && sourceHasOldMode && !sourceHasPassiveCooldown) {
             configTarget.ENABLE_PASSIVE_COOLDOWN = 1;
         }
 
@@ -545,7 +702,9 @@ var QOL_DEFAULT_CONFIG = {
         MINIMAP_ROTATE_WITH_PLAYER: 0,
         ENABLE_URN_COLORS: 0,
         ENABLE_MINIMAP_BUFF_TIMER: 0,
+        ENABLE_MINIMAP_BUFF_TIMER_ON_BRIDGE: 0,
         ENABLE_MINIMAP_REJUV_TIMER: 0,
+        ENABLE_MINIMAP_ALWAYS_ON_MID_BOSS: 0,
         MINIMAP_X_OFFSET: 0,
         MINIMAP_Y_OFFSET: 0,
         MINIMAP_LARGE_SIZE: 750,
@@ -652,6 +811,7 @@ var QOL_DEFAULT_CONFIG = {
         ENABLE_HIDE_TROOPER_DAMAGE: 0,
         ENABLE_GAME_AUDIO: 1,
         GAME_DEFAULT_DIFFICULTY: 1,
+        ENABLE_BHOP: 0,
         ENABLE_ON_DEATH_GAMES: 0,
         ON_DEATH_GAME_MINESWEEPER: 0,
         ON_DEATH_GAME_BLACKJACK: 0,
@@ -1382,80 +1542,37 @@ var QOL_PRESETS = {
         PREVIEWS_ENABLED: 1
     },
     "Bread": {
-        MINIMAP_SMALL_SIZE: 460,
-        MINIMAP_BASE_OPACITY: 1,
-        MINIMAL_MINIMAP: 1,
-        MINIMAP_X_OFFSET: 0,
-        MINIMAP_Y_OFFSET: 400,
-        MINIMAP_LARGE_SIZE: 750,
-        ZOOM_X_OFFSET: 0,
-        ZOOM_Y_OFFSET: 0,
-        MINIMAP_LARGE_SIZE_ALT: 750,
-        ZOOM_X_OFFSET_ALT: 0,
-        ZOOM_Y_OFFSET_ALT: 0,
-        MINIMAP_LARGE_SIZE_TAB: 750,
-        ZOOM_X_OFFSET_TAB: 0,
-        ZOOM_Y_OFFSET_TAB: 0,
         ENABLE_ALT_ZOOM: 1,
-        ALT_ZOOM_OPACITY: 0.95,
-        ENABLE_TAB_ZOOM: 0,
-        TAB_ZOOM_OPACITY: 0.7,
-        ENABLE_ONE_TIME: 0,
-        ENABLE_INTERVAL: 0,
-        BRIDGE_BUFF_START: 30,
-        ENABLE_AMMO_STATUS: 0,
-        ENABLE_PASSIVE_COOLDOWN: 1,
-        PASSIVE_COOLDOWN_SIZE: 40,
-        PASSIVE_COOLDOWN_Y: 0,
-        PASSIVE_COOLDOWN_X: 0,
-        ITEM_FILTER_DEF_ACTIVE: 1,
-        ITEM_FILTER_OFF_ACTIVE: 1,
-        VOICE_TYPE: 0,
-        ENABLE_COMPASS: 0,
-        ENABLE_SIMPLIFY_COMPASS: 0,
-        ENABLE_COMPASS_SPEED: 1,
-        COMPASS_SCALE: 100,
-        COMPASS_STRETCH_X: 100,
-        COMPASS_STRETCH_Y: 100,
-        COMPASS_X_OFFSET: 0,
-        COMPASS_Y_OFFSET: 120,
-        ENABLE_KEYBOARD_OVERLAY: 0,
-        ENABLE_FULL_KEYBOARD_LAYOUT: 0,
-        KEYBOARD_OVERLAY_SCALE: 100,
-        KEYBOARD_OVERLAY_X_OFFSET: 0,
-        KEYBOARD_OVERLAY_Y_OFFSET: 0,
-        ENABLE_MINIMAP_REMINDER: 0,
-        MINIMAP_REMINDER_INTERVAL: 15,
-        DISABLE_DAMAGE_REPORT: 0,
-        DISABLE_QUICK_BUY: 0,
-        ENABLE_HUD_SHIFT: 0,
-        SUPPORT_4_3: 0,
-        ENABLE_UNSPENT_SOULS: 1,
-        ENABLE_MIN_SOULS: 1,
-        ENABLE_OBJ_DMG: 1,
-        ENABLE_OBJ_MAP: 1,
-        ENABLE_URN_DIFF: 1,
-        ENABLE_MISSING_HERO: 1,
-        ENABLE_CUMULATIVE_DMG: 1,
-        ENABLE_SHOP_STATS: 1,
-        ENABLE_SIMPLIFY_SHOP: 0,
-        DAMAGE_NUMBER_OPACITY: 1,
-        ENABLE_ZIP_BOOST: 1,
-        ZIP_BOOST_X_OFFSET: 0,
-        ZIP_BOOST_Y_OFFSET: 0,
-        ENABLE_CLEAN_STACKS: 1,
-        ENABLE_CENTER_ESC: 0,
-        HUD_INDICATOR_SIZE: 22,
-        ENABLE_RED_DIAMOND: 0,
-        UNIT_TARGET_SIZE: 100,
-        UNIT_TARGET_OPACITY: 1,
+        DEFAULT_HERO: "hero_atlas",
+        DISABLE_QUICK_BUY: 1,
+        DISABLE_SHOP_BLUE: 1,
+        ENABLE_BUFF_HUD: 1,
+        ENABLE_FORCE_TESTING_TOOLS: 1,
         ENABLE_HERO_SCENE_PANEL: 0,
         ENABLE_HIDE_FAILED_HINT: 1,
-        ENABLE_HIDE_ABILITY_SUGGESTION: 1,
-        ENABLE_SIMPLIFY_ABILITY_ICONS: 0,
-        ENABLE_HIDE_BEHAVIOR_SUMMARY: 0,
-        ENABLE_BUFF_HUD: 1,
+        ENABLE_LANE_WITH_PARTY: 1,
+        ENABLE_LEGACY_COOLDOWNS: 1,
+        ENABLE_MISSING_HERO: 1,
+        ENABLE_NICKNAMES: 1,
+        ENABLE_OBJ_DMG: 1,
+        ENABLE_OBJ_MAP: 1,
+        ENABLE_OLD_ITEM_COOLDOWNS: 0,
+        ENABLE_PASSIVE_COOLDOWN: 1,
         ENABLE_REJUV_HUD: 1,
+        ENABLE_SHOP_STATS: 1,
+        ENABLE_SIMPLIFY_ITEMS: 1,
+        ENABLE_STATLOCKER: 1,
+        ENABLE_UNSECURED_SOUL_TIMER: 1,
+        ENABLE_UNSPENT_SOULS: 1,
+        ENABLE_URN_DIFF: 1,
+        ENABLE_ZIP_BOOST: 1,
+        GAME_DEFAULT_DIFFICULTY: 2,
+        HUD_INDICATOR_SIZE: 22,
+        MINIMAL_MINIMAP: 1,
+        MINIMAP_SMALL_SIZE: 460,
+        MINIMAP_Y_OFFSET: 375,
+        UNIT_TARGET_SIZE: 100,
+        VOICE_TYPE: 0
     },
     "Haste": {
         MINIMAP_SMALL_SIZE: 500,
@@ -1535,7 +1652,12 @@ var QOL_PRESETS = {
         MINIMAP_SMALL_SIZE: 600,
         MINIMAP_BASE_OPACITY: 0.9,
         MINIMAL_MINIMAP: 1,
+        MINIMAL_MINIMAP_OPACITY: 0.9,
+        MINIMAP_FLIP: 0,
         MINIMAP_ROTATE_WITH_PLAYER: 0,
+        ENABLE_URN_COLORS: 0,
+        ENABLE_MINIMAP_BUFF_TIMER: 1,
+        ENABLE_MINIMAP_REJUV_TIMER: 1,
         MINIMAP_X_OFFSET: 0,
         MINIMAP_Y_OFFSET: 220,
         MINIMAP_LARGE_SIZE: 750,
@@ -1554,12 +1676,20 @@ var QOL_PRESETS = {
         TAB_ZOOM_OPACITY: 0.7,
         TAB_ZOOM_DRAW_OVER_UI: 0,
         ENABLE_ONE_TIME: 1,
+        ENABLE_ONE_TIME_TIER1: 1,
+        ENABLE_ONE_TIME_TIER2: 1,
+        ENABLE_ONE_TIME_TIER3: 1,
         ENABLE_INTERVAL: 1,
+        ENABLE_BUFF_SOUND_1: 1,
+        ENABLE_BUFF_SOUND_2: 1,
+        ENABLE_BUFF_SOUND_3: 1,
         BRIDGE_BUFF_START: 30,
         ENABLE_AMMO_STATUS: 1,
-        ENABLE_HIDE_AMMO_ALL: 1,
+        ENABLE_HIDE_AMMO_ALL: 0,
         ENABLE_HIDE_MAGAZINE: 1,
         AMMO_PANEL_SCALE: 150,
+        AMMO_CURRENT_SCALE: 150,
+        AMMO_TOTAL_SCALE: 150,
         AMMO_PANEL_X_OFFSET: 25,
         AMMO_PANEL_Y_OFFSET: -5,
         ENABLE_RELOAD_COOLDOWN: 1,
@@ -1569,12 +1699,16 @@ var QOL_PRESETS = {
         RELOAD_COOLDOWN_Y_OFFSET: 0,
         ENABLE_HIDE_RELOAD_ICON: 1,
         ENABLE_HIDE_RELOAD_CIRCLE: 0,
+        ENABLE_COMBAT_STATUS: 0,
+        COMBAT_STATUS_SCALE: 100,
+        COMBAT_STATUS_X_OFFSET: 0,
+        COMBAT_STATUS_Y_OFFSET: 0,
         ENABLE_ULT_COOLDOWNS: 0,
         ULT_COOLDOWN_OPACITY: 0.9,
         ULT_COOLDOWN_SIZE: 13,
         ENABLE_PASSIVE_COOLDOWN: 1,
         ENABLE_OLD_ITEM_COOLDOWNS: 0,
-        OLD_ITEM_COOLDOWNS_SCALE: 110,
+        OLD_ITEM_COOLDOWNS_SCALE: 83,
         OLD_ITEM_COOLDOWNS_X_OFFSET: 0,
         OLD_ITEM_COOLDOWNS_Y_OFFSET: 30,
         PASSIVE_COOLDOWN_SIZE: 30,
@@ -1585,7 +1719,8 @@ var QOL_PRESETS = {
         ITEM_FILTER_OFF_PASSIVE: 1,
         ITEM_FILTER_DEF_ACTIVE: 1,
         ITEM_FILTER_OFF_ACTIVE: 1,
-        VOICE_TYPE: 4,
+        VOICE_TYPE: 6,
+        VOICE_VOLUME: 100,
         ENABLE_COMPASS: 0,
         ENABLE_SIMPLIFY_COMPASS: 0,
         ENABLE_COMPASS_SPEED: 1,
@@ -1613,19 +1748,30 @@ var QOL_PRESETS = {
         UNSECURED_SOULS_HUD_SCALE: 120,
         UNSECURED_SOULS_HUD_X_OFFSET: 1000,
         UNSECURED_SOULS_HUD_Y_OFFSET: 930,
-        ENABLE_BETTER_UNSECURED: 1,
+        ENABLE_BETTER_UNSECURED: 0,
         ENABLE_BETTER_UNSECURED_SHOW_ICON_TEXT: 0,
         ENABLE_BETTER_UNSECURED_SHOW_ICON: 0,
         ENABLE_BETTER_UNSECURED_SHOW_TEXT: 1,
-        ENABLE_MIN_SOULS: 1,
-        ENABLE_OBJ_DMG: 1,
+        ENABLE_MIN_SOULS: 0,
+        ENABLE_OBJ_DMG: 0,
         ENABLE_OBJ_MAP: 1,
         ENABLE_URN_DIFF: 1,
         ENABLE_MISSING_HERO: 1,
+        ENABLE_NICKNAMES: 0,
         ENABLE_CUMULATIVE_DMG: 1,
+        ENABLE_DAMAGE_FOUNTAIN: 0,
         ENABLE_HIDE_SMALL_NUMBERS: 1,
         ENABLE_HIDE_TROOPER_DAMAGE: 1,
+        ENABLE_GAME_AUDIO: 1,
+        GAME_DEFAULT_DIFFICULTY: 1,
+        ENABLE_BHOP: 0,
         ENABLE_ON_DEATH_GAMES: 0,
+        ON_DEATH_GAME_MINESWEEPER: 0,
+        ON_DEATH_GAME_BLACKJACK: 0,
+        ON_DEATH_GAME_FLAPPY_BAT: 0,
+        ON_DEATH_GAME_GRAVES_TRAINER: 0,
+        ON_DEATH_GAME_ZERGGY_MANIA: 0,
+        ON_DEATH_GAME_WHACK_A_REM: 0,
         ENABLE_SHOP_STATS: 1,
         DISABLE_SHOP_BLUE: 0,
         SHOP_OFFSET_X: 0,
@@ -1633,10 +1779,10 @@ var QOL_PRESETS = {
         ENABLE_SIMPLIFY_ITEMS: 1,
         DAMAGE_NUMBER_OPACITY: 1,
         ENABLE_ZIP_BOOST: 1,
-        ZIP_BOOST_SCALE: 100,
-        ZIP_BOOST_X_OFFSET: -110,
-        ZIP_BOOST_Y_OFFSET: 0,
-        ENABLE_UNSECURED_SOUL_TIMER: 1,
+        ZIP_BOOST_SCALE: 60,
+        ZIP_BOOST_X_OFFSET: 630,
+        ZIP_BOOST_Y_OFFSET: 940,
+        ENABLE_UNSECURED_SOUL_TIMER: 0,
         UNSECURED_SOUL_TIMER_SCALE: 100,
         UNSECURED_SOUL_TIMER_X_OFFSET: -800,
         UNSECURED_SOUL_TIMER_Y_OFFSET: 50,
@@ -1646,10 +1792,18 @@ var QOL_PRESETS = {
         STAT_BONUSES_Y_OFFSET: 0,
         ENABLE_CLEAN_STACKS: 1,
         ENABLE_CENTER_ESC: 1,
+        ENABLE_CENTER_FRIENDS_LIST: 0,
+        ENABLE_LEGACY_COOLDOWNS: 0,
+        ENABLE_STATLOCKER: 0,
+        ENABLE_CHAT: 1,
+        CHAT_SCALE: 100,
+        CHAT_X_OFFSET: 0,
+        CHAT_Y_OFFSET: 0,
         ENABLE_FORCE_TESTING_TOOLS: 0,
         ENABLE_HIDE_TESTING_TOOLS: 0,
         HUD_INDICATOR_SIZE: 26,
         ENABLE_RED_DIAMOND: 0,
+        ENABLE_IMPROVED_HINT: 0,
         UNIT_TARGET_SIZE: 100,
         UNIT_TARGET_OPACITY: 0.3,
         ENABLE_HERO_SCENE_PANEL: 0,
@@ -1658,17 +1812,34 @@ var QOL_PRESETS = {
         ENABLE_HIDE_COSMETIC_ABILITY: 1,
         ENABLE_SIMPLIFY_ABILITY_ICONS: 0,
         ENABLE_HIDE_BEHAVIOR_SUMMARY: 1,
-        ENABLE_BUFF_HUD: 1,
-        ENABLE_REJUV_HUD: 1,
-        ENABLE_COLORED_HEALTHBAR: 0,
+        ENABLE_BUFF_HUD: 0,
+        ENABLE_REJUV_HUD: 0,
+        ENABLE_COLORED_HEALTHBAR: 1,
+        ENABLE_COLOR_WARNING_25: 1,
+        ENABLE_COLOR_WARNING_65: 1,
+        ENABLE_COLOR_WARNING_75: 1,
+        ENABLE_ENEMY_COLORED_HEALTHBAR: 0,
+        ENABLE_ENEMY_COLOR_WARNING_25: 0,
+        ENABLE_ENEMY_COLOR_WARNING_65: 0,
+        ENABLE_ENEMY_COLOR_WARNING_75: 0,
+        ENABLE_FG_HEALTHBAR: 0,
         ENABLE_MINIMALIST_HEALTHBAR: 0,
+        HEALTHBAR_TYPE: 0,
+        PLAYER_HEALTHBAR_SCALE: 125,
+        PLAYER_HEALTHBAR_OPACITY: 1,
+        PLAYER_HEALTHBAR_X_OFFSET: 150,
+        PLAYER_HEALTHBAR_Y_OFFSET: 0,
+        ENABLE_ENEMY_V2_ENHANCED: 0,
+        ENABLE_ENEMY_V2_ULT_INDICATOR: 1,
+        ENABLE_ENEMY_V2_LEVEL: 1,
+        ENABLE_ENEMY_ULT_INDICATOR: 0,
         MINIMALIST_HEALTHBAR_X_OFFSET: 0,
         MINIMALIST_HEALTHBAR_Y_OFFSET: 0,
         ENABLE_PERF_DEBUG: 0,
         ENABLE_PERF_DEBUG_DETAIL: 0,
         ENABLE_SPECIALS: 0,
         LANGUAGE: 0,
-        DEFAULT_HERO: "hero_bookworm",
+        DEFAULT_HERO: "hero_werewolf",
         DRAG_ENABLED: 1,
         PREVIEWS_ENABLED: 1
     },
@@ -2071,22 +2242,30 @@ var QOL_PRESETS = {
         MINIMAP_X_OFFSET: -15,
         ENABLE_INTERVAL: 1,
         BRIDGE_BUFF_START: 35,
+        ENABLE_PASSIVE_COOLDOWN: 1,
+        ENABLE_LEGACY_COOLDOWNS: 1,
+        OLD_ITEM_COOLDOWNS_SCALE: 107,
+        OLD_ITEM_COOLDOWNS_X_OFFSET: 40,
+        OLD_ITEM_COOLDOWNS_Y_OFFSET: 70,
         PASSIVE_COOLDOWN_SIZE: 39,
         PASSIVE_COOLDOWN_Y: -2,
         PASSIVE_COOLDOWN_X: 2,
         ENABLE_SIMPLIFY_COMPASS: 1,
-        ENABLE_KEYBOARD_OVERLAY: 1,
+        ENABLE_KEYBOARD_OVERLAY: 0,
         ENABLE_FULL_KEYBOARD_LAYOUT: 1,
+        ENABLE_LANE_WITH_PARTY: 1,
         ENABLE_UNSPENT_SOULS: 1,
         ENABLE_OBJ_DMG: 1,
         ENABLE_OBJ_MAP: 1,
         ENABLE_URN_DIFF: 1,
         ENABLE_MISSING_HERO: 1,
         ENABLE_CUMULATIVE_DMG: 0,
+        ENABLE_GAME_AUDIO: 0,
         ENABLE_SHOP_STATS: 1,
         DAMAGE_NUMBER_OPACITY: 0.55,
         ENABLE_ZIP_BOOST: 1,
-        ENABLE_CENTER_ESC: 1,
+        ENABLE_CENTER_ESC: 0,
+        ENABLE_HIDE_SMALL_NUMBERS: 1,
         ENABLE_HERO_SCENE_PANEL: 0,
         ENABLE_BUFF_HUD: 1,
         ENABLE_REJUV_HUD: 1
@@ -4170,28 +4349,95 @@ var QOL_PRESETS = {
         PREVIEWS_ENABLED: 1
     },
     "Starjadian": {
+        MINIMAP_SMALL_SIZE: 500,
+        ENABLE_MINIMAP_BUFF_TIMER: 1,
+        ENABLE_MINIMAP_BUFF_TIMER_ON_BRIDGE: 1,
+        ENABLE_MINIMAP_REJUV_TIMER: 1,
         ENABLE_ALT_ZOOM: 1,
+        ALT_ZOOM_DRAW_OVER_UI: 1,
         ENABLE_ONE_TIME: 1,
+        ENABLE_ONE_TIME_TIER1: 1,
+        ENABLE_ONE_TIME_TIER2: 1,
+        ENABLE_ONE_TIME_TIER3: 1,
         ENABLE_INTERVAL: 1,
+        ENABLE_HIDE_MAGAZINE: 1,
+        ENABLE_RELOAD_COOLDOWN: 1,
+        ENABLE_HIDE_RELOAD_ICON: 1,
+        ENABLE_ULT_COOLDOWNS: 1,
         ENABLE_PASSIVE_COOLDOWN: 1,
+        ENABLE_OLD_ITEM_COOLDOWNS: 0,
+        VOICE_TYPE: 0,
+        ENABLE_KEYBOARD_OVERLAY: 1,
+        ENABLE_FULL_KEYBOARD_LAYOUT: 1,
+        ENABLE_UNSPENT_SOULS: 1,
+        ENABLE_BETTER_UNSECURED: 1,
+        ENABLE_BETTER_UNSECURED_SHOW_ICON: 1,
+        ENABLE_MIN_SOULS: 1,
+        ENABLE_OBJ_DMG: 1,
+        ENABLE_OBJ_MAP: 1,
+        ENABLE_URN_DIFF: 1,
+        ENABLE_MISSING_HERO: 1,
+        ENABLE_NICKNAMES: 1,
+        ENABLE_SHOP_STATS: 1,
+        ENABLE_SIMPLIFY_SHOP: 1,
+        ENABLE_ZIP_BOOST: 1,
+        ENABLE_UNSECURED_SOUL_TIMER: 1,
+        ENABLE_LEGACY_COOLDOWNS: 1,
+        ENABLE_RED_DIAMOND: 1,
+        ENABLE_IMPROVED_HINT: 1,
+        ENABLE_HERO_SCENE_PANEL: 0,
+        ENABLE_HIDE_FAILED_HINT: 1,
+        ENABLE_HIDE_BEHAVIOR_SUMMARY: 1,
+        ENABLE_BUFF_HUD: 1,
+        ENABLE_REJUV_HUD: 1,
+        ENABLE_COLORED_HEALTHBAR: 1,
+        ENABLE_COLOR_WARNING_25: 1,
+        ENABLE_COLOR_WARNING_65: 1,
+        ENABLE_COLOR_WARNING_75: 1,
+        ENABLE_MINIMALIST_HEALTHBAR: 1,
+        HEALTHBAR_TYPE: 1,
+        DISABLE_SHOP_BLUE: 1,
+        ULT_COOLDOWN_X_OFFSET: 0,
+        ULT_COOLDOWN_Y_OFFSET: 0,
+        DEFAULT_HERO_INDEX: 33
+    },
+    "Synthronix": {
+        MINIMAL_MINIMAP: 1,
+        ENABLE_MINIMAP_BUFF_TIMER: 1,
+        ENABLE_MINIMAP_REJUV_TIMER: 1,
+        ENABLE_ONE_TIME: 1,
+        ENABLE_ONE_TIME_TIER1: 1,
+        ENABLE_ONE_TIME_TIER2: 1,
+        ENABLE_ONE_TIME_TIER3: 1,
+        ENABLE_INTERVAL: 1,
+        BRIDGE_BUFF_START: 15,
+        COMBAT_STATUS_SCALE: 75,
+        COMBAT_STATUS_X_OFFSET: -500,
+        COMBAT_STATUS_Y_OFFSET: -500,
+        ENABLE_OLD_ITEM_COOLDOWNS: 0,
+        VOICE_TYPE: 0,
+        VOICE_VOLUME: 90,
+        ENABLE_LANE_WITH_PARTY: 1,
         ENABLE_UNSPENT_SOULS: 1,
         ENABLE_MIN_SOULS: 1,
         ENABLE_OBJ_DMG: 1,
         ENABLE_OBJ_MAP: 1,
         ENABLE_URN_DIFF: 1,
         ENABLE_MISSING_HERO: 1,
-        ENABLE_SHOP_STATS: 1,
-        ENABLE_SIMPLIFY_SHOP: 1,
+        ENABLE_NICKNAMES: 1,
+        GAME_DEFAULT_DIFFICULTY: 0,
         ENABLE_ZIP_BOOST: 1,
-        ENABLE_RED_DIAMOND: 1,
-        ENABLE_HERO_SCENE_PANEL: 0,
-        ENABLE_HIDE_FAILED_HINT: 1,
         ENABLE_HIDE_BEHAVIOR_SUMMARY: 1,
         ENABLE_BUFF_HUD: 1,
         ENABLE_REJUV_HUD: 1,
-        DISABLE_SHOP_BLUE: 1,
-        ENABLE_RELOAD_COOLDOWN: 1,
-        ENABLE_HIDE_RELOAD_ICON: 1
+        ENABLE_ENEMY_V2_ENHANCED: 1,
+        ENABLE_ENEMY_V2_LEVEL: 0,
+        ENABLE_ENEMY_ULT_INDICATOR: 1,
+        MINIMALIST_HEALTHBAR_X_OFFSET: -150,
+        MINIMALIST_HEALTHBAR_Y_OFFSET: -150,
+        ULT_COOLDOWN_X_OFFSET: 0,
+        ULT_COOLDOWN_Y_OFFSET: 0,
+        DEFAULT_HERO_INDEX: 33
     },
     "Shark": {
         MINIMAP_SMALL_SIZE: 450,
@@ -4918,6 +5164,227 @@ var QOL_PRESETS = {
         ON_DEATH_GAME_GRAVES_TRAINER: 0,
         ON_DEATH_GAME_ZERGGY_MANIA: 1,
         ON_DEATH_GAME_WHACK_A_REM: 1,
+    },
+    "Poshy": {
+        MINIMAP_SMALL_SIZE: 600,
+        MINIMAP_BASE_OPACITY: 1,
+        MINIMAL_MINIMAP: 1,
+        MINIMAL_MINIMAP_OPACITY: 0.9,
+        MINIMAP_FLIP: 0,
+        MINIMAP_ROTATE_WITH_PLAYER: 0,
+        ENABLE_URN_COLORS: 0,
+        ENABLE_MINIMAP_BUFF_TIMER: 0,
+        ENABLE_MINIMAP_BUFF_TIMER_ON_BRIDGE: 0,
+        ENABLE_MINIMAP_REJUV_TIMER: 0,
+        ENABLE_MINIMAP_ALWAYS_ON_MID_BOSS: 0,
+        MINIMAP_X_OFFSET: 0,
+        MINIMAP_Y_OFFSET: 0,
+        MINIMAP_LARGE_SIZE: 750,
+        ZOOM_X_OFFSET: 0,
+        ZOOM_Y_OFFSET: 0,
+        MINIMAP_LARGE_SIZE_ALT: 750,
+        ZOOM_X_OFFSET_ALT: 0,
+        ZOOM_Y_OFFSET_ALT: 0,
+        MINIMAP_LARGE_SIZE_TAB: 750,
+        ZOOM_X_OFFSET_TAB: 0,
+        ZOOM_Y_OFFSET_TAB: 0,
+        ENABLE_ALT_ZOOM: 0,
+        ALT_ZOOM_OPACITY: 0.95,
+        ALT_ZOOM_DRAW_OVER_UI: 0,
+        ENABLE_TAB_ZOOM: 0,
+        TAB_ZOOM_OPACITY: 0.7,
+        TAB_ZOOM_DRAW_OVER_UI: 0,
+        ENABLE_ONE_TIME: 0,
+        ENABLE_ONE_TIME_TIER1: 0,
+        ENABLE_ONE_TIME_TIER2: 0,
+        ENABLE_ONE_TIME_TIER3: 0,
+        ENABLE_INTERVAL: 0,
+        ENABLE_BUFF_SOUND_1: 1,
+        ENABLE_BUFF_SOUND_2: 1,
+        ENABLE_BUFF_SOUND_3: 1,
+        BRIDGE_BUFF_START: 30,
+        ENABLE_AMMO_STATUS: 0,
+        ENABLE_HIDE_AMMO_ALL: 0,
+        ENABLE_HIDE_MAGAZINE: 0,
+        AMMO_PANEL_SCALE: 100,
+        AMMO_CURRENT_SCALE: 100,
+        AMMO_TOTAL_SCALE: 100,
+        AMMO_PANEL_X_OFFSET: 0,
+        AMMO_PANEL_Y_OFFSET: 0,
+        ENABLE_RELOAD_COOLDOWN: 0,
+        RELOAD_COOLDOWN_OPACITY: 0.6,
+        RELOAD_COOLDOWN_SIZE: 28,
+        RELOAD_COOLDOWN_X_OFFSET: 0,
+        RELOAD_COOLDOWN_Y_OFFSET: 0,
+        ENABLE_HIDE_RELOAD_ICON: 0,
+        ENABLE_HIDE_RELOAD_CIRCLE: 0,
+        ENABLE_COMBAT_STATUS: 0,
+        COMBAT_STATUS_SCALE: 100,
+        COMBAT_STATUS_X_OFFSET: 0,
+        COMBAT_STATUS_Y_OFFSET: 0,
+        ENABLE_ULT_COOLDOWNS: 0,
+        ULT_COOLDOWN_OPACITY: 0.9,
+        ULT_COOLDOWN_SIZE: 13,
+        ENABLE_PASSIVE_COOLDOWN: 0,
+        ENABLE_OLD_ITEM_COOLDOWNS: 0,
+        OLD_ITEM_COOLDOWNS_SCALE: 110,
+        OLD_ITEM_COOLDOWNS_X_OFFSET: 0,
+        OLD_ITEM_COOLDOWNS_Y_OFFSET: 30,
+        PASSIVE_COOLDOWN_SIZE: 40,
+        PASSIVE_COOLDOWN_Y: 0,
+        PASSIVE_COOLDOWN_X: 0,
+        PASSIVE_COOLDOWN_OPACITY: 0.5,
+        ITEM_FILTER_DEF_PASSIVE: 1,
+        ITEM_FILTER_OFF_PASSIVE: 1,
+        ITEM_FILTER_DEF_ACTIVE: 0,
+        ITEM_FILTER_OFF_ACTIVE: 0,
+        VOICE_TYPE: 4,
+        VOICE_VOLUME: 100,
+        ENABLE_COMPASS: 0,
+        ENABLE_SIMPLIFY_COMPASS: 0,
+        ENABLE_COMPASS_SPEED: 1,
+        COMPASS_SCALE: 100,
+        COMPASS_STRETCH_X: 100,
+        COMPASS_STRETCH_Y: 100,
+        COMPASS_X_OFFSET: 0,
+        COMPASS_Y_OFFSET: 120,
+        ENABLE_KEYBOARD_OVERLAY: 0,
+        ENABLE_FULL_KEYBOARD_LAYOUT: 0,
+        KEYBOARD_OVERLAY_SCALE: 100,
+        KEYBOARD_OVERLAY_X_OFFSET: 0,
+        KEYBOARD_OVERLAY_Y_OFFSET: 0,
+        ENABLE_MINIMAP_REMINDER: 0,
+        MINIMAP_REMINDER_INTERVAL: 15,
+        DISABLE_DAMAGE_REPORT: 0,
+        DAMAGE_REPORT_X_OFFSET: 0,
+        DAMAGE_REPORT_Y_OFFSET: 0,
+        DISABLE_QUICK_BUY: 0,
+        ENABLE_HUD_SHIFT: 0,
+        ENABLE_LANE_WITH_PARTY: 0,
+        SUPPORT_16_10: 0,
+        SUPPORT_4_3: 0,
+        ENABLE_UNSPENT_SOULS: 1,
+        UNSECURED_SOULS_HUD_SCALE: 120,
+        UNSECURED_SOULS_HUD_X_OFFSET: 120,
+        UNSECURED_SOULS_HUD_Y_OFFSET: 925,
+        ENABLE_BETTER_UNSECURED: 0,
+        ENABLE_BETTER_UNSECURED_SHOW_ICON_TEXT: 0,
+        ENABLE_BETTER_UNSECURED_SHOW_ICON: 0,
+        ENABLE_BETTER_UNSECURED_SHOW_TEXT: 1,
+        ENABLE_MIN_SOULS: 1,
+        ENABLE_OBJ_DMG: 1,
+        ENABLE_OBJ_MAP: 1,
+        ENABLE_URN_DIFF: 1,
+        ENABLE_MISSING_HERO: 0,
+        ENABLE_NICKNAMES: 0,
+        ENABLE_CUMULATIVE_DMG: 1,
+        ENABLE_DAMAGE_FOUNTAIN: 0,
+        ENABLE_HIDE_SMALL_NUMBERS: 0,
+        ENABLE_HIDE_TROOPER_DAMAGE: 0,
+        ENABLE_GAME_AUDIO: 1,
+        GAME_DEFAULT_DIFFICULTY: 1,
+        ENABLE_BHOP: 0,
+        ENABLE_ON_DEATH_GAMES: 0,
+        ON_DEATH_GAME_MINESWEEPER: 0,
+        ON_DEATH_GAME_BLACKJACK: 0,
+        ON_DEATH_GAME_FLAPPY_BAT: 0,
+        ON_DEATH_GAME_GRAVES_TRAINER: 0,
+        ON_DEATH_GAME_ZERGGY_MANIA: 0,
+        ON_DEATH_GAME_WHACK_A_REM: 0,
+        ENABLE_SHOP_STATS: 0,
+        DISABLE_SHOP_BLUE: 0,
+        SHOP_OFFSET_X: 0,
+        ENABLE_SIMPLIFY_SHOP: 0,
+        ENABLE_SIMPLIFY_ITEMS: 0,
+        DAMAGE_NUMBER_OPACITY: 1,
+        ENABLE_ZIP_BOOST: 0,
+        ZIP_BOOST_SCALE: 100,
+        ZIP_BOOST_X_OFFSET: 0,
+        ZIP_BOOST_Y_OFFSET: 0,
+        ENABLE_UNSECURED_SOUL_TIMER: 0,
+        UNSECURED_SOUL_TIMER_SCALE: 100,
+        UNSECURED_SOUL_TIMER_X_OFFSET: -850,
+        UNSECURED_SOUL_TIMER_Y_OFFSET: 40,
+        ENABLE_STAT_BONUSES: 0,
+        STAT_BONUSES_SCALE: 100,
+        STAT_BONUSES_X_OFFSET: 0,
+        STAT_BONUSES_Y_OFFSET: 0,
+        ENABLE_CLEAN_STACKS: 1,
+        ENABLE_CENTER_ESC: 0,
+        ENABLE_CENTER_FRIENDS_LIST: 0,
+        ENABLE_LEGACY_COOLDOWNS: 0,
+        ENABLE_STATLOCKER: 0,
+        ENABLE_CHAT: 1,
+        CHAT_SCALE: 100,
+        CHAT_X_OFFSET: 0,
+        CHAT_Y_OFFSET: 0,
+        ENABLE_FORCE_TESTING_TOOLS: 0,
+        ENABLE_HIDE_TESTING_TOOLS: 0,
+        HUD_INDICATOR_SIZE: 18,
+        ENABLE_RED_DIAMOND: 0,
+        ENABLE_IMPROVED_HINT: 0,
+        UNIT_TARGET_SIZE: 150,
+        UNIT_TARGET_OPACITY: 1,
+        ENABLE_HERO_SCENE_PANEL: 1,
+        ENABLE_HIDE_FAILED_HINT: 0,
+        ENABLE_HIDE_ABILITY_SUGGESTION: 0,
+        ENABLE_HIDE_COSMETIC_ABILITY: 0,
+        ENABLE_SIMPLIFY_ABILITY_ICONS: 0,
+        ENABLE_HIDE_BEHAVIOR_SUMMARY: 0,
+        ENABLE_BUFF_HUD: 1,
+        ENABLE_REJUV_HUD: 1,
+        ENABLE_COLORED_HEALTHBAR: 0,
+        ENABLE_COLOR_WARNING_25: 0,
+        ENABLE_COLOR_WARNING_65: 0,
+        ENABLE_COLOR_WARNING_75: 0,
+        ENABLE_ENEMY_COLORED_HEALTHBAR: 0,
+        ENABLE_ENEMY_COLOR_WARNING_25: 0,
+        ENABLE_ENEMY_COLOR_WARNING_65: 0,
+        ENABLE_ENEMY_COLOR_WARNING_75: 0,
+        ENABLE_FG_HEALTHBAR: 0,
+        ENABLE_MINIMALIST_HEALTHBAR: 0,
+        HEALTHBAR_TYPE: 0,
+        PLAYER_HEALTHBAR_SCALE: 100,
+        PLAYER_HEALTHBAR_OPACITY: 1,
+        PLAYER_HEALTHBAR_X_OFFSET: 0,
+        PLAYER_HEALTHBAR_Y_OFFSET: 0,
+        ENABLE_ENEMY_V2_ENHANCED: 0,
+        ENABLE_ENEMY_V2_ULT_INDICATOR: 1,
+        ENABLE_ENEMY_V2_LEVEL: 1,
+        ENABLE_ENEMY_ULT_INDICATOR: 0,
+        MINIMALIST_HEALTHBAR_X_OFFSET: 0,
+        MINIMALIST_HEALTHBAR_Y_OFFSET: 0,
+        ENABLE_PERF_DEBUG: 0,
+        ENABLE_PERF_DEBUG_DETAIL: 0,
+        ENABLE_SPECIALS: 0,
+        LANGUAGE: 0,
+        DEFAULT_HERO: "hero_werewolf",
+        DRAG_ENABLED: 1,
+        PREVIEWS_ENABLED: 1
+    },
+    "RiChew": {
+        BRIDGE_BUFF_START: 20,
+        DEFAULT_HERO: "hero_priest",
+        ENABLE_BUFF_HUD: 1,
+        ENABLE_HERO_SCENE_PANEL: 0,
+        ENABLE_INTERVAL: 1,
+        ENABLE_MISSING_HERO: 1,
+        ENABLE_OBJ_DMG: 1,
+        ENABLE_OBJ_MAP: 1,
+        ENABLE_ONE_TIME: 1,
+        ENABLE_ONE_TIME_TIER1: 1,
+        ENABLE_ONE_TIME_TIER2: 1,
+        ENABLE_ONE_TIME_TIER3: 1,
+        ENABLE_PASSIVE_COOLDOWN: 1,
+        ENABLE_REJUV_HUD: 1,
+        ENABLE_SHOP_STATS: 1,
+        ENABLE_SIMPLIFY_SHOP: 1,
+        ENABLE_ULT_COOLDOWNS: 1,
+        ENABLE_URN_DIFF: 1,
+        ENABLE_ZIP_BOOST: 1,
+        HUD_INDICATOR_SIZE: 28,
+        MINIMAP_SMALL_SIZE: 510,
+        VOICE_TYPE: 0
     },
     "Special": {
         MINIMAP_SMALL_SIZE: 400,

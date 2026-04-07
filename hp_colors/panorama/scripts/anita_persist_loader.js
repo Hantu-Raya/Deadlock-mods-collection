@@ -5,7 +5,7 @@
   var STORAGE_NAMESPACE = "hp_colors";
   var STORAGE_KEY = "anita_v1_hp_colors";
   var PERSIST_DEBOUNCE_SEC = 0.35;
-  var PERSISTENCE_DEBUG = false;
+  var PERSISTENCE_DEBUG = true;
   var HP_COMPACT_PERSIST_VERSION = 1;
   var HP_PERSIST_ALIASES = {
     hp_enabled: "e",
@@ -48,7 +48,12 @@
 
   function log(message) {
     if (!PERSISTENCE_DEBUG) return;
-    $.Msg("[Anita-UI][Bridge] " + TITLE + " | " + message);
+    $.Msg("[HP-PERSIST-DEBUG] " + message);
+  }
+
+  function persistDebug(message) {
+    if (!PERSISTENCE_DEBUG) return;
+    $.Msg("[HP-PERSIST-DEBUG] " + message);
   }
 
   var AnitaBase64 = (function () {
@@ -140,12 +145,14 @@
       var supported = !!($ && $.persistentStorage &&
         typeof $.persistentStorage.setItem === "function" &&
         typeof $.persistentStorage.getItem === "function");
+      persistDebug("hasPersistentStorage=" + (supported ? "1" : "0"));
       if (!storageSupportLogged) {
         storageSupportLogged = true;
         log("storage available=" + (supported ? "1" : "0"));
       }
       return supported;
     } catch (e) {
+      persistDebug("hasPersistentStorage=0 err=" + e);
       if (!storageSupportLogged) {
         storageSupportLogged = true;
         log("storage probe failed: " + e);
@@ -299,7 +306,9 @@
     var parsed = null;
     try {
       parsed = JSON.parse(text);
+      persistDebug("parse success source=" + sourceLabel + " raw_len=" + text.length);
     } catch (eParse) {
+      persistDebug("parse fail source=" + sourceLabel + " raw_len=" + text.length + " err=" + eParse);
       log("payload parse failed source=" + sourceLabel + " err=" + eParse);
       return null;
     }
@@ -377,6 +386,7 @@
 
   function readStoredPayload() {
     if (cachedRaw && cachedEncoded && cachedValues) {
+      persistDebug("readStoredPayload source=cache raw_len=" + cachedRaw.length + " encoded_len=" + cachedEncoded.length);
       return {
         raw: cachedRaw,
         encoded: cachedEncoded,
@@ -387,6 +397,7 @@
 
     if (!hasPersistentStorage()) {
       log("persistentStorage unavailable; trying convar fallback");
+      persistDebug("readStoredPayload source=convar");
 
       var canReadConvar = typeof GameInterfaceAPI !== "undefined" &&
         GameInterfaceAPI &&
@@ -400,30 +411,38 @@
       try {
         convarRaw = String(GameInterfaceAPI.GetSettingString("deadlock_hero_debuts_seen") || "");
       } catch (eConvar) {
+        persistDebug("readStoredPayload source=convar read_fail err=" + eConvar);
         log("convar read threw: " + eConvar);
         return null;
       }
 
       var tokenMatch = convarRaw.match(/\[ANITA-v1-hp_colors\]:([A-Za-z0-9_-]+)/);
       if (!tokenMatch) {
+        persistDebug("readStoredPayload source=convar token_len=0");
         log("convar token not found");
         return null;
       }
 
       var convarEncoded = tokenMatch[1];
+      persistDebug("readStoredPayload source=convar token_len=" + convarEncoded.length);
       var convarDecoded = "";
       try {
         convarDecoded = AnitaBase64.decode(convarEncoded);
       } catch (eDecode) {
+        persistDebug("readStoredPayload source=convar decode_fail err=" + eDecode);
         log("convar payload decode failed err=" + eDecode);
         return null;
       }
 
       var convarParsed = parseStoredPayload(convarDecoded, "convar");
-      if (!convarParsed) return null;
+      if (!convarParsed) {
+        persistDebug("readStoredPayload source=convar parse_fail");
+        return null;
+      }
 
       cachePayload(convarParsed.raw, convarEncoded, convarParsed.values, convarParsed.values);
       log("convar bootstrap source=convar encoded_len=" + convarEncoded.length);
+      persistDebug("readStoredPayload source=convar parse_success raw_len=" + convarParsed.raw.length + " encoded_len=" + convarEncoded.length);
       return {
         raw: convarParsed.raw,
         encoded: convarEncoded,
@@ -436,6 +455,7 @@
     try {
       encoded = String($.persistentStorage.getItem(STORAGE_KEY) || "");
     } catch (eRead) {
+      persistDebug("readStoredPayload source=persistentStorage read_fail err=" + eRead);
       log("persistentStorage read threw: " + eRead);
       return null;
     }
@@ -480,22 +500,28 @@
     }
 
     if (!forceWrite && encoded === cachedEncoded) {
+      persistDebug("persistCurrentState skipped reason=" + String(reason || "update") + " unchanged=1 encoded_len=" + encoded.length);
       writeSessionMirror(encoded);
       return false;
     }
 
     cachePayload(raw, encoded, currentValues, persistedValues);
+    persistDebug("persistCurrentState reason=" + String(reason || "update") + " storage=" + (hasPersistentStorage() ? "1" : "0"));
 
     if (!hasPersistentStorage()) {
+      persistDebug("persistCurrentState skipped reason=" + String(reason || "update") + " storage=0 encoded_len=" + encoded.length);
       log("mirror only; storage unavailable source=" + reason);
       return false;
     }
 
     try {
+      persistDebug("persistCurrentState write begin reason=" + String(reason || "update") + " encoded_len=" + encoded.length);
       $.persistentStorage.setItem(STORAGE_KEY, encoded);
+      persistDebug("persistCurrentState write success reason=" + String(reason || "update") + " encoded_len=" + encoded.length);
       log("persistentStorage write source=" + reason + " encoded_len=" + encoded.length);
       return true;
     } catch (eWrite) {
+      persistDebug("persistCurrentState write fail reason=" + String(reason || "update") + " encoded_len=" + encoded.length + " err=" + eWrite);
       log("persistentStorage write threw: " + eWrite);
       return false;
     }
