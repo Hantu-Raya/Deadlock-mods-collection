@@ -1,7 +1,7 @@
 /* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
 
 @import url("s2r://panorama/styles/base/hud_ability_icon_passive.vcss_c");
-.old_item_cooldowns_active .ability_container
+.passive_cooldown_basic_active .ability_container
 {
 	flow-children: up;
 	vertical-align: center;
@@ -12,45 +12,45 @@
 	opacity: 0.6;
 }
 
-.old_item_cooldowns_active .items .ability_container.item_passive.Hidden
+.passive_cooldown_basic_active .items .ability_container.item_passive.Hidden
 {
 	visibility: visible;
 }
 
-.old_item_cooldowns_active #hud_passive_items .isWeaponSlot .button_container
+.passive_cooldown_basic_active #hud_passive_items .isWeaponSlot .button_container
 {
 	wash-color: #FFFFFF00;
 }
 
-.old_item_cooldowns_active #hud_passive_items .isVitalitySlot .button_container
+.passive_cooldown_basic_active #hud_passive_items .isVitalitySlot .button_container
 {
 	wash-color: #FFFFFF00;
 }
 
-.old_item_cooldowns_active #hud_passive_items .isSpiritSlot .button_container
+.passive_cooldown_basic_active #hud_passive_items .isSpiritSlot .button_container
 {
 	wash-color: #FFFFFF00;
 }
 
-.old_item_cooldowns_active #hud_passive_items .ability_image
+.passive_cooldown_basic_active #hud_passive_items .ability_image
 {
 	height: 100%;
 }
 
-.old_item_cooldowns_active #hud_passive_items .button_container
+.passive_cooldown_basic_active #hud_passive_items .button_container
 {
 	width: 100%;
 	height: 100%;
 }
 
-.old_item_cooldowns_active #hud_items .cooldown_timer,.old_item_cooldowns_active #hud_passive_items .cooldown_timer
+.passive_cooldown_basic_active #hud_items .cooldown_timer,.passive_cooldown_basic_active #hud_passive_items .cooldown_timer
 {
 	font-size: 18px;
 	vertical-align: bottom;
 	margin-bottom: 24%;
 }
 
-.old_item_cooldowns_active #hud_passive_items #cooldown_mask,#hud_passive_items.old_item_cooldowns_active #cooldown_mask
+.passive_cooldown_basic_active #hud_passive_items #cooldown_mask,#hud_passive_items.passive_cooldown_basic_active #cooldown_mask
 {
 	height: 100%;
 	margin-top: 0px;
@@ -58,38 +58,38 @@
 	transform: scale3d(-1.1, 1.4, 0);
 }
 
-.old_item_cooldowns_active #hud_passive_items .button_container
+.passive_cooldown_basic_active #hud_passive_items .button_container
 {
 	margin-top: 0px;
 	background-color: #cacacaee;
 	border-radius: 100%;
 }
 
-.old_item_cooldowns_active #hud_passive_items .ability_container
+.passive_cooldown_basic_active #hud_passive_items .ability_container
 {
 	width: 45px;
 	height: 45px;
 	margin: 0px 5px;
 }
 
-.old_item_cooldowns_active #hud_passive_items .ability_bg,.old_item_cooldowns_active #hud_passive_items .ability_ring,.old_item_cooldowns_active #hud_items .ability_ring
+.passive_cooldown_basic_active #hud_passive_items .ability_bg,.passive_cooldown_basic_active #hud_passive_items .ability_ring,.passive_cooldown_basic_active #hud_items .ability_ring
 {
 	visibility: visible;
 }
 
-.old_item_cooldowns_active #hud_passive_items .cooldown_timer
+.passive_cooldown_basic_active #hud_passive_items .cooldown_timer
 {
 	visibility: visible;
 }
 
-.passive_cooldown_custom_active .passiveOffCooldown
+.passive_cooldown_advanced_active .passiveOffCooldown
 {
 	visibility: collapse;
 	animation-name: none;
 	opacity: 0;
 }
 
-.old_item_cooldowns_active .passiveOffCooldown
+.passive_cooldown_basic_active .passiveOffCooldown
 {
 	visibility: visible;
 	animation-name: passivePop;

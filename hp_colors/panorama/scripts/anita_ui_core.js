@@ -119,7 +119,7 @@ var AnitaUILogger = (function () {
       TAB_MAX_CHARS: 17,
       MONITOR_INTERVAL: 0.05
     },
-    PERSISTENCE_DEBUG: false
+    PERSISTENCE_DEBUG: true
   };
   const RENDER_REFRESH_DEBOUNCE_SEC = 0.05;
   const MAX_CONVAR_VALUE_LEN = 400;
@@ -158,6 +158,11 @@ var AnitaUILogger = (function () {
   function hpDebug(message) {
     if (!HP_DEBUG) return;
     $.Msg("[HP Colors][Core] " + message);
+  }
+
+  function persistDebug(message) {
+    if (!CONFIG.PERSISTENCE_DEBUG) return;
+    $.Msg("[HP-PERSIST-DEBUG] " + message);
   }
 
   // Base64url encode/decode — no btoa/atob in Deadlock Panorama
@@ -280,7 +285,7 @@ var AnitaUILogger = (function () {
   const AnitaPersistence = {
     log: function (message) {
       if (!CONFIG.PERSISTENCE_DEBUG) return;
-      $.Msg("[Anita-UI][Persist] " + message);
+      $.Msg("[HP-PERSIST-DEBUG] " + message);
     },
 
     logForConfig: function (config, message) {
@@ -367,10 +372,13 @@ var AnitaUILogger = (function () {
 
     hasPersistentStorage: function () {
       try {
-        return !!($ && $.persistentStorage &&
+        var supported = !!($ && $.persistentStorage &&
           typeof $.persistentStorage.getItem === "function" &&
           typeof $.persistentStorage.setItem === "function");
+        persistDebug("hasPersistentStorage=" + (supported ? "1" : "0"));
+        return supported;
       } catch (eStorage) {
+        persistDebug("hasPersistentStorage=0 err=" + eStorage);
         return false;
       }
     },
@@ -380,6 +388,7 @@ var AnitaUILogger = (function () {
       if (!key) return;
 
       try {
+        persistDebug("writeSessionMirror begin key=" + key + " encoded_len=" + String(encoded || "").length);
         var rootPanel = this.getRootPanel();
         if (rootPanel && rootPanel.SetAttributeString) {
           rootPanel.SetAttributeString(key, encoded);
@@ -388,8 +397,10 @@ var AnitaUILogger = (function () {
         if (hudPanel && hudPanel.SetAttributeString) {
           hudPanel.SetAttributeString(key, encoded);
         }
+        persistDebug("writeSessionMirror success key=" + key + " encoded_len=" + String(encoded || "").length);
         this.logForConfig(config, "session write ns=" + this.normalizeNamespace(config.storageNamespace));
       } catch (eSess) {
+        persistDebug("writeSessionMirror fail key=" + key + " encoded_len=" + String(encoded || "").length + " err=" + eSess);
         this.logForConfig(config, "session write threw: " + eSess);
       }
     },
@@ -399,31 +410,42 @@ var AnitaUILogger = (function () {
       if (typeof GameInterfaceAPI !== "undefined" &&
           GameInterfaceAPI &&
           typeof GameInterfaceAPI.ConsoleCommand === "function") {
+        persistDebug("convar write begin key=" + key + " encoded_len=" + String(value || "").length + " via=ConsoleCommand");
         GameInterfaceAPI.ConsoleCommand(key + ' "' + value + '"');
+        persistDebug("convar write success key=" + key + " encoded_len=" + String(value || "").length + " via=ConsoleCommand");
         this.log("writeConvar via ConsoleCommand key=" + key);
       } else {
+        persistDebug("convar write begin key=" + key + " encoded_len=" + String(value || "").length + " via=SetSettingString");
         GameInterfaceAPI.SetSettingString(key, value);
+        persistDebug("convar write success key=" + key + " encoded_len=" + String(value || "").length + " via=SetSettingString");
         this.log("writeConvar via SetSettingString key=" + key);
       }
     },
 
     writeConvarBestEffort: function (key, value) {
       var command = String(key || "") + ' "' + String(value || "") + '"';
+      persistDebug("convar write attempt key=" + key + " encoded_len=" + String(value || "").length);
 
       if (this.canWriteConvarDirect()) {
         try {
           this.writeConvar(key, value);
+          persistDebug("convar write result success key=" + key + " encoded_len=" + String(value || "").length + " via=direct");
+          try { runConsoleCommandBestEffort("host_writeconfig"); } catch (eFlush) {}
           return true;
         } catch (e0) {
+          persistDebug("convar write result fail key=" + key + " encoded_len=" + String(value || "").length + " err=" + e0);
           this.log("direct convar write failed key=" + key + " err=" + e0);
         }
       }
 
       if (runConsoleCommandBestEffort(command)) {
+        persistDebug("convar write result success key=" + key + " encoded_len=" + String(value || "").length + " via=events");
         this.log("writeConvar via command events key=" + key);
+        try { runConsoleCommandBestEffort("host_writeconfig"); } catch (eFlush) {}
         return true;
       }
 
+      persistDebug("convar write result fail key=" + key + " encoded_len=" + String(value || "").length + " via=events");
       return false;
     },
 
@@ -553,7 +575,9 @@ var AnitaUILogger = (function () {
       var parsed = null;
       try {
         parsed = JSON.parse(text);
+        persistDebug("parse success source=" + sourceLabel + " raw_len=" + text.length);
       } catch (e) {
+        persistDebug("parse fail source=" + sourceLabel + " raw_len=" + text.length + " err=" + e);
         Logger.debugThrottled("Persistence parse failed [" + sourceLabel + "] for " + (config.title || "unknown"), 50);
         return null;
       }
@@ -586,29 +610,38 @@ var AnitaUILogger = (function () {
 
     readPersistentStoragePayload: function (config) {
       var key = this.getStorageKey(config);
-      if (!key || !this.hasPersistentStorage()) return null;
+      var storageAvailable = this.hasPersistentStorage();
+      persistDebug("readPersistentStoragePayload storage=" + (storageAvailable ? "1" : "0"));
+      if (!key || !storageAvailable) return null;
 
       var encoded = "";
       try {
         encoded = String($.persistentStorage.getItem(key) || "");
       } catch (eRead) {
+        persistDebug("readPersistentStoragePayload read_fail key=" + key + " err=" + eRead);
         this.logForConfig(config, "persistentStorage read threw: " + eRead);
         return null;
       }
 
+      persistDebug("readPersistentStoragePayload source=persistentStorage key=" + key + " encoded_len=" + encoded.length);
       if (!encoded) return null;
 
       var raw = "";
       try {
         raw = AnitaBase64.decode(encoded);
       } catch (eDecode) {
+        persistDebug("readPersistentStoragePayload decode_fail key=" + key + " err=" + eDecode);
         this.logForConfig(config, "persistentStorage decode threw: " + eDecode);
         return null;
       }
 
       var parsed = this.parseStoredPayload(config, raw, "persistentStorage");
-      if (!parsed) return null;
+      if (!parsed) {
+        persistDebug("readPersistentStoragePayload parse_fail key=" + key);
+        return null;
+      }
 
+      persistDebug("readPersistentStoragePayload parse_success key=" + key + " raw_len=" + parsed.raw.length + " encoded_len=" + encoded.length);
       return {
         raw: parsed.raw,
         encoded: encoded,
@@ -630,27 +663,37 @@ var AnitaUILogger = (function () {
       try {
         convarRaw = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
       } catch (eRead) {
+        persistDebug("readConvarPayload read_fail ns=" + ns + " err=" + eRead);
         this.logForConfig(config, "convar read threw: " + eRead);
         return null;
       }
 
       var tokenMatch = convarRaw.match(new RegExp("\\[" + this.TOKEN_PREFIX + ns + "\\]:([A-Za-z0-9_-]+)"));
-      if (!tokenMatch) return null;
+      if (!tokenMatch) {
+        persistDebug("readConvarPayload source=convar token_len=0 ns=" + ns);
+        return null;
+      }
 
       var encoded = String(tokenMatch[1] || "");
+      persistDebug("readConvarPayload source=convar token_len=" + encoded.length + " ns=" + ns);
       if (!encoded) return null;
 
       var raw = "";
       try {
         raw = AnitaBase64.decode(encoded);
       } catch (eDecode) {
+        persistDebug("readConvarPayload decode_fail ns=" + ns + " err=" + eDecode);
         this.logForConfig(config, "convar decode threw: " + eDecode);
         return null;
       }
 
       var parsed = this.parseStoredPayload(config, raw, "convar");
-      if (!parsed) return null;
+      if (!parsed) {
+        persistDebug("readConvarPayload parse_fail ns=" + ns);
+        return null;
+      }
 
+      persistDebug("readConvarPayload parse_success ns=" + ns + " raw_len=" + parsed.raw.length + " encoded_len=" + encoded.length);
       return {
         raw: parsed.raw,
         encoded: encoded,
@@ -665,9 +708,11 @@ var AnitaUILogger = (function () {
       try {
         var sessionEncoded = this.getSessionEncoded(config);
         if (sessionEncoded) {
+          persistDebug("readStoredPayload source=session encoded_len=" + sessionEncoded.length);
           var sessionRaw = AnitaBase64.decode(sessionEncoded);
           persisted = this.parseStoredPayload(config, sessionRaw, "session");
           if (persisted) {
+            persistDebug("readStoredPayload source=session parse_success raw_len=" + persisted.raw.length + " encoded_len=" + sessionEncoded.length);
             return {
               raw: persisted.raw,
               encoded: sessionEncoded,
@@ -685,6 +730,7 @@ var AnitaUILogger = (function () {
         if (config && config.title === "HP Colors") {
           hpDebug("hydrate candidate source=persistentStorage");
         }
+        persistDebug("readStoredPayload source=persistentStorage raw_len=" + String((persisted.raw && persisted.raw.length) || 0) + " encoded_len=" + String((persisted.encoded && persisted.encoded.length) || 0));
         return persisted;
       }
 
@@ -693,6 +739,7 @@ var AnitaUILogger = (function () {
         if (config && config.title === "HP Colors") {
           hpDebug("hydrate candidate source=convar");
         }
+        persistDebug("readStoredPayload source=convar raw_len=" + String((persisted.raw && persisted.raw.length) || 0) + " encoded_len=" + String((persisted.encoded && persisted.encoded.length) || 0));
         return persisted;
       }
 
@@ -820,6 +867,18 @@ var AnitaUILogger = (function () {
         }
       } catch (e) {
         this.logForConfig(config, "convar write threw: " + e);
+      }
+
+      try {
+        if (this.hasPersistentStorage()) {
+          var storageKey = this.getStorageKey(config);
+          if (storageKey) {
+            $.persistentStorage.setItem(storageKey, encoded);
+            this.logForConfig(config, "persistentStorage write ns=" + ns + " encoded_len=" + encoded.length);
+          }
+        }
+      } catch (ePersist) {
+        this.logForConfig(config, "persistentStorage write threw: " + ePersist);
       }
 
       this.writeSessionMirror(config, encoded);
