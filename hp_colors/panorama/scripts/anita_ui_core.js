@@ -119,11 +119,41 @@ var AnitaUILogger = (function () {
       TAB_MAX_CHARS: 17,
       MONITOR_INTERVAL: 0.05
     },
-    PERSISTENCE_DEBUG: true
+    PERSISTENCE_DEBUG: false
   };
+  const RENDER_REFRESH_DEBOUNCE_SEC = 0.05;
+  const MAX_CONVAR_VALUE_LEN = 400;
+  const HP_COMPACT_PERSIST_VERSION = 1;
+  const HP_PERSIST_ALIASES = {
+    hp_enabled: "e",
+    hp_mode: "m",
+    hp_low_threshold: "l",
+    hp_high_threshold: "h",
+    hp_bg_visible: "b",
+    hp_team_colors: "t",
+    hp_color_low: "cl",
+    hp_color_mid: "cm",
+    hp_color_high: "ch",
+    hp_counter_size: "s",
+    hp_counter_position: "p",
+    hp_text_color_mode: "tm",
+    hp_text_color_low: "tl",
+    hp_text_color_mid: "ti",
+    hp_text_color_high: "th",
+    hp_npc_poll_slow: "np"
+  };
+  const HP_PERSIST_ALIAS_TO_ID = (function () {
+    var out = {};
+    for (var id in HP_PERSIST_ALIASES) {
+      if (Object.prototype.hasOwnProperty.call(HP_PERSIST_ALIASES, id)) {
+        out[HP_PERSIST_ALIASES[id]] = id;
+      }
+    }
+    return out;
+  })();
 
   const Logger = AnitaUILogger(CONFIG.DEBUG_MODE);
-  const HP_DEBUG = true;
+  const HP_DEBUG = false;
 
   function hpDebug(message) {
     if (!HP_DEBUG) return;
@@ -275,6 +305,12 @@ var AnitaUILogger = (function () {
       return this.normalizeNamespace(config && config.storageNamespace).length > 0;
     },
 
+    isHpColorsConfig: function (config) {
+      return !!config &&
+        String(config.title || "") === "HP Colors" &&
+        this.normalizeNamespace(config.storageNamespace) === "hp_colors";
+    },
+
     CONVAR_KEY: "deadlock_hero_debuts_seen",
     TOKEN_PREFIX: "ANITA-v1-",
 
@@ -395,6 +431,13 @@ var AnitaUILogger = (function () {
       return (config && Array.isArray(config.elements)) ? config.elements : [];
     },
 
+    warnPersistence: function (config, reason) {
+      var title = (config && config.title) ? String(config.title) : "unknown";
+      if (config && config.__anitaLastPersistWarning === reason) return;
+      if (config) config.__anitaLastPersistWarning = reason;
+      $.Msg("[Anita-UI] WARNING: " + title + " persistence " + String(reason || "unavailable"));
+    },
+
     shouldPersistElement: function (element) {
       return !!(element && element.id && element.type !== "button");
     },
@@ -476,6 +519,33 @@ var AnitaUILogger = (function () {
       }
     },
 
+    expandStoredValues: function (config, parsed) {
+      if (!parsed || typeof parsed !== "object" || !parsed.values || typeof parsed.values !== "object") {
+        return null;
+      }
+
+      var rawValues = parsed.values;
+      var expanded = {};
+      var isCompact = this.isHpColorsConfig(config) && (parsed.c === HP_COMPACT_PERSIST_VERSION || parsed.compact === true);
+
+      if (!isCompact) {
+        for (var key in rawValues) {
+          if (Object.prototype.hasOwnProperty.call(rawValues, key)) {
+            expanded[key] = rawValues[key];
+          }
+        }
+        return expanded;
+      }
+
+      for (var alias in rawValues) {
+        if (!Object.prototype.hasOwnProperty.call(rawValues, alias)) continue;
+        var fullId = HP_PERSIST_ALIAS_TO_ID[alias];
+        if (!fullId) continue;
+        expanded[fullId] = rawValues[alias];
+      }
+      return expanded;
+    },
+
     parseStoredPayload: function (config, raw, sourceLabel) {
       var text = String(raw || "");
       if (!text) return null;
@@ -488,7 +558,13 @@ var AnitaUILogger = (function () {
         return null;
       }
 
-      if (!parsed || typeof parsed !== "object" || !parsed.values || typeof parsed.values !== "object") {
+      if (!parsed || typeof parsed !== "object") {
+        Logger.debugThrottled("Persistence payload invalid [" + sourceLabel + "] for " + (config.title || "unknown"), 50);
+        return null;
+      }
+
+      var expandedValues = this.expandStoredValues(config, parsed);
+      if (!expandedValues) {
         Logger.debugThrottled("Persistence payload invalid [" + sourceLabel + "] for " + (config.title || "unknown"), 50);
         return null;
       }
@@ -498,8 +574,8 @@ var AnitaUILogger = (function () {
       for (var i = 0; i < elements.length; i++) {
         var element = elements[i];
         if (!this.shouldPersistElement(element)) continue;
-        if (!Object.prototype.hasOwnProperty.call(parsed.values, element.id)) continue;
-        values[element.id] = this.sanitizeValue(element, parsed.values[element.id]);
+        if (!Object.prototype.hasOwnProperty.call(expandedValues, element.id)) continue;
+        values[element.id] = this.sanitizeValue(element, expandedValues[element.id]);
       }
 
       return {
@@ -604,9 +680,6 @@ var AnitaUILogger = (function () {
         this.logForConfig(config, "session read threw: " + eSess);
       }
 
-      if (persisted && config && config.title === "HP Colors") {
-        hpDebug("hydrate candidate source=session");
-      }
       persisted = this.readPersistentStoragePayload(config);
       if (persisted) {
         if (config && config.title === "HP Colors") {
@@ -678,11 +751,9 @@ var AnitaUILogger = (function () {
     },
 
     buildStoredPayload: function (config) {
-      var payload = {
-        version: this.getVersion(config),
-        values: {}
-      };
       var elements = this.getElements(config);
+      var values = {};
+      var isHpColors = this.isHpColorsConfig(config);
       for (var i = 0; i < elements.length; i++) {
         var element = elements[i];
         if (!this.shouldPersistElement(element)) continue;
@@ -691,9 +762,22 @@ var AnitaUILogger = (function () {
           element.currentValue !== undefined ? element.currentValue : element.defaultValue
         );
         element.currentValue = value;
-        payload.values[element.id] = value;
+        if (isHpColors && value === this.sanitizeValue(element, element.defaultValue)) {
+          continue;
+        }
+        values[isHpColors ? (HP_PERSIST_ALIASES[element.id] || element.id) : element.id] = value;
       }
-      return JSON.stringify(payload);
+      if (isHpColors) {
+        return JSON.stringify({
+          v: this.getVersion(config),
+          c: HP_COMPACT_PERSIST_VERSION,
+          values: values
+        });
+      }
+      return JSON.stringify({
+        version: this.getVersion(config),
+        values: values
+      });
     },
 
     persistConfig: function (config, forceWrite) {
@@ -725,8 +809,12 @@ var AnitaUILogger = (function () {
         }
         var cleaned = current.replace(this.getCleanupRegex(ns), "").replace(/,,+/g, ",").replace(/^,|,$/, "");
         var finalValue = (cleaned ? cleaned + "," : "") + token;
-        if (!this.writeConvarBestEffort(this.CONVAR_KEY, finalValue)) {
-          this.logForConfig(config, "convar write unavailable (no direct API or command event path)");
+        if (finalValue.length > MAX_CONVAR_VALUE_LEN) {
+          // Do NOT write cleaned back — that would destroy the last valid token.
+          // Leave the convar untouched and skip only the new write.
+          this.warnPersistence(config, "convar skipped (payload_too_large)");
+        } else if (!this.writeConvarBestEffort(this.CONVAR_KEY, finalValue)) {
+          this.warnPersistence(config, "convar unavailable");
         } else {
           this.logForConfig(config, "convar write ns=" + ns + " encoded_len=" + encoded.length);
         }
@@ -924,8 +1012,6 @@ var AnitaUILogger = (function () {
         } else {
           next = parseFloat(next.toFixed(2));
         }
-        if (next < min) next = min;
-        if (next > max) next = max;
         return next;
       }
 
@@ -2996,7 +3082,7 @@ var AnitaUILogger = (function () {
       if (!config) return;
       var refreshToken = (config.__anitaUiRefreshToken || 0) + 1;
       config.__anitaUiRefreshToken = refreshToken;
-      $.Schedule(0.0, function () {
+      $.Schedule(RENDER_REFRESH_DEBOUNCE_SEC, function () {
         if (!config || config.__anitaUiRefreshToken !== refreshToken) return;
         if (AnitaRenderer.activeModTitle !== config.title) return;
         AnitaRenderer.renderModSettings(config);
@@ -3029,64 +3115,6 @@ var AnitaUILogger = (function () {
       }
     },
 
-    parsePortableSyncClockSec: function (text) {
-      if (!text) return 0;
-      var s = String(text);
-      var ci = s.indexOf(":");
-      if (ci < 0) return 0;
-
-      var mm = 0;
-      var ss = 0;
-      var i = 0;
-      var c = 0;
-
-      for (; i < ci; i++) {
-        c = s.charCodeAt(i) - 48;
-        if (c < 0 || c > 9) continue;
-        mm = mm * 10 + c;
-      }
-      for (i = ci + 1; i < s.length; i++) {
-        c = s.charCodeAt(i) - 48;
-        if (c < 0 || c > 9) continue;
-        ss = ss * 10 + c;
-      }
-
-      return mm * 60 + ss;
-    },
-
-    getPortableSyncGameTimeSec: function (config) {
-      if (!config || config.title !== "HP Colors") return 0;
-
-      var timeSec = 0;
-      if (config.__anitaGameTimePanel &&
-          config.__anitaGameTimePanel.IsValid &&
-          config.__anitaGameTimePanel.IsValid()) {
-        try {
-          timeSec = this.parsePortableSyncClockSec(config.__anitaGameTimePanel.text);
-        } catch (eCached) {}
-      }
-
-      if (timeSec > 0) return timeSec;
-
-      try {
-        var root = this.getRoot($.GetContextPanel());
-        var topBar = config.__anitaTopBarPanel;
-        if ((!topBar || !topBar.IsValid || !topBar.IsValid()) && root && root.FindChildTraverse) {
-          topBar = root.FindChildTraverse("TopBar");
-          config.__anitaTopBarPanel = topBar || null;
-        }
-        if (topBar && topBar.FindChildrenWithClassTraverse) {
-          var matches = topBar.FindChildrenWithClassTraverse("GameTime");
-          if (matches && matches[0] && matches[0].text) {
-            config.__anitaGameTimePanel = matches[0];
-            timeSec = this.parsePortableSyncClockSec(matches[0].text);
-          }
-        }
-      } catch (eTopBar) {}
-
-      return timeSec;
-    },
-
     startPortableSyncLoop: function (config) {
       if (!config || config.title !== "HP Colors") return;
       config.__anitaPortableSyncReason = String(config.__anitaPortableSyncReason || "update");
@@ -3101,7 +3129,6 @@ var AnitaUILogger = (function () {
           config.__anitaPortableSyncLoopStarted = false;
           return;
         }
-
         this.emitPortableSync(config, "heartbeat_" + String(config.__anitaPortableSyncReason || "update"));
         $.Schedule(3.0, tick);
       };
@@ -3113,11 +3140,6 @@ var AnitaUILogger = (function () {
       if (!data || !data.mod_title || !data.setting_id) return;
       var config = this.findRegisteredMod(data.mod_title);
       if (!config) return;
-      if (data.mod_title === "HP Colors") {
-        hpDebug("handle update source=" + String(data.update_source || "unknown") + " setting=" + String(data.setting_id) + " value=" + String(data.value));
-      }
-      if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) return;
-      AnitaRenderer.syncSaveCodeInput(config);
       var updateSource = String(data.update_source || "");
       var isBootstrap = updateSource === "bridge_bootstrap";
       var isReplaySource = isBootstrap ||
@@ -3125,6 +3147,13 @@ var AnitaUILogger = (function () {
         updateSource === "ui_reset" ||
         updateSource === "ui_code_apply" ||
         updateSource === "core_auto_resync";
+      if (data.mod_title === "HP Colors") {
+        hpDebug("handle update source=" + String(data.update_source || "unknown") + " setting=" + String(data.setting_id) + " value=" + String(data.value));
+      }
+      if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) {
+        return;
+      }
+      AnitaRenderer.syncSaveCodeInput(config);
       if (isBootstrap) {
         config.__anitaBootstrapReceived = true;
       }
@@ -3163,6 +3192,10 @@ var AnitaUILogger = (function () {
         return;
       }
       if (data.mod_title === "HP Colors") {
+        if (!config.__anitaPortableSyncLoopStarted) {
+          config.__anitaPortableSyncReason = String(config.__anitaPortableSyncReason || "bootstrap_request");
+          this.startPortableSyncLoop(config);
+        }
         hpDebug("bootstrap request reason=" + String(data.reason || "request"));
       }
       this.emitCurrentValues(config, {

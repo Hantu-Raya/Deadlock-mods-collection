@@ -578,7 +578,7 @@
 {
 	width: 24px;
 	height: 24px;
-	background-image: url("s2r://panorama/images/control_icons/gear_return_png.vtex");
+	background-image: url("s2r://panorama/images/masks/wipe_test_star_stroke_psd.vtex");
 	background-size: contain;
 	background-position: 50% 50%;
 	background-repeat: no-repeat;
@@ -595,17 +595,17 @@
 	transition-timing-function: cubic-bezier(0.785, 0.385, 0.555, 1.505);
 }
 
+.AnitaOverlayBtn.Visible
+{
+	opacity: 0.3;
+	transform: scale3d(1.2, 1.2, 1);
+}
+
 .AnitaOverlayBtn:hover
 {
 	pre-transform-rotate2d: -90deg;
 	wash-color: deeplyOminousGreen;
 	opacity: 0.35;
-}
-
-.AnitaOverlayBtn.Visible
-{
-	opacity: 0.3;
-	transform: scale3d(1.2, 1.2, 1);
 }
 
 .AnitaOverlayBtn.Attention

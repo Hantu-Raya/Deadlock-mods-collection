@@ -5,7 +5,35 @@
   var STORAGE_NAMESPACE = "hp_colors";
   var STORAGE_KEY = "anita_v1_hp_colors";
   var PERSIST_DEBOUNCE_SEC = 0.35;
-  var PERSISTENCE_DEBUG = true;
+  var PERSISTENCE_DEBUG = false;
+  var HP_COMPACT_PERSIST_VERSION = 1;
+  var HP_PERSIST_ALIASES = {
+    hp_enabled: "e",
+    hp_mode: "m",
+    hp_low_threshold: "l",
+    hp_high_threshold: "h",
+    hp_bg_visible: "b",
+    hp_team_colors: "t",
+    hp_color_low: "cl",
+    hp_color_mid: "cm",
+    hp_color_high: "ch",
+    hp_counter_size: "s",
+    hp_counter_position: "p",
+    hp_text_color_mode: "tm",
+    hp_text_color_low: "tl",
+    hp_text_color_mid: "ti",
+    hp_text_color_high: "th",
+    hp_npc_poll_slow: "np"
+  };
+  var HP_PERSIST_ALIAS_TO_ID = (function () {
+    var out = {};
+    for (var id in HP_PERSIST_ALIASES) {
+      if (Object.prototype.hasOwnProperty.call(HP_PERSIST_ALIASES, id)) {
+        out[HP_PERSIST_ALIASES[id]] = id;
+      }
+    }
+    return out;
+  })();
 
   var bridgeConfig = null;
   var currentValues = null;
@@ -219,12 +247,16 @@
       return nextIndex;
     }
 
-    if (type === "stepper") {
+    if (type === "slider" || type === "stepper") {
       var nextNumber = Number(value);
       if (!isFinite(nextNumber)) nextNumber = Number(fallback);
       if (!isFinite(nextNumber)) nextNumber = 0;
       var step = Number(element.step);
       if (!isFinite(step) || step === 0) step = 1;
+      var minV = isFinite(Number(element.min)) ? Number(element.min) : -Infinity;
+      var maxV = isFinite(Number(element.max)) ? Number(element.max) : Infinity;
+      if (nextNumber < minV) nextNumber = minV;
+      if (nextNumber > maxV) nextNumber = maxV;
       if (Math.round(step) === step) return Math.round(nextNumber);
       return parseFloat(nextNumber.toFixed(2));
     }
@@ -277,7 +309,25 @@
       return null;
     }
 
-    var values = mergeWithDefaults(parsed.values);
+    if (bridgeConfig && parsed.v && Number(parsed.v) < Number(bridgeConfig.storageVersion)) {
+      log("payload version mismatch source=" + sourceLabel + " payload_v=" + parsed.v + " current_v=" + bridgeConfig.storageVersion + "; loading with defaults for missing keys");
+    }
+
+    var rawValues = parsed.values;
+    var values = {};
+    var useCompact = parsed.c === HP_COMPACT_PERSIST_VERSION || parsed.compact === true;
+    if (useCompact) {
+      var expanded = {};
+      for (var alias in rawValues) {
+        if (!Object.prototype.hasOwnProperty.call(rawValues, alias)) continue;
+        var fullId = HP_PERSIST_ALIAS_TO_ID[alias];
+        if (!fullId) continue;
+        expanded[fullId] = rawValues[alias];
+      }
+      values = mergeWithDefaults(expanded);
+    } else {
+      values = mergeWithDefaults(rawValues);
+    }
     return {
       raw: text,
       values: values
@@ -286,11 +336,20 @@
 
   function buildStoredPayload() {
     if (!bridgeConfig) return "";
-    var payload = {
-      version: Math.max(1, Math.floor(Number(bridgeConfig.storageVersion) || 1)),
-      values: cloneValues(persistedValues || currentValues || buildDefaultValues(bridgeConfig))
-    };
-    return JSON.stringify(payload);
+    var sourceValues = persistedValues || currentValues || buildDefaultValues(bridgeConfig);
+    var defaults = buildDefaultValues(bridgeConfig);
+    var compactValues = {};
+    for (var key in sourceValues) {
+      if (!Object.prototype.hasOwnProperty.call(sourceValues, key)) continue;
+      if (!Object.prototype.hasOwnProperty.call(defaults, key)) continue;
+      if (sourceValues[key] === defaults[key]) continue;
+      compactValues[HP_PERSIST_ALIASES[key] || key] = sourceValues[key];
+    }
+    return JSON.stringify({
+      v: Math.max(1, Math.floor(Number(bridgeConfig.storageVersion) || 1)),
+      c: HP_COMPACT_PERSIST_VERSION,
+      values: compactValues
+    });
   }
 
   function writeSessionMirror(encoded) {

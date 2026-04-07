@@ -3,7 +3,26 @@
 
   // â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var TITLE = "HP Colors";
-  var DEV_LOG = true;
+  var DEV_LOG = false;
+  var HP_COMPACT_PERSIST_VERSION = 1;
+  var HP_PERSIST_ALIAS_TO_ID = {
+    e: "hp_enabled",
+    m: "hp_mode",
+    l: "hp_low_threshold",
+    h: "hp_high_threshold",
+    b: "hp_bg_visible",
+    t: "hp_team_colors",
+    cl: "hp_color_low",
+    cm: "hp_color_mid",
+    ch: "hp_color_high",
+    s: "hp_counter_size",
+    p: "hp_counter_position",
+    tm: "hp_text_color_mode",
+    tl: "hp_text_color_low",
+    ti: "hp_text_color_mid",
+    th: "hp_text_color_high",
+    np: "hp_npc_poll_slow"
+  };
   var DEFAULTS = {
     hp_enabled: true,
     hp_mode: 1,
@@ -19,7 +38,8 @@
     hp_color_low: "#E16161",
     hp_color_mid: "#FF7B00",
     hp_color_high: "#00FF00",
-    hp_team_colors: false
+    hp_team_colors: false,
+    hp_npc_poll_slow: true
   };
   var TEAM1_HIGH = "#FFC961";
   var TEAM2_HIGH = "#6485FC";
@@ -76,6 +96,17 @@
     return !!(panel && panel.IsValid && panel.IsValid());
   }
 
+  // Cache last color strings used in refreshDerivedState to skip redundant createColorState calls.
+  var _cachedColorKeys = {};
+
+  function refreshColorState(slotName, colorStr, fallback) {
+    var key = slotName + "|" + colorStr + "|" + fallback;
+    if (_cachedColorKeys[slotName] === key) return;
+    _cachedColorKeys[slotName] = key;
+    derived[slotName] = createColorState(colorStr, fallback);
+    if (slotName === "lowState") derived.lowDarkRgb = darkOf(derived.lowState.rgb);
+  }
+
   function refreshDerivedState() {
     var low = clampPct(cfg.hp_low_threshold, DEFAULTS.hp_low_threshold);
     var high = clampPct(cfg.hp_high_threshold, DEFAULTS.hp_high_threshold);
@@ -91,13 +122,12 @@
     derived.counterBaseSize = clampNum(cfg.hp_counter_size, 72, 400, DEFAULTS.hp_counter_size);
     derived.counterBasePos = parseCounterPositionValue(cfg.hp_counter_position);
     derived.textUsesCustomColor = Number(cfg.hp_text_color_mode) === 1;
-    derived.textLowState = createColorState(cfg.hp_text_color_low, DEFAULTS.hp_color_low);
-    derived.textMidState = createColorState(cfg.hp_text_color_mid, DEFAULTS.hp_color_mid);
-    derived.textHighState = createColorState(cfg.hp_text_color_high, WHITE_WASH);
-    derived.lowState = createColorState(cfg.hp_color_low, DEFAULTS.hp_color_low);
-    derived.midState = createColorState(cfg.hp_color_mid, DEFAULTS.hp_color_mid);
-    derived.highState = createColorState(cfg.hp_color_high, DEFAULTS.hp_color_high);
-    derived.lowDarkRgb = darkOf(derived.lowState.rgb);
+    refreshColorState("textLowState", cfg.hp_text_color_low, DEFAULTS.hp_color_low);
+    refreshColorState("textMidState", cfg.hp_text_color_mid, DEFAULTS.hp_color_mid);
+    refreshColorState("textHighState", cfg.hp_text_color_high, WHITE_WASH);
+    refreshColorState("lowState", cfg.hp_color_low, DEFAULTS.hp_color_low);
+    refreshColorState("midState", cfg.hp_color_mid, DEFAULTS.hp_color_mid);
+    refreshColorState("highState", cfg.hp_color_high, DEFAULTS.hp_color_high);
   }
 
   function coerceCfgValue(id, value) {
@@ -175,6 +205,7 @@
   var bootstrapAttempts = 0;
   var bootstrapFinished = false;
   var bootstrapLoopActive = false;
+  var bootstrapSatisfiedSource = "";
   var settingsDirty = true;
   var sharedCfgRaw = "";
   var directBootstrapMisses = 0;
@@ -349,10 +380,23 @@
     }
 
     var snapshot = {};
+    var rawValues = parsed.values;
+    var useCompact = parsed.c === HP_COMPACT_PERSIST_VERSION || parsed.compact === true;
     for (var id in DEFAULTS) {
       if (!Object.prototype.hasOwnProperty.call(DEFAULTS, id)) continue;
-      if (!Object.prototype.hasOwnProperty.call(parsed.values, id)) continue;
-      snapshot[id] = coerceCfgValue(id, parsed.values[id]);
+      var storedKey = id;
+      if (useCompact) {
+        storedKey = null;
+        for (var alias in HP_PERSIST_ALIAS_TO_ID) {
+          if (!Object.prototype.hasOwnProperty.call(HP_PERSIST_ALIAS_TO_ID, alias)) continue;
+          if (HP_PERSIST_ALIAS_TO_ID[alias] === id) {
+            storedKey = alias;
+            break;
+          }
+        }
+      }
+      if (!storedKey || !Object.prototype.hasOwnProperty.call(rawValues, storedKey)) continue;
+      snapshot[id] = coerceCfgValue(id, rawValues[storedKey]);
     }
 
     return {
@@ -570,10 +614,15 @@
           writeSharedSnapshot(d.update_source || "update");
         }
         if (isSyncSource) {
+          var nextSyncSource = String(d.update_source || "");
+          var shouldLogBootstrapSatisfied = !bootstrapApplied || bootstrapSatisfiedSource !== nextSyncSource;
           bootstrapApplied = true;
           bootstrapFinished = true;
           bootstrapLoopActive = false;
-          devLog("bootstrap satisfied source=" + String(d.update_source));
+          bootstrapSatisfiedSource = nextSyncSource;
+          if (shouldLogBootstrapSatisfied) {
+            devLog("bootstrap satisfied source=" + nextSyncSource);
+          }
           try {
             var root = getRootPanel();
             if (root) root.__hpColorsBootstrapAppliedAt = Date.now ? Date.now() : (new Date()).getTime();
@@ -729,7 +778,7 @@
         devLog("panel cache rebuilt rb=" + panelId(rb, "rb") + " us=" + panelId(us, "UnitStatus") + " hc=" + panelId(hc, "hp_counter"));
         resetStyleStateForNewPanels();
       }
-      cached = 1;
+      cached = 1; att = 0;
       return 1;
     }
     return 0;
@@ -748,7 +797,11 @@
         if (!t) { if (c.BHasClass('team2')) t = 2; else if (c.BHasClass('team1')) t = 1; }
         if (!(f & 1) && c.BHasClass('enemy')) f |= 1;
         if (!(f & 2) && (c.BHasClass('team_neutral') || c.BHasClass('neutral'))) f |= 2;
-        if (t && (f & 3)) break;
+        if (!(f & 4) && c.BHasClass('player')) f |= 4;
+        if (!(f & 8) && c.BHasClass('creature')) f |= 8;
+        if (!(f & 16) && c.BHasClass('building')) f |= 16;
+        if (t && (f & 2)) break;  // neutral confirmed
+        if (t && (f & 16)) break; // building confirmed — class hierarchy never changes
       }
       if (!c.GetParent) break;
       c = c.GetParent(); d++;
@@ -791,7 +844,7 @@
 
     if (changed || now >= scanNextAt) {
       scan(rb);
-      scanNextAt = now + 250;
+      scanNextAt = now + ((fl & 8) ? 2000 : 250); // creatures: 2s cache; heroes/unknown: 250ms
     }
   }
 
@@ -1042,20 +1095,15 @@
     try {
       if (!cfg.hp_enabled) {
         clearPulse();
-        if (rb) { rb.style.washColor = ""; lCol = null; }
-        if (ui) { ui.style.washColor = ""; lUlt = null; }
-        if (bg && bg.style) { bg.style.visibility = 'collapse'; lBgVis = 'collapse'; }
+        if (rb && lCol !== "") { rb.style.washColor = ""; lCol = ""; }
+        if (ui && lUlt !== "") { ui.style.washColor = ""; lUlt = ""; }
+        if (bg && bg.style && lBgVis !== 'collapse') { bg.style.visibility = 'collapse'; lBgVis = 'collapse'; }
         if (hc && hc.style) {
-          hc.style.washColor = "";
-          hc.style.visibility = 'collapse';
-          hc.style.fontSize = "";
-          hc.style.marginTop = "";
-          hc.style.marginLeft = "";
-          lTxt = null;
-          lVis = 'collapse';
-          lHpSize = null;
-          lHpPos = null;
-          lHpMarginLeft = null;
+          if (lTxt !== "") { hc.style.washColor = ""; lTxt = ""; }
+          if (lVis !== 'collapse') { hc.style.visibility = 'collapse'; lVis = 'collapse'; }
+          if (lHpSize !== null) { hc.style.fontSize = ""; lHpSize = null; }
+          if (lHpPos !== null) { hc.style.marginTop = ""; lHpPos = null; }
+          if (lHpMarginLeft !== null) { hc.style.marginLeft = ""; lHpMarginLeft = null; }
         }
         $.Schedule(1.0, gL); return;
       }
@@ -1067,6 +1115,8 @@
 
       ensureScanState(now);
       var isEnemy = !!(fl & 1) && !(fl & 2);
+      var isHeroEnemy = isEnemy && !!(fl & 4);
+      var isBuilding = isEnemy && !!(fl & 16);
       if (!bootstrapApplied) {
         if (!tryApplySharedSnapshot("overlay_tick")) {
           tryApplyDirectBootstrap("overlay_tick");
@@ -1095,10 +1145,12 @@
       var w = rb.actuallayoutwidth | 0;
       var pw = cp && cp.actuallayoutwidth !== undefined ? cp.actuallayoutwidth | 0 : 0;
 
-      // No change in width â€” back off
+      // No change in width — back off; buildings flat 4s, minions sooner/deeper, heroes standard
       if (w === lW && pw === lPW) {
-        if (now - lUT > 2500) { $.Schedule(1.25, gL); return; }
-        $.Schedule(0.25, gL); return;
+        if (isBuilding && cfg.hp_npc_poll_slow) { $.Schedule(4.0, gL); return; }
+        var isSlow = !isHeroEnemy && cfg.hp_npc_poll_slow;
+        if (now - lUT > (isSlow ? 800 : 1200)) { $.Schedule(isSlow ? 2.5 : 1.25, gL); return; }
+        $.Schedule(0.2, gL); return;
       }
       lW = w; lPW = pw; lUT = now;
       if (pw <= 0) { $.Schedule(0.25, gL); return; }
@@ -1166,7 +1218,15 @@
           } else {
             cl = highState.wash;
           }
-          if (sFC >= 5) sc = Math.min(0.15 * Math.pow(2, Math.floor(sFC / 5)), 1);
+          if (!isHeroEnemy && cfg.hp_npc_poll_slow) {
+            if (isBuilding) {
+              sc = 4.0; // buildings: flat 4s once stable
+            } else if (sFC >= 3) {
+              sc = Math.min(0.3 * Math.pow(2, Math.floor(sFC / 3)), 3.0); // minion/boss curve
+            }
+          } else {
+            if (sFC >= 5) sc = Math.min(0.15 * Math.pow(2, Math.floor(sFC / 5)), 3.0); // hero curve
+          }
           textWash = getTextColorWash(cl, highState.wash, "high");
         }
         sBC(cl); sUC(cl); sTC(textWash);
