@@ -3,7 +3,7 @@
 
   // â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var TITLE = "HP Colors";
-  var DEV_LOG = false;
+  var DEV_LOG = true;
   var HP_COMPACT_PERSIST_VERSION = 1;
   var HP_PERSIST_ALIAS_TO_ID = {
     e: "hp_enabled",
@@ -213,6 +213,11 @@
   function devLog(message) {
     if (!DEV_LOG) return;
     $.Msg("[HP Colors][Overlay] " + message);
+  }
+
+  function persistDebug(message) {
+    if (!DEV_LOG) return;
+    $.Msg("[HP-PERSIST-DEBUG] " + message);
   }
 
   function panelId(panel, fallback) {
@@ -428,12 +433,19 @@
 
   function readSessionMirrorPayload() {
     var encoded = getSessionMirrorEncoded();
-    if (!encoded) return null;
+    if (!encoded) {
+      persistDebug("readSessionMirrorPayload found=0 len=0");
+      return null;
+    }
+    persistDebug("readSessionMirrorPayload found=1 len=" + encoded.length);
 
     try {
-      return parseStoredCfgPayload(decodeBase64Url(encoded), "session_mirror");
+      var parsed = parseStoredCfgPayload(decodeBase64Url(encoded), "session_mirror");
+      persistDebug("readSessionMirrorPayload parse=" + (parsed ? "success" : "fail") + " len=" + encoded.length);
+      return parsed;
     } catch (eDecode) {
       devLog("direct bootstrap decode failed source=session_mirror err=" + String(eDecode));
+      persistDebug("readSessionMirrorPayload decode=fail len=" + encoded.length + " err=" + String(eDecode));
       return null;
     }
   }
