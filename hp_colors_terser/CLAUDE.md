@@ -2,172 +2,130 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-# hp_colors
+## 1. BUILD COMMAND
 
-Enemy healthbar coloring mod for Deadlock with live in-game configuration via Anita-UI.
+Run:
 
-## What this mod does
-
-- Colors enemy healthbars by HP percentage using low / mid / high zones
-- Supports two modes: `Fixed` and `Gradient`
-- Exposes live Anita-UI controls for thresholds, colors, background visibility, team colors, HP counter size, HP counter position, and HP text color behavior
-- Supports Copy and Import footer actions for the current settings token
-- Packs to `pak96_dir.vpk` for Deadlock addon deployment
-
-## File layout
-
-```text
-hp_colors/panorama/
-  layout/
-    base_hud.xml
-    hud_escape_menu.xml
-    unit_status_overlay.xml
-  scripts/
-    anita_ui_core.js
-    anita_persist_loader.js
-    hp_registrar.js
-    healthbar_logic.js
-  styles/
-    anita_ui.css
-    unit_status.css
+```powershell
+powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
 ```
 
-## Runtime architecture
+`build_hp_colors.ps1` performs four stages:
 
-| Script | Context | Purpose |
+1. Minify — copies `hp_colors/` → `hp_colors_terser/` and runs `npx terser` on every JS file (`passes=2`, `keep_fnames=true`, `keep_classnames=true`).
+2. Compile — runs `sr2compiler\New folder.exe` against `hp_colors_terser/`, produces `hp_colors_terser_compiled/`, then copies to `hp_colors_compiled/`. Sentinel file: `hp_colors_compiled\panorama\scripts\healthbar_logic.vjs_c`.
+3. Pack — runs `passive_items_mod\compiler\vpkeditcli.exe` against `hp_colors_compiled/`, writes `pak96_dir.vpk` at the repo root.
+4. Deploy — copies `pak96_dir.vpk` to `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak96_dir.vpk`.
+
+`hp_colors_terser/` and `hp_colors_compiled/` are intermediate build artifacts — do not edit them directly.
+
+## 2. RUNTIME ARCHITECTURE
+
+Script to XML context mapping:
+
+| Script | XML context | What it does |
 |---|---|---|
-| `anita_ui_core.js` | `base_hud.xml` | Visible Anita-UI window and controls |
-| `hp_registrar.js` | `base_hud.xml` | Registers HP Colors and requests bootstrap |
-| `anita_persist_loader.js` | `hud_escape_menu.xml` | Escape-menu persistence bridge |
-| `healthbar_logic.js` | `unit_status_overlay.xml` | World-space healthbar coloring consumer |
+| `anita_ui_core.js` | `panorama/layout/base_hud.xml` | Creates the Anita-UI window, overlay button, event listener, registration handling, persistence helpers, and value replay. |
+| `hp_registrar.js` | `panorama/layout/base_hud.xml` | Builds the HP Colors config schema, registers it, listens for handshake, and requests bootstrap. |
+| `anita_persist_loader.js` | `panorama/layout/hud_escape_menu.xml` | Captures the config, reads persisted payloads, mirrors session state, and replays stored values. |
+| `healthbar_logic.js` | `panorama/layout/unit_status_overlay.xml` | Consumes `ANITA_UPDATE`, bootstraps overlay state, scans panel ancestry, and applies live healthbar/counter styling. |
 
 Event flow:
 
-1. `hp_registrar.js` emits `ANITA_REGISTER`
-2. `anita_ui_core.js` registers the config and emits `ANITA_HANDSHAKE`
-3. Base HUD and overlay scripts request `ANITA_REQUEST_BOOTSTRAP`
-4. `anita_persist_loader.js` replays saved values as `ANITA_UPDATE`
-5. `healthbar_logic.js` applies those values live
+1. `hp_registrar.js` starts, builds `SCHEMA`, and registers `HP Colors`.
+2. Registration enters the system as `ANITA_REGISTER`.
+   - Direct path: `root.AnitaUI.Register(config)` in `hp_registrar.js`.
+   - Event path: `$.DispatchEvent("ClientUI_FireOutput", { magic_word: "ANITA_REGISTER", config })`.
+3. `anita_ui_core.js` listens for `ANITA_REGISTER`, calls `registerMod(config)`, hydrates current values, adds the Anita tab, then dispatches `ANITA_HANDSHAKE` for that mod.
+4. `hp_registrar.js` listens for `ANITA_HANDSHAKE` with `mod_title === "HP Colors"`, marks registration complete, and dispatches `ANITA_REQUEST_BOOTSTRAP`.
+5. `healthbar_logic.js` also dispatches `ANITA_REQUEST_BOOTSTRAP` during overlay startup, enemy detection, and retry loops when bootstrap has not been satisfied.
+6. `anita_ui_core.js` handles `ANITA_REQUEST_BOOTSTRAP` by replaying current registered values through `emitCurrentValues(..., { update_source: "bridge_bootstrap" })`.
+7. `anita_persist_loader.js` also handles `ANITA_REQUEST_BOOTSTRAP`; it reads stored payloads and replays each setting as `ANITA_UPDATE` with `update_source: "bridge_bootstrap"`.
+8. `healthbar_logic.js` listens for `ANITA_UPDATE`, coerces the value into `cfg`, refreshes derived state, invalidates cached visual state when needed, and treats `bridge_bootstrap`, `ui_resync`, `ui_reset`, `ui_code_apply`, and `core_auto_resync` as bootstrap-satisfying sync sources.
 
-`ANITA_UPDATE` is the single settings-application event for this mod.
+`ANITA_UPDATE` is the runtime settings-application event used by both the overlay and the Anita core.
 
-Load-order notes:
+## 3. DUAL REGISTRATION PATH
 
-- `hp_registrar.js` intentionally uses two registration paths: it tries direct `root.AnitaUI.Register(...)` first and still emits `ANITA_REGISTER` as a bridge announce. Recent hp_colors fixes were about surviving HUD init races, so do not collapse this back to a single path.
-- HP Colors is no longer a one-shot bootstrap design. `healthbar_logic.js` can recover from shared snapshot state, session mirror state, and direct convar decode, while `anita_ui_core.js` emits extra HP Colors-only replay sources (`bridge_bootstrap`, `ui_resync`, `ui_reset`, `ui_code_apply`, `core_auto_resync`) plus burst / heartbeat resyncs to converge late-loading panels.
+`hp_registrar.js` has two registration paths:
 
-## Current UI layout
+1. Direct registration
+   - `tryDirectRegister(config)` walks to the root panel.
+   - It requires `root.AnitaUI`, `root.AnitaUI.IsReady()` when present, and `root.AnitaUI.Register`.
+   - If available, it calls `root.AnitaUI.Register(config)`.
+2. Event-dispatch fallback
+   - `dispatchRegister(config)` sends `ANITA_REGISTER` over `ClientUI_FireOutput`.
 
-- Main Anita window is wider than the old fit-to-content layout so right-side controls do not clip
-- HP Colors now uses a split settings shell: a clickable file-tree category list on the left and the selected category's controls on the right
-- Categories are currently `Behavior`, `Bar Colors`, and `Counter Text`
-- `hp_high_threshold` is exposed in `Behavior` so the user controls both split points directly
-- `hp_counter_position` is a stacked two-slider control (`L/R` and `T/B`) stored as `x,y` for the normal bg-visible layout
-- `hp_counter_position` now uses the same full-width slider geometry as the other Anita sliders instead of compact mini-bars
-- When `HP bg visible` is off, the overlay applies a local counter offset without rewriting the saved position
-- HP text color now has two modes: `By HP %` and `Custom`
-- When `HP text color` is `Custom`, three extra color pickers appear for low / mid / high text colors
-- When `HP text color` is `By HP %`, those three custom text color rows are hidden
-- The color popup is a compact anchored column that opens to the right of the clicked swatch
-- The footer includes `Copy`, `Reset`, and toggleable `Import`; the old Save button has been removed
+Behavior details:
 
-## Config keys
+- `register()` always tries direct registration first.
+- If direct registration fails, it falls back to `ANITA_REGISTER`.
+- If direct registration succeeds, it still dispatches `ANITA_REGISTER` afterward as a bridge announce.
+- Retry loop: `REGISTER_RETRY_DELAY_SEC = 0.25`, `REGISTER_MAX_ATTEMPTS = 24`.
+- `ANITA_ALIVE` from `anita_ui_core.js` also triggers `register()`.
 
-These live in `healthbar_logic.js` under `DEFAULTS`:
+## 4. CONFIG KEYS TABLE
+
+These are the keys in `DEFAULTS` inside `healthbar_logic.js`:
 
 | Key | Type | Default |
 |---|---|---|
 | `hp_enabled` | bool | `true` |
 | `hp_mode` | int | `1` |
 | `hp_low_threshold` | int | `25` |
-| `hp_high_threshold` | int | `65` |
 | `hp_bg_visible` | bool | `true` |
 | `hp_counter_size` | int | `120` |
 | `hp_counter_position` | string | `"20,196"` |
 | `hp_text_color_mode` | int | `0` |
-| `hp_text_color_low` | string | `#E16161` |
-| `hp_text_color_mid` | string | `#FF7B00` |
-| `hp_text_color_high` | string | `#FFFFFF` |
-| `hp_color_low` | string | `#E16161` |
-| `hp_color_mid` | string | `#FF7B00` |
-| `hp_color_high` | string | `#00FF00` |
+| `hp_text_color_low` | string | `"#E16161"` |
+| `hp_text_color_mid` | string | `"#FF7B00"` |
+| `hp_text_color_high` | string | `"#FFFFFF"` |
+| `hp_high_threshold` | int | `65` |
+| `hp_color_low` | string | `"#E16161"` |
+| `hp_color_mid` | string | `"#FF7B00"` |
+| `hp_color_high` | string | `"#00FF00"` |
 | `hp_team_colors` | bool | `false` |
+| `hp_npc_poll_slow` | bool | `true` |
 
-Schema notes:
+## 5. PERSISTENCE STACK
 
-- Each Anita element in `hp_registrar.js` now includes a `category` field used by the left-hand tree renderer
-- Conditional rows such as the custom HP text colors still use `visibleWhen`
-- There is no `hp_color_neutral` setting anymore; neutral jungle bars are intentionally ignored
-- Persisted schema is versioned from `hp_registrar.js` (`storageVersion: 5` in the current build). Recent hp_colors history includes explicit storage-version bumps alongside schema refactors, so key changes must stay coordinated across `hp_registrar.js`, `healthbar_logic.js`, `anita_ui_core.js`, and `anita_persist_loader.js`
+Primary storage:
 
-## Building and deploying
+- The namespace is `hp_colors`.
+- The storage key is `anita_v1_hp_colors`.
+- `anita_ui_core.js`, `anita_persist_loader.js`, and `healthbar_logic.js` all know that key.
+- `$.persistentStorage` is the primary durable store when available.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
-```
+Convar fallback:
 
-Build pipeline (4 steps):
-1. Copies `hp_colors/` → `hp_colors_terser/` and minifies all JS via `npx terser` (passes=2, keep_fnames/keep_classnames)
-2. Compiles `hp_colors_terser/` → `hp_colors_terser_compiled/` via `sr2compiler\New folder.exe`, then copies to `hp_colors_compiled/`
-3. Packs `hp_colors_compiled/` → `pak96_dir.vpk` via `vpkeditcli`
-4. Deploys to `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak96_dir.vpk`
+- The convar key is `deadlock_hero_debuts_seen`.
+- The token prefix is `ANITA-v1-`.
+- HP Colors uses `[ANITA-v1-hp_colors]:<base64url>`.
+- `anita_ui_core.js` can write via `GameInterfaceAPI.ConsoleCommand`, `GameInterfaceAPI.SetSettingString`, or command events.
+- `anita_persist_loader.js` and `healthbar_logic.js` can read the convar token during bootstrap paths.
 
-`hp_colors_terser/` and `hp_colors_compiled/` are intermediate build artifacts — do not edit them. Edit source files in `hp_colors/` only.
+Session mirror:
 
-## Registration path
+- The same encoded payload is mirrored to root and `Hud` attributes under `anita_v1_hp_colors`.
+- `anita_ui_core.js` writes that mirror with `writeSessionMirror`.
+- `anita_persist_loader.js` writes the same mirror.
+- `healthbar_logic.js` reads that mirror first in `readSessionMirrorPayload()`.
 
-`hp_registrar.js` uses a dual-path registration strategy:
-1. **Direct**: tries `root.AnitaUI.Register(config)` if `root.AnitaUI` is already present and ready
-2. **Event**: always also dispatches `ANITA_REGISTER` via `ClientUI_FireOutput` as a bridge announce
+Manual Copy/Import:
 
-Both paths fire on startup and on `ANITA_ALIVE`; `didRegister` guards against double-processing. `REGISTER_MAX_ATTEMPTS` (24) × `REGISTER_RETRY_DELAY_SEC` (0.25) gives ~6 s of retry window.
+- Anita footer controls are only created for configs with `storageNamespace`.
+- `Copy` copies the current save token to the clipboard.
+- `Import` reveals a text entry, extracts a token, decodes it, applies parsed values, persists them, rerenders the UI, and emits updates with `update_source: "ui_code_apply"`.
+- `Reset` reapplies defaults, persists them, rerenders, and emits updates with `update_source: "ui_reset"`.
 
-## Persistence status
+Write timing seen in source:
 
-Cross-restart persistence is best-effort, with a guaranteed manual backup path:
+- `anita_ui_core.js` schedules `persistConfig(config, false)` after `2.0` seconds in `handleUpdateEvent`.
+- `anita_persist_loader.js` has `PERSIST_DEBOUNCE_SEC = 0.35` for its bridge-side `schedulePersist`.
 
-1. Auto-save write
-   - `handleUpdateEvent` debounces for 2s and then calls `persistConfig`
-   - `persistConfig` embeds `[ANITA-v1-hp_colors]:<base64url>` into `deadlock_hero_debuts_seen` via `GameInterfaceAPI.ConsoleCommand`
-   - Copy exposes the current token for manual backup
+## 6. COMPACT ALIAS MAP
 
-2. Bootstrap convergence
-   - `anita_persist_loader.js` still bridges restart restore from the escape-menu context, trying `$.persistentStorage` first and then `deadlock_hero_debuts_seen`
-   - `healthbar_logic.js` does not wait on that bridge alone anymore: it also tries shared snapshot state, session mirror state, direct persistentStorage reads, and direct convar decode during startup, retries, and panel churn
-   - `anita_ui_core.js` treats replay-style update sources separately from user edits so resync traffic can restore state without immediately writing it back again
-
-3. Session mirror
-   - Root HUD attribute `anita_v1_hp_colors` keeps settings alive across same-session panel reloads
-
-4. Manual backup
-   - Copy exports the current token
-   - Import reveals the token entry and reapplies settings
-
-## Known limitations
-
-- Requires a clean game exit for `deadlock_hero_debuts_seen` to be flushed to `cfg/user/game.cfg`
-- If `storage available=0` appears in the logs, treat the bridge as storage-less and rely on Copy and Import for reliable backup and restore
-- `GameInterfaceAPI` availability in the escape-menu context is not independently guaranteed on every build
-- Capability probes must stay exception-safe. The latest hp_colors fix was a regression in `hasPersistentStorage()` handling, where a thrown storage probe needed to resolve to `false` immediately instead of falling through
-- Neutral units are ignored for HP bar customization: they hide the HP counter and skip the enemy HP-ratio loop entirely
-- Color-box dragging still has multiple input paths (`GameUI`, panel-local cursor APIs, dragged cursor panel position), so behavior can vary by Panorama context
-- The picker still polls while the color cursor is being dragged; future optimization should focus on reducing redundant drag-source probes and style writes
-
-## Color picker architecture
-
-The picker popup contains:
-
-- A `240x240` 2D color box
-- A draggable cursor node that updates hue and saturation when drag input is available
-- A Hue slider (`0-359`)
-- A Saturation slider (`0-100`)
-- Metadata and preview labels that mirror the current color state
-- Popup positioning is computed from the clicked preview swatch and anchored with `align = "left top"`
-- Keep the drag path as a complete bundle. Recent UI regressions came from removing only part of the cursor plumbing; the cursor hit target, drag handlers, and fallback cursor-position probes need to stay aligned or dragging silently stops working
-
-## Compact persistence aliases
-
-`anita_persist_loader.js` stores only non-default values using short aliases to keep tokens small. The alias map (alias → full key):
+Payloads are stored as `{ v: <storageVersion>, c: 1, values: { <alias>: <value> } }` with only non-default keys included. All three alias maps (`anita_ui_core.js`, `anita_persist_loader.js`, `healthbar_logic.js`) must stay identical.
 
 | Alias | Key |
 |---|---|
@@ -177,6 +135,7 @@ The picker popup contains:
 | `h` | `hp_high_threshold` |
 | `b` | `hp_bg_visible` |
 | `t` | `hp_team_colors` |
+| `np` | `hp_npc_poll_slow` |
 | `cl` | `hp_color_low` |
 | `cm` | `hp_color_mid` |
 | `ch` | `hp_color_high` |
@@ -186,28 +145,111 @@ The picker popup contains:
 | `tl` | `hp_text_color_low` |
 | `ti` | `hp_text_color_mid` |
 | `th` | `hp_text_color_high` |
-| `np` | `hp_npc_poll_slow` |
 
-The stored payload JSON shape: `{ v: <storageVersion>, c: 1, values: { <alias>: <value> } }`. `storageVersion` is currently `6`; `legacyStoragePrefix` is `"hp_mod_"` for migration from old keys.
+## 7. storageVersion
 
-## Debugging
+`hp_registrar.js` sets `storageVersion: 6` in `buildConfig()`. Bump this whenever the schema gains or removes a persisted key, and keep it in sync across all three alias maps.
 
-Per-file debug flags (set to `true` to enable):
+## 8. POLLING CADENCE TIERS
 
-| File | Flag |
+`healthbar_logic.js` uses these actual schedule values:
+
+| Condition | Next schedule |
 |---|---|
-| `hp_registrar.js` | `DEBUG_LOG` |
-| `anita_persist_loader.js` | `PERSISTENCE_DEBUG` |
+| `hp_enabled === false` | `1.0` |
+| Root bar not found yet | `0.2` |
+| Panel cache not ready yet | `0.2` |
+| Neutral target (`fl & 2`) | `3.0` |
+| Non-enemy target (`!(fl & 1)`) | `1.5` |
+| **Building** (`fl & 16`, `hp_npc_poll_slow`) — width stable | `4.0` (flat) |
+| **Building** (`fl & 16`, `hp_npc_poll_slow`) — high-HP stable | `4.0` (flat) |
+| **Minion/Boss** (`!isHeroEnemy`, `hp_npc_poll_slow`) — width stable >800 ms | `2.5` |
+| **Hero** or minion/boss — width stable >1200 ms | `1.25` |
+| Width unchanged but within hot window | `0.2` |
+| Parent width `<= 0` | `0.25` |
+| HP change under `3` while above low threshold | `0.22` |
+| Low HP in gradient mode | `0.04` |
+| Default active cadence | `0.15` |
+| **Hero** stable high-HP (`sFC >= 5`) | `min(0.15 × 2^⌊sFC/5⌋, 3.0)` |
+| **Minion/Boss** stable high-HP (`sFC >= 3`, `hp_npc_poll_slow`) | `min(0.30 × 2^⌊sFC/3⌋, 3.0)` |
+| Error recovery path | `0.5` |
+
+Other fixed loops in the same file:
+
+- Bootstrap retry interval: `BOOTSTRAP_RETRY_SEC = 0.5`
+- Level-tier loop `lL()`: `0.5`
+- Overlay startup bootstrap kick: `0.05`
+
+## 9. ANCESTOR SCAN FLAGS
+
+`healthbar_logic.js` uses `fl` as a bitmask during ancestor scanning (`scan()` walks up to 10 parent levels):
+
+| Bit | Value | Class detected | Meaning |
+|---|---|---|---|
+| FLAG_ENEMY | `1` | `enemy` | Unit is on the enemy team |
+| FLAG_NEUTRAL | `2` | `team_neutral` or `neutral` | Neutral/jungle unit |
+| FLAG_HERO | `4` | `player` | Player-controlled hero |
+| FLAG_CREATURE | `8` | `creature` | NPC unit (boss, creep, trooper) |
+| FLAG_BUILDING | `16` | `building` | Tower or other structure |
+
+Confirmed Deadlock class names from in-game inspection:
+- Player hero panel: `"alive player team2 enemy WorldUIRoot"`
+- Neutral trooper: `"alive creature WorldUIRoot team_neutral trooper_neutral"`
+- Boss: `"alive creature team2 enemy WorldUIRoot boss_tier2"`
+- Building/Tower: `"alive creature team2 enemy WorldUIRoot building"`
+
+Derived flags:
+- `isEnemy = !!(fl & 1) && !(fl & 2)`
+- `isHeroEnemy = isEnemy && !!(fl & 4)`
+- `isBuilding = isEnemy && !!(fl & 16)`
+
+Early-break rules: scan stops as soon as `team_neutral` (`fl & 2`) or `building` (`fl & 16`) is confirmed with a team ID. Enemy-hero panels keep scanning to find the `player` class.
+
+## 10. SCAN CACHE
+
+- Ancestor scan max depth: `10` levels
+- Rescan TTL for **creature units** (`fl & 8`): `2000` ms — their class hierarchy never changes mid-game
+- Rescan TTL for **heroes / unknown**: `250` ms
+- `resetScanCache()` clears `scanNextAt` back to `0` and nulls the cached ancestor array
+
+`ensureScanState(now)` rescans when the cached ancestor chain changes or the TTL expires.
+
+## 11. DEBUG FLAG NAMES PER FILE
+
+| File | Debug flags actually present |
+|---|---|
 | `healthbar_logic.js` | `DEV_LOG` |
+| `hp_registrar.js` | `DEBUG_LOG` (set to `false`; gates the `log()` helper) |
+| `anita_ui_core.js` | `CONFIG.DEBUG_MODE`, `CONFIG.PERSISTENCE_DEBUG`, `HP_DEBUG` |
+| `anita_persist_loader.js` | `PERSISTENCE_DEBUG` |
+| `anita_ui.css` | None |
+| `unit_status.css` | None |
+| `base_hud.xml` | None |
+| `hud_escape_menu.xml` | None |
+| `unit_status_overlay.xml` | None |
+| `build_hp_colors.ps1` | None |
 
-Useful log lines when the core/bridge debug flags are enabled:
+## 12. KNOWN LIMITATIONS
 
-- `[Anita-UI][Bridge] HP Colors | storage available=...`
-- `[Anita-UI][Bridge] HP Colors | bootstrap replay count=...`
-- `[Anita-UI][Bridge] HP Colors | persistentStorage write source=...`
-- `[Anita-UI][Bridge] HP Colors | convar bootstrap source=convar encoded_len=...`
-- `[Anita-UI][Persist] HP Colors | convar write ns=hp_colors ...`
-- `[Anita-UI][Persist] HP Colors | color box picker init hue=... sat=... color=...`
-- `[Anita-UI][Persist] HP Colors | mouse callback unavailable in this UI context; using panel-local picker drag fallback`
+- `deadlock_hero_debuts_seen` persistence still depends on a clean game exit reaching `cfg/user/game.cfg`.
+- If bridge logs show `storage available=0`, restart persistence is not reliable; Copy/Import is the safe manual fallback.
+- `GameInterfaceAPI` availability is checked defensively and is not guaranteed in every Panorama context.
+- Neutral units are intentionally ignored by the enemy coloring path; the overlay hides the HP counter and skips the enemy HP-ratio loop for neutral targets.
+- The color-box drag path still has multiple input sources in the codebase and can vary by Panorama context.
+- The picker still polls while drag is active.
+- `build_hp_colors.ps1` hardcodes the Deadlock addon destination to `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\` — update this path if your Steam library is on a different drive.
 
-If `storage available=0` appears, treat the bridge as unavailable and use the manual token path instead of assuming restart persistence works.
+## 13. COLOR PICKER ARCHITECTURE
+
+`anita_ui_core.js` renders color-picker rows inside Anita settings and uses Anita footer/UI refresh plumbing to keep picker state, saved values, and emitted `ANITA_UPDATE` events aligned. `anita_ui.css` defines the picker shell and popup visuals.
+
+The picker structure visible in source is:
+
+- A preview swatch button (`AnitaColorPickerPreview`)
+- A popup container (`AnitaColorPopup`)
+- A `240x240` framed color box (`AnitaColorBoxFrame`) with hue and saturation layers plus a draggable cursor (`AnitaColorBoxCursor`)
+- A hue slider group and a separate saturation slider style (`AnitaHueSliderContainer`, `AnitaSatSliderContainer`)
+- Preview/meta/hex labels (`AnitaColorPopupPreview`, `AnitaColorPopupHex`, `AnitaColorPopupMeta`)
+- Popup footer buttons (`AnitaColorPopupFooter`, `AnitaColorPopupBtn`)
+
+The existing module documentation and current CSS both indicate the popup is opened from the clicked swatch and presented as a compact anchored panel rather than a full-screen picker.

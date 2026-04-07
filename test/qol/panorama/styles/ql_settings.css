@@ -216,28 +216,6 @@
 	
 }
 
-@keyframes 'PulseNewsRedText'
-{
-	0%
-	{
-		text-shadow: 0px 0px 2px rgba(255, 84, 84, 0.62);
-		brightness: 1.02;
-	}
-	
-	50%
-	{
-		text-shadow: 0px 0px 4px rgba(255, 84, 84, 0.92);
-		brightness: 1.14;
-	}
-	
-	100%
-	{
-		text-shadow: 0px 0px 2px rgba(255, 84, 84, 0.62);
-		brightness: 1.02;
-	}
-	
-}
-
 @keyframes 'SupportCtaPulseGreen'
 {
 	0%
@@ -1795,37 +1773,6 @@
 	opacity: 1.0;
 }
 
-.FooterNewsLinkTab
-{
-	border-left: 2px solid transparent;
-	background-color: none;
-	box-shadow: none;
-}
-
-.FooterNewsLinkTab Label
-{
-	padding: 5px;
-	color: #ffe9e9;
-	text-shadow: 0px 0px 3px rgba(255, 84, 84, 0.88);
-	animation-name: PulseNewsRedText;
-	animation-duration: 1.8s;
-	animation-timing-function: ease-in-out;
-	animation-iteration-count: infinite;
-}
-
-.FooterNewsLinkTab:hover
-{
-	border-left: 2px solid transparent;
-	background-color: none;
-	box-shadow: none;
-}
-
-.FooterNewsLinkTab:hover Label
-{
-	color: #fff3f3;
-	text-shadow: 0px 0px 4px rgba(255, 84, 84, 1.0);
-}
-
 .FooterSaveBuildTab
 {
 	border-left: 2px solid #66cc99;
@@ -3279,6 +3226,45 @@
 #SettingsWindow .SettingToggleBtn:hover .SwitchButton
 {
 	brightness: 1.08;
+}
+
+#SettingsWindow .InlineSecondaryCheckboxControls
+{
+	flow-children: right;
+	vertical-align: center;
+}
+
+#SettingsWindow .InlineSecondaryCheckboxControls .TogglePrimary
+{
+	margin-right: 12px;
+}
+
+#SettingsWindow .InlineSecondaryCheckboxWrap
+{
+	flow-children: right;
+	vertical-align: center;
+}
+
+#SettingsWindow .InlineSecondaryCheckboxBtn
+{
+	flow-children: right;
+	vertical-align: center;
+	padding: 0px;
+	margin: 0px;
+	background-color: none;
+	border: 0px solid transparent;
+}
+
+#SettingsWindow .InlineSecondaryCheckboxLabel
+{
+	margin-left: 6px;
+	vertical-align: center;
+}
+
+#SettingsWindow .InlineSecondaryCheckboxWrap.Disabled
+{
+	opacity: 0.45;
+	saturation: 0.2;
 }
 
 #SettingsWindow .SearchResultRow .SettingToggleBtn .SwitchButton

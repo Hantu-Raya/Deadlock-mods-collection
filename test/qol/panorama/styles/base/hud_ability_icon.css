@@ -1658,3 +1658,9 @@ CitadelHudTopBar .hasSubAbility #SubAbility
 	opacity: 0.95;
 }
 
+CitadelAbilityIcon.disabled
+{
+	opacity: 1;
+	wash-color: offBlack&ee;
+}
+

@@ -1,7 +1,12 @@
 /* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
 
 @import url("s2r://panorama/styles/base/hud.vcss_c");
-.old_item_cooldowns_active #hud_passive_items
+.bhop_gamemode_active #StatsAndModsContainer,.bhop_gamemode_active .ModsContainer,.bhop_gamemode_active #AbilitiesContainer,.bhop_gamemode_active #minimap_container,.bhop_gamemode_active #health_and_abilities_container
+{
+	visibility: collapse;
+}
+
+.passive_cooldown_basic_active #hud_passive_items
 {
 	height: 60px;
 	width: 600px;
@@ -14,18 +19,18 @@
 	overflow: noclip;
 }
 
-.old_item_cooldowns_active #hud_passive_items .ability_container
+.passive_cooldown_basic_active #hud_passive_items .ability_container
 {
 	overflow: noclip;
 }
 
-.old_item_cooldowns_active #hud_passive_items .button_container
+.passive_cooldown_basic_active #hud_passive_items .button_container
 {
 	height: 100%;
 	overflow: noclip;
 }
 
-.old_item_cooldowns_active #hud_passive_items #cooldown_mask
+.passive_cooldown_basic_active #hud_passive_items #cooldown_mask
 {
 	height: 100%;
 	margin-top: 0px;
@@ -318,37 +323,30 @@
 	text-shadow: 0px 0px 6px rgba(222, 102, 102, 0.24);
 }
 
-#hud_passive_items
-{
-	height: 60px;
-	width: 600px;
-	margin: 20px;
-	margin-top: -6%;
-	visibility: visible;
-	horizontal-align: center;
-	vertical-align: top;
-	ui-scale: 105%;
-}
-
-.passive_cooldown_custom_active #hud_passive_items .ability_container
+.passive_cooldown_basic_active #hud_passive_items .ability_container
 {
 	overflow: noclip;
 }
 
-.passive_cooldown_custom_active #hud_passive_items .button_container
+.passive_cooldown_basic_active #hud_passive_items .button_container
 {
 	height: 100%;
 	overflow: noclip;
 }
 
-.passive_cooldown_custom_active #hud_passive_items #cooldown_mask
+.passive_cooldown_basic_active #hud_passive_items #cooldown_mask
 {
 	height: 100%;
 	margin-top: 0px;
 	overflow: noclip;
 }
 
-.passive_cooldown_custom_active #AbilitiesContainer.gShopOpen #hud_passive_items,.passive_cooldown_custom_active #gameplay_hud.gShopOpen #hud_passive_items
+.passive_cooldown_basic_active #AbilitiesContainer.gShopOpen #hud_passive_items,.passive_cooldown_basic_active #gameplay_hud.gShopOpen #hud_passive_items
+{
+	visibility: collapse;
+}
+
+.passive_cooldown_advanced_active #hud_passive_items
 {
 	visibility: collapse;
 }

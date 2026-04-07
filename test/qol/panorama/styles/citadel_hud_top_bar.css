@@ -1,6 +1,11 @@
 /* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
 
 @import url("s2r://panorama/styles/base/citadel_hud_top_bar.vcss_c");
+.bhop_gamemode_active CitadelHudTopBar#TopBar
+{
+	visibility: collapse;
+}
+
 .unspent_souls_disabled .SpentSoulDisplay
 {
 	visibility: collapse;

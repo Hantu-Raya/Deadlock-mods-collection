@@ -35832,6 +35832,7 @@
 			m_bIsHidden = true
 			m_eDebuffType = "MODIFIER_DEBUFF_NO"
 			m_bCasterCountsAsAssister = false
+			m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 		}
 		m_AutoIntrinsicModifiers = [  ]
 		m_AbilityTooltipDetails = 
@@ -43287,6 +43288,7 @@
 				m_strSmallIconCssClass = "chrono_pulse_grenade"
 				m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 				m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
+				m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 			}
 			m_SlowModifier = subclass:
 			{
@@ -61736,6 +61738,7 @@
 					"SlowPercent",
 				]
 			}
+			m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 		}
 		m_AbilityTooltipDetails = 
 		{
@@ -64112,6 +64115,7 @@
 			m_eDebuffType = "MODIFIER_DEBUFF_NO"
 			m_bCasterCountsAsAssister = false
 			m_flDuration = 1.0
+			m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 		}
 		m_DustParticle = resource_name:"particles/abilities/hornet/hornet_leap.vpcf"
 		m_TrailParticle = resource_name:"particles/abilities/hornet/hornet_leap_buff_trail.vpcf"
@@ -67805,6 +67809,7 @@
 					m_bIsHidden = false
 					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 					m_nEnabledStateMask = "MODIFIER_STATE_AFTERBURNING"
+					m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 				}
 				m_BuildUpModifier = subclass:
 				{
@@ -67818,6 +67823,7 @@
 					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
+					m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 				}
 				m_vecProcDamageTypes = 
 				[
@@ -75130,6 +75136,7 @@
 					_class = "modifier_mirage_sand_phantom_passive_victim"
 					_my_subclass_name = "modifier_mirage_sand_phantom_passive_victim"
 					m_sLocalizationName = "modifier_mirage_sand_phantom_passive_victim"
+					m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 					m_bIsHidden = false
 					m_ConsumeMaxStacksSound = soundevent:"Mirage.A3.DjinnsMark.ConsumeMaxStacks"
 					m_ApplyStackSound = soundevent:"Mirage.A3.DjinnsMark.ApplyStack"
@@ -77261,6 +77268,7 @@
 			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
+			m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 		}
 		m_AbilityTooltipDetails = 
 		{
@@ -78410,6 +78418,7 @@
 			m_bIsHidden = true
 			m_eDebuffType = "MODIFIER_DEBUFF_NO"
 			m_bCasterCountsAsAssister = false
+			m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 		}
 		m_HUDPanel = 
 		{
@@ -89565,6 +89574,7 @@
 			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
+			m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 		}
 		m_SlowDebuffModifier = subclass:
 		{
@@ -98719,6 +98729,7 @@
 				_my_subclass_name = "modifier_urn_debuff"
 				m_sLocalizationName = "citadel_ability_tengu_urn"
 				m_strParticleEffect = resource_name:"particles/abilities/tengu/tengu_stone_squall_debuff.vpcf"
+				m_strEntangleCounter = resource_name:"particles/abilities/tengu/tengu_immobilize_counter_model.vpcf"
 				m_bIsHidden = true
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
@@ -98733,7 +98744,10 @@
 					m_sLocalizationName = "modifier_citadel_root"
 					m_strHintText = "modifier_citadel_root"
 					m_strParticleEffect = resource_name:"particles/abilities/tengu/tengu_immobilize.vpcf"
+					m_sStartSound = soundevent:""
 				}
+				m_sAmbientLoopingSound = soundevent:"Ivy.Kudzu.Bomb.Immobilize.Buildup"
+				m_strEntangleSound = soundevent:"Ivy.Kudzu.Bomb.Immobilize"
 			}
 			m_strParticleEffect = resource_name:"particles/abilities/tengu/tengu_grenade_aoe.vpcf"
 			m_sAmbientLoopingSound = soundevent:"Ivy.Kudzu.Bomb.AOE.Lp"
@@ -137968,6 +137982,7 @@
 					"SlowPercent",
 				]
 			}
+			m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 		}
 		m_BuildUpModifier = subclass:
 		{
@@ -137978,6 +137993,7 @@
 			m_sLocalizationName = "vampirebat_lovebites"
 			m_strSmallIconCssClass = "bleeding_buildup"
 			m_strParticleEffect = resource_name:""
+			m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 		}
 		m_ImpactParticle = resource_name:""
 		m_strAttackerHitSound = soundevent:"VampireBat.LoveBites.Buildup"
@@ -258585,6 +258601,7 @@
 			m_sAmbientLoopingSound = soundevent:"Necro.Wpn.Tether.Victim.Lp"
 			m_sExpiredSound = soundevent:""
 			m_sStartSound = soundevent:""
+			m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 		}
 		m_DummyTetherModifier = subclass:
 		{
@@ -258596,6 +258613,7 @@
 			m_sAmbientLoopingSound = soundevent:"Necro.Wpn.Tether.Victim.Lp"
 			m_sExpiredSound = soundevent:""
 			m_sStartSound = soundevent:""
+			m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 		}
 		m_TetheredModifier = subclass:
 		{
@@ -260390,15 +260408,9 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					m_flStatScale = 0.0
-					m_eSpecificStatScaleType = "ETechPower"
 					_my_subclass_name = "healingsf"
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
 				}
 			}
 			BulletArmorDamageReductionPerStack = 
@@ -261009,15 +261021,9 @@
 				m_strValue = "0"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					m_flStatScale = 0.0
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
 					_my_subclass_name = "healsf"
-					m_eSpecificStatScaleType = "ETechPower"
 				}
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_REGEN_PER_SECOND"
 				m_strCSSClass = "healing"
@@ -261234,7 +261240,7 @@
 		m_iUpdateTime = 0
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_DEPLOYED_OBJECT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CANNOT_CANCEL_DURING_CHANNEL | CITADEL_ABILITY_BEHAVIOR_COOLDOWN_ON_CHANNEL_END | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CANNOT_CANCEL_DURING_CHANNEL | CITADEL_ABILITY_BEHAVIOR_COOLDOWN_ON_CHANNEL_END | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_REFUND_FULL_COOLDOWN_ON_CHANNEL_INTERRUPT"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/necro/necro_gravestone.psd"
 		m_strSubCastUICSSClass = "subcast_necro"
@@ -262965,17 +262971,7 @@
 			m_vecAdditionalHeaderProperties = [  ]
 		}
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PASSIVE"
-		m_AutoIntrinsicModifiers = 
-		[
-			subclass:
-			{
-				_class = "modifier_necro_rampup"
-				_my_subclass_name = "innate"
-				m_vecAutoRegisterModifierValueFromAbilityPropertyName = [  ]
-				m_bIsHidden = true
-			},
-		]
-		m_strSecondaryStatName = "ability_vampirebat_lovebites_flatdamage"
+		m_strSecondaryStatName = "ability_vampirebat_necro_weapon_secondary"
 		m_DebuffModifier = subclass:
 		{
 			_class = "modifier_necro_rampup"
@@ -262991,6 +262987,7 @@
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 			m_bUseBaseWeaponCycleTimeForDelay = false
+			m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 		}
 	}
 	ability_necro_haunt = 

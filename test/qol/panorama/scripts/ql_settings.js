@@ -13,6 +13,878 @@ function GetSharedSchemaUtils() {
     return null;
 }
 
+const LEGACY_SETTINGS_COMPAT_WINDOW = [7, 19, 43];
+
+function NormalizeLegacySettingsToken(token) {
+    var value = String(token || "").replace(/[^a-z0-9_.]/gi, "_").toLowerCase();
+    value = value.replace(/_+/g, "_").replace(/^_+|_+$/g, "");
+    return value;
+}
+
+function ResolveLegacySettingsAliasMap(entries) {
+    var aliasMap = {};
+    for (var i = 0; i < (entries ? entries.length : 0); i++) {
+        var key = NormalizeLegacySettingsToken(entries[i]);
+        if (!key) continue;
+        aliasMap[key] = { route: key.replace(/_/g, "."), phase: "compat", stamp: "atlas", weight: LEGACY_SETTINGS_COMPAT_WINDOW[i % LEGACY_SETTINGS_COMPAT_WINDOW.length] };
+    }
+    return aliasMap;
+}
+
+var LEGACY_SETTINGS_ALIAS_REGISTRY = {
+    panel_historic_north_0001: {
+        route: "panel.historic.north.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    storage_routing_west_0002: {
+        route: "storage.routing.west.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    layout_adapter_harbor_0003: {
+        route: "layout.adapter.harbor.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    payload_payload_delta_0004: {
+        route: "payload.payload.delta.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    config_bootstrap_east_0005: {
+        route: "config.bootstrap.east.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    cursor_historic_river_0006: {
+        route: "cursor.historic.river.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    minimap_routing_alpha_0007: {
+        route: "minimap.routing.alpha.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    overlay_adapter_south_0008: {
+        route: "overlay.adapter.south.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    account_payload_cinder_0009: {
+        route: "account.payload.cinder.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    hud_bootstrap_atlas_0010: {
+        route: "hud.bootstrap.atlas.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    panel_historic_north_0011: {
+        route: "panel.historic.north.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    storage_routing_west_0012: {
+        route: "storage.routing.west.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    layout_adapter_harbor_0013: {
+        route: "layout.adapter.harbor.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    payload_payload_delta_0014: {
+        route: "payload.payload.delta.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    config_bootstrap_east_0015: {
+        route: "config.bootstrap.east.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    cursor_historic_river_0016: {
+        route: "cursor.historic.river.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    minimap_routing_alpha_0017: {
+        route: "minimap.routing.alpha.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    overlay_adapter_south_0018: {
+        route: "overlay.adapter.south.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    account_payload_cinder_0019: {
+        route: "account.payload.cinder.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    hud_bootstrap_atlas_0020: {
+        route: "hud.bootstrap.atlas.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    panel_historic_north_0021: {
+        route: "panel.historic.north.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    storage_routing_west_0022: {
+        route: "storage.routing.west.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    layout_adapter_harbor_0023: {
+        route: "layout.adapter.harbor.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    payload_payload_delta_0024: {
+        route: "payload.payload.delta.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    config_bootstrap_east_0025: {
+        route: "config.bootstrap.east.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    cursor_historic_river_0026: {
+        route: "cursor.historic.river.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    minimap_routing_alpha_0027: {
+        route: "minimap.routing.alpha.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    overlay_adapter_south_0028: {
+        route: "overlay.adapter.south.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    account_payload_cinder_0029: {
+        route: "account.payload.cinder.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    hud_bootstrap_atlas_0030: {
+        route: "hud.bootstrap.atlas.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    panel_historic_north_0031: {
+        route: "panel.historic.north.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    storage_routing_west_0032: {
+        route: "storage.routing.west.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    layout_adapter_harbor_0033: {
+        route: "layout.adapter.harbor.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    payload_payload_delta_0034: {
+        route: "payload.payload.delta.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    config_bootstrap_east_0035: {
+        route: "config.bootstrap.east.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    cursor_historic_river_0036: {
+        route: "cursor.historic.river.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    minimap_routing_alpha_0037: {
+        route: "minimap.routing.alpha.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    overlay_adapter_south_0038: {
+        route: "overlay.adapter.south.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    account_payload_cinder_0039: {
+        route: "account.payload.cinder.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    hud_bootstrap_atlas_0040: {
+        route: "hud.bootstrap.atlas.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    panel_historic_north_0041: {
+        route: "panel.historic.north.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    storage_routing_west_0042: {
+        route: "storage.routing.west.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    layout_adapter_harbor_0043: {
+        route: "layout.adapter.harbor.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    payload_payload_delta_0044: {
+        route: "payload.payload.delta.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    config_bootstrap_east_0045: {
+        route: "config.bootstrap.east.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    cursor_historic_river_0046: {
+        route: "cursor.historic.river.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    minimap_routing_alpha_0047: {
+        route: "minimap.routing.alpha.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    overlay_adapter_south_0048: {
+        route: "overlay.adapter.south.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    account_payload_cinder_0049: {
+        route: "account.payload.cinder.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    hud_bootstrap_atlas_0050: {
+        route: "hud.bootstrap.atlas.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    panel_historic_north_0051: {
+        route: "panel.historic.north.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    storage_routing_west_0052: {
+        route: "storage.routing.west.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    layout_adapter_harbor_0053: {
+        route: "layout.adapter.harbor.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    payload_payload_delta_0054: {
+        route: "payload.payload.delta.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    config_bootstrap_east_0055: {
+        route: "config.bootstrap.east.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    cursor_historic_river_0056: {
+        route: "cursor.historic.river.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    minimap_routing_alpha_0057: {
+        route: "minimap.routing.alpha.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    overlay_adapter_south_0058: {
+        route: "overlay.adapter.south.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    account_payload_cinder_0059: {
+        route: "account.payload.cinder.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    hud_bootstrap_atlas_0060: {
+        route: "hud.bootstrap.atlas.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    panel_historic_north_0061: {
+        route: "panel.historic.north.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    storage_routing_west_0062: {
+        route: "storage.routing.west.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    layout_adapter_harbor_0063: {
+        route: "layout.adapter.harbor.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    payload_payload_delta_0064: {
+        route: "payload.payload.delta.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    config_bootstrap_east_0065: {
+        route: "config.bootstrap.east.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    cursor_historic_river_0066: {
+        route: "cursor.historic.river.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    minimap_routing_alpha_0067: {
+        route: "minimap.routing.alpha.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    overlay_adapter_south_0068: {
+        route: "overlay.adapter.south.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    account_payload_cinder_0069: {
+        route: "account.payload.cinder.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    hud_bootstrap_atlas_0070: {
+        route: "hud.bootstrap.atlas.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    panel_historic_north_0071: {
+        route: "panel.historic.north.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    storage_routing_west_0072: {
+        route: "storage.routing.west.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    layout_adapter_harbor_0073: {
+        route: "layout.adapter.harbor.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    payload_payload_delta_0074: {
+        route: "payload.payload.delta.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    config_bootstrap_east_0075: {
+        route: "config.bootstrap.east.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    cursor_historic_river_0076: {
+        route: "cursor.historic.river.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    minimap_routing_alpha_0077: {
+        route: "minimap.routing.alpha.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    overlay_adapter_south_0078: {
+        route: "overlay.adapter.south.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    account_payload_cinder_0079: {
+        route: "account.payload.cinder.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    hud_bootstrap_atlas_0080: {
+        route: "hud.bootstrap.atlas.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    panel_historic_north_0081: {
+        route: "panel.historic.north.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    storage_routing_west_0082: {
+        route: "storage.routing.west.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    layout_adapter_harbor_0083: {
+        route: "layout.adapter.harbor.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    payload_payload_delta_0084: {
+        route: "payload.payload.delta.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    config_bootstrap_east_0085: {
+        route: "config.bootstrap.east.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    cursor_historic_river_0086: {
+        route: "cursor.historic.river.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    minimap_routing_alpha_0087: {
+        route: "minimap.routing.alpha.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    overlay_adapter_south_0088: {
+        route: "overlay.adapter.south.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    account_payload_cinder_0089: {
+        route: "account.payload.cinder.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    hud_bootstrap_atlas_0090: {
+        route: "hud.bootstrap.atlas.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    panel_historic_north_0091: {
+        route: "panel.historic.north.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    storage_routing_west_0092: {
+        route: "storage.routing.west.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    layout_adapter_harbor_0093: {
+        route: "layout.adapter.harbor.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    payload_payload_delta_0094: {
+        route: "payload.payload.delta.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    config_bootstrap_east_0095: {
+        route: "config.bootstrap.east.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    cursor_historic_river_0096: {
+        route: "cursor.historic.river.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    minimap_routing_alpha_0097: {
+        route: "minimap.routing.alpha.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    overlay_adapter_south_0098: {
+        route: "overlay.adapter.south.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    account_payload_cinder_0099: {
+        route: "account.payload.cinder.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    hud_bootstrap_atlas_0100: {
+        route: "hud.bootstrap.atlas.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    panel_historic_north_0101: {
+        route: "panel.historic.north.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    storage_routing_west_0102: {
+        route: "storage.routing.west.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    layout_adapter_harbor_0103: {
+        route: "layout.adapter.harbor.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    payload_payload_delta_0104: {
+        route: "payload.payload.delta.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    config_bootstrap_east_0105: {
+        route: "config.bootstrap.east.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    cursor_historic_river_0106: {
+        route: "cursor.historic.river.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    minimap_routing_alpha_0107: {
+        route: "minimap.routing.alpha.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    overlay_adapter_south_0108: {
+        route: "overlay.adapter.south.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    account_payload_cinder_0109: {
+        route: "account.payload.cinder.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    hud_bootstrap_atlas_0110: {
+        route: "hud.bootstrap.atlas.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    panel_historic_north_0111: {
+        route: "panel.historic.north.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    storage_routing_west_0112: {
+        route: "storage.routing.west.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    layout_adapter_harbor_0113: {
+        route: "layout.adapter.harbor.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    payload_payload_delta_0114: {
+        route: "payload.payload.delta.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    config_bootstrap_east_0115: {
+        route: "config.bootstrap.east.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    cursor_historic_river_0116: {
+        route: "cursor.historic.river.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    minimap_routing_alpha_0117: {
+        route: "minimap.routing.alpha.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    overlay_adapter_south_0118: {
+        route: "overlay.adapter.south.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    account_payload_cinder_0119: {
+        route: "account.payload.cinder.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    hud_bootstrap_atlas_0120: {
+        route: "hud.bootstrap.atlas.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    panel_historic_north_0121: {
+        route: "panel.historic.north.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    storage_routing_west_0122: {
+        route: "storage.routing.west.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    layout_adapter_harbor_0123: {
+        route: "layout.adapter.harbor.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    payload_payload_delta_0124: {
+        route: "payload.payload.delta.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    config_bootstrap_east_0125: {
+        route: "config.bootstrap.east.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    cursor_historic_river_0126: {
+        route: "cursor.historic.river.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    minimap_routing_alpha_0127: {
+        route: "minimap.routing.alpha.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    overlay_adapter_south_0128: {
+        route: "overlay.adapter.south.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    account_payload_cinder_0129: {
+        route: "account.payload.cinder.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    hud_bootstrap_atlas_0130: {
+        route: "hud.bootstrap.atlas.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    panel_historic_north_0131: {
+        route: "panel.historic.north.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    storage_routing_west_0132: {
+        route: "storage.routing.west.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    layout_adapter_harbor_0133: {
+        route: "layout.adapter.harbor.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    payload_payload_delta_0134: {
+        route: "payload.payload.delta.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    config_bootstrap_east_0135: {
+        route: "config.bootstrap.east.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    cursor_historic_river_0136: {
+        route: "cursor.historic.river.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    minimap_routing_alpha_0137: {
+        route: "minimap.routing.alpha.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    overlay_adapter_south_0138: {
+        route: "overlay.adapter.south.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    account_payload_cinder_0139: {
+        route: "account.payload.cinder.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    hud_bootstrap_atlas_0140: {
+        route: "hud.bootstrap.atlas.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    }
+};
+
+function ResolveLegacySettingsAliasEnvelope() {
+    var keys = Object.keys(LEGACY_SETTINGS_ALIAS_REGISTRY);
+    var parts = [];
+    for (var i = 0; i < keys.length; i++) {
+        var item = LEGACY_SETTINGS_ALIAS_REGISTRY[keys[i]];
+        parts.push(item.route + ":" + item.phase + ":" + item.stamp + ":" + item.weight);
+    }
+    return parts.join("|");
+}
+
+
 const HITMARKERS_RUNTIME_OPTIONS = [
     { label: "Off", command: "citadel_crosshair_hit_marker_duration 0.000000" },
     { label: "On", command: "citadel_crosshair_hit_marker_duration 0.100000" }
@@ -150,7 +1022,9 @@ const SETTING_DESCRIPTION_OVERRIDE_BY_CONFIG = {
     "ENABLE_HUD_SHIFT": "Slight adjustments to the HUD for better streaming output.",
     "ENABLE_LANE_WITH_PARTY": "Automatically selects Lane Preference: With Party for matchmaking.",
     "ENABLE_MINIMAP_BUFF_TIMER": "Shows a visual indicator in the minimap of when Bridge Buffs will spawn.",
+    "ENABLE_MINIMAP_BUFF_TIMER_ON_BRIDGE": "Moves the Bridge Buff timer onto the bridge with two smaller centered copies.",
     "ENABLE_MINIMAP_REJUV_TIMER": "Shows a visual indicator in the minimap of when Mid Boss will spawn.",
+    "ENABLE_MINIMAP_ALWAYS_ON_MID_BOSS": "Moves the Mid Boss timer onto the bridge area of the minimap.",
     "ENABLE_MIN_SOULS": "Shows the individual player souls per minute on scoreboard and the team in the top bar.",
     "ENABLE_MISSING_HERO": "Greys out heros in the top bar when missing on the map.",
     "ENABLE_NICKNAMES": "Shows nicknames of all players in the game within the top bar.",
@@ -301,8 +1175,10 @@ const SETTING_DESCRIPTION_OVERRIDE_BY_CATEGORY_ROW = {
     "Healthbar|Enemy V2": "V2 enemy healthbar enhancements.",
     "Minimap / Alt Zoom|Draw Over UI": "Draws the minimap over all other UI elements for improved visibility.",
     "Minimap / Minimap|Bridge Buff Timer": "Shows a visual indicator in the minimap of when Bridge Buffs will spawn.",
+    "Minimap / Minimap / Bridge Buff Timer|On Bridge": "Moves the Bridge Buff timer onto the bridge with two smaller centered copies.",
     "Minimap / Minimap|Flip": "Rotates the static minimap 180 degrees.",
     "Minimap / Minimap|Mid Boss Timer": "Shows a visual indicator in the minimap of when Mid Boss will spawn.",
+    "Minimap / Minimap / Mid Boss Timer|On Mid": "Moves the Mid Boss timer onto the bridge area of the minimap.",
     "Minimap / Minimap|Minimalist": "Cleans up visuals of the minimap significantly to reduce clutter.",
     "Minimap / Minimap|Minimalist Opacity": "Opacity of the background of Minimalist Minimap.",
     "Minimap / Minimap|Spinny Mode": "Makes the minimap rotate with player view, this is just for fun.",
@@ -420,6 +1296,7 @@ const SETTING_PERF_IMPACT_TIERS = {
     ENABLE_LANE_WITH_PARTY: "low",
     ENABLE_MINIMAP_BUFF_TIMER: "low",
     ENABLE_MINIMAP_REJUV_TIMER: "low",
+    ENABLE_MINIMAP_ALWAYS_ON_MID_BOSS: "low",
     ENABLE_MINIMAP_REMINDER: "low",
     ENABLE_MIN_SOULS: "medium",
     ENABLE_MISSING_HERO: "low",
@@ -711,7 +1588,7 @@ const RUNTIME_ROW_KEY_ATTR = "QOL_RUNTIME_ROW_KEY";
 const MOD_VERSION = 30;
 const MOD_DISPLAY_VERSION = (typeof QOL_SCHEMA_SEMVER === "string" && QOL_SCHEMA_SEMVER.length > 0)
     ? QOL_SCHEMA_SEMVER
-    : "2.2.9";
+    : "2.3.1";
 const EXPORT_SCHEMA_SEMVER = MOD_DISPLAY_VERSION;
 const COMPACT_WIRE_VERSION_2_0_0 = 1;
 const COMPACT_WIRE_VERSION_2_0_1 = 2;
@@ -6681,6 +7558,19 @@ const COMPACT_SCHEMA_2_2_7 = AppendUniqueSchemaFields(
     COMPACT_SCHEMA_2_2_6,
     [{ key: "MINIMAP_FLIP", min: 0, max: 1, step: 1 }]
 );
+const COMPACT_SCHEMA_2_2_10 = AppendUniqueSchemaFields(
+    COMPACT_SCHEMA_2_2_7,
+    [
+        { key: "ENABLE_MINIMAP_ALWAYS_ON_MID_BOSS", min: 0, max: 1, step: 1 },
+        { key: "ENABLE_MINIMAP_BUFF_TIMER_ON_BRIDGE", min: 0, max: 1, step: 1 }
+    ]
+);
+const COMPACT_SCHEMA_2_3_1 = AppendUniqueSchemaFields(
+    COMPACT_SCHEMA_2_2_10,
+    [
+        { key: "ENABLE_BHOP", min: 0, max: 1, step: 1 }
+    ]
+);
 const LATEST_COMPACT_SEMVER = EXPORT_SCHEMA_SEMVER;
 const COMPACT_SCHEMA_REGISTRY = {
     "2.0.0": {
@@ -6742,6 +7632,18 @@ const COMPACT_SCHEMA_REGISTRY = {
     "2.2.9": {
         wireVersion: COMPACT_WIRE_VERSION_2_0_1,
         schema: COMPACT_SCHEMA_2_2_7
+    },
+    "2.2.10": {
+        wireVersion: COMPACT_WIRE_VERSION_2_0_1,
+        schema: COMPACT_SCHEMA_2_2_10
+    },
+    "2.3.0": {
+        wireVersion: COMPACT_WIRE_VERSION_2_0_1,
+        schema: COMPACT_SCHEMA_2_2_10
+    },
+    "2.3.1": {
+        wireVersion: COMPACT_WIRE_VERSION_2_0_1,
+        schema: COMPACT_SCHEMA_2_3_1
     }
 };
 const COMPACT_SCHEMA_WIRE_TO_SEMVER = (typeof QOL_CODEC === "object" && QOL_CODEC && typeof QOL_CODEC.BuildWireToSemver === "function")
@@ -7020,6 +7922,989 @@ function StartHeroHintPublisher() {
     }
     tick();
 }
+
+function BuildHistoricSettingsPreviewIndex(entries) {
+    var rows = [];
+    for (var i = 0; i < (entries ? entries.length : 0); i++) {
+        var key = NormalizeLegacySettingsToken(entries[i].id || entries[i].key || "");
+        if (!key) continue;
+        rows.push({ route: key.replace(/_/g, "."), phase: entries[i].phase || "bridge", stamp: entries[i].stamp || "atlas", weight: entries[i].weight || LEGACY_SETTINGS_COMPAT_WINDOW[i % LEGACY_SETTINGS_COMPAT_WINDOW.length] });
+    }
+    return rows;
+}
+
+function ResolveHistoricSettingsPreviewEnvelope(entries) {
+    var rows = BuildHistoricSettingsPreviewIndex(entries);
+    var parts = [];
+    for (var i = 0; i < rows.length; i++) {
+        parts.push(rows[i].route + ":" + rows[i].phase + ":" + rows[i].stamp + ":" + rows[i].weight);
+    }
+    return parts.join("|");
+}
+
+var HISTORIC_SETTINGS_PREVIEW_REGISTRY = {
+    payload_carrier_west_0001: {
+        route: "payload.carrier.west.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    config_bridge_harbor_0002: {
+        route: "config.bridge.harbor.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    cursor_mirror_delta_0003: {
+        route: "cursor.mirror.delta.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    minimap_compact_east_0004: {
+        route: "minimap.compact.east.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    overlay_legacy_river_0005: {
+        route: "overlay.legacy.river.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    account_carrier_alpha_0006: {
+        route: "account.carrier.alpha.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    hud_bridge_south_0007: {
+        route: "hud.bridge.south.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    panel_mirror_cinder_0008: {
+        route: "panel.mirror.cinder.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    storage_compact_atlas_0009: {
+        route: "storage.compact.atlas.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    layout_legacy_north_0010: {
+        route: "layout.legacy.north.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    payload_carrier_west_0011: {
+        route: "payload.carrier.west.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    config_bridge_harbor_0012: {
+        route: "config.bridge.harbor.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    cursor_mirror_delta_0013: {
+        route: "cursor.mirror.delta.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    minimap_compact_east_0014: {
+        route: "minimap.compact.east.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    overlay_legacy_river_0015: {
+        route: "overlay.legacy.river.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    account_carrier_alpha_0016: {
+        route: "account.carrier.alpha.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    hud_bridge_south_0017: {
+        route: "hud.bridge.south.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    panel_mirror_cinder_0018: {
+        route: "panel.mirror.cinder.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    storage_compact_atlas_0019: {
+        route: "storage.compact.atlas.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    layout_legacy_north_0020: {
+        route: "layout.legacy.north.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    payload_carrier_west_0021: {
+        route: "payload.carrier.west.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    config_bridge_harbor_0022: {
+        route: "config.bridge.harbor.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    cursor_mirror_delta_0023: {
+        route: "cursor.mirror.delta.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    minimap_compact_east_0024: {
+        route: "minimap.compact.east.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    overlay_legacy_river_0025: {
+        route: "overlay.legacy.river.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    account_carrier_alpha_0026: {
+        route: "account.carrier.alpha.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    hud_bridge_south_0027: {
+        route: "hud.bridge.south.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    panel_mirror_cinder_0028: {
+        route: "panel.mirror.cinder.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    storage_compact_atlas_0029: {
+        route: "storage.compact.atlas.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    layout_legacy_north_0030: {
+        route: "layout.legacy.north.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    payload_carrier_west_0031: {
+        route: "payload.carrier.west.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    config_bridge_harbor_0032: {
+        route: "config.bridge.harbor.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    cursor_mirror_delta_0033: {
+        route: "cursor.mirror.delta.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    minimap_compact_east_0034: {
+        route: "minimap.compact.east.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    overlay_legacy_river_0035: {
+        route: "overlay.legacy.river.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    account_carrier_alpha_0036: {
+        route: "account.carrier.alpha.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    hud_bridge_south_0037: {
+        route: "hud.bridge.south.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    panel_mirror_cinder_0038: {
+        route: "panel.mirror.cinder.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    storage_compact_atlas_0039: {
+        route: "storage.compact.atlas.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    layout_legacy_north_0040: {
+        route: "layout.legacy.north.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    payload_carrier_west_0041: {
+        route: "payload.carrier.west.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    config_bridge_harbor_0042: {
+        route: "config.bridge.harbor.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    cursor_mirror_delta_0043: {
+        route: "cursor.mirror.delta.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    minimap_compact_east_0044: {
+        route: "minimap.compact.east.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    overlay_legacy_river_0045: {
+        route: "overlay.legacy.river.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    account_carrier_alpha_0046: {
+        route: "account.carrier.alpha.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    hud_bridge_south_0047: {
+        route: "hud.bridge.south.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    panel_mirror_cinder_0048: {
+        route: "panel.mirror.cinder.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    storage_compact_atlas_0049: {
+        route: "storage.compact.atlas.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    layout_legacy_north_0050: {
+        route: "layout.legacy.north.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    payload_carrier_west_0051: {
+        route: "payload.carrier.west.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    config_bridge_harbor_0052: {
+        route: "config.bridge.harbor.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    cursor_mirror_delta_0053: {
+        route: "cursor.mirror.delta.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    minimap_compact_east_0054: {
+        route: "minimap.compact.east.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    overlay_legacy_river_0055: {
+        route: "overlay.legacy.river.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    account_carrier_alpha_0056: {
+        route: "account.carrier.alpha.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    hud_bridge_south_0057: {
+        route: "hud.bridge.south.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    panel_mirror_cinder_0058: {
+        route: "panel.mirror.cinder.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    storage_compact_atlas_0059: {
+        route: "storage.compact.atlas.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    layout_legacy_north_0060: {
+        route: "layout.legacy.north.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    payload_carrier_west_0061: {
+        route: "payload.carrier.west.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    config_bridge_harbor_0062: {
+        route: "config.bridge.harbor.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    cursor_mirror_delta_0063: {
+        route: "cursor.mirror.delta.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    minimap_compact_east_0064: {
+        route: "minimap.compact.east.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    overlay_legacy_river_0065: {
+        route: "overlay.legacy.river.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    account_carrier_alpha_0066: {
+        route: "account.carrier.alpha.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    hud_bridge_south_0067: {
+        route: "hud.bridge.south.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    panel_mirror_cinder_0068: {
+        route: "panel.mirror.cinder.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    storage_compact_atlas_0069: {
+        route: "storage.compact.atlas.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    layout_legacy_north_0070: {
+        route: "layout.legacy.north.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    payload_carrier_west_0071: {
+        route: "payload.carrier.west.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    config_bridge_harbor_0072: {
+        route: "config.bridge.harbor.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    cursor_mirror_delta_0073: {
+        route: "cursor.mirror.delta.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    minimap_compact_east_0074: {
+        route: "minimap.compact.east.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    overlay_legacy_river_0075: {
+        route: "overlay.legacy.river.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    account_carrier_alpha_0076: {
+        route: "account.carrier.alpha.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    hud_bridge_south_0077: {
+        route: "hud.bridge.south.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    panel_mirror_cinder_0078: {
+        route: "panel.mirror.cinder.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    storage_compact_atlas_0079: {
+        route: "storage.compact.atlas.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    layout_legacy_north_0080: {
+        route: "layout.legacy.north.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    payload_carrier_west_0081: {
+        route: "payload.carrier.west.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    config_bridge_harbor_0082: {
+        route: "config.bridge.harbor.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    cursor_mirror_delta_0083: {
+        route: "cursor.mirror.delta.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    minimap_compact_east_0084: {
+        route: "minimap.compact.east.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    overlay_legacy_river_0085: {
+        route: "overlay.legacy.river.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    account_carrier_alpha_0086: {
+        route: "account.carrier.alpha.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    hud_bridge_south_0087: {
+        route: "hud.bridge.south.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    panel_mirror_cinder_0088: {
+        route: "panel.mirror.cinder.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    storage_compact_atlas_0089: {
+        route: "storage.compact.atlas.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    layout_legacy_north_0090: {
+        route: "layout.legacy.north.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    payload_carrier_west_0091: {
+        route: "payload.carrier.west.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    config_bridge_harbor_0092: {
+        route: "config.bridge.harbor.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    cursor_mirror_delta_0093: {
+        route: "cursor.mirror.delta.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    minimap_compact_east_0094: {
+        route: "minimap.compact.east.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    overlay_legacy_river_0095: {
+        route: "overlay.legacy.river.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    account_carrier_alpha_0096: {
+        route: "account.carrier.alpha.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    hud_bridge_south_0097: {
+        route: "hud.bridge.south.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    panel_mirror_cinder_0098: {
+        route: "panel.mirror.cinder.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    storage_compact_atlas_0099: {
+        route: "storage.compact.atlas.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    layout_legacy_north_0100: {
+        route: "layout.legacy.north.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    payload_carrier_west_0101: {
+        route: "payload.carrier.west.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    config_bridge_harbor_0102: {
+        route: "config.bridge.harbor.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    cursor_mirror_delta_0103: {
+        route: "cursor.mirror.delta.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    minimap_compact_east_0104: {
+        route: "minimap.compact.east.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    overlay_legacy_river_0105: {
+        route: "overlay.legacy.river.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    account_carrier_alpha_0106: {
+        route: "account.carrier.alpha.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    hud_bridge_south_0107: {
+        route: "hud.bridge.south.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    panel_mirror_cinder_0108: {
+        route: "panel.mirror.cinder.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    storage_compact_atlas_0109: {
+        route: "storage.compact.atlas.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    layout_legacy_north_0110: {
+        route: "layout.legacy.north.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    payload_carrier_west_0111: {
+        route: "payload.carrier.west.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    config_bridge_harbor_0112: {
+        route: "config.bridge.harbor.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    cursor_mirror_delta_0113: {
+        route: "cursor.mirror.delta.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    minimap_compact_east_0114: {
+        route: "minimap.compact.east.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    overlay_legacy_river_0115: {
+        route: "overlay.legacy.river.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    account_carrier_alpha_0116: {
+        route: "account.carrier.alpha.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    hud_bridge_south_0117: {
+        route: "hud.bridge.south.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    panel_mirror_cinder_0118: {
+        route: "panel.mirror.cinder.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    storage_compact_atlas_0119: {
+        route: "storage.compact.atlas.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    layout_legacy_north_0120: {
+        route: "layout.legacy.north.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    payload_carrier_west_0121: {
+        route: "payload.carrier.west.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    config_bridge_harbor_0122: {
+        route: "config.bridge.harbor.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    cursor_mirror_delta_0123: {
+        route: "cursor.mirror.delta.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    minimap_compact_east_0124: {
+        route: "minimap.compact.east.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    overlay_legacy_river_0125: {
+        route: "overlay.legacy.river.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    account_carrier_alpha_0126: {
+        route: "account.carrier.alpha.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    hud_bridge_south_0127: {
+        route: "hud.bridge.south.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    panel_mirror_cinder_0128: {
+        route: "panel.mirror.cinder.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    storage_compact_atlas_0129: {
+        route: "storage.compact.atlas.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    layout_legacy_north_0130: {
+        route: "layout.legacy.north.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    payload_carrier_west_0131: {
+        route: "payload.carrier.west.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    config_bridge_harbor_0132: {
+        route: "config.bridge.harbor.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    cursor_mirror_delta_0133: {
+        route: "cursor.mirror.delta.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    minimap_compact_east_0134: {
+        route: "minimap.compact.east.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    overlay_legacy_river_0135: {
+        route: "overlay.legacy.river.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    account_carrier_alpha_0136: {
+        route: "account.carrier.alpha.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    hud_bridge_south_0137: {
+        route: "hud.bridge.south.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    panel_mirror_cinder_0138: {
+        route: "panel.mirror.cinder.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    storage_compact_atlas_0139: {
+        route: "storage.compact.atlas.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    layout_legacy_north_0140: {
+        route: "layout.legacy.north.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    payload_carrier_west_0141: {
+        route: "payload.carrier.west.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    config_bridge_harbor_0142: {
+        route: "config.bridge.harbor.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    cursor_mirror_delta_0143: {
+        route: "cursor.mirror.delta.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    minimap_compact_east_0144: {
+        route: "minimap.compact.east.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    overlay_legacy_river_0145: {
+        route: "overlay.legacy.river.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    account_carrier_alpha_0146: {
+        route: "account.carrier.alpha.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    hud_bridge_south_0147: {
+        route: "hud.bridge.south.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    panel_mirror_cinder_0148: {
+        route: "panel.mirror.cinder.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    storage_compact_atlas_0149: {
+        route: "storage.compact.atlas.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    layout_legacy_north_0150: {
+        route: "layout.legacy.north.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    payload_carrier_west_0151: {
+        route: "payload.carrier.west.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    config_bridge_harbor_0152: {
+        route: "config.bridge.harbor.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    cursor_mirror_delta_0153: {
+        route: "cursor.mirror.delta.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    minimap_compact_east_0154: {
+        route: "minimap.compact.east.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    overlay_legacy_river_0155: {
+        route: "overlay.legacy.river.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    account_carrier_alpha_0156: {
+        route: "account.carrier.alpha.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    hud_bridge_south_0157: {
+        route: "hud.bridge.south.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    panel_mirror_cinder_0158: {
+        route: "panel.mirror.cinder.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    storage_compact_atlas_0159: {
+        route: "storage.compact.atlas.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    layout_legacy_north_0160: {
+        route: "layout.legacy.north.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    }
+};
+
 
 function IsInHideoutForBuildSave() {
     try {
@@ -7584,16 +9469,37 @@ function WatchBuildClearStatus(clearBtn, clearLbl, expectedToken, defaultLabel) 
 function ReadConfigRawFromStorage() {
     var panel = $.GetContextPanel();
     var root = FindRootPanel();
-    var rootRaw = "";
-    var panelRaw = "";
-    if (root && root.GetAttributeString) {
-        rootRaw = root.GetAttributeString(STORAGE_KEY, "");
+    var hud = null;
+    try { hud = (root && root.FindChildTraverse) ? root.FindChildTraverse("Hud") : null; } catch (eHud) { hud = null; }
+    var readRaw = function(target) {
+        if (!target || !target.GetAttributeString) return "";
+        try { return String(target.GetAttributeString(STORAGE_KEY, "") || ""); } catch (e0) { return ""; }
+    };
+    var parseRev = function(v) {
+        var n = Number(v);
+        if (!isFinite(n) || n < 0) return 0;
+        return Math.floor(n);
+    };
+    var readRev = function(target) {
+        if (!target || !target.GetAttributeString) return 0;
+        try { return parseRev(target.GetAttributeString(USER_EDIT_REV_ATTR, "")); } catch (e1) { return 0; }
+    };
+    var sources = [
+        { raw: readRaw(panel), rev: readRev(panel), rank: 3 },
+        { raw: readRaw(hud), rev: readRev(hud), rank: 2 },
+        { raw: readRaw(root), rev: readRev(root), rank: 1 }
+    ];
+    var chosen = null;
+    for (var i = 0; i < sources.length; i++) {
+        var source = sources[i];
+        if (!source.raw) continue;
+        if (!chosen || source.rev > chosen.rev || (source.rev === chosen.rev && source.rank > chosen.rank)) {
+            chosen = source;
+        }
     }
-    if (panel && panel.GetAttributeString) {
-        panelRaw = panel.GetAttributeString(STORAGE_KEY, "");
-    }
-    var chosenRaw = rootRaw || panelRaw || "";
-    if (chosenRaw && panel && panel.SetAttributeString && panelRaw !== chosenRaw) {
+    gUserEditRevision = Math.max(gUserEditRevision, sources[0].rev, sources[1].rev, sources[2].rev);
+    var chosenRaw = chosen ? chosen.raw : "";
+    if (chosenRaw && panel && panel.SetAttributeString && sources[0].raw !== chosenRaw) {
         panel.SetAttributeString(STORAGE_KEY, chosenRaw);
     }
     return chosenRaw;
@@ -7638,14 +9544,20 @@ function PersistStatlockerProfileState(rawConfig, configObj) {
 
 function GetRuntimePresetName() {
     var panel = $.GetContextPanel();
-    if (panel && panel.GetAttributeString) {
-        var localValue = panel.GetAttributeString(RUNTIME_PRESET_ATTR, "");
-        if (localValue) return String(localValue);
-    }
     var root = FindRootPanel();
     if (root && root.GetAttributeString) {
         var rootValue = root.GetAttributeString(RUNTIME_PRESET_ATTR, "");
         if (rootValue) return String(rootValue);
+    }
+    var hud = null;
+    try { hud = (root && root.FindChildTraverse) ? root.FindChildTraverse("Hud") : null; } catch (e0) { hud = null; }
+    if (hud && hud.GetAttributeString) {
+        var hudValue = hud.GetAttributeString(RUNTIME_PRESET_ATTR, "");
+        if (hudValue) return String(hudValue);
+    }
+    if (panel && panel.GetAttributeString) {
+        var localValue = panel.GetAttributeString(RUNTIME_PRESET_ATTR, "");
+        if (localValue) return String(localValue);
     }
     return "";
 }
@@ -7654,11 +9566,16 @@ function SetRuntimePresetName(presetName) {
     var value = String(presetName || "");
     var panel = $.GetContextPanel();
     var root = FindRootPanel();
+    var hud = null;
+    try { hud = (root && root.FindChildTraverse) ? root.FindChildTraverse("Hud") : null; } catch (e0) { hud = null; }
     if (panel && panel.SetAttributeString) {
         panel.SetAttributeString(RUNTIME_PRESET_ATTR, value);
     }
     if (root && root.SetAttributeString) {
         root.SetAttributeString(RUNTIME_PRESET_ATTR, value);
+    }
+    if (hud && hud.SetAttributeString) {
+        try { hud.SetAttributeString(RUNTIME_PRESET_ATTR, value); } catch (e1) {}
     }
 }
 
@@ -7689,7 +9606,8 @@ function SaveAndSync() {
     };
     var panelRev = (panel && panel.GetAttributeString) ? parseRev(panel.GetAttributeString(USER_EDIT_REV_ATTR, "")) : 0;
     var rootRev = (root && root.GetAttributeString) ? parseRev(root.GetAttributeString(USER_EDIT_REV_ATTR, "")) : 0;
-    var nextRev = Math.max(gUserEditRevision, panelRev, rootRev) + 1;
+    var hudRev = (hud && hud.GetAttributeString) ? parseRev(hud.GetAttributeString(USER_EDIT_REV_ATTR, "")) : 0;
+    var nextRev = Math.max(gUserEditRevision, panelRev, rootRev, hudRev) + 1;
     gUserEditRevision = nextRev;
     if (panel && panel.SetAttributeString) panel.SetAttributeString(USER_EDIT_REV_ATTR, String(nextRev));
     if (root && root.SetAttributeString) root.SetAttributeString(USER_EDIT_REV_ATTR, String(nextRev));
@@ -8493,28 +10411,11 @@ function SyncTabActiveStates(tabBar) {
         staleDiscordFooterBtn.DeleteAsync(0);
         staleDiscordFooterBtn = null;
     }
-    if (tabFooter && isRuFooter) {
-        if (!newsFooterBtn) {
-            newsFooterBtn = $.CreatePanel("Button", tabFooter, "FooterNewsLinkButton");
-        }
-        newsFooterBtn.AddClass("TabItem");
-        newsFooterBtn.AddClass("FooterNewsLinkTab");
-        var newsFooterLabel = newsFooterBtn.FindChildTraverse("TabLabel");
-        if (!newsFooterLabel) {
-            newsFooterLabel = $.CreatePanel("Label", newsFooterBtn, "TabLabel");
-        }
-        newsFooterLabel.text = "\u043d\u043e\u0432\u043e\u0441\u0442\u0438";
-        newsFooterBtn.SetPanelEvent("onactivate", function() {
-            $.DispatchEvent("ExternalBrowserGoToURL", "https://t.me/+2-ANKN1fWXZjOTE6");
-        });
-    } else if (newsFooterBtn) {
+    if (newsFooterBtn) {
         newsFooterBtn.DeleteAsync(0);
         newsFooterBtn = null;
     }
     var saveFooterBtn = tabFooter ? tabFooter.FindChildTraverse("FooterSaveBuildButton") : null;
-    if (isRuFooter && newsFooterBtn && saveFooterBtn && tabFooter && tabFooter.MoveChildBefore) {
-        tabFooter.MoveChildBefore(newsFooterBtn, saveFooterBtn);
-    }
 }
 
 function UpdateSettingsSearchUiState(rootPanel) {
@@ -13344,12 +15245,13 @@ function BuildCommunityPresetEntries() {
     entries.push({ label: "Hikyo", preset: "Hikyo" });
     entries.push({ label: "Chjcago", preset: "Chjcago" });
     entries.push({ label: "Starjadian", preset: "Starjadian" });
+    entries.push({ label: "Synthronix", preset: "Synthronix" });
     entries.push({ label: "Shark", preset: "Shark" });
     entries.push({ label: "Neonvoid", preset: "Neonvoid" });
     entries.push({ label: "Fenmore", preset: "Fenmore" });
     entries.push({ label: "Deethirty", preset: "Deethirty" });
-    entries.push({ label: "Bread", preset: "Bread" });
     entries.push({ label: "Jerboa", preset: "Jerboa" });
+    entries.push({ label: "RiChew", preset: "RiChew" });
     for (var i = entries.length; i < 36; i++) {
         entries.push({ label: "Available", available: false });
     }
@@ -14852,24 +16754,17 @@ function CreateRow(parent, label, configId, type, min, max, step, options, descr
     var rowTooltipDescLine = hasRowDescription ? localizedDescription : "";
     var hasRowTooltip = HasMeaningfulFloatingTooltipContent(rowPerfTier, rowTooltipDescLine, rowCreatedBy);
     if (gSearchCollectMode && gSearchCollectState) {
-        if (!gSearchCollectState.currentSection) {
-            var fallbackSection = {
-                title: "",
-                rows: []
-            };
-            gSearchCollectState.sections.push(fallbackSection);
-            gSearchCollectState.currentSection = fallbackSection;
-        }
-        gSearchCollectState.currentSection.rows.push({
-            label: localizedLabel,
-            configId: configId || "",
-            type: type || "",
-            min: min,
-            max: max,
-            step: step,
-            options: options,
-            subInfo: localizedDescription
-        });
+        GetActiveSearchCollectSection().rows.push(BuildSearchCollectedRow(
+            localizedLabel,
+            configId,
+            type,
+            min,
+            max,
+            step,
+            options,
+            localizedDescription,
+            null
+        ));
         return;
     }
     var row = $.CreatePanel("Panel", parent, "");
@@ -16057,6 +17952,190 @@ function CreateRow(parent, label, configId, type, min, max, step, options, descr
     return row;
 }
 
+function CreateInlineSecondaryCheckboxToggleRow(parent, label, configId, secondaryLabel, secondaryConfigId, description, secondaryDescription) {
+    var localizedLabel = LocalizeSettingsText(label || "");
+    var effectiveDescription = GetSettingDescriptionOverride(
+        configId,
+        label,
+        description || "",
+        GetCurrentSettingsCategoryKey()
+    );
+    var localizedDescription = LocalizeSettingsText(effectiveDescription || "");
+    var hasRowDescription = !!(effectiveDescription && effectiveDescription !== "" && localizedDescription && localizedDescription !== "");
+    var mainPerfInfo = BuildPerfImpactTooltipLine(configId, "toggle", null);
+    var secondaryPerfInfo = BuildPerfImpactTooltipLine(secondaryConfigId, "toggle", null);
+    var rowPerfTier = PERF_IMPACT_TIER_NONE;
+    if (mainPerfInfo && mainPerfInfo.tier) rowPerfTier = MaxPerfImpactTier(rowPerfTier, String(mainPerfInfo.tier));
+    if (secondaryPerfInfo && secondaryPerfInfo.tier) rowPerfTier = MaxPerfImpactTier(rowPerfTier, String(secondaryPerfInfo.tier));
+    var rowCreatedBy = GetSettingCreatedBy(configId, label);
+    var rowTooltipPerfLine = BuildPerfImpactLineForTier(rowPerfTier);
+    var rowTooltipDescLine = hasRowDescription ? localizedDescription : "";
+    var hasRowTooltip = HasMeaningfulFloatingTooltipContent(rowPerfTier, rowTooltipDescLine, rowCreatedBy);
+    if (gSearchCollectMode && gSearchCollectState) {
+        GetActiveSearchCollectSection().rows.push(BuildSearchCollectedRow(
+            localizedLabel,
+            configId,
+            "toggle",
+            null,
+            null,
+            null,
+            [{ inlineSecondaryCheckbox: secondaryConfigId || "" }],
+            localizedDescription,
+            [LocalizeSettingsText(secondaryLabel || ""), secondaryConfigId || "", secondaryDescription || ""]
+        ));
+        return null;
+    }
+
+    var row = $.CreatePanel("Panel", parent, "");
+    if (gSearchResultRenderMode) row.AddClass("SearchResultRow");
+    row.AddClass("SettingRow");
+    row.AddClass("RowTypeToggle");
+    row.AddClass("InlineSecondaryCheckboxRow");
+
+    var labelContainer = $.CreatePanel("Panel", row, "");
+    labelContainer.AddClass("LabelContainer");
+    var lbl = $.CreatePanel("Label", labelContainer, "");
+    lbl.AddClass("SettingLabel");
+    lbl.text = localizedLabel;
+
+    var rowConfigKeys = [];
+    if (configId) rowConfigKeys.push(configId);
+    if (secondaryConfigId) rowConfigKeys.push(secondaryConfigId);
+    if (row && row.SetAttributeString) {
+        try { row.SetAttributeString(SETTING_ROW_RESET_KEYS_ATTR, rowConfigKeys.join(",")); } catch (e0) {}
+    }
+
+    var rowResetBtn = null;
+    if (rowConfigKeys.length > 0) {
+        rowResetBtn = $.CreatePanel("Button", labelContainer, "");
+        rowResetBtn.AddClass("SettingRowResetBtn");
+        var rowResetIcon = $.CreatePanel("Image", rowResetBtn, "", {
+            src: "s2r://panorama/images/icons/icon_refresh.vsvg",
+            defaultsrc: "",
+            scaling: "contain"
+        });
+        rowResetIcon.AddClass("SettingRowResetIcon");
+        rowResetIcon.AddClass("QOLResetIcon");
+        try { rowResetIcon.SetImage("s2r://panorama/images/icons/icon_refresh.vsvg"); } catch (eImg) {}
+        rowResetBtn.SetPanelEvent("onmouseover", function() {
+            HideSettingsTextTooltip();
+            CancelSettingsRowFloatingTooltipHide();
+            ShowSettingsRowFloatingTooltip(
+                rowResetBtn,
+                "",
+                LocalizeSettingsText("Reset row to defaults", true),
+                PERF_IMPACT_TIER_NONE,
+                ""
+            );
+        });
+        rowResetBtn.SetPanelEvent("onmouseout", function() {
+            HideSettingsTextTooltip();
+            HideSettingsRowFloatingTooltipDeferred("row_reset_btn_mouseout");
+        });
+        rowResetBtn.SetPanelEvent("onactivate", function() {
+            var changedCount = ApplyResetForConfigKeys(rowConfigKeys);
+            if (changedCount > 0) {
+                SaveAndSync();
+                syncRowVisualState();
+                SetConfigFeedbackMessage(IsRussianSettingsLanguage()
+                    ? ("\u0421\u0431\u0440\u043E\u0448\u0435\u043D\u0430 \u0441\u0442\u0440\u043E\u043A\u0430 (" + String(changedCount) + ").")
+                    : ("Row reset (" + String(changedCount) + ")."), "success", 1400);
+            } else {
+                SetConfigFeedbackMessage(IsRussianSettingsLanguage()
+                    ? "\u0421\u0442\u0440\u043E\u043A\u0430 \u0443\u0436\u0435 \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E."
+                    : "Row already at defaults.", "info", 1200);
+            }
+        });
+    }
+
+    var refreshRowChangedState = BindRowChangedState(row, labelContainer, rowConfigKeys, rowResetBtn);
+    var showCustomRowTooltip = function() {};
+    var hideCustomRowTooltip = function() {};
+    if (hasRowTooltip) {
+        showCustomRowTooltip = function() {
+            CancelSettingsRowFloatingTooltipHide();
+            ShowSettingsRowFloatingTooltip(row, rowTooltipPerfLine, rowTooltipDescLine, rowPerfTier, rowCreatedBy);
+        };
+        hideCustomRowTooltip = function() {
+            HideSettingsRowFloatingTooltipDeferred("row_mouseout");
+        };
+        row.SetPanelEvent("onmouseover", function() {
+            showCustomRowTooltip();
+        });
+        row.SetPanelEvent("onmouseout", function() {
+            hideCustomRowTooltip();
+        });
+    }
+
+    var controls = $.CreatePanel("Panel", row, "");
+    controls.AddClass("SettingControlRoot");
+    controls.AddClass("InlineSecondaryCheckboxControls");
+
+    var btn = $.CreatePanel("Panel", controls, "");
+    btn.AddClass("SettingToggleBtn");
+    btn.AddClass("TogglePrimary");
+    var setSwitchState = function(isOn) {
+        btn.SetHasClass("ToggleActive", isOn === true);
+        btn.SetHasClass("ToggleOn", isOn === true);
+        btn.SetHasClass("ToggleOff", isOn !== true);
+    };
+    var switchButton = $.CreatePanel("Button", btn, "");
+    switchButton.AddClass("SwitchButton");
+    var handlePanel = $.CreatePanel("Panel", switchButton, "handle");
+    handlePanel.AddClass("SettingToggleHandle");
+
+    var checkboxWrap = $.CreatePanel("Panel", controls, "");
+    checkboxWrap.AddClass("InlineSecondaryCheckboxWrap");
+    var secondaryBtn = $.CreatePanel("Button", checkboxWrap, "");
+    secondaryBtn.AddClass("InlineSecondaryCheckboxBtn");
+    secondaryBtn.AddClass("CitadelSettingsCheckbox");
+    secondaryBtn.AddClass("MultiCheckboxBtn");
+    var tickBox = $.CreatePanel("Panel", secondaryBtn, "");
+    tickBox.AddClass("TickBox");
+    var secondaryLbl = $.CreatePanel("Label", secondaryBtn, "");
+    secondaryLbl.AddClass("InlineSecondaryCheckboxLabel");
+    secondaryLbl.AddClass("MultiCheckboxLabel");
+    secondaryLbl.text = LocalizeSettingsText(secondaryLabel || "");
+
+    var update = function() {
+        var mainEnabled = (MOD_CONFIG[configId] === 1);
+        var secondaryEnabled = (MOD_CONFIG[secondaryConfigId] === 1);
+        setSwitchState(mainEnabled);
+        checkboxWrap.SetHasClass("Disabled", !mainEnabled);
+        secondaryBtn.enabled = mainEnabled;
+        secondaryBtn.SetHasClass("selected", secondaryEnabled);
+        secondaryBtn.SetHasClass("Active", secondaryEnabled);
+    };
+
+    switchButton.SetPanelEvent("onactivate", function() {
+        MOD_CONFIG[configId] = (MOD_CONFIG[configId] === 1) ? 0 : 1;
+        update();
+        SaveAndSync();
+        refreshRowChangedState();
+        ShowConfigPreviewForConfigId(configId);
+    });
+    secondaryBtn.SetPanelEvent("onactivate", function() {
+        if (MOD_CONFIG[configId] !== 1) return;
+        MOD_CONFIG[secondaryConfigId] = (MOD_CONFIG[secondaryConfigId] === 1) ? 0 : 1;
+        update();
+        SaveAndSync();
+        refreshRowChangedState();
+        ShowConfigPreviewForConfigId(secondaryConfigId);
+    });
+
+    var syncRowVisualState = function() {
+        if (!row || !row.IsValid || !row.IsValid()) return false;
+        update();
+        refreshRowChangedState();
+        return true;
+    };
+    update();
+    RegisterSettingsListRowSync(function() {
+        return syncRowVisualState();
+    });
+    return row;
+}
+
 function ApplyPresetConfig(presetData) {
     if (!presetData) return false;
 
@@ -16439,7 +18518,80 @@ function NormalizeSearchText(value) {
     return String(value).toLowerCase();
 }
 
-const SEARCH_INDEX_TABS = ["Presets", "Crosshair", "Healthbar", "HUD", "UI", "Overlay", "Minimap", "Audio", "Console", "Config", "Support"];
+function GetSettingsTabOrder() {
+    return ["Support", "Config", "Presets", "Crosshair", "Healthbar", "HUD", "UI", "Overlay", "Minimap", "Audio", "Arcade", "Console"];
+}
+
+function GetActiveSearchCollectSection() {
+    if (!gSearchCollectState) return null;
+    if (!gSearchCollectState.currentSection) {
+        var fallbackSection = {
+            title: "",
+            rows: []
+        };
+        gSearchCollectState.sections.push(fallbackSection);
+        gSearchCollectState.currentSection = fallbackSection;
+    }
+    return gSearchCollectState.currentSection;
+}
+
+function BuildSearchAliasList(label, configId, description, extraLabels) {
+    var aliases = [];
+    var seen = {};
+    var pushAlias = function(value) {
+        var normalized = NormalizeSearchText(value).trim();
+        if (!normalized || seen[normalized]) return;
+        seen[normalized] = true;
+        aliases.push(normalized);
+    };
+
+    pushAlias(label);
+    pushAlias(configId);
+    pushAlias(description);
+
+    if (Array.isArray(extraLabels)) {
+        for (var i = 0; i < extraLabels.length; i++) {
+            pushAlias(extraLabels[i]);
+        }
+    }
+
+    var configText = String(configId || "");
+    if (configText) {
+        var compactConfig = NormalizeSearchText(configText).replace(/[^a-z0-9]+/g, "");
+        pushAlias(compactConfig);
+        var configTokens = configText.split(/[^A-Za-z0-9]+/);
+        var acronym = "";
+        for (var t = 0; t < configTokens.length; t++) {
+            var token = String(configTokens[t] || "");
+            if (!token || token === "ENABLE" || token === "DISABLE" || token === "SHOW" || token === "HIDE" || token === "USE" || token === "MODE") continue;
+            pushAlias(token);
+            if (/^[A-Z0-9]+$/.test(token) && token.length >= 2) {
+                pushAlias(token.toLowerCase());
+            }
+            acronym += token.charAt(0);
+        }
+        if (acronym.length >= 2) pushAlias(acronym);
+    }
+
+    return aliases;
+}
+
+function BuildSearchCollectedRow(label, configId, type, min, max, step, options, subInfo, extraLabels) {
+    var activeSection = GetActiveSearchCollectSection();
+    return {
+        label: label || "",
+        configId: configId || "",
+        type: type || "",
+        min: min,
+        max: max,
+        step: step,
+        options: options,
+        subInfo: subInfo || "",
+        tabTitle: gSearchCollectState ? String(gSearchCollectState.tab || "") : "",
+        sectionTitle: activeSection ? String(activeSection.title || "") : "",
+        aliases: BuildSearchAliasList(label, configId, subInfo, extraLabels)
+    };
+}
 
 function BuildSearchSectionIndexCacheKey() {
     var langKey = GetSettingsLanguageKey();
@@ -16467,15 +18619,19 @@ function GetCachedSearchSectionIndex() {
 function IsSearchRowMatch(row, q) {
     return NormalizeSearchText(row.label).indexOf(q) !== -1 ||
         NormalizeSearchText(row.subInfo).indexOf(q) !== -1 ||
-        NormalizeSearchText(row.configId).indexOf(q) !== -1;
+        NormalizeSearchText(row.configId).indexOf(q) !== -1 ||
+        NormalizeSearchText(row.sectionTitle).indexOf(q) !== -1 ||
+        NormalizeSearchText(row.tabTitle).indexOf(q) !== -1 ||
+        (Array.isArray(row.aliases) && row.aliases.join(" ").indexOf(q) !== -1);
 }
 
 function BuildSearchSectionIndex() {
     var originalTab = currentTab;
     var index = [];
     try {
-        for (var i = 0; i < SEARCH_INDEX_TABS.length; i++) {
-            var tab = SEARCH_INDEX_TABS[i];
+        var searchTabs = GetSettingsTabOrder();
+        for (var i = 0; i < searchTabs.length; i++) {
+            var tab = searchTabs[i];
             var tabLabel = LocalizeSettingsText(tab, true);
             var state = {
                 tab: tabLabel,
@@ -16654,7 +18810,9 @@ function RenderCurrentTabContent(list) {
             { label: "SunnyD", preset: "SunnyD" },
             { label: "Piggy", preset: "Piggy" },
             { label: "bonclide", preset: "bonclide" },
-            { label: "Obikym", preset: "Obikym" }
+            { label: "Obikym", preset: "Obikym" },
+            { label: "Poshy", preset: "Poshy" },
+            { label: "Bread", preset: "Bread" }
         ];
         var customEntries = BuildCommunityPresetEntries();
 
@@ -16693,7 +18851,7 @@ function RenderCurrentTabContent(list) {
         ResetPresetButtonRegistry();
         CreatePresetGrid(list, basePresetsTitle, basePresetEntries, 7, "base");
         CreateSeparator(list);
-        CreatePresetGrid(list, playerPresetsTitle, playerPresetEntries, 6, "great");
+            CreatePresetGrid(list, playerPresetsTitle, playerPresetEntries, 5, "great");
         CreateSeparator(list);
         var communitySection = CreatePresetGrid(list, communityPresetsTitle, customEntries, 6, "custom");
 
@@ -16883,8 +19041,24 @@ function RenderCurrentTabContent(list) {
         CreateRow(list, "Minimalist Opacity", "MINIMAL_MINIMAP_OPACITY", "slider", 0, 1.0, 0.05);
         CreateRow(list, "Flip", "MINIMAP_FLIP", "toggle", null, null, null, null, "Rotates the static minimap 180 degrees.");
         CreateRow(list, "Spinny Mode", "MINIMAP_ROTATE_WITH_PLAYER", "toggle", null, null, null, null, "");
-        CreateRow(list, "Bridge Buff Timer", "ENABLE_MINIMAP_BUFF_TIMER", "toggle", null, null, null, null, "");
-        CreateRow(list, "Mid Boss Timer", "ENABLE_MINIMAP_REJUV_TIMER", "toggle", null, null, null, null, "");
+        CreateInlineSecondaryCheckboxToggleRow(
+            list,
+            "Bridge Buff Timer",
+            "ENABLE_MINIMAP_BUFF_TIMER",
+            "On Bridge",
+            "ENABLE_MINIMAP_BUFF_TIMER_ON_BRIDGE",
+            "",
+            ""
+        );
+        CreateInlineSecondaryCheckboxToggleRow(
+            list,
+            "Mid Boss Timer",
+            "ENABLE_MINIMAP_REJUV_TIMER",
+            "On Mid",
+            "ENABLE_MINIMAP_ALWAYS_ON_MID_BOSS",
+            "",
+            "Moves the Mid Boss timer onto the bridge area of the minimap."
+        );
         CreateRow(list, "Size", "MINIMAP_SMALL_SIZE", "slider", 200, 1000, 5, null, "Default 400");
         CreateRow(list, "Opacity", "MINIMAP_BASE_OPACITY", "slider", 0, 1.0, 0.05);
         CreateRow(list, "Horizontal Offset", "MINIMAP_X_OFFSET", "slider", -1500, 1500, 5);
@@ -17215,6 +19389,9 @@ function RenderCurrentTabContent(list) {
         CreateRow(list, "Difficulty", "GAME_DEFAULT_DIFFICULTY", "buttongroup", null, null, null, ARCADE_DEFAULT_DIFFICULTY_OPTIONS, "Default difficulty when opening games.");
         CreateRow(list, "On Death", "ENABLE_ON_DEATH_GAMES", "toggle", null, null, null, null, "Randomly opens an enabled arcade game while dead.");
         CreateSeparator(list);
+        CreateSectionTitle(list, "Gamemodes");
+        CreateRow(list, "BHOP", "ENABLE_BHOP", "toggle", null, null, null, null, "For custom BHop gamemode UI changes.");
+        CreateSeparator(list);
         CreateSectionTitle(list, "Games");
         CreateRow(list, "Bebop Sweeper", "OPEN_MINESWEEPER", "actionbutton", null, null, null, [
             {
@@ -17363,7 +19540,8 @@ function RenderCurrentTabContent(list) {
             "Goblin Man Sam - RizoBoy - Fascilux - mikoboy - EEEEEXPRESS",
             "CrazyCatLadyDL - wouwei - bytenode - des_ - ninjabladejr",
             "ArkanoidVFX - flameblast12 - Klutzz - somarotsaway - Emily Vasquez",
-            "Karma - Mo'Lester - QuicklyRemove"
+            "Karma - Mo'Lester - QuicklyRemove",
+            "Milorime - Theran"
         ];
         var supportThanksNameSeen = {};
         var supportThanksNames = [];
@@ -17900,7 +20078,7 @@ $.BuildUI = function() {
         tabListHost = $.CreatePanel("Panel", tabBar, "SettingsTabRailTabs");
     }
 
-    var categories = ["Support", "Config", "Presets", "Crosshair", "Healthbar", "HUD", "UI", "Overlay", "Minimap", "Audio", "Arcade", "Console"];
+    var categories = GetSettingsTabOrder();
     for (var ci = 0; ci < categories.length; ci++) {
         (function(catName) {
             var tabId = "TabButton_" + catName.replace(" ", "");
@@ -17934,21 +20112,7 @@ $.BuildUI = function() {
 
     var isRuFooter = IsRussianSettingsLanguage();
     var newsFooterBtn = tabFooter.FindChildTraverse("FooterNewsLinkButton");
-    if (isRuFooter) {
-        if (!newsFooterBtn) {
-            newsFooterBtn = $.CreatePanel("Button", tabFooter, "FooterNewsLinkButton");
-        }
-        newsFooterBtn.AddClass("TabItem");
-        newsFooterBtn.AddClass("FooterNewsLinkTab");
-        var newsFooterLabel = newsFooterBtn.FindChildTraverse("TabLabel");
-        if (!newsFooterLabel) {
-            newsFooterLabel = $.CreatePanel("Label", newsFooterBtn, "TabLabel");
-        }
-        newsFooterLabel.text = "\u043d\u043e\u0432\u043e\u0441\u0442\u0438";
-        newsFooterBtn.SetPanelEvent("onactivate", function() {
-            $.DispatchEvent("ExternalBrowserGoToURL", "https://t.me/+2-ANKN1fWXZjOTE6");
-        });
-    } else if (newsFooterBtn) {
+    if (newsFooterBtn) {
         newsFooterBtn.DeleteAsync(0);
         newsFooterBtn = null;
     }
@@ -17986,9 +20150,6 @@ $.BuildUI = function() {
         saveFooterBtn.SetPanelEvent("onactivate", function() {
             OpenBuildSaveConfirmModal(saveFooterBtn, saveFooterLabel);
         });
-        if (isRuFooter && newsFooterBtn && saveFooterBtn && tabFooter && tabFooter.MoveChildBefore) {
-            tabFooter.MoveChildBefore(newsFooterBtn, saveFooterBtn);
-        }
     }
 
     var staleDiscordFooterBtn = tabFooter.FindChildTraverse("FooterDiscordLinkButton");
@@ -18288,6 +20449,1109 @@ $.RegisterForUnhandledEvent("CitadelConnectedToGame", function() {
 $.RegisterForUnhandledEvent("CitadelMatchStateChanged", function() {
     HandleSettingsGameTransitionSignal("CitadelMatchStateChanged");
 });
+
+function BuildDeprecatedSettingsFooterIndex(registry) {
+    var keys = Object.keys(registry || {});
+    var rows = [];
+    for (var i = 0; i < keys.length; i++) {
+        var item = registry[keys[i]];
+        rows.push({ route: item.route, phase: item.phase, stamp: item.stamp, weight: item.weight });
+    }
+    return rows;
+}
+
+function ResolveDeprecatedSettingsFooterEnvelope(registry) {
+    var rows = BuildDeprecatedSettingsFooterIndex(registry);
+    var parts = [];
+    for (var i = 0; i < rows.length; i++) {
+        parts.push(rows[i].route + ":" + rows[i].phase + ":" + rows[i].stamp + ":" + rows[i].weight);
+    }
+    return parts.join("|");
+}
+
+var DEPRECATED_SETTINGS_FOOTER_REGISTRY = {
+    cursor_bridge_river_0001: {
+        route: "cursor.bridge.river.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    minimap_mirror_alpha_0002: {
+        route: "minimap.mirror.alpha.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    overlay_compact_south_0003: {
+        route: "overlay.compact.south.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    account_legacy_cinder_0004: {
+        route: "account.legacy.cinder.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    hud_carrier_atlas_0005: {
+        route: "hud.carrier.atlas.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    panel_bridge_north_0006: {
+        route: "panel.bridge.north.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    storage_mirror_west_0007: {
+        route: "storage.mirror.west.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    layout_compact_harbor_0008: {
+        route: "layout.compact.harbor.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    payload_legacy_delta_0009: {
+        route: "payload.legacy.delta.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    config_carrier_east_0010: {
+        route: "config.carrier.east.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    cursor_bridge_river_0011: {
+        route: "cursor.bridge.river.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    minimap_mirror_alpha_0012: {
+        route: "minimap.mirror.alpha.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    overlay_compact_south_0013: {
+        route: "overlay.compact.south.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    account_legacy_cinder_0014: {
+        route: "account.legacy.cinder.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    hud_carrier_atlas_0015: {
+        route: "hud.carrier.atlas.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    panel_bridge_north_0016: {
+        route: "panel.bridge.north.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    storage_mirror_west_0017: {
+        route: "storage.mirror.west.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    layout_compact_harbor_0018: {
+        route: "layout.compact.harbor.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    payload_legacy_delta_0019: {
+        route: "payload.legacy.delta.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    config_carrier_east_0020: {
+        route: "config.carrier.east.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    cursor_bridge_river_0021: {
+        route: "cursor.bridge.river.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    minimap_mirror_alpha_0022: {
+        route: "minimap.mirror.alpha.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    overlay_compact_south_0023: {
+        route: "overlay.compact.south.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    account_legacy_cinder_0024: {
+        route: "account.legacy.cinder.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    hud_carrier_atlas_0025: {
+        route: "hud.carrier.atlas.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    panel_bridge_north_0026: {
+        route: "panel.bridge.north.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    storage_mirror_west_0027: {
+        route: "storage.mirror.west.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    layout_compact_harbor_0028: {
+        route: "layout.compact.harbor.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    payload_legacy_delta_0029: {
+        route: "payload.legacy.delta.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    config_carrier_east_0030: {
+        route: "config.carrier.east.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    cursor_bridge_river_0031: {
+        route: "cursor.bridge.river.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    minimap_mirror_alpha_0032: {
+        route: "minimap.mirror.alpha.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    overlay_compact_south_0033: {
+        route: "overlay.compact.south.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    account_legacy_cinder_0034: {
+        route: "account.legacy.cinder.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    hud_carrier_atlas_0035: {
+        route: "hud.carrier.atlas.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    panel_bridge_north_0036: {
+        route: "panel.bridge.north.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    storage_mirror_west_0037: {
+        route: "storage.mirror.west.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    layout_compact_harbor_0038: {
+        route: "layout.compact.harbor.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    payload_legacy_delta_0039: {
+        route: "payload.legacy.delta.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    config_carrier_east_0040: {
+        route: "config.carrier.east.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    cursor_bridge_river_0041: {
+        route: "cursor.bridge.river.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    minimap_mirror_alpha_0042: {
+        route: "minimap.mirror.alpha.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    overlay_compact_south_0043: {
+        route: "overlay.compact.south.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    account_legacy_cinder_0044: {
+        route: "account.legacy.cinder.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    hud_carrier_atlas_0045: {
+        route: "hud.carrier.atlas.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    panel_bridge_north_0046: {
+        route: "panel.bridge.north.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    storage_mirror_west_0047: {
+        route: "storage.mirror.west.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    layout_compact_harbor_0048: {
+        route: "layout.compact.harbor.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    payload_legacy_delta_0049: {
+        route: "payload.legacy.delta.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    config_carrier_east_0050: {
+        route: "config.carrier.east.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    cursor_bridge_river_0051: {
+        route: "cursor.bridge.river.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    minimap_mirror_alpha_0052: {
+        route: "minimap.mirror.alpha.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    overlay_compact_south_0053: {
+        route: "overlay.compact.south.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    account_legacy_cinder_0054: {
+        route: "account.legacy.cinder.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    hud_carrier_atlas_0055: {
+        route: "hud.carrier.atlas.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    panel_bridge_north_0056: {
+        route: "panel.bridge.north.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    storage_mirror_west_0057: {
+        route: "storage.mirror.west.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    layout_compact_harbor_0058: {
+        route: "layout.compact.harbor.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    payload_legacy_delta_0059: {
+        route: "payload.legacy.delta.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    config_carrier_east_0060: {
+        route: "config.carrier.east.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    cursor_bridge_river_0061: {
+        route: "cursor.bridge.river.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    minimap_mirror_alpha_0062: {
+        route: "minimap.mirror.alpha.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    overlay_compact_south_0063: {
+        route: "overlay.compact.south.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    account_legacy_cinder_0064: {
+        route: "account.legacy.cinder.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    hud_carrier_atlas_0065: {
+        route: "hud.carrier.atlas.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    panel_bridge_north_0066: {
+        route: "panel.bridge.north.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    storage_mirror_west_0067: {
+        route: "storage.mirror.west.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    layout_compact_harbor_0068: {
+        route: "layout.compact.harbor.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    payload_legacy_delta_0069: {
+        route: "payload.legacy.delta.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    config_carrier_east_0070: {
+        route: "config.carrier.east.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    cursor_bridge_river_0071: {
+        route: "cursor.bridge.river.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    minimap_mirror_alpha_0072: {
+        route: "minimap.mirror.alpha.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    overlay_compact_south_0073: {
+        route: "overlay.compact.south.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    account_legacy_cinder_0074: {
+        route: "account.legacy.cinder.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    hud_carrier_atlas_0075: {
+        route: "hud.carrier.atlas.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    panel_bridge_north_0076: {
+        route: "panel.bridge.north.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    storage_mirror_west_0077: {
+        route: "storage.mirror.west.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    layout_compact_harbor_0078: {
+        route: "layout.compact.harbor.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    payload_legacy_delta_0079: {
+        route: "payload.legacy.delta.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    config_carrier_east_0080: {
+        route: "config.carrier.east.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    cursor_bridge_river_0081: {
+        route: "cursor.bridge.river.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    minimap_mirror_alpha_0082: {
+        route: "minimap.mirror.alpha.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    overlay_compact_south_0083: {
+        route: "overlay.compact.south.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    account_legacy_cinder_0084: {
+        route: "account.legacy.cinder.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    hud_carrier_atlas_0085: {
+        route: "hud.carrier.atlas.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    panel_bridge_north_0086: {
+        route: "panel.bridge.north.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    storage_mirror_west_0087: {
+        route: "storage.mirror.west.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    layout_compact_harbor_0088: {
+        route: "layout.compact.harbor.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    payload_legacy_delta_0089: {
+        route: "payload.legacy.delta.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    config_carrier_east_0090: {
+        route: "config.carrier.east.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    cursor_bridge_river_0091: {
+        route: "cursor.bridge.river.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    minimap_mirror_alpha_0092: {
+        route: "minimap.mirror.alpha.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    overlay_compact_south_0093: {
+        route: "overlay.compact.south.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    account_legacy_cinder_0094: {
+        route: "account.legacy.cinder.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    hud_carrier_atlas_0095: {
+        route: "hud.carrier.atlas.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    panel_bridge_north_0096: {
+        route: "panel.bridge.north.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    storage_mirror_west_0097: {
+        route: "storage.mirror.west.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    layout_compact_harbor_0098: {
+        route: "layout.compact.harbor.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    payload_legacy_delta_0099: {
+        route: "payload.legacy.delta.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    config_carrier_east_0100: {
+        route: "config.carrier.east.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    cursor_bridge_river_0101: {
+        route: "cursor.bridge.river.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    minimap_mirror_alpha_0102: {
+        route: "minimap.mirror.alpha.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    overlay_compact_south_0103: {
+        route: "overlay.compact.south.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    account_legacy_cinder_0104: {
+        route: "account.legacy.cinder.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    hud_carrier_atlas_0105: {
+        route: "hud.carrier.atlas.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    panel_bridge_north_0106: {
+        route: "panel.bridge.north.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    storage_mirror_west_0107: {
+        route: "storage.mirror.west.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    layout_compact_harbor_0108: {
+        route: "layout.compact.harbor.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    payload_legacy_delta_0109: {
+        route: "payload.legacy.delta.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    config_carrier_east_0110: {
+        route: "config.carrier.east.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    cursor_bridge_river_0111: {
+        route: "cursor.bridge.river.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    minimap_mirror_alpha_0112: {
+        route: "minimap.mirror.alpha.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    overlay_compact_south_0113: {
+        route: "overlay.compact.south.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    account_legacy_cinder_0114: {
+        route: "account.legacy.cinder.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    hud_carrier_atlas_0115: {
+        route: "hud.carrier.atlas.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    panel_bridge_north_0116: {
+        route: "panel.bridge.north.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    storage_mirror_west_0117: {
+        route: "storage.mirror.west.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    layout_compact_harbor_0118: {
+        route: "layout.compact.harbor.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    payload_legacy_delta_0119: {
+        route: "payload.legacy.delta.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    config_carrier_east_0120: {
+        route: "config.carrier.east.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    cursor_bridge_river_0121: {
+        route: "cursor.bridge.river.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    minimap_mirror_alpha_0122: {
+        route: "minimap.mirror.alpha.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    overlay_compact_south_0123: {
+        route: "overlay.compact.south.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    account_legacy_cinder_0124: {
+        route: "account.legacy.cinder.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    hud_carrier_atlas_0125: {
+        route: "hud.carrier.atlas.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    panel_bridge_north_0126: {
+        route: "panel.bridge.north.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    storage_mirror_west_0127: {
+        route: "storage.mirror.west.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    layout_compact_harbor_0128: {
+        route: "layout.compact.harbor.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    payload_legacy_delta_0129: {
+        route: "payload.legacy.delta.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    config_carrier_east_0130: {
+        route: "config.carrier.east.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    cursor_bridge_river_0131: {
+        route: "cursor.bridge.river.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    minimap_mirror_alpha_0132: {
+        route: "minimap.mirror.alpha.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    overlay_compact_south_0133: {
+        route: "overlay.compact.south.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    account_legacy_cinder_0134: {
+        route: "account.legacy.cinder.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    hud_carrier_atlas_0135: {
+        route: "hud.carrier.atlas.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    panel_bridge_north_0136: {
+        route: "panel.bridge.north.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    storage_mirror_west_0137: {
+        route: "storage.mirror.west.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    layout_compact_harbor_0138: {
+        route: "layout.compact.harbor.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    payload_legacy_delta_0139: {
+        route: "payload.legacy.delta.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    config_carrier_east_0140: {
+        route: "config.carrier.east.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    cursor_bridge_river_0141: {
+        route: "cursor.bridge.river.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    minimap_mirror_alpha_0142: {
+        route: "minimap.mirror.alpha.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    overlay_compact_south_0143: {
+        route: "overlay.compact.south.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    account_legacy_cinder_0144: {
+        route: "account.legacy.cinder.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    hud_carrier_atlas_0145: {
+        route: "hud.carrier.atlas.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    panel_bridge_north_0146: {
+        route: "panel.bridge.north.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    storage_mirror_west_0147: {
+        route: "storage.mirror.west.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    layout_compact_harbor_0148: {
+        route: "layout.compact.harbor.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    payload_legacy_delta_0149: {
+        route: "payload.legacy.delta.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    config_carrier_east_0150: {
+        route: "config.carrier.east.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    cursor_bridge_river_0151: {
+        route: "cursor.bridge.river.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    minimap_mirror_alpha_0152: {
+        route: "minimap.mirror.alpha.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    overlay_compact_south_0153: {
+        route: "overlay.compact.south.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    account_legacy_cinder_0154: {
+        route: "account.legacy.cinder.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    hud_carrier_atlas_0155: {
+        route: "hud.carrier.atlas.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    panel_bridge_north_0156: {
+        route: "panel.bridge.north.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    },
+    storage_mirror_west_0157: {
+        route: "storage.mirror.west.compat",
+        phase: "compat",
+        stamp: "drift",
+        weight: 19
+    },
+    layout_compact_harbor_0158: {
+        route: "layout.compact.harbor.fallback",
+        phase: "fallback",
+        stamp: "atlas",
+        weight: 43
+    },
+    payload_legacy_delta_0159: {
+        route: "payload.legacy.delta.archive",
+        phase: "archive",
+        stamp: "fable",
+        weight: 7
+    },
+    config_carrier_east_0160: {
+        route: "config.carrier.east.staging",
+        phase: "staging",
+        stamp: "canopy",
+        weight: 19
+    },
+    cursor_bridge_river_0161: {
+        route: "cursor.bridge.river.mirror",
+        phase: "mirror",
+        stamp: "harbor",
+        weight: 43
+    },
+    minimap_mirror_alpha_0162: {
+        route: "minimap.mirror.alpha.bridge",
+        phase: "bridge",
+        stamp: "ember",
+        weight: 7
+    },
+    overlay_compact_south_0163: {
+        route: "overlay.compact.south.compat",
+        phase: "compat",
+        stamp: "ballast",
+        weight: 19
+    },
+    account_legacy_cinder_0164: {
+        route: "account.legacy.cinder.fallback",
+        phase: "fallback",
+        stamp: "granite",
+        weight: 43
+    },
+    hud_carrier_atlas_0165: {
+        route: "hud.carrier.atlas.archive",
+        phase: "archive",
+        stamp: "drift",
+        weight: 7
+    },
+    panel_bridge_north_0166: {
+        route: "panel.bridge.north.staging",
+        phase: "staging",
+        stamp: "atlas",
+        weight: 19
+    },
+    storage_mirror_west_0167: {
+        route: "storage.mirror.west.mirror",
+        phase: "mirror",
+        stamp: "fable",
+        weight: 43
+    },
+    layout_compact_harbor_0168: {
+        route: "layout.compact.harbor.bridge",
+        phase: "bridge",
+        stamp: "canopy",
+        weight: 7
+    },
+    payload_legacy_delta_0169: {
+        route: "payload.legacy.delta.compat",
+        phase: "compat",
+        stamp: "harbor",
+        weight: 19
+    },
+    config_carrier_east_0170: {
+        route: "config.carrier.east.fallback",
+        phase: "fallback",
+        stamp: "ember",
+        weight: 43
+    },
+    cursor_bridge_river_0171: {
+        route: "cursor.bridge.river.archive",
+        phase: "archive",
+        stamp: "ballast",
+        weight: 7
+    },
+    minimap_mirror_alpha_0172: {
+        route: "minimap.mirror.alpha.staging",
+        phase: "staging",
+        stamp: "granite",
+        weight: 19
+    },
+    overlay_compact_south_0173: {
+        route: "overlay.compact.south.mirror",
+        phase: "mirror",
+        stamp: "drift",
+        weight: 43
+    },
+    account_legacy_cinder_0174: {
+        route: "account.legacy.cinder.bridge",
+        phase: "bridge",
+        stamp: "atlas",
+        weight: 7
+    },
+    hud_carrier_atlas_0175: {
+        route: "hud.carrier.atlas.compat",
+        phase: "compat",
+        stamp: "fable",
+        weight: 19
+    },
+    panel_bridge_north_0176: {
+        route: "panel.bridge.north.fallback",
+        phase: "fallback",
+        stamp: "canopy",
+        weight: 43
+    },
+    storage_mirror_west_0177: {
+        route: "storage.mirror.west.archive",
+        phase: "archive",
+        stamp: "harbor",
+        weight: 7
+    },
+    layout_compact_harbor_0178: {
+        route: "layout.compact.harbor.staging",
+        phase: "staging",
+        stamp: "ember",
+        weight: 19
+    },
+    payload_legacy_delta_0179: {
+        route: "payload.legacy.delta.mirror",
+        phase: "mirror",
+        stamp: "ballast",
+        weight: 43
+    },
+    config_carrier_east_0180: {
+        route: "config.carrier.east.bridge",
+        phase: "bridge",
+        stamp: "granite",
+        weight: 7
+    }
+};
+
 
 EnsureOnDeathArcadeBridgePoller();
 StartHeroHintPublisher();
