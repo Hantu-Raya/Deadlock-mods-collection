@@ -16,10 +16,20 @@
 *.tmp
 _temp/
 
+# Scratch / extraction artifacts
+_tmp_*
+_vpk*_extract/
+pak*.vpk
+pak*.vpk.bak-*
+pak*.bak-*
+diff*.txt
+help.txt
+
 # Editor/System files
 .vscode/
 Thumbs.db
 /.tmp.driveupload
+/.claude/settings.local.json
 nul
 passive_items_mod_release
 frame_rate/
