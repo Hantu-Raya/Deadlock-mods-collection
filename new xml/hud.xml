@@ -1,4 +1,4 @@
-<!-- xml reconstructed by Source 2 Viewer 17.0.0.0 - https://valveresourceformat.github.io -->
+<!-- xml reconstructed by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
@@ -105,6 +105,7 @@
 			<Panel id="gameplay_hud" class="gameplay_hud" hittest="false">
 				<GlobalClassListener classes="gShopOpen" />
 				<Panel id="hudBacker" />
+				<CitadelHudGameAnnouncements id="CitadelHudGameAnnouncements" />
 				<TeamObjectiveHealthPanel id="objectives_health_friendly" team="2" />
 				<Panel id="spectator_count" onmouseover="UIShowTextTooltip( #hud_spectate_count_tooltip )" onmouseout="UIHideTextTooltip()">
 					<Panel id="spectator_count_container">
@@ -138,14 +139,6 @@
 					<Label id="out_of_ammo_label" text="#Citadel_Hud_OutOfAmmo" />
 					<Label id="low_ammo_label" text="#Citadel_Hud_LowAmmo" />
 					<Label id="out_of_mana_label" text="#Citadel_Hud_NotEnoughEnergy" />
-					<Panel id="cast_failed_box">
-						<GlobalClassListener hittest="false" classes="gDetailView" />
-						<Label id="invalid_cast_ability" text="{s:failed_ability_name}" />
-						<Panel class="invalid_cast_line">
-							<Label id="invalid_cast_reason" text="{s:invalid_cast_reason}" />
-							<Label id="invalid_cast_time_remaining" text="#Citadel_Hud_CastTimeRemaining" />
-						</Panel>
-					</Panel>
 					<Citadel_AbilityHUDPanels id="crosshair" />
 					<Panel id="LowHealthWarning">
 						<Label text="#Citadel_Hud_HealthCritical" />
@@ -168,7 +161,6 @@
 				<CitadelHudDamageSummary id="hud_damage_summary" />
 				<CitadelHudHealthContainer id="health_and_abilities_container" />
 				<CitadelHudAbilityInterrupt id="ability_interrupt_panel" />
-				<CitadelDamageImpact id="damage_impact" />
 				<Panel id="friendly_final_objective_container" class="final_objective_container friendly">
 					<Panel id="center_container">
 						<Panel id="cp_container" class="cp_container" />
@@ -202,9 +194,9 @@
 			<CitadelHudPlayerIntents id="hud_playerintents" />
 			<CitadelChatWheel id="ChatWheel" />
 			<CitadelItemDraftPanel id="ItemDraft" />
+			<CitadelDamageImpact id="damage_impact" />
 			<CitadelHudTopBar id="TopBar" hittest="false" />
 			<CitadelPregameCountdown id="PregameCountdown" />
-			<CitadelHudGameAnnouncements id="CitadelHudGameAnnouncements" />
 			<CitadelHudHeroShop id="CitadelHudHeroShop" />
 			<CitadelHudDamageReport id="CitadelHudDamageReport" />
 			<CitadelHudHeroTesting id="hud_hero_testing" />
@@ -309,6 +301,14 @@
 					</Panel>
 					<CitadelBinding id="UnlockBinding_Scoreboard" class="APUnlockBinding" action="Scoreboard" />
 					<CitadelBinding id="UnlockBinding_AbilityRadial" class="APUnlockBinding" action="AbilityUpgradeRadial" />
+				</Panel>
+			</Panel>
+			<Panel id="cast_failed_box">
+				<GlobalClassListener hittest="false" classes="gDetailView" />
+				<Label id="invalid_cast_ability" text="{s:failed_ability_name}" />
+				<Panel class="invalid_cast_line">
+					<Label id="invalid_cast_reason" text="{s:invalid_cast_reason}" />
+					<Label id="invalid_cast_time_remaining" text="#Citadel_Hud_CastTimeRemaining" />
 				</Panel>
 			</Panel>
 			<CitadelChat id="Chat" />
