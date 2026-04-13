@@ -142,20 +142,21 @@
 
   function hasPersistentStorage() {
     try {
-      var supported = !!($ && $.persistentStorage &&
-        typeof $.persistentStorage.setItem === "function" &&
-        typeof $.persistentStorage.getItem === "function");
-      persistDebug("hasPersistentStorage=" + (supported ? "1" : "0"));
+      // Probe with an actual write — Panorama native methods may not report
+      // typeof === "function" even when callable (QoL pattern: just call it).
+      $.persistentStorage.setItem("_anita_probe", "1");
+      $.persistentStorage.removeItem("_anita_probe");
+      persistDebug("hasPersistentStorage=1");
       if (!storageSupportLogged) {
         storageSupportLogged = true;
-        log("storage available=" + (supported ? "1" : "0"));
+        log("storage available=1");
       }
-      return supported;
+      return true;
     } catch (e) {
       persistDebug("hasPersistentStorage=0 err=" + e);
       if (!storageSupportLogged) {
         storageSupportLogged = true;
-        log("storage probe failed: " + e);
+        log("storage available=0 probe failed: " + e);
       }
       return false;
     }
@@ -651,10 +652,15 @@
       if (!currentValues) currentValues = buildDefaultValues(bridgeConfig);
       if (!persistedValues) persistedValues = cloneValues(currentValues);
 
-      currentValues[data.setting_id] = sanitizeValue(element, data.value);
-      persistedValues[data.setting_id] = sanitizeValue(element, data.value);
+      var updateSource = String(data.update_source || "ui_update");
+      var isResync = updateSource === "core_auto_resync" || updateSource === "ui_resync";
 
-      if (data.skip_bridge_persist || String(data.update_source || "") === "bridge_bootstrap") {
+      currentValues[data.setting_id] = sanitizeValue(element, data.value);
+      if (!isResync) {
+        persistedValues[data.setting_id] = sanitizeValue(element, data.value);
+      }
+
+      if (data.skip_bridge_persist || updateSource === "bridge_bootstrap" || isResync) {
         return;
       }
 

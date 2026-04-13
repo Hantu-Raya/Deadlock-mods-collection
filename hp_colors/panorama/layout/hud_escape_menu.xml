@@ -3,9 +3,6 @@
     <include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
     <include src="s2r://panorama/styles/hud_escape_menu.vcss_c" />
   </styles>
-  <scripts>
-    <include src="s2r://panorama/scripts/anita_persist_loader.vjs_c" />
-  </scripts>
   <CitadelHudEscapeMenu oncancel="CitadelResumePlaying()">
     <Panel id="EscapeBackground" onactivate="CitadelResumePlaying()" />
     <Panel id="LeftStripeBlur" />

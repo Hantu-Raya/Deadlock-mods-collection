@@ -1,0 +1,23 @@
+[transform] active.py
+[compile] abilities
+[pack] pak03_dir.vpk
+Successfully created pack file at "F:/Users/FoxOS_User/Desktop/Deadlock-mods-collection/pak03_dir.vpk".
+[transform] passive.py
+[compile] abilities
+[pack] pak04_dir.vpk
+Successfully created pack file at "F:/Users/FoxOS_User/Desktop/Deadlock-mods-collection/pak04_dir.vpk".
+[transform] active_no_behavior.py
+[compile] abilities
+[pack] pak05_dir.vpk
+Successfully created pack file at "F:/Users/FoxOS_User/Desktop/Deadlock-mods-collection/pak05_dir.vpk".
+[archive] filter_for_passive_and_active_items_04_11.7z
+[archive] filter_for_passive_items_04_11.7z
+[archive] filter_for_passive_and_active_items_no_behavior_04_11.7z
+
+FullName                                                                                                              
+--------                                                                                                              
+G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\filter_for_passive_and_active_items_04_11.7z            
+G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\filter_for_passive_items_04_11.7z                       
+G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\filter_for_passive_and_active_items_no_behavior_04_11.7z
+
+

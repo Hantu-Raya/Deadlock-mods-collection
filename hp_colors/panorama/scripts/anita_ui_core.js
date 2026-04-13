@@ -406,19 +406,21 @@ var AnitaUILogger = (function () {
     },
 
     writeConvar: function (key, value) {
-      // Prefer ConsoleCommand (handles quoting); fall back to SetSettingString
+      // Prefer SetSettingString (writes to settings file, survives restarts)
       if (typeof GameInterfaceAPI !== "undefined" &&
+          GameInterfaceAPI &&
+          typeof GameInterfaceAPI.SetSettingString === "function") {
+        persistDebug("convar write begin key=" + key + " encoded_len=" + String(value || "").length + " via=SetSettingString");
+        GameInterfaceAPI.SetSettingString(key, value);
+        persistDebug("convar write success key=" + key + " encoded_len=" + String(value || "").length + " via=SetSettingString");
+        this.log("writeConvar via SetSettingString key=" + key);
+      } else if (typeof GameInterfaceAPI !== "undefined" &&
           GameInterfaceAPI &&
           typeof GameInterfaceAPI.ConsoleCommand === "function") {
         persistDebug("convar write begin key=" + key + " encoded_len=" + String(value || "").length + " via=ConsoleCommand");
         GameInterfaceAPI.ConsoleCommand(key + ' "' + value + '"');
         persistDebug("convar write success key=" + key + " encoded_len=" + String(value || "").length + " via=ConsoleCommand");
         this.log("writeConvar via ConsoleCommand key=" + key);
-      } else {
-        persistDebug("convar write begin key=" + key + " encoded_len=" + String(value || "").length + " via=SetSettingString");
-        GameInterfaceAPI.SetSettingString(key, value);
-        persistDebug("convar write success key=" + key + " encoded_len=" + String(value || "").length + " via=SetSettingString");
-        this.log("writeConvar via SetSettingString key=" + key);
       }
     },
 
@@ -430,7 +432,6 @@ var AnitaUILogger = (function () {
         try {
           this.writeConvar(key, value);
           persistDebug("convar write result success key=" + key + " encoded_len=" + String(value || "").length + " via=direct");
-          try { runConsoleCommandBestEffort("host_writeconfig"); } catch (eFlush) {}
           return true;
         } catch (e0) {
           persistDebug("convar write result fail key=" + key + " encoded_len=" + String(value || "").length + " err=" + e0);
@@ -441,7 +442,14 @@ var AnitaUILogger = (function () {
       if (runConsoleCommandBestEffort(command)) {
         persistDebug("convar write result success key=" + key + " encoded_len=" + String(value || "").length + " via=events");
         this.log("writeConvar via command events key=" + key);
-        try { runConsoleCommandBestEffort("host_writeconfig"); } catch (eFlush) {}
+        // Also attempt SetSettingString as a durable fallback after events path
+        try {
+          if (typeof GameInterfaceAPI !== "undefined" && GameInterfaceAPI &&
+              typeof GameInterfaceAPI.SetSettingString === "function") {
+            GameInterfaceAPI.SetSettingString(key, value);
+            persistDebug("convar write SetSettingString fallback success key=" + key);
+          }
+        } catch (eSS) {}
         return true;
       }
 
