@@ -3,43 +3,22 @@
 
   // â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var TITLE = "HP Colors";
-  var DEV_LOG = true;
-  var HP_COMPACT_PERSIST_VERSION = 1;
-  var HP_PERSIST_ALIAS_TO_ID = {
-    e: "hp_enabled",
-    m: "hp_mode",
-    l: "hp_low_threshold",
-    h: "hp_high_threshold",
-    b: "hp_bg_visible",
-    t: "hp_team_colors",
-    cl: "hp_color_low",
-    cm: "hp_color_mid",
-    ch: "hp_color_high",
-    s: "hp_counter_size",
-    p: "hp_counter_position",
-    tm: "hp_text_color_mode",
-    tl: "hp_text_color_low",
-    ti: "hp_text_color_mid",
-    th: "hp_text_color_high",
-    np: "hp_npc_poll_slow"
-  };
   var DEFAULTS = {
     hp_enabled: true,
     hp_mode: 1,
     hp_low_threshold: 25,
+    hp_high_threshold: 65,
     hp_bg_visible: true,
+    hp_team_colors: false,
+    hp_color_low: "#E16161",
+    hp_color_mid: "#FF7B00",
+    hp_color_high: "#00FF00",
     hp_counter_size: 120,
     hp_counter_position: "20,196",
     hp_text_color_mode: 0,
     hp_text_color_low: "#E16161",
     hp_text_color_mid: "#FF7B00",
-    hp_text_color_high: "#FFFFFF",
-    hp_high_threshold: 65,
-    hp_color_low: "#E16161",
-    hp_color_mid: "#FF7B00",
-    hp_color_high: "#00FF00",
-    hp_team_colors: false,
-    hp_npc_poll_slow: true
+    hp_text_color_high: "#FFFFFF"
   };
   var TEAM1_HIGH = "#FFC961";
   var TEAM2_HIGH = "#6485FC";
@@ -47,27 +26,6 @@
   var LP = 'low_hp_bar_pulse', LTX = 'low_hp_text_large', LS = 'low_hp_ult_static';
 
   var cfg = {};
-  var TEAM1_HIGH_STATE = createColorState(TEAM1_HIGH, TEAM1_HIGH);
-  var TEAM2_HIGH_STATE = createColorState(TEAM2_HIGH, TEAM2_HIGH);
-  var derived = {
-    lowThreshold: DEFAULTS.hp_low_threshold,
-    highThreshold: DEFAULTS.hp_high_threshold,
-    gradientMode: DEFAULTS.hp_mode === 1,
-    bgVisible: !!DEFAULTS.hp_bg_visible,
-    teamColors: !!DEFAULTS.hp_team_colors,
-    counterBaseSize: DEFAULTS.hp_counter_size,
-    counterBasePos: { x: 20, y: 196 },
-    textUsesCustomColor: false,
-    textLowState: createColorState(DEFAULTS.hp_text_color_low, DEFAULTS.hp_color_low),
-    textMidState: createColorState(DEFAULTS.hp_text_color_mid, DEFAULTS.hp_color_mid),
-    textHighState: createColorState(DEFAULTS.hp_text_color_high, WHITE_WASH),
-    lowState: createColorState(DEFAULTS.hp_color_low, DEFAULTS.hp_color_low),
-    midState: createColorState(DEFAULTS.hp_color_mid, DEFAULTS.hp_color_mid),
-    highState: createColorState(DEFAULTS.hp_color_high, DEFAULTS.hp_color_high),
-    lowDarkRgb: [0, 0, 0],
-    midRange: 1,
-    highRange: 1
-  };
 
   function loadCfgDefaults() {
     for (var id in DEFAULTS) {
@@ -75,59 +33,6 @@
         cfg[id] = DEFAULTS[id];
       }
     }
-  }
-
-  function createColorState(color, fallback) {
-    var resolved = normalizeWashColor(typeof color === "string" ? color : "");
-    if (!resolved) {
-      resolved = normalizeWashColor(typeof fallback === "string" ? fallback : "") || WHITE_WASH;
-    }
-    return {
-      wash: resolved,
-      rgb: hexToRgb(resolved)
-    };
-  }
-
-  function clampPct(v, fallback) {
-    return Math.round(clampNum(v, 0, 100, fallback));
-  }
-
-  function isValidPanel(panel) {
-    return !!(panel && panel.IsValid && panel.IsValid());
-  }
-
-  // Cache last color strings used in refreshDerivedState to skip redundant createColorState calls.
-  var _cachedColorKeys = {};
-
-  function refreshColorState(slotName, colorStr, fallback) {
-    var key = slotName + "|" + colorStr + "|" + fallback;
-    if (_cachedColorKeys[slotName] === key) return;
-    _cachedColorKeys[slotName] = key;
-    derived[slotName] = createColorState(colorStr, fallback);
-    if (slotName === "lowState") derived.lowDarkRgb = darkOf(derived.lowState.rgb);
-  }
-
-  function refreshDerivedState() {
-    var low = clampPct(cfg.hp_low_threshold, DEFAULTS.hp_low_threshold);
-    var high = clampPct(cfg.hp_high_threshold, DEFAULTS.hp_high_threshold);
-    if (high < low) high = low;
-
-    derived.lowThreshold = low;
-    derived.highThreshold = high;
-    derived.midRange = Math.max(1, high - low);
-    derived.highRange = Math.max(1, 100 - high);
-    derived.gradientMode = cfg.hp_mode === 1;
-    derived.bgVisible = !!cfg.hp_bg_visible;
-    derived.teamColors = !!cfg.hp_team_colors;
-    derived.counterBaseSize = clampNum(cfg.hp_counter_size, 72, 400, DEFAULTS.hp_counter_size);
-    derived.counterBasePos = parseCounterPositionValue(cfg.hp_counter_position);
-    derived.textUsesCustomColor = Number(cfg.hp_text_color_mode) === 1;
-    refreshColorState("textLowState", cfg.hp_text_color_low, DEFAULTS.hp_color_low);
-    refreshColorState("textMidState", cfg.hp_text_color_mid, DEFAULTS.hp_color_mid);
-    refreshColorState("textHighState", cfg.hp_text_color_high, WHITE_WASH);
-    refreshColorState("lowState", cfg.hp_color_low, DEFAULTS.hp_color_low);
-    refreshColorState("midState", cfg.hp_color_mid, DEFAULTS.hp_color_mid);
-    refreshColorState("highState", cfg.hp_color_high, DEFAULTS.hp_color_high);
   }
 
   function coerceCfgValue(id, value) {
@@ -192,41 +97,13 @@
   }
 
   loadCfgDefaults();
-  refreshDerivedState();
   var BOOTSTRAP_NAMESPACE = "hp_colors";
   var BOOTSTRAP_MAX_ATTEMPTS = 8;
   var BOOTSTRAP_RETRY_SEC = 0.5;
-  var SESSION_STORAGE_KEY = "anita_v1_hp_colors";
-  var CONVAR_KEY = "deadlock_hero_debuts_seen";
-  var TOKEN_PREFIX = "ANITA-v1-";
-  var SHARED_CFG_RAW_KEY = "hpColorsRuntimeCfgRaw";
-  var SHARED_CFG_REV_KEY = "hpColorsRuntimeCfgRev";
   var bootstrapApplied = false;
   var bootstrapAttempts = 0;
   var bootstrapFinished = false;
-  var bootstrapLoopActive = false;
-  var bootstrapSatisfiedSource = "";
   var settingsDirty = true;
-  var sharedCfgRaw = "";
-  var directBootstrapMisses = 0;
-
-  function devLog(message) {
-    if (!DEV_LOG) return;
-    $.Msg("[HP Colors][Overlay] " + message);
-  }
-
-  function persistDebug(message) {
-    if (!DEV_LOG) return;
-    $.Msg("[HP-PERSIST-DEBUG] " + message);
-  }
-
-  function panelId(panel, fallback) {
-    try {
-      return String((panel && panel.id) || fallback || "panel");
-    } catch (ePanel) {
-      return String(fallback || "panel");
-    }
-  }
 
   function getRootPanel() {
     var panel = $.GetContextPanel();
@@ -234,300 +111,6 @@
       panel = panel.GetParent();
     }
     return panel || null;
-  }
-
-  function getSharedStore() {
-    try {
-      if (typeof GameUI === "object" && GameUI && typeof GameUI.CustomUIConfig === "function") {
-        var customUiConfig = GameUI.CustomUIConfig();
-        if (customUiConfig && typeof customUiConfig === "object") {
-          return customUiConfig;
-        }
-      }
-    } catch (eCfg) {}
-    return getRootPanel();
-  }
-
-  function snapshotCfg() {
-    var out = {};
-    for (var id in DEFAULTS) {
-      if (!Object.prototype.hasOwnProperty.call(DEFAULTS, id)) continue;
-      out[id] = cfg[id];
-    }
-    return out;
-  }
-
-  function applySharedSnapshot(snapshot, reason) {
-    if (!snapshot || typeof snapshot !== "object") return false;
-
-    var changed = false;
-    for (var id in DEFAULTS) {
-      if (!Object.prototype.hasOwnProperty.call(DEFAULTS, id)) continue;
-      if (!Object.prototype.hasOwnProperty.call(snapshot, id)) continue;
-      var nextValue = coerceCfgValue(id, snapshot[id]);
-      if (cfg[id] !== nextValue) {
-        cfg[id] = nextValue;
-        changed = true;
-      }
-    }
-
-    if (!changed && bootstrapApplied) return false;
-
-    refreshDerivedState();
-    invalidateComputedState(true);
-    bootstrapApplied = true;
-    bootstrapFinished = true;
-    bootstrapLoopActive = false;
-    devLog("shared cache applied source=" + String(reason || "shared_cache"));
-    return true;
-  }
-
-  function writeSharedSnapshot(reason) {
-    var store = getSharedStore();
-    if (!store) return;
-
-    var raw = "";
-    try {
-      raw = JSON.stringify(snapshotCfg());
-    } catch (eJson) {
-      raw = "";
-    }
-    if (!raw || raw === sharedCfgRaw) return;
-
-    sharedCfgRaw = raw;
-    try {
-      store[SHARED_CFG_RAW_KEY] = raw;
-      store[SHARED_CFG_REV_KEY] = Math.max(0, Math.floor(Number(store[SHARED_CFG_REV_KEY]) || 0)) + 1;
-      devLog("shared cache write source=" + String(reason || "update") + " rev=" + String(store[SHARED_CFG_REV_KEY]));
-    } catch (eStore) {}
-  }
-
-  function tryApplySharedSnapshot(reason) {
-    var store = getSharedStore();
-    if (!store) return false;
-
-    var raw = "";
-    try {
-      raw = String(store[SHARED_CFG_RAW_KEY] || "");
-    } catch (eRead) {
-      raw = "";
-    }
-    if (!raw) return false;
-    if (raw === sharedCfgRaw && bootstrapApplied) return false;
-
-    var snapshot = null;
-    try {
-      snapshot = JSON.parse(raw);
-    } catch (eParse) {
-      devLog("shared cache parse failed reason=" + String(reason || "shared_cache") + " err=" + String(eParse));
-      return false;
-    }
-
-    sharedCfgRaw = raw;
-    return applySharedSnapshot(snapshot, reason || "shared_cache");
-  }
-
-  function decodeBase64Url(str) {
-    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    var lookup = {};
-    for (var i = 0; i < chars.length; i++) lookup[chars.charAt(i)] = i;
-
-    function getVal(ch) {
-      if (ch === undefined) return 0;
-      if (!Object.prototype.hasOwnProperty.call(lookup, ch)) {
-        throw new Error("Invalid base64url char: " + ch);
-      }
-      return lookup[ch];
-    }
-
-    var decodedBytes = [];
-    for (var j = 0; j < str.length; j += 4) {
-      var c0 = getVal(str[j]);
-      var c1 = getVal(str[j + 1]);
-      var c2 = str[j + 2] !== undefined ? getVal(str[j + 2]) : 0;
-      var c3 = str[j + 3] !== undefined ? getVal(str[j + 3]) : 0;
-      decodedBytes.push((c0 << 2) | (c1 >> 4));
-      if (str[j + 2] !== undefined) decodedBytes.push(((c1 & 15) << 4) | (c2 >> 2));
-      if (str[j + 3] !== undefined) decodedBytes.push(((c2 & 3) << 6) | c3);
-    }
-
-    var out = "";
-    for (var k = 0; k < decodedBytes.length; k++) {
-      var b = decodedBytes[k];
-      if (b < 128) {
-        out += String.fromCharCode(b);
-      } else if (b < 224) {
-        out += String.fromCharCode(((b & 31) << 6) | (decodedBytes[++k] & 63));
-      } else {
-        var cont2 = decodedBytes[++k];
-        var cont3 = decodedBytes[++k];
-        out += String.fromCharCode(((b & 15) << 12) | ((cont2 & 63) << 6) | (cont3 & 63));
-      }
-    }
-    return out;
-  }
-
-  function parseStoredCfgPayload(raw, source) {
-    var text = String(raw || "");
-    if (!text) return null;
-
-    var parsed = null;
-    try {
-      parsed = JSON.parse(text);
-    } catch (eParse) {
-      devLog("direct bootstrap parse failed source=" + String(source || "unknown") + " err=" + String(eParse));
-      return null;
-    }
-
-    if (!parsed || typeof parsed !== "object" || !parsed.values || typeof parsed.values !== "object") {
-      devLog("direct bootstrap payload invalid source=" + String(source || "unknown"));
-      return null;
-    }
-
-    var snapshot = {};
-    var rawValues = parsed.values;
-    var useCompact = parsed.c === HP_COMPACT_PERSIST_VERSION || parsed.compact === true;
-    for (var id in DEFAULTS) {
-      if (!Object.prototype.hasOwnProperty.call(DEFAULTS, id)) continue;
-      var storedKey = id;
-      if (useCompact) {
-        storedKey = null;
-        for (var alias in HP_PERSIST_ALIAS_TO_ID) {
-          if (!Object.prototype.hasOwnProperty.call(HP_PERSIST_ALIAS_TO_ID, alias)) continue;
-          if (HP_PERSIST_ALIAS_TO_ID[alias] === id) {
-            storedKey = alias;
-            break;
-          }
-        }
-      }
-      if (!storedKey || !Object.prototype.hasOwnProperty.call(rawValues, storedKey)) continue;
-      snapshot[id] = coerceCfgValue(id, rawValues[storedKey]);
-    }
-
-    return {
-      source: String(source || "unknown"),
-      snapshot: snapshot
-    };
-  }
-
-  function getSessionMirrorEncoded() {
-    var root = getRootPanel();
-    var rootEncoded = "";
-    var hudEncoded = "";
-
-    try {
-      if (root && root.GetAttributeString) {
-        rootEncoded = String(root.GetAttributeString(SESSION_STORAGE_KEY, "") || "");
-      }
-    } catch (eRoot) {}
-
-    try {
-      var hud = root && root.FindChildTraverse ? root.FindChildTraverse("Hud") : null;
-      if (hud && hud.GetAttributeString) {
-        hudEncoded = String(hud.GetAttributeString(SESSION_STORAGE_KEY, "") || "");
-      }
-    } catch (eHud) {}
-
-    return rootEncoded || hudEncoded || "";
-  }
-
-  function readSessionMirrorPayload() {
-    var encoded = getSessionMirrorEncoded();
-    if (!encoded) {
-      persistDebug("readSessionMirrorPayload found=0 len=0");
-      return null;
-    }
-    persistDebug("readSessionMirrorPayload found=1 len=" + encoded.length);
-
-    try {
-      var parsed = parseStoredCfgPayload(decodeBase64Url(encoded), "session_mirror");
-      persistDebug("readSessionMirrorPayload parse=" + (parsed ? "success" : "fail") + " len=" + encoded.length);
-      return parsed;
-    } catch (eDecode) {
-      devLog("direct bootstrap decode failed source=session_mirror err=" + String(eDecode));
-      persistDebug("readSessionMirrorPayload decode=fail len=" + encoded.length + " err=" + String(eDecode));
-      return null;
-    }
-  }
-
-  function hasPersistentStorage() {
-    try {
-      return !!($ && $.persistentStorage &&
-        typeof $.persistentStorage.getItem === "function" &&
-        typeof $.persistentStorage.setItem === "function");
-    } catch (eStorage) {
-      return false;
-    }
-  }
-
-  function readPersistentStoragePayload() {
-    if (!hasPersistentStorage()) return null;
-
-    var encoded = "";
-    try {
-      encoded = String($.persistentStorage.getItem(SESSION_STORAGE_KEY) || "");
-    } catch (eRead) {
-      devLog("direct bootstrap persistentStorage read failed err=" + String(eRead));
-      return null;
-    }
-    if (!encoded) return null;
-
-    try {
-      return parseStoredCfgPayload(decodeBase64Url(encoded), "persistentStorage");
-    } catch (eDecode) {
-      devLog("direct bootstrap decode failed source=persistentStorage err=" + String(eDecode));
-      return null;
-    }
-  }
-
-  function readConvarPayload() {
-    if (typeof GameInterfaceAPI === "undefined" ||
-        !GameInterfaceAPI ||
-        typeof GameInterfaceAPI.GetSettingString !== "function") {
-      return null;
-    }
-
-    var convarRaw = "";
-    try {
-      convarRaw = String(GameInterfaceAPI.GetSettingString("deadlock_hero_debuts_seen") || "");
-    } catch (eRead) {
-      devLog("direct bootstrap convar read failed err=" + String(eRead));
-      return null;
-    }
-
-    var tokenMatch = convarRaw.match(/\[ANITA-v1-hp_colors\]:([A-Za-z0-9_-]+)/);
-    if (!tokenMatch) return null;
-
-    try {
-      return parseStoredCfgPayload(decodeBase64Url(String(tokenMatch[1] || "")), "convar");
-    } catch (eDecode) {
-      devLog("direct bootstrap decode failed source=convar err=" + String(eDecode));
-      return null;
-    }
-  }
-
-  function tryApplyDirectBootstrap(reason) {
-    var payload = readSessionMirrorPayload();
-    if (!payload) payload = readPersistentStoragePayload();
-    if (!payload) payload = readConvarPayload();
-
-    if (!payload || !payload.snapshot) {
-      directBootstrapMisses += 1;
-      if (directBootstrapMisses === 1 || directBootstrapMisses % 8 === 0) {
-        devLog("direct bootstrap miss reason=" + String(reason || "request") +
-          " miss_count=" + String(directBootstrapMisses) +
-          " storage=" + String(hasPersistentStorage() ? 1 : 0));
-      }
-      return false;
-    }
-
-    directBootstrapMisses = 0;
-    if (!applySharedSnapshot(payload.snapshot, "direct_" + payload.source)) {
-      return bootstrapApplied;
-    }
-    writeSharedSnapshot("direct_" + payload.source);
-    devLog("direct bootstrap applied source=" + payload.source + " reason=" + String(reason || "request"));
-    return true;
   }
 
   function requestBootstrap(reason) {
@@ -542,7 +125,6 @@
     } catch (eRate) {}
 
     try {
-      devLog("request bootstrap reason=" + String(reason || "overlay_request") + " next_attempt=" + String(bootstrapAttempts + 1));
       $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
         magic_word: "ANITA_REQUEST_BOOTSTRAP",
         mod_title: TITLE,
@@ -552,43 +134,16 @@
     } catch (e) {}
   }
 
-  function scheduleBootstrapRetry(reason) {
-    if (bootstrapApplied || bootstrapFinished) {
-      bootstrapLoopActive = false;
-      return;
-    }
-    if (tryApplySharedSnapshot("retry_shared") || tryApplyDirectBootstrap("retry_local")) {
-      bootstrapLoopActive = false;
-      return;
-    }
+  function scheduleBootstrapRetry() {
+    if (bootstrapApplied || bootstrapFinished) return;
     if (bootstrapAttempts >= BOOTSTRAP_MAX_ATTEMPTS) {
       bootstrapFinished = true;
-      bootstrapLoopActive = false;
-      devLog("bootstrap retries exhausted applied=" + String(bootstrapApplied));
       return;
     }
 
     bootstrapAttempts += 1;
-    requestBootstrap(bootstrapAttempts === 1 ? String(reason || "overlay_startup") : "overlay_retry");
-    $.Schedule(BOOTSTRAP_RETRY_SEC, function () {
-      scheduleBootstrapRetry(reason);
-    });
-  }
-
-  function ensureBootstrapSync(reason, resetAttempts) {
-    if (bootstrapApplied) return;
-    if (resetAttempts) {
-      bootstrapAttempts = 0;
-      bootstrapFinished = false;
-    }
-    if (tryApplySharedSnapshot(String(reason || "request") + "_shared") ||
-        tryApplyDirectBootstrap(String(reason || "request") + "_local")) {
-      return;
-    }
-    if (bootstrapLoopActive) return;
-    devLog("ensure bootstrap reason=" + String(reason || "request") + " reset=" + String(!!resetAttempts) + " finished=" + String(bootstrapFinished));
-    bootstrapLoopActive = true;
-    scheduleBootstrapRetry(reason);
+    requestBootstrap(bootstrapAttempts === 1 ? "overlay_startup" : "overlay_retry");
+    $.Schedule(BOOTSTRAP_RETRY_SEC, scheduleBootstrapRetry);
   }
 
   // Live updates from Anita UI, including boot-time bootstrap values.
@@ -598,43 +153,16 @@
       if (!d || d.mod_title !== TITLE) return;
 
       if (d.magic_word === "ANITA_UPDATE") {
-        var nextValue = null;
         if (Object.prototype.hasOwnProperty.call(DEFAULTS, d.setting_id)) {
-          nextValue = coerceCfgValue(d.setting_id, d.value);
+          if (d.setting_id === "hp_counter_position" && d.update_source === "hp_counter_autoposition") {
+            return;
+          }
+          cfg[d.setting_id] = coerceCfgValue(d.setting_id, d.value);
+          settingsDirty = true;
         }
-        var isSyncSource = d.update_source === "bridge_bootstrap" ||
-          d.update_source === "ui_resync" ||
-          d.update_source === "ui_reset" ||
-          d.update_source === "ui_code_apply" ||
-          d.update_source === "core_auto_resync";
-        var valueChanged = Object.prototype.hasOwnProperty.call(DEFAULTS, d.setting_id) &&
-          cfg[d.setting_id] !== nextValue;
-        if (valueChanged || d.update_source !== "core_auto_resync") {
-          devLog("received update source=" + String(d.update_source || "unknown") + " setting=" + String(d.setting_id || "") + " value=" + String(d.value));
-        }
-        if (valueChanged) {
-          cfg[d.setting_id] = nextValue;
-          refreshDerivedState();
-          invalidateComputedState(
-            d.setting_id === "hp_counter_size" ||
-            d.setting_id === "hp_counter_position" ||
-            d.setting_id === "hp_text_color_mode" ||
-            d.setting_id === "hp_text_color_low" ||
-            d.setting_id === "hp_text_color_mid" ||
-            d.setting_id === "hp_text_color_high"
-          );
-          writeSharedSnapshot(d.update_source || "update");
-        }
-        if (isSyncSource) {
-          var nextSyncSource = String(d.update_source || "");
-          var shouldLogBootstrapSatisfied = !bootstrapApplied || bootstrapSatisfiedSource !== nextSyncSource;
+        if (d.update_source === "bridge_bootstrap") {
           bootstrapApplied = true;
           bootstrapFinished = true;
-          bootstrapLoopActive = false;
-          bootstrapSatisfiedSource = nextSyncSource;
-          if (shouldLogBootstrapSatisfied) {
-            devLog("bootstrap satisfied source=" + nextSyncSource);
-          }
           try {
             var root = getRootPanel();
             if (root) root.__hpColorsBootstrapAppliedAt = Date.now ? Date.now() : (new Date()).getTime();
@@ -699,28 +227,64 @@
   }
 
   function lerp(a, b, t) { return (a + (b - a) * t) | 0; }
-  function mixRgbToHex(c1, c2, t) {
-    return '#' +
-      byteHex(lerp(c1[0], c2[0], t)) +
-      byteHex(lerp(c1[1], c2[1], t)) +
-      byteHex(lerp(c1[2], c2[2], t));
-  }
+  function ip(c1, c2, t) { return [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)]; }
 
   // Create a dark variant of a color for the low-HP gradient pulse
   function darkOf(c) { return [(c[0] * 0.37) | 0, (c[1] * 0.29) | 0, (c[2] * 0.29) | 0]; }
 
-  function getHighColorState() {
-    if (!derived.teamColors) return derived.highState;
-    return tid === 2 ? TEAM2_HIGH_STATE : TEAM1_HIGH_STATE;
+  function getHighColor() {
+    if (!cfg.hp_team_colors) return cfg.hp_color_high;
+    return tid === 2 ? TEAM2_HIGH : TEAM1_HIGH;
   }
 
-  // â”€â”€ Panel cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Get text color based on HP and mode
+  // mode 0 (By HP %): use bar colors (low/mid/high)
+  // mode 1 (Custom): use custom text colors
+  function getTextColor(hp, low, high) {
+    if (cfg.hp_text_color_mode) {
+      // Custom mode - use custom text colors
+      if (hp <= low) return cfg.hp_text_color_low;
+      if (hp <= high) return cfg.hp_text_color_mid;
+      return cfg.hp_text_color_high;
+    }
+    // By HP % mode - use bar colors
+    if (hp <= low) return cfg.hp_color_low;
+    if (hp <= high) return cfg.hp_color_mid;
+    return getHighColor();
+  }
+
+  // Get gradient text color (interpolated)
+  // mode 0 (By HP %): use bar colors
+  // mode 1 (Custom): use custom text colors
+  function getGradientTextColor(hp, low, high) {
+    var denomMid = Math.max(1, high - low);
+    var denomHigh = Math.max(1, 100 - high);
+    if (cfg.hp_text_color_mode) {
+      // Custom mode - use custom text colors
+      if (hp <= low) return cfg.hp_text_color_low;
+      if (hp <= high) {
+        var t = (hp - low) / denomMid;
+        return rgbToHex(ip(hexToRgb(cfg.hp_text_color_low), hexToRgb(cfg.hp_text_color_mid), t));
+      }
+      var t2 = (hp - high) / denomHigh;
+      return rgbToHex(ip(hexToRgb(cfg.hp_text_color_mid), hexToRgb(cfg.hp_text_color_high), t2));
+    }
+    // By HP % mode - use bar colors (same interpolation as bar)
+    if (hp <= low) return cfg.hp_color_low;
+    if (hp <= high) {
+      var t3 = (hp - low) / denomMid;
+      return rgbToHex(ip(hexToRgb(cfg.hp_color_low), hexToRgb(cfg.hp_color_mid), t3));
+    }
+    var t4 = (hp - high) / denomHigh;
+    var highCol = getHighColor();
+    return rgbToHex(ip(hexToRgb(cfg.hp_color_mid), hexToRgb(highCol), t4));
+  }
+
+  // â”€â”€ Panel cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var ctx = $.GetContextPanel();
   var us = null, hc = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null;
   var cached = 0, att = 0;
-  var lastRbPanel = null, lastUsPanel = null, lastHcPanel = null, lastBgPanel = null;
-  var lastPlPanel = null, lastLbPanel = null, lastLbpPanel = null, lastUiPanel = null, lastCpPanel = null;
-  var lBgVis = null, lHpSize = null, lHpPos = null, lHpMarginLeft = null;
+  var lBgVis = null, lBgOp = null, lHpSize = null, lHpPos = null, lHpMarginLeft = null;
 
   function fRB() {
     return ctx.FindChildTraverse('unit_healthbar_lagging') ||
@@ -729,78 +293,22 @@
   }
 
   function tryCache() {
-    if (cached && isValidPanel(rb) && isValidPanel(us) && isValidPanel(hc) && isValidPanel(bg) && isValidPanel(pl) && isValidPanel(lb) && isValidPanel(lbp)) {
-      var nextUi = isValidPanel(ui) ? ui : (ctx.FindChildTraverse('unit_ult_ready_icon') || ctx.FindChildTraverse('ult_icon'));
-      var nextCp = rb && rb.GetParent ? rb.GetParent() : null;
-      if (nextUi !== ui || nextCp !== cp) {
-        ui = nextUi;
-        cp = nextCp;
-        lastUiPanel = ui;
-        lastCpPanel = cp;
-        devLog("panel churn ui=" + panelId(ui, "ult_icon") + " cp=" + panelId(cp, "counter_parent"));
-        resetStyleStateForNewPanels();
-      }
-      return 1;
-    }
-    if (cached) {
-      cached = 0;
-      att = 0;
-    }
+    if (cached) return 1;
     if (att >= 10) return 0;
     att++;
-    if (!isValidPanel(rb)) rb = null;
-    if (!isValidPanel(us)) us = null;
-    if (!isValidPanel(hc)) hc = null;
-    if (!isValidPanel(bg)) bg = null;
-    if (!isValidPanel(pl)) pl = null;
-    if (!isValidPanel(lb)) lb = null;
-    if (!isValidPanel(lbp)) lbp = null;
-    if (!isValidPanel(ui)) ui = null;
-    if (!isValidPanel(cp)) cp = null;
-    if (!rb) rb = fRB();
-    if (!us) us = ctx.FindChildTraverse('UnitStatus');
+    if (!us || !us.IsValid()) us = ctx.FindChildTraverse('UnitStatus');
     if (!us) return 0;
-    if (!hc) hc = us.FindChildTraverse('hp_counter');
-    if (!bg) bg = us.FindChildTraverse('unit_healthbar_bg');
-    if (!pl) pl = us.FindChildTraverse('unit_healthbar_pip_label');
-    if (!lb) lb = us.FindChildTraverse('unit_healthbar_lagging');
-    if (lb && !lbp) lbp = lb.GetParent();
-    if (!ui) ui = ctx.FindChildTraverse('unit_ult_ready_icon') || ctx.FindChildTraverse('ult_icon');
-    if (rb && !cp) cp = rb.GetParent ? rb.GetParent() : null;
-    if (rb && us && hc && bg && pl && lb && lbp) {
-      var changed = rb !== lastRbPanel ||
-        us !== lastUsPanel ||
-        hc !== lastHcPanel ||
-        bg !== lastBgPanel ||
-        pl !== lastPlPanel ||
-        lb !== lastLbPanel ||
-        lbp !== lastLbpPanel ||
-        ui !== lastUiPanel ||
-        cp !== lastCpPanel;
-      if (changed) {
-        lastRbPanel = rb;
-        lastUsPanel = us;
-        lastHcPanel = hc;
-        lastBgPanel = bg;
-        lastPlPanel = pl;
-        lastLbPanel = lb;
-        lastLbpPanel = lbp;
-        lastUiPanel = ui;
-        lastCpPanel = cp;
-        devLog("panel cache rebuilt rb=" + panelId(rb, "rb") + " us=" + panelId(us, "UnitStatus") + " hc=" + panelId(hc, "hp_counter"));
-        resetStyleStateForNewPanels();
-      }
-      cached = 1; att = 0;
-      return 1;
-    }
+    if (!hc || !hc.IsValid()) hc = us.FindChildTraverse('hp_counter');
+    if (!bg || !bg.IsValid()) bg = us.FindChildTraverse('unit_healthbar_bg');
+    if (!pl || !pl.IsValid()) pl = us.FindChildTraverse('unit_healthbar_pip_label');
+    if (!lb || !lb.IsValid()) lb = us.FindChildTraverse('unit_healthbar_lagging');
+    if (lb && (!lbp || !lbp.IsValid())) lbp = lb.GetParent();
+    if (pl && lb && lbp) { cached = 1; return 1; }
     return 0;
   }
 
   // â”€â”€ Team/flag scan (walk up to find team classes) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  var tid = 0, fl = 0;
-  var scanAncestors = [];
-  var scanAncestorCount = 0;
-  var scanNextAt = 0;
+  var tid = 0, fl = 0, lAT = 0;
 
   function scan(p) {
     var t = 0, f = 0, d = 0, c = p;
@@ -809,55 +317,12 @@
         if (!t) { if (c.BHasClass('team2')) t = 2; else if (c.BHasClass('team1')) t = 1; }
         if (!(f & 1) && c.BHasClass('enemy')) f |= 1;
         if (!(f & 2) && (c.BHasClass('team_neutral') || c.BHasClass('neutral'))) f |= 2;
-        if (!(f & 4) && c.BHasClass('player')) f |= 4;
-        if (!(f & 8) && c.BHasClass('creature')) f |= 8;
-        if (!(f & 16) && c.BHasClass('building')) f |= 16;
-        if (t && (f & 2)) break;  // neutral confirmed
-        if (t && (f & 16)) break; // building confirmed — class hierarchy never changes
+        if (t && (f & 3)) break;
       }
       if (!c.GetParent) break;
       c = c.GetParent(); d++;
     }
     tid = t; fl = f;
-  }
-
-  function resetScanCache() {
-    tid = 0;
-    fl = 0;
-    scanNextAt = 0;
-    for (var i = 0; i < scanAncestorCount; i++) {
-      scanAncestors[i] = null;
-    }
-    scanAncestorCount = 0;
-  }
-
-  function ensureScanState(now) {
-    if (!rb) {
-      resetScanCache();
-      return;
-    }
-
-    var c = rb;
-    var depth = 0;
-    var changed = false;
-
-    while (c && depth < 10) {
-      if (scanAncestors[depth] !== c) changed = true;
-      scanAncestors[depth] = c;
-      depth += 1;
-      c = c.GetParent ? c.GetParent() : null;
-    }
-
-    if (scanAncestorCount !== depth) changed = true;
-    for (var i = depth; i < scanAncestorCount; i++) {
-      scanAncestors[i] = null;
-    }
-    scanAncestorCount = depth;
-
-    if (changed || now >= scanNextAt) {
-      scan(rb);
-      scanNextAt = now + ((fl & 8) ? 2000 : 250); // creatures: 2s cache; heroes/unknown: 250ms
-    }
   }
 
   // â”€â”€ Setter helpers (skip redundant writes) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -866,6 +331,8 @@
   var lTx = null, cMax = 0;
   var lCounterText = "";
   var lCounterLowMode = false;
+  var lCounterAutoPos = null;
+  var lastRbPanel = null, lastHcPanel = null, lastBgPanel = null;
 
   function sBC(c) {
     var next = normalizeWashColor(c);
@@ -881,11 +348,6 @@
     var next = normalizeWashColor(c);
     if (!hc || !hc.style) return;
     if (lTxt !== next) { hc.style.washColor = next; lTxt = next; }
-  }
-  function sHV(visible) {
-    if (!hc || !hc.style) return;
-    var next = visible ? 'visible' : 'collapse';
-    if (lVis !== next) { hc.style.visibility = next; lVis = next; }
   }
 
   function clampNum(v, min, max, fallback) {
@@ -919,10 +381,14 @@
     return 0;
   }
 
+  // BG visibility with opacity fix - keeps panel visible for HP updates
   function sHBV(visible) {
     if (!bg || !bg.style) return;
-    var next = visible ? 'visible' : 'collapse';
-    if (lBgVis !== next) { bg.style.visibility = next; lBgVis = next; }
+    // Always keep visibility 'visible', only change opacity
+    // This ensures HP bar width updates work even when "hidden"
+    if (lBgVis !== 'visible') { bg.style.visibility = 'visible'; lBgVis = 'visible'; }
+    var nextOp = visible ? '1.0' : '0.01';
+    if (lBgOp !== nextOp) { bg.style.opacity = nextOp; lBgOp = nextOp; }
   }
 
   function parseCounterPositionValue(value) {
@@ -958,10 +424,32 @@
     return { x: x, y: y };
   }
 
+  function formatCounterPositionValue(pos) {
+    var parsed = parseCounterPositionValue(pos);
+    return Math.round(parsed.x) + "," + Math.round(parsed.y);
+  }
+
+  function syncCounterPositionSetting(nextPos) {
+    var normalized = formatCounterPositionValue(nextPos);
+    if (lCounterAutoPos === normalized) return;
+    lCounterAutoPos = normalized;
+    settingsDirty = true;
+    try {
+      $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
+        magic_word: "ANITA_UPDATE",
+        mod_title: TITLE,
+        setting_id: "hp_counter_position",
+        value: normalized,
+        update_source: "hp_counter_autoposition",
+        skip_bridge_persist: true
+      }));
+    } catch (e) {}
+  }
+
   function sHCS(lowMode, textHint) {
     if (!hc || !hc.style) return;
-    var baseSize = derived.counterBaseSize;
-    var basePos = derived.counterBasePos;
+    var baseSize = clampNum(cfg.hp_counter_size, 72, 400, 140);
+    var basePos = parseCounterPositionValue(cfg.hp_counter_position);
     var text = String(textHint !== undefined ? textHint : lCounterText || "");
     var available = getCounterAvailableWidth();
     var units = estimateCounterUnits(text);
@@ -972,12 +460,15 @@
     if (lowMode) size = Math.min(Math.round(size * 1.08), baseSize);
     var posX = clampNum(basePos.x, 0, 400, 0);
     var posY = clampNum(basePos.y, 0, 400, 200);
-    if (!derived.bgVisible) {
+    if (!cfg.hp_bg_visible) {
       posX = Math.min(Math.round(baseSize * 0.025), 8);
       posY = Math.min(Math.round(baseSize * 0.5), 150);
+      syncCounterPositionSetting({ x: posX, y: posY });
+    } else {
+      lCounterAutoPos = null;
     }
     if (lowMode) posY = Math.min(Math.round(posY + 10), 160);
-    var marginLeft = (!derived.bgVisible && baseSize >= 320) ? '8%' : Math.round(posX) + '%';
+    var marginLeft = (!cfg.hp_bg_visible && baseSize >= 320) ? '8%' : Math.round(posX) + '%';
     var fontSize = size + 'px';
     var marginTop = '-' + Math.round(posY) + '%';
     if (lHpSize !== fontSize) { hc.style.fontSize = fontSize; lHpSize = fontSize; }
@@ -986,9 +477,13 @@
   }
 
   function resetStyleStateForNewPanels() {
+    if (rb === lastRbPanel && hc === lastHcPanel && bg === lastBgPanel) return;
+    lastRbPanel = rb;
+    lastHcPanel = hc;
+    lastBgPanel = bg;
     pulse = 0;
     lCol = lUlt = lTxt = null;
-    lBgVis = lHpSize = lHpPos = lHpMarginLeft = null;
+    lBgVis = lBgOp = lHpSize = lHpPos = null;
     lSH = -1;
     lSM = -1;
     lVis = null;
@@ -998,21 +493,13 @@
     pPct = -1;
     sFC = 0;
     lCounterLowMode = false;
-    resetScanCache();
     settingsDirty = true;
-    devLog("reset style state for new panels");
-    if (!bootstrapApplied &&
-        !tryApplySharedSnapshot("overlay_panel_churn") &&
-        !tryApplyDirectBootstrap("overlay_panel_churn")) {
-      ensureBootstrapSync("overlay_panel_churn", true);
-    }
   }
 
   function applyCurrentSettings(isEnemy) {
-    sHBV(!isEnemy || derived.bgVisible);
+    sHBV(!isEnemy || !!cfg.hp_bg_visible);
     sHCS(lCounterLowMode, lCounterText);
     settingsDirty = false;
-    devLog("apply current settings isEnemy=" + String(!!isEnemy) + " team=" + String(tid) + " flags=" + String(fl) + " mode=" + String(cfg.hp_mode) + " teamColors=" + String(!!cfg.hp_team_colors));
   }
 
   // Decode max HP from pip label string (e.g. "|||| ..." â†’ 2000)
@@ -1028,45 +515,14 @@
   }
 
   function uHT(cu, mx, lowMode) {
-    if (!hc || (cu === lSH && mx === lSM && lCounterLowMode === !!lowMode)) return;
-    sHV(true);
+    if (!hc || (cu === lSH && mx === lSM)) return;
+    if (lVis !== 'visible') { hc.style.visibility = 'visible'; lVis = 'visible'; }
     var s = cu + ' / ' + mx;
     try { if (hc.text !== s) hc.text = s; } catch (e) { try { hc.SetAttributeString('text', s); } catch (e2) {} }
     lCounterText = s;
     lCounterLowMode = !!lowMode;
     sHCS(lCounterLowMode, lCounterText);
     lSH = cu; lSM = mx;
-  }
-
-  function getTextColorWash(barWash, fallbackWash, rangeKey) {
-    if (derived.textUsesCustomColor) {
-      if (rangeKey === "low") return derived.textLowState.wash;
-      if (rangeKey === "mid") return derived.textMidState.wash;
-      if (rangeKey === "high") return derived.textHighState.wash;
-    }
-    var next = normalizeWashColor(barWash);
-    if (next) return next;
-    next = normalizeWashColor(fallbackWash);
-    return next || WHITE_WASH;
-  }
-
-  function applyPassiveUnitVisuals(barWash, hideCounter) {
-    clearPulse();
-    sHBV(true);
-    if (barWash) sBC(barWash);
-    else if (rb && lCol !== "") { rb.style.washColor = ""; lCol = ""; }
-    if (ui && ui.style && lUlt !== "") { ui.style.washColor = ""; lUlt = ""; }
-    if (hideCounter) {
-      sHV(false);
-      if (hc && hc.style && lTxt !== "") { hc.style.washColor = ""; lTxt = ""; }
-      lCounterText = "";
-      lCounterLowMode = false;
-      lSH = -1;
-      lSM = -1;
-    } else {
-      sHV(true);
-      sTC(getTextColorWash(barWash, WHITE_WASH, "high"));
-    }
   }
 
   // â”€â”€ Pulse state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1083,96 +539,78 @@
   // â”€â”€ Poll state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var lUT = 0, lW = -1, lPW = -1, lHp = -1, pPct = -1, sFC = 0;
 
-  function invalidateComputedState(forceTextRefresh) {
-    lW = -1;
-    lPW = -1;
-    lHp = -1;
-    pPct = -1;
-    sFC = 0;
-    lCol = null;
-    lUlt = null;
-    lTxt = null;
-    if (forceTextRefresh) {
-      lSH = -1;
-      lSM = -1;
-      lCounterText = "";
-      lCounterLowMode = false;
-      lVis = null;
-    }
-    settingsDirty = true;
-  }
-
   // â”€â”€ Main poll loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function gL() {
     try {
       if (!cfg.hp_enabled) {
         clearPulse();
-        if (rb && lCol !== "") { rb.style.washColor = ""; lCol = ""; }
-        if (ui && lUlt !== "") { ui.style.washColor = ""; lUlt = ""; }
-        if (bg && bg.style && lBgVis !== 'collapse') { bg.style.visibility = 'collapse'; lBgVis = 'collapse'; }
+        if (rb) { rb.style.washColor = ""; lCol = null; }
+        if (ui) { ui.style.washColor = ""; lUlt = null; }
+        if (bg && bg.style) { bg.style.visibility = 'collapse'; bg.style.opacity = '0'; lBgVis = 'collapse'; lBgOp = '0'; }
         if (hc && hc.style) {
-          if (lTxt !== "") { hc.style.washColor = ""; lTxt = ""; }
-          if (lVis !== 'collapse') { hc.style.visibility = 'collapse'; lVis = 'collapse'; }
-          if (lHpSize !== null) { hc.style.fontSize = ""; lHpSize = null; }
-          if (lHpPos !== null) { hc.style.marginTop = ""; lHpPos = null; }
-          if (lHpMarginLeft !== null) { hc.style.marginLeft = ""; lHpMarginLeft = null; }
+          hc.style.fontSize = "";
+          hc.style.marginTop = "";
+          hc.style.marginLeft = "";
+          hc.style.washColor = "";
+          lHpSize = null;
+          lHpPos = null;
+          lHpMarginLeft = null;
+          lTxt = null;
         }
         $.Schedule(1.0, gL); return;
       }
 
-      var now = Date.now ? Date.now() : (new Date()).getTime();
-      if (!rb) { rb = fRB(); if (!rb) { $.Schedule(0.2, gL); return; } }
-      if (!tryCache()) { $.Schedule(0.2, gL); return; }
+      var now = Date.now();
+      if (!rb) { rb = fRB(); if (!rb) { $.Schedule(0.15, gL); return; } }
+      if (!cached && !tryCache()) { $.Schedule(0.15, gL); return; }
+      resetStyleStateForNewPanels();
       if (rb.GetParent) { var p = rb.GetParent(); if (cp !== p) cp = p; }
 
-      ensureScanState(now);
+      scan(rb);
+      lAT = now;
       var isEnemy = !!(fl & 1) && !(fl & 2);
-      var isHeroEnemy = isEnemy && !!(fl & 4);
-      var isBuilding = isEnemy && !!(fl & 16);
-      if (!bootstrapApplied) {
-        if (!tryApplySharedSnapshot("overlay_tick")) {
-          tryApplyDirectBootstrap("overlay_tick");
-        }
-      }
-      if (isEnemy && !bootstrapApplied && !bootstrapLoopActive) {
-        ensureBootstrapSync("overlay_enemy_detected", bootstrapFinished);
-      }
       if (settingsDirty) applyCurrentSettings(isEnemy);
-      else sHBV(!isEnemy || derived.bgVisible);
+      else sHBV(isEnemy && !!cfg.hp_bg_visible);
 
-      // Neutral unit: ignore it like any other non-enemy overlay target.
+      // Neutral unit
       if (fl & 2) {
-        applyPassiveUnitVisuals("", true);
+        clearPulse();
+        sHBV(true);
+        sBC('#5BEFB5');
+        sTC(WHITE_WASH);
         lUT = now;
-        $.Schedule(3.0, gL); return;
+        $.Schedule(1.5, gL); return;
       }
       // Not an enemy â€” skip coloring
       if (!(fl & 1)) {
-        applyPassiveUnitVisuals("", true);
+        sHBV(true);
         lUT = now;
-        $.Schedule(1.5, gL);
+        $.Schedule(0.4, gL);
         return;
       }
 
       var w = rb.actuallayoutwidth | 0;
       var pw = cp && cp.actuallayoutwidth !== undefined ? cp.actuallayoutwidth | 0 : 0;
 
-      // No change in width — back off; buildings flat 4s, minions sooner/deeper, heroes standard
+      // No change in width â€” back off
       if (w === lW && pw === lPW) {
-        if (isBuilding && cfg.hp_npc_poll_slow) { $.Schedule(4.0, gL); return; }
-        var isSlow = !isHeroEnemy && cfg.hp_npc_poll_slow;
-        if (now - lUT > (isSlow ? 800 : 1200)) { $.Schedule(isSlow ? 2.5 : 1.25, gL); return; }
-        $.Schedule(0.2, gL); return;
+        if (now - lUT > 2000) { $.Schedule(1, gL); return; }
+        $.Schedule(0.15, gL); return;
       }
       lW = w; lPW = pw; lUT = now;
-      if (pw <= 0) { $.Schedule(0.25, gL); return; }
+      if (pw <= 0) { $.Schedule(0.18, gL); return; }
 
       var hp = (w / pw * 100) | 0;
-      var low = derived.lowThreshold;
-      var high = derived.highThreshold;
+      var low = cfg.hp_low_threshold | 0;
+      var high = cfg.hp_high_threshold | 0;
+      if (low < 0) low = 0;
+      if (low > 100) low = 100;
+      if (high < 0) high = 0;
+      if (high > 100) high = 100;
+      if (high < low) high = low;
 
       // Small change above low threshold â€” back off
-      if (Math.abs(hp - lHp) < 3 && hp > low) { $.Schedule(0.22, gL); return; }
+      if (Math.abs(hp - lHp) < 3 && hp > low) { $.Schedule(0.15, gL); return; }
       if (hp === pPct) sFC++; else { sFC = 0; pPct = hp; }
       lHp = hp;
 
@@ -1186,62 +624,60 @@
         uHT(ratio >= 0.97 ? mx : Math.round(mx * ratio), mx, hp <= low);
       }
 
-      var sc = 0.15, cl, textWash;
+      var sc = 0.15, cl, textCol;
 
       if (hp <= low) {
-        if (derived.gradientMode) {
+        if (cfg.hp_mode === 1) {
           // Gradient mode: JS pulse between low color and its dark variant
           clearPulse();
-          sHBV(!isEnemy || derived.bgVisible);
+          sHBV(!isEnemy || !!cfg.hp_bg_visible);
           gp += gq * 0.1;
-          if (gp >= 1) { gp = 1; gq = -1; }
-          else if (gp <= 0) { gp = 0; gq = 1; }
-          cl = mixRgbToHex(derived.lowState.rgb, derived.lowDarkRgb, gp);
-          textWash = getTextColorWash(cl, derived.lowState.wash, "low");
-          sBC(cl); sUC(cl); sTC(textWash);
+          if (gp >= 1 || gp <= 0) gq *= -1;
+          var cLow = hexToRgb(cfg.hp_color_low);
+          cl = rgbToHex(ip(cLow, darkOf(cLow), gp));
+          // Text color follows same gradient logic as bar
+          textCol = cfg.hp_text_color_mode ? cfg.hp_text_color_low : cl;
+          sBC(cl); sUC(cl); sTC(textCol);
           sc = 0.04;
         } else {
           // Fixed mode: CSS pulse class handles animation
-          sHBV(!isEnemy || derived.bgVisible);
-          sBC(derived.lowState.wash);
+          applyCurrentSettings(isEnemy);
+          sBC(cfg.hp_color_low);
           if (!pulse) {
             rb.AddClass(LP);
             if (hc) hc.AddClass(LTX);
-              if (ui) ui.AddClass(LS);
-              pulse = 1; lCol = lUlt = lTxt = null;
+            if (ui) ui.AddClass(LS);
+            pulse = 1; lCol = lUlt = lTxt = null;
           }
-          textWash = getTextColorWash(derived.lowState.wash, derived.lowState.wash, "low");
-          sTC(textWash); sUC(derived.lowState.wash);
+          // Text color uses fixed colors
+          textCol = getTextColor(hp, low, high);
+          sTC(textCol); sUC(cfg.hp_color_low);
         }
       } else {
         clearPulse();
-        var highState = getHighColorState();
+        var denomMid = Math.max(1, high - low);
+        var denomHigh = Math.max(1, 100 - high);
+        var highCol = getHighColor();
 
         if (hp <= high) {
-          if (derived.gradientMode) {
-            cl = mixRgbToHex(derived.lowState.rgb, derived.midState.rgb, (hp - low) / derived.midRange);
+          if (cfg.hp_mode === 1) {
+            cl = rgbToHex(ip(hexToRgb(cfg.hp_color_low), hexToRgb(cfg.hp_color_mid), (hp - low) / denomMid));
+            textCol = getGradientTextColor(hp, low, high);
           } else {
-            cl = derived.midState.wash;
+            cl = cfg.hp_color_mid;
+            textCol = getTextColor(hp, low, high);
           }
-          textWash = getTextColorWash(cl, derived.midState.wash, "mid");
         } else {
-          if (derived.gradientMode) {
-            cl = mixRgbToHex(derived.midState.rgb, highState.rgb, (hp - high) / derived.highRange);
+          if (cfg.hp_mode === 1) {
+            cl = rgbToHex(ip(hexToRgb(cfg.hp_color_mid), hexToRgb(highCol), (hp - high) / denomHigh));
+            textCol = getGradientTextColor(hp, low, high);
           } else {
-            cl = highState.wash;
+            cl = highCol;
+            textCol = getTextColor(hp, low, high);
           }
-          if (!isHeroEnemy && cfg.hp_npc_poll_slow) {
-            if (isBuilding) {
-              sc = 4.0; // buildings: flat 4s once stable
-            } else if (sFC >= 3) {
-              sc = Math.min(0.3 * Math.pow(2, Math.floor(sFC / 3)), 3.0); // minion/boss curve
-            }
-          } else {
-            if (sFC >= 5) sc = Math.min(0.15 * Math.pow(2, Math.floor(sFC / 5)), 3.0); // hero curve
-          }
-          textWash = getTextColorWash(cl, highState.wash, "high");
+          if (sFC >= 5) sc = Math.min(0.15 * Math.pow(2, Math.floor(sFC / 5)), 1);
         }
-        sBC(cl); sUC(cl); sTC(textWash);
+        sBC(cl); sUC(cl); sTC(textCol);
       }
 
       $.Schedule(sc, gL);
@@ -1280,11 +716,5 @@
 
   gL();
   lL();
-  $.Schedule(0.05, function () {
-    devLog("overlay startup context=" + String(($.GetContextPanel() && $.GetContextPanel().id) || "panel"));
-    if (!tryApplySharedSnapshot("overlay_startup")) {
-      tryApplyDirectBootstrap("overlay_startup");
-    }
-    ensureBootstrapSync("overlay_startup", false);
-  });
+  $.Schedule(0.05, scheduleBootstrapRetry);
 })();

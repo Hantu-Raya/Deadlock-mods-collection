@@ -55,21 +55,22 @@ Deadlock addons folder configured in that script.
 ## Settings Keys
 Persisted schema keys:
 - `hp_enabled`
-- `hp_mode`
+- `hp_mode` (0=Fixed, 1=Gradient)
 - `hp_low_threshold`
 - `hp_high_threshold`
 - `hp_bg_visible`
 - `hp_team_colors`
-- `hp_npc_poll_slow`
 - `hp_color_low`
 - `hp_color_mid`
 - `hp_color_high`
 - `hp_counter_size`
 - `hp_counter_position`
-- `hp_text_color_mode`
+- `hp_text_color_mode` (0=By HP % using bar colors, 1=Custom text colors)
 - `hp_text_color_low`
 - `hp_text_color_mid`
 - `hp_text_color_high`
+
+`hp_npc_poll_slow` was removed — polling is now automatic and adaptive.
 
 If you add/remove a persisted setting, update all schema/default/alias maps
 together in:
@@ -78,27 +79,149 @@ together in:
 - `healthbar_logic.js`
 - `hp_registrar.js`
 
-Also bump the registrar `storageVersion` when compatibility requires it.
+Also bump the registrar `storageVersion` when compatibility requires it (currently 7).
 
 ## Persistence Model
 - Storage namespace: `hp_colors`
 - Storage key: `anita_v1_hp_colors`
-- Primary store: `$.persistentStorage` when available.
+- **Primary store: convar-based** via `GameInterfaceAPI.GetSettingString`/`SetSettingString`
+  on `deadlock_hero_debuts_seen` with token prefix `[ANITA-v1-hp_colors]:`.
+- `$.persistentStorage` is **deprecated/non-functional** in Source 2 Panorama — do not use it.
 - Session mirror: root/Hud attributes under `anita_v1_hp_colors`.
-- Convar fallback: `deadlock_hero_debuts_seen` token prefixed with
-  `ANITA-v1-`.
 - Manual fallback: Anita UI Copy/Import token controls.
 
 The compact persisted payload stores only non-default values using aliases.
 Keep alias maps identical across all persistence/runtime files.
 
+## Obfuscated Name Map (healthbar_logic.js)
+
+Short names are used in `healthbar_logic.js` to reduce file size.
+Below is the full mapping so you know what each name actually does.
+
+### Settings & Constants
+| Short | Full | Purpose |
+|-------|------|---------|
+| `cfg` | `config` | Runtime settings object |
+| `TITLE` | — | Mod title string `"HP Colors"` |
+| `DEFAULTS` | — | Default setting values |
+| `TEAM1_HIGH` | — | Team 1 high-HP color `#FFC961` |
+| `TEAM2_HIGH` | — | Team 2 high-HP color `#6485FC` |
+| `WHITE_WASH` | — | Default white wash color `#ffffff` |
+| `LP` | `LOW_PULSE_CLASS` | CSS class `low_hp_bar_pulse` |
+| `LTX` | `LOW_TEXT_CLASS` | CSS class `low_hp_text_large` |
+| `LS` | `LOW_ULT_CLASS` | CSS class `low_hp_ult_static` |
+| `BOOTSTRAP_NAMESPACE` | — | Bootstrap namespace `"hp_colors"` |
+
+### Panel Cache Variables
+| Short | Full | Purpose |
+|-------|------|---------|
+| `ctx` | `contextPanel` | Root context panel |
+| `us` | `unitStatus` | UnitStatus panel |
+| `hc` | `hpCounter` | HP counter label panel |
+| `bg` | `backgroundBar` | HP background bar panel |
+| `pl` | `pipLabel` | Pip label panel (max HP decoder) |
+| `lb` | `laggingBar` | Healthbar lagging panel |
+| `lbp` | `laggingBarParent` | Parent of lagging bar |
+| `rb` | `redBar` | Red/health bar panel (the bar being colored) |
+| `cp` | `containerPanel` | Container/parent panel for width math |
+| `ui` | `ultIcon` | Ultimate ready icon panel |
+| `cached` | `panelCacheReady` | Whether panel refs are cached (0/1) |
+| `att` | `cacheAttempts` | Number of cache attempts made |
+
+### Last-Value Cache Variables (skip redundant writes)
+| Short | Full | Purpose |
+|-------|------|---------|
+| `lCol` | `lastBarColor` | Last washColor set on bar |
+| `lUlt` | `lastUltColor` | Last washColor set on ult icon |
+| `lTxt` | `lastTextColor` | Last washColor set on counter text |
+| `lBgVis` | `lastBgVisibility` | Last visibility state of background |
+| `lBgOp` | `lastBgOpacity` | Last opacity state of background |
+| `lHpSize` | `lastHpFontSize` | Last fontSize set on counter |
+| `lHpPos` | `lastHpMarginTop` | Last marginTop set on counter |
+| `lHpMarginLeft` | `lastHpMarginLeft` | Last marginLeft set on counter |
+| `lSH` | `lastShownCurrentHp` | Last current HP shown in counter |
+| `lSM` | `lastShownMaxHp` | Last max HP shown in counter |
+| `lVis` | `lastCounterVisibility` | Last visibility state of counter |
+| `lW` | `lastBarWidth` | Last measured bar width |
+| `lPW` | `lastParentWidth` | Last measured parent width |
+| `lHp` | `lastHpPercent` | Last HP percentage |
+| `pPct` | `prevHpPercent` | Previous HP percentage (for stable count) |
+| `sFC` | `stableFrameCount` | Frames at same HP (for backoff) |
+| `lUT` | `lastUpdateTime` | Timestamp of last visual update |
+| `lAT` | `lastAncestorTime` | Timestamp of last ancestor scan |
+
+### Team/Flag Scan
+| Short | Full | Purpose |
+|-------|------|---------|
+| `tid` | `teamId` | Detected team (1 or 2) |
+| `fl` | `flags` | Bit flags: 1=enemy, 2=neutral |
+
+### Pulse & Gradient
+| Short | Full | Purpose |
+|-------|------|---------|
+| `pulse` | `isPulsing` | Whether CSS pulse classes are active |
+| `gp` | `gradientPhase` | Current gradient pulse phase (0–1) |
+| `gq` | `gradientDirection` | Gradient pulse direction (+1 or -1) |
+
+### Counter Helpers
+| Short | Full | Purpose |
+|-------|------|---------|
+| `lTx` | `lastPipLabelText` | Last pip label text (for pMax cache) |
+| `cMax` | `cachedMaxHp` | Cached max HP decoded from pips |
+| `lCounterText` | — | Last counter text string shown |
+| `lCounterLowMode` | — | Whether counter is in low-HP enlarged mode |
+| `lCounterAutoPos` | — | Last auto-positioned counter position string |
+
+### Level Tier
+| Short | Full | Purpose |
+|-------|------|---------|
+| `LT_` | `LEVEL_THRESHOLDS` | Level thresholds `[11, 19, 27, 35]` |
+| `LC_` | `LEVEL_CLASSES` | CSS class names per tier |
+| `ll` | `levelLabel` | Level label panel ref |
+| `lc` | `levelContainer` | Level container panel ref |
+| `wr` | `wrapperPanel` | Enemy wrapper for class toggling |
+| `lLv` | `lastLevel` | Last level value applied |
+
+### Functions
+| Short | Full | Purpose |
+|-------|------|---------|
+| `fRB()` | `findRedBar()` | Find the health bar panel (tries 3 names) |
+| `tryCache()` | `tryCachePanelRefs()` | Cache all panel references, returns 0/1 |
+| `scan(p)` | `scanAncestorFlags(panel)` | Walk ancestors to detect team/enemy/neutral |
+| `sBC(c)` | `setBarColor(color)` | Set washColor on bar, skip if unchanged |
+| `sUC(c)` | `setUltColor(color)` | Set washColor on ult icon, skip if unchanged |
+| `sTC(c)` | `setTextColor(color)` | Set washColor on counter text, skip if unchanged |
+| `sHBV(v)` | `setHealthBarVisibility(visible)` | Set BG visibility with opacity 0.01 fix |
+| `sHCS(low,text)` | `setHpCounterStyle(lowMode,textHint)` | Set counter font size, position, margin |
+| `pMax(t)` | `parseMaxHp(pipText)` | Decode max HP from pip label string |
+| `uHT(cu,mx,low)` | `updateHpText(currentHp,maxHp,lowMode)` | Update counter text and style |
+| `pLv(t)` | `parseLevel(text)` | Extract numeric level from label text |
+| `fER(p)` | `findEnemyRoot(panel)` | Walk up to find enemy wrapper |
+| `cLU()` | `cacheLevelUnits()` | Cache level-related panel refs |
+| `uLT()` | `updateLevelTier()` | Apply level tier CSS class based on level |
+| `gL()` | `gameLoop()` | Main poll loop (scheduled recurrently) |
+| `lL()` | `levelLoop()` | Level tier poll loop (scheduled recurrently) |
+| `ip(c1,c2,t)` | `interpolateColor(c1,c2,t)` | Linear RGB interpolation between two colors |
+| `darkOf(c)` | — | Create dark variant (0.37r, 0.29g, 0.29b) for pulse |
+| `getHighColor()` | — | Get high HP color (respects team colors setting) |
+| `getTextColor(hp,low,high)` | — | Get fixed text color based on HP zone |
+| `getGradientTextColor(hp,low,high)` | — | Get interpolated text color (respects hp_text_color_mode) |
+
 ## Healthbar Runtime Notes
 - `healthbar_logic.js` scans up the panel ancestry to classify unit panels.
 - Enemy = `enemy` class and not neutral.
-- Neutral units are intentionally ignored by enemy coloring.
-- Hero, creature, and building classes affect polling cadence.
-- `hp_npc_poll_slow` slows non-hero enemy polling.
-- Low HP and gradient mode use faster updates; stable high HP backs off.
+- Neutral units are intentionally colored green (`#5BEFB5`).
+- Polling is automatic and adaptive: fast for heroes, backs off for stable HP.
+- Low HP and gradient mode use faster updates (0.04s); stable high HP backs off.
+- BG visibility always uses `visibility: visible` with opacity toggle (0.01/1.0)
+  to prevent HP bar width updates from stalling. Never use `visibility: collapse`.
+
+## Text Color Behavior
+- Mode 0 (By HP %): Text color mirrors the bar color — low HP = bar low color,
+  mid HP = bar mid color, high HP = bar high color or team color. Gradient mode
+  interpolates text colors just like bar colors.
+- Mode 1 (Custom): Text color uses `hp_text_color_low/mid/high` settings. Gradient
+  mode interpolates between custom text colors; fixed mode uses stepped colors.
 
 Do not add `FindChildTraverse` calls to hot scheduled loops unless guarded by
 cache/TTL behavior.

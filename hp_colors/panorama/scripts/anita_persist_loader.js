@@ -5,7 +5,6 @@
   var STORAGE_NAMESPACE = "hp_colors";
   var STORAGE_KEY = "anita_v1_hp_colors";
   var PERSIST_DEBOUNCE_SEC = 0.35;
-  var PERSISTENCE_DEBUG = true;
   var HP_COMPACT_PERSIST_VERSION = 1;
   var HP_PERSIST_ALIASES = {
     hp_enabled: "e",
@@ -22,8 +21,7 @@
     hp_text_color_mode: "tm",
     hp_text_color_low: "tl",
     hp_text_color_mid: "ti",
-    hp_text_color_high: "th",
-    hp_npc_poll_slow: "np"
+    hp_text_color_high: "th"
   };
   var HP_PERSIST_ALIAS_TO_ID = (function () {
     var out = {};
@@ -44,17 +42,8 @@
   var persistToken = 0;
   var bootstrapToken = 0;
   var pendingBootstrapReason = "";
-  var storageSupportLogged = false;
-
-  function log(message) {
-    if (!PERSISTENCE_DEBUG) return;
-    $.Msg("[HP-PERSIST-DEBUG] " + message);
-  }
-
-  function persistDebug(message) {
-    if (!PERSISTENCE_DEBUG) return;
-    $.Msg("[HP-PERSIST-DEBUG] " + message);
-  }
+
+
 
   var AnitaBase64 = (function () {
     var CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
@@ -146,17 +135,13 @@
       // typeof === "function" even when callable (QoL pattern: just call it).
       $.persistentStorage.setItem("_anita_probe", "1");
       $.persistentStorage.removeItem("_anita_probe");
-      persistDebug("hasPersistentStorage=1");
       if (!storageSupportLogged) {
         storageSupportLogged = true;
-        log("storage available=1");
       }
       return true;
     } catch (e) {
-      persistDebug("hasPersistentStorage=0 err=" + e);
       if (!storageSupportLogged) {
         storageSupportLogged = true;
-        log("storage available=0 probe failed: " + e);
       }
       return false;
     }
@@ -307,20 +292,15 @@
     var parsed = null;
     try {
       parsed = JSON.parse(text);
-      persistDebug("parse success source=" + sourceLabel + " raw_len=" + text.length);
     } catch (eParse) {
-      persistDebug("parse fail source=" + sourceLabel + " raw_len=" + text.length + " err=" + eParse);
-      log("payload parse failed source=" + sourceLabel + " err=" + eParse);
       return null;
     }
 
     if (!parsed || typeof parsed !== "object" || !parsed.values || typeof parsed.values !== "object") {
-      log("payload invalid source=" + sourceLabel);
       return null;
     }
 
     if (bridgeConfig && parsed.v && Number(parsed.v) < Number(bridgeConfig.storageVersion)) {
-      log("payload version mismatch source=" + sourceLabel + " payload_v=" + parsed.v + " current_v=" + bridgeConfig.storageVersion + "; loading with defaults for missing keys");
     }
 
     var rawValues = parsed.values;
@@ -387,7 +367,6 @@
 
   function readStoredPayload() {
     if (cachedRaw && cachedEncoded && cachedValues) {
-      persistDebug("readStoredPayload source=cache raw_len=" + cachedRaw.length + " encoded_len=" + cachedEncoded.length);
       return {
         raw: cachedRaw,
         encoded: cachedEncoded,
@@ -397,14 +376,11 @@
     }
 
     if (!hasPersistentStorage()) {
-      log("persistentStorage unavailable; trying convar fallback");
-      persistDebug("readStoredPayload source=convar");
 
       var canReadConvar = typeof GameInterfaceAPI !== "undefined" &&
         GameInterfaceAPI &&
         typeof GameInterfaceAPI.GetSettingString === "function";
       if (!canReadConvar) {
-        log("no storage backend available");
         return null;
       }
 
@@ -412,38 +388,28 @@
       try {
         convarRaw = String(GameInterfaceAPI.GetSettingString("deadlock_hero_debuts_seen") || "");
       } catch (eConvar) {
-        persistDebug("readStoredPayload source=convar read_fail err=" + eConvar);
-        log("convar read threw: " + eConvar);
         return null;
       }
 
       var tokenMatch = convarRaw.match(/\[ANITA-v1-hp_colors\]:([A-Za-z0-9_-]+)/);
       if (!tokenMatch) {
-        persistDebug("readStoredPayload source=convar token_len=0");
-        log("convar token not found");
         return null;
       }
 
       var convarEncoded = tokenMatch[1];
-      persistDebug("readStoredPayload source=convar token_len=" + convarEncoded.length);
       var convarDecoded = "";
       try {
         convarDecoded = AnitaBase64.decode(convarEncoded);
       } catch (eDecode) {
-        persistDebug("readStoredPayload source=convar decode_fail err=" + eDecode);
-        log("convar payload decode failed err=" + eDecode);
         return null;
       }
 
       var convarParsed = parseStoredPayload(convarDecoded, "convar");
       if (!convarParsed) {
-        persistDebug("readStoredPayload source=convar parse_fail");
         return null;
       }
 
       cachePayload(convarParsed.raw, convarEncoded, convarParsed.values, convarParsed.values);
-      log("convar bootstrap source=convar encoded_len=" + convarEncoded.length);
-      persistDebug("readStoredPayload source=convar parse_success raw_len=" + convarParsed.raw.length + " encoded_len=" + convarEncoded.length);
       return {
         raw: convarParsed.raw,
         encoded: convarEncoded,
@@ -456,8 +422,6 @@
     try {
       encoded = String($.persistentStorage.getItem(STORAGE_KEY) || "");
     } catch (eRead) {
-      persistDebug("readStoredPayload source=persistentStorage read_fail err=" + eRead);
-      log("persistentStorage read threw: " + eRead);
       return null;
     }
 
@@ -469,7 +433,6 @@
     try {
       raw = AnitaBase64.decode(encoded);
     } catch (eDecode) {
-      log("payload decode failed err=" + eDecode);
       return null;
     }
 
@@ -496,34 +459,24 @@
     try {
       encoded = AnitaBase64.encode(raw);
     } catch (eEnc) {
-      log("payload encode failed err=" + eEnc);
       return false;
     }
 
     if (!forceWrite && encoded === cachedEncoded) {
-      persistDebug("persistCurrentState skipped reason=" + String(reason || "update") + " unchanged=1 encoded_len=" + encoded.length);
       writeSessionMirror(encoded);
       return false;
     }
 
     cachePayload(raw, encoded, currentValues, persistedValues);
-    persistDebug("persistCurrentState reason=" + String(reason || "update") + " storage=" + (hasPersistentStorage() ? "1" : "0"));
 
     if (!hasPersistentStorage()) {
-      persistDebug("persistCurrentState skipped reason=" + String(reason || "update") + " storage=0 encoded_len=" + encoded.length);
-      log("mirror only; storage unavailable source=" + reason);
       return false;
     }
 
     try {
-      persistDebug("persistCurrentState write begin reason=" + String(reason || "update") + " encoded_len=" + encoded.length);
       $.persistentStorage.setItem(STORAGE_KEY, encoded);
-      persistDebug("persistCurrentState write success reason=" + String(reason || "update") + " encoded_len=" + encoded.length);
-      log("persistentStorage write source=" + reason + " encoded_len=" + encoded.length);
       return true;
     } catch (eWrite) {
-      persistDebug("persistCurrentState write fail reason=" + String(reason || "update") + " encoded_len=" + encoded.length + " err=" + eWrite);
-      log("persistentStorage write threw: " + eWrite);
       return false;
     }
   }
@@ -552,13 +505,11 @@
       }));
       count += 1;
     }
-    log("bootstrap replay count=" + count + " source=" + reason);
   }
 
   function performBootstrap(reason) {
     if (!bridgeConfig) {
       pendingBootstrapReason = reason;
-      log("bootstrap deferred (no config) reason=" + reason);
       return;
     }
 
@@ -574,11 +525,9 @@
     var sessionValues = currentValues || persistedValues;
     if (sessionValues) {
       replayValues(sessionValues, reason + ":session");
-      log("bootstrap session replay source=" + reason);
       return;
     }
 
-    log("bootstrap no stored payload source=" + reason);
   }
 
   function scheduleBootstrap(reason) {
@@ -617,7 +566,6 @@
     bridgeConfig = nextConfig;
     if (!currentValues) currentValues = buildDefaultValues(bridgeConfig);
     if (!persistedValues) persistedValues = cloneValues(currentValues);
-    log("config captured elements=" + nextConfig.elements.length);
     return true;
   }
 
@@ -627,7 +575,6 @@
       if (!data) return;
 
       if (data.magic_word === "ANITA_REGISTER") {
-        log("received register");
         if (captureConfig(data.config) && pendingBootstrapReason) {
           scheduleBootstrap(pendingBootstrapReason);
         }
@@ -637,14 +584,12 @@
       if (data.magic_word === "ANITA_REQUEST_BOOTSTRAP") {
         if (data.mod_title !== TITLE) return;
         if (normalizeNamespace(data.storageNamespace) !== STORAGE_NAMESPACE) return;
-        log("received bootstrap request reason=" + String(data.reason || "request"));
         scheduleBootstrap(String(data.reason || "request"));
         return;
       }
 
       if (data.magic_word !== "ANITA_UPDATE" || data.mod_title !== TITLE) return;
       if (!bridgeConfig || !data.setting_id) return;
-      log("received update source=" + String(data.update_source || "unknown") + " setting=" + String(data.setting_id) + " value=" + String(data.value));
 
       var element = findElement(data.setting_id);
       if (!element) return;
@@ -666,11 +611,9 @@
 
       schedulePersist(String(data.update_source || "ui_update"), !!data.force_persist);
     } catch (e) {
-      log("event parse failed: " + e);
     }
   });
 
   hasPersistentStorage();
-  log("loader ready panel=" + String(($.GetContextPanel() && $.GetContextPanel().id) || "panel"));
 
 })();

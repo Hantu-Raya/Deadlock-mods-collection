@@ -1,97 +1,10 @@
-var AnitaUILogger = (function () {
-  "use strict";
 
-  return function (debugMode) {
-    const cache = {
-      lastMessages: {},
-      spamCount: {}
-    };
-
-    return {
-      setDebugMode: function (enabled) {
-        debugMode = enabled;
-      },
-
-      info: function (message) {
-        if (debugMode) {
-          $.Msg("[Anita-UI] " + message);
-        }
-      },
-
-      warn: function (message) {
-        if (debugMode) {
-          $.Msg("[Anita-UI] WARNING: " + message);
-        }
-      },
-
-      error: function (message) {
-        $.Msg("[Anita-UI] ERROR: " + message);
-      },
-
-      debug: function (message, allowRepeat) {
-        if (!debugMode) return;
-
-        if (!allowRepeat) {
-          if (cache.lastMessages[message]) {
-            cache.spamCount[message] = (cache.spamCount[message] || 0) + 1;
-            return;
-          }
-
-          cache.lastMessages[message] = true;
-        }
-
-        $.Msg("[Anita-UI] DEBUG: " + message);
-      },
-
-      debugThrottled: function (message, threshold) {
-        if (!debugMode) return;
-
-        threshold = threshold || 10;
-        cache.spamCount[message] = (cache.spamCount[message] || 0) + 1;
-
-        if (cache.spamCount[message] % threshold === 1) {
-          $.Msg("[Anita-UI] DEBUG: " + message + " (x" + cache.spamCount[message] + ")");
-        }
-      },
-
-      event: function (eventName, data) {
-        if (debugMode) {
-          $.Msg("[Anita-UI] EVENT: " + eventName + " | Data: " + JSON.stringify(data));
-        }
-      },
-
-      showSpamSummary: function () {
-        if (!debugMode) return;
-
-        var hasSpam = false;
-        for (var msg in cache.spamCount) {
-          if (cache.spamCount[msg] > 1) {
-            if (!hasSpam) {
-              $.Msg("[Anita-UI] === REPEATED MESSAGES SUMMARY ===");
-              hasSpam = true;
-            }
-            $.Msg("[Anita-UI] - " + msg + " (x" + cache.spamCount[msg] + ")");
-          }
-        }
-        if (hasSpam) {
-          $.Msg("[Anita-UI] ====================================");
-        }
-      },
-
-      clearCache: function () {
-        cache.lastMessages = {};
-        cache.spamCount = {};
-      }
-    };
-  };
-})();
 
 
 (function () {
   "use strict";
 
   const CONFIG = {
-    DEBUG_MODE: false,
     VERSION: "2.2.3",
 
     IDS: {
@@ -118,8 +31,7 @@ var AnitaUILogger = (function () {
     UI: {
       TAB_MAX_CHARS: 17,
       MONITOR_INTERVAL: 0.05
-    },
-    PERSISTENCE_DEBUG: true
+    }
   };
   const RENDER_REFRESH_DEBOUNCE_SEC = 0.05;
   const MAX_CONVAR_VALUE_LEN = 400;
@@ -139,8 +51,7 @@ var AnitaUILogger = (function () {
     hp_text_color_mode: "tm",
     hp_text_color_low: "tl",
     hp_text_color_mid: "ti",
-    hp_text_color_high: "th",
-    hp_npc_poll_slow: "np"
+    hp_text_color_high: "th"
   };
   const HP_PERSIST_ALIAS_TO_ID = (function () {
     var out = {};
@@ -150,22 +61,7 @@ var AnitaUILogger = (function () {
       }
     }
     return out;
-  })();
-
-  const Logger = AnitaUILogger(CONFIG.DEBUG_MODE);
-  const HP_DEBUG = false;
-
-  function hpDebug(message) {
-    if (!HP_DEBUG) return;
-    $.Msg("[HP Colors][Core] " + message);
-  }
-
-  function persistDebug(message) {
-    if (!CONFIG.PERSISTENCE_DEBUG) return;
-    $.Msg("[HP-PERSIST-DEBUG] " + message);
-  }
-
-  // Base64url encode/decode — no btoa/atob in Deadlock Panorama
+  })();// Base64url encode/decode — no btoa/atob in Deadlock Panorama
   var AnitaBase64 = (function () {
     var CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
@@ -283,15 +179,6 @@ var AnitaUILogger = (function () {
   }
 
   const AnitaPersistence = {
-    log: function (message) {
-      if (!CONFIG.PERSISTENCE_DEBUG) return;
-      $.Msg("[HP-PERSIST-DEBUG] " + message);
-    },
-
-    logForConfig: function (config, message) {
-      var title = (config && config.title) ? String(config.title) : "unknown";
-      this.log(title + " | " + message);
-    },
 
     normalizeNamespace: function (storageNamespace) {
       return String(storageNamespace || "")
@@ -375,10 +262,8 @@ var AnitaUILogger = (function () {
         var supported = !!($ && $.persistentStorage &&
           typeof $.persistentStorage.getItem === "function" &&
           typeof $.persistentStorage.setItem === "function");
-        persistDebug("hasPersistentStorage=" + (supported ? "1" : "0"));
         return supported;
       } catch (eStorage) {
-        persistDebug("hasPersistentStorage=0 err=" + eStorage);
         return false;
       }
     },
@@ -388,7 +273,6 @@ var AnitaUILogger = (function () {
       if (!key) return;
 
       try {
-        persistDebug("writeSessionMirror begin key=" + key + " encoded_len=" + String(encoded || "").length);
         var rootPanel = this.getRootPanel();
         if (rootPanel && rootPanel.SetAttributeString) {
           rootPanel.SetAttributeString(key, encoded);
@@ -397,11 +281,7 @@ var AnitaUILogger = (function () {
         if (hudPanel && hudPanel.SetAttributeString) {
           hudPanel.SetAttributeString(key, encoded);
         }
-        persistDebug("writeSessionMirror success key=" + key + " encoded_len=" + String(encoded || "").length);
-        this.logForConfig(config, "session write ns=" + this.normalizeNamespace(config.storageNamespace));
       } catch (eSess) {
-        persistDebug("writeSessionMirror fail key=" + key + " encoded_len=" + String(encoded || "").length + " err=" + eSess);
-        this.logForConfig(config, "session write threw: " + eSess);
       }
     },
 
@@ -410,50 +290,38 @@ var AnitaUILogger = (function () {
       if (typeof GameInterfaceAPI !== "undefined" &&
           GameInterfaceAPI &&
           typeof GameInterfaceAPI.SetSettingString === "function") {
-        persistDebug("convar write begin key=" + key + " encoded_len=" + String(value || "").length + " via=SetSettingString");
         GameInterfaceAPI.SetSettingString(key, value);
-        persistDebug("convar write success key=" + key + " encoded_len=" + String(value || "").length + " via=SetSettingString");
         this.log("writeConvar via SetSettingString key=" + key);
       } else if (typeof GameInterfaceAPI !== "undefined" &&
           GameInterfaceAPI &&
           typeof GameInterfaceAPI.ConsoleCommand === "function") {
-        persistDebug("convar write begin key=" + key + " encoded_len=" + String(value || "").length + " via=ConsoleCommand");
         GameInterfaceAPI.ConsoleCommand(key + ' "' + value + '"');
-        persistDebug("convar write success key=" + key + " encoded_len=" + String(value || "").length + " via=ConsoleCommand");
         this.log("writeConvar via ConsoleCommand key=" + key);
       }
     },
 
     writeConvarBestEffort: function (key, value) {
       var command = String(key || "") + ' "' + String(value || "") + '"';
-      persistDebug("convar write attempt key=" + key + " encoded_len=" + String(value || "").length);
-
       if (this.canWriteConvarDirect()) {
         try {
           this.writeConvar(key, value);
-          persistDebug("convar write result success key=" + key + " encoded_len=" + String(value || "").length + " via=direct");
           return true;
         } catch (e0) {
-          persistDebug("convar write result fail key=" + key + " encoded_len=" + String(value || "").length + " err=" + e0);
           this.log("direct convar write failed key=" + key + " err=" + e0);
         }
       }
 
       if (runConsoleCommandBestEffort(command)) {
-        persistDebug("convar write result success key=" + key + " encoded_len=" + String(value || "").length + " via=events");
         this.log("writeConvar via command events key=" + key);
         // Also attempt SetSettingString as a durable fallback after events path
         try {
           if (typeof GameInterfaceAPI !== "undefined" && GameInterfaceAPI &&
               typeof GameInterfaceAPI.SetSettingString === "function") {
             GameInterfaceAPI.SetSettingString(key, value);
-            persistDebug("convar write SetSettingString fallback success key=" + key);
           }
         } catch (eSS) {}
         return true;
       }
-
-      persistDebug("convar write result fail key=" + key + " encoded_len=" + String(value || "").length + " via=events");
       return false;
     },
 
@@ -465,7 +333,6 @@ var AnitaUILogger = (function () {
       var title = (config && config.title) ? String(config.title) : "unknown";
       if (config && config.__anitaLastPersistWarning === reason) return;
       if (config) config.__anitaLastPersistWarning = reason;
-      $.Msg("[Anita-UI] WARNING: " + title + " persistence " + String(reason || "unavailable"));
     },
 
     shouldPersistElement: function (element) {
@@ -583,21 +450,16 @@ var AnitaUILogger = (function () {
       var parsed = null;
       try {
         parsed = JSON.parse(text);
-        persistDebug("parse success source=" + sourceLabel + " raw_len=" + text.length);
       } catch (e) {
-        persistDebug("parse fail source=" + sourceLabel + " raw_len=" + text.length + " err=" + e);
-        Logger.debugThrottled("Persistence parse failed [" + sourceLabel + "] for " + (config.title || "unknown"), 50);
         return null;
       }
 
       if (!parsed || typeof parsed !== "object") {
-        Logger.debugThrottled("Persistence payload invalid [" + sourceLabel + "] for " + (config.title || "unknown"), 50);
         return null;
       }
 
       var expandedValues = this.expandStoredValues(config, parsed);
       if (!expandedValues) {
-        Logger.debugThrottled("Persistence payload invalid [" + sourceLabel + "] for " + (config.title || "unknown"), 50);
         return null;
       }
 
@@ -619,37 +481,27 @@ var AnitaUILogger = (function () {
     readPersistentStoragePayload: function (config) {
       var key = this.getStorageKey(config);
       var storageAvailable = this.hasPersistentStorage();
-      persistDebug("readPersistentStoragePayload storage=" + (storageAvailable ? "1" : "0"));
       if (!key || !storageAvailable) return null;
 
       var encoded = "";
       try {
         encoded = String($.persistentStorage.getItem(key) || "");
       } catch (eRead) {
-        persistDebug("readPersistentStoragePayload read_fail key=" + key + " err=" + eRead);
-        this.logForConfig(config, "persistentStorage read threw: " + eRead);
         return null;
       }
-
-      persistDebug("readPersistentStoragePayload source=persistentStorage key=" + key + " encoded_len=" + encoded.length);
       if (!encoded) return null;
 
       var raw = "";
       try {
         raw = AnitaBase64.decode(encoded);
       } catch (eDecode) {
-        persistDebug("readPersistentStoragePayload decode_fail key=" + key + " err=" + eDecode);
-        this.logForConfig(config, "persistentStorage decode threw: " + eDecode);
         return null;
       }
 
       var parsed = this.parseStoredPayload(config, raw, "persistentStorage");
       if (!parsed) {
-        persistDebug("readPersistentStoragePayload parse_fail key=" + key);
         return null;
       }
-
-      persistDebug("readPersistentStoragePayload parse_success key=" + key + " raw_len=" + parsed.raw.length + " encoded_len=" + encoded.length);
       return {
         raw: parsed.raw,
         encoded: encoded,
@@ -671,37 +523,28 @@ var AnitaUILogger = (function () {
       try {
         convarRaw = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
       } catch (eRead) {
-        persistDebug("readConvarPayload read_fail ns=" + ns + " err=" + eRead);
-        this.logForConfig(config, "convar read threw: " + eRead);
         return null;
       }
 
       var tokenMatch = convarRaw.match(new RegExp("\\[" + this.TOKEN_PREFIX + ns + "\\]:([A-Za-z0-9_-]+)"));
       if (!tokenMatch) {
-        persistDebug("readConvarPayload source=convar token_len=0 ns=" + ns);
         return null;
       }
 
       var encoded = String(tokenMatch[1] || "");
-      persistDebug("readConvarPayload source=convar token_len=" + encoded.length + " ns=" + ns);
       if (!encoded) return null;
 
       var raw = "";
       try {
         raw = AnitaBase64.decode(encoded);
       } catch (eDecode) {
-        persistDebug("readConvarPayload decode_fail ns=" + ns + " err=" + eDecode);
-        this.logForConfig(config, "convar decode threw: " + eDecode);
         return null;
       }
 
       var parsed = this.parseStoredPayload(config, raw, "convar");
       if (!parsed) {
-        persistDebug("readConvarPayload parse_fail ns=" + ns);
         return null;
       }
-
-      persistDebug("readConvarPayload parse_success ns=" + ns + " raw_len=" + parsed.raw.length + " encoded_len=" + encoded.length);
       return {
         raw: parsed.raw,
         encoded: encoded,
@@ -716,11 +559,9 @@ var AnitaUILogger = (function () {
       try {
         var sessionEncoded = this.getSessionEncoded(config);
         if (sessionEncoded) {
-          persistDebug("readStoredPayload source=session encoded_len=" + sessionEncoded.length);
           var sessionRaw = AnitaBase64.decode(sessionEncoded);
           persisted = this.parseStoredPayload(config, sessionRaw, "session");
           if (persisted) {
-            persistDebug("readStoredPayload source=session parse_success raw_len=" + persisted.raw.length + " encoded_len=" + sessionEncoded.length);
             return {
               raw: persisted.raw,
               encoded: sessionEncoded,
@@ -730,24 +571,19 @@ var AnitaUILogger = (function () {
           }
         }
       } catch (eSess) {
-        this.logForConfig(config, "session read threw: " + eSess);
       }
 
       persisted = this.readPersistentStoragePayload(config);
       if (persisted) {
         if (config && config.title === "HP Colors") {
-          hpDebug("hydrate candidate source=persistentStorage");
         }
-        persistDebug("readStoredPayload source=persistentStorage raw_len=" + String((persisted.raw && persisted.raw.length) || 0) + " encoded_len=" + String((persisted.encoded && persisted.encoded.length) || 0));
         return persisted;
       }
 
       persisted = this.readConvarPayload(config);
       if (persisted) {
         if (config && config.title === "HP Colors") {
-          hpDebug("hydrate candidate source=convar");
         }
-        persistDebug("readStoredPayload source=convar raw_len=" + String((persisted.raw && persisted.raw.length) || 0) + " encoded_len=" + String((persisted.encoded && persisted.encoded.length) || 0));
         return persisted;
       }
 
@@ -780,7 +616,6 @@ var AnitaUILogger = (function () {
       if (!this.hasPersistentConfig(config)) {
         config.__anitaLastPersistedRaw = "";
         this.applyResolvedValues(config, {});
-        this.logForConfig(config, "hydrate skipped (no storageNamespace)");
         return;
       }
 
@@ -799,9 +634,7 @@ var AnitaUILogger = (function () {
       }
 
       config.__anitaLastPersistedRaw = persisted ? persisted.raw : "";
-      this.logForConfig(config, "hydrate source=" + hydrateSource + " ns=" + ns);
       if (config && config.title === "HP Colors") {
-        hpDebug("hydrate resolved source=" + hydrateSource + " ns=" + ns);
       }
     },
 
@@ -841,7 +674,6 @@ var AnitaUILogger = (function () {
       var raw = this.buildStoredPayload(config);
       if (!raw) return false;
       if (!forceWrite && raw === String(config.__anitaLastPersistedRaw || "")) {
-        this.logForConfig(config, "write skipped unchanged");
         return false;
       }
 
@@ -850,7 +682,6 @@ var AnitaUILogger = (function () {
       try {
         encoded = AnitaBase64.encode(raw);
       } catch (eEnc) {
-        this.logForConfig(config, "base64 encode threw: " + eEnc);
         return false;
       }
       var token = "[" + this.TOKEN_PREFIX + ns + "]:" + encoded;
@@ -871,10 +702,8 @@ var AnitaUILogger = (function () {
         } else if (!this.writeConvarBestEffort(this.CONVAR_KEY, finalValue)) {
           this.warnPersistence(config, "convar unavailable");
         } else {
-          this.logForConfig(config, "convar write ns=" + ns + " encoded_len=" + encoded.length);
         }
       } catch (e) {
-        this.logForConfig(config, "convar write threw: " + e);
       }
 
       try {
@@ -882,11 +711,9 @@ var AnitaUILogger = (function () {
           var storageKey = this.getStorageKey(config);
           if (storageKey) {
             $.persistentStorage.setItem(storageKey, encoded);
-            this.logForConfig(config, "persistentStorage write ns=" + ns + " encoded_len=" + encoded.length);
           }
         }
       } catch (ePersist) {
-        this.logForConfig(config, "persistentStorage write threw: " + ePersist);
       }
 
       this.writeSessionMirror(config, encoded);
@@ -904,7 +731,6 @@ var AnitaUILogger = (function () {
         reason: String(reason || "request")
       };
       $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(payload));
-      this.logForConfig(config, "bootstrap requested reason=" + payload.reason);
     },
 
     applyUpdate: function (config, settingId, value) {
@@ -1065,9 +891,6 @@ var AnitaUILogger = (function () {
         ? config.currentValue
         : (config.defaultValue !== undefined ? config.defaultValue : min);
       let isSyncing = false;
-
-      AnitaPersistence.logForConfig(config, "slider init min=" + min + " max=" + max + " step=" + step + " value=" + val);
-
       function normalize(nextVal) {
         let next = Number(nextVal);
         if (!isFinite(next)) next = Number(config.defaultValue);
@@ -1104,7 +927,6 @@ var AnitaUILogger = (function () {
         }
 
         if (emitUpdateEvent) {
-          AnitaPersistence.logForConfig(config, "slider change value=" + normalized + " raw=" + String(slider.value) + " dir=" + String(slider.direction || "") + " size=" + String(slider.actuallayoutwidth || 0) + "x" + String(slider.actuallayoutheight || 0));
           if (config.onChange) config.onChange(normalized);
           if (config.id && modTitle) {
             emitUpdate(modTitle, config.id, normalized);
@@ -1978,7 +1800,6 @@ var AnitaUILogger = (function () {
           try {
             AnitaRenderer.activeColorPickerClose();
           } catch (closeErr) {
-            AnitaPersistence.logForConfig(config, "active picker close failed: " + closeErr);
           }
         }
 
@@ -2119,7 +1940,6 @@ var AnitaUILogger = (function () {
               beginColorDrag("drag_event", false);
             });
           } catch (dragStartError) {
-            AnitaPersistence.logForConfig(config, "drag start handler install failed: " + dragStartError.message);
           }
 
           try {
@@ -2138,7 +1958,6 @@ var AnitaUILogger = (function () {
               endColorDrag();
             });
           } catch (dragEndError) {
-            AnitaPersistence.logForConfig(config, "drag end handler install failed: " + dragEndError.message);
           }
         }
 
@@ -2172,10 +1991,8 @@ var AnitaUILogger = (function () {
               return false;
             });
           } catch (e) {
-            AnitaPersistence.logForConfig(config, "mouse callback install failed: " + e.message);
           }
         } else {
-          AnitaPersistence.logForConfig(config, "mouse callback unavailable in this UI context; using panel-local picker drag fallback");
         }
 
         // Hue slider row
@@ -2266,7 +2083,6 @@ var AnitaUILogger = (function () {
         });
 
         const initState = getBoxStateFromColor(currentColor);
-        AnitaPersistence.logForConfig(config, "color box picker init hue=" + initState.hue + " sat=" + Math.round(initState.sat * 100) + "% color=" + currentColor);
       }
 
       const preview = $.CreatePanel("Panel", row, "ColorPreviewBtn");
@@ -2927,10 +2743,8 @@ var AnitaUILogger = (function () {
           }
           try {
             $.DispatchEvent("CopyStringToClipboard", token, $.GetContextPanel());
-            AnitaPersistence.logForConfig(config, "copy token len=" + token.length);
             flashLabel(copyB.btn, copyB.lbl, "Copied!", 1.5);
           } catch (e) {
-            AnitaPersistence.logForConfig(config, "copy failed: " + e);
             flashLabel(copyB.btn, copyB.lbl, "Failed", 1.5);
           }
         });
@@ -3023,7 +2837,6 @@ var AnitaUILogger = (function () {
               force_persist: true
             });
           } catch (eDec) {
-            AnitaPersistence.logForConfig(config, "code decode failed: " + eDec);
             flashLabel(applyCodeB.btn, applyCodeB.lbl, "Invalid", 1.5);
           }
         }
@@ -3041,38 +2854,18 @@ var AnitaUILogger = (function () {
 
     init: function () {
       const root = this.getRoot($.GetContextPanel());
-      Logger.info("Initializing Anita-UI Core");
-      hpDebug("core init root=" + String((root && root.id) || "root"));
-
       AnitaRenderer.initWindow(root);
 
       root.AnitaUI = {
         GetVersion: () => CONFIG.VERSION,
         Register: (config) => this.registerMod(config),
         Toggle: () => AnitaRenderer.toggle(),
-        IsReady: () => true,
-        SetDebugMode: (enabled) => {
-          CONFIG.DEBUG_MODE = enabled;
-          Logger.setDebugMode(enabled);
-          Logger.info("Debug Mode " + (enabled ? "enabled" : "disabled"));
-        },
-        ShowSpamSummary: () => {
-          Logger.showSpamSummary();
-        },
-        ClearLogCache: () => {
-          Logger.clearCache();
-          Logger.info("Log cache cleared");
-        }
+        IsReady: () => true
       };
 
       this.setupEventListener();
-      hpDebug("core event listener configured");
       this.createOverlayButton(root);
       this.monitorEscapeMenu(root);
-      hpDebug("core monitor scheduled");
-
-      Logger.info("Anita-UI Core initialized successfully");
-
       if (this.registeredMods.length === 0) {
         this.registerMod({
           title: "Anita-UI",
@@ -3085,12 +2878,10 @@ var AnitaUILogger = (function () {
       $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
         magic_word: "ANITA_ALIVE"
       }));
-      hpDebug("core dispatched ANITA_ALIVE");
     },
 
     registerMod: function (config) {
       if (config && config.title === "HP Colors") {
-        hpDebug("register mod start");
       }
       if (this.registeredMods.length === 1 && this.registeredMods[0].isDummy) {
         this.registeredMods = [];
@@ -3102,32 +2893,26 @@ var AnitaUILogger = (function () {
 
       for (let i = 0; i < this.registeredMods.length; i++) {
         if (this.registeredMods[i].title === config.title) {
-          Logger.debugThrottled("Mod already registered: " + config.title, 200);
           return;
         }
       }
       this.registeredMods.push(config);
       if (config.title === "HP Colors") {
-        hpDebug("register mod elements=" + String((config.elements && config.elements.length) || 0));
       }
       AnitaRenderer.addTab(config.title, () => {
         AnitaRenderer.renderModSettings(config);
       });
       this.updateWindowWidth();
-      Logger.info("Mod registered: " + config.title);
-
       $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
         magic_word: "ANITA_HANDSHAKE",
         mod_title: config.title
       }));
-      Logger.info("Sent HANDSHAKE to mod: " + config.title);
       AnitaPersistence.requestBootstrap(config, "core_handshake");
     },
 
     emitCurrentValues: function (config, meta) {
       if (!config || !Array.isArray(config.elements)) return;
       if (config.title === "HP Colors") {
-        hpDebug("emit current values source=" + String((meta && meta.update_source) || "unknown") + " count=" + String(config.elements.length));
       }
       for (var i = 0; i < config.elements.length; i++) {
         var element = config.elements[i];
@@ -3158,7 +2943,6 @@ var AnitaUILogger = (function () {
 
     emitPortableSync: function (config, reason) {
       if (!config || config.title !== "HP Colors") return;
-      hpDebug("portable sync emit reason=" + String(reason || "tick"));
       this.emitCurrentValues(config, {
         update_source: "core_auto_resync",
         skip_bridge_persist: true,
@@ -3168,7 +2952,6 @@ var AnitaUILogger = (function () {
 
     queuePortableSyncBurst: function (config, reason) {
       if (!config || config.title !== "HP Colors") return;
-      hpDebug("portable sync burst arm reason=" + String(reason || "burst"));
       var token = (config.__anitaPortableSyncBurstToken || 0) + 1;
       config.__anitaPortableSyncBurstToken = token;
       var delays = [0.35, 1.0, 2.0];
@@ -3185,14 +2968,12 @@ var AnitaUILogger = (function () {
     startPortableSyncLoop: function (config) {
       if (!config || config.title !== "HP Colors") return;
       config.__anitaPortableSyncReason = String(config.__anitaPortableSyncReason || "update");
-      hpDebug("portable sync loop arm reason=" + String(config.__anitaPortableSyncReason));
       if (config.__anitaPortableSyncLoopStarted) return;
       config.__anitaPortableSyncLoopStarted = true;
 
       var tick = () => {
         if (!config) return;
         if (this.findRegisteredMod(config.title) !== config) {
-          hpDebug("portable sync stop reason=unregistered");
           config.__anitaPortableSyncLoopStarted = false;
           return;
         }
@@ -3215,7 +2996,6 @@ var AnitaUILogger = (function () {
         updateSource === "ui_code_apply" ||
         updateSource === "core_auto_resync";
       if (data.mod_title === "HP Colors") {
-        hpDebug("handle update source=" + String(data.update_source || "unknown") + " setting=" + String(data.setting_id) + " value=" + String(data.value));
       }
       if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) {
         return;
@@ -3254,7 +3034,6 @@ var AnitaUILogger = (function () {
       var config = this.findRegisteredMod(data.mod_title);
       if (!config) {
         if (data.mod_title === "HP Colors") {
-          hpDebug("bootstrap request ignored; mod not registered reason=" + String(data.reason || "request"));
         }
         return;
       }
@@ -3263,7 +3042,6 @@ var AnitaUILogger = (function () {
           config.__anitaPortableSyncReason = String(config.__anitaPortableSyncReason || "bootstrap_request");
           this.startPortableSyncLoop(config);
         }
-        hpDebug("bootstrap request reason=" + String(data.reason || "request"));
       }
       this.emitCurrentValues(config, {
         update_source: "bridge_bootstrap",
@@ -3298,26 +3076,19 @@ var AnitaUILogger = (function () {
             let data = (typeof payload === 'string') ? JSON.parse(payload) : payload;
             if (data && data.magic_word === "ANITA_REGISTER") {
               if (data.config && data.config.title === "HP Colors") {
-                hpDebug("event listener saw ANITA_REGISTER");
               }
               this.registerMod(data.config);
-              Logger.debugThrottled("Event received: REGISTER for " + data.config.title, 200);
             } else if (data && data.magic_word === "ANITA_REQUEST_BOOTSTRAP") {
               if (data.mod_title === "HP Colors") {
-                hpDebug("event listener saw ANITA_REQUEST_BOOTSTRAP");
               }
               this.handleBootstrapRequest(data);
             } else if (data && data.magic_word === "ANITA_UPDATE") {
               this.handleUpdateEvent(data);
             }
           } catch (e) {
-            Logger.debugThrottled("Malformed event received", 200);
           }
         });
-        Logger.info("Event listener configured");
       } catch (e) {
-        Logger.error("Error setting up listener: " + e);
-        hpDebug("core event listener setup failed: " + e);
       }
     },
 
@@ -3390,7 +3161,6 @@ var AnitaUILogger = (function () {
 
         if (!isMenuOpen && AnitaRenderer.isOpen) {
           AnitaRenderer.toggle(false);
-          Logger.debug("Window closed by escape menu");
         }
 
         nextDelay = isMenuOpen ? CONFIG.UI.MONITOR_INTERVAL : Math.max(CONFIG.UI.MONITOR_INTERVAL * 8, 0.25);
