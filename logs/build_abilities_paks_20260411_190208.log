@@ -1,0 +1,9 @@
+[transform] active.py
+Start-Process : This command cannot be run because either the parameter "WorkingDirectory" has a value that is not 
+valid or cannot be used with this command. Give a valid input and Run your command again.
+At F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\build_abilities_paks.ps1:60 char:13
++     $proc = Start-Process -FilePath "py" -ArgumentList $ScriptName, $ ...
++             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Start-Process], DirectoryNotFoundException
+    + FullyQualifiedErrorId : DirectoryNotFoundException,Microsoft.PowerShell.Commands.StartProcessCommand
+ 

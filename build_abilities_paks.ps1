@@ -1,17 +1,32 @@
 $ErrorActionPreference = 'Stop'
 
-$root = "F:\Users\Shiv\Desktop\Deadlock-mods-collection"
+$root = $PSScriptRoot
 $modSrc = Join-Path $root "abilities"
 $modCompiled = Join-Path $root "abilities_compiled"
 $modScripts = Join-Path $modSrc "scripts"
 $compiler = Join-Path $root "sr2compiler\New folder.exe"
 $vpkeditcli = Join-Path $root "passive_items_mod\compiler\vpkeditcli.exe"
 $addons = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons"
+$python = (Get-Command py.exe -ErrorAction SilentlyContinue).Source
 $sevenZip = (Get-Command 7z.exe -ErrorAction SilentlyContinue).Source
 $dateTag = Get-Date -Format 'MM_dd'
 
+if (-not $python) {
+    $pythonCandidates = @(
+        (Join-Path $env:LOCALAPPDATA "Programs\Python\Launcher\py.exe"),
+        (Join-Path $env:LOCALAPPDATA "Programs\Python\Python312\python.exe"),
+        "C:\Users\Administrator\AppData\Local\Programs\Python\Launcher\py.exe",
+        "C:\Users\Administrator\AppData\Local\Programs\Python\Python312\python.exe"
+    )
+    $python = $pythonCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+}
+
 if (-not $sevenZip) {
     $sevenZip = "C:\Program Files\7-Zip\7z.exe"
+}
+
+if (-not $python -or -not (Test-Path -LiteralPath $python)) {
+    throw "Python was not found on PATH or in the expected user install paths"
 }
 
 if (-not (Test-Path $sevenZip)) {
@@ -57,7 +72,7 @@ function Invoke-AbilityScript {
     )
 
     Write-Host "[transform] $ScriptName" -ForegroundColor Cyan
-    $proc = Start-Process -FilePath "py" -ArgumentList $ScriptName, $InputFile -WorkingDirectory $modScripts -PassThru -Wait
+    $proc = Start-Process -FilePath $python -ArgumentList $ScriptName, $InputFile -WorkingDirectory $modScripts -PassThru -Wait
     if ($proc.ExitCode -ne 0) {
         throw "$ScriptName failed with exit code $($proc.ExitCode)"
     }
