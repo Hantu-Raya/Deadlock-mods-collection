@@ -14,6 +14,25 @@ Audience: coding agents operating in this repository.
 - Subfolder `AGENTS.md` files may add stricter local rules.
 - Cursor rules: none found (`.cursorrules` and `.cursor/rules/` absent).
 - Copilot rules: none found (`.github/copilot-instructions.md` absent).
+- Current checked-out path used by local build examples:
+  `F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection`
+
+## Orientation and Context Hygiene
+- For broad repo orientation, prefer the context-mode MCP tools (`ctx_batch_execute`, `ctx_search`, `ctx_execute_file`) over dumping large files into context.
+- Use subagents only when the user explicitly asks for parallel/subagent work. Keep delegated scans read-only unless the user asks for edits.
+- Treat `.agents/system-prompts/` as a local prompt/reference corpus. Search it before modifying it, and do not install prompt-engineering skills from search results without user approval.
+- Before editing any module, check that module's local `AGENTS.md` if present.
+- Preserve dirty worktree changes that you did not make.
+
+## Agentmemory
+- To update agentmemory, prefer the `memory_save` MCP tool for durable facts/architecture/workflow memory and `memory_lesson_save` for lessons.
+- If those tools are not exposed directly, use the local agentmemory REST MCP bridge:
+  `POST http://127.0.0.1:3113/agentmemory/mcp/call`
+  with JSON shaped like `{"name":"memory_save","arguments":{...}}` or
+  `{"name":"memory_lesson_save","arguments":{...}}`.
+- Verify saves with `memory_recall` when available, or by reading
+  `GET http://127.0.0.1:3113/agentmemory/memories?latest=true`.
+- Use `POST http://127.0.0.1:3113/agentmemory/graph/extract` only as an optional graph-seeding step after the memory save succeeds; do not treat graph extraction as the source of truth.
 
 ## Repository Layout
 ```text
@@ -31,25 +50,26 @@ Audience: coding agents operating in this repository.
 ### Build: Panorama mods (default)
 Run after any `.js`, `.css`, or `.xml` edit.
 ```powershell
-"F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\{mod_name}"
+$repo = "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection"
+& "$repo\sr2compiler\New folder.exe" "$repo\{mod_name}"
 ```
 
 ### Build: passive_items_mod (recommended for that module)
 Generates `mod_settings_data.js` from `settings.json`, detects game, compiles.
 ```powershell
-F:\Users\Shiv\Desktop\Deadlock-mods-collection\passive_items_mod\Apply.bat
+F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\passive_items_mod\Apply.bat
 ```
 
 ### Build: passive_items_mod compiler executable (if compiler source changed)
 ```powershell
-cd F:\Users\Shiv\Desktop\Deadlock-mods-collection\passive_items_mod\compiler
+cd F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\passive_items_mod\compiler
 dotnet build Compiler.csproj -c Release
 dotnet publish Compiler.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 ```
 
 ### Build: abilities VData scripts
 ```powershell
-cd F:\Users\Shiv\Desktop\Deadlock-mods-collection\abilities\scripts
+cd F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\abilities\scripts
 py passive.py abilities2.vdata
 py active.py abilities.vdata
 py active_no_behavior.py abilities.vdata

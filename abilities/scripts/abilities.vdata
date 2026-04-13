@@ -25756,8 +25756,8 @@
 		}
 		m_WeaponInfo = 
 		{
-			m_flBulletSpeed = 25000.0
-			m_Spread = 0.2
+			m_flBulletSpeed = 45500.0
+			m_Spread = 0.0
 			m_StandingSpread = 1.5
 			m_flScatterYawScale = 1
 			m_flShootingUpSpreadPenalty = 0
@@ -25768,14 +25768,14 @@
 			m_flRecoilRecoverySpeed = 5.0
 			m_VerticallRecoil = 
 			{
-				m_Range = [ 0.6, 1.0 ]
+				m_Range = [ 0.25, 0.5 ]
 				m_flBurstSlope = 0.0
 				m_flBurstExponent = 0.0
 				m_flBurstConstant = 0.0
 			}
 			m_HorizontalRecoil = 
 			{
-				m_Range = [ -0.4, 0.4 ]
+				m_Range = [ 0.0, 0.0 ]
 				m_flBurstExponent = 0.0
 			}
 			m_flRecoilSpeed = 6.0
@@ -25794,8 +25794,8 @@
 			m_iClipSize = 10
 			m_iBurstShotCount = 1
 			m_flBurstShotCooldown = 0
-			m_flBulletGravityScale = 0.8
-			m_flBulletRadius = 3
+			m_flBulletGravityScale = 0.0
+			m_flBulletRadius = 5.0
 			m_flBulletReflectScale = 0
 			m_flBulletReflectAmount = 1
 			m_flBulletInheritShooterVelocityScale = 0
@@ -25856,7 +25856,7 @@
 			m_flCritBonusStartRange = 500.0
 			m_flCritBonusEndRange = 1500.0
 			m_flCritBonusAgainstNPCs = 0
-			m_flShootSpreadPenaltyPerShot = 0.25
+			m_flShootSpreadPenaltyPerShot = 1.0
 			m_flShootSpreadPenaltyDecayDelay = 0.1
 			m_flShootSpreadPenaltyDecay = 3.0
 			m_flRecoilShotIndexRecoveryTimeFactor = 0.25
@@ -25872,7 +25872,7 @@
 			m_flDamageForce = 50.0
 			m_bBulletShouldUseVerlet = true
 			m_strShootSound = soundevent:"Holliday.Wpn.Fire"
-			m_flRecoilRecoveryDelayFactor = 0.75
+			m_flRecoilRecoveryDelayFactor = 0.1
 			m_flIronSightsTime = 0.1
 			m_AimingShootSpreadPenalty = [ 0.0, 0.5 ]
 			m_flRecoilShotIndexRecoveryTimePerShot = 0.2
@@ -28002,23 +28002,25 @@
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_eAbilitySpectatePriority = "CITADELTV_ABILITY_SPECTATE_PRIORITY_MEDIUM"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_IGNORE_SELECTION_MASH_PROTECTION"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_IGNORE_SELECTION_MASH_PROTECTION | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/astro/holliday_powder_keg.psd"
 		m_strCastAnimGraphParam = "b_ExplosiveBarrel"
 		m_projectileInfo = 
 		{
 			m_flGravityScale = 1
-			m_flUpSpeed = 20
-			m_flSpeed = 400
+			m_flUpSpeed = 40.0
+			m_flSpeed = 600.0
 			m_flVerticalAimBias = 0
 			m_bHideImpactParticle = 1
 			m_bHideWarningParticle = 1
 			m_flPhysicsRadius = 22
-			m_flTriggerRadius = 30
+			m_flTriggerRadius = 60.0
 			m_flBulletOnlyTriggerRadius = 40.0
 			m_customModel = resource_name:"models/abilities/astro_explosive.vmdl"
 			m_nBehaviors = "PBF_NotTurnTowardVelocity"
 			m_LoopingSound = soundevent:"Astro.A1.Barrel.Lp"
+			m_flProjectileModelScale = 1.0
+			m_particle = resource_name:"particles/abilities/astro/astro_barrel_rope_burn.vpcf"
 		}
 		m_vecAbilityUpgrades = 
 		[
@@ -28382,7 +28384,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CIRCLE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_MOVEMENT"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_MOVEMENT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/astro/holliday_bounce_pad.psd"
 		m_strCastAnimGraphParam = "b_BouncePad"
@@ -33852,7 +33854,7 @@
 			}
 			WindUpTime = 
 			{
-				m_strValue = "0.5"
+				m_strValue = "0.3"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_single_stat"
@@ -33862,7 +33864,7 @@
 			}
 			NoWindUpTime = 
 			{
-				m_strValue = "0.1"
+				m_strValue = "0.05"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_single_stat"
@@ -35551,7 +35553,7 @@
 			}
 			Radius = 
 			{
-				m_strValue = "10m"
+				m_strValue = "8m"
 				m_strCSSClass = "distance"
 				m_subclassScaleFunction = subclass:
 				{
@@ -35577,6 +35579,10 @@
 			OnKillDiminish = 
 			{
 				m_strValue = "7"
+			}
+			SelfDamagePercent = 
+			{
+				m_strValue = "20"
 			}
 			Damage = 
 			{
@@ -35704,7 +35710,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALLOW_SELF_CAST | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
 		m_flTargetingConeAngle = 90
 		m_eAbilitySpectatePriority = "CITADELTV_ABILITY_SPECTATE_PRIORITY_MEDIUM"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY | CITADEL_UNIT_TARGET_TROOPER_FRIENDLY | CITADEL_UNIT_TARGET_HERO_FRIENDLY | CITADEL_UNIT_TARGET_MINION_FRIENDLY"
@@ -36496,6 +36502,19 @@
 			{
 				m_strValue = "5"
 			}
+			Damage = 
+			{
+				m_strValue = "0"
+				m_strCSSClass = "melee_damage"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "Damage_scale_function"
+					m_flStatScale = 0.7
+					m_eSpecificStatScaleType = "ELightMeleeDamage"
+				}
+				m_bIsAbilityDamageProperty = true
+			}
 			SlowPercent = 
 			{
 				m_strValue = "90"
@@ -36601,7 +36620,7 @@
 
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_SPHERE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_PREVENT_BOT_USAGE"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_PREVENT_BOT_USAGE | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO | CITADEL_UNIT_TARGET_TROOPER_ENEMY"
 		m_strHookSuccessSound = soundevent:"Bebop.Hook.Player"
 		m_strHookAllySound = soundevent:"Bebop.Hook.Player"
@@ -36847,6 +36866,9 @@
 							[
 								{
 									m_strImportantProperty = "AbilityCastRange"
+								},
+								{
+									m_strImportantProperty = "Damage"
 								},
 								{
 									m_strImportantProperty = "StatusEffectDisplacement"
@@ -42126,7 +42148,7 @@
 			m_strSpinUpSound = soundevent:""
 			m_strSpinDownSound = soundevent:""
 			m_strSpinUpLoopSound = soundevent:""
-			m_flBulletDamage = 6.42
+			m_flBulletDamage = 6.8
 			m_flIntraBurstCycleTime = 0.0735
 			m_szSelfBulletTravelTracerParticle = resource_name:"particles/weapon_fx/chrono/chrono_tracer_player.vpcf"
 		}
@@ -43189,7 +43211,7 @@
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CIRCLE"
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_FIRED_AS_BULLET | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_FIRED_AS_BULLET | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_bShowTargetingPreviewWhileCasting = true
 		m_iUpdateTime = 1678490324
@@ -43440,7 +43462,7 @@
 			}
 			TimeWallWidth = 
 			{
-				m_strValue = "7.5m"
+				m_strValue = "8m"
 				m_strCSSClass = "range"
 				m_subclassScaleFunction = subclass:
 				{
@@ -43451,7 +43473,7 @@
 			}
 			TimeWallHeight = 
 			{
-				m_strValue = "3.5m"
+				m_strValue = "4m"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_single_stat"
@@ -43903,7 +43925,7 @@
 			}
 			BulletRadiusOverride = 
 			{
-				m_strValue = "13.7"
+				m_strValue = "16.0"
 			}
 			MoveSpeedWhileShootingPenaltyReduction = 
 			{
@@ -45981,7 +46003,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 16
+				m_strValue = 19
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -46937,7 +46959,7 @@
 		m_iUpdateTime = 1691688900
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_CAN_HEAL_PLAYERS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_REQUIRE_ABILITY_BUTTON_TO_CANCEL"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_CAN_HEAL_PLAYERS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_REQUIRE_ABILITY_BUTTON_TO_CANCEL | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_FRIENDLY | CITADEL_UNIT_TARGET_TROOPER_FRIENDLY | CITADEL_UNIT_TARGET_MINION_FRIENDLY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/sumo/sumo_pork_bun.psd"
 		m_vecAbilityUpgrades = 
@@ -46978,7 +47000,7 @@
 					{
 						m_strPropertyName = "HealMaxHealthPercent"
 						m_strBonus = "2.5"
-						m_strStreetBrawlBonus = "2.0"
+						m_strStreetBrawlBonus = "1.7"
 					},
 				]
 			},
@@ -47713,7 +47735,7 @@
 			m_flSpreadPerShot = 0.15
 			m_AimingShootSpreadPenalty = [ 0.0, 0.4 ]
 			m_strBulletImpactSound = soundevent:"McGinnis.Wpn.Impact"
-			m_flBulletDamage = 6.2
+			m_flBulletDamage = 6.4
 			m_strFirstShotSound = soundevent:"McGinnis.Wpn.Fire.First"
 			m_strShotReleaseSound = soundevent:"McGinnis.Wpn.Fire.Release"
 		}
@@ -48758,7 +48780,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_DEPLOYED_OBJECT"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CIRCLE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CAN_HEAL_PLAYERS | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CAN_HEAL_PLAYERS | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_FRIENDLY | CITADEL_UNIT_TARGET_TROOPER_FRIENDLY | CITADEL_UNIT_TARGET_MINION_FRIENDLY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/engineer_resupply.psd"
 		m_deploymentInfo = 
@@ -49302,7 +49324,7 @@
 		m_iUpdateTime = 1676844248
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_DEPLOYED_OBJECT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PREVENT_TRAINING_BOT_USAGE | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PREVENT_TRAINING_BOT_USAGE | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/engineer_turret.psd"
 		m_strMoviePreviewPath = "file://{resources}/videos/hero_abilities/ability_forge_turret.webm"
@@ -49446,7 +49468,7 @@
 			}
 			AbilityDuration = 
 			{
-				m_strValue = "5.5"
+				m_strValue = "6.0"
 				m_strDisableValue = "0"
 				m_strCSSClass = "duration"
 				m_bCanSetTokenOverride = true
@@ -49598,7 +49620,7 @@
 			}
 			NumWallSegments = 
 			{
-				m_strValue = "7"
+				m_strValue = "8"
 			}
 			TimeBetweenSegments = 
 			{
@@ -49684,7 +49706,7 @@
 		m_nAbillityUnlocksCost = 1
 		m_eAbilityType = "EAbilityType_Signature"
 		m_iMaxLevel = 1
-		m_bitsInterruptingStates = "MODIFIER_STATE_STUNNED"
+		m_bitsInterruptingStates = "MODIFIER_STATE_STUNNED | MODIFIER_STATE_SILENCED"
 		m_PreviewPathParticle = resource_name:"particles/generic/generic_arc.vpcf"
 		m_strAbilityOffCooldownSound = soundevent:""
 		m_strAbilityChargeReadySound = soundevent:""
@@ -50464,7 +50486,7 @@
 		m_iUpdateTime = 1688595425
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_GROUND"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_EXCLUSIVE_USE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED | CITADEL_ABILITY_BEHAVIOR_CAN_CANCEL_DURING_CAST_DELAY | CITADEL_ABILITY_BEHAVIOR_DEACTIVATE_CROUCH_TOGGLE_ON_CAST | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_REQUIRE_ABILITY_BUTTON_TO_CANCEL | CITADEL_ABILITY_BEHAVIOR_DONT_SWITCH_AWAY_ON_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_EXCLUSIVE_USE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED | CITADEL_ABILITY_BEHAVIOR_CAN_CANCEL_DURING_CAST_DELAY | CITADEL_ABILITY_BEHAVIOR_DEACTIVATE_CROUCH_TOGGLE_ON_CAST | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_REQUIRE_ABILITY_BUTTON_TO_CANCEL | CITADEL_ABILITY_BEHAVIOR_DONT_SWITCH_AWAY_ON_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_eAbilitySpectatePriority = "CITADELTV_ABILITY_SPECTATE_PRIORITY_MEDIUM"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/engineer_rockets.psd"
@@ -53991,7 +54013,7 @@
 			m_flRecoilRecoveryDelayFactor = 0.8
 			m_AimingShootSpreadPenalty = [ 0.0, 0.5 ]
 			m_strBulletImpactSound = soundevent:"Geist.Wpn.Impact"
-			m_flBulletDamage = 21.94
+			m_flBulletDamage = 20.7
 			m_strFirstShotSound = soundevent:"Geist.Wpn.Fire.First"
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -55372,7 +55394,7 @@
 			m_strBulletImpactSound = soundevent:"Ghost.Malice.Impact"
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -55391,7 +55413,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_SPHERE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY | CITADEL_UNIT_TARGET_GOLD_ORBS"
 		m_iUpdateTime = 1647547907
 		m_strChannelLoopSound = soundevent:""
@@ -55723,7 +55745,7 @@
 		m_eAbilitySpectatePriority = "CITADELTV_ABILITY_SPECTATE_PRIORITY_MEDIUM"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_FRIENDLY | CITADEL_UNIT_TARGET_HERO_ENEMY | CITADEL_UNIT_TARGET_TROOPER_ENEMY | CITADEL_UNIT_TARGET_BOSS_ENEMY | CITADEL_UNIT_TARGET_BUILDING_ENEMY | CITADEL_UNIT_TARGET_PROP_ENEMY | CITADEL_UNIT_TARGET_MINION_ENEMY | CITADEL_UNIT_TARGET_NEUTRAL | CITADEL_UNIT_TARGET_CREEP_ENEMY"
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALWAYS_PREVIEW_RADIUS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CANNOT_CANCEL_DURING_CHANNEL | CITADEL_ABILITY_BEHAVIOR_ALLOW_ALT_CAST | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_TRIGGER_CANCEL_MASH_PROTECTION_ON_CAST | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALWAYS_PREVIEW_RADIUS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CANNOT_CANCEL_DURING_CHANNEL | CITADEL_ABILITY_BEHAVIOR_ALLOW_ALT_CAST | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_TRIGGER_CANCEL_MASH_PROTECTION_ON_CAST | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
 		m_flTargetingConeAngle = 20
 		m_strCastAnimGraphParam = "b_LifeSteal"
@@ -56098,7 +56120,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 185.0
+				m_strValue = 190.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -56746,7 +56768,7 @@
 			m_AimingShootSpreadPenalty = [ 0.0, 1.0 ]
 			m_strBulletImpactSound = soundevent:"Seven.Wpn.Impact"
 			m_flIntraBurstCycleTime = 0.084
-			m_flBulletDamage = 10.81
+			m_flBulletDamage = 10.8
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -57768,7 +57790,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_SPHERE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_projectileInfo = 
 		{
@@ -58091,7 +58113,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALWAYS_PREVIEW_RADIUS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALWAYS_PREVIEW_RADIUS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_flTargetingConeAngle = 20
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/giga_static.psd"
@@ -58982,6 +59004,7 @@
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_nAbilityTargetFlags = "CITADEL_UNIT_TARGET_FLAG_NO_INVIS"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_strCastAnimGraphParam = "b_PowerSurge"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/giga_chain.psd"
 		m_vecAbilityUpgrades = 
@@ -60747,7 +60770,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "Damage_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 2.6
+					m_flStatScale = 2.8
 				}
 				m_bIsAbilityDamageProperty = true
 			}
@@ -60768,9 +60791,15 @@
 				m_strCSSClass = "duration"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_single_stat"
+					_class = "scale_function_multi_stats"
 					_my_subclass_name = "SleepWakeUpDelay_scale_function"
-					m_eSpecificStatScaleType = "ETechDuration"
+					m_eSpecificStatScaleType = "ETechPower"
+					m_flStatScale = 0.003
+					m_vecScalingStats = 
+					[
+						"ETechPower",
+						"ETechDuration",
+					]
 				}
 			}
 			MinimumSleepTime = 
@@ -60875,7 +60904,7 @@
 				}
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Haze"
@@ -60900,7 +60929,7 @@
 			m_strBulletWhizSound = soundevent:"Haze.Finesse.Dagger.Projectile.Whizby"
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -60920,7 +60949,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_SPHERE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DAMAGE_DOESNT_WAKE_FROM_SLEEP | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DAMAGE_DOESNT_WAKE_FROM_SLEEP | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/haze/haze_sleep_dagger.psd"
 		m_strCastAnimGraphParam = "b_SleepDagger"
@@ -60945,7 +60974,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -15.0
+						m_strBonus = -17.0
 					},
 				]
 			},
@@ -60954,7 +60983,7 @@
 				[
 					{
 						m_strPropertyName = "SleepDuration"
-						m_strBonus = "0.75"
+						m_strBonus = "1"
 					},
 					{
 						m_strPropertyName = "SlowPercent"
@@ -60966,7 +60995,7 @@
 					},
 					{
 						m_strPropertyName = "DebuffDuration"
-						m_strBonus = "2.5"
+						m_strBonus = "3"
 					},
 				]
 			},
@@ -61089,7 +61118,7 @@
 					_class = "scale_function_multi_stats"
 					_my_subclass_name = "AbilityDuration_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.08
+					m_flStatScale = 0.1
 					m_vecScalingStats = 
 					[
 						"ETechPower",
@@ -61355,7 +61384,7 @@
 				[
 					{
 						m_strPropertyName = "BulletLifesteal"
-						m_strBonus = "30"
+						m_strBonus = "40"
 					},
 					{
 						m_strPropertyName = "PostInvisBuffDuration"
@@ -61592,7 +61621,7 @@
 			}
 			DamageBonusFixedPerStack = 
 			{
-				m_strValue = "0.18"
+				m_strValue = "0.2"
 				m_strCSSClass = "bullet_damage"
 				m_eDisplayType = "EBulletDamage"
 				m_subclassScaleFunction = subclass:
@@ -61715,7 +61744,7 @@
 				[
 					{
 						m_strPropertyName = "DamageBonusFixedPerStack"
-						m_strBonus = "0.14"
+						m_strBonus = "0.12"
 					},
 				]
 			},
@@ -61775,7 +61804,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 165.0
+				m_strValue = 145.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -61788,7 +61817,7 @@
 			}
 			AbilityDuration = 
 			{
-				m_strValue = "3.0"
+				m_strValue = "3.5"
 				m_strDisableValue = "0"
 				m_strCSSClass = "duration"
 				m_bCanSetTokenOverride = true
@@ -61797,7 +61826,7 @@
 					_class = "scale_function_multi_stats"
 					_my_subclass_name = "AbilityDuration_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.08
+					m_flStatScale = 0.03
 					m_vecScalingStats = 
 					[
 						"ETechPower",
@@ -61917,6 +61946,11 @@
 					m_eSpecificStatScaleType = "ETechRadius"
 				}
 			}
+			RadiusMin = 
+			{
+				m_strValue = "0.75m"
+				m_strCSSClass = "distance"
+			}
 			TargetsPerTick = 
 			{
 				m_strValue = "1"
@@ -61924,7 +61958,7 @@
 			}
 			BonusFireRate = 
 			{
-				m_strValue = "20"
+				m_strValue = "25"
 				m_eDisplayType = "EFireRate"
 				m_strCSSClass = "fire_rate"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_FIRE_RATE"
@@ -61947,7 +61981,7 @@
 			}
 			EvasionPercent = 
 			{
-				m_strValue = "60"
+				m_strValue = "0"
 			}
 			OverrideBulletRadius = 
 			{
@@ -61981,12 +62015,13 @@
 		m_skillshotMissParticle = resource_name:"particles/abilities/skillshot_default_miss_owner.vpcf"
 		m_flBossDamageScale = 1.0
 		m_iUpdateTime = 1646772729
-		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
+		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_CUSTOM"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_EXCLUSIVE_USE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED | CITADEL_ABILITY_BEHAVIOR_DEACTIVATE_CROUCH_TOGGLE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_nAbilityTargetFlags = "CITADEL_UNIT_TARGET_FLAG_PENETRATE_INVULNERABLE"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/haze/haze_bullet_flurry.psd"
+		m_flTargetingConeAngle = 65
 		m_vecAbilityUpgrades = 
 		[
 			{
@@ -62002,12 +62037,12 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -45.0
-					},
-					{
 						m_strPropertyName = "BonusFireRate"
 						m_strBonus = 10
+					},
+					{
+						m_strPropertyName = "AbilityCooldown"
+						m_strBonus = "-45"
 					},
 				]
 			},
@@ -62016,11 +62051,11 @@
 				[
 					{
 						m_strPropertyName = "ChannelMoveSpeed"
-						m_strBonus = "3m"
+						m_strBonus = "4m"
 					},
 					{
-						m_strPropertyName = "TargetsPerTick"
-						m_strBonus = "1"
+						m_strPropertyName = "EvasionPercent"
+						m_strBonus = 60.0
 					},
 				]
 			},
@@ -62037,7 +62072,7 @@
 			m_sAmbientLoopingSound = soundevent:"Haze.BulletFlurry.Modifier.Lp"
 			m_sExpiredSound = soundevent:"Haze.BulletFlurry.Modifier.End"
 			m_bIsHidden = true
-			m_nEnabledStateMask = "MODIFIER_STATE_SILENCED_HIDDEN | MODIFIER_STATE_INFINITE_CLIP"
+			m_nEnabledStateMask = "MODIFIER_STATE_SILENCED_HIDDEN | MODIFIER_STATE_INFINITE_CLIP | MODIFIER_STATE_SLIDING_DISABLED"
 			m_eHudDisplayLocation = "DISPLAY_HUD_LEFT"
 			m_ImpactParticle = resource_name:""
 			m_strAttackerHitSound = soundevent:"Ability.BulletEvade"
@@ -63695,7 +63730,7 @@
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CIRCLE"
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_FIRED_AS_BULLET | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_FIRED_AS_BULLET | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/hornet/vindicta_stake.psd"
 		m_iUpdateTime = 1685732973
@@ -64443,7 +64478,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_SPHERE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED | CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED | CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_iUpdateTime = 1707519913
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/hornet/hornet_crow.psd"
@@ -64848,6 +64883,7 @@
 			m_bCasterCountsAsAssister = false
 			m_eDebuffType = "MODIFIER_DEBUFF_NO"
 		}
+		m_flKillCheckDuration = 4.0
 		m_KillCheckModifier = subclass:
 		{
 			_class = "modifier_base"
@@ -64855,7 +64891,6 @@
 			m_bIsHidden = true
 			m_eDebuffType = "MODIFIER_DEBUFF_NO"
 			m_bCasterCountsAsAssister = false
-			m_flDuration = 4.0
 		}
 		m_strCastSound = soundevent:"Hornet.Assassinate.Cast"
 		m_strMoviePreviewPath = "file://{resources}/videos/hero_abilities/hornet_assassinate.webm"
@@ -67344,7 +67379,7 @@
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CIRCLE"
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_SHOW_CAST_RANGE_AS_SAT_SPHERE_WHILE_CASTING"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_SHOW_CAST_RANGE_AS_SAT_SPHERE_WHILE_CASTING | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/inferno_molotov.psd"
 		m_strCastAnimGraphParam = "e_IncendiaryThrow"
@@ -69986,7 +70021,7 @@
 						"EHealingOutput",
 					]
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.9
+					m_flStatScale = 0.8
 				}
 			}
 			PauseStaminaRegen = 
@@ -70037,7 +70072,7 @@
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CIRCLE"
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CAN_HEAL_PLAYERS | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_FIRED_AS_BULLET | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CAN_HEAL_PLAYERS | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_FIRED_AS_BULLET | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/kelvin/freezing_grenade.psd"
 		m_strMoviePreviewPath = "file://{resources}/videos/hero_abilities/kelvin_freezing_grenade.webm"
@@ -70083,7 +70118,7 @@
 					},
 					{
 						m_strPropertyName = "HealAmount"
-						m_strBonus = "1"
+						m_strBonus = "0.9"
 						m_eUpgradeType = "EAddToScale"
 						m_eScaleStatFilter = "ETechPower"
 					},
@@ -70378,7 +70413,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CASTABLE_WHILE_BUSY | CITADEL_ABILITY_BEHAVIOR_INTERRUPT_MELEE_ON_CAST | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_REQUIRE_ABILITY_BUTTON_TO_CANCEL | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_ALLOW_SELF_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CASTABLE_WHILE_BUSY | CITADEL_ABILITY_BEHAVIOR_INTERRUPT_MELEE_ON_CAST | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_REQUIRE_ABILITY_BUTTON_TO_CANCEL | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_ALLOW_SELF_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO"
 		m_flTargetingConeAngle = 45
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/kelvin/frozen_shelter.psd"
@@ -74940,7 +74975,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "Damage_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.38
+					m_flStatScale = 0.35
 				}
 				m_bIsAbilityDamageProperty = true
 			}
@@ -75344,14 +75379,14 @@
 			}
 			DPS = 
 			{
-				m_strValue = 9
+				m_strValue = 8
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_single_stat"
 					_my_subclass_name = "DPS_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.12
+					m_flStatScale = 0.1
 				}
 				m_strLocTokenOverride = "MirageFireScarabsHealthSteal"
 				m_bIsAbilityDamageProperty = true
@@ -77206,7 +77241,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CASTABLE_WHILE_BUSY | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CASTABLE_WHILE_BUSY | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_strCSSClass = "mokrillScorn"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/grappler/grappler_regen.psd"
@@ -77991,7 +78026,7 @@
 		m_iUpdateTime = 1692665750
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_SHOW_CAST_RANGE_AS_SAT_SPHERE_WHILE_CASTING"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_SHOW_CAST_RANGE_AS_SAT_SPHERE_WHILE_CASTING | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/grappler/grappler_throw_sand.psd"
 		m_HudSharedStyle = resource_name:"panorama/styles/ability_hud_elements/abilities_mokrill.vcss"
 		m_projectileInfo = 
@@ -86279,7 +86314,7 @@
 			}
 			ChannelMoveSpeed = 
 			{
-				m_strValue = "1.3m"
+				m_strValue = "1.5m"
 				m_eDisplayUnits = "EDisplayUnit_MetersPerSecond"
 				m_strCSSClass = "move_speed"
 				m_bCanSetTokenOverride = true
@@ -86485,7 +86520,7 @@
 		m_iUpdateTime = 1668635902
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_strCastAnimGraphParam = "e_ChargedShot"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_MINION_FRIENDLY | CITADEL_UNIT_TARGET_ALL_ENEMY | CITADEL_UNIT_TARGET_GOLD_ORBS | CITADEL_UNIT_TARGET_ABILLITY_TRIGGER"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/archer/archer_charged_shot.psd"
@@ -87488,7 +87523,7 @@
 			}
 			AbilityChannelTime = 
 			{
-				m_strValue = "18"
+				m_strValue = "20"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cast"
 				m_bCanSetTokenOverride = true
@@ -87697,8 +87732,8 @@
 		m_flTrackAmount = 110.0
 		m_flSpeedAccel = 800.0
 		m_flSpeedDeccel = 300.0
-		m_flBaseProjectileSpeed = 700
-		m_flMaxProjectileSpeed = 1400
+		m_flBaseProjectileSpeed = 590.551
+		m_flMaxProjectileSpeed = 1417.32
 		m_flWorldCollideGraceWindow = 0.5
 		m_HUDPanel = 
 		{
@@ -89508,7 +89543,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_SPHERE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY | CITADEL_UNIT_TARGET_GOLD_ORBS"
 		m_projectileInfo = 
 		{
@@ -95201,7 +95236,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_SPHERE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_TRIGGER_CANCEL_MASH_PROTECTION_ON_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_TRIGGER_CANCEL_MASH_PROTECTION_ON_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strMoviePreviewPath = "file://{resources}/videos/hero_abilities/pocket_flying_cloak.webm"
 		m_TeleportTrailParticle = resource_name:"particles/abilities/pocket/pocket_flying_cloak_travel_beam.vpcf"
@@ -96233,7 +96268,7 @@
 		m_iUpdateTime = 1709844990
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/synth/synth_barrage.psd"
 		m_strMoviePreviewPath = "file://{resources}/videos/hero_abilities/pocket_barrage.webm"
@@ -98668,7 +98703,7 @@
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CIRCLE"
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_FIRED_AS_BULLET | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_FIRED_AS_BULLET | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_ExplodeParticle = resource_name:"particles/abilities/tengu/tengu_grenade_explode.vpcf"
@@ -104268,7 +104303,7 @@
 		m_iUpdateTime = 1669930587
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/viscous/viscous_goo_ball.psd"
@@ -104693,7 +104728,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_EQUAL_UNIT_TARGET_PRIORITY | CITADEL_ABILITY_BEHAVIOR_ALLOW_SELF_CAST | CITADEL_ABILITY_BEHAVIOR_CAN_HEAL_PLAYERS | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_EQUAL_UNIT_TARGET_PRIORITY | CITADEL_ABILITY_BEHAVIOR_ALLOW_SELF_CAST | CITADEL_ABILITY_BEHAVIOR_CAN_HEAL_PLAYERS | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_FRIENDLY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/viscous/viscous_restorative_goo.psd"
 		m_flTargetingConeAngle = 60.0
@@ -105644,7 +105679,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_DEPLOYED_OBJECT"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_SPHERE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/viscous/viscous_goo_punch.psd"
 		m_flTargetingConeAngle = "100"
 		m_HUDPanel = 
@@ -107106,7 +107141,7 @@
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_flTargetingConeAngle = 70
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/warden/warden_lock_down.psd"
 		m_DebuffModifier = subclass:
@@ -107753,7 +107788,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/warden/warden_crowd_control.psd"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_vecAbilityUpgrades = 
@@ -109576,7 +109611,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_PASS_THROUGH_WORLD | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_PASS_THROUGH_WORLD | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_flTargetingConeAngle = 60
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY"
 		m_eAbilitySpectatePriority = "CITADELTV_ABILITY_SPECTATE_PRIORITY_HIGH"
@@ -110730,7 +110765,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/wraith_card_trick.psd"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_ALLOW_ALT_CAST | CITADEL_ABILITY_BEHAVIOR_ALLOW_ALT_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_ALLOW_ALT_CAST | CITADEL_ABILITY_BEHAVIOR_ALLOW_ALT_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_projectileInfo = 
 		{
@@ -116094,7 +116129,7 @@
 		m_skillshotMissParticle = resource_name:"particles/abilities/skillshot_default_miss_owner.vpcf"
 		m_flBossDamageScale = 1.0
 		m_iUpdateTime = 1686678287
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_SHOW_CAST_RANGE_AS_SAT_SPHERE_WHILE_CASTING"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_SHOW_CAST_RANGE_AS_SAT_SPHERE_WHILE_CASTING | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_vecAbilityUpgrades = 
@@ -117020,7 +117055,7 @@
 		m_skillshotMissParticle = resource_name:"particles/abilities/skillshot_default_miss_owner.vpcf"
 		m_flBossDamageScale = 1.0
 		m_iUpdateTime = 1701290969
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/yamato/yamato_crimson_slash.psd"
 
@@ -119270,7 +119305,7 @@
 			}
 			SlideScale = 
 			{
-				m_strValue = "10"
+				m_strValue = "15"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SLIDE_DISTANCE_SCALE"
 				m_strCSSClass = "move_speed"
 				m_eStatsUsageFlags = ""
@@ -120572,7 +120607,7 @@
 			}
 			AbilityCooldownBetweenCharge = 
 			{
-				m_strValue = "4.5"
+				m_strValue = "4.0"
 				m_strDisableValue = "-2"
 				m_strCSSClass = "charge_cooldown"
 				m_bCanSetTokenOverride = true
@@ -120685,7 +120720,7 @@
 				m_strValue = "0"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Viper"
@@ -120797,7 +120832,7 @@
 			m_flBulletWhizDistance = 200.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -125222,7 +125257,7 @@
 		m_iUpdateTime = 1668192829
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_TARGET_THROUGH_WALLS | CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED | CITADEL_ABILITY_BEHAVIOR_COOLDOWN_ON_CHANNEL_END"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_TARGET_THROUGH_WALLS | CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED | CITADEL_ABILITY_BEHAVIOR_COOLDOWN_ON_CHANNEL_END | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY"
 		m_nAbilityTargetFlags = "CITADEL_UNIT_TARGET_FLAG_PENETRATE_INVULNERABLE"
 		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
@@ -126650,7 +126685,7 @@
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_SPHERE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
 		m_eAbilitySpectatePriority = "CITADELTV_ABILITY_SPECTATE_PRIORITY_MEDIUM"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALWAYS_PREVIEW_RADIUS | CITADEL_ABILITY_BEHAVIOR_PREVENT_BOT_USAGE | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALWAYS_PREVIEW_RADIUS | CITADEL_ABILITY_BEHAVIOR_PREVENT_BOT_USAGE | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_deploymentInfo = 
 		{
 			m_previewModel = resource_name:""
@@ -128191,7 +128226,7 @@
 		m_skillshotMissParticle = resource_name:"particles/abilities/skillshot_default_miss_owner.vpcf"
 		m_flBossDamageScale = 1.0
 		m_iUpdateTime = 0
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALWAYS_PREVIEW_RADIUS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_PASS_THROUGH_WORLD | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALWAYS_PREVIEW_RADIUS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_PASS_THROUGH_WORLD | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/magician/magician_copyult.psd"
 		m_AbilityTooltipDetails = 
 		{
@@ -128613,7 +128648,7 @@
 		m_skillshotMissParticle = resource_name:"particles/abilities/skillshot_default_miss_owner.vpcf"
 		m_flBossDamageScale = 1.0
 		m_iUpdateTime = 0
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALWAYS_PREVIEW_RADIUS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_PASS_THROUGH_WORLD | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALWAYS_PREVIEW_RADIUS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_PASS_THROUGH_WORLD | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CIRCLE"
 		m_flTargetingConeAngle = 30.0
@@ -152125,7 +152160,7 @@
 			m_nRecoilSeed = 32152
 			m_AimingShootSpreadPenalty = [ 0.0, 0.2 ]
 			m_strBulletImpactSound = soundevent:"Frank.Wpn.Impact"
-			m_flBulletDamage = 12.0
+			m_flBulletDamage = 13.0
 			m_flBulletRadiusVsWorld = 1.0
 			m_bSpinsUp = true
 			m_strFirstShotSound = soundevent:"Frank.Wpn.Fire.First"
@@ -153220,7 +153255,7 @@
 				[
 					{
 						m_strPropertyName = "TotalHealthRegen"
-						m_strBonus = "50"
+						m_strBonus = "70"
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
@@ -153414,7 +153449,7 @@
 			}
 			AbilityDuration = 
 			{
-				m_strValue = "6"
+				m_strValue = "8"
 				m_strDisableValue = "0"
 				m_strCSSClass = "duration"
 				m_bCanSetTokenOverride = true
@@ -153537,12 +153572,12 @@
 			}
 			MinDPS = 
 			{
-				m_strValue = "12"
+				m_strValue = "13"
 				m_strCSSClass = "tech_damage"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_damage"
-					m_flStatScale = 0.135
+					m_flStatScale = 0.15
 					_my_subclass_name = "mindpssf"
 				}
 				m_bIsAbilityDamageProperty = true
@@ -153564,6 +153599,13 @@
 				m_strValue = "0"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_SLOW_PERCENT"
 				m_strCSSClass = "slow"
+			}
+			EnemyDashSlowPercent = 
+			{
+				m_strValue = "0"
+				m_strCSSClass = "slow"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_GROUND_DASH_REDUCTION_PERCENT"
+				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
 			IncomingDamagePercent = 
 			{
@@ -153603,10 +153645,10 @@
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_damage"
-					m_flStatScale = 0.6
+					m_flStatScale = 0.72
 					_my_subclass_name = "maxdpssf"
 				}
-				m_strValue = "48"
+				m_strValue = "58"
 				m_strCSSClass = "tech_damage"
 				m_bIsAbilityDamageProperty = true
 			}
@@ -153664,7 +153706,11 @@
 				[
 					{
 						m_strPropertyName = "SlowPercent"
-						m_strBonus = "30"
+						m_strBonus = "25"
+					},
+					{
+						m_strPropertyName = "EnemyDashSlowPercent"
+						m_strBonus = "-25"
 					},
 					{
 						m_strPropertyName = "DebuffDuration"
@@ -153681,7 +153727,7 @@
 					},
 					{
 						m_strPropertyName = "MaxDPS"
-						m_strBonus = 23.0
+						m_strBonus = 28.0
 					},
 				]
 			},
@@ -153777,6 +153823,7 @@
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
 					"SlowPercent",
+					"EnemyDashSlowPercent",
 					"OutgoingDamagePercent",
 					"IncomingDamagePercent",
 				]
@@ -154037,12 +154084,24 @@
 			}
 			SlowPercent = 
 			{
-				m_strValue = "80"
+				m_strValue = "120"
 				m_strCSSClass = "slow"
+			}
+			EnemyDashSlowPercent = 
+			{
+				m_strValue = "-30"
+				m_strCSSClass = "slow"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_GROUND_DASH_REDUCTION_PERCENT"
+				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
 			SlowDuration = 
 			{
 				m_strValue = "3"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_tech_duration"
+					_my_subclass_name = "slowduration"
+				}
 			}
 			CombatBarrier = 
 			{
@@ -154224,6 +154283,8 @@
 						"TechResist",
 						"BonusDamagePerBullet",
 						"BonusFireRate",
+						"SlowPercent",
+						"SlowDuration",
 					]
 				},
 			]
@@ -154288,8 +154349,19 @@
 		{
 			_class = "modifier_diminishing_slow"
 			m_bIsHidden = false
-			m_strParticleEffect = resource_name:"particles/abilities/frank/frank_painaura_aura_debuff.vpcf"
+			m_strParticleEffect = resource_name:"particles/abilities/frank/frank_revive_death_debuff.vpcf"
 			_my_subclass_name = "slow"
+		}
+		m_DashSlowModifier = subclass:
+		{
+			_class = "modifier_base"
+			_my_subclass_name = "dashslow"
+			m_sLocalizationName = "movement_slow"
+			m_bIsHidden = true
+			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
+			[
+				"EnemyDashSlowPercent",
+			]
 		}
 		m_nDeathMarkParticle = resource_name:"particles/abilities/frank/frank_revive_marker.vpcf"
 		m_strTripSound = soundevent:""
@@ -154592,7 +154664,7 @@
 		m_iUpdateTime = 0
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_SHOW_CAST_RANGE_AS_SAT_SPHERE_WHILE_CASTING"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_SHOW_CAST_RANGE_AS_SAT_SPHERE_WHILE_CASTING | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/frank/frank_pain_battery.psd"
 		m_strCastSound = soundevent:""
@@ -156134,7 +156206,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_GROUND"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_PASS_THROUGH_WORLD | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_FIRED_AS_BULLET | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_PASS_THROUGH_WORLD | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_FIRED_AS_BULLET | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/bookworm/bookworm_dragon.psd"
 		m_strCastSound = soundevent:"Bookworm.Conjure.Dragon.Cast"
 		m_vecAbilityUpgrades = 
@@ -156559,7 +156631,7 @@
 		m_iUpdateTime = 0
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_GROUND"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALWAYS_PREVIEW_RADIUS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_PASS_THROUGH_WORLD | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALWAYS_PREVIEW_RADIUS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_PASS_THROUGH_WORLD | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/bookworm/bookworm_blindinglight.psd"
 		m_strCastSound = soundevent:"Bookworm.AOEMagic.Cast"
@@ -157053,7 +157125,7 @@
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_FRIENDLY"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
 		m_flTargetingConeAngle = 45.0
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_PASS_THROUGH_WORLD | CITADEL_ABILITY_BEHAVIOR_ALLOW_SELF_CAST | CITADEL_ABILITY_BEHAVIOR_CANNOT_CANCEL_DURING_CHANNEL | CITADEL_ABILITY_BEHAVIOR_ALLOW_ALT_CAST | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_TRIGGER_CANCEL_MASH_PROTECTION_ON_CAST | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_PASS_THROUGH_WORLD | CITADEL_ABILITY_BEHAVIOR_ALLOW_SELF_CAST | CITADEL_ABILITY_BEHAVIOR_CANNOT_CANCEL_DURING_CHANNEL | CITADEL_ABILITY_BEHAVIOR_ALLOW_ALT_CAST | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_TRIGGER_CANCEL_MASH_PROTECTION_ON_CAST | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_projectileInfo = 
 		{
 			m_flGravityScale = 0.0
@@ -160223,7 +160295,7 @@
 		m_iUpdateTime = 0
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_ALLOW_SELF_CAST | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_PASS_THROUGH_WORLD"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_ALLOW_SELF_CAST | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_PASS_THROUGH_WORLD | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/doorman/doorman_luggagetrolley.psd"
 		m_strCastSound = soundevent:"Doorman.LuggageCart.Cast"
@@ -160324,7 +160396,7 @@
 		{
 			m_flSpeed = 1000.0
 			m_particle = resource_name:"particles/abilities/doorman/doorman_cart_projectile.vpcf"
-			m_flTriggerRadius = 76.0
+			m_flTriggerRadius = 68.4
 			m_customModel = resource_name:""
 			m_bHideWarningParticle = true
 			m_LoopingSound = soundevent:"Doorman.LuggageCart.Proj.Lp"
@@ -160569,6 +160641,7 @@
 		}
 		m_flQAngleSmoothRate = 3.0
 		m_CartHitAllySound = soundevent:"Doorman.LuggageCart.Hit.Ally"
+		m_flCartSpeedFast = 1000.0
 	}
 	ability_doorman_bomb = 
 	{
@@ -160814,7 +160887,7 @@
 		m_iUpdateTime = 0
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/doorman/doorman_bell.psd"
 		m_strCastSound = soundevent:"Doorman.CallBell.Cast"
@@ -163383,7 +163456,7 @@
 		m_skillshotMissParticle = resource_name:"particles/abilities/skillshot_default_miss_owner.vpcf"
 		m_flBossDamageScale = 1.0
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_COOLDOWN_ON_CHANNEL_END | CITADEL_ABILITY_BEHAVIOR_ALLOW_GUN_FIRE_AFTER_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_COOLDOWN_ON_CHANNEL_END | CITADEL_ABILITY_BEHAVIOR_ALLOW_GUN_FIRE_AFTER_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_vecAbilityUpgrades = 
 		[
@@ -164658,7 +164731,7 @@
 				[
 					{
 						m_strPropertyName = "DealMaxHealthDamagePct"
-						m_strBonus = 8
+						m_strBonus = 10
 					},
 					{
 						m_strPropertyName = "DealMaxHealthDamagePct"
@@ -165239,7 +165312,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityCooldownBetweenCharge"
-						m_strBonus = -2
+						m_strBonus = -3
 					},
 				]
 			},
@@ -167129,7 +167202,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_SHOW_CAST_RANGE_AS_SAT_SPHERE_WHILE_CASTING"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_SHOW_CAST_RANGE_AS_SAT_SPHERE_WHILE_CASTING | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_bShowTargetingPreviewWhileCasting = true
 		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
@@ -167529,7 +167602,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_SPHERE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/drifter/drifter_stalkersmark.psd"
 		m_strCastSound = soundevent:"Drifter.Stalkers.Mark.Cast"
@@ -173905,7 +173978,7 @@
 			}
 			BonusSoulsPct = 
 			{
-				m_strValue = "150"
+				m_strValue = "170"
 			}
 			BonusHealth = 
 			{
@@ -181613,7 +181686,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 30.0
+				m_strValue = 42.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -181762,14 +181835,14 @@
 			}
 			Damage = 
 			{
-				m_strValue = "100"
+				m_strValue = "75"
 				m_strCSSClass = "tech_damage"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "SpiritDamage_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 1.0
+					m_flStatScale = 0.7
 				}
 			}
 		}
@@ -184806,7 +184879,7 @@
 			}
 			BonusMoveSpeed = 
 			{
-				m_strValue = "-1m"
+				m_strValue = "-0.7m"
 				m_eDisplayType = "EMaxMoveSpeed"
 				m_strCSSClass = "move_speed"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_MAX"
@@ -187577,7 +187650,7 @@
 			}
 			DotHealthPercent = 
 			{
-				m_strValue = "2.0"
+				m_strValue = "1.7"
 				m_strCSSClass = "tech_damage"
 				m_subclassScaleFunction = subclass:
 				{
@@ -187599,7 +187672,7 @@
 			}
 			BuildUpPerShot = 
 			{
-				m_strValue = "1.1638"
+				m_strValue = "1.28"
 				m_eDisplayType = "EBuildUpRate"
 				m_subclassScaleFunction = subclass:
 				{
@@ -187619,14 +187692,14 @@
 			}
 			HealAmpReceivePenaltyPercent = 
 			{
-				m_strValue = "-30"
+				m_strValue = "-35"
 				m_strCSSClass = "damage"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEAL_AMP_RECEIVE_PERCENT"
 				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
 			HealAmpRegenPenaltyPercent = 
 			{
-				m_strValue = "-30"
+				m_strValue = "-35"
 				m_strCSSClass = "damage"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEAL_AMP_REGEN_PERCENT"
 				m_eStatsUsageFlags = "ConditionallyApplied"
@@ -197108,7 +197181,7 @@
 			}
 			DamageWindow = 
 			{
-				m_strValue = "3.5"
+				m_strValue = "4.0"
 				m_strCSSClass = "duration"
 			}
 			DamageThreshold = 
@@ -197140,11 +197213,11 @@
 			}
 			BarrierDuration = 
 			{
-				m_strValue = "7"
+				m_strValue = "8"
 			}
 			BonusMoveSpeed = 
 			{
-				m_strValue = "1.5m"
+				m_strValue = "1.75m"
 				m_eDisplayType = "EMaxMoveSpeed"
 				m_strCSSClass = "move_speed"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_MAX"
@@ -197439,11 +197512,11 @@
 			}
 			BarrierDuration = 
 			{
-				m_strValue = "7"
+				m_strValue = "8"
 			}
 			BonusMoveSpeed = 
 			{
-				m_strValue = "1.5m"
+				m_strValue = "1.75m"
 				m_eDisplayType = "EMaxMoveSpeed"
 				m_strCSSClass = "move_speed"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_MAX"
@@ -199205,7 +199278,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 25.0
+				m_strValue = 23.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -199330,7 +199403,7 @@
 			}
 			BulletDamageReflectedPct = 
 			{
-				m_strValue = "50"
+				m_strValue = "60"
 				m_strCSSClass = "bullet_damage"
 			}
 			SpiritDamageReflectedPct = 
@@ -209334,7 +209407,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "Damage_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.0055
+					m_flStatScale = 0.004
 				}
 			}
 			BonusHealth = 
@@ -211605,7 +211678,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 30.0
+				m_strValue = 35.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -232819,14 +232892,14 @@
 			}
 			BonusClipSizePercent = 
 			{
-				m_strValue = "90"
+				m_strValue = "100"
 				m_eDisplayType = "EClipSizeIncrease"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_AMMO_CLIP_SIZE_PERCENT"
 				m_eStatsUsageFlags = ""
 			}
 			BaseAttackDamagePercent = 
 			{
-				m_strValue = "12"
+				m_strValue = "14"
 				m_strCSSClass = "bullet_damage"
 				m_eDisplayUnits = "EDisplayUnit_Normal"
 				m_eDisplayType = "EBaseWeaponDamageIncrease"
@@ -235614,6 +235687,15 @@
 					},
 				]
 			},
+			{
+				m_eAbilitySectionType = "EArea_Passive"
+				m_vecSectionAttributes = 
+				[
+					{
+						m_strLocString = "#upgrade_ultimate_burst_upgrade"
+					},
+				]
+			},
 		]
 		m_AutoIntrinsicModifiers = 
 		[
@@ -235654,6 +235736,7 @@
 					m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 					m_sAmbientLoopingSound = soundevent:"Mods.Tech.LightningScroll.Timer.Lp"
 					m_strParticleEffect = resource_name:"particles/upgrades/lightning_scroll_warning.vpcf"
+					m_bDurationReducible = false
 				}
 				m_SlowModifier = subclass:
 				{
@@ -237348,7 +237431,7 @@
 			}
 			ProcChance = 
 			{
-				m_strValue = "50"
+				m_strValue = "55"
 			}
 			BaseAttackDamagePercent = 
 			{
@@ -237868,7 +237951,7 @@
 			}
 			BonusHealth = 
 			{
-				m_strValue = "100"
+				m_strValue = "130"
 				m_strCSSClass = "health"
 				m_eDisplayType = "EMaxHealth"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX"
@@ -239379,7 +239462,7 @@
 			ProcBaseAttackDamagePercentAltFire = 
 			{
 				m_strLocTokenOverride = "BaseAttackDamagePercentAltFire"
-				m_strValue = "35"
+				m_strValue = "40"
 				m_strCSSClass = "bullet_damage"
 				m_eDisplayUnits = "EDisplayUnit_Normal"
 				m_eDisplayType = "EBaseWeaponDamageIncrease"
@@ -239390,7 +239473,7 @@
 					_class = "scale_function_single_stat"
 					_my_subclass_name = "SecondaryDamage_scale_function"
 					m_eSpecificStatScaleType = "ELevelUpBoons"
-					m_flStatScale = 1
+					m_flStatScale = 1.3
 				}
 			}
 		}
@@ -244141,7 +244224,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "20"
+				m_strValue = "24"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -244573,7 +244656,7 @@
 			}
 			BonusBuffsPerGold = 
 			{
-				m_strValue = "150"
+				m_strValue = "100"
 			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -244675,7 +244758,7 @@
 					},
 					{
 						m_strPropertyName = "BonusBuffsPerGold"
-						m_strBonus = "-100"
+						m_strBonus = "-50"
 					},
 					{
 						m_strPropertyName = "OutgoingDamagePenaltyPercent"
@@ -250476,7 +250559,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "25"
+				m_strValue = "28"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -250638,7 +250721,7 @@
 			}
 			ImmobilizeDuration = 
 			{
-				m_strValue = "1.5"
+				m_strValue = "1.25"
 				m_strCSSClass = "duration"
 				m_subclassScaleFunction = subclass:
 				{
@@ -250740,7 +250823,7 @@
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_LINE"
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PREVENT_TRAINING_BOT_USAGE"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PREVENT_TRAINING_BOT_USAGE | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/priest/priest_trap.psd"
 		m_HudSharedStyle = resource_name:"panorama/styles/ability_hud_elements/abilities_priest.vcss"
@@ -250764,7 +250847,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-8"
+						m_strBonus = "-11"
 					},
 				]
 			},
@@ -250773,7 +250856,7 @@
 				[
 					{
 						m_strPropertyName = "ImmobilizeDuration"
-						m_strBonus = "0.75"
+						m_strBonus = "1.0"
 					},
 				]
 			},
@@ -252493,7 +252576,7 @@
 		m_iUpdateTime = 0
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/familiar/familiar_pillow.psd"
 		m_vecAbilityUpgrades = 
@@ -252762,7 +252845,7 @@
 			}
 			Radius = 
 			{
-				m_strValue = "17.0m"
+				m_strValue = "19.0m"
 				m_strCSSClass = "distance"
 				m_subclassScaleFunction = subclass:
 				{
@@ -253482,7 +253565,7 @@
 		m_skillshotMissParticle = resource_name:"particles/abilities/skillshot_default_miss_owner.vpcf"
 		m_flBossDamageScale = 1.0
 		m_iUpdateTime = 0
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SPRINT | CITADEL_ABILITY_BEHAVIOR_ALLOW_SELF_CAST | CITADEL_ABILITY_BEHAVIOR_DAMAGE_DOESNT_WAKE_FROM_SLEEP | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DO_NOT_ALLOW_SPAM_PROC"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SPRINT | CITADEL_ABILITY_BEHAVIOR_ALLOW_SELF_CAST | CITADEL_ABILITY_BEHAVIOR_DAMAGE_DOESNT_WAKE_FROM_SLEEP | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DO_NOT_ALLOW_SPAM_PROC | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
@@ -254136,7 +254219,7 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_FRIENDLY | CITADEL_UNIT_TARGET_TROOPER_FRIENDLY | CITADEL_UNIT_TARGET_NEUTRAL | CITADEL_UNIT_TARGET_BOSS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DONT_BREAK_INVISIBILITY | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CAN_CANCEL_DURING_CAST_DELAY | CITADEL_ABILITY_BEHAVIOR_CANNOT_CANCEL_DURING_CHANNEL | CITADEL_ABILITY_BEHAVIOR_COOLDOWN_ON_CHANNEL_END | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_MOVEMENT | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DO_NOT_ALLOW_SPAM_PROC"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DONT_BREAK_INVISIBILITY | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CANNOT_CANCEL_DURING_CHANNEL | CITADEL_ABILITY_BEHAVIOR_COOLDOWN_ON_CHANNEL_END | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_MOVEMENT | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DO_NOT_ALLOW_SPAM_PROC"
 		m_strAG2CastingAction = "attach_casting"
 		m_strAG2ChannelingAction = "attach_channeling"
 		m_strAG2CastCompletedAction = "attach_cast_complete"
@@ -260548,7 +260631,7 @@
 		m_iUpdateTime = 0
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_FIRED_AS_BULLET | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_PROJECTILE_FIRED_AS_BULLET | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_nAbilityTargetFlags = "CITADEL_UNIT_TARGET_FLAG_NO_INVIS"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/necro/necro_skull.psd"
@@ -261240,7 +261323,7 @@
 		m_iUpdateTime = 0
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_DEPLOYED_OBJECT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CANNOT_CANCEL_DURING_CHANNEL | CITADEL_ABILITY_BEHAVIOR_COOLDOWN_ON_CHANNEL_END | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_REFUND_FULL_COOLDOWN_ON_CHANNEL_INTERRUPT"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CANNOT_CANCEL_DURING_CHANNEL | CITADEL_ABILITY_BEHAVIOR_COOLDOWN_ON_CHANNEL_END | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_REFUND_FULL_COOLDOWN_ON_CHANNEL_INTERRUPT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/necro/necro_gravestone.psd"
 		m_strSubCastUICSSClass = "subcast_necro"
@@ -271170,7 +271253,7 @@
 			m_flDamageFalloffEndScale = 0.1
 			m_flDamageFalloffBias = 0.5
 			m_iBullets = 1
-			m_flCycleTime = 0.6
+			m_flCycleTime = 0.65
 			m_reloadDuration = 2.0
 			m_iClipSize = 8
 			m_iBurstShotCount = 1
@@ -271252,7 +271335,7 @@
 			m_strZoomOutSound = soundevent:"Yamato.Wpn.Zoom.Out"
 			m_flDamageForce = 50.0
 			m_bBulletShouldUseVerlet = true
-			m_flBulletDamage = 22
+			m_flBulletDamage = 18
 			m_strShootSound = soundevent:"Unicorn.Wpn.Fire"
 			m_flRecoilRecoveryDelayFactor = 0.8
 			m_AimingShootSpreadPenalty = [ 0.0, 0.5 ]
@@ -272125,15 +272208,22 @@
 			}
 			AbilityDuration = 
 			{
-				m_strValue = "12"
+				m_strValue = "8"
 				m_strDisableValue = "0"
 				m_strCSSClass = "duration"
 				m_bCanSetTokenOverride = true
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_single_stat"
+					_class = "scale_function_multi_stats"
 					_my_subclass_name = "AbilityDuration_scale_function"
-					m_eSpecificStatScaleType = "ETechDuration"
+					m_eSpecificStatScaleType = "ETechPower"
+					m_flStatScale = 0.05
+					m_vecScalingStats = 
+					[
+						"ETechPower",
+						"EChannelDuration",
+						"ETechDuration",
+					]
 				}
 			}
 			AbilityCastRange = 
@@ -272237,24 +272327,24 @@
 			}
 			FlareDamage = 
 			{
-				m_strValue = "50"
+				m_strValue = "40"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "radiant_flare_initial_damage_sf"
-					m_flStatScale = 0.35
+					m_flStatScale = 0.47
 				}
 				m_strCSSClass = "tech_damage"
 				m_bIsAbilityDamageProperty = true
 			}
 			Damage = 
 			{
-				m_strValue = "20"
+				m_strValue = "15"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "radiant_flare_damage_sf"
-					m_flStatScale = 0.28
+					m_flStatScale = 0.34
 				}
 				m_strCSSClass = "tech_damage"
 				m_bIsAbilityDamageProperty = true
@@ -272328,7 +272418,7 @@
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_SHOW_CAST_RANGE_AS_SAT_SPHERE_WHILE_CASTING | CITADEL_ABILITY_BEHAVIOR_USE_LAG_COMPENSATION_FOR_UNIT_TARGETING"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_SHOW_CAST_RANGE_AS_SAT_SPHERE_WHILE_CASTING | CITADEL_ABILITY_BEHAVIOR_USE_LAG_COMPENSATION_FOR_UNIT_TARGETING | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/unicorn/unicorn_flare.psd"
 		m_projectileInfo = 
 		{
@@ -272622,7 +272712,7 @@
 			}
 			CombatBarrier = 
 			{
-				m_strValue = "120"
+				m_strValue = "100"
 				m_strCSSClass = "bullet_armor_up"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BARRIER_HEALTH"
 				m_subclassScaleFunction = subclass:
@@ -272706,7 +272796,7 @@
 				[
 					{
 						m_strPropertyName = "CombatBarrier"
-						m_strBonus = "100"
+						m_strBonus = "80"
 					},
 					{
 						m_strPropertyName = "CombatBarrier"
@@ -273076,12 +273166,12 @@
 			}
 			Damage = 
 			{
-				m_strValue = "105"
+				m_strValue = "120"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "dazzling_orb_damage_sf"
-					m_flStatScale = 0.63
+					m_flStatScale = 0.73
 				}
 				m_strCSSClass = "tech_damage"
 				m_bIsAbilityDamageProperty = true
@@ -273797,7 +273887,7 @@
 					},
 					{
 						m_strPropertyName = "FireRatePerStack"
-						m_strBonus = "7"
+						m_strBonus = "9"
 					},
 				]
 			},

@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "caveman": {
+      "source": "JuliusBrussee/caveman",
+      "sourceType": "github",
+      "computedHash": "9b512c9575fe0c66dcd64c0097072b52437335b80bed5c3f2128c66e906f2eaa"
+    },
     "copywriting": {
       "source": "sickn33/antigravity-awesome-skills",
       "sourceType": "github",
