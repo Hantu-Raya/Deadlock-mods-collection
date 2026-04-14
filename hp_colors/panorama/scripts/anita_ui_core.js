@@ -57,7 +57,20 @@
     hp_pulse_enabled: "pe",
     hp_pulse_text_enabled: "pte",
     hp_pulse_text_scale: "pts",
-    hp_pulse_text_position: "ptp"
+    hp_pulse_text_position: "ptp",
+    hp_pulse_hide_bar: "phb",
+    hp_skip_buildings: "sb",
+    hp_pulse_threshold: "pt",
+    hp_friend_enabled: "fe",
+    hp_friend_pulse_enabled: "fpe",
+    hp_friend_pulse_bpm: "fpb",
+    hp_friend_pulse_intensity: "fpi",
+    hp_friend_pulse_threshold: "fpt",
+    hp_friend_color_low: "fcl",
+    hp_friend_color_mid: "fcm",
+    hp_friend_color_high: "fch",
+    hp_friend_pulse_color_enabled: "fpce",
+    hp_friend_pulse_color: "fpc"
   };
   const HP_PERSIST_ALIAS_TO_ID = (function () {
     var out = {};

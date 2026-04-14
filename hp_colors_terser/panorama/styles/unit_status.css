@@ -161,7 +161,7 @@
 }
 
 .enemy #unit_ult_ready_icon {
-	wash-color: #00FF00;
+	wash-color: TeamEnemyColor;
 }
 
 .friend #unit_ult_ready_icon {
@@ -205,7 +205,7 @@
 }
 
 .enemy #hp_counter {
-	wash-color: #00FF00;
+	wash-color: TeamEnemyColor;
 }
 
 .friend #hp_counter {
