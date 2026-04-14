@@ -23,7 +23,21 @@
     hp_pulse_enabled: true,
     hp_pulse_text_enabled: true,
     hp_pulse_text_scale: 120,
-    hp_pulse_text_position: "20,196"
+    hp_pulse_text_position: "20,196",
+    hp_pulse_hide_bar: false,
+    hp_skip_buildings: false,
+    hp_pulse_threshold: 25,
+    hp_counter_format: 0,
+    hp_friend_enabled: false,
+    hp_friend_pulse_enabled: false,
+    hp_friend_pulse_bpm: 75,
+    hp_friend_pulse_intensity: 1,
+    hp_friend_pulse_threshold: 25,
+    hp_friend_color_low: "#E16161",
+    hp_friend_color_mid: "#FF7B00",
+    hp_friend_color_high: "#00FF00",
+    hp_friend_pulse_color_enabled: false,
+    hp_friend_pulse_color: "#FF2222"
   };
   var cfg = {};
   var TEAM1_HIGH = "#FFC961";
@@ -32,11 +46,21 @@
   var LP = 'low_hp_pulsing';
   var PULSE_INTENSITY = ['pulse_subtle', '', 'pulse_intense'];
 
+  // ── Loop control ────────────────────────────────────────────────────────────
+  var gRunning = false;
+  var aRunning = false;
+
   // ── Pulse state ─────────────────────────────────────────────────────────────
   var pulse = 0;
   var lPD = null;
   var lPI = -1;
   var lTB = null;
+
+  // ── Ally state ───────────────────────────────────────────────────────────────
+  var rbA = null, cpA = null;
+  var lColA = null, lWA = -1, lPWA = -1, sfcA = 0;
+  var pulseA = 0, lPDA = null, lPIA = -1;
+  var aScanF2 = -1, aScanT2 = 0, aScanAt = 0;
 
   function removePulseIntensityClasses(panel) {
     if (!panel) return;
@@ -134,6 +158,12 @@
     clearPulsePanel(hc, true, oldCls);
     clearPulsePanel(ui, false, oldCls);
     removePulseIntensityClasses(hc);
+  }
+
+  function clearAllyPulse() {
+    var oldCls = lPIA >= 0 ? PULSE_INTENSITY[lPIA] : '';
+    pulseA = 0; lPDA = null; lPIA = -1; lColA = null;
+    clearPulsePanel(rbA, false, oldCls);
   }
 
   function coerceCfgValue(id, value) {
@@ -267,6 +297,8 @@
             return;
           }
           cfg[d.setting_id] = coerceCfgValue(d.setting_id, d.value); settingsDirty = true;
+          if (d.setting_id === "hp_enabled" && cfg.hp_enabled && !gRunning) { gRunning = true; $.Schedule(0.05, gL); }
+          if (d.setting_id === "hp_friend_enabled" && cfg.hp_friend_enabled && !aRunning) { aRunning = true; $.Schedule(0.05, aL); }
           if (pulse && (d.setting_id === "hp_pulse_bpm" || d.setting_id === "hp_pulse_intensity" || d.setting_id === "hp_pulse_text_enabled" || d.setting_id === "hp_pulse_text_scale")) {
             if (d.setting_id === "hp_pulse_bpm") { lPD = null; applyPulseDuration(); }
             if (d.setting_id === "hp_pulse_intensity") applyPulseIntensity();
@@ -427,7 +459,9 @@
         if (!t) { if (c.BHasClass('team2')) t = 2; else if (c.BHasClass('team1')) t = 1; }
         if (!(f & 1) && c.BHasClass('enemy')) f |= 1;
         if (!(f & 2) && (c.BHasClass('team_neutral') || c.BHasClass('neutral'))) f |= 2;
-        if (t && (f & 3)) break;
+        if (!(f & 4) && (c.BHasClass('building') || c.BHasClass('boss_tier1') || c.BHasClass('boss_tier2') || c.BHasClass('boss_barracks'))) f |= 4;
+        if (!(f & 8) && c.BHasClass('friend')) f |= 8;
+        if (t && (f & (1|2|4|8))) break;
       }
       if (!c.GetParent) break;
       c = c.GetParent(); d++;
@@ -643,7 +677,14 @@
   function uHT(cu, mx, lowMode) {
     if (!hc || (cu === lSH && mx === lSM)) return;
     if (lVis !== 'visible') { hc.style.visibility = 'visible'; lVis = 'visible'; }
-    var s = cu + ' / ' + mx;
+    var fmt = cfg.hp_counter_format | 0;
+    var s;
+    if (fmt === 1) {
+      var pct = mx > 0 ? Math.round(cu / mx * 100) : 0;
+      s = pct + '%';
+    } else {
+      s = cu + ' / ' + mx;
+    }
     try { if (hc.text !== s) hc.text = s; } catch (e) { try { hc.SetAttributeString('text', s); } catch (e2) {} }
     lCounterText = s;
     lCounterLowMode = !!lowMode;
@@ -656,8 +697,8 @@
 
   // â”€â”€ Main poll loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function gL() {
+    gRunning = true;
     try {
-      
       if (!cfg.hp_enabled) { clearPulse();
         sBC("");
         sUC("");
@@ -673,7 +714,7 @@
           lHpMarginLeft = null;
           lHpHeight = null;
         }
-        $.Schedule(1.0, gL); return;
+        gRunning = false; return;
       }
 
       var now = Date.now();
@@ -683,6 +724,7 @@
       if (rb.GetParent) { var p = rb.GetParent(); if (cp !== p) cp = p; }
 
       scan(rb); lAT = now;
+      if (cfg.hp_skip_buildings && (fl & 4)) { $.Schedule(0.5, gL); return; }
       var isEnemy = !!(fl & 1) && !(fl & 2);
       if (settingsDirty) applyCurrentSettings(isEnemy);
       else sHBV(isEnemy && !!cfg.hp_bg_visible);
@@ -696,13 +738,7 @@
         $.Schedule(1.5, gL); return;
       }
       // Not an enemy â€” skip coloring
-      if (!(fl & 1)) { sHBV(true);
-        sBC("");
-        sUC("");
-        lUT = now;
-        $.Schedule(0.4, gL);
-        return;
-      }
+      if (!(fl & 1)) { sHBV(true); sBC(""); sUC(""); lUT = now; $.Schedule(0.4, gL); return; }
 
       var w = rb.actuallayoutwidth | 0;
       var pw = cp && cp.actuallayoutwidth !== undefined ? cp.actuallayoutwidth | 0 : 0;
@@ -742,6 +778,7 @@
 
       var sc = 0.15, cl, textCol;
 
+      var pulseThresh = cfg.hp_pulse_threshold | 0;
       if (hp <= low) {
         if (panelBornAt && (now - panelBornAt) < 900 && (prevHp < 0 || (prevHp <= low && hp > prevHp))) {
           var warmupCol = getHighColor();
@@ -749,7 +786,7 @@
           sBC(warmupCol); sUC(warmupCol); sTC(getTextColor(100, low, high));
           $.Schedule(0.05, gL); return;
         }
-        sHBV(!!cfg.hp_bg_visible);
+        sHBV(cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible);
         if (cfg.hp_mode === 1) {
           cl = cfg.hp_color_low;
           textCol = cfg.hp_text_color_mode ? cfg.hp_text_color_low : cfg.hp_color_low;
@@ -758,7 +795,7 @@
           textCol = getTextColor(hp, low, high);
         }
         // Start or maintain pulse brightness animation
-        if (cfg.hp_pulse_enabled) {
+        if (cfg.hp_pulse_enabled && hp <= pulseThresh) {
           if (!pulse) startPulse();
           updatePulseTextBrightness(now);
           if (cfg.hp_pulse_text_enabled) sc = 0.05;
@@ -828,7 +865,118 @@
 
   function lL() { uLT(); $.Schedule(0.5, lL); }
 
-  gL();
+  // ── Ally bar loop ────────────────────────────────────────────────────────────
+  function aL() {
+    aRunning = true;
+    try {
+      if (!cfg.hp_friend_enabled) {
+        clearAllyPulse();
+        if (rbA) { try { rbA.style.washColor = ''; } catch (e) {} }
+        lColA = null; aRunning = false; return;
+      }
+
+      var now = Date.now();
+      if (!rbA || !rbA.IsValid()) {
+        rbA = null; cpA = null; aScanF2 = -1; aScanAt = 0;
+        rbA = fRB();
+        if (!rbA) { $.Schedule(0.2, aL); return; }
+      }
+      if (rbA.GetParent) { var pa = rbA.GetParent(); if (cpA !== pa) cpA = pa; }
+
+      // Scan with 2000ms cache — friend/player class hierarchy is stable
+      var f2, t2;
+      if (aScanF2 < 0 || (now - aScanAt) >= 2000) {
+        t2 = 0; f2 = 0; var d2 = 0, c2 = rbA;
+        while (c2 && d2 < 10) {
+          if (c2.BHasClass) {
+            if (!t2) { if (c2.BHasClass('team2')) t2 = 2; else if (c2.BHasClass('team1')) t2 = 1; }
+            if (!(f2 & 1) && c2.BHasClass('friend')) f2 |= 1;
+            if (!(f2 & 2) && c2.BHasClass('player')) f2 |= 2;
+            if (t2 && (f2 & 3)) break;
+          }
+          if (!c2.GetParent) break;
+          c2 = c2.GetParent(); d2++;
+        }
+        aScanF2 = f2; aScanT2 = t2; aScanAt = now;
+      } else {
+        f2 = aScanF2; t2 = aScanT2;
+      }
+
+      if (!(f2 & 1) || !(f2 & 2)) {
+        clearAllyPulse();
+        if (rbA) { try { rbA.style.washColor = ''; } catch (e) {} }
+        lColA = null; sfcA = 0;
+        $.Schedule(1.5, aL); return;
+      }
+
+      var aw = rbA.actuallayoutwidth | 0;
+      var apw = cpA && cpA.actuallayoutwidth !== undefined ? cpA.actuallayoutwidth | 0 : 0;
+      if (apw <= 0) { $.Schedule(0.2, aL); return; }
+
+      if (aw === lWA && apw === lPWA && !pulseA) {
+        sfcA++;
+        var scIdle = Math.min(0.35 * Math.pow(2, Math.floor(sfcA / 3)), 2.0);
+        $.Schedule(scIdle, aL); return;
+      }
+      sfcA = 0; lWA = aw; lPWA = apw;
+
+      var ahp = (aw / apw * 100) | 0;
+      var alow = cfg.hp_low_threshold | 0;
+      var ahigh = cfg.hp_high_threshold | 0;
+      if (alow < 0) alow = 0; if (alow > 100) alow = 100;
+      if (ahigh < 0) ahigh = 0; if (ahigh > 100) ahigh = 100;
+      if (ahigh < alow) ahigh = alow;
+
+      var apulseThresh = cfg.hp_friend_pulse_threshold | 0;
+      var inPulse = cfg.hp_friend_pulse_enabled && ahp <= apulseThresh;
+
+      // Use pulse color override when active, otherwise gradient/fixed
+      var acl;
+      if (inPulse && cfg.hp_friend_pulse_color_enabled) {
+        acl = cfg.hp_friend_pulse_color;
+      } else if (cfg.hp_mode === 1) {
+        if (ahp <= alow) acl = cfg.hp_friend_color_low;
+        else if (ahp <= ahigh) acl = rgbToHex(ip(hexToRgb(cfg.hp_friend_color_low), hexToRgb(cfg.hp_friend_color_mid), (ahp - alow) / Math.max(1, ahigh - alow)));
+        else acl = rgbToHex(ip(hexToRgb(cfg.hp_friend_color_mid), hexToRgb(cfg.hp_friend_color_high), (ahp - ahigh) / Math.max(1, 100 - ahigh)));
+      } else {
+        if (ahp <= alow) acl = cfg.hp_friend_color_low;
+        else if (ahp <= ahigh) acl = cfg.hp_friend_color_mid;
+        else acl = cfg.hp_friend_color_high;
+      }
+      var nextColA = normalizeWashColor(acl);
+      if (lColA !== nextColA && rbA) {
+        try { rbA.style.washColor = nextColA; lColA = nextColA; } catch (e) { lColA = null; }
+      }
+
+      var sc = 0.35;
+      if (inPulse) {
+        if (!pulseA) {
+          pulseA = 1; lPDA = null; lPIA = -1; lColA = null;
+          try { if (rbA) rbA.AddClass(LP); } catch (e) {}
+          var aidx = Number(cfg.hp_friend_pulse_intensity) | 0;
+          if (aidx < 0 || aidx > 2) aidx = 1;
+          lPIA = aidx;
+          var acls = PULSE_INTENSITY[aidx];
+          if (acls) { try { rbA.AddClass(acls); } catch (e) {} }
+          var abpm = Number(cfg.hp_friend_pulse_bpm) || 75;
+          if (abpm < 30) abpm = 30; if (abpm > 300) abpm = 300;
+          var adur = (60 / abpm).toFixed(3) + 's';
+          lPDA = adur;
+          try { if (rbA) rbA.style.animationDuration = adur; } catch (e) {}
+        }
+        sc = 0.15;
+      } else {
+        if (pulseA) { clearAllyPulse(); lColA = null; }
+      }
+
+      $.Schedule(sc, aL);
+    } catch (e) {
+      $.Schedule(0.5, aL);
+    }
+  }
+
+  gRunning = true; gL();
+  aRunning = true; aL();
   lL();
   $.Schedule(0.05, scheduleBootstrapRetry);
 })();
