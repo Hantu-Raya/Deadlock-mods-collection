@@ -21,18 +21,22 @@ Audience: coding agents operating in this repository.
 - For broad repo orientation, prefer the context-mode MCP tools (`ctx_batch_execute`, `ctx_search`, `ctx_execute_file`) over dumping large files into context.
 - Use subagents only when the user explicitly asks for parallel/subagent work. Keep delegated scans read-only unless the user asks for edits.
 - Treat `.agents/system-prompts/` as a local prompt/reference corpus. Search it before modifying it, and do not install prompt-engineering skills from search results without user approval.
+- For `/init`-style instruction updates, use `.agents/system-prompts/skill-init-claudemd-and-skill-setup-new-version.md`: inspect existing `AGENTS.md`/`CLAUDE.md`, make targeted diffs, and keep `CLAUDE.md` concise.
+- When the user asks to find, install, or evaluate skills, use `.agents/skills/find-skills/SKILL.md`. Verify skill quality before recommending installs; do not install new skills without user approval.
 - Before editing any module, check that module's local `AGENTS.md` if present.
 - Preserve dirty worktree changes that you did not make.
 
 ## Agentmemory
 - To update agentmemory, prefer the `memory_save` MCP tool for durable facts/architecture/workflow memory and `memory_lesson_save` for lessons.
 - If those tools are not exposed directly, use the local agentmemory REST MCP bridge:
-  `POST http://127.0.0.1:3113/agentmemory/mcp/call`
+  `POST http://127.0.0.1:3111/agentmemory/mcp/call`
   with JSON shaped like `{"name":"memory_save","arguments":{...}}` or
   `{"name":"memory_lesson_save","arguments":{...}}`.
 - Verify saves with `memory_recall` when available, or by reading
-  `GET http://127.0.0.1:3113/agentmemory/memories?latest=true`.
-- Use `POST http://127.0.0.1:3113/agentmemory/graph/extract` only as an optional graph-seeding step after the memory save succeeds; do not treat graph extraction as the source of truth.
+  `GET http://127.0.0.1:3111/agentmemory/memories?latest=true`.
+- The local viewer runs at `http://localhost:3113`; desktop shortcuts start/stop the server via `C:\Users\Administrator\.agentmemory\Start-Agentmemory.ps1` and `C:\Users\Administrator\.agentmemory\Stop-Agentmemory.ps1`.
+- Codex uses `C:\Users\Administrator\.agentmemory\codex-agentmemory-mcp-proxy.mjs` as a stdio proxy to the `3111` HTTP bridge. If MCP tools disappear after package updates, check that proxy and `C:\Users\Administrator\.codex\config.toml`.
+- Use `POST http://127.0.0.1:3111/agentmemory/graph/extract` only as an optional graph-seeding step after the memory save succeeds; do not treat graph extraction as the source of truth.
 
 ## Repository Layout
 ```text

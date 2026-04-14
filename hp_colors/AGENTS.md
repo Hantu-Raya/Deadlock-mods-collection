@@ -69,8 +69,15 @@ Persisted schema keys:
 - `hp_text_color_low`
 - `hp_text_color_mid`
 - `hp_text_color_high`
+- `hp_pulse_bpm` (30–300, default 75 — pulse animation speed in BPM)
+- `hp_pulse_intensity` (0=Subtle, 1=Medium, 2=Intense, default 1 — CSS keyframe preset)
+- `hp_pulse_enabled` (bool, default true — toggle pulse animation on/off)
+- `hp_pulse_bg_mode` (0=Follow behavior, 1=Show while low, 2=Hide while low, default 0)
+- `hp_pulse_text_enabled` (bool, default true — toggle HP counter text pulse)
+- `hp_pulse_text_scale` (100–200, default 108 — pulse text scale %)
 
 `hp_npc_poll_slow` was removed — polling is now automatic and adaptive.
+`darkOf` was removed — low-HP pulsing is now CSS keyframe-driven with `hp_pulse_bpm` and `hp_pulse_intensity` control.
 
 If you add/remove a persisted setting, update all schema/default/alias maps
 together in:
@@ -79,7 +86,7 @@ together in:
 - `healthbar_logic.js`
 - `hp_registrar.js`
 
-Also bump the registrar `storageVersion` when compatibility requires it (currently 7).
+Also bump the registrar `storageVersion` when compatibility requires it (currently 10).
 
 ## Persistence Model
 - Storage namespace: `hp_colors`
@@ -159,9 +166,16 @@ Below is the full mapping so you know what each name actually does.
 ### Pulse & Gradient
 | Short | Full | Purpose |
 |-------|------|---------|
-| `pulse` | `isPulsing` | Whether CSS pulse classes are active |
-| `gp` | `gradientPhase` | Current gradient pulse phase (0–1) |
-| `gq` | `gradientDirection` | Gradient pulse direction (+1 or -1) |
+| `pulse` | `isPulsing` | Whether CSS keyframe pulse is active |
+| `lPD` | `lastPulseDuration` | Last written animation-duration string (cache skip) |
+| `lPI` | `lastPulseIntensity` | Last written animation-name index (cache skip) |
+| `PULSE_INTENSITY` | `PULSE_ANIMATIONS` | Keyframe name array: [subtle, medium, intense] - used for pulse intensity class names |
+| `lTS` | `lastPulseTextScale` | Last written preTransformScale2d string for pulse text (cache skip) |
+| `applyPulseAnim()` | — | Apply animation-duration and animation-name to pulse panels |
+| `applyPulseTextState()` | — | Apply/remove pulse text classes and preTransformScale2d based on cfg.hp_pulse_text_enabled |
+| `setPulseTextScale(enabled)` | — | Set preTransformScale2d on counter for pulse text expansion |
+| `startPulse()` | — | Add pulse class, apply animation, start pulse |
+| `clearPulse()` | — | Remove class, clear animation props, reset brightness |
 
 ### Counter Helpers
 | Short | Full | Purpose |
@@ -202,7 +216,6 @@ Below is the full mapping so you know what each name actually does.
 | `gL()` | `gameLoop()` | Main poll loop (scheduled recurrently) |
 | `lL()` | `levelLoop()` | Level tier poll loop (scheduled recurrently) |
 | `ip(c1,c2,t)` | `interpolateColor(c1,c2,t)` | Linear RGB interpolation between two colors |
-| `darkOf(c)` | — | Create dark variant (0.37r, 0.29g, 0.29b) for pulse |
 | `getHighColor()` | — | Get high HP color (respects team colors setting) |
 | `getTextColor(hp,low,high)` | — | Get fixed text color based on HP zone |
 | `getGradientTextColor(hp,low,high)` | — | Get interpolated text color (respects hp_text_color_mode) |
@@ -212,7 +225,8 @@ Below is the full mapping so you know what each name actually does.
 - Enemy = `enemy` class and not neutral.
 - Neutral units are intentionally colored green (`#5BEFB5`).
 - Polling is automatic and adaptive: fast for heroes, backs off for stable HP.
-- Low HP and gradient mode use faster updates (0.04s); stable high HP backs off.
+- Low HP uses CSS keyframe pulse animation; polling follows normal 0.15s cadence. No JS timer needed for pulse — GPU handles it.
+- Pulse text uses inline `preTransformScale2d` (not CSS font-size/margin changes) to avoid layout shift during pulse animation.
 - BG visibility always uses `visibility: visible` with opacity toggle (0.01/1.0)
   to prevent HP bar width updates from stalling. Never use `visibility: collapse`.
 

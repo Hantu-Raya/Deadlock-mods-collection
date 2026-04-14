@@ -53,6 +53,7 @@
 	horizontal-align: center;
 	vertical-align: bottom;
 	flow-children: right;
+	overflow: noclip;
 	visibility: visible;
 }
 
@@ -160,7 +161,7 @@
 }
 
 .enemy #unit_ult_ready_icon {
-	wash-color: TeamEnemyColor;
+	wash-color: #00FF00;
 }
 
 .friend #unit_ult_ready_icon {
@@ -183,7 +184,7 @@
 	horizontal-align: center;
 	vertical-align: middle;
 	margin-top: -200%;
-	z-index: 10;
+	z-index: 1000;
 	visibility: collapse;
 }
 
@@ -204,7 +205,7 @@
 }
 
 .enemy #hp_counter {
-	wash-color: TeamEnemyColor;
+	wash-color: #00FF00;
 }
 
 .friend #hp_counter {
@@ -360,6 +361,7 @@
 	margin-left: -90px;
 	margin-right: 180px;
 	vertical-align: middle;
+	overflow: noclip;
 }
 
 .boss_tier1 #UnitHealthbarContainer,
@@ -420,7 +422,7 @@
 	background-image: url("s2r://panorama/images/hud/world_space/hero_healthbar_fill_center_psd.vtex");
 	background-size: 1024px 128px;
 	z-index: 3;
-	wash-color: red;
+	wash-color: #00FF00;
 	box-shadow: inset DropshadowColor 4px 8px 5px 8px;
 }
 
@@ -437,7 +439,7 @@
 }
 
 .enemy #unit_healthbar_lagging {
-	wash-color: TeamEnemyColor;
+	wash-color: #00FF00;
 }
 
 .friend #unit_healthbar_lagging {
@@ -742,40 +744,52 @@
 
 }
 
-/* Low HP pulse animation for health bar - CSS-driven for GPU acceleration */
-.low_hp_bar_pulse {
-	animation-name: low_hp_pulse_anim;
-	animation-duration: 0.8s;
+/* Low HP pulse — CSS keyframes for smooth GPU-driven oscillation.
+   Base class sets common animation properties.
+   Intensity subclasses select the keyframe animation-name.
+   animation-duration set inline from hp_pulse_bpm setting. */
+.low_hp_pulsing {
+	animation-name: low_hp_pulse_medium;
 	animation-iteration-count: infinite;
 	animation-timing-function: ease-in-out;
 	animation-direction: alternate;
+	animation-duration: 0.8s;
 }
 
-/* HP counter gets larger font and adjusted position when low HP */
-#hp_counter.low_hp_text_large {
-	font-size: 135px;
-	margin-top: -210%;
-}
+.low_hp_pulsing.pulse_subtle { animation-name: low_hp_pulse_subtle; }
+.low_hp_pulsing.pulse_intense { animation-name: low_hp_pulse_intense; }
 
-@keyframes 'low_hp_pulse_anim'
-
-	{
+@keyframes 'low_hp_pulse_subtle'
+{
 	0% {
-		brightness: 1.2;
-	}
-
-	50% {
-		brightness: 0.9;
+		brightness: 1.15;
 	}
 
 	100% {
-		brightness: 0.7;
+		brightness: 0.85;
 	}
 }
 
-/* Ult icon static style when low HP - no animation, no brightness change */
-.low_hp_ult_static {
-	animation: none;
+@keyframes 'low_hp_pulse_medium'
+{
+	0% {
+		brightness: 1.5;
+	}
+
+	100% {
+		brightness: 0.5;
+	}
+}
+
+@keyframes 'low_hp_pulse_intense'
+{
+	0% {
+		brightness: 2.0;
+	}
+
+	100% {
+		brightness: 0.25;
+	}
 }
 
 
@@ -825,7 +839,7 @@
 }
 
 .enemy .hp_counter {
-	wash-color: TeamEnemyColor;
+	wash-color: #00FF00;
 }
 
 .friend .hp_counter {

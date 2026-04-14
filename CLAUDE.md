@@ -108,6 +108,8 @@ Pack all three variants with `build_abilities_paks.ps1` for staged VPKs and date
 - `abilities/AGENTS.md` — VData-specific constraints
 - `buff_timer_virgin/AGENTS.md` — advanced performance patterns
 - `sr2compiler/AGENTS.md` — legacy compiler behavior
+- `.agents/system-prompts/skill-init-claudemd-and-skill-setup-new-version.md` — `/init` flow for targeted CLAUDE/skill setup updates
+- `.agents/skills/find-skills/SKILL.md` — skill discovery workflow; verify quality before recommending installs
 
 ## Agentmemory
 When durable repo facts, architecture notes, workflow lessons, or debugging lessons should be saved, use agentmemory.
@@ -119,17 +121,19 @@ Preferred tools, when exposed directly:
 
 If those MCP tools are not exposed directly, use the local REST MCP bridge:
 ```powershell
-Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3113/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_save","arguments":{"type":"architecture","concepts":"concept one, concept two","files":"path/file.ext","content":"Memory content to save."}}'
-Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3113/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_lesson_save","arguments":{"project":"F:\\Users\\FoxOS_User\\Desktop\\Deadlock-mods-collection","tags":"tag one, tag two","confidence":0.9,"context":"When this lesson applies","content":"Lesson content to save."}}'
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3111/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_save","arguments":{"type":"architecture","concepts":"concept one, concept two","files":"path/file.ext","content":"Memory content to save."}}'
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3111/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_lesson_save","arguments":{"project":"F:\\Users\\FoxOS_User\\Desktop\\Deadlock-mods-collection","tags":"tag one, tag two","confidence":0.9,"context":"When this lesson applies","content":"Lesson content to save."}}'
 ```
 
 Verify bridge saves with:
 ```powershell
-Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3113/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_recall","arguments":{"query":"search terms","limit":10}}'
-Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:3113/agentmemory/memories?latest=true"
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3111/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_recall","arguments":{"query":"search terms","limit":10}}'
+Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:3111/agentmemory/memories?latest=true"
 ```
 
-Optional graph seeding uses `POST http://127.0.0.1:3113/agentmemory/graph/extract` after the memory save succeeds. Pass an `observations` array; graph stats are available at `GET http://127.0.0.1:3113/agentmemory/graph/stats`.
+Optional graph seeding uses `POST http://127.0.0.1:3111/agentmemory/graph/extract` after the memory save succeeds. Pass an `observations` array; graph stats are available at `GET http://127.0.0.1:3111/agentmemory/graph/stats`.
+
+Viewer: `http://localhost:3113`. Desktop shortcuts call `C:\Users\Administrator\.agentmemory\Start-Agentmemory.ps1` and `C:\Users\Administrator\.agentmemory\Stop-Agentmemory.ps1`. Codex MCP uses `C:\Users\Administrator\.agentmemory\codex-agentmemory-mcp-proxy.mjs` to reach the `3111` bridge.
 
 ## context-mode
 This repo uses context-mode MCP. Use `ctx_batch_execute` for any analysis that would produce >20 lines of output. Use `ctx_search` for follow-up queries. Never pipe large outputs into context directly.

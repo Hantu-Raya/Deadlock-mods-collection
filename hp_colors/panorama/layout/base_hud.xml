@@ -7,6 +7,7 @@
 	</styles>
 	<scripts>
 		<include src="s2r://panorama/scripts/anita_ui_core.vjs_c" />
+		<include src="s2r://panorama/scripts/anita_persist_loader.vjs_c" />
 		<include src="s2r://panorama/scripts/hp_registrar.vjs_c" />
 	</scripts>
 	<Panel class="WindowRoot" hittest="false" disallowedstyleflags="hover,descendantfocus">
