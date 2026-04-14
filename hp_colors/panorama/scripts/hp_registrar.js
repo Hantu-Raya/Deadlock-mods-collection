@@ -22,6 +22,12 @@
     { type: "toggle", id: "hp_bg_visible", label: "Healthbar bg visible", defaultValue: true, category: "Behavior" },
     { type: "toggle", id: "hp_team_colors", label: "Team colors (high HP)", defaultValue: false, category: "Behavior" },
     // NPC poll slow removed - using optimized polling instead
+    { type: "toggle", id: "hp_pulse_enabled", label: "Pulse effect", defaultValue: true, category: "Pulse" },
+    { type: "slider", id: "hp_pulse_bpm", label: "Pulse speed (BPM)", defaultValue: 75, min: 30, max: 300, step: 1, category: "Pulse", visibleWhen: { id: "hp_pulse_enabled", equals: true } },
+    { type: "cycler", id: "hp_pulse_intensity", label: "Pulse intensity", options: ["Subtle", "Medium", "Intense"], defaultValue: 1, category: "Pulse", visibleWhen: { id: "hp_pulse_enabled", equals: true } },
+    { type: "toggle", id: "hp_pulse_text_enabled", label: "Pulse HP text", defaultValue: true, category: "Pulse", visibleWhen: { id: "hp_pulse_enabled", equals: true } },
+    { type: "slider", id: "hp_pulse_text_scale", label: "Pulse text size (px)", defaultValue: 120, min: 72, max: 320, step: 1, category: "Pulse", visibleWhen: { id: "hp_pulse_text_enabled", equals: true } },
+    { type: "positionpicker", id: "hp_pulse_text_position", label: "Pulse text position", defaultValue: "20,196", category: "Pulse", visibleWhen: { id: "hp_pulse_text_enabled", equals: true } },
     { type: "colorpicker", id: "hp_color_low", label: "Low color", defaultValue: "#E16161", category: "Bar Colors" },
     { type: "colorpicker", id: "hp_color_mid", label: "Mid color", defaultValue: "#FF7B00", category: "Bar Colors" },
     { type: "colorpicker", id: "hp_color_high", label: "High color", defaultValue: "#00FF00", category: "Bar Colors" },
@@ -50,7 +56,7 @@
       title: TITLE,
       description: "Enemy healthbar coloring",
       storageNamespace: "hp_colors",
-      storageVersion: 7,
+      storageVersion: 12,
       elements: elements
     };
   }

@@ -51,7 +51,13 @@
     hp_text_color_mode: "tm",
     hp_text_color_low: "tl",
     hp_text_color_mid: "ti",
-    hp_text_color_high: "th"
+    hp_text_color_high: "th",
+    hp_pulse_bpm: "bp",
+    hp_pulse_intensity: "pi",
+    hp_pulse_enabled: "pe",
+    hp_pulse_text_enabled: "pte",
+    hp_pulse_text_scale: "pts",
+    hp_pulse_text_position: "ptp"
   };
   const HP_PERSIST_ALIAS_TO_ID = (function () {
     var out = {};

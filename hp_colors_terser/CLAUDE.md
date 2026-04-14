@@ -85,7 +85,12 @@ These are the keys in `DEFAULTS` inside `healthbar_logic.js`:
 | `hp_color_mid` | string | `"#FF7B00"` |
 | `hp_color_high` | string | `"#00FF00"` |
 | `hp_team_colors` | bool | `false` |
-| `hp_npc_poll_slow` | bool | `true` |
+| `hp_pulse_bpm` | int | `75` |
+| `hp_pulse_intensity` | int | `1` |
+| `hp_pulse_enabled` | bool | `true` |
+| `hp_pulse_bg_mode` | int | `0` |
+| `hp_pulse_text_enabled` | bool | `true` |
+| `hp_pulse_text_scale` | int | `108` |
 
 ## 5. PERSISTENCE STACK
 
@@ -94,7 +99,7 @@ Primary storage:
 - The namespace is `hp_colors`.
 - The storage key is `anita_v1_hp_colors`.
 - `anita_ui_core.js`, `anita_persist_loader.js`, and `healthbar_logic.js` all know that key.
-- `$.persistentStorage` is the primary durable store when available.
+- `$.persistentStorage` is deprecated/non-functional in Source 2 Panorama — convar-based persistence is the primary store.
 
 Convar fallback:
 
@@ -135,7 +140,6 @@ Payloads are stored as `{ v: <storageVersion>, c: 1, values: { <alias>: <value> 
 | `h` | `hp_high_threshold` |
 | `b` | `hp_bg_visible` |
 | `t` | `hp_team_colors` |
-| `np` | `hp_npc_poll_slow` |
 | `cl` | `hp_color_low` |
 | `cm` | `hp_color_mid` |
 | `ch` | `hp_color_high` |
@@ -145,10 +149,16 @@ Payloads are stored as `{ v: <storageVersion>, c: 1, values: { <alias>: <value> 
 | `tl` | `hp_text_color_low` |
 | `ti` | `hp_text_color_mid` |
 | `th` | `hp_text_color_high` |
+| `bp` | `hp_pulse_bpm` |
+| `pi` | `hp_pulse_intensity` |
+| `pe` | `hp_pulse_enabled` |
+| `pbm` | `hp_pulse_bg_mode` |
+| `pte` | `hp_pulse_text_enabled` |
+| `pts` | `hp_pulse_text_scale` |
 
 ## 7. storageVersion
 
-`hp_registrar.js` sets `storageVersion: 6` in `buildConfig()`. Bump this whenever the schema gains or removes a persisted key, and keep it in sync across all three alias maps.
+`hp_registrar.js` sets `storageVersion: 10` in `buildConfig()`. Bump this whenever the schema gains or removes a persisted key, and keep it in sync across all three alias maps.
 
 ## 8. POLLING CADENCE TIERS
 
@@ -161,17 +171,17 @@ Payloads are stored as `{ v: <storageVersion>, c: 1, values: { <alias>: <value> 
 | Panel cache not ready yet | `0.2` |
 | Neutral target (`fl & 2`) | `3.0` |
 | Non-enemy target (`!(fl & 1)`) | `1.5` |
-| **Building** (`fl & 16`, `hp_npc_poll_slow`) — width stable | `4.0` (flat) |
-| **Building** (`fl & 16`, `hp_npc_poll_slow`) — high-HP stable | `4.0` (flat) |
-| **Minion/Boss** (`!isHeroEnemy`, `hp_npc_poll_slow`) — width stable >800 ms | `2.5` |
+| **Building** (`fl & 16`) — width stable | `4.0` (flat) |
+| **Building** (`fl & 16`) — high-HP stable | `4.0` (flat) |
+| **Minion/Boss** (`!isHeroEnemy`) — width stable >800 ms | `2.5` |
 | **Hero** or minion/boss — width stable >1200 ms | `1.25` |
 | Width unchanged but within hot window | `0.2` |
 | Parent width `<= 0` | `0.25` |
 | HP change under `3` while above low threshold | `0.22` |
-| Low HP in gradient mode | `0.04` |
+| Low HP (any mode) — CSS keyframe pulse active | `0.15` (GPU-driven animation; no JS timer) |
 | Default active cadence | `0.15` |
 | **Hero** stable high-HP (`sFC >= 5`) | `min(0.15 × 2^⌊sFC/5⌋, 3.0)` |
-| **Minion/Boss** stable high-HP (`sFC >= 3`, `hp_npc_poll_slow`) | `min(0.30 × 2^⌊sFC/3⌋, 3.0)` |
+| **Minion/Boss** stable high-HP (`sFC >= 3`) | `min(0.30 × 2^⌊sFC/3⌋, 3.0)` |
 | Error recovery path | `0.5` |
 
 Other fixed loops in the same file:
@@ -218,10 +228,10 @@ Early-break rules: scan stops as soon as `team_neutral` (`fl & 2`) or `building`
 
 | File | Debug flags actually present |
 |---|---|
-| `healthbar_logic.js` | `DEV_LOG` |
+| `healthbar_logic.js` | `DEV_LOG` (set to `false` in production) |
 | `hp_registrar.js` | `DEBUG_LOG` (set to `false`; gates the `log()` helper) |
-| `anita_ui_core.js` | `CONFIG.DEBUG_MODE`, `CONFIG.PERSISTENCE_DEBUG`, `HP_DEBUG` |
-| `anita_persist_loader.js` | `PERSISTENCE_DEBUG` |
+| `anita_ui_core.js` | No debug flags in production build |
+| `anita_persist_loader.js` | No debug flags in production build |
 | `anita_ui.css` | None |
 | `unit_status.css` | None |
 | `base_hud.xml` | None |
