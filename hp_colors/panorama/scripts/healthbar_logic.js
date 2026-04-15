@@ -42,6 +42,7 @@
   var cfg = {};
   var TEAM1_HIGH = "#FFC961";
   var TEAM2_HIGH = "#6485FC";
+  var CSS_TEAM_ENEMY_COLOR = "#e16161";
   var WHITE_WASH = "#ffffff";
   var LP = 'low_hp_pulsing';
   var PULSE_INTENSITY = ['pulse_subtle', '', 'pulse_intense'];
@@ -139,7 +140,7 @@
     applyPulseDuration();
   }
 
-  function clearPulsePanel(panel, textClass, oldCls) {
+  function clearPulsePanel(panel, oldCls) {
     if (!panel) return;
     try {
       panel.RemoveClass(LP);
@@ -154,16 +155,15 @@
   function clearPulse() {
     var oldCls = lPI >= 0 ? PULSE_INTENSITY[lPI] : '';
     pulse = 0; lPD = null; lPI = -1; lTB = null; lCol = lUlt = lTxt = null;
-    clearPulsePanel(rb, false, oldCls);
-    clearPulsePanel(hc, true, oldCls);
-    clearPulsePanel(ui, false, oldCls);
-    removePulseIntensityClasses(hc);
+    clearPulsePanel(rb, oldCls);
+    clearPulsePanel(hc, oldCls);
+    clearPulsePanel(ui, oldCls);
   }
 
   function clearAllyPulse() {
     var oldCls = lPIA >= 0 ? PULSE_INTENSITY[lPIA] : '';
     pulseA = 0; lPDA = null; lPIA = -1; lColA = null;
-    clearPulsePanel(rbA, false, oldCls);
+    clearPulsePanel(rbA, oldCls);
   }
 
   function coerceCfgValue(id, value) {
@@ -724,8 +724,33 @@
       if (rb.GetParent) { var p = rb.GetParent(); if (cp !== p) cp = p; }
 
       scan(rb); lAT = now;
-      if (cfg.hp_skip_buildings && (fl & 4)) { $.Schedule(0.5, gL); return; }
       var isEnemy = !!(fl & 1) && !(fl & 2);
+      if (cfg.hp_skip_buildings && (fl & 4)) {
+        clearPulse();
+        if (!isEnemy) {
+          sBC("");
+          sUC("");
+          sTC("");
+          sHBV(true);
+          $.Schedule(0.5, gL);
+          return;
+        }
+
+        if (bg && bg.style) {
+          bg.style.visibility = 'collapse';
+          bg.style.opacity = '0';
+          lBgVis = 'collapse';
+          lBgOp = '0';
+        }
+
+        var skipColor = CSS_TEAM_ENEMY_COLOR;
+        sBC(skipColor);
+        sUC(skipColor);
+        sTC(skipColor);
+        sHBV(!!cfg.hp_bg_visible);
+        $.Schedule(0.5, gL);
+        return;
+      }
       if (settingsDirty) applyCurrentSettings(isEnemy);
       else sHBV(isEnemy && !!cfg.hp_bg_visible);
 
