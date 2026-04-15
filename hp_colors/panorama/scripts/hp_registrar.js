@@ -4,15 +4,9 @@
   var TITLE = "HP Colors";
   var REGISTER_RETRY_DELAY_SEC = 0.25;
   var REGISTER_MAX_ATTEMPTS = 24;
-  var DEBUG_LOG = false;
   var didRegister = false;
   var didRequestBootstrap = false;
   var registerAttempts = 0;
-
-  function log(message) {
-    if (!DEBUG_LOG) return;
-    $.Msg("[HP Registrar] " + message);
-  }
 
   var SCHEMA = [
     // General — shared behaviour for both enemy and ally coloring
@@ -89,8 +83,6 @@
 
   function tryDirectRegister(config) {
     var root = getRootPanel();
-    log("tryDirectRegister root=" + String((root && root.id) || "root") +
-      " hasAnitaUI=" + String(!!(root && root.AnitaUI)));
     if (!root || !root.AnitaUI) return false;
     if (typeof root.AnitaUI.IsReady === "function" && !root.AnitaUI.IsReady()) return false;
     if (typeof root.AnitaUI.Register !== "function") return false;
@@ -100,7 +92,6 @@
   }
 
   function dispatchRegister(config) {
-    log("dispatch register via event elements=" + String((config && config.elements && config.elements.length) || 0));
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
       magic_word: "ANITA_REGISTER",
       config: config
@@ -110,7 +101,6 @@
   function requestBootstrap(reason) {
     if (didRequestBootstrap) return;
     didRequestBootstrap = true;
-    log("request bootstrap reason=" + String(reason || "registrar_handshake"));
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
       magic_word: "ANITA_REQUEST_BOOTSTRAP",
       mod_title: TITLE,
@@ -124,27 +114,21 @@
 
     var config = buildConfig();
     var usedDirect = false;
-    log("register attempt=" + String(registerAttempts + 1));
-
     try {
       usedDirect = tryDirectRegister(config);
     } catch (e0) {
-      log("Direct register failed: " + e0);
     }
 
     if (!usedDirect) {
       try {
         dispatchRegister(config);
       } catch (e1) {
-        log("Event register failed: " + e1);
       }
     } else {
       didRegister = true;
-      log("direct register succeeded");
       try {
         dispatchRegister(config);
       } catch (e2) {
-        log("Bridge announce failed: " + e2);
       }
     }
   }
@@ -164,20 +148,16 @@
       var data = (typeof payload === "string") ? JSON.parse(payload) : payload;
       if (!data) return;
       if (data.magic_word === "ANITA_ALIVE") {
-        log("received ANITA_ALIVE");
         register();
       } else if (data.magic_word === "ANITA_HANDSHAKE" && data.mod_title === TITLE) {
         didRegister = true;
-        log("received handshake");
         requestBootstrap("registrar_handshake");
       }
     } catch (e) {
-      log("Error: " + e);
     }
   });
 
   $.Schedule(0.05, function () {
-    log("startup context=" + String(($.GetContextPanel() && $.GetContextPanel().id) || "panel"));
     register();
     queueRegisterRetry();
   });
