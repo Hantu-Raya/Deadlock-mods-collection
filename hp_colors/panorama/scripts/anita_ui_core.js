@@ -795,6 +795,11 @@
 
         if (config.id) emitUpdate(modTitle, config.id, isOn);
         if (config.onChange) config.onChange(isOn);
+
+        var ownerConfig = AnitaCore.findRegisteredMod(modTitle);
+        if (ownerConfig && AnitaRenderer.hasVisibilityDependents(ownerConfig, config.id)) {
+          AnitaCore.queueRenderRefresh(ownerConfig);
+        }
       });
 
       return row;
