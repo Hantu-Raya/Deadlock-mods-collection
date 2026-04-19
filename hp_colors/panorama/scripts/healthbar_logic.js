@@ -805,7 +805,8 @@
 
   function sKZ(show, parentWidth) {
     if (!kz || !kz.style) return;
-    if (!show || !cfg.hp_kill_zone_enabled || parentWidth <= 0) {
+    var barHidden = !bg || !bg.style || lBgVis !== 'visible' || lBgOp !== '1.0';
+    if (!show || !cfg.hp_kill_zone_enabled || parentWidth <= 0 || barHidden) {
       if (lKzVis !== 'collapse') { kz.style.visibility = 'collapse'; lKzVis = 'collapse'; }
       try { kz.style.opacity = '0'; } catch (eHide) {}
       return;
@@ -816,7 +817,7 @@
     if (threshold > 100) threshold = 100;
     var width = cfg.hp_kill_zone_width | 0;
     if (width < 1) width = 1;
-    if (width > 20) width = 20;
+    if (width > 100) width = 100;
     var pos = Math.round(parentWidth * threshold / 100 - width / 2);
     if (pos < 0) pos = 0;
     if (pos > parentWidth - width) pos = Math.max(0, parentWidth - width);
@@ -1179,14 +1180,19 @@
 
   // â”€â”€ Level tier coloring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var LT_ = [11, 19, 27, 35], LC_ = ['level_tier2', 'level_tier3', 'level_tier4', 'level_tier5'];
+  var LV_VIS_CLASS = 'level_number_visible';
   var ll = null, lc = null, wr = null, lLv = -1, lLvVis = null;
 
   function pLv(t) { var v = 0; for (var i = 0; i < t.length; i++) { var c = t.charCodeAt(i) - 48; if (c >= 0 && c <= 9) v = v * 10 + c; } return v; }
   function fER(p) { var c = p; while (c) { if (c.BHasClass && c.BHasClass('enemy')) return c; if (!c.GetParent) break; c = c.GetParent(); } return null; }
   function sLNV() {
-    if (!lc || !lc.style) return;
-    var v = cfg.hp_level_number_visible ? 'visible' : 'collapse';
-    if (lLvVis !== v) { lc.style.visibility = v; lLvVis = v; }
+    if (!wr || !wr.IsValid()) return;
+    var visible = !!cfg.hp_level_number_visible;
+    if (lLvVis !== visible) {
+      if (visible) wr.AddClass(LV_VIS_CLASS);
+      else wr.RemoveClass(LV_VIS_CLASS);
+      lLvVis = visible;
+    }
   }
 
   function cLU() {
