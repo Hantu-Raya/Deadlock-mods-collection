@@ -54,30 +54,13 @@ Deadlock addons folder configured in that script.
 
 ## Settings Keys
 Persisted schema keys:
-- `hp_enabled`
-- `hp_mode` (0=Fixed, 1=Gradient)
-- `hp_low_threshold`
-- `hp_high_threshold`
-- `hp_bg_visible`
-- `hp_team_colors`
-- `hp_color_low`
-- `hp_color_mid`
-- `hp_color_high`
-- `hp_counter_size`
-- `hp_counter_position`
-- `hp_text_color_mode` (0=By HP % using bar colors, 1=Custom text colors)
-- `hp_text_color_low`
-- `hp_text_color_mid`
-- `hp_text_color_high`
-- `hp_pulse_bpm` (30–300, default 75 — pulse animation speed in BPM)
-- `hp_pulse_intensity` (0=Subtle, 1=Medium, 2=Intense, default 1 — CSS keyframe preset)
-- `hp_pulse_enabled` (bool, default true — toggle pulse animation on/off)
-- `hp_pulse_bg_mode` (0=Follow behavior, 1=Show while low, 2=Hide while low, default 0)
-- `hp_pulse_text_enabled` (bool, default true — toggle HP counter text pulse)
-- `hp_pulse_text_scale` (100–200, default 108 — pulse text scale %)
+- General: `hp_enabled`, `hp_mode`, `hp_low_threshold`, `hp_high_threshold`, `hp_bg_visible`, `hp_team_colors`
+- Enemy Colors: `hp_color_low`, `hp_color_mid`, `hp_color_high`, `hp_skip_buildings`
+- Enemy Pulse: `hp_pulse_enabled`, `hp_pulse_threshold`, `hp_pulse_bpm`, `hp_pulse_intensity`, `hp_pulse_hide_bar`, `hp_pulse_text_enabled`, `hp_pulse_text_scale`, `hp_pulse_text_position`
+- Enemy Counter: `hp_counter_size`, `hp_counter_position`, `hp_text_color_mode`, `hp_text_color_low`, `hp_text_color_mid`, `hp_text_color_high`
+- Ally Bars: `hp_friend_enabled`, `hp_friend_color_low`, `hp_friend_color_mid`, `hp_friend_color_high`, `hp_friend_pulse_enabled`, `hp_friend_pulse_threshold`, `hp_friend_pulse_bpm`, `hp_friend_pulse_intensity`, `hp_friend_pulse_color_enabled`, `hp_friend_pulse_color`
 
-`hp_npc_poll_slow` was removed — polling is now automatic and adaptive.
-`darkOf` was removed — low-HP pulsing is now CSS keyframe-driven with `hp_pulse_bpm` and `hp_pulse_intensity` control.
+`hp_pulse_bg_mode` and `hp_npc_poll_slow` are removed. Low-HP pulsing follows the main behavior setting, and polling is automatic/adaptive.
 
 If you add/remove a persisted setting, update all schema/default/alias maps
 together in:
@@ -86,7 +69,7 @@ together in:
 - `healthbar_logic.js`
 - `hp_registrar.js`
 
-Also bump the registrar `storageVersion` when compatibility requires it (currently 10).
+Also bump the registrar `storageVersion` when compatibility requires it (currently 18).
 
 ## Persistence Model
 - Storage namespace: `hp_colors`
@@ -114,9 +97,8 @@ Below is the full mapping so you know what each name actually does.
 | `TEAM1_HIGH` | — | Team 1 high-HP color `#FFC961` |
 | `TEAM2_HIGH` | — | Team 2 high-HP color `#6485FC` |
 | `WHITE_WASH` | — | Default white wash color `#ffffff` |
-| `LP` | `LOW_PULSE_CLASS` | CSS class `low_hp_bar_pulse` |
-| `LTX` | `LOW_TEXT_CLASS` | CSS class `low_hp_text_large` |
-| `LS` | `LOW_ULT_CLASS` | CSS class `low_hp_ult_static` |
+| `LP` | `LOW_PULSE_CLASS` | CSS class `low_hp_pulsing` |
+| `PULSE_INTENSITY` | `PULSE_ANIMATIONS` | Keyframe name array `[subtle, none, intense]` |
 | `BOOTSTRAP_NAMESPACE` | — | Bootstrap namespace `"hp_colors"` |
 
 ### Panel Cache Variables
@@ -161,7 +143,7 @@ Below is the full mapping so you know what each name actually does.
 | Short | Full | Purpose |
 |-------|------|---------|
 | `tid` | `teamId` | Detected team (1 or 2) |
-| `fl` | `flags` | Bit flags: 1=enemy, 2=neutral |
+| `fl` | `flags` | Bit flags: 1=enemy, 2=neutral, 4=building/boss, 8=friend |
 
 ### Pulse & Gradient
 | Short | Full | Purpose |
@@ -224,6 +206,8 @@ Below is the full mapping so you know what each name actually does.
 - `healthbar_logic.js` scans up the panel ancestry to classify unit panels.
 - Enemy = `enemy` class and not neutral.
 - Neutral units are intentionally colored green (`#5BEFB5`).
+- `hp_skip_buildings` only affects enemy buildings/bosses; allied buildings short-circuit and keep their current visual state.
+- Ally toggle changes now refresh dependent rows immediately.
 - Polling is automatic and adaptive: fast for heroes, backs off for stable HP.
 - Low HP uses CSS keyframe pulse animation; polling follows normal 0.15s cadence. No JS timer needed for pulse — GPU handles it.
 - Pulse text uses inline `preTransformScale2d` (not CSS font-size/margin changes) to avoid layout shift during pulse animation.

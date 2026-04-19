@@ -27,7 +27,7 @@ Script to XML context mapping:
 |---|---|---|
 | `anita_ui_core.js` | `panorama/layout/base_hud.xml` | Creates the Anita-UI window, overlay button, event listener, registration handling, persistence helpers, and value replay. |
 | `hp_registrar.js` | `panorama/layout/base_hud.xml` | Builds the HP Colors config schema, registers it, listens for handshake, and requests bootstrap. |
-| `anita_persist_loader.js` | `panorama/layout/hud.xml` | Captures the config, reads persisted payloads, mirrors session state, and replays stored values. |
+| `anita_persist_loader.js` | `panorama/layout/base_hud.xml`, `panorama/layout/hud_health.xml` | Captures the config, reads persisted payloads, mirrors session state, and replays stored values. |
 | `healthbar_logic.js` | `panorama/layout/unit_status_overlay.xml` | Consumes `ANITA_UPDATE`, bootstraps overlay state, scans panel ancestry, and applies live healthbar/counter styling. |
 
 Event flow:
@@ -104,6 +104,12 @@ These are the keys in `DEFAULTS` inside `healthbar_logic.js`:
 | `hp_friend_pulse_intensity` | int | `1` |
 | `hp_friend_pulse_color_enabled` | bool | `false` |
 | `hp_friend_pulse_color` | string | `"#FF2222"` |
+| `hp_counter_format` | int | `0` |
+| `hp_level_number_visible` | bool | `true` |
+| `hp_kill_zone_enabled` | bool | `false` |
+| `hp_kill_zone_threshold` | int | `25` |
+| `hp_kill_zone_color` | string | `"#FF2222"` |
+| `hp_kill_zone_width` | int | `3` |
 
 ## 5. PERSISTENCE STACK
 
@@ -181,10 +187,15 @@ Payloads are stored as `{ v: <storageVersion>, c: 1, values: { <alias>: <value> 
 | `fpi` | `hp_friend_pulse_intensity` |
 | `fpce` | `hp_friend_pulse_color_enabled` |
 | `fpc` | `hp_friend_pulse_color` |
+| `lnv` | `hp_level_number_visible` |
+| `kze` | `hp_kill_zone_enabled` |
+| `kzt` | `hp_kill_zone_threshold` |
+| `kzc` | `hp_kill_zone_color` |
+| `kzw` | `hp_kill_zone_width` |
 
 ## 7. storageVersion
 
-`hp_registrar.js` sets `storageVersion: 18` in `buildConfig()`. Bump this whenever the schema gains or removes a persisted key, and keep it in sync across all three alias maps.
+`hp_registrar.js` sets `storageVersion: 21` in `buildConfig()`. Bump this whenever the schema gains or removes a persisted key, and keep it in sync across all three alias maps.
 
 ## 8. POLLING CADENCE TIERS
 
