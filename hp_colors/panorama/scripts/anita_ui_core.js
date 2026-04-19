@@ -34,7 +34,7 @@
     }
   };
   const RENDER_REFRESH_DEBOUNCE_SEC = 0.05;
-  const MAX_CONVAR_VALUE_LEN = 400;
+  const MAX_CONVAR_VALUE_LEN = 1900;
   const HP_COMPACT_PERSIST_VERSION = 1;
   const HP_PERSIST_ALIASES = {
     hp_enabled: "e",
@@ -168,6 +168,25 @@
       }
     }
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(payload));
+  }
+
+  function writeHpSharedSnapshot(config, reason) {
+    if (!config || config.title !== "HP Colors" || !Array.isArray(config.elements)) return;
+    var values = {};
+    var count = 0;
+    for (var i = 0; i < config.elements.length; i++) {
+      var element = config.elements[i];
+      if (!element || !element.id) continue;
+      if (element.currentValue !== undefined) values[element.id] = element.currentValue;
+      else values[element.id] = element.defaultValue;
+      count += 1;
+    }
+    try {
+      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) {
+        GameUI.CustomUIConfig().__hpColorsCfgRaw = JSON.stringify(values);
+      }
+    } catch (e) {
+    }
   }
 
   function runConsoleCommandBestEffort(commandText) {
@@ -2925,6 +2944,9 @@
           return;
         }
       }
+      if (config.title === "HP Colors") {
+        AnitaPersistence.persistConfig(config, true);
+      }
       this.registeredMods.push(config);
       if (config.title === "HP Colors") {
       }
@@ -2942,6 +2964,7 @@
     emitCurrentValues: function (config, meta) {
       if (!config || !Array.isArray(config.elements)) return;
       if (config.title === "HP Colors") {
+        writeHpSharedSnapshot(config, meta && (meta.update_source || meta.bootstrap_reason || meta.sync_reason));
       }
       for (var i = 0; i < config.elements.length; i++) {
         var element = config.elements[i];

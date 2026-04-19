@@ -247,10 +247,62 @@
   var BOOTSTRAP_NAMESPACE = "hp_colors";
   var BOOTSTRAP_MAX_ATTEMPTS = 8;
   var BOOTSTRAP_RETRY_SEC = 0.5;
+  var BOOTSTRAP_SLOW_RETRY_SEC = 3.0;
+  var BOOTSTRAP_REQUEST_THROTTLE_MS = 400;
+  var STYLE_REAPPLY_MS = 1000;
+  var DIRECT_BOOTSTRAP_KEY = "anita_v1_hp_colors";
+  var SHARED_CFG_RAW_KEY = "__hpColorsCfgRaw";
+  var HP_PERSIST_ALIAS_TO_ID = {
+    e: "hp_enabled",
+    m: "hp_mode",
+    l: "hp_low_threshold",
+    h: "hp_high_threshold",
+    b: "hp_bg_visible",
+    t: "hp_team_colors",
+    cl: "hp_color_low",
+    cm: "hp_color_mid",
+    ch: "hp_color_high",
+    s: "hp_counter_size",
+    p: "hp_counter_position",
+    tm: "hp_text_color_mode",
+    lnv: "hp_level_number_visible",
+    tl: "hp_text_color_low",
+    ti: "hp_text_color_mid",
+    th: "hp_text_color_high",
+    bp: "hp_pulse_bpm",
+    pi: "hp_pulse_intensity",
+    pe: "hp_pulse_enabled",
+    pte: "hp_pulse_text_enabled",
+    pts: "hp_pulse_text_scale",
+    ptp: "hp_pulse_text_position",
+    phb: "hp_pulse_hide_bar",
+    sb: "hp_skip_buildings",
+    pt: "hp_pulse_threshold",
+    fe: "hp_friend_enabled",
+    fpe: "hp_friend_pulse_enabled",
+    fpb: "hp_friend_pulse_bpm",
+    fpi: "hp_friend_pulse_intensity",
+    fpt: "hp_friend_pulse_threshold",
+    fcl: "hp_friend_color_low",
+    fcm: "hp_friend_color_mid",
+    fch: "hp_friend_color_high",
+    fpce: "hp_friend_pulse_color_enabled",
+    fpc: "hp_friend_pulse_color",
+    kze: "hp_kill_zone_enabled",
+    kzt: "hp_kill_zone_threshold",
+    kzc: "hp_kill_zone_color",
+    kzw: "hp_kill_zone_width"
+  };
   var bootstrapApplied = false;
+  var directBootstrapApplied = false;
   var bootstrapAttempts = 0;
   var bootstrapFinished = false;
   var settingsDirty = true;
+  var lastBootstrapRequestAt = 0;
+  var lastDirectBootstrapAt = 0;
+  var lastStyleReapplyAt = 0;
+  var sharedCfgRaw = "";
+  var directBootstrapMisses = 0;
 
   function getRootPanel() {
     var panel = $.GetContextPanel();
@@ -260,16 +312,184 @@
     return panel || null;
   }
 
-  function requestBootstrap(reason) {
-    var root = getRootPanel();
-    var now = Date.now ? Date.now() : (new Date()).getTime();
+  function getSharedStore() {
     try {
-      if (root) {
-        var nextAllowedAt = Number(root.__hpColorsBootstrapNextAllowedAt || 0);
-        if (isFinite(nextAllowedAt) && nextAllowedAt > now) return;
-        root.__hpColorsBootstrapNextAllowedAt = now + Math.floor(BOOTSTRAP_RETRY_SEC * 1000 * 0.8);
+      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) return GameUI.CustomUIConfig();
+    } catch (e) {}
+    return null;
+  }
+
+  function decodeBase64Url(str) {
+    var CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    var lookup = {};
+    for (var i = 0; i < CHARS.length; i++) lookup[CHARS[i]] = i;
+    function getVal(ch) {
+      if (ch === undefined) return 0;
+      if (!Object.prototype.hasOwnProperty.call(lookup, ch)) throw new Error("Invalid base64url char: " + ch);
+      return lookup[ch];
+    }
+    var bytes = [];
+    for (var j = 0; j < str.length; j += 4) {
+      var c0 = getVal(str[j]);
+      var c1 = getVal(str[j + 1]);
+      var c2 = str[j + 2] !== undefined ? getVal(str[j + 2]) : 0;
+      var c3 = str[j + 3] !== undefined ? getVal(str[j + 3]) : 0;
+      bytes.push((c0 << 2) | (c1 >> 4));
+      if (str[j + 2] !== undefined) bytes.push(((c1 & 15) << 4) | (c2 >> 2));
+      if (str[j + 3] !== undefined) bytes.push(((c2 & 3) << 6) | c3);
+    }
+    var out = "";
+    for (var k = 0; k < bytes.length; k++) {
+      var b = bytes[k];
+      if (b < 128) {
+        out += String.fromCharCode(b);
+      } else if (b < 224) {
+        out += String.fromCharCode(((b & 31) << 6) | (bytes[++k] & 63));
+      } else {
+        var b2 = bytes[++k], b3 = bytes[++k];
+        out += String.fromCharCode(((b & 15) << 12) | ((b2 & 63) << 6) | (b3 & 63));
       }
-    } catch (eRate) {}
+    }
+    return out;
+  }
+
+  function parseStoredPayload(raw) {
+    if (!raw) return null;
+    var parsed = null;
+    try { parsed = JSON.parse(String(raw)); } catch (eParse) { return null; }
+    var data = parsed && typeof parsed === "object" ? (parsed.values || parsed.v || parsed) : null;
+    if (!data || typeof data !== "object") return null;
+    var out = {};
+    for (var key in data) {
+      if (!Object.prototype.hasOwnProperty.call(data, key)) continue;
+      var id = Object.prototype.hasOwnProperty.call(DEFAULTS, key) ? key : HP_PERSIST_ALIAS_TO_ID[key];
+      if (!id || !Object.prototype.hasOwnProperty.call(DEFAULTS, id)) continue;
+      out[id] = coerceCfgValue(id, data[key]);
+    }
+    return out;
+  }
+
+  function readSessionMirrorEncoded() {
+    var root = getRootPanel();
+    if (!root) return "";
+    try {
+      if (root.GetAttributeString) {
+        var rootValue = String(root.GetAttributeString(DIRECT_BOOTSTRAP_KEY, "") || "");
+        if (rootValue) return rootValue;
+      }
+    } catch (eRoot) {}
+    try {
+      var hud = root.FindChildTraverse ? root.FindChildTraverse("Hud") : null;
+      if (hud && hud.GetAttributeString) return String(hud.GetAttributeString(DIRECT_BOOTSTRAP_KEY, "") || "");
+    } catch (eHud) {}
+    return "";
+  }
+
+  function hasPersistentStorage() {
+    try {
+      $.persistentStorage.setItem("_hp_probe", "1");
+      $.persistentStorage.removeItem("_hp_probe");
+      return true;
+    } catch (e) {}
+    return false;
+  }
+
+  function readPersistentStorageEncoded() {
+    try {
+      if (!hasPersistentStorage()) return "";
+      return String($.persistentStorage.getItem(DIRECT_BOOTSTRAP_KEY) || "");
+    } catch (e) {}
+    return "";
+  }
+
+  function readConvarEncoded() {
+    try {
+      if (!GameInterfaceAPI || !GameInterfaceAPI.GetSettingString) return "";
+      var raw = String(GameInterfaceAPI.GetSettingString("deadlock_hero_debuts_seen") || "");
+      var marker = "[ANITA-v1-" + BOOTSTRAP_NAMESPACE + "]:";
+      var idx = raw.indexOf(marker);
+      if (idx < 0) return "";
+      return raw.slice(idx + marker.length).split("|")[0].split(";")[0].split(",")[0];
+    } catch (e) {}
+    return "";
+  }
+
+  function snapshotCfg() {
+    var out = {};
+    for (var k in DEFAULTS) {
+      if (Object.prototype.hasOwnProperty.call(DEFAULTS, k)) out[k] = cfg[k];
+    }
+    return out;
+  }
+
+  function writeSharedSnapshot(reason) {
+    var store = getSharedStore();
+    if (!store) return;
+    try {
+      sharedCfgRaw = JSON.stringify(snapshotCfg());
+      store[SHARED_CFG_RAW_KEY] = sharedCfgRaw;
+    } catch (e) {}
+  }
+
+  function applyDirectSnapshot(values, source) {
+    if (!values) return false;
+    var count = 0;
+    for (var k in values) {
+      if (!Object.prototype.hasOwnProperty.call(values, k)) continue;
+      if (!Object.prototype.hasOwnProperty.call(DEFAULTS, k)) continue;
+      cfg[k] = coerceCfgValue(k, values[k]);
+      count += 1;
+    }
+    if (!count) return false;
+    settingsDirty = true;
+    bootstrapApplied = true;
+    directBootstrapApplied = true;
+    bootstrapFinished = true;
+    directBootstrapMisses = 0;
+    try { resetStyleStateForNewPanels(); } catch (eReset) {}
+    if (source !== "shared") writeSharedSnapshot(source);
+    dbg("direct_bootstrap source=" + source + " count=" + count + " enabled=" + cfg.hp_enabled + " mode=" + cfg.hp_mode);
+    return true;
+  }
+
+  function tryApplySharedSnapshot() {
+    var store = getSharedStore();
+    if (!store) return false;
+    var raw = "";
+    try { raw = String(store[SHARED_CFG_RAW_KEY] || ""); } catch (e) { raw = ""; }
+    if (!raw || raw === sharedCfgRaw) return false;
+    sharedCfgRaw = raw;
+    var parsed = null;
+    try { parsed = JSON.parse(raw); } catch (eParse) { return false; }
+    return applyDirectSnapshot(parsed, "shared");
+  }
+
+  function tryDecodeDirectPayload(encoded, source) {
+    if (!encoded) return false;
+    try {
+      return applyDirectSnapshot(parseStoredPayload(decodeBase64Url(String(encoded))), source);
+    } catch (eDecode) {}
+
+    return false;
+  }
+
+  function tryApplyDirectBootstrap(reason) {
+    if (tryApplySharedSnapshot()) return true;
+    if (tryDecodeDirectPayload(readSessionMirrorEncoded(), "session")) return true;
+    if (tryDecodeDirectPayload(readPersistentStorageEncoded(), "persistentStorage")) return true;
+    if (tryDecodeDirectPayload(readConvarEncoded(), "convar")) return true;
+    directBootstrapMisses += 1;
+    return false;
+  }
+
+  function isBootstrapReplaySource(source) {
+    return source === "bridge_bootstrap" || source === "ui_resync" || source === "ui_reset" || source === "ui_code_apply" || source === "core_auto_resync" || source === "ui_refresh_after_apply";
+  }
+
+  function requestBootstrap(reason) {
+    var now = Date.now ? Date.now() : (new Date()).getTime();
+    if (lastBootstrapRequestAt && now - lastBootstrapRequestAt < BOOTSTRAP_REQUEST_THROTTLE_MS) return;
+    lastBootstrapRequestAt = now;
 
     try {
       $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
@@ -283,8 +503,10 @@
 
   function scheduleBootstrapRetry() {
     if (bootstrapApplied || bootstrapFinished) return;
+    if (tryApplyDirectBootstrap("retry_direct")) return;
     if (bootstrapAttempts >= BOOTSTRAP_MAX_ATTEMPTS) {
-      bootstrapFinished = true;
+      requestBootstrap("overlay_slow_retry");
+      $.Schedule(BOOTSTRAP_SLOW_RETRY_SEC, scheduleBootstrapRetry);
       return;
     }
 
@@ -300,19 +522,17 @@
       if (!d || d.mod_title !== TITLE) return;
 
       if (d.magic_word === "ANITA_UPDATE") {
+        var replaySource = isBootstrapReplaySource(String(d.update_source || ""));
         if (Object.prototype.hasOwnProperty.call(DEFAULTS, d.setting_id)) {
           if (d.setting_id === "hp_counter_position" && d.update_source === "hp_counter_autoposition") {
             return;
           }
           cfg[d.setting_id] = coerceCfgValue(d.setting_id, d.value); settingsDirty = true;
+          writeSharedSnapshot(String(d.update_source || "update"));
           if (d.setting_id === "hp_level_number_visible") lLvVis = null;
           if (d.setting_id === "hp_enabled" && cfg.hp_enabled && !gRunning) { gRunning = true; $.Schedule(0.05, gL); }
           if (d.setting_id === "hp_friend_enabled" && cfg.hp_friend_enabled && !aRunning) { aRunning = true; $.Schedule(0.05, aL); }
-          if (d.setting_id === "hp_friend_enabled" && !cfg.hp_friend_enabled) {
-            if (isAllyPlayerFlags(aScanF2)) resetAllyBarColor(rbA, aScanT2, aScanF2);
-            else clearAllyPulse();
-            aRunning = false;
-          }
+          if (d.setting_id === "hp_friend_enabled" && !cfg.hp_friend_enabled) { resetAllyBarColor(rbA, aScanT2, aScanF2); aRunning = false; }
           if (pulse && (d.setting_id === "hp_pulse_bpm" || d.setting_id === "hp_pulse_intensity" || d.setting_id === "hp_pulse_text_enabled" || d.setting_id === "hp_pulse_text_scale")) {
             if (d.setting_id === "hp_pulse_bpm") { lPD = null; applyPulseDuration(); }
             if (d.setting_id === "hp_pulse_intensity") applyPulseIntensity();
@@ -320,7 +540,7 @@
           }
           if (d.setting_id === "hp_pulse_enabled" && !cfg.hp_pulse_enabled) clearPulse();
         }
-        if (d.update_source === "bridge_bootstrap") { bootstrapApplied = true;
+        if (replaySource) { bootstrapApplied = true;
           bootstrapFinished = true;
           try {
             var root = getRootPanel();
@@ -491,17 +711,22 @@
   var lCounterText = "";
   var lCounterLowMode = false;
   var lCounterAutoPos = null;
-  var lastRbPanel = null, lastHcPanel = null, lastBgPanel = null;
+  var lastRbPanel = null, lastHcPanel = null, lastBgPanel = null, lastKzPanel = null;
   var panelBornAt = 0;
 
   function sBC(c) {
-    var next = normalizeWashColor(c);
+    var next = normalizeWashColor(c) || WHITE_WASH;
     if (lCol !== next && rb) {
-      try { rb.style.washColor = next; lCol = next; } catch (e) { lCol = null; }
+      try {
+        rb.style.washColor = next;
+        lCol = next;
+      } catch (e) {
+        lCol = null;
+      }
     }
   }
   function sUC(c) {
-    var next = normalizeWashColor(c);
+    var next = normalizeWashColor(c) || WHITE_WASH;
     if (!ui || !ui.IsValid()) ui = ctx.FindChildTraverse('unit_ult_ready_icon') || ctx.FindChildTraverse('ult_icon');
     if (!ui || !ui.style) return;
     if (lUlt !== next) {
@@ -521,10 +746,6 @@
     if (teamId === 2) return CSS_TEAM2_COLOR;
     if (teamId === 1) return CSS_TEAM1_COLOR;
     return CSS_TEAM_FRIEND_COLOR;
-  }
-
-  function isAllyPlayerFlags(flags) {
-    return !!((flags & 1) && (flags & 2));
   }
 
   function resetAllyBarColor(panel, teamId, flags) {
@@ -708,10 +929,11 @@
   }
 
   function resetStyleStateForNewPanels() {
-    if (rb === lastRbPanel && hc === lastHcPanel && bg === lastBgPanel) return;
+    if (rb === lastRbPanel && hc === lastHcPanel && bg === lastBgPanel && kz === lastKzPanel) return;
     lastRbPanel = rb;
     lastHcPanel = hc;
     lastBgPanel = bg;
+    lastKzPanel = kz;
     panelBornAt = Date.now();
     clearPulse();
     lBgVis = lBgOp = lHpSize = lHpPos = lHpMarginLeft = lHpHeight = null;
@@ -731,8 +953,8 @@
 
   function applyCurrentSettings(isEnemy) {
     sHBV(!isEnemy || !!cfg.hp_bg_visible);
-    if (!isEnemy || !cfg.hp_bg_visible) sKZ(false, 0);
     sHCS(lCounterLowMode, lCounterText);
+    lW = -1; lHp = -1; lCol = null;
     settingsDirty = false;
   }
 
@@ -774,9 +996,9 @@
     gRunning = true;
     try {
       if (!cfg.hp_enabled) { clearPulse();
-        sKZ(false, 0);
         sBC("");
         sUC("");
+        sKZ(false, 0);
         if (bg && bg.style) { bg.style.visibility = 'collapse'; bg.style.opacity = '0'; lBgVis = 'collapse'; lBgOp = '0'; }
         if (hc && hc.style) {
           hc.style.fontSize = "";
@@ -800,6 +1022,10 @@
 
       scan(rb); lAT = now;
       var isEnemy = !!(fl & 1) && !(fl & 2);
+      if (isEnemy && !directBootstrapApplied && now - lastDirectBootstrapAt >= 1000) {
+        lastDirectBootstrapAt = now;
+        tryApplyDirectBootstrap("enemy_tick");
+      }
       if (cfg.hp_skip_buildings && (fl & 4)) {
         clearPulse();
         if (!isEnemy) {
@@ -828,6 +1054,15 @@
         $.Schedule(0.5, gL);
         return;
       }
+      if (isEnemy && now - lastStyleReapplyAt >= STYLE_REAPPLY_MS) {
+        lastStyleReapplyAt = now;
+        settingsDirty = true;
+        lCol = null;
+        lUlt = null;
+        lTxt = null;
+        lBgVis = null;
+        lBgOp = null;
+      }
       if (settingsDirty) applyCurrentSettings(isEnemy);
       else sHBV(isEnemy && !!cfg.hp_bg_visible);
 
@@ -845,6 +1080,7 @@
 
       var w = rb.actuallayoutwidth | 0;
       var pw = cp && cp.actuallayoutwidth !== undefined ? cp.actuallayoutwidth | 0 : 0;
+      sKZ(true, pw);
 
       // No change in width â€” back off
       if (w === lW && pw === lPW && !pulse) {
@@ -852,8 +1088,7 @@
         $.Schedule(0.15, gL); return;
       }
       lW = w; lPW = pw; lUT = now;
-      if (pw <= 0) { $.Schedule(0.18, gL); return; }
-      sKZ(true, pw);
+      if (pw <= 0) { sKZ(false, 0); $.Schedule(0.18, gL); return; }
 
       var hp = (w / pw * 100) | 0;
       var low = cfg.hp_low_threshold | 0;
@@ -948,7 +1183,6 @@
 
   function pLv(t) { var v = 0; for (var i = 0; i < t.length; i++) { var c = t.charCodeAt(i) - 48; if (c >= 0 && c <= 9) v = v * 10 + c; } return v; }
   function fER(p) { var c = p; while (c) { if (c.BHasClass && c.BHasClass('enemy')) return c; if (!c.GetParent) break; c = c.GetParent(); } return null; }
-
   function sLNV() {
     if (!ll || !ll.style) return;
     var v = cfg.hp_level_number_visible ? 'visible' : 'collapse';
@@ -981,8 +1215,7 @@
     aRunning = true;
     try {
       if (!cfg.hp_friend_enabled) {
-        if (isAllyPlayerFlags(aScanF2)) resetAllyBarColor(rbA, aScanT2, aScanF2);
-        else clearAllyPulse();
+        resetAllyBarColor(rbA, aScanT2, aScanF2);
         aRunning = false; return;
       }
 
@@ -1013,9 +1246,8 @@
         f2 = aScanF2; t2 = aScanT2;
       }
 
-      if (!isAllyPlayerFlags(f2)) {
-        clearAllyPulse();
-        lColA = null;
+      if (!(f2 & 1) || !(f2 & 2)) {
+        resetAllyBarColor(rbA, t2, f2);
         sfcA = 0;
         $.Schedule(1.5, aL); return;
       }
@@ -1086,6 +1318,8 @@
     }
   }
 
+  dbg("script_start cfg_enabled=" + cfg.hp_enabled + " mode=" + cfg.hp_mode);
+  tryApplyDirectBootstrap("script_start");
   gRunning = true; gL();
   aRunning = true; aL();
   lL();

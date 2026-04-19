@@ -799,6 +799,8 @@
 
 
 
+/* Kill Zone threshold marker — thin vertical line, absolutely positioned over the health bar.
+   position:absolute floats above the bar independently of layout flow. */
 #hp_kill_zone_marker {
 	position: absolute;
 	ignore-parent-flow: true;
