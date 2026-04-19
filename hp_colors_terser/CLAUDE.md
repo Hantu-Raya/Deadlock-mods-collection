@@ -27,7 +27,7 @@ Script to XML context mapping:
 |---|---|---|
 | `anita_ui_core.js` | `panorama/layout/base_hud.xml` | Creates the Anita-UI window, overlay button, event listener, registration handling, persistence helpers, and value replay. |
 | `hp_registrar.js` | `panorama/layout/base_hud.xml` | Builds the HP Colors config schema, registers it, listens for handshake, and requests bootstrap. |
-| `anita_persist_loader.js` | `panorama/layout/hud_escape_menu.xml` | Captures the config, reads persisted payloads, mirrors session state, and replays stored values. |
+| `anita_persist_loader.js` | `panorama/layout/base_hud.xml`, `panorama/layout/hud_health.xml` | Captures the config, reads persisted payloads, mirrors session state, and replays stored values. |
 | `healthbar_logic.js` | `panorama/layout/unit_status_overlay.xml` | Consumes `ANITA_UPDATE`, bootstraps overlay state, scans panel ancestry, and applies live healthbar/counter styling. |
 
 Event flow:
@@ -73,24 +73,37 @@ These are the keys in `DEFAULTS` inside `healthbar_logic.js`:
 | `hp_enabled` | bool | `true` |
 | `hp_mode` | int | `1` |
 | `hp_low_threshold` | int | `25` |
+| `hp_high_threshold` | int | `65` |
 | `hp_bg_visible` | bool | `true` |
+| `hp_team_colors` | bool | `false` |
+| `hp_color_low` | string | `"#E16161"` |
+| `hp_color_mid` | string | `"#FF7B00"` |
+| `hp_color_high` | string | `"#00FF00"` |
 | `hp_counter_size` | int | `120` |
 | `hp_counter_position` | string | `"20,196"` |
 | `hp_text_color_mode` | int | `0` |
 | `hp_text_color_low` | string | `"#E16161"` |
 | `hp_text_color_mid` | string | `"#FF7B00"` |
 | `hp_text_color_high` | string | `"#FFFFFF"` |
-| `hp_high_threshold` | int | `65` |
-| `hp_color_low` | string | `"#E16161"` |
-| `hp_color_mid` | string | `"#FF7B00"` |
-| `hp_color_high` | string | `"#00FF00"` |
-| `hp_team_colors` | bool | `false` |
+| `hp_pulse_enabled` | bool | `true` |
+| `hp_pulse_threshold` | int | `25` |
 | `hp_pulse_bpm` | int | `75` |
 | `hp_pulse_intensity` | int | `1` |
-| `hp_pulse_enabled` | bool | `true` |
-| `hp_pulse_bg_mode` | int | `0` |
+| `hp_pulse_hide_bar` | bool | `false` |
 | `hp_pulse_text_enabled` | bool | `true` |
-| `hp_pulse_text_scale` | int | `108` |
+| `hp_pulse_text_scale` | int | `120` |
+| `hp_pulse_text_position` | string | `"20,196"` |
+| `hp_skip_buildings` | bool | `false` |
+| `hp_friend_enabled` | bool | `false` |
+| `hp_friend_color_low` | string | `"#E16161"` |
+| `hp_friend_color_mid` | string | `"#FF7B00"` |
+| `hp_friend_color_high` | string | `"#00FF00"` |
+| `hp_friend_pulse_enabled` | bool | `false` |
+| `hp_friend_pulse_threshold` | int | `25` |
+| `hp_friend_pulse_bpm` | int | `75` |
+| `hp_friend_pulse_intensity` | int | `1` |
+| `hp_friend_pulse_color_enabled` | bool | `false` |
+| `hp_friend_pulse_color` | string | `"#FF2222"` |
 
 ## 5. PERSISTENCE STACK
 
@@ -149,16 +162,29 @@ Payloads are stored as `{ v: <storageVersion>, c: 1, values: { <alias>: <value> 
 | `tl` | `hp_text_color_low` |
 | `ti` | `hp_text_color_mid` |
 | `th` | `hp_text_color_high` |
+| `pe` | `hp_pulse_enabled` |
+| `pt` | `hp_pulse_threshold` |
 | `bp` | `hp_pulse_bpm` |
 | `pi` | `hp_pulse_intensity` |
-| `pe` | `hp_pulse_enabled` |
-| `pbm` | `hp_pulse_bg_mode` |
+| `phb` | `hp_pulse_hide_bar` |
 | `pte` | `hp_pulse_text_enabled` |
 | `pts` | `hp_pulse_text_scale` |
+| `ptp` | `hp_pulse_text_position` |
+| `sb` | `hp_skip_buildings` |
+| `fe` | `hp_friend_enabled` |
+| `fcl` | `hp_friend_color_low` |
+| `fcm` | `hp_friend_color_mid` |
+| `fch` | `hp_friend_color_high` |
+| `fpe` | `hp_friend_pulse_enabled` |
+| `fpt` | `hp_friend_pulse_threshold` |
+| `fpb` | `hp_friend_pulse_bpm` |
+| `fpi` | `hp_friend_pulse_intensity` |
+| `fpce` | `hp_friend_pulse_color_enabled` |
+| `fpc` | `hp_friend_pulse_color` |
 
 ## 7. storageVersion
 
-`hp_registrar.js` sets `storageVersion: 10` in `buildConfig()`. Bump this whenever the schema gains or removes a persisted key, and keep it in sync across all three alias maps.
+`hp_registrar.js` sets `storageVersion: 18` in `buildConfig()`. Bump this whenever the schema gains or removes a persisted key, and keep it in sync across all three alias maps.
 
 ## 8. POLLING CADENCE TIERS
 
@@ -166,22 +192,18 @@ Payloads are stored as `{ v: <storageVersion>, c: 1, values: { <alias>: <value> 
 
 | Condition | Next schedule |
 |---|---|
-| `hp_enabled === false` | `1.0` |
-| Root bar not found yet | `0.2` |
-| Panel cache not ready yet | `0.2` |
-| Neutral target (`fl & 2`) | `3.0` |
-| Non-enemy target (`!(fl & 1)`) | `1.5` |
-| **Building** (`fl & 16`) — width stable | `4.0` (flat) |
-| **Building** (`fl & 16`) — high-HP stable | `4.0` (flat) |
-| **Minion/Boss** (`!isHeroEnemy`) — width stable >800 ms | `2.5` |
-| **Hero** or minion/boss — width stable >1200 ms | `1.25` |
-| Width unchanged but within hot window | `0.2` |
-| Parent width `<= 0` | `0.25` |
-| HP change under `3` while above low threshold | `0.22` |
-| Low HP (any mode) — CSS keyframe pulse active | `0.15` (GPU-driven animation; no JS timer) |
+| `hp_enabled === false` | loop stops (`gRunning=false`, no reschedule) |
+| Root bar not found yet | `0.15` |
+| Panel cache not ready yet | `0.15` |
+| skip_buildings + `fl & 4` (building/boss) | `0.5` |
+| Neutral target (`fl & 2`) | `1.5` |
+| Non-enemy target (`!(fl & 1)`) | `0.4` |
+| Parent width `<= 0` | `0.18` |
+| Width unchanged, no pulse, age > 2000 ms | `1.0` |
+| Width unchanged, no pulse, age ≤ 2000 ms | `0.15` |
+| Low HP — pulse text enabled | `0.05` |
 | Default active cadence | `0.15` |
-| **Hero** stable high-HP (`sFC >= 5`) | `min(0.15 × 2^⌊sFC/5⌋, 3.0)` |
-| **Minion/Boss** stable high-HP (`sFC >= 3`) | `min(0.30 × 2^⌊sFC/3⌋, 3.0)` |
+| Stable above high-HP (`sFC >= 5`) | `min(0.15 × 2^⌊sFC/5⌋, 1.0)` |
 | Error recovery path | `0.5` |
 
 Other fixed loops in the same file:
@@ -198,28 +220,25 @@ Other fixed loops in the same file:
 |---|---|---|---|
 | FLAG_ENEMY | `1` | `enemy` | Unit is on the enemy team |
 | FLAG_NEUTRAL | `2` | `team_neutral` or `neutral` | Neutral/jungle unit |
-| FLAG_HERO | `4` | `player` | Player-controlled hero |
-| FLAG_CREATURE | `8` | `creature` | NPC unit (boss, creep, trooper) |
-| FLAG_BUILDING | `16` | `building` | Tower or other structure |
+| FLAG_BUILDING | `4` | `building`, `boss_tier1`, `boss_tier2`, `boss_barracks` | Building or boss — triggers skip_buildings logic |
+| FLAG_FRIEND | `8` | `friend` | Friendly unit — enables early scan break |
 
 Confirmed Deadlock class names from in-game inspection:
-- Player hero panel: `"alive player team2 enemy WorldUIRoot"`
 - Neutral trooper: `"alive creature WorldUIRoot team_neutral trooper_neutral"`
 - Boss: `"alive creature team2 enemy WorldUIRoot boss_tier2"`
 - Building/Tower: `"alive creature team2 enemy WorldUIRoot building"`
 
 Derived flags:
 - `isEnemy = !!(fl & 1) && !(fl & 2)`
-- `isHeroEnemy = isEnemy && !!(fl & 4)`
-- `isBuilding = isEnemy && !!(fl & 16)`
+- `isBuilding = !!(fl & 4)` — checked as `if (cfg.hp_skip_buildings && (fl & 4))`
 
-Early-break rules: scan stops as soon as `team_neutral` (`fl & 2`) or `building` (`fl & 16`) is confirmed with a team ID. Enemy-hero panels keep scanning to find the `player` class.
+Early-break rules: scan breaks when team ID is set AND any of bits `1|2|4|8` confirmed — `if (t && (f & (1|2|4|8))) break`. The `player` class is NOT scanned by `scan()`; the ally loop `aL()` has its own inline scan checking `friend` (bit 1) and `player` (bit 2) in separate vars `f2`/`aScanF2`.
 
 ## 10. SCAN CACHE
 
 - Ancestor scan max depth: `10` levels
-- Rescan TTL for **creature units** (`fl & 8`): `2000` ms — their class hierarchy never changes mid-game
-- Rescan TTL for **heroes / unknown**: `250` ms
+- `scan()` (used by `gL()`) runs every tick — no TTL cache
+- Ally scan TTL (inline in `aL()`): `2000` ms — friend+player class hierarchy is stable mid-game; uses `aScanF2`/`aScanT2`/`aScanAt`
 - `resetScanCache()` clears `scanNextAt` back to `0` and nulls the cached ancestor array
 
 `ensureScanState(now)` rescans when the cached ancestor chain changes or the TTL expires.
@@ -228,8 +247,8 @@ Early-break rules: scan stops as soon as `team_neutral` (`fl & 2`) or `building`
 
 | File | Debug flags actually present |
 |---|---|
-| `healthbar_logic.js` | `DEV_LOG` (set to `false` in production) |
-| `hp_registrar.js` | `DEBUG_LOG` (set to `false`; gates the `log()` helper) |
+| `healthbar_logic.js` | None |
+| `hp_registrar.js` | None |
 | `anita_ui_core.js` | No debug flags in production build |
 | `anita_persist_loader.js` | No debug flags in production build |
 | `anita_ui.css` | None |
