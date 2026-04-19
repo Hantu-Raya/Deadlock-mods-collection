@@ -799,6 +799,19 @@
 
 
 
+#hp_kill_zone_marker {
+	position: absolute;
+	ignore-parent-flow: true;
+	margin-left: 0px;
+	width: 3px;
+	height: 130%;
+	z-index: 1000;
+	hittest: false;
+	visibility: collapse;
+	overflow: noclip;
+	background-color: #FF2222;
+}
+
 .hp_counter {
 	font-size: 120px;
 	color: #ffffff;

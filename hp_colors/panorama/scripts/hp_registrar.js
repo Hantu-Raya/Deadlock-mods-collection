@@ -35,6 +35,7 @@
     { type: "positionpicker", id: "hp_counter_position", label: "Counter position", defaultValue: "20,196", category: "Enemy Counter" },
     { type: "cycler", id: "hp_counter_format", label: "Counter format", options: ["HP", "%"], defaultValue: 0, category: "Enemy Counter" },
     { type: "cycler", id: "hp_text_color_mode", label: "Counter color source", options: ["Bar color", "Custom"], defaultValue: 0, category: "Enemy Counter" },
+    { type: "toggle", id: "hp_level_number_visible", label: "Show level number", defaultValue: true, category: "Enemy Counter" },
     { type: "colorpicker", id: "hp_text_color_low", label: "Counter low color", defaultValue: "#E16161", visibleWhen: { id: "hp_text_color_mode", equals: 1 }, category: "Enemy Counter" },
     { type: "colorpicker", id: "hp_text_color_mid", label: "Counter mid color", defaultValue: "#FF7B00", visibleWhen: { id: "hp_text_color_mode", equals: 1 }, category: "Enemy Counter" },
     { type: "colorpicker", id: "hp_text_color_high", label: "Counter high color", defaultValue: "#FFFFFF", visibleWhen: { id: "hp_text_color_mode", equals: 1 }, category: "Enemy Counter" },
@@ -48,7 +49,11 @@
     { type: "slider", id: "hp_friend_pulse_bpm", label: "Pulse speed (BPM)", defaultValue: 75, min: 30, max: 300, step: 1, category: "Ally Bars", visibleWhen: { id: "hp_friend_pulse_enabled", equals: true } },
     { type: "cycler", id: "hp_friend_pulse_intensity", label: "Pulse intensity", options: ["Subtle", "Medium", "Intense"], defaultValue: 1, category: "Ally Bars", visibleWhen: { id: "hp_friend_pulse_enabled", equals: true } },
     { type: "toggle", id: "hp_friend_pulse_color_enabled", label: "Custom pulse color", defaultValue: false, category: "Ally Bars", visibleWhen: { id: "hp_friend_pulse_enabled", equals: true } },
-    { type: "colorpicker", id: "hp_friend_pulse_color", label: "Pulse color", defaultValue: "#FF2222", category: "Ally Bars", visibleWhen: { id: "hp_friend_pulse_color_enabled", equals: true } }
+    { type: "colorpicker", id: "hp_friend_pulse_color", label: "Pulse color", defaultValue: "#FF2222", category: "Ally Bars", visibleWhen: { id: "hp_friend_pulse_color_enabled", equals: true } },
+    { type: "toggle", id: "hp_kill_zone_enabled", label: "Show kill marker", defaultValue: false, category: "Kill Marker" },
+    { type: "slider", id: "hp_kill_zone_threshold", label: "Marker position %", defaultValue: 25, min: 5, max: 80, step: 1, category: "Kill Marker", visibleWhen: { id: "hp_kill_zone_enabled", equals: true } },
+    { type: "colorpicker", id: "hp_kill_zone_color", label: "Marker color", defaultValue: "#FF2222", category: "Kill Marker", visibleWhen: { id: "hp_kill_zone_enabled", equals: true } },
+    { type: "slider", id: "hp_kill_zone_width", label: "Marker width", defaultValue: 3, min: 1, max: 20, step: 1, category: "Kill Marker", visibleWhen: { id: "hp_kill_zone_enabled", equals: true } }
   ];
 
   function buildConfig() {
@@ -68,7 +73,7 @@
       title: TITLE,
       description: "Enemy healthbar coloring",
       storageNamespace: "hp_colors",
-      storageVersion: 18,
+      storageVersion: 21,
       elements: elements
     };
   }
