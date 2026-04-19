@@ -49,6 +49,7 @@
     hp_counter_size: "s",
     hp_counter_position: "p",
     hp_text_color_mode: "tm",
+    hp_level_number_visible: "lnv",
     hp_text_color_low: "tl",
     hp_text_color_mid: "ti",
     hp_text_color_high: "th",
@@ -70,7 +71,11 @@
     hp_friend_color_mid: "fcm",
     hp_friend_color_high: "fch",
     hp_friend_pulse_color_enabled: "fpce",
-    hp_friend_pulse_color: "fpc"
+    hp_friend_pulse_color: "fpc",
+    hp_kill_zone_enabled: "kze",
+    hp_kill_zone_threshold: "kzt",
+    hp_kill_zone_color: "kzc",
+    hp_kill_zone_width: "kzw"
   };
   const HP_PERSIST_ALIAS_TO_ID = (function () {
     var out = {};

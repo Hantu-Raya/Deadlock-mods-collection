@@ -37,11 +37,19 @@
     hp_friend_color_mid: "#FF7B00",
     hp_friend_color_high: "#00FF00",
     hp_friend_pulse_color_enabled: false,
-    hp_friend_pulse_color: "#FF2222"
+    hp_friend_pulse_color: "#FF2222",
+    hp_level_number_visible: true,
+    hp_kill_zone_enabled: false,
+    hp_kill_zone_threshold: 25,
+    hp_kill_zone_color: "#FF2222",
+    hp_kill_zone_width: 3
   };
   var cfg = {};
   var TEAM1_HIGH = "#FFC961";
   var TEAM2_HIGH = "#6485FC";
+  var CSS_TEAM1_COLOR = "#E7B659";
+  var CSS_TEAM2_COLOR = "#5B79E6";
+  var CSS_TEAM_FRIEND_COLOR = "#FFEFD7";
   var CSS_TEAM_ENEMY_COLOR = "#e16161";
   var WHITE_WASH = "#ffffff";
   var LP = 'low_hp_pulsing';
@@ -297,8 +305,14 @@
             return;
           }
           cfg[d.setting_id] = coerceCfgValue(d.setting_id, d.value); settingsDirty = true;
+          if (d.setting_id === "hp_level_number_visible") lLvVis = null;
           if (d.setting_id === "hp_enabled" && cfg.hp_enabled && !gRunning) { gRunning = true; $.Schedule(0.05, gL); }
           if (d.setting_id === "hp_friend_enabled" && cfg.hp_friend_enabled && !aRunning) { aRunning = true; $.Schedule(0.05, aL); }
+          if (d.setting_id === "hp_friend_enabled" && !cfg.hp_friend_enabled) {
+            if (isAllyPlayerFlags(aScanF2)) resetAllyBarColor(rbA, aScanT2, aScanF2);
+            else clearAllyPulse();
+            aRunning = false;
+          }
           if (pulse && (d.setting_id === "hp_pulse_bpm" || d.setting_id === "hp_pulse_intensity" || d.setting_id === "hp_pulse_text_enabled" || d.setting_id === "hp_pulse_text_scale")) {
             if (d.setting_id === "hp_pulse_bpm") { lPD = null; applyPulseDuration(); }
             if (d.setting_id === "hp_pulse_intensity") applyPulseIntensity();
@@ -424,7 +438,7 @@
 
   // â”€â”€ Panel cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var ctx = $.GetContextPanel();
-  var us = null, hc = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null;
+  var us = null, hc = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null;
   var cached = 0, att = 0;
   var lBgVis = null, lBgOp = null, lHpSize = null, lHpPos = null, lHpMarginLeft = null, lHpHeight = null;
 
@@ -444,6 +458,7 @@
     if (!bg || !bg.IsValid()) bg = us.FindChildTraverse('unit_healthbar_bg');
     if (!pl || !pl.IsValid()) pl = us.FindChildTraverse('unit_healthbar_pip_label');
     if (!lb || !lb.IsValid()) lb = us.FindChildTraverse('unit_healthbar_lagging');
+    if (!kz || !kz.IsValid()) kz = us.FindChildTraverse('hp_kill_zone_marker');
     if (lb && (!lbp || !lbp.IsValid())) lbp = lb.GetParent();
     if (pl && lb && lbp) { cached = 1; return 1; }
     return 0;
@@ -501,6 +516,29 @@
     }
   }
 
+  function getDefaultBarColor(teamId, flags) {
+    if (flags & 1) return CSS_TEAM_FRIEND_COLOR;
+    if (teamId === 2) return CSS_TEAM2_COLOR;
+    if (teamId === 1) return CSS_TEAM1_COLOR;
+    return CSS_TEAM_FRIEND_COLOR;
+  }
+
+  function isAllyPlayerFlags(flags) {
+    return !!((flags & 1) && (flags & 2));
+  }
+
+  function resetAllyBarColor(panel, teamId, flags) {
+    clearAllyPulse();
+    if (!panel || !panel.style) return;
+    var color = getDefaultBarColor(teamId | 0, flags | 0);
+    try {
+      panel.style.washColor = color;
+      lColA = normalizeWashColor(color);
+    } catch (e) {
+      lColA = null;
+    }
+  }
+
   function clampNum(v, min, max, fallback) {
     var next = Number(v);
     if (!isFinite(next)) next = Number(fallback);
@@ -540,6 +578,39 @@
     if (lBgVis !== 'visible') { bg.style.visibility = 'visible'; lBgVis = 'visible'; }
     var nextOp = visible ? '1.0' : '0.01';
     if (lBgOp !== nextOp) { bg.style.opacity = nextOp; lBgOp = nextOp; }
+  }
+
+  var lKzVis = null, lKzX = null, lKzW = null, lKzColor = null;
+
+  function sKZ(show, parentWidth) {
+    if (!kz || !kz.style) return;
+    if (!show || !cfg.hp_kill_zone_enabled || parentWidth <= 0) {
+      if (lKzVis !== 'collapse') { kz.style.visibility = 'collapse'; lKzVis = 'collapse'; }
+      try { kz.style.opacity = '0'; } catch (eHide) {}
+      return;
+    }
+
+    var threshold = cfg.hp_kill_zone_threshold | 0;
+    if (threshold < 0) threshold = 0;
+    if (threshold > 100) threshold = 100;
+    var width = cfg.hp_kill_zone_width | 0;
+    if (width < 1) width = 1;
+    if (width > 20) width = 20;
+    var pos = Math.round(parentWidth * threshold / 100 - width / 2);
+    if (pos < 0) pos = 0;
+    if (pos > parentWidth - width) pos = Math.max(0, parentWidth - width);
+    var posStr = pos + 'px';
+    var widthStr = width + 'px';
+    var color = normalizeWashColor(cfg.hp_kill_zone_color || "#FF2222");
+
+    if (lKzVis !== 'visible') { kz.style.visibility = 'visible'; lKzVis = 'visible'; }
+    try { kz.style.opacity = '0.95'; } catch (eOp) {}
+    try { kz.style.zIndex = '1000'; } catch (eZi) {}
+    if (lKzX !== posStr) { kz.style.marginLeft = posStr; lKzX = posStr; }
+    if (lKzW !== widthStr) { kz.style.width = widthStr; lKzW = widthStr; }
+    if (lKzColor !== color) {
+      try { kz.style.backgroundColor = color; lKzColor = color; } catch (eCol) { lKzColor = null; }
+    }
   }
 
   function parseCounterPositionValue(value) {
@@ -644,6 +715,8 @@
     panelBornAt = Date.now();
     clearPulse();
     lBgVis = lBgOp = lHpSize = lHpPos = lHpMarginLeft = lHpHeight = null;
+    lKzVis = lKzX = lKzW = lKzColor = null;
+    lLvVis = null;
     lSH = -1;
     lSM = -1;
     lVis = null;
@@ -658,6 +731,7 @@
 
   function applyCurrentSettings(isEnemy) {
     sHBV(!isEnemy || !!cfg.hp_bg_visible);
+    if (!isEnemy || !cfg.hp_bg_visible) sKZ(false, 0);
     sHCS(lCounterLowMode, lCounterText);
     settingsDirty = false;
   }
@@ -700,6 +774,7 @@
     gRunning = true;
     try {
       if (!cfg.hp_enabled) { clearPulse();
+        sKZ(false, 0);
         sBC("");
         sUC("");
         if (bg && bg.style) { bg.style.visibility = 'collapse'; bg.style.opacity = '0'; lBgVis = 'collapse'; lBgOp = '0'; }
@@ -732,6 +807,7 @@
           sUC("");
           sTC("");
           sHBV(true);
+          sKZ(false, 0);
           $.Schedule(0.5, gL);
           return;
         }
@@ -748,6 +824,7 @@
         sUC(skipColor);
         sTC(skipColor);
         sHBV(!!cfg.hp_bg_visible);
+        sKZ(false, 0);
         $.Schedule(0.5, gL);
         return;
       }
@@ -757,13 +834,14 @@
       // Neutral unit
       if (fl & 2) { clearPulse();
         sHBV(true);
+        sKZ(false, 0);
         sBC('#5BEFB5');
         sTC(WHITE_WASH);
         lUT = now;
         $.Schedule(1.5, gL); return;
       }
       // Not an enemy â€” skip coloring
-      if (!(fl & 1)) { sHBV(true); sBC(""); sUC(""); lUT = now; $.Schedule(0.4, gL); return; }
+      if (!(fl & 1)) { sHBV(true); sKZ(false, 0); sBC(""); sUC(""); lUT = now; $.Schedule(0.4, gL); return; }
 
       var w = rb.actuallayoutwidth | 0;
       var pw = cp && cp.actuallayoutwidth !== undefined ? cp.actuallayoutwidth | 0 : 0;
@@ -775,6 +853,7 @@
       }
       lW = w; lPW = pw; lUT = now;
       if (pw <= 0) { $.Schedule(0.18, gL); return; }
+      sKZ(true, pw);
 
       var hp = (w / pw * 100) | 0;
       var low = cfg.hp_low_threshold | 0;
@@ -865,10 +944,16 @@
 
   // â”€â”€ Level tier coloring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var LT_ = [11, 19, 27, 35], LC_ = ['level_tier2', 'level_tier3', 'level_tier4', 'level_tier5'];
-  var ll = null, lc = null, wr = null, lLv = -1;
+  var ll = null, lc = null, wr = null, lLv = -1, lLvVis = null;
 
   function pLv(t) { var v = 0; for (var i = 0; i < t.length; i++) { var c = t.charCodeAt(i) - 48; if (c >= 0 && c <= 9) v = v * 10 + c; } return v; }
   function fER(p) { var c = p; while (c) { if (c.BHasClass && c.BHasClass('enemy')) return c; if (!c.GetParent) break; c = c.GetParent(); } return null; }
+
+  function sLNV() {
+    if (!ll || !ll.style) return;
+    var v = cfg.hp_level_number_visible ? 'visible' : 'collapse';
+    if (lLvVis !== v) { ll.style.visibility = v; lLvVis = v; }
+  }
 
   function cLU() {
     if (!ll || !ll.IsValid()) ll = ctx.FindChildTraverse('unit_level_label');
@@ -879,6 +964,7 @@
 
   function uLT() {
     if (!cLU()) return;
+    sLNV();
     var t = ''; try { t = ll.text || ll.GetAttributeString('text', '') || ''; } catch (e) { t = ''; }
     if (!t || t.charCodeAt(0) === 123) return;
     var lv = pLv(t);
@@ -895,9 +981,9 @@
     aRunning = true;
     try {
       if (!cfg.hp_friend_enabled) {
-        clearAllyPulse();
-        if (rbA) { try { rbA.style.washColor = ''; } catch (e) {} }
-        lColA = null; aRunning = false; return;
+        if (isAllyPlayerFlags(aScanF2)) resetAllyBarColor(rbA, aScanT2, aScanF2);
+        else clearAllyPulse();
+        aRunning = false; return;
       }
 
       var now = Date.now();
@@ -927,10 +1013,10 @@
         f2 = aScanF2; t2 = aScanT2;
       }
 
-      if (!(f2 & 1) || !(f2 & 2)) {
+      if (!isAllyPlayerFlags(f2)) {
         clearAllyPulse();
-        if (rbA) { try { rbA.style.washColor = ''; } catch (e) {} }
-        lColA = null; sfcA = 0;
+        lColA = null;
+        sfcA = 0;
         $.Schedule(1.5, aL); return;
       }
 
