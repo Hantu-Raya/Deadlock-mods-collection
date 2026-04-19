@@ -1186,7 +1186,11 @@
   function sLNV() {
     if (!ll || !ll.style) return;
     var v = cfg.hp_level_number_visible ? 'visible' : 'collapse';
-    if (lLvVis !== v) { ll.style.visibility = v; lLvVis = v; }
+    if (lLvVis !== v) {
+      ll.style.visibility = v;
+      if (lc && lc.style) lc.style.visibility = v;
+      lLvVis = v;
+    }
   }
 
   function cLU() {
