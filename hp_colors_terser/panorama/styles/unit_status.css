@@ -242,8 +242,8 @@
 	box-shadow: inset 0px 0px 10px #000000;
 }
 
-/* Only show for enemy players */
-.enemy.player .NP_playerlevel_container {
+/* Only show for enemy players when level numbers are enabled */
+.enemy.player.level_number_visible .NP_playerlevel_container {
 	visibility: visible;
 }
 
@@ -806,7 +806,8 @@
 	ignore-parent-flow: true;
 	margin-left: 0px;
 	width: 3px;
-	height: 130%;
+	height: 100%;
+	margin-top: 0px;
 	z-index: 1000;
 	hittest: false;
 	visibility: collapse;

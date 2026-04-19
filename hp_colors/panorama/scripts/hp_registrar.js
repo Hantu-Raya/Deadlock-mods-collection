@@ -52,7 +52,7 @@
     { type: "toggle", id: "hp_kill_zone_enabled", label: "Show kill marker", defaultValue: false, category: "Kill Marker" },
     { type: "slider", id: "hp_kill_zone_threshold", label: "Marker position %", defaultValue: 25, min: 5, max: 80, step: 1, category: "Kill Marker", visibleWhen: { id: "hp_kill_zone_enabled", equals: true } },
     { type: "colorpicker", id: "hp_kill_zone_color", label: "Marker color", defaultValue: "#FF2222", category: "Kill Marker", visibleWhen: { id: "hp_kill_zone_enabled", equals: true } },
-    { type: "slider", id: "hp_kill_zone_width", label: "Marker width", defaultValue: 3, min: 1, max: 20, step: 1, category: "Kill Marker", visibleWhen: { id: "hp_kill_zone_enabled", equals: true } }
+    { type: "slider", id: "hp_kill_zone_width", label: "Marker width", defaultValue: 3, min: 1, max: 100, step: 1, category: "Kill Marker", visibleWhen: { id: "hp_kill_zone_enabled", equals: true } }
   ];
   function buildConfig() {
     var elements = [];
