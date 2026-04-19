@@ -1184,13 +1184,9 @@
   function pLv(t) { var v = 0; for (var i = 0; i < t.length; i++) { var c = t.charCodeAt(i) - 48; if (c >= 0 && c <= 9) v = v * 10 + c; } return v; }
   function fER(p) { var c = p; while (c) { if (c.BHasClass && c.BHasClass('enemy')) return c; if (!c.GetParent) break; c = c.GetParent(); } return null; }
   function sLNV() {
-    if (!ll || !ll.style) return;
+    if (!lc || !lc.style) return;
     var v = cfg.hp_level_number_visible ? 'visible' : 'collapse';
-    if (lLvVis !== v) {
-      ll.style.visibility = v;
-      if (lc && lc.style) lc.style.visibility = v;
-      lLvVis = v;
-    }
+    if (lLvVis !== v) { lc.style.visibility = v; lLvVis = v; }
   }
 
   function cLU() {
