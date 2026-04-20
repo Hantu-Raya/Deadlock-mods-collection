@@ -533,9 +533,6 @@
           settingsDirty = true;
           var nowTs = Date.now ? Date.now() : (new Date()).getTime();
           var holdMs = SETTINGS_REFRESH_DEBOUNCE_MS;
-          if (d.update_source === "ui_reset" || d.update_source === "ui_code_apply" || d.update_source === "core_auto_resync" || d.update_source === "bridge_bootstrap") {
-            holdMs = 240;
-          }
           settingsRefreshHoldUntil = nowTs + holdMs;
           writeSharedSnapshot(String(d.update_source || "update"));
           if (d.setting_id === "hp_level_number_visible") lLvVis = null;
