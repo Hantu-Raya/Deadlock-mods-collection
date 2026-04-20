@@ -298,6 +298,8 @@
   var bootstrapAttempts = 0;
   var bootstrapFinished = false;
   var settingsDirty = true;
+  var settingsRefreshHoldUntil = 0;
+  var SETTINGS_REFRESH_DEBOUNCE_MS = 80;
   var lastBootstrapRequestAt = 0;
   var lastDirectBootstrapAt = 0;
   var lastStyleReapplyAt = 0;
@@ -527,7 +529,14 @@
           if (d.setting_id === "hp_counter_position" && d.update_source === "hp_counter_autoposition") {
             return;
           }
-          cfg[d.setting_id] = coerceCfgValue(d.setting_id, d.value); settingsDirty = true;
+          cfg[d.setting_id] = coerceCfgValue(d.setting_id, d.value);
+          settingsDirty = true;
+          var nowTs = Date.now ? Date.now() : (new Date()).getTime();
+          var holdMs = SETTINGS_REFRESH_DEBOUNCE_MS;
+          if (d.update_source === "ui_reset" || d.update_source === "ui_code_apply" || d.update_source === "core_auto_resync" || d.update_source === "bridge_bootstrap") {
+            holdMs = 240;
+          }
+          settingsRefreshHoldUntil = nowTs + holdMs;
           writeSharedSnapshot(String(d.update_source || "update"));
           if (d.setting_id === "hp_level_number_visible") lLvVis = null;
           if (d.setting_id === "hp_enabled" && cfg.hp_enabled && !gRunning) { gRunning = true; $.Schedule(0.05, gL); }
@@ -957,6 +966,7 @@
     sHCS(lCounterLowMode, lCounterText);
     lW = -1; lHp = -1; lCol = null;
     settingsDirty = false;
+    settingsRefreshHoldUntil = 0;
   }
 
   // Decode max HP from pip label string (e.g. "|||| ..." â†’ 2000)
@@ -1058,13 +1068,17 @@
       if (isEnemy && now - lastStyleReapplyAt >= STYLE_REAPPLY_MS) {
         lastStyleReapplyAt = now;
         settingsDirty = true;
+        settingsRefreshHoldUntil = now;
         lCol = null;
         lUlt = null;
         lTxt = null;
         lBgVis = null;
         lBgOp = null;
       }
-      if (settingsDirty) applyCurrentSettings(isEnemy);
+      if (settingsDirty) {
+        if (now < settingsRefreshHoldUntil) { $.Schedule(0.05, gL); return; }
+        applyCurrentSettings(isEnemy);
+      }
       else sHBV(isEnemy && !!cfg.hp_bg_visible);
 
       // Neutral unit
