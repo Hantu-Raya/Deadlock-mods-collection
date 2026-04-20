@@ -1,0 +1,242 @@
+diff --git a/hp_colors/panorama/scripts/anita_ui_core.js b/hp_colors/panorama/scripts/anita_ui_core.js
+index 91fa2ab..31baf76 100644
+--- a/hp_colors/panorama/scripts/anita_ui_core.js
++++ b/hp_colors/panorama/scripts/anita_ui_core.js
+@@ -35,6 +35,15 @@
+   };
+   const RENDER_REFRESH_DEBOUNCE_SEC = 0.05;
+   const MAX_CONVAR_VALUE_LEN = 400;
++  const HP_DEBUG = true;
++  let hpDebugLines = 0;
++
++  function hpDbg(msg) {
++    if (!HP_DEBUG || hpDebugLines >= 180) return;
++    hpDebugLines += 1;
++    try { $.Msg("[HPDBG-BRIDGE] " + msg); } catch (e) {}
++  }
++
+   const HP_COMPACT_PERSIST_VERSION = 1;
+   const HP_PERSIST_ALIASES = {
+     hp_enabled: "e",
+@@ -2919,6 +2928,9 @@
+       }
+ 
+       AnitaPersistence.hydrateConfig(config);
++      if (config && config.title === "HP Colors") {
++        hpDbg("register hydrate elements=" + (Array.isArray(config.elements) ? config.elements.length : 0) + " storage=" + String(config.storageNamespace || ""));
++      }
+ 
+       for (let i = 0; i < this.registeredMods.length; i++) {
+         if (this.registeredMods[i].title === config.title) {
+@@ -2927,6 +2939,7 @@
+       }
+       this.registeredMods.push(config);
+       if (config.title === "HP Colors") {
++        hpDbg("register push active_mods=" + this.registeredMods.length);
+       }
+       AnitaRenderer.addTab(config.title, () => {
+         AnitaRenderer.renderModSettings(config);
+@@ -2942,6 +2955,7 @@
+     emitCurrentValues: function (config, meta) {
+       if (!config || !Array.isArray(config.elements)) return;
+       if (config.title === "HP Colors") {
++        hpDbg("emit_current source=" + String(meta && meta.update_source || "") + " reason=" + String(meta && meta.bootstrap_reason || meta && meta.sync_reason || "") + " count=" + config.elements.length);
+       }
+       for (var i = 0; i < config.elements.length; i++) {
+         var element = config.elements[i];
+@@ -3025,6 +3039,7 @@
+         updateSource === "ui_code_apply" ||
+         updateSource === "core_auto_resync";
+       if (data.mod_title === "HP Colors") {
++        hpDbg("handle_update setting=" + String(data.setting_id || "") + " source=" + updateSource + " replay=" + isReplaySource);
+       }
+       if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) {
+         return;
+@@ -3063,10 +3078,12 @@
+       var config = this.findRegisteredMod(data.mod_title);
+       if (!config) {
+         if (data.mod_title === "HP Colors") {
++          hpDbg("bootstrap_request no_config reason=" + String(data.reason || ""));
+         }
+         return;
+       }
+       if (data.mod_title === "HP Colors") {
++        hpDbg("bootstrap_request config_found reason=" + String(data.reason || "") + " loop=" + !!config.__anitaPortableSyncLoopStarted);
+         if (!config.__anitaPortableSyncLoopStarted) {
+           config.__anitaPortableSyncReason = String(config.__anitaPortableSyncReason || "bootstrap_request");
+           this.startPortableSyncLoop(config);
+@@ -3105,10 +3122,12 @@
+             let data = (typeof payload === 'string') ? JSON.parse(payload) : payload;
+             if (data && data.magic_word === "ANITA_REGISTER") {
+               if (data.config && data.config.title === "HP Colors") {
++                hpDbg("event_register");
+               }
+               this.registerMod(data.config);
+             } else if (data && data.magic_word === "ANITA_REQUEST_BOOTSTRAP") {
+               if (data.mod_title === "HP Colors") {
++                hpDbg("event_bootstrap_request reason=" + String(data.reason || ""));
+               }
+               this.handleBootstrapRequest(data);
+             } else if (data && data.magic_word === "ANITA_UPDATE") {
+diff --git a/hp_colors/panorama/scripts/healthbar_logic.js b/hp_colors/panorama/scripts/healthbar_logic.js
+index 12cc981..883fff1 100644
+--- a/hp_colors/panorama/scripts/healthbar_logic.js
++++ b/hp_colors/panorama/scripts/healthbar_logic.js
+@@ -251,6 +251,27 @@
+   var bootstrapAttempts = 0;
+   var bootstrapFinished = false;
+   var settingsDirty = true;
++  var HP_DEBUG = true;
++  var DEBUG_MAX_LINES = 180;
++  var debugLines = 0;
++  var debugLast = {};
++  var debugOverlayId = Math.floor(Math.random() * 100000) + "-" + Math.floor(Math.random() * 1000);
++  var debugLastScan = "";
++
++  function dbg(msg) {
++    if (!HP_DEBUG || debugLines >= DEBUG_MAX_LINES) return;
++    debugLines += 1;
++    try { $.Msg("[HPDBG][" + debugOverlayId + "] " + msg); } catch (e) {}
++  }
++
++  function dbgEvery(key, msg, intervalMs) {
++    if (!HP_DEBUG) return;
++    var now = Date.now ? Date.now() : (new Date()).getTime();
++    var last = Number(debugLast[key] || 0);
++    if (last && now - last < intervalMs) return;
++    debugLast[key] = now;
++    dbg(msg);
++  }
+ 
+   function getRootPanel() {
+     var panel = $.GetContextPanel();
+@@ -266,12 +287,16 @@
+     try {
+       if (root) {
+         var nextAllowedAt = Number(root.__hpColorsBootstrapNextAllowedAt || 0);
+-        if (isFinite(nextAllowedAt) && nextAllowedAt > now) return;
++        if (isFinite(nextAllowedAt) && nextAllowedAt > now) {
++          dbgEvery("bootstrap_throttle", "bootstrap_throttle reason=" + String(reason || "overlay_request") + " wait_ms=" + Math.round(nextAllowedAt - now), 900);
++          return;
++        }
+         root.__hpColorsBootstrapNextAllowedAt = now + Math.floor(BOOTSTRAP_RETRY_SEC * 1000 * 0.8);
+       }
+     } catch (eRate) {}
+ 
+     try {
++      dbgEvery("request_bootstrap", "request_bootstrap reason=" + String(reason || "overlay_request") + " attempt=" + bootstrapAttempts, 700);
+       $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
+         magic_word: "ANITA_REQUEST_BOOTSTRAP",
+         mod_title: TITLE,
+@@ -285,6 +310,7 @@
+     if (bootstrapApplied || bootstrapFinished) return;
+     if (bootstrapAttempts >= BOOTSTRAP_MAX_ATTEMPTS) {
+       bootstrapFinished = true;
++      dbgEvery("bootstrap_giveup", "bootstrap_giveup attempts=" + bootstrapAttempts + " cfg_enabled=" + cfg.hp_enabled + " mode=" + cfg.hp_mode, 1000);
+       return;
+     }
+ 
+@@ -304,6 +330,7 @@
+           if (d.setting_id === "hp_counter_position" && d.update_source === "hp_counter_autoposition") {
+             return;
+           }
++          dbgEvery("update_" + String(d.setting_id), "update setting=" + String(d.setting_id) + " source=" + String(d.update_source || "") + " value=" + String(d.value), 1200);
+           cfg[d.setting_id] = coerceCfgValue(d.setting_id, d.value); settingsDirty = true;
+           if (d.setting_id === "hp_level_number_visible") lLvVis = null;
+           if (d.setting_id === "hp_enabled" && cfg.hp_enabled && !gRunning) { gRunning = true; $.Schedule(0.05, gL); }
+@@ -322,6 +349,7 @@
+         }
+         if (d.update_source === "bridge_bootstrap") { bootstrapApplied = true;
+           bootstrapFinished = true;
++          dbg("bootstrap_applied setting=" + String(d.setting_id) + " value=" + String(d.value));
+           try {
+             var root = getRootPanel();
+             if (root) root.__hpColorsBootstrapAppliedAt = Date.now ? Date.now() : (new Date()).getTime();
+@@ -460,7 +488,8 @@
+     if (!lb || !lb.IsValid()) lb = us.FindChildTraverse('unit_healthbar_lagging');
+     if (!kz || !kz.IsValid()) kz = us.FindChildTraverse('hp_kill_zone_marker');
+     if (lb && (!lbp || !lbp.IsValid())) lbp = lb.GetParent();
+-    if (pl && lb && lbp) { cached = 1; return 1; }
++    if (pl && lb && lbp) { cached = 1; dbg("cache_ready attempt=" + att + " has_counter=" + !!hc + " has_bg=" + !!bg + " has_kz=" + !!kz); return 1; }
++    dbgEvery("cache_wait", "cache_wait attempt=" + att + " us=" + !!us + " pl=" + !!pl + " lb=" + !!lb + " lbp=" + !!lbp, 600);
+     return 0;
+   }
+ 
+@@ -497,7 +526,7 @@
+   function sBC(c) {
+     var next = normalizeWashColor(c);
+     if (lCol !== next && rb) {
+-      try { rb.style.washColor = next; lCol = next; } catch (e) { lCol = null; }
++      try { rb.style.washColor = next; dbgEvery("bar_color_" + next, "bar_color=" + next + " enemy=" + !!(fl & 1) + " neutral=" + !!(fl & 2) + " boot=" + bootstrapApplied, 800); lCol = next; } catch (e) { dbgEvery("bar_color_error", "bar_color_error=" + e + " color=" + next, 1000); lCol = null; }
+     }
+   }
+   function sUC(c) {
+@@ -727,6 +756,7 @@
+     sFC = 0;
+     lCounterLowMode = false;
+     settingsDirty = true;
++    dbg("panel_recache born_at=" + panelBornAt + " rb=" + !!rb + " hc=" + !!hc + " bg=" + !!bg);
+   }
+ 
+   function applyCurrentSettings(isEnemy) {
+@@ -793,13 +823,18 @@
+       }
+ 
+       var now = Date.now();
+-      if (!rb) { rb = fRB(); if (!rb) { $.Schedule(0.15, gL); return; } }
++      if (!rb) { rb = fRB(); if (!rb) { dbgEvery("no_rb", "no_rb waiting cached=" + cached + " boot=" + bootstrapApplied, 700); $.Schedule(0.15, gL); return; } dbg("rb_found"); }
+       if (!cached && !tryCache()) { $.Schedule(0.15, gL); return; }
+       resetStyleStateForNewPanels();
+       if (rb.GetParent) { var p = rb.GetParent(); if (cp !== p) cp = p; }
+ 
+       scan(rb); lAT = now;
+       var isEnemy = !!(fl & 1) && !(fl & 2);
++      var scanKey = String(tid) + ":" + String(fl) + ":" + String(isEnemy);
++      if (scanKey !== debugLastScan) {
++        debugLastScan = scanKey;
++        dbg("scan_change tid=" + tid + " flags=" + fl + " enemy=" + isEnemy + " boot=" + bootstrapApplied);
++      }
+       if (cfg.hp_skip_buildings && (fl & 4)) {
+         clearPulse();
+         if (!isEnemy) {
+@@ -830,6 +865,7 @@
+       }
+       if (settingsDirty) applyCurrentSettings(isEnemy);
+       else sHBV(isEnemy && !!cfg.hp_bg_visible);
++      if (settingsDirty) dbgEvery("settings_dirty_after_apply", "settings_dirty_still_true enemy=" + isEnemy, 1200);
+ 
+       // Neutral unit
+       if (fl & 2) { clearPulse();
+@@ -841,13 +877,14 @@
+         $.Schedule(1.5, gL); return;
+       }
+       // Not an enemy â€” skip coloring
+-      if (!(fl & 1)) { sHBV(true); sKZ(false, 0); sBC(""); sUC(""); lUT = now; $.Schedule(0.4, gL); return; }
++      if (!(fl & 1)) { dbgEvery("not_enemy", "not_enemy flags=" + fl + " tid=" + tid, 1200); sHBV(true); sKZ(false, 0); sBC(""); sUC(""); lUT = now; $.Schedule(0.4, gL); return; }
+ 
+       var w = rb.actuallayoutwidth | 0;
+       var pw = cp && cp.actuallayoutwidth !== undefined ? cp.actuallayoutwidth | 0 : 0;
+ 
+       // No change in width â€” back off
+       if (w === lW && pw === lPW && !pulse) {
++        dbgEvery("width_skip", "width_skip w=" + w + " pw=" + pw + " hp=" + lHp + " col=" + lCol + " boot=" + bootstrapApplied, 1200);
+         if (now - lUT > 2000) { $.Schedule(1, gL); return; }
+         $.Schedule(0.15, gL); return;
+       }
+@@ -865,7 +902,7 @@
+       if (high < low) high = low;
+ 
+       // Small change above low threshold â€” back off
+-      if (Math.abs(hp - lHp) < 3 && hp > low && lHp > low && !pulse) { $.Schedule(0.15, gL); return; }
++      if (Math.abs(hp - lHp) < 3 && hp > low && lHp > low && !pulse) { dbgEvery("hp_skip", "hp_skip hp=" + hp + " prev=" + lHp + " col=" + lCol + " boot=" + bootstrapApplied, 1200); $.Schedule(0.15, gL); return; }
+       var prevHp = lHp;
+       if (hp === pPct) sFC++; else { sFC = 0; pPct = hp; }
+       lHp = hp;
+@@ -1086,6 +1123,7 @@
+     }
+   }
+ 
++  dbg("script_start cfg_enabled=" + cfg.hp_enabled + " mode=" + cfg.hp_mode + " team_colors=" + cfg.hp_team_colors);
+   gRunning = true; gL();
+   aRunning = true; aL();
+   lL();
