@@ -822,7 +822,7 @@
 
         var ownerConfig = AnitaCore.findRegisteredMod(modTitle);
         if (ownerConfig && AnitaRenderer.hasVisibilityDependents(ownerConfig, config.id)) {
-          AnitaCore.queueRenderRefresh(ownerConfig);
+          AnitaRenderer.refreshConditionalVisibility(ownerConfig);
         }
       });
 
@@ -1035,41 +1035,42 @@
       lbl.text = config.label || "Cycle";
       lbl.AddClass("AnitaLabel");
 
-      const btn = $.CreatePanel("Button", row, "");
-      btn.AddClass("AnitaCyclerBtn");
-
-      const valLbl = $.CreatePanel("Label", btn, "");
+      const group = $.CreatePanel("Panel", row, "");
+      group.AddClass("AnitaCyclerGroup");
 
       const options = config.options || ["OFF", "ON"];
-
       let idx = (config.currentValue !== undefined) ? config.currentValue : (config.defaultValue || 0);
-
       if (idx < 0 || idx >= options.length) idx = 0;
 
+      const btns = [];
       const updateVisuals = () => {
-        valLbl.text = options[idx];
+        for (let i = 0; i < btns.length; i++) {
+          btns[i].SetHasClass("Active", i === idx);
+        }
       };
 
+      for (let i = 0; i < options.length; i++) {
+        const btn = $.CreatePanel("Button", group, "");
+        btn.AddClass("AnitaCyclerSegment");
+        const valLbl = $.CreatePanel("Label", btn, "");
+        valLbl.text = options[i];
+        
+        btn.SetPanelEvent("onactivate", () => {
+          if (idx === i) return;
+          idx = i;
+          updateVisuals();
+          config.currentValue = idx;
+          var ownerConfig = AnitaCore.findRegisteredMod(modTitle);
+          if (ownerConfig && AnitaRenderer.hasVisibilityDependents(ownerConfig, config.id)) {
+            AnitaRenderer.refreshConditionalVisibility(ownerConfig);
+          }
+          if (config.id && modTitle) emitUpdate(modTitle, config.id, idx);
+          if (config.onChange) config.onChange(idx, options[i]);
+        });
+        btns.push(btn);
+      }
+
       updateVisuals();
-
-      btn.SetPanelEvent("onactivate", () => {
-        idx = (idx + 1) % options.length;
-        updateVisuals();
-
-        config.currentValue = idx;
-
-        var ownerConfig = AnitaCore.findRegisteredMod(modTitle);
-        if (ownerConfig && AnitaRenderer.hasVisibilityDependents(ownerConfig, config.id)) {
-          AnitaCore.queueRenderRefresh(ownerConfig);
-        }
-
-        if (config.id && modTitle) {
-          emitUpdate(modTitle, config.id, idx);
-        }
-
-        if (config.onChange) config.onChange(idx, options[idx]);
-      });
-
       return row;
     },
 
@@ -1446,15 +1447,15 @@
         if (!isValidPanel(refPanel)) return null;
 
         var bounds = getPanelBounds(refPanel);
-        var width = Number(refPanel.actuallayoutwidth || bounds.width || 240);
-        var height = Number(refPanel.actuallayoutheight || bounds.height || 240);
-        var cursorWidth = Number(isValidPanel(colorBoxCursor) ? (colorBoxCursor.actuallayoutwidth || colorBoxCursor.contentwidth || colorBoxCursor.width) : 18);
-        var cursorHeight = Number(isValidPanel(colorBoxCursor) ? (colorBoxCursor.actuallayoutheight || colorBoxCursor.contentheight || colorBoxCursor.height) : 18);
+        var width = Number(refPanel.actuallayoutwidth || bounds.width || 260);
+        var height = Number(refPanel.actuallayoutheight || bounds.height || 200);
+        var cursorWidth = Number(isValidPanel(colorBoxCursor) ? (colorBoxCursor.actuallayoutwidth || colorBoxCursor.contentwidth || colorBoxCursor.width) : 16);
+        var cursorHeight = Number(isValidPanel(colorBoxCursor) ? (colorBoxCursor.actuallayoutheight || colorBoxCursor.contentheight || colorBoxCursor.height) : 16);
 
-        if (!isFinite(width) || width <= 1) width = 240;
-        if (!isFinite(height) || height <= 1) height = 240;
-        if (!isFinite(cursorWidth) || cursorWidth <= 0) cursorWidth = 18;
-        if (!isFinite(cursorHeight) || cursorHeight <= 0) cursorHeight = 18;
+        if (!isFinite(width) || width <= 1) width = 260;
+        if (!isFinite(height) || height <= 1) height = 200;
+        if (!isFinite(cursorWidth) || cursorWidth <= 0) cursorWidth = 16;
+        if (!isFinite(cursorHeight) || cursorHeight <= 0) cursorHeight = 16;
 
         return {
           panel: refPanel,
@@ -1488,12 +1489,7 @@
         colorBoxCursor.style.x = nextX + "px";
         colorBoxCursor.style.y = nextY + "px";
         colorBoxCursor.style.transform = "none";
-        colorBoxCursor.style.zIndex = "20";
-        colorBoxCursor.style.opacity = "1";
-        colorBoxCursor.style.visibility = "visible";
-        colorBoxCursor.style.backgroundColor = "#FFFFFF";
-        colorBoxCursor.style.washColor = "#FFFFFF";
-        return true;
+      return true;
       }
 
       function rememberColorDragAnchor(cursorX, cursorY) {
@@ -1589,6 +1585,18 @@
         var cursorX = metrics.maxCursorX > 0 ? (pickerBoxHue / 359) * metrics.maxCursorX : 0;
         var cursorY = metrics.maxCursorY > 0 ? pickerBoxSat * metrics.maxCursorY : 0;
         applyColorBoxCursorPosition(cursorX, cursorY);
+
+        if (colorCode && isValidPanel(colorBoxCursor)) {
+          var rgb = hexToRgbLocal(colorCode);
+          var invR = 255 - (rgb[0] || 0);
+          var invG = 255 - (rgb[1] || 0);
+          var invB = 255 - (rgb[2] || 0);
+          if (Math.abs(invR - 128) < 40 && Math.abs(invG - 128) < 40 && Math.abs(invB - 128) < 40) {
+            var luma = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
+            invR = invG = invB = luma > 128 ? 0 : 255;
+          }
+          colorBoxCursor.style.borderColor = "rgb(" + invR + "," + invG + "," + invB + ")";
+        }
       }
 
       function syncFromCursorPanelPosition(emitUpdateEvent) {
@@ -2124,7 +2132,7 @@
         closeBtn.SetPanelEvent("onactivate", closePalette);
 
         syncColorVisuals(currentColor, false, false);
-        $.Schedule(0.0, function () {
+        $.Schedule(0.05, function () {
           if (colorPopupPanel && colorPopupPanel.IsValid && colorPopupPanel.IsValid()) {
             syncColorVisuals(currentColor, false, false);
           }
@@ -2395,6 +2403,7 @@
     activeModTitle: "",
     isOpen: false,
     activeColorPickerClose: null,
+    activeImportPopupClose: null,
 
     findElementById: function (config, elementId) {
       if (!config || !Array.isArray(config.elements) || !elementId) return null;
@@ -2588,6 +2597,12 @@
           } catch (closeErr) {}
           this.activeColorPickerClose = null;
         }
+        if (this.activeImportPopupClose) {
+          try {
+            this.activeImportPopupClose();
+          } catch (popupErr) {}
+          this.activeImportPopupClose = null;
+        }
         $.DispatchEvent("DropInputFocus", this.mainWindow);
 
         let root = $.GetContextPanel();
@@ -2626,6 +2641,12 @@
     },
 
     renderModSettings: function (config) {
+      if (this.activeImportPopupClose) {
+        try {
+          this.activeImportPopupClose();
+        } catch (popupErr) {}
+        this.activeImportPopupClose = null;
+      }
       this.contentArea.RemoveAndDeleteChildren();
 
       this.contentArea.canfocus = true;
@@ -2729,7 +2750,10 @@
       detailHint.text = "Select a setting group from the tree on the left.";
       detailHint.AddClass("AnitaDetailHint");
 
-      const settingsList = $.CreatePanel("Panel", detailPanel, "");
+      const detailBody = $.CreatePanel("Panel", detailPanel, "");
+      detailBody.AddClass("AnitaDetailBody");
+
+      const settingsList = $.CreatePanel("Panel", detailBody, "");
       settingsList.AddClass("AnitaSettingsList");
 
       if (config.elements) {
@@ -2754,11 +2778,29 @@
 
       // Footer: Copy / Reset / Import (only for mods with storageNamespace)
       if (config.storageNamespace) {
+        var FOOTER_BOTTOM_GAP = 12;
+
         var footerWrap = $.CreatePanel("Panel", detailPanel, "");
         footerWrap.AddClass("AnitaFooterWrap");
 
         var footer = $.CreatePanel("Panel", footerWrap, "");
         footer.AddClass("AnitaFooterRow");
+
+        function dockFooter() {
+          if (!footerWrap || !footerWrap.IsValid || !footerWrap.IsValid()) return;
+          var panelHeight = Number(detailPanel && detailPanel.actuallayoutheight);
+          var footerHeight = Number(footerWrap.actuallayoutheight);
+          if (!isFinite(panelHeight) || panelHeight <= 0) {
+            $.Schedule(0.05, dockFooter);
+            return;
+          }
+          if (!isFinite(footerHeight) || footerHeight <= 0) {
+            footerHeight = 34;
+          }
+          var footerTop = Math.max(0, Math.floor(panelHeight - footerHeight - FOOTER_BOTTOM_GAP));
+          footerWrap.style.y = footerTop + "px";
+          footerWrap.style.x = "0px";
+        }
 
         function makeFooterBtn(parent, label, id) {
           var btn = $.CreatePanel("Button", parent, id || "");
@@ -2777,6 +2819,131 @@
           $.Schedule(durationSec, function () {
             if (lbl && lbl.IsValid()) lbl.text = orig;
             if (btn && btn.IsValid()) btn.RemoveClass("AnitaFooterBtnSuccess");
+          });
+        }
+
+        var importPopupPanel = null;
+        var importPopupInput = null;
+        var importPopupApplyBtn = null;
+
+        function closeImportPopup() {
+          if (importPopupPanel && importPopupPanel.IsValid && importPopupPanel.IsValid()) {
+            importPopupPanel.DeleteAsync(0);
+          }
+          importPopupPanel = null;
+          importPopupInput = null;
+          importPopupApplyBtn = null;
+          config.__anitaImportCodeInput = null;
+          if (AnitaRenderer.activeImportPopupClose === closeImportPopup) {
+            AnitaRenderer.activeImportPopupClose = null;
+          }
+        }
+
+        function openImportPopup() {
+          if (importPopupPanel && importPopupPanel.IsValid && importPopupPanel.IsValid()) {
+            if (importPopupInput && importPopupInput.IsValid && importPopupInput.IsValid()) {
+              importPopupInput.SetFocus();
+            }
+            return;
+          }
+
+          if (AnitaRenderer.activeImportPopupClose &&
+              AnitaRenderer.activeImportPopupClose !== closeImportPopup) {
+            try {
+              AnitaRenderer.activeImportPopupClose();
+            } catch (closeErr) {}
+          }
+
+          var popupParent = $.GetContextPanel();
+          importPopupPanel = $.CreatePanel("Panel", popupParent, "");
+          AnitaRenderer.activeImportPopupClose = closeImportPopup;
+          importPopupPanel.AddClass("AnitaImportPopup");
+          importPopupPanel.style.align = "center center";
+          importPopupPanel.style.ignoreParentFlow = true;
+          importPopupPanel.style.flowChildren = "down";
+          importPopupPanel.style.uiScale = "100%";
+          importPopupPanel.SetPanelEvent("oncancel", closeImportPopup);
+
+          var header = $.CreatePanel("Panel", importPopupPanel, "");
+          header.AddClass("AnitaImportPopupHeader");
+
+          var title = $.CreatePanel("Label", header, "");
+          title.AddClass("AnitaImportPopupTitle");
+          title.text = "Import Code";
+
+          var headerClose = $.CreatePanel("Button", header, "");
+          headerClose.AddClass("AnitaColorPopupBtn");
+          var headerCloseLbl = $.CreatePanel("Label", headerClose, "");
+          headerCloseLbl.text = "Close";
+          headerClose.SetPanelEvent("onactivate", closeImportPopup);
+
+          var hint = $.CreatePanel("Label", importPopupPanel, "");
+          hint.AddClass("AnitaImportPopupHint");
+          hint.text = "Paste a token to apply and persist these settings.";
+
+          var importRow = $.CreatePanel("Panel", importPopupPanel, "");
+          importRow.AddClass("AnitaPasteRow");
+          importRow.AddClass("AnitaPasteRowCompact");
+          importRow.AddClass("AnitaImportPopupRow");
+          importRow.hittest = true;
+          importRow.style.width = "100%";
+
+          var importLabel = $.CreatePanel("Label", importRow, "");
+          importLabel.AddClass("AnitaLabel");
+          importLabel.text = "Import Code";
+          importLabel.style.width = "84px";
+          importLabel.style.fontSize = "12px";
+          importLabel.style.marginRight = "6px";
+
+          importPopupInput = $.CreatePanel("TextEntry", importRow, "");
+          importPopupInput.AddClass("AnitaPasteInput");
+          importPopupInput.placeholder = "Paste a code to apply...";
+          importPopupInput.style.width = "320px";
+          importPopupInput.style.height = "24px";
+          importPopupInput.style.fontSize = "9px";
+          config.__anitaImportCodeInput = importPopupInput;
+
+          importPopupApplyBtn = makeFooterBtn(importRow, "Apply", "");
+
+          function applySaveCodeInput() {
+            if (!importPopupInput || !importPopupInput.IsValid || !importPopupInput.IsValid()) return;
+
+            var text = String(importPopupInput.text || "").trim();
+            if (!text) { flashLabel(importPopupApplyBtn.btn, importPopupApplyBtn.lbl, "Empty", 1.5); return; }
+
+            var token = AnitaRenderer.extractSaveCodeToken(config, text);
+            if (!token) { flashLabel(importPopupApplyBtn.btn, importPopupApplyBtn.lbl, "Invalid", 1.5); return; }
+
+            var encoded = token.split("]:")[1] || "";
+            try {
+              var raw = AnitaBase64.decode(encoded);
+              var parsed = AnitaPersistence.parseStoredPayload(config, raw, "code");
+              if (!parsed) { flashLabel(importPopupApplyBtn.btn, importPopupApplyBtn.lbl, "Invalid", 1.5); return; }
+              if (!parsed.values || !Object.keys(parsed.values).length) {
+                flashLabel(importPopupApplyBtn.btn, importPopupApplyBtn.lbl, "No IDs", 1.5);
+                return;
+              }
+
+              AnitaPersistence.applyResolvedValues(config, parsed.values);
+              AnitaPersistence.persistConfig(config, true);
+              AnitaRenderer.syncSaveCodeInput(config);
+              AnitaCore.emitCurrentValues(config, {
+                update_source: "ui_code_apply",
+                force_persist: true
+              });
+              closeImportPopup();
+              AnitaRenderer.renderModSettings(config);
+            } catch (eDec) {
+              flashLabel(importPopupApplyBtn.btn, importPopupApplyBtn.lbl, "Invalid", 1.5);
+            }
+          }
+
+          importPopupApplyBtn.btn.SetPanelEvent("onactivate", applySaveCodeInput);
+          importPopupInput.SetPanelEvent("ontextentrysubmit", applySaveCodeInput);
+          $.Schedule(0.0, function () {
+            if (importPopupInput && importPopupInput.IsValid && importPopupInput.IsValid()) {
+              importPopupInput.SetFocus();
+            }
           });
         }
 
@@ -2799,6 +2966,9 @@
 
         var resetB = makeFooterBtn(footer, "Reset", "");
         resetB.btn.SetPanelEvent("onactivate", function () {
+          if (AnitaRenderer.activeImportPopupClose === closeImportPopup) {
+            closeImportPopup();
+          }
           AnitaPersistence.applyResolvedValues(config, {});
           AnitaPersistence.persistConfig(config, true);
           AnitaRenderer.syncSaveCodeInput(config);
@@ -2810,88 +2980,15 @@
           });
         });
 
-        // Paste row — visible TextEntry the user can paste a token into, then Apply
-        var importRowOpen = false;
         var importToggleBtn = makeFooterBtn(footer, "Import", "");
-
-        var importCodeRow = $.CreatePanel("Panel", footerWrap, "");
-        importCodeRow.AddClass("AnitaPasteRow");
-        importCodeRow.AddClass("AnitaPasteRowCompact");
-        importCodeRow.hittest = true;
-        importCodeRow.style.visibility = "collapse";
-        importCodeRow.style.height = "0px";
-        importCodeRow.style.marginTop = "0px";
-
-        var importCodeLabel = $.CreatePanel("Label", importCodeRow, "");
-        importCodeLabel.AddClass("AnitaLabel");
-        importCodeLabel.text = "Import Code";
-        importCodeLabel.style.width = "84px";
-        importCodeLabel.style.fontSize = "12px";
-        importCodeLabel.style.marginRight = "6px";
-
-        var importCodeInput = $.CreatePanel("TextEntry", importCodeRow, "");
-        importCodeInput.AddClass("AnitaPasteInput");
-        importCodeInput.placeholder = "Paste a code to apply...";
-        importCodeInput.style.width = "320px";
-        importCodeInput.style.height = "24px";
-        importCodeInput.style.fontSize = "9px";
-        config.__anitaImportCodeInput = importCodeInput;
-
-        var applyCodeB = makeFooterBtn(importCodeRow, "Apply", "");
-
-        function setImportRowVisible(visible) {
-          importRowOpen = !!visible;
-          if (importCodeRow && importCodeRow.IsValid && importCodeRow.IsValid()) {
-            importCodeRow.style.visibility = importRowOpen ? "visible" : "collapse";
-            importCodeRow.style.height = importRowOpen ? "30px" : "0px";
-            importCodeRow.style.marginTop = importRowOpen ? "6px" : "0px";
-          }
-          if (importToggleBtn && importToggleBtn.lbl) {
-            importToggleBtn.lbl.text = importRowOpen ? "Hide" : "Import";
-          }
-        }
-
         importToggleBtn.btn.SetPanelEvent("onactivate", function () {
-          setImportRowVisible(!importRowOpen);
+          openImportPopup();
         });
 
-        function applySaveCodeInput() {
-          var text = String(importCodeInput.text || "").trim();
-          if (!text) { flashLabel(applyCodeB.btn, applyCodeB.lbl, "Empty", 1.5); return; }
-
-          var token = AnitaRenderer.extractSaveCodeToken(config, text);
-          if (!token) { flashLabel(applyCodeB.btn, applyCodeB.lbl, "Invalid", 1.5); return; }
-
-          var encoded = token.split("]:")[1] || "";
-          try {
-            var raw = AnitaBase64.decode(encoded);
-            var parsed = AnitaPersistence.parseStoredPayload(config, raw, "code");
-            if (!parsed) { flashLabel(applyCodeB.btn, applyCodeB.lbl, "Invalid", 1.5); return; }
-            if (!parsed.values || !Object.keys(parsed.values).length) {
-              flashLabel(applyCodeB.btn, applyCodeB.lbl, "No IDs", 1.5);
-              return;
-            }
-
-            AnitaPersistence.applyResolvedValues(config, parsed.values);
-            AnitaPersistence.persistConfig(config, true);
-            AnitaRenderer.syncSaveCodeInput(config);
-            flashLabel(applyCodeB.btn, applyCodeB.lbl, "Applied", 1.5);
-            AnitaRenderer.renderModSettings(config);
-            if (config.__anitaImportCodeInput && config.__anitaImportCodeInput.IsValid && config.__anitaImportCodeInput.IsValid()) {
-              config.__anitaImportCodeInput.text = "";
-            }
-            AnitaCore.emitCurrentValues(config, {
-              update_source: "ui_code_apply",
-              force_persist: true
-            });
-          } catch (eDec) {
-            flashLabel(applyCodeB.btn, applyCodeB.lbl, "Invalid", 1.5);
-          }
-        }
-
-        applyCodeB.btn.SetPanelEvent("onactivate", applySaveCodeInput);
-        importCodeInput.SetPanelEvent("ontextentrysubmit", applySaveCodeInput);
-        setImportRowVisible(false);
+        dockFooter();
+        $.Schedule(0.0, dockFooter);
+        $.Schedule(0.1, dockFooter);
+        $.Schedule(0.25, dockFooter);
       }
     },
 
@@ -3072,11 +3169,11 @@
       });
 
       if (this.hasVisibilityDependents(config, data.setting_id)) {
-        this.queueRenderRefresh(config);
+        AnitaRenderer.refreshConditionalVisibility(config);
         return;
       }
       if (isBootstrap) {
-        this.queueRenderRefresh(config);
+        AnitaRenderer.refreshConditionalVisibility(config);
         return;
       }
     },
