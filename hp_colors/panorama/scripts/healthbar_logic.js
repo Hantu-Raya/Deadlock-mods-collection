@@ -37,11 +37,19 @@
     hp_friend_color_mid: "#FF7B00",
     hp_friend_color_high: "#00FF00",
     hp_friend_pulse_color_enabled: false,
-    hp_friend_pulse_color: "#FF2222"
+    hp_friend_pulse_color: "#FF2222",
+    hp_level_number_visible: true,
+    hp_kill_zone_enabled: false,
+    hp_kill_zone_threshold: 25,
+    hp_kill_zone_color: "#FF2222",
+    hp_kill_zone_width: 3
   };
   var cfg = {};
   var TEAM1_HIGH = "#FFC961";
   var TEAM2_HIGH = "#6485FC";
+  var CSS_TEAM1_COLOR = "#E7B659";
+  var CSS_TEAM2_COLOR = "#5B79E6";
+  var CSS_TEAM_FRIEND_COLOR = "#FFEFD7";
   var CSS_TEAM_ENEMY_COLOR = "#e16161";
   var WHITE_WASH = "#ffffff";
   var LP = 'low_hp_pulsing';
@@ -239,10 +247,64 @@
   var BOOTSTRAP_NAMESPACE = "hp_colors";
   var BOOTSTRAP_MAX_ATTEMPTS = 8;
   var BOOTSTRAP_RETRY_SEC = 0.5;
+  var BOOTSTRAP_SLOW_RETRY_SEC = 3.0;
+  var BOOTSTRAP_REQUEST_THROTTLE_MS = 400;
+  var STYLE_REAPPLY_MS = 1000;
+  var DIRECT_BOOTSTRAP_KEY = "anita_v1_hp_colors";
+  var SHARED_CFG_RAW_KEY = "__hpColorsCfgRaw";
+  var HP_PERSIST_ALIAS_TO_ID = {
+    e: "hp_enabled",
+    m: "hp_mode",
+    l: "hp_low_threshold",
+    h: "hp_high_threshold",
+    b: "hp_bg_visible",
+    t: "hp_team_colors",
+    cl: "hp_color_low",
+    cm: "hp_color_mid",
+    ch: "hp_color_high",
+    s: "hp_counter_size",
+    p: "hp_counter_position",
+    tm: "hp_text_color_mode",
+    lnv: "hp_level_number_visible",
+    tl: "hp_text_color_low",
+    ti: "hp_text_color_mid",
+    th: "hp_text_color_high",
+    bp: "hp_pulse_bpm",
+    pi: "hp_pulse_intensity",
+    pe: "hp_pulse_enabled",
+    pte: "hp_pulse_text_enabled",
+    pts: "hp_pulse_text_scale",
+    ptp: "hp_pulse_text_position",
+    phb: "hp_pulse_hide_bar",
+    sb: "hp_skip_buildings",
+    pt: "hp_pulse_threshold",
+    fe: "hp_friend_enabled",
+    fpe: "hp_friend_pulse_enabled",
+    fpb: "hp_friend_pulse_bpm",
+    fpi: "hp_friend_pulse_intensity",
+    fpt: "hp_friend_pulse_threshold",
+    fcl: "hp_friend_color_low",
+    fcm: "hp_friend_color_mid",
+    fch: "hp_friend_color_high",
+    fpce: "hp_friend_pulse_color_enabled",
+    fpc: "hp_friend_pulse_color",
+    kze: "hp_kill_zone_enabled",
+    kzt: "hp_kill_zone_threshold",
+    kzc: "hp_kill_zone_color",
+    kzw: "hp_kill_zone_width"
+  };
   var bootstrapApplied = false;
+  var directBootstrapApplied = false;
   var bootstrapAttempts = 0;
   var bootstrapFinished = false;
   var settingsDirty = true;
+  var settingsRefreshHoldUntil = 0;
+  var SETTINGS_REFRESH_DEBOUNCE_MS = 80;
+  var lastBootstrapRequestAt = 0;
+  var lastDirectBootstrapAt = 0;
+  var lastStyleReapplyAt = 0;
+  var sharedCfgRaw = "";
+  var directBootstrapMisses = 0;
 
   function getRootPanel() {
     var panel = $.GetContextPanel();
@@ -252,16 +314,184 @@
     return panel || null;
   }
 
-  function requestBootstrap(reason) {
-    var root = getRootPanel();
-    var now = Date.now ? Date.now() : (new Date()).getTime();
+  function getSharedStore() {
     try {
-      if (root) {
-        var nextAllowedAt = Number(root.__hpColorsBootstrapNextAllowedAt || 0);
-        if (isFinite(nextAllowedAt) && nextAllowedAt > now) return;
-        root.__hpColorsBootstrapNextAllowedAt = now + Math.floor(BOOTSTRAP_RETRY_SEC * 1000 * 0.8);
+      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) return GameUI.CustomUIConfig();
+    } catch (e) {}
+    return null;
+  }
+
+  function decodeBase64Url(str) {
+    var CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    var lookup = {};
+    for (var i = 0; i < CHARS.length; i++) lookup[CHARS[i]] = i;
+    function getVal(ch) {
+      if (ch === undefined) return 0;
+      if (!Object.prototype.hasOwnProperty.call(lookup, ch)) throw new Error("Invalid base64url char: " + ch);
+      return lookup[ch];
+    }
+    var bytes = [];
+    for (var j = 0; j < str.length; j += 4) {
+      var c0 = getVal(str[j]);
+      var c1 = getVal(str[j + 1]);
+      var c2 = str[j + 2] !== undefined ? getVal(str[j + 2]) : 0;
+      var c3 = str[j + 3] !== undefined ? getVal(str[j + 3]) : 0;
+      bytes.push((c0 << 2) | (c1 >> 4));
+      if (str[j + 2] !== undefined) bytes.push(((c1 & 15) << 4) | (c2 >> 2));
+      if (str[j + 3] !== undefined) bytes.push(((c2 & 3) << 6) | c3);
+    }
+    var out = "";
+    for (var k = 0; k < bytes.length; k++) {
+      var b = bytes[k];
+      if (b < 128) {
+        out += String.fromCharCode(b);
+      } else if (b < 224) {
+        out += String.fromCharCode(((b & 31) << 6) | (bytes[++k] & 63));
+      } else {
+        var b2 = bytes[++k], b3 = bytes[++k];
+        out += String.fromCharCode(((b & 15) << 12) | ((b2 & 63) << 6) | (b3 & 63));
       }
-    } catch (eRate) {}
+    }
+    return out;
+  }
+
+  function parseStoredPayload(raw) {
+    if (!raw) return null;
+    var parsed = null;
+    try { parsed = JSON.parse(String(raw)); } catch (eParse) { return null; }
+    var data = parsed && typeof parsed === "object" ? (parsed.values || parsed.v || parsed) : null;
+    if (!data || typeof data !== "object") return null;
+    var out = {};
+    for (var key in data) {
+      if (!Object.prototype.hasOwnProperty.call(data, key)) continue;
+      var id = Object.prototype.hasOwnProperty.call(DEFAULTS, key) ? key : HP_PERSIST_ALIAS_TO_ID[key];
+      if (!id || !Object.prototype.hasOwnProperty.call(DEFAULTS, id)) continue;
+      out[id] = coerceCfgValue(id, data[key]);
+    }
+    return out;
+  }
+
+  function readSessionMirrorEncoded() {
+    var root = getRootPanel();
+    if (!root) return "";
+    try {
+      if (root.GetAttributeString) {
+        var rootValue = String(root.GetAttributeString(DIRECT_BOOTSTRAP_KEY, "") || "");
+        if (rootValue) return rootValue;
+      }
+    } catch (eRoot) {}
+    try {
+      var hud = root.FindChildTraverse ? root.FindChildTraverse("Hud") : null;
+      if (hud && hud.GetAttributeString) return String(hud.GetAttributeString(DIRECT_BOOTSTRAP_KEY, "") || "");
+    } catch (eHud) {}
+    return "";
+  }
+
+  function hasPersistentStorage() {
+    try {
+      $.persistentStorage.setItem("_hp_probe", "1");
+      $.persistentStorage.removeItem("_hp_probe");
+      return true;
+    } catch (e) {}
+    return false;
+  }
+
+  function readPersistentStorageEncoded() {
+    try {
+      if (!hasPersistentStorage()) return "";
+      return String($.persistentStorage.getItem(DIRECT_BOOTSTRAP_KEY) || "");
+    } catch (e) {}
+    return "";
+  }
+
+  function readConvarEncoded() {
+    try {
+      if (!GameInterfaceAPI || !GameInterfaceAPI.GetSettingString) return "";
+      var raw = String(GameInterfaceAPI.GetSettingString("deadlock_hero_debuts_seen") || "");
+      var marker = "[ANITA-v1-" + BOOTSTRAP_NAMESPACE + "]:";
+      var idx = raw.indexOf(marker);
+      if (idx < 0) return "";
+      return raw.slice(idx + marker.length).split("|")[0].split(";")[0].split(",")[0];
+    } catch (e) {}
+    return "";
+  }
+
+  function snapshotCfg() {
+    var out = {};
+    for (var k in DEFAULTS) {
+      if (Object.prototype.hasOwnProperty.call(DEFAULTS, k)) out[k] = cfg[k];
+    }
+    return out;
+  }
+
+  function writeSharedSnapshot(reason) {
+    var store = getSharedStore();
+    if (!store) return;
+    try {
+      sharedCfgRaw = JSON.stringify(snapshotCfg());
+      store[SHARED_CFG_RAW_KEY] = sharedCfgRaw;
+    } catch (e) {}
+  }
+
+  function applyDirectSnapshot(values, source) {
+    if (!values) return false;
+    var count = 0;
+    for (var k in values) {
+      if (!Object.prototype.hasOwnProperty.call(values, k)) continue;
+      if (!Object.prototype.hasOwnProperty.call(DEFAULTS, k)) continue;
+      cfg[k] = coerceCfgValue(k, values[k]);
+      count += 1;
+    }
+    if (!count) return false;
+    settingsDirty = true;
+    bootstrapApplied = true;
+    directBootstrapApplied = true;
+    bootstrapFinished = true;
+    directBootstrapMisses = 0;
+    try { resetStyleStateForNewPanels(); } catch (eReset) {}
+    if (source !== "shared") writeSharedSnapshot(source);
+    dbg("direct_bootstrap source=" + source + " count=" + count + " enabled=" + cfg.hp_enabled + " mode=" + cfg.hp_mode);
+    return true;
+  }
+
+  function tryApplySharedSnapshot() {
+    var store = getSharedStore();
+    if (!store) return false;
+    var raw = "";
+    try { raw = String(store[SHARED_CFG_RAW_KEY] || ""); } catch (e) { raw = ""; }
+    if (!raw || raw === sharedCfgRaw) return false;
+    sharedCfgRaw = raw;
+    var parsed = null;
+    try { parsed = JSON.parse(raw); } catch (eParse) { return false; }
+    return applyDirectSnapshot(parsed, "shared");
+  }
+
+  function tryDecodeDirectPayload(encoded, source) {
+    if (!encoded) return false;
+    try {
+      return applyDirectSnapshot(parseStoredPayload(decodeBase64Url(String(encoded))), source);
+    } catch (eDecode) {}
+
+    return false;
+  }
+
+  function tryApplyDirectBootstrap(reason) {
+    if (tryApplySharedSnapshot()) return true;
+    if (tryDecodeDirectPayload(readSessionMirrorEncoded(), "session")) return true;
+    if (tryDecodeDirectPayload(readPersistentStorageEncoded(), "persistentStorage")) return true;
+    if (tryDecodeDirectPayload(readConvarEncoded(), "convar")) return true;
+    directBootstrapMisses += 1;
+    return false;
+  }
+
+  function isBootstrapReplaySource(source) {
+    return source === "bridge_bootstrap" || source === "ui_resync" || source === "ui_reset" || source === "ui_code_apply" || source === "core_auto_resync" || source === "ui_refresh_after_apply";
+  }
+
+  function requestBootstrap(reason) {
+    var now = Date.now ? Date.now() : (new Date()).getTime();
+    if (lastBootstrapRequestAt && now - lastBootstrapRequestAt < BOOTSTRAP_REQUEST_THROTTLE_MS) return;
+    lastBootstrapRequestAt = now;
 
     try {
       $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
@@ -275,8 +505,10 @@
 
   function scheduleBootstrapRetry() {
     if (bootstrapApplied || bootstrapFinished) return;
+    if (tryApplyDirectBootstrap("retry_direct")) return;
     if (bootstrapAttempts >= BOOTSTRAP_MAX_ATTEMPTS) {
-      bootstrapFinished = true;
+      requestBootstrap("overlay_slow_retry");
+      $.Schedule(BOOTSTRAP_SLOW_RETRY_SEC, scheduleBootstrapRetry);
       return;
     }
 
@@ -292,13 +524,24 @@
       if (!d || d.mod_title !== TITLE) return;
 
       if (d.magic_word === "ANITA_UPDATE") {
+        var replaySource = isBootstrapReplaySource(String(d.update_source || ""));
         if (Object.prototype.hasOwnProperty.call(DEFAULTS, d.setting_id)) {
           if (d.setting_id === "hp_counter_position" && d.update_source === "hp_counter_autoposition") {
             return;
           }
-          cfg[d.setting_id] = coerceCfgValue(d.setting_id, d.value); settingsDirty = true;
+          cfg[d.setting_id] = coerceCfgValue(d.setting_id, d.value);
+          settingsDirty = true;
+          var nowTs = Date.now ? Date.now() : (new Date()).getTime();
+          var holdMs = SETTINGS_REFRESH_DEBOUNCE_MS;
+          if (d.update_source === "ui_reset" || d.update_source === "ui_code_apply" || d.update_source === "core_auto_resync" || d.update_source === "bridge_bootstrap") {
+            holdMs = 240;
+          }
+          settingsRefreshHoldUntil = nowTs + holdMs;
+          writeSharedSnapshot(String(d.update_source || "update"));
+          if (d.setting_id === "hp_level_number_visible") lLvVis = null;
           if (d.setting_id === "hp_enabled" && cfg.hp_enabled && !gRunning) { gRunning = true; $.Schedule(0.05, gL); }
           if (d.setting_id === "hp_friend_enabled" && cfg.hp_friend_enabled && !aRunning) { aRunning = true; $.Schedule(0.05, aL); }
+          if (d.setting_id === "hp_friend_enabled" && !cfg.hp_friend_enabled) { resetAllyBarColor(rbA, aScanT2, aScanF2); aRunning = false; }
           if (pulse && (d.setting_id === "hp_pulse_bpm" || d.setting_id === "hp_pulse_intensity" || d.setting_id === "hp_pulse_text_enabled" || d.setting_id === "hp_pulse_text_scale")) {
             if (d.setting_id === "hp_pulse_bpm") { lPD = null; applyPulseDuration(); }
             if (d.setting_id === "hp_pulse_intensity") applyPulseIntensity();
@@ -306,7 +549,7 @@
           }
           if (d.setting_id === "hp_pulse_enabled" && !cfg.hp_pulse_enabled) clearPulse();
         }
-        if (d.update_source === "bridge_bootstrap") { bootstrapApplied = true;
+        if (replaySource) { bootstrapApplied = true;
           bootstrapFinished = true;
           try {
             var root = getRootPanel();
@@ -424,7 +667,7 @@
 
   // â”€â”€ Panel cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var ctx = $.GetContextPanel();
-  var us = null, hc = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null;
+  var us = null, hc = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null;
   var cached = 0, att = 0;
   var lBgVis = null, lBgOp = null, lHpSize = null, lHpPos = null, lHpMarginLeft = null, lHpHeight = null;
 
@@ -444,6 +687,7 @@
     if (!bg || !bg.IsValid()) bg = us.FindChildTraverse('unit_healthbar_bg');
     if (!pl || !pl.IsValid()) pl = us.FindChildTraverse('unit_healthbar_pip_label');
     if (!lb || !lb.IsValid()) lb = us.FindChildTraverse('unit_healthbar_lagging');
+    if (!kz || !kz.IsValid()) kz = us.FindChildTraverse('hp_kill_zone_marker');
     if (lb && (!lbp || !lbp.IsValid())) lbp = lb.GetParent();
     if (pl && lb && lbp) { cached = 1; return 1; }
     return 0;
@@ -476,17 +720,22 @@
   var lCounterText = "";
   var lCounterLowMode = false;
   var lCounterAutoPos = null;
-  var lastRbPanel = null, lastHcPanel = null, lastBgPanel = null;
+  var lastRbPanel = null, lastHcPanel = null, lastBgPanel = null, lastKzPanel = null;
   var panelBornAt = 0;
 
   function sBC(c) {
-    var next = normalizeWashColor(c);
+    var next = normalizeWashColor(c) || WHITE_WASH;
     if (lCol !== next && rb) {
-      try { rb.style.washColor = next; lCol = next; } catch (e) { lCol = null; }
+      try {
+        rb.style.washColor = next;
+        lCol = next;
+      } catch (e) {
+        lCol = null;
+      }
     }
   }
   function sUC(c) {
-    var next = normalizeWashColor(c);
+    var next = normalizeWashColor(c) || WHITE_WASH;
     if (!ui || !ui.IsValid()) ui = ctx.FindChildTraverse('unit_ult_ready_icon') || ctx.FindChildTraverse('ult_icon');
     if (!ui || !ui.style) return;
     if (lUlt !== next) {
@@ -498,6 +747,25 @@
     if (!hc || !hc.style) return;
     if (lTxt !== next) {
       try { hc.style.washColor = next; lTxt = next; } catch (e) { lTxt = null; }
+    }
+  }
+
+  function getDefaultBarColor(teamId, flags) {
+    if (flags & 1) return CSS_TEAM_FRIEND_COLOR;
+    if (teamId === 2) return CSS_TEAM2_COLOR;
+    if (teamId === 1) return CSS_TEAM1_COLOR;
+    return CSS_TEAM_FRIEND_COLOR;
+  }
+
+  function resetAllyBarColor(panel, teamId, flags) {
+    clearAllyPulse();
+    if (!panel || !panel.style) return;
+    var color = getDefaultBarColor(teamId | 0, flags | 0);
+    try {
+      panel.style.washColor = color;
+      lColA = normalizeWashColor(color);
+    } catch (e) {
+      lColA = null;
     }
   }
 
@@ -540,6 +808,40 @@
     if (lBgVis !== 'visible') { bg.style.visibility = 'visible'; lBgVis = 'visible'; }
     var nextOp = visible ? '1.0' : '0.01';
     if (lBgOp !== nextOp) { bg.style.opacity = nextOp; lBgOp = nextOp; }
+  }
+
+  var lKzVis = null, lKzX = null, lKzW = null, lKzColor = null;
+
+  function sKZ(show, parentWidth) {
+    if (!kz || !kz.style) return;
+    var barHidden = !bg || !bg.style || lBgVis !== 'visible' || lBgOp !== '1.0';
+    if (!show || !cfg.hp_kill_zone_enabled || parentWidth <= 0 || barHidden) {
+      if (lKzVis !== 'collapse') { kz.style.visibility = 'collapse'; lKzVis = 'collapse'; }
+      try { kz.style.opacity = '0'; } catch (eHide) {}
+      return;
+    }
+
+    var threshold = cfg.hp_kill_zone_threshold | 0;
+    if (threshold < 0) threshold = 0;
+    if (threshold > 100) threshold = 100;
+    var width = cfg.hp_kill_zone_width | 0;
+    if (width < 1) width = 1;
+    if (width > 100) width = 100;
+    var pos = Math.round(parentWidth * threshold / 100 - width / 2);
+    if (pos < 0) pos = 0;
+    if (pos > parentWidth - width) pos = Math.max(0, parentWidth - width);
+    var posStr = pos + 'px';
+    var widthStr = width + 'px';
+    var color = normalizeWashColor(cfg.hp_kill_zone_color || "#FF2222");
+
+    if (lKzVis !== 'visible') { kz.style.visibility = 'visible'; lKzVis = 'visible'; }
+    try { kz.style.opacity = '0.95'; } catch (eOp) {}
+    try { kz.style.zIndex = '1000'; } catch (eZi) {}
+    if (lKzX !== posStr) { kz.style.marginLeft = posStr; lKzX = posStr; }
+    if (lKzW !== widthStr) { kz.style.width = widthStr; lKzW = widthStr; }
+    if (lKzColor !== color) {
+      try { kz.style.backgroundColor = color; lKzColor = color; } catch (eCol) { lKzColor = null; }
+    }
   }
 
   function parseCounterPositionValue(value) {
@@ -637,13 +939,16 @@
   }
 
   function resetStyleStateForNewPanels() {
-    if (rb === lastRbPanel && hc === lastHcPanel && bg === lastBgPanel) return;
+    if (rb === lastRbPanel && hc === lastHcPanel && bg === lastBgPanel && kz === lastKzPanel) return;
     lastRbPanel = rb;
     lastHcPanel = hc;
     lastBgPanel = bg;
+    lastKzPanel = kz;
     panelBornAt = Date.now();
     clearPulse();
     lBgVis = lBgOp = lHpSize = lHpPos = lHpMarginLeft = lHpHeight = null;
+    lKzVis = lKzX = lKzW = lKzColor = null;
+    lLvVis = null;
     lSH = -1;
     lSM = -1;
     lVis = null;
@@ -659,7 +964,9 @@
   function applyCurrentSettings(isEnemy) {
     sHBV(!isEnemy || !!cfg.hp_bg_visible);
     sHCS(lCounterLowMode, lCounterText);
+    lW = -1; lHp = -1; lCol = null;
     settingsDirty = false;
+    settingsRefreshHoldUntil = 0;
   }
 
   // Decode max HP from pip label string (e.g. "|||| ..." â†’ 2000)
@@ -702,6 +1009,7 @@
       if (!cfg.hp_enabled) { clearPulse();
         sBC("");
         sUC("");
+        sKZ(false, 0);
         if (bg && bg.style) { bg.style.visibility = 'collapse'; bg.style.opacity = '0'; lBgVis = 'collapse'; lBgOp = '0'; }
         if (hc && hc.style) {
           hc.style.fontSize = "";
@@ -725,6 +1033,10 @@
 
       scan(rb); lAT = now;
       var isEnemy = !!(fl & 1) && !(fl & 2);
+      if (isEnemy && !directBootstrapApplied && now - lastDirectBootstrapAt >= 1000) {
+        lastDirectBootstrapAt = now;
+        tryApplyDirectBootstrap("enemy_tick");
+      }
       if (cfg.hp_skip_buildings && (fl & 4)) {
         clearPulse();
         if (!isEnemy) {
@@ -732,6 +1044,7 @@
           sUC("");
           sTC("");
           sHBV(true);
+          sKZ(false, 0);
           $.Schedule(0.5, gL);
           return;
         }
@@ -748,25 +1061,41 @@
         sUC(skipColor);
         sTC(skipColor);
         sHBV(!!cfg.hp_bg_visible);
+        sKZ(false, 0);
         $.Schedule(0.5, gL);
         return;
       }
-      if (settingsDirty) applyCurrentSettings(isEnemy);
+      if (isEnemy && now - lastStyleReapplyAt >= STYLE_REAPPLY_MS) {
+        lastStyleReapplyAt = now;
+        settingsDirty = true;
+        settingsRefreshHoldUntil = now;
+        lCol = null;
+        lUlt = null;
+        lTxt = null;
+        lBgVis = null;
+        lBgOp = null;
+      }
+      if (settingsDirty) {
+        if (now < settingsRefreshHoldUntil) { $.Schedule(0.05, gL); return; }
+        applyCurrentSettings(isEnemy);
+      }
       else sHBV(isEnemy && !!cfg.hp_bg_visible);
 
       // Neutral unit
       if (fl & 2) { clearPulse();
         sHBV(true);
+        sKZ(false, 0);
         sBC('#5BEFB5');
         sTC(WHITE_WASH);
         lUT = now;
         $.Schedule(1.5, gL); return;
       }
       // Not an enemy â€” skip coloring
-      if (!(fl & 1)) { sHBV(true); sBC(""); sUC(""); lUT = now; $.Schedule(0.4, gL); return; }
+      if (!(fl & 1)) { sHBV(true); sKZ(false, 0); sBC(""); sUC(""); lUT = now; $.Schedule(0.4, gL); return; }
 
       var w = rb.actuallayoutwidth | 0;
       var pw = cp && cp.actuallayoutwidth !== undefined ? cp.actuallayoutwidth | 0 : 0;
+      sKZ(true, pw);
 
       // No change in width â€” back off
       if (w === lW && pw === lPW && !pulse) {
@@ -774,7 +1103,7 @@
         $.Schedule(0.15, gL); return;
       }
       lW = w; lPW = pw; lUT = now;
-      if (pw <= 0) { $.Schedule(0.18, gL); return; }
+      if (pw <= 0) { sKZ(false, 0); $.Schedule(0.18, gL); return; }
 
       var hp = (w / pw * 100) | 0;
       var low = cfg.hp_low_threshold | 0;
@@ -865,10 +1194,20 @@
 
   // â”€â”€ Level tier coloring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var LT_ = [11, 19, 27, 35], LC_ = ['level_tier2', 'level_tier3', 'level_tier4', 'level_tier5'];
-  var ll = null, lc = null, wr = null, lLv = -1;
+  var LV_VIS_CLASS = 'level_number_visible';
+  var ll = null, lc = null, wr = null, lLv = -1, lLvVis = null;
 
   function pLv(t) { var v = 0; for (var i = 0; i < t.length; i++) { var c = t.charCodeAt(i) - 48; if (c >= 0 && c <= 9) v = v * 10 + c; } return v; }
   function fER(p) { var c = p; while (c) { if (c.BHasClass && c.BHasClass('enemy')) return c; if (!c.GetParent) break; c = c.GetParent(); } return null; }
+  function sLNV() {
+    if (!wr || !wr.IsValid()) return;
+    var visible = !!cfg.hp_level_number_visible;
+    if (lLvVis !== visible) {
+      if (visible) wr.AddClass(LV_VIS_CLASS);
+      else wr.RemoveClass(LV_VIS_CLASS);
+      lLvVis = visible;
+    }
+  }
 
   function cLU() {
     if (!ll || !ll.IsValid()) ll = ctx.FindChildTraverse('unit_level_label');
@@ -879,6 +1218,7 @@
 
   function uLT() {
     if (!cLU()) return;
+    sLNV();
     var t = ''; try { t = ll.text || ll.GetAttributeString('text', '') || ''; } catch (e) { t = ''; }
     if (!t || t.charCodeAt(0) === 123) return;
     var lv = pLv(t);
@@ -895,9 +1235,8 @@
     aRunning = true;
     try {
       if (!cfg.hp_friend_enabled) {
-        clearAllyPulse();
-        if (rbA) { try { rbA.style.washColor = ''; } catch (e) {} }
-        lColA = null; aRunning = false; return;
+        resetAllyBarColor(rbA, aScanT2, aScanF2);
+        aRunning = false; return;
       }
 
       var now = Date.now();
@@ -928,9 +1267,8 @@
       }
 
       if (!(f2 & 1) || !(f2 & 2)) {
-        clearAllyPulse();
-        if (rbA) { try { rbA.style.washColor = ''; } catch (e) {} }
-        lColA = null; sfcA = 0;
+        resetAllyBarColor(rbA, t2, f2);
+        sfcA = 0;
         $.Schedule(1.5, aL); return;
       }
 
@@ -1000,6 +1338,8 @@
     }
   }
 
+  dbg("script_start cfg_enabled=" + cfg.hp_enabled + " mode=" + cfg.hp_mode);
+  tryApplyDirectBootstrap("script_start");
   gRunning = true; gL();
   aRunning = true; aL();
   lL();

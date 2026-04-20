@@ -242,8 +242,8 @@
 	box-shadow: inset 0px 0px 10px #000000;
 }
 
-/* Only show for enemy players */
-.enemy.player .NP_playerlevel_container {
+/* Only show for enemy players when level numbers are enabled */
+.enemy.player.level_number_visible .NP_playerlevel_container {
 	visibility: visible;
 }
 
@@ -301,7 +301,6 @@
 	visibility: visible;
 	color: #46e2ac;
 	font-weight: bold;
-	font-family: sans;
 	text-shadow: 0px 0px 4px 4 DropshadowColor;
 	text-align: center;
 	vertical-align: top;
@@ -678,7 +677,6 @@
 	color: #ffffff90;
 	text-align: center;
 	font-weight: bold;
-	font-family: sans;
 	text-transform: uppercase;
 	horizontal-align: middle;
 	vertical-align: bottom;
@@ -799,6 +797,22 @@
 
 
 
+/* Kill Zone threshold marker — thin vertical line, absolutely positioned over the health bar.
+   position:absolute floats above the bar independently of layout flow. */
+#hp_kill_zone_marker {
+	position: absolute;
+	ignore-parent-flow: true;
+	margin-left: 0px;
+	width: 3px;
+	height: 100%;
+	margin-top: 0px;
+	z-index: 1000;
+	hittest: false;
+	visibility: collapse;
+	overflow: noclip;
+	background-color: #FF2222;
+}
+
 .hp_counter {
 	font-size: 120px;
 	color: #ffffff;
@@ -811,7 +825,7 @@
 	white-space: nowrap;
 	overflow: noclip;
 	text-overflow: clip;
-	text-shadow: 2px 2px 0px #000000, -2px -2px 0px #000000, 2px -2px 0px #000000, -2px 2px 0px #000000;
+	text-shadow: 0px 0px 10px #000000, 2px 2px 5px #000000, -2px -2px 5px #000000, 2px -2px 5px #000000, -2px 2px 5px #000000;
 	horizontal-align: center;
 	vertical-align: middle;
 	z-index: 10;

@@ -19,6 +19,7 @@
     hp_counter_size: "s",
     hp_counter_position: "p",
     hp_text_color_mode: "tm",
+    hp_level_number_visible: "lnv",
     hp_text_color_low: "tl",
     hp_text_color_mid: "ti",
     hp_text_color_high: "th",
@@ -40,7 +41,11 @@
     hp_friend_color_mid: "fcm",
     hp_friend_color_high: "fch",
     hp_friend_pulse_color_enabled: "fpce",
-    hp_friend_pulse_color: "fpc"
+    hp_friend_pulse_color: "fpc",
+    hp_kill_zone_enabled: "kze",
+    hp_kill_zone_threshold: "kzt",
+    hp_kill_zone_color: "kzc",
+    hp_kill_zone_width: "kzw"
   };
   var HP_PERSIST_ALIAS_TO_ID = (function () {
     var out = {};
@@ -61,6 +66,7 @@
   var persistToken = 0;
   var bootstrapToken = 0;
   var pendingBootstrapReason = "";
+  var storageSupportLogged = false;
 
 
 
@@ -163,6 +169,23 @@
         storageSupportLogged = true;
       }
       return false;
+    }
+  }
+
+  function writeHpSharedSnapshot(values, reason) {
+    if (!values || typeof values !== "object") return;
+    var count = 0;
+    var out = {};
+    for (var key in values) {
+      if (!Object.prototype.hasOwnProperty.call(values, key)) continue;
+      out[key] = values[key];
+      count += 1;
+    }
+    try {
+      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) {
+        GameUI.CustomUIConfig().__hpColorsCfgRaw = JSON.stringify(out);
+      }
+    } catch (e) {
     }
   }
 
@@ -382,6 +405,7 @@
     currentValues = cloneValues(values || {});
     persistedValues = cloneValues(persisted || values || {});
     writeSessionMirror(cachedEncoded);
+    writeHpSharedSnapshot(currentValues, "cache");
   }
 
   function readStoredPayload() {
@@ -483,6 +507,7 @@
 
     if (!forceWrite && encoded === cachedEncoded) {
       writeSessionMirror(encoded);
+      writeHpSharedSnapshot(currentValues, "persist_unchanged");
       return false;
     }
 
@@ -510,6 +535,7 @@
 
   function replayValues(values, reason) {
     if (!values) return;
+    writeHpSharedSnapshot(values, reason);
 
     var count = 0;
     for (var key in values) {
@@ -537,6 +563,7 @@
       currentValues = cloneValues(stored.values);
       persistedValues = cloneValues(stored.values);
       writeSessionMirror(stored.encoded);
+      writeHpSharedSnapshot(stored.values, reason + ":" + stored.source);
       replayValues(stored.values, reason + ":" + stored.source);
       return;
     }
@@ -594,6 +621,7 @@
       if (!data) return;
 
       if (data.magic_word === "ANITA_REGISTER") {
+        if (data.config && data.config.title === TITLE) {}
         if (captureConfig(data.config) && pendingBootstrapReason) {
           scheduleBootstrap(pendingBootstrapReason);
         }
@@ -620,6 +648,7 @@
       var isResync = updateSource === "core_auto_resync" || updateSource === "ui_resync";
 
       currentValues[data.setting_id] = sanitizeValue(element, data.value);
+      writeHpSharedSnapshot(currentValues, updateSource);
       if (!isResync) {
         persistedValues[data.setting_id] = sanitizeValue(element, data.value);
       }
