@@ -194,14 +194,14 @@
 					<GlobalClassListener id="minimap_persp" hittest="false" classes="gDetailView gScoreboardOpen gAbilityUpgradeMenu">
 						<!-- MOD: Timer panels -->
 						<Panel id="Buff" class="BuffP" hittest="false">
-							<Panel id="BuffTimeWrapper" class="timer-wrapper">
+							<Panel id="BuffTimeWrapper" class="timer-wrapper" hittest="false">
 								<Label id="BuffTime" text="0:00" />
 								<Label id="BuffTimeClip" text="0:00" hittest="false" />
 							</Panel>
 							<Image id="BuffImg" src="s2r://panorama/images/hud/modifiers/icon_powerup.svg" />
 						</Panel>
 						<Panel id="Rejuv" hittest="false">
-							<Panel id="RejuvTimeWrapper" class="timer-wrapper">
+							<Panel id="RejuvTimeWrapper" class="timer-wrapper" hittest="false">
 								<Label id="RejuvTime" text="0:00" />
 								<Label id="RejuvTimeClip" text="0:00" hittest="false" />
 							</Panel>
@@ -214,6 +214,9 @@
 						<Panel id="RejuvMiniCard" class="rejuv-mini-card" hittest="false">
 							<Label id="RejuvMiniTime" class="rejuv-mini-time" text="" />
 						</Panel>
+						<!-- MOD: Invisible ping buttons overlaying the timer pills -->
+						<Button id="RejuvPingButton" class="timer-ping-button rejuv-ping-button" onactivate="handleRejuvPingActivate()" hittestchildren="false" />
+						<Button id="BuffPingButton" class="timer-ping-button buff-ping-button" onactivate="handleBuffPingActivate()" hittestchildren="false" />
 						<Panel id="minimap_container" hittest="false">
 							<Panel id="minimap_blur" hittest="false" />
 							<Panel id="HudMinimapContainer">

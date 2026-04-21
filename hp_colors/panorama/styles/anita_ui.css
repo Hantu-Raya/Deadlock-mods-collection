@@ -61,7 +61,7 @@
 	width: 100%;
 	height: fill-parent-flow(1.0);
 	padding: 12px 20px 12px 20px;
-	overflow: noclip;
+	overflow: clip;
 }
 
 .ModContainer
@@ -81,10 +81,10 @@
 
 .AnitaTreePanel
 {
-	width: 210px;
-	height: fill-parent-flow(1.0);
+	width: 240px;
+	height: 100%;
 	flow-children: down;
-	padding: 10px 8px 6px 0px;
+	padding: 10px 8px 24px 0px;
 	margin-right: 18px;
 	border-right: 1px solid rgba(255, 255, 255, 0.045);
 }
@@ -101,55 +101,127 @@
 .AnitaTreeList
 {
 	width: 100%;
+	height: fill-parent-flow(1.0);
 	flow-children: down;
+	overflow: squish scroll;
+	margin-bottom: 40px;
+	padding-right: 8px;
 }
 
-.AnitaTreeNode
+.AnitaTreeFooter
 {
 	width: 100%;
-	height: 32px;
-	padding: 0px 10px;
+	height: fit-children;
+	flow-children: right;
+	padding-top: 10px;
+	padding-bottom: 10px;
+	border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.AnitaMainCategoryBtn
+{
+	width: 100%;
+	height: 38px;
+	padding: 0px 12px;
+	margin-top: 12px;
 	margin-bottom: 2px;
 	background-color: transparent;
 	border-radius: 4px;
-	flow-children: right;
-	transition-property: background-color;
-	transition-duration: 0.08s;
+	transition-property: background-color, transform;
+	transition-duration: 0.12s;
 }
 
-.AnitaTreeNode:hover
+.AnitaMainCategoryBtn:hover
 {
 	background-color: rgba(255, 255, 255, 0.04);
 }
 
-.AnitaTreeNode.Active
+.AnitaMainCategoryBtn.Active
 {
-	background-color: rgba(68, 153, 102, 0.26);
+	background-color: #66cc99;
 }
 
-.AnitaTreeNodeGlyph
-{
-	width: 14px;
-	color: #6d7577;
-	font-size: 14px;
-	vertical-align: center;
-	text-align: center;
-}
-
-.AnitaTreeNodeLabel
+.AnitaMainCategoryLabel
 {
 	width: fill-parent-flow(1.0);
-	color: #cfd4d5;
-	font-size: 15px;
+	color: #a2abae;
+	font-size: 18px;
+	font-weight: 800;
+	letter-spacing: 1px;
+	text-transform: uppercase;
 	vertical-align: center;
+	transition-property: color;
+	transition-duration: 0.12s;
 }
 
-.AnitaTreeNodeCount
+.AnitaMainCategoryBtn.Active .AnitaMainCategoryLabel
 {
-	color: #677072;
+	color: #111315;
+	text-shadow: 0px 0px 4px rgba(255, 255, 255, 0.3);
+}
+
+.AnitaSubCategoryBtn
+{
+	width: 100%;
+	height: 34px;
+	padding: 0px 12px 0px 24px;
+	margin-bottom: 2px;
+	background-color: transparent;
+	border-radius: 4px;
+	border-left: 2px solid transparent;
+	flow-children: right;
+	transition-property: background-color, border-color, transform;
+	transition-duration: 0.12s;
+}
+
+.AnitaSubCategoryBtn:hover
+{
+	background-color: rgba(255, 255, 255, 0.04);
+	transform: translateX(2px);
+}
+
+.AnitaSubCategoryBtn.Active
+{
+	background-color: rgba(255, 255, 255, 0.06);
+	border-left: 2px solid #66cc99;
+}
+
+.AnitaSubCategoryLabel
+{
+	width: fill-parent-flow(1.0);
+	color: #8c9699;
+	font-size: 15px;
+	font-weight: 500;
+	letter-spacing: 0.5px;
+	vertical-align: center;
+	transition-property: color;
+	transition-duration: 0.12s;
+}
+
+.AnitaSubCategoryBtn:hover .AnitaSubCategoryLabel
+{
+	color: #cfd4d5;
+}
+
+.AnitaSubCategoryBtn.Active .AnitaSubCategoryLabel
+{
+	color: #ffffff;
+	font-weight: 600;
+}
+
+.AnitaSubCategoryCount
+{
+	color: #555e61;
 	font-size: 12px;
+	font-weight: 500;
 	vertical-align: center;
 	text-align: right;
+	padding-left: 8px;
+}
+
+.AnitaSubCategoryBtn.Active .AnitaSubCategoryCount
+{
+	color: #66cc99;
 }
 
 .AnitaDetailPanel
@@ -157,7 +229,7 @@
 	width: fill-parent-flow(1.0);
 	height: 100%;
 	flow-children: down;
-	overflow: noclip;
+	overflow: clip;
 }
 
 .AnitaDetailBody
@@ -165,6 +237,7 @@
 	width: 100%;
 	height: fill-parent-flow(1.0);
 	flow-children: down;
+	overflow: clip;
 }
 
 .AnitaDetailHeaderRow
@@ -195,8 +268,30 @@
 	height: fill-parent-flow(1.0);
 	flow-children: down;
 	overflow: squish scroll;
-	padding-right: 12px;
-	padding-bottom: 108px;
+	padding-right: 16px;
+	margin-bottom: 24px;
+}
+
+.AnitaWindow VerticalScrollBar
+{
+	width: 6px;
+	background-color: rgba(255, 255, 255, 0.04);
+	opacity: 1;
+	transition-property: transform;
+	transition-duration: 0.15s;
+}
+
+.AnitaWindow VerticalScrollBar #ScrollThumb
+{
+	background-color: rgba(255, 255, 255, 0.28);
+	border-radius: 3px;
+	transition-property: background-color;
+	transition-duration: 0.1s;
+}
+
+.AnitaWindow VerticalScrollBar:hover #ScrollThumb
+{
+	background-color: rgba(102, 204, 153, 0.55);
 }
 
 .AnitaNavBar
@@ -215,33 +310,6 @@
 	vertical-align: center;
 }
 
-.AnitaCloseBtn
-{
-	width: 30px;
-	height: 30px;
-	background-image: url("s2r://panorama/images/control_icons/gear_return_png.vtex");
-	background-size: contain;
-	background-position: 50% 50%;
-	background-repeat: no-repeat;
-	horizontal-align: right;
-	vertical-align: center;
-	margin-left: 14px;
-	margin-right: 8px;
-	wash-color: #575d5f;
-	transition-property: wash-color;
-	transition-duration: 0.1s;
-}
-
-.AnitaCloseBtn:hover
-{
-	wash-color: #960e0e;
-}
-
-.AnitaCloseBtn:active
-{
-	wash-color: #5e0d0d;
-}
-
 .AnitaTabSeparator
 {
 	margin-left: 14px;
@@ -249,6 +317,35 @@
 	font-size: 20px;
 	color: #939da022;
 	vertical-align: center;
+}
+
+.AnitaCloseBtn
+{
+	width: 26px;
+	height: 26px;
+	background-image: url("s2r://panorama/images/control_icons/x_close.vsvg");
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	horizontal-align: right;
+	vertical-align: center;
+	margin-left: 14px;
+	margin-right: 12px;
+	wash-color: #e64949;
+	transition-property: wash-color, transform;
+	transition-duration: 0.1s;
+}
+
+.AnitaCloseBtn:hover
+{
+	wash-color: #ff6b6b;
+	transform: scale3d(1.1, 1.1, 1);
+}
+
+.AnitaCloseBtn:active
+{
+	wash-color: #aa2e2e;
+	transform: scale3d(0.9, 0.9, 1);
 }
 
 .AnitaTabBtn
@@ -330,18 +427,18 @@
 {
 	width: 100%;
 	flow-children: right;
-	margin-bottom: 8px;
+	margin-bottom: 14px;
 	padding: 4px 2px;
 }
 
 .AnitaLabel
 {
 	font-size: 15px;
-	color: #d6dcdd;
+	color: #e5ebeb;
 	vertical-align: center;
 	letter-spacing: 0.5px;
 	font-weight: 500;
-	width: 270px;
+	width: 240px;
 	margin-right: 10px;
 }
 
@@ -349,7 +446,7 @@
 {
 	width: 100%;
 	flow-children: right;
-	margin-bottom: 8px;
+	margin-bottom: 14px;
 	padding: 4px 2px;
 }
 
@@ -362,8 +459,8 @@
 
 .AnitaCheckBox
 {
-	width: 30px;
-	height: 30px;
+	width: 22px;
+	height: 22px;
 	border: 1px solid #464d4f;
 	background-color: #0f1213;
 	border-radius: 3px;
@@ -381,8 +478,8 @@
 
 .AnitaCheckMark
 {
-	width: 21px;
-	height: 21px;
+	width: 14px;
+	height: 14px;
 	align: center center;
 	background-color: #66cc99;
 	opacity: 0;
@@ -434,31 +531,15 @@
 	width: 100%;
 }
 
-.AnitaSliderValueGroup
+.AnitaSliderValueGroup, .SliderValueGroup
 {
-	width: 320px;
-	flow-children: right;
-	vertical-align: center;
-	margin-left: 6px;
-}
-
-.SliderValueGroup
-{
-	width: 296px;
+	width: 312px;
 	flow-children: right;
 	vertical-align: center;
 	horizontal-align: left;
 }
 
-.AnitaSliderContainer
-{
-	width: 230px;
-	padding: 0px;
-	vertical-align: center;
-	overflow: noclip;
-}
-
-.SliderContainer
+.AnitaSliderContainer, .SliderContainer
 {
 	width: 230px;
 	padding: 0px;
@@ -938,14 +1019,6 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	background-color: gradient( linear, 0% 0%, 100% 0%, from( #ffffff ), to( #888888 ) );
 }
 
-.AnitaHueTrack
-{
-	width: 100%;
-	height: 100%;
-	border-radius: 4px;
-	background-color: gradient( linear, 0% 0%, 100% 0%, from( #ff0000 ), color-stop( 0.17, #ffff00 ), color-stop( 0.33, #00ff00 ), color-stop( 0.50, #00ffff ), color-stop( 0.67, #0000ff ), color-stop( 0.83, #ff00ff ), to( #ff0000 ) );
-}
-
 Slider.AnitaHueSlider.HorizontalSlider,
 SlottedSlider.AnitaHueSlider.HorizontalSlider
 {
@@ -1017,7 +1090,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 
 .AnitaPositionPickerGroup
 {
-	width: 332px;
+	width: 316px;
 }
 
 .AnitaPositionSliderRow
@@ -1038,7 +1111,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 
 .AnitaPositionSliderContainer
 {
-	width: 230px;
+	width: 214px;
 }
 
 .AnitaPositionReadout
@@ -1118,17 +1191,17 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 
 .AnitaImportPopup
 {
-	width: 468px;
+	width: 520px;
 	height: fit-children;
 	background-color: #171b1c;
 	border: 1px solid #394244;
-	border-radius: 8px;
-	padding: 12px 14px 14px 14px;
+	border-radius: 12px;
+	padding: 20px 24px 24px 24px;
 	ignore-parent-flow: true;
 	align: center center;
 	flow-children: down;
 	z-index: 10002;
-	box-shadow: rgba(0, 0, 0, 0.5) 0px 0px 22px 0px;
+	box-shadow: rgba(0, 0, 0, 0.7) 0px 10px 40px 0px;
 }
 
 .AnitaImportPopupHeader
@@ -1136,32 +1209,26 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 	width: 100%;
 	flow-children: right;
 	vertical-align: center;
-	margin-bottom: 8px;
+	margin-bottom: 12px;
 }
 
 .AnitaImportPopupTitle
 {
 	color: #f0f2f2;
-	font-size: 14px;
-	font-weight: 600;
-	letter-spacing: 1px;
+	font-size: 18px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
 	text-transform: uppercase;
 }
 
 .AnitaImportPopupHint
 {
 	width: 100%;
-	max-width: 430px;
-	margin-bottom: 8px;
+	max-width: 480px;
+	margin-bottom: 20px;
 	color: #98a1a2;
-	font-size: 11px;
-}
-
-.AnitaImportPopupRow
-{
-	width: 100%;
-	margin-top: 0px;
-	margin-bottom: 8px;
+	font-size: 13px;
+	line-height: 1.4;
 }
 
 .AnitaImportPopupRow .AnitaFooterBtn
@@ -1182,307 +1249,6 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 	text-transform: uppercase;
 }
 
-.AnitaColorPalette
-{
-	width: 172px;
-	height: fit-children;
-	background-color: #171b1c;
-	border: 1px solid #394244;
-	border-radius: 4px;
-	padding: 6px;
-	ignore-parent-flow: true;
-	align: center center;
-	transform: translateX(140px);
-	flow-children: right-wrap;
-}
-
-.AnitaColorWheelPopup
-{
-	width: 372px;
-	min-height: 0px;
-	height: fit-children;
-	background-color: #171b1c;
-	border: 1px solid #394244;
-	border-radius: 8px;
-	padding: 10px;
-	ignore-parent-flow: true;
-	align: center center;
-	transform: translate3d(140px, 8px, 0px);
-	flow-children: down;
-	box-shadow: rgba(0, 0, 0, 0.45) 0px 0px 20px 0px;
-}
-
-.AnitaColorWheelHeader
-{
-	width: 100%;
-	flow-children: right;
-	vertical-align: center;
-	margin-bottom: 8px;
-}
-
-.AnitaColorWheelPreviewChip
-{
-	margin-right: 8px;
-}
-
-.AnitaColorWheelHex
-{
-	vertical-align: center;
-	color: #f0f2f2;
-	font-size: 14px;
-	font-weight: 500;
-	letter-spacing: 1px;
-	text-transform: uppercase;
-}
-
-.AnitaColorWheelHint
-{
-	width: 100%;
-	margin-top: 2px;
-	margin-bottom: 6px;
-	color: #98a1a2;
-	font-size: 11px;
-	text-align: center;
-}
-
-.AnitaColorWheelHost
-{
-	width: 100%;
-	height: 246px;
-	overflow: noclip;
-	margin-bottom: 8px;
-}
-
-.AnitaNativeColorPicker
-{
-	width: 100%;
-	height: 100%;
-}
-
-.AnitaColorWheelFallback
-{
-	width: 100%;
-	height: 100%;
-	overflow: noclip;
-}
-
-.AnitaColorWheelCenter
-{
-	align: center center;
-	border: 1px solid #4c5557;
-	border-radius: 50%;
-	box-shadow: fill rgba(0, 0, 0, 0.35) 0px 0px 8px 0px;
-}
-
-.AnitaColorWheelSwatch
-{
-	border: 1px solid rgba(20, 24, 25, 0.85);
-	border-radius: 50%;
-	margin: 0px;
-	transition-property: transform, border-color, box-shadow;
-	transition-duration: 0.12s;
-	ignore-parent-flow: true;
-}
-
-.AnitaColorWheelSwatch:hover
-{
-	border: 1px solid #e8eeee;
-	transform: scale3d(1.08, 1.08, 1.0);
-	box-shadow: fill rgba(102, 204, 153, 0.18) 0px 0px 8px 0px;
-}
-
-.AnitaColorWheelSwatch:active
-{
-	transform: scale3d(0.96, 0.96, 1.0);
-}
-
-.AnitaColorWheelQuickRow
-{
-	flow-children: right;
-	margin-bottom: 6px;
-}
-
-.AnitaColorWheelFooter
-{
-	width: 100%;
-	flow-children: right;
-	horizontal-align: right;
-	margin-top: 6px;
-	margin-bottom: 4px;
-}
-
-.AnitaColorWheelBtn
-{
-	padding: 4px 12px;
-	background-color: gradient(linear, 0% 0%, 0% 100%, from(#2f3335), to(#232728));
-	border: 1px solid #4d5556;
-	border-radius: 4px;
-	margin-left: 6px;
-	transition-property: background-color, border-color, transform;
-	transition-duration: 0.1s;
-}
-
-.AnitaColorWheelBtn:hover
-{
-	background-color: #3b4244;
-	border-color: #9aa4a5;
-	transform: translateY(-1px);
-}
-
-.AnitaColorWheelBtn Label
-{
-	color: #f0f2f2;
-	font-size: 11px;
-	text-transform: uppercase;
-	letter-spacing: 1px;
-	font-weight: 600;
-}
-
-.AnitaColorWheelApplyBtn
-{
-	background-color: #21402d;
-	border-color: #355c46;
-}
-
-.AnitaColorWheelApplyBtn:hover
-{
-	background-color: #2b5638;
-}
-
-.AnitaColorWheelInlineText
-{
-	vertical-align: center;
-	color: #e4e8e8;
-	font-size: 14px;
-	letter-spacing: 1px;
-	font-weight: 500;
-	text-transform: uppercase;
-}
-
-.AnitaColorSwatch
-{
-	width: 30px;
-	height: 30px;
-	margin: 5px;
-	border: 1px solid #303638;
-	border-radius: 2px;
-	transition-property: border-color, transform, box-shadow;
-	transition-duration: 0.2s;
-}
-
-.AnitaColorSwatch:hover
-{
-	border: 1px solid #c3cdce;
-	transform: scale3d(1.03, 1.03, 1.0);
-	border-radius: 4px;
-	box-shadow: fill rgba(102, 204, 153, 0.16) 0px 0px 8px 0px;
-}
-
-.AnitaColorSwatch:active
-{
-	border: 1px solid white;
-	transform: scale3d(0.97, 0.97, 1.0);
-}
-
-.AnitaQuickSwatch
-{
-	width: 30px;
-	height: 30px;
-	margin-right: 6px;
-	border: 1px solid #303638;
-	border-radius: 2px;
-	transition-property: border-color, transform, box-shadow;
-	transition-duration: 0.1s;
-}
-
-.AnitaQuickSwatch:hover
-{
-	border: 1px solid #c3cdce;
-	transform: scale3d(1.03, 1.03, 1.0);
-	border-radius: 4px;
-	box-shadow: fill rgba(102, 204, 153, 0.16) 0px 0px 8px 0px;
-}
-
-.AnitaQuickSwatch:active
-{
-	transform: scale3d(0.95, 0.95, 1);
-}
-
-.AnitaColorPickerPlusBtn
-{
-	width: 30px;
-	height: 30px;
-	background-color: gradient(linear, 0% 0%, 0% 100%, from(#2f3335), to(#232728));
-	border: 1px solid #4d5556;
-	border-radius: 3px;
-	margin-left: 0px;
-	transition-property: background-color, border-color, transform;
-	transition-duration: 0.1s;
-}
-
-.AnitaColorPickerPlusBtn:hover
-{
-	background-color: #3b4244;
-	border-color: #9aa4a5;
-}
-
-.AnitaColorPickerPlusBtn:active
-{
-	background-color: #404648;
-	transform: translateY(1px);
-}
-
-.AnitaColorPickerPlusBtn Label
-{
-	height: 18px;
-	color: #f0f2f2;
-	font-size: 20px;
-	align: center center;
-	text-align: center;
-	margin-bottom: 2.5px;
-	font-weight: 700;
-}
-
-.AnitaEmptyStateContainer
-{
-	width: 100%;
-	height: 100%;
-	align: center center;
-	flow-children: down;
-	padding-top: 60px;
-}
-
-
-.AnitaFooterWrap
-{
-	flow-children: down;
-	ignore-parent-flow: true;
-	position: absolute;
-	margin-left: 0px;
-	margin-top: 0px;
-	margin-bottom: 0px;
-	height: fit-children;
-	width: 100%;
-	z-index: 5;
-	border-top: 1px solid rgba(255, 255, 255, 0.04);
-	padding-top: 10px;
-	padding-bottom: 12px;
-}
-
-.AnitaImportWindow
-{
-	flow-children: down;
-	ignore-parent-flow: true;
-	position: absolute;
-	margin-left: 0px;
-	margin-top: 0px;
-	margin-bottom: 0px;
-	width: 100%;
-	height: fit-children;
-	z-index: 4;
-	overflow: noclip;
-}
-
 .AnitaFooterRow
 {
 	width: 100%;
@@ -1495,11 +1261,12 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 
 .AnitaFooterBtn
 {
-	padding: 3px 10px;
-	margin-right: 6px;
-	background-color: #262a2b;
-	border: 1px solid rgba(255, 255, 255, 0.03);
-	border-radius: 3px;
+	padding: 5px 12px;
+	margin-right: 8px;
+	background-color: #2a3031;
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 4px;
+	vertical-align: center;
 	transition-property: background-color, border-color, transform;
 	transition-duration: 0.1s;
 }
@@ -1507,7 +1274,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 .AnitaFooterBtn:hover
 {
 	background-color: #3d4345;
-	border-color: rgba(255, 255, 255, 0.08);
+	border-color: rgba(102, 204, 153, 0.5);
 	transform: translateY(-1px);
 }
 
@@ -1519,11 +1286,12 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 
 .AnitaFooterBtn Label
 {
-	color: #eef1f1;
-	font-size: 10px;
+	color: #ffffff;
+	font-size: 11px;
 	text-transform: uppercase;
 	letter-spacing: 1px;
 	font-weight: 600;
+	margin-top: 2px;
 }
 
 .AnitaFooterBtnSuccess Label
@@ -1535,40 +1303,57 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 {
 	width: 100%;
 	flow-children: right;
-	margin-top: 4px;
-	padding: 4px 6px;
-	background-color: #111719cc;
+	background-color: #0f1315;
 	border: 1px solid #364042;
-	border-radius: 4px;
+	border-radius: 6px;
 	align: left center;
-}
-
-.AnitaPasteRowCompact
-{
-	padding: 3px 6px;
+	padding: 6px;
 }
 
 .AnitaPasteInput
 {
-	width: 280px;
-	height: 24px;
-	margin-right: 6px;
-	font-size: 9px;
-	padding: 3px 6px 2px 6px;
-	background-color: #101416;
-	border: 1px solid #414748;
+	width: fill-parent-flow(1.0);
+	height: 36px;
+	margin-right: 12px;
+	font-size: 13px;
+	padding: 8px 10px;
+	background-color: transparent;
+	border: 0px solid transparent;
 	color: #eff2f2;
-	transition-property: border-color, background-color, wash-color;
+	transition-property: color;
 	transition-duration: 0.1s;
 }
 
 .AnitaPasteInput:hover
 {
-	border: 1px solid #6f7b7d;
+	color: #ffffff;
 }
 
 .AnitaPasteInput:focus
 {
-	border: 1px solid #66cc99;
-	wash-color: #66cc99;
+	color: #66cc99;
+}
+
+.AnitaImportApplyBtn
+{
+	margin: 0px;
+	height: 36px;
+	padding: 8px 24px;
+	border-radius: 4px;
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(#355c46), to(#244030));
+	border: 1px solid #4a7d60;
+}
+
+.AnitaImportApplyBtn:hover
+{
+	background-color: #3f6e53;
+	border-color: #66cc99;
+}
+
+.AnitaImportApplyBtn Label
+{
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 1.5px;
+	color: #ffffff;
 }

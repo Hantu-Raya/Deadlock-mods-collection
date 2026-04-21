@@ -16,7 +16,21 @@ if (Test-Path $terserSrc)   { Remove-Item -Recurse -Force $terserSrc }
 if (Test-Path $terserCompiled) { Remove-Item -Recurse -Force $terserCompiled }
 if (Test-Path $vpkOut)      { Remove-Item -Force $vpkOut }
 
-# ── Step 1: Prepare minified build source ─────────────────────────────────────
+# ## Step 0: Schema drift audit ################################################
+Write-Host "`n[0/4] Running schema drift audit..." -ForegroundColor Cyan
+$auditScript = "$modSrc\scripts\validate-schema.js"
+if (Test-Path $auditScript) {
+    & node $auditScript
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] Schema audit failed - fix drift before building." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "  Schema audit passed." -ForegroundColor Green
+} else {
+    Write-Host "  [WARN] Audit script not found, skipping." -ForegroundColor Yellow
+}
+
+# ## Step 1: Prepare minified build source #####################################
 Write-Host "`n[1/4] Preparing minified hp_colors source..." -ForegroundColor Cyan
 Copy-Item -Path $modSrc -Destination $terserSrc -Recurse -Force
 
@@ -34,9 +48,9 @@ foreach ($script in $scriptFiles) {
         "terser"
         $sourceScript
         "-c"
-        "passes=2"
+        "passes=3"
         "-m"
-        "keep_fnames=true,keep_classnames=true"
+        "keep_classnames=true"
         "--comments"
         "false"
         "-o"
@@ -52,7 +66,7 @@ foreach ($script in $scriptFiles) {
 
 Write-Host "  Minified JS OK -> $terserSrc" -ForegroundColor Green
 
-# ── Step 2: Compile ────────────────────────────────────────────────────────────
+# ## Step 2: Compile ############################################################
 Write-Host "`n[2/4] Compiling hp_colors..." -ForegroundColor Cyan
 $compileTarget = "$terserCompiled\panorama\scripts\healthbar_logic.vjs_c"
 $proc = Start-Process -FilePath $compiler -ArgumentList "`"$terserSrc`"" -PassThru
@@ -88,7 +102,7 @@ if (-not (Test-Path $compileTarget)) {
 Copy-Item -Path $terserCompiled -Destination $modCompiled -Recurse -Force
 Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 
-# ── Step 3: Pack VPK ──────────────────────────────────────────────────────────
+# ## Step 3: Pack VPK ##########################################################
 Write-Host "`n[3/4] Packing VPK..." -ForegroundColor Cyan
 $packArgs = "`"$modCompiled`" -o `"$vpkOut`" -s --no-progress"
 $pack = Start-Process -FilePath $vpkeditcli -ArgumentList $packArgs -PassThru -Wait -NoNewWindow
@@ -103,7 +117,7 @@ if (-not (Test-Path $vpkOut)) {
 $vpkSize = (Get-Item $vpkOut).Length
 Write-Host "  Packed OK -> $vpkOut  ($([math]::Round($vpkSize/1KB, 1)) KB)" -ForegroundColor Green
 
-# ── Step 4: Deploy ────────────────────────────────────────────────────────────
+# ## Step 4: Deploy ############################################################
 Write-Host "`n[4/4] Deploying to Deadlock addons..." -ForegroundColor Cyan
 $destDir = Split-Path $vpkDest -Parent
 if (-not (Test-Path $destDir)) {

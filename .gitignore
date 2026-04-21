@@ -44,3 +44,14 @@ buff_timer_virgin_obfuscated/
 buff_timer_virgin_terser/
 build_buff_timer_virgin_obfuscated*.ps1
 build_buff_timer_virgin_terser*.ps1
+
+# Test / prototype directories
+test/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Scratch / backup directories
+originalcss/
+citadel_events/

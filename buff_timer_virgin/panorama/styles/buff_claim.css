@@ -534,10 +534,11 @@
 	opacity: 1;
 }
 
+/* Neutral cooldown ring fallbacks — kept for z-index safety and Panorama cascade resilience */
 .neutral-cooldown-ring {
 	position: absolute;
-	width: 18px;
-	height: 18px;
+	width: 24px;
+	height: 24px;
 	border-radius: 50%;
 	border-style: solid;
 	border-width: 1px;
@@ -553,7 +554,7 @@
 	height: 100%;
 	border-radius: 50%;
 	border-style: solid;
-	border-width: 3px;
+	border-width: 4px;
 	border-color: rgba(229, 162, 94, 0.98);
 	opacity: 1;
 	clip: radial(50% 50%, 0deg, 360deg);
@@ -561,14 +562,15 @@
 
 .neutral-cooldown-timer-detail {
 	position: absolute;
-	width: 36px;
+	width: 48px;
 	height: 14px;
-	font-size: 10px;
+	font-size: 11px;
 	font-family: sansMono;
-	font-weight: semi-bold;
+	font-weight: bold;
 	text-align: center;
 	color: rgba(255, 228, 193, 0.98);
 	text-shadow: 0px 0px 3px 2.0 black;
 	opacity: 1;
 	z-index: 9999999;
 }
+
