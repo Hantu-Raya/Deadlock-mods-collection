@@ -69,7 +69,7 @@ together in:
 - `healthbar_logic.js`
 - `hp_registrar.js`
 
-Also bump the registrar `storageVersion` when compatibility requires it (currently 18).
+Also bump the registrar `storageVersion` when compatibility requires it (currently 21).
 
 ## Persistence Model
 - Storage namespace: `hp_colors`

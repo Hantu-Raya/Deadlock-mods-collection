@@ -64,8 +64,10 @@
 						</Panel>
 					</Panel>
 					
-					<Label id="hp_counter" />
 					<Panel id="hp_kill_zone_marker" />
+				</Panel>
+				<Panel id="hp_counter_anchor">
+					<Label id="hp_counter" />
 				</Panel>
 			</Panel>
 		</Panel>
