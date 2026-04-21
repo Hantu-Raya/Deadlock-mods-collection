@@ -45,7 +45,8 @@
     hp_kill_zone_enabled: "kze",
     hp_kill_zone_threshold: "kzt",
     hp_kill_zone_color: "kzc",
-    hp_kill_zone_width: "kzw"
+    hp_kill_zone_width: "kzw",
+    hp_counter_format: "cf"
   };
   var HP_PERSIST_ALIAS_TO_ID = (function () {
     var out = {};
@@ -66,8 +67,8 @@
   var persistToken = 0;
   var bootstrapToken = 0;
   var pendingBootstrapReason = "";
-  var storageSupportLogged = false;
-
+  var _lastHpSharedRaw = "";
+  
 
 
   var AnitaBase64 = (function () {
@@ -154,25 +155,8 @@
       .replace(/^_+|_+$/g, "");
   }
 
-  function hasPersistentStorage() {
-    try {
-      // Probe with an actual write — Panorama native methods may not report
-      // typeof === "function" even when callable (QoL pattern: just call it).
-      $.persistentStorage.setItem("_anita_probe", "1");
-      $.persistentStorage.removeItem("_anita_probe");
-      if (!storageSupportLogged) {
-        storageSupportLogged = true;
-      }
-      return true;
-    } catch (e) {
-      if (!storageSupportLogged) {
-        storageSupportLogged = true;
-      }
-      return false;
-    }
-  }
 
-  function writeHpSharedSnapshot(values, reason) {
+  function writeHpSharedSnapshot(values) {
     if (!values || typeof values !== "object") return;
     var count = 0;
     var out = {};
@@ -183,7 +167,10 @@
     }
     try {
       if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) {
-        GameUI.CustomUIConfig().__hpColorsCfgRaw = JSON.stringify(out);
+        var raw = JSON.stringify(out);
+        if (raw === _lastHpSharedRaw) return;
+        _lastHpSharedRaw = raw;
+        GameUI.CustomUIConfig().__hpColorsCfgRaw = raw;
       }
     } catch (e) {
     }
@@ -327,7 +314,7 @@
     return merged;
   }
 
-  function parseStoredPayload(raw, sourceLabel) {
+  function parseStoredPayload(raw) {
     var text = String(raw || "");
     if (!text) return null;
 
@@ -408,6 +395,19 @@
     writeHpSharedSnapshot(currentValues, "cache");
   }
 
+  function readSharedSnapshotValues() {
+    var store = getSharedStore();
+    if (!store) return null;
+    try {
+      var raw = String(store[SHARED_CFG_RAW_KEY] || "");
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return null;
+      return cloneValues(parsed);
+    } catch (eShared) {}
+    return null;
+  }
+
   function readStoredPayload() {
     if (cachedRaw && cachedEncoded && cachedValues) {
       return {
@@ -418,76 +418,44 @@
       };
     }
 
-    if (!hasPersistentStorage()) {
-
-      var canReadConvar = typeof GameInterfaceAPI !== "undefined" &&
-        GameInterfaceAPI &&
-        typeof GameInterfaceAPI.GetSettingString === "function";
-      if (!canReadConvar) {
-        return null;
-      }
-
-      var convarRaw = "";
-      try {
-        convarRaw = String(GameInterfaceAPI.GetSettingString("deadlock_hero_debuts_seen") || "");
-      } catch (eConvar) {
-        return null;
-      }
-
-      var tokenMatch = convarRaw.match(/\[ANITA-v1-hp_colors\]:([A-Za-z0-9_-]+)/);
-      if (!tokenMatch) {
-        return null;
-      }
-
-      var convarEncoded = tokenMatch[1];
-      var convarDecoded = "";
-      try {
-        convarDecoded = AnitaBase64.decode(convarEncoded);
-      } catch (eDecode) {
-        return null;
-      }
-
-      var convarParsed = parseStoredPayload(convarDecoded, "convar");
-      if (!convarParsed) {
-        return null;
-      }
-
-      cachePayload(convarParsed.raw, convarEncoded, convarParsed.values, convarParsed.values);
-      return {
-        raw: convarParsed.raw,
-        encoded: convarEncoded,
-        values: cloneValues(convarParsed.values),
-        source: "convar"
-      };
-    }
-
-    var encoded = "";
-    try {
-      encoded = String($.persistentStorage.getItem(STORAGE_KEY) || "");
-    } catch (eRead) {
+    var canReadConvar = typeof GameInterfaceAPI !== "undefined" &&
+      GameInterfaceAPI &&
+      typeof GameInterfaceAPI.GetSettingString === "function";
+    if (!canReadConvar) {
       return null;
     }
 
-    if (!encoded) {
+    var convarRaw = "";
+    try {
+      convarRaw = String(GameInterfaceAPI.GetSettingString("deadlock_hero_debuts_seen") || "");
+    } catch (eConvar) {
       return null;
     }
 
-    var raw = "";
+    var tokenMatch = convarRaw.match(/\[ANITA-v1-hp_colors\]:([A-Za-z0-9_-]+)/);
+    if (!tokenMatch) {
+      return null;
+    }
+
+    var convarEncoded = tokenMatch[1];
+    var convarDecoded = "";
     try {
-      raw = AnitaBase64.decode(encoded);
+      convarDecoded = AnitaBase64.decode(convarEncoded);
     } catch (eDecode) {
       return null;
     }
 
-    var parsed = parseStoredPayload(raw, "persistentStorage");
-    if (!parsed) return null;
+    var convarParsed = parseStoredPayload(convarDecoded, "convar");
+    if (!convarParsed) {
+      return null;
+    }
 
-    cachePayload(parsed.raw, encoded, parsed.values, parsed.values);
+    cachePayload(convarParsed.raw, convarEncoded, convarParsed.values, convarParsed.values);
     return {
-      raw: parsed.raw,
-      encoded: encoded,
-      values: cloneValues(parsed.values),
-      source: "persistentStorage"
+      raw: convarParsed.raw,
+      encoded: convarEncoded,
+      values: cloneValues(convarParsed.values),
+      source: "convar"
     };
   }
 
@@ -512,17 +480,7 @@
     }
 
     cachePayload(raw, encoded, currentValues, persistedValues);
-
-    if (!hasPersistentStorage()) {
-      return false;
-    }
-
-    try {
-      $.persistentStorage.setItem(STORAGE_KEY, encoded);
-      return true;
-    } catch (eWrite) {
-      return false;
-    }
+    return false;
   }
 
   function schedulePersist(reason, immediate) {
@@ -535,7 +493,7 @@
 
   function replayValues(values, reason) {
     if (!values) return;
-    writeHpSharedSnapshot(values, reason);
+    writeHpSharedSnapshot(values);
 
     var count = 0;
     for (var key in values) {
@@ -552,25 +510,45 @@
     }
   }
 
+  function replayValuesBulk(values, reason) {
+    if (!values) return;
+    writeHpSharedSnapshot(values);
+    $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
+      magic_word: "ANITA_BULK_UPDATE",
+      mod_title: TITLE,
+      values: values,
+      update_source: "bridge_bootstrap",
+      skip_bridge_persist: true
+    }));
+  }
+
   function performBootstrap(reason) {
     if (!bridgeConfig) {
       pendingBootstrapReason = reason;
       return;
     }
 
-    var stored = readStoredPayload();
-    if (stored) {
-      currentValues = cloneValues(stored.values);
-      persistedValues = cloneValues(stored.values);
-      writeSessionMirror(stored.encoded);
-      writeHpSharedSnapshot(stored.values, reason + ":" + stored.source);
-      replayValues(stored.values, reason + ":" + stored.source);
+    var sharedValues = readSharedSnapshotValues();
+    if (sharedValues) {
+      currentValues = cloneValues(sharedValues);
+      persistedValues = cloneValues(sharedValues);
+      persistCurrentState(reason + ":shared", true);
+      replayValuesBulk(sharedValues, reason + ":shared");
       return;
     }
 
+    var stored = readStoredPayload();
+      if (stored) {
+        currentValues = cloneValues(stored.values);
+        persistedValues = cloneValues(stored.values);
+        writeSessionMirror(stored.encoded);
+        replayValuesBulk(stored.values, reason + ":" + stored.source);
+        return;
+      }
+
     var sessionValues = currentValues || persistedValues;
     if (sessionValues) {
-      replayValues(sessionValues, reason + ":session");
+      replayValuesBulk(sessionValues, reason + ":session");
       return;
     }
 
@@ -661,7 +639,5 @@
     } catch (e) {
     }
   });
-
-  hasPersistentStorage();
 
 })();

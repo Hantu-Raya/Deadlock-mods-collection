@@ -78,13 +78,13 @@ Minimap dimensions use `resolveMinimapReferenceSize(mm)` which returns DPI-aware
 **Never convert this back to a plain object `{}`** — doing so silently breaks `.get/.set/.entries/.delete/.clear` calls and the rings stop working with no error output.
 
 ### Neutral Override Phases
-Three time-gated phases replace the main rejuv display. All three are called every second from `loop()` and are mutually exclusive at any given game time:
+One unified helper, `updateNeutralPhase()`, handles the time-gated neutral override display. It is called every second from `loop()` and switches behavior based on the current game time:
 
 | Function | Flag | Window | Main label shows | Spawn badge |
 |---|---|---|---|---|
-| `updateNeutralBotPhase` | `_neutralBotOverrideActive` | 1:00–2:00 | Countdown to 2:00 | (none changed) |
-| `updateNeutralMediumPhase` | `_neutralMediumOverrideActive` | 5:00–6:00 | Countdown to 6:00 | Medium badge |
-| `updateNeutralCardPhase` | `_neutralCardOverrideActive` | 7:00–8:00 | Countdown to 8:00 | Large badge (badge2) |
+| `updateNeutralPhase()` | `_neutralBotOverrideActive` | 1:00–2:00 | Countdown to 2:00 | (none changed) |
+| `updateNeutralPhase()` | `_neutralMediumOverrideActive` | 5:00–6:00 | Countdown to 6:00 | Medium badge |
+| `updateNeutralPhase()` | `_neutralCardOverrideActive` | 7:00–8:00 | Countdown to 8:00 | Large badge (badge2) |
 
 **While any override is active, the normal `if (!neutralBotActive && !neutralMediumActive && !neutralCardActive)` rejuv countdown block in `loop()` is skipped** — `UI.rLab.text` is NOT updated with the rejuv countdown. The mini rejuv card compensates by computing from `SEQ[idx].d - (now - phaseStart)` directly.
 
@@ -271,11 +271,10 @@ Launch with `-dev -tools` and use Panorama console (`F7`).
 
 Log prefixes:
 - `[BT-NEUTRAL]` — neutral respawn ring logs
-- `[BT-MAP]` — minimap collapse logs
 - `[BT-PERF]` — performance telemetry
 - `[BT-ALIGN]` — neutral ring alignment diagnostics
 
-All disabled by default (`DEBUG_NEUTRAL_TIMERS`, `DEBUG_PERF`, `DEBUG_NEUTRAL_ALIGN`, `DEBUG_MINIMAP_COLLAPSE` all `false`).
+All disabled by default (`DEBUG_NEUTRAL_TIMERS`, `DEBUG_PERF`, `DEBUG_NEUTRAL_ALIGN` all `false`).
 
 ## BUILD
 

@@ -18,15 +18,8 @@
     CLASSES: {
       ESCAPE_MENU: "ShowEscapeMenu",
       OPEN: "Open",
-      ACTIVE: "Active",
       VISIBLE: "Visible",
-      CHECKED: "Checked",
       ATTENTION: "Attention"
-    },
-    EVENTS: {
-      COMMS: "ClientUI_FireOutput",
-      MAGIC_WORD: "ANITA_REGISTER",
-      UPDATE: "ANITA_UPDATE"
     },
     UI: {
       TAB_MAX_CHARS: 17,
@@ -35,6 +28,7 @@
   };
   const RENDER_REFRESH_DEBOUNCE_SEC = 0.05;
   const MAX_CONVAR_VALUE_LEN = 1900;
+  var _lastHpSharedRaw = "";
   const HP_COMPACT_PERSIST_VERSION = 1;
   const HP_PERSIST_ALIASES = {
     hp_enabled: "e",
@@ -75,7 +69,8 @@
     hp_kill_zone_enabled: "kze",
     hp_kill_zone_threshold: "kzt",
     hp_kill_zone_color: "kzc",
-    hp_kill_zone_width: "kzw"
+    hp_kill_zone_width: "kzw",
+    hp_counter_format: "cf"
   };
   const HP_PERSIST_ALIAS_TO_ID = (function () {
     var out = {};
@@ -153,6 +148,17 @@
     return { encode: encode, decode: decode };
   })();
 
+  function rememberLastEmittedValue(modTitle, settingId, newValue) {
+    try {
+      if (!modTitle || !settingId) return;
+      if (typeof AnitaCore === "undefined" || !AnitaCore || typeof AnitaCore.findRegisteredMod !== "function") return;
+      var config = AnitaCore.findRegisteredMod(modTitle);
+      if (!config) return;
+      if (!config.__anitaLastEmittedValues) config.__anitaLastEmittedValues = {};
+      config.__anitaLastEmittedValues[settingId] = newValue;
+    } catch (e) {}
+  }
+
   function emitUpdate(modTitle, settingId, newValue, meta) {
     var payload = {
       magic_word: "ANITA_UPDATE",
@@ -168,9 +174,26 @@
       }
     }
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(payload));
+    rememberLastEmittedValue(modTitle, settingId, newValue);
   }
 
-  function writeHpSharedSnapshot(config, reason) {
+  function emitBulkUpdate(modTitle, values, meta) {
+    var payload = {
+      magic_word: "ANITA_BULK_UPDATE",
+      mod_title: modTitle,
+      values: values
+    };
+    if (meta && typeof meta === "object") {
+      for (var key in meta) {
+        if (Object.prototype.hasOwnProperty.call(meta, key)) {
+          payload[key] = meta[key];
+        }
+      }
+    }
+    $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(payload));
+  }
+
+  function writeHpSharedSnapshot(config) {
     if (!config || config.title !== "HP Colors" || !Array.isArray(config.elements)) return;
     var values = {};
     var count = 0;
@@ -183,7 +206,10 @@
     }
     try {
       if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) {
-        GameUI.CustomUIConfig().__hpColorsCfgRaw = JSON.stringify(values);
+        var raw = JSON.stringify(values);
+        if (raw === _lastHpSharedRaw) return;
+        _lastHpSharedRaw = raw;
+        GameUI.CustomUIConfig().__hpColorsCfgRaw = raw;
       }
     } catch (e) {
     }
@@ -300,17 +326,6 @@
       return rootEncoded || hudEncoded || "";
     },
 
-    hasPersistentStorage: function () {
-      try {
-        var supported = !!($ && $.persistentStorage &&
-          typeof $.persistentStorage.getItem === "function" &&
-          typeof $.persistentStorage.setItem === "function");
-        return supported;
-      } catch (eStorage) {
-        return false;
-      }
-    },
-
     writeSessionMirror: function (config, encoded) {
       var key = this.getStorageKey(config);
       if (!key) return;
@@ -334,12 +349,10 @@
           GameInterfaceAPI &&
           typeof GameInterfaceAPI.SetSettingString === "function") {
         GameInterfaceAPI.SetSettingString(key, value);
-        this.log("writeConvar via SetSettingString key=" + key);
       } else if (typeof GameInterfaceAPI !== "undefined" &&
           GameInterfaceAPI &&
           typeof GameInterfaceAPI.ConsoleCommand === "function") {
         GameInterfaceAPI.ConsoleCommand(key + ' "' + value + '"');
-        this.log("writeConvar via ConsoleCommand key=" + key);
       }
     },
 
@@ -350,12 +363,10 @@
           this.writeConvar(key, value);
           return true;
         } catch (e0) {
-          this.log("direct convar write failed key=" + key + " err=" + e0);
         }
       }
 
       if (runConsoleCommandBestEffort(command)) {
-        this.log("writeConvar via command events key=" + key);
         // Also attempt SetSettingString as a durable fallback after events path
         try {
           if (typeof GameInterfaceAPI !== "undefined" && GameInterfaceAPI &&
@@ -486,7 +497,7 @@
       return expanded;
     },
 
-    parseStoredPayload: function (config, raw, sourceLabel) {
+    parseStoredPayload: function (config, raw) {
       var text = String(raw || "");
       if (!text) return null;
 
@@ -518,38 +529,6 @@
       return {
         raw: text,
         values: values
-      };
-    },
-
-    readPersistentStoragePayload: function (config) {
-      var key = this.getStorageKey(config);
-      var storageAvailable = this.hasPersistentStorage();
-      if (!key || !storageAvailable) return null;
-
-      var encoded = "";
-      try {
-        encoded = String($.persistentStorage.getItem(key) || "");
-      } catch (eRead) {
-        return null;
-      }
-      if (!encoded) return null;
-
-      var raw = "";
-      try {
-        raw = AnitaBase64.decode(encoded);
-      } catch (eDecode) {
-        return null;
-      }
-
-      var parsed = this.parseStoredPayload(config, raw, "persistentStorage");
-      if (!parsed) {
-        return null;
-      }
-      return {
-        raw: parsed.raw,
-        encoded: encoded,
-        values: parsed.values,
-        source: "persistentStorage"
       };
     },
 
@@ -596,8 +575,30 @@
       };
     },
 
+    readSharedSnapshotPayload: function (config) {
+      try {
+        if (typeof GameUI === "undefined" || !GameUI || !GameUI.CustomUIConfig) return null;
+        var raw = String(GameUI.CustomUIConfig().__hpColorsCfgRaw || "");
+        if (!raw) return null;
+        var parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return null;
+        return {
+          raw: raw,
+          encoded: "",
+          values: parsed,
+          source: "shared"
+        };
+      } catch (eShared) {}
+      return null;
+    },
+
     readStoredPayload: function (config) {
       var persisted = null;
+
+      persisted = this.readSharedSnapshotPayload(config);
+      if (persisted) {
+        return persisted;
+      }
 
       try {
         var sessionEncoded = this.getSessionEncoded(config);
@@ -616,17 +617,8 @@
       } catch (eSess) {
       }
 
-      persisted = this.readPersistentStoragePayload(config);
-      if (persisted) {
-        if (config && config.title === "HP Colors") {
-        }
-        return persisted;
-      }
-
       persisted = this.readConvarPayload(config);
       if (persisted) {
-        if (config && config.title === "HP Colors") {
-        }
         return persisted;
       }
 
@@ -671,14 +663,14 @@
         this.applyResolvedValues(config, persisted.values);
         if (persisted.encoded && hydrateSource !== "session") {
           this.writeSessionMirror(config, persisted.encoded);
+        } else if (hydrateSource === "shared") {
+          this.persistConfig(config, true);
         }
       } else {
         this.applyResolvedValues(config, {});
       }
 
       config.__anitaLastPersistedRaw = persisted ? persisted.raw : "";
-      if (config && config.title === "HP Colors") {
-      }
     },
 
     buildStoredPayload: function (config) {
@@ -747,16 +739,6 @@
         } else {
         }
       } catch (e) {
-      }
-
-      try {
-        if (this.hasPersistentStorage()) {
-          var storageKey = this.getStorageKey(config);
-          if (storageKey) {
-            $.persistentStorage.setItem(storageKey, encoded);
-          }
-        }
-      } catch (ePersist) {
       }
 
       this.writeSessionMirror(config, encoded);
@@ -2663,18 +2645,13 @@
       bgShield.style.zIndex = "-1";
       bgShield.hittest = true;
 
-      const syncAll = () => {
-        if (config.elements) {
-          config.elements.forEach(el => {
-            if (el.id && el.currentValue !== undefined) {
-              emitUpdate(config.title, el.id, el.currentValue, {
-                update_source: "ui_resync",
-                skip_bridge_persist: true
-              });
-            }
+        const syncAll = () => {
+          AnitaCore.emitCurrentValues(config, {
+            update_source: "ui_resync",
+            skip_bridge_persist: true,
+            force_emit: true
           });
-        }
-      };
+        };
 
       bgShield.SetPanelEvent("onmouseover", () => {
         syncAll();
@@ -2711,32 +2688,76 @@
       detailPanel.AddClass("AnitaDetailPanel");
 
       const activeCategory = this.ensureActiveCategory(config);
-      const categories = this.getCategoryList(config);
+      const rawCategories = this.getCategoryList(config);
 
-      for (var c = 0; c < categories.length; c++) {
-        var category = categories[c];
-        var categoryBtn = $.CreatePanel("Button", treeList, "");
-        categoryBtn.AddClass("AnitaTreeNode");
-        categoryBtn.SetHasClass("Active", category === activeCategory);
+      // Parse and group categories
+      var groupedCategories = {};
+      for (var c = 0; c < rawCategories.length; c++) {
+        var rawCat = rawCategories[c];
+        var parts = rawCat.split("|");
+        var main = parts.length > 1 ? parts[0] : "General Options";
+        var sub = parts.length > 1 ? parts[1] : rawCat;
+        
+        if (!groupedCategories[main]) {
+          groupedCategories[main] = [];
+        }
+        groupedCategories[main].push({ full: rawCat, sub: sub });
+      }
 
-        var categoryGlyph = $.CreatePanel("Label", categoryBtn, "");
-        categoryGlyph.AddClass("AnitaTreeNodeGlyph");
-        categoryGlyph.text = category === activeCategory ? "v" : ">";
+      // Render Tree
+      for (var mainCat in groupedCategories) {
+        if (!Object.prototype.hasOwnProperty.call(groupedCategories, mainCat)) continue;
+        
+        var mainBtn = $.CreatePanel("Button", treeList, "");
+        mainBtn.AddClass("AnitaMainCategoryBtn");
+        
+        var mainLabel = $.CreatePanel("Label", mainBtn, "");
+        mainLabel.AddClass("AnitaMainCategoryLabel");
+        mainLabel.text = mainCat;
 
-        var categoryLabel = $.CreatePanel("Label", categoryBtn, "");
-        categoryLabel.AddClass("AnitaTreeNodeLabel");
-        categoryLabel.text = category;
+        var subCats = groupedCategories[mainCat];
+        var isMainActive = false;
+        for (var i = 0; i < subCats.length; i++) {
+          if (subCats[i].full === activeCategory) {
+            isMainActive = true;
+            break;
+          }
+        }
+        mainBtn.SetHasClass("Active", isMainActive);
 
-        var categoryCount = $.CreatePanel("Label", categoryBtn, "");
-        categoryCount.AddClass("AnitaTreeNodeCount");
-        categoryCount.text = String(this.getCategoryElements(config, category).length);
-
-        categoryBtn.SetPanelEvent("onactivate", function (nextCategory) {
+        // Click main category to open/activate its first subcategory
+        mainBtn.SetPanelEvent("onactivate", function (firstSub) {
           return function () {
-            config.__anitaActiveCategory = nextCategory;
-            AnitaRenderer.renderModSettings(config);
+            if (config.__anitaActiveCategory !== firstSub) {
+              config.__anitaActiveCategory = firstSub;
+              AnitaRenderer.renderModSettings(config);
+            }
           };
-        }(category));
+        }(subCats[0].full));
+
+        if (isMainActive) {
+          for (var s = 0; s < subCats.length; s++) {
+            var subData = subCats[s];
+            var subBtn = $.CreatePanel("Button", treeList, "");
+            subBtn.AddClass("AnitaSubCategoryBtn");
+            subBtn.SetHasClass("Active", subData.full === activeCategory);
+
+            var subLabel = $.CreatePanel("Label", subBtn, "");
+            subLabel.AddClass("AnitaSubCategoryLabel");
+            subLabel.text = subData.sub;
+
+            var subCount = $.CreatePanel("Label", subBtn, "");
+            subCount.AddClass("AnitaSubCategoryCount");
+            subCount.text = String(this.getCategoryElements(config, subData.full).length);
+
+            subBtn.SetPanelEvent("onactivate", function (nextCategory) {
+              return function () {
+                config.__anitaActiveCategory = nextCategory;
+                AnitaRenderer.renderModSettings(config);
+              };
+            }(subData.full));
+          }
+        }
       }
 
       const detailHeaderRow = $.CreatePanel("Panel", detailPanel, "");
@@ -2778,30 +2799,11 @@
 
       // Footer: Copy / Reset / Import (only for mods with storageNamespace)
       if (config.storageNamespace) {
-        var FOOTER_BOTTOM_GAP = 12;
-
-        var footerWrap = $.CreatePanel("Panel", detailPanel, "");
-        footerWrap.AddClass("AnitaFooterWrap");
+        var footerWrap = $.CreatePanel("Panel", treePanel, "");
+        footerWrap.AddClass("AnitaTreeFooter");
 
         var footer = $.CreatePanel("Panel", footerWrap, "");
         footer.AddClass("AnitaFooterRow");
-
-        function dockFooter() {
-          if (!footerWrap || !footerWrap.IsValid || !footerWrap.IsValid()) return;
-          var panelHeight = Number(detailPanel && detailPanel.actuallayoutheight);
-          var footerHeight = Number(footerWrap.actuallayoutheight);
-          if (!isFinite(panelHeight) || panelHeight <= 0) {
-            $.Schedule(0.05, dockFooter);
-            return;
-          }
-          if (!isFinite(footerHeight) || footerHeight <= 0) {
-            footerHeight = 34;
-          }
-          var footerTop = Math.max(0, Math.floor(panelHeight - footerHeight - FOOTER_BOTTOM_GAP));
-          footerWrap.style.y = footerTop + "px";
-          footerWrap.style.x = "0px";
-        }
-
         function makeFooterBtn(parent, label, id) {
           var btn = $.CreatePanel("Button", parent, id || "");
           btn.AddClass("AnitaFooterBtn");
@@ -2883,27 +2885,15 @@
 
           var importRow = $.CreatePanel("Panel", importPopupPanel, "");
           importRow.AddClass("AnitaPasteRow");
-          importRow.AddClass("AnitaPasteRowCompact");
-          importRow.AddClass("AnitaImportPopupRow");
           importRow.hittest = true;
-          importRow.style.width = "100%";
-
-          var importLabel = $.CreatePanel("Label", importRow, "");
-          importLabel.AddClass("AnitaLabel");
-          importLabel.text = "Import Code";
-          importLabel.style.width = "84px";
-          importLabel.style.fontSize = "12px";
-          importLabel.style.marginRight = "6px";
 
           importPopupInput = $.CreatePanel("TextEntry", importRow, "");
           importPopupInput.AddClass("AnitaPasteInput");
-          importPopupInput.placeholder = "Paste a code to apply...";
-          importPopupInput.style.width = "320px";
-          importPopupInput.style.height = "24px";
-          importPopupInput.style.fontSize = "9px";
+          importPopupInput.placeholder = "Paste a token here...";
           config.__anitaImportCodeInput = importPopupInput;
 
           importPopupApplyBtn = makeFooterBtn(importRow, "Apply", "");
+          importPopupApplyBtn.btn.AddClass("AnitaImportApplyBtn");
 
           function applySaveCodeInput() {
             if (!importPopupInput || !importPopupInput.IsValid || !importPopupInput.IsValid()) return;
@@ -2929,7 +2919,8 @@
               AnitaRenderer.syncSaveCodeInput(config);
               AnitaCore.emitCurrentValues(config, {
                 update_source: "ui_code_apply",
-                force_persist: true
+                force_persist: true,
+                force_emit: true
               });
               closeImportPopup();
               AnitaRenderer.renderModSettings(config);
@@ -2976,7 +2967,8 @@
           AnitaRenderer.renderModSettings(config);
           AnitaCore.emitCurrentValues(config, {
             update_source: "ui_reset",
-            force_persist: true
+            force_persist: true,
+            force_emit: true
           });
         });
 
@@ -2985,10 +2977,6 @@
           openImportPopup();
         });
 
-        dockFooter();
-        $.Schedule(0.0, dockFooter);
-        $.Schedule(0.1, dockFooter);
-        $.Schedule(0.25, dockFooter);
       }
     },
 
@@ -3026,8 +3014,6 @@
     },
 
     registerMod: function (config) {
-      if (config && config.title === "HP Colors") {
-      }
       if (this.registeredMods.length === 1 && this.registeredMods[0].isDummy) {
         this.registeredMods = [];
         AnitaRenderer.menuArea.RemoveAndDeleteChildren();
@@ -3045,8 +3031,6 @@
         AnitaPersistence.persistConfig(config, true);
       }
       this.registeredMods.push(config);
-      if (config.title === "HP Colors") {
-      }
       AnitaRenderer.addTab(config.title, () => {
         AnitaRenderer.renderModSettings(config);
       });
@@ -3060,13 +3044,36 @@
 
     emitCurrentValues: function (config, meta) {
       if (!config || !Array.isArray(config.elements)) return;
+      var forceEmit = !!(meta && meta.force_emit);
+      var bulkEmit = !!(meta && meta.bulk_emit);
       if (config.title === "HP Colors") {
-        writeHpSharedSnapshot(config, meta && (meta.update_source || meta.bootstrap_reason || meta.sync_reason));
+        writeHpSharedSnapshot(config);
       }
+      if (!config.__anitaLastEmittedValues) config.__anitaLastEmittedValues = {};
+      var values = {};
+      var hasValues = false;
       for (var i = 0; i < config.elements.length; i++) {
         var element = config.elements[i];
         if (!element || !element.id || element.currentValue === undefined) continue;
-        emitUpdate(config.title, element.id, element.currentValue, meta);
+        var value = AnitaPersistence.sanitizeValue(element, element.currentValue);
+        element.currentValue = value;
+        config.__anitaLastEmittedValues[element.id] = value;
+        values[element.id] = value;
+        hasValues = true;
+      }
+      if (!hasValues) return;
+      if (bulkEmit) {
+        emitBulkUpdate(config.title, values, meta);
+      } else {
+        for (var id in values) {
+          if (Object.prototype.hasOwnProperty.call(values, id)) {
+            if (!forceEmit && Object.prototype.hasOwnProperty.call(config.__anitaLastEmittedValues, id) &&
+                config.__anitaLastEmittedValues[id] === values[id]) {
+              continue;
+            }
+            emitUpdate(config.title, id, values[id], meta);
+          }
+        }
       }
     },
 
@@ -3079,23 +3086,13 @@
       return null;
     },
 
-    queueRenderRefresh: function (config) {
-      if (!config) return;
-      var refreshToken = (config.__anitaUiRefreshToken || 0) + 1;
-      config.__anitaUiRefreshToken = refreshToken;
-      $.Schedule(RENDER_REFRESH_DEBOUNCE_SEC, function () {
-        if (!config || config.__anitaUiRefreshToken !== refreshToken) return;
-        if (AnitaRenderer.activeModTitle !== config.title) return;
-        AnitaRenderer.renderModSettings(config);
-      });
-    },
-
     emitPortableSync: function (config, reason) {
       if (!config || config.title !== "HP Colors") return;
       this.emitCurrentValues(config, {
         update_source: "core_auto_resync",
         skip_bridge_persist: true,
-        sync_reason: String(reason || "tick")
+        sync_reason: String(reason || "tick"),
+        force_emit: true
       });
     },
 
@@ -3144,8 +3141,6 @@
         updateSource === "ui_reset" ||
         updateSource === "ui_code_apply" ||
         updateSource === "core_auto_resync";
-      if (data.mod_title === "HP Colors") {
-      }
       if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) {
         return;
       }
@@ -3182,8 +3177,6 @@
       if (!data || !data.mod_title) return;
       var config = this.findRegisteredMod(data.mod_title);
       if (!config) {
-        if (data.mod_title === "HP Colors") {
-        }
         return;
       }
       if (data.mod_title === "HP Colors") {
@@ -3195,7 +3188,9 @@
       this.emitCurrentValues(config, {
         update_source: "bridge_bootstrap",
         skip_bridge_persist: true,
-        bootstrap_reason: String(data.reason || "request")
+        bootstrap_reason: String(data.reason || "request"),
+        force_emit: true,
+        bulk_emit: true
       });
     },
 
@@ -3224,12 +3219,8 @@
           try {
             let data = (typeof payload === 'string') ? JSON.parse(payload) : payload;
             if (data && data.magic_word === "ANITA_REGISTER") {
-              if (data.config && data.config.title === "HP Colors") {
-              }
               this.registerMod(data.config);
             } else if (data && data.magic_word === "ANITA_REQUEST_BOOTSTRAP") {
-              if (data.mod_title === "HP Colors") {
-              }
               this.handleBootstrapRequest(data);
             } else if (data && data.magic_word === "ANITA_UPDATE") {
               this.handleUpdateEvent(data);
