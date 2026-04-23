@@ -25,6 +25,8 @@ Audience: coding agents operating in this repository.
 - When the user asks to find, install, or evaluate skills, use `.agents/skills/find-skills/SKILL.md`. Verify skill quality before recommending installs; do not install new skills without user approval.
 - Before editing any module, check that module's local `AGENTS.md` if present.
 - Preserve dirty worktree changes that you did not make.
+- For `hp_colors/` work, default to the narrow workflow stack the user asked for: `sequentialthinking` for reasoning, `ctx_execute_file` / `ctx_search` for file reads and repo scanning, `agentmemory` for milestone logging, and the `karpathy-guidelines` plus `caveman full` skills for response and edit style.
+- Log meaningful steps, failures, and successes in agentmemory as the work proceeds. Do not treat that as a substitute for repo verification, but do keep it current enough to reconstruct what changed.
 
 ## Agentmemory
 - To update agentmemory, prefer the `memory_save` MCP tool for durable facts/architecture/workflow memory and `memory_lesson_save` for lessons.
