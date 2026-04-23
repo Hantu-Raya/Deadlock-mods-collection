@@ -28,6 +28,8 @@
     hp_skip_buildings: false,
     hp_pulse_threshold: 25,
     hp_counter_format: 0,
+    hp_container_offset_x: 0,
+    hp_container_offset_y: 0,
     hp_friend_enabled: false,
     hp_friend_pulse_enabled: false,
     hp_friend_pulse_bpm: 75,
@@ -288,7 +290,9 @@
     kzt: "hp_kill_zone_threshold",
     kzc: "hp_kill_zone_color",
     kzw: "hp_kill_zone_width",
-    cf: "hp_counter_format"
+    cf: "hp_counter_format",
+    hcx: "hp_container_offset_x",
+    hcy: "hp_container_offset_y"
   };
   var bootstrapApplied = false;
   var directBootstrapApplied = false;
@@ -715,9 +719,10 @@
 
   // â”€â”€ Panel cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var ctx = $.GetContextPanel();
-  var us = null, hc = null, hca = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null;
+  var us = null, hc = null, hca = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null, ihc = null;
   var cached = 0, att = 0;
   var lBgVis = null, lBgOp = null, lHpSize = null, lHpPos = null, lHpMarginLeft = null, lHpHeight = null, lHcaTransform = null;
+  var lIhcMarginLeft = null, lIhcMarginTop = null;
 
   function fRB() {
     var p = ctx.FindChildTraverse('unit_healthbar_lagging');
@@ -739,6 +744,7 @@
     if (!pl || !pl.IsValid()) pl = us.FindChildTraverse('unit_healthbar_pip_label');
     if (!lb || !lb.IsValid()) lb = us.FindChildTraverse('unit_healthbar_lagging');
     if (!kz || !kz.IsValid()) kz = us.FindChildTraverse('hp_kill_zone_marker');
+    if (!ihc || !ihc.IsValid()) ihc = ctx.FindChildTraverse('InfoHealthContainer');
     if (!ui || !ui.IsValid()) ui = us.FindChildTraverse('unit_ult_ready_icon') || us.FindChildTraverse('ult_icon');
     if (ui && ui.IsValid()) _uiMissAt = 0;
     if (lb && (!lbp || !lbp.IsValid())) lbp = lb.GetParent();
@@ -1021,6 +1027,7 @@
     lPWA = -1;
     sfcA = 0;
     lBgVis = lBgOp = lHpSize = lHpPos = lHpMarginLeft = lHpHeight = lHcaTransform = null;
+    lIhcMarginLeft = lIhcMarginTop = null;
     lKzVis = lKzX = lKzW = lKzColor = null;
     lLvVis = null;
     lSH = -1;
@@ -1047,6 +1054,12 @@
   function applyCurrentSettings(isEnemy) {
     sHBV(!isEnemy || !!cfg.hp_bg_visible);
     sHCS(lCounterLowMode, lCounterText);
+    if (ihc && ihc.IsValid()) {
+      var ml = cfg.hp_container_offset_x;
+      var mt = cfg.hp_container_offset_y;
+      if (ml !== lIhcMarginLeft) { ihc.style.marginLeft = ml + "%"; lIhcMarginLeft = ml; }
+      if (mt !== lIhcMarginTop) { ihc.style.marginTop = mt + "%"; lIhcMarginTop = mt; }
+    }
     lW = -1; lHp = -1;
     settingsDirty = false;
     settingsRefreshHoldUntil = 0;

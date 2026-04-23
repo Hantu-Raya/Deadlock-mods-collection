@@ -34,6 +34,9 @@
     { type: "cycler", id: "hp_counter_format", label: "HP number format", options: ["HP", "%"], defaultValue: 0, category: "HEALTH BARS|Number Overlay" },
     { type: "cycler", id: "hp_text_color_mode", label: "HP number color source", options: ["Bar color", "Custom"], defaultValue: 0, category: "HEALTH BARS|Number Overlay" },
     { type: "toggle", id: "hp_level_number_visible", label: "Show level number", defaultValue: true, category: "HEALTH BARS|Number Overlay" },
+    // Health Bars - Layout
+    { type: "slider", id: "hp_container_offset_x", label: "HP container left offset %", defaultValue: 0, min: -50, max: 50, step: 1, category: "HEALTH BARS|Layout" },
+    { type: "slider", id: "hp_container_offset_y", label: "HP container top offset %", defaultValue: 0, min: -50, max: 50, step: 1, category: "HEALTH BARS|Layout" },
     { type: "colorpicker", id: "hp_text_color_low", label: "Low HP number color", defaultValue: "#E16161", visibleWhen: { id: "hp_text_color_mode", equals: 1 }, category: "HEALTH BARS|Number Overlay" },
     { type: "colorpicker", id: "hp_text_color_mid", label: "Mid HP number color", defaultValue: "#FF7B00", visibleWhen: { id: "hp_text_color_mode", equals: 1 }, category: "HEALTH BARS|Number Overlay" },
     { type: "colorpicker", id: "hp_text_color_high", label: "High HP number color", defaultValue: "#FFFFFF", visibleWhen: { id: "hp_text_color_mode", equals: 1 }, category: "HEALTH BARS|Number Overlay" },
@@ -70,7 +73,7 @@
       title: TITLE,
       description: "Set enemy, ally, pulse, HP number, and kill marker colors.",
       storageNamespace: "hp_colors",
-      storageVersion: 21,
+      storageVersion: 22,
       elements: elements
     };
   }
