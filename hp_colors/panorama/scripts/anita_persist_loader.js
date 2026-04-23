@@ -46,9 +46,7 @@
     hp_kill_zone_threshold: "kzt",
     hp_kill_zone_color: "kzc",
     hp_kill_zone_width: "kzw",
-    hp_counter_format: "cf",
-    hp_container_offset_x: "hcx",
-    hp_container_offset_y: "hcy"
+    hp_counter_format: "cf"
   };
   var HP_PERSIST_ALIAS_TO_ID = (function () {
     var out = {};

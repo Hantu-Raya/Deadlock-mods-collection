@@ -10,14 +10,6 @@ Panorama overlay styling.
   `hp_colors_terser_compiled/` directly; those are build artifacts.
 - Root repo rules in `../AGENTS.md` still apply.
 
-## Required Workflow
-- Use `sequentialthinking` before non-trivial reasoning, debugging, or design comparison.
-- Use the `karpathy-guidelines` skill and keep changes surgical.
-- Use the `caveman full` skill for terse communication when responding about this module, including reasoning summaries.
-- Use context-mode file readers/search tools for repo inspection instead of ad hoc shell reads when possible.
-- Log each meaningful step, failure, and success to agentmemory so the work can be reconstructed later.
-- Treat those tools as the default workflow for this folder, not optional extras.
-
 ## Build
 Use the module build script from the repo root:
 
@@ -42,6 +34,30 @@ Deadlock addons folder configured in that script.
 | `panorama/scripts/healthbar_logic.js` | Runtime overlay | Applies enemy HP bar colors/counter settings to unit status panels. |
 | `panorama/styles/anita_ui.css` | Anita UI | Settings window, controls, color picker, footer controls. |
 | `panorama/styles/unit_status.css` | Unit status | Healthbar and unit status visual overrides. |
+
+## Anita Color Picker Notes
+- Do not parent color picker popups directly to `AnitaWindow`; use a separate
+  popup/root host so the popup is not clipped, shifted, or coupled to window
+  focus/layout behavior.
+- Keep popup positioning deterministic. Avoid delayed layout-measure reposition
+  loops that first show at one position and then snap to another; if percentage
+  positioning is needed, set the final percentage before making the popup
+  interactive.
+- Do not recompute final color from cursor panel bounds on release. Release
+  should only end dragging; the selected hotspot state owns the color truth.
+- Store color-box selection as the cursor center/hotspot in full box
+  coordinates, not cursor top-left coordinates and not native drag panel bounds.
+- Normalize hue/saturation against the full color box size. Do not use
+  `maxCursorX` or `maxCursorY` for color math; those are only for rendering the
+  cursor top-left.
+- Panorama can report actual screen-scaled sizes while CSS uses logical sizes.
+  Convert native cursor/panel bounds back to picker logical units before
+  updating selection.
+- Native Panorama drag can emit a first sample offset from the saved anchor.
+  Offset that first native sample back to the press anchor before applying
+  drag movement, or later drags can teleport.
+- Keep `PICKER_POS_DEBUG` disabled by default. Re-enable only while capturing
+  W.log picker traces; otherwise JSON/debug logging adds drag-time overhead.
 
 ## Script Flow
 1. `hp_registrar.js` builds the HP Colors schema and registers it.
