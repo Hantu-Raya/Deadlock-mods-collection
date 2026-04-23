@@ -855,6 +855,15 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	transform: scale3d(0.97, 0.97, 1.0);
 }
 
+.AnitaPopupHost
+{
+	width: 100%;
+	height: 100%;
+	align: left top;
+	overflow: noclip;
+	z-index: 10050;
+}
+
 .AnitaColorPopup
 {
 	width: 300px;
@@ -864,11 +873,11 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	border-radius: 8px;
 	padding: 12px 14px 14px 14px;
 	ignore-parent-flow: true;
-	align: center center;
-	transform: translate3d(140px, 8px, 0px);
+	align: left top;
 	flow-children: down;
 	z-index: 10001;
 	box-shadow: rgba(0, 0, 0, 0.5) 0px 0px 22px 0px;
+	overflow: noclip;
 }
 
 .AnitaColorPopupHeader
@@ -967,10 +976,16 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 {
 	width: 16px;
 	height: 16px;
+	min-width: 16px;
+	min-height: 16px;
+	max-width: 16px;
+	max-height: 16px;
+	padding: 0px;
+	margin: 0px;
 	border: 2px solid #ffffff;
 	border-radius: 50%;
 	background-color: transparent;
-	box-shadow: rgba( 0, 0, 0, 0.8 ) 0px 0px 0px 1px, fill rgba( 0, 0, 0, 0.8 ) 0px 0px 0px 1px, rgba( 0, 0, 0, 0.4 ) 0px 2px 4px 0px;
+	box-shadow: rgba( 0, 0, 0, 0.8 ) 0px 0px 0px 1px;
 	ignore-parent-flow: true;
 	z-index: 4;
 	pre-transform-scale2d: 1;
@@ -978,16 +993,18 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	transition-duration: 0.08s;
 	opacity: 1;
 	visibility: visible;
+	horizontal-align: left;
+	vertical-align: top;
 }
 
 .AnitaColorBoxFrame:hover .AnitaColorBoxCursor
 {
-	pre-transform-scale2d: 1.06;
+	pre-transform-scale2d: 1;
 }
 
 .AnitaColorBoxCursor:active
 {
-	pre-transform-scale2d: 1.12;
+	pre-transform-scale2d: 1;
 }
 
 .AnitaHueSliderGroup

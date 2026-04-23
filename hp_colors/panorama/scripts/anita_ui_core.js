@@ -1,4 +1,4 @@
-
+﻿
 
 
 (function () {
@@ -37,6 +37,7 @@
     hp_high_threshold: "h",
     hp_bg_visible: "b",
     hp_team_colors: "t",
+    hp_info_health_margin_top: "ihmt",
     hp_color_low: "cl",
     hp_color_mid: "cm",
     hp_color_high: "ch",
@@ -44,6 +45,9 @@
     hp_counter_position: "p",
     hp_text_color_mode: "tm",
     hp_level_number_visible: "lnv",
+    hp_pip_visible: "plv",
+    hp_ult_color_enabled: "uce",
+    hp_ult_color_custom: "ucc",
     hp_text_color_low: "tl",
     hp_text_color_mid: "ti",
     hp_text_color_high: "th",
@@ -1070,6 +1074,7 @@
       let currentColor = normalizeHexColor((config.currentValue !== undefined) ? config.currentValue : (config.defaultValue || "#FF0000"));
       let pickerBoxHue = 0;
       let pickerBoxSat = 1;
+      let pickerBoxVal = 1;
       let colorPopupPanel = null;
       let colorBoxFrame = null;
       let colorBoxPanel = null;
@@ -1078,9 +1083,19 @@
       let colorPickerPollGeneration = 0;
       let colorDragging = false;
       const hasGameUI = (typeof GameUI !== "undefined" && GameUI !== null);
+      // Enable locally when chasing picker cursor math in W.log.
+      const PICKER_POS_DEBUG = false;
       let colorDragAnchorX = -1;
       let colorDragAnchorY = -1;
       let colorDragSource = "";
+      let nativeDragStartAnchorX = -1;
+      let nativeDragStartAnchorY = -1;
+      let nativeDragOffsetX = 0;
+      let nativeDragOffsetY = 0;
+      let nativeDragHasSample = false;
+      let nativeDragAxis = "";
+      let pickerDebugLastAt = {};
+      let pickerDebugLastMsg = {};
       let popupPreview = null;
       let popupHexLabel = null;
       let popupMetaLabel = null;
@@ -1091,6 +1106,67 @@
       let pickerSatTrack = null;
       let pickerHueValue = null;
       let pickerSatValue = null;
+      let pickerValSlider = null;
+      let pickerValValue = null;
+      let pickerValTrack = null;
+      let colorPreviewBtn = null;
+      const COLOR_BOX_LOGICAL_WIDTH = 260;
+      const COLOR_BOX_LOGICAL_HEIGHT = 200;
+      const COLOR_BOX_CURSOR_LOGICAL_SIZE = 16;
+
+      function debugPickerNode(tag, data, throttleMs) {
+        if (!PICKER_POS_DEBUG) return;
+        var waitMs = Number(throttleMs);
+        if (!isFinite(waitMs) || waitMs < 0) waitMs = 0;
+        var payload = "";
+        try {
+          payload = JSON.stringify(data || {});
+        } catch (e) {
+          payload = "[unserializable]";
+        }
+        var now = 0;
+        try {
+          now = (new Date()).getTime();
+        } catch (e) {}
+        if (!pickerDebugLastAt) pickerDebugLastAt = {};
+        if (!pickerDebugLastMsg) pickerDebugLastMsg = {};
+        if (waitMs > 0 &&
+            pickerDebugLastAt[tag] !== undefined &&
+            (now - pickerDebugLastAt[tag]) < waitMs &&
+            pickerDebugLastMsg[tag] === payload) {
+          return;
+        }
+        pickerDebugLastAt[tag] = now;
+        pickerDebugLastMsg[tag] = payload;
+        try {
+          $.Msg("[PAL-DBG] " + tag + " " + payload);
+        } catch (e) {}
+      }
+
+      function debugPickerEvent(tag, eventName, throttleMs) {
+        if (!PICKER_POS_DEBUG) return;
+        var cursor = getCursorPosition();
+        var metrics = getColorBoxMetrics();
+        var data = {
+          event: eventName || "",
+          dragging: !!colorDragging,
+          source: colorDragSource || "",
+          anchorX: Math.round(colorDragAnchorX),
+          anchorY: Math.round(colorDragAnchorY),
+          hasGameUI: !!hasGameUI,
+          cursorX: cursor ? Math.round(cursor.x) : -1,
+          cursorY: cursor ? Math.round(cursor.y) : -1
+        };
+        if (metrics && cursor) {
+          data.boxX = Math.round(cursor.x - metrics.bounds.left);
+          data.boxY = Math.round(cursor.y - metrics.bounds.top);
+          data.insideBox = cursor.x >= metrics.bounds.left &&
+            cursor.x <= (metrics.bounds.left + metrics.bounds.width) &&
+            cursor.y >= metrics.bounds.top &&
+            cursor.y <= (metrics.bounds.top + metrics.bounds.height);
+        }
+        debugPickerNode(tag, data, throttleMs);
+      }
 
       function clampByte(value) {
         let next = Number(value);
@@ -1332,7 +1408,8 @@
         var hsv = rgbToHsv(rgb[0], rgb[1], rgb[2]);
         return {
           hue: Math.round(hsv[0]) % 360,
-          sat: clamp01(hsv[1])
+          sat: clamp01(hsv[1]),
+          val: clamp01(hsv[2])
         };
       }
 
@@ -1344,25 +1421,29 @@
 
         var hue = Number(boxState.hue);
         var sat = Number(boxState.sat);
+        var val = (boxState.val !== undefined) ? Number(boxState.val) : pickerBoxVal;
         if (!isFinite(hue)) hue = fallback.hue;
         if (!isFinite(sat)) sat = fallback.sat;
+        if (!isFinite(val)) val = (fallback.val !== undefined ? fallback.val : 1);
 
         hue = Math.round(hue) % 360;
         if (hue < 0) hue += 360;
         sat = clamp01(sat);
+        val = clamp01(val);
 
-        return { hue: hue, sat: sat };
+        return { hue: hue, sat: sat, val: val };
       }
 
       function setPickerBoxState(boxState, fallbackColorCode) {
         var resolved = normalizeBoxState(boxState, fallbackColorCode);
         pickerBoxHue = resolved.hue;
         pickerBoxSat = resolved.sat;
+        pickerBoxVal = resolved.val !== undefined ? resolved.val : pickerBoxVal;
         return resolved;
       }
 
       function colorFromBoxState(hue, sat) {
-        return hsvToHex(hue, sat, 1);
+        return hsvToHex(hue, sat, pickerBoxVal);
       }
 
       function hueFromRelX(relX) {
@@ -1429,26 +1510,46 @@
         if (!isValidPanel(refPanel)) return null;
 
         var bounds = getPanelBounds(refPanel);
-        var width = Number(refPanel.actuallayoutwidth || bounds.width || 260);
-        var height = Number(refPanel.actuallayoutheight || bounds.height || 200);
-        var cursorWidth = Number(isValidPanel(colorBoxCursor) ? (colorBoxCursor.actuallayoutwidth || colorBoxCursor.contentwidth || colorBoxCursor.width) : 16);
-        var cursorHeight = Number(isValidPanel(colorBoxCursor) ? (colorBoxCursor.actuallayoutheight || colorBoxCursor.contentheight || colorBoxCursor.height) : 16);
+        var width = COLOR_BOX_LOGICAL_WIDTH;
+        var height = COLOR_BOX_LOGICAL_HEIGHT;
+        var cursorWidth = COLOR_BOX_CURSOR_LOGICAL_SIZE;
+        var cursorHeight = COLOR_BOX_CURSOR_LOGICAL_SIZE;
+        var screenWidth = Number(bounds.width || refPanel.actuallayoutwidth || width);
+        var screenHeight = Number(bounds.height || refPanel.actuallayoutheight || height);
 
         if (!isFinite(width) || width <= 1) width = 260;
         if (!isFinite(height) || height <= 1) height = 200;
         if (!isFinite(cursorWidth) || cursorWidth <= 0) cursorWidth = 16;
         if (!isFinite(cursorHeight) || cursorHeight <= 0) cursorHeight = 16;
+        if (!isFinite(screenWidth) || screenWidth <= 1) screenWidth = width;
+        if (!isFinite(screenHeight) || screenHeight <= 1) screenHeight = height;
 
         return {
           panel: refPanel,
-          bounds: { left: bounds.left, top: bounds.top, width: width, height: height },
+          bounds: { left: bounds.left, top: bounds.top, width: screenWidth, height: screenHeight },
           width: width,
           height: height,
+          screenWidth: screenWidth,
+          screenHeight: screenHeight,
+          screenToLogicalX: width / screenWidth,
+          screenToLogicalY: height / screenHeight,
           cursorWidth: cursorWidth,
           cursorHeight: cursorHeight,
           maxCursorX: Math.max(0, width - cursorWidth),
           maxCursorY: Math.max(0, height - cursorHeight)
         };
+      }
+
+      function clampColorBoxAnchor(metrics, cursorX, cursorY) {
+        var nextX = Number(cursorX);
+        var nextY = Number(cursorY);
+        if (!isFinite(nextX)) nextX = 0;
+        if (!isFinite(nextY)) nextY = 0;
+        if (nextX < 0) nextX = 0;
+        if (nextY < 0) nextY = 0;
+        if (nextX > metrics.width) nextX = metrics.width;
+        if (nextY > metrics.height) nextY = metrics.height;
+        return { x: nextX, y: nextY };
       }
 
       function applyColorBoxCursorPosition(cursorX, cursorY) {
@@ -1457,38 +1558,41 @@
         var metrics = getColorBoxMetrics();
         if (!metrics) return false;
 
-        var nextX = Number(cursorX);
-        var nextY = Number(cursorY);
-        if (!isFinite(nextX)) nextX = 0;
-        if (!isFinite(nextY)) nextY = 0;
+        var point = clampColorBoxAnchor(metrics, cursorX, cursorY);
+        colorDragAnchorX = point.x;
+        colorDragAnchorY = point.y;
+
+        var nextX = point.x - (metrics.cursorWidth * 0.5);
+        var nextY = point.y - (metrics.cursorHeight * 0.5);
         if (nextX < 0) nextX = 0;
         if (nextY < 0) nextY = 0;
         if (nextX > metrics.maxCursorX) nextX = metrics.maxCursorX;
         if (nextY > metrics.maxCursorY) nextY = metrics.maxCursorY;
-        colorDragAnchorX = nextX;
-        colorDragAnchorY = nextY;
 
         colorBoxCursor.style.x = nextX + "px";
         colorBoxCursor.style.y = nextY + "px";
         colorBoxCursor.style.transform = "none";
-      return true;
+        debugPickerNode("applyColorBoxCursorPosition", {
+          source: colorDragSource || "visual",
+          anchorX: Math.round(point.x),
+          anchorY: Math.round(point.y),
+          renderX: Math.round(nextX),
+          renderY: Math.round(nextY),
+          cursorW: Math.round(metrics.cursorWidth),
+          cursorH: Math.round(metrics.cursorHeight),
+          boxW: Math.round(metrics.width),
+          boxH: Math.round(metrics.height)
+        }, 80);
+        return true;
       }
 
       function rememberColorDragAnchor(cursorX, cursorY) {
         var metrics = getColorBoxMetrics();
         if (!metrics) return false;
 
-        var nextX = Number(cursorX);
-        var nextY = Number(cursorY);
-        if (!isFinite(nextX) || !isFinite(nextY)) return false;
-
-        if (nextX < 0) nextX = 0;
-        if (nextY < 0) nextY = 0;
-        if (nextX > metrics.maxCursorX) nextX = metrics.maxCursorX;
-        if (nextY > metrics.maxCursorY) nextY = metrics.maxCursorY;
-
-        colorDragAnchorX = nextX;
-        colorDragAnchorY = nextY;
+        var point = clampColorBoxAnchor(metrics, cursorX, cursorY);
+        colorDragAnchorX = point.x;
+        colorDragAnchorY = point.y;
         return true;
       }
 
@@ -1500,57 +1604,35 @@
           return false;
         }
 
-        var relX = metrics.maxCursorX > 0 ? clamp01(colorDragAnchorX / metrics.maxCursorX) : 0;
-        var relY = metrics.maxCursorY > 0 ? clamp01(colorDragAnchorY / metrics.maxCursorY) : 0;
+        var point = clampColorBoxAnchor(metrics, colorDragAnchorX, colorDragAnchorY);
+        var relX = metrics.width > 0 ? clamp01(point.x / metrics.width) : 0;
+        var relY = metrics.height > 0 ? clamp01(point.y / metrics.height) : 0;
         var hue = hueFromRelX(relX);
         var sat = clamp01(relY);
 
-        applyColorBoxCursorPosition(colorDragAnchorX, colorDragAnchorY);
+        applyColorBoxCursorPosition(point.x, point.y);
         syncColorVisuals(colorFromBoxState(hue, sat), emitUpdateEvent, false, { hue: hue, sat: sat });
         return true;
       }
 
-      function getCursorPositionWithinColorBox() {
+      function getCursorPositionWithinColorBox(updateAnchor) {
         if (!isValidPanel(colorBoxCursor)) return null;
 
         var metrics = getColorBoxMetrics();
         if (!metrics) return null;
 
-        function chooseLocalAxis(layoutValue, boundsValue, maxValue, allowLayoutValue) {
-          var tolerance = 1;
-          var layoutValid = !!allowLayoutValue && isFinite(layoutValue) && layoutValue >= -tolerance && layoutValue <= (maxValue + tolerance);
-          var boundsValid = isFinite(boundsValue) && boundsValue >= -tolerance && boundsValue <= (maxValue + tolerance);
-
-          if (layoutValid && boundsValid) {
-            if (Math.abs(layoutValue - boundsValue) <= 12) return layoutValue;
-            return boundsValue;
-          }
-          if (boundsValid) return boundsValue;
-          if (layoutValid) return layoutValue;
-          if (isFinite(boundsValue)) return boundsValue;
-          if (isFinite(layoutValue)) return layoutValue;
-          return 0;
-        }
-
-        var layoutX = Number(colorBoxCursor.actuallayoutx);
-        var layoutY = Number(colorBoxCursor.actuallayouty);
-        var parentMatches = !!(colorBoxCursor.GetParent && colorBoxCursor.GetParent() === metrics.panel);
         var cursorBounds = getPanelBounds(colorBoxCursor);
-        var boundsX = cursorBounds.left - metrics.bounds.left;
-        var boundsY = cursorBounds.top - metrics.bounds.top;
-        var localX = chooseLocalAxis(layoutX, boundsX, metrics.maxCursorX, parentMatches);
-        var localY = chooseLocalAxis(layoutY, boundsY, metrics.maxCursorY, parentMatches);
-
-        if (localX < 0) localX = 0;
-        if (localY < 0) localY = 0;
-        if (localX > metrics.maxCursorX) localX = metrics.maxCursorX;
-        if (localY > metrics.maxCursorY) localY = metrics.maxCursorY;
-        rememberColorDragAnchor(localX, localY);
+        var point = clampColorBoxAnchor(
+          metrics,
+          ((cursorBounds.left - metrics.bounds.left) * metrics.screenToLogicalX) + (metrics.cursorWidth * 0.5),
+          ((cursorBounds.top - metrics.bounds.top) * metrics.screenToLogicalY) + (metrics.cursorHeight * 0.5)
+        );
+        if (updateAnchor !== false) rememberColorDragAnchor(point.x, point.y);
 
         return {
           metrics: metrics,
-          x: localX,
-          y: localY
+          x: point.x,
+          y: point.y
         };
       }
 
@@ -1564,8 +1646,8 @@
           setPickerBoxState(null, colorCode);
         }
 
-        var cursorX = metrics.maxCursorX > 0 ? (pickerBoxHue / 359) * metrics.maxCursorX : 0;
-        var cursorY = metrics.maxCursorY > 0 ? pickerBoxSat * metrics.maxCursorY : 0;
+        var cursorX = metrics.width > 0 ? (pickerBoxHue / 359) * metrics.width : 0;
+        var cursorY = metrics.height > 0 ? pickerBoxSat * metrics.height : 0;
         applyColorBoxCursorPosition(cursorX, cursorY);
 
         if (colorCode && isValidPanel(colorBoxCursor)) {
@@ -1588,13 +1670,75 @@
         if (!cursorPosition) return false;
 
         const metrics = cursorPosition.metrics;
-        const relX = metrics.maxCursorX > 0 ? clamp01(cursorPosition.x / metrics.maxCursorX) : 0;
-        const relY = metrics.maxCursorY > 0 ? clamp01(cursorPosition.y / metrics.maxCursorY) : 0;
+        const relX = metrics.width > 0 ? clamp01(cursorPosition.x / metrics.width) : 0;
+        const relY = metrics.height > 0 ? clamp01(cursorPosition.y / metrics.height) : 0;
         const hue = hueFromRelX(relX);
         const sat = clamp01(relY);
 
+        debugPickerNode("syncFromCursorPanelPosition", {
+          emit: !!emitUpdateEvent,
+          source: colorDragSource || "cursor_panel",
+          centerX: Math.round(cursorPosition.x),
+          centerY: Math.round(cursorPosition.y),
+          relX: Number(relX.toFixed(3)),
+          relY: Number(relY.toFixed(3)),
+          hue: hue,
+          sat: Number(sat.toFixed(3))
+        }, 80);
         syncColorVisuals(colorFromBoxState(hue, sat), emitUpdateEvent, false, { hue: hue, sat: sat });
         return true;
+      }
+
+      function resetNativeDragCorrection() {
+        nativeDragStartAnchorX = colorDragAnchorX;
+        nativeDragStartAnchorY = colorDragAnchorY;
+        nativeDragOffsetX = 0;
+        nativeDragOffsetY = 0;
+        nativeDragHasSample = false;
+        nativeDragAxis = "";
+      }
+
+      function clearNativeDragCorrection() {
+        nativeDragStartAnchorX = -1;
+        nativeDragStartAnchorY = -1;
+        nativeDragOffsetX = 0;
+        nativeDragOffsetY = 0;
+        nativeDragHasSample = false;
+        nativeDragAxis = "";
+      }
+
+      function syncFromNativeDragPanelPosition(emitUpdateEvent) {
+        if (!isValidPanel(colorBoxPanel) || !isValidPanel(colorBoxCursor)) return false;
+
+        var cursorPosition = getCursorPositionWithinColorBox(false);
+        if (!cursorPosition) return false;
+
+        var startX = isFinite(nativeDragStartAnchorX) && nativeDragStartAnchorX >= 0 ? nativeDragStartAnchorX : colorDragAnchorX;
+        var startY = isFinite(nativeDragStartAnchorY) && nativeDragStartAnchorY >= 0 ? nativeDragStartAnchorY : colorDragAnchorY;
+        if (!nativeDragHasSample) {
+          nativeDragHasSample = true;
+          var deltaX = isFinite(startX) && startX >= 0 ? cursorPosition.x - startX : 0;
+          var deltaY = isFinite(startY) && startY >= 0 ? cursorPosition.y - startY : 0;
+          nativeDragOffsetX = deltaX;
+          nativeDragOffsetY = deltaY;
+          nativeDragAxis = "first_sample_anchor";
+        }
+
+        var correctedX = cursorPosition.x - nativeDragOffsetX;
+        var correctedY = cursorPosition.y - nativeDragOffsetY;
+        debugPickerNode("syncFromNativeDragPanelPosition", {
+          emit: !!emitUpdateEvent,
+          rawX: Math.round(cursorPosition.x),
+          rawY: Math.round(cursorPosition.y),
+          correctedX: Math.round(correctedX),
+          correctedY: Math.round(correctedY),
+          startX: Math.round(startX),
+          startY: Math.round(startY),
+          offsetX: Math.round(nativeDragOffsetX),
+          offsetY: Math.round(nativeDragOffsetY),
+          axis: nativeDragAxis
+        }, 80);
+        return syncFromBoxPosition(correctedX, correctedY, emitUpdateEvent);
       }
 
       function syncFromBoxPosition(boxX, boxY, emitUpdateEvent) {
@@ -1602,13 +1746,82 @@
 
         const metrics = getColorBoxMetrics();
         if (!metrics) return false;
+        const point = clampColorBoxAnchor(metrics, boxX, boxY);
+        rememberColorDragAnchor(point.x, point.y);
 
-        const relX = clamp01(Number(boxX) / metrics.width);
-        const relY = clamp01(Number(boxY) / metrics.height);
+        const relX = metrics.width > 0 ? clamp01(point.x / metrics.width) : 0;
+        const relY = metrics.height > 0 ? clamp01(point.y / metrics.height) : 0;
         const hue = hueFromRelX(relX);
         const sat = clamp01(relY);
+        debugPickerNode("syncFromBoxPosition", {
+          emit: !!emitUpdateEvent,
+          source: colorDragSource || "box",
+          boxX: Math.round(point.x),
+          boxY: Math.round(point.y),
+          relX: Number(relX.toFixed(3)),
+          relY: Number(relY.toFixed(3)),
+          hue: hue,
+          sat: Number(sat.toFixed(3))
+        }, 80);
         syncColorVisuals(colorFromBoxState(hue, sat), emitUpdateEvent, false, { hue: hue, sat: sat });
         return true;
+      }
+
+      function syncPickerFromPointer(emitUpdateEvent) {
+        var metrics = getColorBoxMetrics();
+        if (!metrics) {
+          debugPickerNode("syncPickerFromPointer.fail", {
+            reason: "no_metrics",
+            emit: !!emitUpdateEvent,
+            source: colorDragSource || "pointer"
+          }, 80);
+          return false;
+        }
+
+        var point = null;
+        var via = "";
+        if (hasGameUI) {
+          var screenCursor = getCursorPosition();
+          if (screenCursor) {
+            point = {
+              x: (screenCursor.x - metrics.bounds.left) * metrics.screenToLogicalX,
+              y: (screenCursor.y - metrics.bounds.top) * metrics.screenToLogicalY
+            };
+            via = "screen_cursor";
+          } else {
+            debugPickerNode("syncPickerFromPointer.fail", {
+              reason: "no_screen_cursor",
+              emit: !!emitUpdateEvent,
+              source: colorDragSource || "pointer"
+            }, 80);
+          }
+        }
+
+        if (!point) {
+          point = getPanelLocalCursorPosition(colorBoxFrame);
+          if (point) via = "frame_local";
+        }
+        if (!point) {
+          point = getPanelLocalCursorPosition(colorBoxPanel);
+          if (point) via = "box_local";
+        }
+        if (!point) {
+          debugPickerNode("syncPickerFromPointer.fail", {
+            reason: "no_local_cursor",
+            emit: !!emitUpdateEvent,
+            source: colorDragSource || "pointer"
+          }, 80);
+          return false;
+        }
+
+        debugPickerNode("syncPickerFromPointer", {
+          emit: !!emitUpdateEvent,
+          source: colorDragSource || "pointer",
+          pointX: Math.round(point.x),
+          pointY: Math.round(point.y),
+          via: via
+        }, 80);
+        return syncFromBoxPosition(point.x, point.y, emitUpdateEvent);
       }
 
       function syncFromScreenCursorPosition(emitUpdateEvent) {
@@ -1617,14 +1830,11 @@
 
         const metrics = getColorBoxMetrics();
         if (!metrics) return false;
-
-        const bounds = metrics.bounds;
-        const relX = clamp01((cursor.x - bounds.left) / bounds.width);
-        const relY = clamp01((cursor.y - bounds.top) / bounds.height);
-        const hue = hueFromRelX(relX);
-        const sat = clamp01(relY);
-        syncColorVisuals(colorFromBoxState(hue, sat), emitUpdateEvent, false, { hue: hue, sat: sat });
-        return true;
+        return syncFromBoxPosition(
+          (cursor.x - metrics.bounds.left) * metrics.screenToLogicalX,
+          (cursor.y - metrics.bounds.top) * metrics.screenToLogicalY,
+          emitUpdateEvent
+        );
       }
 
       function syncFromLocalBoxCursor(emitUpdateEvent) {
@@ -1634,43 +1844,90 @@
       }
 
       function syncFromBestDragSource(emitUpdateEvent) {
+        var chosen = "";
+        if ((colorDragSource === "cursor" || colorDragSource === "drag_event" ||
+            colorDragSource === "box" || colorDragSource === "gameui") &&
+            syncPickerFromPointer(emitUpdateEvent)) {
+          chosen = hasGameUI ? "screen_cursor" : "panel_pointer";
+        }
         if (!hasGameUI) {
-          if ((colorDragSource === "cursor" || colorDragSource === "drag_event") &&
-              syncFromCursorPanelPosition(emitUpdateEvent)) return "cursor_panel";
-          if (syncFromLocalBoxCursor(emitUpdateEvent)) return "panel_cursor";
-          if (syncFromCursorPanelPosition(emitUpdateEvent)) return "cursor_panel";
-          return "";
+          if (!chosen && colorDragSource === "drag_event" &&
+              syncFromNativeDragPanelPosition(emitUpdateEvent)) chosen = "native_drag_panel";
+          else if (!chosen && (colorDragSource === "cursor" || colorDragSource === "cursor_down") &&
+              syncFromLocalBoxCursor(emitUpdateEvent)) chosen = "panel_cursor";
+          else if (!chosen && syncFromLocalBoxCursor(emitUpdateEvent)) chosen = "panel_cursor";
+          else if (!chosen && syncFromAnchoredCursorPosition(emitUpdateEvent)) chosen = "anchored";
+          else if (!chosen && syncFromCursorPanelPosition(emitUpdateEvent)) chosen = "cursor_panel";
+          debugPickerNode("syncFromBestDragSource", {
+            emit: !!emitUpdateEvent,
+            dragSource: colorDragSource || "",
+            chosen: chosen
+          }, 80);
+          return chosen;
         }
 
-        if ((colorDragSource === "cursor" || colorDragSource === "drag_event") &&
-            syncFromCursorPanelPosition(emitUpdateEvent)) return "drag_panel";
-        if ((colorDragSource === "box" || colorDragSource === "gameui") &&
-            syncFromScreenCursorPosition(emitUpdateEvent)) return "screen_cursor";
-        if (syncFromLocalBoxCursor(emitUpdateEvent)) return "panel_cursor";
-        if (syncFromScreenCursorPosition(emitUpdateEvent)) return "screen_cursor";
-        if (syncFromCursorPanelPosition(emitUpdateEvent)) return "drag_panel";
-        return "";
+        if (!chosen && (colorDragSource === "cursor" || colorDragSource === "drag_event" ||
+            colorDragSource === "box" || colorDragSource === "gameui") &&
+            syncPickerFromPointer(emitUpdateEvent)) chosen = "screen_cursor";
+        else if (!chosen && (colorDragSource === "box" || colorDragSource === "gameui") &&
+            syncFromScreenCursorPosition(emitUpdateEvent)) chosen = "screen_cursor";
+        else if (!chosen && syncFromLocalBoxCursor(emitUpdateEvent)) chosen = "panel_cursor";
+        else if (!chosen && syncFromAnchoredCursorPosition(emitUpdateEvent)) chosen = "anchored";
+        else if (!chosen && syncFromScreenCursorPosition(emitUpdateEvent)) chosen = "screen_cursor";
+        else if (!chosen && syncFromCursorPanelPosition(emitUpdateEvent)) chosen = "drag_panel";
+        debugPickerNode("syncFromBestDragSource", {
+          emit: !!emitUpdateEvent,
+          dragSource: colorDragSource || "",
+          chosen: chosen
+        }, 80);
+        return chosen;
       }
 
       function setMouseCaptureState(active) {
         var next = !!active;
+        var boxCapture = "skip";
+        var cursorCapture = "skip";
         if (isValidPanel(colorBoxPanel) && typeof colorBoxPanel.SetMouseCapture === "function") {
-          try { colorBoxPanel.SetMouseCapture(next); } catch (e) {}
+          try {
+            colorBoxPanel.SetMouseCapture(next);
+            boxCapture = "ok";
+          } catch (e) {
+            boxCapture = "fail";
+          }
         }
         if (hasGameUI && isValidPanel(colorBoxCursor) && typeof colorBoxCursor.SetMouseCapture === "function") {
-          try { colorBoxCursor.SetMouseCapture(next); } catch (e) {}
+          try {
+            colorBoxCursor.SetMouseCapture(next);
+            cursorCapture = "ok";
+          } catch (e) {
+            cursorCapture = "fail";
+          }
         }
+        debugPickerNode("setMouseCaptureState", {
+          active: next,
+          box: boxCapture,
+          cursor: cursorCapture
+        }, 0);
       }
 
       function beginColorDrag(sourceName, emitUpdateEvent) {
         colorDragging = true;
         colorDragSource = String(sourceName || "");
-        if (!syncFromCursorPanelPosition(false)) {
+        if (colorDragSource === "drag_event") resetNativeDragCorrection();
+        else clearNativeDragCorrection();
+        debugPickerNode("beginColorDrag", {
+          source: colorDragSource,
+          emit: !!emitUpdateEvent,
+          anchorX: Math.round(colorDragAnchorX),
+          anchorY: Math.round(colorDragAnchorY)
+        }, 0);
+        var usesCursorDrag = (colorDragSource === "cursor" || colorDragSource === "drag_event");
+        if (!syncPickerFromPointer(false) && !usesCursorDrag && !syncFromCursorPanelPosition(false)) {
           updateBoxCursorVisual(currentColor);
         }
         if (emitUpdateEvent) {
-          if (colorDragSource === "cursor" || colorDragSource === "drag_event") {
-            if (!syncFromCursorPanelPosition(true)) {
+          if (usesCursorDrag) {
+            if (!syncPickerFromPointer(true)) {
               syncFromBestDragSource(true);
             }
           } else if (!syncFromScreenCursorPosition(true) && !syncFromLocalBoxCursor(true)) {
@@ -1682,8 +1939,15 @@
       }
 
       function endColorDrag() {
+        if (!colorDragging && !colorDragSource) return;
+        debugPickerNode("endColorDrag", {
+          source: colorDragSource || "",
+          anchorX: Math.round(colorDragAnchorX),
+          anchorY: Math.round(colorDragAnchorY)
+        }, 0);
         colorDragging = false;
         colorDragSource = "";
+        clearNativeDragCorrection();
         setMouseCaptureState(false);
       }
 
@@ -1701,30 +1965,15 @@
 
           if (colorDragging) {
             syncFromBestDragSource(true);
-
-            if (hasGameUI && typeof GameUI.IsMouseDown === "function") {
-              if (!GameUI.IsMouseDown(0)) {
-                endColorDrag();
-                return;
-              }
-            }
-
             $.Schedule(0.016, tick);
-            return;
           }
-
-          $.Schedule(0.05, tick);
         }
 
-        $.Schedule(0.016, tick);
+        if (colorDragging) $.Schedule(0.016, tick);
       }
 
       function syncFromCursorPosition(emitUpdateEvent) {
-        if (!syncFromScreenCursorPosition(emitUpdateEvent)) {
-          if (!syncFromLocalBoxCursor(emitUpdateEvent)) {
-            syncFromCursorPanelPosition(emitUpdateEvent);
-          }
-        }
+        if (!syncPickerFromPointer(emitUpdateEvent)) syncFromAnchoredCursorPosition(emitUpdateEvent);
       }
 
       function closePalette() {
@@ -1754,6 +2003,9 @@
         pickerSatTrack = null;
         pickerHueValue = null;
         pickerSatValue = null;
+        pickerValSlider = null;
+        pickerValValue = null;
+        pickerValTrack = null;
         colorDragSource = "";
         if (AnitaRenderer.activeColorPickerClose === closePalette) {
           AnitaRenderer.activeColorPickerClose = null;
@@ -1761,7 +2013,16 @@
       }
 
       function syncColorVisuals(colorCode, emitUpdateEvent, closeAfter, boxState) {
-        currentColor = normalizeHexColor(colorCode);
+        var nextColor = normalizeHexColor(colorCode);
+        if (nextColor === currentColor && !boxState) {
+          if (emitUpdateEvent) {
+            if (config.id && modTitle) emitUpdate(modTitle, config.id, currentColor);
+            if (config.onChange) config.onChange(currentColor);
+          }
+          if (closeAfter) closePalette();
+          return;
+        }
+        currentColor = nextColor;
         config.currentValue = currentColor;
         var pickerState = setPickerBoxState(boxState, currentColor);
 
@@ -1782,11 +2043,13 @@
         }
 
         if (popupMetaLabel) {
-          popupMetaLabel.text = "Hue " + pickerState.hue + "\u00B0 | Sat " + Math.round(pickerState.sat * 100) + "%";
+          popupMetaLabel.text = "Hue " + pickerState.hue + "\u00B0 | Sat " + Math.round(pickerState.sat * 100) + "% | Val " + Math.round(pickerBoxVal * 100) + "%";
         }
 
-        const previewBtn = row.FindChildTraverse("ColorPreviewBtn");
-        if (previewBtn) previewBtn.style.backgroundColor = currentColor;
+        if (!colorPreviewBtn || !colorPreviewBtn.IsValid()) {
+          colorPreviewBtn = row.FindChildTraverse("ColorPreviewBtn");
+        }
+        if (colorPreviewBtn) colorPreviewBtn.style.backgroundColor = currentColor;
 
         updateBoxCursorVisual(currentColor);
 
@@ -1811,6 +2074,18 @@
             if (pickerSatValue) pickerSatValue.text = satPct + "%";
             if (pickerSatTrack && pickerSatTrack.IsValid && pickerSatTrack.IsValid()) {
               pickerSatTrack.style.backgroundColor = "gradient( linear, 0% 0%, 100% 0%, from( #ffffff ), to( " + hsvToHex(pickerState.hue, 1, 1) + " ) )";
+            }
+          }
+          if (pickerValSlider && pickerValSlider.IsValid && pickerValSlider.IsValid()) {
+            var valPct = Math.round(pickerBoxVal * 100);
+            if (Math.round(Number(pickerValSlider.value)) !== valPct) {
+              try {
+                pickerValSlider.value = valPct;
+              } catch (e) {}
+            }
+            if (pickerValValue) pickerValValue.text = valPct + "%";
+            if (pickerValTrack && pickerValTrack.IsValid && pickerValTrack.IsValid()) {
+              pickerValTrack.style.backgroundColor = "gradient( linear, 0% 0%, 100% 0%, from( #000000 ), to( " + hsvToHex(pickerState.hue, pickerState.sat, 1) + " ) )";
             }
           }
         } finally {
@@ -1841,23 +2116,107 @@
           }
         }
 
-        var colorPopupParent = $.GetContextPanel();
+        var trueRoot = (isValidPanel(AnitaRenderer.mainWindow) && AnitaRenderer.mainWindow.GetParent) ? AnitaRenderer.mainWindow.GetParent() : $.GetContextPanel();
+        if (!isValidPanel(trueRoot)) trueRoot = $.GetContextPanel();
+
+        if (!isValidPanel(AnitaRenderer.popupHost) || AnitaRenderer.popupHost.GetParent() !== trueRoot) {
+          if (isValidPanel(AnitaRenderer.popupHost)) {
+            AnitaRenderer.popupHost.DeleteAsync(0);
+          }
+          AnitaRenderer.popupHost = $.CreatePanel("Panel", trueRoot, "AnitaUI_PopupHost");
+          AnitaRenderer.popupHost.AddClass("AnitaPopupHost");
+        }
+
+        var colorPopupParent = isValidPanel(AnitaRenderer.popupHost) ? AnitaRenderer.popupHost : trueRoot;
+        colorPopupParent.style.align = "left top";
+        colorPopupParent.style.ignoreParentFlow = true;
+        colorPopupParent.style.flowChildren = "none";
+        colorPopupParent.style.overflow = "noclip";
+        colorPopupParent.style.zIndex = "10050";
+        colorPopupParent.hittest = false;
+        colorPopupParent.hittestchildren = true;
+        colorPopupParent.style.x = "0px";
+        colorPopupParent.style.y = "0px";
+        colorPopupParent.style.width = "100%";
+        colorPopupParent.style.height = "100%";
+
         colorPopupPanel = $.CreatePanel("Panel", colorPopupParent, "");
         AnitaRenderer.activeColorPickerClose = closePalette;
         colorPopupPanel.AddClass("AnitaColorPopup");
-        var colorPopupX = 24;
-        var colorPopupY = 24;
-        try {
-          var colorAnchorPanel = (preview && preview.IsValid && preview.IsValid()) ? preview : parent;
-          var colorAnchorBounds = getPanelBounds(colorAnchorPanel);
-          colorPopupX = Math.max(8, Math.round(colorAnchorBounds.left + colorAnchorBounds.width + 12));
-          colorPopupY = Math.max(8, Math.round(colorAnchorBounds.top));
-        } catch (e) {}
         colorPopupPanel.style.align = "left top";
-        colorPopupPanel.style.transform = "translate3d(" + colorPopupX + "px, " + colorPopupY + "px, 0px)";
-        colorPopupPanel.style.uiScale = "100%";
         colorPopupPanel.style.flowChildren = "down";
         colorPopupPanel.style.ignoreParentFlow = true;
+        colorPopupPanel.style.transform = "none";
+        colorPopupPanel.style.x = "0px";
+        colorPopupPanel.style.y = "0px";
+        colorPopupPanel.style.position = "-200% -200% 0px";
+        colorPopupPanel.style.opacity = "0";
+        colorPopupPanel.hittest = true;
+        colorPopupPanel.hittestchildren = true;
+
+        function positionColorPopup(attempt) {
+          attempt = attempt || 0;
+          try {
+            var anchor = isValidPanel(preview) ? preview : parent;
+            if (!isValidPanel(anchor) || !isValidPanel(colorPopupPanel) || !isValidPanel(colorPopupParent)) {
+              return;
+            }
+
+            function getCumulativeOffset(panel) {
+              var x = 0;
+              var y = 0;
+              var p = panel;
+              while (p && p.IsValid && p.IsValid()) {
+                x += Number(p.actualxoffset || 0);
+                y += Number(p.actualyoffset || 0);
+                p = p.GetParent ? p.GetParent() : null;
+              }
+              return { x: x, y: y };
+            }
+
+            var anchorOffset = getCumulativeOffset(anchor);
+            var hostOffset = getCumulativeOffset(colorPopupParent);
+            var relX = anchorOffset.x - hostOffset.x;
+            var relY = anchorOffset.y - hostOffset.y;
+            var anchorW = Number(anchor.actuallayoutwidth || anchor.contentwidth || 0);
+            var anchorH = Number(anchor.actuallayoutheight || anchor.contentheight || 0);
+            var popupW = Number(colorPopupPanel.actuallayoutwidth || colorPopupPanel.contentwidth || 0);
+            var popupH = Number(colorPopupPanel.actuallayoutheight || colorPopupPanel.contentheight || 0);
+            var hostW = Number(colorPopupParent.actuallayoutwidth || colorPopupParent.contentwidth || trueRoot.actuallayoutwidth || trueRoot.contentwidth || 0);
+            var hostH = Number(colorPopupParent.actuallayoutheight || colorPopupParent.contentheight || trueRoot.actuallayoutheight || trueRoot.contentheight || 0);
+
+            if ((hostW <= 1 || hostH <= 1 || anchorW <= 1 || anchorH <= 1 || popupW <= 1 || popupH <= 1) && attempt < 3) {
+              $.Schedule(0.03, function () { positionColorPopup(attempt + 1); });
+              return;
+            }
+
+            if (hostW <= 1) hostW = 2560;
+            if (hostH <= 1) hostH = 1440;
+            if (anchorW <= 1) anchorW = 40;
+            if (anchorH <= 1) anchorH = 40;
+            if (popupW <= 1) popupW = 300;
+            if (popupH <= 1) popupH = 420;
+
+            var gapPct = 0.5;
+            var edgePct = 0.5;
+            var popupWPct = (popupW / hostW) * 100;
+            var popupHPct = (popupH / hostH) * 100;
+            var xPct = ((relX + anchorW) / hostW) * 100 + gapPct;
+            if (xPct + popupWPct > 100 - edgePct) {
+              xPct = ((relX - popupW) / hostW) * 100 - gapPct;
+            }
+            xPct = Math.max(edgePct, Math.min(xPct, 100 - popupWPct - edgePct));
+
+            var yPct = ((relY + anchorH * 0.5 - popupH * 0.5) / hostH) * 100;
+            yPct = Math.max(edgePct, Math.min(yPct, 100 - popupHPct - edgePct));
+
+            colorPopupPanel.style.position = xPct.toFixed(2) + "% " + yPct.toFixed(2) + "% 0px";
+            colorPopupPanel.style.opacity = "1";
+          } catch (e) {
+            colorPopupPanel.style.opacity = "1";
+          }
+        }
+
         colorPopupPanel.SetPanelEvent("oncancel", closePalette);
 
         const header = $.CreatePanel("Panel", colorPopupPanel, "");
@@ -1899,6 +2258,7 @@
         colorBoxPanel.style.width = "100%";
         colorBoxPanel.style.height = "100%";
         colorBoxPanel.SetPanelEvent("onmouseactivate", function () {
+          debugPickerEvent("event.colorBoxPanel", "onmouseactivate", 0);
           if (!hasGameUI) {
             try {
               var movePt = getPanelLocalCursorPosition(colorBoxPanel);
@@ -1911,23 +2271,36 @@
           beginColorDrag("box", true);
         });
         colorBoxPanel.SetPanelEvent("onactivate", function () {
+          debugPickerEvent("event.colorBoxPanel", "onactivate", 0);
           if (!hasGameUI) return;
           beginColorDrag("box", true);
         });
+        colorBoxPanel.SetPanelEvent("onmousedown", function () {
+          debugPickerEvent("event.colorBoxPanel", "onmousedown", 0);
+          if (hasGameUI) beginColorDrag("box_down", true);
+        });
         colorBoxPanel.SetPanelEvent("onmousemove", function () {
+          debugPickerEvent("event.colorBoxPanel", "onmousemove", 120);
           if (!colorDragging) return;
           if (!hasGameUI) {
-            var movePt = getPanelLocalCursorPosition(colorBoxPanel);
-            if (movePt) syncFromBoxPosition(movePt.x, movePt.y, true);
+            if (!syncPickerFromPointer(true)) {
+              var movePt = getPanelLocalCursorPosition(colorBoxPanel);
+              if (movePt) syncFromBoxPosition(movePt.x, movePt.y, true);
+            }
             return;
           }
-          syncFromBestDragSource(true);
+          if (!syncPickerFromPointer(true)) syncFromBestDragSource(true);
         });
         colorBoxPanel.SetPanelEvent("onmouseup", function () {
+          debugPickerEvent("event.colorBoxPanel", "onmouseup", 0);
           endColorDrag();
         });
+        colorBoxPanel.SetPanelEvent("onmouseover", function () {
+          debugPickerEvent("event.colorBoxPanel", "onmouseover", 120);
+        });
         colorBoxPanel.SetPanelEvent("onmouseout", function () {
-          if (!colorDragging || hasGameUI) return;
+          debugPickerEvent("event.colorBoxPanel", "onmouseout", 0);
+          if (!colorDragging || hasGameUI || colorDragSource === "drag_event") return;
           endColorDrag();
         });
 
@@ -1941,7 +2314,7 @@
         colorBoxCursor.style.opacity = "1";
         if (typeof colorBoxCursor.SetDraggable === "function") {
           try {
-            colorBoxCursor.SetDraggable(true);
+            colorBoxCursor.SetDraggable(!hasGameUI);
           } catch (e) {}
         }
         if (typeof colorBoxCursor.SetDisableFocusOnMouseDown === "function") {
@@ -1950,26 +2323,40 @@
           } catch (e) {}
         }
         colorBoxCursor.SetPanelEvent("onmouseactivate", function () {
+          debugPickerEvent("event.colorBoxCursor", "onmouseactivate", 0);
           beginColorDrag("cursor", true);
         });
         colorBoxCursor.SetPanelEvent("onactivate", function () {
+          debugPickerEvent("event.colorBoxCursor", "onactivate", 0);
           beginColorDrag("cursor", true);
         });
+        colorBoxCursor.SetPanelEvent("onmousedown", function () {
+          debugPickerEvent("event.colorBoxCursor", "onmousedown", 0);
+          if (hasGameUI) beginColorDrag("cursor_down", true);
+        });
         colorBoxCursor.SetPanelEvent("onmousemove", function () {
+          debugPickerEvent("event.colorBoxCursor", "onmousemove", 120);
           if (!colorDragging) return;
-          syncFromBestDragSource(true);
+          if (!syncPickerFromPointer(true)) syncFromBestDragSource(true);
         });
         colorBoxCursor.SetPanelEvent("onmouseup", function () {
+          debugPickerEvent("event.colorBoxCursor", "onmouseup", 0);
           endColorDrag();
+        });
+        colorBoxCursor.SetPanelEvent("onmouseover", function () {
+          debugPickerEvent("event.colorBoxCursor", "onmouseover", 120);
         });
         colorBoxCursor.SetPanelEvent("onmouseout", function () {
-          if (!colorDragging || hasGameUI) return;
+          debugPickerEvent("event.colorBoxCursor", "onmouseout", 0);
+          if (!colorDragging || hasGameUI || colorDragSource === "drag_event") return;
           endColorDrag();
         });
-        if (typeof $.RegisterEventHandler === "function") {
+
+        if (!hasGameUI && typeof $.RegisterEventHandler === "function") {
           try {
             $.RegisterEventHandler("DragStart", colorBoxCursor, function (panel, dragEvent) {
               if (!panel || panel !== colorBoxCursor) return;
+              debugPickerEvent("event.colorBoxCursor", "DragStart", 0);
               if (dragEvent) {
                 dragEvent.displayPanel = colorBoxCursor;
                 dragEvent.removePositionBeforeDrop = false;
@@ -1982,16 +2369,14 @@
 
           try {
             $.RegisterEventHandler("DragEnd", colorBoxCursor, function (_panel, droppedPanel) {
+              debugPickerEvent("event.colorBoxCursor", "DragEnd", 0);
               if (droppedPanel && droppedPanel.IsValid && droppedPanel.IsValid() && droppedPanel === colorBoxCursor) {
                 if (colorBoxFrame && colorBoxFrame.IsValid && colorBoxFrame.IsValid() &&
                     droppedPanel.GetParent && droppedPanel.GetParent() !== colorBoxFrame) {
                   droppedPanel.SetParent(colorBoxFrame);
                 }
                 droppedPanel.style.align = "left top";
-                if (!syncFromAnchoredCursorPosition(true)) {
-                  syncFromCursorPanelPosition(true);
-                  updateBoxCursorVisual(currentColor);
-                }
+                syncFromAnchoredCursorPosition(true);
               }
               endColorDrag();
             });
@@ -2002,6 +2387,7 @@
         if (hasGameUI && typeof GameUI.SetMouseCallback === "function") {
           try {
             GameUI.SetMouseCallback(function (eventName, arg) {
+              debugPickerEvent("GameUI.SetMouseCallback", eventName + ":" + arg, 40);
               if (!colorPopupPanel || !colorPopupPanel.IsValid || !colorPopupPanel.IsValid()) {
                 return false;
               }
@@ -2019,6 +2405,11 @@
                   beginColorDrag("gameui", false);
                   return true;
                 }
+              }
+
+              if (colorDragging && eventName !== "pressed" && eventName !== "released") {
+                syncPickerFromPointer(true);
+                return true;
               }
 
               if (eventName === "released" && arg === 0 && colorDragging) {
@@ -2067,6 +2458,9 @@
           if (pickerSatTrack && pickerSatTrack.IsValid && pickerSatTrack.IsValid()) {
             pickerSatTrack.style.backgroundColor = "gradient( linear, 0% 0%, 100% 0%, from( #ffffff ), to( " + hsvToHex(h, 1, 1) + " ) )";
           }
+          if (pickerValTrack && pickerValTrack.IsValid && pickerValTrack.IsValid()) {
+            pickerValTrack.style.backgroundColor = "gradient( linear, 0% 0%, 100% 0%, from( #000000 ), to( " + hsvToHex(h, pickerBoxSat, 1) + " ) )";
+          }
           syncColorVisuals(newColor, true, false, { hue: h, sat: pickerBoxSat });
         });
 
@@ -2104,6 +2498,41 @@
           syncColorVisuals(newColor2, true, false, { hue: pickerBoxHue, sat: s });
         });
 
+        // Brightness (Value) slider row
+        var valGroup = $.CreatePanel("Panel", colorPopupPanel, "");
+        valGroup.AddClass("AnitaHueSliderGroup");
+
+        var valLbl = $.CreatePanel("Label", valGroup, "");
+        valLbl.text = "V";
+        valLbl.AddClass("AnitaHueValue");
+        valLbl.AddClass("AnitaPickerAxisLabel");
+
+        pickerValTrack = $.CreatePanel("Panel", valGroup, "");
+        pickerValTrack.AddClass("AnitaSatSliderContainer");
+        pickerValTrack.AddClass("AnitaPickerSliderTrack");
+
+        pickerValSlider = $.CreatePanel("Slider", pickerValTrack, "", { direction: "horizontal" });
+        pickerValSlider.AddClass("AnitaHueSlider");
+        pickerValSlider.AddClass("HorizontalSlider");
+        pickerValSlider.min = 0;
+        pickerValSlider.max = 100;
+        pickerValSlider.increment = 1;
+        if (typeof pickerValSlider.SetShowDefaultValue === "function") { try { pickerValSlider.SetShowDefaultValue(false); } catch (e) {} }
+        if (typeof pickerValSlider.SetRequiresSelection === "function") { try { pickerValSlider.SetRequiresSelection(false); } catch (e) {} }
+
+        pickerValValue = $.CreatePanel("Label", valGroup, "");
+        pickerValValue.AddClass("AnitaHueValue");
+        pickerValValue.AddClass("AnitaPickerReadout");
+
+        pickerValSlider.SetPanelEvent("onvaluechanged", function () {
+          if (colorPickerSyncing) return;
+          var v = clamp01(pickerValSlider.value / 100);
+          pickerBoxVal = v;
+          var newColor3 = colorFromBoxState(pickerBoxHue, pickerBoxSat);
+          if (pickerValValue) pickerValValue.text = Math.round(v * 100) + "%";
+          syncColorVisuals(newColor3, true, false, { hue: pickerBoxHue, sat: pickerBoxSat, val: v });
+        });
+
         const footer = $.CreatePanel("Panel", colorPopupPanel, "");
         footer.AddClass("AnitaColorPopupFooter");
 
@@ -2113,14 +2542,15 @@
         closeLbl.text = "Close";
         closeBtn.SetPanelEvent("onactivate", closePalette);
 
-        syncColorVisuals(currentColor, false, false);
-        $.Schedule(0.05, function () {
+        const initState = getBoxStateFromColor(currentColor);
+        syncColorVisuals(currentColor, false, false, initState);
+        positionColorPopup(0);
+        $.Schedule(0.0, function () {
           if (colorPopupPanel && colorPopupPanel.IsValid && colorPopupPanel.IsValid()) {
-            syncColorVisuals(currentColor, false, false);
+            positionColorPopup(0);
+            syncColorVisuals(currentColor, false, false, initState);
           }
         });
-
-        const initState = getBoxStateFromColor(currentColor);
       }
 
       const preview = $.CreatePanel("Panel", row, "ColorPreviewBtn");
@@ -2382,6 +2812,7 @@
     navBar: null,
     menuArea: null,
     contentArea: null,
+    popupHost: null,
     activeModTitle: "",
     isOpen: false,
     activeColorPickerClose: null,
