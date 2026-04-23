@@ -9,6 +9,7 @@
     hp_high_threshold: 65,
     hp_bg_visible: true,
     hp_team_colors: false,
+    hp_info_health_margin_top: 23,
     hp_color_low: "#E16161",
     hp_color_mid: "#FF7B00",
     hp_color_high: "#00FF00",
@@ -39,6 +40,9 @@
     hp_friend_pulse_color_enabled: false,
     hp_friend_pulse_color: "#FF2222",
     hp_level_number_visible: true,
+    hp_pip_visible: true,
+    hp_ult_color_enabled: true,
+    hp_ult_color_custom: "#E16161",
     hp_kill_zone_enabled: false,
     hp_kill_zone_threshold: 25,
     hp_kill_zone_color: "#FF2222",
@@ -49,6 +53,7 @@
   var TEAM2_HIGH = "#6485FC";
   var CSS_TEAM1_COLOR = "#E7B659";
   var CSS_TEAM2_COLOR = "#5B79E6";
+  var CSS_TEAM_ENEMY_COLOR = "#E16161";
   var CSS_TEAM_FRIEND_COLOR = "#FFEFD7";
   
 
@@ -158,7 +163,7 @@
 
   function clearPulse() {
     var oldCls = lPI >= 0 ? PULSE_INTENSITY[lPI] : '';
-    pulse = 0; lPD = null; lPI = -1; lTB = null; lCol = lUlt = lTxt = null;
+    pulse = 0; lPD = null; lPI = -1; lTB = null; lCol = lUlt = lTxt = null; lColRaw = lUltRaw = lTxtRaw = null;
     clearPulsePanel(rb, oldCls);
     clearPulsePanel(hc, oldCls);
     clearPulsePanel(ui, oldCls);
@@ -255,6 +260,7 @@
     h: "hp_high_threshold",
     b: "hp_bg_visible",
     t: "hp_team_colors",
+    ihmt: "hp_info_health_margin_top",
     cl: "hp_color_low",
     cm: "hp_color_mid",
     ch: "hp_color_high",
@@ -262,6 +268,9 @@
     p: "hp_counter_position",
     tm: "hp_text_color_mode",
     lnv: "hp_level_number_visible",
+    plv: "hp_pip_visible",
+    uce: "hp_ult_color_enabled",
+    ucc: "hp_ult_color_custom",
     tl: "hp_text_color_low",
     ti: "hp_text_color_mid",
     th: "hp_text_color_high",
@@ -512,6 +521,7 @@
         var replaySource = isBootstrapReplaySource(String(d.update_source || ""));
         var values = d.values || {};
         var anyChanged = false;
+        var anyNonFriendChanged = false;
         var anyFriendChanged = false;
         for (var key in values) {
           if (!Object.prototype.hasOwnProperty.call(DEFAULTS, key)) continue;
@@ -521,6 +531,7 @@
             cfg[key] = nextValue;
             anyChanged = true;
             if (key.indexOf("hp_friend_") === 0) anyFriendChanged = true;
+            else anyNonFriendChanged = true;
           }
         }
         if (!anyChanged && !anyFriendChanged) {
@@ -534,7 +545,7 @@
           }
           return;
         }
-        if (anyChanged) {
+        if (anyNonFriendChanged) {
           settingsDirty = true;
           var nowTs = _ts();
           var holdMs = replaySource ? 240 : SETTINGS_REFRESH_DEBOUNCE_MS;
@@ -715,9 +726,9 @@
 
   // â”€â”€ Panel cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var ctx = $.GetContextPanel();
-  var us = null, hc = null, hca = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null;
+  var us = null, hc = null, hca = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null, ihc = null;
   var cached = 0, att = 0;
-  var lBgVis = null, lBgOp = null, lHpSize = null, lHpPos = null, lHpMarginLeft = null, lHpHeight = null, lHcaTransform = null;
+  var lBgVis = null, lBgOp = null, lHpSize = null, lHpPos = null, lHpMarginLeft = null, lHpHeight = null, lHcaTransform = null, lIhcMarginTop = null;
 
   function fRB() {
     var p = ctx.FindChildTraverse('unit_healthbar_lagging');
@@ -740,10 +751,29 @@
     if (!lb || !lb.IsValid()) lb = us.FindChildTraverse('unit_healthbar_lagging');
     if (!kz || !kz.IsValid()) kz = us.FindChildTraverse('hp_kill_zone_marker');
     if (!ui || !ui.IsValid()) ui = us.FindChildTraverse('unit_ult_ready_icon') || us.FindChildTraverse('ult_icon');
+    if (!ihc || !ihc.IsValid()) ihc = us.FindChildTraverse('InfoHealthContainer');
     if (ui && ui.IsValid()) _uiMissAt = 0;
     if (lb && (!lbp || !lbp.IsValid())) lbp = lb.GetParent();
     if (pl && lb && lbp) { cached = 1; return 1; }
     return 0;
+  }
+
+  function getInfoHealthMarginTopValue() {
+    var raw = clampNum(cfg.hp_info_health_margin_top, 0, 100, 23);
+    var pct = -15 + (raw * 0.65);
+    if (Math.abs(pct) < 0.5) pct = 0;
+    var rounded = Math.round(pct * 10) / 10;
+    if (Math.abs(rounded - Math.round(rounded)) < 0.01) rounded = Math.round(rounded);
+    return rounded + '%';
+  }
+
+  function applyInfoHealthMarginTop() {
+    if ((!ihc || !ihc.IsValid()) && us && us.IsValid()) ihc = us.FindChildTraverse('InfoHealthContainer');
+    if (!ihc || !ihc.style) return;
+    var next = getInfoHealthMarginTopValue();
+    if (lIhcMarginTop !== next) {
+      try { ihc.style.marginTop = next; lIhcMarginTop = next; } catch (e) { lIhcMarginTop = null; }
+    }
   }
 
   // â”€â”€ Team/flag scan (walk up to find team classes) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -773,6 +803,7 @@
 
   // â”€â”€ Setter helpers (skip redundant writes) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var lCol = null, lUlt = null, lTxt = null;
+  var lColRaw = null, lUltRaw = null, lTxtRaw = null, lKzRaw = null;
   var lSH = -1, lSM = -1, lVis = null;
   var lTx = null, cMax = 0;
   var lCounterText = "";
@@ -782,6 +813,8 @@
   var panelBornAt = 0;
 
   function sBC(c) {
+    if (lColRaw === c) return;
+    lColRaw = c;
     var next = normalizeWashColor(c) || WHITE_WASH;
     if (lCol !== next && rb) {
       try {
@@ -793,6 +826,26 @@
     }
   }
   function sUC(c) {
+    if (!cfg.hp_ult_color_enabled) {
+      var rawOffColor = cfg.hp_ult_color_custom || CSS_TEAM_ENEMY_COLOR;
+      var offColor = normalizeWashColor(rawOffColor) || CSS_TEAM_ENEMY_COLOR;
+      if (!ui || !ui.IsValid()) {
+        var nowOff = _ts();
+        if (_uiMissAt && nowOff - _uiMissAt < UI_MISS_TTL_MS) return;
+        ui = ctx.FindChildTraverse('unit_ult_ready_icon') || ctx.FindChildTraverse('ult_icon');
+        if (ui && ui.IsValid()) _uiMissAt = 0;
+        else { _uiMissAt = nowOff; return; }
+      }
+      if (lUltRaw !== rawOffColor || lUlt !== offColor) {
+        lUltRaw = rawOffColor; lUlt = null;
+        if (ui && ui.IsValid && ui.IsValid() && ui.style) {
+          try { ui.style.washColor = offColor; lUlt = offColor; } catch (e) {}
+        }
+      }
+      return;
+    }
+    if (lUltRaw === c) return;
+    lUltRaw = c;
     var next = normalizeWashColor(c) || WHITE_WASH;
     if (!ui || !ui.IsValid()) {
       var now = _ts();
@@ -807,6 +860,8 @@
     }
   }
   function sTC(c) {
+    if (lTxtRaw === c) return;
+    lTxtRaw = c;
     var next = normalizeWashColor(c);
     if (!hc || !hc.style) return;
     if (lTxt !== next) {
@@ -903,7 +958,11 @@
     if (pos > parentWidth - width) pos = Math.max(0, parentWidth - width);
     var posStr = pos + 'px';
     var widthStr = width + 'px';
-    var color = normalizeWashColor(cfg.hp_kill_zone_color || "#FF2222");
+    if (lKzRaw !== cfg.hp_kill_zone_color) {
+      lKzRaw = cfg.hp_kill_zone_color;
+      lKzColor = normalizeWashColor(cfg.hp_kill_zone_color || "#FF2222");
+    }
+    var color = lKzColor;
 
     if (lKzVis !== 'visible') { kz.style.visibility = 'visible'; lKzVis = 'visible'; }
     try { kz.style.opacity = '0.95'; } catch (eOp) {}
@@ -1014,13 +1073,20 @@
     lastBgPanel = bg;
     lastKzPanel = kz;
     panelBornAt = _ts();
+    lColRaw = lUltRaw = lTxtRaw = null;
     clearPulse();
     allyColorActive = false;
+    ihc = null;
+    rbA = null;
+    cpA = null;
+    aScanF2 = -1;
+    aScanT2 = 0;
+    aScanAt = 0;
     lColA = null;
     lWA = -1;
     lPWA = -1;
     sfcA = 0;
-    lBgVis = lBgOp = lHpSize = lHpPos = lHpMarginLeft = lHpHeight = lHcaTransform = null;
+    lBgVis = lBgOp = lHpSize = lHpPos = lHpMarginLeft = lHpHeight = lHcaTransform = lIhcMarginTop = null;
     lKzVis = lKzX = lKzW = lKzColor = null;
     lLvVis = null;
     lSH = -1;
@@ -1047,6 +1113,7 @@
   function applyCurrentSettings(isEnemy) {
     sHBV(!isEnemy || !!cfg.hp_bg_visible);
     sHCS(lCounterLowMode, lCounterText);
+    applyInfoHealthMarginTop();
     lW = -1; lHp = -1;
     settingsDirty = false;
     settingsRefreshHoldUntil = 0;
@@ -1156,7 +1223,7 @@
         if (now < settingsRefreshHoldUntil) { $.Schedule(0.05, gL); return; }
         applyCurrentSettings(isEnemy);
       }
-      else sHBV(isEnemy && !!cfg.hp_bg_visible);
+      else { sHBV(isEnemy && !!cfg.hp_bg_visible); applyInfoHealthMarginTop(); }
 
       // Neutral unit
       if (fl & 2) { clearPulse();
@@ -1199,7 +1266,7 @@
 
       // Update HP counter label
       var txt = '';
-      if (pl) { try { txt = pl.text || pl.GetAttributeString('text', '') || ''; } catch (e) { txt = ''; } }
+      if (pl) { try { pl.style.visibility = cfg.hp_pip_visible ? 'visible' : 'collapse'; txt = pl.text || pl.GetAttributeString('text', '') || ''; } catch (e) { txt = ''; } }
       if (lb && lbp) {
         var bw = lb.actuallayoutwidth || 0, bpw = lbp.actuallayoutwidth || 0;
         var ratio = bpw > 0 ? bw / bpw : 0;
@@ -1258,7 +1325,10 @@
             cl = highCol;
             textCol = getTextColor(hp, low, high);
           }
-          if (sFC >= 5) sc = Math.min(0.15 * Math.pow(2, Math.floor(sFC / 5)), 1);
+          if (sFC >= 5) {
+            var _backoff = [0.30, 0.60, 1.0, 1.0];
+            sc = _backoff[Math.min(Math.floor((sFC - 5) / 5), 3)];
+          }
         }
         sBC(cl); sUC(cl); sTC(textCol);
       }
@@ -1392,7 +1462,8 @@
 
       if (aw === lWA && apw === lPWA && !pulseA) {
         sfcA++;
-        var scIdle = Math.min(0.35 * Math.pow(2, Math.floor(sfcA / 3)), 2.0);
+        var _backoffA = [0.35, 0.70, 1.40, 2.0, 2.0];
+        var scIdle = _backoffA[Math.min(Math.floor(sfcA / 3), 4)];
         $.Schedule(scIdle, aL); return;
       }
       sfcA = 0; lWA = aw; lPWA = apw;
