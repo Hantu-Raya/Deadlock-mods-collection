@@ -10,6 +10,14 @@ Panorama overlay styling.
   `hp_colors_terser_compiled/` directly; those are build artifacts.
 - Root repo rules in `../AGENTS.md` still apply.
 
+## Required Workflow
+- Use `sequentialthinking` before non-trivial reasoning, debugging, or design comparison.
+- Use the `karpathy-guidelines` skill and keep changes surgical.
+- Use the `caveman full` skill for terse communication when responding about this module, including reasoning summaries.
+- Use context-mode file readers/search tools for repo inspection instead of ad hoc shell reads when possible.
+- Log each meaningful step, failure, and success to agentmemory so the work can be reconstructed later.
+- Treat those tools as the default workflow for this folder, not optional extras.
+
 ## Build
 Use the module build script from the repo root:
 

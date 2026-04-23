@@ -1,0 +1,31 @@
+Full Anita UI settings panel with live color pickers sliders and toggles, Overhaul
+5 organized setting categories for General Enemy Colors Enemy Pulse Enemy Counter and Ally Bars, Overhaul
+Configurable HP thresholds for low and mid zones, Feature
+Custom enemy colors via hex color pickers for low mid and high HP, Feature
+Team color toggle for high HP amberblue vs universal green, Feature
+Kill zone threshold marker when enemy HP drops below configured percentage, Feature
+Kill zone marker color and width customization, Feature
+Level number visibility toggle independent from tier colors, Feature
+Skip buildings option to exclude enemy buildings and bosses, Feature
+Background bar visibility toggle to hide default dark HP background, Feature
+BPM driven pulse system for low HP enemy animation speed, Feature
+3 pulse intensity levels subtle medium and intense, Feature
+Pulse hide bar option to hide HP bar during low HP pulse, Feature
+Pulse text expansion with configurable scale and position, Feature
+Text color modes HP percentage based or fully custom counter colors, Feature
+Gradient text color interpolation across low to high HP ranges, Feature
+Counter format options currentmax current only or percentage, Feature
+Counter positioning via translate3d based x y offset, Adjustment
+Ally healthbar coloring with separate low mid and high colors, Feature
+Ally pulse system with independent BPM intensity and threshold, Feature
+Ally pulse color customization, Feature
+Settings persistence via convar storage across game restarts, Addition
+CopyPaste configuration token for one click sharing, Addition
+Import and Export settings via pasteable token, Addition
+Real time preview all changes apply without restart, Improvement
+Adaptive polling fast during combat backoff when stable, Optimization
+Performance guards with dirty check to skip redundant style writes, Optimization
+Crash protection via IsValid guards on panel references, Bugfix
+Build time 40 setting schema audit to prevent broken releases, Addition
+Compact storage saving only non default values, Optimization
+HP container position offset via margin-left and margin-top percentage sliders, Adjustment
