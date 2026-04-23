@@ -1,4 +1,4 @@
-
+﻿
 
 
 (function () {
@@ -37,6 +37,7 @@
     hp_high_threshold: "h",
     hp_bg_visible: "b",
     hp_team_colors: "t",
+    hp_info_health_margin_top: "ihmt",
     hp_color_low: "cl",
     hp_color_mid: "cm",
     hp_color_high: "ch",
@@ -44,6 +45,9 @@
     hp_counter_position: "p",
     hp_text_color_mode: "tm",
     hp_level_number_visible: "lnv",
+    hp_pip_visible: "plv",
+    hp_ult_color_enabled: "uce",
+    hp_ult_color_custom: "ucc",
     hp_text_color_low: "tl",
     hp_text_color_mid: "ti",
     hp_text_color_high: "th",
@@ -1070,6 +1074,7 @@
       let currentColor = normalizeHexColor((config.currentValue !== undefined) ? config.currentValue : (config.defaultValue || "#FF0000"));
       let pickerBoxHue = 0;
       let pickerBoxSat = 1;
+      let pickerBoxVal = 1;
       let colorPopupPanel = null;
       let colorBoxFrame = null;
       let colorBoxPanel = null;
@@ -1101,6 +1106,10 @@
       let pickerSatTrack = null;
       let pickerHueValue = null;
       let pickerSatValue = null;
+      let pickerValSlider = null;
+      let pickerValValue = null;
+      let pickerValTrack = null;
+      let colorPreviewBtn = null;
       const COLOR_BOX_LOGICAL_WIDTH = 260;
       const COLOR_BOX_LOGICAL_HEIGHT = 200;
       const COLOR_BOX_CURSOR_LOGICAL_SIZE = 16;
@@ -1399,7 +1408,8 @@
         var hsv = rgbToHsv(rgb[0], rgb[1], rgb[2]);
         return {
           hue: Math.round(hsv[0]) % 360,
-          sat: clamp01(hsv[1])
+          sat: clamp01(hsv[1]),
+          val: clamp01(hsv[2])
         };
       }
 
@@ -1411,25 +1421,29 @@
 
         var hue = Number(boxState.hue);
         var sat = Number(boxState.sat);
+        var val = (boxState.val !== undefined) ? Number(boxState.val) : pickerBoxVal;
         if (!isFinite(hue)) hue = fallback.hue;
         if (!isFinite(sat)) sat = fallback.sat;
+        if (!isFinite(val)) val = (fallback.val !== undefined ? fallback.val : 1);
 
         hue = Math.round(hue) % 360;
         if (hue < 0) hue += 360;
         sat = clamp01(sat);
+        val = clamp01(val);
 
-        return { hue: hue, sat: sat };
+        return { hue: hue, sat: sat, val: val };
       }
 
       function setPickerBoxState(boxState, fallbackColorCode) {
         var resolved = normalizeBoxState(boxState, fallbackColorCode);
         pickerBoxHue = resolved.hue;
         pickerBoxSat = resolved.sat;
+        pickerBoxVal = resolved.val !== undefined ? resolved.val : pickerBoxVal;
         return resolved;
       }
 
       function colorFromBoxState(hue, sat) {
-        return hsvToHex(hue, sat, 1);
+        return hsvToHex(hue, sat, pickerBoxVal);
       }
 
       function hueFromRelX(relX) {
@@ -1951,15 +1965,11 @@
 
           if (colorDragging) {
             syncFromBestDragSource(true);
-
             $.Schedule(0.016, tick);
-            return;
           }
-
-          $.Schedule(0.05, tick);
         }
 
-        $.Schedule(0.016, tick);
+        if (colorDragging) $.Schedule(0.016, tick);
       }
 
       function syncFromCursorPosition(emitUpdateEvent) {
@@ -1993,6 +2003,9 @@
         pickerSatTrack = null;
         pickerHueValue = null;
         pickerSatValue = null;
+        pickerValSlider = null;
+        pickerValValue = null;
+        pickerValTrack = null;
         colorDragSource = "";
         if (AnitaRenderer.activeColorPickerClose === closePalette) {
           AnitaRenderer.activeColorPickerClose = null;
@@ -2000,7 +2013,16 @@
       }
 
       function syncColorVisuals(colorCode, emitUpdateEvent, closeAfter, boxState) {
-        currentColor = normalizeHexColor(colorCode);
+        var nextColor = normalizeHexColor(colorCode);
+        if (nextColor === currentColor && !boxState) {
+          if (emitUpdateEvent) {
+            if (config.id && modTitle) emitUpdate(modTitle, config.id, currentColor);
+            if (config.onChange) config.onChange(currentColor);
+          }
+          if (closeAfter) closePalette();
+          return;
+        }
+        currentColor = nextColor;
         config.currentValue = currentColor;
         var pickerState = setPickerBoxState(boxState, currentColor);
 
@@ -2021,11 +2043,13 @@
         }
 
         if (popupMetaLabel) {
-          popupMetaLabel.text = "Hue " + pickerState.hue + "\u00B0 | Sat " + Math.round(pickerState.sat * 100) + "%";
+          popupMetaLabel.text = "Hue " + pickerState.hue + "\u00B0 | Sat " + Math.round(pickerState.sat * 100) + "% | Val " + Math.round(pickerBoxVal * 100) + "%";
         }
 
-        const previewBtn = row.FindChildTraverse("ColorPreviewBtn");
-        if (previewBtn) previewBtn.style.backgroundColor = currentColor;
+        if (!colorPreviewBtn || !colorPreviewBtn.IsValid()) {
+          colorPreviewBtn = row.FindChildTraverse("ColorPreviewBtn");
+        }
+        if (colorPreviewBtn) colorPreviewBtn.style.backgroundColor = currentColor;
 
         updateBoxCursorVisual(currentColor);
 
@@ -2050,6 +2074,18 @@
             if (pickerSatValue) pickerSatValue.text = satPct + "%";
             if (pickerSatTrack && pickerSatTrack.IsValid && pickerSatTrack.IsValid()) {
               pickerSatTrack.style.backgroundColor = "gradient( linear, 0% 0%, 100% 0%, from( #ffffff ), to( " + hsvToHex(pickerState.hue, 1, 1) + " ) )";
+            }
+          }
+          if (pickerValSlider && pickerValSlider.IsValid && pickerValSlider.IsValid()) {
+            var valPct = Math.round(pickerBoxVal * 100);
+            if (Math.round(Number(pickerValSlider.value)) !== valPct) {
+              try {
+                pickerValSlider.value = valPct;
+              } catch (e) {}
+            }
+            if (pickerValValue) pickerValValue.text = valPct + "%";
+            if (pickerValTrack && pickerValTrack.IsValid && pickerValTrack.IsValid()) {
+              pickerValTrack.style.backgroundColor = "gradient( linear, 0% 0%, 100% 0%, from( #000000 ), to( " + hsvToHex(pickerState.hue, pickerState.sat, 1) + " ) )";
             }
           }
         } finally {
@@ -2422,6 +2458,9 @@
           if (pickerSatTrack && pickerSatTrack.IsValid && pickerSatTrack.IsValid()) {
             pickerSatTrack.style.backgroundColor = "gradient( linear, 0% 0%, 100% 0%, from( #ffffff ), to( " + hsvToHex(h, 1, 1) + " ) )";
           }
+          if (pickerValTrack && pickerValTrack.IsValid && pickerValTrack.IsValid()) {
+            pickerValTrack.style.backgroundColor = "gradient( linear, 0% 0%, 100% 0%, from( #000000 ), to( " + hsvToHex(h, pickerBoxSat, 1) + " ) )";
+          }
           syncColorVisuals(newColor, true, false, { hue: h, sat: pickerBoxSat });
         });
 
@@ -2459,6 +2498,41 @@
           syncColorVisuals(newColor2, true, false, { hue: pickerBoxHue, sat: s });
         });
 
+        // Brightness (Value) slider row
+        var valGroup = $.CreatePanel("Panel", colorPopupPanel, "");
+        valGroup.AddClass("AnitaHueSliderGroup");
+
+        var valLbl = $.CreatePanel("Label", valGroup, "");
+        valLbl.text = "V";
+        valLbl.AddClass("AnitaHueValue");
+        valLbl.AddClass("AnitaPickerAxisLabel");
+
+        pickerValTrack = $.CreatePanel("Panel", valGroup, "");
+        pickerValTrack.AddClass("AnitaSatSliderContainer");
+        pickerValTrack.AddClass("AnitaPickerSliderTrack");
+
+        pickerValSlider = $.CreatePanel("Slider", pickerValTrack, "", { direction: "horizontal" });
+        pickerValSlider.AddClass("AnitaHueSlider");
+        pickerValSlider.AddClass("HorizontalSlider");
+        pickerValSlider.min = 0;
+        pickerValSlider.max = 100;
+        pickerValSlider.increment = 1;
+        if (typeof pickerValSlider.SetShowDefaultValue === "function") { try { pickerValSlider.SetShowDefaultValue(false); } catch (e) {} }
+        if (typeof pickerValSlider.SetRequiresSelection === "function") { try { pickerValSlider.SetRequiresSelection(false); } catch (e) {} }
+
+        pickerValValue = $.CreatePanel("Label", valGroup, "");
+        pickerValValue.AddClass("AnitaHueValue");
+        pickerValValue.AddClass("AnitaPickerReadout");
+
+        pickerValSlider.SetPanelEvent("onvaluechanged", function () {
+          if (colorPickerSyncing) return;
+          var v = clamp01(pickerValSlider.value / 100);
+          pickerBoxVal = v;
+          var newColor3 = colorFromBoxState(pickerBoxHue, pickerBoxSat);
+          if (pickerValValue) pickerValValue.text = Math.round(v * 100) + "%";
+          syncColorVisuals(newColor3, true, false, { hue: pickerBoxHue, sat: pickerBoxSat, val: v });
+        });
+
         const footer = $.CreatePanel("Panel", colorPopupPanel, "");
         footer.AddClass("AnitaColorPopupFooter");
 
@@ -2468,16 +2542,15 @@
         closeLbl.text = "Close";
         closeBtn.SetPanelEvent("onactivate", closePalette);
 
-        syncColorVisuals(currentColor, false, false);
+        const initState = getBoxStateFromColor(currentColor);
+        syncColorVisuals(currentColor, false, false, initState);
         positionColorPopup(0);
         $.Schedule(0.0, function () {
           if (colorPopupPanel && colorPopupPanel.IsValid && colorPopupPanel.IsValid()) {
             positionColorPopup(0);
-            syncColorVisuals(currentColor, false, false);
+            syncColorVisuals(currentColor, false, false, initState);
           }
         });
-
-        const initState = getBoxStateFromColor(currentColor);
       }
 
       const preview = $.CreatePanel("Panel", row, "ColorPreviewBtn");
