@@ -38,6 +38,7 @@
     hp_bg_visible: "b",
     hp_team_colors: "t",
     hp_info_health_margin_top: "ihmt",
+    hp_healthbar_height: "hbh",
     hp_color_low: "cl",
     hp_color_mid: "cm",
     hp_color_high: "ch",
