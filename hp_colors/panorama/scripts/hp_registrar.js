@@ -109,6 +109,9 @@
       reason: String(reason || "registrar_handshake")
     }));
   }
+  function markRegistered() {
+    didRegister = true;
+  }
   function register() {
     if (didRegister) return;
     var config = buildConfig();
@@ -123,7 +126,7 @@
       } catch (e1) {
       }
     } else {
-      didRegister = true;
+      markRegistered();
       try {
         dispatchRegister(config);
       } catch (e2) {
@@ -146,7 +149,7 @@
       if (data.magic_word === "ANITA_ALIVE") {
         register();
       } else if (data.magic_word === "ANITA_HANDSHAKE" && data.mod_title === TITLE) {
-        didRegister = true;
+        markRegistered();
         requestBootstrap("registrar_handshake");
       }
     } catch (e) {

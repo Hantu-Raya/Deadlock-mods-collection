@@ -3481,6 +3481,7 @@
         writeHpSharedSnapshot(config);
       }
       if (!config.__anitaLastEmittedValues) config.__anitaLastEmittedValues = {};
+      var lastValues = config.__anitaLastEmittedValues;
       var values = {};
       var hasValues = false;
       for (var i = 0; i < config.elements.length; i++) {
@@ -3488,18 +3489,22 @@
         if (!element || !element.id || element.currentValue === undefined) continue;
         var value = AnitaPersistence.sanitizeValue(element, element.currentValue);
         element.currentValue = value;
-        config.__anitaLastEmittedValues[element.id] = value;
         values[element.id] = value;
         hasValues = true;
       }
       if (!hasValues) return;
       if (bulkEmit) {
         emitBulkUpdate(config.title, values, meta);
+        for (var bulkId in values) {
+          if (Object.prototype.hasOwnProperty.call(values, bulkId)) {
+            lastValues[bulkId] = values[bulkId];
+          }
+        }
       } else {
         for (var id in values) {
           if (Object.prototype.hasOwnProperty.call(values, id)) {
-            if (!forceEmit && Object.prototype.hasOwnProperty.call(config.__anitaLastEmittedValues, id) &&
-                config.__anitaLastEmittedValues[id] === values[id]) {
+            if (!forceEmit && Object.prototype.hasOwnProperty.call(lastValues, id) &&
+                lastValues[id] === values[id]) {
               continue;
             }
             emitUpdate(config.title, id, values[id], meta);

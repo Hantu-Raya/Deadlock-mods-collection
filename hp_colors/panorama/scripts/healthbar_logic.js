@@ -74,9 +74,9 @@
 
   // ── Ally state ───────────────────────────────────────────────────────────────
   var rbA = null, cpA = null;
+  var allyOwnedPanel = null;
   var lColA = null, lWA = -1, lPWA = -1, sfcA = 0, allyColorActive = false;
   var pulseA = 0, lPDA = null, lPIA = -1;
-  var aScanF2 = -1, aScanT2 = 0, aScanAt = 0;
   var aIdleMiss = 0;
 
   
@@ -169,10 +169,10 @@
     clearPulsePanel(ui, oldCls);
   }
 
-  function clearAllyPulse() {
+  function clearAllyPulse(panel) {
     var oldCls = lPIA >= 0 ? PULSE_INTENSITY[lPIA] : '';
     pulseA = 0; lPDA = null; lPIA = -1; lColA = null;
-    clearPulsePanel(rbA, oldCls);
+    clearPulsePanel(panel || allyOwnedPanel, oldCls);
   }
 
   function coerceCfgValue(id, value) {
@@ -562,7 +562,7 @@
         if (cfg.hp_enabled && !gRunning) { gRunning = true; $.Schedule(0.05, gL); }
         if (cfg.hp_friend_enabled && !aRunning) { aRunning = true; $.Schedule(0.05, aL); }
         if (!cfg.hp_friend_enabled && aRunning) {
-          resetAllyBarColor(rbA, aScanT2, aScanF2);
+          releaseAllyOwnership(true);
           aRunning = false;
         }
         if (!cfg.hp_pulse_enabled) clearPulse();
@@ -615,7 +615,7 @@
           if (d.setting_id === "hp_enabled" && cfg.hp_enabled && !gRunning) { gRunning = true; $.Schedule(0.05, gL); }
           if (d.setting_id === "hp_friend_enabled" && cfg.hp_friend_enabled && !aRunning) { aRunning = true; $.Schedule(0.05, aL); }
           if (d.setting_id === "hp_friend_enabled" && !cfg.hp_friend_enabled) {
-            resetAllyBarColor(rbA, aScanT2, aScanF2);
+            releaseAllyOwnership(true);
             aRunning = false;
           }
           if (pulse && (d.setting_id === "hp_pulse_bpm" || d.setting_id === "hp_pulse_intensity" || d.setting_id === "hp_pulse_text_enabled" || d.setting_id === "hp_pulse_text_scale")) {
@@ -879,13 +879,14 @@
   }
 
   function resetAllyBarColor(panel, teamId, flags) {
+    if (!panel || panel !== allyOwnedPanel) return;
     allyColorActive = false;
-    clearAllyPulse();
+    clearAllyPulse(panel);
     lColA = null;
     lWA = -1;
     lPWA = -1;
     sfcA = 0;
-    if (!panel || !panel.style) return;
+    if (!panel.style) return;
     var color = getDefaultBarColor(teamId | 0, flags | 0);
     try {
       panel.style.washColor = color;
@@ -895,6 +896,50 @@
     }
   }
 
+  function resetAllyLoopCache(panel) {
+    allyColorActive = false;
+    lColA = null;
+    lWA = -1;
+    lPWA = -1;
+    sfcA = 0;
+    clearAllyPulse(panel);
+  }
+
+  function scanAllyPanel(panel) {
+    var t2 = 0, f2 = 0, d2 = 0, c2 = panel;
+    while (c2 && d2 < 10) {
+      if (c2.BHasClass) {
+        if (!t2) {
+          if (c2.BHasClass('team2')) t2 = 2;
+          else if (c2.BHasClass('team1')) t2 = 1;
+        }
+        if (!(f2 & 1) && c2.BHasClass('friend')) f2 |= 1;
+        if (!(f2 & 2) && c2.BHasClass('player')) f2 |= 2;
+        if (!(f2 & 4) && c2.BHasClass('enemy')) f2 |= 4;
+        if (t2 && (f2 & 7) === 7) break;
+      }
+      if (!c2.GetParent) break;
+      c2 = c2.GetParent();
+      d2++;
+    }
+    return { teamId: t2, flags: f2 };
+  }
+
+  function isConfirmedAllyPlayer(flags) {
+    return !!((flags & 1) && (flags & 2) && !(flags & 4));
+  }
+
+  function releaseAllyOwnership(resetColor) {
+    var panel = allyOwnedPanel;
+    var scanResult = panel && panel.IsValid && panel.IsValid() ? scanAllyPanel(panel) : null;
+    if (resetColor && panel && scanResult && isConfirmedAllyPlayer(scanResult.flags)) {
+      resetAllyBarColor(panel, scanResult.teamId, scanResult.flags);
+    } else {
+      resetAllyLoopCache(panel);
+    }
+    allyOwnedPanel = null;
+  }
+
   function clampNum(v, min, max, fallback) {
     var next = Number(v);
     if (!isFinite(next)) next = Number(fallback);
@@ -902,6 +947,10 @@
     if (isFinite(min) && next < min) next = min;
     if (isFinite(max) && next > max) next = max;
     return next;
+  }
+
+  function clampPercent(value) {
+    return clampNum(value, 0, 100, 0) | 0;
   }
 
   function estimateCounterUnits(text) {
@@ -1076,12 +1125,10 @@
     lColRaw = lUltRaw = lTxtRaw = null;
     clearPulse();
     allyColorActive = false;
+    allyOwnedPanel = null;
     ihc = null;
     rbA = null;
     cpA = null;
-    aScanF2 = -1;
-    aScanT2 = 0;
-    aScanAt = 0;
     lColA = null;
     lWA = -1;
     lPWA = -1;
@@ -1250,12 +1297,8 @@
       if (pw <= 0) { sKZ(false, 0); $.Schedule(0.18, gL); return; }
 
       var hp = (w / pw * 100) | 0;
-      var low = cfg.hp_low_threshold | 0;
-      var high = cfg.hp_high_threshold | 0;
-      if (low < 0) low = 0;
-      if (low > 100) low = 100;
-      if (high < 0) high = 0;
-      if (high > 100) high = 100;
+      var low = clampPercent(cfg.hp_low_threshold);
+      var high = clampPercent(cfg.hp_high_threshold);
       if (high < low) high = low;
 
       // Small change above low threshold â€” back off
@@ -1276,7 +1319,7 @@
 
       var sc = 0.15, cl, textCol;
 
-      var pulseThresh = cfg.hp_pulse_threshold | 0;
+      var pulseThresh = clampPercent(cfg.hp_pulse_threshold);
       if (hp <= low) {
         if (panelBornAt && (now - panelBornAt) < 900 && (prevHp < 0 || (prevHp <= low && hp > prevHp))) {
           var warmupCol = getHighColor();
@@ -1388,24 +1431,14 @@
     aRunning = true;
     try {
       if (!cfg.hp_friend_enabled) {
-        allyColorActive = false;
-        lColA = null;
-        lWA = -1;
-        lPWA = -1;
-        sfcA = 0;
-        clearAllyPulse();
+        releaseAllyOwnership(true);
         aRunning = false; return;
       }
 
       var now = _ts();
       if (!rbA || !rbA.IsValid()) {
-        rbA = null; cpA = null; aScanF2 = -1; aScanAt = 0;
-        allyColorActive = false;
-        lColA = null;
-        lWA = -1;
-        lPWA = -1;
-        sfcA = 0;
-        clearAllyPulse();
+        releaseAllyOwnership(false);
+        rbA = null; cpA = null;
         rbA = fRB();
         if (!rbA) { aIdleMiss++; $.Schedule(aIdleMiss > 75 ? 3.0 : 0.2, aL); return; }
       }
@@ -1418,40 +1451,14 @@
           return;
         }
         allySettingsDirty = false;
-        lColA = null;
-        lWA = -1;
-        lPWA = -1;
-        sfcA = 0;
+        resetAllyLoopCache(allyOwnedPanel);
       }
 
-      // Scan with 2000ms cache — friend/player class hierarchy is stable
-      var f2, t2;
-      if (aScanF2 < 0 || (now - aScanAt) >= 2000) {
-        t2 = 0; f2 = 0; var d2 = 0, c2 = rbA;
-        while (c2 && d2 < 10) {
-          if (c2.BHasClass) {
-            if (!t2) { if (c2.BHasClass('team2')) t2 = 2; else if (c2.BHasClass('team1')) t2 = 1; }
-            if (!(f2 & 1) && c2.BHasClass('friend')) f2 |= 1;
-            if (!(f2 & 2) && c2.BHasClass('player')) f2 |= 2;
-            if (t2 && (f2 & 3)) break;
-          }
-          if (!c2.GetParent) break;
-          c2 = c2.GetParent(); d2++;
-        }
-        aScanF2 = f2; aScanT2 = t2; aScanAt = now;
-      } else {
-        f2 = aScanF2; t2 = aScanT2;
-      }
+      var allyScan = scanAllyPanel(rbA);
+      var f2 = allyScan.flags;
 
-      if (!(f2 & 1) || !(f2 & 2)) {
-        if (allyColorActive) {
-          allyColorActive = false;
-          lColA = null;
-          lWA = -1;
-          lPWA = -1;
-          sfcA = 0;
-          clearAllyPulse();
-        }
+      if (!isConfirmedAllyPlayer(f2)) {
+        if (allyColorActive || allyOwnedPanel) releaseAllyOwnership(false);
         sfcA = 0;
         $.Schedule(1.5, aL); return;
       }
@@ -1469,13 +1476,11 @@
       sfcA = 0; lWA = aw; lPWA = apw;
 
       var ahp = (aw / apw * 100) | 0;
-      var alow = cfg.hp_low_threshold | 0;
-      var ahigh = cfg.hp_high_threshold | 0;
-      if (alow < 0) alow = 0; if (alow > 100) alow = 100;
-      if (ahigh < 0) ahigh = 0; if (ahigh > 100) ahigh = 100;
+      var alow = clampPercent(cfg.hp_low_threshold);
+      var ahigh = clampPercent(cfg.hp_high_threshold);
       if (ahigh < alow) ahigh = alow;
 
-      var apulseThresh = cfg.hp_friend_pulse_threshold | 0;
+      var apulseThresh = clampPercent(cfg.hp_friend_pulse_threshold);
       var inPulse = cfg.hp_friend_pulse_enabled && ahp <= apulseThresh;
 
       // Use pulse color override when active, otherwise gradient/fixed
@@ -1493,7 +1498,7 @@
       }
       var nextColA = normalizeWashColor(acl);
       if (lColA !== nextColA && rbA) {
-        try { rbA.style.washColor = nextColA; lColA = nextColA; allyColorActive = true; } catch (e) { lColA = null; }
+        try { rbA.style.washColor = nextColA; lColA = nextColA; allyColorActive = true; allyOwnedPanel = rbA; } catch (e) { lColA = null; }
       }
 
       var sc = 0.35;
@@ -1514,7 +1519,7 @@
         }
         sc = 0.15;
       } else {
-        if (pulseA) { clearAllyPulse(); lColA = null; }
+        if (pulseA) { clearAllyPulse(rbA); lColA = null; }
       }
 
       $.Schedule(sc, aL);
