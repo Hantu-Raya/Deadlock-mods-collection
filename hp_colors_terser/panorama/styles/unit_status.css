@@ -357,6 +357,7 @@
 
 #UnitHealthbarContainer {
 	height: 130px;
+	max-height: 230px;
 	width: 900px;
 	margin-left: -90px;
 	margin-right: 180px;
@@ -546,9 +547,11 @@
 #unit_healthbar_pip_label {
 	ignore-parent-flow: true;
 	width: 100%;
-	height: fit-children;
+	height: 52%;
+	max-height: 52%;
 	vertical-align: middle;
 	font-size: 40px;
+	max-font-size: 75px;
 	color: #1c2029f5;
 	font-weight: bold;
 	text-align: justify-letter-spacing;

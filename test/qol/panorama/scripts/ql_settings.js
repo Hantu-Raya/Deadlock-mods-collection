@@ -1588,7 +1588,7 @@ const RUNTIME_ROW_KEY_ATTR = "QOL_RUNTIME_ROW_KEY";
 const MOD_VERSION = 30;
 const MOD_DISPLAY_VERSION = (typeof QOL_SCHEMA_SEMVER === "string" && QOL_SCHEMA_SEMVER.length > 0)
     ? QOL_SCHEMA_SEMVER
-    : "2.3.1";
+    : "2.3.2";
 const EXPORT_SCHEMA_SEMVER = MOD_DISPLAY_VERSION;
 const COMPACT_WIRE_VERSION_2_0_0 = 1;
 const COMPACT_WIRE_VERSION_2_0_1 = 2;
@@ -7644,6 +7644,10 @@ const COMPACT_SCHEMA_REGISTRY = {
     "2.3.1": {
         wireVersion: COMPACT_WIRE_VERSION_2_0_1,
         schema: COMPACT_SCHEMA_2_3_1
+    },
+    "2.3.2": {
+        wireVersion: COMPACT_WIRE_VERSION_2_0_1,
+        schema: COMPACT_SCHEMA_2_3_1
     }
 };
 const COMPACT_SCHEMA_WIRE_TO_SEMVER = (typeof QOL_CODEC === "object" && QOL_CODEC && typeof QOL_CODEC.BuildWireToSemver === "function")
@@ -9234,20 +9238,28 @@ function ActivateBuildSaveFromUi(saveBtn, saveLbl, onBeforeQueue) {
 }
 
 function OpenBuildSaveConfirmModal(saveBtn, saveLbl) {
-    if (BUILD_SAVE_UI_TEMP_DISABLED) return;
     var rootPanel = $.GetContextPanel();
     if (!rootPanel || !rootPanel.IsValid || !rootPanel.IsValid()) return;
 
     var existing = rootPanel.FindChildTraverse("BuildSaveConfirmModalOverlay");
     if (existing) existing.DeleteAsync(0);
 
+    var saveDisabled = BUILD_SAVE_UI_TEMP_DISABLED;
     var isRu = IsRussianSettingsLanguage();
     var isCn = IsChineseSettingsLanguage();
-    var titleText = isRu ? "\u0421\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A" : (isCn ? "\u4FDD\u5B58\u8BBE\u7F6E" : "Save Settings");
-    var line1 = isRu ? "\u042D\u0442\u043E \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0438\u0442 \u0432\u0430\u0448\u0435\u0433\u043E \u0433\u0435\u0440\u043E\u044F \u0438 \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442 \u0432\u0430\u0448\u0438 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438" : (isCn ? "\u8FD9\u4F1A\u5207\u6362\u4F60\u7684\u82F1\u96C4\u5E76\u4FDD\u5B58\u4F60\u7684\u8BBE\u7F6E" : "This will swap your character and save your settings");
-    var line2 = isRu ? "\u041D\u0415 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u044D\u0442\u043E \u0432 \u043E\u0447\u0435\u0440\u0435\u0434\u0438 \u0438\u043B\u0438 \u0432 \u0436\u0438\u0432\u043E\u043C \u043C\u0430\u0442\u0447\u0435" : (isCn ? "\u4E0D\u8981\u5728\u6392\u961F\u4E2D\u6216\u5B9E\u65F6\u5BF9\u5C40\u4E2D\u4F7F\u7528\u6B64\u529F\u80FD" : "DO NOT use this in queue or in a live match");
-    var line3 = isRu ? "\u0412\u044B \u0431\u044B\u043B\u0438 \u043F\u0440\u0435\u0434\u0443\u043F\u0440\u0435\u0436\u0434\u0435\u043D\u044B" : (isCn ? "\u4F60\u5DF2\u7ECF\u88AB\u8B66\u544A\u4E86" : "You have been warned");
-    var confirmText = LocalizeSettingsText("SAVE", true);
+    var titleText = saveDisabled
+        ? "Save Settings"
+        : (isRu ? "\u0421\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A" : (isCn ? "\u4FDD\u5B58\u8BBE\u7F6E" : "Save Settings"));
+    var line1 = saveDisabled
+        ? "Saving settings is currently disabled on main branch due to some bugs"
+        : (isRu ? "\u042D\u0442\u043E \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0438\u0442 \u0432\u0430\u0448\u0435\u0433\u043E \u0433\u0435\u0440\u043E\u044F \u0438 \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442 \u0432\u0430\u0448\u0438 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438" : (isCn ? "\u8FD9\u4F1A\u5207\u6362\u4F60\u7684\u82F1\u96C4\u5E76\u4FDD\u5B58\u4F60\u7684\u8BBE\u7F6E" : "This will swap your character and save your settings"));
+    var line2 = saveDisabled
+        ? "Currently it is in Early Access pending rework"
+        : (isRu ? "\u041D\u0415 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u044D\u0442\u043E \u0432 \u043E\u0447\u0435\u0440\u0435\u0434\u0438 \u0438\u043B\u0438 \u0432 \u0436\u0438\u0432\u043E\u043C \u043C\u0430\u0442\u0447\u0435" : (isCn ? "\u4E0D\u8981\u5728\u6392\u961F\u4E2D\u6216\u5B9E\u65F6\u5BF9\u5C40\u4E2D\u4F7F\u7528\u6B64\u529F\u80FD" : "DO NOT use this in queue or in a live match"));
+    var line3 = saveDisabled
+        ? "Join to Discord if you are interested in Early Access"
+        : (isRu ? "\u0412\u044B \u0431\u044B\u043B\u0438 \u043F\u0440\u0435\u0434\u0443\u043F\u0440\u0435\u0436\u0434\u0435\u043D\u044B" : (isCn ? "\u4F60\u5DF2\u7ECF\u88AB\u8B66\u544A\u4E86" : "You have been warned"));
+    var confirmText = saveDisabled ? "Discord" : LocalizeSettingsText("SAVE", true);
 
     var overlay = $.CreatePanel("Panel", rootPanel, "BuildSaveConfirmModalOverlay");
     overlay.AddClass("ModalOverlay");
@@ -9277,8 +9289,8 @@ function OpenBuildSaveConfirmModal(saveBtn, saveLbl) {
     var body2 = $.CreatePanel("Label", modalContainer, "");
     body2.AddClass("ModalInstructions");
     body2.AddClass("MetroModalCenteredText");
-    body2.style.color = "#ff8787";
-    body2.style.fontWeight = "bold";
+    body2.style.color = saveDisabled ? "#c9d3ff" : "#ff8787";
+    body2.style.fontWeight = saveDisabled ? "normal" : "bold";
     body2.style.marginTop = "8px";
     body2.text = line2;
 
@@ -9286,6 +9298,10 @@ function OpenBuildSaveConfirmModal(saveBtn, saveLbl) {
     body3.AddClass("ModalInstructions");
     body3.AddClass("MetroModalCenteredText");
     body3.style.marginTop = "6px";
+    if (saveDisabled) {
+        body3.style.color = "#66cc99";
+        body3.style.fontWeight = "bold";
+    }
     body3.text = line3;
 
     var btnRow = $.CreatePanel("Panel", modalContainer, "ModalBtnRow");
@@ -9299,6 +9315,10 @@ function OpenBuildSaveConfirmModal(saveBtn, saveLbl) {
     confirmLbl.text = confirmText;
     confirmBtn.SetPanelEvent("onactivate", function() {
         CloseModal(overlay);
+        if (saveDisabled) {
+            $.DispatchEvent("ExternalBrowserGoToURL", "https://discord.gg/YkRgwfPt9S");
+            return;
+        }
         ActivateBuildSaveFromUi(saveBtn, saveLbl);
     });
 }
@@ -10069,6 +10089,7 @@ function CloseModal(overlay) {
     if (!overlay || !overlay.IsValid()) return;
     var overlayId = "";
     try { overlayId = String(overlay.id || ""); } catch (e0) { overlayId = ""; }
+    var shouldReleaseSettingsFocus = (overlayId === "ConfigDiffPreviewModalOverlay");
     if (overlayId.indexOf("Arcade") === 0) {
         var onDeathBridgeState = GetOnDeathArcadeBridgeState();
         if (onDeathBridgeState.active) {
@@ -10078,6 +10099,18 @@ function CloseModal(overlay) {
         }
     }
     overlay.RemoveClass("Show");
+    if (shouldReleaseSettingsFocus) {
+        try {
+            var settingsWin = $.GetContextPanel ? $.GetContextPanel().FindChildTraverse("SettingsWindow") : null;
+            if (settingsWin && settingsWin.IsValid && settingsWin.IsValid()) {
+                settingsWin.SetFocus();
+            }
+        } catch (eFocusRelease) {}
+        if (overlay.IsValid()) {
+            overlay.DeleteAsync(0);
+        }
+        return;
+    }
     $.Schedule(0.25, function() {
         if (overlay.IsValid()) overlay.DeleteAsync(0);
     });
@@ -15239,7 +15272,6 @@ function BuildCommunityPresetEntries() {
     entries.push({ label: "Wrvth", preset: "Wrvth" });
     entries.push({ label: "Jared", preset: "Jared" });
     entries.push({ label: "Bubsito", preset: "Bubsito" });
-    entries.push({ label: "Wirdly", preset: "Wirdly" });
     entries.push({ label: "Gambler", preset: "Gambler" });
     entries.push({ label: "Tuna", preset: "Tuna" });
     entries.push({ label: "Hikyo", preset: "Hikyo" });
@@ -15252,7 +15284,14 @@ function BuildCommunityPresetEntries() {
     entries.push({ label: "Deethirty", preset: "Deethirty" });
     entries.push({ label: "Jerboa", preset: "Jerboa" });
     entries.push({ label: "RiChew", preset: "RiChew" });
-    for (var i = entries.length; i < 36; i++) {
+    entries.push({ label: "Soramikali", preset: "Soramikali" });
+    entries.push({ label: "Jaundice", preset: "Jaundice" });
+    entries.push({ label: "Xavier", preset: "Xavier" });
+    entries.push({ label: "Spookyy", preset: "Spookyy" });
+    entries.push({ label: "Wirdly", preset: "Wirdly" });
+    entries.push({ label: "Radiant", preset: "Radiant" });
+    entries.push({ label: "Chumba", preset: "Chumba" });
+    for (var i = entries.length; i < 54; i++) {
         entries.push({ label: "Available", available: false });
     }
     return entries;
@@ -18519,7 +18558,7 @@ function NormalizeSearchText(value) {
 }
 
 function GetSettingsTabOrder() {
-    return ["Support", "Config", "Presets", "Crosshair", "Healthbar", "HUD", "UI", "Overlay", "Minimap", "Audio", "Arcade", "Console"];
+    return ["Support", "Config", "Presets", "Crosshair", "Healthbar", "HUD", "UI", "Overlay", "Minimap", "Audio", "Arcade", "MOG", "Console"];
 }
 
 function GetActiveSearchCollectSection() {
@@ -19389,9 +19428,6 @@ function RenderCurrentTabContent(list) {
         CreateRow(list, "Difficulty", "GAME_DEFAULT_DIFFICULTY", "buttongroup", null, null, null, ARCADE_DEFAULT_DIFFICULTY_OPTIONS, "Default difficulty when opening games.");
         CreateRow(list, "On Death", "ENABLE_ON_DEATH_GAMES", "toggle", null, null, null, null, "Randomly opens an enabled arcade game while dead.");
         CreateSeparator(list);
-        CreateSectionTitle(list, "Gamemodes");
-        CreateRow(list, "BHOP", "ENABLE_BHOP", "toggle", null, null, null, null, "For custom BHop gamemode UI changes.");
-        CreateSeparator(list);
         CreateSectionTitle(list, "Games");
         CreateRow(list, "Bebop Sweeper", "OPEN_MINESWEEPER", "actionbutton", null, null, null, [
             {
@@ -19435,6 +19471,29 @@ function RenderCurrentTabContent(list) {
                 onDeathConfigKey: "ON_DEATH_GAME_WHACK_A_REM"
             }
         ], "");
+    } else if (currentTab === "MOG") {
+        if (gSearchCollectMode && gSearchCollectState) {
+            CreateSectionTitle(list, "Gamemodes");
+            CreateRow(list, "BHOP UI", "ENABLE_BHOP", "toggle", null, null, null, null, "For custom BHop gamemode UI changes.");
+            return;
+        }
+        var mogNoteWrap = $.CreatePanel("Panel", list, "MogTabNoteWrap");
+        mogNoteWrap.AddClass("ConsoleTabNoteWrap");
+        mogNoteWrap.AddClass("MogTabNoteWrap");
+        var mogNoteText = $.CreatePanel("Label", mogNoteWrap, "MogTabNoteText");
+        mogNoteText.AddClass("ConsoleTabNoteText");
+        mogNoteText.AddClass("MogTabNoteText");
+        mogNoteText.text = "MOG is Deadlock's first custom server network with custom gamemodes!\nYou can find out more on the website";
+        var mogLinkBtn = $.CreatePanel("Button", mogNoteWrap, "MogTabSiteLink");
+        mogLinkBtn.AddClass("MogTabSiteLink");
+        var mogLinkLbl = $.CreatePanel("Label", mogLinkBtn, "MogTabSiteLinkLabel");
+        mogLinkLbl.AddClass("MogTabSiteLinkLabel");
+        mogLinkLbl.text = "mogdl.com";
+        mogLinkBtn.SetPanelEvent("onactivate", function() {
+            $.DispatchEvent("ExternalBrowserGoToURL", "https://mogdl.com");
+        });
+        CreateSectionTitle(list, "Gamemodes");
+        CreateRow(list, "BHOP UI", "ENABLE_BHOP", "toggle", null, null, null, null, "For custom BHop gamemode UI changes.");
     } else if (currentTab === "Config") {
         RenderConfigTabContent(list);
     } else if (currentTab === "Support") {
@@ -20118,15 +20177,9 @@ $.BuildUI = function() {
     }
 
     var saveFooterBtn = tabFooter.FindChildTraverse("FooterSaveBuildButton");
-    if (BUILD_SAVE_UI_TEMP_DISABLED) {
-        if (saveFooterBtn) {
-            saveFooterBtn.DeleteAsync(0);
-            saveFooterBtn = null;
-        }
-    } else {
-        if (!saveFooterBtn) {
-            saveFooterBtn = $.CreatePanel("Button", tabFooter, "FooterSaveBuildButton");
-        }
+    if (!saveFooterBtn) {
+        saveFooterBtn = $.CreatePanel("Button", tabFooter, "FooterSaveBuildButton");
+    }
         saveFooterBtn.AddClass("TabItem");
         saveFooterBtn.AddClass("FooterSaveBuildTab");
         var saveFooterLabel = saveFooterBtn.FindChildTraverse("TabLabel");
@@ -20150,7 +20203,6 @@ $.BuildUI = function() {
         saveFooterBtn.SetPanelEvent("onactivate", function() {
             OpenBuildSaveConfirmModal(saveFooterBtn, saveFooterLabel);
         });
-    }
 
     var staleDiscordFooterBtn = tabFooter.FindChildTraverse("FooterDiscordLinkButton");
     if (staleDiscordFooterBtn) {
@@ -20280,10 +20332,24 @@ $.BuildUI = function() {
     var header = win.FindChildTraverse("SettingsHeader");
     if (header) {
         var headerTitle = header.FindChildTraverse("SettingsTitle");
+        var headerLogo = header.FindChildTraverse("SettingsHeaderMogLogo");
+        if (!headerLogo) {
+            headerLogo = $.CreatePanel("Image", header, "SettingsHeaderMogLogo", {
+                src: "s2r://panorama/images/qollock/mog_site_logo2.vtex",
+                defaultsrc: "",
+                scaling: "contain"
+            });
+        }
+        headerLogo.hittest = false;
+        headerLogo.hittestchildren = false;
+        try { headerLogo.SetImage("s2r://panorama/images/qollock/mog_site_logo2.vtex"); } catch (eHeaderLogo) {}
         if (headerTitle) {
             headerTitle.text = "QOL LOCK";
             headerTitle.hittest = false;
             headerTitle.hittestchildren = false;
+            if (header.MoveChildBefore) {
+                try { header.MoveChildBefore(headerLogo, headerTitle); } catch (eMoveHeaderLogo) {}
+            }
         }
         var headerVer = header.FindChildTraverse("ModVersionLabelTop");
         if (!headerVer) {

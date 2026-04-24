@@ -96,9 +96,6 @@
 					<Button class="nav_menu_item small_text htpp_btn_5 htpp_spawn_action htpp_glow_white" onactivate="LoadMidtownMap();">
 						<Label text="Load Map" />
 					</Button>
-					<Button class="nav_menu_item small_text htpp_btn_5 htpp_spawn_action htpp_glow_white" onactivate="LoadDefaultHeroFromSettings();">
-						<Label text="Load Hero" />
-					</Button>
 				</Panel>
 			</Panel>
 			<Panel id="htpp_section_Tools" class="htpp_section">

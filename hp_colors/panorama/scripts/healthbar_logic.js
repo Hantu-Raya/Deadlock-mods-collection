@@ -10,6 +10,7 @@
     hp_bg_visible: true,
     hp_team_colors: false,
     hp_info_health_margin_top: 23,
+    hp_healthbar_height: 130,
     hp_color_low: "#E16161",
     hp_color_mid: "#FF7B00",
     hp_color_high: "#00FF00",
@@ -261,6 +262,7 @@
     b: "hp_bg_visible",
     t: "hp_team_colors",
     ihmt: "hp_info_health_margin_top",
+    hbh: "hp_healthbar_height",
     cl: "hp_color_low",
     cm: "hp_color_mid",
     ch: "hp_color_high",
@@ -726,9 +728,9 @@
 
   // â”€â”€ Panel cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var ctx = $.GetContextPanel();
-  var us = null, hc = null, hca = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null, ihc = null;
+  var us = null, hc = null, hca = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null, ihc = null, uhc = null;
   var cached = 0, att = 0;
-  var lBgVis = null, lBgOp = null, lHpSize = null, lHpPos = null, lHpMarginLeft = null, lHpHeight = null, lHcaTransform = null, lIhcMarginTop = null;
+  var lBgVis = null, lBgOp = null, lHpSize = null, lHpPos = null, lHpMarginLeft = null, lHpHeight = null, lHcaTransform = null, lIhcMarginTop = null, lUhcHeight = null, lPipHeight = null, lPipFontSize = null;
 
   function fRB() {
     var p = ctx.FindChildTraverse('unit_healthbar_lagging');
@@ -752,6 +754,7 @@
     if (!kz || !kz.IsValid()) kz = us.FindChildTraverse('hp_kill_zone_marker');
     if (!ui || !ui.IsValid()) ui = us.FindChildTraverse('unit_ult_ready_icon') || us.FindChildTraverse('ult_icon');
     if (!ihc || !ihc.IsValid()) ihc = us.FindChildTraverse('InfoHealthContainer');
+    if (!uhc || !uhc.IsValid()) uhc = us.FindChildTraverse('UnitHealthbarContainer');
     if (ui && ui.IsValid()) _uiMissAt = 0;
     if (lb && (!lbp || !lbp.IsValid())) lbp = lb.GetParent();
     if (pl && lb && lbp) { cached = 1; return 1; }
@@ -876,6 +879,26 @@
     if (teamId === 2) return CSS_TEAM2_COLOR;
     if (teamId === 1) return CSS_TEAM1_COLOR;
     return CSS_TEAM_FRIEND_COLOR;
+  }
+
+  function getHealthbarHeightPx() {
+    return Math.round(clampNum(cfg.hp_healthbar_height, 0, 230, 130));
+  }
+
+  function applyHealthbarHeight() {
+    if ((!uhc || !uhc.IsValid()) && us && us.IsValid()) uhc = us.FindChildTraverse('UnitHealthbarContainer');
+    var heightPx = getHealthbarHeightPx();
+    var nextHeight = heightPx + 'px';
+    if (uhc && uhc.style && lUhcHeight !== nextHeight) {
+      uhc.style.height = nextHeight;
+      lUhcHeight = nextHeight;
+    }
+    if (pl && pl.style) {
+      var nextPipHeight = '52%';
+      var nextPipFontSize = Math.min(75, Math.round(heightPx * 75 / 230)) + 'px';
+      if (lPipHeight !== nextPipHeight) { pl.style.height = nextPipHeight; lPipHeight = nextPipHeight; }
+      if (lPipFontSize !== nextPipFontSize) { pl.style.fontSize = nextPipFontSize; lPipFontSize = nextPipFontSize; }
+    }
   }
 
   function resetAllyBarColor(panel, teamId, flags) {
@@ -1078,27 +1101,12 @@
     } catch (e) {}
   }
 
-  var _lastHcsText = "", _lastHcsFit = 0;
-
   function sHCS(lowMode, textHint) {
     if (!hc || !hc.style) return;
     var pulseTextMode = !!(lowMode && cfg.hp_pulse_enabled && cfg.hp_pulse_text_enabled);
     var defaultSize = clampNum(cfg.hp_counter_size, 72, 400, 145);
-    var baseSize = pulseTextMode ? getPulseTextSize(defaultSize) : defaultSize;
+    var size = pulseTextMode ? getPulseTextSize(defaultSize) : defaultSize;
     var basePos = parseCounterPositionValue(pulseTextMode ? cfg.hp_pulse_text_position : cfg.hp_counter_position);
-    var text = String(textHint !== undefined ? textHint : lCounterText || "");
-    var available = getCounterAvailableWidth();
-    var fitSize;
-    if (text === _lastHcsText) {
-      fitSize = _lastHcsFit;
-    } else {
-      var units = estimateCounterUnits(text);
-      var fitWidthSize = available > 0 ? Math.floor((available - 12) / (units * 0.45)) : baseSize;
-      fitSize = clampNum(fitWidthSize, 72, 400, baseSize);
-      _lastHcsText = text;
-      _lastHcsFit = fitSize;
-    }
-    var size = Math.min(baseSize, fitSize);
     var posX = clampNum(basePos.x, 0, 400, 0);
     var posY = clampNum(basePos.y, 0, 400, 200);
     var fontSize = size + 'px';
@@ -1109,7 +1117,8 @@
     } catch (e) {}
     var panelHeightPx = pulseTextMode ? Math.max(baseHeight, Math.round(size * 1.85)) : baseHeight;
     var panelHeight = pulseTextMode ? panelHeightPx + 'px' : '100%';
-    var transform = 'translate3d(' + Math.round(posX) + 'px, -' + Math.round(posY) + 'px, 0px)';
+    var translateY = pulseTextMode ? -posY : (posY - 100);
+    var transform = 'translate3d(' + Math.round(posX) + 'px, ' + Math.round(translateY) + 'px, 0px)';
     if (lHpSize !== fontSize) { hc.style.fontSize = fontSize; lHpSize = fontSize; }
     if (lHpHeight !== panelHeight) { hc.style.height = panelHeight; lHpHeight = panelHeight; }
     if (hca && hca.style && lHcaTransform !== transform) { hca.style.transform = transform; lHcaTransform = transform; }
@@ -1161,6 +1170,7 @@
     sHBV(!isEnemy || !!cfg.hp_bg_visible);
     sHCS(lCounterLowMode, lCounterText);
     applyInfoHealthMarginTop();
+    applyHealthbarHeight();
     lW = -1; lHp = -1;
     settingsDirty = false;
     settingsRefreshHoldUntil = 0;
@@ -1186,6 +1196,8 @@
     if (fmt === 1) {
       var pct = mx > 0 ? Math.round(cu / mx * 100) : 0;
       s = pct + '%';
+    } else if (fmt === 2) {
+      s = String(cu);
     } else {
       s = cu + ' / ' + mx;
     }
@@ -1270,7 +1282,7 @@
         if (now < settingsRefreshHoldUntil) { $.Schedule(0.05, gL); return; }
         applyCurrentSettings(isEnemy);
       }
-      else { sHBV(isEnemy && !!cfg.hp_bg_visible); applyInfoHealthMarginTop(); }
+      else { sHBV(isEnemy && !!cfg.hp_bg_visible); applyInfoHealthMarginTop(); applyHealthbarHeight(); }
 
       // Neutral unit
       if (fl & 2) { clearPulse();
