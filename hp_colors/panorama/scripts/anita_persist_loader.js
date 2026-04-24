@@ -190,6 +190,7 @@
 
   function cloneValues(values) {
     var out = {};
+    if (!values) return out;
     for (var key in values) {
       if (Object.prototype.hasOwnProperty.call(values, key)) {
         out[key] = values[key];
@@ -629,10 +630,11 @@
       var updateSource = String(data.update_source || "ui_update");
       var isResync = updateSource === "core_auto_resync" || updateSource === "ui_resync";
 
-      currentValues[data.setting_id] = sanitizeValue(element, data.value);
+      var sanitizedValue = sanitizeValue(element, data.value);
+      currentValues[data.setting_id] = sanitizedValue;
       writeHpSharedSnapshot(currentValues, updateSource);
       if (!isResync) {
-        persistedValues[data.setting_id] = sanitizeValue(element, data.value);
+        persistedValues[data.setting_id] = sanitizedValue;
       }
 
       if (data.skip_bridge_persist || updateSource === "bridge_bootstrap" || isResync) {
