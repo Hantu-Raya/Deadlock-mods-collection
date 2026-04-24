@@ -1131,12 +1131,23 @@
 	letter-spacing: 2.5px;
 	font-weight: bold;
 	width: fit-children;
-	margin-left: 15px;
+	margin-left: 0px;
 	margin-right: 10px;
 	animation-name: PulseWhiteTitle;
 	animation-duration: 3.0s;
 	animation-timing-function: ease-in-out;
 	animation-iteration-count: infinite;
+	hittest: false;
+}
+
+#SettingsHeaderMogLogo
+{
+	width: 40px;
+	height: 40px;
+	vertical-align: center;
+	margin-left: 0px;
+	margin-right: 10px;
+	opacity: 1.0;
 	hittest: false;
 }
 
@@ -2942,6 +2953,47 @@
 	white-space: normal;
 	line-height: 16px;
 	text-shadow: none;
+}
+
+#SettingsWindow .MogTabNoteWrap
+{
+	flow-children: down;
+}
+
+#SettingsWindow .MogTabNoteText
+{
+	margin-bottom: 6px;
+}
+
+#SettingsWindow .MogTabSiteLink
+{
+	width: fit-children;
+	horizontal-align: center;
+	padding: 0px;
+	margin: 0px;
+	background-color: none;
+	border: 0px solid transparent;
+	box-shadow: none;
+}
+
+#SettingsWindow .MogTabSiteLinkLabel
+{
+	color: #66cc99;
+	font-size: 13px;
+	font-weight: bold;
+	letter-spacing: 0.4px;
+	text-shadow: 0px 0px 8px rgba(102, 204, 153, 0.26);
+}
+
+#SettingsWindow .MogTabSiteLink:hover .MogTabSiteLinkLabel
+{
+	color: #8cf0bd;
+	text-shadow: 0px 0px 10px rgba(102, 204, 153, 0.45);
+}
+
+#SettingsWindow .MogTabSiteLink:active .MogTabSiteLinkLabel
+{
+	color: #58b887;
 }
 
 #SettingsWindow .SliderContainer

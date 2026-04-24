@@ -16,6 +16,7 @@
     { type: "toggle", id: "hp_team_colors", label: "Use team color at high HP", defaultValue: false, category: "GENERAL|Core Behavior" },
     { type: "toggle", id: "hp_skip_buildings", label: "Ignore buildings and bosses", defaultValue: false, category: "GENERAL|Core Behavior" },
     { type: "slider", id: "hp_info_health_margin_top", label: "HP container top offset", defaultValue: 23, min: 0, max: 100, step: 1, category: "GENERAL|Core Behavior" },
+    { type: "slider", id: "hp_healthbar_height", label: "HP bar height", defaultValue: 130, min: 0, max: 230, step: 1, category: "GENERAL|Core Behavior" },
     // Health Bars - Enemy Colors
     { type: "toggle", id: "hp_ult_color_enabled", label: "Color ult icon", defaultValue: true, category: "HEALTH BARS|Enemy Colors" },
     { type: "colorpicker", id: "hp_ult_color_custom", label: "Ult icon custom color", defaultValue: "#E16161", category: "HEALTH BARS|Enemy Colors", visibleWhen: { id: "hp_ult_color_enabled", equals: false } },
@@ -34,7 +35,7 @@
     // Health Bars - Number Overlay
     { type: "slider", id: "hp_counter_size", label: "HP number size", defaultValue: 145, min: 72, max: 320, step: 1, category: "HEALTH BARS|Number Overlay" },
     { type: "positionpicker", id: "hp_counter_position", label: "HP number position", defaultValue: "27,20", category: "HEALTH BARS|Number Overlay" },
-    { type: "cycler", id: "hp_counter_format", label: "HP number format", options: ["HP", "%"], defaultValue: 0, category: "HEALTH BARS|Number Overlay" },
+    { type: "cycler", id: "hp_counter_format", label: "HP number format", options: ["HP", "%", "Current HP"], defaultValue: 0, category: "HEALTH BARS|Number Overlay" },
     { type: "cycler", id: "hp_text_color_mode", label: "HP number color source", options: ["Bar color", "Custom"], defaultValue: 0, category: "HEALTH BARS|Number Overlay" },
     { type: "toggle", id: "hp_level_number_visible", label: "Show level number", defaultValue: true, category: "HEALTH BARS|Number Overlay" },
     { type: "toggle", id: "hp_pip_visible", label: "Show pip HP segments", defaultValue: true, category: "HEALTH BARS|Number Overlay" },

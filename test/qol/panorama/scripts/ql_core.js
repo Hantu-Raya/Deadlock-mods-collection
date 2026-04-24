@@ -835,7 +835,7 @@ const BUILD_LOADER_TEMP_DISABLED = true;
     const BUILD_CATEGORY_PAYLOAD_BOOTSTRAP_MAX_RETRIES = 30;
 const BUILD_CATEGORY_PAYLOAD_SCHEMA_SEMVER = (typeof QOL_SCHEMA_SEMVER === "string" && QOL_SCHEMA_SEMVER.length > 0)
     ? QOL_SCHEMA_SEMVER
-    : "2.3.1";
+    : "2.3.2";
     const BUILD_CATEGORY_PAYLOAD_WIRE_VERSION_2_0_0 = 1;
     const BUILD_CATEGORY_PAYLOAD_WIRE_VERSION_2_0_1 = 2;
     const BUILD_CATEGORY_PAYLOAD_SCHEMA_WIRE_VERSION = (String(BUILD_CATEGORY_PAYLOAD_SCHEMA_SEMVER || "") === "2.0.0")
@@ -4953,6 +4953,10 @@ const BUILD_CATEGORY_COMPACT_SCHEMA_REGISTRY = {
         schema: BUILD_CATEGORY_COMPACT_SCHEMA_2_2_10
     },
     "2.3.1": {
+        wireVersion: BUILD_CATEGORY_PAYLOAD_WIRE_VERSION_2_0_1,
+        schema: BUILD_CATEGORY_COMPACT_SCHEMA_2_3_1
+    },
+    "2.3.2": {
         wireVersion: BUILD_CATEGORY_PAYLOAD_WIRE_VERSION_2_0_1,
         schema: BUILD_CATEGORY_COMPACT_SCHEMA_2_3_1
     }
@@ -11302,6 +11306,17 @@ function GetUIRoot() {
             }
             return;
         }
+
+        if (IsStreetBrawlModeActive(root)) {
+            HideMinimapObjectiveTimers(root);
+            if (!State.rejuvWasDisabled) {
+                var streetBrawlState = EnsureRejuvState();
+                RejuvResetState(streetBrawlState, root, nowMs);
+                State.rejuvWasDisabled = true;
+            }
+            return;
+        }
+
         State.rejuvWasDisabled = false;
 
         var state = EnsureRejuvState();
