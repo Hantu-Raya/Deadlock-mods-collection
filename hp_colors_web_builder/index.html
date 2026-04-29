@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HP Colors Web Builder</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="src/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="toolbar">
+        <div>
+          <h1>HP Colors Web Builder</h1>
+          <p>Builds a browser-generated <code>pak97_dir.vpk</code> that only overrides <code>base_hud</code> with encoded preset data.</p>
+        </div>
+        <button id="buildBtn" type="button">Build pak97_dir.vpk</button>
+      </section>
+
+      <form id="builderForm" class="grid">
+        <section class="panel">
+          <h2>Preset</h2>
+          <label>
+            Name
+            <input id="presetName" name="preset_name" value="Web Builder Preset">
+          </label>
+        </section>
+
+        <section class="panel">
+          <h2>Enemy Colors</h2>
+          <label class="check"><input type="checkbox" name="hp_enabled" checked> Enable enemy HP colors</label>
+          <label>Low HP <input type="color" name="hp_color_low" value="#e16161"></label>
+          <label>Mid HP <input type="color" name="hp_color_mid" value="#ff7b00"></label>
+          <label>High HP <input type="color" name="hp_color_high" value="#00ff00"></label>
+          <label>Low threshold <input type="number" name="hp_low_threshold" min="0" max="100" value="30"></label>
+          <label>High threshold <input type="number" name="hp_high_threshold" min="0" max="100" value="70"></label>
+        </section>
+
+        <section class="panel">
+          <h2>Pulse</h2>
+          <label class="check"><input type="checkbox" name="hp_pulse_enabled" checked> Enable pulse</label>
+          <label>Pulse threshold <input type="number" name="hp_pulse_threshold" min="0" max="100" value="25"></label>
+        </section>
+
+        <section class="panel">
+          <h2>Number</h2>
+          <label>HP number size <input type="number" name="hp_counter_size" min="40" max="260" value="145"></label>
+        </section>
+
+        <section class="panel">
+          <h2>Kill Marker</h2>
+          <label class="check"><input type="checkbox" name="hp_kill_zone_enabled"> Enable kill marker</label>
+          <label>Threshold <input type="number" name="hp_kill_zone_threshold" min="0" max="100" value="10"></label>
+          <label>Color <input type="color" name="hp_kill_zone_color" value="#ff2222"></label>
+        </section>
+      </form>
+
+      <section class="panel wide">
+        <h2>Build Preview</h2>
+        <pre id="preview"></pre>
+        <p id="status" role="status">Ready.</p>
+      </section>
+    </main>
+
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
