@@ -1,0 +1,2 @@
+[   11202ms] [LOG] SourceTwoUtils loaded. @ http://127.0.0.1:5177/vendor/deadmod/_framework/dotnet.native.69poregybn.js:7
+[   11215ms] [WARNING] DeadMod packer failed; falling back to local VPK writer. ManagedError: Unexpected file extension for panorama/layout/base_hud.vxml_c @ http://127.0.0.1:5177/src/app.js:61
