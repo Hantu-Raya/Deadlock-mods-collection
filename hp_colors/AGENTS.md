@@ -18,7 +18,7 @@ powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
 ```
 
 The script minifies `hp_colors/` into `hp_colors_terser/`, compiles the terser
-copy, syncs `hp_colors_compiled/`, packs `pak96_dir.vpk`, and deploys it to the
+copy, syncs `hp_colors_compiled/`, packs `pak97_dir.vpk`, and deploys it to the
 Deadlock addons folder configured in that script.
 
 ## Runtime Files

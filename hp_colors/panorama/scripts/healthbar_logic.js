@@ -188,10 +188,10 @@
       if (rawPos && typeof rawPos === "object") {
         if (Array.isArray(rawPos)) {
           if (rawPos.length > 0) posX = clampNum(rawPos[0], 0, 400, 0);
-          if (rawPos.length > 1) posY = clampNum(rawPos[1], 0, 400, 200);
+          if (rawPos.length > 1) posY = clampNum(rawPos[1], -50, 400, 200);
         } else {
           if (Object.prototype.hasOwnProperty.call(rawPos, "x")) posX = clampNum(rawPos.x, 0, 400, 0);
-          if (Object.prototype.hasOwnProperty.call(rawPos, "y")) posY = clampNum(rawPos.y, 0, 400, 200);
+          if (Object.prototype.hasOwnProperty.call(rawPos, "y")) posY = clampNum(rawPos.y, -50, 400, 200);
         }
         return Math.round(posX) + "," + Math.round(posY);
       }
@@ -200,13 +200,13 @@
         var posParts = rawPos.match(/-?\d+(?:\.\d+)?/g);
         if (posParts && posParts.length > 0) {
           posX = clampNum(posParts[0], 0, 400, 0);
-          if (posParts.length > 1) posY = clampNum(posParts[1], 0, 400, 200);
+          if (posParts.length > 1) posY = clampNum(posParts[1], -50, 400, 200);
           return Math.round(posX) + "," + Math.round(posY);
         }
       }
 
       if (typeof rawPos === "number") {
-        posY = clampNum(rawPos, 0, 400, 200);
+        posY = clampNum(rawPos, -50, 400, 200);
       }
 
       return Math.round(posX) + "," + Math.round(posY);
@@ -1046,18 +1046,19 @@
     }
   }
 
-  function parseCounterPositionValue(value) {
+  function parseCounterPositionValue(value, allowNegativeY) {
     var x = 0;
     var y = 200;
+    var yMin = allowNegativeY ? -200 : 0;
     var raw = value;
 
     if (raw && typeof raw === "object") {
       if (Array.isArray(raw)) {
         if (raw.length > 0) x = clampNum(raw[0], 0, 400, 0);
-        if (raw.length > 1) y = clampNum(raw[1], 0, 400, 200);
+        if (raw.length > 1) y = clampNum(raw[1], yMin, 400, 200);
       } else {
         if (Object.prototype.hasOwnProperty.call(raw, "x")) x = clampNum(raw.x, 0, 400, 0);
-        if (Object.prototype.hasOwnProperty.call(raw, "y")) y = clampNum(raw.y, 0, 400, 200);
+        if (Object.prototype.hasOwnProperty.call(raw, "y")) y = clampNum(raw.y, yMin, 400, 200);
       }
       return { x: x, y: y };
     }
@@ -1066,13 +1067,13 @@
       var parts = raw.match(/-?\d+(?:\.\d+)?/g);
       if (parts && parts.length > 0) {
         x = clampNum(parts[0], 0, 400, 0);
-        if (parts.length > 1) y = clampNum(parts[1], 0, 400, 200);
+        if (parts.length > 1) y = clampNum(parts[1], yMin, 400, 200);
         return { x: x, y: y };
       }
     }
 
     if (typeof raw === "number") {
-      y = clampNum(raw, 0, 400, 200);
+      y = clampNum(raw, yMin, 400, 200);
       return { x: x, y: y };
     }
 
@@ -1080,7 +1081,7 @@
   }
 
   function formatCounterPositionValue(pos) {
-    var parsed = parseCounterPositionValue(pos);
+    var parsed = parseCounterPositionValue(pos, true);
     return Math.round(parsed.x) + "," + Math.round(parsed.y);
   }
 
@@ -1106,9 +1107,9 @@
     var pulseTextMode = !!(lowMode && cfg.hp_pulse_enabled && cfg.hp_pulse_text_enabled);
     var defaultSize = clampNum(cfg.hp_counter_size, 72, 400, 145);
     var size = pulseTextMode ? getPulseTextSize(defaultSize) : defaultSize;
-    var basePos = parseCounterPositionValue(pulseTextMode ? cfg.hp_pulse_text_position : cfg.hp_counter_position);
+    var basePos = parseCounterPositionValue(pulseTextMode ? cfg.hp_pulse_text_position : cfg.hp_counter_position, !pulseTextMode);
     var posX = clampNum(basePos.x, 0, 400, 0);
-    var posY = clampNum(basePos.y, 0, 400, 200);
+    var posY = clampNum(basePos.y, -50, 400, 200);
     var fontSize = size + 'px';
     var baseHeight = 130;
     try {
@@ -1117,7 +1118,7 @@
     } catch (e) {}
     var panelHeightPx = pulseTextMode ? Math.max(baseHeight, Math.round(size * 1.85)) : baseHeight;
     var panelHeight = pulseTextMode ? panelHeightPx + 'px' : '100%';
-    var translateY = pulseTextMode ? -posY : (posY - 100);
+    var translateY = Math.max(posY - 150, -200);
     var transform = 'translate3d(' + Math.round(posX) + 'px, ' + Math.round(translateY) + 'px, 0px)';
     if (lHpSize !== fontSize) { hc.style.fontSize = fontSize; lHpSize = fontSize; }
     if (lHpHeight !== panelHeight) { hc.style.height = panelHeight; lHpHeight = panelHeight; }

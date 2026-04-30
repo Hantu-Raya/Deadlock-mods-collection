@@ -7,8 +7,8 @@ $terserSrc   = "$root\hp_colors_terser"
 $terserCompiled = "$root\hp_colors_terser_compiled"
 $compiler    = "$root\sr2compiler\New folder.exe"
 $vpkeditcli  = "$root\passive_items_mod\compiler\vpkeditcli.exe"
-$vpkOut      = "$root\pak96_dir.vpk"
-$vpkDest     = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak96_dir.vpk"
+$vpkOut      = "$root\pak97_dir.vpk"
+$vpkDest     = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak97_dir.vpk"
 
 # Clean rebuild: remove stale compiled output and previous pack artifact.
 if (Test-Path $modCompiled) { Remove-Item -Recurse -Force $modCompiled }

@@ -29,6 +29,7 @@
   const RENDER_REFRESH_DEBOUNCE_SEC = 0.05;
   const MAX_CONVAR_VALUE_LEN = 1900;
   var _lastHpSharedRaw = "";
+  var _didApplyHpColorsBakedPresetOnce = false;
   const HP_COMPACT_PERSIST_VERSION = 1;
   const HP_PERSIST_ALIASES = {
     hp_enabled: "e",
@@ -183,19 +184,111 @@
   }
 
   function emitBulkUpdate(modTitle, values, meta) {
-    var payload = {
-      magic_word: "ANITA_BULK_UPDATE",
-      mod_title: modTitle,
-      values: values
-    };
-    if (meta && typeof meta === "object") {
-      for (var key in meta) {
-        if (Object.prototype.hasOwnProperty.call(meta, key)) {
-          payload[key] = meta[key];
-        }
+    for (var settingId in values || {}) {
+      if (Object.prototype.hasOwnProperty.call(values, settingId)) {
+        emitUpdate(modTitle, settingId, values[settingId], meta);
       }
     }
-    $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(payload));
+  }
+
+  function getRootPanelForPresetStore() {
+    var panel = $.GetContextPanel();
+    while (panel && panel.GetParent && panel.GetParent()) {
+      panel = panel.GetParent();
+    }
+    return panel || null;
+  }
+
+  function findPresetStorePanel() {
+    var root = getRootPanelForPresetStore();
+    if (!root || !root.FindChildTraverse) return null;
+    try {
+      return root.FindChildTraverse("HPColorsPresetStore") || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function readPresetLabelText(label) {
+    try {
+      if (typeof label.text === "string") return label.text;
+    } catch (e0) {}
+    try {
+      if (label.GetAttributeString) return label.GetAttributeString("text", "");
+    } catch (e1) {}
+    return "";
+  }
+
+  function getPresetAllowedKeys(modConfig) {
+    var allowed = {};
+    if (!modConfig || !Array.isArray(modConfig.elements)) return allowed;
+    for (var i = 0; i < modConfig.elements.length; i++) {
+      var element = modConfig.elements[i];
+      if (!element || !element.id || element.type === "button") continue;
+      allowed[element.id] = true;
+    }
+    return allowed;
+  }
+
+  function filterPresetValues(rawValues, modConfig) {
+    var allowed = getPresetAllowedKeys(modConfig);
+    var values = {};
+    for (var key in rawValues || {}) {
+      if (Object.prototype.hasOwnProperty.call(rawValues, key) &&
+          Object.prototype.hasOwnProperty.call(allowed, key)) {
+        values[key] = rawValues[key];
+      }
+    }
+    return values;
+  }
+
+  function readBakedPresetValues(modConfig) {
+    var root = getRootPanelForPresetStore();
+    if (!root || !root.FindChildTraverse) return {};
+    var store = null;
+    try {
+      store = root.FindChildTraverse("HPColorsPresetStore");
+    } catch (e0) {}
+    if (!store) return {};
+
+    var entries = [];
+    try {
+      if (store.FindChildrenWithClassTraverse) {
+        entries = store.FindChildrenWithClassTraverse("hp_colors_preset_entry") || [];
+      }
+    } catch (e1) {}
+
+    for (var i = 0; i < entries.length; i++) {
+      try {
+        var encoded = readPresetLabelText(entries[i]);
+        if (!encoded) continue;
+        var preset = JSON.parse(AnitaBase64.decode(encoded));
+        if (!preset || !preset.values || preset.version !== 1) continue;
+        return filterPresetValues(preset.values, modConfig);
+      } catch (e2) {}
+    }
+    return {};
+  }
+
+  function applyHpColorsBakedPresetOnce(config) {
+    if (_didApplyHpColorsBakedPresetOnce) return;
+    _didApplyHpColorsBakedPresetOnce = true;
+
+    $.Schedule(5.0, function () {
+      try {
+        var values = readBakedPresetValues(config);
+        var hasValues = false;
+        for (var presetKey in values) {
+          if (Object.prototype.hasOwnProperty.call(values, presetKey)) {
+            hasValues = true;
+            break;
+          }
+        }
+        if (hasValues) {
+          emitBulkUpdate("HP Colors", values, { update_source: "core_auto_resync", force_emit: true });
+        }
+      } catch (e) {}
+    });
   }
 
   function writeHpSharedSnapshot(config) {
@@ -2582,7 +2675,11 @@
       function posPickerClamp(value) {
         var next = Number(value);
         if (!isFinite(next)) next = 0;
-        if (next < 0) next = 0;
+        if (config && (config.id === "hp_counter_position" || config.id === "hp_pulse_text_position")) {
+          if (next < -50) next = -50;
+        } else if (next < 0) {
+          next = 0;
+        }
         if (next > 400) next = 400;
         return Math.round(next);
       }
@@ -2720,7 +2817,7 @@
       posPickerYSlider.style.height = "100%";
       posPickerYSlider.style.verticalAlign = "center";
       posPickerYSlider.style.overflow = "noclip";
-      posPickerYSlider.min = 0;
+      posPickerYSlider.min = (config && (config.id === "hp_counter_position" || config.id === "hp_pulse_text_position")) ? -50 : 0;
       posPickerYSlider.max = 400;
       posPickerYSlider.increment = 1;
       if (typeof posPickerYSlider.SetShowDefaultValue === "function") {
@@ -3460,7 +3557,7 @@
         }
       }
       if (config.title === "HP Colors") {
-        AnitaPersistence.persistConfig(config, true);
+        applyHpColorsBakedPresetOnce(config);
       }
       this.registeredMods.push(config);
       AnitaRenderer.addTab(config.title, () => {
