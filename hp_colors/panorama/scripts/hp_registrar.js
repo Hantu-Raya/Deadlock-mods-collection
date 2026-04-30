@@ -75,7 +75,7 @@
       title: TITLE,
       description: "Set enemy, ally, pulse, HP number, and kill marker colors.",
       storageNamespace: "hp_colors",
-      storageVersion: 25,
+      storageVersion: 97,
       elements: elements
     };
   }
