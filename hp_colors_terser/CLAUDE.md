@@ -14,8 +14,8 @@ powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
 
 1. Minify — copies `hp_colors/` → `hp_colors_terser/` and runs `npx terser` on every JS file (`passes=2`, `keep_fnames=true`, `keep_classnames=true`).
 2. Compile — runs `sr2compiler\New folder.exe` against `hp_colors_terser/`, produces `hp_colors_terser_compiled/`, then copies to `hp_colors_compiled/`. Sentinel file: `hp_colors_compiled\panorama\scripts\healthbar_logic.vjs_c`.
-3. Pack — runs `passive_items_mod\compiler\vpkeditcli.exe` against `hp_colors_compiled/`, writes `pak96_dir.vpk` at the repo root.
-4. Deploy — copies `pak96_dir.vpk` to `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak96_dir.vpk`.
+3. Pack — runs `passive_items_mod\compiler\vpkeditcli.exe` against `hp_colors_compiled/`, writes `pak97_dir.vpk` at the repo root.
+4. Deploy — copies `pak97_dir.vpk` to `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak97_dir.vpk`.
 
 `hp_colors_terser/` and `hp_colors_compiled/` are intermediate build artifacts — do not edit them directly.
 
