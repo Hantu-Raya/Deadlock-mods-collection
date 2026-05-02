@@ -339,10 +339,8 @@
 	margin-bottom: 15px;
 	vertical-align: bottom;
 	horizontal-align: right;
-	perspective: 900;
 	opacity: 1;
 	overflow: noclip;
-	transform: translateX(0px);
 	z-index: 100000;
 }
 
@@ -434,22 +432,6 @@
 	0% {
 		opacity: 0;
 		pre-transform-scale2d: 0.6;
-	}
-
-	100% {
-		opacity: 1;
-		pre-transform-scale2d: 1.0;
-	}
-}
-
-@keyframes 'IconPop' {
-	0% {
-		opacity: 0;
-		pre-transform-scale2d: 0.4;
-	}
-
-	70% {
-		pre-transform-scale2d: 1.2;
 	}
 
 	100% {
