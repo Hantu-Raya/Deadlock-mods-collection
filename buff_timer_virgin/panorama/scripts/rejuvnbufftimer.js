@@ -70,6 +70,10 @@
     neutral_large: 335,
     neutral_vault: 300
   };
+const CHAT_RETRY_DELAYS = [0.01, 0.03, 0.06, 0.1, 0.15, 0.25];
+const CHAT_ALL_LABEL = "To (ALL):";
+const CHAT_SEND_COOLDOWN_MS = 300;
+  let _lastTimerChatMs = 0;
   // Tier color map kept in code so visual intent survives context/compaction and stays easy to retune.
   const NEUTRAL_RING_THEME = {
     neutral_weak: {
@@ -102,7 +106,7 @@
   // Weak: green (low threat), Medium: orange (mid threat), Large: red (high threat), Vault: purple (special).
 
   // ===========================================
-  // TEAM CLASSIFICATION HELPERS
+  // UI REFS, CACHE STATE AND UTILITY FUNCTIONS
   // ===========================================
 
   function isAlly(btn) {
@@ -135,7 +139,29 @@
   }
 
   // ===========================================
-  // STATE VARIABLES
+  // CENTRALIZED DOM WRITE HELPERS
+  // ===========================================
+
+  function setTextIfChanged(label, cache, nextText) {
+    if (!label?.IsValid?.()) return cache;
+    if (cache === nextText) return cache;
+    label.text = nextText;
+    return nextText;
+  }
+
+  function setClass(panel, cls, on) {
+    if (!panel?.IsValid?.()) return;
+    if (on) panel.AddClass(cls);
+    else panel.RemoveClass(cls);
+  }
+
+  function setStyleIfChanged(panel, prop, cache, next) {
+    if (!panel?.IsValid?.()) return cache;
+    if (cache === next) return cache;
+    panel.style[prop] = next;
+    return next;
+  }
+
   // ===========================================
 
   let hnd;
@@ -237,12 +263,22 @@
   let _neutralRespawnState = new Map();
   let _neutralStateSeq = 0;
   let _neutralSweepToken = 0;
+
+  // Reverse indexes for O(1) camp lookup
+  const _panelToStateKey = new Map();   // panel → camp key
+  const _positionToStateKey = new Map(); // "xPct,yPct" → camp key
   let _lowTimeCacheCleared = false;
   let _minimapInvertCache = { ts: 0, minimap: null, inverted: false };
   let _alignBootLogged = false;
 
   // ===========================================
-  // UI PANEL REFERENCES
+  // GENERATION COUNTER (pause/reload resilience)
+  // ===========================================
+
+  let _generation = 0;
+  let _nextLoopDueMs = 0;
+  const WATCHDOG_GRACE_MS = 15000;
+
   // ===========================================
 
   const UI = {
@@ -305,362 +341,336 @@
   let _activeGlowLeft = null;
   let _activeGlowRight = null;
 
-  // ===========================================
-  // BOOT / INITIALIZATION
-  // ===========================================
+  function dbgPing(...args) {
+    if (!DEBUG_PING_TIMER) return;
+    try { $.Msg("[BT-PING]", ...args); } catch {}
+  }
 
-  function boot() {
-    const r = findRoot($.GetContextPanel());
-    UI.root = r;
-    UI.hud = r.FindChildTraverse("Hud");
-    UI.topBar = r.FindChildTraverse("TopBar");
-    UI.rLab = r.FindChildTraverse("RejuvTime");
-    UI.rNum = r.FindChildTraverse("RejuvNum");
-    UI.rImg = r.FindChildTraverse("RejuvImg");
-    UI.rejuv = r.FindChildTraverse("Rejuv");
-    UI.buffLab = r.FindChildTraverse("BuffTime");
-    UI.rLabClip = r.FindChildTraverse("RejuvTimeClip");
-    UI.buffLabClip = r.FindChildTraverse("BuffTimeClip");
-    UI.glowLeft = r.FindChildTraverse("MinimapGlowLeft");
-    UI.glowRight = r.FindChildTraverse("MinimapGlowRight");
-    UI.scoreboardPanel = r.FindChildTraverse("ScoreboardContainer") || r.FindChildTraverse("Scoreboard");
+  function syncRejuvText(text) {
+  if (text === _lastRejuvText) return;
+  setPanelText(UI.rLab, text);
+  setPanelText(UI.rLabClip, text);
+  _lastRejuvText = text;
+}
 
-    if (DEBUG_PING_TIMER) { dbgPing("boot", {
-      hasChat: !!UI.chat,
-      hasChatInput: !!UI.chatInput
-    }); }
+function syncBuffText(text) {
+  if (text === _lastBuffText) return;
+  setPanelText(UI.buffLab, text);
+  setPanelText(UI.buffLabClip, text);
+  _lastBuffText = text;
+}
 
+  function syncMiniCardText(text) {
+    if (text === _lastRejuvBuffText) return;
+    _lastRejuvBuffText = setTextIfChanged(UI.rejuvMiniTime, _lastRejuvBuffText, text);
+  }
+
+  function setMiniCardState(active, buffActive) {
+    const card = UI.rejuvMiniCard;
+    if (!card?.IsValid?.()) return;
+
+    const nextActive = !!active;
+    const nextBuffActive = !!buffActive;
+
+    if (_lastMiniCardActive !== nextActive) {
+      card.SetHasClass("active", nextActive);
+      _lastMiniCardActive = nextActive;
+    }
+
+    if (_lastMiniCardBuffActive !== nextBuffActive) {
+      card.SetHasClass("buff-active", nextBuffActive);
+      _lastMiniCardBuffActive = nextBuffActive;
+    }
+  }
+
+  function resolveMinimapReferenceSize(panel) {
+    const reference = panel?.IsValid?.() ? panel : null;
+    const width = safePanelExtent(
+      reference?.actuallayoutwidth || reference?.contentwidth,
+      1512, 8192
+    );
+    const height = safePanelExtent(
+      reference?.actuallayoutheight || reference?.contentheight,
+      862, 8192
+    );
+    return { width, height };
+  }
+
+  function fmtSeconds(seconds) {
+    const s = Math.max(0, seconds | 0);
+    if (s >= 60) {
+      const m = (s / 60) | 0;
+      const ss = s % 60;
+      return m + ":" + (ss < 10 ? "0" + ss : "" + ss);
+    }
+    if (s >= 10) return s + "s";
+    return String(s);
+  }
+
+  function isScoreboardOpen(mm) {
     try {
-      globalThis.handleRejuvPingActivate = handleRejuvPingActivate;
-      globalThis.handleBuffPingActivate = handleBuffPingActivate;
-      $.GetContextPanel().handleRejuvPingActivate = handleRejuvPingActivate;
-      $.GetContextPanel().handleBuffPingActivate = handleBuffPingActivate;
+      if (UI.scoreboardRoot?.IsValid?.() && UI.scoreboardRoot.BHasClass?.("gScoreboardOpen")) return true;
+      if (UI.root?.IsValid?.() && UI.root.BHasClass?.("gScoreboardOpen")) return true;
+      if (UI.hud?.IsValid?.() && UI.hud.BHasClass?.("gScoreboardOpen")) return true;
+      if (mm?.IsValid?.() && mm.BHasClass?.("gScoreboardOpen")) return true;
+      if (UI.scoreboardPanel?.IsValid?.() && UI.scoreboardPanel.BHasClass?.("gScoreboardOpen")) return true;
     } catch {}
-    UI.claimLeft = r.FindChildTraverse("MinimapBuffClaimLeft");
-    UI.claimRight = r.FindChildTraverse("MinimapBuffClaimRight");
-    UI.claimIconLeft = r.FindChildTraverse("ClaimIconLeft");
-    UI.claimIconRight = r.FindChildTraverse("ClaimIconRight");
-    UI.claimRingLeft = r.FindChildTraverse("ClaimRingLeft");
-    UI.claimRingRight = r.FindChildTraverse("ClaimRingRight");
-    UI.claimTimerLeft = r.FindChildTraverse("ClaimTimerLeft");
-    UI.claimTimerRight = r.FindChildTraverse("ClaimTimerRight");
-    UI.minimapContainer = r.FindChildTraverse("HudMinimapContainer");
-    UI.minimapBox = r.FindChildTraverse("minimap_container");
-    UI.scoreboardRoot = r.FindChildTraverse("minimap_persp");
-    UI.spawnBadge = r.FindChildTraverse("NeutralSpawnBadge");
-    UI.spawnBadge2 = r.FindChildTraverse("NeutralSpawnBadge2");
-    UI.rejuvMiniCard = r.FindChildTraverse("RejuvMiniCard");
-    UI.rejuvMiniTime = r.FindChildTraverse("RejuvMiniTime");
+    return false;
+  }
 
-    const tb = UI.topBar;
-    if (tb) {
-      const ch = tb.FindChildTraverse("RejuvenatorCharges");
-      if (ch) {
-        UI.rejuvFriendly = ch.FindChildTraverse("RejuvenatorFriendly");
-        UI.rejuvEnemy = ch.FindChildTraverse("RejuvenatorEnemy");
-      }
+  function fmt(s) {
+    s = Math.max(0, s | 0);
+    const m = (s / 60) | 0;
+    const ss = s % 60;
+    return (m < 10 ? "0" + m : "" + m) + ":" + (ss < 10 ? "0" + ss : "" + ss);
+  }
+
+  function fmtCompact(s) {
+    s = Math.max(0, s | 0);
+
+    if (s >= 60) {
+      const m = (s / 60) | 0;
+      const ss = s % 60;
+      return m + ":" + (ss < 10 ? "0" + ss : "" + ss);
     }
 
-    if (!UI.rLab || !UI.rNum || !UI.rImg || !UI.buffLab) {
-      return $.Schedule(0.5, boot);
+    if (s >= 10) {
+      return s + "s";
     }
 
-    if (DEBUG_NEUTRAL_ALIGN && !_alignBootLogged) {
-      _alignBootLogged = true;
-      $.Msg("[BT-ALIGN]", "boot", "enabled=1");
-    }
+    return "" + s;
+  }
 
-    reset(1);
-    loop();
+  function findRoot(p) {
+    while (p.GetParent?.()) {
+      p = p.GetParent();
+    }
+    return p;
   }
 
   // ===========================================
-  // MAIN LOOP
+  // SCHEDULER / BOOT HELPERS
   // ===========================================
 
-  let _lastScoreboardOpen = false;
+  function startRun(now) {
+    running = true;
+    claimCnt = 0;
+    lastFound = false;
+    spawnWait = false;
+    inHideout = false;
+    lastRunChk = Date.now();
+    lastScan = 0;
+    trackedPowerups.length = 0;
+    monitoringActive = false;
+    pretrackActive = false;
+    lastPlayerStatePruneCheck = 0;
+    _snapshotTs = 0;
+    clearMapButtonCache();
+    startPhaseAuto(now);
 
-  function loop() {
-    const rn = Date.now();
-    const now = gTime(rn);
-    let snapshot = null;
-    const mm = findMinimap();
-    const scoreboardOpen = isScoreboardOpen(mm);
-    const scoreboardJustOpened = scoreboardOpen && !_lastScoreboardOpen;
-    _lastScoreboardOpen = scoreboardOpen;
-    maybeClearNeutralCachesForLowGameTime(now);
+    // Prune stale player state when starting run
+    prunePlayerState(Date.now(), true);
+  }
 
-    // Not running - check hideout status periodically
-    if (!running) {
-      if (rn - lastGateChk >= 30000) {
-        lastGateChk = rn;
-        inHideout = isHideout();
-        if (!inHideout) {
-          startRun(now);
-        }
-      }
-      hnd = $.Schedule(30, loop);
-      return;
-    }
+  function scheduleLoop(gen, delaySec) {
+    _nextLoopDueMs = Date.now() + delaySec * 1000;
+    hnd = $.Schedule(delaySec, () => loop(gen));
+  }
 
-    // Check if we returned to hideout
-    if (rn - lastRunChk >= 60000) {
-      lastRunChk = rn;
-      if (isHideout()) {
-        reset(1);
-        loop();
-        return;
-      }
-    }
+  function watchdogTick(gen) {
+    if (gen !== _generation) return;
 
-    // Detect game restart (time went backwards significantly)
-    if (lastGlobalSec >= 0 && (now + 5 < lastGlobalSec || (lastGlobalSec > 30 && now <= 2))) {
+    // If main loop missed its scheduled time by too much, restart
+    const nowMs = Date.now();
+    if (_nextLoopDueMs > 0 && nowMs > _nextLoopDueMs + WATCHDOG_GRACE_MS) {
+      $.Msg("[BT-WATCHDOG] Main loop missed scheduled heartbeat, restarting");
       reset(1);
-      loop();
+      boot();
       return;
     }
 
-    lastGlobalSec = now;
+    $.Schedule(5, () => watchdogTick(gen));
+  }
 
-    // Update rejuvenator countdown
-    if (now !== lastSec) {
-      lastSec = now;
-      if (idx < 0 || idx >= SEQ.length) idx = 0;  // Safety clamp
-      const neutralBotActive = updateNeutralPhase(NEUTRAL_BOT_START_SEC, NEUTRAL_BOT_END_SEC, "bot", NEUTRAL_BOT_ICON_SRC, null, NEUTRAL_BOT_PROGRESS_COLOR, null, null, now);
-      const neutralMediumActive = updateNeutralPhase(NEUTRAL_MEDIUM_START_SEC, NEUTRAL_MEDIUM_END_SEC, "medium", NEUTRAL_SMALL_BADGE_SRC, NEUTRAL_MEDIUM_BADGE_SRC, NEUTRAL_BOT_PROGRESS_COLOR, null, null, now);
-      const neutralCardActive = updateNeutralPhase(NEUTRAL_LARGE_START_SEC, NEUTRAL_LARGE_END_SEC, "card", NEUTRAL_LARGE_BADGE_SRC, NEUTRAL_VAULT_BADGE_SRC, NEUTRAL_BOT_PROGRESS_COLOR, "neutral-card-mode", exitVaultCardMode, now);
+  function reset(f) {
+    _generation++; // Stop any existing loop branches
 
-      if (!neutralBotActive && !neutralMediumActive && !neutralCardActive) {
-        const rem = Math.max(0, SEQ[idx].d - (now - phaseStart));
-
-        if (rem <= 0) {
-          showSpawn();
-        } else {
-          counter = rem;
-          syncRejuvText(fmt(rem));
-
-          // Left Side: Rejuv (Anchor Left, Deplete Right-to-Left)
-          // rejuvPct is REMAINING percentage (1.0 -> 0.0)
-          const rejuvPct = spawnWait ? 1.0 : (counter / SEQ[idx].d);
-          const p = Math.floor(rejuvPct * 100);
-
-          // Clip: Visible from 0% to p% (Left anchored)
-          const rejuvClip = "rect(0%," + p + "%,100%,0%)";
-
-          if (rejuvClip !== _lastRejuvClip && UI.rLabClip?.IsValid?.()) {
-            UI.rLabClip.style.clip = rejuvClip;
-            _lastRejuvClip = rejuvClip;
-          }
-        }
-
-        tick = (spawnWait || rem <= SPAWN_TH) ? TICK_FAST : TICK_NORM;
-      }
+    if (hnd) {
+      $.CancelScheduled(hnd);
+      hnd = null;
     }
 
-    // Update buff duration countdown
-    if (buffStart > 0) {
-      buffCnt = Math.max(0, REJUV_DUR - (now - buffStart));
-      syncMiniCardText(fmt(buffCnt));
-
-      if (buffCnt <= 0) {
-        endBuff();
-      }
-    }
-
-    // Update bridge buff timer (cycles every 5 minutes)
-    const buffRem = BRIDGE_DUR - (now % BRIDGE_DUR);
-    {
-      syncBuffText(fmt(buffRem));
-
-      // Right Side: Buff (Anchor Right, Deplete Left-to-Right)
-      // buffPct is REMAINING percentage (1.0 -> 0.0)
-      const buffPct = buffRem / BRIDGE_DUR;
-      const p = Math.floor((1.0 - buffPct) * 100); // Inverse for split point
-      
-      // Clip: Visible from p% to 100% (Right anchored)
-      const buffClip = "rect(0%,100%,100%," + p + "%)";
-
-      if (buffClip !== _lastBuffClip && UI.buffLabClip?.IsValid?.()) {
-        UI.buffLabClip.style.clip = buffClip;
-        _lastBuffClip = buffClip;
-
-        // Color logic for buff clip label (White -> Red)
-        const gVal = Math.floor(255 * buffPct);
-        const newColor = "rgb(255," + gVal + "," + gVal + ")";
-
-        if (newColor !== _lastBuffClipColor) {
-          UI.buffLabClip.style.color = newColor;
-          _lastBuffClipColor = newColor;
-        }
-      }
-    }
-
-    // Start pre-tracking players near powerup spawns
-    if (buffRem <= POWERUP_CHECK_TH && !pretrackActive && !monitoringActive && knownSpawnPos) {
-      pretrackActive = true;
-      pretrackData.left.minAlly = pretrackData.left.minEnemy = pretrackData.right.minAlly = pretrackData.right.minEnemy = Infinity;
-    }
-
-    // Update pre-track data
-    if (pretrackActive && knownSpawnPos && rn - lastPretrackCheck >= PRETRACK_INTERVAL) {
-      lastPretrackCheck = rn;
-      snapshot = snapshot || collectMinimapSnapshot(rn, false);
-      doPretrack(rn, snapshot);
-    }
-
-    // Detect buff cycle reset
-    if (prevBuffRem <= POWERUP_CHECK_TH && prevBuffRem > 0 && buffRem > POWERUP_CHECK_TH) {
-      buffResetTs = rn;
+    if (f) {
+      idx = 0;
+      counter = 0;
+      phaseStart = 0;
+      claimCnt = 0;
+      buffStart = 0;
+      buffCnt = 0;
+      lastSec = -1;
+      lastGlobalSec = -1;
+      spawnWait = false;
+      lastFound = false;
+      running = false;
+      inHideout = true;
       trackedPowerups.length = 0;
       monitoringActive = false;
-    }
-    prevBuffRem = buffRem;
-
-    // Scan for powerups during linger period
-    const lingerActive = buffResetTs > 0 && rn - buffResetTs < POWERUP_LINGER;
-    if (lingerActive && !monitoringActive && rn - lastPowerupScan >= 200) {
-      lastPowerupScan = rn;
-      scanPowerups(rn, null, true);
-    }
-
-    // Fallback scan if no powerups found
-    if (!monitoringActive && trackedPowerups.length === 0 && buffResetTs > 0 && rn - buffResetTs >= 3000 && rn - buffResetTs < 4000) {
-      scanPowerups(rn, null, true);
-    }
-
-    // Monitor tracked powerups for claims
-    if (monitoringActive && rn - lastMonitorCheck >= MONITOR_INTERVAL) {
-      lastMonitorCheck = rn;
-      snapshot = snapshot || collectMinimapSnapshot(rn, false);
-      monitorPowerups(rn, snapshot);
-    }
-
-    // Periodic rejuvenator scan
-    if (rn - lastScan >= 3000) {
-      lastScan = rn;
-      doScan();
-    }
-
-    if (rn - lastPlayerStatePruneCheck >= PLAYER_STATE_PRUNE_INTERVAL_MS) {
-      lastPlayerStatePruneCheck = rn;
-      prunePlayerState(rn, false);
-    }
-
-    // Check for enemy linger (fog of war)
-    if (rn - lastLingerCheck >= getMinimapWorkInterval(rn)) {
-      lastLingerCheck = rn;
-      snapshot = snapshot || collectMinimapSnapshot(rn, false);
-      checkEnemyLinger(rn, snapshot);
-    }
-
-    // Neutral camp respawn scan
-    if (scoreboardJustOpened || rn - lastNeutralScanCheck >= NEUTRAL_SCAN_INTERVAL_MS) {
-      lastNeutralScanCheck = rn;
-      snapshot = snapshot || collectMinimapSnapshot(rn, false);
-      if (snapshot) scanNeutralRespawnState(snapshot, rn, now);
-    }
-
-    // Neutral camp respawn render
-    const neutralRenderInterval = getNeutralRenderInterval(scoreboardOpen);
-    if (scoreboardJustOpened || rn - lastNeutralRenderCheck >= neutralRenderInterval) {
-      lastNeutralRenderCheck = rn;
-      renderNeutralRespawnTimers(rn, now, scoreboardOpen);
-    }
-
-    // Mini rejuv card: visible during neutral override phase OR buff active
-    if (UI.rejuvMiniCard?.IsValid?.()) {
-      const neutralOverride = _neutralBotOverrideActive || _neutralMediumOverrideActive || _neutralCardOverrideActive;
-      const buffActive = buffStart > 0;
-      const miniActive = neutralOverride || buffActive;
-      setMiniCardState(miniActive, buffActive && !neutralOverride);
-      // During neutral override the main rejuv label is not updated —
-      // compute the countdown directly from phaseStart.
-      if (neutralOverride && !buffActive && UI.rejuvMiniTime?.IsValid?.()) {
-        const safeIdx = (idx >= 0 && idx < SEQ.length) ? idx : 0;
-        const miniRem = Math.max(0, SEQ[safeIdx].d - (now - phaseStart));
-        syncMiniCardText(fmt(miniRem));
+      pretrackActive = false;
+      _playerState = Object.create(null);
+      _neutralBotOverrideActive = false;
+      _neutralMediumOverrideActive = false;
+      _neutralCardOverrideActive = false;
+      if (_neutralModeHnd) {
+        $.CancelScheduled(_neutralModeHnd);
+        _neutralModeHnd = null;
       }
-    }
+      clearMinimapInvertCache();
+      clearMapButtonCache();
+      clearNeutralRespawnTimers();
+      _lowTimeCacheCleared = false;
+      UI.neutralOverlay = null;
+      _lastScoreboardOpen = false;
+      _snapshotTs = 0;
+      lastPlayerStatePruneCheck = 0;
+      _minimapSnapshot.players.length = 0;
+      _minimapSnapshot.powerupSpawns.length = 0;
+      _minimapSnapshot.neutralCamps.length = 0;
+      _minimapSnapshot.ts = 0;
+      lastNeutralScanCheck = 0;
+      lastNeutralRenderCheck = 0;
+      _nearestTargets.length = 0;
+      _perfLastLogTs = 0;
+      _perfCounters.snapshotSweeps = 0;
+      _perfCounters.lingerChecks = 0;
+      _perfCounters.neutralScans = 0;
+      _perfCounters.proximityPasses = 0;
 
-    updateClaimProgress(now);
-    hnd = $.Schedule(tick, loop);
-  }
+      clearGlows();
+      clearClaimIndicators();
+      clearAllLingers();
+      syncRejuvText(fmt(SEQ[0].d));
+      setPanelText(UI.rNum, "1");
 
-  // ===========================================
-  // PRE-TRACKING
-  // ===========================================
+      exitNeutralMode(true);
+      setPanelClass(UI.rejuv, "neutral-card-mode", false);
+      resetImg();
+      setRejuvImage(REJUV_ICON_SRC);
+      endBuff(true);
 
-  function doPretrack(nowMs, snapshot) {
-    if (!knownSpawnPos) return;
+      _lastRejuvClip = "";
+      _lastRejuvClipColor = "";
+      _lastBuffClip = "";
+      _lastBuffClipColor = "";
+      _lastRejuvImageSrc = REJUV_ICON_SRC;
+      _lastMiniCardActive = null;
+      _lastMiniCardBuffActive = null;
 
-    const snap = snapshot || collectMinimapSnapshot(nowMs, false);
-    if (!snap?.players?.length) return;
-
-    _nearestTargets.length = 2;
-
-    const leftTarget = _nearestTargets[0] || (_nearestTargets[0] = { x: 0, y: 0, minAllyDist: Infinity, minEnemyDist: Infinity });
-    leftTarget.x = knownSpawnPos.left.x;
-    leftTarget.y = knownSpawnPos.left.y;
-
-    const rightTarget = _nearestTargets[1] || (_nearestTargets[1] = { x: 0, y: 0, minAllyDist: Infinity, minEnemyDist: Infinity });
-    rightTarget.x = knownSpawnPos.right.x;
-    rightTarget.y = knownSpawnPos.right.y;
-
-    computeNearestForTargets(snap.players, _nearestTargets, 2, nowMs, false);
-
-    if (leftTarget.minAllyDist < pretrackData.left.minAlly) pretrackData.left.minAlly = leftTarget.minAllyDist;
-    if (leftTarget.minEnemyDist < pretrackData.left.minEnemy) pretrackData.left.minEnemy = leftTarget.minEnemyDist;
-    if (rightTarget.minAllyDist < pretrackData.right.minAlly) pretrackData.right.minAlly = rightTarget.minAllyDist;
-    if (rightTarget.minEnemyDist < pretrackData.right.minEnemy) pretrackData.right.minEnemy = rightTarget.minEnemyDist;
-  }
-
-  // ===========================================
-  // REJUVENATOR SCANNING
-  // ===========================================
-
-  function doScan() {
-    if (!running) return;
-
-    const f = hasRejuv();
-
-    if (spawnWait && f && !lastFound) {
-      claimCnt++;
-      const t = gTime();
-      startBuff(t);
-      startPhase(claimCnt > 2 ? 3 : claimCnt, t);
-    }
-
-    lastFound = f;
-  }
-
-  function hasRejuv() {
-    return panelHas(UI.rejuvFriendly) || panelHas(UI.rejuvEnemy);
-  }
-
-  function panelHas(p) {
-    if (!p) return false;
-
-    try {
-      if (p.BHasClass("RejuvCount_1") || p.BHasClass("RejuvCount_2") || p.BHasClass("RejuvCount_3") || p.BHasClass("RejuvCount_4")) {
-        return true;
+      if (UI.rLabClip?.IsValid?.()) {
+        UI.rLabClip.style.clip = "rect(0%,0%,100%,0%)";
+        UI.rLabClip.style.color = "#ffffff";
+        UI.rLabClip.text = "";
       }
 
-      const k = p.Children();
-      if (k) {
-        for (let j = 0; j < k.length; j++) {
-          const c = k[j];
-          if (c.BHasClass("RejuvCount_1") || c.BHasClass("RejuvCount_2") || c.BHasClass("RejuvCount_3") || c.BHasClass("RejuvCount_4")) {
-            return true;
+      if (UI.buffLabClip?.IsValid?.()) {
+        UI.buffLabClip.style.clip = "rect(0%,100%,100%,100%)";
+        UI.buffLabClip.style.color = "#ffffff";
+        UI.buffLabClip.text = "";
+      }
+    }
+  }
+
+  // ===========================================
+  // GAME TIME HELPERS
+  // ===========================================
+
+  function gTime(nowMs) {
+    const n = nowMs || Date.now();
+
+    // Return cached value if recent
+    if (n - _tCacheTs < 200) return _tCache;
+
+    let t = 0;
+
+    // Try cached game time panel first
+    if (_gameTimePanel?.IsValid?.()) {
+      try {
+        t = parseSec(_gameTimePanel.text);
+      } catch {}
+    }
+
+    // Find game time panel if not cached
+    if (!t) {
+      try {
+        let tb = UI.topBar;
+        if (!tb?.IsValid?.() && UI.root?.IsValid?.()) {
+          tb = UI.root.FindChildTraverse("TopBar");
+          UI.topBar = tb;
+        }
+        if (tb) {
+          const a = tb.FindChildrenWithClassTraverse("GameTime");
+          if (a?.[0]?.text) {
+            _gameTimePanel = a[0];
+            t = parseSec(a[0].text);
           }
         }
+      } catch {}
+    }
+
+    if (t > 0) {
+      _tCache = t;
+      _tCacheTs = n;
+    }
+
+    return t;
+  }
+
+  function parseSec(t) {
+    if (!t) return 0;
+
+    const s = String(t);
+    const ci = s.indexOf(":");
+    if (ci < 0) return 0;
+
+    let mm = 0;
+    let ss = 0;
+    let c;
+
+    // Parse minutes
+    for (let i = 0; i < ci; i++) {
+      c = s.charCodeAt(i);
+      if (c >= 48 && c <= 57) {
+        mm = mm * 10 + (c - 48);
       }
+    }
+
+    // Parse seconds
+    for (let i = ci + 1, n = 0; i < s.length && n < 2; i++, n++) {
+      c = s.charCodeAt(i);
+      if (c >= 48 && c <= 57) {
+        ss = ss * 10 + (c - 48);
+      } else {
+        break;
+      }
+    }
+
+    return mm * 60 + (ss > 59 ? ss % 60 : ss);
+  }
+
+  function isHideout() {
+    if (!UI.hud?.BHasClass) return false;
+
+    try {
+      // Order by most common casing first for early exit
+      return UI.hud.BHasClass("connectedToHideout") ||
+             UI.hud.BHasClass("connectedtohideout") ||
+             UI.hud.BHasClass("connectedToHideOut");
     } catch {}
 
     return false;
   }
 
   // ===========================================
-  // MINIMAP UTILITIES
+  // MINIMAP SNAPSHOT HELPERS
   // ===========================================
 
   function findMinimap() {
@@ -707,73 +717,6 @@
   function setPanelText(panel, text) {
     if (!panel?.IsValid?.()) return;
     panel.text = text;
-  }
-
-  function dbgPing(...args) {
-    if (!DEBUG_PING_TIMER) return;
-    try { $.Msg("[BT-PING]", ...args); } catch {}
-  }
-
-  function syncRejuvText(text) {
-    if (text === _lastRejuvText) return;
-    setPanelText(UI.rLab, text);
-    setPanelText(UI.rLabClip, text);
-    _lastRejuvText = text;
-  }
-
-  function syncBuffText(text) {
-    if (text === _lastBuffText) return;
-    setPanelText(UI.buffLab, text);
-    setPanelText(UI.buffLabClip, text);
-    _lastBuffText = text;
-  }
-
-  function syncMiniCardText(text) {
-    if (text === _lastRejuvBuffText) return;
-    setPanelText(UI.rejuvMiniTime, text);
-    _lastRejuvBuffText = text;
-  }
-
-  function setMiniCardState(active, buffActive) {
-    const card = UI.rejuvMiniCard;
-    if (!card?.IsValid?.()) return;
-
-    const nextActive = !!active;
-    const nextBuffActive = !!buffActive;
-
-    if (_lastMiniCardActive !== nextActive) {
-      card.SetHasClass("active", nextActive);
-      _lastMiniCardActive = nextActive;
-    }
-
-    if (_lastMiniCardBuffActive !== nextBuffActive) {
-      card.SetHasClass("buff-active", nextBuffActive);
-      _lastMiniCardBuffActive = nextBuffActive;
-    }
-  }
-
-  function resolveMinimapReferenceSize(panel) {
-    const reference = panel?.IsValid?.() ? panel : null;
-    const width = safePanelExtent(
-      reference?.actuallayoutwidth || reference?.contentwidth,
-      1512, 8192
-    );
-    const height = safePanelExtent(
-      reference?.actuallayoutheight || reference?.contentheight,
-      862, 8192
-    );
-    return { width, height };
-  }
-
-  function fmtSeconds(seconds) {
-    const s = Math.max(0, seconds | 0);
-    if (s >= 60) {
-      const m = (s / 60) | 0;
-      const ss = s % 60;
-      return m + ":" + (ss < 10 ? "0" + ss : "" + ss);
-    }
-    if (s >= 10) return s + "s";
-    return String(s);
   }
 
   function clearMapButtonCache() {
@@ -1174,15 +1117,401 @@
     return null;
   }
 
+  // ===========================================
+  // REJUV TIMER SUBSYSTEM
+  // ===========================================
+
+  function doPretrack(nowMs, snapshot) {
+    if (!knownSpawnPos) return;
+
+    const snap = snapshot || collectMinimapSnapshot(nowMs, false);
+    if (!snap?.players?.length) return;
+
+    _nearestTargets.length = 2;
+
+    const leftTarget = _nearestTargets[0] || (_nearestTargets[0] = { x: 0, y: 0, minAllyDist: Infinity, minEnemyDist: Infinity });
+    leftTarget.x = knownSpawnPos.left.x;
+    leftTarget.y = knownSpawnPos.left.y;
+
+    const rightTarget = _nearestTargets[1] || (_nearestTargets[1] = { x: 0, y: 0, minAllyDist: Infinity, minEnemyDist: Infinity });
+    rightTarget.x = knownSpawnPos.right.x;
+    rightTarget.y = knownSpawnPos.right.y;
+
+    computeNearestForTargets(snap.players, _nearestTargets, 2, nowMs, false);
+
+    if (leftTarget.minAllyDist < pretrackData.left.minAlly) pretrackData.left.minAlly = leftTarget.minAllyDist;
+    if (leftTarget.minEnemyDist < pretrackData.left.minEnemy) pretrackData.left.minEnemy = leftTarget.minEnemyDist;
+    if (rightTarget.minAllyDist < pretrackData.right.minAlly) pretrackData.right.minAlly = rightTarget.minAllyDist;
+    if (rightTarget.minEnemyDist < pretrackData.right.minEnemy) pretrackData.right.minEnemy = rightTarget.minEnemyDist;
+  }
+
+  function doScan() {
+    if (!running) return;
+
+    const f = hasRejuv();
+
+    if (spawnWait && f && !lastFound) {
+      claimCnt++;
+      const t = gTime();
+      startBuff(t);
+      startPhase(claimCnt > 2 ? 3 : claimCnt, t);
+    }
+
+    lastFound = f;
+  }
+
+  function hasRejuv() {
+    return panelHas(UI.rejuvFriendly) || panelHas(UI.rejuvEnemy);
+  }
+
+  function panelHas(p) {
+    if (!p) return false;
+
+    try {
+      if (p.BHasClass("RejuvCount_1") || p.BHasClass("RejuvCount_2") || p.BHasClass("RejuvCount_3") || p.BHasClass("RejuvCount_4")) {
+        return true;
+      }
+
+      const k = p.Children();
+      if (k) {
+        for (let j = 0; j < k.length; j++) {
+          const c = k[j];
+          if (c.BHasClass("RejuvCount_1") || c.BHasClass("RejuvCount_2") || c.BHasClass("RejuvCount_3") || c.BHasClass("RejuvCount_4")) {
+            return true;
+          }
+        }
+      }
+    } catch {}
+
+    return false;
+  }
+
+  function showSpawn() {
+    syncRejuvText("Spawn");
+    setPanelText(UI.rNum, SEQ[idx].n);
+    resetImg();
+    if (UI.rImg?.IsValid?.()) UI.rImg.AddClass("white");
+    spawnWait = true;
+    lastFound = false;
+    tick = TICK_FAST;
+  }
+
+  function getRejuvRemaining(now) {
+    if (idx < 0 || idx >= SEQ.length) return 0;
+    return Math.max(0, SEQ[idx].d - (now - phaseStart));
+  }
+
+  function setRejuvImage(src) {
+    if (!UI.rImg?.IsValid?.()) return;
+    if (src === _lastRejuvImageSrc) return;
+
+    try {
+      if (typeof UI.rImg.SetImage === "function") {
+        UI.rImg.SetImage(src);
+      } else {
+        UI.rImg.src = src;
+      }
+      _lastRejuvImageSrc = src;
+    } catch {}
+  }
+
+  // ===========================================
+  // BRIDGE BUFF SUBSYSTEM
+  // ===========================================
+
+  function startBuff(now) {
+    buffStart = now;
+    buffCnt = REJUV_DUR;
+
+    setMiniCardState(true, true);
+    syncMiniCardText(fmt(buffCnt));
+  }
+
+  function endBuff() {
+    buffStart = 0;
+    buffCnt = 0;
+    _lastRejuvBuffText = "";
+
+    setMiniCardState(
+      _neutralBotOverrideActive || _neutralMediumOverrideActive || _neutralCardOverrideActive,
+      false
+    );
+  }
+
+  function getBridgeBuffRemaining(now) {
+    return BRIDGE_DUR - (now % BRIDGE_DUR);
+  }
+
+  // ===========================================
+  // NEUTRAL PHASE SUBSYSTEM
+  // ===========================================
+
+  function startPhase(t, now) {
+    spawnWait = false;
+    idx = t < 0 ? 0 : t > 3 ? 3 : t;
+    counter = SEQ[idx].d;
+    phaseStart = now;
+
+    syncRejuvText(fmt(counter));
+    setPanelText(UI.rNum, SEQ[idx].n);
+    setImg(idx);
+
+    _lastRejuvClip = "";
+    if (UI.rLabClip?.IsValid?.()) {
+      UI.rLabClip.style.clip = "rect(0%,0%,100%,0%)";
+      UI.rLabClip.text = "";
+    }
+
+    // Prune stale player state on phase transition
+    prunePlayerState(Date.now(), true);
+  }
+
+  function startPhaseAuto(now) {
+    spawnWait = false;
+
+    let c = 0;
+    for (let i = 0; i < 4; i++) {
+      if (now < c + SEQ[i].d) {
+        idx = i;
+        phaseStart = c;
+        counter = c + SEQ[i].d - now;
+        syncRejuvText(fmt(counter));
+        setPanelText(UI.rNum, SEQ[i].n);
+        setImg(i);
+        return;
+      }
+      c += SEQ[i].d;
+    }
+
+    // After all phases, loop the last one
+    const ld = SEQ[3].d;
+    const w = (now - c) % BRIDGE_DUR % ld;
+    idx = 3;
+    phaseStart = now - w;
+    counter = ld - w;
+    syncRejuvText(fmt(counter));
+    setPanelText(UI.rNum, "3");
+    setImg(3);
+  }
+
+  function setImg(i) {
+    resetImg();
+
+    if (i > 0 && UI.rImg?.IsValid?.()) {
+      UI.rImg.AddClass("reverse");
+      UI.rImg.AddClass("rotating");
+      _imgRotateHnd = $.Schedule(0.8, () => {
+        if (UI.rImg?.IsValid?.()) {
+          UI.rImg.RemoveClass("rotating");
+        }
+        _imgRotateHnd = null;
+      });
+    }
+  }
+
+  function resetImg() {
+    if (_imgRotateHnd) {
+      try {
+        $.CancelScheduled(_imgRotateHnd);
+      } catch {}
+      _imgRotateHnd = null;
+    }
+
+    if (!UI.rImg?.IsValid?.()) return;
+    UI.rImg.RemoveClass("rotating");
+    UI.rImg.RemoveClass("reverse");
+    UI.rImg.RemoveClass("white");
+  }
+
+  function enterNeutralMode() {
+    if (!UI.rejuv?.IsValid?.()) return;
+
+    if (_neutralModeHnd) {
+      $.CancelScheduled(_neutralModeHnd);
+      _neutralModeHnd = null;
+    }
+
+    UI.rejuv.RemoveClass("neutral-exiting");
+    UI.rejuv.AddClass("neutral-mode");
+    UI.rejuv.AddClass("neutral-entering");
+    _neutralModeHnd = $.Schedule(NEUTRAL_TRANSITION_MS / 1000, () => {
+      if (UI.rejuv?.IsValid?.()) {
+        UI.rejuv.RemoveClass("neutral-entering");
+      }
+      _neutralModeHnd = null;
+    });
+  }
+
+  function exitNeutralMode(skipAnimation, onDone) {
+    if (!UI.rejuv?.IsValid?.()) return;
+
+    if (_neutralModeHnd) {
+      $.CancelScheduled(_neutralModeHnd);
+      _neutralModeHnd = null;
+    }
+
+    UI.rejuv.RemoveClass("neutral-entering");
+
+    if (skipAnimation) {
+      UI.rejuv.RemoveClass("neutral-exiting");
+      UI.rejuv.RemoveClass("neutral-mode");
+      return;
+    }
+
+    UI.rejuv.AddClass("neutral-exiting");
+    _neutralModeHnd = $.Schedule(NEUTRAL_TRANSITION_MS / 1000, () => {
+      if (UI.rejuv?.IsValid?.()) {
+        UI.rejuv.RemoveClass("neutral-mode");
+        UI.rejuv.RemoveClass("neutral-exiting");
+      }
+      if (onDone) {
+        try {
+          onDone();
+        } catch {}
+      }
+      _neutralModeHnd = null;
+    });
+  }
+
+  function setSpawnBadgeImage(src) {
+    if (UI.spawnBadge?.IsValid?.()) UI.spawnBadge.SetImage(src);
+  }
+
+  function setSpawnBadge2Image(src) {
+    if (UI.spawnBadge2?.IsValid?.()) UI.spawnBadge2.SetImage(src);
+  }
+
+  function exitVaultCardMode(onDone) {
+    setPanelClass(UI.rejuv, "neutral-card-mode", false);
+    setSpawnBadge2Image(NEUTRAL_SMALL_BADGE_SRC);
+    exitNeutralMode(false, onDone);
+    if (UI.rLabClip?.IsValid?.() && _lastRejuvClipColor !== "#ffffff") {
+      UI.rLabClip.style.color = "#ffffff";
+      _lastRejuvClipColor = "#ffffff";
+    }
+  }
+
+  function updateNeutralPhase(startSec, endSec, activeFlag, badgeSrc, rejuvSrc, clipColor, modeClass, exitFn, now) {
+    const active = now >= startSec && now <= endSec;
+
+    if (!active) {
+      if (activeFlag === "bot" && _neutralBotOverrideActive) {
+        _neutralBotOverrideActive = false;
+        exitNeutralMode(false, () => { setRejuvImage(REJUV_ICON_SRC); setImg(idx); });
+        if (UI.rLabClip?.IsValid?.() && _lastRejuvClipColor !== "#ffffff") { UI.rLabClip.style.color = "#ffffff"; _lastRejuvClipColor = "#ffffff"; }
+      } else if (activeFlag === "medium" && _neutralMediumOverrideActive) {
+        _neutralMediumOverrideActive = false;
+        setSpawnBadgeImage(NEUTRAL_SMALL_BADGE_SRC);
+        exitNeutralMode(false, () => { setRejuvImage(REJUV_ICON_SRC); setImg(idx); });
+        if (UI.rLabClip?.IsValid?.() && _lastRejuvClipColor !== "#ffffff") { UI.rLabClip.style.color = "#ffffff"; _lastRejuvClipColor = "#ffffff"; }
+      } else if (activeFlag === "card" && _neutralCardOverrideActive) {
+        _neutralCardOverrideActive = false;
+        exitVaultCardMode(() => { setRejuvImage(REJUV_ICON_SRC); setImg(idx); });
+      }
+      return false;
+    }
+
+    if (activeFlag === "bot" && !_neutralBotOverrideActive) { _neutralBotOverrideActive = true; enterNeutralMode(); setRejuvImage(rejuvSrc || NEUTRAL_BOT_ICON_SRC); resetImg(); }
+    if (activeFlag === "medium" && !_neutralMediumOverrideActive) { _neutralMediumOverrideActive = true; setSpawnBadgeImage(badgeSrc); enterNeutralMode(); setRejuvImage(rejuvSrc || NEUTRAL_BOT_ICON_SRC); resetImg(); }
+    if (activeFlag === "card" && !_neutralCardOverrideActive) { _neutralCardOverrideActive = true; setPanelClass(UI.rejuv, modeClass, true); setSpawnBadge2Image(badgeSrc); setRejuvImage(rejuvSrc || NEUTRAL_VAULT_BADGE_SRC); enterNeutralMode(); resetImg(); }
+
+    const rem = Math.max(0, endSec - now);
+    counter = rem;
+    syncRejuvText(fmt(rem));
+    const pct = rem / (endSec - startSec);
+    const p = Math.floor(pct * 100);
+    const clip = "rect(0%," + p + "%,100%,0%)";
+    if (clip !== _lastRejuvClip && UI.rLabClip?.IsValid?.()) { UI.rLabClip.style.clip = clip; _lastRejuvClip = clip; }
+    if (UI.rLabClip?.IsValid?.() && _lastRejuvClipColor !== clipColor) { UI.rLabClip.style.color = clipColor; _lastRejuvClipColor = clipColor; }
+    tick = TICK_FAST;
+    return true;
+  }
+
+  // ===========================================
+  // NEUTRAL RING POOL
+  // ===========================================
+
+  const RING_POOL_SIZE = 16; // Max simultaneous neutral cooldowns + margin
+  let _ringPool = [];
+  let _ringPoolInitialized = false;
+
+  function initRingPool(layer) {
+    if (_ringPoolInitialized) return;
+    for (let i = 0; i < RING_POOL_SIZE; i++) {
+      const anchor = $.CreatePanel("Panel", layer, "NeutralCooldownRing_pool_" + i);
+      anchor.AddClass("neutral-cooldown-anchor");
+      anchor.style.width = "100%";
+      anchor.style.height = "100%";
+      anchor.style.position = "0 0 0";
+      anchor.hittest = false;
+      anchor.hittestchildren = false;
+
+      const ring = $.CreatePanel("Panel", anchor, "NeutralCooldownRing_pool_" + i + "_ring");
+      ring.AddClass("neutral-cooldown-ring");
+      ring.style.width = NEUTRAL_RING_SIZE_PX + "px";
+      ring.style.height = NEUTRAL_RING_SIZE_PX + "px";
+      ring.hittest = false;
+
+      const fill = $.CreatePanel("Panel", ring, "NeutralCooldownRing_pool_" + i + "_fill");
+      fill.AddClass("neutral-cooldown-ring-fill");
+      fill.hittest = false;
+
+      const label = $.CreatePanel("Label", anchor, "NeutralCooldownRing_pool_" + i + "_text");
+      label.AddClass("neutral-cooldown-timer-detail");
+      label.hittest = false;
+
+      // Start collapsed
+      anchor.visible = false;
+
+      _ringPool.push({ anchor, ring, fill, label, inUse: false, campKey: null });
+    }
+    _ringPoolInitialized = true;
+  }
+
+  function acquireRingSet(campKey) {
+    for (const set of _ringPool) {
+      if (!set.inUse) {
+        set.inUse = true;
+        set.campKey = campKey;
+        set.anchor.visible = true;
+        return set;
+      }
+    }
+    // Pool exhausted - return null and skip rendering
+    return null;
+  }
+
+  function releaseRingSet(set) {
+    if (!set) return;
+    set.inUse = false;
+    set.campKey = null;
+    set.anchor.visible = false;
+
+    // Reset cached state
+    if (set.ring?.IsValid?.()) {
+      set.ring.style.position = "0 0 0";
+    }
+    if (set.fill?.IsValid?.()) {
+      set.fill.style.clip = "";
+    }
+    if (set.label?.IsValid?.()) {
+      set.label.text = "";
+      set.label.style.position = "0 0 0";
+    }
+  }
+
+  // ===========================================
+  // NEUTRAL RING SUBSYSTEM
+  // ===========================================
+
   function getNeutralRingId(key) {
     return "NeutralCooldownRing_" + key.replace(/[^a-zA-Z0-9_]/g, "_");
   }
 
   function clearNeutralRing(st) {
     if (!st) return;
-    try {
-      if (st.ringRoot?.IsValid?.()) st.ringRoot.DeleteAsync(0);
-    } catch {}
+    // Pooled panels are released via clearNeutralTimerEntry -> releaseRingSet
+    // Only reset cached state here (do NOT DeleteAsync pooled panels)
     st.ringRoot = null;
     st.ringFill = null;
     st.lastClip = "";
@@ -1202,26 +1531,14 @@
 
   function clearNeutralDetailLabel(st) {
     if (!st) return;
-    try {
-      if (st.detailLabel?.IsValid?.()) st.detailLabel.DeleteAsync(0);
-    } catch {}
+    // Pooled panels are released via clearNeutralTimerEntry -> releaseRingSet
+    // Only reset cached state here (do NOT DeleteAsync pooled panels)
     st.detailLabel = null;
     st.lastText = "";
     st.lastTextColor = "";
     st.lastTextPosX = -1;
     st.lastTextPosY = -1;
     st.lastTextOpacity = "";
-  }
-
-  function isScoreboardOpen(mm) {
-    try {
-      if (UI.scoreboardRoot?.IsValid?.() && UI.scoreboardRoot.BHasClass?.("gScoreboardOpen")) return true;
-      if (UI.root?.IsValid?.() && UI.root.BHasClass?.("gScoreboardOpen")) return true;
-      if (UI.hud?.IsValid?.() && UI.hud.BHasClass?.("gScoreboardOpen")) return true;
-      if (mm?.IsValid?.() && mm.BHasClass?.("gScoreboardOpen")) return true;
-      if (UI.scoreboardPanel?.IsValid?.() && UI.scoreboardPanel.BHasClass?.("gScoreboardOpen")) return true;
-    } catch {}
-    return false;
   }
 
   function setNeutralIconOpacity(st, opacityVal) {
@@ -1245,10 +1562,28 @@
   function clearNeutralTimerEntry(key, st) {
     if (!st) st = _neutralRespawnState.get(key);
     if (!st) return;
-    clearNeutralRing(st);
-    clearNeutralDetailLabel(st);
-    clearNeutralAnchor(st);
-    setNeutralIconOpacity(st, null);
+
+    // Clean up reverse indexes
+    if (st.panel) {
+      _panelToStateKey.delete(st.panel);
+    }
+    if (st.mapPctX !== undefined && st.mapPctY !== undefined) {
+      _positionToStateKey.delete(st.mapPctX + "," + st.mapPctY);
+    }
+
+    // Release ring set back to pool (preserves panel hierarchy)
+    if (st.ringSet) {
+      releaseRingSet(st.ringSet);
+      st.ringSet = null;
+    }
+
+    // Clear cached panel refs (panels belong to pool now)
+    st.ringRoot = null;
+    st.ringFill = null;
+    st.detailLabel = null;
+    st.anchorRoot = null;
+
+    // Reset state tracking
     st.respawnEndMs = 0;
     st.respawnEndGameSec = 0;
     st.durationMs = 0;
@@ -1264,13 +1599,24 @@
   }
 
   function resolveNeutralStateKey(neutralType, xPct, yPct, mapX, mapY, panel) {
-    if (panel?.IsValid?.()) {
-      for (const [key, st] of _neutralRespawnState.entries()) {
-        if (!st || st.type !== neutralType) continue;
-        if (st.panel?.IsValid?.() && st.panel === panel) return key;
+    // Try panel index first (O(1))
+    if (panel?.IsValid?.() && _panelToStateKey.has(panel)) {
+      const key = _panelToStateKey.get(panel);
+      const st = _neutralRespawnState.get(key);
+      if (st && st.type === neutralType) return key;
+    }
+
+    // Try position index (O(1))
+    if (xPct !== undefined && yPct !== undefined) {
+      const posKey = xPct + "," + yPct;
+      if (_positionToStateKey.has(posKey)) {
+        const key = _positionToStateKey.get(posKey);
+        const st = _neutralRespawnState.get(key);
+        if (st && st.type === neutralType) return key;
       }
     }
 
+    // Fallback: iterate existing states for proximity match
     let bestKey = null;
     let bestDist = Infinity;
 
@@ -1305,14 +1651,15 @@
     return "neutral_state_" + _neutralStateSeq;
   }
 
-  function createState(camp, key, now, token) {
-    return {
+function createState(camp, key, now, token) {
+    const st = {
       ringId: getNeutralRingId(key),
       type: camp.type,
       wasActive: camp.isActive,
       respawnEndMs: 0,
       respawnEndGameSec: 0,
       durationMs: 0,
+      ringSet: null,  // Pooled ring set (anchor → ring, fill, label)
       ringRoot: null,
       ringFill: null,
       detailLabel: null,
@@ -1360,6 +1707,16 @@
       cachedTextPosY: 0,
       ringVisible: true
     };
+
+    // Populate reverse indexes for O(1) lookup
+    if (camp.panel) {
+      _panelToStateKey.set(camp.panel, key);
+    }
+    if (camp.xPct !== undefined && camp.yPct !== undefined) {
+      _positionToStateKey.set(camp.xPct + "," + camp.yPct, key);
+    }
+
+    return st;
   }
 
   function purgeStaleNeutralStates(now, token) {
@@ -1391,30 +1748,33 @@
       overlay.style.zIndex = "2000";
     }
 
+    // Initialize ring pool once when overlay is created
+    initRingPool(overlay);
+
     UI.neutralOverlay = overlay;
     return overlay;
   }
 
   function ensureAnchorRoot(layer, st, themeInfo) {
-    const anchorId = st.ringId + "_anchor";
-    let anchorRoot = st.anchorRoot;
+    // Try to reuse existing ring set first
+    if (st.ringSet?.inUse) {
+      const anchorRoot = st.ringSet.anchor;
+      if (anchorRoot?.IsValid?.()) {
+        const inverted = !!themeInfo?.inverted;
+        setPanelClass(anchorRoot, "invert_map", inverted);
+        setPanelClass(anchorRoot, "theme-inverted", inverted);
+        setPanelClass(anchorRoot, "theme-standard", !inverted);
+        st.anchorRoot = anchorRoot;
+        return anchorRoot;
+      }
+    }
 
-    if (!anchorRoot?.IsValid?.()) {
-      try { anchorRoot = layer.FindChildTraverse(anchorId); } catch {}
-    }
-    if (!anchorRoot?.IsValid?.()) {
-      anchorRoot = $.CreatePanel("Panel", layer, anchorId);
-      anchorRoot.AddClass("neutral-cooldown-anchor");
-      anchorRoot.hittest = false;
-      anchorRoot.hittestchildren = false;
-      anchorRoot.style.position = "0px 0px 0px";
-      anchorRoot.style.width = "100%";
-      anchorRoot.style.height = "100%";
-      anchorRoot.style.overflow = "noclip";
-      anchorRoot.style.zIndex = "2000";
-    } else if (anchorRoot.GetParent?.() !== layer) {
-      anchorRoot.SetParent(layer);
-    }
+    // Acquire from pool
+    const ringSet = acquireRingSet(st.ringId);
+    if (!ringSet) return null;
+
+    st.ringSet = ringSet;
+    const anchorRoot = ringSet.anchor;
 
     const inverted = !!themeInfo?.inverted;
     setPanelClass(anchorRoot, "invert_map", inverted);
@@ -1426,27 +1786,10 @@
   }
 
   function ensureRingRoot(layer, st, ringSize, ringPosX, ringPosY) {
-    const ringId = st.ringId;
-    let ringRoot = st.ringRoot;
+    // Use pooled ring panel (child of anchor)
+    let ringRoot = st.ringSet?.ring;
 
-    if (!ringRoot?.IsValid?.()) {
-      try { ringRoot = layer.FindChildTraverse(ringId); } catch {}
-    }
-    if (!ringRoot?.IsValid?.()) {
-      ringRoot = $.CreatePanel("Panel", layer, ringId);
-      ringRoot.AddClass("neutral-cooldown-ring");
-      ringRoot.hittest = false;
-      ringRoot.hittestchildren = false;
-      ringRoot.style.horizontalAlign = "left";
-      ringRoot.style.verticalAlign = "top";
-      ringRoot.style.zIndex = "2001";
-      ringRoot.style.backgroundColor = "transparent";
-      ringRoot.style.borderWidth = "0px";
-      ringRoot.style.borderColor = "transparent";
-      ringRoot.style.clip = null;
-    } else if (ringRoot.GetParent?.() !== layer) {
-      ringRoot.SetParent(layer);
-    }
+    if (!ringRoot?.IsValid?.()) return null;
 
     if (Math.abs((st.lastRingSize ?? -1) - ringSize) > 0.05) {
       ringRoot.style.width = ringSize + "px";
@@ -1470,40 +1813,18 @@
   }
 
   function ensureRingFill(st, ringRoot) {
-    const fillId = st.ringId + "_fill";
-    let ringFill = st.ringFill;
-
-    if (!ringFill?.IsValid?.()) {
-      try { ringFill = ringRoot.FindChildTraverse(fillId); } catch {}
-    }
-    if (!ringFill?.IsValid?.()) {
-      ringFill = $.CreatePanel("Panel", ringRoot, fillId);
-      ringFill.AddClass("neutral-cooldown-ring-fill");
-      ringFill.style.position = "0px 0px 0px";
-      ringFill.style.width = "100%";
-      ringFill.style.height = "100%";
-    }
+    // Use pooled fill panel (child of ring)
+    const ringFill = st.ringSet?.fill;
+    if (!ringFill?.IsValid?.()) return null;
 
     st.ringFill = ringFill;
     return ringFill;
   }
 
   function ensureDetailLabel(layer, st) {
-    const labelId = st.ringId + "_text";
-    let detailLabel = st.detailLabel;
-
-    if (!detailLabel?.IsValid?.()) {
-      try { detailLabel = layer.FindChildTraverse(labelId); } catch {}
-    }
-    if (!detailLabel?.IsValid?.()) {
-      detailLabel = $.CreatePanel("Label", layer, labelId);
-      detailLabel.AddClass("neutral-cooldown-timer-detail");
-      detailLabel.hittest = false;
-      detailLabel.hittestchildren = false;
-      detailLabel.style.visibility = null;
-    } else if (detailLabel.GetParent?.() !== layer) {
-      detailLabel.SetParent(layer);
-    }
+    // Use pooled label panel (child of anchor)
+    const detailLabel = st.ringSet?.label;
+    if (!detailLabel?.IsValid?.()) return null;
 
     st.detailLabel = detailLabel;
     return detailLabel;
@@ -1733,6 +2054,7 @@
       st.durationMs = 0;
     }
   }
+
   function scanNeutralRespawnState(snapshot, nowMs, gameNowSec) {
     const now = nowMs || Date.now();
     const gameNow = gameNowSec > 0 ? gameNowSec : gTime(now);
@@ -1760,11 +2082,37 @@
           setNeutralIconOpacity(st, null);
         }
 
+        // Update reverse indexes if key fields changed
+        if (camp.panel && _panelToStateKey.get(camp.panel) !== key) {
+          // Clear old panel index if it pointed to this state
+          const oldPanel = st.panel;
+          if (oldPanel && _panelToStateKey.get(oldPanel) === key) {
+            _panelToStateKey.delete(oldPanel);
+          }
+          _panelToStateKey.set(camp.panel, key);
+        }
+
         st.panel = camp.panel || null;
         st.panelW = safePanelExtent(camp.panel?.actuallayoutwidth || camp.panel?.contentwidth, st.panelW || 24);
         st.panelH = safePanelExtent(camp.panel?.actuallayoutheight || camp.panel?.contentheight, st.panelH || 24);
         st.mapPctX = camp.xPct;
         st.mapPctY = camp.yPct;
+
+        // Update position index if coordinates changed
+        if (camp.xPct !== undefined && camp.yPct !== undefined) {
+          const posKey = camp.xPct + "," + camp.yPct;
+          if (_positionToStateKey.get(posKey) !== key) {
+            // Clear old position index if it pointed to this state
+            if (st.mapPctX !== undefined && st.mapPctY !== undefined) {
+              const oldPosKey = st.mapPctX + "," + st.mapPctY;
+              if (_positionToStateKey.get(oldPosKey) === key) {
+                _positionToStateKey.delete(oldPosKey);
+              }
+            }
+            _positionToStateKey.set(posKey, key);
+          }
+        }
+
         if (!Number.isFinite(st.anchorPctX) && Number.isFinite(camp.xPct)) st.anchorPctX = camp.xPct;
         if (!Number.isFinite(st.anchorPctY) && Number.isFinite(camp.yPct)) st.anchorPctY = camp.yPct;
         st.mapX = camp.actualX;
@@ -1840,7 +2188,7 @@
   }
 
   // ===========================================
-  // GLOW MANAGEMENT
+  // CLAIM SUBSYSTEM
   // ===========================================
 
   function clearSideGlow(side) {
@@ -1900,10 +2248,6 @@
       });
     } catch {}
   }
-
-  // ===========================================
-  // CLAIM INDICATOR MANAGEMENT
-  // ===========================================
 
   function showClaimIndicator(side, isEnemy, powerupType) {
     try {
@@ -1995,7 +2339,6 @@
     } catch (e) {
     }
   }
-
 
   function hideClaimIndicator(side) {
     try {
@@ -2142,7 +2485,6 @@
     }
   }
 
-  // Prune stale _playerState entries not referenced by _lingerState
   function prunePlayerState(nowMs, forceAll) {
     const now = nowMs || Date.now();
     for (const k in _playerState) {
@@ -2160,8 +2502,162 @@
     }
   }
 
+  function scanPowerups(nowMs, snapshot, forceFreshSnapshot) {
+    const mm = findMinimap();
+    if (!mm) return;
+
+    try {
+      const now = nowMs || Date.now();
+      const snap = snapshot || collectMinimapSnapshot(now, !!forceFreshSnapshot);
+      const allPowerups = snap?.powerupSpawns || [];
+      if (!allPowerups.length) return;
+
+      const powerups = trackedPowerups;
+      let powerupCount = 0;
+      for (let i = 0, len = allPowerups.length; i < len; i++) {
+        const pw = allPowerups[i];
+        if (!pw?.isActive) continue;
+
+        let entry = powerups[powerupCount];
+        if (!entry) {
+          entry = {
+            type: "",
+            x: 0,
+            y: 0,
+            panel: null,
+            pos: "LEFT",
+            claimed: false,
+            minAllyDist: Infinity,
+            minEnemyDist: Infinity
+          };
+          powerups[powerupCount] = entry;
+        }
+
+        entry.type = pw.type;
+        entry.x = pw.xPct;
+        entry.y = pw.yPct;
+        entry.panel = pw.panel;
+        entry.pos = "LEFT";
+        entry.claimed = false;
+        entry.minAllyDist = Infinity;
+        entry.minEnemyDist = Infinity;
+        powerupCount++;
+      }
+
+      powerups.length = powerupCount;
+      if (powerups.length === 0) return;
+
+      powerups.sort((a, b) => a.x - b.x);
+      clearGlows();
+
+      const inverted = mm.BHasClass?.("invert_map");
+      for (let i = 0, len = powerups.length; i < len; i++) {
+        const base = i === 0 ? "LEFT" : "RIGHT";
+        powerups[i].pos = inverted ? (base === "LEFT" ? "RIGHT" : "LEFT") : base;
+        applyGlow(powerups[i].pos, powerups[i].type);
+      }
+
+      const p0 = powerups[0];
+      const p1 = powerups[1] || p0;
+      knownSpawnPos = inverted
+        ? { left: { x: p1.x, y: p1.y }, right: { x: p0.x, y: p0.y } }
+        : { left: { x: p0.x, y: p0.y }, right: { x: p1.x, y: p1.y } };
+
+      if (pretrackActive) {
+        const ptL = inverted ? pretrackData.right : pretrackData.left;
+        const ptR = inverted ? pretrackData.left : pretrackData.right;
+
+        powerups[0].minAllyDist = ptL.minAlly;
+        powerups[0].minEnemyDist = ptL.minEnemy;
+
+        if (powerups[1]) {
+          powerups[1].minAllyDist = ptR.minAlly;
+          powerups[1].minEnemyDist = ptR.minEnemy;
+        }
+
+        pretrackActive = false;
+      }
+
+      monitoringActive = true;
+      buffResetTs = 0;
+    } catch {}
+  }
+
+  function monitorPowerups(nowMs, snapshot) {
+    if (trackedPowerups.length === 0) {
+      monitoringActive = false;
+      return;
+    }
+
+    const snap = snapshot || collectMinimapSnapshot(nowMs, false);
+    const players = snap?.players || [];
+
+    let allClaimed = true;
+    let targetCount = 0;
+
+    for (let i = 0, len = trackedPowerups.length; i < len; i++) {
+      const p = trackedPowerups[i];
+      if (p.claimed) continue;
+
+      let stillActive = false;
+      try {
+        if (p.panel?.IsValid?.()) {
+          stillActive = p.panel.BHasClass("active");
+        }
+      } catch {}
+
+      if (stillActive) {
+        allClaimed = false;
+        continue;
+      }
+
+      _nearestTargets[targetCount++] = p;
+    }
+
+    if (targetCount > 0 && players.length > 0) {
+      computeNearestForTargets(players, _nearestTargets, targetCount, nowMs, true);
+    }
+
+    for (let i = 0, len = trackedPowerups.length; i < len; i++) {
+      const p = trackedPowerups[i];
+      if (p.claimed) continue;
+
+      let stillActive = false;
+      try {
+        if (p.panel?.IsValid?.()) {
+          stillActive = p.panel.BHasClass("active");
+        }
+      } catch {}
+
+      if (stillActive) {
+        allClaimed = false;
+      } else {
+        const allyClose = p.minAllyDist <= CLAIM_RADIUS_SQ;
+        const enemyClose = p.minEnemyDist <= CLAIM_RADIUS_SQ;
+        const enemyClaimed = !allyClose || (enemyClose && p.minEnemyDist < p.minAllyDist);
+
+        clearSideGlow(p.pos);
+
+        if (enemyClaimed) {
+          applyEnemyClaim(p.pos);
+        }
+
+        showClaimIndicator(p.pos, enemyClaimed, p.type);
+        p.claimed = true;
+      }
+    }
+
+    _nearestTargets.length = 0;
+
+    if (allClaimed) {
+      clearGlows();
+      monitoringActive = false;
+      trackedPowerups.length = 0;
+    }
+  }
+
   // ===========================================
-  // ENEMY LINGER SYSTEM (CS:GO-style "last seen")
+  // LINGER SUBSYSTEM
   // ===========================================
 
   function showLinger(enemyId, btn) {
@@ -2261,7 +2757,6 @@
     _lingerCount = 0;
   }
 
-
   function checkEnemyLinger(nowMs, snapshot) {
     const now = nowMs || Date.now();
     const snap = snapshot || collectMinimapSnapshot(now, false);
@@ -2307,256 +2802,7 @@
   }
 
   // ===========================================
-
-  // PLAYER PROXIMITY DETECTION
-  // ===========================================
-
-  // ===========================================
-  // POWERUP SCANNING & MONITORING
-  // ===========================================
-
-  function scanPowerups(nowMs, snapshot, forceFreshSnapshot) {
-    const mm = findMinimap();
-    if (!mm) return;
-
-    try {
-      const now = nowMs || Date.now();
-      const snap = snapshot || collectMinimapSnapshot(now, !!forceFreshSnapshot);
-      const allPowerups = snap?.powerupSpawns || [];
-      if (!allPowerups.length) return;
-
-      const powerups = trackedPowerups;
-      let powerupCount = 0;
-      for (let i = 0, len = allPowerups.length; i < len; i++) {
-        const pw = allPowerups[i];
-        if (!pw?.isActive) continue;
-
-        let entry = powerups[powerupCount];
-        if (!entry) {
-          entry = {
-            type: "",
-            x: 0,
-            y: 0,
-            panel: null,
-            pos: "LEFT",
-            claimed: false,
-            minAllyDist: Infinity,
-            minEnemyDist: Infinity
-          };
-          powerups[powerupCount] = entry;
-        }
-
-        entry.type = pw.type;
-        entry.x = pw.xPct;
-        entry.y = pw.yPct;
-        entry.panel = pw.panel;
-        entry.pos = "LEFT";
-        entry.claimed = false;
-        entry.minAllyDist = Infinity;
-        entry.minEnemyDist = Infinity;
-        powerupCount++;
-      }
-
-      powerups.length = powerupCount;
-      if (powerups.length === 0) return;
-
-      powerups.sort((a, b) => a.x - b.x);
-      clearGlows();
-
-      const inverted = mm.BHasClass?.("invert_map");
-      for (let i = 0, len = powerups.length; i < len; i++) {
-        const base = i === 0 ? "LEFT" : "RIGHT";
-        powerups[i].pos = inverted ? (base === "LEFT" ? "RIGHT" : "LEFT") : base;
-        applyGlow(powerups[i].pos, powerups[i].type);
-      }
-
-      const p0 = powerups[0];
-      const p1 = powerups[1] || p0;
-      knownSpawnPos = inverted
-        ? { left: { x: p1.x, y: p1.y }, right: { x: p0.x, y: p0.y } }
-        : { left: { x: p0.x, y: p0.y }, right: { x: p1.x, y: p1.y } };
-
-      if (pretrackActive) {
-        const ptL = inverted ? pretrackData.right : pretrackData.left;
-        const ptR = inverted ? pretrackData.left : pretrackData.right;
-
-        powerups[0].minAllyDist = ptL.minAlly;
-        powerups[0].minEnemyDist = ptL.minEnemy;
-
-        if (powerups[1]) {
-          powerups[1].minAllyDist = ptR.minAlly;
-          powerups[1].minEnemyDist = ptR.minEnemy;
-        }
-
-        pretrackActive = false;
-      }
-
-      monitoringActive = true;
-      buffResetTs = 0;
-    } catch {}
-  }
-
-
-  function monitorPowerups(nowMs, snapshot) {
-    if (trackedPowerups.length === 0) {
-      monitoringActive = false;
-      return;
-    }
-
-    const snap = snapshot || collectMinimapSnapshot(nowMs, false);
-    const players = snap?.players || [];
-
-    let allClaimed = true;
-    let targetCount = 0;
-
-    for (let i = 0, len = trackedPowerups.length; i < len; i++) {
-      const p = trackedPowerups[i];
-      if (p.claimed) continue;
-
-      let stillActive = false;
-      try {
-        if (p.panel?.IsValid?.()) {
-          stillActive = p.panel.BHasClass("active");
-        }
-      } catch {}
-
-      if (stillActive) {
-        allClaimed = false;
-        continue;
-      }
-
-      _nearestTargets[targetCount++] = p;
-    }
-
-    if (targetCount > 0 && players.length > 0) {
-      computeNearestForTargets(players, _nearestTargets, targetCount, nowMs, true);
-    }
-
-    for (let i = 0, len = trackedPowerups.length; i < len; i++) {
-      const p = trackedPowerups[i];
-      if (p.claimed) continue;
-
-      let stillActive = false;
-      try {
-        if (p.panel?.IsValid?.()) {
-          stillActive = p.panel.BHasClass("active");
-        }
-      } catch {}
-
-      if (stillActive) {
-        allClaimed = false;
-      } else {
-        const allyClose = p.minAllyDist <= CLAIM_RADIUS_SQ;
-        const enemyClose = p.minEnemyDist <= CLAIM_RADIUS_SQ;
-        const enemyClaimed = !allyClose || (enemyClose && p.minEnemyDist < p.minAllyDist);
-
-        clearSideGlow(p.pos);
-
-        if (enemyClaimed) {
-          applyEnemyClaim(p.pos);
-        }
-
-        showClaimIndicator(p.pos, enemyClaimed, p.type);
-        p.claimed = true;
-      }
-    }
-
-    _nearestTargets.length = 0;
-
-    if (allClaimed) {
-      clearGlows();
-      monitoringActive = false;
-      trackedPowerups.length = 0;
-    }
-  }
-
-  // ===========================================
-  // PHASE MANAGEMENT
-  // ===========================================
-
-  function startPhase(t, now) {
-    spawnWait = false;
-    idx = t < 0 ? 0 : t > 3 ? 3 : t;
-    counter = SEQ[idx].d;
-    phaseStart = now;
-
-    syncRejuvText(fmt(counter));
-    setPanelText(UI.rNum, SEQ[idx].n);
-    setImg(idx);
-
-    _lastRejuvClip = "";
-    if (UI.rLabClip?.IsValid?.()) {
-      UI.rLabClip.style.clip = "rect(0%,0%,100%,0%)";
-      UI.rLabClip.text = "";
-    }
-
-    // Prune stale player state on phase transition
-    prunePlayerState(Date.now(), true);
-  }
-
-  function startPhaseAuto(now) {
-    spawnWait = false;
-
-    let c = 0;
-    for (let i = 0; i < 4; i++) {
-      if (now < c + SEQ[i].d) {
-        idx = i;
-        phaseStart = c;
-        counter = c + SEQ[i].d - now;
-        syncRejuvText(fmt(counter));
-        setPanelText(UI.rNum, SEQ[i].n);
-        setImg(i);
-        return;
-      }
-      c += SEQ[i].d;
-    }
-
-    // After all phases, loop the last one
-    const ld = SEQ[3].d;
-    const w = (now - c) % BRIDGE_DUR % ld;
-    idx = 3;
-    phaseStart = now - w;
-    counter = ld - w;
-    syncRejuvText(fmt(counter));
-    setPanelText(UI.rNum, "3");
-    setImg(3);
-  }
-
-  function showSpawn() {
-    syncRejuvText("Spawn");
-    setPanelText(UI.rNum, SEQ[idx].n);
-    resetImg();
-    if (UI.rImg?.IsValid?.()) UI.rImg.AddClass("white");
-    spawnWait = true;
-    lastFound = false;
-    tick = TICK_FAST;
-  }
-
-  // ===========================================
-  // BUFF MANAGEMENT
-  // ===========================================
-
-  function startBuff(now) {
-    buffStart = now;
-    buffCnt = REJUV_DUR;
-
-    setMiniCardState(true, true);
-    syncMiniCardText(fmt(buffCnt));
-  }
-
-  function endBuff() {
-    buffStart = 0;
-    buffCnt = 0;
-    _lastRejuvBuffText = "";
-
-    setMiniCardState(
-      _neutralBotOverrideActive || _neutralMediumOverrideActive || _neutralCardOverrideActive,
-      false
-    );
-  }
-
-  // ===========================================
-  // CHAT SHORTCUT
+  // CHAT PING SUBSYSTEM
   // ===========================================
 
   function handleRejuvPingActivate() {
@@ -2588,17 +2834,22 @@
     return "Bridge " + fmtChatDuration(buffRem);
   }
 
-  const CHAT_RETRY_DELAYS = [0, 0.008, 0.012, 0.016, 0.032];
-  const CHAT_ALL_LABEL = "To (ALL):";
-
   function sendTimerChatMessage(message) {
-    if (!message) return;
-    const safe = String(message).replace(/["\r\n;]/g, " ").trim();
-    if (!safe) return;
+  const now = Date.now();
+  if (now - _lastTimerChatMs < CHAT_SEND_COOLDOWN_MS) return;
+  _lastTimerChatMs = now;
 
-    try { $.DispatchEvent("CitadelConCommand", "say_chat_team"); } catch {}
-    $.Schedule(CHAT_RETRY_DELAYS[0], () => trySubmitTeamChat(safe, 0, 0));
-  }
+  if (!message) return;
+  const safe = String(message).replace(/["\r\n;]/g, " ").trim();
+  if (!safe) return;
+
+  // Force fresh lookup after opening chat.
+  UI.chatInput = null;
+  UI.chatTargetLabel = null;
+
+  try { $.DispatchEvent("CitadelConCommand", "say_chat_team"); } catch {}
+  $.Schedule(CHAT_RETRY_DELAYS[0], () => trySubmitTeamChat(safe, 0, 0));
+}
 
   function ensureChatPanels() {
     if (!UI.chat?.IsValid?.()) UI.chat = UI.root?.FindChildTraverse("Chat");
@@ -2628,13 +2879,6 @@
       return;
     }
 
-    if (submitWithoutFocus(input, message)) {
-      closeChatUi(input);
-      if (DEBUG_PING_TIMER) { dbgPing("send:submitted-no-focus", { attempt, label: label?.text || "" }); }
-      return;
-    }
-
-    if (DEBUG_PING_TIMER) { dbgPing("send:focus-fallback", { attempt, label: label?.text || "" }); }
     submitWithMinimalFocus(input, message);
   }
 
@@ -2660,15 +2904,20 @@
   }
 
   function submitWithMinimalFocus(chatInput, message) {
-    try { $.DispatchEvent("SetInputFocus", chatInput); } catch {}
-    try {
-      chatInput.text = message;
-      $.DispatchEvent("CitadelChatInputSubmitted", chatInput);
-      chatInput.text = "";
-    } finally {
+  try { $.DispatchEvent("SetInputFocus", chatInput); } catch {}
+
+  try {
+    chatInput.text = message;
+
+    $.Schedule(0, () => {
+      try { $.DispatchEvent("CitadelChatInputSubmitted", chatInput); } catch {}
+      try { chatInput.text = ""; } catch {}
       closeChatUi(chatInput);
-    }
+    });
+  } catch {
+    closeChatUi(chatInput);
   }
+}
 
   function closeChatUi(chatInput) {
     const chat = getChatPanel();
@@ -2770,15 +3019,6 @@
     return null;
   }
 
-  function getRejuvRemaining(now) {
-    if (idx < 0 || idx >= SEQ.length) return 0;
-    return Math.max(0, SEQ[idx].d - (now - phaseStart));
-  }
-
-  function getBridgeBuffRemaining(now) {
-    return BRIDGE_DUR - (now % BRIDGE_DUR);
-  }
-
   function fmtChatDuration(seconds) {
     seconds = Math.max(0, seconds | 0);
     const m = (seconds / 60) | 0;
@@ -2791,384 +3031,380 @@
     return m + ":" + (s < 10 ? "0" + s : s);
   }
 
-  // ===========================================
-  // STATE MANAGEMENT
+// ===========================================
+  // MAIN SCHEDULER LOOP
   // ===========================================
 
-  function startRun(now) {
-    running = true;
-    claimCnt = 0;
-    lastFound = false;
-    spawnWait = false;
-    inHideout = false;
-    lastRunChk = Date.now();
-    lastScan = 0;
-    trackedPowerups.length = 0;
-    monitoringActive = false;
-    pretrackActive = false;
-    lastPlayerStatePruneCheck = 0;
-    _snapshotTs = 0;
-    clearMapButtonCache();
-    startPhaseAuto(now);
+  // Tick functions - each handles one subsystem from the former loop()
+  // All use the exact same code as the inline blocks they replace.
 
-    // Prune stale player state when starting run
-    prunePlayerState(Date.now(), true);
+  function tickRejuv(now, rn) {
+    if (now !== lastSec) {
+      lastSec = now;
+      if (idx < 0 || idx >= SEQ.length) idx = 0;  // Safety clamp
+      const neutralBotActive = updateNeutralPhase(NEUTRAL_BOT_START_SEC, NEUTRAL_BOT_END_SEC, "bot", NEUTRAL_BOT_ICON_SRC, null, NEUTRAL_BOT_PROGRESS_COLOR, null, null, now);
+      const neutralMediumActive = updateNeutralPhase(NEUTRAL_MEDIUM_START_SEC, NEUTRAL_MEDIUM_END_SEC, "medium", NEUTRAL_SMALL_BADGE_SRC, NEUTRAL_MEDIUM_BADGE_SRC, NEUTRAL_BOT_PROGRESS_COLOR, null, null, now);
+      const neutralCardActive = updateNeutralPhase(NEUTRAL_LARGE_START_SEC, NEUTRAL_LARGE_END_SEC, "card", NEUTRAL_LARGE_BADGE_SRC, NEUTRAL_VAULT_BADGE_SRC, NEUTRAL_BOT_PROGRESS_COLOR, "neutral-card-mode", exitVaultCardMode, now);
+
+      if (!neutralBotActive && !neutralMediumActive && !neutralCardActive) {
+        const rem = Math.max(0, SEQ[idx].d - (now - phaseStart));
+
+        if (rem <= 0) {
+          showSpawn();
+        } else {
+          counter = rem;
+          syncRejuvText(fmt(rem));
+
+          // Left Side: Rejuv (Anchor Left, Deplete Right-to-Left)
+          // rejuvPct is REMAINING percentage (1.0 -> 0.0)
+          const rejuvPct = spawnWait ? 1.0 : (counter / SEQ[idx].d);
+          const p = Math.floor(rejuvPct * 100);
+
+          // Clip: Visible from 0% to p% (Left anchored)
+          const rejuvClip = "rect(0%," + p + "%,100%,0%)";
+
+          if (rejuvClip !== _lastRejuvClip && UI.rLabClip?.IsValid?.()) {
+            UI.rLabClip.style.clip = rejuvClip;
+            _lastRejuvClip = rejuvClip;
+          }
+        }
+
+        tick = (spawnWait || rem <= SPAWN_TH) ? TICK_FAST : TICK_NORM;
+      }
+    }
   }
 
-  function reset(f) {
-    if (hnd) {
-      $.CancelScheduled(hnd);
-      hnd = null;
+  function tickBuff(now) {
+    // Update buff duration countdown
+    if (buffStart > 0) {
+      buffCnt = Math.max(0, REJUV_DUR - (now - buffStart));
+      syncMiniCardText(fmt(buffCnt));
+
+      if (buffCnt <= 0) {
+        endBuff();
+      }
+    }
+  }
+
+  function tickBridge(now, rn) {
+    // Update bridge buff timer (cycles every 5 minutes)
+    const buffRem = BRIDGE_DUR - (now % BRIDGE_DUR);
+    {
+      syncBuffText(fmt(buffRem));
+
+      // Right Side: Buff (Anchor Right, Deplete Left-to-Right)
+      // buffPct is REMAINING percentage (1.0 -> 0.0)
+      const buffPct = buffRem / BRIDGE_DUR;
+      const p = Math.floor((1.0 - buffPct) * 100); // Inverse for split point
+
+      // Clip: Visible from p% to 100% (Right anchored)
+      const buffClip = "rect(0%,100%,100%," + p + "%)";
+
+      if (buffClip !== _lastBuffClip && UI.buffLabClip?.IsValid?.()) {
+        UI.buffLabClip.style.clip = buffClip;
+        _lastBuffClip = buffClip;
+
+        // Color logic for buff clip label (White -> Red)
+        const gVal = Math.floor(255 * buffPct);
+        const newColor = "rgb(255," + gVal + "," + gVal + ")";
+
+        if (newColor !== _lastBuffClipColor) {
+          UI.buffLabClip.style.color = newColor;
+          _lastBuffClipColor = newColor;
+        }
+      }
     }
 
-    if (f) {
-      idx = 0;
-      counter = 0;
-      phaseStart = 0;
-      claimCnt = 0;
-      buffStart = 0;
-      buffCnt = 0;
-      lastSec = -1;
-      lastGlobalSec = -1;
-      spawnWait = false;
-      lastFound = false;
-      running = false;
-      inHideout = true;
+    // Start pre-tracking players near powerup spawns
+    if (buffRem <= POWERUP_CHECK_TH && !pretrackActive && !monitoringActive && knownSpawnPos) {
+      pretrackActive = true;
+      pretrackData.left.minAlly = pretrackData.left.minEnemy = pretrackData.right.minAlly = pretrackData.right.minEnemy = Infinity;
+    }
+
+    // Detect buff cycle reset
+    if (prevBuffRem <= POWERUP_CHECK_TH && prevBuffRem > 0 && buffRem > POWERUP_CHECK_TH) {
+      buffResetTs = rn;
       trackedPowerups.length = 0;
       monitoringActive = false;
-      pretrackActive = false;
-      _playerState = Object.create(null);
-      _neutralBotOverrideActive = false;
-      _neutralMediumOverrideActive = false;
-      _neutralCardOverrideActive = false;
-      if (_neutralModeHnd) {
-        $.CancelScheduled(_neutralModeHnd);
-        _neutralModeHnd = null;
-      }
-      clearMinimapInvertCache();
-      clearMapButtonCache();
-      clearNeutralRespawnTimers();
-      _lowTimeCacheCleared = false;
-      UI.neutralOverlay = null;
-      _lastScoreboardOpen = false;
-      _snapshotTs = 0;
-      lastPlayerStatePruneCheck = 0;
-      _minimapSnapshot.players.length = 0;
-      _minimapSnapshot.powerupSpawns.length = 0;
-      _minimapSnapshot.neutralCamps.length = 0;
-      _minimapSnapshot.ts = 0;
-      lastNeutralScanCheck = 0;
-      lastNeutralRenderCheck = 0;
-      _nearestTargets.length = 0;
-      _perfLastLogTs = 0;
-      _perfCounters.snapshotSweeps = 0;
-      _perfCounters.lingerChecks = 0;
-      _perfCounters.neutralScans = 0;
-      _perfCounters.proximityPasses = 0;
+    }
+    prevBuffRem = buffRem;
+  }
 
-      clearGlows();
-      clearClaimIndicators();
-      clearAllLingers();
-      syncRejuvText(fmt(SEQ[0].d));
-      setPanelText(UI.rNum, "1");
+  function tickPretrack(rn, snapshot) {
+    // Update pre-track data
+    if (pretrackActive && knownSpawnPos && rn - lastPretrackCheck >= PRETRACK_INTERVAL) {
+      lastPretrackCheck = rn;
+      snapshot = snapshot || collectMinimapSnapshot(rn, false);
+      doPretrack(rn, snapshot);
+    }
+  }
 
-      exitNeutralMode(true);
-      setPanelClass(UI.rejuv, "neutral-card-mode", false);
-      resetImg();
-      setRejuvImage(REJUV_ICON_SRC);
-      endBuff(true);
+  function tickLinger(rn, snapshot) {
+    // Scan for powerups during linger period
+    const lingerActive = buffResetTs > 0 && rn - buffResetTs < POWERUP_LINGER;
+    if (lingerActive && !monitoringActive && rn - lastPowerupScan >= 200) {
+      lastPowerupScan = rn;
+      scanPowerups(rn, null, true);
+    }
 
-      _lastRejuvClip = "";
-      _lastRejuvClipColor = "";
-      _lastBuffClip = "";
-      _lastBuffClipColor = "";
-      _lastRejuvImageSrc = REJUV_ICON_SRC;
-      _lastMiniCardActive = null;
-      _lastMiniCardBuffActive = null;
+    // Fallback scan if no powerups found
+    if (!monitoringActive && trackedPowerups.length === 0 && buffResetTs > 0 && rn - buffResetTs >= 3000 && rn - buffResetTs < 4000) {
+      scanPowerups(rn, null, true);
+    }
 
-      if (UI.rLabClip?.IsValid?.()) {
-        UI.rLabClip.style.clip = "rect(0%,0%,100%,0%)";
-        UI.rLabClip.style.color = "#ffffff";
-        UI.rLabClip.text = "";
-      }
+    // Check for enemy linger (fog of war)
+    if (rn - lastLingerCheck >= getMinimapWorkInterval(rn)) {
+      lastLingerCheck = rn;
+      snapshot = snapshot || collectMinimapSnapshot(rn, false);
+      checkEnemyLinger(rn, snapshot);
+    }
+  }
 
-      if (UI.buffLabClip?.IsValid?.()) {
-        UI.buffLabClip.style.clip = "rect(0%,100%,100%,100%)";
-        UI.buffLabClip.style.color = "#ffffff";
-        UI.buffLabClip.text = "";
+  function tickMonitor(rn, snapshot) {
+    // Monitor tracked powerups for claims
+    if (monitoringActive && rn - lastMonitorCheck >= MONITOR_INTERVAL) {
+      lastMonitorCheck = rn;
+      snapshot = snapshot || collectMinimapSnapshot(rn, false);
+      monitorPowerups(rn, snapshot);
+    }
+  }
+
+  function tickScan(rn) {
+    // Periodic rejuvenator scan
+    if (rn - lastScan >= 3000) {
+      lastScan = rn;
+      doScan();
+    }
+  }
+
+  function tickPrune(rn) {
+    if (rn - lastPlayerStatePruneCheck >= PLAYER_STATE_PRUNE_INTERVAL_MS) {
+      lastPlayerStatePruneCheck = rn;
+      prunePlayerState(rn, false);
+    }
+  }
+
+  function tickNeutralScan(rn, now, snapshot, scoreboardJustOpened) {
+    // Neutral camp respawn scan
+    if (scoreboardJustOpened || rn - lastNeutralScanCheck >= NEUTRAL_SCAN_INTERVAL_MS) {
+      lastNeutralScanCheck = rn;
+      snapshot = snapshot || collectMinimapSnapshot(rn, false);
+      if (snapshot) scanNeutralRespawnState(snapshot, rn, now);
+    }
+  }
+
+  function tickNeutralRender(rn, now, scoreboardOpen, scoreboardJustOpened) {
+    // Neutral camp respawn render
+    const neutralRenderInterval = getNeutralRenderInterval(scoreboardOpen);
+    if (scoreboardJustOpened || rn - lastNeutralRenderCheck >= neutralRenderInterval) {
+      lastNeutralRenderCheck = rn;
+      renderNeutralRespawnTimers(rn, now, scoreboardOpen);
+    }
+  }
+
+  function tickMiniCard(now) {
+    // Mini rejuv card: visible during neutral override phase OR buff active
+    if (UI.rejuvMiniCard?.IsValid?.()) {
+      const neutralOverride = _neutralBotOverrideActive || _neutralMediumOverrideActive || _neutralCardOverrideActive;
+      const buffActive = buffStart > 0;
+      const miniActive = neutralOverride || buffActive;
+      setMiniCardState(miniActive, buffActive && !neutralOverride);
+      // During neutral override the main rejuv label is not updated —
+      // compute the countdown directly from phaseStart.
+      if (neutralOverride && !buffActive && UI.rejuvMiniTime?.IsValid?.()) {
+        const safeIdx = (idx >= 0 && idx < SEQ.length) ? idx : 0;
+        const miniRem = Math.max(0, SEQ[safeIdx].d - (now - phaseStart));
+        syncMiniCardText(fmt(miniRem));
       }
     }
   }
 
-  // ===========================================
-  // IMAGE STATE MANAGEMENT
-  // ===========================================
+  function tickClaim(now) {
+    updateClaimProgress(now);
+  }
 
-  function setImg(i) {
-    resetImg();
+  // Scheduler table - interval in ms, last tracks last execution time
+  const TICKS = [
+    { fn: 'rejuv',        intervalMs: 1000,  last: 0 },
+    { fn: 'buff',         intervalMs: 1000,  last: 0 },
+    { fn: 'bridge',       intervalMs: 1000,  last: 0 },
+    { fn: 'miniCard',     intervalMs: 1000,  last: 0 },
+    { fn: 'claim',        intervalMs: 100,   last: 0 },
+    { fn: 'scan',         intervalMs: 3000,  last: 0 },
+    { fn: 'linger',       intervalMs: 300,   last: 0 },
+    { fn: 'neutralScan',  intervalMs: 500,   last: 0 },
+    { fn: 'neutralRender',intervalMs: 250,   last: 0 },
+    { fn: 'pretrack',     intervalMs: 1000,  last: 0 },
+    { fn: 'monitor',      intervalMs: 300,   last: 0 },
+    { fn: 'prune',        intervalMs: 3000,  last: 0 },
+  ];
 
-    if (i > 0 && UI.rImg?.IsValid?.()) {
-      UI.rImg.AddClass("reverse");
-      UI.rImg.AddClass("rotating");
-      _imgRotateHnd = $.Schedule(0.8, () => {
-        if (UI.rImg?.IsValid?.()) {
-          UI.rImg.RemoveClass("rotating");
+  let _lastScoreboardOpen = false;
+
+  function loop(gen) {
+    if (gen !== _generation) return;
+
+    const rn = Date.now();
+    const now = gTime(rn);
+    let snapshot = null;
+    const mm = findMinimap();
+    const scoreboardOpen = isScoreboardOpen(mm);
+    const scoreboardJustOpened = scoreboardOpen && !_lastScoreboardOpen;
+    _lastScoreboardOpen = scoreboardOpen;
+    maybeClearNeutralCachesForLowGameTime(now);
+
+    // Not running - check hideout status periodically
+    if (!running) {
+      if (rn - lastGateChk >= 30000) {
+        lastGateChk = rn;
+        inHideout = isHideout();
+        if (!inHideout) {
+          startRun(now);
         }
-        _imgRotateHnd = null;
-      });
-    }
-  }
-
-  function resetImg() {
-    if (_imgRotateHnd) {
-      try {
-        $.CancelScheduled(_imgRotateHnd);
-      } catch {}
-      _imgRotateHnd = null;
-    }
-
-    if (!UI.rImg?.IsValid?.()) return;
-    UI.rImg.RemoveClass("rotating");
-    UI.rImg.RemoveClass("reverse");
-    UI.rImg.RemoveClass("white");
-  }
-
-  function enterNeutralMode() {
-    if (!UI.rejuv?.IsValid?.()) return;
-
-    if (_neutralModeHnd) {
-      $.CancelScheduled(_neutralModeHnd);
-      _neutralModeHnd = null;
-    }
-
-    UI.rejuv.RemoveClass("neutral-exiting");
-    UI.rejuv.AddClass("neutral-mode");
-    UI.rejuv.AddClass("neutral-entering");
-    _neutralModeHnd = $.Schedule(NEUTRAL_TRANSITION_MS / 1000, () => {
-      if (UI.rejuv?.IsValid?.()) {
-        UI.rejuv.RemoveClass("neutral-entering");
       }
-      _neutralModeHnd = null;
-    });
-  }
-
-  function exitNeutralMode(skipAnimation, onDone) {
-    if (!UI.rejuv?.IsValid?.()) return;
-
-    if (_neutralModeHnd) {
-      $.CancelScheduled(_neutralModeHnd);
-      _neutralModeHnd = null;
-    }
-
-    UI.rejuv.RemoveClass("neutral-entering");
-
-    if (skipAnimation) {
-      UI.rejuv.RemoveClass("neutral-exiting");
-      UI.rejuv.RemoveClass("neutral-mode");
+      scheduleLoop(gen, 30);
       return;
     }
 
-    UI.rejuv.AddClass("neutral-exiting");
-    _neutralModeHnd = $.Schedule(NEUTRAL_TRANSITION_MS / 1000, () => {
-      if (UI.rejuv?.IsValid?.()) {
-        UI.rejuv.RemoveClass("neutral-mode");
-        UI.rejuv.RemoveClass("neutral-exiting");
+    // Check if we returned to hideout
+    if (rn - lastRunChk >= 60000) {
+      lastRunChk = rn;
+      if (isHideout()) {
+        reset(1);
+        const newGen = _generation;
+        loop(newGen);
+        return;
       }
-      if (onDone) {
-        try {
-          onDone();
-        } catch {}
-      }
-      _neutralModeHnd = null;
-    });
-  }
-
-  function setRejuvImage(src) {
-    if (!UI.rImg?.IsValid?.()) return;
-    if (src === _lastRejuvImageSrc) return;
-
-    try {
-      if (typeof UI.rImg.SetImage === "function") {
-        UI.rImg.SetImage(src);
-      } else {
-        UI.rImg.src = src;
-      }
-      _lastRejuvImageSrc = src;
-    } catch {}
-  }
-
-  function setSpawnBadgeImage(src) {
-    if (UI.spawnBadge?.IsValid?.()) UI.spawnBadge.SetImage(src);
-  }
-
-  function setSpawnBadge2Image(src) {
-    if (UI.spawnBadge2?.IsValid?.()) UI.spawnBadge2.SetImage(src);
-  }
-
-  function exitVaultCardMode(onDone) {
-    setPanelClass(UI.rejuv, "neutral-card-mode", false);
-    setSpawnBadge2Image(NEUTRAL_SMALL_BADGE_SRC);
-    exitNeutralMode(false, onDone);
-    if (UI.rLabClip?.IsValid?.() && _lastRejuvClipColor !== "#ffffff") {
-      UI.rLabClip.style.color = "#ffffff";
-      _lastRejuvClipColor = "#ffffff";
-    }
-  }
-
-  function updateNeutralPhase(startSec, endSec, activeFlag, badgeSrc, rejuvSrc, clipColor, modeClass, exitFn, now) {
-    const active = now >= startSec && now <= endSec;
-
-    if (!active) {
-      if (activeFlag === "bot" && _neutralBotOverrideActive) {
-        _neutralBotOverrideActive = false;
-        exitNeutralMode(false, () => { setRejuvImage(REJUV_ICON_SRC); setImg(idx); });
-        if (UI.rLabClip?.IsValid?.() && _lastRejuvClipColor !== "#ffffff") { UI.rLabClip.style.color = "#ffffff"; _lastRejuvClipColor = "#ffffff"; }
-      } else if (activeFlag === "medium" && _neutralMediumOverrideActive) {
-        _neutralMediumOverrideActive = false;
-        setSpawnBadgeImage(NEUTRAL_SMALL_BADGE_SRC);
-        exitNeutralMode(false, () => { setRejuvImage(REJUV_ICON_SRC); setImg(idx); });
-        if (UI.rLabClip?.IsValid?.() && _lastRejuvClipColor !== "#ffffff") { UI.rLabClip.style.color = "#ffffff"; _lastRejuvClipColor = "#ffffff"; }
-      } else if (activeFlag === "card" && _neutralCardOverrideActive) {
-        _neutralCardOverrideActive = false;
-        exitVaultCardMode(() => { setRejuvImage(REJUV_ICON_SRC); setImg(idx); });
-      }
-      return false;
     }
 
-    if (activeFlag === "bot" && !_neutralBotOverrideActive) { _neutralBotOverrideActive = true; enterNeutralMode(); setRejuvImage(rejuvSrc || NEUTRAL_BOT_ICON_SRC); resetImg(); }
-    if (activeFlag === "medium" && !_neutralMediumOverrideActive) { _neutralMediumOverrideActive = true; setSpawnBadgeImage(badgeSrc); enterNeutralMode(); setRejuvImage(rejuvSrc || NEUTRAL_BOT_ICON_SRC); resetImg(); }
-    if (activeFlag === "card" && !_neutralCardOverrideActive) { _neutralCardOverrideActive = true; setPanelClass(UI.rejuv, modeClass, true); setSpawnBadge2Image(badgeSrc); setRejuvImage(rejuvSrc || NEUTRAL_VAULT_BADGE_SRC); enterNeutralMode(); resetImg(); }
+    // Detect game restart (time went backwards significantly)
+    if (lastGlobalSec >= 0 && (now + 5 < lastGlobalSec || (lastGlobalSec > 30 && now <= 2))) {
+      reset(1);
+      const newGen = _generation;
+      loop(newGen);
+      return;
+    }
 
-    const rem = Math.max(0, endSec - now);
-    counter = rem;
-    syncRejuvText(fmt(rem));
-    const pct = rem / (endSec - startSec);
-    const p = Math.floor(pct * 100);
-    const clip = "rect(0%," + p + "%,100%,0%)";
-    if (clip !== _lastRejuvClip && UI.rLabClip?.IsValid?.()) { UI.rLabClip.style.clip = clip; _lastRejuvClip = clip; }
-    if (UI.rLabClip?.IsValid?.() && _lastRejuvClipColor !== clipColor) { UI.rLabClip.style.color = clipColor; _lastRejuvClipColor = clipColor; }
-    tick = TICK_FAST;
-    return true;
+    lastGlobalSec = now;
+
+    // Dispatch tick functions based on interval
+    for (const t of TICKS) {
+      if (rn - t.last >= t.intervalMs) {
+        t.last = rn;
+        switch (t.fn) {
+          case 'rejuv':
+            tickRejuv(now, rn);
+            break;
+          case 'buff':
+            tickBuff(now);
+            break;
+          case 'bridge':
+            tickBridge(now, rn);
+            break;
+          case 'miniCard':
+            tickMiniCard(now);
+            break;
+          case 'claim':
+            tickClaim(now);
+            break;
+          case 'scan':
+            tickScan(rn);
+            break;
+          case 'linger':
+            tickLinger(rn, snapshot);
+            break;
+          case 'neutralScan':
+            tickNeutralScan(rn, now, snapshot, scoreboardJustOpened);
+            break;
+          case 'neutralRender':
+            tickNeutralRender(rn, now, scoreboardOpen, scoreboardJustOpened);
+            break;
+          case 'pretrack':
+            tickPretrack(rn, snapshot);
+            break;
+          case 'monitor':
+            tickMonitor(rn, snapshot);
+            break;
+          case 'prune':
+            tickPrune(rn);
+            break;
+        }
+      }
+    }
+
+    scheduleLoop(gen, tick);
   }
 
   // ===========================================
-  // TIME UTILITIES
+  // BOOT AND IIFE CLOSER
   // ===========================================
 
-  function gTime(nowMs) {
-    const n = nowMs || Date.now();
+  function boot() {
+    const r = findRoot($.GetContextPanel());
+    UI.root = r;
+    UI.hud = r.FindChildTraverse("Hud");
+    UI.topBar = r.FindChildTraverse("TopBar");
+    UI.rLab = r.FindChildTraverse("RejuvTime");
+    UI.rNum = r.FindChildTraverse("RejuvNum");
+    UI.rImg = r.FindChildTraverse("RejuvImg");
+    UI.rejuv = r.FindChildTraverse("Rejuv");
+    UI.buffLab = r.FindChildTraverse("BuffTime");
+    UI.rLabClip = r.FindChildTraverse("RejuvTimeClip");
+    UI.buffLabClip = r.FindChildTraverse("BuffTimeClip");
+    UI.glowLeft = r.FindChildTraverse("MinimapGlowLeft");
+    UI.glowRight = r.FindChildTraverse("MinimapGlowRight");
+    UI.scoreboardPanel = r.FindChildTraverse("ScoreboardContainer") || r.FindChildTraverse("Scoreboard");
 
-    // Return cached value if recent
-    if (n - _tCacheTs < 200) return _tCache;
-
-    let t = 0;
-
-    // Try cached game time panel first
-    if (_gameTimePanel?.IsValid?.()) {
-      try {
-        t = parseSec(_gameTimePanel.text);
-      } catch {}
-    }
-
-    // Find game time panel if not cached
-    if (!t) {
-      try {
-        let tb = UI.topBar;
-        if (!tb?.IsValid?.() && UI.root?.IsValid?.()) {
-          tb = UI.root.FindChildTraverse("TopBar");
-          UI.topBar = tb;
-        }
-        if (tb) {
-          const a = tb.FindChildrenWithClassTraverse("GameTime");
-          if (a?.[0]?.text) {
-            _gameTimePanel = a[0];
-            t = parseSec(a[0].text);
-          }
-        }
-      } catch {}
-    }
-
-    if (t > 0) {
-      _tCache = t;
-      _tCacheTs = n;
-    }
-
-    return t;
-  }
-
-  function parseSec(t) {
-    if (!t) return 0;
-
-    const s = String(t);
-    const ci = s.indexOf(":");
-    if (ci < 0) return 0;
-
-    let mm = 0;
-    let ss = 0;
-    let c;
-
-    // Parse minutes
-    for (let i = 0; i < ci; i++) {
-      c = s.charCodeAt(i);
-      if (c >= 48 && c <= 57) {
-        mm = mm * 10 + (c - 48);
-      }
-    }
-
-    // Parse seconds
-    for (let i = ci + 1, n = 0; i < s.length && n < 2; i++, n++) {
-      c = s.charCodeAt(i);
-      if (c >= 48 && c <= 57) {
-        ss = ss * 10 + (c - 48);
-      } else {
-        break;
-      }
-    }
-
-    return mm * 60 + (ss > 59 ? ss % 60 : ss);
-  }
-
-  function isHideout() {
-    if (!UI.hud?.BHasClass) return false;
+    if (DEBUG_PING_TIMER) { dbgPing("boot", {
+      hasChat: !!UI.chat,
+      hasChatInput: !!UI.chatInput
+    }); }
 
     try {
-      // Order by most common casing first for early exit
-      return UI.hud.BHasClass("connectedToHideout") ||
-             UI.hud.BHasClass("connectedtohideout") ||
-             UI.hud.BHasClass("connectedToHideOut");
+      globalThis.handleRejuvPingActivate = handleRejuvPingActivate;
+      globalThis.handleBuffPingActivate = handleBuffPingActivate;
+      $.GetContextPanel().handleRejuvPingActivate = handleRejuvPingActivate;
+      $.GetContextPanel().handleBuffPingActivate = handleBuffPingActivate;
     } catch {}
+    UI.claimLeft = r.FindChildTraverse("MinimapBuffClaimLeft");
+    UI.claimRight = r.FindChildTraverse("MinimapBuffClaimRight");
+    UI.claimIconLeft = r.FindChildTraverse("ClaimIconLeft");
+    UI.claimIconRight = r.FindChildTraverse("ClaimIconRight");
+    UI.claimRingLeft = r.FindChildTraverse("ClaimRingLeft");
+    UI.claimRingRight = r.FindChildTraverse("ClaimRingRight");
+    UI.claimTimerLeft = r.FindChildTraverse("ClaimTimerLeft");
+    UI.claimTimerRight = r.FindChildTraverse("ClaimTimerRight");
+    UI.minimapContainer = r.FindChildTraverse("HudMinimapContainer");
+    UI.minimapBox = r.FindChildTraverse("minimap_container");
+    UI.scoreboardRoot = r.FindChildTraverse("minimap_persp");
+    UI.spawnBadge = r.FindChildTraverse("NeutralSpawnBadge");
+    UI.spawnBadge2 = r.FindChildTraverse("NeutralSpawnBadge2");
+    UI.rejuvMiniCard = r.FindChildTraverse("RejuvMiniCard");
+    UI.rejuvMiniTime = r.FindChildTraverse("RejuvMiniTime");
 
-    return false;
-  }
-
-  function fmt(s) {
-    s = Math.max(0, s | 0);
-    const m = (s / 60) | 0;
-    const ss = s % 60;
-    return (m < 10 ? "0" + m : "" + m) + ":" + (ss < 10 ? "0" + ss : "" + ss);
-  }
-
-  function fmtCompact(s) {
-    s = Math.max(0, s | 0);
-
-    if (s >= 60) {
-      const m = (s / 60) | 0;
-      const ss = s % 60;
-      return m + ":" + (ss < 10 ? "0" + ss : "" + ss);
+    const tb = UI.topBar;
+    if (tb) {
+      const ch = tb.FindChildTraverse("RejuvenatorCharges");
+      if (ch) {
+        UI.rejuvFriendly = ch.FindChildTraverse("RejuvenatorFriendly");
+        UI.rejuvEnemy = ch.FindChildTraverse("RejuvenatorEnemy");
+      }
     }
 
-    if (s >= 10) {
-      return s + "s";
+    if (!UI.rLab || !UI.rNum || !UI.rImg || !UI.buffLab) {
+      return $.Schedule(0.5, boot);
     }
 
-    return "" + s;
-  }
-
-  function findRoot(p) {
-    while (p.GetParent?.()) {
-      p = p.GetParent();
+    if (DEBUG_NEUTRAL_ALIGN && !_alignBootLogged) {
+      _alignBootLogged = true;
+      $.Msg("[BT-ALIGN]", "boot", "enabled=1");
     }
-    return p;
+
+    reset(1);
+    _generation++;
+    const gen = _generation;
+    loop(gen);
+    watchdogTick(gen);
   }
 
   // ===========================================
