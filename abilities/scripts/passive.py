@@ -32,6 +32,7 @@ ADD_FLAG_UPGRADES = [
     "upgrade_resonant_healing",
     "upgrade_weapon_backstabber",
     "upgrade_rechargingbullets",
+    "upgrade_auto_cleanse",
 ]
 
 def add_passive_item_flag(file_path, output_path=None):
