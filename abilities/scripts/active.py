@@ -32,6 +32,7 @@ ADD_FLAG_UPGRADES = [
     "upgrade_resonant_healing",
     "upgrade_weapon_backstabber",
     "upgrade_rechargingbullets",
+    "upgrade_auto_cleanse",
 ]
 
 # Behavior bits to inject into abilities listed below.

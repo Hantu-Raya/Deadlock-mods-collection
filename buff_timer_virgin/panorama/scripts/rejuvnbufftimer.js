@@ -45,7 +45,7 @@
   const MONITOR_INTERVAL = 300;
   const CLAIM_RADIUS_SQ = 64;
   const PRETRACK_INTERVAL = 1000;
-  const POWERUP_BUFF_DUR = 180;
+  const POWERUP_BUFF_DUR = 170;
   const DEATH_GRACE_MS = 2000;
   const PLAYER_STATE_STALE_MS = 6000;
   const PLAYER_STATE_PRUNE_INTERVAL_MS = 3000;
@@ -1953,8 +1953,8 @@
         } catch {}
       }
 
-      // Record start time
-      const claimTime = gTime();
+      // Record start time (use Date.now() to match updateClaimSide's elapsed calculation)
+      const claimTime = Date.now();
       if (isLeft) {
         _claimStartLeft = claimTime;
       } else {
@@ -2084,7 +2084,7 @@
   }
 
   function updateClaimSide(start, timerPanel, ringPanel, lastText, lastScale, lastOpacity) {
-    const elapsed = Date.now() - start;
+    const elapsed = (Date.now() - start) / 1000;
     const rem = Math.max(0, POWERUP_BUFF_DUR - elapsed);
     const pct = rem / POWERUP_BUFF_DUR;
     let nextText = lastText;
@@ -2447,8 +2447,8 @@
         allClaimed = false;
       } else {
         const allyClose = p.minAllyDist <= CLAIM_RADIUS_SQ;
-        const allyCloser = p.minAllyDist < p.minEnemyDist;
-        const enemyClaimed = !(allyClose && allyCloser);
+        const enemyClose = p.minEnemyDist <= CLAIM_RADIUS_SQ;
+        const enemyClaimed = !allyClose || (enemyClose && p.minEnemyDist < p.minAllyDist);
 
         clearSideGlow(p.pos);
 

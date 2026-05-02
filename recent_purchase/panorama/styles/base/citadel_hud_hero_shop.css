@@ -41,14 +41,24 @@ CitadelHudHeroShop.DashboardBuilds,CitadelHudHeroShop.gEditingBuilds
 
 #Shop
 {
-	width: 100%;
+	width: 99%;
+	margin-right: 150px;
 	height: 100%;
-	flow-children: right;
+	horizontal-align: center;
+	flow-children: left;
+}
+
+.AspectRatio16x10 #Shop
+{
+	width: 99%;
+	margin-right: 0px;
 }
 
 .AspectRatio21x9 #Shop
 {
-	width: 1920px;
+	max-width: 1700px;
+	width: 100%;
+	margin-right: 0px;
 	horizontal-align: center;
 }
 
@@ -56,12 +66,9 @@ CitadelHudHeroShop.DashboardBuilds,CitadelHudHeroShop.gEditingBuilds
 {
 	height: 100%;
 	width: 650px;
-	margin-right: -100px;
-}
-
-.AspectRatio16x10 #NavPanel
-{
-	margin-right: -100px;
+	z-index: 0;
+	ignore-parent-flow: true;
+	horizontal-align: left;
 }
 
 #ModBarGraphContainer
@@ -776,14 +783,9 @@ CitadelTrainingPage #HeroScenePanel
 #MainPanel
 {
 	height: 960px;
-	width: 100%;
-	max-width: 1150px;
+	width: 1150px;
 	margin-top: 20px;
-}
-
-.AspectRatio16x10 #MainPanel
-{
-	max-width: 1150px;
+	z-index: 1;
 }
 
 .isShowingTrainingPage #MainPanel
