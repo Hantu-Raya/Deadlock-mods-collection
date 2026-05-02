@@ -102,7 +102,7 @@ This project is licensed under the MIT License.
 
 You are free to use, modify, and share this code, but you must keep the original copyright notice and give credit to the author.
 
-Copyright (c) 2026 Muhamad Rosli Zaqwan
+Copyright (c) 2026 Hantu-Raya
 
 ---
 
