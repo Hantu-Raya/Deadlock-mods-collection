@@ -1,0 +1,1510 @@
+<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/hud_common.vcss_c" />
+		<include src="s2r://panorama/styles/npc_icons.vcss_c" />
+		<include src="s2r://panorama/styles/hud.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_hero_spotlight.vcss_c" />
+		<include src="s2r://panorama/styles/3d_hud.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/3d_hero_dynamic.vjs_c" />
+	</scripts>
+	<snippets>
+		<snippet name="OffscreenEnemySnippet">
+			<Panel class="damage_offscreen">
+				<Image
+                    class="damage_arrow_icon damage_arrow_up"
+                    src="s2r://panorama/images/control_icons/arrow_solid_up_png.vtex"
+                />
+				<Image
+                    class="damage_arrow_icon damage_arrow_left"
+                    src="s2r://panorama/images/control_icons/arrow_solid_left_png.vtex"
+                />
+				<Image
+                    class="damage_arrow_icon damage_arrow_right"
+                    src="s2r://panorama/images/control_icons/arrow_solid_right_png.vtex"
+                />
+				<Image
+                    class="damage_arrow_icon damage_arrow_down"
+                    src="s2r://panorama/images/control_icons/arrow_solid_down_png.vtex"
+                />
+				<Panel id="unit_info">
+					<Image id="hero_icon" scaling="stretch-to-fit-preserve-aspect" />
+					<Panel id="health_container">
+						<Panel id="health_backer" />
+						<Panel id="health_bar" />
+					</Panel>
+				</Panel>
+			</Panel>
+		</snippet>
+		<snippet name="OffscreenPingSnippet">
+			<Panel class="ping_offscreen" hittest="false" hittestchildren="false">
+				<Image
+                    class="playerPortraitBackground"
+                    src="s2r://panorama/images/hud/ping/player_portrait_bg.vsvg"
+                />
+				<Image
+                    class="ping_arrow_icon ping_arrow_up"
+                    src="s2r://panorama/images/control_icons/arrow_solid_up_png.vtex"
+                />
+				<Image
+                    class="ping_arrow_icon ping_arrow_left"
+                    src="s2r://panorama/images/control_icons/arrow_solid_left_png.vtex"
+                />
+				<Image
+                    class="ping_arrow_icon ping_arrow_right"
+                    src="s2r://panorama/images/control_icons/arrow_solid_right_png.vtex"
+                />
+				<Image
+                    class="ping_arrow_icon ping_arrow_down"
+                    src="s2r://panorama/images/control_icons/arrow_solid_down_png.vtex"
+                />
+				<Image
+                    class="pingPlayerPulse1 playerPulse"
+                    src="s2r://panorama/images/hud/ping/ping_player.vsvg"
+                />
+				<Image
+                    class="pingPlayerPulse2 playerPulse"
+                    src="s2r://panorama/images/hud/ping/ping_player.vsvg"
+                />
+				<Image
+                    class="pingPlayerPulse3 playerPulse"
+                    src="s2r://panorama/images/hud/ping/ping_player.vsvg"
+                />
+				<Image id="hero_icon" />
+			</Panel>
+		</snippet>
+		<snippet name="SeasonalKillToast">
+			<Panel
+                class="SeasonalKillToast"
+                toast_duration_override="4s"
+                toast_appear_sound="UI.SeasonalAchievement"
+            >
+				<Panel class="Left">
+					<CitadelHeroImage id="KillerHeroImage" heroimagestyle="small" />
+					<Image
+                        id="SnowballImage"
+                        src="s2r://panorama/images/items/seasonal/2025_snowball_psd.vtex"
+                    />
+					<CitadelHeroImage id="VictimHeroImage" heroimagestyle="small" />
+				</Panel>
+				<Panel class="Right">
+					<Label
+                        html="true"
+                        class="snowballLine1"
+                        text="#Citadel_Hud_Toast_SeasonalKill"
+                    />
+					<Label
+                        html="true"
+                        class="snowballLine2"
+                        text="#Citadel_Hud_Toast_SeasonalKill2"
+                    />
+				</Panel>
+			</Panel>
+		</snippet>
+	</snippets>
+	<CitadelHud
+        class="WindowRoot"
+        hittest="false"
+        disallowedstyleflags="hover,descendantfocus"
+    >
+		<Panel
+            class="HudCore"
+            hittest="false"
+            disallowedstyleflags="hover,descendantfocus"
+        >
+			<CitadelPingIndicator id="PingIndicator" hittest="false" />
+			<CitadelHudEventIndicatorsPanel id="HudEventIndicatorsPanel" />
+			<CitadelModifierMessage id="ModifierMessages" />
+			<CitadelHudQuickResponse id="CitadelQuickResponse" />
+			<CitadelRadialAbilities
+                id="RadialAbilitiesMenu"
+                startangle="-70"
+                endangle="70"
+            />
+			<Panel id="SafeToAbandonIndicator">
+				<Button
+                    class="MinimizeSafeToLeave CloseButton"
+                    onactivate="$.GetContextPanel().ToggleClass(&apos;MinimizeSafeToLeave&apos;)"
+                />
+				<Label class="SafeToAbandonLabel" text="#SafeToAbandon_Text" />
+				<Label class="NotScoredLabel" text="#NotScored_Text" />
+			</Panel>
+			<Panel id="context_action_container">
+				<GlobalClassListener classes="gDetailView" />
+				<Panel id="citadel_ability_zip_line" class="action_zip_line context_action">
+					<Panel id="zipline_sign" />
+					<Label
+                        class="light action_binding"
+                        text="#Citadel_Hud_RideZipLine"
+                        html="true"
+                    />
+					<Panel id="zipline_cooldown_indicator">
+						<Label
+                            class="zipline_cooldown_value"
+                            text="#Citadel_Hud_RideZipLineOnCooldownValue"
+                            html="true"
+                        />
+						<Label
+                            class="zipline_cooldown_label"
+                            text="#Citadel_Hud_RideZipLineOnCooldown"
+                            html="true"
+                        />
+					</Panel>
+				</Panel>
+				<Panel class="action_upgrade context_action">
+					<Image
+                        id="shop_sign"
+                        scaling="stretch-to-fit-preserve-aspect"
+                        src="s2r://panorama/images/shop/shop_logo_ui_psd.vtex"
+                    />
+					<Label class="light action_binding" text="#Citadel_Hud_OpenShop" html="true" />
+				</Panel>
+				<Panel class="action_hideout_interact context_action">
+					<Label class="light action_binding" text="{s:hideout_interact}" html="true" />
+				</Panel>
+			</Panel>
+			<CitadelHudPersonalBest />
+			<Panel id="death_replay_loading">
+				<Label text="#Citadel_Hud_LoadingDeathReplay" />
+			</Panel>
+			<Panel id="mispredict_indicator" />
+			<CitadelHudAbilityResource id="ability_resource" />
+			<Panel id="deathReplayNoticeLower" class="deathReplayBar" />
+			<Panel id="deathReplayNoticeUpper" class="deathReplayBar">
+				<Label text="#Citadel_Hud_DeathCam" />
+			</Panel>
+			<CitadelHudModifierHistory id="hud_modifier_history" />
+			<Panel id="hero_pos_debug" hittest="false">
+				<Panel id="model_position_debug" hittest="false">
+					<Label text="Small" style="font-size: 40px;" />
+				</Panel>
+				<Panel id="large_model_position_debug" hittest="false">
+					<Label text="Large" style="font-size: 40px;" />
+				</Panel>
+				<Panel id="gun_position_debug" hittest="false">
+					<Label text="Gun Position" style="font-size: 30px;" />
+				</Panel>
+			</Panel>
+			<CitadelHudJoinTeam id="join_team" />
+			<Panel id="gameplay_hud" class="gameplay_hud" hittest="false">
+				<GlobalClassListener classes="gShopOpen" />
+				<Panel id="hudBacker" />
+				<CitadelHudGameAnnouncements id="CitadelHudGameAnnouncements" />
+				<TeamObjectiveHealthPanel id="objectives_health_friendly" team="2" />
+				<Panel
+                    id="spectator_count"
+                    onmouseover="UIShowTextTooltip( #hud_spectate_count_tooltip )"
+                    onmouseout="UIHideTextTooltip()"
+                >
+					<Panel id="spectator_count_container">
+						<Panel class="spectatorIcon" />
+						<Label class="specatorLabel" text="#hud_spectate_count" />
+					</Panel>
+				</Panel>
+				<Panel id="voice_active_box">
+					<Panel style="flow-children:right;">
+						<Panel class="micIcon" />
+						<Label text="#Citadel_Hud_MicActive" />
+					</Panel>
+					<Panel id="voice_active_not_in_chat">
+						<Label text="#Citadel_Hud_VoiceChatNotAvailable" />
+					</Panel>
+				</Panel>
+				<TeamChatStatus id="teamChatStatus" />
+				<Panel id="gameplay_hud_alive" hittest="false">
+					<Panel id="MinimapRevealPanel" hittest="false" hittestchildren="false" />
+					<CitadelHudScreenEffects_Silenced id="silenced_screen_effect" />
+					<CitadelHudScreenEffects_Stunned id="stunned_screen_effect" />
+					<CitadelHudScreenEffects_HornetScope id="scope_screen_effect" />
+					<CitadelHudScreenEffects_LowHealth id="low_health_screen_effect" />
+					<Panel id="damage_indicator_radar" acceptinput="false" hittest="false">
+						<CitadelDamageIndicator
+                            id="damage_indicator_canvas"
+                            acceptinput="false"
+                            hittest="false"
+                        />
+					</Panel>
+					<CitadelDamageIndicatorOffscreenEnemy
+                        id="damage_indicator_offscreen_enemy"
+                        acceptinput="false"
+                        hittest="false"
+                    />
+					<Panel id="status_bars" acceptinput="false">
+						<CitadelHudModifiers
+                            id="hud_modifiers"
+                            class="center_modifiers"
+                            display_location="center"
+                        />
+					</Panel>
+					<Label id="out_of_ammo_label" text="#Citadel_Hud_OutOfAmmo" />
+					<Label id="low_ammo_label" text="#Citadel_Hud_LowAmmo" />
+					<Label id="out_of_mana_label" text="#Citadel_Hud_NotEnoughEnergy" />
+					<Citadel_AbilityHUDPanels id="crosshair" />
+					<Panel id="LowHealthWarning">
+						<Label text="#Citadel_Hud_HealthCritical" />
+					</Panel>
+					<Panel id="MidHealthWarning">
+						<Label text="#Citadel_Hud_HealthWarning" />
+					</Panel>
+					<Panel id="disabled_container">
+						<CircularProgressBar id="disabled_progress" />
+					</Panel>
+					<CitadelHudHints id="hintsPanel" />
+					<Panel id="invisibility">
+						<Image
+                            class="invis_icon"
+                            scaling="stretch-to-fit-preserve-aspect"
+                            src="s2r://panorama/images/hud/invis_visible_psd.vtex"
+                        />
+					</Panel>
+				</Panel>
+				<Panel id="spectate_container" hittest="false">
+					<CitadelHudSpectateBar id="spectate_bar" />
+					<CitadelHudReplay id="hud_replay" />
+				</Panel>
+				<CitadelHudDamageSummary id="hud_damage_summary" />
+				<CitadelHudHealthContainer id="health_and_abilities_container" />
+				<CitadelHudAbilityInterrupt id="ability_interrupt_panel" />
+				<Panel
+                    id="friendly_final_objective_container"
+                    class="final_objective_container friendly"
+                >
+					<Panel id="center_container">
+						<Panel id="cp_container" class="cp_container" />
+					</Panel>
+				</Panel>
+				<Panel
+                    id="enemy_final_objective_container"
+                    class="final_objective_container enemy"
+                >
+					<Panel id="center_container">
+						<Panel id="cp_container" class="cp_container" />
+					</Panel>
+				</Panel>
+				<Panel id="death_penalty_gold_flash" />
+				<Label id="damage_meter" text="#Citadel_Hud_DPS" />
+				<Panel class="clamp_width" hittest="false">
+					<HudDataFeed id="DataFeed" />
+					<GlobalClassListener
+                        id="minimap_persp"
+                        hittest="false"
+                        classes="gDetailView gScoreboardOpen gAbilityUpgradeMenu"
+                    >
+						<Panel id="minimap_container" hittest="false">
+							<Panel id="minimap_blur" hittest="false" />
+							<Panel id="HudMinimapContainer">
+								<HudMinimap id="hud_minimap" acceptsinput="false" acceptsfocus="false" />
+							</Panel>
+							<Panel id="minimap_frame" hittest="false" />
+						</Panel>
+					</GlobalClassListener>
+					<CitadelHudModifiers id="hud_aura_modifiers" display_location="left" />
+					<CitadelHudActivePlayerStats id="hudPlayerStats" />
+				</Panel>
+			</Panel>
+			<CitadelHudMatchEnd id="MatchEnd" />
+			<CitadelHudStreetBrawlRoundScoringDisplay id="StreetBrawlDisplay" />
+			<CitadelHudReportCard id="hud_reportcard" />
+			<CitadelHudPlayerIntents id="hud_playerintents" />
+			<CitadelChatWheel id="ChatWheel" />
+			<CitadelItemDraftPanel id="ItemDraft" />
+			<CitadelDamageImpact id="damage_impact" />
+			<CitadelHudTopBar id="TopBar" hittest="false" />
+			<CitadelPregameCountdown id="PregameCountdown" />
+			<CitadelHudHeroShop id="CitadelHudHeroShop" />
+			<CitadelHudDamageReport id="CitadelHudDamageReport" />
+			<CitadelHudHeroTesting id="hud_hero_testing" />
+			<Panel id="ThreeDHeroHudProbe" hittest="false" hittestchildren="false">
+				<Panel id="ThreeDHeroDynamicHeroHost" hittest="false" hittestchildren="false">
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_inferno"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/inferno.vmap"
+                        camera="portrait_camera"
+                        hero_id="1"
+                        heroid="1"
+                        hero="hero_inferno"
+                        unit="hero_inferno"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_gigawatt"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/gigawatt.vmap"
+                        camera="portrait_camera"
+                        hero_id="2"
+                        heroid="2"
+                        hero="hero_gigawatt"
+                        unit="hero_gigawatt"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_hornet"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/hornet.vmap"
+                        camera="portrait_camera"
+                        hero_id="3"
+                        heroid="3"
+                        hero="hero_hornet"
+                        unit="hero_hornet"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_ghost"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/geist.vmap"
+                        camera="portrait_camera"
+                        hero_id="4"
+                        heroid="4"
+                        hero="hero_ghost"
+                        unit="hero_ghost"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_atlas"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/abrams.vmap"
+                        camera="portrait_camera"
+                        hero_id="6"
+                        heroid="6"
+                        hero="hero_atlas"
+                        unit="hero_atlas"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_wraith"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/wraith.vmap"
+                        camera="portrait_camera"
+                        hero_id="7"
+                        heroid="7"
+                        hero="hero_wraith"
+                        unit="hero_wraith"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_forge"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/forge.vmap"
+                        camera="portrait_camera"
+                        hero_id="8"
+                        heroid="8"
+                        hero="hero_forge"
+                        unit="hero_forge"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_chrono"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/chrono.vmap"
+                        camera="portrait_camera"
+                        hero_id="10"
+                        heroid="10"
+                        hero="hero_chrono"
+                        unit="hero_chrono"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_dynamo"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/prof_dynamo.vmap"
+                        camera="portrait_camera"
+                        hero_id="11"
+                        heroid="11"
+                        hero="hero_dynamo"
+                        unit="hero_dynamo"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_kelvin"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/kelvin.vmap"
+                        camera="portrait_camera"
+                        hero_id="12"
+                        heroid="12"
+                        hero="hero_kelvin"
+                        unit="hero_kelvin"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_haze"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/haze.vmap"
+                        camera="portrait_camera"
+                        hero_id="13"
+                        heroid="13"
+                        hero="hero_haze"
+                        unit="hero_haze"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_astro"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/astro.vmap"
+                        camera="portrait_camera"
+                        hero_id="14"
+                        heroid="14"
+                        hero="hero_astro"
+                        unit="hero_astro"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_bebop"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/bebop.vmap"
+                        camera="portrait_camera"
+                        hero_id="15"
+                        heroid="15"
+                        hero="hero_bebop"
+                        unit="hero_bebop"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_nano"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/nano.vmap"
+                        camera="portrait_camera"
+                        hero_id="16"
+                        heroid="16"
+                        hero="hero_nano"
+                        unit="hero_nano"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_orion"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/archer.vmap"
+                        camera="portrait_camera"
+                        hero_id="17"
+                        heroid="17"
+                        hero="hero_orion"
+                        unit="hero_orion"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_krill"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/digger.vmap"
+                        camera="portrait_camera"
+                        hero_id="18"
+                        heroid="18"
+                        hero="hero_krill"
+                        unit="hero_krill"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_shiv"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/shiv.vmap"
+                        camera="portrait_camera"
+                        hero_id="19"
+                        heroid="19"
+                        hero="hero_shiv"
+                        unit="hero_shiv"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_tengu"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/tengu.vmap"
+                        camera="portrait_camera"
+                        hero_id="20"
+                        heroid="20"
+                        hero="hero_tengu"
+                        unit="hero_tengu"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_warden"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/warden.vmap"
+                        camera="portrait_camera"
+                        hero_id="25"
+                        heroid="25"
+                        hero="hero_warden"
+                        unit="hero_warden"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_yamato"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/yamato.vmap"
+                        camera="portrait_camera"
+                        hero_id="27"
+                        heroid="27"
+                        hero="hero_yamato"
+                        unit="hero_yamato"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_lash"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/lash.vmap"
+                        camera="portrait_camera"
+                        hero_id="31"
+                        heroid="31"
+                        hero="hero_lash"
+                        unit="hero_lash"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_viscous"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/viscous.vmap"
+                        camera="portrait_camera"
+                        hero_id="35"
+                        heroid="35"
+                        hero="hero_viscous"
+                        unit="hero_viscous"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_synth"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/pocket.vmap"
+                        camera="portrait_camera"
+                        hero_id="50"
+                        heroid="50"
+                        hero="hero_synth"
+                        unit="hero_synth"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_mirage"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/mirage.vmap"
+                        camera="portrait_camera"
+                        hero_id="52"
+                        heroid="52"
+                        hero="hero_mirage"
+                        unit="hero_mirage"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_viper"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/viper.vmap"
+                        camera="portrait_camera"
+                        hero_id="58"
+                        heroid="58"
+                        hero="hero_viper"
+                        unit="hero_viper"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_magician"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/magician.vmap"
+                        camera="portrait_camera"
+                        hero_id="60"
+                        heroid="60"
+                        hero="hero_magician"
+                        unit="hero_magician"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_vampirebat"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/vampirebat.vmap"
+                        camera="portrait_camera"
+                        hero_id="63"
+                        heroid="63"
+                        hero="hero_vampirebat"
+                        unit="hero_vampirebat"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_drifter"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/drifter.vmap"
+                        camera="portrait_camera"
+                        hero_id="64"
+                        heroid="64"
+                        hero="hero_drifter"
+                        unit="hero_drifter"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_priest"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/priest.vmap"
+                        camera="portrait_camera"
+                        hero_id="65"
+                        heroid="65"
+                        hero="hero_priest"
+                        unit="hero_priest"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_frank"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/frank.vmap"
+                        camera="portrait_camera"
+                        hero_id="66"
+                        heroid="66"
+                        hero="hero_frank"
+                        unit="hero_frank"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_bookworm"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/bookworm.vmap"
+                        camera="portrait_camera"
+                        hero_id="67"
+                        heroid="67"
+                        hero="hero_bookworm"
+                        unit="hero_bookworm"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_doorman"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/doorman.vmap"
+                        camera="portrait_camera"
+                        hero_id="69"
+                        heroid="69"
+                        hero="hero_doorman"
+                        unit="hero_doorman"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_punkgoat"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/punkgoat.vmap"
+                        camera="portrait_camera"
+                        hero_id="72"
+                        heroid="72"
+                        hero="hero_punkgoat"
+                        unit="hero_punkgoat"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_necro"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/necro.vmap"
+                        camera="portrait_camera"
+                        hero_id="76"
+                        heroid="76"
+                        hero="hero_necro"
+                        unit="hero_necro"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_fencer"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/apollo.vmap"
+                        camera="portrait_camera"
+                        hero_id="77"
+                        heroid="77"
+                        hero="hero_fencer"
+                        unit="hero_fencer"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_familiar"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/familiar.vmap"
+                        camera="portrait_camera"
+                        hero_id="79"
+                        heroid="79"
+                        hero="hero_familiar"
+                        unit="hero_familiar"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_werewolf"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/werewolf.vmap"
+                        camera="portrait_camera"
+                        hero_id="80"
+                        heroid="80"
+                        hero="hero_werewolf"
+                        unit="hero_werewolf"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+					<CitadelHeroScenePanelNew
+                        id="ThreeDHeroScene_hero_unicorn"
+                        class="StaticHeroScene HiddenHero"
+                        heroscenestyle="Portrait"
+                        map="maps/ui/hero_prefabs/unicorn.vmap"
+                        camera="portrait_camera"
+                        hero_id="81"
+                        heroid="81"
+                        hero="hero_unicorn"
+                        unit="hero_unicorn"
+                        rotation_entity_name="root"
+                        rotate="None"
+                        renderdeferred="true"
+                        rotateonhover="false"
+                        yawmin="0"
+                        yawmax="0"
+                        pitchmin="0"
+                        pitchmax="0"
+                        acceleration="0"
+                        antialias="false"
+                        rendershadows="false"
+                        renderwaterreflections="false"
+                        drawbackground="false"
+                        allowrotation="false"
+                        hittest="false"
+                    />
+				</Panel>
+			</Panel>
+			<Panel id="gameplay_hud_dead" hittest="false" hittestchildren="false">
+				<GlobalClassListener classes="gShopOpen" />
+				<Panel id="respawn_timer">
+					<Panel class="respawn_timer_container">
+						<Panel class="respawn_timer_col_left">
+							<Label class="respawn_text" text="#Citadel_Hud_RespawnIn" />
+						</Panel>
+						<Panel class="respawn_timer_col_right">
+							<Label class="respawn_number" text="{s:respawn_timer}" />
+						</Panel>
+					</Panel>
+					<Panel class="death_button_hint shop_while_dead">
+						<Label class="button_hint_text" text="#Citadel_Dead_ShopReminder" html="true" />
+					</Panel>
+					<Panel class="death_button_hint replay_death">
+						<Label class="button_hint_text" text="#Citadel_Dead_ReplayDeath" html="true" />
+					</Panel>
+				</Panel>
+			</Panel>
+			<CitadelHudHeroBuilds id="CitadelHudHeroBuilds" hittest="false" />
+			<Panel id="party_ctn">
+				<CitadelPartyInviteList id="partyinvites" />
+			</Panel>
+			<CitadelHudSandboxTutorial id="hud_sandbox_tutorial" hittest="false" />
+			<CitadelPaused id="PausedInfo" />
+			<CitadelHudSubtitles id="HudSubtitles" />
+			<Panel id="CheaterVoteBox">
+				<GlobalClassListener classes="gScoreboardOpen" />
+				<Panel id="AbramsImg" />
+				<Panel id="AlertArea">
+					<Label class="Caption" text="#Citadel_Hud_CheaterVoteAlert" />
+				</Panel>
+				<Panel id="VotingArea">
+					<Panel id="CheaterInfo">
+						<CitadelHeroImage id="CheaterHeroImage" />
+						<Label class="CaptionName" text="#Citadel_Hud_CheaterVoteCaption" />
+					</Panel>
+					<Panel id="ButtonRow">
+						<Button
+                            class="FrogButton"
+                            id="KeepPlaying"
+                            onactivate="CitadelCastCheaterVote(0)"
+                        >
+							<Panel class="frogButtonIcon" />
+							<Label text="#Citadel_Hud_CheaterVote_Option_Play" html="true" />
+						</Button>
+						<Button
+                            class="FrogButton"
+                            id="Leave"
+                            text="#Citadel_Hud_CheaterVote_Option_Ban"
+                            onactivate="CitadelCastCheaterVote(1)"
+                        >
+							<Panel class="frogButtonIcon" />
+							<Label text="#Citadel_Hud_CheaterVote_Option_Ban" html="true" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel id="PromptRow">
+					<Label
+                        class="CaptionPrompt"
+                        html="true"
+                        text="#Citadel_Hud_CheaterVoteAlert_Action"
+                    />
+				</Panel>
+			</Panel>
+			<Panel id="StatsAndModsContainer" hittest="false">
+				<GlobalClassListener
+                    id="DamageReportGlobalClassListener"
+                    classes="gEditingBuilds gShopOpen gScoreboardOpen gAbilityUpgradeMenu"
+                />
+				<Panel id="LowerLeft" hittest="false">
+					<CitadelStatusEffect id="StatusEffects" display_location="bottom_left" />
+					<CitadelHudSoulAPContainer id="gold_and_ap_container" />
+					<Panel class="ModsContainer" hittest="false">
+						<Panel id="BarGraphContainer">
+							<CitadelHudItemBarGraph
+                                id="ModBarGraph"
+                                tooltip_style="stats_panel"
+                                interactive_tooltip="true"
+                                interactive_tooltip_delay="0"
+                            />
+						</Panel>
+						<Panel class="ModSection FlexMods" hittest="false">
+							<CitadelModsPurchasedPanel
+                                id="ModPurchasedPanelUniversal"
+                                class="mod_universal modsButton"
+                                mod_category="Universal"
+                                show_cooldowns="true"
+                                show_spectating_player_items="true"
+                            />
+						</Panel>
+						<Panel class="ModSection FlexMods" hittest="false">
+							<CitadelModsPurchasedPanel
+                                id="ModPurchasedPanelUniversalLocked"
+                                class="mod_universal modsButton"
+                                mod_category="Locked Universal"
+                                show_cooldowns="true"
+                                show_spectating_player_items="true"
+                            />
+						</Panel>
+					</Panel>
+					<CitadelHudQuickbuy id="CitadelHudQuickbuy" hittest="false" />
+				</Panel>
+			</Panel>
+			<Panel id="AbilitiesContainer" class="abilitiesContainer" hittest="false">
+				<GlobalClassListener
+                    classes="gDetailView gScoreboardOpen gShopOpen gAbilityUpgradeMenu gItemDraftOpen"
+                />
+				<Panel class="scoreboardBindMessages">
+					<Panel class="unlockMessage upgradeReminderUI">
+						<Label html="true" text="#Citadel_HUD_AbilityUnlockAvailable" />
+					</Panel>
+					<Panel class="upgradeMessage upgradeReminderUI">
+						<Label html="true" text="#Citadel_HUD_AbilityUpgradeAvailable" />
+					</Panel>
+				</Panel>
+				<Panel class="radialBindMessages" hittest="false">
+					<Panel class="unlockMessage upgradeReminderUI">
+						<Label html="true" text="#Citadel_HUD_AbilityUnlockAvailableRadial" />
+					</Panel>
+					<Panel class="upgradeMessage upgradeReminderUI">
+						<Label html="true" text="#Citadel_HUD_AbilityUpgradeAvailableRadial" />
+					</Panel>
+				</Panel>
+				<CitadelHudPassiveAbilities
+                    id="hud_passive_items"
+                    class="items passive_items"
+                    hittest="false"
+                    hittestchildren="false"
+                />
+				<CitadelHudAbilities
+                    id="hud_signature"
+                    class="abilities"
+                    slots="signature_1 signature_2 signature_3 signature_4"
+                />
+				<ActiveAbilitiesMenu
+                    id="ActiveAbilitiesMenu"
+                    class="active_abilities"
+                    slots="item_1 item_2 item_3 item_4"
+                />
+				<ActiveAbilitiesMenu
+                    id="CosmeticAbilitiesMenu"
+                    class="active_abilities"
+                    slots="cosmetic_1"
+                />
+				<Panel id="APContainer">
+					<Panel class="APValues">
+						<Panel class="APCurrencyIcon" />
+						<Label class="APCurrencyAmount" text="{d:current_ap}" />
+						<Image
+                            id="hudAPInfinite"
+                            src="s2r://panorama/images/upgrades/infinity_psd.vtex"
+                        />
+					</Panel>
+					<CitadelBinding
+                        id="UnlockBinding_Scoreboard"
+                        class="APUnlockBinding"
+                        action="Scoreboard"
+                    />
+					<CitadelBinding
+                        id="UnlockBinding_AbilityRadial"
+                        class="APUnlockBinding"
+                        action="AbilityUpgradeRadial"
+                    />
+				</Panel>
+			</Panel>
+			<Panel id="cast_failed_box">
+				<GlobalClassListener hittest="false" classes="gDetailView" />
+				<Label id="invalid_cast_ability" text="{s:failed_ability_name}" />
+				<Panel class="invalid_cast_line">
+					<Label id="invalid_cast_reason" text="{s:invalid_cast_reason}" />
+					<Label id="invalid_cast_time_remaining" text="#Citadel_Hud_CastTimeRemaining" />
+				</Panel>
+			</Panel>
+			<CitadelChat id="Chat" />
+			<CitadelHudHideout id="CitadelHudHideout" />
+		</Panel>
+		<Panel class="HudTakeovers" hittest="false">
+			<CitadelHudPregame id="Pregame" hittest="false" />
+			<CitadelHudMatchStart id="MatchStart" />
+		</Panel>
+		<ToastManager
+            id="ToastManager"
+            hittest="false"
+            toastduration="5s"
+            maxtoastsvisible="4"
+        />
+		<CitadelHudEscapeMenu id="EscapeMenu" />
+		<Panel id="CitadelPartyContainer" hittest="false">
+			<GlobalClassListener classes="gShopOpen" />
+			<CitadelParty id="CitadelParty" hittest="false" />
+		</Panel>
+		<PopupManager id="PopupManager" hittest="false" />
+		<CitadelContextMenuManager id="ContextMenuManager" hittest="false" />
+		<CitadelTooltipManager id="TooltipManager" hittest="false" />
+		<HudPerfStatsBasics hittest="false" />
+		<CitadelHudMovementSpeed id="MovementSpeedPanel" />
+	</CitadelHud>
+</root>

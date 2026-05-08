@@ -1,0 +1,46 @@
+#ThreeDHeroHudProbe {
+  horizontal-align: left;
+  vertical-align: center;
+  width: 260px;
+  height: 360px;
+  margin-left: 12%;
+  margin-top: 35%;
+  opacity: 0.55;
+  transform: scaleY(1) scaleX(-1);
+  z-index: -1;
+  overflow: noclip;
+}
+
+#ThreeDHeroDynamicHeroHost {
+  width: 200px;
+  height: 280px;
+  horizontal-align: center;
+  vertical-align: center;
+  pre-transform-scale2d: 1.33;
+  opacity-brush: gradient(linear, 0% 0%, 0% 100%, from(#ffffffff), color-stop(0.84, #ffffffff), to(#ffffff00));
+  overflow: noclip;
+}
+
+#ThreeDHeroDynamicHeroHost .StaticHeroScene {
+  width: 200px;
+  height: 280px;
+  horizontal-align: center;
+  vertical-align: center;
+}
+
+#ThreeDHeroDynamicHeroHost .StaticHeroScene {
+  visibility: collapse;
+  opacity: 0;
+}
+
+#ThreeDHeroDynamicHeroHost .StaticHeroScene.ShowingHero {
+  visibility: visible;
+  opacity: 1;
+  z-index: 5;
+}
+
+#ThreeDHeroDynamicHeroHost .StaticHeroScene.HiddenHero {
+  visibility: collapse;
+  opacity: 0;
+  z-index: -1;
+}
