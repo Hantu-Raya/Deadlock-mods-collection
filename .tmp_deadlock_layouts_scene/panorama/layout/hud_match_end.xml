@@ -1,0 +1,23 @@
+<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/hud_match_end.vcss_c" />
+	</styles>
+	<CitadelHudMatchEnd hittest="false">
+		<Panel class="MatchComplete">
+			<Panel id="MatchCompleteBG" />
+			<Panel class="Contents">
+				<Label id="TeamResultsTop" text="#Citadel_MatchDetails_Team_Results_Top" html="true" />
+				<Panel id="patron_logo" />
+				<Label id="TeamResultsBottom" text="#Citadel_MatchDetails_Team_Results_Bottom" html="true" />
+			</Panel>
+		</Panel>
+		<Panel class="MatchAbandonedDisplay">
+			<Panel class="Contents">
+				<Label class="MatchAbandonedTitle" text="#Citadel_MatchEnd_Title" />
+				<Label class="MatchAbandonedSubtitle" text="#Citadel_MatchEnd_Subtitle" />
+			</Panel>
+		</Panel>
+	</CitadelHudMatchEnd>
+</root>

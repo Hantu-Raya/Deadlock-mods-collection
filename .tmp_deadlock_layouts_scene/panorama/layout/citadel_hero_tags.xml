@@ -1,0 +1,21 @@
+<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_hero_tags.vcss_c" />
+	</styles>
+	<CitadelHeroTags>
+		<Panel class="heroTag Tag1">
+			<Panel class="tagBacker" />
+			<Label text="{s:hero_tag_1}" />
+		</Panel>
+		<Panel class="heroTag Tag2">
+			<Panel class="tagBacker" />
+			<Label text="{s:hero_tag_2}" />
+		</Panel>
+		<Panel class="heroTag Tag3">
+			<Panel class="tagBacker" />
+			<Label text="{s:hero_tag_3}" />
+		</Panel>
+	</CitadelHeroTags>
+</root>

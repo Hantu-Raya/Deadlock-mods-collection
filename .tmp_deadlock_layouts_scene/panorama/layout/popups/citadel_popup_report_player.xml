@@ -1,0 +1,39 @@
+<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/popups/popups_shared.vcss_c" />
+		<include src="s2r://panorama/styles/popups/citadel_popup_report_player.vcss_c" />
+	</styles>
+	<PopupPlaytestUser class="PopupPanel Hidden" popupbackground="dim" oncancel="UIPopupButtonClicked()">
+		<Panel class="MainBody">
+			<Label class="h2 display align_center silvered" text="#Citadel_ReportPlayer_Title" />
+			<Label class="DescArea body_sm align_center silvered" text="#Citadel_ReportPlayer_Desc" html="true" />
+			<Panel id="Contents">
+				<Panel id="PlayerInfo">
+					<CitadelHeroImage id="HeroImage" class="align_center" heroimagestyle="vertical" scaling="stretch-to-fit-y-preserve-aspect" />
+					<CitadelUserName id="PlayerName" class="align_center" />
+				</Panel>
+				<Panel class="LabelRow">
+					<Label class="TypeLabel" text="#Citadel_ReportPlayer_Reason_Title" />
+					<RadioButton id="VoiceTextReport" text="#Citadel_ReportPlayer_Reason_VoiceTextAbuse" value="0" group="reportreason" />
+					<RadioButton id="GriefingReport" text="#Citadel_ReportPlayer_Reason_Griefing" value="1" group="reportreason" />
+					<RadioButton id="SmurfReport" text="#Citadel_ReportPlayer_Reason_Smurfing" value="2" group="reportreason" />
+					<RadioButton id="CheatingReport" text="#Citadel_ReportPlayer_Reason_CheatingIssue" value="3" group="reportreason" />
+				</Panel>
+			</Panel>
+			<Panel class="LabelRow">
+				<Label class="TypeLabel" text="#Citadel_ReportPlayer_Reason_Comments" />
+				<TextEntry id="ReportedUserComments" placeholder="#Citadel_ReportPlayer_CommentPlaceholder" undohistory="enabled" maxchars="4096" multiline="true" />
+			</Panel>
+			<Panel class="ButtonRow LeftRightFlow">
+				<Button class="PopupButton" id="OKButton" onactivate="CitadelPopupSubmitPlayerReport()" enabled="false">
+					<Label text="#Citadel_RecommendFriend_PopupButton" />
+				</Button>
+				<Button class="SecondaryButton align_center" onactivate="UIPopupButtonClicked()">
+					<Label text="#Cancel" />
+				</Button>
+			</Panel>
+		</Panel>
+	</PopupPlaytestUser>
+</root>

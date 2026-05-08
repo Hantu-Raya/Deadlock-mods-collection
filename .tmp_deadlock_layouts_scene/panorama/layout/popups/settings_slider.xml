@@ -1,0 +1,15 @@
+<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/popups/popup_settings.vcss_c" />
+		<include src="s2r://panorama/styles/popups/settings_slider.vcss_c" />
+	</styles>
+	<CitadelSettingsSlider>
+		<Panel class="TitleContainer LeftRightFlow">
+			<Label id="Title" class="SettingLabel" />
+		</Panel>
+		<Slider class="HorizontalSlider" direction="horizontal" id="Slider" />
+		<TextEntry class="SliderTextEntry" id="Value" />
+	</CitadelSettingsSlider>
+</root>

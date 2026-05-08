@@ -8,7 +8,7 @@
 		<!-- MOD: Timer styles -->
 		<include src="s2r://panorama/styles/hud_timer.vcss_c" />
 		<include src="s2r://panorama/styles/buff_claim.vcss_c" />
-		<include src="s2r://panorama/styles/jungle_timer.vcss_c" />
+		<!-- MOD: jungle_timer.css removed — neutral respawn rings removed for fairness compliance -->
 	</styles>
 	<!-- MOD: Timer script -->
 	<scripts>

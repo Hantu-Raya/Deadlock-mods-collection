@@ -218,6 +218,10 @@
             <CitadelHudHeroShop id="CitadelHudHeroShop" />
             <CitadelHudDamageReport id="CitadelHudDamageReport" />
             <CitadelHudHeroTesting id="hud_hero_testing" />
+            <Panel id="ThreeDHeroHudProbe" hittest="false" hittestchildren="false" style="horizontal-align:right; vertical-align:center; width:220px; height:300px; margin-right:28px; z-index:40; overflow:noclip;">
+                <CitadelScenePanel id="ThreeDHeroBackerScene" map="ui/hero_select_backer/hero_select_backer" camera="hero_select_backer_camera" particleonly="false" hittest="false" style="width:100%; height:100%; opacity:0.45;" />
+                <CitadelHeroScenePanelNew id="ThreeDHeroPortraitScene" heroscenestyle="Portrait" rotation_entity_name="root" rotate="AnyMouseMove" acceleration="0.01" yawmin="3.2" yawmax="-1.2" pitchmin="0.2" pitchmax="-0.2" hittest="false" style="width:100%; height:100%;" />
+            </Panel>
             <Panel id="gameplay_hud_dead" hittest="false" hittestchildren="false">
                 <GlobalClassListener classes="gShopOpen" />
                 <Panel id="respawn_timer">

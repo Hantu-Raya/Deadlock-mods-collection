@@ -1,0 +1,175 @@
+====0====
+steamaudio_customdata_occlusion_reflection_bounces 8
+steamaudio_customdata_occlusion_reflection_rays 8192
+steamaudio_customdata_occlusion_reflection true
+steamaudio_customdata_occlusion_pathing true
+steamaudio_customdata_bake_materials false
+steamaudio_customdata_bake_dimensions false
+steamaudio_customdata_bake_occlusion false
+steamaudio_customdata_height_above_floor 1.5
+steamaudio_customdata_grid_spacing 6.0
+steamaudio_customdata_filter_navmesh false
+steamaudio_customdata_filter_volumes true
+steamaudio_customdata_generation_type "2"
+steamaudio_customdata_rebake_option "0"
+steamaudio_pathing_visibility_pathrange 100.0
+steamaudio_pathing_visibility_threshold 0.1
+steamaudio_pathing_visibility_radius 0.0
+steamaudio_pathing_visibility_samples 1
+steamaudio_pathing_height_above_floor 1.5
+steamaudio_pathing_grid_spacing 6.0
+steamaudio_pathing_filter_navmesh false
+steamaudio_pathing_filter_volumes true
+steamaudio_pathing_generation_type "2"
+steamaudio_pathing_rebake_option "0"
+steamaudio_reverb_compression_enable false
+steamaudio_reverb_clustering_depth_threshold 10.0
+steamaudio_reverb_clustering_cubemap_resolution 16
+steamaudio_reverb_clustering_enable false
+steamaudio_reverb_ambisonic_order 1
+steamaudio_reverb_ir_duration  1.0
+steamaudio_reverb_bounces      32
+steamaudio_reverb_rays         32768
+steamaudio_reverb_height_above_floor 1.5
+steamaudio_reverb_grid_spacing 6.0
+steamaudio_reverb_filter_navmesh false
+steamaudio_reverb_filter_volumes true
+steamaudio_reverb_generation_type "2"
+steamaudio_reverb_rebake_option "0"
+max_lightmap_resolution        "1024"
+minpropscreenwidth             0.0
+maxpropscreenwidth             -1.0
+newunit                        "0"
+pvstype                        "0"
+startcolor                     [ 0, 0, 0 ]
+startdark                      false
+skyname                        "sky_day01_01"
+classname                      "worldspawn"
+backgroundmap                  "1"
+origin                         "0.000000 0.000000 0.000000"
+angles                         "0.000000 0.000000 0.000000"
+scales                         "1.000000 1.000000 1.000000"
+hammeruniqueid                 "1"
+worldname                      "hero_select_backer"
+mapusagetype                   "background"
+
+====1====
+isworld                        true
+enemyskin                      "default"
+friendlyskin                   "default"
+defaultskin                    "default"
+teamnumber                     "0"
+forcenpcexclude                false
+createnavobstacle              false
+animateonserver                false
+lagcompensate                  false
+randomizecycle                 false
+idleanimationloopmode          "ANIM_LOOP_MODE_LOOPING"
+idleanim                       "picker_glyph"
+startinganimationloopmode      "ANIM_LOOP_MODE_LOOPING"
+startinganim                   "picker_glyph"
+use_animgraph                  true
+disablelowviolence             "0"
+glowteam                       -1
+glowcolor                      [ 0, 0, 0 ]
+glowrangemin                   0
+glowrange                      0
+glowstate                      "0"
+lightmapstatic                 "0"
+object_culling                 "0"
+disablereceiveshadows          false
+rendermode                     "kRenderNormal"
+renderfx                       "kRenderFxNone"
+breakablecontentstype          "BC_DEFAULT"
+burstscale                     100.0
+pressuredelay                  0.0
+spawnflags                     0
+nointerpolate                  false
+performancemode                "PM_NORMAL"
+exploderadius                  0.0
+explodedamage                  0.0
+clientsideentity               "0"
+uselocaloffset                 false
+rendertocubemaps               true
+renderamt                      255
+fademaxdist                    0.0
+fademindist                    -1.0
+disableshadows                 "0"
+solid                          "6"
+skin                           "default"
+rendercolor                    [ 255, 255, 255 ]
+model                          "models/ui/glyphs/picker_glyph.vmdl"
+classname                      "citadel_prop_dynamic"
+origin                         "-292.310181 -591.727417 0.000000"
+angles                         "0.000000 179.999969 0.000000"
+scales                         "1.000000 1.000000 1.000000"
+hammeruniqueid                 "2"
+
+====2====
+hltvusable                     false
+rendercolor                    [ 128, 128, 128 ]
+fogmaxdensity                  1.0
+fogend                         4096.0
+fogstart                       2048.0
+fogcolor                       [ 0, 0, 0 ]
+fogenable                      false
+aspectratio                    1.0
+usescreenaspectratio           false
+zfar                           10000.0
+znear                          4.0
+fov                            30.0
+spawnflags                     0
+clientsideentity               "0"
+targetname                     "[PR#]hero_select_backer_camera"
+uselocaloffset                 false
+classname                      "point_camera"
+origin                         "-300.000000 -728.000000 940.175354"
+angles                         "89.999985 0.000000 0.000000"
+scales                         "1.000000 1.000000 1.000000"
+hammeruniqueid                 "5"
+
+====3====
+master                         true
+exposuresmoothingrange         3.0
+exposurespeeddown              1.0
+exposurespeedup                1.0
+exposurecompensation           0.0
+maxlogexposure                 0.0
+minlogexposure                 0.0
+enableexposure                 true
+fadetime                       1.0
+postprocessing                 "postprocessing/character_picker_glyph_bg.vpost"
+spawnflags                     4097
+startdisabled                  false
+uselocaloffset                 false
+classname                      "post_processing_volume"
+origin                         "576.000000 64.000000 256.000000"
+angles                         "0.000000 0.000000 0.000000"
+scales                         "1.000000 1.000000 1.000000"
+hammeruniqueid                 "10"
+model                          "maps/ui/hero_select_backer/hero_select_backer/entities/unnamed_10.vmdl"
+
+====4====
+cpoint7_parent                 0
+cpoint6_parent                 0
+cpoint5_parent                 0
+cpoint4_parent                 0
+cpoint3_parent                 0
+cpoint2_parent                 0
+cpoint1_parent                 0
+tint_cp_color                  [ 255, 255, 255 ]
+tint_cp                        -1
+data_cp_value                  [ 0.0, 0.0, 0.0 ]
+data_cp                        -1
+snapshot_mesh                  0
+no_save                        false
+start_active                   true
+effect_name                    "particles/ui/ui_dust_motes.vpcf"
+clientsideentity               "0"
+uselocaloffset                 false
+classname                      "info_particle_system"
+origin                         "-210.924896 -701.796326 151.425537"
+angles                         "0.000000 0.000000 0.000000"
+scales                         "1.000000 1.000000 1.000000"
+hammeruniqueid                 "14"
+
