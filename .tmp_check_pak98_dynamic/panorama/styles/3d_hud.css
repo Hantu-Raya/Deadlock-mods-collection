@@ -1,0 +1,53 @@
+/* Prettified by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io */
+
+#ThreeDHeroHudProbe
+{
+	horizontal-align: right;
+	vertical-align: center;
+	width: 220px;
+	height: 300px;
+	margin-right: 28px;
+	z-index: 40;
+	overflow: noclip;
+}
+
+#ThreeDHeroBackerScene
+{
+	width: 100%;
+	height: 100%;
+	opacity: 0.12;
+	blur: gaussian(2px);
+	pre-transform-scale2d: 1.05;
+}
+
+#ThreeDHeroSpotlight
+{
+	width: 100%;
+	height: 100%;
+}
+
+#ThreeDHeroDynamicHeroHost,#ThreeDHeroDynamicHeroScene
+{
+	width: 100%;
+	height: 100%;
+	opacity: 1;
+}
+
+#ThreeDHeroSpotlight #CustomHeroBackground
+{
+	visibility: collapse;
+}
+
+#ThreeDHeroSpotlight #HeroScenePanel
+{
+	width: 100%;
+	height: 100%;
+	opacity-mask: none;
+	transform: translateX(0px);
+}
+
+#ThreeDHeroSpotlight #HeroScenePanelBlur,#ThreeDHeroSpotlight #HeroScenePanelMask
+{
+	visibility: collapse;
+}
+

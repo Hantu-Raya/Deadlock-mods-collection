@@ -1,0 +1,31 @@
+<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_party.vcss_c" />
+	</styles>
+	<snippets>
+		<snippet name="PartyMember">
+			<Panel class="PartyMember">
+				<CitadelAvatarImage id="AvatarImage" />
+				<CitadelHeroImage id="HeroImage" heroimagestyle="icon" />
+				<Panel class="EmptyImage" onmouseover="CitadelUIShowTextTooltip( &apos;#Citadel_JoinOrCreateParty_SelectAddFriend&apos; )" onmouseout="CitadelUIHideTextTooltip()" onactivate="CitadelEditParty()" />
+			</Panel>
+		</snippet>
+	</snippets>
+	<CitadelParty>
+		<Panel class="PartyList">
+			<Button id="JoinCreateParty" onactivate="CitadelShowJoinOrCreatePartyPopup()" oncontextmenu="CitadelCopyPartyCode()" />
+			<Panel class="PartyMembersSection">
+				<Panel id="PartyMembersList" />
+			</Panel>
+			<Panel id="LocalPlayer" />
+		</Panel>
+		<Panel class="FriendsCountContainer" hittest="false">
+			<Panel class="FriendsCount" onmouseover="CitadelUIShowTextTooltip( &apos;#Citadel_JoinOrCreateParty_FriendsInGame:f&apos; )" onmouseout="CitadelUIHideTextTooltip()" onactivate="CitadelEditParty()">
+				<Panel class="FriendsIcon" />
+				<Label class="PlayWithFriendsCount" text="{d:friend_count}" />
+			</Panel>
+		</Panel>
+	</CitadelParty>
+</root>

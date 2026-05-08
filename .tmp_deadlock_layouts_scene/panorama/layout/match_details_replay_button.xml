@@ -1,0 +1,19 @@
+<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/popups/popups_shared.vcss_c" />
+		<include src="s2r://panorama/styles/match_details_replay_button.vcss_c" />
+	</styles>
+	<MatchDetailsReplayButton>
+		<Panel class="ReplayContainer">
+			<Button id="ReplayButtonBody" class="ReplayButton" onactivate="CitadelMatchDetailsReplayClicked()">
+				<Panel id="ReplayIcon" />
+				<Label class="ReplayText" text="{s:ButtonText}" />
+			</Button>
+			<Button id="DeleteReplayButton" class="ReplayButton" onactivate="CitadelMatchDetailsDeleteReplay()">
+				<Label class="ReplayText" text="#Citadel_Replay_Delete" />
+			</Button>
+		</Panel>
+	</MatchDetailsReplayButton>
+</root>

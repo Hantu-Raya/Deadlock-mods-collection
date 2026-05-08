@@ -1,0 +1,118 @@
+<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_db_page_shared.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_db_page_private_lobby.vcss_c" />
+	</styles>
+	<CitadelPrivateLobbyPage class="DashboardPage" oncancel="CitadelPrivateLobbyLeave( 1 );" dashboardclass="isShowingPrivateLobbyPage">
+		<Panel class="MainBodyCtn">
+			<Panel id="LobbyInfo">
+				<Panel class="SettingsPanel">
+					<Label class="SettingsHeader" text="#Citadel_PrivateLobby_PageTitle" />
+					<Panel class="SettingSubSection">
+						<Button class="SecondaryButton light outline hasIcon" onactivate="CitadelPrivateLobbyOpenInvites()">
+							<Panel class="InviteIcon" />
+							<Label class="TeamJoinText" text="#Citadel_PrivateLobby_Invite" />
+						</Button>
+						<CitadelPartyCode id="PartyCode" />
+					</Panel>
+					<Panel class="SettingSubSection" id="ServerRegionDropdownSubSection">
+						<DropDown id="ServerRegionDropdown" />
+					</Panel>
+					<Panel class="SettingSubSection">
+						<DropDown id="GameModeDropdown">
+							<Label id="GameMode_1" class="RegionOption" value="0" text="#Citadel_PrivateLobby_GameMode_Normal" onactivate="CitadelPrivateLobbySetGameMode(1)" />
+							<Label id="GameMode_4" class="RegionOption" value="4" text="#Citadel_PrivateLobby_GameMode_StreetBrawl" onactivate="CitadelPrivateLobbySetGameMode(4)" />
+						</DropDown>
+					</Panel>
+					<Panel class="SettingSubSection">
+						<DropDown id="BotDifficultyDropdown">
+							<Label id="Difficulty_None" class="RegionOption" value="0" text="#Citadel_PrivateLobby_Difficulty_None" onactivate="CitadelPrivateLobbySetBotDifficulty(0)" />
+							<Label id="Difficulty_Easy" class="RegionOption" value="1" text="#Citadel_PrivateLobby_Difficulty_Easy" onactivate="CitadelPrivateLobbySetBotDifficulty(1)" />
+							<Label id="Difficulty_Medium" class="RegionOption" value="2" text="#Citadel_PrivateLobby_Difficulty_Medium" onactivate="CitadelPrivateLobbySetBotDifficulty(2)" />
+							<Label id="Difficulty_Hard" class="RegionOption" value="3" text="#Citadel_PrivateLobby_Difficulty_Hard" onactivate="CitadelPrivateLobbySetBotDifficulty(3)" />
+						</DropDown>
+					</Panel>
+					<Panel class="SettingSubSection">
+						<DropDown id="RandomizeLanesDropdown">
+							<Label id="Randomized_Off" class="RegionOption" value="0" text="#Citadel_PrivateLobby_RandomLanes_Off" onactivate="CitadelPrivateLobbySetRandomizeLanes(0)" />
+							<Label id="Randomized_On" class="RegionOption" value="1" text="#Citadel_PrivateLobby_RandomLanes_On" onactivate="CitadelPrivateLobbySetRandomizeLanes(1)" />
+						</DropDown>
+					</Panel>
+					<Panel class="SettingSubSection">
+						<DropDown id="PubliclyVisibleDropdown">
+							<Label id="PubliclyVisible_Off" class="RegionOption" value="0" text="#Citadel_PrivateLobby_PubliclyVisible_Off" onactivate="CitadelPrivateLobbySetPubliclyVisible(0)" />
+							<Label id="PubliclyVisible_On" class="RegionOption" value="1" text="#Citadel_PrivateLobby_PubliclyVisible_On" onactivate="CitadelPrivateLobbySetPubliclyVisible(1)" />
+						</DropDown>
+					</Panel>
+					<Panel class="SettingSubSection">
+						<DropDown id="DuplicateHeroesEnabledDropdown">
+							<Label id="DuplicateHeroes_Off" class="RegionOption" value="0" text="#Citadel_PrivateLobby_Duplicate_Heroes_Off" onactivate="CitadelPrivateLobbySetDuplicateHeroesEnabled(0)" />
+							<Label id="DuplicateHeroes_On" class="RegionOption" value="1" text="#Citadel_PrivateLobby_Duplicate_Heroes_On" onactivate="CitadelPrivateLobbySetDuplicateHeroesEnabled(1)" />
+						</DropDown>
+					</Panel>
+					<Panel class="SettingSubSection">
+						<DropDown id="CheatsEnabledDropdown">
+							<Label id="Cheats_Off" class="RegionOption" value="0" text="#Citadel_PrivateLobby_Cheats_Off" onactivate="CitadelPrivateLobbySetCheatsEnabled(0)" />
+							<Label id="Cheats_On" class="RegionOption" value="1" text="#Citadel_PrivateLobby_Cheats_On" onactivate="CitadelPrivateLobbySetCheatsEnabled(1)" />
+						</DropDown>
+					</Panel>
+				</Panel>
+				<Panel class="Unassigned TeamCtn">
+					<Panel class="TeamTitle">
+						<Label class="TeamTitleText" text="#Citadel_PrivateLobby_Group_Unassigned" />
+					</Panel>
+					<Button id="UnassignedJoin" class="SecondaryButton light outline" onactivate="CitadelPrivateLobbySetPartySlot( 0 )">
+						<Label class="TeamJoinText" text="#Citadel_PrivateLobby_Join" />
+					</Button>
+					<Panel id="UnassignedListing" class="TeamListing" />
+				</Panel>
+			</Panel>
+			<Panel id="PlayersPanel">
+				<Panel class="TeamContainer">
+					<Panel class="TeamAmber TeamCtn">
+						<Panel class="TeamTitle">
+							<Label class="TeamTitleText" text="#Citadel_Team1_Name" />
+						</Panel>
+						<Panel id="Team1Listing" class="TeamListing" />
+					</Panel>
+					<Panel id="VersusText">
+						<Label id="VersusText" text="#Citadel_PrivateLobby_Versus" />
+					</Panel>
+					<Panel class="TeamSapphire TeamCtn">
+						<Panel class="TeamTitle">
+							<Label class="TeamTitleText" text="#Citadel_Team2_Name" />
+						</Panel>
+						<Panel id="Team2Listing" class="TeamListing" />
+					</Panel>
+				</Panel>
+				<Panel class="OthersContainer">
+					<Panel class="LobbyButtons">
+						<Button id="SwapTeams" class="SecondaryButton" onactivate="CitadelPrivateLobbySwapTeams()" onmouseover="UIShowTextTooltip( #Citadel_PrivateLobby_SwapTeamsTooltip )" onmouseout="UIHideTextTooltip()">
+							<Label class="LobbyActionText" text="#Citadel_PrivateLobby_SwapTeams" />
+						</Button>
+						<Button id="ShuffleTeams" class="SecondaryButton" onactivate="CitadelPrivateLobbyShuffleTeams()" onmouseover="UIShowTextTooltip( #Citadel_PrivateLobby_ShuffleTeamsTooltip )" onmouseout="UIHideTextTooltip()">
+							<Label class="LobbyActionText" text="#Citadel_PrivateLobby_RandomizeTeams" />
+						</Button>
+						<Button id="ShuffleLanes" class="SecondaryButton" onactivate="CitadelPrivateLobbyShuffleLanes()" onmouseover="UIShowTextTooltip( #Citadel_PrivateLobby_ShuffleLanesTooltip )" onmouseout="UIHideTextTooltip()">
+							<Label class="LobbyActionText" text="#Citadel_PrivateLobby_ShuffleTeams" />
+						</Button>
+					</Panel>
+					<Panel class="Spectators">
+						<Panel class="TeamTitle">
+							<Label class="TeamTitleText" text="#Citadel_PrivateLobby_Group_Spectators" />
+						</Panel>
+						<Panel id="SpectatorListing" class="TeamListing" />
+					</Panel>
+				</Panel>
+			</Panel>
+		</Panel>
+		<Panel class="LaunchMatchCtn">
+			<Label class="PartyErrorText" text="{s:PartyError}" />
+			<Button id="StartMatch" onactivate="CitadelPrivateLobbyStartMatch(1)">
+				<Label class="StartMatchText" text="#Citadel_PrivateLobby_StartMatch" />
+			</Button>
+		</Panel>
+	</CitadelPrivateLobbyPage>
+</root>

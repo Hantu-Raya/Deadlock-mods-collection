@@ -1,0 +1,490 @@
+<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles />
+	<Panel>
+		<BookInfo id="BookInfo" logo="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_27_jpg.vtex" />
+		<Panel id="ChapterList">
+			<BookChapter id="Chapter1">
+				<BookImagePage id="Chapter1Start" img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_01_jpg.vtex" snd="vn_ivy_scene01_01_book">
+					<TOCEntry title="Career Day" desc="Ivy meets with a job recruiter." />
+				</BookImagePage>
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_02_jpg.vtex" snd="vn_ivy_scene01_02_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_03_jpg.vtex" snd="vn_ivy_scene01_03_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_04_jpg.vtex" snd="vn_ivy_scene01_04_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_05_jpg.vtex" snd="vn_ivy_scene01_05_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_06_jpg.vtex" snd="vn_ivy_scene01_06_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_07_jpg.vtex" snd="vn_ivy_scene01_07_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_08_jpg.vtex" snd="vn_ivy_scene01_08_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_09_jpg.vtex" snd="vn_ivy_scene01_09_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_10_jpg.vtex" snd="vn_ivy_scene01_10_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_11_jpg.vtex" snd="vn_ivy_scene01_11_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_12_jpg.vtex" snd="vn_ivy_scene01_12_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_13_jpg.vtex" snd="vn_ivy_scene01_13_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_14_jpg.vtex" snd="vn_ivy_scene01_14_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_15_jpg.vtex" snd="vn_ivy_scene01_15_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_16_jpg.vtex" snd="vn_ivy_scene01_16_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_17_jpg.vtex" snd="vn_ivy_scene01_17_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_18_jpg.vtex" snd="vn_ivy_scene01_18_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_19_jpg.vtex" snd="vn_ivy_scene01_19_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_20_jpg.vtex" snd="vn_ivy_scene01_20_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_21_jpg.vtex" snd="vn_ivy_scene01_21_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_22_jpg.vtex" snd="vn_ivy_scene01_22_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_23_jpg.vtex" snd="vn_ivy_scene01_23_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_24_jpg.vtex" snd="vn_ivy_scene01_24_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_25_jpg.vtex" snd="vn_ivy_scene01_25_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_26_jpg.vtex" snd="vn_ivy_scene01_26_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_01/ivy_scene01_27_jpg.vtex" />
+			</BookChapter>
+			<BookChapter id="Chapter2a">
+				<BookImagePage id="Chapter2aStart" unlock="Chapter2a" img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_01_jpg.vtex" snd="vn_ivy_scene02a_01_book" back="0">
+					<TOCEntry title="On The Job Training" desc="Ivy has a rough 1st day at the diner." />
+				</BookImagePage>
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_02_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_03_jpg.vtex" snd="vn_ivy_scene02a_03_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_04_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_05_jpg.vtex" snd="vn_ivy_scene02a_05_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_06_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_07_jpg.vtex" snd="vn_ivy_scene02a_07_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_08_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_09_jpg.vtex" snd="vn_ivy_scene02a_09_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_10_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_11_jpg.vtex" snd="vn_ivy_scene02a_11_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_12_jpg.vtex" snd="vn_ivy_scene02a_12_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_13_jpg.vtex" snd="vn_ivy_scene02a_13_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_14_jpg.vtex" snd="vn_ivy_scene02a_14_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_15_jpg.vtex" snd="vn_ivy_scene02a_15_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_16_jpg.vtex" snd="vn_ivy_scene02a_16_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_17_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_18_jpg.vtex" snd="vn_ivy_scene02a_18_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_19_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_20_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_21_jpg.vtex" snd="vn_ivy_scene02a_21_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_22_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_23_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_24_jpg.vtex" snd="vn_ivy_scene02a_24_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_25_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02a/ivy_scene02a_26_jpg.vtex" />
+			</BookChapter>
+			<BookChapter id="Chapter2b">
+				<BookImagePage id="Chapter2bStart" unlock="Chapter2b" img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_01_jpg.vtex" snd="vn_ivy_scene02b_01_book" back="0">
+					<TOCEntry title="Trust In The Process" desc="Ivy begins her new job as a process server" />
+				</BookImagePage>
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_02_jpg.vtex" snd="vn_ivy_scene02b_02_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_03_jpg.vtex" snd="vn_ivy_scene02b_03_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_04_jpg.vtex" snd="vn_ivy_scene02b_04_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_05_jpg.vtex" snd="vn_ivy_scene02b_05_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_06_jpg.vtex" snd="vn_ivy_scene02b_06_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_07_jpg.vtex" snd="vn_ivy_scene02b_07_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_08_jpg.vtex" snd="vn_ivy_scene02b_08_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_09_jpg.vtex" snd="vn_ivy_scene02b_09_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_10_jpg.vtex" snd="vn_ivy_scene02b_10_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_11_jpg.vtex" snd="vn_ivy_scene02b_11_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_12_jpg.vtex" snd="vn_ivy_scene02b_12_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_13_jpg.vtex" snd="vn_ivy_scene02b_13_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_14_jpg.vtex" snd="vn_ivy_scene02b_14_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_15_jpg.vtex" snd="vn_ivy_scene02b_15_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_16_jpg.vtex" snd="vn_ivy_scene02b_16_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_17_jpg.vtex" snd="vn_ivy_scene02b_17_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_18_jpg.vtex" snd="vn_ivy_scene02b_18_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_19_jpg.vtex" snd="vn_ivy_scene02b_19_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_20_jpg.vtex" snd="vn_ivy_scene02b_20_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_21_jpg.vtex" snd="vn_ivy_scene02b_21_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02b/ivy_scene02b_22_jpg.vtex" snd="vn_ivy_scene02b_22_book" />
+			</BookChapter>
+			<BookChapter id="Chapter2c">
+				<BookImagePage id="Chapter2cStart" unlock="Chapter2c" img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_01_jpg.vtex" snd="vn_ivy_scene02c_01_book" back="0">
+					<TOCEntry title="Family Meeting" desc="Carlos holds a family meeting" />
+				</BookImagePage>
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_02_jpg.vtex" snd="vn_ivy_scene02c_02_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_03_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_04_jpg.vtex" snd="vn_ivy_scene02c_04_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_05_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_06_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_07_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_08_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_09_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_10_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_11_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_12_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_13_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_14_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_15_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_16_jpg.vtex" snd="vn_ivy_scene02c_16_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_17_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_18_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_19_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_20_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_21_jpg.vtex" snd="vn_ivy_scene02c_21_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_02c/ivy_scene02c_22_jpg.vtex" />
+			</BookChapter>
+			<BookChapter id="Chapter3a">
+				<BookImagePage id="Chapter3aStart" unlock="Chapter3a" img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_01_jpg.vtex" back="0">
+					<TOCEntry title="The Server&apos;s Dream" desc="Ivy suffers no fools at the diner" />
+				</BookImagePage>
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_02_jpg.vtex" snd="vn_ivy_scene03a_02_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_03_jpg.vtex" snd="vn_ivy_scene03a_03_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_04_jpg.vtex" snd="vn_ivy_scene03a_04_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_05_jpg.vtex" snd="vn_ivy_scene03a_05_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_06_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_07_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_08_jpg.vtex" snd="vn_ivy_scene03a_08_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_09_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_10_jpg.vtex" snd="vn_ivy_scene03a_10_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_11_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_12_jpg.vtex" snd="vn_ivy_scene03a_12_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_13_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_14_jpg.vtex" snd="vn_ivy_scene03a_14_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_15_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_16_jpg.vtex" snd="vn_ivy_scene03a_16_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_17_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_18_jpg.vtex" snd="vn_ivy_scene03a_18_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_19_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_20_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_21_jpg.vtex" snd="vn_ivy_scene03a_21_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_22_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_23_jpg.vtex" snd="vn_ivy_scene03a_23_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03a/ivy_scene03a_24_jpg.vtex" />
+			</BookChapter>
+			<BookChapter id="Chapter3b">
+				<BookImagePage id="Chapter3bStart" unlock="Chapter3b" img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_01_jpg.vtex" back="0">
+					<TOCEntry title="Tough Day" desc="Ivy needs a hug." />
+				</BookImagePage>
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_02_jpg.vtex" snd="vn_ivy_scene03b_02_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_03_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_04_jpg.vtex" snd="vn_ivy_scene03b_04_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_05_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_06_jpg.vtex" snd="vn_ivy_scene03b_06_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_07_jpg.vtex" snd="vn_ivy_scene03b_07_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_08_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_09_jpg.vtex" snd="vn_ivy_scene03b_09_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_10_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_11_jpg.vtex" snd="vn_ivy_scene03b_11_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_12_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_13_jpg.vtex" snd="vn_ivy_scene03b_13_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_14_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_15_jpg.vtex" snd="vn_ivy_scene03b_15_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_16_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_17_jpg.vtex" snd="vn_ivy_scene03b_17_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_18_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_19_jpg.vtex" snd="vn_ivy_scene03b_19_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_20_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_21_jpg.vtex" snd="vn_ivy_scene03b_21_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_22_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_23_jpg.vtex" snd="vn_ivy_scene03b_23_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_24_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_25_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_26_jpg.vtex" snd="vn_ivy_scene03b_26_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03b/ivy_scene03b_27_jpg.vtex" />
+			</BookChapter>
+			<BookChapter id="Chapter3c">
+				<BookImagePage id="Chapter3cStart" unlock="Chapter3c" img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_01_jpg.vtex" snd="vn_ivy_scene03c_01_book" back="0">
+					<TOCEntry title="Career Day" desc="Ivy meets Wraith&apos;s protege" />
+				</BookImagePage>
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_02_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_03_jpg.vtex" snd="vn_ivy_scene03c_03_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_04_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_05_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_06_jpg.vtex" snd="vn_ivy_scene03c_06_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_07_jpg.vtex" snd="vn_ivy_scene03c_07_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_08_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_10_jpg.vtex" snd="vn_ivy_scene03c_10_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_11_jpg.vtex" snd="vn_ivy_scene03c_11_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_12_jpg.vtex" snd="vn_ivy_scene03c_12_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_13_jpg.vtex" snd="vn_ivy_scene03c_13_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_14_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_15_jpg.vtex" snd="vn_ivy_scene03c_15_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_16_jpg.vtex" snd="vn_ivy_scene03c_16_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_17_jpg.vtex" snd="vn_ivy_scene03c_17_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_18_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_19_jpg.vtex" snd="vn_ivy_scene03c_19_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_20_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_21_jpg.vtex" snd="vn_ivy_scene03c_21_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_22_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_23_jpg.vtex" snd="vn_ivy_scene03c_23_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_24_jpg.vtex" snd="vn_ivy_scene03c_24_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_25_jpg.vtex" snd="vn_ivy_scene03c_25_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_26_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_27_jpg.vtex" snd="vn_ivy_scene03c_27_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_28_jpg.vtex" snd="vn_ivy_scene03c_28_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_29_jpg.vtex" snd="vn_ivy_scene03c_29_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_30_jpg.vtex" snd="vn_ivy_scene03c_30_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_31_jpg.vtex" snd="vn_ivy_scene03c_31_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_32_jpg.vtex" snd="vn_ivy_scene03c_32_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_33_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03c/ivy_scene03c_34_jpg.vtex" />
+			</BookChapter>
+			<BookChapter id="Chapter3d">
+				<BookImagePage id="Chapter3dStart" unlock="Chapter3d" img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_01_jpg.vtex" snd="vn_ivy_scene03d_01_book" back="0">
+					<TOCEntry title="Serving Lash" desc="Ivy discovers that Jacob Lash is an asshole." />
+				</BookImagePage>
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_02_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_03_jpg.vtex" snd="vn_ivy_scene03d_03_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_04_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_05_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_06_jpg.vtex" snd="vn_ivy_scene03d_06_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_07_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_08_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_09_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_10_jpg.vtex" snd="vn_ivy_scene03d_10_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_11_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_12_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_13_jpg.vtex" snd="vn_ivy_scene03d_13_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_14_jpg.vtex" snd="vn_ivy_scene03d_14_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_15_jpg.vtex" snd="vn_ivy_scene03d_15_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_16_jpg.vtex" snd="vn_ivy_scene03d_16_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_17_jpg.vtex" snd="vn_ivy_scene03d_17_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_18_jpg.vtex" snd="vn_ivy_scene03d_18_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_19_jpg.vtex" snd="vn_ivy_scene03d_19_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_20_jpg.vtex" snd="vn_ivy_scene03d_20_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_21_jpg.vtex" snd="vn_ivy_scene03d_21_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_22_jpg.vtex" snd="vn_ivy_scene03d_22_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_23_jpg.vtex" snd="vn_ivy_scene03d_23_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_24_jpg.vtex" snd="vn_ivy_scene03d_24_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_25_jpg.vtex" snd="vn_ivy_scene03d_25_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_26_jpg.vtex" snd="vn_ivy_scene03d_26_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_27_jpg.vtex" snd="vn_ivy_scene03d_27_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_28_jpg.vtex" snd="vn_ivy_scene03d_28_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_29_jpg.vtex" snd="vn_ivy_scene03d_29_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_30_jpg.vtex" snd="vn_ivy_scene03d_30_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_31_jpg.vtex" snd="vn_ivy_scene03d_31_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_32_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03d/ivy_scene03d_33_jpg.vtex" />
+			</BookChapter>
+			<BookChapter id="Chapter3e">
+				<BookImagePage id="Chapter3eStart" unlock="Chapter3e" img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_01_jpg.vtex" snd="vn_ivy_scene03e_01_book" back="0">
+					<TOCEntry title="I Believe In Carlos Arroyo" desc="Ivy canvasses for Carlos with unforeseen consequences" />
+				</BookImagePage>
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_02_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_03_jpg.vtex" snd="vn_ivy_scene03e_03_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_04_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_05_jpg.vtex" snd="vn_ivy_scene03e_05_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_06_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_07_jpg.vtex" snd="vn_ivy_scene03e_07_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_08_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_09_jpg.vtex" snd="vn_ivy_scene03e_09_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_10_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_11_jpg.vtex" snd="vn_ivy_scene03e_11_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_12_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_13_jpg.vtex" snd="vn_ivy_scene03e_13_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_14_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_15_jpg.vtex" snd="vn_ivy_scene03e_15_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_16_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_17_jpg.vtex" snd="vn_ivy_scene03e_17_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_18_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_19_jpg.vtex" snd="vn_ivy_scene03e_19_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_20_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_21_jpg.vtex" snd="vn_ivy_scene03e_21_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_22_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_23_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_24_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_25_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_26_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_27_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_28_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_29_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_30_jpg.vtex" snd="vn_ivy_scene03e_30_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_31_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_03e/ivy_scene03e_32_jpg.vtex" />
+			</BookChapter>
+			<BookChapter id="Chapter4a">
+				<BookImagePage id="Chapter4aStart" unlock="Chapter4a" img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_01_jpg.vtex" snd="vn_ivy_scene04a_01_book" back="0">
+					<TOCEntry title="Enter Cadence" desc="Ivy meets her new charge." />
+				</BookImagePage>
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_02_jpg.vtex" snd="vn_ivy_scene04a_02_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_03_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_04_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_05_jpg.vtex" snd="vn_ivy_scene04a_05_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_06_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_07_jpg.vtex" snd="vn_ivy_scene04a_07_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_08_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_09_jpg.vtex" snd="vn_ivy_scene04a_09_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_10_jpg.vtex" snd="vn_ivy_scene04a_10_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_11_jpg.vtex" snd="vn_ivy_scene04a_11_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_12_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_13_jpg.vtex" snd="vn_ivy_scene04a_13_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_14_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_15_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_16_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_17_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_18_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_19_jpg.vtex" snd="vn_ivy_scene04a_19_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_20_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_21_jpg.vtex" snd="vn_ivy_scene04a_21_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_22_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_23_jpg.vtex" snd="vn_ivy_scene04a_23_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_24_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_25_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_26_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_27_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_28_jpg.vtex" snd="vn_ivy_scene04a_28_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_29_jpg.vtex" snd="vn_ivy_scene04a_29_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_30_jpg.vtex" snd="vn_ivy_scene04a_30_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_31_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04a/ivy_scene04a_32_jpg.vtex" />
+			</BookChapter>
+			<BookChapter id="Chapter4e">
+				<BookImagePage id="Chapter4eStart" unlock="Chapter4e" img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_01_jpg.vtex" snd="vn_ivy_scene04e_01_book" back="0">
+					<TOCEntry title="Helping Hand" desc="Ivy discovers she has something in common with Lash." />
+				</BookImagePage>
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_02_jpg.vtex" snd="vn_ivy_scene04e_02_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_03_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_04_jpg.vtex" snd="vn_ivy_scene04e_04_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_05_jpg.vtex" snd="vn_ivy_scene04e_05_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_06_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_07_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_08_jpg.vtex" snd="vn_ivy_scene04e_08_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_09_jpg.vtex" snd="vn_ivy_scene04e_09_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_10_jpg.vtex" snd="vn_ivy_scene04e_10_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_11_jpg.vtex" snd="vn_ivy_scene04e_11_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_12_jpg.vtex" snd="vn_ivy_scene04e_12_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_13_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_14_jpg.vtex" snd="vn_ivy_scene04e_14_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_15_jpg.vtex" snd="vn_ivy_scene04e_15_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_16_jpg.vtex" snd="vn_ivy_scene04e_16_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_17_jpg.vtex" snd="vn_ivy_scene04e_17_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_18_jpg.vtex" snd="vn_ivy_scene04e_18_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_19_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_20_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_21_jpg.vtex" snd="vn_ivy_scene04e_21_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_22_jpg.vtex" snd="vn_ivy_scene04e_22_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_23_jpg.vtex" snd="vn_ivy_scene04e_23_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_24_jpg.vtex" snd="vn_ivy_scene04e_24_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_25_jpg.vtex" snd="vn_ivy_scene04e_25_book" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_04e/ivy_scene04e_26_jpg.vtex" />
+			</BookChapter>
+			<BookChapter id="Chapter5a">
+				<BookImagePage id="Chapter5aStart" unlock="Chapter5a" img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_01_jpg.vtex" snd="vn_ivy_scene05a_01_book" back="0">
+					<TOCEntry title="The Concert" desc="Cadence&apos;s concert doesn&apos;t go as planned." />
+				</BookImagePage>
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_02_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_03_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_04_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_05_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_06_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_07_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_08_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_09_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_10_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_11_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_12_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_13_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_14_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_15_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_16_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_17_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_18_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_19_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_20_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_21_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_22_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_23_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_24_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_25_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_26_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_27_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_28_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_29_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_30_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_31_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_32_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_33_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_34_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_35_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_36_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_37_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_38_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_39_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_40_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_41_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_42_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_43_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_44_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_45_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_46_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_47_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_48_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_49_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_50_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_51_jpg.vtex" />
+				<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a_52_jpg.vtex">
+					<BookChoice prompt="Take Cadence&apos;s Offer">
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_01_jpg.vtex" back="0" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_02_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_03_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_04_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_05_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_06_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_07_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_08_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_09_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_10_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_11_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_12_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_13_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_14_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_15_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_16_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_17_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_18_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_19_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_20_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_21_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_22_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_23_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_24_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_25_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_26_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_27_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_28_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_29_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_30_jpg.vtex" />
+						<BookImagePage img="s2r://panorama/images/book_images/ivy/ivy_scene_05a/ivy_scene05a.2_31_jpg.vtex" />
+					</BookChoice>
+				</BookImagePage>
+			</BookChapter>
+		</Panel>
+		<BookPageList id="Book">
+			<BookChapterLink chapter="Chapter1">
+				<BookChoice prompt="Take A Job As A Waitress">
+					<BookChapterLink chapter="Chapter2a">
+						<BookChoice prompt="Choose Vigilante Justice">
+							<BookChapterLink chapter="Chapter3a">
+								<BookChoice prompt="Take The Bodyguard Job">
+									<BookChapterLink chapter="Chapter4a">
+										<BookChoice prompt="Work Cadence&apos;s Concert">
+											<BookChapterLink chapter="Chapter5a" />
+										</BookChoice>
+									</BookChapterLink>
+								</BookChoice>
+							</BookChapterLink>
+						</BookChoice>
+						<BookChoice prompt="Choose To Just Get Through The Day">
+							<BookChapterLink chapter="Chapter3b" />
+						</BookChoice>
+					</BookChapterLink>
+				</BookChoice>
+				<BookChoice prompt="Take A Job As A Process Server">
+					<BookChapterLink chapter="Chapter2b">
+						<BookChoice prompt="Serve Lash">
+							<BookChapterLink chapter="Chapter3d">
+								<BookChoice prompt="Help Lash (Even Though He Doesn&apos;t Deserve It)">
+									<BookChapterLink chapter="Chapter4e" />
+								</BookChoice>
+							</BookChapterLink>
+						</BookChoice>
+						<BookChoice prompt="Serve Wraith">
+							<BookChapterLink chapter="Chapter3c" />
+						</BookChoice>
+					</BookChapterLink>
+				</BookChoice>
+				<BookChoice prompt="Go Home To Think About Your Options">
+					<BookChapterLink chapter="Chapter2c">
+						<BookChoice prompt="Canvass For Carlos">
+							<BookChapterLink chapter="Chapter3e" />
+						</BookChoice>
+					</BookChapterLink>
+				</BookChoice>
+			</BookChapterLink>
+		</BookPageList>
+	</Panel>
+</root>

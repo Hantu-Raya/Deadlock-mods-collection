@@ -1,0 +1,17 @@
+<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/gamestyles.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/popups/popups_shared.vcss_c" />
+		<include src="s2r://panorama/styles/popups/popup_generic.vcss_c" />
+		<include src="s2r://panorama/styles/popups/popup_idle_matchmaking.vcss_c" />
+	</styles>
+	<Panel class="PopupPanel Hidden" popupbackground="dim" defaultfocus="PartyCodeEntry">
+		<Label text="#Citadel_IdleMatchmaking_Dialog_Title" class="h2 display silvered align_center" />
+		<Label text="#Citadel_IdleMatchmaking_Dialog_Body" class="body_md silvered align_center" />
+		<Countdown id="countdown_timer">
+			<Label class="RemainingTime" text="{t:d:t:countdown_time}" />
+		</Countdown>
+	</Panel>
+</root>

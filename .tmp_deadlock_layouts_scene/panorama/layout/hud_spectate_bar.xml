@@ -1,0 +1,51 @@
+<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/hud_common.vcss_c" />
+		<include src="s2r://panorama/styles/hud_spectate_bar.vcss_c" />
+	</styles>
+	<Panel class="Spectator" hittest="true" hittestchildren="true">
+		<Panel class="SpectateTopBar" hittest="false" hittestchildren="false">
+			<Panel id="spectate_target" class="spectate_element">
+				<Panel id="title_area" class="LeftRightFlow">
+					<Label class="spectatingTitle" text="#hud_spectating" />
+				</Panel>
+				<Label class="notSpectatingUnitControl highlighted cameraName" text="{s:spectator_mode}" html="true" />
+				<Label class="playerName highlighted cameraName" text="{s:spectatedPlayerName}" html="true" />
+				<Panel id="next_player" class="specControlItem specPlayerNav">
+					<Label class="keybindTitle" text="#hud_next_player" html="true" />
+				</Panel>
+				<Panel id="prev_player" class="specControlItem specPlayerNav">
+					<Label class="keybindTitle" text="#hud_prev_player" html="true" />
+				</Panel>
+			</Panel>
+			<Panel id="camera_section" class="spectate_element">
+				<Panel id="swap_camera" class="specControlItem spectatorOnlyControl LeftRightFlow">
+					<Label class="spectatorOnlyControl keybindTitle" text="#hud_change_camera" html="true" />
+				</Panel>
+				<Panel id="change_teams" class="specControlItem spectatorOnlyControl LeftRightFlow">
+					<Label class="spectatorOnlyControl keybindTitle" text="#hud_spectate_change_team" html="true" />
+				</Panel>
+				<Panel id="cursor_mode" class="specControlItem LeftRightFlow spectatorOnlyControl">
+					<Label class="keybindTitle" text="{g:citadel_binding:&apos;Spectator.SpectatorToggleFreeCursor&apos;}" html="true" />
+					<Label class="keybindTitle" text="{s:free_cursor_mode}" html="true" />
+				</Panel>
+				<Panel id="flight_control" class="specControlItem TopBottomFlow">
+					<Panel id="fly_up" class="specControlItem spectatorOnlyControl LeftRightFlow">
+						<Label class="flightControl keybindTitle" text="#hud_spectate_fly_up" html="true" />
+					</Panel>
+					<Panel id="fly_down" class="specControlItem spectatorOnlyControl LeftRightFlow">
+						<Label class="flightControl keybindTitle" text="#hud_spectate_fly_down" html="true" />
+					</Panel>
+				</Panel>
+			</Panel>
+		</Panel>
+		<Panel class="SpectateBottomBar" hittest="true">
+			<Panel id="fow_view_section" class="spectatorOnlyControl spectate_element" onmouseover="CitadelShowMinimapTooltip()" onmouseout="CitadelHideMinimapTooltip()">
+				<Label class="spectatingTitle" text="#hud_spectate_minimap_view" />
+				<Panel class="spectateInfoIcon" />
+			</Panel>
+		</Panel>
+	</Panel>
+</root>
