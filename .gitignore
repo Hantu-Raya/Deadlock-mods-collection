@@ -15,6 +15,7 @@
 
 # Temp files
 *.tmp
+.tmp*
 _temp/
 
 # Scratch / extraction artifacts
