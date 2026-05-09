@@ -19,6 +19,8 @@
   var MAX_PROGRESS_HOPS = 8;
   var MAX_HINT_DEPTH = 5;
   var MAX_HINT_NODES = 96;
+  var HERO_LOCK_SAMPLE_MS = 10000;
+  var GAME_TIME_CACHE_MS = 250;
   var PROGRESS_VALUE_PROPS = ["value", "current", "currentvalue", "actualvalue"];
   var PROGRESS_MAX_PROPS = ["max", "maximum", "maxvalue"];
   var HEIGHT_METRIC_PROPS = ["actuallayoutheight", "actualheight", "contentheight", "desiredlayoutheight"];
@@ -75,10 +77,17 @@
   var SCENE_BY_HERO = {};
   var SCAN_STACK = [];
   var SCAN_DEPTH = [];
+  var gameTimePanel = null;
+  var gameTimePanelMs = 0;
+  var zeroSampleHero = "";
+  var zeroSampleStartMs = 0;
+  var lockedHero = "";
   var lastHero = "";
   var lastHeroId = -1;
   var sceneCache = null;
   var currentScenePanel = null;
+  var lastGameTimeWasZero = false;
+  var sawNonZeroGameTime = false;
 
   var UI = {
     root: null,
@@ -305,6 +314,104 @@
     try { return Date.now(); } catch (e1) {}
     try { return new Date().getTime(); } catch (e2) {}
     return 0;
+  }
+
+  function parseSecondsFromText(text) {
+    if (!text) return -1;
+
+    var str = String(text);
+    var colon = str.indexOf(":");
+    if (colon <= 0) return -1;
+
+    var mm = 0;
+    var ss = 0;
+    var i;
+    var c;
+
+    for (i = 0; i < colon; i++) {
+      c = str.charCodeAt(i);
+      if (c >= 48 && c <= 57) {
+        mm = (mm * 10) + (c - 48);
+      }
+    }
+
+    for (i = colon + 1; i < str.length && i < colon + 3; i++) {
+      c = str.charCodeAt(i);
+      if (c < 48 || c > 57) {
+        break;
+      }
+      ss = (ss * 10) + (c - 48);
+    }
+
+    if (ss > 59) ss = ss % 60;
+    return mm * 60 + ss;
+  }
+
+  function resolveGameTimePanel() {
+    if (isValidPanel(gameTimePanel)) return gameTimePanel;
+
+    var root = getRootPanel();
+    var classes = null;
+    var topBar = null;
+
+    try {
+      topBar = findChild(root, "TopBar");
+      if (isValidPanel(topBar)) {
+        classes = topBar.FindChildrenWithClassTraverse("GameTime");
+      }
+      if ((!classes || !classes[0]) && isValidPanel(root)) {
+        classes = root.FindChildrenWithClassTraverse("GameTime");
+      }
+      if (classes && classes[0]) {
+        gameTimePanel = classes[0];
+        return gameTimePanel;
+      }
+    } catch (e1) {}
+
+    return null;
+  }
+
+  function readGameTimeSec() {
+    var now = nowMs();
+    if (!isValidPanel(gameTimePanel) || (now - gameTimePanelMs) > GAME_TIME_CACHE_MS) {
+      gameTimePanel = resolveGameTimePanel();
+      gameTimePanelMs = now;
+    }
+
+    if (!isValidPanel(gameTimePanel)) {
+      return -1;
+    }
+
+    var parsed = -1;
+    try { parsed = parseSecondsFromText(gameTimePanel.text); } catch (e1) {}
+    return parsed >= 0 ? parsed : -1;
+  }
+
+  function resetHeroLock() {
+    zeroSampleHero = "";
+    zeroSampleStartMs = 0;
+    lockedHero = "";
+  }
+
+  function updateZeroHeroSample(heroName, now) {
+    if (!heroName) return;
+
+    if (!zeroSampleHero) {
+      zeroSampleHero = heroName;
+      zeroSampleStartMs = now;
+      return;
+    }
+
+    if (heroName !== zeroSampleHero) {
+      zeroSampleHero = heroName;
+      zeroSampleStartMs = now;
+      return;
+    }
+
+    if (!lockedHero && now - zeroSampleStartMs >= HERO_LOCK_SAMPLE_MS) {
+      lockedHero = heroName;
+      log("locking hero scene to " + heroName);
+    }
   }
 
   function setLabelText(panel, text) {
@@ -925,9 +1032,48 @@
 
   function tick() {
     try {
-      var hero = detectHero();
-      if (hero) {
-        switchHeroScene(hero);
+      var now = nowMs();
+      var gameTimeNow = readGameTimeSec();
+      var hero = "";
+
+      if (gameTimeNow < 0) {
+        lastGameTimeWasZero = false;
+        sawNonZeroGameTime = false;
+        resetHeroLock();
+        hero = detectHero();
+        if (hero) {
+          switchHeroScene(hero);
+        }
+      } else if (gameTimeNow === 0) {
+        if (!lastGameTimeWasZero) {
+          if (!lockedHero || sawNonZeroGameTime) {
+            resetHeroLock();
+          }
+          lastGameTimeWasZero = true;
+          sawNonZeroGameTime = false;
+        }
+
+        if (lockedHero) {
+          switchHeroScene(lockedHero);
+        } else {
+          hero = detectHero();
+          if (hero) {
+            updateZeroHeroSample(hero, now);
+            switchHeroScene(hero);
+          }
+        }
+      } else {
+        lastGameTimeWasZero = false;
+        sawNonZeroGameTime = true;
+
+        if (lockedHero) {
+          switchHeroScene(lockedHero);
+        } else {
+          hero = detectHero();
+          if (hero) {
+            switchHeroScene(hero);
+          }
+        }
       }
     } catch (e) {
       log("tick error: " + e);
