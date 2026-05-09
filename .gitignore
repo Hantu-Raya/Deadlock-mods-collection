@@ -3,6 +3,7 @@
 
 # Compiled/Generated directories
 *_compiled/
+*_terser/
 
 # Binaries
 *.exe

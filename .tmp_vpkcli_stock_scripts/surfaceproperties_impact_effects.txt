@@ -1,0 +1,65 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	SurfacePropertiesList = 
+	[
+		{
+			surfacePropertyName = "default"
+			effect = resource:"particles/impact_fx/impact_spark_spray_large.vpcf"
+			effect_simplified = resource:"particles/impact_fx/impact_spark_spray_large.vpcf"
+			impactDecalName = "Impact.Concrete"
+		},
+		{
+			effect = resource:"particles/impact_fx/impact_spark_spray_large.vpcf"
+			surfacePropertyName = "metalgrate"
+			impactDecalName = "Impact.Concrete"
+		},
+		{
+			effect = resource:"particles/impact_fx/impact_dirt.vpcf"
+			surfacePropertyName = "dirt"
+			impactDecalName = "Impact.Concrete"
+		},
+		{
+			effect = resource:"particles/impact_fx/impact_spark_spray_large.vpcf"
+			impactDecalName = "Impact.Concrete"
+			surfacePropertyName = "tile"
+		},
+		{
+			effect = resource:"particles/impact_fx/impact_spark_spray_large.vpcf"
+			impactDecalName = "Impact.Concrete"
+			surfacePropertyName = "wood"
+		},
+		{
+			effect = resource:"particles/impact_fx/impact_spark_spray_large.vpcf"
+			impactDecalName = "Impact.Concrete"
+			surfacePropertyName = "glass"
+		},
+		{
+			effect = resource:"particles/impact_fx/impact_spark_spray_large.vpcf"
+			surfacePropertyName = "concrete"
+			impactDecalName = "Impact.Concrete"
+		},
+		{
+			surfacePropertyName = "flesh"
+			effect = resource:"particles/blood_impact/blood_impact_red_01.vpcf"
+			effect_simplified = resource:"particles/blood_impact/blood_impact_red_01_cheap.vpcf"
+			impactDecalName = "Blood"
+			impactGrazingDecalName = "Blood"
+			sprayDecalName = "Blood"
+		},
+		{
+			effect = resource:"particles/environment/tree_bullet_impact.vpcf"
+			exit_effect = resource:"particles/environment/tree_bullet_exit.vpcf"
+			effect_simplified = resource:"particles/environment/tree_bullet_impact.vpcf"
+			surfacePropertyName = "foliage"
+		},
+		{
+			surfacePropertyName = "npc_trooper"
+		},
+		{
+			surfacePropertyName = "trooper"
+			effect = resource:"particles/impact_fx/impact_spark_spray_large.vpcf"
+			effect_simplified = resource:"particles/impact_fx/impact_spray_large.vpcf"
+			impactDecalName = "Impact.Mechanical"
+		},
+	]
+}
