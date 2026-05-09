@@ -866,6 +866,13 @@
 #hud_health_bars .hp_custom_base
 {
 	z-index: 1;
+	opacity: 0;
+}
+
+#hud_health_bars.hp-damaged .hp_custom_base,
+#hud_health_bars .hp_custom_text.hp-damaged .hp_custom_base
+{
+	opacity: 1;
 }
 
 #hud_health_bars .hp_custom_fill
