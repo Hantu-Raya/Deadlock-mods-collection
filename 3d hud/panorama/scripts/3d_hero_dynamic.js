@@ -3,27 +3,30 @@
 (function () {
   var FAST_POLL_SEC = 0.25;
   var SLOW_POLL_SEC = 0.75;
-  var HEALTH_TICK_SEC = 0.04;
+  var HEALTH_TICK_SEC = 0.05;
   var HEALTH_RESCAN_MS = 1500;
   var HEALTH_EFFECT_EPSILON = 0.005;
-  var HEALTH_VERBOSE = true;
-  var HEALTH_TREE_DUMP = true;
-  var HEALTH_DEBUG_INTERVAL_MS = 500;
   var HEALTH_SEGMENT_STALE_MS = 1250;
   var HEALTH_DAMAGE_HOLD_MS = 900;
-  var HEALTH_TREE_DUMP_INTERVAL_MS = 5000;
-  var HEALTH_TREE_DUMP_DEPTH = 9;
-  var HEALTH_TREE_DUMP_NODE_LIMIT = 260;
   var HEALTH_TEXT_WIDTH = 200;
   var HEALTH_TEXT_HEIGHT = 64;
   var HEALTH_CURRENT_LABEL_WIDTH = 136;
   var HEALTH_MAX_LABEL_LEFT = 138;
   var HEALTH_DIGIT_WIDTH = 18;
   var HEALTH_SUFFIX_CHAR_WIDTH = 7;
+  var HEALTH_TEXT_CLIP_PAD = 8;
   var HEALTH_SCAN_NODE_LIMIT = 96;
   var MAX_PROGRESS_HOPS = 8;
   var MAX_HINT_DEPTH = 5;
   var MAX_HINT_NODES = 96;
+  var PROGRESS_VALUE_PROPS = ["value", "current", "currentvalue", "actualvalue"];
+  var PROGRESS_MAX_PROPS = ["max", "maximum", "maxvalue"];
+  var HEIGHT_METRIC_PROPS = ["actuallayoutheight", "actualheight", "contentheight", "desiredlayoutheight"];
+  var WIDTH_METRIC_PROPS = ["actuallayoutwidth", "actualwidth", "contentwidth", "desiredlayoutwidth"];
+  var Y_OFFSET_PROPS = ["actualyoffset", "actualy", "yoffset", "layouty"];
+  var X_OFFSET_PROPS = ["actualxoffset", "actualx", "xoffset", "layoutx"];
+  var DIGIT_RE = /\d/;
+  var INACTIVE_CLIP = { left: 0, right: 0, source: "" };
 
   var HERO_DATA = [
     { hero: "hero_inferno", id: 1, map: "maps/ui/hero_prefabs/inferno.vmap", aliases: [] },
@@ -74,7 +77,6 @@
   var SCAN_DEPTH = [];
   var lastHero = "";
   var lastHeroId = -1;
-  var missCount = 0;
   var sceneCache = null;
   var currentScenePanel = null;
 
@@ -110,6 +112,7 @@
     hpCurrentHeal: null,
     hpMaxHeal: null,
     hpProgressSource: null,
+    healthSourceHidden: false,
     lastHealthScanMs: 0,
     lastHpCurrent: -1,
     lastHpMax: -1,
@@ -121,14 +124,13 @@
     lastDamageLeftClip: -1,
     lastHealClip: -1,
     lastHealLeftClip: -1,
-    lastHealthDebugKey: "",
-    lastHealthDebugMs: 0,
     lastDamageSegmentKey: "",
     lastDamageSegmentMs: 0,
     lastHealSegmentKey: "",
     lastHealSegmentMs: 0,
-    lastHealthTreeDumpMs: 0,
     lastHealthCurrentForEffect: -1,
+    lastClipBoundsKey: "",
+    lastClipBounds: null,
     damageHoldLeft: 0,
     damageHoldRight: 0,
     damageHoldMs: 0
@@ -223,6 +225,7 @@
     UI.hpCurrentHeal = null;
     UI.hpMaxHeal = null;
     UI.hpProgressSource = null;
+    UI.healthSourceHidden = false;
     UI.lastHealthScanMs = 0;
     UI.lastHpCurrent = -1;
     UI.lastHpMax = -1;
@@ -234,14 +237,13 @@
     UI.lastDamageLeftClip = -1;
     UI.lastHealClip = -1;
     UI.lastHealLeftClip = -1;
-    UI.lastHealthDebugKey = "";
-    UI.lastHealthDebugMs = 0;
     UI.lastDamageSegmentKey = "";
     UI.lastDamageSegmentMs = 0;
     UI.lastHealSegmentKey = "";
     UI.lastHealSegmentMs = 0;
-    UI.lastHealthTreeDumpMs = 0;
     UI.lastHealthCurrentForEffect = -1;
+    UI.lastClipBoundsKey = "";
+    UI.lastClipBounds = null;
     UI.damageHoldLeft = 0;
     UI.damageHoldRight = 0;
     UI.damageHoldMs = 0;
@@ -263,10 +265,6 @@
 
   function panelId(panel) {
     try { return panel && panel.id ? String(panel.id) : ""; } catch (e) { return ""; }
-  }
-
-  function panelType(panel) {
-    try { return panel && panel.paneltype ? String(panel.paneltype) : "Panel"; } catch (e) { return "Panel"; }
   }
 
   function hasClass(panel, className) {
@@ -316,7 +314,9 @@
     } catch (e1) {}
   }
 
-  function hideOriginalHealthText() {
+  function ensureHealthSourceHidden() {
+    if (UI.healthSourceHidden) return;
+
     try {
       UI.currentHealth.style.opacity = "0";
       UI.currentHealth.style.visibility = "visible";
@@ -326,13 +326,13 @@
       UI.maxHealth.style.opacity = "0";
       UI.maxHealth.style.visibility = "visible";
     } catch (e2) {}
-  }
 
-  function hideRequiredHealthSource() {
     try {
       UI.hpProgressSource.style.opacity = "0.001";
       UI.hpProgressSource.style.visibility = "visible";
-    } catch (e1) {}
+    } catch (e3) {}
+
+    UI.healthSourceHidden = true;
   }
 
   function panelNumberProp(panel, names) {
@@ -374,116 +374,6 @@
     return -1;
   }
 
-  function escapeXmlValue(value) {
-    return String(value).replace(/[&<>"']/g, function (ch) {
-      if (ch === "&") return "&amp;";
-      if (ch === "<") return "&lt;";
-      if (ch === ">") return "&gt;";
-      if (ch === "\"") return "&quot;";
-      return "&apos;";
-    });
-  }
-
-  function panelStringProp(panel, names) {
-    if (!isValidPanel(panel)) return "";
-
-    for (var i = 0; i < names.length; i++) {
-      try {
-        var value = panel[names[i]];
-        if (value !== null && value !== undefined && String(value) !== "") return String(value);
-      } catch (e1) {}
-    }
-
-    return "";
-  }
-
-  function panelStyleString(panel, names) {
-    if (!isValidPanel(panel)) return "";
-
-    for (var i = 0; i < names.length; i++) {
-      try {
-        var value = panel.style ? panel.style[names[i]] : "";
-        if (value !== null && value !== undefined && String(value) !== "") return String(value);
-      } catch (e1) {}
-    }
-
-    return "";
-  }
-
-  function panelClasses(panel) {
-    if (!isValidPanel(panel)) return "";
-
-    try {
-      if (panel.GetClasses) {
-        var classes = panel.GetClasses();
-        if (classes && classes.join) return classes.join(" ");
-        if (classes) return String(classes);
-      }
-    } catch (e1) {}
-
-    try {
-      if (panel.classes) return String(panel.classes);
-    } catch (e2) {}
-
-    try {
-      if (panel.className) return String(panel.className);
-    } catch (e3) {}
-
-    return "";
-  }
-
-  function appendXmlAttr(parts, name, value) {
-    if (value === null || value === undefined || value === "" || value === -1) return;
-    parts.push(name + "=\"" + escapeXmlValue(value) + "\"");
-  }
-
-  function panelXmlOpen(panel) {
-    var parts = [panelType(panel)];
-    appendXmlAttr(parts, "id", panelId(panel));
-    appendXmlAttr(parts, "class", panelClasses(panel));
-    appendXmlAttr(parts, "text", panelStringProp(panel, ["text"]));
-    appendXmlAttr(parts, "value", panelNumberProp(panel, ["value", "current", "currentvalue", "actualvalue"]));
-    appendXmlAttr(parts, "max", panelNumberProp(panel, ["max", "maximum", "maxvalue"]));
-    appendXmlAttr(parts, "x", panelOffset(panel, ["actualxoffset", "actualx", "xoffset", "layoutx"]));
-    appendXmlAttr(parts, "y", panelOffset(panel, ["actualyoffset", "actualy", "yoffset", "layouty"]));
-    appendXmlAttr(parts, "w", panelMetric(panel, ["actuallayoutwidth", "actualwidth", "contentwidth", "desiredlayoutwidth"]));
-    appendXmlAttr(parts, "h", panelMetric(panel, ["actuallayoutheight", "actualheight", "contentheight", "desiredlayoutheight"]));
-    appendXmlAttr(parts, "opacity", panelStyleString(panel, ["opacity"]));
-    appendXmlAttr(parts, "visibility", panelStyleString(panel, ["visibility"]));
-    appendXmlAttr(parts, "clip", panelStyleString(panel, ["clip"]));
-    return "<" + parts.join(" ");
-  }
-
-  function dumpPanelTree(panel, depth, nodeState) {
-    if (!isValidPanel(panel) || depth > HEALTH_TREE_DUMP_DEPTH || nodeState.count >= HEALTH_TREE_DUMP_NODE_LIMIT) return;
-
-    nodeState.count++;
-    var children = getChildren(panel);
-    var indent = new Array(depth + 1).join("  ");
-    if (!children.length || depth >= HEALTH_TREE_DUMP_DEPTH) {
-      log("health tree " + indent + panelXmlOpen(panel) + " />");
-      return;
-    }
-
-    log("health tree " + indent + panelXmlOpen(panel) + ">");
-    for (var i = 0; i < children.length && nodeState.count < HEALTH_TREE_DUMP_NODE_LIMIT; i++) {
-      dumpPanelTree(children[i], depth + 1, nodeState);
-    }
-    log("health tree " + indent + "</" + panelType(panel) + ">");
-  }
-
-  function maybeDumpHealthTree() {
-    if (!HEALTH_TREE_DUMP || !isValidPanel(UI.healthRoot)) return;
-
-    var now = nowMs();
-    if (UI.lastHealthTreeDumpMs > 0 && (now - UI.lastHealthTreeDumpMs) < HEALTH_TREE_DUMP_INTERVAL_MS) return;
-
-    UI.lastHealthTreeDumpMs = now;
-    log("health tree begin intervalMs=" + HEALTH_TREE_DUMP_INTERVAL_MS + " depth=" + HEALTH_TREE_DUMP_DEPTH + " nodeLimit=" + HEALTH_TREE_DUMP_NODE_LIMIT);
-    dumpPanelTree(UI.healthRoot, 0, { count: 0 });
-    log("health tree end");
-  }
-
   function findPanelByClass(scope, className) {
     if (!isValidPanel(scope)) return null;
 
@@ -512,8 +402,8 @@
   }
 
   function progressValueState(bar) {
-    var value = panelNumberProp(bar, ["value", "current", "currentvalue", "actualvalue"]);
-    var maxValue = panelNumberProp(bar, ["max", "maximum", "maxvalue"]);
+    var value = panelNumberProp(bar, PROGRESS_VALUE_PROPS);
+    var maxValue = panelNumberProp(bar, PROGRESS_MAX_PROPS);
     return {
       value: value,
       max: maxValue,
@@ -525,10 +415,10 @@
   function progressSegmentRatio(bar, fill) {
     if (!isValidPanel(bar) || !isValidPanel(fill)) return { valid: false, left: 0, right: 0 };
 
-    var totalH = panelMetric(bar, ["actuallayoutheight", "actualheight", "contentheight", "desiredlayoutheight"]);
-    var fillH = panelMetric(fill, ["actuallayoutheight", "actualheight", "contentheight", "desiredlayoutheight"]);
-    var barY = panelOffset(bar, ["actualyoffset", "actualy", "yoffset", "layouty"]);
-    var fillY = panelOffset(fill, ["actualyoffset", "actualy", "yoffset", "layouty"]);
+    var totalH = panelMetric(bar, HEIGHT_METRIC_PROPS);
+    var fillH = panelMetric(fill, HEIGHT_METRIC_PROPS);
+    var barY = panelOffset(bar, Y_OFFSET_PROPS);
+    var fillY = panelOffset(fill, Y_OFFSET_PROPS);
     var y = fillY;
     if (barY >= 0 && fillY >= 0 && fillY > totalH) y = fillY - barY;
     if (totalH > 0 && fillH > 0 && y >= 0) {
@@ -539,10 +429,10 @@
       return { valid: true, left: Math.min(top, bottom), right: Math.max(top, bottom) };
     }
 
-    var totalW = panelMetric(bar, ["actuallayoutwidth", "actualwidth", "contentwidth", "desiredlayoutwidth"]);
-    var fillW = panelMetric(fill, ["actuallayoutwidth", "actualwidth", "contentwidth", "desiredlayoutwidth"]);
-    var barX = panelOffset(bar, ["actualxoffset", "actualx", "xoffset", "layoutx"]);
-    var fillX = panelOffset(fill, ["actualxoffset", "actualx", "xoffset", "layoutx"]);
+    var totalW = panelMetric(bar, WIDTH_METRIC_PROPS);
+    var fillW = panelMetric(fill, WIDTH_METRIC_PROPS);
+    var barX = panelOffset(bar, X_OFFSET_PROPS);
+    var fillX = panelOffset(fill, X_OFFSET_PROPS);
     var x = fillX;
     if (barX >= 0 && fillX >= 0 && fillX > totalW) x = fillX - barX;
     if (totalW > 0 && fillW > 0 && x >= 0) {
@@ -567,20 +457,25 @@
     var value = String(text || "");
     var width = 0;
     for (var i = 0; i < value.length; i++) {
-      width += /\d/.test(value.charAt(i)) ? digitWidth : otherWidth;
+      width += DIGIT_RE.test(value.charAt(i)) ? digitWidth : otherWidth;
     }
 
     return width;
   }
 
   function healthTextClipBounds(currentText, maxText, damaged) {
+    var key = currentText + "|" + maxText + "|" + (damaged ? "1" : "0");
+    if (key === UI.lastClipBoundsKey && UI.lastClipBounds) return UI.lastClipBounds;
+
     var currentWidth = Math.min(HEALTH_CURRENT_LABEL_WIDTH, textVisualWidth(currentText, HEALTH_DIGIT_WIDTH, HEALTH_DIGIT_WIDTH * 0.5));
     var maxWidth = damaged ? textVisualWidth(maxText, HEALTH_SUFFIX_CHAR_WIDTH, HEALTH_SUFFIX_CHAR_WIDTH * 0.65) : 0;
-    var left = Math.max(0, HEALTH_CURRENT_LABEL_WIDTH - currentWidth);
-    var right = damaged ? Math.min(HEALTH_TEXT_WIDTH, HEALTH_MAX_LABEL_LEFT + maxWidth) : HEALTH_CURRENT_LABEL_WIDTH;
+    var left = Math.max(0, HEALTH_CURRENT_LABEL_WIDTH - currentWidth - HEALTH_TEXT_CLIP_PAD);
+    var right = damaged ? Math.min(HEALTH_TEXT_WIDTH, HEALTH_MAX_LABEL_LEFT + maxWidth + HEALTH_TEXT_CLIP_PAD) : HEALTH_CURRENT_LABEL_WIDTH + HEALTH_TEXT_CLIP_PAD;
 
     if (right <= left) right = Math.min(HEALTH_TEXT_WIDTH, left + currentWidth);
-    return { left: left, right: right };
+    UI.lastClipBoundsKey = key;
+    UI.lastClipBounds = { left: left, right: right };
+    return UI.lastClipBounds;
   }
 
   function setClipRect(panel, left, right, leftCacheName, rightCacheName) {
@@ -611,7 +506,6 @@
         isValidPanel(UI.healthBarFill) && isValidPanel(UI.pendingDamageMiddle) &&
         isValidPanel(UI.pendingHealMiddle) &&
         (now - UI.lastHealthScanMs) < HEALTH_RESCAN_MS) {
-      maybeDumpHealthTree();
       return;
     }
 
@@ -649,7 +543,6 @@
       try { UI.healthRoot = UI.hpCustomText.GetParent(); } catch (e1) {}
     }
     UI.lastHealthScanMs = now;
-    maybeDumpHealthTree();
   }
 
   function readHealthState() {
@@ -659,8 +552,7 @@
       return null;
     }
 
-    hideOriginalHealthText();
-    hideRequiredHealthSource();
+    ensureHealthSourceHidden();
 
     var current = parsePanelNumber(UI.currentHealth);
     var max = parsePanelNumber(UI.maxHealth);
@@ -707,7 +599,7 @@
   }
 
   function inactiveClip() {
-    return { left: 0, right: 0, source: "" };
+    return INACTIVE_CLIP;
   }
 
   function segmentKey(segment) {
@@ -718,10 +610,6 @@
   function isSegmentActive(segment) {
     if (!segment || !segment.valid || (segment.right - segment.left) <= HEALTH_EFFECT_EPSILON) return false;
     return !(segment.left <= HEALTH_EFFECT_EPSILON && segment.right >= 1 - HEALTH_EFFECT_EPSILON);
-  }
-
-  function isClipActive(clip) {
-    return !!clip && (clip.right - clip.left) > HEALTH_EFFECT_EPSILON;
   }
 
   function heldDamageClip(state, now, hpDelta) {
@@ -811,43 +699,6 @@
     setClipRect(UI.hpCustomHeal, clipBounds.left + (clipWidth * healClip.left), clipBounds.left + (clipWidth * healClip.right), "lastHealLeftClip", "lastHealClip");
   }
 
-  function fixedRatio(value) {
-    return String(Math.round(clampRatio(value) * 1000) / 1000);
-  }
-
-  function valueDebug(value) {
-    return "v=" + String(value.value) + " m=" + String(value.max) + " r=" + fixedRatio(value.ratio);
-  }
-
-  function segmentDebug(segment) {
-    if (!segment || !segment.valid) return "none";
-    return fixedRatio(segment.left) + ".." + fixedRatio(segment.right);
-  }
-
-  function clipDebug(clip) {
-    if (!clip || (clip.right - clip.left) <= HEALTH_EFFECT_EPSILON) return "off";
-    return clip.source + ":" + fixedRatio(clip.left) + ".." + fixedRatio(clip.right);
-  }
-
-  function logHealthProbe(state, damagePending, healPending, deferredClip, damageClip, healClip, hpDelta, now) {
-    if (!HEALTH_VERBOSE) return;
-
-    var key = "hp=" + state.current + "/" + state.max +
-      " dV=" + valueDebug(damagePending.value) +
-      " dS=" + segmentDebug(damagePending.segment) +
-      " hV=" + valueDebug(healPending.value) +
-      " hS=" + segmentDebug(healPending.segment) +
-      " defC=" + clipDebug(deferredClip) +
-      " dC=" + clipDebug(damageClip) +
-      " hC=" + clipDebug(healClip) +
-      " delta=" + hpDelta;
-    if (key === UI.lastHealthDebugKey && (now - UI.lastHealthDebugMs) < HEALTH_DEBUG_INTERVAL_MS) return;
-
-    UI.lastHealthDebugKey = key;
-    UI.lastHealthDebugMs = now;
-    log("health probe " + key);
-  }
-
   function syncHealthTextState() {
     var state = readHealthState();
     if (!state) return;
@@ -863,7 +714,6 @@
     var deferredClip = resolveDeferredDamageClip(state, damagePending, now);
     var damageClip = resolveDamageClip(state, now, hpDelta);
     var healClip = resolveHealClip(state, healPending, now, hpDelta);
-    logHealthProbe(state, damagePending, healPending, deferredClip, damageClip, healClip, hpDelta, now);
     writeHealthClips(state, resolveCurrentClip(state), deferredClip, damageClip, healClip);
   }
 
@@ -1069,7 +919,6 @@
 
     lastHero = heroName;
     lastHeroId = record.id;
-    missCount = 0;
     log("bound " + heroName + " -> " + record.id + " map=" + record.map);
     return true;
   }
@@ -1079,8 +928,6 @@
       var hero = detectHero();
       if (hero) {
         switchHeroScene(hero);
-      } else {
-        missCount++;
       }
     } catch (e) {
       log("tick error: " + e);
