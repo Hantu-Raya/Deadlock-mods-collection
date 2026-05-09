@@ -1378,7 +1378,7 @@
 				<GlobalClassListener
                     id="DamageReportGlobalClassListener"
                     classes="gEditingBuilds gShopOpen gScoreboardOpen gAbilityUpgradeMenu"
-                />
+				/>
 				<Panel id="LowerLeft" hittest="false">
 					<CitadelStatusEffect id="StatusEffects" display_location="bottom_left" />
 					<CitadelHudSoulAPContainer id="gold_and_ap_container" />

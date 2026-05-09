@@ -44,3 +44,22 @@
   opacity: 0;
   z-index: -1;
 }
+
+#health_and_abilities_container .healthContainer .progress_bar_numbers,
+#health_and_abilities_container .healthContainer #current_health,
+#health_and_abilities_container .healthContainer #max_health {
+  opacity: 0;
+  visibility: collapse;
+}
+
+#health_and_abilities_container .healthContainer .health_bar_border,
+#health_and_abilities_container .healthContainer #health_bar,
+#health_and_abilities_container .healthContainer #health_bar_frame,
+#health_and_abilities_container .healthContainer #healthBottomEdge,
+#health_and_abilities_container .healthContainer #health_bar .ProgressBarLeft,
+#health_and_abilities_container .healthContainer #health_bar .ProgressBarMiddle,
+#health_and_abilities_container .healthContainer #health_bar .ProgressBarRight {
+  opacity: 0;
+  background-color: #00000000;
+  border: 0px;
+}
