@@ -1,10 +1,10 @@
-/* Prettified by Source 2 Viewer 17.0.0.0 - https://valveresourceformat.github.io */
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
 
 @import url("s2r://panorama/styles/base/hud_objective_health.vcss_c");
 #healthbar_progress .ProgressBarLeft
 {
 	visibility: visible;
-	background-color: yellow;
+	background-color: #F0E442;
 	height: 100%;
 }
 
@@ -12,157 +12,157 @@
 {
 	0%
 	{
-		background-color: yellow;
+		background-color: #0072B2;
 	}
-	
+
 	50%
 	{
-		background-color: offBlack;
+		background-color: #111827;
 	}
-	
+
 	100%
 	{
-		background-color: yellow;
+		background-color: #0072B2;
 	}
-	
+
 }
 
 @keyframes 'laneYellow_is_being_attacked'
 {
 	0%
 	{
-		background-color: rgba(192, 192, 65, 0.8);
+		background-color: #F0E442cc;
 	}
-	
+
 	50%
 	{
-		background-color: yellow ;
+		background-color: #111827;
 	}
-	
+
 	100%
 	{
-		background-color: rgba(192, 192, 65, 0.8);
+		background-color: #F0E442cc;
 	}
-	
+
 }
 
 @keyframes 'laneOrange_is_being_attacked'
 {
 	0%
 	{
-		background-color: rgba(221, 120, 37, 0.8);
+		background-color: #E69F00cc;
 	}
-	
+
 	50%
 	{
-		background-color: yellow ;
+		background-color: #111827;
 	}
-	
+
 	100%
 	{
-		background-color: rgba(221, 120, 37, 0.8);
+		background-color: #E69F00cc;
 	}
-	
+
 }
 
 @keyframes 'laneBlue_is_being_attacked'
 {
 	0%
 	{
-		background-color: rgba(65, 122, 192, 0.8);
+		background-color: #56B4E9cc;
 	}
-	
+
 	50%
 	{
-		background-color: yellow ;
+		background-color: #111827;
 	}
-	
+
 	100%
 	{
-		background-color: rgba(65, 122, 192, 0.8);
+		background-color: #56B4E9cc;
 	}
-	
+
 }
 
 @keyframes 'lanePurple_is_being_attacked'
 {
 	0%
 	{
-		background-color: rgba(105, 65, 192, 0.8);
+		background-color: #CC79A7cc;
 	}
-	
+
 	50%
 	{
-		background-color: yellow ;
+		background-color: #111827;
 	}
-	
+
 	100%
 	{
-		background-color: rgba(105, 65, 192, 0.8);
+		background-color: #CC79A7cc;
 	}
-	
+
 }
 
 @keyframes 'laneGreen_is_being_attacked'
 {
 	0%
 	{
-		background-color: laneGreenColor&80;
+		background-color: #009E73cc;
 	}
-	
+
 	50%
 	{
-		background-color: yellow ;
+		background-color: #111827;
 	}
-	
+
 	100%
 	{
-		background-color: laneGreenColor&80;
+		background-color: #009E73cc;
 	}
-	
+
 }
 
 @keyframes 'team1_is_being_attacked'
 {
 	0%
 	{
-		background-color: team1Color&80;
+		background-color: #0072B2cc;
 	}
-	
+
 	50%
 	{
-		background-color: yellow;
+		background-color: #111827;
 	}
-	
+
 	100%
 	{
-		background-color: team1Color&80;
+		background-color: #0072B2cc;
 	}
-	
+
 }
 
 @keyframes 'team2_is_being_attacked'
 {
 	0%
 	{
-		background-color: team2Color&80;
+		background-color: #F0E442cc;
 	}
-	
+
 	50%
 	{
-		background-color: yellow;
+		background-color: #111827;
 	}
-	
+
 	100%
 	{
-		background-color: team2Color&80;
+		background-color: #F0E442cc;
 	}
-	
+
 }
 
 .on_damaged #healthbar_progress .ProgressBarMiddle
 {
-	background-color: red;
+	background-color: #D55E00;
 	opacity: 1;
 	transition-property: background-color, opacity;
 	transition-duration: 0.5s;
@@ -170,6 +170,6 @@
 
 .friend #healthbar_progress .ProgressBarLeft
 {
-	background-color: #bc22ab;
+	background-color: #0072B2;
 }
 

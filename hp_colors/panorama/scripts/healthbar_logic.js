@@ -62,6 +62,8 @@
   var LP = 'low_hp_pulsing';
   var _ts = Date.now ? Date.now.bind(Date) : function() { return +(new Date()); };
   var PULSE_INTENSITY = ['pulse_subtle', '', 'pulse_intense'];
+  var ENEMY_IDLE_BACKOFF = [0.30, 0.60, 1.0, 1.0];
+  var ALLY_IDLE_BACKOFF = [0.35, 0.70, 1.40, 2.0, 2.0];
 
   // ── Loop control ────────────────────────────────────────────────────────────
   var gRunning = false;
@@ -730,7 +732,7 @@
   var ctx = $.GetContextPanel();
   var us = null, hc = null, hca = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null, ihc = null, uhc = null;
   var cached = 0, att = 0;
-  var lBgVis = null, lBgOp = null, lHpSize = null, lHpPos = null, lHpMarginLeft = null, lHpHeight = null, lHcaTransform = null, lIhcMarginTop = null, lUhcHeight = null, lPipHeight = null, lPipFontSize = null;
+  var lBgVis = null, lBgOp = null, lHpSize = null, lHpHeight = null, lHcaTransform = null, lIhcMarginTop = null, lUhcHeight = null, lPipHeight = null, lPipFontSize = null, lPipVis = null;
 
   function fRB() {
     var p = ctx.FindChildTraverse('unit_healthbar_lagging');
@@ -811,8 +813,7 @@
   var lTx = null, cMax = 0;
   var lCounterText = "";
   var lCounterLowMode = false;
-  var lCounterAutoPos = null;
-  var lastRbPanel = null, lastHcPanel = null, lastBgPanel = null, lastKzPanel = null;
+  var lastRbPanel = null, lastHcPanel = null, lastBgPanel = null, lastKzPanel = null, lastPlPanel = null;
   var panelBornAt = 0;
 
   function sBC(c) {
@@ -976,28 +977,6 @@
     return clampNum(value, 0, 100, 0) | 0;
   }
 
-  function estimateCounterUnits(text) {
-    var s = String(text || "");
-    var units = 0;
-    for (var i = 0; i < s.length; i++) {
-      var ch = s.charCodeAt(i);
-      if (ch >= 48 && ch <= 57) units += 1.0;
-      else if (ch === 32) units += 0.35;
-      else if (ch === 47) units += 0.55;
-      else if (ch === 58 || ch === 46) units += 0.40;
-      else units += 0.80;
-    }
-    return units > 0 ? units : 1;
-  }
-
-  function getCounterAvailableWidth() {
-    if (hc && hc.actuallayoutwidth > 0) return hc.actuallayoutwidth;
-    if (us && us.actuallayoutwidth > 0) return us.actuallayoutwidth;
-    if (cp && cp.actuallayoutwidth > 0) return cp.actuallayoutwidth;
-    if (rb && rb.actuallayoutwidth > 0) return rb.actuallayoutwidth;
-    return 0;
-  }
-
   // BG visibility with opacity fix - keeps panel visible for HP updates
   function sHBV(visible) {
     if (!bg || !bg.style) return;
@@ -1008,14 +987,14 @@
     if (lBgOp !== nextOp) { bg.style.opacity = nextOp; lBgOp = nextOp; }
   }
 
-  var lKzVis = null, lKzX = null, lKzW = null, lKzColor = null;
+  var lKzVis = null, lKzX = null, lKzW = null, lKzColor = null, lKzAppliedColor = null, lKzOp = null, lKzZi = null;
 
   function sKZ(show, parentWidth) {
     if (!kz || !kz.style) return;
     var barHidden = !bg || !bg.style || lBgVis !== 'visible' || lBgOp !== '1.0';
     if (!show || !cfg.hp_kill_zone_enabled || parentWidth <= 0 || barHidden) {
       if (lKzVis !== 'collapse') { kz.style.visibility = 'collapse'; lKzVis = 'collapse'; }
-      try { kz.style.opacity = '0'; } catch (eHide) {}
+      if (lKzOp !== '0') { try { kz.style.opacity = '0'; lKzOp = '0'; } catch (eHide) { lKzOp = null; } }
       return;
     }
 
@@ -1037,12 +1016,12 @@
     var color = lKzColor;
 
     if (lKzVis !== 'visible') { kz.style.visibility = 'visible'; lKzVis = 'visible'; }
-    try { kz.style.opacity = '0.95'; } catch (eOp) {}
-    try { kz.style.zIndex = '1000'; } catch (eZi) {}
+    if (lKzOp !== '0.95') { try { kz.style.opacity = '0.95'; lKzOp = '0.95'; } catch (eOp) { lKzOp = null; } }
+    if (lKzZi !== '1000') { try { kz.style.zIndex = '1000'; lKzZi = '1000'; } catch (eZi) { lKzZi = null; } }
     if (lKzX !== posStr) { kz.style.marginLeft = posStr; lKzX = posStr; }
     if (lKzW !== widthStr) { kz.style.width = widthStr; lKzW = widthStr; }
-    if (lKzColor !== color) {
-      try { kz.style.backgroundColor = color; lKzColor = color; } catch (eCol) { lKzColor = null; }
+    if (lKzAppliedColor !== color) {
+      try { kz.style.backgroundColor = color; lKzAppliedColor = color; } catch (eCol) { lKzAppliedColor = null; }
     }
   }
 
@@ -1080,28 +1059,6 @@
     return { x: x, y: y };
   }
 
-  function formatCounterPositionValue(pos) {
-    var parsed = parseCounterPositionValue(pos, true);
-    return Math.round(parsed.x) + "," + Math.round(parsed.y);
-  }
-
-  function syncCounterPositionSetting(nextPos) {
-    var normalized = formatCounterPositionValue(nextPos);
-    if (lCounterAutoPos === normalized) return;
-    lCounterAutoPos = normalized;
-    settingsDirty = true;
-    try {
-      $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
-        magic_word: "ANITA_UPDATE",
-        mod_title: TITLE,
-        setting_id: "hp_counter_position",
-        value: normalized,
-        update_source: "hp_counter_autoposition",
-        skip_bridge_persist: true
-      }));
-    } catch (e) {}
-  }
-
   function sHCS(lowMode, textHint) {
     if (!hc || !hc.style) return;
     var pulseTextMode = !!(lowMode && cfg.hp_pulse_enabled && cfg.hp_pulse_text_enabled);
@@ -1126,11 +1083,12 @@
   }
 
   function resetStyleStateForNewPanels() {
-    if (rb === lastRbPanel && hc === lastHcPanel && bg === lastBgPanel && kz === lastKzPanel) return;
+    if (rb === lastRbPanel && hc === lastHcPanel && bg === lastBgPanel && kz === lastKzPanel && pl === lastPlPanel) return;
     lastRbPanel = rb;
     lastHcPanel = hc;
     lastBgPanel = bg;
     lastKzPanel = kz;
+    lastPlPanel = pl;
     panelBornAt = _ts();
     lColRaw = lUltRaw = lTxtRaw = null;
     clearPulse();
@@ -1143,8 +1101,8 @@
     lWA = -1;
     lPWA = -1;
     sfcA = 0;
-    lBgVis = lBgOp = lHpSize = lHpPos = lHpMarginLeft = lHpHeight = lHcaTransform = lIhcMarginTop = null;
-    lKzVis = lKzX = lKzW = lKzColor = null;
+    lBgVis = lBgOp = lHpSize = lHpHeight = lHcaTransform = lIhcMarginTop = lUhcHeight = lPipHeight = lPipFontSize = lPipVis = null;
+    lKzVis = lKzX = lKzW = lKzColor = lKzAppliedColor = lKzOp = lKzZi = null;
     lLvVis = null;
     lSH = -1;
     lSM = -1;
@@ -1220,7 +1178,10 @@
         sBC("");
         sUC("");
         sKZ(false, 0);
-        if (bg && bg.style) { bg.style.visibility = 'collapse'; bg.style.opacity = '0'; lBgVis = 'collapse'; lBgOp = '0'; }
+        if (bg && bg.style) {
+          if (lBgVis !== 'collapse') { bg.style.visibility = 'collapse'; lBgVis = 'collapse'; }
+          if (lBgOp !== '0') { bg.style.opacity = '0'; lBgOp = '0'; }
+        }
         if (hc && hc.style) {
           hc.style.fontSize = "";
           hc.style.height = "";
@@ -1257,10 +1218,8 @@
         }
 
         if (bg && bg.style) {
-          bg.style.visibility = 'collapse';
-          bg.style.opacity = '0';
-          lBgVis = 'collapse';
-          lBgOp = '0';
+          if (lBgVis !== 'collapse') { bg.style.visibility = 'collapse'; lBgVis = 'collapse'; }
+          if (lBgOp !== '0') { bg.style.opacity = '0'; lBgOp = '0'; }
         }
 
         var skipColor = "#e16161";
@@ -1322,7 +1281,13 @@
 
       // Update HP counter label
       var txt = '';
-      if (pl) { try { pl.style.visibility = cfg.hp_pip_visible ? 'visible' : 'collapse'; txt = pl.text || pl.GetAttributeString('text', '') || ''; } catch (e) { txt = ''; } }
+      if (pl) {
+        try {
+          var pipVis = cfg.hp_pip_visible ? 'visible' : 'collapse';
+          if (lPipVis !== pipVis) { pl.style.visibility = pipVis; lPipVis = pipVis; }
+          txt = pl.text || pl.GetAttributeString('text', '') || '';
+        } catch (e) { txt = ''; lPipVis = null; }
+      }
       if (lb && lbp) {
         var bw = lb.actuallayoutwidth || 0, bpw = lbp.actuallayoutwidth || 0;
         var ratio = bpw > 0 ? bw / bpw : 0;
@@ -1382,8 +1347,7 @@
             textCol = getTextColor(hp, low, high);
           }
           if (sFC >= 5) {
-            var _backoff = [0.30, 0.60, 1.0, 1.0];
-            sc = _backoff[Math.min(Math.floor((sFC - 5) / 5), 3)];
+            sc = ENEMY_IDLE_BACKOFF[Math.min(Math.floor((sFC - 5) / 5), 3)];
           }
         }
         sBC(cl); sUC(cl); sTC(textCol);
@@ -1482,8 +1446,7 @@
 
       if (aw === lWA && apw === lPWA && !pulseA) {
         sfcA++;
-        var _backoffA = [0.35, 0.70, 1.40, 2.0, 2.0];
-        var scIdle = _backoffA[Math.min(Math.floor(sfcA / 3), 4)];
+        var scIdle = ALLY_IDLE_BACKOFF[Math.min(Math.floor(sfcA / 3), 4)];
         $.Schedule(scIdle, aL); return;
       }
       sfcA = 0; lWA = aw; lPWA = apw;

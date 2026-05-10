@@ -1,0 +1,157 @@
+/* Prettified by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/citadel_shop_mod_view.vcss_c");
+CitadelShopMod
+{
+	wash-color: #6B7280aa;
+}
+
+CitadelShopMod.canAffordMod,CitadelShopMod.canAffordMod:hover
+{
+	wash-color: none;
+	opacity: 1;
+	brightness: 1;
+	box-shadow: 0px 0px 18px #56B4E955;
+}
+
+CitadelShopMod.owned,CitadelShopMod.usedAsComponent
+{
+	wash-color: none;
+	opacity: 0.85;
+	brightness: 1;
+}
+
+CitadelShopMod.itemDisabled,CitadelShopMod.disabledFromPurchasing,.RestrictedItems CitadelShopMod:not(.AllowedInRestrictedShop)
+{
+	wash-color: #6B7280;
+	opacity: 0.25;
+	box-shadow: none;
+	saturation: 0;
+}
+
+.isWeapon .boldedText,.isWeapon .modName,.isWeapon .ItemName,.isWeapon #mod_tier_label
+{
+	color: #E69F00;
+}
+
+.isArmor .boldedText,.isArmor .modName,.isArmor .ItemName,.isArmor #mod_tier_label
+{
+	color: #009E73;
+}
+
+.isTech .boldedText,.isTech .modName,.isTech .ItemName,.isTech #mod_tier_label
+{
+	color: #0072B2;
+}
+
+.isWeapon .mod_icon,.isWeapon #ModIconImage,.isWeaponComponent #componentModIcon,.isWeapon .tier_bg
+{
+	wash-color: #E69F00;
+}
+
+.isArmor .mod_icon,.isArmor #ModIconImage,.isArmorComponent #componentModIcon,.isArmor .tier_bg
+{
+	wash-color: #009E73;
+}
+
+.isTech .mod_icon,.isTech #ModIconImage,.isTechComponent #componentModIcon,.isTech .tier_bg
+{
+	wash-color: #0072B2;
+}
+
+.canAffordMod #CardBacker
+{
+	wash-color: #56B4E9;
+}
+
+#CitadelHudHeroShop CitadelShopMod.owned #CardBacker,#CitadelHudHeroShop CitadelShopMod.usedAsComponent #CardBacker
+{
+	background-color: #111827;
+	wash-color: #009E73;
+}
+
+#ItemCost
+{
+	color: #D55E00;
+	text-shadow: 0px 0px 4px 2.0 #000000cc;
+}
+
+.canAffordMod #ItemCost
+{
+	color: #E69F00;
+}
+
+#ItemCostContainer .goldIcon,#SellOverlay .goldIcon
+{
+	wash-color: #E69F00;
+}
+
+.quickbuy .quickbuy_icon
+{
+	visibility: visible;
+	wash-color: #56B4E9;
+	opacity: 1;
+}
+
+.recommended .recommended_icon
+{
+	visibility: visible;
+	wash-color: #CC79A7;
+	opacity: 1;
+}
+
+.owned .modStatusCol,.usedAsComponent .modStatusCol
+{
+	background-color: #009E73;
+}
+
+.owned.quickbuy .modStatusCol
+{
+	background-color: #56B4E9;
+}
+
+.owned .purchasedIcon,.usedAsComponent .purchasedIcon
+{
+	visibility: visible;
+	wash-color: #009E73;
+}
+
+.sellWillDestroyItem.owned #background:hover .destroyIcon
+{
+	visibility: visible;
+	wash-color: #D55E00;
+}
+
+.componentOwned #componentOwnedIcon
+{
+	visibility: visible;
+	wash-color: #009E73;
+}
+
+.componentsNotOwned .componentNotOwnedIcon
+{
+	visibility: visible;
+	wash-color: #D55E00;
+}
+
+.componentOwned #componentModIcon,.owned #componentModIcon
+{
+	wash-color: #009E73;
+}
+
+.ItemDisabledLabel,.itemDisabled .modName,.disabledFromPurchasing .modName
+{
+	color: #9CA3AF;
+}
+
+.canAffordMod .BuyLabel
+{
+	color: #56B4E9;
+	text-shadow: 0px 0px 4px 2.0 #000000cc;
+}
+
+#CantAfford,#ComponentNotOwned
+{
+	color: #D55E00;
+	text-shadow: 0px 0px 4px 2.0 #000000cc;
+}

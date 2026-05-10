@@ -1,0 +1,51 @@
+/* Prettified by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_ability_icon.vcss_c");
+.active .ability_bg,.active .ability_ring,.channeling .ability_bg,.channeling .ability_ring,.toggled_on .ability_bg,.toggled_on .ability_ring
+{
+	wash-color: #009E73;
+}
+
+.ability_upgradable .ability_ring,.ability_upgrade_available .ability_bg,.ability_upgradable .button_container
+{
+	wash-color: #CC79A7;
+}
+
+.cooling_down .ability_bg,.cooling_down #SubAbility,.ability_not_ready .ability_bg,.ability_not_ready #SubAbility
+{
+	wash-color: #6B7280;
+	opacity: 0.25;
+}
+
+.cooling_down .ability_ring,.ability_not_ready .ability_ring
+{
+	wash-color: #111827;
+	opacity: 0.75;
+}
+
+CitadelHudTopBarPlayer CitadelAbilityIcon.cooling_down
+{
+	background-color: #6B7280;
+}
+
+CitadelHudTopBarPlayer CitadelAbilityIcon
+{
+	background-color: #DDE7EE;
+}
+
+.new_item .button_container
+{
+	background-color: #E69F00c2;
+	wash-color: #CC79A7c2;
+}
+
+.active .ability_key_container,.toggled_on .ability_key_container,.channeling .ability_key_container
+{
+	wash-color: #009E73;
+	opacity: 1;
+}
+
+.learning_ability .ability_key,.ability_upgradable .ability_key
+{
+	color: #CC79A7;
+}
