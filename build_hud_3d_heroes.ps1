@@ -1,13 +1,16 @@
 $ErrorActionPreference = 'Stop'
 
 $root = $PSScriptRoot
-$modSrc = Join-Path $root 'hud'
-$modCompiled = Join-Path $root 'hud_compiled'
+$modSrc = Join-Path $root '3d hud'
+$modCompiled = Join-Path $root '3d hud_compiled'
 $compiler = Join-Path $root 'sr2compiler\New folder.exe'
 $vpkeditcli = Join-Path $root 'passive_items_mod\compiler\vpkeditcli.exe'
 $vpkOut = Join-Path $root 'pak98_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak98_dir.vpk'
 $compiledHud = Join-Path $modCompiled 'panorama\layout\hud.vxml_c'
+$compiledHudHealth = Join-Path $modCompiled 'panorama\layout\hud_health.vxml_c'
+$compiledScript = Join-Path $modCompiled 'panorama\scripts\3d_hero_dynamic.vjs_c'
+$compiledStyle = Join-Path $modCompiled 'panorama\styles\3d_hud.vcss_c'
 
 function Require-Path {
     param(
@@ -43,26 +46,29 @@ function Remove-RepoChild {
     Remove-Item -LiteralPath $Path -Recurse -Force
 }
 
-Require-Path -Path $modSrc -Label 'HUD source folder'
+Require-Path -Path $modSrc -Label '3D HUD source folder'
 Require-Path -Path $compiler -Label 'Source 2 compiler'
 Require-Path -Path $vpkeditcli -Label 'vpkeditcli'
 
-Write-Host "`n[1/3] Compiling hud..." -ForegroundColor Cyan
-Remove-RepoChild -Path $modCompiled -Leaf 'hud_compiled'
+Write-Host "`n[1/3] Compiling 3d hud..." -ForegroundColor Cyan
+Remove-RepoChild -Path $modCompiled -Leaf '3d hud_compiled'
 if (Test-Path -LiteralPath $vpkOut) {
     Remove-Item -LiteralPath $vpkOut -Force
 }
 
 $compile = Start-Process -FilePath $compiler -ArgumentList "`"$modSrc`"" -PassThru -Wait -NoNewWindow
 if ($compile.ExitCode -ne 0) {
-    if (-not (Test-Path -LiteralPath $compiledHud)) {
-        throw "Compiler failed with code $($compile.ExitCode) and did not emit $compiledHud"
+    if (-not (Test-Path -LiteralPath $compiledHud) -or -not (Test-Path -LiteralPath $compiledScript)) {
+        throw "Compiler failed with code $($compile.ExitCode) and did not emit required 3d hud outputs"
     }
-    Write-Host "  Compiler exited $($compile.ExitCode), but hud.vxml_c exists; continuing." -ForegroundColor Yellow
+    Write-Host "  Compiler exited $($compile.ExitCode), but required 3d hud outputs exist; continuing." -ForegroundColor Yellow
 }
 
 Require-Path -Path $compiledHud -Label 'Compiled hud.vxml_c'
-Write-Host "  Compiled OK -> $compiledHud" -ForegroundColor Green
+Require-Path -Path $compiledHudHealth -Label 'Compiled hud_health.vxml_c'
+Require-Path -Path $compiledScript -Label 'Compiled 3d_hero_dynamic.vjs_c'
+Require-Path -Path $compiledStyle -Label 'Compiled 3d_hud.vcss_c'
+Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 
 Write-Host "`n[2/3] Packing pak98_dir.vpk..." -ForegroundColor Cyan
 $packArgs = "`"$modCompiled`" -o `"$vpkOut`" -s --no-progress"

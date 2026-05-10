@@ -1,0 +1,92 @@
+/* Prettified by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/citadel_hud_hero_shop.vcss_c");
+#SoulAmount,#SoulAmount Label,#SoulRewards Label,.currency_gold
+{
+	color: #E69F00;
+	text-shadow: 0px 0px 4px 2.0 #000000cc;
+}
+
+.SoulsImage,.currency_image,.currency_gold .currency_image
+{
+	wash-color: #E69F00;
+}
+
+#SoulRewards
+{
+	background-color: #E69F00;
+}
+
+#APCurrencyContainer,.hasAbilityUpgradeAvailable #APCurrencyContainer,.hasAbilityUnlockAvailable #APCurrencyContainer
+{
+	border: 1px solid #CC79A7;
+	background-color: #111827cc;
+}
+
+.ap_image,.abilityPointIcon
+{
+	wash-color: #CC79A7;
+}
+
+.currency_ap
+{
+	color: #CC79A7;
+	text-shadow: 0px 0px 4px 2.0 #000000cc;
+}
+
+.UnavailableLabel,.mod_universal_locked
+{
+	wash-color: #6B7280;
+	color: #9CA3AF;
+}
+
+.WeaponMod .ModifiedHeaderContainer,#WeaponModsButton,.showingWeapon #WeaponModsButton
+{
+	background-color: #E69F00;
+}
+
+.TechMod .ModifiedHeaderContainer,#TechModsButton,.showingTech #TechModsButton
+{
+	background-color: #0072B2;
+}
+
+#WeaponNav .ShopNavigationTabBackground,.CitadelHudHeroShop:not(.showingWeapon) #WeaponNav.NavigationButton:hover .ShopNavigationTabBackground
+{
+	opacity-brush: gradient( linear, 0% 0%, 100% 0%, from( #E69F00 ), to( #E69F00 ) );
+}
+
+#ArmorNav .ShopNavigationTabBackground,.CitadelHudHeroShop:not(.showingArmor) #ArmorNav.NavigationButton:hover .ShopNavigationTabBackground
+{
+	opacity-brush: gradient( linear, 0% 0%, 100% 0%, from( #009E73 ), to( #009E73 ) );
+}
+
+#TechNav .ShopNavigationTabBackground,.CitadelHudHeroShop:not(.showingTech) #TechNav.NavigationButton:hover .ShopNavigationTabBackground
+{
+	opacity-brush: gradient( linear, 0% 0%, 100% 0%, from( #0072B2 ), to( #0072B2 ) );
+}
+
+#FavoritesNav .ShopNavigationTabBackground,.CitadelHudHeroShop:not(.showingFavorites) #FavoritesNav.NavigationButton:hover .ShopNavigationTabBackground
+{
+	opacity-brush: gradient( linear, 0% 0%, 100% 0%, from( #CC79A7 ), to( #CC79A7 ) );
+}
+
+.isWeaponPurchase .mod_icon
+{
+	wash-color: #E69F00;
+}
+
+.isArmorPurchase .mod_icon
+{
+	wash-color: #009E73;
+}
+
+.isTechPurchase .mod_icon
+{
+	wash-color: #0072B2;
+}
+
+.isEnemyPurchase Label.recentTimePurchased
+{
+	color: #F0E442;
+	text-shadow: 0px 0px 4px 2.0 #000000cc;
+}

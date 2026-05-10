@@ -1,0 +1,36 @@
+/* Prettified by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/citadel_hud_shop_quickbuy.vcss_c");
+CitadelHudQuickBuy.canAfford
+{
+	background-color: #56B4E933;
+	border: 1px solid #56B4E9;
+}
+
+CitadelHudQuickBuy.canAfford:Hover
+{
+	background-color: #56B4E966;
+}
+
+.shopClosed CitadelHudQuickBuy,.shopClosed CitadelHudQuickBuy:hover
+{
+	background-color: #11182799;
+	border: 1px solid #6B7280;
+}
+
+.nextModCost Label
+{
+	color: #D55E00;
+	text-shadow: 0px 0px 4px 2.0 #000000cc;
+}
+
+.canAfford .nextModCost Label,.itemPurchase
+{
+	color: #E69F00;
+	text-shadow: 0px 0px 4px 2.0 #000000cc;
+}
+
+.nextModGoldIcon
+{
+	wash-color: #E69F00;
+}

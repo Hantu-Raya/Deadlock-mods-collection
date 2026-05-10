@@ -1,0 +1,40 @@
+/* Prettified by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_quickbuy.vcss_c");
+.ItemsReady #HudMini
+{
+	border: 3px solid #56B4E9;
+	background-color: #56B4E960;
+}
+
+.ItemsReady.InShopZone #HudMini
+{
+	box-shadow: 0px 0px 18px 3.0 #56B4E9;
+}
+
+.purchasingDisabled #HudMini
+{
+	border: 3px solid #6B7280;
+	background-color: #11182799;
+}
+
+.CanBuyItemsHighlight
+{
+	background-color: #56B4E955;
+}
+
+#QuickbuyShopSummary
+{
+	border: 2px solid #56B4E9;
+	background-color: #111827dd;
+}
+
+#QuickbuyShopSummary .ItemsReadyLabel
+{
+	color: #56B4E9;
+}
+
+#QuickbuyShopSummary .ShopSummaryLabel
+{
+	color: #E69F00;
+}

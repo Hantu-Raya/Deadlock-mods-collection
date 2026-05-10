@@ -1,0 +1,60 @@
+/* Prettified by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_quickbuy_entry.vcss_c");
+.QuickbuyItem.IsBeingDragged.isWeapon
+{
+	background-color: gradient( linear, 0% 0%, 100% 100%, from( #E69F00 ), to( #F3F0E74d ) );
+}
+
+.QuickbuyItem.IsBeingDragged.isArmor
+{
+	background-color: gradient( linear, 0% 0%, 100% 100%, from( #009E73 ), to( #F3F0E74d ) );
+}
+
+.QuickbuyItem.IsBeingDragged.isTech
+{
+	background-color: gradient( linear, 0% 0%, 100% 100%, from( #0072B2 ), to( #F3F0E74d ) );
+}
+
+.QuickbuyItem.CanAffordCumulative
+{
+	opacity: 1;
+	border-left: 3px solid #56B4E9;
+}
+
+.QuickbuyItem.CanAffordCumulative.exceedsItemSlot
+{
+	opacity: 0.45;
+	border-left: 3px solid #D55E00;
+}
+
+.QuickbuyItem .CostPanel #ModCost
+{
+	color: #D55E00;
+	text-shadow: 0px 0px 4px 2.0 #000000cc;
+}
+
+.QuickbuyItem.CanAffordCumulative .CostPanel #ModCost
+{
+	color: #E69F00;
+}
+
+.QuickbuyItem .CostPanel .goldIcon
+{
+	wash-color: #D55E00;
+}
+
+.QuickbuyItem.CanAffordCumulative .CostPanel .goldIcon
+{
+	wash-color: #E69F00;
+}
+
+.QuickbuyItem.Sell
+{
+	wash-color: #CC79A7;
+}
+
+.DraggingOutside .QuickbuyItem.IsDragSource
+{
+	wash-color: #6B7280;
+}

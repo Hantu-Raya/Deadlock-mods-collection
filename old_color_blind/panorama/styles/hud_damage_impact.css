@@ -1,11 +1,11 @@
-/* Prettified by Source 2 Viewer 17.0.0.0 - https://valveresourceformat.github.io */
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
 
 @import url("s2r://panorama/styles/base/hud_damage_impact.vcss_c");
 .playerName
 {
 	flow-children: right;
 	font-size: 18px;
-	color: #242400;
+	color: #111827;
 	margin-left: 4px;
 	vertical-align: center;
 }
@@ -15,20 +15,35 @@
 	flow-children: right;
 	width: 120px;
 	height: 100%;
-	background-color: yellow;
-	border-bottom: 2px solid #bafd11;
+	background-color: #F0E442;
+	border-bottom: 2px solid #111827;
 	transition-property: width, background-color;
 	transition-duration: 0.5s;
 }
 
 #heroIcon.heroDead
 {
-	wash-color: yellow;
+	wash-color: #F0E442;
 }
 
 .is_heal #healthRemaining
 {
-	background-color: #bc22ab;
-	border-bottom: 2px solid #bc22ab;
+	background-color: #009E73;
+	border-bottom: 2px solid #DDE7EE;
 }
 
+#healthGained
+{
+	background-color: #009E73;
+}
+
+.killed #heroBadge,.assist #heroBadge,.killed #heroIconContainer,.assist #heroIconContainer
+{
+	wash-color: #F0E442;
+}
+
+.killLabel,.assistLabel
+{
+	color: #F0E442;
+	text-shadow: 0px 0px 4px 2.0 #000000cc;
+}

@@ -1,0 +1,17 @@
+/* Prettified by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/ability_hud_elements/element_roll.vcss_c");
+.charge_fg
+{
+	border: 8px solid #E69F00;
+}
+
+.ready .charge_fg
+{
+	border: 8px solid #009E73;
+}
+
+#charges_container
+{
+	wash-color: #009E73;
+}

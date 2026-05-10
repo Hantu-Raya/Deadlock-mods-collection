@@ -497,25 +497,6 @@
     });
   }
 
-  function replayValues(values, reason) {
-    if (!values) return;
-    writeHpSharedSnapshot(values);
-
-    var count = 0;
-    for (var key in values) {
-      if (!Object.prototype.hasOwnProperty.call(values, key)) continue;
-      $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
-        magic_word: "ANITA_UPDATE",
-        mod_title: TITLE,
-        setting_id: key,
-        value: values[key],
-        update_source: "bridge_bootstrap",
-        skip_bridge_persist: true
-      }));
-      count += 1;
-    }
-  }
-
   function replayValuesBulk(values, reason) {
     if (!values) return;
     writeHpSharedSnapshot(values);

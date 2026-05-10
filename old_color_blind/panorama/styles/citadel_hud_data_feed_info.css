@@ -1,42 +1,52 @@
-/* Prettified by Source 2 Viewer 17.0.0.0 - https://valveresourceformat.github.io */
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
 
 @import url("s2r://panorama/styles/base/citadel_hud_data_feed_info.vcss_c");
-.enemyDied .victimContainer,.teammateDied .killerContainer,.killedSelf .victimContainer
+.enemyDied .victimContainer,.teammateDied .killerContainer
 {
-	background-color: #FFFF56;
+	background-color: #F0E442;
 }
 
-.enemyDied .victimImageContainer,.teammateDied .killerImageContainer,.killedSelf .victimImageContainer
+.enemyDied .victimImageContainer,.teammateDied .killerImageContainer
 {
-	background-color: #828200;
+	background-color: #9A8700;
 }
 
 .teammateDied CitadelHeroImage.assister
 {
-	border: 2px solid #FFFF56;
+	border: 2px solid #F0E442;
 }
 
 .enemyDied CitadelHeroImage.assister
 {
-	border: 2px solid #F7D7FF90;
+	border: 2px solid #0072B2;
 }
 
 .enemyDied .killerContainer,.teammateDied .victimContainer
 {
-	background-color: #F7D7FF;
+	background-color: #0072B2;
 }
 
 .enemyDied .killerImageContainer,.teammateDied .victimImageContainer
 {
-	background-color: #B797BD;
+	background-color: #003D61;
+}
+
+.killedSelf .victimContainer
+{
+	background-color: #6B7280;
+}
+
+.killedSelf .victimImageContainer
+{
+	background-color: #374151;
 }
 
 CitadelHeroImage.assister
 {
 	height: 100%;
 	width: 20px;
-	border: 2px solid #F7D7FF90;
-	background-color: #F7D7FF30;
+	border: 2px solid #0072B2;
+	background-color: #0072B230;
 	margin-right: 3px;
 }
 
