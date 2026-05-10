@@ -1,13 +1,98 @@
-/* Prettified by Source 2 Viewer 17.0.0.0 - https://valveresourceformat.github.io */
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
 
 @import url("s2r://panorama/styles/base/citadel_hud_top_bar.vcss_c");
-.team1.friend #HeroHealth_Left,.team2.friend #HeroHealth_Left
+.team1 #HeroHealth_Left
 {
-	background-color: #bc22ab;
+	background-color: #0072B2;
 }
 
-.team1.enemy #HeroHealth_Left,.team2.enemy #HeroHealth_Left
+.team2 #HeroHealth_Left
 {
-	background-color: yellow;
+	background-color: #F0E442;
 }
 
+.friend #HeroHealth_Left,.team1.friend #HeroHealth_Left,.team2.friend #HeroHealth_Left
+{
+	background-color: #0072B2;
+}
+
+.enemy #HeroHealth_Left,.team1.enemy #HeroHealth_Left,.team2.enemy #HeroHealth_Left
+{
+	background-color: #F0E442;
+}
+
+.team1 .ScoreBG,.team1 .HeroContentsCoinBackground,.team1 .HeroContentsCoinInnerBorder
+{
+	wash-color: #0072B2;
+}
+
+.team2 .ScoreBG,.team2 .HeroContentsCoinBackground,.team2 .HeroContentsCoinInnerBorder
+{
+	wash-color: #F0E442;
+}
+
+.friend .ScoreBG,.friend .HeroContentsCoinBackground,.friend .HeroContentsCoinInnerBorder
+{
+	wash-color: #0072B2;
+}
+
+.enemy .ScoreBG,.enemy .HeroContentsCoinBackground,.enemy .HeroContentsCoinInnerBorder
+{
+	wash-color: #F0E442;
+}
+
+.goldIcon.PlayerGoldIcon,.goldIcon.TeamGoldIcon
+{
+	wash-color: #E69F00;
+}
+
+.SoulsValueContainer
+{
+	border-bottom: 2px solid #E69F00;
+}
+
+.SoulsValue
+{
+	color: #E69F00;
+	text-shadow: 0px 0px 4px 2.0 #000000cc;
+}
+
+.HasRejuvenator .SoulsValueContainer
+{
+	border-bottom: 3px solid #CC79A7;
+}
+
+.UltimateCooldownReady .UltimateStatusBG
+{
+	background-color: #009E7366;
+}
+
+.UltimateCooldownReady .UltimateStatus
+{
+	wash-color: #009E73;
+}
+
+.LockedOverlay
+{
+	background-color: #111827cc;
+}
+
+CitadelHudTopBarPlayer.LaneSwapDefault.LaneNum1 #LaneSwapContainer,CitadelHudTopBarPlayer.LaneSwapRequesting.LaneNum1 #LaneSwapContainer,CitadelHudTopBarPlayer.LaneSwapReceiving.LaneNum1 #LaneSwapContainer
+{
+	wash-color: #F0E442;
+}
+
+CitadelHudTopBarPlayer.LaneSwapDefault.LaneNum3 #LaneSwapContainer,CitadelHudTopBarPlayer.LaneSwapRequesting.LaneNum3 #LaneSwapContainer,CitadelHudTopBarPlayer.LaneSwapReceiving.LaneNum3 #LaneSwapContainer
+{
+	wash-color: #009E73;
+}
+
+CitadelHudTopBarPlayer.LaneSwapDefault.LaneNum4 #LaneSwapContainer,CitadelHudTopBarPlayer.LaneSwapRequesting.LaneNum4 #LaneSwapContainer,CitadelHudTopBarPlayer.LaneSwapReceiving.LaneNum4 #LaneSwapContainer
+{
+	wash-color: #56B4E9;
+}
+
+CitadelHudTopBarPlayer.LaneSwapDefault.LaneNum6 #LaneSwapContainer,CitadelHudTopBarPlayer.LaneSwapRequesting.LaneNum6 #LaneSwapContainer,CitadelHudTopBarPlayer.LaneSwapReceiving.LaneNum6 #LaneSwapContainer
+{
+	wash-color: #CC79A7;
+}

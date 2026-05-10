@@ -1,33 +1,72 @@
-/* Prettified by Source 2 Viewer 17.0.0.0 - https://valveresourceformat.github.io */
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
 
 @import url("s2r://panorama/styles/base/unit_status.vcss_c");
 .enemy #unit_ult_ready_icon
 {
-	wash-color: yellow;
+	wash-color: #F0E442;
 }
 
 .enemy #unit_healthbar_lagging
 {
-	wash-color: yellow;
+	wash-color: #F0E442;
+}
+
+.enemy .healthbar_border
+{
+	wash-color: #111827;
+}
+
+.enemy #unit_healthbar_delta
+{
+	wash-color: #D55E00;
+}
+
+.enemy #unit_healthbar_bullet_shield
+{
+	background-color: #F0E442;
 }
 
 .enemy #state_progressbar
 {
-	wash-color: yellow;
+	wash-color: #F0E442;
+}
+
+.enemy #pip_image
+{
+	wash-color: #F0E442;
 }
 
 .friend #unit_ult_ready_icon
 {
-	wash-color: #bc22ab;
+	wash-color: #0072B2;
 }
 
 .friend #unit_healthbar_lagging
 {
-	wash-color: #bc22ab;
+	wash-color: #0072B2;
+}
+
+.friend .healthbar_border
+{
+	wash-color: #DDE7EE;
+}
+
+.friend #unit_healthbar_delta
+{
+	wash-color: #56B4E9;
+}
+
+.friend #unit_healthbar_bullet_shield
+{
+	background-color: #0072B2;
 }
 
 .friend #state_progressbar
 {
-	wash-color: #bc22ab;
+	wash-color: #0072B2;
 }
 
+.friend #pip_image
+{
+	wash-color: #0072B2;
+}

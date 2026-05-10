@@ -1,23 +1,85 @@
-/* Prettified by Source 2 Viewer 17.0.0.0 - https://valveresourceformat.github.io */
+/* Prettified by Source 2 Viewer 18.0.0.0 - https://valveresourceformat.github.io */
 
 @import url("s2r://panorama/styles/base/hud_minimap.vcss_c");
 .map_button.idol_return_enemy .idolReturnTarget
 {
-	wash-color: #DCDC2FFF;
+	wash-color: #F0E442;
 }
 
 .map_button.enemy.boss .boss_image
 {
-	wash-color: #DCDC2FFF;
+	wash-color: #F0E442;
 }
 
-.enemy.player #BackgroundImage
+.map_button.idol_return_friendly .idolReturnTarget,.map_button.friend.boss .boss_image
 {
-	background-color: #FFEA0D;
+	wash-color: #0072B2;
 }
 
-.friend.player #BackgroundImage
+.enemy.player #BackgroundImage,.map_button.enemy.player #BackgroundImage
 {
-	background-color: #bc22ab;
+	background-color: #F0E442;
+	box-shadow: 0px 0px 0px 1.0 #111827;
+}
+
+.friend.player #BackgroundImage,.map_button.friend.player #BackgroundImage
+{
+	background-color: #0072B2;
+	box-shadow: 0px 0px 0px 1.0 #DDE7EE;
+}
+
+.map_button.boss.team1 .boss_image
+{
+	wash-color: #0072B2;
+}
+
+.map_button.boss.team2 .boss_image
+{
+	wash-color: #F0E442;
+}
+
+.ziplineYellowLane
+{
+	wash-color: #F0E442;
+}
+
+.ziplineGreenLane
+{
+	wash-color: #009E73;
+}
+
+.ziplineBlueLane
+{
+	wash-color: #56B4E9;
+}
+
+.ziplinePurpleLane
+{
+	wash-color: #CC79A7;
+}
+
+.map_button.friend.boss.yellowLane .boss_image
+{
+	wash-color: #F0E442;
+}
+
+.map_button.friend.boss.greenLane .boss_image
+{
+	wash-color: #009E73;
+}
+
+.map_button.friend.boss.blueLane .boss_image
+{
+	wash-color: #56B4E9;
+}
+
+.map_button.friend.boss.purpleLane .boss_image
+{
+	wash-color: #CC79A7;
+}
+
+.map_button.shop_tunnel,.map_button.tier1_shop,.map_button.shop
+{
+	wash-color: #E69F00;
 }
 

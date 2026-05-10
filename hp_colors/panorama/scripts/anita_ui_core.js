@@ -199,16 +199,6 @@
     return panel || null;
   }
 
-  function findPresetStorePanel() {
-    var root = getRootPanelForPresetStore();
-    if (!root || !root.FindChildTraverse) return null;
-    try {
-      return root.FindChildTraverse("HPColorsPresetStore") || null;
-    } catch (e) {
-      return null;
-    }
-  }
-
   function readPresetLabelText(label) {
     try {
       if (typeof label.text === "string") return label.text;
