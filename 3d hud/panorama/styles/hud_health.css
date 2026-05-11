@@ -850,6 +850,54 @@
 	margin-top: 0px;
 }
 
+#hud_health_bars .hp_custom_health_root .regen_container
+{
+	ignore-parent-flow: true;
+	flow-children: right;
+	horizontal-align: left;
+	vertical-align: top;
+	position: 50px 22px 0px;
+	padding: 0px;
+	margin: 0px;
+	opacity: 1;
+	z-index: 55;
+	overflow: noclip;
+}
+
+#hud_health_bars.hp-current-wide .hp_custom_health_root .regen_container,
+#hud_health_bars .hp_custom_health_root .regen_container.hp-current-wide
+{
+	position: 0px 22px 0px;
+}
+
+#hud_health_bars .hp_custom_health_root .regen_image
+{
+	width: 12px;
+	height: 12px;
+	margin-right: 3px;
+	opacity: 0.85;
+}
+
+#hud_health_bars .hp_custom_health_root .regen_value
+{
+	font-size: 12px;
+	line-height: 14px;
+	margin-left: 0px;
+	color: #ffffff;
+	text-shadow: 0px 0px 0px 2.0 #000000f2;
+}
+
+#hud_health_bars .hp_custom_health_root .health_regen_boosted .regen_value
+{
+	color: colorFriendly;
+}
+
+#hud_health_bars .hp_custom_health_root .health_regen_negative .regen_value
+{
+	color: colorEnemy;
+	font-weight: bold;
+}
+
 #hud_health_bars .hp_custom_base,
 #hud_health_bars .hp_custom_fill,
 #hud_health_bars .hp_custom_effect
