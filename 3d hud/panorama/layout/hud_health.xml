@@ -47,7 +47,7 @@
           <Label id="hp_custom_max_damage" class="hp_custom_max hp_custom_max_damage" text="/{i:maxHealth}" />
         </Panel>
       </Panel>
-      <Panel class="regen_container">
+      <Panel id="hp_regen_container" class="regen_container">
         <Image class="regen_image" src="s2r://panorama/images/hud/healthbar/icon_regen_arrows.vsvg" />
         <Label class="regen_value" text="{s:HealthRegen}" />
       </Panel>

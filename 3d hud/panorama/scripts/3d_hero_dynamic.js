@@ -15,6 +15,8 @@
   var HEALTH_DIGIT_WIDTH = 18;
   var HEALTH_SUFFIX_CHAR_WIDTH = 7;
   var HEALTH_TEXT_CLIP_PAD = 8;
+  var HEALTH_MIN_FILL_BASE_PX = 6;
+  var HEALTH_MIN_FILL_PER_DIGIT_PX = 4;
   var HEALTH_SCAN_NODE_LIMIT = 96;
   var MAX_PROGRESS_HOPS = 8;
   var MAX_HINT_DEPTH = 5;
@@ -121,11 +123,13 @@
     hpCurrentHeal: null,
     hpMaxHeal: null,
     hpProgressSource: null,
+    hpRegenContainer: null,
     healthSourceHidden: false,
     lastHealthScanMs: 0,
     lastHpCurrent: -1,
     lastHpMax: -1,
     lastHpDamaged: null,
+    lastHpRegenWide: null,
     lastHpClip: -1,
     lastDeferredClip: -1,
     lastDeferredLeftClip: -1,
@@ -234,11 +238,13 @@
     UI.hpCurrentHeal = null;
     UI.hpMaxHeal = null;
     UI.hpProgressSource = null;
+    UI.hpRegenContainer = null;
     UI.healthSourceHidden = false;
     UI.lastHealthScanMs = 0;
     UI.lastHpCurrent = -1;
     UI.lastHpMax = -1;
     UI.lastHpDamaged = null;
+    UI.lastHpRegenWide = null;
     UI.lastHpClip = -1;
     UI.lastDeferredClip = -1;
     UI.lastDeferredLeftClip = -1;
@@ -570,6 +576,16 @@
     return width;
   }
 
+  function textDigitCount(text) {
+    var value = String(text || "");
+    var count = 0;
+    for (var i = 0; i < value.length; i++) {
+      if (DIGIT_RE.test(value.charAt(i))) count++;
+    }
+
+    return Math.max(1, count);
+  }
+
   function healthTextClipBounds(currentText, maxText, damaged) {
     var key = currentText + "|" + maxText + "|" + (damaged ? "1" : "0");
     if (key === UI.lastClipBoundsKey && UI.lastClipBounds) return UI.lastClipBounds;
@@ -583,6 +599,19 @@
     UI.lastClipBoundsKey = key;
     UI.lastClipBounds = { left: left, right: right };
     return UI.lastClipBounds;
+  }
+
+  function currentTextClipBounds(currentText) {
+    var currentWidth = Math.min(HEALTH_CURRENT_LABEL_WIDTH, textVisualWidth(currentText, HEALTH_DIGIT_WIDTH, HEALTH_DIGIT_WIDTH * 0.5));
+    var left = Math.max(0, HEALTH_CURRENT_LABEL_WIDTH - currentWidth);
+    var right = HEALTH_CURRENT_LABEL_WIDTH;
+    if (right <= left) right = Math.min(HEALTH_TEXT_WIDTH, left + currentWidth);
+    return { left: left, right: right };
+  }
+
+  function currentMinFillWidth(currentText, currentWidth) {
+    var digitCount = textDigitCount(currentText);
+    return Math.min(currentWidth, HEALTH_MIN_FILL_BASE_PX + (digitCount * HEALTH_MIN_FILL_PER_DIGIT_PX));
   }
 
   function setClipRect(panel, left, right, leftCacheName, rightCacheName) {
@@ -642,6 +671,7 @@
     UI.hpCurrentHeal = findChild(scope, "hp_custom_current_heal");
     UI.hpMaxHeal = findChild(scope, "hp_custom_max_heal");
     UI.hpProgressSource = findChild(scope, "hp_progress_source");
+    UI.hpRegenContainer = findChild(scope, "hp_regen_container");
     UI.currentHealth = findChild(scope, "current_health");
     UI.maxHealth = findChild(scope, "max_health");
     if (!isValidPanel(UI.currentHealth)) UI.currentHealth = UI.hpCurrentBase;
@@ -701,7 +731,21 @@
     }
   }
 
+  function writeRegenPlacement(state) {
+    var wide = state.currentText.length >= 4;
+    if (wide === UI.lastHpRegenWide) return;
+
+    setPanelClass(UI.healthRoot, "hp-current-wide", wide);
+    setPanelClass(UI.hpRegenContainer, "hp-current-wide", wide);
+    UI.lastHpRegenWide = wide;
+  }
+
   function resolveCurrentClip(state) {
+    var segment = progressSegmentRatio(UI.healthBar, UI.healthBarFill);
+    if (segment.valid) {
+      return { left: 0, right: clampRatio(segment.right - segment.left) };
+    }
+
     return { left: 0, right: state.currentRatio };
   }
 
@@ -800,9 +844,26 @@
   function writeHealthClips(state, currentClip, deferredClip, damageClip, healClip) {
     var clipBounds = healthTextClipBounds(state.currentText, state.maxText, state.damaged);
     var clipWidth = clipBounds.right - clipBounds.left;
-    setClipRect(UI.hpCustomFill, clipBounds.left + (clipWidth * currentClip.left), clipBounds.left + (clipWidth * currentClip.right), null, "lastHpClip");
+    var currentBounds = currentTextClipBounds(state.currentText);
+    var currentWidth = currentBounds.right - currentBounds.left;
+    var currentFillLeft = currentBounds.left + (currentWidth * currentClip.left);
+    var currentFillRight = currentBounds.left + (currentWidth * currentClip.right);
+    if (state.current > 0 && state.current < state.max) {
+      currentFillRight = Math.min(currentBounds.right, Math.max(currentFillRight, currentFillLeft + currentMinFillWidth(state.currentText, currentWidth)));
+    }
+
+    setClipRect(UI.hpCustomFill, currentFillLeft, currentFillRight, null, "lastHpClip");
     setClipRect(UI.hpCustomDeferred, clipBounds.left + (clipWidth * deferredClip.left), clipBounds.left + (clipWidth * deferredClip.right), "lastDeferredLeftClip", "lastDeferredClip");
-    setClipRect(UI.hpCustomDamage, clipBounds.left + (clipWidth * damageClip.left), clipBounds.left + (clipWidth * damageClip.right), "lastDamageLeftClip", "lastDamageClip");
+    var damageLeft = clipBounds.left + (clipWidth * damageClip.left);
+    var damageRight = clipBounds.left + (clipWidth * damageClip.right);
+    if ((damageClip.right - damageClip.left) > HEALTH_EFFECT_EPSILON) {
+      var currentDamageLeft = Math.max(currentFillRight, currentBounds.left + (currentWidth * damageClip.left));
+      var currentDamageRight = currentBounds.left + (currentWidth * damageClip.right);
+      damageLeft = currentDamageLeft;
+      damageRight = Math.max(damageRight, currentDamageRight);
+    }
+
+    setClipRect(UI.hpCustomDamage, damageLeft, damageRight, "lastDamageLeftClip", "lastDamageClip");
     setClipRect(UI.hpCustomHeal, clipBounds.left + (clipWidth * healClip.left), clipBounds.left + (clipWidth * healClip.right), "lastHealLeftClip", "lastHealClip");
   }
 
@@ -811,6 +872,7 @@
     if (!state) return;
 
     writeHealthLabels(state);
+    writeRegenPlacement(state);
 
     var now = nowMs();
     var hpDelta = UI.lastHealthCurrentForEffect >= 0 ? state.current - UI.lastHealthCurrentForEffect : 0;
