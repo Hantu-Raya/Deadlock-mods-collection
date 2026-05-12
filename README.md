@@ -98,12 +98,14 @@ _Building this collection involved reverse-engineering the existing HUD XML layo
 
 ## License
 
-This project is licensed under the MIT License.
+Unless otherwise noted, original code and original mod source in this repository are licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
 
-You are free to use, modify, and share this code, but you must keep the original copyright notice and give credit to the author.
+Attribution notices for this project are included in [NOTICE](NOTICE). If you distribute this software or derivative works, preserve the applicable copyright, license, and notice files as required by Apache-2.0.
 
-Copyright (c) 2026 Hantu-Raya
+### Attribution
 
----
+When distributing this project or derivative works based on its original code, please preserve the included `LICENSE` and `NOTICE` files. This project was created by Hantu-Raya.
 
-_Disclaimer: This project is a fan modification and is not affiliated with Valve Software._
+### Third-party and game materials
+
+Deadlock, Source 2, Valve, Panorama, and related names, paths, formats, trademarks, and game assets belong to their respective owners. This project is an unofficial fan modification and is not affiliated with Valve.
