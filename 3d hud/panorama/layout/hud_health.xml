@@ -4,9 +4,6 @@
     <include src="s2r://panorama/styles/hud_common.vcss_c" />
     <include src="s2r://panorama/styles/hud_health.vcss_c" />
   </styles>
-  <scripts>
-    <include src="s2r://panorama/scripts/anita_persist_loader.vjs_c" />
-  </scripts>
   <Panel class="bars_container" hittest="false">
     <Panel class="hp_custom_health_root">
       <Panel id="hp_progress_source" class="health_bar_line hp_progress_source" hittest="false">

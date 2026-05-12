@@ -24,7 +24,7 @@ CitadelHud CitadelStatusEffect {
     ui-scale: 60%;
     horizontal-align: left;
     width: 630px;
-    margin-left: 50px;
+    margin-left: 0px;
 }
 
 #HealthBarContent #StatusEffectContainer {
