@@ -4,7 +4,7 @@
   var FAST_POLL_SEC = 0.25;
   var SLOW_POLL_SEC = 0.75;
   var HEALTH_TICK_SEC = 0.05;
-  var HEALTH_RESCAN_MS = 1500;
+  var HEALTH_RESCAN_MS = 500;
   var HEALTH_EFFECT_EPSILON = 0.005;
   var HEALTH_SEGMENT_STALE_MS = 1250;
   var HEALTH_DAMAGE_HOLD_MS = 900;
@@ -30,7 +30,7 @@
   var Y_OFFSET_PROPS = ["actualyoffset", "actualy", "yoffset", "layouty"];
   var X_OFFSET_PROPS = ["actualxoffset", "actualx", "xoffset", "layoutx"];
   var DIGIT_RE = /\d/;
-  var INACTIVE_CLIP = { left: 0, right: 0, source: "" };
+  var INACTIVE_CLIP = { left: 0, right: 0 };
 
   var HERO_DATA = [
     { hero: "hero_inferno", id: 1, map: "maps/ui/hero_prefabs/inferno.vmap", aliases: [] },
@@ -94,6 +94,7 @@
   var UI = {
     root: null,
     host: null,
+    heroProbe: null,
     gameplayAlive: null,
     crosshair: null,
     progress: null,
@@ -137,8 +138,6 @@
     lastDamageLeftClip: -1,
     lastHealClip: -1,
     lastHealLeftClip: -1,
-    lastDamageSegmentKey: "",
-    lastDamageSegmentMs: 0,
     lastHealSegmentKey: "",
     lastHealSegmentMs: 0,
     lastHealthCurrentForEffect: -1,
@@ -213,6 +212,7 @@
     UI.progress = null;
     UI.buttonHints = null;
     UI.host = null;
+    UI.heroProbe = null;
     UI.healthRoot = null;
     UI.healthBar = null;
     UI.healthBarFill = null;
@@ -252,8 +252,6 @@
     UI.lastDamageLeftClip = -1;
     UI.lastHealClip = -1;
     UI.lastHealLeftClip = -1;
-    UI.lastDamageSegmentKey = "";
-    UI.lastDamageSegmentMs = 0;
     UI.lastHealSegmentKey = "";
     UI.lastHealSegmentMs = 0;
     UI.lastHealthCurrentForEffect = -1;
@@ -635,14 +633,28 @@
     return Math.max(0, Math.min(1, value));
   }
 
+  function hasHealthPanelRefs() {
+    return isValidPanel(UI.healthRoot) &&
+      isValidPanel(UI.healthBar) &&
+      isValidPanel(UI.healthBarFill) &&
+      isValidPanel(UI.pendingDamage) &&
+      isValidPanel(UI.pendingDamageMiddle) &&
+      isValidPanel(UI.pendingHeal) &&
+      isValidPanel(UI.pendingHealMiddle) &&
+      isValidPanel(UI.hpCustomText) &&
+      isValidPanel(UI.hpCustomFill) &&
+      isValidPanel(UI.hpCustomDamage) &&
+      isValidPanel(UI.hpCustomDeferred) &&
+      isValidPanel(UI.hpCustomHeal) &&
+      isValidPanel(UI.currentHealth) &&
+      isValidPanel(UI.maxHealth);
+  }
+
   function resolveHealthPanels(force) {
     var now = nowMs();
-    if (!force && isValidPanel(UI.currentHealth) &&
-        isValidPanel(UI.maxHealth) && isValidPanel(UI.hpCustomText) &&
-        isValidPanel(UI.healthBarFill) && isValidPanel(UI.pendingDamageMiddle) &&
-        isValidPanel(UI.pendingHealMiddle) &&
-        (now - UI.lastHealthScanMs) < HEALTH_RESCAN_MS) {
-      return;
+    if (!force) {
+      if (hasHealthPanelRefs()) return;
+      if (UI.lastHealthScanMs > 0 && (now - UI.lastHealthScanMs) < HEALTH_RESCAN_MS) return;
     }
 
     var root = getRootPanel();
@@ -749,10 +761,6 @@
     return { left: 0, right: state.currentRatio };
   }
 
-  function inactiveClip() {
-    return INACTIVE_CLIP;
-  }
-
   function segmentKey(segment) {
     if (!segment || !segment.valid) return "";
     return String(Math.round(segment.left * 1000)) + ":" + String(Math.round(segment.right * 1000));
@@ -774,44 +782,33 @@
     UI.damageHoldLeft = state.currentRatio;
     if (UI.damageHoldMs > 0 && (now - UI.damageHoldMs) <= HEALTH_DAMAGE_HOLD_MS &&
         (UI.damageHoldRight - UI.damageHoldLeft) > HEALTH_EFFECT_EPSILON) {
-      return { left: UI.damageHoldLeft, right: UI.damageHoldRight, source: "hpdelta" };
+      return { left: UI.damageHoldLeft, right: UI.damageHoldRight };
     }
 
-    return inactiveClip();
+    return INACTIVE_CLIP;
   }
 
-  function effectSegmentClip(kind, state, pending, now, hpDelta) {
+  function healSegmentClip(state, pending, now, hpDelta) {
     var segment = pending.segment;
-    if (!isSegmentActive(segment)) return inactiveClip();
+    if (!isSegmentActive(segment)) return INACTIVE_CLIP;
 
     var key = segmentKey(segment);
-    var keyName = kind === "damage" ? "lastDamageSegmentKey" : "lastHealSegmentKey";
-    var msName = kind === "damage" ? "lastDamageSegmentMs" : "lastHealSegmentMs";
-    var hpMovedTowardEffect = (kind === "damage" && hpDelta < 0) || (kind === "heal" && hpDelta > 0);
-    if (key !== UI[keyName] || hpMovedTowardEffect || UI[msName] <= 0) {
-      UI[keyName] = key;
-      UI[msName] = now;
+    if (key !== UI.lastHealSegmentKey || hpDelta > 0 || UI.lastHealSegmentMs <= 0) {
+      UI.lastHealSegmentKey = key;
+      UI.lastHealSegmentMs = now;
     }
 
-    if ((now - UI[msName]) > HEALTH_SEGMENT_STALE_MS) return inactiveClip();
-
-    if (kind === "damage") {
-      var damageRight = Math.min(state.currentRatio, clampRatio(segment.right));
-      var damageLeft = Math.min(damageRight, clampRatio(segment.left));
-      if ((damageRight - damageLeft) <= HEALTH_EFFECT_EPSILON) return inactiveClip();
-      return { left: damageLeft, right: damageRight, source: "segment" };
-    }
+    if ((now - UI.lastHealSegmentMs) > HEALTH_SEGMENT_STALE_MS) return INACTIVE_CLIP;
 
     var healLeft = Math.max(state.currentRatio, clampRatio(segment.left));
     var healRight = Math.max(healLeft, clampRatio(segment.right));
-    if ((healRight - healLeft) <= HEALTH_EFFECT_EPSILON) return inactiveClip();
-    return { left: healLeft, right: healRight, source: "segment" };
+    if ((healRight - healLeft) <= HEALTH_EFFECT_EPSILON) return INACTIVE_CLIP;
+    return { left: healLeft, right: healRight };
   }
 
-  function resolveDeferredDamageClip(state, pending, now) {
+  function resolveDeferredDamageClip(state, pending) {
     if (pending.value.ratio > HEALTH_EFFECT_EPSILON) {
-      UI.lastDamageSegmentMs = now;
-      return { left: clampRatio(state.currentRatio - pending.value.ratio), right: state.currentRatio, source: "value" };
+      return { left: clampRatio(state.currentRatio - pending.value.ratio), right: state.currentRatio };
     }
 
     var segment = pending.segment;
@@ -819,26 +816,20 @@
       var segmentRight = Math.min(state.currentRatio, clampRatio(segment.right));
       var segmentLeft = Math.min(segmentRight, clampRatio(segment.left));
       if ((segmentRight - segmentLeft) > HEALTH_EFFECT_EPSILON) {
-        UI.lastDamageSegmentKey = segmentKey(segment);
-        UI.lastDamageSegmentMs = now;
-        return { left: segmentLeft, right: segmentRight, source: "segment" };
+        return { left: segmentLeft, right: segmentRight };
       }
     }
 
-    return inactiveClip();
-  }
-
-  function resolveDamageClip(state, now, hpDelta) {
-    return heldDamageClip(state, now, hpDelta);
+    return INACTIVE_CLIP;
   }
 
   function resolveHealClip(state, pending, now, hpDelta) {
     if (pending.value.ratio > HEALTH_EFFECT_EPSILON) {
       UI.lastHealSegmentMs = now;
-      return { left: state.currentRatio, right: clampRatio(state.currentRatio + pending.value.ratio), source: "value" };
+      return { left: state.currentRatio, right: clampRatio(state.currentRatio + pending.value.ratio) };
     }
 
-    return effectSegmentClip("heal", state, pending, now, hpDelta);
+    return healSegmentClip(state, pending, now, hpDelta);
   }
 
   function writeHealthClips(state, currentClip, deferredClip, damageClip, healClip) {
@@ -880,8 +871,8 @@
 
     var damagePending = readPendingState(UI.pendingDamage, UI.pendingDamageMiddle);
     var healPending = readPendingState(UI.pendingHeal, UI.pendingHealMiddle);
-    var deferredClip = resolveDeferredDamageClip(state, damagePending, now);
-    var damageClip = resolveDamageClip(state, now, hpDelta);
+    var deferredClip = resolveDeferredDamageClip(state, damagePending);
+    var damageClip = heldDamageClip(state, now, hpDelta);
     var healClip = resolveHealClip(state, healPending, now, hpDelta);
     writeHealthClips(state, resolveCurrentClip(state), deferredClip, damageClip, healClip);
   }
@@ -1064,6 +1055,14 @@
     try { panel.SetAttributeString("heroid", idText); } catch (e4) {}
   }
 
+  function resolveHeroProbe() {
+    if (!isValidPanel(UI.heroProbe)) {
+      UI.heroProbe = findChild(getRootPanel(), "ThreeDHeroHudProbe");
+    }
+
+    return UI.heroProbe;
+  }
+
   function switchHeroScene(heroName) {
     var record = HERO_BY_NAME[heroName];
     if (!record) return false;
@@ -1075,8 +1074,7 @@
       return false;
     }
 
-    var probe = findChild(getRootPanel(), "ThreeDHeroHudProbe");
-    setHeroAttrs(probe, record);
+    setHeroAttrs(resolveHeroProbe(), record);
     setHeroAttrs(scene, record);
 
     if (scene !== currentScenePanel) {

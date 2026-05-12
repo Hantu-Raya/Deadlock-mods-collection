@@ -12,7 +12,7 @@ Guidance for agents working inside the `3d hud` Deadlock Panorama addon.
 ## Critical Files
 
 - `panorama/layout/hud.xml`: root HUD override with the static 3D hero scene panels.
-- `panorama/layout/hud_health.xml`: custom local player health layout. It must stay compatible with `hp_colors` by including `s2r://panorama/scripts/anita_persist_loader.vjs_c`.
+- `panorama/layout/hud_health.xml`: custom local player health layout. Keep it self-contained; no hp_colors persistence bridge is included by default.
 - `panorama/scripts/3d_hero_dynamic.js`: runtime hero detection, scene switching, and custom HP/deferred/damage/heal clipping.
 - `panorama/styles/hud_health.css`: custom HP text, hidden stock health source, and prediction color layers.
 - `panorama/styles/hud_health_container.css`: local HUD health container placement, recent damage/heal counters, and status-effect positioning.
