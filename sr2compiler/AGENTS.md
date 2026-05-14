@@ -5,6 +5,9 @@
 
 ## USAGE
 The tool is primarily invoked via CLI and requires a valid `pref.json` pointing to a Dota 2 installation.
+This checkout contains shipped binaries/config only: keep `New folder.exe`, the
+paired `.dll`, `.deps.json`, `.runtimeconfig.json`, PDBs, and `pref.json`
+together. Do not expect compiler C# source in this folder.
 
 ### CLI Arguments
 ```powershell
@@ -29,7 +32,7 @@ The compiler operates by "hijacking" the Dota 2 content/game flow to bypass Dead
 The tool contains an unhandled exception when executed in environments where standard input is redirected (e.g., CI/CD pipelines, VS Code Task runner, or wrapper scripts).
 - **Cause**: The code calls `Console.ReadKey()` at the end of execution to keep the window open.
 - **Effect**: If `stdin` is not an interactive terminal, it throws `InvalidOperationException`.
-- **Workaround**: Ensure the tool is run in an interactive shell or use a wrapper that handles the exception.
+- **Workaround**: Ensure the tool is run in an interactive shell or use a wrapper that handles the exception. If the wrapper reports `OK: N compiled, 0 failed` or the required `<mod>_compiled` outputs exist, a trailing `ReadKey()` exception/non-zero exit can be non-fatal.
 
 ### Asset Scope
 Currently strictly limited to Panorama UI assets. VData and SoundEvent compilation are handled by separate Python scripts or manual workflows.

@@ -1,7 +1,7 @@
 # AGENTS: Buff Timer Virgin (v8.0)
 
 ## OVERVIEW
-Production-ready Rejuvenator, Bridge Buff, and powerup claim tracker for Deadlock. Core features: claim detection, minimap glows, enemy fog linger, neutral spawn override countdowns with badges, and a mini rejuv card that mirrors the rejuv countdown during neutral override phases or shows buff duration. Neutral minimap respawn rings were removed for fairness/moderation compliance. Runtime is optimized around a shared minimap snapshot pipeline to reduce repeated DOM traversals and allocation churn.
+Production-ready Rejuvenator, Bridge Buff, and powerup claim tracker for Deadlock. Core features: claim detection, minimap glows, enemy fog linger, timer-to-team-chat ping buttons, neutral spawn override countdowns with badges, and a mini rejuv card that mirrors the rejuv countdown during neutral override phases or shows buff duration. Neutral minimap respawn rings were removed for fairness/moderation compliance. Runtime is optimized around a shared minimap snapshot pipeline to reduce repeated DOM traversals and allocation churn.
 
 ## STRUCTURE
 - `panorama/scripts/rejuvnbufftimer.js`: **All logic lives here.** Timers, state machine, shared minimap snapshot, one-pass proximity engine, enemy linger, all three neutral override phases, team/inversion detection, and mini rejuv card.
@@ -19,9 +19,10 @@ Production-ready Rejuvenator, Bridge Buff, and powerup claim tracker for Deadloc
 All panel refs live in the `UI` object. Boot resolves them once via `FindChildTraverse`. The full expected set:
 
 ```
-root, hud, minimap, minimapBox, minimapContainer, scoreboardRoot
+root, hud, topBar, chat, scoreboardPanel, minimap, minimapBox, minimapContainer, scoreboardRoot
 rLab, rLabClip, rNum, rImg, rejuv
 buffLab, buffLabClip
+chatInput, chatTargetLabel
 rejuvFriendly, rejuvEnemy
 glowLeft, glowRight
 claimLeft, claimRight, claimIconLeft, claimIconRight
@@ -33,6 +34,10 @@ rejuvMiniTime    ← RejuvMiniTime
 ```
 
 When removing a panel from `hud.xml`, also remove it from the `UI` object declaration and from `boot()`. Stale `FindChildTraverse` calls for removed panels return null silently but clutter the code and confuse future agents.
+
+`RejuvPingButton` and `BuffPingButton` are invisible hittest buttons in
+`hud.xml`. They call `handleRejuvPingActivate()` / `handleBuffPingActivate()`
+and rely on global/context handler registration during `boot()`.
 
 ## LOGIC
 
@@ -82,6 +87,14 @@ Small panel at `margin-left: 28%` of the main rejuv timer. Two use cases — nev
 - `endBuff()` removes `.buff-active`; removes `.active` only if no neutral override is currently active (card stays visible and switches back to rejuv countdown seamlessly).
 
 **Deprecated:** `RejuvBuff` (bottom mini card with pop-in/pop-out animation) — removed. Do not re-add.
+
+### Timer Ping / Team Chat
+`handleRejuvPingActivate()` and `handleBuffPingActivate()` build short timer
+messages such as `Rejuv 1:23` or `Bridge 0:42`, open team chat with
+`say_chat_team`, verify the target label is not all-chat, submit via
+`CitadelChatInputSubmitted`, and then blur/drop focus. Keep
+`CHAT_RETRY_DELAYS`, `CHAT_SEND_COOLDOWN_MS`, `chatInput`, and
+`chatTargetLabel` together when editing this path.
 
 ### Claim Detection
 Proximity-based:
@@ -177,32 +190,37 @@ Log prefixes:
 
 ### Normal compile (source only, no pack)
 ```powershell
-cd "F:\Users\Shiv\Desktop\Deadlock-mods-collection"
-& "sr2compiler\New folder.exe" "buff_timer_virgin"
+$repo = "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection"
+& "$repo\sr2compiler\New folder.exe" "$repo\buff_timer_virgin"
 # Output: buff_timer_virgin_compiled\
 ```
 
-### Terser build + pack + deploy (recommended for release)
+### Release build + pack + deploy (recommended)
 ```powershell
-cd "F:\Users\Shiv\Desktop\Deadlock-mods-collection"
-powershell -ExecutionPolicy Bypass -File "build_buff_timer_virgin_terser.ps1"
-powershell -ExecutionPolicy Bypass -File "build_buff_timer_virgin_terser_pack.ps1"
+powershell -ExecutionPolicy Bypass -File "build_buff_timer_virgin.ps1"
 ```
-Steps performed by these scripts:
+Steps performed by this script:
 1. Copy `buff_timer_virgin` → `buff_timer_virgin_terser`
-2. Minify `rejuvnbufftimer.js` in-place with `npx terser -c -m keep_fnames=true,keep_classnames=true`
+2. Minify `rejuvnbufftimer.js` with `npx terser` using `passes=3`, `keep_fnames=true`, and `keep_classnames=true`
 3. Compile `buff_timer_virgin_terser` → `buff_timer_virgin_terser_compiled\`
-4. Pack compiled output → `pak98_dir.vpk` (≈106 KB)
-5. Deploy → `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak98_dir.vpk`
+4. Copy `buff_timer_virgin_terser_compiled\` back to `buff_timer_virgin_compiled\`
+5. Pack `buff_timer_virgin_compiled\` → `pak98_dir.vpk`
+6. Deploy → `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak98_dir.vpk`
+
+`build_buff_timer_virgin_terser.ps1` is a legacy terser-only helper with a stale
+hardcoded path. Prefer `build_buff_timer_virgin.ps1` unless the helper is fixed.
+`_tmp_pack_buff_timer_virgin.ps1` is also stale/hardcoded and packs the
+unminified normal build; do not use it for the release path.
 
 ### Manual pack (from already-compiled normal build)
 ```powershell
-cd "F:\Users\Shiv\Desktop\Deadlock-mods-collection"
-& "passive_items_mod\compiler\vpkeditcli.exe" "buff_timer_virgin_compiled" -o "pak98_dir.vpk" -s --no-progress
-Copy-Item "pak98_dir.vpk" "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak98_dir.vpk" -Force
+$repo = "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection"
+& "$repo\passive_items_mod\compiler\vpkeditcli.exe" "$repo\buff_timer_virgin_compiled" -o "$repo\pak98_dir.vpk" -s --no-progress
+Copy-Item "$repo\pak98_dir.vpk" "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak98_dir.vpk" -Force
 ```
 
 Build notes:
 - Compiler prints a non-asset warning for `AGENTS.md` — expected, not an error.
 - Compiler wrapper exits non-zero in redirected terminals due to `Console.ReadKey` — assets still compile when output shows `OK: N compiled, 0 failed`.
-- Terser minified script: ~35.7 KB. VPK output: ~106 KB.
+- Re-check minified script and VPK sizes after each build; older size notes are
+  not stable enough to use as validation.

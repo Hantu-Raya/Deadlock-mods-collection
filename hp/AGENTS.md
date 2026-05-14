@@ -1,20 +1,10 @@
-# hp/ - Enemy Health Bar Coloring
+# hp/ - Legacy Enemy Health Bar Coloring
 
-Multiple healthbar logic variants for enemy unit coloring. Choose ONE `healthbar_logic.js` to deploy.
+Legacy single-source healthbar coloring mod. Older variant folders are not
+present in this checkout; the active source is `hp/panorama/...` only.
 
-## Variants
-
-| Folder | Behavior | Colors |
-|--------|----------|--------|
-| `fixed/` | Static thresholds (25/65%) | Red < 25%, Orange 25-65%, Green > 65% |
-| `interp/` | Smooth interpolation | Continuous gradient between thresholds |
-| `team based fixed/` | Fixed + team colors | Amber (team1), Blue (team2) at high HP |
-| `team based interp/` | Interp + team colors | Gradient with team-specific high HP colors |
-| `team based fix no max health/` | Fixed + team, no HP text | Color only, no "cur/max" display |
-
-## File Selection
-
-Copy desired `healthbar_logic.js` to `hp/panorama/scripts/` for compilation.
+Prefer `hp_colors/` or `hp_colors_minimal/` for current Anita-backed HP Colors
+work unless the user explicitly asks to maintain this legacy module.
 
 ## Shared Constants
 
@@ -34,20 +24,20 @@ HIGH1=[255,201,97]  // Team1 amber
 HIGH2=[100,133,252] // Team2 blue
 ```
 
-## Other Scripts
+## Active Files
 
 | File | Purpose |
 |------|---------|
-| `citadel_hud_top_bar_health.js` | Top bar player health display |
-| `souls_level_display.js` | Souls/level indicator |
-| `custom_game/hud_scoreboard_mods.js` | Scoreboard customization |
+| `panorama/scripts/healthbar_logic.js` | Legacy enemy healthbar coloring runtime. |
+| `panorama/layout/unit_status_overlay.xml` | Unit-status overlay include point for the runtime script. |
+| `panorama/styles/unit_status.css` | Legacy healthbar color/style overrides. |
 
 ## Build
 
-**Agent Capability:** I can execute compile commands directly via bash.
-
 ```powershell
-"F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\hp"
+$repo = "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection"
+& "$repo\sr2compiler\New folder.exe" "$repo\hp"
 ```
 
-See `.agent/workflows/compile.md`
+Primary output is `hp_compiled/`. This folder is a legacy variant set; prefer
+`hp_colors/` or `hp_colors_minimal/` for current Anita-backed HP Colors work.

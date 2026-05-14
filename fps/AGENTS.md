@@ -2,17 +2,23 @@
 
 **Project:** Deadlock FPS Optimization Configs  
 **Type:** Source 2 Console Commands & CVAR Research  
-**Updated:** 2026-02-04
+**Updated:** 2026-05-14
 
 ## OVERVIEW
 
-This directory contains comprehensive research and configuration files for optimizing Deadlock (Valve's Source 2 hero shooter) performance through console commands.
+This directory is a research corpus plus current live-state audit material for
+Deadlock Source 2 performance settings. Do not treat one config file as the
+single source of truth; re-check the latest captured live config and ETW/perf
+notes before recommending changes.
 
 ## KEY FILES
 
 | File | Purpose | Size |
 |------|---------|------|
-| `fpsnew_organized.txt` | **MAIN CONFIG** - Production-ready FPS config with comments | 10KB |
+| `current-live-convars-2026-05-14.txt` | Current live convar capture for exclusion/diff checks | large |
+| `source_refresh_2026-05-14/` | Latest source refresh / live-state audit material | dir |
+| `2026-05-10-deadlock-optimizationlock-followup.md` | OptimizationLock follow-up and applied-setting notes | doc |
+| `fpsnew_organized.txt` | Older organized FPS config with comments | 10KB |
 | `fps.txt` | Legacy config (older version) | 7KB |
 | `fpsnew.txt` | Intermediate version before organization | 9KB |
 | `cvarlist_1_28.md` | Full CVAR dump from Jan 28, 2026 build | 506KB |
@@ -60,8 +66,8 @@ lb_enable_shadow_casting "0"
 cl_particle_sim_fallback_threshold_ms "1"
 r_particle_max_draw_distance "3000"  // NOT 700000!
 
-// Physics - Disable cosmetic cloth
-cloth_update "0"
+// Physics - current ETW notes favor keeping cloth enabled
+cloth_update "1"
 cl_phys_timescale "0"
 
 // Textures - Lower quality
@@ -92,6 +98,9 @@ sc_clutter_enable "0"
 3. **Categorized** 200+ performance-related commands
 4. **Tested** values to find optimal performance settings
 5. **Documented** with [ADJUST], [FPS IMPACT], [WARNING] tags
+6. **Refreshed live-state audits** in May 2026; always check
+   `current-live-convars-2026-05-14.txt`, `source_refresh_2026-05-14/`, the
+   OptimizationLock follow-up, and ETW wave reports before suggesting values.
 
 ## CHANGED DEFAULTS (Feb 3 Update)
 
@@ -123,7 +132,10 @@ fpsnew_organized.txt (final config)
 | `r_particle_max_draw_distance "700000"` | Renders particles across entire map | Use "3000" or lower |
 | `mat_async_shader_load "0"` | Causes stutter | Set to "1" |
 | `cl_particle_sim_fallback_threshold_ms "0"` | No particle fallback | Use "1" or "5" |
-| `cloth_update "1"` | Cosmetic physics waste | Set to "0" |
+| `cloth_update "0"` | Conflicts with newer ETW rules for this setup | Keep "1" unless fresh evidence says otherwise |
+| `thread_pool_option "6"` | Rejected in wave results | Do not re-recommend without new evidence |
+| `r_texture_pool_size "512"` | Rejected in wave results | Do not re-recommend without new evidence |
+| `panorama_worldpanel_update_cull*` | Rejected/unsafe in recent retests | Do not re-recommend without new evidence |
 
 ## COMMANDS TO AVOID
 
@@ -135,10 +147,10 @@ These commands don't exist in Deadlock (Source 2):
 
 ## USAGE
 
-1. Copy `fpsnew_organized.txt` contents
-2. Paste into Deadlock launch options or autoexec
-3. Adjust [ADJUST] tagged values to preference
-4. Test FPS impact with `cl_showfps "1"`
+1. Parse the current target config first.
+2. Exclude commands already present before recommending anything.
+3. Check latest live captures and ETW reports for rejected candidates.
+4. Provide paste-ready blocks only for settings that survive that exclusion pass.
 
 ## NOTES
 
@@ -146,3 +158,9 @@ These commands don't exist in Deadlock (Source 2):
 - Comments use tags: `[ADJUST]`, `[FPS IMPACT]`, `[WARNING]`
 - Feb 3, 2026 build introduced significant performance improvements
 - Threading commands now enabled by default in newer builds
+- Before new recommendations, re-parse the current target config and exclude
+  commands already present. Keep output paste-ready when the user asks for a
+  snippet.
+- Do not recommend N03/N05 retest candidates, `thread_pool_option "6"`,
+  `r_texture_pool_size "512"`, `panorama_worldpanel_update_cull*`, or
+  `cloth_update "0"` unless a newer local test overturns the May 2026 evidence.

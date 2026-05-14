@@ -3,15 +3,17 @@
 **Type:** Non-Panorama (VData processing)
 
 ## OVERVIEW
-Modifies ability visibility flags via VData files. Uses Python scripts to toggle `m_bShowInPassiveItemsArea` property.
+Processes large ability VData files into active/passive pack variants. Scripts
+toggle `m_bShowInPassiveItemsArea`; active variants also adjust selected
+behavior bits / targeting metadata for quick-cast-style behavior.
 
 ## FILES
 | File | Purpose |
 |------|---------|
 | `scripts/abilities.vdata` | Main ability definitions (260k lines) |
 | `scripts/abilities2.vdata` | Extended definitions (260k lines) |
-| `scripts/active.py` | Removes passive flags (shows in active area) |
-| `scripts/active_no_behavior.py` | Removes passive flags without behavior-bit injection |
+| `scripts/active.py` | Removes passive flags and injects quick-cast behavior bits / targeting location for named abilities. |
+| `scripts/active_no_behavior.py` | Imports `active.py` but disables/removes the behavior-bit injection path. |
 | `scripts/passive.py` | Adds passive flags (shows in passive area) |
 | `scripts/active.bat` | Windows wrapper for active.py |
 | `scripts/active_no_behavior.bat` | Windows wrapper for active_no_behavior.py |
@@ -19,20 +21,32 @@ Modifies ability visibility flags via VData files. Uses Python scripts to toggle
 
 ## BUILD PROCESS
 
-**Agent Capability:** I can execute these commands directly via bash.
+Preferred full pack flow from the repo root:
 
 ```powershell
-# 1. Remove _include block (lines 4-59) from abilities.vdata
-# 2. Copy to external working directory
-# 3. Run scripts:
+powershell -ExecutionPolicy Bypass -File build_abilities_paks.ps1
+```
+
+That wrapper derives the repo root from `$PSScriptRoot`, locates `py.exe` or a
+known Python install, requires 7-Zip, transforms each variant in place, compiles
+after each transform, stages each compiled output as `scripts/abilities.vdata_c`,
+packs `pak03_dir.vpk`/`pak04_dir.vpk`/`pak05_dir.vpk`, writes three dated `.7z`
+archives to the Deadlock addons folder, then removes temporary stage folders and
+temporary VPKs.
+
+The dated `.7z` archives are the durable packaged outputs from the full flow;
+temporary stage folders and intermediate VPKs are intentionally cleaned up.
+
+Focused transform commands from `abilities/scripts/`:
+
+```powershell
 py passive.py abilities2.vdata
 py active.py abilities.vdata
 py active_no_behavior.py abilities.vdata
-# Or run build_abilities_paks.ps1 from repo root to produce pak03/pak04/pak05
-# 4. Copy processed files back
 ```
 
-**Warning:** Hardcoded external paths in `.agent/workflows/abilities-compile.md`. Not portable.
+Do not resurrect older hardcoded external-path workflows. Keep helper scripts
+portable across checkouts.
 
 ## CONVENTIONS
 - VData format: Valve's key-value definition format
@@ -41,6 +55,7 @@ py active_no_behavior.py abilities.vdata
 
 ## GOTCHAS
 - Files are ~260k lines each (6MB+). Conventional text editors may struggle; use stream-based processing or high-performance editors.
-- Hardcoded external paths in helper scripts/batch files require external working directories. Not fully portable.
+- If `py` is missing, resolve a real Python install before retrying the build; do not keep rerunning the same failing command.
+- The Python transforms mutate their input VData when no output argument is provided. Work from the wrapper flow or a disposable copy if you need to preserve a baseline.
 - `_include` block must be removed before processing (restored after).
 - Scripts in `.gitignore` but tracked from before ignore was added.

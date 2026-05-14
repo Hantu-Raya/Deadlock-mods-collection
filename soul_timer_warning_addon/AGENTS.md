@@ -36,13 +36,21 @@ CSS-only addon that adds a "Radioactive Breath" animation to the Soul Timer when
 WRONG: `transform: scale3d(1.1, 1.1, 1.0)` - causes text-shadow clipping/blurring artifacts.
 CORRECT: Use `pre-transform-scale2d` for clean scaling of text with shadows.
 
+Exception: `panorama/styles/base/hud_gold_and_ap_container.css` intentionally
+uses static `transform: scale3d(1.3, 1.3, 1.0)` on `.hudDeathGoldContainer`
+danger levels. Do not copy that pattern into the animated `#SoulTimerLabel`
+pulse; keep the label animation on `pre-transform-scale2d`.
+
 ### 2. Don't use `font-size` animation for pulsing
 WRONG: `font-size: 14px` -> `18px` in keyframes causes layout jitter and potential crashes.
 CORRECT: Use `pre-transform-scale2d`.
 
 ### 3. Don't duplicate base mod CSS files in addon
 WRONG: Copy `soul_timer.css` into addon's `styles/` folder.
-CORRECT: Only include addon CSS file. Reference base CSS via `s2r://` in XML.
+CORRECT: This addon intentionally includes a local
+`panorama/styles/base/hud_gold_and_ap_container.css` hijack so the stock/base
+import path resolves, then imports the warning CSS. Do not duplicate unrelated
+base CSS beyond that hijack.
 
 ### 4. Don't flash between high-contrast colors
 WRONG: Yellow <-> Red rapid flashing (destroys readability).
@@ -68,6 +76,7 @@ Essential when animating text shadows or scaling elements to prevent bounding bo
 |------|---------|
 | `soul_timer_warning.css` | `@keyframes 'soul-critical-breath'` + `.red` override |
 | `hud_gold_and_ap_container.css` | Hijacks base CSS to import warning styles + overrides |
+| `base/hud_gold_and_ap_container.css` | Local base-path hijack used so the compiled import resolves before warning overrides apply |
 
 ## DEPENDENCY
 - **Base mod:** `soul_timer/` must be installed (provides `soul_timer.vcss_c` + `soul_timer.js`)
@@ -80,8 +89,11 @@ Essential when animating text shadows or scaling elements to prevent bounding bo
 
 ## BUILD
 
-**Agent Capability:** I can execute this command directly via bash.
-
 ```powershell
-"F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\Shiv\Desktop\Deadlock-mods-collection\soul_timer_warning_addon"
+$repo = "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection"
+& "$repo\sr2compiler\New folder.exe" "$repo\soul_timer_warning_addon"
 ```
+
+Primary output is `soul_timer_warning_addon_compiled/`.
+Keep `#SoulTimerLabel` animation on `pre-transform-scale2d`; font-size or
+layout-changing animation will jitter the base timer.

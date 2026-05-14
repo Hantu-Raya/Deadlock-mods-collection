@@ -17,9 +17,11 @@ Use the module build script from the repo root:
 powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
 ```
 
-The script minifies `hp_colors/` into `hp_colors_terser/`, compiles the terser
-copy, syncs `hp_colors_compiled/`, packs `pak97_dir.vpk`, and deploys it to the
-Deadlock addons folder configured in that script.
+The script runs `hp_colors/scripts/validate-schema.js` (currently expecting 45
+settings), minifies `hp_colors/`
+into `hp_colors_terser/`, compiles the terser copy, syncs
+`hp_colors_compiled/`, packs `pak97_dir.vpk`, and deploys it to the Deadlock
+addons folder configured in that script.
 
 ## Runtime Files
 | File | Context | Purpose |
@@ -78,11 +80,12 @@ Deadlock addons folder configured in that script.
 
 ## Settings Keys
 Persisted schema keys:
-- General: `hp_enabled`, `hp_mode`, `hp_low_threshold`, `hp_high_threshold`, `hp_bg_visible`, `hp_team_colors`
-- Enemy Colors: `hp_color_low`, `hp_color_mid`, `hp_color_high`, `hp_skip_buildings`
+- General: `hp_enabled`, `hp_bg_visible`, `hp_mode`, `hp_low_threshold`, `hp_high_threshold`, `hp_team_colors`, `hp_skip_buildings`, `hp_info_health_margin_top`, `hp_healthbar_height`
+- Enemy Colors: `hp_ult_color_enabled`, `hp_ult_color_custom`, `hp_color_low`, `hp_color_mid`, `hp_color_high`
 - Enemy Pulse: `hp_pulse_enabled`, `hp_pulse_threshold`, `hp_pulse_bpm`, `hp_pulse_intensity`, `hp_pulse_hide_bar`, `hp_pulse_text_enabled`, `hp_pulse_text_scale`, `hp_pulse_text_position`
-- Enemy Counter: `hp_counter_size`, `hp_counter_position`, `hp_text_color_mode`, `hp_text_color_low`, `hp_text_color_mid`, `hp_text_color_high`
+- Enemy Counter: `hp_counter_size`, `hp_counter_position`, `hp_counter_format`, `hp_text_color_mode`, `hp_level_number_visible`, `hp_pip_visible`, `hp_text_color_low`, `hp_text_color_mid`, `hp_text_color_high`
 - Ally Bars: `hp_friend_enabled`, `hp_friend_color_low`, `hp_friend_color_mid`, `hp_friend_color_high`, `hp_friend_pulse_enabled`, `hp_friend_pulse_threshold`, `hp_friend_pulse_bpm`, `hp_friend_pulse_intensity`, `hp_friend_pulse_color_enabled`, `hp_friend_pulse_color`
+- Kill Marker: `hp_kill_zone_enabled`, `hp_kill_zone_threshold`, `hp_kill_zone_color`, `hp_kill_zone_width`
 
 `hp_pulse_bg_mode` and `hp_npc_poll_slow` are removed. Low-HP pulsing follows the main behavior setting, and polling is automatic/adaptive.
 
@@ -93,7 +96,7 @@ together in:
 - `healthbar_logic.js`
 - `hp_registrar.js`
 
-Also bump the registrar `storageVersion` when compatibility requires it (currently 21).
+Also bump the registrar `storageVersion` when compatibility requires it (currently 97).
 
 ## Persistence Model
 - Storage namespace: `hp_colors`
@@ -122,7 +125,7 @@ Below is the full mapping so you know what each name actually does.
 | `TEAM2_HIGH` | — | Team 2 high-HP color `#6485FC` |
 | `WHITE_WASH` | — | Default white wash color `#ffffff` |
 | `LP` | `LOW_PULSE_CLASS` | CSS class `low_hp_pulsing` |
-| `PULSE_INTENSITY` | `PULSE_ANIMATIONS` | Keyframe name array `[subtle, none, intense]` |
+| `PULSE_INTENSITY` | `PULSE_ANIMATIONS` | Keyframe name array `[subtle, medium, intense]` |
 | `BOOTSTRAP_NAMESPACE` | — | Bootstrap namespace `"hp_colors"` |
 
 ### Panel Cache Variables
