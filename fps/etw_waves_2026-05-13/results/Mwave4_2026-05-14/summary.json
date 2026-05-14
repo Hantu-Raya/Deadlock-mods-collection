@@ -1,0 +1,283 @@
+{
+  "runId": "Mwave4_2026-05-14",
+  "traceZip": "G:\\wave4.etl.zip",
+  "traceZipLastWrite": "2026-05-14T04:48:51",
+  "start": "2026-05-14T04:45:52",
+  "end": "2026-05-14T04:48:44",
+  "durationMs": 171392.3,
+  "eventsLost": 0,
+  "processId": 3252,
+  "processName": "launcher",
+  "gameCpuMs": 248098.0,
+  "avgGameCpuCores": 1.448,
+  "frameEvents": 0,
+  "frameEventsPerSecond": 0.0,
+  "frameWindows": [
+    {
+      "name": "all",
+      "count": 0,
+      "avgMs": null,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+    },
+    {
+      "name": "after_5s",
+      "count": 0,
+      "avgMs": null,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+    },
+    {
+      "name": "5s_to_40s",
+      "count": 0,
+      "avgMs": null,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+    },
+    {
+      "name": "after_40s",
+      "count": 0,
+      "avgMs": null,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+    }
+  ],
+  "simTicks": {},
+  "clientCommandTicks": {},
+  "topThreads": [
+    {
+      "tid": 1660,
+      "cpuMs": 40413.0,
+      "name": "MainThrd"
+    },
+    {
+      "tid": 2644,
+      "cpuMs": 21984.0,
+      "name": "D3D11RenderThread"
+    },
+    {
+      "tid": 5384,
+      "cpuMs": 20224.0,
+      "name": "GlobPool/6"
+    },
+    {
+      "tid": 12704,
+      "cpuMs": 20201.0,
+      "name": "GlobPool/0"
+    },
+    {
+      "tid": 6084,
+      "cpuMs": 20189.0,
+      "name": "GlobPool/5"
+    },
+    {
+      "tid": 8144,
+      "cpuMs": 20067.0,
+      "name": "GlobPool/2"
+    },
+    {
+      "tid": 1744,
+      "cpuMs": 19992.0,
+      "name": "GlobPool/4"
+    },
+    {
+      "tid": 8112,
+      "cpuMs": 19529.0,
+      "name": "GlobPool/3"
+    },
+    {
+      "tid": 5948,
+      "cpuMs": 19221.0,
+      "name": "GlobPool/1"
+    },
+    {
+      "tid": 9932,
+      "cpuMs": 18225.0,
+      "name": null
+    },
+    {
+      "tid": 13216,
+      "cpuMs": 17652.0,
+      "name": "AudioMixer"
+    },
+    {
+      "tid": 3556,
+      "cpuMs": 9543.0,
+      "name": null
+    },
+    {
+      "tid": 2944,
+      "cpuMs": 343.0,
+      "name": null
+    },
+    {
+      "tid": 3488,
+      "cpuMs": 168.0,
+      "name": "SDLAudioP15"
+    },
+    {
+      "tid": 11572,
+      "cpuMs": 150.0,
+      "name": "SDLAudioC18"
+    },
+    {
+      "tid": 12048,
+      "cpuMs": 50.0,
+      "name": null
+    },
+    {
+      "tid": 9652,
+      "cpuMs": 31.0,
+      "name": "AsyncIOService/2"
+    },
+    {
+      "tid": 4968,
+      "cpuMs": 31.0,
+      "name": "AsyncIOService/1"
+    },
+    {
+      "tid": 6704,
+      "cpuMs": 24.0,
+      "name": "AsyncIOService/0"
+    },
+    {
+      "tid": 11440,
+      "cpuMs": 18.0,
+      "name": "AsyncTextureHookup/0"
+    }
+  ],
+  "topModules": [
+    {
+      "module": "particles",
+      "samples": 36828
+    },
+    {
+      "module": "client",
+      "samples": 29839
+    },
+    {
+      "module": "amdxx64",
+      "samples": 27569
+    },
+    {
+      "module": "ntoskrnl",
+      "samples": 22444
+    },
+    {
+      "module": "rendersystemdx11",
+      "samples": 21210
+    },
+    {
+      "module": "scenesystem",
+      "samples": 20703
+    },
+    {
+      "module": "soundsystem",
+      "samples": 18462
+    },
+    {
+      "module": "tier0",
+      "samples": 14748
+    },
+    {
+      "module": "panorama",
+      "samples": 14227
+    },
+    {
+      "module": "materialsystem2",
+      "samples": 8507
+    },
+    {
+      "module": "vphysics2",
+      "samples": 6485
+    },
+    {
+      "module": "d3d11",
+      "samples": 5695
+    },
+    {
+      "module": "libmpg123-0",
+      "samples": 5367
+    },
+    {
+      "module": "phonon",
+      "samples": 4094
+    },
+    {
+      "module": "animationsystem",
+      "samples": 3149
+    },
+    {
+      "module": "ntdll",
+      "samples": 2539
+    },
+    {
+      "module": "engine2",
+      "samples": 1655
+    },
+    {
+      "module": "networksystem",
+      "samples": 1080
+    },
+    {
+      "module": "amdkmdag.sys",
+      "samples": 333
+    },
+    {
+      "module": "panorama_text_pango",
+      "samples": 248
+    },
+    {
+      "module": "dxgkrnl.sys",
+      "samples": 246
+    },
+    {
+      "module": "gameoverlayrenderer64",
+      "samples": 237
+    },
+    {
+      "module": "msvcrt",
+      "samples": 203
+    },
+    {
+      "module": "meshsystem",
+      "samples": 174
+    },
+    {
+      "module": "dxgmms2.sys",
+      "samples": 149
+    },
+    {
+      "module": "user32",
+      "samples": 125
+    },
+    {
+      "module": "sdl3",
+      "samples": 123
+    },
+    {
+      "module": "kernel32",
+      "samples": 121
+    },
+    {
+      "module": "kernelbase",
+      "samples": 108
+    },
+    {
+      "module": "libglib-2.0-0",
+      "samples": 103
+    }
+  ]
+}

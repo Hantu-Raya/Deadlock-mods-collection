@@ -1,0 +1,2 @@
+PerfView logging started at 5/13/2026 11:29:01 AM
+Error: Error ProcessStats not a perfView command.

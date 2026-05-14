@@ -1,0 +1,194 @@
+[
+  {
+    "name": ".gitignore",
+    "path": ".gitignore",
+    "sha": "1d63b4818a49d6e5d8770fb347237d9a45ddd012",
+    "size": 44,
+    "url": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/.gitignore?ref=main",
+    "html_url": "https://github.com/Sqooky/OptimizationLock/blob/main/.gitignore",
+    "git_url": "https://api.github.com/repos/Sqooky/OptimizationLock/git/blobs/1d63b4818a49d6e5d8770fb347237d9a45ddd012",
+    "download_url": "https://raw.githubusercontent.com/Sqooky/OptimizationLock/main/.gitignore",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/.gitignore?ref=main",
+      "git": "https://api.github.com/repos/Sqooky/OptimizationLock/git/blobs/1d63b4818a49d6e5d8770fb347237d9a45ddd012",
+      "html": "https://github.com/Sqooky/OptimizationLock/blob/main/.gitignore"
+    }
+  },
+  {
+    "name": "LICENSE",
+    "path": "LICENSE",
+    "sha": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+    "size": 35149,
+    "url": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/LICENSE?ref=main",
+    "html_url": "https://github.com/Sqooky/OptimizationLock/blob/main/LICENSE",
+    "git_url": "https://api.github.com/repos/Sqooky/OptimizationLock/git/blobs/f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+    "download_url": "https://raw.githubusercontent.com/Sqooky/OptimizationLock/main/LICENSE",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/LICENSE?ref=main",
+      "git": "https://api.github.com/repos/Sqooky/OptimizationLock/git/blobs/f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "html": "https://github.com/Sqooky/OptimizationLock/blob/main/LICENSE"
+    }
+  },
+  {
+    "name": "README.md",
+    "path": "README.md",
+    "sha": "4ec190701099e15b89e7ceecd94fea3cc0a6d961",
+    "size": 7874,
+    "url": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/README.md?ref=main",
+    "html_url": "https://github.com/Sqooky/OptimizationLock/blob/main/README.md",
+    "git_url": "https://api.github.com/repos/Sqooky/OptimizationLock/git/blobs/4ec190701099e15b89e7ceecd94fea3cc0a6d961",
+    "download_url": "https://raw.githubusercontent.com/Sqooky/OptimizationLock/main/README.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/README.md?ref=main",
+      "git": "https://api.github.com/repos/Sqooky/OptimizationLock/git/blobs/4ec190701099e15b89e7ceecd94fea3cc0a6d961",
+      "html": "https://github.com/Sqooky/OptimizationLock/blob/main/README.md"
+    }
+  },
+  {
+    "name": "Sqooky's .gi",
+    "path": "Sqooky's .gi",
+    "sha": "de7550e91d18d35d96208bdf7079879ac9d3cc26",
+    "size": 0,
+    "url": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/Sqooky's%20.gi?ref=main",
+    "html_url": "https://github.com/Sqooky/OptimizationLock/tree/main/Sqooky's%20.gi",
+    "git_url": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/de7550e91d18d35d96208bdf7079879ac9d3cc26",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/Sqooky's%20.gi?ref=main",
+      "git": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/de7550e91d18d35d96208bdf7079879ac9d3cc26",
+      "html": "https://github.com/Sqooky/OptimizationLock/tree/main/Sqooky's%20.gi"
+    }
+  },
+  {
+    "name": "Various Addons Relating to Performance",
+    "path": "Various Addons Relating to Performance",
+    "sha": "40ccfbdb8e065af6af2a16ab4e71e461ff22dc49",
+    "size": 0,
+    "url": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/Various%20Addons%20Relating%20to%20Performance?ref=main",
+    "html_url": "https://github.com/Sqooky/OptimizationLock/tree/main/Various%20Addons%20Relating%20to%20Performance",
+    "git_url": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/40ccfbdb8e065af6af2a16ab4e71e461ff22dc49",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/Various%20Addons%20Relating%20to%20Performance?ref=main",
+      "git": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/40ccfbdb8e065af6af2a16ab4e71e461ff22dc49",
+      "html": "https://github.com/Sqooky/OptimizationLock/tree/main/Various%20Addons%20Relating%20to%20Performance"
+    }
+  },
+  {
+    "name": "boot's maxium fps config",
+    "path": "boot's maxium fps config",
+    "sha": "83fe47d1b024184d0cb3e5ecb222220a67fdf261",
+    "size": 0,
+    "url": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/boot's%20maxium%20fps%20config?ref=main",
+    "html_url": "https://github.com/Sqooky/OptimizationLock/tree/main/boot's%20maxium%20fps%20config",
+    "git_url": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/83fe47d1b024184d0cb3e5ecb222220a67fdf261",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/boot's%20maxium%20fps%20config?ref=main",
+      "git": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/83fe47d1b024184d0cb3e5ecb222220a67fdf261",
+      "html": "https://github.com/Sqooky/OptimizationLock/tree/main/boot's%20maxium%20fps%20config"
+    }
+  },
+  {
+    "name": "clean gameinfo.gi",
+    "path": "clean gameinfo.gi",
+    "sha": "e3979de8b034de3c75028f91dfd629889cf47e90",
+    "size": 0,
+    "url": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/clean%20gameinfo.gi?ref=main",
+    "html_url": "https://github.com/Sqooky/OptimizationLock/tree/main/clean%20gameinfo.gi",
+    "git_url": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/e3979de8b034de3c75028f91dfd629889cf47e90",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/clean%20gameinfo.gi?ref=main",
+      "git": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/e3979de8b034de3c75028f91dfd629889cf47e90",
+      "html": "https://github.com/Sqooky/OptimizationLock/tree/main/clean%20gameinfo.gi"
+    }
+  },
+  {
+    "name": "convars.txt",
+    "path": "convars.txt",
+    "sha": "36031af7a0c519d88aab44c15e383d6f6aaee85f",
+    "size": 445981,
+    "url": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/convars.txt?ref=main",
+    "html_url": "https://github.com/Sqooky/OptimizationLock/blob/main/convars.txt",
+    "git_url": "https://api.github.com/repos/Sqooky/OptimizationLock/git/blobs/36031af7a0c519d88aab44c15e383d6f6aaee85f",
+    "download_url": "https://raw.githubusercontent.com/Sqooky/OptimizationLock/main/convars.txt",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/convars.txt?ref=main",
+      "git": "https://api.github.com/repos/Sqooky/OptimizationLock/git/blobs/36031af7a0c519d88aab44c15e383d6f6aaee85f",
+      "html": "https://github.com/Sqooky/OptimizationLock/blob/main/convars.txt"
+    }
+  },
+  {
+    "name": "kaizuchaneru's minimum spec",
+    "path": "kaizuchaneru's minimum spec",
+    "sha": "e4e11d500e7fce2d802e0f59b2431c6ac1b1f53d",
+    "size": 0,
+    "url": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/kaizuchaneru's%20minimum%20spec?ref=main",
+    "html_url": "https://github.com/Sqooky/OptimizationLock/tree/main/kaizuchaneru's%20minimum%20spec",
+    "git_url": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/e4e11d500e7fce2d802e0f59b2431c6ac1b1f53d",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/kaizuchaneru's%20minimum%20spec?ref=main",
+      "git": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/e4e11d500e7fce2d802e0f59b2431c6ac1b1f53d",
+      "html": "https://github.com/Sqooky/OptimizationLock/tree/main/kaizuchaneru's%20minimum%20spec"
+    }
+  },
+  {
+    "name": "media",
+    "path": "media",
+    "sha": "e84bb4120df96547cec48f102194a882e23c6781",
+    "size": 0,
+    "url": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/media?ref=main",
+    "html_url": "https://github.com/Sqooky/OptimizationLock/tree/main/media",
+    "git_url": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/e84bb4120df96547cec48f102194a882e23c6781",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/media?ref=main",
+      "git": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/e84bb4120df96547cec48f102194a882e23c6781",
+      "html": "https://github.com/Sqooky/OptimizationLock/tree/main/media"
+    }
+  },
+  {
+    "name": "piggy's config (comparatively outdated)",
+    "path": "piggy's config (comparatively outdated)",
+    "sha": "a8a22c0aabf360bfe69618b2c6935c9700c49ea9",
+    "size": 0,
+    "url": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/piggy's%20config%20(comparatively%20outdated)?ref=main",
+    "html_url": "https://github.com/Sqooky/OptimizationLock/tree/main/piggy's%20config%20(comparatively%20outdated)",
+    "git_url": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/a8a22c0aabf360bfe69618b2c6935c9700c49ea9",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/piggy's%20config%20(comparatively%20outdated)?ref=main",
+      "git": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/a8a22c0aabf360bfe69618b2c6935c9700c49ea9",
+      "html": "https://github.com/Sqooky/OptimizationLock/tree/main/piggy's%20config%20(comparatively%20outdated)"
+    }
+  },
+  {
+    "name": "test_cfg",
+    "path": "test_cfg",
+    "sha": "4bea73342556a26d1bb5077d4177cc09a6b9864a",
+    "size": 0,
+    "url": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/test_cfg?ref=main",
+    "html_url": "https://github.com/Sqooky/OptimizationLock/tree/main/test_cfg",
+    "git_url": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/4bea73342556a26d1bb5077d4177cc09a6b9864a",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/Sqooky/OptimizationLock/contents/test_cfg?ref=main",
+      "git": "https://api.github.com/repos/Sqooky/OptimizationLock/git/trees/4bea73342556a26d1bb5077d4177cc09a6b9864a",
+      "html": "https://github.com/Sqooky/OptimizationLock/tree/main/test_cfg"
+    }
+  }
+]
