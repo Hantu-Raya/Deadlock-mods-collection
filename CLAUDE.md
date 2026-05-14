@@ -30,6 +30,13 @@ Or use the `/pack-vpk` skill for full build+deploy.
 F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\build_hp_colors.ps1
 ```
 
+### Minimal HP Colors Runtime
+Requires the separate web-builder preset VPK (`pak96_dir.vpk`). This builds and deploys the runtime VPK as `pak97_dir.vpk`.
+```powershell
+node hp_colors_minimal\scripts\validate-minimal.js
+powershell -ExecutionPolicy Bypass -File build_hp_colors_minimal.ps1
+```
+
 ### passive_items_mod (generates mod_settings_data.js, detects game, compiles)
 ```powershell
 F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\passive_items_mod\Apply.bat
@@ -94,6 +101,7 @@ Pack all three variants with `build_abilities_paks.ps1` for staged VPKs and date
 | Mod | Purpose |
 |---|---|
 | `hp_colors` | Custom HP bar colors with convar persistence (storageVersion 2) |
+| `hp_colors_minimal` | Minimal HP Colors runtime for separate web-builder preset VPKs (`pak96_dir.vpk` preset + `pak97_dir.vpk` runtime) |
 | `anitaui` | Anita UI core — settings panel host |
 | `buff_timer_virgin` | Buff timers moved to top bar |
 | `soul_timer` | Countdown for unsecured soul drain |
@@ -103,6 +111,7 @@ Pack all three variants with `build_abilities_paks.ps1` for staged VPKs and date
 
 ## Key References
 - `AGENTS.md` — full agent guide (conventions, build, anti-patterns, agentmemory bridge)
+- `hp_colors_minimal/AGENTS.md` — two-VPK minimal HP Colors runtime contract
 - `WORKSPACE_STRUCTURE.md` — archive/cleanup policy
 - `apis.md` — Panorama API reference
 - `abilities/AGENTS.md` — VData-specific constraints
