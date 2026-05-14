@@ -7,7 +7,7 @@ Guidance for agents working inside the `3d hud` Deadlock Panorama addon.
 - This addon overrides the in-game HUD and packages as `pak98_dir.vpk`.
 - Source files live under `panorama/`; the root HUD layout is `panorama/layout/hud.xml`.
 - Do not recreate `3d hud/hud.xml`. Do not write `pak98_dir.vpk` inside `3d hud/`; package output belongs at the repo root.
-- `build_3d_hud.ps1` was intentionally removed. Use manual compile/package steps or a repo-level build script if one is added later.
+- Use the repo-root `build_hud_3d_heroes.ps1` for compile/package/deploy.
 
 ## Critical Files
 
@@ -16,6 +16,8 @@ Guidance for agents working inside the `3d hud` Deadlock Panorama addon.
 - `panorama/scripts/3d_hero_dynamic.js`: runtime hero detection, scene switching, and custom HP/deferred/damage/heal clipping.
 - `panorama/styles/hud_health.css`: custom HP text, hidden stock health source, and prediction color layers.
 - `panorama/styles/hud_health_container.css`: local HUD health container placement, recent damage/heal counters, and status-effect positioning.
+- `panorama/styles/citadel_status_effect.css`: status-effect placement support for the custom health HUD.
+- `panorama/styles/unit_status_icons.css`: unit-status icon/style support included by the HUD override.
 - `panorama/styles/3d_hud.css`: 3D HUD scene and stock HUD visibility overrides.
 
 ## Health HUD Rules
@@ -38,15 +40,19 @@ Guidance for agents working inside the `3d hud` Deadlock Panorama addon.
 
 - Runtime code runs during gameplay; avoid debug tree dumps, per-tick log spam, and repeated style writes.
 - Keep health polling conservative. If you change `HEALTH_TICK_SEC`, verify current HP, deferred damage, incoming damage, and incoming heal responsiveness in tools mode.
-- Terser handles minification; source cleanup should remove real dead code or hot-path overhead, not just cosmetic lines.
+- `build_hud_3d_heroes.ps1` compiles source directly. Do not assume there is a
+  terser/minify staging pass for this module.
 
 ## Verification
 
 - JS syntax check:
   `node --check "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\3d hud\panorama\scripts\3d_hero_dynamic.js"`
-- Compile from a minified staging copy when deploying. Required compiled outputs include:
+- Build and deploy from the repo root:
+  `powershell -ExecutionPolicy Bypass -File build_hud_3d_heroes.ps1`
+- Required compiled outputs include:
   - `panorama/layout/hud.vxml_c`
   - `panorama/layout/hud_health.vxml_c`
+  - `panorama/styles/3d_hud.vcss_c`
   - `panorama/styles/hud_health.vcss_c`
   - `panorama/scripts/3d_hero_dynamic.vjs_c`
 - Pack the compiled addon to repo-root `pak98_dir.vpk`, then deploy to:

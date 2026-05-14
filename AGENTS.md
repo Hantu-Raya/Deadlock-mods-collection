@@ -6,7 +6,8 @@ When using `sequentialthinking`, keep thoughts concise, advance them step by ste
 # AGENT GUIDE: Deadlock Mods Collection
 
 Project type: Source 2 Panorama UI mods plus VData processing utilities.
-Primary output: compiled assets in sibling `_compiled` folders.
+Primary output: compiled assets in sibling `_compiled` folders; some package
+flows also emit root-level VPKs or dated archives.
 Audience: coding agents operating in this repository.
 
 ## Scope and Rule Sources
@@ -16,6 +17,9 @@ Audience: coding agents operating in this repository.
 - Copilot rules: none found (`.github/copilot-instructions.md` absent).
 - Current checked-out path used by local build examples:
   `F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection`
+- Nested `.worktrees/` directories are separate git worktrees on feature branches.
+  Do not bulk-edit their `AGENTS.md` files from the main checkout unless the user
+  explicitly asks to refresh those branches too.
 
 ## Orientation and Context Hygiene
 - For broad repo orientation, prefer the context-mode MCP tools (`ctx_batch_execute`, `ctx_search`, `ctx_execute_file`) over dumping large files into context.
@@ -61,11 +65,36 @@ $repo = "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection"
 & "$repo\sr2compiler\New folder.exe" "$repo\{mod_name}"
 ```
 
+### Build: hp_colors
+Runs schema audit, minifies to `hp_colors_terser/`, compiles, packs, and deploys
+`pak97_dir.vpk`.
+```powershell
+powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
+```
+
 ### Build: hp_colors_minimal
 Builds and deploys the minimal HP Colors runtime as `pak97_dir.vpk`. It must be installed alongside the separate web-builder preset `pak96_dir.vpk`.
 ```powershell
 node hp_colors_minimal\scripts\validate-minimal.js
 powershell -ExecutionPolicy Bypass -File build_hp_colors_minimal.ps1
+```
+
+### Build: buff_timer_virgin
+Minifies from `buff_timer_virgin/`, compiles, packs, and deploys `pak98_dir.vpk`.
+```powershell
+powershell -ExecutionPolicy Bypass -File build_buff_timer_virgin.ps1
+```
+
+### Build: 3d hud
+Compiles `3d hud/`, packs, and deploys `pak98_dir.vpk`.
+```powershell
+powershell -ExecutionPolicy Bypass -File build_hud_3d_heroes.ps1
+```
+
+### Build: recent_purchase
+Minifies from `recent_purchase/`, compiles, packs, and deploys `pak81_dir.vpk`.
+```powershell
+powershell -ExecutionPolicy Bypass -File build_recent_purchase.ps1
 ```
 
 ### Build: passive_items_mod (recommended for that module)
@@ -95,6 +124,8 @@ abilities\scripts\active.bat
 abilities\scripts\active_no_behavior.bat
 ```
 Pack all three variants with `build_abilities_paks.ps1` when you need the staged VPKs and dated archives.
+The full wrapper writes the durable dated `.7z` archives to the Deadlock addons
+folder and cleans temporary stage folders/intermediate VPKs after packaging.
 
 ### Lint/Test status
 - No repository-wide lint command is defined.
@@ -207,6 +238,18 @@ There is no formal single test command. Use this focused loop:
 - `sr2compiler/AGENTS.md` for legacy compiler behavior.
 - `passive_items_mod/Apply.bat` for generated-settings compile flow.
 - `buff_timer_virgin/AGENTS.md` for advanced performance optimization patterns.
+- `3d hud/AGENTS.md` for the custom local-player health HUD and hero scene rules.
+- `recent_purchase/AGENTS.md` for quickbuy queue cost math and pack flow.
+- `fps/AGENTS.md` for research-only Source 2 performance/config work; re-parse the live target config before recommending values.
+- `hud/AGENTS.md` for HUD CSS/VData reference material, not a default deployable mod.
+- `shiv/AGENTS.md` for the Shiv soundevent source; soundevents are not built by `sr2compiler`.
+
+## Modules Without Local AGENTS
+- `passive_items_mod/` currently relies on this root guide plus `Apply.bat`.
+  Read `settings.json`, generated `panorama/scripts/mod_settings_data.js`, and
+  `compiler/` before changing its flow.
+- `old_color_blind/` has no local guide in this checkout; deep-scan it like a
+  legacy mod before editing.
 
 ## Reverse Engineering
 - When analyzing shipped binaries or runtime behavior, prefer the `ida-pro` MCP server in Codex if it is available.

@@ -9,8 +9,13 @@ A minimal, standalone mod that displays neutral camp respawn timers (radial ring
 
 ## Build Command
 ```powershell
-& 'F:\Users\Shiv\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe' 'F:\Users\Shiv\Desktop\Deadlock-mods-collection\jungle_timer'
+$repo = "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection"
+& "$repo\sr2compiler\New folder.exe" "$repo\jungle_timer"
 ```
+
+`build_jungle_timer.ps1` currently still has a stale hardcoded external
+checkout root. Do not use it until that script is made portable; use the
+explicit `$repo` commands here or fix the script first.
 
 ## Architecture Notes
 - All functionality is driven by `panorama/scripts/jungle_timer.js`.
@@ -18,20 +23,24 @@ A minimal, standalone mod that displays neutral camp respawn timers (radial ring
 - **CSS-driven ring sweep**: The radial cooldown ring animation is offloaded to CSS transitions (`transition-property: clip` on `.neutral-cooldown-ring-fill`). JS sets the start clip (360deg) and end clip (0deg) with `transition-duration` equal to the remaining respawn time. The GPU interpolates smoothly between frames. JS no longer calculates clip values per cycle.
 - **Adaptive loop rate**: The main loop runs at 1.0s by default, 0.5s when any timer has <10s remaining (responsive countdown text), and 2.0s when idle (no active timers and game time >60s). Scan and render happen in a single pass per loop iteration.
 - **Caching**: `FindChildrenWithClassTraverse("map_button")` results are cached for 5s with validity spot-check. `refreshPanels()` results are cached for 2s. Minimap inversion theme info is cached for 30s. Ring panel IDs (`ringId`, `fillId`, `textId`, `anchorId`) are precomputed once in `createState()` and stored on the state object, eliminating per-call regex.
+- **Minimap snapshot cadence**: neutral icon snapshots are throttled by
+  `MINIMAP_SNAPSHOT_INTERVAL_MS = 400`.
 - **Creation-only styling**: Redundant per-cycle style assignments (ringRoot background/border, ringFill position/size, detailLabel hittest/visibility) are set only during `CreatePanel()`, not every render.
 - **No FindChildTraverse fallback**: Ensure functions go directly from `!IsValid()` → `CreatePanel()`, skipping redundant DOM traversal since `clearNeutralRing()` removes panels via `DeleteAsync(0)`.
 - **Resync handling**: If game time drifts >1.5s from the CSS transition's expected position, the transition is reset: snap to current position with `transitionDuration: 0s`, then re-animate to zero with the corrected remaining time.
 - The ring and countdown label are always children of the `NeutralCooldownOverlayLayer` (inside `minimap_container` / `UI.minimapBox`), never parented to icon panels.
 - Ring size matches the game's neutral icon size (`NEUTRAL_RING_SIZE_PX = 24` CSS pixels).
-- Active timers stay at full opacity while visible.
+- Active timers stay at full opacity while visible. Rings are visible in the
+  final 60 seconds before respawn, and scoreboard-open renders force visibility
+  so the scoreboard/minimap view can inspect timers.
 - Styling should stay minimal: small ring, small monospace text, no decorative card around the label.
 
 ## Coordinate Space & DPI Scaling (Critical)
 The minimap panel hierarchy has different coordinate origins:
 ```
-minimap_container (UI.minimapBox, 760x760 at 4K)    ← overlay parent
-  └─ HudMinimapContainer (UI.minimapContainer, offset -19,-19, 798x798)
-       └─ hud_minimap (UI.minimap, offset 0,0, 798x798)  ← icon parent
+minimap_container (UI.minimapBox; example 760x760 at 4K)    ← overlay parent
+  └─ HudMinimapContainer (UI.minimapContainer; example offset -19,-19, 798x798)
+       └─ hud_minimap (UI.minimap; example offset 0,0, 798x798)  ← icon parent
 ```
 - Icon `actualxoffset`/`actualyoffset` is relative to `hud_minimap`, NOT `minimap_container`.
 - The overlay lives in `minimap_container`, so icon positions must be translated by adding the intermediate panel offsets (`hud_minimap.actualxoffset + HudMinimapContainer.actualxoffset`).
@@ -50,15 +59,19 @@ minimap_container (UI.minimapBox, 760x760 at 4K)    ← overlay parent
 - Rings and labels are always overlay-layer children, never parented to icon `map_button` panels (avoids inheriting game transforms like `scaleY(-1) scaleX(-1)` on inverted maps).
 - **Never assume icon coordinates map 1:1 to the overlay container.** The icon's `actualxoffset` is relative to `hud_minimap`, which is nested inside `HudMinimapContainer` (offset -19,-19 at 4K). You must walk the parent chain and add offsets to translate into `minimap_container` space.
 - **Never use `actuallayoutwidth` for setting CSS sizes.** It returns DPI-scaled values; setting them back via JS double-scales. Use CSS pixel constants instead.
-- **VPK packing**: always use `--single-file` flag to produce a single `pak98_dir.vpk`. Multi-part archives (`pak98_000.vpk`, etc.) can retain stale data. Delete old pak files before packing fresh.
+- **VPK packing**: always use the single-file pack flag (`-s` /
+  `--single-file`) to produce a single `pak98_dir.vpk`. Multi-part archives
+  (`pak98_000.vpk`, etc.) can retain stale data. Delete old pak files before
+  packing fresh.
 - If placement looks wrong, add debug logging for all panels in the hierarchy (`hud_minimap`, `HudMinimapContainer`, `minimap_container`) to check for coordinate offsets and size mismatches.
 
 ## Deploy
-```bash
+```powershell
 # Compile
-"sr2compiler/New folder.exe" "./jungle_timer"
+$repo = "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection"
+& "$repo\sr2compiler\New folder.exe" "$repo\jungle_timer"
 # Pack (single-file, delete old first)
-rm -f pak98_dir.vpk
-vpkeditcli.exe --single-file -o pak98_dir.vpk ./jungle_timer_compiled
+Remove-Item "$repo\pak98_dir.vpk" -Force -ErrorAction SilentlyContinue
+& "$repo\passive_items_mod\compiler\vpkeditcli.exe" "$repo\jungle_timer_compiled" -o "$repo\pak98_dir.vpk" -s --no-progress
 # Target: G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak98_dir.vpk
 ```
