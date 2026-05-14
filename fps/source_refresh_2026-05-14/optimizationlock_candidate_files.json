@@ -1,0 +1,68 @@
+[
+  {
+    "dir": "Sqooky's .gi",
+    "name": "base_convars.txt",
+    "type": "file",
+    "download_url": "https://raw.githubusercontent.com/Sqooky/OptimizationLock/main/Sqooky's%20.gi/base_convars.txt"
+  },
+  {
+    "dir": "Sqooky's .gi",
+    "name": "gameinfo.gi",
+    "type": "file",
+    "download_url": "https://raw.githubusercontent.com/Sqooky/OptimizationLock/main/Sqooky's%20.gi/gameinfo.gi"
+  },
+  {
+    "dir": "Sqooky's .gi",
+    "name": "readme.md",
+    "type": "file",
+    "download_url": "https://raw.githubusercontent.com/Sqooky/OptimizationLock/main/Sqooky's%20.gi/readme.md"
+  },
+  {
+    "dir": "Sqooky's .gi",
+    "name": "screenshots",
+    "type": "dir",
+    "download_url": null
+  },
+  {
+    "dir": "boot's maxium fps config",
+    "name": "I love her so much.png",
+    "type": "file",
+    "download_url": "https://raw.githubusercontent.com/Sqooky/OptimizationLock/main/boot's%20maxium%20fps%20config/I%20love%20her%20so%20much.png"
+  },
+  {
+    "dir": "boot's maxium fps config",
+    "name": "gameinfo.gi",
+    "type": "file",
+    "download_url": "https://raw.githubusercontent.com/Sqooky/OptimizationLock/main/boot's%20maxium%20fps%20config/gameinfo.gi"
+  },
+  {
+    "dir": "boot's maxium fps config",
+    "name": "readme.md",
+    "type": "file",
+    "download_url": "https://raw.githubusercontent.com/Sqooky/OptimizationLock/main/boot's%20maxium%20fps%20config/readme.md"
+  },
+  {
+    "dir": "boot's maxium fps config",
+    "name": "screenshots",
+    "type": "dir",
+    "download_url": null
+  },
+  {
+    "dir": "kaizuchaneru's minimum spec",
+    "name": "gameinfo.gi",
+    "type": "file",
+    "download_url": "https://raw.githubusercontent.com/Sqooky/OptimizationLock/main/kaizuchaneru's%20minimum%20spec/gameinfo.gi"
+  },
+  {
+    "dir": "kaizuchaneru's minimum spec",
+    "name": "screenshots",
+    "type": "dir",
+    "download_url": null
+  },
+  {
+    "dir": "test_cfg",
+    "name": "gameinfo.gi",
+    "type": "file",
+    "download_url": "https://raw.githubusercontent.com/Sqooky/OptimizationLock/main/test_cfg/gameinfo.gi"
+  }
+]
