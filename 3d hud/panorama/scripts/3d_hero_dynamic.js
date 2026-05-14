@@ -18,11 +18,15 @@
   var HEALTH_MIN_FILL_BASE_PX = 6;
   var HEALTH_MIN_FILL_PER_DIGIT_PX = 4;
   var HEALTH_SCAN_NODE_LIMIT = 96;
-  var MAX_PROGRESS_HOPS = 8;
-  var MAX_HINT_DEPTH = 5;
-  var MAX_HINT_NODES = 96;
+  var HEALTH_SCAN_MAX_DEPTH = 5;
   var HERO_LOCK_SAMPLE_MS = 10000;
   var GAME_TIME_CACHE_MS = 250;
+  var LOCKED_GAME_TIME_CHECK_START_SEC = 10;
+  var LOCKED_GAME_TIME_CHECK_MS = 60000;
+  var LOCKED_HERO_SANITY_CHECK_MS = 3000;
+  var LOBBY_POLL_SEC = 5;
+  var LOBBY_RUN_CHECK_MS = 60000;
+  var MATCH_ACTIVE_GAME_STATE = 6;
   var PROGRESS_VALUE_PROPS = ["value", "current", "currentvalue", "actualvalue"];
   var PROGRESS_MAX_PROPS = ["max", "maximum", "maxvalue"];
   var HEIGHT_METRIC_PROPS = ["actuallayoutheight", "actualheight", "contentheight", "desiredlayoutheight"];
@@ -89,16 +93,21 @@
   var sceneCache = null;
   var currentScenePanel = null;
   var lastGameTimeWasZero = false;
-  var sawNonZeroGameTime = false;
+  var lockedGameTimeLastSec = -1;
+  var lockedGameTimeNextCheckMs = 0;
+  var lockedHeroSanityNextMs = 0;
+  var heroTimerPausedForLobby = false;
+  var lastLobbyRunCheckMs = 0;
+  var matchStateConfirmedActive = false;
 
   var UI = {
     root: null,
+    hud: null,
     host: null,
     heroProbe: null,
     gameplayAlive: null,
     crosshair: null,
     progress: null,
-    buttonHints: null,
     healthRoot: null,
     healthBar: null,
     healthBarFill: null,
@@ -207,10 +216,8 @@
   }
 
   function resetCacheRefs() {
-    UI.gameplayAlive = null;
-    UI.crosshair = null;
-    UI.progress = null;
-    UI.buttonHints = null;
+    UI.hud = null;
+    clearHeroDetectionRefs();
     UI.host = null;
     UI.heroProbe = null;
     UI.healthRoot = null;
@@ -264,16 +271,32 @@
     currentScenePanel = null;
   }
 
+  function clearHeroDetectionRefs() {
+    UI.gameplayAlive = null;
+    UI.crosshair = null;
+    UI.progress = null;
+  }
+
   function findChild(panel, id) {
     try { return panel && panel.FindChildTraverse ? panel.FindChildTraverse(id) : null; } catch (e) { return null; }
   }
 
-  function getChildren(panel) {
-    try { return panel && panel.Children ? panel.Children() : []; } catch (e) { return []; }
+  function findDirectChildWhere(panel, id, predicate) {
+    var children = getChildren(panel);
+    var fallback = null;
+
+    for (var i = 0; i < children.length; i++) {
+      var child = children[i];
+      if (panelId(child) !== id) continue;
+      if (!fallback) fallback = child;
+      if (!predicate || predicate(child)) return child;
+    }
+
+    return fallback;
   }
 
-  function getParent(panel) {
-    try { return panel && panel.GetParent ? panel.GetParent() : null; } catch (e) { return null; }
+  function getChildren(panel) {
+    try { return panel && panel.Children ? panel.Children() : []; } catch (e) { return []; }
   }
 
   function panelId(panel) {
@@ -282,6 +305,94 @@
 
   function hasClass(panel, className) {
     try { return !!(panel && panel.BHasClass && panel.BHasClass(className)); } catch (e) { return false; }
+  }
+
+  function resolveHudPanel() {
+    if (isValidPanel(UI.hud)) return UI.hud;
+    UI.hud = findChild(getRootPanel(), "Hud");
+    return UI.hud;
+  }
+
+  function hasHideoutClass(panel) {
+    if (!isValidPanel(panel)) return false;
+
+    return hasClass(panel, "connectedToHideout") ||
+      hasClass(panel, "connectedtoHideout") ||
+      hasClass(panel, "connectedtohideout") ||
+      hasClass(panel, "connectedToHideOut") ||
+      hasClass(panel, "inHideoutIntro");
+  }
+
+  function readGameState() {
+    var state = -1;
+    try {
+      if (typeof Game !== "undefined" && Game && Game.GetState) {
+        state = Number(Game.GetState());
+      }
+    } catch (e1) {
+      state = -1;
+    }
+
+    if (state === state && state !== Infinity && state !== -Infinity) {
+      return state;
+    }
+
+    return -1;
+  }
+
+  function evaluateLobbyStatus() {
+    var gameState = readGameState();
+    if (gameState >= MATCH_ACTIVE_GAME_STATE) {
+      matchStateConfirmedActive = true;
+      return false;
+    }
+    if (gameState >= 0) {
+      matchStateConfirmedActive = false;
+      return true;
+    }
+
+    var hud = resolveHudPanel();
+    var root = getRootPanel();
+    if (hasHideoutClass(hud) || hasHideoutClass(root)) {
+      matchStateConfirmedActive = false;
+      return true;
+    }
+
+    if (!matchStateConfirmedActive) {
+      if (readGameTimeSec() >= 0) {
+        matchStateConfirmedActive = true;
+        return false;
+      }
+
+      matchStateConfirmedActive = false;
+      return true;
+    }
+
+    return false;
+  }
+
+  function clearGameTimeCache() {
+    gameTimePanel = null;
+    gameTimePanelMs = 0;
+  }
+
+  function pauseHeroTimerForLobby() {
+    if (!heroTimerPausedForLobby) {
+      heroTimerPausedForLobby = true;
+      resetHeroLock();
+      clearGameTimeCache();
+      clearHeroDetectionRefs();
+      lastGameTimeWasZero = false;
+    }
+  }
+
+  function resumeHeroTimerFromLobby() {
+    if (!heroTimerPausedForLobby) return;
+
+    heroTimerPausedForLobby = false;
+    clearGameTimeCache();
+    clearHeroDetectionRefs();
+    lastGameTimeWasZero = false;
   }
 
   function setPanelClass(panel, className, enabled) {
@@ -395,6 +506,64 @@
     zeroSampleHero = "";
     zeroSampleStartMs = 0;
     lockedHero = "";
+    lockedGameTimeLastSec = -1;
+    lockedGameTimeNextCheckMs = 0;
+    lockedHeroSanityNextMs = 0;
+  }
+
+  function lockedHeroSanityCheck(now) {
+    if (!lockedHero || now < lockedHeroSanityNextMs) return false;
+    lockedHeroSanityNextMs = now + LOCKED_HERO_SANITY_CHECK_MS;
+
+    if (evaluateLobbyStatus()) {
+      pauseHeroTimerForLobby();
+      return true;
+    }
+
+    clearHeroDetectionRefs();
+    var currentHero = detectHero();
+    if (!currentHero || currentHero === lockedHero) return false;
+
+    resetHeroLock();
+    updateZeroHeroSample(currentHero, now);
+    switchHeroScene(currentHero);
+    return false;
+  }
+
+  function armLockedGameTimeCheck(now, gameTimeNow) {
+    if (!lockedHero || gameTimeNow <= LOCKED_GAME_TIME_CHECK_START_SEC || lockedGameTimeNextCheckMs > 0) return;
+
+    lockedGameTimeLastSec = gameTimeNow;
+    lockedGameTimeNextCheckMs = now + LOCKED_GAME_TIME_CHECK_MS;
+  }
+
+  function checkLockedGameTimeReset(now, gameTimeNow) {
+    if (!lockedHero) return false;
+
+    if (lockedGameTimeNextCheckMs <= 0) {
+      armLockedGameTimeCheck(now, gameTimeNow);
+      return false;
+    }
+
+    if (now < lockedGameTimeNextCheckMs) {
+      return false;
+    }
+
+    var oldGameTime = lockedGameTimeLastSec;
+    if (gameTimeNow < 0) {
+      lockedGameTimeNextCheckMs = now + LOCKED_GAME_TIME_CHECK_MS;
+      return false;
+    }
+
+    var resetNeeded = gameTimeNow === 0 || (oldGameTime >= 0 && gameTimeNow >= 0 && oldGameTime > gameTimeNow);
+    if (resetNeeded) {
+      resetHeroLock();
+      return true;
+    }
+
+    lockedGameTimeLastSec = gameTimeNow;
+    lockedGameTimeNextCheckMs = now + LOCKED_GAME_TIME_CHECK_MS;
+    return false;
   }
 
   function updateZeroHeroSample(heroName, now) {
@@ -414,8 +583,19 @@
 
     if (!lockedHero && now - zeroSampleStartMs >= HERO_LOCK_SAMPLE_MS) {
       lockedHero = heroName;
-      log("locking hero scene to " + heroName);
     }
+  }
+
+  function detectSampleAndSwitch(now, gameTimeNow) {
+    var hero = detectHero();
+    if (!hero) {
+      return false;
+    }
+
+    updateZeroHeroSample(hero, now);
+    armLockedGameTimeCheck(now, gameTimeNow);
+    switchHeroScene(hero);
+    return true;
   }
 
   function setLabelText(panel, text) {
@@ -497,7 +677,7 @@
     while (SCAN_STACK.length && seen < HEALTH_SCAN_NODE_LIMIT) {
       var panel = SCAN_STACK.pop();
       var depth = SCAN_DEPTH.pop();
-      if (!isValidPanel(panel) || depth > MAX_HINT_DEPTH) continue;
+      if (!isValidPanel(panel) || depth > HEALTH_SCAN_MAX_DEPTH) continue;
       seen++;
 
       if (hasClass(panel, className)) return panel;
@@ -885,103 +1065,50 @@
     return "";
   }
 
+  function hasDirectHeroProgress(panel) {
+    var progress = findDirectChildWhere(panel, "progress", heroClassOn);
+    return !!heroClassOn(progress);
+  }
+
   function resolveProgressPanel() {
     var root = getRootPanel();
 
     if (!isValidPanel(UI.gameplayAlive)) {
       UI.gameplayAlive = findChild(root, "gameplay_hud_alive");
+      UI.crosshair = null;
+      UI.progress = null;
     }
-    if (isValidPanel(UI.gameplayAlive) && !isValidPanel(UI.crosshair)) {
-      UI.crosshair = findChild(UI.gameplayAlive, "crosshair");
+    if (!isValidPanel(UI.gameplayAlive)) {
+      UI.crosshair = null;
+      UI.progress = null;
+      return null;
+    }
+
+    var directCrosshair = findDirectChildWhere(UI.gameplayAlive, "crosshair", hasDirectHeroProgress);
+    if (directCrosshair !== UI.crosshair) {
+      UI.crosshair = directCrosshair;
+      UI.progress = null;
     }
     if (!isValidPanel(UI.crosshair)) {
-      UI.crosshair = findChild(root, "crosshair");
+      UI.progress = null;
+      return null;
     }
-    if (isValidPanel(UI.crosshair) && !isValidPanel(UI.progress)) {
-      UI.progress = findChild(UI.crosshair, "progress");
+
+    var directProgress = findDirectChildWhere(UI.crosshair, "progress", heroClassOn);
+    if (directProgress !== UI.progress) {
+      UI.progress = directProgress;
     }
-    if (!isValidPanel(UI.progress)) {
-      UI.progress = findChild(root, "progress");
-    }
+    if (!isValidPanel(UI.progress)) return null;
+
     return UI.progress;
   }
 
-  function resolveButtonHintsPanel() {
-    var root = getRootPanel();
-    resolveProgressPanel();
-
-    if (isValidPanel(UI.crosshair) && !isValidPanel(UI.buttonHints)) {
-      UI.buttonHints = findChild(UI.crosshair, "button_hints_container");
-    }
-    if (!isValidPanel(UI.buttonHints)) {
-      UI.buttonHints = findChild(root, "button_hints_container");
-    }
-    return UI.buttonHints;
-  }
-
   function heroFromProgress() {
-    var panel = resolveProgressPanel();
-    var hops = 0;
-
-    while (isValidPanel(panel) && hops < MAX_PROGRESS_HOPS) {
-      var hero = heroClassOn(panel);
-      if (hero) return hero;
-      panel = getParent(panel);
-      hops++;
-    }
-
-    return "";
-  }
-
-  function heroFromAbilityId(panelId) {
-    var text = normalizeText(panelId);
-    if (!text) return "";
-
-    for (var i = 0; i < HERO_ALIAS_LIST.length; i++) {
-      var token = HERO_ALIAS_LIST[i].token;
-      if (text.indexOf("ability_" + token + "_") >= 0 ||
-          text.indexOf("ability_hero_" + token + "_") >= 0 ||
-          text.indexOf("citadel_ability_" + token + "_") >= 0 ||
-          text.indexOf("citadel_ability_hero_" + token + "_") >= 0 ||
-          text.indexOf(token + "_") === 0 ||
-          text.indexOf("_" + token + "_") >= 0) {
-        return HERO_ALIAS_LIST[i].hero;
-      }
-    }
-
-    return "";
-  }
-
-  function scanButtonHints(panel) {
-    if (!isValidPanel(panel)) return "";
-
-    SCAN_STACK.length = 0;
-    SCAN_DEPTH.length = 0;
-    SCAN_STACK.push(panel);
-    SCAN_DEPTH.push(0);
-    var seen = 0;
-
-    while (SCAN_STACK.length) {
-      var current = SCAN_STACK.pop();
-      var depth = SCAN_DEPTH.pop();
-      if (!isValidPanel(current) || depth > MAX_HINT_DEPTH || seen >= MAX_HINT_NODES) continue;
-      seen++;
-
-      var hero = heroFromAbilityId(panelId(current));
-      if (hero) return hero;
-
-      var children = getChildren(current);
-      for (var i = children.length - 1; i >= 0; i--) {
-        SCAN_STACK.push(children[i]);
-        SCAN_DEPTH.push(depth + 1);
-      }
-    }
-
-    return "";
+    return heroClassOn(resolveProgressPanel());
   }
 
   function detectHero() {
-    return heroFromProgress() || scanButtonHints(resolveButtonHintsPanel());
+    return heroFromProgress();
   }
 
   function hideScene(scene) {
@@ -1011,19 +1138,23 @@
 
   function resolveHostPanel() {
     if (isValidPanel(UI.host)) return UI.host;
-    UI.host = findChild(getRootPanel(), "ThreeDHeroDynamicHeroHost");
-    sceneCache = null;
-    currentScenePanel = null;
+    var host = findChild(getRootPanel(), "ThreeDHeroDynamicHeroHost");
+    if (host !== UI.host) {
+      UI.host = host;
+      sceneCache = null;
+      currentScenePanel = null;
+    }
     return UI.host;
   }
 
   function cacheStaticScenes() {
     if (sceneCache) return sceneCache;
 
-    sceneCache = {};
     var host = resolveHostPanel();
+    sceneCache = {};
+    if (!isValidPanel(host)) return sceneCache;
+
     var children = getChildren(host);
-    var count = 0;
 
     for (var i = 0; i < children.length; i++) {
       var child = children[i];
@@ -1032,7 +1163,6 @@
       if (id.indexOf("ThreeDHeroScene_") !== 0) continue;
 
       sceneCache[id] = child;
-      count++;
 
       if (hasClass(child, "ShowingHero")) {
         currentScenePanel = child;
@@ -1041,7 +1171,6 @@
       }
     }
 
-    log("static scenes cached=" + count);
     return sceneCache;
   }
 
@@ -1081,58 +1210,81 @@
       hideScene(currentScenePanel);
       showScene(scene);
       currentScenePanel = scene;
-      log("selected static scene " + SCENE_BY_HERO[heroName] + " map=" + record.map);
     }
 
     lastHero = heroName;
     lastHeroId = record.id;
-    log("bound " + heroName + " -> " + record.id + " map=" + record.map);
     return true;
   }
 
   function tick() {
     try {
       var now = nowMs();
+      if (heroTimerPausedForLobby || !matchStateConfirmedActive || lastLobbyRunCheckMs <= 0 || now - lastLobbyRunCheckMs >= LOBBY_RUN_CHECK_MS) {
+        lastLobbyRunCheckMs = now;
+        if (evaluateLobbyStatus()) {
+          pauseHeroTimerForLobby();
+          $.Schedule(LOBBY_POLL_SEC, tick);
+          return;
+        }
+
+        resumeHeroTimerFromLobby();
+      }
+
+      if (lockedHero && lockedHeroSanityCheck(now)) {
+        $.Schedule(LOBBY_POLL_SEC, tick);
+        return;
+      }
+
+      if (lockedHero && lockedGameTimeNextCheckMs > 0 && now < lockedGameTimeNextCheckMs) {
+        switchHeroScene(lockedHero);
+        $.Schedule(SLOW_POLL_SEC, tick);
+        return;
+      }
+
       var gameTimeNow = readGameTimeSec();
-      var hero = "";
+      if (lockedHero && lockedGameTimeNextCheckMs > 0 && now >= lockedGameTimeNextCheckMs) {
+        if (checkLockedGameTimeReset(now, gameTimeNow)) {
+          lastGameTimeWasZero = gameTimeNow === 0;
+          detectSampleAndSwitch(now, gameTimeNow);
+          $.Schedule(SLOW_POLL_SEC, tick);
+          return;
+        }
+      }
 
       if (gameTimeNow < 0) {
         lastGameTimeWasZero = false;
-        sawNonZeroGameTime = false;
         resetHeroLock();
-        hero = detectHero();
-        if (hero) {
-          switchHeroScene(hero);
+        var unknownHero = detectHero();
+        if (unknownHero) {
+          switchHeroScene(unknownHero);
         }
       } else if (gameTimeNow === 0) {
         if (!lastGameTimeWasZero) {
-          if (!lockedHero || sawNonZeroGameTime) {
-            resetHeroLock();
-          }
+          resetHeroLock();
           lastGameTimeWasZero = true;
-          sawNonZeroGameTime = false;
         }
 
         if (lockedHero) {
-          switchHeroScene(lockedHero);
-        } else {
-          hero = detectHero();
-          if (hero) {
-            updateZeroHeroSample(hero, now);
-            switchHeroScene(hero);
+          if (checkLockedGameTimeReset(now, gameTimeNow)) {
+            detectSampleAndSwitch(now, gameTimeNow);
+          } else {
+            switchHeroScene(lockedHero);
           }
+        } else {
+          detectSampleAndSwitch(now, gameTimeNow);
         }
       } else {
         lastGameTimeWasZero = false;
-        sawNonZeroGameTime = true;
 
         if (lockedHero) {
-          switchHeroScene(lockedHero);
-        } else {
-          hero = detectHero();
-          if (hero) {
-            switchHeroScene(hero);
+          if (checkLockedGameTimeReset(now, gameTimeNow)) {
+            detectSampleAndSwitch(now, gameTimeNow);
+          } else {
+            switchHeroScene(lockedHero);
           }
+        } else {
+          detectSampleAndSwitch(now, gameTimeNow);
         }
       }
     } catch (e) {
