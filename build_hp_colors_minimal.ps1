@@ -108,13 +108,11 @@ Write-Host "  Minified JS OK -> $terserSrc" -ForegroundColor Green
 Write-Host "`n[2/4] Compiling hp_colors_minimal..." -ForegroundColor Cyan
 $healthbarTarget = "$terserCompiled\panorama\scripts\healthbar_logic.vjs_c"
 $coreTarget = "$terserCompiled\panorama\scripts\anita_ui_core.vjs_c"
-$loaderTarget = "$terserCompiled\panorama\scripts\anita_persist_loader.vjs_c"
-$registrarTarget = "$terserCompiled\panorama\scripts\hp_registrar.vjs_c"
 $proc = Start-Process -FilePath $compiler -ArgumentList "`"$terserSrc`"" -PassThru
 $compileDeadline = (Get-Date).AddSeconds(120)
 while (-not $proc.HasExited -and (Get-Date) -lt $compileDeadline) {
     Start-Sleep -Milliseconds 500
-    if ((Test-Path $healthbarTarget) -and (Test-Path $coreTarget) -and (Test-Path $loaderTarget) -and (Test-Path $registrarTarget)) {
+    if ((Test-Path $healthbarTarget) -and (Test-Path $coreTarget)) {
         Start-Sleep -Seconds 2
         if (-not $proc.HasExited) {
             Write-Host "[WARN] Compiler produced output but did not exit; stopping wrapper." -ForegroundColor Yellow
@@ -130,13 +128,13 @@ if (-not $proc.HasExited) {
     $proc.WaitForExit()
 }
 if ($proc.ExitCode -ne 0) {
-    if ((-not (Test-Path $healthbarTarget)) -or (-not (Test-Path $coreTarget)) -or (-not (Test-Path $loaderTarget)) -or (-not (Test-Path $registrarTarget))) {
+    if ((-not (Test-Path $healthbarTarget)) -or (-not (Test-Path $coreTarget))) {
         Write-Host "[ERROR] Compiler exited $($proc.ExitCode) and required output is missing" -ForegroundColor Red
         exit 1
     }
     Write-Host "[WARN] Compiler exited $($proc.ExitCode) but required output exists; continuing." -ForegroundColor Yellow
 }
-foreach ($target in @($healthbarTarget, $coreTarget, $loaderTarget, $registrarTarget)) {
+foreach ($target in @($healthbarTarget, $coreTarget)) {
     if (-not (Test-Path $target)) {
         Write-Host "[ERROR] Compiled output not found: $target" -ForegroundColor Red
         exit 1
