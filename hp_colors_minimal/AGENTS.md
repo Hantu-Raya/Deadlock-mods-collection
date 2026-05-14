@@ -21,6 +21,15 @@ node hp_colors_minimal\scripts\validate-minimal.js
 powershell -ExecutionPolicy Bypass -File build_hp_colors_minimal.ps1
 ```
 
+`validate-minimal.js` enforces exactly 45 `DEFAULTS` keys, rejects Anita menu
+markers, and forbids bringing back `panorama/layout/hud_health.xml` or
+`scripts/validate-schema.js`.
+
+`build_hp_colors_minimal.ps1` accepts `-BuilderPresetVpkPath` and `-PakName`.
+It warns but continues if the separate builder preset `pak96_dir.vpk` is not
+found, because in-game validation still requires installing that preset beside
+this runtime VPK.
+
 Expected outputs:
 - `hp_colors_minimal_compiled/panorama/scripts/healthbar_logic.vjs_c`
 - `hp_colors_minimal_compiled/panorama/scripts/anita_ui_core.vjs_c`
