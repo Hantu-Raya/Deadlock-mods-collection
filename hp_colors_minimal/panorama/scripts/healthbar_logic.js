@@ -1,7 +1,6 @@
 'use strict';
 (function () {
   // â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  var TITLE = "HP Colors";
   var DEFAULTS = {
     hp_enabled: true,
     hp_mode: 1,
@@ -248,85 +247,25 @@
   }
 
   loadCfgDefaults();
-  var BOOTSTRAP_NAMESPACE = "hp_colors";
-  var BOOTSTRAP_MAX_ATTEMPTS = 8;
-  var BOOTSTRAP_RETRY_SEC = 0.5;
-  var BOOTSTRAP_SLOW_RETRY_SEC = 3.0;
-  var BOOTSTRAP_REQUEST_THROTTLE_MS = 400;
+  var PRESET_MAX_FAST_ATTEMPTS = 8;
+  var PRESET_RETRY_SEC = 0.5;
+  var PRESET_SLOW_RETRY_SEC = 3.0;
   var STYLE_REAPPLY_MS = 1000;
-  var DIRECT_BOOTSTRAP_KEY = "anita_v1_hp_colors";
   var SHARED_CFG_RAW_KEY = "__hpColorsCfgRaw";
-  var HP_PERSIST_ALIAS_TO_ID = {
-    e: "hp_enabled",
-    m: "hp_mode",
-    l: "hp_low_threshold",
-    h: "hp_high_threshold",
-    b: "hp_bg_visible",
-    t: "hp_team_colors",
-    ihmt: "hp_info_health_margin_top",
-    hbh: "hp_healthbar_height",
-    cl: "hp_color_low",
-    cm: "hp_color_mid",
-    ch: "hp_color_high",
-    s: "hp_counter_size",
-    p: "hp_counter_position",
-    tm: "hp_text_color_mode",
-    lnv: "hp_level_number_visible",
-    plv: "hp_pip_visible",
-    uce: "hp_ult_color_enabled",
-    ucc: "hp_ult_color_custom",
-    tl: "hp_text_color_low",
-    ti: "hp_text_color_mid",
-    th: "hp_text_color_high",
-    bp: "hp_pulse_bpm",
-    pi: "hp_pulse_intensity",
-    pe: "hp_pulse_enabled",
-    pte: "hp_pulse_text_enabled",
-    pts: "hp_pulse_text_scale",
-    ptp: "hp_pulse_text_position",
-    phb: "hp_pulse_hide_bar",
-    sb: "hp_skip_buildings",
-    pt: "hp_pulse_threshold",
-    fe: "hp_friend_enabled",
-    fpe: "hp_friend_pulse_enabled",
-    fpb: "hp_friend_pulse_bpm",
-    fpi: "hp_friend_pulse_intensity",
-    fpt: "hp_friend_pulse_threshold",
-    fcl: "hp_friend_color_low",
-    fcm: "hp_friend_color_mid",
-    fch: "hp_friend_color_high",
-    fpce: "hp_friend_pulse_color_enabled",
-    fpc: "hp_friend_pulse_color",
-    kze: "hp_kill_zone_enabled",
-    kzt: "hp_kill_zone_threshold",
-    kzc: "hp_kill_zone_color",
-    kzw: "hp_kill_zone_width",
-    cf: "hp_counter_format"
-  };
-  var bootstrapApplied = false;
-  var directBootstrapApplied = false;
-  var bootstrapAttempts = 0;
-  var bootstrapFinished = false;
+  var EVENT_CHANNEL = "ClientUI_FireOutput";
+  var SNAPSHOT_MAGIC = "HP_COLORS_PRESET_SNAPSHOT";
+  var REQUEST_MAGIC = "HP_COLORS_PRESET_REQUEST";
+  var presetApplied = false;
+  var presetAttempts = 0;
   var settingsDirty = true;
   var settingsRefreshHoldUntil = 0;
-  var SETTINGS_REFRESH_DEBOUNCE_MS = 80;
   var allySettingsDirty = true;
   var allySettingsRefreshHoldUntil = 0;
-  var ALLY_SETTINGS_REFRESH_DEBOUNCE_MS = 80;
-  var lastBootstrapRequestAt = 0;
-  var lastDirectBootstrapAt = 0;
   var lastStyleReapplyAt = 0;
+  var lastAllyStyleReapplyAt = 0;
   var sharedCfgRaw = "";
   var _uiMissAt = 0;
   var UI_MISS_TTL_MS = 2000;
-
-  function getRootPanel() {
-    var panel = $.GetContextPanel();
-    while (panel && panel.GetParent && panel.GetParent()) {
-      panel = panel.GetParent();
-    }
-    return panel || null;
-  }
 
   function getSharedStore() {
     try {
@@ -335,106 +274,24 @@
     return null;
   }
 
-  function decodeBase64Url(str) {
-    var CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    var lookup = {};
-    for (var i = 0; i < CHARS.length; i++) lookup[CHARS[i]] = i;
-    function getVal(ch) {
-      if (ch === undefined) return 0;
-      if (!Object.prototype.hasOwnProperty.call(lookup, ch)) throw new Error("Invalid base64url char: " + ch);
-      return lookup[ch];
+  function markPresetApplied() {
+    presetApplied = true;
+    settingsDirty = true;
+    allySettingsDirty = true;
+    settingsRefreshHoldUntil = 0;
+    allySettingsRefreshHoldUntil = 0;
+    lLvVis = null;
+    if (cfg.hp_enabled && !gRunning) { gRunning = true; $.Schedule(0.05, gL); }
+    if (cfg.hp_friend_enabled && !aRunning) { aRunning = true; $.Schedule(0.05, aL); }
+    if (!cfg.hp_friend_enabled && aRunning) {
+      releaseAllyOwnership(true);
+      aRunning = false;
     }
-    var bytes = [];
-    for (var j = 0; j < str.length; j += 4) {
-      var c0 = getVal(str[j]);
-      var c1 = getVal(str[j + 1]);
-      var c2 = str[j + 2] !== undefined ? getVal(str[j + 2]) : 0;
-      var c3 = str[j + 3] !== undefined ? getVal(str[j + 3]) : 0;
-      bytes.push((c0 << 2) | (c1 >> 4));
-      if (str[j + 2] !== undefined) bytes.push(((c1 & 15) << 4) | (c2 >> 2));
-      if (str[j + 3] !== undefined) bytes.push(((c2 & 3) << 6) | c3);
-    }
-    var out = "";
-    for (var k = 0; k < bytes.length; k++) {
-      var b = bytes[k];
-      if (b < 128) {
-        out += String.fromCharCode(b);
-      } else if (b < 224) {
-        out += String.fromCharCode(((b & 31) << 6) | (bytes[++k] & 63));
-      } else {
-        var b2 = bytes[++k], b3 = bytes[++k];
-        out += String.fromCharCode(((b & 15) << 12) | ((b2 & 63) << 6) | (b3 & 63));
-      }
-    }
-    return out;
+    if (!cfg.hp_pulse_enabled) clearPulse();
+    if (pulse) { lPD = null; applyPulseDuration(); applyPulseIntensity(); applyPulseTextState(); }
   }
 
-  function parseStoredPayload(raw) {
-    if (!raw) return null;
-    var parsed = null;
-    try { parsed = JSON.parse(String(raw)); } catch (eParse) { return null; }
-    var data = parsed && typeof parsed === "object" ? (parsed.values || parsed.v || parsed) : null;
-    if (!data || typeof data !== "object") return null;
-    var out = {};
-    for (var key in data) {
-      if (!Object.prototype.hasOwnProperty.call(data, key)) continue;
-      var id = Object.prototype.hasOwnProperty.call(DEFAULTS, key) ? key : HP_PERSIST_ALIAS_TO_ID[key];
-      if (!id || !Object.prototype.hasOwnProperty.call(DEFAULTS, id)) continue;
-      out[id] = coerceCfgValue(id, data[key]);
-    }
-    return out;
-  }
-
-  function readSessionMirrorEncoded() {
-    var root = getRootPanel();
-    if (!root) return "";
-    try {
-      if (root.GetAttributeString) {
-        var rootValue = String(root.GetAttributeString(DIRECT_BOOTSTRAP_KEY, "") || "");
-        if (rootValue) return rootValue;
-      }
-    } catch (eRoot) {}
-    try {
-      var hud = root.FindChildTraverse ? root.FindChildTraverse("Hud") : null;
-      if (hud && hud.GetAttributeString) return String(hud.GetAttributeString(DIRECT_BOOTSTRAP_KEY, "") || "");
-    } catch (eHud) {}
-    return "";
-  }
-
-
-
-  function readConvarEncoded() {
-    try {
-      if (!GameInterfaceAPI || !GameInterfaceAPI.GetSettingString) return "";
-      var raw = String(GameInterfaceAPI.GetSettingString("deadlock_hero_debuts_seen") || "");
-      var marker = "[ANITA-v1-" + BOOTSTRAP_NAMESPACE + "]:";
-      var idx = raw.indexOf(marker);
-      if (idx < 0) return "";
-      return raw.slice(idx + marker.length).split("|")[0].split(";")[0].split(",")[0];
-    } catch (e) {}
-    return "";
-  }
-
-  function snapshotCfg() {
-    var out = {};
-    for (var k in DEFAULTS) {
-      if (Object.prototype.hasOwnProperty.call(DEFAULTS, k)) out[k] = cfg[k];
-    }
-    return out;
-  }
-
-  function writeSharedSnapshot() {
-    var store = getSharedStore();
-    if (!store) return;
-    try {
-      var raw = JSON.stringify(snapshotCfg());
-      if (raw === sharedCfgRaw) return;
-      sharedCfgRaw = raw;
-      store[SHARED_CFG_RAW_KEY] = raw;
-    } catch (e) {}
-  }
-
-  function applyDirectSnapshot(values, source) {
+  function applyPresetSnapshot(values) {
     if (!values) return false;
     var count = 0;
     for (var k in values) {
@@ -445,11 +302,7 @@
     }
     if (!count) return false;
     try { resetStyleStateForNewPanels(); } catch (eReset) {}
-    settingsDirty = true;
-    bootstrapApplied = true;
-    directBootstrapApplied = true;
-    bootstrapFinished = true;
-    if (source !== "shared") writeSharedSnapshot(source);
+    markPresetApplied();
     return true;
   }
 
@@ -458,188 +311,52 @@
     if (!store) return false;
     var raw = "";
     try { raw = String(store[SHARED_CFG_RAW_KEY] || ""); } catch (e) { raw = ""; }
-    if (!raw || raw === sharedCfgRaw) return false;
-    sharedCfgRaw = raw;
+    if (!raw) return false;
+    if (raw === sharedCfgRaw && presetApplied) return true;
     var parsed = null;
     try { parsed = JSON.parse(raw); } catch (eParse) { return false; }
-    return applyDirectSnapshot(parsed, "shared");
+    var values = parsed && typeof parsed === "object" ? (parsed.values || parsed) : null;
+    if (!values || typeof values !== "object") return false;
+    if (!applyPresetSnapshot(values)) return false;
+    sharedCfgRaw = raw;
+    return true;
   }
 
-  function tryDecodeDirectPayload(encoded, source) {
-    if (!encoded) return false;
+  function requestPresetSnapshot(reason) {
     try {
-      return applyDirectSnapshot(parseStoredPayload(decodeBase64Url(String(encoded))), source);
-    } catch (eDecode) {}
-
-    return false;
-  }
-
-  function tryApplyDirectBootstrap(reason) {
-    if (tryApplySharedSnapshot()) return true;
-    if (tryDecodeDirectPayload(readSessionMirrorEncoded(), "session")) return true;
-    if (tryDecodeDirectPayload(readConvarEncoded(), "convar")) return true;
-    return false;
-  }
-
-  function isBootstrapReplaySource(source) {
-    return source === "bridge_bootstrap" || source === "ui_resync" || source === "ui_reset" || source === "ui_code_apply" || source === "core_auto_resync" || source === "ui_refresh_after_apply";
-  }
-
-  function requestBootstrap(reason) {
-    var now = _ts();
-    if (lastBootstrapRequestAt && now - lastBootstrapRequestAt < BOOTSTRAP_REQUEST_THROTTLE_MS) return;
-    lastBootstrapRequestAt = now;
-
-    try {
-      $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
-        magic_word: "ANITA_REQUEST_BOOTSTRAP",
-        mod_title: TITLE,
-        storageNamespace: BOOTSTRAP_NAMESPACE,
+      $.DispatchEvent(EVENT_CHANNEL, JSON.stringify({
+        magic_word: REQUEST_MAGIC,
+        mod_title: "HP Colors",
         reason: String(reason || "overlay_request")
       }));
     } catch (e) {}
   }
 
-  function scheduleBootstrapRetry() {
-    if (bootstrapApplied || bootstrapFinished) return;
-    if (tryApplyDirectBootstrap("retry_direct")) return;
-    if (bootstrapAttempts >= BOOTSTRAP_MAX_ATTEMPTS) {
-      requestBootstrap("overlay_slow_retry");
-      $.Schedule(BOOTSTRAP_SLOW_RETRY_SEC, scheduleBootstrapRetry);
-      return;
-    }
-
-    bootstrapAttempts += 1;
-    requestBootstrap(bootstrapAttempts === 1 ? "overlay_startup" : "overlay_retry");
-    $.Schedule(BOOTSTRAP_RETRY_SEC, scheduleBootstrapRetry);
+  function schedulePresetRetry() {
+    if (presetApplied) return;
+    if (tryApplySharedSnapshot()) return;
+    presetAttempts += 1;
+    requestPresetSnapshot(presetAttempts === 1 ? "overlay_startup" : "overlay_retry");
+    $.Schedule(presetAttempts <= PRESET_MAX_FAST_ATTEMPTS ? PRESET_RETRY_SEC : PRESET_SLOW_RETRY_SEC, schedulePresetRetry);
   }
 
-  // Live updates from Anita UI, including boot-time bootstrap values.
-  $.RegisterForUnhandledEvent("ClientUI_FireOutput", function (payload) {
-    if (typeof payload === 'string' && payload.indexOf('ANITA') === -1) return;
-    try {
-      var d = typeof payload === 'string' ? JSON.parse(payload) : payload;
-      if (!d || d.mod_title !== TITLE) return;
-
-      if (d.magic_word === "ANITA_BULK_UPDATE") {
-        var replaySource = isBootstrapReplaySource(String(d.update_source || ""));
-        var values = d.values || {};
-        var anyChanged = false;
-        var anyNonFriendChanged = false;
-        var anyFriendChanged = false;
-        for (var key in values) {
-          if (!Object.prototype.hasOwnProperty.call(DEFAULTS, key)) continue;
-          if (key === "hp_counter_position" && d.update_source === "hp_counter_autoposition") continue;
-          var nextValue = coerceCfgValue(key, values[key]);
-          if (cfg[key] !== nextValue) {
-            cfg[key] = nextValue;
-            anyChanged = true;
-            if (key.indexOf("hp_friend_") === 0) anyFriendChanged = true;
-            else anyNonFriendChanged = true;
-          }
+  try {
+    $.RegisterForUnhandledEvent(EVENT_CHANNEL, function (payload) {
+      if (typeof payload === "string" && payload.indexOf(SNAPSHOT_MAGIC) === -1) return;
+      try {
+        var data = typeof payload === "string" ? JSON.parse(payload) : payload;
+        if (!data || data.magic_word !== SNAPSHOT_MAGIC) return;
+        if (data.mod_title && data.mod_title !== "HP Colors") return;
+        if (!data.values || typeof data.values !== "object") return;
+        var raw = typeof data.values_raw === "string" ? data.values_raw : "";
+        if (!raw) {
+          try { raw = JSON.stringify(data.values); } catch (eRaw) { raw = ""; }
         }
-        if (!anyChanged && !anyFriendChanged) {
-          if (replaySource && !bootstrapApplied) {
-            bootstrapApplied = true;
-            bootstrapFinished = true;
-            try {
-              var rootNoop = getRootPanel();
-              if (rootNoop) rootNoop.__hpColorsBootstrapAppliedAt = _ts();
-            } catch (eNoopBoot) {}
-          }
-          return;
-        }
-        if (anyNonFriendChanged) {
-          settingsDirty = true;
-          var nowTs = _ts();
-          var holdMs = replaySource ? 240 : SETTINGS_REFRESH_DEBOUNCE_MS;
-          settingsRefreshHoldUntil = nowTs + holdMs;
-        }
-        if (anyFriendChanged) {
-          allySettingsDirty = true;
-          var allyNowTs = _ts();
-          var allyHoldMs = replaySource ? 240 : ALLY_SETTINGS_REFRESH_DEBOUNCE_MS;
-          allySettingsRefreshHoldUntil = allyNowTs + allyHoldMs;
-        }
-        writeSharedSnapshot();
-        lLvVis = null;
-        if (cfg.hp_enabled && !gRunning) { gRunning = true; $.Schedule(0.05, gL); }
-        if (cfg.hp_friend_enabled && !aRunning) { aRunning = true; $.Schedule(0.05, aL); }
-        if (!cfg.hp_friend_enabled && aRunning) {
-          releaseAllyOwnership(true);
-          aRunning = false;
-        }
-        if (!cfg.hp_pulse_enabled) clearPulse();
-        if (pulse) { lPD = null; applyPulseDuration(); applyPulseIntensity(); applyPulseTextState(); }
-        if (replaySource) {
-          bootstrapApplied = true;
-          bootstrapFinished = true;
-          try {
-            var root = getRootPanel();
-            if (root) root.__hpColorsBootstrapAppliedAt = _ts();
-          } catch (eBoot) {}
-        }
-        return;
-      }
-
-      if (d.magic_word === "ANITA_UPDATE") {
-        var replaySource = isBootstrapReplaySource(String(d.update_source || ""));
-        if (Object.prototype.hasOwnProperty.call(DEFAULTS, d.setting_id)) {
-          if (d.setting_id === "hp_counter_position" && d.update_source === "hp_counter_autoposition") {
-            return;
-          }
-          var nextValue = coerceCfgValue(d.setting_id, d.value);
-          var prevValue = cfg[d.setting_id];
-          var changed = prevValue !== nextValue;
-          cfg[d.setting_id] = nextValue;
-          if (!changed) {
-            if (replaySource && !bootstrapApplied) {
-              bootstrapApplied = true;
-              bootstrapFinished = true;
-              try {
-                var rootNoop = getRootPanel();
-                if (rootNoop) rootNoop.__hpColorsBootstrapAppliedAt = _ts();
-              } catch (eNoopBoot) {}
-            }
-            return;
-          }
-          if (d.setting_id.indexOf("hp_friend_") !== 0) {
-            settingsDirty = true;
-            var nowTs = _ts();
-            var holdMs = replaySource ? 240 : SETTINGS_REFRESH_DEBOUNCE_MS;
-            settingsRefreshHoldUntil = nowTs + holdMs;
-          } else {
-            allySettingsDirty = true;
-            var allyNowTs = _ts();
-            var allyHoldMs = replaySource ? 240 : ALLY_SETTINGS_REFRESH_DEBOUNCE_MS;
-            allySettingsRefreshHoldUntil = allyNowTs + allyHoldMs;
-          }
-          writeSharedSnapshot();
-          if (d.setting_id === "hp_level_number_visible") lLvVis = null;
-          if (d.setting_id === "hp_enabled" && cfg.hp_enabled && !gRunning) { gRunning = true; $.Schedule(0.05, gL); }
-          if (d.setting_id === "hp_friend_enabled" && cfg.hp_friend_enabled && !aRunning) { aRunning = true; $.Schedule(0.05, aL); }
-          if (d.setting_id === "hp_friend_enabled" && !cfg.hp_friend_enabled) {
-            releaseAllyOwnership(true);
-            aRunning = false;
-          }
-          if (pulse && (d.setting_id === "hp_pulse_bpm" || d.setting_id === "hp_pulse_intensity" || d.setting_id === "hp_pulse_text_enabled" || d.setting_id === "hp_pulse_text_scale")) {
-            if (d.setting_id === "hp_pulse_bpm") { lPD = null; applyPulseDuration(); }
-            if (d.setting_id === "hp_pulse_intensity") applyPulseIntensity();
-            if (d.setting_id === "hp_pulse_text_enabled" || d.setting_id === "hp_pulse_text_scale") applyPulseTextState();
-          }
-          if (d.setting_id === "hp_pulse_enabled" && !cfg.hp_pulse_enabled) clearPulse();
-        }
-        if (replaySource) { bootstrapApplied = true;
-          bootstrapFinished = true;
-          try {
-            var root = getRootPanel();
-            if (root) root.__hpColorsBootstrapAppliedAt = _ts();
-          } catch (eBoot) {}
-        }
-        return;
-      }
-    } catch (e) {}
-  });
+        if (raw && raw === sharedCfgRaw && presetApplied) return;
+        if (applyPresetSnapshot(data.values) && raw) sharedCfgRaw = raw;
+      } catch (e) {}
+    });
+  } catch (e) {}
 
   // â”€â”€ Color helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function rgbToHex(c) {
@@ -763,6 +480,25 @@
     return 0;
   }
 
+  function isInvalidPanel(panel) {
+    try {
+      return !!(panel && panel.IsValid && !panel.IsValid());
+    } catch (e) {}
+    return false;
+  }
+
+  function resetCachedPanelRefsIfInvalid() {
+    if (!cached && !rb) return;
+    if (!isInvalidPanel(us) && !isInvalidPanel(hc) && !isInvalidPanel(bg) && !isInvalidPanel(pl) && !isInvalidPanel(lb) && !isInvalidPanel(lbp) && !isInvalidPanel(rb) && !isInvalidPanel(cp)) return;
+    us = hc = hca = bg = pl = lb = lbp = rb = cp = ui = kz = ihc = uhc = null;
+    cached = 0;
+    att = 0;
+    lastRbPanel = lastHcPanel = lastBgPanel = lastKzPanel = lastPlPanel = null;
+    invalidateEnemyVisualCaches();
+    settingsDirty = true;
+    allySettingsDirty = true;
+  }
+
   function getInfoHealthMarginTopValue() {
     var raw = clampNum(cfg.hp_info_health_margin_top, 0, 100, 23);
     var pct = -15 + (raw * 0.65);
@@ -815,6 +551,7 @@
   var lCounterLowMode = false;
   var lastRbPanel = null, lastHcPanel = null, lastBgPanel = null, lastKzPanel = null, lastPlPanel = null;
   var panelBornAt = 0;
+  var lastEnemySignature = "";
 
   function sBC(c) {
     if (lColRaw === c) return;
@@ -989,6 +726,16 @@
 
   var lKzVis = null, lKzX = null, lKzW = null, lKzColor = null, lKzAppliedColor = null, lKzOp = null, lKzZi = null;
 
+  function invalidateEnemyVisualCaches() {
+    lCol = lUlt = lTxt = null;
+    lColRaw = lUltRaw = lTxtRaw = lKzRaw = null;
+    lBgVis = lBgOp = lHpSize = lHpHeight = lHcaTransform = lIhcMarginTop = lUhcHeight = lPipHeight = lPipFontSize = lPipVis = null;
+    lKzVis = lKzX = lKzW = lKzColor = lKzAppliedColor = lKzOp = lKzZi = null;
+    lSH = -1;
+    lSM = -1;
+    lVis = null;
+  }
+
   function sKZ(show, parentWidth) {
     if (!kz || !kz.style) return;
     var barHidden = !bg || !bg.style || lBgVis !== 'visible' || lBgOp !== '1.0';
@@ -1090,7 +837,7 @@
     lastKzPanel = kz;
     lastPlPanel = pl;
     panelBornAt = _ts();
-    lColRaw = lUltRaw = lTxtRaw = null;
+    invalidateEnemyVisualCaches();
     clearPulse();
     allyColorActive = false;
     allyOwnedPanel = null;
@@ -1101,24 +848,15 @@
     lWA = -1;
     lPWA = -1;
     sfcA = 0;
-    lBgVis = lBgOp = lHpSize = lHpHeight = lHcaTransform = lIhcMarginTop = lUhcHeight = lPipHeight = lPipFontSize = lPipVis = null;
-    lKzVis = lKzX = lKzW = lKzColor = lKzAppliedColor = lKzOp = lKzZi = null;
     lLvVis = null;
-    lSH = -1;
-    lSM = -1;
-    lVis = null;
     lW = -1;
     lPW = -1;
     lHp = -1;
     pPct = -1;
     sFC = 0;
     lCounterLowMode = false;
-    bootstrapApplied = false;
-    directBootstrapApplied = false;
-    bootstrapFinished = false;
-    sharedCfgRaw = "";
-    lastBootstrapRequestAt = 0;
-    bootstrapAttempts = 0;
+    lastEnemySignature = "";
+    lastAllyStyleReapplyAt = 0;
     settingsDirty = true;
     allySettingsDirty = true;
     settingsRefreshHoldUntil = 0;
@@ -1194,6 +932,7 @@
       }
 
       var now = _ts();
+      resetCachedPanelRefsIfInvalid();
       if (!rb) { rb = fRB(); if (!rb) { $.Schedule(0.15, gL); return; } }
       if (!cached && !tryCache()) { $.Schedule(0.15, gL); return; }
       resetStyleStateForNewPanels();
@@ -1201,9 +940,15 @@
 
       scan(rb);
       var isEnemy = !!(fl & 1) && !(fl & 2);
-      if (isEnemy && !directBootstrapApplied && now - lastDirectBootstrapAt >= 1000) {
-        lastDirectBootstrapAt = now;
-        tryApplyDirectBootstrap("enemy_tick");
+      var enemySignature = tid + ":" + fl;
+      if (enemySignature !== lastEnemySignature) {
+        lastEnemySignature = enemySignature;
+        invalidateEnemyVisualCaches();
+        settingsDirty = true;
+        settingsRefreshHoldUntil = now;
+        allySettingsDirty = true;
+        allySettingsRefreshHoldUntil = now;
+        lLvVis = null;
       }
       if (cfg.hp_skip_buildings && (fl & 4)) {
         clearPulse();
@@ -1233,11 +978,11 @@
       }
       if (isEnemy && now - lastStyleReapplyAt >= STYLE_REAPPLY_MS) {
         lastStyleReapplyAt = now;
+        invalidateEnemyVisualCaches();
         settingsDirty = true;
         settingsRefreshHoldUntil = now;
-        lBgVis = null;
-        lBgOp = null;
       }
+      var wasDirty = settingsDirty;
       if (settingsDirty) {
         if (now < settingsRefreshHoldUntil) { $.Schedule(0.05, gL); return; }
         applyCurrentSettings(isEnemy);
@@ -1261,7 +1006,7 @@
       sKZ(true, pw);
 
       // No change in width â€” back off
-      if (w === lW && pw === lPW && !pulse) {
+      if (w === lW && pw === lPW && !pulse && !wasDirty) {
         if (now - lUT > 2000) { $.Schedule(1, gL); return; }
         $.Schedule(0.15, gL); return;
       }
@@ -1274,7 +1019,7 @@
       if (high < low) high = low;
 
       // Small change above low threshold â€” back off
-      if (Math.abs(hp - lHp) < 3 && hp > low && lHp > low && !pulse) { $.Schedule(0.15, gL); return; }
+      if (Math.abs(hp - lHp) < 3 && hp > low && lHp > low && !pulse && !wasDirty) { $.Schedule(0.15, gL); return; }
       var prevHp = lHp;
       if (hp === pPct) sFC++; else { sFC = 0; pPct = hp; }
       lHp = hp;
@@ -1439,6 +1184,13 @@
         sfcA = 0;
         $.Schedule(1.5, aL); return;
       }
+      if (now - lastAllyStyleReapplyAt >= STYLE_REAPPLY_MS) {
+        lastAllyStyleReapplyAt = now;
+        lColA = null;
+        lWA = -1;
+        lPWA = -1;
+        sfcA = 0;
+      }
 
       var aw = rbA.actuallayoutwidth | 0;
       var apw = cpA && cpA.actuallayoutwidth !== undefined ? cpA.actuallayoutwidth | 0 : 0;
@@ -1504,9 +1256,9 @@
     }
   }
 
-  tryApplyDirectBootstrap("script_start");
+  tryApplySharedSnapshot();
   gRunning = true; gL();
   aRunning = true; aL();
   lL();
-  $.Schedule(0.05, scheduleBootstrapRetry);
+  $.Schedule(0.05, schedulePresetRetry);
 })();

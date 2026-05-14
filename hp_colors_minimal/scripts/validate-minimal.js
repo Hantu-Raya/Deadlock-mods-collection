@@ -2,20 +2,19 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const ROOT = path.resolve(__dirname, "..");
-const REPO_ROOT = path.resolve(ROOT, "..");
 const REQUIRED_FILES = [
   "panorama/layout/unit_status_overlay.xml",
   "panorama/scripts/anita_ui_core.js",
-  "panorama/scripts/anita_persist_loader.js",
-  "panorama/scripts/hp_registrar.js",
   "panorama/scripts/healthbar_logic.js",
-  "panorama/styles/anita_ui.css",
   "panorama/styles/unit_status.css"
 ];
 const FORBIDDEN_FILES = [
   "panorama/layout/base_hud.xml",
   "panorama/layout/hud_escape_menu.xml",
   "panorama/layout/hud_health.xml",
+  "panorama/scripts/anita_persist_loader.js",
+  "panorama/scripts/hp_registrar.js",
+  "panorama/styles/anita_ui.css",
   "scripts/validate-schema.js"
 ];
 
@@ -57,11 +56,9 @@ function getValidationReport() {
   let unitStatusXml = "";
   let bootstrapSource = "";
   let healthbarSource = "";
-  let anitaCss = "";
   try { unitStatusXml = readText("panorama/layout/unit_status_overlay.xml"); } catch (error) { errors.push(`Could not read unit_status_overlay.xml: ${error.message}`); }
   try { bootstrapSource = readText("panorama/scripts/anita_ui_core.js"); } catch (error) { errors.push(`Could not read anita_ui_core.js: ${error.message}`); }
   try { healthbarSource = readText("panorama/scripts/healthbar_logic.js"); } catch (error) { errors.push(`Could not read healthbar_logic.js: ${error.message}`); }
-  try { anitaCss = readText("panorama/styles/anita_ui.css"); } catch (error) { errors.push(`Could not read anita_ui.css: ${error.message}`); }
 
   const defaultKeys = extractDefaultKeys(healthbarSource);
   if (defaultKeys.length !== 45) errors.push(`Expected 45 healthbar DEFAULTS keys, found ${defaultKeys.length}`);
@@ -72,28 +69,30 @@ function getValidationReport() {
   }
 
   if (bootstrapSource) {
-    for (const required of ["HPColorsPresetStore", "ANITA_BULK_UPDATE", "ANITA_UPDATE", "ANITA_REQUEST_BOOTSTRAP", "bridge_bootstrap", "core_auto_resync", "__hpColorsCfgRaw", "force_emit"]) {
+    for (const required of ["HPColorsPresetStore", "__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "PUBLISH_RETRY_DELAYS", "CACHED_SNAPSHOT_REPLAY_SEC", "cachedSnapshotPayload", "sharedSnapshotWritten", "cachedReplayStarted", "values_raw", "capturePreset", "publishPreset", "publishUntilReady", "replayCachedSnapshot", "startCachedSnapshotReplay", "GameUI.CustomUIConfig"]) {
       if (!bootstrapSource.includes(required)) errors.push(`anita_ui_core.js missing ${required}`);
     }
-    for (const forbidden of ["AnitaUI_Window", "colorpicker", "renderModSettings", "AnitaRenderer"]) {
-      if (bootstrapSource.includes(forbidden)) errors.push(`anita_ui_core.js must not contain menu code marker: ${forbidden}`);
+    for (const forbidden of ["ANITA_", "force_emit", "bridge_bootstrap", "core_auto_resync", "PUBLISH_HEARTBEAT_SEC", "publishHeartbeat", "AnitaUI_Window", "colorpicker", "renderModSettings", "AnitaRenderer"]) {
+      if (bootstrapSource.includes(forbidden)) errors.push(`anita_ui_core.js must not contain static-preset runtime forbidden marker: ${forbidden}`);
     }
   }
 
-  if (anitaCss) {
-    for (const forbidden of ["AnitaUI_Window", "AnitaWindow", "colorpicker", "ColorPicker", "AnitaOverlayBtn"]) {
-      if (anitaCss.includes(forbidden)) errors.push(`anita_ui.css dummy stub must not contain menu CSS marker: ${forbidden}`);
+  if (healthbarSource) {
+    for (const required of ["__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "values_raw", "tryApplySharedSnapshot", "schedulePresetRetry", "raw === sharedCfgRaw && presetApplied", "presetApplied", "invalidateEnemyVisualCaches", "resetCachedPanelRefsIfInvalid", "lastEnemySignature", "wasDirty"]) {
+      if (!healthbarSource.includes(required)) errors.push(`healthbar_logic.js missing static preset reader marker: ${required}`);
+    }
+    for (const forbidden of ["ANITA_", "force_emit", "bridge_bootstrap", "core_auto_resync", "anita_v1_hp_colors", "deadlock_hero_debuts_seen", "GameInterfaceAPI", "HP_PERSIST_ALIAS_TO_ID"]) {
+      if (healthbarSource.includes(forbidden)) errors.push(`healthbar_logic.js must not contain live customization/persistence marker: ${forbidden}`);
     }
   }
 
   return {
     root: ROOT,
-    repoRoot: REPO_ROOT,
     errors,
     files,
     unitStatusXml,
     bootstrapSource,
-    anitaCss,
+    healthbarSource,
     defaultKeys
   };
 }

@@ -4,11 +4,14 @@ Standalone minimal runtime pack for HP Colors. This folder intentionally strips 
 
 ## Runtime Contract
 - `pak96_dir.vpk` is the separate web-builder preset VPK. It owns `panorama/layout/base_hud.vxml_c` and provides `HPColorsPresetStore`.
-- `pak97_dir.vpk` is this minimal runtime VPK. It supplies the overlay, healthbar logic, bootstrap shim, and compatibility paths referenced by the builder preset.
+- `pak97_dir.vpk` is this minimal runtime VPK. It supplies only the overlay, healthbar logic, static preset publisher, and unit status CSS.
 - Do not add `panorama/layout/base_hud.xml`, `preset.json`, menu layouts, or Anita UI menu code to this folder.
-- Keep the compatibility files even if they look empty: `anita_persist_loader.js`, `hp_registrar.js`, and `anita_ui.css` satisfy compiled paths included by the builder VPK.
-- Keep `anita_ui_core.js` minimal but functional: it must read `HPColorsPresetStore`, write `GameUI.CustomUIConfig().__hpColorsCfgRaw`, dispatch `ANITA_BULK_UPDATE`, dispatch per-setting `ANITA_UPDATE`, answer `ANITA_REQUEST_BOOTSTRAP`, and preserve `force_emit`.
-- Preserve `bridge_bootstrap` and `core_auto_resync` retries. They cover Panorama load-order races between base HUD and unit status overlay.
+- `anita_ui.css`, `anita_persist_loader.js`, and `hp_registrar.js` are deprecated and must not be restored.
+- Keep `anita_ui_core.js` static: it must read `HPColorsPresetStore`, decode the builder preset, write `GameUI.CustomUIConfig().__hpColorsCfgRaw`, and publish `HP_COLORS_PRESET_SNAPSHOT`.
+- Cached snapshots should include `values_raw` so replay receivers can compare against `sharedCfgRaw` without rebuilding JSON every replay tick.
+- Do not reintroduce Anita live-update events, Anita request/response bootstrap events, convar persistence, or session-mirror fallback. Settings changes come only from replacing the separate builder preset VPK.
+- Preserve the static `HP_COLORS_PRESET_REQUEST` / `HP_COLORS_PRESET_SNAPSHOT` bridge and short publish/read retries. They cover Panorama load-order and base HUD to unit status overlay context boundaries.
+- Do not keep scanning `HPColorsPresetStore` after the builder preset is found. The publisher should cache the preset, stop builder-store checks once the shared snapshot is written, and only serve/replay that cached snapshot for late-created overlay contexts.
 
 ## Build And Validation
 Run from the repo root:
@@ -21,9 +24,9 @@ node hp_colors_minimal\scripts\validate-minimal.js
 powershell -ExecutionPolicy Bypass -File build_hp_colors_minimal.ps1
 ```
 
-`validate-minimal.js` enforces exactly 45 `DEFAULTS` keys, rejects Anita menu
-markers, and forbids bringing back `panorama/layout/hud_health.xml` or
-`scripts/validate-schema.js`.
+`validate-minimal.js` enforces exactly 45 `DEFAULTS` keys, requires the static
+builder-preset snapshot bridge, rejects Anita menu/event markers, and forbids
+bringing back legacy convar/session persistence.
 
 `build_hp_colors_minimal.ps1` accepts `-BuilderPresetVpkPath` and `-PakName`.
 It warns but continues if the separate builder preset `pak96_dir.vpk` is not

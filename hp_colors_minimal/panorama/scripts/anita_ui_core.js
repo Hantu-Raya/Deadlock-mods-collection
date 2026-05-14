@@ -2,12 +2,19 @@
 (function () {
   "use strict";
 
-  var TITLE = "HP Colors";
   var STORE_ID = "HPColorsPresetStore";
   var ENTRY_CLASS = "hp_colors_preset_entry";
   var SHARED_CFG_RAW_KEY = "__hpColorsCfgRaw";
+  var EVENT_CHANNEL = "ClientUI_FireOutput";
+  var SNAPSHOT_MAGIC = "HP_COLORS_PRESET_SNAPSHOT";
+  var REQUEST_MAGIC = "HP_COLORS_PRESET_REQUEST";
+  var PUBLISH_RETRY_DELAYS = [0.1, 0.5, 1.0, 2.5, 5.0, 8.0];
+  var CACHED_SNAPSHOT_REPLAY_SEC = 1.0;
   var cachedValues = null;
-  var retryDelays = [0.1, 0.5, 1.0, 2.5, 5.0, 8.0];
+  var lastPublishedRaw = "";
+  var cachedSnapshotPayload = "";
+  var sharedSnapshotWritten = false;
+  var cachedReplayStarted = false;
 
   function getRootPanel() {
     var panel = $.GetContextPanel();
@@ -15,6 +22,32 @@
       panel = panel.GetParent();
     }
     return panel || null;
+  }
+
+  function getSharedStore() {
+    try {
+      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) return GameUI.CustomUIConfig();
+    } catch (e) {}
+    return null;
+  }
+
+  function dispatchSnapshot(payload) {
+    try {
+      $.DispatchEvent(EVENT_CHANNEL, payload);
+      return true;
+    } catch (e) {}
+    return false;
+  }
+
+  function writeSharedSnapshot(raw) {
+    var store = getSharedStore();
+    if (!store || !raw) return false;
+    try {
+      if (store[SHARED_CFG_RAW_KEY] !== raw) store[SHARED_CFG_RAW_KEY] = raw;
+      sharedSnapshotWritten = true;
+      return true;
+    } catch (e) {}
+    return false;
   }
 
   function readLabelText(label) {
@@ -97,78 +130,81 @@
     return null;
   }
 
-  function writeSharedSnapshot(values) {
-    try {
-      if (typeof GameUI === "undefined" || !GameUI || !GameUI.CustomUIConfig) return;
-      GameUI.CustomUIConfig()[SHARED_CFG_RAW_KEY] = JSON.stringify(values || {});
-    } catch (e) {}
-  }
+  function capturePreset() {
+    if (cachedSnapshotPayload) return true;
 
-  function dispatchOne(settingId, value, source) {
-    try {
-      $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
-        magic_word: "ANITA_UPDATE",
-        mod_title: TITLE,
-        setting_id: settingId,
-        value: value,
-        update_source: source || "bridge_bootstrap",
-        skip_bridge_persist: true,
-        force_emit: true
-      }));
-      return true;
-    } catch (e) {}
-    return false;
-  }
-
-  function dispatchValues(values, source) {
-    if (!values) return false;
-    try {
-      $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
-        magic_word: "ANITA_BULK_UPDATE",
-        mod_title: TITLE,
-        values: values,
-        update_source: source || "bridge_bootstrap",
-        skip_bridge_persist: true,
-        force_emit: true
-      }));
-    } catch (e) {}
-
-    var emittedAny = false;
-    for (var key in values) {
-      if (!Object.prototype.hasOwnProperty.call(values, key)) continue;
-      if (dispatchOne(key, values[key], source)) emittedAny = true;
-    }
-    return emittedAny;
-  }
-
-  function emitPreset(source) {
     var values = readPresetValues();
     if (!values) return false;
-    writeSharedSnapshot(values);
-    return dispatchValues(values, source || "bridge_bootstrap");
+
+    var raw = "";
+    try {
+      raw = JSON.stringify(values);
+    } catch (e0) {
+      return false;
+    }
+
+    try {
+      cachedSnapshotPayload = JSON.stringify({
+        magic_word: SNAPSHOT_MAGIC,
+        mod_title: "HP Colors",
+        version: 1,
+        values_raw: raw,
+        values: values,
+        update_source: "builder_static"
+      });
+    } catch (ePayload) {
+      cachedSnapshotPayload = "";
+      return false;
+    }
+    lastPublishedRaw = raw;
+    return true;
   }
 
-  function scheduleEmit(delay, source) {
+  function publishPreset() {
+    if (!capturePreset()) return false;
+    var sharedOk = sharedSnapshotWritten || writeSharedSnapshot(lastPublishedRaw);
+    startCachedSnapshotReplay();
+    return dispatchSnapshot(cachedSnapshotPayload) || sharedOk;
+  }
+
+  function publishUntilReady() {
+    if (cachedSnapshotPayload && sharedSnapshotWritten) return true;
+    return publishPreset();
+  }
+
+  function replayCachedSnapshot() {
+    if (cachedSnapshotPayload) dispatchSnapshot(cachedSnapshotPayload);
     try {
-      $.Schedule(delay, function () {
-        emitPreset(source);
-      });
+      $.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot);
+    } catch (e) {}
+  }
+
+  function startCachedSnapshotReplay() {
+    if (cachedReplayStarted || !cachedSnapshotPayload) return;
+    cachedReplayStarted = true;
+    try {
+      $.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot);
+    } catch (e) {}
+  }
+
+  function handlePresetRequest(payload) {
+    if (typeof payload === "string" && payload.indexOf(REQUEST_MAGIC) === -1) return;
+    try {
+      var data = typeof payload === "string" ? JSON.parse(payload) : payload;
+      if (!data || data.magic_word !== REQUEST_MAGIC) return;
+      if (data.mod_title && data.mod_title !== "HP Colors") return;
+      publishPreset();
     } catch (e) {}
   }
 
   try {
-    $.RegisterForUnhandledEvent("ClientUI_FireOutput", function (payload) {
-      try {
-        if (typeof payload === "string" && payload.indexOf("ANITA_REQUEST_BOOTSTRAP") === -1) return;
-        var data = typeof payload === "string" ? JSON.parse(payload) : payload;
-        if (!data || data.magic_word !== "ANITA_REQUEST_BOOTSTRAP" || data.mod_title !== TITLE) return;
-        emitPreset("bridge_bootstrap");
-      } catch (e) {}
-    });
+    $.RegisterForUnhandledEvent(EVENT_CHANNEL, handlePresetRequest);
   } catch (e) {}
 
-  emitPreset("bridge_bootstrap");
-  for (var delayIndex = 0; delayIndex < retryDelays.length; delayIndex += 1) {
-    scheduleEmit(retryDelays[delayIndex], delayIndex < 3 ? "bridge_bootstrap" : "core_auto_resync");
+  publishUntilReady();
+  for (var delayIndex = 0; delayIndex < PUBLISH_RETRY_DELAYS.length; delayIndex += 1) {
+    try {
+      $.Schedule(PUBLISH_RETRY_DELAYS[delayIndex], publishUntilReady);
+    } catch (e) {}
   }
 })();

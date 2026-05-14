@@ -3,23 +3,49 @@ const test = require("node:test");
 
 const { getValidationReport } = require("./validate-minimal.js");
 
-test("minimal hp_colors source keeps runtime assets and builder-compatible bootstrap stubs", () => {
+test("minimal hp_colors source keeps only static builder-preset runtime assets", () => {
   const report = getValidationReport();
 
   assert.deepEqual(report.errors, []);
   assert.ok(report.unitStatusXml.includes("healthbar_logic.vjs_c"));
-  assert.ok(report.bootstrapSource.includes("ANITA_BULK_UPDATE"));
-  assert.ok(report.bootstrapSource.includes("ANITA_UPDATE"));
-  assert.ok(report.bootstrapSource.includes("bridge_bootstrap"));
+  assert.ok(report.bootstrapSource.includes("HPColorsPresetStore"));
   assert.ok(report.bootstrapSource.includes("__hpColorsCfgRaw"));
+  assert.ok(report.bootstrapSource.includes("HP_COLORS_PRESET_SNAPSHOT"));
+  assert.ok(report.bootstrapSource.includes("HP_COLORS_PRESET_REQUEST"));
+  assert.ok(report.bootstrapSource.includes("capturePreset"));
+  assert.ok(report.bootstrapSource.includes("publishPreset"));
+  assert.ok(report.bootstrapSource.includes("publishUntilReady"));
+  assert.ok(report.bootstrapSource.includes("cachedSnapshotPayload"));
+  assert.ok(report.bootstrapSource.includes("sharedSnapshotWritten"));
+  assert.ok(report.bootstrapSource.includes("cachedReplayStarted"));
+  assert.ok(report.bootstrapSource.includes("values_raw"));
+  assert.ok(report.bootstrapSource.includes("PUBLISH_RETRY_DELAYS"));
+  assert.ok(report.bootstrapSource.includes("CACHED_SNAPSHOT_REPLAY_SEC"));
+  assert.ok(report.bootstrapSource.includes("replayCachedSnapshot"));
+  assert.ok(report.bootstrapSource.includes("startCachedSnapshotReplay"));
+  assert.ok(!report.bootstrapSource.includes("PUBLISH_HEARTBEAT_SEC"));
+  assert.ok(!report.bootstrapSource.includes("publishHeartbeat"));
+  assert.ok(report.bootstrapSource.includes("GameUI.CustomUIConfig"));
+  assert.ok(report.healthbarSource.includes("tryApplySharedSnapshot"));
+  assert.ok(report.healthbarSource.includes("schedulePresetRetry"));
+  assert.ok(report.healthbarSource.includes("HP_COLORS_PRESET_SNAPSHOT"));
+  assert.ok(report.healthbarSource.includes("HP_COLORS_PRESET_REQUEST"));
+  assert.ok(report.healthbarSource.includes("values_raw"));
+  assert.ok(report.healthbarSource.includes("raw === sharedCfgRaw && presetApplied"));
+  assert.ok(report.healthbarSource.includes("invalidateEnemyVisualCaches"));
+  assert.ok(report.healthbarSource.includes("resetCachedPanelRefsIfInvalid"));
+  assert.ok(report.healthbarSource.includes("lastEnemySignature"));
+  assert.ok(report.healthbarSource.includes("wasDirty"));
   assert.ok(report.files.includes("panorama/scripts/anita_ui_core.js"));
-  assert.ok(report.files.includes("panorama/scripts/anita_persist_loader.js"));
-  assert.ok(report.files.includes("panorama/scripts/hp_registrar.js"));
-  assert.ok(report.files.includes("panorama/styles/anita_ui.css"));
+  assert.ok(!report.files.includes("panorama/scripts/anita_persist_loader.js"));
+  assert.ok(!report.files.includes("panorama/scripts/hp_registrar.js"));
+  assert.ok(!report.files.includes("panorama/styles/anita_ui.css"));
   assert.ok(!report.files.includes("panorama/layout/base_hud.xml"));
+  assert.ok(!report.bootstrapSource.includes("ANITA_"));
+  assert.ok(!report.healthbarSource.includes("ANITA_"));
+  assert.ok(!report.healthbarSource.includes("deadlock_hero_debuts_seen"));
+  assert.ok(!report.healthbarSource.includes("GameInterfaceAPI"));
   assert.ok(!report.bootstrapSource.includes("AnitaUI_Window"));
   assert.ok(!report.bootstrapSource.includes("colorpicker"));
-  assert.ok(!report.anitaCss.includes("AnitaUI_Window"));
-  assert.ok(!report.anitaCss.includes("colorpicker"));
   assert.equal(report.defaultKeys.length, 45);
 });
