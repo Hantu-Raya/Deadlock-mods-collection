@@ -26,6 +26,7 @@ Audience: coding agents operating in this repository.
 - Before editing any module, check that module's local `AGENTS.md` if present.
 - Preserve dirty worktree changes that you did not make.
 - For `hp_colors/` work, default to the narrow workflow stack the user asked for: `sequentialthinking` for reasoning, `ctx_execute_file` / `ctx_search` for file reads and repo scanning, `agentmemory` for milestone logging, and the `karpathy-guidelines` plus `caveman full` skills for response and edit style.
+- For `hp_colors_minimal/` work, read `hp_colors_minimal/AGENTS.md` first and preserve the two-VPK contract: web-builder preset `pak96_dir.vpk` owns `base_hud`, while minimal runtime `pak97_dir.vpk` owns only overlay/bootstrap/runtime compatibility assets.
 - Log meaningful steps, failures, and successes in agentmemory as the work proceeds. Do not treat that as a substitute for repo verification, but do keep it current enough to reconstruct what changed.
 
 ## Agentmemory
@@ -58,6 +59,13 @@ Run after any `.js`, `.css`, or `.xml` edit.
 ```powershell
 $repo = "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection"
 & "$repo\sr2compiler\New folder.exe" "$repo\{mod_name}"
+```
+
+### Build: hp_colors_minimal
+Builds and deploys the minimal HP Colors runtime as `pak97_dir.vpk`. It must be installed alongside the separate web-builder preset `pak96_dir.vpk`.
+```powershell
+node hp_colors_minimal\scripts\validate-minimal.js
+powershell -ExecutionPolicy Bypass -File build_hp_colors_minimal.ps1
 ```
 
 ### Build: passive_items_mod (recommended for that module)
@@ -195,6 +203,7 @@ There is no formal single test command. Use this focused loop:
 
 ## Useful References
 - `abilities/AGENTS.md` for VData-specific constraints.
+- `hp_colors_minimal/AGENTS.md` for the two-VPK minimal HP Colors runtime contract.
 - `sr2compiler/AGENTS.md` for legacy compiler behavior.
 - `passive_items_mod/Apply.bat` for generated-settings compile flow.
 - `buff_timer_virgin/AGENTS.md` for advanced performance optimization patterns.
