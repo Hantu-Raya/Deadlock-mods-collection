@@ -1,0 +1,470 @@
+Started with command line: "G:\PerfView.exe" 
+PerfView Version: 3.2.2  BuildDate: Thu, 09 Apr 2026 22:20:14 GMT
+PerfView Start Time 5/13/2026 11:18:23 AM
+Warning: PdbScope not found at G:\PerfViewExtensions\PdbScope.exe
+Disabling the Image Size Menu Item.
+Warning: ILSize not found at G:\PerfViewExtensions\ILSize.dll
+Disabling the IL Size Menu Item.
+Started: View
+Completed: View   (Elapsed Time: 0.118 sec)
+Collection Dialog open.
+Collection Dialog open.
+Collection Dialog open.
+Started: Collecting data G:\PerfViewData.etl
+[Kernel Log: G:\PerfViewData.kernel.etl]
+Kernel keywords enabled: ThreadTime
+[User mode Log: G:\PerfViewData.etl]
+Enabling Provider:PerfViewLogger Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:a8a71ac1-040f-54a2-07ca-00a89b5ab761
+Turning on more CLR GC, JScript and ASP.NET Events.
+Enabling Provider:DotNet Level:Verbose Keywords:0xffffffffffffffff Stacks:1 Values: Guid:319dc449-ada5-50f7-428e-957db6791668
+Enabling Provider:Microsoft-Windows-Kernel-EventTracing Level:Verbose Keywords:0x70 Stacks:1 Values: Guid:b675ec37-bdb6-4648-bc92-f3fdc74d3ca2
+Enabling Provider:Microsoft-Windows-Kernel-File Level:Verbose Keywords:0x80 Stacks:1 Values: Guid:edd08927-9cc4-4e65-b970-c2560fb5c289
+Enabling Provider:Microsoft-Windows-Kernel-Process Level:Informational Keywords:0x10 Stacks:1 Values: Guid:22fb2cd6-0e7b-422b-a0c7-2fad1fd0e716
+Enabling Provider:ASP.NET Level:Verbose Keywords:0xfffffffffffffffd Stacks:0 Values: Guid:aff081fe-0247-4275-9c4e-021f3dc1da35
+File C:\WINDOWS\System32\inetsrv\iiscore.dll does not exist, ASP.NET is not enabled on the machine
+Enabling Provider:*Microsoft-Windows-ASPNET Level:Informational Keywords:0xffffffffffffffff Stacks:1 Values: Guid:ee799f41-cfa5-550b-bf2c-344747c1c668
+Enabling Provider:Microsoft-Windows-IIS Level:Critical Keywords:0x0 Stacks:0 Values: Guid:de4649c9-15e8-4fea-9d85-1cdda520c334
+Enabling Provider:Microsoft-PerfTrack-IEFRAME Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:b2a40f1f-a05a-4dfd-886a-4c4f18c4334c
+Enabling Provider:Microsoft-PerfTrack-MSHTML Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:ffdb9886-80f3-4540-aa8b-b85192217ddf
+Enabling Provider:Microsoft-Windows-WinINet Level:Verbose Keywords:0x2 Stacks:0 Values: Guid:43d1a55c-76d6-4f7e-995c-64c711e5cafe
+Enabling Provider:Microsoft-Windows-Application Server-Applications Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:c651f5f6-1c0d-492e-8ae1-b4efd7c9d503
+Enabling Provider:Microsoft-IE Level:Informational Keywords:0x1300 Stacks:0 Values: Guid:9e3b3947-ca5d-4614-91a2-7b624e0e7244
+Enabling Provider:Microsoft-Windows-DNS-Client Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:1c95126e-7eea-49a9-a3fe-a378b03ddb4d
+Enabling Provider:Microsoft-Windows-DirectComposition Level:Verbose Keywords:0x4 Stacks:0 Values: Guid:c44219d0-f344-11df-a5e2-b307dfd72085
+Enabling Provider:Microsoft-Windows-Immersive-Shell Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:315a8872-923e-4ea2-9889-33cd4754bf64
+Enabling Provider:Microsoft-Windows-XAML Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:531a35ab-63ce-4bcf-aa98-f88c7a89e455
+Enabling Provider:Microsoft-JScript Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:57277741-3638-4a4b-bdba-0ac6e45da56c
+Enabling Provider:ClrPrivateNative Level:Informational Keywords:0x4002000b Stacks:0 Values: Guid:1095638c-8748-4c7a-b39e-baea27b9c589
+Enabling Provider:CLRPrivate Level:Informational Keywords:0x4002000b Stacks:0 Values: Guid:763fd754-7086-4dfe-95eb-c01a46faf4ca
+Enabling Provider:.NETFramework Level:Verbose Keywords:0x16 Stacks:1 Values: Guid:8e9f5090-2d75-4d03-8a81-e5afbf85daf1
+Enabling Provider:Microsoft.Tasks.Nuget Level:Informational Keywords:0x80 Stacks:0 Values: Guid:b734069e-103c-5376-2080-4f009207881a
+Enabling Provider:Microsoft-AdoNet-SystemData Level:Informational Keywords:0x1 Stacks:1 Values: Guid:6a4dfe53-eb50-5332-8473-7b7e10a94fd1
+Enabling Provider:ETWCLrProfiler Diagnostics Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:6652970f-1756-5d8d-0805-e9aad152aa79
+Enabling Provider:Microsoft-Diagnostics-DiagnosticSource Level:Informational Keywords:0xfffffffffffff7ff Stacks:1 Values:FilterAndPayloadSpecs=HttpHandlerDiagnosticListener/System.Net.Http.Request@Activity2Start:Request.RequestUri
+HttpHandlerDiagnosticListener/System.Net.Http.Response@Activity2Stop:Response.StatusCode Guid:adb401e1-5296-51f8-c125-5fda75826144
+Enabling Provider:Microsoft-AspNetCore-Hosting Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:9e620d2a-55d4-5ade-deb7-c26046d245a8
+Enabling Provider:Microsoft-ApplicationInsights-Core Level:Verbose Keywords:0xffffffffffffffff Stacks:1 Values: Guid:74af9f20-af6a-5582-9382-f21f674fb271
+Enabling Provider:Microsoft-Windows-Kernel-Power Level:Informational Keywords:0xffb Stacks:0 Values: Guid:331c3b3a-2005-44c2-ac5e-77220c37d6b4
+Enabling Provider:Microsoft-Windows-Kernel-Processor-Power Level:Informational Keywords:0xe5d Stacks:0 Values: Guid:0f67e49f-fe51-4e9f-b490-6f2948cc6027
+Enabling Provider:Microsoft-Windows-PowerCpl Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:b1f90b27-4551-49d6-b2bd-dfc6453762a6
+Enabling Provider:Microsoft-Windows-PowerCfg Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:9f0c4ea8-ec01-4200-a00d-b9701cbea5d8
+Enabling Provider:Microsoft-Antimalware-Engine Level:Verbose Keywords:0xffffffffffffffff Stacks:1 Values: Guid:0a002690-3839-4e3a-b3b6-96d8df868d99
+Enabling Provider:Microsoft-Antimalware-AMFilter Level:Verbose Keywords:0xffffffffffffffff Stacks:1 Values: Guid:cfeb0608-330e-4410-b00d-56d8da9986e6
+Enabling Provider:Microsoft-Antimalware-Service Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:751ef305-6c6e-4fed-b847-02ef79d26aef
+Enabling Provider:Microsoft-Antimalware-RTP Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:8e92deef-5e17-413b-b927-59b2f06a3cfc
+Enabling Provider:Microsoft-Antimalware-Protection Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:e4b70372-261f-4c54-8fa6-a5a7914d73da
+Enabling Provider:Microsoft-Windows-HttpService Level:Verbose Keywords:0xffffffffffffffff Stacks:1 Values: Guid:dd5ef90a-6398-47a4-ad34-4dcecdef795f
+Enabling Provider:Microsoft-Windows-TCPIP Level:Informational Keywords:0xffffffffffffffff Stacks:1 Values: Guid:2f07e2ee-15db-40f1-90ef-9d7ba282188a
+Enabling Provider:Microsoft-Windows-NDIS-PacketCapture Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:2ed6006e-4729-4609-b423-3ee7bcd678ef
+Enabling Provider:Microsoft-Windows-WebIO Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:50b3e73c-9370-461d-bb9f-26f32d68887d
+Enabling Provider:Microsoft-Windows-WinINet Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:43d1a55c-76d6-4f7e-995c-64c711e5cafe
+Enabling Provider:Microsoft-Windows-WinHttp Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:7d44233d-3055-4b9c-ba64-0d47ca40a232
+Enabling Provider:Microsoft-Windows-RPC Level:Informational Keywords:0x0 Stacks:0 Values: Guid:6ad52b32-d609-4be9-ae07-ce8dae937e39
+Turning on VS CodeMarkers and MeasurementBlock Providers.
+Enabling Provider:MeasurementBlock Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:143a31db-0372-40b6-b8f1-b4b16adb5f54
+Enabling Provider:CodeMarkers Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:641d7f6c-481c-42e8-ab7e-d18dc5e5cb9e
+Enabling CLR Events: GC, Binder, Security, AppDomainResourceManagement, Contention, Exception, Threading, JITSymbols, Type, GCHeapSurvivalAndMovement, GCHeapAndTypeNames, Stack, ThreadTransfer, Codesymbols, Compilation
+Enabling Provider:ClrNative Level:Verbose Keywords:0x14c14fcc9d Stacks:1 Values: Guid:47c3ba0c-77f1-4eb0-8d4d-aef447f16a85
+Enabling Provider:CLR Level:Verbose Keywords:0x14c14fcc9d Stacks:0 Values: Guid:e13c0d23-ccbc-4e12-931b-d9cc2eee27e4
+Enabling Providers specified by the user.
+Parsing ETW Provider Spec: *Valve.SteamNetworkingSockets
+Parsing ETW Provider Spec: *Valve.Source
+Parsing ETW Provider Spec: *Valve.Source.Net
+Parsing ETW Provider Spec: *Valve.Source.Client
+Parsing ETW Provider Spec: *Valve.Source.Input
+Parsing ETW Provider Spec: *Valve.Source.Render
+Enabling Provider:*Valve.SteamNetworkingSockets Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:d4e956eb-de52-57ac-dcaa-1f9ba10417c8
+Enabling Provider:*Valve.Source Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:868fe12c-b74e-5fdc-e311-3368cf7ff54c
+Enabling Provider:*Valve.Source.Net Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:3d339239-069d-5546-cb79-5835c70db89c
+Enabling Provider:*Valve.Source.Client Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:2f6b05a3-4dc7-5eb6-5af3-02750de8a6f4
+Enabling Provider:*Valve.Source.Input Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:28739be2-654b-5545-05cb-263aa0306234
+Enabling Provider:*Valve.Source.Render Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:89a939c6-746c-586d-2ea7-998c580bb08b
+[Starting collection at 5/13/2026 11:21:34 AM]
+[Manually Stopped (Gui)]
+Stopping tracing for sessions 'NT Kernel Logger' and 'PerfViewSession'.
+No Heap events were active for this trace.
+[Sending rundown command to CLR providers...]
+Enabling Provider:PerfViewLogger Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:a8a71ac1-040f-54a2-07ca-00a89b5ab761
+Parsing ETW Provider Spec: *Valve.SteamNetworkingSockets
+Parsing ETW Provider Spec: *Valve.Source
+Parsing ETW Provider Spec: *Valve.Source.Net
+Parsing ETW Provider Spec: *Valve.Source.Client
+Parsing ETW Provider Spec: *Valve.Source.Input
+Parsing ETW Provider Spec: *Valve.Source.Render
+Enabling Provider:*Valve.SteamNetworkingSockets Level:Critical Keywords:0x80000000000 Stacks:0 Values: Guid:d4e956eb-de52-57ac-dcaa-1f9ba10417c8
+Enabling Provider:*Valve.Source Level:Critical Keywords:0x80000000000 Stacks:0 Values: Guid:868fe12c-b74e-5fdc-e311-3368cf7ff54c
+Enabling Provider:*Valve.Source.Net Level:Critical Keywords:0x80000000000 Stacks:0 Values: Guid:3d339239-069d-5546-cb79-5835c70db89c
+Enabling Provider:*Valve.Source.Client Level:Critical Keywords:0x80000000000 Stacks:0 Values: Guid:2f6b05a3-4dc7-5eb6-5af3-02750de8a6f4
+Enabling Provider:*Valve.Source.Input Level:Critical Keywords:0x80000000000 Stacks:0 Values: Guid:28739be2-654b-5545-05cb-263aa0306234
+Enabling Provider:*Valve.Source.Render Level:Critical Keywords:0x80000000000 Stacks:0 Values: Guid:89a939c6-746c-586d-2ea7-998c580bb08b
+Enabling Provider:CLRRundown Level:Verbose Keywords:0x108 Stacks:0 Values: Guid:a669021c-c450-4609-a035-5af59af4df18
+Enabling Provider:CLRRundown Level:Verbose Keywords:0x1080060111 Stacks:0 Values: Guid:a669021c-c450-4609-a035-5af59af4df18
+Waiting up to 120 sec for rundown events.  Use /RundownTimeout to change.
+If you know your process has exited, use /noRundown qualifer to skip this step.
+Rundown File Length: 18.9MB delta: 18.9MB
+Rundown File Length: 18.9MB delta: 0.0MB
+Rundown file has stopped growing, assuming rundown complete.
+CLR Rundown took 2.722 sec.
+Done stopping sessions.
+Ensuring .NET Allocation profiler not installed.
+Detected 64 bit system, removing 32 bit keys.
+[Merging data files to PerfViewData.etl.  Can take 10s of seconds... (can skip if data analyzed on same machine with PerfView)]
+Symbol reader _NT_SYMBOL_PATH= {
+    G:\;
+    }
+This can be set using the File -> Set Symbol Path dialog on the Stack Viewer.
+Creating authentication handler for DeveloperIdentity, GitHubDeviceFlow, BasicHttpAuth.
+Created SymbolReader with SymbolPath G:\
+Setting SymbolReaderOptions forces clearing Pdb lookup cache
+Starting Merging of G:\PerfViewData.etl
+Starting Generating NGEN pdbs for G:\PerfViewData.etl
+Could not find CLR directory for NGEN image C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.5\System.Diagnostics.DiagnosticSource.dll, Giving up
+NGEN PDB creation for C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.5\System.Diagnostics.DiagnosticSource.dll took 0.00 Sec
+Could not find CLR directory for NGEN image C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.5\System.Private.CoreLib.dll, Giving up
+NGEN PDB creation for C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.5\System.Private.CoreLib.dll took 0.00 Sec
+Checking for V4.5 for NGEN image C:\WINDOWS\Microsoft.NET\Framework64\v4.0.30319\ngen.exe
+Got NGEN image file version number: 4.8.9221.0 built by: NET481REL1LAST_25H2
+Is a V4.6 or beyond
+Path has a AUX file in NIC: C:\Windows\assembly\NativeImages_v4.0.30319_64\mscorlib\50abde036072b0b49b01ecf91d35cf89\mscorlib.ni.dll
+set COMPLUS_NGenEnableCreatePdb=1
+set PATH=%PATH%;C:\WINDOWS\Microsoft.NET\Framework64\v4.0.30319
+set _NT_SYMBOL_PATH=G:\
+*** NGEN  CREATEPDB cmdline: C:\WINDOWS\Microsoft.NET\Framework64\v4.0.30319\ngen.exe createpdb "C:\Windows\assembly\NativeImages_v4.0.30319_64\mscorlib\50abde036072b0b49b01ecf91d35cf89\mscorlib.ni.dll" "C:\Users\Administrator\AppData\Local\Temp\SymbolCache" 
+
+Microsoft (R) CLR Native Image Generator - Version 4.8.9221.0
+Copyright (c) Microsoft Corporation.  All rights reserved.
+No matching package found for NI 'C:\Windows\assembly\NativeImages_v4.0.30319_64\mscorlib\50abde036072b0b49b01ecf91d35cf89\mscorlib.ni.dll'.
+Successfully generated PDB for native assembly 'C:\Windows\assembly\NativeImages_v4.0.30319_64\mscorlib\50abde036072b0b49b01ecf91d35cf89\mscorlib.ni.dll'.
+PDB generated in directory C:\Users\Administrator\AppData\Local\Temp\SymbolCache\mscorlib.ni.pdb\50abde036072b0b49b01ecf91d35cf891\
+
+
+*** NGEN CREATEPDB returns: 0
+Found NGEN pdb C:\Users\Administrator\AppData\Local\Temp\SymbolCache\mscorlib.ni.pdb\50abde036072b0b49b01ecf91d35cf891\mscorlib.ni.pdb
+NGEN PDB creation for C:\Windows\assembly\NativeImages_v4.0.30319_64\mscorlib\50abde036072b0b49b01ecf91d35cf89\mscorlib.ni.dll took 0.36 Sec
+Generating NGEN Pdbs took 0.9 sec
+Merging took 6.0 sec
+Moving G:\PerfViewData.etl.new to G:\PerfViewData.etl
+Deleting temp file
+Merge and NGEN PDB Generation took 5.998 sec.
+Merge output file G:\PerfViewData.etl
+[Zipping ETL file G:\PerfViewData.etl]
+[Writing 1 PDBS to Zip file]
+ZIP generation took 1.006 sec
+ZIP output file G:\PerfViewData.etl.zip
+Time: 5/13/2026 11:22:05 AM
+Stop Completed at 5/13/2026 11:22:05 AM
+Completed: Collecting data G:\PerfViewData.etl   (Elapsed Time: 30.775 sec)
+Started: Opening PerfViewData.etl.zip
+Found a existing unzipped file C:\Users\Administrator\AppData\Local\Temp\PerfView\PerfViewData.etl_621b5907.etl
+Creating ETLX file C:\Users\Administrator\AppData\Local\Temp\PerfView\PerfViewData.etl_621b5907_fdac2a8c.etlx from C:\Users\Administrator\AppData\Local\Temp\PerfView\PerfViewData.etl_621b5907.etl
+[Opening a log file of size 17 MB.]
+WARNING: Time:     223.8029 PID: 4200: Stack refers to event with time 140.9668 MSec that could not be found
+WARNING: Time:     230.2983 PID: 9800: Stack refers to event with time 16.2326 MSec that could not be found
+WARNING: Time:     365.0757 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:     379.8642 PID: 9800: CLR Stack trying to be given to same event twice (can happen with lost events)
+WARNING: Time:     379.9598 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:     382.0980 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:     430.1042 PID: 4200: Stack refers to event with time 358.1782 MSec that could not be found
+WARNING: Warning, finished a stack when kernel key 0 still unresolved.
+[ELAPSED  0 seconds.     READ    131,072 events.     TIMESTAMP   1,970ms.     WRITTEN    14MB.     ]
+WARNING: Time:    2717.2817 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2718.3405 PID: 7000: Stack refers to event with time 2711.8525 MSec that could not be found
+WARNING: Time:    2719.0506 PID: 4740: Stack refers to event with time 2712.3417 MSec that could not be found
+WARNING: Time:    2719.2575 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2720.0146 PID:   -1: Found a kernel stack definition without any uses
+WARNING: Time:    2720.2193 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2725.2535 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2726.1331 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2729.4403 PID: 4740: Stack refers to event with time 2723.7362 MSec that could not be found
+WARNING: Time:    2731.0043 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2732.6669 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2733.1586 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2733.2835 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2733.5195 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2736.1624 PID:   -1: Found a kernel stack definition without any uses
+WARNING: Time:    2739.3050 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2762.8030 PID: 4200: Stack refers to event with time 2727.6444 MSec that could not be found
+WARNING: Time:    2792.0046 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2792.6692 PID:   -1: Found a kernel stack definition without any uses
+WARNING: Time:    2807.0039 PID:   -1: Found a kernel stack definition without any uses
+WARNING: Time:    2815.0149 PID:   -1: Found a kernel stack definition without any uses
+WARNING: Time:    2822.6832 PID:   -1: Found a kernel stack definition without any uses
+WARNING: Time:    2828.0625 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2830.6709 PID:   -1: Found a kernel stack definition without any uses
+WARNING: Time:    2831.7999 PID:   -1: Found a kernel stack definition without any uses
+WARNING: Time:    2864.1982 PID:   -1: Found a kernel stack definition without any uses
+WARNING: Time:    2985.3807 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2985.3915 PID:   -1: Found a kernel stack definition without any uses
+WARNING: Time:    2985.4564 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2985.4630 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2985.4635 PID:   -1: Found a user stack definition without any uses
+WARNING: Time:    2985.4724 PID:   -1: Found a kernel stack definition without any uses
+WARNING: Time:    2985.4912 PID:   -1: Found a kernel stack definition without any uses
+WARNING: Time:    2985.5340 PID:   -1: Found a kernel stack definition without any uses
+WARNING: Time:    2985.5410 PID:   -1: Found a kernel stack definition without any uses
+[ELAPSED  1 seconds.     READ    262,144 events.     TIMESTAMP   3,549ms.     WRITTEN    24MB.     ]
+WARNING: Warning: 10 undefined kernel stacks at the end of the trace.
+WARNING: Warning: 12 undefined user stacks at the end of the trace.
+There were 1320 address that did not resolve to a module or method in process PerfView (9800)
+There were 4414 address that did not resolve to a module or method in process Idle (0)
+There were 34 address that did not resolve to a module or method in process  (-1)
+There were 1719 address that did not resolve to a module or method in process CPUSetSetter (4200)
+There were 3 address that did not resolve to a module or method in process csrss (912)
+There were 72 address that did not resolve to a module or method in process RadeonSoftware (9116)
+There were 70 address that did not resolve to a module or method in process wininit (864)
+There were 19 address that did not resolve to a module or method in process node (8968)
+There were 5 address that did not resolve to a module or method in process csrss (868)
+There were 16 address that did not resolve to a module or method in process winlogon (1100)
+There were 140 address that did not resolve to a module or method in process services (1120)
+There were 34 address that did not resolve to a module or method in process lsass (1152)
+There were 14 address that did not resolve to a module or method in process WmiPrvSE (5532)
+There were 262 address that did not resolve to a module or method in process steamwebhelper (3632)
+There were 31 address that did not resolve to a module or method in process svchost (1296)
+There were 32 address that did not resolve to a module or method in process svchost (1424)
+There were 168 address that did not resolve to a module or method in process steam (3036)
+There were 403 address that did not resolve to a module or method in process dwm (1560)
+There were 4 address that did not resolve to a module or method in process svchost (1616)
+There were 333 address that did not resolve to a module or method in process svchost (1676)
+There were 340 address that did not resolve to a module or method in process pwsh (5812)
+There were 16 address that did not resolve to a module or method in process svchost (1692)
+There were 11 address that did not resolve to a module or method in process svchost (1764)
+There were 31 address that did not resolve to a module or method in process codex (4868)
+There were 80 address that did not resolve to a module or method in process svchost (1856)
+There were 12 address that did not resolve to a module or method in process svchost (1944)
+There were 34 address that did not resolve to a module or method in process svchost (2028)
+There were 11 address that did not resolve to a module or method in process svchost (992)
+There were 10 address that did not resolve to a module or method in process svchost (1148)
+There were 92 address that did not resolve to a module or method in process svchost (2128)
+There were 4 address that did not resolve to a module or method in process svchost (2164)
+There were 11 address that did not resolve to a module or method in process svchost (2232)
+There were 18 address that did not resolve to a module or method in process svchost (2392)
+There were 17 address that did not resolve to a module or method in process svchost (2488)
+There were 4 address that did not resolve to a module or method in process svchost (2528)
+There were 10 address that did not resolve to a module or method in process svchost (2536)
+There were 18 address that did not resolve to a module or method in process svchost (2624)
+There were 4 address that did not resolve to a module or method in process svchost (2960)
+There were 18 address that did not resolve to a module or method in process svchost (2976)
+There were 18 address that did not resolve to a module or method in process wslservice (2988)
+There were 161 address that did not resolve to a module or method in process WmiPrvSE (3720)
+There were 5 address that did not resolve to a module or method in process svchost (3912)
+There were 66 address that did not resolve to a module or method in process cowork-svc (3992)
+There were 5 address that did not resolve to a module or method in process svchost (4000)
+There were 14 address that did not resolve to a module or method in process sihost (1196)
+There were 4 address that did not resolve to a module or method in process svchost (4116)
+There were 1244 address that did not resolve to a module or method in process explorer (4740)
+There were 44 address that did not resolve to a module or method in process iii (11456)
+There were 5 address that did not resolve to a module or method in process taskhostw (4660)
+There were 15 address that did not resolve to a module or method in process ShellHost (4760)
+There were 88 address that did not resolve to a module or method in process steamwebhelper (3528)
+There were 57 address that did not resolve to a module or method in process StartMenuExperienceHost (2336)
+There were 5 address that did not resolve to a module or method in process RuntimeBroker (5132)
+There were 5 address that did not resolve to a module or method in process svchost (5200)
+There were 16 address that did not resolve to a module or method in process svchost (4472)
+There were 9 address that did not resolve to a module or method in process svchost (5960)
+There were 5 address that did not resolve to a module or method in process dllhost (5816)
+There were 519 address that did not resolve to a module or method in process WinMemoryCleaner (6624)
+There were 104 address that did not resolve to a module or method in process ctfmon (7000)
+There were 12 address that did not resolve to a module or method in process svchost (2872)
+There were 73 address that did not resolve to a module or method in process Codex (6640)
+There were 95 address that did not resolve to a module or method in process SearchIndexer (10744)
+There were 115 address that did not resolve to a module or method in process CPUMetricsServer (9868)
+There were 62 address that did not resolve to a module or method in process AMDRSServ (11060)
+There were 16 address that did not resolve to a module or method in process AMDRSSrcExt (11204)
+There were 40 address that did not resolve to a module or method in process svchost (6780)
+There were 5 address that did not resolve to a module or method in process svchost (6740)
+There were 5 address that did not resolve to a module or method in process svchost (12064)
+There were 56 address that did not resolve to a module or method in process SteamService (5780)
+There were 89 address that did not resolve to a module or method in process steamwebhelper (10112)
+There were 162 address that did not resolve to a module or method in process steamwebhelper (10632)
+There were 85 address that did not resolve to a module or method in process steamwebhelper (4736)
+There were 102 address that did not resolve to a module or method in process steamwebhelper (11108)
+There were 51 address that did not resolve to a module or method in process WmiApSrv (10672)
+There were 5 address that did not resolve to a module or method in process ApplicationFrameHost (6188)
+There were 629 address that did not resolve to a module or method in process zen (8308)
+There were 214 address that did not resolve to a module or method in process zen (6768)
+There were 6 address that did not resolve to a module or method in process zen (9156)
+There were 114 address that did not resolve to a module or method in process zen (9404)
+There were 5 address that did not resolve to a module or method in process zen (6636)
+There were 81 address that did not resolve to a module or method in process zen (11356)
+There were 154 address that did not resolve to a module or method in process zen (3868)
+There were 6 address that did not resolve to a module or method in process zen (10868)
+There were 31 address that did not resolve to a module or method in process Codex (1132)
+There were 19 address that did not resolve to a module or method in process Codex (11432)
+There were 9 address that did not resolve to a module or method in process conhost (11952)
+There were 50 address that did not resolve to a module or method in process Codex (6736)
+There were 132 address that did not resolve to a module or method in process zen (8792)
+There were 6 address that did not resolve to a module or method in process zen (10624)
+There were 6 address that did not resolve to a module or method in process zen (2984)
+There were 5 address that did not resolve to a module or method in process RuntimeBroker (2564)
+There were 15 address that did not resolve to a module or method in process node (11932)
+There were 15 address that did not resolve to a module or method in process node (344)
+There were 23 address that did not resolve to a module or method in process node (11760)
+There were 15 address that did not resolve to a module or method in process node (6720)
+There were 15 address that did not resolve to a module or method in process node (11748)
+There were 33 address that did not resolve to a module or method in process node (6900)
+There were 15 address that did not resolve to a module or method in process node (3268)
+There were 15 address that did not resolve to a module or method in process node (11616)
+There were 15 address that did not resolve to a module or method in process node (4092)
+There were 15 address that did not resolve to a module or method in process node (2432)
+There were 15 address that did not resolve to a module or method in process node (11364)
+There were 15 address that did not resolve to a module or method in process node (3656)
+There were 15 address that did not resolve to a module or method in process node (1656)
+There were 15 address that did not resolve to a module or method in process node (3908)
+There were 15 address that did not resolve to a module or method in process node (7852)
+There were 21 address that did not resolve to a module or method in process Codex (8248)
+There were 4 address that did not resolve to a module or method in process svchost (7992)
+There were 81 address that did not resolve to a module or method in process zen (2680)
+There were 20 address that did not resolve to a module or method in process node (2120)
+There were 15 address that did not resolve to a module or method in process node (1684)
+There were 15 address that did not resolve to a module or method in process node (8652)
+There were 91 address that did not resolve to a module or method in process zen (6984)
+There were 74 address that did not resolve to a module or method in process zen (8560)
+There were 77 address that did not resolve to a module or method in process zen (8948)
+There were 124 address that did not resolve to a module or method in process zen (7380)
+There were 4 address that did not resolve to a module or method in process SearchProtocolHost (12312)
+156 distinct processes.
+Totals
+   150,802 events.
+    45,018 events with stack traces.
+     2,520 events with code addresses in them.
+  1,377,031 total code address instances. (stacks or other)
+    16,111 unique code addresses. 
+   168,398 unique stacks.
+       723 unique managed methods parsed.
+    68,523 dynamic methods.
+[Conversion complete 150,802 events.  Conversion took 1 sec.]
+A total of 16110 symbolic addresses were looked up.
+Addresses outside any module: 195 out of 16110 (1.2%)
+Done with symbolic lookup.
+ETL Size 17.299 MB ETLX Size 38.428 MB
+Completed: Opening PerfViewData.etl.zip   (Elapsed Time: 1.298 sec)
+Started: Opening CPU Stacks
+[Computing the processes involved in the trace.]
+Completed: Opening CPU Stacks   (Elapsed Time: 0.033 sec)
+Collection Dialog open.
+Started: Collecting data G:\PerfViewData.etl
+[Kernel Log: G:\PerfViewData.kernel.etl]
+Kernel keywords enabled: ThreadTime
+[User mode Log: G:\PerfViewData.etl]
+Enabling Provider:PerfViewLogger Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:a8a71ac1-040f-54a2-07ca-00a89b5ab761
+Turning on more CLR GC, JScript and ASP.NET Events.
+Enabling Provider:DotNet Level:Verbose Keywords:0xffffffffffffffff Stacks:1 Values: Guid:319dc449-ada5-50f7-428e-957db6791668
+Enabling Provider:Microsoft-Windows-Kernel-EventTracing Level:Verbose Keywords:0x70 Stacks:1 Values: Guid:b675ec37-bdb6-4648-bc92-f3fdc74d3ca2
+Enabling Provider:Microsoft-Windows-Kernel-File Level:Verbose Keywords:0x80 Stacks:1 Values: Guid:edd08927-9cc4-4e65-b970-c2560fb5c289
+Enabling Provider:Microsoft-Windows-Kernel-Process Level:Informational Keywords:0x10 Stacks:1 Values: Guid:22fb2cd6-0e7b-422b-a0c7-2fad1fd0e716
+Enabling Provider:ASP.NET Level:Verbose Keywords:0xfffffffffffffffd Stacks:0 Values: Guid:aff081fe-0247-4275-9c4e-021f3dc1da35
+File C:\WINDOWS\System32\inetsrv\iiscore.dll does not exist, ASP.NET is not enabled on the machine
+Enabling Provider:*Microsoft-Windows-ASPNET Level:Informational Keywords:0xffffffffffffffff Stacks:1 Values: Guid:ee799f41-cfa5-550b-bf2c-344747c1c668
+Enabling Provider:Microsoft-Windows-IIS Level:Critical Keywords:0x0 Stacks:0 Values: Guid:de4649c9-15e8-4fea-9d85-1cdda520c334
+Enabling Provider:Microsoft-PerfTrack-IEFRAME Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:b2a40f1f-a05a-4dfd-886a-4c4f18c4334c
+Enabling Provider:Microsoft-PerfTrack-MSHTML Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:ffdb9886-80f3-4540-aa8b-b85192217ddf
+Enabling Provider:Microsoft-Windows-WinINet Level:Verbose Keywords:0x2 Stacks:0 Values: Guid:43d1a55c-76d6-4f7e-995c-64c711e5cafe
+Enabling Provider:Microsoft-Windows-Application Server-Applications Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:c651f5f6-1c0d-492e-8ae1-b4efd7c9d503
+Enabling Provider:Microsoft-IE Level:Informational Keywords:0x1300 Stacks:0 Values: Guid:9e3b3947-ca5d-4614-91a2-7b624e0e7244
+Enabling Provider:Microsoft-Windows-DNS-Client Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:1c95126e-7eea-49a9-a3fe-a378b03ddb4d
+Enabling Provider:Microsoft-Windows-DirectComposition Level:Verbose Keywords:0x4 Stacks:0 Values: Guid:c44219d0-f344-11df-a5e2-b307dfd72085
+Enabling Provider:Microsoft-Windows-Immersive-Shell Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:315a8872-923e-4ea2-9889-33cd4754bf64
+Enabling Provider:Microsoft-Windows-XAML Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:531a35ab-63ce-4bcf-aa98-f88c7a89e455
+Enabling Provider:Microsoft-JScript Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:57277741-3638-4a4b-bdba-0ac6e45da56c
+Enabling Provider:ClrPrivateNative Level:Informational Keywords:0x4002000b Stacks:0 Values: Guid:1095638c-8748-4c7a-b39e-baea27b9c589
+Enabling Provider:CLRPrivate Level:Informational Keywords:0x4002000b Stacks:0 Values: Guid:763fd754-7086-4dfe-95eb-c01a46faf4ca
+Enabling Provider:.NETFramework Level:Verbose Keywords:0x16 Stacks:1 Values: Guid:8e9f5090-2d75-4d03-8a81-e5afbf85daf1
+Enabling Provider:Microsoft.Tasks.Nuget Level:Informational Keywords:0x80 Stacks:0 Values: Guid:b734069e-103c-5376-2080-4f009207881a
+Enabling Provider:Microsoft-AdoNet-SystemData Level:Informational Keywords:0x1 Stacks:1 Values: Guid:6a4dfe53-eb50-5332-8473-7b7e10a94fd1
+Enabling Provider:ETWCLrProfiler Diagnostics Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:6652970f-1756-5d8d-0805-e9aad152aa79
+Enabling Provider:Microsoft-Diagnostics-DiagnosticSource Level:Informational Keywords:0xfffffffffffff7ff Stacks:1 Values:FilterAndPayloadSpecs=HttpHandlerDiagnosticListener/System.Net.Http.Request@Activity2Start:Request.RequestUri
+HttpHandlerDiagnosticListener/System.Net.Http.Response@Activity2Stop:Response.StatusCode Guid:adb401e1-5296-51f8-c125-5fda75826144
+Enabling Provider:Microsoft-AspNetCore-Hosting Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:9e620d2a-55d4-5ade-deb7-c26046d245a8
+Enabling Provider:Microsoft-ApplicationInsights-Core Level:Verbose Keywords:0xffffffffffffffff Stacks:1 Values: Guid:74af9f20-af6a-5582-9382-f21f674fb271
+Enabling Provider:Microsoft-Windows-Kernel-Power Level:Informational Keywords:0xffb Stacks:0 Values: Guid:331c3b3a-2005-44c2-ac5e-77220c37d6b4
+Enabling Provider:Microsoft-Windows-Kernel-Processor-Power Level:Informational Keywords:0xe5d Stacks:0 Values: Guid:0f67e49f-fe51-4e9f-b490-6f2948cc6027
+Enabling Provider:Microsoft-Windows-PowerCpl Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:b1f90b27-4551-49d6-b2bd-dfc6453762a6
+Enabling Provider:Microsoft-Windows-PowerCfg Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:9f0c4ea8-ec01-4200-a00d-b9701cbea5d8
+Enabling Provider:Microsoft-Antimalware-Engine Level:Verbose Keywords:0xffffffffffffffff Stacks:1 Values: Guid:0a002690-3839-4e3a-b3b6-96d8df868d99
+Enabling Provider:Microsoft-Antimalware-AMFilter Level:Verbose Keywords:0xffffffffffffffff Stacks:1 Values: Guid:cfeb0608-330e-4410-b00d-56d8da9986e6
+Enabling Provider:Microsoft-Antimalware-Service Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:751ef305-6c6e-4fed-b847-02ef79d26aef
+Enabling Provider:Microsoft-Antimalware-RTP Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:8e92deef-5e17-413b-b927-59b2f06a3cfc
+Enabling Provider:Microsoft-Antimalware-Protection Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:e4b70372-261f-4c54-8fa6-a5a7914d73da
+Enabling Provider:Microsoft-Windows-HttpService Level:Verbose Keywords:0xffffffffffffffff Stacks:1 Values: Guid:dd5ef90a-6398-47a4-ad34-4dcecdef795f
+Enabling Provider:Microsoft-Windows-TCPIP Level:Informational Keywords:0xffffffffffffffff Stacks:1 Values: Guid:2f07e2ee-15db-40f1-90ef-9d7ba282188a
+Enabling Provider:Microsoft-Windows-NDIS-PacketCapture Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:2ed6006e-4729-4609-b423-3ee7bcd678ef
+Enabling Provider:Microsoft-Windows-WebIO Level:Informational Keywords:0xffffffffffffffff Stacks:0 Values: Guid:50b3e73c-9370-461d-bb9f-26f32d68887d
+Enabling Provider:Microsoft-Windows-WinINet Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:43d1a55c-76d6-4f7e-995c-64c711e5cafe
+Enabling Provider:Microsoft-Windows-WinHttp Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:7d44233d-3055-4b9c-ba64-0d47ca40a232
+Enabling Provider:Microsoft-Windows-RPC Level:Informational Keywords:0x0 Stacks:0 Values: Guid:6ad52b32-d609-4be9-ae07-ce8dae937e39
+Turning on VS CodeMarkers and MeasurementBlock Providers.
+Enabling Provider:MeasurementBlock Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:143a31db-0372-40b6-b8f1-b4b16adb5f54
+Enabling Provider:CodeMarkers Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:641d7f6c-481c-42e8-ab7e-d18dc5e5cb9e
+Enabling CLR Events: GC, Binder, Security, AppDomainResourceManagement, Contention, Exception, Threading, JITSymbols, Type, GCHeapSurvivalAndMovement, GCHeapAndTypeNames, Stack, ThreadTransfer, Codesymbols, Compilation
+Enabling Provider:ClrNative Level:Verbose Keywords:0x14c14fcc9d Stacks:1 Values: Guid:47c3ba0c-77f1-4eb0-8d4d-aef447f16a85
+Enabling Provider:CLR Level:Verbose Keywords:0x14c14fcc9d Stacks:0 Values: Guid:e13c0d23-ccbc-4e12-931b-d9cc2eee27e4
+Enabling Providers specified by the user.
+Parsing ETW Provider Spec: *Valve.SteamNetworkingSockets
+Parsing ETW Provider Spec: *Valve.Source
+Parsing ETW Provider Spec: *Valve.Source.Net
+Parsing ETW Provider Spec: *Valve.Source.Client
+Parsing ETW Provider Spec: *Valve.Source.Input
+Parsing ETW Provider Spec: *Valve.Source.Render
+Enabling Provider:*Valve.SteamNetworkingSockets Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:d4e956eb-de52-57ac-dcaa-1f9ba10417c8
+Enabling Provider:*Valve.Source Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:868fe12c-b74e-5fdc-e311-3368cf7ff54c
+Enabling Provider:*Valve.Source.Net Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:3d339239-069d-5546-cb79-5835c70db89c
+Enabling Provider:*Valve.Source.Client Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:2f6b05a3-4dc7-5eb6-5af3-02750de8a6f4
+Enabling Provider:*Valve.Source.Input Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:28739be2-654b-5545-05cb-263aa0306234
+Enabling Provider:*Valve.Source.Render Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:89a939c6-746c-586d-2ea7-998c580bb08b
+[Starting collection at 5/13/2026 11:24:34 AM]
+[Collecting   10 sec: Size=160.8 MB.]
+[Collecting   20 sec: Size=363.3 MB.]
+[Collecting   30 sec: Size=561.8 MB.  Recycling started at 30 sec.]
+[Collecting   40 sec: Size=581.6 MB.  Recycling started at 30 sec.]
+[Manually Stopped (Gui)]
+Stopping tracing for sessions 'NT Kernel Logger' and 'PerfViewSession'.
+No Heap events were active for this trace.
+[Sending rundown command to CLR providers...]
+Enabling Provider:PerfViewLogger Level:Verbose Keywords:0xffffffffffffffff Stacks:0 Values: Guid:a8a71ac1-040f-54a2-07ca-00a89b5ab761
+Parsing ETW Provider Spec: *Valve.SteamNetworkingSockets
+Parsing ETW Provider Spec: *Valve.Source
+Parsing ETW Provider Spec: *Valve.Source.Net
+Parsing ETW Provider Spec: *Valve.Source.Client
+Parsing ETW Provider Spec: *Valve.Source.Input
+Parsing ETW Provider Spec: *Valve.Source.Render
+Enabling Provider:*Valve.SteamNetworkingSockets Level:Critical Keywords:0x80000000000 Stacks:0 Values: Guid:d4e956eb-de52-57ac-dcaa-1f9ba10417c8
+Enabling Provider:*Valve.Source Level:Critical Keywords:0x80000000000 Stacks:0 Values: Guid:868fe12c-b74e-5fdc-e311-3368cf7ff54c
+Enabling Provider:*Valve.Source.Net Level:Critical Keywords:0x80000000000 Stacks:0 Values: Guid:3d339239-069d-5546-cb79-5835c70db89c
+Enabling Provider:*Valve.Source.Client Level:Critical Keywords:0x80000000000 Stacks:0 Values: Guid:2f6b05a3-4dc7-5eb6-5af3-02750de8a6f4
+Enabling Provider:*Valve.Source.Input Level:Critical Keywords:0x80000000000 Stacks:0 Values: Guid:28739be2-654b-5545-05cb-263aa0306234
+Enabling Provider:*Valve.Source.Render Level:Critical Keywords:0x80000000000 Stacks:0 Values: Guid:89a939c6-746c-586d-2ea7-998c580bb08b
+Enabling Provider:CLRRundown Level:Verbose Keywords:0x108 Stacks:0 Values: Guid:a669021c-c450-4609-a035-5af59af4df18
+Enabling Provider:CLRRundown Level:Verbose Keywords:0x1080060111 Stacks:0 Values: Guid:a669021c-c450-4609-a035-5af59af4df18
+Waiting up to 120 sec for rundown events.  Use /RundownTimeout to change.
+If you know your process has exited, use /noRundown qualifer to skip this step.
+Rundown File Length: 26.2MB delta: 26.2MB
+Rundown File Length: 26.2MB delta: 0.0MB
+Rundown file has stopped growing, assuming rundown complete.
+CLR Rundown took 2.581 sec.
+Done stopping sessions.
+Ensuring .NET Allocation profiler not installed.
+Detected 64 bit system, removing 32 bit keys.
+[Merging data files to PerfViewData.etl.  Can take 10s of seconds... (can skip if data analyzed on same machine with PerfView)]
+Starting Generating NGEN pdbs for G:\PerfViewData.etl
+Starting Merging of G:\PerfViewData.etl
+Could not find CLR directory for NGEN image C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\10.0.5\System.Diagnostics.PerformanceCounter.dll, Giving up
+NGEN PDB creation for C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\10.0.5\System.Diagnostics.PerformanceCounter.dll took 0.00 Sec
+Could not find CLR directory for NGEN image C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\10.0.5\WindowsBase.dll, Giving up
+NGEN PDB creation for C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\10.0.5\WindowsBase.dll took 0.00 Sec
+Could not find CLR directory for NGEN image C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\10.0.5\PresentationFramework.dll, Giving up
+NGEN PDB creation for C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\10.0.5\PresentationFramework.dll took 0.00 Sec
+Could not find CLR directory for NGEN image C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.5\System.Private.CoreLib.dll, Giving up
+NGEN PDB creation for C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.5\System.Private.CoreLib.dll took 0.00 Sec
+Found NGEN pdb C:\Users\Administrator\AppData\Local\Temp\SymbolCache\mscorlib.ni.pdb\50abde036072b0b49b01ecf91d35cf891\mscorlib.ni.pdb
+NGEN PDB creation for C:\Windows\assembly\NativeImages_v4.0.30319_64\mscorlib\50abde036072b0b49b01ecf91d35cf89\mscorlib.ni.dll took 0.00 Sec
+Generating NGEN Pdbs took 3.8 sec
+Merging took 7.9 sec
+Moving G:\PerfViewData.etl.new to G:\PerfViewData.etl
+Deleting temp file
+Merge and NGEN PDB Generation took 7.982 sec.
+Merge output file G:\PerfViewData.etl
+[Zipping ETL file G:\PerfViewData.etl]
+[Writing 1 PDBS to Zip file]
+ZIP generation took 9.089 sec
+ZIP output file G:\PerfViewData.etl.zip
+Time: 5/13/2026 11:25:39 AM

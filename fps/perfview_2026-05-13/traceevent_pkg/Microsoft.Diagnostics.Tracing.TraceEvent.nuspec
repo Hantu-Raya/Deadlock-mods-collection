@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata minClientVersion="2.5">
+    <id>Microsoft.Diagnostics.Tracing.TraceEvent</id>
+    <version>3.2.2</version>
+    <title>Microsoft TraceEvent Library</title>
+    <authors>Microsoft</authors>
+    <owners>Microsoft</owners>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <licenseUrl>https://licenses.nuget.org/MIT</licenseUrl>
+    <projectUrl>https://github.com/Microsoft/perfview</projectUrl>
+    <description>Event Tracing for Windows (ETW) is a powerful logging mechanism built into the Windows OS and is used extensively in Windows. 
+      You can also log ETW events yourself code using the System.Diagnostics.Tracing.EventSource class.
+
+      The TraceEvent library conains the classes needed to control ETW providers (including .NET EventSources) 
+      and parse the events they emit.
+
+      The library includes
+      -- TraceEventSession which can enable ETW providers,
+      -- EtwTraceEventSource which lets you read the stream of ETW events, and
+      -- TraceLog which is is digested form of ETW events which include decoded stack traces associated with the events.
+    
+      See https://github.com/Microsoft/perfview/blob/master/documentation/TraceEvent/TraceEventLibrary.md for more.</description>
+    <summary>TraceEvent is a .NET Framework library for capturing and analyzing ETW events.</summary>
+    <releaseNotes>https://github.com/Microsoft/perfview/releases/tag/v3.2.2</releaseNotes>
+    <copyright>© Microsoft Corporation. All rights reserved.</copyright>
+    <tags>TraceEvent EventSource Microsoft ETW Event Tracing for Windows</tags>
+    <dependencies>
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="Microsoft.Win32.Registry" version="5.0.0" />
+        <dependency id="System.Collections.Immutable" version="9.0.8" />
+        <dependency id="System.Reflection.Metadata" version="9.0.8" />
+        <dependency id="System.Reflection.TypeExtensions" version="4.7.0" />
+        <dependency id="System.Runtime.CompilerServices.Unsafe" version="6.1.2" />
+        <dependency id="Microsoft.Diagnostics.NETCore.Client" version="0.2.510501" />
+        <dependency id="System.Text.Json" version="9.0.8" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>

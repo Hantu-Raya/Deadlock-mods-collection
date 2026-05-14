@@ -1,0 +1,132 @@
+[
+  {
+    "id": "W00_current_baseline",
+    "title": "Current baseline, no new overrides",
+    "rank": 0,
+    "requiresRestart": true,
+    "convars": [],
+    "why": "Clears the managed ETW wave block and captures the current tuned config as control.",
+    "risk": "None from this wave itself.",
+    "judgeBy": "Use clean 5s-40s P99/P95/max, game CPU cores, SimulationTicks, and top CPU modules."
+  },
+  {
+    "id": "W01_particle_threshold_1200",
+    "title": "Particle cull threshold default-ish comparison",
+    "rank": 1,
+    "requiresRestart": true,
+    "convars": [
+      { "name": "r_particle_max_size_cull", "value": "1200" }
+    ],
+    "why": "Tests whether current 999 is hurting P99. 1200 is the public default used in older/public Source 2 references.",
+    "risk": "May increase CPU culling versus 999 but may reduce extra GPU draw.",
+    "judgeBy": "Keep only if clean P99/P95 improves or stays flat while CPU modules do not worsen."
+  },
+  {
+    "id": "W02_particle_threshold_1600",
+    "title": "Particle cull threshold prior live comparison",
+    "rank": 2,
+    "requiresRestart": true,
+    "convars": [
+      { "name": "r_particle_max_size_cull", "value": "1600" }
+    ],
+    "why": "Restores the earlier live value for a 999 vs 1200 vs 1600 triangle test.",
+    "risk": "More large particle systems may spend CPU on culling.",
+    "judgeBy": "Reject if worker-pool particle/scene CPU samples rise or clean P99 worsens."
+  },
+  {
+    "id": "W03_tempent_collision_1000",
+    "title": "Temporary entity collision limit sanity test",
+    "rank": 3,
+    "requiresRestart": true,
+    "convars": [
+      { "name": "cl_fasttempentcollision", "value": "1000" }
+    ],
+    "why": "Current live value 999999 is extreme. Sqooky uses 1000; current public default is 5. This targets vphysics2/main-thread cost without jumping straight to 5.",
+    "risk": "Temp-entity collision behavior is not well documented. Watch tracers, impacts, projectile effects, and hit readability.",
+    "judgeBy": "Keep only if vphysics2/main-thread CPU and clean P99 improve with no gameplay visual problems."
+  },
+  {
+    "id": "W04_break_pieces_zero",
+    "title": "Breakable prop piece cap zero",
+    "rank": 4,
+    "requiresRestart": true,
+    "convars": [
+      { "name": "props_break_max_pieces_perframe", "value": "0" }
+    ],
+    "why": "Current live value is 0.5 and public default is 16. Sqooky uses 0. This may reduce breakable-prop spike work.",
+    "risk": "Could change breakable debris visuals. Likely low gameplay risk.",
+    "judgeBy": "Look for lower spike max/P99 in fights or minion/object break situations."
+  },
+  {
+    "id": "W05_particles_render_only_frames",
+    "title": "Particle updates on render-only frames",
+    "rank": 5,
+    "requiresRestart": true,
+    "convars": [
+      { "name": "r_update_particles_on_render_only_frames", "value": "1" }
+    ],
+    "why": "Missing locally, current dump default is false, and the name suggests fewer particle update gaps on render-only frames. This is weak-docs but directly targets particle timing.",
+    "risk": "Particle timing/readability can change. Watch ultimates and lingering area effects.",
+    "judgeBy": "Keep only if particle/scene CPU or P99 improves and visuals stay correct."
+  },
+  {
+    "id": "W06_ui_audio_nonpositional",
+    "title": "Disable positional UI audio",
+    "rank": 6,
+    "requiresRestart": true,
+    "convars": [
+      { "name": "snd_ui_positional", "value": "false" }
+    ],
+    "why": "Live has 1 while OptimizationLock uses false. Only test this if AudioMixer/soundsystem becomes visible in ETW.",
+    "risk": "UI sound positioning may feel different.",
+    "judgeBy": "Keep only if AudioMixer/soundsystem CPU drops without hurting usability."
+  },
+  {
+    "id": "W07_audio_occlusion_rays_zero",
+    "title": "Disable audio occlusion rays",
+    "rank": 7,
+    "requiresRestart": true,
+    "convars": [
+      { "name": "snd_occlusion_rays", "value": "0" }
+    ],
+    "why": "Missing locally; OptimizationLock uses 0 and public references show default 4. Deprioritized until audio is a bottleneck.",
+    "risk": "Weaker audio occlusion/spatial realism.",
+    "judgeBy": "Only keep if AudioMixer/soundsystem is a top ETW bucket and this lowers it."
+  },
+  {
+    "id": "W08_thread_pool_option_6",
+    "title": "Thread pool option 6 comparison",
+    "rank": 8,
+    "requiresRestart": true,
+    "convars": [
+      { "name": "thread_pool_option", "value": "6" }
+    ],
+    "why": "Current measured-good value is 4. This tests whether 6 improves worker scheduling and 1% lows.",
+    "risk": "Unknown mapping. Reject immediately if clean P99/max or input feel worsens.",
+    "judgeBy": "Compare GlobPool balance, MainThrd CPU, ReadyThread/CSwitch pressure, clean P99, and clean max."
+  },
+  {
+    "id": "W09_particle_threshold_800",
+    "title": "Particle cull threshold aggressive GPU-headroom test",
+    "rank": 9,
+    "requiresRestart": true,
+    "convars": [
+      { "name": "r_particle_max_size_cull", "value": "800" }
+    ],
+    "why": "More aggressive than 999. May skip CPU culling for more large particle systems while spending more GPU headroom.",
+    "risk": "Can increase GPU overdraw or present time. Verify VConsole stickiness because this cvar is not in the current public Deadlock dump.",
+    "judgeBy": "Keep only if particle CPU drops and amdxx64/D3D/present metrics do not rise meaningfully."
+  },
+  {
+    "id": "W10_texture_pool_512",
+    "title": "Texture pool 512 hitch test",
+    "rank": 10,
+    "requiresRestart": true,
+    "convars": [
+      { "name": "r_texture_pool_size", "value": "512" }
+    ],
+    "why": "Not a direct CPU cut. Tests whether a larger pool reduces material/texture streaming churn and lows.",
+    "risk": "Uses more VRAM and may reduce max-FPS purity on low VRAM. Only useful if texture pop-in or traversal hitches are seen.",
+    "judgeBy": "Keep only if material/render clean P99 or max improves during traversal/fights without VRAM pressure."
+  }
+]
