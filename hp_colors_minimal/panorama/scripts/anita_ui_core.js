@@ -9,19 +9,31 @@
   var SNAPSHOT_MAGIC = "HP_COLORS_PRESET_SNAPSHOT";
   var REQUEST_MAGIC = "HP_COLORS_PRESET_REQUEST";
   var PUBLISH_RETRY_DELAYS = [0.1, 0.5, 1.0, 2.5, 5.0, 8.0];
-  var CACHED_SNAPSHOT_REPLAY_SEC = 1.0;
+  var CACHED_SNAPSHOT_REPLAY_SEC = 0.25;
+  var CACHED_SNAPSHOT_REPLAY_DELAYS = [CACHED_SNAPSHOT_REPLAY_SEC, 0.75, 1.5, 3.0];
+  var cachedRootPanel = null;
+  var cachedStorePanel = null;
   var cachedValues = null;
   var lastPublishedRaw = "";
   var cachedSnapshotPayload = "";
   var sharedSnapshotWritten = false;
   var cachedReplayStarted = false;
 
+  function isValidPanel(panel) {
+    try {
+      return !!(panel && (!panel.IsValid || panel.IsValid()));
+    } catch (e) {}
+    return false;
+  }
+
   function getRootPanel() {
+    if (isValidPanel(cachedRootPanel)) return cachedRootPanel;
     var panel = $.GetContextPanel();
     while (panel && panel.GetParent && panel.GetParent()) {
       panel = panel.GetParent();
     }
-    return panel || null;
+    cachedRootPanel = panel || null;
+    return cachedRootPanel;
   }
 
   function getSharedStore() {
@@ -43,7 +55,9 @@
     var store = getSharedStore();
     if (!store || !raw) return false;
     try {
-      if (store[SHARED_CFG_RAW_KEY] !== raw) store[SHARED_CFG_RAW_KEY] = raw;
+      if (store[SHARED_CFG_RAW_KEY] !== raw) {
+        store[SHARED_CFG_RAW_KEY] = raw;
+      }
       sharedSnapshotWritten = true;
       return true;
     } catch (e) {}
@@ -100,14 +114,18 @@
 
   function readPresetValues() {
     if (cachedValues) return cachedValues;
+    if (cachedSnapshotPayload) return cachedValues;
 
     var root = getRootPanel();
     if (!root || !root.FindChildTraverse) return null;
 
-    var store = null;
-    try {
-      store = root.FindChildTraverse(STORE_ID);
-    } catch (e0) {}
+    var store = isValidPanel(cachedStorePanel) ? cachedStorePanel : null;
+    if (!store) {
+      try {
+        store = root.FindChildTraverse(STORE_ID);
+      } catch (e0) {}
+      cachedStorePanel = isValidPanel(store) ? store : null;
+    }
     if (!store) return null;
 
     var entries = [];
@@ -174,17 +192,16 @@
 
   function replayCachedSnapshot() {
     if (cachedSnapshotPayload) dispatchSnapshot(cachedSnapshotPayload);
-    try {
-      $.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot);
-    } catch (e) {}
   }
 
   function startCachedSnapshotReplay() {
     if (cachedReplayStarted || !cachedSnapshotPayload) return;
     cachedReplayStarted = true;
-    try {
-      $.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot);
-    } catch (e) {}
+    for (var i = 0; i < CACHED_SNAPSHOT_REPLAY_DELAYS.length; i += 1) {
+      try {
+        $.Schedule(CACHED_SNAPSHOT_REPLAY_DELAYS[i], replayCachedSnapshot);
+      } catch (e) {}
+    }
   }
 
   function handlePresetRequest(payload) {
@@ -193,6 +210,11 @@
       var data = typeof payload === "string" ? JSON.parse(payload) : payload;
       if (!data || data.magic_word !== REQUEST_MAGIC) return;
       if (data.mod_title && data.mod_title !== "HP Colors") return;
+      if (cachedSnapshotPayload) {
+        dispatchSnapshot(cachedSnapshotPayload);
+        if (!sharedSnapshotWritten) writeSharedSnapshot(lastPublishedRaw);
+        return;
+      }
       publishPreset();
     } catch (e) {}
   }
