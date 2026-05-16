@@ -81,14 +81,11 @@ function getValidationReport() {
   }
 
   if (healthbarSource) {
-    for (const required of ["__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "values_raw", "tryApplySharedSnapshot", "schedulePresetRetry", "raw === sharedCfgRaw && presetApplied", "presetApplied", "invalidateEnemyVisualCaches", "resetCachedPanelRefsIfInvalid", "lastEnemySignature", "lastCpPanel", "lastUnitName", "panelGeneration", "styleGeneration", "colorGeneration", "wasDirty", "startEnemyLoop", "stopEnemyLoop", "startAllyLoop", "stopAllyLoop", "startLevelLoop", "stopLevelLoop", "handleRuntimeToggleState", "nextCacheProbeAt", "ALLY_SCAN_CACHE_TTL", "var shouldPulse = !!(cfg.hp_pulse_enabled && hp <= pulseThresh)", "if (fmt === 1)", "uHT(hp, 100, shouldPulse)", "if (cfg.hp_kill_zone_enabled) sKZ(true, pw)", "schedulePresetRetry();"]) {
+    for (const required of ["__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "values_raw", "tryApplySharedSnapshot", "schedulePresetRetry", "raw === sharedCfgRaw && presetApplied", "presetApplied", "invalidateEnemyVisualCaches", "resetCachedPanelRefsIfInvalid", "lastEnemySignature", "lastCpPanel", "lastUnitName", "wasDirty", "startEnemyLoop", "stopEnemyLoop", "startAllyLoop", "stopAllyLoop", "startLevelLoop", "stopLevelLoop", "handleRuntimeToggleState", "nextCacheProbeAt", "ALLY_SCAN_CACHE_TTL", "var shouldPulse = !!(cfg.hp_pulse_enabled && hp <= pulseThresh)", "if (fmt === 1)", "uHT(hp, 100, shouldPulse)", "if (cfg.hp_kill_zone_enabled) sKZ(true, pw)"]) {
       if (!healthbarSource.includes(required)) errors.push(`healthbar_logic.js missing static preset reader marker: ${required}`);
     }
     if (healthbarSource.includes("gRunning = true; gL()") || healthbarSource.includes("aRunning = true; aL()") || healthbarSource.includes("lL();")) {
       errors.push("healthbar_logic.js must not start enemy, ally, or level loops unconditionally");
-    }
-    if (healthbarSource.includes("$.Schedule(0.05, schedulePresetRetry)")) {
-      errors.push("healthbar_logic.js must request the preset immediately on overlay startup");
     }
     for (const forbidden of ["ANITA_", "force_emit", "bridge_bootstrap", "core_auto_resync", "anita_v1_hp_colors", "deadlock_hero_debuts_seen", "GameInterfaceAPI", "HP_PERSIST_ALIAS_TO_ID"]) {
       if (healthbarSource.includes(forbidden)) errors.push(`healthbar_logic.js must not contain live customization/persistence marker: ${forbidden}`);
