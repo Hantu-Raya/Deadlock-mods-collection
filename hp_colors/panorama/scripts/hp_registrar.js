@@ -6,6 +6,7 @@
   var didRegister = false;
   var didRequestBootstrap = false;
   var registerAttempts = 0;
+  var cachedConfig = null;
   var SCHEMA = [
     // General - Core Behavior
     { type: "toggle", id: "hp_enabled", label: "Enable enemy HP colors", defaultValue: true, category: "GENERAL|Core Behavior" },
@@ -60,6 +61,7 @@
     { type: "slider", id: "hp_kill_zone_width", label: "Marker width", defaultValue: 3, min: 1, max: 100, step: 1, category: "VISUAL EFFECTS|Kill Marker", visibleWhen: { id: "hp_kill_zone_enabled", equals: true } }
   ];
   function buildConfig() {
+    if (cachedConfig) return cachedConfig;
     var elements = [];
     for (var i = 0; i < SCHEMA.length; i++) {
       var element = {};
@@ -71,13 +73,14 @@
       }
       elements.push(element);
     }
-    return {
+    cachedConfig = {
       title: TITLE,
       description: "Set enemy, ally, pulse, HP number, and kill marker colors.",
       storageNamespace: "hp_colors",
       storageVersion: 97,
       elements: elements
     };
+    return cachedConfig;
   }
   function getRootPanel() {
     var panel = $.GetContextPanel();
