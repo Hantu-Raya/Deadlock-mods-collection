@@ -184,11 +184,40 @@
   }
 
   function emitBulkUpdate(modTitle, values, meta) {
-    for (var settingId in values || {}) {
-      if (Object.prototype.hasOwnProperty.call(values, settingId)) {
-        emitUpdate(modTitle, settingId, values[settingId], meta);
+    var payload = {
+      magic_word: "ANITA_BULK_UPDATE",
+      mod_title: modTitle,
+      values: values || {}
+    };
+    if (meta && typeof meta === "object") {
+      for (var key in meta) {
+        if (Object.prototype.hasOwnProperty.call(meta, key)) {
+          payload[key] = meta[key];
+        }
       }
     }
+    $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(payload));
+    for (var settingId in values || {}) {
+      if (Object.prototype.hasOwnProperty.call(values, settingId)) {
+        rememberLastEmittedValue(modTitle, settingId, values[settingId]);
+      }
+    }
+  }
+
+  var throttledEmitState = {};
+  function emitUpdateThrottled(modTitle, settingId, newValue, meta, delaySec) {
+    if (!modTitle || !settingId) return;
+    var key = modTitle + "::" + settingId;
+    var state = throttledEmitState[key];
+    if (!state) state = throttledEmitState[key] = { pending: false, value: null, meta: null };
+    state.value = newValue;
+    state.meta = meta || null;
+    if (state.pending) return;
+    state.pending = true;
+    $.Schedule(delaySec || 0.04, function () {
+      state.pending = false;
+      emitUpdate(modTitle, settingId, state.value, state.meta);
+    });
   }
 
   function getRootPanelForPresetStore() {
@@ -1047,7 +1076,7 @@
         if (emitUpdateEvent) {
           if (config.onChange) config.onChange(normalized);
           if (config.id && modTitle) {
-            emitUpdate(modTitle, config.id, normalized);
+            emitUpdateThrottled(modTitle, config.id, normalized, null, 0.04);
           }
         }
       }
@@ -1167,8 +1196,6 @@
       let colorPickerPollGeneration = 0;
       let colorDragging = false;
       const hasGameUI = (typeof GameUI !== "undefined" && GameUI !== null);
-      // Enable locally when chasing picker cursor math in W.log.
-      const PICKER_POS_DEBUG = false;
       let colorDragAnchorX = -1;
       let colorDragAnchorY = -1;
       let colorDragSource = "";
@@ -1178,8 +1205,6 @@
       let nativeDragOffsetY = 0;
       let nativeDragHasSample = false;
       let nativeDragAxis = "";
-      let pickerDebugLastAt = {};
-      let pickerDebugLastMsg = {};
       let popupPreview = null;
       let popupHexLabel = null;
       let popupMetaLabel = null;
@@ -1199,57 +1224,9 @@
       const COLOR_BOX_CURSOR_LOGICAL_SIZE = 16;
 
       function debugPickerNode(tag, data, throttleMs) {
-        if (!PICKER_POS_DEBUG) return;
-        var waitMs = Number(throttleMs);
-        if (!isFinite(waitMs) || waitMs < 0) waitMs = 0;
-        var payload = "";
-        try {
-          payload = JSON.stringify(data || {});
-        } catch (e) {
-          payload = "[unserializable]";
-        }
-        var now = 0;
-        try {
-          now = (new Date()).getTime();
-        } catch (e) {}
-        if (!pickerDebugLastAt) pickerDebugLastAt = {};
-        if (!pickerDebugLastMsg) pickerDebugLastMsg = {};
-        if (waitMs > 0 &&
-            pickerDebugLastAt[tag] !== undefined &&
-            (now - pickerDebugLastAt[tag]) < waitMs &&
-            pickerDebugLastMsg[tag] === payload) {
-          return;
-        }
-        pickerDebugLastAt[tag] = now;
-        pickerDebugLastMsg[tag] = payload;
-        try {
-          $.Msg("[PAL-DBG] " + tag + " " + payload);
-        } catch (e) {}
       }
 
       function debugPickerEvent(tag, eventName, throttleMs) {
-        if (!PICKER_POS_DEBUG) return;
-        var cursor = getCursorPosition();
-        var metrics = getColorBoxMetrics();
-        var data = {
-          event: eventName || "",
-          dragging: !!colorDragging,
-          source: colorDragSource || "",
-          anchorX: Math.round(colorDragAnchorX),
-          anchorY: Math.round(colorDragAnchorY),
-          hasGameUI: !!hasGameUI,
-          cursorX: cursor ? Math.round(cursor.x) : -1,
-          cursorY: cursor ? Math.round(cursor.y) : -1
-        };
-        if (metrics && cursor) {
-          data.boxX = Math.round(cursor.x - metrics.bounds.left);
-          data.boxY = Math.round(cursor.y - metrics.bounds.top);
-          data.insideBox = cursor.x >= metrics.bounds.left &&
-            cursor.x <= (metrics.bounds.left + metrics.bounds.width) &&
-            cursor.y >= metrics.bounds.top &&
-            cursor.y <= (metrics.bounds.top + metrics.bounds.height);
-        }
-        debugPickerNode(tag, data, throttleMs);
       }
 
       function clampByte(value) {
@@ -2033,6 +2010,7 @@
         colorDragSource = "";
         clearNativeDragCorrection();
         setMouseCaptureState(false);
+        if (config.id && modTitle) emitUpdate(modTitle, config.id, currentColor);
       }
 
       function stopPickerPolling() {
@@ -2100,7 +2078,10 @@
         var nextColor = normalizeHexColor(colorCode);
         if (nextColor === currentColor && !boxState) {
           if (emitUpdateEvent) {
-            if (config.id && modTitle) emitUpdate(modTitle, config.id, currentColor);
+            if (config.id && modTitle) {
+              if (colorDragging) emitUpdateThrottled(modTitle, config.id, currentColor, null, 0.04);
+              else emitUpdate(modTitle, config.id, currentColor);
+            }
             if (config.onChange) config.onChange(currentColor);
           }
           if (closeAfter) closePalette();
@@ -2178,7 +2159,8 @@
 
         if (emitUpdateEvent) {
           if (config.id && modTitle) {
-            emitUpdate(modTitle, config.id, currentColor);
+            if (colorDragging) emitUpdateThrottled(modTitle, config.id, currentColor, null, 0.04);
+            else emitUpdate(modTitle, config.id, currentColor);
           }
           if (config.onChange) config.onChange(currentColor);
         }
@@ -2866,7 +2848,7 @@
         if (emitUpdateEvent && changed) {
           if (config.onChange) config.onChange(nextValue);
           if (config.id && modTitle) {
-            emitUpdate(modTitle, config.id, nextValue);
+            emitUpdateThrottled(modTitle, config.id, nextValue, null, 0.04);
           }
         }
       }
@@ -3165,10 +3147,15 @@
       bgShield.hittest = true;
 
         const syncAll = () => {
+          var now = 0;
+          try { now = (new Date()).getTime(); } catch (eNow) {}
+          if (config.__anitaLastRenderSyncAt && now - config.__anitaLastRenderSyncAt < 250) return;
+          config.__anitaLastRenderSyncAt = now;
           AnitaCore.emitCurrentValues(config, {
             update_source: "ui_resync",
             skip_bridge_persist: true,
-            force_emit: true
+            force_emit: true,
+            bulk_emit: true
           });
         };
 
@@ -3616,7 +3603,8 @@
         update_source: "core_auto_resync",
         skip_bridge_persist: true,
         sync_reason: String(reason || "tick"),
-        force_emit: true
+        force_emit: true,
+        bulk_emit: true
       });
     },
 
@@ -3640,6 +3628,7 @@
       config.__anitaPortableSyncReason = String(config.__anitaPortableSyncReason || "update");
       if (config.__anitaPortableSyncLoopStarted) return;
       config.__anitaPortableSyncLoopStarted = true;
+      config.__anitaPortableSyncTicks = 0;
 
       var tick = () => {
         if (!config) return;
@@ -3647,11 +3636,73 @@
           config.__anitaPortableSyncLoopStarted = false;
           return;
         }
+        config.__anitaPortableSyncTicks = (config.__anitaPortableSyncTicks || 0) + 1;
         this.emitPortableSync(config, "heartbeat_" + String(config.__anitaPortableSyncReason || "update"));
+        if (config.__anitaPortableSyncTicks >= 4) {
+          config.__anitaPortableSyncLoopStarted = false;
+          return;
+        }
         $.Schedule(3.0, tick);
       };
 
       $.Schedule(3.0, tick);
+    },
+
+    handleBulkUpdateEvent: function (data) {
+      if (!data || !data.mod_title || !data.values || typeof data.values !== "object") return;
+      var config = this.findRegisteredMod(data.mod_title);
+      if (!config) return;
+
+      var updateSource = String(data.update_source || "");
+      var isBootstrap = updateSource === "bridge_bootstrap";
+      var isReplaySource = isBootstrap ||
+        updateSource === "ui_resync" ||
+        updateSource === "ui_reset" ||
+        updateSource === "ui_code_apply" ||
+        updateSource === "core_auto_resync";
+
+      var changed = false;
+      var visibilityDirty = false;
+      for (var settingId in data.values) {
+        if (!Object.prototype.hasOwnProperty.call(data.values, settingId)) continue;
+        var before = null;
+        for (var i = 0; i < config.elements.length; i++) {
+          if (config.elements[i] && config.elements[i].id === settingId) {
+            before = config.elements[i].currentValue;
+            break;
+          }
+        }
+        if (!AnitaPersistence.applyUpdate(config, settingId, data.values[settingId])) continue;
+        if (this.hasVisibilityDependents(config, settingId)) visibilityDirty = true;
+        for (var j = 0; j < config.elements.length; j++) {
+          if (config.elements[j] && config.elements[j].id === settingId && config.elements[j].currentValue !== before) {
+            changed = true;
+            break;
+          }
+        }
+      }
+
+      AnitaRenderer.syncSaveCodeInput(config);
+      if (isBootstrap) config.__anitaBootstrapReceived = true;
+
+      if (visibilityDirty || isBootstrap) {
+        AnitaRenderer.refreshConditionalVisibility(config);
+      }
+
+      if (!isReplaySource && config.title === "HP Colors" && changed) {
+        config.__anitaPortableSyncReason = "bulk_update";
+        this.emitPortableSync(config, "bulk_update_immediate");
+        this.queuePortableSyncBurst(config, "bulk_update");
+        this.startPortableSyncLoop(config);
+      }
+
+      if (data.skip_bridge_persist || isReplaySource) return;
+      var writeToken = (config.__anitaPendingWriteToken || 0) + 1;
+      config.__anitaPendingWriteToken = writeToken;
+      $.Schedule(2.0, function () {
+        if (!config || config.__anitaPendingWriteToken !== writeToken) return;
+        AnitaPersistence.persistConfig(config, !!data.force_persist);
+      });
     },
 
     handleUpdateEvent: function (data) {
@@ -3746,6 +3797,8 @@
               this.registerMod(data.config);
             } else if (data && data.magic_word === "ANITA_REQUEST_BOOTSTRAP") {
               this.handleBootstrapRequest(data);
+            } else if (data && data.magic_word === "ANITA_BULK_UPDATE") {
+              this.handleBulkUpdateEvent(data);
             } else if (data && data.magic_word === "ANITA_UPDATE") {
               this.handleUpdateEvent(data);
             }
@@ -3827,9 +3880,9 @@
           AnitaRenderer.toggle(false);
         }
 
-        nextDelay = isMenuOpen ? CONFIG.UI.MONITOR_INTERVAL : Math.max(CONFIG.UI.MONITOR_INTERVAL * 8, 0.25);
+        nextDelay = isMenuOpen ? CONFIG.UI.MONITOR_INTERVAL : Math.max(CONFIG.UI.MONITOR_INTERVAL * 16, 0.75);
       } else {
-        nextDelay = Math.max(CONFIG.UI.MONITOR_INTERVAL * 4, 0.2);
+        nextDelay = Math.max(CONFIG.UI.MONITOR_INTERVAL * 16, 0.75);
       }
 
       $.Schedule(nextDelay, () => this.monitorEscapeMenu(root));

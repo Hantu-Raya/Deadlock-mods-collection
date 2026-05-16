@@ -73,6 +73,9 @@
   var bootstrapToken = 0;
   var pendingBootstrapReason = "";
   var _lastHpSharedRaw = "";
+  var SHARED_CFG_RAW_KEY = "__hpColorsCfgRaw";
+  var cachedDefaultConfig = null;
+  var cachedDefaultValues = null;
   
 
 
@@ -160,6 +163,12 @@
       .replace(/^_+|_+$/g, "");
   }
 
+  function getSharedStore() {
+    try {
+      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) return GameUI.CustomUIConfig();
+    } catch (e) {}
+    return null;
+  }
 
   function writeHpSharedSnapshot(values) {
     if (!values || typeof values !== "object") return;
@@ -171,11 +180,12 @@
       count += 1;
     }
     try {
-      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) {
+      var store = getSharedStore();
+      if (store) {
         var raw = JSON.stringify(out);
         if (raw === _lastHpSharedRaw) return;
         _lastHpSharedRaw = raw;
-        GameUI.CustomUIConfig().__hpColorsCfgRaw = raw;
+        store[SHARED_CFG_RAW_KEY] = raw;
       }
     } catch (e) {
     }
@@ -218,6 +228,7 @@
     if (type === "positionpicker") {
       var posX = 0;
       var posY = 200;
+      var minY = (element.id === "hp_counter_position" || element.id === "hp_pulse_text_position") ? -50 : 0;
       var rawPos = value;
 
       if (rawPos && typeof rawPos === "object") {
@@ -241,7 +252,7 @@
       if (!isFinite(posX)) posX = 0;
       if (!isFinite(posY)) posY = 200;
       if (posX < 0) posX = 0;
-      if (posY < 0) posY = 0;
+      if (posY < minY) posY = minY;
       if (posX > 400) posX = 400;
       if (posY > 400) posY = 400;
 
@@ -299,12 +310,19 @@
   }
 
   function buildDefaultValues(config) {
+    if (config && cachedDefaultConfig === config && cachedDefaultValues) {
+      return cloneValues(cachedDefaultValues);
+    }
     var values = {};
     var elements = (config && Array.isArray(config.elements)) ? config.elements : [];
     for (var i = 0; i < elements.length; i++) {
       var element = elements[i];
       if (!element || !element.id || element.type === "button") continue;
       values[element.id] = sanitizeValue(element, element.defaultValue);
+    }
+    if (config) {
+      cachedDefaultConfig = config;
+      cachedDefaultValues = cloneValues(values);
     }
     return values;
   }
@@ -398,7 +416,7 @@
     currentValues = cloneValues(values || {});
     persistedValues = cloneValues(persisted || values || {});
     writeSessionMirror(cachedEncoded);
-    writeHpSharedSnapshot(currentValues, "cache");
+    writeHpSharedSnapshot(currentValues);
   }
 
   function readSharedSnapshotValues() {
@@ -451,7 +469,7 @@
       return null;
     }
 
-    var convarParsed = parseStoredPayload(convarDecoded, "convar");
+    var convarParsed = parseStoredPayload(convarDecoded);
     if (!convarParsed) {
       return null;
     }
@@ -481,7 +499,7 @@
 
     if (!forceWrite && encoded === cachedEncoded) {
       writeSessionMirror(encoded);
-      writeHpSharedSnapshot(currentValues, "persist_unchanged");
+      writeHpSharedSnapshot(currentValues);
       return false;
     }
 
@@ -550,6 +568,12 @@
     });
   }
 
+  function isBridgeReplaySource(updateSource) {
+    return updateSource === "bridge_bootstrap" ||
+      updateSource === "core_auto_resync" ||
+      updateSource === "ui_resync";
+  }
+
   function captureConfig(config) {
     if (!config || String(config.title || "") !== TITLE) return false;
     if (normalizeNamespace(config.storageNamespace) !== STORAGE_NAMESPACE) return false;
@@ -575,6 +599,8 @@
     }
 
     bridgeConfig = nextConfig;
+    cachedDefaultConfig = null;
+    cachedDefaultValues = null;
     if (!currentValues) currentValues = buildDefaultValues(bridgeConfig);
     if (!persistedValues) persistedValues = cloneValues(currentValues);
     return true;
@@ -600,6 +626,34 @@
         return;
       }
 
+      if (data.magic_word === "ANITA_BULK_UPDATE" && data.mod_title === TITLE) {
+        if (!bridgeConfig || !data.values || typeof data.values !== "object") return;
+        if (!currentValues) currentValues = buildDefaultValues(bridgeConfig);
+        if (!persistedValues) persistedValues = cloneValues(currentValues);
+
+        var bulkSource = String(data.update_source || "ui_update");
+        var bulkReplay = isBridgeReplaySource(bulkSource);
+        var changed = false;
+        for (var bulkId in data.values) {
+          if (!Object.prototype.hasOwnProperty.call(data.values, bulkId)) continue;
+          var bulkElement = findElement(bulkId);
+          if (!bulkElement) continue;
+          var bulkValue = sanitizeValue(bulkElement, data.values[bulkId]);
+          if (currentValues[bulkId] !== bulkValue) {
+            currentValues[bulkId] = bulkValue;
+            changed = true;
+          }
+          if (!data.skip_bridge_persist && !bulkReplay) {
+            persistedValues[bulkId] = bulkValue;
+          }
+        }
+
+        if (changed) writeHpSharedSnapshot(currentValues);
+        if (data.skip_bridge_persist || bulkReplay) return;
+        schedulePersist(bulkSource, !!data.force_persist);
+        return;
+      }
+
       if (data.magic_word !== "ANITA_UPDATE" || data.mod_title !== TITLE) return;
       if (!bridgeConfig || !data.setting_id) return;
 
@@ -610,11 +664,11 @@
       if (!persistedValues) persistedValues = cloneValues(currentValues);
 
       var updateSource = String(data.update_source || "ui_update");
-      var isResync = updateSource === "core_auto_resync" || updateSource === "ui_resync";
+      var isResync = isBridgeReplaySource(updateSource);
 
       var sanitizedValue = sanitizeValue(element, data.value);
       currentValues[data.setting_id] = sanitizedValue;
-      writeHpSharedSnapshot(currentValues, updateSource);
+      writeHpSharedSnapshot(currentValues);
       if (!isResync) {
         persistedValues[data.setting_id] = sanitizedValue;
       }
