@@ -3426,7 +3426,8 @@
               AnitaCore.emitCurrentValues(config, {
                 update_source: "ui_code_apply",
                 force_persist: true,
-                force_emit: true
+                force_emit: true,
+                bulk_emit: true
               });
               closeImportPopup();
               AnitaRenderer.renderModSettings(config);
@@ -3474,7 +3475,8 @@
           AnitaCore.emitCurrentValues(config, {
             update_source: "ui_reset",
             force_persist: true,
-            force_emit: true
+            force_emit: true,
+            bulk_emit: true
           });
         });
 
