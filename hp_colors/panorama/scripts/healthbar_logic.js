@@ -27,6 +27,9 @@
     hp_pulse_text_scale: 120,
     hp_pulse_text_position: "20,196",
     hp_pulse_hide_bar: false,
+    hp_pulse_color_enabled: false,
+    hp_pulse_color: "#FF2222",
+    hp_pulse_color_mode: 0,
     hp_skip_buildings: false,
     hp_pulse_threshold: 25,
     hp_counter_format: 0,
@@ -286,6 +289,9 @@
     pts: "hp_pulse_text_scale",
     ptp: "hp_pulse_text_position",
     phb: "hp_pulse_hide_bar",
+    pce: "hp_pulse_color_enabled",
+    pc: "hp_pulse_color",
+    pcm: "hp_pulse_color_mode",
     sb: "hp_skip_buildings",
     pt: "hp_pulse_threshold",
     fe: "hp_friend_enabled",
@@ -328,6 +334,22 @@
       id === "hp_friend_pulse_intensity" ||
       id === "hp_friend_pulse_color_enabled" ||
       id === "hp_friend_pulse_color";
+  }
+
+  function affectsEnemyPulseColorSetting(id) {
+    return id === "hp_pulse_color_enabled" ||
+      id === "hp_pulse_color" ||
+      id === "hp_pulse_color_mode";
+  }
+
+  function markEnemyColorDirty() {
+    settingsDirty = true;
+    settingsRefreshHoldUntil = 0;
+    lColRaw = null;
+    lUltRaw = null;
+    lW = -1;
+    lHp = -1;
+    if (cfg.hp_enabled) $.Schedule(0.01, gL);
   }
 
   function markAllyOutputDirty(replaySource) {
@@ -566,6 +588,7 @@
         var anyChanged = false;
         var anyNonFriendChanged = false;
         var anyFriendChanged = false;
+        var anyEnemyPulseColorChanged = false;
         for (var key in values) {
           if (!Object.prototype.hasOwnProperty.call(DEFAULTS, key)) continue;
           if (key === "hp_counter_position" && d.update_source === "hp_counter_autoposition") continue;
@@ -575,6 +598,7 @@
             anyChanged = true;
             if (key.indexOf("hp_friend_") !== 0) anyNonFriendChanged = true;
             if (affectsAllyOutputSetting(key)) anyFriendChanged = true;
+            if (affectsEnemyPulseColorSetting(key)) anyEnemyPulseColorChanged = true;
           }
         }
         if (!anyChanged && !anyFriendChanged) {
@@ -596,6 +620,9 @@
         }
         if (anyFriendChanged) {
           markAllyOutputDirty(replaySource);
+        }
+        if (anyEnemyPulseColorChanged) {
+          markEnemyColorDirty();
         }
         writeSharedSnapshot();
         lLvVis = null;
@@ -642,6 +669,9 @@
           }
           if (affectsAllyOutputSetting(d.setting_id)) {
             markAllyOutputDirty(replaySource);
+          }
+          if (affectsEnemyPulseColorSetting(d.setting_id)) {
+            markEnemyColorDirty();
           }
           writeSharedSnapshot();
           if (d.setting_id === "hp_level_number_visible") lLvVis = null;
@@ -754,14 +784,17 @@
 
   // â”€â”€ Panel cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var ctx = $.GetContextPanel();
-  var us = null, hc = null, hca = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null, ihc = null, uhc = null;
+  var us = null, hc = null, hca = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null, ihc = null, uhc = null, nm = null;
   var cached = 0, att = 0;
   var nextCacheProbeAt = 0;
   var nextRbProbeAt = 0;
   var lBgVis = null, lBgOp = null, lHpSize = null, lHpHeight = null, lHcaTransform = null, lIhcMarginTop = null, lUhcHeight = null, lPipHeight = null, lPipFontSize = null, lPipVis = null;
 
   function vPanel(p) {
-    return !!(p && (!p.IsValid || p.IsValid()));
+    try {
+      return !!(p && (!p.IsValid || p.IsValid()));
+    } catch (e) {}
+    return false;
   }
 
   function fRB() {
@@ -774,7 +807,7 @@
 
   function tryCache() {
     if (cached) {
-      if (vPanel(us) && vPanel(hc) && vPanel(bg) && vPanel(pl) && vPanel(lb) && vPanel(lbp)) return 1;
+      if (vPanel(us) && vPanel(hc) && vPanel(bg) && vPanel(pl) && vPanel(lb) && vPanel(lbp) && vPanel(nm)) return 1;
       cached = 0;
       nextCacheProbeAt = 0;
     }
@@ -792,6 +825,7 @@
     if (!vPanel(ui)) ui = us.FindChildTraverse('unit_ult_ready_icon') || us.FindChildTraverse('ult_icon');
     if (!vPanel(ihc)) ihc = us.FindChildTraverse('InfoHealthContainer');
     if (!vPanel(uhc)) uhc = us.FindChildTraverse('UnitHealthbarContainer');
+    if (!vPanel(nm)) nm = ctx.FindChildTraverse('name');
     if (vPanel(ui)) _uiMissAt = 0;
     if (lb && !vPanel(lbp)) lbp = lb.GetParent();
     if (pl && lb && lbp) { cached = 1; att = 0; nextCacheProbeAt = 0; return 1; }
@@ -849,8 +883,9 @@
   var lTx = null, cMax = 0;
   var lCounterText = "";
   var lCounterLowMode = false;
-  var lastRbPanel = null, lastHcPanel = null, lastBgPanel = null, lastKzPanel = null, lastPlPanel = null;
+  var lastRbPanel = null, lastCpPanel = null, lastLbpPanel = null, lastHcPanel = null, lastBgPanel = null, lastKzPanel = null, lastPlPanel = null, lastUnitName = "";
   var panelBornAt = 0;
+  var panelGeneration = 0, styleGeneration = -1, colorGeneration = -1;
 
   function sBC(c) {
     if (lColRaw === c) return;
@@ -1132,12 +1167,22 @@
   }
 
   function resetStyleStateForNewPanels() {
-    if (rb === lastRbPanel && hc === lastHcPanel && bg === lastBgPanel && kz === lastKzPanel && pl === lastPlPanel) return;
+    var unitName = "";
+    try {
+      if (nm) unitName = nm.text || nm.GetAttributeString('text', '') || "";
+    } catch (eName) { unitName = ""; }
+    if (rb === lastRbPanel && cp === lastCpPanel && lbp === lastLbpPanel && hc === lastHcPanel && bg === lastBgPanel && kz === lastKzPanel && pl === lastPlPanel && unitName === lastUnitName) return;
     lastRbPanel = rb;
+    lastCpPanel = cp;
+    lastLbpPanel = lbp;
     lastHcPanel = hc;
     lastBgPanel = bg;
     lastKzPanel = kz;
     lastPlPanel = pl;
+    lastUnitName = unitName;
+    panelGeneration++;
+    styleGeneration = -1;
+    colorGeneration = -1;
     panelBornAt = _ts();
     lColRaw = lUltRaw = lTxtRaw = null;
     clearPulse();
@@ -1262,6 +1307,7 @@
     sHCS(lCounterLowMode);
     applyInfoHealthMarginTop();
     applyHealthbarHeight();
+    styleGeneration = panelGeneration;
     lW = -1; lHp = -1;
     settingsDirty = false;
     settingsRefreshHoldUntil = 0;
@@ -1320,8 +1366,8 @@
         if (!rb) { $.Schedule(0.15, gL); return; }
       }
       if (!cached && !tryCache()) { $.Schedule(0.15, gL); return; }
-      resetStyleStateForNewPanels();
       if (rb.GetParent) { var p = rb.GetParent(); if (cp !== p) cp = p; }
+      resetStyleStateForNewPanels();
 
       scan(rb);
       var isEnemy = !!(fl & 1) && !(fl & 2);
@@ -1386,7 +1432,7 @@
       else sKZ(false, 0);
 
       // No change in width â€” back off
-      if (w === lW && pw === lPW && !pulse) {
+      if (w === lW && pw === lPW && !pulse && colorGeneration === panelGeneration) {
         if (now - lUT > 2000) { $.Schedule(1, gL); return; }
         $.Schedule(0.15, gL); return;
       }
@@ -1397,9 +1443,11 @@
       var low = clampPercent(cfg.hp_low_threshold);
       var high = clampPercent(cfg.hp_high_threshold);
       if (high < low) high = low;
+      var pulseThresh = clampPercent(cfg.hp_pulse_threshold);
+      var shouldPulse = !!(cfg.hp_pulse_enabled && hp <= pulseThresh);
 
       // Small change above low threshold â€” back off
-      if (Math.abs(hp - lHp) < 3 && hp > low && lHp > low && !pulse) { $.Schedule(0.15, gL); return; }
+      if (Math.abs(hp - lHp) < 3 && hp > low && lHp > low && !pulse && !shouldPulse) { $.Schedule(0.15, gL); return; }
       var prevHp = lHp;
       if (hp === pPct) sFC++; else { sFC = 0; pPct = hp; }
       lHp = hp;
@@ -1416,18 +1464,17 @@
       }
       if (lb && lbp) {
         if (fmt === 1) {
-          uHT(hp, 100, hp <= low);
+          uHT(hp, 100, shouldPulse);
         } else {
           var bw = lb.actuallayoutwidth || 0, bpw = lbp.actuallayoutwidth || 0;
           var ratio = bpw > 0 ? bw / bpw : 0;
           var mx = pMax(txt);
-          uHT(ratio >= 0.97 ? mx : Math.round(mx * ratio), mx, hp <= low);
+          uHT(ratio >= 0.97 ? mx : Math.round(mx * ratio), mx, shouldPulse);
         }
       }
 
-      var sc = 0.15, cl, textCol;
+      var sc = 0.15, cl, textCol, normalBarColor, finalBarColor;
 
-      var pulseThresh = clampPercent(cfg.hp_pulse_threshold);
       if (hp <= low) {
         if (panelBornAt && (now - panelBornAt) < 900 && (prevHp < 0 || (prevHp <= low && hp > prevHp))) {
           var warmupCol = getHighColor();
@@ -1435,29 +1482,27 @@
           sBC(warmupCol); sUC(warmupCol); sTC(getTextColor(100, low, high));
           $.Schedule(0.05, gL); return;
         }
-        sHBV(cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible);
+        sHBV(shouldPulse && cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible);
         if (cfg.hp_mode === 1) {
           cl = cfg.hp_color_low;
           textCol = cfg.hp_text_color_mode ? cfg.hp_text_color_low : cfg.hp_color_low;
         } else {
-          sBC(cfg.hp_color_low);
+          cl = cfg.hp_color_low;
           textCol = getTextColor(hp, low, high);
         }
-        // Start or maintain pulse brightness animation
-        if (cfg.hp_pulse_enabled && hp <= pulseThresh) {
-          if (!pulse) startPulse();
-          if (cfg.hp_pulse_text_enabled) {
-            updatePulseTextBrightness(now);
-            sc = 0.05;
+        normalBarColor = cl;
+        finalBarColor = normalBarColor;
+        if (shouldPulse && cfg.hp_pulse_color_enabled) {
+          if ((cfg.hp_pulse_color_mode | 0) === 1) {
+            var lowPulseDepth = clampNum((pulseThresh - hp) / Math.max(1, pulseThresh), 0, 1, 0);
+            finalBarColor = ipHex(normalBarColor, cfg.hp_pulse_color, lowPulseDepth);
+          } else {
+            finalBarColor = cfg.hp_pulse_color;
           }
-        } else {
-          if (pulse) clearPulse();
         }
-        sTC(textCol); sUC(cfg.hp_color_low);
-        if (cfg.hp_mode === 1) { sBC(cl); sUC(cl); }
+        sBC(finalBarColor); sUC(finalBarColor); sTC(textCol);
       } else {
-        clearPulse();
-        sHBV(!!cfg.hp_bg_visible);
+        sHBV(shouldPulse && cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible);
         var denomMid = Math.max(1, high - low);
         var denomHigh = Math.max(1, 100 - high);
         var highCol = getHighColor();
@@ -1482,8 +1527,28 @@
             sc = ENEMY_IDLE_BACKOFF[Math.min(Math.floor((sFC - 5) / 5), 3)];
           }
         }
-        sBC(cl); sUC(cl); sTC(textCol);
+        normalBarColor = cl;
+        finalBarColor = normalBarColor;
+        if (shouldPulse && cfg.hp_pulse_color_enabled) {
+          if ((cfg.hp_pulse_color_mode | 0) === 1) {
+            var pulseDepth = clampNum((pulseThresh - hp) / Math.max(1, pulseThresh), 0, 1, 0);
+            finalBarColor = ipHex(normalBarColor, cfg.hp_pulse_color, pulseDepth);
+          } else {
+            finalBarColor = cfg.hp_pulse_color;
+          }
+        }
+        sBC(finalBarColor); sUC(finalBarColor); sTC(textCol);
       }
+      if (shouldPulse) {
+        if (!pulse) startPulse();
+        if (cfg.hp_pulse_text_enabled) {
+          updatePulseTextBrightness(now);
+          sc = 0.05;
+        }
+      } else if (pulse) {
+        clearPulse();
+      }
+      colorGeneration = panelGeneration;
 
       $.Schedule(sc, gL);
     } catch (e) {
@@ -1646,5 +1711,5 @@
 
   tryApplyDirectBootstrap();
   handleRuntimeToggleState();
-  $.Schedule(0.05, scheduleBootstrapRetry);
+  scheduleBootstrapRetry();
 })();

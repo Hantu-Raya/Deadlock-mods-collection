@@ -17,7 +17,7 @@ Use the module build script from the repo root:
 powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
 ```
 
-The script runs `hp_colors/scripts/validate-schema.js` (currently expecting 45
+The script runs `hp_colors/scripts/validate-schema.js` (currently expecting 48
 settings), minifies `hp_colors/`
 into `hp_colors_terser/`, compiles the terser copy, syncs
 `hp_colors_compiled/`, packs `pak97_dir.vpk`, and deploys it to the Deadlock
@@ -70,19 +70,22 @@ addons folder configured in that script.
 4. `hp_registrar.js` receives `ANITA_HANDSHAKE` and requests bootstrap with
    `ANITA_REQUEST_BOOTSTRAP`.
 5. `anita_persist_loader.js` and `anita_ui_core.js` answer bootstrap by replaying
-   current or stored settings as `ANITA_UPDATE`.
-6. `healthbar_logic.js` consumes `ANITA_UPDATE`, coerces values into runtime
-   config, refreshes derived colors, invalidates cached visual state when needed,
-   and applies styling during its scheduled overlay loop.
+   current or stored settings as `ANITA_BULK_UPDATE` when possible. Single
+   setting changes still use `ANITA_UPDATE`.
+6. `healthbar_logic.js` consumes `ANITA_BULK_UPDATE` and `ANITA_UPDATE`, coerces
+   values into runtime config, refreshes derived colors, invalidates cached visual
+   state when needed, and applies styling during its scheduled overlay loop.
 
-`ANITA_UPDATE` is the runtime settings event. Keep payload fields stable:
+`ANITA_UPDATE` is the single-setting runtime event. Keep payload fields stable:
 `magic_word`, `mod_title`, `setting_id`, `value`, and optional `update_source`.
+`ANITA_BULK_UPDATE` carries `values` plus the same bridge metadata; keep both
+paths working.
 
 ## Settings Keys
 Persisted schema keys:
 - General: `hp_enabled`, `hp_bg_visible`, `hp_mode`, `hp_low_threshold`, `hp_high_threshold`, `hp_team_colors`, `hp_skip_buildings`, `hp_info_health_margin_top`, `hp_healthbar_height`
 - Enemy Colors: `hp_ult_color_enabled`, `hp_ult_color_custom`, `hp_color_low`, `hp_color_mid`, `hp_color_high`
-- Enemy Pulse: `hp_pulse_enabled`, `hp_pulse_threshold`, `hp_pulse_bpm`, `hp_pulse_intensity`, `hp_pulse_hide_bar`, `hp_pulse_text_enabled`, `hp_pulse_text_scale`, `hp_pulse_text_position`
+- Enemy Pulse: `hp_pulse_enabled`, `hp_pulse_threshold`, `hp_pulse_bpm`, `hp_pulse_intensity`, `hp_pulse_color_enabled`, `hp_pulse_color`, `hp_pulse_color_mode`, `hp_pulse_hide_bar`, `hp_pulse_text_enabled`, `hp_pulse_text_scale`, `hp_pulse_text_position`
 - Enemy Counter: `hp_counter_size`, `hp_counter_position`, `hp_counter_format`, `hp_text_color_mode`, `hp_level_number_visible`, `hp_pip_visible`, `hp_text_color_low`, `hp_text_color_mid`, `hp_text_color_high`
 - Ally Bars: `hp_friend_enabled`, `hp_friend_color_low`, `hp_friend_color_mid`, `hp_friend_color_high`, `hp_friend_pulse_enabled`, `hp_friend_pulse_threshold`, `hp_friend_pulse_bpm`, `hp_friend_pulse_intensity`, `hp_friend_pulse_color_enabled`, `hp_friend_pulse_color`
 - Kill Marker: `hp_kill_zone_enabled`, `hp_kill_zone_threshold`, `hp_kill_zone_color`, `hp_kill_zone_width`
@@ -238,6 +241,18 @@ Below is the full mapping so you know what each name actually does.
 - Polling is automatic and adaptive: fast for heroes, backs off for stable HP.
 - Low HP uses CSS keyframe pulse animation; polling follows normal 0.15s cadence. No JS timer needed for pulse — GPU handles it.
 - Pulse text uses inline `preTransformScale2d` (not CSS font-size/margin changes) to avoid layout shift during pulse animation.
+- Enemy pulse has hard gates. When `hp_pulse_enabled` is false or `shouldPulse`
+  is false, do not run pulse color math, pulse text brightness work, or
+  hide-bar behavior. `hp_pulse_threshold` controls pulse start independently of
+  `hp_low_threshold`.
+- Custom enemy pulse color is also hard gated. `hp_pulse_color_enabled=false`
+  must preserve the normal bar/ult color path exactly. Fixed mode uses
+  `hp_pulse_color` only while pulsing. Gradient mode blends the already computed
+  normal bar color toward `hp_pulse_color` by HP depth inside
+  `hp_pulse_threshold`; do not add time-based JS animation for this.
+- Changing `hp_pulse_color_enabled`, `hp_pulse_color`, or
+  `hp_pulse_color_mode` must invalidate cached bar/ult color state and force a
+  quick enemy visual reapply without starting a new repeating loop.
 - BG visibility always uses `visibility: visible` with opacity toggle (0.01/1.0)
   to prevent HP bar width updates from stalling. Never use `visibility: collapse`.
 
