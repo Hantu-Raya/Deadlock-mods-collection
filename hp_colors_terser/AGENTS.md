@@ -1,13 +1,24 @@
 # AGENT GUIDE: hp_colors
 
+## GENERATED STAGING COPY
+`hp_colors_terser/` is regenerated from `hp_colors/` by
+`build_hp_colors.ps1`. The script deletes and recreates this folder, so this
+header is useful for the current checkout but is not durable after a build.
+Do not make source fixes here unless the user is explicitly inspecting
+generated/minified output. Patch `../hp_colors/` and rebuild with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
+```
+
 Enemy healthbar coloring mod with an Anita UI settings bridge and runtime
 Panorama overlay styling.
 
 ## Scope
-- This guide applies to `hp_colors/`.
-- Edit raw source in `hp_colors/panorama/...`.
-- Do not edit `hp_colors_terser/`, `hp_colors_compiled/`, or
-  `hp_colors_terser_compiled/` directly; those are build artifacts.
+- This guide applies while inspecting generated `hp_colors_terser/` output.
+- Edit raw source in `hp_colors/panorama/...`, not in this folder.
+- Do not edit `hp_colors_compiled/` or `hp_colors_terser_compiled/` directly;
+  those are build artifacts.
 - Root repo rules in `../AGENTS.md` still apply.
 
 ## Build
@@ -112,8 +123,11 @@ Keep alias maps identical across all persistence/runtime files.
 
 ## Obfuscated Name Map (healthbar_logic.js)
 
-Short names are used in `healthbar_logic.js` to reduce file size.
-Below is the full mapping so you know what each name actually does.
+This section is copied from the source guide. In this generated/minified folder,
+Terser may rename local bindings further, so treat the map as source-oriented
+context rather than an exact map of the generated file.
+Short names are used in `healthbar_logic.js` to reduce file size. Below is the
+source mapping so you know what each name actually does before minification.
 
 ### Settings & Constants
 | Short | Full | Purpose |

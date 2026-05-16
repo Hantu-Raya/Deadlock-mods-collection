@@ -1,5 +1,15 @@
 # AGENTS: Buff Timer Virgin (v8.0)
 
+## GENERATED STAGING COPY
+`buff_timer_virgin_terser/` is regenerated from `buff_timer_virgin/` by the
+repo-root build scripts. Do not make source fixes here unless the user is
+explicitly inspecting generated/minified output. Patch `../buff_timer_virgin/`
+and rebuild with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build_buff_timer_virgin.ps1
+```
+
 ## OVERVIEW
 Production-ready Rejuvenator, Bridge Buff, and powerup claim tracker for Deadlock. Core features: claim detection, minimap glows, enemy fog linger, timer-to-team-chat ping buttons, neutral spawn override countdowns with badges, and a mini rejuv card that mirrors the rejuv countdown during neutral override phases or shows buff duration. Neutral minimap respawn rings were removed for fairness/moderation compliance. Runtime is optimized around a shared minimap snapshot pipeline to reduce repeated DOM traversals and allocation churn.
 
@@ -191,8 +201,8 @@ Log prefixes:
 ### Normal compile (source only, no pack)
 ```powershell
 $repo = "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection"
-& "$repo\sr2compiler\New folder.exe" "$repo\buff_timer_virgin"
-# Output: buff_timer_virgin_compiled\
+& "$repo\sr2compiler\New folder.exe" "$repo\buff_timer_virgin_terser"
+# Output: buff_timer_virgin_terser_compiled\
 ```
 
 ### Release build + pack + deploy (recommended)
@@ -212,10 +222,10 @@ hardcoded path. Prefer `build_buff_timer_virgin.ps1` unless the helper is fixed.
 `_tmp_pack_buff_timer_virgin.ps1` is also stale/hardcoded and packs the
 unminified normal build; do not use it for the release path.
 
-### Manual pack (from already-compiled normal build)
+### Manual pack (from already-compiled staging build)
 ```powershell
 $repo = "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection"
-& "$repo\passive_items_mod\compiler\vpkeditcli.exe" "$repo\buff_timer_virgin_compiled" -o "$repo\pak98_dir.vpk" -s --no-progress
+& "$repo\passive_items_mod\compiler\vpkeditcli.exe" "$repo\buff_timer_virgin_terser_compiled" -o "$repo\pak98_dir.vpk" -s --no-progress
 Copy-Item "$repo\pak98_dir.vpk" "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak98_dir.vpk" -Force
 ```
 

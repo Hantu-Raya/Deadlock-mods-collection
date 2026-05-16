@@ -314,6 +314,28 @@
   var allySettingsDirty = true;
   var allySettingsRefreshHoldUntil = 0;
   var ALLY_SETTINGS_REFRESH_DEBOUNCE_MS = 80;
+
+  function affectsAllyOutputSetting(id) {
+    return id === "hp_low_threshold" ||
+      id === "hp_high_threshold" ||
+      id === "hp_mode" ||
+      id === "hp_friend_color_low" ||
+      id === "hp_friend_color_mid" ||
+      id === "hp_friend_color_high" ||
+      id === "hp_friend_pulse_enabled" ||
+      id === "hp_friend_pulse_threshold" ||
+      id === "hp_friend_pulse_bpm" ||
+      id === "hp_friend_pulse_intensity" ||
+      id === "hp_friend_pulse_color_enabled" ||
+      id === "hp_friend_pulse_color";
+  }
+
+  function markAllyOutputDirty(replaySource) {
+    allySettingsDirty = true;
+    allySettingsRefreshHoldUntil = replaySource ? (_ts() + 240) : 0;
+    resetAllyLoopCache(allyOwnedPanel);
+    if (cfg.hp_friend_enabled) $.Schedule(0.01, aL);
+  }
   var lastBootstrapRequestAt = 0;
   var lastDirectBootstrapAt = 0;
   var lastStyleReapplyAt = 0;
@@ -551,8 +573,8 @@
           if (cfg[key] !== nextValue) {
             cfg[key] = nextValue;
             anyChanged = true;
-            if (key.indexOf("hp_friend_") === 0) anyFriendChanged = true;
-            else anyNonFriendChanged = true;
+            if (key.indexOf("hp_friend_") !== 0) anyNonFriendChanged = true;
+            if (affectsAllyOutputSetting(key)) anyFriendChanged = true;
           }
         }
         if (!anyChanged && !anyFriendChanged) {
@@ -573,10 +595,7 @@
           settingsRefreshHoldUntil = nowTs + holdMs;
         }
         if (anyFriendChanged) {
-          allySettingsDirty = true;
-          var allyNowTs = _ts();
-          var allyHoldMs = replaySource ? 240 : ALLY_SETTINGS_REFRESH_DEBOUNCE_MS;
-          allySettingsRefreshHoldUntil = allyNowTs + allyHoldMs;
+          markAllyOutputDirty(replaySource);
         }
         writeSharedSnapshot();
         lLvVis = null;
@@ -620,11 +639,9 @@
             var nowTs = _ts();
             var holdMs = replaySource ? 240 : SETTINGS_REFRESH_DEBOUNCE_MS;
             settingsRefreshHoldUntil = nowTs + holdMs;
-          } else {
-            allySettingsDirty = true;
-            var allyNowTs = _ts();
-            var allyHoldMs = replaySource ? 240 : ALLY_SETTINGS_REFRESH_DEBOUNCE_MS;
-            allySettingsRefreshHoldUntil = allyNowTs + allyHoldMs;
+          }
+          if (affectsAllyOutputSetting(d.setting_id)) {
+            markAllyOutputDirty(replaySource);
           }
           writeSharedSnapshot();
           if (d.setting_id === "hp_level_number_visible") lLvVis = null;
@@ -1159,9 +1176,14 @@
 
   function cleanupEnemyFeature() {
     clearPulse();
-    sBC("");
-    sUC("");
-    sTC("");
+    // Disabled means default game visuals: clear inline wash colors instead of
+    // forcing a fallback color.
+    if (rb && rb.style) { try { rb.style.washColor = ""; } catch (eRbWash) {} }
+    if (ui && ui.style) { try { ui.style.washColor = ""; } catch (eUiWash) {} }
+    if (hc && hc.style) { try { hc.style.washColor = ""; } catch (eHcWash) {} }
+    lCol = null; lColRaw = null;
+    lUlt = null; lUltRaw = null;
+    lTxt = null; lTxtRaw = null;
     sKZ(false, 0);
     if (bg && bg.style) {
       if (lBgVis !== 'collapse') { bg.style.visibility = 'collapse'; lBgVis = 'collapse'; }
