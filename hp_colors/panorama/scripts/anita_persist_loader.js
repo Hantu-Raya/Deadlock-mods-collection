@@ -35,6 +35,9 @@
     hp_pulse_text_scale: "pts",
     hp_pulse_text_position: "ptp",
     hp_pulse_hide_bar: "phb",
+    hp_pulse_color_enabled: "pce",
+    hp_pulse_color: "pc",
+    hp_pulse_color_mode: "pcm",
     hp_skip_buildings: "sb",
     hp_pulse_threshold: "pt",
     hp_friend_enabled: "fe",
@@ -523,7 +526,8 @@
       mod_title: TITLE,
       values: values,
       update_source: "bridge_bootstrap",
-      skip_bridge_persist: true
+      skip_bridge_persist: true,
+      force_emit: true
     }));
   }
 
@@ -571,7 +575,10 @@
   function isBridgeReplaySource(updateSource) {
     return updateSource === "bridge_bootstrap" ||
       updateSource === "core_auto_resync" ||
-      updateSource === "ui_resync";
+      updateSource === "ui_resync" ||
+      updateSource === "ui_reset" ||
+      updateSource === "ui_code_apply" ||
+      updateSource === "ui_refresh_after_apply";
   }
 
   function captureConfig(config) {

@@ -69,8 +69,11 @@ function getValidationReport() {
   }
 
   if (bootstrapSource) {
-    for (const required of ["HPColorsPresetStore", "__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "PUBLISH_RETRY_DELAYS", "CACHED_SNAPSHOT_REPLAY_SEC", "cachedSnapshotPayload", "sharedSnapshotWritten", "cachedReplayStarted", "values_raw", "capturePreset", "publishPreset", "publishUntilReady", "replayCachedSnapshot", "startCachedSnapshotReplay", "GameUI.CustomUIConfig"]) {
+    for (const required of ["HPColorsPresetStore", "__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "PUBLISH_RETRY_DELAYS", "CACHED_SNAPSHOT_REPLAY_SEC", "CACHED_SNAPSHOT_REPLAY_DELAYS", "cachedRootPanel", "cachedStorePanel", "cachedSnapshotPayload", "sharedSnapshotWritten", "cachedReplayStarted", "values_raw", "capturePreset", "publishPreset", "publishUntilReady", "replayCachedSnapshot", "startCachedSnapshotReplay", "GameUI.CustomUIConfig"]) {
       if (!bootstrapSource.includes(required)) errors.push(`anita_ui_core.js missing ${required}`);
+    }
+    if (bootstrapSource.includes("$.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot)")) {
+      errors.push("anita_ui_core.js must use bounded cached snapshot replay, not an infinite 1-second replay loop");
     }
     for (const forbidden of ["ANITA_", "force_emit", "bridge_bootstrap", "core_auto_resync", "PUBLISH_HEARTBEAT_SEC", "publishHeartbeat", "AnitaUI_Window", "colorpicker", "renderModSettings", "AnitaRenderer"]) {
       if (bootstrapSource.includes(forbidden)) errors.push(`anita_ui_core.js must not contain static-preset runtime forbidden marker: ${forbidden}`);
@@ -78,8 +81,14 @@ function getValidationReport() {
   }
 
   if (healthbarSource) {
-    for (const required of ["__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "values_raw", "tryApplySharedSnapshot", "schedulePresetRetry", "raw === sharedCfgRaw && presetApplied", "presetApplied", "invalidateEnemyVisualCaches", "resetCachedPanelRefsIfInvalid", "lastEnemySignature", "wasDirty"]) {
+    for (const required of ["__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "values_raw", "tryApplySharedSnapshot", "schedulePresetRetry", "raw === sharedCfgRaw && presetApplied", "presetApplied", "invalidateEnemyVisualCaches", "resetCachedPanelRefsIfInvalid", "lastEnemySignature", "lastCpPanel", "lastUnitName", "panelGeneration", "styleGeneration", "colorGeneration", "wasDirty", "startEnemyLoop", "stopEnemyLoop", "startAllyLoop", "stopAllyLoop", "startLevelLoop", "stopLevelLoop", "handleRuntimeToggleState", "nextCacheProbeAt", "ALLY_SCAN_CACHE_TTL", "var shouldPulse = !!(cfg.hp_pulse_enabled && hp <= pulseThresh)", "if (fmt === 1)", "uHT(hp, 100, shouldPulse)", "if (cfg.hp_kill_zone_enabled) sKZ(true, pw)", "schedulePresetRetry();"]) {
       if (!healthbarSource.includes(required)) errors.push(`healthbar_logic.js missing static preset reader marker: ${required}`);
+    }
+    if (healthbarSource.includes("gRunning = true; gL()") || healthbarSource.includes("aRunning = true; aL()") || healthbarSource.includes("lL();")) {
+      errors.push("healthbar_logic.js must not start enemy, ally, or level loops unconditionally");
+    }
+    if (healthbarSource.includes("$.Schedule(0.05, schedulePresetRetry)")) {
+      errors.push("healthbar_logic.js must request the preset immediately on overlay startup");
     }
     for (const forbidden of ["ANITA_", "force_emit", "bridge_bootstrap", "core_auto_resync", "anita_v1_hp_colors", "deadlock_hero_debuts_seen", "GameInterfaceAPI", "HP_PERSIST_ALIAS_TO_ID"]) {
       if (healthbarSource.includes(forbidden)) errors.push(`healthbar_logic.js must not contain live customization/persistence marker: ${forbidden}`);

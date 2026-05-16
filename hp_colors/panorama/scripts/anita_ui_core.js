@@ -60,6 +60,9 @@
     hp_pulse_text_scale: "pts",
     hp_pulse_text_position: "ptp",
     hp_pulse_hide_bar: "phb",
+    hp_pulse_color_enabled: "pce",
+    hp_pulse_color: "pc",
+    hp_pulse_color_mode: "pcm",
     hp_skip_buildings: "sb",
     hp_pulse_threshold: "pt",
     hp_friend_enabled: "fe",
@@ -3661,7 +3664,8 @@
         updateSource === "ui_resync" ||
         updateSource === "ui_reset" ||
         updateSource === "ui_code_apply" ||
-        updateSource === "core_auto_resync";
+        updateSource === "core_auto_resync" ||
+        updateSource === "ui_refresh_after_apply";
 
       var changed = false;
       var visibilityDirty = false;
@@ -3717,7 +3721,8 @@
         updateSource === "ui_resync" ||
         updateSource === "ui_reset" ||
         updateSource === "ui_code_apply" ||
-        updateSource === "core_auto_resync";
+        updateSource === "core_auto_resync" ||
+        updateSource === "ui_refresh_after_apply";
       if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) {
         return;
       }
