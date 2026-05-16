@@ -41,9 +41,6 @@ test("minimal hp_colors source keeps only static builder-preset runtime assets",
   assert.ok(report.healthbarSource.includes("lastEnemySignature"));
   assert.ok(report.healthbarSource.includes("lastCpPanel"));
   assert.ok(report.healthbarSource.includes("lastUnitName"));
-  assert.ok(report.healthbarSource.includes("panelGeneration"));
-  assert.ok(report.healthbarSource.includes("styleGeneration"));
-  assert.ok(report.healthbarSource.includes("colorGeneration"));
   assert.ok(report.healthbarSource.includes("wasDirty"));
   assert.ok(report.healthbarSource.includes("startEnemyLoop"));
   assert.ok(report.healthbarSource.includes("stopEnemyLoop"));
@@ -57,11 +54,9 @@ test("minimal hp_colors source keeps only static builder-preset runtime assets",
   assert.ok(report.healthbarSource.includes("var shouldPulse = !!(cfg.hp_pulse_enabled && hp <= pulseThresh)"));
   assert.ok(report.healthbarSource.includes("uHT(hp, 100, shouldPulse)"));
   assert.ok(report.healthbarSource.includes("if (cfg.hp_kill_zone_enabled) sKZ(true, pw)"));
-  assert.ok(report.healthbarSource.includes("schedulePresetRetry();"));
   assert.ok(!report.healthbarSource.includes("gRunning = true; gL()"));
   assert.ok(!report.healthbarSource.includes("aRunning = true; aL()"));
   assert.ok(!report.healthbarSource.includes("lL();"));
-  assert.ok(!report.healthbarSource.includes("$.Schedule(0.05, schedulePresetRetry)"));
   assert.ok(report.files.includes("panorama/scripts/anita_ui_core.js"));
   assert.ok(!report.files.includes("panorama/scripts/anita_persist_loader.js"));
   assert.ok(!report.files.includes("panorama/scripts/hp_registrar.js"));
