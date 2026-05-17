@@ -53,6 +53,7 @@
     hp_kill_zone_width: 3
   };
   var cfg = {};
+  var dc = {};
   var TEAM1_HIGH = "#FFC961";
   var TEAM2_HIGH = "#6485FC";
   var CSS_TEAM1_COLOR = "#E7B659";
@@ -65,7 +66,7 @@
   var LP = 'low_hp_pulsing';
   var _ts = Date.now ? Date.now.bind(Date) : function() { return +(new Date()); };
   var PULSE_INTENSITY = ['pulse_subtle', '', 'pulse_intense'];
-  var ENEMY_IDLE_BACKOFF = [0.30, 0.60, 1.0, 1.0];
+  var ENEMY_IDLE_BACKOFF = [0.35, 0.80, 1.50, 2.50];
   var ALLY_IDLE_BACKOFF = [0.35, 0.70, 1.40, 2.0, 2.0];
 
   // ── Loop control ────────────────────────────────────────────────────────────
@@ -83,7 +84,7 @@
   var rbA = null, cpA = null;
   var allyOwnedPanel = null;
   var lColA = null, lWA = -1, lPWA = -1, sfcA = 0, allyColorActive = false;
-  var pulseA = 0, lPDA = null, lPIA = -1;
+  var pulseA = 0, lPIA = -1;
   var aIdleMiss = 0;
 
   
@@ -178,7 +179,7 @@
 
   function clearAllyPulse(panel) {
     var oldCls = lPIA >= 0 ? PULSE_INTENSITY[lPIA] : '';
-    pulseA = 0; lPDA = null; lPIA = -1; lColA = null;
+    pulseA = 0; lPIA = -1; lColA = null;
     clearPulsePanel(panel || allyOwnedPanel, oldCls);
   }
 
@@ -252,12 +253,13 @@
   }
 
   loadCfgDefaults();
+  refreshDerivedConfig();
   var BOOTSTRAP_NAMESPACE = "hp_colors";
   var BOOTSTRAP_MAX_ATTEMPTS = 8;
   var BOOTSTRAP_RETRY_SEC = 0.5;
   var BOOTSTRAP_SLOW_RETRY_SEC = 3.0;
   var BOOTSTRAP_REQUEST_THROTTLE_MS = 400;
-  var STYLE_REAPPLY_MS = 1000;
+  var STYLE_REAPPLY_WATCHDOG_MS = 5000;
   var DIRECT_BOOTSTRAP_KEY = "anita_v1_hp_colors";
   var SHARED_CFG_RAW_KEY = "__hpColorsCfgRaw";
   var HP_PERSIST_ALIAS_TO_ID = {
@@ -759,8 +761,8 @@
   // mode 0 (By HP %): use bar colors
   // mode 1 (Custom): use custom text colors
   function getGradientTextColor(hp, low, high) {
-    var denomMid = Math.max(1, high - low);
-    var denomHigh = Math.max(1, 100 - high);
+    var denomMid = dc.denomMid || Math.max(1, high - low);
+    var denomHigh = dc.denomHigh || Math.max(1, 100 - high);
     if (cfg.hp_text_color_mode) {
       // Custom mode - use custom text colors
       if (hp <= low) return cfg.hp_text_color_low;
@@ -902,11 +904,10 @@
   var lColRaw = null, lUltRaw = null, lTxtRaw = null, lKzRaw = null;
   var lSH = -1, lSM = -1, lVis = null;
   var lTx = null, cMax = 0;
-  var lCounterText = "";
   var lCounterLowMode = false;
   var lastRbPanel = null, lastCpPanel = null, lastLbpPanel = null, lastHcPanel = null, lastBgPanel = null, lastKzPanel = null, lastPlPanel = null, lastUnitName = "";
   var panelBornAt = 0;
-  var panelGeneration = 0, styleGeneration = -1, colorGeneration = -1;
+  var panelGeneration = 0, colorGeneration = -1;
   var lastEnemySignature = "";
 
   function sBC(c) {
@@ -981,7 +982,7 @@
 
   function applyHealthbarHeight() {
     if ((!uhc || !uhc.IsValid()) && us && us.IsValid()) uhc = us.FindChildTraverse('UnitHealthbarContainer');
-    var heightPx = getHealthbarHeightPx();
+    var heightPx = dc.healthbarHeight || getHealthbarHeightPx();
     var nextHeight = heightPx + 'px';
     if (uhc && uhc.style && lUhcHeight !== nextHeight) {
       uhc.style.height = nextHeight;
@@ -1090,6 +1091,32 @@
     return clampNum(value, 0, 100, 0) | 0;
   }
 
+  function refreshDerivedConfig() {
+    var low = clampPercent(cfg.hp_low_threshold);
+    var high = clampPercent(cfg.hp_high_threshold);
+    if (high < low) high = low;
+    var kzWidth = cfg.hp_kill_zone_width | 0;
+    if (kzWidth < 1) kzWidth = 1;
+    if (kzWidth > 100) kzWidth = 100;
+    var counterSize = clampNum(cfg.hp_counter_size, 72, 400, 145);
+
+    dc.low = low;
+    dc.high = high;
+    dc.denomMid = Math.max(1, high - low);
+    dc.denomHigh = Math.max(1, 100 - high);
+    dc.pulseThreshold = clampPercent(cfg.hp_pulse_threshold);
+    dc.friendPulseThreshold = clampPercent(cfg.hp_friend_pulse_threshold);
+    dc.counterSize = counterSize;
+    dc.pulseTextSize = getPulseTextSize(counterSize);
+    dc.counterPosition = parseCounterPositionValue(cfg.hp_counter_position, true);
+    dc.pulseTextPosition = parseCounterPositionValue(cfg.hp_pulse_text_position, false);
+    dc.healthbarHeight = getHealthbarHeightPx();
+    dc.killZoneThreshold = clampPercent(cfg.hp_kill_zone_threshold);
+    dc.killZoneWidth = kzWidth;
+    dc.killZoneColorRaw = cfg.hp_kill_zone_color || "#FF2222";
+    dc.killZoneColor = normalizeWashColor(dc.killZoneColorRaw);
+  }
+
   // BG visibility with opacity fix - keeps panel visible for HP updates
   function sHBV(visible) {
     if (!bg || !bg.style) return;
@@ -1121,20 +1148,16 @@
       return;
     }
 
-    var threshold = cfg.hp_kill_zone_threshold | 0;
-    if (threshold < 0) threshold = 0;
-    if (threshold > 100) threshold = 100;
-    var width = cfg.hp_kill_zone_width | 0;
-    if (width < 1) width = 1;
-    if (width > 100) width = 100;
+    var threshold = dc.killZoneThreshold;
+    var width = dc.killZoneWidth;
     var pos = Math.round(parentWidth * threshold / 100 - width / 2);
     if (pos < 0) pos = 0;
     if (pos > parentWidth - width) pos = Math.max(0, parentWidth - width);
     var posStr = pos + 'px';
     var widthStr = width + 'px';
-    if (lKzRaw !== cfg.hp_kill_zone_color) {
-      lKzRaw = cfg.hp_kill_zone_color;
-      lKzColor = normalizeWashColor(cfg.hp_kill_zone_color || "#FF2222");
+    if (lKzRaw !== dc.killZoneColorRaw) {
+      lKzRaw = dc.killZoneColorRaw;
+      lKzColor = dc.killZoneColor;
     }
     var color = lKzColor;
 
@@ -1185,9 +1208,9 @@
   function sHCS(lowMode) {
     if (!hc || !hc.style) return;
     var pulseTextMode = !!(lowMode && cfg.hp_pulse_enabled && cfg.hp_pulse_text_enabled);
-    var defaultSize = clampNum(cfg.hp_counter_size, 72, 400, 145);
-    var size = pulseTextMode ? getPulseTextSize(defaultSize) : defaultSize;
-    var basePos = parseCounterPositionValue(pulseTextMode ? cfg.hp_pulse_text_position : cfg.hp_counter_position, !pulseTextMode);
+    var defaultSize = dc.counterSize || clampNum(cfg.hp_counter_size, 72, 400, 145);
+    var size = pulseTextMode ? (dc.pulseTextSize || getPulseTextSize(defaultSize)) : defaultSize;
+    var basePos = pulseTextMode ? dc.pulseTextPosition : dc.counterPosition;
     var posX = clampNum(basePos.x, 0, 400, 0);
     var posY = clampNum(basePos.y, -50, 400, 200);
     var fontSize = size + 'px';
@@ -1220,9 +1243,9 @@
     lastPlPanel = pl;
     lastUnitName = unitName;
     panelGeneration++;
-    styleGeneration = -1;
     colorGeneration = -1;
     panelBornAt = _ts();
+    lastStyleReapplyAt = panelBornAt;
     invalidateEnemyVisualCaches();
     clearPulse();
     allyColorActive = false;
@@ -1316,6 +1339,7 @@
   }
 
   function handleRuntimeToggleState(settingId) {
+    refreshDerivedConfig();
     if (cfg.hp_enabled) startEnemyLoop();
     else if (settingId === "hp_enabled" || gRunning) { cleanupEnemyFeature(); gRunning = false; }
 
@@ -1338,11 +1362,12 @@
   }
 
   function applyCurrentSettings(isEnemy) {
+    refreshDerivedConfig();
     sHBV(!isEnemy || !!cfg.hp_bg_visible);
     sHCS(lCounterLowMode);
     applyInfoHealthMarginTop();
     applyHealthbarHeight();
-    styleGeneration = panelGeneration;
+    lastStyleReapplyAt = _ts();
     lW = -1; lHp = -1;
     settingsDirty = false;
     settingsRefreshHoldUntil = 0;
@@ -1374,7 +1399,6 @@
       s = cu + ' / ' + mx;
     }
     try { if (hc.text !== s) hc.text = s; } catch (e) { try { hc.SetAttributeString('text', s); } catch (e2) {} }
-    lCounterText = s;
     lCounterLowMode = !!lowMode;
     sHCS(lCounterLowMode);
     lSH = cu; lSM = mx;
@@ -1447,7 +1471,7 @@
         $.Schedule(0.5, gL);
         return;
       }
-      if (isEnemy && now - lastStyleReapplyAt >= STYLE_REAPPLY_MS) {
+      if (isEnemy && now - lastStyleReapplyAt >= STYLE_REAPPLY_WATCHDOG_MS) {
         lastStyleReapplyAt = now;
         invalidateEnemyVisualCaches();
         settingsDirty = true;
@@ -1473,26 +1497,23 @@
 
       var w = rb.actuallayoutwidth | 0;
       var pw = cp && cp.actuallayoutwidth !== undefined ? cp.actuallayoutwidth | 0 : 0;
-      if (cfg.hp_kill_zone_enabled) sKZ(true, pw);
-      else sKZ(false, 0);
-
       // No change in width â€” back off
       if (w === lW && pw === lPW && !pulse && !wasDirty && colorGeneration === panelGeneration) {
-        if (now - lUT > 2000) { $.Schedule(1, gL); return; }
-        $.Schedule(0.15, gL); return;
+        $.Schedule(now - lUT > 2000 ? 1.5 : 0.25, gL); return;
       }
       lW = w; lPW = pw; lUT = now;
       if (pw <= 0) { sKZ(false, 0); $.Schedule(0.18, gL); return; }
+      if (cfg.hp_kill_zone_enabled) sKZ(true, pw);
+      else if (lKzVis !== 'collapse') sKZ(false, 0);
 
       var hp = (w / pw * 100) | 0;
-      var low = clampPercent(cfg.hp_low_threshold);
-      var high = clampPercent(cfg.hp_high_threshold);
-      if (high < low) high = low;
-      var pulseThresh = clampPercent(cfg.hp_pulse_threshold);
+      var low = dc.low;
+      var high = dc.high;
+      var pulseThresh = dc.pulseThreshold;
       var shouldPulse = !!(cfg.hp_pulse_enabled && hp <= pulseThresh);
 
       // Small change above low threshold â€” back off
-      if (Math.abs(hp - lHp) < 3 && hp > low && lHp > low && !pulse && !shouldPulse && !wasDirty) { $.Schedule(0.15, gL); return; }
+      if (Math.abs(hp - lHp) < 3 && hp > low && lHp > low && !pulse && !shouldPulse && !wasDirty) { $.Schedule(0.25, gL); return; }
       var prevHp = lHp;
       if (hp === pPct) sFC++; else { sFC = 0; pPct = hp; }
       lHp = hp;
@@ -1548,8 +1569,8 @@
         sBC(finalBarColor); sUC(finalBarColor); sTC(textCol);
       } else {
         sHBV(shouldPulse && cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible);
-        var denomMid = Math.max(1, high - low);
-        var denomHigh = Math.max(1, 100 - high);
+        var denomMid = dc.denomMid;
+        var denomHigh = dc.denomHigh;
         var highCol = getHighColor();
 
         if (hp <= high) {
@@ -1588,7 +1609,7 @@
         if (!pulse) startPulse();
         if (cfg.hp_pulse_text_enabled) {
           updatePulseTextBrightness(now);
-          sc = 0.05;
+          sc = 0.10;
         }
       } else if (pulse) {
         clearPulse();
@@ -1648,7 +1669,7 @@
     var prev = lLv;
     uLT();
     lLNoChange = (lLv === prev && lLv > 0) ? lLNoChange + 1 : 0;
-    $.Schedule(lLNoChange > 10 ? 2.5 : 0.5, lL);
+    $.Schedule(lLNoChange > 10 ? 5.0 : 0.5, lL);
   }
 
   // ── Ally bar loop ────────────────────────────────────────────────────────────
@@ -1700,13 +1721,12 @@
       sfcA = 0; lWA = aw; lPWA = apw;
 
       var ahp = (aw / apw * 100) | 0;
-      var alow = clampPercent(cfg.hp_low_threshold);
-      var ahigh = clampPercent(cfg.hp_high_threshold);
-      if (ahigh < alow) ahigh = alow;
+      var alow = dc.low;
+      var ahigh = dc.high;
 
       var inPulse = false;
       if (cfg.hp_friend_pulse_enabled) {
-        inPulse = ahp <= clampPercent(cfg.hp_friend_pulse_threshold);
+        inPulse = ahp <= dc.friendPulseThreshold;
       }
 
       // Use pulse color override when active, otherwise gradient/fixed
@@ -1730,7 +1750,7 @@
       var sc = 0.35;
       if (inPulse) {
         if (!pulseA) {
-          pulseA = 1; lPDA = null; lPIA = -1; lColA = null;
+          pulseA = 1; lPIA = -1; lColA = null;
           try { if (rbA) rbA.AddClass(LP); } catch (e) {}
           var aidx = Number(cfg.hp_friend_pulse_intensity) | 0;
           if (aidx < 0 || aidx > 2) aidx = 1;
@@ -1740,7 +1760,6 @@
           var abpm = Number(cfg.hp_friend_pulse_bpm) || 75;
           if (abpm < 30) abpm = 30; if (abpm > 300) abpm = 300;
           var adur = (60 / abpm).toFixed(3) + 's';
-          lPDA = adur;
           try { if (rbA) rbA.style.animationDuration = adur; } catch (e) {}
         }
         sc = 0.15;
