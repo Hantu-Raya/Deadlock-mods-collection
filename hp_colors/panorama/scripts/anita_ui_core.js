@@ -3117,6 +3117,35 @@
       return "";
     },
 
+    applyImportCode: function (config, text, source) {
+      var token = this.extractSaveCodeToken(config, text);
+      if (!token) return { ok: false, status: "Invalid" };
+
+      var encoded = token.split("]:")[1] || "";
+      try {
+        var raw = AnitaBase64.decode(encoded);
+        var parsed = AnitaPersistence.parseStoredPayload(config, raw);
+        if (!parsed) return { ok: false, status: "Invalid" };
+        if (!parsed.values || !Object.keys(parsed.values).length) {
+          return { ok: false, status: "No IDs" };
+        }
+
+        AnitaPersistence.applyResolvedValues(config, parsed.values);
+        AnitaPersistence.persistConfig(config, true);
+        this.syncSaveCodeInput(config);
+        AnitaCore.emitCurrentValues(config, {
+          update_source: "ui_code_apply",
+          import_source: String(source || "import"),
+          force_persist: true,
+          force_emit: true,
+          bulk_emit: true
+        });
+        return { ok: true, status: "Imported" };
+      } catch (eDec) {
+        return { ok: false, status: "Invalid" };
+      }
+    },
+
     collectCurrentValues: function (config) {
       var values = {};
       if (!config || !Array.isArray(config.elements)) return values;
@@ -3321,7 +3350,14 @@
         }
       }
       if (!config.__anitaSelectedPresetKey || !selectedKeyValid) {
-        config.__anitaSelectedPresetKey = rows.length ? rows[0].key : "";
+        var defaultPresetKey = "";
+        for (var defaultIndex = rows.length - 1; defaultIndex >= 0; defaultIndex--) {
+          if (String(rows[defaultIndex].key || "").indexOf("baked_") === 0) {
+            defaultPresetKey = rows[defaultIndex].key;
+            break;
+          }
+        }
+        config.__anitaSelectedPresetKey = defaultPresetKey || (rows.length ? rows[0].key : "");
       }
 
       var selected = rows.length ? rows[0] : null;
@@ -3342,9 +3378,17 @@
       kicker.AddClass("AnitaPresetKicker");
       kicker.text = "Restart-safe workflow";
 
-      var title = $.CreatePanel("Label", intro, "");
+      var titleRow = $.CreatePanel("Panel", intro, "");
+      titleRow.AddClass("AnitaPresetTitleRow");
+
+      var title = $.CreatePanel("Label", titleRow, "");
       title.AddClass("AnitaPresetTitle");
       title.text = "HP Preset Web Builder";
+
+      var titleImportBtn = $.CreatePanel("Button", titleRow, "");
+      titleImportBtn.AddClass("AnitaPresetImportBtn");
+      var titleImportLbl = $.CreatePanel("Label", titleImportBtn, "");
+      titleImportLbl.text = "IMPORT";
 
       var body = $.CreatePanel("Label", intro, "");
       body.AddClass("AnitaPresetBody");
@@ -3380,28 +3424,62 @@
         return rows.length ? rows[0] : null;
       }
 
+      function getSelectedStatusText() {
+        var active = getSelectedRow();
+        return active ? ("Selected: " + active.name) : "No preset selected";
+      }
+
+      function showPresetStatus(text, good, durationSec) {
+        var statusToken = (config.__anitaPresetStatusToken || 0) + 1;
+        config.__anitaPresetStatusToken = statusToken;
+        AnitaRenderer.setPresetStatus(status, text, good);
+        if (!durationSec) return;
+        $.Schedule(durationSec, function () {
+          if (statusToken !== config.__anitaPresetStatusToken) return;
+          AnitaRenderer.setPresetStatus(status, getSelectedStatusText(), false);
+        });
+      }
+
       function copyPreset(row, label, doneText) {
         if (!row || !row.token) {
-          AnitaRenderer.setPresetStatus(label, "No code available for this preset.", false);
+          showPresetStatus("No code available for this preset.", false, 2.0);
           return false;
         }
         var copied = AnitaRenderer.copyTextToClipboard(row.token);
-        AnitaRenderer.setPresetStatus(
-          label,
+        showPresetStatus(
           copied ? doneText : "Clipboard failed. Use Import with copied text fallback unavailable.",
-          copied
+          copied,
+          2.5
         );
         return copied;
+      }
+
+      function importPreset(row) {
+        if (!row || !row.token) {
+          showPresetStatus("No code available for this preset.", false, 2.0);
+          return false;
+        }
+        var result = AnitaRenderer.applyImportCode(config, row.token, "preset_builder");
+        if (result.ok) {
+          showPresetStatus("Imported " + row.name + ".", true, 2.5);
+          return true;
+        }
+        showPresetStatus(result.status || "Invalid", false, 2.0);
+        return false;
       }
 
       openBtn.SetPanelEvent("onactivate", function () {
         var activeRow = getSelectedRow();
         if (!activeRow) {
-          AnitaRenderer.setPresetStatus(status, "No preset selected.", false);
+          showPresetStatus("No preset selected.", false, 2.0);
           return;
         }
         copyPreset(activeRow, status, "Code copied. If browser does not open, use URL below.");
         AnitaRenderer.openExternalUrl(HP_PRESET_BUILDER_URL);
+      });
+
+      titleImportBtn.SetPanelEvent("onactivate", function () {
+        importPreset(getSelectedRow());
       });
 
       for (var r = 0; r < rows.length; r++) {
@@ -3935,33 +4013,13 @@
             var text = String(importPopupInput.text || "").trim();
             if (!text) { flashLabel(importPopupApplyBtn.btn, importPopupApplyBtn.lbl, "Empty", 1.5); return; }
 
-            var token = AnitaRenderer.extractSaveCodeToken(config, text);
-            if (!token) { flashLabel(importPopupApplyBtn.btn, importPopupApplyBtn.lbl, "Invalid", 1.5); return; }
-
-            var encoded = token.split("]:")[1] || "";
-            try {
-              var raw = AnitaBase64.decode(encoded);
-              var parsed = AnitaPersistence.parseStoredPayload(config, raw);
-              if (!parsed) { flashLabel(importPopupApplyBtn.btn, importPopupApplyBtn.lbl, "Invalid", 1.5); return; }
-              if (!parsed.values || !Object.keys(parsed.values).length) {
-                flashLabel(importPopupApplyBtn.btn, importPopupApplyBtn.lbl, "No IDs", 1.5);
-                return;
-              }
-
-              AnitaPersistence.applyResolvedValues(config, parsed.values);
-              AnitaPersistence.persistConfig(config, true);
-              AnitaRenderer.syncSaveCodeInput(config);
-              AnitaCore.emitCurrentValues(config, {
-                update_source: "ui_code_apply",
-                force_persist: true,
-                force_emit: true,
-                bulk_emit: true
-              });
-              closeImportPopup();
-              AnitaRenderer.renderModSettings(config);
-            } catch (eDec) {
-              flashLabel(importPopupApplyBtn.btn, importPopupApplyBtn.lbl, "Invalid", 1.5);
+            var result = AnitaRenderer.applyImportCode(config, text, "import_popup");
+            if (!result.ok) {
+              flashLabel(importPopupApplyBtn.btn, importPopupApplyBtn.lbl, result.status || "Invalid", 1.5);
+              return;
             }
+            closeImportPopup();
+            AnitaRenderer.renderModSettings(config);
           }
 
           importPopupApplyBtn.btn.SetPanelEvent("onactivate", applySaveCodeInput);
