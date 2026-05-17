@@ -203,6 +203,31 @@ function main() {
     if (!fwdVals.has(v)) errors.push(`Reverse alias orphaned short code: "${v}"`);
   }
 
+  // 10. Hot-loop optimization guards
+  if (!healthbar.includes('STYLE_REAPPLY_WATCHDOG_MS')) {
+    errors.push('healthbar_logic.js missing STYLE_REAPPLY_WATCHDOG_MS');
+  }
+  if (healthbar.includes('STYLE_REAPPLY_MS = 1000')) {
+    errors.push('healthbar_logic.js must not force style reapply every 1s');
+  }
+  for (const derivedMarker of [
+    'function refreshDerivedConfig()',
+    'var dc = {}',
+    'dc.low',
+    'dc.counterPosition',
+    'dc.killZoneThreshold',
+    'refreshDerivedConfig();'
+  ]) {
+    if (!healthbar.includes(derivedMarker)) {
+      errors.push(`healthbar_logic.js missing derived config cache marker: ${derivedMarker}`);
+    }
+  }
+  for (const writeOnlyName of ['lCounterText', 'lPDA', 'styleGeneration']) {
+    if (healthbar.includes(writeOnlyName)) {
+      errors.push(`healthbar_logic.js still contains write-only cleanup candidate: ${writeOnlyName}`);
+    }
+  }
+
   if (warnings.length) warnings.forEach(w => console.warn('[AUDIT WARN]', w));
   if (errors.length) {
     errors.forEach(e => console.error('[AUDIT FAIL]', e));
