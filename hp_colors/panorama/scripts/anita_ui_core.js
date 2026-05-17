@@ -30,8 +30,10 @@
   const MAX_CONVAR_VALUE_LEN = 1900;
   const HP_PRESET_BUILDER_CATEGORY = "PRESETS|Preset Builder";
   const HP_PRESET_BUILDER_URL = "https://hantu-raya.github.io/hp-colors-preset-builder/";
+  const HP_BAKED_PRESET_APPLY_DELAYS = [0.5, 1.5, 3.0, 5.0, 8.0, 12.0];
   var _lastHpSharedRaw = "";
   var _didApplyHpColorsBakedPresetOnce = false;
+  var _hpBakedPresetApplyToken = 0;
   const HP_COMPACT_PERSIST_VERSION = 1;
   const HP_PERSIST_ALIASES = {
     hp_enabled: "e",
@@ -356,29 +358,39 @@
 
   function readBakedPresetValues(modConfig) {
     var presets = readBakedPresetEntries(modConfig);
-    if (presets.length > 0) return presets[0].values || {};
+    if (presets.length > 0) return presets[presets.length - 1].values || {};
     return {};
   }
 
   function applyHpColorsBakedPresetOnce(config) {
     if (_didApplyHpColorsBakedPresetOnce) return;
-    _didApplyHpColorsBakedPresetOnce = true;
-
-    $.Schedule(5.0, function () {
-      try {
-        var values = readBakedPresetValues(config);
-        var hasValues = false;
-        for (var presetKey in values) {
-          if (Object.prototype.hasOwnProperty.call(values, presetKey)) {
-            hasValues = true;
-            break;
-          }
-        }
-        if (hasValues) {
-          emitBulkUpdate("HP Colors", values, { update_source: "core_auto_resync", force_emit: true });
-        }
-      } catch (e) {}
-    });
+    var token = ++_hpBakedPresetApplyToken;
+    for (var i = 0; i < HP_BAKED_PRESET_APPLY_DELAYS.length; i++) {
+      (function (delaySec) {
+        $.Schedule(delaySec, function () {
+          if (_didApplyHpColorsBakedPresetOnce || token !== _hpBakedPresetApplyToken) return;
+          try {
+            var values = readBakedPresetValues(config);
+            var hasValues = false;
+            for (var presetKey in values) {
+              if (Object.prototype.hasOwnProperty.call(values, presetKey)) {
+                hasValues = true;
+                break;
+              }
+            }
+            if (hasValues) {
+              _didApplyHpColorsBakedPresetOnce = true;
+              emitBulkUpdate("HP Colors", values, {
+                update_source: "baked_preset_apply",
+                force_emit: true,
+                force_persist: true,
+                bulk_emit: true
+              });
+            }
+          } catch (e) {}
+        });
+      })(HP_BAKED_PRESET_APPLY_DELAYS[i]);
+    }
   }
 
   function writeHpSharedSnapshot(config) {
@@ -4210,6 +4222,10 @@
 
       if (visibilityDirty || isBootstrap) {
         AnitaRenderer.refreshConditionalVisibility(config);
+      }
+
+      if (config.title === "HP Colors" && changed) {
+        writeHpSharedSnapshot(config);
       }
 
       if (!isReplaySource && config.title === "HP Colors" && changed) {
