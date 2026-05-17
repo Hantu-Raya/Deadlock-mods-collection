@@ -18,9 +18,12 @@ test("minimal hp_colors source keeps only static builder-preset runtime assets",
   assert.ok(report.bootstrapSource.includes("cachedSnapshotPayload"));
   assert.ok(report.bootstrapSource.includes("sharedSnapshotWritten"));
   assert.ok(report.bootstrapSource.includes("cachedReplayStarted"));
+  assert.ok(report.bootstrapSource.includes("cachedReplayCount"));
   assert.ok(report.bootstrapSource.includes("values_raw"));
   assert.ok(report.bootstrapSource.includes("PUBLISH_RETRY_DELAYS"));
   assert.ok(report.bootstrapSource.includes("CACHED_SNAPSHOT_REPLAY_SEC"));
+  assert.ok(report.bootstrapSource.includes("CACHED_SNAPSHOT_REPLAY_LIMIT"));
+  assert.ok(report.bootstrapSource.includes("cachedReplayCount >= CACHED_SNAPSHOT_REPLAY_LIMIT"));
   assert.ok(report.bootstrapSource.includes("cachedRootPanel"));
   assert.ok(report.bootstrapSource.includes("cachedStorePanel"));
   assert.ok(report.bootstrapSource.includes("replayCachedSnapshot"));
@@ -50,6 +53,14 @@ test("minimal hp_colors source keeps only static builder-preset runtime assets",
   assert.ok(report.healthbarSource.includes("handleRuntimeToggleState"));
   assert.ok(report.healthbarSource.includes("nextCacheProbeAt"));
   assert.ok(report.healthbarSource.includes("ALLY_SCAN_CACHE_TTL"));
+  assert.ok(report.healthbarSource.includes("STYLE_REAPPLY_WATCHDOG_MS"));
+  assert.ok(!report.healthbarSource.includes("STYLE_REAPPLY_MS = 1000"));
+  assert.ok(report.healthbarSource.includes("function refreshDerivedConfig()"));
+  assert.ok(report.healthbarSource.includes("var dc = {}"));
+  assert.ok(report.healthbarSource.includes("dc.low"));
+  assert.ok(report.healthbarSource.includes("dc.counterPosition"));
+  assert.ok(report.healthbarSource.includes("dc.killZoneThreshold"));
+  assert.ok(report.healthbarSource.includes("refreshDerivedConfig();"));
   assert.ok(report.healthbarSource.includes("var shouldPulse = !!(cfg.hp_pulse_enabled && hp <= pulseThresh)"));
   assert.ok(report.healthbarSource.includes("uHT(hp, 100, shouldPulse)"));
   assert.ok(report.healthbarSource.includes("if (cfg.hp_kill_zone_enabled) sKZ(true, pw)"));

@@ -10,6 +10,7 @@
   var REQUEST_MAGIC = "HP_COLORS_PRESET_REQUEST";
   var PUBLISH_RETRY_DELAYS = [0.1, 0.5, 1.0, 2.5, 5.0, 8.0];
   var CACHED_SNAPSHOT_REPLAY_SEC = 1.0;
+  var CACHED_SNAPSHOT_REPLAY_LIMIT = 8;
   var cachedRootPanel = null;
   var cachedStorePanel = null;
   var cachedValues = null;
@@ -17,6 +18,7 @@
   var cachedSnapshotPayload = "";
   var sharedSnapshotWritten = false;
   var cachedReplayStarted = false;
+  var cachedReplayCount = 0;
 
   function isValidPanel(panel) {
     try {
@@ -189,7 +191,10 @@
   }
 
   function replayCachedSnapshot() {
-    if (cachedSnapshotPayload) dispatchSnapshot(cachedSnapshotPayload);
+    if (!cachedSnapshotPayload) return;
+    dispatchSnapshot(cachedSnapshotPayload);
+    cachedReplayCount += 1;
+    if (cachedReplayCount >= CACHED_SNAPSHOT_REPLAY_LIMIT) return;
     try {
       $.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot);
     } catch (e) {}
@@ -198,6 +203,7 @@
   function startCachedSnapshotReplay() {
     if (cachedReplayStarted || !cachedSnapshotPayload) return;
     cachedReplayStarted = true;
+    cachedReplayCount = 0;
     try {
       $.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot);
     } catch (e) {}
