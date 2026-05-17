@@ -11,9 +11,14 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const SCRIPTS_DIR = path.join(ROOT, 'hp_colors', 'panorama', 'scripts');
+const STYLES_DIR = path.join(ROOT, 'hp_colors', 'panorama', 'styles');
 
 function readFile(name) {
   return fs.readFileSync(path.join(SCRIPTS_DIR, name), 'utf-8');
+}
+
+function readStyleFile(name) {
+  return fs.readFileSync(path.join(STYLES_DIR, name), 'utf-8');
 }
 
 function extractSchemaIds(text) {
@@ -102,6 +107,7 @@ function main() {
   const healthbar = readFile('healthbar_logic.js');
   const uiCore = readFile('anita_ui_core.js');
   const loader = readFile('anita_persist_loader.js');
+  const uiStyle = readStyleFile('anita_ui.css');
 
   const schemaIds = extractSchemaIds(registrar);
   const defaultsKeys = extractDefaultsKeys(healthbar);
@@ -242,6 +248,32 @@ function main() {
   }
   if (uiCore.includes('_didApplyHpColorsBakedPresetOnce = true;\n\n    $.Schedule(5.0')) {
     errors.push('anita_ui_core.js still marks baked preset applied before values are found');
+  }
+
+  // 12. Preset Builder import should use the same base64 Import path and auto-clear status.
+  for (const importMarker of [
+    'applyImportCode: function (config, text, source)',
+    'var raw = AnitaBase64.decode(encoded)',
+    'import_source: String(source || "import")',
+    'var titleImportBtn = $.CreatePanel("Button", titleRow, "")',
+    'titleImportBtn.AddClass("AnitaPresetImportBtn")',
+    'defaultPresetKey = rows[defaultIndex].key',
+    'var result = AnitaRenderer.applyImportCode(config, row.token, "preset_builder")',
+    '$.Schedule(durationSec, function () {\n          if (statusToken !== config.__anitaPresetStatusToken) return;',
+    'var result = AnitaRenderer.applyImportCode(config, text, "import_popup")'
+  ]) {
+    if (!uiCore.includes(importMarker)) {
+      errors.push(`anita_ui_core.js missing preset import marker: ${importMarker}`);
+    }
+  }
+  for (const styleMarker of [
+    '.AnitaPresetTitleRow',
+    '.AnitaPresetImportBtn',
+    '.AnitaPresetImportBtn Label'
+  ]) {
+    if (!uiStyle.includes(styleMarker)) {
+      errors.push(`anita_ui.css missing preset import style marker: ${styleMarker}`);
+    }
   }
 
   if (warnings.length) warnings.forEach(w => console.warn('[AUDIT WARN]', w));
