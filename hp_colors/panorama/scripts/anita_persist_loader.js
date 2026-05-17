@@ -614,12 +614,12 @@
   }
 
   $.RegisterForUnhandledEvent("ClientUI_FireOutput", function (payload) {
+    if (typeof payload === "string" && payload.indexOf("ANITA_") === -1) return;
     try {
       var data = (typeof payload === "string") ? JSON.parse(payload) : payload;
       if (!data) return;
 
       if (data.magic_word === "ANITA_REGISTER") {
-        if (data.config && data.config.title === TITLE) {}
         if (captureConfig(data.config) && pendingBootstrapReason) {
           scheduleBootstrap(pendingBootstrapReason);
         }
@@ -641,6 +641,7 @@
         var bulkSource = String(data.update_source || "ui_update");
         var bulkReplay = isBridgeReplaySource(bulkSource);
         var changed = false;
+        var persistedChanged = false;
         for (var bulkId in data.values) {
           if (!Object.prototype.hasOwnProperty.call(data.values, bulkId)) continue;
           var bulkElement = findElement(bulkId);
@@ -651,13 +652,18 @@
             changed = true;
           }
           if (!data.skip_bridge_persist && !bulkReplay) {
-            persistedValues[bulkId] = bulkValue;
+            if (persistedValues[bulkId] !== bulkValue) {
+              persistedValues[bulkId] = bulkValue;
+              persistedChanged = true;
+            }
           }
         }
 
         if (changed) writeHpSharedSnapshot(currentValues);
         if (data.skip_bridge_persist || bulkReplay) return;
-        schedulePersist(bulkSource, !!data.force_persist);
+        if (changed || persistedChanged || data.force_persist) {
+          schedulePersist(bulkSource, !!data.force_persist);
+        }
         return;
       }
 
@@ -674,17 +680,26 @@
       var isResync = isBridgeReplaySource(updateSource);
 
       var sanitizedValue = sanitizeValue(element, data.value);
-      currentValues[data.setting_id] = sanitizedValue;
-      writeHpSharedSnapshot(currentValues);
+      var updateChanged = currentValues[data.setting_id] !== sanitizedValue;
+      if (updateChanged) {
+        currentValues[data.setting_id] = sanitizedValue;
+        writeHpSharedSnapshot(currentValues);
+      }
+      var persistedUpdateChanged = false;
       if (!isResync) {
-        persistedValues[data.setting_id] = sanitizedValue;
+        if (persistedValues[data.setting_id] !== sanitizedValue) {
+          persistedValues[data.setting_id] = sanitizedValue;
+          persistedUpdateChanged = true;
+        }
       }
 
       if (data.skip_bridge_persist || updateSource === "bridge_bootstrap" || isResync) {
         return;
       }
 
-      schedulePersist(String(data.update_source || "ui_update"), !!data.force_persist);
+      if (updateChanged || persistedUpdateChanged || data.force_persist) {
+        schedulePersist(String(data.update_source || "ui_update"), !!data.force_persist);
+      }
     } catch (e) {
     }
   });
