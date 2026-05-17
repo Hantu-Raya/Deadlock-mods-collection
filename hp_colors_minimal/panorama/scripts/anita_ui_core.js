@@ -9,8 +9,7 @@
   var SNAPSHOT_MAGIC = "HP_COLORS_PRESET_SNAPSHOT";
   var REQUEST_MAGIC = "HP_COLORS_PRESET_REQUEST";
   var PUBLISH_RETRY_DELAYS = [0.1, 0.5, 1.0, 2.5, 5.0, 8.0];
-  var CACHED_SNAPSHOT_REPLAY_SEC = 0.25;
-  var CACHED_SNAPSHOT_REPLAY_DELAYS = [CACHED_SNAPSHOT_REPLAY_SEC, 0.75, 1.5, 3.0];
+  var CACHED_SNAPSHOT_REPLAY_SEC = 1.0;
   var cachedRootPanel = null;
   var cachedStorePanel = null;
   var cachedValues = null;
@@ -114,7 +113,6 @@
 
   function readPresetValues() {
     if (cachedValues) return cachedValues;
-    if (cachedSnapshotPayload) return cachedValues;
 
     var root = getRootPanel();
     if (!root || !root.FindChildTraverse) return null;
@@ -192,16 +190,17 @@
 
   function replayCachedSnapshot() {
     if (cachedSnapshotPayload) dispatchSnapshot(cachedSnapshotPayload);
+    try {
+      $.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot);
+    } catch (e) {}
   }
 
   function startCachedSnapshotReplay() {
     if (cachedReplayStarted || !cachedSnapshotPayload) return;
     cachedReplayStarted = true;
-    for (var i = 0; i < CACHED_SNAPSHOT_REPLAY_DELAYS.length; i += 1) {
-      try {
-        $.Schedule(CACHED_SNAPSHOT_REPLAY_DELAYS[i], replayCachedSnapshot);
-      } catch (e) {}
-    }
+    try {
+      $.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot);
+    } catch (e) {}
   }
 
   function handlePresetRequest(payload) {

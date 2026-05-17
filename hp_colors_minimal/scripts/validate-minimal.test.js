@@ -21,12 +21,11 @@ test("minimal hp_colors source keeps only static builder-preset runtime assets",
   assert.ok(report.bootstrapSource.includes("values_raw"));
   assert.ok(report.bootstrapSource.includes("PUBLISH_RETRY_DELAYS"));
   assert.ok(report.bootstrapSource.includes("CACHED_SNAPSHOT_REPLAY_SEC"));
-  assert.ok(report.bootstrapSource.includes("CACHED_SNAPSHOT_REPLAY_DELAYS"));
   assert.ok(report.bootstrapSource.includes("cachedRootPanel"));
   assert.ok(report.bootstrapSource.includes("cachedStorePanel"));
   assert.ok(report.bootstrapSource.includes("replayCachedSnapshot"));
   assert.ok(report.bootstrapSource.includes("startCachedSnapshotReplay"));
-  assert.ok(!report.bootstrapSource.includes("$.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot)"));
+  assert.ok(report.bootstrapSource.includes("$.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot)"));
   assert.ok(!report.bootstrapSource.includes("PUBLISH_HEARTBEAT_SEC"));
   assert.ok(!report.bootstrapSource.includes("publishHeartbeat"));
   assert.ok(report.bootstrapSource.includes("GameUI.CustomUIConfig"));

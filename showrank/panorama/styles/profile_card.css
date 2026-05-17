@@ -6,6 +6,27 @@
     background-color: black;
 }
 
+.ShowRankStatlockerProfileLink
+{
+    horizontal-align: left;
+    vertical-align: middle;
+    background-color: transparent;
+    border: 0px solid transparent;
+    border-bottom: 1px solid #6ab7ff99;
+    padding: 0px;
+    margin: 0px;
+}
+
+.ShowRankStatlockerProfileLink Label
+{
+    color: #77c8ff;
+}
+
+.ShowRankStatlockerProfileLink:hover Label
+{
+    color: #a8dcff;
+}
+
 #BottomRow
 {
     flow-children: right;
