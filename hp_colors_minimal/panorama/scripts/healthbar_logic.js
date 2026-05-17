@@ -49,6 +49,7 @@
     hp_kill_zone_width: 3
   };
   var cfg = {};
+  var dc = {};
   var TEAM1_HIGH = "#FFC961";
   var TEAM2_HIGH = "#6485FC";
   var CSS_TEAM1_COLOR = "#E7B659";
@@ -61,12 +62,13 @@
   var LP = 'low_hp_pulsing';
   var _ts = Date.now ? Date.now.bind(Date) : function() { return +(new Date()); };
   var PULSE_INTENSITY = ['pulse_subtle', '', 'pulse_intense'];
-  var ENEMY_IDLE_BACKOFF = [0.30, 0.60, 1.0, 1.0];
+  var ENEMY_IDLE_BACKOFF = [0.35, 0.80, 1.50, 2.50];
   var ALLY_IDLE_BACKOFF = [0.35, 0.70, 1.40, 2.0, 2.0];
 
   // ── Loop control ────────────────────────────────────────────────────────────
   var gRunning = false;
   var aRunning = false;
+  var lRunning = false;
 
   // ── Pulse state ─────────────────────────────────────────────────────────────
   var pulse = 0;
@@ -78,7 +80,7 @@
   var rbA = null, cpA = null;
   var allyOwnedPanel = null;
   var lColA = null, lWA = -1, lPWA = -1, sfcA = 0, allyColorActive = false;
-  var pulseA = 0, lPDA = null, lPIA = -1;
+  var pulseA = 0, lPIA = -1;
   var aIdleMiss = 0;
 
 
@@ -173,7 +175,7 @@
 
   function clearAllyPulse(panel) {
     var oldCls = lPIA >= 0 ? PULSE_INTENSITY[lPIA] : '';
-    pulseA = 0; lPDA = null; lPIA = -1; lColA = null;
+    pulseA = 0; lPIA = -1; lColA = null;
     clearPulsePanel(panel || allyOwnedPanel, oldCls);
   }
 
@@ -247,10 +249,11 @@
   }
 
   loadCfgDefaults();
+  refreshDerivedConfig();
   var PRESET_MAX_FAST_ATTEMPTS = 8;
   var PRESET_RETRY_SEC = 0.5;
   var PRESET_SLOW_RETRY_SEC = 3.0;
-  var STYLE_REAPPLY_MS = 1000;
+  var STYLE_REAPPLY_WATCHDOG_MS = 5000;
   var SHARED_CFG_RAW_KEY = "__hpColorsCfgRaw";
   var EVENT_CHANNEL = "ClientUI_FireOutput";
   var SNAPSHOT_MAGIC = "HP_COLORS_PRESET_SNAPSHOT";
@@ -281,14 +284,7 @@
     settingsRefreshHoldUntil = 0;
     allySettingsRefreshHoldUntil = 0;
     lLvVis = null;
-    if (cfg.hp_enabled && !gRunning) { gRunning = true; $.Schedule(0.05, gL); }
-    if (cfg.hp_friend_enabled && !aRunning) { aRunning = true; $.Schedule(0.05, aL); }
-    if (!cfg.hp_friend_enabled && aRunning) {
-      releaseAllyOwnership(true);
-      aRunning = false;
-    }
-    if (!cfg.hp_pulse_enabled) clearPulse();
-    if (pulse) { lPD = null; applyPulseDuration(); applyPulseIntensity(); applyPulseTextState(); }
+    handleRuntimeToggleState();
   }
 
   function applyPresetSnapshot(values) {
@@ -301,6 +297,7 @@
       count += 1;
     }
     if (!count) return false;
+    refreshDerivedConfig();
     try { resetStyleStateForNewPanels(); } catch (eReset) {}
     markPresetApplied();
     return true;
@@ -422,8 +419,8 @@
   // mode 0 (By HP %): use bar colors
   // mode 1 (Custom): use custom text colors
   function getGradientTextColor(hp, low, high) {
-    var denomMid = Math.max(1, high - low);
-    var denomHigh = Math.max(1, 100 - high);
+    var denomMid = dc.denomMid || Math.max(1, high - low);
+    var denomHigh = dc.denomHigh || Math.max(1, 100 - high);
     if (cfg.hp_text_color_mode) {
       // Custom mode - use custom text colors
       if (hp <= low) return cfg.hp_text_color_low;
@@ -447,9 +444,17 @@
 
   // â”€â”€ Panel cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var ctx = $.GetContextPanel();
-  var us = null, hc = null, hca = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null, ihc = null, uhc = null;
+  var us = null, hc = null, hca = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null, ihc = null, uhc = null, nm = null;
   var cached = 0, att = 0;
+  var nextCacheProbeAt = 0;
   var lBgVis = null, lBgOp = null, lHpSize = null, lHpHeight = null, lHcaTransform = null, lIhcMarginTop = null, lUhcHeight = null, lPipHeight = null, lPipFontSize = null, lPipVis = null;
+
+  function vPanel(p) {
+    try {
+      return !!(p && (!p.IsValid || p.IsValid()));
+    } catch (e) {}
+    return false;
+  }
 
   function fRB() {
     var p = ctx.FindChildTraverse('unit_healthbar_lagging');
@@ -460,23 +465,30 @@
   }
 
   function tryCache() {
-    if (cached) return 1;
-    if (att >= 10) return 0;
+    if (cached) {
+      if (vPanel(us) && vPanel(hc) && vPanel(bg) && vPanel(pl) && vPanel(lb) && vPanel(lbp) && vPanel(nm)) return 1;
+      cached = 0;
+      nextCacheProbeAt = 0;
+    }
+    var now = _ts();
+    if (nextCacheProbeAt && now < nextCacheProbeAt) return 0;
     att++;
-    if (!us || !us.IsValid()) us = ctx.FindChildTraverse('UnitStatus');
-    if (!us) return 0;
-    if (!hc || !hc.IsValid()) hc = us.FindChildTraverse('hp_counter');
-    if (!hca || !hca.IsValid()) hca = us.FindChildTraverse('hp_counter_anchor');
-    if (!bg || !bg.IsValid()) bg = us.FindChildTraverse('unit_healthbar_bg');
-    if (!pl || !pl.IsValid()) pl = us.FindChildTraverse('unit_healthbar_pip_label');
-    if (!lb || !lb.IsValid()) lb = us.FindChildTraverse('unit_healthbar_lagging');
-    if (!kz || !kz.IsValid()) kz = us.FindChildTraverse('hp_kill_zone_marker');
-    if (!ui || !ui.IsValid()) ui = us.FindChildTraverse('unit_ult_ready_icon') || us.FindChildTraverse('ult_icon');
-    if (!ihc || !ihc.IsValid()) ihc = us.FindChildTraverse('InfoHealthContainer');
-    if (!uhc || !uhc.IsValid()) uhc = us.FindChildTraverse('UnitHealthbarContainer');
-    if (ui && ui.IsValid()) _uiMissAt = 0;
-    if (lb && (!lbp || !lbp.IsValid())) lbp = lb.GetParent();
-    if (pl && lb && lbp) { cached = 1; return 1; }
+    if (!vPanel(us)) us = ctx.FindChildTraverse('UnitStatus');
+    if (!us) { nextCacheProbeAt = now + (att < 8 ? 150 : (att < 24 ? 500 : 1500)); return 0; }
+    if (!vPanel(hc)) hc = us.FindChildTraverse('hp_counter');
+    if (!vPanel(hca)) hca = us.FindChildTraverse('hp_counter_anchor');
+    if (!vPanel(bg)) bg = us.FindChildTraverse('unit_healthbar_bg');
+    if (!vPanel(pl)) pl = us.FindChildTraverse('unit_healthbar_pip_label');
+    if (!vPanel(lb)) lb = us.FindChildTraverse('unit_healthbar_lagging');
+    if (!vPanel(kz)) kz = us.FindChildTraverse('hp_kill_zone_marker');
+    if (!vPanel(ui)) ui = us.FindChildTraverse('unit_ult_ready_icon') || us.FindChildTraverse('ult_icon');
+    if (!vPanel(ihc)) ihc = us.FindChildTraverse('InfoHealthContainer');
+    if (!vPanel(uhc)) uhc = us.FindChildTraverse('UnitHealthbarContainer');
+    if (!vPanel(nm)) nm = ctx.FindChildTraverse('name');
+    if (vPanel(ui)) _uiMissAt = 0;
+    if (lb && !vPanel(lbp)) lbp = lb.GetParent();
+    if (pl && lb && lbp) { cached = 1; att = 0; nextCacheProbeAt = 0; return 1; }
+    nextCacheProbeAt = now + (att < 8 ? 150 : (att < 24 ? 500 : 1500));
     return 0;
   }
 
@@ -489,11 +501,13 @@
 
   function resetCachedPanelRefsIfInvalid() {
     if (!cached && !rb) return;
-    if (!isInvalidPanel(us) && !isInvalidPanel(hc) && !isInvalidPanel(bg) && !isInvalidPanel(pl) && !isInvalidPanel(lb) && !isInvalidPanel(lbp) && !isInvalidPanel(rb) && !isInvalidPanel(cp)) return;
-    us = hc = hca = bg = pl = lb = lbp = rb = cp = ui = kz = ihc = uhc = null;
+    if (!isInvalidPanel(us) && !isInvalidPanel(hc) && !isInvalidPanel(bg) && !isInvalidPanel(pl) && !isInvalidPanel(lb) && !isInvalidPanel(lbp) && !isInvalidPanel(rb) && !isInvalidPanel(cp) && !isInvalidPanel(nm)) return;
+    us = hc = hca = bg = pl = lb = lbp = rb = cp = ui = kz = ihc = uhc = nm = null;
     cached = 0;
     att = 0;
-    lastRbPanel = lastHcPanel = lastBgPanel = lastKzPanel = lastPlPanel = null;
+    nextCacheProbeAt = 0;
+    lastRbPanel = lastCpPanel = lastLbpPanel = lastHcPanel = lastBgPanel = lastKzPanel = lastPlPanel = null;
+    lastUnitName = "";
     invalidateEnemyVisualCaches();
     settingsDirty = true;
     allySettingsDirty = true;
@@ -547,10 +561,10 @@
   var lColRaw = null, lUltRaw = null, lTxtRaw = null, lKzRaw = null;
   var lSH = -1, lSM = -1, lVis = null;
   var lTx = null, cMax = 0;
-  var lCounterText = "";
   var lCounterLowMode = false;
-  var lastRbPanel = null, lastHcPanel = null, lastBgPanel = null, lastKzPanel = null, lastPlPanel = null;
+  var lastRbPanel = null, lastCpPanel = null, lastLbpPanel = null, lastHcPanel = null, lastBgPanel = null, lastKzPanel = null, lastPlPanel = null, lastUnitName = "";
   var panelBornAt = 0;
+  var panelGeneration = 0, colorGeneration = -1;
   var lastEnemySignature = "";
 
   function sBC(c) {
@@ -625,7 +639,7 @@
 
   function applyHealthbarHeight() {
     if ((!uhc || !uhc.IsValid()) && us && us.IsValid()) uhc = us.FindChildTraverse('UnitHealthbarContainer');
-    var heightPx = getHealthbarHeightPx();
+    var heightPx = dc.healthbarHeight || getHealthbarHeightPx();
     var nextHeight = heightPx + 'px';
     if (uhc && uhc.style && lUhcHeight !== nextHeight) {
       uhc.style.height = nextHeight;
@@ -663,10 +677,25 @@
     lWA = -1;
     lPWA = -1;
     sfcA = 0;
+    resetAllyScanCache();
     clearAllyPulse(panel);
   }
 
+  var _allyScanPanel = null, _allyScanAt = 0, _allyScanTeam = 0, _allyScanFlags = 0;
+  var ALLY_SCAN_CACHE_TTL = 160;
+
+  function resetAllyScanCache() {
+    _allyScanPanel = null;
+    _allyScanAt = 0;
+    _allyScanTeam = 0;
+    _allyScanFlags = 0;
+  }
+
   function scanAllyPanel(panel) {
+    var now = _ts();
+    if (panel === _allyScanPanel && now - _allyScanAt < ALLY_SCAN_CACHE_TTL) {
+      return { teamId: _allyScanTeam, flags: _allyScanFlags };
+    }
     var t2 = 0, f2 = 0, d2 = 0, c2 = panel;
     while (c2 && d2 < 10) {
       if (c2.BHasClass) {
@@ -683,6 +712,10 @@
       c2 = c2.GetParent();
       d2++;
     }
+    _allyScanPanel = panel;
+    _allyScanAt = now;
+    _allyScanTeam = t2;
+    _allyScanFlags = f2;
     return { teamId: t2, flags: f2 };
   }
 
@@ -699,6 +732,7 @@
       resetAllyLoopCache(panel);
     }
     allyOwnedPanel = null;
+    resetAllyScanCache();
   }
 
   function clampNum(v, min, max, fallback) {
@@ -712,6 +746,32 @@
 
   function clampPercent(value) {
     return clampNum(value, 0, 100, 0) | 0;
+  }
+
+  function refreshDerivedConfig() {
+    var low = clampPercent(cfg.hp_low_threshold);
+    var high = clampPercent(cfg.hp_high_threshold);
+    if (high < low) high = low;
+    var kzWidth = cfg.hp_kill_zone_width | 0;
+    if (kzWidth < 1) kzWidth = 1;
+    if (kzWidth > 100) kzWidth = 100;
+    var counterSize = clampNum(cfg.hp_counter_size, 72, 400, 145);
+
+    dc.low = low;
+    dc.high = high;
+    dc.denomMid = Math.max(1, high - low);
+    dc.denomHigh = Math.max(1, 100 - high);
+    dc.pulseThreshold = clampPercent(cfg.hp_pulse_threshold);
+    dc.friendPulseThreshold = clampPercent(cfg.hp_friend_pulse_threshold);
+    dc.counterSize = counterSize;
+    dc.pulseTextSize = getPulseTextSize(counterSize);
+    dc.counterPosition = parseCounterPositionValue(cfg.hp_counter_position, true);
+    dc.pulseTextPosition = parseCounterPositionValue(cfg.hp_pulse_text_position, false);
+    dc.healthbarHeight = getHealthbarHeightPx();
+    dc.killZoneThreshold = clampPercent(cfg.hp_kill_zone_threshold);
+    dc.killZoneWidth = kzWidth;
+    dc.killZoneColorRaw = cfg.hp_kill_zone_color || "#FF2222";
+    dc.killZoneColor = normalizeWashColor(dc.killZoneColorRaw);
   }
 
   // BG visibility with opacity fix - keeps panel visible for HP updates
@@ -745,20 +805,16 @@
       return;
     }
 
-    var threshold = cfg.hp_kill_zone_threshold | 0;
-    if (threshold < 0) threshold = 0;
-    if (threshold > 100) threshold = 100;
-    var width = cfg.hp_kill_zone_width | 0;
-    if (width < 1) width = 1;
-    if (width > 100) width = 100;
+    var threshold = dc.killZoneThreshold;
+    var width = dc.killZoneWidth;
     var pos = Math.round(parentWidth * threshold / 100 - width / 2);
     if (pos < 0) pos = 0;
     if (pos > parentWidth - width) pos = Math.max(0, parentWidth - width);
     var posStr = pos + 'px';
     var widthStr = width + 'px';
-    if (lKzRaw !== cfg.hp_kill_zone_color) {
-      lKzRaw = cfg.hp_kill_zone_color;
-      lKzColor = normalizeWashColor(cfg.hp_kill_zone_color || "#FF2222");
+    if (lKzRaw !== dc.killZoneColorRaw) {
+      lKzRaw = dc.killZoneColorRaw;
+      lKzColor = dc.killZoneColor;
     }
     var color = lKzColor;
 
@@ -806,12 +862,12 @@
     return { x: x, y: y };
   }
 
-  function sHCS(lowMode, textHint) {
+  function sHCS(lowMode) {
     if (!hc || !hc.style) return;
     var pulseTextMode = !!(lowMode && cfg.hp_pulse_enabled && cfg.hp_pulse_text_enabled);
-    var defaultSize = clampNum(cfg.hp_counter_size, 72, 400, 145);
-    var size = pulseTextMode ? getPulseTextSize(defaultSize) : defaultSize;
-    var basePos = parseCounterPositionValue(pulseTextMode ? cfg.hp_pulse_text_position : cfg.hp_counter_position, !pulseTextMode);
+    var defaultSize = dc.counterSize || clampNum(cfg.hp_counter_size, 72, 400, 145);
+    var size = pulseTextMode ? (dc.pulseTextSize || getPulseTextSize(defaultSize)) : defaultSize;
+    var basePos = pulseTextMode ? dc.pulseTextPosition : dc.counterPosition;
     var posX = clampNum(basePos.x, 0, 400, 0);
     var posY = clampNum(basePos.y, -50, 400, 200);
     var fontSize = size + 'px';
@@ -830,13 +886,23 @@
   }
 
   function resetStyleStateForNewPanels() {
-    if (rb === lastRbPanel && hc === lastHcPanel && bg === lastBgPanel && kz === lastKzPanel && pl === lastPlPanel) return;
+    var unitName = "";
+    try {
+      if (nm) unitName = nm.text || nm.GetAttributeString('text', '') || "";
+    } catch (eName) { unitName = ""; }
+    if (rb === lastRbPanel && cp === lastCpPanel && lbp === lastLbpPanel && hc === lastHcPanel && bg === lastBgPanel && kz === lastKzPanel && pl === lastPlPanel && unitName === lastUnitName) return;
     lastRbPanel = rb;
+    lastCpPanel = cp;
+    lastLbpPanel = lbp;
     lastHcPanel = hc;
     lastBgPanel = bg;
     lastKzPanel = kz;
     lastPlPanel = pl;
+    lastUnitName = unitName;
+    panelGeneration++;
+    colorGeneration = -1;
     panelBornAt = _ts();
+    lastStyleReapplyAt = panelBornAt;
     invalidateEnemyVisualCaches();
     clearPulse();
     allyColorActive = false;
@@ -863,11 +929,108 @@
     allySettingsRefreshHoldUntil = 0;
   }
 
+  function cleanupEnemyFeature() {
+    clearPulse();
+    if (rb && rb.style) { try { rb.style.washColor = ""; } catch (eRbWash) {} }
+    if (ui && ui.style) { try { ui.style.washColor = ""; } catch (eUiWash) {} }
+    if (hc && hc.style) { try { hc.style.washColor = ""; } catch (eHcWash) {} }
+    lCol = null; lColRaw = null;
+    lUlt = null; lUltRaw = null;
+    lTxt = null; lTxtRaw = null;
+    sKZ(false, 0);
+    if (bg && bg.style) {
+      if (lBgVis !== 'collapse') { bg.style.visibility = 'collapse'; lBgVis = 'collapse'; }
+      if (lBgOp !== '0') { bg.style.opacity = '0'; lBgOp = '0'; }
+    }
+    if (hc && hc.style) {
+      try {
+        hc.style.fontSize = "";
+        hc.style.height = "";
+        hc.style.washColor = "";
+      } catch (eHc) {}
+      lHpSize = null;
+      lHpHeight = null;
+      lTxt = null;
+      lTxtRaw = null;
+    }
+    if (hca && hca.style) { hca.style.transform = ""; lHcaTransform = null; }
+    lW = -1; lPW = -1; lHp = -1; pPct = -1; sFC = 0;
+  }
+
+  function cleanupLevelNumberVisibility() {
+    if (!wr || !wr.IsValid()) cLU();
+    if (wr && wr.IsValid && wr.IsValid()) {
+      try { wr.RemoveClass(LV_VIS_CLASS); } catch (eLv) {}
+      for (var i = 0; i < 4; i++) {
+        try { wr.RemoveClass(LC_[i]); } catch (eTier) {}
+      }
+    }
+    lLvVis = false;
+    lLv = -1;
+    lLNoChange = 0;
+  }
+
+  function startEnemyLoop(delay) {
+    if (!cfg.hp_enabled || gRunning) return;
+    gRunning = true;
+    $.Schedule(delay || 0.05, gL);
+  }
+
+  function stopEnemyLoop(cleanup) {
+    if (cleanup) cleanupEnemyFeature();
+    gRunning = false;
+  }
+
+  function startAllyLoop(delay) {
+    if (!cfg.hp_friend_enabled || aRunning) return;
+    aRunning = true;
+    $.Schedule(delay || 0.05, aL);
+  }
+
+  function stopAllyLoop(cleanup) {
+    if (cleanup) releaseAllyOwnership(true);
+    aRunning = false;
+  }
+
+  function startLevelLoop(delay) {
+    if (!cfg.hp_level_number_visible || lRunning) return;
+    lRunning = true;
+    $.Schedule(delay || 0.05, lL);
+  }
+
+  function stopLevelLoop(cleanup) {
+    if (cleanup) cleanupLevelNumberVisibility();
+    lRunning = false;
+  }
+
+  function handleRuntimeToggleState() {
+    refreshDerivedConfig();
+    if (cfg.hp_enabled) startEnemyLoop();
+    else stopEnemyLoop(true);
+
+    if (cfg.hp_friend_enabled) startAllyLoop();
+    else stopAllyLoop(true);
+
+    if (cfg.hp_level_number_visible) startLevelLoop();
+    else stopLevelLoop(true);
+
+    if (!cfg.hp_pulse_enabled && pulse) clearPulse();
+    if (pulse) { lPD = null; applyPulseDuration(); applyPulseIntensity(); applyPulseTextState(); }
+    else if (!cfg.hp_pulse_text_enabled) { lCounterLowMode = false; sHCS(false); }
+    if (!cfg.hp_friend_pulse_enabled && pulseA) clearAllyPulse(rbA);
+    if (!cfg.hp_kill_zone_enabled) sKZ(false, 0);
+    if (pl && pl.style && !cfg.hp_pip_visible && lPipVis !== 'collapse') {
+      try { pl.style.visibility = 'collapse'; lPipVis = 'collapse'; } catch (ePip) { lPipVis = null; }
+    }
+  }
+
   function applyCurrentSettings(isEnemy) {
+    refreshDerivedConfig();
     sHBV(!isEnemy || !!cfg.hp_bg_visible);
-    sHCS(lCounterLowMode, lCounterText);
+    sHCS(lCounterLowMode);
     applyInfoHealthMarginTop();
     applyHealthbarHeight();
+    lastStyleReapplyAt = _ts();
     lW = -1; lHp = -1;
     settingsDirty = false;
     settingsRefreshHoldUntil = 0;
@@ -899,9 +1062,8 @@
       s = cu + ' / ' + mx;
     }
     try { if (hc.text !== s) hc.text = s; } catch (e) { try { hc.SetAttributeString('text', s); } catch (e2) {} }
-    lCounterText = s;
     lCounterLowMode = !!lowMode;
-    sHCS(lCounterLowMode, lCounterText);
+    sHCS(lCounterLowMode);
     lSH = cu; lSM = mx;
   }
 
@@ -912,31 +1074,17 @@
   function gL() {
     gRunning = true;
     try {
-      if (!cfg.hp_enabled) { clearPulse();
-        sBC("");
-        sUC("");
-        sKZ(false, 0);
-        if (bg && bg.style) {
-          if (lBgVis !== 'collapse') { bg.style.visibility = 'collapse'; lBgVis = 'collapse'; }
-          if (lBgOp !== '0') { bg.style.opacity = '0'; lBgOp = '0'; }
-        }
-        if (hc && hc.style) {
-          hc.style.fontSize = "";
-          hc.style.height = "";
-          sTC("");
-          lHpSize = null;
-          lHpHeight = null;
-        }
-        if (hca && hca.style) { hca.style.transform = ""; lHcaTransform = null; }
-        gRunning = false; return;
+      if (!cfg.hp_enabled) {
+        stopEnemyLoop(true);
+        return;
       }
 
       var now = _ts();
       resetCachedPanelRefsIfInvalid();
       if (!rb) { rb = fRB(); if (!rb) { $.Schedule(0.15, gL); return; } }
       if (!cached && !tryCache()) { $.Schedule(0.15, gL); return; }
-      resetStyleStateForNewPanels();
       if (rb.GetParent) { var p = rb.GetParent(); if (cp !== p) cp = p; }
+      resetStyleStateForNewPanels();
 
       scan(rb);
       var isEnemy = !!(fl & 1) && !(fl & 2);
@@ -976,7 +1124,7 @@
         $.Schedule(0.5, gL);
         return;
       }
-      if (isEnemy && now - lastStyleReapplyAt >= STYLE_REAPPLY_MS) {
+      if (isEnemy && now - lastStyleReapplyAt >= STYLE_REAPPLY_WATCHDOG_MS) {
         lastStyleReapplyAt = now;
         invalidateEnemyVisualCaches();
         settingsDirty = true;
@@ -987,7 +1135,6 @@
         if (now < settingsRefreshHoldUntil) { $.Schedule(0.05, gL); return; }
         applyCurrentSettings(isEnemy);
       }
-      else { sHBV(isEnemy && !!cfg.hp_bg_visible); applyInfoHealthMarginTop(); applyHealthbarHeight(); }
 
       // Neutral unit
       if (fl & 2) { clearPulse();
@@ -1003,46 +1150,50 @@
 
       var w = rb.actuallayoutwidth | 0;
       var pw = cp && cp.actuallayoutwidth !== undefined ? cp.actuallayoutwidth | 0 : 0;
-      sKZ(true, pw);
-
       // No change in width â€” back off
-      if (w === lW && pw === lPW && !pulse && !wasDirty) {
-        if (now - lUT > 2000) { $.Schedule(1, gL); return; }
-        $.Schedule(0.15, gL); return;
+      if (w === lW && pw === lPW && !pulse && !wasDirty && colorGeneration === panelGeneration) {
+        $.Schedule(now - lUT > 2000 ? 1.5 : 0.25, gL); return;
       }
       lW = w; lPW = pw; lUT = now;
       if (pw <= 0) { sKZ(false, 0); $.Schedule(0.18, gL); return; }
+      if (cfg.hp_kill_zone_enabled) sKZ(true, pw);
+      else if (lKzVis !== 'collapse') sKZ(false, 0);
 
       var hp = (w / pw * 100) | 0;
-      var low = clampPercent(cfg.hp_low_threshold);
-      var high = clampPercent(cfg.hp_high_threshold);
-      if (high < low) high = low;
+      var low = dc.low;
+      var high = dc.high;
+      var pulseThresh = dc.pulseThreshold;
+      var shouldPulse = !!(cfg.hp_pulse_enabled && hp <= pulseThresh);
 
       // Small change above low threshold â€” back off
-      if (Math.abs(hp - lHp) < 3 && hp > low && lHp > low && !pulse && !wasDirty) { $.Schedule(0.15, gL); return; }
+      if (Math.abs(hp - lHp) < 3 && hp > low && lHp > low && !pulse && !shouldPulse && !wasDirty) { $.Schedule(0.25, gL); return; }
       var prevHp = lHp;
       if (hp === pPct) sFC++; else { sFC = 0; pPct = hp; }
       lHp = hp;
 
       // Update HP counter label
+      var fmt = cfg.hp_counter_format | 0;
       var txt = '';
       if (pl) {
         try {
           var pipVis = cfg.hp_pip_visible ? 'visible' : 'collapse';
           if (lPipVis !== pipVis) { pl.style.visibility = pipVis; lPipVis = pipVis; }
-          txt = pl.text || pl.GetAttributeString('text', '') || '';
+          if (fmt !== 1) txt = pl.text || pl.GetAttributeString('text', '') || '';
         } catch (e) { txt = ''; lPipVis = null; }
       }
       if (lb && lbp) {
-        var bw = lb.actuallayoutwidth || 0, bpw = lbp.actuallayoutwidth || 0;
-        var ratio = bpw > 0 ? bw / bpw : 0;
-        var mx = pMax(txt);
-        uHT(ratio >= 0.97 ? mx : Math.round(mx * ratio), mx, hp <= low);
+        if (fmt === 1) {
+          uHT(hp, 100, shouldPulse);
+        } else {
+          var bw = lb.actuallayoutwidth || 0, bpw = lbp.actuallayoutwidth || 0;
+          var ratio = bpw > 0 ? bw / bpw : 0;
+          var mx = pMax(txt);
+          uHT(ratio >= 0.97 ? mx : Math.round(mx * ratio), mx, shouldPulse);
+        }
       }
 
       var sc = 0.15, cl, textCol;
 
-      var pulseThresh = clampPercent(cfg.hp_pulse_threshold);
       if (hp <= low) {
         if (panelBornAt && (now - panelBornAt) < 900 && (prevHp < 0 || (prevHp <= low && hp > prevHp))) {
           var warmupCol = getHighColor();
@@ -1050,7 +1201,7 @@
           sBC(warmupCol); sUC(warmupCol); sTC(getTextColor(100, low, high));
           $.Schedule(0.05, gL); return;
         }
-        sHBV(cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible);
+        sHBV(shouldPulse && cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible);
         if (cfg.hp_mode === 1) {
           cl = cfg.hp_color_low;
           textCol = cfg.hp_text_color_mode ? cfg.hp_text_color_low : cfg.hp_color_low;
@@ -1058,21 +1209,12 @@
           sBC(cfg.hp_color_low);
           textCol = getTextColor(hp, low, high);
         }
-        // Start or maintain pulse brightness animation
-        if (cfg.hp_pulse_enabled && hp <= pulseThresh) {
-          if (!pulse) startPulse();
-          updatePulseTextBrightness(now);
-          if (cfg.hp_pulse_text_enabled) sc = 0.05;
-        } else {
-          if (pulse) clearPulse();
-        }
         sTC(textCol); sUC(cfg.hp_color_low);
         if (cfg.hp_mode === 1) { sBC(cl); sUC(cl); }
       } else {
-        clearPulse();
-        sHBV(!!cfg.hp_bg_visible);
-        var denomMid = Math.max(1, high - low);
-        var denomHigh = Math.max(1, 100 - high);
+        sHBV(shouldPulse && cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible);
+        var denomMid = dc.denomMid;
+        var denomHigh = dc.denomHigh;
         var highCol = getHighColor();
 
         if (hp <= high) {
@@ -1097,6 +1239,16 @@
         }
         sBC(cl); sUC(cl); sTC(textCol);
       }
+      if (shouldPulse) {
+        if (!pulse) startPulse();
+        if (cfg.hp_pulse_text_enabled) {
+          updatePulseTextBrightness(now);
+          sc = 0.10;
+        }
+      } else if (pulse) {
+        clearPulse();
+      }
+      colorGeneration = panelGeneration;
 
       $.Schedule(sc, gL);
     } catch (e) {
@@ -1142,10 +1294,15 @@
 
   var lLNoChange = 0;
   function lL() {
+    if (!cfg.hp_level_number_visible) {
+      stopLevelLoop(true);
+      return;
+    }
+    lRunning = true;
     var prev = lLv;
     uLT();
     lLNoChange = (lLv === prev && lLv > 0) ? lLNoChange + 1 : 0;
-    $.Schedule(lLNoChange > 10 ? 2.5 : 0.5, lL);
+    $.Schedule(lLNoChange > 10 ? 5.0 : 0.5, lL);
   }
 
   // ── Ally bar loop ────────────────────────────────────────────────────────────
@@ -1163,6 +1320,7 @@
         rbA = null; cpA = null;
         rbA = fRB();
         if (!rbA) { aIdleMiss++; $.Schedule(aIdleMiss > 75 ? 3.0 : 0.2, aL); return; }
+        resetAllyScanCache();
       }
       aIdleMiss = 0;
       if (rbA.GetParent) { var pa = rbA.GetParent(); if (cpA !== pa) cpA = pa; }
@@ -1184,7 +1342,7 @@
         sfcA = 0;
         $.Schedule(1.5, aL); return;
       }
-      if (now - lastAllyStyleReapplyAt >= STYLE_REAPPLY_MS) {
+      if (now - lastAllyStyleReapplyAt >= STYLE_REAPPLY_WATCHDOG_MS) {
         lastAllyStyleReapplyAt = now;
         lColA = null;
         lWA = -1;
@@ -1204,12 +1362,13 @@
       sfcA = 0; lWA = aw; lPWA = apw;
 
       var ahp = (aw / apw * 100) | 0;
-      var alow = clampPercent(cfg.hp_low_threshold);
-      var ahigh = clampPercent(cfg.hp_high_threshold);
-      if (ahigh < alow) ahigh = alow;
+      var alow = dc.low;
+      var ahigh = dc.high;
 
-      var apulseThresh = clampPercent(cfg.hp_friend_pulse_threshold);
-      var inPulse = cfg.hp_friend_pulse_enabled && ahp <= apulseThresh;
+      var inPulse = false;
+      if (cfg.hp_friend_pulse_enabled) {
+        inPulse = ahp <= dc.friendPulseThreshold;
+      }
 
       // Use pulse color override when active, otherwise gradient/fixed
       var acl;
@@ -1232,7 +1391,7 @@
       var sc = 0.35;
       if (inPulse) {
         if (!pulseA) {
-          pulseA = 1; lPDA = null; lPIA = -1; lColA = null;
+          pulseA = 1; lPIA = -1; lColA = null;
           try { if (rbA) rbA.AddClass(LP); } catch (e) {}
           var aidx = Number(cfg.hp_friend_pulse_intensity) | 0;
           if (aidx < 0 || aidx > 2) aidx = 1;
@@ -1242,7 +1401,6 @@
           var abpm = Number(cfg.hp_friend_pulse_bpm) || 75;
           if (abpm < 30) abpm = 30; if (abpm > 300) abpm = 300;
           var adur = (60 / abpm).toFixed(3) + 's';
-          lPDA = adur;
           try { if (rbA) rbA.style.animationDuration = adur; } catch (e) {}
         }
         sc = 0.15;
@@ -1257,8 +1415,6 @@
   }
 
   tryApplySharedSnapshot();
-  gRunning = true; gL();
-  aRunning = true; aL();
-  lL();
-  $.Schedule(0.05, schedulePresetRetry);
+  handleRuntimeToggleState();
+  schedulePresetRetry();
 })();

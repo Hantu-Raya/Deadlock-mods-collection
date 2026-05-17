@@ -6,6 +6,7 @@
   var didRegister = false;
   var didRequestBootstrap = false;
   var registerAttempts = 0;
+  var cachedConfig = null;
   var SCHEMA = [
     // General - Core Behavior
     { type: "toggle", id: "hp_enabled", label: "Enable enemy HP colors", defaultValue: true, category: "GENERAL|Core Behavior" },
@@ -28,6 +29,9 @@
     { type: "slider", id: "hp_pulse_threshold", label: "Pulse starts below %", defaultValue: 25, min: 0, max: 100, step: 1, category: "VISUAL EFFECTS|Low HP Pulse", visibleWhen: { id: "hp_pulse_enabled", equals: true } },
     { type: "slider", id: "hp_pulse_bpm", label: "Pulse speed", defaultValue: 75, min: 30, max: 300, step: 1, category: "VISUAL EFFECTS|Low HP Pulse", visibleWhen: { id: "hp_pulse_enabled", equals: true } },
     { type: "cycler", id: "hp_pulse_intensity", label: "Pulse strength", options: ["Subtle", "Medium", "Intense"], defaultValue: 1, category: "VISUAL EFFECTS|Low HP Pulse", visibleWhen: { id: "hp_pulse_enabled", equals: true } },
+    { type: "toggle", id: "hp_pulse_color_enabled", label: "Use custom pulse color", defaultValue: false, category: "VISUAL EFFECTS|Low HP Pulse", visibleWhen: { id: "hp_pulse_enabled", equals: true } },
+    { type: "cycler", id: "hp_pulse_color_mode", label: "Pulse color behavior", options: ["Fixed", "Gradient"], defaultValue: 0, category: "VISUAL EFFECTS|Low HP Pulse", visibleWhen: { id: "hp_pulse_color_enabled", equals: true } },
+    { type: "colorpicker", id: "hp_pulse_color", label: "Pulse color", defaultValue: "#FF2222", category: "VISUAL EFFECTS|Low HP Pulse", visibleWhen: { id: "hp_pulse_color_enabled", equals: true } },
     { type: "toggle", id: "hp_pulse_hide_bar", label: "Hide bar while pulsing", defaultValue: false, category: "VISUAL EFFECTS|Low HP Pulse", visibleWhen: { id: "hp_pulse_enabled", equals: true } },
     { type: "toggle", id: "hp_pulse_text_enabled", label: "Pulse HP number", defaultValue: false, category: "VISUAL EFFECTS|Low HP Pulse", visibleWhen: { id: "hp_pulse_enabled", equals: true } },
     { type: "slider", id: "hp_pulse_text_scale", label: "Pulsing number size", defaultValue: 120, min: 72, max: 320, step: 1, category: "VISUAL EFFECTS|Low HP Pulse", visibleWhen: { id: "hp_pulse_text_enabled", equals: true } },
@@ -60,6 +64,7 @@
     { type: "slider", id: "hp_kill_zone_width", label: "Marker width", defaultValue: 3, min: 1, max: 100, step: 1, category: "VISUAL EFFECTS|Kill Marker", visibleWhen: { id: "hp_kill_zone_enabled", equals: true } }
   ];
   function buildConfig() {
+    if (cachedConfig) return cachedConfig;
     var elements = [];
     for (var i = 0; i < SCHEMA.length; i++) {
       var element = {};
@@ -71,13 +76,14 @@
       }
       elements.push(element);
     }
-    return {
+    cachedConfig = {
       title: TITLE,
       description: "Set enemy, ally, pulse, HP number, and kill marker colors.",
       storageNamespace: "hp_colors",
       storageVersion: 97,
       elements: elements
     };
+    return cachedConfig;
   }
   function getRootPanel() {
     var panel = $.GetContextPanel();
@@ -144,6 +150,7 @@
     });
   }
   $.RegisterForUnhandledEvent("ClientUI_FireOutput", function (payload) {
+    if (typeof payload === "string" && payload.indexOf("ANITA_") === -1) return;
     try {
       var data = (typeof payload === "string") ? JSON.parse(payload) : payload;
       if (!data) return;
