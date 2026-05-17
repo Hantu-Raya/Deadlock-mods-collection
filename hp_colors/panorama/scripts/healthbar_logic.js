@@ -833,6 +833,27 @@
     return 0;
   }
 
+  function isInvalidPanel(panel) {
+    try {
+      return !!(panel && panel.IsValid && !panel.IsValid());
+    } catch (e) {}
+    return false;
+  }
+
+  function resetCachedPanelRefsIfInvalid() {
+    if (!cached && !rb) return;
+    if (!isInvalidPanel(us) && !isInvalidPanel(hc) && !isInvalidPanel(bg) && !isInvalidPanel(pl) && !isInvalidPanel(lb) && !isInvalidPanel(lbp) && !isInvalidPanel(rb) && !isInvalidPanel(cp) && !isInvalidPanel(nm)) return;
+    us = hc = hca = bg = pl = lb = lbp = rb = cp = ui = kz = ihc = uhc = nm = null;
+    cached = 0;
+    att = 0;
+    nextCacheProbeAt = 0;
+    lastRbPanel = lastCpPanel = lastLbpPanel = lastHcPanel = lastBgPanel = lastKzPanel = lastPlPanel = null;
+    lastUnitName = "";
+    invalidateEnemyVisualCaches();
+    settingsDirty = true;
+    allySettingsDirty = true;
+  }
+
   function getInfoHealthMarginTopValue() {
     var raw = clampNum(cfg.hp_info_health_margin_top, 0, 100, 23);
     var pct = -15 + (raw * 0.65);
@@ -886,6 +907,7 @@
   var lastRbPanel = null, lastCpPanel = null, lastLbpPanel = null, lastHcPanel = null, lastBgPanel = null, lastKzPanel = null, lastPlPanel = null, lastUnitName = "";
   var panelBornAt = 0;
   var panelGeneration = 0, styleGeneration = -1, colorGeneration = -1;
+  var lastEnemySignature = "";
 
   function sBC(c) {
     if (lColRaw === c) return;
@@ -997,11 +1019,19 @@
     lWA = -1;
     lPWA = -1;
     sfcA = 0;
+    resetAllyScanCache();
     clearAllyPulse(panel);
   }
 
   var _allyScanPanel = null, _allyScanAt = 0, _allyScanTeam = 0, _allyScanFlags = 0;
   var ALLY_SCAN_CACHE_TTL = 160;
+
+  function resetAllyScanCache() {
+    _allyScanPanel = null;
+    _allyScanAt = 0;
+    _allyScanTeam = 0;
+    _allyScanFlags = 0;
+  }
 
   function scanAllyPanel(panel) {
     var now = _ts();
@@ -1044,8 +1074,7 @@
       resetAllyLoopCache(panel);
     }
     allyOwnedPanel = null;
-    _allyScanPanel = null;
-    _allyScanAt = 0;
+    resetAllyScanCache();
   }
 
   function clampNum(v, min, max, fallback) {
@@ -1072,6 +1101,16 @@
   }
 
   var lKzVis = null, lKzX = null, lKzW = null, lKzColor = null, lKzAppliedColor = null, lKzOp = null, lKzZi = null;
+
+  function invalidateEnemyVisualCaches() {
+    lCol = lUlt = lTxt = null;
+    lColRaw = lUltRaw = lTxtRaw = lKzRaw = null;
+    lBgVis = lBgOp = lHpSize = lHpHeight = lHcaTransform = lIhcMarginTop = lUhcHeight = lPipHeight = lPipFontSize = lPipVis = null;
+    lKzVis = lKzX = lKzW = lKzColor = lKzAppliedColor = lKzOp = lKzZi = null;
+    lSH = -1;
+    lSM = -1;
+    lVis = null;
+  }
 
   function sKZ(show, parentWidth) {
     if (!kz || !kz.style) return;
@@ -1184,7 +1223,7 @@
     styleGeneration = -1;
     colorGeneration = -1;
     panelBornAt = _ts();
-    lColRaw = lUltRaw = lTxtRaw = null;
+    invalidateEnemyVisualCaches();
     clearPulse();
     allyColorActive = false;
     allyOwnedPanel = null;
@@ -1195,18 +1234,14 @@
     lWA = -1;
     lPWA = -1;
     sfcA = 0;
-    lBgVis = lBgOp = lHpSize = lHpHeight = lHcaTransform = lIhcMarginTop = lUhcHeight = lPipHeight = lPipFontSize = lPipVis = null;
-    lKzVis = lKzX = lKzW = lKzColor = lKzAppliedColor = lKzOp = lKzZi = null;
     lLvVis = null;
-    lSH = -1;
-    lSM = -1;
-    lVis = null;
     lW = -1;
     lPW = -1;
     lHp = -1;
     pPct = -1;
     sFC = 0;
     lCounterLowMode = false;
+    lastEnemySignature = "";
     bootstrapApplied = false;
     directBootstrapApplied = false;
     bootstrapFinished = false;
@@ -1358,6 +1393,7 @@
       }
 
       var now = _ts();
+      resetCachedPanelRefsIfInvalid();
       if (!vPanel(rb)) {
         if (!nextRbProbeAt || now >= nextRbProbeAt) {
           rb = fRB();
@@ -1371,6 +1407,16 @@
 
       scan(rb);
       var isEnemy = !!(fl & 1) && !(fl & 2);
+      var enemySignature = tid + ":" + fl;
+      if (enemySignature !== lastEnemySignature) {
+        lastEnemySignature = enemySignature;
+        invalidateEnemyVisualCaches();
+        settingsDirty = true;
+        settingsRefreshHoldUntil = now;
+        allySettingsDirty = true;
+        allySettingsRefreshHoldUntil = now;
+        lLvVis = null;
+      }
       if (isEnemy && !directBootstrapApplied && now - lastDirectBootstrapAt >= 1000) {
         lastDirectBootstrapAt = now;
         tryApplyDirectBootstrap();
@@ -1403,16 +1449,15 @@
       }
       if (isEnemy && now - lastStyleReapplyAt >= STYLE_REAPPLY_MS) {
         lastStyleReapplyAt = now;
+        invalidateEnemyVisualCaches();
         settingsDirty = true;
         settingsRefreshHoldUntil = now;
-        lBgVis = null;
-        lBgOp = null;
       }
+      var wasDirty = settingsDirty;
       if (settingsDirty) {
         if (now < settingsRefreshHoldUntil) { $.Schedule(0.05, gL); return; }
         applyCurrentSettings(isEnemy);
       }
-      else { sHBV(isEnemy && !!cfg.hp_bg_visible); applyInfoHealthMarginTop(); applyHealthbarHeight(); }
 
       // Neutral unit
       if (fl & 2) { clearPulse();
@@ -1432,7 +1477,7 @@
       else sKZ(false, 0);
 
       // No change in width â€” back off
-      if (w === lW && pw === lPW && !pulse && colorGeneration === panelGeneration) {
+      if (w === lW && pw === lPW && !pulse && !wasDirty && colorGeneration === panelGeneration) {
         if (now - lUT > 2000) { $.Schedule(1, gL); return; }
         $.Schedule(0.15, gL); return;
       }
@@ -1447,7 +1492,7 @@
       var shouldPulse = !!(cfg.hp_pulse_enabled && hp <= pulseThresh);
 
       // Small change above low threshold â€” back off
-      if (Math.abs(hp - lHp) < 3 && hp > low && lHp > low && !pulse && !shouldPulse) { $.Schedule(0.15, gL); return; }
+      if (Math.abs(hp - lHp) < 3 && hp > low && lHp > low && !pulse && !shouldPulse && !wasDirty) { $.Schedule(0.15, gL); return; }
       var prevHp = lHp;
       if (hp === pPct) sFC++; else { sFC = 0; pPct = hp; }
       lHp = hp;

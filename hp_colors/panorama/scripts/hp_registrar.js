@@ -150,6 +150,7 @@
     });
   }
   $.RegisterForUnhandledEvent("ClientUI_FireOutput", function (payload) {
+    if (typeof payload === "string" && payload.indexOf("ANITA_") === -1) return;
     try {
       var data = (typeof payload === "string") ? JSON.parse(payload) : payload;
       if (!data) return;

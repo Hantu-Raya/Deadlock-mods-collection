@@ -683,7 +683,7 @@
         return null;
       }
 
-      var parsed = this.parseStoredPayload(config, raw, "convar");
+      var parsed = this.parseStoredPayload(config, raw);
       if (!parsed) {
         return null;
       }
@@ -724,7 +724,7 @@
         var sessionEncoded = this.getSessionEncoded(config);
         if (sessionEncoded) {
           var sessionRaw = AnitaBase64.decode(sessionEncoded);
-          persisted = this.parseStoredPayload(config, sessionRaw, "session");
+          persisted = this.parseStoredPayload(config, sessionRaw);
           if (persisted) {
             return {
               raw: persisted.raw,
@@ -3416,7 +3416,7 @@
             var encoded = token.split("]:")[1] || "";
             try {
               var raw = AnitaBase64.decode(encoded);
-              var parsed = AnitaPersistence.parseStoredPayload(config, raw, "code");
+              var parsed = AnitaPersistence.parseStoredPayload(config, raw);
               if (!parsed) { flashLabel(importPopupApplyBtn.btn, importPopupApplyBtn.lbl, "Invalid", 1.5); return; }
               if (!parsed.values || !Object.keys(parsed.values).length) {
                 flashLabel(importPopupApplyBtn.btn, importPopupApplyBtn.lbl, "No IDs", 1.5);
@@ -3798,6 +3798,7 @@
     setupEventListener: function () {
       try {
         $.RegisterForUnhandledEvent("ClientUI_FireOutput", (payload) => {
+          if (typeof payload === "string" && payload.indexOf("ANITA_") === -1) return;
           try {
             let data = (typeof payload === 'string') ? JSON.parse(payload) : payload;
             if (data && data.magic_word === "ANITA_REGISTER") {

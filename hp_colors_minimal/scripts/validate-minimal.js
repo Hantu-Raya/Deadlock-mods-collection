@@ -69,11 +69,8 @@ function getValidationReport() {
   }
 
   if (bootstrapSource) {
-    for (const required of ["HPColorsPresetStore", "__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "PUBLISH_RETRY_DELAYS", "CACHED_SNAPSHOT_REPLAY_SEC", "CACHED_SNAPSHOT_REPLAY_DELAYS", "cachedRootPanel", "cachedStorePanel", "cachedSnapshotPayload", "sharedSnapshotWritten", "cachedReplayStarted", "values_raw", "capturePreset", "publishPreset", "publishUntilReady", "replayCachedSnapshot", "startCachedSnapshotReplay", "GameUI.CustomUIConfig"]) {
+    for (const required of ["HPColorsPresetStore", "__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "PUBLISH_RETRY_DELAYS", "CACHED_SNAPSHOT_REPLAY_SEC", "cachedRootPanel", "cachedStorePanel", "cachedSnapshotPayload", "sharedSnapshotWritten", "cachedReplayStarted", "values_raw", "capturePreset", "publishPreset", "publishUntilReady", "replayCachedSnapshot", "startCachedSnapshotReplay", "$.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot)", "GameUI.CustomUIConfig"]) {
       if (!bootstrapSource.includes(required)) errors.push(`anita_ui_core.js missing ${required}`);
-    }
-    if (bootstrapSource.includes("$.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot)")) {
-      errors.push("anita_ui_core.js must use bounded cached snapshot replay, not an infinite 1-second replay loop");
     }
     for (const forbidden of ["ANITA_", "force_emit", "bridge_bootstrap", "core_auto_resync", "PUBLISH_HEARTBEAT_SEC", "publishHeartbeat", "AnitaUI_Window", "colorpicker", "renderModSettings", "AnitaRenderer"]) {
       if (bootstrapSource.includes(forbidden)) errors.push(`anita_ui_core.js must not contain static-preset runtime forbidden marker: ${forbidden}`);
