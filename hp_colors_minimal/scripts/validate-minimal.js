@@ -61,7 +61,7 @@ function getValidationReport() {
   try { healthbarSource = readText("panorama/scripts/healthbar_logic.js"); } catch (error) { errors.push(`Could not read healthbar_logic.js: ${error.message}`); }
 
   const defaultKeys = extractDefaultKeys(healthbarSource);
-  if (defaultKeys.length !== 45) errors.push(`Expected 45 healthbar DEFAULTS keys, found ${defaultKeys.length}`);
+  if (defaultKeys.length !== 48) errors.push(`Expected 48 healthbar DEFAULTS keys, found ${defaultKeys.length}`);
 
   if (unitStatusXml) {
     if (!unitStatusXml.includes("healthbar_logic.vjs_c")) errors.push("unit_status_overlay.xml must include healthbar_logic.vjs_c");
@@ -69,16 +69,16 @@ function getValidationReport() {
   }
 
   if (bootstrapSource) {
-    for (const required of ["HPColorsPresetStore", "__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "PUBLISH_RETRY_DELAYS", "CACHED_SNAPSHOT_REPLAY_SEC", "CACHED_SNAPSHOT_REPLAY_LIMIT", "cachedReplayCount", "cachedRootPanel", "cachedStorePanel", "cachedSnapshotPayload", "sharedSnapshotWritten", "cachedReplayStarted", "values_raw", "capturePreset", "publishPreset", "publishUntilReady", "replayCachedSnapshot", "startCachedSnapshotReplay", "cachedReplayCount >= CACHED_SNAPSHOT_REPLAY_LIMIT", "$.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot)", "GameUI.CustomUIConfig"]) {
+    for (const required of ["HPColorsPresetStore", "__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "PUBLISH_RETRY_DELAYS", "CACHED_SNAPSHOT_REPLAY_SEC", "cachedRootPanel", "cachedStorePanel", "cachedSnapshotPayload", "sharedSnapshotWritten", "cachedReplayStarted", "selectedValues", "cachedValues = selectedValues", "values_raw", "capturePreset", "publishPreset", "publishUntilReady", "replayCachedSnapshot", "startCachedSnapshotReplay", "$.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot)", "GameUI.CustomUIConfig"]) {
       if (!bootstrapSource.includes(required)) errors.push(`anita_ui_core.js missing ${required}`);
     }
-    for (const forbidden of ["ANITA_", "force_emit", "bridge_bootstrap", "core_auto_resync", "PUBLISH_HEARTBEAT_SEC", "publishHeartbeat", "AnitaUI_Window", "colorpicker", "renderModSettings", "AnitaRenderer"]) {
+    for (const forbidden of ["ANITA_", "force_emit", "bridge_bootstrap", "core_auto_resync", "PUBLISH_HEARTBEAT_SEC", "publishHeartbeat", "CACHED_SNAPSHOT_REPLAY_LIMIT", "cachedReplayCount", "AnitaUI_Window", "colorpicker", "renderModSettings", "AnitaRenderer"]) {
       if (bootstrapSource.includes(forbidden)) errors.push(`anita_ui_core.js must not contain static-preset runtime forbidden marker: ${forbidden}`);
     }
   }
 
   if (healthbarSource) {
-    for (const required of ["__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "values_raw", "tryApplySharedSnapshot", "schedulePresetRetry", "raw === sharedCfgRaw && presetApplied", "presetApplied", "invalidateEnemyVisualCaches", "resetCachedPanelRefsIfInvalid", "lastEnemySignature", "lastCpPanel", "lastUnitName", "wasDirty", "startEnemyLoop", "stopEnemyLoop", "startAllyLoop", "stopAllyLoop", "startLevelLoop", "stopLevelLoop", "handleRuntimeToggleState", "nextCacheProbeAt", "ALLY_SCAN_CACHE_TTL", "STYLE_REAPPLY_WATCHDOG_MS", "function refreshDerivedConfig()", "var dc = {}", "dc.low", "dc.counterPosition", "dc.killZoneThreshold", "refreshDerivedConfig();", "var shouldPulse = !!(cfg.hp_pulse_enabled && hp <= pulseThresh)", "if (fmt === 1)", "uHT(hp, 100, shouldPulse)", "if (cfg.hp_kill_zone_enabled) sKZ(true, pw)"]) {
+    for (const required of ["__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "values_raw", "tryApplySharedSnapshot", "schedulePresetRetry", "raw === sharedCfgRaw && presetApplied", "presetApplied", "invalidateEnemyVisualCaches", "resetCachedPanelRefsIfInvalid", "lastEnemySignature", "lastCpPanel", "lastUnitName", "wasDirty", "startEnemyLoop", "stopEnemyLoop", "startAllyLoop", "stopAllyLoop", "startLevelLoop", "stopLevelLoop", "handleRuntimeToggleState", "nextCacheProbeAt", "ALLY_SCAN_CACHE_TTL", "STYLE_REAPPLY_WATCHDOG_MS", "hp_pulse_color_enabled", "hp_pulse_color_mode", "function getPulseBarColor", "function refreshDerivedConfig()", "var dc = {}", "dc.low", "dc.counterPosition", "dc.killZoneThreshold", "refreshDerivedConfig();", "var shouldPulse = !!(cfg.hp_pulse_enabled && hp <= pulseThresh)", "if (fmt === 1)", "uHT(hp, 100, shouldPulse)", "if (cfg.hp_kill_zone_enabled) sKZ(true, pw)"]) {
       if (!healthbarSource.includes(required)) errors.push(`healthbar_logic.js missing static preset reader marker: ${required}`);
     }
     if (healthbarSource.includes("STYLE_REAPPLY_MS = 1000")) {

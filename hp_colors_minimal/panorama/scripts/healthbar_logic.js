@@ -26,6 +26,9 @@
     hp_pulse_text_scale: 120,
     hp_pulse_text_position: "20,196",
     hp_pulse_hide_bar: false,
+    hp_pulse_color_enabled: false,
+    hp_pulse_color: "#FF2222",
+    hp_pulse_color_mode: 0,
     hp_skip_buildings: false,
     hp_pulse_threshold: 25,
     hp_counter_format: 0,
@@ -397,6 +400,15 @@
   function getHighColor() {
     if (!cfg.hp_team_colors) return cfg.hp_color_high;
     return tid === 2 ? TEAM2_HIGH : TEAM1_HIGH;
+  }
+
+  function getPulseBarColor(baseColor, hp, threshold) {
+    if (!cfg.hp_pulse_color_enabled) return baseColor;
+    if ((cfg.hp_pulse_color_mode | 0) === 1) {
+      var depth = clampNum((threshold - hp) / Math.max(1, threshold), 0, 1, 0);
+      return ipHex(baseColor, cfg.hp_pulse_color, depth);
+    }
+    return cfg.hp_pulse_color;
   }
 
   // Get text color based on HP and mode
@@ -1206,11 +1218,11 @@
           cl = cfg.hp_color_low;
           textCol = cfg.hp_text_color_mode ? cfg.hp_text_color_low : cfg.hp_color_low;
         } else {
-          sBC(cfg.hp_color_low);
+          cl = cfg.hp_color_low;
           textCol = getTextColor(hp, low, high);
         }
-        sTC(textCol); sUC(cfg.hp_color_low);
-        if (cfg.hp_mode === 1) { sBC(cl); sUC(cl); }
+        var lowBarColor = shouldPulse ? getPulseBarColor(cl, hp, pulseThresh) : cl;
+        sBC(lowBarColor); sUC(lowBarColor); sTC(textCol);
       } else {
         sHBV(shouldPulse && cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible);
         var denomMid = dc.denomMid;
@@ -1237,7 +1249,8 @@
             sc = ENEMY_IDLE_BACKOFF[Math.min(Math.floor((sFC - 5) / 5), 3)];
           }
         }
-        sBC(cl); sUC(cl); sTC(textCol);
+        var barColor = shouldPulse ? getPulseBarColor(cl, hp, pulseThresh) : cl;
+        sBC(barColor); sUC(barColor); sTC(textCol);
       }
       if (shouldPulse) {
         if (!pulse) startPulse();
