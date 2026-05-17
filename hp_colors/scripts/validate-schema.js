@@ -228,6 +228,22 @@ function main() {
     }
   }
 
+  // 11. Baked preset profiles should apply the latest builder profile as a real settings update.
+  for (const bakedPresetMarker of [
+    'const HP_BAKED_PRESET_APPLY_DELAYS = [0.5, 1.5, 3.0, 5.0, 8.0, 12.0]',
+    'return presets[presets.length - 1].values || {}',
+    'update_source: "baked_preset_apply"',
+    'force_persist: true',
+    'if (config.title === "HP Colors" && changed) {\n        writeHpSharedSnapshot(config);'
+  ]) {
+    if (!uiCore.includes(bakedPresetMarker)) {
+      errors.push(`anita_ui_core.js missing baked preset apply marker: ${bakedPresetMarker}`);
+    }
+  }
+  if (uiCore.includes('_didApplyHpColorsBakedPresetOnce = true;\n\n    $.Schedule(5.0')) {
+    errors.push('anita_ui_core.js still marks baked preset applied before values are found');
+  }
+
   if (warnings.length) warnings.forEach(w => console.warn('[AUDIT WARN]', w));
   if (errors.length) {
     errors.forEach(e => console.error('[AUDIT FAIL]', e));
