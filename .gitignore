@@ -69,3 +69,4 @@ __pycache__/
 # Scratch / backup directories
 originalcss/
 citadel_events/
+/showrank/
