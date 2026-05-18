@@ -9,6 +9,8 @@ test("minimal hp_colors source keeps only static builder-preset runtime assets",
   assert.deepEqual(report.errors, []);
   assert.ok(report.unitStatusXml.includes("healthbar_logic.vjs_c"));
   assert.ok(report.bootstrapSource.includes("HPColorsPresetStore"));
+  assert.ok(report.bootstrapSource.includes('STARTUP_PRESET_ID = "HPColorsPreset_001"'));
+  assert.ok(report.bootstrapSource.includes("id === STARTUP_PRESET_ID"));
   assert.ok(report.bootstrapSource.includes("__hpColorsCfgRaw"));
   assert.ok(report.bootstrapSource.includes("HP_COLORS_PRESET_SNAPSHOT"));
   assert.ok(report.bootstrapSource.includes("HP_COLORS_PRESET_REQUEST"));
@@ -18,17 +20,18 @@ test("minimal hp_colors source keeps only static builder-preset runtime assets",
   assert.ok(report.bootstrapSource.includes("cachedSnapshotPayload"));
   assert.ok(report.bootstrapSource.includes("sharedSnapshotWritten"));
   assert.ok(report.bootstrapSource.includes("cachedReplayStarted"));
-  assert.ok(report.bootstrapSource.includes("cachedReplayCount"));
+  assert.ok(report.bootstrapSource.includes("selectedValues"));
+  assert.ok(report.bootstrapSource.includes("cachedValues = selectedValues"));
   assert.ok(report.bootstrapSource.includes("values_raw"));
   assert.ok(report.bootstrapSource.includes("PUBLISH_RETRY_DELAYS"));
   assert.ok(report.bootstrapSource.includes("CACHED_SNAPSHOT_REPLAY_SEC"));
-  assert.ok(report.bootstrapSource.includes("CACHED_SNAPSHOT_REPLAY_LIMIT"));
-  assert.ok(report.bootstrapSource.includes("cachedReplayCount >= CACHED_SNAPSHOT_REPLAY_LIMIT"));
   assert.ok(report.bootstrapSource.includes("cachedRootPanel"));
   assert.ok(report.bootstrapSource.includes("cachedStorePanel"));
   assert.ok(report.bootstrapSource.includes("replayCachedSnapshot"));
   assert.ok(report.bootstrapSource.includes("startCachedSnapshotReplay"));
   assert.ok(report.bootstrapSource.includes("$.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot)"));
+  assert.ok(!report.bootstrapSource.includes("CACHED_SNAPSHOT_REPLAY_LIMIT"));
+  assert.ok(!report.bootstrapSource.includes("cachedReplayCount"));
   assert.ok(!report.bootstrapSource.includes("PUBLISH_HEARTBEAT_SEC"));
   assert.ok(!report.bootstrapSource.includes("publishHeartbeat"));
   assert.ok(report.bootstrapSource.includes("GameUI.CustomUIConfig"));
@@ -54,6 +57,9 @@ test("minimal hp_colors source keeps only static builder-preset runtime assets",
   assert.ok(report.healthbarSource.includes("nextCacheProbeAt"));
   assert.ok(report.healthbarSource.includes("ALLY_SCAN_CACHE_TTL"));
   assert.ok(report.healthbarSource.includes("STYLE_REAPPLY_WATCHDOG_MS"));
+  assert.ok(report.healthbarSource.includes("hp_pulse_color_enabled"));
+  assert.ok(report.healthbarSource.includes("hp_pulse_color_mode"));
+  assert.ok(report.healthbarSource.includes("function getPulseBarColor"));
   assert.ok(!report.healthbarSource.includes("STYLE_REAPPLY_MS = 1000"));
   assert.ok(report.healthbarSource.includes("function refreshDerivedConfig()"));
   assert.ok(report.healthbarSource.includes("var dc = {}"));
@@ -78,5 +84,5 @@ test("minimal hp_colors source keeps only static builder-preset runtime assets",
   assert.ok(!report.healthbarSource.includes("GameInterfaceAPI"));
   assert.ok(!report.bootstrapSource.includes("AnitaUI_Window"));
   assert.ok(!report.bootstrapSource.includes("colorpicker"));
-  assert.equal(report.defaultKeys.length, 45);
+  assert.equal(report.defaultKeys.length, 48);
 });

@@ -578,6 +578,7 @@
       updateSource === "ui_resync" ||
       updateSource === "ui_reset" ||
       updateSource === "ui_code_apply" ||
+      updateSource === "baked_preset_apply" ||
       updateSource === "ui_refresh_after_apply";
   }
 
