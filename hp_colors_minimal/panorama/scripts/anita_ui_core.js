@@ -3,6 +3,7 @@
   "use strict";
 
   var STORE_ID = "HPColorsPresetStore";
+  var STARTUP_PRESET_ID = "HPColorsPreset_001";
   var ENTRY_CLASS = "hp_colors_preset_entry";
   var SHARED_CFG_RAW_KEY = "__hpColorsCfgRaw";
   var EVENT_CHANNEL = "ClientUI_FireOutput";
@@ -10,7 +11,6 @@
   var REQUEST_MAGIC = "HP_COLORS_PRESET_REQUEST";
   var PUBLISH_RETRY_DELAYS = [0.1, 0.5, 1.0, 2.5, 5.0, 8.0];
   var CACHED_SNAPSHOT_REPLAY_SEC = 1.0;
-  var CACHED_SNAPSHOT_REPLAY_LIMIT = 8;
   var cachedRootPanel = null;
   var cachedStorePanel = null;
   var cachedValues = null;
@@ -18,7 +18,6 @@
   var cachedSnapshotPayload = "";
   var sharedSnapshotWritten = false;
   var cachedReplayStarted = false;
-  var cachedReplayCount = 0;
 
   function isValidPanel(panel) {
     try {
@@ -71,6 +70,16 @@
     } catch (e0) {}
     try {
       if (label.GetAttributeString) return label.GetAttributeString("text", "");
+    } catch (e1) {}
+    return "";
+  }
+
+  function getPanelId(panel) {
+    try {
+      if (panel && panel.id !== undefined) return String(panel.id || "");
+    } catch (e0) {}
+    try {
+      if (panel && panel.GetAttributeString) return String(panel.GetAttributeString("id", "") || "");
     } catch (e1) {}
     return "";
   }
@@ -135,15 +144,26 @@
       }
     } catch (e1) {}
 
+    var selectedValues = null;
+    var firstValues = null;
     for (var i = 0; i < entries.length; i += 1) {
       try {
+        var id = getPanelId(entries[i]);
         var encoded = readLabelText(entries[i]);
         if (!encoded) continue;
         var preset = JSON.parse(decodeBase64Url(encoded));
         if (!preset || preset.version !== 1 || !preset.values || typeof preset.values !== "object") continue;
-        cachedValues = preset.values;
-        return cachedValues;
+        if (!firstValues) firstValues = preset.values;
+        if (id === STARTUP_PRESET_ID) {
+          selectedValues = preset.values;
+          break;
+        }
       } catch (e2) {}
+    }
+    if (!selectedValues) selectedValues = firstValues;
+    if (selectedValues) {
+      cachedValues = selectedValues;
+      return cachedValues;
     }
     return null;
   }
@@ -193,8 +213,6 @@
   function replayCachedSnapshot() {
     if (!cachedSnapshotPayload) return;
     dispatchSnapshot(cachedSnapshotPayload);
-    cachedReplayCount += 1;
-    if (cachedReplayCount >= CACHED_SNAPSHOT_REPLAY_LIMIT) return;
     try {
       $.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot);
     } catch (e) {}
@@ -203,7 +221,6 @@
   function startCachedSnapshotReplay() {
     if (cachedReplayStarted || !cachedSnapshotPayload) return;
     cachedReplayStarted = true;
-    cachedReplayCount = 0;
     try {
       $.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot);
     } catch (e) {}
