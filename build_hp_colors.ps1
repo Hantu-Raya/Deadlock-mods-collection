@@ -9,6 +9,7 @@ $compiler    = "$root\sr2compiler\New folder.exe"
 $vpkeditcli  = "$root\passive_items_mod\compiler\vpkeditcli.exe"
 $vpkOut      = "$root\pak97_dir.vpk"
 $vpkDest     = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak97_dir.vpk"
+$builderPresetVpk = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak96_dir.vpk"
 
 # Clean rebuild: remove stale compiled output and previous pack artifact.
 if (Test-Path $modCompiled) { Remove-Item -Recurse -Force $modCompiled }
@@ -33,6 +34,18 @@ if (Test-Path $auditScript) {
 # ## Step 1: Prepare minified build source #####################################
 Write-Host "`n[1/4] Preparing minified hp_colors source..." -ForegroundColor Cyan
 Copy-Item -Path $modSrc -Destination $terserSrc -Recurse -Force
+
+$presetStoreSync = "$root\scripts\sync_hp_preset_store.js"
+$terserBaseHud = "$terserSrc\panorama\layout\base_hud.xml"
+if ((Test-Path $builderPresetVpk) -and (Test-Path $presetStoreSync) -and (Test-Path $terserBaseHud)) {
+    & node $presetStoreSync $builderPresetVpk $terserBaseHud
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] HPColorsPresetStore sync failed - fix pak96_dir.vpk or base_hud before building." -ForegroundColor Red
+        exit 1
+    }
+} else {
+    Write-Host "  [WARN] HPColorsPresetStore sync skipped; pak96_dir.vpk or sync script not found." -ForegroundColor Yellow
+}
 
 $scriptFiles = Get-ChildItem "$terserSrc\panorama\scripts" -Filter *.js | Sort-Object Name
 if (-not $scriptFiles) {
@@ -98,6 +111,16 @@ if ($proc.ExitCode -ne 0) {
 if (-not (Test-Path $compileTarget)) {
     Write-Host "[ERROR] Compiled output not found" -ForegroundColor Red
     exit 1
+}
+$compiledIconTargets = @(
+    "$terserCompiled\panorama\images\hp_colors\icon_open_builder.vsvg_c",
+    "$terserCompiled\panorama\images\hp_colors\icon_copy.vsvg_c"
+)
+foreach ($iconTarget in $compiledIconTargets) {
+    if (-not (Test-Path $iconTarget)) {
+        Write-Host "[ERROR] Compiled icon output not found: $iconTarget" -ForegroundColor Red
+        exit 1
+    }
 }
 Copy-Item -Path $terserCompiled -Destination $modCompiled -Recurse -Force
 Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
