@@ -12,5 +12,6 @@
 	</scripts>
 	<Panel class="WindowRoot" hittest="false" disallowedstyleflags="hover,descendantfocus">
 		<CitadelHud id="Hud" hittest="false" />
+		<Panel id="AnitaUI_Anchor" hittest="false" style="width: 100%; height: 100%; z-index: 10000;" />
 	</Panel>
 </root>
