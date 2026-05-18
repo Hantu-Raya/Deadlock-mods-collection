@@ -3,6 +3,7 @@
   "use strict";
 
   var STORE_ID = "HPColorsPresetStore";
+  var STARTUP_PRESET_ID = "HPColorsPreset_001";
   var ENTRY_CLASS = "hp_colors_preset_entry";
   var SHARED_CFG_RAW_KEY = "__hpColorsCfgRaw";
   var EVENT_CHANNEL = "ClientUI_FireOutput";
@@ -73,6 +74,16 @@
     return "";
   }
 
+  function getPanelId(panel) {
+    try {
+      if (panel && panel.id !== undefined) return String(panel.id || "");
+    } catch (e0) {}
+    try {
+      if (panel && panel.GetAttributeString) return String(panel.GetAttributeString("id", "") || "");
+    } catch (e1) {}
+    return "";
+  }
+
   function decodeBase64Url(str) {
     var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     var lookup = {};
@@ -134,15 +145,22 @@
     } catch (e1) {}
 
     var selectedValues = null;
+    var firstValues = null;
     for (var i = 0; i < entries.length; i += 1) {
       try {
+        var id = getPanelId(entries[i]);
         var encoded = readLabelText(entries[i]);
         if (!encoded) continue;
         var preset = JSON.parse(decodeBase64Url(encoded));
         if (!preset || preset.version !== 1 || !preset.values || typeof preset.values !== "object") continue;
-        selectedValues = preset.values;
+        if (!firstValues) firstValues = preset.values;
+        if (id === STARTUP_PRESET_ID) {
+          selectedValues = preset.values;
+          break;
+        }
       } catch (e2) {}
     }
+    if (!selectedValues) selectedValues = firstValues;
     if (selectedValues) {
       cachedValues = selectedValues;
       return cachedValues;

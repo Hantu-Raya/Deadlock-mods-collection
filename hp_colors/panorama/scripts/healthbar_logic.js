@@ -530,7 +530,7 @@
   }
 
   function isBootstrapReplaySource(source) {
-    return source === "bridge_bootstrap" || source === "ui_resync" || source === "ui_reset" || source === "ui_code_apply" || source === "core_auto_resync" || source === "ui_refresh_after_apply";
+    return source === "bridge_bootstrap" || source === "ui_resync" || source === "ui_reset" || source === "ui_code_apply" || source === "baked_preset_apply" || source === "core_auto_resync" || source === "ui_refresh_after_apply";
   }
 
   function requestBootstrap(reason) {

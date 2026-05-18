@@ -237,7 +237,14 @@ function main() {
   // 11. Baked preset profiles should apply the latest builder profile as a real settings update.
   for (const bakedPresetMarker of [
     'const HP_BAKED_PRESET_APPLY_DELAYS = [0.5, 1.5, 3.0, 5.0, 8.0, 12.0]',
-    'return presets[presets.length - 1].values || {}',
+    'const HP_STARTUP_PRESET_ID = "HPColorsPreset_001"',
+    'function getPanelId(panel)',
+    'id === HP_STARTUP_PRESET_ID',
+    'return startupPreset.values || {}',
+    'function applyHpColorsBakedPresetValues(config, values)',
+    'AnitaPersistence.applyResolvedValues(config, values);',
+    'AnitaPersistence.persistConfig(config, true);',
+    'AnitaRenderer.renderModSettings(config);',
     'update_source: "baked_preset_apply"',
     'force_persist: true',
     'if (config.title === "HP Colors" && changed) {\n        writeHpSharedSnapshot(config);'
@@ -249,8 +256,71 @@ function main() {
   if (uiCore.includes('_didApplyHpColorsBakedPresetOnce = true;\n\n    $.Schedule(5.0')) {
     errors.push('anita_ui_core.js still marks baked preset applied before values are found');
   }
+  if (uiCore.includes('return presets[presets.length - 1].values || {}')) {
+    errors.push('anita_ui_core.js must not use last baked preset as startup preset');
+  }
+  for (const replayMarker of [
+    'updateSource === "baked_preset_apply"',
+    'source === "baked_preset_apply"'
+  ]) {
+    if (!uiCore.includes(replayMarker) && !healthbar.includes(replayMarker) && !loader.includes(replayMarker)) {
+      errors.push(`Baked preset replay source missing marker: ${replayMarker}`);
+    }
+  }
 
-  // 12. Preset Builder import should use the same base64 Import path and auto-clear status.
+  // 12. Full hp_colors base_hud must expose the builder insertion point so pak97 can carry pak96 preset store.
+  const baseHud = fs.readFileSync(path.join(ROOT, 'hp_colors', 'panorama', 'layout', 'base_hud.xml'), 'utf-8');
+  if (!baseHud.includes('id="AnitaUI_Anchor"')) {
+    errors.push('base_hud.xml missing AnitaUI_Anchor for HPColorsPresetStore injection');
+  }
+  const buildScript = fs.readFileSync(path.join(ROOT, 'build_hp_colors.ps1'), 'utf-8');
+  for (const buildMarker of [
+    'sync_hp_preset_store.js',
+    'pak96_dir.vpk',
+    'HPColorsPresetStore',
+    'icon_open_builder.vsvg_c',
+    'icon_copy.vsvg_c'
+  ]) {
+    if (!buildScript.includes(buildMarker)) {
+      errors.push(`build_hp_colors.ps1 missing preset-store sync marker: ${buildMarker}`);
+    }
+  }
+
+  // 13. Preset Builder buttons keep generated SVGs compiled and use Deadlock's shipped CSS icon pattern.
+  for (const iconFile of [
+    'icon_open_builder.svg',
+    'icon_copy.svg'
+  ]) {
+    if (!fs.existsSync(path.join(ROOT, 'hp_colors', 'panorama', 'images', 'hp_colors', iconFile))) {
+      errors.push(`Missing preset icon SVG source: ${iconFile}`);
+    }
+  }
+  for (const iconMarker of [
+    'var openIcon = $.CreatePanel("Panel", openBtn, "")',
+    'openIcon.AddClass("AnitaPresetBtnIconOpen")',
+    'var copyIcon = $.CreatePanel("Panel", copyBtn, "")',
+    'copyIcon.AddClass("AnitaPresetBtnIconCopy")'
+  ]) {
+    if (!uiCore.includes(iconMarker)) {
+      errors.push(`anita_ui_core.js missing preset icon marker: ${iconMarker}`);
+    }
+  }
+  for (const iconStyleMarker of [
+    '.AnitaPresetBtnIcon',
+    '.AnitaPresetBtnIconOpen',
+    'background-image: url("s2r://panorama/images/icons/arrow_diagonal.vsvg")',
+    '.AnitaPresetBtnIconCopy',
+    'background-image: url("s2r://panorama/images/icons/icon_copy.vsvg")',
+    'background-texture-size: 16px 16px;',
+    '.AnitaPresetOpenBtn .AnitaPresetBtnIcon',
+    'flow-children: right;'
+  ]) {
+    if (!uiStyle.includes(iconStyleMarker)) {
+      errors.push(`anita_ui.css missing preset icon style marker: ${iconStyleMarker}`);
+    }
+  }
+
+  // 14. Preset Builder import should use the same base64 Import path and auto-clear status.
   for (const importMarker of [
     'applyImportCode: function (config, text, source)',
     'var raw = AnitaBase64.decode(encoded)',
@@ -258,7 +328,9 @@ function main() {
     'var titleImportBtn = $.CreatePanel("Button", titleRow, "")',
     'titleImportBtn.AddClass("AnitaPresetImportBtn")',
     'defaultPresetKey = rows[defaultIndex].key',
+    'config.__anitaSelectedPresetKey = row.key;',
     'var result = AnitaRenderer.applyImportCode(config, row.token, "preset_builder")',
+    'if (importPreset(presetRow)) {\n              AnitaRenderer.renderModSettings(config);',
     '$.Schedule(durationSec, function () {\n          if (statusToken !== config.__anitaPresetStatusToken) return;',
     'var result = AnitaRenderer.applyImportCode(config, text, "import_popup")'
   ]) {

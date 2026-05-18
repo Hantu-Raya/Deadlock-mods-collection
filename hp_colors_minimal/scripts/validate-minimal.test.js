@@ -9,6 +9,8 @@ test("minimal hp_colors source keeps only static builder-preset runtime assets",
   assert.deepEqual(report.errors, []);
   assert.ok(report.unitStatusXml.includes("healthbar_logic.vjs_c"));
   assert.ok(report.bootstrapSource.includes("HPColorsPresetStore"));
+  assert.ok(report.bootstrapSource.includes('STARTUP_PRESET_ID = "HPColorsPreset_001"'));
+  assert.ok(report.bootstrapSource.includes("id === STARTUP_PRESET_ID"));
   assert.ok(report.bootstrapSource.includes("__hpColorsCfgRaw"));
   assert.ok(report.bootstrapSource.includes("HP_COLORS_PRESET_SNAPSHOT"));
   assert.ok(report.bootstrapSource.includes("HP_COLORS_PRESET_REQUEST"));

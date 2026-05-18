@@ -30,6 +30,7 @@
   const MAX_CONVAR_VALUE_LEN = 1900;
   const HP_PRESET_BUILDER_CATEGORY = "PRESETS|Preset Builder";
   const HP_PRESET_BUILDER_URL = "https://hantu-raya.github.io/hp-colors-preset-builder/";
+  const HP_STARTUP_PRESET_ID = "HPColorsPreset_001";
   const HP_BAKED_PRESET_APPLY_DELAYS = [0.5, 1.5, 3.0, 5.0, 8.0, 12.0];
   var _lastHpSharedRaw = "";
   var _didApplyHpColorsBakedPresetOnce = false;
@@ -296,6 +297,16 @@
     return "";
   }
 
+  function getPanelId(panel) {
+    try {
+      if (panel && panel.id !== undefined) return String(panel.id || "");
+    } catch (e0) {}
+    try {
+      if (panel && panel.GetAttributeString) return String(panel.GetAttributeString("id", "") || "");
+    } catch (e1) {}
+    return "";
+  }
+
   function getPresetAllowedKeys(modConfig) {
     var allowed = {};
     if (!modConfig || !Array.isArray(modConfig.elements)) return allowed;
@@ -319,7 +330,7 @@
     return values;
   }
 
-  function readBakedPresetEntries(modConfig) {
+  function getBakedPresetEntryPanels() {
     var root = getRootPanelForPresetStore();
     if (!root || !root.FindChildTraverse) return [];
     var store = null;
@@ -334,32 +345,81 @@
         entries = store.FindChildrenWithClassTraverse("hp_colors_preset_entry") || [];
       }
     } catch (e1) {}
+    return entries;
+  }
 
+  function readBakedPresetEntry(entry, modConfig, displayIndex) {
+    try {
+      var encoded = readPresetLabelText(entry);
+      if (!encoded) return null;
+      var preset = JSON.parse(AnitaBase64.decode(encoded));
+      if (!preset || !preset.values || preset.version !== 1) return null;
+      var values = filterPresetValues(preset.values, modConfig);
+      var name = String(preset.name || "").replace(/^\s+|\s+$/g, "");
+      var category = String(preset.category || preset.type || "").replace(/^\s+|\s+$/g, "");
+      return {
+        id: getPanelId(entry),
+        name: name || ("Builder preset " + String((displayIndex || 0) + 1)),
+        category: category || "Builder VPK",
+        values: values,
+        source: "baked"
+      };
+    } catch (e2) {}
+    return null;
+  }
+
+  function readBakedPresetEntries(modConfig) {
+    var entries = getBakedPresetEntryPanels();
     var presets = [];
     for (var i = 0; i < entries.length; i++) {
-      try {
-        var encoded = readPresetLabelText(entries[i]);
-        if (!encoded) continue;
-        var preset = JSON.parse(AnitaBase64.decode(encoded));
-        if (!preset || !preset.values || preset.version !== 1) continue;
-        var values = filterPresetValues(preset.values, modConfig);
-        var name = String(preset.name || "").replace(/^\s+|\s+$/g, "");
-        var category = String(preset.category || preset.type || "").replace(/^\s+|\s+$/g, "");
-        presets.push({
-          name: name || ("Builder preset " + String(presets.length + 1)),
-          category: category || "Builder VPK",
-          values: values,
-          source: "baked"
-        });
-      } catch (e2) {}
+      var preset = readBakedPresetEntry(entries[i], modConfig, presets.length);
+      if (preset) presets.push(preset);
     }
     return presets;
   }
 
   function readBakedPresetValues(modConfig) {
-    var presets = readBakedPresetEntries(modConfig);
-    if (presets.length > 0) return presets[presets.length - 1].values || {};
+    var entries = getBakedPresetEntryPanels();
+    var startupPreset = null;
+    var firstPreset = null;
+    for (var i = 0; i < entries.length; i++) {
+      var preset = readBakedPresetEntry(entries[i], modConfig, i);
+      if (!preset) continue;
+      if (!firstPreset) firstPreset = preset;
+      if (preset.id === HP_STARTUP_PRESET_ID) {
+        startupPreset = preset;
+        break;
+      }
+    }
+    if (!startupPreset) startupPreset = firstPreset;
+    if (startupPreset) return startupPreset.values || {};
     return {};
+  }
+
+  function applyHpColorsBakedPresetValues(config, values) {
+    var hasValues = false;
+    for (var presetKey in values || {}) {
+      if (Object.prototype.hasOwnProperty.call(values, presetKey)) {
+        hasValues = true;
+        break;
+      }
+    }
+    if (!hasValues) return false;
+
+    AnitaPersistence.applyResolvedValues(config, values);
+    AnitaPersistence.persistConfig(config, true);
+    AnitaRenderer.syncSaveCodeInput(config);
+    writeHpSharedSnapshot(config);
+    AnitaCore.emitCurrentValues(config, {
+      update_source: "baked_preset_apply",
+      force_emit: true,
+      force_persist: true,
+      bulk_emit: true
+    });
+    if (AnitaRenderer.activeModTitle === config.title) {
+      AnitaRenderer.renderModSettings(config);
+    }
+    return true;
   }
 
   function applyHpColorsBakedPresetOnce(config) {
@@ -371,21 +431,8 @@
           if (_didApplyHpColorsBakedPresetOnce || token !== _hpBakedPresetApplyToken) return;
           try {
             var values = readBakedPresetValues(config);
-            var hasValues = false;
-            for (var presetKey in values) {
-              if (Object.prototype.hasOwnProperty.call(values, presetKey)) {
-                hasValues = true;
-                break;
-              }
-            }
-            if (hasValues) {
+            if (applyHpColorsBakedPresetValues(config, values)) {
               _didApplyHpColorsBakedPresetOnce = true;
-              emitBulkUpdate("HP Colors", values, {
-                update_source: "baked_preset_apply",
-                force_emit: true,
-                force_persist: true,
-                bulk_emit: true
-              });
             }
           } catch (e) {}
         });
@@ -3166,11 +3213,7 @@
         Object.prototype.hasOwnProperty.call(HP_PRESET_BUILDER_SUPPORTED_IDS, element.id));
     },
 
-    buildPresetCodeToken: function (config, values) {
-      if (!config || !config.storageNamespace) return "";
-      var ns = AnitaPersistence.normalizeNamespace(config.storageNamespace);
-      if (!ns) return "";
-
+    buildPresetPayloadValues: function (config, values) {
       var payloadValues = {};
       var elements = AnitaPersistence.getElements(config);
       var sourceValues = values || {};
@@ -3187,11 +3230,61 @@
         if (this.isHpColorsConfig(config) && value === defaultValue) continue;
         payloadValues[this.isHpColorsConfig(config) ? (HP_PERSIST_ALIASES[element.id] || element.id) : element.id] = value;
       }
+      return payloadValues;
+    },
 
-      var raw = this.isHpColorsConfig(config)
-        ? JSON.stringify({ v: AnitaPersistence.getVersion(config), c: HP_COMPACT_PERSIST_VERSION, values: payloadValues })
-        : JSON.stringify({ version: AnitaPersistence.getVersion(config), values: payloadValues });
+    buildPresetCodeToken: function (config, values, name) {
+      if (!config || !config.storageNamespace) return "";
+      var ns = AnitaPersistence.normalizeNamespace(config.storageNamespace);
+      if (!ns) return "";
+
+      var payloadValues = this.buildPresetPayloadValues(config, values);
+      var rawPayload = this.isHpColorsConfig(config)
+        ? { v: AnitaPersistence.getVersion(config), c: HP_COMPACT_PERSIST_VERSION, values: payloadValues }
+        : { version: AnitaPersistence.getVersion(config), values: payloadValues };
+      var presetName = String(name || "").replace(/^\s+|\s+$/g, "");
+      if (presetName) rawPayload.name = presetName;
+      var raw = JSON.stringify(rawPayload);
       return "[" + AnitaPersistence.TOKEN_PREFIX + ns + "]:" + AnitaBase64.encode(raw);
+    },
+
+    buildPresetBundleCodeToken: function (config, rows) {
+      if (!config || !config.storageNamespace || !Array.isArray(rows) || !rows.length) return "";
+      var ns = AnitaPersistence.normalizeNamespace(config.storageNamespace);
+      if (!ns) return "";
+
+      var presets = [];
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        if (row && row.key === "current") continue;
+        if (!row || !row.values) continue;
+        var presetName = String(row.name || ("Preset " + String(i + 1))).replace(/^\s+|\s+$/g, "");
+        if (!presetName) presetName = "Preset " + String(i + 1);
+        presets.push({
+          n: presetName,
+          vs: this.buildPresetPayloadValues(config, row.values)
+        });
+      }
+      if (!presets.length) return "";
+
+      var payload = {
+        v: AnitaPersistence.getVersion(config),
+        c: HP_COMPACT_PERSIST_VERSION,
+        values: presets[0].vs || {},
+        ps: presets
+      };
+      return "[" + AnitaPersistence.TOKEN_PREFIX + ns + "]:" + AnitaBase64.encode(JSON.stringify(payload));
+    },
+
+    countPresetBundleRows: function (rows) {
+      var count = 0;
+      if (!Array.isArray(rows)) return count;
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        if (!row || !row.values || row.key === "current") continue;
+        count++;
+      }
+      return count;
     },
 
     countPresetOverrides: function (config, values) {
@@ -3259,10 +3352,11 @@
         var unsupportedCount = this.countUnsupportedPresetOverrides(config, preset.values);
         rows.push({
           key: "baked_" + String(i),
+          id: preset.id || "",
           name: preset.name || ("Builder preset " + String(i + 1)),
           category: preset.category || "Builder VPK",
           status: valueCount ? (String(valueCount) + " recognized setting" + (valueCount === 1 ? "" : "s") + ", " + String(overrideCount) + " builder override" + (overrideCount === 1 ? "" : "s") + (unsupportedCount ? (", " + String(unsupportedCount) + " omitted") : "")) : "No recognized HP Colors settings",
-          token: this.buildPresetCodeToken(config, preset.values || {}),
+          token: this.buildPresetCodeToken(config, preset.values || {}, preset.name || ("Builder preset " + String(i + 1))),
           values: preset.values || {}
         });
       }
@@ -3272,11 +3366,12 @@
       var omittedOverrides = this.countUnsupportedPresetOverrides(config, currentValues);
       rows.push({
         key: "current",
+        id: "",
         name: "Current live settings",
         category: "Live settings",
         status: (currentOverrides ? (String(currentOverrides) + " builder override" + (currentOverrides === 1 ? "" : "s")) : "Default builder values") +
           (omittedOverrides ? ("; " + String(omittedOverrides) + " live-only setting" + (omittedOverrides === 1 ? "" : "s") + " omitted") : ""),
-        token: this.buildPresetCodeToken(config, currentValues),
+        token: this.buildPresetCodeToken(config, currentValues, "Current live settings"),
         values: currentValues
       });
       return rows;
@@ -3351,7 +3446,13 @@
       }
       if (!config.__anitaSelectedPresetKey || !selectedKeyValid) {
         var defaultPresetKey = "";
-        for (var defaultIndex = rows.length - 1; defaultIndex >= 0; defaultIndex--) {
+        for (var startupIndex = 0; startupIndex < rows.length; startupIndex++) {
+          if (rows[startupIndex].id === HP_STARTUP_PRESET_ID) {
+            defaultPresetKey = rows[startupIndex].key;
+            break;
+          }
+        }
+        for (var defaultIndex = 0; !defaultPresetKey && defaultIndex < rows.length; defaultIndex++) {
           if (String(rows[defaultIndex].key || "").indexOf("baked_") === 0) {
             defaultPresetKey = rows[defaultIndex].key;
             break;
@@ -3367,6 +3468,8 @@
           break;
         }
       }
+      var bundleToken = this.buildPresetBundleCodeToken(config, rows);
+      var bundlePresetCount = this.countPresetBundleRows(rows);
 
       var panel = $.CreatePanel("Panel", parent, "");
       panel.AddClass("AnitaPresetBuilderPanel");
@@ -3399,8 +3502,21 @@
 
       var openBtn = $.CreatePanel("Button", actionRow, "");
       openBtn.AddClass("AnitaPresetOpenBtn");
+      var openIcon = $.CreatePanel("Panel", openBtn, "");
+      openIcon.AddClass("AnitaPresetBtnIcon");
+      openIcon.AddClass("AnitaPresetBtnIconOpen");
+      openIcon.hittest = false;
       var openLbl = $.CreatePanel("Label", openBtn, "");
       openLbl.text = "OPEN BUILDER";
+
+      var bundleBtn = $.CreatePanel("Button", actionRow, "");
+      bundleBtn.AddClass("AnitaPresetBundleBtn");
+      var bundleIcon = $.CreatePanel("Panel", bundleBtn, "");
+      bundleIcon.AddClass("AnitaPresetBtnIcon");
+      bundleIcon.AddClass("AnitaPresetBtnIconCopy");
+      bundleIcon.hittest = false;
+      var bundleLbl = $.CreatePanel("Label", bundleBtn, "");
+      bundleLbl.text = "COPY ALL";
 
       var status = $.CreatePanel("Label", actionRow, "");
       status.AddClass("AnitaPresetStatusText");
@@ -3454,11 +3570,26 @@
         return copied;
       }
 
+      function copyPresetBundle(doneText) {
+        if (!bundleToken) {
+          showPresetStatus("No preset bundle available.", false, 2.0);
+          return false;
+        }
+        var copied = AnitaRenderer.copyTextToClipboard(bundleToken);
+        showPresetStatus(
+          copied ? doneText : "Clipboard failed. Copy individual codes instead.",
+          copied,
+          2.5
+        );
+        return copied;
+      }
+
       function importPreset(row) {
         if (!row || !row.token) {
           showPresetStatus("No code available for this preset.", false, 2.0);
           return false;
         }
+        config.__anitaSelectedPresetKey = row.key;
         var result = AnitaRenderer.applyImportCode(config, row.token, "preset_builder");
         if (result.ok) {
           showPresetStatus("Imported " + row.name + ".", true, 2.5);
@@ -3474,12 +3605,26 @@
           showPresetStatus("No preset selected.", false, 2.0);
           return;
         }
-        copyPreset(activeRow, status, "Code copied. If browser does not open, use URL below.");
+        if (bundlePresetCount > 0) {
+          copyPresetBundle("All preset codes copied. Paste into builder Import.");
+        } else {
+          showPresetStatus("No preset codes available yet. Current live settings are not bundled.", false, 2.5);
+        }
         AnitaRenderer.openExternalUrl(HP_PRESET_BUILDER_URL);
       });
 
+      bundleBtn.SetPanelEvent("onactivate", function () {
+        copyPresetBundle("Copied " + String(bundlePresetCount) + " preset code" + (bundlePresetCount === 1 ? "" : "s") + ".");
+        bundleLbl.text = "COPIED";
+        $.Schedule(1.25, function () {
+          if (bundleLbl && bundleLbl.IsValid && bundleLbl.IsValid()) bundleLbl.text = "COPY ALL";
+        });
+      });
+
       titleImportBtn.SetPanelEvent("onactivate", function () {
-        importPreset(getSelectedRow());
+        if (importPreset(getSelectedRow())) {
+          AnitaRenderer.renderModSettings(config);
+        }
       });
 
       for (var r = 0; r < rows.length; r++) {
@@ -3502,15 +3647,20 @@
 
         var copyBtn = $.CreatePanel("Button", rowPanel, "");
         copyBtn.AddClass("AnitaPresetCopyBtn");
+        var copyIcon = $.CreatePanel("Panel", copyBtn, "");
+        copyIcon.AddClass("AnitaPresetBtnIcon");
+        copyIcon.AddClass("AnitaPresetBtnIconCopy");
+        copyIcon.hittest = false;
         var copyLbl = $.CreatePanel("Label", copyBtn, "");
         copyLbl.text = "COPY";
 
-        rowPanel.SetPanelEvent("onactivate", (function (rowKey) {
+        rowPanel.SetPanelEvent("onactivate", (function (presetRow) {
           return function () {
-            config.__anitaSelectedPresetKey = rowKey;
-            AnitaRenderer.renderModSettings(config);
+            if (importPreset(presetRow)) {
+              AnitaRenderer.renderModSettings(config);
+            }
           };
-        }(row.key)));
+        }(row)));
 
         copyBtn.SetPanelEvent("onactivate", (function (presetRow, buttonLabel) {
           return function () {
@@ -4251,6 +4401,7 @@
         updateSource === "ui_resync" ||
         updateSource === "ui_reset" ||
         updateSource === "ui_code_apply" ||
+        updateSource === "baked_preset_apply" ||
         updateSource === "core_auto_resync" ||
         updateSource === "ui_refresh_after_apply";
 
@@ -4312,6 +4463,7 @@
         updateSource === "ui_resync" ||
         updateSource === "ui_reset" ||
         updateSource === "ui_code_apply" ||
+        updateSource === "baked_preset_apply" ||
         updateSource === "core_auto_resync" ||
         updateSource === "ui_refresh_after_apply";
       if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) {
