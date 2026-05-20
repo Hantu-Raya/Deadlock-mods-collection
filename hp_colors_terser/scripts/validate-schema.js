@@ -14,11 +14,11 @@ const SCRIPTS_DIR = path.join(ROOT, 'hp_colors', 'panorama', 'scripts');
 const STYLES_DIR = path.join(ROOT, 'hp_colors', 'panorama', 'styles');
 
 function readFile(name) {
-  return fs.readFileSync(path.join(SCRIPTS_DIR, name), 'utf-8');
+  return fs.readFileSync(path.join(SCRIPTS_DIR, name), 'utf-8').replace(/\r\n/g, '\n');
 }
 
 function readStyleFile(name) {
-  return fs.readFileSync(path.join(STYLES_DIR, name), 'utf-8');
+  return fs.readFileSync(path.join(STYLES_DIR, name), 'utf-8').replace(/\r\n/g, '\n');
 }
 
 function extractSchemaIds(text) {
@@ -240,8 +240,35 @@ function main() {
     'const HP_STARTUP_PRESET_ID = "HPColorsPreset_001"',
     'function getPanelId(panel)',
     'id === HP_STARTUP_PRESET_ID',
-    'return startupPreset.values || {}',
-    'function applyHpColorsBakedPresetValues(config, values)',
+    'function readBakedPresetHeroTargets(modConfig, presetId, displayIndex, fallbackHeroes)',
+    'function readBakedPresetHeroMode(modConfig, presetId, displayIndex, fallbackMode, fallbackHeroes)',
+    'var _hpPresetStoreEntries = null;',
+    'function clearHpPresetStoreRefs()',
+    'function readBakedPresetEntryBase(entry, modConfig, displayIndex, encoded, id)',
+    'function materializeBakedPresetEntry(base, modConfig, displayIndex)',
+    'modConfig.__hpBakedPresetEntryCache = cache;',
+    'modConfig.__anitaPresetHeroSelections',
+    'modConfig.__anitaPresetHeroModes',
+    'function selectBakedPresetForHero(modConfig, allowUnknownFallback)',
+    'function hasHpSelectedScopedPreset(config)',
+    'const HP_HERO_SCOPE_OFF = "off"',
+    'const HP_HERO_SCOPE_ALL = "all"',
+    'const HP_HERO_SCOPE_SELECTED = "selected"',
+    'const HP_HERO_WATCH_IDLE_LOG_TICKS = 30',
+    'function logHpHeroPresetEvent(eventName, data)',
+    'function refreshHpHeroPresetSelection(config, logWait)',
+    '"[HP-COLORS][HERO-PRESET] event="',
+    'logHpHeroPresetEvent("hero_changed", {',
+    'logHpHeroPresetEvent("preset_apply", {',
+    'logHpHeroPresetEvent("preset_wait", {',
+    'values: countObjectKeys(selection.preset.values || {})',
+    'startHpHeroPresetWatch(config);',
+    'return { preset: firstHeroMatch, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "hero" }',
+    'return { preset: null, heroId: heroId, hasScopedPreset: true, reason: "waiting_for_hero" }',
+    'return { preset: firstGlobal, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "global" }',
+    'if (!config.__hpHeroPresetHasScopedPreset && !hasHpSelectedScopedPreset(config)) return;',
+    'config.__hpHeroPresetWatchStarted = false;',
+    'function applyHpColorsBakedPresetValues(config, values, presetKey, heroId)',
     'AnitaPersistence.applyResolvedValues(config, values);',
     'AnitaPersistence.persistConfig(config, true);',
     'AnitaRenderer.renderModSettings(config);',
@@ -274,36 +301,108 @@ function main() {
     errors.push('base_hud.xml missing AnitaUI_Anchor for HPColorsPresetStore injection');
   }
   const buildScript = fs.readFileSync(path.join(ROOT, 'build_hp_colors.ps1'), 'utf-8');
+  if (!fs.existsSync(path.join(ROOT, 'hp_colors', 'scripts', 'validate-hero-selector.js'))) {
+    errors.push('hp_colors/scripts/validate-hero-selector.js missing');
+  }
   for (const buildMarker of [
     'sync_hp_preset_store.js',
+    'validate-hero-selector.js',
+    'Minified hero selector audit passed.',
+    'anita_ui_core.vjs_c',
+    'anita_ui.vcss_c',
+    'Packed VPK missing required asset',
+    '--file-tree --no-progress',
     'pak96_dir.vpk',
-    'HPColorsPresetStore',
-    'icon_open_builder.vsvg_c',
-    'icon_copy.vsvg_c'
+    'HPColorsPresetStore'
   ]) {
     if (!buildScript.includes(buildMarker)) {
       errors.push(`build_hp_colors.ps1 missing preset-store sync marker: ${buildMarker}`);
     }
   }
 
-  // 13. Preset Builder buttons keep generated SVGs compiled and use Deadlock's shipped CSS icon pattern.
-  for (const iconFile of [
-    'icon_open_builder.svg',
-    'icon_copy.svg'
-  ]) {
-    if (!fs.existsSync(path.join(ROOT, 'hp_colors', 'panorama', 'images', 'hp_colors', iconFile))) {
-      errors.push(`Missing preset icon SVG source: ${iconFile}`);
-    }
-  }
+  // 13. Preset Builder buttons use Deadlock's shipped CSS icon pattern and hero selection metadata.
   for (const iconMarker of [
     'var openIcon = $.CreatePanel("Panel", openBtn, "")',
     'openIcon.AddClass("AnitaPresetBtnIconOpen")',
     'var copyIcon = $.CreatePanel("Panel", copyBtn, "")',
-    'copyIcon.AddClass("AnitaPresetBtnIconCopy")'
+    'copyIcon.AddClass("AnitaPresetBtnIconCopy")',
+    'const HP_HERO_DATA = [',
+    'function detectHpLocalHero()',
+    'function makeHeroPickerButton(parent, row)',
+    'button.AddClass("AnitaPresetHeroPickerBtn");',
+    'button.SetPanelEvent("onactivate", function () {',
+    'function getHeroMenuPopupHost()',
+    'function positionHeroMenu(menu, button, host)',
+    'AnitaRenderer.popupHost',
+    '$.CreatePanel("Panel", host || parent, "")',
+    'function closeHeroMenu(button)',
+    'function renderHeroMenu(menu, button, row, summaryLabel)',
+    'function makeHeroMenuOption(menu, button, row, summaryLabel, kind, heroId)',
+    'function syncHeroMenuState(menu, row)',
+    'function handleHeroPickerChoice(button, row, summaryLabel, kind, heroId)',
+    'option.SetPanelEvent("onactivate", function () {',
+    'option.SetAttributeString("anita_hero_id", option.__anitaHeroId);',
+    'option.SetAttributeString("anita_hero_kind", optionKind);',
+    'iconSlot.AddClass("AnitaPresetHeroMenuOptionIcon");',
+    'iconSlot.AddClass("AnitaPresetHeroMenuOptionIconAll");',
+    'iconSlot.style.backgroundImage = "none";',
+    'var heroIconImage = $.CreatePanel("Panel", iconSlot, "");',
+    'heroIconImage.AddClass("AnitaPresetHeroMenuOptionHeroIcon");',
+    'heroIconImage.__anitaHeroIconPath = hpHeroIconPath(heroId);',
+    'heroIconImage.style.backgroundImage = "none";',
+    'heroIconImage.style.minWidth = "22px";',
+    'heroIconImage.style.maxWidth = "22px";',
+    'heroIconImage.style.overflow = "clip";',
+    'heroIconImage.style.backgroundSize = "100% 100%";',
+    'heroIconImage.style.backgroundTextureSize = "22px 22px";',
+    'heroIconImage.style.backgroundPosition = "50% 50%";',
+    'heroIconImage.style.backgroundRepeat = "no-repeat";',
+    'function settleHeroMenuIcons(menu)',
+    'icon.style.minWidth = "22px";',
+    'icon.style.maxWidth = "22px";',
+    'icon.style.overflow = "clip";',
+    'icon.style.backgroundImage = "url(\\"" + path + "\\")";',
+    'settleHeroMenuIcons(menu);',
+    'option.__anitaHeroId = isHero ? String(heroId || "") : "";',
+    'option.__anitaHeroKind = optionKind;',
+    'option.__anitaHeroCheckLabel.text = selected ? "✓" : "";',
+    'menu.__anitaHeroOptions.push(option);',
+    'function updateHeroMenuOptionState(option, selectedHeroes, scopeMode)',
+    'var selectedHeroes = AnitaRenderer.getPresetRowHeroes(config, row);',
+    'updateHeroMenuOptionState(menu.__anitaHeroOptions[i], selectedHeroes, scopeMode);',
+    'function hpHeroIconPath(heroId)',
+    's2r://panorama/images/heroes/',
+    'function updateHeroFace(row, facePanel)',
+    'renderHeroPickerState(button, row, summaryLabel || button.__anitaHeroSummaryLabel);',
+    'var heroPicker = makeHeroPickerButton(heroSelector, row);',
+    'face.AddClass("AnitaPresetHeroDropDownFace");',
+    'face.hittest = false;',
+    'faceIcon.AddClass("AnitaPresetHeroDropDownFaceIcon");',
+    'faceLabel.AddClass("AnitaPresetHeroDropDownFaceLabel");',
+    'button.__anitaHeroFacePanel = face;',
+    'renderHeroPickerState(heroPicker, row, heroSummary);',
+    'heroSummary.AddClass("AnitaPresetHeroSummary");',
+    'heroPicker.__anitaHeroSummaryLabel = heroSummary;',
+    'heroes: normalizeHpHeroSelection(preset.heroes),',
+    'heroMode: normalizeHpHeroScopeMode(preset.heroMode, preset.heroes)',
+    'store["id:" + String(row.id)] = normalized.slice(0);',
+    'modeStore["id:" + String(row.id)] = scopeMode;',
+    'startHpHeroPresetWatch(config);',
+    'row.token = this.buildPresetCodeToken(config, row.values || {}, row.name || "", row.payloadValues, row.heroes, row.heroMode);',
+    'else tuple.push(scopeMode);'
   ]) {
     if (!uiCore.includes(iconMarker)) {
       errors.push(`anita_ui_core.js missing preset icon marker: ${iconMarker}`);
     }
+  }
+
+  if (uiCore.includes('CitadelSettingsEnumDropDown') || uiCore.includes('$.CreatePanel("DropDown"')) {
+    errors.push('anita_ui_core.js should not use native dropdown panels for the hero picker');
+  }
+  if (uiCore.includes('dropdown.SetSelected') ||
+      uiCore.includes('dropdown.GetSelected') ||
+      uiCore.includes('dropdown.SetPanelEvent("oninputsubmit"')) {
+    errors.push('anita_ui_core.js should not use native dropdown selection APIs for the hero picker');
   }
   for (const iconStyleMarker of [
     '.AnitaPresetBtnIcon',
@@ -313,11 +412,48 @@ function main() {
     'background-image: url("s2r://panorama/images/icons/icon_copy.vsvg")',
     'background-texture-size: 16px 16px;',
     '.AnitaPresetOpenBtn .AnitaPresetBtnIcon',
-    'flow-children: right;'
+    '.AnitaPresetHeroSelector',
+    '.AnitaPresetHeroPickerBtn',
+    '.AnitaPresetHeroDropDownFace',
+    '.AnitaPresetHeroDropDownFaceIcon',
+    '.AnitaPresetHeroDropDownFaceIcon.Visible',
+    '.AnitaPresetHeroDropDownFaceLabel',
+    '.AnitaPresetHeroPickerArrow',
+    '.AnitaPresetHeroMenu',
+    '.AnitaPresetHeroMenuOption',
+    '.AnitaPresetHeroMenuOptionIcon',
+    '.AnitaPresetHeroMenuOptionIconAll',
+    '.AnitaPresetHeroMenuOptionIconAllLabel',
+    '.AnitaPresetHeroMenuOptionHeroIcon',
+    'background-image: none;',
+    'background-size: 100% 100%;',
+    'background-texture-size: 22px 22px;',
+    'border: 0px solid transparent;',
+    'overflow: clip;',
+    '.AnitaPresetHeroMenuOption.Selected',
+    '.AnitaPresetHeroMenuOptionName',
+    '.AnitaPresetHeroMenuOptionCheck',
+    'ignore-parent-flow: true;',
+    'height: 360px;',
+    '.AnitaPresetHeroMenu VerticalScrollBar',
+    '.AnitaPresetHeroMenu VerticalScrollBar #ScrollThumb',
+    'background-color: transparent;',
+    '.AnitaPresetHeroMenuOption.Selected .AnitaPresetHeroMenuOptionCheck',
+    'visibility: collapse;',
+    'visibility: visible;',
+    'margin-top: 0px;',
+    '.AnitaPresetHeroSummary',
+    'background-texture-size: 16px 16px;'
   ]) {
     if (!uiStyle.includes(iconStyleMarker)) {
       errors.push(`anita_ui.css missing preset icon style marker: ${iconStyleMarker}`);
     }
+  }
+  if (!/\.AnitaPresetHeroPickerBtn\s*,\s*\n\.AnitaPresetHeroBtn\s*\{[\s\S]*?height:\s*30px;/.test(uiStyle)) {
+    errors.push('anita_ui.css missing 30px height inside .AnitaPresetHeroPickerBtn');
+  }
+  if (!/\.AnitaPresetHeroMenuOption\s*\{[\s\S]*?padding:\s*5px 5px 5px 8px;/.test(uiStyle)) {
+    errors.push('anita_ui.css missing compact padding inside custom hero menu options');
   }
 
   // 14. Preset Builder import should use the same base64 Import path and auto-clear status.
