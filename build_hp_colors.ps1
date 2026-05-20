@@ -30,6 +30,18 @@ if (Test-Path $auditScript) {
 } else {
     Write-Host "  [WARN] Audit script not found, skipping." -ForegroundColor Yellow
 }
+$heroSelectorAuditScript = "$modSrc\scripts\validate-hero-selector.js"
+if (Test-Path $heroSelectorAuditScript) {
+    & node $heroSelectorAuditScript
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] Hero selector audit failed - fix preset hero dropdown before building." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "  Hero selector audit passed." -ForegroundColor Green
+} else {
+    Write-Host "[ERROR] Hero selector audit script not found: $heroSelectorAuditScript" -ForegroundColor Red
+    exit 1
+}
 
 # ## Step 1: Prepare minified build source #####################################
 Write-Host "`n[1/4] Preparing minified hp_colors source..." -ForegroundColor Cyan
@@ -78,6 +90,14 @@ foreach ($script in $scriptFiles) {
 }
 
 Write-Host "  Minified JS OK -> $terserSrc" -ForegroundColor Green
+if (Test-Path $heroSelectorAuditScript) {
+    & node $heroSelectorAuditScript "$terserSrc\panorama\scripts\anita_ui_core.js"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] Minified hero selector audit failed - fix preset hero dropdown before compiling." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "  Minified hero selector audit passed." -ForegroundColor Green
+}
 
 # ## Step 2: Compile ############################################################
 Write-Host "`n[2/4] Compiling hp_colors..." -ForegroundColor Cyan
@@ -112,13 +132,13 @@ if (-not (Test-Path $compileTarget)) {
     Write-Host "[ERROR] Compiled output not found" -ForegroundColor Red
     exit 1
 }
-$compiledIconTargets = @(
-    "$terserCompiled\panorama\images\hp_colors\icon_open_builder.vsvg_c",
-    "$terserCompiled\panorama\images\hp_colors\icon_copy.vsvg_c"
+$compiledSelectorTargets = @(
+    "$terserCompiled\panorama\scripts\anita_ui_core.vjs_c",
+    "$terserCompiled\panorama\styles\anita_ui.vcss_c"
 )
-foreach ($iconTarget in $compiledIconTargets) {
-    if (-not (Test-Path $iconTarget)) {
-        Write-Host "[ERROR] Compiled icon output not found: $iconTarget" -ForegroundColor Red
+foreach ($selectorTarget in $compiledSelectorTargets) {
+    if (-not (Test-Path $selectorTarget)) {
+        Write-Host "[ERROR] Compiled hero selector asset not found: $selectorTarget" -ForegroundColor Red
         exit 1
     }
 }
@@ -136,6 +156,17 @@ if ($pack.ExitCode -ne 0) {
 if (-not (Test-Path $vpkOut)) {
     Write-Host "[ERROR] VPK not created at $vpkOut" -ForegroundColor Red
     exit 1
+}
+$vpkTree = & $vpkeditcli $vpkOut --file-tree --no-progress
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Could not inspect packed VPK contents" -ForegroundColor Red
+    exit 1
+}
+foreach ($packedAsset in @("anita_ui_core.vjs_c", "anita_ui.vcss_c", "healthbar_logic.vjs_c")) {
+    if (-not (($vpkTree | Select-String -SimpleMatch $packedAsset -Quiet))) {
+        Write-Host "[ERROR] Packed VPK missing required asset: $packedAsset" -ForegroundColor Red
+        exit 1
+    }
 }
 $vpkSize = (Get-Item $vpkOut).Length
 Write-Host "  Packed OK -> $vpkOut  ($([math]::Round($vpkSize/1KB, 1)) KB)" -ForegroundColor Green
