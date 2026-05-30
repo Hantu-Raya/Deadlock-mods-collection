@@ -6,6 +6,9 @@ $modCompiled = Join-Path $root "abilities_compiled"
 $modScripts = Join-Path $modSrc "scripts"
 $compiler = Join-Path $root "sr2compiler\New folder.exe"
 $vpkeditcli = Join-Path $root "passive_items_mod\compiler\vpkeditcli.exe"
+if (-not (Test-Path -LiteralPath $vpkeditcli)) {
+    $vpkeditcli = Join-Path $root "vpk cli\vpkeditcli.exe"
+}
 $addons = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons"
 $python = (Get-Command py.exe -ErrorAction SilentlyContinue).Source
 $sevenZip = (Get-Command 7z.exe -ErrorAction SilentlyContinue).Source
@@ -31,6 +34,10 @@ if (-not $python -or -not (Test-Path -LiteralPath $python)) {
 
 if (-not (Test-Path $sevenZip)) {
     throw "7z.exe was not found on PATH or at C:\Program Files\7-Zip\7z.exe"
+}
+
+if (-not (Test-Path -LiteralPath $vpkeditcli)) {
+    throw "vpkeditcli.exe was not found in passive_items_mod\compiler or vpk cli"
 }
 
 $pakSpecs = @(

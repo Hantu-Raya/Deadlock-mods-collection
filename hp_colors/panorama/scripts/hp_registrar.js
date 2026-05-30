@@ -37,6 +37,7 @@
     { type: "slider", id: "hp_pulse_text_scale", label: "Pulsing number size", defaultValue: 120, min: 72, max: 320, step: 1, category: "VISUAL EFFECTS|Low HP Pulse", visibleWhen: { id: "hp_pulse_text_enabled", equals: true } },
     { type: "positionpicker", id: "hp_pulse_text_position", label: "Pulsing number position", defaultValue: "20,196", category: "VISUAL EFFECTS|Low HP Pulse", visibleWhen: { id: "hp_pulse_text_enabled", equals: true } },
     // Health Bars - Number Overlay
+    { type: "toggle", id: "hp_counter_visible", label: "Show HP number", defaultValue: true, category: "HEALTH BARS|Number Overlay" },
     { type: "slider", id: "hp_counter_size", label: "HP number size", defaultValue: 145, min: 72, max: 320, step: 1, category: "HEALTH BARS|Number Overlay" },
     { type: "positionpicker", id: "hp_counter_position", label: "HP number position", defaultValue: "27,20", category: "HEALTH BARS|Number Overlay" },
     { type: "cycler", id: "hp_counter_format", label: "HP number format", options: ["HP", "%", "Current HP"], defaultValue: 0, category: "HEALTH BARS|Number Overlay" },

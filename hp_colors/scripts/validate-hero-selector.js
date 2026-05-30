@@ -12,7 +12,9 @@ const targetScript = path.resolve(process.argv[2] || DEFAULT_TARGET);
 let root = null;
 const dispatched = [];
 const scheduled = [];
-const messages = [];
+const sharedStore = {};
+const eventHandlers = {};
+let mockGameState = 6;
 const presetStoreLookups = {
   findStore: 0,
   scanEntries: 0
@@ -226,23 +228,12 @@ function installMockPresetStore(presetsOverride) {
     if (preset.heroMode) payload.hm = preset.heroMode;
     entry.text = encodePresetStorePayload(payload);
   }
+  return store;
 }
 
 function copiedHpToken() {
   return dispatched.find(args => args[0] === 'CopyStringToClipboard' &&
     String(args[1] || '').includes('[ANITA-v1-hp_colors]:'));
-}
-
-function flushScheduled(limit = 50) {
-  let count = 0;
-  while (count < limit) {
-    const index = scheduled.findIndex(job => Number(job && job.delay) <= 0);
-    if (index < 0) return;
-    const job = scheduled.splice(index, 1)[0];
-    count += 1;
-    if (job && typeof job.handler === 'function') job.handler();
-  }
-  assert(count < limit, 'Zero-delay scheduled validation jobs did not drain');
 }
 
 function runNextScheduledByDelay(delay) {
@@ -252,12 +243,31 @@ function runNextScheduledByDelay(delay) {
   if (job && typeof job.handler === 'function') job.handler();
 }
 
+function runScheduledUntil(predicate, message, limit = 40) {
+  for (let i = 0; i < limit; i++) {
+    if (predicate()) return;
+    assert(scheduled.length > 0, `${message}; no scheduled jobs left`);
+    scheduled.sort((a, b) => Number(a.delay || 0) - Number(b.delay || 0));
+    const job = scheduled.shift();
+    if (job && typeof job.handler === 'function') job.handler();
+  }
+  assert(predicate(), `${message}; exhausted scheduled job limit`);
+}
+
 function installMockHeroProgress(heroId) {
   const alive = new MockPanel('Panel', root, 'gameplay_hud_alive');
   const crosshair = new MockPanel('Panel', alive, 'crosshair');
   const progress = new MockPanel('Panel', crosshair, 'progress');
   if (heroId) progress.AddClass(heroId);
   return progress;
+}
+
+function installMockGameTime(text) {
+  const topBar = new MockPanel('Panel', root, 'TopBar');
+  const gameTime = new MockPanel('Label', topBar, 'GameTime');
+  gameTime.AddClass('GameTime');
+  gameTime.text = String(text || '00:00');
+  return gameTime;
 }
 
 function decodedBulkUpdates() {
@@ -270,8 +280,29 @@ function decodedBulkUpdates() {
     .filter(payload => payload.magic_word === 'ANITA_BULK_UPDATE');
 }
 
-function createMockContext() {
+function assertBakedPresetPayloadMeta(payload, label) {
+  assert(payload && payload.update_source === 'baked_preset_apply', `${label} should be a baked preset payload`);
+  assert(payload.force_emit === true, `${label} missing force_emit=true: ${JSON.stringify(payload)}`);
+  assert(payload.bulk_emit === true, `${label} missing bulk_emit=true: ${JSON.stringify(payload)}`);
+  assert(payload.force_persist === true, `${label} missing force_persist=true: ${JSON.stringify(payload)}`);
+  assert(typeof payload.hero_id === 'string' && payload.hero_id.length > 0,
+    `${label} missing hero_id: ${JSON.stringify(payload)}`);
+  assert(typeof payload.preset_key === 'string' && payload.preset_key.length > 0,
+    `${label} missing preset_key: ${JSON.stringify(payload)}`);
+}
+
+function findBakedPresetUpdate(updates, predicate, message) {
+  const payload = updates.find(item => item.update_source === 'baked_preset_apply' && predicate(item));
+  assert(payload, `${message}: ${JSON.stringify(updates)}`);
+  assertBakedPresetPayloadMeta(payload, message);
+  return payload;
+}
+
+function createMockContext(options = {}) {
+  mockGameState = Object.prototype.hasOwnProperty.call(options, 'gameState') ? Number(options.gameState) : 6;
   root = new MockPanel('Root', null, 'Root');
+  for (const key of Object.keys(sharedStore)) delete sharedStore[key];
+  for (const key of Object.keys(eventHandlers)) delete eventHandlers[key];
   root.actuallayoutwidth = 1920;
   root.actuallayoutheight = 1080;
   root.contentwidth = 1920;
@@ -294,6 +325,12 @@ function createMockContext() {
     parseFloat,
     setTimeout,
     clearTimeout,
+    Game: {
+      GetState: () => mockGameState
+    },
+    GameUI: {
+      CustomUIConfig: () => sharedStore
+    },
     $: {
       GetContextPanel: () => root,
       CreatePanel: (type, parent, id) => new MockPanel(type, parent === true ? root : parent, id),
@@ -305,20 +342,14 @@ function createMockContext() {
         dispatched.push(args);
         return true;
       },
-      RegisterForUnhandledEvent: () => {},
+      RegisterForUnhandledEvent: (eventName, handler) => {
+        eventHandlers[eventName] = handler;
+      },
       RegisterEventHandler: () => {},
       Schedule: (delay, handler) => {
         scheduled.push({ delay, handler });
         return null;
-      },
-      Msg: (...args) => {
-        messages.push(args.map(arg => String(arg)).join(''));
       }
-    },
-    GameInterfaceAPI: {
-      GetSettingString: () => '',
-      SetSettingString: () => {},
-      ConsoleCommand: () => {}
     },
     SteamOverlayAPI: {
       OpenURL: () => {}
@@ -328,6 +359,10 @@ function createMockContext() {
 
 function runValidation() {
   const source = fs.readFileSync(targetScript, 'utf8');
+  assert(source.includes('HP_COLORS_PRESET_REQUEST'),
+    'anita_ui_core.js must answer the static HP Colors preset request bridge used by fresh healthbar overlays');
+  assert(source.includes('HP_COLORS_PRESET_SNAPSHOT') && source.includes('values_raw'),
+    'anita_ui_core.js must publish replayable HP Colors preset snapshots with values_raw');
   const context = createMockContext();
   context.global = context;
   vm.createContext(context);
@@ -335,25 +370,117 @@ function runValidation() {
   installMockPresetStore();
 
   assert(root.AnitaUI && typeof root.AnitaUI.Register === 'function', 'AnitaUI.Register was not exposed');
-  root.AnitaUI.Register({
+  const validationConfig = {
     title: 'HP Colors',
     description: 'hero selector validation',
     storageNamespace: 'hp_colors',
     storageVersion: 97,
     elements: [
       { id: 'hp_enabled', type: 'toggle', defaultValue: true, currentValue: true, category: 'General' },
-      { id: 'hp_low_threshold', type: 'slider', defaultValue: 35, currentValue: 35, category: 'General', min: 0, max: 100, step: 1 }
+      { id: 'hp_mode', type: 'cycler', options: ['Fixed', 'Gradient'], defaultValue: 1, currentValue: 1, category: 'General' },
+      { id: 'hp_low_threshold', type: 'slider', defaultValue: 35, currentValue: 35, category: 'General', min: 0, max: 100, step: 1 },
+      { id: 'hp_pulse_enabled', type: 'toggle', defaultValue: true, currentValue: true, category: 'General' },
+      { id: 'hp_pulse_threshold', type: 'slider', defaultValue: 25, currentValue: 25, category: 'General', min: 0, max: 100, step: 1, visibleWhen: { id: 'hp_pulse_enabled', equals: true } }
     ]
-  });
+  };
+  root.AnitaUI.Register(validationConfig);
+  dispatched.length = 0;
+  assert(typeof eventHandlers.ClientUI_FireOutput === 'function',
+    'Anita UI did not register a ClientUI_FireOutput bridge listener');
+  eventHandlers.ClientUI_FireOutput(JSON.stringify({
+    magic_word: 'ANITA_UPDATE',
+    mod_title: 'HP Colors',
+    setting_id: 'hp_pulse_enabled',
+    value: true
+  }));
+  eventHandlers.ClientUI_FireOutput(JSON.stringify({
+    magic_word: 'HP_COLORS_PRESET_REQUEST',
+    mod_title: 'HP Colors',
+    reason: 'validator'
+  }));
+  const presetSnapshot = dispatched
+    .filter(args => args[0] === 'ClientUI_FireOutput' && typeof args[1] === 'string')
+    .map(args => {
+      try { return JSON.parse(args[1]); } catch (err) { return null; }
+    })
+    .find(payload => payload && payload.magic_word === 'HP_COLORS_PRESET_SNAPSHOT');
+  assert(presetSnapshot && presetSnapshot.values_raw && presetSnapshot.values &&
+      presetSnapshot.values.hp_low_threshold === 35,
+    `Preset request bridge did not publish replayable HP Colors values: ${JSON.stringify(dispatched)}`);
+  dispatched.length = 0;
+  runNextScheduledByDelay(1.0);
+  const replayedPresetSnapshot = dispatched
+    .filter(args => args[0] === 'ClientUI_FireOutput' && typeof args[1] === 'string')
+    .map(args => {
+      try { return JSON.parse(args[1]); } catch (err) { return null; }
+    })
+    .find(payload => payload && payload.magic_word === 'HP_COLORS_PRESET_SNAPSHOT');
+  assert(replayedPresetSnapshot && replayedPresetSnapshot.values_raw,
+    `HP Colors must continuously replay cached preset snapshots for late-created healthbar contexts: ${JSON.stringify(dispatched)}`);
 
   const tabs = findByClass(root, 'AnitaTabBtn');
   assert(tabs.length >= 1, 'No Anita tab button rendered');
   assert(tabs[tabs.length - 1].events.onactivate, 'HP Colors tab missing activate handler');
   tabs[tabs.length - 1].events.onactivate();
+  const hpModeElement = validationConfig.elements.find(element => element.id === 'hp_mode');
+  const hpPulseEnabledElement = validationConfig.elements.find(element => element.id === 'hp_pulse_enabled');
+  const hpPulseThresholdElement = validationConfig.elements.find(element => element.id === 'hp_pulse_threshold');
+  assert(hpModeElement.currentValue === 0 && hpModeElement.runtimeLocked && hpModeElement.__anitaRowPanel.BHasClass('AnitaRuntimeLocked'),
+    'Optimized profile should hard-lock hp_mode to Fixed in Anita UI');
+  assert(hpPulseEnabledElement.currentValue === false && hpPulseEnabledElement.runtimeLocked && hpPulseEnabledElement.__anitaRowPanel.BHasClass('AnitaRuntimeLocked'),
+    'Optimized profile should hard-lock low HP pulse off in Anita UI');
+  assert(hpPulseThresholdElement.runtimeHidden && hpPulseThresholdElement.__anitaRowPanel.style.visibility === 'collapse',
+    'Optimized profile should hide pulse-only controls in Anita UI');
 
   const presetBtn = findByClass(root, 'AnitaFooterBtnPreset')[0];
   assert(presetBtn && presetBtn.events.onactivate, 'Preset footer button missing activate handler');
   presetBtn.events.onactivate();
+
+  const presetImportBtn = findByClass(root, 'AnitaPresetImportBtn')[0];
+  assert(presetImportBtn && presetImportBtn.events.onactivate, 'Preset Builder IMPORT button missing activate handler');
+  presetImportBtn.events.onactivate();
+  let importPopup = findByClass(root, 'AnitaImportPopup')[0];
+  assert(importPopup && importPopup.IsValid && importPopup.IsValid(),
+    'Preset Builder IMPORT should open the paste-code import popup, not apply the selected row');
+  const pasteInput = findByClass(importPopup, 'AnitaPasteInput')[0];
+  assert(pasteInput && /custom/i.test(String(pasteInput.placeholder || '')),
+    `Preset import popup should clearly accept custom pasted codes: ${pasteInput && pasteInput.placeholder}`);
+  const importCloseLabel = findByClass(importPopup, 'AnitaImportCloseLabel')[0];
+  assert(importCloseLabel && importCloseLabel.text === 'X',
+    `Preset import popup close button should render minimalist X label: ${importCloseLabel && importCloseLabel.text}`);
+  pasteInput.text = encodePresetStorePayload({
+    name: 'Pasted Custom',
+    version: 1,
+    values: {
+      hp_enabled: false,
+      hp_low_threshold: 59
+    }
+  });
+  const importApplyBtn = findByClass(importPopup, 'AnitaImportApplyBtn')[0];
+  assert(importApplyBtn && importApplyBtn.events.onactivate, 'Preset import popup missing Apply handler');
+  const importApplyLabel = findByClass(importApplyBtn, 'AnitaImportApplyLabel')[0];
+  assert(importApplyLabel && importApplyLabel.text === 'IMPORT',
+    `Preset import popup apply button should render IMPORT label: ${importApplyLabel && importApplyLabel.text}`);
+  importApplyBtn.events.onactivate();
+  assert(validationConfig.elements.find(element => element.id === 'hp_enabled').currentValue === true &&
+      validationConfig.elements.find(element => element.id === 'hp_low_threshold').currentValue === 35,
+    'Preset import popup should save pasted custom codes without applying them to current HP Colors settings');
+  assert(findByClass(root, 'AnitaPresetRowName').some(label => label.text === 'Import 1'),
+    'Preset import popup should create a saved preset row named Import 1');
+
+  const presetNameLabel = findByClass(root, 'AnitaPresetNameLabel')[0];
+  const presetNameInput = findByClass(root, 'AnitaPresetNameInput')[0];
+  const presetAddBtn = findByClass(root, 'AnitaPresetAddBtn')[0];
+  const presetAddHint = findByClass(root, 'AnitaPresetCreateHint')[0];
+  const presetAddLabel = presetAddBtn ? findByClass(presetAddBtn, 'AnitaPresetAddLabel')[0] : null;
+  assert(presetNameLabel && /preset name/i.test(String(presetNameLabel.text || '')),
+    `Preset name input should have a visible label above it: ${presetNameLabel && presetNameLabel.text}`);
+  assert(presetNameInput && /current settings/i.test(String(presetNameInput.placeholder || '')),
+    `Preset name input should explain it names a current-settings preset: ${presetNameInput && presetNameInput.placeholder}`);
+  assert(presetAddLabel && presetAddLabel.text === 'SAVE CURRENT',
+    `Preset add button should say SAVE CURRENT: ${presetAddLabel && presetAddLabel.text}`);
+  assert(presetAddHint && /current live HP settings/i.test(String(presetAddHint.text || '')),
+    `Preset create row should explain SAVE CURRENT: ${presetAddHint && presetAddHint.text}`);
 
   function openHeroMenu(button) {
     assert(button && button.events.onactivate, 'Hero picker button missing activate handler');
@@ -418,7 +545,6 @@ function runValidation() {
   assert(heroPicker.hittestchildren === false, 'Hero picker children should not capture input');
   assert(heroPicker.canfocus === true, 'Hero picker focus is not enabled');
   assert(heroPicker.events.onactivate, 'Hero picker missing activate handler');
-  messages.length = 0;
 
   let menu = openHeroMenu(heroPicker);
   const menuHost = menu.GetParent && menu.GetParent();
@@ -499,8 +625,6 @@ function runValidation() {
     `All-heroes token should include hm=all and no hs: ${JSON.stringify(payload)}`);
 
   chooseHero(heroPicker, 'hero_inferno');
-  assert(messages.some(line => line.includes('[HP-COLORS][HERO-SELECTOR]') && line.includes('event=toggle')),
-    'Hero picker toggle handler did not emit runtime trace');
   assert(findHeroMenuOption(heroPicker.__anitaHeroMenu, 'hero_inferno') === firstHeroOption,
     'Hero picker should update existing menu option panels instead of rebuilding all heroes on selection');
 
@@ -636,14 +760,13 @@ function runHeroPresetApplyValidation() {
   const source = fs.readFileSync(targetScript, 'utf8');
   dispatched.length = 0;
   scheduled.length = 0;
-  messages.length = 0;
 
   const context = createMockContext();
   context.global = context;
   vm.createContext(context);
   vm.runInContext(source, context, { filename: targetScript });
   const progress = installMockHeroProgress('hero_inferno');
-  installMockPresetStore([
+  const presetRows = [
     {
       id: 'HPColorsPreset_001',
       name: 'Main Hunt 2',
@@ -658,7 +781,8 @@ function runHeroPresetApplyValidation() {
       heroes: ['hero_haze'],
       values: { hp_enabled: true, hp_low_threshold: 45 }
     }
-  ]);
+  ];
+  const store = installMockPresetStore(presetRows);
 
   assert(root.AnitaUI && typeof root.AnitaUI.Register === 'function', 'AnitaUI.Register was not exposed for hero preset apply validation');
   root.AnitaUI.Register({
@@ -674,46 +798,168 @@ function runHeroPresetApplyValidation() {
 
   runNextScheduledByDelay(0.5);
   let updates = decodedBulkUpdates();
-  assert(updates.some(payload => payload.update_source === 'baked_preset_apply' &&
+  findBakedPresetUpdate(updates, payload =>
     payload.hero_id === 'hero_inferno' &&
     payload.preset_key === 'HPColorsPreset_001' &&
-    payload.values && payload.values.hp_enabled === false),
-    `Initial detected hero did not apply Infernus preset: ${JSON.stringify(updates)}`);
+    payload.values && payload.values.hp_enabled === false,
+    'Initial detected hero did not apply Infernus preset');
 
   runNextScheduledByDelay(2.0);
-  assert(messages.some(line => line.includes('[HP-COLORS][HERO-PRESET]') &&
-    line.includes('event=hero_changed') &&
-    line.includes('hero=hero_inferno')),
-    'Hero preset watcher did not log initial detected hero');
+  progress.RemoveClass('hero_inferno');
+  progress.AddClass('hero_haze');
+  runNextScheduledByDelay(2.0);
+  updates = decodedBulkUpdates();
+  findBakedPresetUpdate(updates, payload =>
+    payload.hero_id === 'hero_haze' &&
+    payload.preset_key === 'HPColorsPreset_002' &&
+    payload.values && payload.values.hp_low_threshold === 45,
+    'Changed detected hero did not apply Haze preset');
+
+  store.DeleteAsync();
+  runNextScheduledByDelay(2.0);
+  installMockPresetStore(presetRows);
+  progress.RemoveClass('hero_haze');
+  progress.AddClass('hero_inferno');
+  runNextScheduledByDelay(2.0);
+  updates = decodedBulkUpdates();
+  findBakedPresetUpdate(updates, payload =>
+    payload.hero_id === 'hero_inferno' &&
+    payload.preset_key === 'HPColorsPreset_001' &&
+    payload.values && payload.values.hp_enabled === false,
+    'Hero watcher stopped after a transient preset-store miss');
+
+  console.log(`[HERO PRESET PASS] ${path.relative(ROOT, targetScript)} detects hero changes and applies matching scoped presets without runtime log noise.`);
+}
+
+function runHeroPresetStableIdPriorityValidation() {
+  const source = fs.readFileSync(targetScript, 'utf8');
+  dispatched.length = 0;
+  scheduled.length = 0;
+
+  const context = createMockContext();
+  context.global = context;
+  vm.createContext(context);
+  vm.runInContext(source, context, { filename: targetScript });
+  installMockHeroProgress('hero_inferno');
+  installMockPresetStore([
+    {
+      id: 'HPColorsPreset_001',
+      name: 'Stale row should lose',
+      category: 'Builder VPK',
+      heroMode: 'selected',
+      heroes: ['hero_haze'],
+      values: { hp_enabled: false, hp_low_threshold: 27 }
+    },
+    {
+      id: 'HPColorsPreset_002',
+      name: 'Stable route target',
+      category: 'Builder VPK',
+      heroMode: 'selected',
+      heroes: ['hero_inferno'],
+      values: { hp_enabled: true, hp_low_threshold: 62 }
+    }
+  ]);
+
+  assert(root.AnitaUI && typeof root.AnitaUI.Register === 'function', 'AnitaUI.Register missing for stable-id priority validation');
+  root.AnitaUI.Register({
+    title: 'HP Colors',
+    description: 'hero stable id priority validation',
+    storageNamespace: 'hp_colors',
+    storageVersion: 97,
+    __anitaPresetHeroSelections: {
+      baked_0: ['hero_inferno'],
+      'id:HPColorsPreset_001': ['hero_haze']
+    },
+    __anitaPresetHeroModes: {
+      baked_0: 'selected',
+      'id:HPColorsPreset_001': 'selected'
+    },
+    elements: [
+      { id: 'hp_enabled', type: 'toggle', defaultValue: true, currentValue: true, category: 'General' },
+      { id: 'hp_low_threshold', type: 'slider', defaultValue: 35, currentValue: 35, category: 'General', min: 0, max: 100, step: 1 }
+    ]
+  });
+
+  runNextScheduledByDelay(0.5);
+  const updates = decodedBulkUpdates();
+  findBakedPresetUpdate(updates, payload =>
+    payload.hero_id === 'hero_inferno' &&
+    payload.preset_key === 'HPColorsPreset_002' &&
+    payload.values && payload.values.hp_low_threshold === 62,
+    'Stable preset id hero scope did not override stale row-index scope');
+
+  console.log(`[HERO STABLE-ID PASS] ${path.relative(ROOT, targetScript)} prefers stable preset ids over stale baked row indexes.`);
+}
+
+function runHeroPresetLobbyGateValidation() {
+  const source = fs.readFileSync(targetScript, 'utf8');
+  dispatched.length = 0;
+  scheduled.length = 0;
+
+  const context = createMockContext({ gameState: 2 });
+  context.global = context;
+  vm.createContext(context);
+  vm.runInContext(source, context, { filename: targetScript });
+  const progress = installMockHeroProgress('hero_inferno');
+  installMockGameTime('00:00');
+  installMockPresetStore([
+    {
+      id: 'HPColorsPreset_001',
+      name: 'Infernus lobby guarded',
+      category: 'Builder VPK',
+      heroMode: 'selected',
+      heroes: ['hero_inferno'],
+      values: { hp_enabled: false, hp_low_threshold: 25 }
+    },
+    {
+      id: 'HPColorsPreset_002',
+      name: 'Haze active',
+      category: 'Builder VPK',
+      heroMode: 'selected',
+      heroes: ['hero_haze'],
+      values: { hp_enabled: true, hp_low_threshold: 45 }
+    }
+  ]);
+
+  root.AnitaUI.Register({
+    title: 'HP Colors',
+    description: 'hero preset lobby gate validation',
+    storageNamespace: 'hp_colors',
+    storageVersion: 97,
+    elements: [
+      { id: 'hp_enabled', type: 'toggle', defaultValue: true, currentValue: true, category: 'General' },
+      { id: 'hp_low_threshold', type: 'slider', defaultValue: 35, currentValue: 35, category: 'General', min: 0, max: 100, step: 1 }
+    ]
+  });
+
+  runNextScheduledByDelay(0.5);
+  let updates = decodedBulkUpdates();
+  assert(!updates.some(payload => payload.update_source === 'baked_preset_apply'),
+    `Lobby state should not spend the hero lookup window or apply a scoped preset: ${JSON.stringify(updates)}`);
 
   progress.RemoveClass('hero_inferno');
   progress.AddClass('hero_haze');
   runNextScheduledByDelay(2.0);
   updates = decodedBulkUpdates();
-  assert(messages.some(line => line.includes('[HP-COLORS][HERO-PRESET]') &&
-    line.includes('event=hero_changed') &&
-    line.includes('previous=hero_inferno') &&
-    line.includes('hero=hero_haze')),
-    'Hero preset watcher did not log detected hero change');
-  assert(messages.some(line => line.includes('[HP-COLORS][HERO-PRESET]') &&
-    line.includes('event=preset_apply') &&
-    line.includes('hero=hero_haze') &&
-    line.includes('preset=HPColorsPreset_002')),
-    'Hero preset watcher did not log changed-hero preset apply');
+  assert(!updates.some(payload => payload.update_source === 'baked_preset_apply'),
+    `Lobby watcher tick should stay paused until active game state: ${JSON.stringify(updates)}`);
+
+  mockGameState = 6;
+  runNextScheduledByDelay(5.0);
+  updates = decodedBulkUpdates();
   assert(updates.some(payload => payload.update_source === 'baked_preset_apply' &&
     payload.hero_id === 'hero_haze' &&
     payload.preset_key === 'HPColorsPreset_002' &&
     payload.values && payload.values.hp_low_threshold === 45),
-    `Changed detected hero did not apply Haze preset: ${JSON.stringify(updates)}`);
+    `Active game state at 00:00 should open the hero lookup window and apply the current hero preset: ${JSON.stringify(updates)}`);
 
-  console.log(`[HERO PRESET PASS] ${path.relative(ROOT, targetScript)} logs detected hero changes and applies matching scoped presets.`);
+  console.log(`[HERO LOBBY GATE PASS] ${path.relative(ROOT, targetScript)} pauses hero preset lookup in lobby and opens it at active game time zero.`);
 }
 
 function runHeroSelectorRuntimeScopeValidation() {
   const source = fs.readFileSync(targetScript, 'utf8');
   dispatched.length = 0;
   scheduled.length = 0;
-  messages.length = 0;
 
   const context = createMockContext();
   context.global = context;
@@ -758,20 +1004,12 @@ function runHeroSelectorRuntimeScopeValidation() {
   assert(hazeOption, 'Second preset row missing Haze option for runtime scope validation');
 
   hazeOption.events.onactivate();
-  runNextScheduledByDelay(2.0);
 
-  const updates = decodedBulkUpdates();
-  assert(messages.some(line => line.includes('[HP-COLORS][HERO-PRESET]') &&
-    line.includes('event=preset_apply') &&
-    line.includes('hero=hero_haze') &&
-    line.includes('preset=HPColorsPreset_002') &&
-    line.includes('reason=hero')),
-    'In-game hero selector scope did not log the matching runtime preset apply');
-  assert(updates.some(payload => payload.update_source === 'baked_preset_apply' &&
+  runScheduledUntil(() => decodedBulkUpdates().some(payload => payload.update_source === 'baked_preset_apply' &&
     payload.hero_id === 'hero_haze' &&
     payload.preset_key === 'HPColorsPreset_002' &&
     payload.values && payload.values.hp_low_threshold === 45),
-    `In-game hero selector scope did not drive the runtime preset selection: ${JSON.stringify(updates)}`);
+    `In-game hero selector scope did not drive the runtime preset selection: ${JSON.stringify(decodedBulkUpdates())}`);
 
   console.log(`[HERO RUNTIME SCOPE PASS] ${path.relative(ROOT, targetScript)} uses in-game hero selector scopes when applying presets.`);
 }
@@ -780,7 +1018,6 @@ function runHeroScopeModeFallbackValidation() {
   let source = fs.readFileSync(targetScript, 'utf8');
   dispatched.length = 0;
   scheduled.length = 0;
-  messages.length = 0;
 
   let context = createMockContext();
   context.global = context;
@@ -832,15 +1069,9 @@ function runHeroScopeModeFallbackValidation() {
     `All-heroes preset should remain the fallback after watcher tick when selected mode misses: ${JSON.stringify(updates)}`);
   assert(presetStoreLookups.findStore === 0 && presetStoreLookups.scanEntries === 0,
     `Watcher tick should reuse cached baked preset entries instead of scanning Panorama panels: ${JSON.stringify(presetStoreLookups)}`);
-  assert(!messages.some(line => line.includes('[HP-COLORS][HERO-PRESET]') &&
-    line.includes('event=preset_wait') &&
-    line.includes('hero=hero_haze') &&
-    line.includes('reason=no_hero_match')),
-    'Selected-mode miss should use all-heroes fallback instead of logging no_hero_match');
 
   dispatched.length = 0;
   scheduled.length = 0;
-  messages.length = 0;
   root = new MockPanel('Panel', null, 'Root');
   context = createMockContext();
   context.global = context;
@@ -890,7 +1121,6 @@ function runHeroScopeModeFallbackValidation() {
 
   dispatched.length = 0;
   scheduled.length = 0;
-  messages.length = 0;
   context = createMockContext();
   context.global = context;
   vm.createContext(context);
@@ -945,7 +1175,6 @@ function runHeroScopeModeFallbackValidation() {
 
   dispatched.length = 0;
   scheduled.length = 0;
-  messages.length = 0;
   context = createMockContext();
   context.global = context;
   vm.createContext(context);
@@ -994,7 +1223,6 @@ function runHeroScopeLiveEditValidation() {
   const source = fs.readFileSync(targetScript, 'utf8');
   dispatched.length = 0;
   scheduled.length = 0;
-  messages.length = 0;
 
   let context = createMockContext();
   context.global = context;
@@ -1090,7 +1318,6 @@ function runHeroBundleScopeTokenValidation() {
   const source = fs.readFileSync(targetScript, 'utf8');
   dispatched.length = 0;
   scheduled.length = 0;
-  messages.length = 0;
 
   let context = createMockContext();
   context.global = context;
@@ -1152,13 +1379,150 @@ function runHeroBundleScopeTokenValidation() {
   console.log(`[HERO BUNDLE PASS] ${path.relative(ROOT, targetScript)} preserves off/all/selected hero scope in COPY ALL tokens.`);
 }
 
+function runUserPresetBundleValidation() {
+  const source = fs.readFileSync(targetScript, 'utf8');
+  dispatched.length = 0;
+  scheduled.length = 0;
+  resetPresetStoreLookupCounters();
+
+  const context = createMockContext();
+  sharedStore.__hpColorsCfgRaw = JSON.stringify({
+    hp_enabled: false,
+    hp_low_threshold: 62
+  });
+  context.global = context;
+  vm.createContext(context);
+  vm.runInContext(source, context, { filename: targetScript });
+  installMockPresetStore([]);
+
+  root.AnitaUI.Register({
+    title: 'HP Colors',
+    description: 'user preset bundle validation',
+    storageNamespace: 'hp_colors',
+    storageVersion: 97,
+    elements: [
+      { id: 'hp_enabled', type: 'toggle', defaultValue: true, currentValue: true, category: 'General' },
+      { id: 'hp_low_threshold', type: 'slider', defaultValue: 35, currentValue: 35, category: 'General', min: 0, max: 100, step: 1 }
+    ]
+  });
+  const startupSnapshot = JSON.parse(sharedStore.__hpColorsCfgRaw || '{}');
+  assert(startupSnapshot.hp_enabled === false && startupSnapshot.hp_low_threshold === 62,
+    `HP Colors registration should publish a startup shared snapshot before opening Anita UI: ${JSON.stringify(startupSnapshot)}`);
+  const startupBursts = scheduled.filter(job => [0.25, 1.0, 2.25, 5.0].includes(Number(job.delay)));
+  assert(startupBursts.length >= 4,
+    `HP Colors registration should queue startup sync bursts for fresh healthbars: ${JSON.stringify(scheduled.map(job => job.delay))}`);
+
+  const tabs = findByClass(root, 'AnitaTabBtn');
+  tabs[tabs.length - 1].events.onactivate();
+  findByClass(root, 'AnitaFooterBtnPreset')[0].events.onactivate();
+
+  const nameInput = findByClass(root, 'AnitaPresetNameInput')[0];
+  const addBtn = findByClass(root, 'AnitaPresetAddBtn')[0];
+  assert(nameInput && addBtn && addBtn.events.onactivate,
+    'Preset Builder should expose in-game preset name input and add button');
+  nameInput.text = 'My Game Build';
+  if (nameInput.events.ontextentrychange) nameInput.events.ontextentrychange();
+  addBtn.events.onactivate();
+
+  assert(findByClass(root, 'AnitaPresetRowName').some(label => label.text === 'My Game Build'),
+    'Saved in-game preset row did not render after SAVE CURRENT');
+  dispatched.length = 0;
+  const bundleBtn = findByClass(root, 'AnitaPresetBundleBtn')[0];
+  assert(bundleBtn && bundleBtn.events.onactivate, 'COPY ALL button missing after adding user preset');
+  bundleBtn.events.onactivate();
+
+  const bundle = decodeCopiedBundleToken();
+  assert(Array.isArray(bundle.p) && bundle.p.length === 1,
+    `COPY ALL should include the saved in-game preset and exclude Current live settings: ${JSON.stringify(bundle)}`);
+  assert(bundle.p[0][0] === 'My Game Build',
+    `Saved preset name missing from COPY ALL bundle: ${JSON.stringify(bundle.p[0])}`);
+  assert(bundle.p[0][1] && bundle.p[0][1].e === false && bundle.p[0][1].l === 62,
+    `Saved preset values missing from COPY ALL bundle: ${JSON.stringify(bundle.p[0])}`);
+  assert(bundle.p[0][2] === 'off',
+    `Saved preset should default to explicit off hero scope: ${JSON.stringify(bundle.p[0])}`);
+
+  console.log(`[HERO USER PRESET PASS] ${path.relative(ROOT, targetScript)} saves in-game presets and includes them in COPY ALL bundles.`);
+}
+
+function runUserPresetRenameValidation() {
+  const source = fs.readFileSync(targetScript, 'utf8');
+  dispatched.length = 0;
+  scheduled.length = 0;
+  resetPresetStoreLookupCounters();
+
+  const context = createMockContext();
+  sharedStore.__hpColorsCfgRaw = JSON.stringify({
+    hp_enabled: false,
+    hp_low_threshold: 62
+  });
+  context.global = context;
+  vm.createContext(context);
+  vm.runInContext(source, context, { filename: targetScript });
+  installMockPresetStore([]);
+
+  root.AnitaUI.Register({
+    title: 'HP Colors',
+    description: 'user preset rename validation',
+    storageNamespace: 'hp_colors',
+    storageVersion: 97,
+    elements: [
+      { id: 'hp_enabled', type: 'toggle', defaultValue: true, currentValue: true, category: 'General' },
+      { id: 'hp_low_threshold', type: 'slider', defaultValue: 35, currentValue: 35, category: 'General', min: 0, max: 100, step: 1 }
+    ]
+  });
+
+  const tabs = findByClass(root, 'AnitaTabBtn');
+  tabs[tabs.length - 1].events.onactivate();
+  findByClass(root, 'AnitaFooterBtnPreset')[0].events.onactivate();
+
+  const nameInput = findByClass(root, 'AnitaPresetNameInput')[0];
+  const addBtn = findByClass(root, 'AnitaPresetAddBtn')[0];
+  nameInput.text = 'My Game Build';
+  if (nameInput.events.ontextentrychange) nameInput.events.ontextentrychange();
+  addBtn.events.onactivate();
+
+  const rowName = findByClass(root, 'AnitaPresetRowName')
+    .find(label => label.text === 'My Game Build');
+  assert(rowName && rowName.events.onactivate,
+    'Preset row name should be clickable for in-place rename');
+  rowName.events.onactivate();
+
+  const renameInput = findByClass(root, 'AnitaPresetRowNameInput')[0];
+  assert(renameInput && renameInput.text === 'My Game Build',
+    `Preset rename input should open with the existing name: ${renameInput && renameInput.text}`);
+  renameInput.text = 'Renamed Game Build';
+  assert(renameInput.events.ontextentrysubmit,
+    'Preset rename input should commit on submit');
+  renameInput.events.ontextentrysubmit();
+
+  assert(findByClass(root, 'AnitaPresetRowName').some(label => label.text === 'Renamed Game Build'),
+    'Preset row name did not update after in-place rename submit');
+
+  dispatched.length = 0;
+  const bundleBtn = findByClass(root, 'AnitaPresetBundleBtn')[0];
+  assert(bundleBtn && bundleBtn.events.onactivate, 'COPY ALL button missing after renaming user preset');
+  bundleBtn.events.onactivate();
+
+  const bundle = decodeCopiedBundleToken();
+  assert(Array.isArray(bundle.p) && bundle.p.length === 1,
+    `COPY ALL should include only the renamed saved preset: ${JSON.stringify(bundle)}`);
+  assert(bundle.p[0][0] === 'Renamed Game Build',
+    `COPY ALL should export the renamed preset name: ${JSON.stringify(bundle.p[0])}`);
+
+  console.log(`[HERO USER PRESET RENAME PASS] ${path.relative(ROOT, targetScript)} renames saved preset rows and exports the new name.`);
+}
+
 try {
   runValidation();
   runHeroPresetApplyValidation();
+  runHeroPresetStableIdPriorityValidation();
+  runHeroPresetLobbyGateValidation();
   runHeroSelectorRuntimeScopeValidation();
   runHeroScopeModeFallbackValidation();
   runHeroScopeLiveEditValidation();
   runHeroBundleScopeTokenValidation();
+  runUserPresetBundleValidation();
+  runUserPresetRenameValidation();
 } catch (err) {
   console.error(`[HERO SELECTOR FAIL] ${path.relative(ROOT, targetScript)}: ${err && err.message ? err.message : err}`);
   process.exit(1);

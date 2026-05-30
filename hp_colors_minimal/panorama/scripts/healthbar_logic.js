@@ -67,6 +67,9 @@
   var PULSE_INTENSITY = ['pulse_subtle', '', 'pulse_intense'];
   var ENEMY_IDLE_BACKOFF = [0.35, 0.80, 1.50, 2.50];
   var ALLY_IDLE_BACKOFF = [0.35, 0.70, 1.40, 2.0, 2.0];
+  var CURRENT_RB_RESCAN_MS = 180;
+  var CURRENT_RB_IDLE_RESCAN_MS = 1200;
+  var CURRENT_RB_REFRESH_WINDOW_MS = 1600;
 
   // ── Loop control ────────────────────────────────────────────────────────────
   var gRunning = false;
@@ -302,6 +305,8 @@
     if (!count) return false;
     refreshDerivedConfig();
     try { resetStyleStateForNewPanels(); } catch (eReset) {}
+    try { invalidateEnemyVisualCaches(); } catch (eEnemy) {}
+    requestCurrentRedBarRefresh();
     markPresetApplied();
     return true;
   }
@@ -459,6 +464,9 @@
   var us = null, hc = null, hca = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null, ihc = null, uhc = null, nm = null;
   var cached = 0, att = 0;
   var nextCacheProbeAt = 0;
+  var nextRbProbeAt = 0;
+  var nextCurrentRbProbeAt = 0;
+  var currentRbRefreshUntil = 0;
   var lBgVis = null, lBgOp = null, lHpSize = null, lHpHeight = null, lHcaTransform = null, lIhcMarginTop = null, lUhcHeight = null, lPipHeight = null, lPipFontSize = null, lPipVis = null;
 
   function vPanel(p) {
@@ -523,6 +531,58 @@
     invalidateEnemyVisualCaches();
     settingsDirty = true;
     allySettingsDirty = true;
+    requestCurrentRedBarRefresh();
+  }
+
+  function isRedBarPanelId(id) {
+    return id === 'unit_healthbar_lagging' || id === 'health_bar' || id === 'unit_health';
+  }
+
+  function refreshRedBarFromParentChildren() {
+    if (!cp || !cp.Children) return false;
+    var children = [];
+    try { children = cp.Children(); } catch (eChildren) { return false; }
+    for (var i = 0; i < children.length; i++) {
+      var child = children[i];
+      if (!vPanel(child)) continue;
+      var id = "";
+      try { id = String(child.id || ""); } catch (eId) { id = ""; }
+      if (!isRedBarPanelId(id)) continue;
+      if (child === rb) return false;
+      rb = child;
+      lb = child;
+      lbp = cp;
+      cached = 0;
+      att = 0;
+      nextCacheProbeAt = 0;
+      resetStyleStateForNewPanels();
+      return true;
+    }
+    return false;
+  }
+
+  function requestCurrentRedBarRefresh() {
+    currentRbRefreshUntil = _ts() + CURRENT_RB_REFRESH_WINDOW_MS;
+    nextCurrentRbProbeAt = 0;
+  }
+
+  function refreshCurrentRedBarRef(now, force) {
+    if (!force) {
+      var inRefreshWindow = currentRbRefreshUntil && now <= currentRbRefreshUntil;
+      if (nextCurrentRbProbeAt && now < nextCurrentRbProbeAt) return false;
+      nextCurrentRbProbeAt = now + (inRefreshWindow ? CURRENT_RB_RESCAN_MS : CURRENT_RB_IDLE_RESCAN_MS);
+    }
+    var current = fRB();
+    if (!vPanel(current) || current === rb) return false;
+    rb = current;
+    lb = current;
+    cp = current.GetParent ? current.GetParent() : null;
+    lbp = cp;
+    cached = 0;
+    att = 0;
+    nextCacheProbeAt = 0;
+    resetStyleStateForNewPanels();
+    return true;
   }
 
   function getInfoHealthMarginTopValue() {
@@ -808,6 +868,14 @@
     lVis = null;
   }
 
+  function hasEnemyBarStyleDrift() {
+    if (!rb || !rb.style || !lCol) return false;
+    try {
+      return normalizeWashColor(String(rb.style.washColor || "")) !== lCol;
+    } catch (e) {}
+    return false;
+  }
+
   function sKZ(show, parentWidth) {
     if (!kz || !kz.style) return;
     var barHidden = !bg || !bg.style || lBgVis !== 'visible' || lBgOp !== '1.0';
@@ -939,6 +1007,7 @@
     allySettingsDirty = true;
     settingsRefreshHoldUntil = 0;
     allySettingsRefreshHoldUntil = 0;
+    requestCurrentRedBarRefresh();
   }
 
   function cleanupEnemyFeature() {
@@ -1093,9 +1162,18 @@
 
       var now = _ts();
       resetCachedPanelRefsIfInvalid();
-      if (!rb) { rb = fRB(); if (!rb) { $.Schedule(0.15, gL); return; } }
+      if (!vPanel(rb)) {
+        if (!nextRbProbeAt || now >= nextRbProbeAt) {
+          rb = fRB();
+          nextRbProbeAt = rb ? 0 : now + 150;
+        }
+        if (!rb) { $.Schedule(0.15, gL); return; }
+      } else {
+        refreshCurrentRedBarRef(now, false);
+      }
       if (!cached && !tryCache()) { $.Schedule(0.15, gL); return; }
       if (rb.GetParent) { var p = rb.GetParent(); if (cp !== p) cp = p; }
+      refreshRedBarFromParentChildren();
       resetStyleStateForNewPanels();
 
       scan(rb);
@@ -1146,6 +1224,12 @@
       if (settingsDirty) {
         if (now < settingsRefreshHoldUntil) { $.Schedule(0.05, gL); return; }
         applyCurrentSettings(isEnemy);
+      }
+      if (!wasDirty && isEnemy && hasEnemyBarStyleDrift()) {
+        invalidateEnemyVisualCaches();
+        lW = -1;
+        lHp = -1;
+        wasDirty = true;
       }
 
       // Neutral unit

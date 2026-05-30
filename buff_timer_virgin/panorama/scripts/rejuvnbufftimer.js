@@ -45,7 +45,7 @@
   const MONITOR_INTERVAL = 300;
   const CLAIM_RADIUS_SQ = 64;
   const PRETRACK_INTERVAL = 1000;
-  const POWERUP_BUFF_DUR = 170;
+  const POWERUP_BUFF_DUR = 160;
   const DEATH_GRACE_MS = 2000;
   const PLAYER_STATE_STALE_MS = 6000;
   const PLAYER_STATE_PRUNE_INTERVAL_MS = 3000;
@@ -1085,6 +1085,14 @@ function syncBuffText(text) {
   function startPhaseAuto(now) {
     spawnWait = false;
 
+    if (claimCnt === 0) {
+      idx = 0;
+      phaseStart = now;
+      counter = 0;
+      showSpawn();
+      return;
+    }
+
     let c = 0;
     for (let i = 0; i < 4; i++) {
       if (now < c + SEQ[i].d) {
@@ -2102,6 +2110,13 @@ function syncBuffText(text) {
       const neutralCardActive = updateNeutralPhase(NEUTRAL_LARGE_START_SEC, NEUTRAL_LARGE_END_SEC, "card", NEUTRAL_LARGE_BADGE_SRC, NEUTRAL_VAULT_BADGE_SRC, NEUTRAL_BOT_PROGRESS_COLOR, "neutral-card-mode", exitVaultCardMode, now);
 
       if (!neutralBotActive && !neutralMediumActive && !neutralCardActive) {
+        if (spawnWait) {
+          counter = 0;
+          syncRejuvText("Spawn");
+          tick = TICK_FAST;
+          return;
+        }
+
         const rem = Math.max(0, SEQ[idx].d - (now - phaseStart));
 
         if (rem <= 0) {
