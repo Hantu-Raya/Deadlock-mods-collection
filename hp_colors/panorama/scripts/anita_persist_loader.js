@@ -18,6 +18,7 @@
     hp_color_low: "cl",
     hp_color_mid: "cm",
     hp_color_high: "ch",
+    hp_counter_visible: "cv",
     hp_counter_size: "s",
     hp_counter_position: "p",
     hp_text_color_mode: "tm",
@@ -444,46 +445,7 @@
         source: "cache"
       };
     }
-
-    var canReadConvar = typeof GameInterfaceAPI !== "undefined" &&
-      GameInterfaceAPI &&
-      typeof GameInterfaceAPI.GetSettingString === "function";
-    if (!canReadConvar) {
-      return null;
-    }
-
-    var convarRaw = "";
-    try {
-      convarRaw = String(GameInterfaceAPI.GetSettingString("deadlock_hero_debuts_seen") || "");
-    } catch (eConvar) {
-      return null;
-    }
-
-    var tokenMatch = convarRaw.match(/\[ANITA-v1-hp_colors\]:([A-Za-z0-9_-]+)/);
-    if (!tokenMatch) {
-      return null;
-    }
-
-    var convarEncoded = tokenMatch[1];
-    var convarDecoded = "";
-    try {
-      convarDecoded = AnitaBase64.decode(convarEncoded);
-    } catch (eDecode) {
-      return null;
-    }
-
-    var convarParsed = parseStoredPayload(convarDecoded);
-    if (!convarParsed) {
-      return null;
-    }
-
-    cachePayload(convarParsed.raw, convarEncoded, convarParsed.values, convarParsed.values);
-    return {
-      raw: convarParsed.raw,
-      encoded: convarEncoded,
-      values: cloneValues(convarParsed.values),
-      source: "convar"
-    };
+    return null;
   }
 
   function persistCurrentState(reason, forceWrite) {

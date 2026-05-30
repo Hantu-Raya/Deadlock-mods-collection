@@ -6,7 +6,19 @@ $modCompiled = "$root\hp_colors_compiled"
 $terserSrc   = "$root\hp_colors_terser"
 $terserCompiled = "$root\hp_colors_terser_compiled"
 $compiler    = "$root\sr2compiler\New folder.exe"
-$vpkeditcli  = "$root\passive_items_mod\compiler\vpkeditcli.exe"
+$vpkeditcliCandidates = @(
+    "$root\passive_items_mod\compiler\vpkeditcli.exe",
+    "$root\vpk cli\vpkeditcli.exe",
+    "$root\passive_items_mod_release\compiler\vpkeditcli.exe"
+)
+$vpkeditcli = $vpkeditcliCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if (-not $vpkeditcli) {
+    Write-Host "[ERROR] vpkeditcli.exe not found. Checked:" -ForegroundColor Red
+    foreach ($candidate in $vpkeditcliCandidates) {
+        Write-Host "  $candidate" -ForegroundColor Red
+    }
+    exit 1
+}
 $vpkOut      = "$root\pak97_dir.vpk"
 $vpkDest     = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak97_dir.vpk"
 $builderPresetVpk = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak96_dir.vpk"
@@ -42,10 +54,23 @@ if (Test-Path $heroSelectorAuditScript) {
     Write-Host "[ERROR] Hero selector audit script not found: $heroSelectorAuditScript" -ForegroundColor Red
     exit 1
 }
+$runtimeReplayAuditScript = "$modSrc\scripts\validate-runtime-replay.js"
+if (Test-Path $runtimeReplayAuditScript) {
+    & node $runtimeReplayAuditScript
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] Runtime replay audit failed - fix healthbar preset replay before building." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "  Runtime replay audit passed." -ForegroundColor Green
+} else {
+    Write-Host "[ERROR] Runtime replay audit script not found: $runtimeReplayAuditScript" -ForegroundColor Red
+    exit 1
+}
 
 # ## Step 1: Prepare minified build source #####################################
 Write-Host "`n[1/4] Preparing minified hp_colors source..." -ForegroundColor Cyan
-Copy-Item -Path $modSrc -Destination $terserSrc -Recurse -Force
+New-Item -ItemType Directory -Force -Path $terserSrc | Out-Null
+Copy-Item -Path "$modSrc\panorama" -Destination "$terserSrc\panorama" -Recurse -Force
 
 $presetStoreSync = "$root\scripts\sync_hp_preset_store.js"
 $terserBaseHud = "$terserSrc\panorama\layout\base_hud.xml"
@@ -90,13 +115,32 @@ foreach ($script in $scriptFiles) {
 }
 
 Write-Host "  Minified JS OK -> $terserSrc" -ForegroundColor Green
-if (Test-Path $heroSelectorAuditScript) {
-    & node $heroSelectorAuditScript "$terserSrc\panorama\scripts\anita_ui_core.js"
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] Minified hero selector audit failed - fix preset hero dropdown before compiling." -ForegroundColor Red
-        exit 1
+& node $heroSelectorAuditScript "$terserSrc\panorama\scripts\anita_ui_core.js"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Minified hero selector audit failed - fix preset hero dropdown before compiling." -ForegroundColor Red
+    exit 1
+}
+Write-Host "  Minified hero selector audit passed." -ForegroundColor Green
+& node $runtimeReplayAuditScript "$terserSrc\panorama\scripts\healthbar_logic.js"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Minified runtime replay audit failed - fix healthbar preset replay before compiling." -ForegroundColor Red
+    exit 1
+}
+Write-Host "  Minified runtime replay audit passed." -ForegroundColor Green
+
+$buildOnlyScriptsDir = "$terserSrc\scripts"
+if (Test-Path $buildOnlyScriptsDir) {
+    Remove-Item -Recurse -Force $buildOnlyScriptsDir
+}
+$unusedImageDir = "$terserSrc\panorama\images\hp_colors"
+foreach ($unusedImage in @("icon_copy.svg", "icon_open_builder.svg")) {
+    $unusedImagePath = Join-Path $unusedImageDir $unusedImage
+    if (Test-Path $unusedImagePath) {
+        Remove-Item -Force $unusedImagePath
     }
-    Write-Host "  Minified hero selector audit passed." -ForegroundColor Green
+}
+if ((Test-Path $unusedImageDir) -and -not (Get-ChildItem -LiteralPath $unusedImageDir -Force)) {
+    Remove-Item -Force $unusedImageDir
 }
 
 # ## Step 2: Compile ############################################################
@@ -147,6 +191,7 @@ Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 
 # ## Step 3: Pack VPK ##########################################################
 Write-Host "`n[3/4] Packing VPK..." -ForegroundColor Cyan
+Write-Host "  Using vpkeditcli -> $vpkeditcli" -ForegroundColor DarkGray
 $packArgs = "`"$modCompiled`" -o `"$vpkOut`" -s --no-progress"
 $pack = Start-Process -FilePath $vpkeditcli -ArgumentList $packArgs -PassThru -Wait -NoNewWindow
 if ($pack.ExitCode -ne 0) {
@@ -165,6 +210,22 @@ if ($LASTEXITCODE -ne 0) {
 foreach ($packedAsset in @("anita_ui_core.vjs_c", "anita_ui.vcss_c", "healthbar_logic.vjs_c")) {
     if (-not (($vpkTree | Select-String -SimpleMatch $packedAsset -Quiet))) {
         Write-Host "[ERROR] Packed VPK missing required asset: $packedAsset" -ForegroundColor Red
+        exit 1
+    }
+}
+if (($vpkTree | Select-String -SimpleMatch "hud_health.vxml_c" -Quiet)) {
+    Write-Host "[ERROR] Packed VPK still includes unused hud_health.vxml_c" -ForegroundColor Red
+    exit 1
+}
+foreach ($buildOnlyAsset in @("validate-schema.vjs_c", "validate-hero-selector.vjs_c", "validate-runtime-replay.vjs_c")) {
+    if (($vpkTree | Select-String -SimpleMatch $buildOnlyAsset -Quiet)) {
+        Write-Host "[ERROR] Packed VPK still includes build-only asset: $buildOnlyAsset" -ForegroundColor Red
+        exit 1
+    }
+}
+foreach ($unusedImageAsset in @("icon_copy.vsvg_c", "icon_open_builder.vsvg_c")) {
+    if (($vpkTree | Select-String -SimpleMatch $unusedImageAsset -Quiet)) {
+        Write-Host "[ERROR] Packed VPK still includes unused image asset: $unusedImageAsset" -ForegroundColor Red
         exit 1
     }
 }

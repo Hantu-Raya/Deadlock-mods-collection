@@ -4,12 +4,18 @@
 # Owner-only local/reference directories
 /.agents/
 /.claude/
+/.codex/
+/.codex*/
+/_codex/
+/_codex*/
 /.playwright-cli/
 /docs/
 
 # Compiled/Generated directories
 *_compiled/
 *_terser/
+/dist/
+/_showrank_variant_build/
 
 # Binaries
 *.exe

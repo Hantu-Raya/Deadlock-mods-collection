@@ -26,21 +26,66 @@
       MONITOR_INTERVAL: 0.05
     }
   };
-  const RENDER_REFRESH_DEBOUNCE_SEC = 0.05;
-  const MAX_CONVAR_VALUE_LEN = 1900;
   const HP_PRESET_BUILDER_CATEGORY = "PRESETS|Preset Builder";
   const HP_PRESET_BUILDER_URL = "https://hantu-raya.github.io/hp-colors-preset-builder/";
   const HP_STARTUP_PRESET_ID = "HPColorsPreset_001";
+  const HP_PRESET_SNAPSHOT_MAGIC = "HP_COLORS_PRESET_SNAPSHOT";
+  const HP_PRESET_REQUEST_MAGIC = "HP_COLORS_PRESET_REQUEST";
+  const HP_PRESET_SNAPSHOT_REPLAY_SEC = 1.0;
+  const HP_OPTIMIZED_FORCED_VALUES = {
+    hp_mode: 0,
+    hp_skip_buildings: true,
+    hp_ult_color_enabled: false,
+    hp_pulse_enabled: false,
+    hp_pulse_text_enabled: false,
+    hp_pulse_color_enabled: false,
+    hp_friend_enabled: false,
+    hp_friend_pulse_enabled: false,
+    hp_friend_pulse_color_enabled: false,
+    hp_kill_zone_enabled: false
+  };
+  const HP_OPTIMIZED_HIDDEN_SETTINGS = {
+    hp_ult_color_custom: true,
+    hp_pulse_threshold: true,
+    hp_pulse_bpm: true,
+    hp_pulse_intensity: true,
+    hp_pulse_color: true,
+    hp_pulse_color_mode: true,
+    hp_pulse_hide_bar: true,
+    hp_pulse_text_scale: true,
+    hp_pulse_text_position: true,
+    hp_friend_color_low: true,
+    hp_friend_color_mid: true,
+    hp_friend_color_high: true,
+    hp_friend_pulse_threshold: true,
+    hp_friend_pulse_bpm: true,
+    hp_friend_pulse_intensity: true,
+    hp_friend_pulse_color: true,
+    hp_kill_zone_threshold: true,
+    hp_kill_zone_color: true,
+    hp_kill_zone_width: true
+  };
   const HP_BAKED_PRESET_APPLY_DELAYS = [0.5, 1.5, 3.0, 5.0, 8.0, 12.0];
   const HP_HERO_WATCH_RETRY_SEC = 2.0;
-  const HP_HERO_WATCH_IDLE_LOG_TICKS = 30;
+  const HP_HERO_WATCH_EMPTY_GRACE_TICKS = 3;
+  const HP_HERO_LOOKUP_WINDOW_MS = 10000;
+  const HP_HERO_LOBBY_POLL_SEC = 5.0;
+  const HP_HERO_LOCKED_GAME_TIME_CHECK_MS = 60000;
+  const HP_HERO_GAME_TIME_CACHE_MS = 250;
+  const HP_HERO_MATCH_ACTIVE_GAME_STATE = 6;
   var _lastHpSharedRaw = "";
+  var _hpPresetSnapshotPayload = "";
+  var _hpPresetSnapshotReplayStarted = false;
   var _didApplyHpColorsBakedPresetOnce = false;
   var _hpBakedPresetApplyToken = 0;
   var _hpHeroRoot = null;
   var _hpHeroGameplayAlive = null;
   var _hpHeroCrosshair = null;
   var _hpHeroProgress = null;
+  var _hpHeroGameTimePanel = null;
+  var _hpHeroGameTimePanelMs = 0;
+  var _hpHeroMatchStateConfirmedActive = false;
+  var _hpHeroPausedForLobby = false;
   var _hpPresetStoreRoot = null;
   var _hpPresetStorePanel = null;
   var _hpPresetStoreEntries = null;
@@ -103,6 +148,7 @@
     hp_color_low: "cl",
     hp_color_mid: "cm",
     hp_color_high: "ch",
+    hp_counter_visible: "cv",
     hp_counter_size: "s",
     hp_counter_position: "p",
     hp_text_color_mode: "tm",
@@ -176,6 +222,7 @@
     hp_pulse_text_enabled: true,
     hp_pulse_text_scale: true,
     hp_pulse_text_position: true,
+    hp_counter_visible: true,
     hp_counter_size: true,
     hp_counter_position: true,
     hp_counter_format: true,
@@ -309,6 +356,11 @@
     return null;
   }
 
+  function hpHeroFindChildrenWithClass(panel, className) {
+    try { return panel && panel.FindChildrenWithClassTraverse ? (panel.FindChildrenWithClassTraverse(className) || []) : []; } catch (e) {}
+    return [];
+  }
+
   function hpHeroFindDirectChildWhere(panel, id, predicate) {
     var children = hpHeroChildren(panel);
     var fallback = null;
@@ -338,6 +390,149 @@
     _hpHeroGameplayAlive = null;
     _hpHeroCrosshair = null;
     _hpHeroProgress = null;
+  }
+
+  function clearHpHeroGameTimeCache() {
+    _hpHeroGameTimePanel = null;
+    _hpHeroGameTimePanelMs = 0;
+  }
+
+  function hpHeroHasHideoutClass(panel) {
+    return hpHeroHasClass(panel, "connectedToHideout") ||
+      hpHeroHasClass(panel, "connectedtoHideout") ||
+      hpHeroHasClass(panel, "connectedtohideout") ||
+      hpHeroHasClass(panel, "connectedToHideOut") ||
+      hpHeroHasClass(panel, "inHideoutIntro");
+  }
+
+  function readHpHeroGameState() {
+    var state = -1;
+    try {
+      if (typeof Game !== "undefined" && Game && Game.GetState) {
+        state = Number(Game.GetState());
+      }
+    } catch (e0) {
+      state = -1;
+    }
+    return isFinite(state) ? state : -1;
+  }
+
+  function parseHpHeroGameTimeText(text) {
+    var raw = String(text || "").replace(/^\s+|\s+$/g, "");
+    if (!raw) return -1;
+    var parts = raw.match(/\d+/g);
+    if (!parts || !parts.length) return -1;
+    if (parts.length === 1) return Number(parts[0]) || 0;
+    var mm = Number(parts[parts.length - 2]) || 0;
+    var ss = Number(parts[parts.length - 1]) || 0;
+    if (ss > 59) ss = ss % 60;
+    return (mm * 60) + ss;
+  }
+
+  function resolveHpHeroGameTimePanel() {
+    if (hpHeroIsValidPanel(_hpHeroGameTimePanel)) return _hpHeroGameTimePanel;
+    var root = getRootPanelForPresetStore();
+    var topBar = hpHeroFindChild(root, "TopBar");
+    var matches = hpHeroFindChildrenWithClass(topBar, "GameTime");
+    if (!matches.length) matches = hpHeroFindChildrenWithClass(root, "GameTime");
+    _hpHeroGameTimePanel = matches && matches[0] ? matches[0] : null;
+    return _hpHeroGameTimePanel;
+  }
+
+  function readHpHeroGameTimeSec() {
+    var now = Date.now ? Date.now() : +(new Date());
+    if (!hpHeroIsValidPanel(_hpHeroGameTimePanel) || (now - _hpHeroGameTimePanelMs) > HP_HERO_GAME_TIME_CACHE_MS) {
+      _hpHeroGameTimePanel = resolveHpHeroGameTimePanel();
+      _hpHeroGameTimePanelMs = now;
+    }
+    if (!hpHeroIsValidPanel(_hpHeroGameTimePanel)) return -1;
+    var text = "";
+    try { text = _hpHeroGameTimePanel.text || _hpHeroGameTimePanel.GetAttributeString("text", "") || ""; } catch (e0) { text = ""; }
+    return parseHpHeroGameTimeText(text);
+  }
+
+  function hpHeroEvaluateLobbyStatus() {
+    var gameState = readHpHeroGameState();
+    if (gameState >= HP_HERO_MATCH_ACTIVE_GAME_STATE) {
+      _hpHeroMatchStateConfirmedActive = true;
+      return false;
+    }
+    if (gameState >= 0) {
+      _hpHeroMatchStateConfirmedActive = false;
+      return true;
+    }
+
+    var root = getRootPanelForPresetStore();
+    var hud = hpHeroFindChild(root, "Hud");
+    if (hpHeroHasHideoutClass(hud) || hpHeroHasHideoutClass(root)) {
+      _hpHeroMatchStateConfirmedActive = false;
+      return true;
+    }
+
+    if (!_hpHeroMatchStateConfirmedActive) {
+      if (readHpHeroGameTimeSec() >= 0) {
+        _hpHeroMatchStateConfirmedActive = true;
+        return false;
+      }
+      return true;
+    }
+
+    return false;
+  }
+
+  function pauseHpHeroPresetWatchForLobby(config) {
+    if (_hpHeroPausedForLobby) return;
+    _hpHeroPausedForLobby = true;
+    clearHpHeroDetectionRefs();
+    clearHpHeroGameTimeCache();
+    if (config) {
+      config.__hpHeroGameTimeWasZero = false;
+      config.__hpHeroLookupWindowUntil = 0;
+    }
+  }
+
+  function resumeHpHeroPresetWatchFromLobby(config) {
+    if (!_hpHeroPausedForLobby) return;
+    _hpHeroPausedForLobby = false;
+    clearHpHeroDetectionRefs();
+    clearHpHeroGameTimeCache();
+    if (config) {
+      config.__hpHeroGameTimeWasZero = false;
+      config.__hpHeroLookupWindowUntil = 0;
+    }
+  }
+
+  function getHpHeroPresetLookupState(config) {
+    var now = Date.now ? Date.now() : +(new Date());
+    if (hpHeroEvaluateLobbyStatus()) {
+      pauseHpHeroPresetWatchForLobby(config);
+      return { run: false, delay: HP_HERO_LOBBY_POLL_SEC };
+    }
+    resumeHpHeroPresetWatchFromLobby(config);
+
+    var gameTime = readHpHeroGameTimeSec();
+    if (gameTime === 0) {
+      if (!config.__hpHeroGameTimeWasZero) {
+        config.__hpHeroGameTimeWasZero = true;
+        config.__hpHeroLookupWindowUntil = now + HP_HERO_LOOKUP_WINDOW_MS;
+        invalidateHpHeroPresetApplyCache(config);
+        clearHpHeroDetectionRefs();
+      }
+      return { run: now <= (config.__hpHeroLookupWindowUntil || 0), delay: HP_HERO_WATCH_RETRY_SEC };
+    }
+
+    if (gameTime > 0) {
+      config.__hpHeroGameTimeWasZero = false;
+      if (config.__hpHeroLookupWindowUntil && now <= config.__hpHeroLookupWindowUntil) {
+        return { run: true, delay: HP_HERO_WATCH_RETRY_SEC };
+      }
+      return {
+        run: !config.__hpLastDetectedHeroPresetHero,
+        delay: config.__hpLastDetectedHeroPresetHero ? (HP_HERO_LOCKED_GAME_TIME_CHECK_MS / 1000) : HP_HERO_WATCH_RETRY_SEC
+      };
+    }
+
+    return { run: true, delay: HP_HERO_WATCH_RETRY_SEC };
   }
 
   function clearHpPresetStoreRefs() {
@@ -561,26 +756,18 @@
     return "";
   }
 
-  function countObjectKeys(value) {
-    var count = 0;
-    for (var key in value || {}) {
-      if (Object.prototype.hasOwnProperty.call(value, key)) count += 1;
-    }
-    return count;
-  }
-
   function readBakedPresetHeroTargets(modConfig, presetId, displayIndex, fallbackHeroes) {
     var store = modConfig && modConfig.__anitaPresetHeroSelections;
     if (store) {
-      var rowKey = "baked_" + String(displayIndex || 0);
-      if (Object.prototype.hasOwnProperty.call(store, rowKey)) {
-        return normalizeHpHeroSelection(store[rowKey]);
-      }
       if (presetId) {
         var idKey = "id:" + String(presetId);
         if (Object.prototype.hasOwnProperty.call(store, idKey)) {
           return normalizeHpHeroSelection(store[idKey]);
         }
+      }
+      var rowKey = "baked_" + String(displayIndex || 0);
+      if (Object.prototype.hasOwnProperty.call(store, rowKey)) {
+        return normalizeHpHeroSelection(store[rowKey]);
       }
     }
     return normalizeHpHeroSelection(fallbackHeroes);
@@ -589,15 +776,15 @@
   function readBakedPresetHeroMode(modConfig, presetId, displayIndex, fallbackMode, fallbackHeroes) {
     var store = modConfig && modConfig.__anitaPresetHeroModes;
     if (store) {
-      var rowKey = "baked_" + String(displayIndex || 0);
-      if (Object.prototype.hasOwnProperty.call(store, rowKey)) {
-        return normalizeHpHeroScopeMode(store[rowKey], fallbackHeroes);
-      }
       if (presetId) {
         var idKey = "id:" + String(presetId);
         if (Object.prototype.hasOwnProperty.call(store, idKey)) {
           return normalizeHpHeroScopeMode(store[idKey], fallbackHeroes);
         }
+      }
+      var rowKey = "baked_" + String(displayIndex || 0);
+      if (Object.prototype.hasOwnProperty.call(store, rowKey)) {
+        return normalizeHpHeroScopeMode(store[rowKey], fallbackHeroes);
       }
     }
     return normalizeHpHeroScopeMode(fallbackMode, fallbackHeroes);
@@ -774,31 +961,12 @@
     return { preset: null, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "none" };
   }
 
-  function readBakedPresetValues(modConfig) {
-    var selection = selectBakedPresetForHero(modConfig, true);
-    if (selection && selection.preset) return selection.preset.values || {};
-    return {};
-  }
-
   function hasHpSelectedScopedPreset(config) {
     var presets = readBakedPresetEntries(config);
     for (var i = 0; i < presets.length; i++) {
       if (!presetIsDisabled(presets[i]) && hpHeroScopeIsSelected(presets[i].heroMode, presets[i].heroes)) return true;
     }
     return false;
-  }
-
-  function logHpHeroPresetEvent(eventName, data) {
-    try {
-      if (typeof $ === "undefined" || !$ || !$.Msg) return;
-      var message = "[HP-COLORS][HERO-PRESET] event=" + String(eventName || "");
-      var payload = data || {};
-      for (var key in payload) {
-        if (!Object.prototype.hasOwnProperty.call(payload, key)) continue;
-        message += " " + key + "=" + String(payload[key] === undefined || payload[key] === null ? "" : payload[key]);
-      }
-      $.Msg(message);
-    } catch (e) {}
   }
 
   function invalidateHpHeroPresetApplyCache(config) {
@@ -814,7 +982,7 @@
     try {
       $.Schedule(0.05, function () {
         if (!config || config.__hpHeroScopeRefreshToken !== token) return;
-        refreshHpHeroPresetSelection(config, true);
+        refreshHpHeroPresetSelection(config);
       });
     } catch (e0) {}
   }
@@ -840,7 +1008,6 @@
     AnitaPersistence.applyResolvedValues(config, values);
     AnitaPersistence.persistConfig(config, true);
     AnitaRenderer.syncSaveCodeInput(config);
-    writeHpSharedSnapshot(config);
     AnitaCore.emitCurrentValues(config, {
       update_source: "baked_preset_apply",
       force_emit: true,
@@ -858,36 +1025,30 @@
     return true;
   }
 
-  function refreshHpHeroPresetSelection(config, logWait) {
+  function refreshHpHeroPresetSelection(config) {
     if (!config) return false;
     var selection = selectBakedPresetForHero(config, false);
-    config.__hpHeroPresetHasScopedPreset = !!(selection && selection.hasScopedPreset);
+    if (selection && selection.hasScopedPreset) {
+      config.__hpHeroPresetHasScopedPreset = true;
+      config.__hpHeroPresetEmptyTicks = 0;
+    } else if (config.__hpHeroPresetWatchStarted) {
+      config.__hpHeroPresetEmptyTicks = (config.__hpHeroPresetEmptyTicks || 0) + 1;
+      if (config.__hpHeroPresetEmptyTicks >= HP_HERO_WATCH_EMPTY_GRACE_TICKS) {
+        config.__hpHeroPresetHasScopedPreset = false;
+      }
+    } else {
+      config.__hpHeroPresetHasScopedPreset = false;
+      config.__hpHeroPresetEmptyTicks = 0;
+    }
     var detectedHero = selection ? String(selection.heroId || "") : "";
-    var reason = selection ? String(selection.reason || "") : "";
     var previousHero = String(config.__hpLastDetectedHeroPresetHero || "");
     if (detectedHero !== previousHero) {
-      logHpHeroPresetEvent("hero_changed", {
-        previous: previousHero || "none",
-        hero: detectedHero || "unknown",
-        reason: reason
-      });
       config.__hpLastDetectedHeroPresetHero = detectedHero;
-      config.__hpHeroPresetNoMatchTicks = 0;
     }
 
     if (selection && selection.preset) {
       var presetKey = String(selection.preset.id || selection.preset.name || "");
-      var lastPresetKey = String(config.__hpLastAppliedHeroPresetKey || "");
-      var lastPresetHero = String(config.__hpLastAppliedHeroPresetHero || "");
-      var willChangePreset = lastPresetKey !== presetKey || lastPresetHero !== detectedHero;
-      if (applyHpColorsBakedPresetValues(config, selection.preset.values || {}, presetKey, detectedHero) && willChangePreset) {
-        logHpHeroPresetEvent("preset_apply", {
-          hero: detectedHero || "unknown",
-          preset: presetKey,
-          reason: reason,
-          values: countObjectKeys(selection.preset.values || {})
-        });
-      }
+      applyHpColorsBakedPresetValues(config, selection.preset.values || {}, presetKey, detectedHero);
       return true;
     }
 
@@ -895,19 +1056,6 @@
       invalidateHpHeroPresetApplyCache(config);
     }
 
-    if (selection && selection.hasScopedPreset && logWait) {
-      config.__hpHeroPresetNoMatchTicks = (config.__hpHeroPresetNoMatchTicks || 0) + 1;
-      var noMatchKey = detectedHero + "|" + reason;
-      if (config.__hpLastHeroPresetNoMatchKey !== noMatchKey ||
-          config.__hpHeroPresetNoMatchTicks >= HP_HERO_WATCH_IDLE_LOG_TICKS) {
-        logHpHeroPresetEvent("preset_wait", {
-          hero: detectedHero || "unknown",
-          reason: reason
-        });
-        config.__hpLastHeroPresetNoMatchKey = noMatchKey;
-        config.__hpHeroPresetNoMatchTicks = 0;
-      }
-    }
     return false;
   }
 
@@ -917,19 +1065,24 @@
     config.__hpHeroPresetHasScopedPreset = true;
     config.__hpHeroPresetWatchStarted = true;
     config.__hpHeroPresetWatchTicks = 0;
-    config.__hpHeroPresetNoMatchTicks = 0;
+    config.__hpHeroPresetEmptyTicks = 0;
 
     function tick() {
       if (!config || !config.__hpHeroPresetWatchStarted) return;
       config.__hpHeroPresetWatchTicks += 1;
+      var lookupState = getHpHeroPresetLookupState(config);
+      if (!lookupState.run) {
+        $.Schedule(lookupState.delay || HP_HERO_LOBBY_POLL_SEC, tick);
+        return;
+      }
       try {
-        refreshHpHeroPresetSelection(config, true);
+        refreshHpHeroPresetSelection(config);
       } catch (e) {}
       if (!config.__hpHeroPresetHasScopedPreset) {
         config.__hpHeroPresetWatchStarted = false;
         return;
       }
-      $.Schedule(HP_HERO_WATCH_RETRY_SEC, tick);
+      $.Schedule(lookupState.delay || HP_HERO_WATCH_RETRY_SEC, tick);
     }
 
     $.Schedule(HP_HERO_WATCH_RETRY_SEC, tick);
@@ -944,6 +1097,10 @@
           if (_didApplyHpColorsBakedPresetOnce || token !== _hpBakedPresetApplyToken) return;
           try {
             var allowUnknownFallback = delayIndex === HP_BAKED_PRESET_APPLY_DELAYS.length - 1;
+            if (hasHpSelectedScopedPreset(config) && !getHpHeroPresetLookupState(config).run) {
+              startHpHeroPresetWatch(config);
+              return;
+            }
             var selection = selectBakedPresetForHero(config, allowUnknownFallback);
             if (!selection || !selection.preset) {
               if (selection && selection.hasScopedPreset) startHpHeroPresetWatch(config);
@@ -959,8 +1116,27 @@
     }
   }
 
-  function writeHpSharedSnapshot(config) {
-    if (!config || config.title !== "HP Colors" || !Array.isArray(config.elements)) return;
+  function applyHpOptimizedHardGates(config) {
+    if (!config || config.title !== "HP Colors" || !Array.isArray(config.elements)) return false;
+    var changed = false;
+    for (var i = 0; i < config.elements.length; i++) {
+      var element = config.elements[i];
+      if (!element || !element.id) continue;
+      var forced = Object.prototype.hasOwnProperty.call(HP_OPTIMIZED_FORCED_VALUES, element.id);
+      var hidden = Object.prototype.hasOwnProperty.call(HP_OPTIMIZED_HIDDEN_SETTINGS, element.id);
+      element.runtimeLocked = !!forced;
+      element.runtimeHidden = !!hidden;
+      if (forced && element.currentValue !== HP_OPTIMIZED_FORCED_VALUES[element.id]) {
+        element.currentValue = HP_OPTIMIZED_FORCED_VALUES[element.id];
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  function collectHpSharedSnapshotValues(config) {
+    if (!config || config.title !== "HP Colors" || !Array.isArray(config.elements)) return null;
+    applyHpOptimizedHardGates(config);
     var values = {};
     var count = 0;
     for (var i = 0; i < config.elements.length; i++) {
@@ -970,47 +1146,76 @@
       else values[element.id] = element.defaultValue;
       count += 1;
     }
+    return count ? values : null;
+  }
+
+  function writeHpSharedSnapshot(config) {
+    var values = collectHpSharedSnapshotValues(config);
+    if (!values) return "";
     try {
       if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) {
         var raw = JSON.stringify(values);
-        if (raw === _lastHpSharedRaw) return;
+        if (raw === _lastHpSharedRaw) return raw;
         _lastHpSharedRaw = raw;
         GameUI.CustomUIConfig().__hpColorsCfgRaw = raw;
+        return raw;
       }
     } catch (e) {
     }
+    return "";
   }
 
-  function runConsoleCommandBestEffort(commandText) {
-    var cmd = String(commandText || "").trim();
-    var didAny = false;
-    if (!cmd) return false;
-
+  function replayHpPresetSnapshot() {
+    if (!_hpPresetSnapshotPayload) return;
     try {
-      $.DispatchEvent("CitadelConCommand", cmd);
-      didAny = true;
-    } catch (e0) {}
-
+      $.DispatchEvent("ClientUI_FireOutput", _hpPresetSnapshotPayload);
+    } catch (eDispatch) {}
     try {
-      if (typeof GameInterfaceAPI !== "undefined" &&
-          GameInterfaceAPI &&
-          typeof GameInterfaceAPI.ConsoleCommand === "function") {
-        GameInterfaceAPI.ConsoleCommand(cmd);
-        didAny = true;
+      $.Schedule(HP_PRESET_SNAPSHOT_REPLAY_SEC, replayHpPresetSnapshot);
+    } catch (eSchedule) {}
+  }
+
+  function startHpPresetSnapshotReplay() {
+    if (_hpPresetSnapshotReplayStarted || !_hpPresetSnapshotPayload) return;
+    _hpPresetSnapshotReplayStarted = true;
+    try {
+      $.Schedule(HP_PRESET_SNAPSHOT_REPLAY_SEC, replayHpPresetSnapshot);
+    } catch (e) {}
+  }
+
+  function publishHpPresetSnapshot(config, reason, force) {
+    var values = collectHpSharedSnapshotValues(config);
+    if (!values) return false;
+    var raw = "";
+    try { raw = JSON.stringify(values); } catch (eRaw) { raw = ""; }
+    if (!raw) return false;
+    try {
+      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) {
+        GameUI.CustomUIConfig().__hpColorsCfgRaw = raw;
       }
-    } catch (e1) {}
-
+    } catch (eShared) {}
     try {
-      $.DispatchEvent("ConsoleCommand", cmd);
-      didAny = true;
-    } catch (e2) {}
-
+      _hpPresetSnapshotPayload = JSON.stringify({
+        magic_word: HP_PRESET_SNAPSHOT_MAGIC,
+        mod_title: "HP Colors",
+        version: 1,
+        values_raw: raw,
+        values: values,
+        update_source: String(reason || "full_static")
+      });
+    } catch (ePayload) {
+      _hpPresetSnapshotPayload = "";
+      return false;
+    }
+    startHpPresetSnapshotReplay();
+    if (!force && config.__hpColorsLastPresetSnapshotRaw === raw) return true;
+    config.__hpColorsLastPresetSnapshotRaw = raw;
     try {
-      $.DispatchEvent("GameUIRunCommand", cmd);
-      didAny = true;
-    } catch (e3) {}
-
-    return didAny;
+      $.DispatchEvent("ClientUI_FireOutput", _hpPresetSnapshotPayload);
+      return true;
+    } catch (eDispatch) {
+      return false;
+    }
   }
 
   const AnitaPersistence = {
@@ -1038,23 +1243,11 @@
         this.normalizeNamespace(config.storageNamespace) === "hp_colors";
     },
 
-    CONVAR_KEY: "deadlock_hero_debuts_seen",
     TOKEN_PREFIX: "ANITA-v1-",
 
     // ns is safe to interpolate into regex: normalizeNamespace restricts output to [a-z0-9_]
     getTokenRegex: function (ns) {
       return new RegExp("\\[" + this.TOKEN_PREFIX + ns + "\\]:[A-Za-z0-9_-]+");
-    },
-
-    getCleanupRegex: function (ns) {
-      return new RegExp("\\[" + this.TOKEN_PREFIX + ns + "\\]:[A-Za-z0-9_-]*", "g");
-    },
-
-    canWriteConvarDirect: function () {
-      return typeof GameInterfaceAPI !== "undefined" &&
-        !!GameInterfaceAPI &&
-        (typeof GameInterfaceAPI.ConsoleCommand === "function" ||
-         typeof GameInterfaceAPI.SetSettingString === "function");
     },
 
     getStorageKey: function (config) {
@@ -1109,50 +1302,8 @@
       }
     },
 
-    writeConvar: function (key, value) {
-      // Prefer SetSettingString (writes to settings file, survives restarts)
-      if (typeof GameInterfaceAPI !== "undefined" &&
-          GameInterfaceAPI &&
-          typeof GameInterfaceAPI.SetSettingString === "function") {
-        GameInterfaceAPI.SetSettingString(key, value);
-      } else if (typeof GameInterfaceAPI !== "undefined" &&
-          GameInterfaceAPI &&
-          typeof GameInterfaceAPI.ConsoleCommand === "function") {
-        GameInterfaceAPI.ConsoleCommand(key + ' "' + value + '"');
-      }
-    },
-
-    writeConvarBestEffort: function (key, value) {
-      var command = String(key || "") + ' "' + String(value || "") + '"';
-      if (this.canWriteConvarDirect()) {
-        try {
-          this.writeConvar(key, value);
-          return true;
-        } catch (e0) {
-        }
-      }
-
-      if (runConsoleCommandBestEffort(command)) {
-        // Also attempt SetSettingString as a durable fallback after events path
-        try {
-          if (typeof GameInterfaceAPI !== "undefined" && GameInterfaceAPI &&
-              typeof GameInterfaceAPI.SetSettingString === "function") {
-            GameInterfaceAPI.SetSettingString(key, value);
-          }
-        } catch (eSS) {}
-        return true;
-      }
-      return false;
-    },
-
     getElements: function (config) {
       return (config && Array.isArray(config.elements)) ? config.elements : [];
-    },
-
-    warnPersistence: function (config, reason) {
-      var title = (config && config.title) ? String(config.title) : "unknown";
-      if (config && config.__anitaLastPersistWarning === reason) return;
-      if (config) config.__anitaLastPersistWarning = reason;
     },
 
     shouldPersistElement: function (element) {
@@ -1298,49 +1449,6 @@
       };
     },
 
-    readConvarPayload: function (config) {
-      var ns = this.normalizeNamespace(config && config.storageNamespace);
-      if (!ns) return null;
-      if (typeof GameInterfaceAPI === "undefined" ||
-          !GameInterfaceAPI ||
-          typeof GameInterfaceAPI.GetSettingString !== "function") {
-        return null;
-      }
-
-      var convarRaw = "";
-      try {
-        convarRaw = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
-      } catch (eRead) {
-        return null;
-      }
-
-      var tokenMatch = convarRaw.match(new RegExp("\\[" + this.TOKEN_PREFIX + ns + "\\]:([A-Za-z0-9_-]+)"));
-      if (!tokenMatch) {
-        return null;
-      }
-
-      var encoded = String(tokenMatch[1] || "");
-      if (!encoded) return null;
-
-      var raw = "";
-      try {
-        raw = AnitaBase64.decode(encoded);
-      } catch (eDecode) {
-        return null;
-      }
-
-      var parsed = this.parseStoredPayload(config, raw);
-      if (!parsed) {
-        return null;
-      }
-      return {
-        raw: parsed.raw,
-        encoded: encoded,
-        values: parsed.values,
-        source: "convar"
-      };
-    },
-
     readSharedSnapshotPayload: function (config) {
       try {
         if (typeof GameUI === "undefined" || !GameUI || !GameUI.CustomUIConfig) return null;
@@ -1381,11 +1489,6 @@
           }
         }
       } catch (eSess) {
-      }
-
-      persisted = this.readConvarPayload(config);
-      if (persisted) {
-        return persisted;
       }
 
       return null;
@@ -1478,33 +1581,11 @@
         return false;
       }
 
-      var ns = this.normalizeNamespace(config.storageNamespace);
       var encoded = "";
       try {
         encoded = AnitaBase64.encode(raw);
       } catch (eEnc) {
         return false;
-      }
-      var token = "[" + this.TOKEN_PREFIX + ns + "]:" + encoded;
-
-      try {
-        var current = "";
-        if (typeof GameInterfaceAPI !== "undefined" &&
-            GameInterfaceAPI &&
-            typeof GameInterfaceAPI.GetSettingString === "function") {
-          current = String(GameInterfaceAPI.GetSettingString(this.CONVAR_KEY) || "");
-        }
-        var cleaned = current.replace(this.getCleanupRegex(ns), "").replace(/,,+/g, ",").replace(/^,|,$/, "");
-        var finalValue = (cleaned ? cleaned + "," : "") + token;
-        if (finalValue.length > MAX_CONVAR_VALUE_LEN) {
-          // Do NOT write cleaned back — that would destroy the last valid token.
-          // Leave the convar untouched and skip only the new write.
-          this.warnPersistence(config, "convar skipped (payload_too_large)");
-        } else if (!this.writeConvarBestEffort(this.CONVAR_KEY, finalValue)) {
-          this.warnPersistence(config, "convar unavailable");
-        } else {
-        }
-      } catch (e) {
       }
 
       this.writeSessionMirror(config, encoded);
@@ -1537,6 +1618,17 @@
   };
 
   const AnitaComponents = {
+    isInteractionLocked: function (config) {
+      return !!(config && (config.runtimeLocked || config.disabled));
+    },
+
+    applyInteractionLock: function (row, config) {
+      if (!this.isInteractionLocked(config)) return false;
+      row.AddClass("AnitaRuntimeLocked");
+      row.hittestchildren = false;
+      return true;
+    },
+
     createToggle: function (parent, config, modTitle) {
       const row = $.CreatePanel("Panel", parent, "");
       row.AddClass("AnitaToggleRow");
@@ -1558,6 +1650,7 @@
 
       const updateState = (active) => row.SetHasClass("Checked", active);
       updateState(isOn);
+      if (this.applyInteractionLock(row, config)) return row;
 
       btn.SetPanelEvent("onactivate", () => {
         isOn = !isOn;
@@ -1598,8 +1691,10 @@
       const step = config.step || 1;
       const isFloat = !Number.isInteger(step);
       input.text = isFloat ? val.toFixed(2) : val;
+      const locked = this.applyInteractionLock(row, config);
 
       function update(newVal) {
+        if (locked) return;
         if (isFloat) newVal = parseFloat(newVal.toFixed(2)); else newVal = Math.round(newVal);
         val = newVal;
         config.currentValue = val;
@@ -1743,8 +1838,10 @@
       }
 
       syncVisuals(val, false);
+      const locked = this.applyInteractionLock(row, config);
 
       slider.SetPanelEvent("onvaluechanged", function () {
+        if (locked) return;
         if (isSyncing) return;
         syncVisuals(slider.value, true);
       });
@@ -1789,6 +1886,7 @@
       const options = config.options || ["OFF", "ON"];
       let idx = (config.currentValue !== undefined) ? config.currentValue : (config.defaultValue || 0);
       if (idx < 0 || idx >= options.length) idx = 0;
+      const locked = this.applyInteractionLock(row, config);
 
       const btns = [];
       const updateVisuals = () => {
@@ -1804,6 +1902,7 @@
         valLbl.text = options[i];
         
         btn.SetPanelEvent("onactivate", () => {
+          if (locked) return;
           if (idx === i) return;
           idx = i;
           updateVisuals();
@@ -1871,12 +1970,6 @@
       const COLOR_BOX_LOGICAL_WIDTH = 260;
       const COLOR_BOX_LOGICAL_HEIGHT = 200;
       const COLOR_BOX_CURSOR_LOGICAL_SIZE = 16;
-
-      function debugPickerNode(tag, data, throttleMs) {
-      }
-
-      function debugPickerEvent(tag, eventName, throttleMs) {
-      }
 
       function clampByte(value) {
         let next = Number(value);
@@ -2282,17 +2375,6 @@
         colorBoxCursor.style.x = nextX + "px";
         colorBoxCursor.style.y = nextY + "px";
         colorBoxCursor.style.transform = "none";
-        debugPickerNode("applyColorBoxCursorPosition", {
-          source: colorDragSource || "visual",
-          anchorX: Math.round(point.x),
-          anchorY: Math.round(point.y),
-          renderX: Math.round(nextX),
-          renderY: Math.round(nextY),
-          cursorW: Math.round(metrics.cursorWidth),
-          cursorH: Math.round(metrics.cursorHeight),
-          boxW: Math.round(metrics.width),
-          boxH: Math.round(metrics.height)
-        }, 80);
         return true;
       }
 
@@ -2385,16 +2467,6 @@
         const hue = hueFromRelX(relX);
         const sat = clamp01(relY);
 
-        debugPickerNode("syncFromCursorPanelPosition", {
-          emit: !!emitUpdateEvent,
-          source: colorDragSource || "cursor_panel",
-          centerX: Math.round(cursorPosition.x),
-          centerY: Math.round(cursorPosition.y),
-          relX: Number(relX.toFixed(3)),
-          relY: Number(relY.toFixed(3)),
-          hue: hue,
-          sat: Number(sat.toFixed(3))
-        }, 80);
         syncColorVisuals(colorFromBoxState(hue, sat), emitUpdateEvent, false, { hue: hue, sat: sat });
         return true;
       }
@@ -2436,18 +2508,6 @@
 
         var correctedX = cursorPosition.x - nativeDragOffsetX;
         var correctedY = cursorPosition.y - nativeDragOffsetY;
-        debugPickerNode("syncFromNativeDragPanelPosition", {
-          emit: !!emitUpdateEvent,
-          rawX: Math.round(cursorPosition.x),
-          rawY: Math.round(cursorPosition.y),
-          correctedX: Math.round(correctedX),
-          correctedY: Math.round(correctedY),
-          startX: Math.round(startX),
-          startY: Math.round(startY),
-          offsetX: Math.round(nativeDragOffsetX),
-          offsetY: Math.round(nativeDragOffsetY),
-          axis: nativeDragAxis
-        }, 80);
         return syncFromBoxPosition(correctedX, correctedY, emitUpdateEvent);
       }
 
@@ -2463,33 +2523,15 @@
         const relY = metrics.height > 0 ? clamp01(point.y / metrics.height) : 0;
         const hue = hueFromRelX(relX);
         const sat = clamp01(relY);
-        debugPickerNode("syncFromBoxPosition", {
-          emit: !!emitUpdateEvent,
-          source: colorDragSource || "box",
-          boxX: Math.round(point.x),
-          boxY: Math.round(point.y),
-          relX: Number(relX.toFixed(3)),
-          relY: Number(relY.toFixed(3)),
-          hue: hue,
-          sat: Number(sat.toFixed(3))
-        }, 80);
         syncColorVisuals(colorFromBoxState(hue, sat), emitUpdateEvent, false, { hue: hue, sat: sat });
         return true;
       }
 
       function syncPickerFromPointer(emitUpdateEvent) {
         var metrics = getColorBoxMetrics();
-        if (!metrics) {
-          debugPickerNode("syncPickerFromPointer.fail", {
-            reason: "no_metrics",
-            emit: !!emitUpdateEvent,
-            source: colorDragSource || "pointer"
-          }, 80);
-          return false;
-        }
+        if (!metrics) return false;
 
         var point = null;
-        var via = "";
         if (hasGameUI) {
           var screenCursor = getCursorPosition();
           if (screenCursor) {
@@ -2497,40 +2539,17 @@
               x: (screenCursor.x - metrics.bounds.left) * metrics.screenToLogicalX,
               y: (screenCursor.y - metrics.bounds.top) * metrics.screenToLogicalY
             };
-            via = "screen_cursor";
-          } else {
-            debugPickerNode("syncPickerFromPointer.fail", {
-              reason: "no_screen_cursor",
-              emit: !!emitUpdateEvent,
-              source: colorDragSource || "pointer"
-            }, 80);
           }
         }
 
         if (!point) {
           point = getPanelLocalCursorPosition(colorBoxFrame);
-          if (point) via = "frame_local";
         }
         if (!point) {
           point = getPanelLocalCursorPosition(colorBoxPanel);
-          if (point) via = "box_local";
         }
-        if (!point) {
-          debugPickerNode("syncPickerFromPointer.fail", {
-            reason: "no_local_cursor",
-            emit: !!emitUpdateEvent,
-            source: colorDragSource || "pointer"
-          }, 80);
-          return false;
-        }
+        if (!point) return false;
 
-        debugPickerNode("syncPickerFromPointer", {
-          emit: !!emitUpdateEvent,
-          source: colorDragSource || "pointer",
-          pointX: Math.round(point.x),
-          pointY: Math.round(point.y),
-          via: via
-        }, 80);
         return syncFromBoxPosition(point.x, point.y, emitUpdateEvent);
       }
 
@@ -2568,11 +2587,6 @@
           else if (!chosen && syncFromLocalBoxCursor(emitUpdateEvent)) chosen = "panel_cursor";
           else if (!chosen && syncFromAnchoredCursorPosition(emitUpdateEvent)) chosen = "anchored";
           else if (!chosen && syncFromCursorPanelPosition(emitUpdateEvent)) chosen = "cursor_panel";
-          debugPickerNode("syncFromBestDragSource", {
-            emit: !!emitUpdateEvent,
-            dragSource: colorDragSource || "",
-            chosen: chosen
-          }, 80);
           return chosen;
         }
 
@@ -2585,39 +2599,21 @@
         else if (!chosen && syncFromAnchoredCursorPosition(emitUpdateEvent)) chosen = "anchored";
         else if (!chosen && syncFromScreenCursorPosition(emitUpdateEvent)) chosen = "screen_cursor";
         else if (!chosen && syncFromCursorPanelPosition(emitUpdateEvent)) chosen = "drag_panel";
-        debugPickerNode("syncFromBestDragSource", {
-          emit: !!emitUpdateEvent,
-          dragSource: colorDragSource || "",
-          chosen: chosen
-        }, 80);
         return chosen;
       }
 
       function setMouseCaptureState(active) {
         var next = !!active;
-        var boxCapture = "skip";
-        var cursorCapture = "skip";
         if (isValidPanel(colorBoxPanel) && typeof colorBoxPanel.SetMouseCapture === "function") {
           try {
             colorBoxPanel.SetMouseCapture(next);
-            boxCapture = "ok";
-          } catch (e) {
-            boxCapture = "fail";
-          }
+          } catch (e) {}
         }
         if (hasGameUI && isValidPanel(colorBoxCursor) && typeof colorBoxCursor.SetMouseCapture === "function") {
           try {
             colorBoxCursor.SetMouseCapture(next);
-            cursorCapture = "ok";
-          } catch (e) {
-            cursorCapture = "fail";
-          }
+          } catch (e) {}
         }
-        debugPickerNode("setMouseCaptureState", {
-          active: next,
-          box: boxCapture,
-          cursor: cursorCapture
-        }, 0);
       }
 
       function beginColorDrag(sourceName, emitUpdateEvent) {
@@ -2625,12 +2621,6 @@
         colorDragSource = String(sourceName || "");
         if (colorDragSource === "drag_event") resetNativeDragCorrection();
         else clearNativeDragCorrection();
-        debugPickerNode("beginColorDrag", {
-          source: colorDragSource,
-          emit: !!emitUpdateEvent,
-          anchorX: Math.round(colorDragAnchorX),
-          anchorY: Math.round(colorDragAnchorY)
-        }, 0);
         var usesCursorDrag = (colorDragSource === "cursor" || colorDragSource === "drag_event");
         if (!syncPickerFromPointer(false) && !usesCursorDrag && !syncFromCursorPanelPosition(false)) {
           updateBoxCursorVisual(currentColor);
@@ -2650,11 +2640,6 @@
 
       function endColorDrag() {
         if (!colorDragging && !colorDragSource) return;
-        debugPickerNode("endColorDrag", {
-          source: colorDragSource || "",
-          anchorX: Math.round(colorDragAnchorX),
-          anchorY: Math.round(colorDragAnchorY)
-        }, 0);
         colorDragging = false;
         colorDragSource = "";
         clearNativeDragCorrection();
@@ -2973,7 +2958,6 @@
         colorBoxPanel.style.width = "100%";
         colorBoxPanel.style.height = "100%";
         colorBoxPanel.SetPanelEvent("onmouseactivate", function () {
-          debugPickerEvent("event.colorBoxPanel", "onmouseactivate", 0);
           if (!hasGameUI) {
             try {
               var movePt = getPanelLocalCursorPosition(colorBoxPanel);
@@ -2986,16 +2970,13 @@
           beginColorDrag("box", true);
         });
         colorBoxPanel.SetPanelEvent("onactivate", function () {
-          debugPickerEvent("event.colorBoxPanel", "onactivate", 0);
           if (!hasGameUI) return;
           beginColorDrag("box", true);
         });
         colorBoxPanel.SetPanelEvent("onmousedown", function () {
-          debugPickerEvent("event.colorBoxPanel", "onmousedown", 0);
           if (hasGameUI) beginColorDrag("box_down", true);
         });
         colorBoxPanel.SetPanelEvent("onmousemove", function () {
-          debugPickerEvent("event.colorBoxPanel", "onmousemove", 120);
           if (!colorDragging) return;
           if (!hasGameUI) {
             if (!syncPickerFromPointer(true)) {
@@ -3007,14 +2988,9 @@
           if (!syncPickerFromPointer(true)) syncFromBestDragSource(true);
         });
         colorBoxPanel.SetPanelEvent("onmouseup", function () {
-          debugPickerEvent("event.colorBoxPanel", "onmouseup", 0);
           endColorDrag();
         });
-        colorBoxPanel.SetPanelEvent("onmouseover", function () {
-          debugPickerEvent("event.colorBoxPanel", "onmouseover", 120);
-        });
         colorBoxPanel.SetPanelEvent("onmouseout", function () {
-          debugPickerEvent("event.colorBoxPanel", "onmouseout", 0);
           if (!colorDragging || hasGameUI || colorDragSource === "drag_event") return;
           endColorDrag();
         });
@@ -3038,31 +3014,22 @@
           } catch (e) {}
         }
         colorBoxCursor.SetPanelEvent("onmouseactivate", function () {
-          debugPickerEvent("event.colorBoxCursor", "onmouseactivate", 0);
           beginColorDrag("cursor", true);
         });
         colorBoxCursor.SetPanelEvent("onactivate", function () {
-          debugPickerEvent("event.colorBoxCursor", "onactivate", 0);
           beginColorDrag("cursor", true);
         });
         colorBoxCursor.SetPanelEvent("onmousedown", function () {
-          debugPickerEvent("event.colorBoxCursor", "onmousedown", 0);
           if (hasGameUI) beginColorDrag("cursor_down", true);
         });
         colorBoxCursor.SetPanelEvent("onmousemove", function () {
-          debugPickerEvent("event.colorBoxCursor", "onmousemove", 120);
           if (!colorDragging) return;
           if (!syncPickerFromPointer(true)) syncFromBestDragSource(true);
         });
         colorBoxCursor.SetPanelEvent("onmouseup", function () {
-          debugPickerEvent("event.colorBoxCursor", "onmouseup", 0);
           endColorDrag();
         });
-        colorBoxCursor.SetPanelEvent("onmouseover", function () {
-          debugPickerEvent("event.colorBoxCursor", "onmouseover", 120);
-        });
         colorBoxCursor.SetPanelEvent("onmouseout", function () {
-          debugPickerEvent("event.colorBoxCursor", "onmouseout", 0);
           if (!colorDragging || hasGameUI || colorDragSource === "drag_event") return;
           endColorDrag();
         });
@@ -3071,7 +3038,6 @@
           try {
             $.RegisterEventHandler("DragStart", colorBoxCursor, function (panel, dragEvent) {
               if (!panel || panel !== colorBoxCursor) return;
-              debugPickerEvent("event.colorBoxCursor", "DragStart", 0);
               if (dragEvent) {
                 dragEvent.displayPanel = colorBoxCursor;
                 dragEvent.removePositionBeforeDrop = false;
@@ -3084,7 +3050,6 @@
 
           try {
             $.RegisterEventHandler("DragEnd", colorBoxCursor, function (_panel, droppedPanel) {
-              debugPickerEvent("event.colorBoxCursor", "DragEnd", 0);
               if (droppedPanel && droppedPanel.IsValid && droppedPanel.IsValid() && droppedPanel === colorBoxCursor) {
                 if (colorBoxFrame && colorBoxFrame.IsValid && colorBoxFrame.IsValid() &&
                     droppedPanel.GetParent && droppedPanel.GetParent() !== colorBoxFrame) {
@@ -3102,7 +3067,6 @@
         if (hasGameUI && typeof GameUI.SetMouseCallback === "function") {
           try {
             GameUI.SetMouseCallback(function (eventName, arg) {
-              debugPickerEvent("GameUI.SetMouseCallback", eventName + ":" + arg, 40);
               if (!colorPopupPanel || !colorPopupPanel.IsValid || !colorPopupPanel.IsValid()) {
                 return false;
               }
@@ -3136,7 +3100,6 @@
             });
           } catch (e) {
           }
-        } else {
         }
 
         // Hue slider row
@@ -3562,6 +3525,7 @@
     },
 
     isElementVisible: function (config, element) {
+      if (element && element.runtimeHidden) return false;
       if (!element || !element.visibleWhen) return true;
       var rule = element.visibleWhen;
       var source = this.findElementById(config, rule.id);
@@ -3684,7 +3648,7 @@
       return "";
     },
 
-    applyImportCode: function (config, text, source) {
+    parseImportCode: function (config, text) {
       var token = this.extractSaveCodeToken(config, text);
       if (!token) return { ok: false, status: "Invalid" };
 
@@ -3696,21 +3660,33 @@
         if (!parsed.values || !Object.keys(parsed.values).length) {
           return { ok: false, status: "No IDs" };
         }
-
-        AnitaPersistence.applyResolvedValues(config, parsed.values);
-        AnitaPersistence.persistConfig(config, true);
-        this.syncSaveCodeInput(config);
-        AnitaCore.emitCurrentValues(config, {
-          update_source: "ui_code_apply",
-          import_source: String(source || "import"),
-          force_persist: true,
-          force_emit: true,
-          bulk_emit: true
-        });
-        return { ok: true, status: "Imported" };
+        return {
+          ok: true,
+          status: "Imported",
+          token: token,
+          raw: raw,
+          values: parsed.values
+        };
       } catch (eDec) {
         return { ok: false, status: "Invalid" };
       }
+    },
+
+    applyImportCode: function (config, text, source) {
+      var parsed = this.parseImportCode(config, text);
+      if (!parsed.ok) return parsed;
+
+      AnitaPersistence.applyResolvedValues(config, parsed.values);
+      AnitaPersistence.persistConfig(config, true);
+      this.syncSaveCodeInput(config);
+      AnitaCore.emitCurrentValues(config, {
+        update_source: "ui_code_apply",
+        import_source: String(source || "import"),
+        force_persist: true,
+        force_emit: true,
+        bulk_emit: true
+      });
+      return { ok: true, status: "Imported" };
     },
 
     collectCurrentValues: function (config) {
@@ -3872,6 +3848,141 @@
       return count;
     },
 
+    sanitizeUserPresetName: function (name, fallbackIndex) {
+      var clean = String(name || "").replace(/^\s+|\s+$/g, "").replace(/\s+/g, " ");
+      if (clean.length > 34) clean = clean.substr(0, 34);
+      if (clean) return clean;
+      return "Game preset " + String(Math.max(1, Number(fallbackIndex) || 1));
+    },
+
+    sanitizePresetRenameName: function (name, fallbackName) {
+      var clean = String(name || "").replace(/^\s+|\s+$/g, "").replace(/\s+/g, " ");
+      if (clean.length > 34) clean = clean.substr(0, 34);
+      if (clean) return clean;
+      return String(fallbackName || "").replace(/^\s+|\s+$/g, "") || "Game preset";
+    },
+
+    getUserPresetRows: function (config) {
+      if (!config.__anitaUserPresetRows) config.__anitaUserPresetRows = [];
+      return config.__anitaUserPresetRows;
+    },
+
+    getPresetNameOverride: function (config, key, id, fallbackName) {
+      var overrides = config && config.__anitaPresetNameOverrides;
+      if (!overrides) return fallbackName;
+      var idKey = id ? ("id:" + String(id)) : "";
+      if (idKey && Object.prototype.hasOwnProperty.call(overrides, idKey)) return overrides[idKey];
+      if (key && Object.prototype.hasOwnProperty.call(overrides, key)) return overrides[key];
+      return fallbackName;
+    },
+
+    setPresetRowName: function (config, row, name) {
+      if (!config || !row || row.key === "current") return false;
+      var clean = this.sanitizePresetRenameName(name, row.name);
+      if (!clean || clean === row.name) return false;
+      var userRows = this.getUserPresetRows(config);
+      var changed = false;
+      for (var i = 0; i < userRows.length; i++) {
+        if (userRows[i] && userRows[i].key === row.key) {
+          userRows[i].name = clean;
+          changed = true;
+          break;
+        }
+      }
+      if (!changed) {
+        if (!config.__anitaPresetNameOverrides) config.__anitaPresetNameOverrides = {};
+        var overrideKey = row.id ? ("id:" + String(row.id)) : row.key;
+        config.__anitaPresetNameOverrides[overrideKey] = clean;
+        changed = true;
+      }
+      row.name = clean;
+      row.token = this.buildPresetCodeToken(config, row.values || {}, row.name, row.payloadValues, row.heroes, row.heroMode);
+      config.__anitaSelectedPresetKey = row.key;
+      return changed;
+    },
+
+    addUserPresetFromCurrent: function (config, name) {
+      if (!config) return null;
+      var userRows = this.getUserPresetRows(config);
+      var nextIndex = userRows.length + 1;
+      var presetName = this.sanitizeUserPresetName(name, nextIndex);
+      var currentValues = this.collectCurrentValues(config);
+      var payloadValues = this.buildPresetPayloadValues(config, currentValues);
+      var overrideCount = this.countBuilderPresetOverrides(config, currentValues);
+      var omittedOverrides = this.countUnsupportedPresetOverrides(config, currentValues);
+      var key = "user_" + String((Date.now ? Date.now() : +(new Date()))) + "_" + String(nextIndex);
+      var row = {
+        key: key,
+        id: "",
+        name: presetName,
+        category: "Game preset",
+        status: (overrideCount ? (String(overrideCount) + " builder override" + (overrideCount === 1 ? "" : "s")) : "Default builder values") +
+          (omittedOverrides ? ("; " + String(omittedOverrides) + " live-only setting" + (omittedOverrides === 1 ? "" : "s") + " omitted") : ""),
+        token: "",
+        values: currentValues,
+        payloadValues: payloadValues,
+        heroes: [],
+        heroMode: HP_HERO_SCOPE_OFF
+      };
+      row.token = this.buildPresetCodeToken(config, row.values, row.name, row.payloadValues, row.heroes, row.heroMode);
+      userRows.push(row);
+      config.__anitaSelectedPresetKey = row.key;
+      return row;
+    },
+
+    getNextImportPresetName: function (config) {
+      var nextIndex = 1;
+      var rows = this.getUserPresetRows(config);
+      for (var i = 0; i < rows.length; i++) {
+        var match = String(rows[i].name || "").match(/^Import\s+(\d+)$/i);
+        if (match) {
+          var num = Number(match[1]);
+          if (isFinite(num) && num >= nextIndex) nextIndex = num + 1;
+        }
+      }
+      return "Import " + String(nextIndex);
+    },
+
+    addUserPresetFromValues: function (config, name, values, category) {
+      if (!config || !values) return null;
+      var userRows = this.getUserPresetRows(config);
+      var nextIndex = userRows.length + 1;
+      var presetName = this.sanitizeUserPresetName(name, nextIndex);
+      var sourceValues = {};
+      for (var key in values) {
+        if (Object.prototype.hasOwnProperty.call(values, key)) sourceValues[key] = values[key];
+      }
+      var payloadValues = this.buildPresetPayloadValues(config, sourceValues);
+      var overrideCount = this.countBuilderPresetOverrides(config, sourceValues);
+      var omittedOverrides = this.countUnsupportedPresetOverrides(config, sourceValues);
+      var keyName = "user_" + String((Date.now ? Date.now() : +(new Date()))) + "_" + String(nextIndex);
+      var row = {
+        key: keyName,
+        id: "",
+        name: presetName,
+        category: String(category || "Imported"),
+        status: (overrideCount ? (String(overrideCount) + " builder override" + (overrideCount === 1 ? "" : "s")) : "Default builder values") +
+          (omittedOverrides ? ("; " + String(omittedOverrides) + " live-only setting" + (omittedOverrides === 1 ? "" : "s") + " omitted") : ""),
+        token: "",
+        values: sourceValues,
+        payloadValues: payloadValues,
+        heroes: [],
+        heroMode: HP_HERO_SCOPE_OFF
+      };
+      row.token = this.buildPresetCodeToken(config, row.values, row.name, row.payloadValues, row.heroes, row.heroMode);
+      userRows.push(row);
+      config.__anitaSelectedPresetKey = row.key;
+      return row;
+    },
+
+    addUserPresetFromImportCode: function (config, text) {
+      var parsed = this.parseImportCode(config, text);
+      if (!parsed.ok) return parsed;
+      var row = this.addUserPresetFromValues(config, this.getNextImportPresetName(config), parsed.values, "Imported");
+      if (!row) return { ok: false, status: "Invalid" };
+      return { ok: true, status: "Saved", row: row };
+    },
+
     getPresetRows: function (config) {
       var rows = [];
       var baked = readBakedPresetEntries(config);
@@ -3881,18 +3992,33 @@
         var overrideCount = this.countBuilderPresetOverrides(config, preset.values);
         var unsupportedCount = this.countUnsupportedPresetOverrides(config, preset.values);
         var payloadValues = this.buildPresetPayloadValues(config, preset.values || {});
+        var bakedKey = "baked_" + String(i);
+        var bakedName = this.getPresetNameOverride(config, bakedKey, preset.id || "", preset.name || ("Builder preset " + String(i + 1)));
         rows.push({
-          key: "baked_" + String(i),
+          key: bakedKey,
           id: preset.id || "",
-          name: preset.name || ("Builder preset " + String(i + 1)),
+          name: bakedName,
           category: preset.category || "Builder VPK",
           status: valueCount ? (String(valueCount) + " recognized setting" + (valueCount === 1 ? "" : "s") + ", " + String(overrideCount) + " builder override" + (overrideCount === 1 ? "" : "s") + (unsupportedCount ? (", " + String(unsupportedCount) + " omitted") : "")) : "No recognized HP Colors settings",
-          token: this.buildPresetCodeToken(config, preset.values || {}, preset.name || ("Builder preset " + String(i + 1)), payloadValues, preset.heroes, preset.heroMode),
+          token: this.buildPresetCodeToken(config, preset.values || {}, bakedName, payloadValues, preset.heroes, preset.heroMode),
           values: preset.values || {},
           payloadValues: payloadValues,
           heroes: normalizeHpHeroSelection(preset.heroes),
           heroMode: normalizeHpHeroScopeMode(preset.heroMode, preset.heroes)
         });
+      }
+
+      var userRows = this.getUserPresetRows(config);
+      for (var userIndex = 0; userIndex < userRows.length; userIndex++) {
+        var userRow = userRows[userIndex];
+        if (!userRow || !userRow.values) continue;
+        userRow.payloadValues = userRow.payloadValues || this.buildPresetPayloadValues(config, userRow.values || {});
+        userRow.category = userRow.category || "Game preset";
+        userRow.name = this.sanitizeUserPresetName(userRow.name, userIndex + 1);
+        userRow.heroes = normalizeHpHeroSelection(userRow.heroes);
+        userRow.heroMode = normalizeHpHeroScopeMode(userRow.heroMode, userRow.heroes);
+        userRow.token = this.buildPresetCodeToken(config, userRow.values || {}, userRow.name, userRow.payloadValues, userRow.heroes, userRow.heroMode);
+        rows.push(userRow);
       }
 
       var currentValues = this.collectCurrentValues(config);
@@ -4033,7 +4159,6 @@
       row.heroes = normalized.slice(0);
       row.heroMode = scopeMode;
       row.token = this.buildPresetCodeToken(config, row.values || {}, row.name || "", row.payloadValues, row.heroes, row.heroMode);
-      config.__hpLastHeroPresetNoMatchKey = "";
       invalidateHpHeroPresetApplyCache(config);
       startHpHeroPresetWatch(config);
       scheduleHpHeroPresetRefresh(config);
@@ -4159,6 +4284,48 @@
       fallback.AddClass("AnitaPresetFallbackUrl");
       fallback.text = HP_PRESET_BUILDER_URL;
 
+      var createRow = $.CreatePanel("Panel", panel, "");
+      createRow.AddClass("AnitaPresetCreateRow");
+
+      var createTextCol = $.CreatePanel("Panel", createRow, "");
+      createTextCol.AddClass("AnitaPresetCreateTextCol");
+
+      var nameLabel = $.CreatePanel("Label", createTextCol, "");
+      nameLabel.AddClass("AnitaPresetNameLabel");
+      nameLabel.text = "Preset name";
+
+      var nameInput = $.CreatePanel("TextEntry", createTextCol, "");
+      nameInput.AddClass("AnitaPresetNameInput");
+      nameInput.placeholder = "Name for current settings preset";
+      nameInput.text = String(config.__anitaPresetDraftName || "");
+      nameInput.SetPanelEvent("ontextentrychange", function () {
+        config.__anitaPresetDraftName = String(nameInput.text || "");
+      });
+
+      var createHint = $.CreatePanel("Label", createTextCol, "");
+      createHint.AddClass("AnitaPresetCreateHint");
+      createHint.text = "Saves your current live HP settings as a preset code row.";
+
+      function addCurrentPreset() {
+        var saved = AnitaRenderer.addUserPresetFromCurrent(config, nameInput.text || "");
+        if (!saved) {
+          showPresetStatus("Could not add preset.", false, 2.0);
+          return;
+        }
+        config.__anitaPresetDraftName = "";
+        AnitaRenderer.renderModSettings(config);
+      }
+
+      var addBtn = $.CreatePanel("Button", createRow, "");
+      addBtn.AddClass("AnitaPresetAddBtn");
+      addBtn.hittest = true;
+      addBtn.hittestchildren = false;
+      var addLbl = $.CreatePanel("Label", addBtn, "");
+      addLbl.AddClass("AnitaPresetAddLabel");
+      addLbl.text = "SAVE CURRENT";
+      addBtn.SetPanelEvent("onactivate", addCurrentPreset);
+      nameInput.SetPanelEvent("ontextentrysubmit", addCurrentPreset);
+
       var list = $.CreatePanel("Panel", panel, "");
       list.AddClass("AnitaPresetList");
 
@@ -4182,6 +4349,106 @@
         $.Schedule(durationSec, function () {
           if (statusToken !== config.__anitaPresetStatusToken) return;
           AnitaRenderer.setPresetStatus(status, getSelectedStatusText(), false);
+        });
+      }
+
+      function openPresetImportPopup() {
+        if (AnitaRenderer.activeImportPopupClose) {
+          try { AnitaRenderer.activeImportPopupClose(); } catch (closeErr) {}
+          AnitaRenderer.activeImportPopupClose = null;
+        }
+
+        var popupPanel = $.CreatePanel("Panel", $.GetContextPanel(), "");
+        var importInput = null;
+        var applyBtn = null;
+        var applyLbl = null;
+
+        function closePopup() {
+          if (popupPanel && popupPanel.IsValid && popupPanel.IsValid()) {
+            popupPanel.DeleteAsync(0);
+          }
+          config.__anitaImportCodeInput = null;
+          if (AnitaRenderer.activeImportPopupClose === closePopup) {
+            AnitaRenderer.activeImportPopupClose = null;
+          }
+        }
+
+        function flashApplyLabel(text) {
+          if (!applyBtn || !applyBtn.IsValid || !applyBtn.IsValid()) return;
+          if (!applyLbl || !applyLbl.IsValid || !applyLbl.IsValid()) return;
+          applyLbl.text = text;
+          applyBtn.AddClass("AnitaFooterBtnSuccess");
+          $.Schedule(1.5, function () {
+            if (applyLbl && applyLbl.IsValid && applyLbl.IsValid()) applyLbl.text = "IMPORT";
+            if (applyBtn && applyBtn.IsValid && applyBtn.IsValid()) applyBtn.RemoveClass("AnitaFooterBtnSuccess");
+          });
+        }
+
+        function applyInputCode() {
+          if (!importInput || !importInput.IsValid || !importInput.IsValid()) return;
+          var text = String(importInput.text || "").trim();
+          if (!text) {
+            flashApplyLabel("Empty");
+            return;
+          }
+          var result = AnitaRenderer.addUserPresetFromImportCode(config, text);
+          if (!result.ok) {
+            flashApplyLabel(result.status || "Invalid");
+            return;
+          }
+          closePopup();
+          AnitaRenderer.renderModSettings(config);
+        }
+
+        AnitaRenderer.activeImportPopupClose = closePopup;
+        popupPanel.AddClass("AnitaImportPopup");
+        popupPanel.style.align = "center center";
+        popupPanel.style.ignoreParentFlow = true;
+        popupPanel.style.flowChildren = "down";
+        popupPanel.style.uiScale = "100%";
+        popupPanel.SetPanelEvent("oncancel", closePopup);
+
+        var header = $.CreatePanel("Panel", popupPanel, "");
+        header.AddClass("AnitaImportPopupHeader");
+
+        var popupTitle = $.CreatePanel("Label", header, "");
+        popupTitle.AddClass("AnitaImportPopupTitle");
+        popupTitle.text = "Import Code";
+
+        var closeBtn = $.CreatePanel("Button", header, "");
+        closeBtn.AddClass("AnitaColorPopupBtn");
+        closeBtn.AddClass("AnitaImportCloseBtn");
+        var closeLbl = $.CreatePanel("Label", closeBtn, "");
+        closeLbl.AddClass("AnitaImportCloseLabel");
+        closeLbl.text = "X";
+        closeBtn.SetPanelEvent("onactivate", closePopup);
+
+        var hint = $.CreatePanel("Label", popupPanel, "");
+        hint.AddClass("AnitaImportPopupHint");
+        hint.text = "Paste a preset code or settings token to apply it to HP Colors.";
+
+        var importRow = $.CreatePanel("Panel", popupPanel, "");
+        importRow.AddClass("AnitaPasteRow");
+        importRow.hittest = true;
+
+        importInput = $.CreatePanel("TextEntry", importRow, "");
+        importInput.AddClass("AnitaPasteInput");
+        importInput.placeholder = "Paste custom preset code here...";
+        config.__anitaImportCodeInput = importInput;
+
+        applyBtn = $.CreatePanel("Button", importRow, "");
+        applyBtn.AddClass("AnitaFooterBtn");
+        applyBtn.AddClass("AnitaImportApplyBtn");
+        applyLbl = $.CreatePanel("Label", applyBtn, "");
+        applyLbl.AddClass("AnitaImportApplyLabel");
+        applyLbl.text = "IMPORT";
+        applyBtn.SetPanelEvent("onactivate", applyInputCode);
+        importInput.SetPanelEvent("ontextentrysubmit", applyInputCode);
+
+        $.Schedule(0.0, function () {
+          if (importInput && importInput.IsValid && importInput.IsValid()) {
+            importInput.SetFocus();
+          }
         });
       }
 
@@ -4273,19 +4540,6 @@
           icon.SetHasClass("Visible", false);
           try { icon.style.backgroundImage = "none"; } catch (e0) {}
         }
-      }
-
-      function traceHeroSelector(eventName, row, heroId) {
-        try {
-          if (typeof $ === "undefined" || !$ || !$.Msg) return;
-          var heroes = normalizeHpHeroSelection(row && row.heroes).join(",");
-          var scopeMode = normalizeHpHeroScopeMode(row && row.heroMode, row && row.heroes);
-          $.Msg("[HP-COLORS][HERO-SELECTOR] event=" + String(eventName || "") +
-            " row=" + String(row && row.key || "") +
-            " mode=" + scopeMode +
-            " hero=" + String(heroId || "") +
-            " heroes=" + heroes);
-        } catch (e) {}
       }
 
       function safeHeroOptionKey(row, suffix) {
@@ -4553,7 +4807,6 @@
         AnitaRenderer.setPresetRowHeroScope(config, row, nextMode, current);
         renderHeroPickerState(button, row, summaryLabel || button.__anitaHeroSummaryLabel);
         renderHeroMenu(button.__anitaHeroMenu, button, row, summaryLabel || button.__anitaHeroSummaryLabel);
-        traceHeroSelector("toggle", row, heroId || kind);
       }
 
       function makeHeroPickerButton(parent, row) {
@@ -4615,7 +4868,6 @@
               }
             });
           } catch (scheduleErr) {}
-          traceHeroSelector("open", row, "");
         });
         return button;
       }
@@ -4643,9 +4895,7 @@
       });
 
       titleImportBtn.SetPanelEvent("onactivate", function () {
-        if (importPreset(getSelectedRow())) {
-          AnitaRenderer.renderModSettings(config);
-        }
+        openPresetImportPopup();
       });
 
       for (var r = 0; r < rows.length; r++) {
@@ -4661,9 +4911,43 @@
         textCol.hittest = true;
         textCol.hittestchildren = true;
 
-        var nameLabel = $.CreatePanel("Label", textCol, "");
-        nameLabel.AddClass("AnitaPresetRowName");
-        nameLabel.text = row.name;
+        var canRenameRow = row.key !== "current";
+        var isRenamingRow = canRenameRow && config.__anitaEditingPresetNameKey === row.key;
+        if (isRenamingRow) {
+          var renameInput = $.CreatePanel("TextEntry", textCol, "");
+          renameInput.AddClass("AnitaPresetRowNameInput");
+          renameInput.text = row.name;
+          renameInput.hittest = true;
+          renameInput.canfocus = true;
+          var commitRename = (function (presetRow, inputPanel) {
+            return function () {
+              var nextName = inputPanel && inputPanel.IsValid && inputPanel.IsValid() ? inputPanel.text : presetRow.name;
+              AnitaRenderer.setPresetRowName(config, presetRow, nextName);
+              config.__anitaEditingPresetNameKey = "";
+              AnitaRenderer.renderModSettings(config);
+            };
+          }(row, renameInput));
+          renameInput.SetPanelEvent("ontextentrysubmit", commitRename);
+          renameInput.SetPanelEvent("onblur", commitRename);
+          try { $.Schedule(0.01, function () {
+            if (renameInput && renameInput.IsValid && renameInput.IsValid()) renameInput.SetFocus();
+          }); } catch (eFocus) {}
+        } else {
+          var nameLabel = $.CreatePanel("Label", textCol, "");
+          nameLabel.AddClass("AnitaPresetRowName");
+          nameLabel.SetHasClass("Editable", canRenameRow);
+          nameLabel.text = row.name;
+          if (canRenameRow) {
+            nameLabel.hittest = true;
+            nameLabel.SetPanelEvent("onactivate", (function (presetRow) {
+              return function () {
+                config.__anitaEditingPresetNameKey = presetRow.key;
+                config.__anitaSelectedPresetKey = presetRow.key;
+                AnitaRenderer.renderModSettings(config);
+              };
+            }(row)));
+          }
+        }
 
         var metaLabel = $.CreatePanel("Label", textCol, "");
         metaLabel.AddClass("AnitaPresetRowMeta");
@@ -5193,13 +5477,15 @@
 
           var headerClose = $.CreatePanel("Button", header, "");
           headerClose.AddClass("AnitaColorPopupBtn");
+          headerClose.AddClass("AnitaImportCloseBtn");
           var headerCloseLbl = $.CreatePanel("Label", headerClose, "");
-          headerCloseLbl.text = "Close";
+          headerCloseLbl.AddClass("AnitaImportCloseLabel");
+          headerCloseLbl.text = "X";
           headerClose.SetPanelEvent("onactivate", closeImportPopup);
 
           var hint = $.CreatePanel("Label", importPopupPanel, "");
           hint.AddClass("AnitaImportPopupHint");
-          hint.text = "Paste a token to apply and persist these settings.";
+          hint.text = "Paste a preset code or settings token to apply it to HP Colors.";
 
           var importRow = $.CreatePanel("Panel", importPopupPanel, "");
           importRow.AddClass("AnitaPasteRow");
@@ -5207,7 +5493,7 @@
 
           importPopupInput = $.CreatePanel("TextEntry", importRow, "");
           importPopupInput.AddClass("AnitaPasteInput");
-          importPopupInput.placeholder = "Paste a token here...";
+          importPopupInput.placeholder = "Paste custom preset code here...";
           config.__anitaImportCodeInput = importPopupInput;
 
           importPopupApplyBtn = makeFooterBtn(importRow, "Apply", "");
@@ -5325,6 +5611,7 @@
       }
 
       AnitaPersistence.hydrateConfig(config);
+      applyHpOptimizedHardGates(config);
 
       for (let i = 0; i < this.registeredMods.length; i++) {
         if (this.registeredMods[i].title === config.title) {
@@ -5332,6 +5619,8 @@
         }
       }
       if (config.title === "HP Colors") {
+        writeHpSharedSnapshot(config);
+        publishHpPresetSnapshot(config, "register_startup", true);
         applyHpColorsBakedPresetOnce(config);
       }
       this.registeredMods.push(config);
@@ -5343,6 +5632,10 @@
         magic_word: "ANITA_HANDSHAKE",
         mod_title: config.title
       }));
+      if (config.title === "HP Colors") {
+        this.emitPortableSync(config, "register_startup");
+        this.queueHpColorsStartupSyncBurst(config, "register_startup");
+      }
       AnitaPersistence.requestBootstrap(config, "core_handshake");
     },
 
@@ -5350,8 +5643,10 @@
       if (!config || !Array.isArray(config.elements)) return;
       var forceEmit = !!(meta && meta.force_emit);
       var bulkEmit = !!(meta && meta.bulk_emit);
+      applyHpOptimizedHardGates(config);
       if (config.title === "HP Colors") {
         writeHpSharedSnapshot(config);
+        publishHpPresetSnapshot(config, meta && meta.update_source ? meta.update_source : "current_values", false);
       }
       if (!config.__anitaLastEmittedValues) config.__anitaLastEmittedValues = {};
       var lastValues = config.__anitaLastEmittedValues;
@@ -5421,6 +5716,21 @@
       }
     },
 
+    queueHpColorsStartupSyncBurst: function (config, reason) {
+      if (!config || config.title !== "HP Colors") return;
+      var token = (config.__hpColorsStartupSyncToken || 0) + 1;
+      config.__hpColorsStartupSyncToken = token;
+      var delays = [0.25, 1.0, 2.25, 5.0];
+      for (var i = 0; i < delays.length; i++) {
+        (function (delaySec, burstToken, burstIndex) {
+          $.Schedule(delaySec, function () {
+            if (!config || config.__hpColorsStartupSyncToken !== burstToken) return;
+            AnitaCore.emitPortableSync(config, String(reason || "startup") + "_" + String(burstIndex + 1));
+          });
+        })(delays[i], token, i);
+      }
+    },
+
     startPortableSyncLoop: function (config) {
       if (!config || config.title !== "HP Colors") return;
       config.__anitaPortableSyncReason = String(config.__anitaPortableSyncReason || "update");
@@ -5481,6 +5791,10 @@
           }
         }
       }
+      if (applyHpOptimizedHardGates(config)) {
+        changed = true;
+        visibilityDirty = true;
+      }
 
       AnitaRenderer.syncSaveCodeInput(config);
       if (isBootstrap) config.__anitaBootstrapReceived = true;
@@ -5525,6 +5839,7 @@
       if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) {
         return;
       }
+      var hardGateChanged = applyHpOptimizedHardGates(config);
       AnitaRenderer.syncSaveCodeInput(config);
       if (isBootstrap) {
         config.__anitaBootstrapReceived = true;
@@ -5544,7 +5859,7 @@
         AnitaPersistence.persistConfig(config, false);
       });
 
-      if (this.hasVisibilityDependents(config, data.setting_id)) {
+      if (this.hasVisibilityDependents(config, data.setting_id) || hardGateChanged) {
         AnitaRenderer.refreshConditionalVisibility(config);
         return;
       }
@@ -5575,6 +5890,14 @@
       });
     },
 
+    handlePresetSnapshotRequest: function (data) {
+      if (data && data.mod_title && data.mod_title !== "HP Colors") return;
+      var config = this.findRegisteredMod("HP Colors");
+      if (!config) return;
+      writeHpSharedSnapshot(config);
+      publishHpPresetSnapshot(config, data && data.reason ? data.reason : "preset_request", true);
+    },
+
     updateWindowWidth: function () {
       if (!AnitaRenderer.mainWindow) return;
 
@@ -5597,11 +5920,15 @@
     setupEventListener: function () {
       try {
         $.RegisterForUnhandledEvent("ClientUI_FireOutput", (payload) => {
-          if (typeof payload === "string" && payload.indexOf("ANITA_") === -1) return;
+          if (typeof payload === "string" &&
+              payload.indexOf("ANITA_") === -1 &&
+              payload.indexOf(HP_PRESET_REQUEST_MAGIC) === -1) return;
           try {
             let data = (typeof payload === 'string') ? JSON.parse(payload) : payload;
             if (data && data.magic_word === "ANITA_REGISTER") {
               this.registerMod(data.config);
+            } else if (data && data.magic_word === HP_PRESET_REQUEST_MAGIC) {
+              this.handlePresetSnapshotRequest(data);
             } else if (data && data.magic_word === "ANITA_REQUEST_BOOTSTRAP") {
               this.handleBootstrapRequest(data);
             } else if (data && data.magic_word === "ANITA_BULK_UPDATE") {

@@ -86,6 +86,7 @@
 	flow-children: down;
 	padding: 10px 8px 8px 0px;
 	margin-right: 18px;
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(rgba(17, 19, 21, 0.00)), color-stop(0.68, rgba(17, 19, 21, 0.00)), color-stop(0.90, rgba(17, 19, 21, 0.38)), to(rgba(12, 14, 15, 0.72)));
 	border-right: 1px solid rgba(255, 255, 255, 0.045);
 }
 
@@ -106,8 +107,8 @@
 	overflow: squish scroll;
 	margin-bottom: 12px;
 	padding-right: 8px;
-	padding-bottom: 20px;
-	opacity-mask: gradient(linear, 0% 0%, 0% 100%, from(#00000000), color-stop(0.08, #ffffffff), color-stop(0.92, #ffffffff), to(#00000000));
+	padding-bottom: 34px;
+	opacity-mask: gradient(linear, 0% 0%, 0% 100%, from(#00000000), color-stop(0.08, #ffffffff), color-stop(0.82, #ffffffff), to(#00000000));
 }
 
 .AnitaTreeFooter
@@ -237,6 +238,8 @@
 .AnitaPresetMainCategoryBtn .AnitaMainCategoryLabel
 {
 	color: #66cc99;
+	font-size: 20px;
+	font-weight: 700;
 }
 
 .AnitaPresetMainCategoryBtn.Active
@@ -273,6 +276,7 @@
 	height: fill-parent-flow(1.0);
 	flow-children: down;
 	overflow: clip;
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(rgba(17, 19, 21, 0.00)), color-stop(0.70, rgba(17, 19, 21, 0.00)), color-stop(0.91, rgba(17, 19, 21, 0.34)), to(rgba(10, 12, 13, 0.66)));
 }
 
 .AnitaDetailHeaderRow
@@ -349,9 +353,9 @@
 	flow-children: down;
 	overflow: squish scroll;
 	padding-right: 16px;
-	padding-bottom: 24px;
+	padding-bottom: 40px;
 	margin-bottom: 8px;
-	opacity-mask: gradient(linear, 0% 0%, 0% 100%, from(#00000000), color-stop(0.08, #ffffffff), color-stop(0.92, #ffffffff), to(#00000000));
+	opacity-mask: gradient(linear, 0% 0%, 0% 100%, from(#00000000), color-stop(0.08, #ffffffff), color-stop(0.84, #ffffffff), to(#00000000));
 }
 
 .AnitaWindow VerticalScrollBar
@@ -773,6 +777,98 @@
 	text-overflow: shrink;
 }
 
+.AnitaPresetCreateRow
+{
+	width: 100%;
+	height: 62px;
+	flow-children: right;
+	margin-bottom: 6px;
+	padding: 4px 6px;
+	background-color: rgba(102, 204, 153, 0.045);
+	border: 1px solid rgba(102, 204, 153, 0.16);
+	border-radius: 4px;
+}
+
+.AnitaPresetCreateTextCol
+{
+	width: fill-parent-flow(1.0);
+	height: 100%;
+	flow-children: down;
+	margin-right: 8px;
+}
+
+.AnitaPresetNameLabel
+{
+	width: 100%;
+	height: 13px;
+	margin-bottom: 2px;
+	color: rgba(224, 239, 232, 0.72);
+	font-size: 9px;
+	font-weight: 800;
+	text-transform: uppercase;
+	text-overflow: shrink;
+}
+
+.AnitaPresetNameInput
+{
+	width: 100%;
+	height: 26px;
+	padding: 5px 8px;
+	background-color: rgba(9, 12, 13, 0.48);
+	border: 1px solid rgba(255, 255, 255, 0.07);
+	border-radius: 3px;
+	color: #e9f1ef;
+	font-size: 12px;
+	transition-property: border-color, color;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetNameInput:focus
+{
+	border-color: rgba(102, 204, 153, 0.62);
+	color: #ffffff;
+}
+
+.AnitaPresetCreateHint
+{
+	width: 100%;
+	margin-top: 2px;
+	color: rgba(224, 239, 232, 0.58);
+	font-size: 9px;
+	text-overflow: shrink;
+}
+
+.AnitaPresetAddBtn
+{
+	width: 118px;
+	height: 34px;
+	vertical-align: center;
+	background-color: #2a3031;
+	border: 1px solid rgba(102, 204, 153, 0.40);
+	border-radius: 4px;
+	transition-property: background-color, border-color, brightness;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetAddBtn:hover
+{
+	background-color: #354042;
+	border-color: rgba(118, 220, 168, 0.70);
+	brightness: 1.08;
+}
+
+.AnitaPresetAddBtn Label
+{
+	width: 100%;
+	color: #dff5e6;
+	font-size: 10px;
+	font-weight: 900;
+	text-align: center;
+	vertical-align: center;
+	text-transform: uppercase;
+	text-overflow: shrink;
+}
+
 .AnitaPresetListTitle
 {
 	width: 104px;
@@ -836,6 +932,31 @@
 	margin-bottom: 1px;
 }
 
+.AnitaPresetRowName.Editable:hover
+{
+	color: #9ff0c7;
+}
+
+.AnitaPresetRowNameInput
+{
+	width: 100%;
+	height: 20px;
+	padding: 0px 5px;
+	margin-bottom: 1px;
+	background-color: rgba(3, 15, 12, 0.88);
+	border: 1px solid rgba(102, 204, 153, 0.45);
+	border-radius: 3px;
+	color: #f0f2f2;
+	font-size: 13px;
+	font-weight: 700;
+	text-overflow: shrink;
+}
+
+.AnitaPresetRowNameInput:focus
+{
+	border-color: rgba(124, 234, 174, 0.85);
+}
+
 .AnitaPresetRowMeta
 {
 	color: #7f8a8d;
@@ -858,7 +979,7 @@
 {
 	width: 112px;
 	height: 30px;
-	padding: 0px 7px;
+	padding: 0px;
 	background-color: #242b2c;
 	border: 1px solid rgba(102, 204, 153, 0.24);
 	border-radius: 4px;
@@ -900,16 +1021,18 @@
 
 .AnitaPresetHeroDropDownFace
 {
-	width: 82px;
-	height: 28px;
-	margin-left: 1px;
-	margin-top: 1px;
+	width: 112px;
+	height: 30px;
+	margin-left: 0px;
+	margin-top: 0px;
+	vertical-align: center;
 	ignore-parent-flow: true;
 	z-index: 3;
 	flow-children: right;
-	padding: 0px 6px;
+	padding: 0px 18px 0px 18px;
 	background-color: transparent;
 	border-radius: 0px;
+	align: left center;
 }
 
 .AnitaPresetHeroSelector:hover .AnitaPresetHeroDropDownFace
@@ -920,7 +1043,8 @@
 .AnitaPresetHeroDropDownFaceLabel
 {
 	width: fill-parent-flow(1.0);
-	height: 100%;
+	height: fit-children;
+	padding-top: 0px;
 	vertical-align: center;
 	color: #bff2d6;
 	font-size: 10px;
@@ -928,6 +1052,7 @@
 	text-align: center;
 	text-overflow: shrink;
 	text-transform: uppercase;
+	margin-top: 0px;
 }
 
 .AnitaPresetHeroDropDownFaceIcon
@@ -949,13 +1074,14 @@
 
 .AnitaPresetHeroPickerArrow
 {
-	width: 20px;
-	height: 100%;
-	margin-left: 86px;
+	width: 18px;
+	height: fit-children;
+	margin-left: 94px;
+	margin-top: 0px;
 	ignore-parent-flow: true;
 	z-index: 4;
-	background-color: rgba(0, 0, 0, 0.18);
-	color: #edf4f1;
+	background-color: transparent;
+	color: #d5e7df;
 	font-size: 16px;
 	font-weight: 900;
 	text-align: center;
@@ -995,7 +1121,7 @@
 	width: 100%;
 	min-height: 30px;
 	flow-children: right;
-	padding: 5px 5px 5px 8px;
+	padding: 4px 5px 4px 8px;
 	background-color: rgba(255, 255, 255, 0.015);
 	color: #edf4f1;
 	font-size: 11px;
@@ -1070,6 +1196,10 @@
 .AnitaPresetHeroMenuOptionName
 {
 	width: fill-parent-flow(1.0);
+	height: fit-children;
+	padding-top: 0px;
+	vertical-align: center;
+	margin-top: 0px;
 	color: #edf4f1;
 	font-size: 11px;
 	font-weight: 700;
@@ -1097,8 +1227,10 @@
 .AnitaPresetHeroSummary
 {
 	width: 100px;
-	height: 30px;
+	height: fit-children;
 	margin-left: 6px;
+	margin-top: 0px;
+	padding-top: 0px;
 	vertical-align: center;
 	color: #aebcba;
 	font-size: 10px;
@@ -1164,10 +1296,12 @@
 .AnitaPresetCopyBtn Label
 {
 	width: fill-parent-flow(1.0);
+	height: fit-children;
 	color: #f0f2f2;
 	font-size: 10px;
 	font-weight: 800;
 	letter-spacing: 0px;
+	margin-top: 0px;
 	text-align: center;
 	vertical-align: center;
 	text-transform: uppercase;
@@ -1198,6 +1332,11 @@
 	flow-children: right;
 	margin-bottom: 14px;
 	padding: 4px 2px;
+}
+
+.AnitaRuntimeLocked
+{
+	opacity: 0.42;
 }
 
 .AnitaToggleBtn
@@ -1988,6 +2127,44 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 	text-transform: uppercase;
 }
 
+.AnitaImportCloseBtn
+{
+	width: 22px;
+	height: 22px;
+	padding: 0px;
+	margin-left: 8px;
+	background-color: transparent;
+	border: 1px solid rgba(255, 255, 255, 0.16);
+	border-radius: 3px;
+	vertical-align: center;
+	box-shadow: none;
+}
+
+.AnitaImportCloseBtn:hover
+{
+	background-color: rgba(216, 90, 90, 0.10);
+	border-color: #d85a5a;
+}
+
+.AnitaImportCloseBtn:hover Label
+{
+	color: #ff8a8a;
+}
+
+.AnitaImportCloseBtn Label
+{
+	width: 100%;
+	height: fit-children;
+	color: #d9dfdf;
+	font-size: 13px;
+	font-weight: 700;
+	margin-top: 0px;
+	text-align: center;
+	vertical-align: center;
+	text-transform: uppercase;
+	letter-spacing: 0px;
+}
+
 .AnitaImportPopupHint
 {
 	width: 100%;
@@ -2047,17 +2224,10 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 .AnitaFooterBtnPreset
 {
 	width: 100%;
-	height: 34px;
+	height: 38px;
 	margin-right: 0px;
 	background-color: #30383a;
 	border-color: rgba(102, 204, 153, 0.28);
-}
-
-.AnitaFooterBtnPreset Label
-{
-	font-size: 10px;
-	font-weight: 800;
-	color: #f2fff7;
 }
 
 .AnitaFooterBtn:hover
@@ -2082,6 +2252,13 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 	margin-top: 1px;
 	text-align: center;
 	vertical-align: center;
+}
+
+.AnitaFooterBtn.AnitaFooterBtnPreset Label
+{
+	color: #f2fff7;
+	font-size: 13px;
+	font-weight: 800;
 }
 
 .AnitaFooterBtnSuccess Label
@@ -2127,11 +2304,13 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 .AnitaImportApplyBtn
 {
 	margin: 0px;
+	width: 92px;
 	height: 36px;
-	padding: 8px 24px;
+	padding: 0px;
 	border-radius: 4px;
-	background-color: gradient(linear, 0% 0%, 0% 100%, from(#355c46), to(#244030));
+	background-color: #244030;
 	border: 1px solid #4a7d60;
+	box-shadow: none;
 }
 
 .AnitaImportApplyBtn:hover
@@ -2142,8 +2321,14 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 
 .AnitaImportApplyBtn Label
 {
+	width: 100%;
+	height: fit-children;
 	font-size: 13px;
 	font-weight: 700;
 	letter-spacing: 1.5px;
+	margin-top: 0px;
+	text-align: center;
+	vertical-align: center;
+	text-overflow: shrink;
 	color: #ffffff;
 }

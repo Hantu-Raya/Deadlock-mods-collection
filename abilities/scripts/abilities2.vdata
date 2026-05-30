@@ -3998,14 +3998,14 @@
 			}
 			BulletResist = 
 			{
-				m_strValue = "30"
+				m_strValue = "0"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST"
 				m_eDisplayType = "EBulletArmorDamageReduction"
 				m_strCSSClass = "bullet_armor_up"
 			}
 			TechResist = 
 			{
-				m_strValue = "30"
+				m_strValue = "0"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_ARMOR_DAMAGE_RESIST"
 				m_eDisplayType = "ETechArmorDamageReduction"
 				m_strCSSClass = "tech_armor_up"
@@ -4050,20 +4050,20 @@
 			m_nBehaviors = "PBF_BounceOffWall | PBF_DetonateOnHitWorld | PBF_DetonateOnLifetimeExpire | PBF_DontTravelThroughPortals"
 		}
 		m_ItemModel = resource_name:"models/null.vmdl"
-		m_flInstantGoldPercentage = 0.5
+		m_flInstantGoldPercentage = 1.0
 		m_iComebackBounty = 130
 		m_flCasterBonusPercent = 35
 		m_flRevealTime = 1
 		m_flDamageTickRate = 1.0
-		m_flMaxHealthDamage = 0.015
-		m_flTimeToDamage = 45.0
+		m_flMaxHealthDamage = 0.05
+		m_flTimeToDamage = 35.0
 		m_flNoPickupTime = 12.0
 		m_DropoffTimerModifier = subclass:
 		{
 			_class = "modifier_idol_return_timer"
 			_my_subclass_name = "timer"
 			m_bReverseHudProgressBar = true
-			m_bIsHidden = false
+			m_bIsHidden = true
 			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 			m_eHudDisplayLocation = "DISPLAY_HUD_CENTER"
 			m_sLocalizationName = "modifier_citadel_returning_golden_idol"
@@ -4078,7 +4078,7 @@
 			m_IdolParticle = resource_name:"particles/generic/idol_carry.vpcf"
 			m_eHudDisplayLocation = "DISPLAY_HUD_CENTER"
 			m_nAmbientLoopingSoundRecipients = "MODIFIER_SOUND_RECIPIENT_PARENT_IS_LOCAL_PLAYER"
-			m_nEnabledStateMask = "MODIFIER_STATE_HOLDING_IDOL | MODIFIER_STATE_TELEPORTER_DISABLED | MODIFIER_STATE_SILENCED | MODIFIER_STATE_MUTED | MODIFIER_STATE_DISARMED | MODIFIER_STATE_ZIPLINE_DISABLED | MODIFIER_STATE_SPRINT_DISABLED | MODIFIER_ATTRIBUTE_CANNOT_BE_PURGED"
+			m_nEnabledStateMask = "MODIFIER_STATE_HOLDING_IDOL | MODIFIER_STATE_TELEPORTER_DISABLED | MODIFIER_STATE_DISARMED | MODIFIER_STATE_ZIPLINE_DISABLED | MODIFIER_STATE_SPRINT_DISABLED | MODIFIER_ATTRIBUTE_CANNOT_BE_PURGED | MODIFIER_STATE_SILENCE_MOVEMENT_ABILITES"
 			m_vecAlwaysShowInStatModifierUI = 
 			[
 				"MODIFIER_VALUE_SPRINT_SPEED_BONUS",
@@ -4091,6 +4091,8 @@
 				m_sFootStepSound = soundevent:""
 			}
 			m_FootStepAdditional = soundevent:"Footstep.Urn.Sweetener"
+			m_sStartSound = soundevent:"Soul.Urn.Pickup"
+			m_sExpiredSound = soundevent:"Soul.Urn.Drop"
 		}
 		m_NoPickupModifier = subclass:
 		{
@@ -4147,6 +4149,10 @@
 			]
 		}
 		m_bitsInterruptingStates = "MODIFIER_STATE_STUNNED"
+		m_strUrnCashedInSound = soundevent:"Soul.Urn.CashIn.Complete"
+		m_OnKnockedOffUrnParticle = resource_name:"particles/environment/soul_jar_force_drop.vpcf"
+		m_OnKnockedOffHolderParticle = resource_name:"particles/environment/soul_jar_force_drop_carrier.vpcf"
+		m_strUrnMeleeDropSound = soundevent:"Soul.Urn.Melee.Drop"
 	}
 	ability_item_pickup_effects = 
 	{
@@ -5965,6 +5971,17 @@
 					m_eSpecificStatScaleType = "EAirMoveDistanceScale"
 				}
 			}
+			StaminaRegenReduction = 
+			{
+				m_strValue = "-25"
+				m_eDisplayType = "EStaminaRegenPercent"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_STAMINA_REGEN_PER_SECOND_PERCENTAGE"
+				m_eStatsUsageFlags = ""
+			}
+			StaminaRegenReductionDuration = 
+			{
+				m_strValue = "5"
+			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
@@ -5987,6 +6004,16 @@
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_HIDDEN | CITADEL_ABILITY_BEHAVIOR_DONT_BREAK_INVISIBILITY | CITADEL_ABILITY_BEHAVIOR_SILENT_CAST_FAILURE_FEEDBACK | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SPRINT | CITADEL_ABILITY_BEHAVIOR_INPUT_DIRECTIONAL_2D | CITADEL_ABILITY_BEHAVIOR_NOT_SILENCABLE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_NON_COMBAT | CITADEL_ABILITY_BEHAVIOR_CASTABLE_WHILE_HIDDEN"
+		m_DebuffModifier = subclass:
+		{
+			m_bIsHidden = true
+			_class = "modifier_base"
+			_my_subclass_name = "modifier_wall_jump_stamina_regen_reduction"
+			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
+			[
+				"StaminaRegenReduction",
+			]
+		}
 		m_flDashJumpEndTime = 0.5
 		m_flDashJumpMissMaxSpeed = 250.0
 		m_flDashJumpStartTime = 0.3
@@ -6336,6 +6363,13 @@
 				m_bCanSetTokenOverride = true
 				m_eProvidedPropertyType = "MODIFIER_VALUE_WEAPON_POWER"
 			}
+			StaminaRegenReduction = 
+			{
+				m_strValue = "0"
+				m_eDisplayType = "EStaminaRegenPercent"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_STAMINA_REGEN_PER_SECOND_PERCENTAGE"
+				m_eStatsUsageFlags = ""
+			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
@@ -6382,6 +6416,15 @@
 		m_flSlideLockoutTime = 0.3
 		m_flGroundDashAirbornDrag = 0.7
 		m_WallJumpParticle = resource_name:"particles/generic/wall_jump.vpcf"
+		m_AutoIntrinsicModifiers = 
+		[
+			subclass:
+			{
+				_class = "modifier_stamina_regen_jump_reduction"
+				_my_subclass_name = "modifier_stamina_regen_jump_reduction"
+				m_bIsHidden = true
+			},
+		]
 		m_cameraSequenceGroundDashActivate = 
 		{
 			m_vecTargetPosOperations = 
@@ -7452,6 +7495,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -8223,6 +8278,18 @@
 					m_eHintSide = "EButtonSide_Bottom"
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
 				},
 			]
 		}
@@ -8996,6 +9063,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -9767,6 +9846,18 @@
 					m_eHintSide = "EButtonSide_Bottom"
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
 				},
 			]
 		}
@@ -10540,6 +10631,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -11312,6 +11415,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -12083,6 +12198,18 @@
 					m_eHintSide = "EButtonSide_Bottom"
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
 				},
 			]
 		}
@@ -24222,6 +24349,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -24993,6 +25132,18 @@
 					m_eHintSide = "EButtonSide_Bottom"
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
 				},
 			]
 		}
@@ -25879,7 +26030,7 @@
 			m_AimingShootSpreadPenalty = [ 0.0, 0.5 ]
 			m_flRecoilShotIndexRecoveryTimePerShot = 0.2
 			m_strBulletImpactSound = soundevent:"Holliday.Wpn.Impact"
-			m_flBulletDamage = 18.8
+			m_flBulletDamage = 19.7
 			m_strFirstShotSound = soundevent:"Holliday.Wpn.Fire.First"
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -27708,6 +27859,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -27973,7 +28136,7 @@
 				m_strValue = "0.4"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Astro"
@@ -27983,7 +28146,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -28356,7 +28519,7 @@
 				}
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Astro"
@@ -28366,7 +28529,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -29041,7 +29204,7 @@
 				m_bIsAbilityDamageProperty = true
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Astro"
@@ -29099,7 +29262,7 @@
 			m_flMaxLagCompensation = 0.12
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"ultimate_base",
@@ -31944,6 +32107,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -32398,6 +32573,8 @@
 			m_sLocalizationName = "modifier_charge_drag_enemy"
 			m_nEnabledStateMask = "MODIFIER_STATE_ABILITY_MOVEMENT_DEBUFF | MODIFIER_STATE_IGNORE_PORTALS"
 			m_bIsHidden = true
+			m_bDurationReducible = false
+			m_bDurationReducibleByCrowdControlDiminish = false
 			m_flVerticalOffset = 30
 			m_flForwardOffset = 120
 			m_cameraSequenceCreated = 
@@ -32660,6 +32837,22 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_STATUS_RESISTANCE"
 				m_eStatsUsageFlags = ""
 			}
+			MeleeLifesteal = 
+			{
+				m_strValue = "0"
+				m_strCSSClass = "healing"
+				m_eDisplayType = "EBulletLifesteal"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "BulletLifestealPercent_scale_function"
+					m_eSpecificStatScaleType = "EHealingOutput"
+				}
+			}
+			NonHeroHealPct = 
+			{
+				m_strValue = "40"
+			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
@@ -32690,7 +32883,7 @@
 		m_iUpdateTime = 1647302636
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PASSIVE"
-		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_FRIENDLY"
+		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/bull_beef.psd"
 		m_vecAbilityUpgrades = 
 		[
@@ -32698,8 +32891,8 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "BonusHealthRegen"
-						m_strBonus = "1.5"
+						m_strPropertyName = "BonusMaxHealth"
+						m_strBonus = "200"
 					},
 				]
 			},
@@ -32707,8 +32900,8 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "BonusMaxHealth"
-						m_strBonus = "200"
+						m_strPropertyName = "MeleeLifesteal"
+						m_strBonus = "18"
 					},
 				]
 			},
@@ -32728,6 +32921,18 @@
 		]
 		m_AutoIntrinsicModifiers = 
 		[
+			subclass:
+			{
+				_class = "modifier_infernal_resilience_melee"
+				_my_subclass_name = "modifier_infernal_resilience_melee"
+				m_bIsHidden = true
+				m_SwingParticle = resource_name:"particles/upgrades/melee_lifestrike.vpcf"
+				m_HitParticle = resource_name:"particles/upgrades/melee_lifestrike_impact.vpcf"
+				m_vecProcDamageTypes = 
+				[
+					"CITADEL_DAMAGETYPE_MELEE",
+				]
+			},
 			subclass:
 			{
 				_class = "modifier_intrinsic_base"
@@ -32765,6 +32970,7 @@
 					[
 						"BonusHealthRegen",
 						"BonusMaxHealth",
+						"MeleeLifesteal",
 					]
 				},
 			]
@@ -33040,7 +33246,7 @@
 				[
 					{
 						m_strPropertyName = "StunDuration"
-						m_strBonus = 0.7
+						m_strBonus = 0.8
 					},
 				]
 			},
@@ -33049,7 +33255,7 @@
 				[
 					{
 						m_strPropertyName = "ImmunityDuration"
-						m_strBonus = "5"
+						m_strBonus = "6"
 					},
 					{
 						m_strPropertyName = "ImpactRadius"
@@ -34768,6 +34974,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -35159,7 +35377,7 @@
 					},
 					{
 						m_strPropertyName = "BuffBaseWeaponPct"
-						m_strBonus = "40"
+						m_strBonus = "30"
 					},
 				]
 			},
@@ -35750,7 +35968,7 @@
 				[
 					{
 						m_strPropertyName = "Damage"
-						m_strBonus = 75
+						m_strBonus = 85
 					},
 				]
 			},
@@ -38281,6 +38499,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -40460,6 +40690,18 @@
 					m_eHintSide = "EButtonSide_Bottom"
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
 				},
 			]
 		}
@@ -42907,6 +43149,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -43536,7 +43790,7 @@
 				}
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Chrono"
@@ -43546,7 +43800,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -43583,7 +43837,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityDuration"
-						m_strBonus = 2.5
+						m_strBonus = 3.5
 					},
 				]
 			},
@@ -43605,11 +43859,11 @@
 				[
 					{
 						m_strPropertyName = "AbilityCharges"
-						m_strBonus = "2"
+						m_strBonus = "3"
 					},
 					{
 						m_strPropertyName = "AbilityCooldownBetweenCharge"
-						m_strBonus = "4"
+						m_strBonus = "2"
 					},
 				]
 			},
@@ -44012,7 +44266,7 @@
 					},
 					{
 						m_strPropertyName = "MaxBonusBulletDamage"
-						m_strBonus = "50"
+						m_strBonus = "55"
 						m_eUpgradeType = "EAddToScale"
 						m_eScaleStatFilter = "EWeaponPower"
 					},
@@ -44274,7 +44528,7 @@
 			}
 			SwapDamage = 
 			{
-				m_strValue = 125.0
+				m_strValue = 150.0
 				m_strCSSClass = "tech_damage"
 				m_subclassScaleFunction = subclass:
 				{
@@ -44334,7 +44588,7 @@
 				}
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Chrono"
@@ -44369,7 +44623,7 @@
 			m_bDontPassThroughPortals = true
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"ultimate_base",
@@ -45534,6 +45788,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -45727,7 +45993,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "Damage_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 1.65
+					m_flStatScale = 1.55
 				}
 				m_bIsAbilityDamageProperty = true
 			}
@@ -45881,7 +46147,7 @@
 				[
 					{
 						m_strPropertyName = "BulletResistReduction"
-						m_strBonus = "-18"
+						m_strBonus = "-15"
 					},
 					{
 						m_strPropertyName = "SlowPercent"
@@ -46158,7 +46424,7 @@
 			{
 				m_strValue = "1"
 			}
-			DispelDebuffs = 
+			ReduceDebuffs = 
 			{
 				m_strValue = "0"
 			}
@@ -46347,8 +46613,8 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "DispelDebuffs"
-						m_strBonus = "1"
+						m_strPropertyName = "ReduceDebuffs"
+						m_strBonus = "50"
 					},
 					{
 						m_strPropertyName = "ChargeReplenish"
@@ -46871,14 +47137,8 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "HealingPerSecond_scale_function"
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
 					m_flStatScale = 0.4
 				}
 			}
@@ -46933,7 +47193,7 @@
 				}
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Dynamo"
@@ -46943,7 +47203,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -48502,6 +48762,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -48683,7 +48955,7 @@
 			}
 			HealRadius = 
 			{
-				m_strValue = "5.5m"
+				m_strValue = "6m"
 				m_strCSSClass = "distance"
 				m_subclassScaleFunction = subclass:
 				{
@@ -48699,15 +48971,9 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "regen_scale_function"
-					m_eSpecificStatScaleType = "ETechPower"
 					m_flStatScale = 0.3
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
 				}
 			}
 			TurretHealMult = 
@@ -49690,7 +49956,7 @@
 				}
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Forge"
@@ -49700,7 +49966,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -50490,7 +50756,7 @@
 		m_iUpdateTime = 1688595425
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_GROUND"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_EXCLUSIVE_USE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED | CITADEL_ABILITY_BEHAVIOR_CAN_CANCEL_DURING_CAST_DELAY | CITADEL_ABILITY_BEHAVIOR_DEACTIVATE_CROUCH_TOGGLE_ON_CAST | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_REQUIRE_ABILITY_BUTTON_TO_CANCEL | CITADEL_ABILITY_BEHAVIOR_DONT_SWITCH_AWAY_ON_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_EXCLUSIVE_USE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_CLEAVE_DISABLED | CITADEL_ABILITY_BEHAVIOR_DEACTIVATE_CROUCH_TOGGLE_ON_CAST | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_REQUIRE_ABILITY_BUTTON_TO_CANCEL | CITADEL_ABILITY_BEHAVIOR_DONT_SWITCH_AWAY_ON_CAST | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_eAbilitySpectatePriority = "CITADELTV_ABILITY_SPECTATE_PRIORITY_MEDIUM"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/engineer_rockets.psd"
@@ -52782,6 +53048,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -54778,6 +55056,18 @@
 					m_eHintSide = "EButtonSide_Bottom"
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
 				},
 			]
 		}
@@ -57535,6 +57825,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -57767,7 +58069,7 @@
 				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Gigawatt"
@@ -57777,7 +58079,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -58981,7 +59283,7 @@
 				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Gigawatt"
@@ -58991,7 +59293,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -60590,6 +60892,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -60933,7 +61247,6 @@
 				}
 			}
 			m_strBulletLoopingSound = soundevent:"Haze.Finesse.Dagger.Projectile.Lp"
-			m_strBulletImpactSound = soundevent:"Haze.Finesse.Dagger.Projectile.Hit"
 			m_strBulletWhizSound = soundevent:"Haze.Finesse.Dagger.Projectile.Whizby"
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -61096,6 +61409,7 @@
 		m_strAG2CastingAction = "dagger_casting"
 		m_strAG2CastCompletedAction = "dagger_cast_completed"
 		m_strAG2ChannelingAction = "dagger_channeling"
+		m_strHitConfirmationSound = soundevent:"Haze.Finesse.Dagger.Projectile.Hit"
 	}
 	ability_smoke_bomb = 
 	{
@@ -61752,7 +62066,7 @@
 				[
 					{
 						m_strPropertyName = "DamageBonusFixedPerStack"
-						m_strBonus = "0.12"
+						m_strBonus = "0.14"
 					},
 				]
 			},
@@ -62076,7 +62390,7 @@
 		{
 			_class = "modifier_citadel_bullet_flurry"
 			_my_subclass_name = "modifier_citadel_bullet_flurry"
-			m_strParticleEffect = resource_name:"particles/abilities/haze/haze_flurry.vpcf"
+			m_strParticleEffect = resource_name:""
 			m_sStartSound = soundevent:"Haze.BulletFlurry.Modifier.Start"
 			m_sAmbientLoopingSound = soundevent:"Haze.BulletFlurry.Modifier.Lp"
 			m_sExpiredSound = soundevent:"Haze.BulletFlurry.Modifier.End"
@@ -62108,7 +62422,6 @@
 			}
 		}
 		m_strCastDelaySound = soundevent:"Haze.BulletFlurry.Cast.Delay"
-		m_strCastAnimGraphParam = "e_BulletFlurry"
 		m_cameraSequenceChannelStart = 
 		{
 			m_vecDistanceOperations = 
@@ -63220,6 +63533,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -64051,7 +64376,7 @@
 				m_strValue = "0"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Hornet"
@@ -64061,7 +64386,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -64427,7 +64752,7 @@
 				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Hornet"
@@ -64468,7 +64793,7 @@
 			m_szBulletTravelTracerParticle = resource_name:"particles/abilities/hornet/hornet_dagger.vpcf"
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -65332,7 +65657,7 @@
 			m_iBurstShotCount = 1
 			m_flBurstShotCooldown = 0
 			m_flBulletGravityScale = 0.8
-			m_flBulletRadius = 3
+			m_flBulletRadius = 4
 			m_flBulletReflectScale = 0
 			m_flBulletReflectAmount = 1
 			m_flBulletInheritShooterVelocityScale = 0
@@ -66174,6 +66499,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -66507,7 +66844,7 @@
 				[
 					{
 						m_strPropertyName = "StunDuration"
-						m_strBonus = "0.75"
+						m_strBonus = "0.9"
 					},
 					{
 						m_strPropertyName = "Radius"
@@ -67359,7 +67696,7 @@
 				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Inferno"
@@ -67369,7 +67706,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -68934,6 +69271,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -69129,7 +69478,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "DPS_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.5
+					m_flStatScale = 0.38
 				}
 				m_bIsAbilityDamageProperty = true
 			}
@@ -69662,7 +70011,7 @@
 				m_eStatsUsageFlags = "IntrinsicallyProvidedInAbility"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Kelvin"
@@ -69672,7 +70021,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -69996,7 +70345,7 @@
 				{
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "Damage_scale_function"
-					m_flStatScale = 0.7
+					m_flStatScale = 0.6
 				}
 				m_bIsAbilityDamageProperty = true
 			}
@@ -70024,14 +70373,8 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "HealAmount_scale_function"
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
 					m_flStatScale = 0.8
 				}
 			}
@@ -70353,14 +70696,8 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "BonusHealthRegen_scale_function"
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
 					m_flStatScale = 0.0
 				}
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_REGEN_PER_SECOND"
@@ -71608,6 +71945,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -71916,6 +72265,10 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
+						m_strPropertyName = "AbilityCharges"
+						m_strBonus = "1"
+					},
+					{
 						m_strPropertyName = "RestoreStaminaOnUse"
 						m_strBonus = "1"
 					},
@@ -71933,7 +72286,6 @@
 		{
 			_class = "modifier_base"
 			_my_subclass_name = "modifier_grapple_buff"
-			m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 			m_sLocalizationName = "lash_grapple_buff"
 			m_bIsHidden = true
 			m_strParticleEffect = resource_name:"particles/abilities/lash/lash_pull_weapon_buff.vpcf"
@@ -72155,8 +72507,8 @@
 				{
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "StompDamagePerMeterPrimary_scale_function"
-					m_flStatScale = 0.0372
-					m_flStreetBrawlStatScale = 0.03348
+					m_flStatScale = 0.04
+					m_flStreetBrawlStatScale = 0.035
 				}
 				m_bIsAbilityDamageProperty = true
 			}
@@ -72343,7 +72695,7 @@
 			m_strParticleEffect = resource_name:""
 			m_strScreenParticleEffect = resource_name:""
 		}
-		m_strFallCollideImpactSound = soundevent:"Ability.Bull.Charge.HitEnemy"
+		m_strFallCollideImpactSound = soundevent:"Lash.GroundStrike.Fall.Collide"
 		m_TargetPreviewParticle = resource_name:"particles/abilities/lash/lash_ground_strike_preview_cone_projection_v2.vpcf"
 		m_strGroundCastAnimGraphParam = ""
 		m_strAirCastAnimGraphParam = ""
@@ -73114,7 +73466,7 @@
 				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Lash"
@@ -73124,7 +73476,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -74276,6 +74628,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -75419,7 +75783,7 @@
 				m_strValue = "100"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Mirage"
@@ -75444,7 +75808,7 @@
 			m_flVerticalAimBias = 2.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -76977,6 +77341,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -77224,7 +77600,7 @@
 				}
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Mo and Krill"
@@ -77234,7 +77610,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -78010,7 +78386,7 @@
 				m_strValue = "0"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Mo and Krill"
@@ -78020,7 +78396,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -78093,7 +78469,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityDuration"
-						m_strBonus = 1.0
+						m_strBonus = 1.5
 					},
 				]
 			},
@@ -80659,6 +81035,18 @@
 					m_eHintSide = "EButtonSide_Bottom"
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
 				},
 			]
 		}
@@ -84105,8 +84493,27 @@
 				m_strValue = "0"
 				m_strCSSClass = "tech_damage"
 			}
+			MeleeResistReduction = 
+			{
+				m_strValue = "0"
+				m_strCSSClass = "bullet_armor_down"
+				m_eDisplayType = "EMeleeResist"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_MELEE_DAMAGE_INCREASE_PERCENT"
+				m_eStatsUsageFlags = "ConditionallyApplied"
+			}
+			MeleeResistReductionDuration = 
+			{
+				m_strValue = "0"
+				m_strCSSClass = "duration"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "MeleeResistReductionDuration_scale_function"
+					m_eSpecificStatScaleType = "ETechDuration"
+				}
+			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Nano"
@@ -84116,7 +84523,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -84174,8 +84581,12 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "BonusDamageVsBarrier"
-						m_strBonus = "75"
+						m_strPropertyName = "MeleeResistReduction"
+						m_strBonus = "5"
+					},
+					{
+						m_strPropertyName = "MeleeResistReductionDuration"
+						m_strBonus = "5"
 					},
 				]
 			},
@@ -84189,6 +84600,20 @@
 				]
 			},
 		]
+		m_DebuffModifier = subclass:
+		{
+			_class = "modifier_base"
+			_my_subclass_name = "modifier_nano_gloom_bomb_debuff"
+			m_bIsHidden = true
+			m_strSmallIconCssClass = "bullet_armor_reduction"
+			m_sLocalizationName = "modifier_bullet_armor_reduction"
+			m_strParticleEffect = resource_name:"particles/modifiers/armor_suppressor.vpcf"
+			m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
+			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
+			[
+				"MeleeResistReduction",
+			]
+		}
 		m_strMoviePreviewPath = "file://{resources}/videos/hero_abilities/nano_cluster_grenade.webm"
 		m_AbilityTooltipDetails = 
 		{
@@ -84838,15 +85263,9 @@
 				m_strValue = "40"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					m_flStatScale = 1.4
 					_my_subclass_name = "heal_amount_sf"
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
 				}
 				m_eDisplayType = "EBaseHealthRegen"
 				m_strCSSClass = "healing"
@@ -86172,6 +86591,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -86659,7 +87090,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 30.0
+				m_strValue = 22.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -86672,7 +87103,7 @@
 			}
 			AbilityDuration = 
 			{
-				m_strValue = "7"
+				m_strValue = "4"
 				m_strDisableValue = "0"
 				m_strCSSClass = "duration"
 				m_bCanSetTokenOverride = true
@@ -86703,7 +87134,7 @@
 			}
 			AbilityCastDelay = 
 			{
-				m_strValue = "0.5"
+				m_strValue = "0.2"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cast"
 				m_bCanSetTokenOverride = true
@@ -86816,7 +87247,7 @@
 			}
 			WeaponDamageBonus = 
 			{
-				m_strValue = "4"
+				m_strValue = "3"
 				m_strCSSClass = "bullet_damage"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_ATTACK_DAMAGE_ADDITIVE_ONLY"
 				m_eStatsUsageFlags = "ConditionallyApplied"
@@ -86841,12 +87272,12 @@
 			}
 			FallSpeedMax = 
 			{
-				m_strValue = "15"
+				m_strValue = "25"
 				m_eDisplayUnits = "EDisplayUnit_MetersPerSecond"
 			}
 			AirSpeedMax = 
 			{
-				m_strValue = "161.417"
+				m_strValue = "261.417"
 				m_eDisplayUnits = "EDisplayUnit_MetersPerSecond"
 			}
 			BulletSplitShot = 
@@ -86884,9 +87315,16 @@
 			}
 			AirMoveIncreasePercent = 
 			{
-				m_strValue = "-9"
+				m_strValue = "25"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_AIR_MOVE_DISTANCE_INCREASE_PERCENT"
 				m_eStatsUsageFlags = "ConditionallyApplied"
+			}
+			BonusStamina = 
+			{
+				m_strValue = "0"
+				m_eDisplayType = "EStamina"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_STAMINA"
+				m_eStatsUsageFlags = ""
 			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -86928,8 +87366,16 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -14.0
+						m_strPropertyName = "WeaponDamageBonus"
+						m_strBonus = "3"
+					},
+					{
+						m_strPropertyName = "SlowPercent"
+						m_strBonus = "30"
+					},
+					{
+						m_strPropertyName = "SlowDuration"
+						m_strBonus = "1.5"
 					},
 				]
 			},
@@ -86937,16 +87383,8 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "WeaponDamageBonus"
-						m_strBonus = "5"
-					},
-					{
-						m_strPropertyName = "SlowPercent"
-						m_strBonus = "40"
-					},
-					{
-						m_strPropertyName = "SlowDuration"
-						m_strBonus = "1.5"
+						m_strPropertyName = "AbilityCooldown"
+						m_strBonus = -13.0
 					},
 				]
 			},
@@ -87023,6 +87461,7 @@
 				"BulletLifestealPercent",
 				"TechLifestealPercent",
 				"EvasionPercent",
+				"BonusStamina",
 			]
 			m_AG2HeroState = 
 			{
@@ -89259,6 +89698,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -89954,7 +90405,7 @@
 				[
 					{
 						m_strPropertyName = "TechArmorDamageReduction"
-						m_strBonus = "-8"
+						m_strBonus = "-6"
 					},
 					{
 						m_strPropertyName = "DashRange"
@@ -90272,7 +90723,7 @@
 			}
 			DeferClearPct = 
 			{
-				m_strValue = "40"
+				m_strValue = "35"
 				m_strCSSClass = "healing"
 			}
 			DamagePctDeferredMaxRage = 
@@ -90336,7 +90787,7 @@
 				[
 					{
 						m_strPropertyName = "DeferClearPct"
-						m_strBonus = "45"
+						m_strBonus = "50"
 					},
 				]
 			},
@@ -90425,7 +90876,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 105.0
+				m_strValue = 125.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -90587,7 +91038,7 @@
 			}
 			BuffDamage = 
 			{
-				m_strValue = "14"
+				m_strValue = "12"
 				m_strCSSClass = "damage"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_DAMAGE_PERCENT"
 				m_eStatsUsageFlags = "ConditionallyApplied"
@@ -90702,7 +91153,11 @@
 				[
 					{
 						m_strPropertyName = "BuffDamage"
-						m_strBonus = "8"
+						m_strBonus = "10"
+					},
+					{
+						m_strPropertyName = "AbilityCooldown"
+						m_strBonus = "-30"
 					},
 				]
 			},
@@ -91948,6 +92403,18 @@
 					m_eHintSide = "EButtonSide_Bottom"
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
 				},
 			]
 		}
@@ -95221,7 +95688,7 @@
 				}
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Synth"
@@ -95231,7 +95698,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -95296,7 +95763,7 @@
 					},
 					{
 						m_strPropertyName = "WeaponDamageBonusDuration"
-						m_strBonus = "8"
+						m_strBonus = "6"
 					},
 				]
 			},
@@ -96151,7 +96618,7 @@
 				}
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Synth"
@@ -96263,7 +96730,7 @@
 			m_strBulletImpactSound = soundevent:"Pocket.Barrage.Proj.Impact"
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_SHOOTING_DISABLED"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -96424,7 +96891,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 140.0
+				m_strValue = 150.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -97809,6 +98276,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -98010,14 +98489,8 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BULLET_LIFESTEAL"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "BulletLifestealPercent_scale_function"
-					m_vecScalingStats = 
-					[
-						"EHealingOutput",
-						"ETechPower",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
 					m_flStatScale = 0.15
 				}
 				m_eStatsUsageFlags = "ConditionallyApplied"
@@ -98315,6 +98788,7 @@
 			]
 		}
 		m_strCastSound = soundevent:"Ivy.Tether.Cast"
+		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 	}
 	citadel_ability_tangotether_trigger = 
 	{
@@ -100820,6 +101294,18 @@
 					m_eHintSide = "EButtonSide_Bottom"
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
 				},
 			]
 		}
@@ -104032,6 +104518,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -104632,14 +105130,8 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_REGEN_PER_SECOND"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "HealMaxHealthPercent_scale_function"
-					m_vecScalingStats = 
-					[
-						"EHealingOutput",
-						"ETechPower",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
 					m_flStatScale = 0.3
 				}
 			}
@@ -104958,6 +105450,7 @@
 			m_nEnabledStateMask = "MODIFIER_STATE_DO_NOT_DRAW_MODEL"
 		}
 		m_RestorativeGooSelfParticle = resource_name:"particles/abilities/viscous/viscous_restorative_goo_start.vpcf"
+		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 	}
 	viscous_goo_bowling_ball = 
 	{
@@ -105667,6 +106160,18 @@
 				m_strValue = "30"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_AIR_CONTROL_PERCENT"
 			}
+			LifeStealPercentOnHit = 
+			{
+				m_strValue = "0"
+				m_strCSSClass = "healing"
+				m_eDisplayType = "EBulletLifesteal"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "BulletLifestealPercent_scale_function"
+					m_eSpecificStatScaleType = "EHealingOutput"
+				}
+			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
@@ -105745,6 +106250,7 @@
 					m_vecBasicProperties = 
 					[
 						"ImpactDuration",
+						"LifeStealPercentOnHit",
 					]
 				},
 			]
@@ -105776,6 +106282,10 @@
 						m_strPropertyName = "AbilityCharges"
 						m_strBonus = "1"
 					},
+					{
+						m_strPropertyName = "Damage"
+						m_strBonus = "20"
+					},
 				]
 			},
 			{
@@ -105786,8 +106296,8 @@
 						m_strBonus = "1.5m"
 					},
 					{
-						m_strPropertyName = "Damage"
-						m_strBonus = "30"
+						m_strPropertyName = "LifeStealPercentOnHit"
+						m_strBonus = "40"
 					},
 				]
 			},
@@ -105809,7 +106319,7 @@
 					},
 					{
 						m_strPropertyName = "DamageHeavyMelee"
-						m_strBonus = "50"
+						m_strBonus = "45"
 					},
 					{
 						m_strPropertyName = "Damage"
@@ -105818,7 +106328,7 @@
 					},
 					{
 						m_strPropertyName = "Damage"
-						m_strBonus = -50.0
+						m_strBonus = -45.0
 					},
 				]
 			},
@@ -106883,6 +107393,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -107229,10 +107751,6 @@
 					{
 						m_strPropertyName = "ImmobilizeDuration"
 						m_strBonus = "0.75"
-					},
-					{
-						m_strPropertyName = "AbilityCastRange"
-						m_strBonus = "12m"
 					},
 				]
 			},
@@ -107776,7 +108294,7 @@
 				m_strValue = "0"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Warden"
@@ -107786,7 +108304,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -109368,6 +109886,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -110731,13 +111261,7 @@
 				m_strValue = "75"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
-					m_eSpecificStatScaleType = "ETechPower"
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
+					_class = "scale_function_healing_spirit_scale"
 					m_flStatScale = 1.0
 					_my_subclass_name = "heart_heal_sf"
 				}
@@ -112003,6 +112527,18 @@
 					m_eHintSide = "EButtonSide_Bottom"
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
 				},
 			]
 		}
@@ -115853,6 +116389,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -115977,7 +116525,7 @@
 			}
 			AbilityPostCastDuration = 
 			{
-				m_strValue = "0.4"
+				m_strValue = "0.2"
 				m_strDisableValue = "0"
 			}
 			AbilityCharges = 
@@ -116062,7 +116610,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "FullChargeDamage_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 1.86
+					m_flStatScale = 2.1
 				}
 				m_bIsAbilityDamageProperty = true
 			}
@@ -116351,7 +116899,7 @@
 			}
 			AbilityCastRange = 
 			{
-				m_strValue = "25m"
+				m_strValue = "30m"
 				m_eDisplayUnits = "EDisplayUnit_Meters"
 				m_strCSSClass = "range"
 				m_bCanSetTokenOverride = true
@@ -116583,10 +117131,6 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "AbilityCastRange"
-						m_strBonus = "20m"
-					},
-					{
 						m_strPropertyName = "SpiritBonus"
 						m_strBonus = "40"
 					},
@@ -116600,12 +117144,16 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
+						m_strPropertyName = "AbilityCastRange"
+						m_strBonus = "15m"
+					},
+					{
 						m_strPropertyName = "CanGrappleAllyHeroes"
 						m_strBonus = "1"
 					},
 					{
 						m_strPropertyName = "AbilityCharges"
-						m_strBonus = "2"
+						m_strBonus = "3"
 					},
 					{
 						m_strPropertyName = "AbilityCooldownBetweenCharge"
@@ -116990,15 +117538,9 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "HealFixedHealth_scale_function"
 					m_flStatScale = 1.035871
-					m_eSpecificStatScaleType = "ETechPower"
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
 				}
 			}
 			HealMaxHealth = 
@@ -117448,7 +117990,7 @@
 				[
 					{
 						m_strPropertyName = "WeaponDamageBonus"
-						m_strBonus = 5
+						m_strBonus = 7
 					},
 				]
 			},
@@ -118685,6 +119227,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -119732,7 +120286,7 @@
 				m_strValue = "5"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM | MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
 		{
 			folder_name = "Hero Viper"
@@ -119742,7 +120296,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -120095,7 +120649,7 @@
 				m_eDisplayUnits = "EDisplayUnit_Meters"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Viper"
@@ -120105,7 +120659,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"ultimate_base",
@@ -120900,7 +121454,7 @@
 					},
 					{
 						m_strPropertyName = "BulletResistReductionPerStack"
-						m_strBonus = "-5"
+						m_strBonus = "-6"
 					},
 				]
 			},
@@ -120910,6 +121464,10 @@
 					{
 						m_strPropertyName = "CooldownRefundPercent"
 						m_strBonus = "55"
+					},
+					{
+						m_strPropertyName = "MaxStacks"
+						m_strBonus = "2"
 					},
 				]
 			},
@@ -122585,6 +123143,18 @@
 					m_eHintSide = "EButtonSide_Bottom"
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
 				},
 			]
 		}
@@ -124862,6 +125432,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -125145,7 +125727,7 @@
 				m_strValue = "0.1"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION | MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Magician"
@@ -125263,7 +125845,7 @@
 			m_strSpinUpLoopSound = soundevent:""
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -127065,14 +127647,8 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "BonusHealthRegen_scale_function"
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
 					m_flStatScale = 0.0
 				}
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_REGEN_PER_SECOND"
@@ -129943,6 +130519,18 @@
 					m_eHintSide = "EButtonSide_Bottom"
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
 				},
 			]
 		}
@@ -137211,6 +137799,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -137789,7 +138389,7 @@
 				m_bCanSetTokenOverride = true
 				m_eProvidedPropertyType = "MODIFIER_VALUE_WEAPON_POWER"
 			}
-			Damage = 
+			MagicDamagePerBullet = 
 			{
 				m_strValue = "4"
 				m_subclassScaleFunction = subclass:
@@ -137939,7 +138539,7 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "Damage"
+						m_strPropertyName = "MagicDamagePerBullet"
 						m_strBonus = 3.0
 					},
 					{
@@ -137953,7 +138553,7 @@
 				[
 					{
 						m_strPropertyName = "PerTargetCooldown"
-						m_strBonus = "-4"
+						m_strBonus = "-5"
 					},
 					{
 						m_strPropertyName = "BonusFireRate"
@@ -137978,7 +138578,7 @@
 							m_vecAbilityProperties = 
 							[
 								{
-									m_strImportantProperty = "Damage"
+									m_strImportantProperty = "MagicDamagePerBullet"
 								},
 							]
 						},
@@ -138440,7 +139040,7 @@
 				[
 					{
 						m_strPropertyName = "CurrentHealthPercent"
-						m_strBonus = 1.0
+						m_strBonus = 0.5
 					},
 				]
 			},
@@ -139566,14 +140166,6 @@
 			{
 				m_strValue = "60"
 			}
-			ExtraSweepOffsetBehindCaster = 
-			{
-				m_strValue = "-1.5m"
-			}
-			ExtraSweepRange = 
-			{
-				m_strValue = "2m"
-			}
 			FallSpeedMax = 
 			{
 				m_strValue = "3"
@@ -139595,7 +140187,7 @@
 				m_strValue = "4.0"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_SHOOTING_DISABLED | MODIFIER_STATE_MELEE_DISABLED"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM | MODIFIER_STATE_SHOOTING_DISABLED | MODIFIER_STATE_MELEE_DISABLED"
 		_editor = 
 		{
 			folder_name = "Hero VampireBat"
@@ -139695,7 +140287,7 @@
 			m_flBulletRadiusVsWorld = 0.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -139714,7 +140306,7 @@
 		m_iUpdateTime = 0
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST | CITADEL_ABILITY_BEHAVIOR_USE_LAG_COMPENSATION_FOR_UNIT_TARGETING"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/vampirebat/vampirebat_rake.psd"
@@ -139885,6 +140477,9 @@
 			}
 		}
 		m_strAG2CastingAction = "vampirebat_rake"
+		m_bCollectNearbyTargetsWithCone = true
+		m_flNearbySweepOffset = -59.0
+		m_flNearbySweepRadius = 78.0
 	}
 	citadel_weapon_vampirebat_set2 = 
 	{
@@ -141223,6 +141818,18 @@
 					m_eHintSide = "EButtonSide_Bottom"
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
 				},
 			]
 		}
@@ -144454,6 +145061,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -146504,6 +147123,18 @@
 					m_eHintSide = "EButtonSide_Bottom"
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
 				},
 			]
 		}
@@ -149056,6 +149687,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -151024,6 +151667,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -152185,7 +152840,7 @@
 			m_nRecoilSeed = 32152
 			m_AimingShootSpreadPenalty = [ 0.0, 0.2 ]
 			m_strBulletImpactSound = soundevent:"Frank.Wpn.Impact"
-			m_flBulletDamage = 13.0
+			m_flBulletDamage = 12.0
 			m_flBulletRadiusVsWorld = 1.0
 			m_bSpinsUp = true
 			m_strFirstShotSound = soundevent:"Frank.Wpn.Fire.First"
@@ -153005,6 +153660,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -153204,15 +153871,9 @@
 				m_strValue = "100"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "healingsf"
 					m_flStatScale = 1.2
-					m_eSpecificStatScaleType = "ETechPower"
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
 				}
 				m_strCSSClass = "healing"
 			}
@@ -153232,7 +153893,7 @@
 				m_eStatsUsageFlags = ""
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Frank"
@@ -153242,7 +153903,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -153298,7 +153959,7 @@
 					{
 						m_strPropertyName = "TotalHealthRegen"
 						m_eUpgradeType = "EAddToScale"
-						m_strBonus = "0.6"
+						m_strBonus = "0.9"
 						m_eScaleStatFilter = "ETechPower"
 					},
 					{
@@ -153716,7 +154377,7 @@
 		m_strAbilityOffCooldownSound = soundevent:""
 		m_strAbilityChargeReadySound = soundevent:""
 		m_skillshotMissParticle = resource_name:"particles/abilities/skillshot_default_miss_owner.vpcf"
-		m_flBossDamageScale = 1.0
+		m_flBossDamageScale = 0.5
 		m_iUpdateTime = 0
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST_TOGGLE"
@@ -154648,7 +155309,7 @@
 				}
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Frank"
@@ -154670,7 +155331,7 @@
 			m_strCustomAttachmentSource = "weapon_l_fx"
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -155894,6 +156555,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -156261,7 +156934,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-8"
+						m_strBonus = "-12"
 					},
 				]
 			},
@@ -157186,6 +157859,7 @@
 		m_strSelectedSound = soundevent:"Bookworm.Barrier.Select"
 		m_strUnselectedSound = soundevent:"Bookworm.Barrier.Unselect"
 		m_strHitConfirmationSound = soundevent:"Bookworm.Barrier.Shield.Start"
+		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 	}
 	ability_bookworm_knightcharge = 
 	{
@@ -157430,15 +158104,9 @@
 				m_strValue = "125"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					m_flStatScale = 1.6
 					_my_subclass_name = "healsf"
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
 				}
 				m_strCSSClass = "healing"
 			}
@@ -157582,7 +158250,7 @@
 				[
 					{
 						m_strPropertyName = "Damage"
-						m_strBonus = 135.0
+						m_strBonus = 160.0
 					},
 					{
 						m_strPropertyName = "StunDuration"
@@ -159489,6 +160157,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -159668,6 +160348,10 @@
 				m_strDisableValue = "0"
 				m_bCanSetTokenOverride = true
 				m_eProvidedPropertyType = "MODIFIER_VALUE_WEAPON_POWER"
+			}
+			DoorwayCloseCooldown = 
+			{
+				m_strValue = "8"
 			}
 			CombatBarrier = 
 			{
@@ -159939,7 +160623,7 @@
 			m_sStartSound = soundevent:"Doorman.Doorway.Barrier.Start"
 		}
 		m_flPlacementWallTestExtentsWallScale = 0.5
-		m_flPlacementWallTestExtentsSolidScale = 0.9
+		m_flPlacementWallTestExtentsSolidScale = 1.0
 		m_flPlacementWallTestSphereRadius = 10
 		m_strSingleDoorAbilityImage = panorama:"file://{images}/hud/abilities/doorman/doorman_doorway2.psd"
 		m_HUDPanel = 
@@ -160106,7 +160790,7 @@
 		m_iMaxLevel = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SPRINT | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_CASTABLE_WHILE_HIDDEN | CITADEL_ABILITY_BEHAVIOR_IGNORE_SELECTION_MASH_PROTECTION | CITADEL_ABILITY_BEHAVIOR_TRIGGER | CITADEL_ABILITY_BEHAVIOR_CASTABLE_WHILE_BUSY | CITADEL_ABILITY_BEHAVIOR_NOT_SILENCABLE"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SPRINT | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_CASTABLE_WHILE_HIDDEN | CITADEL_ABILITY_BEHAVIOR_IGNORE_SELECTION_MASH_PROTECTION | CITADEL_ABILITY_BEHAVIOR_TRIGGER | CITADEL_ABILITY_BEHAVIOR_CASTABLE_WHILE_BUSY"
 		m_eAbilitySpectatePriority = "CITADELTV_ABILITY_SPECTATE_PRIORITY_HIGH"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/doorman/doorman_doorwayclose.psd"
 		m_HUDPanel = 
@@ -160294,7 +160978,7 @@
 				m_strCSSClass = "tech_damage"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Doorman"
@@ -160304,7 +160988,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -160446,6 +161130,7 @@
 			m_nEnabledStateMask = "MODIFIER_STATE_IGNORE_PORTALS"
 			m_sStartSound = soundevent:""
 			m_bIsHidden = true
+			m_bDurationReducible = false
 			m_bDurationReducibleByCrowdControlDiminish = false
 		}
 		m_flStepDownHeight = 4.0
@@ -160805,7 +161490,7 @@
 			}
 			Radius = 
 			{
-				m_strValue = "6m"
+				m_strValue = "5.5m"
 				m_strCSSClass = "distance"
 				m_subclassScaleFunction = subclass:
 				{
@@ -160825,7 +161510,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "explosion_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 1.4
+					m_flStatScale = 1.3
 				}
 				m_bIsAbilityDamageProperty = true
 			}
@@ -160846,7 +161531,7 @@
 			}
 			DebuffAccuracy = 
 			{
-				m_strValue = "-100"
+				m_strValue = "-40"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_FIREARM_ACCURACY_PERCENTAGE"
 				m_strCSSClass = "fire_rate"
 			}
@@ -160886,7 +161571,7 @@
 				m_strValue = "1"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Doorman"
@@ -160897,7 +161582,7 @@
 			m_szBulletTravelTracerParticle = resource_name:"particles/abilities/chrono/chrono_time_bomb_projectile.vpcf"
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -160953,7 +161638,7 @@
 					},
 					{
 						m_strPropertyName = "Radius"
-						m_strBonus = "4m"
+						m_strBonus = "4.5m"
 					},
 					{
 						m_strPropertyName = "ImpactDamage"
@@ -161074,43 +161759,43 @@
 				[
 					{
 						x = 0.0
-						y = 0.0
-						m_flSlopeIncoming = 14.616891
-						m_flSlopeOutgoing = 14.616891
-					},
-					{
-						x = 0.068414
 						y = 1.0
-						m_flSlopeIncoming = 5.106918
-						m_flSlopeOutgoing = 0.431621
-					},
-					{
-						x = 0.164187
-						y = 0.838491
-						m_flSlopeIncoming = -3.407704
-						m_flSlopeOutgoing = -3.407704
-					},
-					{
-						x = 0.261207
-						y = 0.343019
-						m_flSlopeIncoming = -2.53426
-						m_flSlopeOutgoing = -2.53426
-					},
-					{
-						x = 0.495049
-						y = 0.0
-						m_flSlopeIncoming = -0.464233
-						m_flSlopeOutgoing = -0.464233
-					},
-					{
-						x = 1.0001
-						y = 0.0
 						m_flSlopeIncoming = 0.0
 						m_flSlopeOutgoing = 0.0
 					},
 					{
-						x = 1.0002
-						y = 0.0
+						x = 0.068414
+						y = 1.0
+						m_flSlopeIncoming = 0.0
+						m_flSlopeOutgoing = 0.340484
+					},
+					{
+						x = 0.189823
+						y = 1.0
+						m_flSlopeIncoming = 0.0
+						m_flSlopeOutgoing = 0.0
+					},
+					{
+						x = 0.318759
+						y = 1.0
+						m_flSlopeIncoming = 0.0
+						m_flSlopeOutgoing = 0.0
+					},
+					{
+						x = 0.540816
+						y = 1.0
+						m_flSlopeIncoming = 0.0
+						m_flSlopeOutgoing = 0.0
+					},
+					{
+						x = 0.873901
+						y = 1.0
+						m_flSlopeIncoming = 0.0
+						m_flSlopeOutgoing = 0.0
+					},
+					{
+						x = 1.0003
+						y = 1.0
 						m_flSlopeIncoming = 0.0
 						m_flSlopeOutgoing = 0.0
 					},
@@ -161138,11 +161823,11 @@
 						m_nOutgoingTangent = "CURVE_TANGENT_SPLINE"
 					},
 					{
-						m_nIncomingTangent = "CURVE_TANGENT_FREE"
+						m_nIncomingTangent = "CURVE_TANGENT_SPLINE"
 						m_nOutgoingTangent = "CURVE_TANGENT_SPLINE"
 					},
 					{
-						m_nIncomingTangent = "CURVE_TANGENT_SPLINE"
+						m_nIncomingTangent = "CURVE_TANGENT_FREE"
 						m_nOutgoingTangent = "CURVE_TANGENT_SPLINE"
 					},
 				]
@@ -163131,6 +163816,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -163458,7 +164155,7 @@
 				m_strValue = "50"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero PunkGoat"
@@ -163468,7 +164165,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -164318,7 +165015,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "30"
+				m_strValue = "32"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -164751,7 +165448,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityDuration"
-						m_strBonus = "0.3"
+						m_strBonus = "0.4"
 					},
 				]
 			},
@@ -164769,7 +165466,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -10
+						m_strBonus = -13
 					},
 				]
 			},
@@ -166903,6 +167600,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -167276,9 +167985,18 @@
 						m_strBonus = "2.3"
 					},
 					{
-						m_strPropertyName = "Damage"
-						m_strBonus = 0.4
+						m_strPropertyName = "UseHeavyMelee"
+						m_strBonus = "1"
+					},
+					{
+						m_strPropertyName = "DamageHeavyMelee"
+						m_strBonus = 0.55
 						m_eUpgradeType = "EAddToScale"
+					},
+					{
+						m_strPropertyName = "Damage"
+						m_strBonus = 0.0
+						m_eUpgradeType = "EMultiplyScale"
 					},
 				]
 			},
@@ -167595,7 +168313,7 @@
 				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Drifter"
@@ -167620,7 +168338,7 @@
 			m_strBulletWhizSound = soundevent:"Drifter.Stalkers.Mark.Whizby"
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -168156,14 +168874,8 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "HealOnKill_scale_function"
-					m_vecScalingStats = 
-					[
-						"EHealingOutput",
-						"ETechPower",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
 					m_flStatScale = 0.0
 				}
 			}
@@ -174010,7 +174722,7 @@
 			}
 			BonusSoulsPct = 
 			{
-				m_strValue = "170"
+				m_strValue = "180"
 			}
 			BonusHealth = 
 			{
@@ -174029,7 +174741,7 @@
 			}
 			BaseAttackDamagePercent = 
 			{
-				m_strValue = "8"
+				m_strValue = "10"
 				m_strCSSClass = "bullet_damage"
 				m_eDisplayUnits = "EDisplayUnit_Normal"
 				m_eDisplayType = "EBaseWeaponDamageIncrease"
@@ -174040,7 +174752,7 @@
 					_class = "scale_function_single_stat"
 					_my_subclass_name = "WeaponDamage_scale_function"
 					m_eSpecificStatScaleType = "ELevelUpBoons"
-					m_flStatScale = 0.7
+					m_flStatScale = 0.8
 				}
 			}
 			BonusAbilityCharges = 
@@ -174966,7 +175678,7 @@
 			}
 			ProcCooldown = 
 			{
-				m_strValue = "0.25"
+				m_strValue = "0.2"
 				m_strCSSClass = "cooldown"
 				m_subclassScaleFunction = subclass:
 				{
@@ -175256,7 +175968,7 @@
 			}
 			ProcCooldown = 
 			{
-				m_strValue = "0.25"
+				m_strValue = "0.2"
 				m_strCSSClass = "cooldown"
 				m_subclassScaleFunction = subclass:
 				{
@@ -175341,7 +176053,7 @@
 				m_eStatsUsageFlags = ""
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Weapon"
@@ -175367,7 +176079,7 @@
 			m_strWeaponImpactEffect = resource_name:"particles/upgrades/capacitor_impact.vpcf"
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"weapon_upgrade_t4",
@@ -176325,7 +177037,7 @@
 			}
 			TechPower = 
 			{
-				m_strValue = "7"
+				m_strValue = "4"
 				m_strDisableValue = "0"
 				m_bCanSetTokenOverride = true
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_POWER"
@@ -176482,6 +177194,14 @@
 					{
 						m_strPropertyName = "TechPower"
 						m_strBonus = "18"
+					},
+					{
+						m_strPropertyName = "BonusBulletSpeedPercent"
+						m_strBonus = "45"
+					},
+					{
+						m_strPropertyName = "BaseAttackDamagePercent"
+						m_strBonus = "15"
 					},
 				]
 			},
@@ -177347,7 +178067,7 @@
 			}
 			ParryCooldownReduction = 
 			{
-				m_strValue = "2"
+				m_strValue = "1.75"
 				m_eDisplayType = "ETechCooldown"
 				m_strCSSClass = "cooldown"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_PARRY_COOLDOWN_REDUCTION_FIXED"
@@ -177692,7 +178412,7 @@
 			}
 			SpiritPowerInnate = 
 			{
-				m_strValue = "8"
+				m_strValue = "5"
 				m_strCSSClass = "tech_damage"
 				m_eDisplayType = "ETechPower"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_POWER"
@@ -177992,7 +178712,7 @@
 			}
 			StatusResistancePercent = 
 			{
-				m_strValue = "20"
+				m_strValue = "22"
 				m_strCSSClass = "duration"
 				m_eDisplayType = "EDebuffResist"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_STATUS_RESISTANCE"
@@ -178032,7 +178752,7 @@
 			}
 			GroundDashReductionPercent = 
 			{
-				m_strValue = "-25"
+				m_strValue = "-22"
 				m_strCSSClass = "slow"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_GROUND_DASH_REDUCTION_PERCENT"
 				m_eStatsUsageFlags = "ConditionallyApplied"
@@ -179158,7 +179878,7 @@
 			}
 			GroundDashReductionPercent = 
 			{
-				m_strValue = "-25"
+				m_strValue = "-22"
 				m_strCSSClass = "slow"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_GROUND_DASH_REDUCTION_PERCENT"
 				m_eStatsUsageFlags = "ConditionallyApplied"
@@ -180768,7 +181488,7 @@
 			}
 			Radius = 
 			{
-				m_strValue = "30m"
+				m_strValue = "35m"
 				m_strCSSClass = "distance"
 				m_subclassScaleFunction = subclass:
 				{
@@ -180779,7 +181499,7 @@
 			}
 			ActiveRadius = 
 			{
-				m_strValue = "30m"
+				m_strValue = "35m"
 				m_strCSSClass = "distance"
 				m_subclassScaleFunction = subclass:
 				{
@@ -180976,6 +181696,7 @@
 			},
 		]
 		m_nAbilityTargetFlags = "CITADEL_UNIT_TARGET_FLAG_PENETRATE_INVULNERABLE | CITADEL_UNIT_TARGET_FLAG_ALLOW_SMALL_DEPLOYABLES"
+		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 	}
 	upgrade_armor_reduction_debuff = 
 	{
@@ -181898,7 +182619,7 @@
 				}
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Weapon"
@@ -181908,7 +182629,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"tech_upgrade_t3",
@@ -182482,7 +183203,7 @@
 			}
 			TechResist = 
 			{
-				m_strValue = "15"
+				m_strValue = "12"
 				m_eDisplayType = "ETechArmorDamageReduction"
 				m_strCSSClass = "tech_armor_up"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_ARMOR_DAMAGE_RESIST"
@@ -183680,7 +184401,7 @@
 			}
 			FervorStatusResistancePercent = 
 			{
-				m_strValue = "30"
+				m_strValue = "40"
 				m_strCSSClass = "duration"
 				m_eDisplayType = "EDebuffResist"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_STATUS_RESISTANCE"
@@ -184877,6 +185598,7 @@
 			}
 			BaseAttackDamagePercent = 
 			{
+				m_strValue = "10"
 				m_strCSSClass = "bullet_damage"
 				m_eDisplayUnits = "EDisplayUnit_Normal"
 				m_eDisplayType = "EBaseWeaponDamageIncrease"
@@ -184885,7 +185607,7 @@
 			}
 			LongRangeBonusWeaponPower = 
 			{
-				m_strValue = "70"
+				m_strValue = "60"
 				m_strCSSClass = "bullet_damage"
 				m_eDisplayUnits = "EDisplayUnit_Normal"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_LONG_RANGE_BONUS_BASE_DAMAGE_PERCENT"
@@ -184935,6 +185657,14 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_SPRINT_SPEED_BONUS"
 				m_eStatsUsageFlags = ""
 			}
+			BonusBulletSpeedPercent = 
+			{
+				m_strValue = "60"
+				m_eDisplayType = "EBulletSpeedIncrease"
+				m_strCSSClass = "bullet_damage"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_BONUS_BULLET_SPEED_PERCENT"
+				m_eStatsUsageFlags = ""
+			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
@@ -184967,6 +185697,7 @@
 		m_vecComponentItems = 
 		[
 			"upgrade_long_range",
+			"upgrade_high_velocity_mag",
 		]
 		m_strCSSClass = "longshot"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_weapon/longshot.psd"
@@ -184979,6 +185710,7 @@
 					{
 						m_vecAbilityProperties = 
 						[
+							"BonusBulletSpeedPercent",
 							"BaseAttackDamagePercent",
 							"BonusSprintSpeed",
 							"BonusMoveSpeed",
@@ -185025,6 +185757,8 @@
 					"BonusZoomPercent",
 					"BonusMoveSpeed",
 					"BonusSprintSpeed",
+					"BonusBulletSpeedPercent",
+					"BaseAttackDamagePercent",
 				]
 			},
 		]
@@ -185210,14 +185944,8 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_boon_scale"
 					_my_subclass_name = "HealPercentAmount_scale_function"
-					m_vecScalingStats = 
-					[
-						"EHealingOutput",
-						"ELevelUpBoons",
-					]
-					m_eSpecificStatScaleType = "ELevelUpBoons"
 					m_flStatScale = 0.06
 				}
 			}
@@ -186472,7 +187200,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "Damage_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 1.0
+					m_flStatScale = 1.2
 				}
 			}
 			BaseAttackDamagePercent = 
@@ -190225,6 +190953,15 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX"
 				m_eStatsUsageFlags = ""
 			}
+			BaseAttackDamagePercent = 
+			{
+				m_strValue = "6"
+				m_strCSSClass = "bullet_damage"
+				m_eDisplayUnits = "EDisplayUnit_Normal"
+				m_eDisplayType = "EBaseWeaponDamageIncrease"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_BASEATTACK_DAMAGE_PERCENT"
+				m_eStatsUsageFlags = ""
+			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
@@ -190270,6 +191007,7 @@
 						m_vecAbilityProperties = 
 						[
 							"BonusHealth",
+							"BaseAttackDamagePercent",
 						]
 					},
 				]
@@ -190286,6 +191024,7 @@
 				[
 					"BulletLifestealPercent",
 					"BonusHealth",
+					"BaseAttackDamagePercent",
 				]
 			},
 		]
@@ -191113,6 +191852,14 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_STATUS_RESISTANCE"
 				m_eStatsUsageFlags = ""
 			}
+			BonusHealth = 
+			{
+				m_strValue = "90"
+				m_strCSSClass = "health"
+				m_eDisplayType = "EMaxHealth"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX"
+				m_eStatsUsageFlags = ""
+			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
@@ -191148,6 +191895,18 @@
 		m_vecTooltipSectionInfo = 
 		[
 			{
+				m_eAbilitySectionType = "EArea_Innate"
+				m_vecSectionAttributes = 
+				[
+					{
+						m_vecAbilityProperties = 
+						[
+							"BonusHealth",
+						]
+					},
+				]
+			},
+			{
 				m_eAbilitySectionType = "EArea_Passive"
 				m_vecSectionAttributes = 
 				[
@@ -191171,6 +191930,7 @@
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
 					"StatusResistancePercent",
+					"BonusHealth",
 				]
 			},
 		]
@@ -191196,7 +191956,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 40.0
+				m_strValue = 45.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -194002,7 +194762,7 @@
 			}
 			BonusMoveSpeed = 
 			{
-				m_strValue = "1.25m"
+				m_strValue = "1.5m"
 				m_strCSSClass = "move_speed"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_MAX"
 				m_eStatsUsageFlags = "ConditionallyApplied"
@@ -194329,7 +195089,7 @@
 			}
 			BonusHealth = 
 			{
-				m_strValue = "160"
+				m_strValue = "180"
 				m_strCSSClass = "health"
 				m_eDisplayType = "EMaxHealth"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX"
@@ -194437,7 +195197,7 @@
 					},
 					{
 						m_strPropertyName = "BonusHealth"
-						m_strBonus = "100"
+						m_strBonus = "200"
 					},
 					{
 						m_strPropertyName = "TechPower"
@@ -196600,7 +197360,7 @@
 			}
 			FireRateSlow = 
 			{
-				m_strValue = "14"
+				m_strValue = "15"
 				m_strCSSClass = "fire_rate"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_FIRE_RATE_SLOW"
 				m_eStatsUsageFlags = "ConditionallyEnemyApplied"
@@ -197129,6 +197889,275 @@
 			]
 		}
 	}
+	upgrade_grit = 
+	{
+		_class = "upgrade_grit"
+		m_mapAbilityProperties = 
+		{
+			AbilityCooldown = 
+			{
+				m_strValue = "60"
+				m_strDisableValue = "0"
+				m_strCSSClass = "cooldown"
+				m_bCanSetTokenOverride = true
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "AbilityCooldown_scale_function"
+					m_eSpecificStatScaleType = "EItemCooldown"
+				}
+			}
+			AbilityDuration = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "0"
+				m_strCSSClass = "duration"
+				m_bCanSetTokenOverride = true
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "AbilityDuration_scale_function"
+					m_eSpecificStatScaleType = "ETechDuration"
+				}
+			}
+			AbilityCastRange = 
+			{
+				m_strValue = "0"
+				m_eDisplayUnits = "EDisplayUnit_Meters"
+				m_strCSSClass = "range"
+				m_bCanSetTokenOverride = true
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "AbilityCastRange_scale_function"
+					m_eSpecificStatScaleType = "ETechRange"
+				}
+			}
+			AbilityUnitTargetLimit = 
+			{
+				m_strValue = "1"
+				m_bCanSetTokenOverride = true
+			}
+			AbilityCastDelay = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "0"
+				m_strCSSClass = "cast"
+				m_bCanSetTokenOverride = true
+			}
+			AbilityChannelTime = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "0"
+				m_strCSSClass = "cast"
+				m_bCanSetTokenOverride = true
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_multi_stats"
+					_my_subclass_name = "scale_duration"
+					m_vecScalingStats = 
+					[
+						"EChannelDuration",
+						"ETechDuration",
+					]
+				}
+			}
+			AbilityPostCastDuration = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "0"
+			}
+			AbilityCharges = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "-1"
+				m_strCSSClass = "cast"
+				m_bCanSetTokenOverride = true
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_ability_charges"
+					_my_subclass_name = "AbilityCharges_scale_function"
+				}
+			}
+			AbilityCooldownBetweenCharge = 
+			{
+				m_strValue = "-1.0"
+				m_strDisableValue = "-2"
+				m_strCSSClass = "charge_cooldown"
+				m_bCanSetTokenOverride = true
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_ability_recharge_time"
+					_my_subclass_name = "scale_function_ability_recharge_time"
+				}
+			}
+			ChannelMoveSpeed = 
+			{
+				m_strValue = "-1"
+				m_eDisplayUnits = "EDisplayUnit_MetersPerSecond"
+				m_strCSSClass = "move_speed"
+				m_bCanSetTokenOverride = true
+			}
+			AbilityResourceCost = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "0"
+				m_bCanSetTokenOverride = true
+				m_strCSSClass = "cast"
+			}
+			TechPower = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "0"
+				m_bCanSetTokenOverride = true
+				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_POWER"
+			}
+			WeaponPower = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "0"
+				m_bCanSetTokenOverride = true
+				m_eProvidedPropertyType = "MODIFIER_VALUE_WEAPON_POWER"
+			}
+			CombatBarrier = 
+			{
+				m_strValue = "200"
+				m_strCSSClass = "combat_barrier"
+				m_eStatsUsageFlags = "ConditionallyApplied"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_BARRIER_HEALTH"
+			}
+			OutOfCombatHealthRegen = 
+			{
+				m_strValue = "1.0"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_OUT_OF_COMBAT_HEALTH_REGEN"
+				m_eDisplayType = "EOOCHealthRegen"
+				m_strCSSClass = "healing"
+			}
+			BarrierDuration = 
+			{
+				m_strValue = "4"
+				m_strCSSClass = "duration"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_tech_duration"
+					_my_subclass_name = "duration_scale_function"
+				}
+			}
+		}
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		_editor = 
+		{
+			folder_name = "Armor"
+		}
+		m_WeaponInfo = 
+		{
+			m_flBulletSpeed = 10000.0
+		}
+		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		_multibase = 
+		[
+			"armor_upgrade_t1",
+		]
+		m_bStartTrained = true
+		m_eAbilityType = "EAbilityType_Item"
+		m_nUpgradeSlotCost = 1
+		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
+		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
+		m_strCastAnimGraphParam = "e_GenericCast"
+		m_strCastAnimSequenceName = "ability_generic_cast"
+		m_strSelectionNameOverride = "item"
+		m_PreviewPathParticle = resource_name:"particles/generic/generic_arc.vpcf"
+		m_flBossDamageScale = 1.0
+		m_strAG2SourceName = "item"
+		m_eItemSlotType = "EItemSlotType_Armor"
+		m_iItemTier = "EModTier_1"
+		m_iUpdateTime = 1778715536
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_CAN_CAST_ON_ZIPLINE"
+		m_strCSSClass = "bulletShield"
+		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_armor/bullet_shield.psd"
+		m_vecTooltipSectionInfo = 
+		[
+			{
+				m_eAbilitySectionType = "EArea_Innate"
+				m_vecSectionAttributes = 
+				[
+					{
+						m_vecAbilityProperties = 
+						[
+							"OutOfCombatHealthRegen",
+						]
+					},
+				]
+			},
+			{
+				m_eAbilitySectionType = "EArea_Active"
+				m_vecSectionAttributes = 
+				[
+					{
+						m_strLocString = "#upgrade_grit_desc"
+						m_vecImportantAbilityProperties = 
+						[
+							{
+								m_strImportantProperty = "CombatBarrier"
+							},
+						]
+						m_vecAbilityProperties = 
+						[
+							"BarrierDuration",
+							"AbilityCooldown",
+						]
+					},
+				]
+			},
+		]
+		m_AutoIntrinsicModifiers = 
+		[
+			subclass:
+			{
+				_class = "modifier_base"
+				_my_subclass_name = "modifier_base"
+				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
+				[
+					"OutOfCombatHealthRegen",
+				]
+				m_bIsHidden = true
+			},
+		]
+		m_BarrierModifier = subclass:
+		{
+			_class = "modifier_base"
+			_my_subclass_name = "modifier_grit_barrier"
+			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
+			[
+				"CombatBarrier",
+			]
+			m_bIsHidden = true
+			m_sStartSound = soundevent:"Player.Barrier.Activate"
+		}
+		m_eShopFilters = "EShopFilterDurability"
+		m_strShopIconLarge = panorama:"file://{images}/items/vitality/grit.psd"
+		m_vecAbilityUpgrades = 
+		[
+			{
+				m_vecPropertyUpgrades = 
+				[
+					{
+						m_strPropertyName = "CombatBarrier"
+						m_strBonus = "250"
+					},
+					{
+						m_strPropertyName = "OutOfCombatHealthRegen"
+						m_strBonus = "10"
+					},
+					{
+						m_strPropertyName = "AbilityCooldown"
+						m_strBonus = "-25"
+					},
+				]
+			},
+		]
+	}
 	upgrade_weapon_shielding = 
 	{
 		_class = "upgrade_weapon_shielding"
@@ -197294,14 +198323,20 @@
 			BarrierDuration = 
 			{
 				m_strValue = "8"
+				m_strCSSClass = "duration"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_tech_duration"
+					_my_subclass_name = "duration_scale_function"
+				}
 			}
-			BonusMoveSpeed = 
+			BulletResist = 
 			{
-				m_strValue = "1.75m"
-				m_eDisplayType = "EMaxMoveSpeed"
-				m_strCSSClass = "move_speed"
-				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_MAX"
-				m_eStatsUsageFlags = ""
+				m_strValue = "18"
+				m_eDisplayType = "EBulletArmorDamageReduction"
+				m_strCSSClass = "bullet_armor_up"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST"
+				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -197333,6 +198368,10 @@
 		m_strAG2SourceName = "item"
 		m_eItemSlotType = "EItemSlotType_Armor"
 		m_iItemTier = "EModTier_2"
+		m_vecComponentItems = 
+		[
+			"upgrade_grit",
+		]
 		m_strCSSClass = "bulletShield"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_armor/bullet_shield.psd"
 		m_vecTooltipSectionInfo = 
@@ -197361,7 +198400,7 @@
 								m_strImportantProperty = "CombatBarrier"
 							},
 							{
-								m_strImportantProperty = "BonusMoveSpeed"
+								m_strImportantProperty = "BulletResist"
 							},
 						]
 						m_vecAbilityProperties = 
@@ -197398,7 +198437,7 @@
 			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 			[
 				"CombatBarrier",
-				"BonusMoveSpeed",
+				"BulletResist",
 			]
 			m_bIsHidden = true
 			m_sStartSound = soundevent:"Player.Barrier.Activate"
@@ -197417,8 +198456,8 @@
 						m_strBonus = "225"
 					},
 					{
-						m_strPropertyName = "BonusMoveSpeed"
-						m_strBonus = "3m"
+						m_strPropertyName = "BulletResist"
+						m_strBonus = "15"
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
@@ -197593,14 +198632,20 @@
 			BarrierDuration = 
 			{
 				m_strValue = "8"
+				m_strCSSClass = "duration"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_tech_duration"
+					_my_subclass_name = "duration_scale_function"
+				}
 			}
-			BonusMoveSpeed = 
+			TechResist = 
 			{
-				m_strValue = "1.75m"
-				m_eDisplayType = "EMaxMoveSpeed"
-				m_strCSSClass = "move_speed"
-				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_MAX"
-				m_eStatsUsageFlags = ""
+				m_strValue = "18"
+				m_eDisplayType = "ETechArmorDamageReduction"
+				m_strCSSClass = "tech_armor_up"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_ARMOR_DAMAGE_RESIST"
+				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -197632,6 +198677,10 @@
 		m_strAG2SourceName = "item"
 		m_eItemSlotType = "EItemSlotType_Armor"
 		m_iItemTier = "EModTier_2"
+		m_vecComponentItems = 
+		[
+			"upgrade_grit",
+		]
 		m_strCSSClass = "bulletShield"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_armor/bullet_shield.psd"
 		m_vecTooltipSectionInfo = 
@@ -197660,7 +198709,7 @@
 								m_strImportantProperty = "CombatBarrier"
 							},
 							{
-								m_strImportantProperty = "BonusMoveSpeed"
+								m_strImportantProperty = "TechResist"
 							},
 						]
 						m_vecAbilityProperties = 
@@ -197696,7 +198745,7 @@
 			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 			[
 				"CombatBarrier",
-				"BonusMoveSpeed",
+				"TechResist",
 			]
 			m_bIsHidden = true
 			m_sStartSound = soundevent:"Player.Barrier.Activate"
@@ -197715,8 +198764,8 @@
 						m_strBonus = "175"
 					},
 					{
-						m_strPropertyName = "BonusMoveSpeed"
-						m_strBonus = "1m"
+						m_strPropertyName = "TechResist"
+						m_strBonus = "20"
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
@@ -197876,7 +198925,7 @@
 			}
 			BaseAttackDamagePercent = 
 			{
-				m_strValue = "15"
+				m_strValue = "18"
 				m_strCSSClass = "bullet_damage"
 				m_eDisplayUnits = "EDisplayUnit_Normal"
 				m_eStatsUsageFlags = "ConditionallyApplied"
@@ -198628,7 +199677,7 @@
 			}
 			RegenerationDuration = 
 			{
-				m_strValue = "6"
+				m_strValue = "7"
 				m_eScaleType = "ETechDuration"
 				m_strCSSClass = "duration"
 				m_subclassScaleFunction = subclass:
@@ -199122,10 +200171,13 @@
 			}
 			TechPower = 
 			{
-				m_strValue = "0"
+				m_strValue = "6"
 				m_strDisableValue = "0"
 				m_bCanSetTokenOverride = true
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_POWER"
+				m_strCSSClass = "tech_damage"
+				m_eDisplayType = "ETechPower"
+				m_eStatsUsageFlags = ""
 			}
 			WeaponPower = 
 			{
@@ -199136,16 +200188,29 @@
 			}
 			AbilityLifestealPercentHero = 
 			{
-				m_strValue = "16"
-				m_strCSSClass = "healing"
+				m_strValue = "13"
 				m_eDisplayType = "ETechLifesteal"
+				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_single_stat"
 					_my_subclass_name = "AbilityLifestealPercentHero_scale_function"
 					m_eSpecificStatScaleType = "EHealingOutput"
 				}
+				m_bAutomaticallyDeduceProvidedPropertyTypeFromName = true
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_LIFESTEAL"
+				m_eStatsUsageFlags = ""
+			}
+			NonHeroAbilityLifestealTooltipOnly = 
+			{
+				m_strValue = "3"
+			}
+			BonusHealth = 
+			{
+				m_strValue = "90"
+				m_eDisplayType = "EMaxHealth"
+				m_strCSSClass = "health"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX"
 				m_eStatsUsageFlags = ""
 			}
 			BonusFireRate = 
@@ -199219,6 +200284,10 @@
 		m_strAG2SourceName = "item"
 		m_eItemSlotType = "EItemSlotType_WeaponMod"
 		m_iItemTier = "EModTier_4"
+		m_vecComponentItems = 
+		[
+			"upgrade_health_stealing_magic",
+		]
 		m_bDisabled = false
 		m_strCSSClass = "magicOverflow"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_weapon/magic_overflow.psd"
@@ -199233,6 +200302,9 @@
 						m_vecAbilityProperties = 
 						[
 							"BonusAbilityDurationPercent",
+							"AbilityLifestealPercentHero",
+							"BonusHealth",
+							"TechPower",
 						]
 					},
 				]
@@ -199249,9 +200321,6 @@
 							},
 							{
 								m_strImportantProperty = "BonusSpirit"
-							},
-							{
-								m_strImportantProperty = "AbilityLifestealPercentHero"
 							},
 						]
 						m_vecAbilityProperties = 
@@ -199295,7 +200364,6 @@
 					[
 						"BonusFireRate",
 						"BonusSpirit",
-						"AbilityLifestealPercentHero",
 					]
 					m_vecAlwaysShowInStatModifierUI = 
 					[
@@ -199321,6 +200389,9 @@
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
 					"BonusAbilityDurationPercent",
+					"AbilityLifestealPercentHero",
+					"BonusHealth",
+					"TechPower",
 				]
 			},
 		]
@@ -199371,7 +200442,7 @@
 			}
 			AbilityDuration = 
 			{
-				m_strValue = "6"
+				m_strValue = "6.5"
 				m_strDisableValue = "0"
 				m_strCSSClass = "duration"
 				m_bCanSetTokenOverride = true
@@ -200606,7 +201677,7 @@
 			}
 			BonusHealth = 
 			{
-				m_strValue = "70"
+				m_strValue = "90"
 				m_eDisplayType = "EMaxHealth"
 				m_strCSSClass = "health"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX"
@@ -201115,17 +202186,18 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST_REDUCTION"
 				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
-			BonusHealth = 
+			BaseAttackDamagePercent = 
 			{
-				m_strValue = "65"
-				m_eDisplayType = "EMaxHealth"
-				m_strCSSClass = "health"
-				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX"
+				m_strValue = "9"
+				m_strCSSClass = "bullet_damage"
+				m_eDisplayUnits = "EDisplayUnit_Normal"
+				m_eDisplayType = "EBaseWeaponDamageIncrease"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_BASEATTACK_DAMAGE_PERCENT"
 				m_eStatsUsageFlags = ""
 			}
 			BulletResist = 
 			{
-				m_strValue = "8"
+				m_strValue = "9"
 				m_eDisplayType = "EBulletArmorDamageReduction"
 				m_strCSSClass = "bullet_armor_up"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST"
@@ -201173,7 +202245,7 @@
 						m_vecAbilityProperties = 
 						[
 							"BulletResist",
-							"BonusHealth",
+							"BaseAttackDamagePercent",
 						]
 					},
 				]
@@ -201221,7 +202293,7 @@
 				}
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
-					"BonusHealth",
+					"BaseAttackDamagePercent",
 					"BulletResist",
 				]
 			},
@@ -201242,8 +202314,8 @@
 						m_strBonus = "-11"
 					},
 					{
-						m_strPropertyName = "BonusHealth"
-						m_strBonus = "90"
+						m_strPropertyName = "BaseAttackDamagePercent"
+						m_strBonus = "15"
 					},
 				]
 			},
@@ -202128,6 +203200,10 @@
 					{
 						m_strPropertyName = "BonusHealth"
 						m_strBonus = "100"
+					},
+					{
+						m_strPropertyName = "Damage"
+						m_strBonus = "60"
 					},
 				]
 			},
@@ -203051,7 +204127,7 @@
 			}
 			BonusHealth = 
 			{
-				m_strValue = "30"
+				m_strValue = "50"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX"
 				m_eDisplayType = "EMaxHealth"
 				m_strCSSClass = "health"
@@ -203642,7 +204718,7 @@
 			}
 			BonusSpiritForChargedAbilities = 
 			{
-				m_strValue = "10"
+				m_strValue = "14"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_POWER"
 				m_eApplyFilter = "EApplyFilter_OnlyIfHasCharges"
 			}
@@ -206356,7 +207432,7 @@
 			}
 			AbilityDuration = 
 			{
-				m_strValue = "4"
+				m_strValue = "4.5"
 				m_strDisableValue = "0"
 				m_strCSSClass = "duration"
 				m_bCanSetTokenOverride = true
@@ -206839,7 +207915,7 @@
 			}
 			BonusHealth = 
 			{
-				m_strValue = "50"
+				m_strValue = "60"
 				m_strCSSClass = "health"
 				m_eDisplayType = "EMaxHealth"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX"
@@ -207038,7 +208114,7 @@
 			}
 			AbilityDuration = 
 			{
-				m_strValue = "4"
+				m_strValue = "4.25"
 				m_strDisableValue = "0"
 				m_strCSSClass = "duration"
 				m_bCanSetTokenOverride = true
@@ -207689,6 +208765,7 @@
 				]
 			},
 		]
+		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 	}
 	upgrade_personal_rejuvenator = 
 	{
@@ -209323,7 +210400,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 32.0
+				m_strValue = 30.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -209831,7 +210908,7 @@
 			}
 			StatusResistancePercent = 
 			{
-				m_strValue = "15"
+				m_strValue = "17"
 				m_strCSSClass = "duration"
 				m_eDisplayType = "EDebuffResist"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_STATUS_RESISTANCE"
@@ -210010,6 +211087,7 @@
 			},
 		]
 		m_strHitConfirmationSound = soundevent:"Mods.Tech.Blightfield.Aura.Start"
+		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 	}
 	upgrade_aoe_tech_shield = 
 	{
@@ -211399,6 +212477,7 @@
 			m_strHudMessageText = "#upgrade_aoe_root"
 			m_nEnabledStateMask = "MODIFIER_STATE_SILENCE_MOVEMENT_ABILITES"
 			m_vecScriptValues = [  ]
+			m_flGravityScale = 1.2
 			m_vecScriptEventHandlers = [  ]
 			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 			[
@@ -211653,7 +212732,7 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Tech"
@@ -211663,7 +212742,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"tech_upgrade_t4",
@@ -212189,7 +213268,7 @@
 			}
 			MeleeResistPercent = 
 			{
-				m_strValue = "15"
+				m_strValue = "18"
 				m_eDisplayType = "EMeleeResist"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MELEE_DAMAGE_REDUCTION_PERCENT"
 				m_eStatsUsageFlags = ""
@@ -213056,7 +214135,7 @@
 			}
 			AbilityDuration = 
 			{
-				m_strValue = "10"
+				m_strValue = "13"
 				m_strDisableValue = "0"
 				m_strCSSClass = "duration"
 				m_bCanSetTokenOverride = true
@@ -213219,7 +214298,7 @@
 			}
 			AmbushBonusFireRate = 
 			{
-				m_strValue = "20"
+				m_strValue = "25"
 				m_strCSSClass = "bullet_damage"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_FIRE_RATE"
 				m_eStatsUsageFlags = "ConditionallyApplied"
@@ -213227,7 +214306,7 @@
 			}
 			AmbushBonusTechPower = 
 			{
-				m_strValue = "20"
+				m_strValue = "25"
 				m_strCSSClass = "tech_damage"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_POWER"
 				m_eStatsUsageFlags = "ConditionallyApplied"
@@ -213235,7 +214314,7 @@
 			}
 			AmbushBonusMeleeDamage = 
 			{
-				m_strValue = "20"
+				m_strValue = "25"
 				m_eDisplayType = "EBaseMeleeDamageIncrease"
 				m_strCSSClass = "melee_damage"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BASE_MELEE_DAMAGE_PERCENT"
@@ -214288,6 +215367,12 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_AIR_CONTROL_PERCENT"
 				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
+			AirControlPercentBarrier = 
+			{
+				m_strValue = "50"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_AIR_CONTROL_PERCENT"
+				m_eStatsUsageFlags = "ConditionallyApplied"
+			}
 			SlamDownRadius = 
 			{
 				m_strValue = "10m"
@@ -214321,7 +215406,7 @@
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_duration"
-					_my_subclass_name = "duration_scale_function"
+					_my_subclass_name = "majestic_duration_scale_function"
 				}
 			}
 			DropDownSpeed = 
@@ -214351,12 +215436,18 @@
 					_class = "scale_function_single_stat"
 					_my_subclass_name = "Health_scale_function"
 					m_eSpecificStatScaleType = "ELevelUpBoons"
-					m_flStatScale = 8
+					m_flStatScale = 12
 				}
 			}
 			BarrierDuration = 
 			{
 				m_strValue = "8"
+				m_strCSSClass = "duration"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_tech_duration"
+					_my_subclass_name = "duration_scale_function"
+				}
 			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -214444,6 +215535,7 @@
 						[
 							"AbilityCooldown",
 							"BarrierDuration",
+							"AirControlPercentBarrier",
 						]
 					},
 				]
@@ -214471,6 +215563,7 @@
 			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 			[
 				"CombatBarrier",
+				"AirControlPercentBarrier",
 			]
 			m_bIsHidden = true
 			m_sStartSound = soundevent:"Player.Barrier.Activate"
@@ -214947,14 +216040,8 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_boon_scale"
 					_my_subclass_name = "TotalHealthRegen_scale_function"
-					m_vecScalingStats = 
-					[
-						"EHealingOutput",
-						"ELevelUpBoons",
-					]
-					m_eSpecificStatScaleType = "ELevelUpBoons"
 					m_flStatScale = 6
 				}
 			}
@@ -215002,7 +216089,7 @@
 				m_strValue = "5"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Armor"
@@ -215012,7 +216099,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"armor_upgrade_t3",
@@ -215136,6 +216223,7 @@
 			},
 		]
 		m_nAbilityTargetFlags = "CITADEL_UNIT_TARGET_FLAG_ALLOW_SMALL_DEPLOYABLES"
+		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 	}
 	upgrade_restorative_locket = 
 	{
@@ -215299,14 +216387,8 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_boon_scale"
 					_my_subclass_name = "TotalHealthRegen_scale_function"
-					m_vecScalingStats = 
-					[
-						"EHealingOutput",
-						"ELevelUpBoons",
-					]
-					m_eSpecificStatScaleType = "ELevelUpBoons"
 					m_flStatScale = 0.32
 				}
 			}
@@ -215316,14 +216398,14 @@
 			}
 			MinStaminaRestore = 
 			{
-				m_strValue = "1"
+				m_strValue = "0"
 			}
 			MaxStaminaRestore = 
 			{
-				m_strValue = "4"
+				m_strValue = "3"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Armor"
@@ -215333,7 +216415,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"armor_upgrade_t2",
@@ -215403,7 +216485,6 @@
 						[
 							"AbilityCooldown",
 							"MaxStacks",
-							"MinStaminaRestore",
 							"MaxStaminaRestore",
 						]
 					},
@@ -215584,15 +216665,9 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "TotalHealthRegen_scale_function"
-					m_vecScalingStats = 
-					[
-						"EHealingOutput",
-						"ETechPower",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.93
+					m_flStatScale = 1.1
 				}
 			}
 			RegenDuration = 
@@ -215729,6 +216804,7 @@
 			},
 		]
 		m_strHitConfirmationSound = soundevent:"Mods.Armor.Healing.Rite.Cast"
+		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 	}
 	upgrade_shrink_ray = 
 	{
@@ -216048,7 +217124,7 @@
 			}
 			AbilityDuration = 
 			{
-				m_strValue = "6"
+				m_strValue = "7"
 				m_strDisableValue = "0"
 				m_strCSSClass = "duration"
 				m_bCanSetTokenOverride = true
@@ -216146,10 +217222,13 @@
 			}
 			TechPower = 
 			{
-				m_strValue = "0"
+				m_strValue = "6"
 				m_strDisableValue = "0"
 				m_bCanSetTokenOverride = true
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_POWER"
+				m_strCSSClass = "tech_damage"
+				m_eDisplayType = "ETechPower"
+				m_eStatsUsageFlags = ""
 			}
 			WeaponPower = 
 			{
@@ -216285,6 +217364,7 @@
 					"AbilityLifestealPercentHeroPassive",
 					"TechResist",
 					"BonusHealth",
+					"TechPower",
 				]
 			},
 		]
@@ -216300,6 +217380,7 @@
 							"AbilityLifestealPercentHeroPassive",
 							"TechResist",
 							"BonusHealth",
+							"TechPower",
 						]
 					},
 				]
@@ -216367,7 +217448,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "45"
+				m_strValue = "60"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -216494,6 +217575,13 @@
 			{
 				m_strValue = "50"
 			}
+			OutOfCombatHealthRegen = 
+			{
+				m_strValue = "1.5"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_OUT_OF_COMBAT_HEALTH_REGEN"
+				m_eDisplayType = "EOOCHealthRegen"
+				m_strCSSClass = "healing"
+			}
 			BuffDuration = 
 			{
 				m_strValue = "6"
@@ -216507,7 +217595,7 @@
 			GuardianWardCombatBarrier = 
 			{
 				m_strLocTokenOverride = "CombatBarrier"
-				m_strValue = "200"
+				m_strValue = "250"
 				m_strCSSClass = "combat_barrier"
 				m_eStatsUsageFlags = "ConditionallyApplied"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BARRIER_HEALTH"
@@ -216565,6 +217653,10 @@
 		m_strAG2SourceName = "item"
 		m_eItemSlotType = "EItemSlotType_Armor"
 		m_iItemTier = "EModTier_2"
+		m_vecComponentItems = 
+		[
+			"upgrade_grit",
+		]
 		m_iUpdateTime = 1711502928
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_FRIENDLY"
@@ -216602,6 +217694,7 @@
 				[
 					"TechRadiusMultiplier",
 					"TechRangeMultiplier",
+					"OutOfCombatHealthRegen",
 				]
 			},
 		]
@@ -216612,7 +217705,10 @@
 				m_vecSectionAttributes = 
 				[
 					{
-						m_vecAbilityProperties = [  ]
+						m_vecAbilityProperties = 
+						[
+							"OutOfCombatHealthRegen",
+						]
 						m_vecElevatedAbilityProperties = 
 						[
 							"TechRangeMultiplier",
@@ -216665,7 +217761,7 @@
 					},
 					{
 						m_strPropertyName = "GuardianWardCombatBarrier"
-						m_strBonus = "125"
+						m_strBonus = "250"
 					},
 					{
 						m_strPropertyName = "ChannelMoveSpeed"
@@ -216679,6 +217775,7 @@
 			},
 		]
 		m_strHitConfirmationSound = soundevent:"Mods.Armor.Savior.Start"
+		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 	}
 	upgrade_divine_barrier = 
 	{
@@ -216810,6 +217907,13 @@
 				m_bCanSetTokenOverride = true
 				m_eProvidedPropertyType = "MODIFIER_VALUE_WEAPON_POWER"
 			}
+			OutOfCombatHealthRegen = 
+			{
+				m_strValue = "1.5"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_OUT_OF_COMBAT_HEALTH_REGEN"
+				m_eDisplayType = "EOOCHealthRegen"
+				m_strCSSClass = "healing"
+			}
 			CooldownReductionPctOnOthers = 
 			{
 				m_strValue = "50"
@@ -216922,6 +218026,7 @@
 				[
 					"TechRadiusMultiplier",
 					"TechRangeMultiplier",
+					"OutOfCombatHealthRegen",
 				]
 			},
 		]
@@ -216935,6 +218040,7 @@
 						m_vecAbilityProperties = 
 						[
 							"TechRangeMultiplier",
+							"OutOfCombatHealthRegen",
 						]
 					},
 				]
@@ -216992,6 +218098,7 @@
 		]
 		m_strHitConfirmationSound = soundevent:"Mods.Armor.Divine.Barrier.Start"
 		m_strPurgeSound = soundevent:"Mods.Divine.Barrier.Purge"
+		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 	}
 	upgrade_aoe_smoke_bomb = 
 	{
@@ -217391,8 +218498,8 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "DPS_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.152334
-					m_flStreetBrawlStatScale = 0.106634
+					m_flStatScale = 0.2
+					m_flStreetBrawlStatScale = 0.12
 				}
 			}
 			DPSIncrease = 
@@ -217405,8 +218512,8 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "DPSIncrease_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.030467
-					m_flStreetBrawlStatScale = 0.021327
+					m_flStatScale = 0.4
+					m_flStreetBrawlStatScale = 0.025
 				}
 			}
 			DPSMax = 
@@ -217419,8 +218526,8 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "DPSMax_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.304668
-					m_flStreetBrawlStatScale = 0.213268
+					m_flStatScale = 0.4
+					m_flStreetBrawlStatScale = 0.25
 				}
 			}
 			NonHeroReductionPercent = 
@@ -218139,9 +219246,18 @@
 			}
 			SlowResistancePercent = 
 			{
-				m_strValue = "35"
+				m_strValue = "40"
 				m_strCSSClass = "move_speed"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SLOW_RESISTANCE"
+				m_eStatsUsageFlags = ""
+			}
+			BaseAttackDamagePercent = 
+			{
+				m_strValue = "6"
+				m_strCSSClass = "bullet_damage"
+				m_eDisplayUnits = "EDisplayUnit_Normal"
+				m_eDisplayType = "EBaseWeaponDamageIncrease"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_BASEATTACK_DAMAGE_PERCENT"
 				m_eStatsUsageFlags = ""
 			}
 		}
@@ -218209,6 +219325,7 @@
 						m_vecElevatedAbilityProperties = [  ]
 						m_vecAbilityProperties = 
 						[
+							"BaseAttackDamagePercent",
 							"SlideScale",
 							"BulletResist",
 						]
@@ -218261,6 +219378,7 @@
 					"MoveWhileZoomedSpeedPenaltyReductionPercent",
 					"SlideScale",
 					"BulletResist",
+					"BaseAttackDamagePercent",
 				]
 			},
 		]
@@ -218536,16 +219654,18 @@
 					_class = "modifier_kinetic_sash_triggered"
 					_my_subclass_name = "modifier_kinetic_sash_triggered"
 					m_sLocalizationName = "modifier_kinetic_sash_triggered"
-					m_bIsHidden = true
+					m_bIsHidden = false
 					m_strParticleStatusEffect = resource_name:""
 					m_TriggeredSound = soundevent:"Mods.Weapon.Kinetic.Dash.Proc"
-					m_strHudMessageText = "#upgrade_kinetic_sash"
+					m_strHudMessageText = ""
 					m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 					[
 						"BonusFireRate",
 						"BonusClipSize",
 					]
 					m_strParticleEffect = resource_name:"particles/upgrades/kinetic_sash_triggered.vpcf"
+					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
+					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 				}
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
@@ -218572,6 +219692,10 @@
 					{
 						m_strPropertyName = "BonusClipSize"
 						m_strBonus = "6"
+					},
+					{
+						m_strPropertyName = "StaminaCooldownReduction"
+						m_strBonus = "14"
 					},
 				]
 			},
@@ -218607,6 +219731,7 @@
 					_my_subclass_name = "AbilityDuration_scale_function"
 					m_eSpecificStatScaleType = "ETechDuration"
 				}
+				m_strLocTokenOverride = "ArcaneSurgeWindow"
 			}
 			AbilityCastRange = 
 			{
@@ -218854,17 +219979,19 @@
 				_class = "modifier_arcane_surge"
 				_my_subclass_name = "modifier_arcane_surge"
 				m_bIsHidden = true
-				m_WeaponBuffModifier = subclass:
+				m_SurgeWindowModifier = subclass:
 				{
 					_class = "modifier_kinetic_sash_triggered"
 					_my_subclass_name = "modifier_kinetic_sash_triggered"
-					m_bIsHidden = true
+					m_bIsHidden = false
 					m_strParticleStatusEffect = resource_name:""
 					m_TriggeredSound = soundevent:"Mods.Tech.Arcane.Surge.Proc"
-					m_strHudMessageText = "#modifier_arcane_surge_triggered"
+					m_strHudMessageText = ""
 					m_sLocalizationName = "modifier_arcane_surge_triggered"
 					m_strParticleEffect = resource_name:"particles/upgrades/arcane_surge_triggered.vpcf"
 					m_sStartSound = soundevent:""
+					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				}
 				m_AbilityWatcherModifier = subclass:
 				{
@@ -218872,9 +219999,11 @@
 					_my_subclass_name = "modifier_arcane_surge_ability_watcher"
 					m_sLocalizationName = "modifier_arcane_surge_ability"
 					m_strHudMessageText = "#modifier_arcane_surge_ability"
-					m_bIsHidden = true
 					m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 					m_strParticleEffect = resource_name:""
+					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
+					m_bIsHidden = false
 				}
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
@@ -218911,6 +220040,10 @@
 					{
 						m_strPropertyName = "BonusAbilityDurationPercent"
 						m_strBonus = "15"
+					},
+					{
+						m_strPropertyName = "StaminaCooldownReduction"
+						m_strBonus = "14"
 					},
 				]
 			},
@@ -219564,7 +220697,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 65.0
+				m_strValue = 60.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -220432,7 +221565,7 @@
 			}
 			EndRadius = 
 			{
-				m_strValue = "12m"
+				m_strValue = "10m"
 				m_strCSSClass = "distance"
 				m_subclassScaleFunction = subclass:
 				{
@@ -220462,7 +221595,7 @@
 			}
 			DamageHeight = 
 			{
-				m_strValue = "5m"
+				m_strValue = "7m"
 			}
 			NPCDamageMult = 
 			{
@@ -220759,7 +221892,7 @@
 			}
 			EndRadius = 
 			{
-				m_strValue = "12m"
+				m_strValue = "16m"
 				m_strCSSClass = "distance"
 				m_subclassScaleFunction = subclass:
 				{
@@ -220800,7 +221933,7 @@
 			}
 			DamageHeight = 
 			{
-				m_strValue = "5m"
+				m_strValue = "7m"
 			}
 			NPCDamageMult = 
 			{
@@ -220816,7 +221949,7 @@
 			}
 			FreezeDuration = 
 			{
-				m_strValue = "0.75"
+				m_strValue = "1"
 				m_strCSSClass = "duration"
 				m_subclassScaleFunction = subclass:
 				{
@@ -220826,7 +221959,7 @@
 			}
 			PercentDamage = 
 			{
-				m_strValue = "15"
+				m_strValue = "0"
 				m_strCSSClass = "damage"
 				m_strLocTokenOverride = "ArcticBlastPercentDamage"
 			}
@@ -220896,6 +222029,7 @@
 				m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 				m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				m_eDebuffType = "MODIFIER_DEBUFF_YES"
+				m_nEnabledStateMask = "MODIFIER_STATE_STAMINA_REGEN_PAUSED"
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
 					"SlowPercent",
@@ -220929,9 +222063,6 @@
 							},
 							{
 								m_strImportantProperty = "FreezeDuration"
-							},
-							{
-								m_strImportantProperty = "PercentDamage"
 							},
 						]
 						m_vecAbilityProperties = 
@@ -223415,7 +224546,7 @@
 			}
 			MaxHealthLossPercent = 
 			{
-				m_strValue = "-15"
+				m_strValue = "-13"
 				m_strCSSClass = "health"
 				m_eDisplayType = "EMaxHealth"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX_PERCENT"
@@ -223614,7 +224745,7 @@
 			}
 			AbilityDuration = 
 			{
-				m_strValue = "6"
+				m_strValue = "6.5"
 				m_strDisableValue = "0"
 				m_strCSSClass = "duration"
 				m_bCanSetTokenOverride = true
@@ -223739,7 +224870,7 @@
 			}
 			ActiveBonusFireRate = 
 			{
-				m_strValue = "30"
+				m_strValue = "32"
 				m_eDisplayType = "EFireRate"
 				m_strCSSClass = "fire_rate"
 			}
@@ -223756,6 +224887,15 @@
 				m_strCSSClass = "health"
 				m_eDisplayType = "EMaxHealth"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX"
+				m_eStatsUsageFlags = ""
+			}
+			BaseAttackDamagePercent = 
+			{
+				m_strValue = "6"
+				m_strCSSClass = "bullet_damage"
+				m_eDisplayUnits = "EDisplayUnit_Normal"
+				m_eDisplayType = "EBaseWeaponDamageIncrease"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_BASEATTACK_DAMAGE_PERCENT"
 				m_eStatsUsageFlags = ""
 			}
 		}
@@ -223848,6 +224988,7 @@
 						[
 							"BulletLifestealPercent",
 							"BonusHealth",
+							"BaseAttackDamagePercent",
 						]
 					},
 				]
@@ -223886,6 +225027,7 @@
 				[
 					"BulletLifestealPercent",
 					"BonusHealth",
+					"BaseAttackDamagePercent",
 				]
 			},
 		]
@@ -223907,6 +225049,10 @@
 					{
 						m_strPropertyName = "TechResist"
 						m_strBonus = "20"
+					},
+					{
+						m_strPropertyName = "BonusHealth"
+						m_strBonus = "110"
 					},
 				]
 			},
@@ -223932,7 +225078,7 @@
 			}
 			AbilityDuration = 
 			{
-				m_strValue = "4.5"
+				m_strValue = "5"
 				m_strDisableValue = "0"
 				m_strCSSClass = "duration"
 				m_bCanSetTokenOverride = true
@@ -224094,6 +225240,15 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BULLET_LIFESTEAL"
 				m_eStatsUsageFlags = ""
 			}
+			BaseAttackDamagePercent = 
+			{
+				m_strValue = "6"
+				m_strCSSClass = "bullet_damage"
+				m_eDisplayUnits = "EDisplayUnit_Normal"
+				m_eDisplayType = "EBaseWeaponDamageIncrease"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_BASEATTACK_DAMAGE_PERCENT"
+				m_eStatsUsageFlags = ""
+			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
@@ -224177,6 +225332,7 @@
 							"BulletLifestealPercent",
 							"BulletResist",
 							"BonusHealth",
+							"BaseAttackDamagePercent",
 						]
 					},
 				]
@@ -224217,6 +225373,7 @@
 					"BulletLifestealPercent",
 					"BulletResist",
 					"BonusHealth",
+					"BaseAttackDamagePercent",
 				]
 			},
 		]
@@ -225229,14 +226386,8 @@
 				m_eDisplayType = "EBulletLifesteal"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_boon_scale"
 					_my_subclass_name = "HealFixedAmount_scale_function"
-					m_vecScalingStats = 
-					[
-						"EHealingOutput",
-						"ELevelUpBoons",
-					]
-					m_eSpecificStatScaleType = "ELevelUpBoons"
 					m_flStatScale = 1.5
 				}
 			}
@@ -225247,14 +226398,8 @@
 				m_eDisplayType = "EBulletLifesteal"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_boon_scale"
 					_my_subclass_name = "HealPercentAmount_scale_function"
-					m_vecScalingStats = 
-					[
-						"EHealingOutput",
-						"ELevelUpBoons",
-					]
-					m_eSpecificStatScaleType = "ELevelUpBoons"
 					m_flStatScale = 0.5
 				}
 			}
@@ -225810,7 +226955,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "SpiritDamage_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.744
+					m_flStatScale = 0.84
 				}
 			}
 			TechArmorDamageReduction = 
@@ -225830,7 +226975,7 @@
 			}
 			TechPowerReduction = 
 			{
-				m_strValue = "-20"
+				m_strValue = "-25"
 				m_strCSSClass = "tech_damage"
 				m_eDisplayType = "ETechPower"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_POWER"
@@ -225838,7 +226983,7 @@
 			}
 			TechPowerGain = 
 			{
-				m_strValue = "20"
+				m_strValue = "25"
 				m_strCSSClass = "tech_damage"
 				m_eDisplayType = "ETechPower"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_POWER"
@@ -226026,7 +227171,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "7"
+				m_strValue = "5"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -226325,7 +227470,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "7"
+				m_strValue = "5"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -226458,7 +227603,7 @@
 			}
 			BonusMeleeDamagePercent = 
 			{
-				m_strValue = "20"
+				m_strValue = "22"
 				m_eDisplayType = "EBaseMeleeDamageIncrease"
 				m_strCSSClass = "melee_damage"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BASE_MELEE_DAMAGE_PERCENT"
@@ -227875,14 +229020,8 @@
 				m_eDisplayType = "EMaxHealth"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_boon_scale"
 					_my_subclass_name = "HealPercentAmount_scale_function"
-					m_vecScalingStats = 
-					[
-						"EHealingOutput",
-						"ELevelUpBoons",
-					]
-					m_eSpecificStatScaleType = "ELevelUpBoons"
 					m_flStatScale = 2.0
 				}
 				m_strCSSClass = "healing"
@@ -227901,20 +229040,14 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "TotalHealthRegen_scale_function"
-					m_vecScalingStats = 
-					[
-						"EHealingOutput",
-						"ETechPower",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
 					m_flStatScale = 0.04
 				}
 			}
 			RegenerationDuration = 
 			{
-				m_strValue = "6"
+				m_strValue = "7"
 				m_eScaleType = "ETechDuration"
 				m_strCSSClass = "duration"
 				m_subclassScaleFunction = subclass:
@@ -228076,6 +229209,10 @@
 					{
 						m_strPropertyName = "HealingPerCast"
 						m_strBonus = "60"
+					},
+					{
+						m_strPropertyName = "BonusHealth"
+						m_strBonus = "110"
 					},
 					{
 						m_strPropertyName = "BonusMoveSpeed"
@@ -228623,7 +229760,7 @@
 					},
 					{
 						m_strPropertyName = "BonusFireRate"
-						m_strBonus = "10"
+						m_strBonus = "14"
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
@@ -228988,7 +230125,7 @@
 			}
 			BonusHealthRegen = 
 			{
-				m_strValue = "3"
+				m_strValue = "2.5"
 				m_strCSSClass = "healing"
 				m_eDisplayType = "EBaseHealthRegen"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_REGEN_PER_SECOND"
@@ -228996,7 +230133,7 @@
 			}
 			OutOfCombatHealthRegen = 
 			{
-				m_strValue = "1"
+				m_strValue = "1.5"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_OUT_OF_COMBAT_HEALTH_REGEN"
 				m_eDisplayType = "EOOCHealthRegen"
 				m_strCSSClass = "healing"
@@ -229459,7 +230596,7 @@
 			}
 			ImbuedTechPower = 
 			{
-				m_strValue = "24"
+				m_strValue = "28"
 				m_strCSSClass = "tech_damage"
 				m_eDisplayType = "ETechPower"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_POWER"
@@ -230364,7 +231501,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "BonusDamage_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.465
+					m_flStatScale = 0.49
 				}
 			}
 			BonusClipSizePercent = 
@@ -231460,7 +232597,7 @@
 			}
 			BaseAttackDamagePercent = 
 			{
-				m_strValue = "15"
+				m_strValue = "18"
 				m_eDisplayType = "EBaseWeaponDamageIncrease"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BASEATTACK_DAMAGE_PERCENT"
 				m_eStatsUsageFlags = ""
@@ -231474,7 +232611,7 @@
 			}
 			BonusClipSizePercent = 
 			{
-				m_strValue = "30"
+				m_strValue = "35"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_AMMO_CLIP_SIZE_PERCENT"
 				m_eDisplayType = "EClipSizeIncrease"
 			}
@@ -232061,7 +233198,7 @@
 			}
 			InvisDuration = 
 			{
-				m_strValue = "7"
+				m_strValue = "8"
 				m_strCSSClass = "duration"
 				m_subclassScaleFunction = subclass:
 				{
@@ -232085,15 +233222,9 @@
 				m_strLocTokenOverride = "#VeilWalker_Heal"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_boon_scale"
 					_my_subclass_name = "HealPercentAmount_scale_function"
-					m_vecScalingStats = 
-					[
-						"EHealingOutput",
-						"ELevelUpBoons",
-					]
-					m_eSpecificStatScaleType = "ELevelUpBoons"
-					m_flStatScale = 6
+					m_flStatScale = 8
 				}
 			}
 		}
@@ -232256,6 +233387,14 @@
 						m_strPropertyName = "BonusMoveSpeed"
 						m_strBonus = "4m"
 					},
+					{
+						m_strPropertyName = "OutOfCombatHealthRegen"
+						m_strBonus = "8"
+					},
+					{
+						m_strPropertyName = "BonusSprintSpeed"
+						m_strBonus = "12m"
+					},
 				]
 			},
 		]
@@ -232405,6 +233544,13 @@
 					m_flStatScale = 1.8
 				}
 			}
+			OutOfCombatHealthRegen = 
+			{
+				m_strValue = "1.0"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_OUT_OF_COMBAT_HEALTH_REGEN"
+				m_eDisplayType = "EOOCHealthRegen"
+				m_strCSSClass = "healing"
+			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
@@ -232434,10 +233580,26 @@
 		m_strAG2SourceName = "item"
 		m_eItemSlotType = "EItemSlotType_Armor"
 		m_iItemTier = "EModTier_2"
+		m_vecComponentItems = 
+		[
+			"upgrade_grit",
+		]
 		m_strCSSClass = "vexBarrier"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_armor/last_stand.psd"
 		m_vecTooltipSectionInfo = 
 		[
+			{
+				m_eAbilitySectionType = "EArea_Innate"
+				m_vecSectionAttributes = 
+				[
+					{
+						m_vecAbilityProperties = 
+						[
+							"OutOfCombatHealthRegen",
+						]
+					},
+				]
+			},
 			{
 				m_eAbilitySectionType = "EArea_Passive"
 				m_vecSectionAttributes = 
@@ -232465,7 +233627,10 @@
 			{
 				_class = "modifier_intrinsic_base"
 				_my_subclass_name = "modifier_intrinsic_base"
-				m_vecAutoRegisterModifierValueFromAbilityPropertyName = [  ]
+				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
+				[
+					"OutOfCombatHealthRegen",
+				]
 			},
 		]
 		m_eShopFilters = "EShopFilterDurability"
@@ -232632,7 +233797,7 @@
 			}
 			BulletResist = 
 			{
-				m_strValue = "8"
+				m_strValue = "10"
 				m_eDisplayType = "EBulletArmorDamageReduction"
 				m_strCSSClass = "bullet_armor_up"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST"
@@ -232640,7 +233805,7 @@
 			}
 			TechResist = 
 			{
-				m_strValue = "8"
+				m_strValue = "10"
 				m_eDisplayType = "ETechArmorDamageReduction"
 				m_strCSSClass = "tech_armor_up"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_ARMOR_DAMAGE_RESIST"
@@ -232663,8 +233828,15 @@
 					_class = "scale_function_single_stat"
 					_my_subclass_name = "CombatBarrier_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 1.8
+					m_flStatScale = 2.0
 				}
+			}
+			OutOfCombatHealthRegen = 
+			{
+				m_strValue = "2.0"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_OUT_OF_COMBAT_HEALTH_REGEN"
+				m_eDisplayType = "EOOCHealthRegen"
+				m_strCSSClass = "healing"
 			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -232713,6 +233885,7 @@
 				[
 					"BulletResist",
 					"TechResist",
+					"OutOfCombatHealthRegen",
 				]
 				m_bIsHidden = true
 			},
@@ -232740,7 +233913,10 @@
 				[
 					{
 						m_strLocString = ""
-						m_vecAbilityProperties = [  ]
+						m_vecAbilityProperties = 
+						[
+							"OutOfCombatHealthRegen",
+						]
 						m_vecElevatedAbilityProperties = 
 						[
 							"BulletResist",
@@ -232952,7 +234128,7 @@
 			}
 			HealFromNPC = 
 			{
-				m_strValue = "15"
+				m_strValue = "20"
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
@@ -233779,7 +234955,7 @@
 			}
 			BulletLifestealPercent = 
 			{
-				m_strValue = "14"
+				m_strValue = "16"
 				m_strCSSClass = "healing"
 				m_eDisplayType = "EBulletLifesteal"
 				m_subclassScaleFunction = subclass:
@@ -234097,14 +235273,6 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_MAX"
 				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
-			BonusHealth = 
-			{
-				m_strValue = "125"
-				m_strCSSClass = "health"
-				m_eDisplayType = "EMaxHealth"
-				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX"
-				m_eStatsUsageFlags = ""
-			}
 			BonusAbilityDurationPercent = 
 			{
 				m_strValue = "15"
@@ -234127,8 +235295,32 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_RADIUS_PERCENT"
 				m_eStatsUsageFlags = ""
 			}
+			AirControlPercent = 
+			{
+				m_strValue = "25"
+				m_strCSSClass = "move_speed"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_AIR_CONTROL_PERCENT"
+			}
+			AirControlAccelPercent = 
+			{
+				m_strValue = "0"
+				m_strCSSClass = "move_speed"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_AIR_CONTROL_ACCEL_PERCENT"
+			}
+			GravityScale = 
+			{
+				m_strValue = "-15"
+			}
+			BonusHealth = 
+			{
+				m_strValue = "125"
+				m_strCSSClass = "health"
+				m_eDisplayType = "EMaxHealth"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX"
+				m_eStatsUsageFlags = ""
+			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Tech"
@@ -234138,7 +235330,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"tech_upgrade_t4",
@@ -234254,8 +235446,10 @@
 						m_vecAbilityProperties = 
 						[
 							"BonusAbilityDurationPercent",
-							"TechPower",
 							"BonusHealth",
+							"TechPower",
+							"GravityScale",
+							"AirControlPercent",
 						]
 					},
 				]
@@ -234294,6 +235488,18 @@
 					"BonusHealth",
 				]
 			},
+			subclass:
+			{
+				_class = "modifier_hero_gravity"
+				_my_subclass_name = "modifier_hero_gravity"
+				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
+				[
+					"AirControlPercent",
+					"AirControlAccelPercent",
+				]
+				m_bIsHidden = true
+				m_flGravityChange = -40
+			},
 		]
 		m_eShopFilters = "EShopFilterMovement"
 		m_strCastDelaySound = soundevent:"Item.MagicCarpet.Cast_Delay"
@@ -234314,10 +235520,6 @@
 					{
 						m_strPropertyName = "BonusAbilityDurationPercent"
 						m_strBonus = "15"
-					},
-					{
-						m_strPropertyName = "BonusHealth"
-						m_strBonus = "200"
 					},
 					{
 						m_strPropertyName = "FlyMoveSpeed"
@@ -236560,7 +237762,7 @@
 			}
 			TechResist = 
 			{
-				m_strValue = "20"
+				m_strValue = "22"
 				m_eDisplayType = "ETechArmorDamageReduction"
 				m_strCSSClass = "tech_armor_up"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_ARMOR_DAMAGE_RESIST"
@@ -238557,6 +239759,14 @@
 				m_strValue = "65"
 				m_strCSSClass = "tech_armor_up"
 			}
+			BonusHealth = 
+			{
+				m_strValue = "90"
+				m_strCSSClass = "health"
+				m_eDisplayType = "EMaxHealth"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX"
+				m_eStatsUsageFlags = ""
+			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
@@ -238598,6 +239808,10 @@
 				m_vecSectionAttributes = 
 				[
 					{
+						m_vecAbilityProperties = 
+						[
+							"BonusHealth",
+						]
 						m_vecElevatedAbilityProperties = 
 						[
 							"TechResist",
@@ -238637,6 +239851,7 @@
 				[
 					"TechResist",
 					"StatusResistancePercent",
+					"BonusHealth",
 				]
 				m_bIsHidden = true
 				m_strParticleEffect = resource_name:""
@@ -238811,7 +240026,7 @@
 			}
 			FireRateSlow = 
 			{
-				m_strValue = "36"
+				m_strValue = "40"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_FIRE_RATE_SLOW"
 				m_strCSSClass = "fire_rate"
 				m_eStatsUsageFlags = "ConditionallyEnemyApplied"
@@ -238826,7 +240041,7 @@
 			}
 			BonusMoveSpeed = 
 			{
-				m_strValue = "2.0m"
+				m_strValue = "2.5m"
 				m_eDisplayType = "EMaxMoveSpeed"
 				m_strCSSClass = "move_speed"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_MAX"
@@ -239119,7 +240334,7 @@
 			}
 			CooldownReduction = 
 			{
-				m_strValue = "6"
+				m_strValue = "5"
 				m_eDisplayType = "ETechCooldown"
 				m_strCSSClass = "cooldown"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_COOLDOWN_REDUCTION_PERCENTAGE"
@@ -244389,14 +245604,14 @@
 			}
 			TechRangeMultiplier = 
 			{
-				m_strValue = "20"
+				m_strValue = "22"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_RANGE_PERCENT"
 				m_eApplyFilter = "EApplyFilter_OnlyIfImbued"
 				m_strCSSClass = "distance"
 			}
 			TechRadiusMultiplier = 
 			{
-				m_strValue = "20"
+				m_strValue = "22"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_RADIUS_PERCENT"
 				m_eApplyFilter = "EApplyFilter_OnlyIfImbued"
 				m_strCSSClass = "distance"
@@ -244448,6 +245663,10 @@
 		m_strAG2SourceName = "item"
 		m_eItemSlotType = "EItemSlotType_WeaponMod"
 		m_iItemTier = "EModTier_3"
+		m_vecComponentItems = 
+		[
+			"upgrade_magic_reach",
+		]
 		m_iUpdateTime = 1769068800
 		m_TargetAbilityEffectsToApply = "CITADEL_TARGET_ABILITY_BEHAVIOR_IMBUE_ACTIVE"
 		m_strCSSClass = "fireRatePlus"
@@ -244559,7 +245778,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "24"
+				m_strValue = "25"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -244991,7 +246210,7 @@
 			}
 			BonusBuffsPerGold = 
 			{
-				m_strValue = "100"
+				m_strValue = "80"
 			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -246847,6 +248066,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -247131,7 +248362,7 @@
 				}
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Priest"
@@ -247156,7 +248387,7 @@
 			m_Spread = 30.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -247548,15 +248779,9 @@
 				m_strValue = "120"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					m_flStatScale = 2.79
 					_my_subclass_name = "healsf"
-					m_vecScalingStats = 
-					[
-						"EHealingOutput",
-						"ETechPower",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
 				}
 				m_strCSSClass = "healing"
 			}
@@ -249070,7 +250295,7 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_MAX"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM | MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
 		{
 			folder_name = "Hero Priest"
@@ -249097,7 +250322,7 @@
 			m_flCritBonusAgainstNPCs = 0.2
 		}
 		m_bitsChannelEnabledStateMask = ""
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION | MODIFIER_STATE_HIDE_CROSSHAIR | MODIFIER_STATE_HIDE_AMMO"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM | MODIFIER_STATE_BUSY_WITH_ACTION | MODIFIER_STATE_HIDE_CROSSHAIR | MODIFIER_STATE_HIDE_AMMO"
 		_multibase = 
 		[
 			"ultimate_base",
@@ -249486,7 +250711,7 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_STAMINA_REGEN_PER_SECOND_ADDITIVE"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Priest"
@@ -249497,7 +250722,7 @@
 			m_szBulletTravelTracerParticle = resource_name:"particles/weapon_fx/default_tracer.vpcf"
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -251128,7 +252353,7 @@
 				m_strCSSClass = "damage"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Priest"
@@ -251138,7 +252363,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -251200,7 +252425,11 @@
 				[
 					{
 						m_strPropertyName = "IncomingDamagePercentFromCaster"
-						m_strBonus = "25"
+						m_strBonus = "30"
+					},
+					{
+						m_strPropertyName = "AbilityCharges"
+						m_strBonus = "1"
 					},
 				]
 			},
@@ -252636,6 +253865,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -252778,7 +254019,7 @@
 			}
 			AbilityCooldownBetweenCharge = 
 			{
-				m_strValue = "9"
+				m_strValue = "8"
 				m_strDisableValue = "-2"
 				m_strCSSClass = "charge_cooldown"
 				m_bCanSetTokenOverride = true
@@ -252882,7 +254123,7 @@
 				m_strValue = "5"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Familiar"
@@ -252892,7 +254133,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -252943,7 +254184,7 @@
 				[
 					{
 						m_strPropertyName = "Damage"
-						m_strBonus = "90"
+						m_strBonus = "100"
 					},
 					{
 						m_strPropertyName = "AbilityCharges"
@@ -253241,7 +254482,7 @@
 			}
 			DamageResistPctWhileChanneling = 
 			{
-				m_strValue = "0"
+				m_strValue = "30"
 			}
 			UnstoppableWhileChanneling = 
 			{
@@ -253814,14 +255055,8 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "HealingPerSecond_scale_function"
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
 					m_flStatScale = 0.14
 				}
 			}
@@ -254269,6 +255504,7 @@
 		m_ScaredParticle = resource_name:"particles/abilities/familiar/familiar_helpinghand_emote_scare.vpcf"
 		m_strHelperScaredSound = soundevent:"Familiar.HelpingHands.Emote.Scared"
 		m_strHelperBuffSound = soundevent:"Familiar.HelpingHands.Buff.Start"
+		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 	}
 	ability_familiar_attach = 
 	{
@@ -254412,11 +255648,11 @@
 			}
 			HopOutLockoutDuration = 
 			{
-				m_strValue = "1.0"
+				m_strValue = "0.3"
 			}
 			HealthRegenDuration = 
 			{
-				m_strValue = "3.0"
+				m_strValue = "2"
 				m_strCSSClass = "duration"
 				m_subclassScaleFunction = subclass:
 				{
@@ -254427,19 +255663,13 @@
 			}
 			HealingPerSecond = 
 			{
-				m_strValue = "28"
+				m_strValue = "42"
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "HealingPerSecond_scale_function"
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.44
+					m_flStatScale = 0.66
 				}
 			}
 			MissingHealthBurstPct = 
@@ -254448,14 +255678,8 @@
 				m_strCSSClass = "health"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "MissingHealthBurstPct_scale_function"
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
-					m_eSpecificStatScaleType = "ETechPower"
 					m_flStatScale = 0.03
 				}
 			}
@@ -254611,15 +255835,15 @@
 				[
 					{
 						m_strPropertyName = "BonusBarrierAmpPercent"
-						m_strBonus = "25"
+						m_strBonus = "35"
 					},
 					{
 						m_strPropertyName = "BonusItemDurationPercent"
-						m_strBonus = "25"
+						m_strBonus = "35"
 					},
 					{
 						m_strPropertyName = "BonusItemRangePercent"
-						m_strBonus = "25"
+						m_strBonus = "35"
 					},
 				]
 			},
@@ -254637,6 +255861,18 @@
 					{
 						m_strPropertyName = "HopOffEffecDuration"
 						m_strBonus = "10"
+					},
+					{
+						m_strPropertyName = "MissingHealthBurstPct"
+						m_strBonus = 0.02
+						m_eUpgradeType = "EAddToScale"
+						m_eScaleStatFilter = "ETechPower"
+					},
+					{
+						m_strPropertyName = "HealingPerSecond"
+						m_strBonus = 0.34
+						m_eUpgradeType = "EAddToScale"
+						m_eScaleStatFilter = "ETechPower"
 					},
 				]
 			},
@@ -254671,7 +255907,7 @@
 			_my_subclass_name = "attachheal"
 			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 			m_strScreenParticleEffect = resource_name:"particles/abilities/familiar/familiar_tagalong_host_screen.vpcf"
-			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
+			m_eHudDisplayLocation = "DISPLAY_HUD_LEFT"
 			m_strHudMessageText = "#ability_familiar_attach"
 		}
 		m_HopOffBuffModifier = subclass:
@@ -254812,8 +256048,8 @@
 		m_FakeFamiliarParticle = resource_name:"particles/abilities/familiar/familiar_tagalong_entity.vpcf"
 		m_flDetachForce = 350.0
 		m_flDetachForceUp = 400.0
-		m_flTriggeredDetachForce = 700
-		m_flTriggeredDetachForceUp = 110
+		m_flTriggeredDetachForce = 800
+		m_flTriggeredDetachForceUp = 130
 		m_HUDPanel = 
 		{
 			m_vecButtonHints = 
@@ -254829,6 +256065,14 @@
 		m_mapDependentAbilities = 
 		{
 			ability_familiar_attach_trigger = null
+		}
+		m_LaunchTossModifier = subclass:
+		{
+			_class = "modifier_familiar_attach_launchoff"
+			_my_subclass_name = "launchtoss"
+			m_bIsHidden = true
+			m_eDebuffType = "MODIFIER_DEBUFF_NO"
+			m_nAttributes = "MODIFIER_ATTRIBUTE_CANNOT_BE_PURGED"
 		}
 		m_LaunchedSelfModifier = subclass:
 		{
@@ -254847,20 +256091,20 @@
 				{
 					x = 0.0
 					y = 1.0
-					m_flSlopeIncoming = 34293.601562
-					m_flSlopeOutgoing = 34293.601562
+					m_flSlopeIncoming = 52773.6
+					m_flSlopeOutgoing = 52773.6
 				},
 				{
 					x = 0.088843
-					y = 1159.924561
-					m_flSlopeIncoming = 649.5
-					m_flSlopeOutgoing = 649.5
+					y = 1784.4413
+					m_flSlopeIncoming = 999.5
+					m_flSlopeOutgoing = 999.5
 				},
 				{
 					x = 2.0
-					y = 1300.0
-					m_flSlopeIncoming = 73.29351
-					m_flSlopeOutgoing = 73.29351
+					y = 2000.0
+					m_flSlopeIncoming = 112.78964
+					m_flSlopeOutgoing = 112.78964
 				},
 			]
 			m_tangents = 
@@ -254879,7 +256123,7 @@
 				},
 			]
 			m_vDomainMins = [ 0.0, 1.0 ]
-			m_vDomainMaxs = [ 2.0, 1300.0 ]
+			m_vDomainMaxs = [ 2.0, 2000.0 ]
 		}
 		m_DeathBarrierModifier = subclass:
 		{
@@ -254933,6 +256177,7 @@
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
 		m_flTargetingConeAngle = 45.0
 		m_flTargetingConeHalfWidth = 60.0
+		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 	}
 	ability_familiar_attach_trigger = 
 	{
@@ -255114,6 +256359,7 @@
 				},
 			]
 		}
+		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 	}
 	citadel_weapon_fencer_set = 
 	{
@@ -256539,6 +257785,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -256994,6 +258252,175 @@
 		m_MarkLingerParticle = resource_name:"particles/abilities/fencer/fencer_sigil_linger.vpcf"
 		m_LaunchTrailParticle = resource_name:"particles/abilities/fencer/fencer_sigil_trail.vpcf"
 	}
+	ability_fencer_riposte_target_select = 
+	{
+		_class = "ability_fencer_riposte_target_select"
+		m_mapAbilityProperties = 
+		{
+			AbilityCooldown = 
+			{
+				m_strValue = 0
+				m_strDisableValue = "0"
+				m_strCSSClass = "cooldown"
+				m_bCanSetTokenOverride = true
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "AbilityCooldown_scale_function"
+					m_eSpecificStatScaleType = "ETechCooldown"
+				}
+			}
+			AbilityDuration = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "0"
+				m_strCSSClass = "duration"
+				m_bCanSetTokenOverride = true
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "AbilityDuration_scale_function"
+					m_eSpecificStatScaleType = "ETechDuration"
+				}
+			}
+			AbilityCastRange = 
+			{
+				m_strValue = "25m"
+				m_eDisplayUnits = "EDisplayUnit_Meters"
+				m_strCSSClass = "range"
+				m_bCanSetTokenOverride = true
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "AbilityCastRange_scale_function"
+					m_eSpecificStatScaleType = "ETechRange"
+				}
+			}
+			AbilityUnitTargetLimit = 
+			{
+				m_strValue = "1"
+				m_bCanSetTokenOverride = true
+			}
+			AbilityCastDelay = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "0"
+				m_strCSSClass = "cast"
+				m_bCanSetTokenOverride = true
+			}
+			AbilityChannelTime = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "0"
+				m_strCSSClass = "cast"
+				m_bCanSetTokenOverride = true
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_multi_stats"
+					_my_subclass_name = "scale_duration"
+					m_vecScalingStats = 
+					[
+						"EChannelDuration",
+						"ETechDuration",
+					]
+				}
+			}
+			AbilityPostCastDuration = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "0"
+			}
+			AbilityCharges = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "-1"
+				m_strCSSClass = "cast"
+				m_bCanSetTokenOverride = true
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_ability_charges"
+					_my_subclass_name = "AbilityCharges_scale_function"
+				}
+			}
+			AbilityCooldownBetweenCharge = 
+			{
+				m_strValue = "-1.0"
+				m_strDisableValue = "-2"
+				m_strCSSClass = "charge_cooldown"
+				m_bCanSetTokenOverride = true
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_ability_recharge_time"
+					_my_subclass_name = "scale_function_ability_recharge_time"
+				}
+			}
+			ChannelMoveSpeed = 
+			{
+				m_strValue = "-1"
+				m_eDisplayUnits = "EDisplayUnit_MetersPerSecond"
+				m_strCSSClass = "move_speed"
+				m_bCanSetTokenOverride = true
+			}
+			AbilityResourceCost = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "0"
+				m_bCanSetTokenOverride = true
+				m_strCSSClass = "cast"
+			}
+			TechPower = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "0"
+				m_bCanSetTokenOverride = true
+				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_POWER"
+			}
+			WeaponPower = 
+			{
+				m_strValue = "0"
+				m_strDisableValue = "0"
+				m_bCanSetTokenOverride = true
+				m_eProvidedPropertyType = "MODIFIER_VALUE_WEAPON_POWER"
+			}
+		}
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		_editor = 
+		{
+			folder_name = "Hero Fencer"
+		}
+		m_WeaponInfo = 
+		{
+			m_flBulletSpeed = 10000.0
+		}
+		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		_multibase = 
+		[
+			"ability_trigger_base",
+		]
+		m_eAbilityType = "EAbilityType_Innate"
+		m_bStartTrained = true
+		m_iMaxLevel = 1
+		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
+		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SPRINT | CITADEL_ABILITY_BEHAVIOR_CASTABLE_WHILE_BUSY | CITADEL_ABILITY_BEHAVIOR_NOT_SILENCABLE | CITADEL_ABILITY_BEHAVIOR_CASTABLE_WHILE_CMD_RESTRICTED | CITADEL_ABILITY_BEHAVIOR_NON_COMBAT | CITADEL_ABILITY_BEHAVIOR_CASTABLE_WHILE_HIDDEN | CITADEL_ABILITY_BEHAVIOR_IGNORE_SELECTION_MASH_PROTECTION | CITADEL_ABILITY_BEHAVIOR_CASTABLE_WHILE_DODGING | CITADEL_ABILITY_BEHAVIOR_TRIGGER | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI"
+		m_eAbilitySpectatePriority = "CITADELTV_ABILITY_SPECTATE_PRIORITY_HIGH"
+		m_strAbilityImage = panorama:"file://{images}/hud/abilities/fencer/fencer_riposte_attack.psd"
+		m_HUDPanel = 
+		{
+			m_vecButtonHints = [  ]
+			m_vecHUDElements = [  ]
+		}
+		m_AbilityToTrigger = "ability_fencer_riposte"
+		m_strAG2CastCompletedAction = ""
+		m_strAG2ChannelingAction = ""
+		m_strAG2CastingAction = ""
+		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
+		m_flTargetingConeAngle = 70.0
+		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY"
+		m_bShowTargetingPreviewWhileCasting = true
+		m_bForceShowHUDPanel = false
+	}
 	ability_fencer_riposte = 
 	{
 		_class = "ability_fencer_riposte"
@@ -257127,7 +258554,7 @@
 			}
 			DashSpeed = 
 			{
-				m_strValue = "2400"
+				m_strValue = "3000"
 				m_eDisplayUnits = "EDisplayUnit_MetersPerSecond"
 			}
 			DashRange = 
@@ -257258,6 +258685,14 @@
 					m_eSpecificStatScaleType = "ETechDuration"
 				}
 			}
+			UsesFrontalCheck = 
+			{
+				m_strValue = "0"
+			}
+			DashGraceWindow = 
+			{
+				m_strValue = "1"
+			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
@@ -257287,6 +258722,7 @@
 		m_flBossDamageScale = 1.0
 		m_mapDependentAbilities = 
 		{
+			ability_fencer_riposte_target_select = null
 		}
 		m_iUpdateTime = 0
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
@@ -257656,15 +259092,9 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_multi_stats"
+					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "HealFixedHealth_scale_function"
 					m_flStatScale = 0.0
-					m_eSpecificStatScaleType = "ETechPower"
-					m_vecScalingStats = 
-					[
-						"ETechPower",
-						"EHealingOutput",
-					]
 				}
 			}
 			MaxProcBleedDamagePercent = 
@@ -257701,7 +259131,7 @@
 			}
 			SlashCollisionRadius = 
 			{
-				m_strValue = "4.5"
+				m_strValue = "4.05"
 			}
 			MaxStacks = 
 			{
@@ -258964,7 +260394,7 @@
 				m_vDomainMins = [ 0.0, 1.0 ]
 				m_vDomainMaxs = [ 100.0, 22500.0 ]
 			}
-			m_flBulletDamage = 4.0
+			m_flBulletDamage = 3.6
 			m_iAmmoConsumedPerShot = 1
 			m_bCanCrit = true
 			m_strShootSound = soundevent:"Necro.Wpn.Fire"
@@ -259926,6 +261356,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -260238,7 +261680,8 @@
 			}
 			SummonCount = 
 			{
-				m_strValue = "0"
+				m_strValue = "1"
+				m_strLocTokenOverride = "GhoulCount"
 			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -260327,6 +261770,9 @@
 						{
 							m_vecAbilityProperties = 
 							[
+								{
+									m_strImportantProperty = "SummonCount"
+								},
 								{
 									m_strImportantProperty = "Damage"
 								},
@@ -260697,7 +262143,7 @@
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_damage"
-					m_flStatScale = 0.35
+					m_flStatScale = 0.31
 					_my_subclass_name = "damagesf"
 				}
 				m_strCSSClass = "tech_damage"
@@ -261393,6 +262839,7 @@
 				m_strValue = "80"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_SLOW_PERCENT"
 				m_strCSSClass = "slow"
+				m_bReturnZeroIfUnupgraded = false
 			}
 			SlowDuration = 
 			{
@@ -261403,6 +262850,7 @@
 					_my_subclass_name = "slowdurationsf"
 				}
 				m_strCSSClass = "duration"
+				m_bReturnZeroIfUnupgraded = false
 			}
 			TechResist = 
 			{
@@ -261412,6 +262860,7 @@
 			PushForce = 
 			{
 				m_strValue = "300"
+				m_bReturnZeroIfUnupgraded = false
 			}
 			MaxGravestones = 
 			{
@@ -261470,6 +262919,7 @@
 					_my_subclass_name = "damagesf"
 				}
 				m_strCSSClass = "tech_damage"
+				m_bReturnZeroIfUnupgraded = false
 			}
 			GravestoneTakesDamage = 
 			{
@@ -261516,6 +262966,7 @@
 					_my_subclass_name = "summonlifetimesf"
 				}
 				m_strCSSClass = "duration"
+				m_bReturnZeroIfUnupgraded = false
 			}
 			DecayTickRate = 
 			{
@@ -261538,6 +262989,7 @@
 				}
 				m_eProvidedPropertyType = "MODIFIER_VALUE_INVALID"
 				m_strCSSClass = "bullet_damage"
+				m_bReturnZeroIfUnupgraded = false
 			}
 			SummonHealth = 
 			{
@@ -261550,6 +263002,7 @@
 					m_eSpecificStatScaleType = "ELevelUpBoons"
 				}
 				m_strCSSClass = "health"
+				m_bReturnZeroIfUnupgraded = false
 			}
 			BonusSpiritDamagePercentage = 
 			{
@@ -261567,10 +263020,12 @@
 			SummonSearchRadius = 
 			{
 				m_strValue = "4m"
+				m_bReturnZeroIfUnupgraded = false
 			}
 			SummonMaxCount = 
 			{
 				m_strValue = "32"
+				m_bReturnZeroIfUnupgraded = false
 			}
 			StunDuration = 
 			{
@@ -261584,10 +263039,12 @@
 			ExplodeDelay = 
 			{
 				m_strValue = "0.23"
+				m_bReturnZeroIfUnupgraded = false
 			}
 			SpawnDuration = 
 			{
 				m_strValue = "1.5"
+				m_bReturnZeroIfUnupgraded = false
 			}
 			ExplosionRadius = 
 			{
@@ -261597,6 +263054,7 @@
 					_class = "scale_function_tech_range"
 					_my_subclass_name = "explosionradiusf"
 				}
+				m_bReturnZeroIfUnupgraded = false
 			}
 			MoveSpeedPercent = 
 			{
@@ -265063,6 +266521,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -265283,7 +266753,7 @@
 			m_flDamageFalloffEndScale = 0.1
 			m_flDamageFalloffBias = 0.5
 			m_iBullets = 7
-			m_flCycleTime = 0.9
+			m_flCycleTime = 0.85
 			m_reloadDuration = 0.3
 			m_iClipSize = 7
 			m_iBurstShotCount = 1
@@ -265405,7 +266875,7 @@
 				m_vDomainMins = [ 0.0, 1.0 ]
 				m_vDomainMaxs = [ 100.0, 22500.0 ]
 			}
-			m_flBulletDamage = 5.4
+			m_flBulletDamage = 5.1
 			m_bIsSemiAuto = false
 			m_flSpreadPenaltyDecay = 3.0
 			m_flBulletSpeedRandomFactor = 0.0
@@ -267724,7 +269194,7 @@
 				}
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Werewolf"
@@ -267746,7 +269216,7 @@
 			m_strBulletImpactSound = soundevent:"Werewolf.Netshot.Impact"
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -267784,8 +269254,8 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "DebuffDuration"
-						m_strBonus = "0.75"
+						m_strPropertyName = "AbilityCooldown"
+						m_strBonus = "-5"
 					},
 				]
 			},
@@ -267801,8 +269271,8 @@
 						m_strBonus = "15m"
 					},
 					{
-						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-5"
+						m_strPropertyName = "DebuffDuration"
+						m_strBonus = "0.75"
 					},
 				]
 			},
@@ -267849,7 +269319,7 @@
 			[
 				"SlowPercent",
 			]
-			m_nEnabledStateMask = "MODIFIER_STATE_SILENCE_MOVEMENT_ABILITES | MODIFIER_STATE_SPRINT_DISABLED | MODIFIER_STATE_DASH_DISABLED_DEBUFF | MODIFIER_STATE_SLOWED | MODIFIER_STATE_JUMP_DISABLED | MODIFIER_STATE_MANTLE_DISABLED | MODIFIER_STATE_STAMINA_REGEN_PAUSED"
+			m_nEnabledStateMask = "MODIFIER_STATE_SILENCE_MOVEMENT_ABILITES | MODIFIER_STATE_SPRINT_DISABLED | MODIFIER_STATE_DASH_DISABLED_DEBUFF | MODIFIER_STATE_SLOWED | MODIFIER_STATE_STAMINA_REGEN_PAUSED"
 			m_strParticleEffect = resource_name:"particles/abilities/werewolf/werewolf_bolo_debuff.vpcf"
 			m_bIsHidden = false
 			m_sAmbientLoopingSound = soundevent:"Werewolf.Netshot.Debuff.Lp"
@@ -268856,14 +270326,8 @@
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_single_stat"
-					m_eSpecificStatScaleType = "EHealingOutput"
+					_class = "scale_function_healing_boon_scale"
 					m_flStatScale = 1.0
-					m_vecScalingStats = 
-					[
-						"ELevelUpBoons",
-						"EHealingOutput",
-					]
 					_my_subclass_name = "healsf"
 				}
 			}
@@ -268921,11 +270385,11 @@
 			}
 			BonusFireRate = 
 			{
-				m_strValue = "80"
+				m_strValue = "65"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_single_stat"
-					m_flStatScale = 0.25
+					m_flStatScale = 0.45
 					m_eSpecificStatScaleType = "ETechPower"
 					_my_subclass_name = "fireratesf"
 				}
@@ -270754,7 +272218,7 @@
 				m_strValue = "0"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Werewolf"
@@ -270764,7 +272228,7 @@
 			m_flBulletSpeed = 10000.0
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"signature_base",
@@ -272465,6 +273929,18 @@
 					m_nButton1 = "IN_WEAPON1"
 					m_strContext = "melee_change_team"
 				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolCashIn"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_cashin"
+				},
+				{
+					m_strLocToken = "#AbilityButtonHint_MeleeIdolPickup"
+					m_eHintSide = "EButtonSide_Bottom"
+					m_nButton1 = "IN_WEAPON1"
+					m_strContext = "melee_idol_pickup"
+				},
 			]
 		}
 		m_flBackDashDodgeDist = 50.0
@@ -273554,7 +275030,7 @@
 				m_strValue = "4"
 			}
 		}
-		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_editor = 
 		{
 			folder_name = "Hero Unicorn"
@@ -273576,7 +275052,7 @@
 			m_strBulletWhizSound = soundevent:"Bookworm.Wpn.Whizby"
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
-		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
+		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_IN_ABILITY_ALLOW_ZOOM"
 		_multibase = 
 		[
 			"ultimate_base",
@@ -273619,7 +275095,7 @@
 				[
 					{
 						m_strPropertyName = "Damage"
-						m_strBonus = "50"
+						m_strBonus = "70"
 					},
 				]
 			},
@@ -274197,11 +275673,11 @@
 				[
 					{
 						m_strPropertyName = "ImpactDamage"
-						m_strBonus = "70"
+						m_strBonus = "80"
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-18"
+						m_strBonus = "-22"
 					},
 				]
 			},

@@ -113,7 +113,7 @@ function main() {
   const defaultsKeys = extractDefaultsKeys(healthbar);
   const aliasesCore = extractAliases(uiCore, 'HP_PERSIST_ALIASES');
   const aliasesLoader = extractAliases(loader, 'HP_PERSIST_ALIASES');
-  const revAliases = extractReverseAliases(healthbar, 'HP_PERSIST_ALIAS_TO_ID');
+  const revAliases = extractReverseAliases(healthbar, 'HP_PERSIST_ALIAS_TO_ID') || {};
   const registrarDefaults = extractRegistrarDefaults(registrar);
 
   const errors = [];
@@ -123,7 +123,6 @@ function main() {
   if (!defaultsKeys || defaultsKeys.length === 0) errors.push('Could not extract DEFAULTS from healthbar_logic.js');
   if (!aliasesCore || Object.keys(aliasesCore).length === 0) errors.push('Could not extract HP_PERSIST_ALIASES from anita_ui_core.js');
   if (!aliasesLoader || Object.keys(aliasesLoader).length === 0) errors.push('Could not extract HP_PERSIST_ALIASES from anita_persist_loader.js');
-  if (!revAliases || Object.keys(revAliases).length === 0) errors.push('Could not extract HP_PERSIST_ALIAS_TO_ID from healthbar_logic.js');
   if (!registrarDefaults || Object.keys(registrarDefaults).length === 0) errors.push('Could not extract SCHEMA defaults from hp_registrar.js');
 
   if (errors.length) {
@@ -178,12 +177,20 @@ function main() {
     }
   }
 
-  // 7. Reverse alias parity with forward aliases
-  for (const id of schemaIds) {
-    const short = aliasesCore[id];
-    if (revAliases[short] !== id) {
-      errors.push(`Reverse alias mismatch: ${id} -> "${short}" -> "${revAliases[short]}"`);
-    }
+  // 7. Compact alias conversion belongs to Anita/import loaders, not the hot healthbar runtime.
+  if (healthbar.includes('HP_PERSIST_ALIAS_TO_ID')) {
+    errors.push('healthbar_logic.js should not own compact persistence aliases');
+  }
+  for (const marker of [
+    'deadlock_hero_debuts_seen',
+    'GameInterfaceAPI.GetSettingString',
+    'GameInterfaceAPI.SetSettingString',
+    'GameInterfaceAPI.ConsoleCommand',
+    'CONVAR_KEY'
+  ]) {
+    if (healthbar.includes(marker)) errors.push(`healthbar_logic.js must not touch convar storage: ${marker}`);
+    if (uiCore.includes(marker)) errors.push(`anita_ui_core.js must not touch convar storage: ${marker}`);
+    if (loader.includes(marker)) errors.push(`anita_persist_loader.js must not touch convar storage: ${marker}`);
   }
 
   // 8. Registrar defaults vs runtime defaults
@@ -202,12 +209,7 @@ function main() {
     }
   }
 
-  // 9. Reverse aliases should not have orphaned entries
-  const revKeys = new Set(Object.keys(revAliases));
-  const fwdVals = new Set(Object.values(aliasesCore));
-  for (const v of revKeys) {
-    if (!fwdVals.has(v)) errors.push(`Reverse alias orphaned short code: "${v}"`);
-  }
+  // 9. Compact aliases should remain in the persistence owners.
 
   // 10. Hot-loop optimization guards
   if (!healthbar.includes('STYLE_REAPPLY_WATCHDOG_MS')) {
@@ -215,6 +217,24 @@ function main() {
   }
   if (healthbar.includes('STYLE_REAPPLY_MS = 1000')) {
     errors.push('healthbar_logic.js must not force style reapply every 1s');
+  }
+  for (const debugMarker of ['$.Msg', 'HB_TARGET_DEBUG', 'hbDebug', 'debugFirstEnemyPaint', '[HP Colors][HB]']) {
+    if (healthbar.includes(debugMarker)) {
+      errors.push(`healthbar_logic.js contains production debug marker: ${debugMarker}`);
+    }
+  }
+  for (const hardGateMarker of [
+    'const HP_OPTIMIZED_FORCED_VALUES = {',
+    'const HP_OPTIMIZED_HIDDEN_SETTINGS = {',
+    'function applyHpOptimizedHardGates(config)',
+    'element.runtimeLocked = !!forced;',
+    'element.runtimeHidden = !!hidden;',
+    'if (element && element.runtimeHidden) return false;',
+    'AnitaRuntimeLocked'
+  ]) {
+    if (!uiCore.includes(hardGateMarker) && !uiStyle.includes(hardGateMarker)) {
+      errors.push(`HP Colors optimized menu hard gate missing marker: ${hardGateMarker}`);
+    }
   }
   for (const derivedMarker of [
     'function refreshDerivedConfig()',
@@ -254,14 +274,7 @@ function main() {
     'const HP_HERO_SCOPE_OFF = "off"',
     'const HP_HERO_SCOPE_ALL = "all"',
     'const HP_HERO_SCOPE_SELECTED = "selected"',
-    'const HP_HERO_WATCH_IDLE_LOG_TICKS = 30',
-    'function logHpHeroPresetEvent(eventName, data)',
-    'function refreshHpHeroPresetSelection(config, logWait)',
-    '"[HP-COLORS][HERO-PRESET] event="',
-    'logHpHeroPresetEvent("hero_changed", {',
-    'logHpHeroPresetEvent("preset_apply", {',
-    'logHpHeroPresetEvent("preset_wait", {',
-    'values: countObjectKeys(selection.preset.values || {})',
+    'function refreshHpHeroPresetSelection(config)',
     'startHpHeroPresetWatch(config);',
     'return { preset: firstHeroMatch, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "hero" }',
     'return { preset: null, heroId: heroId, hasScopedPreset: true, reason: "waiting_for_hero" }',
@@ -387,7 +400,6 @@ function main() {
     'heroMode: normalizeHpHeroScopeMode(preset.heroMode, preset.heroes)',
     'store["id:" + String(row.id)] = normalized.slice(0);',
     'modeStore["id:" + String(row.id)] = scopeMode;',
-    'startHpHeroPresetWatch(config);',
     'row.token = this.buildPresetCodeToken(config, row.values || {}, row.name || "", row.payloadValues, row.heroes, row.heroMode);',
     'else tuple.push(scopeMode);'
   ]) {
@@ -452,8 +464,53 @@ function main() {
   if (!/\.AnitaPresetHeroPickerBtn\s*,\s*\n\.AnitaPresetHeroBtn\s*\{[\s\S]*?height:\s*30px;/.test(uiStyle)) {
     errors.push('anita_ui.css missing 30px height inside .AnitaPresetHeroPickerBtn');
   }
-  if (!/\.AnitaPresetHeroMenuOption\s*\{[\s\S]*?padding:\s*5px 5px 5px 8px;/.test(uiStyle)) {
+  if (!/\.AnitaPresetHeroMenuOption\s*\{[\s\S]*?padding:\s*4px 5px 4px 8px;/.test(uiStyle)) {
     errors.push('anita_ui.css missing compact padding inside custom hero menu options');
+  }
+  if (!/\.AnitaPresetHeroDropDownFace\s*\{[^}]*height:\s*30px;/.test(uiStyle)) {
+    errors.push('anita_ui.css should keep preset hero picker face at full button height');
+  }
+  if (!/\.AnitaPresetHeroDropDownFace\s*\{[^}]*width:\s*112px;/.test(uiStyle)) {
+    errors.push('anita_ui.css should center preset hero picker text across the full button width');
+  }
+  if (!/\.AnitaPresetHeroDropDownFace\s*\{[^}]*padding:\s*0px 18px 0px 18px;/.test(uiStyle)) {
+    errors.push('anita_ui.css missing symmetric preset hero picker face spacing');
+  }
+  if (!/\.AnitaPresetHeroDropDownFaceLabel\s*\{[^}]*height:\s*fit-children;/.test(uiStyle)) {
+    errors.push('anita_ui.css should center preset hero picker label as fit-children, not full-height text');
+  }
+  if (!/\.AnitaPresetHeroDropDownFaceLabel\s*\{[^}]*margin-top:\s*0px;/.test(uiStyle)) {
+    errors.push('anita_ui.css should not offset preset hero picker label with margin-top');
+  }
+  if (!/\.AnitaPresetHeroPickerArrow\s*\{[^}]*background-color:\s*transparent;/.test(uiStyle)) {
+    errors.push('anita_ui.css should keep preset hero picker arrow background transparent');
+  }
+  if (!/\.AnitaPresetHeroPickerArrow\s*\{[^}]*height:\s*fit-children;/.test(uiStyle)) {
+    errors.push('anita_ui.css should center preset hero picker arrow as fit-children');
+  }
+  if (!/\.AnitaPresetHeroSummary\s*\{[^}]*height:\s*fit-children;/.test(uiStyle)) {
+    errors.push('anita_ui.css should center preset hero summary as fit-children, not full-height text');
+  }
+  if (!/\.AnitaPresetHeroSummary\s*\{[^}]*margin-top:\s*0px;/.test(uiStyle)) {
+    errors.push('anita_ui.css should not offset preset hero summary with margin-top');
+  }
+  if (!/\.AnitaImportCloseBtn\s*\{[^}]*border:\s*1px solid rgba\(255,\s*255,\s*255,\s*0\.16\);/.test(uiStyle)) {
+    errors.push('anita_ui.css missing visible import close button border');
+  }
+  if (!/\.AnitaImportCloseBtn:hover\s*\{[^}]*border-color:\s*#d85a5a;/.test(uiStyle)) {
+    errors.push('anita_ui.css missing red hover border for import close button');
+  }
+  if (!/\.AnitaImportCloseBtn:hover Label\s*\{[^}]*color:\s*#ff8a8a;/.test(uiStyle)) {
+    errors.push('anita_ui.css missing red hover label for import close button');
+  }
+  if (!/\.AnitaImportApplyBtn Label\s*\{[^}]*height:\s*fit-children;/.test(uiStyle)) {
+    errors.push('anita_ui.css should center import button label as fit-children');
+  }
+  if (!/\.AnitaImportCloseBtn Label\s*\{[^}]*height:\s*fit-children;/.test(uiStyle)) {
+    errors.push('anita_ui.css should center import close label as fit-children');
+  }
+  if (!/\.AnitaPresetCopyBtn Label\s*\{[^}]*height:\s*fit-children;/.test(uiStyle)) {
+    errors.push('anita_ui.css should center preset copy label as fit-children');
   }
 
   // 14. Preset Builder import should use the same base64 Import path and auto-clear status.
