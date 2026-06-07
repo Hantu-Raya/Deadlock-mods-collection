@@ -64,6 +64,7 @@
         out[HP_PERSIST_ALIASES[id]] = id;
       }
     }
+    out.kzs = "hp_kill_zone_color";
     return out;
   })();
 
@@ -80,6 +81,7 @@
   var SHARED_CFG_RAW_KEY = "__hpColorsCfgRaw";
   var cachedDefaultConfig = null;
   var cachedDefaultValues = null;
+  var elementById = null;
   
 
 
@@ -215,6 +217,10 @@
   }
 
   function findElement(settingId) {
+    if (!settingId) return null;
+    if (elementById && Object.prototype.hasOwnProperty.call(elementById, settingId)) {
+      return elementById[settingId] || null;
+    }
     if (!bridgeConfig || !Array.isArray(bridgeConfig.elements)) return null;
     for (var i = 0; i < bridgeConfig.elements.length; i++) {
       var element = bridgeConfig.elements[i];
@@ -566,6 +572,12 @@
         options: Array.isArray(source.options) ? source.options.slice(0) : null,
         step: source.step
       });
+    }
+
+    elementById = {};
+    for (var j = 0; j < nextConfig.elements.length; j++) {
+      var element = nextConfig.elements[j];
+      elementById[element.id] = element;
     }
 
     bridgeConfig = nextConfig;

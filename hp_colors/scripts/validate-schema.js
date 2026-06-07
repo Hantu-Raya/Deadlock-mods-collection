@@ -108,6 +108,7 @@ function main() {
   const uiCore = readFile('anita_ui_core.js');
   const loader = readFile('anita_persist_loader.js');
   const uiStyle = readStyleFile('anita_ui.css');
+  const unitStyle = readStyleFile('unit_status.css');
 
   const schemaIds = extractSchemaIds(registrar);
   const defaultsKeys = extractDefaultsKeys(healthbar);
@@ -212,19 +213,126 @@ function main() {
   // 9. Compact aliases should remain in the persistence owners.
 
   // 10. Hot-loop optimization guards
+  if (healthbar.includes('redBarNeedsPaint')) {
+    errors.push('healthbar_logic.js must not use redBarNeedsPaint candidate style-read scoring');
+  }
+  const redbarScoreStart = healthbar.indexOf('function getRedBarCandidateScore');
+  const redbarScoreEnd = healthbar.indexOf('function resetEnemyScanCache');
+  if (redbarScoreStart < 0 || redbarScoreEnd <= redbarScoreStart) {
+    errors.push('healthbar_logic.js missing redbar candidate scoring guard region');
+  } else {
+    const redbarScoreBody = healthbar.slice(redbarScoreStart, redbarScoreEnd);
+    if (redbarScoreBody.includes('style.washColor')) {
+      errors.push('healthbar_logic.js redbar candidate scoring must not read style.washColor');
+    }
+    if (!redbarScoreBody.includes('scanPanelPacked')) {
+      errors.push('healthbar_logic.js redbar candidate scoring should use packed class flags');
+    }
+  }
+  if (!healthbar.includes('if (isChildProbe) {') || !healthbar.includes('stableCurrentRedBarFrames >= 10')) {
+    errors.push('healthbar_logic.js child redbar probes should share bounded stable-frame idle backoff');
+  }
+  if (!loader.includes('var elementById = null') || !loader.includes('elementById[element.id] = element')) {
+    errors.push('anita_persist_loader.js should maintain an element id map for update lookups');
+  }
+  for (const uiCoreMarker of [
+    'ensureConfigIndexes: function (config)',
+    'config.__anitaElementById = elementById',
+    'config.__anitaVisibilityDependentsBySource = dependentsBySource',
+    'refreshDependentVisibility: function (config, sourceId)',
+    'refreshChangedDependentsVisibility: function (config, sourceIds)',
+    'ensureCategoryCache: function (config)',
+    'config.__anitaCategoryCache = {',
+    'const categoryCache = this.ensureCategoryCache(config)'
+  ]) {
+    if (!uiCore.includes(uiCoreMarker)) {
+      errors.push(`anita_ui_core.js missing optimization marker: ${uiCoreMarker}`);
+    }
+  }
+  for (const donationMarker of [
+    'const HP_DONATION_URL = "https://ko-fi.com/hantuaraya";',
+    'AnitaDonateBtn',
+    'AnitaDonateIcon',
+    'AnitaRenderer.openExternalUrl(HP_DONATION_URL)'
+  ]) {
+    if (!uiCore.includes(donationMarker) && !uiStyle.includes(donationMarker)) {
+      errors.push(`HP Colors donation button marker missing: ${donationMarker}`);
+    }
+  }
+  for (const donationStyleMarker of [
+    "AnitaDonateSoulWiggle",
+    "s2r://materials/particle/ui/ui_icon_soul.vtex",
+    ".AnitaDonateBtn:hover .AnitaDonateIcon",
+    "transition-property: background-color, border-color, brightness, pre-transform-scale2d;"
+  ]) {
+    if (!uiStyle.includes(donationStyleMarker)) {
+      errors.push(`anita_ui.css missing donation style marker: ${donationStyleMarker}`);
+    }
+  }
+  if (!registrar.includes('cachedRegisterPayload') || !registrar.includes('cachedBootstrapPayload')) {
+    errors.push('hp_registrar.js should cache repeated registration/bootstrap payload JSON strings');
+  }
+  if (!unitStyle.match(/#unit_healthbar_lagging\s*\{[\s\S]*?wash-color:\s*TeamEnemyColor\s*;/)) {
+    errors.push('unit_status.css bare main healthbar should match the proven debug first-paint enemy default');
+  }
+  if (!unitStyle.match(/\.team_neutral #unit_healthbar_lagging\s*\{[\s\S]*?wash-color:\s*TeamNeutralColor\s*;/)) {
+    errors.push('unit_status.css team-neutral selector should override the bare enemy default');
+  }
+  for (const runtimeColorMarker of [
+    'var knownFriendlyTeamId = 0;',
+    'function isFriendlyBuildingTarget(flags)',
+    'function isEnemyBuildingTarget(flags)',
+    'function getIgnoredTargetColor()',
+    'if (cfg.hp_skip_buildings && (fl & 4))',
+    'normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_high)',
+    'sBC(getHighColor());'
+  ]) {
+    if (!healthbar.includes(runtimeColorMarker)) {
+      errors.push(`healthbar_logic.js missing first-paint/building color marker: ${runtimeColorMarker}`);
+    }
+  }
+  const ignoredColorStart = healthbar.indexOf('function getIgnoredTargetColor()');
+  const ignoredColorEnd = healthbar.indexOf('function getHealthbarHeightPx');
+  if (ignoredColorStart < 0 || ignoredColorEnd <= ignoredColorStart) {
+    errors.push('healthbar_logic.js missing ignored-target color guard region');
+  } else {
+    const ignoredColorBody = healthbar.slice(ignoredColorStart, ignoredColorEnd);
+    if (!ignoredColorBody.includes('if (fl & 1 && !(fl & 2)) return "";') ||
+        !ignoredColorBody.includes('if (isEnemyBuildingTarget(fl)) return CSS_TEAM_ENEMY_COLOR;') ||
+        !ignoredColorBody.includes('if (isFriendlyBuildingTarget(fl)) return WHITE_WASH;') ||
+        !ignoredColorBody.includes('return CSS_TEAM_ENEMY_COLOR;')) {
+      errors.push('healthbar_logic.js ignored fallback should match debug behavior: enemy/unknown red, friendly building white, neutral class green');
+    }
+  }
+  if (healthbar.includes('function getDefaultBarColor')) {
+    errors.push('healthbar_logic.js should inline ally reset default color instead of keeping dead getDefaultBarColor branches');
+  }
+  if (!healthbar.includes('var color = CSS_TEAM_FRIEND_COLOR;')) {
+    errors.push('healthbar_logic.js should reset full ally bars directly to CSS_TEAM_FRIEND_COLOR');
+  }
+  if (healthbar.includes('_allyScanPacked') ||
+      healthbar.includes('scanTeam(scanResult)') ||
+      healthbar.includes('scanFlags(scanResult)') ||
+      healthbar.includes('scanFlags(allyScan)')) {
+    errors.push('healthbar_logic.js should cache ally scan flags directly without stale packed/team unpacking');
+  }
   if (!healthbar.includes('STYLE_REAPPLY_WATCHDOG_MS')) {
     errors.push('healthbar_logic.js missing STYLE_REAPPLY_WATCHDOG_MS');
   }
   if (healthbar.includes('STYLE_REAPPLY_MS = 1000')) {
     errors.push('healthbar_logic.js must not force style reapply every 1s');
   }
-  for (const debugMarker of ['$.Msg', 'HB_TARGET_DEBUG', 'hbDebug', 'debugFirstEnemyPaint', '[HP Colors][HB]']) {
+  const msgUses = healthbar.match(/\$\.Msg/g) || [];
+  if (msgUses.length) {
+    errors.push('healthbar_logic.js must not use $.Msg in production runtime');
+  }
+  for (const debugMarker of ['console.log', 'HB_TARGET_DEBUG', 'hbDebug', 'debugFirstEnemyPaint', '[HP Colors][HB]', 'MATCH_RESET_VERBOSE', 'logMatchReset', '__hpColorsMatchResetStatus', 'HP_COLORS_PERF_DEBUG', '__hpColorsPerfDebug', '[HP Colors][SUMMARY]', '[HP Colors][PROFILE]', '[HP Colors][TIMING]']) {
     if (healthbar.includes(debugMarker)) {
       errors.push(`healthbar_logic.js contains production debug marker: ${debugMarker}`);
     }
   }
-  for (const hardGateMarker of [
-    'const HP_OPTIMIZED_FORCED_VALUES = {',
+  for (const gateMarker of [
+    'const HP_OPTIMIZED_FORCED_VALUES = {};',
     'const HP_OPTIMIZED_HIDDEN_SETTINGS = {',
     'function applyHpOptimizedHardGates(config)',
     'element.runtimeLocked = !!forced;',
@@ -232,8 +340,65 @@ function main() {
     'if (element && element.runtimeHidden) return false;',
     'AnitaRuntimeLocked'
   ]) {
-    if (!uiCore.includes(hardGateMarker) && !uiStyle.includes(hardGateMarker)) {
-      errors.push(`HP Colors optimized menu hard gate missing marker: ${hardGateMarker}`);
+    if (!uiCore.includes(gateMarker) && !uiStyle.includes(gateMarker)) {
+      errors.push(`HP Colors menu gate marker missing: ${gateMarker}`);
+    }
+  }
+  for (const liveToggleMarker of [
+    'hp_ult_color_enabled: false',
+    'hp_pulse_enabled: false',
+    'hp_pulse_text_enabled: false',
+    'hp_pulse_color_enabled: false',
+    'hp_friend_enabled: false',
+    'hp_friend_pulse_enabled: false',
+    'hp_friend_pulse_color_enabled: false',
+    'hp_kill_zone_enabled: false'
+  ]) {
+    if (uiCore.includes(liveToggleMarker)) {
+      errors.push(`HP Colors optimized hard gate must not lock live feature toggle: ${liveToggleMarker}`);
+    }
+  }
+  const runtimeForcedMatch = healthbar.match(/var OPTIMIZED_FORCED_VALUES = \{([\s\S]*?)\};/);
+  const runtimeForcedBlock = runtimeForcedMatch ? runtimeForcedMatch[1] : '';
+  for (const runtimeLiveToggle of [
+    'hp_ult_color_enabled',
+    'hp_pulse_enabled',
+    'hp_pulse_text_enabled',
+    'hp_pulse_color_enabled',
+    'hp_friend_enabled',
+    'hp_friend_pulse_enabled',
+    'hp_friend_pulse_color_enabled',
+    'hp_kill_zone_enabled'
+  ]) {
+    if (runtimeForcedBlock.includes(runtimeLiveToggle)) {
+      errors.push(`healthbar_logic.js runtime optimized profile must not force live feature toggle: ${runtimeLiveToggle}`);
+    }
+  }
+  const hiddenGateMatch = uiCore.match(/const HP_OPTIMIZED_HIDDEN_SETTINGS = \{([\s\S]*?)\};/);
+  const hiddenGateBlock = hiddenGateMatch ? hiddenGateMatch[1] : '';
+  for (const customizableHiddenMarker of [
+    'hp_ult_color_custom',
+    'hp_pulse_threshold',
+    'hp_pulse_bpm',
+    'hp_pulse_intensity',
+    'hp_pulse_color',
+    'hp_pulse_color_mode',
+    'hp_pulse_hide_bar',
+    'hp_pulse_text_scale',
+    'hp_pulse_text_position',
+    'hp_friend_color_low',
+    'hp_friend_color_mid',
+    'hp_friend_color_high',
+    'hp_friend_pulse_threshold',
+    'hp_friend_pulse_bpm',
+    'hp_friend_pulse_intensity',
+    'hp_friend_pulse_color',
+    'hp_kill_zone_threshold',
+    'hp_kill_zone_color',
+    'hp_kill_zone_width'
+  ]) {
+    if (hiddenGateBlock.includes(customizableHiddenMarker)) {
+      errors.push(`HP Colors optimized hidden gate must not hide customization row: ${customizableHiddenMarker}`);
     }
   }
   for (const derivedMarker of [
@@ -269,16 +434,27 @@ function main() {
     'modConfig.__hpBakedPresetEntryCache = cache;',
     'modConfig.__anitaPresetHeroSelections',
     'modConfig.__anitaPresetHeroModes',
-    'function selectBakedPresetForHero(modConfig, allowUnknownFallback)',
+    'function selectBakedPresetForHero(modConfig, allowUnknownFallback, allowHeroMatch)',
     'function hasHpSelectedScopedPreset(config)',
     'const HP_HERO_SCOPE_OFF = "off"',
     'const HP_HERO_SCOPE_ALL = "all"',
     'const HP_HERO_SCOPE_SELECTED = "selected"',
+    'const HP_HERO_DETECTION_LOCK_GAME_TIME_SEC = 10',
     'function refreshHpHeroPresetSelection(config)',
+    'if (config.__hpHeroPresetDetectionLocked) return false;',
     'startHpHeroPresetWatch(config);',
-    'return { preset: firstHeroMatch, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "hero" }',
-    'return { preset: null, heroId: heroId, hasScopedPreset: true, reason: "waiting_for_hero" }',
-    'return { preset: firstGlobal, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "global" }',
+    'function getHpHeroPresetLockAfterGameTime(config)',
+    'function openHpHeroPresetDetectionWindow(config)',
+    'function resetHpHeroPresetDetectionLock(config)',
+    'function lockHpHeroPresetDetectionIfReady(config, heroId)',
+    'config.__hpHeroPresetDetectionLocked = true;',
+    'config.__hpHeroPresetLockAfterGameTime = gameTime > 0',
+    'var lockedPresetKey = String(config.__hpLastAppliedHeroPresetKey || "");',
+    'openHpHeroPresetDetectionWindow(config);',
+    'lockHpHeroPresetDetectionIfReady(config, appliedHero);',
+    'result = { preset: firstHeroMatch, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "hero" }',
+    'result = { preset: null, heroId: heroId, hasScopedPreset: true, reason: "waiting_for_hero" }',
+    'result = { preset: firstGlobal, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "global" }',
     'if (!config.__hpHeroPresetHasScopedPreset && !hasHpSelectedScopedPreset(config)) return;',
     'config.__hpHeroPresetWatchStarted = false;',
     'function applyHpColorsBakedPresetValues(config, values, presetKey, heroId)',
@@ -291,6 +467,21 @@ function main() {
   ]) {
     if (!uiCore.includes(bakedPresetMarker)) {
       errors.push(`anita_ui_core.js missing baked preset apply marker: ${bakedPresetMarker}`);
+    }
+  }
+  for (const prodDebugMarker of [
+    'HP_HERO_PRESET_DEBUG',
+    'HP_MATCH_RESET_VERBOSE',
+    '[HP-COLORS][hero]',
+    '[HP-COLORS][match]',
+    'console.log',
+    '__hpColorsMatchResetStatus',
+    'logHpMatchReset',
+    'function hpHeroDebug',
+    'hpHeroDebug('
+  ]) {
+    if (uiCore.includes(prodDebugMarker)) {
+      errors.push(`anita_ui_core.js should not ship hero preset debug marker: ${prodDebugMarker}`);
     }
   }
   if (uiCore.includes('_didApplyHpColorsBakedPresetOnce = true;\n\n    $.Schedule(5.0')) {
@@ -455,6 +646,11 @@ function main() {
     'visibility: visible;',
     'margin-top: 0px;',
     '.AnitaPresetHeroSummary',
+    '.AnitaPresetPriorityBtns',
+    '.AnitaPresetPriorityBtn',
+    '.AnitaPresetPriorityBtn.Disabled',
+    '.AnitaPresetLocalTooltip',
+    '.AnitaPresetLocalTooltipLabel',
     'background-texture-size: 16px 16px;'
   ]) {
     if (!uiStyle.includes(iconStyleMarker)) {
@@ -512,6 +708,34 @@ function main() {
   if (!/\.AnitaPresetCopyBtn Label\s*\{[^}]*height:\s*fit-children;/.test(uiStyle)) {
     errors.push('anita_ui.css should center preset copy label as fit-children');
   }
+  if (!/\.AnitaPresetCreateHint\s*\{[^}]*font-size:\s*10px;/.test(uiStyle)) {
+    errors.push('anita_ui.css should keep preset create hint readable at 10px');
+  }
+  if (!/\.AnitaPresetPriorityBtns\s*\{[^}]*width:\s*22px;/.test(uiStyle)) {
+    errors.push('anita_ui.css should keep priority chevron stack compact');
+  }
+  if (!/\.AnitaPresetPriorityBtns\s*\{[^}]*background-color:\s*transparent;/.test(uiStyle)) {
+    errors.push('anita_ui.css should keep priority chevron stack visually light');
+  }
+  if (!/\.AnitaPresetLocalTooltip\s*\{[\s\S]*?z-index:\s*10090;/.test(uiStyle)) {
+    errors.push('anita_ui.css should render local preset tooltips above Anita menus');
+  }
+  for (const priorityMarker of [
+    'getPresetPriorityIdentity: function (row)',
+    'applyPresetPriorityOrder: function (config, rows)',
+    'movePresetRowPriority: function (config, rows, row, delta)',
+    'priorityUpBtn.AddClass("AnitaPresetPriorityUpBtn")',
+    'priorityDownBtn.AddClass("AnitaPresetPriorityDownBtn")',
+    'priorityUpLbl.text = "▲"',
+    'priorityDownLbl.text = "▼"',
+    'attachPresetTooltip(priorityUpBtn, "Move preset up.")',
+    'function selectPresetRow(presetRow)',
+    'heroSelector.SetPanelEvent("onactivate"'
+  ]) {
+    if (!uiCore.includes(priorityMarker)) {
+      errors.push(`anita_ui_core.js missing preset priority marker: ${priorityMarker}`);
+    }
+  }
 
   // 14. Preset Builder import should use the same base64 Import path and auto-clear status.
   for (const importMarker of [
@@ -520,10 +744,32 @@ function main() {
     'import_source: String(source || "import")',
     'var titleImportBtn = $.CreatePanel("Button", titleRow, "")',
     'titleImportBtn.AddClass("AnitaPresetImportBtn")',
+    'function attachPresetTooltip(panel, text)',
+    'getLocalTooltipPanel: function ()',
+    'positionLocalTooltip: function (anchor, tooltip)',
+    'showLocalTooltip: function (panel, text)',
+    'hideLocalTooltip: function ()',
+    'btn.hittest = true;\n      btn.hittestchildren = false;',
+    'lbl.hittest = false;\n      lbl.hittestchildren = false;',
+    'box.hittest = false;\n      box.hittestchildren = false;',
+    'renderModSettings: function (config) {\n      this.hideLocalTooltip();',
+    'this.hideLocalTooltip();\n        if (this.activeColorPickerClose)',
+    'this.presetTooltip = $.CreatePanel("Panel", host, "AnitaPresetLocalTooltip")',
+    'tooltip.style.zIndex = "10090"',
+    'this.attachLocalTooltip(\n          resetPageHeader.btn',
+    'PAGE resets only this page. Other pages stay unchanged.',
+    'ALL resets HP settings. Saved presets stay.',
+    'capturePresetBuilderState: function (config)',
+    'restorePresetBuilderState: function (config, state)',
+    'Opened web builder. Use COPY ALL to export presets.',
+    'attachPresetTooltip(titleImportBtn, "Paste a custom preset code.")',
+    'attachPresetTooltip(nameLabel, "Click to rename this preset.")',
+    'Click a preset name to rename.',
     'defaultPresetKey = rows[defaultIndex].key',
     'config.__anitaSelectedPresetKey = row.key;',
     'var result = AnitaRenderer.applyImportCode(config, row.token, "preset_builder")',
-    'if (importPreset(presetRow)) {\n              AnitaRenderer.renderModSettings(config);',
+    'function selectPresetRow(presetRow) {\n        if (importPreset(presetRow)) {',
+    'selectPresetRow(presetRow);',
     '$.Schedule(durationSec, function () {\n          if (statusToken !== config.__anitaPresetStatusToken) return;',
     'var result = AnitaRenderer.applyImportCode(config, text, "import_popup")'
   ]) {

@@ -17,7 +17,7 @@ Use the module build script from the repo root:
 powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
 ```
 
-The script runs `hp_colors/scripts/validate-schema.js` (currently expecting 48
+The script runs `hp_colors/scripts/validate-schema.js` (currently expecting 49
 settings), minifies `hp_colors/`
 into `hp_colors_terser/`, compiles the terser copy, syncs
 `hp_colors_compiled/`, packs `pak97_dir.vpk`, and deploys it to the Deadlock
@@ -76,6 +76,34 @@ addons folder configured in that script.
    values into runtime config, refreshes derived colors, invalidates cached visual
    state when needed, and applies styling during its scheduled overlay loop.
 
+## Match Reset and Fresh Healthbars
+- `anita_ui_core.js` owns new-match detection. It publishes
+  `GameUI.CustomUIConfig().__hpColorsMatchReset` from an independent monitor
+  started when HP Colors registers. Do not make this depend on the scoped hero
+  preset watcher.
+- Scoped hero preset auto-detection locks after 10 seconds of active match time.
+  A locked match must not auto-switch to another preset until lobby/match reset
+  or the user changes hero behavior mode. Switching back to AUTO HERO in-match
+  opens a fresh 10-second lookup window before locking again.
+- The monitor publishes on first active match, `game_time_zero`, and
+  `game_time_rollback` when active game time drops from a progressed match back
+  near match start. Rollback detection is required because Deadlock can reload a
+  tools match without exposing a clean lobby/inactive edge to Panorama.
+- The match monitor polls slowly: 1s while early in a match, 5s when idle or
+  after the early-match window. It must not scan healthbar panels or use
+  `FindChildTraverse` beyond the existing game-time panel lookup.
+- `healthbar_logic.js` consumes the shared reset token in its normal enemy/ally
+  loops. On a new token it resets only volatile runtime state: panel refs,
+  panel-probe timers, scan caches, style skip-write caches, pulse/ally/level
+  caches, bootstrap retry state, max-HP pip parsing, and dirty flags. It then
+  requests a preset snapshot with reason `match_reset`.
+- Duplicate tokens are ignored per overlay. Already-acked stale tokens are
+  skipped for later-created overlays so newly spawned healthbar contexts do not
+  churn on old match resets.
+- Do not ship match-reset verbose log helpers or debug-status bridges in the
+  production mod. If temporary W.log tracing is needed, add it only for the
+  investigation build and remove it before packing.
+
 `ANITA_UPDATE` is the single-setting runtime event. Keep payload fields stable:
 `magic_word`, `mod_title`, `setting_id`, `value`, and optional `update_source`.
 `ANITA_BULK_UPDATE` carries `values` plus the same bridge metadata; keep both
@@ -104,14 +132,17 @@ Also bump the registrar `storageVersion` when compatibility requires it (current
 ## Persistence Model
 - Storage namespace: `hp_colors`
 - Storage key: `anita_v1_hp_colors`
-- **Primary store: convar-based** via `GameInterfaceAPI.GetSettingString`/`SetSettingString`
-  on `deadlock_hero_debuts_seen` with token prefix `[ANITA-v1-hp_colors]:`.
+- Runtime healthbars do not read convars. Compact-token parsing and persistence
+  belong to Anita/import/preset paths, not `healthbar_logic.js`.
 - `$.persistentStorage` is **deprecated/non-functional** in Source 2 Panorama — do not use it.
+- Runtime bridge: `GameUI.CustomUIConfig().__hpColorsCfgRaw` plus
+  replayed `HP_COLORS_PRESET_SNAPSHOT` events.
 - Session mirror: root/Hud attributes under `anita_v1_hp_colors`.
-- Manual fallback: Anita UI Copy/Import token controls.
+- Manual fallback: Anita UI Copy/Import token controls and preset VPK rows.
 
 The compact persisted payload stores only non-default values using aliases.
-Keep alias maps identical across all persistence/runtime files.
+Keep alias maps identical across persistence owner files. Do not add compact
+alias parsing back into `healthbar_logic.js`.
 
 ## Obfuscated Name Map (healthbar_logic.js)
 
@@ -236,7 +267,8 @@ Below is the full mapping so you know what each name actually does.
 - `healthbar_logic.js` scans up the panel ancestry to classify unit panels.
 - Enemy = `enemy` class and not neutral.
 - Neutral units are intentionally colored green (`#5BEFB5`).
-- `hp_skip_buildings` only affects enemy buildings/bosses; allied buildings short-circuit and keep their current visual state.
+- First-paint policy matches the verified `hp_colors_minimal_color_debug/` lane: the bare main bar defaults to `TeamEnemyColor`; `.team_neutral #unit_healthbar_lagging` overrides it for jungle/neutral bars and must stay present. Do not add width-threshold or recent-panel heuristics here.
+- `hp_skip_buildings` skips all building/boss bars before preset coloring; enemy buildings keep the enemy default, friendly buildings reset to white, and neutral buildings keep neutral green.
 - Ally toggle changes now refresh dependent rows immediately.
 - Polling is automatic and adaptive: fast for heroes, backs off for stable HP.
 - Low HP uses CSS keyframe pulse animation; polling follows normal 0.15s cadence. No JS timer needed for pulse — GPU handles it.

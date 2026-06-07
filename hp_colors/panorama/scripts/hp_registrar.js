@@ -7,6 +7,8 @@
   var didRequestBootstrap = false;
   var registerAttempts = 0;
   var cachedConfig = null;
+  var cachedRegisterPayload = "";
+  var cachedBootstrapPayload = "";
   var SCHEMA = [
     // General - Core Behavior
     { type: "toggle", id: "hp_enabled", label: "Enable enemy HP colors", defaultValue: true, category: "GENERAL|Core Behavior" },
@@ -16,8 +18,8 @@
     { type: "slider", id: "hp_high_threshold", label: "High HP starts at %", defaultValue: 65, min: 0, max: 100, step: 1, category: "GENERAL|Core Behavior" },
     { type: "toggle", id: "hp_team_colors", label: "Use team color at high HP", defaultValue: false, category: "GENERAL|Core Behavior" },
     { type: "toggle", id: "hp_skip_buildings", label: "Ignore buildings and bosses", defaultValue: false, category: "GENERAL|Core Behavior" },
-    { type: "slider", id: "hp_info_health_margin_top", label: "HP container top offset", defaultValue: 23, min: 0, max: 100, step: 1, category: "GENERAL|Core Behavior" },
-    { type: "slider", id: "hp_healthbar_height", label: "HP bar height", defaultValue: 130, min: 0, max: 230, step: 1, category: "GENERAL|Core Behavior" },
+    { type: "slider", id: "hp_info_health_margin_top", label: "Bar Height", defaultValue: 23, min: 0, max: 100, step: 1, category: "GENERAL|Core Behavior" },
+    { type: "slider", id: "hp_healthbar_height", label: "Bar Width", defaultValue: 130, min: 0, max: 230, step: 1, category: "GENERAL|Core Behavior" },
     // Health Bars - Enemy Colors
     { type: "toggle", id: "hp_ult_color_enabled", label: "Color ult icon", defaultValue: true, category: "HEALTH BARS|Enemy Colors" },
     { type: "colorpicker", id: "hp_ult_color_custom", label: "Ult icon custom color", defaultValue: "#E16161", category: "HEALTH BARS|Enemy Colors", visibleWhen: { id: "hp_ult_color_enabled", equals: false } },
@@ -102,20 +104,26 @@
     return true;
   }
   function dispatchRegister(config) {
-    $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
-      magic_word: "ANITA_REGISTER",
-      config: config
-    }));
+    if (!cachedRegisterPayload) {
+      cachedRegisterPayload = JSON.stringify({
+        magic_word: "ANITA_REGISTER",
+        config: config
+      });
+    }
+    $.DispatchEvent("ClientUI_FireOutput", cachedRegisterPayload);
   }
   function requestBootstrap(reason) {
     if (didRequestBootstrap) return;
     didRequestBootstrap = true;
-    $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
-      magic_word: "ANITA_REQUEST_BOOTSTRAP",
-      mod_title: TITLE,
-      storageNamespace: "hp_colors",
-      reason: String(reason || "registrar_handshake")
-    }));
+    if (!cachedBootstrapPayload) {
+      cachedBootstrapPayload = JSON.stringify({
+        magic_word: "ANITA_REQUEST_BOOTSTRAP",
+        mod_title: TITLE,
+        storageNamespace: "hp_colors",
+        reason: String(reason || "registrar_handshake")
+      });
+    }
+    $.DispatchEvent("ClientUI_FireOutput", cachedBootstrapPayload);
   }
   function markRegistered() {
     didRegister = true;

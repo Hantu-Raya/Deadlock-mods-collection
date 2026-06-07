@@ -2,23 +2,174 @@
 (function () {
   "use strict";
 
+  // Contract constants: pak96 owns the preset store; pak97 only publishes a cached snapshot.
   var STORE_ID = "HPColorsPresetStore";
   var STARTUP_PRESET_ID = "HPColorsPreset_001";
   var ENTRY_CLASS = "hp_colors_preset_entry";
   var SHARED_CFG_RAW_KEY = "__hpColorsCfgRaw";
+  var ROOT_CFG_RAW_ATTR = "hp_colors_minimal_cfg_raw";
   var EVENT_CHANNEL = "ClientUI_FireOutput";
   var SNAPSHOT_MAGIC = "HP_COLORS_PRESET_SNAPSHOT";
   var REQUEST_MAGIC = "HP_COLORS_PRESET_REQUEST";
   var PUBLISH_RETRY_DELAYS = [0.1, 0.5, 1.0, 2.5, 5.0, 8.0];
-  var CACHED_SNAPSHOT_REPLAY_SEC = 1.0;
+  var BOUNDED_HERO_PROBE_DELAYS = [2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 20.0, 24.0];
+  var DEBUG_PRESET_SELECTION = false;
+  var DEBUG_REPLAY_VERBOSE_ENABLED = false;
+  var DEBUG_PREFIX = "[HP_COLORS_MINIMAL_PRESET]";
+  var CACHED_SNAPSHOT_REPLAY_HOT_SEC = 1.0;
+  var CACHED_SNAPSHOT_REPLAY_WARM_SEC = 3.0;
+  var CACHED_SNAPSHOT_REPLAY_IDLE_SEC = 8.0;
+  var CACHED_SNAPSHOT_REPLAY_STARTUP_HOT_MS = 10000;
+  var CACHED_SNAPSHOT_REPLAY_REQUEST_HOT_MS = 1500;
+  var CACHED_SNAPSHOT_REPLAY_HOT_COUNT = 3;
+  var CACHED_SNAPSHOT_REPLAY_WARM_COUNT = 12;
+  var HERO_PROBE_STABLE_NO_MATCH_COUNT = 2;
+  var REQUEST_REPLY_COOLDOWN_MS = 250;
+  var HERO_SELECTION_LOCK_GAME_TIME_SEC = 10;
+  var HERO_SCOPE_OFF = "off";
+  var HERO_SCOPE_ALL = "all";
+  var HERO_SCOPE_SELECTED = "selected";
+  var HARD_GATED_VALUES = {};
+  var COUNTER_VISIBLE_KEY = "hp_counter_visible";
+  // Builder compact aliases. The HP_PERSIST_* names are kept as bridge contracts for existing tests/tools.
+  var HP_PERSIST_ALIASES = {
+    hp_enabled: "e",
+    hp_mode: "m",
+    hp_low_threshold: "l",
+    hp_high_threshold: "h",
+    hp_bg_visible: "b",
+    hp_team_colors: "t",
+    hp_info_health_margin_top: "ihmt",
+    hp_healthbar_height: "hbh",
+    hp_color_low: "cl",
+    hp_color_mid: "cm",
+    hp_color_high: "ch",
+    hp_counter_visible: "cv",
+    hp_counter_size: "s",
+    hp_counter_position: "p",
+    hp_text_color_mode: "tm",
+    hp_level_number_visible: "lnv",
+    hp_pip_visible: "plv",
+    hp_ult_color_enabled: "uce",
+    hp_ult_color_custom: "ucc",
+    hp_text_color_low: "tl",
+    hp_text_color_mid: "ti",
+    hp_text_color_high: "th",
+    hp_pulse_bpm: "bp",
+    hp_pulse_intensity: "pi",
+    hp_pulse_enabled: "pe",
+    hp_pulse_text_enabled: "pte",
+    hp_pulse_text_scale: "pts",
+    hp_pulse_text_position: "ptp",
+    hp_pulse_hide_bar: "phb",
+    hp_pulse_color_enabled: "pce",
+    hp_pulse_color: "pc",
+    hp_pulse_color_mode: "pcm",
+    hp_skip_buildings: "sb",
+    hp_pulse_threshold: "pt",
+    hp_friend_enabled: "fe",
+    hp_friend_pulse_enabled: "fpe",
+    hp_friend_pulse_bpm: "fpb",
+    hp_friend_pulse_intensity: "fpi",
+    hp_friend_pulse_threshold: "fpt",
+    hp_friend_color_low: "fcl",
+    hp_friend_color_mid: "fcm",
+    hp_friend_color_high: "fch",
+    hp_friend_pulse_color_enabled: "fpce",
+    hp_friend_pulse_color: "fpc",
+    hp_kill_zone_enabled: "kze",
+    hp_kill_zone_threshold: "kzt",
+    hp_kill_zone_color: "kzc",
+    hp_kill_zone_width: "kzw",
+    hp_counter_format: "cf"
+  };
+  var HP_PERSIST_ALIAS_TO_ID = (function () {
+    var out = {};
+    for (var id in HP_PERSIST_ALIASES) {
+      if (Object.prototype.hasOwnProperty.call(HP_PERSIST_ALIASES, id)) out[HP_PERSIST_ALIASES[id]] = id;
+    }
+    return out;
+  })();
+  // Hero metadata used only for startup preset selection and bounded late-hero probing.
+  var HERO_DATA = [
+    { id: "hero_inferno", name: "Infernus", aliases: ["infernus", "hero_infernus"] },
+    { id: "hero_gigawatt", name: "Seven", aliases: ["seven", "hero_seven"] },
+    { id: "hero_hornet", name: "Vindicta", aliases: ["vindicta", "hero_vindicta"] },
+    { id: "hero_ghost", name: "Lady Geist", aliases: ["geist", "lady_geist", "ladygeist", "hero_lady_geist"] },
+    { id: "hero_atlas", name: "Abrams", aliases: ["abrams", "bull", "hero_abrams"] },
+    { id: "hero_wraith", name: "Wraith", aliases: [] },
+    { id: "hero_forge", name: "McGinnis", aliases: ["mcginnis", "mc_ginnis", "engineer", "hero_mcginnis"] },
+    { id: "hero_chrono", name: "Paradox", aliases: ["paradox", "hero_paradox"] },
+    { id: "hero_dynamo", name: "Dynamo", aliases: ["sumo"] },
+    { id: "hero_kelvin", name: "Kelvin", aliases: [] },
+    { id: "hero_haze", name: "Haze", aliases: [] },
+    { id: "hero_astro", name: "Ivy", aliases: ["ivy", "hero_ivy"] },
+    { id: "hero_bebop", name: "Bebop", aliases: [] },
+    { id: "hero_nano", name: "Nano", aliases: [] },
+    { id: "hero_orion", name: "Grey Talon", aliases: ["archer", "grey_talon", "gray_talon", "greytalon", "hero_grey_talon"] },
+    { id: "hero_krill", name: "Mo & Krill", aliases: ["digger", "mo_and_krill", "mo_krill", "hero_mo_and_krill"] },
+    { id: "hero_shiv", name: "Shiv", aliases: [] },
+    { id: "hero_tengu", name: "Tengu", aliases: [] },
+    { id: "hero_warden", name: "Warden", aliases: [] },
+    { id: "hero_yamato", name: "Yamato", aliases: [] },
+    { id: "hero_lash", name: "Lash", aliases: [] },
+    { id: "hero_viscous", name: "Viscous", aliases: [] },
+    { id: "hero_synth", name: "Pocket", aliases: ["pocket", "hero_pocket"] },
+    { id: "hero_mirage", name: "Mirage", aliases: [] },
+    { id: "hero_viper", name: "Vyper", aliases: ["viper", "vyper", "hero_vyper"] },
+    { id: "hero_magician", name: "Magician", aliases: ["sinclair", "hero_sinclair"] },
+    { id: "hero_vampirebat", name: "Mina", aliases: ["vampire_bat", "vampirebat", "mina", "hero_mina"] },
+    { id: "hero_drifter", name: "Drifter", aliases: [] },
+    { id: "hero_priest", name: "Priest", aliases: [] },
+    { id: "hero_frank", name: "Frank", aliases: [] },
+    { id: "hero_bookworm", name: "Bookworm", aliases: ["paige", "hero_paige"] },
+    { id: "hero_doorman", name: "Doorman", aliases: [] },
+    { id: "hero_punkgoat", name: "Billy", aliases: ["punkgoat", "punk_goat", "billy", "hero_billy"] },
+    { id: "hero_necro", name: "Necro", aliases: [] },
+    { id: "hero_fencer", name: "Apollo", aliases: ["fencer", "apollo", "hero_apollo"] },
+    { id: "hero_familiar", name: "Familiar", aliases: [] },
+    { id: "hero_werewolf", name: "Werewolf", aliases: [] },
+    { id: "hero_unicorn", name: "Unicorn", aliases: [] }
+  ];
+  var HERO_ALIAS_TO_ID = {};
+  var HERO_ALIAS_LIST = [];
+  // Runtime state. Once cachedSnapshotPayload is set, late requests replay it instead of rescanning the store.
   var cachedRootPanel = null;
   var cachedStorePanel = null;
+  var cachedGameplayAlive = null;
+  var cachedCrosshair = null;
+  var cachedHeroProgress = null;
+  var cachedGameTimePanel = null;
+  var cachedGameTimePanelMs = 0;
+  var cachedPresetBases = null;
+  var cachedPresetSignature = "";
   var cachedValues = null;
   var lastPublishedRaw = "";
   var cachedSnapshotPayload = "";
   var sharedSnapshotWritten = false;
+  var sharedStoreWritten = false;
+  var rootAttrWritten = false;
   var cachedReplayStarted = false;
+  var cachedReplayHandle = null;
+  var lastDebugByStage = {};
+  var lastSelectionReason = "";
+  var lastSelectionPresetId = "";
+  var lastSelectionHeroId = "";
+  var lastSelectionHasScopedPreset = false;
+  var heroProbeStarted = false;
+  var heroProbeActive = false;
+  var lastSnapshotReplyAt = 0;
+  var cachedReplayDispatches = 0;
+  var cachedReplayIntervalSec = CACHED_SNAPSHOT_REPLAY_HOT_SEC;
+  var lastReplayDebugIntervalSec = 0;
+  var cachedReplayHotUntil = nowMs() + CACHED_SNAPSHOT_REPLAY_STARTUP_HOT_MS;
+  var lastProbeHeroId = "";
+  var stableProbeHeroCount = 0;
+  var heroSelectionLocked = false;
+  var heroLockPresetId = "";
+  var heroLockHeroId = "";
 
+  // Panel and diagnostics helpers.
   function isValidPanel(panel) {
     try {
       return !!(panel && (!panel.IsValid || panel.IsValid()));
@@ -27,12 +178,22 @@
   }
 
   function getRootPanel() {
-    if (isValidPanel(cachedRootPanel)) return cachedRootPanel;
     var panel = $.GetContextPanel();
     while (panel && panel.GetParent && panel.GetParent()) {
       panel = panel.GetParent();
     }
-    cachedRootPanel = panel || null;
+    panel = panel || null;
+    if (panel !== cachedRootPanel) {
+      cachedRootPanel = panel;
+      cachedGameTimePanel = null;
+      cachedGameTimePanelMs = 0;
+      cachedStorePanel = null;
+      cachedPresetBases = null;
+      cachedPresetSignature = "";
+      clearHeroDetectionRefs();
+      resetHeroSelectionLock();
+      debugLog("root", { id: panelId(panel) || "", changed: true });
+    }
     return cachedRootPanel;
   }
 
@@ -43,6 +204,315 @@
     return null;
   }
 
+  function debugPresetSelectionEnabled() {
+    if (DEBUG_PRESET_SELECTION) return true;
+    var store = getSharedStore();
+    try {
+      return !!(store && store.__hpColorsPresetDebug);
+    } catch (e) {}
+    return false;
+  }
+
+  function debugLog(stage, data) {
+    if (!debugPresetSelectionEnabled()) return;
+    var payload = "";
+    try {
+      payload = data ? JSON.stringify(data) : "";
+    } catch (e0) {
+      payload = String(data || "");
+    }
+    if (lastDebugByStage[stage] === payload) return;
+    lastDebugByStage[stage] = payload;
+    var line = DEBUG_PREFIX + " " + stage + (payload ? " " + payload : "");
+    try {
+      if (typeof $ !== "undefined" && $ && $.Msg) {
+        $.Msg(line);
+        return;
+      }
+    } catch (e1) {}
+    try {
+      if (typeof console !== "undefined" && console && console.log) console.log(line);
+    } catch (e2) {}
+  }
+
+  function debugPresetSummary(preset) {
+    if (!preset) return "";
+    return preset.id + ":" + preset.heroMode + ":" + (preset.heroes && preset.heroes.length ? preset.heroes.join(",") : "*");
+  }
+
+
+  function parseGameTimeText(text) {
+    var raw = String(text || "").replace(/^\s+|\s+$/g, "");
+    if (!raw) return -1;
+    var parts = raw.match(/\d+/g);
+    if (!parts || !parts.length) return -1;
+    if (parts.length === 1) return Number(parts[0]) || 0;
+    return (Number(parts[0]) || 0) * 60 + (Number(parts[1]) || 0);
+  }
+
+  function findPanelByClass(panel, className) {
+    try {
+      if (panel && panel.FindChildrenWithClassTraverse) {
+        var matches = panel.FindChildrenWithClassTraverse(className) || [];
+        if (matches.length) return matches[0];
+      }
+    } catch (e0) {}
+    return null;
+  }
+
+  function resolveGameTimePanel() {
+    if (isValidPanel(cachedGameTimePanel)) return cachedGameTimePanel;
+    var root = getRootPanel();
+    var topBar = findChild(root, "TopBar");
+    cachedGameTimePanel = findPanelByClass(topBar, "GameTime") || findPanelByClass(root, "GameTime");
+    return cachedGameTimePanel;
+  }
+
+  function readGameTimeSec() {
+    var now = nowMs();
+    if (!isValidPanel(cachedGameTimePanel) || now - cachedGameTimePanelMs > 1000) {
+      cachedGameTimePanel = resolveGameTimePanel();
+      cachedGameTimePanelMs = now;
+    }
+    if (!isValidPanel(cachedGameTimePanel)) return -1;
+    var text = "";
+    try { text = cachedGameTimePanel.text || cachedGameTimePanel.GetAttributeString("text", "") || ""; } catch (e0) {}
+    return parseGameTimeText(text);
+  }
+
+  function resetHeroSelectionLock() {
+    heroSelectionLocked = false;
+    heroLockPresetId = "";
+    heroLockHeroId = "";
+  }
+
+  function lockHeroSelectionIfReady() {
+    if (heroSelectionLocked || !lastSelectionPresetId) return false;
+    var gameTime = readGameTimeSec();
+    if (gameTime < HERO_SELECTION_LOCK_GAME_TIME_SEC) return false;
+    heroSelectionLocked = true;
+    heroLockPresetId = lastSelectionPresetId;
+    heroLockHeroId = lastSelectionHeroId || "";
+    heroProbeActive = false;
+    return true;
+  }
+  function nowMs() {
+    try {
+      if (Date && Date.now) return Date.now();
+    } catch (e0) {}
+    return +(new Date());
+  }
+
+  function logLine(message) {
+    try {
+      if (typeof $ !== "undefined" && $ && $.Msg) {
+        $.Msg(message);
+        return;
+      }
+    } catch (e1) {}
+    try {
+      if (typeof console !== "undefined" && console && console.log) console.log(message);
+    } catch (e2) {}
+  }
+
+
+  // Preset decoding and hero-scoped selection.
+  function returnPresetSelection(reason, preset, heroId, allowUnknownFallback, presetCount, hasScopedPreset) {
+    lastSelectionReason = reason;
+    lastSelectionPresetId = preset ? preset.id : "";
+    lastSelectionHeroId = heroId || "";
+    lastSelectionHasScopedPreset = !!hasScopedPreset;
+    debugLog("select", {
+      reason: reason,
+      preset: debugPresetSummary(preset),
+      hero: heroId || "",
+      allow_unknown_fallback: !!allowUnknownFallback,
+      preset_count: presetCount || 0,
+      has_scoped_preset: !!hasScopedPreset
+    });
+    return preset;
+  }
+
+  function cleanHeroToken(value) {
+    return String(value || "").toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
+  }
+
+  function registerHeroAlias(alias, heroId) {
+    var clean = cleanHeroToken(alias);
+    if (!clean || Object.prototype.hasOwnProperty.call(HERO_ALIAS_TO_ID, clean)) return;
+    HERO_ALIAS_TO_ID[clean] = heroId;
+    HERO_ALIAS_LIST.push({ alias: clean, hero: heroId, token: clean.replace(/^hero_/, "") });
+  }
+
+  function buildHeroTables() {
+    for (var i = 0; i < HERO_DATA.length; i += 1) {
+      var hero = HERO_DATA[i];
+      registerHeroAlias(hero.id, hero.id);
+      registerHeroAlias(hero.id.replace(/^hero_/, ""), hero.id);
+      registerHeroAlias(hero.name, hero.id);
+      for (var j = 0; j < hero.aliases.length; j += 1) registerHeroAlias(hero.aliases[j], hero.id);
+    }
+    HERO_ALIAS_LIST.sort(function (a, b) { return b.token.length - a.token.length; });
+  }
+
+  function normalizeHeroToken(value) {
+    var text = cleanHeroToken(value);
+    if (!text) return "";
+    if (Object.prototype.hasOwnProperty.call(HERO_ALIAS_TO_ID, text)) return HERO_ALIAS_TO_ID[text];
+    if (text.indexOf("hero_") !== 0 && Object.prototype.hasOwnProperty.call(HERO_ALIAS_TO_ID, "hero_" + text)) {
+      return HERO_ALIAS_TO_ID["hero_" + text];
+    }
+    return "";
+  }
+
+  function normalizeHeroSelection(value) {
+    var source = [];
+    if (Array.isArray(value)) source = value;
+    else if (typeof value === "string") source = value.split(/[,|;]/);
+    else if (value) source = [value];
+    var seen = {};
+    var out = [];
+    for (var i = 0; i < source.length; i += 1) {
+      var heroId = normalizeHeroToken(source[i]);
+      if (!heroId || seen[heroId]) continue;
+      seen[heroId] = true;
+      out.push(heroId);
+    }
+    return out;
+  }
+
+  function normalizeHeroScopeMode(mode, heroes) {
+    var text = String(mode || "").toLowerCase();
+    if (text === HERO_SCOPE_OFF || text === "disabled" || text === "none") return HERO_SCOPE_OFF;
+    if (text === HERO_SCOPE_ALL || text === "global") return HERO_SCOPE_ALL;
+    if (text === HERO_SCOPE_SELECTED || text === "heroes" || text === "hero") {
+      return normalizeHeroSelection(heroes).length ? HERO_SCOPE_SELECTED : HERO_SCOPE_OFF;
+    }
+    return normalizeHeroSelection(heroes).length ? HERO_SCOPE_SELECTED : HERO_SCOPE_ALL;
+  }
+
+  function expandBuilderPresetValues(rawValues) {
+    if (!rawValues || typeof rawValues !== "object") return null;
+    var out = {};
+    var wrote = false;
+    for (var key in rawValues) {
+      if (!Object.prototype.hasOwnProperty.call(rawValues, key)) continue;
+      var fullKey = HP_PERSIST_ALIAS_TO_ID[key] || key;
+      if (String(fullKey).indexOf("hp_") !== 0) continue;
+      out[fullKey] = rawValues[key];
+      wrote = true;
+    }
+    return wrote ? out : null;
+  }
+
+  function isSupportedPresetVersion(version) {
+    return version === 1 || version === 97;
+  }
+
+  function normalizePresetPayload(preset) {
+    if (!preset || typeof preset !== "object") return null;
+    var version = Number(preset.version !== undefined ? preset.version : preset.v);
+    var rawValues = preset.values || preset.vals || preset.vs;
+    var values = expandBuilderPresetValues(rawValues);
+    if (!isSupportedPresetVersion(version) || !values) return null;
+    var heroes = normalizeHeroSelection(preset.heroes || preset.hs || preset.hero || preset.h);
+    var heroMode = normalizeHeroScopeMode(preset.heroMode || preset.hm, heroes);
+    if (heroMode === HERO_SCOPE_SELECTED && !heroes.length) heroMode = HERO_SCOPE_OFF;
+    if (heroMode !== HERO_SCOPE_SELECTED) heroes = [];
+    return {
+      values: values,
+      heroes: heroes,
+      heroMode: heroMode
+    };
+  }
+
+  function panelChildren(panel) {
+    try { return panel && panel.Children ? panel.Children() : []; } catch (e) {}
+    return [];
+  }
+
+  function panelHasClass(panel, className) {
+    try { return !!(panel && panel.BHasClass && panel.BHasClass(className)); } catch (e) {}
+    return false;
+  }
+
+  function panelId(panel) {
+    try { return panel && panel.id ? String(panel.id) : ""; } catch (e) {}
+    return "";
+  }
+
+  function findChild(panel, id) {
+    try { return panel && panel.FindChildTraverse ? panel.FindChildTraverse(id) : null; } catch (e) {}
+    return null;
+  }
+
+  function findDirectChildWhere(panel, id, predicate) {
+    var children = panelChildren(panel);
+    var fallback = null;
+    for (var i = 0; i < children.length; i += 1) {
+      var child = children[i];
+      if (panelId(child) !== id) continue;
+      if (!fallback) fallback = child;
+      if (!predicate || predicate(child)) return child;
+    }
+    return fallback;
+  }
+
+  function heroClassOn(panel) {
+    if (!isValidPanel(panel)) return "";
+    for (var i = 0; i < HERO_ALIAS_LIST.length; i += 1) {
+      if (panelHasClass(panel, HERO_ALIAS_LIST[i].alias)) return HERO_ALIAS_LIST[i].hero;
+    }
+    return "";
+  }
+
+  function hasDirectProgress(panel) {
+    return !!heroClassOn(findDirectChildWhere(panel, "progress", heroClassOn));
+  }
+
+  function clearHeroDetectionRefs() {
+    cachedGameplayAlive = null;
+    cachedCrosshair = null;
+    cachedHeroProgress = null;
+  }
+
+  function resolveHeroProgressPanel() {
+    var root = getRootPanel();
+    if (!isValidPanel(root)) return null;
+
+    if (!isValidPanel(cachedGameplayAlive)) {
+      cachedGameplayAlive = findChild(root, "gameplay_hud_alive");
+      cachedCrosshair = null;
+      cachedHeroProgress = null;
+    }
+    if (!isValidPanel(cachedGameplayAlive)) return null;
+
+    var crosshair = findDirectChildWhere(cachedGameplayAlive, "crosshair", hasDirectProgress);
+    if (crosshair !== cachedCrosshair) {
+      cachedCrosshair = crosshair;
+      cachedHeroProgress = null;
+    }
+    if (!isValidPanel(cachedCrosshair)) return null;
+
+    var progress = findDirectChildWhere(cachedCrosshair, "progress", heroClassOn);
+    if (progress !== cachedHeroProgress) cachedHeroProgress = progress;
+    return isValidPanel(cachedHeroProgress) ? cachedHeroProgress : null;
+  }
+
+  function detectLocalHero() {
+    var progress = resolveHeroProgressPanel();
+    var heroId = heroClassOn(progress);
+    debugLog("detect", {
+      hero: heroId || "",
+      root: panelId(cachedRootPanel) || "",
+      alive: isValidPanel(cachedGameplayAlive),
+      crosshair: isValidPanel(cachedCrosshair),
+      progress: isValidPanel(progress)
+    });
+    return heroId;
+  }
+
+  // Snapshot transport: shared/raw first, root attribute fallback, then static bridge event.
   function dispatchSnapshot(payload) {
     try {
       $.DispatchEvent(EVENT_CHANNEL, payload);
@@ -52,16 +522,40 @@
   }
 
   function writeSharedSnapshot(raw) {
+    if (!raw) return false;
+    var wroteShared = false;
+    var wroteRoot = false;
     var store = getSharedStore();
-    if (!store || !raw) return false;
+    if (store) {
+      try {
+        if (store[SHARED_CFG_RAW_KEY] !== raw) {
+          store[SHARED_CFG_RAW_KEY] = raw;
+        }
+        wroteShared = true;
+      } catch (e0) {}
+    }
+    var root = getRootPanel();
     try {
-      if (store[SHARED_CFG_RAW_KEY] !== raw) {
-        store[SHARED_CFG_RAW_KEY] = raw;
+      if (isValidPanel(root) && root.SetAttributeString) {
+        if (!root.GetAttributeString || root.GetAttributeString(ROOT_CFG_RAW_ATTR, "") !== raw) {
+          root.SetAttributeString(ROOT_CFG_RAW_ATTR, raw);
+        }
+        wroteRoot = true;
       }
-      sharedSnapshotWritten = true;
-      return true;
-    } catch (e) {}
-    return false;
+    } catch (e1) {}
+    if (wroteShared) sharedStoreWritten = true;
+    if (wroteRoot) rootAttrWritten = true;
+    sharedSnapshotWritten = sharedStoreWritten || rootAttrWritten;
+    if (sharedSnapshotWritten) {
+      debugLog("shared-write", {
+        gameui: wroteShared,
+        root_attr: wroteRoot,
+        gameui_ready: sharedStoreWritten,
+        root_ready: rootAttrWritten,
+        raw_length: raw.length
+      });
+    }
+    return wroteShared || wroteRoot;
   }
 
   function readLabelText(label) {
@@ -122,11 +616,9 @@
     return out;
   }
 
-  function readPresetValues() {
-    if (cachedValues) return cachedValues;
-
+  function readPresetEntries() {
     var root = getRootPanel();
-    if (!root || !root.FindChildTraverse) return null;
+    if (!root || !root.FindChildTraverse) return [];
 
     var store = isValidPanel(cachedStorePanel) ? cachedStorePanel : null;
     if (!store) {
@@ -135,7 +627,7 @@
       } catch (e0) {}
       cachedStorePanel = isValidPanel(store) ? store : null;
     }
-    if (!store) return null;
+    if (!store) return [];
 
     var entries = [];
     try {
@@ -144,34 +636,168 @@
       }
     } catch (e1) {}
 
-    var selectedValues = null;
-    var firstValues = null;
+    var signature = String(entries.length);
+    for (var sigIndex = 0; sigIndex < entries.length; sigIndex += 1) {
+      signature += "|" + getPanelId(entries[sigIndex]) + ":" + readLabelText(entries[sigIndex]);
+    }
+    if (cachedPresetBases && cachedPresetSignature === signature) return cachedPresetBases;
+
+    var validPresets = [];
     for (var i = 0; i < entries.length; i += 1) {
       try {
         var id = getPanelId(entries[i]);
         var encoded = readLabelText(entries[i]);
         if (!encoded) continue;
-        var preset = JSON.parse(decodeBase64Url(encoded));
-        if (!preset || preset.version !== 1 || !preset.values || typeof preset.values !== "object") continue;
-        if (!firstValues) firstValues = preset.values;
-        if (id === STARTUP_PRESET_ID) {
-          selectedValues = preset.values;
-          break;
+        var normalized = normalizePresetPayload(JSON.parse(decodeBase64Url(encoded)));
+        if (!normalized) continue;
+        if (normalized.heroMode === HERO_SCOPE_OFF) {
+          if (entries.length === 1 && id === STARTUP_PRESET_ID) {
+            normalized.heroMode = HERO_SCOPE_ALL;
+            debugLog("single-startup-off-compat", { id: id });
+          } else {
+            continue;
+          }
         }
+        validPresets.push({
+          id: id,
+          values: normalized.values,
+          heroes: normalized.heroes,
+          heroMode: normalized.heroMode
+        });
       } catch (e2) {}
     }
-    if (!selectedValues) selectedValues = firstValues;
-    if (selectedValues) {
-      cachedValues = selectedValues;
-      return cachedValues;
+    cachedPresetSignature = signature;
+    cachedPresetBases = validPresets;
+    debugLog("store", {
+      entries: entries.length,
+      valid_presets: validPresets.length,
+      presets: validPresets.map(debugPresetSummary)
+    });
+    return validPresets;
+  }
+
+  function presetTargetsHero(preset, heroId) {
+    if (!preset || !heroId || preset.heroMode !== HERO_SCOPE_SELECTED || !Array.isArray(preset.heroes)) return false;
+    for (var i = 0; i < preset.heroes.length; i += 1) {
+      if (preset.heroes[i] === heroId) return true;
+    }
+    return false;
+  }
+
+  function presetIsGlobal(preset) {
+    return preset && preset.heroMode === HERO_SCOPE_ALL;
+  }
+
+  function presetCompatibleWithHero(preset, heroId) {
+    return presetIsGlobal(preset) || presetTargetsHero(preset, heroId);
+  }
+
+  function findScopedPresetForHero(heroId) {
+    if (!heroId) return null;
+    var validPresets = readPresetEntries();
+    for (var i = 0; i < validPresets.length; i += 1) {
+      if (presetTargetsHero(validPresets[i], heroId)) return validPresets[i];
     }
     return null;
   }
 
-  function capturePreset() {
+  function selectPresetForHero(allowUnknownFallback) {
+    var validPresets = readPresetEntries();
+    if (validPresets.length === 1) {
+      return returnPresetSelection("single-valid-preset", validPresets[0], "", allowUnknownFallback, validPresets.length, false);
+    }
+
+    var startupPreset = null;
+    var firstPreset = null;
+    if (readGameTimeSec() === 0) resetHeroSelectionLock();
+
+    var firstGlobal = null;
+    var firstHeroMatch = null;
+    var hasScopedPreset = false;
+    for (var i = 0; i < validPresets.length; i += 1) {
+      var preset = validPresets[i];
+      if (!firstPreset) firstPreset = preset;
+      if (!firstGlobal && presetIsGlobal(preset)) firstGlobal = preset;
+      if (preset.heroMode === HERO_SCOPE_SELECTED) hasScopedPreset = true;
+      if (preset.id === STARTUP_PRESET_ID) startupPreset = preset;
+    }
+
+    if (heroSelectionLocked && heroLockPresetId) {
+      for (var lockedIndex = 0; lockedIndex < validPresets.length; lockedIndex += 1) {
+        if (validPresets[lockedIndex].id === heroLockPresetId) {
+          return returnPresetSelection("locked-hero-selection", validPresets[lockedIndex], heroLockHeroId, allowUnknownFallback, validPresets.length, hasScopedPreset);
+        }
+      }
+      resetHeroSelectionLock();
+    }
+
+    var heroId = hasScopedPreset ? detectLocalHero() : "";
+    for (var j = 0; heroId && j < validPresets.length; j += 1) {
+      if (presetTargetsHero(validPresets[j], heroId)) {
+        firstHeroMatch = validPresets[j];
+        break;
+      }
+    }
+
+    if (heroId && firstHeroMatch) return returnPresetSelection("selected-hero-match", firstHeroMatch, heroId, allowUnknownFallback, validPresets.length, hasScopedPreset);
+    if (hasScopedPreset && !heroId && !allowUnknownFallback) {
+      return returnPresetSelection("wait-unknown-hero", null, "", allowUnknownFallback, validPresets.length, hasScopedPreset);
+    }
+    if (startupPreset && (!heroId || presetCompatibleWithHero(startupPreset, heroId))) {
+      return returnPresetSelection(heroId ? "compatible-startup" : "unknown-hero-startup-fallback", startupPreset, heroId, allowUnknownFallback, validPresets.length, hasScopedPreset);
+    }
+    if (firstGlobal) return returnPresetSelection("first-global-fallback", firstGlobal, heroId, allowUnknownFallback, validPresets.length, hasScopedPreset);
+    return returnPresetSelection("first-enabled-fallback", firstPreset, heroId, allowUnknownFallback, validPresets.length, hasScopedPreset);
+  }
+
+  function applyHardGates(values) {
+    var out = {};
+    for (var key in values || {}) {
+      if (Object.prototype.hasOwnProperty.call(values, key)) out[key] = values[key];
+    }
+    if (!Object.prototype.hasOwnProperty.call(out, COUNTER_VISIBLE_KEY)) out[COUNTER_VISIBLE_KEY] = true;
+    for (var forced in HARD_GATED_VALUES) {
+      if (Object.prototype.hasOwnProperty.call(HARD_GATED_VALUES, forced)) out[forced] = HARD_GATED_VALUES[forced];
+    }
+    return out;
+  }
+
+  function readPresetValues(allowUnknownFallback) {
+    if (cachedValues) return cachedValues;
+    var selectedPreset = selectPresetForHero(!!allowUnknownFallback);
+    if (!selectedPreset || !selectedPreset.values) return null;
+    var selectedValues = applyHardGates(selectedPreset.values);
+    cachedValues = selectedValues;
+    return cachedValues;
+  }
+
+  function stopCachedSnapshotReplay() {
+    if (cachedReplayHandle) {
+      try {
+        if ($.CancelScheduled) $.CancelScheduled(cachedReplayHandle);
+      } catch (eCancel) {}
+    }
+    cachedReplayHandle = null;
+    cachedReplayStarted = false;
+  }
+
+  function clearResolvedSnapshotCache() {
+    stopCachedSnapshotReplay();
+    cachedValues = null;
+    cachedSnapshotPayload = "";
+    lastPublishedRaw = "";
+    sharedSnapshotWritten = false;
+    sharedStoreWritten = false;
+    rootAttrWritten = false;
+    cachedReplayDispatches = 0;
+    cachedReplayIntervalSec = CACHED_SNAPSHOT_REPLAY_HOT_SEC;
+    cachedReplayHotUntil = nowMs() + CACHED_SNAPSHOT_REPLAY_STARTUP_HOT_MS;
+  }
+
+  function capturePreset(allowUnknownFallback) {
     if (cachedSnapshotPayload) return true;
 
-    var values = readPresetValues();
+    var values = readPresetValues(allowUnknownFallback);
     if (!values) return false;
 
     var raw = "";
@@ -195,60 +821,204 @@
       return false;
     }
     lastPublishedRaw = raw;
+    debugLog("capture", {
+      allow_unknown_fallback: !!allowUnknownFallback,
+      raw_length: raw.length,
+      hp_team_colors: values.hp_team_colors,
+      hp_color_low: values.hp_color_low,
+      hp_mode: values.hp_mode,
+      hp_skip_buildings: values.hp_skip_buildings,
+      hp_counter_visible: values.hp_counter_visible,
+      hp_friend_enabled: values.hp_friend_enabled,
+      hp_friend_color_low: values.hp_friend_color_low,
+      hp_friend_color_mid: values.hp_friend_color_mid,
+      hp_friend_color_high: values.hp_friend_color_high,
+      hp_friend_pulse_enabled: values.hp_friend_pulse_enabled
+    });
+    lockHeroSelectionIfReady();
     return true;
   }
 
-  function publishPreset() {
-    if (!capturePreset()) return false;
-    var sharedOk = sharedSnapshotWritten || writeSharedSnapshot(lastPublishedRaw);
+  function publishPreset(allowUnknownFallback) {
+    if (!capturePreset(allowUnknownFallback)) return false;
+    var sharedOk = writeSharedSnapshot(lastPublishedRaw);
     startCachedSnapshotReplay();
-    return dispatchSnapshot(cachedSnapshotPayload) || sharedOk;
+    var dispatched = dispatchSnapshot(cachedSnapshotPayload);
+    if (lastSelectionHasScopedPreset && !lastSelectionHeroId && (
+      lastSelectionReason === "unknown-hero-startup-fallback" ||
+      lastSelectionReason === "first-global-fallback" ||
+      lastSelectionReason === "first-enabled-fallback"
+    )) {
+      startBoundedHeroPresetProbe();
+    }
+    return dispatched || sharedOk;
   }
 
-  function publishUntilReady() {
-    if (cachedSnapshotPayload && sharedSnapshotWritten) return true;
-    return publishPreset();
+  function publishUntilReady(allowUnknownFallback) {
+    if (cachedSnapshotPayload && sharedStoreWritten && rootAttrWritten) return true;
+    if (cachedSnapshotPayload) {
+      var transportOk = writeSharedSnapshot(lastPublishedRaw);
+      startCachedSnapshotReplay();
+      var dispatched = dispatchSnapshot(cachedSnapshotPayload);
+      return dispatched || transportOk || sharedSnapshotWritten;
+    }
+    return publishPreset(allowUnknownFallback);
+  }
+
+  // Cached replay keeps late unit-status contexts fed without rebuilding from HPColorsPresetStore.
+  function chooseCachedReplayInterval() {
+    var now = nowMs();
+    if (heroProbeActive ||
+        now < cachedReplayHotUntil ||
+        (lastSnapshotReplyAt && now - lastSnapshotReplyAt < CACHED_SNAPSHOT_REPLAY_REQUEST_HOT_MS) ||
+        cachedReplayDispatches < CACHED_SNAPSHOT_REPLAY_HOT_COUNT) {
+      return CACHED_SNAPSHOT_REPLAY_HOT_SEC;
+    }
+    if (cachedReplayDispatches < CACHED_SNAPSHOT_REPLAY_WARM_COUNT) return CACHED_SNAPSHOT_REPLAY_WARM_SEC;
+    return CACHED_SNAPSHOT_REPLAY_IDLE_SEC;
+  }
+
+  function shouldLogCachedReplay() {
+    if (DEBUG_REPLAY_VERBOSE_ENABLED) return true;
+    if (cachedReplayDispatches <= 1) return true;
+    return cachedReplayIntervalSec !== lastReplayDebugIntervalSec;
+  }
+
+  function scheduleCachedSnapshotReplay() {
+    cachedReplayIntervalSec = chooseCachedReplayInterval();
+    if (shouldLogCachedReplay()) {
+      debugLog("replay", {
+        dispatches: cachedReplayDispatches,
+        interval: cachedReplayIntervalSec,
+        hero_probe: !!heroProbeActive
+      });
+    }
+    lastReplayDebugIntervalSec = cachedReplayIntervalSec;
+    try {
+      cachedReplayHandle = $.Schedule(cachedReplayIntervalSec, replayCachedSnapshot);
+    } catch (e) {
+      cachedReplayHandle = null;
+      cachedReplayStarted = false;
+    }
   }
 
   function replayCachedSnapshot() {
-    if (!cachedSnapshotPayload) return;
+    cachedReplayHandle = null;
+    if (!cachedSnapshotPayload) {
+      cachedReplayStarted = false;
+      return;
+    }
+    cachedReplayDispatches += 1;
     dispatchSnapshot(cachedSnapshotPayload);
-    try {
-      $.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot);
-    } catch (e) {}
+    scheduleCachedSnapshotReplay();
   }
 
   function startCachedSnapshotReplay() {
     if (cachedReplayStarted || !cachedSnapshotPayload) return;
     cachedReplayStarted = true;
-    try {
-      $.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot);
-    } catch (e) {}
+    scheduleCachedSnapshotReplay();
   }
 
-  function handlePresetRequest(payload) {
+  function handleBridgeEvent(payload) {
     if (typeof payload === "string" && payload.indexOf(REQUEST_MAGIC) === -1) return;
     try {
       var data = typeof payload === "string" ? JSON.parse(payload) : payload;
       if (!data || data.magic_word !== REQUEST_MAGIC) return;
       if (data.mod_title && data.mod_title !== "HP Colors") return;
       if (cachedSnapshotPayload) {
+        var now = nowMs();
+        if (lastSnapshotReplyAt && now - lastSnapshotReplyAt < REQUEST_REPLY_COOLDOWN_MS) return;
+        lastSnapshotReplyAt = now;
+        cachedReplayHotUntil = now + CACHED_SNAPSHOT_REPLAY_REQUEST_HOT_MS;
         dispatchSnapshot(cachedSnapshotPayload);
-        if (!sharedSnapshotWritten) writeSharedSnapshot(lastPublishedRaw);
+        writeSharedSnapshot(lastPublishedRaw);
         return;
       }
-      publishPreset();
+      publishPreset(true);
     } catch (e) {}
   }
 
+  // Bootstrap.
   try {
-    $.RegisterForUnhandledEvent(EVENT_CHANNEL, handlePresetRequest);
+    $.RegisterForUnhandledEvent(EVENT_CHANNEL, handleBridgeEvent);
   } catch (e) {}
 
-  publishUntilReady();
+  buildHeroTables();
+  publishUntilReady(false);
   for (var delayIndex = 0; delayIndex < PUBLISH_RETRY_DELAYS.length; delayIndex += 1) {
     try {
-      $.Schedule(PUBLISH_RETRY_DELAYS[delayIndex], publishUntilReady);
+      (function (isFinalRetry) {
+        $.Schedule(PUBLISH_RETRY_DELAYS[delayIndex], function () {
+          publishUntilReady(isFinalRetry);
+        });
+      })(delayIndex === PUBLISH_RETRY_DELAYS.length - 1);
+    } catch (e) {}
+  }
+
+  function runBoundedHeroPresetProbe(index) {
+    if (!heroProbeActive) return;
+    if (heroSelectionLocked || lockHeroSelectionIfReady()) {
+      heroProbeActive = false;
+      return;
+    }
+    var heroId = detectLocalHero();
+    var matchingPreset = findScopedPresetForHero(heroId);
+    debugLog("probe", {
+      index: index,
+      hero: heroId || "",
+      preset: debugPresetSummary(matchingPreset)
+    });
+    if (matchingPreset) {
+      clearResolvedSnapshotCache();
+      if (publishPreset(false)) {
+        heroProbeActive = false;
+        debugLog("probe-stop", {
+          reason: "selected-hero-match",
+          hero: lastSelectionHeroId || heroId,
+          preset: lastSelectionPresetId || matchingPreset.id
+        });
+        return;
+      }
+    }
+    if (heroId && heroId === lastProbeHeroId) stableProbeHeroCount += 1;
+    else {
+      lastProbeHeroId = heroId || "";
+      stableProbeHeroCount = heroId ? 1 : 0;
+    }
+    if (!heroId) stableProbeHeroCount = 0;
+    if (heroId && !matchingPreset && stableProbeHeroCount >= HERO_PROBE_STABLE_NO_MATCH_COUNT) {
+      heroProbeActive = false;
+      debugLog("probe-stop", {
+        reason: "known-hero-no-scoped-preset",
+        hero: heroId,
+        stable_count: stableProbeHeroCount
+      });
+      return;
+    }
+    if (index + 1 >= BOUNDED_HERO_PROBE_DELAYS.length) {
+      heroProbeActive = false;
+      debugLog("probe-stop", { reason: "bounded-timeout", hero: heroId || "" });
+      return;
+    }
+    try {
+      $.Schedule(BOUNDED_HERO_PROBE_DELAYS[index + 1], function () {
+        runBoundedHeroPresetProbe(index + 1);
+      });
+    } catch (e) {}
+  }
+
+  function startBoundedHeroPresetProbe() {
+    if (heroProbeStarted || heroProbeActive) return;
+    heroProbeStarted = true;
+    heroProbeActive = true;
+    lastProbeHeroId = "";
+    stableProbeHeroCount = 0;
+    cachedReplayHotUntil = nowMs() + CACHED_SNAPSHOT_REPLAY_STARTUP_HOT_MS;
+    debugLog("probe-start", { retries: BOUNDED_HERO_PROBE_DELAYS.length });
+    try {
+      $.Schedule(BOUNDED_HERO_PROBE_DELAYS[0], function () {
+        runBoundedHeroPresetProbe(0);
+      });
     } catch (e) {}
   }
 })();

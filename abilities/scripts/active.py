@@ -143,6 +143,53 @@ def remove_targeting_location(block, targeting_value):
 
     return block[:match.start()] + block[match.end():], True
 
+def get_record_name(block):
+    match = re.match(r'^[ \t]([A-Za-z0-9_]+)\s*=\s*(?:\r?\n)', block)
+    return match.group(1) if match else None
+
+def find_behavior_state_issues(file_path, expect_enabled):
+    with open(file_path, 'r') as file:
+        content = file.read()
+
+    expected_names = set(ADD_BEHAVIOR_BITS_ABILITIES)
+    found_names = set()
+    issues = []
+    expected_targeting = f'm_eAbilityTargetingLocation = "{TARGETING_LOCATION_VALUE}"'
+
+    for _, _, block in iter_record_spans(content):
+        record_name = get_record_name(block)
+        if record_name not in expected_names:
+            continue
+
+        found_names.add(record_name)
+        has_all_bits = all(bit in block for bit in ADD_BEHAVIOR_BITS)
+        has_any_bit = any(bit in block for bit in ADD_BEHAVIOR_BITS)
+        has_targeting = expected_targeting in block
+
+        if expect_enabled and (not has_all_bits or not has_targeting):
+            issues.append(f"{record_name}: missing behavior bits or unit targeting")
+
+        if not expect_enabled and (has_any_bit or has_targeting):
+            issues.append(f"{record_name}: behavior bits or unit targeting still present")
+
+    for missing_name in sorted(expected_names - found_names):
+        issues.append(f"{missing_name}: target ability block not found")
+
+    return issues
+
+def verify_behavior_state(file_path, expect_enabled=True):
+    issues = find_behavior_state_issues(file_path, expect_enabled)
+    state_name = "enabled" if expect_enabled else "disabled"
+
+    if issues:
+        print(f"Behavior state verification failed for {file_path} ({state_name}):")
+        for issue in issues:
+            print(f"  - {issue}")
+        return False
+
+    print(f"Behavior state verification passed for {file_path} ({state_name})")
+    return True
+
 def iter_record_spans(content):
     lines = content.splitlines(keepends=True)
     header_pattern = re.compile(r'^[ \t][A-Za-z0-9_]+\s*=\s*$')

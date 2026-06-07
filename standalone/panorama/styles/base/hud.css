@@ -1,4 +1,4 @@
-/* Prettified by Source 2 Viewer 17.0.0.0 - https://valveresourceformat.github.io */
+/* Prettified by Source 2 Viewer - https://valveresourceformat.github.io */
 
 CitadelHud
 {
@@ -30,11 +30,12 @@ CitadelHud
 	height: 100%;
 	opacity: 0.0;
 	transition-property: opacity;
-	transition-duration: 0.2s;
+	transition-duration: 0.0s;
 }
 
 .HudTakeoverEnabled .HudTakeovers
 {
+	transition-duration: 0.2s;
 	opacity: 1.0;
 }
 
@@ -426,6 +427,11 @@ CitadelHudModifierIcons
 	visibility: visible;
 }
 
+.dead.player_selected #health_and_abilities_container
+{
+	visibility: collapse;
+}
+
 @keyframes 'health_pulse_text2'
 {
 	0%
@@ -494,6 +500,11 @@ CitadelHudModifierIcons
 	world-blur: ingameHudBlur;
 	background-size: cover;
 	background-img-opacity: 0.04;
+}
+
+.action_binding .Binding
+{
+	height: 25px;
 }
 
 .action_binding .InlineGlyph
@@ -799,18 +810,19 @@ CitadelHudModifierIcons
 	opacity: 0;
 	vertical-align: bottom;
 	horizontal-align: center;
-	margin-bottom: 120px;
+	margin-bottom: 170px;
 	flow-children: down;
 	border-radius: 3px;
-	background-color: #000000AE;
+	background-color: #cf0000ac;
+	background-color: offBlack&ea;
 	padding: 8px 15px;
-	border-radius: 20px;
+	border-radius: 5px;
 }
 
 #cast_failed_box.citadel_ability_zip_line
 {
 	visibility: collapse;
-	background-color: #000000EE;
+	background-color: #000000aa;
 	margin-bottom: 300px;
 }
 
@@ -845,11 +857,12 @@ CitadelHudModifierIcons
 
 #invalid_cast_reason
 {
-	color: rgb(252, 81, 81);
-	font-size: 14px;
+	color: rgb(255, 73, 73);
+	font-size: 16px;
 	text-transform: uppercase;
 	font-weight: semi-bold;
 	font-style: italic;
+	font-family: block;
 	opacity: 0.7;
 }
 
@@ -876,6 +889,7 @@ CitadelHudModifierIcons
 	font-size: 18px;
 	font-weight: bold;
 	margin-bottom: 0px;
+	visibility: collapse;
 }
 
 #voice_active_box
@@ -1061,6 +1075,18 @@ CitadelHudModifierIcons
 .showShopWhileDeadHint .death_button_hint.shop_while_dead
 {
 	transform: translateY(0px);
+	opacity: 1;
+}
+
+.gamemode_streetbrawl .showShopWhileDeadHint .death_button_hint.shop_while_dead
+{
+	transform: translateY(0px);
+	opacity: 0;
+}
+
+.gamemode_streetbrawl .deathReplayAvailable .death_button_hint.replay_death
+{
+	transform: translateY(-40px);
 	opacity: 1;
 }
 
@@ -1801,11 +1827,6 @@ CitadelHudModifierIcons
 	border-radius: 2px;
 }
 
-.gShopOpen.PopupVisible #hud_signature
-{
-	visibility: collapse;
-}
-
 .gShopOpen #hud_signature
 {
 	ui-scale: 75%;
@@ -1829,7 +1850,7 @@ CitadelHudModifierIcons
 
 .active_abilities
 {
-	height: 85px;
+	height: 100px;
 	width: fit-children;
 	vertical-align: bottom;
 	transition-property: opacity;
@@ -1899,14 +1920,14 @@ CitadelHudModifierIcons
 	horizontal-align: center;
 	height: 240px;
 	margin-bottom: 120px;
-	width: 550px;
+	width: 850px;
 	flow-children: down;
 }
 
 #hud_modifiers
 {
 	horizontal-align: center;
-	width: 850px;
+	width: 100%;
 }
 
 #hud_custom_modifiers
@@ -2177,15 +2198,7 @@ CitadelHudModifierIcons
 	visibility: collapse;
 }
 
-#reportCard
-{
-	margin-top: 100px;
-	align: right center;
-	z-index: 100;
-	visibility: visible;
-}
-
-.GameStatePreGame #reportCard,.GameStatePreGameWait #reportCard
+#hud_reportcard
 {
 	visibility: collapse;
 }
@@ -2754,7 +2767,7 @@ CitadelHudSandboxTutorial
 	visibility: collapse;
 }
 
-.connectedToHeroTesting CitadelHudSandboxTutorial
+.connectedToTutorial CitadelHudSandboxTutorial
 {
 	visibility: visible;
 }
@@ -3568,11 +3581,6 @@ CitadelHudSoulAPContainer.ShowGoldAndAPOnHud
 	horizontal-align: center;
 	vertical-align: bottom;
 	margin-bottom: 200px;
-}
-
-.BothChatStyle #Chat
-{
-	margin-left: -130px;
 }
 
 #CitadelPartyContainer

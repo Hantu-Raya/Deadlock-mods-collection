@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("all", "normal", "scoreboard_only_topbar")]
+    [ValidateSet("all", "normal", "scoreboard_only_topbar", "minify_ranks", "minify_ranks_scoreboard_only_topbar")]
     [string]$Variant = "all",
 
     [switch]$Install,
@@ -15,7 +15,6 @@ $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $modSrc = Join-Path $root "showrank"
 $buildRoot = Join-Path $root "_showrank_variant_build"
-$distRoot = Join-Path $root "dist\showrank"
 $compiler = Join-Path $root "sr2compiler\New folder.exe"
 $compilerPref = Join-Path $root "sr2compiler\pref.json"
 $addons = $AddonsPath
@@ -45,6 +44,7 @@ $variantSpecs = @(
         InstallVpkName = "pak89_dir.vpk"
         StageName = "src_normal"
         ScoreboardOnlyTopBar = $false
+        MinifyRanks = $false
         Description = "Normal ShowRank: top-bar player ranks appear as soon as the mod resolves them."
     },
     @{
@@ -54,7 +54,28 @@ $variantSpecs = @(
         InstallVpkName = "pak89_dir.vpk"
         StageName = "src_scoreboard_only"
         ScoreboardOnlyTopBar = $true
+        MinifyRanks = $false
         Description = "Scoreboard-only ShowRank: top-bar player ranks stay hidden until Tab/scoreboard is open, matching team average ranks."
+    },
+    @{
+        Id = "minify_ranks"
+        PublishName = "showrank_minify_ranks"
+        DisplayName = "ShowRank minify ranks"
+        InstallVpkName = "pak89_dir.vpk"
+        StageName = "src_minify_ranks"
+        ScoreboardOnlyTopBar = $false
+        MinifyRanks = $true
+        Description = "Minify-ranks ShowRank: player rank images use the small Deadlock API image and top-bar ranks stay visible once resolved."
+    },
+    @{
+        Id = "minify_ranks_scoreboard_only_topbar"
+        PublishName = "showrank_minify_ranks_scoreboard_only_topbar"
+        DisplayName = "ShowRank minify ranks scoreboard-only top-bar"
+        InstallVpkName = "pak89_dir.vpk"
+        StageName = "src_minify_ranks_scoreboard_only"
+        ScoreboardOnlyTopBar = $true
+        MinifyRanks = $true
+        Description = "Minify-ranks scoreboard-only ShowRank: player rank images use the small Deadlock API image and top-bar ranks stay hidden until Tab/scoreboard is open."
     }
 )
 
@@ -169,6 +190,34 @@ function Apply-ScoreboardOnlyTopBarVariant {
     Set-Content -LiteralPath $topBarCss -Value ($css.TrimEnd() + "`r`n" + $scoreboardOnlyCss.TrimStart()) -NoNewline
 }
 
+function Apply-MinifyRanksVariant {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$StageSrc
+    )
+
+    $scriptPath = Join-Path $StageSrc "panorama\scripts\showrank_web_media_bridge.js"
+
+    if (-not (Test-Path -LiteralPath $scriptPath)) {
+        throw "ShowRank bridge script missing from stage: $scriptPath"
+    }
+
+    $script = Get-Content -LiteralPath $scriptPath -Raw
+    if ($script.Contains('/rank-predict/image?size=small')) {
+        return
+    }
+
+    $patchedScript = $script.Replace(
+        'var RANK_IMAGE_URL_SUFFIX = "/rank-predict/image?format=webp";',
+        'var RANK_IMAGE_URL_SUFFIX = "/rank-predict/image?size=small";'
+    )
+    if ($patchedScript -eq $script) {
+        throw "Could not patch RANK_IMAGE_URL_SUFFIX for minify-ranks variant"
+    }
+
+    Set-Content -LiteralPath $scriptPath -Value $patchedScript -NoNewline
+}
+
 function Invoke-ShowRankTerser {
     param(
         [Parameter(Mandatory = $true)]
@@ -239,6 +288,9 @@ function New-VariantStage {
 
     if ($Spec.ScoreboardOnlyTopBar) {
         Apply-ScoreboardOnlyTopBarVariant -StageSrc $stageSrc
+    }
+    if ($Spec.MinifyRanks) {
+        Apply-MinifyRanksVariant -StageSrc $stageSrc
     }
 
     Invoke-ShowRankTerser -StageSrc $stageSrc -Spec $Spec
@@ -376,9 +428,10 @@ function Pack-VariantVpk {
         throw "vpkeditcli.exe was not found in passive_items_mod\compiler, vpk cli, or passive_items_mod_release\compiler"
     }
 
-    $variantOutDir = Join-Path $distRoot $Spec.PublishName
-    $vpkOut = Join-Path $variantOutDir $Spec.InstallVpkName
-    New-Item -ItemType Directory -Path $variantOutDir -Force | Out-Null
+    $packStage = Join-Path $buildRoot ("pack_" + $Spec.Id)
+    $vpkOut = Join-Path $packStage $Spec.InstallVpkName
+    Remove-TreeUnderRoot -Path $packStage -RootPath $buildRoot
+    New-Item -ItemType Directory -Path $packStage -Force | Out-Null
     if (Test-Path -LiteralPath $vpkOut) {
         Remove-Item -LiteralPath $vpkOut -Force
     }
@@ -468,10 +521,8 @@ function Install-VariantVpk {
 }
 
 if ($Install -and $Variant -eq "all") {
-    throw "Use -Variant normal -Install or -Variant scoreboard_only_topbar -Install. Installing all variants would only leave the last copied variant active."
+    throw "Use a single -Variant with -Install. Installing all variants would only leave the last copied variant active."
 }
-
-New-Item -ItemType Directory -Path $distRoot -Force | Out-Null
 
 $selectedSpecs = if ($Variant -eq "all") {
     $variantSpecs

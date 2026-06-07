@@ -1,4 +1,4 @@
-﻿
+
 
 
 (function () {
@@ -28,54 +28,39 @@
   };
   const HP_PRESET_BUILDER_CATEGORY = "PRESETS|Preset Builder";
   const HP_PRESET_BUILDER_URL = "https://hantu-raya.github.io/hp-colors-preset-builder/";
+  const HP_DONATION_URL = "https://ko-fi.com/hantuaraya";
+  const HP_HERO_DETECTION_AUTO = "auto";
+  const HP_HERO_DETECTION_OVERRIDE = "override";
+  const HP_HERO_DETECTION_OFF = "off";
   const HP_STARTUP_PRESET_ID = "HPColorsPreset_001";
   const HP_PRESET_SNAPSHOT_MAGIC = "HP_COLORS_PRESET_SNAPSHOT";
   const HP_PRESET_REQUEST_MAGIC = "HP_COLORS_PRESET_REQUEST";
-  const HP_PRESET_SNAPSHOT_REPLAY_SEC = 1.0;
-  const HP_OPTIMIZED_FORCED_VALUES = {
-    hp_mode: 0,
-    hp_skip_buildings: true,
-    hp_ult_color_enabled: false,
-    hp_pulse_enabled: false,
-    hp_pulse_text_enabled: false,
-    hp_pulse_color_enabled: false,
-    hp_friend_enabled: false,
-    hp_friend_pulse_enabled: false,
-    hp_friend_pulse_color_enabled: false,
-    hp_kill_zone_enabled: false
-  };
-  const HP_OPTIMIZED_HIDDEN_SETTINGS = {
-    hp_ult_color_custom: true,
-    hp_pulse_threshold: true,
-    hp_pulse_bpm: true,
-    hp_pulse_intensity: true,
-    hp_pulse_color: true,
-    hp_pulse_color_mode: true,
-    hp_pulse_hide_bar: true,
-    hp_pulse_text_scale: true,
-    hp_pulse_text_position: true,
-    hp_friend_color_low: true,
-    hp_friend_color_mid: true,
-    hp_friend_color_high: true,
-    hp_friend_pulse_threshold: true,
-    hp_friend_pulse_bpm: true,
-    hp_friend_pulse_intensity: true,
-    hp_friend_pulse_color: true,
-    hp_kill_zone_threshold: true,
-    hp_kill_zone_color: true,
-    hp_kill_zone_width: true
-  };
+  const HP_PRESET_SNAPSHOT_REPLAY_HOT_SEC = 1.0;
+  const HP_PRESET_SNAPSHOT_REPLAY_WARM_SEC = 3.0;
+  const HP_PRESET_SNAPSHOT_REPLAY_IDLE_SEC = 8.0;
+  const HP_PRESET_SNAPSHOT_REPLAY_HOT_COUNT = 4;
+  const HP_PRESET_SNAPSHOT_REPLAY_WARM_COUNT = 12;
+  const HP_PRESET_SNAPSHOT_REQUEST_HOT_MS = 5000;
+  const HP_MATCH_RESET_SHARED_KEY = "__hpColorsMatchReset";
+  const HP_OPTIMIZED_FORCED_VALUES = {};
+  const HP_OPTIMIZED_HIDDEN_SETTINGS = {};
   const HP_BAKED_PRESET_APPLY_DELAYS = [0.5, 1.5, 3.0, 5.0, 8.0, 12.0];
   const HP_HERO_WATCH_RETRY_SEC = 2.0;
   const HP_HERO_WATCH_EMPTY_GRACE_TICKS = 3;
   const HP_HERO_LOOKUP_WINDOW_MS = 10000;
   const HP_HERO_LOBBY_POLL_SEC = 5.0;
-  const HP_HERO_LOCKED_GAME_TIME_CHECK_MS = 60000;
+  const HP_HERO_DETECTION_LOCK_GAME_TIME_SEC = 10;
+  const HP_MATCH_MONITOR_FAST_SEC = 1.0;
+  const HP_MATCH_MONITOR_SLOW_SEC = 5.0;
+  const HP_MATCH_MONITOR_RESTART_PREV_SEC = 30;
+  const HP_MATCH_MONITOR_RESTART_NOW_SEC = 12;
   const HP_HERO_GAME_TIME_CACHE_MS = 250;
   const HP_HERO_MATCH_ACTIVE_GAME_STATE = 6;
   var _lastHpSharedRaw = "";
   var _hpPresetSnapshotPayload = "";
   var _hpPresetSnapshotReplayStarted = false;
+  var _hpPresetSnapshotReplayCount = 0;
+  var _hpPresetSnapshotReplayHotUntil = 0;
   var _didApplyHpColorsBakedPresetOnce = false;
   var _hpBakedPresetApplyToken = 0;
   var _hpHeroRoot = null;
@@ -86,6 +71,12 @@
   var _hpHeroGameTimePanelMs = 0;
   var _hpHeroMatchStateConfirmedActive = false;
   var _hpHeroPausedForLobby = false;
+  var _hpMatchResetToken = 0;
+  var _hpMatchResetLastReason = "";
+  var _hpMatchMonitorStarted = false;
+  var _hpMatchMonitorWasActive = false;
+  var _hpMatchMonitorSawZero = false;
+  var _hpMatchMonitorLastGameTime = -1;
   var _hpPresetStoreRoot = null;
   var _hpPresetStorePanel = null;
   var _hpPresetStoreEntries = null;
@@ -194,6 +185,7 @@
         out[HP_PERSIST_ALIASES[id]] = id;
       }
     }
+    out.kzs = "hp_kill_zone_color";
     return out;
   })();
   const HP_PRESET_BUILDER_SUPPORTED_IDS = {
@@ -222,7 +214,6 @@
     hp_pulse_text_enabled: true,
     hp_pulse_text_scale: true,
     hp_pulse_text_position: true,
-    hp_counter_visible: true,
     hp_counter_size: true,
     hp_counter_position: true,
     hp_counter_format: true,
@@ -451,13 +442,121 @@
     return parseHpHeroGameTimeText(text);
   }
 
+  function publishHpMatchReset(reason, gameState, gameTime) {
+    var nextReason = String(reason || "unknown");
+    if (_hpMatchResetLastReason === nextReason &&
+        nextReason !== "game_time_zero" &&
+        nextReason !== "game_time_rollback") return;
+    _hpMatchResetLastReason = nextReason;
+    _hpMatchResetToken += 1;
+    var now = Date.now ? Date.now() : +(new Date());
+    var payload = {
+      token: String(_hpMatchResetToken) + "_" + String(now),
+      reason: nextReason,
+      gameState: Number(gameState),
+      gameTime: Number(gameTime),
+      at: now
+    };
+    try {
+      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) {
+        GameUI.CustomUIConfig()[HP_MATCH_RESET_SHARED_KEY] = payload;
+      }
+    } catch (eStore) {}
+  }
+
+  function isHpMatchActiveState(gameState, gameTime) {
+    if (gameState >= HP_HERO_MATCH_ACTIVE_GAME_STATE) return true;
+    if (gameState >= 0) return false;
+    if (gameTime < 0) return false;
+    var root = getRootPanelForPresetStore();
+    var hud = hpHeroFindChild(root, "Hud");
+    return !(hpHeroHasHideoutClass(hud) || hpHeroHasHideoutClass(root));
+  }
+
+  function getHpMatchMonitorDelay(gameTime, active) {
+    if (!active) return HP_MATCH_MONITOR_SLOW_SEC;
+    if (gameTime >= 0 && gameTime <= HP_HERO_DETECTION_LOCK_GAME_TIME_SEC) return HP_MATCH_MONITOR_FAST_SEC;
+    return HP_MATCH_MONITOR_SLOW_SEC;
+  }
+
+  function resetHpMatchScopedRuntimeState(config) {
+    resetHpHeroPresetDetectionLock(config);
+    invalidateHpHeroPresetApplyCache(config);
+    clearHpHeroDetectionRefs();
+    if (config && (config.__hpHeroPresetHasScopedPreset || hasHpSelectedScopedPreset(config))) {
+      config.__hpHeroPresetWatchStarted = false;
+      startHpHeroPresetWatch(config);
+      scheduleHpHeroPresetRefresh(config);
+    }
+  }
+
+  function hpMatchTimeRolledBack(gameTime) {
+    return _hpMatchMonitorLastGameTime >= HP_MATCH_MONITOR_RESTART_PREV_SEC &&
+      gameTime >= 0 &&
+      gameTime <= HP_MATCH_MONITOR_RESTART_NOW_SEC &&
+      gameTime < _hpMatchMonitorLastGameTime;
+  }
+
+  function rememberHpMatchGameTime(gameTime, active) {
+    if (!active) {
+      _hpMatchMonitorLastGameTime = -1;
+      return;
+    }
+    if (gameTime >= 0) _hpMatchMonitorLastGameTime = gameTime;
+  }
+
+  function startHpMatchResetMonitor(config) {
+    if (!config || config.title !== "HP Colors" || _hpMatchMonitorStarted) return;
+    _hpMatchMonitorStarted = true;
+
+    function tick() {
+      if (!config || !AnitaCore.findRegisteredMod || AnitaCore.findRegisteredMod("HP Colors") !== config) {
+        _hpMatchMonitorStarted = false;
+        return;
+      }
+
+      var gameState = readHpHeroGameState();
+      clearHpHeroGameTimeCache();
+      var gameTime = readHpHeroGameTimeSec();
+      var active = isHpMatchActiveState(gameState, gameTime);
+      var rolledBack = active && hpMatchTimeRolledBack(gameTime);
+
+      if (active && !_hpMatchMonitorWasActive) {
+        publishHpMatchReset(gameState >= HP_HERO_MATCH_ACTIVE_GAME_STATE ? "game_state_active" : "game_time_available", gameState, gameTime);
+        resetHpMatchScopedRuntimeState(config);
+        _hpMatchMonitorWasActive = true;
+        _hpMatchMonitorSawZero = gameTime === 0;
+      } else if (rolledBack) {
+        publishHpMatchReset("game_time_rollback", gameState, gameTime);
+        resetHpMatchScopedRuntimeState(config);
+        _hpMatchMonitorSawZero = gameTime === 0;
+      } else if (active && gameTime === 0 && !_hpMatchMonitorSawZero) {
+        publishHpMatchReset("game_time_zero", gameState, gameTime);
+        resetHpMatchScopedRuntimeState(config);
+        _hpMatchMonitorSawZero = true;
+      } else if (!active && _hpMatchMonitorWasActive) {
+        _hpMatchMonitorWasActive = false;
+        _hpMatchMonitorSawZero = false;
+        _hpMatchMonitorLastGameTime = -1;
+        _hpMatchResetLastReason = "lobby";
+      }
+
+      rememberHpMatchGameTime(gameTime, active);
+      $.Schedule(getHpMatchMonitorDelay(gameTime, active), tick);
+    }
+
+    $.Schedule(0.25, tick);
+  }
+
   function hpHeroEvaluateLobbyStatus() {
     var gameState = readHpHeroGameState();
     if (gameState >= HP_HERO_MATCH_ACTIVE_GAME_STATE) {
+      if (!_hpHeroMatchStateConfirmedActive) publishHpMatchReset("game_state_active", gameState, readHpHeroGameTimeSec());
       _hpHeroMatchStateConfirmedActive = true;
       return false;
     }
     if (gameState >= 0) {
+      if (_hpHeroMatchStateConfirmedActive) _hpMatchResetLastReason = "lobby";
       _hpHeroMatchStateConfirmedActive = false;
       return true;
     }
@@ -465,12 +564,15 @@
     var root = getRootPanelForPresetStore();
     var hud = hpHeroFindChild(root, "Hud");
     if (hpHeroHasHideoutClass(hud) || hpHeroHasHideoutClass(root)) {
+      if (_hpHeroMatchStateConfirmedActive) _hpMatchResetLastReason = "lobby";
       _hpHeroMatchStateConfirmedActive = false;
       return true;
     }
 
     if (!_hpHeroMatchStateConfirmedActive) {
-      if (readHpHeroGameTimeSec() >= 0) {
+      var fallbackGameTime = readHpHeroGameTimeSec();
+      if (fallbackGameTime >= 0) {
+        publishHpMatchReset("game_time_available", gameState, fallbackGameTime);
         _hpHeroMatchStateConfirmedActive = true;
         return false;
       }
@@ -488,6 +590,7 @@
     if (config) {
       config.__hpHeroGameTimeWasZero = false;
       config.__hpHeroLookupWindowUntil = 0;
+      resetHpHeroPresetDetectionLock(config);
     }
   }
 
@@ -499,6 +602,7 @@
     if (config) {
       config.__hpHeroGameTimeWasZero = false;
       config.__hpHeroLookupWindowUntil = 0;
+      resetHpHeroPresetDetectionLock(config);
     }
   }
 
@@ -515,6 +619,8 @@
       if (!config.__hpHeroGameTimeWasZero) {
         config.__hpHeroGameTimeWasZero = true;
         config.__hpHeroLookupWindowUntil = now + HP_HERO_LOOKUP_WINDOW_MS;
+        publishHpMatchReset("game_time_zero", readHpHeroGameState(), gameTime);
+        resetHpHeroPresetDetectionLock(config);
         invalidateHpHeroPresetApplyCache(config);
         clearHpHeroDetectionRefs();
       }
@@ -523,12 +629,18 @@
 
     if (gameTime > 0) {
       config.__hpHeroGameTimeWasZero = false;
+      if (config.__hpHeroPresetDetectionLocked) {
+        return { run: false, delay: HP_HERO_LOBBY_POLL_SEC };
+      }
       if (config.__hpHeroLookupWindowUntil && now <= config.__hpHeroLookupWindowUntil) {
+        return { run: true, delay: HP_HERO_WATCH_RETRY_SEC };
+      }
+      if (config.__hpHeroPresetHasScopedPreset || hasHpSelectedScopedPreset(config)) {
         return { run: true, delay: HP_HERO_WATCH_RETRY_SEC };
       }
       return {
         run: !config.__hpLastDetectedHeroPresetHero,
-        delay: config.__hpLastDetectedHeroPresetHero ? (HP_HERO_LOCKED_GAME_TIME_CHECK_MS / 1000) : HP_HERO_WATCH_RETRY_SEC
+        delay: config.__hpLastDetectedHeroPresetHero ? HP_HERO_LOBBY_POLL_SEC : HP_HERO_WATCH_RETRY_SEC
       };
     }
 
@@ -586,6 +698,64 @@
 
   function presetIsDisabled(preset) {
     return normalizeHpHeroScopeMode(preset && preset.heroMode, preset && preset.heroes) === HP_HERO_SCOPE_OFF;
+  }
+
+  function normalizeHpHeroDetectionMode(config) {
+    if (!config) return HP_HERO_DETECTION_AUTO;
+    var mode = String(config.__hpHeroDetectionMode || "");
+    if (mode === HP_HERO_DETECTION_AUTO ||
+        mode === HP_HERO_DETECTION_OVERRIDE ||
+        mode === HP_HERO_DETECTION_OFF) return mode;
+    if (config.__hpHeroManualPresetOverride) return HP_HERO_DETECTION_OVERRIDE;
+    return HP_HERO_DETECTION_AUTO;
+  }
+
+  function hpHeroAutoDetectionEnabled(config) {
+    return normalizeHpHeroDetectionMode(config) === HP_HERO_DETECTION_AUTO;
+  }
+
+  function hpHeroManualOverrideEnabled(config) {
+    return normalizeHpHeroDetectionMode(config) === HP_HERO_DETECTION_OVERRIDE;
+  }
+
+  function hpHeroManualPresetAllowed(config) {
+    return normalizeHpHeroDetectionMode(config) !== HP_HERO_DETECTION_AUTO;
+  }
+
+  function getHpHeroDetectionModeLabel(config) {
+    var mode = normalizeHpHeroDetectionMode(config);
+    if (mode === HP_HERO_DETECTION_OVERRIDE) return "OVERRIDE ON";
+    if (mode === HP_HERO_DETECTION_OFF) return "HERO OFF";
+    return "AUTO HERO";
+  }
+
+  function getNextHpHeroDetectionMode(config) {
+    var mode = normalizeHpHeroDetectionMode(config);
+    if (mode === HP_HERO_DETECTION_AUTO) return HP_HERO_DETECTION_OVERRIDE;
+    if (mode === HP_HERO_DETECTION_OVERRIDE) return HP_HERO_DETECTION_OFF;
+    return HP_HERO_DETECTION_AUTO;
+  }
+
+  function setHpHeroDetectionMode(config, mode) {
+    if (!config) return;
+    var nextMode = String(mode || HP_HERO_DETECTION_AUTO);
+    if (nextMode !== HP_HERO_DETECTION_OVERRIDE && nextMode !== HP_HERO_DETECTION_OFF) {
+      nextMode = HP_HERO_DETECTION_AUTO;
+    }
+    config.__hpHeroDetectionMode = nextMode;
+    config.__hpHeroManualPresetOverride = nextMode === HP_HERO_DETECTION_OVERRIDE;
+    if (nextMode === HP_HERO_DETECTION_AUTO) {
+      openHpHeroPresetDetectionWindow(config);
+      invalidateHpHeroPresetApplyCache(config);
+      config.__hpHeroPresetHasScopedPreset = true;
+      startHpHeroPresetWatch(config);
+      scheduleHpHeroPresetRefresh(config);
+    } else {
+      resetHpHeroPresetDetectionLock(config);
+      invalidateHpHeroPresetApplyCache(config);
+      config.__hpHeroPresetWatchStarted = false;
+      clearHpHeroDetectionRefs();
+    }
   }
 
   function presetCompatibleWithHero(preset, heroId) {
@@ -717,15 +887,25 @@
     if (!modTitle || !settingId) return;
     var key = modTitle + "::" + settingId;
     var state = throttledEmitState[key];
-    if (!state) state = throttledEmitState[key] = { pending: false, value: null, meta: null };
+    if (!state) state = throttledEmitState[key] = { pending: false, value: null, meta: null, token: 0 };
     state.value = newValue;
     state.meta = meta || null;
+    var token = state.token;
     if (state.pending) return;
     state.pending = true;
     $.Schedule(delaySec || 0.04, function () {
+      if (token !== state.token) { state.pending = false; return; }
       state.pending = false;
       emitUpdate(modTitle, settingId, state.value, state.meta);
     });
+  }
+
+  function cancelThrottledEmit(modTitle, settingId) {
+    if (!modTitle || !settingId) return;
+    var state = throttledEmitState[modTitle + "::" + settingId];
+    if (!state) return;
+    state.pending = false;
+    state.token++;
   }
 
   function getRootPanelForPresetStore() {
@@ -813,6 +993,20 @@
     return values;
   }
 
+  function expandBakedPresetValues(preset) {
+    if (!preset || typeof preset !== "object" || !preset.values || typeof preset.values !== "object") return null;
+    var rawValues = preset.values;
+    var expanded = {};
+    var isCompact = (preset.c === HP_COMPACT_PERSIST_VERSION || preset.compact === true || preset.v !== undefined);
+    for (var key in rawValues) {
+      if (!Object.prototype.hasOwnProperty.call(rawValues, key)) continue;
+      var fullKey = isCompact ? (HP_PERSIST_ALIAS_TO_ID[key] || key) : key;
+      if (!fullKey) continue;
+      expanded[fullKey] = rawValues[key];
+    }
+    return expanded;
+  }
+
   function getBakedPresetEntryPanels() {
     var root = getRootPanelForPresetStore();
     if (root !== _hpPresetStoreRoot) {
@@ -858,8 +1052,9 @@
     try {
       if (!encoded) return null;
       var preset = JSON.parse(AnitaBase64.decode(encoded));
-      if (!preset || !preset.values || preset.version !== 1) return null;
-      var values = filterPresetValues(preset.values, modConfig);
+      var presetVersion = Number(preset && preset.version !== undefined ? preset.version : preset && preset.v);
+      if (!preset || presetVersion !== 1) return null;
+      var values = filterPresetValues(expandBakedPresetValues(preset), modConfig);
       var name = String(preset.name || "").replace(/^\s+|\s+$/g, "");
       var category = String(preset.category || preset.type || "").replace(/^\s+|\s+$/g, "");
       var heroes = normalizeHpHeroSelection(preset.heroes || preset.hs || preset.hero || preset.h);
@@ -890,6 +1085,7 @@
       values: base.values,
       heroes: heroes,
       heroMode: heroMode,
+      key: "baked_" + String(displayIndex || 0),
       source: base.source
     };
   }
@@ -925,9 +1121,86 @@
     return presets;
   }
 
-  function selectBakedPresetForHero(modConfig, allowUnknownFallback) {
-    var presets = readBakedPresetEntries(modConfig);
+  function runtimePresetPriorityIdentity(preset) {
+    if (!preset) return "";
+    if (preset.source === "baked" && preset.id) return "id:" + String(preset.id);
+    return String(preset.id || preset.key || preset.name || "");
+  }
+
+  function isRuntimePresetRemoved(modConfig, preset) {
+    var removed = modConfig && modConfig.__anitaRemovedPresetRows;
+    if (!removed) return false;
+    var key = runtimePresetPriorityIdentity(preset);
+    return !!(key && removed[key]);
+  }
+
+  function readUserPresetEntries(modConfig) {
+    var presets = [];
+    var rows = modConfig && Array.isArray(modConfig.__anitaUserPresetRows) ? modConfig.__anitaUserPresetRows : [];
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      if (!row || !row.values) continue;
+      var heroes = normalizeHpHeroSelection(row.heroes || row.hs || row.hero || row.h);
+      var heroMode = normalizeHpHeroScopeMode(row.heroMode || row.hm, heroes);
+      if (heroMode !== HP_HERO_SCOPE_SELECTED) heroes = [];
+      var id = String(row.key || row.id || row.name || ("user_" + String(i + 1)));
+      presets.push({
+        id: id,
+        key: id,
+        name: String(row.name || ("User preset " + String(i + 1))),
+        category: String(row.category || "Game preset"),
+        values: filterPresetValues(row.values || {}, modConfig),
+        heroes: heroes,
+        heroMode: heroMode,
+        source: "user"
+      });
+    }
+    return presets;
+  }
+
+  function applyRuntimePresetPriorityOrder(modConfig, presets) {
+    if (!modConfig || !Array.isArray(presets) || !presets.length) return presets;
+    var stored = Array.isArray(modConfig.__anitaPresetPriorityOrder) ? modConfig.__anitaPresetPriorityOrder : [];
+    if (!stored.length) return presets;
+
+    var byKey = {};
+    var ordered = [];
+    var seen = {};
+    for (var i = 0; i < presets.length; i++) {
+      var key = runtimePresetPriorityIdentity(presets[i]);
+      if (key && !byKey[key]) byKey[key] = presets[i];
+    }
+    for (var orderIndex = 0; orderIndex < stored.length; orderIndex++) {
+      var storedKey = String(stored[orderIndex] || "");
+      if (!storedKey || !byKey[storedKey] || seen[storedKey]) continue;
+      seen[storedKey] = true;
+      ordered.push(byKey[storedKey]);
+    }
+    for (var presetIndex = 0; presetIndex < presets.length; presetIndex++) {
+      var presetKey = runtimePresetPriorityIdentity(presets[presetIndex]);
+      if (presetKey && seen[presetKey]) continue;
+      if (presetKey) seen[presetKey] = true;
+      ordered.push(presets[presetIndex]);
+    }
+    return ordered;
+  }
+
+  function readRuntimePresetEntries(modConfig) {
+    var presets = readBakedPresetEntries(modConfig).concat(readUserPresetEntries(modConfig));
+    if (modConfig && modConfig.__anitaRemovedPresetRows) {
+      var kept = [];
+      for (var i = 0; i < presets.length; i++) {
+        if (!isRuntimePresetRemoved(modConfig, presets[i])) kept.push(presets[i]);
+      }
+      presets = kept;
+    }
+    return applyRuntimePresetPriorityOrder(modConfig, presets);
+  }
+
+  function selectBakedPresetForHero(modConfig, allowUnknownFallback, allowHeroMatch) {
+    var presets = readRuntimePresetEntries(modConfig);
     var heroId = detectHpLocalHero();
+    var canUseHeroMatch = allowHeroMatch !== false;
     var startupPreset = null;
     var firstPreset = null;
     var firstGlobal = null;
@@ -943,26 +1216,28 @@
       if (heroId && !firstHeroMatch && presetTargetsHero(preset, heroId)) firstHeroMatch = preset;
     }
 
-    if (heroId && firstHeroMatch) {
-      return { preset: firstHeroMatch, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "hero" };
+    var result = null;
+    if (canUseHeroMatch && heroId && firstHeroMatch) {
+      result = { preset: firstHeroMatch, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "hero" };
+    } else if (startupPreset && (presetIsGlobal(startupPreset) ||
+        (canUseHeroMatch && heroId && presetTargetsHero(startupPreset, heroId)) ||
+        (!heroId && allowUnknownFallback))) {
+      result = { preset: startupPreset, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "startup" };
+    } else if (firstGlobal) {
+      result = { preset: firstGlobal, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "global" };
+    } else if (hasScopedPreset && (!heroId || !canUseHeroMatch) && !allowUnknownFallback) {
+      result = { preset: null, heroId: heroId, hasScopedPreset: true, reason: "waiting_for_hero" };
+    } else if (firstPreset) {
+      result = { preset: firstPreset, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "first" };
+    } else {
+      result = { preset: null, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "none" };
     }
-    if (hasScopedPreset && !heroId && !allowUnknownFallback) {
-      return { preset: null, heroId: heroId, hasScopedPreset: true, reason: "waiting_for_hero" };
-    }
-    if (startupPreset && (!heroId || presetCompatibleWithHero(startupPreset, heroId))) {
-      return { preset: startupPreset, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "startup" };
-    }
-    if (firstGlobal) {
-      return { preset: firstGlobal, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "global" };
-    }
-    if (firstPreset) {
-      return { preset: firstPreset, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "first" };
-    }
-    return { preset: null, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "none" };
+
+    return result;
   }
 
   function hasHpSelectedScopedPreset(config) {
-    var presets = readBakedPresetEntries(config);
+    var presets = readRuntimePresetEntries(config);
     for (var i = 0; i < presets.length; i++) {
       if (!presetIsDisabled(presets[i]) && hpHeroScopeIsSelected(presets[i].heroMode, presets[i].heroes)) return true;
     }
@@ -973,6 +1248,40 @@
     if (!config) return;
     config.__hpLastAppliedHeroPresetKey = "";
     config.__hpLastAppliedHeroPresetHero = "";
+  }
+
+  function getHpHeroPresetLockAfterGameTime(config) {
+    var lockAt = Number(config && config.__hpHeroPresetLockAfterGameTime);
+    return lockAt > 0 && isFinite(lockAt) ? lockAt : HP_HERO_DETECTION_LOCK_GAME_TIME_SEC;
+  }
+
+  function resetHpHeroPresetDetectionLock(config) {
+    if (!config) return;
+    config.__hpHeroPresetDetectionLocked = false;
+    config.__hpHeroPresetLockedHero = "";
+    config.__hpHeroPresetLockAfterGameTime = 0;
+  }
+
+  function openHpHeroPresetDetectionWindow(config) {
+    if (!config) return;
+    resetHpHeroPresetDetectionLock(config);
+    var gameTime = readHpHeroGameTimeSec();
+    config.__hpHeroPresetLockAfterGameTime = gameTime > 0
+      ? gameTime + HP_HERO_DETECTION_LOCK_GAME_TIME_SEC
+      : HP_HERO_DETECTION_LOCK_GAME_TIME_SEC;
+    config.__hpHeroLookupWindowUntil = (Date.now ? Date.now() : +(new Date())) + HP_HERO_LOOKUP_WINDOW_MS;
+  }
+
+  function lockHpHeroPresetDetectionIfReady(config, heroId) {
+    if (!config || config.__hpHeroPresetDetectionLocked) return false;
+    var lockedPresetKey = String(config.__hpLastAppliedHeroPresetKey || "");
+    if (!lockedPresetKey && !heroId) return false;
+    var gameTime = readHpHeroGameTimeSec();
+    if (gameTime < getHpHeroPresetLockAfterGameTime(config)) return false;
+    config.__hpHeroPresetDetectionLocked = true;
+    config.__hpHeroPresetLockedHero = String(heroId || config.__hpLastAppliedHeroPresetHero || "");
+    clearHpHeroDetectionRefs();
+    return true;
   }
 
   function scheduleHpHeroPresetRefresh(config) {
@@ -1002,6 +1311,7 @@
     if (appliedKey &&
         config.__hpLastAppliedHeroPresetKey === appliedKey &&
         config.__hpLastAppliedHeroPresetHero === appliedHero) {
+      lockHpHeroPresetDetectionIfReady(config, appliedHero);
       return true;
     }
 
@@ -1018,6 +1328,8 @@
     });
     config.__hpLastAppliedHeroPresetKey = appliedKey;
     config.__hpLastAppliedHeroPresetHero = appliedHero;
+    if (appliedKey && hpHeroAutoDetectionEnabled(config)) config.__anitaSelectedPresetKey = appliedKey;
+    lockHpHeroPresetDetectionIfReady(config, appliedHero);
     if (AnitaRenderer.activeModTitle === config.title &&
         config.__anitaActiveCategory !== HP_PRESET_BUILDER_CATEGORY) {
       AnitaRenderer.renderModSettings(config);
@@ -1027,6 +1339,8 @@
 
   function refreshHpHeroPresetSelection(config) {
     if (!config) return false;
+    if (!hpHeroAutoDetectionEnabled(config)) return false;
+    if (config.__hpHeroPresetDetectionLocked) return false;
     var selection = selectBakedPresetForHero(config, false);
     if (selection && selection.hasScopedPreset) {
       config.__hpHeroPresetHasScopedPreset = true;
@@ -1096,12 +1410,10 @@
         $.Schedule(delaySec, function () {
           if (_didApplyHpColorsBakedPresetOnce || token !== _hpBakedPresetApplyToken) return;
           try {
-            var allowUnknownFallback = delayIndex === HP_BAKED_PRESET_APPLY_DELAYS.length - 1;
-            if (hasHpSelectedScopedPreset(config) && !getHpHeroPresetLookupState(config).run) {
-              startHpHeroPresetWatch(config);
-              return;
-            }
-            var selection = selectBakedPresetForHero(config, allowUnknownFallback);
+            var lookupState = getHpHeroPresetLookupState(config);
+            var allowHeroMatch = !!lookupState.run;
+            var allowUnknownFallback = allowHeroMatch && delayIndex === HP_BAKED_PRESET_APPLY_DELAYS.length - 1;
+            var selection = selectBakedPresetForHero(config, allowUnknownFallback, allowHeroMatch);
             if (!selection || !selection.preset) {
               if (selection && selection.hasScopedPreset) startHpHeroPresetWatch(config);
               return;
@@ -1165,22 +1477,48 @@
     return "";
   }
 
+  function hpNowMs() {
+    return Date.now ? Date.now() : +(new Date());
+  }
+
+  function markHpPresetSnapshotReplayHot() {
+    _hpPresetSnapshotReplayCount = 0;
+    _hpPresetSnapshotReplayHotUntil = hpNowMs() + HP_PRESET_SNAPSHOT_REQUEST_HOT_MS;
+  }
+
+  function getHpPresetSnapshotReplayDelay() {
+    if (_hpPresetSnapshotReplayHotUntil && hpNowMs() < _hpPresetSnapshotReplayHotUntil) {
+      return HP_PRESET_SNAPSHOT_REPLAY_HOT_SEC;
+    }
+    if (_hpPresetSnapshotReplayCount < HP_PRESET_SNAPSHOT_REPLAY_HOT_COUNT) {
+      return HP_PRESET_SNAPSHOT_REPLAY_HOT_SEC;
+    }
+    if (_hpPresetSnapshotReplayCount < HP_PRESET_SNAPSHOT_REPLAY_WARM_COUNT) {
+      return HP_PRESET_SNAPSHOT_REPLAY_WARM_SEC;
+    }
+    return HP_PRESET_SNAPSHOT_REPLAY_IDLE_SEC;
+  }
+
+  function scheduleHpPresetSnapshotReplay() {
+    if (!_hpPresetSnapshotPayload) return;
+    try {
+      $.Schedule(getHpPresetSnapshotReplayDelay(), replayHpPresetSnapshot);
+    } catch (eSchedule) {}
+  }
+
   function replayHpPresetSnapshot() {
     if (!_hpPresetSnapshotPayload) return;
     try {
       $.DispatchEvent("ClientUI_FireOutput", _hpPresetSnapshotPayload);
     } catch (eDispatch) {}
-    try {
-      $.Schedule(HP_PRESET_SNAPSHOT_REPLAY_SEC, replayHpPresetSnapshot);
-    } catch (eSchedule) {}
+    _hpPresetSnapshotReplayCount += 1;
+    scheduleHpPresetSnapshotReplay();
   }
 
   function startHpPresetSnapshotReplay() {
     if (_hpPresetSnapshotReplayStarted || !_hpPresetSnapshotPayload) return;
     _hpPresetSnapshotReplayStarted = true;
-    try {
-      $.Schedule(HP_PRESET_SNAPSHOT_REPLAY_SEC, replayHpPresetSnapshot);
-    } catch (e) {}
+    scheduleHpPresetSnapshotReplay();
   }
 
   function publishHpPresetSnapshot(config, reason, force) {
@@ -1207,6 +1545,7 @@
       _hpPresetSnapshotPayload = "";
       return false;
     }
+    markHpPresetSnapshotReplayHot();
     startHpPresetSnapshotReplay();
     if (!force && config.__hpColorsLastPresetSnapshotRaw === raw) return true;
     config.__hpColorsLastPresetSnapshotRaw = raw;
@@ -1443,9 +1782,15 @@
         values[element.id] = this.sanitizeValue(element, expandedValues[element.id]);
       }
 
+      var heroTargets = normalizeHpHeroSelection(parsed.heroes || parsed.hs || parsed.hero || parsed.h);
+      var heroMode = normalizeHpHeroScopeMode(parsed.heroMode || parsed.hm, heroTargets);
+      if (heroMode !== HP_HERO_SCOPE_SELECTED) heroTargets = [];
+
       return {
         raw: text,
-        values: values
+        values: values,
+        heroes: heroTargets,
+        heroMode: heroMode
       };
     },
 
@@ -1635,16 +1980,25 @@
 
       const btn = $.CreatePanel("Button", row, "");
       btn.AddClass("AnitaToggleBtn");
+      btn.hittest = true;
+      btn.hittestchildren = false;
+      btn.style.zIndex = "4";
 
       const lbl = $.CreatePanel("Label", row, "");
       lbl.text = config.label || "Option";
       lbl.AddClass("AnitaLabel");
+      lbl.hittest = false;
+      lbl.hittestchildren = false;
 
       const box = $.CreatePanel("Panel", row, "");
       box.AddClass("AnitaCheckBox");
+      box.hittest = false;
+      box.hittestchildren = false;
 
       const tick = $.CreatePanel("Panel", box, "");
       tick.AddClass("AnitaCheckMark");
+      tick.hittest = false;
+      tick.hittestchildren = false;
 
       let isOn = (config.currentValue !== undefined) ? config.currentValue : (config.defaultValue || false);
 
@@ -1662,8 +2016,8 @@
         if (config.onChange) config.onChange(isOn);
 
         var ownerConfig = AnitaCore.findRegisteredMod(modTitle);
-        if (ownerConfig && AnitaRenderer.hasVisibilityDependents(ownerConfig, config.id)) {
-          AnitaRenderer.refreshConditionalVisibility(ownerConfig);
+        if (ownerConfig) {
+          AnitaRenderer.refreshDependentVisibility(ownerConfig, config.id);
         }
       });
 
@@ -1908,8 +2262,8 @@
           updateVisuals();
           config.currentValue = idx;
           var ownerConfig = AnitaCore.findRegisteredMod(modTitle);
-          if (ownerConfig && AnitaRenderer.hasVisibilityDependents(ownerConfig, config.id)) {
-            AnitaRenderer.refreshConditionalVisibility(ownerConfig);
+          if (ownerConfig) {
+            AnitaRenderer.refreshDependentVisibility(ownerConfig, config.id);
           }
           if (config.id && modTitle) emitUpdate(modTitle, config.id, idx);
           if (config.onChange) config.onChange(idx, options[i]);
@@ -2616,6 +2970,16 @@
         }
       }
 
+      function emitColorPickerUpdate(finalEmit) {
+        if (!config.id || !modTitle) return;
+        if (colorDragging && !finalEmit) {
+          emitUpdateThrottled(modTitle, config.id, currentColor, { update_source: "ui_color_drag" }, 0.10);
+        } else {
+          if (finalEmit) cancelThrottledEmit(modTitle, config.id);
+          emitUpdate(modTitle, config.id, currentColor, finalEmit ? { update_source: "ui_color_drag_final" } : null);
+        }
+      }
+
       function beginColorDrag(sourceName, emitUpdateEvent) {
         colorDragging = true;
         colorDragSource = String(sourceName || "");
@@ -2644,7 +3008,7 @@
         colorDragSource = "";
         clearNativeDragCorrection();
         setMouseCaptureState(false);
-        if (config.id && modTitle) emitUpdate(modTitle, config.id, currentColor);
+        emitColorPickerUpdate(true);
       }
 
       function stopPickerPolling() {
@@ -2712,10 +3076,7 @@
         var nextColor = normalizeHexColor(colorCode);
         if (nextColor === currentColor && !boxState) {
           if (emitUpdateEvent) {
-            if (config.id && modTitle) {
-              if (colorDragging) emitUpdateThrottled(modTitle, config.id, currentColor, null, 0.04);
-              else emitUpdate(modTitle, config.id, currentColor);
-            }
+            emitColorPickerUpdate(false);
             if (config.onChange) config.onChange(currentColor);
           }
           if (closeAfter) closePalette();
@@ -2792,10 +3153,7 @@
         }
 
         if (emitUpdateEvent) {
-          if (config.id && modTitle) {
-            if (colorDragging) emitUpdateThrottled(modTitle, config.id, currentColor, null, 0.04);
-            else emitUpdate(modTitle, config.id, currentColor);
-          }
+          emitColorPickerUpdate(false);
           if (config.onChange) config.onChange(currentColor);
         }
 
@@ -3515,11 +3873,39 @@
       return String(category || "") === HP_PRESET_BUILDER_CATEGORY;
     },
 
-    findElementById: function (config, elementId) {
-      if (!config || !Array.isArray(config.elements) || !elementId) return null;
+    ensureConfigIndexes: function (config) {
+      if (!config || !Array.isArray(config.elements)) return null;
+      if (config.__anitaConfigIndexElementsRef === config.elements &&
+          config.__anitaElementById &&
+          config.__anitaVisibilityDependentsBySource) {
+        return config;
+      }
+
+      var elementById = {};
+      var dependentsBySource = {};
       for (var i = 0; i < config.elements.length; i++) {
         var element = config.elements[i];
-        if (element && element.id === elementId) return element;
+        if (!element) continue;
+        if (element.id && !Object.prototype.hasOwnProperty.call(elementById, element.id)) {
+          elementById[element.id] = element;
+        }
+        if (!element.visibleWhen || !element.visibleWhen.id) continue;
+        var sourceId = element.visibleWhen.id;
+        if (!dependentsBySource[sourceId]) dependentsBySource[sourceId] = [];
+        dependentsBySource[sourceId].push(element);
+      }
+      config.__anitaConfigIndexElementsRef = config.elements;
+      config.__anitaElementById = elementById;
+      config.__anitaVisibilityDependentsBySource = dependentsBySource;
+      return config;
+    },
+
+    findElementById: function (config, elementId) {
+      if (!config || !Array.isArray(config.elements) || !elementId) return null;
+      this.ensureConfigIndexes(config);
+      if (config.__anitaElementById &&
+          Object.prototype.hasOwnProperty.call(config.__anitaElementById, elementId)) {
+        return config.__anitaElementById[elementId];
       }
       return null;
     },
@@ -3552,19 +3938,54 @@
 
     refreshConditionalVisibility: function (config) {
       if (!config || !Array.isArray(config.elements)) return;
+      this.ensureConfigIndexes(config);
       for (var i = 0; i < config.elements.length; i++) {
         this.applyElementVisibility(config, config.elements[i]);
       }
     },
 
+    refreshDependentVisibility: function (config, sourceId) {
+      if (!config || !Array.isArray(config.elements) || !sourceId) return false;
+      this.ensureConfigIndexes(config);
+      var dependents = config.__anitaVisibilityDependentsBySource &&
+        config.__anitaVisibilityDependentsBySource[sourceId];
+      if (!dependents || !dependents.length) return false;
+      for (var i = 0; i < dependents.length; i++) {
+        this.applyElementVisibility(config, dependents[i]);
+      }
+      return true;
+    },
+
+    refreshChangedDependentsVisibility: function (config, sourceIds) {
+      if (!config || !Array.isArray(config.elements) || !sourceIds || !sourceIds.length) return false;
+      this.ensureConfigIndexes(config);
+      var seen = {};
+      var refreshed = false;
+      for (var i = 0; i < sourceIds.length; i++) {
+        var sourceId = sourceIds[i];
+        if (!sourceId) continue;
+        var dependents = config.__anitaVisibilityDependentsBySource &&
+          config.__anitaVisibilityDependentsBySource[sourceId];
+        if (!dependents || !dependents.length) continue;
+        for (var j = 0; j < dependents.length; j++) {
+          var element = dependents[j];
+          if (element && element.id) {
+            if (seen[element.id]) continue;
+            seen[element.id] = true;
+          }
+          this.applyElementVisibility(config, element);
+          refreshed = true;
+        }
+      }
+      return refreshed;
+    },
+
     hasVisibilityDependents: function (config, sourceId) {
       if (!config || !Array.isArray(config.elements) || !sourceId) return false;
-      for (var i = 0; i < config.elements.length; i++) {
-        var element = config.elements[i];
-        if (!element || !element.visibleWhen) continue;
-        if (element.visibleWhen.id === sourceId) return true;
-      }
-      return false;
+      this.ensureConfigIndexes(config);
+      var dependents = config.__anitaVisibilityDependentsBySource &&
+        config.__anitaVisibilityDependentsBySource[sourceId];
+      return !!(dependents && dependents.length);
     },
 
     getElementCategory: function (element) {
@@ -3572,29 +3993,63 @@
       return label || "General";
     },
 
-    getCategoryList: function (config) {
+    ensureCategoryCache: function (config) {
+      var emptyCache = {
+        elementsRef: null,
+        categories: [],
+        groupedCategories: {},
+        byCategory: {}
+      };
+      if (!config || !Array.isArray(config.elements)) return emptyCache;
+      if (config.__anitaCategoryCache &&
+          config.__anitaCategoryCache.elementsRef === config.elements) {
+        return config.__anitaCategoryCache;
+      }
+
       var categories = [];
       var seen = {};
-      if (!config || !Array.isArray(config.elements)) return categories;
+      var groupedCategories = {};
+      var byCategory = {};
       for (var i = 0; i < config.elements.length; i++) {
-        var category = this.getElementCategory(config.elements[i]);
+        var element = config.elements[i];
+        var category = this.getElementCategory(element);
+        if (!byCategory[category]) byCategory[category] = [];
+        if (!this.isPresetBuilderCategory(category)) byCategory[category].push(element);
         if (seen[category]) continue;
         seen[category] = true;
         categories.push(category);
       }
-      return categories;
+
+      for (var c = 0; c < categories.length; c++) {
+        var rawCat = categories[c];
+        var parts = rawCat.split("|");
+        var main = parts.length > 1 ? parts[0] : "General Options";
+        var sub = parts.length > 1 ? parts[1] : rawCat;
+        if (!groupedCategories[main]) groupedCategories[main] = [];
+        groupedCategories[main].push({
+          full: rawCat,
+          sub: sub,
+          count: this.isPresetBuilderCategory(rawCat) ? 0 : ((byCategory[rawCat] || []).length)
+        });
+      }
+
+      config.__anitaCategoryCache = {
+        elementsRef: config.elements,
+        categories: categories,
+        groupedCategories: groupedCategories,
+        byCategory: byCategory
+      };
+      return config.__anitaCategoryCache;
+    },
+
+    getCategoryList: function (config) {
+      return this.ensureCategoryCache(config).categories;
     },
 
     getCategoryElements: function (config, category) {
-      var elements = [];
-      if (this.isPresetBuilderCategory(category)) return elements;
-      if (!config || !Array.isArray(config.elements)) return elements;
-      for (var i = 0; i < config.elements.length; i++) {
-        var element = config.elements[i];
-        if (this.getElementCategory(element) !== category) continue;
-        elements.push(element);
-      }
-      return elements;
+      if (this.isPresetBuilderCategory(category)) return [];
+      var cache = this.ensureCategoryCache(config);
+      return cache.byCategory[category] || [];
     },
 
     ensureActiveCategory: function (config) {
@@ -3665,7 +4120,9 @@
           status: "Imported",
           token: token,
           raw: raw,
-          values: parsed.values
+          values: parsed.values,
+          heroes: parsed.heroes || [],
+          heroMode: parsed.heroMode || HP_HERO_SCOPE_OFF
         };
       } catch (eDec) {
         return { ok: false, status: "Invalid" };
@@ -3757,6 +4214,10 @@
       return !!(row && row.values && row.key !== "current");
     },
 
+    isUserPresetRow: function (row) {
+      return !!(row && String(row.key || "").indexOf("user_") === 0);
+    },
+
     getPresetBundleRows: function (rows) {
       var bundleRows = [];
       if (!Array.isArray(rows)) return bundleRows;
@@ -3764,6 +4225,146 @@
         if (this.isPresetBundleRow(rows[i])) bundleRows.push(rows[i]);
       }
       return bundleRows;
+    },
+
+    getPresetPriorityIdentity: function (row) {
+      if (!row) return "";
+      if (row.id) return "id:" + String(row.id);
+      return String(row.key || "");
+    },
+
+    getRemovedPresetRows: function (config) {
+      if (!config.__anitaRemovedPresetRows) config.__anitaRemovedPresetRows = {};
+      return config.__anitaRemovedPresetRows;
+    },
+
+    isPresetRowRemoved: function (config, row) {
+      if (!config || !row) return false;
+      var key = this.getPresetPriorityIdentity(row);
+      return !!(key && config.__anitaRemovedPresetRows && config.__anitaRemovedPresetRows[key]);
+    },
+
+    cleanupPresetRowState: function (config, row, identity) {
+      if (!config || !row) return;
+      var key = String(row.key || "");
+      var idKey = row.id ? ("id:" + String(row.id)) : "";
+      if (config.__anitaPresetHeroSelections) {
+        try { delete config.__anitaPresetHeroSelections[key]; } catch (eHeroKey) {}
+        if (idKey) { try { delete config.__anitaPresetHeroSelections[idKey]; } catch (eHeroId) {} }
+      }
+      if (config.__anitaPresetHeroModes) {
+        try { delete config.__anitaPresetHeroModes[key]; } catch (eModeKey) {}
+        if (idKey) { try { delete config.__anitaPresetHeroModes[idKey]; } catch (eModeId) {} }
+      }
+      if (config.__anitaPresetNameOverrides) {
+        try { delete config.__anitaPresetNameOverrides[key]; } catch (eNameKey) {}
+        if (idKey) { try { delete config.__anitaPresetNameOverrides[idKey]; } catch (eNameId) {} }
+      }
+      if (Array.isArray(config.__anitaPresetPriorityOrder)) {
+        var nextOrder = [];
+        for (var i = 0; i < config.__anitaPresetPriorityOrder.length; i++) {
+          var orderKey = String(config.__anitaPresetPriorityOrder[i] || "");
+          if (orderKey && orderKey !== key && orderKey !== idKey && orderKey !== identity) nextOrder.push(orderKey);
+        }
+        config.__anitaPresetPriorityOrder = nextOrder;
+      }
+      if (config.__anitaSelectedPresetKey === key) config.__anitaSelectedPresetKey = "";
+      if (config.__anitaEditingPresetNameKey === key) config.__anitaEditingPresetNameKey = "";
+    },
+
+    removePresetRow: function (config, row) {
+      if (!config || !row || row.key === "current" || !this.isPresetBundleRow(row)) return false;
+      var identity = this.getPresetPriorityIdentity(row);
+      var userRows = this.getUserPresetRows(config);
+      var removedUser = false;
+      for (var i = userRows.length - 1; i >= 0; i--) {
+        if (userRows[i] && userRows[i].key === row.key) {
+          userRows.splice(i, 1);
+          removedUser = true;
+        }
+      }
+      if (!removedUser) {
+        if (!identity) return false;
+        this.getRemovedPresetRows(config)[identity] = true;
+      }
+      this.cleanupPresetRowState(config, row, identity);
+      resetHpHeroPresetDetectionLock(config);
+      invalidateHpHeroPresetApplyCache(config);
+      startHpHeroPresetWatch(config);
+      scheduleHpHeroPresetRefresh(config);
+      return true;
+    },
+
+    applyPresetPriorityOrder: function (config, rows) {
+      if (!config || !Array.isArray(rows) || !rows.length) return rows;
+      var movable = [];
+      var fixed = [];
+      var byKey = {};
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        if (this.isPresetBundleRow(row)) {
+          var key = this.getPresetPriorityIdentity(row);
+          if (key) {
+            movable.push(row);
+            byKey[key] = row;
+          }
+        } else {
+          fixed.push(row);
+        }
+      }
+      if (!movable.length) return rows;
+
+      var stored = Array.isArray(config.__anitaPresetPriorityOrder) ? config.__anitaPresetPriorityOrder : [];
+      var order = [];
+      var seen = {};
+      for (var storedIndex = 0; storedIndex < stored.length; storedIndex++) {
+        var storedKey = String(stored[storedIndex] || "");
+        if (!storedKey || !byKey[storedKey] || seen[storedKey]) continue;
+        seen[storedKey] = true;
+        order.push(storedKey);
+      }
+      for (var moveIndex = 0; moveIndex < movable.length; moveIndex++) {
+        var moveKey = this.getPresetPriorityIdentity(movable[moveIndex]);
+        if (!moveKey || seen[moveKey]) continue;
+        seen[moveKey] = true;
+        order.push(moveKey);
+      }
+      config.__anitaPresetPriorityOrder = order;
+
+      var sorted = [];
+      for (var orderIndex = 0; orderIndex < order.length; orderIndex++) {
+        var orderedRow = byKey[order[orderIndex]];
+        if (orderedRow) sorted.push(orderedRow);
+      }
+      for (var fixedIndex = 0; fixedIndex < fixed.length; fixedIndex++) {
+        sorted.push(fixed[fixedIndex]);
+      }
+      return sorted;
+    },
+
+    movePresetRowPriority: function (config, rows, row, delta) {
+      if (!config || !Array.isArray(rows) || !row || !this.isPresetBundleRow(row)) return false;
+      var ordered = this.applyPresetPriorityOrder(config, rows);
+      var keys = [];
+      for (var i = 0; i < ordered.length; i++) {
+        if (!this.isPresetBundleRow(ordered[i])) continue;
+        var key = this.getPresetPriorityIdentity(ordered[i]);
+        if (key) keys.push(key);
+      }
+      var rowKey = this.getPresetPriorityIdentity(row);
+      var index = keys.indexOf(rowKey);
+      var nextIndex = index + (Number(delta) || 0);
+      if (index < 0 || nextIndex < 0 || nextIndex >= keys.length) return false;
+      var tmp = keys[index];
+      keys[index] = keys[nextIndex];
+      keys[nextIndex] = tmp;
+      config.__anitaPresetPriorityOrder = keys;
+      config.__anitaSelectedPresetKey = row.key;
+      resetHpHeroPresetDetectionLock(config);
+      invalidateHpHeroPresetApplyCache(config);
+      startHpHeroPresetWatch(config);
+      scheduleHpHeroPresetRefresh(config);
+      return true;
     },
 
     buildPresetBundleCodeToken: function (config, rows) {
@@ -3943,7 +4544,7 @@
       return "Import " + String(nextIndex);
     },
 
-    addUserPresetFromValues: function (config, name, values, category) {
+    addUserPresetFromValues: function (config, name, values, category, heroes, heroMode) {
       if (!config || !values) return null;
       var userRows = this.getUserPresetRows(config);
       var nextIndex = userRows.length + 1;
@@ -3956,6 +4557,9 @@
       var overrideCount = this.countBuilderPresetOverrides(config, sourceValues);
       var omittedOverrides = this.countUnsupportedPresetOverrides(config, sourceValues);
       var keyName = "user_" + String((Date.now ? Date.now() : +(new Date()))) + "_" + String(nextIndex);
+      var heroTargets = normalizeHpHeroSelection(heroes);
+      var scopeMode = normalizeHpHeroScopeMode(heroMode, heroTargets);
+      if (scopeMode !== HP_HERO_SCOPE_SELECTED) heroTargets = [];
       var row = {
         key: keyName,
         id: "",
@@ -3966,19 +4570,25 @@
         token: "",
         values: sourceValues,
         payloadValues: payloadValues,
-        heroes: [],
-        heroMode: HP_HERO_SCOPE_OFF
+        heroes: heroTargets,
+        heroMode: scopeMode
       };
       row.token = this.buildPresetCodeToken(config, row.values, row.name, row.payloadValues, row.heroes, row.heroMode);
       userRows.push(row);
       config.__anitaSelectedPresetKey = row.key;
+      if (scopeMode !== HP_HERO_SCOPE_OFF) {
+        resetHpHeroPresetDetectionLock(config);
+        invalidateHpHeroPresetApplyCache(config);
+        startHpHeroPresetWatch(config);
+        scheduleHpHeroPresetRefresh(config);
+      }
       return row;
     },
 
     addUserPresetFromImportCode: function (config, text) {
       var parsed = this.parseImportCode(config, text);
       if (!parsed.ok) return parsed;
-      var row = this.addUserPresetFromValues(config, this.getNextImportPresetName(config), parsed.values, "Imported");
+      var row = this.addUserPresetFromValues(config, this.getNextImportPresetName(config), parsed.values, "Imported", parsed.heroes, parsed.heroMode);
       if (!row) return { ok: false, status: "Invalid" };
       return { ok: true, status: "Saved", row: row };
     },
@@ -4006,12 +4616,14 @@
           heroes: normalizeHpHeroSelection(preset.heroes),
           heroMode: normalizeHpHeroScopeMode(preset.heroMode, preset.heroes)
         });
+        if (this.isPresetRowRemoved(config, rows[rows.length - 1])) rows.pop();
       }
 
       var userRows = this.getUserPresetRows(config);
       for (var userIndex = 0; userIndex < userRows.length; userIndex++) {
         var userRow = userRows[userIndex];
         if (!userRow || !userRow.values) continue;
+        if (this.isPresetRowRemoved(config, userRow)) continue;
         userRow.payloadValues = userRow.payloadValues || this.buildPresetPayloadValues(config, userRow.values || {});
         userRow.category = userRow.category || "Game preset";
         userRow.name = this.sanitizeUserPresetName(userRow.name, userIndex + 1);
@@ -4037,7 +4649,57 @@
         heroes: [],
         heroMode: HP_HERO_SCOPE_OFF
       });
-      return rows;
+      return this.applyPresetPriorityOrder(config, rows);
+    },
+
+    clonePresetBuilderStateValue: function (value) {
+      if (Array.isArray(value)) {
+        var arrayCopy = [];
+        for (var i = 0; i < value.length; i++) {
+          arrayCopy.push(this.clonePresetBuilderStateValue(value[i]));
+        }
+        return arrayCopy;
+      }
+      if (value && typeof value === "object") {
+        var objectCopy = {};
+        for (var key in value) {
+          if (Object.prototype.hasOwnProperty.call(value, key)) {
+            objectCopy[key] = this.clonePresetBuilderStateValue(value[key]);
+          }
+        }
+        return objectCopy;
+      }
+      return value;
+    },
+
+    capturePresetBuilderState: function (config) {
+      if (!this.hasPresetBuilder(config)) return null;
+      return {
+        userPresetRows: this.clonePresetBuilderStateValue(config.__anitaUserPresetRows || []),
+        nameOverrides: this.clonePresetBuilderStateValue(config.__anitaPresetNameOverrides || {}),
+        heroSelections: this.clonePresetBuilderStateValue(config.__anitaPresetHeroSelections || {}),
+        heroModes: this.clonePresetBuilderStateValue(config.__anitaPresetHeroModes || {}),
+        priorityOrder: this.clonePresetBuilderStateValue(config.__anitaPresetPriorityOrder || []),
+        removedPresets: this.clonePresetBuilderStateValue(config.__anitaRemovedPresetRows || {}),
+        selectedPresetKey: String(config.__anitaSelectedPresetKey || ""),
+        editingPresetKey: String(config.__anitaEditingPresetKey || ""),
+        heroDetectionMode: normalizeHpHeroDetectionMode(config),
+        heroManualOverride: !!config.__hpHeroManualPresetOverride
+      };
+    },
+
+    restorePresetBuilderState: function (config, state) {
+      if (!config || !state) return;
+      config.__anitaUserPresetRows = this.clonePresetBuilderStateValue(state.userPresetRows || []);
+      config.__anitaPresetNameOverrides = this.clonePresetBuilderStateValue(state.nameOverrides || {});
+      config.__anitaPresetHeroSelections = this.clonePresetBuilderStateValue(state.heroSelections || {});
+      config.__anitaPresetHeroModes = this.clonePresetBuilderStateValue(state.heroModes || {});
+      config.__anitaPresetPriorityOrder = this.clonePresetBuilderStateValue(state.priorityOrder || []);
+      config.__anitaRemovedPresetRows = this.clonePresetBuilderStateValue(state.removedPresets || {});
+      config.__anitaSelectedPresetKey = String(state.selectedPresetKey || "");
+      config.__anitaEditingPresetKey = String(state.editingPresetKey || "");
+      setHpHeroDetectionMode(config, state.heroDetectionMode ||
+        (state.heroManualOverride ? HP_HERO_DETECTION_OVERRIDE : HP_HERO_DETECTION_AUTO));
     },
 
     copyTextToClipboard: function (text) {
@@ -4088,6 +4750,133 @@
       if (!label || !label.IsValid || !label.IsValid()) return;
       label.text = text;
       label.SetHasClass("Good", !!good);
+    },
+
+    isPanelValid: function (panel) {
+      return !!(panel && panel.IsValid && panel.IsValid());
+    },
+
+    getPanelOffset: function (panel) {
+      var x = 0;
+      var y = 0;
+      var p = panel;
+      while (this.isPanelValid(p)) {
+        x += Number(p.actualxoffset || p.actualx || 0);
+        y += Number(p.actualyoffset || p.actualy || 0);
+        p = p.GetParent ? p.GetParent() : null;
+      }
+      if (!isFinite(x)) x = 0;
+      if (!isFinite(y)) y = 0;
+      return { x: x, y: y };
+    },
+
+    getPanelMetric: function (panel, primary, secondary, fallback) {
+      var value = Number((panel && panel[primary]) || (panel && panel[secondary]) || fallback || 0);
+      return isFinite(value) && value > 0 ? value : Number(fallback || 0);
+    },
+
+    getLocalTooltipHost: function () {
+      var trueRoot = (this.isPanelValid(this.mainWindow) && this.mainWindow.GetParent) ? this.mainWindow.GetParent() : $.GetContextPanel();
+      if (!this.isPanelValid(trueRoot)) trueRoot = $.GetContextPanel();
+      if (!this.isPanelValid(this.popupHost) || this.popupHost.GetParent() !== trueRoot) {
+        if (this.isPanelValid(this.popupHost)) {
+          try { this.popupHost.DeleteAsync(0); } catch (deleteErr) {}
+        }
+        this.popupHost = $.CreatePanel("Panel", trueRoot, "AnitaUI_PopupHost");
+        this.popupHost.AddClass("AnitaPopupHost");
+      }
+      var host = this.isPanelValid(this.popupHost) ? this.popupHost : trueRoot;
+      host.style.align = "left top";
+      host.style.ignoreParentFlow = true;
+      host.style.flowChildren = "none";
+      host.style.overflow = "noclip";
+      host.style.zIndex = "10050";
+      host.style.width = "100%";
+      host.style.height = "100%";
+      host.hittest = false;
+      host.hittestchildren = true;
+      return host;
+    },
+
+    getLocalTooltipPanel: function () {
+      var host = this.getLocalTooltipHost();
+      if (!this.isPanelValid(host)) return null;
+      if (!this.isPanelValid(this.presetTooltip) || this.presetTooltip.GetParent() !== host) {
+        this.presetTooltip = $.CreatePanel("Panel", host, "AnitaPresetLocalTooltip");
+        this.presetTooltip.AddClass("AnitaPresetLocalTooltip");
+        this.presetTooltip.hittest = false;
+        this.presetTooltip.hittestchildren = false;
+        this.presetTooltip.style.position = "-200% -200% 0px";
+        this.presetTooltip.style.opacity = "0";
+        this.presetTooltip.style.zIndex = "10090";
+        var label = $.CreatePanel("Label", this.presetTooltip, "");
+        label.AddClass("AnitaPresetLocalTooltipLabel");
+        label.hittest = false;
+        this.presetTooltip.__anitaTooltipLabel = label;
+      }
+      return this.presetTooltip;
+    },
+
+    positionLocalTooltip: function (anchor, tooltip) {
+      if (!this.isPanelValid(anchor) || !this.isPanelValid(tooltip)) return;
+      var host = this.getLocalTooltipHost();
+      if (!this.isPanelValid(host)) return;
+      var hostParent = host.GetParent ? host.GetParent() : null;
+      var hostW = this.getPanelMetric(host, "actuallayoutwidth", "contentwidth", 0);
+      var hostH = this.getPanelMetric(host, "actuallayoutheight", "contentheight", 0);
+      if (hostW <= 1 && this.isPanelValid(hostParent)) hostW = this.getPanelMetric(hostParent, "actuallayoutwidth", "contentwidth", 1920);
+      if (hostH <= 1 && this.isPanelValid(hostParent)) hostH = this.getPanelMetric(hostParent, "actuallayoutheight", "contentheight", 1080);
+      if (hostW <= 1) hostW = 1920;
+      if (hostH <= 1) hostH = 1080;
+
+      var anchorOffset = this.getPanelOffset(anchor);
+      var hostOffset = this.getPanelOffset(host);
+      var tooltipW = this.getPanelMetric(tooltip, "actuallayoutwidth", "contentwidth", 220);
+      var tooltipH = this.getPanelMetric(tooltip, "actuallayoutheight", "contentheight", 30);
+      var edge = 8;
+      var x = anchorOffset.x - hostOffset.x;
+      var y = anchorOffset.y - hostOffset.y - tooltipH - 6;
+      if (y < edge) y = anchorOffset.y - hostOffset.y + this.getPanelMetric(anchor, "actuallayoutheight", "contentheight", 28) + 6;
+      if (x + tooltipW > hostW - edge) x = hostW - tooltipW - edge;
+      if (x < edge) x = edge;
+      if (y + tooltipH > hostH - edge) y = hostH - tooltipH - edge;
+      if (y < edge) y = edge;
+
+      tooltip.style.align = "left top";
+      tooltip.style.ignoreParentFlow = true;
+      tooltip.style.position = Math.round(x) + "px " + Math.round(y) + "px 0px";
+      tooltip.style.opacity = "1";
+      tooltip.style.zIndex = "10090";
+    },
+
+    showLocalTooltip: function (panel, text) {
+      var tooltip = this.getLocalTooltipPanel();
+      if (!this.isPanelValid(tooltip)) return;
+      var label = tooltip.__anitaTooltipLabel || null;
+      if (label && label.IsValid && label.IsValid()) label.text = String(text || "");
+      this.positionLocalTooltip(panel, tooltip);
+      try {
+        $.Schedule(0.02, function () {
+          if (AnitaRenderer.presetTooltip === tooltip) AnitaRenderer.positionLocalTooltip(panel, tooltip);
+        });
+      } catch (scheduleErr) {}
+    },
+
+    hideLocalTooltip: function () {
+      var tooltip = this.presetTooltip;
+      if (!this.isPanelValid(tooltip)) return;
+      tooltip.style.opacity = "0";
+      tooltip.style.position = "-200% -200% 0px";
+    },
+
+    attachLocalTooltip: function (panel, text) {
+      if (!panel || !text) return;
+      panel.SetPanelEvent("onmouseover", function () {
+        AnitaRenderer.showLocalTooltip(panel, text);
+      });
+      panel.SetPanelEvent("onmouseout", function () {
+        AnitaRenderer.hideLocalTooltip();
+      });
     },
 
     dismissPresetNotice: function (config) {
@@ -4159,6 +4948,7 @@
       row.heroes = normalized.slice(0);
       row.heroMode = scopeMode;
       row.token = this.buildPresetCodeToken(config, row.values || {}, row.name || "", row.payloadValues, row.heroes, row.heroMode);
+      resetHpHeroPresetDetectionLock(config);
       invalidateHpHeroPresetApplyCache(config);
       startHpHeroPresetWatch(config);
       scheduleHpHeroPresetRefresh(config);
@@ -4243,6 +5033,13 @@
       titleRow.AddClass("AnitaPresetTitleRow");
 
       var title = $.CreatePanel("Label", titleRow, "");
+
+      var heroOverrideBtn = $.CreatePanel("Button", titleRow, "");
+      heroOverrideBtn.AddClass("AnitaPresetHeroOverrideBtn");
+      heroOverrideBtn.SetHasClass("Enabled", hpHeroManualOverrideEnabled(config));
+      heroOverrideBtn.SetHasClass("Off", normalizeHpHeroDetectionMode(config) === HP_HERO_DETECTION_OFF);
+      var heroOverrideLbl = $.CreatePanel("Label", heroOverrideBtn, "");
+      heroOverrideLbl.text = getHpHeroDetectionModeLabel(config);
       title.AddClass("AnitaPresetTitle");
       title.text = "HP Preset Builder";
 
@@ -4304,7 +5101,7 @@
 
       var createHint = $.CreatePanel("Label", createTextCol, "");
       createHint.AddClass("AnitaPresetCreateHint");
-      createHint.text = "Saves your current live HP settings as a preset code row.";
+      createHint.text = "Saves current live HP settings. Click a preset name to rename.";
 
       function addCurrentPreset() {
         var saved = AnitaRenderer.addUserPresetFromCurrent(config, nameInput.text || "");
@@ -4493,6 +5290,25 @@
           return false;
         }
         config.__anitaSelectedPresetKey = row.key;
+        var rowHeroes = AnitaRenderer.getPresetRowHeroes(config, row);
+        var rowHeroMode = AnitaRenderer.getPresetRowHeroMode(config, row);
+        if (rowHeroMode === HP_HERO_SCOPE_SELECTED && !hpHeroManualPresetAllowed(config)) {
+          var currentHero = detectHpLocalHero();
+          if (!currentHero || !presetTargetsHero(row, currentHero)) {
+            resetHpHeroPresetDetectionLock(config);
+            invalidateHpHeroPresetApplyCache(config);
+            config.__hpHeroPresetHasScopedPreset = true;
+            startHpHeroPresetWatch(config);
+            scheduleHpHeroPresetRefresh(config);
+            showPresetStatus(currentHero
+              ? (row.name + " is saved for selected heroes.")
+              : ("Waiting for hero detection before applying " + row.name + "."),
+              true,
+              2.5);
+            return true;
+          }
+          row.heroes = rowHeroes;
+        }
         var result = AnitaRenderer.applyImportCode(config, row.token, "preset_builder");
         if (result.ok) {
           showPresetStatus("Imported " + row.name + ".", true, 2.5);
@@ -4871,18 +5687,10 @@
         });
         return button;
       }
+      attachPresetTooltip(heroOverrideBtn, "AUTO HERO reapplies scoped presets. OVERRIDE ON keeps a manual preset. HERO OFF disables hero detection.");
 
       openBtn.SetPanelEvent("onactivate", function () {
-        var activeRow = getSelectedRow();
-        if (!activeRow) {
-          showPresetStatus("No preset selected.", false, 2.0);
-          return;
-        }
-        if (bundlePresetCount > 0) {
-          copyPresetBundle("All preset codes copied. Paste into builder Import.");
-        } else {
-          showPresetStatus("No preset codes available yet. Current live settings are not bundled.", false, 2.5);
-        }
+        showPresetStatus("Opened web builder. Use COPY ALL to export presets.", true, 2.5);
         AnitaRenderer.openExternalUrl(HP_PRESET_BUILDER_URL);
       });
 
@@ -4898,6 +5706,36 @@
         openPresetImportPopup();
       });
 
+      heroOverrideBtn.SetPanelEvent("onactivate", function () {
+        var nextMode = getNextHpHeroDetectionMode(config);
+        setHpHeroDetectionMode(config, nextMode);
+        AnitaPersistence.persistConfig(config, true);
+        showPresetStatus(nextMode === HP_HERO_DETECTION_OVERRIDE
+          ? "Manual preset override enabled."
+          : nextMode === HP_HERO_DETECTION_OFF
+            ? "Hero detection disabled."
+            : "Auto hero presets enabled.",
+          true,
+          2.5);
+        AnitaRenderer.renderModSettings(config);
+      });
+
+      function attachPresetTooltip(panel, text) {
+        AnitaRenderer.attachLocalTooltip(panel, text);
+      }
+
+      attachPresetTooltip(openBtn, "Open the web preset builder.");
+      attachPresetTooltip(bundleBtn, "Copy all preset codes for the web builder.");
+      attachPresetTooltip(titleImportBtn, "Paste a custom preset code.");
+      attachPresetTooltip(heroOverrideBtn, "AUTO HERO reapplies scoped presets. OVERRIDE ON keeps a manual preset. HERO OFF disables hero detection.");
+      attachPresetTooltip(addBtn, "Save current live HP settings as a preset.");
+
+      function selectPresetRow(presetRow) {
+        if (importPreset(presetRow)) {
+          AnitaRenderer.renderModSettings(config);
+        }
+      }
+
       for (var r = 0; r < rows.length; r++) {
         var row = rows[r];
         var rowPanel = $.CreatePanel("Panel", list, "");
@@ -4905,6 +5743,11 @@
         rowPanel.SetHasClass("Active", row.key === config.__anitaSelectedPresetKey);
         rowPanel.hittest = true;
         rowPanel.hittestchildren = true;
+        rowPanel.SetPanelEvent("onactivate", (function (presetRow) {
+          return function () {
+            selectPresetRow(presetRow);
+          };
+        }(row)));
 
         var textCol = $.CreatePanel("Panel", rowPanel, "");
         textCol.AddClass("AnitaPresetRowText");
@@ -4939,6 +5782,7 @@
           nameLabel.text = row.name;
           if (canRenameRow) {
             nameLabel.hittest = true;
+            attachPresetTooltip(nameLabel, "Click to rename this preset.");
             nameLabel.SetPanelEvent("onactivate", (function (presetRow) {
               return function () {
                 config.__anitaEditingPresetNameKey = presetRow.key;
@@ -4957,6 +5801,11 @@
         heroSelector.AddClass("AnitaPresetHeroSelector");
         heroSelector.hittest = true;
         heroSelector.hittestchildren = true;
+        heroSelector.SetPanelEvent("onactivate", (function (presetRow) {
+          return function () {
+            selectPresetRow(presetRow);
+          };
+        }(row)));
 
         var heroPicker = makeHeroPickerButton(heroSelector, row);
         var heroSummary = $.CreatePanel("Label", heroSelector, "");
@@ -4964,6 +5813,47 @@
         heroSummary.hittest = false;
         heroPicker.__anitaHeroSummaryLabel = heroSummary;
         renderHeroPickerState(heroPicker, row, heroSummary);
+
+        var priorityBtns = $.CreatePanel("Panel", rowPanel, "");
+        priorityBtns.AddClass("AnitaPresetPriorityBtns");
+        var canPrioritize = AnitaRenderer.isPresetBundleRow(row);
+        var canDeleteRow = canPrioritize && row.key !== "current";
+        var priorityUpBtn = $.CreatePanel("Button", priorityBtns, "");
+        priorityUpBtn.AddClass("AnitaPresetPriorityBtn");
+        priorityUpBtn.AddClass("AnitaPresetPriorityUpBtn");
+        priorityUpBtn.SetHasClass("Disabled", !canPrioritize || r === 0);
+        priorityUpBtn.hittest = canPrioritize && r > 0;
+        priorityUpBtn.hittestchildren = false;
+        var priorityUpLbl = $.CreatePanel("Label", priorityUpBtn, "");
+        priorityUpLbl.text = "▲";
+        var priorityDownBtn = $.CreatePanel("Button", priorityBtns, "");
+        priorityDownBtn.AddClass("AnitaPresetPriorityBtn");
+        priorityDownBtn.AddClass("AnitaPresetPriorityDownBtn");
+        priorityDownBtn.SetHasClass("Disabled", !canPrioritize || r >= (bundlePresetCount - 1));
+        priorityDownBtn.hittest = canPrioritize && r < (bundlePresetCount - 1);
+        priorityDownBtn.hittestchildren = false;
+        var priorityDownLbl = $.CreatePanel("Label", priorityDownBtn, "");
+        priorityDownLbl.text = "▼";
+        if (canPrioritize) {
+          attachPresetTooltip(priorityUpBtn, "Move preset up.");
+          attachPresetTooltip(priorityDownBtn, "Move preset down.");
+        }
+
+        priorityUpBtn.SetPanelEvent("onactivate", (function (presetRow) {
+          return function () {
+            if (AnitaRenderer.movePresetRowPriority(config, rows, presetRow, -1)) {
+              AnitaRenderer.renderModSettings(config);
+            }
+          };
+        }(row)));
+        priorityDownBtn.SetPanelEvent("onactivate", (function (presetRow) {
+          return function () {
+            if (AnitaRenderer.movePresetRowPriority(config, rows, presetRow, 1)) {
+              AnitaRenderer.renderModSettings(config);
+            }
+          };
+        }(row)));
+
         var copyBtn = $.CreatePanel("Button", rowPanel, "");
         copyBtn.AddClass("AnitaPresetCopyBtn");
         copyBtn.hittest = true;
@@ -4975,11 +5865,28 @@
         var copyLbl = $.CreatePanel("Label", copyBtn, "");
         copyLbl.text = "COPY";
 
+        if (canDeleteRow) {
+          var deleteBtn = $.CreatePanel("Button", rowPanel, "");
+          deleteBtn.AddClass("AnitaPresetDeleteBtn");
+          deleteBtn.hittest = true;
+          deleteBtn.hittestchildren = false;
+          var deleteIcon = $.CreatePanel("Panel", deleteBtn, "");
+          deleteIcon.AddClass("AnitaPresetBtnIcon");
+          deleteIcon.AddClass("AnitaPresetBtnIconTrash");
+          deleteIcon.hittest = false;
+          attachPresetTooltip(deleteBtn, AnitaRenderer.isUserPresetRow(row) ? "Delete this saved preset." : "Remove this preset from the in-game list.");
+          deleteBtn.SetPanelEvent("onactivate", (function (presetRow) {
+            return function () {
+              if (AnitaRenderer.removePresetRow(config, presetRow)) {
+                AnitaRenderer.renderModSettings(config);
+              }
+            };
+          }(row)));
+        }
+
         textCol.SetPanelEvent("onactivate", (function (presetRow) {
           return function () {
-            if (importPreset(presetRow)) {
-              AnitaRenderer.renderModSettings(config);
-            }
+            selectPresetRow(presetRow);
           };
         }(row)));
 
@@ -5054,6 +5961,7 @@
       if (this.isOpen) {
         this.mainWindow.SetFocus();
       } else {
+        this.hideLocalTooltip();
         if (this.activeColorPickerClose) {
           try {
             this.activeColorPickerClose();
@@ -5110,6 +6018,7 @@
     },
 
     renderModSettings: function (config) {
+      this.hideLocalTooltip();
       if (this.activeHeroMenuClose) {
         try {
           this.activeHeroMenuClose();
@@ -5160,8 +6069,28 @@
         syncAll();
       });
 
-      const title = $.CreatePanel("Label", container, "");
+      const headerRow = $.CreatePanel("Panel", container, "");
+      headerRow.AddClass("ModHeaderRow");
+
+      const title = $.CreatePanel("Label", headerRow, "");
       title.text = config.title; title.AddClass("SectionHeader");
+
+
+      if (String(config.title || "") === "HP Colors") {
+        var donateBtn = $.CreatePanel("Button", headerRow, "AnitaDonateBtn");
+        donateBtn.AddClass("AnitaDonateBtn");
+        donateBtn.hittestchildren = false;
+        var donateIcon = $.CreatePanel("Panel", donateBtn, "");
+        donateIcon.AddClass("AnitaDonateIcon");
+        donateIcon.hittest = false;
+        var donateLabel = $.CreatePanel("Label", donateBtn, "");
+        donateLabel.text = "Donate";
+        donateBtn.SetPanelEvent("onactivate", function () {
+          AnitaRenderer.openExternalUrl(HP_DONATION_URL);
+        });
+        this.attachLocalTooltip(donateBtn, "Support HP Colors on Ko-fi.");
+      }
+
       const line = $.CreatePanel("Panel", container, ""); line.AddClass("SectionHeaderLine");
 
       if (config.description) {
@@ -5210,21 +6139,8 @@
       const detailPanel = $.CreatePanel("Panel", shell, "");
       detailPanel.AddClass("AnitaDetailPanel");
 
-      const rawCategories = this.getCategoryList(config);
-
-      // Parse and group categories
-      var groupedCategories = {};
-      for (var c = 0; c < rawCategories.length; c++) {
-        var rawCat = rawCategories[c];
-        var parts = rawCat.split("|");
-        var main = parts.length > 1 ? parts[0] : "General Options";
-        var sub = parts.length > 1 ? parts[1] : rawCat;
-        
-        if (!groupedCategories[main]) {
-          groupedCategories[main] = [];
-        }
-        groupedCategories[main].push({ full: rawCat, sub: sub });
-      }
+      const categoryCache = this.ensureCategoryCache(config);
+      const groupedCategories = categoryCache.groupedCategories;
 
       // Render Tree
       for (var mainCat in groupedCategories) {
@@ -5272,7 +6188,7 @@
 
             var subCount = $.CreatePanel("Label", subBtn, "");
             subCount.AddClass("AnitaSubCategoryCount");
-            subCount.text = String(this.getCategoryElements(config, subData.full).length);
+            subCount.text = String(subData.count || 0);
 
             subBtn.SetPanelEvent("onactivate", function (nextCategory) {
               return function () {
@@ -5328,7 +6244,9 @@
         if (AnitaRenderer.activeImportPopupClose) {
           try { AnitaRenderer.activeImportPopupClose(); } catch (closeErr) {}
         }
+        var presetBuilderState = AnitaRenderer.capturePresetBuilderState(config);
         AnitaPersistence.applyResolvedValues(config, {});
+        AnitaRenderer.restorePresetBuilderState(config, presetBuilderState);
         emitHeaderReset(button, label, "Reset");
       }
 
@@ -5356,10 +6274,17 @@
         var headerActions = $.CreatePanel("Panel", detailHeaderRow, "");
         headerActions.AddClass("AnitaHeaderActions");
         var resetPageHeader = makeHeaderActionButton(headerActions, "Page");
+        this.attachLocalTooltip(
+          resetPageHeader.btn,
+          this.isPresetBuilderCategory(activeCategory)
+            ? "PAGE reset does nothing here. Preset Builder has no page settings."
+            : "PAGE resets only this page. Other pages stay unchanged."
+        );
         resetPageHeader.btn.SetPanelEvent("onactivate", function () {
           resetPageFromHeader(resetPageHeader.btn, resetPageHeader.lbl);
         });
         var resetAllHeader = makeHeaderActionButton(headerActions, "All");
+        this.attachLocalTooltip(resetAllHeader.btn, "ALL resets HP settings. Saved presets stay.");
         resetAllHeader.btn.SetPanelEvent("onactivate", function () {
           resetAllFromHeader(resetAllHeader.btn, resetAllHeader.lbl);
         });
@@ -5621,6 +6546,7 @@
       if (config.title === "HP Colors") {
         writeHpSharedSnapshot(config);
         publishHpPresetSnapshot(config, "register_startup", true);
+        startHpMatchResetMonitor(config);
         applyHpColorsBakedPresetOnce(config);
       }
       this.registeredMods.push(config);
@@ -5772,35 +6698,29 @@
         updateSource === "ui_refresh_after_apply";
 
       var changed = false;
-      var visibilityDirty = false;
+      var visibilityDirtyIds = [];
       for (var settingId in data.values) {
         if (!Object.prototype.hasOwnProperty.call(data.values, settingId)) continue;
-        var before = null;
-        for (var i = 0; i < config.elements.length; i++) {
-          if (config.elements[i] && config.elements[i].id === settingId) {
-            before = config.elements[i].currentValue;
-            break;
-          }
-        }
+        var targetElement = AnitaRenderer.findElementById(config, settingId);
+        var before = targetElement ? targetElement.currentValue : null;
         if (!AnitaPersistence.applyUpdate(config, settingId, data.values[settingId])) continue;
-        if (this.hasVisibilityDependents(config, settingId)) visibilityDirty = true;
-        for (var j = 0; j < config.elements.length; j++) {
-          if (config.elements[j] && config.elements[j].id === settingId && config.elements[j].currentValue !== before) {
-            changed = true;
-            break;
-          }
-        }
+        if (AnitaRenderer.hasVisibilityDependents(config, settingId)) visibilityDirtyIds.push(settingId);
+        targetElement = targetElement || AnitaRenderer.findElementById(config, settingId);
+        if (targetElement && targetElement.currentValue !== before) changed = true;
       }
-      if (applyHpOptimizedHardGates(config)) {
+      var hardGateChanged = applyHpOptimizedHardGates(config);
+      if (hardGateChanged) {
         changed = true;
-        visibilityDirty = true;
+        visibilityDirtyIds = [];
       }
 
       AnitaRenderer.syncSaveCodeInput(config);
       if (isBootstrap) config.__anitaBootstrapReceived = true;
 
-      if (visibilityDirty || isBootstrap) {
+      if (isBootstrap || hardGateChanged) {
         AnitaRenderer.refreshConditionalVisibility(config);
+      } else if (visibilityDirtyIds.length) {
+        AnitaRenderer.refreshChangedDependentsVisibility(config, visibilityDirtyIds);
       }
 
       if (config.title === "HP Colors" && changed) {
@@ -5845,26 +6765,28 @@
         config.__anitaBootstrapReceived = true;
       }
 
-      if (!isReplaySource && config.title === "HP Colors") {
+      if (!isReplaySource && updateSource !== "ui_color_drag" && config.title === "HP Colors") {
         config.__anitaPortableSyncReason = "update_" + String(data.setting_id);
         this.emitPortableSync(config, "update_" + String(data.setting_id) + "_immediate");
         this.queuePortableSyncBurst(config, "update_" + String(data.setting_id));
         this.startPortableSyncLoop(config);
       }
 
-      var writeToken = (config.__anitaPendingWriteToken || 0) + 1;
-      config.__anitaPendingWriteToken = writeToken;
-      $.Schedule(2.0, function () {
-        if (!config || config.__anitaPendingWriteToken !== writeToken) return;
-        AnitaPersistence.persistConfig(config, false);
-      });
+      if (updateSource !== "ui_color_drag") {
+        var writeToken = (config.__anitaPendingWriteToken || 0) + 1;
+        config.__anitaPendingWriteToken = writeToken;
+        $.Schedule(2.0, function () {
+          if (!config || config.__anitaPendingWriteToken !== writeToken) return;
+          AnitaPersistence.persistConfig(config, false);
+        });
+      }
 
-      if (this.hasVisibilityDependents(config, data.setting_id) || hardGateChanged) {
+      if (hardGateChanged || isBootstrap) {
         AnitaRenderer.refreshConditionalVisibility(config);
         return;
       }
-      if (isBootstrap) {
-        AnitaRenderer.refreshConditionalVisibility(config);
+      if (AnitaRenderer.hasVisibilityDependents(config, data.setting_id)) {
+        AnitaRenderer.refreshDependentVisibility(config, data.setting_id);
         return;
       }
     },

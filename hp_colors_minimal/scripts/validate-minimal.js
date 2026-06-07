@@ -3,19 +3,73 @@ const path = require("node:path");
 
 const ROOT = path.resolve(__dirname, "..");
 const REQUIRED_FILES = [
+  "AGENTS.md",
   "panorama/layout/unit_status_overlay.xml",
   "panorama/scripts/anita_ui_core.js",
   "panorama/scripts/healthbar_logic.js",
-  "panorama/styles/unit_status.css"
+  "panorama/styles/unit_status.css",
+  "scripts/validate-minimal.js",
+  "scripts/validate-minimal.test.js"
 ];
+const ALLOWED_FILES = new Set(REQUIRED_FILES);
 const FORBIDDEN_FILES = [
+  "debug",
   "panorama/layout/base_hud.xml",
   "panorama/layout/hud_escape_menu.xml",
   "panorama/layout/hud_health.xml",
+  "panorama/layout/unit_status_overlay_v2.xml",
+  "panorama/layout/unit_status_overlay_new.xml",
   "panorama/scripts/anita_persist_loader.js",
+  "panorama/scripts/bootstrap.js",
   "panorama/scripts/hp_registrar.js",
+  "panorama/scripts/preset.json",
   "panorama/styles/anita_ui.css",
+  "panorama/styles/hp_colors_minimal/healthbar_overrides.css",
   "scripts/validate-schema.js"
+];
+const FORBIDDEN_SOURCE_TERMS = [
+  "base_hud",
+  "hud_escape_menu",
+  "anita_persist_loader",
+  "hp_registrar",
+  "preset.json",
+  "Convars",
+  "GetConvar",
+  "SetConvar",
+  "sessionStorage",
+  "localStorage",
+  "live_update",
+  "live-update",
+  "anita_ui"
+];
+const REQUIRED_BRIDGE_TERMS = [
+  "HP_COLORS_PRESET_REQUEST",
+  "HP_COLORS_PRESET_SNAPSHOT",
+  "__hpColorsCfgRaw",
+  "hp_colors_minimal_cfg_raw",
+  "values_raw"
+];
+const REQUIRED_UNIT_STATUS_TERMS = [
+  "UnitStatus",
+  "InfoHealthContainer",
+  "LevelContainer",
+  "unit_level_label",
+  "UnitHealthbarContainer",
+  "unit_healthbar_lagging",
+  "unit_healthbar_bg",
+  "unit_healthbar_pip_label",
+  "unit_ult_ready_icon",
+  "hp_counter_anchor",
+  "hp_counter",
+  "hp_kill_zone_marker",
+  "enemy",
+  "friend",
+  "team1",
+  "team2",
+  "level_number_visible",
+  "level_tier",
+  "low_hp_pulsing",
+  "pulse_"
 ];
 
 function readText(relativePath) {
@@ -26,93 +80,156 @@ function listFiles(dir = ROOT) {
   const out = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
+    const rel = path.relative(ROOT, full).replace(/\\/g, "/");
     if (entry.isDirectory()) {
+      out.push(rel + "/");
       out.push(...listFiles(full));
     } else {
-      out.push(path.relative(ROOT, full).replace(/\\/g, "/"));
+      out.push(rel);
     }
   }
   return out.sort();
 }
 
 function extractDefaultKeys(source) {
-  const match = source.match(/var\s+DEFAULTS\s*=\s*\{([\s\S]*?)\};/);
+  const match = source.match(/var\s+DEFAULTS\s*=\s*\{([\s\S]*?)\n\s*\};/);
   if (!match) return [];
-  return [...match[1].matchAll(/\b(hp_[a-z0-9_]+)\s*:/g)].map((item) => item[1]);
+  return Array.from(match[1].matchAll(/\n\s*([A-Za-z0-9_]+)\s*:/g), (m) => m[1]);
+}
+
+function countMatches(source, pattern) {
+  const matches = source.match(pattern);
+  return matches ? matches.length : 0;
 }
 
 function getValidationReport() {
   const errors = [];
   const files = listFiles();
-  const fileSet = new Set(files);
+  const healthbar = readText("panorama/scripts/healthbar_logic.js");
+  const publisher = readText("panorama/scripts/anita_ui_core.js");
+  const xml = readText("panorama/layout/unit_status_overlay.xml");
+  const css = readText("panorama/styles/unit_status.css");
+  const combinedSource = healthbar + "\n" + publisher;
+  const combinedAssets = combinedSource + "\n" + xml + "\n" + css;
 
   for (const file of REQUIRED_FILES) {
-    if (!fileSet.has(file)) errors.push(`Missing required file: ${file}`);
+    if (!fs.existsSync(path.join(ROOT, file))) errors.push(`missing required file: ${file}`);
   }
-  for (const file of FORBIDDEN_FILES) {
-    if (fileSet.has(file)) errors.push(`Forbidden menu/settings file present: ${file}`);
+  for (const forbidden of FORBIDDEN_FILES) {
+    if (fs.existsSync(path.join(ROOT, forbidden))) errors.push(`forbidden minimal artifact present: ${forbidden}`);
   }
-
-  let unitStatusXml = "";
-  let bootstrapSource = "";
-  let healthbarSource = "";
-  try { unitStatusXml = readText("panorama/layout/unit_status_overlay.xml"); } catch (error) { errors.push(`Could not read unit_status_overlay.xml: ${error.message}`); }
-  try { bootstrapSource = readText("panorama/scripts/anita_ui_core.js"); } catch (error) { errors.push(`Could not read anita_ui_core.js: ${error.message}`); }
-  try { healthbarSource = readText("panorama/scripts/healthbar_logic.js"); } catch (error) { errors.push(`Could not read healthbar_logic.js: ${error.message}`); }
-
-  const defaultKeys = extractDefaultKeys(healthbarSource);
-  if (defaultKeys.length !== 48) errors.push(`Expected 48 healthbar DEFAULTS keys, found ${defaultKeys.length}`);
-
-  if (unitStatusXml) {
-    if (!unitStatusXml.includes("healthbar_logic.vjs_c")) errors.push("unit_status_overlay.xml must include healthbar_logic.vjs_c");
-    if (unitStatusXml.includes("hp_preset_bootstrap.vjs_c")) errors.push("unit_status_overlay.xml must not include old hp_preset_bootstrap.vjs_c");
+  for (const file of files) {
+    if (file.endsWith("/")) continue;
+    if (!ALLOWED_FILES.has(file)) errors.push(`unexpected minimal file: ${file}`);
   }
 
-  if (bootstrapSource) {
-    for (const required of ["HPColorsPresetStore", 'STARTUP_PRESET_ID = "HPColorsPreset_001"', "id === STARTUP_PRESET_ID", "__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "PUBLISH_RETRY_DELAYS", "CACHED_SNAPSHOT_REPLAY_SEC", "cachedRootPanel", "cachedStorePanel", "cachedSnapshotPayload", "sharedSnapshotWritten", "cachedReplayStarted", "selectedValues", "cachedValues = selectedValues", "values_raw", "capturePreset", "publishPreset", "publishUntilReady", "replayCachedSnapshot", "startCachedSnapshotReplay", "$.Schedule(CACHED_SNAPSHOT_REPLAY_SEC, replayCachedSnapshot)", "GameUI.CustomUIConfig"]) {
-      if (!bootstrapSource.includes(required)) errors.push(`anita_ui_core.js missing ${required}`);
-    }
-    if (bootstrapSource.includes("selectedValues = preset.values;\n      } catch")) {
-      errors.push("anita_ui_core.js must not use last preset as startup preset");
-    }
-    for (const forbidden of ["ANITA_", "force_emit", "bridge_bootstrap", "core_auto_resync", "PUBLISH_HEARTBEAT_SEC", "publishHeartbeat", "CACHED_SNAPSHOT_REPLAY_LIMIT", "cachedReplayCount", "AnitaUI_Window", "colorpicker", "renderModSettings", "AnitaRenderer"]) {
-      if (bootstrapSource.includes(forbidden)) errors.push(`anita_ui_core.js must not contain static-preset runtime forbidden marker: ${forbidden}`);
+  const defaultKeys = extractDefaultKeys(healthbar);
+  if (defaultKeys.length !== 49) errors.push(`DEFAULTS key count is ${defaultKeys.length}, expected 49`);
+  if (new Set(defaultKeys).size !== defaultKeys.length) errors.push("DEFAULTS contains duplicate keys");
+
+  for (const term of REQUIRED_BRIDGE_TERMS) {
+    if (!combinedSource.includes(term)) errors.push(`missing bridge term: ${term}`);
+  }
+  for (const term of REQUIRED_UNIT_STATUS_TERMS) {
+    if (!combinedAssets.includes(term)) errors.push(`missing unit-status term: ${term}`);
+  }
+  for (const term of FORBIDDEN_SOURCE_TERMS) {
+    if (combinedSource.includes(term)) errors.push(`forbidden production source term: ${term}`);
+  }
+
+  if (!/var\s+DEBUG_PRESET_SELECTION\s*=\s*false\s*;/.test(publisher)) {
+    errors.push("publisher DEBUG_PRESET_SELECTION must default false");
+  }
+  if (!/var\s+DEBUG_REPLAY_VERBOSE_ENABLED\s*=\s*false\s*;/.test(publisher)) {
+    errors.push("publisher DEBUG_REPLAY_VERBOSE_ENABLED must default false");
+  }
+  if (!/var\s+DEBUG_ENABLED\s*=\s*false\s*;/.test(healthbar)) {
+    errors.push("runtime DEBUG_ENABLED must default false");
+  }
+  if (!/var\s+CAPTURE_ENABLED\s*=\s*false\s*;/.test(healthbar)) {
+    errors.push("runtime CAPTURE_ENABLED must default false");
+  }
+  if (/PERF_CAPTURE_RUNTIME_WORK_ENABLED\s*=\s*true/.test(healthbar)) {
+    errors.push("runtime capture must not ship enabled");
+  }
+  if (/PERF_DEBUG_ENABLED\s*=\s*true/.test(healthbar)) {
+    errors.push("runtime perf diagnostics must not ship enabled");
+  }
+  if (/perfHasRuntimeDebugSignal/.test(healthbar)) {
+    errors.push("removed perfHasRuntimeDebugSignal must not return");
+  }
+
+  for (const publisherLockMarker of [
+    "var HERO_SELECTION_LOCK_GAME_TIME_SEC = 10;",
+    "var heroSelectionLocked = false;",
+    "function lockHeroSelectionIfReady()",
+    "locked-hero-selection",
+    "if (heroSelectionLocked || lockHeroSelectionIfReady())"
+  ]) {
+    if (!publisher.includes(publisherLockMarker)) {
+      errors.push(`publisher missing hard-lock marker: ${publisherLockMarker}`);
     }
   }
 
-  if (healthbarSource) {
-    for (const required of ["__hpColorsCfgRaw", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "values_raw", "tryApplySharedSnapshot", "schedulePresetRetry", "raw === sharedCfgRaw && presetApplied", "presetApplied", "invalidateEnemyVisualCaches", "resetCachedPanelRefsIfInvalid", "lastEnemySignature", "lastCpPanel", "lastUnitName", "wasDirty", "startEnemyLoop", "stopEnemyLoop", "startAllyLoop", "stopAllyLoop", "startLevelLoop", "stopLevelLoop", "handleRuntimeToggleState", "nextCacheProbeAt", "ALLY_SCAN_CACHE_TTL", "STYLE_REAPPLY_WATCHDOG_MS", "hp_pulse_color_enabled", "hp_pulse_color_mode", "function getPulseBarColor", "function refreshDerivedConfig()", "var dc = {}", "dc.low", "dc.counterPosition", "dc.killZoneThreshold", "refreshDerivedConfig();", "var shouldPulse = !!(cfg.hp_pulse_enabled && hp <= pulseThresh)", "if (fmt === 1)", "uHT(hp, 100, shouldPulse)", "if (cfg.hp_kill_zone_enabled) sKZ(true, pw)"]) {
-      if (!healthbarSource.includes(required)) errors.push(`healthbar_logic.js missing static preset reader marker: ${required}`);
-    }
-    if (healthbarSource.includes("STYLE_REAPPLY_MS = 1000")) {
-      errors.push("healthbar_logic.js must not force style reapply every 1s");
-    }
-    if (healthbarSource.includes("gRunning = true; gL()") || healthbarSource.includes("aRunning = true; aL()") || healthbarSource.includes("lL();")) {
-      errors.push("healthbar_logic.js must not start enemy, ally, or level loops unconditionally");
-    }
-    for (const forbidden of ["ANITA_", "force_emit", "bridge_bootstrap", "core_auto_resync", "anita_v1_hp_colors", "deadlock_hero_debuts_seen", "GameInterfaceAPI", "HP_PERSIST_ALIAS_TO_ID"]) {
-      if (healthbarSource.includes(forbidden)) errors.push(`healthbar_logic.js must not contain live customization/persistence marker: ${forbidden}`);
-    }
+  const forbiddenProductionPerfTerms = [
+    "PERF_SAMPLE_MAGIC",
+    "perfSamples",
+    "perfTraceRing",
+    "PerformanceObserver",
+    "runtimePerfHeartbeat",
+    "startPerfReporter",
+    "recordPerfSample",
+    "recordCorePerfSample",
+    "perfMaybeDump(",
+    "perfRecordScheduleLateness",
+    "perfScheduleBucket",
+    "perfEnemyScheduleReason",
+    "perfCount(",
+    "perfStart(",
+    "perfEnd(",
+    "perfTraceEvent(",
+    "CFG_DEBUG",
+    "APPLY_DEBUG",
+    "debugApplyLog",
+    "debugRuntimeConfig",
+    "perfLogChunked",
+    "perfHashString"
+  ];
+  for (const term of forbiddenProductionPerfTerms) {
+    if (combinedSource.includes(term)) errors.push(`production perf scaffold remains: ${term}`);
+  }
+
+  const routineLogMarkers = ["[PROFILE]", "[TIMING]", "[BRIDGE]", "[CFG]", "[APPLY]"];
+  for (const marker of routineLogMarkers) {
+    if (combinedSource.includes(marker)) errors.push(`routine production log marker remains: ${marker}`);
+  }
+  if (countMatches(publisher, /HPColorsPresetStore/g) > 2) {
+    errors.push("publisher appears to rescan HPColorsPresetStore after initial discovery");
+  }
+
+  if (/if\s*\(\s*!allyColorChanged\s*&&\s*staleAllyPanel\s*\)\s*if\s*\(\s*\(\s*allyColorChanged\s*\|\|\s*staleAllyPanel\s*\)/.test(healthbar)) {
+    errors.push("ally write branch is incorrectly nested under stale-panel guard");
+  }
+  if (/if\s*\(\s*presetGeneration\s*&&\s*lastAllyPresetGeneration\s*!==\s*presetGeneration\s*\)\s*if\s*\(\s*aWakeQueued\s*\)/.test(healthbar)) {
+    errors.push("ally wake guard is incorrectly nested under preset-generation guard");
   }
 
   return {
-    root: ROOT,
+    ok: errors.length === 0,
     errors,
+    defaultKeys,
     files,
-    unitStatusXml,
-    bootstrapSource,
-    healthbarSource,
-    defaultKeys
+    bridgeTerms: REQUIRED_BRIDGE_TERMS,
   };
 }
 
 function main() {
   const report = getValidationReport();
-  if (report.errors.length) {
-    for (const error of report.errors) console.error(`[ERROR] ${error}`);
+  if (!report.ok) {
+    for (const error of report.errors) console.error(`[minimal-validate] ${error}`);
     process.exit(1);
   }
-  console.log(`[AUDIT PASS] hp_colors_minimal has ${report.defaultKeys.length} runtime settings and no Anita menu files.`);
+  console.log(`[minimal-validate] OK (${report.defaultKeys.length} DEFAULTS keys, ${report.files.length} paths)`);
 }
 
 if (require.main === module) {
@@ -120,5 +237,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  getValidationReport
+  getValidationReport,
+  extractDefaultKeys,
 };

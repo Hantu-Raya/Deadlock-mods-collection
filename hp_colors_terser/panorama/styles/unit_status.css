@@ -44,7 +44,6 @@
 
 #InfoHealthContainer {
 	width: fit-children;
-	height: fit-children;
 	height: 300px;
 	horizontal-align: center;
 	vertical-align: bottom;
@@ -165,7 +164,6 @@
 }
 
 #hp_counter_anchor {
-	position: absolute;
 	ignore-parent-flow: true;
 	horizontal-align: center;
 	vertical-align: bottom;
@@ -297,8 +295,6 @@
 
 #bounty_gold_label {
 	font-size: 100px;
-	color: UnitPowerLevelColor_Default;
-	visibility: visible;
 	color: #46e2ac;
 	font-weight: bold;
 	font-family: sans;
@@ -424,6 +420,7 @@
 	background-size: cover;
 }
 
+
 #unit_healthbar_active_parent {
 	height: 100%;
 	width: 100%;
@@ -441,8 +438,8 @@
 	background-image: url("s2r://panorama/images/hud/world_space/hero_healthbar_fill_center_psd.vtex");
 	background-size: 1024px 128px;
 	z-index: 3;
-	wash-color: #00FF00;
 	box-shadow: inset DropshadowColor 4px 8px 5px 8px;
+	wash-color: TeamEnemyColor;
 }
 
 .team1 #unit_healthbar_lagging {
@@ -458,8 +455,9 @@
 }
 
 .enemy #unit_healthbar_lagging {
-	wash-color: #00FF00;
+	wash-color: TeamEnemyColor;
 }
+
 
 .friend #unit_healthbar_lagging {
 	wash-color: TeamFriendColor;
@@ -524,6 +522,7 @@
 	pre-transform-scale2d: 1.0, 10.8;
 }
 
+
 #unit_healthbar_bullet_shield {
 	min-width: 0%;
 	max-width: 100%;
@@ -569,7 +568,6 @@
 	max-height: 52%;
 	vertical-align: middle;
 	font-size: 40px;
-	max-font-size: 75px;
 	color: #1c2029f5;
 	font-weight: bold;
 	text-align: justify-letter-spacing;
@@ -703,7 +701,6 @@
 	horizontal-align: middle;
 	vertical-align: bottom;
 	animation: none;
-	background-color: none;
 	visibility: collapse;
 }
 
@@ -797,17 +794,15 @@
 
 
 
-/* Kill Zone threshold marker — thin vertical line, absolutely positioned over the health bar.
-   position:absolute floats above the bar independently of layout flow. */
+/* Kill Zone threshold marker - thin vertical line over the health bar. */
 #hp_kill_zone_marker {
-	position: absolute;
 	ignore-parent-flow: true;
 	margin-left: 0px;
 	width: 3px;
 	height: 100%;
 	margin-top: 0px;
 	z-index: 1000;
-	hittest: false;
+	opacity: 0.95;
 	visibility: collapse;
 	overflow: noclip;
 	background-color: #FF2222;
