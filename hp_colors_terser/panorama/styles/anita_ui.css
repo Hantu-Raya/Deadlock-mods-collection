@@ -14,6 +14,25 @@
 	
 }
 
+@keyframes 'AnitaDonateSoulWiggle'
+{
+	0%
+	{
+		transform: rotateZ(-6deg);
+	}
+	
+	50%
+	{
+		transform: rotateZ(7deg);
+	}
+	
+	100%
+	{
+		transform: rotateZ(-4deg);
+	}
+}
+
+
 .AnitaBackdrop
 {
 	width: 0px;
@@ -45,15 +64,15 @@
 	flow-children: down;
 	z-index: 9999;
 	opacity: 0;
-	transform: scale3d(0.95, 0.95, 1);
-	transition-property: opacity, transform;
+	pre-transform-scale2d: 0.95;
+	transition-property: opacity, pre-transform-scale2d;
 	transition-duration: 0.2s;
 }
 
 .AnitaWindow.Open
 {
 	opacity: 1;
-	transform: scale3d(1, 1, 1);
+	pre-transform-scale2d: 1;
 }
 
 .AnitaContentArea
@@ -108,7 +127,6 @@
 	margin-bottom: 12px;
 	padding-right: 8px;
 	padding-bottom: 34px;
-	opacity-mask: gradient(linear, 0% 0%, 0% 100%, from(#00000000), color-stop(0.08, #ffffffff), color-stop(0.82, #ffffffff), to(#00000000));
 }
 
 .AnitaTreeFooter
@@ -130,7 +148,7 @@
 	margin-bottom: 2px;
 	background-color: transparent;
 	border-radius: 4px;
-	transition-property: background-color, transform;
+	transition-property: background-color, pre-transform-scale2d;
 	transition-duration: 0.12s;
 }
 
@@ -149,7 +167,7 @@
 	width: fill-parent-flow(1.0);
 	color: #a2abae;
 	font-size: 18px;
-	font-weight: 800;
+	font-weight: bold;
 	letter-spacing: 1px;
 	text-transform: uppercase;
 	vertical-align: center;
@@ -173,7 +191,7 @@
 	border-radius: 4px;
 	border-left: 2px solid transparent;
 	flow-children: right;
-	transition-property: background-color, border-color, transform;
+	transition-property: background-color, border-color, pre-transform-scale2d;
 	transition-duration: 0.12s;
 }
 
@@ -194,7 +212,7 @@
 	width: fill-parent-flow(1.0);
 	color: #8c9699;
 	font-size: 15px;
-	font-weight: 500;
+	font-weight: medium;
 	letter-spacing: 0.5px;
 	vertical-align: center;
 	transition-property: color;
@@ -209,14 +227,14 @@
 .AnitaSubCategoryBtn.Active .AnitaSubCategoryLabel
 {
 	color: #ffffff;
-	font-weight: 600;
+	font-weight: semi-bold;
 }
 
 .AnitaSubCategoryCount
 {
 	color: #555e61;
 	font-size: 12px;
-	font-weight: 500;
+	font-weight: medium;
 	vertical-align: center;
 	text-align: right;
 	padding-left: 8px;
@@ -239,7 +257,7 @@
 {
 	color: #66cc99;
 	font-size: 20px;
-	font-weight: 700;
+	font-weight: bold;
 }
 
 .AnitaPresetMainCategoryBtn.Active
@@ -311,7 +329,7 @@
 	background-color: #1c2424;
 	border: 1px solid rgba(255, 255, 255, 0.07);
 	border-radius: 5px;
-	transition-property: background-color, border-color, transform;
+	transition-property: background-color, border-color, pre-transform-scale2d;
 	transition-duration: 0.1s;
 }
 
@@ -327,7 +345,7 @@
 	width: 100%;
 	color: #f0f3f3;
 	font-size: 12px;
-	font-weight: 800;
+	font-weight: bold;
 	letter-spacing: 0px;
 	text-align: center;
 	vertical-align: center;
@@ -355,7 +373,6 @@
 	padding-right: 16px;
 	padding-bottom: 40px;
 	margin-bottom: 8px;
-	opacity-mask: gradient(linear, 0% 0%, 0% 100%, from(#00000000), color-stop(0.08, #ffffffff), color-stop(0.84, #ffffffff), to(#00000000));
 }
 
 .AnitaWindow VerticalScrollBar
@@ -363,7 +380,7 @@
 	width: 6px;
 	background-color: rgba(255, 255, 255, 0.04);
 	opacity: 1;
-	transition-property: transform;
+	transition-property: pre-transform-scale2d;
 	transition-duration: 0.15s;
 }
 
@@ -418,20 +435,20 @@
 	margin-left: 14px;
 	margin-right: 12px;
 	wash-color: #e64949;
-	transition-property: wash-color, transform;
+	transition-property: wash-color, pre-transform-scale2d;
 	transition-duration: 0.1s;
 }
 
 .AnitaCloseBtn:hover
 {
 	wash-color: #ff6b6b;
-	transform: scale3d(1.1, 1.1, 1);
+	pre-transform-scale2d: 1.1;
 }
 
 .AnitaCloseBtn:active
 {
 	wash-color: #aa2e2e;
-	transform: scale3d(0.9, 0.9, 1);
+	pre-transform-scale2d: 0.9;
 }
 
 .AnitaTabBtn
@@ -442,7 +459,7 @@
 	background-color: rgba(255, 255, 255, 0.02);
 	border: 1px solid rgba(255, 255, 255, 0.03);
 	border-radius: 4px;
-	transition-property: background-color, border-color, transform;
+	transition-property: background-color, border-color, pre-transform-scale2d;
 	transition-duration: 0.1s;
 }
 
@@ -454,7 +471,7 @@
 	text-transform: uppercase;
 	letter-spacing: 2px;
 	text-align: center;
-	font-weight: 600;
+	font-weight: semi-bold;
 }
 
 .AnitaTabBtn:hover Label
@@ -481,20 +498,30 @@
 	border-color: rgba(102, 204, 153, 0.18);
 }
 
+.ModHeaderRow
+{
+	width: 100%;
+	height: 30px;
+	flow-children: right;
+	margin-bottom: 4px;
+}
+
 .SectionHeader
 {
+	width: fill-parent-flow(1.0);
 	font-size: 20px;
-	font-weight: 700;
+	font-weight: bold;
 	color: #66cc99;
 	text-transform: uppercase;
 	letter-spacing: 1.5px;
+	vertical-align: center;
 }
 
 .SectionHeaderLine
 {
 	height: 2px;
 	width: 100%;
-	margin-top: 2px;
+	margin-top: 0px;
 	margin-bottom: 8px;
 	background-color: rgba(102, 204, 153, 0.16);
 }
@@ -507,6 +534,74 @@
 	margin-bottom: 14px;
 	max-width: 580px;
 	line-height: 1.45;
+}
+
+.AnitaDonateBtn
+{
+	width: 118px;
+	height: 28px;
+	horizontal-align: right;
+	vertical-align: center;
+	margin-right: 0px;
+	flow-children: right;
+	padding: 0px 10px;
+	background-color: rgba(24, 27, 25, 0.82);
+	border: 1px solid rgba(255, 211, 116, 0.24);
+	border-radius: 4px;
+	transition-property: background-color, border-color, brightness, pre-transform-scale2d;
+	transition-duration: 0.14s;
+}
+
+.AnitaDonateBtn:hover
+{
+	background-color: rgba(48, 38, 20, 0.92);
+	border-color: rgba(255, 203, 88, 0.78);
+	brightness: 1.08;
+}
+
+.AnitaDonateBtn:active
+{
+	pre-transform-scale2d: 0.97;
+}
+
+.AnitaDonateIcon
+{
+	width: 16px;
+	height: 16px;
+	margin-right: 6px;
+	vertical-align: center;
+	background-image: url("s2r://materials/particle/ui/ui_icon_soul.vtex");
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	background-texture-size: 18px 18px;
+	wash-color: #f0d38a;
+	opacity: 0.98;
+	transition-property: wash-color, brightness;
+	transition-duration: 0.12s;
+}
+
+.AnitaDonateBtn:hover .AnitaDonateIcon
+{
+	wash-color: #ffd978;
+	brightness: 1.35;
+	animation-name: AnitaDonateSoulWiggle;
+	animation-duration: 0.36s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+	animation-direction: alternate;
+}
+
+.AnitaDonateBtn Label
+{
+	width: fill-parent-flow(1.0);
+	color: #f5e5b5;
+	font-size: 11px;
+	font-weight: black;
+	letter-spacing: 0.4px;
+	text-transform: uppercase;
+	text-align: center;
+	vertical-align: center;
 }
 
 .AnitaPresetNotice
@@ -526,7 +621,7 @@
 	width: fill-parent-flow(1.0);
 	color: #d6dcdd;
 	font-size: 13px;
-	font-weight: 600;
+	font-weight: semi-bold;
 	vertical-align: center;
 }
 
@@ -554,7 +649,7 @@
 	width: 100%;
 	color: #f0f3f3;
 	font-size: 11px;
-	font-weight: 800;
+	font-weight: bold;
 	letter-spacing: 1px;
 	text-align: center;
 	vertical-align: center;
@@ -593,7 +688,7 @@
 {
 	color: #66cc99;
 	font-size: 10px;
-	font-weight: 800;
+	font-weight: bold;
 	letter-spacing: 1px;
 	text-transform: uppercase;
 	margin-bottom: 0px;
@@ -602,9 +697,9 @@
 .AnitaPresetTitleRow
 {
 	width: 100%;
-	height: 30px;
+	height: 32px;
 	flow-children: right;
-	margin-bottom: 0px;
+	margin-bottom: 2px;
 }
 
 .AnitaPresetTitle
@@ -612,18 +707,76 @@
 	width: fill-parent-flow(1.0);
 	color: #f5f1e2;
 	font-size: 17px;
-	font-weight: 800;
+	font-weight: bold;
 	letter-spacing: 1px;
 	text-transform: uppercase;
 	vertical-align: center;
 }
 
-.AnitaPresetImportBtn
+.AnitaPresetHeroOverrideBtn
 {
-	width: 62px;
+	width: 88px;
 	height: 28px;
 	vertical-align: center;
-	margin-left: 6px;
+	margin-left: 5px;
+	background-color: #263233;
+	border: 1px solid rgba(102, 204, 153, 0.35);
+	border-radius: 4px;
+	transition-property: background-color, border-color, brightness;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetHeroOverrideBtn.Enabled
+{
+	background-color: rgba(91, 58, 30, 0.88);
+	border-color: rgba(255, 196, 97, 0.62);
+}
+
+.AnitaPresetHeroOverrideBtn.Off
+{
+	background-color: rgba(29, 31, 32, 0.76);
+	border-color: rgba(177, 185, 184, 0.20);
+}
+
+
+.AnitaPresetHeroOverrideBtn:hover
+{
+	background-color: #354042;
+	border-color: rgba(118, 220, 168, 0.75);
+	brightness: 1.10;
+}
+
+.AnitaPresetHeroOverrideBtn.Enabled:hover
+{
+	background-color: rgba(120, 76, 36, 0.96);
+	border-color: rgba(255, 213, 126, 0.78);
+}
+
+.AnitaPresetHeroOverrideBtn.Off:hover
+{
+	background-color: rgba(43, 46, 47, 0.92);
+	border-color: rgba(202, 212, 210, 0.38);
+}
+
+.AnitaPresetHeroOverrideBtn Label
+{
+	width: 100%;
+	color: #dff5e6;
+	font-size: 9px;
+	font-weight: black;
+	letter-spacing: 0px;
+	text-align: center;
+	vertical-align: center;
+	text-transform: uppercase;
+	text-overflow: shrink;
+}
+
+.AnitaPresetImportBtn
+{
+	width: 58px;
+	height: 28px;
+	vertical-align: center;
+	margin-left: 5px;
 	background-color: #2a3031;
 	border: 1px solid rgba(102, 204, 153, 0.45);
 	border-radius: 4px;
@@ -643,7 +796,7 @@
 	width: 100%;
 	color: #dff5e6;
 	font-size: 11px;
-	font-weight: 900;
+	font-weight: black;
 	letter-spacing: 0px;
 	text-align: center;
 	vertical-align: center;
@@ -652,10 +805,10 @@
 
 .AnitaPresetOpenBtn
 {
-	width: 78px;
+	width: 76px;
 	height: 28px;
 	flow-children: right;
-	padding: 0px 7px;
+	padding: 0px 6px;
 	vertical-align: center;
 	background-color: gradient(linear, 0% 0%, 0% 100%, from(#76dca8), to(#3c8f62));
 	border: 1px solid rgba(126, 231, 171, 0.52);
@@ -671,11 +824,11 @@
 
 .AnitaPresetBundleBtn
 {
-	width: 92px;
+	width: 86px;
 	height: 28px;
 	flow-children: right;
-	padding: 0px 8px;
-	margin-left: 6px;
+	padding: 0px 7px;
+	margin-left: 5px;
 	vertical-align: center;
 	background-color: #2a3031;
 	border: 1px solid rgba(102, 204, 153, 0.35);
@@ -696,7 +849,7 @@
 	width: fill-parent-flow(1.0);
 	color: #0f1713;
 	font-size: 11px;
-	font-weight: 900;
+	font-weight: black;
 	letter-spacing: 0px;
 	text-align: center;
 	vertical-align: center;
@@ -708,7 +861,7 @@
 	width: fill-parent-flow(1.0);
 	color: #f0f2f2;
 	font-size: 10px;
-	font-weight: 900;
+	font-weight: black;
 	letter-spacing: 0px;
 	text-align: center;
 	vertical-align: center;
@@ -717,9 +870,9 @@
 
 .AnitaPresetBtnIcon
 {
-	width: 14px;
-	height: 14px;
-	margin-right: 6px;
+	width: 13px;
+	height: 13px;
+	margin-right: 5px;
 	vertical-align: middle;
 	background-size: contain;
 	background-position: 50% 50%;
@@ -737,6 +890,14 @@
 .AnitaPresetBtnIconCopy
 {
 	background-image: url("s2r://panorama/images/icons/icon_copy.vsvg");
+}
+
+.AnitaPresetBtnIconTrash
+{
+	margin-right: 0px;
+	background-image: url("s2r://panorama/images/icons/delete_trash.vsvg");
+	background-texture-size: 18px 18px;
+	wash-color: #f2b8b8;
 }
 
 .AnitaPresetOpenBtn .AnitaPresetBtnIcon
@@ -804,7 +965,7 @@
 	margin-bottom: 2px;
 	color: rgba(224, 239, 232, 0.72);
 	font-size: 9px;
-	font-weight: 800;
+	font-weight: bold;
 	text-transform: uppercase;
 	text-overflow: shrink;
 }
@@ -834,14 +995,14 @@
 	width: 100%;
 	margin-top: 2px;
 	color: rgba(224, 239, 232, 0.58);
-	font-size: 9px;
+	font-size: 10px;
 	text-overflow: shrink;
 }
 
 .AnitaPresetAddBtn
 {
-	width: 118px;
-	height: 34px;
+	width: 112px;
+	height: 32px;
 	vertical-align: center;
 	background-color: #2a3031;
 	border: 1px solid rgba(102, 204, 153, 0.40);
@@ -862,7 +1023,7 @@
 	width: 100%;
 	color: #dff5e6;
 	font-size: 10px;
-	font-weight: 900;
+	font-weight: black;
 	text-align: center;
 	vertical-align: center;
 	text-transform: uppercase;
@@ -875,7 +1036,7 @@
 	height: 18px;
 	color: #f0f2f2;
 	font-size: 11px;
-	font-weight: 800;
+	font-weight: bold;
 	letter-spacing: 1px;
 	text-transform: uppercase;
 	vertical-align: center;
@@ -892,10 +1053,10 @@
 .AnitaPresetRow
 {
 	width: 100%;
-	min-height: 43px;
+	height: 56px;
 	flow-children: right;
 	margin-bottom: 5px;
-	padding: 6px 8px 6px 10px;
+	padding: 6px 7px 6px 10px;
 	background-color: rgba(255, 255, 255, 0.028);
 	border: 1px solid rgba(255, 255, 255, 0.055);
 	border-radius: 4px;
@@ -919,17 +1080,21 @@
 .AnitaPresetRowText
 {
 	width: fill-parent-flow(1.0);
-	height: fit-children;
+	height: 34px;
 	flow-children: down;
 	vertical-align: center;
+	margin-right: 7px;
 }
 
 .AnitaPresetRowName
 {
+	width: 100%;
+	height: 17px;
 	color: #f0f2f2;
 	font-size: 13px;
-	font-weight: 700;
-	margin-bottom: 1px;
+	font-weight: bold;
+	margin-bottom: 2px;
+	text-overflow: shrink;
 }
 
 .AnitaPresetRowName.Editable:hover
@@ -948,7 +1113,7 @@
 	border-radius: 3px;
 	color: #f0f2f2;
 	font-size: 13px;
-	font-weight: 700;
+	font-weight: bold;
 	text-overflow: shrink;
 }
 
@@ -959,6 +1124,8 @@
 
 .AnitaPresetRowMeta
 {
+	width: 100%;
+	height: 13px;
 	color: #7f8a8d;
 	font-size: 10px;
 	text-overflow: shrink;
@@ -966,10 +1133,10 @@
 
 .AnitaPresetHeroSelector
 {
-	width: 224px;
+	width: 204px;
 	height: 30px;
 	vertical-align: center;
-	margin-left: 6px;
+	margin-left: 5px;
 	flow-children: right;
 	overflow: noclip;
 }
@@ -1048,7 +1215,7 @@
 	vertical-align: center;
 	color: #bff2d6;
 	font-size: 10px;
-	font-weight: 800;
+	font-weight: bold;
 	text-align: center;
 	text-overflow: shrink;
 	text-transform: uppercase;
@@ -1083,7 +1250,7 @@
 	background-color: transparent;
 	color: #d5e7df;
 	font-size: 16px;
-	font-weight: 900;
+	font-weight: black;
 	text-align: center;
 	vertical-align: center;
 }
@@ -1125,7 +1292,7 @@
 	background-color: rgba(255, 255, 255, 0.015);
 	color: #edf4f1;
 	font-size: 11px;
-	font-weight: 700;
+	font-weight: bold;
 	text-overflow: shrink;
 }
 
@@ -1171,7 +1338,7 @@
 	vertical-align: center;
 	color: #bff2d6;
 	font-size: 7px;
-	font-weight: 900;
+	font-weight: black;
 	text-align: center;
 	text-overflow: shrink;
 }
@@ -1202,7 +1369,7 @@
 	margin-top: 0px;
 	color: #edf4f1;
 	font-size: 11px;
-	font-weight: 700;
+	font-weight: bold;
 	text-overflow: shrink;
 }
 
@@ -1213,7 +1380,7 @@
 	margin-left: 4px;
 	color: #8ee4ad;
 	font-size: 12px;
-	font-weight: 900;
+	font-weight: black;
 	text-align: center;
 	visibility: collapse;
 	vertical-align: center;
@@ -1226,15 +1393,15 @@
 
 .AnitaPresetHeroSummary
 {
-	width: 100px;
+	width: 86px;
 	height: fit-children;
-	margin-left: 6px;
+	margin-left: 5px;
 	margin-top: 0px;
 	padding-top: 0px;
 	vertical-align: center;
 	color: #aebcba;
 	font-size: 10px;
-	font-weight: 700;
+	font-weight: bold;
 	text-overflow: shrink;
 }
 
@@ -1258,7 +1425,7 @@
 	width: fill-parent-flow(1.0);
 	color: #edf4f1;
 	font-size: 11px;
-	font-weight: 700;
+	font-weight: bold;
 	vertical-align: center;
 	text-overflow: shrink;
 }
@@ -1268,17 +1435,76 @@
 	width: 22px;
 	color: #8ee4ad;
 	font-size: 9px;
-	font-weight: 900;
+	font-weight: black;
 	text-align: right;
+	vertical-align: center;
+}
+
+.AnitaPresetPriorityBtns
+{
+	width: 22px;
+	height: 30px;
+	margin-left: 4px;
+	flow-children: down;
+	vertical-align: center;
+	background-color: transparent;
+	border: 0px solid transparent;
+	overflow: noclip;
+}
+
+.AnitaPresetPriorityBtn
+{
+	width: 100%;
+	height: 14px;
+	margin: 0px 0px 2px 0px;
+	padding: 0px;
+	background-color: rgba(255, 255, 255, 0.10);
+	border: 1px solid rgba(196, 226, 214, 0.22);
+	border-radius: 3px;
+	vertical-align: center;
+}
+
+.AnitaPresetPriorityUpBtn
+{
+	margin-bottom: 2px;
+}
+
+.AnitaPresetPriorityBtn:hover
+{
+	background-color: rgba(102, 204, 153, 0.20);
+	border-color: rgba(138, 235, 176, 0.58);
+}
+
+.AnitaPresetPriorityBtn.Disabled
+{
+	opacity: 0.20;
+	background-color: transparent;
+	border-color: rgba(255, 255, 255, 0.04);
+}
+
+.AnitaPresetPriorityBtn.Disabled Label
+{
+	color: rgba(213, 231, 223, 0.34);
+}
+
+.AnitaPresetPriorityBtn Label
+{
+	width: 100%;
+	height: fit-children;
+	color: #d5e7df;
+	font-size: 9px;
+	font-weight: black;
+	margin-top: 0px;
+	text-align: center;
 	vertical-align: center;
 }
 
 .AnitaPresetCopyBtn
 {
-	width: 78px;
+	width: 72px;
 	height: 28px;
 	flow-children: right;
-	padding: 0px 8px;
+	padding: 0px 7px;
 	vertical-align: center;
 	background-color: #2a3031;
 	border: 1px solid rgba(255, 255, 255, 0.07);
@@ -1299,12 +1525,48 @@
 	height: fit-children;
 	color: #f0f2f2;
 	font-size: 10px;
-	font-weight: 800;
+	font-weight: bold;
 	letter-spacing: 0px;
 	margin-top: 0px;
 	text-align: center;
 	vertical-align: center;
 	text-transform: uppercase;
+}
+
+.AnitaPresetDeleteBtn
+{
+	width: 28px;
+	height: 28px;
+	margin-left: 5px;
+	padding: 0px;
+	vertical-align: center;
+	background-color: transparent;
+	border: 1px solid rgba(255, 139, 139, 0.08);
+	border-radius: 4px;
+	opacity: 0.62;
+	transition-property: background-color, border-color, brightness, opacity;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetDeleteBtn:hover
+{
+	background-color: rgba(124, 42, 47, 0.72);
+	border-color: rgba(255, 160, 160, 0.66);
+	brightness: 1.08;
+	opacity: 1.0;
+}
+
+.AnitaPresetDeleteBtn .AnitaPresetBtnIcon
+{
+	horizontal-align: center;
+	vertical-align: center;
+	margin-right: 0px;
+	wash-color: rgba(255, 160, 160, 0.56);
+}
+
+.AnitaPresetDeleteBtn:hover .AnitaPresetBtnIconTrash
+{
+	wash-color: #fff2f2;
 }
 
 .AnitaRow
@@ -1321,7 +1583,7 @@
 	color: #e5ebeb;
 	vertical-align: center;
 	letter-spacing: 0.5px;
-	font-weight: 500;
+	font-weight: medium;
 	width: 240px;
 	margin-right: 10px;
 }
@@ -1354,14 +1616,14 @@
 	background-color: #0f1213;
 	border-radius: 3px;
 	align: left center;
-	transition-property: background-color, border-color, transform, box-shadow;
+	transition-property: background-color, border-color, pre-transform-scale2d, box-shadow;
 	transition-duration: 0.12s;
 }
 
 .AnitaCheckBox:hover
 {
 	border: 1px solid #a9b3b5;
-	transform: scale3d(1.03, 1.03, 1.0);
+	pre-transform-scale2d: 1.03;
 	border-radius: 4px;
 }
 
@@ -1372,9 +1634,9 @@
 	align: center center;
 	background-color: #66cc99;
 	opacity: 0;
-	transform: scale3d(0.5, 0.5, 1);
+	pre-transform-scale2d: 0.5;
 	border-radius: 1px;
-	transition-property: opacity, transform, box-shadow, background-color;
+	transition-property: opacity, pre-transform-scale2d, box-shadow, background-color;
 	transition-duration: 0.1s;
 }
 
@@ -1388,7 +1650,7 @@
 .AnitaToggleRow.Checked .AnitaCheckMark
 {
 	opacity: 1;
-	transform: scale3d(1, 1, 1);
+	pre-transform-scale2d: 1;
 	box-shadow: 0px 0px 8px rgba(102, 204, 153, 0.55);
 }
 
@@ -1443,7 +1705,7 @@
 	width: 72px;
 	color: #e4e8e8;
 	font-size: 16px;
-	font-weight: 600;
+	font-weight: semi-bold;
 	letter-spacing: 1px;
 	text-align: center;
 }
@@ -1493,7 +1755,7 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	border-radius: 50%;
 	vertical-align: center;
 	box-shadow: fill rgba(0, 0, 0, 0.55) 0px 0px 5px 0px;
-	transition-property: box-shadow, transform, background-color, border-color;
+	transition-property: box-shadow, pre-transform-scale2d, background-color, border-color;
 	transition-duration: 0.16s;
 }
 
@@ -1506,7 +1768,7 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 {
 	background-color: #66cc99;
 	box-shadow: fill rgba(102, 204, 153, 0.7) 0px 0px 8px 0px;
-	transform: scale3d(1.15, 1.15, 1.0);
+	pre-transform-scale2d: 1.15;
 }
 
 .AnitaStepBtn
@@ -1516,7 +1778,7 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	background-color: gradient(linear, 0% 0%, 0% 100%, from(#2f3335), to(#232728));
 	border: 1px solid #4d5556;
 	border-radius: 3px;
-	transition-property: background-color, border-color, transform, wash-color;
+	transition-property: background-color, border-color, pre-transform-scale2d, wash-color;
 	transition-duration: 0.1s;
 }
 
@@ -1540,7 +1802,7 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	text-align: center;
 	height: 60%;
 	margin-bottom: 2.5px;
-	font-weight: 700;
+	font-weight: bold;
 }
 
 #less
@@ -1584,7 +1846,7 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	background-color: gradient(linear, 0% 0%, 0% 100%, from(#2f3335), to(#232728));
 	border: 1px solid #4d5556;
 	margin-bottom: 12px;
-	transition-property: background-color, border-color, transform, wash-color;
+	transition-property: background-color, border-color, pre-transform-scale2d, wash-color;
 	transition-duration: 0.1s;
 }
 
@@ -1599,7 +1861,7 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	color: #f3f6f6;
 	text-transform: uppercase;
 	letter-spacing: 1px;
-	font-weight: 600;
+	font-weight: semi-bold;
 }
 
 .AnitaActionBtn:active
@@ -1655,7 +1917,7 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	text-align: center;
 	color: #97a0a2;
 	font-size: 14px;
-	font-weight: 600;
+	font-weight: semi-bold;
 	letter-spacing: 1px;
 }
 
@@ -1690,7 +1952,7 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	opacity: 0;
 	tooltip-position: bottom;
 	pre-transform-rotate2d: 0deg;
-	transition-property: wash-color, opacity, transform, pre-transform-rotate2d;
+	transition-property: wash-color, opacity, pre-transform-scale2d, pre-transform-rotate2d;
 	transition-duration: 0.15s, 0.15s, 0.15s, 0.45s;
 	transition-timing-function: cubic-bezier(0.785, 0.385, 0.555, 1.505);
 }
@@ -1698,7 +1960,7 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 .AnitaOverlayBtn.Visible
 {
 	opacity: 0.3;
-	transform: scale3d(1.2, 1.2, 1);
+	pre-transform-scale2d: 1.2;
 }
 
 .AnitaOverlayBtn:hover
@@ -1727,21 +1989,21 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	height: 30px;
 	border: 1px solid #303638;
 	border-radius: 2px;
-	transition-property: border-color, transform, box-shadow, background-color;
+	transition-property: border-color, pre-transform-scale2d, box-shadow, background-color;
 	transition-duration: 0.1s;
 }
 
 .AnitaColorPickerPreview:hover
 {
 	border: 1px solid #c3cdce;
-	transform: scale3d(1.03, 1.03, 1.0);
+	pre-transform-scale2d: 1.03;
 	border-radius: 4px;
 	box-shadow: fill rgba(102, 204, 153, 0.18) 0px 0px 8px 0px;
 }
 
 .AnitaColorPickerPreview:active
 {
-	transform: scale3d(0.97, 0.97, 1.0);
+	pre-transform-scale2d: 0.97;
 }
 
 .AnitaPopupHost
@@ -1751,6 +2013,36 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	align: left top;
 	overflow: noclip;
 	z-index: 10050;
+}
+
+.AnitaPresetLocalTooltip
+{
+	width: fit-children;
+	max-width: 260px;
+	height: fit-children;
+	padding: 6px 8px;
+	background-color: rgba(14, 17, 18, 0.98);
+	border: 1px solid rgba(102, 204, 153, 0.36);
+	border-radius: 4px;
+	ignore-parent-flow: true;
+	align: left top;
+	flow-children: right;
+	z-index: 10090;
+	opacity: 0;
+	box-shadow: rgba(0, 0, 0, 0.28) 0px 4px 12px 0px;
+	transition-property: opacity;
+	transition-duration: 0.06s;
+}
+
+.AnitaPresetLocalTooltipLabel
+{
+	width: fit-children;
+	max-width: 244px;
+	height: fit-children;
+	color: #dce9e3;
+	font-size: 11px;
+	font-weight: bold;
+	text-overflow: shrink;
 }
 
 .AnitaColorPopup
@@ -1788,7 +2080,7 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	vertical-align: center;
 	color: #f0f2f2;
 	font-size: 14px;
-	font-weight: 500;
+	font-weight: medium;
 	letter-spacing: 1px;
 	text-transform: uppercase;
 }
@@ -1878,7 +2170,7 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	ignore-parent-flow: true;
 	z-index: 4;
 	pre-transform-scale2d: 1;
-	transition-property: pre-transform-scale2d, background-color, wash-color, box-shadow, border-color;
+	transition-property: pre-pre-transform-scale2d-scale2d, background-color, wash-color, box-shadow, border-color;
 	transition-duration: 0.08s;
 	opacity: 1;
 	visibility: visible;
@@ -1965,7 +2257,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider #SliderThumb,
 	border-radius: 4px;
 	vertical-align: center;
 	box-shadow: fill rgba(0, 0, 0, 0.5) 0px 0px 6px 0px;
-	transition-property: background-color, box-shadow, transform;
+	transition-property: background-color, box-shadow, pre-transform-scale2d;
 	transition-duration: 0.12s;
 }
 
@@ -1980,7 +2272,7 @@ Slider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 .AnitaHueSlider:active .SliderThumb
 {
-	transform: scale3d(1.06, 1.06, 1.0);
+	pre-transform-scale2d: 1.06;
 }
 
 .AnitaHueValue
@@ -1989,7 +2281,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 	vertical-align: center;
 	color: #ccc;
 	font-size: 16px;
-	font-weight: 500;
+	font-weight: medium;
 	letter-spacing: 1px;
 	text-align: center;
 }
@@ -2075,7 +2367,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 	background-color: gradient(linear, 0% 0%, 0% 100%, from(#2f3335), to(#232728));
 	border: 1px solid #4d5556;
 	border-radius: 4px;
-	transition-property: background-color, border-color, transform;
+	transition-property: background-color, border-color, pre-transform-scale2d;
 	transition-duration: 0.1s;
 }
 
@@ -2092,7 +2384,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 	font-size: 11px;
 	text-transform: uppercase;
 	letter-spacing: 1px;
-	font-weight: 600;
+	font-weight: semi-bold;
 }
 
 .AnitaImportPopup
@@ -2122,7 +2414,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 {
 	color: #f0f2f2;
 	font-size: 18px;
-	font-weight: 700;
+	font-weight: bold;
 	letter-spacing: 1.5px;
 	text-transform: uppercase;
 }
@@ -2157,7 +2449,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 	height: fit-children;
 	color: #d9dfdf;
 	font-size: 13px;
-	font-weight: 700;
+	font-weight: bold;
 	margin-top: 0px;
 	text-align: center;
 	vertical-align: center;
@@ -2188,7 +2480,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 	margin-left: 8px;
 	color: #ddd;
 	font-size: 14px;
-	font-weight: 500;
+	font-weight: medium;
 	letter-spacing: 1px;
 	text-transform: uppercase;
 }
@@ -2248,7 +2540,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 	font-size: 9px;
 	text-transform: uppercase;
 	letter-spacing: 0px;
-	font-weight: 600;
+	font-weight: semi-bold;
 	margin-top: 1px;
 	text-align: center;
 	vertical-align: center;
@@ -2258,7 +2550,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 {
 	color: #f2fff7;
 	font-size: 13px;
-	font-weight: 800;
+	font-weight: bold;
 }
 
 .AnitaFooterBtnSuccess Label
@@ -2324,7 +2616,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 	width: 100%;
 	height: fit-children;
 	font-size: 13px;
-	font-weight: 700;
+	font-weight: bold;
 	letter-spacing: 1.5px;
 	margin-top: 0px;
 	text-align: center;

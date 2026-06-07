@@ -1,0 +1,2642 @@
+/* Prettified by Source 2 Viewer 17.0.0.0 - https://valveresourceformat.github.io */
+
+@keyframes 'AnitaAttention'
+{
+	0%
+	{
+		wash-color: #3c6d4a;
+	}
+	
+	100%
+	{
+		wash-color: #284a2f;
+	}
+	
+}
+
+@keyframes 'AnitaDonateSoulWiggle'
+{
+	0%
+	{
+		transform: rotateZ(-6deg);
+	}
+	
+	50%
+	{
+		transform: rotateZ(7deg);
+	}
+	
+	100%
+	{
+		transform: rotateZ(-4deg);
+	}
+}
+
+
+.AnitaBackdrop
+{
+	width: 0px;
+	height: 0px;
+	z-index: 9998;
+	background-color: gradient(radial, 50% 30%, 0% 0%, 100% 100%, from(rgba(8, 12, 14, 0.18)), color-stop(0.55, rgba(4, 6, 8, 0.58)), to(rgba(0, 0, 0, 0.88)));
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.2s;
+}
+
+.AnitaBackdrop.Open
+{
+	width: 100%;
+	height: 100%;
+	opacity: 1;
+}
+
+.AnitaWindow
+{
+	width: 880px;
+	height: 50%;
+	border: 1px solid rgba(255, 255, 255, 0.04);
+	align: center center;
+	border-radius: 8px;
+	background-color: #111315;
+	background-color: gradient(radial, 50% 28%, -5% -5%, 92% 88%, from(#252a27), color-stop(0.55, #181b1a), to(#111315));
+	box-shadow: rgba(0, 0, 0, 0.64) 0px 0px 42px 0px;
+	flow-children: down;
+	z-index: 9999;
+	opacity: 0;
+	pre-transform-scale2d: 0.95;
+	transition-property: opacity, pre-transform-scale2d;
+	transition-duration: 0.2s;
+}
+
+.AnitaWindow.Open
+{
+	opacity: 1;
+	pre-transform-scale2d: 1;
+}
+
+.AnitaContentArea
+{
+	width: 100%;
+	height: fill-parent-flow(1.0);
+	padding: 12px 20px 12px 20px;
+	overflow: clip;
+}
+
+.ModContainer
+{
+	width: 100%;
+	height: 100%;
+	flow-children: down;
+}
+
+.AnitaSettingsShell
+{
+	width: 100%;
+	height: fill-parent-flow(1.0);
+	flow-children: right;
+	margin-top: 4px;
+}
+
+.AnitaTreePanel
+{
+	width: 240px;
+	height: 100%;
+	flow-children: down;
+	padding: 10px 8px 8px 0px;
+	margin-right: 18px;
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(rgba(17, 19, 21, 0.00)), color-stop(0.68, rgba(17, 19, 21, 0.00)), color-stop(0.90, rgba(17, 19, 21, 0.38)), to(rgba(12, 14, 15, 0.72)));
+	border-right: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.AnitaTreeHeader
+{
+	margin-bottom: 8px;
+	color: #7d8688;
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 2px;
+}
+
+.AnitaTreeList
+{
+	width: 100%;
+	height: fill-parent-flow(1.0);
+	flow-children: down;
+	overflow: squish scroll;
+	margin-bottom: 12px;
+	padding-right: 8px;
+	padding-bottom: 34px;
+}
+
+.AnitaTreeFooter
+{
+	width: 100%;
+	height: fit-children;
+	flow-children: down;
+	padding-top: 12px;
+	padding-bottom: 4px;
+	border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.AnitaMainCategoryBtn
+{
+	width: 100%;
+	height: 38px;
+	padding: 0px 12px;
+	margin-top: 12px;
+	margin-bottom: 2px;
+	background-color: transparent;
+	border-radius: 4px;
+	transition-property: background-color, pre-transform-scale2d;
+	transition-duration: 0.12s;
+}
+
+.AnitaMainCategoryBtn:hover
+{
+	background-color: rgba(255, 255, 255, 0.04);
+}
+
+.AnitaMainCategoryBtn.Active
+{
+	background-color: #66cc99;
+}
+
+.AnitaMainCategoryLabel
+{
+	width: fill-parent-flow(1.0);
+	color: #a2abae;
+	font-size: 18px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	vertical-align: center;
+	transition-property: color;
+	transition-duration: 0.12s;
+}
+
+.AnitaMainCategoryBtn.Active .AnitaMainCategoryLabel
+{
+	color: #111315;
+	text-shadow: 0px 0px 4px rgba(255, 255, 255, 0.3);
+}
+
+.AnitaSubCategoryBtn
+{
+	width: 100%;
+	height: 34px;
+	padding: 0px 12px 0px 24px;
+	margin-bottom: 2px;
+	background-color: transparent;
+	border-radius: 4px;
+	border-left: 2px solid transparent;
+	flow-children: right;
+	transition-property: background-color, border-color, pre-transform-scale2d;
+	transition-duration: 0.12s;
+}
+
+.AnitaSubCategoryBtn:hover
+{
+	background-color: rgba(255, 255, 255, 0.04);
+	transform: translateX(2px);
+}
+
+.AnitaSubCategoryBtn.Active
+{
+	background-color: rgba(255, 255, 255, 0.06);
+	border-left: 2px solid #66cc99;
+}
+
+.AnitaSubCategoryLabel
+{
+	width: fill-parent-flow(1.0);
+	color: #8c9699;
+	font-size: 15px;
+	font-weight: medium;
+	letter-spacing: 0.5px;
+	vertical-align: center;
+	transition-property: color;
+	transition-duration: 0.12s;
+}
+
+.AnitaSubCategoryBtn:hover .AnitaSubCategoryLabel
+{
+	color: #cfd4d5;
+}
+
+.AnitaSubCategoryBtn.Active .AnitaSubCategoryLabel
+{
+	color: #ffffff;
+	font-weight: semi-bold;
+}
+
+.AnitaSubCategoryCount
+{
+	color: #555e61;
+	font-size: 12px;
+	font-weight: medium;
+	vertical-align: center;
+	text-align: right;
+	padding-left: 8px;
+}
+
+.AnitaSubCategoryBtn.Active .AnitaSubCategoryCount
+{
+	color: #66cc99;
+}
+
+.AnitaPresetMainCategoryBtn
+{
+	margin-top: 22px;
+	border-top: 1px solid rgba(255, 255, 255, 0.055);
+	padding-top: 8px;
+	height: 44px;
+}
+
+.AnitaPresetMainCategoryBtn .AnitaMainCategoryLabel
+{
+	color: #66cc99;
+	font-size: 20px;
+	font-weight: bold;
+}
+
+.AnitaPresetMainCategoryBtn.Active
+{
+	background-color: #66cc99;
+}
+
+.AnitaPresetMainCategoryBtn.Active .AnitaMainCategoryLabel
+{
+	color: #14110b;
+}
+
+.AnitaPresetSubCategoryBtn.Active
+{
+	border-left: 2px solid #66cc99;
+}
+
+.AnitaPresetSubCategoryBtn.Active .AnitaSubCategoryCount
+{
+	color: #66cc99;
+}
+
+.AnitaDetailPanel
+{
+	width: fill-parent-flow(1.0);
+	height: 100%;
+	flow-children: down;
+	overflow: clip;
+}
+
+.AnitaDetailBody
+{
+	width: 100%;
+	height: fill-parent-flow(1.0);
+	flow-children: down;
+	overflow: clip;
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(rgba(17, 19, 21, 0.00)), color-stop(0.70, rgba(17, 19, 21, 0.00)), color-stop(0.91, rgba(17, 19, 21, 0.34)), to(rgba(10, 12, 13, 0.66)));
+}
+
+.AnitaDetailHeaderRow
+{
+	width: 100%;
+	flow-children: right;
+	margin-bottom: 2px;
+}
+
+.AnitaDetailHeader
+{
+	width: fill-parent-flow(1.0);
+	color: #f0f2f2;
+	font-size: 17px;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+}
+
+.AnitaHeaderActions
+{
+	height: 38px;
+	flow-children: right;
+	vertical-align: center;
+	horizontal-align: right;
+}
+
+.AnitaHeaderActionBtn
+{
+	width: 58px;
+	height: 32px;
+	margin-left: 8px;
+	background-color: #1c2424;
+	border: 1px solid rgba(255, 255, 255, 0.07);
+	border-radius: 5px;
+	transition-property: background-color, border-color, pre-transform-scale2d;
+	transition-duration: 0.1s;
+}
+
+.AnitaHeaderActionBtn:hover
+{
+	background-color: #263230;
+	border-color: rgba(102, 204, 153, 0.45);
+	transform: translateY(-1px);
+}
+
+.AnitaHeaderActionBtn Label
+{
+	width: 100%;
+	color: #f0f3f3;
+	font-size: 12px;
+	font-weight: bold;
+	letter-spacing: 0px;
+	text-align: center;
+	vertical-align: center;
+	text-transform: uppercase;
+}
+
+.AnitaHeaderActionBtnSuccess Label
+{
+	color: #7fffaf;
+}
+
+.AnitaDetailHint
+{
+	margin-bottom: 12px;
+	color: #667072;
+	font-size: 12px;
+}
+
+.AnitaSettingsList
+{
+	width: 100%;
+	height: fill-parent-flow(1.0);
+	flow-children: down;
+	overflow: squish scroll;
+	padding-right: 16px;
+	padding-bottom: 40px;
+	margin-bottom: 8px;
+}
+
+.AnitaWindow VerticalScrollBar
+{
+	width: 6px;
+	background-color: rgba(255, 255, 255, 0.04);
+	opacity: 1;
+	transition-property: pre-transform-scale2d;
+	transition-duration: 0.15s;
+}
+
+.AnitaWindow VerticalScrollBar #ScrollThumb
+{
+	background-color: rgba(255, 255, 255, 0.28);
+	border-radius: 3px;
+	transition-property: background-color;
+	transition-duration: 0.1s;
+}
+
+.AnitaWindow VerticalScrollBar:hover #ScrollThumb
+{
+	background-color: rgba(102, 204, 153, 0.55);
+}
+
+.AnitaNavBar
+{
+	width: 100%;
+	height: 40px;
+	background-color: gradient(linear, 0% 0%, 100% 0%, from(rgba(8, 10, 11, 0.95)), color-stop(0.55, rgba(18, 21, 22, 0.9)), to(rgba(8, 10, 11, 0.94)));
+	border-bottom: 1px solid rgba(255, 255, 255, 0.035);
+	flow-children: right;
+}
+
+.AnitaTabContainer
+{
+	height: 100%;
+	flow-children: right;
+	vertical-align: center;
+}
+
+.AnitaTabSeparator
+{
+	margin-left: 14px;
+	margin-right: 14px;
+	font-size: 20px;
+	color: #939da022;
+	vertical-align: center;
+}
+
+.AnitaCloseBtn
+{
+	width: 26px;
+	height: 26px;
+	background-image: url("s2r://panorama/images/control_icons/x_close.vsvg");
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	horizontal-align: right;
+	vertical-align: center;
+	margin-left: 14px;
+	margin-right: 12px;
+	wash-color: #e64949;
+	transition-property: wash-color, pre-transform-scale2d;
+	transition-duration: 0.1s;
+}
+
+.AnitaCloseBtn:hover
+{
+	wash-color: #ff6b6b;
+	pre-transform-scale2d: 1.1;
+}
+
+.AnitaCloseBtn:active
+{
+	wash-color: #aa2e2e;
+	pre-transform-scale2d: 0.9;
+}
+
+.AnitaTabBtn
+{
+	height: 40px;
+	margin-right: 8px;
+	padding: 0px 12px;
+	background-color: rgba(255, 255, 255, 0.02);
+	border: 1px solid rgba(255, 255, 255, 0.03);
+	border-radius: 4px;
+	transition-property: background-color, border-color, pre-transform-scale2d;
+	transition-duration: 0.1s;
+}
+
+.AnitaTabBtn Label
+{
+	color: #b0b6b8;
+	font-size: 20px;
+	vertical-align: middle;
+	text-transform: uppercase;
+	letter-spacing: 2px;
+	text-align: center;
+	font-weight: semi-bold;
+}
+
+.AnitaTabBtn:hover Label
+{
+	color: #f0f2f2;
+}
+
+.AnitaTabBtn:hover
+{
+	background-color: rgba(255, 255, 255, 0.05);
+	border-color: rgba(255, 255, 255, 0.08);
+}
+
+.AnitaTabBtn.Active Label
+{
+	color: white;
+	text-shadow: 0px 0px 10px rgba(102, 204, 153, 0.18);
+}
+
+.AnitaTabBtn:active
+{
+	transform: translateY(1px);
+	background-color: rgba(68, 153, 102, 0.16);
+	border-color: rgba(102, 204, 153, 0.18);
+}
+
+.SectionHeader
+{
+	font-size: 20px;
+	font-weight: bold;
+	color: #66cc99;
+	text-transform: uppercase;
+	letter-spacing: 1.5px;
+}
+
+.SectionHeaderLine
+{
+	height: 2px;
+	width: 100%;
+	margin-top: 2px;
+	margin-bottom: 8px;
+	background-color: rgba(102, 204, 153, 0.16);
+}
+
+.ModDescription
+{
+	color: #97a0a2;
+	font-size: 14px;
+	opacity: 0.95;
+	margin-bottom: 14px;
+	max-width: 580px;
+	line-height: 1.45;
+}
+
+.AnitaDonateBtn
+{
+	width: 126px;
+	height: 34px;
+	horizontal-align: right;
+	vertical-align: top;
+	ignore-parent-flow: true;
+	margin-top: 4px;
+	margin-right: 8px;
+	flow-children: right;
+	padding: 0px 12px;
+	background-color: rgba(24, 27, 25, 0.72);
+	border: 1px solid rgba(255, 211, 116, 0.18);
+	border-radius: 5px;
+	transition-property: background-color, border-color, box-shadow, brightness, pre-transform-scale2d;
+	transition-duration: 0.14s;
+}
+
+.AnitaDonateBtn:hover
+{
+	background-color: rgba(48, 38, 20, 0.92);
+	border-color: rgba(255, 203, 88, 0.78);
+	box-shadow: rgba(255, 196, 97, 0.34) 0px 0px 12px 0px;
+	brightness: 1.12;
+}
+
+.AnitaDonateBtn:active
+{
+	pre-transform-scale2d: 0.97;
+}
+
+.AnitaDonateIcon
+{
+	width: 18px;
+	height: 18px;
+	margin-right: 7px;
+	vertical-align: center;
+	background-image: url("s2r://materials/particle/ui/ui_icon_soul.vtex_c");
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	background-texture-size: 20px 20px;
+	wash-color: #f4d47b;
+	img-shadow: 0px 0px 6px 1.0 rgba(255, 190, 78, 0.35);
+	transition-property: wash-color, brightness;
+	transition-duration: 0.12s;
+}
+
+.AnitaDonateBtn:hover .AnitaDonateIcon
+{
+	wash-color: #ffd978;
+	brightness: 1.35;
+	animation-name: AnitaDonateSoulWiggle;
+	animation-duration: 0.36s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+	animation-direction: alternate;
+}
+
+.AnitaDonateBtn Label
+{
+	width: fill-parent-flow(1.0);
+	color: #f5e5b5;
+	font-size: 11px;
+	font-weight: black;
+	letter-spacing: 0.4px;
+	text-transform: uppercase;
+	text-align: center;
+	vertical-align: center;
+}
+
+.AnitaPresetNotice
+{
+	width: 100%;
+	height: 34px;
+	margin-bottom: 10px;
+	padding: 0px 8px 0px 12px;
+	flow-children: right;
+	background-color: rgba(255, 255, 255, 0.045);
+	border: 1px solid rgba(255, 255, 255, 0.09);
+	border-radius: 4px;
+}
+
+.AnitaPresetNoticeText
+{
+	width: fill-parent-flow(1.0);
+	color: #d6dcdd;
+	font-size: 13px;
+	font-weight: semi-bold;
+	vertical-align: center;
+}
+
+.AnitaPresetNoticeBtn
+{
+	width: 74px;
+	height: 24px;
+	padding: 0px;
+	vertical-align: center;
+	background-color: #3a4244;
+	border: 1px solid rgba(255, 255, 255, 0.10);
+	border-radius: 3px;
+	transition-property: background-color, border-color;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetNoticeBtn:hover
+{
+	background-color: #4a5457;
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+.AnitaPresetNoticeBtn Label
+{
+	width: 100%;
+	color: #f0f3f3;
+	font-size: 11px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	text-align: center;
+	vertical-align: center;
+	text-transform: uppercase;
+	margin-top: 1px;
+}
+
+.AnitaPresetBuilderPanel
+{
+	width: 100%;
+	height: fit-children;
+	flow-children: down;
+	padding: 0px 2px 12px 0px;
+}
+
+.AnitaPresetIntro
+{
+	width: 100%;
+	height: fit-children;
+	flow-children: down;
+	padding: 6px 8px 6px 8px;
+	margin-bottom: 4px;
+	background-color: rgba(255, 255, 255, 0.028);
+	border: 1px solid rgba(255, 255, 255, 0.065);
+	border-radius: 4px;
+}
+
+.AnitaPresetTitleCol
+{
+	width: 100%;
+	height: fit-children;
+	flow-children: down;
+}
+
+.AnitaPresetKicker
+{
+	color: #66cc99;
+	font-size: 10px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	margin-bottom: 0px;
+}
+
+.AnitaPresetTitleRow
+{
+	width: 100%;
+	height: 32px;
+	flow-children: right;
+	margin-bottom: 2px;
+}
+
+.AnitaPresetTitle
+{
+	width: fill-parent-flow(1.0);
+	color: #f5f1e2;
+	font-size: 17px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	vertical-align: center;
+}
+
+.AnitaPresetHeroOverrideBtn
+{
+	width: 88px;
+	height: 28px;
+	vertical-align: center;
+	margin-left: 5px;
+	background-color: #263233;
+	border: 1px solid rgba(102, 204, 153, 0.35);
+	border-radius: 4px;
+	transition-property: background-color, border-color, brightness;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetHeroOverrideBtn.Enabled
+{
+	background-color: rgba(91, 58, 30, 0.88);
+	border-color: rgba(255, 196, 97, 0.62);
+}
+
+.AnitaPresetHeroOverrideBtn.Off
+{
+	background-color: rgba(29, 31, 32, 0.76);
+	border-color: rgba(177, 185, 184, 0.20);
+}
+
+
+.AnitaPresetHeroOverrideBtn:hover
+{
+	background-color: #354042;
+	border-color: rgba(118, 220, 168, 0.75);
+	brightness: 1.10;
+}
+
+.AnitaPresetHeroOverrideBtn.Enabled:hover
+{
+	background-color: rgba(120, 76, 36, 0.96);
+	border-color: rgba(255, 213, 126, 0.78);
+}
+
+.AnitaPresetHeroOverrideBtn.Off:hover
+{
+	background-color: rgba(43, 46, 47, 0.92);
+	border-color: rgba(202, 212, 210, 0.38);
+}
+
+.AnitaPresetHeroOverrideBtn Label
+{
+	width: 100%;
+	color: #dff5e6;
+	font-size: 9px;
+	font-weight: black;
+	letter-spacing: 0px;
+	text-align: center;
+	vertical-align: center;
+	text-transform: uppercase;
+	text-overflow: shrink;
+}
+
+.AnitaPresetImportBtn
+{
+	width: 58px;
+	height: 28px;
+	vertical-align: center;
+	margin-left: 5px;
+	background-color: #2a3031;
+	border: 1px solid rgba(102, 204, 153, 0.45);
+	border-radius: 4px;
+	transition-property: background-color, border-color, brightness;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetImportBtn:hover
+{
+	background-color: #354042;
+	border-color: rgba(118, 220, 168, 0.75);
+	brightness: 1.12;
+}
+
+.AnitaPresetImportBtn Label
+{
+	width: 100%;
+	color: #dff5e6;
+	font-size: 11px;
+	font-weight: black;
+	letter-spacing: 0px;
+	text-align: center;
+	vertical-align: center;
+	text-transform: uppercase;
+}
+
+.AnitaPresetOpenBtn
+{
+	width: 76px;
+	height: 28px;
+	flow-children: right;
+	padding: 0px 6px;
+	vertical-align: center;
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(#76dca8), to(#3c8f62));
+	border: 1px solid rgba(126, 231, 171, 0.52);
+	border-radius: 5px;
+	transition-property: brightness;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetOpenBtn:hover
+{
+	brightness: 1.18;
+}
+
+.AnitaPresetBundleBtn
+{
+	width: 86px;
+	height: 28px;
+	flow-children: right;
+	padding: 0px 7px;
+	margin-left: 5px;
+	vertical-align: center;
+	background-color: #2a3031;
+	border: 1px solid rgba(102, 204, 153, 0.35);
+	border-radius: 5px;
+	transition-property: background-color, border-color, brightness;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetBundleBtn:hover
+{
+	background-color: #354042;
+	border-color: rgba(118, 220, 168, 0.70);
+	brightness: 1.10;
+}
+
+.AnitaPresetOpenBtn Label
+{
+	width: fill-parent-flow(1.0);
+	color: #0f1713;
+	font-size: 11px;
+	font-weight: black;
+	letter-spacing: 0px;
+	text-align: center;
+	vertical-align: center;
+	text-transform: uppercase;
+}
+
+.AnitaPresetBundleBtn Label
+{
+	width: fill-parent-flow(1.0);
+	color: #f0f2f2;
+	font-size: 10px;
+	font-weight: black;
+	letter-spacing: 0px;
+	text-align: center;
+	vertical-align: center;
+	text-transform: uppercase;
+}
+
+.AnitaPresetBtnIcon
+{
+	width: 13px;
+	height: 13px;
+	margin-right: 5px;
+	vertical-align: middle;
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	background-texture-size: 16px 16px;
+	wash-color: #f0fff6;
+	img-shadow: 0px 1px 1px 1.0 #00000033;
+}
+
+.AnitaPresetBtnIconOpen
+{
+	background-image: url("s2r://panorama/images/icons/arrow_diagonal.vsvg");
+}
+
+.AnitaPresetBtnIconCopy
+{
+	background-image: url("s2r://panorama/images/icons/icon_copy.vsvg");
+}
+
+.AnitaPresetBtnIconTrash
+{
+	margin-right: 0px;
+	background-image: url("s2r://panorama/images/icons/delete_trash.vsvg");
+	background-texture-size: 18px 18px;
+	wash-color: #f2b8b8;
+}
+
+.AnitaPresetOpenBtn .AnitaPresetBtnIcon
+{
+	wash-color: #0f1713;
+}
+
+.AnitaPresetStatusText
+{
+	width: fill-parent-flow(1.0);
+	margin-left: 8px;
+	color: #8f9a9c;
+	font-size: 11px;
+	vertical-align: center;
+	text-overflow: shrink;
+}
+
+.AnitaPresetStatusText.Good
+{
+	color: #8ed89d;
+}
+
+.AnitaPresetMetaRow
+{
+	width: 100%;
+	height: 18px;
+	flow-children: right;
+	margin-bottom: 3px;
+}
+
+.AnitaPresetFallbackUrl
+{
+	width: fill-parent-flow(1.0);
+	color: #66cc99;
+	font-size: 10px;
+	text-align: right;
+	vertical-align: center;
+	text-overflow: shrink;
+}
+
+.AnitaPresetCreateRow
+{
+	width: 100%;
+	height: 62px;
+	flow-children: right;
+	margin-bottom: 6px;
+	padding: 4px 6px;
+	background-color: rgba(102, 204, 153, 0.045);
+	border: 1px solid rgba(102, 204, 153, 0.16);
+	border-radius: 4px;
+}
+
+.AnitaPresetCreateTextCol
+{
+	width: fill-parent-flow(1.0);
+	height: 100%;
+	flow-children: down;
+	margin-right: 8px;
+}
+
+.AnitaPresetNameLabel
+{
+	width: 100%;
+	height: 13px;
+	margin-bottom: 2px;
+	color: rgba(224, 239, 232, 0.72);
+	font-size: 9px;
+	font-weight: bold;
+	text-transform: uppercase;
+	text-overflow: shrink;
+}
+
+.AnitaPresetNameInput
+{
+	width: 100%;
+	height: 26px;
+	padding: 5px 8px;
+	background-color: rgba(9, 12, 13, 0.48);
+	border: 1px solid rgba(255, 255, 255, 0.07);
+	border-radius: 3px;
+	color: #e9f1ef;
+	font-size: 12px;
+	transition-property: border-color, color;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetNameInput:focus
+{
+	border-color: rgba(102, 204, 153, 0.62);
+	color: #ffffff;
+}
+
+.AnitaPresetCreateHint
+{
+	width: 100%;
+	margin-top: 2px;
+	color: rgba(224, 239, 232, 0.58);
+	font-size: 10px;
+	text-overflow: shrink;
+}
+
+.AnitaPresetAddBtn
+{
+	width: 112px;
+	height: 32px;
+	vertical-align: center;
+	background-color: #2a3031;
+	border: 1px solid rgba(102, 204, 153, 0.40);
+	border-radius: 4px;
+	transition-property: background-color, border-color, brightness;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetAddBtn:hover
+{
+	background-color: #354042;
+	border-color: rgba(118, 220, 168, 0.70);
+	brightness: 1.08;
+}
+
+.AnitaPresetAddBtn Label
+{
+	width: 100%;
+	color: #dff5e6;
+	font-size: 10px;
+	font-weight: black;
+	text-align: center;
+	vertical-align: center;
+	text-transform: uppercase;
+	text-overflow: shrink;
+}
+
+.AnitaPresetListTitle
+{
+	width: 104px;
+	height: 18px;
+	color: #f0f2f2;
+	font-size: 11px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	vertical-align: center;
+}
+
+.AnitaPresetList
+{
+	width: 100%;
+	height: fit-children;
+	flow-children: down;
+	overflow: noclip;
+}
+
+.AnitaPresetRow
+{
+	width: 100%;
+	height: 56px;
+	flow-children: right;
+	margin-bottom: 5px;
+	padding: 6px 7px 6px 10px;
+	background-color: rgba(255, 255, 255, 0.028);
+	border: 1px solid rgba(255, 255, 255, 0.055);
+	border-radius: 4px;
+	overflow: noclip;
+	transition-property: background-color, border-color;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetRow:hover
+{
+	background-color: rgba(255, 255, 255, 0.045);
+	border-color: rgba(102, 204, 153, 0.30);
+}
+
+.AnitaPresetRow.Active
+{
+	background-color: rgba(102, 204, 153, 0.09);
+	border-color: rgba(102, 204, 153, 0.45);
+}
+
+.AnitaPresetRow.Applied
+{
+	background-color: rgba(255, 198, 86, 0.10);
+	border-color: rgba(255, 198, 86, 0.55);
+}
+
+.AnitaPresetRow.HeroMatch
+{
+	border-color: rgba(102, 178, 255, 0.42);
+}
+
+.AnitaPresetRow.Applied.HeroMatch
+{
+	background-color: rgba(102, 204, 153, 0.12);
+	border-color: rgba(131, 235, 179, 0.68);
+}
+
+.AnitaPresetRow.Applied.HeroFallback
+{
+	background-color: rgba(255, 198, 86, 0.11);
+	border-color: rgba(255, 198, 86, 0.62);
+}
+
+.AnitaPresetRowText
+{
+	width: fill-parent-flow(1.0);
+	height: 34px;
+	flow-children: down;
+	vertical-align: center;
+	margin-right: 7px;
+}
+
+.AnitaPresetRowName
+{
+	width: 100%;
+	height: 17px;
+	color: #f0f2f2;
+	font-size: 13px;
+	font-weight: bold;
+	margin-bottom: 2px;
+	text-overflow: shrink;
+}
+
+.AnitaPresetRowName.Editable:hover
+{
+	color: #9ff0c7;
+}
+
+.AnitaPresetRowNameInput
+{
+	width: 100%;
+	height: 20px;
+	padding: 0px 5px;
+	margin-bottom: 1px;
+	background-color: rgba(3, 15, 12, 0.88);
+	border: 1px solid rgba(102, 204, 153, 0.45);
+	border-radius: 3px;
+	color: #f0f2f2;
+	font-size: 13px;
+	font-weight: bold;
+	text-overflow: shrink;
+}
+
+.AnitaPresetRowNameInput:focus
+{
+	border-color: rgba(124, 234, 174, 0.85);
+}
+
+.AnitaPresetRowMeta
+{
+	width: 100%;
+	height: 13px;
+	color: #7f8a8d;
+	font-size: 10px;
+	text-overflow: shrink;
+}
+
+.AnitaPresetHeroSelector
+{
+	width: 204px;
+	height: 30px;
+	vertical-align: center;
+	margin-left: 5px;
+	flow-children: right;
+	overflow: noclip;
+}
+
+.AnitaPresetHeroPickerBtn,
+.AnitaPresetHeroBtn
+{
+	width: 112px;
+	height: 30px;
+	padding: 0px;
+	background-color: #242b2c;
+	border: 1px solid rgba(102, 204, 153, 0.24);
+	border-radius: 4px;
+	box-shadow: none;
+	transition-property: background-color, border-color;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetHeroPickerBtn:hover,
+.AnitaPresetHeroBtn:hover
+{
+	background-color: #30383a;
+	border-color: rgba(102, 204, 153, 0.52);
+}
+
+.AnitaPresetHeroPickerBtn.Open
+{
+	background-color: #30383a;
+	border-color: rgba(102, 204, 153, 0.65);
+}
+
+.AnitaPresetHeroPickerBtn.ScopeOff
+{
+	background-color: #25292a;
+	border-color: rgba(177, 185, 184, 0.22);
+}
+
+.AnitaPresetHeroPickerBtn.ScopeAll
+{
+	background-color: #263233;
+	border-color: rgba(102, 204, 153, 0.32);
+}
+
+.AnitaPresetHeroPickerBtn.ScopeSelected
+{
+	background-color: #1f3d31;
+	border-color: rgba(102, 204, 153, 0.72);
+}
+
+.AnitaPresetHeroDropDownFace
+{
+	width: 112px;
+	height: 30px;
+	margin-left: 0px;
+	margin-top: 0px;
+	vertical-align: center;
+	ignore-parent-flow: true;
+	z-index: 3;
+	flow-children: right;
+	padding: 0px 18px 0px 18px;
+	background-color: transparent;
+	border-radius: 0px;
+	align: left center;
+}
+
+.AnitaPresetHeroSelector:hover .AnitaPresetHeroDropDownFace
+{
+	background-color: transparent;
+}
+
+.AnitaPresetHeroDropDownFaceLabel
+{
+	width: fill-parent-flow(1.0);
+	height: fit-children;
+	padding-top: 0px;
+	vertical-align: center;
+	color: #bff2d6;
+	font-size: 10px;
+	font-weight: bold;
+	text-align: center;
+	text-overflow: shrink;
+	text-transform: uppercase;
+	margin-top: 0px;
+}
+
+.AnitaPresetHeroDropDownFaceIcon
+{
+	width: 18px;
+	height: 18px;
+	margin-right: 4px;
+	vertical-align: center;
+	background-size: cover;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	visibility: collapse;
+}
+
+.AnitaPresetHeroDropDownFaceIcon.Visible
+{
+	visibility: visible;
+}
+
+.AnitaPresetHeroPickerArrow
+{
+	width: 18px;
+	height: fit-children;
+	margin-left: 94px;
+	margin-top: 0px;
+	ignore-parent-flow: true;
+	z-index: 4;
+	background-color: transparent;
+	color: #d5e7df;
+	font-size: 16px;
+	font-weight: black;
+	text-align: center;
+	vertical-align: center;
+}
+
+.AnitaPresetHeroMenu
+{
+	width: 206px;
+	height: 360px;
+	margin-top: 0px;
+	ignore-parent-flow: true;
+	z-index: 10020;
+	flow-children: down;
+	overflow: squish scroll;
+	background-color: rgba(25, 28, 26, 0.98);
+	border: 1px solid rgba(102, 204, 153, 0.35);
+	border-radius: 4px;
+	box-shadow: 0px 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.AnitaPresetHeroMenu VerticalScrollBar
+{
+	width: 4px;
+	margin: 5px 1px 5px 0px;
+	background-color: transparent;
+}
+
+.AnitaPresetHeroMenu VerticalScrollBar #ScrollThumb
+{
+	background-color: rgba(142, 228, 173, 0.70);
+	border-radius: 2px;
+}
+
+.AnitaPresetHeroMenuOption
+{
+	width: 100%;
+	min-height: 30px;
+	flow-children: right;
+	padding: 4px 5px 4px 8px;
+	background-color: rgba(255, 255, 255, 0.015);
+	color: #edf4f1;
+	font-size: 11px;
+	font-weight: bold;
+	text-overflow: shrink;
+}
+
+.AnitaPresetHeroMenuOptionIcon
+{
+	width: 22px;
+	height: 22px;
+	margin-right: 8px;
+	vertical-align: center;
+	background-color: transparent;
+	border: 0px solid transparent;
+	overflow: clip;
+	background-image: none;
+	background-size: 100% 100%;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+}
+
+.AnitaPresetHeroMenuOptionHeroIcon
+{
+	width: 22px;
+	height: 22px;
+	margin: 0px;
+	vertical-align: center;
+	background-image: none;
+	background-size: 100% 100%;
+	background-texture-size: 22px 22px;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	overflow: clip;
+}
+
+.AnitaPresetHeroMenuOptionIconAll
+{
+	background-color: transparent;
+	border: 0px solid transparent;
+}
+
+.AnitaPresetHeroMenuOptionIconAllLabel
+{
+	width: 100%;
+	height: 100%;
+	vertical-align: center;
+	color: #bff2d6;
+	font-size: 7px;
+	font-weight: black;
+	text-align: center;
+	text-overflow: shrink;
+}
+
+.AnitaPresetHeroMenuOption:hover
+{
+	background-color: rgba(102, 204, 153, 0.10);
+}
+
+.AnitaPresetHeroMenuOption.Selected
+{
+	background-color: rgba(102, 204, 153, 0.16);
+	color: #bff2d6;
+}
+
+.AnitaPresetHeroMenuOption.Selected .AnitaPresetHeroMenuOptionIcon
+{
+	background-color: transparent;
+	border: 0px solid transparent;
+}
+
+.AnitaPresetHeroMenuOptionName
+{
+	width: fill-parent-flow(1.0);
+	height: fit-children;
+	padding-top: 0px;
+	vertical-align: center;
+	margin-top: 0px;
+	color: #edf4f1;
+	font-size: 11px;
+	font-weight: bold;
+	text-overflow: shrink;
+}
+
+.AnitaPresetHeroMenuOptionCheck
+{
+	width: 14px;
+	height: 100%;
+	margin-left: 4px;
+	color: #8ee4ad;
+	font-size: 12px;
+	font-weight: black;
+	text-align: center;
+	visibility: collapse;
+	vertical-align: center;
+}
+
+.AnitaPresetHeroMenuOption.Selected .AnitaPresetHeroMenuOptionCheck
+{
+	visibility: visible;
+}
+
+.AnitaPresetHeroSummary
+{
+	width: 86px;
+	height: fit-children;
+	margin-left: 5px;
+	margin-top: 0px;
+	padding-top: 0px;
+	vertical-align: center;
+	color: #aebcba;
+	font-size: 10px;
+	font-weight: bold;
+	text-overflow: shrink;
+}
+
+.AnitaPresetHeroSummary.ScopeOff
+{
+	color: #8b9698;
+}
+
+.AnitaPresetHeroSummary.ScopeAll
+{
+	color: #aebcba;
+}
+
+.AnitaPresetHeroSummary.ScopeSelected
+{
+	color: #bff2d6;
+}
+
+.AnitaPresetHeroOptionName
+{
+	width: fill-parent-flow(1.0);
+	color: #edf4f1;
+	font-size: 11px;
+	font-weight: bold;
+	vertical-align: center;
+	text-overflow: shrink;
+}
+
+.AnitaPresetHeroCheck
+{
+	width: 22px;
+	color: #8ee4ad;
+	font-size: 9px;
+	font-weight: black;
+	text-align: right;
+	vertical-align: center;
+}
+
+.AnitaPresetPriorityBtns
+{
+	width: 22px;
+	height: 30px;
+	margin-left: 4px;
+	flow-children: down;
+	vertical-align: center;
+	background-color: transparent;
+	border: 0px solid transparent;
+	overflow: noclip;
+}
+
+.AnitaPresetPriorityBtn
+{
+	width: 100%;
+	height: 14px;
+	margin: 0px 0px 2px 0px;
+	padding: 0px;
+	background-color: rgba(255, 255, 255, 0.10);
+	border: 1px solid rgba(196, 226, 214, 0.22);
+	border-radius: 3px;
+	vertical-align: center;
+}
+
+.AnitaPresetPriorityUpBtn
+{
+	margin-bottom: 2px;
+}
+
+.AnitaPresetPriorityBtn:hover
+{
+	background-color: rgba(102, 204, 153, 0.20);
+	border-color: rgba(138, 235, 176, 0.58);
+}
+
+.AnitaPresetPriorityBtn.Disabled
+{
+	opacity: 0.20;
+	background-color: transparent;
+	border-color: rgba(255, 255, 255, 0.04);
+}
+
+.AnitaPresetPriorityBtn.Disabled Label
+{
+	color: rgba(213, 231, 223, 0.34);
+}
+
+.AnitaPresetPriorityBtn Label
+{
+	width: 100%;
+	height: fit-children;
+	color: #d5e7df;
+	font-size: 9px;
+	font-weight: black;
+	margin-top: 0px;
+	text-align: center;
+	vertical-align: center;
+}
+
+.AnitaPresetCopyBtn
+{
+	width: 72px;
+	height: 28px;
+	flow-children: right;
+	padding: 0px 7px;
+	vertical-align: center;
+	background-color: #2a3031;
+	border: 1px solid rgba(255, 255, 255, 0.07);
+	border-radius: 4px;
+	transition-property: background-color, border-color;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetCopyBtn:hover
+{
+	background-color: #394142;
+	border-color: rgba(102, 204, 153, 0.55);
+}
+
+.AnitaPresetCopyBtn Label
+{
+	width: fill-parent-flow(1.0);
+	height: fit-children;
+	color: #f0f2f2;
+	font-size: 10px;
+	font-weight: bold;
+	letter-spacing: 0px;
+	margin-top: 0px;
+	text-align: center;
+	vertical-align: center;
+	text-transform: uppercase;
+}
+
+.AnitaPresetDeleteBtn
+{
+	width: 28px;
+	height: 28px;
+	margin-left: 5px;
+	padding: 0px;
+	vertical-align: center;
+	background-color: transparent;
+	border: 1px solid rgba(255, 139, 139, 0.08);
+	border-radius: 4px;
+	opacity: 0.62;
+	transition-property: background-color, border-color, brightness, opacity;
+	transition-duration: 0.1s;
+}
+
+.AnitaPresetDeleteBtn:hover
+{
+	background-color: rgba(124, 42, 47, 0.72);
+	border-color: rgba(255, 160, 160, 0.66);
+	brightness: 1.08;
+	opacity: 1.0;
+}
+
+.AnitaPresetDeleteBtn .AnitaPresetBtnIcon
+{
+	horizontal-align: center;
+	vertical-align: center;
+	margin-right: 0px;
+	wash-color: rgba(255, 160, 160, 0.56);
+}
+
+.AnitaPresetDeleteBtn:hover .AnitaPresetBtnIconTrash
+{
+	wash-color: #fff2f2;
+}
+
+.AnitaRow
+{
+	width: 100%;
+	flow-children: right;
+	margin-bottom: 14px;
+	padding: 4px 2px;
+}
+
+.AnitaLabel
+{
+	font-size: 15px;
+	color: #e5ebeb;
+	vertical-align: center;
+	letter-spacing: 0.5px;
+	font-weight: medium;
+	width: 240px;
+	margin-right: 10px;
+}
+
+.AnitaToggleRow
+{
+	width: 100%;
+	flow-children: right;
+	margin-bottom: 14px;
+	padding: 4px 2px;
+}
+
+.AnitaRuntimeLocked
+{
+	opacity: 0.42;
+}
+
+.AnitaToggleBtn
+{
+	width: 100%;
+	height: 100%;
+	ignore-parent-flow: true;
+}
+
+.AnitaCheckBox
+{
+	width: 22px;
+	height: 22px;
+	border: 1px solid #464d4f;
+	background-color: #0f1213;
+	border-radius: 3px;
+	align: left center;
+	transition-property: background-color, border-color, pre-transform-scale2d, box-shadow;
+	transition-duration: 0.12s;
+}
+
+.AnitaCheckBox:hover
+{
+	border: 1px solid #a9b3b5;
+	pre-transform-scale2d: 1.03;
+	border-radius: 4px;
+}
+
+.AnitaCheckMark
+{
+	width: 14px;
+	height: 14px;
+	align: center center;
+	background-color: #66cc99;
+	opacity: 0;
+	pre-transform-scale2d: 0.5;
+	border-radius: 1px;
+	transition-property: opacity, pre-transform-scale2d, box-shadow, background-color;
+	transition-duration: 0.1s;
+}
+
+.AnitaToggleRow.Checked .AnitaCheckBox
+{
+	border: 1px solid rgba(102, 204, 153, 0.8);
+	background-color: #1a2420;
+	box-shadow: fill rgba(102, 204, 153, 0.12) 0px 0px 8px 0px;
+}
+
+.AnitaToggleRow.Checked .AnitaCheckMark
+{
+	opacity: 1;
+	pre-transform-scale2d: 1;
+	box-shadow: 0px 0px 8px rgba(102, 204, 153, 0.55);
+}
+
+.AnitaToggleRow:hover .AnitaCheckBox
+{
+	border: 1px solid #9fa9aa;
+	background-color: #131718;
+}
+
+.AnitaToggleRow.Checked:hover .AnitaCheckBox
+{
+	border: 1px solid rgba(102, 204, 153, 0.95);
+	background-color: #1d2824;
+}
+
+.AnitaToggleRow:hover .AnitaCheckMark
+{
+	/* removed confusing hover opacity */
+}
+
+.AnitaStepperControls
+{
+	flow-children: right;
+	vertical-align: center;
+}
+
+.AnitaSliderRow
+{
+	width: 100%;
+}
+
+.AnitaSliderValueGroup, .SliderValueGroup
+{
+	width: 312px;
+	flow-children: right;
+	vertical-align: center;
+	horizontal-align: left;
+}
+
+.AnitaSliderContainer, .SliderContainer
+{
+	width: 230px;
+	padding: 0px;
+	vertical-align: center;
+	overflow: noclip;
+}
+
+.AnitaSliderValue
+{
+	vertical-align: center;
+	margin-left: 10px;
+	width: 72px;
+	color: #e4e8e8;
+	font-size: 16px;
+	font-weight: semi-bold;
+	letter-spacing: 1px;
+	text-align: center;
+}
+
+.AnitaSlider
+{
+	width: 100%;
+	height: 26px;
+	vertical-align: center;
+	overflow: noclip;
+}
+
+.HorizontalSlider
+{
+	width: 100%;
+	vertical-align: center;
+	overflow: noclip;
+}
+
+.HorizontalSlider #SliderTrack,
+Slider.AnitaSlider.HorizontalSlider #SliderTrack,
+SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrack
+{
+	height: 4px;
+	background-color: #23282a;
+	border-radius: 999px;
+	vertical-align: center;
+}
+
+.HorizontalSlider #SliderTrackProgress,
+Slider.AnitaSlider.HorizontalSlider #SliderTrackProgress,
+SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
+{
+	height: 4px;
+	background-color: gradient(linear, 0% 0%, 100% 0%, from(#355c46), to(#66cc99));
+	border-radius: 999px;
+	box-shadow: fill rgba(102, 204, 153, 0.25) 0px 0px 6px 0px;
+	vertical-align: center;
+}
+
+.HorizontalSlider .SliderThumb
+{
+	width: 12px;
+	height: 12px;
+	background-color: #f2f5f5;
+	border: 1px solid #66cc99;
+	border-radius: 50%;
+	vertical-align: center;
+	box-shadow: fill rgba(0, 0, 0, 0.55) 0px 0px 5px 0px;
+	transition-property: box-shadow, pre-transform-scale2d, background-color, border-color;
+	transition-duration: 0.16s;
+}
+
+.HorizontalSlider:hover .SliderThumb
+{
+	box-shadow: fill rgba(102, 204, 153, 0.68) 0px 0px 8px 0px;
+}
+
+.HorizontalSlider:active .SliderThumb
+{
+	background-color: #66cc99;
+	box-shadow: fill rgba(102, 204, 153, 0.7) 0px 0px 8px 0px;
+	pre-transform-scale2d: 1.15;
+}
+
+.AnitaStepBtn
+{
+	width: 30px;
+	height: 30px;
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(#2f3335), to(#232728));
+	border: 1px solid #4d5556;
+	border-radius: 3px;
+	transition-property: background-color, border-color, pre-transform-scale2d, wash-color;
+	transition-duration: 0.1s;
+}
+
+.AnitaStepBtn:hover
+{
+	background-color: #3b4244;
+	border-color: #93a0a2;
+}
+
+.AnitaStepBtn:active
+{
+	background-color: #404648;
+	transform: translateY(1px);
+}
+
+.AnitaStepBtn Label
+{
+	color: #f0f2f2;
+	font-size: 20px;
+	align: center center;
+	text-align: center;
+	height: 60%;
+	margin-bottom: 2.5px;
+	font-weight: bold;
+}
+
+#less
+{
+	font-size: 23px;
+	margin-bottom: 9px;
+}
+
+.AnitaStepInput
+{
+	width: height-percentage(340%);
+	height: 30px;
+	background-color: #101314;
+	border: 1px solid #414748;
+	color: #eef1f1;
+	text-align: center;
+	font-size: 18px;
+	padding: 3px 0px 0px 2px;
+	horizontal-align: center;
+	white-space: normal;
+	text-overflow: ellipsis;
+	margin: 0px 6px;
+	transition-property: border-color, background-color, wash-color;
+	transition-duration: 0.1s;
+}
+
+.AnitaStepInput:hover
+{
+	border: 1px solid #6f7b7d;
+}
+
+.AnitaStepInput:focus
+{
+	border: 1px solid #66cc99;
+	wash-color: #66cc99;
+}
+
+.AnitaActionBtn
+{
+	padding: 8px 20px;
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(#2f3335), to(#232728));
+	border: 1px solid #4d5556;
+	margin-bottom: 12px;
+	transition-property: background-color, border-color, pre-transform-scale2d, wash-color;
+	transition-duration: 0.1s;
+}
+
+.AnitaActionBtn:hover
+{
+	background-color: #3b4244;
+	border-color: #c7d1d2;
+}
+
+.AnitaActionBtn Label
+{
+	color: #f3f6f6;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	font-weight: semi-bold;
+}
+
+.AnitaActionBtn:active
+{
+	background-color: #474d4f;
+	transform: translateY(1px);
+	border-color: #8d9698;
+	wash-color: #ffffffaa;
+}
+
+.AnitaActionBtn.Activated
+{
+	brightness: 2;
+	transition-duration: 0.05s;
+}
+
+.AnitaCyclerGroup
+{
+	flow-children: right;
+	border: 1px solid #4d5556;
+	border-radius: 4px;
+	overflow: noclip;
+	background-color: #171a1b;
+}
+
+.AnitaCyclerSegment
+{
+	padding: 5px 16px 4px 16px;
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(#232728), to(#171a1b));
+	border-right: 1px solid #4d5556;
+	transition-property: background-color, wash-color;
+	transition-duration: 0.1s;
+}
+
+.AnitaCyclerSegment:hover
+{
+	background-color: #303638;
+}
+
+.AnitaCyclerSegment:active
+{
+	background-color: #404648;
+}
+
+.AnitaCyclerSegment.Active
+{
+	background-color: #66cc99;
+}
+
+.AnitaCyclerSegment Label
+{
+	align: center center;
+	text-align: center;
+	color: #97a0a2;
+	font-size: 14px;
+	font-weight: semi-bold;
+	letter-spacing: 1px;
+}
+
+.AnitaCyclerSegment.Active Label
+{
+	color: #111315;
+}
+
+.AnitaCyclerSegment:hover Label
+{
+	color: #f2f5f5;
+}
+
+.AnitaCyclerSegment.Active:hover Label
+{
+	color: #111315;
+}
+
+.AnitaOverlayBtn
+{
+	width: 24px;
+	height: 24px;
+	background-image: url("s2r://panorama/images/masks/wipe_test_star_stroke_psd.vtex");
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	align: right top;
+	margin-top: 36px;
+	margin-right: 420px;
+	z-index: 10000;
+	wash-color: #77736B;
+	opacity: 0;
+	tooltip-position: bottom;
+	pre-transform-rotate2d: 0deg;
+	transition-property: wash-color, opacity, pre-transform-scale2d, pre-transform-rotate2d;
+	transition-duration: 0.15s, 0.15s, 0.15s, 0.45s;
+	transition-timing-function: cubic-bezier(0.785, 0.385, 0.555, 1.505);
+}
+
+.AnitaOverlayBtn.Visible
+{
+	opacity: 0.3;
+	pre-transform-scale2d: 1.2;
+}
+
+.AnitaOverlayBtn:hover
+{
+	pre-transform-rotate2d: -90deg;
+	wash-color: #3c6d4a;
+	opacity: 0.35;
+}
+
+.AnitaOverlayBtn.Attention
+{
+	animation-name: AnitaAttention;
+	animation-duration: 0.8s;
+	animation-iteration-count: 22;
+	animation-timing-function: ease-in-out;
+}
+
+.AnitaOverlayBtn:active
+{
+	wash-color: #284a2f;
+}
+
+.AnitaColorPickerPreview
+{
+	width: 30px;
+	height: 30px;
+	border: 1px solid #303638;
+	border-radius: 2px;
+	transition-property: border-color, pre-transform-scale2d, box-shadow, background-color;
+	transition-duration: 0.1s;
+}
+
+.AnitaColorPickerPreview:hover
+{
+	border: 1px solid #c3cdce;
+	pre-transform-scale2d: 1.03;
+	border-radius: 4px;
+	box-shadow: fill rgba(102, 204, 153, 0.18) 0px 0px 8px 0px;
+}
+
+.AnitaColorPickerPreview:active
+{
+	pre-transform-scale2d: 0.97;
+}
+
+.AnitaPopupHost
+{
+	width: 100%;
+	height: 100%;
+	align: left top;
+	overflow: noclip;
+	z-index: 10050;
+}
+
+.AnitaPresetLocalTooltip
+{
+	width: fit-children;
+	max-width: 260px;
+	height: fit-children;
+	padding: 6px 8px;
+	background-color: rgba(14, 17, 18, 0.98);
+	border: 1px solid rgba(102, 204, 153, 0.36);
+	border-radius: 4px;
+	ignore-parent-flow: true;
+	align: left top;
+	flow-children: right;
+	z-index: 10090;
+	opacity: 0;
+	box-shadow: rgba(0, 0, 0, 0.28) 0px 4px 12px 0px;
+	transition-property: opacity;
+	transition-duration: 0.06s;
+}
+
+.AnitaPresetLocalTooltipLabel
+{
+	width: fit-children;
+	max-width: 244px;
+	height: fit-children;
+	color: #dce9e3;
+	font-size: 11px;
+	font-weight: bold;
+	text-overflow: shrink;
+}
+
+.AnitaColorPopup
+{
+	width: 300px;
+	height: fit-children;
+	background-color: #171b1c;
+	border: 1px solid #394244;
+	border-radius: 8px;
+	padding: 12px 14px 14px 14px;
+	ignore-parent-flow: true;
+	align: left top;
+	flow-children: down;
+	z-index: 10001;
+	box-shadow: rgba(0, 0, 0, 0.5) 0px 0px 22px 0px;
+	overflow: noclip;
+}
+
+.AnitaColorPopupHeader
+{
+	width: fit-children;
+	flow-children: right;
+	vertical-align: center;
+	horizontal-align: center;
+	margin-bottom: 6px;
+}
+
+.AnitaColorPopupPreview
+{
+	margin-right: 10px;
+}
+
+.AnitaColorPopupHex
+{
+	vertical-align: center;
+	color: #f0f2f2;
+	font-size: 14px;
+	font-weight: medium;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+}
+
+.AnitaColorPopupHint
+{
+	width: 100%;
+	max-width: 330px;
+	horizontal-align: center;
+	margin-top: 2px;
+	margin-bottom: 10px;
+	color: #98a1a2;
+	font-size: 11px;
+	text-align: center;
+}
+
+.AnitaColorPopupMeta
+{
+	width: 100%;
+	margin-bottom: 4px;
+	color: #c8d0d1;
+	font-size: 12px;
+	text-align: center;
+	letter-spacing: 1px;
+}
+
+.AnitaColorBoxWrap
+{
+	width: 100%;
+	flow-children: down;
+	margin-bottom: 10px;
+	horizontal-align: center;
+}
+
+.AnitaColorBoxFrame
+{
+	width: 260px;
+	height: 200px;
+	border: 1px solid #394244;
+	border-radius: 8px;
+	background-color: #121415;
+	overflow: noclip;
+	horizontal-align: center;
+}
+
+.AnitaColorBoxHueLayer
+{
+	width: 100%;
+	height: 100%;
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #ff0000 ), color-stop( 0.17, #ffff00 ), color-stop( 0.33, #00ff00 ), color-stop( 0.50, #00ffff ), color-stop( 0.67, #0000ff ), color-stop( 0.83, #ff00ff ), to( #ff0000 ) );
+	ignore-parent-flow: true;
+	z-index: 1;
+}
+
+.AnitaColorBoxSaturationLayer
+{
+	width: 100%;
+	height: 100%;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( rgba( 255, 255, 255, 1 ) ), to( rgba( 255, 255, 255, 0 ) ) );
+	ignore-parent-flow: true;
+	z-index: 2;
+}
+
+.AnitaColorBox
+{
+	width: 100%;
+	height: 100%;
+	background-color: transparent;
+	ignore-parent-flow: true;
+	z-index: 3;
+}
+
+.AnitaColorBoxCursor
+{
+	width: 16px;
+	height: 16px;
+	min-width: 16px;
+	min-height: 16px;
+	max-width: 16px;
+	max-height: 16px;
+	padding: 0px;
+	margin: 0px;
+	border: 2px solid #ffffff;
+	border-radius: 50%;
+	background-color: transparent;
+	box-shadow: rgba( 0, 0, 0, 0.8 ) 0px 0px 0px 1px;
+	ignore-parent-flow: true;
+	z-index: 4;
+	pre-transform-scale2d: 1;
+	transition-property: pre-pre-transform-scale2d-scale2d, background-color, wash-color, box-shadow, border-color;
+	transition-duration: 0.08s;
+	opacity: 1;
+	visibility: visible;
+	horizontal-align: left;
+	vertical-align: top;
+}
+
+.AnitaColorBoxFrame:hover .AnitaColorBoxCursor
+{
+	pre-transform-scale2d: 1;
+}
+
+.AnitaColorBoxCursor:active
+{
+	pre-transform-scale2d: 1;
+}
+
+.AnitaHueSliderGroup
+{
+	width: 100%;
+	flow-children: right;
+	vertical-align: center;
+}
+
+.AnitaHueSliderContainer
+{
+	height: 20px;
+	padding: 0px;
+	vertical-align: center;
+	overflow: noclip;
+	border: 1px solid #394244;
+	border-radius: 6px;
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #ff0000 ), color-stop( 0.17, #ffff00 ), color-stop( 0.33, #00ff00 ), color-stop( 0.50, #00ffff ), color-stop( 0.67, #0000ff ), color-stop( 0.83, #ff00ff ), to( #ff0000 ) );
+}
+
+.AnitaSatSliderContainer
+{
+	height: 20px;
+	padding: 0px;
+	vertical-align: center;
+	overflow: noclip;
+	border: 1px solid #394244;
+	border-radius: 6px;
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #ffffff ), to( #888888 ) );
+}
+
+Slider.AnitaHueSlider.HorizontalSlider,
+SlottedSlider.AnitaHueSlider.HorizontalSlider
+{
+	width: 100%;
+	height: 100%;
+	background-color: transparent;
+	overflow: noclip;
+}
+
+Slider.AnitaHueSlider.HorizontalSlider #SliderTrack,
+SlottedSlider.AnitaHueSlider.HorizontalSlider #SliderTrack
+{
+	width: 100%;
+	height: 100%;
+	padding: 0px;
+	background-color: transparent;
+	border-radius: 4px;
+}
+
+Slider.AnitaHueSlider.HorizontalSlider #SliderTrackProgress,
+SlottedSlider.AnitaHueSlider.HorizontalSlider #SliderTrackProgress
+{
+	width: 100%;
+	height: 100%;
+	background-color: transparent;
+	box-shadow: none;
+	opacity: 0;
+}
+
+Slider.AnitaHueSlider.HorizontalSlider #SliderThumb,
+SlottedSlider.AnitaHueSlider.HorizontalSlider #SliderThumb,
+.AnitaHueSlider .SliderThumb
+{
+	width: 10px;
+	height: 16px;
+	background-color: #ffffff;
+	border: 1px solid #111111;
+	border-radius: 4px;
+	vertical-align: center;
+	box-shadow: fill rgba(0, 0, 0, 0.5) 0px 0px 6px 0px;
+	transition-property: background-color, box-shadow, pre-transform-scale2d;
+	transition-duration: 0.12s;
+}
+
+Slider.AnitaHueSlider.HorizontalSlider:hover #SliderThumb,
+SlottedSlider.AnitaHueSlider.HorizontalSlider:hover #SliderThumb,
+.AnitaHueSlider:hover .SliderThumb
+{
+	box-shadow: fill rgba(255, 255, 255, 0.25) 0px 0px 8px 0px;
+}
+
+Slider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
+SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
+.AnitaHueSlider:active .SliderThumb
+{
+	pre-transform-scale2d: 1.06;
+}
+
+.AnitaHueValue
+{
+	width: 70px;
+	vertical-align: center;
+	color: #ccc;
+	font-size: 16px;
+	font-weight: medium;
+	letter-spacing: 1px;
+	text-align: center;
+}
+
+.AnitaPositionPickerGroup
+{
+	width: 316px;
+}
+
+.AnitaPositionSliderRow
+{
+	width: 100%;
+	margin-bottom: 6px;
+}
+
+.AnitaPositionAxisLabel
+{
+	width: 28px;
+	margin-right: 8px;
+	font-size: 12px;
+	letter-spacing: 0px;
+	text-align: left;
+	white-space: nowrap;
+}
+
+.AnitaPositionSliderContainer
+{
+	width: 214px;
+}
+
+.AnitaPositionReadout
+{
+	margin-left: 8px;
+	width: 56px;
+	font-size: 13px;
+	text-align: right;
+	white-space: nowrap;
+}
+
+.AnitaColorPopup .AnitaPickerAxisLabel
+{
+	width: 20px;
+	margin-right: 5px;
+	font-size: 14px;
+	text-align: left;
+}
+
+.AnitaColorPopup .AnitaPickerReadout
+{
+	width: 37px;
+	margin-left: 10px;
+	font-size: 14px;
+	text-align: right;
+	text-overflow: noclip;
+}
+
+.AnitaPickerSliderTrack
+{
+	width: 200px;
+	height: 20px;
+	margin-left: 0px;
+	margin-right: 0px;
+}
+
+.AnitaColorPopup .AnitaHueSliderGroup
+{
+	width: fit-children;
+	horizontal-align: center;
+	margin-bottom: 8px;
+}
+
+.AnitaColorPopupFooter
+{
+	width: fit-children;
+	flow-children: right;
+	horizontal-align: center;
+	margin-top: 10px;
+}
+
+.AnitaColorPopupBtn
+{
+	padding: 4px 12px;
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(#2f3335), to(#232728));
+	border: 1px solid #4d5556;
+	border-radius: 4px;
+	transition-property: background-color, border-color, pre-transform-scale2d;
+	transition-duration: 0.1s;
+}
+
+.AnitaColorPopupBtn:hover
+{
+	background-color: #3b4244;
+	border-color: #9aa4a5;
+	transform: translateY(-1px);
+}
+
+.AnitaColorPopupBtn Label
+{
+	color: #f0f2f2;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	font-weight: semi-bold;
+}
+
+.AnitaImportPopup
+{
+	width: 520px;
+	height: fit-children;
+	background-color: #171b1c;
+	border: 1px solid #394244;
+	border-radius: 12px;
+	padding: 20px 24px 24px 24px;
+	ignore-parent-flow: true;
+	align: center center;
+	flow-children: down;
+	z-index: 10002;
+	box-shadow: rgba(0, 0, 0, 0.7) 0px 10px 40px 0px;
+}
+
+.AnitaImportPopupHeader
+{
+	width: 100%;
+	flow-children: right;
+	vertical-align: center;
+	margin-bottom: 12px;
+}
+
+.AnitaImportPopupTitle
+{
+	color: #f0f2f2;
+	font-size: 18px;
+	font-weight: bold;
+	letter-spacing: 1.5px;
+	text-transform: uppercase;
+}
+
+.AnitaImportCloseBtn
+{
+	width: 22px;
+	height: 22px;
+	padding: 0px;
+	margin-left: 8px;
+	background-color: transparent;
+	border: 1px solid rgba(255, 255, 255, 0.16);
+	border-radius: 3px;
+	vertical-align: center;
+	box-shadow: none;
+}
+
+.AnitaImportCloseBtn:hover
+{
+	background-color: rgba(216, 90, 90, 0.10);
+	border-color: #d85a5a;
+}
+
+.AnitaImportCloseBtn:hover Label
+{
+	color: #ff8a8a;
+}
+
+.AnitaImportCloseBtn Label
+{
+	width: 100%;
+	height: fit-children;
+	color: #d9dfdf;
+	font-size: 13px;
+	font-weight: bold;
+	margin-top: 0px;
+	text-align: center;
+	vertical-align: center;
+	text-transform: uppercase;
+	letter-spacing: 0px;
+}
+
+.AnitaImportPopupHint
+{
+	width: 100%;
+	max-width: 480px;
+	margin-bottom: 20px;
+	color: #98a1a2;
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.AnitaImportPopupRow .AnitaFooterBtn
+{
+	margin-left: 6px;
+	margin-right: 0px;
+}
+
+.AnitaColorHexValue
+{
+	width: 84px;
+	vertical-align: center;
+	margin-left: 8px;
+	color: #ddd;
+	font-size: 14px;
+	font-weight: medium;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+}
+
+.AnitaFooterRow
+{
+	width: 100%;
+	flow-children: right;
+	padding: 4px;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #1a1a1ad0 ), to( #111111d0 ) );
+	border-radius: 4px;
+	align: left center;
+}
+
+.AnitaFooterRowHpReset
+{
+	margin-bottom: 0px;
+}
+
+.AnitaFooterBtn
+{
+	height: 28px;
+	padding: 0px;
+	margin-right: 4px;
+	background-color: #2a3031;
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 4px;
+	vertical-align: center;
+	transition-property: background-color, border-color;
+	transition-duration: 0.1s;
+}
+
+.AnitaFooterBtnPreset
+{
+	width: 100%;
+	height: 38px;
+	margin-right: 0px;
+	background-color: #30383a;
+	border-color: rgba(102, 204, 153, 0.28);
+}
+
+.AnitaFooterBtn:hover
+{
+	background-color: #3d4345;
+	border-color: rgba(102, 204, 153, 0.5);
+}
+
+.AnitaFooterBtn:active
+{
+	background-color: #474d4f;
+}
+
+.AnitaFooterBtn Label
+{
+	width: 100%;
+	color: #ffffff;
+	font-size: 9px;
+	text-transform: uppercase;
+	letter-spacing: 0px;
+	font-weight: semi-bold;
+	margin-top: 1px;
+	text-align: center;
+	vertical-align: center;
+}
+
+.AnitaFooterBtn.AnitaFooterBtnPreset Label
+{
+	color: #f2fff7;
+	font-size: 13px;
+	font-weight: bold;
+}
+
+.AnitaFooterBtnSuccess Label
+{
+	color: #7fff7f;
+}
+
+.AnitaPasteRow
+{
+	width: 100%;
+	flow-children: right;
+	background-color: #0f1315;
+	border: 1px solid #364042;
+	border-radius: 6px;
+	align: left center;
+	padding: 6px;
+}
+
+.AnitaPasteInput
+{
+	width: fill-parent-flow(1.0);
+	height: 36px;
+	margin-right: 12px;
+	font-size: 13px;
+	padding: 8px 10px;
+	background-color: transparent;
+	border: 0px solid transparent;
+	color: #eff2f2;
+	transition-property: color;
+	transition-duration: 0.1s;
+}
+
+.AnitaPasteInput:hover
+{
+	color: #ffffff;
+}
+
+.AnitaPasteInput:focus
+{
+	color: #66cc99;
+}
+
+.AnitaImportApplyBtn
+{
+	margin: 0px;
+	width: 92px;
+	height: 36px;
+	padding: 0px;
+	border-radius: 4px;
+	background-color: #244030;
+	border: 1px solid #4a7d60;
+	box-shadow: none;
+}
+
+.AnitaImportApplyBtn:hover
+{
+	background-color: #3f6e53;
+	border-color: #66cc99;
+}
+
+.AnitaImportApplyBtn Label
+{
+	width: 100%;
+	height: fit-children;
+	font-size: 13px;
+	font-weight: bold;
+	letter-spacing: 1.5px;
+	margin-top: 0px;
+	text-align: center;
+	vertical-align: center;
+	text-overflow: shrink;
+	color: #ffffff;
+}
