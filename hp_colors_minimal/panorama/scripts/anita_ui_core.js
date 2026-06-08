@@ -1,4 +1,6 @@
-'use strict';
+// fallow-ignore-file unused-file
+// fallow-ignore-file complexity
+"use strict";
 (function () {
   "use strict";
 
@@ -81,33 +83,72 @@
     hp_kill_zone_threshold: "kzt",
     hp_kill_zone_color: "kzc",
     hp_kill_zone_width: "kzw",
-    hp_counter_format: "cf"
+    hp_counter_format: "cf",
   };
   var HP_PERSIST_ALIAS_TO_ID = (function () {
     var out = {};
     for (var id in HP_PERSIST_ALIASES) {
-      if (Object.prototype.hasOwnProperty.call(HP_PERSIST_ALIASES, id)) out[HP_PERSIST_ALIASES[id]] = id;
+      if (Object.prototype.hasOwnProperty.call(HP_PERSIST_ALIASES, id))
+        out[HP_PERSIST_ALIASES[id]] = id;
     }
     return out;
   })();
   // Hero metadata used only for startup preset selection and bounded late-hero probing.
   var HERO_DATA = [
-    { id: "hero_inferno", name: "Infernus", aliases: ["infernus", "hero_infernus"] },
+    {
+      id: "hero_inferno",
+      name: "Infernus",
+      aliases: ["infernus", "hero_infernus"],
+    },
     { id: "hero_gigawatt", name: "Seven", aliases: ["seven", "hero_seven"] },
-    { id: "hero_hornet", name: "Vindicta", aliases: ["vindicta", "hero_vindicta"] },
-    { id: "hero_ghost", name: "Lady Geist", aliases: ["geist", "lady_geist", "ladygeist", "hero_lady_geist"] },
-    { id: "hero_atlas", name: "Abrams", aliases: ["abrams", "bull", "hero_abrams"] },
+    {
+      id: "hero_hornet",
+      name: "Vindicta",
+      aliases: ["vindicta", "hero_vindicta"],
+    },
+    {
+      id: "hero_ghost",
+      name: "Lady Geist",
+      aliases: ["geist", "lady_geist", "ladygeist", "hero_lady_geist"],
+    },
+    {
+      id: "hero_atlas",
+      name: "Abrams",
+      aliases: ["abrams", "bull", "hero_abrams"],
+    },
     { id: "hero_wraith", name: "Wraith", aliases: [] },
-    { id: "hero_forge", name: "McGinnis", aliases: ["mcginnis", "mc_ginnis", "engineer", "hero_mcginnis"] },
-    { id: "hero_chrono", name: "Paradox", aliases: ["paradox", "hero_paradox"] },
+    {
+      id: "hero_forge",
+      name: "McGinnis",
+      aliases: ["mcginnis", "mc_ginnis", "engineer", "hero_mcginnis"],
+    },
+    {
+      id: "hero_chrono",
+      name: "Paradox",
+      aliases: ["paradox", "hero_paradox"],
+    },
     { id: "hero_dynamo", name: "Dynamo", aliases: ["sumo"] },
     { id: "hero_kelvin", name: "Kelvin", aliases: [] },
     { id: "hero_haze", name: "Haze", aliases: [] },
     { id: "hero_astro", name: "Ivy", aliases: ["ivy", "hero_ivy"] },
     { id: "hero_bebop", name: "Bebop", aliases: [] },
     { id: "hero_nano", name: "Nano", aliases: [] },
-    { id: "hero_orion", name: "Grey Talon", aliases: ["archer", "grey_talon", "gray_talon", "greytalon", "hero_grey_talon"] },
-    { id: "hero_krill", name: "Mo & Krill", aliases: ["digger", "mo_and_krill", "mo_krill", "hero_mo_and_krill"] },
+    {
+      id: "hero_orion",
+      name: "Grey Talon",
+      aliases: [
+        "archer",
+        "grey_talon",
+        "gray_talon",
+        "greytalon",
+        "hero_grey_talon",
+      ],
+    },
+    {
+      id: "hero_krill",
+      name: "Mo & Krill",
+      aliases: ["digger", "mo_and_krill", "mo_krill", "hero_mo_and_krill"],
+    },
     { id: "hero_shiv", name: "Shiv", aliases: [] },
     { id: "hero_tengu", name: "Tengu", aliases: [] },
     { id: "hero_warden", name: "Warden", aliases: [] },
@@ -116,20 +157,40 @@
     { id: "hero_viscous", name: "Viscous", aliases: [] },
     { id: "hero_synth", name: "Pocket", aliases: ["pocket", "hero_pocket"] },
     { id: "hero_mirage", name: "Mirage", aliases: [] },
-    { id: "hero_viper", name: "Vyper", aliases: ["viper", "vyper", "hero_vyper"] },
-    { id: "hero_magician", name: "Magician", aliases: ["sinclair", "hero_sinclair"] },
-    { id: "hero_vampirebat", name: "Mina", aliases: ["vampire_bat", "vampirebat", "mina", "hero_mina"] },
+    {
+      id: "hero_viper",
+      name: "Vyper",
+      aliases: ["viper", "vyper", "hero_vyper"],
+    },
+    {
+      id: "hero_magician",
+      name: "Magician",
+      aliases: ["sinclair", "hero_sinclair"],
+    },
+    {
+      id: "hero_vampirebat",
+      name: "Mina",
+      aliases: ["vampire_bat", "vampirebat", "mina", "hero_mina"],
+    },
     { id: "hero_drifter", name: "Drifter", aliases: [] },
     { id: "hero_priest", name: "Priest", aliases: [] },
     { id: "hero_frank", name: "Frank", aliases: [] },
     { id: "hero_bookworm", name: "Bookworm", aliases: ["paige", "hero_paige"] },
     { id: "hero_doorman", name: "Doorman", aliases: [] },
-    { id: "hero_punkgoat", name: "Billy", aliases: ["punkgoat", "punk_goat", "billy", "hero_billy"] },
+    {
+      id: "hero_punkgoat",
+      name: "Billy",
+      aliases: ["punkgoat", "punk_goat", "billy", "hero_billy"],
+    },
     { id: "hero_necro", name: "Necro", aliases: [] },
-    { id: "hero_fencer", name: "Apollo", aliases: ["fencer", "apollo", "hero_apollo"] },
+    {
+      id: "hero_fencer",
+      name: "Apollo",
+      aliases: ["fencer", "apollo", "hero_apollo"],
+    },
     { id: "hero_familiar", name: "Familiar", aliases: [] },
     { id: "hero_werewolf", name: "Werewolf", aliases: [] },
-    { id: "hero_unicorn", name: "Unicorn", aliases: [] }
+    { id: "hero_unicorn", name: "Unicorn", aliases: [] },
   ];
   var HERO_ALIAS_TO_ID = {};
   var HERO_ALIAS_LIST = [];
@@ -199,7 +260,8 @@
 
   function getSharedStore() {
     try {
-      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) return GameUI.CustomUIConfig();
+      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig)
+        return GameUI.CustomUIConfig();
     } catch (e) {}
     return null;
   }
@@ -231,15 +293,21 @@
       }
     } catch (e1) {}
     try {
-      if (typeof console !== "undefined" && console && console.log) console.log(line);
+      if (typeof console !== "undefined" && console && console.log)
+        console.log(line);
     } catch (e2) {}
   }
 
   function debugPresetSummary(preset) {
     if (!preset) return "";
-    return preset.id + ":" + preset.heroMode + ":" + (preset.heroes && preset.heroes.length ? preset.heroes.join(",") : "*");
+    return (
+      preset.id +
+      ":" +
+      preset.heroMode +
+      ":" +
+      (preset.heroes && preset.heroes.length ? preset.heroes.join(",") : "*")
+    );
   }
-
 
   function parseGameTimeText(text) {
     var raw = String(text || "").replace(/^\s+|\s+$/g, "");
@@ -264,19 +332,29 @@
     if (isValidPanel(cachedGameTimePanel)) return cachedGameTimePanel;
     var root = getRootPanel();
     var topBar = findChild(root, "TopBar");
-    cachedGameTimePanel = findPanelByClass(topBar, "GameTime") || findPanelByClass(root, "GameTime");
+    cachedGameTimePanel =
+      findPanelByClass(topBar, "GameTime") ||
+      findPanelByClass(root, "GameTime");
     return cachedGameTimePanel;
   }
 
   function readGameTimeSec() {
     var now = nowMs();
-    if (!isValidPanel(cachedGameTimePanel) || now - cachedGameTimePanelMs > 1000) {
+    if (
+      !isValidPanel(cachedGameTimePanel) ||
+      now - cachedGameTimePanelMs > 1000
+    ) {
       cachedGameTimePanel = resolveGameTimePanel();
       cachedGameTimePanelMs = now;
     }
     if (!isValidPanel(cachedGameTimePanel)) return -1;
     var text = "";
-    try { text = cachedGameTimePanel.text || cachedGameTimePanel.GetAttributeString("text", "") || ""; } catch (e0) {}
+    try {
+      text =
+        cachedGameTimePanel.text ||
+        cachedGameTimePanel.GetAttributeString("text", "") ||
+        "";
+    } catch (e0) {}
     return parseGameTimeText(text);
   }
 
@@ -300,24 +378,18 @@
     try {
       if (Date && Date.now) return Date.now();
     } catch (e0) {}
-    return +(new Date());
+    return +new Date();
   }
-
-  function logLine(message) {
-    try {
-      if (typeof $ !== "undefined" && $ && $.Msg) {
-        $.Msg(message);
-        return;
-      }
-    } catch (e1) {}
-    try {
-      if (typeof console !== "undefined" && console && console.log) console.log(message);
-    } catch (e2) {}
-  }
-
 
   // Preset decoding and hero-scoped selection.
-  function returnPresetSelection(reason, preset, heroId, allowUnknownFallback, presetCount, hasScopedPreset) {
+  function returnPresetSelection(
+    reason,
+    preset,
+    heroId,
+    allowUnknownFallback,
+    presetCount,
+    hasScopedPreset,
+  ) {
     lastSelectionReason = reason;
     lastSelectionPresetId = preset ? preset.id : "";
     lastSelectionHeroId = heroId || "";
@@ -328,20 +400,28 @@
       hero: heroId || "",
       allow_unknown_fallback: !!allowUnknownFallback,
       preset_count: presetCount || 0,
-      has_scoped_preset: !!hasScopedPreset
+      has_scoped_preset: !!hasScopedPreset,
     });
     return preset;
   }
 
   function cleanHeroToken(value) {
-    return String(value || "").toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9_]+/g, "_")
+      .replace(/^_+|_+$/g, "");
   }
 
   function registerHeroAlias(alias, heroId) {
     var clean = cleanHeroToken(alias);
-    if (!clean || Object.prototype.hasOwnProperty.call(HERO_ALIAS_TO_ID, clean)) return;
+    if (!clean || Object.prototype.hasOwnProperty.call(HERO_ALIAS_TO_ID, clean))
+      return;
     HERO_ALIAS_TO_ID[clean] = heroId;
-    HERO_ALIAS_LIST.push({ alias: clean, hero: heroId, token: clean.replace(/^hero_/, "") });
+    HERO_ALIAS_LIST.push({
+      alias: clean,
+      hero: heroId,
+      token: clean.replace(/^hero_/, ""),
+    });
   }
 
   function buildHeroTables() {
@@ -350,16 +430,23 @@
       registerHeroAlias(hero.id, hero.id);
       registerHeroAlias(hero.id.replace(/^hero_/, ""), hero.id);
       registerHeroAlias(hero.name, hero.id);
-      for (var j = 0; j < hero.aliases.length; j += 1) registerHeroAlias(hero.aliases[j], hero.id);
+      for (var j = 0; j < hero.aliases.length; j += 1)
+        registerHeroAlias(hero.aliases[j], hero.id);
     }
-    HERO_ALIAS_LIST.sort(function (a, b) { return b.token.length - a.token.length; });
+    HERO_ALIAS_LIST.sort(function (a, b) {
+      return b.token.length - a.token.length;
+    });
   }
 
   function normalizeHeroToken(value) {
     var text = cleanHeroToken(value);
     if (!text) return "";
-    if (Object.prototype.hasOwnProperty.call(HERO_ALIAS_TO_ID, text)) return HERO_ALIAS_TO_ID[text];
-    if (text.indexOf("hero_") !== 0 && Object.prototype.hasOwnProperty.call(HERO_ALIAS_TO_ID, "hero_" + text)) {
+    if (Object.prototype.hasOwnProperty.call(HERO_ALIAS_TO_ID, text))
+      return HERO_ALIAS_TO_ID[text];
+    if (
+      text.indexOf("hero_") !== 0 &&
+      Object.prototype.hasOwnProperty.call(HERO_ALIAS_TO_ID, "hero_" + text)
+    ) {
       return HERO_ALIAS_TO_ID["hero_" + text];
     }
     return "";
@@ -383,12 +470,17 @@
 
   function normalizeHeroScopeMode(mode, heroes) {
     var text = String(mode || "").toLowerCase();
-    if (text === HERO_SCOPE_OFF || text === "disabled" || text === "none") return HERO_SCOPE_OFF;
+    if (text === HERO_SCOPE_OFF || text === "disabled" || text === "none")
+      return HERO_SCOPE_OFF;
     if (text === HERO_SCOPE_ALL || text === "global") return HERO_SCOPE_ALL;
     if (text === HERO_SCOPE_SELECTED || text === "heroes" || text === "hero") {
-      return normalizeHeroSelection(heroes).length ? HERO_SCOPE_SELECTED : HERO_SCOPE_OFF;
+      return normalizeHeroSelection(heroes).length
+        ? HERO_SCOPE_SELECTED
+        : HERO_SCOPE_OFF;
     }
-    return normalizeHeroSelection(heroes).length ? HERO_SCOPE_SELECTED : HERO_SCOPE_ALL;
+    return normalizeHeroSelection(heroes).length
+      ? HERO_SCOPE_SELECTED
+      : HERO_SCOPE_ALL;
   }
 
   function expandBuilderPresetValues(rawValues) {
@@ -411,38 +503,53 @@
 
   function normalizePresetPayload(preset) {
     if (!preset || typeof preset !== "object") return null;
-    var version = Number(preset.version !== undefined ? preset.version : preset.v);
+    var version = Number(
+      preset.version !== undefined ? preset.version : preset.v,
+    );
     var rawValues = preset.values || preset.vals || preset.vs;
     var values = expandBuilderPresetValues(rawValues);
     if (!isSupportedPresetVersion(version) || !values) return null;
-    var heroes = normalizeHeroSelection(preset.heroes || preset.hs || preset.hero || preset.h);
+    var heroes = normalizeHeroSelection(
+      preset.heroes || preset.hs || preset.hero || preset.h,
+    );
     var heroMode = normalizeHeroScopeMode(preset.heroMode || preset.hm, heroes);
-    if (heroMode === HERO_SCOPE_SELECTED && !heroes.length) heroMode = HERO_SCOPE_OFF;
+    if (heroMode === HERO_SCOPE_SELECTED && !heroes.length)
+      heroMode = HERO_SCOPE_OFF;
     if (heroMode !== HERO_SCOPE_SELECTED) heroes = [];
     return {
       values: values,
       heroes: heroes,
-      heroMode: heroMode
+      heroMode: heroMode,
     };
   }
 
   function panelChildren(panel) {
-    try { return panel && panel.Children ? panel.Children() : []; } catch (e) {}
+    try {
+      return panel && panel.Children ? panel.Children() : [];
+    } catch (e) {}
     return [];
   }
 
   function panelHasClass(panel, className) {
-    try { return !!(panel && panel.BHasClass && panel.BHasClass(className)); } catch (e) {}
+    try {
+      return !!(panel && panel.BHasClass && panel.BHasClass(className));
+    } catch (e) {}
     return false;
   }
 
   function panelId(panel) {
-    try { return panel && panel.id ? String(panel.id) : ""; } catch (e) {}
+    try {
+      return panel && panel.id ? String(panel.id) : "";
+    } catch (e) {}
     return "";
   }
 
   function findChild(panel, id) {
-    try { return panel && panel.FindChildTraverse ? panel.FindChildTraverse(id) : null; } catch (e) {}
+    try {
+      return panel && panel.FindChildTraverse
+        ? panel.FindChildTraverse(id)
+        : null;
+    } catch (e) {}
     return null;
   }
 
@@ -461,7 +568,8 @@
   function heroClassOn(panel) {
     if (!isValidPanel(panel)) return "";
     for (var i = 0; i < HERO_ALIAS_LIST.length; i += 1) {
-      if (panelHasClass(panel, HERO_ALIAS_LIST[i].alias)) return HERO_ALIAS_LIST[i].hero;
+      if (panelHasClass(panel, HERO_ALIAS_LIST[i].alias))
+        return HERO_ALIAS_LIST[i].hero;
     }
     return "";
   }
@@ -487,14 +595,22 @@
     }
     if (!isValidPanel(cachedGameplayAlive)) return null;
 
-    var crosshair = findDirectChildWhere(cachedGameplayAlive, "crosshair", hasDirectProgress);
+    var crosshair = findDirectChildWhere(
+      cachedGameplayAlive,
+      "crosshair",
+      hasDirectProgress,
+    );
     if (crosshair !== cachedCrosshair) {
       cachedCrosshair = crosshair;
       cachedHeroProgress = null;
     }
     if (!isValidPanel(cachedCrosshair)) return null;
 
-    var progress = findDirectChildWhere(cachedCrosshair, "progress", heroClassOn);
+    var progress = findDirectChildWhere(
+      cachedCrosshair,
+      "progress",
+      heroClassOn,
+    );
     if (progress !== cachedHeroProgress) cachedHeroProgress = progress;
     return isValidPanel(cachedHeroProgress) ? cachedHeroProgress : null;
   }
@@ -507,7 +623,7 @@
       root: panelId(cachedRootPanel) || "",
       alive: isValidPanel(cachedGameplayAlive),
       crosshair: isValidPanel(cachedCrosshair),
-      progress: isValidPanel(progress)
+      progress: isValidPanel(progress),
     });
     return heroId;
   }
@@ -537,7 +653,10 @@
     var root = getRootPanel();
     try {
       if (isValidPanel(root) && root.SetAttributeString) {
-        if (!root.GetAttributeString || root.GetAttributeString(ROOT_CFG_RAW_ATTR, "") !== raw) {
+        if (
+          !root.GetAttributeString ||
+          root.GetAttributeString(ROOT_CFG_RAW_ATTR, "") !== raw
+        ) {
           root.SetAttributeString(ROOT_CFG_RAW_ATTR, raw);
         }
         wroteRoot = true;
@@ -552,7 +671,7 @@
         root_attr: wroteRoot,
         gameui_ready: sharedStoreWritten,
         root_ready: rootAttrWritten,
-        raw_length: raw.length
+        raw_length: raw.length,
       });
     }
     return wroteShared || wroteRoot;
@@ -573,19 +692,22 @@
       if (panel && panel.id !== undefined) return String(panel.id || "");
     } catch (e0) {}
     try {
-      if (panel && panel.GetAttributeString) return String(panel.GetAttributeString("id", "") || "");
+      if (panel && panel.GetAttributeString)
+        return String(panel.GetAttributeString("id", "") || "");
     } catch (e1) {}
     return "";
   }
 
   function decodeBase64Url(str) {
-    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    var chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     var lookup = {};
     for (var i = 0; i < chars.length; i += 1) lookup[chars[i]] = i;
 
     function val(ch) {
       if (ch === undefined || ch === "") return 0;
-      if (!Object.prototype.hasOwnProperty.call(lookup, ch)) throw new Error("bad base64url");
+      if (!Object.prototype.hasOwnProperty.call(lookup, ch))
+        throw new Error("bad base64url");
       return lookup[ch];
     }
 
@@ -610,7 +732,9 @@
       } else {
         var b2 = bytes[++k];
         var b3 = bytes[++k];
-        out += String.fromCharCode(((b & 15) << 12) | ((b2 & 63) << 6) | (b3 & 63));
+        out += String.fromCharCode(
+          ((b & 15) << 12) | ((b2 & 63) << 6) | (b3 & 63),
+        );
       }
     }
     return out;
@@ -638,9 +762,14 @@
 
     var signature = String(entries.length);
     for (var sigIndex = 0; sigIndex < entries.length; sigIndex += 1) {
-      signature += "|" + getPanelId(entries[sigIndex]) + ":" + readLabelText(entries[sigIndex]);
+      signature +=
+        "|" +
+        getPanelId(entries[sigIndex]) +
+        ":" +
+        readLabelText(entries[sigIndex]);
     }
-    if (cachedPresetBases && cachedPresetSignature === signature) return cachedPresetBases;
+    if (cachedPresetBases && cachedPresetSignature === signature)
+      return cachedPresetBases;
 
     var validPresets = [];
     for (var i = 0; i < entries.length; i += 1) {
@@ -648,7 +777,9 @@
         var id = getPanelId(entries[i]);
         var encoded = readLabelText(entries[i]);
         if (!encoded) continue;
-        var normalized = normalizePresetPayload(JSON.parse(decodeBase64Url(encoded)));
+        var normalized = normalizePresetPayload(
+          JSON.parse(decodeBase64Url(encoded)),
+        );
         if (!normalized) continue;
         if (normalized.heroMode === HERO_SCOPE_OFF) {
           if (entries.length === 1 && id === STARTUP_PRESET_ID) {
@@ -662,22 +793,30 @@
           id: id,
           values: normalized.values,
           heroes: normalized.heroes,
-          heroMode: normalized.heroMode
+          heroMode: normalized.heroMode,
         });
       } catch (e2) {}
     }
     cachedPresetSignature = signature;
     cachedPresetBases = validPresets;
-    debugLog("store", {
-      entries: entries.length,
-      valid_presets: validPresets.length,
-      presets: validPresets.map(debugPresetSummary)
-    });
+    if (debugPresetSelectionEnabled()) {
+      debugLog("store", {
+        entries: entries.length,
+        valid_presets: validPresets.length,
+        presets: validPresets.map(debugPresetSummary),
+      });
+    }
     return validPresets;
   }
 
   function presetTargetsHero(preset, heroId) {
-    if (!preset || !heroId || preset.heroMode !== HERO_SCOPE_SELECTED || !Array.isArray(preset.heroes)) return false;
+    if (
+      !preset ||
+      !heroId ||
+      preset.heroMode !== HERO_SCOPE_SELECTED ||
+      !Array.isArray(preset.heroes)
+    )
+      return false;
     for (var i = 0; i < preset.heroes.length; i += 1) {
       if (preset.heroes[i] === heroId) return true;
     }
@@ -704,7 +843,14 @@
   function selectPresetForHero(allowUnknownFallback) {
     var validPresets = readPresetEntries();
     if (validPresets.length === 1) {
-      return returnPresetSelection("single-valid-preset", validPresets[0], "", allowUnknownFallback, validPresets.length, false);
+      return returnPresetSelection(
+        "single-valid-preset",
+        validPresets[0],
+        "",
+        allowUnknownFallback,
+        validPresets.length,
+        false,
+      );
     }
 
     var startupPreset = null;
@@ -723,9 +869,20 @@
     }
 
     if (heroSelectionLocked && heroLockPresetId) {
-      for (var lockedIndex = 0; lockedIndex < validPresets.length; lockedIndex += 1) {
+      for (
+        var lockedIndex = 0;
+        lockedIndex < validPresets.length;
+        lockedIndex += 1
+      ) {
         if (validPresets[lockedIndex].id === heroLockPresetId) {
-          return returnPresetSelection("locked-hero-selection", validPresets[lockedIndex], heroLockHeroId, allowUnknownFallback, validPresets.length, hasScopedPreset);
+          return returnPresetSelection(
+            "locked-hero-selection",
+            validPresets[lockedIndex],
+            heroLockHeroId,
+            allowUnknownFallback,
+            validPresets.length,
+            hasScopedPreset,
+          );
         }
       }
       resetHeroSelectionLock();
@@ -739,25 +896,68 @@
       }
     }
 
-    if (heroId && firstHeroMatch) return returnPresetSelection("selected-hero-match", firstHeroMatch, heroId, allowUnknownFallback, validPresets.length, hasScopedPreset);
+    if (heroId && firstHeroMatch)
+      return returnPresetSelection(
+        "selected-hero-match",
+        firstHeroMatch,
+        heroId,
+        allowUnknownFallback,
+        validPresets.length,
+        hasScopedPreset,
+      );
     if (hasScopedPreset && !heroId && !allowUnknownFallback) {
-      return returnPresetSelection("wait-unknown-hero", null, "", allowUnknownFallback, validPresets.length, hasScopedPreset);
+      return returnPresetSelection(
+        "wait-unknown-hero",
+        null,
+        "",
+        allowUnknownFallback,
+        validPresets.length,
+        hasScopedPreset,
+      );
     }
-    if (startupPreset && (!heroId || presetCompatibleWithHero(startupPreset, heroId))) {
-      return returnPresetSelection(heroId ? "compatible-startup" : "unknown-hero-startup-fallback", startupPreset, heroId, allowUnknownFallback, validPresets.length, hasScopedPreset);
+    if (
+      startupPreset &&
+      (!heroId || presetCompatibleWithHero(startupPreset, heroId))
+    ) {
+      return returnPresetSelection(
+        heroId ? "compatible-startup" : "unknown-hero-startup-fallback",
+        startupPreset,
+        heroId,
+        allowUnknownFallback,
+        validPresets.length,
+        hasScopedPreset,
+      );
     }
-    if (firstGlobal) return returnPresetSelection("first-global-fallback", firstGlobal, heroId, allowUnknownFallback, validPresets.length, hasScopedPreset);
-    return returnPresetSelection("first-enabled-fallback", firstPreset, heroId, allowUnknownFallback, validPresets.length, hasScopedPreset);
+    if (firstGlobal)
+      return returnPresetSelection(
+        "first-global-fallback",
+        firstGlobal,
+        heroId,
+        allowUnknownFallback,
+        validPresets.length,
+        hasScopedPreset,
+      );
+    return returnPresetSelection(
+      "first-enabled-fallback",
+      firstPreset,
+      heroId,
+      allowUnknownFallback,
+      validPresets.length,
+      hasScopedPreset,
+    );
   }
 
   function applyHardGates(values) {
     var out = {};
     for (var key in values || {}) {
-      if (Object.prototype.hasOwnProperty.call(values, key)) out[key] = values[key];
+      if (Object.prototype.hasOwnProperty.call(values, key))
+        out[key] = values[key];
     }
-    if (!Object.prototype.hasOwnProperty.call(out, COUNTER_VISIBLE_KEY)) out[COUNTER_VISIBLE_KEY] = true;
+    if (!Object.prototype.hasOwnProperty.call(out, COUNTER_VISIBLE_KEY))
+      out[COUNTER_VISIBLE_KEY] = true;
     for (var forced in HARD_GATED_VALUES) {
-      if (Object.prototype.hasOwnProperty.call(HARD_GATED_VALUES, forced)) out[forced] = HARD_GATED_VALUES[forced];
+      if (Object.prototype.hasOwnProperty.call(HARD_GATED_VALUES, forced))
+        out[forced] = HARD_GATED_VALUES[forced];
     }
     return out;
   }
@@ -770,6 +970,7 @@
     cachedValues = selectedValues;
     return cachedValues;
   }
+
 
   function stopCachedSnapshotReplay() {
     if (cachedReplayHandle) {
@@ -814,7 +1015,7 @@
         version: 1,
         values_raw: raw,
         values: values,
-        update_source: "builder_static"
+        update_source: "builder_static",
       });
     } catch (ePayload) {
       cachedSnapshotPayload = "";
@@ -833,7 +1034,7 @@
       hp_friend_color_low: values.hp_friend_color_low,
       hp_friend_color_mid: values.hp_friend_color_mid,
       hp_friend_color_high: values.hp_friend_color_high,
-      hp_friend_pulse_enabled: values.hp_friend_pulse_enabled
+      hp_friend_pulse_enabled: values.hp_friend_pulse_enabled,
     });
     lockHeroSelectionIfReady();
     return true;
@@ -844,18 +1045,21 @@
     var sharedOk = writeSharedSnapshot(lastPublishedRaw);
     startCachedSnapshotReplay();
     var dispatched = dispatchSnapshot(cachedSnapshotPayload);
-    if (lastSelectionHasScopedPreset && !lastSelectionHeroId && (
-      lastSelectionReason === "unknown-hero-startup-fallback" ||
-      lastSelectionReason === "first-global-fallback" ||
-      lastSelectionReason === "first-enabled-fallback"
-    )) {
+    if (
+      lastSelectionHasScopedPreset &&
+      !lastSelectionHeroId &&
+      (lastSelectionReason === "unknown-hero-startup-fallback" ||
+        lastSelectionReason === "first-global-fallback" ||
+        lastSelectionReason === "first-enabled-fallback")
+    ) {
       startBoundedHeroPresetProbe();
     }
     return dispatched || sharedOk;
   }
 
   function publishUntilReady(allowUnknownFallback) {
-    if (cachedSnapshotPayload && sharedStoreWritten && rootAttrWritten) return true;
+    if (cachedSnapshotPayload && sharedStoreWritten && rootAttrWritten)
+      return true;
     if (cachedSnapshotPayload) {
       var transportOk = writeSharedSnapshot(lastPublishedRaw);
       startCachedSnapshotReplay();
@@ -865,16 +1069,21 @@
     return publishPreset(allowUnknownFallback);
   }
 
+
   // Cached replay keeps late unit-status contexts fed without rebuilding from HPColorsPresetStore.
   function chooseCachedReplayInterval() {
     var now = nowMs();
-    if (heroProbeActive ||
-        now < cachedReplayHotUntil ||
-        (lastSnapshotReplyAt && now - lastSnapshotReplyAt < CACHED_SNAPSHOT_REPLAY_REQUEST_HOT_MS) ||
-        cachedReplayDispatches < CACHED_SNAPSHOT_REPLAY_HOT_COUNT) {
+    if (
+      heroProbeActive ||
+      now < cachedReplayHotUntil ||
+      (lastSnapshotReplyAt &&
+        now - lastSnapshotReplyAt < CACHED_SNAPSHOT_REPLAY_REQUEST_HOT_MS) ||
+      cachedReplayDispatches < CACHED_SNAPSHOT_REPLAY_HOT_COUNT
+    ) {
       return CACHED_SNAPSHOT_REPLAY_HOT_SEC;
     }
-    if (cachedReplayDispatches < CACHED_SNAPSHOT_REPLAY_WARM_COUNT) return CACHED_SNAPSHOT_REPLAY_WARM_SEC;
+    if (cachedReplayDispatches < CACHED_SNAPSHOT_REPLAY_WARM_COUNT)
+      return CACHED_SNAPSHOT_REPLAY_WARM_SEC;
     return CACHED_SNAPSHOT_REPLAY_IDLE_SEC;
   }
 
@@ -890,12 +1099,15 @@
       debugLog("replay", {
         dispatches: cachedReplayDispatches,
         interval: cachedReplayIntervalSec,
-        hero_probe: !!heroProbeActive
+        hero_probe: !!heroProbeActive,
       });
     }
     lastReplayDebugIntervalSec = cachedReplayIntervalSec;
     try {
-      cachedReplayHandle = $.Schedule(cachedReplayIntervalSec, replayCachedSnapshot);
+      cachedReplayHandle = $.Schedule(
+        cachedReplayIntervalSec,
+        replayCachedSnapshot,
+      );
     } catch (e) {
       cachedReplayHandle = null;
       cachedReplayStarted = false;
@@ -920,14 +1132,19 @@
   }
 
   function handleBridgeEvent(payload) {
-    if (typeof payload === "string" && payload.indexOf(REQUEST_MAGIC) === -1) return;
+    if (typeof payload === "string" && payload.indexOf(REQUEST_MAGIC) === -1)
+      return;
     try {
       var data = typeof payload === "string" ? JSON.parse(payload) : payload;
       if (!data || data.magic_word !== REQUEST_MAGIC) return;
       if (data.mod_title && data.mod_title !== "HP Colors") return;
       if (cachedSnapshotPayload) {
         var now = nowMs();
-        if (lastSnapshotReplyAt && now - lastSnapshotReplyAt < REQUEST_REPLY_COOLDOWN_MS) return;
+        if (
+          lastSnapshotReplyAt &&
+          now - lastSnapshotReplyAt < REQUEST_REPLY_COOLDOWN_MS
+        )
+          return;
         lastSnapshotReplyAt = now;
         cachedReplayHotUntil = now + CACHED_SNAPSHOT_REPLAY_REQUEST_HOT_MS;
         dispatchSnapshot(cachedSnapshotPayload);
@@ -945,7 +1162,11 @@
 
   buildHeroTables();
   publishUntilReady(false);
-  for (var delayIndex = 0; delayIndex < PUBLISH_RETRY_DELAYS.length; delayIndex += 1) {
+  for (
+    var delayIndex = 0;
+    delayIndex < PUBLISH_RETRY_DELAYS.length;
+    delayIndex += 1
+  ) {
     try {
       (function (isFinalRetry) {
         $.Schedule(PUBLISH_RETRY_DELAYS[delayIndex], function () {
@@ -966,7 +1187,7 @@
     debugLog("probe", {
       index: index,
       hero: heroId || "",
-      preset: debugPresetSummary(matchingPreset)
+      preset: debugPresetSummary(matchingPreset),
     });
     if (matchingPreset) {
       clearResolvedSnapshotCache();
@@ -975,7 +1196,7 @@
         debugLog("probe-stop", {
           reason: "selected-hero-match",
           hero: lastSelectionHeroId || heroId,
-          preset: lastSelectionPresetId || matchingPreset.id
+          preset: lastSelectionPresetId || matchingPreset.id,
         });
         return;
       }
@@ -986,12 +1207,16 @@
       stableProbeHeroCount = heroId ? 1 : 0;
     }
     if (!heroId) stableProbeHeroCount = 0;
-    if (heroId && !matchingPreset && stableProbeHeroCount >= HERO_PROBE_STABLE_NO_MATCH_COUNT) {
+    if (
+      heroId &&
+      !matchingPreset &&
+      stableProbeHeroCount >= HERO_PROBE_STABLE_NO_MATCH_COUNT
+    ) {
       heroProbeActive = false;
       debugLog("probe-stop", {
         reason: "known-hero-no-scoped-preset",
         hero: heroId,
-        stable_count: stableProbeHeroCount
+        stable_count: stableProbeHeroCount,
       });
       return;
     }

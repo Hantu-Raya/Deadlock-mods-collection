@@ -174,6 +174,7 @@ function Apply-ScoreboardOnlyTopBarVariant {
 
     $scoreboardOnlyCss = @'
 
+.ShowRankTopBarScoreboardOnly .ShowRankTopBarStatusImage.ShowRankTopBarStatusVisible,
 .ShowRankTopBarScoreboardOnly .ShowRankTopBarRankImage.ShowRankTopBarRankVisible
 {
 	visibility: collapse;
@@ -185,6 +186,13 @@ function Apply-ScoreboardOnlyTopBarVariant {
 {
 	visibility: visible;
 	opacity: 1;
+}
+
+.ShowRankTopBarScoreboardOnly.wants_scoreboard .ShowRankTopBarStatusImage.ShowRankTopBarStatusVisible,
+.ShowRankTopBarScoreboardOnly.gScoreboardOpen .ShowRankTopBarStatusImage.ShowRankTopBarStatusVisible
+{
+	visibility: visible;
+	opacity: 0.75;
 }
 '@
     Set-Content -LiteralPath $topBarCss -Value ($css.TrimEnd() + "`r`n" + $scoreboardOnlyCss.TrimStart()) -NoNewline
@@ -217,6 +225,81 @@ function Apply-MinifyRanksVariant {
 
     Set-Content -LiteralPath $scriptPath -Value $patchedScript -NoNewline
 }
+
+function Assert-LatestTopBarContract {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$StageSrc,
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Spec
+    )
+
+    $scriptPath = Join-Path $StageSrc "panorama\scripts\showrank_web_media_bridge.js"
+    $topBarXml = Join-Path $StageSrc "panorama\layout\citadel_hud_top_bar.xml"
+    $topBarPlayerXml = Join-Path $StageSrc "panorama\layout\citadel_hud_top_bar_player.xml"
+    $topBarCss = Join-Path $StageSrc "panorama\styles\showrank_top_bar.css"
+
+    foreach ($requiredPath in @($scriptPath, $topBarXml, $topBarPlayerXml, $topBarCss)) {
+        if (-not (Test-Path -LiteralPath $requiredPath)) {
+            throw "Required ShowRank variant source missing: $requiredPath"
+        }
+    }
+
+    $script = Get-Content -LiteralPath $scriptPath -Raw
+    $xml = Get-Content -LiteralPath $topBarXml -Raw
+    $playerXml = Get-Content -LiteralPath $topBarPlayerXml -Raw
+    $css = Get-Content -LiteralPath $topBarCss -Raw
+
+    if ($xml.Contains("Press ESC to populate ranks") -or $xml.Contains("ShowRankTopBarEscapePrompt")) {
+        throw "Old top-bar ESC populate banner is present in $($Spec.Id)"
+    }
+    if (-not $playerXml.Contains('id="ShowRankTopBarStatusImage"')) {
+        throw "Top-bar status image missing in $($Spec.Id)"
+    }
+    if (-not $playerXml.Contains("badge_sm_psd.vtex")) {
+        throw "Top-bar rank0 placeholder missing in $($Spec.Id)"
+    }
+    if (-not $playerXml.Contains("ShowRankTopBarStatusVisible")) {
+        throw "Top-bar rank0 placeholder is not visible by default in $($Spec.Id)"
+    }
+    if (-not $script.Contains("TOPBAR_MISSING_RANK_IMAGE_URL")) {
+        throw "Bridge missing rank0 placeholder URL constant in $($Spec.Id)"
+    }
+    if (-not $script.Contains("spinner_png.vtex")) {
+        throw "Bridge missing spinner status URL in $($Spec.Id)"
+    }
+    if (-not $script.Contains("TOPBAR_LOADING_TIMEOUT_SECONDS = 20.0")) {
+        throw "Bridge missing 20-second top-bar spinner timeout in $($Spec.Id)"
+    }
+    if ($script.Contains("ShowRankDebug")) {
+        throw "Release variant source contains ShowRankDebug logging in $($Spec.Id)"
+    }
+    if (-not $css.Contains("ShowRankTopBarSpinnerSpin")) {
+        throw "Top-bar spinner keyframes missing in $($Spec.Id)"
+    }
+    if (-not $css.Contains("opacity: 0.75;")) {
+        throw "Top-bar status opacity 0.75 missing in $($Spec.Id)"
+    }
+    if ($Spec.ScoreboardOnlyTopBar) {
+        if (-not $xml.Contains("ShowRankTopBarScoreboardOnly")) {
+            throw "Scoreboard-only variant did not mark the top-bar root in $($Spec.Id)"
+        }
+        if (-not $css.Contains(".ShowRankTopBarScoreboardOnly .ShowRankTopBarStatusImage.ShowRankTopBarStatusVisible")) {
+            throw "Scoreboard-only variant does not hide rank0/status by default in $($Spec.Id)"
+        }
+        if (-not $css.Contains(".ShowRankTopBarScoreboardOnly.wants_scoreboard .ShowRankTopBarStatusImage.ShowRankTopBarStatusVisible")) {
+            throw "Scoreboard-only variant does not reveal rank0/status while scoreboard is open in $($Spec.Id)"
+        }
+    }
+    if ($Spec.MinifyRanks) {
+        if (-not $script.Contains('/rank-predict/image?size=small')) {
+            throw "Minify-ranks variant did not switch player rank URLs to size=small in $($Spec.Id)"
+        }
+    } elseif (-not $script.Contains('/rank-predict/image?format=webp')) {
+        throw "Normal-rank variant lost player rank format=webp URL in $($Spec.Id)"
+    }
+}
+
 
 function Invoke-ShowRankTerser {
     param(
@@ -292,6 +375,8 @@ function New-VariantStage {
     if ($Spec.MinifyRanks) {
         Apply-MinifyRanksVariant -StageSrc $stageSrc
     }
+
+    Assert-LatestTopBarContract -StageSrc $stageSrc -Spec $Spec
 
     Invoke-ShowRankTerser -StageSrc $stageSrc -Spec $Spec
 

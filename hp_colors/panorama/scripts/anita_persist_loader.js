@@ -1,6 +1,7 @@
-'use strict';
+// fallow-ignore-file unused-file
+// fallow-ignore-file complexity
+"use strict";
 (function () {
-
   var TITLE = "HP Colors";
   var STORAGE_NAMESPACE = "hp_colors";
   var STORAGE_KEY = "anita_v1_hp_colors";
@@ -55,18 +56,8 @@
     hp_kill_zone_threshold: "kzt",
     hp_kill_zone_color: "kzc",
     hp_kill_zone_width: "kzw",
-    hp_counter_format: "cf"
+    hp_counter_format: "cf",
   };
-  var HP_PERSIST_ALIAS_TO_ID = (function () {
-    var out = {};
-    for (var id in HP_PERSIST_ALIASES) {
-      if (Object.prototype.hasOwnProperty.call(HP_PERSIST_ALIASES, id)) {
-        out[HP_PERSIST_ALIASES[id]] = id;
-      }
-    }
-    out.kzs = "hp_kill_zone_color";
-    return out;
-  })();
 
   var bridgeConfig = null;
   var currentValues = null;
@@ -82,11 +73,10 @@
   var cachedDefaultConfig = null;
   var cachedDefaultValues = null;
   var elementById = null;
-  
-
 
   var AnitaBase64 = (function () {
-    var CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    var CHARS =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
     function encode(str) {
       var bytes = [];
@@ -95,12 +85,12 @@
         if (code < 128) {
           bytes.push(code);
         } else if (code < 2048) {
-          bytes.push(0xC0 | (code >> 6));
-          bytes.push(0x80 | (code & 0x3F));
+          bytes.push(0xc0 | (code >> 6));
+          bytes.push(0x80 | (code & 0x3f));
         } else {
-          bytes.push(0xE0 | (code >> 12));
-          bytes.push(0x80 | ((code >> 6) & 0x3F));
-          bytes.push(0x80 | (code & 0x3F));
+          bytes.push(0xe0 | (code >> 12));
+          bytes.push(0x80 | ((code >> 6) & 0x3f));
+          bytes.push(0x80 | (code & 0x3f));
         }
       }
 
@@ -111,8 +101,8 @@
         var b2 = bytes[j + 2] || 0;
         out += CHARS[b0 >> 2];
         out += CHARS[((b0 & 3) << 4) | (b1 >> 4)];
-        out += (j + 1 < bytes.length) ? CHARS[((b1 & 15) << 2) | (b2 >> 6)] : "";
-        out += (j + 2 < bytes.length) ? CHARS[b2 & 63] : "";
+        out += j + 1 < bytes.length ? CHARS[((b1 & 15) << 2) | (b2 >> 6)] : "";
+        out += j + 2 < bytes.length ? CHARS[b2 & 63] : "";
       }
       return out;
     }
@@ -136,7 +126,8 @@
         var c2 = str[j + 2] !== undefined ? getVal(str[j + 2]) : 0;
         var c3 = str[j + 3] !== undefined ? getVal(str[j + 3]) : 0;
         decodedBytes.push((c0 << 2) | (c1 >> 4));
-        if (str[j + 2] !== undefined) decodedBytes.push(((c1 & 15) << 4) | (c2 >> 2));
+        if (str[j + 2] !== undefined)
+          decodedBytes.push(((c1 & 15) << 4) | (c2 >> 2));
         if (str[j + 3] !== undefined) decodedBytes.push(((c2 & 3) << 6) | c3);
       }
 
@@ -146,11 +137,15 @@
         if (b < 128) {
           out += String.fromCharCode(b);
         } else if (b < 224) {
-          out += String.fromCharCode(((b & 31) << 6) | (decodedBytes[++k] & 63));
+          out += String.fromCharCode(
+            ((b & 31) << 6) | (decodedBytes[++k] & 63),
+          );
         } else {
           var cont2 = decodedBytes[++k];
           var cont3 = decodedBytes[++k];
-          out += String.fromCharCode(((b & 15) << 12) | ((cont2 & 63) << 6) | (cont3 & 63));
+          out += String.fromCharCode(
+            ((b & 15) << 12) | ((cont2 & 63) << 6) | (cont3 & 63),
+          );
         }
       }
       return out;
@@ -158,7 +153,7 @@
 
     return {
       encode: encode,
-      decode: decode
+      decode: decode,
     };
   })();
 
@@ -171,19 +166,18 @@
 
   function getSharedStore() {
     try {
-      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) return GameUI.CustomUIConfig();
+      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig)
+        return GameUI.CustomUIConfig();
     } catch (e) {}
     return null;
   }
 
   function writeHpSharedSnapshot(values) {
     if (!values || typeof values !== "object") return;
-    var count = 0;
     var out = {};
     for (var key in values) {
       if (!Object.prototype.hasOwnProperty.call(values, key)) continue;
       out[key] = values[key];
-      count += 1;
     }
     try {
       var store = getSharedStore();
@@ -193,8 +187,7 @@
         _lastHpSharedRaw = raw;
         store[SHARED_CFG_RAW_KEY] = raw;
       }
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   function getRootPanel() {
@@ -218,7 +211,10 @@
 
   function findElement(settingId) {
     if (!settingId) return null;
-    if (elementById && Object.prototype.hasOwnProperty.call(elementById, settingId)) {
+    if (
+      elementById &&
+      Object.prototype.hasOwnProperty.call(elementById, settingId)
+    ) {
       return elementById[settingId] || null;
     }
     if (!bridgeConfig || !Array.isArray(bridgeConfig.elements)) return null;
@@ -229,91 +225,113 @@
     return null;
   }
 
+  function sanitizePositionPickerValue(element, value) {
+    var posX = 0;
+    var posY = 200;
+    var minY =
+      element.id === "hp_counter_position" ||
+      element.id === "hp_pulse_text_position"
+        ? -50
+        : 0;
+    var rawPos = value;
+
+    if (rawPos && typeof rawPos === "object") {
+      if (Array.isArray(rawPos)) {
+        if (rawPos.length > 0) posX = Number(rawPos[0]);
+        if (rawPos.length > 1) posY = Number(rawPos[1]);
+      } else {
+        if (Object.prototype.hasOwnProperty.call(rawPos, "x"))
+          posX = Number(rawPos.x);
+        if (Object.prototype.hasOwnProperty.call(rawPos, "y"))
+          posY = Number(rawPos.y);
+      }
+    } else if (typeof rawPos === "string") {
+      var parts = rawPos.match(/-?\d+(?:\.\d+)?/g);
+      if (parts && parts.length > 0) {
+        posX = Number(parts[0]);
+        if (parts.length > 1) posY = Number(parts[1]);
+      }
+    } else if (typeof rawPos === "number") {
+      posY = Number(rawPos);
+    }
+
+    if (!isFinite(posX)) posX = 0;
+    if (!isFinite(posY)) posY = 200;
+    if (posX < 0) posX = 0;
+    if (posY < minY) posY = minY;
+    if (posX > 400) posX = 400;
+    if (posY > 400) posY = 400;
+
+    return Math.round(posX) + "," + Math.round(posY);
+  }
+
+  function sanitizeToggleValue(value, fallback) {
+    if (value === true || value === false) return value;
+    if (value === 1 || value === "1") return true;
+    if (value === 0 || value === "0") return false;
+    if (typeof value === "string") {
+      var lowered = value.toLowerCase();
+      if (lowered === "true") return true;
+      if (lowered === "false") return false;
+    }
+    return !!fallback;
+  }
+
+  function sanitizeCyclerValue(element, value, fallback) {
+    var count = Array.isArray(element.options) ? element.options.length : 0;
+    var nextIndex = Number(value);
+    if (!isFinite(nextIndex)) nextIndex = Number(fallback);
+    if (!isFinite(nextIndex)) nextIndex = 0;
+    nextIndex = Math.round(nextIndex);
+    if (nextIndex < 0) nextIndex = 0;
+    if (count > 0 && nextIndex >= count) {
+      var fallbackIndex = Number(fallback);
+      if (
+        !isFinite(fallbackIndex) ||
+        fallbackIndex < 0 ||
+        fallbackIndex >= count
+      )
+        fallbackIndex = 0;
+      nextIndex = fallbackIndex;
+    }
+    return nextIndex;
+  }
+
+  function sanitizeNumberControlValue(element, value, fallback) {
+    var nextNumber = Number(value);
+    if (!isFinite(nextNumber)) nextNumber = Number(fallback);
+    if (!isFinite(nextNumber)) nextNumber = 0;
+    var step = Number(element.step);
+    if (!isFinite(step) || step === 0) step = 1;
+    var minV = isFinite(Number(element.min)) ? Number(element.min) : -Infinity;
+    var maxV = isFinite(Number(element.max)) ? Number(element.max) : Infinity;
+    if (nextNumber < minV) nextNumber = minV;
+    if (nextNumber > maxV) nextNumber = maxV;
+    if (Math.round(step) === step) return Math.round(nextNumber);
+    return parseFloat(nextNumber.toFixed(2));
+  }
+
+  function sanitizeColorPickerValue(value, fallback) {
+    if (typeof value === "string" && value.length > 0) return value;
+    return typeof fallback === "string" && fallback.length > 0
+      ? fallback
+      : "#FFFFFF";
+  }
+
   function sanitizeValue(element, value) {
     if (!element) return value;
 
     var fallback = element.defaultValue;
     var type = String(element.type || "");
 
-    if (type === "positionpicker") {
-      var posX = 0;
-      var posY = 200;
-      var minY = (element.id === "hp_counter_position" || element.id === "hp_pulse_text_position") ? -50 : 0;
-      var rawPos = value;
-
-      if (rawPos && typeof rawPos === "object") {
-        if (Array.isArray(rawPos)) {
-          if (rawPos.length > 0) posX = Number(rawPos[0]);
-          if (rawPos.length > 1) posY = Number(rawPos[1]);
-        } else {
-          if (Object.prototype.hasOwnProperty.call(rawPos, "x")) posX = Number(rawPos.x);
-          if (Object.prototype.hasOwnProperty.call(rawPos, "y")) posY = Number(rawPos.y);
-        }
-      } else if (typeof rawPos === "string") {
-        var parts = rawPos.match(/-?\d+(?:\.\d+)?/g);
-        if (parts && parts.length > 0) {
-          posX = Number(parts[0]);
-          if (parts.length > 1) posY = Number(parts[1]);
-        }
-      } else if (typeof rawPos === "number") {
-        posY = Number(rawPos);
-      }
-
-      if (!isFinite(posX)) posX = 0;
-      if (!isFinite(posY)) posY = 200;
-      if (posX < 0) posX = 0;
-      if (posY < minY) posY = minY;
-      if (posX > 400) posX = 400;
-      if (posY > 400) posY = 400;
-
-      return Math.round(posX) + "," + Math.round(posY);
-    }
-
-    if (type === "toggle") {
-      if (value === true || value === false) return value;
-      if (value === 1 || value === "1") return true;
-      if (value === 0 || value === "0") return false;
-      if (typeof value === "string") {
-        var lowered = value.toLowerCase();
-        if (lowered === "true") return true;
-        if (lowered === "false") return false;
-      }
-      return !!fallback;
-    }
-
-    if (type === "cycler") {
-      var count = Array.isArray(element.options) ? element.options.length : 0;
-      var nextIndex = Number(value);
-      if (!isFinite(nextIndex)) nextIndex = Number(fallback);
-      if (!isFinite(nextIndex)) nextIndex = 0;
-      nextIndex = Math.round(nextIndex);
-      if (nextIndex < 0) nextIndex = 0;
-      if (count > 0 && nextIndex >= count) {
-        var fallbackIndex = Number(fallback);
-        if (!isFinite(fallbackIndex) || fallbackIndex < 0 || fallbackIndex >= count) fallbackIndex = 0;
-        nextIndex = fallbackIndex;
-      }
-      return nextIndex;
-    }
-
-    if (type === "slider" || type === "stepper") {
-      var nextNumber = Number(value);
-      if (!isFinite(nextNumber)) nextNumber = Number(fallback);
-      if (!isFinite(nextNumber)) nextNumber = 0;
-      var step = Number(element.step);
-      if (!isFinite(step) || step === 0) step = 1;
-      var minV = isFinite(Number(element.min)) ? Number(element.min) : -Infinity;
-      var maxV = isFinite(Number(element.max)) ? Number(element.max) : Infinity;
-      if (nextNumber < minV) nextNumber = minV;
-      if (nextNumber > maxV) nextNumber = maxV;
-      if (Math.round(step) === step) return Math.round(nextNumber);
-      return parseFloat(nextNumber.toFixed(2));
-    }
-
-    if (type === "colorpicker") {
-      if (typeof value === "string" && value.length > 0) return value;
-      return (typeof fallback === "string" && fallback.length > 0) ? fallback : "#FFFFFF";
-    }
+    if (type === "positionpicker")
+      return sanitizePositionPickerValue(element, value);
+    if (type === "toggle") return sanitizeToggleValue(value, fallback);
+    if (type === "cycler") return sanitizeCyclerValue(element, value, fallback);
+    if (type === "slider" || type === "stepper")
+      return sanitizeNumberControlValue(element, value, fallback);
+    if (type === "colorpicker")
+      return sanitizeColorPickerValue(value, fallback);
 
     if (value !== undefined) return value;
     return fallback;
@@ -324,7 +342,8 @@
       return cloneValues(cachedDefaultValues);
     }
     var values = {};
-    var elements = (config && Array.isArray(config.elements)) ? config.elements : [];
+    var elements =
+      config && Array.isArray(config.elements) ? config.elements : [];
     for (var i = 0; i < elements.length; i++) {
       var element = elements[i];
       if (!element || !element.id || element.type === "button") continue;
@@ -337,59 +356,10 @@
     return values;
   }
 
-  function mergeWithDefaults(values) {
-    var merged = buildDefaultValues(bridgeConfig);
-    for (var key in values) {
-      if (!Object.prototype.hasOwnProperty.call(values, key)) continue;
-      var element = findElement(key);
-      if (!element) continue;
-      merged[key] = sanitizeValue(element, values[key]);
-    }
-    return merged;
-  }
-
-  function parseStoredPayload(raw) {
-    var text = String(raw || "");
-    if (!text) return null;
-
-    var parsed = null;
-    try {
-      parsed = JSON.parse(text);
-    } catch (eParse) {
-      return null;
-    }
-
-    if (!parsed || typeof parsed !== "object" || !parsed.values || typeof parsed.values !== "object") {
-      return null;
-    }
-
-    if (bridgeConfig && parsed.v && Number(parsed.v) < Number(bridgeConfig.storageVersion)) {
-    }
-
-    var rawValues = parsed.values;
-    var values = {};
-    var useCompact = parsed.c === HP_COMPACT_PERSIST_VERSION || parsed.compact === true;
-    if (useCompact) {
-      var expanded = {};
-      for (var alias in rawValues) {
-        if (!Object.prototype.hasOwnProperty.call(rawValues, alias)) continue;
-        var fullId = HP_PERSIST_ALIAS_TO_ID[alias];
-        if (!fullId) continue;
-        expanded[fullId] = rawValues[alias];
-      }
-      values = mergeWithDefaults(expanded);
-    } else {
-      values = mergeWithDefaults(rawValues);
-    }
-    return {
-      raw: text,
-      values: values
-    };
-  }
-
   function buildStoredPayload() {
     if (!bridgeConfig) return "";
-    var sourceValues = persistedValues || currentValues || buildDefaultValues(bridgeConfig);
+    var sourceValues =
+      persistedValues || currentValues || buildDefaultValues(bridgeConfig);
     var defaults = buildDefaultValues(bridgeConfig);
     var compactValues = {};
     for (var key in sourceValues) {
@@ -401,7 +371,7 @@
     return JSON.stringify({
       v: Math.max(1, Math.floor(Number(bridgeConfig.storageVersion) || 1)),
       c: HP_COMPACT_PERSIST_VERSION,
-      values: compactValues
+      values: compactValues,
     });
   }
 
@@ -410,12 +380,14 @@
     if (!root) return;
 
     try {
-      if (root.SetAttributeString) root.SetAttributeString(STORAGE_KEY, encoded);
+      if (root.SetAttributeString)
+        root.SetAttributeString(STORAGE_KEY, encoded);
     } catch (eRoot) {}
 
     try {
       var hud = root.FindChildTraverse ? root.FindChildTraverse("Hud") : null;
-      if (hud && hud.SetAttributeString) hud.SetAttributeString(STORAGE_KEY, encoded);
+      if (hud && hud.SetAttributeString)
+        hud.SetAttributeString(STORAGE_KEY, encoded);
     } catch (eHud) {}
   }
 
@@ -448,7 +420,7 @@
         raw: cachedRaw,
         encoded: cachedEncoded,
         values: cloneValues(cachedValues),
-        source: "cache"
+        source: "cache",
       };
     }
     return null;
@@ -489,14 +461,17 @@
   function replayValuesBulk(values, reason) {
     if (!values) return;
     writeHpSharedSnapshot(values);
-    $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
-      magic_word: "ANITA_BULK_UPDATE",
-      mod_title: TITLE,
-      values: values,
-      update_source: "bridge_bootstrap",
-      skip_bridge_persist: true,
-      force_emit: true
-    }));
+    $.DispatchEvent(
+      "ClientUI_FireOutput",
+      JSON.stringify({
+        magic_word: "ANITA_BULK_UPDATE",
+        mod_title: TITLE,
+        values: values,
+        update_source: "bridge_bootstrap",
+        skip_bridge_persist: true,
+        force_emit: true,
+      }),
+    );
   }
 
   function performBootstrap(reason) {
@@ -515,20 +490,19 @@
     }
 
     var stored = readStoredPayload();
-      if (stored) {
-        currentValues = cloneValues(stored.values);
-        persistedValues = cloneValues(stored.values);
-        writeSessionMirror(stored.encoded);
-        replayValuesBulk(stored.values, reason + ":" + stored.source);
-        return;
-      }
+    if (stored) {
+      currentValues = cloneValues(stored.values);
+      persistedValues = cloneValues(stored.values);
+      writeSessionMirror(stored.encoded);
+      replayValuesBulk(stored.values, reason + ":" + stored.source);
+      return;
+    }
 
     var sessionValues = currentValues || persistedValues;
     if (sessionValues) {
       replayValuesBulk(sessionValues, reason + ":session");
       return;
     }
-
   }
 
   function scheduleBootstrap(reason) {
@@ -541,24 +515,30 @@
   }
 
   function isBridgeReplaySource(updateSource) {
-    return updateSource === "bridge_bootstrap" ||
+    return (
+      updateSource === "bridge_bootstrap" ||
       updateSource === "core_auto_resync" ||
       updateSource === "ui_resync" ||
       updateSource === "ui_reset" ||
       updateSource === "ui_code_apply" ||
       updateSource === "baked_preset_apply" ||
-      updateSource === "ui_refresh_after_apply";
+      updateSource === "ui_refresh_after_apply"
+    );
   }
 
   function captureConfig(config) {
     if (!config || String(config.title || "") !== TITLE) return false;
-    if (normalizeNamespace(config.storageNamespace) !== STORAGE_NAMESPACE) return false;
+    if (normalizeNamespace(config.storageNamespace) !== STORAGE_NAMESPACE)
+      return false;
 
     var nextConfig = {
       title: TITLE,
       storageNamespace: STORAGE_NAMESPACE,
-      storageVersion: Math.max(1, Math.floor(Number(config.storageVersion) || 1)),
-      elements: []
+      storageVersion: Math.max(
+        1,
+        Math.floor(Number(config.storageVersion) || 1),
+      ),
+      elements: [],
     };
 
     var sourceElements = Array.isArray(config.elements) ? config.elements : [];
@@ -570,7 +550,7 @@
         type: source.type,
         defaultValue: source.defaultValue,
         options: Array.isArray(source.options) ? source.options.slice(0) : null,
-        step: source.step
+        step: source.step,
       });
     }
 
@@ -588,95 +568,127 @@
     return true;
   }
 
-  $.RegisterForUnhandledEvent("ClientUI_FireOutput", function (payload) {
+  function handleRegisterOutput(data) {
+    if (captureConfig(data.config) && pendingBootstrapReason) {
+      scheduleBootstrap(pendingBootstrapReason);
+    }
+  }
+
+  function handleBootstrapRequestOutput(data) {
+    if (data.mod_title !== TITLE) return;
+    if (normalizeNamespace(data.storageNamespace) !== STORAGE_NAMESPACE) return;
+    scheduleBootstrap(String(data.reason || "request"));
+  }
+
+  function shouldSkipReplayPersist(data, updateSource) {
+    return data.skip_bridge_persist || isBridgeReplaySource(updateSource);
+  }
+
+  function handleBulkUpdateOutput(data) {
+    if (data.mod_title !== TITLE) return;
+    if (!bridgeConfig || !data.values || typeof data.values !== "object")
+      return;
+    if (!currentValues) currentValues = buildDefaultValues(bridgeConfig);
+    if (!persistedValues) persistedValues = cloneValues(currentValues);
+
+    var bulkSource = String(data.update_source || "ui_update");
+    var bulkReplay = isBridgeReplaySource(bulkSource);
+    var changed = false;
+    var persistedChanged = false;
+    for (var bulkId in data.values) {
+      if (!Object.prototype.hasOwnProperty.call(data.values, bulkId)) continue;
+      var bulkElement = findElement(bulkId);
+      if (!bulkElement) continue;
+      var bulkValue = sanitizeValue(bulkElement, data.values[bulkId]);
+      if (currentValues[bulkId] !== bulkValue) {
+        currentValues[bulkId] = bulkValue;
+        changed = true;
+      }
+      if (!data.skip_bridge_persist && !bulkReplay) {
+        if (persistedValues[bulkId] !== bulkValue) {
+          persistedValues[bulkId] = bulkValue;
+          persistedChanged = true;
+        }
+      }
+    }
+
+    if (changed) writeHpSharedSnapshot(currentValues);
+    if (shouldSkipReplayPersist(data, bulkSource)) return;
+    if (changed || persistedChanged || data.force_persist) {
+      schedulePersist(bulkSource, !!data.force_persist);
+    }
+  }
+
+  function handleSingleUpdateOutput(data) {
+    if (data.mod_title !== TITLE) return;
+    if (!bridgeConfig || !data.setting_id) return;
+
+    var element = findElement(data.setting_id);
+    if (!element) return;
+
+    if (!currentValues) currentValues = buildDefaultValues(bridgeConfig);
+    if (!persistedValues) persistedValues = cloneValues(currentValues);
+
+    var updateSource = String(data.update_source || "ui_update");
+    var isResync = isBridgeReplaySource(updateSource);
+
+    var sanitizedValue = sanitizeValue(element, data.value);
+    var updateChanged = currentValues[data.setting_id] !== sanitizedValue;
+    if (updateChanged) {
+      currentValues[data.setting_id] = sanitizedValue;
+      writeHpSharedSnapshot(currentValues);
+    }
+    var persistedUpdateChanged = false;
+    if (!isResync) {
+      if (persistedValues[data.setting_id] !== sanitizedValue) {
+        persistedValues[data.setting_id] = sanitizedValue;
+        persistedUpdateChanged = true;
+      }
+    }
+
+    if (
+      data.skip_bridge_persist ||
+      updateSource === "bridge_bootstrap" ||
+      isResync
+    ) {
+      return;
+    }
+
+    if (updateChanged || persistedUpdateChanged || data.force_persist) {
+      schedulePersist(
+        String(data.update_source || "ui_update"),
+        !!data.force_persist,
+      );
+    }
+  }
+
+  function handleParsedClientUiOutput(data) {
+    if (!data) return;
+    if (data.magic_word === "ANITA_REGISTER") {
+      handleRegisterOutput(data);
+      return;
+    }
+    if (data.magic_word === "ANITA_REQUEST_BOOTSTRAP") {
+      handleBootstrapRequestOutput(data);
+      return;
+    }
+    if (data.magic_word === "ANITA_BULK_UPDATE") {
+      handleBulkUpdateOutput(data);
+      return;
+    }
+    if (data.magic_word === "ANITA_UPDATE") {
+      handleSingleUpdateOutput(data);
+    }
+  }
+
+  function handleClientUiFireOutput(payload) {
     if (typeof payload === "string" && payload.indexOf("ANITA_") === -1) return;
     try {
-      var data = (typeof payload === "string") ? JSON.parse(payload) : payload;
-      if (!data) return;
+      handleParsedClientUiOutput(
+        typeof payload === "string" ? JSON.parse(payload) : payload,
+      );
+    } catch (e) {}
+  }
 
-      if (data.magic_word === "ANITA_REGISTER") {
-        if (captureConfig(data.config) && pendingBootstrapReason) {
-          scheduleBootstrap(pendingBootstrapReason);
-        }
-        return;
-      }
-
-      if (data.magic_word === "ANITA_REQUEST_BOOTSTRAP") {
-        if (data.mod_title !== TITLE) return;
-        if (normalizeNamespace(data.storageNamespace) !== STORAGE_NAMESPACE) return;
-        scheduleBootstrap(String(data.reason || "request"));
-        return;
-      }
-
-      if (data.magic_word === "ANITA_BULK_UPDATE" && data.mod_title === TITLE) {
-        if (!bridgeConfig || !data.values || typeof data.values !== "object") return;
-        if (!currentValues) currentValues = buildDefaultValues(bridgeConfig);
-        if (!persistedValues) persistedValues = cloneValues(currentValues);
-
-        var bulkSource = String(data.update_source || "ui_update");
-        var bulkReplay = isBridgeReplaySource(bulkSource);
-        var changed = false;
-        var persistedChanged = false;
-        for (var bulkId in data.values) {
-          if (!Object.prototype.hasOwnProperty.call(data.values, bulkId)) continue;
-          var bulkElement = findElement(bulkId);
-          if (!bulkElement) continue;
-          var bulkValue = sanitizeValue(bulkElement, data.values[bulkId]);
-          if (currentValues[bulkId] !== bulkValue) {
-            currentValues[bulkId] = bulkValue;
-            changed = true;
-          }
-          if (!data.skip_bridge_persist && !bulkReplay) {
-            if (persistedValues[bulkId] !== bulkValue) {
-              persistedValues[bulkId] = bulkValue;
-              persistedChanged = true;
-            }
-          }
-        }
-
-        if (changed) writeHpSharedSnapshot(currentValues);
-        if (data.skip_bridge_persist || bulkReplay) return;
-        if (changed || persistedChanged || data.force_persist) {
-          schedulePersist(bulkSource, !!data.force_persist);
-        }
-        return;
-      }
-
-      if (data.magic_word !== "ANITA_UPDATE" || data.mod_title !== TITLE) return;
-      if (!bridgeConfig || !data.setting_id) return;
-
-      var element = findElement(data.setting_id);
-      if (!element) return;
-
-      if (!currentValues) currentValues = buildDefaultValues(bridgeConfig);
-      if (!persistedValues) persistedValues = cloneValues(currentValues);
-
-      var updateSource = String(data.update_source || "ui_update");
-      var isResync = isBridgeReplaySource(updateSource);
-
-      var sanitizedValue = sanitizeValue(element, data.value);
-      var updateChanged = currentValues[data.setting_id] !== sanitizedValue;
-      if (updateChanged) {
-        currentValues[data.setting_id] = sanitizedValue;
-        writeHpSharedSnapshot(currentValues);
-      }
-      var persistedUpdateChanged = false;
-      if (!isResync) {
-        if (persistedValues[data.setting_id] !== sanitizedValue) {
-          persistedValues[data.setting_id] = sanitizedValue;
-          persistedUpdateChanged = true;
-        }
-      }
-
-      if (data.skip_bridge_persist || updateSource === "bridge_bootstrap" || isResync) {
-        return;
-      }
-
-      if (updateChanged || persistedUpdateChanged || data.force_persist) {
-        schedulePersist(String(data.update_source || "ui_update"), !!data.force_persist);
-      }
-    } catch (e) {
-    }
-  });
-
+  $.RegisterForUnhandledEvent("ClientUI_FireOutput", handleClientUiFireOutput);
 })();
