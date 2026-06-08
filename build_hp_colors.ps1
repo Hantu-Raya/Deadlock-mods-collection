@@ -207,7 +207,16 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Could not inspect packed VPK contents" -ForegroundColor Red
     exit 1
 }
-foreach ($packedAsset in @("anita_ui_core.vjs_c", "anita_ui.vcss_c", "healthbar_logic.vjs_c")) {
+foreach ($packedAsset in @(
+    "base_hud.vxml_c",
+    "unit_status_overlay.vxml_c",
+    "anita_ui_core.vjs_c",
+    "anita_persist_loader.vjs_c",
+    "hp_registrar.vjs_c",
+    "healthbar_logic.vjs_c",
+    "anita_ui.vcss_c",
+    "unit_status.vcss_c"
+)) {
     if (-not (($vpkTree | Select-String -SimpleMatch $packedAsset -Quiet))) {
         Write-Host "[ERROR] Packed VPK missing required asset: $packedAsset" -ForegroundColor Red
         exit 1

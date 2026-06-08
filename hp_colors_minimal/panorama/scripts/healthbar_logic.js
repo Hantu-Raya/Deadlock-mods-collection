@@ -1,3 +1,5 @@
+// fallow-ignore-file unused-file
+// fallow-ignore-file complexity
 "use strict";
 (function () {
   // â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -116,7 +118,6 @@
   var lPD = null;
   var lPI = -1;
   var lTB = null;
-  var firstEnemyPaintReported = false;
 
   // ── Ally state ───────────────────────────────────────────────────────────────
   var rbA = null,
@@ -141,7 +142,6 @@
   var redBarResolverPanel = null;
   var redBarResolverMode = "";
   var redBarResolverAt = 0;
-  var redBarResolverSource = "";
   var lastRedBarResolveRejectFlags = 0;
 
   function getPulseTextSize(fallback) {
@@ -264,66 +264,73 @@
     clearPulsePanel(panel || allyOwnedPanel, oldCls);
   }
 
+  function coercePositionCfgValue(value) {
+    var posX = 0;
+    var posY = 200;
+
+    if (value && typeof value === "object") {
+      if (Array.isArray(value)) {
+        if (value.length > 0) posX = clampNum(value[0], 0, 400, 0);
+        if (value.length > 1) posY = clampNum(value[1], -50, 400, 200);
+      } else {
+        if (Object.prototype.hasOwnProperty.call(value, "x"))
+          posX = clampNum(value.x, 0, 400, 0);
+        if (Object.prototype.hasOwnProperty.call(value, "y"))
+          posY = clampNum(value.y, -50, 400, 200);
+      }
+      return Math.round(posX) + "," + Math.round(posY);
+    }
+
+    if (typeof value === "string") {
+      var posParts = value.match(/-?\d+(?:\.\d+)?/g);
+      if (posParts && posParts.length > 0) {
+        posX = clampNum(posParts[0], 0, 400, 0);
+        if (posParts.length > 1) posY = clampNum(posParts[1], -50, 400, 200);
+        return Math.round(posX) + "," + Math.round(posY);
+      }
+    }
+
+    if (typeof value === "number") {
+      posY = clampNum(value, -50, 400, 200);
+    }
+
+    return Math.round(posX) + "," + Math.round(posY);
+  }
+
+  function coerceBooleanCfgValue(value, fallback) {
+    if (value === true || value === false) return value;
+    if (value === 1 || value === "1") return true;
+    if (value === 0 || value === "0") return false;
+    if (typeof value === "string") {
+      var lowered = value.toLowerCase();
+      if (lowered === "true") return true;
+      if (lowered === "false") return false;
+    }
+    return !!fallback;
+  }
+
+  function coerceNumberCfgValue(value, fallback) {
+    var next = Number(value);
+    if (!isFinite(next)) return fallback;
+    return Math.round(next);
+  }
+
+  function coerceStringCfgValue(value, fallback) {
+    return typeof value === "string" && value.length > 0 ? value : fallback;
+  }
+
   function coerceCfgValue(id, value) {
     if (!Object.prototype.hasOwnProperty.call(DEFAULTS, id)) return value;
 
     var fallback = DEFAULTS[id];
-    if (id === "hp_counter_position" || id === "hp_pulse_text_position") {
-      var posX = 0;
-      var posY = 200;
-      var rawPos = value;
-
-      if (rawPos && typeof rawPos === "object") {
-        if (Array.isArray(rawPos)) {
-          if (rawPos.length > 0) posX = clampNum(rawPos[0], 0, 400, 0);
-          if (rawPos.length > 1) posY = clampNum(rawPos[1], -50, 400, 200);
-        } else {
-          if (Object.prototype.hasOwnProperty.call(rawPos, "x"))
-            posX = clampNum(rawPos.x, 0, 400, 0);
-          if (Object.prototype.hasOwnProperty.call(rawPos, "y"))
-            posY = clampNum(rawPos.y, -50, 400, 200);
-        }
-        return Math.round(posX) + "," + Math.round(posY);
-      }
-
-      if (typeof rawPos === "string") {
-        var posParts = rawPos.match(/-?\d+(?:\.\d+)?/g);
-        if (posParts && posParts.length > 0) {
-          posX = clampNum(posParts[0], 0, 400, 0);
-          if (posParts.length > 1) posY = clampNum(posParts[1], -50, 400, 200);
-          return Math.round(posX) + "," + Math.round(posY);
-        }
-      }
-
-      if (typeof rawPos === "number") {
-        posY = clampNum(rawPos, -50, 400, 200);
-      }
-
-      return Math.round(posX) + "," + Math.round(posY);
-    }
-
-    if (typeof fallback === "boolean") {
-      if (value === true || value === false) return value;
-      if (value === 1 || value === "1") return true;
-      if (value === 0 || value === "0") return false;
-      if (typeof value === "string") {
-        var lowered = value.toLowerCase();
-        if (lowered === "true") return true;
-        if (lowered === "false") return false;
-      }
-      return !!fallback;
-    }
-
-    if (typeof fallback === "number") {
-      var next = Number(value);
-      if (!isFinite(next)) return fallback;
-      return Math.round(next);
-    }
-
-    if (typeof fallback === "string") {
-      return typeof value === "string" && value.length > 0 ? value : fallback;
-    }
-
+    if (id === "hp_counter_position" || id === "hp_pulse_text_position")
+      return coercePositionCfgValue(value);
+    if (typeof fallback === "boolean")
+      return coerceBooleanCfgValue(value, fallback);
+    if (typeof fallback === "number")
+      return coerceNumberCfgValue(value, fallback);
+    if (typeof fallback === "string")
+      return coerceStringCfgValue(value, fallback);
     return value;
   }
 
@@ -364,7 +371,6 @@
   var lastSameRawWakeAt = 0;
   var _uiMissAt = 0;
   var UI_MISS_TTL_MS = 2000;
-  var perfSharedPanel = null;
   var presetRootPanel = null;
   var lastSnapshotPayload = "";
   var presetGeneration = 0;
@@ -411,46 +417,9 @@
     try {
       var raw = String(root.GetAttributeString(ROOT_CFG_RAW_ATTR, "") || "");
       return raw;
-    } catch (e) {
-    }
+    } catch (e) {}
     return "";
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   // Tokenized schedulers for enemy, ally, and level loops.
 
@@ -628,7 +597,6 @@
     return value;
   }
 
-
   function scheduleEnemyLoop(delay, beforeRun) {
     if (!cfg.hp_enabled) return false;
     var safeDelay = normalizeScheduleDelay(delay, 0.05);
@@ -686,7 +654,7 @@
     return true;
   }
 
-  function markPresetApplied(keyCount) {
+  function markPresetApplied() {
     presetApplied = true;
     presetGeneration++;
     settingsDirty = true;
@@ -725,7 +693,7 @@
       invalidateEnemyVisualCaches();
     } catch (eEnemy) {}
     requestCurrentRedBarRefresh();
-    markPresetApplied(count);
+    markPresetApplied();
     return true;
   }
 
@@ -775,8 +743,7 @@
           reason: requestReason,
         }),
       );
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   function schedulePresetRetry() {
@@ -807,66 +774,85 @@
     );
   }
 
+  function isIgnoredPresetEventPayload(payload) {
+    return (
+      typeof payload === "string" && payload.indexOf(SNAPSHOT_MAGIC) === -1
+    );
+  }
+
+  function isDuplicatePresetPayload(payload) {
+    return (
+      presetApplied &&
+      typeof payload === "string" &&
+      payload === lastSnapshotPayload
+    );
+  }
+
+  function wakeFromSharedPresetStore() {
+    var store = getSharedStore();
+    var storeRaw = "";
+    try {
+      storeRaw = store ? String(store[SHARED_CFG_RAW_KEY] || "") : "";
+    } catch (eStoreRaw) {
+      storeRaw = "";
+    }
+    if (!storeRaw) storeRaw = readRootPresetSnapshot();
+    if (!storeRaw) return false;
+    if (storeRaw === sharedCfgRaw) {
+      wakeForPresetReplay("event_store_same_raw");
+      return true;
+    }
+    return tryApplySharedSnapshot();
+  }
+
+  function parsePresetEventPayload(payload) {
+    try {
+      return typeof payload === "string" ? JSON.parse(payload) : payload;
+    } catch (eParseEvent) {
+      return null;
+    }
+  }
+
+  function getPresetEventRaw(data) {
+    var raw = typeof data.values_raw === "string" ? data.values_raw : "";
+    if (raw) return raw;
+    try {
+      return JSON.stringify(data.values);
+    } catch (eRaw) {
+      return "";
+    }
+  }
+
+  function applyPresetEventPayload(payload) {
+    if (isDuplicatePresetPayload(payload)) {
+      wakeForPresetReplay("event_duplicate_payload");
+      return;
+    }
+    if (presetApplied && wakeFromSharedPresetStore()) return;
+
+    var data = parsePresetEventPayload(payload);
+    if (!data || data.magic_word !== SNAPSHOT_MAGIC) return;
+    if (data.mod_title && data.mod_title !== "HP Colors") return;
+    if (!data.values || typeof data.values !== "object") return;
+
+    var raw = getPresetEventRaw(data);
+    if (raw && raw === sharedCfgRaw && presetApplied) {
+      if (typeof payload === "string") lastSnapshotPayload = payload;
+      wakeForPresetReplay("event_payload_same_raw");
+      return;
+    }
+    if (applyPresetSnapshot(data.values) && raw) {
+      sharedCfgRaw = raw;
+      if (typeof payload === "string") lastSnapshotPayload = payload;
+    }
+  }
+
   try {
     $.RegisterForUnhandledEvent(EVENT_CHANNEL, function (payload) {
-      if (typeof payload === "string" && payload.indexOf(SNAPSHOT_MAGIC) === -1)
-        return;
+      if (isIgnoredPresetEventPayload(payload)) return;
       try {
-        if (
-          presetApplied &&
-          typeof payload === "string" &&
-          payload === lastSnapshotPayload
-        ) {
-          wakeForPresetReplay("event_duplicate_payload");
-          return;
-        }
-        if (presetApplied) {
-          var store = getSharedStore();
-          var storeRaw = "";
-          try {
-            storeRaw = store ? String(store[SHARED_CFG_RAW_KEY] || "") : "";
-          } catch (eStoreRaw) {
-            storeRaw = "";
-          }
-          if (!storeRaw) storeRaw = readRootPresetSnapshot();
-          if (storeRaw) {
-            if (storeRaw === sharedCfgRaw) {
-              wakeForPresetReplay("event_store_same_raw");
-              return;
-            }
-            if (tryApplySharedSnapshot()) {
-              return;
-            }
-          }
-        }
-        var data = null;
-        try {
-          data = typeof payload === "string" ? JSON.parse(payload) : payload;
-        } catch (eParseEvent) {
-          return;
-        }
-        if (!data || data.magic_word !== SNAPSHOT_MAGIC) return;
-        if (data.mod_title && data.mod_title !== "HP Colors") return;
-        if (!data.values || typeof data.values !== "object") return;
-        var raw = typeof data.values_raw === "string" ? data.values_raw : "";
-        if (!raw) {
-          try {
-            raw = JSON.stringify(data.values);
-          } catch (eRaw) {
-            raw = "";
-          }
-        }
-        if (raw && raw === sharedCfgRaw && presetApplied) {
-          if (typeof payload === "string") lastSnapshotPayload = payload;
-          wakeForPresetReplay("event_payload_same_raw");
-          return;
-        }
-        if (applyPresetSnapshot(data.values) && raw) {
-          sharedCfgRaw = raw;
-          if (typeof payload === "string") lastSnapshotPayload = payload;
-        }
-      } catch (e) {
-      }
+        applyPresetEventPayload(payload);
+      } catch (e) {}
     });
   } catch (e) {}
 
@@ -940,7 +926,6 @@
     return cfg.hp_pulse_color;
   }
 
-
   function getTextColor(hp, low, high) {
     if (cfg.hp_text_color_mode) {
       if (hp <= low) return cfg.hp_text_color_low;
@@ -956,13 +941,25 @@
     if (cfg.hp_text_color_mode) {
       if (hp <= low) return cfg.hp_text_color_low;
       if (hp <= high) {
-        return ipHex(cfg.hp_text_color_low, cfg.hp_text_color_mid, (hp - low) / dc.denomMid);
+        return ipHex(
+          cfg.hp_text_color_low,
+          cfg.hp_text_color_mid,
+          (hp - low) / dc.denomMid,
+        );
       }
-      return ipHex(cfg.hp_text_color_mid, cfg.hp_text_color_high, (hp - high) / dc.denomHigh);
+      return ipHex(
+        cfg.hp_text_color_mid,
+        cfg.hp_text_color_high,
+        (hp - high) / dc.denomHigh,
+      );
     }
     if (hp <= low) return cfg.hp_color_low;
     if (hp <= high) {
-      return ipHex(cfg.hp_color_low, cfg.hp_color_mid, (hp - low) / dc.denomMid);
+      return ipHex(
+        cfg.hp_color_low,
+        cfg.hp_color_mid,
+        (hp - low) / dc.denomMid,
+      );
     }
     return ipHex(cfg.hp_color_mid, getHighColor(), (hp - high) / dc.denomHigh);
   }
@@ -1014,7 +1011,6 @@
     redBarResolverPanel = null;
     redBarResolverMode = "";
     redBarResolverAt = 0;
-    redBarResolverSource = "";
     lastRedBarResolveRejectFlags = 0;
   }
 
@@ -1059,7 +1055,6 @@
       redBarResolverPanel = current;
       redBarResolverMode = mode;
       redBarResolverAt = now;
-      redBarResolverSource = "context";
       return current;
     }
     if (vPanel(us)) {
@@ -1068,14 +1063,12 @@
         redBarResolverPanel = nested;
         redBarResolverMode = mode;
         redBarResolverAt = now;
-        redBarResolverSource = "cached_unit_status";
         return nested;
       }
     }
     redBarResolverPanel = null;
     redBarResolverMode = mode;
     redBarResolverAt = now;
-    redBarResolverSource = "miss";
     return null;
   }
 
@@ -1083,28 +1076,28 @@
     return resolveRedBar("any");
   }
 
-  function tryCache() {
-    if (cached) {
-      var counterReady = !cfg.hp_counter_visible || vPanel(hc);
-      if (
-        vPanel(us) &&
-        counterReady &&
-        vPanel(bg) &&
-        vPanel(pl) &&
-        vPanel(lb) &&
-        vPanel(lbp) &&
-        vPanel(nm)
-      )
-        return 1;
-      cached = 0;
-      nextCacheProbeAt = 0;
-    }
-    var now = _ts();
-    if (nextCacheProbeAt && now < nextCacheProbeAt) return 0;
+  function isPanelCacheReady() {
+    var counterReady = !cfg.hp_counter_visible || vPanel(hc);
+    return (
+      vPanel(us) &&
+      counterReady &&
+      vPanel(bg) &&
+      vPanel(pl) &&
+      vPanel(lb) &&
+      vPanel(lbp) &&
+      vPanel(nm)
+    );
+  }
+
+  function setNextCacheProbe(now) {
+    nextCacheProbeAt = now + (att < 8 ? 150 : att < 24 ? 500 : 1500);
+  }
+
+  function probePanelCache(now) {
     att++;
     if (!vPanel(us)) us = ctx.FindChildTraverse(ID_UNIT_STATUS);
     if (!us) {
-      nextCacheProbeAt = now + (att < 8 ? 150 : att < 24 ? 500 : 1500);
+      setNextCacheProbe(now);
       return 0;
     }
     if (!vPanel(hc) && (cfg.hp_counter_visible || lVis !== "collapse"))
@@ -1128,8 +1121,19 @@
       nextCacheProbeAt = 0;
       return 1;
     }
-    nextCacheProbeAt = now + (att < 8 ? 150 : att < 24 ? 500 : 1500);
+    setNextCacheProbe(now);
     return 0;
+  }
+
+  function tryCache() {
+    if (cached) {
+      if (isPanelCacheReady()) return 1;
+      cached = 0;
+      nextCacheProbeAt = 0;
+    }
+    var now = _ts();
+    if (nextCacheProbeAt && now < nextCacheProbeAt) return 0;
+    return probePanelCache(now);
   }
 
   function isInvalidPanel(panel) {
@@ -1258,7 +1262,6 @@
     if (!best || best === rb) return false;
     return adoptCurrentRedBar(best);
   }
-
 
   function readTeamBitsFrom(panel, maxDepth) {
     var t = 0,
@@ -1432,13 +1435,17 @@
     return !!(flags & 8);
   }
 
-
   function isFriendlyBuildingTarget(flags) {
-    return !!((flags & 4) && ((flags & 8) || (tid && tid === knownFriendlyTeamId)));
+    return !!(flags & 4 && (flags & 8 || (tid && tid === knownFriendlyTeamId)));
   }
 
   function isEnemyBuildingTarget(flags) {
-    return !!((flags & 4) && !(flags & 2) && tid && !isFriendlyBuildingTarget(flags));
+    return !!(
+      flags & 4 &&
+      !(flags & 2) &&
+      tid &&
+      !isFriendlyBuildingTarget(flags)
+    );
   }
 
   function isEnemyTargetHealthbar(flags) {
@@ -1475,7 +1482,6 @@
     colorGeneration = -1;
   var lastEnemySignature = "";
   var ignoredVisualSig = "";
-
 
   function sBC(c) {
     if (lColRaw === c && lCol !== null) return;
@@ -1555,8 +1561,6 @@
       }
     }
   }
-
-
 
   function getIgnoredTargetColor() {
     if (fl & 1 && !(fl & 2)) return "";
@@ -2661,7 +2665,11 @@
         if (hp <= high) {
           cl =
             cfg.hp_mode === 1
-              ? ipHex(cfg.hp_color_low, cfg.hp_color_mid, (hp - low) / dc.denomMid)
+              ? ipHex(
+                  cfg.hp_color_low,
+                  cfg.hp_color_mid,
+                  (hp - low) / dc.denomMid,
+                )
               : cfg.hp_color_mid;
         } else {
           cl =
@@ -2691,9 +2699,6 @@
         clearPulse();
       }
       colorGeneration = panelGeneration;
-      if (!firstEnemyPaintReported && panelBornAt) {
-        firstEnemyPaintReported = true;
-      }
 
       scheduleEnemyLoop(sc);
     } catch (e) {
@@ -3044,14 +3049,11 @@
 
   try {
     tryApplySharedSnapshot();
-  } catch (eStartupShared) {
-  }
+  } catch (eStartupShared) {}
   try {
     handleRuntimeToggleState();
-  } catch (eStartupToggle) {
-  }
+  } catch (eStartupToggle) {}
   try {
     schedulePresetRetry();
-  } catch (eStartupRetry) {
-  }
+  } catch (eStartupRetry) {}
 })();

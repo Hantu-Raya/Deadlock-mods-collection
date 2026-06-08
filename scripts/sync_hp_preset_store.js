@@ -7,7 +7,6 @@ const VPK_VERSION = 2;
 const HEADER_SIZE = 28;
 const EMBEDDED_ARCHIVE_INDEX = 0x7fff;
 const ENTRY_TERMINATOR = 0xffff;
-
 function readCString(bytes, cursor, limit) {
   let end = cursor;
   while (end < limit && bytes[end] !== 0) end += 1;

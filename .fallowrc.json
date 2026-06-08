@@ -1,0 +1,20 @@
+{
+  "ignorePatterns": [
+    "hp_color_debug/**",
+    "hp_colors_minimal_color_debug/**",
+    "hp_colors_terser/**",
+    "hp_colors_terser_compiled/**",
+    "hp_colors_compiled/**",
+    "hp_colors_minimal_terser/**",
+    "hp_colors_minimal_terser_compiled/**",
+    "hp_colors_minimal_compiled/**"
+  ],
+  "dynamicallyLoaded": [
+    "hp_colors/panorama/scripts/anita_persist_loader.js",
+    "hp_colors/panorama/scripts/anita_ui_core.js",
+    "hp_colors/panorama/scripts/healthbar_logic.js",
+    "hp_colors_minimal/panorama/scripts/anita_ui_core.js",
+    "hp_colors_minimal/panorama/scripts/healthbar_logic.js",
+    "scripts/sync_hp_preset_store.js"
+  ]
+}

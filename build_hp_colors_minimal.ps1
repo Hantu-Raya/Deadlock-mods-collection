@@ -196,38 +196,54 @@ Write-Host "  Packed OK -> $vpkOut  ($([math]::Round($vpkSize/1KB, 1)) KB)" -For
 
 $source2Viewer = "$root\.tmp\source2viewer-cli\Source2Viewer-CLI.exe"
 if (Test-Path $source2Viewer) {
-    $tree = & $source2Viewer -i $vpkOut --vpk_list 2>&1
-    $requiredPacked = @(
-        "panorama/layout/unit_status_overlay.vxml_c",
-        "panorama/scripts/anita_ui_core.vjs_c",
-        "panorama/scripts/healthbar_logic.vjs_c",
-        "panorama/styles/unit_status.vcss_c"
-    )
-    foreach ($required in $requiredPacked) {
-        if (-not ($tree -match [regex]::Escape($required))) {
-            Write-Host "[ERROR] Packed VPK missing required minimal asset: $required" -ForegroundColor Red
-            exit 1
-        }
-    }
-    $forbiddenPacked = @(
-        "panorama/layout/base_hud.vxml_c",
-        "panorama/layout/hud_escape_menu.vxml_c",
-        "panorama/layout/unit_status_overlay_v2.vxml_c",
-        "panorama/layout/unit_status_overlay_new.vxml_c",
-        "panorama/scripts/anita_persist_loader.vjs_c",
-        "panorama/scripts/hp_registrar.vjs_c",
-        "panorama/styles/anita_ui.vcss_c"
-    )
-    foreach ($forbidden in $forbiddenPacked) {
-        if ($tree -match [regex]::Escape($forbidden)) {
-            Write-Host "[ERROR] Packed VPK contains forbidden non-minimal asset: $forbidden" -ForegroundColor Red
-            exit 1
-        }
-    }
-    Write-Host "  Packed file tree verified minimal-only." -ForegroundColor Green
+    $tree = & $source2Viewer -i $vpkOut --vpk_list
+    $treeTool = "Source2Viewer CLI"
 } else {
-    Write-Host "[WARN] Source2Viewer CLI not found; skipping packed file-tree verification." -ForegroundColor Yellow
+    $tree = & $vpkeditcli $vpkOut --file-tree --no-progress
+    $treeTool = "vpkeditcli"
 }
+$treeExit = $LASTEXITCODE
+if ($treeExit -ne 0) {
+    Write-Host "[ERROR] Could not inspect packed VPK contents with $treeTool (exit $treeExit)" -ForegroundColor Red
+    exit 1
+}
+function Test-PackedAsset {
+    param(
+        [Parameter(Mandatory = $true)]$Tree,
+        [Parameter(Mandatory = $true)][string]$Asset
+    )
+    $leaf = Split-Path -Leaf $Asset
+    return (($Tree | Select-String -SimpleMatch $Asset -Quiet) -or
+        ($Tree | Select-String -SimpleMatch $leaf -Quiet))
+}
+$requiredPacked = @(
+    "panorama/layout/unit_status_overlay.vxml_c",
+    "panorama/scripts/anita_ui_core.vjs_c",
+    "panorama/scripts/healthbar_logic.vjs_c",
+    "panorama/styles/unit_status.vcss_c"
+)
+foreach ($required in $requiredPacked) {
+    if (-not (Test-PackedAsset -Tree $tree -Asset $required)) {
+        Write-Host "[ERROR] Packed VPK missing required minimal asset: $required" -ForegroundColor Red
+        exit 1
+    }
+}
+$forbiddenPacked = @(
+    "panorama/layout/base_hud.vxml_c",
+    "panorama/layout/hud_escape_menu.vxml_c",
+    "panorama/layout/unit_status_overlay_v2.vxml_c",
+    "panorama/layout/unit_status_overlay_new.vxml_c",
+    "panorama/scripts/anita_persist_loader.vjs_c",
+    "panorama/scripts/hp_registrar.vjs_c",
+    "panorama/styles/anita_ui.vcss_c"
+)
+foreach ($forbidden in $forbiddenPacked) {
+    if (Test-PackedAsset -Tree $tree -Asset $forbidden) {
+        Write-Host "[ERROR] Packed VPK contains forbidden non-minimal asset: $forbidden" -ForegroundColor Red
+        exit 1
+    }
+}
+Write-Host "  Packed file tree verified minimal-only with $treeTool." -ForegroundColor Green
 
 Write-Host "`n[4/4] Deploying minimal runtime VPK..." -ForegroundColor Cyan
 $destDir = Split-Path $vpkDest -Parent
