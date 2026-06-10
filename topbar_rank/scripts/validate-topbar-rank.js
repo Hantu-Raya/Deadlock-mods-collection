@@ -69,11 +69,20 @@ for (const token of [
   'POWERUP_CYCLE_SECONDS = 300',
   'REJUV_BUFF_DURATION_SECONDS = 240',
   'REJUV_PHASE_DURATIONS = [0, 413, 353, 293]',
+  'function RefreshRejuvChargePanels(state)',
+  'function HasRejuvCharge(state)',
+  'function GetPanelClassText(panel)',
+  'function PanelHasToken(panel, token)',
+  'GetPanelClassText(children[i]).indexOf(token)',
+  'RefreshRejuvChargePanels(state);',
+  'PanelHasToken(state.rejuvenatorFriendly, REJUV_COUNT_TOKENS[i])',
+  'PanelHasToken(state.rejuvenatorEnemy, REJUV_COUNT_TOKENS[i])',
   'function CalcRejuvPhaseAt(seconds)',
   'function PrimeRejuvPhase(state, now)',
   'function ShowBuffPanel(state)',
-  'ShowBuffPanel(state);',
-  'state.rejuvSpawnWaiting ? REJUV_BUFF_DURATION_SECONDS',
+  'function UpdateBuff(state, now, chargeActive)',
+  'if (!state.lastChargeActive && !state.buffConsumedActiveCharge) StartBuff(state, now);',
+  'state.buffConsumedActiveCharge = false',
   'state.rejuvAutoPrimed = false',
   'WARNING_YELLOW_SECONDS = 20',
   'WARNING_RED_SECONDS = 10',
@@ -94,6 +103,8 @@ for (const token of [
 const topbar = fileText.get('topbar_rank/panorama/layout/citadel_hud_top_bar.xml') || '';
 for (const token of ['topbar_rank_rank_bridge.vjs_c', 'topbar_rank_hud.vjs_c', 'TopbarRankTopBarRootLoaded', 'TopbarRankHudRootLoaded', 'topbar_rank_topbar.vcss_c', 'TeamScoreFriendly', 'TeamScoreEnemy', 'TeamsContainer']) assert(topbar.includes(token), 'topbar XML missing: ' + token);
 assert(count(topbar, 'id="TopbarRankAdvantageLabel"') === 1, 'topbar XML must contain exactly one TopbarRankAdvantageLabel');
+assert(count(topbar, 'id="TopbarRankRejuvBuff"') === 1, 'topbar XML must contain exactly one TopbarRankRejuvBuff');
+assert(topbar.indexOf('id="TopbarRankRejuvBuff"') > topbar.indexOf('id="RejuvenatorTimer"') && topbar.indexOf('id="TopbarRankRejuvBuff"') < topbar.indexOf('id="RejuvenatorEnemy"'), 'TopbarRankRejuvBuff must live inside RejuvenatorTimer before RejuvenatorEnemy');
 
 const player = fileText.get('topbar_rank/panorama/layout/citadel_hud_top_bar_player.xml') || '';
 for (const token of ['topbar_rank_rank_bridge.vjs_c', 'topbar_rank_hud.vjs_c', 'TopbarRankRegisterTopBarPlayer', 'TopbarRankHudPlayerLoaded', 'id="TopbarRankGoldRaw" class="TopbarRankGoldRaw" text="{i:gold}"', 'Label id="PlayerName"', 'TopbarRankRankImage', 'TopbarRankStatusImage', 'TopbarRankUnspentValue']) assert(player.includes(token), 'player XML missing: ' + token);
@@ -146,13 +157,16 @@ for (const token of [
   'margin-right: -15%;',
   'margin-top: 10%;',
   'margin-left: -15%;',
-  'y: 63px;',
   '#RejuvenatorCharges\n{\nwidth: 210px;\n\theight: 130px;\n\tmargin-top: 25px;\n\tmargin-right: 0px;',
-  'margin-left: 9px;',
+  '.TopbarRankRejuvBuff\n{\n\twidth: 70px;\n\theight: 30px;\n\tvertical-align: bottom;\n\thorizontal-align: center;\n\tmargin-bottom: 28px;',
+  'border-radius: 0px;',
+  '.TopbarRankRejuvBuffTime\n{\n\tfont-size: 14px;\n\tcolor: yellow;\n\thorizontal-align: center;\n\tvertical-align: center;\n\twidth: 70px;',
+  'padding: 2px 0px;',
   'text-shadow: 0px 0px 0px 2.5 #000000bf;',
   'z-index: 999999;',
   '.TopbarRankRejuvSpawned,\n.TopbarRankRejuvCooldown\n{\n\tbackground-color: #00000000;',
 ]) assert(topbarCss.includes(token), 'topbar CSS missing unified timer token: ' + token);
+for (const token of ['CHARGE_SCAN_SECONDS', 'buffStartedAt', 'rejuvPhase:']) assert(!hud.includes(token), 'HUD runtime contains removed dead state: ' + token);
 
 const objectivesCss = fileText.get('topbar_rank/panorama/styles/objectives_map.css') || '';
 assert(objectivesCss.includes('@import url("s2r://panorama/styles/topbar_rank_base/objectives_map.vcss_c");'), 'objectives_map.css missing base import');

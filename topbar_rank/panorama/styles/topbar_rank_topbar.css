@@ -864,18 +864,16 @@ CitadelHudTopBarPlayer,
 
 .TopbarRankRejuvBuff
 {
-	width: 50px;
-	height: 20px;
-	vertical-align: top;
+	width: 70px;
+	height: 30px;
+	vertical-align: bottom;
 	horizontal-align: center;
+	margin-bottom: 28px;
 	background-color: #00000000;
 	ignore-parent-flow: true;
 	world-blur: none;
 	overflow: noclip;
-	border-radius: 5px;
-	x: 0px;
-	margin-left: 9px;
-	y: 63px;
+	border-radius: 0px;
 	z-index: 999999;
 	visibility: collapse;
 	opacity: 0;
@@ -893,13 +891,13 @@ CitadelHudTopBarPlayer,
 	color: yellow;
 	horizontal-align: center;
 	vertical-align: center;
-	width: 80px;
+	width: 70px;
 	height: 20px;
 	font-weight: semi-bold;
 	text-align: center;
-	padding: 2px 10px;
+	padding: 2px 0px;
 	font-family: block;
-	margin-top: 1px;
+	margin-top: 0px;
 	text-shadow: 0px 0px 0px 2.5 #000000bf;
 	opacity: 1;
 }
