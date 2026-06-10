@@ -69,6 +69,12 @@ for (const token of [
   'POWERUP_CYCLE_SECONDS = 300',
   'REJUV_BUFF_DURATION_SECONDS = 240',
   'REJUV_PHASE_DURATIONS = [0, 413, 353, 293]',
+  'function CalcRejuvPhaseAt(seconds)',
+  'function PrimeRejuvPhase(state, now)',
+  'function ShowBuffPanel(state)',
+  'ShowBuffPanel(state);',
+  'state.rejuvSpawnWaiting ? REJUV_BUFF_DURATION_SECONDS',
+  'state.rejuvAutoPrimed = false',
   'WARNING_YELLOW_SECONDS = 20',
   'WARNING_RED_SECONDS = 10',
   'TIER_COSTS = { isTier1: 800, isTier2: 1600, isTier3: 3200, isTier4: 6400 }',
@@ -122,7 +128,7 @@ assert((topbarCss.match(/^\.TopbarRankTimerCluster\n\{/gm) || []).length === 1, 
 assert((topbarCss.match(/^\.TopbarRankTimerIcon\n\{/gm) || []).length === 1, 'topbar CSS must contain exactly one TopbarRankTimerIcon rule');
 for (const token of [
   '.TopbarRankTimerCluster\n{',
-  'width: 230px;',
+  'width: 205px;',
   'height: 31px;',
   'background-color: #00000090;',
   'world-blur: ingameHudBlur;',
@@ -139,7 +145,13 @@ for (const token of [
   'opacity: 0.1;',
   'margin-right: -15%;',
   'margin-top: 10%;',
-  'margin-left: -15%;'
+  'margin-left: -15%;',
+  'y: 63px;',
+  '#RejuvenatorCharges\n{\nwidth: 210px;\n\theight: 130px;\n\tmargin-top: 25px;\n\tmargin-right: 0px;',
+  'margin-left: 9px;',
+  'text-shadow: 0px 0px 0px 2.5 #000000bf;',
+  'z-index: 999999;',
+  '.TopbarRankRejuvSpawned,\n.TopbarRankRejuvCooldown\n{\n\tbackground-color: #00000000;',
 ]) assert(topbarCss.includes(token), 'topbar CSS missing unified timer token: ' + token);
 
 const objectivesCss = fileText.get('topbar_rank/panorama/styles/objectives_map.css') || '';
