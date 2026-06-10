@@ -140,18 +140,50 @@
   }
   function AnyChargeToken(state) { return !!GetChargeSignature(state); }
   function GetRejuvPhaseDuration(phase) { if (phase <= 1) return REJUV_PHASE_DURATIONS[1]; if (phase === 2) return REJUV_PHASE_DURATIONS[2]; return REJUV_PHASE_DURATIONS[3]; }
+  function CalcRejuvPhaseAt(seconds) {
+    var now = Math.max(0, Math.floor(Number(seconds) || 0));
+    var cumulative = 0;
+    var phase;
+    var duration;
+    var mod;
+    var within;
+    if (now <= 2) return { phase: 0, startedAt: 0, remaining: 0 };
+    for (phase = 1; phase < REJUV_PHASE_DURATIONS.length; phase += 1) {
+      duration = REJUV_PHASE_DURATIONS[phase];
+      if (now < cumulative + duration) return { phase: phase, startedAt: cumulative, remaining: cumulative + duration - now };
+      cumulative += duration;
+    }
+    duration = REJUV_PHASE_DURATIONS[3];
+    mod = (now - cumulative) % POWERUP_CYCLE_SECONDS;
+    within = mod % duration;
+    return { phase: 3, startedAt: now - within, remaining: duration - within };
+  }
+  function PrimeRejuvPhase(state, now) {
+    var computed = CalcRejuvPhaseAt(now);
+    state.rejuvAutoPrimed = true;
+    state.rejuvPhase = computed.phase;
+    state.rejuvPhaseStartedAt = computed.startedAt;
+    state.rejuvDuration = GetRejuvPhaseDuration(computed.phase);
+    SetText(state.rejuvPhaseLabel, computed.phase >= 3 ? "3" : String(computed.phase + 1));
+    state.rejuvSpawnWaiting = computed.remaining <= 0;
+  }
   function StartRejuvPhase(state, phase, now) {
     state.rejuvPhase = phase;
     state.rejuvPhaseStartedAt = now;
     state.rejuvDuration = GetRejuvPhaseDuration(phase);
     state.rejuvSpawnWaiting = false;
+    state.rejuvAutoPrimed = true;
     SetText(state.rejuvPhaseLabel, phase >= 3 ? "3" : String(phase + 1));
   }
-  function StartBuff(state, now) {
-    state.buffEndAt = now + REJUV_BUFF_DURATION_SECONDS;
+  function ShowBuffPanel(state) {
     SetClass(state.rejuvBuff, "TopbarRankRejuvBuffVisible", true);
     SetClass(state.rejuvBuff, "TopbarRankRejuvBuffActive", true);
     SetVisible(state.rejuvBuff, true);
+  }
+  function StartBuff(state, now) {
+    state.buffEndAt = now + REJUV_BUFF_DURATION_SECONDS;
+    ShowBuffPanel(state);
+    SetText(state.rejuvBuffTime, FormatSeconds(REJUV_BUFF_DURATION_SECONDS));
   }
   function EndBuff(state) {
     var epoch = state.epoch;
@@ -176,7 +208,10 @@
   }
   function UpdateRejuv(state, now) {
     var remaining;
+    var hasCharge;
     if (now - state.lastChargeScanAt >= CHARGE_SCAN_SECONDS) { state.lastChargeScanAt = now; ScanCharges(state, now); }
+    if (state.rejuvSpawnWaiting && !state.rejuvAutoPrimed) PrimeRejuvPhase(state, now);
+    hasCharge = AnyChargeToken(state);
     if (state.rejuvSpawnWaiting) {
       SetText(state.rejuvTime, "Spawn");
       SetWarning(state.rejuvHud, 0);
@@ -196,8 +231,16 @@
     }
     if (state.buffEndAt) {
       remaining = state.buffEndAt - now;
-      if (remaining <= 0 || !AnyChargeToken(state)) EndBuff(state);
+      if (remaining <= 0 || !hasCharge) EndBuff(state);
       else SetText(state.rejuvBuffTime, FormatSeconds(remaining));
+    } else if (hasCharge) {
+      remaining = state.rejuvSpawnWaiting ? REJUV_BUFF_DURATION_SECONDS : Math.min(REJUV_BUFF_DURATION_SECONDS, Math.max(0, state.rejuvDuration - (now - state.rejuvPhaseStartedAt)));
+      if (remaining > 0) {
+        ShowBuffPanel(state);
+        SetText(state.rejuvBuffTime, FormatSeconds(remaining));
+      }
+    } else if (HasClass(state.rejuvBuff, "TopbarRankRejuvBuffVisible")) {
+      EndBuff(state);
     }
   }
   function HideRootCustom(state) {
@@ -214,7 +257,7 @@
     state.rejuvDuration = 0;
     state.rejuvPhase = 0;
     state.rejuvSpawnWaiting = true;
-    state.claimCount = 0;
+    state.rejuvAutoPrimed = false;
     state.lastChargeSignature = "";
     state.lastChargeSignatureKnown = false;
     state.lastChargeScanAt = -CHARGE_SCAN_SECONDS;
@@ -259,7 +302,7 @@
   function BuildRootState(root) {
     var docRoot = GetDocumentRoot(root);
     var state = {
-      root: root, docRoot: docRoot, epoch: 1, lastSeconds: 0, rejuvPhaseStartedAt: 0, rejuvDuration: 0, rejuvPhase: 0, rejuvSpawnWaiting: true, claimCount: 0, lastChargeSignature: "", lastChargeSignatureKnown: false, lastChargeScanAt: -CHARGE_SCAN_SECONDS, buffEndAt: 0,
+      root: root, docRoot: docRoot, epoch: 1, lastSeconds: 0, rejuvPhaseStartedAt: 0, rejuvDuration: 0, rejuvPhase: 0, rejuvSpawnWaiting: true, rejuvAutoPrimed: false, claimCount: 0, lastChargeSignature: "", lastChargeSignatureKnown: false, lastChargeScanAt: -CHARGE_SCAN_SECONDS, buffEndAt: 0,
       powerupTime: FindChild(root, "TopbarRankPowerupTime"), powerupHud: FindChild(root, "TopbarRankPowerupHud"), rejuvTime: FindChild(root, "TopbarRankRejuvTime"), rejuvPhaseLabel: FindChild(root, "TopbarRankRejuvPhase"), rejuvHud: FindChild(root, "TopbarRankRejuvHud"), rejuvBuff: FindChild(root, "TopbarRankRejuvBuff"), rejuvBuffTime: FindChild(root, "TopbarRankRejuvBuffTime"), advantage: FindChild(root, "TopbarRankAdvantage"), advantageLabel: FindChild(root, "TopbarRankAdvantageLabel"), teamScoreFriendly: FindChild(root, "TeamScoreFriendly"), teamScoreEnemy: FindChild(root, "TeamScoreEnemy"), rejuvenatorFriendly: FindChild(root, "RejuvenatorFriendly"), rejuvenatorEnemy: FindChild(root, "RejuvenatorEnemy"), stretBrawlContainer: FindChild(root, "StretBrawlContainer")
     };
     try { docRoot[ROOT_KEY] = state; } catch (e0) {}

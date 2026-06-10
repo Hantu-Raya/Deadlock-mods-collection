@@ -605,6 +605,7 @@ horizontal-align: center;
 width: 210px;
 	height: 130px;
 	margin-top: 25px;
+	margin-right: 0px;
 	horizontal-align: middle;
 	flow-children: right;
 }
@@ -751,7 +752,7 @@ CitadelHudTopBarPlayer,
 
 .TopbarRankTimerCluster
 {
-	width: 230px;
+	width: 205px;
 	height: 31px;
 	margin-top: 8px;
 	vertical-align: top;
@@ -858,7 +859,7 @@ CitadelHudTopBarPlayer,
 .TopbarRankRejuvSpawned,
 .TopbarRankRejuvCooldown
 {
-	background-color: #00000090;
+	background-color: #00000000;
 }
 
 .TopbarRankRejuvBuff
@@ -867,12 +868,15 @@ CitadelHudTopBarPlayer,
 	height: 20px;
 	vertical-align: top;
 	horizontal-align: center;
-	background-color: #00000090;
+	background-color: #00000000;
 	ignore-parent-flow: true;
-	world-blur: ingameHudBlur;
+	world-blur: none;
 	overflow: noclip;
 	border-radius: 5px;
-	y: 100px;
+	x: 0px;
+	margin-left: 9px;
+	y: 63px;
+	z-index: 999999;
 	visibility: collapse;
 	opacity: 0;
 }
@@ -896,6 +900,8 @@ CitadelHudTopBarPlayer,
 	padding: 2px 10px;
 	font-family: block;
 	margin-top: 1px;
+	text-shadow: 0px 0px 0px 2.5 #000000bf;
+	opacity: 1;
 }
 
 .TopbarRankAdvantage
