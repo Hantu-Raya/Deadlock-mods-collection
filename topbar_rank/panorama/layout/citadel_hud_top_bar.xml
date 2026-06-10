@@ -70,9 +70,6 @@
 				<Label id="TopbarRankRejuvTime" class="TopbarRankTimerValue" text="0:00" />
 				<Label id="TopbarRankRejuvPhase" class="TopbarRankTimerPhase" text="1" />
 			</Panel>
-			<Panel id="TopbarRankRejuvBuff" class="TopbarRankRejuvBuff" hittest="false">
-				<Label id="TopbarRankRejuvBuffTime" class="TopbarRankRejuvBuffTime" text="0:00" />
-			</Panel>
 		</Panel>
 		<Panel id="RejuvenatorCharges">
 			<Panel id="RejuvenatorFriendly">
@@ -85,6 +82,9 @@
 					<Panel id="StatusEffectInner" />
 					<Image id="StatusEffectImage" />
 					<Panel class="statusEffectImage" />
+				</Panel>
+				<Panel id="TopbarRankRejuvBuff" class="TopbarRankRejuvBuff" hittest="false">
+					<Label id="TopbarRankRejuvBuffTime" class="TopbarRankRejuvBuffTime" text="0:00" />
 				</Panel>
 			</Panel>
 			<Panel id="RejuvenatorEnemy">
