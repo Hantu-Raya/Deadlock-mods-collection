@@ -954,7 +954,7 @@ CitadelHudTopBarPlayer,
 {
 	horizontal-align: center;
 	visibility: collapse;
-	opacity: 0;
+	opacity: 1;
 	margin-top: 2px;
 }
 
