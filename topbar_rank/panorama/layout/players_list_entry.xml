@@ -1,0 +1,26 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/players_list_entry.vcss_c" />
+		<include src="s2r://panorama/styles/topbar_rank_player_list.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/topbar_rank_rank_bridge.vjs_c" />
+	</scripts>
+	<CitadelPlayersListEntry class="TopbarRankPlayersListEntry" onload="if ($.TopbarRankRegisterPlayerListRowReady) $.TopbarRankRegisterPlayerListRowReady('escape_menu_players_list_row_ready');" onmouseover="if ($.TopbarRankMarkPlayerListHover) $.TopbarRankMarkPlayerListHover('players_list_hover');" onmouseout="if ($.TopbarRankClearPlayerListHover) $.TopbarRankClearPlayerListHover('players_list_out');">
+		<Panel class="Controls">
+			<Button class="MuteButton ToggleMuteButton" onmouseover="UIShowTextTooltip( #citadel_mute_player )" onmouseout="UIHideTextTooltip()" onactivate="CitadelPlayerListEntrySetMuted( true )" />
+			<Button class="UnmuteButton ToggleMuteButton" onmouseover="UIShowTextTooltip( #citadel_unmute_player )" onmouseout="UIHideTextTooltip()" onactivate="CitadelPlayerListEntrySetMuted( false )" />
+		</Panel>
+		<Panel id="MainContents" hittestchildren="false" onmouseover="if ($.TopbarRankMarkPlayerListHover) $.TopbarRankMarkPlayerListHover('players_list_hover');" onmouseout="if ($.TopbarRankClearPlayerListHover) $.TopbarRankClearPlayerListHover('players_list_out');" onactivate="if ($.TopbarRankMarkPlayerListHover) $.TopbarRankMarkPlayerListHover('players_list_activate'); if ($.TopbarRankRegisterPlayerListRowReady) $.TopbarRankRegisterPlayerListRowReady('players_list_manual_activate');">
+			<CitadelHeroBadge id="HeroBadge" />
+			<Panel class="Details">
+				<Panel class="TopbarRankPlayerNameRow" hittest="false">
+					<Label id="PlayerName" class="PlayerName" text="{s:player_name}" />
+				</Panel>
+				<Label class="PlayerHero" text="#Citadel_Player_Level_HeroLevel" />
+			</Panel>
+			<Image id="TopbarRankPlayerListRankImage" class="TopbarRankPlayerListRankImage" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+		</Panel>
+	</CitadelPlayersListEntry>
+</root>
