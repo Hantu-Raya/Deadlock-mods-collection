@@ -3605,127 +3605,148 @@
     return ApplyPlayerListRowRankImage(row, account, source || "sim_active_verified_account");
   }
 
+  function CreateEscapeRosterStats() {
+    return {
+      matched: 0,
+      ambiguous: 0,
+      missing: 0,
+      skipped: 0,
+      uniqueMatchedTopbar: {},
+      uniqueMatchedTopbarCount: 0,
+      firstMissingName: "",
+      firstAmbiguousName: "",
+      firstSkippedName: ""
+    };
+  }
+
+  function NoteUniqueMatchedTopBar(stats, candidate) {
+    var uid;
+    if (!stats || !candidate) return;
+    uid = candidate.uid || String(candidate.index);
+    if (uid && !stats.uniqueMatchedTopbar[uid]) {
+      stats.uniqueMatchedTopbar[uid] = true;
+      stats.uniqueMatchedTopbarCount += 1;
+    }
+  }
+
+  function NoteEscapeRosterMatch(stats, match) {
+    if (!stats || !match) return;
+    if (match.status === "matched") {
+      stats.matched += 1;
+      NoteUniqueMatchedTopBar(stats, match.candidate);
+      return;
+    }
+    if (match.status === "ambiguous") {
+      stats.ambiguous += 1;
+      if (!stats.firstAmbiguousName) stats.firstAmbiguousName = match.name || "<empty>";
+      return;
+    }
+    if (match.status === "missing") {
+      stats.missing += 1;
+      if (!stats.firstMissingName) stats.firstMissingName = match.name || "<empty>";
+      return;
+    }
+    stats.skipped += 1;
+    if (!stats.firstSkippedName) stats.firstSkippedName = match.name || "<empty>";
+  }
+
+  function BuildTopBarNameIndex(topbar) {
+    var map = {};
+    var uniqueNames = {};
+    var uniqueCount = 0;
+    var entry;
+    var norm;
+    var i;
+    for (i = 0; i < topbar.length; i += 1) {
+      norm = topbar[i].nameNorm;
+      if (!norm) continue;
+      entry = map[norm];
+      if (entry) {
+        entry.count += 1;
+        entry.candidate = null;
+      } else {
+        map[norm] = { count: 1, candidate: topbar[i] };
+      }
+      if (!uniqueNames[norm]) {
+        uniqueNames[norm] = true;
+        uniqueCount += 1;
+      }
+    }
+    return { map: map, uniqueCount: uniqueCount };
+  }
+
+  function BuildEscapeRosterRowMatch(row, rowIndex, topbarNameMap, topbarCount) {
+    var name = ReadRowName(row);
+    var norm = NormalizeName(name);
+    var entry;
+    if (!norm) return { row: row, rowIndex: rowIndex, name: name || "", nameNorm: "", candidate: null, status: "skipped" };
+    entry = topbarNameMap[norm];
+    if (entry && entry.count === 1 && entry.candidate) return { row: row, rowIndex: rowIndex, name: name || "", nameNorm: norm, candidate: entry.candidate, status: "matched" };
+    if (entry && entry.count > 1) return { row: row, rowIndex: rowIndex, name: name || "", nameNorm: norm, candidate: null, status: "ambiguous", count: entry.count };
+    return { row: row, rowIndex: rowIndex, name: name || "", nameNorm: norm, candidate: null, status: "missing", count: 0, total: topbarCount };
+  }
+
+  function BuildTopBarOnlyEscapeRoster(topbar, reason) {
+    var rows = [];
+    var matches = [];
+    var stats = CreateEscapeRosterStats();
+    stats.uniqueTopbarNameCount = topbar.length;
+    var match;
+    var i;
+    for (i = 0; i < topbar.length; i += 1) {
+      match = { row: null, rowIndex: i, name: topbar[i].name || "", nameNorm: topbar[i].nameNorm || "", candidate: topbar[i], status: "matched", source: "topbar_only" };
+      matches.push(match);
+      rows.push(topbar[i].root);
+      NoteEscapeRosterMatch(stats, match);
+    }
+    return BuildEscapeRosterResult(rows, topbar, matches, stats, reason || "");
+  }
+
+  function BuildEscapeRosterResult(rows, topbar, matches, stats, topbarOnlyReason) {
+    return {
+      rows: rows,
+      topbar: topbar,
+      matches: matches,
+      matched: stats.matched,
+      ambiguous: stats.ambiguous,
+      missing: stats.missing,
+      skipped: stats.skipped,
+      uniqueTopbarNames: stats.uniqueTopbarNameCount || 0,
+      uniqueMatchedTopbar: stats.uniqueMatchedTopbarCount,
+      firstMissingName: stats.firstMissingName,
+      firstAmbiguousName: stats.firstAmbiguousName,
+      firstSkippedName: stats.firstSkippedName,
+      topbarOnlyReason: topbarOnlyReason || "",
+      topbarOnly: rows.length === 12 && matches.length === 12 && matches[0] && matches[0].source === "topbar_only"
+    };
+  }
+
   function BuildEscapeRoster(root, forceTopBarRefresh) {
     var docRoot = GetDocumentRoot(root);
     var rows = FindPlayerListRows(docRoot);
     var topbar = FindTopBarCandidates(docRoot, !!forceTopBarRefresh);
-    var matched = 0;
-    var ambiguous = 0;
-    var missing = 0;
-    var skipped = 0;
-    var uniqueTopbarNames = {};
-    var topbarNameMap = {};
-    var uniqueMatchedTopbar = {};
-    var uniqueTopbarNameCount = 0;
-    var uniqueMatchedTopbarCount = 0;
-    var firstMissingName = "";
-    var firstAmbiguousName = "";
-    var firstSkippedName = "";
-    var topbarOnlyReason = "";
+    var topbarNames = BuildTopBarNameIndex(topbar);
+    var stats = CreateEscapeRosterStats();
     var matches = [];
-    var i;
     var resetEpoch;
-    var name;
-    var norm;
     var match;
-    var topbarNameEntry;
-    var uid;
+    var i;
+    stats.uniqueTopbarNameCount = topbarNames.uniqueCount;
     resetEpoch = GetPanelAttribute(docRoot, "topbar_rank_match_cache_reset_epoch", "");
     if (resetEpoch) {
       for (i = 0; i < rows.length; i += 1) {
         MaybeClearPlayerListRowForMatchReset(docRoot, rows[i], resetEpoch);
       }
     }
-    for (i = 0; i < topbar.length; i += 1) {
-      if (!topbar[i].nameNorm) continue;
-      topbarNameEntry = topbarNameMap[topbar[i].nameNorm];
-      if (topbarNameEntry) {
-        topbarNameEntry.count += 1;
-        topbarNameEntry.candidate = null;
-      } else {
-        topbarNameMap[topbar[i].nameNorm] = { count: 1, candidate: topbar[i] };
-      }
-      if (!uniqueTopbarNames[topbar[i].nameNorm]) {
-        uniqueTopbarNames[topbar[i].nameNorm] = true;
-        uniqueTopbarNameCount += 1;
-      }
-    }
     for (i = 0; i < rows.length; i += 1) {
-      name = ReadRowName(rows[i]);
-      norm = NormalizeName(name);
-      if (!norm) {
-        skipped += 1;
-        if (!firstSkippedName) firstSkippedName = name || "<empty>";
-        matches.push({ row: rows[i], rowIndex: i, name: name || "", nameNorm: "", candidate: null, status: "skipped" });
-        continue;
-      }
-      topbarNameEntry = topbarNameMap[norm];
-      match = topbarNameEntry ? { candidate: topbarNameEntry.count === 1 ? topbarNameEntry.candidate : null, count: topbarNameEntry.count, total: topbar.length } : { candidate: null, count: 0, total: topbar.length };
-      if (match.candidate) {
-        matched += 1;
-        uid = match.candidate.uid || String(match.candidate.index);
-        if (uid && !uniqueMatchedTopbar[uid]) {
-          uniqueMatchedTopbar[uid] = true;
-          uniqueMatchedTopbarCount += 1;
-        }
-        matches.push({ row: rows[i], rowIndex: i, name: name || "", nameNorm: norm, candidate: match.candidate, status: "matched" });
-      } else if (match.count > 1) {
-        ambiguous += 1;
-        if (!firstAmbiguousName) firstAmbiguousName = name || "<empty>";
-        matches.push({ row: rows[i], rowIndex: i, name: name || "", nameNorm: norm, candidate: null, status: "ambiguous", count: match.count });
-      } else {
-        missing += 1;
-        if (!firstMissingName) firstMissingName = name || "<empty>";
-        matches.push({ row: rows[i], rowIndex: i, name: name || "", nameNorm: norm, candidate: null, status: "missing" });
-      }
+      match = BuildEscapeRosterRowMatch(rows[i], i, topbarNames.map, topbar.length);
+      matches.push(match);
+      NoteEscapeRosterMatch(stats, match);
     }
-    if (topbar.length === 12 && uniqueTopbarNameCount === 12 && (!rows.length || matched !== 12 || ambiguous || missing || skipped)) {
-      topbarOnlyReason = rows.length ? "stale_or_mismatched_rows" : "no_rows";
-      rows = [];
-      matches = [];
-      matched = 0;
-      ambiguous = 0;
-      missing = 0;
-      skipped = 0;
-      firstMissingName = "";
-      firstAmbiguousName = "";
-      firstSkippedName = "";
-      uniqueMatchedTopbar = {};
-      uniqueMatchedTopbarCount = 0;
-      for (i = 0; i < topbar.length; i += 1) {
-        if (!topbar[i].nameNorm) {
-          skipped += 1;
-          if (!firstSkippedName) firstSkippedName = topbar[i].name || "<empty>";
-          matches.push({ row: null, rowIndex: i, name: topbar[i].name || "", nameNorm: "", candidate: null, status: "skipped", source: "topbar_only" });
-          rows.push(topbar[i].root);
-          continue;
-        }
-        matched += 1;
-        uid = topbar[i].uid || String(topbar[i].index);
-        if (uid && !uniqueMatchedTopbar[uid]) {
-          uniqueMatchedTopbar[uid] = true;
-          uniqueMatchedTopbarCount += 1;
-        }
-        matches.push({ row: null, rowIndex: i, name: topbar[i].name || "", nameNorm: topbar[i].nameNorm || "", candidate: topbar[i], status: "matched", source: "topbar_only" });
-        rows.push(topbar[i].root);
-      }
+    if (topbar.length === 12 && topbarNames.uniqueCount === 12 && (!rows.length || stats.matched !== 12 || stats.ambiguous || stats.missing || stats.skipped)) {
+      return BuildTopBarOnlyEscapeRoster(topbar, rows.length ? "stale_or_mismatched_rows" : "no_rows");
     }
-    return {
-      rows: rows,
-      topbar: topbar,
-      matches: matches,
-      matched: matched,
-      ambiguous: ambiguous,
-      missing: missing,
-      skipped: skipped,
-      uniqueTopbarNames: uniqueTopbarNameCount,
-      uniqueMatchedTopbar: uniqueMatchedTopbarCount,
-      firstMissingName: firstMissingName,
-      firstAmbiguousName: firstAmbiguousName,
-      firstSkippedName: firstSkippedName,
-      topbarOnlyReason: topbarOnlyReason,
-      topbarOnly: rows.length === 12 && matches.length === 12 && matches[0] && matches[0].source === "topbar_only"
-    };
+    return BuildEscapeRosterResult(rows, topbar, matches, stats, "");
   }
 
   function BuildPlayerListOnlyRoster(root, rowsOverride) {
@@ -4639,30 +4660,83 @@
     }
   }
 
+  function CreateEscapePreloadCounts() {
+    return { loaded: 0, blocked: 0, skipped: 0, failed: 0 };
+  }
+
+  function NoteEscapePreloadOutcome(counts, outcome) {
+    if (!counts) return;
+    if (outcome === "loaded") counts.loaded += 1;
+    else if (outcome === "blocked") counts.blocked += 1;
+    else if (outcome === "failed") counts.failed += 1;
+    else counts.skipped += 1;
+  }
+
+  function ReadEscapePreloadItem(rows, rowMatches, index) {
+    var rowMatch = rowMatches[index] || null;
+    var row = rowMatch && rowMatch.row ? rowMatch.row : rows[index];
+    var name = rowMatch ? rowMatch.name : ReadRowName(row);
+    return {
+      row: row,
+      rowMatch: rowMatch,
+      nameNorm: rowMatch ? rowMatch.nameNorm : NormalizeName(name)
+    };
+  }
+
+  function ResolveEscapePreloadMatch(item, topbar) {
+    if (!item || !item.nameNorm) return { candidate: null, count: 0 };
+    if (item.rowMatch && item.rowMatch.candidate) return { candidate: item.rowMatch.candidate, count: 1 };
+    return FindUniqueTopBarInCandidates(topbar, item.nameNorm);
+  }
+
+  function ReadLoadedTopBarAccount(candidate) {
+    var account = ReadTopBarAccount(candidate);
+    if (account && TopBarHasRankForAccount(candidate, account)) return account;
+    return "";
+  }
+
+  function ApplyCachedPlayerListPreload(root, row, nameNorm, source) {
+    var cached = LookupCacheByNameNorm(nameNorm, root);
+    if (cached && ApplyPlayerListRowRankImage(row, cached.account, source || "escape_player_list_cache")) return "loaded";
+    return "blocked";
+  }
+
+  function ApplyTopBarOnlyPreload(root, candidate, nameNorm, topbar) {
+    var account = ReadLoadedTopBarAccount(candidate);
+    var cached;
+    if (account) return "loaded";
+    cached = LookupCacheByNameNorm(nameNorm, root);
+    if (!cached) return "blocked";
+    return ApplyTopBarImage(candidate, cached.account, "escape_topbar_only_cache", topbar) ? "loaded" : "failed";
+  }
+
+  function ApplyMatchedEscapePreload(root, row, candidate, nameNorm, topbar) {
+    var account = ReadLoadedTopBarAccount(candidate);
+    var cached;
+    if (account) return ApplyPlayerListRowRankImage(row, account, "escape_topbar_loaded") ? "loaded" : "failed";
+    cached = LookupCacheByNameNorm(nameNorm, root);
+    if (!cached) return "blocked";
+    if (TopBarHasRankForAccount(candidate, cached.account)) return ApplyPlayerListRowRankImage(row, cached.account, "escape_cache_topbar_loaded") ? "loaded" : "failed";
+    if (ApplyTopBarImage(candidate, cached.account, "escape_cache", topbar)) return ApplyPlayerListRowRankImage(row, cached.account, "escape_cache") ? "loaded" : "failed";
+    return "failed";
+  }
+
   function EscapePreloadFromCache(panel, source, roster) {
     var root = GetDocumentRoot(IsPanelValid(panel) ? panel : GetContextPanel());
     var snapshot = roster || BuildEscapeRoster(root);
     var rows = snapshot.rows || [];
     var topbar = snapshot.topbar || [];
     var rowMatches = snapshot.matches || [];
-    var loaded = 0;
-    var blocked = 0;
-    var skipped = 0;
-    var failed = 0;
-    var i;
-    var row;
-    var rowMatch;
-    var name;
-    var norm;
-    var match;
-    var cached;
-    var topbarAccount;
+    var counts = CreateEscapePreloadCounts();
     var fullRosterReady = EscapeRosterReady(snapshot);
     var playerListOnlyReady = PlayerListOnlyRosterReady(snapshot);
     var transition = ReadHudTransitionInfo(root, snapshot);
     var topbarOnlyReady = TopBarOnlyRosterReady(snapshot) && IsHudActiveForTopBarOnlyAuto(transition);
     var topBarBatchDirty = false;
     var terminalReady = false;
+    var i;
+    var item;
+    var match;
     if (IsTopbarRankRuntimeIdleActive(root, snapshot, source || "escape_preload")) return Number(GetPanelAttribute(root, "topbar_rank_runtime_idle_loaded", REQUIRED_LOADED) || REQUIRED_LOADED);
     if (IsHudTransitionStopReason(transition.reason)) {
       StopTopbarRankAutomationForHudTransition(root, source || "escape_preload", snapshot, transition.reason);
@@ -4677,75 +4751,31 @@
     BeginTopBarBatch(root);
     try {
       for (i = 0; i < rows.length; i += 1) {
-        rowMatch = rowMatches[i] || null;
-        row = rowMatch && rowMatch.row ? rowMatch.row : rows[i];
-        name = rowMatch ? rowMatch.name : ReadRowName(row);
-        norm = rowMatch ? rowMatch.nameNorm : NormalizeName(name);
-        if (!norm) {
-          skipped += 1;
+        item = ReadEscapePreloadItem(rows, rowMatches, i);
+        if (!item.nameNorm) {
+          counts.skipped += 1;
           continue;
         }
-        match = rowMatch && rowMatch.candidate ? { candidate: rowMatch.candidate, count: 1 } : FindUniqueTopBarInCandidates(topbar, norm);
+        match = ResolveEscapePreloadMatch(item, topbar);
         if (!match.candidate) {
-          if (playerListOnlyReady) {
-            cached = LookupCacheByNameNorm(norm, root);
-            if (cached && ApplyPlayerListRowRankImage(row, cached.account, "escape_player_list_cache")) {
-              loaded += 1;
-            } else {
-              blocked += 1;
-            }
-            continue;
-          }
-          skipped += 1;
+          if (playerListOnlyReady) NoteEscapePreloadOutcome(counts, ApplyCachedPlayerListPreload(root, item.row, item.nameNorm, "escape_player_list_cache"));
+          else counts.skipped += 1;
           continue;
         }
-        if (topbarOnlyReady) {
-          topbarAccount = ReadTopBarAccount(match.candidate);
-          if (topbarAccount && TopBarHasRankForAccount(match.candidate, topbarAccount)) {
-            loaded += 1;
-            continue;
-          }
-          cached = LookupCacheByNameNorm(norm, root);
-          if (!cached) {
-            blocked += 1;
-            continue;
-          }
-          if (ApplyTopBarImage(match.candidate, cached.account, "escape_topbar_only_cache", topbar)) loaded += 1;
-          else failed += 1;
-          continue;
-        }
-        topbarAccount = ReadTopBarAccount(match.candidate);
-        if (topbarAccount && TopBarHasRankForAccount(match.candidate, topbarAccount)) {
-          if (ApplyPlayerListRowRankImage(row, topbarAccount, "escape_topbar_loaded")) {
-            loaded += 1;
-          } else failed += 1;
-          continue;
-        }
-        cached = LookupCacheByNameNorm(norm, root);
-        if (!cached) {
-          blocked += 1;
-          continue;
-        }
-        if (TopBarHasRankForAccount(match.candidate, cached.account)) {
-          if (ApplyPlayerListRowRankImage(row, cached.account, "escape_cache_topbar_loaded")) {
-            loaded += 1;
-          } else failed += 1;
-        } else if (ApplyTopBarImage(match.candidate, cached.account, "escape_cache", topbar)) {
-          if (ApplyPlayerListRowRankImage(row, cached.account, "escape_cache")) loaded += 1;
-          else failed += 1;
-        } else failed += 1;
+        if (topbarOnlyReady) NoteEscapePreloadOutcome(counts, ApplyTopBarOnlyPreload(root, match.candidate, item.nameNorm, topbar));
+        else NoteEscapePreloadOutcome(counts, ApplyMatchedEscapePreload(root, item.row, match.candidate, item.nameNorm, topbar));
       }
     } finally {
-      topBarBatchDirty = EndTopBarBatch(root, source || "escape_preload", loaded, blocked, rows.length, topbar.length, true);
+      topBarBatchDirty = EndTopBarBatch(root, source || "escape_preload", counts.loaded, counts.blocked, rows.length, topbar.length, true);
     }
-    RememberEscapePreloadResult(root, source || "escape_preload", loaded, blocked, skipped, failed);
-    if (loaded >= REQUIRED_LOADED && (fullRosterReady || topbarOnlyReady)) {
-      if (fullRosterReady) terminalReady = EnterTopbarRankRuntimeIdle(root, snapshot, loaded, source || "escape_preload");
+    RememberEscapePreloadResult(root, source || "escape_preload", counts.loaded, counts.blocked, counts.skipped, counts.failed);
+    if (counts.loaded >= REQUIRED_LOADED && (fullRosterReady || topbarOnlyReady)) {
+      if (fullRosterReady) terminalReady = EnterTopbarRankRuntimeIdle(root, snapshot, counts.loaded, source || "escape_preload");
       else if (topbarOnlyReady) terminalReady = UpdateTeamAverageRanks(root, source || "escape_preload_topbar_only_ready", topbar);
       ScheduleCleanupProfileContext("escape_preload_ready", CONTEXT_CLEANUP_DELAY_SECONDS);
     }
     if (topBarBatchDirty && !terminalReady && !HasTopbarRankRuntimeIdle(root)) ScheduleTopBarReadyCheck(root, source || "escape_preload");
-    return loaded;
+    return counts.loaded;
   }
 
   function ClearEscapeAutoState(root, token) {
@@ -4858,89 +4888,100 @@
     return EscapeAutoStep(root, token, step, maxSteps);
   }
 
-  function EscapeAutoPopulate(panel, source, rosterSnapshot, transitionSnapshot) {
-    var root = GetDocumentRoot(IsPanelValid(panel) ? panel : GetContextPanel());
-    var roster;
-    var loaded = 0;
-    var now = NowMs();
-    var activeToken;
-    var activeUntil;
-    var completedAt;
-    var completedSig;
-    var currentSig;
+  function HandleEscapeAutoTransition(root, source, roster, transition) {
+    if (!transition || !transition.reason) return false;
+    if (IsHudTransitionStopReason(transition.reason)) StopTopbarRankAutomationForHudTransition(root, source || "escape_auto", roster, transition.reason);
+    else ScheduleTopBarWaitRetry(root, source || "escape_auto", roster, transition.reason);
+    return true;
+  }
+  function HandleEscapeAutoRosterWait(root, source, roster, transition) {
     var waitReason;
-    var token;
-    var maxSteps;
-    var transition;
-    var playerListOnlyFallback = false;
-    roster = rosterSnapshot || BuildEscapeRoster(root, true);
-    playerListOnlyFallback = !!(roster && roster.playerListOnlyFallback);
-    if (IsTopbarRankRuntimeIdleActive(root, roster, source || "escape_auto")) return Number(GetPanelAttribute(root, "topbar_rank_runtime_idle_loaded", REQUIRED_LOADED) || REQUIRED_LOADED);
-    transition = transitionSnapshot || ReadHudTransitionInfo(root, roster);
-    if (transition.reason) {
-      if (IsHudTransitionStopReason(transition.reason)) StopTopbarRankAutomationForHudTransition(root, source || "escape_auto", roster, transition.reason);
-      else ScheduleTopBarWaitRetry(root, source || "escape_auto", roster, transition.reason);
-      return 0;
+    if (AutoProbeRosterReady(roster, transition)) {
+      if (PlayerListOnlyRosterReady(roster)) ScheduleTopBarWaitRetry(root, source || "escape_auto", roster, "topbar_partial_player_list_ready");
+      return false;
     }
-    MarkTopbarRankMatchActive(root);
-    if (ShouldUsePlayerListOnlyAuto(root, roster, source || "escape_auto")) {
-      roster = BuildPlayerListOnlyRoster(root, roster.rows);
-      roster.playerListOnlyFallback = true;
-      playerListOnlyFallback = true;
+    waitReason = (!roster.rows || roster.rows.length !== 12) ? "rows_not_ready" : "roster_not_confirmed";
+    ScheduleEscapeAutoReadyRetry(root, source || "escape_auto", roster);
+    ScheduleTopBarWaitRetry(root, source || "escape_auto", roster, waitReason);
+    return true;
+  }
+
+  function HandleEscapeAutoLoaded(root, source, roster, loaded) {
+    if (Number(loaded || 0) < REQUIRED_LOADED) return false;
+    if (EscapeRosterReady(roster)) {
+      EnterTopbarRankRuntimeIdle(root, roster, loaded, source || "escape_auto");
+      return true;
     }
-    if (!AutoProbeRosterReady(roster, transition)) {
-      waitReason = (!roster.rows || roster.rows.length !== 12) ? "rows_not_ready" : "roster_not_confirmed";
-      ScheduleEscapeAutoReadyRetry(root, source || "escape_auto", roster);
-      ScheduleTopBarWaitRetry(root, source || "escape_auto", roster, waitReason);
-      return 0;
+    if (TopBarOnlyRosterReady(roster)) {
+      UpdateTeamAverageRanks(root, source || "escape_auto_topbar_only_ready", roster.topbar);
+      return true;
     }
-    if (PlayerListOnlyRosterReady(roster)) ScheduleTopBarWaitRetry(root, source || "escape_auto", roster, "topbar_partial_player_list_ready");
-    loaded = EscapePreloadFromCache(root, source || "escape_auto", roster);
-    if (loaded >= REQUIRED_LOADED) {
-      if (EscapeRosterReady(roster)) {
-        EnterTopbarRankRuntimeIdle(root, roster, loaded, source || "escape_auto");
-        return loaded;
-      }
-      if (TopBarOnlyRosterReady(roster)) {
-        UpdateTeamAverageRanks(root, source || "escape_auto_topbar_only_ready", roster.topbar);
-        return loaded;
-      }
-      if (!PlayerListOnlyRosterReady(roster)) {
-        ScheduleTopBarWaitRetry(root, source || "escape_auto", roster, "topbar_partial_player_list_ready");
-        return loaded;
-      }
+    if (!PlayerListOnlyRosterReady(roster)) {
+      ScheduleTopBarWaitRetry(root, source || "escape_auto", roster, "topbar_partial_player_list_ready");
+      return true;
     }
-    if (ReadActiveSimOpen(root)) {
-      return loaded;
-    }
-    activeToken = GetPanelAttribute(root, "topbar_rank_escape_auto_token", "");
-    activeUntil = Number(GetPanelAttribute(root, "topbar_rank_escape_auto_active_until", "0") || 0);
-    if (activeToken && isFinite(activeUntil) && activeUntil > now) {
-      return loaded;
-    }
-    completedAt = Number(GetPanelAttribute(root, "topbar_rank_escape_auto_completed_at", "0") || 0);
-    completedSig = GetPanelAttribute(root, "topbar_rank_escape_auto_completed_sig", "");
+    return false;
+  }
+
+
+  function MaybeUsePlayerListOnlyAuto(root, roster, source) {
+    if (!ShouldUsePlayerListOnlyAuto(root, roster, source || "escape_auto")) return roster;
+    roster = BuildPlayerListOnlyRoster(root, roster.rows);
+    roster.playerListOnlyFallback = true;
+    return roster;
+  }
+
+  function IsEscapeAutoActive(root, now) {
+    var activeToken = GetPanelAttribute(root, "topbar_rank_escape_auto_token", "");
+    var activeUntil = Number(GetPanelAttribute(root, "topbar_rank_escape_auto_active_until", "0") || 0);
+    return !!(activeToken && isFinite(activeUntil) && activeUntil > now);
+  }
+
+  function IsEscapeAutoRecentlyCompleted(root, now, roster) {
+    var completedAt = Number(GetPanelAttribute(root, "topbar_rank_escape_auto_completed_at", "0") || 0);
+    var completedSig = GetPanelAttribute(root, "topbar_rank_escape_auto_completed_sig", "");
+    var currentSig;
+    if (!isFinite(completedAt) || completedAt <= 0 || now - completedAt < 0 || now - completedAt >= ESCAPE_AUTO_RECENT_COMPLETE_MS) return false;
     currentSig = BuildTopbarRankIdleSignature(roster);
-    if (isFinite(completedAt) && completedAt > 0 && now - completedAt >= 0 && now - completedAt < ESCAPE_AUTO_RECENT_COMPLETE_MS && (!completedSig || completedSig === currentSig)) {
-      return loaded;
-    }
-    if (!SourceAllowsProfileAutoOpen(source || "escape_auto", playerListOnlyFallback) && NormalizeTopBarWaitSource(source || "escape_auto") === "topbar_player_onload_coalesced" && EscapeRosterReady(roster)) {
-      playerListOnlyFallback = true;
-    }
-    if (!SourceAllowsProfileAutoOpen(source || "escape_auto", playerListOnlyFallback)) {
-      return loaded;
-    }
-    if (!HasStableEscapeRoster(root, roster, source || "escape_auto")) {
-      return loaded;
-    }
-    token = String(now) + "_escape_auto";
-    maxSteps = roster.rows.length * SIM_PROBE_MAX_ATTEMPTS_PER_ROW;
+    return !completedSig || completedSig === currentSig;
+  }
+
+  function StartEscapeAutoProbe(root, roster, now) {
+    var token = String(now) + "_escape_auto";
+    var maxSteps = roster.rows.length * SIM_PROBE_MAX_ATTEMPTS_PER_ROW;
     SetPanelAttribute(root, "topbar_rank_escape_auto_token", token);
     SetPanelAttribute(root, "topbar_rank_escape_auto_step", "0");
     SetPanelAttribute(root, "topbar_rank_escape_auto_max_steps", maxSteps);
     SetPanelAttribute(root, "topbar_rank_escape_auto_active_until", now + ESCAPE_AUTO_ACTIVE_TTL_MS);
     StartTopBarLoadingStatusForRoster(root, roster, token);
     EscapeAutoStep(root, token, 0, maxSteps, roster);
+    return true;
+  }
+
+  function EscapeAutoPopulate(panel, source, rosterSnapshot, transitionSnapshot) {
+    var root = GetDocumentRoot(IsPanelValid(panel) ? panel : GetContextPanel());
+    var roster = rosterSnapshot || BuildEscapeRoster(root, true);
+    var loaded = 0;
+    var now = NowMs();
+    var transition;
+    var sourceName = source || "escape_auto";
+    var playerListOnlyFallback = !!(roster && roster.playerListOnlyFallback);
+    if (IsTopbarRankRuntimeIdleActive(root, roster, sourceName)) return Number(GetPanelAttribute(root, "topbar_rank_runtime_idle_loaded", REQUIRED_LOADED) || REQUIRED_LOADED);
+    transition = transitionSnapshot || ReadHudTransitionInfo(root, roster);
+    if (HandleEscapeAutoTransition(root, sourceName, roster, transition)) return 0;
+    MarkTopbarRankMatchActive(root);
+    roster = MaybeUsePlayerListOnlyAuto(root, roster, sourceName);
+    playerListOnlyFallback = !!(roster && roster.playerListOnlyFallback);
+    if (HandleEscapeAutoRosterWait(root, sourceName, roster, transition)) return 0;
+    loaded = EscapePreloadFromCache(root, sourceName, roster);
+    if (HandleEscapeAutoLoaded(root, sourceName, roster, loaded)) return loaded;
+    if (ReadActiveSimOpen(root) || IsEscapeAutoActive(root, now) || IsEscapeAutoRecentlyCompleted(root, now, roster)) return loaded;
+    if (!SourceAllowsProfileAutoOpen(sourceName, playerListOnlyFallback) && NormalizeTopBarWaitSource(sourceName) === "topbar_player_onload_coalesced" && EscapeRosterReady(roster)) {
+      playerListOnlyFallback = true;
+    }
+    if (!SourceAllowsProfileAutoOpen(sourceName, playerListOnlyFallback)) return loaded;
+    if (!HasStableEscapeRoster(root, roster, sourceName)) return loaded;
+    StartEscapeAutoProbe(root, roster, now);
     return loaded;
   }
 

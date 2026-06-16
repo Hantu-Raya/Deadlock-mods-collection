@@ -987,8 +987,732 @@ CitadelHudTopBarPlayer,
 
 .GameClock
 {
-	background-color: #00000000;
-	world-blur: none;
+	background-color: #00000090;
+	world-blur: ingameHudBlur;
 	z-index: 72;
+	height: 31px;
+	margin-top: 8px;
+	padding: 5px;
+	border-top: 0px solid #00000000;
+	border-bottom: 0px solid #00000000;
+	border-left: 0px solid #00000000;
+	border-right: 0px solid #00000000;
+	border-radius: 0px;
 }
 
+#RejuvHUD,
+#BuffHUD
+{
+	background-color: #00000090;
+	border-top: 0px solid #00000000;
+	border-bottom: 0px solid #00000000;
+	height: 31px;
+	margin-top: 8px;
+	overflow: noclip;
+	world-blur: ingameHudBlur;
+	width: 75px;
+}
+
+#RejuvHUD
+{
+	x: -65px;
+	border-left: 0px solid #00000000;
+	border-right: 0px solid #00000000;
+	border-radius: 5px 0px 0px 5px;
+}
+
+#BuffHUD
+{
+	x: 65px;
+	border-left: 0px solid #00000000;
+	border-right: 0px solid #00000000;
+	border-radius: 0px 5px 5px 0px;
+}
+
+#RejuvHUD.yellow,
+#BuffHUD.yellow,
+#RejuvHUD.red,
+#BuffHUD.red,
+#RejuvHUD.buffWarningYellow,
+#BuffHUD.buffWarningYellow,
+#RejuvHUD.buffWarningRed,
+#BuffHUD.buffWarningRed
+{
+	background-color: #00000090;
+}
+
+#BuffHUD.yellow #BuffTimeHUD,
+#BuffHUD.buffWarningYellow #BuffTimeHUD
+{
+	color: #fff7a8;
+	text-shadow: 0px 0px 5px 2.0 #ffff0090;
+}
+
+#BuffHUD.red #BuffTimeHUD,
+#BuffHUD.buffWarningRed #BuffTimeHUD
+{
+	color: #ff9a9a;
+	text-shadow: 0px 0px 6px 2.0 #ff0000aa;
+}
+
+#RejuvTimeHUD,
+#BuffTimeHUD
+{
+	width: 92px;
+	padding: 2px 4px;
+	text-overflow: shrink;
+}
+
+#UrnTracker
+{
+	width: 200px;
+	height: 18px;
+	background-color: #00000000;
+	wash-color: none;
+	overflow: noclip;
+	opacity-mask: none;
+}
+
+.UrnTrackerCard
+{
+	width: 100px;
+	height: 18px;
+	background-color: #ffffff;
+	opacity-mask: url("s2r://panorama/images/masks/dust_01_psd.vtex");
+}
+
+.UrnNetworthCard
+{
+	horizontal-align: left;
+	wash-color: #DCDCDC;
+}
+
+.UrnHudCard
+{
+	horizontal-align: right;
+	wash-color: #DCDCDC;
+}
+
+.UrnNetworthCard.good
+{
+	wash-color: #00FF7F;
+}
+
+.UrnNetworthCard.bad
+{
+	wash-color: #CD5C5C;
+}
+
+.UrnNetworthCard.neutral
+{
+	wash-color: #DCDCDC;
+}
+
+#UrnTrackerLabel,
+#UrnHUD
+{
+	horizontal-align: center;
+	vertical-align: center;
+	width: 100%;
+	text-align: center;
+}
+
+
+.HeroNameHidden
+{
+	visibility: collapse;
+}
+
+.filterHidden,
+.filterButtonHidden
+{
+	visibility: collapse;
+}
+
+#PurchaseFiltersContainer
+{
+	flow-children: down;
+}
+
+.PurchaseFilterGroup
+{
+	flow-children: right;
+}
+
+.PurchaseFilterToggle
+{
+	margin: 1px 2px;
+}
+
+.QuickPurchasesPanel
+{
+	horizontal-align: center;
+	flow-children: up;
+	ignore-parent-flow: true;
+	width: fit-children;
+	height: fit-children;
+	z-index: 99;
+}
+
+.gamemode_streetbrawl .QuickPurchasesPanel,.gScoreboardOpen .QuickPurchasesPanel
+{
+	visibility: collapse;
+}
+
+.quickPurchase
+{
+	flow-children: right;
+	margin-bottom: 3px;
+	animation-name: quickPurchaseFadeIn;
+	animation-duration: 0.3s;
+	animation-timing-function: linear;
+	animation-iteration-count: 1;
+	opacity: 1.0;
+	horizontal-align: center;
+	ui-scale: 75%;
+	overflow: noclip;
+}
+
+.quickPurchase.quickFading
+{
+	animation-name: quickPurchaseFadeOut;
+	animation-duration: 0.3s;
+	animation-timing-function: linear;
+	animation-iteration-count: 1;
+	animation-fill-mode: forwards;
+}
+
+.quickItemInfo
+{
+	flow-children: right;
+	vertical-align: center;
+	ui-scale: 150%;
+	border-radius: 3px;
+	border: 1px solid transparent;
+	overflow: noclip;
+}
+
+.isWeaponPurchase .quickItemInfo
+{
+	border-color: courageBrightColor;
+}
+
+.isArmorPurchase .quickItemInfo
+{
+	border-color: fortitudeBrightColor;
+}
+
+.isTechPurchase .quickItemInfo
+{
+	border-color: spiritBrightColor;
+}
+
+.isTier1Purchase.isWeaponPurchase .quickItemInfo
+{
+	border-color: courageBrightColor;
+}
+
+.isTier2Purchase.isWeaponPurchase .quickItemInfo
+{
+	border-color: courageDarkColor;
+}
+
+.isTier3Purchase.isWeaponPurchase .quickItemInfo
+{
+	border-color: courageDarkerColor;
+}
+
+.isTier4Purchase.isWeaponPurchase .quickItemInfo
+{
+	border-color: courageBrightColor;
+	border-width: 1.5px;
+}
+
+.isTier1Purchase.isArmorPurchase .quickItemInfo
+{
+	border-color: fortitudeBrightColor;
+}
+
+.isTier2Purchase.isArmorPurchase .quickItemInfo
+{
+	border-color: fortitudeDarkColor;
+}
+
+.isTier3Purchase.isArmorPurchase .quickItemInfo
+{
+	border-color: fortitudeDarkerColor;
+}
+
+.isTier4Purchase.isArmorPurchase .quickItemInfo
+{
+	border-color: fortitudeBrightColor;
+	border-width: 1.5px;
+}
+
+.isTier1Purchase.isTechPurchase .quickItemInfo
+{
+	border-color: spiritBrightColor;
+}
+
+.isTier2Purchase.isTechPurchase .quickItemInfo
+{
+	border-color: spiritDarkColor;
+}
+
+.isTier3Purchase.isTechPurchase .quickItemInfo
+{
+	border-color: spiritDarkerColor;
+}
+
+.isTier4Purchase.isTechPurchase .quickItemInfo
+{
+	border-color: spiritBrightColor;
+	border-width: 1.5px;
+}
+
+.isWeaponPurchase .quickItemInfo
+{
+	background-color: backerWeaponT3;
+}
+
+.isArmorPurchase .quickItemInfo
+{
+	background-color: backerVitalityT3;
+}
+
+.isTechPurchase .quickItemInfo
+{
+	background-color: backerSpiritT3;
+}
+
+.isTier1Purchase.isWeaponPurchase .quickItemInfo
+{
+	background-color: backerWeaponT1;
+}
+
+.isTier2Purchase.isWeaponPurchase .quickItemInfo
+{
+	background-color: backerWeaponT2;
+}
+
+.isTier3Purchase.isWeaponPurchase .quickItemInfo
+{
+	background-color: backerWeaponT3;
+}
+
+.isTier4Purchase.isWeaponPurchase .quickItemInfo
+{
+	background-color: backerWeaponT4;
+}
+
+.isTier1Purchase.isArmorPurchase .quickItemInfo
+{
+	background-color: backerVitalityT1;
+}
+
+.isTier2Purchase.isArmorPurchase .quickItemInfo
+{
+	background-color: backerVitalityT2;
+}
+
+.isTier3Purchase.isArmorPurchase .quickItemInfo
+{
+	background-color: backerVitalityT3;
+}
+
+.isTier4Purchase.isArmorPurchase .quickItemInfo
+{
+	background-color: backerVitalityT4;
+}
+
+.isTier1Purchase.isTechPurchase .quickItemInfo
+{
+	background-color: backerSpiritT1;
+}
+
+.isTier2Purchase.isTechPurchase .quickItemInfo
+{
+	background-color: backerSpiritT2;
+}
+
+.isTier3Purchase.isTechPurchase .quickItemInfo
+{
+	background-color: backerSpiritT3;
+}
+
+.isTier4Purchase.isTechPurchase .quickItemInfo
+{
+	background-color: backerSpiritT4;
+}
+
+.quickPurchase .mod_icon
+{
+	width: 24px;
+	height: 24px;
+	background-size: 100% 100%;
+	wash-color: none;
+	border-radius: 3px;
+	border: 1px solid transparent;
+	margin: 2px;
+}
+
+.isWeaponPurchase .mod_icon
+{
+	border-color: courageBrightColor;
+}
+
+.isArmorPurchase .mod_icon
+{
+	border-color: fortitudeBrightColor;
+}
+
+.isTechPurchase .mod_icon
+{
+	border-color: spiritBrightColor;
+}
+
+.isTier1Purchase.isWeaponPurchase .mod_icon
+{
+	border-color: courageBrightColor;
+}
+
+.isTier2Purchase.isWeaponPurchase .mod_icon
+{
+	border-color: courageDarkColor;
+}
+
+.isTier3Purchase.isWeaponPurchase .mod_icon
+{
+	border-color: courageDarkerColor;
+}
+
+.isTier4Purchase.isWeaponPurchase .mod_icon
+{
+	border-color: courageColor;
+}
+
+.isTier1Purchase.isArmorPurchase .mod_icon
+{
+	border-color: fortitudeBrightColor;
+}
+
+.isTier2Purchase.isArmorPurchase .mod_icon
+{
+	border-color: fortitudeDarkColor;
+}
+
+.isTier3Purchase.isArmorPurchase .mod_icon
+{
+	border-color: fortitudeDarkerColor;
+}
+
+.isTier4Purchase.isArmorPurchase .mod_icon
+{
+	border-color: fortitudeColor;
+}
+
+.isTier1Purchase.isTechPurchase .mod_icon
+{
+	border-color: spiritBrightColor;
+}
+
+.isTier2Purchase.isTechPurchase .mod_icon
+{
+	border-color: spiritDarkColor;
+}
+
+.isTier3Purchase.isTechPurchase .mod_icon
+{
+	border-color: spiritDarkerColor;
+}
+
+.isTier4Purchase.isTechPurchase .mod_icon
+{
+	border-color: spiritColor;
+}
+
+.quickPurchaseName
+{
+	font-family: oracle;
+	font-size: 13px;
+	color: offBlack;
+	vertical-align: center;
+	border-radius: 2px;
+	font-weight: bold;
+	padding-top: 1px;
+	margin: 2px;
+	max-width: 130px;
+	max-height: 20px;
+	white-space: nowrap;
+	text-overflow: shrink min(8px);
+}
+
+.isTier4Purchase.isWeaponPurchase .quickPurchaseName
+{
+	color: courageLightColor;
+}
+
+.isTier4Purchase.isArmorPurchase .quickPurchaseName
+{
+	color: fortitudeLightColor;
+}
+
+.isTier4Purchase.isTechPurchase .quickPurchaseName
+{
+	color: spiritLightColor;
+}
+
+.isTier4Purchase.quickPurchase:not(.quickFading)
+{
+	animation-name: none;
+}
+
+.isTier4Purchase.isWeaponPurchase .quickItemInfo
+{
+	animation-name: quickT4WeaponGlow;
+	animation-duration: 2.0s;
+	animation-timing-function: ease;
+	animation-iteration-count: 1;
+}
+
+@keyframes 'quickT4WeaponGlow'
+{
+	0%
+	{
+		opacity: 0.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+	6%
+	{
+		opacity: 1.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+	17%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.08;
+		brightness: 1.4;
+		wash-color: courageBrightColor&50;
+	}
+	
+	33%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+	50%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.08;
+		brightness: 1.4;
+		wash-color: courageBrightColor&50;
+	}
+	
+	67%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+	83%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.08;
+		brightness: 1.4;
+		wash-color: courageBrightColor&50;
+	}
+	
+	100%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+}
+
+.isTier4Purchase.isArmorPurchase .quickItemInfo
+{
+	animation-name: quickT4ArmorGlow;
+	animation-duration: 2.0s;
+	animation-timing-function: ease;
+	animation-iteration-count: 1;
+}
+
+@keyframes 'quickT4ArmorGlow'
+{
+	0%
+	{
+		opacity: 0.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+	6%
+	{
+		opacity: 1.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+	17%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.08;
+		brightness: 1.4;
+		wash-color: fortitudeBrightColor&50;
+	}
+	
+	33%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+	50%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.08;
+		brightness: 1.4;
+		wash-color: fortitudeBrightColor&50;
+	}
+	
+	67%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+	83%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.08;
+		brightness: 1.4;
+		wash-color: fortitudeBrightColor&50;
+	}
+	
+	100%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+}
+
+.isTier4Purchase.isTechPurchase .quickItemInfo
+{
+	animation-name: quickT4TechGlow;
+	animation-duration: 2.0s;
+	animation-timing-function: ease;
+	animation-iteration-count: 1;
+}
+
+@keyframes 'quickT4TechGlow'
+{
+	0%
+	{
+		opacity: 0.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+	6%
+	{
+		opacity: 1.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+	17%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.08;
+		brightness: 1.4;
+		wash-color: spiritBrightColor&50;
+	}
+	
+	33%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+	50%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.08;
+		brightness: 1.4;
+		wash-color: spiritBrightColor&50;
+	}
+	
+	67%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+	83%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.08;
+		brightness: 1.4;
+		wash-color: spiritBrightColor&50;
+	}
+	
+	100%
+	{
+		opacity: 1.0;
+		pre-transform-scale2d: 1.0;
+		brightness: 1.0;
+		wash-color: #ffffff00;
+	}
+	
+}
+
+@keyframes 'quickPurchaseFadeIn'
+{
+	0%
+	{
+		opacity: 0.0;
+	}
+	
+	100%
+	{
+		opacity: 1.0;
+	}
+	
+}
+
+@keyframes 'quickPurchaseFadeOut'
+{
+	0%
+	{
+		opacity: 1.0;
+	}
+	
+	100%
+	{
+		opacity: 0.0;
+	}
+	
+}

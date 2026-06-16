@@ -19,17 +19,19 @@
 	visibility: collapse;
 }
 
-.LiveGame .ObjectiveCtn
+.LiveGame .ObjectiveCtn,
+.LiveGame.ObjectiveCtn,
+#ObjectivesMap .ObjectiveCtn
 {
 	background-color: #00000030;
 	world-blur: ingameHudBlur;
 	visibility: visible;
+	opacity: 1;
 }
 
-.ObjectiveCtn,
-.Background,
-.IconCtn,
-.Icon
+#ObjectivesMap .Background,
+#ObjectivesMap .IconCtn,
+#ObjectivesMap .Icon
 {
 	visibility: visible;
 	opacity: 1;
