@@ -1,4 +1,4 @@
-<!-- xml reconstructed by Source 2 Viewer - https://valveresourceformat.github.io -->
+<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
@@ -7,10 +7,10 @@
 		<include src="s2r://panorama/styles/topbar_rank_topbar.vcss_c" />
 	</styles>
 	<scripts>
+		<include src="s2r://panorama/scripts/topbar_rank_v40_hud.vjs_c" />
 		<include src="s2r://panorama/scripts/topbar_rank_rank_bridge.vjs_c" />
-		<include src="s2r://panorama/scripts/topbar_rank_hud.vjs_c" />
 	</scripts>
-	<CitadelHudTopBar hittest="false" onload="if ($.TopbarRankTopBarRootLoaded) $.TopbarRankTopBarRootLoaded('topbar_root_onload'); if ($.TopbarRankHudRootLoaded) $.TopbarRankHudRootLoaded('topbar_root_onload');">
+	<CitadelHudTopBar hittest="false" onload="if ($.TopbarRankTopBarRootLoaded) $.TopbarRankTopBarRootLoaded('topbar_root_onload');">
 		<GlobalClassListener classes="gDetailView gScoreboardOpen" />
 		<Panel id="GradientBacker" />
 		<Panel class="GameClock">
@@ -32,13 +32,18 @@
 					<Label class="ScoreLabel" html="true" text="{s:team_networth}" />
 				</Panel>
 			</Panel>
-			<Panel id="TopbarRankAdvantage" class="TopbarRankAdvantage TopbarRankAdvantageNeutral" hittest="false">
-				<Label id="TopbarRankAdvantageLabel" class="TopbarRankAdvantageLabel" text="--" />
-			</Panel>
 		</Panel>
 		<Panel id="TopbarRankTeamAverageLayer" class="TopbarRankTeamAverageLayer" hittest="false">
 			<Image id="TopbarRankAverageFriendlyImage" class="TopbarRankTeamAverageRankImage TopbarRankTeamAverageFriendlyImage" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 			<Image id="TopbarRankAverageEnemyImage" class="TopbarRankTeamAverageRankImage TopbarRankTeamAverageEnemyImage" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+		</Panel>
+		<Panel id="UrnTracker" class="UrnTracker" visible="true">
+			<Panel id="UrnNetworthCard" class="UrnTrackerCard UrnNetworthCard neutral" visible="true">
+				<Label id="UrnTrackerLabel" class="UrnTrackerLabel" text="--" />
+			</Panel>
+			<Panel id="UrnHudCard" class="UrnTrackerCard UrnHudCard" visible="true">
+				<Label id="UrnHUD" class="UrnHUD" text="0:00" />
+			</Panel>
 		</Panel>
 		<Panel id="StretBrawlContainer">
 			<Label class="roundTitle" text="#Citadel_StreetBrawl_RoundTitle" />
@@ -60,16 +65,26 @@
 			<CitadelHudTopBarTeam id="TeamEnemy" team="3" />
 		</Panel>
 		<CitadelObjectivesMap id="ObjectivesMap" liveGame="true" />
-		<Panel id="TopbarRankTimerCluster" class="TopbarRankTimerCluster" hittest="false">
-			<Panel id="TopbarRankPowerupHud" class="TopbarRankTimerPill TopbarRankPowerupHud" hittest="false">
-				<Image id="TopbarRankPowerupIcon" class="TopbarRankTimerIcon" src="s2r://panorama/images/hud/modifiers/icon_powerup.svg" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
-				<Label id="TopbarRankPowerupTime" class="TopbarRankTimerValue" text="0:00" />
-			</Panel>
-			<Panel id="TopbarRankRejuvHud" class="TopbarRankTimerPill TopbarRankRejuvHud" hittest="false">
-				<Image id="TopbarRankRejuvIcon" class="TopbarRankTimerIcon" src="s2r://panorama/images/hud/modifiers/icon_rejuvenator.svg" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
-				<Label id="TopbarRankRejuvTime" class="TopbarRankTimerValue" text="0:00" />
-				<Label id="TopbarRankRejuvPhase" class="TopbarRankTimerPhase" text="1" />
-			</Panel>
+		<Panel id="BuffHUD" class="BuffP" hittest="false">
+			<Label id="BuffTimeHUD" text="0:00" />
+			<Image id="BuffImgHUD" src="s2r://panorama/images/hud/modifiers/icon_powerup.svg" />
+		</Panel>
+		<Panel id="RejuvHUD" hittest="false">
+			<Label id="RejuvTimeHUD" text="0:00" />
+			<Image id="RejuvImgHUD" src="s2r://panorama/images/hud/modifiers/icon_rejuvenator.svg" />
+			<Label id="RejuvNumHUD" text="1" />
+		</Panel>
+		<Panel id="RejuvBuff" hittest="false">
+			<Label id="RejuvTimeBuff" text="0:00" />
+		</Panel>
+		<Panel id="Buff" class="BuffP" hittest="false">
+			<Label id="BuffTime" text="0:00" />
+			<Image id="BuffImg" src="s2r://panorama/images/hud/modifiers/icon_powerup.svg" />
+		</Panel>
+		<Panel id="Rejuv" hittest="false">
+			<Label id="RejuvTime" text="0:00" />
+			<Image id="RejuvImg" src="s2r://panorama/images/hud/modifiers/icon_rejuvenator.svg" />
+			<Label id="RejuvNum" text="1" />
 		</Panel>
 		<Panel id="RejuvenatorCharges">
 			<Panel id="RejuvenatorFriendly">
@@ -82,9 +97,6 @@
 					<Panel id="StatusEffectInner" />
 					<Image id="StatusEffectImage" />
 					<Panel class="statusEffectImage" />
-				</Panel>
-				<Panel id="TopbarRankRejuvBuff" class="TopbarRankRejuvBuff" hittest="false">
-					<Label id="TopbarRankRejuvBuffTime" class="TopbarRankRejuvBuffTime" text="0:00" />
 				</Panel>
 			</Panel>
 			<Panel id="RejuvenatorEnemy">
