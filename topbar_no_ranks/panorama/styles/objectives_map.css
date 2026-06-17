@@ -1,0 +1,36 @@
+@import url("s2r://panorama/styles/topbar_rank_base/objectives_map.vcss_c");
+
+#ObjectivesMap
+{
+	visibility: visible;
+	opacity: 1;
+	vertical-align: top;
+	horizontal-align: center;
+	margin-top: 35px;
+	width: 100px;
+	height: 100px;
+	ui-scale: 70%;
+	transform: translateY(0px);
+	z-index: 95;
+}
+
+.gamemode_streetbrawl #ObjectivesMap
+{
+	visibility: collapse;
+}
+
+.LiveGame .ObjectiveCtn
+{
+	background-color: #00000030;
+	world-blur: ingameHudBlur;
+	visibility: visible;
+}
+
+.ObjectiveCtn,
+.Background,
+.IconCtn,
+.Icon
+{
+	visibility: visible;
+	opacity: 1;
+}

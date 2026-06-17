@@ -1,5 +1,7 @@
 {
   "ignorePatterns": [
+    "_showrank_direct_stage/**",
+    "_showrank_variant_build/**",
     "hp_color_debug/**",
     "hp_colors_minimal_color_debug/**",
     "hp_colors_terser/**",
@@ -10,6 +12,10 @@
     "hp_colors_minimal_compiled/**"
   ],
   "dynamicallyLoaded": [
+    "showrank/panorama/scripts/showrank_common.js",
+    "showrank/panorama/scripts/showrank_profile.js",
+    "showrank/panorama/scripts/showrank_topbar.js",
+    "showrank/panorama/scripts/showrank_escape.js",
     "hp_colors/panorama/scripts/anita_persist_loader.js",
     "hp_colors/panorama/scripts/anita_ui_core.js",
     "hp_colors/panorama/scripts/healthbar_logic.js",

@@ -3,8 +3,8 @@ $ErrorActionPreference = 'Stop'
 $root        = Split-Path -Parent $MyInvocation.MyCommand.Path
 $modSrc      = "$root\hp_colors"
 $modCompiled = "$root\hp_colors_compiled"
-$terserSrc   = "$root\hp_colors_terser"
-$terserCompiled = "$root\hp_colors_terser_compiled"
+$closureSrc   = "$root\hp_colors_closure"
+$closureCompiled = "$root\hp_colors_closure_compiled"
 $compiler    = "$root\sr2compiler\New folder.exe"
 $vpkeditcliCandidates = @(
     "$root\passive_items_mod\compiler\vpkeditcli.exe",
@@ -25,8 +25,8 @@ $builderPresetVpk = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addo
 
 # Clean rebuild: remove stale compiled output and previous pack artifact.
 if (Test-Path $modCompiled) { Remove-Item -Recurse -Force $modCompiled }
-if (Test-Path $terserSrc)   { Remove-Item -Recurse -Force $terserSrc }
-if (Test-Path $terserCompiled) { Remove-Item -Recurse -Force $terserCompiled }
+if (Test-Path $closureSrc)   { Remove-Item -Recurse -Force $closureSrc }
+if (Test-Path $closureCompiled) { Remove-Item -Recurse -Force $closureCompiled }
 if (Test-Path $vpkOut)      { Remove-Item -Force $vpkOut }
 
 # ## Step 0: Schema drift audit ################################################
@@ -67,15 +67,15 @@ if (Test-Path $runtimeReplayAuditScript) {
     exit 1
 }
 
-# ## Step 1: Prepare minified build source #####################################
-Write-Host "`n[1/4] Preparing minified hp_colors source..." -ForegroundColor Cyan
-New-Item -ItemType Directory -Force -Path $terserSrc | Out-Null
-Copy-Item -Path "$modSrc\panorama" -Destination "$terserSrc\panorama" -Recurse -Force
+# ## Step 1: Prepare Closure ADVANCED build source ##############################
+Write-Host "`n[1/4] Preparing Closure ADVANCED hp_colors source..." -ForegroundColor Cyan
+New-Item -ItemType Directory -Force -Path $closureSrc | Out-Null
+Copy-Item -Path "$modSrc\panorama" -Destination "$closureSrc\panorama" -Recurse -Force
 
 $presetStoreSync = "$root\scripts\sync_hp_preset_store.js"
-$terserBaseHud = "$terserSrc\panorama\layout\base_hud.xml"
-if ((Test-Path $builderPresetVpk) -and (Test-Path $presetStoreSync) -and (Test-Path $terserBaseHud)) {
-    & node $presetStoreSync $builderPresetVpk $terserBaseHud
+$closureBaseHud = "$closureSrc\panorama\layout\base_hud.xml"
+if ((Test-Path $builderPresetVpk) -and (Test-Path $presetStoreSync) -and (Test-Path $closureBaseHud)) {
+    & node $presetStoreSync $builderPresetVpk $closureBaseHud
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] HPColorsPresetStore sync failed - fix pak96_dir.vpk or base_hud before building." -ForegroundColor Red
         exit 1
@@ -84,55 +84,147 @@ if ((Test-Path $builderPresetVpk) -and (Test-Path $presetStoreSync) -and (Test-P
     Write-Host "  [WARN] HPColorsPresetStore sync skipped; pak96_dir.vpk or sync script not found." -ForegroundColor Yellow
 }
 
-$scriptFiles = Get-ChildItem "$terserSrc\panorama\scripts" -Filter *.js | Sort-Object Name
+$scriptFiles = Get-ChildItem "$closureSrc\panorama\scripts" -Filter *.js | Sort-Object Name
 if (-not $scriptFiles) {
-    Write-Host "[ERROR] No Panorama scripts found to minify" -ForegroundColor Red
+    Write-Host "[ERROR] No Panorama scripts found for Closure ADVANCED" -ForegroundColor Red
     exit 1
 }
 
-foreach ($script in $scriptFiles) {
-    $sourceScript = Join-Path "$modSrc\panorama\scripts" $script.Name
-    $minifiedScript = $script.FullName
-    $terserArgs = @(
-        "--yes"
-        "terser"
-        $sourceScript
-        "-c"
-        "passes=3"
-        "-m"
-        "keep_classnames=true"
-        "--comments"
-        "false"
-        "-o"
-        $minifiedScript
+function Write-HpClosureExterns {
+    param(
+        [string]$Path,
+        [object[]]$SourcePaths
     )
 
-    & npx @terserArgs
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] terser failed for $($script.Name) with code $LASTEXITCODE" -ForegroundColor Red
+    $externProperties = @(
+        "AnitaUI", "GameUI", "HP_COLORS", "Register", "DispatchEvent", "RegisterForUnhandledEvent",
+        "ClientUI_FireOutput", "ANITA_REGISTER", "ANITA_UPDATE", "ANITA_BULK_UPDATE",
+        "ANITA_REQUEST_BOOTSTRAP", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST",
+        "CustomUIConfig", "SteamOverlayAPI", "IsReady", "GetVersion", "Toggle", "findRegisteredMod",
+        "registerMod", "registeredMods", "__anitaLastEmittedValues", "magic_word", "mod_title",
+        "setting_id", "new_value", "values", "values_raw", "config", "storageNamespace", "storageVersion"
+    )
+
+    foreach ($sourcePath in $SourcePaths) {
+        if (-not (Test-Path -LiteralPath $sourcePath)) { continue }
+        $sourceText = Get-Content -LiteralPath $sourcePath -Raw
+        foreach ($match in [regex]::Matches($sourceText, '\.([A-Za-z_$][A-Za-z0-9_$]*)')) {
+            $externProperties += $match.Groups[1].Value
+        }
+        foreach ($match in [regex]::Matches($sourceText, '["'']([A-Za-z_$][A-Za-z0-9_$]*)["'']\s*:')) {
+            $externProperties += $match.Groups[1].Value
+        }
+        foreach ($match in [regex]::Matches($sourceText, '[{,]\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*:')) {
+            $externProperties += $match.Groups[1].Value
+        }
+        foreach ($match in [regex]::Matches($sourceText, '\[["'']([A-Za-z_$][A-Za-z0-9_$]*)["'']\]')) {
+            $externProperties += $match.Groups[1].Value
+        }
+    }
+
+    $externProperties = $externProperties | Where-Object { $_ } | Sort-Object -Unique
+    $lines = @(
+        "/** @externs */",
+        "var `$ = {};",
+        "`$.GetContextPanel = function() {};",
+        "`$.CreatePanel = function(type, parent, id) {};",
+        "`$.Schedule = function(delay, callback) {};",
+        "`$.DispatchEvent = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
+        "`$.RegisterForUnhandledEvent = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
+        "`$.Msg = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
+        "var GameUI = {};",
+        "GameUI.CustomUIConfig = function() {};",
+        "var SteamOverlayAPI = {};",
+        "var AnitaCore = {};",
+        "var HP_COLORS = {};"
+    )
+    foreach ($name in $externProperties) {
+        $lines += "Object.prototype.$name;"
+    }
+    Set-Content -LiteralPath $Path -Value $lines -Encoding ASCII
+}
+
+function Test-HpClosureOutput {
+    param(
+        [string]$SourcePath,
+        [string]$OutputPath,
+        [string]$ScriptName
+    )
+
+    if (-not (Test-Path -LiteralPath $OutputPath)) {
+        Write-Host "[ERROR] Closure ADVANCED did not create $ScriptName" -ForegroundColor Red
         exit 1
+    }
+
+    $outputInfo = Get-Item -LiteralPath $OutputPath
+    if ($outputInfo.Length -lt 128) {
+        Write-Host "[ERROR] Closure ADVANCED output for $ScriptName is suspiciously tiny ($($outputInfo.Length) bytes)" -ForegroundColor Red
+        exit 1
+    }
+
+    $sourceText = Get-Content -LiteralPath $SourcePath -Raw
+    $outputText = Get-Content -LiteralPath $OutputPath -Raw
+    $requiredFragments = @("AnitaUI", "HP_COLORS", "Register", "DispatchEvent", "ClientUI_FireOutput", "ANITA_REGISTER", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST")
+    foreach ($fragment in $requiredFragments) {
+        if ($sourceText.Contains($fragment) -and -not $outputText.Contains($fragment)) {
+            Write-Host "[ERROR] Closure ADVANCED output for $ScriptName dropped required runtime fragment '$fragment'" -ForegroundColor Red
+            exit 1
+        }
     }
 }
 
-Write-Host "  Minified JS OK -> $terserSrc" -ForegroundColor Green
-& node $heroSelectorAuditScript "$terserSrc\panorama\scripts\anita_ui_core.js"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] Minified hero selector audit failed - fix preset hero dropdown before compiling." -ForegroundColor Red
-    exit 1
-}
-Write-Host "  Minified hero selector audit passed." -ForegroundColor Green
-& node $runtimeReplayAuditScript "$terserSrc\panorama\scripts\healthbar_logic.js"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] Minified runtime replay audit failed - fix healthbar preset replay before compiling." -ForegroundColor Red
-    exit 1
-}
-Write-Host "  Minified runtime replay audit passed." -ForegroundColor Green
+$closureSourcePaths = $scriptFiles | ForEach-Object { Join-Path "$modSrc\panorama\scripts" $_.Name }
+$closureExterns = Join-Path $closureSrc "hp_colors_closure_externs.js"
+Write-HpClosureExterns $closureExterns $closureSourcePaths
 
-$buildOnlyScriptsDir = "$terserSrc\scripts"
+foreach ($script in $scriptFiles) {
+    $sourceScript = Join-Path "$modSrc\panorama\scripts" $script.Name
+    $closureScript = $script.FullName
+    $closureArgs = @(
+        "--yes"
+        "google-closure-compiler"
+        "--externs"
+        $closureExterns
+        "--language_in"
+        "ECMASCRIPT_NEXT"
+        "--language_out"
+        "ECMASCRIPT5_STRICT"
+        "--js"
+        $sourceScript
+        "--compilation_level"
+        "ADVANCED"
+        "--js_output_file"
+        $closureScript
+    )
+
+    & npx @closureArgs
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] Closure ADVANCED failed for $($script.Name) with code $LASTEXITCODE" -ForegroundColor Red
+        exit 1
+    }
+    Test-HpClosureOutput $sourceScript $closureScript $script.Name
+}
+
+Remove-Item -LiteralPath $closureExterns -Force
+Write-Host "  Closure ADVANCED JS OK -> $closureSrc" -ForegroundColor Green
+& node $heroSelectorAuditScript "$closureSrc\panorama\scripts\anita_ui_core.js"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Closure ADVANCED hero selector audit failed - fix preset hero dropdown before compiling." -ForegroundColor Red
+    exit 1
+}
+Write-Host "  Closure ADVANCED hero selector audit passed." -ForegroundColor Green
+& node $runtimeReplayAuditScript "$closureSrc\panorama\scripts\healthbar_logic.js"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Closure ADVANCED runtime replay audit failed - fix healthbar preset replay before compiling." -ForegroundColor Red
+    exit 1
+}
+Write-Host "  Closure ADVANCED runtime replay audit passed." -ForegroundColor Green
+
+$buildOnlyScriptsDir = "$closureSrc\scripts"
 if (Test-Path $buildOnlyScriptsDir) {
     Remove-Item -Recurse -Force $buildOnlyScriptsDir
 }
-$unusedImageDir = "$terserSrc\panorama\images\hp_colors"
+$unusedImageDir = "$closureSrc\panorama\images\hp_colors"
 foreach ($unusedImage in @("icon_copy.svg", "icon_open_builder.svg")) {
     $unusedImagePath = Join-Path $unusedImageDir $unusedImage
     if (Test-Path $unusedImagePath) {
@@ -145,8 +237,8 @@ if ((Test-Path $unusedImageDir) -and -not (Get-ChildItem -LiteralPath $unusedIma
 
 # ## Step 2: Compile ############################################################
 Write-Host "`n[2/4] Compiling hp_colors..." -ForegroundColor Cyan
-$compileTarget = "$terserCompiled\panorama\scripts\healthbar_logic.vjs_c"
-$proc = Start-Process -FilePath $compiler -ArgumentList "`"$terserSrc`"" -PassThru
+$compileTarget = "$closureCompiled\panorama\scripts\healthbar_logic.vjs_c"
+$proc = Start-Process -FilePath $compiler -ArgumentList "`"$closureSrc`"" -PassThru
 $compileDeadline = (Get-Date).AddSeconds(120)
 while (-not $proc.HasExited -and (Get-Date) -lt $compileDeadline) {
     Start-Sleep -Milliseconds 500
@@ -177,8 +269,8 @@ if (-not (Test-Path $compileTarget)) {
     exit 1
 }
 $compiledSelectorTargets = @(
-    "$terserCompiled\panorama\scripts\anita_ui_core.vjs_c",
-    "$terserCompiled\panorama\styles\anita_ui.vcss_c"
+    "$closureCompiled\panorama\scripts\anita_ui_core.vjs_c",
+    "$closureCompiled\panorama\styles\anita_ui.vcss_c"
 )
 foreach ($selectorTarget in $compiledSelectorTargets) {
     if (-not (Test-Path $selectorTarget)) {
@@ -186,7 +278,7 @@ foreach ($selectorTarget in $compiledSelectorTargets) {
         exit 1
     }
 }
-Copy-Item -Path $terserCompiled -Destination $modCompiled -Recurse -Force
+Copy-Item -Path $closureCompiled -Destination $modCompiled -Recurse -Force
 Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 
 # ## Step 3: Pack VPK ##########################################################

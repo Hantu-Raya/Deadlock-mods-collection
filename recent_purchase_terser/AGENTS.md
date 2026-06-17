@@ -1,19 +1,5 @@
 # AGENT GUIDE: recent_purchase
 
-## GENERATED STAGING COPY
-`recent_purchase_terser/` is regenerated from `recent_purchase/` by
-`build_recent_purchase.ps1`. Do not make source fixes here unless the user is
-explicitly inspecting generated/minified output. Patch `../recent_purchase/`
-and rebuild with:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File build_recent_purchase.ps1
-```
-
-The build script deletes this folder and copies `recent_purchase/` into it, so
-custom guidance here must also exist in the source guide if it needs to survive
-the next build.
-
 Project type: Source 2 Panorama UI mod (quickbuy cost tracker).
 Primary output: compiled assets in `../recent_purchase_compiled/` → `pak81_dir.vpk`.
 
@@ -28,12 +14,24 @@ patch `recent_purchase/` instead.
 
 ## Build
 
+Preferred full build from the repo root:
+
 ```powershell
-# Direct staging compile only
-& "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\recent_purchase_terser"
+powershell -ExecutionPolicy Bypass -File build_recent_purchase.ps1
+```
+
+The script minifies to `recent_purchase_terser/`, compiles the terser copy,
+syncs `recent_purchase_compiled/`, packs `pak81_dir.vpk`, and deploys it to the
+Deadlock addons folder configured in the script.
+
+Manual commands:
+
+```powershell
+# Source/debug compile only
+& "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\sr2compiler\New folder.exe" "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\recent_purchase"
 
 # Pack + deploy (single-file VPK)
-& "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\passive_items_mod\compiler\vpkeditcli.exe" "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\recent_purchase_terser_compiled" -o "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\pak81_dir.vpk" -s --no-progress
+& "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\passive_items_mod\compiler\vpkeditcli.exe" "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\recent_purchase_compiled" -o "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\pak81_dir.vpk" -s --no-progress
 cp "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\pak81_dir.vpk" "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak81_dir.vpk"
 ```
 
@@ -87,9 +85,7 @@ Forward-order push (`0..n-1`) reverses queue order, causing the wrong item to re
 
 ## Validation
 
-1. Compiled output exists in `recent_purchase_terser_compiled/panorama/...`
-   for direct staging builds, or `recent_purchase_compiled/panorama/...` after
-   the full `build_recent_purchase.ps1` sync step.
+1. Compiled output exists in `recent_purchase_compiled/panorama/...`
 2. No script errors in Panorama debugger (`F7`)
 3. Total cost panel visible when shop open
 4. Per-item `/ -X` appears in red when more souls are needed, same font size as base cost

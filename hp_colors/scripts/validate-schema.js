@@ -511,7 +511,9 @@ function main() {
   for (const buildMarker of [
     'sync_hp_preset_store.js',
     'validate-hero-selector.js',
-    'Minified hero selector audit passed.',
+    'Closure ADVANCED hero selector audit passed.',
+    'hp_colors_closure',
+    'ECMASCRIPT5_STRICT',
     'anita_ui_core.vjs_c',
     'anita_ui.vcss_c',
     'Packed VPK missing required asset',

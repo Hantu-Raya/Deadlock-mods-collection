@@ -6,8 +6,8 @@ Panorama overlay styling.
 ## Scope
 - This guide applies to `hp_colors/`.
 - Edit raw source in `hp_colors/panorama/...`.
-- Do not edit `hp_colors_terser/`, `hp_colors_compiled/`, or
-  `hp_colors_terser_compiled/` directly; those are build artifacts.
+- Do not edit `hp_colors_closure/`, `hp_colors_compiled/`, or
+  `hp_colors_closure_compiled/` directly; those are build artifacts.
 - Root repo rules in `../AGENTS.md` still apply.
 
 ## Build
@@ -18,10 +18,9 @@ powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
 ```
 
 The script runs `hp_colors/scripts/validate-schema.js` (currently expecting 49
-settings), minifies `hp_colors/`
-into `hp_colors_terser/`, compiles the terser copy, syncs
-`hp_colors_compiled/`, packs `pak97_dir.vpk`, and deploys it to the Deadlock
-addons folder configured in that script.
+settings), Closure ADVANCED-compiles `hp_colors/` into `hp_colors_closure/`,
+compiles the Closure copy, syncs `hp_colors_compiled/`, packs `pak97_dir.vpk`,
+and deploys it to the Deadlock addons folder configured in that script.
 
 ## Runtime Files
 | File | Context | Purpose |

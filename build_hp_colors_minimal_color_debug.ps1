@@ -58,6 +58,177 @@ function Remove-VpkFamilyIfExists {
     }
 }
 
+function New-HpMinimalClosureAdvancedExterns {
+    param([Parameter(Mandatory = $true)][string]$StageSrc)
+
+    $externPath = Join-Path $StageSrc "hp_colors_minimal_color_debug_closure_advanced.externs.js"
+    $externProperties = @(
+        "AddClass",
+        "BHasClass",
+        "CancelScheduled",
+        "Children",
+        "CustomUIConfig",
+        "DispatchEvent",
+        "FindChildTraverse",
+        "GetAttributeString",
+        "GetContextPanel",
+        "GetParent",
+        "IsValid",
+        "Msg",
+        "RegisterForUnhandledEvent",
+        "RemoveClass",
+        "Schedule",
+        "SetAttributeString",
+        "FindChildrenWithClassTraverse",
+        "SetHasClass",
+        "actual_damage",
+        "aliases",
+        "allow_unknown_fallback",
+        "alive",
+        "cfg_raw",
+        "__hpColorsPresetDebug",
+        "crosshair",
+        "gameui",
+        "gameui_ready",
+        "hero",
+        "heroMode",
+        "heroes",
+        "hp_bg_visible",
+        "hp_color_high",
+        "hp_color_low",
+        "hp_color_mid",
+        "hp_counter_format",
+        "hp_counter_position",
+        "hp_counter_size",
+        "hp_counter_visible",
+        "hp_enabled",
+        "hp_friend_color_high",
+        "hp_friend_color_low",
+        "hp_friend_color_mid",
+        "hp_friend_enabled",
+        "h",
+        "hm",
+        "hs",
+        "hp_friend_pulse_bpm",
+        "hp_friend_pulse_color",
+        "hp_friend_pulse_color_enabled",
+        "hp_friend_pulse_enabled",
+        "hp_friend_pulse_intensity",
+        "hp_friend_pulse_threshold",
+        "hp_healthbar_height",
+        "hp_high_threshold",
+        "hp_info_health_margin_top",
+        "hp_kill_zone_color",
+        "hp_kill_zone_enabled",
+        "hp_kill_zone_threshold",
+        "hp_kill_zone_width",
+        "hp_level_number_visible",
+        "hp_low_threshold",
+        "hp_mode",
+        "hp_pip_visible",
+        "hp_pulse_bpm",
+        "hp_pulse_color",
+        "hp_pulse_color_enabled",
+        "hp_pulse_color_mode",
+        "hp_pulse_enabled",
+        "hp_pulse_hide_bar",
+        "hp_pulse_intensity",
+        "hp_pulse_text_enabled",
+        "hp_pulse_text_position",
+        "hp_pulse_text_scale",
+        "hp_pulse_threshold",
+        "hp_skip_buildings",
+        "hp_team_colors",
+        "hp_text_color_high",
+        "hp_text_color_low",
+        "hp_text_color_mid",
+        "hp_text_color_mode",
+        "hp_ult_color_custom",
+        "hp_ult_color_enabled",
+        "id",
+        "index",
+        "interval",
+        "magic_word",
+        "mod_title",
+        "name",
+        "preset",
+        "raw_length",
+        "reason",
+        "retries",
+        "root",
+        "root_attr",
+        "root_ready",
+        "stable_count",
+        "style",
+        "animationDuration",
+        "brightness",
+        "fontSize",
+        "height",
+        "marginTop",
+        "opacity",
+        "text",
+        "visibility",
+        "washColor",
+        "token",
+        "update_source",
+        "v",
+        "vals",
+        "values",
+        "values_raw",
+        "vs",
+        "version"
+    )
+    $lines = @(
+        "/** @externs */",
+        "/** @const */ var `$ = {};",
+        "`$.CancelScheduled = function(handle) {};",
+        "`$.DispatchEvent = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
+        "`$.GetContextPanel = function() {};",
+        "`$.Msg = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
+        "`$.RegisterForUnhandledEvent = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
+        "`$.Schedule = function(delay, callback) {};",
+        "/** @const */ var GameUI = {};",
+        "GameUI.CustomUIConfig = function() {};",
+        "/** @const */ var SteamOverlayAPI = {};",
+        "SteamOverlayAPI.OpenURL = function(url) {};",
+        "SteamOverlayAPI.OpenExternalBrowserURL = function(url) {};"
+    )
+
+    foreach ($propertyName in $externProperties) {
+        $lines += "Object.prototype.$propertyName;"
+    }
+    Set-Content -LiteralPath $externPath -Value ($lines -join "`n") -NoNewline
+    return $externPath
+}
+
+function Assert-HpMinimalClosureAdvancedOutput {
+    param(
+        [Parameter(Mandatory = $true)][string]$ScriptPath,
+        [Parameter(Mandatory = $true)][string]$ScriptName
+    )
+
+    if (-not (Test-Path -LiteralPath $ScriptPath)) {
+        throw "Closure ADVANCED script not created: $ScriptPath"
+    }
+    $source = Get-Content -LiteralPath $ScriptPath -Raw
+    if ($source.Length -lt 256) {
+        throw "Closure ADVANCED produced suspiciously small output: $ScriptName"
+    }
+
+    $requiredFragments = @("HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "ClientUI_FireOutput")
+    if ($ScriptName -eq "anita_ui_core.js") {
+        $requiredFragments += @("__hpColorsCfgRaw", "hp_colors_minimal_cfg_raw", "values_raw", "magic_word")
+    } elseif ($ScriptName -eq "healthbar_logic.js") {
+        $requiredFragments += @("hp_info_health_margin_top", "hp_healthbar_height", "low_hp_pulsing", "magic_word")
+    }
+    foreach ($fragment in $requiredFragments) {
+        if (-not $source.Contains($fragment)) {
+            throw "Closure ADVANCED output for $ScriptName is missing required runtime fragment: $fragment"
+        }
+    }
+}
+
+
 Remove-RepoPathIfExists $modCompiled -Recurse
 Remove-RepoPathIfExists $terserSrc -Recurse
 Remove-RepoPathIfExists $terserCompiled -Recurse
@@ -80,7 +251,7 @@ if (-not (Test-Path $BuilderPresetVpkPath)) {
 }
 Write-Host "  Color debug audit passed." -ForegroundColor Green
 
-Write-Host "`n[1/4] Preparing minified hp_colors_minimal_color_debug source..." -ForegroundColor Cyan
+Write-Host "`n[1/4] Preparing Closure ADVANCED hp_colors_minimal_color_debug source..." -ForegroundColor Cyan
 Copy-Item -LiteralPath $modSrc -Destination $terserSrc -Recurse -Force
 $supportScriptDir = "$terserSrc\scripts"
 if (Test-Path $supportScriptDir) {
@@ -89,34 +260,45 @@ if (Test-Path $supportScriptDir) {
 
 $scriptFiles = Get-ChildItem "$terserSrc\panorama\scripts" -Filter *.js | Sort-Object Name
 if (-not $scriptFiles) {
-    Write-Host "[ERROR] No Panorama scripts found to minify" -ForegroundColor Red
+    Write-Host "[ERROR] No Panorama scripts found for Closure ADVANCED" -ForegroundColor Red
     exit 1
 }
 
+$externsPath = New-HpMinimalClosureAdvancedExterns -StageSrc $terserSrc
 foreach ($script in $scriptFiles) {
     $sourceScript = Join-Path "$modSrc\panorama\scripts" $script.Name
-    $minifiedScript = $script.FullName
-    $terserArgs = @(
+    $compiledScript = $script.FullName
+    if (Test-Path -LiteralPath $compiledScript) {
+        Remove-Item -LiteralPath $compiledScript -Force
+    }
+    $closureArgs = @(
         "--yes"
-        "terser"
+        "google-closure-compiler"
+        "--externs"
+        $externsPath
+        "--js"
         $sourceScript
-        "-c"
-        "passes=3"
-        "-m"
-        "keep_classnames=true"
-        "--comments"
-        "false"
-        "-o"
-        $minifiedScript
+        "--compilation_level"
+        "ADVANCED"
+        "--js_output_file"
+        $compiledScript
     )
 
-    & npx @terserArgs
+    & npx @closureArgs
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] terser failed for $($script.Name) with code $LASTEXITCODE" -ForegroundColor Red
+        Write-Host "[ERROR] google-closure-compiler ADVANCED failed for $($script.Name) with code $LASTEXITCODE" -ForegroundColor Red
+        exit 1
+    }
+    try {
+        Assert-HpMinimalClosureAdvancedOutput -ScriptPath $compiledScript -ScriptName $script.Name
+    } catch {
+        Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor Red
         exit 1
     }
 }
-Write-Host "  Minified JS OK -> $terserSrc" -ForegroundColor Green
+Remove-Item -LiteralPath $externsPath -Force
+Write-Host "  Closure ADVANCED JS OK -> $terserSrc" -ForegroundColor Green
+
 
 Write-Host "`n[2/4] Compiling hp_colors_minimal_color_debug..." -ForegroundColor Cyan
 $healthbarTarget = "$terserCompiled\panorama\scripts\healthbar_logic.vjs_c"
