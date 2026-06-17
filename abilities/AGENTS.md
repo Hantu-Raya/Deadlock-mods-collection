@@ -27,6 +27,12 @@ Preferred full pack flow from the repo root:
 powershell -ExecutionPolicy Bypass -File build_abilities_paks.ps1
 ```
 
+When refreshing from SteamTracking, update both source baselines in the same run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build_abilities_paks.ps1 -RefreshFromSteamTracking
+```
+
 That wrapper derives the repo root from `$PSScriptRoot`, locates `py.exe` or a
 known Python install, requires 7-Zip, transforms each variant in place, compiles
 after each transform, stages each compiled output as `scripts/abilities.vdata_c`,
@@ -36,6 +42,10 @@ temporary VPKs.
 
 The dated `.7z` archives are the durable packaged outputs from the full flow;
 temporary stage folders and intermediate VPKs are intentionally cleaned up.
+`-RefreshFromSteamTracking` fetches upstream `scripts/abilities.vdata`, removes
+the root `_include` block, and writes the same clean baseline to both
+`scripts/abilities.vdata` and `scripts/abilities2.vdata` before transforms so
+the passive-only pak cannot lag behind the active paks.
 
 Focused transform commands from `abilities/scripts/`:
 
@@ -45,8 +55,11 @@ py active.py abilities.vdata
 py active_no_behavior.py abilities.vdata
 ```
 
-Do not resurrect older hardcoded external-path workflows. Keep helper scripts
-portable across checkouts.
+Do not update only one VData baseline when pulling upstream data. `abilities.vdata`
+feeds the active paks and `abilities2.vdata` feeds the passive-only pak; they must
+start from the same stripped upstream source before transforms. Do not resurrect
+older hardcoded external-path workflows. Keep helper scripts portable across
+checkouts.
 
 ## CONVENTIONS
 - VData format: Valve's key-value definition format

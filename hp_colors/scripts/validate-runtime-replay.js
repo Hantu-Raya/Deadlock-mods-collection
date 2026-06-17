@@ -218,10 +218,10 @@ function createRuntimeContext(tree, options = {}) {
 
 function runValidation() {
   const source = fs.readFileSync(targetScript, 'utf8');
-  const isMinifiedTarget = targetScript.includes(`${path.sep}hp_colors_terser${path.sep}`);
+  const isOptimizedTarget = targetScript.includes(`${path.sep}hp_colors_closure${path.sep}`);
   assert(!source.includes('GetSettingString') && !source.includes('deadlock_hero_debuts_seen'),
     'healthbar runtime should not read convar storage directly; import/preset paths own compact-token parsing');
-  if (!isMinifiedTarget) {
+  if (!isOptimizedTarget) {
     assert(source.includes('function requestEnemyLoopKick') &&
         !source.includes('$.Schedule(0.01, gL)') &&
         !source.includes('$.Schedule(0.01, aL)') &&
@@ -246,7 +246,7 @@ function runValidation() {
   for (const token of forbiddenDebugTokens) {
     assert(!source.includes(token), `healthbar runtime should not ship debug/profiler token: ${token}`);
   }
-  if (!isMinifiedTarget) {
+  if (!isOptimizedTarget) {
     assert(source.includes('function styleDriftCheckDelayMs') && source.includes('styleDriftCleanFrames'),
       'healthbar runtime should back off clean idle style-drift checks');
     assert(source.includes('lKzSig === sig'),

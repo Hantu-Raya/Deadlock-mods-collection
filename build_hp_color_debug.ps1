@@ -90,31 +90,119 @@ if (-not $scriptFiles) {
     exit 1
 }
 
-foreach ($script in $scriptFiles) {
-    $sourceScript = Join-Path "$modSrc\panorama\scripts" $script.Name
-    $minifiedScript = $script.FullName
-    $terserArgs = @(
-        "--yes"
-        "terser"
-        $sourceScript
-        "-c"
-        "passes=3"
-        "-m"
-        "keep_classnames=true"
-        "--comments"
-        "false"
-        "-o"
-        $minifiedScript
+function Write-HpClosureExterns {
+    param(
+        [string]$Path,
+        [object[]]$SourcePaths
     )
 
-    & npx @terserArgs
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] terser failed for $($script.Name) with code $LASTEXITCODE" -ForegroundColor Red
+    $externProperties = @(
+        "AnitaUI", "GameUI", "HP_COLORS", "Register", "DispatchEvent", "RegisterForUnhandledEvent",
+        "ClientUI_FireOutput", "ANITA_REGISTER", "ANITA_UPDATE", "ANITA_BULK_UPDATE",
+        "ANITA_REQUEST_BOOTSTRAP", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST",
+        "CustomUIConfig", "SteamOverlayAPI", "IsReady", "GetVersion", "Toggle", "findRegisteredMod",
+        "registerMod", "registeredMods", "__anitaLastEmittedValues", "magic_word", "mod_title",
+        "setting_id", "new_value", "values", "values_raw", "config", "storageNamespace", "storageVersion"
+    )
+
+    foreach ($sourcePath in $SourcePaths) {
+        if (-not (Test-Path -LiteralPath $sourcePath)) { continue }
+        $sourceText = Get-Content -LiteralPath $sourcePath -Raw
+        foreach ($match in [regex]::Matches($sourceText, '\.([A-Za-z_$][A-Za-z0-9_$]*)')) {
+            $externProperties += $match.Groups[1].Value
+        }
+        foreach ($match in [regex]::Matches($sourceText, '["'']([A-Za-z_$][A-Za-z0-9_$]*)["'']\s*:')) {
+            $externProperties += $match.Groups[1].Value
+        }
+        foreach ($match in [regex]::Matches($sourceText, '[{,]\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*:')) {
+            $externProperties += $match.Groups[1].Value
+        }
+        foreach ($match in [regex]::Matches($sourceText, '\[["'']([A-Za-z_$][A-Za-z0-9_$]*)["'']\]')) {
+            $externProperties += $match.Groups[1].Value
+        }
+    }
+
+    $externProperties = $externProperties | Where-Object { $_ } | Sort-Object -Unique
+    $lines = @(
+        "/** @externs */",
+        "var `$ = {};",
+        "`$.GetContextPanel = function() {};",
+        "`$.CreatePanel = function(type, parent, id) {};",
+        "`$.Schedule = function(delay, callback) {};",
+        "`$.DispatchEvent = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
+        "`$.RegisterForUnhandledEvent = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
+        "`$.Msg = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
+        "var GameUI = {};",
+        "GameUI.CustomUIConfig = function() {};",
+        "var SteamOverlayAPI = {};",
+        "var AnitaCore = {};",
+        "var HP_COLORS = {};"
+    )
+    foreach ($name in $externProperties) {
+        $lines += "Object.prototype.$name;"
+    }
+    Set-Content -LiteralPath $Path -Value $lines -Encoding ASCII
+}
+
+function Test-HpClosureOutput {
+    param(
+        [string]$SourcePath,
+        [string]$OutputPath,
+        [string]$ScriptName
+    )
+
+    if (-not (Test-Path -LiteralPath $OutputPath)) {
+        Write-Host "[ERROR] Closure ADVANCED did not create $ScriptName" -ForegroundColor Red
         exit 1
+    }
+
+    $outputInfo = Get-Item -LiteralPath $OutputPath
+    if ($outputInfo.Length -lt 128) {
+        Write-Host "[ERROR] Closure ADVANCED output for $ScriptName is suspiciously tiny ($($outputInfo.Length) bytes)" -ForegroundColor Red
+        exit 1
+    }
+
+    $sourceText = Get-Content -LiteralPath $SourcePath -Raw
+    $outputText = Get-Content -LiteralPath $OutputPath -Raw
+    $requiredFragments = @("AnitaUI", "HP_COLORS", "Register", "DispatchEvent", "ClientUI_FireOutput", "ANITA_REGISTER", "HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST")
+    foreach ($fragment in $requiredFragments) {
+        if ($sourceText.Contains($fragment) -and -not $outputText.Contains($fragment)) {
+            Write-Host "[ERROR] Closure ADVANCED output for $ScriptName dropped required runtime fragment '$fragment'" -ForegroundColor Red
+            exit 1
+        }
     }
 }
 
-Write-Host "  Minified JS OK -> $terserSrc" -ForegroundColor Green
+$closureSourcePaths = $scriptFiles | ForEach-Object { Join-Path "$modSrc\panorama\scripts" $_.Name }
+$closureExterns = Join-Path $terserSrc "hp_colors_closure_externs.js"
+Write-HpClosureExterns $closureExterns $closureSourcePaths
+
+foreach ($script in $scriptFiles) {
+    $sourceScript = Join-Path "$modSrc\panorama\scripts" $script.Name
+    $minifiedScript = $script.FullName
+    $closureArgs = @(
+        "--yes"
+        "google-closure-compiler"
+        "--externs"
+        $closureExterns
+        "--js"
+        $sourceScript
+        "--compilation_level"
+        "ADVANCED"
+        "--js_output_file"
+        $minifiedScript
+    )
+
+    & npx @closureArgs
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] Closure ADVANCED failed for $($script.Name) with code $LASTEXITCODE" -ForegroundColor Red
+        exit 1
+    }
+    Test-HpClosureOutput $sourceScript $minifiedScript $script.Name
+}
+
+Remove-Item -LiteralPath $closureExterns -Force
+Write-Host "  Closure ADVANCED JS OK -> $terserSrc" -ForegroundColor Green
 & node $heroSelectorAuditScript "$terserSrc\panorama\scripts\anita_ui_core.js"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Minified hero selector audit failed - fix preset hero dropdown before compiling." -ForegroundColor Red

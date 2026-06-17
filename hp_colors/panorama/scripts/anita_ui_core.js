@@ -62,6 +62,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
   const HP_PRESET_SNAPSHOT_REPLAY_WARM_COUNT = 12;
   const HP_PRESET_SNAPSHOT_REQUEST_HOT_MS = 5000;
   const HP_MATCH_RESET_SHARED_KEY = "__hpColorsMatchReset";
+  const HP_SHARED_CFG_RAW_KEY = "__hpColorsCfgRaw";
   const HP_OPTIMIZED_FORCED_VALUES = {};
   const HP_OPTIMIZED_HIDDEN_SETTINGS = {};
   const HP_BAKED_PRESET_APPLY_DELAYS = [0.5, 1.5, 3.0, 5.0, 8.0, 12.0];
@@ -1922,7 +1923,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
         var raw = JSON.stringify(values);
         if (raw === _lastHpSharedRaw) return raw;
         _lastHpSharedRaw = raw;
-        GameUI.CustomUIConfig().__hpColorsCfgRaw = raw;
+        GameUI.CustomUIConfig()[HP_SHARED_CFG_RAW_KEY] = raw;
         return raw;
       }
     } catch (e) {}
@@ -1990,7 +1991,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
     if (!raw) return false;
     try {
       if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) {
-        GameUI.CustomUIConfig().__hpColorsCfgRaw = raw;
+        GameUI.CustomUIConfig()[HP_SHARED_CFG_RAW_KEY] = raw;
       }
     } catch (eShared) {}
     try {
@@ -2297,7 +2298,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
       try {
         if (typeof GameUI === "undefined" || !GameUI || !GameUI.CustomUIConfig)
           return null;
-        var raw = String(GameUI.CustomUIConfig().__hpColorsCfgRaw || "");
+        var raw = String(GameUI.CustomUIConfig()[HP_SHARED_CFG_RAW_KEY] || "");
         if (!raw) return null;
         var parsed = JSON.parse(raw);
         if (!parsed || typeof parsed !== "object") return null;

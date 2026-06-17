@@ -137,6 +137,21 @@ function getValidationReport() {
     if (combinedSource.includes(term)) errors.push(`forbidden production source term: ${term}`);
   }
 
+  const buildScriptPath = path.join(ROOT, "..", "build_hp_colors_minimal.ps1");
+  const buildScript = fs.existsSync(buildScriptPath) ? fs.readFileSync(buildScriptPath, "utf8") : "";
+  for (const term of [
+    "hp_colors_minimal_closure",
+    "ECMASCRIPT5_STRICT",
+    "actuallayoutwidth",
+    "actuallayoutheight",
+    "backgroundColor",
+    "marginLeft",
+    "transform",
+    "zIndex"
+  ]) {
+    if (!buildScript.includes(term)) errors.push(`build_hp_colors_minimal.ps1 missing Closure compatibility term: ${term}`);
+  }
+
   if (!/var\s+DEBUG_PRESET_SELECTION\s*=\s*false\s*;/.test(publisher)) {
     errors.push("publisher DEBUG_PRESET_SELECTION must default false");
   }

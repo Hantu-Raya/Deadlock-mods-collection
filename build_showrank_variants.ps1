@@ -19,7 +19,14 @@ $compiler = Join-Path $root "sr2compiler\New folder.exe"
 $compilerPref = Join-Path $root "sr2compiler\pref.json"
 $addons = $AddonsPath
 $dateTag = Get-Date -Format "yyyyMMdd_HHmmss"
-$scriptRelative = "panorama\scripts\showrank_web_media_bridge.js"
+$showrankScriptNames = @(
+    "showrank_common.js",
+    "showrank_profile.js",
+    "showrank_topbar.js",
+    "showrank_escape.js"
+)
+$showrankScriptRelativeRoot = "panorama\scripts"
+$showrankCommonScriptRelative = Join-Path $showrankScriptRelativeRoot "showrank_common.js"
 
 $vpkeditcliCandidates = @(
     (Join-Path $root "passive_items_mod\compiler\vpkeditcli.exe"),
@@ -122,6 +129,60 @@ function Remove-TreeUnderRoot {
     Remove-Item -LiteralPath $Path -Recurse -Force
 }
 
+function Get-ShowRankScriptPaths {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$StageSrc
+    )
+
+    $paths = @()
+    foreach ($scriptName in $showrankScriptNames) {
+        $paths += Join-Path $StageSrc (Join-Path $showrankScriptRelativeRoot $scriptName)
+    }
+    return $paths
+}
+
+function Get-ShowRankCompiledScriptPaths {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$StageCompiled
+    )
+
+    $paths = @()
+    foreach ($scriptName in $showrankScriptNames) {
+        $compiledName = [System.IO.Path]::ChangeExtension($scriptName, ".vjs_c")
+        $paths += Join-Path $StageCompiled (Join-Path $showrankScriptRelativeRoot $compiledName)
+    }
+    return $paths
+}
+
+function Test-AllShowRankCompiledScripts {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$StageCompiled
+    )
+
+    foreach ($compiledPath in (Get-ShowRankCompiledScriptPaths -StageCompiled $StageCompiled)) {
+        if (-not (Test-Path -LiteralPath $compiledPath)) {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Assert-AllShowRankCompiledScripts {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$StageCompiled
+    )
+
+    foreach ($compiledPath in (Get-ShowRankCompiledScriptPaths -StageCompiled $StageCompiled)) {
+        if (-not (Test-Path -LiteralPath $compiledPath)) {
+            throw "Compiled ShowRank script not found: $compiledPath"
+        }
+    }
+}
+
 function Get-DotaRoot {
     if (-not (Test-Path -LiteralPath $compilerPref)) {
         return ""
@@ -204,10 +265,10 @@ function Apply-MinifyRanksVariant {
         [string]$StageSrc
     )
 
-    $scriptPath = Join-Path $StageSrc "panorama\scripts\showrank_web_media_bridge.js"
+    $scriptPath = Join-Path $StageSrc $showrankCommonScriptRelative
 
     if (-not (Test-Path -LiteralPath $scriptPath)) {
-        throw "ShowRank bridge script missing from stage: $scriptPath"
+        throw "ShowRank common script missing from stage: $scriptPath"
     }
 
     $script = Get-Content -LiteralPath $scriptPath -Raw
@@ -234,18 +295,22 @@ function Assert-LatestTopBarContract {
         [hashtable]$Spec
     )
 
-    $scriptPath = Join-Path $StageSrc "panorama\scripts\showrank_web_media_bridge.js"
+    $commonScriptPath = Join-Path $StageSrc $showrankCommonScriptRelative
+    $scriptPaths = Get-ShowRankScriptPaths -StageSrc $StageSrc
     $topBarXml = Join-Path $StageSrc "panorama\layout\citadel_hud_top_bar.xml"
     $topBarPlayerXml = Join-Path $StageSrc "panorama\layout\citadel_hud_top_bar_player.xml"
     $topBarCss = Join-Path $StageSrc "panorama\styles\showrank_top_bar.css"
+    $requiredPaths = @()
+    $requiredPaths += $scriptPaths
+    $requiredPaths += @($topBarXml, $topBarPlayerXml, $topBarCss)
 
-    foreach ($requiredPath in @($scriptPath, $topBarXml, $topBarPlayerXml, $topBarCss)) {
+    foreach ($requiredPath in $requiredPaths) {
         if (-not (Test-Path -LiteralPath $requiredPath)) {
             throw "Required ShowRank variant source missing: $requiredPath"
         }
     }
 
-    $script = Get-Content -LiteralPath $scriptPath -Raw
+    $commonScript = Get-Content -LiteralPath $commonScriptPath -Raw
     $xml = Get-Content -LiteralPath $topBarXml -Raw
     $playerXml = Get-Content -LiteralPath $topBarPlayerXml -Raw
     $css = Get-Content -LiteralPath $topBarCss -Raw
@@ -262,17 +327,40 @@ function Assert-LatestTopBarContract {
     if (-not $playerXml.Contains("ShowRankTopBarStatusVisible")) {
         throw "Top-bar rank0 placeholder is not visible by default in $($Spec.Id)"
     }
-    if (-not $script.Contains("TOPBAR_MISSING_RANK_IMAGE_URL")) {
+    if (-not $commonScript.Contains("TOPBAR_MISSING_RANK_IMAGE_URL")) {
         throw "Bridge missing rank0 placeholder URL constant in $($Spec.Id)"
     }
-    if (-not $script.Contains("spinner_png.vtex")) {
+    if (-not $commonScript.Contains("spinner_png.vtex")) {
         throw "Bridge missing spinner status URL in $($Spec.Id)"
     }
-    if (-not $script.Contains("TOPBAR_LOADING_TIMEOUT_SECONDS = 20.0")) {
+    if (-not $commonScript.Contains("TOPBAR_LOADING_TIMEOUT_SECONDS = 20.0")) {
         throw "Bridge missing 20-second top-bar spinner timeout in $($Spec.Id)"
     }
-    if ($script.Contains("ShowRankDebug")) {
-        throw "Release variant source contains ShowRankDebug logging in $($Spec.Id)"
+    foreach ($requiredFragment in @(
+        "function IsTopBarPlayerRoot",
+        "function ResolveTopBarPlayerRootFromImage",
+        "function ApplyEscapePreloadRow",
+        "rowMatches = snapshot.matches || []",
+        "uniqueTopbarNameCount += 1"
+    )) {
+        if (-not $commonScript.Contains($requiredFragment)) {
+            throw "Bridge missing recent performance contract '$requiredFragment' in $($Spec.Id)"
+        }
+    }
+    foreach ($scriptSourcePath in $scriptPaths) {
+        $scriptName = Split-Path -Leaf $scriptSourcePath
+        $scriptSource = Get-Content -LiteralPath $scriptSourcePath -Raw
+        if (
+            $scriptSource.Contains("ShowRankDebug") -or
+            $scriptSource.Contains("SHOWRANK-PERF") -or
+            $scriptSource.Contains("SHOWRANK-SEQ") -or
+            $scriptSource.Contains("ShowRankPerf") -or
+            $scriptSource.Contains("RecordShowRankSequence") -or
+            $scriptSource.Contains("PrintShowRankPerf") -or
+            $scriptSource.Contains("$.Msg(")
+        ) {
+            throw "Release variant source contains debug/perf logging in $($Spec.Id): $scriptName"
+        }
     }
     if (-not $css.Contains("ShowRankTopBarSpinnerSpin")) {
         throw "Top-bar spinner keyframes missing in $($Spec.Id)"
@@ -292,16 +380,249 @@ function Assert-LatestTopBarContract {
         }
     }
     if ($Spec.MinifyRanks) {
-        if (-not $script.Contains('/rank-predict/image?size=small')) {
+        if (-not $commonScript.Contains('/rank-predict/image?size=small')) {
             throw "Minify-ranks variant did not switch player rank URLs to size=small in $($Spec.Id)"
         }
-    } elseif (-not $script.Contains('/rank-predict/image?format=webp')) {
+    } elseif (-not $commonScript.Contains('/rank-predict/image?format=webp')) {
         throw "Normal-rank variant lost player rank format=webp URL in $($Spec.Id)"
     }
 }
 
 
-function Invoke-ShowRankTerser {
+function New-ShowRankClosureAdvancedExterns {
+    $externPath = Join-Path $buildRoot "showrank_closure_advanced.externs.js"
+    $externProperties = @(
+        "ActivatedWithMouse",
+        "AddClass",
+        "ApplyEscapePromptVisualState",
+        "BHasClass",
+        "ClearPlayerListHover",
+        "CountTopBarRankState",
+        "CustomUIConfig",
+        "DispatchEvent",
+        "EscapeAutoPopulateFromRowReady",
+        "FindChildTraverse",
+        "FindChildrenWithClassTraverse",
+        "FindTopBarCandidates",
+        "GetAttributeString",
+        "GetChild",
+        "GetChildCount",
+        "GetContextPanel",
+        "GetDocumentRoot",
+        "GetParent",
+        "GetRuntimeIdleLoaded",
+        "GetState",
+        "GuardShowRankAction",
+        "InstallShowRankWrapper",
+        "IsPanelValid",
+        "IsRuntimeIdleLatched",
+        "IsShowRankRuntimeIdleCurrent",
+        "IsValid",
+        "MarkPlayerListHover",
+        "NowMs",
+        "ReadRegisteredTopBarCandidate",
+        "RegisterTopBarPlayer",
+        "RemoveClass",
+        "Schedule",
+        "ScheduleTopBarReadyCheck",
+        "SetAttributeString",
+        "SetImage",
+        "SetPanelAttribute",
+        "SourceHasPrefix",
+        "StartShowRankAutoloadIntent",
+        "StoreManualTarget",
+        "TriggerProfileCard",
+        "UpdateTeamAverageRanks",
+        "ShowRankTriggerProfileCard",
+        "ShowRankOpenStatlocker",
+        "ShowRankContextMenuTriggerProfileCard",
+        "ShowRankContextMenuOpenStatlocker",
+        "ShowRankContextMenuOpenDeadlock",
+        "ShowRankTopBarRootLoaded",
+        "ShowRankRegisterTopBarPlayer",
+        "ShowRankMarkTopBarHover",
+        "ShowRankMarkPlayerListHover",
+        "ShowRankClearPlayerListHover",
+        "ShowRankEscapePreloadFromPlayerList",
+        "ShowRankRegisterPlayerListRowReady",
+        "account",
+        "accountPanel",
+        "accountPanelText",
+        "accountTreeText",
+        "accountVersion",
+        "accounts",
+        "activeSimOpen",
+        "activeSpectator",
+        "ambiguous",
+        "api",
+        "at",
+        "candidate",
+        "candidates",
+        "classAccountTexts",
+        "completedSimToken",
+        "count",
+        "depth",
+        "duplicateAccount",
+        "duplicates",
+        "eventArg",
+        "eventName",
+        "firstAmbiguousName",
+        "firstMissingName",
+        "gameTimeSec",
+        "hoverToken",
+        "id",
+        "image",
+        "index",
+        "knownAccountsByNameNorm",
+        "knownOrder",
+        "label",
+        "loaded",
+        "localBadge",
+        "manualTargetRows",
+        "match",
+        "matched",
+        "matches",
+        "media",
+        "method",
+        "missing",
+        "name",
+        "nameNorm",
+        "names",
+        "norms",
+        "now",
+        "opacity",
+        "panel",
+        "paneltype",
+        "playerListOnly",
+        "playerListOnlyFallback",
+        "probedRowOpenKeys",
+        "profileQuarantine",
+        "profileWatchSeq",
+        "rankUrl",
+        "raw",
+        "reason",
+        "result",
+        "root",
+        "row",
+        "rowIndex",
+        "rowName",
+        "rowNameNorm",
+        "rows",
+        "scoreboardOpen",
+        "seconds",
+        "seen",
+        "seenAt",
+        "sharedStoreTargets",
+        "sharedStoreTargetsVersion",
+        "side",
+        "skipped",
+        "source",
+        "startedAt",
+        "startupRole",
+        "state",
+        "status",
+        "steam64",
+        "steamid3",
+        "storageSource",
+        "style",
+        "target",
+        "targetKind",
+        "targetName",
+        "teamSide",
+        "text",
+        "token",
+        "topBarBatchDepth",
+        "topBarBatchDirty",
+        "topBarBatchRoot",
+        "topBarCandidateCache",
+        "topBarCandidateCacheDirty",
+        "topBarCandidateCacheRoot",
+        "topbar",
+        "topbarIndex",
+        "topbarOnly",
+        "topbarUid",
+        "uid",
+        "uniqueMatchedTopbar",
+        "uniqueTopbarNames",
+        "until",
+        "url",
+        "verifiedSimOpen",
+        "version",
+        "visibility",
+        "visible"
+    )
+    $lines = @(
+        "/** @externs */",
+        "/** @const */ var `$ = {};",
+        "`$.GetContextPanel = function() {};",
+        "`$.Schedule = function(delay, callback) {};",
+        "`$.DispatchEvent = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
+        "`$.RegisterEventHandler = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
+        "`$.RegisterForUnhandledEvent = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
+        "`$.Msg = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
+        "/** @const */ var GameUI = {};",
+        "GameUI.CustomUIConfig = function() {};",
+        "/** @const */ var SteamOverlayAPI = {};",
+        "SteamOverlayAPI.OpenURL = function(url) {};",
+        "SteamOverlayAPI.OpenExternalBrowserURL = function(url) {};",
+        "var CitadelShowProfilePageForAccount = function(account) {};",
+        "var CitadelTopDownScoreboardPlayerHovered = function() {};"
+    )
+
+    foreach ($propertyName in $externProperties) {
+        $lines += "Object.prototype.$propertyName;"
+    }
+    Set-Content -LiteralPath $externPath -Value ($lines -join "`n") -NoNewline
+    return $externPath
+}
+
+function Assert-ShowRankClosureAdvancedOutput {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ScriptPath,
+        [Parameter(Mandatory = $true)]
+        [string]$ScriptName
+    )
+
+    $source = Get-Content -LiteralPath $ScriptPath -Raw
+    $requiredFragments = @("__ShowRankWebMediaBridgeClean")
+    if ($source.Length -lt 128) {
+        throw "Closure ADVANCED produced suspiciously small ShowRank output: $ScriptName"
+    }
+    if ($ScriptName -eq "showrank_common.js") {
+        $requiredFragments += @(
+            "InstallShowRankWrapper",
+            "GuardShowRankAction",
+            "ShowRankTriggerProfileCard",
+            "ShowRankEscapePreloadFromPlayerList"
+        )
+    } elseif ($ScriptName -eq "showrank_profile.js") {
+        $requiredFragments += @(
+            "ShowRankTriggerProfileCard",
+            "ShowRankContextMenuTriggerProfileCard",
+            "ShowRankContextMenuOpenDeadlock"
+        )
+    } elseif ($ScriptName -eq "showrank_topbar.js") {
+        $requiredFragments += @(
+            "ShowRankRegisterTopBarPlayer",
+            "ShowRankTopBarRootLoaded",
+            "ShowRankMarkTopBarHover"
+        )
+    } elseif ($ScriptName -eq "showrank_escape.js") {
+        $requiredFragments += @(
+            "ShowRankEscapePreloadFromPlayerList",
+            "ShowRankRegisterPlayerListRowReady",
+            "ShowRankMarkPlayerListHover"
+        )
+    }
+    foreach ($fragment in $requiredFragments) {
+        if (-not $source.Contains($fragment)) {
+            throw "Closure ADVANCED output for $ScriptName is missing required runtime fragment: $fragment"
+        }
+    }
+}
+
+function Invoke-ShowRankClosureMinifier {
     param(
         [Parameter(Mandatory = $true)]
         [string]$StageSrc,
@@ -309,43 +630,49 @@ function Invoke-ShowRankTerser {
         [hashtable]$Spec
     )
 
-    $scriptPath = Join-Path $StageSrc $scriptRelative
-    $minifiedPath = Join-Path $buildRoot ("$($Spec.Id)_showrank_web_media_bridge.min.js")
+    $scriptPaths = Get-ShowRankScriptPaths -StageSrc $StageSrc
+    $externsPath = New-ShowRankClosureAdvancedExterns
 
-    if (-not (Test-Path -LiteralPath $scriptPath)) {
-        throw "ShowRank bridge script missing from stage: $scriptPath"
-    }
-    if (Test-Path -LiteralPath $minifiedPath) {
-        Remove-Item -LiteralPath $minifiedPath -Force
-    }
+    Write-Host "[minify:closure-advanced] $($Spec.Id)" -ForegroundColor Cyan
+    foreach ($scriptPath in $scriptPaths) {
+        $scriptName = Split-Path -Leaf $scriptPath
+        $minifiedPath = Join-Path $buildRoot ("$($Spec.Id)_" + [System.IO.Path]::GetFileNameWithoutExtension($scriptName) + ".closure-advanced.js")
 
-    $beforeSize = (Get-Item -LiteralPath $scriptPath).Length
-    $terserArgs = @(
-        '--yes'
-        'terser'
-        $scriptPath
-        '-c'
-        'passes=3'
-        '-m'
-        'keep_fnames=true,keep_classnames=true'
-        '--comments'
-        'false'
-        '-o'
-        $minifiedPath
-    )
+        if (-not (Test-Path -LiteralPath $scriptPath)) {
+            throw "ShowRank script missing from stage: $scriptPath"
+        }
+        if (Test-Path -LiteralPath $minifiedPath) {
+            Remove-Item -LiteralPath $minifiedPath -Force
+        }
 
-    Write-Host "[minify] $($Spec.Id)" -ForegroundColor Cyan
-    & npx @terserArgs
-    if ($LASTEXITCODE -ne 0) {
-        throw "terser failed for $($Spec.Id) with exit code $LASTEXITCODE"
-    }
-    if (-not (Test-Path -LiteralPath $minifiedPath)) {
-        throw "Minified bridge not created: $minifiedPath"
-    }
+        $beforeSize = (Get-Item -LiteralPath $scriptPath).Length
+        $closureArgs = @(
+            '--yes'
+            'google-closure-compiler'
+            '--externs'
+            $externsPath
+            '--js'
+            $scriptPath
+            '--compilation_level'
+            'ADVANCED'
+            '--js_output_file'
+            $minifiedPath
+        )
 
-    Move-Item -LiteralPath $minifiedPath -Destination $scriptPath -Force
-    $afterSize = (Get-Item -LiteralPath $scriptPath).Length
-    Write-Host ("  Minified OK: {0:n1} KB -> {1:n1} KB" -f ($beforeSize / 1KB), ($afterSize / 1KB)) -ForegroundColor Green
+        & npx @closureArgs
+        if ($LASTEXITCODE -ne 0) {
+            throw "google-closure-compiler ADVANCED failed for $($Spec.Id) $scriptName with exit code $LASTEXITCODE"
+        }
+        if (-not (Test-Path -LiteralPath $minifiedPath)) {
+            throw "Closure ADVANCED ShowRank script not created: $minifiedPath"
+        }
+        Assert-ShowRankClosureAdvancedOutput -ScriptPath $minifiedPath -ScriptName $scriptName
+
+        Move-Item -LiteralPath $minifiedPath -Destination $scriptPath -Force
+        $afterSize = (Get-Item -LiteralPath $scriptPath).Length
+        Write-Host ("  {0}: {1:n1} KB -> {2:n1} KB" -f $scriptName, ($beforeSize / 1KB), ($afterSize / 1KB)) -ForegroundColor Green
+    }
+    Remove-Item -LiteralPath $externsPath -Force
 }
 
 function New-VariantStage {
@@ -378,7 +705,7 @@ function New-VariantStage {
 
     Assert-LatestTopBarContract -StageSrc $stageSrc -Spec $Spec
 
-    Invoke-ShowRankTerser -StageSrc $stageSrc -Spec $Spec
+    Invoke-ShowRankClosureMinifier -StageSrc $stageSrc -Spec $Spec
 
     return @{
         Source = $stageSrc
@@ -440,10 +767,7 @@ function Invoke-ShowRankResourceCompiler {
         throw "resourcecompiler failed for $($Spec.Id) with exit code $LASTEXITCODE"
     }
 
-    $expected = Join-Path $dotaAddonOut "panorama\scripts\showrank_web_media_bridge.vjs_c"
-    if (-not (Test-Path -LiteralPath $expected)) {
-        throw "resourcecompiler output missing expected bridge: $expected"
-    }
+    Assert-AllShowRankCompiledScripts -StageCompiled $dotaAddonOut
 
     Copy-Item -LiteralPath $dotaAddonOut -Destination $StageCompiled -Recurse -Force
 
@@ -470,15 +794,14 @@ function Invoke-ShowRankCompiler {
     Remove-TreeUnderRoot -Path $StageCompiled -RootPath $buildRoot
 
     Write-Host "[compile] $($Spec.Id)" -ForegroundColor Cyan
-    $expected = Join-Path $StageCompiled "panorama\scripts\showrank_web_media_bridge.vjs_c"
     $proc = Start-Process -FilePath $compiler -ArgumentList "`"$StageSrc`"" -PassThru -WindowStyle Hidden
     $deadline = (Get-Date).AddSeconds($CompileTimeoutSeconds)
     while (-not $proc.HasExited -and (Get-Date) -lt $deadline) {
         Start-Sleep -Milliseconds 500
-        if (Test-Path -LiteralPath $expected) {
+        if (Test-AllShowRankCompiledScripts -StageCompiled $StageCompiled) {
             Start-Sleep -Seconds 2
             if (-not $proc.HasExited) {
-                Write-Host "  [warn] compiler produced output but did not exit; stopping wrapper" -ForegroundColor Yellow
+                Write-Host "  [warn] compiler produced all ShowRank script outputs but did not exit; stopping wrapper" -ForegroundColor Yellow
                 Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
                 $proc.WaitForExit()
             }
@@ -491,14 +814,13 @@ function Invoke-ShowRankCompiler {
         $proc.WaitForExit()
     }
 
-    if ($proc.ExitCode -ne 0 -and -not (Test-Path -LiteralPath $expected)) {
+    $expectedScriptsReady = Test-AllShowRankCompiledScripts -StageCompiled $StageCompiled
+    if ($proc.ExitCode -ne 0 -and -not $expectedScriptsReady) {
         Write-Host "  [warn] wrapper failed with exit code $($proc.ExitCode); trying direct resourcecompiler" -ForegroundColor Yellow
         Invoke-ShowRankResourceCompiler -StageSrc $StageSrc -StageCompiled $StageCompiled -Spec $Spec
     }
 
-    if (-not (Test-Path -LiteralPath $expected)) {
-        throw "Compiled bridge not found: $expected"
-    }
+    Assert-AllShowRankCompiledScripts -StageCompiled $StageCompiled
 }
 
 function Pack-VariantVpk {

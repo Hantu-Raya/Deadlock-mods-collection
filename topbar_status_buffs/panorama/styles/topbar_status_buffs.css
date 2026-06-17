@@ -1,0 +1,150 @@
+@import url("s2r://panorama/styles/topbar_status_buffs_base/citadel_hud_top_bar.vcss_c");
+
+.TopbarStatusBuffs
+{
+  flow-children: right;
+  height: 30px;
+  width: fit-children;
+  margin: -32px 1px 0px 1px;
+  vertical-align: top;
+  horizontal-align: center;
+  visibility: collapse;
+  opacity: 0;
+  z-index: 120;
+  transform: translateY(-8px);
+}
+
+.TopbarStatusBuffs.TopbarStatusBuffsVisible
+{
+  visibility: visible;
+  opacity: 0.9;
+}
+
+.TopbarStatusBuffSlot
+{
+  flow-children: down;
+  width: 22px;
+  height: 30px;
+  margin: 0px 1px;
+  visibility: collapse;
+  opacity: 0;
+}
+
+.TopbarStatusBuffSlot.TopbarStatusBuffActive
+{
+  visibility: visible;
+  opacity: 1;
+}
+
+.TopbarStatusBuffIcon
+{
+  width: 16px;
+  height: 16px;
+  horizontal-align: center;
+  margin-top: 1px;
+}
+
+.TopbarStatusBuffTime
+{
+  width: 24px;
+  height: 11px;
+  horizontal-align: center;
+  margin-top: -1px;
+  color: offWhite;
+  font-family: block;
+  font-size: 8px;
+  font-weight: semi-bold;
+  text-align: center;
+  text-shadow: 0px 0px 2px 2.0 offBlack;
+}
+
+
+.TopbarStatusBuffsNativeEffects
+{
+  flow-children: right;
+  height: 30px;
+  width: fit-children;
+  margin: -32px 1px 0px 1px;
+  vertical-align: top;
+  horizontal-align: center;
+  visibility: visible;
+  opacity: 1;
+  z-index: 130;
+  transform: translateY(-8px);
+}
+
+.TopbarStatusBuffsNativeEffects #StatusEffectContainer
+{
+  flow-children: right;
+  height: 30px;
+  width: fit-children;
+}
+
+.TopbarStatusBuffsNativeEffects .statusEffect
+{
+  width: 24px;
+  height: 30px;
+  margin: 0px 1px;
+  background-image: none;
+  visibility: collapse;
+  opacity: 0;
+}
+
+.TopbarStatusBuffsNativeEffects .survival_pickup,
+.TopbarStatusBuffsNativeEffects .movement_pickup,
+.TopbarStatusBuffsNativeEffects .casting_pickup,
+.TopbarStatusBuffsNativeEffects .gunpower_pickup
+{
+  visibility: visible;
+  opacity: 1;
+}
+
+.TopbarStatusBuffsNativeEffects .statusEffectContainer
+{
+  width: 22px;
+  height: 20px;
+  horizontal-align: center;
+}
+
+.TopbarStatusBuffsNativeEffects #StatusEffectsBorder,
+.TopbarStatusBuffsNativeEffects #StatusEffectCooldownOverlay,
+.TopbarStatusBuffsNativeEffects #StatusEffectInner
+{
+  visibility: collapse;
+  opacity: 0;
+}
+
+.TopbarStatusBuffsNativeEffects .statusEffectImage
+{
+  width: 16px;
+  height: 16px;
+  visibility: visible;
+  opacity: 1;
+  horizontal-align: center;
+  vertical-align: top;
+  margin-top: 1px;
+}
+
+.TopbarStatusBuffNativeTime
+{
+  width: 24px;
+  height: 11px;
+  horizontal-align: center;
+  vertical-align: bottom;
+  color: offWhite;
+  font-family: block;
+  font-size: 8px;
+  font-weight: semi-bold;
+  text-align: center;
+  text-shadow: 0px 0px 2px 2.0 offBlack;
+}
+.Dead .TopbarStatusBuffs
+{
+  opacity: 0.35;
+}
+
+.wants_scoreboard .TopbarStatusBuffs
+{
+  visibility: collapse;
+  opacity: 0;
+}

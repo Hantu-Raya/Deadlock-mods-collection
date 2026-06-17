@@ -1,3 +1,7 @@
+param(
+    [switch]$RefreshFromSteamTracking
+)
+
 $ErrorActionPreference = 'Stop'
 
 $root = $PSScriptRoot
@@ -92,11 +96,39 @@ function Remove-RootIncludeBlock {
     if ($matches.Count -gt 1) {
         throw "Expected at most one root _include block in $InputPath, found $($matches.Count)"
     }
-
     if ($matches.Count -eq 1) {
         Write-Host "[preprocess] remove _include from $(Split-Path $InputPath -Leaf)" -ForegroundColor Cyan
         $updated = [regex]::Replace($content, $includePattern, '', 1)
-        Set-Content -LiteralPath $InputPath -Value $updated -NoNewline
+        [System.IO.File]::WriteAllText($InputPath, $updated, [System.Text.UTF8Encoding]::new($false))
+    }
+}
+
+function Update-AbilityBaselinesFromSteamTracking {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$InputFiles
+    )
+
+    $upstreamUrl = "https://raw.githubusercontent.com/SteamTracking/GameTracking-Deadlock/master/game/citadel/pak01_dir/scripts/abilities.vdata"
+    Write-Host "[update] fetch upstream abilities.vdata" -ForegroundColor Cyan
+    $response = Invoke-WebRequest -Uri $upstreamUrl -UseBasicParsing
+    $content = [string]$response.Content
+
+    if (-not $content.StartsWith("<!-- kv3 encoding:text:")) {
+        throw "Unexpected upstream abilities.vdata response"
+    }
+
+    $includePattern = '(?ms)^\s*_include\s*=\s*\r?\n\s*\[\s*\r?\n(?:\s*resource_name:"[^"]+",?\s*\r?\n)+\s*\]\s*\r?\n'
+    $matches = [regex]::Matches($content, $includePattern)
+    if ($matches.Count -ne 1) {
+        throw "Expected exactly one root _include block in upstream abilities.vdata, found $($matches.Count)"
+    }
+    $content = [regex]::Replace($content, $includePattern, '', 1)
+
+    foreach ($inputFile in $InputFiles) {
+        $inputPath = Join-Path $modScripts $inputFile
+        Write-Host "[update] write $inputFile from upstream abilities.vdata" -ForegroundColor Cyan
+        [System.IO.File]::WriteAllText($inputPath, $content, [System.Text.UTF8Encoding]::new($false))
     }
 }
 
@@ -147,12 +179,35 @@ function Invoke-AbilityCompiler {
     }
 
     Write-Host "[compile] abilities" -ForegroundColor Cyan
-    $proc = Start-Process -FilePath $compiler -ArgumentList "`"$modSrc`"" -PassThru -Wait
     $compiledActive = Join-Path $modCompiled "scripts\abilities.vdata_c"
     $compiledPassive = Join-Path $modCompiled "scripts\abilities2.vdata_c"
+    $proc = Start-Process -FilePath $compiler -ArgumentList "`"$modSrc`"" -PassThru
+    $compileDeadline = (Get-Date).AddSeconds(180)
 
-    if ($proc.ExitCode -ne 0 -and (-not (Test-Path $compiledActive) -or -not (Test-Path $compiledPassive))) {
-        throw "Compiler failed with exit code $($proc.ExitCode)"
+    while (-not $proc.HasExited -and (Get-Date) -lt $compileDeadline) {
+        Start-Sleep -Milliseconds 500
+        if ((Test-Path $compiledActive) -and (Test-Path $compiledPassive)) {
+            Start-Sleep -Seconds 2
+            if (-not $proc.HasExited) {
+                Write-Host "[WARN] Compiler produced output but did not exit; stopping wrapper." -ForegroundColor Yellow
+                Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+                $proc.WaitForExit()
+            }
+            break
+        }
+    }
+
+    if (-not $proc.HasExited) {
+        Write-Host "[WARN] Compiler timed out; stopping wrapper." -ForegroundColor Yellow
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        $proc.WaitForExit()
+    }
+
+    if ($proc.ExitCode -ne 0) {
+        if (-not (Test-Path $compiledActive) -or -not (Test-Path $compiledPassive)) {
+            throw "Compiler failed with exit code $($proc.ExitCode)"
+        }
+        Write-Host "[WARN] Compiler exited $($proc.ExitCode) but output exists; continuing." -ForegroundColor Yellow
     }
 
     if (-not (Test-Path $compiledActive)) {
@@ -229,11 +284,17 @@ function Remove-LegacyArchives {
     }
 }
 
+$inputFiles = $pakSpecs | ForEach-Object { $_.InputFile } | Select-Object -Unique
+
+if ($RefreshFromSteamTracking) {
+    Update-AbilityBaselinesFromSteamTracking -InputFiles $inputFiles
+}
+
 $inputBaselines = @{}
 $baselineDir = Join-Path ([System.IO.Path]::GetTempPath()) ("deadlock_abilities_baseline_" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $baselineDir -Force | Out-Null
 
-foreach ($inputFile in ($pakSpecs | ForEach-Object { $_.InputFile } | Select-Object -Unique)) {
+foreach ($inputFile in $inputFiles) {
     $inputPath = Join-Path $modScripts $inputFile
     Remove-RootIncludeBlock -InputPath $inputPath
 

@@ -93,7 +93,7 @@ py active.py abilities.vdata
 py active_no_behavior.py abilities.vdata
 ```
 
-Prefer `build_abilities_paks.ps1` for packaged deliverables; direct Python scripts may mutate input files when no output path is supplied.
+Prefer `build_abilities_paks.ps1` for packaged deliverables; use `build_abilities_paks.ps1 -RefreshFromSteamTracking` when pulling fresh SteamTracking ability data so both `abilities.vdata` and `abilities2.vdata` are refreshed together. Direct Python scripts may mutate input files when no output path is supplied.
 
 ## Code Conventions & Common Patterns
 
