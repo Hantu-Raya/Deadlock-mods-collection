@@ -235,7 +235,6 @@ function Apply-ScoreboardOnlyTopBarVariant {
 
     $scoreboardOnlyCss = @'
 
-.ShowRankTopBarScoreboardOnly .ShowRankTopBarStatusImage.ShowRankTopBarStatusVisible,
 .ShowRankTopBarScoreboardOnly .ShowRankTopBarRankImage.ShowRankTopBarRankVisible
 {
 	visibility: collapse;
@@ -249,12 +248,6 @@ function Apply-ScoreboardOnlyTopBarVariant {
 	opacity: 1;
 }
 
-.ShowRankTopBarScoreboardOnly.wants_scoreboard .ShowRankTopBarStatusImage.ShowRankTopBarStatusVisible,
-.ShowRankTopBarScoreboardOnly.gScoreboardOpen .ShowRankTopBarStatusImage.ShowRankTopBarStatusVisible
-{
-	visibility: visible;
-	opacity: 0.75;
-}
 '@
     Set-Content -LiteralPath $topBarCss -Value ($css.TrimEnd() + "`r`n" + $scoreboardOnlyCss.TrimStart()) -NoNewline
 }
@@ -318,23 +311,14 @@ function Assert-LatestTopBarContract {
     if ($xml.Contains("Press ESC to populate ranks") -or $xml.Contains("ShowRankTopBarEscapePrompt")) {
         throw "Old top-bar ESC populate banner is present in $($Spec.Id)"
     }
-    if (-not $playerXml.Contains('id="ShowRankTopBarStatusImage"')) {
-        throw "Top-bar status image missing in $($Spec.Id)"
+    if (-not $playerXml.Contains('id="ShowRankTopBarStatusImage"') -or -not $playerXml.Contains("ShowRankTopBarStatusVisible")) {
+        throw "Top-bar status placeholder is missing from $($Spec.Id)"
     }
     if (-not $playerXml.Contains("badge_sm_psd.vtex")) {
-        throw "Top-bar rank0 placeholder missing in $($Spec.Id)"
+        throw "Top-bar rank0 placeholder is missing from $($Spec.Id)"
     }
-    if (-not $playerXml.Contains("ShowRankTopBarStatusVisible")) {
-        throw "Top-bar rank0 placeholder is not visible by default in $($Spec.Id)"
-    }
-    if (-not $commonScript.Contains("TOPBAR_MISSING_RANK_IMAGE_URL")) {
-        throw "Bridge missing rank0 placeholder URL constant in $($Spec.Id)"
-    }
-    if (-not $commonScript.Contains("spinner_png.vtex")) {
-        throw "Bridge missing spinner status URL in $($Spec.Id)"
-    }
-    if (-not $commonScript.Contains("TOPBAR_LOADING_TIMEOUT_SECONDS = 20.0")) {
-        throw "Bridge missing 20-second top-bar spinner timeout in $($Spec.Id)"
+    if (-not $commonScript.Contains("TOPBAR_MISSING_RANK_IMAGE_URL") -or -not $commonScript.Contains("spinner_png.vtex") -or -not $commonScript.Contains("showrank_status_")) {
+        throw "Top-bar status flow is missing from $($Spec.Id)"
     }
     foreach ($requiredFragment in @(
         "function IsTopBarPlayerRoot",
@@ -362,21 +346,9 @@ function Assert-LatestTopBarContract {
             throw "Release variant source contains debug/perf logging in $($Spec.Id): $scriptName"
         }
     }
-    if (-not $css.Contains("ShowRankTopBarSpinnerSpin")) {
-        throw "Top-bar spinner keyframes missing in $($Spec.Id)"
-    }
-    if (-not $css.Contains("opacity: 0.75;")) {
-        throw "Top-bar status opacity 0.75 missing in $($Spec.Id)"
-    }
     if ($Spec.ScoreboardOnlyTopBar) {
         if (-not $xml.Contains("ShowRankTopBarScoreboardOnly")) {
             throw "Scoreboard-only variant did not mark the top-bar root in $($Spec.Id)"
-        }
-        if (-not $css.Contains(".ShowRankTopBarScoreboardOnly .ShowRankTopBarStatusImage.ShowRankTopBarStatusVisible")) {
-            throw "Scoreboard-only variant does not hide rank0/status by default in $($Spec.Id)"
-        }
-        if (-not $css.Contains(".ShowRankTopBarScoreboardOnly.wants_scoreboard .ShowRankTopBarStatusImage.ShowRankTopBarStatusVisible")) {
-            throw "Scoreboard-only variant does not reveal rank0/status while scoreboard is open in $($Spec.Id)"
         }
     }
     if ($Spec.MinifyRanks) {
@@ -435,20 +407,14 @@ function New-ShowRankClosureAdvancedExterns {
         "UpdateTeamAverageRanks",
         "ShowRankTriggerProfileCard",
         "ShowRankOpenStatlocker",
-        "ShowRankContextMenuTriggerProfileCard",
         "ShowRankContextMenuOpenStatlocker",
         "ShowRankContextMenuOpenDeadlock",
-        "ShowRankTopBarRootLoaded",
-        "ShowRankRegisterTopBarPlayer",
         "ShowRankMarkTopBarHover",
         "ShowRankMarkPlayerListHover",
         "ShowRankClearPlayerListHover",
         "ShowRankEscapePreloadFromPlayerList",
         "ShowRankRegisterPlayerListRowReady",
         "account",
-        "accountPanel",
-        "accountPanelText",
-        "accountTreeText",
         "accountVersion",
         "accounts",
         "activeSimOpen",
@@ -518,7 +484,6 @@ function New-ShowRankClosureAdvancedExterns {
         "skipped",
         "source",
         "startedAt",
-        "startupRole",
         "state",
         "status",
         "steam64",
@@ -599,13 +564,10 @@ function Assert-ShowRankClosureAdvancedOutput {
     } elseif ($ScriptName -eq "showrank_profile.js") {
         $requiredFragments += @(
             "ShowRankTriggerProfileCard",
-            "ShowRankContextMenuTriggerProfileCard",
             "ShowRankContextMenuOpenDeadlock"
         )
     } elseif ($ScriptName -eq "showrank_topbar.js") {
         $requiredFragments += @(
-            "ShowRankRegisterTopBarPlayer",
-            "ShowRankTopBarRootLoaded",
             "ShowRankMarkTopBarHover"
         )
     } elseif ($ScriptName -eq "showrank_escape.js") {
