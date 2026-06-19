@@ -20,10 +20,7 @@ $compilerPref = Join-Path $root "sr2compiler\pref.json"
 $addons = $AddonsPath
 $dateTag = Get-Date -Format "yyyyMMdd_HHmmss"
 $showrankScriptNames = @(
-    "showrank_common.js",
-    "showrank_profile.js",
-    "showrank_topbar.js",
-    "showrank_escape.js"
+    "showrank_common.js"
 )
 $showrankScriptRelativeRoot = "panorama\scripts"
 $showrankCommonScriptRelative = Join-Path $showrankScriptRelativeRoot "showrank_common.js"
@@ -556,25 +553,15 @@ function Assert-ShowRankClosureAdvancedOutput {
     }
     if ($ScriptName -eq "showrank_common.js") {
         $requiredFragments += @(
-            "InstallShowRankWrapper",
-            "GuardShowRankAction",
             "ShowRankTriggerProfileCard",
-            "ShowRankEscapePreloadFromPlayerList"
-        )
-    } elseif ($ScriptName -eq "showrank_profile.js") {
-        $requiredFragments += @(
-            "ShowRankTriggerProfileCard",
-            "ShowRankContextMenuOpenDeadlock"
-        )
-    } elseif ($ScriptName -eq "showrank_topbar.js") {
-        $requiredFragments += @(
-            "ShowRankMarkTopBarHover"
-        )
-    } elseif ($ScriptName -eq "showrank_escape.js") {
-        $requiredFragments += @(
+            "ShowRankOpenStatlocker",
+            "ShowRankContextMenuOpenStatlocker",
+            "ShowRankContextMenuOpenDeadlock",
+            "ShowRankMarkTopBarHover",
+            "ShowRankMarkPlayerListHover",
+            "ShowRankClearPlayerListHover",
             "ShowRankEscapePreloadFromPlayerList",
-            "ShowRankRegisterPlayerListRowReady",
-            "ShowRankMarkPlayerListHover"
+            "ShowRankRegisterPlayerListRowReady"
         )
     }
     foreach ($fragment in $requiredFragments) {
