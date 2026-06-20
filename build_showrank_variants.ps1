@@ -4,6 +4,8 @@ param(
 
     [switch]$Install,
     [switch]$KeepStaging,
+    [switch]$Diagnostics,
+
 
     [string]$AddonsPath = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons",
 
@@ -24,6 +26,7 @@ $showrankScriptNames = @(
 )
 $showrankScriptRelativeRoot = "panorama\scripts"
 $showrankCommonScriptRelative = Join-Path $showrankScriptRelativeRoot "showrank_common.js"
+$showrankDiagnosticsTool = Join-Path $modSrc "tools\apply-showrank-diagnostics.js"
 
 $vpkeditcliCandidates = @(
     (Join-Path $root "passive_items_mod\compiler\vpkeditcli.exe"),
@@ -277,12 +280,133 @@ function Apply-MinifyRanksVariant {
     Set-Content -LiteralPath $scriptPath -Value $patchedScript -NoNewline
 }
 
-function Assert-LatestTopBarContract {
+function Assert-ShowRankReleaseCleanContent {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Content,
+        [Parameter(Mandatory = $true)]
+        [string]$Name
+    )
+
+    foreach ($fragment in @(
+        "SHOWRANK_VERBOSE_LOGS",
+        "SHOWRANK_USAGE_TRACE_LOGS",
+        "SHOWRANK_DEBUG_ONLY_EVENTS",
+        "$.ShowRankVerboseLogs",
+        "$.ShowRankUsageTraceLogs",
+        "TraceVerbose",
+        "LogVerbose",
+        "FlushVerbose",
+        "MaybeDumpDiagnosticTree",
+        "diagnostic_tree_node",
+        "profile_tooltip_debug",
+        "optimization_marker",
+        "SHOWRANK_ALWAYS_LOG_EVENTS",
+        "DEBUG_PREFIX",
+        "showrank_startup_logged_",
+        "showrank_team_average_log_sig_",
+        "showrank_prompt_state_log_sig",
+        "LogProfileAccountMissing",
+        "ProfileNamesForLog",
+        "RankUrlAccount",
+        "LogTeamAverageState",
+        "LogTopBarWait",
+        "LogStartupMarkers",
+        "ShowRankDiag",
+        "SHOWRANK_DIAG_BUILD",
+        "showrank_diag_",
+        "TraceDiag"
+    )) {
+        if ($Content.Contains($fragment)) {
+            throw "Release ShowRank script contains diagnostic/debug fragment '$fragment': $Name"
+        }
+    }
+
+    foreach ($pattern in @(
+        '\bShouldLog\s*\(',
+        '\bfunction\s+Log\s*\(',
+        '\bLog\s*\(\s*["'']',
+        'WebMediaDemoBridge',
+        'RegisterForUnhandledEvent',
+        'DispatchEvent\(\s*["'']ShowRank',
+        'RunScriptInPanelContext',
+        '\bfetch\s*\(',
+        '\bXMLHttpRequest\b',
+        '\bAsyncWebRequest\b',
+        '\bsetInterval\s*\(',
+        '\.src\s*=',
+        '\bImage\.src\b',
+        '\bSetPanelEvent\b',
+        '\$\.Msg\s*\(',
+        '\bconsole\.(?:log|warn|error|info|debug)\s*\('
+    )) {
+        if ($Content -match $pattern) {
+            throw "Release ShowRank script contains forbidden diagnostic/debug pattern '$pattern': $Name"
+        }
+    }
+}
+
+function Assert-ShowRankReleaseCleanScripts {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$StageSrc
+    )
+
+    foreach ($scriptSourcePath in (Get-ShowRankScriptPaths -StageSrc $StageSrc)) {
+        $scriptName = Split-Path -Leaf $scriptSourcePath
+        $scriptSource = Get-Content -LiteralPath $scriptSourcePath -Raw
+        Assert-ShowRankReleaseCleanContent -Content $scriptSource -Name $scriptName
+    }
+}
+
+function Assert-ShowRankReleaseCleanCompiledScripts {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$StageCompiled
+    )
+
+    foreach ($compiledPath in (Get-ShowRankCompiledScriptPaths -StageCompiled $StageCompiled)) {
+        $compiledName = Split-Path -Leaf $compiledPath
+        $compiledSource = Get-Content -LiteralPath $compiledPath -Raw
+        Assert-ShowRankReleaseCleanContent -Content $compiledSource -Name $compiledName
+    }
+}
+
+function Apply-ShowRankDiagnosticsPatch {
     param(
         [Parameter(Mandatory = $true)]
         [string]$StageSrc,
         [Parameter(Mandatory = $true)]
         [hashtable]$Spec
+    )
+
+    $scriptPath = Join-Path $StageSrc $showrankCommonScriptRelative
+    if (-not (Test-Path -LiteralPath $scriptPath)) {
+        throw "ShowRank common script missing from stage: $scriptPath"
+    }
+    if (-not (Test-Path -LiteralPath $showrankDiagnosticsTool)) {
+        throw "ShowRank diagnostics injector missing: $showrankDiagnosticsTool"
+    }
+
+    Write-Host "[diagnostics] $($Spec.Id) D0" -ForegroundColor Yellow
+    & node $showrankDiagnosticsTool $scriptPath --tag "D0"
+    if ($LASTEXITCODE -ne 0) {
+        throw "ShowRank diagnostics injector failed for $($Spec.Id) with exit code $LASTEXITCODE"
+    }
+
+    $script = Get-Content -LiteralPath $scriptPath -Raw
+    if (-not $script.Contains("SHOWRANK_DIAG_BUILD") -or -not $script.Contains("ShowRankDiag") -or -not ($script -match '\$\.Msg\s*\(')) {
+        throw "ShowRank diagnostics patch did not add the expected debug hooks to $($Spec.Id)"
+    }
+}
+
+function Assert-LatestTopBarContract {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$StageSrc,
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Spec,
+        [bool]$AllowDiagnostics = $false
     )
 
     $commonScriptPath = Join-Path $StageSrc $showrankCommonScriptRelative
@@ -328,20 +452,8 @@ function Assert-LatestTopBarContract {
             throw "Bridge missing recent performance contract '$requiredFragment' in $($Spec.Id)"
         }
     }
-    foreach ($scriptSourcePath in $scriptPaths) {
-        $scriptName = Split-Path -Leaf $scriptSourcePath
-        $scriptSource = Get-Content -LiteralPath $scriptSourcePath -Raw
-        if (
-            $scriptSource.Contains("ShowRankDebug") -or
-            $scriptSource.Contains("SHOWRANK-PERF") -or
-            $scriptSource.Contains("SHOWRANK-SEQ") -or
-            $scriptSource.Contains("ShowRankPerf") -or
-            $scriptSource.Contains("RecordShowRankSequence") -or
-            $scriptSource.Contains("PrintShowRankPerf") -or
-            $scriptSource.Contains("$.Msg(")
-        ) {
-            throw "Release variant source contains debug/perf logging in $($Spec.Id): $scriptName"
-        }
+    if (-not $AllowDiagnostics) {
+        Assert-ShowRankReleaseCleanScripts -StageSrc $StageSrc
     }
     if ($Spec.ScoreboardOnlyTopBar) {
         if (-not $xml.Contains("ShowRankTopBarScoreboardOnly")) {
@@ -497,7 +609,6 @@ function New-ShowRankClosureAdvancedExterns {
         "topBarBatchDirty",
         "topBarBatchRoot",
         "topBarCandidateCache",
-        "topBarCandidateCacheDirty",
         "topBarCandidateCacheRoot",
         "topbar",
         "topbarIndex",
@@ -651,10 +762,17 @@ function New-VariantStage {
     if ($Spec.MinifyRanks) {
         Apply-MinifyRanksVariant -StageSrc $stageSrc
     }
+    if ($Diagnostics) {
+        Apply-ShowRankDiagnosticsPatch -StageSrc $stageSrc -Spec $Spec
+    }
 
-    Assert-LatestTopBarContract -StageSrc $stageSrc -Spec $Spec
+
+    Assert-LatestTopBarContract -StageSrc $stageSrc -Spec $Spec -AllowDiagnostics:$Diagnostics
 
     Invoke-ShowRankClosureMinifier -StageSrc $stageSrc -Spec $Spec
+    if (-not $Diagnostics) {
+        Assert-ShowRankReleaseCleanScripts -StageSrc $stageSrc
+    }
 
     return @{
         Source = $stageSrc
@@ -720,7 +838,7 @@ function Invoke-ShowRankResourceCompiler {
 
     Copy-Item -LiteralPath $dotaAddonOut -Destination $StageCompiled -Recurse -Force
 
-    if (-not $KeepStaging) {
+    if (-not $KeepStaging -and -not $Diagnostics) {
         Remove-TreeUnderRoot -Path $dotaContentSrc -RootPath $dotaContentRoot
         Remove-TreeUnderRoot -Path $dotaAddonOut -RootPath $dotaGameAddonRoot
     }
@@ -879,6 +997,10 @@ function Install-VariantVpk {
 if ($Install -and $Variant -eq "all") {
     throw "Use a single -Variant with -Install. Installing all variants would only leave the last copied variant active."
 }
+if ($Diagnostics -and $Variant -eq "all") {
+    throw "Use a single -Variant with -Diagnostics. Diagnostic builds are temporary and must not publish all release variants."
+}
+
 
 $selectedSpecs = if ($Variant -eq "all") {
     $variantSpecs
@@ -890,8 +1012,18 @@ $results = @()
 foreach ($spec in $selectedSpecs) {
     $stage = New-VariantStage -Spec $spec
     Invoke-ShowRankCompiler -StageSrc $stage.Source -StageCompiled $stage.Compiled -Spec $spec
+    if (-not $Diagnostics) {
+        Assert-ShowRankReleaseCleanCompiledScripts -StageCompiled $stage.Compiled
+    }
     $vpkPath = Pack-VariantVpk -StageCompiled $stage.Compiled -Spec $spec
-    $archivePath = Compress-Variant7Zip -VpkPath $vpkPath -Spec $spec
+    if ($Diagnostics) {
+        $diagnosticArchiveStage = Join-Path $buildRoot ("archive_" + $spec.Id)
+        Remove-TreeUnderRoot -Path $diagnosticArchiveStage -RootPath $buildRoot
+        Write-Host "[diagnostics] archive skipped; VPK remains in the retained build stage" -ForegroundColor Yellow
+        $archivePath = "<diagnostic build; archive skipped>"
+    } else {
+        $archivePath = Compress-Variant7Zip -VpkPath $vpkPath -Spec $spec
+    }
     if ($Install) {
         Install-VariantVpk -VpkPath $vpkPath -Spec $spec
     }
@@ -902,7 +1034,7 @@ foreach ($spec in $selectedSpecs) {
     }
 }
 
-if (-not $KeepStaging) {
+if (-not $KeepStaging -and -not $Diagnostics) {
     Remove-TreeUnderRoot -Path $buildRoot -RootPath $root
 }
 
