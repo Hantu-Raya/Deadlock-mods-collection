@@ -22,29 +22,49 @@ function New-BuffTimerClosureExterns {
     $externs = @'
 /** @externs */
 var $ = {};
-$.Msg = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};
+/** @param {...*} var_args */
+$.Msg = function(var_args) {};
+/** @param {number} delay @param {function()} callback @return {*} */
 $.Schedule = function(delay, callback) {};
+/** @param {*} handle */
 $.CancelScheduled = function(handle) {};
-$.DispatchEvent = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};
+/** @param {...*} var_args */
+$.DispatchEvent = function(var_args) {};
+/** @param {string} type @param {*} parent @param {string} id @return {*} */
 $.CreatePanel = function(type, parent, id) {};
+/** @return {*} */
 $.GetContextPanel = function() {};
 var GameUI = {};
 var SteamOverlayAPI = {};
 Object.prototype.handleRejuvPingActivate;
 Object.prototype.handleBuffPingActivate;
+/** @param {string} id @return {*} */
 Object.prototype.FindChildTraverse = function(id) {};
+/** @param {string} className @return {!Array<*>} */
 Object.prototype.FindChildrenWithClassTraverse = function(className) {};
+/** @return {!Array<*>} */
 Object.prototype.Children = function() {};
+/** @return {*} */
 Object.prototype.GetParent = function() {};
+/** @param {number} index @return {*} */
 Object.prototype.GetChild = function(index) {};
+/** @return {number} */
 Object.prototype.GetChildCount = function() {};
+/** @param {string} className @return {boolean} */
 Object.prototype.BHasClass = function(className) {};
+/** @param {string} className */
 Object.prototype.AddClass = function(className) {};
+/** @param {string} className */
 Object.prototype.RemoveClass = function(className) {};
+/** @param {string} className @param {boolean} enabled */
 Object.prototype.SetHasClass = function(className, enabled) {};
+/** @param {string} src */
 Object.prototype.SetImage = function(src) {};
+/** @param {number} delay */
 Object.prototype.DeleteAsync = function(delay) {};
+/** @return {boolean} */
 Object.prototype.IsValid = function() {};
+Object.prototype.id;
 Object.prototype.text;
 Object.prototype.style;
 Object.prototype.contentwidth;
