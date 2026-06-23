@@ -136,6 +136,30 @@ function getValidationReport() {
   for (const term of FORBIDDEN_SOURCE_TERMS) {
     if (combinedSource.includes(term)) errors.push(`forbidden production source term: ${term}`);
   }
+  for (const heroMarker of [
+    "HERO_ALIAS_TO_ID",
+    "HERO_ALIAS_LIST",
+    "registerHeroAlias",
+    "aliases:",
+    "replace(/^hero_/"
+  ]) {
+    if (publisher.includes(heroMarker)) errors.push(`publisher must use exact SteamTracking hero keys, not alias/fallback marker: ${heroMarker}`);
+  }
+  for (const exactHeroMarker of [
+    'var HERO_BY_ID = {};',
+    'var HERO_ID_TO_KEY = {};',
+    'HERO_ID_TO_KEY[String(hero.heroId)] = hero.id;',
+    'id: "hero_astro", heroId: 14, name: "Holliday"',
+    'id: "hero_tengu", heroId: 20, name: "Ivy"',
+    'id: "hero_magician", heroId: 60, name: "Sinclair"',
+    'id: "hero_priest", heroId: 65, name: "Venator"',
+    'id: "hero_bookworm", heroId: 67, name: "Paige"',
+    'id: "hero_doorman", heroId: 69, name: "The Doorman"',
+    'id: "hero_necro", heroId: 76, name: "Graves"',
+    'id: "hero_unicorn", heroId: 81, name: "Celeste"'
+  ]) {
+    if (!publisher.includes(exactHeroMarker)) errors.push(`publisher missing exact SteamTracking hero marker: ${exactHeroMarker}`);
+  }
 
   if (!/var\s+DEBUG_PRESET_SELECTION\s*=\s*false\s*;/.test(publisher)) {
     errors.push("publisher DEBUG_PRESET_SELECTION must default false");

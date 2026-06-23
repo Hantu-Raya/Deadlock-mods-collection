@@ -40,7 +40,8 @@ if (Test-Path $auditScript) {
     }
     Write-Host "  Schema audit passed." -ForegroundColor Green
 } else {
-    Write-Host "  [WARN] Audit script not found, skipping." -ForegroundColor Yellow
+    Write-Host "[ERROR] Schema audit script not found: $auditScript" -ForegroundColor Red
+    exit 1
 }
 $heroSelectorAuditScript = "$modSrc\scripts\validate-hero-selector.js"
 if (Test-Path $heroSelectorAuditScript) {
@@ -80,13 +81,26 @@ if ((Test-Path $builderPresetVpk) -and (Test-Path $presetStoreSync) -and (Test-P
         Write-Host "[ERROR] HPColorsPresetStore sync failed - fix pak96_dir.vpk or base_hud before building." -ForegroundColor Red
         exit 1
     }
+} elseif ((Get-Content -LiteralPath $closureBaseHud -Raw).Contains('id="HPColorsPresetStore"')) {
+    Write-Host "  [PRESET STORE] pak96_dir.vpk unavailable; using HPColorsPresetStore already present in source base_hud." -ForegroundColor DarkGray
 } else {
-    Write-Host "  [WARN] HPColorsPresetStore sync skipped; pak96_dir.vpk or sync script not found." -ForegroundColor Yellow
+    Write-Host "[ERROR] HPColorsPresetStore missing from source and pak96_dir.vpk sync is unavailable." -ForegroundColor Red
+    exit 1
 }
 
 $scriptFiles = Get-ChildItem "$closureSrc\panorama\scripts" -Filter *.js | Sort-Object Name
 if (-not $scriptFiles) {
     Write-Host "[ERROR] No Panorama scripts found for Closure ADVANCED" -ForegroundColor Red
+    exit 1
+}
+$expectedScriptNames = @("anita_ui_core.js", "healthbar_logic.js")
+$actualScriptNames = @($scriptFiles | ForEach-Object { $_.Name })
+$missingScripts = @($expectedScriptNames | Where-Object { $actualScriptNames -notcontains $_ })
+$extraScripts = @($actualScriptNames | Where-Object { $expectedScriptNames -notcontains $_ })
+if ($missingScripts.Count -gt 0 -or $extraScripts.Count -gt 0) {
+    Write-Host "[ERROR] hp_colors Closure source scripts must be exactly: $($expectedScriptNames -join ', ')" -ForegroundColor Red
+    if ($missingScripts.Count -gt 0) { Write-Host "  Missing: $($missingScripts -join ', ')" -ForegroundColor Red }
+    if ($extraScripts.Count -gt 0) { Write-Host "  Extra: $($extraScripts -join ', ')" -ForegroundColor Red }
     exit 1
 }
 
@@ -303,14 +317,21 @@ foreach ($packedAsset in @(
     "base_hud.vxml_c",
     "unit_status_overlay.vxml_c",
     "anita_ui_core.vjs_c",
-    "anita_persist_loader.vjs_c",
-    "hp_registrar.vjs_c",
     "healthbar_logic.vjs_c",
     "anita_ui.vcss_c",
     "unit_status.vcss_c"
 )) {
     if (-not (($vpkTree | Select-String -SimpleMatch $packedAsset -Quiet))) {
         Write-Host "[ERROR] Packed VPK missing required asset: $packedAsset" -ForegroundColor Red
+        exit 1
+    }
+}
+foreach ($removedPackedAsset in @(
+    "anita_persist_loader.vjs_c",
+    "hp_registrar.vjs_c"
+)) {
+    if (($vpkTree | Select-String -SimpleMatch $removedPackedAsset -Quiet)) {
+        Write-Host "[ERROR] Packed VPK still includes merged script asset: $removedPackedAsset" -ForegroundColor Red
         exit 1
     }
 }

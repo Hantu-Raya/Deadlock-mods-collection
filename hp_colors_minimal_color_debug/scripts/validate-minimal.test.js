@@ -159,7 +159,7 @@ test("compact aliases expand and selected hero scoped preset wins", () => {
       c: 1,
       values: { cl: "#abcdef", cv: false, m: 2, sb: false, fe: true, fcl: "#44FF44" },
       hm: "selected",
-      hs: ["haze"],
+      hs: ["hero_haze"],
     }),
   ], { heroClass: "hero_haze" });
 

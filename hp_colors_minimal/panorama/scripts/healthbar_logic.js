@@ -100,18 +100,13 @@
   var SAME_RAW_WAKE_MIN_MS = 250;
   var SAME_RAW_WAKE_WATCHDOG_MS = 5000;
   // ── Loop control ────────────────────────────────────────────────────────────
-  var gRunning = false;
-  var aRunning = false;
-  var lRunning = false;
-  var gWakeQueued = false;
-  var aWakeQueued = false;
-  var lWakeQueued = false;
-  var gScheduleToken = 0;
-  var aScheduleToken = 0;
-  var lScheduleToken = 0;
-  var gNextDueAt = 0;
-  var aNextDueAt = 0;
-  var lNextDueAt = 0;
+  var LOOP_ENEMY = 0;
+  var LOOP_ALLY = 1;
+  var LOOP_LEVEL = 2;
+  var loopRunning = [false, false, false];
+  var loopWakeQueued = [false, false, false];
+  var loopScheduleToken = [0, 0, 0];
+  var loopNextDueAt = [0, 0, 0];
 
   // ── Pulse state ─────────────────────────────────────────────────────────────
   var pulse = 0;
@@ -144,124 +139,161 @@
   var redBarResolverAt = 0;
   var lastRedBarResolveRejectFlags = 0;
 
-  function getPulseTextSize(fallback) {
-    return clampNum(cfg.hp_pulse_text_scale, 72, 320, fallback);
-  }
-
-  function applyPulseTextState() {
-    if (!hc) return;
-    try {
-      if (!(pulse && cfg.hp_pulse_text_enabled)) {
-        if (hc.style) hc.style.animationDuration = "";
-        if (hc.style) hc.style.brightness = "";
-        lTB = null;
-      }
-    } catch (e2) {}
-  }
-
-  function updatePulseTextBrightness(now) {
-    if (!hc || !hc.style || !pulse || !cfg.hp_pulse_text_enabled) return;
-    var bpm = clampNum(cfg.hp_pulse_bpm, 30, 300, 75);
-    var period = Math.max(1, 60000 / bpm);
-    var phase = (now % period) / period;
-    var wave = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-    var idx = clampNum(cfg.hp_pulse_intensity, 0, 2, 1) | 0;
-    var hi = idx === 2 ? 2.0 : idx === 0 ? 1.15 : 1.5;
-    var lo = idx === 2 ? 0.55 : idx === 0 ? 0.85 : 0.65;
-    var next = (lo + (hi - lo) * wave).toFixed(2);
-    if (lTB === next) return;
-    try {
-      hc.style.brightness = next;
-      lTB = next;
-    } catch (e) {
-      lTB = null;
-    }
-  }
-
-  function applyPulseDuration() {
-    var bpm = Number(cfg.hp_pulse_bpm) || 75;
-    if (bpm < 30) bpm = 30;
-    if (bpm > 300) bpm = 300;
-    var dur = (60 / bpm).toFixed(3) + "s";
-    if (lPD === dur) return;
-    lPD = dur;
-    if (rb && rb.IsValid && rb.IsValid()) rb.style.animationDuration = dur;
-    if (ui && ui.IsValid && ui.IsValid()) ui.style.animationDuration = dur;
-  }
-
-  function applyPulseIntensity() {
-    var idx = Number(cfg.hp_pulse_intensity) | 0;
-    if (idx < 0 || idx > 2) idx = 1;
-    if (lPI === idx) return;
-    var oldCls = lPI >= 0 ? PULSE_INTENSITY[lPI] : "";
-    var newCls = PULSE_INTENSITY[idx];
-    lPI = idx;
-    if (oldCls) {
-      try {
-        if (rb && rb.IsValid && rb.IsValid()) rb.RemoveClass(oldCls);
-      } catch (e) {}
-      try {
-        if (ui && ui.IsValid && ui.IsValid()) ui.RemoveClass(oldCls);
-      } catch (e2) {}
-    }
-    if (newCls) {
-      try {
-        if (rb && rb.IsValid && rb.IsValid()) rb.AddClass(newCls);
-      } catch (e3) {}
-      try {
-        if (ui && ui.IsValid && ui.IsValid()) ui.AddClass(newCls);
-      } catch (e4) {}
-    }
-    if (pulse) applyPulseTextState();
-  }
-
-  function startPulse() {
-    if (pulse) return;
-    pulse = 1;
-    lCol = lUlt = lTxt = null;
-    try {
-      if (rb) rb.AddClass(LP);
-    } catch (e) {}
-    try {
-      if (ui) ui.AddClass(LP);
-    } catch (e3) {}
-    applyPulseIntensity();
-    applyPulseDuration();
-  }
-
-  function clearPulsePanel(panel, oldCls) {
-    if (!panel) return;
-    try {
-      panel.RemoveClass(LP);
-      if (oldCls) panel.RemoveClass(oldCls);
-      if (panel.style) {
-        panel.style.animationDuration = "";
-        panel.style.brightness = "";
-      }
-    } catch (e) {}
-  }
-
   function clearPulse() {
     if (!pulse && lPD === null && lPI < 0 && lTB === null) return;
     var oldCls = lPI >= 0 ? PULSE_INTENSITY[lPI] : "";
+    var panels = [rb, hc, ui];
+    for (var i = 0; i < panels.length; i++) {
+      var panel = panels[i];
+      if (!panel) continue;
+      try {
+        panel.RemoveClass(LP);
+        if (oldCls) panel.RemoveClass(oldCls);
+        if (panel.style) {
+          panel.style.animationDuration = "";
+          panel.style.brightness = "";
+        }
+      } catch (e) {}
+    }
     pulse = 0;
     lPD = null;
     lPI = -1;
     lTB = null;
     lCol = lUlt = lTxt = null;
     lColRaw = lUltRaw = lTxtRaw = null;
-    clearPulsePanel(rb, oldCls);
-    clearPulsePanel(hc, oldCls);
-    clearPulsePanel(ui, oldCls);
   }
 
-  function clearAllyPulse(panel) {
-    var oldCls = lPIA >= 0 ? PULSE_INTENSITY[lPIA] : "";
-    pulseA = 0;
-    lPIA = -1;
-    lPDA = null;
-    lColA = null;
-    clearPulsePanel(panel || allyOwnedPanel, oldCls);
+  function syncEnemyPulse(shouldPulse, now) {
+    if (!shouldPulse) {
+      if (pulse) clearPulse();
+      return false;
+    }
+    if (!pulse) {
+      pulse = 1;
+      lCol = lUlt = lTxt = null;
+      lColRaw = lUltRaw = lTxtRaw = null;
+      try {
+        if (rb) rb.AddClass(LP);
+      } catch (e) {}
+      try {
+        if (ui) ui.AddClass(LP);
+      } catch (e2) {}
+    }
+
+    var bpm = clampNum(cfg.hp_pulse_bpm, 30, 300, 75);
+    var dur = (60 / bpm).toFixed(3) + "s";
+    if (lPD !== dur) {
+      try {
+        if (rb && rb.IsValid && rb.IsValid()) rb.style.animationDuration = dur;
+        if (ui && ui.IsValid && ui.IsValid()) ui.style.animationDuration = dur;
+        lPD = dur;
+      } catch (eDur) {
+        lPD = null;
+      }
+    }
+
+    var idx = clampNum(cfg.hp_pulse_intensity, 0, 2, 1) | 0;
+    if (lPI !== idx) {
+      var oldCls = lPI >= 0 ? PULSE_INTENSITY[lPI] : "";
+      var newCls = PULSE_INTENSITY[idx];
+      if (oldCls) {
+        try {
+          if (rb && rb.IsValid && rb.IsValid()) rb.RemoveClass(oldCls);
+        } catch (eOld) {}
+        try {
+          if (ui && ui.IsValid && ui.IsValid()) ui.RemoveClass(oldCls);
+        } catch (eOldUi) {}
+      }
+      if (newCls) {
+        try {
+          if (rb && rb.IsValid && rb.IsValid()) rb.AddClass(newCls);
+        } catch (eNew) {}
+        try {
+          if (ui && ui.IsValid && ui.IsValid()) ui.AddClass(newCls);
+        } catch (eNewUi) {}
+      }
+      lPI = idx;
+    }
+
+    if (!cfg.hp_pulse_text_enabled) {
+      try {
+        if (hc && hc.style) {
+          hc.style.animationDuration = "";
+          hc.style.brightness = "";
+        }
+      } catch (eTextOff) {}
+      lTB = null;
+      return false;
+    }
+    if (!hc || !hc.style) return false;
+    var period = Math.max(1, 60000 / bpm);
+    var phase = (now % period) / period;
+    var wave = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
+    var hi = idx === 2 ? 2.0 : idx === 0 ? 1.15 : 1.5;
+    var lo = idx === 2 ? 0.55 : idx === 0 ? 0.85 : 0.65;
+    var next = (lo + (hi - lo) * wave).toFixed(2);
+    if (lTB !== next) {
+      try {
+        hc.style.brightness = next;
+        lTB = next;
+      } catch (eBright) {
+        lTB = null;
+      }
+    }
+    return true;
+  }
+
+  function syncAllyPulse(panel, shouldPulse) {
+    var target = panel || allyOwnedPanel;
+    if (!shouldPulse) {
+      var oldCls = lPIA >= 0 ? PULSE_INTENSITY[lPIA] : "";
+      if (target) {
+        try {
+          target.RemoveClass(LP);
+          if (oldCls) target.RemoveClass(oldCls);
+          if (target.style) {
+            target.style.animationDuration = "";
+            target.style.brightness = "";
+          }
+        } catch (e) {}
+      }
+      pulseA = 0;
+      lPIA = -1;
+      lPDA = null;
+      lColA = null;
+      return false;
+    }
+
+    var started = !pulseA;
+    if (started) {
+      pulseA = 1;
+      lPIA = -1;
+      lColA = null;
+      try {
+        if (target) target.AddClass(LP);
+      } catch (eStart) {}
+    }
+    var idxA = clampNum(cfg.hp_friend_pulse_intensity, 0, 2, 1) | 0;
+    if (lPIA !== idxA) {
+      var oldA = lPIA >= 0 ? PULSE_INTENSITY[lPIA] : "";
+      var newA = PULSE_INTENSITY[idxA];
+      try {
+        if (target && oldA) target.RemoveClass(oldA);
+        if (target && newA) target.AddClass(newA);
+      } catch (eCls) {}
+      lPIA = idxA;
+    }
+    var bpmA = clampNum(cfg.hp_friend_pulse_bpm, 30, 300, 75);
+    var durA = (60 / bpmA).toFixed(3) + "s";
+    if (lPDA !== durA) {
+      try {
+        if (target && target.style) target.style.animationDuration = durA;
+        lPDA = durA;
+      } catch (eDurA) {
+        lPDA = null;
+      }
+    }
+    return started;
   }
 
   function coercePositionCfgValue(value) {
@@ -423,44 +455,34 @@
 
   // Tokenized schedulers for enemy, ally, and level loops.
 
-  function requestEnemyLoopKick(delay) {
-    if (!cfg.hp_enabled) {
-      return;
-    }
-    if (gWakeQueued) {
-      return;
-    }
-    gWakeQueued = true;
-    if (
-      !scheduleEnemyLoop(delay === undefined ? 0.01 : delay, function () {
-        gWakeQueued = false;
-      })
-    ) {
-      gWakeQueued = false;
-    }
+  function loopEnabled(kind) {
+    if (kind === LOOP_ENEMY) return !!cfg.hp_enabled;
+    if (kind === LOOP_ALLY) return !!cfg.hp_friend_enabled;
+    return !!cfg.hp_level_number_visible;
   }
 
-  function requestAllyLoopKick(delay) {
-    if (!cfg.hp_friend_enabled) {
-      return;
-    }
-    if (aWakeQueued) {
-      return;
-    }
-    aWakeQueued = true;
+  function runLoop(kind) {
+    if (kind === LOOP_ENEMY) gL();
+    else if (kind === LOOP_ALLY) aL();
+    else lL();
+  }
+
+  function requestLoopKick(kind, delay) {
+    if (!loopEnabled(kind) || loopWakeQueued[kind]) return;
+    loopWakeQueued[kind] = true;
     if (
-      !scheduleAllyLoop(delay === undefined ? 0.01 : delay, function () {
-        aWakeQueued = false;
+      !scheduleLoop(kind, delay === undefined ? 0.01 : delay, function () {
+        loopWakeQueued[kind] = false;
       })
     ) {
-      aWakeQueued = false;
+      loopWakeQueued[kind] = false;
     }
   }
 
   function maybeKickAllyLoopForFriendlyTarget(now) {
     if (!cfg.hp_friend_enabled) return;
-    if (allyColorActive && aNextDueAt && aNextDueAt > now) {
-      var allyDueIn = aNextDueAt - now;
+    if (allyColorActive && loopNextDueAt[LOOP_ALLY] && loopNextDueAt[LOOP_ALLY] > now) {
+      var allyDueIn = loopNextDueAt[LOOP_ALLY] - now;
       if (allyDueIn <= 250) {
         return;
       }
@@ -482,7 +504,7 @@
       return;
     }
     lastAllyFriendWakeAt = now;
-    requestAllyLoopKick(0.01);
+    requestLoopKick(LOOP_ALLY, 0.01);
   }
 
   function stableNonEnemyDelay(frames) {
@@ -501,21 +523,8 @@
     return frames < 3 ? 0.18 : frames < 6 ? 0.75 : frames < 10 ? 1.5 : 2.5;
   }
 
-  function requestLevelLoopKick(delay) {
-    if (!cfg.hp_level_number_visible) {
-      return;
-    }
-    if (lWakeQueued) {
-      return;
-    }
-    lWakeQueued = true;
-    if (
-      !scheduleLevelLoop(delay === undefined ? 0.01 : delay, function () {
-        lWakeQueued = false;
-      })
-    ) {
-      lWakeQueued = false;
-    }
+  function loopHasPending(kind) {
+    return !!(loopRunning[kind] && loopNextDueAt[kind]);
   }
 
   function canSkipPresetReplayWake(now) {
@@ -529,9 +538,9 @@
     )
       return false;
     if (
-      (cfg.hp_enabled && (!gRunning || !gNextDueAt)) ||
-      (cfg.hp_friend_enabled && (!aRunning || !aNextDueAt)) ||
-      (cfg.hp_level_number_visible && (!lRunning || !lNextDueAt))
+      (cfg.hp_enabled && !loopHasPending(LOOP_ENEMY)) ||
+      (cfg.hp_friend_enabled && !loopHasPending(LOOP_ALLY)) ||
+      (cfg.hp_level_number_visible && !loopHasPending(LOOP_LEVEL))
     )
       return false;
     return true;
@@ -551,9 +560,9 @@
     )
       return "generation_pending";
     if (
-      (cfg.hp_enabled && (!gRunning || !gNextDueAt)) ||
-      (cfg.hp_friend_enabled && (!aRunning || !aNextDueAt)) ||
-      (cfg.hp_level_number_visible && (!lRunning || !lNextDueAt))
+      (cfg.hp_enabled && !loopHasPending(LOOP_ENEMY)) ||
+      (cfg.hp_friend_enabled && !loopHasPending(LOOP_ALLY)) ||
+      (cfg.hp_level_number_visible && !loopHasPending(LOOP_LEVEL))
     )
       return "loop_stopped";
     if (
@@ -586,9 +595,9 @@
     allySettingsRefreshHoldUntil = 0;
     lLvVis = null;
     requestCurrentRedBarRefresh();
-    requestEnemyLoopKick(0.01);
-    requestAllyLoopKick(0.01);
-    requestLevelLoopKick(0.01);
+    requestLoopKick(LOOP_ENEMY, 0.01);
+    requestLoopKick(LOOP_ALLY, 0.01);
+    requestLoopKick(LOOP_LEVEL, 0.01);
   }
 
   function normalizeScheduleDelay(delay, fallback) {
@@ -597,59 +606,19 @@
     return value;
   }
 
-  function scheduleEnemyLoop(delay, beforeRun) {
-    if (!cfg.hp_enabled) return false;
+  function scheduleLoop(kind, delay, beforeRun) {
+    if (!loopEnabled(kind)) return false;
     var safeDelay = normalizeScheduleDelay(delay, 0.05);
     var now = _ts();
     var dueAt = now + safeDelay * 1000;
-    if (gNextDueAt && gNextDueAt <= dueAt) {
-      return false;
-    }
-    gNextDueAt = dueAt;
-    var token = ++gScheduleToken;
+    if (loopNextDueAt[kind] && loopNextDueAt[kind] <= dueAt) return false;
+    loopNextDueAt[kind] = dueAt;
+    var token = ++loopScheduleToken[kind];
     $.Schedule(safeDelay, function () {
-      if (token !== gScheduleToken) return;
-      gNextDueAt = 0;
+      if (token !== loopScheduleToken[kind]) return;
+      loopNextDueAt[kind] = 0;
       if (beforeRun) beforeRun();
-      if (cfg.hp_enabled) gL();
-    });
-    return true;
-  }
-
-  function scheduleAllyLoop(delay, beforeRun) {
-    if (!cfg.hp_friend_enabled) return false;
-    var safeDelay = normalizeScheduleDelay(delay, 0.05);
-    var now = _ts();
-    var dueAt = now + safeDelay * 1000;
-    if (aNextDueAt && aNextDueAt <= dueAt) {
-      return false;
-    }
-    aNextDueAt = dueAt;
-    var token = ++aScheduleToken;
-    $.Schedule(safeDelay, function () {
-      if (token !== aScheduleToken) return;
-      aNextDueAt = 0;
-      if (beforeRun) beforeRun();
-      if (cfg.hp_friend_enabled) aL();
-    });
-    return true;
-  }
-
-  function scheduleLevelLoop(delay, beforeRun) {
-    if (!cfg.hp_level_number_visible) return false;
-    var safeDelay = normalizeScheduleDelay(delay, 0.05);
-    var now = _ts();
-    var dueAt = now + safeDelay * 1000;
-    if (lNextDueAt && lNextDueAt <= dueAt) {
-      return false;
-    }
-    lNextDueAt = dueAt;
-    var token = ++lScheduleToken;
-    $.Schedule(safeDelay, function () {
-      if (token !== lScheduleToken) return;
-      lNextDueAt = 0;
-      if (beforeRun) beforeRun();
-      if (cfg.hp_level_number_visible) lL();
+      if (loopEnabled(kind)) runLoop(kind);
     });
     return true;
   }
@@ -666,9 +635,9 @@
     lastAllyPresetGeneration = -1;
     invalidateRedBarResolverCache();
     handleRuntimeToggleState();
-    requestEnemyLoopKick();
-    requestAllyLoopKick();
-    requestLevelLoopKick();
+    requestLoopKick(LOOP_ENEMY);
+    requestLoopKick(LOOP_ALLY);
+    requestLoopKick(LOOP_LEVEL);
   }
 
   function applyPresetSnapshot(values) {
@@ -1386,27 +1355,45 @@
     return adoptCurrentRedBar(current);
   }
 
-  function getInfoHealthMarginTopValue() {
+  function applyLayoutSettings() {
     var raw = clampNum(cfg.hp_info_health_margin_top, 0, 100, 23);
     var pct = -15 + raw * 0.65;
     if (Math.abs(pct) < 0.5) pct = 0;
     var rounded = Math.round(pct * 10) / 10;
     if (Math.abs(rounded - Math.round(rounded)) < 0.01)
       rounded = Math.round(rounded);
-    return rounded + "%";
-  }
-
-  function applyInfoHealthMarginTop() {
+    var nextMargin = rounded + "%";
     if ((!ihc || !ihc.IsValid()) && us && us.IsValid())
       ihc = us.FindChildTraverse(ID_INFO_HEALTH_CONTAINER);
-    if (!ihc || !ihc.style) return;
-    var next = getInfoHealthMarginTopValue();
-    if (lIhcMarginTop !== next) {
+    if (ihc && ihc.style && lIhcMarginTop !== nextMargin) {
       try {
-        ihc.style.marginTop = next;
-        lIhcMarginTop = next;
-      } catch (e) {
+        ihc.style.marginTop = nextMargin;
+        lIhcMarginTop = nextMargin;
+      } catch (eMargin) {
         lIhcMarginTop = null;
+      }
+    }
+
+    if ((!uhc || !uhc.IsValid()) && us && us.IsValid())
+      uhc = us.FindChildTraverse(ID_UNIT_HEALTHBAR_CONTAINER);
+    var heightPx =
+      dc.healthbarHeight || Math.round(clampNum(cfg.hp_healthbar_height, 0, 230, 130));
+    var nextHeight = heightPx + "px";
+    if (uhc && uhc.style && lUhcHeight !== nextHeight) {
+      uhc.style.height = nextHeight;
+      lUhcHeight = nextHeight;
+    }
+    if (pl && pl.style) {
+      var nextPipHeight = "52%";
+      var nextPipFontSize =
+        Math.min(75, Math.round((heightPx * 75) / 230)) + "px";
+      if (lPipHeight !== nextPipHeight) {
+        pl.style.height = nextPipHeight;
+        lPipHeight = nextPipHeight;
+      }
+      if (lPipFontSize !== nextPipFontSize) {
+        pl.style.fontSize = nextPipFontSize;
+        lPipFontSize = nextPipFontSize;
       }
     }
   }
@@ -1573,76 +1560,46 @@
     return CSS_TEAM_ENEMY_COLOR;
   }
 
-  function getHealthbarHeightPx() {
-    return Math.round(clampNum(cfg.hp_healthbar_height, 0, 230, 130));
-  }
-
-  function applyHealthbarHeight() {
-    if ((!uhc || !uhc.IsValid()) && us && us.IsValid())
-      uhc = us.FindChildTraverse(ID_UNIT_HEALTHBAR_CONTAINER);
-    var heightPx = dc.healthbarHeight || getHealthbarHeightPx();
-    var nextHeight = heightPx + "px";
-    if (uhc && uhc.style && lUhcHeight !== nextHeight) {
-      uhc.style.height = nextHeight;
-      lUhcHeight = nextHeight;
-    }
-    if (pl && pl.style) {
-      var nextPipHeight = "52%";
-      var nextPipFontSize =
-        Math.min(75, Math.round((heightPx * 75) / 230)) + "px";
-      if (lPipHeight !== nextPipHeight) {
-        pl.style.height = nextPipHeight;
-        lPipHeight = nextPipHeight;
-      }
-      if (lPipFontSize !== nextPipFontSize) {
-        pl.style.fontSize = nextPipFontSize;
-        lPipFontSize = nextPipFontSize;
-      }
-    }
-  }
-
-  function resetAllyBarColor(panel, flags) {
-    if (!panel || panel !== allyOwnedPanel) return;
-    allyColorActive = false;
-    noAllyParentWidthFrames = 0;
-    clearAllyPulse(panel);
-    lColA = null;
-    lWA = -1;
-    lPWA = -1;
-    sfcA = 0;
-    if (!panel.style) return;
-    var color = flags & 4 ? WHITE_WASH : CSS_TEAM_FRIEND_COLOR;
-    try {
-      panel.style.washColor = color;
-      lColA = normalizeWashColor(color);
-      lColARaw = color;
-    } catch (e) {
-      lColA = null;
-      lColARaw = null;
-    }
-  }
-
-  function resetAllyLoopCache(panel) {
-    allyColorActive = false;
-    noAllyParentWidthFrames = 0;
-    lColA = null;
-    lWA = -1;
-    lPWA = -1;
-    sfcA = 0;
-    nextAllyStyleDriftCheckAt = 0;
-    resetAllyScanCache();
-    clearAllyPulse(panel);
-  }
 
   var _allyScanPanel = null,
     _allyScanAt = 0,
     _allyScanFlags = 0;
   var ALLY_SCAN_CACHE_TTL = 160;
 
-  function resetAllyScanCache() {
+  function resetAllyState(panel, resetColor) {
+    var target = panel || allyOwnedPanel;
+    var flags =
+      target && target.IsValid && target.IsValid() ? scanAllyFlags(target) : 0;
+    allyColorActive = false;
+    noAllyParentWidthFrames = 0;
+    lColA = null;
+    lColARaw = null;
+    lWA = -1;
+    lPWA = -1;
+    lHpA = -1;
+    sfcA = 0;
+    nextAllyStyleDriftCheckAt = 0;
     _allyScanPanel = null;
     _allyScanAt = 0;
     _allyScanFlags = 0;
+    syncAllyPulse(target, false);
+    if (
+      resetColor &&
+      target &&
+      target === allyOwnedPanel &&
+      isConfirmedAllyHealthbar(flags) &&
+      target.style
+    ) {
+      var color = flags & 4 ? WHITE_WASH : CSS_TEAM_FRIEND_COLOR;
+      try {
+        target.style.washColor = color;
+        lColA = normalizeWashColor(color);
+        lColARaw = color;
+      } catch (e) {
+        lColA = null;
+        lColARaw = null;
+      }
+    }
   }
 
   function scanAllyFlags(panel) {
@@ -1659,19 +1616,6 @@
 
   function isConfirmedAllyHealthbar(flags) {
     return isFriendlyTargetHealthbar(flags);
-  }
-
-  function releaseAllyOwnership(resetColor) {
-    var panel = allyOwnedPanel;
-    var allyFlags =
-      panel && panel.IsValid && panel.IsValid() ? scanAllyFlags(panel) : 0;
-    if (resetColor && panel && isConfirmedAllyHealthbar(allyFlags)) {
-      resetAllyBarColor(panel, allyFlags);
-    } else {
-      resetAllyLoopCache(panel);
-    }
-    allyOwnedPanel = null;
-    resetAllyScanCache();
   }
 
   function clampNum(v, min, max, fallback) {
@@ -1703,7 +1647,7 @@
     dc.pulseThreshold = clampPercent(cfg.hp_pulse_threshold);
     dc.friendPulseThreshold = clampPercent(cfg.hp_friend_pulse_threshold);
     dc.counterSize = counterSize;
-    dc.pulseTextSize = getPulseTextSize(counterSize);
+    dc.pulseTextSize = clampNum(cfg.hp_pulse_text_scale, 72, 320, counterSize);
     dc.counterPosition = parseCounterPositionValue(
       cfg.hp_counter_position,
       true,
@@ -1712,7 +1656,7 @@
       cfg.hp_pulse_text_position,
       false,
     );
-    dc.healthbarHeight = getHealthbarHeightPx();
+    dc.healthbarHeight = Math.round(clampNum(cfg.hp_healthbar_height, 0, 230, 130));
     dc.killZoneThreshold = clampPercent(cfg.hp_kill_zone_threshold);
     dc.killZoneWidth = kzWidth;
     dc.killZoneColorRaw = cfg.hp_kill_zone_color || "#FF2222";
@@ -1974,7 +1918,7 @@
     var defaultSize =
       dc.counterSize || clampNum(cfg.hp_counter_size, 72, 400, 145);
     var size = pulseTextMode
-      ? dc.pulseTextSize || getPulseTextSize(defaultSize)
+      ? dc.pulseTextSize || clampNum(cfg.hp_pulse_text_scale, 72, 320, defaultSize)
       : defaultSize;
     var basePos = pulseTextMode ? dc.pulseTextPosition : dc.counterPosition;
     var posX = clampNum(basePos.x, 0, 400, 0);
@@ -2204,7 +2148,20 @@
   }
 
   function cleanupLevelNumberVisibility() {
-    if (!wr || !wr.IsValid()) cLU();
+    if (!wr || !wr.IsValid()) {
+      if (!lc || !lc.IsValid()) lc = ctx.FindChildTraverse(ID_UNIT_STATUS);
+      if (lc) {
+        var current = lc;
+        while (current) {
+          if (current.BHasClass && current.BHasClass(CLASS_ENEMY)) {
+            wr = current;
+            break;
+          }
+          if (!current.GetParent) break;
+          current = current.GetParent();
+        }
+      }
+    }
     if (wr && wr.IsValid && wr.IsValid()) {
       try {
         wr.RemoveClass(LV_VIS_CLASS);
@@ -2220,58 +2177,37 @@
     lLNoChange = 0;
   }
 
-  function startEnemyLoop(delay) {
-    if (!cfg.hp_enabled || gRunning) return;
-    gRunning = true;
-    scheduleEnemyLoop(delay || 0.05);
+  function startLoop(kind, delay) {
+    if (!loopEnabled(kind) || loopRunning[kind]) return;
+    loopRunning[kind] = true;
+    scheduleLoop(kind, delay || 0.05);
   }
 
-  function stopEnemyLoop(cleanup) {
-    if (cleanup) cleanupEnemyFeature();
-    gRunning = false;
-    gWakeQueued = false;
-    gNextDueAt = 0;
-    gScheduleToken++;
-  }
-
-  function startAllyLoop(delay) {
-    if (!cfg.hp_friend_enabled || aRunning) return;
-    aRunning = true;
-    scheduleAllyLoop(delay || 0.05);
-  }
-
-  function stopAllyLoop(cleanup) {
-    if (cleanup) releaseAllyOwnership(true);
-    aRunning = false;
-    aWakeQueued = false;
-    aNextDueAt = 0;
-    aScheduleToken++;
-  }
-
-  function startLevelLoop(delay) {
-    if (!cfg.hp_level_number_visible || lRunning) return;
-    lRunning = true;
-    scheduleLevelLoop(delay || 0.05);
-  }
-
-  function stopLevelLoop(cleanup) {
-    if (cleanup) cleanupLevelNumberVisibility();
-    lRunning = false;
-    lWakeQueued = false;
-    lNextDueAt = 0;
-    lScheduleToken++;
+  function stopLoop(kind, cleanup) {
+    if (cleanup) {
+      if (kind === LOOP_ENEMY) cleanupEnemyFeature();
+      else if (kind === LOOP_ALLY) {
+        resetAllyState(allyOwnedPanel, true);
+        allyOwnedPanel = null;
+      }
+      else cleanupLevelNumberVisibility();
+    }
+    loopRunning[kind] = false;
+    loopWakeQueued[kind] = false;
+    loopNextDueAt[kind] = 0;
+    loopScheduleToken[kind]++;
   }
 
   function handleRuntimeToggleState() {
     refreshDerivedConfig();
-    if (cfg.hp_enabled) startEnemyLoop();
-    else stopEnemyLoop(true);
+    if (cfg.hp_enabled) startLoop(LOOP_ENEMY);
+    else stopLoop(LOOP_ENEMY, true);
 
-    if (cfg.hp_friend_enabled) startAllyLoop();
-    else stopAllyLoop(true);
+    if (cfg.hp_friend_enabled) startLoop(LOOP_ALLY);
+    else stopLoop(LOOP_ALLY, true);
 
-    if (cfg.hp_level_number_visible) startLevelLoop();
-    else stopLevelLoop(true);
+    if (cfg.hp_level_number_visible) startLoop(LOOP_LEVEL);
+    else stopLoop(LOOP_LEVEL, true);
 
     if (!cfg.hp_counter_visible) {
       sHCV(false);
@@ -2281,14 +2217,13 @@
     if (!cfg.hp_pulse_enabled && pulse) clearPulse();
     if (pulse) {
       lPD = null;
-      applyPulseDuration();
-      applyPulseIntensity();
-      applyPulseTextState();
+      lPI = -1;
+      syncEnemyPulse(true, _ts());
     } else if (!cfg.hp_pulse_text_enabled) {
       lCounterLowMode = false;
       sHCS(false);
     }
-    if (!cfg.hp_friend_pulse_enabled && pulseA) clearAllyPulse(rbA);
+    if (!cfg.hp_friend_pulse_enabled && pulseA) syncAllyPulse(rbA, false);
     if (!cfg.hp_kill_zone_enabled) sKZ(false, 0);
     if (pl && pl.style && !cfg.hp_pip_visible && lPipVis !== "collapse") {
       try {
@@ -2305,8 +2240,7 @@
     sHBV(!isEnemy || !!cfg.hp_bg_visible);
     if (cfg.hp_counter_visible) sHCS(lCounterLowMode);
     else sHCV(false);
-    applyInfoHealthMarginTop();
-    applyHealthbarHeight();
+    applyLayoutSettings();
     lastStyleReapplyAt = _ts();
     resetStyleDriftBackoff();
     lW = -1;
@@ -2387,10 +2321,10 @@
 
   // â”€â”€ Main poll loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function gL() {
-    gRunning = true;
+    loopRunning[LOOP_ENEMY] = true;
     try {
       if (!cfg.hp_enabled) {
-        stopEnemyLoop(true);
+        stopLoop(LOOP_ENEMY, true);
         return;
       }
 
@@ -2403,7 +2337,7 @@
           nextRbProbeAt = rb ? 0 : now + 150;
         }
         if (!rb) {
-          scheduleEnemyLoop(0.15);
+          scheduleLoop(LOOP_ENEMY, 0.15);
           return;
         }
       } else {
@@ -2411,7 +2345,7 @@
           reboundCurrentRb = refreshCurrentRedBarRef(now, false);
       }
       if (!cached && !tryCache()) {
-        scheduleEnemyLoop(0.15);
+        scheduleLoop(LOOP_ENEMY, 0.15);
         return;
       }
       if (rb.GetParent) {
@@ -2450,13 +2384,11 @@
         } else {
           resetIgnoredTargetVisuals(getIgnoredTargetColor());
         }
-        scheduleEnemyLoop(
-          buildingNotEnemyExitFrames < 4
-            ? 0.3
-            : buildingNotEnemyExitFrames < 12
-              ? 0.6
-              : 1.5,
-        );
+        scheduleLoop(LOOP_ENEMY, buildingNotEnemyExitFrames < 4
+          ? 0.3
+          : buildingNotEnemyExitFrames < 12
+            ? 0.6
+            : 1.5);
         return;
       }
       var wasDirty = settingsDirty;
@@ -2482,7 +2414,7 @@
         sBC("#5BEFB5");
         sTC(WHITE_WASH);
         lUT = now;
-        scheduleEnemyLoop(stableNeutralDelay(neutralExitFrames));
+        scheduleLoop(LOOP_ENEMY, stableNeutralDelay(neutralExitFrames));
         return;
       }
       // Not an enemy â€” skip coloring
@@ -2500,11 +2432,9 @@
           resetIgnoredTargetVisuals(getIgnoredTargetColor());
         }
         lUT = now;
-        scheduleEnemyLoop(
-          friendNonEnemy
-            ? stableFriendNonEnemyDelay(nonEnemyExitFrames)
-            : stableNonEnemyDelay(nonEnemyExitFrames),
-        );
+        scheduleLoop(LOOP_ENEMY, friendNonEnemy
+          ? stableFriendNonEnemyDelay(nonEnemyExitFrames)
+          : stableNonEnemyDelay(nonEnemyExitFrames));
         return;
       }
       nonEnemyExitFrames = 0;
@@ -2512,7 +2442,7 @@
       buildingNotEnemyExitFrames = 0;
       if (settingsDirty) {
         if (now < settingsRefreshHoldUntil) {
-          scheduleEnemyLoop(0.05);
+          scheduleLoop(LOOP_ENEMY, 0.05);
           return;
         }
         applyCurrentSettings(isEnemy);
@@ -2522,7 +2452,7 @@
         sBC(CSS_TEAM_ENEMY_COLOR);
         sUC(CSS_TEAM_ENEMY_COLOR);
         sTC(WHITE_WASH);
-        scheduleEnemyLoop(0.05);
+        scheduleLoop(LOOP_ENEMY, 0.05);
         return;
       }
       var w = rb.actuallayoutwidth | 0;
@@ -2546,13 +2476,13 @@
             settingsRefreshHoldUntil = now;
             lW = -1;
             lHp = -1;
-            scheduleEnemyLoop(0.05);
+            scheduleLoop(LOOP_ENEMY, 0.05);
             return;
           }
           styleDriftCleanFrames++;
         }
         var stableDelay = now - lUT > 2000 ? 1.5 : 0.25;
-        scheduleEnemyLoop(stableDelay);
+        scheduleLoop(LOOP_ENEMY, stableDelay);
         return;
       }
       stableCurrentRedBarFrames = 0;
@@ -2563,7 +2493,7 @@
         noParentWidthFrames++;
         sBC(getHighColor());
         sKZ(false, 0);
-        scheduleEnemyLoop(noParentWidthDelay(noParentWidthFrames));
+        scheduleLoop(LOOP_ENEMY, noParentWidthDelay(noParentWidthFrames));
         return;
       }
       noParentWidthFrames = 0;
@@ -2585,7 +2515,7 @@
         !shouldPulse &&
         !wasDirty
       ) {
-        scheduleEnemyLoop(0.25);
+        scheduleLoop(LOOP_ENEMY, 0.25);
         return;
       }
       var prevHp = lHp;
@@ -2644,7 +2574,7 @@
           sBC(warmupCol);
           sUC(warmupCol);
           sTC(getTextColor(100, low, high));
-          scheduleEnemyLoop(0.05);
+          scheduleLoop(LOOP_ENEMY, 0.05);
           return;
         }
         cl = cfg.hp_color_low;
@@ -2689,20 +2619,12 @@
         sUC(barColor);
         sTC(textCol);
       }
-      if (shouldPulse) {
-        if (!pulse) startPulse();
-        if (cfg.hp_pulse_text_enabled) {
-          updatePulseTextBrightness(now);
-          sc = 0.1;
-        }
-      } else if (pulse) {
-        clearPulse();
-      }
+      if (syncEnemyPulse(shouldPulse, now)) sc = 0.1;
       colorGeneration = panelGeneration;
 
-      scheduleEnemyLoop(sc);
+      scheduleLoop(LOOP_ENEMY, sc);
     } catch (e) {
-      scheduleEnemyLoop(0.5);
+      scheduleLoop(LOOP_ENEMY, 0.5);
     } finally {
     }
   }
@@ -2717,57 +2639,48 @@
     lLv = -1,
     lLvVis = null;
 
-  function pLv(t) {
-    var v = 0;
-    for (var i = 0; i < t.length; i++) {
-      var c = t.charCodeAt(i) - 48;
-      if (c >= 0 && c <= 9) v = v * 10 + c;
+  function syncLevelTier() {
+    if (!ll || !ll.IsValid()) ll = ctx.FindChildTraverse(ID_UNIT_LEVEL_LABEL);
+    if (!lc || !lc.IsValid()) lc = ctx.FindChildTraverse(ID_UNIT_STATUS);
+    if (lc && (!wr || !wr.IsValid())) {
+      var current = lc;
+      while (current) {
+        if (current.BHasClass && current.BHasClass(CLASS_ENEMY)) {
+          wr = current;
+          break;
+        }
+        if (!current.GetParent) break;
+        current = current.GetParent();
+      }
     }
-    return v;
-  }
-  function fER(p) {
-    var c = p;
-    while (c) {
-      if (c.BHasClass && c.BHasClass(CLASS_ENEMY)) return c;
-      if (!c.GetParent) break;
-      c = c.GetParent();
-    }
-    return null;
-  }
-  function sLNV() {
-    if (!wr || !wr.IsValid()) return;
+    if (!ll || !lc || !wr) return false;
+
     var visible = !!cfg.hp_level_number_visible;
     if (lLvVis !== visible) {
       if (visible) wr.AddClass(LV_VIS_CLASS);
       else wr.RemoveClass(LV_VIS_CLASS);
       lLvVis = visible;
     }
-  }
+    if (!visible) return false;
 
-  function cLU() {
-    if (!ll || !ll.IsValid()) ll = ctx.FindChildTraverse(ID_UNIT_LEVEL_LABEL);
-    if (!lc || !lc.IsValid()) lc = ctx.FindChildTraverse(ID_UNIT_STATUS);
-    if (lc && (!wr || !wr.IsValid())) wr = fER(lc);
-    return ll && lc && wr;
-  }
-
-  function uLT() {
-    if (!cLU()) return false;
-    sLNV();
-    var t = "";
+    var text = "";
     try {
-      t = ll.text || ll.GetAttributeString("text", "") || "";
-    } catch (e) {
-      t = "";
+      text = ll.text || ll.GetAttributeString("text", "") || "";
+    } catch (eText) {
+      text = "";
     }
-    if (!t || t.charCodeAt(0) === 123) return false;
-    var lv = pLv(t);
-    if (lv === lLv || !lv) return false;
-    lLv = lv;
-    for (var i = 0; i < 4; i++) wr.RemoveClass(LC_[i]);
-    for (var j = 3; j >= 0; j--) {
-      if (lv >= LT_[j]) {
-        wr.AddClass(LC_[j]);
+    if (!text || text.charCodeAt(0) === 123) return false;
+    var level = 0;
+    for (var i = 0; i < text.length; i++) {
+      var digit = text.charCodeAt(i) - 48;
+      if (digit >= 0 && digit <= 9) level = level * 10 + digit;
+    }
+    if (level === lLv || !level) return false;
+    lLv = level;
+    for (var j = 0; j < 4; j++) wr.RemoveClass(LC_[j]);
+    for (var tier = 3; tier >= 0; tier--) {
+      if (level >= LT_[tier]) {
+        wr.AddClass(LC_[tier]);
         break;
       }
     }
@@ -2777,44 +2690,48 @@
   var lLNoChange = 0;
   function lL() {
     if (!cfg.hp_level_number_visible) {
-      stopLevelLoop(true);
+      stopLoop(LOOP_LEVEL, true);
       return;
     }
-    lRunning = true;
-    lLNoChange = uLT() ? 0 : lLNoChange + 1;
-    scheduleLevelLoop(lLNoChange > 10 ? 5.0 : 0.5);
+    loopRunning[LOOP_LEVEL] = true;
+    lLNoChange = syncLevelTier() ? 0 : lLNoChange + 1;
+    scheduleLoop(LOOP_LEVEL, lLNoChange > 10 ? 5.0 : 0.5);
   }
 
   // ── Ally bar loop ────────────────────────────────────────────────────────────
   function aL() {
-    aRunning = true;
+    loopRunning[LOOP_ALLY] = true;
     try {
       if (!cfg.hp_friend_enabled) {
-        releaseAllyOwnership(true);
-        aRunning = false;
+        resetAllyState(allyOwnedPanel, true);
+        allyOwnedPanel = null;
+        loopRunning[LOOP_ALLY] = false;
         return;
       }
 
       var now = _ts();
       if (!rbA || !rbA.IsValid()) {
-        releaseAllyOwnership(false);
+        resetAllyState(allyOwnedPanel, false);
+        allyOwnedPanel = null;
         rbA = null;
         cpA = null;
         rbA = resolveRedBar("friend");
         if (!rbA) {
           aIdleMiss++;
           if (lastRedBarResolveRejectFlags & 4) {
-            scheduleAllyLoop(2.5);
+            scheduleLoop(LOOP_ALLY, 2.5);
             return;
           }
           if (lastRedBarResolveRejectFlags) {
-            scheduleAllyLoop(1.2);
+            scheduleLoop(LOOP_ALLY, 1.2);
             return;
           }
-          scheduleAllyLoop(aIdleMiss > 75 ? 3.0 : 0.2);
+          scheduleLoop(LOOP_ALLY, aIdleMiss > 75 ? 3.0 : 0.2);
           return;
         }
-        resetAllyScanCache();
+        _allyScanPanel = null;
+        _allyScanAt = 0;
+        _allyScanFlags = 0;
       }
       aIdleMiss = 0;
       if (rbA.GetParent) {
@@ -2844,38 +2761,43 @@
 
       if (allySettingsDirty) {
         if (now < allySettingsRefreshHoldUntil) {
-          scheduleAllyLoop(0.05);
+          scheduleLoop(LOOP_ALLY, 0.05);
           return;
         }
         allySettingsDirty = false;
-        resetAllyLoopCache(allyOwnedPanel);
+        resetAllyState(allyOwnedPanel, false);
       }
 
       var f2 = scanAllyFlags(rbA);
 
       if (!isConfirmedAllyHealthbar(f2)) {
-        if (allyOwnedPanel === rbA) releaseAllyOwnership(false);
-        else if (pulseA) clearAllyPulse(rbA);
+        if (allyOwnedPanel === rbA) {
+          resetAllyState(allyOwnedPanel, false);
+          allyOwnedPanel = null;
+        } else if (pulseA) {
+          syncAllyPulse(rbA, false);
+        }
         sfcA = 0;
         lHpA = -1;
         noAllyParentWidthFrames = 0;
         allyUnconfirmedFrames++;
         if (allyUnconfirmedFrames === 4 || allyUnconfirmedFrames === 12) {
-          releaseAllyOwnership(false);
+          resetAllyState(allyOwnedPanel, false);
+          allyOwnedPanel = null;
           rbA = null;
           cpA = null;
-          resetAllyScanCache();
+          _allyScanPanel = null;
+          _allyScanAt = 0;
+          _allyScanFlags = 0;
           invalidateRedBarResolverCache();
-          scheduleAllyLoop(0.1);
+          scheduleLoop(LOOP_ALLY, 0.1);
           return;
         }
-        scheduleAllyLoop(
-          allyUnconfirmedFrames < 4
-            ? 1.2
-            : allyUnconfirmedFrames < 12
-              ? 2.0
-              : 3.0,
-        );
+        scheduleLoop(LOOP_ALLY, allyUnconfirmedFrames < 4
+          ? 1.2
+          : allyUnconfirmedFrames < 12
+            ? 2.0
+            : 3.0);
         return;
       }
       if (allyPresetPending) {
@@ -2890,13 +2812,11 @@
           : 0;
       if (apw <= 0) {
         noAllyParentWidthFrames++;
-        scheduleAllyLoop(
-          noAllyParentWidthFrames < 4
-            ? 0.2
-            : noAllyParentWidthFrames < 12
-              ? 0.4
-              : 0.8,
-        );
+        scheduleLoop(LOOP_ALLY, noAllyParentWidthFrames < 4
+          ? 0.2
+          : noAllyParentWidthFrames < 12
+            ? 0.4
+            : 0.8);
         return;
       }
       noAllyParentWidthFrames = 0;
@@ -2910,13 +2830,13 @@
           } else {
             sfcA++;
             var scIdle = ALLY_IDLE_BACKOFF[Math.min(Math.floor(sfcA / 3), 4)];
-            scheduleAllyLoop(scIdle);
+            scheduleLoop(LOOP_ALLY, scIdle);
             return;
           }
         } else {
           sfcA++;
           var scIdleFast = ALLY_IDLE_BACKOFF[Math.min(Math.floor(sfcA / 3), 4)];
-          scheduleAllyLoop(scIdleFast);
+          scheduleLoop(LOOP_ALLY, scIdleFast);
           return;
         }
       }
@@ -2976,48 +2896,10 @@
         }
       }
 
-      var sc = 0.35;
-      var allyPulseCleared = false;
-      var allyPulseStarted = false;
-      if (inPulse) {
-        if (!pulseA) {
-          allyPulseStarted = true;
-          pulseA = 1;
-          lPIA = -1;
-          lColA = null;
-          try {
-            if (rbA) rbA.AddClass(LP);
-          } catch (e) {}
-          var aidx = Number(cfg.hp_friend_pulse_intensity) | 0;
-          if (aidx < 0 || aidx > 2) aidx = 1;
-          lPIA = aidx;
-          var acls = PULSE_INTENSITY[aidx];
-          if (acls) {
-            try {
-              rbA.AddClass(acls);
-            } catch (e) {}
-          }
-        }
-        var abpm = Number(cfg.hp_friend_pulse_bpm) || 75;
-        if (abpm < 30) abpm = 30;
-        if (abpm > 300) abpm = 300;
-        var adur = (60 / abpm).toFixed(3) + "s";
-        if (lPDA !== adur) {
-          try {
-            if (rbA) rbA.style.animationDuration = adur;
-            lPDA = adur;
-          } catch (eDur) {
-            lPDA = null;
-          }
-        }
-        sc = 0.15;
-      } else {
-        if (pulseA) {
-          clearAllyPulse(rbA);
-          lColA = null;
-          allyPulseCleared = true;
-        }
-      }
+      var hadPulseA = !!pulseA;
+      var allyPulseStarted = syncAllyPulse(rbA, inPulse);
+      var allyPulseCleared = !inPulse && hadPulseA;
+      var sc = inPulse ? 0.15 : 0.35;
       if (
         inPulse &&
         !allyPulseStarted &&
@@ -3040,9 +2922,9 @@
       }
       lHpA = ahp;
 
-      scheduleAllyLoop(sc);
+      scheduleLoop(LOOP_ALLY, sc);
     } catch (e) {
-      scheduleAllyLoop(0.5);
+      scheduleLoop(LOOP_ALLY, 0.5);
     } finally {
     }
   }

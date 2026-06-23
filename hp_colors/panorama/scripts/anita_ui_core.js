@@ -1,25 +1,5 @@
 // fallow-ignore-file unused-file
 // fallow-ignore-file complexity
-/* hp_colors schema audit markers; kept as comments so formatter line-wrapping does not break static substring audits.
-function readBakedPresetHeroTargets(modConfig, presetId, displayIndex, fallbackHeroes)
-function readBakedPresetHeroMode(modConfig, presetId, displayIndex, fallbackMode, fallbackHeroes)
-function readBakedPresetEntryBase(entry, modConfig, displayIndex, encoded, id)
-function selectBakedPresetForHero(modConfig, allowUnknownFallback, allowHeroMatch)
-config.__hpHeroPresetLockAfterGameTime = gameTime > 0
-result = { preset: firstHeroMatch, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "hero" }
-result = { preset: null, heroId: heroId, hasScopedPreset: true, reason: "waiting_for_hero" }
-result = { preset: firstGlobal, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "global" }
-if (!config.__hpHeroPresetHasScopedPreset && !hasHpSelectedScopedPreset(config)) return;
-function makeHeroMenuOption(menu, button, row, summaryLabel, kind, heroId)
-icon.style.backgroundImage = "url(\"" + path + "\")";
-updateHeroMenuOptionState(menu.__anitaHeroOptions[i], selectedHeroes, scopeMode);
-renderHeroPickerState(button, row, summaryLabel || button.__anitaHeroSummaryLabel);
-row.token = this.buildPresetCodeToken(config, row.values || {}, row.name || "", row.payloadValues, row.heroes, row.heroMode);
-heroSelector.SetPanelEvent("onactivate"
-this.presetTooltip = $.CreatePanel("Panel", host, "AnitaPresetLocalTooltip")
-var result = AnitaRenderer.applyImportCode(config, row.token, "preset_builder")
-var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
-*/
 (function () {
   "use strict";
 
@@ -110,131 +90,658 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
       id: "hero_inferno",
       heroId: 1,
       name: "Infernus",
-      aliases: ["infernus", "hero_infernus"],
+      icon: "s2r://panorama/images/heroes/inferno_mm_psd.vtex",
     },
     {
       id: "hero_gigawatt",
       heroId: 2,
       name: "Seven",
-      aliases: ["seven", "hero_seven"],
+      icon: "s2r://panorama/images/heroes/gigawatt_mm_psd.vtex",
     },
     {
       id: "hero_hornet",
       heroId: 3,
       name: "Vindicta",
-      aliases: ["vindicta", "hero_vindicta"],
+      icon: "s2r://panorama/images/heroes/hornet_mm_psd.vtex",
     },
     {
       id: "hero_ghost",
       heroId: 4,
       name: "Lady Geist",
-      aliases: ["geist", "lady_geist", "ladygeist", "hero_lady_geist"],
+      icon: "s2r://panorama/images/heroes/spectre_mm_psd.vtex",
     },
     {
       id: "hero_atlas",
       heroId: 6,
       name: "Abrams",
-      aliases: ["abrams", "bull", "hero_abrams"],
+      icon: "s2r://panorama/images/heroes/bull_mm_psd.vtex",
     },
-    { id: "hero_wraith", heroId: 7, name: "Wraith", aliases: [] },
+    {
+      id: "hero_wraith",
+      heroId: 7,
+      name: "Wraith",
+      icon: "s2r://panorama/images/heroes/wraith_mm_psd.vtex",
+    },
     {
       id: "hero_forge",
       heroId: 8,
       name: "McGinnis",
-      aliases: ["mcginnis", "mc_ginnis", "engineer", "hero_mcginnis"],
+      icon: "s2r://panorama/images/heroes/engineer_mm_psd.vtex",
     },
     {
       id: "hero_chrono",
       heroId: 10,
       name: "Paradox",
-      aliases: ["paradox", "hero_paradox"],
+      icon: "s2r://panorama/images/heroes/chrono_mm_psd.vtex",
     },
-    { id: "hero_dynamo", heroId: 11, name: "Dynamo", aliases: ["sumo"] },
-    { id: "hero_kelvin", heroId: 12, name: "Kelvin", aliases: [] },
-    { id: "hero_haze", heroId: 13, name: "Haze", aliases: [] },
-    { id: "hero_astro", heroId: 14, name: "Ivy", aliases: ["ivy", "hero_ivy"] },
-    { id: "hero_bebop", heroId: 15, name: "Bebop", aliases: [] },
-    { id: "hero_nano", heroId: 16, name: "Nano", aliases: [] },
+    {
+      id: "hero_dynamo",
+      heroId: 11,
+      name: "Dynamo",
+      icon: "s2r://panorama/images/heroes/sumo_mm_psd.vtex",
+    },
+    {
+      id: "hero_kelvin",
+      heroId: 12,
+      name: "Kelvin",
+      icon: "s2r://panorama/images/heroes/kelvin_mm_psd.vtex",
+    },
+    {
+      id: "hero_haze",
+      heroId: 13,
+      name: "Haze",
+      icon: "s2r://panorama/images/heroes/haze_mm_psd.vtex",
+    },
+    {
+      id: "hero_astro",
+      heroId: 14,
+      name: "Holliday",
+      icon: "s2r://panorama/images/heroes/astro_mm_psd.vtex",
+    },
+    {
+      id: "hero_bebop",
+      heroId: 15,
+      name: "Bebop",
+      icon: "s2r://panorama/images/heroes/bebop_mm_psd.vtex",
+    },
+    {
+      id: "hero_nano",
+      heroId: 16,
+      name: "Calico",
+      icon: "s2r://panorama/images/heroes/nano_mm_psd.vtex",
+    },
     {
       id: "hero_orion",
       heroId: 17,
       name: "Grey Talon",
-      aliases: [
-        "archer",
-        "grey_talon",
-        "gray_talon",
-        "greytalon",
-        "hero_grey_talon",
-      ],
+      icon: "s2r://panorama/images/heroes/archer_mm_psd.vtex",
     },
     {
       id: "hero_krill",
       heroId: 18,
       name: "Mo & Krill",
-      aliases: ["digger", "mo_and_krill", "mo_krill", "hero_mo_and_krill"],
+      icon: "s2r://panorama/images/heroes/digger_mm_psd.vtex",
     },
-    { id: "hero_shiv", heroId: 19, name: "Shiv", aliases: [] },
-    { id: "hero_tengu", heroId: 20, name: "Tengu", aliases: [] },
-    { id: "hero_warden", heroId: 25, name: "Warden", aliases: [] },
-    { id: "hero_yamato", heroId: 27, name: "Yamato", aliases: [] },
-    { id: "hero_lash", heroId: 31, name: "Lash", aliases: [] },
-    { id: "hero_viscous", heroId: 35, name: "Viscous", aliases: [] },
+    {
+      id: "hero_shiv",
+      heroId: 19,
+      name: "Shiv",
+      icon: "s2r://panorama/images/heroes/shiv_mm_psd.vtex",
+    },
+    {
+      id: "hero_tengu",
+      heroId: 20,
+      name: "Ivy",
+      icon: "s2r://panorama/images/heroes/tengu_mm_psd.vtex",
+    },
+    {
+      id: "hero_warden",
+      heroId: 25,
+      name: "Warden",
+      icon: "s2r://panorama/images/heroes/warden_mm_psd.vtex",
+    },
+    {
+      id: "hero_yamato",
+      heroId: 27,
+      name: "Yamato",
+      icon: "s2r://panorama/images/heroes/yamato_mm_psd.vtex",
+    },
+    {
+      id: "hero_lash",
+      heroId: 31,
+      name: "Lash",
+      icon: "s2r://panorama/images/heroes/lash_mm_psd.vtex",
+    },
+    {
+      id: "hero_viscous",
+      heroId: 35,
+      name: "Viscous",
+      icon: "s2r://panorama/images/heroes/viscous_mm_psd.vtex",
+    },
     {
       id: "hero_synth",
       heroId: 50,
       name: "Pocket",
-      aliases: ["pocket", "hero_pocket"],
+      icon: "s2r://panorama/images/heroes/synth_mm_psd.vtex",
     },
-    { id: "hero_mirage", heroId: 52, name: "Mirage", aliases: [] },
+    {
+      id: "hero_mirage",
+      heroId: 52,
+      name: "Mirage",
+      icon: "s2r://panorama/images/heroes/mirage_mm_psd.vtex",
+    },
     {
       id: "hero_viper",
       heroId: 58,
       name: "Vyper",
-      aliases: ["viper", "vyper", "hero_vyper"],
+      icon: "s2r://panorama/images/heroes/kali_mm_psd.vtex",
     },
     {
       id: "hero_magician",
       heroId: 60,
-      name: "Magician",
-      aliases: ["sinclair", "hero_sinclair"],
+      name: "Sinclair",
+      icon: "s2r://panorama/images/heroes/magician_mm_psd.vtex",
     },
     {
       id: "hero_vampirebat",
       heroId: 63,
       name: "Mina",
-      aliases: ["vampire_bat", "vampirebat", "mina", "hero_mina"],
+      icon: "s2r://panorama/images/heroes/vampirebat_mm_psd.vtex",
     },
-    { id: "hero_drifter", heroId: 64, name: "Drifter", aliases: [] },
-    { id: "hero_priest", heroId: 65, name: "Priest", aliases: [] },
-    { id: "hero_frank", heroId: 66, name: "Frank", aliases: [] },
+    {
+      id: "hero_drifter",
+      heroId: 64,
+      name: "Drifter",
+      icon: "s2r://panorama/images/heroes/drifter_mm_psd.vtex",
+    },
+    {
+      id: "hero_priest",
+      heroId: 65,
+      name: "Venator",
+      icon: "s2r://panorama/images/heroes/priest_mm_psd.vtex",
+    },
+    {
+      id: "hero_frank",
+      heroId: 66,
+      name: "Victor",
+      icon: "s2r://panorama/images/heroes/frank_mm_psd.vtex",
+    },
     {
       id: "hero_bookworm",
       heroId: 67,
-      name: "Bookworm",
-      aliases: ["paige", "hero_paige"],
+      name: "Paige",
+      icon: "s2r://panorama/images/heroes/bookworm_mm_psd.vtex",
     },
-    { id: "hero_doorman", heroId: 69, name: "Doorman", aliases: [] },
+    {
+      id: "hero_doorman",
+      heroId: 69,
+      name: "The Doorman",
+      icon: "s2r://panorama/images/heroes/doorman_mm_psd.vtex",
+    },
     {
       id: "hero_punkgoat",
       heroId: 72,
       name: "Billy",
-      aliases: ["punkgoat", "punk_goat", "billy", "hero_billy"],
+      icon: "s2r://panorama/images/heroes/punkgoat_mm_psd.vtex",
     },
-    { id: "hero_necro", heroId: 76, name: "Necro", aliases: [] },
+    {
+      id: "hero_necro",
+      heroId: 76,
+      name: "Graves",
+      icon: "s2r://panorama/images/heroes/necro_mm_psd.vtex",
+    },
     {
       id: "hero_fencer",
       heroId: 77,
       name: "Apollo",
-      aliases: ["fencer", "apollo", "hero_apollo"],
+      icon: "s2r://panorama/images/heroes/fencer_mm_psd.vtex",
     },
-    { id: "hero_familiar", heroId: 79, name: "Familiar", aliases: [] },
-    { id: "hero_werewolf", heroId: 80, name: "Werewolf", aliases: [] },
-    { id: "hero_unicorn", heroId: 81, name: "Unicorn", aliases: [] },
+    {
+      id: "hero_familiar",
+      heroId: 79,
+      name: "Rem",
+      icon: "s2r://panorama/images/heroes/familiar_mm_psd.vtex",
+    },
+    {
+      id: "hero_werewolf",
+      heroId: 80,
+      name: "Silver",
+      icon: "s2r://panorama/images/heroes/werewolf_mm_psd.vtex",
+    },
+    {
+      id: "hero_unicorn",
+      heroId: 81,
+      name: "Celeste",
+      icon: "s2r://panorama/images/heroes/unicorn_mm_psd.vtex",
+    },
   ];
   const HP_HERO_BY_ID = {};
-  const HP_HERO_ALIAS_TO_ID = {};
-  const HP_HERO_ALIAS_LIST = [];
-  const HP_PERSIST_ALIASES = {
+  const HP_HERO_ID_TO_KEY = {};
+  const HPSettingsContract = {
+    storageNamespace: "hp_colors",
+    storageVersion: 97,
+    description: "Set enemy, ally, pulse, HP number, and kill marker colors.",
+    SETTINGS: [
+    // General - Core Behavior
+    {
+      type: "toggle",
+      id: "hp_enabled",
+      label: "Enable enemy HP colors",
+      defaultValue: true,
+      category: "GENERAL|Core Behavior",
+    },
+    {
+      type: "toggle",
+      id: "hp_bg_visible",
+      label: "Show enemy HP background",
+      defaultValue: true,
+      category: "GENERAL|Core Behavior",
+    },
+    {
+      type: "cycler",
+      id: "hp_mode",
+      label: "Enemy color behavior",
+      options: ["Fixed", "Gradient"],
+      defaultValue: 1,
+      category: "GENERAL|Core Behavior",
+    },
+    {
+      type: "slider",
+      id: "hp_low_threshold",
+      label: "Low HP starts at %",
+      defaultValue: 25,
+      min: 0,
+      max: 100,
+      step: 1,
+      category: "GENERAL|Core Behavior",
+    },
+    {
+      type: "slider",
+      id: "hp_high_threshold",
+      label: "High HP starts at %",
+      defaultValue: 65,
+      min: 0,
+      max: 100,
+      step: 1,
+      category: "GENERAL|Core Behavior",
+    },
+    {
+      type: "toggle",
+      id: "hp_team_colors",
+      label: "Use team color at high HP",
+      defaultValue: false,
+      category: "GENERAL|Core Behavior",
+    },
+    {
+      type: "toggle",
+      id: "hp_skip_buildings",
+      label: "Ignore buildings and bosses",
+      defaultValue: false,
+      category: "GENERAL|Core Behavior",
+    },
+    {
+      type: "slider",
+      id: "hp_info_health_margin_top",
+      label: "Bar Height",
+      defaultValue: 23,
+      min: 0,
+      max: 100,
+      step: 1,
+      category: "GENERAL|Core Behavior",
+    },
+    {
+      type: "slider",
+      id: "hp_healthbar_height",
+      label: "Bar Width",
+      defaultValue: 130,
+      min: 0,
+      max: 230,
+      step: 1,
+      category: "GENERAL|Core Behavior",
+    },
+    // Health Bars - Enemy Colors
+    {
+      type: "toggle",
+      id: "hp_ult_color_enabled",
+      label: "Color ult icon",
+      defaultValue: true,
+      category: "HEALTH BARS|Enemy Colors",
+    },
+    {
+      type: "colorpicker",
+      id: "hp_ult_color_custom",
+      label: "Ult icon custom color",
+      defaultValue: "#E16161",
+      category: "HEALTH BARS|Enemy Colors",
+      visibleWhen: { id: "hp_ult_color_enabled", equals: false },
+    },
+    {
+      type: "colorpicker",
+      id: "hp_color_low",
+      label: "Low HP bar color",
+      defaultValue: "#E16161",
+      category: "HEALTH BARS|Enemy Colors",
+    },
+    {
+      type: "colorpicker",
+      id: "hp_color_mid",
+      label: "Mid HP bar color",
+      defaultValue: "#FF7B00",
+      category: "HEALTH BARS|Enemy Colors",
+    },
+    {
+      type: "colorpicker",
+      id: "hp_color_high",
+      label: "High HP bar color",
+      defaultValue: "#00FF00",
+      category: "HEALTH BARS|Enemy Colors",
+    },
+    // Visual Effects - Low HP Pulse
+    {
+      type: "toggle",
+      id: "hp_pulse_enabled",
+      label: "Pulse at low HP",
+      defaultValue: true,
+      category: "VISUAL EFFECTS|Low HP Pulse",
+    },
+    {
+      type: "slider",
+      id: "hp_pulse_threshold",
+      label: "Pulse starts below %",
+      defaultValue: 25,
+      min: 0,
+      max: 100,
+      step: 1,
+      category: "VISUAL EFFECTS|Low HP Pulse",
+      visibleWhen: { id: "hp_pulse_enabled", equals: true },
+    },
+    {
+      type: "slider",
+      id: "hp_pulse_bpm",
+      label: "Pulse speed",
+      defaultValue: 75,
+      min: 30,
+      max: 300,
+      step: 1,
+      category: "VISUAL EFFECTS|Low HP Pulse",
+      visibleWhen: { id: "hp_pulse_enabled", equals: true },
+    },
+    {
+      type: "cycler",
+      id: "hp_pulse_intensity",
+      label: "Pulse strength",
+      options: ["Subtle", "Medium", "Intense"],
+      defaultValue: 1,
+      category: "VISUAL EFFECTS|Low HP Pulse",
+      visibleWhen: { id: "hp_pulse_enabled", equals: true },
+    },
+    {
+      type: "toggle",
+      id: "hp_pulse_color_enabled",
+      label: "Use custom pulse color",
+      defaultValue: false,
+      category: "VISUAL EFFECTS|Low HP Pulse",
+      visibleWhen: { id: "hp_pulse_enabled", equals: true },
+    },
+    {
+      type: "cycler",
+      id: "hp_pulse_color_mode",
+      label: "Pulse color behavior",
+      options: ["Fixed", "Gradient"],
+      defaultValue: 0,
+      category: "VISUAL EFFECTS|Low HP Pulse",
+      visibleWhen: { id: "hp_pulse_color_enabled", equals: true },
+    },
+    {
+      type: "colorpicker",
+      id: "hp_pulse_color",
+      label: "Pulse color",
+      defaultValue: "#FF2222",
+      category: "VISUAL EFFECTS|Low HP Pulse",
+      visibleWhen: { id: "hp_pulse_color_enabled", equals: true },
+    },
+    {
+      type: "toggle",
+      id: "hp_pulse_hide_bar",
+      label: "Hide bar while pulsing",
+      defaultValue: false,
+      category: "VISUAL EFFECTS|Low HP Pulse",
+      visibleWhen: { id: "hp_pulse_enabled", equals: true },
+    },
+    {
+      type: "toggle",
+      id: "hp_pulse_text_enabled",
+      label: "Pulse HP number",
+      defaultValue: false,
+      category: "VISUAL EFFECTS|Low HP Pulse",
+      visibleWhen: { id: "hp_pulse_enabled", equals: true },
+    },
+    {
+      type: "slider",
+      id: "hp_pulse_text_scale",
+      label: "Pulsing number size",
+      defaultValue: 120,
+      min: 72,
+      max: 320,
+      step: 1,
+      category: "VISUAL EFFECTS|Low HP Pulse",
+      visibleWhen: { id: "hp_pulse_text_enabled", equals: true },
+    },
+    {
+      type: "positionpicker",
+      id: "hp_pulse_text_position",
+      label: "Pulsing number position",
+      defaultValue: "20,196",
+      category: "VISUAL EFFECTS|Low HP Pulse",
+      visibleWhen: { id: "hp_pulse_text_enabled", equals: true },
+    },
+    // Health Bars - Number Overlay
+    {
+      type: "toggle",
+      id: "hp_counter_visible",
+      label: "Show HP number",
+      defaultValue: true,
+      category: "HEALTH BARS|Number Overlay",
+    },
+    {
+      type: "slider",
+      id: "hp_counter_size",
+      label: "HP number size",
+      defaultValue: 145,
+      min: 72,
+      max: 320,
+      step: 1,
+      category: "HEALTH BARS|Number Overlay",
+    },
+    {
+      type: "positionpicker",
+      id: "hp_counter_position",
+      label: "HP number position",
+      defaultValue: "27,20",
+      category: "HEALTH BARS|Number Overlay",
+    },
+    {
+      type: "cycler",
+      id: "hp_counter_format",
+      label: "HP number format",
+      options: ["HP", "%", "Current HP"],
+      defaultValue: 0,
+      category: "HEALTH BARS|Number Overlay",
+    },
+    {
+      type: "cycler",
+      id: "hp_text_color_mode",
+      label: "HP number color source",
+      options: ["Bar color", "Custom"],
+      defaultValue: 0,
+      category: "HEALTH BARS|Number Overlay",
+    },
+    {
+      type: "toggle",
+      id: "hp_level_number_visible",
+      label: "Show level number",
+      defaultValue: true,
+      category: "HEALTH BARS|Number Overlay",
+    },
+    {
+      type: "toggle",
+      id: "hp_pip_visible",
+      label: "Show pip HP segments",
+      defaultValue: true,
+      category: "HEALTH BARS|Number Overlay",
+    },
+    {
+      type: "colorpicker",
+      id: "hp_text_color_low",
+      label: "Low HP number color",
+      defaultValue: "#E16161",
+      visibleWhen: { id: "hp_text_color_mode", equals: 1 },
+      category: "HEALTH BARS|Number Overlay",
+    },
+    {
+      type: "colorpicker",
+      id: "hp_text_color_mid",
+      label: "Mid HP number color",
+      defaultValue: "#FF7B00",
+      visibleWhen: { id: "hp_text_color_mode", equals: 1 },
+      category: "HEALTH BARS|Number Overlay",
+    },
+    {
+      type: "colorpicker",
+      id: "hp_text_color_high",
+      label: "High HP number color",
+      defaultValue: "#FFFFFF",
+      visibleWhen: { id: "hp_text_color_mode", equals: 1 },
+      category: "HEALTH BARS|Number Overlay",
+    },
+    // Health Bars - Ally Colors
+    {
+      type: "toggle",
+      id: "hp_friend_enabled",
+      label: "Color ally HP bars",
+      defaultValue: false,
+      category: "HEALTH BARS|Ally Colors",
+    },
+    {
+      type: "colorpicker",
+      id: "hp_friend_color_low",
+      label: "Ally low HP color",
+      defaultValue: "#E16161",
+      category: "HEALTH BARS|Ally Colors",
+      visibleWhen: { id: "hp_friend_enabled", equals: true },
+    },
+    {
+      type: "colorpicker",
+      id: "hp_friend_color_mid",
+      label: "Ally mid HP color",
+      defaultValue: "#FF7B00",
+      category: "HEALTH BARS|Ally Colors",
+      visibleWhen: { id: "hp_friend_enabled", equals: true },
+    },
+    {
+      type: "colorpicker",
+      id: "hp_friend_color_high",
+      label: "Ally high HP color",
+      defaultValue: "#00FF00",
+      category: "HEALTH BARS|Ally Colors",
+      visibleWhen: { id: "hp_friend_enabled", equals: true },
+    },
+    {
+      type: "toggle",
+      id: "hp_friend_pulse_enabled",
+      label: "Pulse ally bars",
+      defaultValue: false,
+      category: "HEALTH BARS|Ally Colors",
+      visibleWhen: { id: "hp_friend_enabled", equals: true },
+    },
+    {
+      type: "slider",
+      id: "hp_friend_pulse_threshold",
+      label: "Ally pulse starts below %",
+      defaultValue: 25,
+      min: 0,
+      max: 100,
+      step: 1,
+      category: "HEALTH BARS|Ally Colors",
+      visibleWhen: { id: "hp_friend_pulse_enabled", equals: true },
+    },
+    {
+      type: "slider",
+      id: "hp_friend_pulse_bpm",
+      label: "Ally pulse speed",
+      defaultValue: 75,
+      min: 30,
+      max: 300,
+      step: 1,
+      category: "HEALTH BARS|Ally Colors",
+      visibleWhen: { id: "hp_friend_pulse_enabled", equals: true },
+    },
+    {
+      type: "cycler",
+      id: "hp_friend_pulse_intensity",
+      label: "Ally pulse strength",
+      options: ["Subtle", "Medium", "Intense"],
+      defaultValue: 1,
+      category: "HEALTH BARS|Ally Colors",
+      visibleWhen: { id: "hp_friend_pulse_enabled", equals: true },
+    },
+    {
+      type: "toggle",
+      id: "hp_friend_pulse_color_enabled",
+      label: "Use custom ally pulse color",
+      defaultValue: false,
+      category: "HEALTH BARS|Ally Colors",
+      visibleWhen: { id: "hp_friend_pulse_enabled", equals: true },
+    },
+    {
+      type: "colorpicker",
+      id: "hp_friend_pulse_color",
+      label: "Ally pulse color",
+      defaultValue: "#FF2222",
+      category: "HEALTH BARS|Ally Colors",
+      visibleWhen: { id: "hp_friend_pulse_color_enabled", equals: true },
+    },
+    // Visual Effects - Kill Marker
+    {
+      type: "toggle",
+      id: "hp_kill_zone_enabled",
+      label: "Show kill marker",
+      defaultValue: false,
+      category: "VISUAL EFFECTS|Kill Marker",
+    },
+    {
+      type: "slider",
+      id: "hp_kill_zone_threshold",
+      label: "Marker position %",
+      defaultValue: 25,
+      min: 5,
+      max: 80,
+      step: 1,
+      category: "VISUAL EFFECTS|Kill Marker",
+      visibleWhen: { id: "hp_kill_zone_enabled", equals: true },
+    },
+    {
+      type: "colorpicker",
+      id: "hp_kill_zone_color",
+      label: "Marker color",
+      defaultValue: "#FF2222",
+      category: "VISUAL EFFECTS|Kill Marker",
+      visibleWhen: { id: "hp_kill_zone_enabled", equals: true },
+    },
+    {
+      type: "slider",
+      id: "hp_kill_zone_width",
+      label: "Marker width",
+      defaultValue: 3,
+      min: 1,
+      max: 100,
+      step: 1,
+      category: "VISUAL EFFECTS|Kill Marker",
+      visibleWhen: { id: "hp_kill_zone_enabled", equals: true },
+    },
+
+    ],
+    ALIASES: {
     hp_enabled: "e",
     hp_mode: "m",
     hp_low_threshold: "l",
@@ -284,17 +791,45 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
     hp_kill_zone_color: "kzc",
     hp_kill_zone_width: "kzw",
     hp_counter_format: "cf",
-  };
-  const HP_PERSIST_ALIAS_TO_ID = (function () {
-    var out = {};
-    for (var id in HP_PERSIST_ALIASES) {
-      if (Object.prototype.hasOwnProperty.call(HP_PERSIST_ALIASES, id)) {
-        out[HP_PERSIST_ALIASES[id]] = id;
+    },
+    buildAliasToId: function () {
+      var out = {};
+      for (var id in this.ALIASES) {
+        if (Object.prototype.hasOwnProperty.call(this.ALIASES, id)) {
+          out[this.ALIASES[id]] = id;
+        }
       }
-    }
-    out.kzs = "hp_kill_zone_color";
-    return out;
-  })();
+      out.kzs = "hp_kill_zone_color";
+      return out;
+    },
+
+    copyElement: function (source) {
+      var element = {};
+      for (var key in source) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+          element[key] = source[key];
+        }
+      }
+      return element;
+    },
+
+    buildRegistrarConfig: function () {
+      var elements = [];
+      for (var i = 0; i < this.SETTINGS.length; i++) {
+        elements.push(this.copyElement(this.SETTINGS[i]));
+      }
+      return {
+        title: "HP Colors",
+        description: this.description,
+        storageNamespace: this.storageNamespace,
+        storageVersion: this.storageVersion,
+        elements: elements,
+      };
+    },
+  };
+  const SCHEMA = HPSettingsContract.SETTINGS;
+  const HP_PERSIST_ALIASES = HPSettingsContract.ALIASES;
+  const HP_PERSIST_ALIAS_TO_ID = HPSettingsContract.buildAliasToId();
   const HP_PRESET_BUILDER_SUPPORTED_IDS = {
     hp_enabled: true,
     hp_bg_visible: true,
@@ -347,54 +882,22 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
   };
 
   function normalizeHpHeroToken(value) {
-    var text = String(value || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9_]+/g, "_")
-      .replace(/^_+|_+$/g, "");
-    if (!text) return "";
-    if (Object.prototype.hasOwnProperty.call(HP_HERO_ALIAS_TO_ID, text))
-      return HP_HERO_ALIAS_TO_ID[text];
-    if (
-      text.indexOf("hero_") !== 0 &&
-      Object.prototype.hasOwnProperty.call(HP_HERO_ALIAS_TO_ID, "hero_" + text)
-    ) {
-      return HP_HERO_ALIAS_TO_ID["hero_" + text];
+    if (value === null || value === undefined) return "";
+    var text = String(value);
+    if (Object.prototype.hasOwnProperty.call(HP_HERO_BY_ID, text)) return text;
+    if (/^\d+$/.test(text)) {
+      var numericKey = HP_HERO_ID_TO_KEY[text];
+      return numericKey || "";
     }
     return "";
-  }
-
-  function registerHpHeroAlias(alias, heroId) {
-    var clean = String(alias || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9_]+/g, "_")
-      .replace(/^_+|_+$/g, "");
-    if (
-      !clean ||
-      Object.prototype.hasOwnProperty.call(HP_HERO_ALIAS_TO_ID, clean)
-    )
-      return;
-    HP_HERO_ALIAS_TO_ID[clean] = heroId;
-    HP_HERO_ALIAS_LIST.push({
-      alias: clean,
-      hero: heroId,
-      token: clean.replace(/^hero_/, ""),
-    });
   }
 
   function buildHpHeroTables() {
     for (var i = 0; i < HP_HERO_DATA.length; i++) {
       var hero = HP_HERO_DATA[i];
       HP_HERO_BY_ID[hero.id] = hero;
-      registerHpHeroAlias(hero.id, hero.id);
-      registerHpHeroAlias(hero.id.replace(/^hero_/, ""), hero.id);
-      registerHpHeroAlias(hero.name, hero.id);
-      for (var j = 0; j < hero.aliases.length; j++) {
-        registerHpHeroAlias(hero.aliases[j], hero.id);
-      }
+      HP_HERO_ID_TO_KEY[String(hero.heroId)] = hero.id;
     }
-    HP_HERO_ALIAS_LIST.sort(function (a, b) {
-      return b.token.length - a.token.length;
-    });
   }
 
   function normalizeHpHeroSelection(value) {
@@ -433,33 +936,271 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
     return normalizeHpHeroScopeMode(mode, heroes) === HP_HERO_SCOPE_SELECTED;
   }
 
+  const HPPresetHeroSelection = {
+    getSelectionStore: function (config) {
+      if (!config.__anitaPresetHeroSelections)
+        config.__anitaPresetHeroSelections = {};
+      return config.__anitaPresetHeroSelections;
+    },
+    getModeStore: function (config) {
+      if (!config.__anitaPresetHeroModes) config.__anitaPresetHeroModes = {};
+      return config.__anitaPresetHeroModes;
+    },
+    getRowHeroes: function (config, row) {
+      if (!config || !row) return [];
+      var store = this.getSelectionStore(config);
+      var modeStore = this.getModeStore(config);
+      if (!Object.prototype.hasOwnProperty.call(store, row.key)) {
+        var idStoreKey = row.id ? "id:" + String(row.id) : "";
+        store[row.key] =
+          idStoreKey && Object.prototype.hasOwnProperty.call(store, idStoreKey)
+            ? normalizeHpHeroSelection(store[idStoreKey])
+            : normalizeHpHeroSelection(row.heroes);
+      }
+      if (!Object.prototype.hasOwnProperty.call(modeStore, row.key)) {
+        var idModeKey = row.id ? "id:" + String(row.id) : "";
+        modeStore[row.key] =
+          idModeKey &&
+          Object.prototype.hasOwnProperty.call(modeStore, idModeKey)
+            ? normalizeHpHeroScopeMode(modeStore[idModeKey], store[row.key])
+            : normalizeHpHeroScopeMode(row.heroMode, store[row.key]);
+      }
+      row.heroes = normalizeHpHeroSelection(store[row.key]);
+      row.heroMode = normalizeHpHeroScopeMode(modeStore[row.key], row.heroes);
+      if (row.heroMode !== HP_HERO_SCOPE_SELECTED) {
+        row.heroes = [];
+        store[row.key] = [];
+      }
+      return row.heroes.slice(0);
+    },
+    getRowHeroMode: function (config, row) {
+      if (!config || !row) return HP_HERO_SCOPE_OFF;
+      this.getRowHeroes(config, row);
+      return normalizeHpHeroScopeMode(row.heroMode, row.heroes);
+    },
+    setRowScope: function (config, row, mode, heroes) {
+      if (!config || !row) return [];
+      var normalized = normalizeHpHeroSelection(heroes);
+      var scopeMode = normalizeHpHeroScopeMode(mode, normalized);
+      if (scopeMode !== HP_HERO_SCOPE_SELECTED) normalized = [];
+      var store = this.getSelectionStore(config);
+      var modeStore = this.getModeStore(config);
+      store[row.key] = normalized.slice(0);
+      modeStore[row.key] = scopeMode;
+      if (row.id) store["id:" + String(row.id)] = normalized.slice(0);
+      if (row.id) modeStore["id:" + String(row.id)] = scopeMode;
+      row.heroes = normalized.slice(0);
+      row.heroMode = scopeMode;
+      resetHpHeroPresetDetectionLock(config);
+      invalidateHpHeroPresetApplyCache(config);
+      startHpHeroPresetWatch(config);
+      scheduleHpHeroPresetRefresh(config);
+      return row.heroes.slice(0);
+    },
+    summarize: function (heroes, mode) {
+      var normalized = normalizeHpHeroSelection(heroes);
+      var scopeMode = normalizeHpHeroScopeMode(mode, normalized);
+      if (scopeMode === HP_HERO_SCOPE_OFF) return "Hero select off";
+      if (scopeMode === HP_HERO_SCOPE_ALL) return "All heroes";
+      return (
+        String(normalized.length) +
+        " hero" +
+        (normalized.length === 1 ? "" : "es")
+      );
+    },
+    materializeBakedEntry: function (base, modConfig, displayIndex) {
+      if (!base) return null;
+      var selectionStore = modConfig && modConfig.__anitaPresetHeroSelections;
+      var modeStore = modConfig && modConfig.__anitaPresetHeroModes;
+      var idKey = base.id ? "id:" + String(base.id) : "";
+      var rowKey = "baked_" + String(displayIndex || 0);
+      var heroSource = base.heroes;
+      if (selectionStore) {
+        if (idKey && Object.prototype.hasOwnProperty.call(selectionStore, idKey))
+          heroSource = selectionStore[idKey];
+        else if (Object.prototype.hasOwnProperty.call(selectionStore, rowKey))
+          heroSource = selectionStore[rowKey];
+      }
+      var heroes = normalizeHpHeroSelection(heroSource);
+      var modeSource = base.heroMode;
+      if (modeStore) {
+        if (idKey && Object.prototype.hasOwnProperty.call(modeStore, idKey))
+          modeSource = modeStore[idKey];
+        else if (Object.prototype.hasOwnProperty.call(modeStore, rowKey))
+          modeSource = modeStore[rowKey];
+      }
+      var heroMode = normalizeHpHeroScopeMode(modeSource, heroes);
+      if (heroMode !== HP_HERO_SCOPE_SELECTED) heroes = [];
+      return {
+        id: base.id,
+        name: base.name,
+        category: base.category,
+        values: base.values,
+        heroes: heroes,
+        heroMode: heroMode,
+        key: rowKey,
+        source: base.source,
+      };
+    },
+    priorityIdentity: function (preset) {
+      if (!preset) return "";
+      if (preset.source === "baked" && preset.id)
+        return "id:" + String(preset.id);
+      return String(preset.id || preset.key || preset.name || "");
+    },
+    isRuntimePresetRemoved: function (modConfig, preset) {
+      var removed = modConfig && modConfig.__anitaRemovedPresetRows;
+      if (!removed) return false;
+      var key = this.priorityIdentity(preset);
+      return !!(key && removed[key]);
+    },
+    applyRuntimePresetPriorityOrder: function (modConfig, presets) {
+      if (!modConfig || !Array.isArray(presets) || !presets.length)
+        return presets;
+      var stored = Array.isArray(modConfig.__anitaPresetPriorityOrder)
+        ? modConfig.__anitaPresetPriorityOrder
+        : [];
+      if (!stored.length) return presets;
+
+      var byKey = {};
+      var ordered = [];
+      var seen = {};
+      for (var i = 0; i < presets.length; i++) {
+        var key = this.priorityIdentity(presets[i]);
+        if (key && !byKey[key]) byKey[key] = presets[i];
+      }
+      for (var orderIndex = 0; orderIndex < stored.length; orderIndex++) {
+        var storedKey = String(stored[orderIndex] || "");
+        if (!storedKey || !byKey[storedKey] || seen[storedKey]) continue;
+        seen[storedKey] = true;
+        ordered.push(byKey[storedKey]);
+      }
+      for (var presetIndex = 0; presetIndex < presets.length; presetIndex++) {
+        var presetKey = this.priorityIdentity(presets[presetIndex]);
+        if (presetKey && seen[presetKey]) continue;
+        if (presetKey) seen[presetKey] = true;
+        ordered.push(presets[presetIndex]);
+      }
+      return ordered;
+    },
+    readRuntimePresetEntries: function (modConfig) {
+      var presets = readBakedPresetEntries(modConfig).concat(
+        readUserPresetEntries(modConfig),
+      );
+      if (modConfig && modConfig.__anitaRemovedPresetRows) {
+        var kept = [];
+        for (var i = 0; i < presets.length; i++) {
+          if (!this.isRuntimePresetRemoved(modConfig, presets[i]))
+            kept.push(presets[i]);
+        }
+        presets = kept;
+      }
+      return this.applyRuntimePresetPriorityOrder(modConfig, presets);
+    },
+    selectForHero: function (
+      modConfig,
+      allowUnknownFallback,
+      allowHeroMatch,
+    ) {
+      var presets = this.readRuntimePresetEntries(modConfig);
+      var heroId = detectHpLocalHero();
+      var canUseHeroMatch = allowHeroMatch !== false;
+      var startupPreset = null;
+      var firstPreset = null;
+      var firstGlobal = null;
+      var firstHeroMatch = null;
+      var hasScopedPreset = false;
+      for (var i = 0; i < presets.length; i++) {
+        var preset = presets[i];
+        if (presetIsDisabled(preset)) continue;
+        if (!firstPreset) firstPreset = preset;
+        if (!firstGlobal && presetIsGlobal(preset)) firstGlobal = preset;
+        if (hpHeroScopeIsSelected(preset.heroMode, preset.heroes))
+          hasScopedPreset = true;
+        if (preset.id === HP_STARTUP_PRESET_ID) startupPreset = preset;
+        if (heroId && !firstHeroMatch && presetTargetsHero(preset, heroId))
+          firstHeroMatch = preset;
+      }
+
+      if (canUseHeroMatch && heroId && firstHeroMatch) {
+        return {
+          preset: firstHeroMatch,
+          heroId: heroId,
+          hasScopedPreset: hasScopedPreset,
+          reason: "hero",
+        };
+      }
+      if (
+        startupPreset &&
+        (presetIsGlobal(startupPreset) ||
+          (canUseHeroMatch &&
+            heroId &&
+            presetTargetsHero(startupPreset, heroId)) ||
+          (!heroId && allowUnknownFallback))
+      ) {
+        return {
+          preset: startupPreset,
+          heroId: heroId,
+          hasScopedPreset: hasScopedPreset,
+          reason: "startup",
+        };
+      }
+      if (firstGlobal) {
+        return {
+          preset: firstGlobal,
+          heroId: heroId,
+          hasScopedPreset: hasScopedPreset,
+          reason: "global",
+        };
+      }
+      if (
+        hasScopedPreset &&
+        (!heroId || !canUseHeroMatch) &&
+        !allowUnknownFallback
+      ) {
+        return {
+          preset: null,
+          heroId: heroId,
+          hasScopedPreset: true,
+          reason: "waiting_for_hero",
+        };
+      }
+      if (firstPreset) {
+        return {
+          preset: firstPreset,
+          heroId: heroId,
+          hasScopedPreset: hasScopedPreset,
+          reason: "first",
+        };
+      }
+      return {
+        preset: null,
+        heroId: heroId,
+        hasScopedPreset: hasScopedPreset,
+        reason: "none",
+      };
+    },
+    hasSelectedScopedPreset: function (config) {
+      var presets = this.readRuntimePresetEntries(config);
+      for (var i = 0; i < presets.length; i++) {
+        if (
+          !presetIsDisabled(presets[i]) &&
+          hpHeroScopeIsSelected(presets[i].heroMode, presets[i].heroes)
+        )
+          return true;
+      }
+      return false;
+    },
+  };
+
   function hpHeroDisplayName(heroId) {
     var hero = HP_HERO_BY_ID[heroId];
-    if (hero && hero.name) return hero.name;
-    var text = String(heroId || "")
-      .replace(/^hero_/, "")
-      .replace(/_/g, " ");
-    return text.replace(/\b[a-z]/g, function (ch) {
-      return ch.toUpperCase();
-    });
+    return hero && hero.name ? hero.name : "";
   }
 
   function hpHeroIconPath(heroId) {
-    var alias = String(heroId || "").replace(/^hero_/, "");
-    var iconAliases = {
-      atlas: "bull",
-      dynamo: "sumo",
-      forge: "engineer",
-      ghost: "spectre",
-      krill: "digger",
-      orion: "archer",
-      viper: "kali",
-    };
-    if (Object.prototype.hasOwnProperty.call(iconAliases, alias))
-      alias = iconAliases[alias];
-    return alias
-      ? "s2r://panorama/images/heroes/" + alias + "_mm_psd.vtex"
-      : "";
+    var hero = HP_HERO_BY_ID[heroId];
+    return hero && hero.icon ? hero.icon : "";
   }
 
   function hpHeroHasClass(panel, className) {
@@ -522,9 +1263,8 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
 
   function hpHeroClassOn(panel) {
     if (!hpHeroIsValidPanel(panel)) return "";
-    for (var i = 0; i < HP_HERO_ALIAS_LIST.length; i++) {
-      if (hpHeroHasClass(panel, HP_HERO_ALIAS_LIST[i].alias))
-        return HP_HERO_ALIAS_LIST[i].hero;
+    for (var i = 0; i < HP_HERO_DATA.length; i++) {
+      if (hpHeroHasClass(panel, HP_HERO_DATA[i].id)) return HP_HERO_DATA[i].id;
     }
     return "";
   }
@@ -660,7 +1400,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
     if (
       config &&
       (config.__hpHeroPresetHasScopedPreset ||
-        hasHpSelectedScopedPreset(config))
+        HPPresetHeroSelection.hasSelectedScopedPreset(config))
     ) {
       config.__hpHeroPresetWatchStarted = false;
       startHpHeroPresetWatch(config);
@@ -839,7 +1579,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
       }
       if (
         config.__hpHeroPresetHasScopedPreset ||
-        hasHpSelectedScopedPreset(config)
+        HPPresetHeroSelection.hasSelectedScopedPreset(config)
       ) {
         return { run: true, delay: HP_HERO_WATCH_RETRY_SEC };
       }
@@ -1195,50 +1935,6 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
     return "";
   }
 
-  function readBakedPresetHeroTargets(
-    modConfig,
-    presetId,
-    displayIndex,
-    fallbackHeroes,
-  ) {
-    var store = modConfig && modConfig.__anitaPresetHeroSelections;
-    if (store) {
-      if (presetId) {
-        var idKey = "id:" + String(presetId);
-        if (Object.prototype.hasOwnProperty.call(store, idKey)) {
-          return normalizeHpHeroSelection(store[idKey]);
-        }
-      }
-      var rowKey = "baked_" + String(displayIndex || 0);
-      if (Object.prototype.hasOwnProperty.call(store, rowKey)) {
-        return normalizeHpHeroSelection(store[rowKey]);
-      }
-    }
-    return normalizeHpHeroSelection(fallbackHeroes);
-  }
-
-  function readBakedPresetHeroMode(
-    modConfig,
-    presetId,
-    displayIndex,
-    fallbackMode,
-    fallbackHeroes,
-  ) {
-    var store = modConfig && modConfig.__anitaPresetHeroModes;
-    if (store) {
-      if (presetId) {
-        var idKey = "id:" + String(presetId);
-        if (Object.prototype.hasOwnProperty.call(store, idKey)) {
-          return normalizeHpHeroScopeMode(store[idKey], fallbackHeroes);
-        }
-      }
-      var rowKey = "baked_" + String(displayIndex || 0);
-      if (Object.prototype.hasOwnProperty.call(store, rowKey)) {
-        return normalizeHpHeroScopeMode(store[rowKey], fallbackHeroes);
-      }
-    }
-    return normalizeHpHeroScopeMode(fallbackMode, fallbackHeroes);
-  }
 
   function getPresetAllowedKeys(modConfig) {
     var allowed = {};
@@ -1384,33 +2080,6 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
     return null;
   }
 
-  function materializeBakedPresetEntry(base, modConfig, displayIndex) {
-    if (!base) return null;
-    var heroes = readBakedPresetHeroTargets(
-      modConfig,
-      base.id,
-      displayIndex,
-      base.heroes,
-    );
-    var heroMode = readBakedPresetHeroMode(
-      modConfig,
-      base.id,
-      displayIndex,
-      base.heroMode,
-      heroes,
-    );
-    if (heroMode !== HP_HERO_SCOPE_SELECTED) heroes = [];
-    return {
-      id: base.id,
-      name: base.name,
-      category: base.category,
-      values: base.values,
-      heroes: heroes,
-      heroMode: heroMode,
-      key: "baked_" + String(displayIndex || 0),
-      source: base.source,
-    };
-  }
 
   function readBakedPresetEntries(modConfig) {
     var entries = getBakedPresetEntryPanels();
@@ -1443,7 +2112,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
     var presets = [];
     var cachedBases = cache && Array.isArray(cache.bases) ? cache.bases : [];
     for (var i = 0; i < cachedBases.length; i++) {
-      var preset = materializeBakedPresetEntry(
+      var preset = HPPresetHeroSelection.materializeBakedEntry(
         cachedBases[i],
         modConfig,
         presets.length,
@@ -1453,19 +2122,6 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
     return presets;
   }
 
-  function runtimePresetPriorityIdentity(preset) {
-    if (!preset) return "";
-    if (preset.source === "baked" && preset.id)
-      return "id:" + String(preset.id);
-    return String(preset.id || preset.key || preset.name || "");
-  }
-
-  function isRuntimePresetRemoved(modConfig, preset) {
-    var removed = modConfig && modConfig.__anitaRemovedPresetRows;
-    if (!removed) return false;
-    var key = runtimePresetPriorityIdentity(preset);
-    return !!(key && removed[key]);
-  }
 
   function readUserPresetEntries(modConfig) {
     var presets = [];
@@ -1496,146 +2152,6 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
     return presets;
   }
 
-  function applyRuntimePresetPriorityOrder(modConfig, presets) {
-    if (!modConfig || !Array.isArray(presets) || !presets.length)
-      return presets;
-    var stored = Array.isArray(modConfig.__anitaPresetPriorityOrder)
-      ? modConfig.__anitaPresetPriorityOrder
-      : [];
-    if (!stored.length) return presets;
-
-    var byKey = {};
-    var ordered = [];
-    var seen = {};
-    for (var i = 0; i < presets.length; i++) {
-      var key = runtimePresetPriorityIdentity(presets[i]);
-      if (key && !byKey[key]) byKey[key] = presets[i];
-    }
-    for (var orderIndex = 0; orderIndex < stored.length; orderIndex++) {
-      var storedKey = String(stored[orderIndex] || "");
-      if (!storedKey || !byKey[storedKey] || seen[storedKey]) continue;
-      seen[storedKey] = true;
-      ordered.push(byKey[storedKey]);
-    }
-    for (var presetIndex = 0; presetIndex < presets.length; presetIndex++) {
-      var presetKey = runtimePresetPriorityIdentity(presets[presetIndex]);
-      if (presetKey && seen[presetKey]) continue;
-      if (presetKey) seen[presetKey] = true;
-      ordered.push(presets[presetIndex]);
-    }
-    return ordered;
-  }
-
-  function readRuntimePresetEntries(modConfig) {
-    var presets = readBakedPresetEntries(modConfig).concat(
-      readUserPresetEntries(modConfig),
-    );
-    if (modConfig && modConfig.__anitaRemovedPresetRows) {
-      var kept = [];
-      for (var i = 0; i < presets.length; i++) {
-        if (!isRuntimePresetRemoved(modConfig, presets[i]))
-          kept.push(presets[i]);
-      }
-      presets = kept;
-    }
-    return applyRuntimePresetPriorityOrder(modConfig, presets);
-  }
-
-  function selectBakedPresetForHero(
-    modConfig,
-    allowUnknownFallback,
-    allowHeroMatch,
-  ) {
-    var presets = readRuntimePresetEntries(modConfig);
-    var heroId = detectHpLocalHero();
-    var canUseHeroMatch = allowHeroMatch !== false;
-    var startupPreset = null;
-    var firstPreset = null;
-    var firstGlobal = null;
-    var firstHeroMatch = null;
-    var hasScopedPreset = false;
-    for (var i = 0; i < presets.length; i++) {
-      var preset = presets[i];
-      if (presetIsDisabled(preset)) continue;
-      if (!firstPreset) firstPreset = preset;
-      if (!firstGlobal && presetIsGlobal(preset)) firstGlobal = preset;
-      if (hpHeroScopeIsSelected(preset.heroMode, preset.heroes))
-        hasScopedPreset = true;
-      if (preset.id === HP_STARTUP_PRESET_ID) startupPreset = preset;
-      if (heroId && !firstHeroMatch && presetTargetsHero(preset, heroId))
-        firstHeroMatch = preset;
-    }
-
-    var result = null;
-    if (canUseHeroMatch && heroId && firstHeroMatch) {
-      result = {
-        preset: firstHeroMatch,
-        heroId: heroId,
-        hasScopedPreset: hasScopedPreset,
-        reason: "hero",
-      };
-    } else if (
-      startupPreset &&
-      (presetIsGlobal(startupPreset) ||
-        (canUseHeroMatch &&
-          heroId &&
-          presetTargetsHero(startupPreset, heroId)) ||
-        (!heroId && allowUnknownFallback))
-    ) {
-      result = {
-        preset: startupPreset,
-        heroId: heroId,
-        hasScopedPreset: hasScopedPreset,
-        reason: "startup",
-      };
-    } else if (firstGlobal) {
-      result = {
-        preset: firstGlobal,
-        heroId: heroId,
-        hasScopedPreset: hasScopedPreset,
-        reason: "global",
-      };
-    } else if (
-      hasScopedPreset &&
-      (!heroId || !canUseHeroMatch) &&
-      !allowUnknownFallback
-    ) {
-      result = {
-        preset: null,
-        heroId: heroId,
-        hasScopedPreset: true,
-        reason: "waiting_for_hero",
-      };
-    } else if (firstPreset) {
-      result = {
-        preset: firstPreset,
-        heroId: heroId,
-        hasScopedPreset: hasScopedPreset,
-        reason: "first",
-      };
-    } else {
-      result = {
-        preset: null,
-        heroId: heroId,
-        hasScopedPreset: hasScopedPreset,
-        reason: "none",
-      };
-    }
-
-    return result;
-  }
-
-  function hasHpSelectedScopedPreset(config) {
-    var presets = readRuntimePresetEntries(config);
-    for (var i = 0; i < presets.length; i++) {
-      if (
-        !presetIsDisabled(presets[i]) &&
-        hpHeroScopeIsSelected(presets[i].heroMode, presets[i].heroes)
-      )
-        return true;
-    }
-    return false;
-  }
 
   function invalidateHpHeroPresetApplyCache(config) {
     if (!config) return;
@@ -1745,7 +2261,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
     if (!config) return false;
     if (!hpHeroAutoDetectionEnabled(config)) return false;
     if (config.__hpHeroPresetDetectionLocked) return false;
-    var selection = selectBakedPresetForHero(config, false);
+    var selection = HPPresetHeroSelection.selectForHero(config, false);
     if (selection && selection.hasScopedPreset) {
       config.__hpHeroPresetHasScopedPreset = true;
       config.__hpHeroPresetEmptyTicks = 0;
@@ -1789,7 +2305,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
     if (!config || config.__hpHeroPresetWatchStarted) return;
     if (
       !config.__hpHeroPresetHasScopedPreset &&
-      !hasHpSelectedScopedPreset(config)
+      !HPPresetHeroSelection.hasSelectedScopedPreset(config)
     )
       return;
     config.__hpHeroPresetHasScopedPreset = true;
@@ -1835,7 +2351,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
             var allowUnknownFallback =
               allowHeroMatch &&
               delayIndex === HP_BAKED_PRESET_APPLY_DELAYS.length - 1;
-            var selection = selectBakedPresetForHero(
+            var selection = HPPresetHeroSelection.selectForHero(
               config,
               allowUnknownFallback,
               allowHeroMatch,
@@ -2189,26 +2705,6 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
       return fallback;
     },
 
-    ensureDefaults: function (config) {
-      var elements = this.getElements(config);
-      for (var i = 0; i < elements.length; i++) {
-        var element = elements[i];
-        if (!this.shouldPersistElement(element)) {
-          if (
-            element.currentValue === undefined &&
-            element.defaultValue !== undefined
-          ) {
-            element.currentValue = element.defaultValue;
-          }
-          continue;
-        }
-        var sourceValue =
-          element.currentValue !== undefined
-            ? element.currentValue
-            : element.defaultValue;
-        element.currentValue = this.sanitizeValue(element, sourceValue);
-      }
-    },
 
     expandStoredValues: function (config, parsed) {
       if (
@@ -2364,7 +2860,6 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
     },
 
     hydrateConfig: function (config) {
-      this.ensureDefaults(config);
       var hydrateSource = "defaults";
 
       if (!this.hasPersistentConfig(config)) {
@@ -4794,12 +5289,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
     activeImportPopupClose: null,
 
     isHpColorsConfig: function (config) {
-      return (
-        !!config &&
-        config.title === "HP Colors" &&
-        AnitaPersistence.normalizeNamespace(config.storageNamespace) ===
-          "hp_colors"
-      );
+      return AnitaPersistence.isHpColorsConfig(config);
     },
 
     hasPresetBuilder: function (config) {
@@ -6238,99 +6728,6 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
       );
     },
 
-    getPresetHeroSelectionStore: function (config) {
-      if (!config.__anitaPresetHeroSelections)
-        config.__anitaPresetHeroSelections = {};
-      return config.__anitaPresetHeroSelections;
-    },
-
-    getPresetHeroModeStore: function (config) {
-      if (!config.__anitaPresetHeroModes) config.__anitaPresetHeroModes = {};
-      return config.__anitaPresetHeroModes;
-    },
-
-    getPresetRowHeroes: function (config, row) {
-      if (!config || !row) return [];
-      var store = this.getPresetHeroSelectionStore(config);
-      var modeStore = this.getPresetHeroModeStore(config);
-      if (!Object.prototype.hasOwnProperty.call(store, row.key)) {
-        var idStoreKey = row.id ? "id:" + String(row.id) : "";
-        store[row.key] =
-          idStoreKey && Object.prototype.hasOwnProperty.call(store, idStoreKey)
-            ? normalizeHpHeroSelection(store[idStoreKey])
-            : normalizeHpHeroSelection(row.heroes);
-      }
-      if (!Object.prototype.hasOwnProperty.call(modeStore, row.key)) {
-        var idModeKey = row.id ? "id:" + String(row.id) : "";
-        modeStore[row.key] =
-          idModeKey &&
-          Object.prototype.hasOwnProperty.call(modeStore, idModeKey)
-            ? normalizeHpHeroScopeMode(modeStore[idModeKey], store[row.key])
-            : normalizeHpHeroScopeMode(row.heroMode, store[row.key]);
-      }
-      row.heroes = normalizeHpHeroSelection(store[row.key]);
-      row.heroMode = normalizeHpHeroScopeMode(modeStore[row.key], row.heroes);
-      if (row.heroMode !== HP_HERO_SCOPE_SELECTED) {
-        row.heroes = [];
-        store[row.key] = [];
-      }
-      return row.heroes.slice(0);
-    },
-
-    getPresetRowHeroMode: function (config, row) {
-      if (!config || !row) return HP_HERO_SCOPE_OFF;
-      this.getPresetRowHeroes(config, row);
-      return normalizeHpHeroScopeMode(row.heroMode, row.heroes);
-    },
-
-    setPresetRowHeroScope: function (config, row, mode, heroes) {
-      if (!config || !row) return [];
-      var normalized = normalizeHpHeroSelection(heroes);
-      var scopeMode = normalizeHpHeroScopeMode(mode, normalized);
-      if (scopeMode !== HP_HERO_SCOPE_SELECTED) normalized = [];
-      var store = this.getPresetHeroSelectionStore(config);
-      var modeStore = this.getPresetHeroModeStore(config);
-      store[row.key] = normalized.slice(0);
-      modeStore[row.key] = scopeMode;
-      if (row.id) store["id:" + String(row.id)] = normalized.slice(0);
-      if (row.id) modeStore["id:" + String(row.id)] = scopeMode;
-      row.heroes = normalized.slice(0);
-      row.heroMode = scopeMode;
-      row.token = this.buildPresetCodeToken(
-        config,
-        row.values || {},
-        row.name || "",
-        row.payloadValues,
-        row.heroes,
-        row.heroMode,
-      );
-      resetHpHeroPresetDetectionLock(config);
-      invalidateHpHeroPresetApplyCache(config);
-      startHpHeroPresetWatch(config);
-      scheduleHpHeroPresetRefresh(config);
-      return row.heroes.slice(0);
-    },
-
-    setPresetRowHeroes: function (config, row, heroes) {
-      return this.setPresetRowHeroScope(
-        config,
-        row,
-        HP_HERO_SCOPE_SELECTED,
-        heroes,
-      );
-    },
-
-    summarizePresetHeroes: function (heroes, mode) {
-      var normalized = normalizeHpHeroSelection(heroes);
-      var scopeMode = normalizeHpHeroScopeMode(mode, normalized);
-      if (scopeMode === HP_HERO_SCOPE_OFF) return "Hero select off";
-      if (scopeMode === HP_HERO_SCOPE_ALL) return "All heroes";
-      return (
-        String(normalized.length) +
-        " hero" +
-        (normalized.length === 1 ? "" : "es")
-      );
-    },
 
     selectPresetBuilder: function (config) {
       if (!this.hasPresetBuilder(config)) return;
@@ -6381,7 +6778,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
         heroInitIndex < rows.length;
         heroInitIndex++
       ) {
-        this.getPresetRowHeroes(config, rows[heroInitIndex]);
+        HPPresetHeroSelection.getRowHeroes(config, rows[heroInitIndex]);
       }
 
       var selected = rows.length ? rows[0] : null;
@@ -6701,8 +7098,8 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
           return false;
         }
         config.__anitaSelectedPresetKey = row.key;
-        var rowHeroes = AnitaRenderer.getPresetRowHeroes(config, row);
-        var rowHeroMode = AnitaRenderer.getPresetRowHeroMode(config, row);
+        var rowHeroes = HPPresetHeroSelection.getRowHeroes(config, row);
+        var rowHeroMode = HPPresetHeroSelection.getRowHeroMode(config, row);
         if (
           rowHeroMode === HP_HERO_SCOPE_SELECTED &&
           !hpHeroManualPresetAllowed(config)
@@ -6740,57 +7137,6 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
         return false;
       }
 
-      function heroSelected(heroes, heroId) {
-        var normalized = normalizeHpHeroSelection(heroes);
-        for (var heroIndex = 0; heroIndex < normalized.length; heroIndex++) {
-          if (normalized[heroIndex] === heroId) return true;
-        }
-        return false;
-      }
-
-      function updateHeroSummary(row, summaryLabel) {
-        if (
-          !row ||
-          !summaryLabel ||
-          !summaryLabel.IsValid ||
-          !summaryLabel.IsValid()
-        )
-          return;
-        var heroes = AnitaRenderer.getPresetRowHeroes(config, row);
-        var scopeMode = AnitaRenderer.getPresetRowHeroMode(config, row);
-        if (scopeMode === HP_HERO_SCOPE_OFF)
-          summaryLabel.text = "Hero select off";
-        else if (scopeMode === HP_HERO_SCOPE_ALL)
-          summaryLabel.text = "All heroes";
-        else {
-          var count = heroes.length;
-          summaryLabel.text =
-            String(count) + " hero" + (count === 1 ? "" : "es") + " selected";
-        }
-      }
-
-      function updateHeroFace(row, facePanel) {
-        if (!row || !facePanel || !facePanel.IsValid || !facePanel.IsValid())
-          return;
-        var heroes = AnitaRenderer.getPresetRowHeroes(config, row);
-        var scopeMode = AnitaRenderer.getPresetRowHeroMode(config, row);
-        var icon = facePanel.__anitaHeroFaceIcon || null;
-        var label = facePanel.__anitaHeroFaceLabel || null;
-        if (label && label.IsValid && label.IsValid()) {
-          if (scopeMode === HP_HERO_SCOPE_OFF) label.text = "Off";
-          else if (scopeMode === HP_HERO_SCOPE_ALL) label.text = "All heroes";
-          else {
-            var count = heroes.length;
-            label.text = String(count) + " hero" + (count === 1 ? "" : "es");
-          }
-        }
-        if (icon && icon.IsValid && icon.IsValid()) {
-          icon.SetHasClass("Visible", false);
-          try {
-            icon.style.backgroundImage = "none";
-          } catch (e0) {}
-        }
-      }
 
       function safeHeroOptionKey(row, suffix) {
         return (
@@ -6803,13 +7149,31 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
 
       function renderHeroPickerState(button, row, summaryLabel) {
         if (!button || !button.IsValid || !button.IsValid()) return;
-        var scopeMode = AnitaRenderer.getPresetRowHeroMode(config, row);
+        var heroes = HPPresetHeroSelection.getRowHeroes(config, row);
+        var scopeMode = HPPresetHeroSelection.getRowHeroMode(config, row);
+        var heroCount = heroes.length;
+        var summaryText =
+          scopeMode === HP_HERO_SCOPE_OFF
+            ? "Hero select off"
+            : scopeMode === HP_HERO_SCOPE_ALL
+              ? "All heroes"
+              : String(heroCount) +
+                " hero" +
+                (heroCount === 1 ? "" : "es") +
+                " selected";
+        var faceText =
+          scopeMode === HP_HERO_SCOPE_OFF
+            ? "Off"
+            : scopeMode === HP_HERO_SCOPE_ALL
+              ? "All heroes"
+              : String(heroCount) + " hero" + (heroCount === 1 ? "" : "es");
         button.SetHasClass("ScopeOff", scopeMode === HP_HERO_SCOPE_OFF);
         button.SetHasClass("ScopeAll", scopeMode === HP_HERO_SCOPE_ALL);
         button.SetHasClass(
           "ScopeSelected",
           scopeMode === HP_HERO_SCOPE_SELECTED,
         );
+        summaryLabel = summaryLabel || button.__anitaHeroSummaryLabel;
         if (summaryLabel && summaryLabel.IsValid && summaryLabel.IsValid()) {
           summaryLabel.SetHasClass("ScopeOff", scopeMode === HP_HERO_SCOPE_OFF);
           summaryLabel.SetHasClass("ScopeAll", scopeMode === HP_HERO_SCOPE_ALL);
@@ -6817,9 +7181,19 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
             "ScopeSelected",
             scopeMode === HP_HERO_SCOPE_SELECTED,
           );
+          summaryLabel.text = summaryText;
         }
-        updateHeroFace(row, button.__anitaHeroFacePanel);
-        updateHeroSummary(row, summaryLabel || button.__anitaHeroSummaryLabel);
+        var facePanel = button.__anitaHeroFacePanel;
+        if (!facePanel || !facePanel.IsValid || !facePanel.IsValid()) return;
+        var icon = facePanel.__anitaHeroFaceIcon || null;
+        var label = facePanel.__anitaHeroFaceLabel || null;
+        if (label && label.IsValid && label.IsValid()) label.text = faceText;
+        if (icon && icon.IsValid && icon.IsValid()) {
+          icon.SetHasClass("Visible", false);
+          try {
+            icon.style.backgroundImage = "none";
+          } catch (e0) {}
+        }
       }
 
       function isHeroPanelValid(panel) {
@@ -7098,7 +7472,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
         else
           selected =
             scopeMode === HP_HERO_SCOPE_SELECTED &&
-            heroSelected(selectedHeroes, heroId);
+            selectedHeroes.indexOf(heroId) >= 0;
         option.SetHasClass("Selected", selected);
         if (option.__anitaHeroCheckLabel)
           option.__anitaHeroCheckLabel.text = selected ? "✓" : "";
@@ -7106,8 +7480,8 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
 
       function syncHeroMenuState(menu, row) {
         if (!menu || !menu.__anitaHeroOptions) return;
-        var selectedHeroes = AnitaRenderer.getPresetRowHeroes(config, row);
-        var scopeMode = AnitaRenderer.getPresetRowHeroMode(config, row);
+        var selectedHeroes = HPPresetHeroSelection.getRowHeroes(config, row);
+        var scopeMode = HPPresetHeroSelection.getRowHeroMode(config, row);
         for (var i = 0; i < menu.__anitaHeroOptions.length; i++) {
           updateHeroMenuOptionState(
             menu.__anitaHeroOptions[i],
@@ -7155,8 +7529,8 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
 
       function handleHeroPickerChoice(button, row, summaryLabel, kind, heroId) {
         if (!button || !row) return;
-        var current = AnitaRenderer.getPresetRowHeroes(config, row);
-        var nextMode = AnitaRenderer.getPresetRowHeroMode(config, row);
+        var current = HPPresetHeroSelection.getRowHeroes(config, row);
+        var nextMode = HPPresetHeroSelection.getRowHeroMode(config, row);
         if (kind === HP_HERO_SCOPE_OFF) {
           current = [];
           nextMode = HP_HERO_SCOPE_OFF;
@@ -7165,7 +7539,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
           current = [];
           nextMode = HP_HERO_SCOPE_ALL;
           row.__anitaLastHeroDropDownSelection = "";
-        } else if (heroSelected(current, heroId)) {
+        } else if (current.indexOf(heroId) >= 0) {
           var next = [];
           for (var i = 0; i < current.length; i++) {
             if (current[i] !== heroId) next.push(current[i]);
@@ -7181,7 +7555,15 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
           nextMode = HP_HERO_SCOPE_SELECTED;
           row.__anitaLastHeroDropDownSelection = heroId;
         }
-        AnitaRenderer.setPresetRowHeroScope(config, row, nextMode, current);
+        HPPresetHeroSelection.setRowScope(config, row, nextMode, current);
+        row.token = AnitaRenderer.buildPresetCodeToken(
+          config,
+          row.values || {},
+          row.name || "",
+          row.payloadValues,
+          row.heroes,
+          row.heroMode,
+        );
         renderHeroPickerState(
           button,
           row,
@@ -8290,6 +8672,28 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
   const AnitaCore = {
     registeredMods: [],
 
+    queueHpColorsRegistration: function () {
+      if (this.findRegisteredMod("HP Colors")) return true;
+      if (this.__hpColorsRegistrationQueued) return true;
+      this.__hpColorsRegistrationQueued = true;
+      var attempts = (this.__hpColorsRegistrationAttempts || 0) + 1;
+      this.__hpColorsRegistrationAttempts = attempts;
+      $.Schedule(0.07, () => {
+        this.__hpColorsRegistrationQueued = false;
+        if (this.findRegisteredMod("HP Colors")) return;
+        try {
+          this.registerMod(HPSettingsContract.buildRegistrarConfig());
+        } catch (registerErr) {}
+        if (
+          !this.findRegisteredMod("HP Colors") &&
+          this.__hpColorsRegistrationAttempts < 24
+        ) {
+          this.queueHpColorsRegistration();
+        }
+      });
+      return true;
+    },
+
     init: function () {
       const root = this.getRoot($.GetContextPanel());
       AnitaRenderer.initWindow(root);
@@ -8302,9 +8706,10 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
       };
 
       this.setupEventListener();
+      this.queueHpColorsRegistration();
       this.createOverlayButton(root);
       this.monitorEscapeMenu(root);
-      if (this.registeredMods.length === 0) {
+      if (this.registeredMods.length === 0 && !this.__hpColorsRegistrationQueued) {
         this.registerMod({
           title: "Anita-UI",
           description: "No detected mods. Check your installed mods.",
@@ -8508,6 +8913,27 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
       $.Schedule(3.0, tick);
     },
 
+    isReplayUpdateSource: function (updateSource) {
+      return (
+        updateSource === "bridge_bootstrap" ||
+        updateSource === "ui_resync" ||
+        updateSource === "ui_reset" ||
+        updateSource === "ui_code_apply" ||
+        updateSource === "baked_preset_apply" ||
+        updateSource === "core_auto_resync" ||
+        updateSource === "ui_refresh_after_apply"
+      );
+    },
+
+    schedulePersistConfig: function (config, forceWrite) {
+      var writeToken = (config.__anitaPendingWriteToken || 0) + 1;
+      config.__anitaPendingWriteToken = writeToken;
+      $.Schedule(2.0, function () {
+        if (!config || config.__anitaPendingWriteToken !== writeToken) return;
+        AnitaPersistence.persistConfig(config, !!forceWrite);
+      });
+    },
+
     handleBulkUpdateEvent: function (data) {
       if (
         !data ||
@@ -8521,14 +8947,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
 
       var updateSource = String(data.update_source || "");
       var isBootstrap = updateSource === "bridge_bootstrap";
-      var isReplaySource =
-        isBootstrap ||
-        updateSource === "ui_resync" ||
-        updateSource === "ui_reset" ||
-        updateSource === "ui_code_apply" ||
-        updateSource === "baked_preset_apply" ||
-        updateSource === "core_auto_resync" ||
-        updateSource === "ui_refresh_after_apply";
+      var isReplaySource = this.isReplayUpdateSource(updateSource);
 
       var changed = false;
       var visibilityDirtyIds = [];
@@ -8582,12 +9001,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
       }
 
       if (data.skip_bridge_persist || isReplaySource) return;
-      var writeToken = (config.__anitaPendingWriteToken || 0) + 1;
-      config.__anitaPendingWriteToken = writeToken;
-      $.Schedule(2.0, function () {
-        if (!config || config.__anitaPendingWriteToken !== writeToken) return;
-        AnitaPersistence.persistConfig(config, !!data.force_persist);
-      });
+      this.schedulePersistConfig(config, !!data.force_persist);
     },
 
     handleUpdateEvent: function (data) {
@@ -8596,14 +9010,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
       if (!config) return;
       var updateSource = String(data.update_source || "");
       var isBootstrap = updateSource === "bridge_bootstrap";
-      var isReplaySource =
-        isBootstrap ||
-        updateSource === "ui_resync" ||
-        updateSource === "ui_reset" ||
-        updateSource === "ui_code_apply" ||
-        updateSource === "baked_preset_apply" ||
-        updateSource === "core_auto_resync" ||
-        updateSource === "ui_refresh_after_apply";
+      var isReplaySource = this.isReplayUpdateSource(updateSource);
       if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) {
         return;
       }
@@ -8631,12 +9038,7 @@ var result = AnitaRenderer.applyImportCode(config, text, "import_popup")
       }
 
       if (updateSource !== "ui_color_drag") {
-        var writeToken = (config.__anitaPendingWriteToken || 0) + 1;
-        config.__anitaPendingWriteToken = writeToken;
-        $.Schedule(2.0, function () {
-          if (!config || config.__anitaPendingWriteToken !== writeToken) return;
-          AnitaPersistence.persistConfig(config, false);
-        });
+        this.schedulePersistConfig(config, false);
       }
 
       if (hardGateChanged || isBootstrap) {

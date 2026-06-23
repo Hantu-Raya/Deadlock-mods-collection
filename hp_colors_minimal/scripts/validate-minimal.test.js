@@ -16,25 +16,44 @@ class MockPanel {
   constructor(id, options = {}) {
     this.id = id;
     this.text = options.text || "";
-    this.classes = options.classes || [];
+    this.classes = (options.classes || []).slice();
     this.children = [];
     this.parent = null;
     this.attributes = Object.assign({}, options.attributes || {});
-    this.style = {};
+    this.valid = options.valid !== undefined ? !!options.valid : true;
+    this.actuallayoutwidth = options.actuallayoutwidth || 0;
+    this.actuallayoutheight = options.actuallayoutheight || 0;
+    this.findCounts = options.findCounts || null;
+    this.styleWrites = [];
+    const initialStyle = Object.assign({}, options.style || {});
+    this.style = new Proxy(initialStyle, {
+      set: (target, property, value) => {
+        this.styleWrites.push({ property: String(property), value });
+        target[property] = value;
+        return true;
+      },
+      deleteProperty: (target, property) => {
+        this.styleWrites.push({ property: String(property), value: undefined });
+        delete target[property];
+        return true;
+      },
+    });
   }
 
   add(child) {
     child.parent = this;
+    if (!child.findCounts) child.findCounts = this.findCounts;
     this.children.push(child);
     return child;
   }
 
-  IsValid() { return true; }
+  IsValid() { return this.valid; }
   GetParent() { return this.parent; }
   Children() { return this.children.slice(); }
   BHasClass(name) { return this.classes.includes(name); }
   AddClass(name) { if (!this.classes.includes(name)) this.classes.push(name); }
   RemoveClass(name) { this.classes = this.classes.filter((item) => item !== name); }
+  SetHasClass(name, enabled) { if (enabled) this.AddClass(name); else this.RemoveClass(name); }
   GetAttributeString(name, fallback) {
     if (Object.prototype.hasOwnProperty.call(this.attributes, name)) return this.attributes[name];
     if (name === "text") return this.text || fallback || "";
@@ -43,10 +62,12 @@ class MockPanel {
   }
   SetAttributeString(name, value) { this.attributes[name] = String(value); }
   FindChildTraverse(id) {
-    if (this.id === id) return this;
-    for (const child of this.children) {
-      const found = child.FindChildTraverse(id);
-      if (found) return found;
+    if (this.findCounts) this.findCounts[id] = (this.findCounts[id] || 0) + 1;
+    const stack = [this];
+    while (stack.length) {
+      const panel = stack.shift();
+      if (panel.id === id) return panel;
+      stack.unshift(...panel.children);
     }
     return null;
   }
@@ -127,10 +148,337 @@ function lastSnapshot(result) {
   return result.dispatched[result.dispatched.length - 1] || null;
 }
 
+function normalizeColor(value) {
+  return String(value || "").slice(0, 7).toLowerCase();
+}
+
+function makeRuntimeValues(values = {}) {
+  return Object.assign({
+    hp_enabled: true,
+    hp_friend_enabled: false,
+    hp_level_number_visible: false,
+    hp_counter_visible: true,
+    hp_bg_visible: true,
+    hp_pulse_enabled: false,
+    hp_friend_pulse_enabled: false,
+  }, values);
+}
+
+function runRuntime(options = {}) {
+  const source = fs.readFileSync(path.join(ROOT, "panorama/scripts/healthbar_logic.js"), "utf8");
+  const findCounts = {};
+  const root = new MockPanel("Root", { findCounts });
+  const unitStatus = root.add(new MockPanel("UnitStatus", {
+    classes: options.unitStatusClasses || ["enemy", "team1"],
+    findCounts,
+  }));
+  const infoHealth = unitStatus.add(new MockPanel("InfoHealthContainer", { findCounts }));
+  const unitHealthbar = unitStatus.add(new MockPanel("UnitHealthbarContainer", { findCounts }));
+  const redParent = unitStatus.add(new MockPanel("unit_healthbar_parent", {
+    actuallayoutwidth: options.parentWidth === undefined ? 100 : options.parentWidth,
+    actuallayoutheight: 12,
+    findCounts,
+  }));
+  const lagging = redParent.add(new MockPanel("unit_healthbar_lagging", {
+    actuallayoutwidth: options.barWidth === undefined ? 100 : options.barWidth,
+    actuallayoutheight: 12,
+    findCounts,
+  }));
+  const bg = unitStatus.add(new MockPanel("unit_healthbar_bg", { findCounts }));
+  const pip = unitStatus.add(new MockPanel("unit_healthbar_pip_label", {
+    text: options.pipText || "100",
+    attributes: { text: options.pipText || "100" },
+    findCounts,
+  }));
+  const ult = unitStatus.add(new MockPanel("unit_ult_ready_icon", { findCounts }));
+  const level = unitStatus.add(new MockPanel("unit_level_label", {
+    text: options.levelText || "12",
+    attributes: { text: options.levelText || "12" },
+    findCounts,
+  }));
+  const name = root.add(new MockPanel("name", { text: options.nameText || "Enemy", findCounts }));
+  const counterAnchor = unitStatus.add(new MockPanel("hp_counter_anchor", { findCounts }));
+  const counter = counterAnchor.add(new MockPanel("hp_counter", { findCounts }));
+  const killZone = unitStatus.add(new MockPanel("hp_kill_zone_marker", { findCounts }));
+
+  let now = options.now === undefined ? 100000 : options.now;
+  let order = 0;
+  const scheduled = [];
+  const dispatched = [];
+  const logs = [];
+  const bridgeHandlers = [];
+  const shared = {};
+  if (options.sharedValues) {
+    shared.__hpColorsCfgRaw = JSON.stringify({ values: options.sharedValues });
+  }
+  const fakeDate = {
+    now: () => now,
+  };
+  const sandbox = {
+    Date: fakeDate,
+    Math,
+    Number,
+    String,
+    Boolean,
+    Object,
+    Array,
+    JSON,
+    RegExp,
+    parseInt,
+    isFinite,
+    console: {
+      log: (message) => { logs.push(String(message)); },
+      warn: (message) => { logs.push(String(message)); },
+      error: (message) => { logs.push(String(message)); },
+    },
+    GameUI: { CustomUIConfig: () => shared },
+    $: {
+      GetContextPanel: () => root,
+      DispatchEvent: (channel, payload) => { dispatched.push({ channel, payload }); },
+      RegisterForUnhandledEvent: (channel, fn) => { bridgeHandlers.push({ channel, fn }); },
+      Schedule: (delay, fn) => {
+        scheduled.push({ delay, due: now + Number(delay) * 1000, fn, order: order += 1 });
+      },
+      Msg: (message) => { logs.push(String(message)); },
+    },
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(source, sandbox, { filename: "hp_colors_minimal/panorama/scripts/healthbar_logic.js" });
+  return {
+    root,
+    unitStatus,
+    infoHealth,
+    unitHealthbar,
+    redParent,
+    lagging,
+    bg,
+    pip,
+    ult,
+    level,
+    name,
+    counterAnchor,
+    counter,
+    killZone,
+    findCounts,
+    scheduled,
+    dispatched,
+    logs,
+    bridgeHandlers,
+    shared,
+    get now() { return now; },
+    set now(value) { now = value; },
+  };
+}
+
+function dispatchPresetSnapshot(runtime, values, options = {}) {
+  const handler = runtime.bridgeHandlers.find((entry) => entry.channel === "ClientUI_FireOutput");
+  assert.ok(handler, "runtime should register ClientUI_FireOutput handler");
+  const raw = options.rawOverride || JSON.stringify(values);
+  const payload = {
+    magic_word: "HP_COLORS_PRESET_SNAPSHOT",
+    mod_title: "HP Colors",
+    version: 1,
+    values_raw: raw,
+    values,
+  };
+  runtime.shared.__hpColorsCfgRaw = options.sharedRawOverride || JSON.stringify({ values });
+  handler.fn(options.asString ? JSON.stringify(payload) : payload);
+  return payload;
+}
+
+function takeNextRuntimeSchedule(runtime) {
+  runtime.scheduled.sort((a, b) => a.due - b.due || a.order - b.order);
+  return runtime.scheduled.shift() || null;
+}
+
+function runNextRuntimeSchedule(runtime) {
+  const item = takeNextRuntimeSchedule(runtime);
+  assert.ok(item, "expected a scheduled runtime callback");
+  runtime.now = item.due;
+  item.fn();
+  return item;
+}
+
+function runRuntimeUntil(runtime, predicate, message, limit = 120) {
+  for (let i = 0; i < limit; i += 1) {
+    if (predicate()) return;
+    runNextRuntimeSchedule(runtime);
+  }
+  assert.ok(predicate(), message);
+}
+
+function runRuntimeFor(runtime, maxElapsedMs, limit = 200) {
+  const end = runtime.now + maxElapsedMs;
+  for (let i = 0; i < limit && runtime.scheduled.length; i += 1) {
+    runtime.scheduled.sort((a, b) => a.due - b.due || a.order - b.order);
+    if (runtime.scheduled[0].due > end) break;
+    runNextRuntimeSchedule(runtime);
+  }
+  runtime.now = end;
+}
+
 test("minimal folder keeps only expected production runtime files", () => {
   const report = getValidationReport();
   assert.deepEqual(report.errors, []);
   assert.equal(report.defaultKeys.length, 49);
+});
+
+test("minimal runtime function budget stays bounded", () => {
+  const report = getValidationReport();
+  assert.equal(report.errors.length, 0);
+  assert.ok(report.functionCounts.healthbar <= 115);
+  assert.ok(report.functionCounts.publisher <= 62);
+});
+
+test("runtime source uses only verified unit-status ids", () => {
+  const healthbar = fs.readFileSync(path.join(ROOT, "panorama/scripts/healthbar_logic.js"), "utf8");
+  const allowed = new Set([
+    "UnitStatus",
+    "InfoHealthContainer",
+    "UnitHealthbarContainer",
+    "unit_healthbar_lagging",
+    "unit_healthbar_bg",
+    "unit_healthbar_pip_label",
+    "unit_ult_ready_icon",
+    "unit_level_label",
+    "name",
+    "hp_counter",
+    "hp_counter_anchor",
+    "hp_kill_zone_marker",
+  ]);
+  const directIds = Array.from(healthbar.matchAll(/FindChildTraverse\(\s*(["'])(.*?)\1\s*\)/g), (m) => m[2]);
+  const constantIds = Array.from(healthbar.matchAll(/var\s+ID_[A-Z0-9_]+\s*=\s*(["'])(.*?)\1/g), (m) => m[2]);
+  for (const id of [...directIds, ...constantIds]) assert.ok(allowed.has(id), `unverified panel id: ${id}`);
+  for (const id of ["health_bar", "unit_health", "ult_icon"]) {
+    assert.doesNotMatch(healthbar, new RegExp(`(["'])${id}\\1`));
+  }
+  for (const id of allowed) {
+    if (id === "hp_counter" || id === "hp_counter_anchor" || id === "hp_kill_zone_marker") continue;
+    assert.match(healthbar, new RegExp(`var\\s+ID_[A-Z0-9_]+\\s*=\\s*(["'])${id}\\1`), `missing ID constant for ${id}`);
+  }
+});
+
+test("runtime scheduler ignores stale callbacks after stop", () => {
+  const runtime = runRuntime({
+    sharedValues: makeRuntimeValues({ hp_enabled: true }),
+    barWidth: 82,
+    parentWidth: 100,
+  });
+  const stale = takeNextRuntimeSchedule(runtime);
+  assert.ok(stale, "expected initial enemy schedule");
+  dispatchPresetSnapshot(runtime, makeRuntimeValues({ hp_enabled: false }));
+  const scheduledAfterStop = runtime.scheduled.length;
+  const writesAfterStop = runtime.lagging.styleWrites.length;
+  stale.fn();
+  assert.equal(runtime.lagging.styleWrites.length, writesAfterStop);
+  assert.equal(runtime.scheduled.length, scheduledAfterStop);
+  dispatchPresetSnapshot(runtime, makeRuntimeValues({ hp_enabled: true }));
+  assert.ok(runtime.scheduled.some((item) => item.delay <= 0.05), "reenabling should schedule a fresh enemy callback");
+});
+
+test("runtime paints confirmed enemy red before preset then preset high color", () => {
+  const runtime = runRuntime({ barWidth: 100, parentWidth: 100 });
+  runNextRuntimeSchedule(runtime);
+  assert.equal(normalizeColor(runtime.lagging.style.washColor), "#e16161");
+
+  runtime.lagging.actuallayoutwidth = 82;
+  runtime.redParent.actuallayoutwidth = 100;
+  dispatchPresetSnapshot(runtime, makeRuntimeValues({
+    hp_enabled: true,
+    hp_color_high: "#00AA00",
+    hp_mode: 0,
+    hp_bg_visible: true,
+  }));
+  runRuntimeUntil(
+    runtime,
+    () => normalizeColor(runtime.lagging.style.washColor) === "#00aa00",
+    "enemy bar should receive preset high color",
+  );
+});
+
+test("runtime pulse starts and clears with threshold changes", () => {
+  const runtime = runRuntime({
+    barWidth: 20,
+    parentWidth: 100,
+    sharedValues: makeRuntimeValues({
+      hp_enabled: true,
+      hp_pulse_enabled: true,
+      hp_pulse_threshold: 25,
+      hp_pulse_bpm: 120,
+      hp_pulse_intensity: 2,
+      hp_pulse_text_enabled: true,
+      hp_counter_visible: true,
+      hp_counter_format: 1,
+    }),
+  });
+  runRuntimeUntil(runtime, () => runtime.lagging.classes.includes("low_hp_pulsing"), "low HP pulse should start");
+  assert.ok(runtime.lagging.classes.includes("pulse_intense"));
+  assert.ok(runtime.ult.classes.includes("low_hp_pulsing"));
+  assert.equal(runtime.lagging.style.animationDuration, "0.500s");
+  assert.equal(runtime.ult.style.animationDuration, "0.500s");
+  assert.notEqual(runtime.counter.style.brightness, "");
+  assert.ok(runtime.counter.style.brightness);
+
+  runtime.lagging.actuallayoutwidth = 80;
+  runRuntimeUntil(runtime, () => !runtime.lagging.classes.includes("low_hp_pulsing"), "pulse should clear above threshold");
+  assert.equal(runtime.lagging.style.animationDuration, "");
+  assert.equal(runtime.counter.style.brightness, "");
+});
+
+test("runtime ally color resets to friendly defaults", () => {
+  const friendValues = makeRuntimeValues({
+    hp_enabled: false,
+    hp_friend_enabled: true,
+    hp_friend_color_low: "#112233",
+    hp_friend_color_mid: "#445566",
+    hp_friend_color_high: "#778899",
+    hp_friend_pulse_enabled: false,
+  });
+  const runtime = runRuntime({
+    unitStatusClasses: ["friend", "team1"],
+    barWidth: 20,
+    parentWidth: 100,
+    sharedValues: friendValues,
+  });
+  runRuntimeUntil(runtime, () => normalizeColor(runtime.lagging.style.washColor) === "#112233", "ally low color should apply");
+  dispatchPresetSnapshot(runtime, makeRuntimeValues({ hp_enabled: false, hp_friend_enabled: false }));
+  assert.equal(normalizeColor(runtime.lagging.style.washColor), "#ffefd7");
+
+  const buildingRuntime = runRuntime({
+    unitStatusClasses: ["friend", "team1", "building"],
+    barWidth: 20,
+    parentWidth: 100,
+    sharedValues: friendValues,
+  });
+  runRuntimeUntil(buildingRuntime, () => normalizeColor(buildingRuntime.lagging.style.washColor) === "#112233", "building ally low color should apply");
+  dispatchPresetSnapshot(buildingRuntime, makeRuntimeValues({ hp_enabled: false, hp_friend_enabled: false }));
+  assert.equal(normalizeColor(buildingRuntime.lagging.style.washColor), "#ffffff");
+});
+
+test("runtime duplicate snapshot wakes stopped pending loops", () => {
+  const values = makeRuntimeValues({
+    hp_enabled: true,
+    hp_friend_enabled: true,
+    hp_level_number_visible: true,
+  });
+  const runtime = runRuntime({
+    unitStatusClasses: ["enemy", "team1"],
+    barWidth: 82,
+    parentWidth: 100,
+    sharedValues: values,
+  });
+  runNextRuntimeSchedule(runtime);
+  runNextRuntimeSchedule(runtime);
+  runNextRuntimeSchedule(runtime);
+  runtime.scheduled.length = 0;
+  const beforeStoreFinds = runtime.findCounts.HPColorsPresetStore || 0;
+  dispatchPresetSnapshot(runtime, values, {
+    rawOverride: runtime.shared.__hpColorsCfgRaw,
+    sharedRawOverride: runtime.shared.__hpColorsCfgRaw,
+  });
+  const wakeups = runtime.scheduled.filter((item) => item.delay === 0.01);
+  assert.ok(wakeups.length >= 2, "duplicate snapshot should schedule immediate wakeups");
+  assert.equal(runtime.findCounts.HPColorsPresetStore || 0, beforeStoreFinds);
 });
 
 test("publisher is silent by default but supports opt-in breadcrumbs", () => {
@@ -159,7 +507,7 @@ test("compact aliases expand and selected hero scoped preset wins", () => {
       c: 1,
       values: { cl: "#abcdef", cv: false, m: 2, sb: false, fe: true, fcl: "#44FF44" },
       hm: "selected",
-      hs: ["haze"],
+      hs: ["hero_haze"],
     }),
   ], { heroClass: "hero_haze" });
 
@@ -260,6 +608,11 @@ test("runtime source preserves repaint, classification, and shipped Source 2 sel
     "function hasAllyBarStyleDrift",
     "nextAllyStyleDriftCheckAt",
     "if (allyColorChanged && rbA)",
+    "function syncEnemyPulse",
+    "function syncAllyPulse",
+    "function resetAllyState",
+    "function applyLayoutSettings",
+    "function syncLevelTier",
     "function wakeForPresetReplay",
     "SAME_RAW_WAKE_MIN_MS",
     "SAME_RAW_WAKE_WATCHDOG_MS",
@@ -269,7 +622,7 @@ test("runtime source preserves repaint, classification, and shipped Source 2 sel
     "wakeForPresetReplay(\"event_payload_same_raw\")",
     "function isEnemyTargetHealthbar",
     "function isFriendlyTargetHealthbar",
-    "isConfirmedAllyHealthbar(allyFlags)",
+    "isConfirmedAllyHealthbar(flags)",
     "function resolveRedBar(mode)",
     "resolveRedBar(\"friend\")",
     "resolveRedBar(\"enemy\")",
@@ -335,6 +688,11 @@ test("runtime source preserves repaint, classification, and shipped Source 2 sel
     /function getDefaultBarColor/,
     "ally reset default color should stay inlined; the old helper carried dead team/neutral branches",
   );
+  assert.doesNotMatch(
+    healthbar,
+    /function (getPulseTextSize|applyPulseTextState|updatePulseTextBrightness|applyPulseDuration|applyPulseIntensity|startPulse|clearPulsePanel|clearAllyPulse|resetAllyBarColor|resetAllyLoopCache|resetAllyScanCache|releaseAllyOwnership|getInfoHealthMarginTopValue|applyInfoHealthMarginTop|getHealthbarHeightPx|applyHealthbarHeight|pLv|fER|sLNV|cLU|uLT)\b/,
+    "deleted helper declarations must stay removed",
+  );
   assert.match(
     healthbar,
     /var color = flags & 4 \? WHITE_WASH : CSS_TEAM_FRIEND_COLOR;/,
@@ -347,7 +705,7 @@ test("runtime source preserves repaint, classification, and shipped Source 2 sel
   );
   assert.match(
     healthbar,
-    /if \(!presetApplied\) \{[\s\S]*sBC\(CSS_TEAM_ENEMY_COLOR\);[\s\S]*scheduleEnemyLoop\(0\.05\);[\s\S]*return;[\s\S]*\}/,
+    /if \(!presetApplied\) \{[\s\S]*sBC\(CSS_TEAM_ENEMY_COLOR\);[\s\S]*scheduleLoop\(LOOP_ENEMY, 0\.05\);[\s\S]*return;[\s\S]*\}/,
     "confirmed enemies should stay enemy red until the user preset snapshot is ready",
   );
   assert.match(

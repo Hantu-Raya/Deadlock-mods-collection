@@ -12,6 +12,25 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const SCRIPTS_DIR = path.join(ROOT, 'hp_colors', 'panorama', 'scripts');
 const STYLES_DIR = path.join(ROOT, 'hp_colors', 'panorama', 'styles');
+const LAYOUTS_DIR = path.join(ROOT, 'hp_colors', 'panorama', 'layout');
+const MAX_HEALTHBAR_RUNTIME_FUNCTIONS = 95;
+const ALLOWED_RUNTIME_PANEL_IDS = new Set([
+  'UnitStatus',
+  'InfoHealthContainer',
+  'UnitHealthbarContainer',
+  'unit_healthbar_lagging',
+  'unit_healthbar_bg',
+  'unit_healthbar_pip_label',
+  'unit_ult_ready_icon',
+  'name',
+  'hp_counter',
+  'hp_counter_anchor',
+  'hp_kill_zone_marker',
+  'unit_level_label',
+  'LevelContainer'
+]);
+const FORBIDDEN_RUNTIME_PANEL_IDS = ['health_bar', 'unit_health', 'ult_icon'];
+
 
 function readFile(name) {
   return fs.readFileSync(path.join(SCRIPTS_DIR, name), 'utf-8').replace(/\r\n/g, '\n');
@@ -21,42 +40,145 @@ function readStyleFile(name) {
   return fs.readFileSync(path.join(STYLES_DIR, name), 'utf-8').replace(/\r\n/g, '\n');
 }
 
-function extractSchemaIds(text) {
-  const re = /var\s+SCHEMA\s*=\s*\[([\s\S]*?)\];/;
-  const m = text.match(re);
+function readLayoutFile(name) {
+  return fs.readFileSync(path.join(LAYOUTS_DIR, name), 'utf-8').replace(/\r\n/g, '\n');
+}
+
+function extractPanoramaScriptIncludes(text) {
+  return Array.from(text.matchAll(/scripts\/([^"']+\.vjs_c)/g), match => match[1]).sort();
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function findBalancedBlock(text, openIndex, openChar, closeChar) {
+  if (openIndex < 0 || text[openIndex] !== openChar) return null;
+  let depth = 0;
+  let quote = '';
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+  for (let i = openIndex; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i + 1];
+    if (lineComment) {
+      if (ch === '\n') lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      if (ch === '*' && next === '/') {
+        blockComment = false;
+        i += 1;
+      }
+      continue;
+    }
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === quote) {
+        quote = '';
+      }
+      continue;
+    }
+    if (ch === '/' && next === '/') {
+      lineComment = true;
+      i += 1;
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      blockComment = true;
+      i += 1;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      continue;
+    }
+    if (ch === openChar) depth += 1;
+    else if (ch === closeChar) {
+      depth -= 1;
+      if (depth === 0) return text.slice(openIndex + 1, i);
+    }
+  }
+  return null;
+}
+
+function extractAssignedBlock(text, varName, openChar, closeChar) {
+  const re = new RegExp('(?:var|const)\\s+' + escapeRegExp(varName) + '\\s*=\\s*\\' + openChar);
+  const m = re.exec(text);
   if (!m) return null;
-  const block = m[1];
+  return findBalancedBlock(text, m.index + m[0].length - 1, openChar, closeChar);
+}
+
+function extractContractPropertyBlock(text, propName, openChar, closeChar) {
+  const re = new RegExp('\\b' + escapeRegExp(propName) + '\\s*:\\s*\\' + openChar);
+  const m = re.exec(text);
+  if (!m) return null;
+  return findBalancedBlock(text, m.index + m[0].length - 1, openChar, closeChar);
+}
+
+function extractSchemaBlock(text) {
+  return extractContractPropertyBlock(text, 'SETTINGS', '[', ']') ||
+    extractAssignedBlock(text, 'SCHEMA', '[', ']');
+}
+
+function extractDefaultsBlock(text) {
+  return extractContractPropertyBlock(text, 'DEFAULTS', '{', '}') ||
+    extractAssignedBlock(text, 'DEFAULTS', '{', '}');
+}
+
+function extractAliasesBlock(text, varName) {
+  const contractName = varName === 'HP_PERSIST_ALIASES' ? 'ALIASES' : varName;
+  return extractContractPropertyBlock(text, contractName, '{', '}') ||
+    extractAssignedBlock(text, varName, '{', '}');
+}
+
+function extractSchemaObjects(text) {
+  const block = extractSchemaBlock(text);
+  if (!block) return null;
+  const objects = [];
+  for (let i = 0; i < block.length; i++) {
+    if (block[i] !== '{') continue;
+    const body = findBalancedBlock(block, i, '{', '}');
+    if (body === null) continue;
+    objects.push(body);
+    i += body.length + 1;
+  }
+  return objects;
+}
+
+function extractSchemaIds(text) {
+  const objects = extractSchemaObjects(text);
+  if (!objects) return null;
   const ids = [];
-  // Match each top-level object literal, allowing one level of nested braces (e.g. visibleWhen)
-  const objRe = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
-  let om;
-  while ((om = objRe.exec(block)) !== null) {
-    const idMatch = om[0].match(/\bid:\s*["']([^"']+)["']/);
+  for (const objectText of objects) {
+    const idMatch = objectText.match(/\bid:\s*["']([^"']+)["']/);
     if (idMatch) ids.push(idMatch[1]);
   }
   return ids;
 }
 
 function extractDefaultsKeys(text) {
-  const re = /(?:var|const)\s+DEFAULTS\s*=\s*\{([\s\S]*?)\};/;
-  const m = text.match(re);
-  if (!m) return null;
+  const block = extractDefaultsBlock(text);
+  if (!block) return null;
   const keys = [];
-  const kvRe = /([a-z_][a-z0-9_]*)\s*:/g;
+  const kvRe = /(?:"([^"]+)"|'([^']+)'|([a-z_][a-z0-9_]*))\s*:/g;
   let km;
-  while ((km = kvRe.exec(m[1])) !== null) keys.push(km[1]);
+  while ((km = kvRe.exec(block)) !== null) keys.push(km[1] || km[2] || km[3]);
   return keys;
 }
 
 function extractAliases(text, varName) {
-  const re = new RegExp('(?:var|const)\\s+' + varName + '\\s*=\\s*\\{([\\s\\S]*?)\\};');
-  const m = text.match(re);
-  if (!m) return null;
+  const block = extractAliasesBlock(text, varName);
+  if (!block) return null;
   const aliases = {};
   // Support both quoted and unquoted keys, values always quoted
   const kvRe = /(?:"([^"]+)"|'([^']+)'|([a-z_][a-z0-9_]*))\s*:\s*"([^"]+)"/g;
   let km;
-  while ((km = kvRe.exec(m[1])) !== null) {
+  while ((km = kvRe.exec(block)) !== null) {
     const key = km[1] || km[2] || km[3];
     aliases[key] = km[4];
   }
@@ -64,37 +186,33 @@ function extractAliases(text, varName) {
 }
 
 function extractReverseAliases(text, varName) {
-  const re = new RegExp('(?:var|const)\\s+' + varName + '\\s*=\\s*\\{([\\s\\S]*?)\\};');
-  const m = text.match(re);
-  if (!m) return null;
+  const block = extractAliasesBlock(text, varName);
+  if (!block) return null;
   const rev = {};
   // Support both quoted and unquoted keys, values always quoted
   const kvRe = /(?:"([^"]+)"|'([^']+)'|([a-z_][a-z0-9_]*))\s*:\s*"([^"]+)"/g;
   let km;
-  while ((km = kvRe.exec(m[1])) !== null) {
+  while ((km = kvRe.exec(block)) !== null) {
     const key = km[1] || km[2] || km[3];
     rev[key] = km[4];
   }
   return rev;
 }
 
-function extractRegistrarDefaults(text) {
-  const re = /var\s+SCHEMA\s*=\s*\[([\s\S]*?)\];/;
-  const m = text.match(re);
-  if (!m) return null;
+function extractSchemaDefaults(text) {
+  const objects = extractSchemaObjects(text);
+  if (!objects) return null;
   const defs = {};
-  const objRe = /\{[^{}]*\}/g;
-  let om;
-  while ((om = objRe.exec(m[1])) !== null) {
-    const idMatch = om[0].match(/\bid:\s*["']([^"']+)["']/);
+  for (const objectText of objects) {
+    const idMatch = objectText.match(/\bid:\s*["']([^"']+)["']/);
     if (!idMatch) continue;
     const id = idMatch[1];
-    const dvMatch = om[0].match(/defaultValue:\s*("[^"]*"|true|false|\d+)/);
+    const dvMatch = objectText.match(/defaultValue:\s*("[^"]*"|'[^']*'|true|false|-?\d+)/);
     if (dvMatch) {
       let v = dvMatch[1];
       if (v === 'true') v = true;
       else if (v === 'false') v = false;
-      else if (/^\d+$/.test(v)) v = parseInt(v, 10);
+      else if (/^-?\d+$/.test(v)) v = parseInt(v, 10);
       else v = v.slice(1, -1);
       defs[id] = v;
     }
@@ -102,41 +220,110 @@ function extractRegistrarDefaults(text) {
   return defs;
 }
 
+function extractContractString(text, propName) {
+  const re = new RegExp("\\b" + escapeRegExp(propName) + "\\s*:\\s*[\"']([^\"']+)[\"']");
+  const m = text.match(re);
+  return m ? m[1] : null;
+}
+
+function extractContractNumber(text, propName) {
+  const re = new RegExp('\\b' + escapeRegExp(propName) + '\\s*:\\s*(-?\\d+)');
+  const m = text.match(re);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+
+function extractFunctionDeclarationNames(text) {
+  const names = [];
+  const re = /^\s*function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
+  let m;
+  while ((m = re.exec(text)) !== null) names.push(m[1]);
+  return names;
+}
+
+function extractFindChildIds(text) {
+  const ids = [];
+  const re = /FindChildTraverse\(\s*["']([^"']+)["']\s*\)/g;
+  let m;
+  while ((m = re.exec(text)) !== null) ids.push(m[1]);
+  return ids;
+}
+
+function extractRuntimeIdConstants(text) {
+  const ids = [];
+  const re = /^\s*var\s+ID_[A-Z0-9_]+\s*=\s*["']([^"']+)["'];/gm;
+  let m;
+  while ((m = re.exec(text)) !== null) ids.push(m[1]);
+  return ids;
+}
+
 function main() {
-  const registrar = readFile('hp_registrar.js');
   const healthbar = readFile('healthbar_logic.js');
   const uiCore = readFile('anita_ui_core.js');
-  const loader = readFile('anita_persist_loader.js');
   const uiStyle = readStyleFile('anita_ui.css');
   const unitStyle = readStyleFile('unit_status.css');
+  const baseHud = readLayoutFile('base_hud.xml');
+  const unitStatusOverlay = readLayoutFile('unit_status_overlay.xml');
 
-  const schemaIds = extractSchemaIds(registrar);
+  const schemaIds = extractSchemaIds(uiCore);
   const defaultsKeys = extractDefaultsKeys(healthbar);
   const aliasesCore = extractAliases(uiCore, 'HP_PERSIST_ALIASES');
-  const aliasesLoader = extractAliases(loader, 'HP_PERSIST_ALIASES');
   const revAliases = extractReverseAliases(healthbar, 'HP_PERSIST_ALIAS_TO_ID') || {};
-  const registrarDefaults = extractRegistrarDefaults(registrar);
+  const schemaDefaults = extractSchemaDefaults(uiCore);
+  const schemaNamespace = extractContractString(uiCore, 'storageNamespace');
+  const schemaVersion = extractContractNumber(uiCore, 'storageVersion');
 
   const errors = [];
   const warnings = [];
 
-  if (!schemaIds || schemaIds.length === 0) errors.push('Could not extract SCHEMA from hp_registrar.js');
+  if (schemaNamespace !== 'hp_colors') {
+    errors.push(`anita_ui_core.js storageNamespace must be "hp_colors", got: ${schemaNamespace}`);
+  }
+  if (schemaVersion !== 97) {
+    errors.push(`anita_ui_core.js storageVersion must be 97, got: ${schemaVersion}`);
+  }
+
+  if (!schemaIds || schemaIds.length === 0) errors.push('Could not extract SETTINGS from anita_ui_core.js');
   if (!defaultsKeys || defaultsKeys.length === 0) errors.push('Could not extract DEFAULTS from healthbar_logic.js');
   if (!aliasesCore || Object.keys(aliasesCore).length === 0) errors.push('Could not extract HP_PERSIST_ALIASES from anita_ui_core.js');
-  if (!aliasesLoader || Object.keys(aliasesLoader).length === 0) errors.push('Could not extract HP_PERSIST_ALIASES from anita_persist_loader.js');
-  if (!registrarDefaults || Object.keys(registrarDefaults).length === 0) errors.push('Could not extract SCHEMA defaults from hp_registrar.js');
+  if (!schemaDefaults || Object.keys(schemaDefaults).length === 0) errors.push('Could not extract SETTINGS defaults from anita_ui_core.js');
+
+  const sourceScripts = fs.readdirSync(SCRIPTS_DIR)
+    .filter(name => name.endsWith('.js'))
+    .sort();
+  const expectedSourceScripts = ['anita_ui_core.js', 'healthbar_logic.js'];
+  if (sourceScripts.join('|') !== expectedSourceScripts.join('|')) {
+    errors.push(`hp_colors panorama script set must be exactly ${expectedSourceScripts.join(', ')}, got: ${sourceScripts.join(', ') || '(none)'}`);
+  }
 
   if (errors.length) {
     errors.forEach(e => console.error('[AUDIT ERROR]', e));
     process.exit(1);
   }
 
+  const healthbarFunctionNames = extractFunctionDeclarationNames(healthbar);
+  if (healthbarFunctionNames.length > MAX_HEALTHBAR_RUNTIME_FUNCTIONS) {
+    errors.push(
+      `healthbar_logic.js declares ${healthbarFunctionNames.length} runtime functions; max ${MAX_HEALTHBAR_RUNTIME_FUNCTIONS}`
+    );
+  }
+  for (const id of extractFindChildIds(healthbar).concat(extractRuntimeIdConstants(healthbar))) {
+    if (!ALLOWED_RUNTIME_PANEL_IDS.has(id)) {
+      errors.push(`healthbar_logic.js uses unverified runtime panel id: ${id}`);
+    }
+  }
+  for (const id of FORBIDDEN_RUNTIME_PANEL_IDS) {
+    const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const exactString = new RegExp(`["']${escaped}["']`);
+    if (exactString.test(healthbar)) {
+      errors.push(`healthbar_logic.js contains forbidden fallback panel id: ${id}`);
+    }
+  }
+
   const schemaSet = new Set(schemaIds);
   const defaultsSet = new Set(defaultsKeys);
   const aliasIdsCore = Object.keys(aliasesCore);
-  const aliasIdsLoader = Object.keys(aliasesLoader);
   const aliasIdsSetCore = new Set(aliasIdsCore);
-  const aliasIdsSetLoader = new Set(aliasIdsLoader);
 
   // 1. Schema IDs missing from DEFAULTS
   for (const id of schemaIds) {
@@ -151,15 +338,11 @@ function main() {
   // 3. Schema IDs missing from aliases
   for (const id of schemaIds) {
     if (!aliasIdsSetCore.has(id)) errors.push(`anita_ui_core.js alias missing: ${id}`);
-    if (!aliasIdsSetLoader.has(id)) errors.push(`anita_persist_loader.js alias missing: ${id}`);
   }
 
   // 4. Alias IDs missing from SCHEMA (orphaned aliases)
   for (const id of aliasIdsCore) {
     if (!schemaSet.has(id)) errors.push(`anita_ui_core.js orphaned alias: ${id}`);
-  }
-  for (const id of aliasIdsLoader) {
-    if (!schemaSet.has(id)) errors.push(`anita_persist_loader.js orphaned alias: ${id}`);
   }
 
   // 5. Alias values duplicate check
@@ -169,13 +352,6 @@ function main() {
   }
   for (const [val, count] of Object.entries(valCounts)) {
     if (count > 1) errors.push(`Duplicate alias value in anita_ui_core.js: "${val}" used ${count} times`);
-  }
-
-  // 6. Alias parity between core and loader
-  for (const id of schemaIds) {
-    if (aliasesCore[id] !== aliasesLoader[id]) {
-      errors.push(`Alias mismatch for ${id}: core="${aliasesCore[id]}" loader="${aliasesLoader[id]}"`);
-    }
   }
 
   // 7. Compact alias conversion belongs to Anita/import loaders, not the hot healthbar runtime.
@@ -191,12 +367,11 @@ function main() {
   ]) {
     if (healthbar.includes(marker)) errors.push(`healthbar_logic.js must not touch convar storage: ${marker}`);
     if (uiCore.includes(marker)) errors.push(`anita_ui_core.js must not touch convar storage: ${marker}`);
-    if (loader.includes(marker)) errors.push(`anita_persist_loader.js must not touch convar storage: ${marker}`);
   }
 
-  // 8. Registrar defaults vs runtime defaults
+  // 8. UI schema defaults vs runtime defaults
   for (const id of schemaIds) {
-    const regVal = registrarDefaults[id];
+    const regVal = schemaDefaults[id];
     const runIdx = healthbar.indexOf(id + ':');
     if (runIdx > 0) {
       const snippet = healthbar.slice(runIdx, runIdx + 80);
@@ -204,7 +379,7 @@ function main() {
       if (!snippet.includes(regStr) && regVal !== undefined) {
         const alt = String(regVal);
         if (!snippet.includes(alt)) {
-          warnings.push(`Registrar default for ${id} (${regStr}) may differ from runtime default`);
+          warnings.push(`UI schema default for ${id} (${regStr}) may differ from runtime default`);
         }
       }
     }
@@ -216,8 +391,14 @@ function main() {
   if (healthbar.includes('redBarNeedsPaint')) {
     errors.push('healthbar_logic.js must not use redBarNeedsPaint candidate style-read scoring');
   }
-  const redbarScoreStart = healthbar.indexOf('function getRedBarCandidateScore');
-  const redbarScoreEnd = healthbar.indexOf('function resetEnemyScanCache');
+  const redbarScoreStart =
+    healthbar.indexOf('scoreRedBarCandidate: function') >= 0
+      ? healthbar.indexOf('scoreRedBarCandidate: function')
+      : healthbar.indexOf('function getRedBarCandidateScore');
+  const redbarScoreEnd =
+    healthbar.indexOf('resetEnemyScanCache: function') > redbarScoreStart
+      ? healthbar.indexOf('resetEnemyScanCache: function')
+      : healthbar.indexOf('function resetEnemyScanCache');
   if (redbarScoreStart < 0 || redbarScoreEnd <= redbarScoreStart) {
     errors.push('healthbar_logic.js missing redbar candidate scoring guard region');
   } else {
@@ -229,11 +410,8 @@ function main() {
       errors.push('healthbar_logic.js redbar candidate scoring should use packed class flags');
     }
   }
-  if (!healthbar.includes('if (isChildProbe) {') || !healthbar.includes('stableCurrentRedBarFrames >= 10')) {
+  if (!healthbar.includes('stableCurrentRedBarFrames >= 10') || !healthbar.includes('CURRENT_RB_IDLE_RESCAN_MS')) {
     errors.push('healthbar_logic.js child redbar probes should share bounded stable-frame idle backoff');
-  }
-  if (!loader.includes('var elementById = null') || !loader.includes('elementById[element.id] = element')) {
-    errors.push('anita_persist_loader.js should maintain an element id map for update lookups');
   }
   for (const uiCoreMarker of [
     'ensureConfigIndexes: function (config)',
@@ -269,8 +447,33 @@ function main() {
       errors.push(`anita_ui.css missing donation style marker: ${donationStyleMarker}`);
     }
   }
-  if (!registrar.includes('cachedRegisterPayload') || !registrar.includes('cachedBootstrapPayload')) {
-    errors.push('hp_registrar.js should cache repeated registration/bootstrap payload JSON strings');
+  for (const removedScript of ['hp_registrar.js', 'anita_persist_loader.js']) {
+    if (fs.existsSync(path.join(SCRIPTS_DIR, removedScript))) {
+      errors.push(`merged script should not remain as separate source: ${removedScript}`);
+    }
+  }
+  const baseHudScripts = extractPanoramaScriptIncludes(baseHud);
+  const unitStatusScripts = extractPanoramaScriptIncludes(unitStatusOverlay);
+  if (baseHudScripts.join('|') !== 'anita_ui_core.vjs_c') {
+    errors.push(`base_hud.xml should load only anita_ui_core.vjs_c, got: ${baseHudScripts.join(', ') || '(none)'}`);
+  }
+  if (unitStatusScripts.join('|') !== 'healthbar_logic.vjs_c') {
+    errors.push(`unit_status_overlay.xml should load only healthbar_logic.vjs_c, got: ${unitStatusScripts.join(', ') || '(none)'}`);
+  }
+  for (const removedScript of ['hp_registrar.vjs_c', 'anita_persist_loader.vjs_c']) {
+    if (baseHudScripts.includes(removedScript) || unitStatusScripts.includes(removedScript)) {
+      errors.push(`layout should not include merged script asset: ${removedScript}`);
+    }
+  }
+  for (const schemaMarker of [
+    'SETTINGS: [',
+    'buildRegistrarConfig: function ()',
+    'queueHpColorsRegistration: function ()',
+    'HPSettingsContract.buildRegistrarConfig()'
+  ]) {
+    if (!uiCore.includes(schemaMarker)) {
+      errors.push(`anita_ui_core.js missing merged schema marker: ${schemaMarker}`);
+    }
   }
   if (!unitStyle.match(/#unit_healthbar_lagging\s*\{[\s\S]*?wash-color:\s*TeamEnemyColor\s*;/)) {
     errors.push('unit_status.css bare main healthbar should match the proven debug first-paint enemy default');
@@ -280,26 +483,32 @@ function main() {
   }
   for (const runtimeColorMarker of [
     'var knownFriendlyTeamId = 0;',
-    'function isFriendlyBuildingTarget(flags)',
-    'function isEnemyBuildingTarget(flags)',
-    'function getIgnoredTargetColor()',
-    'if (cfg.hp_skip_buildings && (fl & 4))',
+    'isFriendlyBuilding: function (flags, teamId)',
+    'isEnemyBuilding: function (flags, teamId)',
+    'getIgnoredTargetColor: function ()',
+    'if (cfg.hp_skip_buildings && target.isBuilding)',
     'normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_high)',
-    'sBC(getHighColor());'
+    'HealthbarPainter.setBarColor(getHighColor());'
   ]) {
     if (!healthbar.includes(runtimeColorMarker)) {
       errors.push(`healthbar_logic.js missing first-paint/building color marker: ${runtimeColorMarker}`);
     }
   }
-  const ignoredColorStart = healthbar.indexOf('function getIgnoredTargetColor()');
-  const ignoredColorEnd = healthbar.indexOf('function getHealthbarHeightPx');
+  const ignoredColorStart =
+    healthbar.indexOf('getIgnoredTargetColor: function ()') >= 0
+      ? healthbar.indexOf('getIgnoredTargetColor: function ()')
+      : healthbar.indexOf('function getIgnoredTargetColor()');
+  const ignoredColorEnd =
+    healthbar.indexOf('var _allyScanPanel') > ignoredColorStart
+      ? healthbar.indexOf('var _allyScanPanel')
+      : healthbar.indexOf('function resetAllyState');
   if (ignoredColorStart < 0 || ignoredColorEnd <= ignoredColorStart) {
     errors.push('healthbar_logic.js missing ignored-target color guard region');
   } else {
     const ignoredColorBody = healthbar.slice(ignoredColorStart, ignoredColorEnd);
-    if (!ignoredColorBody.includes('if (fl & 1 && !(fl & 2)) return "";') ||
-        !ignoredColorBody.includes('if (isEnemyBuildingTarget(fl)) return CSS_TEAM_ENEMY_COLOR;') ||
-        !ignoredColorBody.includes('if (isFriendlyBuildingTarget(fl)) return WHITE_WASH;') ||
+    if (!ignoredColorBody.includes('if (flags & 1 && !(flags & 2)) return "";') ||
+        !ignoredColorBody.includes('if (this.isEnemyBuilding(flags, tid)) return CSS_TEAM_ENEMY_COLOR;') ||
+        !ignoredColorBody.includes('if (this.isFriendlyBuilding(flags, tid)) return WHITE_WASH;') ||
         !ignoredColorBody.includes('return CSS_TEAM_ENEMY_COLOR;')) {
       errors.push('healthbar_logic.js ignored fallback should match debug behavior: enemy/unknown red, friendly building white, neutral class green');
     }
@@ -307,7 +516,7 @@ function main() {
   if (healthbar.includes('function getDefaultBarColor')) {
     errors.push('healthbar_logic.js should inline ally reset default color instead of keeping dead getDefaultBarColor branches');
   }
-  if (!healthbar.includes('var color = CSS_TEAM_FRIEND_COLOR;')) {
+  if (!healthbar.includes('panel.style.washColor = CSS_TEAM_FRIEND_COLOR;')) {
     errors.push('healthbar_logic.js should reset full ally bars directly to CSS_TEAM_FRIEND_COLOR');
   }
   if (healthbar.includes('_allyScanPacked') ||
@@ -425,17 +634,15 @@ function main() {
     'const HP_STARTUP_PRESET_ID = "HPColorsPreset_001"',
     'function getPanelId(panel)',
     'id === HP_STARTUP_PRESET_ID',
-    'function readBakedPresetHeroTargets(modConfig, presetId, displayIndex, fallbackHeroes)',
-    'function readBakedPresetHeroMode(modConfig, presetId, displayIndex, fallbackMode, fallbackHeroes)',
-    'var _hpPresetStoreEntries = null;',
-    'function clearHpPresetStoreRefs()',
-    'function readBakedPresetEntryBase(entry, modConfig, displayIndex, encoded, id)',
-    'function materializeBakedPresetEntry(base, modConfig, displayIndex)',
+    'const HPPresetHeroSelection = {',
+    'function readBakedPresetEntryBase(',
+    'materializeBakedEntry: function (base, modConfig, displayIndex)',
     'modConfig.__hpBakedPresetEntryCache = cache;',
     'modConfig.__anitaPresetHeroSelections',
     'modConfig.__anitaPresetHeroModes',
-    'function selectBakedPresetForHero(modConfig, allowUnknownFallback, allowHeroMatch)',
-    'function hasHpSelectedScopedPreset(config)',
+    'readRuntimePresetEntries: function (modConfig)',
+    'selectForHero: function (',
+    'hasSelectedScopedPreset: function (config)',
     'const HP_HERO_SCOPE_OFF = "off"',
     'const HP_HERO_SCOPE_ALL = "all"',
     'const HP_HERO_SCOPE_SELECTED = "selected"',
@@ -448,14 +655,14 @@ function main() {
     'function resetHpHeroPresetDetectionLock(config)',
     'function lockHpHeroPresetDetectionIfReady(config, heroId)',
     'config.__hpHeroPresetDetectionLocked = true;',
-    'config.__hpHeroPresetLockAfterGameTime = gameTime > 0',
+    'config.__hpHeroPresetLockAfterGameTime =',
     'var lockedPresetKey = String(config.__hpLastAppliedHeroPresetKey || "");',
     'openHpHeroPresetDetectionWindow(config);',
     'lockHpHeroPresetDetectionIfReady(config, appliedHero);',
-    'result = { preset: firstHeroMatch, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "hero" }',
-    'result = { preset: null, heroId: heroId, hasScopedPreset: true, reason: "waiting_for_hero" }',
-    'result = { preset: firstGlobal, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "global" }',
-    'if (!config.__hpHeroPresetHasScopedPreset && !hasHpSelectedScopedPreset(config)) return;',
+    'reason: "hero"',
+    'reason: "waiting_for_hero"',
+    'reason: "global"',
+    'HPPresetHeroSelection.hasSelectedScopedPreset(config)',
     'config.__hpHeroPresetWatchStarted = false;',
     'function applyHpColorsBakedPresetValues(config, values, presetKey, heroId)',
     'AnitaPersistence.applyResolvedValues(config, values);',
@@ -494,13 +701,12 @@ function main() {
     'updateSource === "baked_preset_apply"',
     'source === "baked_preset_apply"'
   ]) {
-    if (!uiCore.includes(replayMarker) && !healthbar.includes(replayMarker) && !loader.includes(replayMarker)) {
+    if (!uiCore.includes(replayMarker) && !healthbar.includes(replayMarker)) {
       errors.push(`Baked preset replay source missing marker: ${replayMarker}`);
     }
   }
 
   // 12. Full hp_colors base_hud must expose the builder insertion point so pak97 can carry pak96 preset store.
-  const baseHud = fs.readFileSync(path.join(ROOT, 'hp_colors', 'panorama', 'layout', 'base_hud.xml'), 'utf-8');
   if (!baseHud.includes('id="AnitaUI_Anchor"')) {
     errors.push('base_hud.xml missing AnitaUI_Anchor for HPColorsPresetStore injection');
   }
@@ -534,70 +740,99 @@ function main() {
     'copyIcon.AddClass("AnitaPresetBtnIconCopy")',
     'const HP_HERO_DATA = [',
     'function detectHpLocalHero()',
-    'function makeHeroPickerButton(parent, row)',
-    'button.AddClass("AnitaPresetHeroPickerBtn");',
+    'AnitaPresetHeroPickerBtn',
     'button.SetPanelEvent("onactivate", function () {',
-    'function getHeroMenuPopupHost()',
-    'function positionHeroMenu(menu, button, host)',
-    'AnitaRenderer.popupHost',
-    '$.CreatePanel("Panel", host || parent, "")',
-    'function closeHeroMenu(button)',
-    'function renderHeroMenu(menu, button, row, summaryLabel)',
-    'function makeHeroMenuOption(menu, button, row, summaryLabel, kind, heroId)',
-    'function syncHeroMenuState(menu, row)',
-    'function handleHeroPickerChoice(button, row, summaryLabel, kind, heroId)',
-    'option.SetPanelEvent("onactivate", function () {',
+    'AnitaPresetHeroMenuOption',
     'option.SetAttributeString("anita_hero_id", option.__anitaHeroId);',
     'option.SetAttributeString("anita_hero_kind", optionKind);',
     'iconSlot.AddClass("AnitaPresetHeroMenuOptionIcon");',
     'iconSlot.AddClass("AnitaPresetHeroMenuOptionIconAll");',
     'iconSlot.style.backgroundImage = "none";',
     'var heroIconImage = $.CreatePanel("Panel", iconSlot, "");',
-    'heroIconImage.AddClass("AnitaPresetHeroMenuOptionHeroIcon");',
+    'AnitaPresetHeroMenuOptionHeroIcon',
     'heroIconImage.__anitaHeroIconPath = hpHeroIconPath(heroId);',
     'heroIconImage.style.backgroundImage = "none";',
     'heroIconImage.style.minWidth = "22px";',
     'heroIconImage.style.maxWidth = "22px";',
     'heroIconImage.style.overflow = "clip";',
     'heroIconImage.style.backgroundSize = "100% 100%";',
-    'heroIconImage.style.backgroundTextureSize = "22px 22px";',
+    'backgroundTextureSize = "22px 22px"',
     'heroIconImage.style.backgroundPosition = "50% 50%";',
     'heroIconImage.style.backgroundRepeat = "no-repeat";',
-    'function settleHeroMenuIcons(menu)',
     'icon.style.minWidth = "22px";',
     'icon.style.maxWidth = "22px";',
     'icon.style.overflow = "clip";',
-    'icon.style.backgroundImage = "url(\\"" + path + "\\")";',
-    'settleHeroMenuIcons(menu);',
+    'icon.style.backgroundImage = \'url("\' + path + \'")\';',
     'option.__anitaHeroId = isHero ? String(heroId || "") : "";',
     'option.__anitaHeroKind = optionKind;',
     'option.__anitaHeroCheckLabel.text = selected ? "✓" : "";',
     'menu.__anitaHeroOptions.push(option);',
-    'function updateHeroMenuOptionState(option, selectedHeroes, scopeMode)',
-    'var selectedHeroes = AnitaRenderer.getPresetRowHeroes(config, row);',
-    'updateHeroMenuOptionState(menu.__anitaHeroOptions[i], selectedHeroes, scopeMode);',
     'function hpHeroIconPath(heroId)',
     's2r://panorama/images/heroes/',
-    'function updateHeroFace(row, facePanel)',
-    'renderHeroPickerState(button, row, summaryLabel || button.__anitaHeroSummaryLabel);',
+    'renderHeroPickerState(',
     'var heroPicker = makeHeroPickerButton(heroSelector, row);',
+    'renderHeroPickerState(heroPicker, row, heroSummary);',
+    'heroPicker.__anitaHeroSummaryLabel = heroSummary;',
+    'HPPresetHeroSelection.getRowHeroes',
+    'HPPresetHeroSelection.getRowHeroMode',
+    'HPPresetHeroSelection.setRowScope',
     'face.AddClass("AnitaPresetHeroDropDownFace");',
     'face.hittest = false;',
     'faceIcon.AddClass("AnitaPresetHeroDropDownFaceIcon");',
     'faceLabel.AddClass("AnitaPresetHeroDropDownFaceLabel");',
     'button.__anitaHeroFacePanel = face;',
-    'renderHeroPickerState(heroPicker, row, heroSummary);',
     'heroSummary.AddClass("AnitaPresetHeroSummary");',
-    'heroPicker.__anitaHeroSummaryLabel = heroSummary;',
     'heroes: normalizeHpHeroSelection(preset.heroes),',
     'heroMode: normalizeHpHeroScopeMode(preset.heroMode, preset.heroes)',
     'store["id:" + String(row.id)] = normalized.slice(0);',
     'modeStore["id:" + String(row.id)] = scopeMode;',
-    'row.token = this.buildPresetCodeToken(config, row.values || {}, row.name || "", row.payloadValues, row.heroes, row.heroMode);',
-    'else tuple.push(scopeMode);'
+    'else tuple.push(scopeMode);',
+    'function updateHeroMenuOptionState(option, selectedHeroes, scopeMode)'
   ]) {
     if (!uiCore.includes(iconMarker)) {
       errors.push(`anita_ui_core.js missing preset icon marker: ${iconMarker}`);
+    }
+  }
+
+  for (const forbiddenHeroMarker of [
+    'HP_HERO_ALIAS_TO_ID',
+    'HP_HERO_ALIAS_LIST',
+    'registerHpHeroAlias',
+    'aliases:',
+    'iconAliases',
+    'replace(/^hero_/'
+  ]) {
+    if (uiCore.includes(forbiddenHeroMarker)) {
+      errors.push(`anita_ui_core.js must use exact SteamTracking hero keys, not alias/fallback marker: ${forbiddenHeroMarker}`);
+    }
+  }
+  for (const exactHeroMarker of [
+    'const HP_HERO_ID_TO_KEY = {};',
+    'HP_HERO_ID_TO_KEY[String(hero.heroId)] = hero.id;',
+    'if (Object.prototype.hasOwnProperty.call(HP_HERO_BY_ID, text)) return text;',
+    'var numericKey = HP_HERO_ID_TO_KEY[text];',
+    'id: "hero_astro"',
+    'name: "Holliday"',
+    'id: "hero_tengu"',
+    'name: "Ivy"',
+    'id: "hero_magician"',
+    'name: "Sinclair"',
+    'id: "hero_priest"',
+    'name: "Venator"',
+    'id: "hero_bookworm"',
+    'name: "Paige"',
+    'id: "hero_doorman"',
+    'name: "The Doorman"',
+    'id: "hero_necro"',
+    'name: "Graves"',
+    'id: "hero_unicorn"',
+    'name: "Celeste"',
+    'icon: "s2r://panorama/images/heroes/tengu_mm_psd.vtex"',
+    'icon: "s2r://panorama/images/heroes/kali_mm_psd.vtex"',
+    'return hero && hero.icon ? hero.icon : "";'
+  ]) {
+    if (!uiCore.includes(exactHeroMarker)) {
+      errors.push(`anita_ui_core.js missing exact SteamTracking hero marker: ${exactHeroMarker}`);
     }
   }
 
@@ -732,7 +967,7 @@ function main() {
     'priorityDownLbl.text = "▼"',
     'attachPresetTooltip(priorityUpBtn, "Move preset up.")',
     'function selectPresetRow(presetRow)',
-    'heroSelector.SetPanelEvent("onactivate"'
+    'heroSelector.SetPanelEvent('
   ]) {
     if (!uiCore.includes(priorityMarker)) {
       errors.push(`anita_ui_core.js missing preset priority marker: ${priorityMarker}`);
@@ -756,7 +991,7 @@ function main() {
     'box.hittest = false;\n      box.hittestchildren = false;',
     'renderModSettings: function (config) {\n      this.hideLocalTooltip();',
     'this.hideLocalTooltip();\n        if (this.activeColorPickerClose)',
-    'this.presetTooltip = $.CreatePanel("Panel", host, "AnitaPresetLocalTooltip")',
+    'this.presetTooltip = $.CreatePanel(',
     'tooltip.style.zIndex = "10090"',
     'this.attachLocalTooltip(\n          resetPageHeader.btn',
     'PAGE resets only this page. Other pages stay unchanged.',
@@ -769,11 +1004,11 @@ function main() {
     'Click a preset name to rename.',
     'defaultPresetKey = rows[defaultIndex].key',
     'config.__anitaSelectedPresetKey = row.key;',
-    'var result = AnitaRenderer.applyImportCode(config, row.token, "preset_builder")',
+    'var result = AnitaRenderer.applyImportCode(',
     'function selectPresetRow(presetRow) {\n        if (importPreset(presetRow)) {',
     'selectPresetRow(presetRow);',
     '$.Schedule(durationSec, function () {\n          if (statusToken !== config.__anitaPresetStatusToken) return;',
-    'var result = AnitaRenderer.applyImportCode(config, text, "import_popup")'
+    '"import_popup",'
   ]) {
     if (!uiCore.includes(importMarker)) {
       errors.push(`anita_ui_core.js missing preset import marker: ${importMarker}`);

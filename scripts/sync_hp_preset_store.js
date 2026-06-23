@@ -134,15 +134,22 @@ function main() {
     process.exit(2);
   }
 
+  const targetXml = fs.readFileSync(targetBaseHud, 'utf8');
   const files = readVpk(sourceVpk);
   const baseHud = files.find((file) => file.path === 'panorama/layout/base_hud.vxml_c');
   if (!baseHud) throw new Error('pak96_dir.vpk does not contain panorama/layout/base_hud.vxml_c');
 
-  const sourceXml = extractPanoramaLayoutSource(baseHud.bytes);
-  const storeXml = extractPresetStore(sourceXml);
+  let storeXml = '';
+  try {
+    storeXml = extractPresetStore(extractPanoramaLayoutSource(baseHud.bytes));
+  } catch (error) {
+    storeXml = '';
+  }
+  if (!storeXml && targetXml.includes('id="HPColorsPresetStore"')) {
+    console.warn('[PRESET STORE] pak96_dir.vpk store could not be decoded; preserving source HPColorsPresetStore.');
+    return;
+  }
   if (!storeXml) throw new Error('pak96_dir.vpk base_hud has no HPColorsPresetStore');
-
-  const targetXml = fs.readFileSync(targetBaseHud, 'utf8');
   const nextXml = injectPresetStore(targetXml, storeXml);
   if (nextXml === targetXml) {
     console.log('[PRESET STORE] HPColorsPresetStore already current.');

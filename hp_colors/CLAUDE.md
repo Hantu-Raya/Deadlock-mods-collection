@@ -25,44 +25,33 @@ Script to XML context mapping:
 
 | Script | XML context | What it does |
 |---|---|---|
-| `anita_ui_core.js` | `panorama/layout/base_hud.xml` | Creates the Anita-UI window, overlay button, event listener, registration handling, persistence helpers, and value replay. |
-| `hp_registrar.js` | `panorama/layout/base_hud.xml` | Builds the HP Colors config schema, registers it, listens for handshake, and requests bootstrap. |
-| `anita_persist_loader.js` | `panorama/layout/base_hud.xml`, `panorama/layout/hud_health.xml` | Captures the config, reads persisted payloads, mirrors session state, and replays stored values. |
-| `healthbar_logic.js` | `panorama/layout/unit_status_overlay.xml` | Consumes `ANITA_UPDATE`, bootstraps overlay state, scans panel ancestry, and applies live healthbar/counter styling. |
+| `anita_ui_core.js` | `panorama/layout/base_hud.xml` | Defines the HP Colors schema, registers the mod, creates the Anita-UI window, handles persistence/bootstrap replay, and publishes settings/preset snapshots. |
+| `healthbar_logic.js` | `panorama/layout/unit_status_overlay.xml` | Consumes `ANITA_UPDATE`, `ANITA_BULK_UPDATE`, and preset snapshots; scans panel ancestry; applies live healthbar/counter styling. |
 
 Event flow:
 
-1. `hp_registrar.js` starts, builds `SCHEMA`, and registers `HP Colors`.
-2. Registration enters the system as `ANITA_REGISTER`.
-   - Direct path: `root.AnitaUI.Register(config)` in `hp_registrar.js`.
-   - Event path: `$.DispatchEvent("ClientUI_FireOutput", { magic_word: "ANITA_REGISTER", config })`.
-3. `anita_ui_core.js` listens for `ANITA_REGISTER`, calls `registerMod(config)`, hydrates current values, adds the Anita tab, then dispatches `ANITA_HANDSHAKE` for that mod.
-4. `hp_registrar.js` listens for `ANITA_HANDSHAKE` with `mod_title === "HP Colors"`, marks registration complete, and dispatches `ANITA_REQUEST_BOOTSTRAP`.
-5. `healthbar_logic.js` also dispatches `ANITA_REQUEST_BOOTSTRAP` during overlay startup, enemy detection, and retry loops when bootstrap has not been satisfied.
-6. `anita_ui_core.js` handles `ANITA_REQUEST_BOOTSTRAP` by replaying current registered values through `emitCurrentValues(..., { update_source: "bridge_bootstrap" })`.
-7. `anita_persist_loader.js` also handles `ANITA_REQUEST_BOOTSTRAP`; it reads stored payloads and replays each setting as `ANITA_UPDATE` with `update_source: "bridge_bootstrap"`.
-8. `healthbar_logic.js` listens for `ANITA_UPDATE`, coerces the value into `cfg`, refreshes derived state, invalidates cached visual state when needed, and treats `bridge_bootstrap`, `ui_resync`, `ui_reset`, `ui_code_apply`, and `core_auto_resync` as bootstrap-satisfying sync sources.
+1. `anita_ui_core.js` builds `HPSettingsContract.SETTINGS` and queues HP Colors registration with `HPSettingsContract.buildRegistrarConfig()`.
+2. Registration enters `AnitaCore.registerMod(config)`, hydrates current values, adds the Anita tab, then dispatches `ANITA_HANDSHAKE` for that mod.
+3. `healthbar_logic.js` dispatches `ANITA_REQUEST_BOOTSTRAP` during overlay startup, enemy detection, and retry loops when bootstrap has not been satisfied.
+4. `anita_ui_core.js` handles `ANITA_REQUEST_BOOTSTRAP` by replaying current registered values through `emitCurrentValues(..., { update_source: "bridge_bootstrap" })`.
+5. `anita_ui_core.js` owns persistence/bootstrap replay. It reads stored/session/shared payloads, mirrors state, and emits `ANITA_BULK_UPDATE`/`ANITA_UPDATE`.
+6. `healthbar_logic.js` listens for runtime updates, coerces values into `cfg`, refreshes derived state, invalidates cached visual state when needed, and treats `bridge_bootstrap`, `ui_resync`, `ui_reset`, `ui_code_apply`, and `core_auto_resync` as bootstrap-satisfying sync sources.
 
 `ANITA_UPDATE` is the runtime settings-application event used by both the overlay and the Anita core.
 
-## 3. DUAL REGISTRATION PATH
+## 3. REGISTRATION PATH
 
-`hp_registrar.js` has two registration paths:
+`anita_ui_core.js` owns HP Colors registration in the same script as the Anita UI:
 
-1. Direct registration
-   - `tryDirectRegister(config)` walks to the root panel.
-   - It requires `root.AnitaUI`, `root.AnitaUI.IsReady()` when present, and `root.AnitaUI.Register`.
-   - If available, it calls `root.AnitaUI.Register(config)`.
-2. Event-dispatch fallback
-   - `dispatchRegister(config)` sends `ANITA_REGISTER` over `ClientUI_FireOutput`.
+1. `AnitaCore.init()` installs `root.AnitaUI`, sets up the bridge listener, and queues HP Colors registration.
+2. `queueHpColorsRegistration()` retries bounded registration with `HPSettingsContract.buildRegistrarConfig()` until the HP Colors tab exists.
+3. `root.AnitaUI.Register(config)` remains available for other mods and validation harnesses.
 
 Behavior details:
 
-- `register()` always tries direct registration first.
-- If direct registration fails, it falls back to `ANITA_REGISTER`.
-- If direct registration succeeds, it still dispatches `ANITA_REGISTER` afterward as a bridge announce.
-- Retry loop: `REGISTER_RETRY_DELAY_SEC = 0.25`, `REGISTER_MAX_ATTEMPTS = 24`.
-- `ANITA_ALIVE` from `anita_ui_core.js` also triggers `register()`.
+- Registration uses the same `AnitaCore.registerMod(config)` path as externally registered mods.
+- Retry loop: 24 attempts.
+- `ANITA_ALIVE` from `anita_ui_core.js` is still published for compatibility.
 
 ## 4. CONFIG KEYS TABLE
 
@@ -117,23 +106,20 @@ Primary storage:
 
 - The namespace is `hp_colors`.
 - The storage key is `anita_v1_hp_colors`.
-- `anita_ui_core.js`, `anita_persist_loader.js`, and `healthbar_logic.js` all know that key.
-- `$.persistentStorage` is deprecated/non-functional in Source 2 Panorama — convar-based persistence is the primary store.
+- `anita_ui_core.js` owns the key and payload parsing; `healthbar_logic.js` only consumes shared/runtime replay data.
+- `$.persistentStorage` is deprecated/non-functional in Source 2 Panorama — do not use it.
 
-Convar fallback:
+Shared/runtime replay:
 
-- The convar key is `deadlock_hero_debuts_seen`.
-- The token prefix is `ANITA-v1-`.
-- HP Colors uses `[ANITA-v1-hp_colors]:<base64url>`.
-- `anita_ui_core.js` can write via `GameInterfaceAPI.ConsoleCommand`, `GameInterfaceAPI.SetSettingString`, or command events.
-- `anita_persist_loader.js` and `healthbar_logic.js` can read the convar token during bootstrap paths.
+- HP Colors writes current values to `GameUI.CustomUIConfig().__hpColorsCfgRaw`.
+- HP Colors publishes `HP_COLORS_PRESET_SNAPSHOT` with `values_raw`.
+- Compact-token parsing stays in `anita_ui_core.js`, not `healthbar_logic.js`.
 
 Session mirror:
 
 - The same encoded payload is mirrored to root and `Hud` attributes under `anita_v1_hp_colors`.
-- `anita_ui_core.js` writes that mirror with `writeSessionMirror`.
-- `anita_persist_loader.js` writes the same mirror.
-- `healthbar_logic.js` reads that mirror first in `readSessionMirrorPayload()`.
+- `anita_ui_core.js` writes that mirror.
+- Runtime healthbars consume shared config and replay events; compact-token parsing stays out of `healthbar_logic.js`.
 
 Manual Copy/Import:
 
@@ -144,12 +130,11 @@ Manual Copy/Import:
 
 Write timing seen in source:
 
-- `anita_ui_core.js` schedules `persistConfig(config, false)` after `2.0` seconds in `handleUpdateEvent`.
-- `anita_persist_loader.js` has `PERSIST_DEBOUNCE_SEC = 0.35` for its bridge-side `schedulePersist`.
+- `anita_ui_core.js` schedules `persistConfig(config, false)` after `2.0` seconds for non-replay update events.
 
 ## 6. COMPACT ALIAS MAP
 
-Payloads are stored as `{ v: <storageVersion>, c: 1, values: { <alias>: <value> } }` with only non-default keys included. All three alias maps (`anita_ui_core.js`, `anita_persist_loader.js`, `healthbar_logic.js`) must stay identical.
+Payloads are stored as `{ v: <storageVersion>, c: 1, values: { <alias>: <value> } }` with only non-default keys included. `anita_ui_core.js` owns the compact alias map; `healthbar_logic.js` must not parse compact aliases.
 
 | Alias | Key |
 |---|---|
@@ -195,7 +180,7 @@ Payloads are stored as `{ v: <storageVersion>, c: 1, values: { <alias>: <value> 
 
 ## 7. storageVersion
 
-`hp_registrar.js` sets `storageVersion: 21` in `buildConfig()`. Bump this whenever the schema gains or removes a persisted key, and keep it in sync across all three alias maps.
+`anita_ui_core.js` sets `HPSettingsContract.storageVersion` (currently `97`). Bump this whenever schema compatibility requires it, and keep schema/default/alias/runtime adapters in sync.
 
 ## 8. POLLING CADENCE TIERS
 
@@ -259,9 +244,7 @@ Early-break rules: scan breaks when team ID is set AND any of bits `1|2|4|8` con
 | File | Debug flags actually present |
 |---|---|
 | `healthbar_logic.js` | None |
-| `hp_registrar.js` | None |
 | `anita_ui_core.js` | No debug flags in production build |
-| `anita_persist_loader.js` | No debug flags in production build |
 | `anita_ui.css` | None |
 | `unit_status.css` | None |
 | `base_hud.xml` | None |
@@ -271,9 +254,8 @@ Early-break rules: scan breaks when team ID is set AND any of bits `1|2|4|8` con
 
 ## 12. KNOWN LIMITATIONS
 
-- `deadlock_hero_debuts_seen` persistence still depends on a clean game exit reaching `cfg/user/game.cfg`.
-- If bridge logs show `storage available=0`, restart persistence is not reliable; Copy/Import is the safe manual fallback.
-- `GameInterfaceAPI` availability is checked defensively and is not guaranteed in every Panorama context.
+- Restart persistence relies on the shared/session mirror and manual Copy/Import token path; do not restore convar storage.
+- If bridge replay is unavailable in a Panorama context, Copy/Import is the safe manual fallback.
 - Neutral units are intentionally ignored by the enemy coloring path; the overlay hides the HP counter and skips the enemy HP-ratio loop for neutral targets.
 - The color-box drag path still has multiple input sources in the codebase and can vary by Panorama context.
 - The picker still polls while drag is active.

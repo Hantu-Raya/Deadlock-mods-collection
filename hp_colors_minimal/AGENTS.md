@@ -25,6 +25,13 @@ Production minimal runtime pack for HP Colors. This folder now owns the former f
 - Preserve Source 2 unit-status IDs/classes used by shipped layout and styles.
 - First-paint policy matches the verified `hp_colors_minimal_color_debug/` lane: the bare main bar defaults to `TeamEnemyColor`; `.team_neutral #unit_healthbar_lagging` overrides it for jungle/neutral bars and must stay present. Do not add width-threshold or recent-panel heuristics here.
 
+## Runtime Helper Map
+- Loop scheduling is centralized through `requestLoopKick` and `scheduleLoop`; keep the enemy, ally, and level loop tokens separate.
+- Enemy pulse state lives in `syncEnemyPulse`; ally pulse state lives in `syncAllyPulse`.
+- Ally ownership, style-cache reset, and friendly default wash reset live in `resetAllyState`.
+- Healthbar height, pip sizing, and info-health margin writes live in `applyLayoutSettings`.
+- Level visibility and tier class sync live in `syncLevelTier`.
+
 ## Production Policy
 Forbidden in production source:
 - Anita menu/UI assets, live update events, convars, session mirrors, runtime builder-store rescanning, bootstrap/registrar/persistence loader files.
