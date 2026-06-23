@@ -25,13 +25,10 @@ and deploys it to the Deadlock addons folder configured in that script.
 ## Runtime Files
 | File | Context | Purpose |
 |---|---|---|
-| `panorama/layout/base_hud.xml` | Base HUD | Loads `anita_ui_core.js`, `hp_registrar.js`, and hosts `AnitaUI_Anchor`. |
-| `panorama/layout/hud.xml` | Full HUD | Loads `anita_persist_loader.js` for persistence/bootstrap bridge. |
+| `panorama/layout/base_hud.xml` | Base HUD | Loads `anita_ui_core.js` and hosts `AnitaUI_Anchor`. |
 | `panorama/layout/hud_escape_menu.xml` | Escape menu | Contains stock escape menu; current local changes may also relate to settings UI wiring. |
 | `panorama/layout/unit_status_overlay.xml` | Unit status overlay | Loads healthbar behavior for enemy/world unit panels. |
-| `panorama/scripts/anita_ui_core.js` | Anita UI core | Renders the settings window, registers mods, emits updates, persists values. |
-| `panorama/scripts/hp_registrar.js` | Anita bridge | Defines HP Colors settings schema and registers it with Anita UI. |
-| `panorama/scripts/anita_persist_loader.js` | Persistence bridge | Reads stored values and replays bootstrap updates. |
+| `panorama/scripts/anita_ui_core.js` | Anita UI core | Defines HP Colors schema, registers the mod, renders settings, emits updates, persists values, and publishes preset/bootstrap snapshots. |
 | `panorama/scripts/healthbar_logic.js` | Runtime overlay | Applies enemy HP bar colors/counter settings to unit status panels. |
 | `panorama/styles/anita_ui.css` | Anita UI | Settings window, controls, color picker, footer controls. |
 | `panorama/styles/unit_status.css` | Unit status | Healthbar and unit status visual overrides. |
@@ -61,19 +58,10 @@ and deploys it to the Deadlock addons folder configured in that script.
   W.log picker traces; otherwise JSON/debug logging adds drag-time overhead.
 
 ## Script Flow
-1. `hp_registrar.js` builds the HP Colors schema and registers it.
-2. Registration uses direct `root.AnitaUI.Register(config)` when available, then
-   also sends an `ANITA_REGISTER` bridge event.
-3. `anita_ui_core.js` handles `ANITA_REGISTER`, creates the tab/UI state, then
-   sends `ANITA_HANDSHAKE`.
-4. `hp_registrar.js` receives `ANITA_HANDSHAKE` and requests bootstrap with
-   `ANITA_REQUEST_BOOTSTRAP`.
-5. `anita_persist_loader.js` and `anita_ui_core.js` answer bootstrap by replaying
-   current or stored settings as `ANITA_BULK_UPDATE` when possible. Single
-   setting changes still use `ANITA_UPDATE`.
-6. `healthbar_logic.js` consumes `ANITA_BULK_UPDATE` and `ANITA_UPDATE`, coerces
-   values into runtime config, refreshes derived colors, invalidates cached visual
-   state when needed, and applies styling during its scheduled overlay loop.
+1. `anita_ui_core.js` builds the HP Colors schema with `HPSettingsContract.buildRegistrarConfig()`.
+2. `anita_ui_core.js` installs `root.AnitaUI`, queues in-core HP Colors registration, creates the tab/UI state, and sends `ANITA_HANDSHAKE`.
+3. `anita_ui_core.js` owns persistence/bootstrap replay. It mirrors current or stored settings and answers bootstrap requests as `ANITA_BULK_UPDATE`; single setting changes still use `ANITA_UPDATE`.
+4. `healthbar_logic.js` consumes `ANITA_BULK_UPDATE` and `ANITA_UPDATE`, coerces values into runtime config, refreshes derived colors, invalidates cached visual state when needed, and applies styling during its scheduled overlay loop.
 
 ## Match Reset and Fresh Healthbars
 - `anita_ui_core.js` owns new-match detection. It publishes
@@ -84,6 +72,9 @@ and deploys it to the Deadlock addons folder configured in that script.
   A locked match must not auto-switch to another preset until lobby/match reset
   or the user changes hero behavior mode. Switching back to AUTO HERO in-match
   opens a fresh 10-second lookup window before locking again.
+- Preset hero-scope selection, priority, baked/user row materialization, and
+  selected/off/all semantics live behind `HPPresetHeroSelection` in
+  `anita_ui_core.js`; keep Panorama row rendering as the adapter.
 - The monitor publishes on first active match, `game_time_zero`, and
   `game_time_rollback` when active game time drops from a progressed match back
   near match start. Rollback detection is required because Deadlock can reload a
@@ -113,20 +104,19 @@ Persisted schema keys:
 - General: `hp_enabled`, `hp_bg_visible`, `hp_mode`, `hp_low_threshold`, `hp_high_threshold`, `hp_team_colors`, `hp_skip_buildings`, `hp_info_health_margin_top`, `hp_healthbar_height`
 - Enemy Colors: `hp_ult_color_enabled`, `hp_ult_color_custom`, `hp_color_low`, `hp_color_mid`, `hp_color_high`
 - Enemy Pulse: `hp_pulse_enabled`, `hp_pulse_threshold`, `hp_pulse_bpm`, `hp_pulse_intensity`, `hp_pulse_color_enabled`, `hp_pulse_color`, `hp_pulse_color_mode`, `hp_pulse_hide_bar`, `hp_pulse_text_enabled`, `hp_pulse_text_scale`, `hp_pulse_text_position`
-- Enemy Counter: `hp_counter_size`, `hp_counter_position`, `hp_counter_format`, `hp_text_color_mode`, `hp_level_number_visible`, `hp_pip_visible`, `hp_text_color_low`, `hp_text_color_mid`, `hp_text_color_high`
+- Enemy Counter: `hp_counter_visible`, `hp_counter_size`, `hp_counter_position`, `hp_counter_format`, `hp_text_color_mode`, `hp_level_number_visible`, `hp_pip_visible`, `hp_text_color_low`, `hp_text_color_mid`, `hp_text_color_high`
 - Ally Bars: `hp_friend_enabled`, `hp_friend_color_low`, `hp_friend_color_mid`, `hp_friend_color_high`, `hp_friend_pulse_enabled`, `hp_friend_pulse_threshold`, `hp_friend_pulse_bpm`, `hp_friend_pulse_intensity`, `hp_friend_pulse_color_enabled`, `hp_friend_pulse_color`
 - Kill Marker: `hp_kill_zone_enabled`, `hp_kill_zone_threshold`, `hp_kill_zone_color`, `hp_kill_zone_width`
 
 `hp_pulse_bg_mode` and `hp_npc_poll_slow` are removed. Low-HP pulsing follows the main behavior setting, and polling is automatic/adaptive.
 
-If you add/remove a persisted setting, update all schema/default/alias maps
-together in:
-- `anita_ui_core.js`
-- `anita_persist_loader.js`
-- `healthbar_logic.js`
-- `hp_registrar.js`
+If you add/remove a persisted setting, update all schema/default/alias contract
+adapters together:
+- `anita_ui_core.js` `HPSettingsContract.SETTINGS`, `HPSettingsContract.ALIASES`, preset support, and UI defaults
+- `healthbar_logic.js` `DEFAULTS` and runtime handling
+- `scripts/validate-schema.js` audit expectations
 
-Also bump the registrar `storageVersion` when compatibility requires it (currently 97).
+Also bump `HPSettingsContract.storageVersion` when compatibility requires it (currently 97).
 
 ## Persistence Model
 - Storage namespace: `hp_colors`
@@ -140,8 +130,8 @@ Also bump the registrar `storageVersion` when compatibility requires it (current
 - Manual fallback: Anita UI Copy/Import token controls and preset VPK rows.
 
 The compact persisted payload stores only non-default values using aliases.
-Keep alias maps identical across persistence owner files. Do not add compact
-alias parsing back into `healthbar_logic.js`.
+Keep compact alias maps deterministic and do not add compact alias parsing back
+into `healthbar_logic.js`.
 
 ## Obfuscated Name Map (healthbar_logic.js)
 
@@ -186,8 +176,6 @@ Below is the full mapping so you know what each name actually does.
 | `lBgVis` | `lastBgVisibility` | Last visibility state of background |
 | `lBgOp` | `lastBgOpacity` | Last opacity state of background |
 | `lHpSize` | `lastHpFontSize` | Last fontSize set on counter |
-| `lHpPos` | `lastHpMarginTop` | Last marginTop set on counter |
-| `lHpMarginLeft` | `lastHpMarginLeft` | Last marginLeft set on counter |
 | `lSH` | `lastShownCurrentHp` | Last current HP shown in counter |
 | `lSM` | `lastShownMaxHp` | Last max HP shown in counter |
 | `lVis` | `lastCounterVisibility` | Last visibility state of counter |
@@ -212,21 +200,17 @@ Below is the full mapping so you know what each name actually does.
 | `lPD` | `lastPulseDuration` | Last written animation-duration string (cache skip) |
 | `lPI` | `lastPulseIntensity` | Last written animation-name index (cache skip) |
 | `PULSE_INTENSITY` | `PULSE_ANIMATIONS` | Keyframe name array: [subtle, medium, intense] - used for pulse intensity class names |
-| `lTS` | `lastPulseTextScale` | Last written preTransformScale2d string for pulse text (cache skip) |
-| `applyPulseAnim()` | — | Apply animation-duration and animation-name to pulse panels |
-| `applyPulseTextState()` | — | Apply/remove pulse text classes and preTransformScale2d based on cfg.hp_pulse_text_enabled |
-| `setPulseTextScale(enabled)` | — | Set preTransformScale2d on counter for pulse text expansion |
-| `startPulse()` | — | Add pulse class, apply animation, start pulse |
-| `clearPulse()` | — | Remove class, clear animation props, reset brightness |
+| `lTB` | `lastPulseTextBrightness` | Last inline brightness value for pulse text |
+| `syncEnemyPulse(shouldPulse,now)` | — | Starts/stops enemy pulse, syncs duration/intensity, and updates pulse-text brightness |
+| `syncAllyPulse(panel,shouldPulse)` | — | Starts/stops ally pulse class, intensity, and duration |
+| `clearPulse()` | — | Remove enemy pulse class, clear animation props, reset brightness |
 
 ### Counter Helpers
 | Short | Full | Purpose |
 |-------|------|---------|
 | `lTx` | `lastPipLabelText` | Last pip label text (for pMax cache) |
 | `cMax` | `cachedMaxHp` | Cached max HP decoded from pips |
-| `lCounterText` | — | Last counter text string shown |
 | `lCounterLowMode` | — | Whether counter is in low-HP enlarged mode |
-| `lCounterAutoPos` | — | Last auto-positioned counter position string |
 
 ### Level Tier
 | Short | Full | Purpose |
@@ -241,23 +225,23 @@ Below is the full mapping so you know what each name actually does.
 ### Functions
 | Short | Full | Purpose |
 |-------|------|---------|
-| `fRB()` | `findRedBar()` | Find the health bar panel (tries 3 names) |
-| `tryCache()` | `tryCachePanelRefs()` | Cache all panel references, returns 0/1 |
+| `fRB()` | `findRedBar()` | Find the verified `unit_healthbar_lagging` panel |
+| `tryCache()` | `tryCachePanelRefs()` | Cache verified panel references, returns 0/1 |
 | `scan(p)` | `scanAncestorFlags(panel)` | Walk ancestors to detect team/enemy/neutral |
 | `sBC(c)` | `setBarColor(color)` | Set washColor on bar, skip if unchanged |
 | `sUC(c)` | `setUltColor(color)` | Set washColor on ult icon, skip if unchanged |
 | `sTC(c)` | `setTextColor(color)` | Set washColor on counter text, skip if unchanged |
 | `sHBV(v)` | `setHealthBarVisibility(visible)` | Set BG visibility with opacity 0.01 fix |
-| `sHCS(low,text)` | `setHpCounterStyle(lowMode,textHint)` | Set counter font size, position, margin |
+| `sHCS(low)` | `setHpCounterStyle(lowMode)` | Set counter font size, height, and anchor transform |
 | `pMax(t)` | `parseMaxHp(pipText)` | Decode max HP from pip label string |
 | `uHT(cu,mx,low)` | `updateHpText(currentHp,maxHp,lowMode)` | Update counter text and style |
-| `pLv(t)` | `parseLevel(text)` | Extract numeric level from label text |
-| `fER(p)` | `findEnemyRoot(panel)` | Walk up to find enemy wrapper |
-| `cLU()` | `cacheLevelUnits()` | Cache level-related panel refs |
-| `uLT()` | `updateLevelTier()` | Apply level tier CSS class based on level |
+| `syncLevelTier()` | — | Cache level refs, toggle enemy level visibility, and apply tier classes |
+| `applyLayoutSettings()` | — | Apply info-health margin, healthbar height, and pip sizing |
+| `resetAllyState(panel,resetColor)` | — | Clear ally caches/pulse and optionally restore confirmed ally bar color |
+| `applyEnemyHealthColors()` | — | Paint enemy bar/ult/text colors, including gated pulse color |
 | `gL()` | `gameLoop()` | Main poll loop (scheduled recurrently) |
 | `lL()` | `levelLoop()` | Level tier poll loop (scheduled recurrently) |
-| `ip(c1,c2,t)` | `interpolateColor(c1,c2,t)` | Linear RGB interpolation between two colors |
+| `ipHex(c1,c2,t)` | `interpolateColor(c1,c2,t)` | Linear RGB interpolation between two hex colors |
 | `getHighColor()` | — | Get high HP color (respects team colors setting) |
 | `getTextColor(hp,low,high)` | — | Get fixed text color based on HP zone |
 | `getGradientTextColor(hp,low,high)` | — | Get interpolated text color (respects hp_text_color_mode) |
@@ -270,8 +254,8 @@ Below is the full mapping so you know what each name actually does.
 - `hp_skip_buildings` skips all building/boss bars before preset coloring; enemy buildings keep the enemy default, friendly buildings reset to white, and neutral buildings keep neutral green.
 - Ally toggle changes now refresh dependent rows immediately.
 - Polling is automatic and adaptive: fast for heroes, backs off for stable HP.
-- Low HP uses CSS keyframe pulse animation; polling follows normal 0.15s cadence. No JS timer needed for pulse — GPU handles it.
-- Pulse text uses inline `preTransformScale2d` (not CSS font-size/margin changes) to avoid layout shift during pulse animation.
+- Low HP uses CSS keyframe pulse animation; polling follows normal adaptive cadence. No JS animation timer is added.
+- Pulse text uses larger inline font size, counter height, anchor transform, and brightness while pulsing; it does not use a separate CSS class or JS animation timer.
 - Enemy pulse has hard gates. When `hp_pulse_enabled` is false or `shouldPulse`
   is false, do not run pulse color math, pulse text brightness work, or
   hide-bar behavior. `hp_pulse_threshold` controls pulse start independently of

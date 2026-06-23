@@ -22,9 +22,7 @@ The design goal is not decoration. It is fast scanning:
 | `panorama/layout/hud_escape_menu.xml` | Stock escape menu context; currently not the visual owner for HP Colors settings. |
 | `panorama/styles/anita_ui.css` | Full Anita settings window styling: navigation, settings controls, preset builder, color picker, import popup, donation CTA. |
 | `panorama/styles/unit_status.css` | In-world healthbar, HP counter, level tier, pulse, and kill-marker styling. |
-| `panorama/scripts/anita_ui_core.js` | Builds the settings UI, category tree, controls, preset builder, import/color popups, donation CTA, and reset/copy flows. |
-| `panorama/scripts/hp_registrar.js` | Declares the visible settings schema and category tree. |
-| `panorama/scripts/anita_persist_loader.js` | Stores, mirrors, and replays settings payloads. |
+| `panorama/scripts/anita_ui_core.js` | Defines the HP Colors settings schema, registers the mod, builds the settings UI, category tree, controls, preset builder, import/color popups, donation CTA, reset/copy flows, persistence, and bootstrap/preset publishing. |
 | `panorama/scripts/healthbar_logic.js` | Applies settings to runtime panels with cached refs, skip-write caches, adaptive loops, and bootstrap replay. |
 | `scripts/validate-schema.js` | Audits schema/default/alias/UI drift and must be updated when design markers intentionally change. |
 
@@ -109,7 +107,7 @@ The left tree is a task index:
 - Counts sit on the right and show visible settings per subcategory.
 - Presets are visually separated with top border spacing and green label emphasis.
 
-Keep category names aligned with `hp_registrar.js`:
+Keep category names aligned with `anita_ui_core.js` `HPSettingsContract.SETTINGS`:
 
 - `GENERAL|Core Behavior`
 - `HEALTH BARS|Enemy Colors`
@@ -166,6 +164,10 @@ Rules:
 - Use red only for destructive delete affordances.
 - Hero picker menus must render through popup host, not clipped inside the settings panel.
 
+- Hero-scope policy lives in `HPPresetHeroSelection`; Panorama row rendering
+  remains the adapter that calls it. Keep preset selection, priority, and
+  selected/off/all semantics behind that seam instead of re-spreading them
+  through row rendering code.
 ## Popups
 
 ### Color picker
@@ -282,12 +284,11 @@ Persistence uses compact non-default payloads:
 - Encoded with URL-safe base64.
 - Mirrored to root/Hud attributes and `GameUI.CustomUIConfig()` shared snapshot paths.
 
-When adding, removing, or renaming a persisted setting, update all of these together:
+When adding, removing, or renaming a persisted setting, update all of these
+contract adapters together:
 
-- `hp_registrar.js` schema.
-- `anita_ui_core.js` defaults/aliases/preset support.
-- `anita_persist_loader.js` aliases.
-- `healthbar_logic.js` defaults/runtime handling.
+- `anita_ui_core.js` `HPSettingsContract.SETTINGS`, `HPSettingsContract.ALIASES`, defaults, and preset support.
+- `healthbar_logic.js` `DEFAULTS` and runtime handling.
 - `scripts/validate-schema.js` audit expectations.
 
 Then run:

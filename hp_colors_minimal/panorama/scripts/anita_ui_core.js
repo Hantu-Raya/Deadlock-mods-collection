@@ -93,107 +93,50 @@
     }
     return out;
   })();
-  // Hero metadata used only for startup preset selection and bounded late-hero probing.
+  // Hero metadata is source-backed from SteamTracking heroes.vdata `m_HeroID`
+  // and `citadel_gc_hero_names_english.txt`; no alias/fallback matching.
   var HERO_DATA = [
-    {
-      id: "hero_inferno",
-      name: "Infernus",
-      aliases: ["infernus", "hero_infernus"],
-    },
-    { id: "hero_gigawatt", name: "Seven", aliases: ["seven", "hero_seven"] },
-    {
-      id: "hero_hornet",
-      name: "Vindicta",
-      aliases: ["vindicta", "hero_vindicta"],
-    },
-    {
-      id: "hero_ghost",
-      name: "Lady Geist",
-      aliases: ["geist", "lady_geist", "ladygeist", "hero_lady_geist"],
-    },
-    {
-      id: "hero_atlas",
-      name: "Abrams",
-      aliases: ["abrams", "bull", "hero_abrams"],
-    },
-    { id: "hero_wraith", name: "Wraith", aliases: [] },
-    {
-      id: "hero_forge",
-      name: "McGinnis",
-      aliases: ["mcginnis", "mc_ginnis", "engineer", "hero_mcginnis"],
-    },
-    {
-      id: "hero_chrono",
-      name: "Paradox",
-      aliases: ["paradox", "hero_paradox"],
-    },
-    { id: "hero_dynamo", name: "Dynamo", aliases: ["sumo"] },
-    { id: "hero_kelvin", name: "Kelvin", aliases: [] },
-    { id: "hero_haze", name: "Haze", aliases: [] },
-    { id: "hero_astro", name: "Ivy", aliases: ["ivy", "hero_ivy"] },
-    { id: "hero_bebop", name: "Bebop", aliases: [] },
-    { id: "hero_nano", name: "Nano", aliases: [] },
-    {
-      id: "hero_orion",
-      name: "Grey Talon",
-      aliases: [
-        "archer",
-        "grey_talon",
-        "gray_talon",
-        "greytalon",
-        "hero_grey_talon",
-      ],
-    },
-    {
-      id: "hero_krill",
-      name: "Mo & Krill",
-      aliases: ["digger", "mo_and_krill", "mo_krill", "hero_mo_and_krill"],
-    },
-    { id: "hero_shiv", name: "Shiv", aliases: [] },
-    { id: "hero_tengu", name: "Tengu", aliases: [] },
-    { id: "hero_warden", name: "Warden", aliases: [] },
-    { id: "hero_yamato", name: "Yamato", aliases: [] },
-    { id: "hero_lash", name: "Lash", aliases: [] },
-    { id: "hero_viscous", name: "Viscous", aliases: [] },
-    { id: "hero_synth", name: "Pocket", aliases: ["pocket", "hero_pocket"] },
-    { id: "hero_mirage", name: "Mirage", aliases: [] },
-    {
-      id: "hero_viper",
-      name: "Vyper",
-      aliases: ["viper", "vyper", "hero_vyper"],
-    },
-    {
-      id: "hero_magician",
-      name: "Magician",
-      aliases: ["sinclair", "hero_sinclair"],
-    },
-    {
-      id: "hero_vampirebat",
-      name: "Mina",
-      aliases: ["vampire_bat", "vampirebat", "mina", "hero_mina"],
-    },
-    { id: "hero_drifter", name: "Drifter", aliases: [] },
-    { id: "hero_priest", name: "Priest", aliases: [] },
-    { id: "hero_frank", name: "Frank", aliases: [] },
-    { id: "hero_bookworm", name: "Bookworm", aliases: ["paige", "hero_paige"] },
-    { id: "hero_doorman", name: "Doorman", aliases: [] },
-    {
-      id: "hero_punkgoat",
-      name: "Billy",
-      aliases: ["punkgoat", "punk_goat", "billy", "hero_billy"],
-    },
-    { id: "hero_necro", name: "Necro", aliases: [] },
-    {
-      id: "hero_fencer",
-      name: "Apollo",
-      aliases: ["fencer", "apollo", "hero_apollo"],
-    },
-    { id: "hero_familiar", name: "Familiar", aliases: [] },
-    { id: "hero_werewolf", name: "Werewolf", aliases: [] },
-    { id: "hero_unicorn", name: "Unicorn", aliases: [] },
+    { id: "hero_inferno", heroId: 1, name: "Infernus" },
+    { id: "hero_gigawatt", heroId: 2, name: "Seven" },
+    { id: "hero_hornet", heroId: 3, name: "Vindicta" },
+    { id: "hero_ghost", heroId: 4, name: "Lady Geist" },
+    { id: "hero_atlas", heroId: 6, name: "Abrams" },
+    { id: "hero_wraith", heroId: 7, name: "Wraith" },
+    { id: "hero_forge", heroId: 8, name: "McGinnis" },
+    { id: "hero_chrono", heroId: 10, name: "Paradox" },
+    { id: "hero_dynamo", heroId: 11, name: "Dynamo" },
+    { id: "hero_kelvin", heroId: 12, name: "Kelvin" },
+    { id: "hero_haze", heroId: 13, name: "Haze" },
+    { id: "hero_astro", heroId: 14, name: "Holliday" },
+    { id: "hero_bebop", heroId: 15, name: "Bebop" },
+    { id: "hero_nano", heroId: 16, name: "Calico" },
+    { id: "hero_orion", heroId: 17, name: "Grey Talon" },
+    { id: "hero_krill", heroId: 18, name: "Mo & Krill" },
+    { id: "hero_shiv", heroId: 19, name: "Shiv" },
+    { id: "hero_tengu", heroId: 20, name: "Ivy" },
+    { id: "hero_warden", heroId: 25, name: "Warden" },
+    { id: "hero_yamato", heroId: 27, name: "Yamato" },
+    { id: "hero_lash", heroId: 31, name: "Lash" },
+    { id: "hero_viscous", heroId: 35, name: "Viscous" },
+    { id: "hero_synth", heroId: 50, name: "Pocket" },
+    { id: "hero_mirage", heroId: 52, name: "Mirage" },
+    { id: "hero_viper", heroId: 58, name: "Vyper" },
+    { id: "hero_magician", heroId: 60, name: "Sinclair" },
+    { id: "hero_vampirebat", heroId: 63, name: "Mina" },
+    { id: "hero_drifter", heroId: 64, name: "Drifter" },
+    { id: "hero_priest", heroId: 65, name: "Venator" },
+    { id: "hero_frank", heroId: 66, name: "Victor" },
+    { id: "hero_bookworm", heroId: 67, name: "Paige" },
+    { id: "hero_doorman", heroId: 69, name: "The Doorman" },
+    { id: "hero_punkgoat", heroId: 72, name: "Billy" },
+    { id: "hero_necro", heroId: 76, name: "Graves" },
+    { id: "hero_fencer", heroId: 77, name: "Apollo" },
+    { id: "hero_familiar", heroId: 79, name: "Rem" },
+    { id: "hero_werewolf", heroId: 80, name: "Silver" },
+    { id: "hero_unicorn", heroId: 81, name: "Celeste" },
   ];
-  var HERO_ALIAS_TO_ID = {};
-  var HERO_ALIAS_LIST = [];
+  var HERO_BY_ID = {};
+  var HERO_ID_TO_KEY = {};
   // Runtime state. Once cachedSnapshotPayload is set, late requests replay it instead of rescanning the store.
   var cachedRootPanel = null;
   var cachedStorePanel = null;
@@ -405,50 +348,19 @@
     return preset;
   }
 
-  function cleanHeroToken(value) {
-    return String(value || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9_]+/g, "_")
-      .replace(/^_+|_+$/g, "");
-  }
-
-  function registerHeroAlias(alias, heroId) {
-    var clean = cleanHeroToken(alias);
-    if (!clean || Object.prototype.hasOwnProperty.call(HERO_ALIAS_TO_ID, clean))
-      return;
-    HERO_ALIAS_TO_ID[clean] = heroId;
-    HERO_ALIAS_LIST.push({
-      alias: clean,
-      hero: heroId,
-      token: clean.replace(/^hero_/, ""),
-    });
-  }
-
   function buildHeroTables() {
     for (var i = 0; i < HERO_DATA.length; i += 1) {
       var hero = HERO_DATA[i];
-      registerHeroAlias(hero.id, hero.id);
-      registerHeroAlias(hero.id.replace(/^hero_/, ""), hero.id);
-      registerHeroAlias(hero.name, hero.id);
-      for (var j = 0; j < hero.aliases.length; j += 1)
-        registerHeroAlias(hero.aliases[j], hero.id);
+      HERO_BY_ID[hero.id] = hero;
+      HERO_ID_TO_KEY[String(hero.heroId)] = hero.id;
     }
-    HERO_ALIAS_LIST.sort(function (a, b) {
-      return b.token.length - a.token.length;
-    });
   }
 
   function normalizeHeroToken(value) {
-    var text = cleanHeroToken(value);
-    if (!text) return "";
-    if (Object.prototype.hasOwnProperty.call(HERO_ALIAS_TO_ID, text))
-      return HERO_ALIAS_TO_ID[text];
-    if (
-      text.indexOf("hero_") !== 0 &&
-      Object.prototype.hasOwnProperty.call(HERO_ALIAS_TO_ID, "hero_" + text)
-    ) {
-      return HERO_ALIAS_TO_ID["hero_" + text];
-    }
+    if (value === null || value === undefined) return "";
+    var text = String(value);
+    if (Object.prototype.hasOwnProperty.call(HERO_BY_ID, text)) return text;
+    if (/^\d+$/.test(text)) return HERO_ID_TO_KEY[text] || "";
     return "";
   }
 
@@ -567,9 +479,8 @@
 
   function heroClassOn(panel) {
     if (!isValidPanel(panel)) return "";
-    for (var i = 0; i < HERO_ALIAS_LIST.length; i += 1) {
-      if (panelHasClass(panel, HERO_ALIAS_LIST[i].alias))
-        return HERO_ALIAS_LIST[i].hero;
+    for (var i = 0; i < HERO_DATA.length; i += 1) {
+      if (panelHasClass(panel, HERO_DATA[i].id)) return HERO_DATA[i].id;
     }
     return "";
   }

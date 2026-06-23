@@ -71,6 +71,24 @@ const REQUIRED_UNIT_STATUS_TERMS = [
   "low_hp_pulsing",
   "pulse_"
 ];
+const MAX_HEALTHBAR_RUNTIME_FUNCTIONS = 115;
+const MAX_PUBLISHER_FUNCTIONS = 62;
+const ALLOWED_RUNTIME_PANEL_IDS = new Set([
+  "UnitStatus",
+  "InfoHealthContainer",
+  "UnitHealthbarContainer",
+  "unit_healthbar_lagging",
+  "unit_healthbar_bg",
+  "unit_healthbar_pip_label",
+  "unit_ult_ready_icon",
+  "unit_level_label",
+  "name",
+  "hp_counter",
+  "hp_counter_anchor",
+  "hp_kill_zone_marker"
+]);
+const FORBIDDEN_RUNTIME_PANEL_IDS = ["health_bar", "unit_health", "ult_icon"];
+
 
 function readText(relativePath) {
   return fs.readFileSync(path.join(ROOT, relativePath), "utf8");
@@ -102,6 +120,18 @@ function countMatches(source, pattern) {
   return matches ? matches.length : 0;
 }
 
+function extractFunctionDeclarationNames(source) {
+  return Array.from(source.matchAll(/^\s*function\s+([A-Za-z_$][\w$]*)\s*\(/gm), (m) => m[1]);
+}
+
+function extractFindChildIds(source) {
+  return Array.from(source.matchAll(/FindChildTraverse\(\s*(["'])(.*?)\1\s*\)/g), (m) => m[2]);
+}
+
+function extractRuntimeIdConstants(source) {
+  return Array.from(source.matchAll(/var\s+ID_[A-Z0-9_]+\s*=\s*(["'])(.*?)\1/g), (m) => m[2]);
+}
+
 function getValidationReport() {
   const errors = [];
   const files = listFiles();
@@ -127,6 +157,33 @@ function getValidationReport() {
   if (defaultKeys.length !== 49) errors.push(`DEFAULTS key count is ${defaultKeys.length}, expected 49`);
   if (new Set(defaultKeys).size !== defaultKeys.length) errors.push("DEFAULTS contains duplicate keys");
 
+  const healthbarFunctions = extractFunctionDeclarationNames(healthbar);
+  const publisherFunctions = extractFunctionDeclarationNames(publisher);
+  const functionCounts = {
+    healthbar: healthbarFunctions.length,
+    publisher: publisherFunctions.length
+  };
+  if (functionCounts.healthbar > MAX_HEALTHBAR_RUNTIME_FUNCTIONS) {
+    errors.push(`healthbar runtime function count is ${functionCounts.healthbar}, max ${MAX_HEALTHBAR_RUNTIME_FUNCTIONS}`);
+  }
+  if (functionCounts.publisher > MAX_PUBLISHER_FUNCTIONS) {
+    errors.push(`publisher function count is ${functionCounts.publisher}, max ${MAX_PUBLISHER_FUNCTIONS}`);
+  }
+
+  const runtimePanelIds = [
+    ...extractFindChildIds(healthbar),
+    ...extractRuntimeIdConstants(healthbar)
+  ];
+  for (const id of [...new Set(runtimePanelIds)].sort()) {
+    if (!ALLOWED_RUNTIME_PANEL_IDS.has(id)) errors.push(`runtime uses unverified panel id: ${id}`);
+  }
+  for (const id of FORBIDDEN_RUNTIME_PANEL_IDS) {
+    if (new RegExp(`(["'])${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\1`).test(healthbar)) {
+      errors.push(`runtime uses forbidden panel id literal: ${id}`);
+    }
+  }
+
+
   for (const term of REQUIRED_BRIDGE_TERMS) {
     if (!combinedSource.includes(term)) errors.push(`missing bridge term: ${term}`);
   }
@@ -135,6 +192,30 @@ function getValidationReport() {
   }
   for (const term of FORBIDDEN_SOURCE_TERMS) {
     if (combinedSource.includes(term)) errors.push(`forbidden production source term: ${term}`);
+  }
+  for (const heroMarker of [
+    "HERO_ALIAS_TO_ID",
+    "HERO_ALIAS_LIST",
+    "registerHeroAlias",
+    "aliases:",
+    "replace(/^hero_/"
+  ]) {
+    if (publisher.includes(heroMarker)) errors.push(`publisher must use exact SteamTracking hero keys, not alias/fallback marker: ${heroMarker}`);
+  }
+  for (const exactHeroMarker of [
+    'var HERO_BY_ID = {};',
+    'var HERO_ID_TO_KEY = {};',
+    'HERO_ID_TO_KEY[String(hero.heroId)] = hero.id;',
+    'id: "hero_astro", heroId: 14, name: "Holliday"',
+    'id: "hero_tengu", heroId: 20, name: "Ivy"',
+    'id: "hero_magician", heroId: 60, name: "Sinclair"',
+    'id: "hero_priest", heroId: 65, name: "Venator"',
+    'id: "hero_bookworm", heroId: 67, name: "Paige"',
+    'id: "hero_doorman", heroId: 69, name: "The Doorman"',
+    'id: "hero_necro", heroId: 76, name: "Graves"',
+    'id: "hero_unicorn", heroId: 81, name: "Celeste"'
+  ]) {
+    if (!publisher.includes(exactHeroMarker)) errors.push(`publisher missing exact SteamTracking hero marker: ${exactHeroMarker}`);
   }
 
   const buildScriptPath = path.join(ROOT, "..", "build_hp_colors_minimal.ps1");
@@ -235,6 +316,7 @@ function getValidationReport() {
     defaultKeys,
     files,
     bridgeTerms: REQUIRED_BRIDGE_TERMS,
+    functionCounts,
   };
 }
 

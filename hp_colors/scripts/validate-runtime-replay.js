@@ -222,13 +222,10 @@ function runValidation() {
   assert(!source.includes('GetSettingString') && !source.includes('deadlock_hero_debuts_seen'),
     'healthbar runtime should not read convar storage directly; import/preset paths own compact-token parsing');
   if (!isOptimizedTarget) {
-    assert(source.includes('function requestEnemyLoopKick') &&
-        !source.includes('$.Schedule(0.01, gL)') &&
-        !source.includes('$.Schedule(0.01, aL)') &&
-        !source.includes('$.Schedule(0.01, lL)'),
-      'healthbar runtime should coalesce forced 0.01s loop wakeups through request*LoopKick helpers');
-    assert(source.includes('function scheduleEnemyLoop'),
+    assert(source.includes('function scheduleLoop'),
       'healthbar runtime should single-flight recurring loop schedules');
+    assert(source.includes('loopNextDueAt') && source.includes('loopScheduleToken'),
+      'healthbar runtime should expose single-flight scheduler state');
     assert(!/\$\.Schedule\([^,]+,\s*gL\)/.test(source) &&
         !/\$\.Schedule\([^,]+,\s*aL\)/.test(source) &&
         !/\$\.Schedule\([^,]+,\s*lL\)/.test(source),
@@ -247,25 +244,40 @@ function runValidation() {
     assert(!source.includes(token), `healthbar runtime should not ship debug/profiler token: ${token}`);
   }
   if (!isOptimizedTarget) {
-    assert(source.includes('function styleDriftCheckDelayMs') && source.includes('styleDriftCleanFrames'),
+    assert(source.includes('styleDriftCleanFrames') &&
+        source.includes('STYLE_DRIFT_CHECK_MS') &&
+        source.includes('STYLE_DRIFT_CHECK_MID_MS') &&
+        source.includes('STYLE_DRIFT_CHECK_SLOW_MS'),
       'healthbar runtime should back off clean idle style-drift checks');
     assert(source.includes('lKzSig === sig'),
       'healthbar runtime should short-circuit unchanged kill-zone marker state');
     assert(!source.includes('redBarNeedsPaint'),
       'healthbar runtime should not score redbar candidates by reading washColor');
-    const candidateScoreStart = source.indexOf('function getRedBarCandidateScore');
-    const candidateScoreEnd = source.indexOf('function resetEnemyScanCache');
+    const candidateScoreStart =
+      source.indexOf('scoreRedBarCandidate: function') >= 0
+        ? source.indexOf('scoreRedBarCandidate: function')
+        : source.indexOf('function getRedBarCandidateScore');
+    const candidateScoreEnd =
+      source.indexOf('resetEnemyScanCache: function') > candidateScoreStart
+        ? source.indexOf('resetEnemyScanCache: function')
+        : source.indexOf('function resetEnemyScanCache');
     assert(candidateScoreStart >= 0 && candidateScoreEnd > candidateScoreStart,
       'healthbar runtime should expose redbar candidate scoring before resetEnemyScanCache');
     const candidateScoreBody = source.slice(candidateScoreStart, candidateScoreEnd);
     assert(!candidateScoreBody.includes('style.washColor') && candidateScoreBody.includes('scanPanelPacked'),
       'redbar candidate scoring should use packed class flags, not style.washColor reads');
-    assert(source.includes('lColRaw === c && lCol') &&
+    assert(source.includes('lColRaw === color && lCol') &&
         source.includes('lUltRaw === nextRaw && lUlt') &&
-        source.includes('lTxtRaw === c && lTxt'),
+        source.includes('lTxtRaw === color && lTxt'),
       'raw color fast paths must repaint after applied caches are invalidated');
-    assert(source.includes('if (isChildProbe) {') && source.includes('stableCurrentRedBarFrames >= 10'),
+    assert(source.includes('stableCurrentRedBarFrames >= 10') &&
+        source.includes('CURRENT_RB_IDLE_RESCAN_MS'),
       'child redbar probes should share stable-frame idle backoff without delaying replacement beyond validation window');
+    for (const forbiddenId of ['health_bar', 'unit_health', 'ult_icon']) {
+      const escaped = forbiddenId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      assert(!new RegExp(`["']${escaped}["']`).test(source),
+        `healthbar runtime should not contain fallback panel id literal: ${forbiddenId}`);
+    }
   }
   const tree = buildEnemyHealthbarTree();
   const context = createRuntimeContext(tree);
@@ -586,6 +598,176 @@ function runValidation() {
   );
   assert(ultDisabledTree.ultIcon.style.washColor === '#bada55',
     `Custom ult color setting did not apply when bar-color ult mode was disabled: ${JSON.stringify(ultDisabledTree.ultIcon.style)}`);
+
+  function resetRuntimeHarness() {
+    scheduled.length = 0;
+    dispatched.length = 0;
+    resetFindCounts();
+    for (const key of Object.keys(sharedStore)) delete sharedStore[key];
+  }
+
+  function bootEnemyCase(extraValues, width = 82, parentWidth = 100) {
+    resetRuntimeHarness();
+    const caseTree = buildEnemyHealthbarTree();
+    caseTree.rb.actuallayoutwidth = width;
+    caseTree.rb.GetParent().actuallayoutwidth = parentWidth;
+    const caseContext = createRuntimeContext(caseTree);
+    vm.createContext(caseContext);
+    vm.runInContext(source, caseContext, { filename: targetScript });
+    dispatchRuntimeReplay(Object.assign({
+      hp_enabled: true,
+      hp_bg_visible: true,
+      hp_team_colors: false,
+      hp_counter_visible: false,
+      hp_ult_color_enabled: true,
+      hp_pulse_enabled: false,
+      hp_friend_enabled: false,
+      hp_level_number_visible: false
+    }, extraValues));
+    return caseTree;
+  }
+
+  const highCase = bootEnemyCase({
+    hp_mode: 0,
+    hp_color_high: '#123456'
+  }, 82, 100);
+  runUntilBefore(() => highCase.rb.style.washColor === '#123456',
+    `Enemy fixed high did not paint configured color: ${JSON.stringify(highCase.rb.style)}`, 1000);
+  assert(highCase.ultIcon.style.washColor === '#123456',
+    `Enemy fixed high did not paint ult icon: ${JSON.stringify(highCase.ultIcon.style)}`);
+
+  const midCase = bootEnemyCase({
+    hp_mode: 0,
+    hp_color_mid: '#222222'
+  }, 50, 100);
+  runUntilBefore(() => midCase.rb.style.washColor === '#222222',
+    `Enemy fixed mid did not paint configured color: ${JSON.stringify(midCase.rb.style)}`, 1000);
+
+  const lowCase = bootEnemyCase({
+    hp_mode: 0,
+    hp_color_low: '#111111'
+  }, 20, 100);
+  runUntilBefore(() => lowCase.rb.style.washColor === '#111111',
+    `Enemy fixed low did not paint configured color: ${JSON.stringify(lowCase.rb.style)}`, 1000);
+
+  const gradientCase = bootEnemyCase({
+    hp_mode: 1,
+    hp_low_threshold: 25,
+    hp_high_threshold: 75,
+    hp_color_low: '#000000',
+    hp_color_mid: '#808080',
+    hp_color_high: '#ffffff'
+  }, 50, 100);
+  runUntilBefore(() => gradientCase.rb.style.washColor === '#404040',
+    `Enemy gradient mid did not interpolate to #404040: ${JSON.stringify(gradientCase.rb.style)}`, 1000);
+
+  const pulseCase = bootEnemyCase({
+    hp_mode: 0,
+    hp_color_low: '#111111',
+    hp_pulse_enabled: true,
+    hp_pulse_threshold: 25,
+    hp_pulse_color_enabled: true,
+    hp_pulse_color: '#FF2222',
+    hp_pulse_color_mode: 0,
+    hp_pulse_bpm: 75
+  }, 20, 100);
+  runUntilBefore(() => pulseCase.rb.style.washColor === '#ff2222',
+    `Enemy pulse fixed color did not paint pulse color: ${JSON.stringify(pulseCase.rb.style)}`, 1000);
+  assert(pulseCase.rb.classes.has('low_hp_pulsing') && pulseCase.rb.style.animationDuration === '0.800s',
+    `Enemy pulse did not apply class/duration: ${JSON.stringify(pulseCase.rb.style)}`);
+
+  const wrongTitleTree = bootEnemyCase({ hp_mode: 0, hp_color_high: '#123456' }, 82, 100);
+  runUntilBefore(() => wrongTitleTree.rb.style.washColor === '#123456',
+    `Wrong-title baseline did not paint: ${JSON.stringify(wrongTitleTree.rb.style)}`, 1000);
+  handlers.ClientUI_FireOutput(JSON.stringify({
+    magic_word: 'HP_COLORS_PRESET_SNAPSHOT',
+    mod_title: 'Other Mod',
+    values: { hp_color_high: '#010203' }
+  }));
+  runScheduledFor(300);
+  assert(wrongTitleTree.rb.style.washColor !== '#010203',
+    `Wrong-title preset snapshot repainted HP Colors bar: ${JSON.stringify(wrongTitleTree.rb.style)}`);
+
+  const counterCase = bootEnemyCase({
+    hp_mode: 0,
+    hp_counter_visible: true,
+    hp_counter_format: 0,
+    hp_pulse_enabled: false
+  }, 50, 100);
+  counterCase.pip.text = '||||';
+  runUntilBefore(() => counterCase.counter.text === '1000 / 2000',
+    `Counter full format did not show 1000 / 2000: ${counterCase.counter.text}`, 1000);
+
+  const pulseTextCase = bootEnemyCase({
+    hp_mode: 0,
+    hp_counter_visible: true,
+    hp_counter_format: 1,
+    hp_pulse_enabled: true,
+    hp_pulse_threshold: 25,
+    hp_pulse_text_enabled: true,
+    hp_pulse_text_scale: 160,
+    hp_pulse_text_position: '20,196'
+  }, 20, 100);
+  runUntilBefore(() => String(pulseTextCase.counter.style.brightness || '').length > 0,
+    `Pulse text did not write brightness: ${JSON.stringify(pulseTextCase.counter.style)}`, 1000);
+  assert(pulseTextCase.counter.style.fontSize === '160px' &&
+      String(pulseTextCase.counter.style.height || '').length > 0 &&
+      String(pulseTextCase.counterAnchor.style.transform || '').includes('translate3d(20px, 46px, 0px)'),
+    `Pulse text style/position mismatch: ${JSON.stringify({ counter: pulseTextCase.counter.style, anchor: pulseTextCase.counterAnchor.style })}`);
+
+  const friendHighTree = bootEnemyCase({
+    hp_mode: 0,
+    hp_friend_enabled: true,
+    hp_friend_color_high: '#abcdef'
+  }, 80, 100);
+  friendHighTree.unitStatus.classes.delete('enemy');
+  friendHighTree.unitStatus.AddClass('friend');
+  friendHighTree.unitStatus.AddClass('player');
+  runUntilBefore(() => friendHighTree.rb.style.washColor === '#abcdef',
+    `Ally fixed high did not paint friend high color: ${JSON.stringify(friendHighTree.rb.style)}`, 1000);
+
+  const friendLowTree = bootEnemyCase({
+    hp_mode: 0,
+    hp_friend_enabled: true,
+    hp_friend_color_low: '#654321',
+    hp_friend_pulse_enabled: false
+  }, 20, 100);
+  friendLowTree.unitStatus.classes.delete('enemy');
+  friendLowTree.unitStatus.AddClass('friend');
+  friendLowTree.unitStatus.AddClass('player');
+  runUntilBefore(() => friendLowTree.rb.style.washColor === '#654321',
+    `Ally fixed low did not paint friend low color: ${JSON.stringify(friendLowTree.rb.style)}`, 1000);
+
+  const idCase = bootEnemyCase({ hp_mode: 0, hp_color_high: '#456789' }, 82, 100);
+  runUntilBefore(() => idCase.rb.style.washColor === '#456789',
+    `Verified-ID case did not paint: ${JSON.stringify(idCase.rb.style)}`, 1000);
+  assert(!findCounts.health_bar && !findCounts.unit_health && !findCounts.ult_icon,
+    `Runtime traversed forbidden fallback ids: ${JSON.stringify(findCounts)}`);
+
+  const allyResetTree = bootEnemyCase({
+    hp_mode: 0,
+    hp_friend_enabled: true,
+    hp_friend_color_high: '#2468ac',
+    hp_friend_pulse_enabled: false
+  }, 80, 100);
+  allyResetTree.unitStatus.classes.delete('enemy');
+  allyResetTree.unitStatus.AddClass('friend');
+  allyResetTree.unitStatus.AddClass('player');
+  runUntilBefore(() => allyResetTree.rb.style.washColor === '#2468ac',
+    `Ally match-reset baseline did not paint friend color: ${JSON.stringify(allyResetTree.rb.style)}`, 1000);
+
+  sharedStore.__hpColorsMatchReset = {
+    token: 'unit-test-ally-reset-1',
+    reason: 'unit_test',
+    gameState: 6,
+    gameTime: 0,
+    at: nowMs
+  };
+  runUntilBefore(() => sharedStore.__hpColorsMatchResetAck &&
+      sharedStore.__hpColorsMatchResetAck.token === 'unit-test-ally-reset-1' &&
+      allyResetTree.rb.style.washColor === '#2468ac',
+    `Ally match reset did not ack/repaint: ${JSON.stringify({ ack: sharedStore.__hpColorsMatchResetAck, style: allyResetTree.rb.style })}`,
+    1000);
 
   scheduled.length = 0;
   dispatched.length = 0;
