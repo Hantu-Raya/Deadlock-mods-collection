@@ -52,6 +52,19 @@ function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function extractAssignedString(text, name) {
+  const match = text.match(new RegExp('(?:const|var)\\s+' + escapeRegExp(name) + '\\s*=\\s*"([^"]+)"'));
+  return match ? match[1] : null;
+}
+
+function extractProtocolString(text, propertyName) {
+  const direct = text.match(new RegExp(escapeRegExp(propertyName) + '\\s*:\\s*"([^"]+)"'));
+  if (direct) return direct[1];
+  const ref = text.match(new RegExp(escapeRegExp(propertyName) + '\\s*:\\s*([A-Za-z_$][\\w$]*)'));
+  return ref ? extractAssignedString(text, ref[1]) : null;
+}
+
+
 function findBalancedBlock(text, openIndex, openChar, closeChar) {
   if (openIndex < 0 || text[openIndex] !== openChar) return null;
   let depth = 0;
@@ -171,6 +184,33 @@ function extractDefaultsKeys(text) {
   return keys;
 }
 
+function parseSimpleJsLiteral(token) {
+  if (token === 'true') return true;
+  if (token === 'false') return false;
+  if (/^-?\d+$/.test(token)) return parseInt(token, 10);
+  if (
+    (token.startsWith('"') && token.endsWith('"')) ||
+    (token.startsWith("'") && token.endsWith("'"))
+  ) {
+    return token.slice(1, -1);
+  }
+  return undefined;
+}
+
+function extractDefaultsValues(text) {
+  const block = extractDefaultsBlock(text);
+  if (!block) return null;
+  const values = {};
+  const kvRe = /(?:"([^"]+)"|'([^']+)'|([a-z_][a-z0-9_]*))\s*:\s*("[^"]*"|'[^']*'|true|false|-?\d+)/g;
+  let km;
+  while ((km = kvRe.exec(block)) !== null) {
+    const key = km[1] || km[2] || km[3];
+    values[key] = parseSimpleJsLiteral(km[4]);
+  }
+  return values;
+}
+
+
 function extractAliases(text, varName) {
   const block = extractAliasesBlock(text, varName);
   if (!block) return null;
@@ -270,11 +310,11 @@ function main() {
   const aliasesCore = extractAliases(uiCore, 'HP_PERSIST_ALIASES');
   const revAliases = extractReverseAliases(healthbar, 'HP_PERSIST_ALIAS_TO_ID') || {};
   const schemaDefaults = extractSchemaDefaults(uiCore);
+  const runtimeDefaults = extractDefaultsValues(healthbar);
   const schemaNamespace = extractContractString(uiCore, 'storageNamespace');
   const schemaVersion = extractContractNumber(uiCore, 'storageVersion');
 
   const errors = [];
-  const warnings = [];
 
   if (schemaNamespace !== 'hp_colors') {
     errors.push(`anita_ui_core.js storageNamespace must be "hp_colors", got: ${schemaNamespace}`);
@@ -286,6 +326,7 @@ function main() {
   if (!schemaIds || schemaIds.length === 0) errors.push('Could not extract SETTINGS from anita_ui_core.js');
   if (!defaultsKeys || defaultsKeys.length === 0) errors.push('Could not extract DEFAULTS from healthbar_logic.js');
   if (!aliasesCore || Object.keys(aliasesCore).length === 0) errors.push('Could not extract HP_PERSIST_ALIASES from anita_ui_core.js');
+  if (!runtimeDefaults || Object.keys(runtimeDefaults).length === 0) errors.push('Could not extract DEFAULTS values from healthbar_logic.js');
   if (!schemaDefaults || Object.keys(schemaDefaults).length === 0) errors.push('Could not extract SETTINGS defaults from anita_ui_core.js');
 
   const sourceScripts = fs.readdirSync(SCRIPTS_DIR)
@@ -355,35 +396,69 @@ function main() {
   }
 
   // 7. Compact alias conversion belongs to Anita/import loaders, not the hot healthbar runtime.
-  if (healthbar.includes('HP_PERSIST_ALIAS_TO_ID')) {
-    errors.push('healthbar_logic.js should not own compact persistence aliases');
-  }
-  for (const marker of [
-    'deadlock_hero_debuts_seen',
-    'GameInterfaceAPI.GetSettingString',
-    'GameInterfaceAPI.SetSettingString',
-    'GameInterfaceAPI.ConsoleCommand',
-    'CONVAR_KEY'
-  ]) {
-    if (healthbar.includes(marker)) errors.push(`healthbar_logic.js must not touch convar storage: ${marker}`);
-    if (uiCore.includes(marker)) errors.push(`anita_ui_core.js must not touch convar storage: ${marker}`);
-  }
-
   // 8. UI schema defaults vs runtime defaults
   for (const id of schemaIds) {
-    const regVal = schemaDefaults[id];
-    const runIdx = healthbar.indexOf(id + ':');
-    if (runIdx > 0) {
-      const snippet = healthbar.slice(runIdx, runIdx + 80);
-      const regStr = JSON.stringify(regVal);
-      if (!snippet.includes(regStr) && regVal !== undefined) {
-        const alt = String(regVal);
-        if (!snippet.includes(alt)) {
-          warnings.push(`UI schema default for ${id} (${regStr}) may differ from runtime default`);
-        }
-      }
+    const schemaValue = schemaDefaults[id];
+    const runtimeValue = runtimeDefaults[id];
+    if (schemaValue !== runtimeValue) {
+      errors.push(
+        `Default mismatch for ${id}: Anita=${JSON.stringify(schemaValue)} runtime=${JSON.stringify(runtimeValue)}`
+      );
     }
   }
+  for (const contractMarker of [
+    'buildOrderedIds: function ()',
+    'buildDefaults: function ()',
+    'buildSupportedPresetIds: function ()',
+    'const HP_SETTING_IDS = HPSettingsContract.buildOrderedIds();',
+    'const HP_SETTING_DEFAULTS = HPSettingsContract.buildDefaults();',
+    'HPSettingsContract.buildSupportedPresetIds();'
+  ]) {
+    if (!uiCore.includes(contractMarker)) {
+      errors.push(`HPSettingsContract missing derived-map marker: ${contractMarker}`);
+    }
+  }
+  if (uiCore.includes('hp_kill_zone_width: true')) {
+    errors.push('anita_ui_core.js should derive HP_PRESET_BUILDER_SUPPORTED_IDS from HPSettingsContract instead of hand-maintaining the 49-key map');
+  }
+  for (const codecMarker of [
+    'const HPValueCodecs = {',
+    'sanitizeBoolean: function (value, fallback)',
+    'sanitizeCyclerIndex: function (element, value)',
+    'sanitizeNumber: function (element, value)',
+    'sanitizeColor: function (value, fallback)',
+    'sanitizePosition: function (value, fallback)',
+    'sanitizeElementValue: function (element, value)',
+    'return HPValueCodecs.sanitizeElementValue(element, value);',
+    'this.clampNumber(source[0], 0, 400, 0)',
+    'this.clampNumber(source.y, -50, 400, 200)',
+    'source.match(/-?\\d+(?:\\.\\d+)?/g)'
+  ]) {
+    if (!uiCore.includes(codecMarker)) {
+      errors.push(`HPValueCodecs missing marker: ${codecMarker}`);
+    }
+  }
+  for (const runtimeCodecMarker of [
+    'var HPValueCodecs = {',
+    'formatPositionValue: function (rawPos)',
+    'coerceBooleanValue: function (value, fallback)',
+    'coerceNumberValue: function (value, fallback)',
+    'coerceStringValue: function (value, fallback)',
+    'coerceCfgValue: function (id, value)',
+    'return HPValueCodecs.coerceCfgValue(id, value);',
+    'Array.isArray(rawPos)',
+    'Object.prototype.hasOwnProperty.call(rawPos, "x")',
+    'rawPos.match(/-?\\d+(?:\\.\\d+)?/g)',
+    'clampNum(rawPos[0], 0, 400, 0)',
+    'clampNum(rawPos.y, -50, 400, 200)'
+  ]) {
+    if (!healthbar.includes(runtimeCodecMarker)) {
+      errors.push(`runtime HPValueCodecs missing marker: ${runtimeCodecMarker}`);
+    }
+  }
+
+
+
 
   // 9. Compact aliases should remain in the persistence owners.
 
@@ -485,7 +560,7 @@ function main() {
     'var knownFriendlyTeamId = 0;',
     'isFriendlyBuilding: function (flags, teamId)',
     'isEnemyBuilding: function (flags, teamId)',
-    'getIgnoredTargetColor: function ()',
+    'getIgnoredTargetColor: function (snapshot)',
     'if (cfg.hp_skip_buildings && target.isBuilding)',
     'normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_high)',
     'HealthbarPainter.setBarColor(getHighColor());'
@@ -495,9 +570,9 @@ function main() {
     }
   }
   const ignoredColorStart =
-    healthbar.indexOf('getIgnoredTargetColor: function ()') >= 0
-      ? healthbar.indexOf('getIgnoredTargetColor: function ()')
-      : healthbar.indexOf('function getIgnoredTargetColor()');
+    healthbar.indexOf('getIgnoredTargetColor: function (snapshot)') >= 0
+      ? healthbar.indexOf('getIgnoredTargetColor: function (snapshot)')
+      : healthbar.indexOf('function getIgnoredTargetColor(snapshot)');
   const ignoredColorEnd =
     healthbar.indexOf('var _allyScanPanel') > ignoredColorStart
       ? healthbar.indexOf('var _allyScanPanel')
@@ -507,8 +582,8 @@ function main() {
   } else {
     const ignoredColorBody = healthbar.slice(ignoredColorStart, ignoredColorEnd);
     if (!ignoredColorBody.includes('if (flags & 1 && !(flags & 2)) return "";') ||
-        !ignoredColorBody.includes('if (this.isEnemyBuilding(flags, tid)) return CSS_TEAM_ENEMY_COLOR;') ||
-        !ignoredColorBody.includes('if (this.isFriendlyBuilding(flags, tid)) return WHITE_WASH;') ||
+        !ignoredColorBody.includes('if (this.isEnemyBuilding(flags, teamId)) return CSS_TEAM_ENEMY_COLOR;') ||
+        !ignoredColorBody.includes('if (this.isFriendlyBuilding(flags, teamId)) return WHITE_WASH;') ||
         !ignoredColorBody.includes('return CSS_TEAM_ENEMY_COLOR;')) {
       errors.push('healthbar_logic.js ignored fallback should match debug behavior: enemy/unknown red, friendly building white, neutral class green');
     }
@@ -635,12 +710,20 @@ function main() {
     'function getPanelId(panel)',
     'id === HP_STARTUP_PRESET_ID',
     'const HPPresetHeroSelection = {',
+    'const HPPresetRepository = {',
+    'priorityIdentity: function (preset)',
+    'applyRuntimePresetPriorityOrder: function (modConfig, presets)',
     'function readBakedPresetEntryBase(',
     'materializeBakedEntry: function (base, modConfig, displayIndex)',
     'modConfig.__hpBakedPresetEntryCache = cache;',
     'modConfig.__anitaPresetHeroSelections',
     'modConfig.__anitaPresetHeroModes',
     'readRuntimePresetEntries: function (modConfig)',
+    'var presets = HPPresetRepository.readRuntimePresetEntries(modConfig);',
+    'source: "hero"',
+    'usedFallback: false',
+    'source: "global"',
+    'usedFallback: true',
     'selectForHero: function (',
     'hasSelectedScopedPreset: function (config)',
     'const HP_HERO_SCOPE_OFF = "off"',
@@ -706,16 +789,64 @@ function main() {
     }
   }
 
-  // 12. Full hp_colors base_hud must expose the builder insertion point so pak97 can carry pak96 preset store.
+  // 12. Anita UI and healthbar runtime duplicate the bridge protocol in two scripts; shared literals must not drift.
+  if (!uiCore.includes('const HPBridgeProtocol = {')) {
+    errors.push('anita_ui_core.js missing Anita-side HPBridgeProtocol');
+  }
+  if (!healthbar.includes('var HPBridgeProtocol = {')) {
+    errors.push('healthbar_logic.js missing runtime HPBridgeProtocol');
+  }
+  for (const [label, uiProp, runtimeProp] of [
+    ['event channel', 'eventChannel', 'eventChannel'],
+    ['preset snapshot magic', 'presetSnapshotMagic', 'presetSnapshotMagic'],
+    ['preset request magic', 'presetRequestMagic', 'presetRequestMagic'],
+    ['bulk update magic', 'bulkUpdateMagic', 'bulkUpdateMagic'],
+    ['single update magic', 'singleUpdateMagic', 'singleUpdateMagic'],
+    ['bootstrap request magic', 'bootstrapRequestMagic', 'bootstrapRequestMagic'],
+    ['shared config raw key', 'sharedCfgRawKey', 'sharedCfgRawKey'],
+    ['shared match reset key', 'sharedMatchResetKey', 'sharedMatchResetKey']
+  ]) {
+    const uiValue = extractProtocolString(uiCore, uiProp);
+    const runtimeValue = extractProtocolString(healthbar, runtimeProp);
+    if (!uiValue || !runtimeValue || uiValue !== runtimeValue) {
+      errors.push(`HPBridgeProtocol ${label} drift: Anita=${JSON.stringify(uiValue)} runtime=${JSON.stringify(runtimeValue)}`);
+    }
+  }
+  for (const sharedMethod of [
+    'dispatchPayload',
+    'dispatchRawPayload',
+    'readSharedConfigRaw',
+    'writeSharedConfigRaw',
+    'isBulkUpdate',
+    'isSingleUpdate'
+  ]) {
+    const marker = `${sharedMethod}: function`;
+    if (!uiCore.includes(marker)) {
+      errors.push(`Anita HPBridgeProtocol missing shared method marker: ${sharedMethod}`);
+    }
+    if (!healthbar.includes(marker)) {
+      errors.push(`runtime HPBridgeProtocol missing shared method marker: ${sharedMethod}`);
+    }
+  }
+
+
+  // 12. Full hp_colors builds from source base_hud.xml directly; pak96 preset-store sync is intentionally not part of this build.
   if (!baseHud.includes('id="AnitaUI_Anchor"')) {
-    errors.push('base_hud.xml missing AnitaUI_Anchor for HPColorsPresetStore injection');
+    errors.push('base_hud.xml missing AnitaUI_Anchor for Anita UI bootstrap');
   }
   const buildScript = fs.readFileSync(path.join(ROOT, 'build_hp_colors.ps1'), 'utf-8');
   if (!fs.existsSync(path.join(ROOT, 'hp_colors', 'scripts', 'validate-hero-selector.js'))) {
     errors.push('hp_colors/scripts/validate-hero-selector.js missing');
   }
-  for (const buildMarker of [
+  for (const removedBuildMarker of [
     'sync_hp_preset_store.js',
+    'pak96_dir.vpk'
+  ]) {
+    if (buildScript.includes(removedBuildMarker)) {
+      errors.push(`build_hp_colors.ps1 still depends on removed pak96 preset-store sync marker: ${removedBuildMarker}`);
+    }
+  }
+  for (const buildMarker of [
     'validate-hero-selector.js',
     'Closure ADVANCED hero selector audit passed.',
     'hp_colors_closure',
@@ -723,12 +854,10 @@ function main() {
     'anita_ui_core.vjs_c',
     'anita_ui.vcss_c',
     'Packed VPK missing required asset',
-    '--file-tree --no-progress',
-    'pak96_dir.vpk',
-    'HPColorsPresetStore'
+    '--file-tree --no-progress'
   ]) {
     if (!buildScript.includes(buildMarker)) {
-      errors.push(`build_hp_colors.ps1 missing preset-store sync marker: ${buildMarker}`);
+      errors.push(`build_hp_colors.ps1 missing build marker: ${buildMarker}`);
     }
   }
 
@@ -1024,7 +1153,6 @@ function main() {
     }
   }
 
-  if (warnings.length) warnings.forEach(w => console.warn('[AUDIT WARN]', w));
   if (errors.length) {
     errors.forEach(e => console.error('[AUDIT FAIL]', e));
     console.error(`\nAudit failed with ${errors.length} error(s).`);
