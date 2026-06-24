@@ -43,6 +43,107 @@
   const HP_PRESET_SNAPSHOT_REQUEST_HOT_MS = 5000;
   const HP_MATCH_RESET_SHARED_KEY = "__hpColorsMatchReset";
   const HP_SHARED_CFG_RAW_KEY = "__hpColorsCfgRaw";
+  const HPBridgeProtocol = {
+    eventChannel: "ClientUI_FireOutput",
+    presetSnapshotMagic: HP_PRESET_SNAPSHOT_MAGIC,
+    presetRequestMagic: HP_PRESET_REQUEST_MAGIC,
+    singleUpdateMagic: "ANITA_UPDATE",
+    bulkUpdateMagic: "ANITA_BULK_UPDATE",
+    bootstrapRequestMagic: "ANITA_REQUEST_BOOTSTRAP",
+    registerMagic: "ANITA_REGISTER",
+    aliveMagic: "ANITA_ALIVE",
+    handshakeMagic: "ANITA_HANDSHAKE",
+    sharedCfgRawKey: HP_SHARED_CFG_RAW_KEY,
+    sharedMatchResetKey: HP_MATCH_RESET_SHARED_KEY,
+    getSharedStore: function () {
+      try {
+        if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig)
+          return GameUI.CustomUIConfig();
+      } catch (e) {}
+      return null;
+    },
+    dispatchPayload: function (payload) {
+      try {
+        $.DispatchEvent(this.eventChannel, JSON.stringify(payload));
+        return true;
+      } catch (e) {}
+      return false;
+    },
+    dispatchRawPayload: function (rawPayload) {
+      if (!rawPayload) return false;
+      try {
+        $.DispatchEvent(this.eventChannel, rawPayload);
+        return true;
+      } catch (e) {}
+      return false;
+    },
+    parsePayload: function (payload) {
+      try {
+        return typeof payload === "string" ? JSON.parse(payload) : payload;
+      } catch (e) {}
+      return null;
+    },
+    shouldInspectPayload: function (payload) {
+      if (typeof payload !== "string") return true;
+      if (
+        payload.indexOf("ANITA_") === -1 &&
+        payload.indexOf(this.presetRequestMagic) === -1
+      )
+        return false;
+      return true;
+    },
+    isRegister: function (payload) {
+      return !!(payload && payload.magic_word === this.registerMagic);
+    },
+    isPresetRequest: function (payload) {
+      return !!(payload && payload.magic_word === this.presetRequestMagic);
+    },
+    isBootstrapRequest: function (payload) {
+      return !!(payload && payload.magic_word === this.bootstrapRequestMagic);
+    },
+    isBulkUpdate: function (payload) {
+      return !!(payload && payload.magic_word === this.bulkUpdateMagic);
+    },
+    isSingleUpdate: function (payload) {
+      return !!(payload && payload.magic_word === this.singleUpdateMagic);
+    },
+    readSharedConfigRaw: function () {
+      var store = this.getSharedStore();
+      if (!store) return "";
+      try {
+        return String(store[this.sharedCfgRawKey] || "");
+      } catch (e) {}
+      return "";
+    },
+    writeSharedConfigRaw: function (raw) {
+      var store = this.getSharedStore();
+      if (!store) return false;
+      try {
+        store[this.sharedCfgRawKey] = raw;
+        return true;
+      } catch (e) {}
+      return false;
+    },
+    writeMatchReset: function (payload) {
+      var store = this.getSharedStore();
+      if (!store) return false;
+      try {
+        store[this.sharedMatchResetKey] = payload;
+        return true;
+      } catch (e) {}
+      return false;
+    },
+    buildPresetSnapshotPayload: function (values, raw, reason) {
+      return {
+        magic_word: this.presetSnapshotMagic,
+        mod_title: "HP Colors",
+        version: 1,
+        values_raw: raw,
+        values: values,
+        update_source: String(reason || "full_static"),
+      };
+    },
+  };
   const HP_OPTIMIZED_FORCED_VALUES = {};
   const HP_OPTIMIZED_HIDDEN_SETTINGS = {};
   const HP_BAKED_PRESET_APPLY_DELAYS = [0.5, 1.5, 3.0, 5.0, 8.0, 12.0];
@@ -803,6 +904,31 @@
       return out;
     },
 
+    buildOrderedIds: function () {
+      var ids = [];
+      for (var i = 0; i < this.SETTINGS.length; i++) {
+        ids.push(this.SETTINGS[i].id);
+      }
+      return ids;
+    },
+
+    buildDefaults: function () {
+      var defaults = {};
+      for (var i = 0; i < this.SETTINGS.length; i++) {
+        var element = this.SETTINGS[i];
+        defaults[element.id] = element.defaultValue;
+      }
+      return defaults;
+    },
+
+    buildSupportedPresetIds: function () {
+      var supported = {};
+      for (var i = 0; i < this.SETTINGS.length; i++) {
+        supported[this.SETTINGS[i].id] = true;
+      }
+      return supported;
+    },
+
     copyElement: function (source) {
       var element = {};
       for (var key in source) {
@@ -828,57 +954,134 @@
     },
   };
   const SCHEMA = HPSettingsContract.SETTINGS;
+  const HP_SETTING_IDS = HPSettingsContract.buildOrderedIds();
+  const HP_SETTING_DEFAULTS = HPSettingsContract.buildDefaults();
   const HP_PERSIST_ALIASES = HPSettingsContract.ALIASES;
   const HP_PERSIST_ALIAS_TO_ID = HPSettingsContract.buildAliasToId();
-  const HP_PRESET_BUILDER_SUPPORTED_IDS = {
-    hp_enabled: true,
-    hp_bg_visible: true,
-    hp_mode: true,
-    hp_low_threshold: true,
-    hp_high_threshold: true,
-    hp_team_colors: true,
-    hp_skip_buildings: true,
-    hp_info_health_margin_top: true,
-    hp_healthbar_height: true,
-    hp_ult_color_enabled: true,
-    hp_ult_color_custom: true,
-    hp_color_low: true,
-    hp_color_mid: true,
-    hp_color_high: true,
-    hp_pulse_enabled: true,
-    hp_pulse_threshold: true,
-    hp_pulse_bpm: true,
-    hp_pulse_intensity: true,
-    hp_pulse_hide_bar: true,
-    hp_pulse_color_enabled: true,
-    hp_pulse_color_mode: true,
-    hp_pulse_color: true,
-    hp_pulse_text_enabled: true,
-    hp_pulse_text_scale: true,
-    hp_pulse_text_position: true,
-    hp_counter_size: true,
-    hp_counter_position: true,
-    hp_counter_format: true,
-    hp_text_color_mode: true,
-    hp_level_number_visible: true,
-    hp_pip_visible: true,
-    hp_text_color_low: true,
-    hp_text_color_mid: true,
-    hp_text_color_high: true,
-    hp_friend_enabled: true,
-    hp_friend_color_low: true,
-    hp_friend_color_mid: true,
-    hp_friend_color_high: true,
-    hp_friend_pulse_enabled: true,
-    hp_friend_pulse_threshold: true,
-    hp_friend_pulse_bpm: true,
-    hp_friend_pulse_intensity: true,
-    hp_friend_pulse_color_enabled: true,
-    hp_friend_pulse_color: true,
-    hp_kill_zone_enabled: true,
-    hp_kill_zone_threshold: true,
-    hp_kill_zone_color: true,
-    hp_kill_zone_width: true,
+  const HP_PRESET_BUILDER_SUPPORTED_IDS =
+    HPSettingsContract.buildSupportedPresetIds();
+
+  const HPValueCodecs = {
+    clampNumber: function (value, min, max, fallback) {
+      var next = Number(value);
+      if (!isFinite(next)) next = fallback;
+      if (!isFinite(next)) next = 0;
+      if (next < min) next = min;
+      if (next > max) next = max;
+      return next;
+    },
+
+    sanitizeBoolean: function (value, fallback) {
+      if (value === true || value === false) return value;
+      if (value === 1 || value === "1") return true;
+      if (value === 0 || value === "0") return false;
+      if (typeof value === "string") {
+        var lowered = value.toLowerCase();
+        if (lowered === "true") return true;
+        if (lowered === "false") return false;
+      }
+      return !!fallback;
+    },
+
+    sanitizeCyclerIndex: function (element, value) {
+      var fallback = element.defaultValue;
+      var count = Array.isArray(element.options) ? element.options.length : 0;
+      var nextIndex = Number(value);
+      if (!isFinite(nextIndex)) nextIndex = Number(fallback);
+      if (!isFinite(nextIndex)) nextIndex = 0;
+      nextIndex = Math.round(nextIndex);
+      if (nextIndex < 0) nextIndex = 0;
+      if (count > 0 && nextIndex >= count) {
+        var fallbackIndex = Number(fallback);
+        if (
+          !isFinite(fallbackIndex) ||
+          fallbackIndex < 0 ||
+          fallbackIndex >= count
+        )
+          fallbackIndex = 0;
+        nextIndex = fallbackIndex;
+      }
+      return nextIndex;
+    },
+
+    sanitizeNumber: function (element, value) {
+      var fallback = element.defaultValue;
+      var nextNumber = Number(value);
+      if (!isFinite(nextNumber)) nextNumber = Number(fallback);
+      if (!isFinite(nextNumber)) nextNumber = 0;
+      var min = Number(element.min);
+      var max = Number(element.max);
+      if (isFinite(min) && nextNumber < min) nextNumber = min;
+      if (isFinite(max) && nextNumber > max) nextNumber = max;
+      var step = Number(element.step);
+      if (!isFinite(step) || step === 0) step = 1;
+      if (Math.round(step) === step) {
+        nextNumber = Math.round(nextNumber);
+      } else {
+        nextNumber = parseFloat(nextNumber.toFixed(2));
+      }
+      if (isFinite(min) && nextNumber < min) nextNumber = min;
+      if (isFinite(max) && nextNumber > max) nextNumber = max;
+      return nextNumber;
+    },
+
+    sanitizeColor: function (value, fallback) {
+      if (typeof value === "string") {
+        var next = value.trim();
+        if (next.length > 0) return next;
+      }
+      return typeof fallback === "string" && fallback.length > 0
+        ? fallback
+        : "#FFFFFF";
+    },
+
+    sanitizePosition: function (value, fallback) {
+      var source =
+        value === undefined || value === null || value === "" ? fallback : value;
+      var posX = 0;
+      var posY = 200;
+      if (source && typeof source === "object") {
+        if (Array.isArray(source)) {
+          if (source.length > 0)
+            posX = this.clampNumber(source[0], 0, 400, 0);
+          if (source.length > 1)
+            posY = this.clampNumber(source[1], -50, 400, 200);
+        } else {
+          if (Object.prototype.hasOwnProperty.call(source, "x"))
+            posX = this.clampNumber(source.x, 0, 400, 0);
+          if (Object.prototype.hasOwnProperty.call(source, "y"))
+            posY = this.clampNumber(source.y, -50, 400, 200);
+        }
+        return String(Math.round(posX)) + "," + String(Math.round(posY));
+      }
+      if (typeof source === "string") {
+        var posParts = source.match(/-?\d+(?:\.\d+)?/g);
+        if (posParts && posParts.length > 0) {
+          posX = this.clampNumber(posParts[0], 0, 400, 0);
+          if (posParts.length > 1)
+            posY = this.clampNumber(posParts[1], -50, 400, 200);
+          return String(Math.round(posX)) + "," + String(Math.round(posY));
+        }
+      } else if (typeof source === "number") {
+        posY = this.clampNumber(source, -50, 400, 200);
+      }
+      return String(Math.round(posX)) + "," + String(Math.round(posY));
+    },
+
+    sanitizeElementValue: function (element, value) {
+      if (!element) return value;
+      var fallback = element.defaultValue;
+      var type = String(element.type || "");
+      if (type === "toggle") return this.sanitizeBoolean(value, fallback);
+      if (type === "cycler") return this.sanitizeCyclerIndex(element, value);
+      if (type === "stepper" || type === "slider")
+        return this.sanitizeNumber(element, value);
+      if (type === "colorpicker") return this.sanitizeColor(value, fallback);
+      if (type === "positionpicker")
+        return this.sanitizePosition(value, fallback);
+      if (value !== undefined) return value;
+      return fallback;
+    },
   };
 
   function normalizeHpHeroToken(value) {
@@ -935,6 +1138,64 @@
   function hpHeroScopeIsSelected(mode, heroes) {
     return normalizeHpHeroScopeMode(mode, heroes) === HP_HERO_SCOPE_SELECTED;
   }
+
+  const HPPresetRepository = {
+    priorityIdentity: function (preset) {
+      if (!preset) return "";
+      if (preset.source === "baked" && preset.id)
+        return "id:" + String(preset.id);
+      return String(preset.id || preset.key || preset.name || "");
+    },
+    isRuntimePresetRemoved: function (modConfig, preset) {
+      var removed = modConfig && modConfig.__anitaRemovedPresetRows;
+      if (!removed) return false;
+      var key = this.priorityIdentity(preset);
+      return !!(key && removed[key]);
+    },
+    applyRuntimePresetPriorityOrder: function (modConfig, presets) {
+      if (!modConfig || !Array.isArray(presets) || !presets.length)
+        return presets;
+      var stored = Array.isArray(modConfig.__anitaPresetPriorityOrder)
+        ? modConfig.__anitaPresetPriorityOrder
+        : [];
+      if (!stored.length) return presets;
+
+      var byKey = {};
+      var ordered = [];
+      var seen = {};
+      for (var i = 0; i < presets.length; i++) {
+        var key = this.priorityIdentity(presets[i]);
+        if (key && !byKey[key]) byKey[key] = presets[i];
+      }
+      for (var orderIndex = 0; orderIndex < stored.length; orderIndex++) {
+        var storedKey = String(stored[orderIndex] || "");
+        if (!storedKey || !byKey[storedKey] || seen[storedKey]) continue;
+        seen[storedKey] = true;
+        ordered.push(byKey[storedKey]);
+      }
+      for (var presetIndex = 0; presetIndex < presets.length; presetIndex++) {
+        var presetKey = this.priorityIdentity(presets[presetIndex]);
+        if (presetKey && seen[presetKey]) continue;
+        if (presetKey) seen[presetKey] = true;
+        ordered.push(presets[presetIndex]);
+      }
+      return ordered;
+    },
+    readRuntimePresetEntries: function (modConfig) {
+      var presets = readBakedPresetEntries(modConfig).concat(
+        readUserPresetEntries(modConfig),
+      );
+      if (modConfig && modConfig.__anitaRemovedPresetRows) {
+        var kept = [];
+        for (var i = 0; i < presets.length; i++) {
+          if (!this.isRuntimePresetRemoved(modConfig, presets[i]))
+            kept.push(presets[i]);
+        }
+        presets = kept;
+      }
+      return this.applyRuntimePresetPriorityOrder(modConfig, presets);
+    },
+  };
 
   const HPPresetHeroSelection = {
     getSelectionStore: function (config) {
@@ -1042,67 +1303,12 @@
         source: base.source,
       };
     },
-    priorityIdentity: function (preset) {
-      if (!preset) return "";
-      if (preset.source === "baked" && preset.id)
-        return "id:" + String(preset.id);
-      return String(preset.id || preset.key || preset.name || "");
-    },
-    isRuntimePresetRemoved: function (modConfig, preset) {
-      var removed = modConfig && modConfig.__anitaRemovedPresetRows;
-      if (!removed) return false;
-      var key = this.priorityIdentity(preset);
-      return !!(key && removed[key]);
-    },
-    applyRuntimePresetPriorityOrder: function (modConfig, presets) {
-      if (!modConfig || !Array.isArray(presets) || !presets.length)
-        return presets;
-      var stored = Array.isArray(modConfig.__anitaPresetPriorityOrder)
-        ? modConfig.__anitaPresetPriorityOrder
-        : [];
-      if (!stored.length) return presets;
-
-      var byKey = {};
-      var ordered = [];
-      var seen = {};
-      for (var i = 0; i < presets.length; i++) {
-        var key = this.priorityIdentity(presets[i]);
-        if (key && !byKey[key]) byKey[key] = presets[i];
-      }
-      for (var orderIndex = 0; orderIndex < stored.length; orderIndex++) {
-        var storedKey = String(stored[orderIndex] || "");
-        if (!storedKey || !byKey[storedKey] || seen[storedKey]) continue;
-        seen[storedKey] = true;
-        ordered.push(byKey[storedKey]);
-      }
-      for (var presetIndex = 0; presetIndex < presets.length; presetIndex++) {
-        var presetKey = this.priorityIdentity(presets[presetIndex]);
-        if (presetKey && seen[presetKey]) continue;
-        if (presetKey) seen[presetKey] = true;
-        ordered.push(presets[presetIndex]);
-      }
-      return ordered;
-    },
-    readRuntimePresetEntries: function (modConfig) {
-      var presets = readBakedPresetEntries(modConfig).concat(
-        readUserPresetEntries(modConfig),
-      );
-      if (modConfig && modConfig.__anitaRemovedPresetRows) {
-        var kept = [];
-        for (var i = 0; i < presets.length; i++) {
-          if (!this.isRuntimePresetRemoved(modConfig, presets[i]))
-            kept.push(presets[i]);
-        }
-        presets = kept;
-      }
-      return this.applyRuntimePresetPriorityOrder(modConfig, presets);
-    },
     selectForHero: function (
       modConfig,
       allowUnknownFallback,
       allowHeroMatch,
     ) {
-      var presets = this.readRuntimePresetEntries(modConfig);
+      var presets = HPPresetRepository.readRuntimePresetEntries(modConfig);
       var heroId = detectHpLocalHero();
       var canUseHeroMatch = allowHeroMatch !== false;
       var startupPreset = null;
@@ -1128,6 +1334,8 @@
           heroId: heroId,
           hasScopedPreset: hasScopedPreset,
           reason: "hero",
+          source: "hero",
+          usedFallback: false,
         };
       }
       if (
@@ -1143,6 +1351,8 @@
           heroId: heroId,
           hasScopedPreset: hasScopedPreset,
           reason: "startup",
+          source: "startup",
+          usedFallback: true,
         };
       }
       if (firstGlobal) {
@@ -1151,6 +1361,8 @@
           heroId: heroId,
           hasScopedPreset: hasScopedPreset,
           reason: "global",
+          source: "global",
+          usedFallback: true,
         };
       }
       if (
@@ -1163,6 +1375,8 @@
           heroId: heroId,
           hasScopedPreset: true,
           reason: "waiting_for_hero",
+          source: "waiting_for_hero",
+          usedFallback: false,
         };
       }
       if (firstPreset) {
@@ -1171,6 +1385,8 @@
           heroId: heroId,
           hasScopedPreset: hasScopedPreset,
           reason: "first",
+          source: "first",
+          usedFallback: true,
         };
       }
       return {
@@ -1178,10 +1394,12 @@
         heroId: heroId,
         hasScopedPreset: hasScopedPreset,
         reason: "none",
+        source: "none",
+        usedFallback: false,
       };
     },
     hasSelectedScopedPreset: function (config) {
-      var presets = this.readRuntimePresetEntries(config);
+      var presets = HPPresetRepository.readRuntimePresetEntries(config);
       for (var i = 0; i < presets.length; i++) {
         if (
           !presetIsDisabled(presets[i]) &&
@@ -1370,11 +1588,7 @@
       gameTime: Number(gameTime),
       at: now,
     };
-    try {
-      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) {
-        GameUI.CustomUIConfig()[HP_MATCH_RESET_SHARED_KEY] = payload;
-      }
-    } catch (eStore) {}
+    HPBridgeProtocol.writeMatchReset(payload);
   }
 
   function isHpMatchActiveState(gameState, gameTime) {
@@ -1834,7 +2048,7 @@
 
   function emitUpdate(modTitle, settingId, newValue, meta) {
     var payload = {
-      magic_word: "ANITA_UPDATE",
+      magic_word: HPBridgeProtocol.singleUpdateMagic,
       mod_title: modTitle,
       setting_id: settingId,
       value: newValue,
@@ -1846,13 +2060,13 @@
         }
       }
     }
-    $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(payload));
+    HPBridgeProtocol.dispatchPayload(payload);
     rememberLastEmittedValue(modTitle, settingId, newValue);
   }
 
   function emitBulkUpdate(modTitle, values, meta) {
     var payload = {
-      magic_word: "ANITA_BULK_UPDATE",
+      magic_word: HPBridgeProtocol.bulkUpdateMagic,
       mod_title: modTitle,
       values: values || {},
     };
@@ -1863,7 +2077,7 @@
         }
       }
     }
-    $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(payload));
+    HPBridgeProtocol.dispatchPayload(payload);
     for (var settingId in values || {}) {
       if (Object.prototype.hasOwnProperty.call(values, settingId)) {
         rememberLastEmittedValue(modTitle, settingId, values[settingId]);
@@ -2434,16 +2648,17 @@
   function writeHpSharedSnapshot(config) {
     var values = collectHpSharedSnapshotValues(config);
     if (!values) return "";
+    var raw = "";
     try {
-      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) {
-        var raw = JSON.stringify(values);
-        if (raw === _lastHpSharedRaw) return raw;
-        _lastHpSharedRaw = raw;
-        GameUI.CustomUIConfig()[HP_SHARED_CFG_RAW_KEY] = raw;
-        return raw;
-      }
-    } catch (e) {}
-    return "";
+      raw = JSON.stringify(values);
+    } catch (e) {
+      return "";
+    }
+    if (!raw) return "";
+    if (raw === _lastHpSharedRaw) return raw;
+    if (!HPBridgeProtocol.writeSharedConfigRaw(raw)) return "";
+    _lastHpSharedRaw = raw;
+    return raw;
   }
 
 
@@ -2482,9 +2697,7 @@
 
   function replayHpPresetSnapshot() {
     if (!_hpPresetSnapshotPayload) return;
-    try {
-      $.DispatchEvent("ClientUI_FireOutput", _hpPresetSnapshotPayload);
-    } catch (eDispatch) {}
+    HPBridgeProtocol.dispatchRawPayload(_hpPresetSnapshotPayload);
     _hpPresetSnapshotReplayCount += 1;
     scheduleHpPresetSnapshotReplay();
   }
@@ -2505,20 +2718,11 @@
       raw = "";
     }
     if (!raw) return false;
+    HPBridgeProtocol.writeSharedConfigRaw(raw);
     try {
-      if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig) {
-        GameUI.CustomUIConfig()[HP_SHARED_CFG_RAW_KEY] = raw;
-      }
-    } catch (eShared) {}
-    try {
-      _hpPresetSnapshotPayload = JSON.stringify({
-        magic_word: HP_PRESET_SNAPSHOT_MAGIC,
-        mod_title: "HP Colors",
-        version: 1,
-        values_raw: raw,
-        values: values,
-        update_source: String(reason || "full_static"),
-      });
+      _hpPresetSnapshotPayload = JSON.stringify(
+        HPBridgeProtocol.buildPresetSnapshotPayload(values, raw, reason),
+      );
     } catch (ePayload) {
       _hpPresetSnapshotPayload = "";
       return false;
@@ -2527,12 +2731,7 @@
     startHpPresetSnapshotReplay();
     if (!force && config.__hpColorsLastPresetSnapshotRaw === raw) return true;
     config.__hpColorsLastPresetSnapshotRaw = raw;
-    try {
-      $.DispatchEvent("ClientUI_FireOutput", _hpPresetSnapshotPayload);
-      return true;
-    } catch (eDispatch) {
-      return false;
-    }
+    return HPBridgeProtocol.dispatchRawPayload(_hpPresetSnapshotPayload);
   }
 
   const AnitaPersistence = {
@@ -2637,72 +2836,7 @@
     },
 
     sanitizeValue: function (element, value) {
-      if (!element) return value;
-
-      var fallback = element.defaultValue;
-      var type = String(element.type || "");
-
-      if (type === "toggle") {
-        if (value === true || value === false) return value;
-        if (value === 1 || value === "1") return true;
-        if (value === 0 || value === "0") return false;
-        if (typeof value === "string") {
-          var lowered = value.toLowerCase();
-          if (lowered === "true") return true;
-          if (lowered === "false") return false;
-        }
-        return !!fallback;
-      }
-
-      if (type === "cycler") {
-        var count = Array.isArray(element.options) ? element.options.length : 0;
-        var nextIndex = Number(value);
-        if (!isFinite(nextIndex)) nextIndex = Number(fallback);
-        if (!isFinite(nextIndex)) nextIndex = 0;
-        nextIndex = Math.round(nextIndex);
-        if (nextIndex < 0) nextIndex = 0;
-        if (count > 0 && nextIndex >= count) {
-          var fallbackIndex = Number(fallback);
-          if (
-            !isFinite(fallbackIndex) ||
-            fallbackIndex < 0 ||
-            fallbackIndex >= count
-          )
-            fallbackIndex = 0;
-          nextIndex = fallbackIndex;
-        }
-        return nextIndex;
-      }
-
-      if (type === "stepper" || type === "slider") {
-        var nextNumber = Number(value);
-        if (!isFinite(nextNumber)) nextNumber = Number(fallback);
-        if (!isFinite(nextNumber)) nextNumber = 0;
-        var min = Number(element.min);
-        var max = Number(element.max);
-        if (isFinite(min) && nextNumber < min) nextNumber = min;
-        if (isFinite(max) && nextNumber > max) nextNumber = max;
-        var step = Number(element.step);
-        if (!isFinite(step) || step === 0) step = 1;
-        if (Math.round(step) === step) {
-          nextNumber = Math.round(nextNumber);
-        } else {
-          nextNumber = parseFloat(nextNumber.toFixed(2));
-        }
-        if (isFinite(min) && nextNumber < min) nextNumber = min;
-        if (isFinite(max) && nextNumber > max) nextNumber = max;
-        return nextNumber;
-      }
-
-      if (type === "colorpicker") {
-        if (typeof value === "string" && value.length > 0) return value;
-        return typeof fallback === "string" && fallback.length > 0
-          ? fallback
-          : "#FFFFFF";
-      }
-
-      if (value !== undefined) return value;
-      return fallback;
+      return HPValueCodecs.sanitizeElementValue(element, value);
     },
 
 
@@ -2792,10 +2926,7 @@
 
     readSharedSnapshotPayload: function (config) {
       try {
-        if (typeof GameUI === "undefined" || !GameUI || !GameUI.CustomUIConfig)
-          return null;
-        var raw = String(GameUI.CustomUIConfig()[HP_SHARED_CFG_RAW_KEY] || "");
-        if (!raw) return null;
+        var raw = HPBridgeProtocol.readSharedConfigRaw();
         var parsed = JSON.parse(raw);
         if (!parsed || typeof parsed !== "object") return null;
         return {
@@ -2949,12 +3080,12 @@
     requestBootstrap: function (config, reason) {
       if (!this.hasPersistentConfig(config)) return;
       var payload = {
-        magic_word: "ANITA_REQUEST_BOOTSTRAP",
+        magic_word: HPBridgeProtocol.bootstrapRequestMagic,
         mod_title: config.title,
         storageNamespace: this.normalizeNamespace(config.storageNamespace),
         reason: String(reason || "request"),
       };
-      $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(payload));
+      HPBridgeProtocol.dispatchPayload(payload);
     },
 
     applyUpdate: function (config, settingId, value) {
@@ -8718,12 +8849,9 @@
         });
       }
 
-      $.DispatchEvent(
-        "ClientUI_FireOutput",
-        JSON.stringify({
-          magic_word: "ANITA_ALIVE",
-        }),
-      );
+      HPBridgeProtocol.dispatchPayload({
+        magic_word: HPBridgeProtocol.aliveMagic,
+      });
     },
 
     registerMod: function (config) {
@@ -8752,13 +8880,10 @@
         AnitaRenderer.renderModSettings(config);
       });
       this.updateWindowWidth();
-      $.DispatchEvent(
-        "ClientUI_FireOutput",
-        JSON.stringify({
-          magic_word: "ANITA_HANDSHAKE",
-          mod_title: config.title,
-        }),
-      );
+      HPBridgeProtocol.dispatchPayload({
+        magic_word: HPBridgeProtocol.handshakeMagic,
+        mod_title: config.title,
+      });
       if (config.title === "HP Colors") {
         this.emitPortableSync(config, "register_startup");
         this.queueHpColorsStartupSyncBurst(config, "register_startup");
@@ -9107,25 +9232,19 @@
 
     setupEventListener: function () {
       try {
-        $.RegisterForUnhandledEvent("ClientUI_FireOutput", (payload) => {
-          if (
-            typeof payload === "string" &&
-            payload.indexOf("ANITA_") === -1 &&
-            payload.indexOf(HP_PRESET_REQUEST_MAGIC) === -1
-          )
-            return;
+        $.RegisterForUnhandledEvent(HPBridgeProtocol.eventChannel, (payload) => {
+          if (!HPBridgeProtocol.shouldInspectPayload(payload)) return;
           try {
-            let data =
-              typeof payload === "string" ? JSON.parse(payload) : payload;
-            if (data && data.magic_word === "ANITA_REGISTER") {
+            let data = HPBridgeProtocol.parsePayload(payload);
+            if (HPBridgeProtocol.isRegister(data)) {
               this.registerMod(data.config);
-            } else if (data && data.magic_word === HP_PRESET_REQUEST_MAGIC) {
+            } else if (HPBridgeProtocol.isPresetRequest(data)) {
               this.handlePresetSnapshotRequest(data);
-            } else if (data && data.magic_word === "ANITA_REQUEST_BOOTSTRAP") {
+            } else if (HPBridgeProtocol.isBootstrapRequest(data)) {
               this.handleBootstrapRequest(data);
-            } else if (data && data.magic_word === "ANITA_BULK_UPDATE") {
+            } else if (HPBridgeProtocol.isBulkUpdate(data)) {
               this.handleBulkUpdateEvent(data);
-            } else if (data && data.magic_word === "ANITA_UPDATE") {
+            } else if (HPBridgeProtocol.isSingleUpdate(data)) {
               this.handleUpdateEvent(data);
             }
           } catch (e) {}

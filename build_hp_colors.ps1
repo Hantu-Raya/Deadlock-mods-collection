@@ -21,7 +21,6 @@ if (-not $vpkeditcli) {
 }
 $vpkOut      = "$root\pak97_dir.vpk"
 $vpkDest     = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak97_dir.vpk"
-$builderPresetVpk = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak96_dir.vpk"
 
 # Clean rebuild: remove stale compiled output and previous pack artifact.
 if (Test-Path $modCompiled) { Remove-Item -Recurse -Force $modCompiled }
@@ -73,20 +72,7 @@ Write-Host "`n[1/4] Preparing Closure ADVANCED hp_colors source..." -ForegroundC
 New-Item -ItemType Directory -Force -Path $closureSrc | Out-Null
 Copy-Item -Path "$modSrc\panorama" -Destination "$closureSrc\panorama" -Recurse -Force
 
-$presetStoreSync = "$root\scripts\sync_hp_preset_store.js"
-$closureBaseHud = "$closureSrc\panorama\layout\base_hud.xml"
-if ((Test-Path $builderPresetVpk) -and (Test-Path $presetStoreSync) -and (Test-Path $closureBaseHud)) {
-    & node $presetStoreSync $builderPresetVpk $closureBaseHud
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] HPColorsPresetStore sync failed - fix pak96_dir.vpk or base_hud before building." -ForegroundColor Red
-        exit 1
-    }
-} elseif ((Get-Content -LiteralPath $closureBaseHud -Raw).Contains('id="HPColorsPresetStore"')) {
-    Write-Host "  [PRESET STORE] pak96_dir.vpk unavailable; using HPColorsPresetStore already present in source base_hud." -ForegroundColor DarkGray
-} else {
-    Write-Host "[ERROR] HPColorsPresetStore missing from source and pak96_dir.vpk sync is unavailable." -ForegroundColor Red
-    exit 1
-}
+Write-Host "  [PRESET STORE] Skipping external preset-store sync; using source base_hud.xml as-is." -ForegroundColor DarkGray
 
 $scriptFiles = Get-ChildItem "$closureSrc\panorama\scripts" -Filter *.js | Sort-Object Name
 if (-not $scriptFiles) {

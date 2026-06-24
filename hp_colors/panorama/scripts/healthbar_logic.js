@@ -127,6 +127,21 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
   var pulseA = 0,
     lPIA = -1;
   var aIdleMiss = 0;
+  var ALLY_SNAPSHOT = {
+    confirmed: false,
+    panel: null,
+    parent: null,
+    flags: 0,
+    barWidth: 0,
+    parentWidth: 0,
+    hp: 0,
+  };
+  var ALLY_PAINT_PLAN = {
+    washColor: "",
+    inPulse: false,
+    nextDelay: 0.35,
+  };
+
 
   function clearPulse() {
     if (!pulse && lPD === null && lPI < 0 && lTB === null) return;
@@ -152,11 +167,65 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
     }
   }
 
-  function syncEnemyPulse(shouldPulse, now) {
+  var ENEMY_PULSE_PLAN = {
+    shouldPulse: false,
+    start: false,
+    stop: false,
+    duration: "",
+    intensityIndex: -1,
+    textEnabled: false,
+    textBrightness: "",
+    resetText: false,
+    fastSchedule: false,
+  };
+
+  function resetEnemyPulsePlan(plan) {
+    plan.shouldPulse = false;
+    plan.start = false;
+    plan.stop = false;
+    plan.duration = "";
+    plan.intensityIndex = -1;
+    plan.textEnabled = false;
+    plan.textBrightness = "";
+    plan.resetText = false;
+    plan.fastSchedule = false;
+    return plan;
+  }
+
+  function computeEnemyPulsePlan(shouldPulse, now, plan) {
+    plan = resetEnemyPulsePlan(plan || ENEMY_PULSE_PLAN);
     if (!shouldPulse) {
-      if (pulse) clearPulse();
+      plan.stop = !!pulse;
+      return plan;
+    }
+    plan.shouldPulse = true;
+    plan.start = !pulse;
+    var bpm = clampNum(cfg.hp_pulse_bpm, 30, 300, 75);
+    plan.duration = (60 / bpm).toFixed(3) + "s";
+    plan.intensityIndex = clampNum(cfg.hp_pulse_intensity, 0, 2, 1) | 0;
+    if (!hc || !hc.style) return plan;
+    if (!cfg.hp_pulse_text_enabled) {
+      plan.resetText = true;
+      return plan;
+    }
+    var period = Math.max(1, 60000 / bpm);
+    var phase = (now % period) / period;
+    var wave = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
+    var idx = plan.intensityIndex;
+    var hi = idx === 2 ? 2.0 : idx === 0 ? 1.15 : 1.5;
+    var lo = idx === 2 ? 0.55 : idx === 0 ? 0.85 : 0.65;
+    plan.textEnabled = true;
+    plan.textBrightness = (lo + (hi - lo) * wave).toFixed(2);
+    plan.fastSchedule = true;
+    return plan;
+  }
+
+  function applyEnemyPulsePlan(plan) {
+    if (plan.stop) {
+      clearPulse();
       return false;
     }
+    if (!plan.shouldPulse) return false;
     if (!pulse) {
       pulse = 1;
       lCol = lUlt = lTxt = null;
@@ -167,18 +236,15 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
         if (ui) ui.AddClass(LP);
       } catch (e3) {}
     }
-    var bpm = clampNum(cfg.hp_pulse_bpm, 30, 300, 75);
-    var dur = (60 / bpm).toFixed(3) + "s";
-    if (lPD !== dur) {
-      lPD = dur;
-      if (rb && rb.IsValid && rb.IsValid()) rb.style.animationDuration = dur;
-      if (ui && ui.IsValid && ui.IsValid()) ui.style.animationDuration = dur;
+    if (lPD !== plan.duration) {
+      lPD = plan.duration;
+      if (rb && rb.IsValid && rb.IsValid()) rb.style.animationDuration = plan.duration;
+      if (ui && ui.IsValid && ui.IsValid()) ui.style.animationDuration = plan.duration;
     }
-    var idx = clampNum(cfg.hp_pulse_intensity, 0, 2, 1) | 0;
-    if (lPI !== idx) {
+    if (lPI !== plan.intensityIndex) {
       var oldCls = lPI >= 0 ? PULSE_INTENSITY[lPI] : "";
-      var newCls = PULSE_INTENSITY[idx];
-      lPI = idx;
+      var newCls = PULSE_INTENSITY[plan.intensityIndex];
+      lPI = plan.intensityIndex;
       if (oldCls) {
         try {
           if (rb && rb.IsValid && rb.IsValid()) rb.RemoveClass(oldCls);
@@ -196,31 +262,32 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
         } catch (e7) {}
       }
     }
-    if (!hc) return false;
-    try {
-      if (!cfg.hp_pulse_text_enabled) {
-        if (hc.style) hc.style.animationDuration = "";
-        if (hc.style) hc.style.brightness = "";
-        lTB = null;
-        return false;
-      }
-    } catch (e8) {}
-    if (!hc.style) return false;
-    var period = Math.max(1, 60000 / bpm);
-    var phase = (now % period) / period;
-    var wave = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-    var hi = idx === 2 ? 2.0 : idx === 0 ? 1.15 : 1.5;
-    var lo = idx === 2 ? 0.55 : idx === 0 ? 0.85 : 0.65;
-    var next = (lo + (hi - lo) * wave).toFixed(2);
-    if (lTB !== next) {
+    if (plan.resetText) {
       try {
-        hc.style.brightness = next;
-        lTB = next;
+        if (hc && hc.style) {
+          hc.style.animationDuration = "";
+          hc.style.brightness = "";
+        }
+        lTB = null;
+      } catch (e8) {}
+      return false;
+    }
+    if (!plan.textEnabled || !hc || !hc.style) return false;
+    if (lTB !== plan.textBrightness) {
+      try {
+        hc.style.brightness = plan.textBrightness;
+        lTB = plan.textBrightness;
       } catch (e9) {
         lTB = null;
       }
     }
-    return true;
+    return plan.fastSchedule;
+  }
+
+  function syncEnemyPulse(shouldPulse, now) {
+    return applyEnemyPulsePlan(
+      computeEnemyPulsePlan(shouldPulse, now, ENEMY_PULSE_PLAN),
+    );
   }
 
   function syncAllyPulse(panel, shouldPulse) {
@@ -315,17 +382,38 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
     return typeof value === "string" && value.length > 0 ? value : fallback;
   }
 
-  function coerceCfgValue(id, value) {
-    if (!Object.prototype.hasOwnProperty.call(DEFAULTS, id)) return value;
-
-    var fallback = DEFAULTS[id];
-    if (id === "hp_counter_position" || id === "hp_pulse_text_position")
-      return formatPositionValue(value);
-    if (typeof fallback === "boolean")
+  var HPValueCodecs = {
+    formatPositionValue: function (rawPos) {
+      return formatPositionValue(rawPos);
+    },
+    coerceBooleanValue: function (value, fallback) {
       return coerceBooleanValue(value, fallback);
-    if (typeof fallback === "number") return coerceNumberValue(value, fallback);
-    if (typeof fallback === "string") return coerceStringValue(value, fallback);
-    return value;
+    },
+    coerceNumberValue: function (value, fallback) {
+      return coerceNumberValue(value, fallback);
+    },
+    coerceStringValue: function (value, fallback) {
+      return coerceStringValue(value, fallback);
+    },
+    coerceCfgValue: function (id, value) {
+      if (!Object.prototype.hasOwnProperty.call(DEFAULTS, id)) return value;
+
+      var fallback = DEFAULTS[id];
+      if (id === "hp_counter_position" || id === "hp_pulse_text_position")
+        return this.formatPositionValue(value);
+      if (typeof fallback === "boolean")
+        return this.coerceBooleanValue(value, fallback);
+      if (typeof fallback === "number")
+        return this.coerceNumberValue(value, fallback);
+      if (typeof fallback === "string")
+        return this.coerceStringValue(value, fallback);
+      return value;
+    },
+  };
+
+
+  function coerceCfgValue(id, value) {
+    return HPValueCodecs.coerceCfgValue(id, value);
   }
 
   function loadCfgDefaults() {
@@ -441,6 +529,14 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
     dispatchPayload: function (payload) {
       try {
         $.DispatchEvent(this.eventChannel, JSON.stringify(payload));
+        return true;
+      } catch (e) {}
+      return false;
+    },
+    dispatchRawPayload: function (rawPayload) {
+      if (!rawPayload) return false;
+      try {
+        $.DispatchEvent(this.eventChannel, rawPayload);
         return true;
       } catch (e) {}
       return false;
@@ -1093,7 +1189,7 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
     handleRuntimeUpdate(d, now);
   }
   // Live updates from Anita UI, including boot-time bootstrap values.
-  $.RegisterForUnhandledEvent(EVENT_CHANNEL, function (payload) {
+  $.RegisterForUnhandledEvent(HPBridgeProtocol.eventChannel, function (payload) {
     if (!HPBridgeProtocol.shouldInspectPayload(payload)) return;
     handleRuntimeEventPayload(HPBridgeProtocol.parsePayload(payload));
   });
@@ -1252,7 +1348,7 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
       healthbarContainer: null,
       name: null,
     },
-    target: {
+    snapshot: {
       teamId: 0,
       flags: 0,
       isEnemy: false,
@@ -1261,8 +1357,6 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
       isBuilding: false,
       isFriendlyBuilding: false,
       isEnemyBuilding: false,
-    },
-    metrics: {
       barWidth: 0,
       parentWidth: 0,
       replacedRedBar: false,
@@ -1284,22 +1378,20 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
       panels.healthbarContainer = uhc;
       panels.name = nm;
 
-      var target = this.target;
-      target.teamId = tid;
-      target.flags = fl;
-      target.isFriendly = this.isFriendlyTarget(fl);
-      target.isNeutral = !!(fl & 2);
-      target.isBuilding = !!(fl & 4);
-      target.isFriendlyBuilding = this.isFriendlyBuilding(fl, tid);
-      target.isEnemyBuilding = this.isEnemyBuilding(fl, tid);
-      target.isEnemy = this.isEnemyTarget(fl, tid);
-
-      var metrics = this.metrics;
-      metrics.barWidth =
+      var snapshot = this.snapshot;
+      snapshot.teamId = tid;
+      snapshot.flags = fl;
+      snapshot.isFriendly = this.isFriendlyTarget(fl);
+      snapshot.isNeutral = !!(fl & 2);
+      snapshot.isBuilding = !!(fl & 4);
+      snapshot.isFriendlyBuilding = this.isFriendlyBuilding(fl, tid);
+      snapshot.isEnemyBuilding = this.isEnemyBuilding(fl, tid);
+      snapshot.isEnemy = this.isEnemyTarget(fl, tid);
+      snapshot.barWidth =
         rb && rb.actuallayoutwidth !== undefined ? rb.actuallayoutwidth | 0 : 0;
-      metrics.parentWidth =
+      snapshot.parentWidth =
         cp && cp.actuallayoutwidth !== undefined ? cp.actuallayoutwidth | 0 : 0;
-      metrics.replacedRedBar = rb !== null && rb !== lb;
+      snapshot.replacedRedBar = rb !== null && rb !== lb;
       return this;
     },
     clearPanels: function () {
@@ -1575,15 +1667,16 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
       if (flags & 1) return true;
       return this.isEnemyBuilding(flags, teamId);
     },
-    getIgnoredTargetColor: function () {
-      var flags = fl;
+    getIgnoredTargetColor: function (snapshot) {
+      var flags = snapshot ? snapshot.flags : fl;
+      var teamId = snapshot ? snapshot.teamId : tid;
       if (flags & 1 && !(flags & 2)) return "";
-      if (this.isEnemyBuilding(flags, tid)) return CSS_TEAM_ENEMY_COLOR;
-      if (this.isFriendlyBuilding(flags, tid)) return WHITE_WASH;
+      if (this.isEnemyBuilding(flags, teamId)) return CSS_TEAM_ENEMY_COLOR;
+      if (this.isFriendlyBuilding(flags, teamId)) return WHITE_WASH;
       if (flags & (2 | 4)) return "#5BEFB5";
       if (flags & 8) return CSS_TEAM_FRIEND_COLOR;
-      if (tid === 2) return CSS_TEAM2_COLOR;
-      if (tid === 1) return CSS_TEAM1_COLOR;
+      if (teamId === 2) return CSS_TEAM2_COLOR;
+      if (teamId === 1) return CSS_TEAM1_COLOR;
       return CSS_TEAM_ENEMY_COLOR;
     },
   };
@@ -1816,6 +1909,7 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
             flags |= 2;
           if (
             !(flags & 4) &&
+            (cfg.hp_skip_buildings || !(flags & 1)) &&
             (c.BHasClass("building") ||
               c.BHasClass("boss_tier1") ||
               c.BHasClass("boss_tier2") ||
@@ -2097,7 +2191,14 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
     lKzSig = null;
 
 
-  function sKZ(show, parentWidth) {
+  function computeEnemyKillMarkerPlan(show, parentWidth, plan) {
+    plan = plan || ENEMY_PAINT_PLAN;
+    plan.killMarkerAction = 0;
+    plan.killMarkerX = "";
+    plan.killMarkerWidth = "";
+    plan.killMarkerColor = "";
+    plan.killMarkerSig = "";
+    plan.killMarkerParentWidth = parentWidth;
     if (
       (!kz || !vPanel(kz)) &&
       show &&
@@ -2105,19 +2206,14 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
       us &&
       us.FindChildTraverse
     ) {
-      try {
-        kz = us.FindChildTraverse(ID_KILL_MARKER);
-      } catch (eFindKz) {}
+      plan.killMarkerAction = 3;
+      return plan;
     }
-    if (!kz || !kz.style) return;
+    if (!kz || !kz.style) return plan;
     var barHidden = !bg || !bg.style || lBgVis !== "visible" || lBgOp !== "1.0";
     if (!show || !cfg.hp_kill_zone_enabled || parentWidth <= 0 || barHidden) {
-      lKzSig = null;
-      if (lKzVis !== "collapse") {
-        kz.style.visibility = "collapse";
-        lKzVis = "collapse";
-      }
-      return;
+      plan.killMarkerAction = 2;
+      return plan;
     }
 
     var threshold = dc.killZoneThreshold;
@@ -2153,26 +2249,50 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
       lKzW === widthStr &&
       lKzAppliedColor === color
     ) {
+      return plan;
+    }
+    plan.killMarkerAction = 1;
+    plan.killMarkerX = posStr;
+    plan.killMarkerWidth = widthStr;
+    plan.killMarkerColor = color;
+    plan.killMarkerSig = sig;
+    return plan;
+  }
+
+  function applyEnemyKillMarkerPlan(plan) {
+    if (plan.killMarkerAction === 3) {
+      try {
+        kz = us.FindChildTraverse(ID_KILL_MARKER);
+      } catch (eFindKz) {}
+      if (!kz || !kz.style) return;
+      plan = computeEnemyKillMarkerPlan(true, plan.killMarkerParentWidth, plan);
+    }
+    if (plan.killMarkerAction === 2) {
+      lKzSig = null;
+      if (kz && kz.style && lKzVis !== "collapse") {
+        kz.style.visibility = "collapse";
+        lKzVis = "collapse";
+      }
       return;
     }
-    lKzSig = sig;
-
+    if (plan.killMarkerAction !== 1 || !kz || !kz.style) return;
+    lKzSig = plan.killMarkerSig;
     if (lKzVis !== "visible") {
       kz.style.visibility = "visible";
       lKzVis = "visible";
     }
-    if (lKzX !== posStr) {
-      kz.style.marginLeft = posStr;
-      lKzX = posStr;
+    if (lKzX !== plan.killMarkerX) {
+      kz.style.marginLeft = plan.killMarkerX;
+      lKzX = plan.killMarkerX;
     }
-    if (lKzW !== widthStr) {
-      kz.style.width = widthStr;
-      lKzW = widthStr;
+    if (lKzW !== plan.killMarkerWidth) {
+      kz.style.width = plan.killMarkerWidth;
+      lKzW = plan.killMarkerWidth;
     }
-    if (lKzAppliedColor !== color) {
+    if (lKzAppliedColor !== plan.killMarkerColor) {
       try {
-        kz.style.backgroundColor = color;
-        lKzAppliedColor = color;
+        kz.style.backgroundColor = plan.killMarkerColor;
+        lKzAppliedColor = plan.killMarkerColor;
       } catch (eCol) {
         lKzAppliedColor = null;
       }
@@ -2396,7 +2516,9 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
     lUltRaw = null;
     lTxt = null;
     lTxtRaw = null;
-    sKZ(false, 0);
+    applyEnemyKillMarkerPlan(
+      computeEnemyKillMarkerPlan(false, 0, ENEMY_PAINT_PLAN),
+    );
     if (bg && bg.style) {
       if (lBgVis !== "collapse") {
         bg.style.visibility = "collapse";
@@ -2514,7 +2636,10 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
       lUlt = null;
       requestLoopKick(LOOP_ENEMY);
     }
-    if (!cfg.hp_kill_zone_enabled) sKZ(false, 0);
+    if (!cfg.hp_kill_zone_enabled)
+      applyEnemyKillMarkerPlan(
+        computeEnemyKillMarkerPlan(false, 0, ENEMY_PAINT_PLAN),
+      );
     else if (settingId === "hp_kill_zone_enabled") requestLoopKick(LOOP_ENEMY);
     if (pl && pl.style && !cfg.hp_pip_visible && lPipVis !== "collapse") {
       try {
@@ -2609,67 +2734,113 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
     stableCurrentRedBarFrames = 0;
 
   // â”€â”€ Main poll loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  function applyEnemyHealthColors(
-    hp,
-    prevHp,
-    now,
-    low,
-    high,
-    pulseThresh,
-    shouldPulse,
-  ) {
-    var sc = 0.15;
-    var cl;
-    var textCol;
-    if (
-      hp <= low &&
+  var ENEMY_PAINT_PLAN = {
+    hasBarVisible: false,
+    barVisible: false,
+    barColor: "",
+    ultColor: "",
+    textColor: "",
+    nextDelay: 0.15,
+    clearPulse: false,
+    stopAfterApply: false,
+    hasPipVisible: false,
+    pipVisible: "",
+    counterAction: 0,
+    counterCurrent: 0,
+    counterMax: 0,
+    counterLowMode: false,
+    killMarkerAction: 0,
+    killMarkerParentWidth: 0,
+    killMarkerX: "",
+    killMarkerWidth: "",
+    killMarkerColor: "",
+    killMarkerSig: "",
+  };
+
+  function resetEnemyPaintPlan(plan) {
+    plan.hasBarVisible = false;
+    plan.barVisible = false;
+    plan.barColor = "";
+    plan.ultColor = "";
+    plan.textColor = "";
+    plan.nextDelay = 0.15;
+    plan.clearPulse = false;
+    plan.stopAfterApply = false;
+    plan.hasPipVisible = false;
+    plan.pipVisible = "";
+    plan.counterAction = 0;
+    plan.counterCurrent = 0;
+    plan.counterMax = 0;
+    plan.counterLowMode = false;
+    plan.killMarkerAction = 0;
+    plan.killMarkerParentWidth = 0;
+    plan.killMarkerX = "";
+    plan.killMarkerWidth = "";
+    plan.killMarkerColor = "";
+    plan.killMarkerSig = "";
+    return plan;
+  }
+
+  function isEnemyPaintWarmup(hp, prevHp, now) {
+    return !!(
+      hp <= dc.low &&
       panelBornAt &&
       now - panelBornAt < 900 &&
-      (prevHp < 0 || (prevHp <= low && hp > prevHp))
-    ) {
+      (prevHp < 0 || (prevHp <= dc.low && hp > prevHp))
+    );
+  }
+
+  function computeEnemyPaintPlan(hp, prevHp, now, shouldPulse, plan) {
+    plan = resetEnemyPaintPlan(plan || ENEMY_PAINT_PLAN);
+    var low = dc.low;
+    var high = dc.high;
+    var pulseThresh = dc.pulseThreshold;
+    var sc = 0.15;
+    var cl;
+    if (isEnemyPaintWarmup(hp, prevHp, now)) {
       var warmupCol = getHighColor();
-      clearPulse();
-      HealthbarPainter.setBarColor(warmupCol);
-      HealthbarPainter.setUltColor(warmupCol);
-      HealthbarPainter.setTextColor(getTextColor(100, low, high));
-      scheduleLoop(LOOP_ENEMY, 0.05);
-      return -1;
+      plan.clearPulse = true;
+      plan.barColor = warmupCol;
+      plan.ultColor = warmupCol;
+      plan.textColor = getTextColor(100, low, high);
+      plan.nextDelay = 0.05;
+      plan.stopAfterApply = true;
+      return plan;
     }
-    HealthbarPainter.setBarVisible(shouldPulse && cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible);
+    plan.hasBarVisible = true;
+    plan.barVisible = shouldPulse && cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible;
     if (hp <= low) {
       cl = cfg.hp_color_low;
-      textCol =
+      plan.textColor =
         cfg.hp_text_color_mode && cfg.hp_mode === 1
           ? cfg.hp_text_color_low
           : getTextColor(hp, low, high);
-    } else {
-      if (hp <= high) {
-        if (cfg.hp_mode === 1) {
-          cl = ipHex(
-            cfg.hp_color_low,
-            cfg.hp_color_mid,
-            (hp - low) / dc.denomMid,
-          );
-          textCol = getGradientTextColor(hp, low, high);
-        } else {
-          cl = cfg.hp_color_mid;
-          textCol = getTextColor(hp, low, high);
-        }
+    } else if (hp <= high) {
+      if (cfg.hp_mode === 1) {
+        cl = ipHex(
+          cfg.hp_color_low,
+          cfg.hp_color_mid,
+          (hp - low) / dc.denomMid,
+        );
+        plan.textColor = getGradientTextColor(hp, low, high);
       } else {
-        if (cfg.hp_mode === 1) {
-          cl = ipHex(
-            cfg.hp_color_mid,
-            getHighColor(),
-            (hp - high) / dc.denomHigh,
-          );
-          textCol = getGradientTextColor(hp, low, high);
-        } else {
-          cl = getHighColor();
-          textCol = getTextColor(hp, low, high);
-        }
-        if (sFC >= 5)
-          sc = ENEMY_IDLE_BACKOFF[Math.min(Math.floor((sFC - 5) / 5), 3)];
+        cl = cfg.hp_color_mid;
+        plan.textColor = getTextColor(hp, low, high);
       }
+    } else {
+      if (cfg.hp_mode === 1) {
+        cl = ipHex(
+          cfg.hp_color_mid,
+          getHighColor(),
+          (hp - high) / dc.denomHigh,
+        );
+        plan.textColor = getGradientTextColor(hp, low, high);
+      } else {
+        cl = getHighColor();
+        plan.textColor = getTextColor(hp, low, high);
+      }
+      if (sFC >= 5)
+        sc = ENEMY_IDLE_BACKOFF[Math.min(Math.floor((sFC - 5) / 5), 3)];
     }
     if (shouldPulse && cfg.hp_pulse_color_enabled) {
       if ((cfg.hp_pulse_color_mode | 0) === 1) {
@@ -2682,10 +2853,87 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
         cl = cfg.hp_pulse_color;
       }
     }
-    HealthbarPainter.setBarColor(cl);
-    HealthbarPainter.setUltColor(cl);
-    HealthbarPainter.setTextColor(textCol);
-    return sc;
+    plan.barColor = cl;
+    plan.ultColor = cl;
+    plan.nextDelay = sc;
+    return plan;
+  }
+
+  function applyEnemyPaintPlan(plan) {
+    if (plan.clearPulse) clearPulse();
+    if (plan.hasBarVisible) HealthbarPainter.setBarVisible(plan.barVisible);
+    HealthbarPainter.setBarColor(plan.barColor);
+    HealthbarPainter.setUltColor(plan.ultColor);
+    HealthbarPainter.setTextColor(plan.textColor);
+    return plan.nextDelay;
+  }
+
+  function computeEnemyCounterPlan(
+    hp,
+    shouldPulse,
+    hasPipPanel,
+    pipText,
+    hasCounterPanels,
+    liveBarWidth,
+    liveBarParentWidth,
+    plan,
+  ) {
+    plan = resetEnemyPaintPlan(plan || ENEMY_PAINT_PLAN);
+    var counterVisible = !!cfg.hp_counter_visible;
+    var fmt = cfg.hp_counter_format | 0;
+    plan.hasPipVisible = !!hasPipPanel;
+    plan.pipVisible = cfg.hp_pip_visible ? "visible" : "collapse";
+    if (!counterVisible) {
+      plan.counterAction = 2;
+      return plan;
+    }
+    if (!hasCounterPanels) return plan;
+    plan.counterAction = 1;
+    plan.counterLowMode = !!shouldPulse;
+    if (fmt === 1) {
+      plan.counterCurrent = hp;
+      plan.counterMax = 100;
+      return plan;
+    }
+    var ratio = liveBarParentWidth > 0 ? liveBarWidth / liveBarParentWidth : 0;
+    var maxHp = pMax(pipText || "");
+    plan.counterMax = maxHp;
+    plan.counterCurrent = ratio >= 0.97 ? maxHp : Math.round(maxHp * ratio);
+    return plan;
+  }
+
+  function applyEnemyCounterPlan(plan) {
+    if (plan.hasPipVisible && pl && pl.style) {
+      try {
+        if (lPipVis !== plan.pipVisible) {
+          pl.style.visibility = plan.pipVisible;
+          lPipVis = plan.pipVisible;
+        }
+      } catch (ePip) {
+        lPipVis = null;
+      }
+    }
+    if (plan.counterAction === 1) {
+      uHT(plan.counterCurrent, plan.counterMax, plan.counterLowMode);
+    } else if (plan.counterAction === 2) {
+      sHCV(false);
+    }
+  }
+
+  function applyEnemyHealthColors(hp, prevHp, now, shouldPulse) {
+    var plan = computeEnemyPaintPlan(
+      hp,
+      prevHp,
+      now,
+      shouldPulse,
+      ENEMY_PAINT_PLAN,
+    );
+    var delay = applyEnemyPaintPlan(plan);
+    if (plan.stopAfterApply) {
+      scheduleLoop(LOOP_ENEMY, delay);
+      return -1;
+    }
+    return delay;
   }
 
   function gL() {
@@ -2703,7 +2951,7 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
         scheduleLoop(LOOP_ENEMY, 0.15);
         return;
       }
-      var target = HealthbarContext.target;
+      var target = HealthbarContext.snapshot;
       var enemySignature = target.teamId + ":" + target.flags;
       if (enemySignature !== lastEnemySignature) {
         lastEnemySignature = enemySignature;
@@ -2727,13 +2975,15 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
           HealthbarPainter.setBarVisible(true);
           if (cfg.hp_friend_enabled) requestLoopKick(LOOP_ALLY);
         } else {
-          var ignoredColor = HealthbarContext.getIgnoredTargetColor();
+          var ignoredColor = HealthbarContext.getIgnoredTargetColor(target);
           HealthbarPainter.setBarColor(ignoredColor);
           HealthbarPainter.setUltColor(ignoredColor);
           HealthbarPainter.setTextColor(WHITE_WASH);
           HealthbarPainter.setBarVisible(!!cfg.hp_bg_visible);
         }
-        sKZ(false, 0);
+        applyEnemyKillMarkerPlan(
+          computeEnemyKillMarkerPlan(false, 0, ENEMY_PAINT_PLAN),
+        );
         scheduleLoop(
           LOOP_ENEMY,
           buildingNotEnemyExitFrames < 4
@@ -2795,7 +3045,9 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
       if (target.isNeutral) {
         clearPulse();
         HealthbarPainter.setBarVisible(true);
-        sKZ(false, 0);
+        applyEnemyKillMarkerPlan(
+          computeEnemyKillMarkerPlan(false, 0, ENEMY_PAINT_PLAN),
+        );
         HealthbarPainter.setBarColor("#5BEFB5");
         HealthbarPainter.setTextColor(WHITE_WASH);
         lUT = now;
@@ -2809,7 +3061,9 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
         nonEnemyExitFrames++;
         buildingNotEnemyExitFrames = 0;
         HealthbarPainter.setBarVisible(true);
-        sKZ(false, 0);
+        applyEnemyKillMarkerPlan(
+          computeEnemyKillMarkerPlan(false, 0, ENEMY_PAINT_PLAN),
+        );
         lUT = now;
         scheduleLoop(
           LOOP_ENEMY,
@@ -2832,9 +3086,8 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
         return;
       }
 
-      var metrics = HealthbarContext.metrics;
-      var w = metrics.barWidth;
-      var pw = metrics.parentWidth;
+      var w = target.barWidth;
+      var pw = target.parentWidth;
       if (
         w === lW &&
         pw === lPW &&
@@ -2853,7 +3106,9 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
       if (pw <= 0) {
         noParentWidthFrames++;
         HealthbarPainter.setBarColor(getHighColor());
-        sKZ(false, 0);
+        applyEnemyKillMarkerPlan(
+          computeEnemyKillMarkerPlan(false, 0, ENEMY_PAINT_PLAN),
+        );
         scheduleLoop(
           LOOP_ENEMY,
           noParentWidthFrames < 4 ? 0.18 : noParentWidthFrames < 12 ? 0.35 : 0.75,
@@ -2861,8 +3116,6 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
         return;
       }
       noParentWidthFrames = 0;
-      if (cfg.hp_kill_zone_enabled) sKZ(true, pw);
-      else if (lKzVis !== "collapse") sKZ(false, 0);
       var hp = ((w / pw) * 100) | 0;
 
       var low = dc.low;
@@ -2891,46 +3144,50 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
       var counterVisible = !!cfg.hp_counter_visible;
       var fmt = cfg.hp_counter_format | 0;
       var txt = "";
-      if (pl) {
+      var hasPipPanel = !!pl;
+      if (hasPipPanel && counterVisible && fmt !== 1) {
         try {
-          var pipVis = cfg.hp_pip_visible ? "visible" : "collapse";
-          if (lPipVis !== pipVis) {
-            pl.style.visibility = pipVis;
-            lPipVis = pipVis;
-          }
-          if (counterVisible && fmt !== 1)
-            txt = pl.text || pl.GetAttributeString("text", "") || "";
-        } catch (ePip) {
+          txt = pl.text || pl.GetAttributeString("text", "") || "";
+        } catch (ePipText) {
           txt = "";
           lPipVis = null;
         }
       }
-      if (counterVisible && lb && lbp) {
-        if (fmt === 1) {
-          uHT(hp, 100, shouldPulse);
-        } else {
-          var bw = lb.actuallayoutwidth || 0;
-          var bpw = lbp.actuallayoutwidth || 0;
-          var ratio = bpw > 0 ? bw / bpw : 0;
-          var mx = pMax(txt);
-          uHT(ratio >= 0.97 ? mx : Math.round(mx * ratio), mx, shouldPulse);
-        }
-      } else if (!counterVisible) {
-        sHCV(false);
+      var hasCounterPanels = !!(counterVisible && lb && lbp);
+      var liveBarWidth = 0;
+      var liveBarParentWidth = 0;
+      if (hasCounterPanels && fmt !== 1) {
+        liveBarWidth = lb.actuallayoutwidth || 0;
+        liveBarParentWidth = lbp.actuallayoutwidth || 0;
       }
-
-      var sc = applyEnemyHealthColors(
+      var counterPlan = computeEnemyCounterPlan(
         hp,
-        prevHp,
-        now,
-        low,
-        high,
-        pulseThresh,
         shouldPulse,
+        hasPipPanel,
+        txt,
+        hasCounterPanels,
+        liveBarWidth,
+        liveBarParentWidth,
+        ENEMY_PAINT_PLAN,
       );
+      applyEnemyCounterPlan(counterPlan);
+
+      var suppressEnemyPulse = isEnemyPaintWarmup(hp, prevHp, now);
+      var pulseFast = applyEnemyPulsePlan(
+        computeEnemyPulsePlan(
+          shouldPulse && !suppressEnemyPulse,
+          now,
+          ENEMY_PULSE_PLAN,
+        ),
+      );
+
+      var sc = applyEnemyHealthColors(hp, prevHp, now, shouldPulse);
       if (sc < 0) return;
+      applyEnemyKillMarkerPlan(
+        computeEnemyKillMarkerPlan(!!cfg.hp_kill_zone_enabled, pw, ENEMY_PAINT_PLAN),
+      );
       colorGeneration = panelGeneration;
-      if (syncEnemyPulse(shouldPulse, now)) sc = 0.1;
+      if (pulseFast) sc = 0.1;
       scheduleLoop(LOOP_ENEMY, sc);
     } catch (e) {
       scheduleLoop(LOOP_ENEMY, 0.5);
@@ -2946,8 +3203,25 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
     wr = null,
     lLv = -1,
     lLvVis = null;
+  var LEVEL_SNAPSHOT = {
+    label: null,
+    container: null,
+    wrapper: null,
+    level: 0,
+    ready: false,
+  };
+  var LEVEL_PAINT_PLAN = {
+    visible: false,
+    tierClass: "",
+    changed: false,
+  };
 
-  function syncLevelTier() {
+  function refreshLevelSnapshot(snapshot) {
+    snapshot.label = null;
+    snapshot.container = null;
+    snapshot.wrapper = null;
+    snapshot.level = 0;
+    snapshot.ready = false;
     if (!ll || !ll.IsValid()) ll = ctx.FindChildTraverse(ID_LEVEL_LABEL);
     if (!lc || !lc.IsValid()) lc = ctx.FindChildTraverse(ID_LEVEL_CONTAINER);
     if (lc && (!wr || !wr.IsValid())) {
@@ -2961,32 +3235,56 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
         c = c.GetParent();
       }
     }
-    if (!ll || !lc || !wr) return false;
-    if (lLvVis !== true) {
-      wr.AddClass(LV_VIS_CLASS);
-      lLvVis = true;
-    }
+    snapshot.label = ll;
+    snapshot.container = lc;
+    snapshot.wrapper = wr;
+    snapshot.ready = !!(ll && lc && wr);
+    if (!snapshot.ready) return snapshot;
     var t = "";
     try {
       t = ll.text || ll.GetAttributeString("text", "") || "";
     } catch (e) {
       t = "";
     }
-    if (!t || t.charCodeAt(0) === 123) return false;
+    if (!t || t.charCodeAt(0) === 123) return snapshot;
     var lv = 0;
     for (var i = 0; i < t.length; i++) {
       var d = t.charCodeAt(i) - 48;
       if (d >= 0 && d <= 9) lv = lv * 10 + d;
     }
-    if (lv === lLv || !lv) return false;
-    lLv = lv;
-    for (var j = 0; j < 4; j++) wr.RemoveClass(LC_[j]);
-    for (var k = 3; k >= 0; k--) {
-      if (lv >= LT_[k]) {
-        wr.AddClass(LC_[k]);
+    snapshot.level = lv;
+    return snapshot;
+  }
+
+  function computeLevelPaintPlan(snapshot, plan) {
+    plan.visible = false;
+    plan.tierClass = "";
+    plan.changed = false;
+    if (!snapshot.ready) return plan;
+    plan.visible = true;
+    var lv = snapshot.level;
+    if (!lv || lv === lLv) return plan;
+    plan.changed = true;
+    for (var i = 3; i >= 0; i--) {
+      if (lv >= LT_[i]) {
+        plan.tierClass = LC_[i];
         break;
       }
     }
+    return plan;
+  }
+
+  function applyLevelPaintPlan(snapshot, plan) {
+    var wrapper = snapshot.wrapper;
+    if (!wrapper) return false;
+    if (plan.visible && lLvVis !== true) {
+      wrapper.AddClass(LV_VIS_CLASS);
+      lLvVis = true;
+    }
+    if (!plan.changed) return false;
+    lLv = snapshot.level;
+    for (var j = 0; j < 4; j++) wrapper.RemoveClass(LC_[j]);
+    if (plan.tierClass) wrapper.AddClass(plan.tierClass);
     return true;
   }
 
@@ -2998,8 +3296,100 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
       return;
     }
     loopRunning[LOOP_LEVEL] = true;
-    lLNoChange = syncLevelTier() ? 0 : lLNoChange + 1;
+    var levelSnapshot = refreshLevelSnapshot(LEVEL_SNAPSHOT);
+    var levelPlan = computeLevelPaintPlan(levelSnapshot, LEVEL_PAINT_PLAN);
+    lLNoChange = applyLevelPaintPlan(levelSnapshot, levelPlan) ? 0 : lLNoChange + 1;
     scheduleLoop(LOOP_LEVEL, lLNoChange > 10 ? 5.0 : 0.5);
+  }
+
+  function resetAllySnapshot(snapshot) {
+    snapshot.confirmed = false;
+    snapshot.panel = null;
+    snapshot.parent = null;
+    snapshot.flags = 0;
+    snapshot.barWidth = 0;
+    snapshot.parentWidth = 0;
+    snapshot.hp = 0;
+    return snapshot;
+  }
+
+  function refreshAllySnapshot(snapshot, panel, parent, flags) {
+    snapshot = resetAllySnapshot(snapshot || ALLY_SNAPSHOT);
+    snapshot.panel = panel;
+    snapshot.parent = parent;
+    snapshot.flags = flags;
+    snapshot.confirmed = isConfirmedAllyHealthbar(flags);
+    if (!snapshot.confirmed) return snapshot;
+    snapshot.barWidth =
+      panel && panel.actuallayoutwidth !== undefined
+        ? panel.actuallayoutwidth | 0
+        : 0;
+    snapshot.parentWidth =
+      parent && parent.actuallayoutwidth !== undefined
+        ? parent.actuallayoutwidth | 0
+        : 0;
+    snapshot.hp =
+      snapshot.parentWidth > 0
+        ? ((snapshot.barWidth / snapshot.parentWidth) * 100) | 0
+        : 0;
+    return snapshot;
+  }
+
+  function resetAllyPaintPlan(plan) {
+    plan.washColor = "";
+    plan.inPulse = false;
+    plan.nextDelay = 0.35;
+    return plan;
+  }
+
+  function computeAllyPaintPlan(snapshot, plan) {
+    plan = resetAllyPaintPlan(plan || ALLY_PAINT_PLAN);
+    var ahp = snapshot.hp;
+    var alow = dc.low;
+    var ahigh = dc.high;
+    var acl;
+    plan.inPulse = !!(
+      cfg.hp_friend_pulse_enabled && ahp <= dc.friendPulseThreshold
+    );
+    if (plan.inPulse) plan.nextDelay = 0.15;
+    if (plan.inPulse && cfg.hp_friend_pulse_color_enabled) {
+      acl = cfg.hp_friend_pulse_color;
+    } else if (cfg.hp_mode === 1) {
+      if (ahp <= alow) acl = cfg.hp_friend_color_low;
+      else if (ahp <= ahigh)
+        acl = ipHex(
+          cfg.hp_friend_color_low,
+          cfg.hp_friend_color_mid,
+          (ahp - alow) / Math.max(1, ahigh - alow),
+        );
+      else
+        acl = ipHex(
+          cfg.hp_friend_color_mid,
+          cfg.hp_friend_color_high,
+          (ahp - ahigh) / Math.max(1, 100 - ahigh),
+        );
+    } else {
+      if (ahp <= alow) acl = cfg.hp_friend_color_low;
+      else if (ahp <= ahigh) acl = cfg.hp_friend_color_mid;
+      else acl = cfg.hp_friend_color_high;
+    }
+    plan.washColor = normalizeWashColor(acl);
+    return plan;
+  }
+
+  function applyAllyPaintPlan(snapshot, plan) {
+    if (lColA !== plan.washColor && snapshot.panel) {
+      try {
+        snapshot.panel.style.washColor = plan.washColor;
+        lColA = plan.washColor;
+        allyColorActive = true;
+        allyOwnedPanel = snapshot.panel;
+      } catch (e) {
+        lColA = null;
+      }
+    }
+    syncAllyPulse(snapshot.panel, plan.inPulse);
+    return plan.nextDelay;
   }
 
   // ── Ally bar loop ────────────────────────────────────────────────────────────
@@ -3043,8 +3433,10 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
       }
 
       var f2 = scanAllyPanel(rbA);
+      var allySnapshot = refreshAllySnapshot(ALLY_SNAPSHOT, rbA, cpA, f2);
 
-      if (!isConfirmedAllyHealthbar(f2)) {
+      if (!allySnapshot.confirmed) {
+        resetAllySnapshot(ALLY_SNAPSHOT);
         if (allyColorActive || allyOwnedPanel) {
           resetAllyState(allyOwnedPanel, false);
           allyOwnedPanel = null;
@@ -3055,11 +3447,8 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
         return;
       }
 
-      var aw = rbA.actuallayoutwidth | 0;
-      var apw =
-        cpA && cpA.actuallayoutwidth !== undefined
-          ? cpA.actuallayoutwidth | 0
-          : 0;
+      var aw = allySnapshot.barWidth;
+      var apw = allySnapshot.parentWidth;
       if (apw <= 0) {
         noAllyParentWidthFrames++;
         var noAllyParentDelay =
@@ -3083,54 +3472,8 @@ normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_h
       lWA = aw;
       lPWA = apw;
 
-      var ahp = ((aw / apw) * 100) | 0;
-      var alow = dc.low;
-      var ahigh = dc.high;
-
-      var inPulse = false;
-      if (cfg.hp_friend_pulse_enabled) {
-        inPulse = ahp <= dc.friendPulseThreshold;
-      }
-
-      // Use pulse color override when active, otherwise gradient/fixed
-      var acl;
-      if (inPulse && cfg.hp_friend_pulse_color_enabled) {
-        acl = cfg.hp_friend_pulse_color;
-      } else if (cfg.hp_mode === 1) {
-        if (ahp <= alow) acl = cfg.hp_friend_color_low;
-        else if (ahp <= ahigh)
-          acl = ipHex(
-            cfg.hp_friend_color_low,
-            cfg.hp_friend_color_mid,
-            (ahp - alow) / Math.max(1, ahigh - alow),
-          );
-        else
-          acl = ipHex(
-            cfg.hp_friend_color_mid,
-            cfg.hp_friend_color_high,
-            (ahp - ahigh) / Math.max(1, 100 - ahigh),
-          );
-      } else {
-        if (ahp <= alow) acl = cfg.hp_friend_color_low;
-        else if (ahp <= ahigh) acl = cfg.hp_friend_color_mid;
-        else acl = cfg.hp_friend_color_high;
-      }
-      var nextColA = normalizeWashColor(acl);
-      if (lColA !== nextColA && rbA) {
-        try {
-          rbA.style.washColor = nextColA;
-          lColA = nextColA;
-          allyColorActive = true;
-          allyOwnedPanel = rbA;
-        } catch (e) {
-          lColA = null;
-        }
-      }
-
-      var sc = inPulse ? 0.15 : 0.35;
-      syncAllyPulse(rbA, inPulse);
-
-      scheduleLoop(LOOP_ALLY, sc);
+      var allyPlan = computeAllyPaintPlan(allySnapshot, ALLY_PAINT_PLAN);
+      scheduleLoop(LOOP_ALLY, applyAllyPaintPlan(allySnapshot, allyPlan));
     } catch (e) {
       scheduleLoop(LOOP_ALLY, 0.5);
     }
