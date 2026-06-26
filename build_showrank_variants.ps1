@@ -387,11 +387,15 @@ function Apply-ShowRankDiagnosticsPatch {
     if (-not (Test-Path -LiteralPath $showrankDiagnosticsTool)) {
         throw "ShowRank diagnostics injector missing: $showrankDiagnosticsTool"
     }
+    $manifestPath = "$scriptPath.diagnostics.json"
 
     Write-Host "[diagnostics] $($Spec.Id) D0" -ForegroundColor Yellow
-    & node $showrankDiagnosticsTool $scriptPath --tag "D0"
+    & node $showrankDiagnosticsTool $scriptPath --tag "D0" --manifest $manifestPath
     if ($LASTEXITCODE -ne 0) {
         throw "ShowRank diagnostics injector failed for $($Spec.Id) with exit code $LASTEXITCODE"
+    }
+    if (-not (Test-Path -LiteralPath $manifestPath)) {
+        throw "ShowRank diagnostics manifest missing for $($Spec.Id): $manifestPath"
     }
 
     $script = Get-Content -LiteralPath $scriptPath -Raw
