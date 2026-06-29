@@ -450,7 +450,7 @@ function Assert-LatestTopBarContract {
         "function ResolveTopBarPlayerRootFromImage",
         "function ApplyEscapePreloadRow",
         "rowMatches = snapshot.matches || []",
-        "function CountUniqueTopBarNames"
+        "function ReadTopBarCandidateSnapshot"
     )) {
         if (-not $commonScript.Contains($requiredFragment)) {
             throw "Bridge missing recent performance contract '$requiredFragment' in $($Spec.Id)"
