@@ -98,7 +98,8 @@ function makeRawPresetPanel(id, preset) {
 
 function runPublisher(entries, options = {}) {
   const source = fs.readFileSync(path.join(ROOT, "panorama/scripts/anita_ui_core.js"), "utf8");
-  const root = new MockPanel("Root");
+  const findCounts = {};
+  const root = new MockPanel("Root", { findCounts });
   const context = root.add(new MockPanel("Context"));
   const store = root.add(new MockPanel("HPColorsPresetStore"));
   for (const entry of entries) store.add(entry);
@@ -109,6 +110,18 @@ function runPublisher(entries, options = {}) {
     crosshair.add(new MockPanel("progress", { classes: [options.heroClass] }));
   }
 
+  let gameTimePanel = null;
+  if (options.gameTimeText !== undefined) {
+    const topBar = root.add(new MockPanel("TopBar"));
+    gameTimePanel = topBar.add(new MockPanel("GameTimeLabel", {
+      classes: ["GameTime"],
+      text: options.gameTimeText,
+      attributes: { text: options.gameTimeText },
+    }));
+  }
+
+  let now = options.now === undefined ? 100000 : options.now;
+  let order = 0;
   const scheduled = [];
   const dispatched = [];
   const logs = [];
@@ -116,6 +129,7 @@ function runPublisher(entries, options = {}) {
   const shared = {};
   if (options.debugPresetSelection) shared.__hpColorsPresetDebug = true;
   const sandbox = {
+    Date: { now: () => now },
     console: {
       log: (message) => { logs.push(String(message)); },
       warn: (message) => { logs.push(String(message)); },
@@ -126,13 +140,25 @@ function runPublisher(entries, options = {}) {
       GetContextPanel: () => context,
       DispatchEvent: (_channel, payload) => { dispatched.push(JSON.parse(payload)); },
       RegisterForUnhandledEvent: (_channel, fn) => { bridgeHandlers.push(fn); },
-      Schedule: (delay, fn) => { scheduled.push({ delay, fn }); },
+      Schedule: (delay, fn) => { scheduled.push({ delay, due: now + Number(delay) * 1000, fn, order: order += 1 }); },
       Msg: (message) => { logs.push(String(message)); },
     },
   };
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox, { filename: "hp_colors_minimal/panorama/scripts/anita_ui_core.js" });
-  return { root, scheduled, dispatched, shared, logs, bridgeHandlers };
+  return {
+    root,
+    store,
+    gameTimePanel,
+    findCounts,
+    scheduled,
+    dispatched,
+    shared,
+    logs,
+    bridgeHandlers,
+    get now() { return now; },
+    set now(value) { now = value; },
+  };
 }
 
 function runScheduled(result, count = result.scheduled.length) {
@@ -142,6 +168,27 @@ function runScheduled(result, count = result.scheduled.length) {
 function runScheduledRange(result, start, end = result.scheduled.length) {
   const limit = Math.min(end, result.scheduled.length);
   for (let i = start; i < limit; i += 1) result.scheduled[i].fn();
+}
+
+function takePublisherReplaySchedule(result) {
+  const index = result.scheduled.findIndex((item) => item.fn && item.fn.name === "replayCachedSnapshot");
+  assert.notEqual(index, -1, "expected cached snapshot replay callback");
+  return result.scheduled.splice(index, 1)[0];
+}
+
+function nextPublisherReplayDelay(result) {
+  const item = result.scheduled.find((scheduledItem) => scheduledItem.fn && scheduledItem.fn.name === "replayCachedSnapshot");
+  assert.ok(item, "expected cached snapshot replay callback");
+  return item.delay;
+}
+
+function runPublisherReplay(result, now = result.now) {
+  result.now = now;
+  const before = result.dispatched.length;
+  const replay = takePublisherReplaySchedule(result);
+  replay.fn();
+  assert.equal(result.dispatched.length, before + 1, "cached replay should dispatch the cached snapshot");
+  return replay;
 }
 
 function lastSnapshot(result) {
@@ -164,8 +211,39 @@ function makeRuntimeValues(values = {}) {
   }, values);
 }
 
+function exposeRuntimeTestHooks(source) {
+  const marker = "\n  try {\n    tryApplySharedSnapshot();";
+  const hooks = `
+  try {
+    var __hpColorsTestStore = GameUI.CustomUIConfig();
+    if (__hpColorsTestStore) {
+      __hpColorsTestStore.__hpColorsRuntimeTestHooks = {
+        getCurrentRedBarRefreshState: function () {
+          return {
+            now: _ts(),
+            currentRbRefreshUntil: currentRbRefreshUntil,
+            nextCurrentRbProbeAt: nextCurrentRbProbeAt,
+            nextCurrentRbChildProbeAt: nextCurrentRbChildProbeAt,
+          };
+        },
+      };
+    }
+  } catch (eTestHooks) {}
+`;
+  const instrumented = source.replace(marker, hooks + marker);
+  assert.notEqual(instrumented, source, "runtime test hook marker should be present");
+  return instrumented;
+}
+
+function currentRedBarRefreshState(runtime) {
+  const hooks = runtime.shared.__hpColorsRuntimeTestHooks;
+  assert.ok(hooks, "runtime test hooks should be exposed");
+  return hooks.getCurrentRedBarRefreshState();
+}
+
 function runRuntime(options = {}) {
-  const source = fs.readFileSync(path.join(ROOT, "panorama/scripts/healthbar_logic.js"), "utf8");
+  let source = fs.readFileSync(path.join(ROOT, "panorama/scripts/healthbar_logic.js"), "utf8");
+  if (options.exposeRuntimeTestHooks) source = exposeRuntimeTestHooks(source);
   const findCounts = {};
   const root = new MockPanel("Root", { findCounts });
   const unitStatus = root.add(new MockPanel("UnitStatus", {
@@ -455,7 +533,7 @@ test("runtime ally color resets to friendly defaults", () => {
   assert.equal(normalizeColor(buildingRuntime.lagging.style.washColor), "#ffffff");
 });
 
-test("runtime duplicate snapshot wakes stopped pending loops", () => {
+test("runtime duplicate same-raw replay stays cheap after watchdog when loops remain pending", () => {
   const values = makeRuntimeValues({
     hp_enabled: true,
     hp_friend_enabled: true,
@@ -466,19 +544,183 @@ test("runtime duplicate snapshot wakes stopped pending loops", () => {
     barWidth: 82,
     parentWidth: 100,
     sharedValues: values,
+    exposeRuntimeTestHooks: true,
   });
   runNextRuntimeSchedule(runtime);
   runNextRuntimeSchedule(runtime);
   runNextRuntimeSchedule(runtime);
   runtime.scheduled.length = 0;
+
   const beforeStoreFinds = runtime.findCounts.HPColorsPresetStore || 0;
+  const raw = runtime.shared.__hpColorsCfgRaw;
   dispatchPresetSnapshot(runtime, values, {
-    rawOverride: runtime.shared.__hpColorsCfgRaw,
-    sharedRawOverride: runtime.shared.__hpColorsCfgRaw,
+    rawOverride: raw,
+    sharedRawOverride: raw,
   });
-  const wakeups = runtime.scheduled.filter((item) => item.delay === 0.01);
-  assert.ok(wakeups.length >= 2, "duplicate snapshot should schedule immediate wakeups");
+
+  const recoveryWakeups = runtime.scheduled.filter((item) => item.delay === 0.01);
+  assert.ok(recoveryWakeups.length >= 2, "duplicate snapshot should still wake when replay recovery is needed");
   assert.equal(runtime.findCounts.HPColorsPresetStore || 0, beforeStoreFinds);
+
+  while (runtime.scheduled.some((item) => item.delay === 0.01)) runNextRuntimeSchedule(runtime);
+  runtime.unitStatus.classes = ["friend", "team1"];
+  runRuntimeFor(runtime, 2500);
+  runtime.unitStatus.classes = ["enemy", "team1"];
+  runRuntimeFor(runtime, 300);
+  const pendingLoopScheduleCount = runtime.scheduled.length;
+  assert.ok(pendingLoopScheduleCount > 0, "recovery wakeups should leave enabled loops pending");
+
+  const afterRecoveryRefresh = currentRedBarRefreshState(runtime);
+  runtime.now += 5001;
+  dispatchPresetSnapshot(runtime, values, {
+    rawOverride: raw,
+    sharedRawOverride: raw,
+  });
+
+  assert.equal(
+    runtime.scheduled.length,
+    pendingLoopScheduleCount,
+    "elapsed same-raw watchdog alone must not schedule another duplicate replay wake",
+  );
+  assert.equal(
+    currentRedBarRefreshState(runtime).currentRbRefreshUntil,
+    afterRecoveryRefresh.currentRbRefreshUntil,
+    "elapsed same-raw watchdog alone must not reopen current-redbar refresh",
+  );
+  assert.equal(runtime.findCounts.HPColorsPresetStore || 0, beforeStoreFinds);
+});
+
+test("runtime duplicate same-raw replay ignores stale disabled ally generation", () => {
+  const values = makeRuntimeValues({
+    hp_enabled: true,
+    hp_friend_enabled: false,
+    hp_level_number_visible: false,
+  });
+  const runtime = runRuntime({
+    unitStatusClasses: ["enemy", "team1"],
+    barWidth: 82,
+    parentWidth: 100,
+    sharedValues: values,
+    exposeRuntimeTestHooks: true,
+  });
+  runNextRuntimeSchedule(runtime);
+  runtime.scheduled.length = 0;
+
+  const beforeStoreFinds = runtime.findCounts.HPColorsPresetStore || 0;
+  const raw = runtime.shared.__hpColorsCfgRaw;
+  dispatchPresetSnapshot(runtime, values, {
+    rawOverride: raw,
+    sharedRawOverride: raw,
+  });
+
+  const recoveryWakeups = runtime.scheduled.filter((item) => item.delay === 0.01);
+  assert.ok(recoveryWakeups.length > 0, "first same-raw duplicate should still repaint an unseen panel");
+  assert.equal(runtime.findCounts.HPColorsPresetStore || 0, beforeStoreFinds);
+
+  while (runtime.scheduled.some((item) => item.delay === 0.01)) runNextRuntimeSchedule(runtime);
+  runRuntimeFor(runtime, 300);
+  const pendingLoopScheduleCount = runtime.scheduled.length;
+  assert.ok(pendingLoopScheduleCount > 0, "enabled enemy loop should remain pending after replay recovery");
+
+  const afterRecoveryRefresh = currentRedBarRefreshState(runtime);
+  runtime.now += 5001;
+  dispatchPresetSnapshot(runtime, values, {
+    rawOverride: raw,
+    sharedRawOverride: raw,
+  });
+
+  assert.equal(
+    runtime.scheduled.length,
+    pendingLoopScheduleCount,
+    "disabled ally generation must not make duplicate payload replay hot once enemy replay is current",
+  );
+  assert.equal(
+    currentRedBarRefreshState(runtime).currentRbRefreshUntil,
+    afterRecoveryRefresh.currentRbRefreshUntil,
+    "disabled ally generation must not reopen current-redbar refresh for duplicate payloads",
+  );
+  assert.equal(runtime.findCounts.HPColorsPresetStore || 0, beforeStoreFinds);
+});
+
+test("runtime coalesces in-window current-redbar refresh probe gates", () => {
+  const firstValues = makeRuntimeValues({
+    hp_enabled: true,
+    hp_color_high: "#00AA00",
+  });
+  const runtime = runRuntime({
+    unitStatusClasses: ["enemy", "team1"],
+    barWidth: 82,
+    parentWidth: 100,
+    sharedValues: firstValues,
+    exposeRuntimeTestHooks: true,
+  });
+
+  runRuntimeUntil(
+    runtime,
+    () => {
+      const state = currentRedBarRefreshState(runtime);
+      return (
+        state.currentRbRefreshUntil > state.now &&
+        state.nextCurrentRbProbeAt > state.now &&
+        state.nextCurrentRbChildProbeAt > state.now
+      );
+    },
+    "current-redbar probe gates should be armed during the startup refresh window",
+  );
+
+  const armed = currentRedBarRefreshState(runtime);
+  dispatchPresetSnapshot(runtime, makeRuntimeValues({
+    hp_enabled: true,
+    hp_color_high: "#00BB00",
+  }));
+  const coalesced = currentRedBarRefreshState(runtime);
+  assert.ok(
+    coalesced.currentRbRefreshUntil >= armed.currentRbRefreshUntil,
+    "in-window refresh requests should keep or extend the refresh window",
+  );
+  assert.equal(
+    coalesced.nextCurrentRbProbeAt,
+    armed.nextCurrentRbProbeAt,
+    "in-window refresh requests must not reopen the parent-chain probe gate",
+  );
+  assert.equal(
+    coalesced.nextCurrentRbChildProbeAt,
+    armed.nextCurrentRbChildProbeAt,
+    "in-window refresh requests must not reopen the child-rescan gate",
+  );
+
+  dispatchPresetSnapshot(runtime, makeRuntimeValues({
+    hp_enabled: true,
+    hp_color_high: "#00DD00",
+  }));
+  const repeated = currentRedBarRefreshState(runtime);
+  assert.ok(
+    repeated.currentRbRefreshUntil >= coalesced.currentRbRefreshUntil,
+    "later in-window refresh requests should keep or extend the refresh window",
+  );
+  assert.equal(
+    repeated.nextCurrentRbProbeAt,
+    armed.nextCurrentRbProbeAt,
+    "later in-window refresh requests must not reopen the parent-chain probe gate",
+  );
+  assert.equal(
+    repeated.nextCurrentRbChildProbeAt,
+    armed.nextCurrentRbChildProbeAt,
+    "later in-window refresh requests must not reopen the child-rescan gate",
+  );
+
+  runtime.now = repeated.currentRbRefreshUntil + 1;
+  dispatchPresetSnapshot(runtime, makeRuntimeValues({
+    hp_enabled: true,
+    hp_color_high: "#00CC00",
+  }));
+  const fresh = currentRedBarRefreshState(runtime);
+  assert.ok(
+    fresh.currentRbRefreshUntil > runtime.now,
+    "expired refresh requests should open a fresh refresh window",
+  );
+  assert.equal(fresh.nextCurrentRbProbeAt, 0, "fresh refresh requests should reopen the parent-chain probe gate");
+  assert.equal(fresh.nextCurrentRbChildProbeAt, 0, "fresh refresh requests should reopen the child-rescan gate");
 });
 
 test("publisher is silent by default but supports opt-in breadcrumbs", () => {
@@ -494,18 +736,27 @@ test("publisher is silent by default but supports opt-in breadcrumbs", () => {
   assert.ok(debug.logs.some((line) => line.includes("[HP_COLORS_MINIMAL_PRESET]")));
 });
 
-test("compact aliases expand and selected hero scoped preset wins", () => {
+test("publisher filters preset values to known full ids and compact aliases", () => {
   const result = runPublisher([
     makeRawPresetPanel("HPColorsPreset_001", {
       v: 97,
       c: 1,
-      values: { cl: "#111111", cv: true, fe: false },
+      values: { cl: "#111111", cv: true, hp_debug_capture: true },
       hm: "all",
     }),
     makeRawPresetPanel("HPColorsPreset_002", {
       v: 97,
       c: 1,
-      values: { cl: "#abcdef", cv: false, m: 2, sb: false, fe: true, fcl: "#44FF44" },
+      values: {
+        hp_color_low: "#abcdef",
+        cv: false,
+        m: 2,
+        sb: false,
+        fe: true,
+        fcl: "#44FF44",
+        hp_unknown_runtime_knob: "#BADBAD",
+        hp_preset_store_private: true,
+      },
       hm: "selected",
       hs: ["hero_haze"],
     }),
@@ -518,6 +769,8 @@ test("compact aliases expand and selected hero scoped preset wins", () => {
   assert.equal(values.hp_skip_buildings, false);
   assert.equal(values.hp_friend_enabled, true);
   assert.equal(values.hp_friend_color_low, "#44FF44");
+  assert.equal(Object.prototype.hasOwnProperty.call(values, "hp_unknown_runtime_knob"), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(values, "hp_preset_store_private"), false);
 });
 
 test("unknown hero waits before global fallback", () => {
@@ -558,45 +811,70 @@ test("bounded probe corrects fallback when selected hero appears late and then s
   assert.ok(publisher.includes("debugLog(\"probe-stop\""));
 });
 
-test("minimal hero selection hard-locks after ten seconds", () => {
-  const publisher = fs.readFileSync(path.join(ROOT, "panorama/scripts/anita_ui_core.js"), "utf8");
-  assert.match(publisher, /var HERO_SELECTION_LOCK_GAME_TIME_SEC = 10;/);
-  assert.match(publisher, /var heroSelectionLocked = false;/);
-  assert.match(publisher, /function lockHeroSelectionIfReady\(\)[\s\S]*readGameTimeSec\(\)[\s\S]*heroSelectionLocked = true;[\s\S]*heroProbeActive = false;/);
-  assert.doesNotMatch(
-    publisher,
-    /heroSelectionLocked \|\| !lastSelectionPresetId \|\| !lastSelectionHeroId/,
-    "minimal hard lock must also lock global/startup fallbacks that have no detected hero id",
-  );
-  assert.match(
-    publisher,
-    /heroLockHeroId = lastSelectionHeroId \|\| "";/,
-    "minimal hard lock should store an empty hero id for locked global fallbacks",
-  );
-  assert.match(publisher, /if \(heroSelectionLocked && heroLockPresetId\)[\s\S]*locked-hero-selection/);
-  assert.match(publisher, /if \(heroSelectionLocked \|\| lockHeroSelectionIfReady\(\)\)[\s\S]*heroProbeActive = false;[\s\S]*return;/);
-  assert.doesNotMatch(publisher, /lock-set|lock-reset|HP_HERO_DEBUG|hpHeroDebug/);
+test("hero selection lock reads the last time chunks and normalizes overflow seconds", () => {
+  const locked = runPublisher([
+    makePresetPanel("HPColorsPreset_001", { hp_color_low: "#111111", hp_team_colors: true }, { heroMode: "all" }),
+    makePresetPanel("HPColorsPreset_002", { hp_color_low: "#222222", hp_team_colors: false }, { heroMode: "selected", heroes: ["hero_haze"] }),
+  ], { gameTimeText: "Round 0 00:75" });
+  const startupScheduleCount = locked.scheduled.length;
+  runScheduled(locked, startupScheduleCount);
+  assert.equal(lastSnapshot(locked).values.hp_color_low, "#111111");
+
+  const lockedAlive = locked.root.add(new MockPanel("gameplay_hud_alive"));
+  const lockedCrosshair = lockedAlive.add(new MockPanel("crosshair"));
+  lockedCrosshair.add(new MockPanel("progress", { classes: ["hero_haze"] }));
+  runScheduledRange(locked, startupScheduleCount, locked.scheduled.length);
+  assert.equal(lastSnapshot(locked).values.hp_color_low, "#111111");
+  assert.equal(lastSnapshot(locked).values.hp_team_colors, true);
+
+  const unlockedAtZero = runPublisher([
+    makePresetPanel("HPColorsPreset_001", { hp_color_low: "#111111", hp_team_colors: true }, { heroMode: "all" }),
+    makePresetPanel("HPColorsPreset_002", { hp_color_low: "#222222", hp_team_colors: false }, { heroMode: "selected", heroes: ["hero_haze"] }),
+  ], { gameTimeText: "Spectator 99 00:60" });
+  const zeroStartupScheduleCount = unlockedAtZero.scheduled.length;
+  runScheduled(unlockedAtZero, zeroStartupScheduleCount);
+  assert.equal(lastSnapshot(unlockedAtZero).values.hp_color_low, "#111111");
+
+  const alive = unlockedAtZero.root.add(new MockPanel("gameplay_hud_alive"));
+  const crosshair = alive.add(new MockPanel("crosshair"));
+  crosshair.add(new MockPanel("progress", { classes: ["hero_haze"] }));
+  runScheduledRange(unlockedAtZero, zeroStartupScheduleCount, unlockedAtZero.scheduled.length);
+  assert.equal(lastSnapshot(unlockedAtZero).values.hp_color_low, "#222222");
+  assert.equal(lastSnapshot(unlockedAtZero).values.hp_team_colors, false);
 });
 
-test("publisher serves late replay and requests from cached snapshot without rescanning store", () => {
+test("publisher serves request-heated cached replay without rescanning store", () => {
   const result = runPublisher([
     makePresetPanel("HPColorsPreset_001", { hp_color_low: "#111111" }, { heroMode: "all" }),
   ]);
   const first = lastSnapshot(result);
   assert.equal(first.values.hp_color_low, "#111111");
 
-  const store = result.root.FindChildTraverse("HPColorsPresetStore");
-  store.children = [makePresetPanel("HPColorsPreset_001", { hp_color_low: "#999999" }, { heroMode: "all" })];
+  result.store.children = [makePresetPanel("HPColorsPreset_001", { hp_color_low: "#999999" }, { heroMode: "all" })];
+  const findsBeforeCachedReplays = result.findCounts.HPColorsPresetStore || 0;
 
-  const replay = result.scheduled.find((item) => item.delay === 1);
-  assert.ok(replay, "expected hot cached replay");
-  replay.fn();
+  result.now += 11000;
+  runPublisherReplay(result, result.now);
+  assert.equal(nextPublisherReplayDelay(result), 1);
+  runPublisherReplay(result, result.now);
+  assert.equal(nextPublisherReplayDelay(result), 1);
+  runPublisherReplay(result, result.now);
+  assert.equal(nextPublisherReplayDelay(result), 1);
+  runPublisherReplay(result, result.now);
+  assert.equal(nextPublisherReplayDelay(result), 3);
   assert.equal(lastSnapshot(result).values.hp_color_low, "#111111");
+  assert.equal(result.findCounts.HPColorsPresetStore || 0, findsBeforeCachedReplays);
 
   assert.equal(result.bridgeHandlers.length, 1);
   result.bridgeHandlers[0](JSON.stringify({ magic_word: "HP_COLORS_PRESET_REQUEST", mod_title: "HP Colors" }));
   assert.equal(lastSnapshot(result).values.hp_color_low, "#111111");
   assert.equal(result.shared.__hpColorsCfgRaw, first.values_raw);
+  const findsBeforeHeatedReplay = result.findCounts.HPColorsPresetStore || 0;
+
+  runPublisherReplay(result, result.now + 4999);
+  assert.equal(nextPublisherReplayDelay(result), 1);
+  assert.equal(lastSnapshot(result).values.hp_color_low, "#111111");
+  assert.equal(result.findCounts.HPColorsPresetStore || 0, findsBeforeHeatedReplay);
 });
 
 test("runtime source preserves repaint, classification, and shipped Source 2 selectors", () => {

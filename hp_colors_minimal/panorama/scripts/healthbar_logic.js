@@ -527,14 +527,15 @@
     return !!(loopRunning[kind] && loopNextDueAt[kind]);
   }
 
+
   function canSkipPresetReplayWake(now) {
     if (!lastSameRawEligibilityCheckAt) return false;
     if (now - lastSameRawEligibilityCheckAt >= SAME_RAW_WAKE_WATCHDOG_MS)
-      return false;
+      lastSameRawEligibilityCheckAt = now;
     if (lastSameRawWakePanelGeneration !== panelGeneration) return false;
     if (
-      lastEnemyPresetGeneration !== presetGeneration ||
-      lastAllyPresetGeneration !== presetGeneration
+      (cfg.hp_enabled && lastEnemyPresetGeneration !== presetGeneration) ||
+      (cfg.hp_friend_enabled && lastAllyPresetGeneration !== presetGeneration)
     )
       return false;
     if (
@@ -555,8 +556,8 @@
     if (lastSameRawWakePanelGeneration !== panelGeneration)
       return "panel_unseen";
     if (
-      lastEnemyPresetGeneration !== presetGeneration ||
-      lastAllyPresetGeneration !== presetGeneration
+      (cfg.hp_enabled && lastEnemyPresetGeneration !== presetGeneration) ||
+      (cfg.hp_friend_enabled && lastAllyPresetGeneration !== presetGeneration)
     )
       return "generation_pending";
     if (
@@ -1315,7 +1316,13 @@
   }
 
   function requestCurrentRedBarRefresh() {
-    currentRbRefreshUntil = _ts() + CURRENT_RB_REFRESH_WINDOW_MS;
+    var now = _ts();
+    var until = now + CURRENT_RB_REFRESH_WINDOW_MS;
+    if (currentRbRefreshUntil && now <= currentRbRefreshUntil) {
+      if (until > currentRbRefreshUntil) currentRbRefreshUntil = until;
+      return;
+    }
+    currentRbRefreshUntil = until;
     nextCurrentRbProbeAt = 0;
     nextCurrentRbChildProbeAt = 0;
   }
@@ -2306,6 +2313,105 @@
     lSM = mx;
   }
 
+  function isEnemyPaintWarmup(hp, prevHp, now) {
+    return !!(
+      hp <= dc.low &&
+      panelBornAt &&
+      now - panelBornAt < 900 &&
+      (prevHp < 0 || (prevHp <= dc.low && hp > prevHp))
+    );
+  }
+
+  function updateEnemyCounter(hp, shouldPulse) {
+    var counterVisible = !!cfg.hp_counter_visible;
+    var fmt = cfg.hp_counter_format | 0;
+    var txt = "";
+    if (pl) {
+      try {
+        var pipVis = cfg.hp_pip_visible ? "visible" : "collapse";
+        if (lPipVis !== pipVis) {
+          pl.style.visibility = pipVis;
+          lPipVis = pipVis;
+        }
+        if (counterVisible && fmt !== 1)
+          txt = pl.text || pl.GetAttributeString("text", "") || "";
+      } catch (e) {
+        txt = "";
+        lPipVis = null;
+      }
+    }
+    if (!counterVisible) {
+      sHCV(false);
+      return;
+    }
+    if (!lb || !lbp) return;
+    if (fmt === 1) {
+      uHT(hp, 100, shouldPulse);
+      return;
+    }
+    var bw = lb.actuallayoutwidth || 0;
+    var bpw = lbp.actuallayoutwidth || 0;
+    var ratio = bpw > 0 ? bw / bpw : 0;
+    var mx = pMax(txt);
+    uHT(ratio >= 0.97 ? mx : Math.round(mx * ratio), mx, shouldPulse);
+  }
+
+  function paintEnemyHealthState(hp, prevHp, now, shouldPulse) {
+    var low = dc.low;
+    var high = dc.high;
+    var pulseThresh = dc.pulseThreshold;
+    var sc = 0.15;
+    var cl;
+    var textCol;
+    sHBV(shouldPulse && cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible);
+    if (isEnemyPaintWarmup(hp, prevHp, now)) {
+      var warmupCol = getHighColor();
+      clearPulse();
+      sBC(warmupCol);
+      sUC(warmupCol);
+      sTC(getTextColor(100, low, high));
+      return -1;
+    }
+    if (hp <= low) {
+      cl = cfg.hp_color_low;
+      textCol =
+        cfg.hp_mode === 1
+          ? cfg.hp_text_color_mode
+            ? cfg.hp_text_color_low
+            : cfg.hp_color_low
+          : getTextColor(hp, low, high);
+    } else {
+      var highCol = getHighColor();
+      if (hp <= high) {
+        cl =
+          cfg.hp_mode === 1
+            ? ipHex(
+                cfg.hp_color_low,
+                cfg.hp_color_mid,
+                (hp - low) / dc.denomMid,
+              )
+            : cfg.hp_color_mid;
+      } else {
+        cl =
+          cfg.hp_mode === 1
+            ? ipHex(cfg.hp_color_mid, highCol, (hp - high) / dc.denomHigh)
+            : highCol;
+        if (sFC >= 5)
+          sc = ENEMY_IDLE_BACKOFF[Math.min(Math.floor((sFC - 5) / 5), 3)];
+      }
+      textCol =
+        cfg.hp_mode === 1
+          ? getGradientTextColor(hp, low, high)
+          : getTextColor(hp, low, high);
+    }
+    var barColor = shouldPulse ? getPulseBarColor(cl, hp, pulseThresh) : cl;
+    sBC(barColor);
+    sUC(barColor);
+    sTC(textCol);
+    return sc;
+  }
+
+
   // â”€â”€ Poll state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var lUT = 0,
     lW = -1,
@@ -2502,7 +2608,6 @@
 
       var hp = ((w / pw) * 100) | 0;
       var low = dc.low;
-      var high = dc.high;
       var pulseThresh = dc.pulseThreshold;
       var shouldPulse = !!(cfg.hp_pulse_enabled && hp <= pulseThresh);
 
@@ -2526,98 +2631,12 @@
       }
       lHp = hp;
 
-      // Update HP counter label
-      var counterVisible = !!cfg.hp_counter_visible;
-      var fmt = cfg.hp_counter_format | 0;
-      var txt = "";
-      if (pl) {
-        try {
-          var pipVis = cfg.hp_pip_visible ? "visible" : "collapse";
-          if (lPipVis !== pipVis) {
-            pl.style.visibility = pipVis;
-            lPipVis = pipVis;
-          }
-          if (counterVisible && fmt !== 1)
-            txt = pl.text || pl.GetAttributeString("text", "") || "";
-        } catch (e) {
-          txt = "";
-          lPipVis = null;
-        }
-      }
-      if (counterVisible && lb && lbp) {
-        if (fmt === 1) {
-          uHT(hp, 100, shouldPulse);
-        } else {
-          var bw = lb.actuallayoutwidth || 0,
-            bpw = lbp.actuallayoutwidth || 0;
-          var ratio = bpw > 0 ? bw / bpw : 0;
-          var mx = pMax(txt);
-          uHT(ratio >= 0.97 ? mx : Math.round(mx * ratio), mx, shouldPulse);
-        }
-      } else if (!counterVisible) {
-        sHCV(false);
-      }
+      updateEnemyCounter(hp, shouldPulse);
 
-      var sc = 0.15,
-        cl,
-        textCol;
-      sHBV(shouldPulse && cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible);
-
-      if (hp <= low) {
-        if (
-          panelBornAt &&
-          now - panelBornAt < 900 &&
-          (prevHp < 0 || (prevHp <= low && hp > prevHp))
-        ) {
-          var warmupCol = getHighColor();
-          clearPulse();
-          sBC(warmupCol);
-          sUC(warmupCol);
-          sTC(getTextColor(100, low, high));
-          scheduleLoop(LOOP_ENEMY, 0.05);
-          return;
-        }
-        cl = cfg.hp_color_low;
-        textCol =
-          cfg.hp_mode === 1
-            ? cfg.hp_text_color_mode
-              ? cfg.hp_text_color_low
-              : cfg.hp_color_low
-            : getTextColor(hp, low, high);
-        var lowBarColor = shouldPulse
-          ? getPulseBarColor(cl, hp, pulseThresh)
-          : cl;
-        sBC(lowBarColor);
-        sUC(lowBarColor);
-        sTC(textCol);
-      } else {
-        var highCol = getHighColor();
-        if (hp <= high) {
-          cl =
-            cfg.hp_mode === 1
-              ? ipHex(
-                  cfg.hp_color_low,
-                  cfg.hp_color_mid,
-                  (hp - low) / dc.denomMid,
-                )
-              : cfg.hp_color_mid;
-        } else {
-          cl =
-            cfg.hp_mode === 1
-              ? ipHex(cfg.hp_color_mid, highCol, (hp - high) / dc.denomHigh)
-              : highCol;
-        }
-        textCol =
-          cfg.hp_mode === 1
-            ? getGradientTextColor(hp, low, high)
-            : getTextColor(hp, low, high);
-        if (hp > high && sFC >= 5) {
-          sc = ENEMY_IDLE_BACKOFF[Math.min(Math.floor((sFC - 5) / 5), 3)];
-        }
-        var barColor = shouldPulse ? getPulseBarColor(cl, hp, pulseThresh) : cl;
-        sBC(barColor);
-        sUC(barColor);
-        sTC(textCol);
+      var sc = paintEnemyHealthState(hp, prevHp, now, shouldPulse);
+      if (sc < 0) {
+        scheduleLoop(LOOP_ENEMY, 0.05);
+        return;
       }
       if (syncEnemyPulse(shouldPulse, now)) sc = 0.1;
       colorGeneration = panelGeneration;
