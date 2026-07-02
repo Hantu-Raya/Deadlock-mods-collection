@@ -1,6 +1,6 @@
 param(
     [ValidateSet("all", "normal", "scoreboard_only_topbar", "minify_ranks", "minify_ranks_scoreboard_only_topbar")]
-    [string]$Variant = "all",
+    [string[]]$Variant = @("all"),
 
     [switch]$Install,
     [switch]$KeepStaging,
@@ -998,18 +998,26 @@ function Install-VariantVpk {
     Copy-Item -LiteralPath $VpkPath -Destination $dest -Force
 }
 
-if ($Install -and $Variant -eq "all") {
-    throw "Use a single -Variant with -Install. Installing all variants would only leave the last copied variant active."
+$requestedVariants = @($Variant)
+if ($requestedVariants.Count -eq 0) {
+    $requestedVariants = @("all")
 }
-if ($Diagnostics -and $Variant -eq "all") {
-    throw "Use a single -Variant with -Diagnostics. Diagnostic builds are temporary and must not publish all release variants."
+if ($requestedVariants -contains "all" -and $requestedVariants.Count -gt 1) {
+    throw "Use -Variant all by itself, or pass one or more explicit variant ids."
 }
 
+$buildsAllVariants = ($requestedVariants.Count -eq 1 -and $requestedVariants[0] -eq "all")
+if ($Install -and ($buildsAllVariants -or $requestedVariants.Count -ne 1)) {
+    throw "Use a single explicit -Variant with -Install. Installing multiple variants would only leave the last copied variant active."
+}
+if ($Diagnostics -and ($buildsAllVariants -or $requestedVariants.Count -ne 1)) {
+    throw "Use a single explicit -Variant with -Diagnostics. Diagnostic builds are temporary and must not publish multiple release variants."
+}
 
-$selectedSpecs = if ($Variant -eq "all") {
+$selectedSpecs = if ($buildsAllVariants) {
     $variantSpecs
 } else {
-    $variantSpecs | Where-Object { $_.Id -eq $Variant }
+    $variantSpecs | Where-Object { $requestedVariants -contains $_.Id }
 }
 
 $results = @()
