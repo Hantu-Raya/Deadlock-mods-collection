@@ -1,0 +1,629 @@
+/* Poker ESC menu surface using the Anita UI visual language from hp_colors as reference. */
+
+.PokerMenuButton
+{
+  wash-color: #79d39f;
+}
+
+.PokerMenuButton:hover,
+.PokerMenuButton.Active
+{
+  wash-color: #a6ffc9;
+}
+
+.PokerAnitaPanel
+{
+  width: 760px;
+  height: fit-children;
+  max-height: 820px;
+  align: right center;
+  margin-right: 36px;
+  padding: 18px;
+  flow-children: down;
+  visibility: collapse;
+  opacity: 0;
+  z-index: 9999;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 8px;
+  background-color: gradient(radial, 50% 24%, -5% -5%, 95% 92%, from(#252a27), color-stop(0.56, #181b1a), to(#101214));
+  box-shadow: rgba(0, 0, 0, 0.70) 0px 0px 46px 0px;
+  pre-transform-scale2d: 0.96;
+  transition-property: opacity, pre-transform-scale2d;
+  transition-duration: 0.16s;
+}
+
+.PokerMenuVisible #PokerAnitaPanel,
+.PokerAnitaPanel.Open
+{
+  visibility: visible;
+  opacity: 1;
+  pre-transform-scale2d: 1;
+}
+
+.PokerAnitaHeader
+{
+  width: 100%;
+  flow-children: right;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.PokerAnitaHeader > Panel
+{
+  width: fill-parent-flow(1.0);
+  flow-children: down;
+}
+
+.PokerAnitaEyebrow
+{
+  color: #7d8688;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.PokerAnitaTitle
+{
+  margin-top: 2px;
+  color: #e8f3ed;
+  font-size: 30px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.PokerIconButton
+{
+  width: 34px;
+  height: 34px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.035);
+  transition-property: background-color, pre-transform-scale2d;
+  transition-duration: 0.12s;
+}
+
+.PokerIconButton:hover
+{
+  background-color: rgba(255, 255, 255, 0.10);
+  pre-transform-scale2d: 1.04;
+}
+
+.PokerIconButton Label
+{
+  align: center center;
+  color: #a2abae;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.PokerAnitaBody
+{
+  width: 100%;
+  max-height: 720px;
+  flow-children: down;
+  padding-top: 18px;
+  padding-right: 4px;
+  overflow: squish scroll;
+}
+
+.PokerAnitaBodyText
+{
+  color: #aeb8b7;
+  font-size: 18px;
+  line-height: 24px;
+  margin-bottom: 18px;
+}
+
+.PokerPrimaryButton
+{
+  width: 100%;
+  height: 48px;
+  border-radius: 4px;
+  background-color: #66cc99;
+  transition-property: background-color, pre-transform-scale2d;
+  transition-duration: 0.12s;
+}
+
+.PokerPrimaryButton:hover
+{
+  background-color: #85e7b5;
+  pre-transform-scale2d: 1.01;
+}
+
+.PokerPrimaryButton Label
+{
+  align: center center;
+  color: #111315;
+  font-size: 18px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.PokerPartyControls
+{
+  width: 100%;
+  flow-children: right;
+  margin-bottom: 8px;
+}
+
+.PokerPartyButton
+{
+  width: fill-parent-flow(1.0);
+  margin-right: 8px;
+}
+
+
+.PokerPartyButton.Secondary
+{
+  margin-right: 0px;
+  background-color: rgba(255, 255, 255, 0.075);
+}
+
+.PokerPartyButton.Secondary Label
+{
+  color: #d6dddb;
+}
+
+.PokerPartyStatusLabel
+{
+  margin-bottom: 12px;
+  color: #7d8688;
+  font-size: 14px;
+}
+
+.PokerStatusLabel
+{
+  margin-top: 12px;
+  color: #7d8688;
+  font-size: 14px;
+}
+
+.PokerReadySummary
+{
+  width: 100%;
+  flow-children: right;
+  margin-bottom: 8px;
+}
+
+.PokerSectionLabel
+{
+  width: fill-parent-flow(1.0);
+  color: #7d8688;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.PokerReadyCountLabel
+{
+  color: #a6ffc9;
+  font-size: 14px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.PokerSeatsList
+{
+  width: 100%;
+  min-height: 98px;
+  max-height: 220px;
+  flow-children: down;
+  margin-bottom: 12px;
+  padding: 6px;
+  overflow: squish scroll;
+  border: 1px solid rgba(255, 255, 255, 0.045);
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.22);
+}
+
+.PokerSeatRow
+{
+  width: 100%;
+  min-height: 34px;
+  flow-children: right;
+  margin-bottom: 4px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.035);
+}
+
+.PokerSeatRow.Empty
+{
+  flow-children: down;
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.PokerSeatNumber
+{
+  width: 26px;
+  height: 24px;
+  margin-right: 8px;
+  color: #111315;
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+  background-color: #66cc99;
+  border-radius: 12px;
+}
+
+.PokerSeatName
+{
+  width: fill-parent-flow(1.0);
+  color: #e8f3ed;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.PokerSeatMeta
+{
+  color: #7d8688;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.PokerStartButton
+{
+  width: 100%;
+  height: 52px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.06);
+  saturation: 0.2;
+  brightness: 0.45;
+  transition-property: background-color, box-shadow, pre-transform-scale2d, saturation, brightness;
+  transition-duration: 0.12s;
+}
+
+.PokerStartButton.Eligible
+{
+  background-color: #66cc99;
+  saturation: 1;
+  brightness: 1;
+  box-shadow: rgba(102, 204, 153, 0.42) 0px 0px 28px 0px;
+}
+
+.PokerStartButton.Eligible:hover
+{
+  background-color: #85e7b5;
+  pre-transform-scale2d: 1.01;
+}
+
+.PokerStartButton Label
+{
+  align: center center;
+  color: #a2abae;
+  font-size: 18px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.PokerStartButton.Eligible Label
+{
+  color: #111315;
+}
+
+.PokerSecondaryButton
+{
+  width: 100%;
+  height: 42px;
+  margin-top: 8px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.055);
+  transition-property: background-color, pre-transform-scale2d;
+  transition-duration: 0.12s;
+}
+
+.PokerSecondaryButton:hover
+{
+  background-color: rgba(255, 255, 255, 0.10);
+  pre-transform-scale2d: 1.01;
+}
+
+.PokerSecondaryButton Label
+{
+  align: center center;
+  color: #d6dddb;
+  font-size: 15px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.PokerTableSurface
+{
+  width: 100%;
+  min-height: 380px;
+  flow-children: down;
+  margin-bottom: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(102, 204, 153, 0.16);
+  background-color: gradient(radial, 50% 42%, 0% 0%, 75% 75%, from(#17352c), color-stop(0.62, #10251f), to(#091512));
+  box-shadow: inset rgba(255, 255, 255, 0.06) 0px 1px 0px 0px, rgba(0, 0, 0, 0.35) 0px 18px 40px 0px;
+}
+
+.PokerTableHeader
+{
+  width: 100%;
+  flow-children: right;
+  margin-bottom: 10px;
+}
+
+.PokerPhaseLabel
+{
+  width: fill-parent-flow(1.0);
+  color: #a6ffc9;
+  font-size: 13px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.PokerPotLabel
+{
+  color: #f0d78a;
+  font-size: 18px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.PokerAnnouncerOverlay
+{
+  width: 100%;
+  min-height: 62px;
+  flow-children: down;
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(240, 215, 138, 0.24);
+  background-color: gradient(linear, 0% 0%, 100% 0%, from(rgba(240, 215, 138, 0.16)), color-stop(0.45, rgba(102, 204, 153, 0.10)), to(rgba(0, 0, 0, 0.18)));
+  box-shadow: rgba(0, 0, 0, 0.22) 0px 7px 18px 0px;
+}
+
+.PokerAnnouncerTitle
+{
+  color: #f0d78a;
+  font-size: 18px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.PokerAnnouncerBody
+{
+  margin-top: 2px;
+  color: #d6dddb;
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.PokerCommunityCards
+{
+  width: 100%;
+  min-height: 92px;
+  flow-children: right;
+  horizontal-align: center;
+  margin-bottom: 12px;
+}
+
+.PokerCard
+{
+  width: 58px;
+  height: 78px;
+  flow-children: down;
+  margin-right: 8px;
+  padding: 7px;
+  border-radius: 6px;
+  background-color: #e8eee9;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  box-shadow: rgba(0, 0, 0, 0.38) 0px 8px 18px 0px;
+}
+
+.PokerCard.Small
+{
+  width: 38px;
+  height: 52px;
+  margin-right: 4px;
+  padding: 4px;
+}
+
+.PokerCard.RedSuit Label
+{
+  color: #b83f47;
+}
+
+.PokerCard.BlackSuit Label
+{
+  color: #111315;
+}
+
+.PokerCardRank
+{
+  font-size: 22px;
+  font-weight: bold;
+  line-height: 24px;
+}
+
+.PokerCardSuit
+{
+  font-size: 17px;
+  font-weight: bold;
+  horizontal-align: right;
+  vertical-align: bottom;
+}
+
+.PokerCard.Small .PokerCardRank
+{
+  font-size: 15px;
+  line-height: 16px;
+}
+
+.PokerCard.Small .PokerCardSuit
+{
+  font-size: 12px;
+}
+
+.PokerPlayersList
+{
+  width: 100%;
+  max-height: 170px;
+  flow-children: down;
+  overflow: squish scroll;
+  margin-bottom: 10px;
+}
+
+.PokerPlayerRow
+{
+  width: 100%;
+  min-height: 58px;
+  flow-children: right;
+  margin-bottom: 5px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background-color: rgba(0, 0, 0, 0.22);
+}
+
+.PokerPlayerRow.Current
+{
+  border: 1px solid rgba(102, 204, 153, 0.55);
+  background-color: rgba(102, 204, 153, 0.12);
+}
+
+.PokerPlayerRow.Folded
+{
+  brightness: 0.42;
+}
+
+.PokerPlayerRow.Eliminated
+{
+  saturation: 0.1;
+  brightness: 0.30;
+}
+
+.PokerPlayerInfo
+{
+  width: fill-parent-flow(1.0);
+  flow-children: down;
+}
+
+.PokerPlayerName
+{
+  color: #e8f3ed;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.PokerPlayerStack
+{
+  margin-top: 2px;
+  color: #7d8688;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.PokerHoleCards
+{
+  width: 88px;
+  flow-children: right;
+  margin-right: 8px;
+}
+
+.PokerPlayerState
+{
+  width: 72px;
+  color: #a6ffc9;
+  font-size: 12px;
+  font-weight: bold;
+  text-align: right;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  vertical-align: center;
+}
+
+.PokerActionButtons
+{
+  width: 100%;
+  min-height: 44px;
+  flow-children: right-wrap;
+}
+
+.PokerActionButton
+{
+  min-width: 92px;
+  height: 38px;
+  margin-right: 6px;
+  margin-bottom: 6px;
+  border-radius: 4px;
+  background-color: rgba(232, 243, 237, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition-property: background-color, pre-transform-scale2d;
+  transition-duration: 0.12s;
+}
+
+.PokerActionButton.Disabled
+{
+  saturation: 0.2;
+  brightness: 0.42;
+}
+
+
+.PokerActionButton:hover
+{
+  background-color: rgba(102, 204, 153, 0.28);
+  pre-transform-scale2d: 1.02;
+}
+
+.PokerActionButton.Danger:hover
+{
+  background-color: rgba(184, 63, 71, 0.40);
+}
+
+.PokerActionButtonLabel
+{
+  align: center center;
+  color: #e8f3ed;
+  font-size: 13px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.PokerActionHint
+{
+  color: #7d8688;
+  font-size: 13px;
+  vertical-align: center;
+  width: 100%;
+}
+
+.PokerGameLog
+{
+  width: 100%;
+  max-height: 92px;
+  flow-children: down;
+  margin-bottom: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.20);
+}
+
+.PokerLogLine
+{
+  color: #aeb8b7;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.PokerHidden
+{
+  visibility: collapse;
+}
