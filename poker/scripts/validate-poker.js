@@ -4,7 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
-const vm = require('node:vm');
+const harness = require('./poker-panorama-vm');
 
 const ROOT = path.resolve(__dirname, '..');
 const LAYOUT_PATH = path.join(ROOT, 'panorama', 'layout', 'chat.xml');
@@ -62,111 +62,20 @@ function assertMatches(label, source, pattern, reason) {
   assert(pattern.test(source), `${label} ${reason}: ${pattern}`);
 }
 
-function createTestPanel(options = {}) {
-  const panel = {
-    id: options.id || '',
-    text: options.text || '',
-    classes: options.classes || [],
-    children: options.children || [],
-    parent: null,
-    IsValid() {
-      return true;
-    },
-    GetParent() {
-      return this.parent;
-    },
-    GetChildCount() {
-      return this.children.length;
-    },
-    GetChild(index) {
-      return this.children[index] || null;
-    },
-    BHasClass(className) {
-      return this.classes.includes(className);
-    },
-    FindChildTraverse(id) {
-      if (this.id === id) return this;
-      for (const child of this.children) {
-        if (child && typeof child.FindChildTraverse === 'function') {
-          const found = child.FindChildTraverse(id);
-          if (found) return found;
-        }
-      }
-      return null;
-    },
-    FindChildrenWithClassTraverse(className) {
-      const matches = [];
-      if (this.classes.includes(className)) matches.push(this);
-      for (const child of this.children) {
-        if (child && typeof child.FindChildrenWithClassTraverse === 'function') {
-          matches.push(...child.FindChildrenWithClassTraverse(className));
-        }
-      }
-      return matches;
-    },
-  };
-  for (const child of panel.children) {
-    if (child) child.parent = panel;
-  }
-  return panel;
-}
-
 function createChatMessagePanel(sender, message, options = {}) {
-  return createTestPanel({
-    classes: options.isSelf ? ['IsSelf'] : [],
-    children: [
-      createTestPanel({
-        id: 'MessageSource',
-        children: [
-          createTestPanel({ text: sender, classes: ['SenderName'] }),
-          createTestPanel({ text: options.channel || 'TEAM', classes: ['ChannelName'] }),
-        ],
-      }),
-      createTestPanel({
-        id: 'MessageContents',
-        children: [createTestPanel({ text: message })],
-      }),
-    ],
-  });
+  const panels = harness.createPanelFactory({ panelIds: [] });
+  return harness.appendChatPanel({ panels }, sender, options.channel || 'TEAM', message, !!options.isSelf).row;
 }
 
 function createChatBridgeRuntime() {
-  const config = {};
-  const dispatches = [];
-  const logs = [];
-  const schedules = [];
-  const rootPanel = createTestPanel({ id: 'Chat' });
-  const sandbox = {
-    console,
-    GameUI: {
-      CustomUIConfig() {
-        return config;
-      },
-    },
-    $: {
-      DispatchEvent(event, payload) {
-        dispatches.push({ event, payload });
-      },
-      GetContextPanel() {
-        return rootPanel;
-      },
-      Msg(message) {
-        logs.push(String(message));
-      },
-      RegisterForUnhandledEvent() {},
-      Schedule(delay, callback) {
-        schedules.push({ delay, callback });
-      },
-    },
-  };
-  sandbox.globalThis = sandbox;
-  vm.runInNewContext(script, sandbox, { filename: SCRIPT_PATH });
+  const runtime = harness.createValidatorContext({ rootId: 'Chat', nowStep: 1 });
+  harness.runScript(runtime.sandbox, SCRIPT_PATH);
   return {
-    config,
-    dispatches,
-    hooks: sandbox.__PokerChatDebugTestHooks,
-    logs,
-    schedules,
+    config: runtime.config,
+    dispatches: runtime.dispatches,
+    hooks: runtime.sandbox.__PokerChatDebugTestHooks,
+    logs: runtime.messages,
+    schedules: runtime.schedules,
   };
 }
 
@@ -203,6 +112,68 @@ function cssDeclarationValue(block, property) {
   return match ? match[1].trim() : '';
 }
 
+function cssColorLuminance(red, green, blue) {
+  return (red * 0.2126) + (green * 0.7152) + (blue * 0.0722);
+}
+
+function cssColorTokenLuminance(color) {
+  const hexMatch = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color);
+  if (hexMatch) {
+    const hex = hexMatch[1].length === 3
+      ? hexMatch[1].split('').map((part) => part + part).join('')
+      : hexMatch[1];
+    return cssColorLuminance(
+      Number.parseInt(hex.slice(0, 2), 16),
+      Number.parseInt(hex.slice(2, 4), 16),
+      Number.parseInt(hex.slice(4, 6), 16),
+    );
+  }
+  const rgbMatch = /^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)(?:\s*,\s*(\d+(?:\.\d+)?))?\s*\)$/i.exec(color);
+  if (!rgbMatch) return NaN;
+  const alpha = rgbMatch[4] === undefined ? 1 : Number(rgbMatch[4]);
+  if (!Number.isFinite(alpha) || alpha <= 0.05) return NaN;
+  return cssColorLuminance(Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3]));
+}
+
+function cssValueContainsDarkColor(value) {
+  const hexColors = value.match(/#[0-9a-f]{3}(?:[0-9a-f]{3})?\b/gi) || [];
+  const rgbColors = value.match(/rgba?\([^)]*\)/gi) || [];
+  return hexColors.concat(rgbColors).some((color) => {
+    const luminance = cssColorTokenLuminance(color);
+    return Number.isFinite(luminance) && luminance < 96;
+  });
+}
+
+function cssColorTokenIsTransparent(color) {
+  if (/\btransparent\b/i.test(color)) return true;
+  const rgbMatch = /^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)(?:\s*,\s*(\d+(?:\.\d+)?))?\s*\)$/i.exec(color);
+  if (!rgbMatch || rgbMatch[4] === undefined) return false;
+  const alpha = Number(rgbMatch[4]);
+  return Number.isFinite(alpha) && alpha <= 0.05;
+}
+
+function cssValuePaintIsTransparent(value) {
+  const normalized = (value || '').trim();
+  if (!normalized) return false;
+  const colorTokens = normalized.match(/#[0-9a-f]{3}(?:[0-9a-f]{3})?\b|rgba?\([^)]*\)|\btransparent\b/gi) || [];
+  return colorTokens.length > 0 && colorTokens.every(cssColorTokenIsTransparent);
+}
+
+function cssValueRemovesVisiblePaint(value) {
+  const normalized = (value || '').trim().toLowerCase();
+  if (/^(?:none|0|0px)$/.test(normalized)) return true;
+  if (/^0(?:px)?\b/.test(normalized)) return true;
+  return cssValuePaintIsTransparent(value);
+}
+
+function cssFirstDeclarationValue(block, properties) {
+  for (const property of properties) {
+    const value = cssDeclarationValue(block, property);
+    if (value) return value;
+  }
+  return '';
+}
+
 function cssBlockContainingSelectorDeclaration(source, selector, property) {
   const blocks = source.matchAll(/(?:^|})\s*([^{}]+)\{([^}]*)\}/gm);
   for (const block of blocks) {
@@ -215,6 +186,21 @@ function cssBlockContainingSelectorDeclaration(source, selector, property) {
 function assertCssDeclarationMatches(label, block, property, pattern, reason) {
   const value = cssDeclarationValue(block, property);
   assert(pattern.test(value), `${label} ${reason}: ${property}: ${value || '<missing>'}`);
+}
+
+function cssDeclarationForSelector(source, selector, property) {
+  return cssDeclarationValue(cssBlockContainingSelectorDeclaration(source, selector, property), property);
+}
+
+function assertSharedCssDeclaration(label, source, firstSelector, secondSelector, property, pattern, reason) {
+  const firstValue = cssDeclarationForSelector(source, firstSelector, property);
+  const secondValue = cssDeclarationForSelector(source, secondSelector, property);
+  assert(pattern.test(firstValue), `${label} ${firstSelector} ${reason}: ${property}: ${firstValue || '<missing>'}`);
+  assert(pattern.test(secondValue), `${label} ${secondSelector} ${reason}: ${property}: ${secondValue || '<missing>'}`);
+  assert(
+    firstValue === secondValue,
+    `${label} ${firstSelector} and ${secondSelector} must share ${property} so stable cards and flip layers align: ${firstValue || '<missing>'} vs ${secondValue || '<missing>'}`,
+  );
 }
 
 function cssPxValue(block, property) {
@@ -601,6 +587,12 @@ for (const [id, className] of [
     new RegExp(`id=["']${id}["'][^>]*class=["'][^"']*\\b${className}\\b`),
     `must expose #${id} as one of the four floating poker windows`,
   );
+  assertMatches(
+    'menu layout',
+    menuLayout,
+    new RegExp(`id=["']${id}["'][^>]*class=["'][^"']*\\bPokerFloatingWindow\\b`),
+    `must expose #${id} with the shared PokerFloatingWindow class`,
+  );
 }
 const lobbyWindowLayout = sourceSliceBetweenIds(menuLayout, 'PokerLobbyWindow', 'PokerTableWindow');
 const playersWindowLayout = sourceSliceBetweenIds(menuLayout, 'PokerPlayersWindow', 'PokerHistoryWindow');
@@ -741,6 +733,21 @@ for (const selector of ['.PokerLobbyWindow', '.PokerPlayersWindow', '.PokerHisto
   );
 }
 const floatingWindowBlock = cssBlock(menuStyle, '.PokerFloatingWindow');
+assertCssDeclarationMatches(
+  'menu style .PokerFloatingWindow',
+  floatingWindowBlock,
+  'pre-transform-scale2d',
+  /^0\.96$/,
+  'must use Panorama-supported pre-transform-scale2d before windows open',
+);
+assert(
+  !/\bscale3d\s*[:(]/i.test(menuStyle),
+  'menu style must not use unsupported scale3d transforms for floating poker windows',
+);
+assert(
+  !/\bclip-path\s*:/i.test(menuStyle),
+  'menu style must not use unsupported clip-path for floating poker windows',
+);
 const lobbyWindowBlock = cssBlock(menuStyle, '.PokerLobbyWindow');
 const floatingZIndex = Number(cssDeclarationValue(floatingWindowBlock, 'z-index'));
 const tableZIndex = Number(cssDeclarationValue(tableWindowBlock, 'z-index'));
@@ -1065,10 +1072,133 @@ for (const selector of [
 assertIncludes('menu script', menuScript, '__pokerImageSrc', 'must guard repeated card image source writes');
 assertIncludes('menu script', menuScript, 'getCardDisplayRank(card.rank)', 'must use display rank helper for card corner labels');
 assertIncludes('menu script', menuScript, 'getSuitGlyph(card.suit)', 'must use suit glyph helper for card corner labels');
+assertIncludes('menu style', menuStyle, "@keyframes 'PokerCardFlipReveal'", 'must define Panorama-compatible quoted card flip reveal keyframes');
+assertIncludes('menu style', menuStyle, "@keyframes 'PokerCardFlipToBack'", 'must define Panorama-compatible quoted card flip-to-back keyframes');
+assert(!/@keyframes\s+PokerCardFlip/.test(menuStyle), 'menu style must quote PokerCard keyframe names for Panorama');
+const cardFlipRevealBlock = cssBlockContainingSelectorDeclaration(menuStyle, '.PokerCardFlipLayer.FlipReveal', 'animation-name');
+const cardFlipToBackBlock = cssBlockContainingSelectorDeclaration(menuStyle, '.PokerCardFlipLayer.FlipToBack', 'animation-name');
+const cardFlipDurationBlock = cssBlockContainingSelectorDeclaration(menuStyle, '.PokerCardFlipLayer.FlipReveal', 'animation-duration');
+const pokerCardBackBlock = cssBlock(menuStyle, '.PokerCard.CardBack');
+const pokerCardBackBackgroundColor = cssDeclarationValue(pokerCardBackBlock, 'background-color');
+assert(
+  !pokerCardBackBackgroundColor || !cssValueContainsDarkColor(pokerCardBackBackgroundColor),
+  'menu style .PokerCard.CardBack must not set a dark background-color; hidden/unknown cards should use the base light question face',
+);
+const pokerCardBackLabelBlock = cssBlock(menuStyle, '.PokerCard.CardBack Label');
+assert(
+  !/\bopacity\s*:\s*0(?:\.0+)?\s*;/.test(pokerCardBackLabelBlock),
+  'menu style .PokerCard.CardBack Label must not set opacity:0; unknown-card question labels must remain visible',
+);
+const pokerCardFlipActiveBlock = cssBlock(menuStyle, '.PokerCard.FlipActive');
+assert(
+  pokerCardFlipActiveBlock,
+  'menu style must define .PokerCard.FlipActive to hide the base card shell while flip layers animate',
+);
+const flipActiveBackground = cssFirstDeclarationValue(pokerCardFlipActiveBlock, ['background-color', 'background']);
+assert(
+  cssValuePaintIsTransparent(flipActiveBackground),
+  `menu style .PokerCard.FlipActive must make the base card shell background transparent during flip animation: ${flipActiveBackground || '<missing>'}`,
+);
+const flipActiveBorder = cssFirstDeclarationValue(pokerCardFlipActiveBlock, ['border', 'border-color']);
+assert(
+  cssValueRemovesVisiblePaint(flipActiveBorder),
+  `menu style .PokerCard.FlipActive must remove or transparentize the base card shell border during flip animation: ${flipActiveBorder || '<missing>'}`,
+);
+const flipActiveBoxShadow = cssDeclarationValue(pokerCardFlipActiveBlock, 'box-shadow');
+assert(
+  cssValueRemovesVisiblePaint(flipActiveBoxShadow),
+  `menu style .PokerCard.FlipActive must remove or transparentize the base card shell shadow during flip animation: ${flipActiveBoxShadow || '<missing>'}`,
+);
+const pokerCardBlock = cssBlock(menuStyle, '.PokerCard');
+const pokerCardBackground = cssFirstDeclarationValue(pokerCardBlock, ['background-color', 'background']);
+assert(
+  cssValuePaintIsTransparent(pokerCardBackground),
+  `menu style .PokerCard must keep the base card shell transparent; visible shell belongs to PokerCardContents/FlipLayer: ${pokerCardBackground || '<missing>'}`,
+);
+assertSharedCssDeclaration('menu style card flip shell', menuStyle, '.PokerCardContents', '.PokerCardFlipLayer', 'background-color', /.+/, 'must share the same card shell background');
+assertSharedCssDeclaration('menu style card flip shell', menuStyle, '.PokerCardContents', '.PokerCardFlipLayer', 'border-radius', /^\d+(?:\.\d+)?px$/, 'must share the same rounded card shell geometry');
+assertSharedCssDeclaration('menu style card flip shell', menuStyle, '.PokerCardContents', '.PokerCardFlipLayer', 'border', /.+/, 'must share the same card shell border');
+assertSharedCssDeclaration('menu style card flip shell', menuStyle, '.PokerCardContents', '.PokerCardFlipLayer', 'box-shadow', /.+/, 'must share the same card shell shadow');
+assert(cardFlipRevealBlock, 'menu style must animate transient reveal layers');
+assert(cardFlipToBackBlock, 'menu style must animate transient face-to-back layers');
+assertCssDeclarationMatches('card flip reveal', cardFlipRevealBlock, 'animation-name', /^PokerCardFlipReveal$/, 'must use the flip reveal keyframes');
+assertCssDeclarationMatches('card flip to back', cardFlipToBackBlock, 'animation-name', /^PokerCardFlipToBack$/, 'must use the flip-to-back keyframes');
+assertCssDeclarationMatches('card flip layer', cardFlipDurationBlock, 'animation-duration', /^1\.2s$/, 'must keep the requested 1.2s duration');
+const cardFlipLayerRedLabelBlock = cssBlockContainingSelectorDeclaration(menuStyle, '.PokerCard .PokerCardFlipLayer.RedSuit Label', 'color');
+const cardStableRedLabelBlock = cssBlockContainingSelectorDeclaration(menuStyle, '.PokerCardContents.RedSuit Label', 'color');
+const cardFlipLayerRedArtBlock = cssBlockContainingSelectorDeclaration(menuStyle, '.PokerCard .PokerCardFlipLayer.RedSuit .PokerCardVtexArt', 'wash-color');
+assertCssDeclarationMatches('card flip layer red label', cardFlipLayerRedLabelBlock, 'color', /^#b83f47$/, 'must render red reveal card labels red from the first animation frame');
+assertCssDeclarationMatches('stable card red label', cardStableRedLabelBlock, 'color', /^#b83f47$/, 'must render stable red card labels without waiting for parent color state');
+assertCssDeclarationMatches('card flip layer red art', cardFlipLayerRedArtBlock, 'wash-color', /^#b83f47$/, 'must wash red reveal card art from the first animation frame');
+assertIncludes('menu script', menuScript, 'applyCardVisualState(contents, card)', 'must put suit classes directly on stable card contents');
+assertMatches(
+  'menu script',
+  menuScript,
+  /\bfunction\s+renderStableCardContents\s*\(\s*panel\s*,\s*card\s*,\s*hidden\s*\)[\s\S]*?\bPokerCardContents\b[\s\S]*?\brenderCardContents\s*\(\s*contents\s*,\s*card\s*\)/,
+  'must render stable card labels/art through a named PokerCardContents wrapper helper',
+);
+assert(
+  !/\brenderCardContents\s*\(\s*panel\s*,/.test(menuScript),
+  'menu script must not render stable card contents directly under .PokerCard; use the PokerCardContents wrapper',
+);
+const backToRevealBranchMatch = menuScript.match(/if\s*\(\s*previousKey\s*===\s*["']back["']\s*&&\s*key\s*!==\s*["']back["']\s*\)\s*\{([\s\S]*?)\n\s*return;\s*\n\s*\}/);
+const backToRevealBranch = backToRevealBranchMatch ? backToRevealBranchMatch[1] : '';
+assert(backToRevealBranch, 'menu script must keep an explicit back-to-reveal card update branch');
+assertIncludes('back-to-reveal card branch', backToRevealBranch, 'renderStableCardContents(panel, card, true)', 'must render the final stable card hidden while the flip animation runs');
+assertIncludes('back-to-reveal card branch', backToRevealBranch, 'createCardFlipLayer(panel, null, "FlipToBack", true)', 'must create a visible ? layer that flips out');
+assertIncludes('back-to-reveal card branch', backToRevealBranch, 'createCardFlipLayer(panel, card, "FlipReveal")', 'must create a real-card layer that flips in');
+assertMatches('back-to-reveal card branch', backToRevealBranch, /\bcompleteCardFlip\s*\(\s*panel\s*,\s*key\s*,\s*\[\s*backLayer\s*,\s*revealLayer\s*\](?:\s*,\s*card)?\s*\)/, 'must finish both flip layers through one completion path');
+const completeCardFlipStart = menuScript.indexOf('function completeCardFlip');
+const completeCardFlipEnd = menuScript.indexOf('function updateCardPanel', completeCardFlipStart);
+const completeCardFlipSource = completeCardFlipStart >= 0 && completeCardFlipEnd > completeCardFlipStart ? menuScript.slice(completeCardFlipStart, completeCardFlipEnd) : '';
+assert(completeCardFlipSource, 'menu script must define completeCardFlip before updateCardPanel for card flip cleanup');
+assertIncludes('completeCardFlip', completeCardFlipSource, '$.Schedule(1.2, finish)', 'must schedule cleanup after the same 1.2s flip animation');
+assertIncludes('completeCardFlip', completeCardFlipSource, 'setStableCardContentsHidden(panel, false)', 'must unhide stable card contents when the flip completes');
+assertIncludes('completeCardFlip', completeCardFlipSource, 'setPanelClass(panel, "FlipActive", false)', 'must clear flip-active state when the flip completes');
+const cardContentsFlipHiddenBlock = cssBlockContainingSelector(menuStyle, '.PokerCardContents.FlipHidden');
+assert(
+  cardContentsFlipHiddenBlock,
+  'menu style must keep .PokerCardContents.FlipHidden as the stable-content-only flip hiding selector',
+);
+const cardContentsHiddenBlock = cardContentsFlipHiddenBlock ||
+  cssBlockContainingSelector(menuStyle, '.PokerCard.FlipActive .PokerCardContents') ||
+  cssBlockContainingSelector(menuStyle, '.PokerCard.FlipActive > .PokerCardContents');
+assert(
+  cardContentsHiddenBlock,
+  'menu style must define .PokerCardContents.FlipHidden or a FlipActive-scoped PokerCardContents equivalent to hide stable card contents during flip animation',
+);
+assertMatches(
+  'menu style stable card hidden contents',
+  cardContentsHiddenBlock,
+  /\b(?:opacity\s*:\s*0(?:\.0+)?\s*;|visibility\s*:\s*(?:collapse|invisible)\s*;)/,
+  'must hide only the stable card contents while transient flip layers animate',
+);
+assertSharedCssDeclaration('menu style card flip geometry', menuStyle, '.PokerCardContents', '.PokerCardFlipLayer', 'ignore-parent-flow', /^true$/, 'must leave both stable contents and flip layers out of parent flow');
+assertSharedCssDeclaration('menu style card flip geometry', menuStyle, '.PokerCardContents', '.PokerCardFlipLayer', 'width', /^100%$/, 'must fill the same card width');
+assertSharedCssDeclaration('menu style card flip geometry', menuStyle, '.PokerCardContents', '.PokerCardFlipLayer', 'height', /^100%$/, 'must fill the same card height');
+assertSharedCssDeclaration('menu style card flip geometry', menuStyle, '.PokerCardContents', '.PokerCardFlipLayer', 'padding', /^\d+(?:\.\d+)?px$/, 'must use the same inset around card content');
+assertSharedCssDeclaration('menu style card flip geometry', menuStyle, '.PokerCardContents', '.PokerCardFlipLayer', 'border-radius', /^\d+(?:\.\d+)?px$/, 'must use the same rounded card geometry');
+assertSharedCssDeclaration('menu style small card flip geometry', menuStyle, '.PokerCard.Small .PokerCardContents', '.PokerCard.Small .PokerCardFlipLayer', 'padding', /^\d+(?:\.\d+)?px$/, 'must keep small-card stable contents and flip layers aligned');
+assertIncludes('menu script', menuScript, 'createCardFlipLayer(panel, card, "FlipReveal")', 'must render a transient reveal layer for back-to-front flips');
+assertIncludes('menu script', menuScript, 'createCardFlipLayer(panel, null, "FlipToBack", true)', 'must render a visible ? layer so ? cards flip out while reveal cards flip in');
+assertIncludes('menu script', menuScript, 'createCardFlipLayer(panel, previousCard, "FlipToBack")', 'must render a transient old-card layer for face-to-back flips');
 for (const moduleName of ['StartSync', 'CommandReducer', 'PokerEngine', 'ProgressResume', 'PendingSelfAction', 'CardPresenter', 'TableRenderer', 'Affordance', 'PokerButtonState']) {
   assertIncludes('menu script', menuScript, `const ${moduleName}`, `must define ${moduleName} module seam`);
 }
 assertIncludes('script', script, 'const ChatBridgeIntake', 'must define ChatBridgeIntake module seam');
+
+assert(!menuScript.includes('function renderActionChoices'), 'menu script must not keep unused pre-PokerButtonState renderActionChoices dead code');
+assert(!menuScript.includes('function sendProgressShare'), 'menu script must not keep unused finished-progress chat-share dead code');
+assert(!menuScript.includes('function canShareProgressFromLocalLeader'), 'menu script must not keep unused finished-progress share gate dead code');
+assert(!menuScript.includes('function playersInHand'), 'menu script must not keep unused playersInHand dead code');
+assert(!menuScript.includes('function getLocalCallAmount'), 'menu script must not keep unused getLocalCallAmount dead code');
+assert(!menuScript.includes('function renderCommunityStable'), 'menu script must not keep shallow renderCommunityStable wrapper');
+assert(!menuScript.includes('function renderPlayersStable'), 'menu script must not keep shallow renderPlayersStable wrapper');
+assert(!menuScript.includes('function renderTableSeatsStable'), 'menu script must not keep shallow renderTableSeatsStable wrapper');
+assert(!menuScript.includes('function renderActionsStable'), 'menu script must not keep shallow renderActionsStable wrapper');
+assert(!menuScript.includes('function renderLogStable'), 'menu script must not keep shallow renderLogStable wrapper');
+assert(!menuScript.includes('function applyEngineAction'), 'menu script must not keep shallow applyEngineAction wrapper');
+assert(!menuScript.includes('function applyAffordance'), 'menu script must not keep shallow applyAffordance wrapper');
 
 if (failures.length > 0) {
   for (const failure of failures) {

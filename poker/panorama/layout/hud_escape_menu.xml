@@ -86,18 +86,18 @@
         </TabContents>
       </Panel>
     </Panel>
-    <Panel id="PokerAnitaPanel" class="PokerAnitaPanel" hittest="true">
-      <Panel class="PokerAnitaHeader">
-        <Panel>
+    <Panel id="PokerAnitaPanel" class="PokerAnitaPanel PokerHidden" hittest="false" />
+    <Panel id="PokerLobbyWindow" class="PokerFloatingWindow PokerLobbyWindow" hittest="true">
+      <Panel class="PokerFloatingHeader">
+        <Panel class="PokerTableTitleBlock">
           <Label class="PokerAnitaEyebrow" text="ANITA UI / DEBUG" />
-          <Label class="PokerAnitaTitle" text="Poker Table" />
+          <Label class="PokerAnitaTitle" text="Poker Lobby" />
         </Panel>
         <Button id="PokerCloseButton" class="PokerIconButton" onactivate="PokerEscapeMenuClose()">
           <Label text="×" />
         </Button>
       </Panel>
-      <Panel class="PokerAnitaBody">
-        <Label class="PokerAnitaBodyText" text="Chat-driven table. Players ready up, Start deals $10,000 stacks with blinds that rise $100/$200 each hand, then turns continue with no timer." />
+      <Panel class="PokerLobbyBar">
         <Panel id="PokerPartyControls" class="PokerPartyControls">
           <Button id="PokerHostPartyButton" class="PokerPrimaryButton PokerPartyButton" onactivate="PokerEscapeMenuHostParty()">
             <Label text="HOST PARTY" />
@@ -106,34 +106,96 @@
             <Label text="JOIN PARTY" />
           </Button>
         </Panel>
-        <Label id="PokerPartyStatusLabel" class="PokerPartyStatusLabel" text="Host a synced table or join the latest [party leader] in chat." />
-        <Panel class="PokerReadySummary">
-          <Label class="PokerSectionLabel" text="READY SEATS" />
-          <Label id="PokerReadyCountLabel" class="PokerReadyCountLabel" text="0/2 ready" />
+        <Panel id="PokerProgressControls" class="PokerProgressControls">
+          <Button id="PokerExportProgressButton" class="PokerSecondaryButton" onactivate="PokerEscapeMenuCopyProgress()">
+            <Label text="COPY PROGRESS" />
+          </Button>
+          <Button id="PokerImportProgressButton" class="PokerSecondaryButton" onactivate="PokerEscapeMenuImportProgress()">
+            <Label text="IMPORT PROGRESS" />
+          </Button>
         </Panel>
-        <Panel id="PokerSeatsList" class="PokerSeatsList" />
-        <Panel class="PokerTableSurface">
-          <Panel class="PokerTableHeader">
-            <Label id="PokerPhaseLabel" class="PokerPhaseLabel" text="LOBBY" />
-            <Label id="PokerPotLabel" class="PokerPotLabel" text="POT $0" />
-          </Panel>
-          <Panel id="PokerAnnouncerOverlay" class="PokerAnnouncerOverlay" hittest="false">
-            <Label id="PokerAnnouncerTitle" class="PokerAnnouncerTitle" text="Poker announcer" />
-            <Label id="PokerAnnouncerBody" class="PokerAnnouncerBody" text="Ready up, start a hand, and the table will call blinds, turns, checks, bets, raises, folds, and winners here." />
-          </Panel>
+        <Panel id="PokerResumeControls" class="PokerResumeControls">
+          <Button id="PokerResumeLeaderButton" class="PokerPrimaryButton" onactivate="PokerEscapeMenuResumeLeader()">
+            <Label text="LEAD RESUME" />
+          </Button>
+          <Button id="PokerResumeReadyButton" class="PokerSecondaryButton" onactivate="PokerEscapeMenuResumeReady()">
+            <Label text="READY RESUME" />
+          </Button>
+        </Panel>
+        <Button id="PokerReadyChatButton" class="PokerPrimaryButton PokerReadyTopButton" onactivate="PokerEscapeMenuSendReadyChat()">
+          <Label text="READY UP" />
+        </Button>
+      </Panel>
+      <Panel class="PokerLobbyMeta">
+        <Panel class="PokerLobbyMetaColumn">
+          <Label id="PokerPartyStatusLabel" class="PokerPartyStatusLabel" text="Host a synced table or join the latest [party leader] in chat." />
+          <TextEntry id="PokerProgressCodeInput" class="PokerProgressCodeInput" placeholder="Paste POKERPROG1 code" />
+          <Label id="PokerProgressCodeLabel" class="PokerProgressCodeLabel" text="Finish a hand to copy progress, or paste a code to resume." />
+        </Panel>
+        <Panel class="PokerLobbyMetaColumn">
+          <Label id="PokerResumeStatusLabel" class="PokerStatusLabel" text="Import progress to choose a resume leader." />
+          <Panel id="PokerResumeLeaderList" class="PokerSeatsList" />
+        </Panel>
+      </Panel>
+    </Panel>
+    <Panel id="PokerTableWindow" class="PokerFloatingWindow PokerTableWindow" hittest="false">
+      <Panel id="PokerTableSurface" class="PokerTableSurface">
+        <Panel class="PokerTableHeader">
+          <Label id="PokerPhaseLabel" class="PokerPhaseLabel" text="LOBBY" />
+          <Label id="PokerPotLabel" class="PokerPotLabel" text="POT $0" />
+        </Panel>
+        <Panel id="PokerAnnouncerOverlay" class="PokerAnnouncerOverlay" hittest="false">
+          <Label id="PokerAnnouncerTitle" class="PokerAnnouncerTitle" text="Poker announcer" />
+          <Label id="PokerAnnouncerBody" class="PokerAnnouncerBody" text="Ready up, start a hand, and the table will call blinds, turns, checks, bets, raises, folds, and winners here." />
+        </Panel>
+        <Panel id="PokerTableFelt" class="PokerTableFelt" hittest="false">
           <Panel id="PokerCommunityCards" class="PokerCommunityCards" />
-          <Panel id="PokerPlayersList" class="PokerPlayersList" />
-          <Panel id="PokerActionButtons" class="PokerActionButtons" />
+          <Panel id="PokerTableSeats" class="PokerTableSeats PokerHidden" />
         </Panel>
+      </Panel>
+    </Panel>
+    <Panel id="PokerPlayersWindow" class="PokerFloatingWindow PokerPlayersWindow" hittest="true">
+      <Panel class="PokerFloatingHeader">
+        <Panel class="PokerTableTitleBlock">
+          <Label class="PokerAnitaEyebrow" text="TABLE" />
+          <Label class="PokerWindowTitleSmall" text="Players" />
+        </Panel>
+      </Panel>
+      <Panel class="PokerReadySummary">
+        <Label class="PokerSectionLabel" text="MAX SEATS" />
+        <Label id="PokerReadyCountLabel" class="PokerReadyCountLabel" text="12" />
+      </Panel>
+      <Panel id="PokerSeatsList" class="PokerSeatsList" />
+      <Panel class="PokerSideSection">
+        <Label class="PokerSideSectionLabel" text="PLAYERS" />
+        <Panel id="PokerPlayersList" class="PokerPlayersList PokerHidden" />
+      </Panel>
+      <Panel class="PokerPlayerWindowControls">
+        <Button id="PokerEndMatchButton" class="PokerSecondaryButton PokerHidden" onactivate="PokerEscapeMenuEndMatch()">
+          <Label text="END MATCH" />
+        </Button>
+        <Button id="PokerLeaveLobbyButton" class="PokerSecondaryButton PokerHidden" onactivate="PokerEscapeMenuLeaveLobby()">
+          <Label text="LEAVE LOBBY" />
+        </Button>
+      </Panel>
+    </Panel>
+    <Panel id="PokerHistoryWindow" class="PokerFloatingWindow PokerHistoryWindow" hittest="false">
+      <Panel class="PokerFloatingHeader">
+        <Panel class="PokerTableTitleBlock">
+          <Label class="PokerAnitaEyebrow" text="HISTORY" />
+          <Label class="PokerWindowTitleSmall" text="Last 12" />
+        </Panel>
+      </Panel>
+      <Panel id="PokerGameLog" class="PokerGameLog" />
+    </Panel>
+    <Panel id="PokerActionsWindow" class="PokerFloatingWindow PokerActionsWindow" hittest="true">
+      <Panel class="PokerTableActionButtonsRow">
+        <Panel id="PokerActionButtons" class="PokerActionButtons PokerHidden" />
         <Button id="PokerStartButton" class="PokerStartButton Disabled" onactivate="PokerEscapeMenuStart()">
           <Label id="PokerStartButtonLabel" text="WAITING FOR 2 PLAYERS" />
         </Button>
-        <Button id="PokerReadyChatButton" class="PokerPrimaryButton" onactivate="PokerEscapeMenuSendReadyChat()">
-          <Label text="READY UP" />
-        </Button>
-        <Panel id="PokerGameLog" class="PokerGameLog" />
-        <Label id="PokerStatusLabel" class="PokerStatusLabel" text="Waiting for ready players." />
       </Panel>
+      <Label id="PokerStatusLabel" class="PokerStatusLabel" text="Waiting for ready players." />
     </Panel>
   </CitadelHudEscapeMenu>
 </root>

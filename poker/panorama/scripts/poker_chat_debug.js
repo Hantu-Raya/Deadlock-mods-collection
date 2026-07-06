@@ -45,8 +45,6 @@
   const LOCAL_PLAYER_KEY = BridgeContract.keys.localPlayerKey;
   const LOCAL_PLAYER_NAME_KEY = BridgeContract.keys.localPlayerName;
   const PENDING_SELF_ACTION_KEY = BridgeContract.keys.pendingSelfAction;
-  const PARTY_STATE_KEY = BridgeContract.keys.partyState;
-  const PROGRESS_STATE_KEY = BridgeContract.keys.progressState;
   const UNKNOWN_SENDER_MAX_DELAYS = 6;
 
   const LABEL_TEXT_BUFFER = [];
@@ -345,7 +343,6 @@
     const messages = getChatMessages();
     config[CHAT_SEQ_KEY] = (config[CHAT_SEQ_KEY] || 0) + 1;
     const entry = {
-      event: CHAT_EVENT,
       seq: config[CHAT_SEQ_KEY],
       sender: record.sender || EMPTY_NAME,
       channel: record.channel || "",
@@ -354,7 +351,14 @@
     };
     messages.push(entry);
     while (messages.length > 120) messages.shift();
-    dispatchChatEvent(entry);
+    dispatchChatEvent({
+      event: CHAT_EVENT,
+      seq: entry.seq,
+      sender: entry.sender,
+      channel: entry.channel,
+      message: entry.message,
+      isSelf: entry.isSelf,
+    });
     return entry;
   }
 
@@ -505,23 +509,80 @@
     };
   }
 
+  function findTrustedPartyLeaderFallbackSender() {
+    const messages = getChatMessages();
+    let recentLeaveSender = "";
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const entry = messages[i];
+      if (!entry || isUnknownSender(entry.sender)) continue;
+      if (!recentLeaveSender && isPartyLeaveMessage(entry.message)) {
+        recentLeaveSender = entry.sender;
+        continue;
+      }
+      if (isPartyLeaderMessage(entry.message)) {
+        if (!recentLeaveSender || normalizePlayerKey(entry.sender) === normalizePlayerKey(recentLeaveSender)) return entry.sender;
+        return "";
+      }
+    }
+    return "";
+  }
+
+  function resolveDelayedUnknownPartyLeader(record, messagePanel) {
+    if (!record || record.isSelf || !messagePanel) return record;
+    if (!isUnknownSender(record.sender) || !isPartyLeaderMessage(record.message)) return record;
+    if ((messagePanel[UNKNOWN_RETRY_FLAG] || 0) <= UNKNOWN_SENDER_MAX_DELAYS) return record;
+    const trustedSender = findTrustedPartyLeaderFallbackSender();
+    if (!trustedSender) return record;
+    return {
+      sender: trustedSender,
+      channel: record.channel,
+      message: record.message,
+      isSelf: false,
+    };
+  }
+
   function shouldDelayUnknownSender(record, messagePanel) {
     if (!record || record.isSelf || !isUnknownSender(record.sender)) return false;
     if (!isPokerBridgeMessage(record.message)) return false;
     if (!messagePanel) return true;
     messagePanel[UNKNOWN_RETRY_FLAG] = ((messagePanel[UNKNOWN_RETRY_FLAG] || 0) + 1);
-    if (isPartyLeaderMessage(record.message) || isShortResumeStartMessage(record.message)) return messagePanel[UNKNOWN_RETRY_FLAG] <= UNKNOWN_SENDER_MAX_DELAYS;
-    if (isPartyAuthorityMessage(record.message) || isResumeAuthorityMessage(record.message)) return true;
+    if (isPartyAuthorityMessage(record.message) || isResumeLeaderMessage(record.message) || isResumeReadyMessage(record.message)) return true;
+    if (isShortResumeStartMessage(record.message)) return messagePanel[UNKNOWN_RETRY_FLAG] <= UNKNOWN_SENDER_MAX_DELAYS;
+    if (isResumeStartMessage(record.message)) return true;
     return messagePanel[UNKNOWN_RETRY_FLAG] <= UNKNOWN_SENDER_MAX_DELAYS;
+  }
+
+  function classifyChatRow(record, messagePanel) {
+    const message = record && record.message;
+    let authority = "none";
+    if (isPartyAuthorityMessage(message)) authority = "party";
+    else if (isResumeLeaderMessage(message) || isResumeReadyMessage(message)) authority = "resume";
+    else if (isResumeStartMessage(message)) authority = "start";
+    else if (isProgressOfferMessage(message) || isProgressChunkMessage(message)) authority = "progress";
+    else if (isPokerBridgeMessage(message) && !isReadyChatMessage(message)) authority = "action";
+
+    const delayUnknown = shouldDelayUnknownSender(record, messagePanel);
+    return {
+      status: record ? (delayUnknown ? "delayed" : "consumed") : "ignored",
+      delayUnknown: delayUnknown,
+      authority: authority,
+      readyLike: !!(record && isReadyChatMessage(record.message)),
+    };
   }
 
   function consumeChatRow(messagePanel) {
     if (!isValid(messagePanel) || messagePanel[LOGGED_FLAG]) return { status: "ignored" };
 
-    const record = readChatMessage(messagePanel);
-    if (!record) return { status: "ignored" };
-
-    if (ChatBridgeIntake.shouldDelayUnknownSender(record, messagePanel)) return { status: "delayed" };
+    let record = readChatMessage(messagePanel);
+    let decision = classifyChatRow(record, messagePanel);
+    if (decision.status === "delayed") {
+      const resolved = resolveDelayedUnknownPartyLeader(record, messagePanel);
+      if (resolved !== record) {
+        record = resolved;
+        decision = classifyChatRow(record, null);
+      }
+    }
+    if (decision.status !== "consumed") return { status: decision.status };
 
     messagePanel[LOGGED_FLAG] = true;
     logChatMessage(record);
@@ -579,12 +640,14 @@
     }
 
     const count = childCount(messages);
+    let pollFast = false;
     for (let i = 0; i < count; i += 1) {
       const messagePanel = childAt(messages, i);
-      ChatBridgeIntake.consumeRow(messagePanel);
+      const result = ChatBridgeIntake.consumeRow(messagePanel);
+      if (result && (result.status === "consumed" || result.status === "delayed")) pollFast = true;
     }
 
-    $.Schedule(count > 0 ? FAST_POLL_SECONDS : SLOW_POLL_SECONDS, scanChatMessages);
+    $.Schedule(pollFast ? FAST_POLL_SECONDS : SLOW_POLL_SECONDS, scanChatMessages);
   }
 
   function exportTestHooks() {

@@ -1,9 +1,22 @@
 #!/usr/bin/env node
 'use strict';
 
-const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
+const harness = require('./poker-panorama-vm');
+const {
+  createValidatorContext,
+  runScript,
+  findPanel,
+  findDescendantsWithClass,
+  firstDescendantWithClass,
+  panelText,
+  hasClass,
+  drainScheduledCallbacks,
+  renderedActionButtons,
+  renderedPlayerRows,
+  renderedTableSeats,
+  capturePanelIdentity,
+} = harness;
 
 const ROOT = path.resolve(__dirname, '..');
 const MENU_SCRIPT = path.join(ROOT, 'panorama', 'scripts', 'poker_escape_menu.js');
@@ -32,14 +45,6 @@ function assertGreaterThan(actual, expected, message) {
   if (!(actual > expected)) {
     fail(`${message}: expected ${JSON.stringify(actual)} to be greater than ${JSON.stringify(expected)}`);
   }
-}
-
-function findPanel(runtime, id) {
-  return runtime.panels.root.FindChildTraverse(id);
-}
-
-function panelText(panel) {
-  return panel ? String(panel.text || '') : '';
 }
 
 function announcerText(runtime) {
@@ -73,10 +78,6 @@ function assertAnnouncerOmits(runtime, unexpectedParts, message) {
   }
 }
 
-
-function hasClass(panel, className) {
-  return !!(panel && panel.classes && panel.classes[className]);
-}
 
 function assertPanelHidden(runtime, id, message) {
   const panel = findPanel(runtime, id);
@@ -148,6 +149,10 @@ function pokerLogLines(runtime) {
   return findDescendantsWithClass(findPanel(runtime, 'PokerGameLog'), 'PokerLogLine', []);
 }
 
+function firstPokerCard(panel) {
+  return firstDescendantWithClass(panel, 'PokerCard');
+}
+
 
 function collectPanelTexts(panel, out) {
   if (!out) out = [];
@@ -157,38 +162,13 @@ function collectPanelTexts(panel, out) {
   return out;
 }
 
-function findDescendantsWithClass(panel, className, out) {
-  const matches = out || [];
-  if (!panel || panel.deleted) return matches;
-  if (hasClass(panel, className)) matches.push(panel);
-  for (const child of panel.children || []) findDescendantsWithClass(child, className, matches);
-  return matches;
-}
-
-function firstDescendantWithClass(panel, className) {
-  const matches = findDescendantsWithClass(panel, className, []);
-  return matches.length ? matches[0] : null;
-}
-
 function renderedPlayerCards(runtime, playerName) {
-  const playersList = findPanel(runtime, 'PokerPlayersList');
-  const rows = findDescendantsWithClass(playersList, 'PokerPlayerRow', []);
-  for (const row of rows) {
-    const name = panelText(firstDescendantWithClass(row, 'PokerPlayerName'));
-    if (name !== playerName) continue;
-    const holeCards = firstDescendantWithClass(row, 'PokerHoleCards');
-    return findDescendantsWithClass(holeCards, 'PokerCard', []).map((cardPanel) => {
-      const rankText = panelText(firstDescendantWithClass(cardPanel, 'PokerCardRank')).replace('10', 'T');
-      const suitText = panelText(firstDescendantWithClass(cardPanel, 'PokerCardSuit'));
-      const suit = suitText === '♠' ? 'S' : suitText === '♥' ? 'H' : suitText === '♦' ? 'D' : suitText === '♣' ? 'C' : suitText;
-      return rankText + suit;
-    });
-  }
-  return [];
+  const row = renderedPlayerRows(runtime).find((entry) => entry.name === playerName);
+  return row ? row.cardKeys : [];
 }
 
 function playerListRows(runtime) {
-  return findDescendantsWithClass(findPanel(runtime, 'PokerPlayersList'), 'PokerPlayerRow', []);
+  return renderedPlayerRows(runtime).map((entry) => entry.panel);
 }
 
 function playerListNames(runtime) {
@@ -278,28 +258,16 @@ function assertPlayerListOmitsImportedResumeRoster(runtime, payload, message) {
 }
 
 function tableSeatRows(runtime) {
-  return findDescendantsWithClass(findPanel(runtime, 'PokerTableSeats'), 'PokerTableSeat', []);
+  return renderedTableSeats(runtime).map((entry) => entry.panel);
 }
 
 function tableSeatNames(runtime) {
-  return tableSeatRows(runtime).map((row) => panelText(firstDescendantWithClass(row, 'PokerTableSeatName')));
+  return renderedTableSeats(runtime).map((entry) => entry.name);
 }
 
 function renderedTableSeatCards(runtime, playerName) {
-  const tableSeats = findPanel(runtime, 'PokerTableSeats');
-  const rows = findDescendantsWithClass(tableSeats, 'PokerTableSeat', []);
-  for (const row of rows) {
-    const name = panelText(firstDescendantWithClass(row, 'PokerTableSeatName'));
-    if (name !== playerName) continue;
-    const seatCards = firstDescendantWithClass(row, 'PokerTableSeatCards');
-    return findDescendantsWithClass(seatCards, 'PokerCard', []).map((cardPanel) => {
-      const rankText = panelText(firstDescendantWithClass(cardPanel, 'PokerCardRank')).replace('10', 'T');
-      const suitText = panelText(firstDescendantWithClass(cardPanel, 'PokerCardSuit'));
-      const suit = suitText === '♠' ? 'S' : suitText === '♥' ? 'H' : suitText === '♦' ? 'D' : suitText === '♣' ? 'C' : suitText;
-      return rankText + suit;
-    });
-  }
-  return [];
+  const row = renderedTableSeats(runtime).find((entry) => entry.name === playerName);
+  return row ? row.cardKeys : [];
 }
 
 function assertHookFunction(hooks, name, message) {
@@ -432,8 +400,7 @@ function assertObserverCurrentActorControls(runtime, currentName, expectedLabels
 }
 
 function actionButtonPanels(runtime) {
-  return findDescendantsWithClass(findPanel(runtime, 'PokerActionButtons'), 'PokerActionButton', [])
-    .filter((panel) => panel.type === 'Button');
+  return renderedActionButtons(runtime).map((entry) => entry.panel);
 }
 
 function assertReadOnlyActionButtons(runtime, expectedLabels, expectedHint, message) {
@@ -501,189 +468,6 @@ function assertStartButtonReady(runtime, expectedLabel, message) {
   const panel = findPanel(runtime, 'PokerStartButton');
   assert(panel, `${message} should have #PokerStartButton`);
   assert(hasClass(panel, 'Eligible'), `${message} should mark #PokerStartButton eligible`);
-}
-
-function readScript(filePath) {
-  try {
-    return fs.readFileSync(filePath, 'utf8');
-  } catch (error) {
-    fail(`cannot read ${relative(filePath)}: ${error.message}`);
-    return '';
-  }
-}
-
-function runScript(context, filePath) {
-  const source = readScript(filePath);
-  if (!source) return;
-
-  try {
-    vm.runInContext(source, context, { filename: relative(filePath) });
-  } catch (error) {
-    fail(`cannot load ${relative(filePath)}: ${error.stack || error.message}`);
-  }
-}
-
-function createPanelFactory() {
-  const panelsById = Object.create(null);
-  let nextId = 0;
-
-  function createPanel(type, parent, id) {
-    const panel = {
-      id: id || `${type}_${++nextId}`,
-      type,
-      parent: parent || null,
-      children: [],
-      classes: Object.create(null),
-      text: '',
-      hittest: true,
-      deleted: false,
-      IsValid() {
-        return !this.deleted;
-      },
-      GetParent() {
-        return this.parent;
-      },
-      FindChildTraverse(searchId) {
-        if (this.id === searchId) return this;
-        for (const child of this.children) {
-          const found = child.FindChildTraverse(searchId);
-          if (found) return found;
-        }
-        return panelsById[searchId] || null;
-      },
-      SetHasClass(className, enabled) {
-        this.classes[className] = !!enabled;
-      },
-      AddClass(className) {
-        this.classes[className] = true;
-      },
-      RemoveAndDeleteChildren() {
-        for (const child of this.children) child.deleted = true;
-        this.children = [];
-      },
-      GetChildCount() {
-        return this.children.length;
-      },
-      GetChild(index) {
-        return this.children[index] || null;
-      },
-      DeleteAsync() {
-        this.deleted = true;
-        if (this.parent) this.parent.children = this.parent.children.filter((child) => child !== this);
-      },
-      SetPanelEvent(eventName, handler) {
-        this[eventName] = handler;
-      },
-    };
-
-    if (parent) parent.children.push(panel);
-    if (id) panelsById[id] = panel;
-    return panel;
-  }
-
-  const root = createPanel('Panel', null, 'PokerValidatorRoot');
-  for (const id of [
-    'PokerMenuButton',
-    'PokerAnitaPanel',
-    'PokerTableWindow',
-    'PokerLobbyWindow',
-    'PokerPlayersWindow',
-    'PokerHistoryWindow',
-    'PokerActionsWindow',
-    'PokerCloseButton',
-    'PokerReadyChatButton',
-    'PokerStartButton',
-    'PokerEndMatchButton',
-    'PokerLeaveLobbyButton',
-    'PokerStartButtonLabel',
-    'PokerReadyCountLabel',
-    'PokerSeatsList',
-    'PokerStatusLabel',
-    'PokerPotLabel',
-    'PokerPhaseLabel',
-    'PokerTableSurface',
-    'PokerAnnouncerOverlay',
-    'PokerAnnouncerTitle',
-    'PokerAnnouncerBody',
-    'PokerCommunityCards',
-    'PokerTableSeats',
-    'PokerPlayersList',
-    'PokerActionButtons',
-    'PokerPartyControls',
-    'PokerHostPartyButton',
-    'PokerJoinPartyButton',
-    'PokerPartyStatusLabel',
-    'PokerProgressControls',
-    'PokerExportProgressButton',
-    'PokerImportProgressButton',
-    'PokerProgressCodeInput',
-    'PokerProgressCodeLabel',
-    'PokerResumeControls',
-    'PokerResumeLeaderButton',
-    'PokerResumeReadyButton',
-    'PokerResumeStatusLabel',
-    'PokerResumeLeaderList',
-    'PokerGameLog',
-    'Chat',
-    'ChatControls',
-    'ChatInput',
-    'ChatTargetLabel',
-  ]) {
-    const panel = createPanel('Panel', root, id);
-    if (id === 'PokerAnitaPanel') panel.classes.PokerHidden = true;
-  }
-
-  return { createPanel, root };
-}
-
-function createValidatorContext() {
-  const config = {};
-  const dispatches = [];
-  const messages = [];
-  const schedules = [];
-  const panels = createPanelFactory();
-  let now = 1700000000000;
-
-  function MockDate(...args) {
-    return args.length > 0 ? new Date(...args) : new Date(now);
-  }
-  MockDate.now = () => {
-    now += 1000;
-    return now;
-  };
-  MockDate.parse = Date.parse;
-  MockDate.UTC = Date.UTC;
-  MockDate.prototype = Date.prototype;
-
-  const sandbox = {
-    __PokerTestMode: true,
-    GameUI: {
-      CustomUIConfig: () => config,
-    },
-    Date: MockDate,
-    $: {
-      CreatePanel: panels.createPanel,
-      DispatchEvent: (name, payload) => {
-        dispatches.push({
-          name,
-          payload,
-          payloadText: payload && Object.prototype.hasOwnProperty.call(payload, 'text') ? String(payload.text) : undefined,
-        });
-      },
-      GetContextPanel: () => panels.root,
-      Msg: (message) => {
-        messages.push(String(message));
-      },
-      RegisterForUnhandledEvent: () => {},
-      Schedule: (delay, callback) => {
-        schedules.push({ delay, callback });
-      },
-    },
-  };
-
-  sandbox.globalThis = sandbox;
-  vm.createContext(sandbox);
-  return { sandbox, config, dispatches, messages, schedules, panels };
 }
 
 function readyPayload(name, readyAt, isSelf) {
@@ -774,6 +558,21 @@ function createGameRuntime(names, seed, startRecord) {
   return { runtime: gameRuntime, hooks: gameHooks, game: gameHooks.state.game };
 }
 
+function createEngineFixture(overrides) {
+  const fixture = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'engine-fixture');
+  const game = fixture.game;
+  const source = overrides || {};
+  if (game && source.players) game.players = source.players;
+  if (game && source.community) game.community = source.community;
+  if (game && Object.prototype.hasOwnProperty.call(source, 'pot')) game.pot = source.pot;
+  if (game && source.phase) game.phase = source.phase;
+  if (game && Object.prototype.hasOwnProperty.call(source, 'currentIndex')) game.currentIndex = source.currentIndex;
+  if (game && Object.prototype.hasOwnProperty.call(source, 'currentBet')) game.currentBet = source.currentBet;
+  if (game && Object.prototype.hasOwnProperty.call(source, 'minRaise')) game.minRaise = source.minRaise;
+  if (game && Object.prototype.hasOwnProperty.call(source, 'lastRaise')) game.lastRaise = source.lastRaise;
+  return { runtime: fixture.runtime, hooks: fixture.hooks, game };
+}
+
 function createMenuRuntime() {
   const menuRuntime = createValidatorContext();
   runScript(menuRuntime.sandbox, MENU_SCRIPT);
@@ -832,13 +631,6 @@ function buildProgressOfferMessage(id, checksum, chunkCount) {
 
 function buildProgressChunkMessage(id, checksum, index, chunkCount, chunk) {
   return `[progress chunk] poker progress ${id} ${checksum} ${index}/${chunkCount} ${chunk}`;
-}
-
-function drainScheduledCallbacks(runtime, maxCallbacks) {
-  const limit = maxCallbacks || 64;
-  for (let i = 0; i < limit && runtime.schedules.length; i += 1) {
-    runtime.schedules.shift().callback();
-  }
 }
 
 function submittedChatMessages(runtime, startIndex) {
@@ -950,7 +742,7 @@ if (hooks) {
     StartSync: ['openMenu', 'requestFreshState', 'noteBridgeEvent', 'getProjection', 'afterSnapshotApplied'],
     CommandReducer: ['decode', 'apply', 'applyRecord', 'applyPayload'],
     PokerEngine: ['createGame', 'getLegalActions', 'applyAction', 'advanceAfterAction', 'buildPots', 'showdown', 'evaluateHand', 'compareHands'],
-    ProgressResume: ['validatePayload', 'buildSaveCode', 'decodeSaveCode', 'importSaveCode', 'getResumeId', 'getGate', 'recordLeader', 'recordReady', 'buildLeaderCommand', 'buildReadyCommand', 'buildStartCommand', 'applyStartCommand'],
+    ProgressResume: ['applyStartCommand'],
     PendingSelfAction: ['record', 'read', 'clear', 'resolveSelfRecord', 'markApplied'],
     CardPresenter: ['render', 'update', 'imageSrc', 'displayRank', 'suitGlyph'],
     TableRenderer: ['renderGame', 'renderCommunity', 'renderPlayers', 'renderTableSeats', 'renderActions', 'renderLog'],
@@ -964,6 +756,39 @@ if (hooks) {
         modules[moduleName] && typeof modules[moduleName][functionName] === 'function',
         `${moduleName}.${functionName} should be exposed as a behavior-level hook`,
       );
+    }
+  }
+  if (modules.CommandReducer) {
+    const decodedResumeStart = modules.CommandReducer.decode({ sender: 'Abrams', message: 'poker resume r123 hand 2 leader hantu%20raya roster abrams~Abrams|hantu%20raya~Hantu%20Raya seed sresume' });
+    assertEqual(decodedResumeStart.type, 'resume-start', 'command reducer should decode resume-start records once');
+    assertEqual(decodedResumeStart.id, 'r123', 'command reducer resume-start decode should expose id');
+    assertEqual(decodedResumeStart.handNumber, 2, 'command reducer resume-start decode should expose hand number');
+    assertEqual(decodedResumeStart.leaderKey, 'hantu raya', 'command reducer resume-start decode should normalize decoded leader key');
+    assertEqual(decodedResumeStart.rosterText, 'abrams~Abrams|hantu%20raya~Hantu%20Raya', 'command reducer resume-start decode should expose raw roster token');
+    assertEqual(decodedResumeStart.seed, 'sresume', 'command reducer resume-start decode should expose seed');
+
+    const decodedSyncedStart = modules.CommandReducer.decode({ sender: 'Abrams', message: 'poker start ssync hand 3 roster abrams~Abrams|bebop~Bebop' });
+    assertEqual(decodedSyncedStart.type, 'start', 'command reducer should decode synced start records once');
+    assertEqual(decodedSyncedStart.seed, 'ssync', 'command reducer synced start decode should expose seed');
+    assertEqual(decodedSyncedStart.handNumber, 3, 'command reducer synced start decode should expose hand number');
+    assertEqual(decodedSyncedStart.roster.length, 2, 'command reducer synced start decode should expose decoded roster');
+    assertEqual(decodedSyncedStart.rosterText, 'abrams~Abrams|bebop~Bebop', 'command reducer synced start decode should expose raw roster text');
+
+    const decodedAction = modules.CommandReducer.decode({ sender: 'Abrams', message: 'raise $400' });
+    assertEqual(decodedAction.type, 'action', 'command reducer should decode action records once');
+    assertEqual(decodedAction.action, 'raise', 'command reducer action decode should expose action');
+    assertEqual(decodedAction.amount, 400, 'command reducer action decode should expose amount');
+    assertEqual(modules.CommandReducer.decode({ sender: 'Abrams', message: 'all in' }).type, 'all-in-unsupported', 'command reducer should decode unsupported all-in explicitly');
+
+    const reducerRuntime = createMenuRuntime();
+    if (reducerRuntime.hooks && reducerRuntime.hooks.modules && reducerRuntime.hooks.modules.CommandReducer) {
+      const reducer = reducerRuntime.hooks.modules.CommandReducer;
+      const malformedRoster = reducer.applyRecord({ sender: 'Abrams', message: 'poker start ssync hand 1 roster bad%zz~Abrams' });
+      assertEqual(malformedRoster.status, 'Invalid synced poker roster.', 'command reducer applyRecord should reject malformed synced rosters');
+      const unknownStart = reducer.applyRecord({ sender: '<unknown>', message: 'poker start ssync hand 1 roster abrams~Abrams|bebop~Bebop' });
+      assertEqual(unknownStart.debugReason, 'debug', 'command reducer applyRecord should reject unresolved synced starts at the reducer seam');
+      const unsupportedAllIn = reducer.applyRecord({ sender: 'Abrams', message: 'all in' });
+      assertEqual(unsupportedAllIn.debugReason, 'debug', 'command reducer applyRecord should reject unsupported all-in explicitly');
     }
   }
   if (progressHooksAvailable) {
@@ -1135,6 +960,43 @@ if (hooks) {
       leaderTwoHooks.modules.TableRenderer.renderGame();
       assertStartButtonGate(leaderTwoButtonRuntime.runtime, 'NEXT SYNCED HAND', true, false, 'party leader finished-hand button state');
       assertCopyProgressAvailable(leaderTwoButtonRuntime.runtime, 'party leader finished-hand progress controls');
+    }
+
+    const progressReplaySource = createProgressCodeRuntime(['Abrams', 'Bebop'], 'progress-replay-source');
+    if (progressReplaySource.hooks && progressReplaySource.code) {
+      const checksum = progressChecksumFromCode(progressReplaySource.code);
+      const chunks = splitProgressCodeForChat(progressReplaySource.code, 3);
+      const progressMessages = [buildProgressOfferMessage(progressReplaySource.id, checksum, chunks.length)];
+      for (let i = 0; i < chunks.length; i += 1) {
+        progressMessages.push(buildProgressChunkMessage(progressReplaySource.id, checksum, i + 1, chunks.length, chunks[i]));
+      }
+
+      const immediateProgressReplay = createMenuRuntime();
+      const snapshotProgressReplay = createMenuRuntime();
+      if (immediateProgressReplay.hooks && snapshotProgressReplay.hooks) {
+        for (const message of progressMessages) {
+          immediateProgressReplay.hooks.processChatRecord({ sender: 'Abrams', channel: '[Party]', message, isSelf: false });
+        }
+        const snapshotMessages = progressMessages.map((message, index) => ({
+          seq: index + 1,
+          sender: 'Abrams',
+          channel: '[Party]',
+          message,
+          isSelf: false,
+        }));
+        snapshotProgressReplay.hooks.modules.CommandReducer.applyPayload({
+          event: 'PokerChatMessage',
+          action: 'snapshot',
+          reason: 'progress-replay-test',
+          seq: snapshotMessages.length,
+          messages: snapshotMessages,
+        });
+        assertEqual(immediateProgressReplay.hooks.state.resume.id, progressReplaySource.id, 'progress immediate replay should import the shared progress id');
+        assertEqual(snapshotProgressReplay.hooks.state.resume.id, progressReplaySource.id, 'progress snapshot replay should import the shared progress id');
+        assertEqual(snapshotProgressReplay.hooks.state.resume.id, immediateProgressReplay.hooks.state.resume.id, 'progress snapshot replay should match immediate replay resume id');
+        assertEqual(immediateProgressReplay.hooks.state.game, null, 'progress immediate replay should not create a game before resume start');
+        assertEqual(snapshotProgressReplay.hooks.state.game, null, 'progress snapshot replay should not create a game before resume start');
+      }
     }
 
     const emptyLobbyRuntime = createMenuRuntime();
@@ -1920,38 +1782,105 @@ if (hooks) {
     assert(!hasClass(actionsWindow, 'Open'), 'five-window menu close should clear #PokerActionsWindow open state');
   }
 
+  const twoPlayerLeaveRuntime = createSyncedPartyRuntime('Abrams', 'stwo-player-leave', syncedRoster, 1);
+  if (twoPlayerLeaveRuntime.hooks && twoPlayerLeaveRuntime.game) {
+    const twoPlayerLeaveHooks = twoPlayerLeaveRuntime.hooks;
+    const twoPlayerLeaveGame = twoPlayerLeaveRuntime.game;
+    twoPlayerLeaveHooks.handleReadyEvent(readyPayload('Abrams', 41, true));
+    twoPlayerLeaveHooks.handleReadyEvent(readyPayload('Bebop', 42, false));
+    assertEqual(twoPlayerLeaveGame.players.length, 2, 'two-player active leave regression setup should start an active hand with two players');
+    assert(
+      twoPlayerLeaveHooks.getReadySeatArray().some((seat) => seat.key === 'bebop'),
+      'two-player active leave regression setup should include Bebop in ready seats before leaving',
+    );
+    twoPlayerLeaveHooks.processChatRecord({ sender: 'Bebop', message: '[party leave] poker party psync', isSelf: false });
+    assertEqual(twoPlayerLeaveHooks.state.game, null, 'remote leave from a two-player active hand should reset the remaining client to the lobby');
+    assertEqual(twoPlayerLeaveHooks.state.party.id, '', 'remote leave from a two-player active hand should clear the joined party id');
+    assertEqual(twoPlayerLeaveHooks.state.party.mode, 'none', 'remote leave from a two-player active hand should clear party mode for lobby controls');
+    assertEqual(twoPlayerLeaveHooks.getPartyRoster().length, 0, 'remote leave from a two-player active hand should leave no stale party roster');
+    assertEqual(twoPlayerLeaveHooks.getReadySeatArray().length, 0, 'remote leave from a two-player active hand should clear stale ready seats');
+    twoPlayerLeaveHooks.modules.TableRenderer.renderGame();
+    assertInactiveLobbyControls(twoPlayerLeaveRuntime.runtime, 'remote two-player active leave reset');
+    assertPanelVisible(twoPlayerLeaveRuntime.runtime, 'PokerPartyControls', 'remote two-player active leave reset');
+  }
+
   const partyLeaveRuntime = createSyncedPartyRuntime('Abrams', 'sleave-party', tableRoster, 1);
   if (partyLeaveRuntime.hooks && partyLeaveRuntime.game) {
     const leaveHooks = partyLeaveRuntime.hooks;
     const leaveGame = partyLeaveRuntime.game;
     leaveHooks.handleReadyEvent(readyPayload('Bebop', 42));
-    assertEqual(leaveGame.players.length, 3, 'party leave regression setup should start an active hand with three players');
+    assertEqual(leaveGame.players.length, 3, 'three-player non-leader leave regression setup should start an active hand with three players');
     assert(
       leaveHooks.getReadySeatArray().some((seat) => seat.key === 'bebop'),
-      'party leave regression setup should include Bebop in ready seats before leaving',
+      'three-player non-leader leave regression setup should include Bebop in ready seats before leaving',
     );
     const leavingPlayer = leaveGame.players.find((player) => player.key === 'bebop');
-    assert(leavingPlayer, 'party leave regression setup should include Bebop in the active hand');
+    assert(leavingPlayer, 'three-player non-leader leave regression setup should include Bebop in the active hand');
     if (leavingPlayer) {
       leaveGame.currentIndex = leaveGame.players.indexOf(leavingPlayer);
       leaveHooks.processChatRecord({ sender: 'Bebop', message: '[party leave] poker party psync', isSelf: false });
+      assertEqual(leaveHooks.state.game, leaveGame, 'remote non-leader leave from a three-player active hand should keep the current hand');
+      assertEqual(leaveGame.active, true, 'remote non-leader leave from a three-player active hand should remain active');
       assert(
         !leaveHooks.getPartyRoster().some((member) => member.key === 'bebop'),
-        'party leave should remove the sender from the synced party roster',
+        'remote non-leader leave should remove the sender from the synced party roster',
       );
       assert(
         !leaveHooks.getReadySeatArray().some((seat) => seat.key === 'bebop'),
-        'party leave should remove the sender from ready seats',
+        'remote non-leader leave should remove the sender from ready seats',
       );
-      assertEqual(leavingPlayer.folded, true, 'party leave during an active hand should fold the leaving player');
-      assert(
-        !leaveGame.players.filter((player) => !player.folded).some((player) => player.key === 'bebop'),
-        'party leave should remove the sender from active contestants',
+      assertEqual(leavingPlayer.folded, true, 'remote non-leader leave during an active hand should fold the leaving player');
+      assertGreaterThan(
+        leaveGame.players.filter((player) => !player.folded && player.stack > 0).length,
+        1,
+        'remote non-leader leave during a three-player active hand should leave at least two active contestants',
       );
       assert(
         currentPlayer(leaveGame).key !== 'bebop',
-        'party leave should advance the turn candidate away from the leaving player',
+        'remote non-leader leave should advance the turn candidate away from the leaving player',
       );
+      assert(
+        leaveGame.log.some((line) => String(line).toLowerCase().includes('bebop left') && String(line).toLowerCase().includes('fold')),
+        `remote non-leader leave should log that Bebop left and folded: ${(leaveGame.log || []).join('|') || '<empty>'}`,
+      );
+      assertAnnouncerIncludes(partyLeaveRuntime.runtime, ['Bebop', 'left', 'fold'], 'remote non-leader leave during a three-player active hand');
+    }
+  }
+
+  const leaderLeaveRuntime = createSyncedPartyRuntime('Bebop', 'sleader-leave', tableRoster, 1);
+  if (leaderLeaveRuntime.hooks && leaderLeaveRuntime.game) {
+    const leaderLeaveHooks = leaderLeaveRuntime.hooks;
+    const leaderLeaveGame = leaderLeaveRuntime.game;
+    assertEqual(leaderLeaveHooks.state.party.mode, 'member', 'three-player leader leave regression setup should be joined as a member');
+    assertEqual(!!leaderLeaveHooks.state.game, true, 'three-player leader leave regression setup should start an active hand');
+    leaderLeaveHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pnew', isSelf: false });
+    assertEqual(
+      leaderLeaveHooks.state.party.id,
+      'psync',
+      'active member should not abandon the current hand immediately when a leader re-host row arrives early',
+    );
+    const leavingLeader = leaderLeaveGame.players.find((player) => player.key === 'abrams');
+    assert(leavingLeader, 'three-player leader leave regression setup should include Abrams in the active hand');
+    if (leavingLeader) {
+      leaderLeaveGame.currentIndex = leaderLeaveGame.players.indexOf(leavingLeader);
+      leaderLeaveHooks.processChatRecord({ sender: 'Abrams', message: '[party leave] poker party psync', isSelf: false });
+      assertEqual(leaderLeaveHooks.state.game, leaderLeaveGame, 'remote leader leave from a three-player active hand should keep the current hand');
+      assertEqual(leaderLeaveGame.active, true, 'remote leader leave from a three-player active hand should remain active');
+      assertEqual(leavingLeader.folded, true, 'remote leader leave during a three-player active hand should fold the leader');
+      assertGreaterThan(
+        leaderLeaveGame.players.filter((player) => !player.folded && player.stack > 0).length,
+        1,
+        'remote leader leave during a three-player active hand should leave at least two active contestants',
+      );
+      assert(
+        currentPlayer(leaderLeaveGame).key !== 'abrams',
+        'remote leader leave should advance the turn candidate away from the leaving leader',
+      );
+      assert(
+        leaderLeaveGame.log.some((line) => String(line).toLowerCase().includes('abrams left') && String(line).toLowerCase().includes('fold')),
+        `remote leader leave should log that Abrams left and folded: ${(leaderLeaveGame.log || []).join('|') || '<empty>'}`,
+      );
+      assertAnnouncerIncludes(leaderLeaveRuntime.runtime, ['Abrams', 'left', 'fold'], 'remote leader leave during a three-player active hand');
     }
   }
 
@@ -3801,6 +3730,80 @@ if (hooks) {
     assertEqual(waitingHints.length, 1, 'waiting-for-other-player action render should create exactly one action hint');
   }
 
+  const actionReuseRuntime = createGameRuntime(['Abrams', 'Bebop'], 'action-cache');
+  if (actionReuseRuntime.hooks && actionReuseRuntime.game) {
+    const actionActor = currentPlayer(actionReuseRuntime.game);
+    actionReuseRuntime.runtime.config.PokerLocalPlayerName = actionActor.name;
+    actionReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    const firstActionButton = actionButtonPanels(actionReuseRuntime.runtime)[0];
+    assert(firstActionButton, 'active local actor action cache should render an action button');
+
+    actionReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    assert(actionButtonPanels(actionReuseRuntime.runtime)[0] === firstActionButton, 'active local actor action cache should reuse the first action button across unchanged renders');
+
+    actionReuseRuntime.hooks.processChatRecord({ sender: actionActor.name, message: 'call', isSelf: true });
+    actionReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    const changedActionButtons = actionButtonPanels(actionReuseRuntime.runtime);
+    assert(
+      firstActionButton.deleted || changedActionButtons.indexOf(firstActionButton) === -1,
+      'active local actor action cache should remove stale action buttons when command/enabled/read-only state changes',
+    );
+  }
+
+  const playerReuseRuntime = createGameRuntime(['Abrams', 'Bebop'], 'player-row-cache');
+  if (playerReuseRuntime.hooks && playerReuseRuntime.game) {
+    playerReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    const firstPlayerRow = playerListRows(playerReuseRuntime.runtime)[0];
+    const firstPlayerCard = firstPokerCard(firstPlayerRow);
+    playerReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    assert(playerListRows(playerReuseRuntime.runtime)[0] === firstPlayerRow, 'stable player renderer should reuse the first player row across unchanged renders');
+    assert(firstPokerCard(playerListRows(playerReuseRuntime.runtime)[0]) === firstPlayerCard, 'stable player renderer should reuse the first player card across unchanged renders');
+  }
+
+  const tableSeatReuseRuntime = createGameRuntime(['Abrams', 'Bebop'], 'table-seat-cache');
+  if (tableSeatReuseRuntime.hooks && tableSeatReuseRuntime.game) {
+    tableSeatReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    const firstTableSeat = tableSeatRows(tableSeatReuseRuntime.runtime)[0];
+    const firstTableSeatCard = firstPokerCard(firstTableSeat);
+    tableSeatReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    assert(tableSeatRows(tableSeatReuseRuntime.runtime)[0] === firstTableSeat, 'stable table-seat renderer should reuse the first table seat across unchanged renders');
+    assert(firstPokerCard(tableSeatRows(tableSeatReuseRuntime.runtime)[0]) === firstTableSeatCard, 'stable table-seat renderer should reuse the first table-seat card across unchanged renders');
+  }
+
+  const logReuseRuntime = createGameRuntime(['Abrams', 'Bebop'], 'log-row-cache');
+  if (logReuseRuntime.hooks && logReuseRuntime.game) {
+    logReuseRuntime.game.log = [
+      'cache line 1',
+      'cache line 2',
+      'cache line 3',
+      'cache line 4',
+      'cache line 5',
+      'cache line 6',
+      'cache line 7',
+      'cache line 8',
+      'cache line 9',
+      'cache line 10',
+      'cache line 11',
+      'cache line 12',
+    ];
+    logReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    const firstLogLine = pokerLogLines(logReuseRuntime.runtime)[0];
+    const capturedLogLines = pokerLogLines(logReuseRuntime.runtime).slice();
+    logReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    assert(pokerLogLines(logReuseRuntime.runtime)[0] === firstLogLine, 'stable log renderer should reuse the first log row across unchanged renders');
+
+    logReuseRuntime.game.log.push('cache line 13');
+    logReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    const appendedLogLines = pokerLogLines(logReuseRuntime.runtime);
+    const appendedLogText = collectPanelTexts(findPanel(logReuseRuntime.runtime, 'PokerGameLog'), []).join('|');
+    assertEqual(appendedLogLines.length, 12, `stable log renderer should keep the visible log capped at twelve rows: ${appendedLogText || '<empty>'}`);
+    assert(appendedLogText.includes('cache line 13'), `stable log renderer should show the newest appended entry: ${appendedLogText || '<empty>'}`);
+    assert(
+      capturedLogLines.some((line) => appendedLogLines.indexOf(line) !== -1),
+      'stable log renderer should reuse at least one existing log row after appending a new entry',
+    );
+  }
+
   const pendingRuntime = createSyncedPartyRuntime('Abrams', 'spending-self', syncedRoster, 1);
   if (pendingRuntime.hooks && pendingRuntime.game) {
     const pendingGame = pendingRuntime.game;
@@ -4047,6 +4050,29 @@ if (hooks) {
         announcerText(showdownRuntime.runtime).combined.includes('Warden'),
       `showdown announcer should name a winner: ${announcerText(showdownRuntime.runtime).combined || '<empty>'}`,
     );
+  }
+
+  const allInCallFixture = createEngineFixture({});
+  if (allInCallFixture.hooks && allInCallFixture.game) {
+    const allInGame = allInCallFixture.game;
+    const actor = currentPlayer(allInGame);
+    actor.stack = 50;
+    const beforeAllInCall = moneySnapshot(allInGame);
+    allInCallFixture.hooks.processChatRecord({ sender: actor.name, message: 'call' });
+    assertEqual(actor.stack, 0, 'all-in call fixture should allow a short stack to call with all remaining chips');
+    assertEqual(actor.committed, beforeAllInCall.players[allInGame.players.indexOf(actor)].committed + 50, 'all-in call fixture should add the short stack committed chips');
+    assertEqual(allInGame.pot, beforeAllInCall.pot + 50, 'all-in call fixture should move the all-in call into the pot');
+  }
+
+  const phaseAdvanceFixture = createEngineFixture({});
+  if (phaseAdvanceFixture.hooks && phaseAdvanceFixture.game) {
+    const phaseGame = phaseAdvanceFixture.game;
+    phaseAdvanceFixture.hooks.processChatRecord({ sender: currentPlayer(phaseGame).name, message: 'call' });
+    phaseAdvanceFixture.hooks.processChatRecord({ sender: currentPlayer(phaseGame).name, message: 'call' });
+    phaseAdvanceFixture.hooks.processChatRecord({ sender: currentPlayer(phaseGame).name, message: 'check' });
+    assertEqual(phaseGame.phase, 'flop', 'phase advancement fixture should advance from preflop to flop after the round settles');
+    assertEqual(phaseGame.currentBet, 0, 'phase advancement fixture should reset current bet on the new street');
+    assertEqual(phaseGame.minRaise, phaseGame.bigBlindAmount, 'phase advancement fixture should reset minimum raise to the big blind on the new street');
   }
 
 
