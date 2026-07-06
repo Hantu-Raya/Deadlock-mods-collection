@@ -2711,6 +2711,191 @@ if (hooks) {
           );
         }
 
+        const createHostedSharedProgressMemberRuntime = (message) => {
+          const memberRuntime = createMenuRuntime();
+          memberRuntime.hooks.processChatRecord({
+            sender: 'JDBeast',
+            message: `[party leader] poker party ${liveLogPartyId}`,
+            isSelf: false,
+          });
+          memberRuntime.hooks.processChatRecord({
+            sender: 'Hantu Raya',
+            message: `[party join] poker party ${liveLogPartyId}`,
+            isSelf: true,
+          });
+          for (const chat of hostedLeaderImport.shareMessages) {
+            if (chat.indexOf('[progress offer]') === 0 || chat.indexOf('[progress chunk]') === 0) {
+              memberRuntime.hooks.processChatRecord({
+                sender: 'JDBeast',
+                message: chat,
+                isSelf: false,
+              });
+            }
+          }
+          assertEqual(memberRuntime.hooks.state.resume.id, liveLogSaved.id, `${message} should auto-import the leader-shared progress id`);
+          assert(memberRuntime.hooks.state.resume.payload, `${message} should auto-import the leader-shared progress payload`);
+          assertEqual(memberRuntime.hooks.state.game, null, `${message} should not start a game from progress chunks alone`);
+          return memberRuntime;
+        };
+
+        if (hostedLeaderResumeStartCommand) {
+          const hostedProgressShareMessages = hostedLeaderImport.shareMessages.filter((chat) => chat.indexOf('[progress offer]') === 0 || chat.indexOf('[progress chunk]') === 0);
+          const hostedProgressChunkMessages = hostedProgressShareMessages.filter((chat) => chat.indexOf('[progress chunk]') === 0);
+          assert(hostedProgressChunkMessages.length >= 2, 'hosted JDBeast/Hantu Raya shared progress fixture should require multiple chunks for live ordering coverage');
+          const createHostedPartyOnlyMemberRuntime = (message) => {
+            const memberRuntime = createMenuRuntime();
+            memberRuntime.hooks.processChatRecord({
+              sender: 'JDBeast',
+              message: `[party leader] poker party ${liveLogPartyId}`,
+              isSelf: false,
+            });
+            memberRuntime.hooks.processChatRecord({
+              sender: 'Hantu Raya',
+              message: `[party join] poker party ${liveLogPartyId}`,
+              isSelf: true,
+            });
+            assertEqual(memberRuntime.hooks.state.party.id, liveLogPartyId, `${message} setup should join the live hosted party`);
+            assertEqual(memberRuntime.hooks.state.party.leaderKey, 'jdbeast', `${message} setup should know JDBeast as the hosted party leader`);
+            assertEqual(memberRuntime.hooks.state.localPlayerKey, 'hantu raya', `${message} setup should remember Hantu Raya as the local member`);
+            return memberRuntime;
+          };
+          const replayProgressShareMessages = (memberRuntime, messages) => {
+            for (const chat of messages) {
+              memberRuntime.hooks.processChatRecord({
+                sender: 'JDBeast',
+                message: chat,
+                isSelf: false,
+              });
+            }
+          };
+
+          const unknownHostedResumeStartRuntime = createHostedSharedProgressMemberRuntime('hosted JDBeast/Hantu Raya member unknown-sender resume-start');
+          unknownHostedResumeStartRuntime.hooks.processChatRecord({
+            sender: '<unknown>',
+            message: hostedLeaderResumeStartCommand,
+            isSelf: false,
+          });
+          const unknownHostedResumeStartGame = unknownHostedResumeStartRuntime.hooks.state.game;
+          assert(
+            unknownHostedResumeStartGame,
+            'hosted JDBeast/Hantu Raya member should resolve unknown-sender short resume-start to the known hosted party leader when resume id and leader key match imported progress',
+          );
+          if (unknownHostedResumeStartGame) {
+            assertEqual(unknownHostedResumeStartGame.active, true, 'hosted unknown-sender resume-start resumed hand should be active');
+            assertEqual(unknownHostedResumeStartGame.handNumber, liveLogSaved.payload.nextHandNumber, 'hosted unknown-sender resume-start should use the saved next hand number');
+            assertEqual(
+              JSON.stringify(playerIdentities(unknownHostedResumeStartGame)),
+              JSON.stringify([
+                { key: 'jdbeast', name: 'JDBeast' },
+                { key: 'hantu raya', name: 'Hantu Raya' },
+              ]),
+              'hosted unknown-sender resume-start should seat both saved players',
+            );
+          }
+
+          const firstProgressMessagesBeforeResume = [];
+          const remainingProgressMessagesAfterResume = [];
+          let capturedFirstChunkBeforeResume = false;
+          for (const chat of hostedProgressShareMessages) {
+            if (chat.indexOf('[progress offer]') === 0) {
+              firstProgressMessagesBeforeResume.push(chat);
+            } else if (!capturedFirstChunkBeforeResume) {
+              capturedFirstChunkBeforeResume = true;
+              firstProgressMessagesBeforeResume.push(chat);
+            } else {
+              remainingProgressMessagesAfterResume.push(chat);
+            }
+          }
+          assert(remainingProgressMessagesAfterResume.length > 0, 'hosted unknown-sender live ordering fixture should leave progress chunks after the early resume-start');
+
+          const outOfOrderUnknownRuntime = createHostedPartyOnlyMemberRuntime('hosted JDBeast/Hantu Raya out-of-order unknown resume-start');
+          replayProgressShareMessages(outOfOrderUnknownRuntime, firstProgressMessagesBeforeResume);
+          assertEqual(outOfOrderUnknownRuntime.hooks.state.game, null, 'hosted out-of-order unknown resume-start setup should not start before the short resume command');
+          assertEqual(!!(outOfOrderUnknownRuntime.hooks.state.resume && outOfOrderUnknownRuntime.hooks.state.resume.payload), false, 'hosted out-of-order unknown resume-start setup should not finish importing progress before all chunks arrive');
+          outOfOrderUnknownRuntime.hooks.processChatRecord({
+            sender: '<unknown>',
+            message: hostedLeaderResumeStartCommand,
+            isSelf: false,
+          });
+          assertEqual(outOfOrderUnknownRuntime.hooks.state.game, null, 'hosted out-of-order unknown resume-start should wait for matching shared progress to finish importing');
+          replayProgressShareMessages(outOfOrderUnknownRuntime, remainingProgressMessagesAfterResume);
+          const outOfOrderUnknownGame = outOfOrderUnknownRuntime.hooks.state.game;
+          assert(
+            outOfOrderUnknownGame,
+            'hosted out-of-order unknown resume-start should replay after matching shared progress completes and create the resumed hand',
+          );
+          if (outOfOrderUnknownGame) {
+            assertEqual(outOfOrderUnknownGame.active, true, 'hosted out-of-order unknown resume-start resumed hand should be active');
+            assertEqual(outOfOrderUnknownGame.handNumber, liveLogSaved.payload.nextHandNumber, 'hosted out-of-order unknown resume-start should use the saved next hand number');
+            assertEqual(
+              JSON.stringify(playerIdentities(outOfOrderUnknownGame)),
+              JSON.stringify([
+                { key: 'jdbeast', name: 'JDBeast' },
+                { key: 'hantu raya', name: 'Hantu Raya' },
+              ]),
+              'hosted out-of-order unknown resume-start should seat both saved players',
+            );
+          }
+          assertEqual(outOfOrderUnknownRuntime.hooks.state.resume.id, '', 'hosted out-of-order unknown resume-start should clear imported resume state after replay starts');
+          assertEqual(
+            !!(outOfOrderUnknownRuntime.hooks.state.pendingResumeStarts && outOfOrderUnknownRuntime.hooks.state.pendingResumeStarts[liveLogSaved.id]),
+            false,
+            'hosted out-of-order unknown resume-start should clear the queued resume command after replay starts',
+          );
+
+          const outOfOrderWrongLeaderRuntime = createHostedPartyOnlyMemberRuntime('hosted JDBeast/Hantu Raya out-of-order wrong leader');
+          replayProgressShareMessages(outOfOrderWrongLeaderRuntime, firstProgressMessagesBeforeResume);
+          outOfOrderWrongLeaderRuntime.hooks.processChatRecord({
+            sender: '<unknown>',
+            message: hostedLeaderResumeStartCommand.replace(' leader jdbeast ', ' leader hantu%20raya '),
+            isSelf: false,
+          });
+          replayProgressShareMessages(outOfOrderWrongLeaderRuntime, remainingProgressMessagesAfterResume);
+          assert(outOfOrderWrongLeaderRuntime.hooks.state.resume.payload, 'hosted out-of-order wrong-leader negative should still import the shared progress after remaining chunks arrive');
+          assertEqual(outOfOrderWrongLeaderRuntime.hooks.state.game, null, 'hosted out-of-order unknown resume-start with the wrong leader key should not replay into a game after import completes');
+
+          const outOfOrderWrongIdRuntime = createHostedPartyOnlyMemberRuntime('hosted JDBeast/Hantu Raya out-of-order wrong resume id');
+          replayProgressShareMessages(outOfOrderWrongIdRuntime, firstProgressMessagesBeforeResume);
+          outOfOrderWrongIdRuntime.hooks.processChatRecord({
+            sender: '<unknown>',
+            message: hostedLeaderResumeStartCommand.replace(`poker resume ${liveLogSaved.id} `, 'poker resume rwrong-live-import '),
+            isSelf: false,
+          });
+          replayProgressShareMessages(outOfOrderWrongIdRuntime, remainingProgressMessagesAfterResume);
+          assert(outOfOrderWrongIdRuntime.hooks.state.resume.payload, 'hosted out-of-order wrong-id negative should still import the shared progress after remaining chunks arrive');
+          assertEqual(outOfOrderWrongIdRuntime.hooks.state.game, null, 'hosted out-of-order unknown resume-start with the wrong resume id should not replay into a game after import completes');
+
+          const unknownWrongLeaderRuntime = createHostedSharedProgressMemberRuntime('hosted JDBeast/Hantu Raya member unknown-sender wrong leader');
+          const wrongLeaderResumeStartCommand = hostedLeaderResumeStartCommand.replace(' leader jdbeast ', ' leader hantu%20raya ');
+          assert(wrongLeaderResumeStartCommand !== hostedLeaderResumeStartCommand, 'hosted unknown-sender wrong-leader fixture should change the leader key');
+          unknownWrongLeaderRuntime.hooks.processChatRecord({
+            sender: '<unknown>',
+            message: wrongLeaderResumeStartCommand,
+            isSelf: false,
+          });
+          assertEqual(
+            unknownWrongLeaderRuntime.hooks.state.game,
+            null,
+            'hosted unknown-sender resume-start with the wrong leader key should not create a game even after matching progress imported',
+          );
+          assertEqual(unknownWrongLeaderRuntime.hooks.state.resume.id, liveLogSaved.id, 'hosted unknown-sender wrong-leader rejection should keep the imported resume id');
+
+          const unknownWrongIdRuntime = createHostedSharedProgressMemberRuntime('hosted JDBeast/Hantu Raya member unknown-sender wrong resume id');
+          const wrongIdResumeStartCommand = hostedLeaderResumeStartCommand.replace(`poker resume ${liveLogSaved.id} `, 'poker resume rwrong-live-import ');
+          assert(wrongIdResumeStartCommand !== hostedLeaderResumeStartCommand, 'hosted unknown-sender wrong-id fixture should change the resume id');
+          unknownWrongIdRuntime.hooks.processChatRecord({
+            sender: '<unknown>',
+            message: wrongIdResumeStartCommand,
+            isSelf: false,
+          });
+          assertEqual(
+            unknownWrongIdRuntime.hooks.state.game,
+            null,
+            'hosted unknown-sender resume-start with the wrong resume id should not create a game even when the leader key matches',
+          );
+          assertEqual(unknownWrongIdRuntime.hooks.state.resume.id, liveLogSaved.id, 'hosted unknown-sender wrong-id rejection should keep the imported resume id');
+        }
+
         const detachedSharedProgressRuntime = createMenuRuntime();
         detachedSharedProgressRuntime.hooks.state.localPlayerKey = 'hantu raya';
         detachedSharedProgressRuntime.runtime.config.PokerLocalPlayerKey = 'hantu raya';
