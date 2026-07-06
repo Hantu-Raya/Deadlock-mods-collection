@@ -252,6 +252,7 @@
     resume: null,
     progressShare: defaultProgressShareState(),
     progressTransfers: {},
+    pendingResumeStarts: {},
     requiresProgressImport: false,
     resumeRequiresHostedParty: false,
   };
@@ -800,6 +801,7 @@
     State.resume = defaultResumeState();
     State.progressTransfers = {};
     State.progressShare = defaultProgressShareState();
+    State.pendingResumeStarts = {};
     try {
       if (isValid(State.progressCodeInput)) State.progressCodeInput.text = "";
     } catch (e) {}
@@ -1540,7 +1542,8 @@
     const resume = ensureResume();
     const party = ensureParty();
     if (!imported || !imported.payload || !resume.payload || !resume.id) return false;
-    const senderKey = normalizePlayerKey(record && record.sender);
+    const rawSender = record && record.sender;
+    const senderKey = isUnknownSender(rawSender) ? "" : normalizePlayerKey(rawSender);
     let leaderKey = "";
     let leaderName = "";
     if (party.leaderKey && (!senderKey || senderKey === party.leaderKey)) {
@@ -2569,23 +2572,15 @@
 
   function applyResumeStartCommand(command) {
     if (!command) return { consumed: false, readyChanged: false, render: false, status: "Invalid resume command.", debugReason: "invalid" };
-    const resolvedRecord = command.record ? resolveSelfRecord(command.record) : resolveSelfRecord({ sender: command.leaderKey || "", message: "poker resume " + (command.id || "") + " hand " + (command.handNumber || "") + " leader " + (command.leaderKey || "") + " seed " + (command.seed || "") });
-    if (!resolvedRecord || isUnknownSender(resolvedRecord.sender)) {
-      debugActionState("reject-unknown-resume-start", resolvedRecord, null);
-      return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "debug" };
-    }
-    const parts = String(resolvedRecord.message || "").replace(/^\s+|\s+$/g, "").split(/\s+/);
+    let resolvedRecord = command.record ? resolveSelfRecord(command.record) : resolveSelfRecord({ sender: command.leaderKey || "", message: "poker resume " + (command.id || "") + " hand " + (command.handNumber || "") + " leader " + (command.leaderKey || "") + " seed " + (command.seed || "") });
+    const parts = String(resolvedRecord && resolvedRecord.message || "").replace(/^\s+|\s+$/g, "").split(/\s+/);
     const id = parts.length > 2 ? String(parts[2] || "").replace(/[^a-z0-9-]/gi, "").toLowerCase() : "";
     const handIndex = parts.indexOf(START_HAND_MARKER);
     const leaderIndex = parts.indexOf(START_LEADER_MARKER);
     const rosterIndex = parts.indexOf(START_ROSTER_MARKER);
     const seedIndex = parts.indexOf(START_SEED_MARKER);
-    if (parts[0] !== "poker" || parts[1] !== "resume" || handIndex < 0 || leaderIndex < 0 || seedIndex < 0 || handIndex + 1 >= parts.length || leaderIndex + 1 >= parts.length || seedIndex + 1 >= parts.length) {
+    if (!resolvedRecord || parts[0] !== "poker" || parts[1] !== "resume" || handIndex < 0 || leaderIndex < 0 || seedIndex < 0 || handIndex + 1 >= parts.length || leaderIndex + 1 >= parts.length || seedIndex + 1 >= parts.length) {
       return { consumed: true, readyChanged: false, render: false, status: "Invalid resume command.", debugReason: "status" };
-    }
-    const resume = ensureResume();
-    if (!resume.payload || resume.id !== id) {
-      return { consumed: true, readyChanged: false, render: false, status: "Import matching progress before resuming.", debugReason: "status" };
     }
     const handNumber = parseHandNumberToken(parts[handIndex + 1]);
     let parsedLeaderKey = "";
@@ -2593,6 +2588,16 @@
       parsedLeaderKey = normalizePlayerKey(decodeURIComponent(parts[leaderIndex + 1] || ""));
     } catch (e) {
       parsedLeaderKey = "";
+    }
+    const resume = ensureResume();
+    if (!resume.payload || resume.id !== id) {
+      rememberPendingResumeStartCommand({ record: resolvedRecord }, id);
+      return { consumed: true, readyChanged: false, render: false, status: "Import matching progress before resuming.", debugReason: "status" };
+    }
+    resolvedRecord = resolveUnknownHostedResumeStartRecord(resolvedRecord, id, parsedLeaderKey);
+    if (!resolvedRecord || isUnknownSender(resolvedRecord.sender)) {
+      debugActionState("reject-unknown-resume-start", resolvedRecord, null);
+      return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "debug" };
     }
     const hostedSharedLeaderKey = getHostedSharedProgressLeaderKey(resume);
     if (hostedSharedLeaderKey && parsedLeaderKey !== hostedSharedLeaderKey) {
@@ -3787,6 +3792,57 @@
     return resolved;
   }
 
+  function copyChatRecord(record) {
+    if (!record || !record.message) return null;
+    const copy = {};
+    const keys = Object.keys(record);
+    for (let i = 0; i < keys.length; i += 1) copy[keys[i]] = record[keys[i]];
+    return copy;
+  }
+
+  function rememberPendingResumeStartCommand(command, id) {
+    const key = String(id || "").replace(/[^a-z0-9-]/gi, "").toLowerCase();
+    if (!key || !command) return false;
+    const record = copyChatRecord(command.record);
+    if (!record || !record.message) return false;
+    State.pendingResumeStarts = State.pendingResumeStarts || {};
+    State.pendingResumeStarts[key] = { record: record };
+    log("queued resume start " + key + " until matching progress imports");
+    return true;
+  }
+
+  function takePendingResumeStartCommand(id) {
+    const key = String(id || "").replace(/[^a-z0-9-]/gi, "").toLowerCase();
+    const pending = key && State.pendingResumeStarts ? State.pendingResumeStarts[key] : null;
+    if (pending) delete State.pendingResumeStarts[key];
+    return pending || null;
+  }
+
+  function applyPendingResumeStartCommand(id) {
+    const pending = takePendingResumeStartCommand(id);
+    if (!pending) return null;
+    log("replaying pending resume start " + id);
+    return applyResumeStartCommand(pending);
+  }
+
+  function resolveUnknownHostedResumeStartRecord(record, id, parsedLeaderKey) {
+    if (!record || !isUnknownSender(record.sender)) return record;
+    const resume = ensureResume();
+    const party = ensureParty();
+    const leaderKey = normalizePlayerKey(parsedLeaderKey);
+    if (!resume.payload || resume.id !== id || !leaderKey) return record;
+    const hostedLeaderKey = getHostedSharedProgressLeaderKey(resume);
+    const expectedLeaderKey = hostedLeaderKey || (party.id && party.leaderKey ? party.leaderKey : "");
+    if (!expectedLeaderKey || leaderKey !== expectedLeaderKey) return record;
+    if (!party.id || party.mode === "none" || party.leaderKey !== expectedLeaderKey) return record;
+    const entry = findProgressRosterEntry(resume.payload, expectedLeaderKey);
+    if (!entry || getProgressBankroll(resume.payload, expectedLeaderKey) <= 0) return record;
+    const resolved = copyChatRecord(record) || {};
+    resolved.sender = party.leaderName || resume.hostedLeaderName || entry.name || expectedLeaderKey;
+    log("resolved unknown resume start sender to party leader " + resolved.sender);
+    return resolved;
+  }
+
   function getProgressTransfer(id, checksum, count) {
     const key = id + ":" + checksum;
     State.progressTransfers = State.progressTransfers || {};
@@ -3857,6 +3913,8 @@
         ? "Imported shared progress " + imported.id + ". Host or join " + ((ensureResume().hostedLeaderName) || "the host") + "'s Poker party; only the host starts NEXT SYNCED HAND."
         : "Imported shared progress " + imported.id + ". Host or join the synced Poker party; wait for the host to start NEXT SYNCED HAND.");
     setStatus(status);
+    const pendingResumeStart = applyPendingResumeStartCommand(imported.id);
+    if (pendingResumeStart) return pendingResumeStart;
     return { consumed: true, readyChanged: false, render: true, status: status, debugReason: "progress-chunk" };
   }
 

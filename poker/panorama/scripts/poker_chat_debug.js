@@ -11,19 +11,42 @@
   const FAST_POLL_SECONDS = 0.1;
   const SLOW_POLL_SECONDS = 0.5;
   const EMPTY_NAME = "<unknown>";
-  const READY_EVENT = "PokerReadySeatsChanged";
-  const READY_REQUEST_EVENT = "PokerReadySeatsRequest";
-  const CHAT_EVENT = "PokerChatMessage";
-  const CHAT_SNAPSHOT_REQUEST_EVENT = "PokerChatSnapshotRequest";
-  const CLIENT_OUTPUT_EVENT = "ClientUI_FireOutput";
-  const READY_SEATS_KEY = "PokerReadySeats";
-  const READY_REVISION_KEY = "PokerReadyRevision";
-  const CHAT_MESSAGES_KEY = "PokerChatMessages";
-  const CHAT_SEQ_KEY = "PokerChatSequence";
-  const READY_LAST_EVENT_KEY = "PokerLastReadyEvent";
-  const LOCAL_PLAYER_KEY = "PokerLocalPlayerKey";
-  const LOCAL_PLAYER_NAME_KEY = "PokerLocalPlayerName";
-  const PENDING_SELF_ACTION_KEY = "PokerPendingSelfAction";
+  const BridgeContract = {
+    clientOutputEvent: "ClientUI_FireOutput",
+    readyEvent: "PokerReadySeatsChanged",
+    readyRequestEvent: "PokerReadySeatsRequest",
+    readyClearRequestEvent: "PokerReadySeatsClearRequest",
+    chatEvent: "PokerChatMessage",
+    chatSnapshotRequestEvent: "PokerChatSnapshotRequest",
+    keys: {
+      readySeats: "PokerReadySeats",
+      readyRevision: "PokerReadyRevision",
+      chatMessages: "PokerChatMessages",
+      chatSequence: "PokerChatSequence",
+      readyLastEvent: "PokerLastReadyEvent",
+      localPlayerKey: "PokerLocalPlayerKey",
+      localPlayerName: "PokerLocalPlayerName",
+      pendingSelfAction: "PokerPendingSelfAction",
+      partyState: "PokerPartyState",
+      progressState: "PokerProgressState",
+    },
+  };
+  const READY_EVENT = BridgeContract.readyEvent;
+  const READY_REQUEST_EVENT = BridgeContract.readyRequestEvent;
+  const READY_CLEAR_REQUEST_EVENT = BridgeContract.readyClearRequestEvent;
+  const CHAT_EVENT = BridgeContract.chatEvent;
+  const CHAT_SNAPSHOT_REQUEST_EVENT = BridgeContract.chatSnapshotRequestEvent;
+  const CLIENT_OUTPUT_EVENT = BridgeContract.clientOutputEvent;
+  const READY_SEATS_KEY = BridgeContract.keys.readySeats;
+  const READY_REVISION_KEY = BridgeContract.keys.readyRevision;
+  const CHAT_MESSAGES_KEY = BridgeContract.keys.chatMessages;
+  const CHAT_SEQ_KEY = BridgeContract.keys.chatSequence;
+  const READY_LAST_EVENT_KEY = BridgeContract.keys.readyLastEvent;
+  const LOCAL_PLAYER_KEY = BridgeContract.keys.localPlayerKey;
+  const LOCAL_PLAYER_NAME_KEY = BridgeContract.keys.localPlayerName;
+  const PENDING_SELF_ACTION_KEY = BridgeContract.keys.pendingSelfAction;
+  const PARTY_STATE_KEY = BridgeContract.keys.partyState;
+  const PROGRESS_STATE_KEY = BridgeContract.keys.progressState;
   const UNKNOWN_SENDER_MAX_DELAYS = 6;
 
   const LABEL_TEXT_BUFFER = [];
@@ -180,6 +203,35 @@
     return normalizeMessage(text).indexOf("party join poker party ") === 0;
   }
 
+  function isPartyLeaveMessage(text) {
+    return normalizeMessage(text).indexOf("party leave poker party ") === 0;
+  }
+
+  function isResumeLeaderMessage(text) {
+    return normalizeMessage(text).indexOf("resume leader poker resume ") === 0;
+  }
+
+  function isResumeReadyMessage(text) {
+    return normalizeMessage(text).indexOf("resume ready poker resume ") === 0;
+  }
+
+  function isResumeStartMessage(text) {
+    return normalizeMessage(text).indexOf("poker resume ") === 0;
+  }
+
+  function isShortResumeStartMessage(text) {
+    const normalized = normalizeMessage(text);
+    return normalized.indexOf("poker resume ") === 0 && normalized.indexOf(" roster ") < 0;
+  }
+
+  function isProgressOfferMessage(text) {
+    return normalizeMessage(text).indexOf("progress offer poker progress ") === 0;
+  }
+
+  function isProgressChunkMessage(text) {
+    return normalizeMessage(text).indexOf("progress chunk poker progress ") === 0;
+  }
+
   function isReadyChatMessage(text) {
     const normalized = normalizeMessage(text);
     if (!normalized || normalized === "not ready" || normalized === "unready") return false;
@@ -202,6 +254,12 @@
     return isReadyChatMessage(text) ||
       isPartyLeaderMessage(text) ||
       isPartyJoinMessage(text) ||
+      isPartyLeaveMessage(text) ||
+      isResumeLeaderMessage(text) ||
+      isResumeReadyMessage(text) ||
+      isResumeStartMessage(text) ||
+      isProgressOfferMessage(text) ||
+      isProgressChunkMessage(text) ||
       normalized === "check" ||
       normalized === "call" ||
       normalized === "fold" ||
@@ -211,6 +269,18 @@
       normalized.indexOf("raise ") === 0 ||
       normalized.indexOf("poker start") === 0 ||
       normalized.indexOf("start poker") === 0;
+  }
+
+  function isPartyAuthorityMessage(text) {
+    return isPartyLeaderMessage(text) ||
+      isPartyJoinMessage(text) ||
+      isPartyLeaveMessage(text);
+  }
+
+  function isResumeAuthorityMessage(text) {
+    return isResumeLeaderMessage(text) ||
+      isResumeReadyMessage(text) ||
+      isResumeStartMessage(text);
   }
 
 
@@ -321,14 +391,52 @@
     });
   }
 
+  function clearReadySeats(reason) {
+    const config = getConfig();
+    config[READY_SEATS_KEY] = {};
+    config[READY_REVISION_KEY] = (config[READY_REVISION_KEY] || 0) + 1;
+    dispatchReadyEvent({
+      event: READY_EVENT,
+      action: "clear",
+      reason: reason || "",
+      seats: [],
+    });
+    try {
+      $.Msg(LOG_PREFIX + " ready seats cleared" + (reason ? " (" + reason + ")" : ""));
+    } catch (e) {}
+    return true;
+  }
+
   function handleClientOutput(payload) {
     try {
       if (typeof payload !== "string" || !payload) return;
       const event = JSON.parse(payload);
       if (!event || !event.event) return;
       if (event.event === READY_REQUEST_EVENT) dispatchReadySnapshot("request");
+      if (event.event === READY_CLEAR_REQUEST_EVENT) clearReadySeats(event.reason || "request");
       if (event.event === CHAT_SNAPSHOT_REQUEST_EVENT) dispatchChatSnapshot("request");
     } catch (e) {}
+  }
+
+  function forgetReadySeat(record) {
+    if (!record || !isPartyLeaveMessage(record.message) || !shouldAcceptReadySender(record.sender)) return false;
+    const key = normalizePlayerKey(record.sender);
+    const seats = getReadySeats();
+    if (!seats[key]) return false;
+    delete seats[key];
+    const config = getConfig();
+    config[READY_REVISION_KEY] = (config[READY_REVISION_KEY] || 0) + 1;
+    dispatchReadyEvent({
+      event: READY_EVENT,
+      action: "leave",
+      key: key,
+      name: record.sender,
+      seats: getReadySeatArray(),
+    });
+    try {
+      $.Msg(LOG_PREFIX + " ready " + record.sender + " removed (" + Object.keys(seats).length + ")");
+    } catch (e) {}
+    return true;
   }
 
   function markPlayerReady(record) {
@@ -402,8 +510,33 @@
     if (!isPokerBridgeMessage(record.message)) return false;
     if (!messagePanel) return true;
     messagePanel[UNKNOWN_RETRY_FLAG] = ((messagePanel[UNKNOWN_RETRY_FLAG] || 0) + 1);
+    if (isPartyLeaderMessage(record.message) || isShortResumeStartMessage(record.message)) return messagePanel[UNKNOWN_RETRY_FLAG] <= UNKNOWN_SENDER_MAX_DELAYS;
+    if (isPartyAuthorityMessage(record.message) || isResumeAuthorityMessage(record.message)) return true;
     return messagePanel[UNKNOWN_RETRY_FLAG] <= UNKNOWN_SENDER_MAX_DELAYS;
   }
+
+  function consumeChatRow(messagePanel) {
+    if (!isValid(messagePanel) || messagePanel[LOGGED_FLAG]) return { status: "ignored" };
+
+    const record = readChatMessage(messagePanel);
+    if (!record) return { status: "ignored" };
+
+    if (ChatBridgeIntake.shouldDelayUnknownSender(record, messagePanel)) return { status: "delayed" };
+
+    messagePanel[LOGGED_FLAG] = true;
+    logChatMessage(record);
+    appendChatRecord(record);
+    const readyChanged = markPlayerReady(record);
+    if (!readyChanged) forgetReadySeat(record);
+    return { status: "consumed", record: record, readyChanged: readyChanged };
+  }
+
+  const ChatBridgeIntake = {
+    readRecord: readChatMessage,
+    shouldDelayUnknownSender: shouldDelayUnknownSender,
+    consumeRow: consumeChatRow,
+    scan: scanChatMessages,
+  };
 
 
   function logChatMessage(record) {
@@ -448,17 +581,7 @@
     const count = childCount(messages);
     for (let i = 0; i < count; i += 1) {
       const messagePanel = childAt(messages, i);
-      if (!isValid(messagePanel) || messagePanel[LOGGED_FLAG]) continue;
-
-      const record = readChatMessage(messagePanel);
-      if (!record) continue;
-
-      if (shouldDelayUnknownSender(record, messagePanel)) continue;
-
-      messagePanel[LOGGED_FLAG] = true;
-      logChatMessage(record);
-      appendChatRecord(record);
-      markPlayerReady(record);
+      ChatBridgeIntake.consumeRow(messagePanel);
     }
 
     $.Schedule(count > 0 ? FAST_POLL_SECONDS : SLOW_POLL_SECONDS, scanChatMessages);
@@ -470,9 +593,15 @@
         isReadyChatMessage: isReadyChatMessage,
         isPartyLeaderMessage: isPartyLeaderMessage,
         isPartyJoinMessage: isPartyJoinMessage,
+        isPartyLeaveMessage: isPartyLeaveMessage,
+        isResumeLeaderMessage: isResumeLeaderMessage,
+        isResumeReadyMessage: isResumeReadyMessage,
+        isResumeStartMessage: isResumeStartMessage,
         normalizeMessage: normalizeMessage,
         normalizePlayerKey: normalizePlayerKey,
         markPlayerReady: markPlayerReady,
+        forgetReadySeat: forgetReadySeat,
+        clearReadySeats: clearReadySeats,
         getReadySeats: getReadySeats,
         getReadySeatArray: getReadySeatArray,
         handleClientOutput: handleClientOutput,
@@ -485,6 +614,10 @@
           key: LOCAL_PLAYER_KEY,
           name: LOCAL_PLAYER_NAME_KEY,
           pending: PENDING_SELF_ACTION_KEY,
+        },
+        modules: {
+          BridgeContract: BridgeContract,
+          ChatBridgeIntake: ChatBridgeIntake,
         },
       };
     } catch (e) {}
