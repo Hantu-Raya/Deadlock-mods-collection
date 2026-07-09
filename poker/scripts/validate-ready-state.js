@@ -147,7 +147,7 @@ assert(menuHooks, 'escape menu test hooks were not exported');
 if (chatHooks && menuHooks) {
   assert(chatHooks.modules && chatHooks.modules.BridgeContract, 'chat hooks should expose BridgeContract module');
   assert(chatHooks.modules && chatHooks.modules.ChatBridgeIntake, 'chat hooks should expose ChatBridgeIntake module');
-  for (const functionName of ['readRecord', 'shouldDelayUnknownSender', 'consumeRow', 'scan']) {
+  for (const functionName of ['consumeRow', 'scanOnce', 'handleSnapshotRequest']) {
     assert(
       chatHooks.modules && chatHooks.modules.ChatBridgeIntake && typeof chatHooks.modules.ChatBridgeIntake[functionName] === 'function',
       `ChatBridgeIntake.${functionName} should be exposed`,
@@ -160,59 +160,6 @@ if (chatHooks && menuHooks) {
 
   for (const phrase of nonReadyPhrases) {
     assertEqual(chatHooks.isReadyChatMessage(phrase), false, `non-ready phrase should be rejected (${phrase})`);
-  }
-
-  assertEqual(typeof chatHooks.shouldDelayUnknownSender, 'function', 'chat hooks should export shouldDelayUnknownSender for bridge contract assertions');
-  assertEqual(typeof chatHooks.isPartyLeaderMessage, 'function', 'chat hooks should export isPartyLeaderMessage');
-  assertEqual(typeof chatHooks.isPartyJoinMessage, 'function', 'chat hooks should export isPartyJoinMessage');
-  assertEqual(typeof chatHooks.isResumeLeaderMessage, 'function', 'chat hooks should export isResumeLeaderMessage');
-  assertEqual(typeof chatHooks.isResumeReadyMessage, 'function', 'chat hooks should export isResumeReadyMessage');
-  assertEqual(typeof chatHooks.isResumeStartMessage, 'function', 'chat hooks should export isResumeStartMessage');
-  if (typeof chatHooks.shouldDelayUnknownSender === 'function') {
-    assertEqual(
-      chatHooks.shouldDelayUnknownSender({ sender: '<unknown>', message: '[party leader] poker party p123', isSelf: false }, {}),
-      true,
-      'party leader phrase should be treated as a poker bridge message while sender is unknown',
-    );
-    assertEqual(
-      chatHooks.shouldDelayUnknownSender({ sender: '<unknown>', message: '[party join] poker party p123', isSelf: false }, {}),
-      true,
-      'party join phrase should be treated as a poker bridge message while sender is unknown',
-    );
-    for (const phrase of resumeBridgePhrases) {
-      assertEqual(
-        chatHooks.shouldDelayUnknownSender({ sender: '<unknown>', message: phrase, isSelf: false }, {}),
-        true,
-        `resume bridge phrase should be delayed while sender is unknown (${phrase})`,
-      );
-    }
-    for (const phrase of progressBridgePhrases) {
-      assertEqual(
-        chatHooks.shouldDelayUnknownSender({ sender: '<unknown>', message: phrase, isSelf: false }, {}),
-        true,
-        `progress bridge phrase should be delayed while sender is unknown (${phrase})`,
-      );
-    }
-  }
-  if (typeof chatHooks.isPartyLeaderMessage === 'function') {
-    assertEqual(chatHooks.isPartyLeaderMessage('[party leader] poker party p123'), true, 'party leader helper should accept the exact leader wire phrase');
-    assertEqual(chatHooks.isPartyLeaderMessage('[party join] poker party p123'), false, 'party leader helper should reject the join wire phrase');
-  }
-  if (typeof chatHooks.isPartyJoinMessage === 'function') {
-    assertEqual(chatHooks.isPartyJoinMessage('[party join] poker party p123'), true, 'party join helper should accept the exact join wire phrase');
-    assertEqual(chatHooks.isPartyJoinMessage('[party leader] poker party p123'), false, 'party join helper should reject the leader wire phrase');
-  }
-  if (typeof chatHooks.isResumeLeaderMessage === 'function') {
-    assertEqual(chatHooks.isResumeLeaderMessage('[resume leader] poker resume r123'), true, 'resume leader helper should accept the exact leader wire phrase');
-    assertEqual(chatHooks.isResumeLeaderMessage('[resume ready] poker resume r123'), false, 'resume leader helper should reject the ready wire phrase');
-  }
-  if (typeof chatHooks.isResumeReadyMessage === 'function') {
-    assertEqual(chatHooks.isResumeReadyMessage('[resume ready] poker resume r123'), true, 'resume ready helper should accept the exact ready wire phrase');
-    assertEqual(chatHooks.isResumeReadyMessage('[resume leader] poker resume r123'), false, 'resume ready helper should reject the leader wire phrase');
-  }
-  if (typeof chatHooks.isResumeStartMessage === 'function') {
-    assertEqual(chatHooks.isResumeStartMessage('poker resume r123 hand 2 leader abrams roster abrams~Abrams|bebop~Bebop seed sresume'), true, 'resume start helper should accept the exact start wire phrase');
-    assertEqual(chatHooks.isResumeStartMessage('[resume ready] poker resume r123'), false, 'resume start helper should reject prefixed ready rows');
   }
 
   assertEqual(chatHooks.markPlayerReady({ sender: 'Abrams', channel: '[All]', message: 'ready' }), true, 'first ready sender should be marked');
@@ -299,7 +246,30 @@ if (chatHooks && menuHooks) {
       }
     }
 
-
+    const fallbackMatchEndRuntime = createChatRuntime();
+    const fallbackMatchEndHooks = fallbackMatchEndRuntime.sandbox.__PokerChatDebugTestHooks;
+    assert(fallbackMatchEndHooks, 'fallback unknown sender match-end hooks should be exported');
+    if (fallbackMatchEndHooks) {
+      const matchEndMessage = '[match end] poker party pbridge-match seed sbridge-match hand 1';
+      const fallbackMatchEndRow = appendChatPanel(fallbackMatchEndRuntime, '<unknown>', '[Party]', matchEndMessage, false);
+      for (let i = 0; i < 7; i += 1) fallbackMatchEndHooks.scanChatMessages();
+      const fallbackMatchEndMessages = fallbackMatchEndHooks.getChatMessages();
+      assertEqual(fallbackMatchEndMessages.length, 1, 'unknown non-self match-end should dispatch after bounded bridge retry');
+      assertEqual(fallbackMatchEndMessages[0].sender, '<unknown>', 'unknown non-self match-end bridge dispatch should keep the unknown sender marker');
+      assertEqual(fallbackMatchEndMessages[0].message, matchEndMessage, 'unknown non-self match-end bridge dispatch should preserve the exact message text');
+      assertEqual(seatCount(fallbackMatchEndRuntime.config), 0, 'unknown non-self match-end bridge dispatch should not create ready seats');
+      assertEqual(fallbackMatchEndRuntime.dispatches.length, 1, 'unknown non-self match-end bridge dispatch should emit one chat event');
+      const fallbackMatchEndPayload = parseDispatchPayload(fallbackMatchEndRuntime.dispatches[0]);
+      if (fallbackMatchEndPayload) {
+        assertEqual(fallbackMatchEndPayload.event, 'PokerChatMessage', 'unknown non-self match-end dispatch should carry a bridged chat message');
+        assertEqual(fallbackMatchEndPayload.sender, '<unknown>', 'unknown non-self match-end payload should keep the unknown sender marker');
+        assertEqual(fallbackMatchEndPayload.message, matchEndMessage, 'unknown non-self match-end payload should preserve the exact message text');
+      }
+      fallbackMatchEndRow.senderLabel.text = 'MatchLeader';
+      fallbackMatchEndHooks.scanChatMessages();
+      assertEqual(fallbackMatchEndHooks.getChatMessages().length, 1, 'bounded unknown match-end should not redispatch when only the sender label stabilizes');
+      assertEqual(fallbackMatchEndRuntime.dispatches.length, 1, 'bounded unknown match-end should emit one authoritative record after sender stabilization');
+    }
 
     function assertDelayedUnknownPartyAuthorityRecovery(message, stabilizedSender) {
       const authorityRuntime = createChatRuntime();
@@ -476,6 +446,59 @@ if (chatHooks && menuHooks) {
       assertEqual(lastScheduledDelay(stableRowRuntime), 0.5, 'already-consumed stable non-poker row should back off to slow polling');
     }
 
+    const recursiveFallbackRuntime = createChatRuntime();
+    const recursiveFallbackHooks = recursiveFallbackRuntime.sandbox.__PokerChatDebugTestHooks;
+    assert(recursiveFallbackHooks, 'recursive chat-row lookup hooks should be exported');
+    if (recursiveFallbackHooks) {
+      const recursiveFallbackParts = appendChatPanel(recursiveFallbackRuntime, 'Fallback', '[Party]', 'recursive fallback row', false);
+      const recursiveFallbackSource = recursiveFallbackParts.row.FindChildTraverse('MessageSource');
+      recursiveFallbackParts.row.FindChildrenWithClassTraverse = undefined;
+      if (recursiveFallbackSource) recursiveFallbackSource.FindChildrenWithClassTraverse = undefined;
+      recursiveFallbackHooks.scanChatMessages();
+      const recursiveFallbackMessages = recursiveFallbackHooks.getChatMessages();
+      assertEqual(recursiveFallbackMessages.length, 1, 'disabling fast chat-row class traversal should still consume one visible row');
+      assertEqual(recursiveFallbackMessages[0].sender, 'Fallback', 'recursive chat-row lookup should preserve the sender');
+      assertEqual(recursiveFallbackMessages[0].channel, '[Party]', 'recursive chat-row lookup should preserve the channel');
+      assertEqual(recursiveFallbackMessages[0].message, 'recursive fallback row', 'recursive chat-row lookup should preserve the message');
+      const recursiveFallbackPayload = parseDispatchPayload(recursiveFallbackRuntime.dispatches[0]);
+      if (recursiveFallbackPayload) {
+        assertEqual(recursiveFallbackPayload.sender, 'Fallback', 'recursive chat-row dispatch should preserve the sender');
+        assertEqual(recursiveFallbackPayload.channel, '[Party]', 'recursive chat-row dispatch should preserve the channel');
+        assertEqual(recursiveFallbackPayload.message, 'recursive fallback row', 'recursive chat-row dispatch should preserve the message');
+      }
+    }
+
+    const bridgeBehaviorCases = [
+      { label: 'match-end', message: '[match end] poker party pbehavior seed sbehavior hand 1' },
+      { label: 'progress offer', message: '[progress offer] poker progress rbehavior 1234abcd 2' },
+      { label: 'progress chunk', message: '[progress chunk] poker progress rbehavior 1234abcd 1/2 chunk-body' },
+      { label: 'bet', message: 'bet $200' },
+      { label: 'raise', message: 'raise $400' },
+    ];
+    for (const behaviorCase of bridgeBehaviorCases) {
+      const behaviorRuntime = createChatRuntime();
+      const behaviorHooks = behaviorRuntime.sandbox.__PokerChatDebugTestHooks;
+      assert(behaviorHooks, `${behaviorCase.label} behavior fixture should export chat hooks`);
+      if (!behaviorHooks) continue;
+      appendChatPanel(behaviorRuntime, '<unknown>', '[Party]', behaviorCase.message, false);
+      behaviorHooks.scanChatMessages();
+      assertEqual(behaviorHooks.getChatMessages().length, 0, `${behaviorCase.label} should delay an unresolved sender on the first scan`);
+      assertEqual(behaviorRuntime.dispatches.length, 0, `${behaviorCase.label} should not dispatch before its bounded retry window`);
+      assertEqual(lastScheduledDelay(behaviorRuntime), 0.1, `${behaviorCase.label} should keep fast polling while delayed`);
+      for (let i = 0; i < 8 && behaviorHooks.getChatMessages().length === 0; i += 1) behaviorHooks.scanChatMessages();
+      const behaviorMessages = behaviorHooks.getChatMessages();
+      assertEqual(behaviorMessages.length, 1, `${behaviorCase.label} should dispatch after bounded unknown-sender delay`);
+      assertEqual(behaviorMessages[0].sender, '<unknown>', `${behaviorCase.label} should dispatch with the unresolved sender marker`);
+      assertEqual(behaviorMessages[0].message, behaviorCase.message, `${behaviorCase.label} should preserve its wire message`);
+      assertEqual(behaviorRuntime.dispatches.length, 1, `${behaviorCase.label} should emit exactly one bridged dispatch`);
+      const behaviorPayload = parseDispatchPayload(behaviorRuntime.dispatches[0]);
+      if (behaviorPayload) {
+        assertEqual(behaviorPayload.event, 'PokerChatMessage', `${behaviorCase.label} should dispatch a chat-message event`);
+        assertEqual(behaviorPayload.sender, '<unknown>', `${behaviorCase.label} payload should preserve the unresolved sender marker`);
+        assertEqual(behaviorPayload.message, behaviorCase.message, `${behaviorCase.label} payload should preserve its wire message`);
+      }
+    }
+
     const unresolvedAuthorityRuntime = createChatRuntime();
     const unresolvedAuthorityHooks = unresolvedAuthorityRuntime.sandbox.__PokerChatDebugTestHooks;
     assert(unresolvedAuthorityHooks, 'unresolved unknown authority row hooks should be exported');
@@ -514,11 +537,17 @@ if (chatHooks && menuHooks) {
   const partySnapshotMenuHooks = partySnapshotMenu.sandbox.__PokerEscapeMenuTestHooks;
   assert(partySnapshotChatHooks && partySnapshotMenuHooks, 'party snapshot runtimes should export hooks');
   if (partySnapshotChatHooks && partySnapshotMenuHooks) {
-    appendChatPanel(partySnapshotChat, 'Host', '[Party]', '[party leader] poker party psnap', false);
-    partySnapshotChatHooks.scanChatMessages();
+    const freshSnapshotMessage = '[party leader] poker party psnap';
+    appendChatPanel(partySnapshotChat, 'Host', '[Party]', freshSnapshotMessage, false);
     partySnapshotChatHooks.handleClientOutput(JSON.stringify({ event: 'PokerChatSnapshotRequest', source: 'validator' }));
     const snapshotDispatch = partySnapshotChat.dispatches.map(parseDispatchPayload).find((payload) => payload && payload.event === 'PokerChatMessage' && payload.action === 'snapshot');
     assert(snapshotDispatch, 'chat snapshot request should dispatch a chat snapshot');
+    const freshSnapshotRecord = (snapshotDispatch && snapshotDispatch.messages || []).find((record) => record && record.message === freshSnapshotMessage);
+    assert(freshSnapshotRecord, 'direct chat snapshot request should scan and include a freshly appended Poker row');
+    if (freshSnapshotRecord) {
+      assertEqual(freshSnapshotRecord.sender, 'Host', 'direct chat snapshot should preserve the fresh row sender');
+      assertEqual(freshSnapshotRecord.channel, '[Party]', 'direct chat snapshot should preserve the fresh row channel');
+    }
     if (snapshotDispatch) {
       partySnapshotMenuHooks.handleReadyEvent(JSON.stringify(snapshotDispatch));
       assertEqual(partySnapshotMenu.config.PokerPartyState.leaderKey, 'host', 'fresh menu context should hydrate party leader state from chat snapshot replay');
