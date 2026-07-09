@@ -374,41 +374,100 @@
   }
 
 
-  function dispatchReadyEvent(payload) {
+  function mutateReadySeats(action, record, reason) {
     const config = getConfig();
-    const seats = getReadySeatArray();
-    payload.seats = payload.seats || seats;
-    payload.count = seats.length;
-    payload.revision = config[READY_REVISION_KEY] || 0;
-    const json = JSON.stringify(payload);
-    config[READY_LAST_EVENT_KEY] = json;
-    try {
-      $.DispatchEvent(CLIENT_OUTPUT_EVENT, json);
-    } catch (e) {}
+    const emit = (payload) => {
+      payload.seats = payload.seats || getReadySeatArray();
+      payload.count = payload.seats.length;
+      payload.revision = config[READY_REVISION_KEY] || 0;
+      const json = JSON.stringify(payload);
+      config[READY_LAST_EVENT_KEY] = json;
+      try {
+        $.DispatchEvent(CLIENT_OUTPUT_EVENT, json);
+      } catch (e) {}
+    };
+
+    if (action === "snapshot") {
+      PokerMetrics.increment("readySnapshotDispatch");
+      emit({
+        event: READY_EVENT,
+        action: "snapshot",
+        reason: reason || "",
+      });
+      return { readyChanged: false, action: "snapshot" };
+    }
+
+    if (action === "clear") {
+      config[READY_SEATS_KEY] = {};
+      config[READY_REVISION_KEY] = (config[READY_REVISION_KEY] || 0) + 1;
+      emit({
+        event: READY_EVENT,
+        action: "clear",
+        reason: reason || "",
+        seats: [],
+      });
+      try {
+        $.Msg(LOG_PREFIX + " ready seats cleared" + (reason ? " (" + reason + ")" : ""));
+      } catch (e) {}
+      return { readyChanged: true, action: "clear" };
+    }
+
+    if (!record || !shouldAcceptReadySender(record.sender)) return { readyChanged: false, action: "" };
+    const key = normalizePlayerKey(record.sender);
+    const seats = getReadySeats();
+
+    if (action === "ready") {
+      const now = Date.now ? Date.now() : 0;
+      const previous = seats[key];
+      seats[key] = {
+        key: key,
+        name: record.sender,
+        channel: record.channel || "",
+        message: record.message || "",
+        readyAt: now,
+      };
+      config[READY_REVISION_KEY] = (config[READY_REVISION_KEY] || 0) + 1;
+      if (record.isSelf) rememberLocalPlayer(record.sender);
+      emit({
+        event: READY_EVENT,
+        action: "ready",
+        key: key,
+        name: record.sender,
+        channel: record.channel || "",
+        message: record.message || "",
+        isSelf: !!record.isSelf,
+        updated: !previous,
+      });
+      try {
+        $.Msg(LOG_PREFIX + " ready " + record.sender + " seated (" + Object.keys(seats).length + ")");
+      } catch (e) {}
+      return { readyChanged: true, action: "ready" };
+    }
+
+    if (action === "leave") {
+      if (!seats[key]) return { readyChanged: false, action: "" };
+      delete seats[key];
+      config[READY_REVISION_KEY] = (config[READY_REVISION_KEY] || 0) + 1;
+      emit({
+        event: READY_EVENT,
+        action: "leave",
+        key: key,
+        name: record.sender,
+      });
+      try {
+        $.Msg(LOG_PREFIX + " ready " + record.sender + " removed (" + Object.keys(seats).length + ")");
+      } catch (e) {}
+      return { readyChanged: true, action: "leave" };
+    }
+
+    return { readyChanged: false, action: "" };
   }
 
-  function dispatchReadySnapshot(reason) {
-    dispatchReadyEvent({
-      event: READY_EVENT,
-      action: "snapshot",
-      reason: reason || "",
-    });
-  }
-
-  function clearReadySeats(reason) {
-    const config = getConfig();
-    config[READY_SEATS_KEY] = {};
-    config[READY_REVISION_KEY] = (config[READY_REVISION_KEY] || 0) + 1;
-    dispatchReadyEvent({
-      event: READY_EVENT,
-      action: "clear",
-      reason: reason || "",
-      seats: [],
-    });
-    try {
-      $.Msg(LOG_PREFIX + " ready seats cleared" + (reason ? " (" + reason + ")" : ""));
-    } catch (e) {}
-    return true;
+  function handleChatSnapshotRequest(reason) {
+    PokerMetrics.increment("chatSnapshotRequest");
+    ChatBridgeIntake.scanOnce();
+    dispatchChatSnapshot(reason || "request");
+    PokerMetrics.increment("chatSnapshotDispatch");
   }
 
   function handleClientOutput(payload) {
@@ -416,68 +475,14 @@
       if (typeof payload !== "string" || !payload) return;
       const event = JSON.parse(payload);
       if (!event || !event.event) return;
-      if (event.event === READY_REQUEST_EVENT) dispatchReadySnapshot("request");
-      if (event.event === READY_CLEAR_REQUEST_EVENT) clearReadySeats(event.reason || "request");
-      if (event.event === CHAT_SNAPSHOT_REQUEST_EVENT) dispatchChatSnapshot("request");
+      if (event.event === READY_REQUEST_EVENT) mutateReadySeats("snapshot", null, "request");
+      if (event.event === READY_CLEAR_REQUEST_EVENT) mutateReadySeats("clear", null, event.reason || "request");
+      if (event.event === CHAT_SNAPSHOT_REQUEST_EVENT) ChatBridgeIntake.handleSnapshotRequest("request");
     } catch (e) {}
   }
 
-  function forgetReadySeat(record) {
-    if (!record || !isPartyLeaveMessage(record.message) || !shouldAcceptReadySender(record.sender)) return false;
-    const key = normalizePlayerKey(record.sender);
-    const seats = getReadySeats();
-    if (!seats[key]) return false;
-    delete seats[key];
-    const config = getConfig();
-    config[READY_REVISION_KEY] = (config[READY_REVISION_KEY] || 0) + 1;
-    dispatchReadyEvent({
-      event: READY_EVENT,
-      action: "leave",
-      key: key,
-      name: record.sender,
-      seats: getReadySeatArray(),
-    });
-    try {
-      $.Msg(LOG_PREFIX + " ready " + record.sender + " removed (" + Object.keys(seats).length + ")");
-    } catch (e) {}
-    return true;
-  }
 
-  function markPlayerReady(record) {
-    if (!record || !isReadyChatMessage(record.message) || !shouldAcceptReadySender(record.sender)) return false;
 
-    const key = normalizePlayerKey(record.sender);
-    const now = Date.now ? Date.now() : 0;
-    const seats = getReadySeats();
-    const config = getConfig();
-    const previous = seats[key];
-
-    seats[key] = {
-      key: key,
-      name: record.sender,
-      channel: record.channel || "",
-      message: record.message || "",
-      readyAt: now,
-    };
-    config[READY_REVISION_KEY] = (config[READY_REVISION_KEY] || 0) + 1;
-    if (record.isSelf) rememberLocalPlayer(record.sender);
-
-    dispatchReadyEvent({
-      event: READY_EVENT,
-      action: "ready",
-      key: key,
-      name: record.sender,
-      channel: record.channel || "",
-      message: record.message || "",
-      isSelf: !!record.isSelf,
-      updated: !previous,
-    });
-
-    try {
-      $.Msg(LOG_PREFIX + " ready " + record.sender + " seated (" + Object.keys(seats).length + ")");
-    } catch (e) {}
-    return true;
-  }
 
   function readChatMessage(messagePanel) {
     const source = findChild(messagePanel, MESSAGE_SOURCE_ID);
@@ -509,64 +514,45 @@
     };
   }
 
-  function findTrustedPartyLeaderFallbackSender() {
-    const messages = getChatMessages();
-    let recentLeaveSender = "";
-    for (let i = messages.length - 1; i >= 0; i -= 1) {
-      const entry = messages[i];
-      if (!entry || isUnknownSender(entry.sender)) continue;
-      if (!recentLeaveSender && isPartyLeaveMessage(entry.message)) {
-        recentLeaveSender = entry.sender;
-        continue;
-      }
-      if (isPartyLeaderMessage(entry.message)) {
-        if (!recentLeaveSender || normalizePlayerKey(entry.sender) === normalizePlayerKey(recentLeaveSender)) return entry.sender;
-        return "";
+
+
+
+  function getChatRowDecision(record, messagePanel) {
+    const message = record && record.message;
+    const match = getCommandFamilyMatch(message);
+    const commandName = match && match.name ? match.name : "";
+    const readyLike = !!(record && isReadyChatMessage(message, match));
+    const leaveReadySeat = commandName === "party-leave";
+    let status = record ? "consumed" : "ignored";
+    let waiting = false;
+
+    if (record && !record.isSelf && isUnknownSender(record.sender) && (readyLike || match)) {
+      if (!messagePanel) {
+        status = "delayed";
+      } else {
+        const retries = (messagePanel[UNKNOWN_RETRY_FLAG] || 0) + 1;
+        messagePanel[UNKNOWN_RETRY_FLAG] = retries;
+        if (match && match.unknownSenderDelay === "always") {
+          if (retries > UNKNOWN_SENDER_MAX_DELAYS) {
+            messagePanel[UNKNOWN_WAITING_FLAG] = true;
+            waiting = true;
+            status = "delayed";
+          } else {
+            status = "delayed";
+          }
+        } else if (retries <= UNKNOWN_SENDER_MAX_DELAYS) {
+          status = "delayed";
+        }
       }
     }
-    return "";
-  }
 
-  function resolveDelayedUnknownPartyLeader(record, messagePanel) {
-    if (!record || record.isSelf || !messagePanel) return record;
-    if (!isUnknownSender(record.sender) || !isPartyLeaderMessage(record.message)) return record;
-    if ((messagePanel[UNKNOWN_RETRY_FLAG] || 0) <= UNKNOWN_SENDER_MAX_DELAYS) return record;
-    const trustedSender = findTrustedPartyLeaderFallbackSender();
-    if (!trustedSender) return record;
     return {
-      sender: trustedSender,
-      channel: record.channel,
-      message: record.message,
-      isSelf: false,
-    };
-  }
-
-  function shouldDelayUnknownSender(record, messagePanel) {
-    if (!record || record.isSelf || !isUnknownSender(record.sender)) return false;
-    if (!isPokerBridgeMessage(record.message)) return false;
-    if (!messagePanel) return true;
-    messagePanel[UNKNOWN_RETRY_FLAG] = ((messagePanel[UNKNOWN_RETRY_FLAG] || 0) + 1);
-    if (isPartyAuthorityMessage(record.message) || isResumeLeaderMessage(record.message) || isResumeReadyMessage(record.message)) return true;
-    if (isShortResumeStartMessage(record.message)) return messagePanel[UNKNOWN_RETRY_FLAG] <= UNKNOWN_SENDER_MAX_DELAYS;
-    if (isResumeStartMessage(record.message)) return true;
-    return messagePanel[UNKNOWN_RETRY_FLAG] <= UNKNOWN_SENDER_MAX_DELAYS;
-  }
-
-  function classifyChatRow(record, messagePanel) {
-    const message = record && record.message;
-    let authority = "none";
-    if (isPartyAuthorityMessage(message)) authority = "party";
-    else if (isResumeLeaderMessage(message) || isResumeReadyMessage(message)) authority = "resume";
-    else if (isResumeStartMessage(message)) authority = "start";
-    else if (isProgressOfferMessage(message) || isProgressChunkMessage(message)) authority = "progress";
-    else if (isPokerBridgeMessage(message) && !isReadyChatMessage(message)) authority = "action";
-
-    const delayUnknown = shouldDelayUnknownSender(record, messagePanel);
-    return {
-      status: record ? (delayUnknown ? "delayed" : "consumed") : "ignored",
-      delayUnknown: delayUnknown,
-      authority: authority,
-      readyLike: !!(record && isReadyChatMessage(record.message)),
+      status: status,
+      waiting: waiting,
+      match: match,
+      commandName: commandName,
+      readyLike: readyLike,
+      leaveReadySeat: leaveReadySeat,
     };
   }
 
@@ -574,29 +560,23 @@
     if (!isValid(messagePanel) || messagePanel[LOGGED_FLAG]) return { status: "ignored" };
 
     let record = readChatMessage(messagePanel);
-    let decision = classifyChatRow(record, messagePanel);
-    if (decision.status === "delayed") {
-      const resolved = resolveDelayedUnknownPartyLeader(record, messagePanel);
-      if (resolved !== record) {
-        record = resolved;
-        decision = classifyChatRow(record, null);
-      }
-    }
+    const decision = getChatRowDecision(record, messagePanel);
     if (decision.status !== "consumed") return { status: decision.status };
 
     messagePanel[LOGGED_FLAG] = true;
     logChatMessage(record);
     appendChatRecord(record);
-    const readyChanged = markPlayerReady(record);
-    if (!readyChanged) forgetReadySeat(record);
-    return { status: "consumed", record: record, readyChanged: readyChanged };
+    const readyMutation = mutateReadySeats(
+      decision.readyLike ? "ready" : decision.leaveReadySeat ? "leave" : "",
+      record,
+    );
+    return { status: "consumed", record: record, readyChanged: readyMutation.readyChanged, action: readyMutation.action };
   }
 
   const ChatBridgeIntake = {
-    readRecord: readChatMessage,
-    shouldDelayUnknownSender: shouldDelayUnknownSender,
     consumeRow: consumeChatRow,
-    scan: scanChatMessages,
+    scanOnce: scanChatMessagesOnce,
+    handleSnapshotRequest: handleChatSnapshotRequest,
   };
 
 
