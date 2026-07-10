@@ -667,6 +667,17 @@ function assertIllegalCustomRaiseAmountMarksInvalid(runtime, illegalAmount, mess
     `${message} should mark illegal custom raise amount ${illegalAmount} with an invalid/illegal/error class or state`,
   );
 }
+function customAmountControlParts(runtime) {
+  const root = actionNonButtonDescendants(runtime).find((panel) => hasClass(panel, 'PokerCustomBetControls')) || null;
+  const descendants = allDescendants(root, []);
+  return {
+    root,
+    input: descendants.find((panel) => panel.type === 'TextEntry') || null,
+    slider: descendants.find((panel) => panel.type === 'Slider') || null,
+    value: descendants.find((panel) => hasClass(panel, 'PokerCustomBetValue')) || null,
+    range: descendants.find((panel) => hasClass(panel, 'PokerCustomBetRange')) || null,
+  };
+}
 
 function summarizeDomWrites(writes) {
   const summary = {
@@ -2667,6 +2678,174 @@ if (hooks) {
       }
     }
 
+  }
+
+  const overStackBoundaryRuntime = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'action-over-stack-boundary');
+  if (overStackBoundaryRuntime.hooks && overStackBoundaryRuntime.game) {
+    const overStackHooks = overStackBoundaryRuntime.hooks;
+    const overStackRuntime = overStackBoundaryRuntime.runtime;
+    const overStackGame = overStackBoundaryRuntime.game;
+    const overStackActor = currentPlayer(overStackGame);
+    overStackHooks.state.localPlayerKey = overStackActor.key;
+    overStackRuntime.config.PokerLocalPlayerKey = overStackActor.key;
+    overStackRuntime.config.PokerLocalPlayerName = overStackActor.name;
+    const overStackChatTarget = findPanel(overStackRuntime, 'ChatTargetLabel');
+    if (overStackChatTarget) overStackChatTarget.text = 'TEAM';
+    overStackHooks.modules.TableRenderer.renderGame();
+
+    const raiseControls = customAmountControlParts(overStackRuntime);
+    const raiseButton = renderedActionButtons(overStackRuntime).find((button) => actionButtonSemantic(button.label) === 'RAISE');
+    const raiseMax = raiseControls.slider ? Number(raiseControls.slider.max) : 0;
+    assert(raiseControls.root && raiseControls.input && raiseControls.slider, 'over-stack raise fixture should render a non-button amount control and slider');
+    assert(raiseButton && typeof raiseButton.panel.onactivate === 'function', 'over-stack raise fixture should render an activatable RAISE button');
+    if (raiseControls.input && raiseButton) {
+      raiseControls.input.text = String(raiseMax + 100);
+      invokePanelEvent(raiseControls.input, 'ontextentrychange');
+      const raiseDispatchStart = overStackRuntime.dispatches.length;
+      raiseButton.panel.onactivate();
+      drainScheduledCallbacks(overStackRuntime, 256);
+      assert(hasClass(raiseControls.root, 'Illegal'), 'over-stack raise amount should be visibly illegal');
+      assertEqual(submittedChatMessages(overStackRuntime, raiseDispatchStart).length, 0, 'over-stack raise amount should emit no chat command');
+    }
+
+    overStackActor.bet = 0;
+    overStackActor.stack = 250;
+    overStackGame.currentBet = 0;
+    overStackGame.minRaise = 200;
+    overStackHooks.modules.TableRenderer.renderGame();
+    const betControls = customAmountControlParts(overStackRuntime);
+    const betButton = renderedActionButtons(overStackRuntime).find((button) => actionButtonSemantic(button.label) === 'BET');
+    const betMax = betControls.slider ? Number(betControls.slider.max) : 0;
+    assert(betControls.root && betControls.input && betControls.slider, 'over-stack opening-bet fixture should render a non-button amount control and slider');
+    assert(betButton && typeof betButton.panel.onactivate === 'function', 'over-stack opening-bet fixture should render an activatable BET button');
+    if (betControls.input && betButton) {
+      betControls.input.text = String(betMax + 100);
+      invokePanelEvent(betControls.input, 'ontextentrychange');
+      const betDispatchStart = overStackRuntime.dispatches.length;
+      betButton.panel.onactivate();
+      drainScheduledCallbacks(overStackRuntime, 256);
+      assert(hasClass(betControls.root, 'Illegal'), 'over-stack opening-bet amount should be visibly illegal');
+      assertEqual(submittedChatMessages(overStackRuntime, betDispatchStart).length, 0, 'over-stack opening-bet amount should emit no chat command');
+    }
+  }
+
+  const shortStackBoundaryRuntime = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'action-short-stack-boundary');
+  if (shortStackBoundaryRuntime.hooks && shortStackBoundaryRuntime.game) {
+    const shortStackHooks = shortStackBoundaryRuntime.hooks;
+    const shortStackRuntime = shortStackBoundaryRuntime.runtime;
+    const shortStackGame = shortStackBoundaryRuntime.game;
+    const shortStackActor = currentPlayer(shortStackGame);
+    shortStackActor.stack = 50;
+    shortStackHooks.state.localPlayerKey = shortStackActor.key;
+    shortStackRuntime.config.PokerLocalPlayerKey = shortStackActor.key;
+    shortStackRuntime.config.PokerLocalPlayerName = shortStackActor.name;
+    const shortStackChatTarget = findPanel(shortStackRuntime, 'ChatTargetLabel');
+    if (shortStackChatTarget) shortStackChatTarget.text = 'TEAM';
+    shortStackHooks.modules.TableRenderer.renderGame();
+    assertEqual(
+      JSON.stringify(renderedActionButtons(shortStackRuntime).map((button) => actionButtonSemantic(button.label))),
+      JSON.stringify(['CALL', 'FOLD']),
+      'short-stack below minimum raise should keep only call and fold actions',
+    );
+    assertEqual(customAmountControlParts(shortStackRuntime).root, null, 'short-stack below minimum raise should hide the custom raise control');
+    const callButton = renderedActionButtons(shortStackRuntime).find((button) => actionButtonSemantic(button.label) === 'CALL');
+    assert(callButton && typeof callButton.panel.onactivate === 'function', 'short-stack below minimum raise should keep an activatable CALL button');
+    if (callButton) {
+      const callDispatchStart = shortStackRuntime.dispatches.length;
+      callButton.panel.onactivate();
+      drainScheduledCallbacks(shortStackRuntime, 256);
+      assertEqual(submittedChatMessages(shortStackRuntime, callDispatchStart).join('|'), 'call', 'short-stack below minimum raise should submit call rather than raise');
+    }
+    shortStackHooks.processChatRecord({ sender: shortStackActor.name, message: 'call', isSelf: true });
+    assertEqual(shortStackActor.stack, 0, 'short-stack call should commit the remaining stack as an all-in call');
+    assertEqual(shortStackActor.bet, 50, 'short-stack all-in call should record the committed partial street bet');
+    assertEqual(shortStackActor.committed, 50, 'short-stack all-in call should preserve committed bankroll accounting');
+    assertEqual(shortStackActor.acted, true, 'short-stack all-in call should mark the actor acted');
+  }
+
+  const actionRangeResetRuntime = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'action-range-reset-boundary');
+  if (actionRangeResetRuntime.hooks && actionRangeResetRuntime.game) {
+    const actionRangeHooks = actionRangeResetRuntime.hooks;
+    const actionRangeRuntime = actionRangeResetRuntime.runtime;
+    const actionRangeGame = actionRangeResetRuntime.game;
+    const actionRangeActor = currentPlayer(actionRangeGame);
+    actionRangeHooks.state.localPlayerKey = actionRangeActor.key;
+    actionRangeRuntime.config.PokerLocalPlayerKey = actionRangeActor.key;
+    actionRangeRuntime.config.PokerLocalPlayerName = actionRangeActor.name;
+    actionRangeHooks.modules.TableRenderer.renderGame();
+    const raiseRangeControls = customAmountControlParts(actionRangeRuntime);
+    assertEqual(raiseRangeControls.range && raiseRangeControls.range.text, 'MIN $400  MAX $10000', 'raise range fixture should expose the initial raise min/max');
+    if (raiseRangeControls.input) {
+      raiseRangeControls.input.text = '800';
+      invokePanelEvent(raiseRangeControls.input, 'ontextentrychange');
+    }
+
+    actionRangeActor.bet = 0;
+    actionRangeActor.stack = 250;
+    actionRangeGame.currentBet = 0;
+    actionRangeGame.minRaise = 200;
+    actionRangeHooks.modules.TableRenderer.renderGame();
+    const betRangeControls = customAmountControlParts(actionRangeRuntime);
+    const betRangeButtons = renderedActionButtons(actionRangeRuntime).map((button) => actionButtonSemantic(button.label));
+    assertEqual(JSON.stringify(betRangeButtons), JSON.stringify(['CHECK', 'BET', 'FOLD']), 'range change fixture should expose opening CHECK, BET, FOLD actions');
+    assertEqual(betRangeControls.value && betRangeControls.value.text, 'BET $250', 'range change fixture should reset the stale raise amount to a legal opening-bet amount');
+    assertEqual(betRangeControls.range && betRangeControls.range.text, 'MIN $200  MAX $250', 'range change fixture should replace stale min/max text with opening-bet bounds');
+    assertEqual(betRangeControls.slider && betRangeControls.slider.min, 200, 'range change fixture should reset slider minimum for opening bet');
+    assertEqual(betRangeControls.slider && betRangeControls.slider.max, 250, 'range change fixture should reset slider maximum for opening bet');
+    assertEqual(betRangeControls.input && betRangeControls.input.text, '250', 'range change fixture should replace stale input amount with the clamped opening amount');
+  }
+
+  const liveAmountPersistenceRuntime = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'action-live-amount-persistence');
+  if (liveAmountPersistenceRuntime.hooks && liveAmountPersistenceRuntime.game) {
+    const liveAmountHooks = liveAmountPersistenceRuntime.hooks;
+    const liveAmountRuntime = liveAmountPersistenceRuntime.runtime;
+    const liveAmountGame = liveAmountPersistenceRuntime.game;
+    const liveAmountActor = currentPlayer(liveAmountGame);
+    liveAmountHooks.state.localPlayerKey = liveAmountActor.key;
+    liveAmountRuntime.config.PokerLocalPlayerKey = liveAmountActor.key;
+    liveAmountRuntime.config.PokerLocalPlayerName = liveAmountActor.name;
+    const liveAmountChatTarget = findPanel(liveAmountRuntime, 'ChatTargetLabel');
+    if (liveAmountChatTarget) liveAmountChatTarget.text = 'TEAM';
+    liveAmountHooks.modules.TableRenderer.renderGame();
+    const liveControls = customAmountControlParts(liveAmountRuntime);
+    const liveAmount = Number(liveControls.slider && liveControls.slider.min) + Number(liveControls.slider && liveControls.slider.increment) * 2;
+    assert(liveControls.input && liveControls.slider && liveControls.value, 'live amount fixture should render input, slider, and value controls');
+    if (liveControls.input && liveControls.slider && liveControls.value) {
+      let sliderEvents = 0;
+      const originalSliderHandler = liveControls.slider.onvaluechanged;
+      liveControls.slider.onvaluechanged = function onLiveSliderChanged() {
+        sliderEvents += 1;
+        return originalSliderHandler.apply(this, arguments);
+      };
+      liveControls.slider.value = liveAmount;
+      invokePanelEvent(liveControls.slider, 'onvaluechanged');
+      liveControls.input.text = String(liveAmount);
+      invokePanelEvent(liveControls.input, 'ontextentrychange');
+      assertEqual(liveControls.input.text, String(liveAmount), 'live amount update should persist the selected manual amount in the input');
+      assertEqual(liveControls.slider.value, liveAmount, 'live amount update should persist the selected amount on the slider');
+      assertEqual(liveControls.value.text, `RAISE TO $${liveAmount}`, 'live amount update should expose the selected amount in the value label');
+
+      clearDomWrites(liveAmountRuntime);
+      liveAmountHooks.modules.TableRenderer.renderGame();
+      const noOpWrites = takeDomWrites(liveAmountRuntime).filter(
+        (write) => write.id === liveControls.input.id || write.id === liveControls.slider.id || write.id === liveControls.value.id,
+      );
+      assertEqual(noOpWrites.length, 0, 'no-op action render should not rewrite the selected amount controls');
+      assertEqual(sliderEvents, 1, 'no-op action render should not trigger a competing slider change loop');
+
+      const liveRaiseButton = renderedActionButtons(liveAmountRuntime).find((button) => actionButtonSemantic(button.label) === 'RAISE');
+      assert(liveRaiseButton && typeof liveRaiseButton.panel.onactivate === 'function', 'live amount fixture should keep an activatable RAISE button');
+      if (liveRaiseButton) {
+        const liveDispatchStart = liveAmountRuntime.dispatches.length;
+        liveRaiseButton.panel.onactivate();
+        drainScheduledCallbacks(liveAmountRuntime, 256);
+        assertEqual(
+          submittedChatMessages(liveAmountRuntime, liveDispatchStart).join('|'),
+          `raise $${liveAmount}`,
+          'live amount fixture should submit the selected legal amount through chat',
+        );
+      }
+    }
   }
 
   const syncedRoster = [
