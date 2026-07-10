@@ -993,7 +993,7 @@
     return State.party;
   }
 
-  function recordPartyLeader(record, partyId) {
+  function applyPartyLeaderTransition(record, partyId) {
     const party = ensureParty();
     if (State.game && State.game.active) {
       const pendingKey = record && !record.isSelf && !isUnknownSender(record.sender)
@@ -1007,9 +1007,16 @@
       }
       return false;
     }
-    if (record && record.isSelf && party.mode === "leader" && isUnknownSender(record.sender)) {
-      savePartyState();
-      return false;
+    if (record && record.isSelf && party.mode === "leader" && isUnknownSender(record.sender)) return false;
+    if (record && record.isSelf && isUnknownSender(record.sender)) {
+      if (party.mode === "leader" && party.id === partyId) return false;
+      party.id = partyId || party.id;
+      party.mode = "leader";
+      party.leaderKey = "";
+      party.leaderName = "";
+      party.members = {};
+      party.order = [];
+      return true;
     }
     if (party.mode === "leader" && party.id && partyId && party.id !== partyId && record && !record.isSelf) {
       log("ignored foreign party leader " + partyId + " while hosting " + party.id);
@@ -1022,11 +1029,11 @@
       party.leaderName = "";
       party.members = {};
       party.order = [];
-      savePartyState();
       return true;
     }
     if (!record || isUnknownSender(record.sender)) return false;
     const key = normalizePlayerKey(record.sender);
+    if (!key) return false;
     party.id = partyId || party.id;
     party.mode = record.isSelf ? "leader" : "none";
     party.leaderKey = key;
@@ -1035,25 +1042,30 @@
     party.members[key] = { key: key, name: record.sender };
     party.order = [key];
     if (record.isSelf) rememberLocalPlayer(record.sender);
-    savePartyState();
     return true;
   }
 
-  function recordPartyJoin(record, partyId) {
+  function applyPartyJoinTransition(record, partyId) {
     const party = ensureParty();
     if (!party.id || party.id !== partyId) return false;
-    if (!record || isUnknownSender(record.sender)) return false;
+    if (!record || isUnknownSender(record.sender)) {
+      if (record && record.isSelf) {
+        party.mode = "member";
+        return true;
+      }
+      return false;
+    }
     const key = normalizePlayerKey(record.sender);
+    if (!key) return false;
     if (!party.members[key]) party.order.push(key);
     party.members[key] = { key: key, name: record.sender };
     if (record.isSelf) {
       party.mode = "member";
       rememberLocalPlayer(record.sender);
     }
-    savePartyState();
-    shareImportedProgressFromHostedLeader("party-join-import");
     return true;
   }
+
 
   function forgetReadySeat(key) {
     const normalized = normalizePlayerKey(key);
@@ -1116,49 +1128,47 @@
     leaderOrSelfLeave: "leader-or-self-leave",
     endMatch: "end-match",
     leaveLobby: "leave-lobby",
+    hostClose: "host-close",
   };
 
-  function resetPokerSessionForLobby(reason, resetCase) {
-    switch (resetCase) {
-      case LOBBY_RESET_CASES.remoteMatchEnd:
-      case LOBBY_RESET_CASES.endMatch:
-        State.game = null;
-        PendingSelfAction.clear();
-        clearResumeState(reason);
-        State.requiresProgressImport = false;
-        return true;
-      case LOBBY_RESET_CASES.snapshotMatchEnd:
-        State.game = null;
-        State.pendingLeaderLeaveAfterMatchEnd = null;
-        State.party = defaultPartyState();
-        PendingSelfAction.clear();
-        clearResumeState(reason);
-        State.requiresProgressImport = false;
-        return true;
-      case LOBBY_RESET_CASES.twoPlayerActiveLeave:
-      case LOBBY_RESET_CASES.leaderOrSelfLeave:
-        State.party = defaultPartyState();
-        State.game = null;
-        State.bankrolls = {};
-        PendingSelfAction.clear();
-        clearResumeState(reason);
-        State.requiresProgressImport = false;
-        State.resumeRequiresHostedParty = true;
-        State.pendingPartyLeader = null;
-        State.pendingLeaderLeaveAfterMatchEnd = null;
-        return true;
-      case LOBBY_RESET_CASES.leaveLobby:
-        State.party = defaultPartyState();
-        State.game = null;
-        PendingSelfAction.clear();
-        clearResumeState(reason);
-        State.requiresProgressImport = false;
-        State.resumeRequiresHostedParty = true;
-        State.pendingLeaderLeaveAfterMatchEnd = null;
-        return true;
-      default:
-        return false;
+  function resetPartyState(resetCase, reason) {
+    if (resetCase === LOBBY_RESET_CASES.hostClose) {
+      State.party = defaultPartyState();
+      return;
     }
+    if (resetCase === LOBBY_RESET_CASES.remoteMatchEnd || resetCase === LOBBY_RESET_CASES.endMatch) {
+      State.game = null;
+      return;
+    }
+    if (resetCase === LOBBY_RESET_CASES.snapshotMatchEnd) {
+      State.game = null;
+      State.pendingLeaderLeaveAfterMatchEnd = null;
+      State.party = defaultPartyState();
+      return;
+    }
+    if (resetCase === LOBBY_RESET_CASES.twoPlayerActiveLeave || resetCase === LOBBY_RESET_CASES.leaderOrSelfLeave) {
+      State.party = defaultPartyState();
+      State.game = null;
+      State.bankrolls = {};
+      State.resumeRequiresHostedParty = true;
+      State.pendingPartyLeader = null;
+      State.pendingLeaderLeaveAfterMatchEnd = null;
+      return;
+    }
+    if (resetCase === LOBBY_RESET_CASES.leaveLobby) {
+      State.party = defaultPartyState();
+      State.game = null;
+      State.resumeRequiresHostedParty = true;
+      State.pendingLeaderLeaveAfterMatchEnd = null;
+    }
+  }
+
+  function resetPokerSessionForLobby(reason, resetCase) {
+    PartyReducer.reset(resetCase, reason);
+    PendingSelfAction.clear();
+    clearResumeState(reason);
+    State.requiresProgressImport = false;
+    return true;
   }
 
 
@@ -1172,23 +1182,6 @@
     return -1;
   }
 
-  function shouldResetActiveHandForLeave(key) {
-    const game = State.game;
-    return !!(game && game.active && game.players && game.players.length <= 2 && findGamePlayerIndexByKey(key) >= 0);
-  }
-
-  function shouldContinueActiveHandForRemoteLeave(record, key) {
-    const game = State.game;
-    return !!(record && !record.isSelf && game && game.active && game.players && game.players.length > 2 && findGamePlayerIndexByKey(key) >= 0);
-  }
-
-  function resetLobbyForActiveLeave(label) {
-    const name = label || "Player";
-    addGameLog(name + " left the lobby. Returning to poker lobby.");
-    announce(name + " left", "Only two players were seated, so the hand was reset.");
-    resetPokerSessionForLobby("two player leave", LOBBY_RESET_CASES.twoPlayerActiveLeave);
-    return true;
-  }
 
   function promotePartyLeaderAfterLeave(leavingKey) {
     const party = ensureParty();
@@ -1247,43 +1240,7 @@
     return true;
   }
 
-  function removePartyMember(party, key) {
-    const normalized = normalizePlayerKey(key);
-    if (!party || !normalized) return false;
-    let changed = false;
-    if (party.members && party.members[normalized]) {
-      delete party.members[normalized];
-      changed = true;
-    }
-    const nextOrder = [];
-    const order = party.order || [];
-    for (let i = 0; i < order.length; i += 1) {
-      const orderedKey = normalizePlayerKey(order[i]);
-      if (orderedKey && orderedKey !== normalized) nextOrder.push(orderedKey);
-    }
-    if (nextOrder.length !== order.length) changed = true;
-    party.order = nextOrder;
-    return changed;
-  }
 
-  function getPartyLeaveDecision(record, party, key) {
-    const resetForTwoPlayerActiveLeave = shouldResetActiveHandForLeave(key);
-    const continueActiveLeave = shouldContinueActiveHandForRemoteLeave(record, key);
-    const leaderLeaving = party.leaderKey === key;
-    const remainingMemberCount = party.order.length;
-    const transferLeader = leaderLeaving && !record.isSelf && !continueActiveLeave && !resetForTwoPlayerActiveLeave && remainingMemberCount > 1;
-    const resetLobby = resetForTwoPlayerActiveLeave || record.isSelf || (leaderLeaving && !transferLeader && !continueActiveLeave);
-    const readyReason = resetForTwoPlayerActiveLeave ? "two player leave" : (record.isSelf ? "self leave" : "leader leave");
-    return {
-      resetForTwoPlayerActiveLeave: resetForTwoPlayerActiveLeave,
-      continueActiveLeave: continueActiveLeave,
-      leaderLeaving: leaderLeaving,
-      remainingMemberCount: remainingMemberCount,
-      transferLeader: transferLeader,
-      resetLobby: resetLobby,
-      readyReason: readyReason,
-    };
-  }
   function recordPartyLeave(record, partyId) {
     const party = ensureParty();
     if (!party.id || !samePartyId(party.id, partyId)) return false;
@@ -1292,77 +1249,103 @@
     const key = normalizePlayerKey(record.sender);
     const name = record.sender;
     if (!key || !party.members[key]) return false;
-    let changed = removePartyMember(party, key);
-    const decision = getPartyLeaveDecision(record, party, key);
-    const readyLeaveChanged = decision.resetLobby
-      ? clearReadySeats(decision.readyReason)
+    const game = State.game;
+    const resetForTwoPlayerActiveLeave = !!(game && game.active && game.players && game.players.length <= 2 && findGamePlayerIndexByKey(key) >= 0);
+    const continueActiveLeave = !!(record && !record.isSelf && game && game.active && game.players && game.players.length > 2 && findGamePlayerIndexByKey(key) >= 0);
+    const hadMember = !!(party.members && party.members[key]);
+    if (hadMember) delete party.members[key];
+    const memberIndex = (party.order || []).indexOf(key);
+    if (memberIndex >= 0) party.order.splice(memberIndex, 1);
+    let changed = hadMember || memberIndex >= 0;
+    const leaderLeaving = party.leaderKey === key;
+    const transferLeader = leaderLeaving && !record.isSelf && !continueActiveLeave && !resetForTwoPlayerActiveLeave && party.order.length > 1;
+    const resetLobby = resetForTwoPlayerActiveLeave || record.isSelf || (leaderLeaving && !transferLeader && !continueActiveLeave);
+    const readyReason = resetForTwoPlayerActiveLeave ? "two player leave" : (record.isSelf ? "self leave" : "leader leave");
+    const readyLeaveChanged = resetLobby
+      ? clearReadySeats(readyReason)
       : (record.isSelf ? clearReadySeats("self leave") : forgetReadySeat(key));
-    if (decision.resetLobby) {
+    if (resetLobby) {
       const pendingLeader = State.pendingPartyLeader && State.pendingPartyLeader.key === key
         ? State.pendingPartyLeader
         : null;
-      if (decision.resetForTwoPlayerActiveLeave) {
-        changed = resetLobbyForActiveLeave(name) || changed;
+      if (resetForTwoPlayerActiveLeave) {
+        addGameLog(name + " left the lobby. Returning to poker lobby.");
+        announce(name + " left", "Only two players were seated, so the hand was reset.");
+        resetPokerSessionForLobby("two player leave", LOBBY_RESET_CASES.twoPlayerActiveLeave);
+        changed = true;
       } else {
         resetPokerSessionForLobby(record.isSelf ? "self leave" : "leader leave", LOBBY_RESET_CASES.leaderOrSelfLeave);
       }
-      if (pendingLeader && !decision.resetForTwoPlayerActiveLeave) {
-        changed = recordPartyLeader({ sender: pendingLeader.sender, isSelf: false }, pendingLeader.id) || changed;
+      if (pendingLeader && !resetForTwoPlayerActiveLeave) {
+        changed = applyPartyLeaderTransition({ sender: pendingLeader.sender, isSelf: false }, pendingLeader.id) || changed;
       }
       changed = readyLeaveChanged || changed;
     } else {
       changed = readyLeaveChanged || changed;
       changed = removeGamePlayerForLeave(key, name) || changed;
-      if ((decision.continueActiveLeave || decision.transferLeader) && decision.leaderLeaving) changed = promotePartyLeaderAfterLeave(key) || changed;
+      if ((continueActiveLeave || transferLeader) && leaderLeaving) changed = promotePartyLeaderAfterLeave(key) || changed;
     }
     State.pendingLeaderLeaveAfterMatchEnd = null;
-    savePartyState();
     return changed;
   }
-
-  function applyPartyEvent(party, event, context) {
-    const before = JSON.stringify(party || ensureParty());
-    const record = event && event.record ? event.record : null;
-    const partyId = event && event.partyId ? event.partyId : "";
-    let changed = false;
-    if (event && event.type === "leader") changed = recordPartyLeader(record, partyId);
-    else if (event && event.type === "join") changed = recordPartyJoin(record, partyId);
-    else if (event && event.type === "leave") changed = recordPartyLeave(record, partyId);
-    const nextParty = ensureParty();
+  function makePartyResult(changed, readyAction, resetCase, gameDeparture, status, render) {
     return {
-      changed: changed || before !== JSON.stringify(nextParty),
-      party: nextParty,
-      readyAction: { type: "none" },
-      gameAction: { type: "none" },
-      resumeAction: { type: "none" },
-      bankrollAction: { type: "none" },
-      pendingPartyLeader: State.pendingPartyLeader || null,
-      progressShareReason: event && event.type === "join" ? "party-join-import" : "",
-      status: "",
-      render: !!changed,
+      changed: !!changed,
+      readyAction: readyAction || { type: "none" },
+      resetCase: resetCase || "",
+      gameDeparture: gameDeparture || null,
+      status: status || "",
+      render: render == null ? !!changed : !!render,
     };
   }
 
-  function projectPartyRoster(party) {
-    const source = party || ensureParty();
+  function applyPartyTransition(command) {
+    const event = command || {};
+    const type = event.type === "party-leader" ? "leader"
+      : (event.type === "party-join" ? "join" : event.type);
+    const record = event.record || null;
+    const partyId = event.partyId || "";
+    const party = ensureParty();
+    const beforeId = party.id || "";
+    const beforeMode = party.mode || "none";
+    let changed = false;
+    if (type === "leader") changed = applyPartyLeaderTransition(record, partyId);
+    else if (type === "join") changed = applyPartyJoinTransition(record, partyId);
+    else if (type === "leave") changed = recordPartyLeave(record, partyId);
+    if (!changed) return makePartyResult(false, { type: "none" }, "", null, "", false);
+    let readyAction = { type: "none" };
+    let status = "";
+    if (type === "leader" && (beforeId !== partyId || beforeMode !== "leader")) {
+      readyAction = { type: "clear", reason: "party leader" };
+    }
+    if (type === "join") {
+      readyAction.progressShareReason = "party-join-import";
+      if (State.game && State.game.active && record && !Object.prototype.hasOwnProperty.call(State.bankrolls, normalizePlayerKey(record.sender))) {
+        status = String(record.sender || "Player") + " will join after this hand.";
+      }
+    }
+    return makePartyResult(changed, readyAction, "", null, status, true);
+  }
+
+  function projectPartyRoster() {
+    const party = ensureParty();
     const roster = [];
-    const order = source.order || [];
+    const order = party.order || [];
     for (let i = 0; i < order.length; i += 1) {
       const key = normalizePlayerKey(order[i]);
-      const member = source.members && source.members[key];
-      if (member && member.key && member.name && !isUnknownSender(member.name)) roster.push({ key: member.key, name: member.name });
+      const member = party.members && party.members[key];
+      if (member && member.key && member.name && !isUnknownSender(member.name)) {
+        roster.push({ key: member.key, name: member.name });
+      }
     }
     return roster;
   }
 
   const PartyReducer = {
-    apply: applyPartyEvent,
-    projectRoster: projectPartyRoster,
+    apply: applyPartyTransition,
+    roster: projectPartyRoster,
+    reset: resetPartyState,
   };
-
-  function getPartyRoster() {
-    return PartyReducer.projectRoster(ensureParty());
-  }
 
   function resolveRosterNamesFromKnownParty(roster) {
     if (!roster || !roster.length) return roster || [];
@@ -1381,7 +1364,7 @@
   }
 
   function getQueuedLateJoiners(rosterOverride) {
-    const source = rosterOverride || getPartyRoster();
+    const source = rosterOverride || PartyReducer.roster();
     const queued = [];
     const hasBankrollState = Object.keys(State.bankrolls).length > 0;
     const activeGame = !!(State.game && State.game.active);
@@ -1742,7 +1725,7 @@
       readyCount: count || State.readyCountValue || getReadySeatArray().length,
       sync: StartSync.getProjection(),
       minReadyPlayers: MIN_READY_PLAYERS,
-      partyRoster: getPartyRoster(),
+      partyRoster: PartyReducer.roster(),
       resumeRoster: getResumeRoster(),
       localProgressEntry: getLocalProgressEntry(),
       remainingPlayersWithChips: remainingPlayersWithChips(),
@@ -1838,7 +1821,7 @@
     if (!findProgressRosterEntry(resume.payload, party.leaderKey) || getProgressBankroll(resume.payload, party.leaderKey) <= 0) {
       return makeGateDecision(false, false, "WAITING FOR MATCHING SAVE", "Party leader is not a funded player in this progress.");
     }
-    if (countSavedFundedPartyPlayers(resume, state.partyRoster || getPartyRoster()) < MIN_READY_PLAYERS) {
+    if (countSavedFundedPartyPlayers(resume, state.partyRoster || PartyReducer.roster()) < MIN_READY_PLAYERS) {
       return makeGateDecision(false, false, "WAITING FOR PARTY", "Need 2 hosted party players in this progress to start.");
     }
     if (isProgressShareInProgressForResume(resume)) {
@@ -2072,14 +2055,14 @@
     getStartGate: getPokerStartGate,
     getResumeGate: getPokerResumeGate,
   };
-
   function cancelHostedLobbyOnClose() {
     const party = ensureParty();
     if (!party.id || party.mode !== "leader") return;
     if (State.game && State.game.active) return;
-    sendChatMessage(PARTY_LEAVE_PREFIX + " poker party " + party.id, true, true);
+    const partyId = party.id;
+    sendChatMessage(PARTY_LEAVE_PREFIX + " poker party " + partyId, true, true);
     State.lastLobbyLeaveMs = Date.now();
-    State.party = defaultPartyState();
+    PartyReducer.reset(LOBBY_RESET_CASES.hostClose, "leader close");
     clearReadySeats("leader close");
     savePartyState();
     setStatus("Hosted Poker lobby closed.");
@@ -2863,19 +2846,14 @@
     const partyId = makePartyId(remembered || "leader");
     const sent = sendChatMessage(PARTY_LEADER_PREFIX + " poker party " + partyId, false, !!bypassHostThrottle);
     if (!sent) return;
-    State.party = defaultPartyState();
-    const party = ensureParty();
-    party.mode = "leader";
-    party.id = partyId;
-    if (remembered) {
-      const leaderKey = normalizePlayerKey(remembered);
-      party.leaderKey = leaderKey;
-      party.leaderName = remembered;
-      party.members[leaderKey] = { key: leaderKey, name: remembered };
-      party.order = [leaderKey];
-      rememberLocalPlayer(remembered);
-    }
-    clearReadySeats("host");
+    const leaderResult = PartyReducer.apply({
+      type: "leader",
+      partyId: partyId,
+      record: { sender: remembered || "<unknown>", isSelf: true },
+    });
+    if (!leaderResult.changed) return;
+    const leaderReadyAction = leaderResult.readyAction || {};
+    if (leaderReadyAction.type === "clear") clearReadySeats(leaderReadyAction.reason || "host");
     savePartyState();
     RenderScheduler.immediate("party-leader");
     setStatus("Sent [party leader]. Wait for joiners, then start the synced hand.");
@@ -2898,11 +2876,19 @@
     clearResumeState("join party");
     State.requiresProgressImport = false;
     State.resumeRequiresHostedParty = false;
-    party.mode = "member";
+    const joinResult = PartyReducer.apply({
+      type: "join",
+      partyId: party.id,
+      record: { sender: getRememberedLocalPlayerName() || State.localPlayerKey || "<unknown>", isSelf: true },
+    });
+    if (!joinResult.changed) return;
+    const joinReadyAction = joinResult.readyAction || {};
+    if (joinReadyAction.type === "clear") clearReadySeats(joinReadyAction.reason || "join");
     savePartyState();
+    if (joinReadyAction.progressShareReason) shareImportedProgressFromHostedLeader(joinReadyAction.progressShareReason);
     RenderScheduler.immediate("party-join");
     sendChatMessage(PARTY_JOIN_PREFIX + " poker party " + party.id);
-    if (activeGame) setStatus("Joined waitlist. You will be seated after this hand.");
+    if (joinResult.status || activeGame) setStatus(joinResult.status || "Joined waitlist. You will be seated after this hand.");
   }
 
   function copyToClipboard(value, panel) {
@@ -3685,7 +3671,7 @@
       return;
     }
     const party = ensureParty();
-    const roster = getPartyRoster();
+    const roster = PartyReducer.roster();
     const seed = "s" + Date.now().toString(36);
     sendChatMessage(buildSynchronizedStartCommand(seed, roster, getNextHandNumber()));
   }
@@ -4447,14 +4433,23 @@
       debugActionState("reject-unknown-party-authority", resolvedRecord, null);
       return rejectedCommandEffect("", "debug");
     }
-    const result = PartyReducer.apply(party, { type: partyType, record: resolvedRecord, partyId: command.partyId }, {});
-    if (partyType === "join" && result.changed && State.game && State.game.active) {
-      const joinedKey = normalizePlayerKey(resolvedRecord.sender);
-      if (!Object.prototype.hasOwnProperty.call(State.bankrolls, joinedKey)) {
-        return changedCommandEffect(resolvedRecord.sender + " will join after this hand.", "party", true);
-      }
+    const result = PartyReducer.apply({
+      type: partyType,
+      record: resolvedRecord,
+      partyId: command.partyId,
+    });
+    if (!result.changed) return consumedNoChangeEffect("party");
+    const readyAction = result.readyAction || {};
+    let readyChanged = false;
+    if (readyAction.type === "clear") {
+      clearReadySeats(readyAction.reason || "party");
+      readyChanged = true;
+    } else if (readyAction.type === "remove") {
+      readyChanged = forgetReadySeat(readyAction.key);
     }
-    return result.changed ? changedCommandEffect("", "party", true) : consumedNoChangeEffect("party");
+    if (result.changed) savePartyState();
+    if (readyAction.progressShareReason) shareImportedProgressFromHostedLeader(readyAction.progressShareReason);
+    return commandEffect(true, readyChanged, !!result.render, result.status || "", "party");
   }
 
   function applyMatchEndCommand(command, resolvedRecord) {
@@ -5857,7 +5852,7 @@
         evaluateHand: evaluateHand,
         compareHands: compareHands,
         createGameFromReady: createGameFromReady,
-        getPartyRoster: getPartyRoster,
+        getPartyRoster: PartyReducer.roster,
         encodeRoster: encodeRoster,
         decodeRoster: decodeRoster,
         buildSynchronizedStartCommand: buildSynchronizedStartCommand,
