@@ -321,7 +321,6 @@
   }
 
   const PokerMetrics = {
-    enabled: metricsEnabled,
     reset: resetMetrics,
     snapshot: getMetricsSnapshot,
     increment: incrementMetric,
@@ -1610,9 +1609,6 @@
     return true;
   }
 
-  function setReadyStatus(text) {
-    return setStatus(text, STATUS_PRIORITY.ready, 0);
-  }
 
   function setPanelClass(panel, className, enabled) {
     if (!isValid(panel)) return;
@@ -2215,20 +2211,13 @@
     renderStableCardContents(panel, card, false);
   }
 
-  function renderCardPanel(parent, card, small) {
-    return createCard(parent, card, small);
-  }
-
   const CardPresenter = {
-    render: renderCardPanel,
+    render: createCard,
     update: updateCardPanel,
-    imageSrc: getCardImageSrc,
-    displayRank: getCardDisplayRank,
-    suitGlyph: getSuitGlyph,
   };
 
-  function createReadySeatRow(parent, model) {
-    const row = createPanel("Panel", parent, "PokerSeat" + model.key, "PokerSeatRow");
+  function createSeatRow(parent, model) {
+    const row = createPanel("Panel", parent, (model.idPrefix || "PokerSeat") + model.key, "PokerSeatRow");
     return {
       row: row,
       number: createLabel(row, "PokerSeatNumber", ""),
@@ -2237,22 +2226,23 @@
     };
   }
 
-  function updateReadySeatRow(row, model) {
+  function updateSeatRow(row, model) {
     setPanelClass(row.row, "Empty", !!model.empty);
     setText(row.number, model.empty ? "" : model.number);
     setText(row.name, model.name);
     setText(row.meta, model.meta);
   }
 
-  function deleteReadySeatRow(row) {
+  function deleteSeatRow(row) {
     deletePanel(row && row.row);
   }
 
   function buildReadySeatModels(seats) {
     const rows = seats || [];
-    if (!rows.length) return [{ key: "empty", empty: true, name: "No ready players yet", meta: "Type ready in team or party chat to take a seat.", number: "" }];
+    if (!rows.length) return [{ key: "empty", idPrefix: "PokerSeat", empty: true, name: "No ready players yet", meta: "Type ready in team or party chat to take a seat.", number: "" }];
     return rows.map((seat, index) => ({
       key: normalizePlayerKey(seat && (seat.key || seat.name)) || ("seat" + index),
+      idPrefix: "PokerSeat",
       empty: false,
       number: String(index + 1),
       name: seat && seat.name ? seat.name : "Player",
@@ -2268,38 +2258,17 @@
       State.renderCache.readySeatRows,
       State.seatsList,
       buildReadySeatModels(seats),
-      createReadySeatRow,
-      updateReadySeatRow,
-      deleteReadySeatRow,
+      createSeatRow,
+      updateSeatRow,
+      deleteSeatRow,
     );
-  }
-
-  function createResumeLeaderRow(parent, model) {
-    const row = createPanel("Panel", parent, "PokerResumeSeat" + model.key, "PokerSeatRow");
-    return {
-      row: row,
-      number: createLabel(row, "PokerSeatNumber", ""),
-      name: createLabel(row, "PokerSeatName", ""),
-      meta: createLabel(row, "PokerSeatMeta", ""),
-    };
-  }
-
-  function updateResumeLeaderRow(row, model) {
-    setPanelClass(row.row, "Empty", !!model.empty);
-    setText(row.number, model.empty ? "" : model.number);
-    setText(row.name, model.name);
-    setText(row.meta, model.meta);
-  }
-
-  function deleteResumeLeaderRow(row) {
-    deletePanel(row && row.row);
   }
 
   function buildResumeLeaderModels(resume) {
     const state = resume || ensureResume();
     const payload = state && state.payload;
     if (!payload || !payload.roster || !payload.roster.length) {
-      return [{ key: "empty", empty: true, name: "No imported progress", meta: "Paste a POKERPROG1 code.", number: "" }];
+      return [{ key: "empty", idPrefix: "PokerResumeSeat", empty: true, name: "No imported progress", meta: "Paste a POKERPROG1 code.", number: "" }];
     }
     return payload.roster.map((entry, index) => {
       const key = normalizePlayerKey(entry && (entry.key || entry.name)) || ("resume" + index);
@@ -2307,6 +2276,7 @@
       const status = stack <= 0 ? "OUT" : (state.leaderKey === key ? "LEADER" : (state.ready && state.ready[key] ? "READY" : "WAITING"));
       return {
         key: key,
+        idPrefix: "PokerResumeSeat",
         empty: false,
         number: String(index + 1),
         name: entry && entry.name ? entry.name : key,
@@ -2315,6 +2285,7 @@
     });
   }
 
+
   function renderResumeLeaderRows() {
     if (!isValid(State.resumeLeaderList)) return;
     State.renderCache.resumeLeaderRows = State.renderCache.resumeLeaderRows || {};
@@ -2322,9 +2293,9 @@
       State.renderCache.resumeLeaderRows,
       State.resumeLeaderList,
       buildResumeLeaderModels(ensureResume()),
-      createResumeLeaderRow,
-      updateResumeLeaderRow,
-      deleteResumeLeaderRow,
+      createSeatRow,
+      updateSeatRow,
+      deleteSeatRow,
     );
   }
 
@@ -2370,7 +2341,7 @@
     if (!State.game) renderPlayers();
     updateStartButton(count);
     if (!State.game || !State.game.active) {
-      setReadyStatus(isStartEligible(count) ? "Ready to start with " + count + " players." : "Waiting for " + (MIN_READY_PLAYERS - count) + " more ready player" + (MIN_READY_PLAYERS - count === 1 ? "." : "s."));
+      setStatus(isStartEligible(count) ? "Ready to start with " + count + " players." : "Waiting for " + (MIN_READY_PLAYERS - count) + " more ready player" + (MIN_READY_PLAYERS - count === 1 ? "." : "s."), STATUS_PRIORITY.ready, 0);
     }
     log("render ready seats: " + count + " player(s), revision " + revision);
   }
@@ -2431,7 +2402,7 @@
       return;
     }
     if (event.event === CHAT_EVENT) {
-      processChatPayload(event);
+      CommandReducer.applyPayload(event);
       StartSync.afterSnapshotApplied();
     }
   }
@@ -2471,7 +2442,7 @@
       State.sync.reason = "";
     }
     updateReadySeats(true);
-    requestRender("snapshot-applied");
+    RenderScheduler.defer("snapshot-applied");
   }
 
   function openMenuSync() {
@@ -2567,7 +2538,7 @@
     if (share.submittedCount >= messageCount) {
       const readyAt = Date.now() + PROGRESS_SHARE_START_GRACE_MS;
       share.readyAt = readyAt;
-      $.Schedule(Math.max(0.1, (readyAt - Date.now()) / 1000), () => requestRender("progress-share-ready"));
+      $.Schedule(Math.max(0.1, (readyAt - Date.now()) / 1000), () => RenderScheduler.defer("progress-share-ready"));
     }
   }
 
@@ -2682,7 +2653,7 @@
     for (let i = 0; i < messages.length; i += 1) {
       $.Schedule(0.2 + i * PROGRESS_SHARE_SEND_INTERVAL, () => sendBackgroundChatMessage(messages[i]));
     }
-    $.Schedule(Math.max(0.1, (readyAt - Date.now()) / 1000), () => requestRender("progress-share-ready"));
+    $.Schedule(Math.max(0.1, (readyAt - Date.now()) / 1000), () => RenderScheduler.defer("progress-share-ready"));
     setStatus("Sharing progress " + id + " to party. Players will import it from chat.");
     log("sharing progress " + id + " chunks=" + chunks.length + (reason ? " reason=" + reason : ""));
     return true;
@@ -4022,9 +3993,6 @@
     };
   }
 
-  function engineActions(game, actorKey, localKey) {
-    return engineActionPolicy(game, actorKey, localKey);
-  }
 
   const ACTION_WIRE_TABLE = [
     { action: "check", pattern: /^check$/i },
@@ -4075,9 +4043,6 @@
     return parsed && !parsed.unsupported ? parsed : null;
   }
 
-  function applyEngine(game, action, actorKey, options) {
-    return engineApplyAction(game, action, actorKey, options);
-  }
 
   function departEngineGame(game, playerKey, context) {
     const key = normalizePlayerKey(playerKey);
@@ -4164,13 +4129,15 @@
 
   const PokerEngine = {
     create: createEngine,
-    decode: decodeActionWire,
     decodeAction: decodeActionWire,
-    actions: engineActions,
-    apply: applyEngine,
+    actions: engineActionPolicy,
+    apply: engineApplyAction,
     depart: departEngineGame,
     progress: progressEngine,
     evaluate: evaluateHand,
+    compare: compareHands,
+    pots: buildPots,
+    showdown: showdown,
   };
 
   function findGamePlayerByKey(key) {
@@ -4179,9 +4146,6 @@
     return null;
   }
 
-  function findGamePlayer(sender) {
-    return findGamePlayerByKey(normalizePlayerKey(sender));
-  }
 
   function clearPendingSelfAction() {
     try {
@@ -4561,7 +4525,7 @@
   }
 
   function applyUnsupportedAllInCommand(command, resolvedRecord) {
-    debugActionState("reject-unknown-action command=" + command.text, resolvedRecord, findGamePlayer(resolvedRecord.sender));
+    debugActionState("reject-unknown-action command=" + command.text, resolvedRecord, findGamePlayerByKey(normalizePlayerKey(resolvedRecord.sender)));
     return rejectedCommandEffect("", "debug");
   }
 
@@ -4572,7 +4536,7 @@
       return rejectedCommandEffect("", "debug");
     }
     const actionRecord = resolveUnknownActionRecord(resolvedRecord, text);
-    const player = findGamePlayer(actionRecord.sender);
+    const player = findGamePlayerByKey(normalizePlayerKey(actionRecord.sender));
     if (!player) {
       debugActionState("reject-unknown-sender command=" + text + " amount=" + command.amount + " toCall=0 minRaise=" + (State.game ? State.game.minRaise || getCurrentBigBlind(State.game) : BIG_BLIND) + " currentBet=" + (State.game ? State.game.currentBet : 0) + " playerBet=<none> playerStack=<none> playerCommitted=<none>", actionRecord, null);
       return rejectedCommandEffect("", "debug");
@@ -4632,9 +4596,6 @@
     return applyReducerEffect(CommandReducer.applyRecord(record), false);
   }
 
-  function processChatPayload(event) {
-    return CommandReducer.applyPayload(event);
-  }
   const COMMAND_DEFINITIONS = [
     { family: "party", type: "party-leader", prefix: "party leader poker party ", field: "partyId" },
     { family: "party", type: "party-join", prefix: "party join poker party ", field: "partyId" },
@@ -4811,7 +4772,6 @@
 
   const CommandReducer = {
     decode: decodePokerCommand,
-    apply: applyPokerCommand,
     applyRecord: applyChatRecord,
     applyPayload: applyChatPayload,
   };
@@ -5288,9 +5248,6 @@
     PokerMetrics.end("renderTableSeats", metricStarted);
   }
 
-  function getActionChoiceKey(choice) {
-    return (choice.command || "") + "|" + (choice.className || "PokerActionButton");
-  }
 
 
 
@@ -5689,20 +5646,11 @@
     if (shouldRunMenuWork()) render();
   }
 
-  function isRenderQueued() {
-    return !!State.renderCache.renderQueued;
-  }
 
   const RenderScheduler = {
     defer: deferRender,
     immediate: immediateRender,
-    flush: flushScheduledRender,
-    isQueued: isRenderQueued,
   };
-
-  function requestRender(reason) {
-    RenderScheduler.defer(reason);
-  }
 
   function bindButton(panel, handler) {
     if (!isValid(panel) || panel.__pokerMenuBound) return;
@@ -5722,12 +5670,6 @@
     }
   }
 
-  function getCachedPanel(stateKey) {
-    const key = String(stateKey || "");
-    if (!key || !Object.prototype.hasOwnProperty.call(State, key)) return null;
-    const panel = State[key];
-    return isValid(panel) ? panel : null;
-  }
 
   function resetRenderChildCache() {
     const cache = State.renderCache || {};
@@ -5757,9 +5699,7 @@
 
   const PanelCache = {
     refresh: cachePanels,
-    get: getCachedPanel,
     invalidate: invalidatePanelCache,
-    hasRequired: hasRequiredPanels,
   };
 
   function getCommandBindings() {
@@ -5861,20 +5801,12 @@
         handleReadyEvent: handleBridgeEvent,
         requestReadySnapshot: requestReadySnapshot,
         processChatRecord: processChatRecord,
-        evaluateHand: evaluateHand,
-        compareHands: compareHands,
         encodeRoster: encodeRoster,
         decodeRoster: decodeRoster,
         buildSynchronizedStartCommand: buildSynchronizedStartCommand,
         buildResumeLeaderCommand: buildResumeLeaderCommand,
         buildResumeReadyCommand: buildResumeReadyCommand,
         buildResumeStartCommand: buildResumeStartCommand,
-        resolveResumeNextDealerKey: resolveResumeNextDealerKey,
-        getCallAmount: getCallAmount,
-        getMinimumRaiseTo: getMinimumRaiseTo,
-        hasBettingRoundSettled: hasBettingRoundSettled,
-        buildPots: buildPots,
-        showdown: showdown,
         modules: {
           StartSync: StartSync,
           CommandReducer: CommandReducer,

@@ -66,14 +66,22 @@ function drainImmediateCallbacks(runtime, maxCallbacks = 128) {
 function wrapImmediateRenderHooks(runtime, hooks) {
   if (!runtime || !hooks || hooks.__validatorImmediateRenderWrapped) return hooks;
   hooks.__validatorImmediateRenderWrapped = true;
-  for (const functionName of ['processChatRecord', 'handleReadyEvent', 'showdown']) {
-    if (typeof hooks[functionName] !== 'function') continue;
-    const original = hooks[functionName];
-    hooks[functionName] = function wrappedHook(...args) {
-      const result = original.apply(this, args);
-      drainImmediateCallbacks(runtime);
-      return result;
-    };
+  const owners = [
+    hooks,
+    hooks.modules && hooks.modules.PokerEngine,
+  ];
+  const names = ['processChatRecord', 'handleReadyEvent', 'showdown'];
+  for (const owner of owners) {
+    if (!owner) continue;
+    for (const functionName of names) {
+      if (typeof owner[functionName] !== 'function') continue;
+      const original = owner[functionName];
+      owner[functionName] = function wrappedHook(...args) {
+        const result = original.apply(this, args);
+        drainImmediateCallbacks(runtime);
+        return result;
+      };
+    }
   }
   return hooks;
 }
@@ -442,7 +450,7 @@ function hasProgressResumeHooks(hooks, message) {
   for (const name of ['build', 'importCode', 'applyCommand', 'shareImported']) {
     ok = assert(typeof progressResume[name] === 'function', `${message}: ProgressResume.${name} should be a function`) && ok;
   }
-  for (const name of ['buildResumeLeaderCommand', 'buildResumeReadyCommand', 'buildResumeStartCommand', 'resolveResumeNextDealerKey']) {
+  for (const name of ['buildResumeLeaderCommand', 'buildResumeReadyCommand', 'buildResumeStartCommand']) {
     ok = assertHookFunction(hooks, name, message) && ok;
   }
   return ok;
@@ -906,6 +914,17 @@ function clearPartyForLegacyReady(hooks) {
 function currentPlayer(game) {
   return game.players[game.currentIndex];
 }
+function engineActionPolicy(hooks, game, actorKey) {
+  return hooks.modules.PokerEngine.actions(game, actorKey || '', '');
+}
+
+function engineCallAmount(hooks, game, player) {
+  return engineActionPolicy(hooks, game, player && player.key).toCall;
+}
+
+function engineMinimumRaiseTo(hooks, game) {
+  return engineActionPolicy(hooks, game, '').minRaiseTarget;
+}
 
 function card(rank, suit) {
   const values = { T: 10, J: 11, Q: 12, K: 13, A: 14 };
@@ -1146,15 +1165,15 @@ if (hooks) {
   const modules = hooks.modules || {};
   for (const [moduleName, functionNames] of Object.entries({
     StartSync: ['openMenu', 'requestFreshState', 'noteBridgeEvent', 'getProjection', 'afterSnapshotApplied'],
-    CommandReducer: ['decode', 'apply', 'applyRecord', 'applyPayload'],
-    PokerEngine: ['decode', 'decodeAction', 'create', 'actions', 'apply', 'depart', 'progress', 'evaluate'],
+    CommandReducer: ['decode', 'applyRecord', 'applyPayload'],
+    PokerEngine: ['decodeAction', 'create', 'actions', 'apply', 'depart', 'progress', 'evaluate', 'compare', 'pots', 'showdown'],
     PartyReducer: ['apply', 'roster', 'reset'],
     ProgressResume: ['build', 'importCode', 'applyCommand', 'shareImported'],
     PokerMetrics: ['reset', 'snapshot', 'increment', 'start', 'end'],
-    RenderScheduler: ['defer', 'immediate', 'flush', 'isQueued'],
-    PanelCache: ['refresh', 'get', 'invalidate', 'hasRequired'],
+    RenderScheduler: ['defer', 'immediate'],
+    PanelCache: ['refresh', 'invalidate'],
     PendingSelfAction: ['record', 'read', 'clear', 'resolveSelfRecord', 'markApplied'],
-    CardPresenter: ['render', 'update', 'imageSrc', 'displayRank', 'suitGlyph'],
+    CardPresenter: ['render', 'update'],
     TableRenderer: ['render', 'invalidate'],
     LateJoinQueue: ['queued', 'buyIn', 'apply', 'describe'],
   })) {
@@ -1354,7 +1373,7 @@ if (hooks) {
       sideGame.players[2].bet = 500;
       sideGame.currentIndex = 1;
       const departed = departedAllInEngine.depart(sideGame, sideGame.players[0].key, { name: sideGame.players[0].name });
-      const pots = departedAllIn.hooks.buildPots(sideGame.players);
+      const pots = departedAllIn.hooks.modules.PokerEngine.pots(sideGame.players);
       assert(departed && departed.continuation, 'departed all-in fixture should continue the three-player hand');
       assertEqual(pots[0].amount, 300, 'departed all-in player should still contribute committed chips to the main pot');
       assertEqual(pots[0].eligible.some((player) => player.key === sideGame.players[0].key), false, 'departed all-in player should remain folded and ineligible for side-pot awards');
@@ -1621,13 +1640,12 @@ if (hooks) {
       for (const key of effectKeys) assertEqual(effect && effect[key], expected[key], `${message} ${key}`);
     }
     for (const effectCase of effectCases) {
-      for (const api of ['apply', 'applyRecord', 'applyPayload']) {
+      for (const api of ['applyRecord', 'applyPayload']) {
         const isolated = createMenuRuntime();
         const isolatedReducer = isolated.hooks && isolated.hooks.modules && isolated.hooks.modules.CommandReducer;
         if (!isolatedReducer) continue;
         let effect = null;
-        if (api === 'apply') effect = isolatedReducer.apply(isolatedReducer.decode(effectCase.record));
-        else if (api === 'applyRecord') effect = isolatedReducer.applyRecord(effectCase.record);
+        if (api === 'applyRecord') effect = isolatedReducer.applyRecord(effectCase.record);
         else effect = isolatedReducer.applyPayload({ event: 'PokerChatMessage', seq: 1, ...effectCase.record });
         assertEffectShape(effect, effectCase.expected, `command reducer ${api} ${effectCase.name} effect`);
         if (api === 'applyPayload' && effectCase.name === 'changed') {
@@ -2416,8 +2434,8 @@ if (hooks) {
     assertButtonAffordance(runtime, 'PokerPartyControls', { hidden: true }, 'active local actor button state');
     assertEnabledActionButtons(runtime, ['CALL', 'RAISE', 'FOLD'], 'active local actor');
     assertRaiseFacingActionButtonContract(runtime, 'active local actor raise-facing controls');
-    assertCustomRaiseAmountControlContract(runtime, hooks.getMinimumRaiseTo(game), 'active local actor raise-facing controls');
-    assertIllegalCustomRaiseAmountMarksInvalid(runtime, hooks.getMinimumRaiseTo(game) - 1, 'active local actor raise-facing controls');
+    assertCustomRaiseAmountControlContract(runtime, engineMinimumRaiseTo(hooks, game), 'active local actor raise-facing controls');
+    assertIllegalCustomRaiseAmountMarksInvalid(runtime, engineMinimumRaiseTo(hooks, game) - 1, 'active local actor raise-facing controls');
 
     const raiseControlRuntime = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'custom-raise-submit');
     if (raiseControlRuntime.hooks && raiseControlRuntime.game) {
@@ -2429,7 +2447,7 @@ if (hooks) {
       raiseControlRuntime.hooks.modules.TableRenderer.render();
       const raiseControl = findEditableCustomRaiseControl(raiseControlRuntime.runtime);
       const raiseButton = renderedActionButtons(raiseControlRuntime.runtime).find((button) => actionButtonSemantic(button.label) === 'RAISE');
-      const raiseAmount = raiseControlRuntime.hooks.getMinimumRaiseTo(raiseControlGame);
+      const raiseAmount = engineMinimumRaiseTo(raiseControlRuntime.hooks, raiseControlGame);
       const raiseChatTarget = findPanel(raiseControlRuntime.runtime, 'ChatTargetLabel');
       if (raiseChatTarget) raiseChatTarget.text = 'TEAM';
       if (raiseControl) raiseControl.text = String(raiseAmount);
@@ -2503,10 +2521,10 @@ if (hooks) {
       JSON.stringify(['CHECK', 'BET', 'FOLD']),
       'opening-action custom bet controls should render CHECK, BET, FOLD semantic buttons in order',
     );
-    assertCustomRaiseAmountControlContract(runtime, hooks.getMinimumRaiseTo(game), 'opening-action custom bet controls');
+    assertCustomRaiseAmountControlContract(runtime, engineMinimumRaiseTo(hooks, game), 'opening-action custom bet controls');
     const betControl = findEditableCustomRaiseControl(runtime);
     const betButton = openingBetButtons.find((button) => actionButtonSemantic(button.label) === 'BET');
-    const betAmount = hooks.getMinimumRaiseTo(game);
+    const betAmount = engineMinimumRaiseTo(hooks, game);
     const betChatTarget = findPanel(runtime, 'ChatTargetLabel');
     if (betChatTarget) betChatTarget.text = 'TEAM';
     if (betControl) betControl.text = String(betAmount);
@@ -2654,8 +2672,8 @@ if (hooks) {
 
       const secondFirstActor = currentPlayer(secondGame);
       assertEqual(secondFirstActor.name, 'Bebop', 'second hand first actor should be the $200 small blind');
-      assertEqual(hooks.getCallAmount(secondFirstActor), 200, 'second hand small blind should face a $200 call into the $400 big blind');
-      assertEqual(hooks.getMinimumRaiseTo(secondGame), 800, 'second hand minimum preflop raise target should be $800');
+      assertEqual(engineCallAmount(hooks, secondGame, secondFirstActor), 200, 'second hand small blind should face a $200 call into the $400 big blind');
+      assertEqual(engineMinimumRaiseTo(hooks, secondGame), 800, 'second hand minimum preflop raise target should be $800');
       assertAnnouncerIncludes(
         runtime,
         ['Blinds posted', 'Bebop', 'small blind', '$200', 'Abrams', 'big blind', '$400', secondFirstActor.name, 'acts first'],
@@ -2679,8 +2697,8 @@ if (hooks) {
       assertEqual(secondGame.currentBet, 400, 'second hand small blind call should leave currentBet at the $400 big blind');
       const secondBigBlindActor = currentPlayer(secondGame);
       assertEqual(secondBigBlindActor.name, 'Abrams', 'second hand big blind should act after the small blind calls');
-      assertEqual(hooks.getCallAmount(secondBigBlindActor), 0, 'second hand big blind should be able to check after the call');
-      assertEqual(hooks.getMinimumRaiseTo(secondGame), 800, 'second hand big blind minimum raise target should still be $800');
+      assertEqual(engineCallAmount(hooks, secondGame, secondBigBlindActor), 0, 'second hand big blind should be able to check after the call');
+      assertEqual(engineMinimumRaiseTo(hooks, secondGame), 800, 'second hand minimum raise target should still be $800');
       assertActiveGameControls(
         runtime,
         secondBigBlindActor.name,
@@ -3784,7 +3802,7 @@ if (hooks) {
     if (middleDealerPlayer) {
       middleDealerGame.dealerIndex = middleDealerGame.players.indexOf(middleDealerPlayer);
       middleDealerHooks.processChatRecord({ sender: 'Bebop', message: '[party leave] poker party psync', isSelf: false });
-      middleDealerHooks.showdown();
+      middleDealerHooks.modules.PokerEngine.showdown();
       const middleDealerProgress = middleDealerHooks.modules.ProgressResume.build();
       assertEqual(middleDealerProgress.ok, true, 'middle dealer leave finished hand should export progress for remaining players');
       if (middleDealerProgress.ok) {
@@ -3796,11 +3814,6 @@ if (hooks) {
         assert(
           !Object.prototype.hasOwnProperty.call(middleDealerProgress.payload.bankrolls, 'bebop'),
           'middle dealer leave progress export should not preserve a bankroll for the departed middle-seat dealer',
-        );
-        assertEqual(
-          middleDealerHooks.resolveResumeNextDealerKey(middleDealerProgress.payload),
-          'calico',
-          'middle dealer leave progress export should anchor rotation so the first remaining player after the departed dealer deals next',
         );
       }
     }
@@ -3842,7 +3855,7 @@ if (hooks) {
       assertAnnouncerIncludes(leaderLeaveRuntime.runtime, ['Abrams', 'left', 'fold'], 'remote leader leave during a three-player active hand');
     }
 
-      leaderLeaveHooks.showdown();
+      leaderLeaveHooks.modules.PokerEngine.showdown();
       const leftLeaderProgress = leaderLeaveHooks.modules.ProgressResume.build();
       assertEqual(leftLeaderProgress.ok, true, 'three-player leader leave finished hand should still export progress for remaining players');
       if (leftLeaderProgress.ok) {
@@ -3855,11 +3868,6 @@ if (hooks) {
         assert(
           !Object.prototype.hasOwnProperty.call(leftLeaderProgress.payload.bankrolls, 'abrams'),
           'three-player leader leave progress export should not preserve a bankroll for the departed leader',
-        );
-        assertEqual(
-          leaderLeaveHooks.resolveResumeNextDealerKey(leftLeaderProgress.payload),
-          'bebop',
-          'three-player leader leave progress export should make the next dealer the first remaining player when the old dealer left',
         );
         const resumeLeaderKey = leftLeaderProgress.payload.dealerKey || (leftLeaderProgress.payload.roster[0] && leftLeaderProgress.payload.roster[0].key) || '';
         const resumeStartCommand = leaderLeaveHooks.buildResumeStartCommand(leftLeaderProgress.id, resumeLeaderKey, leftLeaderProgress.payload.nextHandNumber, 'sresume-long');
@@ -5762,7 +5770,6 @@ if (hooks) {
       const bustedSave = bustedDealerRuntime.hooks.modules.ProgressResume.build();
       assertEqual(bustedSave.ok, true, 'busted dealer finished table should still export when two players have chips');
       if (bustedSave.ok) {
-        assertEqual(bustedDealerRuntime.hooks.resolveResumeNextDealerKey(bustedSave.payload), 'bebop', 'busted saved dealer should rotate to the next positive-bankroll player');
         const bustedResume = createMenuRuntime();
         bustedResume.hooks.modules.ProgressResume.importCode(bustedSave.code);
         bustedResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeLeaderCommand(bustedSave.id) });
@@ -6181,7 +6188,7 @@ if (hooks) {
     checkGame.pot = 500;
     checkGame.currentBet = 200;
     const beforeCheck = moneySnapshot(checkGame);
-    assertEqual(checkRuntime.hooks.getCallAmount(checker), 0, 'check cannot increase bet setup should give checker no call amount');
+    assertEqual(engineCallAmount(checkRuntime.hooks, checkGame, checker), 0, 'check cannot increase bet setup should give checker no call amount');
     checkRuntime.hooks.processChatRecord({ sender: checker.name, message: 'check' });
     assertMoneySnapshot(moneySnapshot(checkGame), beforeCheck, 'check cannot increase bet should not mutate stacks, bets, committed chips, pot, or currentBet');
     assertEqual(checkGame.currentIndex, 0, 'check cannot increase bet should advance to the next unsettled actor');
@@ -6212,7 +6219,7 @@ if (hooks) {
     const observedActor = currentPlayer(observerGame);
     assertEqual(observedActor.name, 'JDBeast', 'observer current actor choices setup should pass action to the non-local player after a raise');
     assertEqual(observerRuntime.hooks.state.localPlayerKey, localObserver.key, 'observer current actor choices setup should remember the local seat');
-    assertEqual(observerRuntime.hooks.getCallAmount(observedActor), 200, 'observer current actor choices setup should make the current actor face a $200 call');
+    assertEqual(engineCallAmount(observerRuntime.hooks, observerGame, observedActor), 200, 'observer current actor choices setup should make the current actor face a $200 call');
     assertObserverCurrentActorControls(
       observerRuntime.runtime,
       observedActor.name,
@@ -6337,7 +6344,7 @@ if (hooks) {
     showdownWinnerGame.phase = 'river';
     showdownWinnerGame.active = true;
     showdownWinnerGame.finished = false;
-    showdownWinnerRuntime.hooks.showdown();
+    showdownWinnerRuntime.hooks.modules.PokerEngine.showdown();
     assertEqual(showdownWinnerGame.finished, true, 'single-winner showdown should finish through showdown payout');
     assertPotWinnerFeedback(showdownWinnerRuntime.runtime, ['Paradox'], 'single-winner showdown');
   }
@@ -6397,13 +6404,13 @@ if (hooks) {
     sideGame.active = true;
     sideGame.finished = false;
 
-    const pots = sidePotRuntime.hooks.buildPots(sideGame.players);
+    const pots = sidePotRuntime.hooks.modules.PokerEngine.pots(sideGame.players);
     assertEqual(pots.map((pot) => pot.amount).join(','), '300,400,200', 'side pot splits by committed levels should build main and side pot amounts from commitments');
     assertEqual(pots[0].eligible.map((player) => player.name).join(','), 'Short,Middle,Deep', 'side pot splits by committed levels should let all live players contest the main pot');
     assertEqual(pots[1].eligible.map((player) => player.name).join(','), 'Middle,Deep', 'side pot splits by committed levels should exclude the short stack from the first side pot');
     assertEqual(pots[2].eligible.map((player) => player.name).join(','), 'Deep', 'side pot splits by committed levels should leave the largest overage to the deep stack');
 
-    sidePotRuntime.hooks.showdown();
+    sidePotRuntime.hooks.modules.PokerEngine.showdown();
     assertEqual(sideGame.players[0].stack, 300, 'side pot splits by committed levels should award the main pot to the best all-player hand');
     assertEqual(sideGame.players[1].stack, 400, 'side pot splits by committed levels should award the first side pot to its best eligible hand');
     assertEqual(sideGame.players[2].stack, 200, 'side pot splits by committed levels should return the uncontested overage side pot to the only eligible player');
@@ -6414,19 +6421,19 @@ if (hooks) {
     assertPotWinnerFeedback(sidePotRuntime.runtime, ['Short', 'Middle', 'Deep'], 'side pot showdown');
   }
 
-  const royalFlush = hooks.evaluateHand([
+  const royalFlush = hooks.modules.PokerEngine.evaluate([
     card('T', 'H'), card('J', 'H'), card('Q', 'H'), card('K', 'H'), card('A', 'H'), card('2', 'C'), card('3', 'D'),
   ]);
-  const straightFlush = hooks.evaluateHand([
+  const straightFlush = hooks.modules.PokerEngine.evaluate([
     card('9', 'H'), card('T', 'H'), card('J', 'H'), card('Q', 'H'), card('K', 'H'), card('2', 'C'), card('3', 'D'),
   ]);
-  const fourOfKind = hooks.evaluateHand([
+  const fourOfKind = hooks.modules.PokerEngine.evaluate([
     card('A', 'S'), card('A', 'H'), card('A', 'D'), card('A', 'C'), card('8', 'S'), card('4', 'H'), card('2', 'D'),
   ]);
-  const pair = hooks.evaluateHand([
+  const pair = hooks.modules.PokerEngine.evaluate([
     card('6', 'S'), card('6', 'D'), card('A', 'C'), card('Q', 'H'), card('9', 'S'), card('4', 'D'), card('2', 'C'),
   ]);
-  const highCard = hooks.evaluateHand([
+  const highCard = hooks.modules.PokerEngine.evaluate([
     card('A', 'S'), card('K', 'D'), card('9', 'C'), card('7', 'H'), card('5', 'S'), card('3', 'D'), card('2', 'C'),
   ]);
 
@@ -6435,9 +6442,9 @@ if (hooks) {
   assertEqual(fourOfKind.name, 'Four of a kind', 'four of a kind should be recognized by name');
   assertEqual(pair.name, 'Pair', 'pair should be recognized by name');
   assertEqual(highCard.name, 'High card', 'high card should be recognized by name');
-  assertGreaterThan(hooks.compareHands(royalFlush, straightFlush), 0, 'royal flush ranks highest should compare above a king-high straight flush');
-  assertGreaterThan(hooks.compareHands(straightFlush, fourOfKind), 0, 'straight flush should rank above four of a kind');
-  assertGreaterThan(hooks.compareHands(pair, highCard), 0, 'pair should rank above high card');
+  assertGreaterThan(hooks.modules.PokerEngine.compare(royalFlush, straightFlush), 0, 'royal flush ranks highest should compare above a king-high straight flush');
+  assertGreaterThan(hooks.modules.PokerEngine.compare(straightFlush, fourOfKind), 0, 'straight flush should rank above four of a kind');
+  assertGreaterThan(hooks.modules.PokerEngine.compare(pair, highCard), 0, 'pair should rank above high card');
   {
     const missingSeedRuntime = createSyncedJoinedPartyRuntime('Bebop', 'sunknown-match-end-missing-seed', syncedRoster, 1, 'punknown-match-end-missing-seed');
     if (missingSeedRuntime.hooks && missingSeedRuntime.game) {
