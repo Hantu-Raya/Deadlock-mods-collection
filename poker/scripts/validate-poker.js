@@ -1185,6 +1185,17 @@ assertIncludes('menu script', menuScript, 'createCardFlipLayer(panel, previousCa
 for (const moduleName of ['StartSync', 'CommandReducer', 'PokerEngine', 'ProgressResume', 'PendingSelfAction', 'CardPresenter', 'TableRenderer', 'Affordance', 'PokerButtonState']) {
   assertIncludes('menu script', menuScript, `const ${moduleName}`, `must define ${moduleName} module seam`);
 }
+const tableRendererStart = menuScript.indexOf('const TableRenderer = {');
+const tableRendererEnd = menuScript.indexOf('};', tableRendererStart);
+const tableRendererBlock = tableRendererStart >= 0 && tableRendererEnd > tableRendererStart
+  ? menuScript.slice(tableRendererStart, tableRendererEnd)
+  : '';
+assert(tableRendererBlock, 'menu script must expose TableRenderer source object');
+assertIncludes('TableRenderer source object', tableRendererBlock, 'render: render', 'must expose the unified render method');
+assertIncludes('TableRenderer source object', tableRendererBlock, 'invalidate: invalidateRenderer', 'must expose the child-cache invalidation method');
+for (const removedRendererExport of ['renderGame:', 'renderCommunity:', 'renderPlayers:', 'renderTableSeats:', 'renderActions:', 'renderLog:']) {
+  assert(!tableRendererBlock.includes(removedRendererExport), `TableRenderer must remove legacy renderer export: ${removedRendererExport}`);
+}
 assertIncludes('script', script, 'const ChatBridgeIntake', 'must define ChatBridgeIntake module seam');
 assertIncludes('menu script', menuScript, 'const COMMAND_DEFINITIONS', 'must define command metadata table');
 for (const [family, minimumCount] of [['party', 3], ['match', 1], ['progress', 2], ['resume', 3], ['start', 1], ['ignored', 1]]) {

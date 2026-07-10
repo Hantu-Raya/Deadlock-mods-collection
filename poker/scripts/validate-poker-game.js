@@ -834,7 +834,7 @@ function assertStartButtonGate(runtime, expectedLabel, expectedEnabled, expected
   assertEqual(panelText(findPanel(runtime, 'PokerStartButtonLabel')), expectedLabel, `${message} start label`);
 }
 function renderedStartGateEnabled(bundle) {
-  if (bundle && bundle.hooks && bundle.hooks.modules && bundle.hooks.modules.TableRenderer) bundle.hooks.modules.TableRenderer.renderGame();
+  if (bundle && bundle.hooks && bundle.hooks.modules && bundle.hooks.modules.TableRenderer) bundle.hooks.modules.TableRenderer.render();
   const panel = findPanel(bundle.runtime, 'PokerStartButton');
   return !!(panel && !hasClass(panel, 'PokerHidden') && panel.hittest !== false);
 }
@@ -1155,7 +1155,7 @@ if (hooks) {
     PanelCache: ['refresh', 'get', 'invalidate', 'hasRequired'],
     PendingSelfAction: ['record', 'read', 'clear', 'resolveSelfRecord', 'markApplied'],
     CardPresenter: ['render', 'update', 'imageSrc', 'displayRank', 'suitGlyph'],
-    TableRenderer: ['renderGame', 'renderCommunity', 'renderPlayers', 'renderTableSeats', 'renderActions', 'renderLog'],
+    TableRenderer: ['render', 'invalidate'],
     LateJoinQueue: ['queued', 'buyIn', 'apply', 'describe'],
   })) {
     assert(modules[moduleName], `${moduleName} module should be exposed to behavior-level hooks`);
@@ -1369,7 +1369,7 @@ if (hooks) {
     assert(instrumentationModules && instrumentationModules.TableRenderer, 'instrumentation fixture should expose TableRenderer');
     if (instrumentationModules && instrumentationModules.PokerMetrics && instrumentationModules.RenderScheduler && instrumentationModules.TableRenderer) {
       instrumentationModules.PokerMetrics.reset();
-      instrumentationModules.TableRenderer.renderGame();
+      instrumentationModules.TableRenderer.render();
       let metrics = instrumentationModules.PokerMetrics.snapshot();
       assert(
         metrics && metrics.timings && metrics.timings.renderGame && metrics.timings.renderGame.count > 0,
@@ -1377,7 +1377,7 @@ if (hooks) {
       );
 
       clearDomWrites(instrumentation.runtime);
-      instrumentationModules.TableRenderer.renderGame();
+      instrumentationModules.TableRenderer.render();
       const noOpWrites = summarizeDomWrites(takeDomWrites(instrumentation.runtime));
       assertEqual(noOpWrites.create, 0, 'repeated empty-lobby render should not create new panels');
 
@@ -1472,7 +1472,7 @@ if (hooks) {
       const staleHooks = staleRuntime.hooks;
       assert(staleHooks && staleHooks.modules && staleHooks.modules.PanelCache && staleRuntime.game, 'panel-cache stale-child fixture should expose active game and PanelCache');
       if (staleHooks && staleHooks.modules && staleHooks.modules.PanelCache && staleRuntime.game) {
-        staleHooks.modules.TableRenderer.renderGame();
+        staleHooks.modules.TableRenderer.render();
         const stalePartyBefore = JSON.stringify(staleHooks.state.party);
         const staleGameBefore = staleHooks.state.game;
         for (const target of [
@@ -1489,7 +1489,7 @@ if (hooks) {
           const replacementParent = staleRuntime.runtime.panels.createPanel('Panel', staleRuntime.runtime.panels.root, target[0]);
           staleHooks.modules.PanelCache.invalidate(`validator-${target[0]}`);
           staleHooks.modules.PanelCache.refresh();
-          staleHooks.modules.TableRenderer.renderGame();
+          staleHooks.modules.TableRenderer.render();
           const currentParent = findPanel(staleRuntime.runtime, target[0]);
           const currentChild = findDescendantsWithClass(currentParent, target[1], [])[0] || null;
           assertEqual(currentParent, replacementParent, `PanelCache.refresh should reacquire replacement ${target[0]}`);
@@ -1802,7 +1802,7 @@ if (hooks) {
     const emptyButtonRuntime = createMenuRuntime();
     if (emptyButtonRuntime.hooks) {
       const emptyHooks = emptyButtonRuntime.hooks;
-      emptyHooks.modules.TableRenderer.renderGame();
+      emptyHooks.modules.TableRenderer.render();
       assertStartButtonGate(emptyButtonRuntime.runtime, 'HOST OR JOIN PARTY', false, false, 'empty lobby button state');
       assertButtonAffordance(emptyButtonRuntime.runtime, 'PokerHostPartyButton', { hidden: false, enabled: true }, 'empty lobby button state');
       assertButtonAffordance(emptyButtonRuntime.runtime, 'PokerJoinPartyButton', { hidden: true, enabled: false }, 'empty lobby button state');
@@ -1816,14 +1816,14 @@ if (hooks) {
       emptyHooks.state.localPlayerKey = 'abrams';
       emptyButtonRuntime.runtime.config.PokerLocalPlayerKey = 'abrams';
       emptyButtonRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
-      emptyHooks.modules.TableRenderer.renderGame();
+      emptyHooks.modules.TableRenderer.render();
       assertButtonAffordance(emptyButtonRuntime.runtime, 'PokerReadyChatButton', { hidden: true, enabled: false }, 'empty lobby known local button state');
 
       const discoveredPartyRuntime = createMenuRuntime();
       if (discoveredPartyRuntime.hooks && hasPartySyncHooks(discoveredPartyRuntime.hooks, 'fresh discovered party button-state hooks')) {
         const discoveredHooks = discoveredPartyRuntime.hooks;
         discoveredHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pdiscover', isSelf: false });
-        discoveredHooks.modules.TableRenderer.renderGame();
+        discoveredHooks.modules.TableRenderer.render();
         assertButtonAffordance(discoveredPartyRuntime.runtime, 'PokerJoinPartyButton', { hidden: false, enabled: true }, 'fresh discovered party button state');
         assertButtonAffordance(discoveredPartyRuntime.runtime, 'PokerReadyChatButton', { hidden: true, enabled: false }, 'fresh discovered party button state');
       }
@@ -1834,7 +1834,7 @@ if (hooks) {
       const memberHooks = memberButtonRuntime.hooks;
       memberHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pbuttons', isSelf: false });
       memberHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party pbuttons', isSelf: true });
-      memberHooks.modules.TableRenderer.renderGame();
+      memberHooks.modules.TableRenderer.render();
       assertStartButtonGate(memberButtonRuntime.runtime, 'WAITING FOR LEADER', false, true, 'party member lobby button state');
       assertButtonAffordance(memberButtonRuntime.runtime, 'PokerHostPartyButton', { hidden: true, enabled: false }, 'party member lobby button state');
       assertButtonAffordance(memberButtonRuntime.runtime, 'PokerJoinPartyButton', { hidden: true, enabled: false }, 'party member lobby button state');
@@ -1847,7 +1847,7 @@ if (hooks) {
     if (leaderOneButtonRuntime.hooks && hasPartySyncHooks(leaderOneButtonRuntime.hooks, 'party leader one-player button-state hooks')) {
       const leaderOneHooks = leaderOneButtonRuntime.hooks;
       leaderOneHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pone', isSelf: true });
-      leaderOneHooks.modules.TableRenderer.renderGame();
+      leaderOneHooks.modules.TableRenderer.render();
       assertStartButtonGate(leaderOneButtonRuntime.runtime, 'WAITING FOR PARTY', false, false, 'party leader one-player button state');
       assert(panelText(findPanel(leaderOneButtonRuntime.runtime, 'PokerPartyStatusLabel')).includes('Need 2 joined party players to start.'), 'party leader one-player button state should explain the party minimum');
       assertProgressImportAvailable(leaderOneButtonRuntime.runtime, 'party leader one-player import controls');
@@ -1860,15 +1860,15 @@ if (hooks) {
       const leaderTwoHooks = leaderTwoButtonRuntime.hooks;
       leaderTwoHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party ptwo', isSelf: true });
       leaderTwoHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party ptwo', isSelf: false });
-      leaderTwoHooks.modules.TableRenderer.renderGame();
+      leaderTwoHooks.modules.TableRenderer.render();
       assertStartButtonGate(leaderTwoButtonRuntime.runtime, 'START SYNCED HAND', true, false, 'party leader two-player button state');
       assertProgressImportAvailable(leaderTwoButtonRuntime.runtime, 'party leader two-player import controls');
       leaderTwoHooks.state.requiresProgressImport = true;
-      leaderTwoHooks.modules.TableRenderer.renderGame();
+      leaderTwoHooks.modules.TableRenderer.render();
       assertStartButtonGate(leaderTwoButtonRuntime.runtime, '', false, true, 'party leader import-required start button state');
       assertProgressImportAvailable(leaderTwoButtonRuntime.runtime, 'party leader import-required import controls');
       leaderTwoHooks.state.requiresProgressImport = false;
-      leaderTwoHooks.modules.TableRenderer.renderGame();
+      leaderTwoHooks.modules.TableRenderer.render();
       leaderTwoHooks.state.game = {
         active: false,
         finished: true,
@@ -1884,7 +1884,7 @@ if (hooks) {
           { key: 'bebop', name: 'Bebop', stack: 9800, bet: 0, committed: 0, cards: [], folded: true, acted: false },
         ],
       };
-      leaderTwoHooks.modules.TableRenderer.renderGame();
+      leaderTwoHooks.modules.TableRenderer.render();
       assertStartButtonGate(leaderTwoButtonRuntime.runtime, 'NEXT SYNCED HAND', true, false, 'party leader finished-hand button state');
       assertCopyProgressAvailable(leaderTwoButtonRuntime.runtime, 'party leader finished-hand progress controls');
     }
@@ -1959,10 +1959,10 @@ if (hooks) {
 
     const emptyLobbyRuntime = createMenuRuntime();
     if (emptyLobbyRuntime.hooks) {
-      emptyLobbyRuntime.hooks.modules.TableRenderer.renderGame();
+      emptyLobbyRuntime.hooks.modules.TableRenderer.render();
       assertPanelHidden(emptyLobbyRuntime.runtime, 'PokerLeaveLobbyButton', 'empty lobby render');
       emptyLobbyRuntime.hooks.state.resume = { id: 'rleave' };
-      emptyLobbyRuntime.hooks.modules.TableRenderer.renderGame();
+      emptyLobbyRuntime.hooks.modules.TableRenderer.render();
       assertPanelVisible(emptyLobbyRuntime.runtime, 'PokerLeaveLobbyButton', 'resume lobby render');
     }
 
@@ -1979,9 +1979,9 @@ if (hooks) {
     if (stableLobbyRuntime.hooks) {
       stableLobbyRuntime.hooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party plobby-stable', isSelf: true });
       stableLobbyRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party plobby-stable', isSelf: false });
-      stableLobbyRuntime.hooks.modules.TableRenderer.renderGame();
+      stableLobbyRuntime.hooks.modules.TableRenderer.render();
       clearDomWrites(stableLobbyRuntime.runtime);
-      stableLobbyRuntime.hooks.modules.TableRenderer.renderGame();
+      stableLobbyRuntime.hooks.modules.TableRenderer.render();
       const writes = summarizeDomWrites(takeDomWrites(stableLobbyRuntime.runtime));
       assertEqual(actionButtonPanels(stableLobbyRuntime.runtime).length, 0, 'stable lobby render should not show action buttons');
       assertEqual(tableSeatRows(stableLobbyRuntime.runtime).length, 0, 'stable lobby render should not show table seats');
@@ -2031,7 +2031,7 @@ if (hooks) {
       const activeLeaderLeaveButton = findPanel(activeLeaderLeaveRuntime.runtime, 'PokerLeaveLobbyButton');
       const activeLeaderChatTarget = findPanel(activeLeaderLeaveRuntime.runtime, 'ChatTargetLabel');
       if (activeLeaderChatTarget) activeLeaderChatTarget.text = 'TEAM';
-      activeLeaderLeaveRuntime.hooks.modules.TableRenderer.renderGame();
+      activeLeaderLeaveRuntime.hooks.modules.TableRenderer.render();
       assertButtonAffordance(activeLeaderLeaveRuntime.runtime, 'PokerLeaveLobbyButton', { hidden: false, enabled: true }, 'active leader leave-lobby button path');
       assertHookFunction(activeLeaderLeaveRuntime.runtime.sandbox, 'PokerEscapeMenuLeaveLobby', 'active leader leave-lobby button path hook');
       const activeLeaderLeaveDispatchStart = activeLeaderLeaveRuntime.runtime.dispatches.length;
@@ -2091,7 +2091,7 @@ if (hooks) {
       const twoPlayerHostLeavePartyId = 'phost-leave-two';
       twoPlayerHostLeaveHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party ' + twoPlayerHostLeavePartyId, isSelf: false });
       twoPlayerHostLeaveHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party ' + twoPlayerHostLeavePartyId, isSelf: true });
-      twoPlayerHostLeaveHooks.modules.TableRenderer.renderGame();
+      twoPlayerHostLeaveHooks.modules.TableRenderer.render();
       assertEqual(twoPlayerHostLeaveHooks.state.party.id, twoPlayerHostLeavePartyId, 'two-player hosted-lobby host leave setup should join Bebop to Abrams lobby');
       assertEqual(twoPlayerHostLeaveHooks.state.party.mode, 'member', 'two-player hosted-lobby host leave setup should mark Bebop as a member');
       assertPanelVisible(twoPlayerHostLeaveRuntime.runtime, 'PokerLeaveLobbyButton', 'two-player hosted-lobby host leave setup');
@@ -2105,7 +2105,7 @@ if (hooks) {
         !twoPlayerHostLeaveHooks.state.party.members.abrams,
         'two-player hosted-lobby host leave should remove Abrams from local party members',
       );
-      twoPlayerHostLeaveHooks.modules.TableRenderer.renderGame();
+      twoPlayerHostLeaveHooks.modules.TableRenderer.render();
       assertPanelHidden(twoPlayerHostLeaveRuntime.runtime, 'PokerLeaveLobbyButton', 'two-player hosted-lobby host leave reset');
     }
 
@@ -2143,7 +2143,7 @@ if (hooks) {
         !threePlayerHostLeaveHooks.state.party.members.abrams,
         'three-player hosted-lobby host transfer should remove Abrams from local party members',
       );
-      threePlayerHostLeaveHooks.modules.TableRenderer.renderGame();
+      threePlayerHostLeaveHooks.modules.TableRenderer.render();
       assertPanelVisible(threePlayerHostLeaveRuntime.runtime, 'PokerLeaveLobbyButton', 'three-player hosted-lobby host transfer');
     }
 
@@ -2280,11 +2280,11 @@ if (hooks) {
     const gateHooks = startGateRuntime.hooks;
     gateHooks.state.game = null;
     gateHooks.state.party = { id: '', mode: 'none', leaderKey: '', leaderName: '', members: {}, order: [] };
-    gateHooks.modules.TableRenderer.renderGame();
+    gateHooks.modules.TableRenderer.render();
     assertStartButtonGate(startGateRuntime.runtime, 'HOST OR JOIN PARTY', false, false, 'start gate without a party');
 
     gateHooks.state.party = { id: 'psync', mode: 'member', leaderKey: 'abrams', leaderName: 'Abrams', members: {}, order: [] };
-    gateHooks.modules.TableRenderer.renderGame();
+    gateHooks.modules.TableRenderer.render();
     assertStartButtonGate(startGateRuntime.runtime, 'WAITING FOR LEADER', false, true, 'member start gate');
     assertEqual(panelText(findPanel(startGateRuntime.runtime, 'PokerPartyStatusLabel')), 'Only Abrams can start the synced hand.', 'member start gate should name the leader who can start');
 
@@ -2296,7 +2296,7 @@ if (hooks) {
       members: { abrams: { key: 'abrams', name: 'Abrams' } },
       order: ['abrams'],
     };
-    gateHooks.modules.TableRenderer.renderGame();
+    gateHooks.modules.TableRenderer.render();
     assertStartButtonGate(startGateRuntime.runtime, 'WAITING FOR PARTY', false, false, 'leader start gate with one roster player');
     assertEqual(panelText(findPanel(startGateRuntime.runtime, 'PokerPartyStatusLabel')), 'Need 2 joined party players to start.', 'leader start gate with one roster player should explain the party minimum');
 
@@ -2311,7 +2311,7 @@ if (hooks) {
       },
       order: ['abrams', 'bebop'],
     };
-    gateHooks.modules.TableRenderer.renderGame();
+    gateHooks.modules.TableRenderer.render();
     assertStartButtonGate(startGateRuntime.runtime, 'START SYNCED HAND', true, false, 'leader start gate with two party players');
   }
 
@@ -2348,7 +2348,7 @@ if (hooks) {
     assertEqual(readyRailRuntime.hooks.getReadySeatArray().length, 12, 'ready rail should cap rendered ready state at twelve seats');
     assertEqual(readyRailRuntime.hooks.isStartEligible(readyRailRuntime.hooks.getReadySeatArray().length), true, 'twelve capped ready seats should remain start eligible');
     assertEqual(panelText(findPanel(readyRailRuntime.runtime, 'PokerReadyCountLabel')), '12', 'ready rail summary should show the maximum seat count, not the transient ready count');
-    readyRailRuntime.hooks.modules.TableRenderer.renderGame();
+    readyRailRuntime.hooks.modules.TableRenderer.render();
     assertNoGamePlayerRail(readyRailRuntime.runtime, 'ready lobby rail render');
     const readyPlayerNames = playerListNames(readyRailRuntime.runtime);
     assertEqual(readyPlayerNames.length, 12, 'ready lobby rail render should show the twelve capped ready players in #PokerPlayersList');
@@ -2408,7 +2408,7 @@ if (hooks) {
     hooks.state.localPlayerKey = firstActor.key;
     runtime.config.PokerLocalPlayerKey = firstActor.key;
     runtime.config.PokerLocalPlayerName = firstActor.name;
-    hooks.modules.TableRenderer.renderGame();
+    hooks.modules.TableRenderer.render();
     assertButtonAffordance(runtime, 'PokerStartButton', { hidden: true, enabled: false }, 'active local actor button state');
     assertButtonAffordance(runtime, 'PokerReadyChatButton', { hidden: true, enabled: false }, 'active local actor button state');
     assertButtonAffordance(runtime, 'PokerProgressControls', { hidden: true }, 'active local actor button state');
@@ -2426,7 +2426,7 @@ if (hooks) {
       raiseControlRuntime.hooks.state.localPlayerKey = raiseControlActor.key;
       raiseControlRuntime.runtime.config.PokerLocalPlayerKey = raiseControlActor.key;
       raiseControlRuntime.runtime.config.PokerLocalPlayerName = raiseControlActor.name;
-      raiseControlRuntime.hooks.modules.TableRenderer.renderGame();
+      raiseControlRuntime.hooks.modules.TableRenderer.render();
       const raiseControl = findEditableCustomRaiseControl(raiseControlRuntime.runtime);
       const raiseButton = renderedActionButtons(raiseControlRuntime.runtime).find((button) => actionButtonSemantic(button.label) === 'RAISE');
       const raiseAmount = raiseControlRuntime.hooks.getMinimumRaiseTo(raiseControlGame);
@@ -2496,7 +2496,7 @@ if (hooks) {
     hooks.state.localPlayerKey = currentPlayer(game).name.toLowerCase().replace(/\s+/g, ' ').trim();
     runtime.config.PokerLocalPlayerKey = hooks.state.localPlayerKey;
     runtime.config.PokerLocalPlayerName = currentPlayer(game).name;
-    hooks.modules.TableRenderer.renderGame();
+    hooks.modules.TableRenderer.render();
     const openingBetButtons = renderedActionButtons(runtime);
     assertEqual(
       JSON.stringify(openingBetButtons.map((button) => actionButtonSemantic(button.label))),
@@ -2580,7 +2580,7 @@ if (hooks) {
       if (copyProgressRuntime.code && copyProgressRuntime.payload) {
         const copyRuntime = copyProgressRuntime.runtime;
         const copyHooks = copyProgressRuntime.hooks;
-        copyHooks.modules.TableRenderer.renderGame();
+        copyHooks.modules.TableRenderer.render();
         assertCopyProgressAvailable(copyRuntime, 'copy progress regression copy-only progress controls');
         const copyInput = findPanel(copyRuntime, 'PokerProgressCodeInput');
         assert(copyInput, 'copy progress regression should have a progress code input');
@@ -2594,7 +2594,7 @@ if (hooks) {
         assertEqual(panelText(findPanel(copyRuntime, 'PokerStatusLabel')).indexOf('progress ' + copyResult.id) >= 0, true, 'copy progress regression should update status with the exported progress id');
         assertEqual(panelText(copyInput), '', 'copy progress regression should not populate the import text entry');
         assertEqual(!!(copyHooks.state.resume && copyHooks.state.resume.payload), false, 'copy progress regression should not create imported resume payload state');
-        copyHooks.modules.TableRenderer.renderGame();
+        copyHooks.modules.TableRenderer.render();
         assertCopyProgressAvailable(copyRuntime, 'copy progress regression should keep copy-only progress controls');
         assertButtonAffordance(copyRuntime, 'PokerResumeControls', { hidden: true }, 'copy progress regression should not reveal imported resume controls');
         assertStartButtonGate(copyRuntime, 'NEXT SYNCED HAND', true, false, 'copy progress regression should leave the normal finished-hand start path available');
@@ -2751,7 +2751,7 @@ if (hooks) {
     overStackRuntime.config.PokerLocalPlayerName = overStackActor.name;
     const overStackChatTarget = findPanel(overStackRuntime, 'ChatTargetLabel');
     if (overStackChatTarget) overStackChatTarget.text = 'TEAM';
-    overStackHooks.modules.TableRenderer.renderGame();
+    overStackHooks.modules.TableRenderer.render();
 
     const raiseControls = customAmountControlParts(overStackRuntime);
     const raiseButton = renderedActionButtons(overStackRuntime).find((button) => actionButtonSemantic(button.label) === 'RAISE');
@@ -2772,7 +2772,7 @@ if (hooks) {
     overStackActor.stack = 250;
     overStackGame.currentBet = 0;
     overStackGame.minRaise = 200;
-    overStackHooks.modules.TableRenderer.renderGame();
+    overStackHooks.modules.TableRenderer.render();
     const betControls = customAmountControlParts(overStackRuntime);
     const betButton = renderedActionButtons(overStackRuntime).find((button) => actionButtonSemantic(button.label) === 'BET');
     const betMax = betControls.slider ? Number(betControls.slider.max) : 0;
@@ -2801,7 +2801,7 @@ if (hooks) {
     shortStackRuntime.config.PokerLocalPlayerName = shortStackActor.name;
     const shortStackChatTarget = findPanel(shortStackRuntime, 'ChatTargetLabel');
     if (shortStackChatTarget) shortStackChatTarget.text = 'TEAM';
-    shortStackHooks.modules.TableRenderer.renderGame();
+    shortStackHooks.modules.TableRenderer.render();
     assertEqual(
       JSON.stringify(renderedActionButtons(shortStackRuntime).map((button) => actionButtonSemantic(button.label))),
       JSON.stringify(['CALL', 'FOLD']),
@@ -2832,7 +2832,7 @@ if (hooks) {
     actionRangeHooks.state.localPlayerKey = actionRangeActor.key;
     actionRangeRuntime.config.PokerLocalPlayerKey = actionRangeActor.key;
     actionRangeRuntime.config.PokerLocalPlayerName = actionRangeActor.name;
-    actionRangeHooks.modules.TableRenderer.renderGame();
+    actionRangeHooks.modules.TableRenderer.render();
     const raiseRangeControls = customAmountControlParts(actionRangeRuntime);
     assertEqual(raiseRangeControls.range && raiseRangeControls.range.text, 'MIN $400  MAX $10000', 'raise range fixture should expose the initial raise min/max');
     if (raiseRangeControls.input) {
@@ -2844,7 +2844,7 @@ if (hooks) {
     actionRangeActor.stack = 250;
     actionRangeGame.currentBet = 0;
     actionRangeGame.minRaise = 200;
-    actionRangeHooks.modules.TableRenderer.renderGame();
+    actionRangeHooks.modules.TableRenderer.render();
     const betRangeControls = customAmountControlParts(actionRangeRuntime);
     const betRangeButtons = renderedActionButtons(actionRangeRuntime).map((button) => actionButtonSemantic(button.label));
     assertEqual(JSON.stringify(betRangeButtons), JSON.stringify(['CHECK', 'BET', 'FOLD']), 'range change fixture should expose opening CHECK, BET, FOLD actions');
@@ -2866,7 +2866,7 @@ if (hooks) {
     liveAmountRuntime.config.PokerLocalPlayerName = liveAmountActor.name;
     const liveAmountChatTarget = findPanel(liveAmountRuntime, 'ChatTargetLabel');
     if (liveAmountChatTarget) liveAmountChatTarget.text = 'TEAM';
-    liveAmountHooks.modules.TableRenderer.renderGame();
+    liveAmountHooks.modules.TableRenderer.render();
     const liveControls = customAmountControlParts(liveAmountRuntime);
     const liveAmount = Number(liveControls.slider && liveControls.slider.min) + Number(liveControls.slider && liveControls.slider.increment) * 2;
     assert(liveControls.input && liveControls.slider && liveControls.value, 'live amount fixture should render input, slider, and value controls');
@@ -2886,7 +2886,7 @@ if (hooks) {
       assertEqual(liveControls.value.text, `RAISE TO $${liveAmount}`, 'live amount update should expose the selected amount in the value label');
 
       clearDomWrites(liveAmountRuntime);
-      liveAmountHooks.modules.TableRenderer.renderGame();
+      liveAmountHooks.modules.TableRenderer.render();
       const noOpWrites = takeDomWrites(liveAmountRuntime).filter(
         (write) => write.id === liveControls.input.id || write.id === liveControls.slider.id || write.id === liveControls.value.id,
       );
@@ -2996,7 +2996,7 @@ if (hooks) {
     duplicateJoinRuntime.hooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pduplicate-join', isSelf: true });
     duplicateJoinRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party pduplicate-join', isSelf: false });
     duplicateJoinRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party pduplicate-join', isSelf: false });
-    duplicateJoinRuntime.hooks.modules.TableRenderer.renderGame();
+    duplicateJoinRuntime.hooks.modules.TableRenderer.render();
     const duplicateParty = duplicateJoinRuntime.hooks.state.party || {};
     assertEqual(Object.keys(duplicateParty.members || {}).filter((key) => key === 'bebop').length, 1, 'duplicate party join should leave one Bebop party member');
     assertEqual((duplicateParty.order || []).filter((key) => key === 'bebop').length, 1, 'duplicate party join should leave one Bebop party order entry');
@@ -3020,7 +3020,7 @@ if (hooks) {
       currentIndex: wrongPartyLeaveRuntime.game.currentIndex,
     });
     wrongPartyLeaveRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party leave] poker party pnot-this-table', isSelf: false });
-    wrongPartyLeaveRuntime.hooks.modules.TableRenderer.renderGame();
+    wrongPartyLeaveRuntime.hooks.modules.TableRenderer.render();
     const wrongPartyAfter = JSON.stringify({
       partyId: wrongPartyLeaveRuntime.hooks.state.party && wrongPartyLeaveRuntime.hooks.state.party.id,
       partyOrder: wrongPartyLeaveRuntime.hooks.state.party && wrongPartyLeaveRuntime.hooks.state.party.order,
@@ -3055,7 +3055,7 @@ if (hooks) {
     duplicateSnapshotRuntime.runtime.sandbox.PokerEscapeMenuToggle();
     duplicateSnapshotRuntime.hooks.handleReadyEvent(JSON.stringify(duplicateSnapshot));
     drainScheduledCallbacks(duplicateSnapshotRuntime.runtime, 128);
-    duplicateSnapshotRuntime.hooks.modules.TableRenderer.renderGame();
+    duplicateSnapshotRuntime.hooks.modules.TableRenderer.render();
     const firstCounts = countRendered(duplicateSnapshotRuntime.runtime);
     assertEqual(firstCounts.playerRows, 2, 'open snapshot replay setup should render two player rows');
     assertEqual(firstCounts.tableSeats, 2, 'open snapshot replay setup should render two table seats');
@@ -3064,7 +3064,7 @@ if (hooks) {
     duplicateSnapshotRuntime.runtime.sandbox.PokerEscapeMenuToggle();
     duplicateSnapshotRuntime.hooks.handleReadyEvent(JSON.stringify(duplicateSnapshot));
     drainScheduledCallbacks(duplicateSnapshotRuntime.runtime, 128);
-    duplicateSnapshotRuntime.hooks.modules.TableRenderer.renderGame();
+    duplicateSnapshotRuntime.hooks.modules.TableRenderer.render();
     const secondCounts = countRendered(duplicateSnapshotRuntime.runtime);
     assertEqual(JSON.stringify(secondCounts), JSON.stringify(firstCounts), 'repeated open-time snapshot replay should not duplicate rendered action/player/table/log/hint/custom-bet/pot panels');
   }
@@ -3083,14 +3083,14 @@ if (hooks) {
     assertEqual(endThenLeaveHooks.state.game.active, true, 'two-player leader end-then-leave setup should start an active hand');
     endThenLeaveHooks.processChatRecord({ sender: 'Abrams', message: `[match end] poker party ${twoPlayerLeaderEndThenLeavePartyId}`, isSelf: false });
     assertEqual(endThenLeaveHooks.state.game, null, 'leader match-end before party leave should clear the member active hand');
-    endThenLeaveHooks.modules.TableRenderer.renderGame();
+    endThenLeaveHooks.modules.TableRenderer.render();
     assertNoGamePlayerRail(twoPlayerLeaderEndThenLeaveRuntime.runtime, 'leader match-end before party leave member lobby render');
     endThenLeaveHooks.processChatRecord({ sender: 'Abrams', message: `[party leave] poker party ${twoPlayerLeaderEndThenLeavePartyId}`, isSelf: false });
     assertEqual(endThenLeaveHooks.state.game, null, 'leader party leave after match-end should keep the member out of an active hand');
     assertEqual(endThenLeaveHooks.state.party.id, '', 'leader party leave after match-end should clear the member party id');
     assertEqual(endThenLeaveHooks.state.party.mode, 'none', 'leader party leave after match-end should return the member to non-party mode');
     assertEqual(endThenLeaveHooks.modules.PartyReducer.roster().length, 0, 'leader party leave after match-end should leave no stale two-player roster');
-    endThenLeaveHooks.modules.TableRenderer.renderGame();
+    endThenLeaveHooks.modules.TableRenderer.render();
     assertNoGamePlayerRail(twoPlayerLeaderEndThenLeaveRuntime.runtime, 'leader match-end then party leave member lobby render');
     assertPanelHidden(twoPlayerLeaderEndThenLeaveRuntime.runtime, 'PokerLeaveLobbyButton', 'leader match-end then party leave member lobby render');
   }
@@ -3103,7 +3103,7 @@ if (hooks) {
     assertEqual(unknownMatchEndHooks.state.game.active, true, 'unknown match-end setup should start an active hand');
     unknownMatchEndHooks.processChatRecord({ sender: '<unknown>', message: `[match end] poker party ${twoPlayerUnknownMatchEndPartyId} seed stwounknownmatchend hand 1`, isSelf: false });
     assertEqual(unknownMatchEndHooks.state.game, null, 'unknown match-end from the known current party leader with matching seed/hand should clear the member active hand');
-    unknownMatchEndHooks.modules.TableRenderer.renderGame();
+    unknownMatchEndHooks.modules.TableRenderer.render();
     assertNoGamePlayerRail(twoPlayerUnknownMatchEndRuntime.runtime, 'unknown match-end from known leader member lobby render');
   }
 
@@ -3143,7 +3143,7 @@ if (hooks) {
     assertEqual(leaderLeaveOnlyHooks.state.requiresProgressImport, false, 'leader party leave from a two-player active hand should clear imported-progress start guard');
     assertEqual(!!(leaderLeaveOnlyHooks.state.resume && leaderLeaveOnlyHooks.state.resume.id), false, 'leader party leave from a two-player active hand should clear resume state');
     assertEqual(leaderLeaveOnlyHooks.state.resumeRequiresHostedParty, true, 'leader party leave from a two-player active hand should require a hosted party before resume');
-    leaderLeaveOnlyHooks.modules.TableRenderer.renderGame();
+    leaderLeaveOnlyHooks.modules.TableRenderer.render();
     assertNoGamePlayerRail(twoPlayerLeaderLeaveOnlyRuntime.runtime, 'leader party leave only two-player member lobby render');
     assertPanelHidden(twoPlayerLeaderLeaveOnlyRuntime.runtime, 'PokerLeaveLobbyButton', 'leader party leave only two-player member lobby render');
   }
@@ -3189,7 +3189,7 @@ if (hooks) {
           JSON.stringify(['bebop', 'calico']),
           `three-player leader leave for ${localName} should keep only remaining party members in order`,
         );
-        transferHooks.modules.TableRenderer.renderGame();
+        transferHooks.modules.TableRenderer.render();
         assertPanelVisible(threePlayerLeaderLeaveRuntime.runtime, 'PokerTableSeats', `three-player leader leave for ${localName} active render`);
         assertPanelVisible(threePlayerLeaderLeaveRuntime.runtime, 'PokerGameLog', `three-player leader leave for ${localName} active render`);
         if (localName === 'Bebop') {
@@ -3252,7 +3252,7 @@ if (hooks) {
           JSON.stringify(['abrams', 'bebop']),
           `three-player non-host leave for ${localName} should remove only Calico from party order`,
         );
-        memberLeaveHooks.modules.TableRenderer.renderGame();
+        memberLeaveHooks.modules.TableRenderer.render();
         assertPanelVisible(threePlayerMemberLeaveRuntime.runtime, 'PokerTableSeats', `three-player non-host leave for ${localName} active render`);
         assertPanelVisible(threePlayerMemberLeaveRuntime.runtime, 'PokerGameLog', `three-player non-host leave for ${localName} active render`);
       }
@@ -3260,7 +3260,7 @@ if (hooks) {
   }
   const tableRuntime = createSyncedPartyRuntime('Abrams', 'stable-table-seats', tableRoster, 1);
   if (tableRuntime.hooks && tableRuntime.game) {
-    tableRuntime.hooks.modules.TableRenderer.renderGame();
+    tableRuntime.hooks.modules.TableRenderer.render();
     const playersList = findPanel(tableRuntime.runtime, 'PokerPlayersList');
     const tableSeats = findPanel(tableRuntime.runtime, 'PokerTableSeats');
     assert(playersList && tableSeats && playersList !== tableSeats, 'table render should keep #PokerPlayersList and #PokerTableSeats as distinct surfaces');
@@ -3301,7 +3301,7 @@ if (hooks) {
     assertEqual(startingPotTexts.header, 'POT $300', 'active table pot animation setup header amount');
     assertEqual(startingPotTexts.center, '$300', 'active table pot animation setup center amount');
     tableRuntime.game.pot = 431;
-    tableRuntime.hooks.modules.TableRenderer.renderGame();
+    tableRuntime.hooks.modules.TableRenderer.render();
     const immediatePotTexts = potAmountTexts(tableRuntime.runtime);
     assert(
       immediatePotTexts.header !== 'POT $431',
@@ -3327,23 +3327,23 @@ if (hooks) {
     const potLifecycleRuntime = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'pot-chip-lifecycle');
     if (potLifecycleRuntime.hooks && potLifecycleRuntime.game) {
       potLifecycleRuntime.game.pot = 431;
-      potLifecycleRuntime.hooks.modules.TableRenderer.renderGame();
+      potLifecycleRuntime.hooks.modules.TableRenderer.render();
       drainScheduledCallbacks(potLifecycleRuntime.runtime, 256);
       const firstChipPanels = findDescendantsWithClass(findPanel(potLifecycleRuntime.runtime, 'PokerPotChips'), 'PokerPotChip', []);
       assert(firstChipPanels.length > 1, 'pot-chip lifecycle should render multiple chip panels for $431');
       const threeHundredPanel = firstChipPanels[0];
       clearDomWrites(potLifecycleRuntime.runtime);
-      potLifecycleRuntime.hooks.modules.TableRenderer.renderGame();
+      potLifecycleRuntime.hooks.modules.TableRenderer.render();
       const repeatChipWrites = takeDomWrites(potLifecycleRuntime.runtime).filter((write) => write.type === 'create' || write.type === 'image-src' || (write.type === 'attr' && write.name === 'src'));
       assertEqual(repeatChipWrites.length, 0, 'pot-chip lifecycle should not recreate or rewrite image sources for unchanged pot');
       potLifecycleRuntime.game.pot = 300;
-      potLifecycleRuntime.hooks.modules.TableRenderer.renderGame();
+      potLifecycleRuntime.hooks.modules.TableRenderer.render();
       const threeHundredPanels = findDescendantsWithClass(findPanel(potLifecycleRuntime.runtime, 'PokerPotChips'), 'PokerPotChip', []);
       assertEqual(threeHundredPanels.length, 1, 'pot-chip lifecycle should retain only one chip panel for $300');
       assertEqual(threeHundredPanels[0], threeHundredPanel, 'pot-chip lifecycle should reuse the $300 chip panel when lower tiers disappear');
       assert(firstChipPanels.some((panel) => panel !== threeHundredPanel && panel.deleted), 'pot-chip lifecycle should delete disappeared lower-tier chip panels');
       potLifecycleRuntime.game.pot = 0;
-      potLifecycleRuntime.hooks.modules.TableRenderer.renderGame();
+      potLifecycleRuntime.hooks.modules.TableRenderer.render();
       assertPanelHidden(potLifecycleRuntime.runtime, 'PokerPotChips', 'zero-pot chip lifecycle');
       assertEqual(findDescendantsWithClass(findPanel(potLifecycleRuntime.runtime, 'PokerPotChips'), 'PokerPotChip', []).length, 0, 'zero-pot chip lifecycle should remove all chip panels');
     }
@@ -3355,7 +3355,7 @@ if (hooks) {
     const transitionHooks = rendererTransitionRuntime.hooks;
     const transitionNames = ['Abrams', 'Bebop', 'Calico'];
     transitionHooks.handleReadyEvent(readyPayload('Abrams', 50, true));
-    transitionHooks.modules.TableRenderer.renderGame();
+    transitionHooks.modules.TableRenderer.render();
     drainScheduledCallbacks(transitionRuntime, 256);
     const activeSurface = captureRendererTransitionSurface(transitionRuntime);
     assertEqual(transitionHooks.state.game.active, true, 'renderer transition active fixture should start with an active hand');
@@ -3400,7 +3400,7 @@ if (hooks) {
     assertEqual(transitionHooks.state.game.active, false, 'renderer transition finish fixture should reach an inactive hand');
     assertEqual(transitionHooks.state.game.finished, true, 'renderer transition finish fixture should reach a finished hand');
     assertEqual(transitionHooks.state.game.phase, 'finished', 'renderer transition finish fixture should expose the finished phase');
-    transitionHooks.modules.TableRenderer.renderGame();
+    transitionHooks.modules.TableRenderer.render();
     drainScheduledCallbacks(transitionRuntime, 256);
     const finishedSurface = captureRendererTransitionSurface(transitionRuntime);
     assertEqual(finishedSurface.playerRows.length, activeSurface.playerRows.length, 'renderer transition finished fixture should keep the full player surface');
@@ -3464,7 +3464,7 @@ if (hooks) {
     const nextStart = transitionHooks.buildSynchronizedStartCommand('renderer-transition-next', nextRoster, 2);
     transitionHooks.processChatRecord({ sender: 'Abrams', message: nextStart });
     drainScheduledCallbacks(transitionRuntime, 256);
-    transitionHooks.modules.TableRenderer.renderGame();
+    transitionHooks.modules.TableRenderer.render();
     drainScheduledCallbacks(transitionRuntime, 256);
     const nextSurface = captureRendererTransitionSurface(transitionRuntime);
     assertEqual(transitionHooks.state.game.active, true, 'renderer transition next-active fixture should start a new active hand');
@@ -3540,7 +3540,7 @@ if (hooks) {
     const replacementPlayersParent = transitionRuntime.panels.createPanel('Panel', transitionRuntime.panels.root, 'PokerPlayersList');
     transitionHooks.modules.PanelCache.invalidate('renderer-transition-parent-replacement');
     transitionHooks.modules.PanelCache.refresh();
-    transitionHooks.modules.TableRenderer.renderGame();
+    transitionHooks.modules.TableRenderer.render();
     drainScheduledCallbacks(transitionRuntime, 256);
     const replacementSurface = captureRendererTransitionSurface(transitionRuntime);
     assert(
@@ -3562,7 +3562,7 @@ if (hooks) {
 
     drainScheduledCallbacks(transitionRuntime, 256);
     clearDomWrites(transitionRuntime);
-    transitionHooks.modules.TableRenderer.renderGame();
+    transitionHooks.modules.TableRenderer.render();
     drainScheduledCallbacks(transitionRuntime, 256);
     assertEqual(
       takeDomWrites(transitionRuntime).length,
@@ -3588,7 +3588,7 @@ if (hooks) {
 
   const sixSeatRuntime = createGameRuntime(tableSeatContractNames.slice(0, 6), 'six-table-edge-seats');
   if (sixSeatRuntime.hooks && sixSeatRuntime.game) {
-    sixSeatRuntime.hooks.modules.TableRenderer.renderGame();
+    sixSeatRuntime.hooks.modules.TableRenderer.render();
     const sixTableNames = tableSeatNames(sixSeatRuntime.runtime);
     assertEqual(sixTableNames.length, 6, 'six-player table render should create six table-edge seats');
     for (const name of tableSeatContractNames.slice(0, 6)) {
@@ -3600,7 +3600,7 @@ if (hooks) {
 
   const sevenSeatRuntime = createGameRuntime(tableSeatContractNames.slice(0, 7), 'seven-table-edge-seats');
   if (sevenSeatRuntime.hooks && sevenSeatRuntime.game) {
-    sevenSeatRuntime.hooks.modules.TableRenderer.renderGame();
+    sevenSeatRuntime.hooks.modules.TableRenderer.render();
     const sevenTableNames = tableSeatNames(sevenSeatRuntime.runtime);
     assertEqual(sevenTableNames.length, 7, 'seven-player table render should create seven table-edge seats');
     for (const name of tableSeatContractNames.slice(0, 7)) {
@@ -3617,7 +3617,7 @@ if (hooks) {
 
   const twelveSeatRuntime = createGameRuntime(tableSeatContractNames, 'twelve-table-edge-seats');
   if (twelveSeatRuntime.hooks && twelveSeatRuntime.game) {
-    twelveSeatRuntime.hooks.modules.TableRenderer.renderGame();
+    twelveSeatRuntime.hooks.modules.TableRenderer.render();
     const twelveTableNames = tableSeatNames(twelveSeatRuntime.runtime);
     assertEqual(twelveTableNames.length, 12, 'twelve-player table render should create twelve table-edge seats');
     for (const name of tableSeatContractNames) {
@@ -3641,7 +3641,7 @@ if (hooks) {
     });
     overCapacityRuntime.game.players.push(extraPlayer);
     overCapacityRuntime.hooks.setGameForTest(overCapacityRuntime.game);
-    overCapacityRuntime.hooks.modules.TableRenderer.renderGame();
+    overCapacityRuntime.hooks.modules.TableRenderer.render();
     assertEqual(tableSeatRows(overCapacityRuntime.runtime).length, 12, 'thirteen-player defensive table render should show exactly twelve table seats');
     assertEqual(playerListRows(overCapacityRuntime.runtime).length, 12, 'thirteen-player defensive player list render should stay capped at MAX_TABLE_PLAYERS');
     assertEqual(findDescendantsWithClass(findPanel(overCapacityRuntime.runtime, 'PokerTableSeats'), 'PokerTableOverflow', []).length, 0, 'thirteen-player defensive render should not create PokerTableOverflow');
@@ -3651,18 +3651,18 @@ if (hooks) {
 
   const visibilityRuntime = createMenuRuntime();
   if (visibilityRuntime.hooks) {
-    visibilityRuntime.hooks.modules.TableRenderer.renderGame();
+    visibilityRuntime.hooks.modules.TableRenderer.render();
     assertNoGamePlayerRail(visibilityRuntime.runtime, 'empty no-game rail render');
     assertEqual(playerListRows(visibilityRuntime.runtime).length, 0, 'empty no-game rail render should not invent player rows');
     seedPartyForReady(visibilityRuntime.hooks, ['Abrams', 'Bebop'], 'pvisible-ready');
     visibilityRuntime.hooks.handleReadyEvent(readyPayload('Abrams', 1));
     visibilityRuntime.hooks.handleReadyEvent(readyPayload('Bebop', 2));
-    visibilityRuntime.hooks.modules.TableRenderer.renderGame();
+    visibilityRuntime.hooks.modules.TableRenderer.render();
     assertNoGamePlayerRail(visibilityRuntime.runtime, 'ready no-game rail render');
     const readyNames = playerListNames(visibilityRuntime.runtime);
     assertEqual(JSON.stringify(readyNames), JSON.stringify(['Abrams', 'Bebop']), 'ready no-game rail render should show ready players through #PokerPlayersList in ready order');
     visibilityRuntime.hooks.processChatRecord({ sender: 'Abrams', message: 'poker start table-visibility' });
-    visibilityRuntime.hooks.modules.TableRenderer.renderGame();
+    visibilityRuntime.hooks.modules.TableRenderer.render();
     assertPanelVisible(visibilityRuntime.runtime, 'PokerPlayersList', 'assigned-game table render');
     assertPanelVisible(visibilityRuntime.runtime, 'PokerTableSeats', 'assigned-game table render');
   }
@@ -3723,7 +3723,7 @@ if (hooks) {
     assertEqual(twoPlayerLeaveHooks.state.party.mode, 'none', 'remote leave from a two-player active hand should clear party mode for lobby controls');
     assertEqual(twoPlayerLeaveHooks.modules.PartyReducer.roster().length, 0, 'remote leave from a two-player active hand should leave no stale party roster');
     assertEqual(twoPlayerLeaveHooks.getReadySeatArray().length, 0, 'remote leave from a two-player active hand should clear stale ready seats');
-    twoPlayerLeaveHooks.modules.TableRenderer.renderGame();
+    twoPlayerLeaveHooks.modules.TableRenderer.render();
     assertInactiveLobbyControls(twoPlayerLeaveRuntime.runtime, 'remote two-player active leave reset');
     assertPanelVisible(twoPlayerLeaveRuntime.runtime, 'PokerPartyControls', 'remote two-player active leave reset');
   }
@@ -4133,7 +4133,7 @@ if (hooks) {
       const unicodeImported = unicodeImport.hooks.modules.ProgressResume.importCode(unicodeProgress.code);
       assertEqual(unicodeImported.ok, true, 'Unicode POKERPROG1 code should import after roundtrip');
       assertEqual(unicodeImported.payload && unicodeImported.payload.roster[0].name, 'Élodie 🂡', 'Unicode POKERPROG1 import should preserve the player name');
-      unicodeImport.hooks.modules.TableRenderer.renderGame();
+      unicodeImport.hooks.modules.TableRenderer.render();
       const unicodeResumeRows = collectPanelTexts(findPanel(unicodeImport.runtime, 'PokerResumeLeaderList'), []).join('|');
       assert(unicodeResumeRows.includes('Élodie 🂡'), `Unicode imported progress should render the saved player name: ${unicodeResumeRows || '<empty>'}`);
     }
@@ -4144,7 +4144,7 @@ if (hooks) {
           .map((id) => panelText(findPanel(secondClientResume.runtime, id)))
           .join(' | ');
       assertEqual(secondClientResume.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'second saved client should import saved progress');
-      secondClientResume.hooks.modules.TableRenderer.renderGame();
+      secondClientResume.hooks.modules.TableRenderer.render();
       assertButtonAffordance(secondClientResume.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'imported progress before resume leader second-client CTA');
       assert(
         !/\bready resume\b/i.test(secondClientStatusText()),
@@ -4155,7 +4155,7 @@ if (hooks) {
       secondClientResume.hooks.state.localPlayerKey = '';
       secondClientResume.runtime.config.PokerLocalPlayerKey = '';
       secondClientResume.runtime.config.PokerLocalPlayerName = '';
-      secondClientResume.hooks.modules.TableRenderer.renderGame();
+      secondClientResume.hooks.modules.TableRenderer.render();
       assertEqual(secondClientResume.hooks.state.party.id, '', 'resume leader selected with unknown second-client sender CTA should not depend on a party id');
       assertButtonAffordance(secondClientResume.runtime, 'PokerReadyChatButton', { hidden: false, enabled: true }, 'resume leader selected with unknown second-client sender CTA');
       assertButtonAffordance(secondClientResume.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'resume leader selected with unknown second-client sender CTA');
@@ -4165,7 +4165,7 @@ if (hooks) {
         `resume leader selected with unknown second-client sender should explain identification before resume ready: ${unknownSecondClientStatus || '<empty>'}`,
       );
       secondClientResume.hooks.handleReadyEvent(readyPayload('Bebop', 42, true));
-      secondClientResume.hooks.modules.TableRenderer.renderGame();
+      secondClientResume.hooks.modules.TableRenderer.render();
       assertEqual(secondClientResume.hooks.state.party.id, '', 'self ready identification for saved second client should not recreate a party id');
       assert(
         !secondClientResume.hooks.getReadySeatArray().some((seat) => seat.key === 'bebop'),
@@ -4207,7 +4207,7 @@ if (hooks) {
         assertSameSyncedGame(resumeB.hooks.state.game, resumeA.hooks.state.game, 'two runtimes receiving the same resume start');
         assertEqual(resumeA.hooks.state.game.handNumber, saved.payload.nextHandNumber, 'resumed game should use the saved next hand number');
       }
-        resumeA.hooks.modules.TableRenderer.renderGame();
+        resumeA.hooks.modules.TableRenderer.render();
         assertButtonAffordance(resumeA.runtime, 'PokerProgressControls', { hidden: true }, 'active resumed hand button state');
         assertButtonAffordance(resumeA.runtime, 'PokerResumeControls', { hidden: true }, 'active resumed hand button state');
         assertButtonAffordance(resumeA.runtime, 'PokerStartButton', { hidden: true, enabled: false }, 'active resumed hand button state');
@@ -4217,7 +4217,7 @@ if (hooks) {
         resumeA.hooks.state.localPlayerKey = 'bebop';
         resumeA.runtime.config.PokerLocalPlayerKey = 'bebop';
         resumeA.runtime.config.PokerLocalPlayerName = 'Bebop';
-        resumeA.hooks.modules.TableRenderer.renderGame();
+        resumeA.hooks.modules.TableRenderer.render();
         assertEnabledActionButtons(resumeA.runtime, ['CALL $200', 'RAISE', 'FOLD'], 'active resumed hand current actor');
     }
 
@@ -4247,7 +4247,7 @@ if (hooks) {
             message: `[party join] poker party ${liveLogPartyId}`,
             isSelf: false,
           });
-          leaderRuntime.hooks.modules.TableRenderer.renderGame();
+          leaderRuntime.hooks.modules.TableRenderer.render();
           assertEqual(leaderRuntime.hooks.state.game, null, `${message} setup should remain an inactive lobby`);
           assertEqual(leaderRuntime.hooks.state.party.mode, 'leader', `${message} setup should keep JDBeast as party leader`);
           assertEqual(leaderRuntime.hooks.state.localPlayerKey, 'jdbeast', `${message} setup should remember JDBeast as the local sender`);
@@ -4265,7 +4265,7 @@ if (hooks) {
           assertEqual(typeof importHandler, 'function', `${message} should expose the import handler`);
           const importResult = typeof importHandler === 'function' ? importHandler() : { ok: false };
           assertEqual(importResult && importResult.ok, true, `${message} should import progress after hosting the party first`);
-          leaderRuntime.hooks.modules.TableRenderer.renderGame();
+          leaderRuntime.hooks.modules.TableRenderer.render();
           assertButtonAffordance(leaderRuntime.runtime, 'PokerResumeControls', { hidden: false }, `${message} imported progress button state`);
           assertButtonAffordance(leaderRuntime.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, `${message} imported progress button state`);
           assertButtonAffordance(leaderRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, `${message} imported progress button state`);
@@ -4286,7 +4286,7 @@ if (hooks) {
           const readyAt = leaderRuntime.hooks.state.progressShare && leaderRuntime.hooks.state.progressShare.readyAt;
           assert(readyAt > 0, `${message} should record a progress-share readyAt guard`);
           leaderRuntime.runtime.sandbox.Date.now = () => readyAt + 1;
-          leaderRuntime.hooks.modules.TableRenderer.renderGame();
+          leaderRuntime.hooks.modules.TableRenderer.render();
           assertStartButtonGate(leaderRuntime.runtime, 'NEXT SYNCED HAND', true, false, `${message} ready-to-start button`);
           return { leaderRuntime, shareMessages, progressShareMessages };
         };
@@ -4302,7 +4302,7 @@ if (hooks) {
           message: `[party join] poker party ${liveLogPartyId}`,
           isSelf: false,
         });
-        postShareUnlockRuntime.hooks.modules.TableRenderer.renderGame();
+        postShareUnlockRuntime.hooks.modules.TableRenderer.render();
         const postShareInput = findPanel(postShareUnlockRuntime.runtime, 'PokerProgressCodeInput');
         assert(postShareInput, 'hosted post-share unlock should have a progress code input');
         if (postShareInput) postShareInput.text = liveLogSaved.code;
@@ -4312,7 +4312,7 @@ if (hooks) {
         const postShareImport = postShareUnlockRuntime.runtime.sandbox.PokerEscapeMenuImportProgress;
         assertEqual(typeof postShareImport, 'function', 'hosted post-share unlock should expose the import handler');
         if (typeof postShareImport === 'function') postShareImport();
-        postShareUnlockRuntime.hooks.modules.TableRenderer.renderGame();
+        postShareUnlockRuntime.hooks.modules.TableRenderer.render();
         assertStartButtonGate(postShareUnlockRuntime.runtime, 'SHARING PROGRESS', false, false, 'hosted post-share unlock immediate button state');
         const postShareState = postShareUnlockRuntime.hooks.state.progressShare;
         let scheduledFinalUnlock = false;
@@ -4374,7 +4374,7 @@ if (hooks) {
           message: `[party join] poker party ${liveLogPartyId}`,
           isSelf: false,
         });
-        hostedNoChatShareRuntime.hooks.modules.TableRenderer.renderGame();
+        hostedNoChatShareRuntime.hooks.modules.TableRenderer.render();
         const noChatInput = findPanel(hostedNoChatShareRuntime.runtime, 'PokerProgressCodeInput');
         assert(noChatInput, 'hosted no-chat progress share should have a progress code input');
         if (noChatInput) noChatInput.text = liveLogSaved.code;
@@ -4383,7 +4383,7 @@ if (hooks) {
         const noChatImport = hostedNoChatShareRuntime.runtime.sandbox.PokerEscapeMenuImportProgress;
         assertEqual(typeof noChatImport, 'function', 'hosted no-chat progress share should expose the import handler');
         if (typeof noChatImport === 'function') noChatImport();
-        hostedNoChatShareRuntime.hooks.modules.TableRenderer.renderGame();
+        hostedNoChatShareRuntime.hooks.modules.TableRenderer.render();
         assertStartButtonGate(hostedNoChatShareRuntime.runtime, 'SHARING PROGRESS', false, false, 'hosted no-chat progress share immediate start button');
         drainScheduledCallbacks(hostedNoChatShareRuntime.runtime, 256);
         const noChatMessages = submittedChatMessages(hostedNoChatShareRuntime.runtime, 0);
@@ -4391,7 +4391,7 @@ if (hooks) {
         const noChatReadyAt = hostedNoChatShareRuntime.hooks.state.progressShare && hostedNoChatShareRuntime.hooks.state.progressShare.readyAt;
         assert(noChatReadyAt > 0, 'hosted no-chat progress share should record a readyAt guard');
         hostedNoChatShareRuntime.runtime.sandbox.Date.now = () => noChatReadyAt + 10000;
-        hostedNoChatShareRuntime.hooks.modules.TableRenderer.renderGame();
+        hostedNoChatShareRuntime.hooks.modules.TableRenderer.render();
         assertStartButtonGate(hostedNoChatShareRuntime.runtime, 'SHARING PROGRESS', false, false, 'hosted no-chat progress share should stay blocked until progress chat is actually submitted');
         const noChatStartAt = hostedNoChatShareRuntime.runtime.dispatches.length;
         const noChatStart = hostedNoChatShareRuntime.runtime.sandbox.PokerEscapeMenuStart;
@@ -4407,7 +4407,7 @@ if (hooks) {
           message: `[party leader] poker party ${liveLogPartyId}`,
           isSelf: true,
         });
-        importBeforeJoinRuntime.hooks.modules.TableRenderer.renderGame();
+        importBeforeJoinRuntime.hooks.modules.TableRenderer.render();
         const importBeforeJoinInput = findPanel(importBeforeJoinRuntime.runtime, 'PokerProgressCodeInput');
         assert(importBeforeJoinInput, 'hosted import-before-join should have a progress code input');
         if (importBeforeJoinInput) importBeforeJoinInput.text = liveLogSaved.code;
@@ -4419,7 +4419,7 @@ if (hooks) {
         assertEqual(typeof importBeforeJoinHandler, 'function', 'hosted import-before-join should expose the import handler');
         const importBeforeJoinResult = typeof importBeforeJoinHandler === 'function' ? importBeforeJoinHandler() : { ok: false };
         assertEqual(importBeforeJoinResult && importBeforeJoinResult.ok, true, 'hosted import-before-join should allow the leader to import before a member joins');
-        importBeforeJoinRuntime.hooks.modules.TableRenderer.renderGame();
+        importBeforeJoinRuntime.hooks.modules.TableRenderer.render();
         assertStartButtonGate(importBeforeJoinRuntime.runtime, 'WAITING FOR PARTY', false, false, 'hosted import-before-join single-player start button');
         drainScheduledCallbacks(importBeforeJoinRuntime.runtime, 256);
         assertEqual(parseProgressShareMessages(submittedChatMessages(importBeforeJoinRuntime.runtime, 0)).offers.length, 0, 'hosted import-before-join should not share progress before a saved party member joins');
@@ -4429,7 +4429,7 @@ if (hooks) {
           message: `[party join] poker party ${liveLogPartyId}`,
           isSelf: false,
         });
-        importBeforeJoinRuntime.hooks.modules.TableRenderer.renderGame();
+        importBeforeJoinRuntime.hooks.modules.TableRenderer.render();
         assertStartButtonGate(importBeforeJoinRuntime.runtime, 'SHARING PROGRESS', false, false, 'hosted import-before-join should share progress after member joins');
         drainScheduledCallbacks(importBeforeJoinRuntime.runtime, 256);
         const importBeforeJoinShareMessages = submittedChatMessages(importBeforeJoinRuntime.runtime, importBeforeJoinShareStart);
@@ -4439,7 +4439,7 @@ if (hooks) {
         const importBeforeJoinReadyAt = importBeforeJoinRuntime.hooks.state.progressShare && importBeforeJoinRuntime.hooks.state.progressShare.readyAt;
         assert(importBeforeJoinReadyAt > 0, 'hosted import-before-join should record a share guard after member joins');
         importBeforeJoinRuntime.runtime.sandbox.Date.now = () => importBeforeJoinReadyAt + 1;
-        importBeforeJoinRuntime.hooks.modules.TableRenderer.renderGame();
+        importBeforeJoinRuntime.hooks.modules.TableRenderer.render();
         assertStartButtonGate(importBeforeJoinRuntime.runtime, 'NEXT SYNCED HAND', true, false, 'hosted import-before-join ready-to-start button');
 
         const importBeforeJoinMemberRuntime = createMenuRuntime();
@@ -4483,14 +4483,14 @@ if (hooks) {
           message: '[party leave] poker party psync',
           isSelf: false,
         });
-        staleMemberLobbyRuntime.hooks.modules.TableRenderer.renderGame();
+        staleMemberLobbyRuntime.hooks.modules.TableRenderer.render();
         assertEqual(staleMemberLobbyRuntime.hooks.state.game, null, 'remote leader leave should clear member active game state before a new lobby');
         staleMemberLobbyRuntime.hooks.processChatRecord({
           sender: 'JDBeast',
           message: '[party leader] poker party pmr8m7dxq-1uxkydi',
           isSelf: false,
         });
-        staleMemberLobbyRuntime.hooks.modules.TableRenderer.renderGame();
+        staleMemberLobbyRuntime.hooks.modules.TableRenderer.render();
         assertButtonAffordance(staleMemberLobbyRuntime.runtime, 'PokerJoinPartyButton', { hidden: false, enabled: true }, 'stale member lobby should show JOIN PARTY after the old leader leaves and hosts again');
         const unknownLateLeaderRuntime = createSyncedPartyRuntime('Hantu Raya', 'sunknown-late-leader-rejoin', [
           { key: 'jdbeast', name: 'JDBeast' },
@@ -4502,7 +4502,7 @@ if (hooks) {
           message: '[party leave] poker party psync',
           isSelf: false,
         });
-        unknownLateLeaderRuntime.hooks.modules.TableRenderer.renderGame();
+        unknownLateLeaderRuntime.hooks.modules.TableRenderer.render();
         assertEqual(unknownLateLeaderRuntime.hooks.state.game, null, 'unknown/late party leader discovery should clear member game state before the new lobby row arrives');
         assertEqual(unknownLateLeaderRuntime.hooks.state.party.id, '', 'unknown/late party leader discovery should leave the member in an empty lobby before the new lobby row arrives');
         unknownLateLeaderRuntime.hooks.processChatRecord({
@@ -4510,7 +4510,7 @@ if (hooks) {
           message: '[party leader] poker party pmr8okjl1-1uxkydi',
           isSelf: false,
         });
-        unknownLateLeaderRuntime.hooks.modules.TableRenderer.renderGame();
+        unknownLateLeaderRuntime.hooks.modules.TableRenderer.render();
         assertButtonAffordance(unknownLateLeaderRuntime.runtime, 'PokerJoinPartyButton', { hidden: false, enabled: true }, 'unknown/late party leader discovery should show JOIN PARTY for the foreign lobby while the sender is still <unknown>');
         const unknownLateLeaderChatTarget = findPanel(unknownLateLeaderRuntime.runtime, 'ChatTargetLabel');
         if (unknownLateLeaderChatTarget) unknownLateLeaderChatTarget.text = 'TEAM';
@@ -4531,14 +4531,14 @@ if (hooks) {
         const repeatEndHandler = repeatImportRuntime.leaderRuntime.runtime.sandbox.PokerEscapeMenuEndMatch;
         assertEqual(typeof repeatEndHandler, 'function', 'hosted repeat import should expose end-match handler');
         if (typeof repeatEndHandler === 'function') repeatEndHandler();
-        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.renderGame();
+        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render();
         assertStartButtonGate(repeatImportRuntime.leaderRuntime.runtime, 'START SYNCED HAND', true, false, 'hosted repeat import should return to normal synced start after ending an imported match');
         assertProgressImportAvailable(repeatImportRuntime.leaderRuntime.runtime, 'hosted repeat import end-match hosted-leader import controls');
         const repeatLeaveHandler = repeatImportRuntime.leaderRuntime.runtime.sandbox.PokerEscapeMenuLeaveLobby;
         assertEqual(typeof repeatLeaveHandler, 'function', 'hosted repeat import should expose leave handler');
         if (typeof repeatLeaveHandler === 'function') repeatLeaveHandler();
         drainScheduledCallbacks(repeatImportRuntime.leaderRuntime.runtime, 256);
-        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.renderGame();
+        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render();
         assertProgressImportHidden(repeatImportRuntime.leaderRuntime.runtime, 'hosted repeat import leave-reset import controls');
         assertStartButtonGate(repeatImportRuntime.leaderRuntime.runtime, 'HOST OR JOIN PARTY', false, false, 'hosted repeat import leave should return to an empty lobby instead of stale import-progress guard');
         const repeatHostTarget = findPanel(repeatImportRuntime.leaderRuntime.runtime, 'ChatTargetLabel');
@@ -4547,14 +4547,14 @@ if (hooks) {
         assertEqual(typeof repeatHostHandler, 'function', 'hosted repeat import should expose host handler');
         if (typeof repeatHostHandler === 'function') repeatHostHandler();
         drainScheduledCallbacks(repeatImportRuntime.leaderRuntime.runtime, 256);
-        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.renderGame();
+        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render();
         assertStartButtonGate(repeatImportRuntime.leaderRuntime.runtime, 'WAITING FOR PARTY', false, false, 'hosted repeat import rehost should wait for party instead of stale import-progress guard');
         repeatImportRuntime.leaderRuntime.hooks.processChatRecord({
           sender: 'Hantu Raya',
           message: '[party join] poker party ' + repeatImportRuntime.leaderRuntime.hooks.state.party.id,
           isSelf: false,
         });
-        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.renderGame();
+        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render();
         assertStartButtonGate(repeatImportRuntime.leaderRuntime.runtime, 'START SYNCED HAND', true, false, 'hosted repeat import rehost should return to normal synced start after a member joins');
         const repeatInput = findPanel(repeatImportRuntime.leaderRuntime.runtime, 'PokerProgressCodeInput');
         assert(repeatInput, 'hosted repeat import should keep a progress input for re-importing');
@@ -4566,7 +4566,7 @@ if (hooks) {
         assertEqual(typeof repeatImportHandler, 'function', 'hosted repeat import should expose import handler for re-import');
         const repeatImportResult = typeof repeatImportHandler === 'function' ? repeatImportHandler() : { ok: false };
         assertEqual(repeatImportResult && repeatImportResult.ok, true, 'hosted repeat import should accept pasted progress after leave and rehost');
-        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.renderGame();
+        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render();
         assertStartButtonGate(repeatImportRuntime.leaderRuntime.runtime, 'SHARING PROGRESS', false, false, 'hosted repeat import should share pasted progress after leave and rehost');
         drainScheduledCallbacks(repeatImportRuntime.leaderRuntime.runtime, 256);
         const repeatShareMessages = submittedChatMessages(repeatImportRuntime.leaderRuntime.runtime, repeatReimportAt);
@@ -4576,7 +4576,7 @@ if (hooks) {
         const repeatReadyAt = repeatImportRuntime.leaderRuntime.hooks.state.progressShare && repeatImportRuntime.leaderRuntime.hooks.state.progressShare.readyAt;
         assert(repeatReadyAt > 0, 'hosted repeat import should record readyAt after re-import share');
         repeatImportRuntime.leaderRuntime.runtime.sandbox.Date.now = () => repeatReadyAt + 1;
-        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.renderGame();
+        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render();
         assertStartButtonGate(repeatImportRuntime.leaderRuntime.runtime, 'NEXT SYNCED HAND', true, false, 'hosted repeat import should unlock imported restart after re-share');
         const repeatStartHandler = repeatImportRuntime.leaderRuntime.runtime.sandbox.PokerEscapeMenuStart;
         assertEqual(typeof repeatStartHandler, 'function', 'hosted repeat import should expose start handler for re-imported progress');
@@ -4613,7 +4613,7 @@ if (hooks) {
         assertEqual(hostedMemberResumeStartRuntime.hooks.state.resume.id, liveLogSaved.id, 'hosted JDBeast/Hantu Raya member receiver should auto-import the leader-shared progress id');
         assert(hostedMemberResumeStartRuntime.hooks.state.resume.payload, 'hosted JDBeast/Hantu Raya member receiver should auto-import the leader-shared progress payload');
         assertEqual(hostedMemberResumeStartRuntime.hooks.state.game, null, 'hosted JDBeast/Hantu Raya member receiver should not start a game from progress chunks alone');
-        hostedMemberResumeStartRuntime.hooks.modules.TableRenderer.renderGame();
+        hostedMemberResumeStartRuntime.hooks.modules.TableRenderer.render();
         assertButtonAffordance(hostedMemberResumeStartRuntime.runtime, 'PokerResumeControls', { hidden: false }, 'hosted JDBeast/Hantu Raya member shared progress button state');
         assertButtonAffordance(hostedMemberResumeStartRuntime.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, 'hosted JDBeast/Hantu Raya member shared progress button state');
         assertButtonAffordance(hostedMemberResumeStartRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'hosted JDBeast/Hantu Raya member shared progress button state');
@@ -4851,7 +4851,7 @@ if (hooks) {
         assertEqual(detachedSharedProgressRuntime.hooks.state.resume.id, liveLogSaved.id, 'detached Hantu Raya shared-progress receiver should store the leader-shared progress id');
         assert(detachedSharedProgressRuntime.hooks.state.resume.payload, 'detached Hantu Raya shared-progress receiver should store the leader-shared progress payload');
         assertEqual(detachedSharedProgressRuntime.hooks.state.game, null, 'detached Hantu Raya shared-progress receiver should not start a game from progress chunks alone');
-        detachedSharedProgressRuntime.hooks.modules.TableRenderer.renderGame();
+        detachedSharedProgressRuntime.hooks.modules.TableRenderer.render();
         assertButtonAffordance(detachedSharedProgressRuntime.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, 'detached Hantu Raya shared-progress receiver role buttons');
         assertButtonAffordance(detachedSharedProgressRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'detached Hantu Raya shared-progress receiver role buttons');
         assertStartButtonGate(detachedSharedProgressRuntime.runtime, 'HOST OR JOIN PARTY', false, false, 'detached Hantu Raya shared-progress receiver start button');
@@ -4930,7 +4930,7 @@ if (hooks) {
           if (staleResume.leaderKey) {
             assertEqual(staleResume.leaderKey, 'jdbeast', `${message} effective resume leader should be JDBeast when recorded`);
           }
-          staleRuntime.hooks.modules.TableRenderer.renderGame();
+          staleRuntime.hooks.modules.TableRenderer.render();
           assertButtonAffordance(staleRuntime.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, `${message} legacy resume leader button`);
           assertButtonAffordance(staleRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, `${message} legacy resume ready button`);
           if (assertNoLocalStart !== false) {
@@ -5035,7 +5035,7 @@ if (hooks) {
             message: hostedEndCommands[0],
             isSelf: false,
           });
-          hostedMemberEndSyncRuntime.hooks.modules.TableRenderer.renderGame();
+          hostedMemberEndSyncRuntime.hooks.modules.TableRenderer.render();
           assertEqual(hostedMemberEndSyncRuntime.hooks.state.game, null, 'hosted JDBeast/Hantu Raya end-sync member should clear the active game from the leader match-end command');
           assertEqual(hostedMemberEndSyncRuntime.runtime.config.PokerPendingSelfAction, undefined, 'hosted JDBeast/Hantu Raya end-sync member should clear pending self action after remote match end');
           const hostedMemberEndSyncActions = findPanel(hostedMemberEndSyncRuntime.runtime, 'PokerActionButtons');
@@ -5082,7 +5082,7 @@ if (hooks) {
           detachedRuntime.hooks.state.localPlayerKey = localKey;
           detachedRuntime.runtime.config.PokerLocalPlayerKey = localKey;
           detachedRuntime.runtime.config.PokerLocalPlayerName = localName;
-          detachedRuntime.hooks.modules.TableRenderer.renderGame();
+          detachedRuntime.hooks.modules.TableRenderer.render();
           assertEqual(detachedRuntime.hooks.state.party.id, '', `${localName} detached imported progress setup should have no hosted party id`);
           assertEqual(detachedRuntime.hooks.getReadySeatArray().length, 0, `${localName} detached imported progress setup should have zero ready seats`);
           assert(detachedRuntime.hooks.state.resume && detachedRuntime.hooks.state.resume.payload, `${localName} detached imported progress setup should keep the imported resume payload`);
@@ -5132,7 +5132,7 @@ if (hooks) {
         assertEqual(hostedLeaderImport.leaderRuntime.hooks.state.game, null, 'hosted JDBeast/Hantu Raya leave should clear the active game');
         assertResumeCleared(hostedLeaderImport.leaderRuntime, 'hosted JDBeast/Hantu Raya leave');
         assertProgressTransfersCleared(hostedLeaderImport.leaderRuntime, 'hosted JDBeast/Hantu Raya leave');
-        hostedLeaderImport.leaderRuntime.hooks.modules.TableRenderer.renderGame();
+        hostedLeaderImport.leaderRuntime.hooks.modules.TableRenderer.render();
         assertImportedProgressEscapeCleared(hostedLeaderImport.leaderRuntime, 'hosted JDBeast/Hantu Raya leave');
         assertInactiveLobbyControls(hostedLeaderImport.leaderRuntime.runtime, 'hosted JDBeast/Hantu Raya leave');
         assertButtonAffordance(hostedLeaderImport.leaderRuntime.runtime, 'PokerHostPartyButton', { hidden: false, enabled: true }, 'hosted JDBeast/Hantu Raya leave empty-lobby button state');
@@ -5144,7 +5144,7 @@ if (hooks) {
         const endHandler = hostedLeaderEndImport.leaderRuntime.runtime.sandbox.PokerEscapeMenuEndMatch;
         assertEqual(typeof endHandler, 'function', 'hosted JDBeast/Hantu Raya resumed leader should expose the end-match handler');
         if (typeof endHandler === 'function') endHandler();
-        hostedLeaderEndImport.leaderRuntime.hooks.modules.TableRenderer.renderGame();
+        hostedLeaderEndImport.leaderRuntime.hooks.modules.TableRenderer.render();
         assertEqual(hostedLeaderEndImport.leaderRuntime.hooks.state.game, null, 'hosted JDBeast/Hantu Raya end match should clear the game');
         assertResumeCleared(hostedLeaderEndImport.leaderRuntime, 'hosted JDBeast/Hantu Raya end match');
         assertProgressTransfersCleared(hostedLeaderEndImport.leaderRuntime, 'hosted JDBeast/Hantu Raya end match');
@@ -5236,7 +5236,7 @@ if (hooks) {
         message: buildProgressOfferMessage(saved.id, checksum, chunks.length),
         isSelf: false,
       });
-      chunkedImport.hooks.modules.TableRenderer.renderGame();
+      chunkedImport.hooks.modules.TableRenderer.render();
       assertButtonAffordance(chunkedImport.runtime, 'PokerResumeControls', { hidden: true }, 'chunked progress offer button state');
       assertStartButtonGate(chunkedImport.runtime, 'HOST OR JOIN PARTY', false, false, 'chunked progress offer button state');
       assert(panelText(findPanel(chunkedImport.runtime, 'PokerStatusLabel')).includes('Receiving progress'), 'chunked progress offer should show receiving-progress status');
@@ -5260,7 +5260,7 @@ if (hooks) {
         chunkedImport.hooks.state.localPlayerKey = 'abrams';
         chunkedImport.runtime.config.PokerLocalPlayerKey = 'abrams';
         chunkedImport.runtime.config.PokerLocalPlayerName = 'Abrams';
-        chunkedImport.hooks.modules.TableRenderer.renderGame();
+        chunkedImport.hooks.modules.TableRenderer.render();
         assertButtonAffordance(chunkedImport.runtime, 'PokerResumeControls', { hidden: false }, 'chunked progress imported button state');
         assertButtonAffordance(chunkedImport.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, 'chunked progress imported button state');
         assertButtonAffordance(chunkedImport.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'chunked progress imported button state');
@@ -5293,7 +5293,7 @@ if (hooks) {
       importedNoLeaderRuntime.hooks.state.localPlayerKey = 'abrams';
       importedNoLeaderRuntime.runtime.config.PokerLocalPlayerKey = 'abrams';
       importedNoLeaderRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
-      importedNoLeaderRuntime.hooks.modules.TableRenderer.renderGame();
+      importedNoLeaderRuntime.hooks.modules.TableRenderer.render();
       assertButtonAffordance(importedNoLeaderRuntime.runtime, 'PokerResumeControls', { hidden: false }, 'imported progress no-leader button state');
       assertButtonAffordance(importedNoLeaderRuntime.runtime, 'PokerResumeLeaderButton', { hidden: false, enabled: true }, 'imported progress no-leader button state');
       assertButtonAffordance(importedNoLeaderRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'imported progress no-leader button state');
@@ -5310,7 +5310,7 @@ if (hooks) {
       staleResumeHostRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
       const staleResumeHostChatTarget = findPanel(staleResumeHostRuntime.runtime, 'ChatTargetLabel');
       if (staleResumeHostChatTarget) staleResumeHostChatTarget.text = 'TEAM';
-      staleResumeHostRuntime.hooks.modules.TableRenderer.renderGame();
+      staleResumeHostRuntime.hooks.modules.TableRenderer.render();
       const staleResumeHostInput = findPanel(staleResumeHostRuntime.runtime, 'PokerProgressCodeInput');
       assert(staleResumeHostInput, 'stale imported progress host setup should have a visible progress code input');
       if (staleResumeHostInput) staleResumeHostInput.text = saved.code;
@@ -5349,7 +5349,7 @@ if (hooks) {
       assert(staleResumeHostCommands.length > 0, `stale imported progress HOST should submit a party leader command: ${staleResumeHostMessages.join('|') || '<none>'}`);
       assertResumeCleared(staleResumeHostRuntime, 'stale imported progress HOST');
       assertProgressTransfersCleared(staleResumeHostRuntime, 'stale imported progress HOST');
-      staleResumeHostRuntime.hooks.modules.TableRenderer.renderGame();
+      staleResumeHostRuntime.hooks.modules.TableRenderer.render();
       assertImportedProgressEscapeCleared(staleResumeHostRuntime, 'stale imported progress HOST');
       assertPlayerListOmitsImportedResumeRoster(staleResumeHostRuntime.runtime, saved.payload, 'stale imported progress HOST player list');
       for (let i = 1; i < staleResumeHostTransferChunks.length; i += 1) {
@@ -5360,7 +5360,7 @@ if (hooks) {
         });
       }
       assertResumeCleared(staleResumeHostRuntime, 'stale imported progress HOST after late stale chunks');
-      staleResumeHostRuntime.hooks.modules.TableRenderer.renderGame();
+      staleResumeHostRuntime.hooks.modules.TableRenderer.render();
       assertImportedProgressEscapeCleared(staleResumeHostRuntime, 'stale imported progress HOST after late stale chunks');
       assertPlayerListOmitsImportedResumeRoster(staleResumeHostRuntime.runtime, saved.payload, 'stale imported progress HOST player list');
 
@@ -5368,7 +5368,7 @@ if (hooks) {
       const staleResumePartyRuntime = createMenuRuntime();
       assertEqual(staleResumePartyRuntime.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'stale imported progress party join setup should import saved progress');
       staleResumePartyRuntime.hooks.processChatRecord({ sender: 'Calico', message: '[party leader] poker party pstale-import', isSelf: false });
-      staleResumePartyRuntime.hooks.modules.TableRenderer.renderGame();
+      staleResumePartyRuntime.hooks.modules.TableRenderer.render();
       const staleResumeJoinInput = findPanel(staleResumePartyRuntime.runtime, 'PokerProgressCodeInput');
       assert(staleResumeJoinInput, 'stale imported progress party join setup should have a visible progress code input');
       if (staleResumeJoinInput) staleResumeJoinInput.text = saved.code;
@@ -5398,13 +5398,13 @@ if (hooks) {
         `stale imported progress JOIN should submit the current party join command: ${staleResumeJoinMessages.join('|') || '<none>'}`,
       );
       assertResumeCleared(staleResumePartyRuntime, 'stale imported progress JOIN');
-      staleResumePartyRuntime.hooks.modules.TableRenderer.renderGame();
+      staleResumePartyRuntime.hooks.modules.TableRenderer.render();
       assertImportedProgressEscapeCleared(staleResumePartyRuntime, 'stale imported progress JOIN');
       assertPlayerListOmitsImportedResumeRoster(staleResumePartyRuntime.runtime, saved.payload, 'stale imported progress JOIN player list');
 
 
       importedNoLeaderRuntime.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id), isSelf: true });
-      importedNoLeaderRuntime.hooks.modules.TableRenderer.renderGame();
+      importedNoLeaderRuntime.hooks.modules.TableRenderer.render();
       assertStartButtonGate(importedNoLeaderRuntime.runtime, 'WAITING FOR RESUME READY', false, false, 'resume leader insufficient-ready button state');
       assertButtonAffordance(importedNoLeaderRuntime.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, 'resume leader insufficient-ready button state');
       assertButtonAffordance(importedNoLeaderRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'resume leader insufficient-ready button state');
@@ -5418,7 +5418,7 @@ if (hooks) {
       importedNoLeaderRuntime.hooks.state.localPlayerKey = 'abrams';
       importedNoLeaderRuntime.runtime.config.PokerLocalPlayerKey = 'abrams';
       importedNoLeaderRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
-      importedNoLeaderRuntime.hooks.modules.TableRenderer.renderGame();
+      importedNoLeaderRuntime.hooks.modules.TableRenderer.render();
       assertStartButtonGate(importedNoLeaderRuntime.runtime, 'START RESUME', true, false, 'resume ready quorum leader button state');
       assertButtonAffordance(importedNoLeaderRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'resume ready quorum leader button state');
       assert(panelText(findPanel(importedNoLeaderRuntime.runtime, 'PokerResumeStatusLabel')).includes('Ready: 2/2'), 'resume ready quorum leader button state should show full ready quorum');
@@ -5430,7 +5430,7 @@ if (hooks) {
       importedNoLeaderRuntime.hooks.state.localPlayerKey = 'bebop';
       importedNoLeaderRuntime.runtime.config.PokerLocalPlayerKey = 'bebop';
       importedNoLeaderRuntime.runtime.config.PokerLocalPlayerName = 'Bebop';
-      importedNoLeaderRuntime.hooks.modules.TableRenderer.renderGame();
+      importedNoLeaderRuntime.hooks.modules.TableRenderer.render();
       assertStartButtonGate(importedNoLeaderRuntime.runtime, 'WAITING FOR RESUME LEADER', false, true, 'resume ready quorum non-leader button state');
       assertButtonAffordance(importedNoLeaderRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'resume ready quorum non-leader button state');
       const nonLeaderResumeStatus = panelText(findPanel(importedNoLeaderRuntime.runtime, 'PokerResumeStatusLabel'));
@@ -5484,7 +5484,7 @@ if (hooks) {
         isSelf: true,
       });
       tamperedLocalRuntime.hooks.modules.ProgressResume.importCode(saved.code);
-      tamperedLocalRuntime.hooks.modules.TableRenderer.renderGame();
+      tamperedLocalRuntime.hooks.modules.TableRenderer.render();
       const tamperedInput = findPanel(tamperedLocalRuntime.runtime, 'PokerProgressCodeInput');
       assert(tamperedInput, 'tampered local progress setup should expose the progress code input');
       const tamperedBeforeResume = JSON.stringify(tamperedLocalRuntime.hooks.state.resume);
@@ -5507,7 +5507,7 @@ if (hooks) {
       wrongChecksumRuntime.hooks.state.localPlayerKey = 'abrams';
       wrongChecksumRuntime.runtime.config.PokerLocalPlayerKey = 'abrams';
       wrongChecksumRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
-      wrongChecksumRuntime.hooks.modules.TableRenderer.renderGame();
+      wrongChecksumRuntime.hooks.modules.TableRenderer.render();
       const wrongChecksumBefore = JSON.stringify(wrongChecksumRuntime.hooks.state.resume);
       const actualChecksum = progressChecksumFromCode(saved.code);
       const wrongChecksum = actualChecksum === '00000000' ? 'ffffffff' : '00000000';
@@ -5600,7 +5600,7 @@ if (hooks) {
         assertEqual(zeroStackSave.payload.roster.length, 3, 'zero-stack saved player should remain represented in the saved roster');
         const zeroStackResume = createMenuRuntime();
         assertEqual(zeroStackResume.hooks.modules.ProgressResume.importCode(zeroStackSave.code).ok, true, 'zero-stack saved progress should import');
-        zeroStackResume.hooks.modules.TableRenderer.renderGame();
+        zeroStackResume.hooks.modules.TableRenderer.render();
         const zeroStackRows = collectPanelTexts(findPanel(zeroStackResume.runtime, 'PokerResumeLeaderList'), []).join('|');
         assert(zeroStackRows.includes('Calico') && zeroStackRows.includes('$0  OUT'), `zero-stack saved player should render as OUT for resume validation: ${zeroStackRows || '<empty>'}`);
         zeroStackResume.hooks.processChatRecord({
@@ -5632,7 +5632,7 @@ if (hooks) {
       resumeLeaderUi.runtime.config.PokerLocalPlayerName = 'Abrams';
       const leaderChatTarget = findPanel(resumeLeaderUi.runtime, 'ChatTargetLabel');
       if (leaderChatTarget) leaderChatTarget.text = 'TEAM';
-      resumeLeaderUi.hooks.modules.TableRenderer.renderGame();
+      resumeLeaderUi.hooks.modules.TableRenderer.render();
       assertButtonAffordance(resumeLeaderUi.runtime, 'PokerResumeControls', { hidden: false }, 'resume leader UI should show resume controls after import');
       assertButtonAffordance(resumeLeaderUi.runtime, 'PokerResumeLeaderButton', { hidden: false, enabled: true }, 'resume leader UI should enable the leader button for a funded saved player');
       assertButtonAffordance(resumeLeaderUi.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'resume leader UI should hide READY RESUME for the unselected leader');
@@ -5653,7 +5653,7 @@ if (hooks) {
         message: hooks.buildResumeLeaderCommand(saved.id),
         isSelf: true,
       });
-      resumeLeaderUi.hooks.modules.TableRenderer.renderGame();
+      resumeLeaderUi.hooks.modules.TableRenderer.render();
       assertButtonAffordance(resumeLeaderUi.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, 'resume leader UI should disable the leader button after selection');
       assertStartButtonGate(resumeLeaderUi.runtime, 'WAITING FOR RESUME READY', false, false, 'resume leader UI should show the ready quorum gate after leader selection');
       assert(
@@ -5673,7 +5673,7 @@ if (hooks) {
         message: hooks.buildResumeLeaderCommand(saved.id),
         isSelf: false,
       });
-      resumeReadyUi.hooks.modules.TableRenderer.renderGame();
+      resumeReadyUi.hooks.modules.TableRenderer.render();
       assertButtonAffordance(resumeReadyUi.runtime, 'PokerResumeLeaderButton', { hidden: false, enabled: true }, 'resume ready UI should keep leader selection available to a funded saved member');
       assertButtonAffordance(resumeReadyUi.runtime, 'PokerResumeReadyButton', { hidden: false, enabled: true }, 'resume ready UI should enable READY RESUME for the funded saved member');
       const readyButtonStart = resumeReadyUi.runtime.dispatches.length;
@@ -5688,7 +5688,7 @@ if (hooks) {
         message: hooks.buildResumeReadyCommand(saved.id),
         isSelf: true,
       });
-      resumeReadyUi.hooks.modules.TableRenderer.renderGame();
+      resumeReadyUi.hooks.modules.TableRenderer.render();
       assertButtonAffordance(resumeReadyUi.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'resume ready UI should hide READY RESUME after the member is ready');
       assert(
         panelText(findPanel(resumeReadyUi.runtime, 'PokerResumeStatusLabel')).includes('Ready: 2/2'),
@@ -5699,7 +5699,7 @@ if (hooks) {
         message: hooks.buildResumeReadyCommand(saved.id),
         isSelf: false,
       });
-      resumeLeaderUi.hooks.modules.TableRenderer.renderGame();
+      resumeLeaderUi.hooks.modules.TableRenderer.render();
       assertStartButtonGate(resumeLeaderUi.runtime, 'START RESUME', true, false, 'resume leader UI should enable START RESUME after the second saved player is ready');
     }
 
@@ -5946,7 +5946,7 @@ if (hooks) {
     stableRenderRuntime.hooks.processChatRecord({ sender: 'Bebop', message: 'check' });
     const community = findPanel(stableRenderRuntime.runtime, 'PokerCommunityCards');
     const beforeCards = findDescendantsWithClass(community, 'PokerCard', []);
-    stableRenderRuntime.hooks.modules.TableRenderer.renderGame();
+    stableRenderRuntime.hooks.modules.TableRenderer.render();
     const afterCards = findDescendantsWithClass(community, 'PokerCard', []);
     assert(beforeCards[0] && afterCards[0] && beforeCards[0] === afterCards[0], 'stable table renderer should reuse the first community card panel across repeated renders');
     const waitingActions = renderedActionButtons(stableRenderRuntime.runtime);
@@ -5957,14 +5957,14 @@ if (hooks) {
 
   const stableActive = createSyncedPartyRuntime('Abrams', 'sstable-active-render', tableRoster, 1);
   if (stableActive.hooks && stableActive.game) {
-    stableActive.hooks.modules.TableRenderer.renderGame();
+    stableActive.hooks.modules.TableRenderer.render();
     const firstActionPanels = actionButtonPanels(stableActive.runtime);
     const firstPlayerRows = playerListRows(stableActive.runtime);
     const firstTableRows = tableSeatRows(stableActive.runtime);
     const firstLogLines = pokerLogLines(stableActive.runtime);
     const firstHintCount = findDescendantsWithClass(findPanel(stableActive.runtime, 'PokerActionButtons'), 'PokerActionHint', []).length;
     clearDomWrites(stableActive.runtime);
-    stableActive.hooks.modules.TableRenderer.renderGame();
+    stableActive.hooks.modules.TableRenderer.render();
     const secondActionPanels = actionButtonPanels(stableActive.runtime);
     const secondPlayerRows = playerListRows(stableActive.runtime);
     const secondTableRows = tableSeatRows(stableActive.runtime);
@@ -5997,7 +5997,7 @@ if (hooks) {
     actionReuseRuntime.runtime.config.PokerLocalPlayerKey = actionActor.key;
     actionReuseRuntime.runtime.config.PokerLocalPlayerName = actionActor.name;
     actionReuseRuntime.hooks.state.localPlayerKey = actionActor.key;
-    actionReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    actionReuseRuntime.hooks.modules.TableRenderer.render();
     const firstActions = renderedActionButtons(actionReuseRuntime.runtime);
     const firstLabels = firstActions.map((entry) => entry.label);
     const firstPanels = firstActions.map((entry) => entry.panel);
@@ -6007,7 +6007,7 @@ if (hooks) {
     actionReuseRuntime.runtime.config.PokerLocalPlayerName = observer.name;
     actionReuseRuntime.hooks.state.localPlayerKey = observer.key;
     clearDomWrites(actionReuseRuntime.runtime);
-    actionReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    actionReuseRuntime.hooks.modules.TableRenderer.render();
     const secondActions = renderedActionButtons(actionReuseRuntime.runtime);
     const secondPanels = secondActions.map((entry) => entry.panel);
     assertEqual(JSON.stringify(secondActions.map((entry) => entry.label)), JSON.stringify(firstLabels), 'active actor action cache should keep action labels across observer affordance change');
@@ -6021,20 +6021,20 @@ if (hooks) {
 
   const playerReuseRuntime = createGameRuntime(['Abrams', 'Bebop'], 'player-row-cache');
   if (playerReuseRuntime.hooks && playerReuseRuntime.game) {
-    playerReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    playerReuseRuntime.hooks.modules.TableRenderer.render();
     const firstPlayerRow = playerListRows(playerReuseRuntime.runtime)[0];
     const firstPlayerCard = firstPokerCard(firstPlayerRow);
-    playerReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    playerReuseRuntime.hooks.modules.TableRenderer.render();
     assert(playerListRows(playerReuseRuntime.runtime)[0] === firstPlayerRow, 'stable player renderer should reuse the first player row across unchanged renders');
     assert(firstPokerCard(playerListRows(playerReuseRuntime.runtime)[0]) === firstPlayerCard, 'stable player renderer should reuse the first player card across unchanged renders');
   }
 
   const tableSeatReuseRuntime = createGameRuntime(['Abrams', 'Bebop'], 'table-seat-cache');
   if (tableSeatReuseRuntime.hooks && tableSeatReuseRuntime.game) {
-    tableSeatReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    tableSeatReuseRuntime.hooks.modules.TableRenderer.render();
     const firstTableSeat = tableSeatRows(tableSeatReuseRuntime.runtime)[0];
     const firstTableSeatCard = firstPokerCard(firstTableSeat);
-    tableSeatReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    tableSeatReuseRuntime.hooks.modules.TableRenderer.render();
     assert(tableSeatRows(tableSeatReuseRuntime.runtime)[0] === firstTableSeat, 'stable table-seat renderer should reuse the first table seat across unchanged renders');
     assert(firstPokerCard(tableSeatRows(tableSeatReuseRuntime.runtime)[0]) === firstTableSeatCard, 'stable table-seat renderer should reuse the first table-seat card across unchanged renders');
   }
@@ -6055,14 +6055,14 @@ if (hooks) {
       'cache line 11',
       'cache line 12',
     ];
-    logReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    logReuseRuntime.hooks.modules.TableRenderer.render();
     const firstLogLine = pokerLogLines(logReuseRuntime.runtime)[0];
     const capturedLogLines = pokerLogLines(logReuseRuntime.runtime).slice();
-    logReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    logReuseRuntime.hooks.modules.TableRenderer.render();
     assert(pokerLogLines(logReuseRuntime.runtime)[0] === firstLogLine, 'stable log renderer should reuse the first log row across unchanged renders');
 
     logReuseRuntime.game.log.push('cache line 13');
-    logReuseRuntime.hooks.modules.TableRenderer.renderGame();
+    logReuseRuntime.hooks.modules.TableRenderer.render();
     const appendedLogLines = pokerLogLines(logReuseRuntime.runtime);
     const appendedLogText = collectPanelTexts(findPanel(logReuseRuntime.runtime, 'PokerGameLog'), []).join('|');
     assertEqual(appendedLogLines.length, 12, `stable log renderer should keep the visible log capped at twelve rows: ${appendedLogText || '<empty>'}`);
@@ -6234,7 +6234,7 @@ if (hooks) {
     observerRuntime.hooks.state.localPlayerKey = 'calico';
     observerRuntime.runtime.config.PokerLocalPlayerKey = 'calico';
     observerRuntime.runtime.config.PokerLocalPlayerName = 'Calico';
-    observerRuntime.hooks.modules.TableRenderer.renderGame();
+    observerRuntime.hooks.modules.TableRenderer.render();
     assertButtonAffordance(observerRuntime.runtime, 'PokerPartyControls', { hidden: false }, 'active observer late-join button state');
     assertButtonAffordance(observerRuntime.runtime, 'PokerJoinPartyButton', { hidden: false, enabled: true }, 'active observer late-join button state');
     assertButtonAffordance(observerRuntime.runtime, 'PokerStartButton', { hidden: true, enabled: false }, 'active observer late-join button state');
