@@ -653,8 +653,8 @@
   }
 
 
-  function buildProgressPayload() {
-    const game = State.game;
+  function buildProgressPayload(gameOverride) {
+    const game = gameOverride || State.game;
     if (!game || !game.finished || game.active) return { ok: false, status: "Finish the current hand before copying progress." };
     const progressState = PokerEngine.progress(game);
     const progressPlayers = progressState.players;
@@ -692,8 +692,8 @@
     return ("00000000" + (checksum >>> 0).toString(16)).slice(-8);
   }
 
-  function getProgressShareKey() {
-    const game = State.game;
+  function getProgressShareKey(gameOverride) {
+    const game = gameOverride || State.game;
     if (!game || !game.finished || game.active || !game.players || !game.players.length) return "";
     const progressState = PokerEngine.progress(game);
     const progressPlayers = progressState.players;
@@ -710,8 +710,8 @@
     return match ? match[1].toLowerCase() : "";
   }
 
-  function buildFreshProgressSaveCode() {
-    const built = buildProgressPayload();
+  function buildFreshProgressSaveCode(gameOverride) {
+    const built = buildProgressPayload(gameOverride);
     if (!built.ok) return built;
     const payload = built.payload;
     const checksum = hashString(canonicalProgressPayload(payload)) >>> 0;
@@ -726,15 +726,15 @@
     };
   }
 
-  function buildProgressSaveCode() {
-    const shareKey = getProgressShareKey();
+  function buildProgressSaveCode(gameOverride) {
+    const shareKey = getProgressShareKey(gameOverride);
     if (shareKey && State.progressShare && State.progressShare.key === shareKey && State.progressShare.code) {
       const decoded = decodeProgressSaveCode(State.progressShare.code);
       if (decoded.ok && decoded.id === State.progressShare.id) {
         return { ok: true, code: State.progressShare.code, id: State.progressShare.id, payload: decoded.payload };
       }
     }
-    const built = buildFreshProgressSaveCode();
+    const built = buildFreshProgressSaveCode(gameOverride);
     if (built.ok && shareKey) {
       State.progressShare = {
         key: shareKey,
@@ -855,7 +855,7 @@
     if (reason) log("cleared resume state: " + reason);
   }
 
-  function importProgressSaveCode(code, suppressEffects) {
+  function importProgressSaveCode(code, source) {
     if (State.game && State.game.active) return { ok: false, status: "Finish the current hand before importing progress." };
     const decoded = decodeProgressSaveCode(code);
     if (!decoded.ok) return decoded;
@@ -871,7 +871,7 @@
       order: [],
     };
     saveResumeState();
-    if (!suppressEffects) {
+    if (source !== "shared" && source !== "transfer") {
       RenderScheduler.defer("progress-import");
       setStatus("Imported progress " + decoded.id + ". Choose a resume leader, then sync resume in chat.");
     }
@@ -1217,7 +1217,7 @@
       readyChanged = forgetReadySeat(readyAction.key);
     }
     savePartyState();
-    if (readyAction.progressShareReason) shareImportedProgressFromHostedLeader(readyAction.progressShareReason);
+    if (readyAction.progressShareReason) ProgressResume.shareImported(readyAction.progressShareReason);
     return { readyChanged: readyChanged };
   }
 
@@ -1863,7 +1863,7 @@
     const canUseReadyChat = !!(!activeGame && needsResumeIdentity);
     const startGate = getPokerStartGate(state);
     const resumeGate = getPokerResumeGate(state);
-    const resumeProjection = getProgressResumeProjection(state);
+    const resumeProjection = ProgressResume.project(state);
     const canJoinParty = !!(party.id && party.mode === "none" && (activeObserver || !activeGame));
     let partyStatus = "";
     if (state.sync && (state.sync.waitingForReadySnapshot || state.sync.waitingForChatSnapshot)) partyStatus = "Syncing poker chat state...";
@@ -2790,7 +2790,7 @@
       RenderScheduler.immediate("copy-progress-invalid");
       return { ok: false, status: "Finish the current hand before copying progress." };
     }
-    const result = buildProgressSaveCode();
+    const result = ProgressResume.build(State.game);
     if (!result.ok) {
       setStatus(result.status || "Finish the current hand before copying progress.");
       RenderScheduler.immediate("copy-progress-invalid");
@@ -2815,9 +2815,9 @@
       setStatus("Paste a progress code first.");
       return { ok: false, status: "Paste a progress code first." };
     }
-    const result = importProgressSaveCode(text);
+    const result = ProgressResume.importCode(text, "manual");
     if (result.ok) State.requiresProgressImport = false;
-    if (result.ok) shareImportedProgressFromHostedLeader("manual-import");
+    if (result.ok) ProgressResume.shareImported("manual-import");
     if (!result.ok) setStatus(result.status || "Invalid progress code.");
     RenderScheduler.immediate(result.ok ? "import-progress" : "import-progress-invalid");
     return result;
@@ -3007,27 +3007,39 @@
     };
   }
 
-  function getProgressResumeGates(snapshot) {
-    const state = snapshot || getButtonStateSnapshot();
-    return {
-      resume: getPokerResumeGate(state),
-      hostedResume: getHostedResumeStartGate(state),
-    };
+
+  function applyProgressResumeCommand(command) {
+    if (!command || !command.type) return ignoredCommandEffect("progress-resume");
+    const resolvedRecord = command.record ? command.record : resolveSelfRecord(command);
+    if (!resolvedRecord || !resolvedRecord.message) {
+      return command.type === "resume-start" ? applyResumeStartCommand(command) : ignoredCommandEffect("progress-resume");
+    }
+    if (command.type === "progress-offer" || command.type === "progress-chunk") {
+      return applyProgressShareMessage({
+        type: command.type === "progress-offer" ? "offer" : "chunk",
+        id: command.id,
+        checksum: command.checksum,
+        count: command.count,
+        index: command.index || 0,
+        chunk: command.chunk || "",
+        record: resolvedRecord,
+      });
+    }
+    if (command.type === "resume-leader" || command.type === "resume-ready") {
+      return applyResumeAuthorityCommand(command, resolvedRecord);
+    }
+    if (command.type === "resume-start") {
+      return applyResumeStartCommand(Object.assign({}, command, { record: resolvedRecord }));
+    }
+    return ignoredCommandEffect("progress-resume");
   }
 
   const ProgressResume = {
-    project: getProgressResumeProjection,
-    gates: getProgressResumeGates,
-    getStartGate: getPokerResumeGate,
-    getHostedStartGate: getHostedResumeStartGate,
-    "import": importProgressSaveCode,
+    build: buildProgressSaveCode,
     importCode: importProgressSaveCode,
-    "build": buildProgressSaveCode,
-    buildCode: buildProgressSaveCode,
-    applyShare: applyProgressShareMessage,
+    applyCommand: applyProgressResumeCommand,
     shareImported: shareImportedProgressFromHostedLeader,
-    selectHostedLeader: selectHostedResumeLeader,
-    applyStartCommand: applyResumeStartCommand,
+    project: getProgressResumeProjection,
   };
 
   function hashString(text) {
@@ -4351,7 +4363,7 @@
     const pending = takePendingResumeStartCommand(id);
     if (!pending) return null;
     log("replaying pending resume start " + id);
-    return applyResumeStartCommand(decodePokerCommand(pending.record));
+    return ProgressResume.applyCommand(decodePokerCommand(pending.record));
   }
 
   function resolveUnknownHostedResumeStartRecord(record, id, parsedLeaderKey) {
@@ -4393,7 +4405,7 @@
     if (checksumFromProgressCode(code) !== checksum) return { ok: false, status: "Invalid shared progress checksum." };
     const decoded = decodeProgressSaveCode(code);
     if (!decoded.ok || decoded.id !== id) return { ok: false, status: "Invalid shared progress code." };
-    const imported = importProgressSaveCode(code, true);
+    const imported = ProgressResume.importCode(code, "shared");
     if (!imported.ok) return imported;
     return { ok: true, id: id, code: code, payload: imported.payload };
   }
@@ -4473,17 +4485,6 @@
     return commandEffect(true, applied.readyChanged, !!result.render, result.status || "Match ended by party leader.", "match-end");
   }
 
-  function applyProgressCommand(command, resolvedRecord) {
-    return ProgressResume.applyShare({
-      type: command.type === "progress-offer" ? "offer" : "chunk",
-      id: command.id,
-      checksum: command.checksum,
-      count: command.count,
-      index: command.index || 0,
-      chunk: command.chunk || "",
-      record: resolvedRecord,
-    });
-  }
 
   function applyResumeAuthorityCommand(command, resolvedRecord) {
     if (isUnknownSender(resolvedRecord.sender)) {
@@ -4601,11 +4602,11 @@
     "party-join": applyPartyCommand,
     "party-leave": applyPartyCommand,
     "match-end": applyMatchEndCommand,
-    "progress-offer": applyProgressCommand,
-    "progress-chunk": applyProgressCommand,
-    "resume-leader": applyResumeAuthorityCommand,
-    "resume-ready": applyResumeAuthorityCommand,
-    "resume-start": applyResumeStartCommand,
+    "progress-offer": applyProgressResumeCommand,
+    "progress-chunk": applyProgressResumeCommand,
+    "resume-leader": applyProgressResumeCommand,
+    "resume-ready": applyProgressResumeCommand,
+    "resume-start": applyProgressResumeCommand,
     "start": applyStartCommand,
     "all-in-unsupported": applyUnsupportedAllInCommand,
     "action": applyActionCommand,
@@ -5871,17 +5872,10 @@
         encodeRoster: encodeRoster,
         decodeRoster: decodeRoster,
         buildSynchronizedStartCommand: buildSynchronizedStartCommand,
-        buildProgressSaveCode: buildProgressSaveCode,
-        decodeProgressSaveCode: decodeProgressSaveCode,
-        importProgressSaveCode: importProgressSaveCode,
         buildResumeLeaderCommand: buildResumeLeaderCommand,
         buildResumeReadyCommand: buildResumeReadyCommand,
         buildResumeStartCommand: buildResumeStartCommand,
-        getResumeGate: getResumeGate,
-        getResumeId: getResumeId,
         resolveResumeNextDealerKey: resolveResumeNextDealerKey,
-        cryptProgressBytes: cryptProgressBytes,
-        textToUtf8Bytes: textToUtf8Bytes,
         getCallAmount: getCallAmount,
         getMinimumRaiseTo: getMinimumRaiseTo,
         getLegalActions: getLegalActions,

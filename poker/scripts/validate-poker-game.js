@@ -393,18 +393,14 @@ function hasPartySyncHooks(hooks, message) {
 
 function hasProgressResumeHooks(hooks, message) {
   let ok = true;
-  for (const name of [
-    'buildProgressSaveCode',
-    'decodeProgressSaveCode',
-    'importProgressSaveCode',
-    'buildResumeLeaderCommand',
-    'buildResumeReadyCommand',
-    'buildResumeStartCommand',
-    'getResumeGate',
-    'getResumeId',
-    'resolveResumeNextDealerKey',
-    'cryptProgressBytes',
-  ]) {
+  const progressResume = hooks.modules && hooks.modules.ProgressResume;
+  if (!progressResume || typeof progressResume !== 'object') {
+    return assert(false, message + ': missing ProgressResume module');
+  }
+  for (const name of ['build', 'importCode', 'applyCommand', 'shareImported', 'project']) {
+    ok = assert(typeof progressResume[name] === 'function', `${message}: ProgressResume.${name} should be a function`) && ok;
+  }
+  for (const name of ['buildResumeLeaderCommand', 'buildResumeReadyCommand', 'buildResumeStartCommand', 'resolveResumeNextDealerKey']) {
     ok = assertHookFunction(hooks, name, message) && ok;
   }
   return ok;
@@ -912,7 +908,7 @@ function createProgressCodeRuntime(names, seed) {
   progressRuntime.hooks.processChatRecord({ sender: currentPlayer(game).name, message: 'check' });
   progressRuntime.hooks.processChatRecord({ sender: currentPlayer(game).name, message: 'bet $300' });
   progressRuntime.hooks.processChatRecord({ sender: currentPlayer(game).name, message: 'fold' });
-  const progress = progressRuntime.hooks.buildProgressSaveCode();
+  const progress = progressRuntime.hooks.modules.ProgressResume.build();
   assertEqual(progress.ok, true, 'progress helper should create an exportable finished hand');
   return {
     runtime: progressRuntime.runtime,
@@ -1095,7 +1091,7 @@ if (hooks) {
     CommandReducer: ['decode', 'apply', 'applyRecord', 'applyPayload'],
     PokerEngine: ['create', 'actions', 'apply', 'depart', 'progress', 'evaluate'],
     PartyReducer: ['apply', 'roster', 'reset'],
-    ProgressResume: ['project', 'gates', 'getStartGate', 'getHostedStartGate', 'import', 'importCode', 'build', 'buildCode', 'applyShare', 'shareImported', 'selectHostedLeader', 'applyStartCommand'],
+    ProgressResume: ['build', 'importCode', 'applyCommand', 'shareImported', 'project'],
     PokerMetrics: ['reset', 'snapshot', 'increment', 'start', 'end'],
     RenderScheduler: ['defer', 'immediate', 'flush', 'isQueued'],
     PanelCache: ['refresh', 'get', 'invalidate', 'hasRequired'],
@@ -1113,6 +1109,13 @@ if (hooks) {
         `${moduleName}.${functionName} should be exposed as a behavior-level hook`,
       );
     }
+  }
+  if (modules.ProgressResume) {
+    assertEqual(
+      Object.keys(modules.ProgressResume).sort().join(','),
+      ['applyCommand', 'build', 'importCode', 'project', 'shareImported'].sort().join(','),
+      'ProgressResume should expose only its final deep state-machine surface',
+    );
   }
   if (modules.PartyReducer) {
     const partyContractRuntime = createMenuRuntime();
@@ -1557,14 +1560,6 @@ if (hooks) {
       'resume start command builder should use the chat-safe marker order',
     );
     assertEqual(hooks.buildResumeStartCommand('r123', 'abrams', 2, 'sresume').includes(' roster '), false, 'compact resume-start builder must omit roster marker');
-    const samePrefix = hooks.textToUtf8Bytes ? hooks.textToUtf8Bytes('same-prefix') : [115, 97, 109, 101, 45, 112, 114, 101, 102, 105, 120];
-    const encryptedA = hooks.cryptProgressBytes(samePrefix, 'seed-a');
-    const encryptedB = hooks.cryptProgressBytes(samePrefix, 'seed-b');
-    assertEqual(
-      JSON.stringify(encryptedA) === JSON.stringify(encryptedB),
-      false,
-      'progress cipher should hash string seeds so different string seeds produce different byte streams',
-    );
   }
   if (partyHooksAvailable) {
     assertEqual(
@@ -2452,12 +2447,12 @@ if (hooks) {
     assertPotWinnerFeedback(runtime, [bettor.name], 'fold win');
 
     if (progressHooksAvailable) {
-      const progress = hooks.buildProgressSaveCode();
+      const progress = hooks.modules.ProgressResume.build(game);
       assertEqual(progress.ok, true, 'finished hand should export progress');
       assert(progress.code && progress.code.indexOf('POKERPROG1-') === 0, 'progress export should use the POKERPROG1 prefix');
       assertEqual(String(progress.code).includes('Abrams'), false, 'progress code should not include the first player name');
       assertEqual(String(progress.code).includes('Bebop'), false, 'progress code should not include the second player name');
-      const decoded = hooks.decodeProgressSaveCode(progress.code);
+      const decoded = hooks.modules.ProgressResume.importCode(progress.code);
       assertEqual(decoded.ok, true, 'exported progress code should decode');
       if (decoded.ok) {
         assertEqual(decoded.payload.version, 1, 'decoded progress payload should use version 1');
@@ -2469,7 +2464,7 @@ if (hooks) {
         assertEqual(decoded.payload.lastHandNumber, game.handNumber, 'decoded progress should keep the finished hand number');
         assertEqual(decoded.payload.nextHandNumber, game.handNumber + 1, 'decoded progress should keep the next hand number');
         assertEqual(decoded.payload.dealerKey, game.players[game.dealerIndex].key, 'decoded progress should keep the saved dealer key');
-        assertEqual(decoded.id, hooks.getResumeId(decoded.payload), 'decoded progress id should match getResumeId');
+        assertEqual(decoded.id, progress.id, 'decoded progress id should match the exported ProgressResume build id');
       }
     }
       const copyProgressRuntime = createProgressCodeRuntime(['Copy Leader', 'Copy Member'], 'copy-progress-regression');
@@ -3291,7 +3286,7 @@ if (hooks) {
       middleDealerGame.dealerIndex = middleDealerGame.players.indexOf(middleDealerPlayer);
       middleDealerHooks.processChatRecord({ sender: 'Bebop', message: '[party leave] poker party psync', isSelf: false });
       middleDealerHooks.showdown();
-      const middleDealerProgress = middleDealerHooks.buildProgressSaveCode();
+      const middleDealerProgress = middleDealerHooks.modules.ProgressResume.build();
       assertEqual(middleDealerProgress.ok, true, 'middle dealer leave finished hand should export progress for remaining players');
       if (middleDealerProgress.ok) {
         assertEqual(
@@ -3349,7 +3344,7 @@ if (hooks) {
     }
 
       leaderLeaveHooks.showdown();
-      const leftLeaderProgress = leaderLeaveHooks.buildProgressSaveCode();
+      const leftLeaderProgress = leaderLeaveHooks.modules.ProgressResume.build();
       assertEqual(leftLeaderProgress.ok, true, 'three-player leader leave finished hand should still export progress for remaining players');
       if (leftLeaderProgress.ok) {
         const progressRosterKeys = leftLeaderProgress.payload.roster.map((entry) => entry.key);
@@ -3632,10 +3627,10 @@ if (hooks) {
     const unicodeProgress = createProgressCodeRuntime(['Élodie 🂡', 'Bebop'], 'progress-unicode-roundtrip');
     if (unicodeProgress.code && unicodeProgress.payload) {
       const unicodeImport = createMenuRuntime();
-      const unicodeDecoded = unicodeImport.hooks.decodeProgressSaveCode(unicodeProgress.code);
+      const unicodeDecoded = unicodeImport.hooks.modules.ProgressResume.importCode(unicodeProgress.code);
       assertEqual(unicodeDecoded.ok, true, 'Unicode POKERPROG1 code should decode after export');
       assertEqual(unicodeDecoded.payload && unicodeDecoded.payload.roster[0].name, 'Élodie 🂡', 'Unicode POKERPROG1 decode should preserve the player name');
-      const unicodeImported = unicodeImport.hooks.importProgressSaveCode(unicodeProgress.code);
+      const unicodeImported = unicodeImport.hooks.modules.ProgressResume.importCode(unicodeProgress.code);
       assertEqual(unicodeImported.ok, true, 'Unicode POKERPROG1 code should import after roundtrip');
       assertEqual(unicodeImported.payload && unicodeImported.payload.roster[0].name, 'Élodie 🂡', 'Unicode POKERPROG1 import should preserve the player name');
       unicodeImport.hooks.modules.TableRenderer.renderGame();
@@ -3648,7 +3643,7 @@ if (hooks) {
         ['PokerStatusLabel', 'PokerPartyStatusLabel', 'PokerProgressCodeLabel', 'PokerResumeStatusLabel']
           .map((id) => panelText(findPanel(secondClientResume.runtime, id)))
           .join(' | ');
-      assertEqual(secondClientResume.hooks.importProgressSaveCode(saved.code).ok, true, 'second saved client should import saved progress');
+      assertEqual(secondClientResume.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'second saved client should import saved progress');
       secondClientResume.hooks.modules.TableRenderer.renderGame();
       assertButtonAffordance(secondClientResume.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'imported progress before resume leader second-client CTA');
       assert(
@@ -3701,7 +3696,7 @@ if (hooks) {
       const resumeB = createMenuRuntime();
       const startCommand = hooks.buildResumeStartCommand(saved.id, 'abrams', saved.payload.nextHandNumber, 'sresume');
       for (const target of [resumeA, resumeB]) {
-        assertEqual(target.hooks.importProgressSaveCode(saved.code).ok, true, 'resume runtime should import saved progress');
+        assertEqual(target.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'resume runtime should import saved progress');
         target.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id), isSelf: target === resumeA });
         target.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeReadyCommand(saved.id), isSelf: target === resumeB });
         target.hooks.processChatRecord({ sender: 'Abrams', message: startCommand, isSelf: target === resumeA });
@@ -4583,7 +4578,7 @@ if (hooks) {
             message: `[party leave] poker party ${liveLogPartyId}`,
             isSelf: localName === 'Hantu Raya',
           });
-          detachedRuntime.hooks.importProgressSaveCode(liveLogSaved.code);
+          detachedRuntime.hooks.modules.ProgressResume.importCode(liveLogSaved.code);
           detachedRuntime.hooks.state.localPlayerKey = localKey;
           detachedRuntime.runtime.config.PokerLocalPlayerKey = localKey;
           detachedRuntime.runtime.config.PokerLocalPlayerName = localName;
@@ -4668,7 +4663,7 @@ if (hooks) {
         assertProgressImportAvailable(hostedLeaderEndImport.leaderRuntime.runtime, 'hosted JDBeast/Hantu Raya end match hosted-leader import controls');
 
         const liveLogResume = createMenuRuntime();
-        assertEqual(liveLogResume.hooks.importProgressSaveCode(liveLogSaved.code).ok, true, 'JDBeast/Hantu Raya receiver should import saved progress');
+        assertEqual(liveLogResume.hooks.modules.ProgressResume.importCode(liveLogSaved.code).ok, true, 'JDBeast/Hantu Raya receiver should import saved progress');
         const liveLogBuiltStartCommand = liveLogResume.hooks.buildResumeStartCommand(liveLogSaved.id, 'jdbeast', liveLogSaved.payload.nextHandNumber, 'shantu-raya-resume');
         assert(
           liveLogBuiltStartCommand.length <= MAX_PROGRESS_CHAT_COMMAND_LENGTH,
@@ -4694,7 +4689,7 @@ if (hooks) {
           message: liveLogResume.hooks.buildResumeReadyCommand(liveLogSaved.id),
           isSelf: false,
         });
-        assertEqual(liveLogResume.hooks.getResumeGate().enabled, true, 'JDBeast/Hantu Raya resume gate should be startable after leader and ready messages');
+        assertEqual(liveLogResume.hooks.modules.ProgressResume.project().gates.resume.enabled, true, 'JDBeast/Hantu Raya resume gate should be startable after leader and ready messages');
         const liveLogStatusBeforeStart = panelText(findPanel(liveLogResume.runtime, 'PokerStatusLabel'));
         const liveLogMessagesBeforeStart = liveLogResume.runtime.messages.length;
         liveLogResume.hooks.processChatRecord({
@@ -4761,7 +4756,7 @@ if (hooks) {
         assertEqual(Object.keys(chunkedImport.hooks.state.resume.ready || {}).length, 0, 'chunked progress import should not auto-ready any player');
         assertEqual(chunkedImport.hooks.state.resume.leaderKey || '', '', 'chunked progress import should not auto-select a resume leader');
         assertEqual((chunkedImport.hooks.state.resume.order || []).length, 0, 'chunked progress import should not add the progress sender to resume order');
-        assertEqual(chunkedImport.hooks.getResumeGate().enabled, false, 'chunked progress import should still require hosted party authority before start');
+        assertEqual(chunkedImport.hooks.modules.ProgressResume.project().gates.resume.enabled, false, 'chunked progress import should still require hosted party authority before start');
         chunkedImport.hooks.state.localPlayerKey = 'abrams';
         chunkedImport.runtime.config.PokerLocalPlayerKey = 'abrams';
         chunkedImport.runtime.config.PokerLocalPlayerName = 'Abrams';
@@ -4784,7 +4779,7 @@ if (hooks) {
       });
       assertEqual(chunkedImport.hooks.state.game, null, 'chunked progress resume leader message should not start a game');
       assert(chunkedImport.hooks.state.resume.leaderKey !== 'abrams', 'chunked progress legacy resume leader message should not make Abrams the resume leader');
-      assertEqual(chunkedImport.hooks.getResumeGate().enabled, false, 'chunked progress legacy resume leader message should not make the hosted progress startable');
+      assertEqual(chunkedImport.hooks.modules.ProgressResume.project().gates.resume.enabled, false, 'chunked progress legacy resume leader message should not make the hosted progress startable');
       chunkedImport.hooks.processChatRecord({
         sender: 'Bebop',
         message: hooks.buildResumeReadyCommand(saved.id),
@@ -4792,9 +4787,9 @@ if (hooks) {
       });
       assertEqual(chunkedImport.hooks.state.game, null, 'chunked progress resume ready message should not start a game');
       assert(chunkedImport.hooks.state.resume.leaderKey !== 'bebop', 'chunked progress legacy resume ready message should not make Bebop the resume leader');
-      assertEqual(chunkedImport.hooks.getResumeGate().enabled, false, 'chunked progress legacy resume ready message should not make the hosted progress startable');
+      assertEqual(chunkedImport.hooks.modules.ProgressResume.project().gates.resume.enabled, false, 'chunked progress legacy resume ready message should not make the hosted progress startable');
       const importedNoLeaderRuntime = createMenuRuntime();
-      importedNoLeaderRuntime.hooks.importProgressSaveCode(saved.code);
+      importedNoLeaderRuntime.hooks.modules.ProgressResume.importCode(saved.code);
       importedNoLeaderRuntime.hooks.state.localPlayerKey = 'abrams';
       importedNoLeaderRuntime.runtime.config.PokerLocalPlayerKey = 'abrams';
       importedNoLeaderRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
@@ -4809,7 +4804,7 @@ if (hooks) {
       assertPlayerListRosterRow(importedNoLeaderRuntime.runtime, 'Bebop', saved.payload.bankrolls.bebop, 'WAITING', 'imported progress no-leader player list');
 
       const staleResumeHostRuntime = createMenuRuntime();
-      assertEqual(staleResumeHostRuntime.hooks.importProgressSaveCode(saved.code).ok, true, 'stale imported progress host setup should import saved progress');
+      assertEqual(staleResumeHostRuntime.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'stale imported progress host setup should import saved progress');
       staleResumeHostRuntime.hooks.state.localPlayerKey = 'abrams';
       staleResumeHostRuntime.runtime.config.PokerLocalPlayerKey = 'abrams';
       staleResumeHostRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
@@ -4871,7 +4866,7 @@ if (hooks) {
 
 
       const staleResumePartyRuntime = createMenuRuntime();
-      assertEqual(staleResumePartyRuntime.hooks.importProgressSaveCode(saved.code).ok, true, 'stale imported progress party join setup should import saved progress');
+      assertEqual(staleResumePartyRuntime.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'stale imported progress party join setup should import saved progress');
       staleResumePartyRuntime.hooks.processChatRecord({ sender: 'Calico', message: '[party leader] poker party pstale-import', isSelf: false });
       staleResumePartyRuntime.hooks.modules.TableRenderer.renderGame();
       const staleResumeJoinInput = findPanel(staleResumePartyRuntime.runtime, 'PokerProgressCodeInput');
@@ -4977,7 +4972,7 @@ if (hooks) {
     const invalidRuntime = createMenuRuntime();
     if (invalidRuntime.hooks) {
       const beforeGame = invalidRuntime.hooks.state.game;
-      const invalid = invalidRuntime.hooks.importProgressSaveCode('not-a-progress-code');
+      const invalid = invalidRuntime.hooks.modules.ProgressResume.importCode('not-a-progress-code');
       assertEqual(invalid.ok, false, 'invalid progress code should fail import');
       assertEqual(invalidRuntime.hooks.state.game, beforeGame, 'invalid progress import should leave State.game unchanged');
     }
@@ -4988,7 +4983,7 @@ if (hooks) {
         message: '[party leader] poker party ptampered-local-code',
         isSelf: true,
       });
-      tamperedLocalRuntime.hooks.importProgressSaveCode(saved.code);
+      tamperedLocalRuntime.hooks.modules.ProgressResume.importCode(saved.code);
       tamperedLocalRuntime.hooks.modules.TableRenderer.renderGame();
       const tamperedInput = findPanel(tamperedLocalRuntime.runtime, 'PokerProgressCodeInput');
       assert(tamperedInput, 'tampered local progress setup should expose the progress code input');
@@ -5008,7 +5003,7 @@ if (hooks) {
     }
     if (saved.code && saved.payload) {
       const wrongChecksumRuntime = createMenuRuntime();
-      assertEqual(wrongChecksumRuntime.hooks.importProgressSaveCode(saved.code).ok, true, 'wrong-checksum transfer setup should import the existing local progress');
+      assertEqual(wrongChecksumRuntime.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'wrong-checksum transfer setup should import the existing local progress');
       wrongChecksumRuntime.hooks.state.localPlayerKey = 'abrams';
       wrongChecksumRuntime.runtime.config.PokerLocalPlayerKey = 'abrams';
       wrongChecksumRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
@@ -5033,7 +5028,7 @@ if (hooks) {
       assertEqual(wrongChecksumRuntime.hooks.state.resume.leaderKey, '', 'wrong-final-checksum transfer should not select a resume leader');
       assertEqual(wrongChecksumRuntime.hooks.state.resume.hostedLeaderKey, '', 'wrong-final-checksum transfer should not grant hosted resume authority');
       assertEqual(progressTransferCount(wrongChecksumRuntime.hooks), 0, 'wrong-final-checksum transfer should discard the invalid transfer');
-      assertEqual(wrongChecksumRuntime.hooks.getResumeGate().enabled, false, 'wrong-final-checksum transfer should not unlock resume start');
+      assertEqual(wrongChecksumRuntime.hooks.modules.ProgressResume.project().gates.resume.enabled, false, 'wrong-final-checksum transfer should not unlock resume start');
       assert(
         panelText(findPanel(wrongChecksumRuntime.runtime, 'PokerStatusLabel')).includes('Invalid shared progress checksum.'),
         `wrong-final-checksum transfer should render the checksum rejection status: ${panelText(findPanel(wrongChecksumRuntime.runtime, 'PokerStatusLabel')) || '<empty>'}`,
@@ -5061,7 +5056,7 @@ if (hooks) {
       });
       assertEqual(!!duplicateChunkRuntime.hooks.state.resume.payload, false, 'duplicate progress chunk should not complete the transfer');
       assertEqual(progressTransferCount(duplicateChunkRuntime.hooks), 1, 'duplicate progress chunk should keep one pending transfer');
-      assertEqual(duplicateChunkRuntime.hooks.getResumeGate().enabled, false, 'duplicate progress chunk should not unlock resume');
+      assertEqual(duplicateChunkRuntime.hooks.modules.ProgressResume.project().gates.resume.enabled, false, 'duplicate progress chunk should not unlock resume');
       duplicateChunkRuntime.hooks.processChatRecord({
         sender: 'Seven',
         message: buildProgressChunkMessage(saved.id, duplicateChecksum, 2, duplicateChunks.length, duplicateChunks[1]),
@@ -5098,13 +5093,13 @@ if (hooks) {
       zeroStackGame.players[2].stack = 0;
       zeroStackGame.players[2].bet = 0;
       zeroStackGame.players[2].committed = 0;
-      const zeroStackSave = zeroStackSource.hooks.buildProgressSaveCode();
+      const zeroStackSave = zeroStackSource.hooks.modules.ProgressResume.build();
       assertEqual(zeroStackSave.ok, true, 'zero-stack saved player should remain valid progress input while two players have chips');
       if (zeroStackSave.ok) {
         assertEqual(zeroStackSave.payload.bankrolls.calico, 0, 'zero-stack saved player should be represented with a zero bankroll');
         assertEqual(zeroStackSave.payload.roster.length, 3, 'zero-stack saved player should remain represented in the saved roster');
         const zeroStackResume = createMenuRuntime();
-        assertEqual(zeroStackResume.hooks.importProgressSaveCode(zeroStackSave.code).ok, true, 'zero-stack saved progress should import');
+        assertEqual(zeroStackResume.hooks.modules.ProgressResume.importCode(zeroStackSave.code).ok, true, 'zero-stack saved progress should import');
         zeroStackResume.hooks.modules.TableRenderer.renderGame();
         const zeroStackRows = collectPanelTexts(findPanel(zeroStackResume.runtime, 'PokerResumeLeaderList'), []).join('|');
         assert(zeroStackRows.includes('Calico') && zeroStackRows.includes('$0  OUT'), `zero-stack saved player should render as OUT for resume validation: ${zeroStackRows || '<empty>'}`);
@@ -5131,7 +5126,7 @@ if (hooks) {
     }
     if (saved.code && saved.payload) {
       const resumeLeaderUi = createMenuRuntime();
-      assertEqual(resumeLeaderUi.hooks.importProgressSaveCode(saved.code).ok, true, 'resume leader UI setup should import progress');
+      assertEqual(resumeLeaderUi.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'resume leader UI setup should import progress');
       resumeLeaderUi.hooks.state.localPlayerKey = 'abrams';
       resumeLeaderUi.runtime.config.PokerLocalPlayerKey = 'abrams';
       resumeLeaderUi.runtime.config.PokerLocalPlayerName = 'Abrams';
@@ -5167,7 +5162,7 @@ if (hooks) {
       );
 
       const resumeReadyUi = createMenuRuntime();
-      assertEqual(resumeReadyUi.hooks.importProgressSaveCode(saved.code).ok, true, 'resume ready UI setup should import progress');
+      assertEqual(resumeReadyUi.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'resume ready UI setup should import progress');
       resumeReadyUi.hooks.state.localPlayerKey = 'bebop';
       resumeReadyUi.runtime.config.PokerLocalPlayerKey = 'bebop';
       resumeReadyUi.runtime.config.PokerLocalPlayerName = 'Bebop';
@@ -5211,7 +5206,7 @@ if (hooks) {
     const activeImportRuntime = createGameRuntime(['Abrams', 'Bebop'], 'active-import');
     if (activeImportRuntime.hooks && activeImportRuntime.game && saved.code) {
       activeImportRuntime.hooks.state.resume = { id: 'sentinel' };
-      const activeImport = activeImportRuntime.hooks.importProgressSaveCode(saved.code);
+      const activeImport = activeImportRuntime.hooks.modules.ProgressResume.importCode(saved.code);
       assertEqual(activeImport.ok, false, 'active hand progress import should fail');
       assertEqual(activeImport.status, 'Finish the current hand before importing progress.', 'active hand progress import should return the exact status');
       assertEqual(activeImportRuntime.hooks.state.resume.id, 'sentinel', 'active hand progress import should leave State.resume unchanged');
@@ -5219,7 +5214,7 @@ if (hooks) {
 
     if (saved.code && saved.payload) {
       const nonLeaderResume = createMenuRuntime();
-      nonLeaderResume.hooks.importProgressSaveCode(saved.code);
+      nonLeaderResume.hooks.modules.ProgressResume.importCode(saved.code);
       nonLeaderResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id) });
       nonLeaderResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeReadyCommand(saved.id) });
       const nonLeaderStatusBefore = panelText(findPanel(nonLeaderResume.runtime, 'PokerStatusLabel'));
@@ -5229,7 +5224,7 @@ if (hooks) {
       assertDiagnosticContains(nonLeaderResume.runtime, nonLeaderMessagesBefore, nonLeaderStatusBefore, 'reject-non-leader-resume', 'non-selected resume start sender');
 
       const mismatchResume = createMenuRuntime();
-      mismatchResume.hooks.importProgressSaveCode(saved.code);
+      mismatchResume.hooks.modules.ProgressResume.importCode(saved.code);
       mismatchResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id) });
       mismatchResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeReadyCommand(saved.id) });
       const mismatchStatusBefore = panelText(findPanel(mismatchResume.runtime, 'PokerStatusLabel'));
@@ -5239,7 +5234,7 @@ if (hooks) {
       assertDiagnosticContains(mismatchResume.runtime, mismatchMessagesBefore, mismatchStatusBefore, 'reject-resume-leader-mismatch', 'mismatched resume leader token');
 
       const wrongIdResume = createMenuRuntime();
-      wrongIdResume.hooks.importProgressSaveCode(saved.code);
+      wrongIdResume.hooks.modules.ProgressResume.importCode(saved.code);
       wrongIdResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id) });
       wrongIdResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeStartCommand('rwrong', 'abrams', saved.payload.nextHandNumber, 'swrong') });
       assertEqual(wrongIdResume.hooks.state.game, null, 'resume start with a mismatched id should not create a game');
@@ -5264,12 +5259,12 @@ if (hooks) {
           { key: 'calico', name: 'Calico', stack: 6000, bet: 0, committed: 0, cards: [], folded: false, acted: false },
         ],
       };
-      const bustedSave = bustedDealerRuntime.hooks.buildProgressSaveCode();
+      const bustedSave = bustedDealerRuntime.hooks.modules.ProgressResume.build();
       assertEqual(bustedSave.ok, true, 'busted dealer finished table should still export when two players have chips');
       if (bustedSave.ok) {
         assertEqual(bustedDealerRuntime.hooks.resolveResumeNextDealerKey(bustedSave.payload), 'bebop', 'busted saved dealer should rotate to the next positive-bankroll player');
         const bustedResume = createMenuRuntime();
-        bustedResume.hooks.importProgressSaveCode(bustedSave.code);
+        bustedResume.hooks.modules.ProgressResume.importCode(bustedSave.code);
         bustedResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeLeaderCommand(bustedSave.id) });
         bustedResume.hooks.processChatRecord({ sender: 'Calico', message: hooks.buildResumeReadyCommand(bustedSave.id) });
         bustedResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeStartCommand(bustedSave.id, 'bebop', bustedSave.payload.nextHandNumber, 'sbusted') });
