@@ -1158,14 +1158,52 @@ if (hooks) {
           { key: 'calico', name: 'Calico' },
         ],
         handNumber: 2,
+        dealerKey: 'bebop',
+        previousGame: engineRuntime.game,
+        bankrolls: { abrams: 9000, bebop: 7000, calico: 0 },
       });
+      assertEqual(
+        Object.keys(created).sort().join(','),
+        'bankrolls,game,ok,status',
+        'PokerEngine.create should expose the exact creation result surface',
+      );
       assert(created.ok && created.game, 'PokerEngine.create should create a deterministic hand from explicit options');
-      const actor = currentPlayer(engineRuntime.game);
-      const actionView = actor ? engine.actions(engineRuntime.game, actor.key, actor.key) : null;
+      assertEqual(created.bankrolls.bebop, 7000, 'PokerEngine.create should return the supplied bankroll map');
+      assertEqual(created.game.players.length, 2, 'PokerEngine.create should exclude zero-stack roster entries');
+      assertEqual(created.game.players[created.game.dealerIndex].key, 'bebop', 'PokerEngine.create should honor an explicit dealer key');
+      const progressCreated = engine.create({
+        seed: 'engine-progress-created',
+        roster: [
+          { key: 'abrams', name: 'Abrams' },
+          { key: 'bebop', name: 'Bebop' },
+        ],
+        handNumber: 2,
+        dealerKey: 'bebop',
+        previousGame: null,
+        progressPayload: {
+          version: 1,
+          kind: 'poker-progress',
+          lastHandNumber: 1,
+          nextHandNumber: 2,
+          dealerKey: 'abrams',
+          roster: [
+            { key: 'abrams', name: 'Abrams' },
+            { key: 'bebop', name: 'Bebop' },
+          ],
+          bankrolls: { abrams: 9000, bebop: 7000 },
+          savedAt: 0,
+        },
+      });
+      assert(progressCreated.ok && progressCreated.game, 'PokerEngine.create should consume a validated progress payload for resume starts');
+      assertEqual(progressCreated.game.players[progressCreated.game.dealerIndex].key, 'bebop', 'progress-backed PokerEngine.create should honor the reanchored dealer key');
+      assertEqual(progressCreated.game.players[0].stack + progressCreated.game.players[0].committed, 9000, 'progress-backed PokerEngine.create should preserve the first saved bankroll through blinds');
+      assertEqual(progressCreated.game.players[1].stack + progressCreated.game.players[1].committed, 7000, 'progress-backed PokerEngine.create should preserve the second saved bankroll through blinds');
+      const actor = currentPlayer(created.game);
+      const actionView = actor ? engine.actions(created.game, actor.key, actor.key) : null;
       assert(actionView && actionView.currentKey === (actor ? actor.key : ''), 'PokerEngine.actions should project the requested current actor');
       if (actor && actionView) {
         const command = actionView.legal.check ? 'check' : 'call';
-        const applied = engine.apply(engineRuntime.game, { type: command }, actor.key);
+        const applied = engine.apply(created.game, { type: command }, actor.key);
         assert(applied && applied.ok, 'PokerEngine.apply should apply a legal normalized action to the provided game');
       }
     }
@@ -3413,6 +3451,7 @@ if (hooks) {
       const nextBebop = lateJoinNextGame.players.find((player) => player.key === 'bebop');
       const nextCalico = lateJoinNextGame.players.find((player) => player.key === 'calico');
       assertEqual(lateJoinNextGame.players.length, 3, 'next synced hand should seat the late joiner');
+      assertEqual(lateJoinNextGame.players[lateJoinNextGame.dealerIndex].key, 'bebop', 'late join next hand should rotate the dealer from Abrams to the next canonical roster player');
       assert(nextCalico, 'next synced hand should include Calico');
       if (nextCalico) assertEqual(nextCalico.stack + nextCalico.bet, 4000, 'Calico should bring the fair late buy-in into hand two');
       if (nextAbrams) assertEqual(nextAbrams.stack + nextAbrams.bet, 16000, 'Abrams should preserve the continuing bankroll into hand two');
