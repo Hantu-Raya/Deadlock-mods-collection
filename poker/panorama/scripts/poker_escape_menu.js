@@ -2950,9 +2950,36 @@
     }
     const dealerKeyOverride = resolveResumeNextDealerKey(resume.payload);
     if (!dealerKeyOverride) return rejectedCommandEffect("Cannot resume; saved dealer state is invalid.", "status");
-    if (!applyResumeProgressForStart(resume.payload, parsedLeaderKey)) return rejectedCommandEffect("Cannot resume; saved dealer state is invalid.", "status");
-    State.game = createGameFromReady(seed, resume.payload.roster, handNumber, dealerKeyOverride);
-    if (State.game) {
+    const progressValidation = validateProgressPayload(resume.payload);
+    if (!progressValidation.ok) return rejectedCommandEffect("Cannot resume; saved dealer state is invalid.", "status");
+    const source = progressValidation.payload;
+    const priorParty = ensureParty();
+    const priorPartyId = priorParty && priorParty.id ? priorParty.id : "";
+    const priorPartyMatchesLeader = !!(priorPartyId && priorParty.leaderKey && priorParty.leaderKey === parsedLeaderKey);
+    const party = defaultPartyState();
+    party.id = priorPartyMatchesLeader ? priorPartyId : (State.resume ? State.resume.id : "");
+    party.mode = parsedLeaderKey === State.localPlayerKey ? "leader" : "member";
+    party.leaderKey = parsedLeaderKey;
+    const leaderEntry = findProgressRosterEntry(source, parsedLeaderKey);
+    party.leaderName = State.resume && State.resume.leaderName ? State.resume.leaderName : (leaderEntry ? leaderEntry.name : "");
+    for (let i = 0; i < source.roster.length; i += 1) {
+      const entry = source.roster[i];
+      party.members[entry.key] = { key: entry.key, name: entry.name };
+      party.order.push(entry.key);
+    }
+    State.party = party;
+    savePartyState();
+    const created = PokerEngine.create({
+      seed: seed,
+      roster: source.roster,
+      handNumber: handNumber,
+      dealerKey: dealerKeyOverride,
+      previousGame: null,
+      progressPayload: source,
+    });
+    if (created.ok && created.game) {
+      State.bankrolls = created.bankrolls;
+      State.game = created.game;
       State.game.importedResume = true;
       State.resume = defaultResumeState();
       saveResumeState();
@@ -2960,7 +2987,7 @@
       log("game resumed seed " + seed);
       return changedCommandEffect("Poker resumed. " + getCurrentPlayer().name + " acts first.", "resume-start");
     }
-    return rejectedCommandEffect("Cannot resume; saved dealer state is invalid.", "status");
+    return rejectedCommandEffect(created.status || "Cannot resume; saved dealer state is invalid.", "status");
   }
 
   function getProgressResumeProjection(snapshot) {
@@ -3360,25 +3387,6 @@
     return compareNumberArrays(a.kickers, b.kickers);
   }
 
-  function resolveDealerIndex(players) {
-    const previous = State.game;
-    if (!previous || !previous.players || !previous.players.length || previous.dealerIndex < 0) return 0;
-    const previousDealer = previous.players[previous.dealerIndex];
-    if (!previousDealer) return 0;
-    let currentIndex = -1;
-    for (let i = 0; i < players.length; i += 1) {
-      if (players[i].key === previousDealer.key && players[i].stack > 0) {
-        currentIndex = i;
-        break;
-      }
-    }
-    if (currentIndex < 0) return 0;
-    for (let offset = 1; offset <= players.length; offset += 1) {
-      const next = (currentIndex + offset) % players.length;
-      if (players[next].stack > 0) return next;
-    }
-    return 0;
-  }
 
   function resolveResumeNextDealerKey(payload) {
     const roster = payload && payload.roster ? payload.roster : [];
@@ -3404,142 +3412,8 @@
     return { key: key, name: name, stack: stack, bet: 0, committed: 0, cards: [], folded: false, acted: false, result: null };
   }
 
-  function applyResumeProgressForStart(payload, leaderKey) {
-    const valid = validateProgressPayload(payload);
-    if (!valid.ok) return false;
-    const source = valid.payload;
-    const priorParty = ensureParty();
-    const priorPartyId = priorParty && priorParty.id ? priorParty.id : "";
-    const priorPartyMatchesLeader = !!(priorPartyId && priorParty.leaderKey && priorParty.leaderKey === leaderKey);
-    State.bankrolls = {};
-    const players = [];
-    let dealerIndex = -1;
-    for (let i = 0; i < source.roster.length; i += 1) {
-      const entry = source.roster[i];
-      const stack = getProgressBankroll(source, entry.key);
-      State.bankrolls[entry.key] = stack;
-      if (entry.key === source.dealerKey) dealerIndex = i;
-      players.push(makeGamePlayer(entry.key, entry.name, stack));
-    }
-    if (dealerIndex < 0) return false;
-    State.game = {
-      active: false,
-      finished: true,
-      seed: "",
-      deck: [],
-      players: players,
-      community: [],
-      pot: 0,
-      currentBet: 0,
-      currentIndex: 0,
-      phase: "finished",
-      log: ["Progress imported."],
-      handNumber: source.lastHandNumber,
-      dealerIndex: dealerIndex,
-      smallBlindIndex: 0,
-      bigBlindIndex: 0,
-      smallBlindAmount: 0,
-      bigBlindAmount: 0,
-      minRaise: 0,
-      lastRaise: 0,
-      streetOpenerIndex: -1,
-      lastAggressorIndex: -1,
-      pots: [],
-      potWinnerKeys: {},
-      announcement: null,
-    };
-    const party = defaultPartyState();
-    party.id = priorPartyMatchesLeader ? priorPartyId : (State.resume ? State.resume.id : "");
-    party.mode = leaderKey === State.localPlayerKey ? "leader" : "member";
-    party.leaderKey = leaderKey;
-    const leaderEntry = findProgressRosterEntry(source, leaderKey);
-    party.leaderName = State.resume && State.resume.leaderName ? State.resume.leaderName : (leaderEntry ? leaderEntry.name : "");
-    for (let i = 0; i < source.roster.length; i += 1) {
-      const entry = source.roster[i];
-      party.members[entry.key] = { key: entry.key, name: entry.name };
-      party.order.push(entry.key);
-    }
-    State.party = party;
-    savePartyState();
-    return true;
-  }
 
-  function resolveDealerOverrideIndex(players, dealerKeyOverride) {
-    if (!dealerKeyOverride) return resolveDealerIndex(players);
-    const key = normalizePlayerKey(dealerKeyOverride);
-    for (let i = 0; i < players.length; i += 1) {
-      if (players[i].key === key) return i;
-    }
-    setStatus("Cannot resume; saved dealer state is invalid.");
-    return -1;
-  }
 
-  function createGameFromReady(seed, rosterOverride, handNumberOverride, dealerKeyOverride) {
-    const override = rosterOverride && rosterOverride.length >= MIN_READY_PLAYERS ? rosterOverride : null;
-    const seats = override || getReadySeatArray();
-    if (seats.length < MIN_READY_PLAYERS) {
-      setStatus("Need 2 ready players to start.");
-      return null;
-    }
-    const players = [];
-    const hasBankrollState = Object.keys(State.bankrolls).length > 0;
-    for (let i = 0; i < seats.length; i += 1) {
-      const seatKey = seats[i].key || seats[i].name;
-      const key = normalizePlayerKey(seatKey || seats[i].name);
-      const name = seats[i].name || seats[i].key || "Player";
-      const prior = State.bankrolls[key];
-      const stack = typeof prior === "number" ? prior : (hasBankrollState ? 0 : STARTING_STACK);
-      if (key && stack > 0) {
-        players.push(makeGamePlayer(key, name, stack));
-      }
-    }
-    if (players.length < MIN_READY_PLAYERS) return null;
-
-    const dealerIndex = resolveDealerOverrideIndex(players, dealerKeyOverride);
-    if (dealerIndex < 0) return null;
-    const smallBlindIndex = players.length === 2 ? dealerIndex : (dealerIndex + 1) % players.length;
-    const bigBlindIndex = (smallBlindIndex + 1) % players.length;
-    const handNumber = handNumberOverride ? getBlindLevelForHand(handNumberOverride) : getNextHandNumber();
-    const smallBlindAmount = getSmallBlindForHand(handNumber);
-    const bigBlindAmount = getBigBlindForHand(handNumber);
-    const game = {
-      active: true,
-      finished: false,
-      seed: seed,
-      deck: buildDeck(seed),
-      players: players,
-      community: [],
-      pot: 0,
-      currentBet: bigBlindAmount,
-      currentIndex: 0,
-      phase: "preflop",
-      log: [],
-      handNumber: handNumber,
-      dealerIndex: dealerIndex,
-      smallBlindIndex: smallBlindIndex,
-      bigBlindIndex: bigBlindIndex,
-      smallBlindAmount: smallBlindAmount,
-      bigBlindAmount: bigBlindAmount,
-      minRaise: bigBlindAmount,
-      lastRaise: bigBlindAmount,
-      streetOpenerIndex: -1,
-      lastAggressorIndex: bigBlindIndex,
-      pots: [],
-      potWinnerKeys: {},
-      announcement: null,
-    };
-
-    for (let r = 0; r < 2; r += 1) for (let p = 0; p < players.length; p += 1) players[p].cards.push(drawCard(game));
-    commitChips(game, players[smallBlindIndex], smallBlindAmount);
-    commitChips(game, players[bigBlindIndex], bigBlindAmount);
-    game.currentIndex = nextActorIndexFrom(game, bigBlindIndex);
-    game.streetOpenerIndex = game.currentIndex;
-
-    addGameLogTo(game, "Hand " + game.handNumber + " started. Stacks begin at $" + STARTING_STACK + ".");
-    addGameLogTo(game, "Blinds posted: " + players[smallBlindIndex].name + " $" + smallBlindAmount + ", " + players[bigBlindIndex].name + " $" + bigBlindAmount + ".");
-    setGameAnnouncement(game, "Blinds posted", players[smallBlindIndex].name + " small blind $" + smallBlindAmount + ". " + players[bigBlindIndex].name + " big blind $" + bigBlindAmount + ". " + players[game.currentIndex].name + " acts first.");
-    return game;
-  }
 
   function addGameLogTo(game, text) {
     game.log.push(text);
@@ -4027,16 +3901,114 @@
   }
 
 
-  function createEngineGame(options) {
+  function createEngine(options) {
     options = options || {};
-    const seats = options.roster || options.seats || getReadySeatArray();
-    const previousBankrolls = State.bankrolls;
-    if (options.bankrolls) State.bankrolls = options.bankrolls;
-    const handNumber = options.handNumberOverride || options.handNumber;
-    const dealerKey = options.dealerKeyOverride || options.dealerKey;
-    const game = createGameFromReady(options.seed, seats, handNumber, dealerKey);
-    if (options.bankrolls) State.bankrolls = previousBankrolls;
-    return game ? { ok: true, game: game, bankrolls: State.bankrolls, status: "" } : { ok: false, status: "Need 2 ready players to start." };
+    const progressValidation = Object.prototype.hasOwnProperty.call(options, "progressPayload")
+      ? validateProgressPayload(options.progressPayload)
+      : null;
+    if (progressValidation && !progressValidation.ok) {
+      const invalidBankrolls = Object.prototype.hasOwnProperty.call(options, "bankrolls") ? options.bankrolls : State.bankrolls;
+      return { ok: false, game: null, bankrolls: invalidBankrolls || {}, status: progressValidation.status || "Invalid progress code." };
+    }
+    const progressPayload = progressValidation ? progressValidation.payload : null;
+    const seats = options.roster || (progressPayload && progressPayload.roster) || getReadySeatArray();
+    const bankrolls = Object.prototype.hasOwnProperty.call(options, "bankrolls")
+      ? (options.bankrolls || {})
+      : ((progressPayload && progressPayload.bankrolls) || State.bankrolls || {});
+    const previousGame = Object.prototype.hasOwnProperty.call(options, "previousGame") ? options.previousGame : State.game;
+    if (!seats || seats.length < MIN_READY_PLAYERS) {
+      return { ok: false, game: null, bankrolls: bankrolls, status: "Need 2 ready players to start." };
+    }
+    const players = [];
+    const hasBankrollState = Object.keys(bankrolls).length > 0;
+    for (let i = 0; i < seats.length; i += 1) {
+      const seat = seats[i] || {};
+      const key = normalizePlayerKey(seat.key || seat.name);
+      const name = seat.name || seat.key || "Player";
+      const prior = bankrolls[key];
+      const stack = typeof prior === "number" ? prior : (hasBankrollState ? 0 : STARTING_STACK);
+      if (key && stack > 0) players.push(makeGamePlayer(key, name, stack));
+    }
+    if (players.length < MIN_READY_PLAYERS) {
+      return { ok: false, game: null, bankrolls: bankrolls, status: "Need 2 ready players to start." };
+    }
+    let dealerIndex = -1;
+    const requestedDealerKey = normalizePlayerKey(options.dealerKey);
+    if (requestedDealerKey) {
+      for (let i = 0; i < players.length; i += 1) {
+        if (players[i].key === requestedDealerKey) {
+          dealerIndex = i;
+          break;
+        }
+      }
+      if (dealerIndex < 0) {
+        return { ok: false, game: null, bankrolls: bankrolls, status: "Cannot resume; saved dealer state is invalid." };
+      }
+    } else {
+      let previousDealerIndex = -1;
+      const previousPlayers = previousGame && previousGame.players ? previousGame.players : [];
+      const previousDealer = previousPlayers[previousGame && previousGame.dealerIndex];
+      const previousDealerKey = normalizePlayerKey(previousDealer && previousDealer.key);
+      for (let i = 0; i < players.length; i += 1) {
+        if (players[i].key === previousDealerKey && players[i].stack > 0) {
+          previousDealerIndex = i;
+          break;
+        }
+      }
+      if (previousDealerIndex >= 0) {
+        for (let offset = 1; offset <= players.length; offset += 1) {
+          const next = (previousDealerIndex + offset) % players.length;
+          if (players[next].stack > 0) {
+            dealerIndex = next;
+            break;
+          }
+        }
+      }
+      if (dealerIndex < 0) dealerIndex = 0;
+    }
+    const requestedHandNumber = options.handNumber || (progressPayload && progressPayload.nextHandNumber);
+    const handNumber = requestedHandNumber
+      ? getBlindLevelForHand(requestedHandNumber)
+      : getBlindLevelForHand(previousGame && previousGame.handNumber ? previousGame.handNumber + 1 : 1);
+    const smallBlindIndex = players.length === 2 ? dealerIndex : (dealerIndex + 1) % players.length;
+    const bigBlindIndex = (smallBlindIndex + 1) % players.length;
+    const smallBlindAmount = getSmallBlindForHand(handNumber);
+    const bigBlindAmount = getBigBlindForHand(handNumber);
+    const game = {
+      active: true,
+      finished: false,
+      seed: options.seed,
+      deck: buildDeck(options.seed),
+      players: players,
+      community: [],
+      pot: 0,
+      currentBet: bigBlindAmount,
+      currentIndex: 0,
+      phase: "preflop",
+      log: [],
+      handNumber: handNumber,
+      dealerIndex: dealerIndex,
+      smallBlindIndex: smallBlindIndex,
+      bigBlindIndex: bigBlindIndex,
+      smallBlindAmount: smallBlindAmount,
+      bigBlindAmount: bigBlindAmount,
+      minRaise: bigBlindAmount,
+      lastRaise: bigBlindAmount,
+      streetOpenerIndex: -1,
+      lastAggressorIndex: bigBlindIndex,
+      pots: [],
+      potWinnerKeys: {},
+      announcement: null,
+    };
+    for (let r = 0; r < 2; r += 1) for (let p = 0; p < players.length; p += 1) players[p].cards.push(drawCard(game));
+    commitChips(game, players[smallBlindIndex], smallBlindAmount);
+    commitChips(game, players[bigBlindIndex], bigBlindAmount);
+    game.currentIndex = nextActorIndexFrom(game, bigBlindIndex);
+    game.streetOpenerIndex = game.currentIndex;
+    addGameLogTo(game, "Hand " + game.handNumber + " started. Stacks begin at $" + STARTING_STACK + ".");
+    addGameLogTo(game, "Blinds posted: " + players[smallBlindIndex].name + " $" + smallBlindAmount + ", " + players[bigBlindIndex].name + " $" + bigBlindAmount + ".");
+    setGameAnnouncement(game, "Blinds posted", players[smallBlindIndex].name + " small blind $" + smallBlindAmount + ". " + players[bigBlindIndex].name + " big blind $" + bigBlindAmount + ". " + players[game.currentIndex].name + " acts first.");
+    return { ok: true, game: game, bankrolls: bankrolls, status: "" };
   }
 
   function enginePlayer(game, key) {
@@ -4190,7 +4162,7 @@
   }
 
   const PokerEngine = {
-    create: createEngineGame,
+    create: createEngine,
     actions: engineActions,
     apply: applyEngine,
     depart: departEngineGame,
@@ -4552,8 +4524,15 @@
       applyPartyRoster(decodedRoster, party.mode, party.id);
       rememberLocalFromPartyRoster(decodedRoster);
       LateJoinQueue.apply(decodedRoster, "start");
-      State.game = createGameFromReady(seed, decodedRoster, command.handNumber || undefined);
-      if (State.game) {
+      const created = PokerEngine.create({
+        seed: seed,
+        roster: decodedRoster,
+        handNumber: command.handNumber || undefined,
+        previousGame: State.game,
+      });
+      if (created.ok && created.game) {
+        State.bankrolls = created.bankrolls;
+        State.game = created.game;
         log("game started seed " + seed);
         return changedCommandEffect("Poker started. " + getCurrentPlayer().name + " acts first.", "start");
       }
@@ -4564,8 +4543,14 @@
       return rejectedCommandEffect("", "debug");
     }
     const seed = command.legacySeed || String(Date.now());
-    State.game = createGameFromReady(seed + " " + resolvedRecord.sender);
-    if (State.game) {
+    const created = PokerEngine.create({
+      seed: seed + " " + resolvedRecord.sender,
+      roster: getReadySeatArray(),
+      previousGame: State.game,
+    });
+    if (created.ok && created.game) {
+      State.bankrolls = created.bankrolls;
+      State.game = created.game;
       log("game started seed " + seed);
       return changedCommandEffect("Poker started. " + getCurrentPlayer().name + " acts first.", "start");
     }
@@ -5868,7 +5853,6 @@
         processChatRecord: processChatRecord,
         evaluateHand: evaluateHand,
         compareHands: compareHands,
-        createGameFromReady: createGameFromReady,
         encodeRoster: encodeRoster,
         decodeRoster: decodeRoster,
         buildSynchronizedStartCommand: buildSynchronizedStartCommand,
