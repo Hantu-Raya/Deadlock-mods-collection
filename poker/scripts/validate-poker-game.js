@@ -766,6 +766,36 @@ if (hooks) {
     assertEqual(decodedResumeStart.leaderKey, 'hantu raya', 'command reducer resume-start decode should normalize decoded leader key');
     assertEqual(decodedResumeStart.rosterText, 'abrams~Abrams|hantu%20raya~Hantu%20Raya', 'command reducer resume-start decode should expose raw roster token');
     assertEqual(decodedResumeStart.seed, 'sresume', 'command reducer resume-start decode should expose seed');
+    assertEqual(decodedResumeStart.hasRosterMarker, true, 'legacy received resume rows should retain their roster marker');
+    const decodedParty = modules.CommandReducer.decode({ sender: 'Abrams', message: '[party join] poker party p123' });
+    assertEqual(decodedParty.type, 'party-join', 'command reducer should decode party join records');
+    assertEqual(decodedParty.family, 'party', 'party join decode should expose party family');
+    assertEqual(decodedParty.partyId, 'p123', 'party join decode should expose party id');
+    const decodedMatchEnd = modules.CommandReducer.decode({ sender: 'Abrams', message: '[match end] poker party p123 seed smatch hand 7' });
+    assertEqual(decodedMatchEnd.type, 'match-end', 'command reducer should decode match-end records');
+    assertEqual(decodedMatchEnd.family, 'match', 'match-end decode should expose match family');
+    assertEqual(decodedMatchEnd.partyId, 'p123', 'match-end decode should expose party id');
+    assertEqual(decodedMatchEnd.seed, 'smatch', 'match-end decode should expose seed');
+    assertEqual(decodedMatchEnd.handNumber, 7, 'match-end decode should expose hand number');
+    const decodedProgressOffer = modules.CommandReducer.decode({ sender: 'Abrams', message: '[progress offer] poker progress r123 deadbeef 3' });
+    assertEqual(decodedProgressOffer.type, 'progress-offer', 'command reducer should decode progress offers');
+    assertEqual(decodedProgressOffer.family, 'progress', 'progress offer decode should expose progress family');
+    assertEqual(decodedProgressOffer.id, 'r123', 'progress offer decode should expose id');
+    assertEqual(decodedProgressOffer.checksum, 'deadbeef', 'progress offer decode should expose checksum');
+    assertEqual(decodedProgressOffer.count, 3, 'progress offer decode should expose chunk count');
+    const decodedProgressChunk = modules.CommandReducer.decode({ sender: 'Abrams', message: '[progress chunk] poker progress r123 deadbeef 2/3 Ab-_9' });
+    assertEqual(decodedProgressChunk.type, 'progress-chunk', 'command reducer should decode progress chunks');
+    assertEqual(decodedProgressChunk.index, 2, 'progress chunk decode should expose chunk index');
+    assertEqual(decodedProgressChunk.count, 3, 'progress chunk decode should expose chunk count');
+    assertEqual(decodedProgressChunk.chunk, 'Ab-_9', 'progress chunk decode should preserve chunk payload');
+    const decodedResumeLeader = modules.CommandReducer.decode({ sender: 'Abrams', message: '[resume leader] poker resume r123' });
+    assertEqual(decodedResumeLeader.type, 'resume-leader', 'command reducer should decode resume leader records');
+    assertEqual(decodedResumeLeader.family, 'resume', 'resume leader decode should expose resume family');
+    assertEqual(decodedResumeLeader.id, 'r123', 'resume leader decode should expose id');
+    const decodedResumeReady = modules.CommandReducer.decode({ sender: 'Abrams', message: '[resume ready] poker resume r123' });
+    assertEqual(decodedResumeReady.type, 'resume-ready', 'command reducer should decode resume ready records');
+    assertEqual(decodedResumeReady.id, 'r123', 'resume ready decode should expose id');
+
 
     const decodedSyncedStart = modules.CommandReducer.decode({ sender: 'Abrams', message: 'poker start ssync hand 3 roster abrams~Abrams|bebop~Bebop' });
     assertEqual(decodedSyncedStart.type, 'start', 'command reducer should decode synced start records once');
@@ -807,6 +837,7 @@ if (hooks) {
       'poker resume r123 hand 2 leader abrams seed sresume',
       'resume start command builder should use the exact marker order',
     );
+    assertEqual(hooks.buildResumeStartCommand('r123', 'abrams', partyRoster, 2, 'sresume').includes(' roster '), false, 'compact resume-start builder must omit roster marker');
     const samePrefix = hooks.textToUtf8Bytes ? hooks.textToUtf8Bytes('same-prefix') : [115, 97, 109, 101, 45, 112, 114, 101, 102, 105, 120];
     const encryptedA = hooks.cryptProgressBytes(samePrefix, 'seed-a');
     const encryptedB = hooks.cryptProgressBytes(samePrefix, 'seed-b');

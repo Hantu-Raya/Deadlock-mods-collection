@@ -838,35 +838,15 @@
     return "p" + Date.now().toString(36) + "-" + hashString(sender || "leader").toString(36);
   }
 
-  function extractPartyId(record, prefix) {
-    const raw = String(record && record.message ? record.message : "");
-    const marker = prefix + " poker party ";
-    const lower = raw.toLowerCase();
-    const index = lower.indexOf(marker);
-    if (index < 0) return "";
-    const tail = raw.slice(index + marker.length).replace(/^\s+|\s+$/g, "");
-    const token = tail.split(/\s+/)[0] || "";
-    return token.replace(/[^a-z0-9-]/gi, "").toLowerCase();
-  }
 
-  function parsePartyMessage(record) {
-    const text = normalizeText(record && record.message);
-    if (text.indexOf("party leader poker party ") === 0) return { type: "leader", id: extractPartyId(record, PARTY_LEADER_PREFIX) || text.split(/\s+/).pop() };
-    if (text.indexOf("party join poker party ") === 0) return { type: "join", id: extractPartyId(record, PARTY_JOIN_PREFIX) || text.split(/\s+/).pop() };
-    if (text.indexOf("party leave poker party ") === 0) return { type: "leave", id: extractPartyId(record, PARTY_LEAVE_PREFIX) || text.split(/\s+/).pop() };
-    return null;
-  }
+
+
 
   function buildMatchEndCommand(game, partyId) {
     return MATCH_END_PREFIX + " poker party " + partyId + " seed " + ((game && game.seed) || "") + " hand " + ((game && game.handNumber) || 0);
   }
 
-  function parseMatchEndMessage(record) {
-    const text = normalizeText(record && record.message);
-    if (text.indexOf("match end poker party ") !== 0) return null;
-    const id = extractPartyId(record, MATCH_END_PREFIX) || (text.split(/\s+/)[4] || "");
-    return { type: "match-end", id: id };
-  }
+
 
   function recordMatchEnd(record, matchEnd) {
     const party = ensureParty();
@@ -1338,43 +1318,11 @@
     return roster;
   }
 
-  function extractResumeId(record) {
-    const raw = String(record && record.message ? record.message : "");
-    const lower = raw.toLowerCase();
-    const marker = "poker resume ";
-    const index = lower.indexOf(marker);
-    if (index < 0) return "";
-    const tail = raw.slice(index + marker.length).replace(/^\s+|\s+$/g, "");
-    const token = tail.split(/\s+/)[0] || "";
-    return token.replace(/[^a-z0-9-]/gi, "").toLowerCase().slice(0, 40);
-  }
 
-  function parseResumeMessage(record) {
-    const text = normalizeText(record && record.message);
-    if (text.indexOf("resume leader poker resume ") === 0) return { type: "leader", id: extractResumeId(record) };
-    if (text.indexOf("resume ready poker resume ") === 0) return { type: "ready", id: extractResumeId(record) };
-    return null;
-  }
 
-  function parseProgressShareMessage(record) {
-    const raw = String(record && record.message ? record.message : "").replace(/^\s+|\s+$/g, "");
-    let match = raw.match(/^\[progress offer\]\s+poker\s+progress\s+([a-z0-9-]+)\s+([0-9a-f]{8})\s+([1-9]\d*)$/i);
-    if (match) {
-      return { type: "offer", id: match[1].toLowerCase(), checksum: match[2].toLowerCase(), count: Math.floor(Number(match[3])) };
-    }
-    match = raw.match(/^\[progress chunk\]\s+poker\s+progress\s+([a-z0-9-]+)\s+([0-9a-f]{8})\s+([1-9]\d*)\/([1-9]\d*)\s+([A-Za-z0-9_-]+)$/i);
-    if (match) {
-      return {
-        type: "chunk",
-        id: match[1].toLowerCase(),
-        checksum: match[2].toLowerCase(),
-        index: Math.floor(Number(match[3])),
-        count: Math.floor(Number(match[4])),
-        chunk: match[5],
-      };
-    }
-    return null;
-  }
+
+
+
 
   function ensureResume() {
     if (!State.resume || typeof State.resume !== "object") State.resume = defaultResumeState();
@@ -2392,8 +2340,8 @@
   function markProgressShareSubmitted(message) {
     const share = State.progressShare || defaultProgressShareState();
     if (!share.sent || !share.id || !share.checksum) return;
-    const parsed = parseProgressShareMessage({ message: message });
-    if (!parsed || parsed.id !== share.id || parsed.checksum !== share.checksum) return;
+    const parsed = decodePokerCommand({ message: message });
+    if (!parsed || (parsed.type !== "progress-offer" && parsed.type !== "progress-chunk") || parsed.id !== share.id || parsed.checksum !== share.checksum) return;
     const messageCount = share.messageCount || (share.chunkCount ? share.chunkCount + 1 : 0);
     if (!messageCount) return;
     share.messageCount = messageCount;
@@ -2718,22 +2666,15 @@
   function applyResumeStartCommand(command) {
     if (!command) return { consumed: false, readyChanged: false, render: false, status: "Invalid resume command.", debugReason: "invalid" };
     let resolvedRecord = command.record ? resolveSelfRecord(command.record) : resolveSelfRecord({ sender: command.leaderKey || "", message: "poker resume " + (command.id || "") + " hand " + (command.handNumber || "") + " leader " + (command.leaderKey || "") + " seed " + (command.seed || "") });
-    const parts = String(resolvedRecord && resolvedRecord.message || "").replace(/^\s+|\s+$/g, "").split(/\s+/);
-    const id = parts.length > 2 ? String(parts[2] || "").replace(/[^a-z0-9-]/gi, "").toLowerCase() : "";
-    const handIndex = parts.indexOf(START_HAND_MARKER);
-    const leaderIndex = parts.indexOf(START_LEADER_MARKER);
-    const rosterIndex = parts.indexOf(START_ROSTER_MARKER);
-    const seedIndex = parts.indexOf(START_SEED_MARKER);
-    if (!resolvedRecord || parts[0] !== "poker" || parts[1] !== "resume" || handIndex < 0 || leaderIndex < 0 || seedIndex < 0 || handIndex + 1 >= parts.length || leaderIndex + 1 >= parts.length || seedIndex + 1 >= parts.length) {
+    const parsed = command.type === "resume-start" ? command : decodePokerCommand(resolvedRecord);
+    if (!resolvedRecord || !parsed.valid) {
       return { consumed: true, readyChanged: false, render: false, status: "Invalid resume command.", debugReason: "status" };
     }
-    const handNumber = parseHandNumberToken(parts[handIndex + 1]);
-    let parsedLeaderKey = "";
-    try {
-      parsedLeaderKey = normalizePlayerKey(decodeURIComponent(parts[leaderIndex + 1] || ""));
-    } catch (e) {
-      parsedLeaderKey = "";
-    }
+    const id = parsed.id || command.id;
+    const handNumber = parsed.handNumber || command.handNumber;
+    const parsedLeaderKey = normalizePlayerKey(parsed.leaderKey || command.leaderKey);
+    const rosterText = parsed.rosterText || "";
+    const seed = parsed.seed || command.seed;
     const resume = ensureResume();
     if (!resume.payload || resume.id !== id) {
       rememberPendingResumeStartCommand({ record: resolvedRecord }, id);
@@ -2773,14 +2714,13 @@
       debugActionState("reject-non-leader-resume sender=" + resolvedRecord.sender + " leader=" + (resume.leaderName || resume.leaderKey), resolvedRecord, null);
       return { consumed: true, readyChanged: false, render: false, status: "Only " + (resume.leaderName || "<leader>") + " can start this resume.", debugReason: "status" };
     }
-    if (rosterIndex >= 0) {
-      if (rosterIndex + 1 >= parts.length) return { consumed: true, readyChanged: false, render: false, status: "Invalid synced poker roster.", debugReason: "status" };
-      const decodedRoster = decodeRoster(parts[rosterIndex + 1] || "");
+    if (parsed.hasRosterMarker) {
+      if (!rosterText) return { consumed: true, readyChanged: false, render: false, status: "Invalid synced poker roster.", debugReason: "status" };
+      const decodedRoster = decodeRoster(rosterText);
       if (decodedRoster.length < MIN_READY_PLAYERS || canonicalProgressPayload({ version: 1, kind: "poker-progress", lastHandNumber: resume.payload.lastHandNumber, nextHandNumber: resume.payload.nextHandNumber, dealerKey: resume.payload.dealerKey, roster: decodedRoster, bankrolls: resume.payload.bankrolls, savedAt: resume.payload.savedAt }) !== canonicalProgressPayload(resume.payload)) {
         return { consumed: true, readyChanged: false, render: false, status: "Invalid synced poker roster.", debugReason: "status" };
       }
     }
-    const seed = parts[seedIndex + 1] || "";
     const dealerKeyOverride = resolveResumeNextDealerKey(resume.payload);
     if (!dealerKeyOverride) {
       return { consumed: true, readyChanged: false, render: false, status: "Cannot resume; saved dealer state is invalid.", debugReason: "status" };
@@ -4099,9 +4039,9 @@
           debugActionState("reject-unknown-party-authority", resolvedRecord, null);
           return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "debug" };
         }
-        if (partyType === "leader") recordPartyLeader(resolvedRecord, command.id);
+        if (partyType === "leader") recordPartyLeader(resolvedRecord, command.partyId);
         else if (partyType === "join") {
-          const partyChanged = recordPartyJoin(resolvedRecord, command.id);
+          const partyChanged = recordPartyJoin(resolvedRecord, command.partyId);
           if (partyChanged && State.game && State.game.active) {
             const joinedKey = normalizePlayerKey(resolvedRecord.sender);
             if (!Object.prototype.hasOwnProperty.call(State.bankrolls, joinedKey)) {
@@ -4109,12 +4049,12 @@
             }
           }
         } else {
-          recordPartyLeave(resolvedRecord, command.id);
+          recordPartyLeave(resolvedRecord, command.partyId);
         }
         return { consumed: true, readyChanged: true, render: true, status: "", debugReason: "party" };
       }
       case "match-end": {
-        const changed = recordMatchEnd(resolvedRecord, { type: "match-end", id: command.id });
+        const changed = recordMatchEnd(resolvedRecord, { type: "match-end", id: command.partyId });
         return { consumed: true, readyChanged: false, render: true, status: changed ? "Match ended by party leader." : "", debugReason: "match-end" };
       }
       case "progress-offer":
@@ -4257,82 +4197,117 @@
     return CommandReducer.applyPayload(event);
   }
 
+  const COMMAND_DEFINITIONS = [
+    { family: "party", type: "party-leader", prefix: "party leader poker party ", field: "partyId" },
+    { family: "party", type: "party-join", prefix: "party join poker party ", field: "partyId" },
+    { family: "party", type: "party-leave", prefix: "party leave poker party ", field: "partyId" },
+    { family: "match", type: "match-end", prefix: "match end poker party ", markers: ["seed", "hand"], field: "partyId" },
+    { family: "progress", type: "progress-offer", pattern: /^\[progress offer\]\s+poker\s+progress\s+([a-z0-9-]+)\s+([0-9a-f]{8})\s+([1-9]\d*)$/i },
+    { family: "progress", type: "progress-chunk", pattern: /^\[progress chunk\]\s+poker\s+progress\s+([a-z0-9-]+)\s+([0-9a-f]{8})\s+([1-9]\d*)\/([1-9]\d*)\s+([A-Za-z0-9_-]+)$/i },
+    { family: "resume", type: "resume-leader", prefix: "resume leader poker resume ", field: "id" },
+    { family: "resume", type: "resume-ready", prefix: "resume ready poker resume ", field: "id" },
+    { family: "resume", type: "resume-start", prefix: "poker resume ", markers: ["hand", "leader", "seed"], optionalMarker: "roster", field: "id" },
+    { family: "start", type: "start", prefixes: ["poker start ", "start poker"], markers: ["hand"], optionalMarker: "roster" },
+    { family: "action", type: "all-in-unsupported", exact: ["all in", "allin"] },
+    { family: "action", type: "action", pattern: /^(check|call|fold|bet(?:\s+\$\d+)?|raise(?:\s+\$\d+)?)$/i },
+    { family: "ignored", type: "ignored" },
+  ];
+
   function decodePokerCommand(record) {
     const resolved = resolveSelfRecord(record);
-    const text = normalizeText(resolved && resolved.message);
-    if (!resolved || !text) return { type: "ignored", record: resolved || record, text: text };
-    const party = parsePartyMessage(resolved);
-    if (party && party.type === "leader") return { type: "party-leader", record: resolved, text: text, id: party.id };
-    if (party && party.type === "join") return { type: "party-join", record: resolved, text: text, id: party.id };
-    if (party && party.type === "leave") return { type: "party-leave", record: resolved, text: text, id: party.id };
-    const matchEnd = parseMatchEndMessage(resolved);
-    if (matchEnd) return { type: "match-end", record: resolved, text: text, id: matchEnd.id };
-    const progressShare = parseProgressShareMessage(resolved);
-    if (progressShare) {
-      return {
-        type: "progress-" + progressShare.type,
-        record: resolved,
-        text: text,
-        id: progressShare.id,
-        checksum: progressShare.checksum,
-        count: progressShare.count,
-        index: progressShare.index || 0,
-        chunk: progressShare.chunk || "",
-      };
-    }
-    const resume = parseResumeMessage(resolved);
-    if (resume && resume.type === "leader") return { type: "resume-leader", record: resolved, text: text, id: resume.id };
-    if (resume && resume.type === "ready") return { type: "resume-ready", record: resolved, text: text, id: resume.id };
-    if (text.indexOf("poker resume ") === 0) {
-      const parts = String(resolved.message).replace(/^\s+|\s+$/g, "").split(/\s+/);
-      const handIndex = parts.indexOf(START_HAND_MARKER);
-      const leaderIndex = parts.indexOf(START_LEADER_MARKER);
-      const rosterIndex = parts.indexOf(START_ROSTER_MARKER);
-      const seedIndex = parts.indexOf(START_SEED_MARKER);
-      let leaderKey = "";
+    const rawText = String(resolved && resolved.message || "").replace(/^\s+|\s+$/g, "");
+    const text = normalizeText(rawText);
+    const ignored = { type: "ignored", family: "ignored", record: resolved || record, text: text };
+    if (!resolved || !text) return ignored;
+    const parts = rawText.split(/\s+/).filter(Boolean);
+    const readMarker = (marker) => {
+      const match = rawText.match(new RegExp("(?:^|\\s)" + marker + "\\s+([^\\s]+)", "i"));
+      return match ? match[1] : "";
+    };
+    const decodeKey = (value) => {
       try {
-        leaderKey = leaderIndex >= 0 ? normalizePlayerKey(decodeURIComponent(parts[leaderIndex + 1] || "")) : "";
+        return normalizePlayerKey(decodeURIComponent(value || ""));
       } catch (e) {
-        leaderKey = "";
+        return "";
       }
-      return {
-        type: "resume-start",
-        record: resolved,
-        text: text,
-        id: parts.length > 2 ? String(parts[2] || "").replace(/[^a-z0-9-]/gi, "").toLowerCase() : "",
-        handNumber: handIndex >= 0 ? parseHandNumberToken(parts[handIndex + 1]) : 0,
-        leaderKey: leaderKey,
-        rosterText: rosterIndex >= 0 && rosterIndex + 1 < parts.length ? parts[rosterIndex + 1] || "" : "",
-        seed: seedIndex >= 0 ? parts[seedIndex + 1] || "" : "",
-      };
+    };
+    const cleanId = (value, maxLength) => String(value || "").replace(/[^a-z0-9-]/gi, "").toLowerCase().slice(0, maxLength || 40);
+    for (let i = 0; i < COMMAND_DEFINITIONS.length; i += 1) {
+      const definition = COMMAND_DEFINITIONS[i];
+      let match = null;
+      if (definition.pattern) {
+        match = rawText.match(definition.pattern) || text.match(definition.pattern);
+        if (!match) continue;
+      } else if (definition.exact) {
+        if (definition.exact.indexOf(text) === -1) continue;
+      } else if (definition.prefix) {
+        if (text.indexOf(definition.prefix) !== 0) continue;
+      } else if (definition.prefixes) {
+        let matched = false;
+        for (let j = 0; j < definition.prefixes.length; j += 1) {
+          if (text.indexOf(definition.prefixes[j]) === 0) {
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) continue;
+      }
+      if (definition.type === "ignored") return ignored;
+      const command = { type: definition.type, family: definition.family, record: resolved, text: text };
+      if (definition.type === "party-leader" || definition.type === "party-join" || definition.type === "party-leave" || definition.type === "match-end") {
+        const partyMatch = rawText.match(/poker\s+party\s+([a-z0-9-]+)/i);
+        command.partyId = cleanId(partyMatch && partyMatch[1]);
+      } else if (definition.type === "progress-offer") {
+        command.id = match[1].toLowerCase();
+        command.checksum = match[2].toLowerCase();
+        command.count = Math.floor(Number(match[3]));
+      } else if (definition.type === "progress-chunk") {
+        command.id = match[1].toLowerCase();
+        command.checksum = match[2].toLowerCase();
+        command.index = Math.floor(Number(match[3]));
+        command.count = Math.floor(Number(match[4]));
+        command.chunk = match[5];
+      } else if (definition.type === "resume-leader" || definition.type === "resume-ready") {
+        const resumeMatch = rawText.match(/poker\s+resume\s+([a-z0-9-]+)/i);
+        command.id = cleanId(resumeMatch && resumeMatch[1]);
+      } else if (definition.type === "resume-start") {
+        const resumeMatch = rawText.match(/^poker\s+resume\s+([a-z0-9-]+)/i);
+        const handToken = readMarker(START_HAND_MARKER);
+        const leaderToken = readMarker(START_LEADER_MARKER);
+        const seedToken = readMarker(START_SEED_MARKER);
+        const rosterToken = readMarker(START_ROSTER_MARKER);
+        command.id = cleanId(resumeMatch && resumeMatch[1]);
+        command.handNumber = parseHandNumberToken(handToken);
+        command.leaderKey = decodeKey(leaderToken);
+        command.seed = seedToken;
+        command.rosterText = rosterToken;
+        command.hasRosterMarker = rawText.toLowerCase().indexOf(" " + START_ROSTER_MARKER + " ") >= 0;
+        command.valid = !!(resumeMatch && handToken && leaderToken && seedToken);
+      } else if (definition.type === "start") {
+        const syncedStart = text.indexOf("poker start ") === 0;
+        const handToken = readMarker(START_HAND_MARKER);
+        const rosterToken = readMarker(START_ROSTER_MARKER);
+        command.seed = syncedStart ? (parts[2] || "") : "";
+        command.handNumber = parseHandNumberToken(handToken);
+        command.hasHandMarker = text.indexOf(" " + START_HAND_MARKER + " ") >= 0;
+        command.rosterText = rosterToken;
+        command.roster = rosterToken ? decodeRoster(rosterToken) : [];
+        command.legacySeed = parts.length > 2 ? parts.slice(2).join(" ") : "";
+      } else if (definition.type === "action") {
+        const action = (match && match[1] ? match[1] : text).toLowerCase();
+        command.action = action.indexOf("bet") === 0 ? "bet" : (action.indexOf("raise") === 0 ? "raise" : action);
+        command.amount = parseAmount(text);
+      }
+      if (definition.type === "match-end") {
+        command.seed = readMarker(START_SEED_MARKER);
+        command.handNumber = parseHandNumberToken(readMarker(START_HAND_MARKER));
+      }
+      return command;
     }
-    if (text.indexOf("poker start") === 0 || text.indexOf("start poker") === 0) {
-      const parts = String(resolved.message).replace(/^\s+|\s+$/g, "").split(/\s+/);
-      const rosterIndex = parts.indexOf(START_ROSTER_MARKER);
-      const handIndex = parts.indexOf(START_HAND_MARKER);
-      const rosterText = rosterIndex >= 0 ? parts.slice(rosterIndex + 1).join("") : "";
-      const seed = parts[0] === "poker" && parts[1] === "start" ? (parts[2] || "") : "";
-      return {
-        type: "start",
-        record: resolved,
-        text: text,
-        seed: seed,
-        handNumber: handIndex >= 0 ? parseHandNumberToken(parts[handIndex + 1]) : 0,
-        hasHandMarker: handIndex >= 0,
-        roster: rosterText ? decodeRoster(rosterText) : [],
-        rosterText: rosterText,
-        legacySeed: parts.length > 2 ? parts.slice(2).join(" ") : "",
-      };
-    }
-    if (text === "all in" || text === "allin") return { type: "all-in-unsupported", record: resolved, text: text };
-    if (isActionText(text)) {
-      let action = text;
-      if (text.indexOf("bet") === 0) action = "bet";
-      else if (text.indexOf("raise") === 0) action = "raise";
-      return { type: "action", record: resolved, text: text, action: action, amount: parseAmount(text) };
-    }
-    return { type: "ignored", record: resolved, text: text };
+    return ignored;
   }
+
+
 
   function emptyCommandEffect(debugReason) {
     return { consumed: false, readyChanged: false, render: false, status: "", debugReason: debugReason || "" };
