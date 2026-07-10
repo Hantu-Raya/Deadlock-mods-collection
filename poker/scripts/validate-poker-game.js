@@ -3629,6 +3629,19 @@ if (hooks) {
 
   if (progressHooksAvailable) {
     const saved = createProgressCodeRuntime(['Abrams', 'Bebop'], 'resume-progress');
+    const unicodeProgress = createProgressCodeRuntime(['Élodie 🂡', 'Bebop'], 'progress-unicode-roundtrip');
+    if (unicodeProgress.code && unicodeProgress.payload) {
+      const unicodeImport = createMenuRuntime();
+      const unicodeDecoded = unicodeImport.hooks.decodeProgressSaveCode(unicodeProgress.code);
+      assertEqual(unicodeDecoded.ok, true, 'Unicode POKERPROG1 code should decode after export');
+      assertEqual(unicodeDecoded.payload && unicodeDecoded.payload.roster[0].name, 'Élodie 🂡', 'Unicode POKERPROG1 decode should preserve the player name');
+      const unicodeImported = unicodeImport.hooks.importProgressSaveCode(unicodeProgress.code);
+      assertEqual(unicodeImported.ok, true, 'Unicode POKERPROG1 code should import after roundtrip');
+      assertEqual(unicodeImported.payload && unicodeImported.payload.roster[0].name, 'Élodie 🂡', 'Unicode POKERPROG1 import should preserve the player name');
+      unicodeImport.hooks.modules.TableRenderer.renderGame();
+      const unicodeResumeRows = collectPanelTexts(findPanel(unicodeImport.runtime, 'PokerResumeLeaderList'), []).join('|');
+      assert(unicodeResumeRows.includes('Élodie 🂡'), `Unicode imported progress should render the saved player name: ${unicodeResumeRows || '<empty>'}`);
+    }
     if (saved.code && saved.payload) {
       const secondClientResume = createMenuRuntime();
       const secondClientStatusText = () =>
@@ -4967,6 +4980,232 @@ if (hooks) {
       const invalid = invalidRuntime.hooks.importProgressSaveCode('not-a-progress-code');
       assertEqual(invalid.ok, false, 'invalid progress code should fail import');
       assertEqual(invalidRuntime.hooks.state.game, beforeGame, 'invalid progress import should leave State.game unchanged');
+    }
+    if (saved.code && saved.payload) {
+      const tamperedLocalRuntime = createMenuRuntime();
+      tamperedLocalRuntime.hooks.processChatRecord({
+        sender: 'Abrams',
+        message: '[party leader] poker party ptampered-local-code',
+        isSelf: true,
+      });
+      tamperedLocalRuntime.hooks.importProgressSaveCode(saved.code);
+      tamperedLocalRuntime.hooks.modules.TableRenderer.renderGame();
+      const tamperedInput = findPanel(tamperedLocalRuntime.runtime, 'PokerProgressCodeInput');
+      assert(tamperedInput, 'tampered local progress setup should expose the progress code input');
+      const tamperedBeforeResume = JSON.stringify(tamperedLocalRuntime.hooks.state.resume);
+      const tamperedBeforeParty = JSON.stringify(tamperedLocalRuntime.hooks.state.party);
+      const tamperedCode = saved.code.replace(/^POKERPROG1-([0-9a-f])([0-9a-f]{7})-/i, (match, first, rest) => `POKERPROG1-${first === '0' ? '1' : '0'}${rest}-`);
+      if (tamperedInput) tamperedInput.text = tamperedCode;
+      const tamperedImportHandler = tamperedLocalRuntime.runtime.sandbox.PokerEscapeMenuImportProgress;
+      assertEqual(typeof tamperedImportHandler, 'function', 'tampered local progress should expose the import button handler');
+      const tamperedResult = typeof tamperedImportHandler === 'function' ? tamperedImportHandler() : { ok: true };
+      drainImmediateCallbacks(tamperedLocalRuntime.runtime);
+      assertEqual(tamperedResult.ok, false, 'tampered local progress code should be rejected');
+      assertEqual(tamperedResult.status, 'Invalid progress code.', 'tampered local progress code should report invalid status');
+      assertEqual(JSON.stringify(tamperedLocalRuntime.hooks.state.resume), tamperedBeforeResume, 'tampered local progress should preserve the existing resume state');
+      assertEqual(JSON.stringify(tamperedLocalRuntime.hooks.state.party), tamperedBeforeParty, 'tampered local progress should preserve the existing party state');
+      assertEqual(panelText(findPanel(tamperedLocalRuntime.runtime, 'PokerStatusLabel')), 'Invalid progress code.', 'tampered local progress should render the invalid status');
+    }
+    if (saved.code && saved.payload) {
+      const wrongChecksumRuntime = createMenuRuntime();
+      assertEqual(wrongChecksumRuntime.hooks.importProgressSaveCode(saved.code).ok, true, 'wrong-checksum transfer setup should import the existing local progress');
+      wrongChecksumRuntime.hooks.state.localPlayerKey = 'abrams';
+      wrongChecksumRuntime.runtime.config.PokerLocalPlayerKey = 'abrams';
+      wrongChecksumRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
+      wrongChecksumRuntime.hooks.modules.TableRenderer.renderGame();
+      const wrongChecksumBefore = JSON.stringify(wrongChecksumRuntime.hooks.state.resume);
+      const actualChecksum = progressChecksumFromCode(saved.code);
+      const wrongChecksum = actualChecksum === '00000000' ? 'ffffffff' : '00000000';
+      const wrongChecksumChunks = splitProgressCodeForChat(saved.code, 3);
+      wrongChecksumRuntime.hooks.processChatRecord({
+        sender: 'Seven',
+        message: buildProgressOfferMessage(saved.id, wrongChecksum, wrongChecksumChunks.length),
+        isSelf: false,
+      });
+      for (let i = 0; i < wrongChecksumChunks.length; i += 1) {
+        wrongChecksumRuntime.hooks.processChatRecord({
+          sender: 'Seven',
+          message: buildProgressChunkMessage(saved.id, wrongChecksum, i + 1, wrongChecksumChunks.length, wrongChecksumChunks[i]),
+          isSelf: false,
+        });
+      }
+      assertEqual(JSON.stringify(wrongChecksumRuntime.hooks.state.resume), wrongChecksumBefore, 'wrong-final-checksum transfer should preserve the imported payload and resume state');
+      assertEqual(wrongChecksumRuntime.hooks.state.resume.leaderKey, '', 'wrong-final-checksum transfer should not select a resume leader');
+      assertEqual(wrongChecksumRuntime.hooks.state.resume.hostedLeaderKey, '', 'wrong-final-checksum transfer should not grant hosted resume authority');
+      assertEqual(progressTransferCount(wrongChecksumRuntime.hooks), 0, 'wrong-final-checksum transfer should discard the invalid transfer');
+      assertEqual(wrongChecksumRuntime.hooks.getResumeGate().enabled, false, 'wrong-final-checksum transfer should not unlock resume start');
+      assert(
+        panelText(findPanel(wrongChecksumRuntime.runtime, 'PokerStatusLabel')).includes('Invalid shared progress checksum.'),
+        `wrong-final-checksum transfer should render the checksum rejection status: ${panelText(findPanel(wrongChecksumRuntime.runtime, 'PokerStatusLabel')) || '<empty>'}`,
+      );
+    }
+    if (saved.code && saved.payload) {
+      const duplicateChunkRuntime = createMenuRuntime();
+      const duplicateChecksum = progressChecksumFromCode(saved.code);
+      const duplicateChunks = splitProgressCodeForChat(saved.code, 3);
+      assert(duplicateChunks.length >= 3, 'duplicate progress chunk fixture should have at least three chunks');
+      duplicateChunkRuntime.hooks.processChatRecord({
+        sender: 'Seven',
+        message: buildProgressOfferMessage(saved.id, duplicateChecksum, duplicateChunks.length),
+        isSelf: false,
+      });
+      duplicateChunkRuntime.hooks.processChatRecord({
+        sender: 'Seven',
+        message: buildProgressChunkMessage(saved.id, duplicateChecksum, 1, duplicateChunks.length, duplicateChunks[0]),
+        isSelf: false,
+      });
+      duplicateChunkRuntime.hooks.processChatRecord({
+        sender: 'Seven',
+        message: buildProgressChunkMessage(saved.id, duplicateChecksum, 1, duplicateChunks.length, duplicateChunks[0]),
+        isSelf: false,
+      });
+      assertEqual(!!duplicateChunkRuntime.hooks.state.resume.payload, false, 'duplicate progress chunk should not complete the transfer');
+      assertEqual(progressTransferCount(duplicateChunkRuntime.hooks), 1, 'duplicate progress chunk should keep one pending transfer');
+      assertEqual(duplicateChunkRuntime.hooks.getResumeGate().enabled, false, 'duplicate progress chunk should not unlock resume');
+      duplicateChunkRuntime.hooks.processChatRecord({
+        sender: 'Seven',
+        message: buildProgressChunkMessage(saved.id, duplicateChecksum, 2, duplicateChunks.length, duplicateChunks[1]),
+        isSelf: false,
+      });
+      duplicateChunkRuntime.hooks.processChatRecord({
+        sender: 'Seven',
+        message: buildProgressChunkMessage(saved.id, duplicateChecksum, 2, duplicateChunks.length, duplicateChunks[1]),
+        isSelf: false,
+      });
+      assertEqual(!!duplicateChunkRuntime.hooks.state.resume.payload, false, 'duplicate progress chunks should not complete before every unique chunk arrives');
+      assertEqual(progressTransferCount(duplicateChunkRuntime.hooks), 1, 'duplicate progress chunks should remain one pending transfer before completion');
+      duplicateChunkRuntime.hooks.processChatRecord({
+        sender: 'Seven',
+        message: buildProgressChunkMessage(saved.id, duplicateChecksum, 3, duplicateChunks.length, duplicateChunks[2]),
+        isSelf: false,
+      });
+      assertEqual(duplicateChunkRuntime.hooks.state.resume.id, saved.id, 'unique final progress chunk should complete the transfer after duplicates');
+      assertEqual(JSON.stringify(duplicateChunkRuntime.hooks.state.resume.payload), JSON.stringify(saved.payload), 'unique final progress chunk should import the original payload');
+    }
+    const zeroStackSource = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'progress-zero-stack');
+    if (zeroStackSource.hooks && zeroStackSource.game) {
+      const zeroStackGame = zeroStackSource.hooks.state.game;
+      zeroStackGame.active = false;
+      zeroStackGame.finished = true;
+      zeroStackGame.phase = 'finished';
+      zeroStackGame.dealerIndex = 2;
+      zeroStackGame.players[0].stack = 7000;
+      zeroStackGame.players[0].bet = 0;
+      zeroStackGame.players[0].committed = 0;
+      zeroStackGame.players[1].stack = 5000;
+      zeroStackGame.players[1].bet = 0;
+      zeroStackGame.players[1].committed = 0;
+      zeroStackGame.players[2].stack = 0;
+      zeroStackGame.players[2].bet = 0;
+      zeroStackGame.players[2].committed = 0;
+      const zeroStackSave = zeroStackSource.hooks.buildProgressSaveCode();
+      assertEqual(zeroStackSave.ok, true, 'zero-stack saved player should remain valid progress input while two players have chips');
+      if (zeroStackSave.ok) {
+        assertEqual(zeroStackSave.payload.bankrolls.calico, 0, 'zero-stack saved player should be represented with a zero bankroll');
+        assertEqual(zeroStackSave.payload.roster.length, 3, 'zero-stack saved player should remain represented in the saved roster');
+        const zeroStackResume = createMenuRuntime();
+        assertEqual(zeroStackResume.hooks.importProgressSaveCode(zeroStackSave.code).ok, true, 'zero-stack saved progress should import');
+        zeroStackResume.hooks.modules.TableRenderer.renderGame();
+        const zeroStackRows = collectPanelTexts(findPanel(zeroStackResume.runtime, 'PokerResumeLeaderList'), []).join('|');
+        assert(zeroStackRows.includes('Calico') && zeroStackRows.includes('$0  OUT'), `zero-stack saved player should render as OUT for resume validation: ${zeroStackRows || '<empty>'}`);
+        zeroStackResume.hooks.processChatRecord({
+          sender: 'Abrams',
+          message: hooks.buildResumeLeaderCommand(zeroStackSave.id),
+          isSelf: true,
+        });
+        zeroStackResume.hooks.processChatRecord({
+          sender: 'Bebop',
+          message: hooks.buildResumeReadyCommand(zeroStackSave.id),
+          isSelf: false,
+        });
+        zeroStackResume.hooks.processChatRecord({
+          sender: 'Abrams',
+          message: hooks.buildResumeStartCommand(zeroStackSave.id, 'abrams', zeroStackSave.payload.nextHandNumber, 'sresume-zero-stack'),
+          isSelf: true,
+        });
+        const zeroStackActivePlayers = zeroStackResume.hooks.state.game && zeroStackResume.hooks.state.game.players
+          ? zeroStackResume.hooks.state.game.players.map((player) => player.key)
+          : [];
+        assertEqual(JSON.stringify(zeroStackActivePlayers), JSON.stringify(['abrams', 'bebop']), 'zero-stack saved player should be excluded from the active resumed roster');
+      }
+    }
+    if (saved.code && saved.payload) {
+      const resumeLeaderUi = createMenuRuntime();
+      assertEqual(resumeLeaderUi.hooks.importProgressSaveCode(saved.code).ok, true, 'resume leader UI setup should import progress');
+      resumeLeaderUi.hooks.state.localPlayerKey = 'abrams';
+      resumeLeaderUi.runtime.config.PokerLocalPlayerKey = 'abrams';
+      resumeLeaderUi.runtime.config.PokerLocalPlayerName = 'Abrams';
+      const leaderChatTarget = findPanel(resumeLeaderUi.runtime, 'ChatTargetLabel');
+      if (leaderChatTarget) leaderChatTarget.text = 'TEAM';
+      resumeLeaderUi.hooks.modules.TableRenderer.renderGame();
+      assertButtonAffordance(resumeLeaderUi.runtime, 'PokerResumeControls', { hidden: false }, 'resume leader UI should show resume controls after import');
+      assertButtonAffordance(resumeLeaderUi.runtime, 'PokerResumeLeaderButton', { hidden: false, enabled: true }, 'resume leader UI should enable the leader button for a funded saved player');
+      assertButtonAffordance(resumeLeaderUi.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'resume leader UI should hide READY RESUME for the unselected leader');
+      assertStartButtonGate(resumeLeaderUi.runtime, 'WAITING FOR RESUME LEADER', false, true, 'resume leader UI should hide start before a leader is selected');
+      assert(
+        panelText(findPanel(resumeLeaderUi.runtime, 'PokerResumeStatusLabel')).includes('Leader: none'),
+        `resume leader UI should render the unselected leader status: ${panelText(findPanel(resumeLeaderUi.runtime, 'PokerResumeStatusLabel')) || '<empty>'}`,
+      );
+      const leaderButtonStart = resumeLeaderUi.runtime.dispatches.length;
+      const leaderButtonHandler = resumeLeaderUi.runtime.sandbox.PokerEscapeMenuResumeLeader;
+      assertEqual(typeof leaderButtonHandler, 'function', 'resume leader UI should expose a leader button handler');
+      if (typeof leaderButtonHandler === 'function') leaderButtonHandler();
+      drainScheduledCallbacks(resumeLeaderUi.runtime, 256);
+      const leaderButtonMessages = submittedChatMessages(resumeLeaderUi.runtime, leaderButtonStart);
+      assert(leaderButtonMessages.includes(hooks.buildResumeLeaderCommand(saved.id)), `resume leader UI should submit the resume-leader command: ${leaderButtonMessages.join('|') || '<none>'}`);
+      resumeLeaderUi.hooks.processChatRecord({
+        sender: 'Abrams',
+        message: hooks.buildResumeLeaderCommand(saved.id),
+        isSelf: true,
+      });
+      resumeLeaderUi.hooks.modules.TableRenderer.renderGame();
+      assertButtonAffordance(resumeLeaderUi.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, 'resume leader UI should disable the leader button after selection');
+      assertStartButtonGate(resumeLeaderUi.runtime, 'WAITING FOR RESUME READY', false, false, 'resume leader UI should show the ready quorum gate after leader selection');
+      assert(
+        panelText(findPanel(resumeLeaderUi.runtime, 'PokerResumeStatusLabel')).includes('Ready: 1/2'),
+        `resume leader UI should render one ready saved player after selection: ${panelText(findPanel(resumeLeaderUi.runtime, 'PokerResumeStatusLabel')) || '<empty>'}`,
+      );
+
+      const resumeReadyUi = createMenuRuntime();
+      assertEqual(resumeReadyUi.hooks.importProgressSaveCode(saved.code).ok, true, 'resume ready UI setup should import progress');
+      resumeReadyUi.hooks.state.localPlayerKey = 'bebop';
+      resumeReadyUi.runtime.config.PokerLocalPlayerKey = 'bebop';
+      resumeReadyUi.runtime.config.PokerLocalPlayerName = 'Bebop';
+      const readyChatTarget = findPanel(resumeReadyUi.runtime, 'ChatTargetLabel');
+      if (readyChatTarget) readyChatTarget.text = 'TEAM';
+      resumeReadyUi.hooks.processChatRecord({
+        sender: 'Abrams',
+        message: hooks.buildResumeLeaderCommand(saved.id),
+        isSelf: false,
+      });
+      resumeReadyUi.hooks.modules.TableRenderer.renderGame();
+      assertButtonAffordance(resumeReadyUi.runtime, 'PokerResumeLeaderButton', { hidden: false, enabled: true }, 'resume ready UI should keep leader selection available to a funded saved member');
+      assertButtonAffordance(resumeReadyUi.runtime, 'PokerResumeReadyButton', { hidden: false, enabled: true }, 'resume ready UI should enable READY RESUME for the funded saved member');
+      const readyButtonStart = resumeReadyUi.runtime.dispatches.length;
+      const readyButtonHandler = resumeReadyUi.runtime.sandbox.PokerEscapeMenuResumeReady;
+      assertEqual(typeof readyButtonHandler, 'function', 'resume ready UI should expose a ready button handler');
+      if (typeof readyButtonHandler === 'function') readyButtonHandler();
+      drainScheduledCallbacks(resumeReadyUi.runtime, 256);
+      const readyButtonMessages = submittedChatMessages(resumeReadyUi.runtime, readyButtonStart);
+      assert(readyButtonMessages.includes(hooks.buildResumeReadyCommand(saved.id)), `resume ready UI should submit the resume-ready command: ${readyButtonMessages.join('|') || '<none>'}`);
+      resumeReadyUi.hooks.processChatRecord({
+        sender: 'Bebop',
+        message: hooks.buildResumeReadyCommand(saved.id),
+        isSelf: true,
+      });
+      resumeReadyUi.hooks.modules.TableRenderer.renderGame();
+      assertButtonAffordance(resumeReadyUi.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'resume ready UI should hide READY RESUME after the member is ready');
+      assert(
+        panelText(findPanel(resumeReadyUi.runtime, 'PokerResumeStatusLabel')).includes('Ready: 2/2'),
+        `resume ready UI should render the full ready quorum: ${panelText(findPanel(resumeReadyUi.runtime, 'PokerResumeStatusLabel')) || '<empty>'}`,
+      );
+      resumeLeaderUi.hooks.processChatRecord({
+        sender: 'Bebop',
+        message: hooks.buildResumeReadyCommand(saved.id),
+        isSelf: false,
+      });
+      resumeLeaderUi.hooks.modules.TableRenderer.renderGame();
+      assertStartButtonGate(resumeLeaderUi.runtime, 'START RESUME', true, false, 'resume leader UI should enable START RESUME after the second saved player is ready');
     }
 
     const activeImportRuntime = createGameRuntime(['Abrams', 'Bebop'], 'active-import');
