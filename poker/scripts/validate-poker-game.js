@@ -1093,7 +1093,7 @@ if (hooks) {
   for (const [moduleName, functionNames] of Object.entries({
     StartSync: ['openMenu', 'requestFreshState', 'noteBridgeEvent', 'getProjection', 'afterSnapshotApplied'],
     CommandReducer: ['decode', 'apply', 'applyRecord', 'applyPayload'],
-    PokerEngine: ['createGame', 'getLegalActions', 'applyAction', 'advanceAfterAction', 'buildPots', 'showdown', 'evaluateHand', 'compareHands'],
+    PokerEngine: ['create', 'actions', 'apply', 'depart', 'progress', 'evaluate'],
     PartyReducer: ['apply', 'roster', 'reset'],
     ProgressResume: ['project', 'gates', 'getStartGate', 'getHostedStartGate', 'import', 'importCode', 'build', 'buildCode', 'applyShare', 'shareImported', 'selectHostedLeader', 'applyStartCommand'],
     PokerMetrics: ['reset', 'snapshot', 'increment', 'start', 'end'],
@@ -1140,6 +1140,105 @@ if (hooks) {
       assertEqual(partyContractHooks.state.party.id, 'pdeep', 'foreign leader rejection should retain the hosted party id');
       reducer.reset('leave-lobby', 'PartyReducer contract fixture');
       assertEqual(partyContractHooks.state.party.id, '', 'PartyReducer.reset should clear the party singleton');
+    }
+  }
+  if (modules.PokerEngine) {
+    const engineRuntime = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'engine-surface');
+    const engineHooks = engineRuntime.hooks;
+    const engine = engineHooks && engineHooks.modules && engineHooks.modules.PokerEngine;
+    if (engine && engineHooks && engineRuntime.game) {
+      const created = engine.create({
+        seed: 'engine-created',
+        roster: [
+          { key: 'abrams', name: 'Abrams' },
+          { key: 'bebop', name: 'Bebop' },
+          { key: 'calico', name: 'Calico' },
+        ],
+        handNumber: 2,
+      });
+      assert(created.ok && created.game, 'PokerEngine.create should create a deterministic hand from explicit options');
+      const actor = currentPlayer(engineRuntime.game);
+      const actionView = actor ? engine.actions(engineRuntime.game, actor.key, actor.key) : null;
+      assert(actionView && actionView.currentKey === (actor ? actor.key : ''), 'PokerEngine.actions should project the requested current actor');
+      if (actor && actionView) {
+        const command = actionView.legal.check ? 'check' : 'call';
+        const applied = engine.apply(engineRuntime.game, { type: command }, actor.key);
+        assert(applied && applied.ok, 'PokerEngine.apply should apply a legal normalized action to the provided game');
+      }
+    }
+
+    const twoPlayerDeparture = createGameRuntime(['Abrams', 'Bebop'], 'engine-depart-two');
+    const twoEngine = twoPlayerDeparture.hooks && twoPlayerDeparture.hooks.modules && twoPlayerDeparture.hooks.modules.PokerEngine;
+    if (twoEngine && twoPlayerDeparture.game) {
+      const departing = twoPlayerDeparture.game.players[0];
+      const result = twoEngine.depart(twoPlayerDeparture.game, departing.key, { name: departing.name });
+      assert(result && result.reset, 'PokerEngine.depart should reset an active two-player hand');
+      assertEqual(departing.left, undefined, 'two-player departure reset should not mark a player left before lobby reset');
+      assertEqual(twoPlayerDeparture.game.active, true, 'two-player departure reset should leave the transition for PartyReducer to consume');
+    }
+
+    const nonCurrentDeparture = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'engine-depart-non-current');
+    const nonCurrentEngine = nonCurrentDeparture.hooks && nonCurrentDeparture.hooks.modules && nonCurrentDeparture.hooks.modules.PokerEngine;
+    if (nonCurrentEngine && nonCurrentDeparture.game) {
+      const nonCurrentGame = nonCurrentDeparture.game;
+      nonCurrentGame.currentIndex = 0;
+      const beforeDeck = JSON.stringify(nonCurrentGame.deck);
+      const nonCurrent = nonCurrentGame.players[2];
+      const result = nonCurrentEngine.depart(nonCurrentGame, nonCurrent.key, { name: nonCurrent.name });
+      assert(result && result.continuation, 'PokerEngine.depart should continue a three-player hand');
+      assertEqual(nonCurrent.left, true, 'non-current departure should mark the player left');
+      assertEqual(nonCurrent.folded, true, 'non-current departure should fold the player');
+      assertEqual(nonCurrent.acted, true, 'non-current departure should mark the player acted');
+      assertEqual(nonCurrentGame.currentIndex, 0, 'non-current departure should not advance the current actor');
+      assertEqual(JSON.stringify(nonCurrentGame.deck), beforeDeck, 'non-current departure should preserve deterministic deck state');
+    }
+
+    const currentDeparture = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'engine-depart-current');
+    const currentEngine = currentDeparture.hooks && currentDeparture.hooks.modules && currentDeparture.hooks.modules.PokerEngine;
+    if (currentEngine && currentDeparture.game) {
+      const currentGame = currentDeparture.game;
+      const current = currentGame.players[1];
+      currentGame.currentIndex = 1;
+      const result = currentEngine.depart(currentGame, current.key, { name: current.name });
+      assert(result && result.advanced, 'current departure should report an actor advance');
+      assert(currentGame.currentIndex !== 1, 'current departure should advance away from the departed player');
+      assert(currentGame.players[currentGame.currentIndex] && !currentGame.players[currentGame.currentIndex].left, 'current departure should select a non-departed actor');
+    }
+
+    const progressDeparture = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'engine-progress-departed');
+    const progressEngine = progressDeparture.hooks && progressDeparture.hooks.modules && progressDeparture.hooks.modules.PokerEngine;
+    if (progressEngine && progressDeparture.game) {
+      const progressGame = progressDeparture.game;
+      progressGame.active = false;
+      progressGame.finished = true;
+      progressGame.dealerIndex = 0;
+      progressGame.players[0].left = true;
+      progressGame.players[0].folded = true;
+      const projection = progressEngine.progress(progressGame);
+      assertEqual(JSON.stringify(projection.players.map((player) => player.key)), JSON.stringify(['bebop', 'calico']), 'PokerEngine.progress should exclude departed players');
+      assert(projection.dealerKey === 'bebop' || projection.dealerKey === 'calico', 'PokerEngine.progress should re-anchor the dealer to an eligible player');
+      assert(!projection.players.some((player) => player.left), 'PokerEngine.progress should not expose departed players to resume eligibility');
+    }
+
+    const departedAllIn = createGameRuntime(['Seven', 'Shiv', 'Viscous'], 'engine-depart-all-in');
+    const departedAllInEngine = departedAllIn.hooks && departedAllIn.hooks.modules && departedAllIn.hooks.modules.PokerEngine;
+    if (departedAllInEngine && departedAllIn.game) {
+      const sideGame = departedAllIn.game;
+      sideGame.players[0].stack = 0;
+      sideGame.players[0].committed = 100;
+      sideGame.players[1].stack = 0;
+      sideGame.players[1].committed = 300;
+      sideGame.players[2].stack = 0;
+      sideGame.players[2].committed = 500;
+      sideGame.players[0].bet = 100;
+      sideGame.players[1].bet = 300;
+      sideGame.players[2].bet = 500;
+      sideGame.currentIndex = 1;
+      const departed = departedAllInEngine.depart(sideGame, sideGame.players[0].key, { name: sideGame.players[0].name });
+      const pots = departedAllIn.hooks.buildPots(sideGame.players);
+      assert(departed && departed.continuation, 'departed all-in fixture should continue the three-player hand');
+      assertEqual(pots[0].amount, 300, 'departed all-in player should still contribute committed chips to the main pot');
+      assertEqual(pots[0].eligible.some((player) => player.key === sideGame.players[0].key), false, 'departed all-in player should remain folded and ineligible for side-pot awards');
     }
   }
   if (modules.PokerMetrics && modules.RenderScheduler && modules.TableRenderer) {
