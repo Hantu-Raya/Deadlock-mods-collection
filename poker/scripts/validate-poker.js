@@ -1198,6 +1198,22 @@ assert(!menuScript.includes('function renderActionChoices'), 'menu script must n
 assert(!menuScript.includes('function sendProgressShare'), 'menu script must not keep unused finished-progress chat-share dead code');
 assert(!menuScript.includes('function canShareProgressFromLocalLeader'), 'menu script must not keep unused finished-progress share gate dead code');
 assert(!menuScript.includes('function playersInHand'), 'menu script must not keep unused playersInHand dead code');
+const progressResumeStart = menuScript.indexOf('const ProgressResume = {');
+const progressResumeEnd = menuScript.indexOf('};', progressResumeStart);
+const progressResumeBlock = progressResumeStart >= 0 && progressResumeEnd > progressResumeStart ? menuScript.slice(progressResumeStart, progressResumeEnd) : '';
+assert(progressResumeBlock, 'menu script must expose ProgressResume source object');
+for (const propertyName of ['build', 'importCode', 'applyCommand', 'shareImported', 'project']) {
+  assertIncludes('ProgressResume source object', progressResumeBlock, `${propertyName}:`, 'must include behavior hook property');
+}
+for (const removedProgressSurface of ['gates', 'getStartGate', 'getHostedStartGate', '"import"', 'buildCode', 'applyShare', 'selectHostedLeader', 'applyStartCommand']) {
+  assert(!progressResumeBlock.includes(`${removedProgressSurface}:`), `ProgressResume source object must remove facade property: ${removedProgressSurface}`);
+}
+const testHookStart = menuScript.indexOf('globalThis.__PokerEscapeMenuTestHooks = {');
+const testHookEnd = menuScript.indexOf('modules: {', testHookStart);
+const testHookBlock = testHookStart >= 0 && testHookEnd > testHookStart ? menuScript.slice(testHookStart, testHookEnd) : '';
+for (const removedDirectExport of ['buildProgressSaveCode:', 'decodeProgressSaveCode:', 'importProgressSaveCode:', 'cryptProgressBytes:', 'textToUtf8Bytes:', 'getResumeGate:', 'getResumeId:']) {
+  assert(!testHookBlock.includes(removedDirectExport), `menu test hooks must not export direct ProgressResume helper: ${removedDirectExport}`);
+}
 assert(!menuScript.includes('function getLocalCallAmount'), 'menu script must not keep unused getLocalCallAmount dead code');
 assert(!menuScript.includes('function renderCommunityStable'), 'menu script must not keep shallow renderCommunityStable wrapper');
 assert(!menuScript.includes('function renderPlayersStable'), 'menu script must not keep shallow renderPlayersStable wrapper');
