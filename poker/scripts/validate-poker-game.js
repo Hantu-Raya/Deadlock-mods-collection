@@ -1100,7 +1100,7 @@ if (hooks) {
   for (const [moduleName, functionNames] of Object.entries({
     StartSync: ['openMenu', 'requestFreshState', 'noteBridgeEvent', 'getProjection', 'afterSnapshotApplied'],
     CommandReducer: ['decode', 'apply', 'applyRecord', 'applyPayload'],
-    PokerEngine: ['create', 'actions', 'apply', 'depart', 'progress', 'evaluate'],
+    PokerEngine: ['decode', 'decodeAction', 'create', 'actions', 'apply', 'depart', 'progress', 'evaluate'],
     PartyReducer: ['apply', 'roster', 'reset'],
     ProgressResume: ['build', 'importCode', 'applyCommand', 'shareImported', 'project'],
     PokerMetrics: ['reset', 'snapshot', 'increment', 'start', 'end'],
@@ -1161,6 +1161,23 @@ if (hooks) {
     const engineHooks = engineRuntime.hooks;
     const engine = engineHooks && engineHooks.modules && engineHooks.modules.PokerEngine;
     if (engine && engineHooks && engineRuntime.game) {
+      const wireDecodeCases = [
+        ['check', 'check', 0],
+        ['call', 'call', 0],
+        ['fold', 'fold', 0],
+        ['bet $300', 'bet', 300],
+        ['raise $400', 'raise', 400],
+      ];
+      const savedEngineState = engineHooks.state.game;
+      engineHooks.state.game = null;
+      for (const [wireText, expectedAction, expectedAmount] of wireDecodeCases) {
+        const decodedWire = engine.decodeAction(wireText);
+        assert(decodedWire && decodedWire.action === expectedAction, `PokerEngine.decodeAction should recognize ${wireText} without State.game`);
+        assertEqual(decodedWire && decodedWire.amount, expectedAmount, `PokerEngine.decodeAction should decode ${wireText} amount`);
+      }
+      const unsupportedWire = engine.decodeAction('all-in');
+      assert(unsupportedWire && unsupportedWire.type === 'all-in-unsupported', 'PokerEngine.decodeAction should recognize unsupported all-in without State.game');
+      engineHooks.state.game = savedEngineState;
       const created = engine.create({
         seed: 'engine-created',
         roster: [
@@ -1215,7 +1232,12 @@ if (hooks) {
       if (actor && actionView) {
         const command = actionView.legal.check ? 'check' : 'call';
         const applied = engine.apply(created.game, { type: command }, actor.key);
-        assert(applied && applied.ok, 'PokerEngine.apply should apply a legal normalized action to the provided game');
+        assertEqual(
+          Object.keys(applied || {}).sort().join(','),
+          'announcement,changed,log,ok,pendingSelfApplied,render,status',
+          'PokerEngine.apply should expose the normalized action result surface',
+        );
+        assert(applied && applied.ok && applied.changed, 'PokerEngine.apply should apply a legal normalized action to the provided game');
       }
     }
 
@@ -2638,7 +2660,7 @@ if (hooks) {
       assertEqual(secondGame.lastRaise, 400, 'second hand flop lastRaise should reset to the current $400 big blind');
       const secondFlopActor = currentPlayer(secondGame);
       assertEqual(secondFlopActor.name, 'Abrams', 'second hand flop action should start left of the dealer');
-      const secondFlopLegal = hooks.getLegalActions(secondFlopActor);
+      const secondFlopLegal = hooks.modules.PokerEngine.actions(secondGame, secondFlopActor.key, secondFlopActor.key).legal;
       assert(secondFlopLegal.canBetTarget(400), 'second hand flop should allow a minimum $400 bet');
       assert(!secondFlopLegal.canBetTarget(300), 'second hand flop should reject bets below the $400 big blind');
       assertAnnouncerIncludes(
@@ -3152,7 +3174,7 @@ if (hooks) {
       continuationHooks.processChatRecord({ sender: 'Abrams', message: '[party leave] poker party pleader-leave-continue', isSelf: false });
       const actor = currentPlayer(continuationGame);
       assert(actor, 'leader-leave continuation should have a current actor after transfer');
-      const legal = actor ? continuationHooks.getLegalActions(actor) : {};
+      const legal = actor ? continuationHooks.modules.PokerEngine.actions(continuationGame, actor.key, actor.key).legal : {};
       const command = legal.check ? 'check' : (legal.call ? 'call' : 'fold');
       continuationHooks.processChatRecord({ sender: actor.name, message: command, isSelf: actor.key === continuationHooks.state.localPlayerKey });
       assert(continuationHooks.state.game, 'leader-leave continuation should keep a hand after the next legal action');

@@ -3136,8 +3136,8 @@
     return null;
   }
 
-  function getCallAmount(player) {
-    const game = State.game;
+  function getCallAmount(player, gameOverride) {
+    const game = gameOverride || State.game;
     if (!game || !player) return 0;
     return Math.max(0, (game.currentBet || 0) - (player.bet || 0));
   }
@@ -3165,29 +3165,6 @@
     return (game ? game.currentBet || 0 : 0) + (game ? game.minRaise || getCurrentBigBlind(game) : BIG_BLIND);
   }
 
-  function getLegalActions(player) {
-    const game = State.game;
-    const current = getCurrentPlayer();
-    const toCall = getCallAmount(player);
-    const currentActor = !!(game && game.active && player && current && player.key === current.key);
-    const chipsAvailable = player ? (player.bet || 0) + (player.stack || 0) : 0;
-    return {
-      check: currentActor && toCall === 0,
-      call: currentActor && toCall > 0,
-      fold: currentActor && activeContestants().length > 1,
-      toCall: toCall,
-      canBetTarget: function canBetTarget(amount) {
-        return currentActor && game.currentBet === 0 && amount >= getCurrentBigBlind(game) && amount <= chipsAvailable;
-      },
-      canRaiseTarget: function canRaiseTarget(amount) {
-        return currentActor &&
-          game.currentBet > 0 &&
-          amount > game.currentBet &&
-          amount - game.currentBet >= game.minRaise &&
-          amount <= chipsAvailable;
-      },
-    };
-  }
 
   function getTurnPrompt() {
     const game = State.game;
@@ -3238,6 +3215,8 @@
     const sender = record && record.sender ? record.sender : "<unknown>";
     const senderKey = normalizePlayerKey(sender);
     const toCall = getCallAmount(player);
+    const debugAction = record && record.message ? PokerEngine.decodeAction(record.message) : null;
+    const debugAmount = debugAction ? debugAction.amount : 0;
     return reason +
       " sender=" + sender +
       " senderKey=" + senderKey +
@@ -3247,7 +3226,7 @@
       " phase=" + (game ? game.phase : "<none>") +
       " pot=" + (game ? game.pot : 0) +
       " command=" + (record && record.message ? normalizeText(record.message) : "<none>") +
-      " amount=" + (record && record.message ? parseAmount(record.message) : 0) +
+      " amount=" + debugAmount +
       " toCall=" + toCall +
       " minRaise=" + (game ? game.minRaise || getCurrentBigBlind(game) : BIG_BLIND) +
       " currentBet=" + (game ? game.currentBet : 0) +
@@ -3267,17 +3246,6 @@
     }
   }
 
-  function isActionText(text) {
-    return text === "check" || text === "call" || text === "fold" || text.indexOf("bet") === 0 || text.indexOf("raise") === 0;
-  }
-
-  function parseAmount(text) {
-    const match = String(text || "").match(/(\d[\d,]*)\s*k?/i);
-    if (!match) return 0;
-    let amount = parseInt(match[1].replace(/,/g, ""), 10) || 0;
-    if (/k/i.test(match[0])) amount *= 1000;
-    return amount;
-  }
 
 
   function compareNumberArrays(a, b) {
@@ -3754,141 +3722,8 @@
     return action;
   }
 
-  function buildActionTransition(player, action, amount, record, options) {
-    const game = State.game;
-    const current = getCurrentPlayer();
-    const normalizedAmount = amount || 0;
-    const transition = {
-      ok: false,
-      status: "",
-      debugReason: "",
-      announcement: "",
-      advance: false,
-      action: action,
-      amount: normalizedAmount,
-      playerKey: player && player.key ? player.key : "",
-      record: record || null,
-      suppressRender: !!(options && options.suppressRender),
-    };
-    if (!game || !game.active) {
-      transition.debugReason = "drop-inactive";
-      return transition;
-    }
-    if (!current) {
-      transition.debugReason = "drop-no-current";
-      return transition;
-    }
-    if (!player || current.key !== player.key) {
-      transition.debugReason = "reject-out-of-turn";
-      return transition;
-    }
 
-    const toCall = getCallAmount(player);
-    const legal = getLegalActions(player);
-    if (action === "fold") {
-      if (!legal.fold) {
-        transition.debugReason = "reject-unknown-action";
-        return transition;
-      }
-      transition.ok = true;
-      transition.announcement = player.name + " folds.";
-    } else if (action === "check") {
-      if (!legal.check) {
-        transition.debugReason = "reject-illegal-check";
-        return transition;
-      }
-      transition.ok = true;
-      transition.announcement = player.name + " checks.";
-    } else if (action === "call") {
-      if (!legal.call) {
-        transition.debugReason = "reject-illegal-call";
-        return transition;
-      }
-      transition.ok = true;
-      transition.amount = Math.min(toCall, player.stack);
-      transition.announcement = player.name + " calls $" + transition.amount + ".";
-    } else if (action === "bet") {
-      if (!legal.canBetTarget(normalizedAmount)) {
-        transition.debugReason = "reject-illegal-bet";
-        return transition;
-      }
-      transition.ok = true;
-      transition.amount = normalizedAmount;
-      transition.announcement = player.name + " bets $" + normalizedAmount + ".";
-    } else if (action === "raise") {
-      if (!legal.canRaiseTarget(normalizedAmount)) {
-        transition.debugReason = "reject-illegal-raise";
-        return transition;
-      }
-      transition.ok = true;
-      transition.amount = normalizedAmount;
-      transition.announcement = player.name + " raises to $" + normalizedAmount + ".";
-    } else {
-      transition.debugReason = "reject-unknown-action";
-      return transition;
-    }
-    transition.advance = true;
-    return transition;
-  }
-
-  function applyActionTransition(transition) {
-    if (!transition) return transition;
-    const player = transition.playerKey ? findGamePlayerByKey(transition.playerKey) : null;
-    if (!transition.ok) {
-      if (transition.debugReason === "drop-inactive" || transition.debugReason === "drop-no-current") {
-        debugActionState(transition.debugReason + " command=" + transition.action, transition.record, player);
-      } else {
-        rejectAction(transition.debugReason || "reject-unknown-action", transition.action, transition.amount || 0, transition.record, player);
-      }
-      return transition;
-    }
-    const game = State.game;
-    if (!game || !game.active || !player) return transition;
-    if (transition.action === "fold") {
-      player.folded = true;
-      player.acted = true;
-      addGameLog(player.name + " folds.");
-    } else if (transition.action === "check") {
-      player.acted = true;
-      addGameLog(player.name + " checks.");
-    } else if (transition.action === "call") {
-      const paid = commitChips(game, player, getCallAmount(player));
-      player.acted = true;
-      transition.announcement = player.name + " calls $" + paid + ".";
-      addGameLog(player.name + " calls $" + paid + ".");
-    } else if (transition.action === "bet") {
-      const previousCurrentBet = game.currentBet;
-      const paidAmount = commitChips(game, player, transition.amount - player.bet);
-      game.currentBet = player.bet;
-      game.lastRaise = game.currentBet - previousCurrentBet;
-      game.minRaise = game.lastRaise;
-      game.lastAggressorIndex = game.currentIndex;
-      resetOtherActorsForAggression(player);
-      player.acted = true;
-      transition.announcement = player.name + " bets $" + game.currentBet + ".";
-      addGameLog(player.name + " bets $" + paidAmount + ".");
-    } else if (transition.action === "raise") {
-      const previousCurrentBet = game.currentBet;
-      const paidAmount = commitChips(game, player, transition.amount - player.bet);
-      game.currentBet = player.bet;
-      game.lastRaise = game.currentBet - previousCurrentBet;
-      game.minRaise = game.lastRaise;
-      game.lastAggressorIndex = game.currentIndex;
-      resetOtherActorsForAggression(player);
-      player.acted = true;
-      transition.announcement = player.name + " raises to $" + game.currentBet + ".";
-      addGameLog(player.name + " raises to $" + game.currentBet + " (" + paidAmount + " more).");
-    }
-    if (transition.advance) completeActionAdvance(transition.record, transition.announcement, transition.suppressRender);
-    if (transition.record && transition.record.isSelf) PendingSelfAction.markApplied(getActionCommandText(transition.action, transition.amount));
-    return transition;
-  }
-
-  function applyLegalAction(player, action, amount, record, options) {
-    return applyActionTransition(buildActionTransition(player, action, amount, record, options));
-  }
-
-  function completeActionAdvance(record, actionAnnouncement, suppressRender) {
+  function advanceEngineAction(record, actionAnnouncement, suppressRender) {
     const game = State.game;
     if (!game || !game.active) return;
     if (activeContestants().length <= 1) awardFoldWin(suppressRender);
@@ -3898,6 +3733,122 @@
       announce(actionAnnouncement || "Next turn", getTurnPrompt());
     }
     if (!suppressRender) RenderScheduler.defer("game-advance");
+  }
+
+  function engineApplyAction(game, action, actorKey, options) {
+    options = options || {};
+    const result = {
+      ok: false,
+      changed: false,
+      status: "",
+      log: "",
+      announcement: null,
+      pendingSelfApplied: false,
+      render: false,
+    };
+    const normalized = normalizeEngineAction(action);
+    const previousGame = State.game;
+    State.game = game || previousGame;
+    try {
+      const activeGame = State.game;
+      const player = enginePlayer(activeGame, actorKey);
+      const current = activeGame && activeGame.players ? activeGame.players[activeGame.currentIndex] : null;
+      const record = options.record || (action && action.record) || null;
+      if (!normalized) {
+        debugActionState("reject-unknown-action", record, player);
+        return result;
+      }
+      if (!activeGame || !activeGame.active) {
+        debugActionState("drop-inactive command=" + normalized.text, record, player);
+        return result;
+      }
+      if (!current) {
+        debugActionState("drop-no-current command=" + normalized.text, record, player);
+        return result;
+      }
+      const policy = engineActionPolicy(activeGame, player && player.key, "");
+      const legal = policy.legal;
+      if (!player || current.key !== player.key) {
+        rejectAction("reject-out-of-turn", normalized.action, normalized.amount, record, player);
+        return result;
+      }
+      if (normalized.action === "fold" && !legal.fold) {
+        rejectAction("reject-illegal-fold", normalized.action, normalized.amount, record, player);
+        return result;
+      }
+      if (normalized.action === "check" && !legal.check) {
+        rejectAction("reject-illegal-check", normalized.action, normalized.amount, record, player);
+        return result;
+      }
+      if (normalized.action === "call" && !legal.call) {
+        rejectAction("reject-illegal-call", normalized.action, normalized.amount, record, player);
+        return result;
+      }
+      if (normalized.action === "bet" && !legal.canBetTarget(normalized.amount)) {
+        rejectAction("reject-illegal-bet", normalized.action, normalized.amount, record, player);
+        return result;
+      }
+      if (normalized.action === "raise" && !legal.canRaiseTarget(normalized.amount)) {
+        rejectAction("reject-illegal-raise", normalized.action, normalized.amount, record, player);
+        return result;
+      }
+      let actionAmount = normalized.amount;
+      let logText = "";
+      let actionAnnouncement = "";
+      if (normalized.action === "fold") {
+        player.folded = true;
+        player.acted = true;
+        logText = player.name + " folds.";
+        actionAnnouncement = logText;
+        addGameLog(logText);
+      } else if (normalized.action === "check") {
+        player.acted = true;
+        logText = player.name + " checks.";
+        actionAnnouncement = logText;
+        addGameLog(logText);
+      } else if (normalized.action === "call") {
+        actionAmount = Math.min(legal.toCall, player.stack);
+        const paid = commitChips(activeGame, player, actionAmount);
+        player.acted = true;
+        actionAmount = paid;
+        logText = player.name + " calls $" + paid + ".";
+        actionAnnouncement = logText;
+        addGameLog(logText);
+      } else if (normalized.action === "bet" || normalized.action === "raise") {
+        const previousCurrentBet = activeGame.currentBet;
+        const paidAmount = commitChips(activeGame, player, actionAmount - player.bet);
+        activeGame.currentBet = player.bet;
+        activeGame.lastRaise = activeGame.currentBet - previousCurrentBet;
+        activeGame.minRaise = activeGame.lastRaise;
+        activeGame.lastAggressorIndex = activeGame.currentIndex;
+        resetOtherActorsForAggression(player);
+        player.acted = true;
+        logText = normalized.action === "bet"
+          ? player.name + " bets $" + paidAmount + "."
+          : player.name + " raises to $" + activeGame.currentBet + " (" + paidAmount + " more).";
+        actionAnnouncement = normalized.action === "bet"
+          ? player.name + " bets $" + activeGame.currentBet + "."
+          : player.name + " raises to $" + activeGame.currentBet + ".";
+        addGameLog(logText);
+      }
+      const suppressRender = !!options.suppressRender;
+      State.reducerActionStatus = "";
+      advanceEngineAction(record, actionAnnouncement, suppressRender);
+      const pendingSelfApplied = record && record.isSelf
+        ? PendingSelfAction.markApplied(getActionCommandText(normalized.action, actionAmount))
+        : false;
+      result.ok = true;
+      result.changed = true;
+      result.status = State.reducerActionStatus || actionAnnouncement;
+      result.log = logText;
+      result.announcement = actionAnnouncement || null;
+      result.pendingSelfApplied = !!pendingSelfApplied;
+      result.render = !suppressRender;
+      State.reducerActionStatus = "";
+      return result;
+    } finally {
+      State.game = previousGame;
+    }
   }
 
 
@@ -4021,61 +3972,129 @@
   }
 
 
-  function engineActions(game, actorKey, localKey) {
-    const previousGame = State.game;
-    State.game = game || previousGame;
-    try {
-      const activeGame = State.game;
-      const current = getCurrentPlayer();
-      const actor = actorKey ? findGamePlayerByKey(actorKey) : current;
-      const local = localKey ? findGamePlayerByKey(localKey) : getLocalPlayer();
-      const legal = actor ? getLegalActions(actor) : null;
-      const maxTarget = actor ? (Number(actor.bet) || 0) + (Number(actor.stack) || 0) : 0;
-      const kind = activeGame && activeGame.currentBet === 0 ? "bet" : "raise";
-      const minTarget = activeGame ? (kind === "bet" ? getCurrentBigBlind(activeGame) : getMinimumRaiseTo(activeGame)) : BIG_BLIND;
-      const canCustom = !!(legal && (kind === "bet" ? legal.canBetTarget(minTarget) : legal.canRaiseTarget(minTarget)) && maxTarget >= minTarget);
-      const custom = canCustom ? { action: kind, min: minTarget, max: maxTarget, step: SMALL_BLIND, value: minTarget } : null;
-      const enabled = !!(local && current && actor && actor.key === local.key && current.key === local.key);
-      const choices = [];
-      if (legal && legal.check) choices.push({ label: "CHECK", command: "check", className: "PokerActionButton", enabled: enabled, readOnly: !enabled });
-      if (legal && legal.call) choices.push({ label: "CALL $" + legal.toCall, command: "call", className: "PokerActionButton", enabled: enabled, readOnly: !enabled });
-      if (custom) choices.push({ label: kind === "bet" ? "BET" : "RAISE", command: "custom-" + kind, className: "PokerActionButton", enabled: enabled, readOnly: !enabled, customBet: custom });
-      if (legal && legal.fold) choices.push({ label: "FOLD", command: "fold", className: "PokerActionButton Danger", enabled: enabled, readOnly: !enabled });
-      return {
-        currentKey: current && current.key ? current.key : "",
-        localKey: local && local.key ? local.key : (localKey || ""),
-        actorKey: actor && actor.key ? actor.key : (actorKey || ""),
-        phase: activeGame ? activeGame.phase || "" : "",
-        pot: activeGame ? Number(activeGame.pot) || 0 : 0,
-        currentBet: activeGame ? Number(activeGame.currentBet) || 0 : 0,
-        toCall: actor ? getCallAmount(actor) : 0,
-        minBetTarget: custom && kind === "bet" ? custom.min : getCurrentBigBlind(activeGame),
-        maxBetTarget: maxTarget,
-        minRaiseTarget: activeGame ? getMinimumRaiseTo(activeGame) : BIG_BLIND,
-        maxRaiseTarget: maxTarget,
-        legal: { check: !!(legal && legal.check), call: !!(legal && legal.call), fold: !!(legal && legal.fold), bet: !!(custom && kind === "bet"), raise: !!(custom && kind === "raise") },
-        statusText: getActionStatusText(),
-        actionChoices: choices,
-      };
-    } finally {
-      State.game = previousGame;
-    }
+  function engineActionPolicy(game, actorKey, localKey) {
+    const activeGame = game || null;
+    const players = activeGame && activeGame.players ? activeGame.players : [];
+    const current = activeGame && players.length ? players[activeGame.currentIndex] || null : null;
+    const actor = actorKey ? enginePlayer(activeGame, actorKey) : current;
+    const local = localKey ? enginePlayer(activeGame, localKey) : null;
+    const currentActor = !!(activeGame && activeGame.active && actor && current && actor.key === current.key);
+    const toCall = actor ? getCallAmount(actor, activeGame) : 0;
+    const chipsAvailable = actor ? (Number(actor.bet) || 0) + (Number(actor.stack) || 0) : 0;
+    const contestants = players.filter((player) => player && !player.folded);
+    const legal = {
+      check: currentActor && toCall === 0,
+      call: currentActor && toCall > 0,
+      fold: currentActor && contestants.length > 1,
+      toCall: toCall,
+      canBetTarget: function canBetTarget(amount) {
+        return currentActor && activeGame.currentBet === 0 && amount >= getCurrentBigBlind(activeGame) && amount <= chipsAvailable;
+      },
+      canRaiseTarget: function canRaiseTarget(amount) {
+        return currentActor &&
+          activeGame.currentBet > 0 &&
+          amount > activeGame.currentBet &&
+          amount - activeGame.currentBet >= (activeGame.minRaise || getCurrentBigBlind(activeGame)) &&
+          amount <= chipsAvailable;
+      },
+    };
+    const kind = activeGame && activeGame.currentBet === 0 ? "bet" : "raise";
+    const minTarget = activeGame ? (kind === "bet" ? getCurrentBigBlind(activeGame) : getMinimumRaiseTo(activeGame)) : BIG_BLIND;
+    const custom = !!(activeGame && actor && (kind === "bet" ? legal.canBetTarget(minTarget) : legal.canRaiseTarget(minTarget)) && chipsAvailable >= minTarget)
+      ? { action: kind, min: minTarget, max: chipsAvailable, step: SMALL_BLIND, value: minTarget }
+      : null;
+    legal.bet = !!(custom && kind === "bet");
+    legal.raise = !!(custom && kind === "raise");
+    const enabled = !!(local && current && actor && actor.key === local.key && current.key === local.key);
+    const choices = [];
+    if (legal.check) choices.push({ label: "CHECK", command: "check", className: "PokerActionButton", enabled: enabled, readOnly: !enabled });
+    if (legal.call) choices.push({ label: "CALL $" + legal.toCall, command: "call", className: "PokerActionButton", enabled: enabled, readOnly: !enabled });
+    if (custom) choices.push({ label: kind === "bet" ? "BET" : "RAISE", command: "custom-" + kind, className: "PokerActionButton", enabled: enabled, readOnly: !enabled, customBet: custom });
+    if (legal.fold) choices.push({ label: "FOLD", command: "fold", className: "PokerActionButton Danger", enabled: enabled, readOnly: !enabled });
+    const statusText = activeGame && activeGame.active
+      ? String(activeGame.phase || "lobby").toUpperCase() +
+        " | turn " + (current ? current.name : "<none>") +
+        " | pot $" + (activeGame.pot || 0) +
+        " | bet $" + (activeGame.currentBet || 0) +
+        " | you " + (local ? local.name : "<unknown>") +
+        " | call $" + toCall
+      : "";
+    return {
+      currentKey: current && current.key ? current.key : "",
+      localKey: local && local.key ? local.key : (localKey || ""),
+      actorKey: actor && actor.key ? actor.key : (actorKey || ""),
+      phase: activeGame ? activeGame.phase || "" : "",
+      pot: activeGame ? Number(activeGame.pot) || 0 : 0,
+      currentBet: activeGame ? Number(activeGame.currentBet) || 0 : 0,
+      toCall: toCall,
+      minBetTarget: custom && kind === "bet" ? custom.min : getCurrentBigBlind(activeGame),
+      maxBetTarget: chipsAvailable,
+      minRaiseTarget: activeGame ? getMinimumRaiseTo(activeGame) : BIG_BLIND,
+      maxRaiseTarget: chipsAvailable,
+      legal: legal,
+      ranges: { bet: kind === "bet" ? custom : null, raise: kind === "raise" ? custom : null },
+      readOnly: !enabled,
+      illegal: { customAmount: !!(activeGame && actor && !custom && (kind === "bet" || kind === "raise")) },
+      statusText: statusText,
+      actionChoices: choices,
+    };
   }
 
-  function applyEngine(game, action, actorKey) {
-    const source = action && typeof action === "object" ? action : {};
-    const text = typeof action === "string"
-      ? normalizeText(action)
-      : normalizeText(source.type || source.action || "");
-    const type = text.indexOf("bet") === 0 ? "bet" : (text.indexOf("raise") === 0 ? "raise" : text);
-    const amount = source.amount == null ? parseAmount(text) : Number(source.amount) || 0;
-    const previousGame = State.game;
-    State.game = game || previousGame;
-    try {
-      return applyLegalAction(enginePlayer(State.game, actorKey), type, amount, null, {});
-    } finally {
-      State.game = previousGame;
+  function engineActions(game, actorKey, localKey) {
+    return engineActionPolicy(game, actorKey, localKey);
+  }
+
+  const ACTION_WIRE_TABLE = [
+    { action: "check", pattern: /^check$/i },
+    { action: "call", pattern: /^call$/i },
+    { action: "fold", pattern: /^fold$/i },
+    { action: "bet", pattern: /^bet\s+\$(\d+)$/i },
+    { action: "raise", pattern: /^raise\s+\$(\d+)$/i },
+    { type: "all-in-unsupported", unsupported: true, pattern: /^all(?:\s+|-)?in$/i },
+  ];
+
+  function decodeActionWire(text, record) {
+    const normalized = String(text || "").replace(/^\s+|\s+$/g, "").replace(/\s+/g, " ");
+    if (!normalized) return null;
+    for (let i = 0; i < ACTION_WIRE_TABLE.length; i += 1) {
+      const definition = ACTION_WIRE_TABLE[i];
+      const match = normalized.match(definition.pattern);
+      if (!match) continue;
+      if (definition.unsupported) {
+        return { type: definition.type, family: "action", action: "all-in", amount: 0, text: normalizeText(normalized), record: record || null, unsupported: true };
+      }
+      return { type: "action", family: "action", action: definition.action, amount: match[1] ? Number(match[1]) : 0, text: normalizeText(normalized), record: record || null };
     }
+    return null;
+  }
+  function isEngineActionLegal(policy, decoded) {
+    if (!policy || !policy.legal || !decoded || decoded.unsupported) return false;
+    if (decoded.action === "check") return !!policy.legal.check;
+    if (decoded.action === "call") return !!policy.legal.call;
+    if (decoded.action === "fold") return !!policy.legal.fold;
+    if (decoded.action === "bet") return policy.legal.canBetTarget(decoded.amount);
+    if (decoded.action === "raise") return policy.legal.canRaiseTarget(decoded.amount);
+    return false;
+  }
+
+  function normalizeEngineAction(action) {
+    if (typeof action === "string") {
+      const parsed = decodeActionWire(action);
+      return parsed && !parsed.unsupported ? parsed : null;
+    }
+    const source = action && typeof action === "object" ? action : {};
+    const raw = normalizeText(source.action || source.type || "");
+    if ((raw === "bet" || raw === "raise") && source.amount != null) {
+      const amount = Number(source.amount);
+      if (!Number.isFinite(amount) || amount < 0) return null;
+      return { type: "action", family: "action", action: raw, amount: Math.floor(amount), text: getActionCommandText(raw, amount), record: source.record || null };
+    }
+    const parsed = decodeActionWire(raw);
+    return parsed && !parsed.unsupported ? parsed : null;
+  }
+
+  function applyEngine(game, action, actorKey, options) {
+    return engineApplyAction(game, action, actorKey, options);
   }
 
   function departEngineGame(game, playerKey, context) {
@@ -4163,6 +4182,8 @@
 
   const PokerEngine = {
     create: createEngine,
+    decode: decodeActionWire,
+    decodeAction: decodeActionWire,
     actions: engineActions,
     apply: applyEngine,
     depart: departEngineGame,
@@ -4185,7 +4206,6 @@
       delete getConfig()[PENDING_SELF_ACTION_KEY];
     } catch (e) {}
   }
-
   function recordPendingSelfAction(command, local, game) {
     if (!command || !local || !game || !game.active) return;
     const now = Date.now();
@@ -4225,10 +4245,9 @@
     }
     return pending;
   }
-
   function resolvePendingSelfRecord(record, text) {
     if (!record || !record.isSelf || !isUnknownSender(record.sender)) return record;
-    if (!isActionText(text)) return record;
+    if (!PokerEngine.decodeAction(text)) return record;
     const pending = readPendingSelfAction();
     if (!pending) return record;
     if (normalizeText(pending.message) !== normalizeText(text)) return record;
@@ -4274,7 +4293,9 @@
   }
 
   function resolveUnknownActionRecord(record, text) {
-    if (!record || record.isSelf || !isUnknownSender(record.sender) || !isActionText(text)) return record;
+    if (!record || record.isSelf || !isUnknownSender(record.sender)) return record;
+    const decoded = PokerEngine.decodeAction(text);
+    if (!decoded) return record;
     const game = State.game;
     const current = getCurrentPlayer();
     if (!game || !game.active || !current || !current.name) return record;
@@ -4286,7 +4307,7 @@
       (party.order && party.order.indexOf(current.key) !== -1)
     );
     if (!knownPartyActor) return record;
-    if (!isLegalLocalCommand(text, current)) return record;
+    if (!isEngineActionLegal(PokerEngine.actions(game, current.key, ""), decoded)) return record;
     const resolved = copyChatRecord(record);
     if (!resolved) return record;
     resolved.sender = current.name;
@@ -4574,12 +4595,14 @@
       debugActionState("reject-unknown-sender command=" + text + " amount=" + command.amount + " toCall=0 minRaise=" + (State.game ? State.game.minRaise || getCurrentBigBlind(State.game) : BIG_BLIND) + " currentBet=" + (State.game ? State.game.currentBet : 0) + " playerBet=<none> playerStack=<none> playerCommitted=<none>", actionRecord, null);
       return rejectedCommandEffect("", "debug");
     }
-    State.reducerActionStatus = "";
-    const transition = applyLegalAction(player, command.action, command.amount || 0, actionRecord, { suppressRender: true });
-    const status = State.reducerActionStatus || "";
-    State.reducerActionStatus = "";
-    if (!transition || !transition.ok) return rejectedCommandEffect("", transition && transition.debugReason ? transition.debugReason : "action");
-    return changedCommandEffect(status, "action");
+    const applied = PokerEngine.apply(
+      State.game,
+      { action: command.action, amount: command.amount, record: actionRecord },
+      player.key,
+      { record: actionRecord, suppressRender: true },
+    );
+    if (!applied || !applied.ok || !applied.changed) return rejectedCommandEffect("", "action");
+    return changedCommandEffect(applied.status || "", "action");
   }
 
   const COMMAND_HANDLERS = {
@@ -4641,8 +4664,6 @@
     { family: "resume", type: "resume-ready", prefix: "resume ready poker resume ", field: "id" },
     { family: "resume", type: "resume-start", prefix: "poker resume ", markers: ["hand", "leader", "seed"], optionalMarker: "roster", field: "id" },
     { family: "start", type: "start", prefixes: ["poker start ", "start poker"], markers: ["hand"], optionalMarker: "roster" },
-    { family: "action", type: "all-in-unsupported", exact: ["all in", "allin"] },
-    { family: "action", type: "action", pattern: /^(check|call|fold|bet(?:\s+\$\d+)?|raise(?:\s+\$\d+)?)$/i },
     { family: "ignored", type: "ignored" },
   ];
 
@@ -4652,6 +4673,8 @@
     const text = normalizeText(rawText);
     const ignored = { type: "ignored", family: "ignored", record: resolved || record, text: text };
     if (!resolved || !text) return ignored;
+    const staticAction = PokerEngine.decodeAction(rawText, resolved);
+    if (staticAction) return staticAction;
     const parts = rawText.split(/\s+/).filter(Boolean);
     const readMarker = (marker) => {
       const match = rawText.match(new RegExp("(?:^|\\s)" + marker + "\\s+([^\\s]+)", "i"));
@@ -4726,10 +4749,6 @@
         command.rosterText = rosterToken;
         command.roster = rosterToken ? decodeRoster(rosterToken) : [];
         command.legacySeed = parts.length > 2 ? parts.slice(2).join(" ") : "";
-      } else if (definition.type === "action") {
-        const action = (match && match[1] ? match[1] : text).toLowerCase();
-        command.action = action.indexOf("bet") === 0 ? "bet" : (action.indexOf("raise") === 0 ? "raise" : action);
-        command.amount = parseAmount(text);
       }
       if (definition.type === "match-end") {
         command.seed = readMarker(START_SEED_MARKER);
@@ -4815,48 +4834,28 @@
     applyPayload: applyChatPayload,
   };
 
-  function isLegalLocalCommand(command, player) {
-    const text = normalizeText(command);
-    const legal = getLegalActions(player);
-    if (text === "check") return legal.check;
-    if (text === "call") return legal.call;
-    if (text === "fold") return legal.fold;
-    if (text.indexOf("bet") === 0) return legal.canBetTarget(parseAmount(text));
-    if (text.indexOf("raise") === 0) return legal.canRaiseTarget(parseAmount(text));
-    return false;
-  }
-
-  function validateLocalActionCommand(command) {
+  function sendAction(command, label) {
     const current = getCurrentPlayer();
     const local = getLocalPlayer();
-    const phase = State.game ? State.game.phase : "lobby";
-    const turn = current && local ? PokerEngine.actions(State.game, current.key, local.key) : null;
-    const toCall = turn ? turn.toCall : (local ? getCallAmount(local) : 0);
+    const decoded = PokerEngine.decodeAction(command);
+    let status = "";
     if (!State.game || !State.game.active || !current) {
-      return { ok: false, status: "No active synced hand is waiting for an action." };
+      status = "No active synced hand is waiting for an action.";
+    } else if (!local) {
+      status = "Chat sender unknown. Type ready or reopen party chat so Deadlock exposes your name before acting.";
+    } else if (current.key !== local.key) {
+      status = "Waiting for " + current.name + ". You are " + local.name + ".";
+    } else if (!decoded || !isEngineActionLegal(PokerEngine.actions(State.game, current.key, local.key), decoded)) {
+      status = "Action no longer legal for " + local.name + ". Waiting for " + current.name + ".";
     }
-    if (!local) {
-      return { ok: false, status: "Chat sender unknown. Type ready or reopen party chat so Deadlock exposes your name before acting." };
-    }
-    if (current.key !== local.key) {
-      return { ok: false, status: "Waiting for " + current.name + ". You are " + local.name + "." };
-    }
-    if (!isLegalLocalCommand(command, local)) {
-      return { ok: false, status: "Action no longer legal for " + local.name + ". Waiting for " + current.name + "." };
-    }
-    return { ok: true, current: current, local: local, phase: phase, toCall: toCall };
-  }
-
-
-  function sendAction(command, label) {
-    const result = validateLocalActionCommand(command);
-    if (!result.ok) {
-      setStatus(result.status);
+    if (status) {
+      setStatus(status);
       RenderScheduler.immediate("send-action-invalid");
       return;
     }
-    PendingSelfAction.record(command, result.local, State.game);
-    log("action click label=" + (label || command) + " command=" + command + " phase=" + result.phase + " current=" + (result.current ? result.current.name : "<none>") + " toCall=" + result.toCall);
+    const turn = PokerEngine.actions(State.game, current.key, local.key);
+    PendingSelfAction.record(command, local, State.game);
+    log("action click label=" + (label || command) + " command=" + command + " phase=" + (State.game.phase || "") + " current=" + current.name + " toCall=" + turn.toCall);
     sendChatMessage(command);
   }
 
@@ -5293,9 +5292,9 @@
     const game = State.game;
     const player = getLocalPlayer();
     if (!game || !player) return false;
-    const legal = getLegalActions(player);
+    const policy = PokerEngine.actions(game, getCurrentPlayer() && getCurrentPlayer().key, player.key);
     if (amount < range.min || amount > range.max) return false;
-    return range.action === "bet" ? legal.canBetTarget(amount) : legal.canRaiseTarget(amount);
+    return range.action === "bet" ? policy.legal.canBetTarget(amount) : policy.legal.canRaiseTarget(amount);
   }
 
   function getCustomBetDraft(range) {
@@ -5862,9 +5861,6 @@
         resolveResumeNextDealerKey: resolveResumeNextDealerKey,
         getCallAmount: getCallAmount,
         getMinimumRaiseTo: getMinimumRaiseTo,
-        getLegalActions: getLegalActions,
-        applyLegalAction: applyLegalAction,
-        completeActionAdvance: completeActionAdvance,
         hasBettingRoundSettled: hasBettingRoundSettled,
         buildPots: buildPots,
         showdown: showdown,
