@@ -166,20 +166,22 @@
     },
     statusModel: { text: "", priority: 0, lockUntilMs: 0 },
     renderCache: {
-      communityCards: [],
+      communityCards: {},
+      readySeatRows: {},
+      resumeLeaderRows: {},
       playerRows: {},
+      tableSeatRows: {},
+      potChipRows: {},
       actionButtons: {},
       actionHint: null,
-      actionOrderKey: "",
-      logRows: [],
-      tableSeatRows: {},
-      tableSeatOrderKey: "",
-      potChipRows: {},
-      potChipOrderKey: "",
-      readySeatOrderKey: "",
-      readySeatParent: null,
-      resumeLeaderOrderKey: "",
-      resumeLeaderParent: null,
+      actionButtonRow: null,
+      customBetControls: null,
+      customBetChoice: null,
+      customBetRange: null,
+      customBetRangeKey: "",
+      logRows: {},
+      tableTurnArrow: null,
+      tableTurnArrowClass: "",
       renderQueued: false,
       renderReason: "",
       potDisplayValue: 0,
@@ -1977,12 +1979,6 @@
     } catch (e) {}
   }
 
-  function deleteActionRows() {
-    const keys = Object.keys(State.renderCache.actionButtons || {});
-    for (let i = 0; i < keys.length; i += 1) deletePanel(State.renderCache.actionButtons[keys[i]] && State.renderCache.actionButtons[keys[i]].button);
-    State.renderCache.actionButtons = {};
-    removeCustomBetControls();
-  }
 
   function clearChildren(parent) {
     if (!isValid(parent)) return;
@@ -2231,94 +2227,105 @@
     suitGlyph: getSuitGlyph,
   };
 
-  function renderEmptySeats() {
-    if (!isValid(State.seatsList)) return;
-    const row = createPanel("Panel", State.seatsList, "PokerSeatEmpty", "PokerSeatRow");
-    addClass(row, "Empty");
-    createLabel(row, "PokerSeatName", "No ready players yet");
-    createLabel(row, "PokerSeatMeta", "Type ready in team or party chat to take a seat.");
+  function createReadySeatRow(parent, model) {
+    const row = createPanel("Panel", parent, "PokerSeat" + model.key, "PokerSeatRow");
+    return {
+      row: row,
+      number: createLabel(row, "PokerSeatNumber", ""),
+      name: createLabel(row, "PokerSeatName", ""),
+      meta: createLabel(row, "PokerSeatMeta", ""),
+    };
   }
 
-  function buildReadySeatOrderKey(seats) {
+  function updateReadySeatRow(row, model) {
+    setPanelClass(row.row, "Empty", !!model.empty);
+    setText(row.number, model.empty ? "" : model.number);
+    setText(row.name, model.name);
+    setText(row.meta, model.meta);
+  }
+
+  function deleteReadySeatRow(row) {
+    deletePanel(row && row.row);
+  }
+
+  function buildReadySeatModels(seats) {
     const rows = seats || [];
-    if (!rows.length) return "empty";
-    const parts = [];
-    for (let i = 0; i < rows.length; i += 1) {
-      const seat = rows[i];
-      parts.push(normalizePlayerKey(seat && (seat.key || seat.name)) + "|" + ((seat && seat.name) || "") + "|" + ((seat && seat.channel) || "") + "|" + ((seat && seat.message) || ""));
-    }
-    return parts.join("||");
+    if (!rows.length) return [{ key: "empty", empty: true, name: "No ready players yet", meta: "Type ready in team or party chat to take a seat.", number: "" }];
+    return rows.map((seat, index) => ({
+      key: normalizePlayerKey(seat && (seat.key || seat.name)) || ("seat" + index),
+      empty: false,
+      number: String(index + 1),
+      name: seat && seat.name ? seat.name : "Player",
+      meta: "READY",
+    }));
   }
 
   function renderSeatRows(seats) {
     cachePanels();
     if (!isValid(State.seatsList)) return;
-    const rows = seats || [];
-    const key = buildReadySeatOrderKey(rows);
-    if (State.renderCache.readySeatParent === State.seatsList && State.renderCache.readySeatOrderKey === key) return;
-    State.renderCache.readySeatParent = State.seatsList;
-    State.renderCache.readySeatOrderKey = key;
-    clearChildren(State.seatsList);
-    if (!rows.length) {
-      renderEmptySeats();
-      return;
-    }
-    for (let i = 0; i < rows.length; i += 1) {
-      const seat = rows[i];
-      const row = createPanel("Panel", State.seatsList, "PokerSeat" + (i + 1), "PokerSeatRow");
-      createLabel(row, "PokerSeatNumber", String(i + 1));
-      createLabel(row, "PokerSeatName", seat.name || "Player");
-      createLabel(row, "PokerSeatMeta", "READY");
-    }
+    State.renderCache.readySeatRows = State.renderCache.readySeatRows || {};
+    Rows.update(
+      State.renderCache.readySeatRows,
+      State.seatsList,
+      buildReadySeatModels(seats),
+      createReadySeatRow,
+      updateReadySeatRow,
+      deleteReadySeatRow,
+    );
   }
 
+  function createResumeLeaderRow(parent, model) {
+    const row = createPanel("Panel", parent, "PokerResumeSeat" + model.key, "PokerSeatRow");
+    return {
+      row: row,
+      number: createLabel(row, "PokerSeatNumber", ""),
+      name: createLabel(row, "PokerSeatName", ""),
+      meta: createLabel(row, "PokerSeatMeta", ""),
+    };
+  }
 
-  function buildResumeLeaderOrderKey(resume) {
+  function updateResumeLeaderRow(row, model) {
+    setPanelClass(row.row, "Empty", !!model.empty);
+    setText(row.number, model.empty ? "" : model.number);
+    setText(row.name, model.name);
+    setText(row.meta, model.meta);
+  }
+
+  function deleteResumeLeaderRow(row) {
+    deletePanel(row && row.row);
+  }
+
+  function buildResumeLeaderModels(resume) {
     const state = resume || ensureResume();
     const payload = state && state.payload;
-    if (!payload || !payload.roster || !payload.roster.length) return "empty";
-    const parts = [];
-    for (let i = 0; i < payload.roster.length; i += 1) {
-      const entry = payload.roster[i];
-      const key = normalizePlayerKey(entry && (entry.key || entry.name));
-      const stack = getProgressBankroll(payload, key);
-      let status = "WAITING";
-      if (stack <= 0) status = "OUT";
-      else if (state.leaderKey === key) status = "LEADER";
-      else if (state.ready && state.ready[key]) status = "READY";
-      parts.push(key + "|" + ((entry && entry.name) || "") + "|" + stack + "|" + status);
+    if (!payload || !payload.roster || !payload.roster.length) {
+      return [{ key: "empty", empty: true, name: "No imported progress", meta: "Paste a POKERPROG1 code.", number: "" }];
     }
-    return parts.join("||");
+    return payload.roster.map((entry, index) => {
+      const key = normalizePlayerKey(entry && (entry.key || entry.name)) || ("resume" + index);
+      const stack = getProgressBankroll(payload, key);
+      const status = stack <= 0 ? "OUT" : (state.leaderKey === key ? "LEADER" : (state.ready && state.ready[key] ? "READY" : "WAITING"));
+      return {
+        key: key,
+        empty: false,
+        number: String(index + 1),
+        name: entry && entry.name ? entry.name : key,
+        meta: "$" + stack + "  " + status,
+      };
+    });
   }
 
   function renderResumeLeaderRows() {
     if (!isValid(State.resumeLeaderList)) return;
-    const resume = ensureResume();
-    const key = buildResumeLeaderOrderKey(resume);
-    if (State.renderCache.resumeLeaderParent === State.resumeLeaderList && State.renderCache.resumeLeaderOrderKey === key) return;
-    State.renderCache.resumeLeaderParent = State.resumeLeaderList;
-    State.renderCache.resumeLeaderOrderKey = key;
-    clearChildren(State.resumeLeaderList);
-    const payload = resume.payload;
-    if (!payload || !payload.roster || !payload.roster.length) {
-      const row = createPanel("Panel", State.resumeLeaderList, "PokerResumeEmpty", "PokerSeatRow Empty");
-      createLabel(row, "PokerSeatName", "No imported progress");
-      createLabel(row, "PokerSeatMeta", "Paste a POKERPROG1 code.");
-      return;
-    }
-    for (let i = 0; i < payload.roster.length; i += 1) {
-      const entry = payload.roster[i];
-      const key = normalizePlayerKey(entry.key);
-      const stack = getProgressBankroll(payload, key);
-      let status = "WAITING";
-      if (stack <= 0) status = "OUT";
-      else if (resume.leaderKey === key) status = "LEADER";
-      else if (resume.ready && resume.ready[key]) status = "READY";
-      const row = createPanel("Panel", State.resumeLeaderList, "PokerResumeSeat" + (i + 1), "PokerSeatRow");
-      createLabel(row, "PokerSeatNumber", String(i + 1));
-      createLabel(row, "PokerSeatName", entry.name || key);
-      createLabel(row, "PokerSeatMeta", "$" + stack + "  " + status);
-    }
+    State.renderCache.resumeLeaderRows = State.renderCache.resumeLeaderRows || {};
+    Rows.update(
+      State.renderCache.resumeLeaderRows,
+      State.resumeLeaderList,
+      buildResumeLeaderModels(ensureResume()),
+      createResumeLeaderRow,
+      updateResumeLeaderRow,
+      deleteResumeLeaderRow,
+    );
   }
 
   function renderProgressControls(viewModel) {
@@ -4834,18 +4841,32 @@
     sendChatMessage(command);
   }
 
+  function createCommunityCardRow(parent) {
+    return CardPresenter.render(parent, null, false);
+  }
+
+  function updateCommunityCardRow(panel, model) {
+    CardPresenter.update(panel, model.card || null, false);
+  }
+
+  function deleteCommunityCardRow(panel) {
+    deletePanel(panel);
+  }
+
   function renderCommunity() {
     if (!isValid(State.community)) return;
     const cards = State.game ? State.game.community : [];
-    State.renderCache.communityCards = State.renderCache.communityCards || [];
-    for (let i = 0; i < 5; i += 1) {
-      let panel = State.renderCache.communityCards[i];
-      if (!isValid(panel)) {
-        panel = CardPresenter.render(State.community, null, false);
-        State.renderCache.communityCards[i] = panel;
-      }
-      CardPresenter.update(panel, cards[i] || null, false);
-    }
+    const models = [];
+    for (let i = 0; i < 5; i += 1) models.push({ key: String(i), card: cards[i] || null });
+    State.renderCache.communityCards = State.renderCache.communityCards || {};
+    Rows.update(
+      State.renderCache.communityCards,
+      State.community,
+      models,
+      createCommunityCardRow,
+      updateCommunityCardRow,
+      deleteCommunityCardRow,
+    );
   }
 
   function getPlayerChipText(game, player, index) {
@@ -4958,8 +4979,7 @@
     if (!isValid(State.potChips)) return;
     setPanelClass(State.potChips, CLASSES.hidden, chips.length === 0);
     State.renderCache.potChipRows = State.renderCache.potChipRows || {};
-    State.renderCache.potChipOrderKey = chips.map((chip) => chip.key + ":" + chip.count).join("|") || "empty";
-    updateKeyedRows(State.renderCache.potChipRows, State.potChips, chips, createPotChipRow, updatePotChipRow, deletePotChipRow);
+    Rows.update(State.renderCache.potChipRows, State.potChips, chips, createPotChipRow, updatePotChipRow, deletePotChipRow);
   }
 
   function makeRenderPlayer(key, name, stack, result) {
@@ -5058,14 +5078,8 @@
     if (!isValid(State.players)) return;
     const metricStarted = PokerMetrics.start("renderPlayers");
     const rows = viewModel && viewModel.playerRows ? viewModel.playerRows : buildPlayerRenderModel();
-    const orderKey = rows.map((row) => row.key).join("|");
-    if (State.renderCache.playerOrderKey && State.renderCache.playerOrderKey !== orderKey) {
-      clearChildren(State.players);
-      State.renderCache.playerRows = {};
-    }
-    State.renderCache.playerOrderKey = orderKey;
     State.renderCache.playerRows = State.renderCache.playerRows || {};
-    updateKeyedRows(State.renderCache.playerRows, State.players, rows, createPlayerRow, updatePlayerRow, deletePlayerRow);
+    Rows.update(State.renderCache.playerRows, State.players, rows, createPlayerRow, updatePlayerRow, deletePlayerRow);
     PokerMetrics.end("renderPlayers", metricStarted);
   }
 
@@ -5132,28 +5146,64 @@
     return buildTableRenderModelForState(getViewModelState());
   }
 
-  function updateKeyedRows(cache, parent, models, createRow, updateRow, deleteRow) {
-    const seen = {};
-    const rows = models || [];
-    for (let i = 0; i < rows.length; i += 1) {
-      const model = rows[i];
-      const key = model.key || ("row" + i);
-      seen[key] = true;
-      let row = cache[key];
-      if (!row || !isValid(row.panel || row.row || row.seat || row)) {
-        row = createRow(parent, model, i);
-        cache[key] = row;
-      }
-      updateRow(row, model, i);
-    }
-    const keys = Object.keys(cache);
-    for (let i = 0; i < keys.length; i += 1) {
-      if (seen[keys[i]]) continue;
-      if (deleteRow) deleteRow(cache[keys[i]]);
-      delete cache[keys[i]];
-    }
+  function getRowPanel(row) {
+    return row && (row.panel || row.row || row.seat || row);
   }
 
+  function moveRowBefore(parent, panel, index) {
+    if (!parent || !panel) return;
+    let sibling = null;
+    try {
+      sibling = typeof parent.GetChild === "function" ? parent.GetChild(index) : null;
+    } catch (e) {}
+    if (sibling === panel) return;
+    try {
+      if (sibling && typeof parent.MoveChildBefore === "function") {
+        parent.MoveChildBefore(panel, sibling);
+        return;
+      }
+      if (!sibling && typeof parent.MoveChildToFront === "function") {
+        parent.MoveChildToFront(panel);
+        return;
+      }
+    } catch (eMove) {}
+    if (!Array.isArray(parent.children)) return;
+    const children = parent.children;
+    const currentIndex = children.indexOf(panel);
+    if (currentIndex < 0) return;
+    children.splice(currentIndex, 1);
+    const targetIndex = Math.min(index, children.length);
+    children.splice(targetIndex, 0, panel);
+  }
+
+  const Rows = {
+    update: function (cache, parent, models, createRow, updateRow, deleteRow) {
+      if (!cache || !parent) return;
+      const rows = models || [];
+      const seen = {};
+      const ordered = [];
+      for (let i = 0; i < rows.length; i += 1) {
+        const model = rows[i] || {};
+        const key = String(model.key || ("row" + i));
+        seen[key] = true;
+        let row = cache[key];
+        if (!row || !isValid(getRowPanel(row))) {
+          row = createRow(parent, model, i);
+          cache[key] = row;
+        }
+        updateRow(row, model, i);
+        ordered.push(row);
+      }
+      const cachedKeys = Object.keys(cache);
+      for (let i = 0; i < cachedKeys.length; i += 1) {
+        const key = cachedKeys[i];
+        if (seen[key]) continue;
+        if (deleteRow) deleteRow(cache[key]);
+        delete cache[key];
+      }
+      for (let i = 0; i < ordered.length; i += 1) moveRowBefore(parent, getRowPanel(ordered[i]), i);
+    },
+  };
   function getTableSeatPositionClass(index, count) {
     const visibleCount = Math.min(TABLE_EDGE_SEAT_LIMIT, Math.max(1, count || 1));
     const layout = TABLE_SEAT_LAYOUTS[visibleCount] || TABLE_SEAT_LAYOUTS[TABLE_EDGE_SEAT_LIMIT];
@@ -5232,16 +5282,8 @@
     if (!isValid(State.tableSeats)) return;
     const metricStarted = PokerMetrics.start("renderTableSeats");
     const model = viewModel && viewModel.table ? viewModel.table : buildTableRenderModel();
-    const orderKey = model.rows.map((row) => row.key).join("|");
-    if (State.renderCache.tableSeatOrderKey !== orderKey) {
-      clearChildren(State.tableSeats);
-      State.renderCache.tableSeatRows = {};
-      State.renderCache.tableTurnArrow = null;
-      State.renderCache.tableTurnArrowClass = "";
-    }
-    State.renderCache.tableSeatOrderKey = orderKey;
     State.renderCache.tableSeatRows = State.renderCache.tableSeatRows || {};
-    updateKeyedRows(State.renderCache.tableSeatRows, State.tableSeats, model.rows, createTableSeatRow, updateTableSeatRow, deleteTableSeatRow);
+    Rows.update(State.renderCache.tableSeatRows, State.tableSeats, model.rows, createTableSeatRow, updateTableSeatRow, deleteTableSeatRow);
     renderTableTurnArrow(model.rows, State.game);
     PokerMetrics.end("renderTableSeats", metricStarted);
   }
@@ -5250,12 +5292,6 @@
     return (choice.command || "") + "|" + (choice.className || "PokerActionButton");
   }
 
-  function getActionOrderKey(choices, hasHint) {
-    const rows = choices || [];
-    const keys = [];
-    for (let i = 0; i < rows.length; i += 1) keys.push(getActionChoiceKey(rows[i]));
-    return (hasHint ? "hint:" : "buttons:") + keys.join("||");
-  }
 
 
   function clampCustomBetAmount(value, range) {
@@ -5483,12 +5519,13 @@
     State.renderCache.actionButtons = State.renderCache.actionButtons || {};
     applyHiddenAffordance(State.actions, state.controls.actionContainer.hidden);
     if (state.controls.actionContainer.hidden) {
-      const cachedKeys = Object.keys(State.renderCache.actionButtons);
-      deleteActionRows();
+      if (isValid(State.renderCache.actionButtonRow)) {
+        Rows.update(State.renderCache.actionButtons, State.renderCache.actionButtonRow, [], createActionButtonRow, updateActionButtonRow, deleteActionButtonRow);
+      } else {
+        State.renderCache.actionButtons = {};
+      }
       if (isValid(State.renderCache.actionHint)) deletePanel(State.renderCache.actionHint);
-      State.renderCache.actionButtons = {};
       State.renderCache.actionHint = null;
-      State.renderCache.actionOrderKey = "";
       removeCustomBetControls();
       if (isValid(State.renderCache.actionButtonRow)) deletePanel(State.renderCache.actionButtonRow);
       State.renderCache.actionButtonRow = null;
@@ -5499,12 +5536,6 @@
     const choices = state.actionChoices || [];
     const hasButtons = choices.length > 0;
     const hasHint = !!state.text.actionHint && !hasButtons;
-    const orderKey = getActionOrderKey(choices, hasHint);
-    if (!hasHint && State.renderCache.actionOrderKey && State.renderCache.actionOrderKey !== orderKey) {
-      deleteActionRows();
-    }
-    State.renderCache.actionOrderKey = orderKey;
-
     if (hasHint) {
       if (!isValid(State.renderCache.actionHint)) {
         State.renderCache.actionHint = createLabel(State.actions, "PokerActionHint", "");
@@ -5524,7 +5555,7 @@
         break;
       }
     }
-    updateKeyedRows(State.renderCache.actionButtons, buttonParent, choices, createActionButtonRow, updateActionButtonRow, deleteActionButtonRow);
+    Rows.update(State.renderCache.actionButtons, buttonParent, choices, createActionButtonRow, updateActionButtonRow, deleteActionButtonRow);
     if (customBetChoice) {
       renderCustomBetControls(customBetChoice, buttonParent);
     } else {
@@ -5533,45 +5564,42 @@
     PokerMetrics.end("renderActions", metricStarted);
   }
 
+  function createLogRow(parent) {
+    return createLabel(parent, "PokerLogLine", "");
+  }
+
+  function updateLogRow(row, model) {
+    setText(row, model.text);
+  }
+
+  function deleteLogRow(row) {
+    deletePanel(row);
+  }
+
   function renderLog() {
     if (!isValid(State.log)) return;
     const metricStarted = PokerMetrics.start("renderLog");
     const hasGame = !!State.game;
     setPanelClass(State.log, CLASSES.hidden, !hasGame);
-    State.renderCache.logRows = State.renderCache.logRows || [];
-    if (!hasGame) {
-      clearChildren(State.log);
-      State.renderCache.logRows = [];
-      PokerMetrics.end("renderLog", metricStarted);
-      return;
-    }
-    const entries = State.game.log && State.game.log.length ? State.game.log : ["Hand history will appear here."];
+    State.renderCache.logRows = State.renderCache.logRows || {};
+    const entries = hasGame && State.game.log && State.game.log.length ? State.game.log : (hasGame ? ["Hand history will appear here."] : []);
     const start = Math.max(0, entries.length - MAX_GAME_LOG_ENTRIES);
-    const visible = entries.slice(start);
-    while (State.renderCache.logRows.length > visible.length) {
-      deletePanel(State.renderCache.logRows.pop());
-    }
-    for (let i = 0; i < visible.length; i += 1) {
-      let row = State.renderCache.logRows[i];
-      if (!isValid(row)) {
-        row = createLabel(State.log, "PokerLogLine", "");
-        State.renderCache.logRows[i] = row;
-      }
-      setText(row, visible[i]);
-    }
+    const visible = entries.slice(start).map((text, index) => ({ key: String(index), text: text }));
+    Rows.update(State.renderCache.logRows, State.log, visible, createLogRow, updateLogRow, deleteLogRow);
     PokerMetrics.end("renderLog", metricStarted);
   }
 
 
+
+  function invalidateRenderer(reason) {
+    resetRenderChildCache();
+    State.renderCache.renderReason = reason || "";
+    return true;
+  }
+
   const TableRenderer = {
-    buildPlayerRenderModel: buildPlayerRenderModel,
-    buildTableRenderModel: buildTableRenderModel,
-    renderGame: renderGame,
-    renderCommunity: renderCommunity,
-    renderPlayers: renderPlayers,
-    renderTableSeats: renderTableSeats,
-    renderActions: renderActions,
-    renderLog: renderLog,
+    render: render,
+    invalidate: invalidateRenderer,
   };
 
   function renderAnnouncer() {
@@ -5601,7 +5629,7 @@
     applyButtonAffordance(State.leaveLobbyButton, state.controls.leaveLobby);
   }
 
-  function renderGame() {
+  function render(model) {
     const metricStarted = PokerMetrics.start("renderGame");
     cachePanels();
     if (!shouldRunMenuWork()) {
@@ -5611,7 +5639,7 @@
     const game = State.game;
     const hasGame = !!game;
     const readyCount = State.readyCountValue || getReadySeatArray().length;
-    const buttonState = ViewModel.build(getViewModelState(readyCount));
+    const buttonState = model || ViewModel.build(getViewModelState(readyCount));
     renderPotCenter(game);
     setText(State.phase, game ? String(game.phase || "lobby").toUpperCase() : "LOBBY");
     updateMatchPanels(buttonState);
@@ -5631,7 +5659,7 @@
     State.renderCache.renderQueued = false;
     State.renderCache.renderReason = "";
     PokerMetrics.increment("renderFlush");
-    if (shouldRunMenuWork()) renderGame();
+    if (shouldRunMenuWork()) render();
   }
 
   function deferRender(reason) {
@@ -5658,7 +5686,7 @@
     State.renderCache.renderQueued = false;
     State.renderCache.renderReason = reason || "";
     PokerMetrics.increment("renderImmediate");
-    if (shouldRunMenuWork()) renderGame();
+    if (shouldRunMenuWork()) render();
   }
 
   function isRenderQueued() {
@@ -5704,11 +5732,11 @@
   function resetRenderChildCache() {
     const cache = State.renderCache || {};
     for (const key of [
-      "communityCards", "playerRows", "playerOrderKey", "tableSeatRows", "tableSeatOrderKey",
-      "tableTurnArrow", "tableTurnArrowClass", "potChipRows", "potChipOrderKey",
-      "actionButtons", "actionHint", "actionOrderKey", "actionButtonRow",
+      "communityCards", "readySeatRows", "resumeLeaderRows", "playerRows", "tableSeatRows",
+      "tableTurnArrow", "tableTurnArrowClass", "potChipRows",
+      "actionButtons", "actionHint", "actionButtonRow",
       "customBetControls", "customBetChoice", "customBetRange", "customBetRangeKey",
-      "logRows", "readySeatOrderKey", "readySeatParent", "resumeLeaderOrderKey", "resumeLeaderParent",
+      "logRows",
     ]) {
       if (!Object.prototype.hasOwnProperty.call(cache, key)) continue;
       if (/Rows$|Cards$|Buttons$/.test(key)) cache[key] = Array.isArray(cache[key]) ? [] : {};
@@ -5722,7 +5750,7 @@
     State.chat = null;
     State.chatInput = null;
     State.chatTargetLabel = null;
-    resetRenderChildCache();
+    invalidateRenderer(reason);
     State.renderCache.panelInvalidationReason = reason || "";
     return true;
   }
