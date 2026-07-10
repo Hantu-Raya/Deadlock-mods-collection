@@ -813,7 +813,7 @@
     if (reason) log("cleared resume state: " + reason);
   }
 
-  function importProgressSaveCode(code) {
+  function importProgressSaveCode(code, suppressEffects) {
     if (State.game && State.game.active) return { ok: false, status: "Finish the current hand before importing progress." };
     const decoded = decodeProgressSaveCode(code);
     if (!decoded.ok) return decoded;
@@ -829,8 +829,10 @@
       order: [],
     };
     saveResumeState();
-    renderGame();
-    setStatus("Imported progress " + decoded.id + ". Choose a resume leader, then sync resume in chat.");
+    if (!suppressEffects) {
+      renderGame();
+      setStatus("Imported progress " + decoded.id + ". Choose a resume leader, then sync resume in chat.");
+    }
     return decoded;
   }
 
@@ -1346,8 +1348,6 @@
     resume.order = [key];
     if (record.isSelf) rememberLocalPlayer(record.sender);
     saveResumeState();
-    renderGame();
-    setStatus(record.isSelf ? "Resume leader selected: " + record.sender + ". Waiting for saved players to mark resume ready." : "Resume leader selected: " + record.sender + ". Identify yourself with READY UP if your saved player name is not detected; the resume-ready button will appear after that.");
     return true;
   }
 
@@ -1363,8 +1363,6 @@
     if (resume.order.indexOf(key) === -1) resume.order.push(key);
     if (record.isSelf) rememberLocalPlayer(record.sender);
     saveResumeState();
-    renderGame();
-    setStatus("Resume ready: " + Object.keys(resume.ready).length + " player(s).");
     return true;
   }
 
@@ -2664,11 +2662,11 @@
   }
 
   function applyResumeStartCommand(command) {
-    if (!command) return { consumed: false, readyChanged: false, render: false, status: "Invalid resume command.", debugReason: "invalid" };
+    if (!command) return ignoredCommandEffect("invalid", "Invalid resume command.");
     let resolvedRecord = command.record ? resolveSelfRecord(command.record) : resolveSelfRecord({ sender: command.leaderKey || "", message: "poker resume " + (command.id || "") + " hand " + (command.handNumber || "") + " leader " + (command.leaderKey || "") + " seed " + (command.seed || "") });
     const parsed = command.type === "resume-start" ? command : decodePokerCommand(resolvedRecord);
     if (!resolvedRecord || !parsed.valid) {
-      return { consumed: true, readyChanged: false, render: false, status: "Invalid resume command.", debugReason: "status" };
+      return rejectedCommandEffect("Invalid resume command.", "status");
     }
     const id = parsed.id || command.id;
     const handNumber = parsed.handNumber || command.handNumber;
@@ -2678,25 +2676,25 @@
     const resume = ensureResume();
     if (!resume.payload || resume.id !== id) {
       rememberPendingResumeStartCommand({ record: resolvedRecord }, id);
-      return { consumed: true, readyChanged: false, render: false, status: "Import matching progress before resuming.", debugReason: "status" };
+      return rejectedCommandEffect("Import matching progress before resuming.", "status");
     }
     resolvedRecord = resolveUnknownHostedResumeStartRecord(resolvedRecord, id, parsedLeaderKey);
     if (!resolvedRecord || isUnknownSender(resolvedRecord.sender)) {
       debugActionState("reject-unknown-resume-start", resolvedRecord, null);
-      return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "debug" };
+      return rejectedCommandEffect("", "debug");
     }
     const hostedSharedLeaderKey = getHostedSharedProgressLeaderKey(resume);
     if (hostedSharedLeaderKey && parsedLeaderKey !== hostedSharedLeaderKey) {
       debugActionState("reject-hosted-resume-leader-mismatch commandLeader=" + parsedLeaderKey + " hostedLeader=" + hostedSharedLeaderKey, resolvedRecord, null);
-      return { consumed: true, readyChanged: false, render: false, status: "Only " + (resume.hostedLeaderName || resume.leaderName || "<leader>") + " can start this resume.", debugReason: "status" };
+      return rejectedCommandEffect("Only " + (resume.hostedLeaderName || resume.leaderName || "<leader>") + " can start this resume.", "status");
     }
     if (State.resumeRequiresHostedParty && !hostedSharedLeaderKey) {
-      return { consumed: true, readyChanged: false, render: false, status: "Host or join the synced party before resuming.", debugReason: "status" };
+      return rejectedCommandEffect("Host or join the synced party before resuming.", "status");
     }
     if (!resume.leaderKey) {
       const leaderEntry = findProgressRosterEntry(resume.payload, parsedLeaderKey);
       if (!leaderEntry || getProgressBankroll(resume.payload, parsedLeaderKey) <= 0) {
-        return { consumed: true, readyChanged: false, render: false, status: "Select and sync a resume leader before resuming.", debugReason: "status" };
+        return rejectedCommandEffect("Select and sync a resume leader before resuming.", "status");
       }
       resume.leaderKey = parsedLeaderKey;
       resume.leaderName = leaderEntry.name || parsedLeaderKey;
@@ -2707,26 +2705,26 @@
     }
     if (!handNumber || parsedLeaderKey !== resume.leaderKey) {
       debugActionState("reject-resume-leader-mismatch commandLeader=" + parsedLeaderKey + " selectedLeader=" + resume.leaderKey, resolvedRecord, null);
-      return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "debug" };
+      return rejectedCommandEffect("", "debug");
     }
     const starterKey = normalizePlayerKey(resolvedRecord.sender);
     if (starterKey !== resume.leaderKey) {
       debugActionState("reject-non-leader-resume sender=" + resolvedRecord.sender + " leader=" + (resume.leaderName || resume.leaderKey), resolvedRecord, null);
-      return { consumed: true, readyChanged: false, render: false, status: "Only " + (resume.leaderName || "<leader>") + " can start this resume.", debugReason: "status" };
+      return rejectedCommandEffect("Only " + (resume.leaderName || "<leader>") + " can start this resume.", "status");
     }
     if (parsed.hasRosterMarker) {
-      if (!rosterText) return { consumed: true, readyChanged: false, render: false, status: "Invalid synced poker roster.", debugReason: "status" };
+      if (!rosterText) return rejectedCommandEffect("Invalid synced poker roster.", "status");
       const decodedRoster = decodeRoster(rosterText);
       if (decodedRoster.length < MIN_READY_PLAYERS || canonicalProgressPayload({ version: 1, kind: "poker-progress", lastHandNumber: resume.payload.lastHandNumber, nextHandNumber: resume.payload.nextHandNumber, dealerKey: resume.payload.dealerKey, roster: decodedRoster, bankrolls: resume.payload.bankrolls, savedAt: resume.payload.savedAt }) !== canonicalProgressPayload(resume.payload)) {
-        return { consumed: true, readyChanged: false, render: false, status: "Invalid synced poker roster.", debugReason: "status" };
+        return rejectedCommandEffect("Invalid synced poker roster.", "status");
       }
     }
     const dealerKeyOverride = resolveResumeNextDealerKey(resume.payload);
     if (!dealerKeyOverride) {
-      return { consumed: true, readyChanged: false, render: false, status: "Cannot resume; saved dealer state is invalid.", debugReason: "status" };
+      return rejectedCommandEffect("Cannot resume; saved dealer state is invalid.", "status");
     }
     if (!applyResumeProgressForStart(resume.payload, parsedLeaderKey)) {
-      return { consumed: true, readyChanged: false, render: false, status: "Cannot resume; saved dealer state is invalid.", debugReason: "status" };
+      return rejectedCommandEffect("Cannot resume; saved dealer state is invalid.", "status");
     }
     State.game = createGameFromReady(seed, resume.payload.roster, handNumber, dealerKeyOverride);
     if (State.game) {
@@ -2735,9 +2733,9 @@
       saveResumeState();
       savePartyState();
       log("game resumed seed " + seed);
-      return { consumed: true, readyChanged: false, render: true, status: "Poker resumed. " + getCurrentPlayer().name + " acts first.", debugReason: "resume-start" };
+      return changedCommandEffect("Poker resumed. " + getCurrentPlayer().name + " acts first.", "resume-start");
     }
-    return { consumed: true, readyChanged: false, render: false, status: "Cannot resume; saved dealer state is invalid.", debugReason: "status" };
+    return rejectedCommandEffect("Cannot resume; saved dealer state is invalid.", "status");
   }
 
   const ProgressResume = {
@@ -3388,7 +3386,7 @@
     game.lastAggressorIndex = -1;
   }
 
-  function dealNextStreet() {
+  function dealNextStreet(suppressRender) {
     const game = State.game;
     if (game.phase === "preflop") {
       game.community.push(drawCard(game), drawCard(game), drawCard(game));
@@ -3403,16 +3401,16 @@
       game.phase = "river";
       addGameLog("River dealt.");
     } else {
-      showdown();
+      showdown(suppressRender);
       return false;
     }
     return true;
   }
 
-  function dealRemainingCommunity() {
+  function dealRemainingCommunity(suppressRender) {
     const game = State.game;
     while (game && game.active && game.phase !== "river" && game.phase !== "finished") {
-      if (!dealNextStreet()) return;
+      if (!dealNextStreet(suppressRender)) return;
     }
   }
 
@@ -3423,16 +3421,16 @@
     return contestants.length > 1 && withChips <= 1;
   }
 
-  function advancePhase() {
+  function advancePhase(suppressRender) {
     const game = State.game;
     if (!game || !game.active) return;
     if (activeContestants().length <= 1) {
-      awardFoldWin();
+      awardFoldWin(suppressRender);
       return;
     }
     if (onlyOnePlayerCanAct()) {
-      dealRemainingCommunity();
-      showdown();
+      dealRemainingCommunity(suppressRender);
+      showdown(suppressRender);
       return;
     }
     resetRoundBets();
@@ -3440,7 +3438,7 @@
     game.currentIndex = firstActiveAfter(game.dealerIndex);
     game.streetOpenerIndex = game.currentIndex;
     announce(String(game.phase || "street").charAt(0).toUpperCase() + String(game.phase || "street").slice(1) + " dealt", getTurnPrompt());
-    renderGame();
+    if (!suppressRender) renderGame();
   }
 
   function firstActiveAfter(index) {
@@ -3454,7 +3452,7 @@
     return index || 0;
   }
 
-  function awardFoldWin() {
+  function awardFoldWin(suppressRender) {
     const game = State.game;
     const alive = activeContestants();
     if (!alive.length) return;
@@ -3465,7 +3463,7 @@
     State.bankrolls[winner.key] = winner.stack;
     addGameLog(winner.name + " wins $" + amount + " by fold.");
     announce(winner.name + " wins by fold", "Pot $" + amount + " awarded.");
-    finishHand(winner.name + " wins by fold.");
+    finishHand(winner.name + " wins by fold.", suppressRender);
   }
 
   function buildPots(players) {
@@ -3513,7 +3511,7 @@
     return out.length ? out : winners;
   }
 
-  function showdown() {
+  function showdown(suppressRender) {
     const game = State.game;
     if (!game) return;
     const pots = buildPots(game.players);
@@ -3553,10 +3551,10 @@
     game.pot = 0;
     for (let i = 0; i < game.players.length; i += 1) State.bankrolls[game.players[i].key] = game.players[i].stack;
     announce(firstSummary || "Showdown complete", "Winners paid. Start the next hand when ready.");
-    finishHand(firstSummary || "Showdown complete.");
+    finishHand(firstSummary || "Showdown complete.", suppressRender);
   }
 
-  function finishHand(status) {
+  function finishHand(status, suppressRender) {
     const game = State.game;
     game.active = false;
     game.finished = true;
@@ -3569,8 +3567,12 @@
     const lateJoinResult = LateJoinQueue.apply(null, "finish");
     PendingSelfAction.clear();
     const lateJoinStatus = formatLateJoinApplied(lateJoinResult);
-    setStatus(lateJoinStatus ? status + " " + lateJoinStatus : status);
-    renderGame();
+    const finalStatus = lateJoinStatus ? status + " " + lateJoinStatus : status;
+    if (suppressRender) State.reducerActionStatus = finalStatus;
+    else {
+      setStatus(finalStatus);
+      renderGame();
+    }
   }
 
   function rejectAction(prefix, command, amount, record, player) {
@@ -3592,7 +3594,7 @@
     return action;
   }
 
-  function buildActionTransition(player, action, amount, record) {
+  function buildActionTransition(player, action, amount, record, options) {
     const game = State.game;
     const current = getCurrentPlayer();
     const normalizedAmount = amount || 0;
@@ -3606,6 +3608,7 @@
       amount: normalizedAmount,
       playerKey: player && player.key ? player.key : "",
       record: record || null,
+      suppressRender: !!(options && options.suppressRender),
     };
     if (!game || !game.active) {
       transition.debugReason = "drop-inactive";
@@ -3669,7 +3672,7 @@
   }
 
   function applyActionTransition(transition) {
-    if (!transition) return;
+    if (!transition) return transition;
     const player = transition.playerKey ? findGamePlayerByKey(transition.playerKey) : null;
     if (!transition.ok) {
       if (transition.debugReason === "drop-inactive" || transition.debugReason === "drop-no-current") {
@@ -3677,10 +3680,10 @@
       } else {
         rejectAction(transition.debugReason || "reject-unknown-action", transition.action, transition.amount || 0, transition.record, player);
       }
-      return;
+      return transition;
     }
     const game = State.game;
-    if (!game || !game.active || !player) return;
+    if (!game || !game.active || !player) return transition;
     if (transition.action === "fold") {
       player.folded = true;
       player.acted = true;
@@ -3716,24 +3719,25 @@
       transition.announcement = player.name + " raises to $" + game.currentBet + ".";
       addGameLog(player.name + " raises to $" + game.currentBet + " (" + paidAmount + " more).");
     }
-    if (transition.advance) completeActionAdvance(transition.record, transition.announcement);
+    if (transition.advance) completeActionAdvance(transition.record, transition.announcement, transition.suppressRender);
     if (transition.record && transition.record.isSelf) PendingSelfAction.markApplied(getActionCommandText(transition.action, transition.amount));
+    return transition;
   }
 
-  function applyLegalAction(player, action, amount, record) {
-    applyActionTransition(buildActionTransition(player, action, amount, record));
+  function applyLegalAction(player, action, amount, record, options) {
+    return applyActionTransition(buildActionTransition(player, action, amount, record, options));
   }
 
-  function completeActionAdvance(record, actionAnnouncement) {
+  function completeActionAdvance(record, actionAnnouncement, suppressRender) {
     const game = State.game;
     if (!game || !game.active) return;
-    if (activeContestants().length <= 1) awardFoldWin();
-    else if (hasBettingRoundSettled()) advancePhase();
+    if (activeContestants().length <= 1) awardFoldWin(suppressRender);
+    else if (hasBettingRoundSettled()) advancePhase(suppressRender);
     else {
       game.currentIndex = nextActiveIndex(game.currentIndex);
       announce(actionAnnouncement || "Next turn", getTurnPrompt());
     }
-    renderGame();
+    if (!suppressRender) renderGame();
   }
 
   function createEngineGame(options) {
@@ -3969,33 +3973,31 @@
     if (checksumFromProgressCode(code) !== checksum) return { ok: false, status: "Invalid shared progress checksum." };
     const decoded = decodeProgressSaveCode(code);
     if (!decoded.ok || decoded.id !== id) return { ok: false, status: "Invalid shared progress code." };
-    const imported = importProgressSaveCode(code);
+    const imported = importProgressSaveCode(code, true);
     if (!imported.ok) return imported;
     return { ok: true, id: id, code: code, payload: imported.payload };
   }
 
   function applyProgressShareMessage(message) {
-    if (!message || !message.id || !message.checksum || !message.count) return { consumed: false, readyChanged: false, render: false, status: "", debugReason: "progress-share" };
-    if (message.record && message.record.isSelf) return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "progress-self" };
+    if (!message || !message.id || !message.checksum || !message.count) return ignoredCommandEffect("progress-share");
+    if (message.record && message.record.isSelf) return consumedNoChangeEffect("progress-self");
     if (message.type === "offer") {
       getProgressTransfer(message.id, message.checksum, message.count);
       const offerStatus = "Receiving progress " + message.id + " (0/" + message.count + " chunks).";
-      setStatus(offerStatus);
-      return { consumed: true, readyChanged: false, render: true, status: offerStatus, debugReason: "progress-offer" };
+      return changedCommandEffect(offerStatus, "progress-offer");
     }
     if (message.type !== "chunk" || message.index < 1 || message.index > message.count) {
-      return { consumed: true, readyChanged: false, render: false, status: "Invalid shared progress chunk.", debugReason: "progress-chunk" };
+      return rejectedCommandEffect("Invalid shared progress chunk.", "progress-chunk");
     }
     const key = message.id + ":" + message.checksum;
     const transfer = State.progressTransfers && State.progressTransfers[key];
-    if (!transfer) return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "progress-chunk" };
+    if (!transfer) return consumedNoChangeEffect("progress-chunk");
     transfer.chunks[message.index] = message.chunk;
     const ordered = [];
     for (let i = 1; i <= transfer.count; i += 1) {
       if (!transfer.chunks[i]) {
         const partialStatus = "Receiving progress " + transfer.id + " (" + Object.keys(transfer.chunks).length + "/" + transfer.count + " chunks).";
-        setStatus(partialStatus);
-        return { consumed: true, readyChanged: false, render: true, status: partialStatus, debugReason: "progress-chunk" };
+        return changedCommandEffect(partialStatus, "progress-chunk");
       }
       ordered.push(transfer.chunks[i]);
     }
@@ -4003,8 +4005,7 @@
     delete State.progressTransfers[transfer.id + ":" + transfer.checksum];
     if (!imported.ok) {
       const status = imported.status || "Invalid shared progress code.";
-      setStatus(status);
-      return { consumed: true, readyChanged: false, render: true, status: status, debugReason: "progress-chunk" };
+      return changedCommandEffect(status, "progress-chunk");
     }
     const party = ensureParty();
     const boundHostedLeader = bindHostedSharedProgressAuthority(imported, message.record);
@@ -4017,181 +4018,191 @@
       : (boundHostedLeader
         ? "Imported shared progress " + imported.id + ". Host or join " + ((ensureResume().hostedLeaderName) || "the host") + "'s Poker party; only the host starts NEXT SYNCED HAND."
         : "Imported shared progress " + imported.id + ". Host or join the synced Poker party; wait for the host to start NEXT SYNCED HAND.");
-    setStatus(status);
     const pendingResumeStart = applyPendingResumeStartCommand(imported.id);
     if (pendingResumeStart) return pendingResumeStart;
-    return { consumed: true, readyChanged: false, render: true, status: status, debugReason: "progress-chunk" };
+    return changedCommandEffect(status, "progress-chunk");
   }
 
-  function applyPokerCommand(command) {
-    const effect = { consumed: false, readyChanged: false, render: false, status: "", debugReason: command && command.type ? command.type : "" };
-    if (!command || !command.type || command.type === "ignored") return effect;
-    const resolvedRecord = command.record ? command.record : resolveSelfRecord(command);
-    if (!resolvedRecord || !resolvedRecord.message) return effect;
-    effect.consumed = true;
-
-    switch (command.type) {
-      case "party-leader":
-      case "party-join":
-      case "party-leave": {
-        const partyType = command.type === "party-leader" ? "leader" : (command.type === "party-join" ? "join" : "leave");
-        if (isUnknownSender(resolvedRecord.sender) && partyType !== "leader") {
-          debugActionState("reject-unknown-party-authority", resolvedRecord, null);
-          return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "debug" };
-        }
-        if (partyType === "leader") recordPartyLeader(resolvedRecord, command.partyId);
-        else if (partyType === "join") {
-          const partyChanged = recordPartyJoin(resolvedRecord, command.partyId);
-          if (partyChanged && State.game && State.game.active) {
-            const joinedKey = normalizePlayerKey(resolvedRecord.sender);
-            if (!Object.prototype.hasOwnProperty.call(State.bankrolls, joinedKey)) {
-              return { consumed: true, readyChanged: true, render: true, status: resolvedRecord.sender + " will join after this hand.", debugReason: "party" };
-            }
-          }
-        } else {
-          recordPartyLeave(resolvedRecord, command.partyId);
-        }
-        return { consumed: true, readyChanged: true, render: true, status: "", debugReason: "party" };
-      }
-      case "match-end": {
-        const changed = recordMatchEnd(resolvedRecord, { type: "match-end", id: command.partyId });
-        return { consumed: true, readyChanged: false, render: true, status: changed ? "Match ended by party leader." : "", debugReason: "match-end" };
-      }
-      case "progress-offer":
-      case "progress-chunk": {
-        return applyProgressShareMessage({
-          type: command.type === "progress-offer" ? "offer" : "chunk",
-          id: command.id,
-          checksum: command.checksum,
-          count: command.count,
-          index: command.index || 0,
-          chunk: command.chunk || "",
-          record: resolvedRecord,
-        });
-      }
-      case "resume-leader":
-      case "resume-ready": {
-        if (isUnknownSender(resolvedRecord.sender)) {
-          debugActionState("reject-unknown-resume-authority", resolvedRecord, null);
-          return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "debug" };
-        }
-        const resume = ensureResume();
-        if (!resume.payload || resume.id !== command.id) {
-          const status = "Import matching progress " + (command.id || "") + " before joining this resume.";
-          setStatus(status);
-          return { consumed: true, readyChanged: false, render: true, status: status, debugReason: "status" };
-        }
-        const hostedSharedLeaderKey = getHostedSharedProgressLeaderKey(resume);
-        if (State.resumeRequiresHostedParty && !hostedSharedLeaderKey) {
-          const status = "Host or join the synced party before choosing a resume leader.";
-          setStatus(status);
-          return { consumed: true, readyChanged: false, render: true, status: status, debugReason: "status" };
-        }
-        if (hostedSharedLeaderKey && normalizePlayerKey(resolvedRecord.sender) !== hostedSharedLeaderKey) {
-          const status = "Waiting for " + (resume.hostedLeaderName || resume.leaderName || "the host") + " to start NEXT SYNCED HAND.";
-          setStatus(status);
-          debugActionState("reject-non-hosted-resume-authority sender=" + resolvedRecord.sender + " leader=" + (resume.hostedLeaderName || resume.leaderName || hostedSharedLeaderKey), resolvedRecord, null);
-          return { consumed: true, readyChanged: false, render: true, status: status, debugReason: "status" };
-        }
-        if (command.type === "resume-leader") recordResumeLeader(resolvedRecord, command.id);
-        else recordResumeReady(resolvedRecord, command.id);
-        return { consumed: true, readyChanged: false, render: true, status: "", debugReason: "render" };
-      }
-      case "resume-start":
-        return ProgressResume.applyStartCommand(command);
-      case "start": {
-        if (command.rosterText) {
-          const seed = command.seed || String(Date.now());
-          if (command.hasHandMarker && !command.handNumber) {
-            return { consumed: true, readyChanged: false, render: false, status: "Invalid synced poker hand number.", debugReason: "status" };
-          }
-          const decodedRoster = resolveRosterNamesFromKnownParty(command.roster || []);
-          if (decodedRoster.length < MIN_READY_PLAYERS) {
-            return { consumed: true, readyChanged: false, render: false, status: "Invalid synced poker roster.", debugReason: "status" };
-          }
-          const startRecord = resolveUnknownSyncedStartRecord(resolvedRecord, decodedRoster);
-          if (isUnknownSender(startRecord.sender)) {
-            debugActionState("reject-unknown-start", startRecord, null);
-            return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "debug" };
-          }
-          const starterKey = normalizePlayerKey(startRecord.sender);
-          const party = ensureParty();
-          if (party.leaderKey && starterKey !== party.leaderKey) {
-            debugActionState("reject-non-leader-start sender=" + startRecord.sender + " leader=" + party.leaderName, startRecord, null);
-            return { consumed: true, readyChanged: false, render: false, status: "Only " + (party.leaderName || "<leader>") + " can start the synced hand.", debugReason: "status" };
-          }
-          if (State.game && State.game.active) {
-            log("ignored synced start during active hand seed " + seed);
-            return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "start" };
-          }
-          if (!party.leaderKey) {
-            if (!decodedRoster[0] || decodedRoster[0].key !== starterKey) {
-              debugActionState("reject-non-leader-start sender=" + startRecord.sender + " leader=" + (decodedRoster[0] ? decodedRoster[0].name : "<unknown>"), startRecord, null);
-              return { consumed: true, readyChanged: false, render: false, status: "Only " + (decodedRoster[0] ? decodedRoster[0].name : "<leader>") + " can start the synced hand.", debugReason: "status" };
-            }
-            applyPartyRoster(decodedRoster, startRecord.isSelf ? "leader" : "member", ensureParty().id);
-          }
-          const freshMatchBoundary = !State.game || State.game.finished || !State.game.active;
-          if (command.handNumber === 1 && freshMatchBoundary && Object.keys(State.bankrolls).length > 0) {
-            State.bankrolls = {};
-            log("reset bankrolls for fresh synced hand 1");
-          }
-          applyPartyRoster(decodedRoster, party.mode, party.id);
-          rememberLocalFromPartyRoster(decodedRoster);
-          LateJoinQueue.apply(decodedRoster, "start");
-          State.game = createGameFromReady(seed, decodedRoster, command.handNumber || undefined);
-          if (State.game) {
-            log("game started seed " + seed);
-            return { consumed: true, readyChanged: false, render: true, status: "Poker started. " + getCurrentPlayer().name + " acts first.", debugReason: "start" };
-          }
-          return effect;
-        }
-        if (isUnknownSender(resolvedRecord.sender)) {
-          debugActionState("reject-unknown-start", resolvedRecord, null);
-          return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "debug" };
-        }
-        const seed = command.legacySeed || String(Date.now());
-        State.game = createGameFromReady(seed + " " + resolvedRecord.sender);
-        if (State.game) {
-          log("game started seed " + seed);
-          return { consumed: true, readyChanged: false, render: true, status: "Poker started. " + getCurrentPlayer().name + " acts first.", debugReason: "start" };
-        }
-        return effect;
-      }
-      case "all-in-unsupported":
-        debugActionState("reject-unknown-action command=" + command.text, resolvedRecord, findGamePlayer(resolvedRecord.sender));
-        return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "debug" };
-      case "action": {
-        const text = command.text || command.action || "";
-        if (!State.game || !State.game.active) {
-          debugActionState("drop-no-active-game message=" + text, resolvedRecord, null);
-          return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "debug" };
-        }
-        const actionRecord = resolveUnknownActionRecord(resolvedRecord, text);
-        const player = findGamePlayer(actionRecord.sender);
-        if (!player) {
-          debugActionState("reject-unknown-sender command=" + text + " amount=" + command.amount + " toCall=0 minRaise=" + (State.game ? State.game.minRaise || getCurrentBigBlind(State.game) : BIG_BLIND) + " currentBet=" + (State.game ? State.game.currentBet : 0) + " playerBet=<none> playerStack=<none> playerCommitted=<none>", actionRecord, null);
-          return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "debug" };
-        }
-        applyLegalAction(player, command.action, command.amount || 0, actionRecord);
-        return { consumed: true, readyChanged: false, render: false, status: "", debugReason: "action" };
-      }
-      default:
-        return effect;
+  function applyPartyCommand(command, resolvedRecord) {
+    const partyType = command.type === "party-leader" ? "leader" : (command.type === "party-join" ? "join" : "leave");
+    if (isUnknownSender(resolvedRecord.sender) && partyType !== "leader") {
+      debugActionState("reject-unknown-party-authority", resolvedRecord, null);
+      return rejectedCommandEffect("", "debug");
     }
+    let changed = false;
+    if (partyType === "leader") changed = recordPartyLeader(resolvedRecord, command.partyId);
+    else if (partyType === "join") {
+      changed = recordPartyJoin(resolvedRecord, command.partyId);
+      if (changed && State.game && State.game.active) {
+        const joinedKey = normalizePlayerKey(resolvedRecord.sender);
+        if (!Object.prototype.hasOwnProperty.call(State.bankrolls, joinedKey)) return changedCommandEffect(resolvedRecord.sender + " will join after this hand.", "party", true);
+      }
+    } else changed = recordPartyLeave(resolvedRecord, command.partyId);
+    return changed ? changedCommandEffect("", "party", true) : consumedNoChangeEffect("party");
+  }
+
+  function applyMatchEndCommand(command, resolvedRecord) {
+    const changed = recordMatchEnd(resolvedRecord, { type: "match-end", id: command.partyId });
+    return changed ? changedCommandEffect("Match ended by party leader.", "match-end") : consumedNoChangeEffect("match-end");
+  }
+
+  function applyProgressCommand(command, resolvedRecord) {
+    return applyProgressShareMessage({
+      type: command.type === "progress-offer" ? "offer" : "chunk",
+      id: command.id,
+      checksum: command.checksum,
+      count: command.count,
+      index: command.index || 0,
+      chunk: command.chunk || "",
+      record: resolvedRecord,
+    });
+  }
+
+  function applyResumeAuthorityCommand(command, resolvedRecord) {
+    if (isUnknownSender(resolvedRecord.sender)) {
+      debugActionState("reject-unknown-resume-authority", resolvedRecord, null);
+      return rejectedCommandEffect("", "debug");
+    }
+    const resume = ensureResume();
+    if (!resume.payload || resume.id !== command.id) return rejectedCommandEffect("Import matching progress " + (command.id || "") + " before joining this resume.", "status");
+    const hostedSharedLeaderKey = getHostedSharedProgressLeaderKey(resume);
+    if (State.resumeRequiresHostedParty && !hostedSharedLeaderKey) return rejectedCommandEffect("Host or join the synced party before choosing a resume leader.", "status");
+    if (hostedSharedLeaderKey && normalizePlayerKey(resolvedRecord.sender) !== hostedSharedLeaderKey) {
+      const status = "Waiting for " + (resume.hostedLeaderName || resume.leaderName || "the host") + " to start NEXT SYNCED HAND.";
+      debugActionState("reject-non-hosted-resume-authority sender=" + resolvedRecord.sender + " leader=" + (resume.hostedLeaderName || resume.leaderName || hostedSharedLeaderKey), resolvedRecord, null);
+      return rejectedCommandEffect(status, "status");
+    }
+    const changed = command.type === "resume-leader" ? recordResumeLeader(resolvedRecord, command.id) : recordResumeReady(resolvedRecord, command.id);
+    if (!changed) return consumedNoChangeEffect("resume");
+    const status = command.type === "resume-leader"
+      ? (resolvedRecord.isSelf ? "Resume leader selected: " + resolvedRecord.sender + ". Waiting for saved players to mark resume ready." : "Resume leader selected: " + resolvedRecord.sender + ". Identify yourself with READY UP if your saved player name is not detected; the resume-ready button will appear after that.")
+      : "Resume ready: " + Object.keys(resume.ready).length + " player(s).";
+    return changedCommandEffect(status, command.type);
+  }
+
+  function applyStartCommand(command, resolvedRecord) {
+    if (command.rosterText) {
+      const seed = command.seed || String(Date.now());
+      if (command.hasHandMarker && !command.handNumber) return rejectedCommandEffect("Invalid synced poker hand number.", "status");
+      const decodedRoster = resolveRosterNamesFromKnownParty(command.roster || []);
+      if (decodedRoster.length < MIN_READY_PLAYERS) return rejectedCommandEffect("Invalid synced poker roster.", "status");
+      const startRecord = resolveUnknownSyncedStartRecord(resolvedRecord, decodedRoster);
+      if (isUnknownSender(startRecord.sender)) {
+        debugActionState("reject-unknown-start", startRecord, null);
+        return rejectedCommandEffect("", "debug");
+      }
+      const starterKey = normalizePlayerKey(startRecord.sender);
+      const party = ensureParty();
+      if (party.leaderKey && starterKey !== party.leaderKey) {
+        debugActionState("reject-non-leader-start sender=" + startRecord.sender + " leader=" + party.leaderName, startRecord, null);
+        return rejectedCommandEffect("Only " + (party.leaderName || "<leader>") + " can start the synced hand.", "status");
+      }
+      if (State.game && State.game.active) {
+        log("ignored synced start during active hand seed " + seed);
+        return consumedNoChangeEffect("start");
+      }
+      if (!party.leaderKey) {
+        if (!decodedRoster[0] || decodedRoster[0].key !== starterKey) {
+          debugActionState("reject-non-leader-start sender=" + startRecord.sender + " leader=" + (decodedRoster[0] ? decodedRoster[0].name : "<unknown>"), startRecord, null);
+          return rejectedCommandEffect("Only " + (decodedRoster[0] ? decodedRoster[0].name : "<leader>") + " can start the synced hand.", "status");
+        }
+        applyPartyRoster(decodedRoster, startRecord.isSelf ? "leader" : "member", ensureParty().id);
+      }
+      const freshMatchBoundary = !State.game || State.game.finished || !State.game.active;
+      if (command.handNumber === 1 && freshMatchBoundary && Object.keys(State.bankrolls).length > 0) {
+        State.bankrolls = {};
+        log("reset bankrolls for fresh synced hand 1");
+      }
+      applyPartyRoster(decodedRoster, party.mode, party.id);
+      rememberLocalFromPartyRoster(decodedRoster);
+      LateJoinQueue.apply(decodedRoster, "start");
+      State.game = createGameFromReady(seed, decodedRoster, command.handNumber || undefined);
+      if (State.game) {
+        log("game started seed " + seed);
+        return changedCommandEffect("Poker started. " + getCurrentPlayer().name + " acts first.", "start");
+      }
+      return consumedNoChangeEffect("start");
+    }
+    if (isUnknownSender(resolvedRecord.sender)) {
+      debugActionState("reject-unknown-start", resolvedRecord, null);
+      return rejectedCommandEffect("", "debug");
+    }
+    const seed = command.legacySeed || String(Date.now());
+    State.game = createGameFromReady(seed + " " + resolvedRecord.sender);
+    if (State.game) {
+      log("game started seed " + seed);
+      return changedCommandEffect("Poker started. " + getCurrentPlayer().name + " acts first.", "start");
+    }
+    return consumedNoChangeEffect("start");
+  }
+
+  function applyUnsupportedAllInCommand(command, resolvedRecord) {
+    debugActionState("reject-unknown-action command=" + command.text, resolvedRecord, findGamePlayer(resolvedRecord.sender));
+    return rejectedCommandEffect("", "debug");
+  }
+
+  function applyActionCommand(command, resolvedRecord) {
+    const text = command.text || command.action || "";
+    if (!State.game || !State.game.active) {
+      debugActionState("drop-no-active-game message=" + text, resolvedRecord, null);
+      return rejectedCommandEffect("", "debug");
+    }
+    const actionRecord = resolveUnknownActionRecord(resolvedRecord, text);
+    const player = findGamePlayer(actionRecord.sender);
+    if (!player) {
+      debugActionState("reject-unknown-sender command=" + text + " amount=" + command.amount + " toCall=0 minRaise=" + (State.game ? State.game.minRaise || getCurrentBigBlind(State.game) : BIG_BLIND) + " currentBet=" + (State.game ? State.game.currentBet : 0) + " playerBet=<none> playerStack=<none> playerCommitted=<none>", actionRecord, null);
+      return rejectedCommandEffect("", "debug");
+    }
+    State.reducerActionStatus = "";
+    const transition = applyLegalAction(player, command.action, command.amount || 0, actionRecord, { suppressRender: true });
+    const status = State.reducerActionStatus || "";
+    State.reducerActionStatus = "";
+    if (!transition || !transition.ok) return rejectedCommandEffect("", transition && transition.debugReason ? transition.debugReason : "action");
+    return changedCommandEffect(status, "action");
+  }
+
+  const COMMAND_HANDLERS = {
+    "party-leader": applyPartyCommand,
+    "party-join": applyPartyCommand,
+    "party-leave": applyPartyCommand,
+    "match-end": applyMatchEndCommand,
+    "progress-offer": applyProgressCommand,
+    "progress-chunk": applyProgressCommand,
+    "resume-leader": applyResumeAuthorityCommand,
+    "resume-ready": applyResumeAuthorityCommand,
+    "resume-start": function(command, resolvedRecord) { return ProgressResume.applyStartCommand(command); },
+    "start": applyStartCommand,
+    "all-in-unsupported": applyUnsupportedAllInCommand,
+    "action": applyActionCommand,
+  };
+
+  function applyPokerCommand(command) {
+    const ignored = ignoredCommandEffect(command && command.type ? command.type : "");
+    if (!command || !command.type || command.type === "ignored") return ignored;
+    const resolvedRecord = command.record ? command.record : resolveSelfRecord(command);
+    if (!resolvedRecord || !resolvedRecord.message) return ignored;
+    const handler = COMMAND_HANDLERS[command.type];
+    if (!handler) return consumedNoChangeEffect(command.type);
+    return handler(command, resolvedRecord) || consumedNoChangeEffect(command.type);
   }
 
   function applyReducerEffect(effect, suppressRender) {
-    const applied = effect || { consumed: false, readyChanged: false, render: false, status: "", debugReason: "" };
+    const applied = effect && typeof effect === "object"
+      ? {
+        consumed: !!effect.consumed,
+        readyChanged: !!effect.readyChanged,
+        render: !!effect.render,
+        status: effect.status || "",
+        debugReason: effect.debugReason || "",
+      }
+      : ignoredCommandEffect("");
     if (applied.readyChanged) updateReadySeats(true);
     if (applied.status) setStatus(applied.status);
     if (applied.render && !suppressRender) renderGame();
     return applied;
   }
 
-  function processChatRecord(record) {
-    return applyReducerEffect(CommandReducer.applyRecord(record), false);
-  }
+  function processChatRecord(record) { return applyReducerEffect(CommandReducer.applyRecord(record), false); }
 
   function processChatPayload(event) {
     return CommandReducer.applyPayload(event);
@@ -4309,29 +4320,61 @@
 
 
 
-  function emptyCommandEffect(debugReason) {
-    return { consumed: false, readyChanged: false, render: false, status: "", debugReason: debugReason || "" };
+  function commandEffect(consumed, readyChanged, render, status, debugReason) {
+    return {
+      consumed: !!consumed,
+      readyChanged: !!readyChanged,
+      render: !!render,
+      status: status || "",
+      debugReason: debugReason || "",
+    };
+  }
+
+  function ignoredCommandEffect(debugReason, status) {
+    return commandEffect(false, false, false, status, debugReason);
+  }
+
+  function consumedNoChangeEffect(debugReason, status) {
+    return commandEffect(true, false, false, status, debugReason);
+  }
+
+  function rejectedCommandEffect(status, debugReason) {
+    return commandEffect(true, false, false, status, debugReason);
+  }
+
+  function changedCommandEffect(status, debugReason, readyChanged) {
+    return commandEffect(true, !!readyChanged, true, status, debugReason);
+  }
+
+  function mergeCommandEffects(previous, next) {
+    const left = previous || ignoredCommandEffect("payload");
+    const right = next || ignoredCommandEffect("record");
+    return commandEffect(
+      left.consumed || right.consumed,
+      left.readyChanged || right.readyChanged,
+      left.render || right.render,
+      right.status || left.status,
+      right.debugReason || left.debugReason || "payload",
+    );
   }
 
   function applyChatRecord(record) {
-    return applyPokerCommand(decodePokerCommand(record)) || emptyCommandEffect("record");
+    return applyPokerCommand(decodePokerCommand(record)) || ignoredCommandEffect("record");
   }
 
   function applyChatPayload(event) {
-    let consumed = false;
-    if (!event) return emptyCommandEffect("payload");
+    if (!event) return applyReducerEffect(ignoredCommandEffect("payload"), false);
     if (event.messages && event.messages.length) {
+      let aggregate = ignoredCommandEffect("payload");
       for (let i = 0; i < event.messages.length; i += 1) {
         const message = event.messages[i];
         if (message.seq && message.seq <= State.processedChatSeq) continue;
         State.processedChatSeq = Math.max(State.processedChatSeq, message.seq || 0);
-        const effect = applyReducerEffect(applyChatRecord(message) || emptyCommandEffect("record"), true);
-        consumed = effect.consumed || consumed;
+        aggregate = mergeCommandEffects(aggregate, applyChatRecord(message));
       }
-      if (consumed) renderGame();
-      return { consumed: consumed, readyChanged: false, render: consumed, status: "", debugReason: "payload" };
+      return applyReducerEffect(aggregate, false);
     }
-    if (event.seq && event.seq <= State.processedChatSeq) return emptyCommandEffect("old-seq");
+    if (event.seq && event.seq <= State.processedChatSeq) return applyReducerEffect(ignoredCommandEffect("old-seq"), false);
     State.processedChatSeq = Math.max(State.processedChatSeq, event.seq || 0);
     return applyReducerEffect(applyChatRecord(event), false);
   }

@@ -810,15 +810,67 @@ if (hooks) {
     assertEqual(decodedAction.amount, 400, 'command reducer action decode should expose amount');
     assertEqual(modules.CommandReducer.decode({ sender: 'Abrams', message: 'all in' }).type, 'all-in-unsupported', 'command reducer should decode unsupported all-in explicitly');
 
-    const reducerRuntime = createMenuRuntime();
-    if (reducerRuntime.hooks && reducerRuntime.hooks.modules && reducerRuntime.hooks.modules.CommandReducer) {
-      const reducer = reducerRuntime.hooks.modules.CommandReducer;
-      const malformedRoster = reducer.applyRecord({ sender: 'Abrams', message: 'poker start ssync hand 1 roster bad%zz~Abrams' });
-      assertEqual(malformedRoster.status, 'Invalid synced poker roster.', 'command reducer applyRecord should reject malformed synced rosters');
-      const unknownStart = reducer.applyRecord({ sender: '<unknown>', message: 'poker start ssync hand 1 roster abrams~Abrams|bebop~Bebop' });
-      assertEqual(unknownStart.debugReason, 'debug', 'command reducer applyRecord should reject unresolved synced starts at the reducer seam');
-      const unsupportedAllIn = reducer.applyRecord({ sender: 'Abrams', message: 'all in' });
-      assertEqual(unsupportedAllIn.debugReason, 'debug', 'command reducer applyRecord should reject unsupported all-in explicitly');
+    const effectCases = [
+      {
+        name: 'ignored',
+        record: { sender: 'Abrams', message: 'ordinary team chat' },
+        expected: { consumed: false, readyChanged: false, render: false, status: '', debugReason: 'ignored' },
+      },
+      {
+        name: 'changed',
+        record: { sender: 'Abrams', message: '[progress offer] poker progress r-effect deadbeef 3' },
+        expected: { consumed: true, readyChanged: false, render: true, status: 'Receiving progress r-effect (0/3 chunks).', debugReason: 'progress-offer' },
+      },
+      {
+        name: 'malformed-roster',
+        record: { sender: 'Abrams', message: 'poker start ssync hand 1 roster bad%zz~Abrams' },
+        expected: { consumed: true, readyChanged: false, render: false, status: 'Invalid synced poker roster.', debugReason: 'status' },
+      },
+      {
+        name: 'unsupported-all-in',
+        record: { sender: 'Abrams', message: 'all in' },
+        expected: { consumed: true, readyChanged: false, render: false, status: '', debugReason: 'debug' },
+      },
+      {
+        name: 'stale-match-end',
+        record: { sender: 'Abrams', message: '[match end] poker party stale-party seed s hand 1' },
+        expected: { consumed: true, readyChanged: false, render: false, status: '', debugReason: 'match-end' },
+      },
+      {
+        name: 'unknown-party-authority',
+        record: { sender: '<unknown>', message: '[party join] poker party stale-party' },
+        expected: { consumed: true, readyChanged: false, render: false, status: '', debugReason: 'debug' },
+      },
+    ];
+    const effectKeys = ['consumed', 'debugReason', 'readyChanged', 'render', 'status'];
+    function assertEffectShape(effect, expected, message) {
+      assert(effect && typeof effect === 'object', message + ' should return an effect object');
+      assertEqual(JSON.stringify(Object.keys(effect || {}).sort()), JSON.stringify(effectKeys), message + ' should expose exactly the reducer effect keys');
+      for (const key of effectKeys) assertEqual(effect && effect[key], expected[key], message + ' ' + key);
+    }
+    for (const effectCase of effectCases) {
+      for (const api of ['apply', 'applyRecord', 'applyPayload']) {
+        const isolated = createMenuRuntime();
+        const isolatedReducer = isolated.hooks && isolated.hooks.modules && isolated.hooks.modules.CommandReducer;
+        if (!isolatedReducer) continue;
+        let effect = null;
+        if (api === 'apply') effect = isolatedReducer.apply(isolatedReducer.decode(effectCase.record));
+        else if (api === 'applyRecord') effect = isolatedReducer.applyRecord(effectCase.record);
+        else effect = isolatedReducer.applyPayload({ event: 'PokerChatMessage', seq: 1, ...effectCase.record });
+        assertEffectShape(effect, effectCase.expected, 'command reducer ' + api + ' ' + effectCase.name + ' effect');
+        if (api === 'applyPayload' && effectCase.name === 'changed') {
+          assertEqual(panelText(findPanel(isolated.runtime, 'PokerStatusLabel')), effectCase.expected.status, 'command reducer applyPayload changed effect should write status once');
+        }
+      }
+    }
+
+    const actionEffectRuntime = createGameRuntime(['Abrams', 'Bebop'], 'effect-action');
+    if (actionEffectRuntime.hooks && actionEffectRuntime.hooks.modules && actionEffectRuntime.hooks.modules.CommandReducer && actionEffectRuntime.game) {
+      const actionReducer = actionEffectRuntime.hooks.modules.CommandReducer;
+      const actionActor = currentPlayer(actionEffectRuntime.game);
+      const actionEffect = actionEffectRuntime.hooks.processChatRecord({ sender: actionActor.name, message: 'fold', isSelf: true });
+      assertEffectShape(actionEffect, { consumed: true, readyChanged: false, render: true, status: actionEffect.status, debugReason: 'action' }, 'command reducer action changed effect');
+      assert(actionEffect.status.includes('wins by fold'), 'command reducer action changed effect should report the fold result: ' + (actionEffect.status || '<empty>'));
     }
   }
   if (progressHooksAvailable) {
