@@ -652,55 +652,13 @@
     return !!(player && player.left);
   }
 
-  function getProgressPlayers(game) {
-    const players = game && game.players ? game.players : [];
-    const out = [];
-    for (let i = 0; i < players.length; i += 1) {
-      if (!isDepartedPlayer(players[i])) out.push(players[i]);
-    }
-    return out;
-  }
-
-  function resolveProgressDealerKey(game, progressPlayers) {
-    const players = progressPlayers || getProgressPlayers(game);
-    if (!players.length) return "";
-    const dealer = game && game.players ? game.players[game.dealerIndex] : null;
-    const dealerKey = normalizePlayerKey(dealer && dealer.key);
-    if (dealerKey && !isDepartedPlayer(dealer)) {
-      for (let i = 0; i < players.length; i += 1) {
-        if (normalizePlayerKey(players[i].key) === dealerKey) return dealerKey;
-      }
-    }
-    const allPlayers = game && game.players ? game.players : [];
-    let nextDealerKey = "";
-    for (let offset = 1; offset <= allPlayers.length; offset += 1) {
-      const candidate = allPlayers[((game.dealerIndex || 0) + offset) % allPlayers.length];
-      const candidateKey = normalizePlayerKey(candidate && candidate.key);
-      if (!candidateKey || isDepartedPlayer(candidate)) continue;
-      for (let i = 0; i < players.length; i += 1) {
-        if (normalizePlayerKey(players[i].key) === candidateKey) {
-          nextDealerKey = candidateKey;
-          break;
-        }
-      }
-      if (nextDealerKey) break;
-    }
-    if (!nextDealerKey) nextDealerKey = normalizePlayerKey(players[0].key || players[0].name);
-    for (let i = 0; i < players.length; i += 1) {
-      if (normalizePlayerKey(players[i].key) === nextDealerKey) {
-        const anchor = players[(i + players.length - 1) % players.length];
-        return normalizePlayerKey(anchor.key || anchor.name);
-      }
-    }
-    return normalizePlayerKey(players[players.length - 1].key || players[players.length - 1].name);
-  }
 
   function buildProgressPayload() {
     const game = State.game;
     if (!game || !game.finished || game.active) return { ok: false, status: "Finish the current hand before copying progress." };
-    const progressPlayers = getProgressPlayers(game);
-    const dealerKey = resolveProgressDealerKey(game, progressPlayers);
-    if (!dealerKey) return { ok: false, status: "Cannot copy progress; dealer state is missing." };
+    const progressState = PokerEngine.progress(game);
+    const progressPlayers = progressState.players;
+    const dealerKey = progressState.dealerKey;
     const bankrolls = {};
     const roster = [];
     const seen = {};
@@ -737,8 +695,9 @@
   function getProgressShareKey() {
     const game = State.game;
     if (!game || !game.finished || game.active || !game.players || !game.players.length) return "";
-    const progressPlayers = getProgressPlayers(game);
-    const parts = [String(game.handNumber || 0), resolveProgressDealerKey(game, progressPlayers)];
+    const progressState = PokerEngine.progress(game);
+    const progressPlayers = progressState.players;
+    const parts = [String(game.handNumber || 0), progressState.dealerKey];
     for (let i = 0; i < progressPlayers.length; i += 1) {
       const player = progressPlayers[i] || {};
       parts.push(normalizePlayerKey(player.key || player.name) + ":" + String(Number(player.stack) || 0));
@@ -1142,15 +1101,6 @@
   }
 
 
-  function findGamePlayerIndexByKey(key) {
-    const normalized = normalizePlayerKey(key);
-    const game = State.game;
-    if (!normalized || !game || !game.players || !game.players.length) return -1;
-    for (let i = 0; i < game.players.length; i += 1) {
-      if (game.players[i].key === normalized) return i;
-    }
-    return -1;
-  }
 
 
   function promotePartyLeaderAfterLeave(leavingKey) {
@@ -1181,33 +1131,6 @@
   }
 
 
-  function removeGamePlayerForLeave(key, name) {
-    const normalized = normalizePlayerKey(key);
-    const game = State.game;
-    const index = findGamePlayerIndexByKey(normalized);
-    if (index < 0 || !game || !game.players || !game.players.length) return false;
-    const player = game.players[index];
-    const label = name || player.name || "Player";
-    if (game.active) {
-      player.folded = true;
-      player.left = true;
-      player.acted = true;
-      addGameLog(label + " left the lobby and folds.");
-      if (activeContestants().length <= 1) awardFoldWin();
-      else {
-        if (game.currentIndex === index) game.currentIndex = nextActiveIndex(index);
-        announce(label + " left and folds", getTurnPrompt());
-        if (hasBettingRoundSettled()) advancePhase();
-      }
-      return true;
-    }
-    game.players.splice(index, 1);
-    if (game.dealerIndex >= game.players.length) game.dealerIndex = 0;
-    if (game.currentIndex >= game.players.length) game.currentIndex = 0;
-    if (game.players.length) addGameLog(label + " left the lobby.");
-    delete State.bankrolls[normalized];
-    return true;
-  }
 
 
   function recordPartyLeave(record, partyId) {
@@ -1218,9 +1141,12 @@
     const name = record.sender;
     if (!key || !party.members[key]) return null;
     const game = State.game;
-    const gameIndex = findGamePlayerIndexByKey(key);
-    const resetForTwoPlayerActiveLeave = !!(game && game.active && game.players && game.players.length <= 2 && gameIndex >= 0);
-    const continueActiveLeave = !!(!record.isSelf && game && game.active && game.players && game.players.length > 2 && gameIndex >= 0);
+    const engineDeparture = !record.isSelf && game
+      ? PokerEngine.depart(game, key, { name: name, isSelf: !!record.isSelf })
+      : null;
+    const departureTransition = engineDeparture && engineDeparture.ok ? engineDeparture : null;
+    const resetForTwoPlayerActiveLeave = !!(departureTransition && departureTransition.reset);
+    const continueActiveLeave = !!(departureTransition && departureTransition.continuation);
     delete party.members[key];
     const memberIndex = (party.order || []).indexOf(key);
     if (memberIndex >= 0) party.order.splice(memberIndex, 1);
@@ -1231,8 +1157,8 @@
       ? State.pendingPartyLeader
       : null;
     let departure = resetLobby
-      ? (resetForTwoPlayerActiveLeave ? { key: key, name: name, reset: true } : null)
-      : { key: key, name: name, active: !!(game && game.active) };
+      ? (resetForTwoPlayerActiveLeave ? departureTransition : null)
+      : (departureTransition || { key: key, name: name, active: !!(game && game.active) });
     if (pendingLeader && resetLobby && !resetForTwoPlayerActiveLeave) {
       if (!departure) departure = {};
       departure.pendingLeader = pendingLeader;
@@ -1274,9 +1200,6 @@
       announce(departure.name + " left", "Only two players were seated, so the hand was reset.");
     }
     if (result.resetCase) PartyReducer.reset(result.resetCase, reason || result.status || "party");
-    if (departure && !departure.reset && departure.key) {
-      removeGamePlayerForLeave(departure.key, departure.name);
-    }
     if (departure && departure.pendingLeader) {
       applyPartyLeaderTransition(
         { sender: departure.pendingLeader.sender, isSelf: false },
@@ -1908,82 +1831,13 @@
     return makeGateDecision(false, false, "HOST OR JOIN PARTY", "Host a synced table or join a [party leader] before starting.");
   }
 
-  function getCustomBetRange(actor) {
-    const game = State.game;
-    if (!actor || !game) return null;
-    const legal = getLegalActions(actor);
-    const maxTarget = Math.max(0, Number(actor.bet) || 0) + Math.max(0, Number(actor.stack) || 0);
-    const action = game.currentBet === 0 ? "bet" : "raise";
-    const minTarget = action === "bet" ? getCurrentBigBlind(game) : getMinimumRaiseTo(game);
-    const canUseMinimum = action === "bet" ? legal.canBetTarget(minTarget) : legal.canRaiseTarget(minTarget);
-    if (!canUseMinimum || maxTarget < minTarget) return null;
-    return {
-      action: action,
-      min: minTarget,
-      max: maxTarget,
-      step: SMALL_BLIND,
-      value: minTarget,
-    };
-  }
 
-  function describeEngineTurn(game, actorKey, localKey) {
-    const activeGame = game || State.game;
-    const actor = actorKey ? findGamePlayerByKey(actorKey) : getCurrentPlayer();
-    const current = getCurrentPlayer();
-    const local = localKey ? findGamePlayerByKey(localKey) : getLocalPlayer();
-    const legal = actor ? getLegalActions(actor) : null;
-    const customBetRange = actor ? getCustomBetRange(actor) : null;
-    const choices = actor ? buildPokerActionChoices(actor, !!(local && current && actor.key === local.key && current.key === local.key), !(local && current && actor.key === local.key && current.key === local.key)) : [];
-    return {
-      currentKey: current && current.key ? current.key : "",
-      localKey: local && local.key ? local.key : (localKey || ""),
-      actorKey: actor && actor.key ? actor.key : (actorKey || ""),
-      phase: activeGame ? activeGame.phase || "" : "",
-      pot: activeGame ? Number(activeGame.pot) || 0 : 0,
-      currentBet: activeGame ? Number(activeGame.currentBet) || 0 : 0,
-      toCall: actor ? getCallAmount(actor) : 0,
-      minBetTarget: customBetRange && customBetRange.action === "bet" ? customBetRange.min : getCurrentBigBlind(activeGame),
-      maxBetTarget: actor ? (Number(actor.bet) || 0) + (Number(actor.stack) || 0) : 0,
-      minRaiseTarget: activeGame ? getMinimumRaiseTo(activeGame) : BIG_BLIND,
-      maxRaiseTarget: actor ? (Number(actor.bet) || 0) + (Number(actor.stack) || 0) : 0,
-      legal: {
-        check: !!(legal && legal.check),
-        call: !!(legal && legal.call),
-        fold: !!(legal && legal.fold),
-        bet: !!(customBetRange && customBetRange.action === "bet"),
-        raise: !!(customBetRange && customBetRange.action === "raise"),
-      },
-      statusText: getActionStatusText(),
-      actionChoices: choices,
-    };
-  }
 
   function getCustomBetCommandLabel(range, amount) {
     if (!range) return "";
     return (range.action === "bet" ? "BET $" : "RAISE TO $") + amount;
   }
 
-  function buildPokerActionChoices(actor, enabled, readOnly) {
-    const choices = [];
-    const game = State.game;
-    if (!actor || !game) return choices;
-    const legal = getLegalActions(actor);
-    if (legal.check) choices.push({ label: "CHECK", command: "check", className: "PokerActionButton", enabled: enabled, readOnly: readOnly });
-    if (legal.call) choices.push({ label: "CALL $" + legal.toCall, command: "call", className: "PokerActionButton", enabled: enabled, readOnly: readOnly });
-    const customBetRange = getCustomBetRange(actor);
-    if (customBetRange) {
-      choices.push({
-        label: customBetRange.action === "bet" ? "BET" : "RAISE",
-        command: "custom-" + customBetRange.action,
-        className: "PokerActionButton",
-        enabled: enabled,
-        readOnly: readOnly,
-        customBet: customBetRange,
-      });
-    }
-    if (legal.fold) choices.push({ label: "FOLD", command: "fold", className: "PokerActionButton Danger", enabled: enabled, readOnly: readOnly });
-    return choices;
-  }
 
   function getPokerButtonState(snapshot) {
     const state = snapshot || getButtonStateSnapshot();
@@ -2026,7 +1880,7 @@
     let actionHint = "";
     let actionChoices = [];
     if (activeGame && state.currentPlayer) {
-      const turn = PokerEngine.describeTurn(game, state.currentPlayer.key, state.localPlayer && state.localPlayer.key);
+      const turn = PokerEngine.actions(game, state.currentPlayer.key, state.localPlayer && state.localPlayer.key);
       if (!state.localPlayer) {
         actionHint = "Chat sender unknown. Turn: " + state.currentPlayer.name + ". Type ready or reopen party chat so Deadlock exposes your name before acting.";
         actionChoices = turn.actionChoices;
@@ -3300,13 +3154,13 @@
     const game = State.game;
     const current = getCurrentPlayer();
     if (!game || !game.active || !current) return "";
-    const legal = getLegalActions(current);
+    const turn = PokerEngine.actions(game, current.key, "");
     const choices = [];
-    if (legal.check) choices.push("check");
-    if (legal.call) choices.push("call $" + legal.toCall);
-    const customBetRange = getCustomBetRange(current);
-    if (customBetRange) choices.push((customBetRange.action === "bet" ? "bet $" : "raise $") + customBetRange.min + "-$" + customBetRange.max);
-    if (legal.fold) choices.push("fold");
+    if (turn.legal.check) choices.push("check");
+    if (turn.legal.call) choices.push("call $" + turn.toCall);
+    if (turn.legal.bet) choices.push("bet $" + turn.minBetTarget + "-$" + turn.maxBetTarget);
+    if (turn.legal.raise) choices.push("raise $" + turn.minRaiseTarget + "-$" + turn.maxRaiseTarget);
+    if (turn.legal.fold) choices.push("fold");
     return current.name + " to act" + (choices.length ? ": " + choices.join(", ") + "." : ".");
   }
 
@@ -3750,9 +3604,6 @@
     return fromIndex;
   }
 
-  function nextActiveIndex(fromIndex) {
-    return nextActorIndexFrom(State.game, fromIndex);
-  }
 
   function activeContestants() {
     const out = [];
@@ -4157,7 +4008,7 @@
     if (activeContestants().length <= 1) awardFoldWin(suppressRender);
     else if (hasBettingRoundSettled()) advancePhase(suppressRender);
     else {
-      game.currentIndex = nextActiveIndex(game.currentIndex);
+      game.currentIndex = nextActorIndexFrom(game, game.currentIndex);
       announce(actionAnnouncement || "Next turn", getTurnPrompt());
     }
     if (!suppressRender) RenderScheduler.defer("game-advance");
@@ -4166,26 +4017,173 @@
 
   function createEngineGame(options) {
     options = options || {};
-    const seats = options.seats || getReadySeatArray();
+    const seats = options.roster || options.seats || getReadySeatArray();
     const previousBankrolls = State.bankrolls;
     if (options.bankrolls) State.bankrolls = options.bankrolls;
-    const game = createGameFromReady(options.seed, seats, options.handNumberOverride, options.dealerKeyOverride);
+    const handNumber = options.handNumberOverride || options.handNumber;
+    const dealerKey = options.dealerKeyOverride || options.dealerKey;
+    const game = createGameFromReady(options.seed, seats, handNumber, dealerKey);
     if (options.bankrolls) State.bankrolls = previousBankrolls;
-    return game ? { ok: true, game: game } : { ok: false, status: "Need 2 ready players to start." };
+    return game ? { ok: true, game: game, bankrolls: State.bankrolls, status: "" } : { ok: false, status: "Need 2 ready players to start." };
+  }
+
+  function enginePlayer(game, key) {
+    const normalized = normalizePlayerKey(key);
+    if (!game || !game.players || !normalized) return null;
+    for (let i = 0; i < game.players.length; i += 1) {
+      if (normalizePlayerKey(game.players[i].key) === normalized) return game.players[i];
+    }
+    return null;
   }
 
 
+  function engineActions(game, actorKey, localKey) {
+    const previousGame = State.game;
+    State.game = game || previousGame;
+    try {
+      const activeGame = State.game;
+      const current = getCurrentPlayer();
+      const actor = actorKey ? findGamePlayerByKey(actorKey) : current;
+      const local = localKey ? findGamePlayerByKey(localKey) : getLocalPlayer();
+      const legal = actor ? getLegalActions(actor) : null;
+      const maxTarget = actor ? (Number(actor.bet) || 0) + (Number(actor.stack) || 0) : 0;
+      const kind = activeGame && activeGame.currentBet === 0 ? "bet" : "raise";
+      const minTarget = activeGame ? (kind === "bet" ? getCurrentBigBlind(activeGame) : getMinimumRaiseTo(activeGame)) : BIG_BLIND;
+      const canCustom = !!(legal && (kind === "bet" ? legal.canBetTarget(minTarget) : legal.canRaiseTarget(minTarget)) && maxTarget >= minTarget);
+      const custom = canCustom ? { action: kind, min: minTarget, max: maxTarget, step: SMALL_BLIND, value: minTarget } : null;
+      const enabled = !!(local && current && actor && actor.key === local.key && current.key === local.key);
+      const choices = [];
+      if (legal && legal.check) choices.push({ label: "CHECK", command: "check", className: "PokerActionButton", enabled: enabled, readOnly: !enabled });
+      if (legal && legal.call) choices.push({ label: "CALL $" + legal.toCall, command: "call", className: "PokerActionButton", enabled: enabled, readOnly: !enabled });
+      if (custom) choices.push({ label: kind === "bet" ? "BET" : "RAISE", command: "custom-" + kind, className: "PokerActionButton", enabled: enabled, readOnly: !enabled, customBet: custom });
+      if (legal && legal.fold) choices.push({ label: "FOLD", command: "fold", className: "PokerActionButton Danger", enabled: enabled, readOnly: !enabled });
+      return {
+        currentKey: current && current.key ? current.key : "",
+        localKey: local && local.key ? local.key : (localKey || ""),
+        actorKey: actor && actor.key ? actor.key : (actorKey || ""),
+        phase: activeGame ? activeGame.phase || "" : "",
+        pot: activeGame ? Number(activeGame.pot) || 0 : 0,
+        currentBet: activeGame ? Number(activeGame.currentBet) || 0 : 0,
+        toCall: actor ? getCallAmount(actor) : 0,
+        minBetTarget: custom && kind === "bet" ? custom.min : getCurrentBigBlind(activeGame),
+        maxBetTarget: maxTarget,
+        minRaiseTarget: activeGame ? getMinimumRaiseTo(activeGame) : BIG_BLIND,
+        maxRaiseTarget: maxTarget,
+        legal: { check: !!(legal && legal.check), call: !!(legal && legal.call), fold: !!(legal && legal.fold), bet: !!(custom && kind === "bet"), raise: !!(custom && kind === "raise") },
+        statusText: getActionStatusText(),
+        actionChoices: choices,
+      };
+    } finally {
+      State.game = previousGame;
+    }
+  }
+
+  function applyEngine(game, action, actorKey) {
+    const source = action && typeof action === "object" ? action : {};
+    const text = typeof action === "string"
+      ? normalizeText(action)
+      : normalizeText(source.type || source.action || "");
+    const type = text.indexOf("bet") === 0 ? "bet" : (text.indexOf("raise") === 0 ? "raise" : text);
+    const amount = source.amount == null ? parseAmount(text) : Number(source.amount) || 0;
+    const previousGame = State.game;
+    State.game = game || previousGame;
+    try {
+      return applyLegalAction(enginePlayer(State.game, actorKey), type, amount, null, {});
+    } finally {
+      State.game = previousGame;
+    }
+  }
+
+  function departEngineGame(game, playerKey, context) {
+    const key = normalizePlayerKey(playerKey);
+    const player = enginePlayer(game, key);
+    if (!game || !player) return { ok: false, changed: false, reset: false, continuation: false, key: key || "" };
+    const name = context && context.name ? context.name : (player.name || key || "Player");
+    const active = !!game.active;
+    const index = game.players.indexOf(player);
+    const base = {
+      ok: true,
+      key: key,
+      name: name,
+      continuation: !!active,
+      reset: false,
+      log: name + (active ? " left the lobby and folds." : " left the lobby."),
+      announcement: active ? { title: name + " left and folds", detail: "" } : null,
+    };
+    if (active && game.players.length <= 2) {
+      base.reset = true;
+      base.continuation = false;
+      base.announcement = { title: name + " left", detail: "Only two players were seated, so the hand was reset." };
+      return base;
+    }
+    const previousGame = State.game;
+    State.game = game;
+    try {
+      if (active) {
+        const wasCurrent = game.currentIndex === index;
+        player.folded = true;
+        player.left = true;
+        player.acted = true;
+        addGameLogTo(game, base.log);
+        if (activeContestants().length <= 1) awardFoldWin();
+        else {
+          if (wasCurrent) game.currentIndex = nextActorIndexFrom(game, index);
+          announce(base.announcement.title, getTurnPrompt());
+          if (hasBettingRoundSettled()) advancePhase();
+        }
+        base.advanced = wasCurrent;
+        return base;
+      }
+      game.players.splice(index, 1);
+      if (game.dealerIndex >= game.players.length) game.dealerIndex = 0;
+      if (game.currentIndex >= game.players.length) game.currentIndex = 0;
+      if (game.players.length) addGameLogTo(game, base.log);
+      if (State.bankrolls) delete State.bankrolls[key];
+      return base;
+    } finally {
+      State.game = previousGame;
+    }
+  }
+
+  function progressEngine(game) {
+    const players = game && game.players ? game.players : [];
+    const eligible = [];
+    for (let i = 0; i < players.length; i += 1) {
+      if (!isDepartedPlayer(players[i])) eligible.push(players[i]);
+    }
+    if (!eligible.length) return { players: eligible, dealerKey: "" };
+    const dealer = players[game.dealerIndex];
+    const dealerKey = normalizePlayerKey(dealer && dealer.key);
+    if (dealerKey && !isDepartedPlayer(dealer) && eligible.some((player) => normalizePlayerKey(player.key) === dealerKey)) {
+      return { players: eligible, dealerKey: dealerKey };
+    }
+    let nextDealerKey = "";
+    for (let offset = 1; offset <= players.length; offset += 1) {
+      const candidate = players[((game.dealerIndex || 0) + offset) % players.length];
+      const candidateKey = normalizePlayerKey(candidate && candidate.key);
+      if (!candidateKey || isDepartedPlayer(candidate)) continue;
+      if (eligible.some((player) => normalizePlayerKey(player.key) === candidateKey)) {
+        nextDealerKey = candidateKey;
+        break;
+      }
+    }
+    if (!nextDealerKey) nextDealerKey = normalizePlayerKey(eligible[0].key || eligible[0].name);
+    for (let i = 0; i < eligible.length; i += 1) {
+      if (normalizePlayerKey(eligible[i].key) === nextDealerKey) {
+        const anchor = eligible[(i + eligible.length - 1) % eligible.length];
+        return { players: eligible, dealerKey: normalizePlayerKey(anchor.key || anchor.name) };
+      }
+    }
+    return { players: eligible, dealerKey: normalizePlayerKey(eligible[eligible.length - 1].key || eligible[eligible.length - 1].name) };
+  }
+
   const PokerEngine = {
-    createGame: createEngineGame,
-    getLegalActions: getLegalActions,
-    describeTurn: describeEngineTurn,
-    buildActionTransition: buildActionTransition,
-    applyAction: applyLegalAction,
-    advanceAfterAction: completeActionAdvance,
-    buildPots: buildPots,
-    showdown: showdown,
-    evaluateHand: evaluateHand,
-    compareHands: compareHands,
+    create: createEngineGame,
+    actions: engineActions,
+    apply: applyEngine,
+    depart: departEngineGame,
+    progress: progressEngine,
+    evaluate: evaluateHand,
   };
 
   function findGamePlayerByKey(key) {
@@ -4846,7 +4844,7 @@
     const current = getCurrentPlayer();
     const local = getLocalPlayer();
     const phase = State.game ? State.game.phase : "lobby";
-    const turn = current && local ? PokerEngine.describeTurn(State.game, current.key, local.key) : null;
+    const turn = current && local ? PokerEngine.actions(State.game, current.key, local.key) : null;
     const toCall = turn ? turn.toCall : (local ? getCallAmount(local) : 0);
     if (!State.game || !State.game.active || !current) {
       return { ok: false, status: "No active synced hand is waiting for an action." };
