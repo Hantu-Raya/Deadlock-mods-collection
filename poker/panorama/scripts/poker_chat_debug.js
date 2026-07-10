@@ -592,12 +592,11 @@
     return State.messages;
   }
 
-  function scanChatMessages() {
+  function scanChatMessagesOnce() {
     const messages = resolveChatMessages();
     if (!isValid(messages)) {
       State.messages = null;
-      $.Schedule(SLOW_POLL_SECONDS, scanChatMessages);
-      return;
+      return false;
     }
 
     const count = childCount(messages);
@@ -608,6 +607,11 @@
       if (result && (result.status === "consumed" || result.status === "delayed")) pollFast = true;
     }
 
+    return pollFast;
+  }
+
+  function scanChatMessages() {
+    const pollFast = ChatBridgeIntake.scanOnce();
     $.Schedule(pollFast ? FAST_POLL_SECONDS : SLOW_POLL_SECONDS, scanChatMessages);
   }
 
@@ -624,6 +628,7 @@
         modules: {
           BridgeContract: BridgeContract,
           ChatBridgeIntake: ChatBridgeIntake,
+          PokerMetrics: PokerMetrics,
         },
       };
     } catch (e) {}
