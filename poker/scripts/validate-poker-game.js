@@ -427,7 +427,6 @@ function hasPartySyncHooks(hooks, message) {
     'buildSynchronizedStartCommand',
     'encodeRoster',
     'decodeRoster',
-    'getStartGate',
   ]) {
     ok = assertHookFunction(hooks, name, message) && ok;
   }
@@ -440,7 +439,7 @@ function hasProgressResumeHooks(hooks, message) {
   if (!progressResume || typeof progressResume !== 'object') {
     return assert(false, message + ': missing ProgressResume module');
   }
-  for (const name of ['build', 'importCode', 'applyCommand', 'shareImported', 'project']) {
+  for (const name of ['build', 'importCode', 'applyCommand', 'shareImported']) {
     ok = assert(typeof progressResume[name] === 'function', `${message}: ProgressResume.${name} should be a function`) && ok;
   }
   for (const name of ['buildResumeLeaderCommand', 'buildResumeReadyCommand', 'buildResumeStartCommand', 'resolveResumeNextDealerKey']) {
@@ -834,6 +833,11 @@ function assertStartButtonGate(runtime, expectedLabel, expectedEnabled, expected
   assertButtonAffordance(runtime, 'PokerStartButton', { hidden: expectedHidden, enabled: expectedEnabled }, message);
   assertEqual(panelText(findPanel(runtime, 'PokerStartButtonLabel')), expectedLabel, `${message} start label`);
 }
+function renderedStartGateEnabled(bundle) {
+  if (bundle && bundle.hooks && bundle.hooks.modules && bundle.hooks.modules.TableRenderer) bundle.hooks.modules.TableRenderer.renderGame();
+  const panel = findPanel(bundle.runtime, 'PokerStartButton');
+  return !!(panel && !hasClass(panel, 'PokerHidden') && panel.hittest !== false);
+}
 
 function assertStartButtonReady(runtime, expectedLabel, message) {
   assertStartButtonGate(runtime, expectedLabel, true, false, message);
@@ -1145,15 +1149,13 @@ if (hooks) {
     CommandReducer: ['decode', 'apply', 'applyRecord', 'applyPayload'],
     PokerEngine: ['decode', 'decodeAction', 'create', 'actions', 'apply', 'depart', 'progress', 'evaluate'],
     PartyReducer: ['apply', 'roster', 'reset'],
-    ProgressResume: ['build', 'importCode', 'applyCommand', 'shareImported', 'project'],
+    ProgressResume: ['build', 'importCode', 'applyCommand', 'shareImported'],
     PokerMetrics: ['reset', 'snapshot', 'increment', 'start', 'end'],
     RenderScheduler: ['defer', 'immediate', 'flush', 'isQueued'],
     PanelCache: ['refresh', 'get', 'invalidate', 'hasRequired'],
     PendingSelfAction: ['record', 'read', 'clear', 'resolveSelfRecord', 'markApplied'],
     CardPresenter: ['render', 'update', 'imageSrc', 'displayRank', 'suitGlyph'],
     TableRenderer: ['renderGame', 'renderCommunity', 'renderPlayers', 'renderTableSeats', 'renderActions', 'renderLog'],
-    Affordance: ['apply', 'button', 'hidden'],
-    PokerButtonState: ['get', 'getStartGate', 'getResumeGate'],
     LateJoinQueue: ['queued', 'buyIn', 'apply', 'describe'],
   })) {
     assert(modules[moduleName], `${moduleName} module should be exposed to behavior-level hooks`);
@@ -1167,7 +1169,7 @@ if (hooks) {
   if (modules.ProgressResume) {
     assertEqual(
       Object.keys(modules.ProgressResume).sort().join(','),
-      ['applyCommand', 'build', 'importCode', 'project', 'shareImported'].sort().join(','),
+      ['applyCommand', 'build', 'importCode', 'shareImported'].sort().join(','),
       'ProgressResume should expose only its final deep state-machine surface',
     );
   }
@@ -2278,31 +2280,25 @@ if (hooks) {
     const gateHooks = startGateRuntime.hooks;
     gateHooks.state.game = null;
     gateHooks.state.party = { id: '', mode: 'none', leaderKey: '', leaderName: '', members: {}, order: [] };
-    let gate = gateHooks.getStartGate(0);
-    assertEqual(gate.label, 'HOST OR JOIN PARTY', 'start gate without a party should ask the player to host or join');
-    assertEqual(gate.enabled, false, 'start gate without a party should be disabled');
+    gateHooks.modules.TableRenderer.renderGame();
+    assertStartButtonGate(startGateRuntime.runtime, 'HOST OR JOIN PARTY', false, false, 'start gate without a party');
 
     gateHooks.state.party = { id: 'psync', mode: 'member', leaderKey: 'abrams', leaderName: 'Abrams', members: {}, order: [] };
-    gate = gateHooks.getStartGate(2);
-    assertEqual(gate.label, 'WAITING FOR LEADER', 'member start gate should wait for the party leader');
-    assertEqual(gate.reason, 'Only Abrams can start the synced hand.', 'member start gate should name the leader who can start');
-    assertEqual(gate.enabled, false, 'member start gate should be disabled');
-    assertEqual(gate.hidden, true, 'member start gate should hide the leader-only start/next-hand button');
+    gateHooks.modules.TableRenderer.renderGame();
+    assertStartButtonGate(startGateRuntime.runtime, 'WAITING FOR LEADER', false, true, 'member start gate');
+    assertEqual(panelText(findPanel(startGateRuntime.runtime, 'PokerPartyStatusLabel')), 'Only Abrams can start the synced hand.', 'member start gate should name the leader who can start');
 
     gateHooks.state.party = {
       id: 'psync',
       mode: 'leader',
       leaderKey: 'abrams',
       leaderName: 'Abrams',
-      members: {
-        abrams: { key: 'abrams', name: 'Abrams' },
-      },
+      members: { abrams: { key: 'abrams', name: 'Abrams' } },
       order: ['abrams'],
     };
-    gate = gateHooks.getStartGate(2);
-    assertEqual(gate.label, 'WAITING FOR PARTY', 'leader start gate with one roster player should wait for the roster even when ready-seat count is two');
-    assertEqual(gate.reason, 'Need 2 joined party players to start.', 'leader start gate with one roster player should explain the roster minimum');
-    assertEqual(gate.enabled, false, 'leader start gate with one roster player should be disabled');
+    gateHooks.modules.TableRenderer.renderGame();
+    assertStartButtonGate(startGateRuntime.runtime, 'WAITING FOR PARTY', false, false, 'leader start gate with one roster player');
+    assertEqual(panelText(findPanel(startGateRuntime.runtime, 'PokerPartyStatusLabel')), 'Need 2 joined party players to start.', 'leader start gate with one roster player should explain the party minimum');
 
     gateHooks.state.party = {
       id: 'psync',
@@ -2315,9 +2311,8 @@ if (hooks) {
       },
       order: ['abrams', 'bebop'],
     };
-    gate = gateHooks.getStartGate(0);
-    assertEqual(gate.label, 'START SYNCED HAND', 'leader start gate with two party players should offer a synced start');
-    assertEqual(gate.enabled, true, 'leader start gate with two party players should be enabled');
+    gateHooks.modules.TableRenderer.renderGame();
+    assertStartButtonGate(startGateRuntime.runtime, 'START SYNCED HAND', true, false, 'leader start gate with two party players');
   }
 
   seedPartyForReady(hooks, ['Abrams', 'Bebop'], 'pmain-ready');
@@ -5194,7 +5189,7 @@ if (hooks) {
           message: liveLogResume.hooks.buildResumeReadyCommand(liveLogSaved.id),
           isSelf: false,
         });
-        assertEqual(liveLogResume.hooks.modules.ProgressResume.project().gates.resume.enabled, true, 'JDBeast/Hantu Raya resume gate should be startable after leader and ready messages');
+        assertEqual(renderedStartGateEnabled(liveLogResume), true, 'JDBeast/Hantu Raya resume gate should be startable after leader and ready messages');
         const liveLogStatusBeforeStart = panelText(findPanel(liveLogResume.runtime, 'PokerStatusLabel'));
         const liveLogMessagesBeforeStart = liveLogResume.runtime.messages.length;
         liveLogResume.hooks.processChatRecord({
@@ -5261,7 +5256,7 @@ if (hooks) {
         assertEqual(Object.keys(chunkedImport.hooks.state.resume.ready || {}).length, 0, 'chunked progress import should not auto-ready any player');
         assertEqual(chunkedImport.hooks.state.resume.leaderKey || '', '', 'chunked progress import should not auto-select a resume leader');
         assertEqual((chunkedImport.hooks.state.resume.order || []).length, 0, 'chunked progress import should not add the progress sender to resume order');
-        assertEqual(chunkedImport.hooks.modules.ProgressResume.project().gates.resume.enabled, false, 'chunked progress import should still require hosted party authority before start');
+        assertEqual(renderedStartGateEnabled(chunkedImport), false, 'chunked progress import should still require hosted party authority before start');
         chunkedImport.hooks.state.localPlayerKey = 'abrams';
         chunkedImport.runtime.config.PokerLocalPlayerKey = 'abrams';
         chunkedImport.runtime.config.PokerLocalPlayerName = 'Abrams';
@@ -5284,7 +5279,7 @@ if (hooks) {
       });
       assertEqual(chunkedImport.hooks.state.game, null, 'chunked progress resume leader message should not start a game');
       assert(chunkedImport.hooks.state.resume.leaderKey !== 'abrams', 'chunked progress legacy resume leader message should not make Abrams the resume leader');
-      assertEqual(chunkedImport.hooks.modules.ProgressResume.project().gates.resume.enabled, false, 'chunked progress legacy resume leader message should not make the hosted progress startable');
+      assertEqual(renderedStartGateEnabled(chunkedImport), false, 'chunked progress legacy resume leader message should not make the hosted progress startable');
       chunkedImport.hooks.processChatRecord({
         sender: 'Bebop',
         message: hooks.buildResumeReadyCommand(saved.id),
@@ -5292,7 +5287,7 @@ if (hooks) {
       });
       assertEqual(chunkedImport.hooks.state.game, null, 'chunked progress resume ready message should not start a game');
       assert(chunkedImport.hooks.state.resume.leaderKey !== 'bebop', 'chunked progress legacy resume ready message should not make Bebop the resume leader');
-      assertEqual(chunkedImport.hooks.modules.ProgressResume.project().gates.resume.enabled, false, 'chunked progress legacy resume ready message should not make the hosted progress startable');
+      assertEqual(renderedStartGateEnabled(chunkedImport), false, 'chunked progress legacy resume ready message should not make the hosted progress startable');
       const importedNoLeaderRuntime = createMenuRuntime();
       importedNoLeaderRuntime.hooks.modules.ProgressResume.importCode(saved.code);
       importedNoLeaderRuntime.hooks.state.localPlayerKey = 'abrams';
@@ -5533,7 +5528,7 @@ if (hooks) {
       assertEqual(wrongChecksumRuntime.hooks.state.resume.leaderKey, '', 'wrong-final-checksum transfer should not select a resume leader');
       assertEqual(wrongChecksumRuntime.hooks.state.resume.hostedLeaderKey, '', 'wrong-final-checksum transfer should not grant hosted resume authority');
       assertEqual(progressTransferCount(wrongChecksumRuntime.hooks), 0, 'wrong-final-checksum transfer should discard the invalid transfer');
-      assertEqual(wrongChecksumRuntime.hooks.modules.ProgressResume.project().gates.resume.enabled, false, 'wrong-final-checksum transfer should not unlock resume start');
+      assertEqual(renderedStartGateEnabled(wrongChecksumRuntime), false, 'wrong-final-checksum transfer should not unlock resume start');
       assert(
         panelText(findPanel(wrongChecksumRuntime.runtime, 'PokerStatusLabel')).includes('Invalid shared progress checksum.'),
         `wrong-final-checksum transfer should render the checksum rejection status: ${panelText(findPanel(wrongChecksumRuntime.runtime, 'PokerStatusLabel')) || '<empty>'}`,
@@ -5561,7 +5556,7 @@ if (hooks) {
       });
       assertEqual(!!duplicateChunkRuntime.hooks.state.resume.payload, false, 'duplicate progress chunk should not complete the transfer');
       assertEqual(progressTransferCount(duplicateChunkRuntime.hooks), 1, 'duplicate progress chunk should keep one pending transfer');
-      assertEqual(duplicateChunkRuntime.hooks.modules.ProgressResume.project().gates.resume.enabled, false, 'duplicate progress chunk should not unlock resume');
+      assertEqual(renderedStartGateEnabled(duplicateChunkRuntime), false, 'duplicate progress chunk should not unlock resume');
       duplicateChunkRuntime.hooks.processChatRecord({
         sender: 'Seven',
         message: buildProgressChunkMessage(saved.id, duplicateChecksum, 2, duplicateChunks.length, duplicateChunks[1]),
