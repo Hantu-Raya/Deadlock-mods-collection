@@ -1095,6 +1095,7 @@ if (hooks) {
     StartSync: ['openMenu', 'requestFreshState', 'noteBridgeEvent', 'getProjection', 'afterSnapshotApplied'],
     CommandReducer: ['decode', 'apply', 'applyRecord', 'applyPayload'],
     PokerEngine: ['createGame', 'getLegalActions', 'applyAction', 'advanceAfterAction', 'buildPots', 'showdown', 'evaluateHand', 'compareHands'],
+    PartyReducer: ['apply', 'roster', 'reset'],
     ProgressResume: ['project', 'gates', 'getStartGate', 'getHostedStartGate', 'import', 'importCode', 'build', 'buildCode', 'applyShare', 'shareImported', 'selectHostedLeader', 'applyStartCommand'],
     PokerMetrics: ['reset', 'snapshot', 'increment', 'start', 'end'],
     RenderScheduler: ['defer', 'immediate', 'flush', 'isQueued'],
@@ -1112,6 +1113,34 @@ if (hooks) {
         modules[moduleName] && typeof modules[moduleName][functionName] === 'function',
         `${moduleName}.${functionName} should be exposed as a behavior-level hook`,
       );
+    }
+  }
+  if (modules.PartyReducer) {
+    const partyContractRuntime = createMenuRuntime();
+    const partyContractHooks = partyContractRuntime.hooks;
+    const reducer = partyContractHooks && partyContractHooks.modules && partyContractHooks.modules.PartyReducer;
+    if (reducer) {
+      const leaderResult = reducer.apply({
+        type: 'leader',
+        partyId: 'pdeep',
+        record: { sender: 'Abrams', isSelf: true },
+      });
+      assertEqual(
+        JSON.stringify(Object.keys(leaderResult).sort()),
+        JSON.stringify(['changed', 'gameDeparture', 'readyAction', 'render', 'resetCase', 'status']),
+        'PartyReducer.apply should expose only the documented deep result fields',
+      );
+      assert(leaderResult.changed, 'PartyReducer.apply should accept a local party leader transition');
+      assertEqual(JSON.stringify(reducer.roster()), JSON.stringify([{ key: 'abrams', name: 'Abrams' }]), 'PartyReducer.roster should project the hosted leader');
+      const foreignResult = reducer.apply({
+        type: 'leader',
+        partyId: 'pforeign',
+        record: { sender: 'Bebop', isSelf: false },
+      });
+      assertEqual(foreignResult.changed, false, 'PartyReducer.apply should reject a foreign leader while hosting');
+      assertEqual(partyContractHooks.state.party.id, 'pdeep', 'foreign leader rejection should retain the hosted party id');
+      reducer.reset('leave-lobby', 'PartyReducer contract fixture');
+      assertEqual(partyContractHooks.state.party.id, '', 'PartyReducer.reset should clear the party singleton');
     }
   }
   if (modules.PokerMetrics && modules.RenderScheduler && modules.TableRenderer) {
