@@ -1298,16 +1298,25 @@
       render: render == null ? !!changed : !!render,
     };
   }
+  function applyPartyResultEffects(result) {
+    if (!result.changed) return null;
+    const readyAction = result.readyAction || {};
+    const readyChanged = readyAction.type === "clear"
+      || (readyAction.type === "remove" && forgetReadySeat(readyAction.key));
+    if (readyAction.type === "clear") clearReadySeats(readyAction.reason || "party");
+    savePartyState();
+    if (readyAction.progressShareReason) shareImportedProgressFromHostedLeader(readyAction.progressShareReason);
+    return readyChanged;
+  }
+
 
   function applyPartyTransition(command) {
     const event = command || {};
-    const type = event.type === "party-leader" ? "leader"
-      : (event.type === "party-join" ? "join" : event.type);
+    const type = event.type;
     const record = event.record || null;
     const partyId = event.partyId || "";
     const party = ensureParty();
-    const beforeId = party.id || "";
-    const beforeMode = party.mode || "none";
+    const wasLeader = (party.id || "") === partyId && (party.mode || "none") === "leader";
     let changed = false;
     if (type === "leader") changed = applyPartyLeaderTransition(record, partyId);
     else if (type === "join") changed = applyPartyJoinTransition(record, partyId);
@@ -1315,7 +1324,7 @@
     if (!changed) return makePartyResult(false, { type: "none" }, "", null, "", false);
     let readyAction = { type: "none" };
     let status = "";
-    if (type === "leader" && (beforeId !== partyId || beforeMode !== "leader")) {
+    if (type === "leader" && !wasLeader) {
       readyAction = { type: "clear", reason: "party leader" };
     }
     if (type === "join") {
@@ -2851,10 +2860,7 @@
       partyId: partyId,
       record: { sender: remembered || "<unknown>", isSelf: true },
     });
-    if (!leaderResult.changed) return;
-    const leaderReadyAction = leaderResult.readyAction || {};
-    if (leaderReadyAction.type === "clear") clearReadySeats(leaderReadyAction.reason || "host");
-    savePartyState();
+    if (applyPartyResultEffects(leaderResult) === null) return;
     RenderScheduler.immediate("party-leader");
     setStatus("Sent [party leader]. Wait for joiners, then start the synced hand.");
   }
@@ -2881,11 +2887,7 @@
       partyId: party.id,
       record: { sender: getRememberedLocalPlayerName() || State.localPlayerKey || "<unknown>", isSelf: true },
     });
-    if (!joinResult.changed) return;
-    const joinReadyAction = joinResult.readyAction || {};
-    if (joinReadyAction.type === "clear") clearReadySeats(joinReadyAction.reason || "join");
-    savePartyState();
-    if (joinReadyAction.progressShareReason) shareImportedProgressFromHostedLeader(joinReadyAction.progressShareReason);
+    if (applyPartyResultEffects(joinResult) === null) return;
     RenderScheduler.immediate("party-join");
     sendChatMessage(PARTY_JOIN_PREFIX + " poker party " + party.id);
     if (joinResult.status || activeGame) setStatus(joinResult.status || "Joined waitlist. You will be seated after this hand.");
@@ -3705,7 +3707,6 @@
     }
     resetPokerSessionForLobby("leave lobby", LOBBY_RESET_CASES.leaveLobby);
     clearReadySeats("leave");
-    forgetReadySeat(State.localPlayerKey);
     savePartyState();
     RenderScheduler.immediate("leave-lobby");
     setStatus("Left poker lobby. Sent leave notice; host or join a party to start a new lobby.");
@@ -4427,8 +4428,7 @@
 
   function applyPartyCommand(command, resolvedRecord) {
     const partyType = command.type === "party-leader" ? "leader" : (command.type === "party-join" ? "join" : "leave");
-    const party = ensureParty();
-    if (partyType === "leave") resolvedRecord = resolveUnknownLeaderLeaveAfterMatchEnd(resolvedRecord, command.partyId, party);
+    if (partyType === "leave") resolvedRecord = resolveUnknownLeaderLeaveAfterMatchEnd(resolvedRecord, command.partyId, ensureParty());
     if (isUnknownSender(resolvedRecord.sender) && partyType !== "leader") {
       debugActionState("reject-unknown-party-authority", resolvedRecord, null);
       return rejectedCommandEffect("", "debug");
@@ -4438,17 +4438,8 @@
       record: resolvedRecord,
       partyId: command.partyId,
     });
-    if (!result.changed) return consumedNoChangeEffect("party");
-    const readyAction = result.readyAction || {};
-    let readyChanged = false;
-    if (readyAction.type === "clear") {
-      clearReadySeats(readyAction.reason || "party");
-      readyChanged = true;
-    } else if (readyAction.type === "remove") {
-      readyChanged = forgetReadySeat(readyAction.key);
-    }
-    if (result.changed) savePartyState();
-    if (readyAction.progressShareReason) shareImportedProgressFromHostedLeader(readyAction.progressShareReason);
+    const readyChanged = applyPartyResultEffects(result);
+    if (readyChanged === null) return consumedNoChangeEffect("party");
     return commandEffect(true, readyChanged, !!result.render, result.status || "", "party");
   }
 
@@ -5852,7 +5843,6 @@
         evaluateHand: evaluateHand,
         compareHands: compareHands,
         createGameFromReady: createGameFromReady,
-        getPartyRoster: PartyReducer.roster,
         encodeRoster: encodeRoster,
         decodeRoster: decodeRoster,
         buildSynchronizedStartCommand: buildSynchronizedStartCommand,

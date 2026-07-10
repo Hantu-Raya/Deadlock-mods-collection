@@ -384,7 +384,6 @@ function hasPartySyncHooks(hooks, message) {
     'buildSynchronizedStartCommand',
     'encodeRoster',
     'decodeRoster',
-    'getPartyRoster',
     'getStartGate',
   ]) {
     ok = assertHookFunction(hooks, name, message) && ok;
@@ -1584,7 +1583,7 @@ if (hooks) {
       order: ['abrams', 'missing', 'bebop', 'unknown'],
     };
     assertEqual(
-      JSON.stringify(hooks.getPartyRoster()),
+      JSON.stringify(hooks.modules.PartyReducer.roster()),
       JSON.stringify(partyRoster),
       'party roster should return known non-unknown members in party order',
     );
@@ -1891,7 +1890,7 @@ if (hooks) {
       assertEqual(twoPlayerHostLeaveHooks.state.party.id, '', 'two-player hosted-lobby host leave should clear Bebop party id instead of keeping the stale host lobby');
       assertEqual(twoPlayerHostLeaveHooks.state.party.mode, 'none', 'two-player hosted-lobby host leave should return Bebop to non-party mode');
       assertEqual(twoPlayerHostLeaveHooks.state.party.leaderKey, '', 'two-player hosted-lobby host leave should clear stale Abrams leader key');
-      assertEqual(twoPlayerHostLeaveHooks.getPartyRoster().length, 0, 'two-player hosted-lobby host leave should leave no stale Abrams roster entry');
+      assertEqual(twoPlayerHostLeaveHooks.modules.PartyReducer.roster().length, 0, 'two-player hosted-lobby host leave should leave no stale Abrams roster entry');
       assert(
         !twoPlayerHostLeaveHooks.state.party.members.abrams,
         'two-player hosted-lobby host leave should remove Abrams from local party members',
@@ -1908,7 +1907,7 @@ if (hooks) {
       threePlayerHostLeaveHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party ' + threePlayerHostLeavePartyId, isSelf: true });
       threePlayerHostLeaveHooks.processChatRecord({ sender: 'Dynamo', message: '[party join] poker party ' + threePlayerHostLeavePartyId, isSelf: false });
       assertEqual(
-        JSON.stringify(threePlayerHostLeaveHooks.getPartyRoster().map((member) => member.key)),
+        JSON.stringify(threePlayerHostLeaveHooks.modules.PartyReducer.roster().map((member) => member.key)),
         JSON.stringify(['abrams', 'bebop', 'dynamo']),
         'three-player hosted-lobby host transfer setup should preserve join order before Abrams leaves',
       );
@@ -1923,7 +1922,7 @@ if (hooks) {
         'three-player hosted-lobby host transfer should remove Abrams from member order while preserving Bebop and Dynamo',
       );
       assertEqual(
-        JSON.stringify(threePlayerHostLeaveHooks.getPartyRoster()),
+        JSON.stringify(threePlayerHostLeaveHooks.modules.PartyReducer.roster()),
         JSON.stringify([
           { key: 'bebop', name: 'Bebop' },
           { key: 'dynamo', name: 'Dynamo' },
@@ -2719,7 +2718,7 @@ if (hooks) {
     assertEqual(endThenLeaveHooks.state.game, null, 'leader party leave after match-end should keep the member out of an active hand');
     assertEqual(endThenLeaveHooks.state.party.id, '', 'leader party leave after match-end should clear the member party id');
     assertEqual(endThenLeaveHooks.state.party.mode, 'none', 'leader party leave after match-end should return the member to non-party mode');
-    assertEqual(endThenLeaveHooks.getPartyRoster().length, 0, 'leader party leave after match-end should leave no stale two-player roster');
+    assertEqual(endThenLeaveHooks.modules.PartyReducer.roster().length, 0, 'leader party leave after match-end should leave no stale two-player roster');
     endThenLeaveHooks.modules.TableRenderer.renderGame();
     assertNoGamePlayerRail(twoPlayerLeaderEndThenLeaveRuntime.runtime, 'leader match-end then party leave member lobby render');
     assertPanelHidden(twoPlayerLeaderEndThenLeaveRuntime.runtime, 'PokerLeaveLobbyButton', 'leader match-end then party leave member lobby render');
@@ -2748,7 +2747,7 @@ if (hooks) {
     );
     assertEqual(wrongUnknownMatchEndHooks.state.party.leaderKey, 'abrams', 'unknown match-end with wrong seed/hand should preserve the current party leader');
     assert(
-      !wrongUnknownMatchEndHooks.getPartyRoster().some((member) => member.key === '<unknown>' || member.name === '<unknown>'),
+      !wrongUnknownMatchEndHooks.modules.PartyReducer.roster().some((member) => member.key === '<unknown>' || member.name === '<unknown>'),
       'unknown match-end with wrong seed/hand should not add an unknown party roster entry',
     );
     assert(
@@ -2769,7 +2768,7 @@ if (hooks) {
     assertEqual(leaderLeaveOnlyHooks.state.game, null, 'leader party leave from a two-player active hand should reset the member to the lobby');
     assertEqual(leaderLeaveOnlyHooks.state.party.id, '', 'leader party leave from a two-player active hand should clear the member party id');
     assertEqual(leaderLeaveOnlyHooks.state.party.mode, 'none', 'leader party leave from a two-player active hand should clear member party mode');
-    assertEqual(leaderLeaveOnlyHooks.getPartyRoster().length, 0, 'leader party leave from a two-player active hand should leave no stale member roster');
+    assertEqual(leaderLeaveOnlyHooks.modules.PartyReducer.roster().length, 0, 'leader party leave from a two-player active hand should leave no stale member roster');
     assertEqual(leaderLeaveOnlyHooks.state.requiresProgressImport, false, 'leader party leave from a two-player active hand should clear imported-progress start guard');
     assertEqual(!!(leaderLeaveOnlyHooks.state.resume && leaderLeaveOnlyHooks.state.resume.id), false, 'leader party leave from a two-player active hand should clear resume state');
     assertEqual(leaderLeaveOnlyHooks.state.resumeRequiresHostedParty, true, 'leader party leave from a two-player active hand should require a hosted party before resume');
@@ -2815,7 +2814,7 @@ if (hooks) {
           `three-player leader leave for ${localName} should remove Abrams from party order`,
         );
         assertEqual(
-          JSON.stringify(transferHooks.getPartyRoster().map((member) => member.key)),
+          JSON.stringify(transferHooks.modules.PartyReducer.roster().map((member) => member.key)),
           JSON.stringify(['bebop', 'calico']),
           `three-player leader leave for ${localName} should keep only remaining party members in order`,
         );
@@ -3129,7 +3128,7 @@ if (hooks) {
     assertEqual(twoPlayerLeaveHooks.state.game, null, 'remote leave from a two-player active hand should reset the remaining client to the lobby');
     assertEqual(twoPlayerLeaveHooks.state.party.id, '', 'remote leave from a two-player active hand should clear the joined party id');
     assertEqual(twoPlayerLeaveHooks.state.party.mode, 'none', 'remote leave from a two-player active hand should clear party mode for lobby controls');
-    assertEqual(twoPlayerLeaveHooks.getPartyRoster().length, 0, 'remote leave from a two-player active hand should leave no stale party roster');
+    assertEqual(twoPlayerLeaveHooks.modules.PartyReducer.roster().length, 0, 'remote leave from a two-player active hand should leave no stale party roster');
     assertEqual(twoPlayerLeaveHooks.getReadySeatArray().length, 0, 'remote leave from a two-player active hand should clear stale ready seats');
     twoPlayerLeaveHooks.modules.TableRenderer.renderGame();
     assertInactiveLobbyControls(twoPlayerLeaveRuntime.runtime, 'remote two-player active leave reset');
@@ -3155,7 +3154,7 @@ if (hooks) {
       assertEqual(leaveHooks.state.game, leaveGame, 'remote non-leader leave from a three-player active hand should keep the current hand');
       assertEqual(leaveGame.active, true, 'remote non-leader leave from a three-player active hand should remain active');
       assert(
-        !leaveHooks.getPartyRoster().some((member) => member.key === 'bebop'),
+        !leaveHooks.modules.PartyReducer.roster().some((member) => member.key === 'bebop'),
         'remote non-leader leave should remove the sender from the synced party roster',
       );
       assert(
@@ -3285,7 +3284,7 @@ if (hooks) {
     const lateJoinQueue = lateJoinHooks.modules.LateJoinQueue;
     lateJoinHooks.processChatRecord({ sender: 'Calico', message: '[party join] poker party psync', isSelf: false });
     assertEqual(
-      JSON.stringify(lateJoinHooks.getPartyRoster()),
+      JSON.stringify(lateJoinHooks.modules.PartyReducer.roster()),
       JSON.stringify([
         { key: 'abrams', name: 'Abrams' },
         { key: 'bebop', name: 'Bebop' },
@@ -4439,7 +4438,7 @@ if (hooks) {
           assertPanelHidden(hostedMemberEndSyncRuntime.runtime, 'PokerGameLog', 'hosted JDBeast/Hantu Raya end-sync member lobby after remote match end');
           assertEqual(hostedMemberEndSyncRuntime.hooks.state.party.id, liveLogPartyId, 'hosted JDBeast/Hantu Raya end-sync member should keep the hosted party id after remote match end');
           assertEqual(
-            JSON.stringify(hostedMemberEndSyncRuntime.hooks.getPartyRoster().map((entry) => ({ key: entry.key, name: entry.name }))),
+            JSON.stringify(hostedMemberEndSyncRuntime.hooks.modules.PartyReducer.roster().map((entry) => ({ key: entry.key, name: entry.name }))),
             JSON.stringify([
               { key: 'jdbeast', name: 'JDBeast' },
               { key: 'hantu raya', name: 'Hantu Raya' },
@@ -4546,7 +4545,7 @@ if (hooks) {
         assertEqual(hostedLeaderEndImport.leaderRuntime.hooks.state.party.mode, 'leader', 'hosted JDBeast/Hantu Raya end match should keep the hosted party leader mode');
         assertEqual(hostedLeaderEndImport.leaderRuntime.hooks.state.party.id, liveLogPartyId, 'hosted JDBeast/Hantu Raya end match should keep the hosted party id');
         assertEqual(
-          JSON.stringify(hostedLeaderEndImport.leaderRuntime.hooks.getPartyRoster().map((entry) => ({ key: entry.key, name: entry.name }))),
+          JSON.stringify(hostedLeaderEndImport.leaderRuntime.hooks.modules.PartyReducer.roster().map((entry) => ({ key: entry.key, name: entry.name }))),
           JSON.stringify([
             { key: 'jdbeast', name: 'JDBeast' },
             { key: 'hantu raya', name: 'Hantu Raya' },
@@ -5687,7 +5686,7 @@ if (hooks) {
       assertEqual(discoveryState.party.mode, 'none', 'unknown party-leader discovery should not enter leader mode before joining');
       assertEqual(discoveryState.party.leaderKey, '', 'unknown party-leader discovery should not set an authoritative leader key');
       assertEqual(discoveryState.party.leaderName, '', 'unknown party-leader discovery should not set an authoritative leader name');
-      assertEqual(discoveryRuntime.hooks.getPartyRoster().length, 0, 'unknown party-leader discovery should not invent a roster member');
+      assertEqual(discoveryRuntime.hooks.modules.PartyReducer.roster().length, 0, 'unknown party-leader discovery should not invent a roster member');
       assertButtonAffordance(
         discoveryRuntime.runtime,
         'PokerJoinPartyButton',
