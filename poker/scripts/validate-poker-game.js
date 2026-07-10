@@ -4147,6 +4147,186 @@ if (hooks) {
   assertGreaterThan(hooks.compareHands(royalFlush, straightFlush), 0, 'royal flush ranks highest should compare above a king-high straight flush');
   assertGreaterThan(hooks.compareHands(straightFlush, fourOfKind), 0, 'straight flush should rank above four of a kind');
   assertGreaterThan(hooks.compareHands(pair, highCard), 0, 'pair should rank above high card');
+  {
+    const missingSeedRuntime = createSyncedJoinedPartyRuntime('Bebop', 'sunknown-match-end-missing-seed', syncedRoster, 1, 'punknown-match-end-missing-seed');
+    if (missingSeedRuntime.hooks && missingSeedRuntime.game) {
+      const missingSeedBefore = missingSeedRuntime.hooks.getStateSnapshot();
+      missingSeedRuntime.hooks.processChatRecord({
+        sender: '<unknown>',
+        message: '[match end] poker party punknown-match-end-missing-seed hand 1',
+        isSelf: false,
+      });
+      const missingSeedAfter = missingSeedRuntime.hooks.getStateSnapshot();
+      assertEqual(
+        JSON.stringify(missingSeedAfter.game),
+        JSON.stringify(missingSeedBefore.game),
+        'unknown match-end without a seed should not authenticate or clear the current game',
+      );
+      assertEqual(
+        missingSeedAfter.party.id,
+        missingSeedBefore.party.id,
+        'unknown match-end without a seed should preserve the current party',
+      );
+    }
+    const missingHandRuntime = createSyncedJoinedPartyRuntime('Bebop', 'sunknown-match-end-missing-hand', syncedRoster, 1, 'punknown-match-end-missing-hand');
+    if (missingHandRuntime.hooks && missingHandRuntime.game) {
+      const missingHandBefore = missingHandRuntime.hooks.getStateSnapshot();
+      missingHandRuntime.hooks.processChatRecord({
+        sender: '<unknown>',
+        message: '[match end] poker party punknown-match-end-missing-hand seed sunknown-match-end-missing-hand',
+        isSelf: false,
+      });
+      const missingHandAfter = missingHandRuntime.hooks.getStateSnapshot();
+      assertEqual(
+        JSON.stringify(missingHandAfter.game),
+        JSON.stringify(missingHandBefore.game),
+        'unknown match-end without a hand number should not authenticate or clear the current game',
+      );
+      assertEqual(
+        missingHandAfter.party.id,
+        missingHandBefore.party.id,
+        'unknown match-end without a hand number should preserve the current party',
+      );
+    }
+  }
+
+  {
+    const nonLeaderRuntime = createSyncedJoinedPartyRuntime('Abrams', 'sknown-nonleader-match-end', syncedRoster, 1, 'pknown-nonleader-match-end');
+    if (nonLeaderRuntime.hooks && nonLeaderRuntime.game) {
+      const before = nonLeaderRuntime.hooks.getStateSnapshot();
+      const game = before.game;
+      const effect = nonLeaderRuntime.hooks.processChatRecord({
+        sender: 'Bebop',
+        message: `[match end] poker party pknown-nonleader-match-end seed ${game.seed} hand ${game.handNumber}`,
+        isSelf: false,
+      });
+      const after = nonLeaderRuntime.hooks.getStateSnapshot();
+      assertEqual(effect.consumed, true, 'known non-leader matching match-end should consume the recognized command');
+      assertEqual(effect.render, false, 'known non-leader matching match-end should not request a render');
+      assertEqual(after.game.active, true, 'known non-leader matching match-end should leave the current game active');
+      assertEqual(after.game.seed, before.game.seed, 'known non-leader matching match-end should preserve game identity');
+      assertEqual(after.game.handNumber, before.game.handNumber, 'known non-leader matching match-end should preserve hand identity');
+      assertEqual(
+        JSON.stringify(after.party),
+        JSON.stringify(before.party),
+        'known non-leader matching match-end should preserve party authority state',
+      );
+    }
+  }
+
+  {
+    const discoveryRuntime = createMenuRuntime();
+    if (discoveryRuntime.hooks) {
+      discoveryRuntime.hooks.processChatRecord({
+        sender: '<unknown>',
+        message: '[party leader] poker party punknown-leader-discovery',
+        isSelf: false,
+      });
+      drainImmediateCallbacks(discoveryRuntime.runtime);
+      const discoveryState = discoveryRuntime.hooks.getStateSnapshot();
+      assertEqual(discoveryState.party.id, 'punknown-leader-discovery', 'unknown party-leader discovery should expose the joinable party id');
+      assertEqual(discoveryState.party.mode, 'none', 'unknown party-leader discovery should not enter leader mode before joining');
+      assertEqual(discoveryState.party.leaderKey, '', 'unknown party-leader discovery should not set an authoritative leader key');
+      assertEqual(discoveryState.party.leaderName, '', 'unknown party-leader discovery should not set an authoritative leader name');
+      assertEqual(discoveryRuntime.hooks.getPartyRoster().length, 0, 'unknown party-leader discovery should not invent a roster member');
+      assertButtonAffordance(
+        discoveryRuntime.runtime,
+        'PokerJoinPartyButton',
+        { hidden: false, enabled: true },
+        'unknown party-leader discovery should render a joinable party control',
+      );
+    }
+  }
+
+  {
+    const mixedSnapshotRuntime = createMenuRuntime();
+    if (mixedSnapshotRuntime.hooks && mixedSnapshotRuntime.hooks.modules && mixedSnapshotRuntime.hooks.modules.PokerMetrics) {
+      const mixedHooks = mixedSnapshotRuntime.hooks;
+      mixedHooks.modules.PokerMetrics.reset();
+      mixedHooks.handleReadyEvent(JSON.stringify({
+        event: 'PokerChatMessage',
+        action: 'snapshot',
+        reason: 'mixed-consumed-and-old',
+        seq: 2,
+        messages: [
+          { seq: 1, sender: 'Abrams', message: '[party leader] poker party pmixed-consumed-old', isSelf: false },
+          { seq: 2, sender: 'Bebop', message: '[party join] poker party pmixed-consumed-old', isSelf: false },
+          { seq: 1, sender: 'Abrams', message: '[party leave] poker party pmixed-consumed-old', isSelf: false },
+        ],
+      }));
+      const mixedMetrics = mixedHooks.modules.PokerMetrics.snapshot();
+      const mixedState = mixedHooks.getStateSnapshot();
+      assertEqual(
+        JSON.stringify(mixedState.party.order),
+        JSON.stringify(['abrams', 'bebop']),
+        'mixed snapshot should produce one final party projection after consumed and old-sequence rows',
+      );
+      assert(
+        mixedMetrics && mixedMetrics.counters && mixedMetrics.counters.renderFlush <= 1,
+        `mixed snapshot should defer at most one render flush: ${JSON.stringify(mixedMetrics && mixedMetrics.counters)}`,
+      );
+    }
+  }
+
+  {
+    const nonCurrentLeaveRuntime = createSyncedJoinedPartyRuntime('Abrams', 'snon-current-member-leave', tableRoster, 1, 'pnon-current-member-leave');
+    if (nonCurrentLeaveRuntime.hooks && nonCurrentLeaveRuntime.game) {
+      const leaveHooks = nonCurrentLeaveRuntime.hooks;
+      const leaveGame = nonCurrentLeaveRuntime.game;
+      const leavingPlayer = leaveGame.players.find((player) => player.key === 'bebop');
+      const currentActor = leaveGame.players.find((player) => player.key === 'abrams');
+      assert(leavingPlayer, 'non-current three-player leave setup should include Bebop');
+      assert(currentActor, 'non-current three-player leave setup should include Abrams as the current actor');
+      if (leavingPlayer && currentActor) {
+        leaveGame.currentIndex = leaveGame.players.indexOf(currentActor);
+        const currentActorKey = currentPlayer(leaveGame).key;
+        leaveHooks.processChatRecord({
+          sender: 'Bebop',
+          message: '[party leave] poker party pnon-current-member-leave',
+          isSelf: false,
+        });
+        assertEqual(leaveGame.active, true, 'non-current three-player leave should keep the hand active');
+        assertEqual(leavingPlayer.folded, true, 'non-current three-player leave should fold the departed member');
+        assertEqual(leavingPlayer.left, true, 'non-current three-player leave should mark the departed member left');
+        assertEqual(leavingPlayer.acted, true, 'non-current three-player leave should mark the departed member acted');
+        assertEqual(
+          currentPlayer(leaveGame).key,
+          currentActorKey,
+          'non-current three-player leave should not advance the current actor',
+        );
+      }
+    }
+  }
+
+  {
+    const nonLeaderEndRuntime = createSyncedJoinedPartyRuntime('Bebop', 'snonleader-direct-end', syncedRoster, 1, 'pnonleader-direct-end');
+    if (nonLeaderEndRuntime.hooks && nonLeaderEndRuntime.game) {
+      const endHooks = nonLeaderEndRuntime.hooks;
+      const before = endHooks.getStateSnapshot();
+      const dispatchStart = nonLeaderEndRuntime.runtime.dispatches.length;
+      assertHookFunction(nonLeaderEndRuntime.runtime.sandbox, 'PokerEscapeMenuEndMatch', 'non-leader direct end-match global');
+      nonLeaderEndRuntime.runtime.sandbox.PokerEscapeMenuEndMatch();
+      const after = endHooks.getStateSnapshot();
+      const submitted = nonLeaderEndRuntime.runtime.dispatches
+        .slice(dispatchStart)
+        .filter((event) => event.name === 'CitadelChatInputSubmitted')
+        .map((event) => String(event.payloadText || ''));
+      assert(
+        !submitted.some((message) => message.indexOf('[match end] poker party ') === 0),
+        `non-leader direct end-match should not submit a match-end command: ${submitted.join('|') || '<none>'}`,
+      );
+      assertEqual(
+        JSON.stringify(after.game),
+        JSON.stringify(before.game),
+        'non-leader direct end-match should leave the current game unchanged',
+      );
+      assertEqual(
+        JSON.stringify(after.party),
+        JSON.stringify(before.party),
+        'non-leader direct end-match should leave party authority unchanged',
+      );
+    }
+  }
 }
 
 if (failures.length > 0) {

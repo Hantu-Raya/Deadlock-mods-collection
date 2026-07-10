@@ -3360,6 +3360,7 @@
     }
     const endedGame = State.game;
     const party = ensureParty();
+    if (party.id && party.mode !== "leader") return;
     if (party.id && party.mode === "leader") sendChatMessage(buildMatchEndCommand(endedGame, party.id), true, true);
     State.game = null;
     PendingSelfAction.clear();
