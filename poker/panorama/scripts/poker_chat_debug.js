@@ -31,20 +31,13 @@
       progressState: "PokerProgressState",
     },
   };
-  const READY_EVENT = BridgeContract.readyEvent;
-  const READY_REQUEST_EVENT = BridgeContract.readyRequestEvent;
-  const READY_CLEAR_REQUEST_EVENT = BridgeContract.readyClearRequestEvent;
   const CHAT_EVENT = BridgeContract.chatEvent;
-  const CHAT_SNAPSHOT_REQUEST_EVENT = BridgeContract.chatSnapshotRequestEvent;
   const CLIENT_OUTPUT_EVENT = BridgeContract.clientOutputEvent;
   const READY_SEATS_KEY = BridgeContract.keys.readySeats;
   const READY_REVISION_KEY = BridgeContract.keys.readyRevision;
   const CHAT_MESSAGES_KEY = BridgeContract.keys.chatMessages;
   const CHAT_SEQ_KEY = BridgeContract.keys.chatSequence;
-  const READY_LAST_EVENT_KEY = BridgeContract.keys.readyLastEvent;
-  const LOCAL_PLAYER_KEY = BridgeContract.keys.localPlayerKey;
   const LOCAL_PLAYER_NAME_KEY = BridgeContract.keys.localPlayerName;
-  const PENDING_SELF_ACTION_KEY = BridgeContract.keys.pendingSelfAction;
   const UNKNOWN_SENDER_MAX_DELAYS = 6;
 
   const LABEL_TEXT_BUFFER = [];
@@ -57,14 +50,6 @@
 
   function isValid(panel) {
     return !!(panel && (!panel.IsValid || panel.IsValid()));
-  }
-
-  function getRoot(panel) {
-    let cursor = panel;
-    while (cursor && cursor.GetParent && cursor.GetParent()) {
-      cursor = cursor.GetParent();
-    }
-    return cursor || panel;
   }
 
   function safeText(panel) {
@@ -102,33 +87,22 @@
     }
   }
 
-  function findPanelWithClassTraverse(root, className) {
-    if (!isValid(root) || typeof root.FindChildrenWithClassTraverse !== "function") return null;
-    try {
-      const matches = root.FindChildrenWithClassTraverse(className);
-      if (matches && matches.length) {
-        for (let i = 0; i < matches.length; i += 1) {
-          if (isValid(matches[i])) return matches[i];
-        }
-      }
-    } catch (e) {}
-    return null;
-  }
-
-  function findFirstClass(root, className) {
-    return (
-      findPanelWithClassTraverse(root, className) ||
-      findPanelByClass(root, className)
-    );
-  }
-
-  function findPanelByClass(root, className) {
+  function findClass(root, className) {
     if (!isValid(root)) return null;
+    if (typeof root.FindChildrenWithClassTraverse === "function") {
+      try {
+        const matches = root.FindChildrenWithClassTraverse(className);
+        if (matches && matches.length) {
+          for (let i = 0; i < matches.length; i += 1) {
+            if (isValid(matches[i])) return matches[i];
+          }
+        }
+      } catch (e) {}
+    }
     if (hasClass(root, className)) return root;
-
     const count = childCount(root);
     for (let i = 0; i < count; i += 1) {
-      const found = findPanelByClass(childAt(root, i), className);
+      const found = findClass(childAt(root, i), className);
       if (found) return found;
     }
     return null;
@@ -142,12 +116,6 @@
     } catch (e) {
       return null;
     }
-  }
-
-  function collectLabelText(root) {
-    LABEL_TEXT_BUFFER.length = 0;
-    collectLabelTextInto(root, LABEL_TEXT_BUFFER);
-    return LABEL_TEXT_BUFFER.join(" ").replace(/\s+/g, " ").trim();
   }
 
   function collectLabelTextInto(panel, out) {
@@ -298,36 +266,15 @@
     return normalizePlayerKey(sender) === normalizePlayerKey(EMPTY_NAME);
   }
 
-  function rememberLocalPlayer(sender) {
-    if (!shouldAcceptReadySender(sender)) return;
-    const config = getConfig();
-    config[LOCAL_PLAYER_KEY] = normalizePlayerKey(sender);
-    config[LOCAL_PLAYER_NAME_KEY] = sender;
-  }
-
-  function getRememberedLocalPlayerName() {
-    const config = getConfig();
-    const name = String(config[LOCAL_PLAYER_NAME_KEY] || "").replace(/\s+/g, " ").trim();
-    return shouldAcceptReadySender(name) ? name : "";
-  }
-
-
   function getReadySeatArray() {
     const seats = getReadySeats();
-    const keys = Object.keys(seats);
-    const list = [];
-    for (let i = 0; i < keys.length; i += 1) {
-      const entry = seats[keys[i]];
-      if (entry && entry.name) list.push(entry);
-    }
-    list.sort((a, b) => (a.readyAt || 0) - (b.readyAt || 0));
-    return list;
+    const list = Object.keys(seats).map((key) => seats[key]).filter((entry) => entry && entry.name);
+    list.sort((a, b) => (a.readyAt || 0) - (b.readyAt || 0)); return list;
   }
 
   function getChatMessages() {
     const config = getConfig();
-    config[CHAT_MESSAGES_KEY] = config[CHAT_MESSAGES_KEY] || [];
-    if (typeof config[CHAT_SEQ_KEY] !== "number") config[CHAT_SEQ_KEY] = 0;
+    config[CHAT_MESSAGES_KEY] = config[CHAT_MESSAGES_KEY] || []; if (typeof config[CHAT_SEQ_KEY] !== "number") config[CHAT_SEQ_KEY] = 0;
     return config[CHAT_MESSAGES_KEY];
   }
 
@@ -381,7 +328,7 @@
       payload.count = payload.seats.length;
       payload.revision = config[READY_REVISION_KEY] || 0;
       const json = JSON.stringify(payload);
-      config[READY_LAST_EVENT_KEY] = json;
+      config[BridgeContract.keys.readyLastEvent] = json;
       try {
         $.DispatchEvent(CLIENT_OUTPUT_EVENT, json);
       } catch (e) {}
@@ -390,7 +337,7 @@
     if (action === "snapshot") {
       PokerMetrics.increment("readySnapshotDispatch");
       emit({
-        event: READY_EVENT,
+        event: BridgeContract.readyEvent,
         action: "snapshot",
         reason: reason || "",
       });
@@ -401,7 +348,7 @@
       config[READY_SEATS_KEY] = {};
       config[READY_REVISION_KEY] = (config[READY_REVISION_KEY] || 0) + 1;
       emit({
-        event: READY_EVENT,
+        event: BridgeContract.readyEvent,
         action: "clear",
         reason: reason || "",
         seats: [],
@@ -427,9 +374,13 @@
         readyAt: now,
       };
       config[READY_REVISION_KEY] = (config[READY_REVISION_KEY] || 0) + 1;
-      if (record.isSelf) rememberLocalPlayer(record.sender);
+      if (record.isSelf) {
+        const localConfig = getConfig();
+        localConfig[BridgeContract.keys.localPlayerKey] = key;
+        localConfig[LOCAL_PLAYER_NAME_KEY] = record.sender;
+      }
       emit({
-        event: READY_EVENT,
+        event: BridgeContract.readyEvent,
         action: "ready",
         key: key,
         name: record.sender,
@@ -449,7 +400,7 @@
       delete seats[key];
       config[READY_REVISION_KEY] = (config[READY_REVISION_KEY] || 0) + 1;
       emit({
-        event: READY_EVENT,
+        event: BridgeContract.readyEvent,
         action: "leave",
         key: key,
         name: record.sender,
@@ -475,9 +426,9 @@
       if (typeof payload !== "string" || !payload) return;
       const event = JSON.parse(payload);
       if (!event || !event.event) return;
-      if (event.event === READY_REQUEST_EVENT) mutateReadySeats("snapshot", null, "request");
-      if (event.event === READY_CLEAR_REQUEST_EVENT) mutateReadySeats("clear", null, event.reason || "request");
-      if (event.event === CHAT_SNAPSHOT_REQUEST_EVENT) ChatBridgeIntake.handleSnapshotRequest("request");
+      if (event.event === BridgeContract.readyRequestEvent) mutateReadySeats("snapshot", null, "request");
+      if (event.event === BridgeContract.readyClearRequestEvent) mutateReadySeats("clear", null, event.reason || "request");
+      if (event.event === BridgeContract.chatSnapshotRequestEvent) ChatBridgeIntake.handleSnapshotRequest("request");
     } catch (e) {}
   }
 
@@ -487,21 +438,20 @@
   function readChatMessage(messagePanel) {
     const source = findChild(messagePanel, MESSAGE_SOURCE_ID);
     const contents = findChild(messagePanel, MESSAGE_CONTENTS_ID);
-    const senderPanel =
-      findFirstClass(source, "SenderName") ||
-      findFirstClass(messagePanel, "SenderName");
-    const channelPanel =
-      findFirstClass(source, "ChannelName") ||
-      findFirstClass(messagePanel, "ChannelName");
+    const senderPanel = findClass(source, "SenderName") || findClass(messagePanel, "SenderName");
+    const channelPanel = findClass(source, "ChannelName") || findClass(messagePanel, "ChannelName");
     const rawSender = safeText(senderPanel) || EMPTY_NAME;
     const channel = safeText(channelPanel);
-    const message = collectLabelText(contents);
+    LABEL_TEXT_BUFFER.length = 0;
+    collectLabelTextInto(contents, LABEL_TEXT_BUFFER);
+    const message = LABEL_TEXT_BUFFER.join(" ").replace(/\s+/g, " ").trim();
     const isSelf = hasClass(messagePanel, "IsSelf");
     let sender = rawSender;
 
     if (isSelf && isUnknownSender(sender)) {
-      const rememberedName = getRememberedLocalPlayerName();
-      if (rememberedName) sender = rememberedName;
+      const config = getConfig();
+      const rememberedName = String(config[LOCAL_PLAYER_NAME_KEY] || "").replace(/\s+/g, " ").trim();
+      if (shouldAcceptReadySender(rememberedName)) sender = rememberedName;
     }
 
     if (!message) return null;
@@ -516,6 +466,16 @@
 
 
 
+
+  function setPendingRow(messagePanel, pending) {
+    const rows = State.pendingRows || (State.pendingRows = []);
+    const index = rows.indexOf(messagePanel);
+    if (pending && isValid(messagePanel) && !messagePanel[LOGGED_FLAG]) {
+      if (index < 0) rows.push(messagePanel);
+    } else if (index >= 0) {
+      rows.splice(index, 1);
+    }
+  }
 
   function getChatRowDecision(record, messagePanel) {
     const message = record && record.message;
@@ -557,13 +517,33 @@
   }
 
   function consumeChatRow(messagePanel) {
-    if (!isValid(messagePanel) || messagePanel[LOGGED_FLAG]) return { status: "ignored" };
-
-    let record = readChatMessage(messagePanel);
+    if (!isValid(messagePanel)) return { status: "ignored" };
+    const record = readChatMessage(messagePanel);
+    const contentSignature = record
+      ? [record.channel || "", record.message || "", record.isSelf ? "1" : "0"].join("\n")
+      : "";
+    const rowSignature = record ? [record.sender || "", contentSignature].join("\n") : "";
+    const previousSignature = messagePanel[ROW_SIGNATURE_FLAG] || "";
+    const previousContentSignature = messagePanel[ROW_CONTENT_SIGNATURE_FLAG] || "";
+    if (messagePanel[LOGGED_FLAG]) {
+      if (previousSignature === rowSignature) return { status: "ignored" };
+      if (previousContentSignature === contentSignature && previousSignature.indexOf(EMPTY_NAME + "\n") === 0) {
+        messagePanel[ROW_SIGNATURE_FLAG] = rowSignature;
+        return { status: "ignored" };
+      }
+    }
+    if (previousSignature !== rowSignature) {
+      messagePanel[LOGGED_FLAG] = false;
+      messagePanel[UNKNOWN_RETRY_FLAG] = 0;
+      messagePanel[UNKNOWN_WAITING_FLAG] = false;
+    }
+    messagePanel[ROW_SIGNATURE_FLAG] = rowSignature;
+    messagePanel[ROW_CONTENT_SIGNATURE_FLAG] = contentSignature;
     const decision = getChatRowDecision(record, messagePanel);
-    if (decision.status !== "consumed") return { status: decision.status };
-
+    setPendingRow(messagePanel, decision.status === "delayed");
+    if (decision.status !== "consumed") return { status: decision.status, waiting: decision.waiting };
     messagePanel[LOGGED_FLAG] = true;
+    setPendingRow(messagePanel, false);
     logChatMessage(record);
     appendChatRecord(record);
     const readyMutation = mutateReadySeats(
@@ -591,7 +571,8 @@
     if (isValid(State.messages)) return State.messages;
 
     const context = $.GetContextPanel();
-    const root = getRoot(context);
+    let root = context;
+    while (root && root.GetParent && root.GetParent()) root = root.GetParent();
     const chat = isValid(State.chat) ? State.chat : findChild(root, CHAT_ROOT_ID);
     State.chat = isValid(chat) ? chat : null;
 
@@ -634,30 +615,12 @@
     try {
       globalThis.__PokerChatDebugTestHooks = {
         isReadyChatMessage: isReadyChatMessage,
-        isPartyLeaderMessage: isPartyLeaderMessage,
-        isPartyJoinMessage: isPartyJoinMessage,
-        isPartyLeaveMessage: isPartyLeaveMessage,
-        isResumeLeaderMessage: isResumeLeaderMessage,
-        isResumeReadyMessage: isResumeReadyMessage,
-        isResumeStartMessage: isResumeStartMessage,
-        normalizeMessage: normalizeMessage,
-        normalizePlayerKey: normalizePlayerKey,
-        markPlayerReady: markPlayerReady,
-        forgetReadySeat: forgetReadySeat,
-        clearReadySeats: clearReadySeats,
-        getReadySeats: getReadySeats,
-        getReadySeatArray: getReadySeatArray,
+        markPlayerReady: (record) =>
+          mutateReadySeats(isReadyChatMessage(record && record.message) ? "ready" : "", record).readyChanged,
         handleClientOutput: handleClientOutput,
         getChatMessages: getChatMessages,
-        appendChatRecord: appendChatRecord,
-        readChatMessage: readChatMessage,
-        shouldDelayUnknownSender: shouldDelayUnknownSender,
         scanChatMessages: scanChatMessages,
-        localPlayerKeys: {
-          key: LOCAL_PLAYER_KEY,
-          name: LOCAL_PLAYER_NAME_KEY,
-          pending: PENDING_SELF_ACTION_KEY,
-        },
+        PokerMetrics: PokerMetrics,
         modules: {
           BridgeContract: BridgeContract,
           ChatBridgeIntake: ChatBridgeIntake,
