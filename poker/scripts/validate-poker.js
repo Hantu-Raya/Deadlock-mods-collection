@@ -1187,10 +1187,21 @@ for (const moduleName of ['StartSync', 'CommandReducer', 'PokerEngine', 'Progres
 }
 assertIncludes('script', script, 'const ChatBridgeIntake', 'must define ChatBridgeIntake module seam');
 assertIncludes('menu script', menuScript, 'const COMMAND_DEFINITIONS', 'must define command metadata table');
-for (const [family, minimumCount] of [['party', 3], ['match', 1], ['progress', 2], ['resume', 3], ['start', 1], ['action', 2], ['ignored', 1]]) {
+for (const [family, minimumCount] of [['party', 3], ['match', 1], ['progress', 2], ['resume', 3], ['start', 1], ['ignored', 1]]) {
   const familyToken = `family: "${family}"`;
   assertEqual((menuScript.match(new RegExp(familyToken, 'g')) || []).length, minimumCount, `COMMAND_DEFINITIONS should define ${minimumCount} ${family} rows`);
 }
+assert(!menuScript.includes('family: "action"'), 'COMMAND_DEFINITIONS must delegate action syntax to PokerEngine');
+const actionWireTableStart = menuScript.indexOf('const ACTION_WIRE_TABLE = [');
+const actionWireTableEnd = menuScript.indexOf('];', actionWireTableStart);
+const actionWireTableBlock = actionWireTableStart >= 0 && actionWireTableEnd > actionWireTableStart
+  ? menuScript.slice(actionWireTableStart, actionWireTableEnd)
+  : '';
+assert(actionWireTableBlock, 'PokerEngine must expose a static action wire table');
+for (const token of ['action: "check"', 'action: "call"', 'action: "fold"', 'action: "bet"', 'action: "raise"', 'type: "all-in-unsupported"']) {
+  assertIncludes('ACTION_WIRE_TABLE', actionWireTableBlock, token, 'must recognize static action wire syntax');
+}
+assertIncludes('menu script', menuScript, 'function decodeActionWire', 'PokerEngine must decode action wire text without State.game');
 for (const type of ['party-leader', 'party-join', 'party-leave', 'match-end', 'progress-offer', 'progress-chunk', 'resume-leader', 'resume-ready', 'resume-start', 'start', 'all-in-unsupported', 'action', 'ignored']) assert(menuScript.includes(`type: "${type}"`), `COMMAND_DEFINITIONS must include ${type}`);
 for (const removedParser of ['parsePartyMessage', 'parseMatchEndMessage', 'extractPartyId', 'extractResumeId', 'parseResumeMessage', 'parseProgressShareMessage', 'getCommandParts', 'markerIndex', 'markerValue', 'decodeMarkerPlayerKey', 'parseResumeStartCommand', 'parseStartCommand', 'parsePartyCommandDefinition', 'parseMatchCommandDefinition', 'parseProgressCommandDefinition', 'parseResumeCommandDefinition', 'parseStartCommandDefinition', 'parseActionCommandDefinition', 'parseIgnoredCommandDefinition']) assert(!menuScript.includes(`function ${removedParser}`), `menu script must remove displaced ${removedParser}`);
 
