@@ -1642,11 +1642,6 @@
   }
 
 
-  const Affordance = {
-    apply: applyButtonAffordance,
-    button: applyButtonAffordance,
-    hidden: applyHiddenAffordance,
-  };
 
   function makeButtonDecision(hidden, enabled, eligible, readOnly, reason) {
     return {
@@ -1667,7 +1662,7 @@
     };
   }
 
-  function getButtonStateSnapshot(count) {
+  function getViewModelState(count) {
     return {
       game: State.game,
       party: ensureParty(),
@@ -1682,11 +1677,12 @@
       remainingPlayersWithChips: remainingPlayersWithChips(),
       currentPlayer: getCurrentPlayer(),
       localPlayer: getLocalPlayer(),
+      readySeats: getReadySeatArray(),
     };
   }
 
   function importedResumeRequiresHostedParty(snapshot) {
-    const state = snapshot || getButtonStateSnapshot();
+    const state = snapshot || getViewModelState();
     const resume = state.resume || ensureResume();
     return !!((State.resumeRequiresHostedParty || (resume && resume.hostedLeaderKey)) && resume.payload && resume.id && !isHostedImportedResumeState(state));
   }
@@ -1715,7 +1711,7 @@
   }
 
   function isHostedImportedResumeState(snapshot) {
-    const state = snapshot || getButtonStateSnapshot();
+    const state = snapshot || getViewModelState();
     const resume = state.resume || ensureResume();
     const party = state.party || ensureParty();
     if (resume.hostedLeaderKey && party.leaderKey && party.leaderKey !== resume.hostedLeaderKey) return false;
@@ -1760,8 +1756,8 @@
     return true;
   }
 
-  function getHostedResumeStartGate(snapshot) {
-    const state = snapshot || getButtonStateSnapshot();
+  function buildHostedResumeGate(snapshot) {
+    const state = snapshot || getViewModelState();
     const resume = state.resume || ensureResume();
     const party = state.party || ensureParty();
     if (!resume.payload || !resume.id) return makeGateDecision(true, false, "", "");
@@ -1781,16 +1777,13 @@
     return makeGateDecision(false, true, "NEXT SYNCED HAND", "");
   }
 
-  function canUseHostedResumeStart(snapshot) {
-    return getHostedResumeStartGate(snapshot).enabled;
-  }
-
-  function getPokerResumeGate(snapshot) {
-    const state = snapshot || getButtonStateSnapshot();
+  function buildResumeGate(snapshot, hostedResumeGate) {
+    const state = snapshot || getViewModelState();
     const resume = state.resume || ensureResume();
     const imported = !!(resume && resume.payload && resume.id);
     if (!imported) return makeGateDecision(true, false, "", "");
-    if (isHostedImportedResumeState(state)) return getHostedResumeStartGate(state);
+    const hostedGate = hostedResumeGate || (isHostedImportedResumeState(state) ? buildHostedResumeGate(state) : null);
+    if (hostedGate) return hostedGate;
     if (state.game && state.game.active) return makeGateDecision(true, false, "", "Finish the current hand before resuming.");
     if (importedResumeRequiresHostedParty(state)) return makeGateDecision(false, false, "HOST OR JOIN PARTY", "Host or join a Poker party, then have the party leader import this progress.");
     if (state.localPlayerKey !== resume.leaderKey) return makeGateDecision(true, false, "WAITING FOR RESUME LEADER", "Only " + (resume.leaderName || "<leader>") + " can start this resume.");
@@ -1809,8 +1802,8 @@
     return count;
   }
 
-  function getPokerStartGate(snapshot) {
-    const state = snapshot || getButtonStateSnapshot();
+  function buildStartGate(snapshot, resumeGate) {
+    const state = snapshot || getViewModelState();
     const game = state.game;
     const party = state.party || ensureParty();
     const resume = state.resume || ensureResume();
@@ -1818,7 +1811,7 @@
     const imported = !!(resume && resume.payload && resume.id);
     const finishedProgressAvailable = !!(game && game.finished && !game.active && (state.remainingPlayersWithChips > 1 || countGamePlayersWithChips(game) > 1));
     if (activeGame) return makeGateDecision(true, false, "", "");
-    if (imported) return getPokerResumeGate(state);
+    if (imported) return resumeGate || buildResumeGate(state);
     if (State.requiresProgressImport) return makeGateDecision(true, false, "", "Import progress before starting another imported match.");
     if (party.mode === "leader") {
       if (!party.leaderKey) return makeGateDecision(false, false, "WAITING FOR NAME", "Leader sender is not known yet.");
@@ -1831,44 +1824,41 @@
     return makeGateDecision(false, false, "HOST OR JOIN PARTY", "Host a synced table or join a [party leader] before starting.");
   }
 
-
-
   function getCustomBetCommandLabel(range, amount) {
     if (!range) return "";
     return (range.action === "bet" ? "BET $" : "RAISE TO $") + amount;
   }
 
-
-  function getPokerButtonState(snapshot) {
-    const state = snapshot || getButtonStateSnapshot();
-    const game = state.game;
-    const party = state.party || ensureParty();
-    const resume = state.resume || ensureResume();
+  function buildViewModel(state) {
+    const snapshot = state || getViewModelState();
+    const game = snapshot.game;
+    const party = snapshot.party || ensureParty();
+    const resume = snapshot.resume || ensureResume();
     const activeGame = !!(game && game.active);
     const hasGame = !!game;
-    const finishedProgressAvailable = !!(game && game.finished && !game.active && (state.remainingPlayersWithChips > 1 || countGamePlayersWithChips(game) > 1));
+    const finishedProgressAvailable = !!(game && game.finished && !game.active && (snapshot.remainingPlayersWithChips > 1 || countGamePlayersWithChips(game) > 1));
     const canUseManualImport = !!(!activeGame && !finishedProgressAvailable && party.mode === "leader" && party.id);
     const showProgressControls = !!(finishedProgressAvailable || canUseManualImport);
-    const localSeated = !!state.localPlayer;
+    const localSeated = !!snapshot.localPlayer;
     const activeObserver = activeGame && !localSeated;
     const imported = !!(resume && resume.payload && resume.id);
-    const hostedImportedResume = isHostedImportedResumeState(state);
-    const hostedPartyRequiredResume = importedResumeRequiresHostedParty(state);
-    const localSavedFunded = !!(state.localProgressEntry && getProgressBankroll(resume.payload, state.localProgressEntry.key) > 0);
-    const localIsResumeLeader = !!(imported && resume.leaderKey && state.localPlayerKey === resume.leaderKey);
-    const localAlreadyResumeReady = !!(imported && resume.ready && resume.ready[state.localPlayerKey]);
-    const hostedResumeGate = getHostedResumeStartGate(state);
+    const hostedImportedResume = isHostedImportedResumeState(snapshot);
+    const hostedPartyRequiredResume = importedResumeRequiresHostedParty(snapshot);
+    const localSavedFunded = !!(snapshot.localProgressEntry && getProgressBankroll(resume.payload, snapshot.localProgressEntry.key) > 0);
+    const localIsResumeLeader = !!(imported && resume.leaderKey && snapshot.localPlayerKey === resume.leaderKey);
+    const localAlreadyResumeReady = !!(imported && resume.ready && resume.ready[snapshot.localPlayerKey]);
+    const hostedResumeGate = buildHostedResumeGate(snapshot);
     const hostedResumeStart = hostedResumeGate.enabled;
     const needsResumeIdentity = !!(imported && !hostedPartyRequiredResume && !activeGame && !localSavedFunded);
     const canUseReadyChat = !!(!activeGame && needsResumeIdentity);
-    const startGate = getPokerStartGate(state);
-    const resumeGate = getPokerResumeGate(state);
-    const resumeProjection = ProgressResume.project(state);
+    const resumeGate = ViewModel.resumeGate(snapshot, hostedImportedResume ? hostedResumeGate : null);
+    const startGate = ViewModel.startGate(snapshot, resumeGate);
+    const resumeProjection = buildProgressProjection(snapshot, resumeGate, hostedResumeGate);
     const canJoinParty = !!(party.id && party.mode === "none" && (activeObserver || !activeGame));
     let partyStatus = "";
-    if (state.sync && (state.sync.waitingForReadySnapshot || state.sync.waitingForChatSnapshot)) partyStatus = "Syncing poker chat state...";
+    if (snapshot.sync && (snapshot.sync.waitingForReadySnapshot || snapshot.sync.waitingForChatSnapshot)) partyStatus = "Syncing poker chat state...";
     else if (activeObserver) partyStatus = "Join now to wait for the next hand.";
-    else if (needsResumeIdentity && !state.localPlayerKey) partyStatus = "Identify yourself with READY UP so Deadlock exposes your saved player name; resume controls will unlock after that.";
+    else if (needsResumeIdentity && !snapshot.localPlayerKey) partyStatus = "Identify yourself with READY UP so Deadlock exposes your saved player name; resume controls will unlock after that.";
     else if (needsResumeIdentity) partyStatus = "Detected sender is not in this imported progress. Use READY UP or reopen party chat from a saved player to unlock resume controls.";
     else if (hostedImportedResume && party.mode === "leader" && hostedResumeGate.enabled) partyStatus = "Ready from imported progress. Click NEXT SYNCED HAND to start.";
     else if (hostedImportedResume && party.mode === "leader") partyStatus = hostedResumeGate.reason || "";
@@ -1879,13 +1869,13 @@
 
     let actionHint = "";
     let actionChoices = [];
-    if (activeGame && state.currentPlayer) {
-      const turn = PokerEngine.actions(game, state.currentPlayer.key, state.localPlayer && state.localPlayer.key);
-      if (!state.localPlayer) {
-        actionHint = "Chat sender unknown. Turn: " + state.currentPlayer.name + ". Type ready or reopen party chat so Deadlock exposes your name before acting.";
+    if (activeGame && snapshot.currentPlayer) {
+      const turn = PokerEngine.actions(game, snapshot.currentPlayer.key, snapshot.localPlayer && snapshot.localPlayer.key);
+      if (!snapshot.localPlayer) {
+        actionHint = "Chat sender unknown. Turn: " + snapshot.currentPlayer.name + ". Type ready or reopen party chat so Deadlock exposes your name before acting.";
         actionChoices = turn.actionChoices;
-      } else if (state.currentPlayer.key !== state.localPlayer.key) {
-        actionHint = "Waiting for " + state.currentPlayer.name + ". Their available choices are shown read-only below.";
+      } else if (snapshot.currentPlayer.key !== snapshot.localPlayer.key) {
+        actionHint = "Waiting for " + snapshot.currentPlayer.name + ". Their available choices are shown read-only below.";
         actionChoices = turn.actionChoices;
       } else {
         actionHint = turn.statusText;
@@ -1893,8 +1883,10 @@
       }
     }
 
-    const resumeStatus = resumeProjection.resumeStatus;
+    const playerRows = buildPlayerRenderModelForState(snapshot);
+    const tableModel = buildTableRenderModelForState(snapshot, playerRows);
     return {
+      state: snapshot,
       controls: {
         readyChat: makeButtonDecision(!canUseReadyChat, canUseReadyChat, false, false, ""),
         partyControls: { hidden: activeGame && !activeObserver },
@@ -1917,25 +1909,21 @@
         startLabel: startGate.label,
         partyStatus: partyStatus,
         progressCodeLabel: resumeProjection.progressLabel,
-        resumeStatus: resumeStatus,
+        resumeStatus: resumeProjection.resumeStatus,
         actionHint: actionHint,
       },
       actionChoices: actionChoices,
-      gates: {
-        start: startGate,
-        resume: resumeGate,
-      },
+      playerRows: playerRows,
+      table: tableModel,
+      progress: resumeProjection,
+      gates: { start: startGate, resume: resumeGate, hostedResume: hostedResumeGate },
     };
   }
 
-  function getCurrentButtonState(count) {
-    return PokerButtonState.get(getButtonStateSnapshot(count));
-  }
-
-  const PokerButtonState = {
-    get: getPokerButtonState,
-    getStartGate: getPokerStartGate,
-    getResumeGate: getPokerResumeGate,
+  const ViewModel = {
+    build: buildViewModel,
+    startGate: buildStartGate,
+    resumeGate: buildResumeGate,
   };
   function cancelHostedLobbyOnClose() {
     const party = ensureParty();
@@ -2284,9 +2272,6 @@
     }
   }
 
-  function getResumeGate() {
-    return PokerButtonState.getResumeGate(getButtonStateSnapshot());
-  }
 
   function buildResumeLeaderOrderKey(resume) {
     const state = resume || ensureResume();
@@ -2336,35 +2321,33 @@
     }
   }
 
-  function renderProgressControls(buttonState) {
-    const state = buttonState || getCurrentButtonState();
-    Affordance.hidden(State.progressControls, state.controls.progressControls.hidden);
-    Affordance.button(State.exportProgressButton, state.controls.exportProgress);
-    Affordance.button(State.importProgressButton, state.controls.importProgress);
-    Affordance.button(State.progressCodeInput, state.controls.progressCodeInput);
-    Affordance.hidden(State.resumeControls, state.controls.resumeControls.hidden);
-    Affordance.hidden(State.resumeLeaderList, state.controls.resumeLeaderList.hidden);
-    Affordance.button(State.resumeLeaderButton, state.controls.resumeLeader);
-    Affordance.button(State.resumeReadyButton, state.controls.resumeReady);
+  function renderProgressControls(viewModel) {
+    const state = viewModel || ViewModel.build();
+    applyHiddenAffordance(State.progressControls, state.controls.progressControls.hidden);
+    applyButtonAffordance(State.exportProgressButton, state.controls.exportProgress);
+    applyButtonAffordance(State.importProgressButton, state.controls.importProgress);
+    applyButtonAffordance(State.progressCodeInput, state.controls.progressCodeInput);
+    applyHiddenAffordance(State.resumeControls, state.controls.resumeControls.hidden);
+    applyHiddenAffordance(State.resumeLeaderList, state.controls.resumeLeaderList.hidden);
+    applyButtonAffordance(State.resumeLeaderButton, state.controls.resumeLeader);
+    applyButtonAffordance(State.resumeReadyButton, state.controls.resumeReady);
     setText(State.progressCodeLabel, state.text.progressCodeLabel);
     setText(State.resumeStatus, state.text.resumeStatus);
     renderResumeLeaderRows();
   }
 
-  function getStartGate(count) {
-    return PokerButtonState.getStartGate(getButtonStateSnapshot(count));
-  }
-
-  function updateStartButton(count, buttonState) {
-    const state = buttonState || getCurrentButtonState(count);
-    Affordance.button(State.startButton, state.controls.start);
-    Affordance.button(State.readyChatButton, state.controls.readyChat);
-    Affordance.hidden(State.partyControls, state.controls.partyControls.hidden);
-    Affordance.button(State.partyHostButton, state.controls.partyHost);
-    Affordance.button(State.partyJoinButton, state.controls.partyJoin);
+  function updateStartButton(count, viewModel) {
+    const state = viewModel || ViewModel.build(getViewModelState(count));
+    applyButtonAffordance(State.startButton, state.controls.start);
+    applyButtonAffordance(State.readyChatButton, state.controls.readyChat);
+    applyHiddenAffordance(State.partyControls, state.controls.partyControls.hidden);
+    applyButtonAffordance(State.partyHostButton, state.controls.partyHost);
+    applyButtonAffordance(State.partyJoinButton, state.controls.partyJoin);
     setText(State.startButtonLabel, state.text.startLabel);
     if (state.text.partyStatus) setText(State.partyStatus, state.text.partyStatus);
   }
+
+
 
   function updateReadySeats(force) {
     cachePanels();
@@ -2655,9 +2638,9 @@
 
 
   function canShareImportedProgressFromHostedLeader(payload) {
-    const state = getButtonStateSnapshot();
-    const gate = getHostedResumeStartGate(state);
-    return !!(payload && isHostedImportedResumeState(state) && state.party && state.party.mode === "leader" && gate.enabled);
+    const state = getViewModelState();
+    const viewModel = ViewModel.build(state);
+    return !!(payload && isHostedImportedResumeState(state) && state.party && state.party.mode === "leader" && viewModel.gates.hostedResume.enabled);
   }
 
   function isProgressShareInProgressForResume(resume) {
@@ -2711,7 +2694,7 @@
   }
 
   function sendPartyLeaderCommand() {
-    const decision = getCurrentButtonState().controls.partyHost;
+    const decision = ViewModel.build().controls.partyHost;
     if (!decision.enabled) {
       if (State.game && State.game.active) setStatus("Finish the current hand before changing party leader.");
       else if (ensureParty().mode === "leader") setStatus("Already hosting this party.");
@@ -2743,7 +2726,7 @@
     const party = ensureParty();
     const activeGame = !!(State.game && State.game.active);
     const localSeated = !!findGamePlayerByKey(State.localPlayerKey);
-    const decision = getCurrentButtonState().controls.partyJoin;
+    const decision = ViewModel.build().controls.partyJoin;
     if (!decision.enabled) {
       if (!party.id) setStatus("Looking for a [party leader] message. Click JOIN PARTY again if the host just pressed HOST PARTY.", STATUS_PRIORITY.gate);
       else if (activeGame && localSeated) setStatus("You are already seated in this hand.");
@@ -2784,7 +2767,7 @@
   }
 
   function copyProgressCode() {
-    const decision = getCurrentButtonState().controls.exportProgress;
+    const decision = ViewModel.build().controls.exportProgress;
     if (!decision.enabled && State.game && State.game.active) {
       setStatus("Finish the current hand before copying progress.");
       RenderScheduler.immediate("copy-progress-invalid");
@@ -2804,7 +2787,7 @@
   }
 
   function importProgressCodeFromInput() {
-    const decision = getCurrentButtonState().controls.importProgress;
+    const decision = ViewModel.build().controls.importProgress;
     if (!decision.enabled && State.game && State.game.active) {
       setStatus("Finish the current hand before importing progress.");
       RenderScheduler.immediate("import-progress-invalid");
@@ -2834,7 +2817,7 @@
 
   function sendResumeLeaderCommand() {
     const resume = ensureResume();
-    const decision = getCurrentButtonState().controls.resumeLeader;
+    const decision = ViewModel.build().controls.resumeLeader;
     if (!decision.enabled) {
       if (!resume.payload) setStatus("Import progress before choosing a resume leader.");
       else if (State.game && State.game.active) setStatus("Finish the current hand before choosing a resume leader.");
@@ -2849,7 +2832,7 @@
 
   function sendResumeReadyCommand() {
     const resume = ensureResume();
-    const decision = getCurrentButtonState().controls.resumeReady;
+    const decision = ViewModel.build().controls.resumeReady;
     if (!decision.enabled) {
       if (!resume.payload) setStatus("Import progress before readying resume.");
       else if (State.game && State.game.active) setStatus("Finish the current hand before readying resume.");
@@ -2879,8 +2862,12 @@
 
   function sendResumeStartCommand() {
     const resume = ensureResume();
-    if (canUseHostedResumeStart(getButtonStateSnapshot())) selectHostedResumeLeader(resume);
-    const gate = getResumeGate();
+    let viewModel = ViewModel.build();
+    if (viewModel.gates.hostedResume.enabled) {
+      selectHostedResumeLeader(resume);
+      viewModel = ViewModel.build();
+    }
+    const gate = viewModel.gates.resume;
     if (!gate.enabled) {
       setStatus(gate.reason || gate.label || "Select and sync a resume leader before resuming.");
       RenderScheduler.immediate("resume-start-invalid");
@@ -2990,8 +2977,8 @@
     return rejectedCommandEffect(created.status || "Cannot resume; saved dealer state is invalid.", "status");
   }
 
-  function getProgressResumeProjection(snapshot) {
-    const state = snapshot || getButtonStateSnapshot();
+  function buildProgressProjection(snapshot, resumeGate, hostedResumeGate) {
+    const state = snapshot || getViewModelState();
     const resume = state.resume || ensureResume();
     const party = state.party || ensureParty();
     const imported = !!(resume && resume.payload && resume.id);
@@ -3002,11 +2989,11 @@
     const localAlreadyReady = !!(imported && resume.ready && resume.ready[state.localPlayerKey]);
     const readyCount = countReadySavedPlayers(resume, false);
     const fundedCount = (state.resumeRoster || []).length;
-    const resumeGate = getPokerResumeGate(state);
-    const hostedResumeGate = getHostedResumeStartGate(state);
+    const gate = resumeGate || ViewModel.resumeGate(state);
+    const hostedGate = hostedResumeGate || buildHostedResumeGate(state);
     let resumeStatus = imported ? (hostedPartyRequired ? "Imported progress loaded. Host or join a party; the party leader imports progress and starts NEXT SYNCED HAND." : "Leader: " + (resume.leaderName || "none") + ". Ready: " + readyCount + "/" + fundedCount + ".") : "Import progress to choose a resume leader.";
-    if (hostedImported && party.mode === "leader" && hostedResumeGate.enabled) resumeStatus = "Ready from imported progress. Click NEXT SYNCED HAND to start.";
-    else if (hostedImported && party.mode === "leader") resumeStatus = hostedResumeGate.reason || "Waiting to start synced imported progress.";
+    if (hostedImported && party.mode === "leader" && hostedGate.enabled) resumeStatus = "Ready from imported progress. Click NEXT SYNCED HAND to start.";
+    else if (hostedImported && party.mode === "leader") resumeStatus = hostedGate.reason || "Waiting to start synced imported progress.";
     else if (hostedImported) resumeStatus = "Imported progress. Waiting for " + (party.leaderName || "<leader>") + " to start NEXT SYNCED HAND.";
     return {
       imported: imported,
@@ -3019,18 +3006,7 @@
       fundedCount: fundedCount,
       progressLabel: imported ? "Imported progress " + resume.id + "." : "Finish a hand to copy progress, or paste a code to resume.",
       resumeStatus: resumeStatus,
-      partyStatus: (state.sync && (state.sync.waitingForReadySnapshot || state.sync.waitingForChatSnapshot)) ? "Syncing poker chat state..." : (imported ? resumeGate.reason : ""),
-      controls: {
-        progressControls: { hidden: false },
-        exportProgress: makeButtonDecision(false, true, true, false, ""),
-        importProgress: makeButtonDecision(false, true, true, false, ""),
-        progressCodeInput: makeButtonDecision(false, true, true, false, ""),
-        resumeControls: { hidden: !imported || !!(state.game && state.game.active) },
-        resumeLeader: makeButtonDecision(false, false, false, false, ""),
-        resumeReady: makeButtonDecision(false, false, false, false, ""),
-        resumeLeaderList: { hidden: !imported },
-      },
-      gates: { resume: resumeGate, hostedResume: hostedResumeGate },
+      partyStatus: (state.sync && (state.sync.waitingForReadySnapshot || state.sync.waitingForChatSnapshot)) ? "Syncing poker chat state..." : (imported ? gate.reason : ""),
     };
   }
 
@@ -3066,7 +3042,6 @@
     importCode: importProgressSaveCode,
     applyCommand: applyProgressResumeCommand,
     shareImported: shareImportedProgressFromHostedLeader,
-    project: getProgressResumeProjection,
   };
 
   function hashString(text) {
@@ -3078,7 +3053,6 @@
     }
     return hash >>> 0;
   }
-
   function seededRandom(seed) {
     let value = seed >>> 0;
     return function rand() {
@@ -3389,7 +3363,8 @@
   }
 
   function sendStartCommand() {
-    const gate = getStartGate(State.readyCountValue || getReadySeatArray().length);
+    const viewModel = ViewModel.build(getViewModelState(State.readyCountValue || getReadySeatArray().length));
+    const gate = viewModel.gates.start;
     if (State.resume && State.resume.payload) {
       sendResumeStartCommand();
       return;
@@ -5011,10 +4986,11 @@
 
 
 
-  function getPlayerRenderSource() {
-    const game = State.game;
+  function getPlayerRenderSource(snapshot) {
+    const state = snapshot || {};
+    const game = state.game !== undefined ? state.game : State.game;
     if (game && game.players.length) return game.players.slice(0, MAX_TABLE_PLAYERS);
-    const resume = State.resume;
+    const resume = state.resume || State.resume;
     if (resume && resume.payload && resume.payload.roster && resume.payload.roster.length) {
       const roster = [];
       for (let i = 0; i < resume.payload.roster.length; i += 1) {
@@ -5022,17 +4998,18 @@
         const key = normalizePlayerKey(entry.key || entry.name);
         const stack = getProgressBankroll(resume.payload, key);
         if (!key || stack <= 0) continue;
-        let state = "WAITING";
-        if (resume.leaderKey === key) state = "LEADER";
-        else if (resume.ready && resume.ready[key]) state = "READY";
-        roster.push(makeRenderPlayer(key, entry.name || key, stack, state));
+        let playerState = "WAITING";
+        if (resume.leaderKey === key) playerState = "LEADER";
+        else if (resume.ready && resume.ready[key]) playerState = "READY";
+        roster.push(makeRenderPlayer(key, entry.name || key, stack, playerState));
       }
       if (roster.length) return roster;
     }
-    const readySeats = getReadySeatArray().map((seat) => makeRenderPlayer(normalizePlayerKey(seat.name), seat.name, STARTING_STACK));
+    const readySource = state.readySeats || getReadySeatArray();
+    const readySeats = readySource.map((seat) => makeRenderPlayer(normalizePlayerKey(seat.name), seat.name, STARTING_STACK));
     if (readySeats.length) return readySeats;
-    const party = ensureParty();
-    if (!State.requiresProgressImport && !(State.resume && State.resume.id) && party && party.order && party.order.length >= MIN_READY_PLAYERS) {
+    const party = state.party || ensureParty();
+    if (!State.requiresProgressImport && !(resume && resume.id) && party && party.order && party.order.length >= MIN_READY_PLAYERS) {
       const roster = [];
       for (let i = 0; i < party.order.length; i += 1) {
         const key = normalizePlayerKey(party.order[i]);
@@ -5077,10 +5054,10 @@
     deletePanel(row && row.row);
   }
 
-  function renderPlayers() {
+  function renderPlayers(viewModel) {
     if (!isValid(State.players)) return;
     const metricStarted = PokerMetrics.start("renderPlayers");
-    const rows = buildPlayerRenderModel();
+    const rows = viewModel && viewModel.playerRows ? viewModel.playerRows : buildPlayerRenderModel();
     const orderKey = rows.map((row) => row.key).join("|");
     if (State.renderCache.playerOrderKey && State.renderCache.playerOrderKey !== orderKey) {
       clearChildren(State.players);
@@ -5110,25 +5087,28 @@
     };
   }
 
-  function buildPlayerRenderModel() {
-    const game = State.game;
-    const source = getPlayerRenderSource();
+  function buildPlayerRenderModelForState(state) {
+    const snapshot = state || {};
+    const game = snapshot.game !== undefined ? snapshot.game : State.game;
+    const source = getPlayerRenderSource(snapshot);
     const rows = [];
-    for (let i = 0; i < source.length; i += 1) {
-      rows.push(buildSharedPlayerProjection(game, source[i], i));
-    }
+    for (let i = 0; i < source.length; i += 1) rows.push(buildSharedPlayerProjection(game, source[i], i));
     return rows;
   }
 
-  function buildTableRenderModel() {
-    const game = State.game;
-    const source = getPlayerRenderSource();
-    const visible = source.slice(0, TABLE_EDGE_SEAT_LIMIT);
+  function buildPlayerRenderModel() {
+    return buildPlayerRenderModelForState(getViewModelState());
+  }
+
+  function buildTableRenderModelForState(state, playerRows) {
+    const snapshot = state || {};
+    const game = snapshot.game !== undefined ? snapshot.game : State.game;
+    const projections = playerRows || buildPlayerRenderModelForState(snapshot);
+    const visible = projections.slice(0, TABLE_EDGE_SEAT_LIMIT);
     const densityClass = visible.length <= 6 ? "SeatScaleLarge" : (visible.length <= 8 ? "SeatScaleMedium" : "SeatScaleCompact");
     const rows = [];
     for (let i = 0; i < visible.length; i += 1) {
-      const player = visible[i];
-      const projection = buildSharedPlayerProjection(game, player, i);
+      const projection = visible[i];
       rows.push({
         key: projection.key,
         name: projection.name,
@@ -5136,7 +5116,7 @@
         stackText: projection.stackText,
         stateText: projection.stateText,
         cards: projection.cards,
-        positionClass: getTableSeatPositionClass(i, Math.min(source.length, TABLE_EDGE_SEAT_LIMIT)),
+        positionClass: getTableSeatPositionClass(i, Math.min(projections.length, TABLE_EDGE_SEAT_LIMIT)),
         densityClass: densityClass,
         classes: projection.classes,
       });
@@ -5146,6 +5126,10 @@
       arrowClass: game && game.active && game.currentIndex >= 0 ? getTableSeatPositionClass(game.currentIndex, Math.min(visible.length, TABLE_EDGE_SEAT_LIMIT)) : "",
       hidden: !game,
     };
+  }
+
+  function buildTableRenderModel() {
+    return buildTableRenderModelForState(getViewModelState());
   }
 
   function updateKeyedRows(cache, parent, models, createRow, updateRow, deleteRow) {
@@ -5244,10 +5228,10 @@
     deletePanel(row && row.seat);
   }
 
-  function renderTableSeats() {
+  function renderTableSeats(viewModel) {
     if (!isValid(State.tableSeats)) return;
     const metricStarted = PokerMetrics.start("renderTableSeats");
-    const model = buildTableRenderModel();
+    const model = viewModel && viewModel.table ? viewModel.table : buildTableRenderModel();
     const orderKey = model.rows.map((row) => row.key).join("|");
     if (State.renderCache.tableSeatOrderKey !== orderKey) {
       clearChildren(State.tableSeats);
@@ -5466,7 +5450,7 @@
   function updateActionButtonRow(row, choice) {
     const enabled = choice.enabled !== false;
     const readOnly = !!choice.readOnly;
-    Affordance.button(row.button, { enabled: enabled, hidden: false, eligible: enabled, readOnly: readOnly });
+    applyButtonAffordance(row.button, { enabled: enabled, hidden: false, eligible: enabled, readOnly: readOnly });
     setText(row.label, choice.label);
     const changed = row.lastCommand !== choice.command || row.lastLabel !== choice.label || row.lastEnabled !== enabled || row.lastReadOnly !== readOnly;
     if (changed) {
@@ -5495,9 +5479,9 @@
   function renderActions(buttonState) {
     if (!isValid(State.actions)) return;
     const metricStarted = PokerMetrics.start("renderActions");
-    const state = buttonState || getCurrentButtonState();
+    const state = buttonState || ViewModel.build();
     State.renderCache.actionButtons = State.renderCache.actionButtons || {};
-    Affordance.hidden(State.actions, state.controls.actionContainer.hidden);
+    applyHiddenAffordance(State.actions, state.controls.actionContainer.hidden);
     if (state.controls.actionContainer.hidden) {
       const cachedKeys = Object.keys(State.renderCache.actionButtons);
       deleteActionRows();
@@ -5532,7 +5516,7 @@
     }
 
     const buttonParent = getActionButtonParent();
-    Affordance.hidden(buttonParent, !hasButtons);
+    applyHiddenAffordance(buttonParent, !hasButtons);
     let customBetChoice = null;
     for (let i = 0; i < choices.length; i += 1) {
       if (choices[i] && choices[i].customBet) {
@@ -5607,14 +5591,14 @@
 
   function updateMatchPanels(buttonState) {
     const hasGame = !!State.game;
-    const state = buttonState || getCurrentButtonState();
+    const state = buttonState || ViewModel.build();
     setPanelClass(State.tableSurface, CLASSES.hidden, false);
     setPanelClass(State.players, CLASSES.hidden, false);
     setPanelClass(State.seatsList, CLASSES.hidden, true);
     setPanelClass(State.tableSeats, CLASSES.hidden, !hasGame);
     setPanelClass(State.log, CLASSES.hidden, !hasGame);
-    Affordance.button(State.endButton, state.controls.endMatch);
-    Affordance.button(State.leaveLobbyButton, state.controls.leaveLobby);
+    applyButtonAffordance(State.endButton, state.controls.endMatch);
+    applyButtonAffordance(State.leaveLobbyButton, state.controls.leaveLobby);
   }
 
   function renderGame() {
@@ -5627,15 +5611,15 @@
     const game = State.game;
     const hasGame = !!game;
     const readyCount = State.readyCountValue || getReadySeatArray().length;
-    const buttonState = getCurrentButtonState(readyCount);
+    const buttonState = ViewModel.build(getViewModelState(readyCount));
     renderPotCenter(game);
     setText(State.phase, game ? String(game.phase || "lobby").toUpperCase() : "LOBBY");
     updateMatchPanels(buttonState);
     if (game && game.active) setStatus(buttonState.text.actionHint || getActionStatusText());
     renderAnnouncer();
     renderCommunity();
-    renderPlayers();
-    if (hasGame) renderTableSeats();
+    renderPlayers(buttonState);
+    if (hasGame) renderTableSeats(buttonState);
     renderActions(buttonState);
     renderLog();
     renderProgressControls(buttonState);
@@ -5845,7 +5829,6 @@
         getReadySeats: getReadySeats,
         getReadySeatArray: getReadySeatArray,
         isStartEligible: isStartEligible,
-        getStartGate: getStartGate,
         updateReadySeats: updateReadySeats,
         handleReadyEvent: handleBridgeEvent,
         requestReadySnapshot: requestReadySnapshot,
@@ -5872,8 +5855,6 @@
           PendingSelfAction: PendingSelfAction,
           CardPresenter: CardPresenter,
           TableRenderer: TableRenderer,
-          Affordance: Affordance,
-          PokerButtonState: PokerButtonState,
           PokerMetrics: PokerMetrics,
           RenderScheduler: RenderScheduler,
           PanelCache: PanelCache,
