@@ -370,6 +370,49 @@ function potAmountTexts(runtime) {
     center: panelText(findPanel(runtime, 'PokerPotCenterAmount')),
   };
 }
+function captureRendererTransitionSurface(runtime) {
+  const players = renderedPlayerRows(runtime);
+  const tableSeats = renderedTableSeats(runtime);
+  const communityCards = findDescendantsWithClass(findPanel(runtime, 'PokerCommunityCards'), 'PokerCard', []);
+  const potChips = findDescendantsWithClass(findPanel(runtime, 'PokerPotChips'), 'PokerPotChip', []);
+  const logRows = findDescendantsWithClass(findPanel(runtime, 'PokerGameLog'), 'PokerLogLine', []);
+  const actionButtons = renderedActionButtons(runtime);
+  return {
+    playerRows: players.map((entry) => ({
+      name: entry.name,
+      panel: capturePanelIdentity(entry.panel),
+      cards: findDescendantsWithClass(entry.panel, 'PokerCard', []).map(capturePanelIdentity),
+      cardKeys: entry.cardKeys.slice(),
+    })),
+    tableSeats: tableSeats.map((entry) => ({
+      name: entry.name,
+      panel: capturePanelIdentity(entry.panel),
+      cards: findDescendantsWithClass(entry.panel, 'PokerCard', []).map(capturePanelIdentity),
+      cardKeys: entry.cardKeys.slice(),
+    })),
+    communityCards: communityCards.map(capturePanelIdentity),
+    potChips: potChips.map(capturePanelIdentity),
+    logRows: logRows.map(capturePanelIdentity),
+    actionButtons: actionButtons.map((entry) => capturePanelIdentity(entry.panel)),
+    parents: {
+      players: findPanel(runtime, 'PokerPlayersList'),
+      tableSeats: findPanel(runtime, 'PokerTableSeats'),
+      communityCards: findPanel(runtime, 'PokerCommunityCards'),
+      potChips: findPanel(runtime, 'PokerPotChips'),
+      log: findPanel(runtime, 'PokerGameLog'),
+      actions: findPanel(runtime, 'PokerActionButtons'),
+    },
+  };
+}
+function assertSamePanelIdentityList(actual, expected, message) {
+  assertEqual(actual.length, expected.length, `${message} length`);
+  for (let i = 0; i < Math.min(actual.length, expected.length); i += 1) {
+    assert(actual[i] === expected[i], `${message} panel ${i}`);
+  }
+}
+
+
+
 
 
 function assertHookFunction(hooks, name, message) {
@@ -3309,6 +3352,228 @@ if (hooks) {
       assertPanelHidden(potLifecycleRuntime.runtime, 'PokerPotChips', 'zero-pot chip lifecycle');
       assertEqual(findDescendantsWithClass(findPanel(potLifecycleRuntime.runtime, 'PokerPotChips'), 'PokerPotChip', []).length, 0, 'zero-pot chip lifecycle should remove all chip panels');
     }
+  }
+
+  const rendererTransitionRuntime = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'renderer-transition-first');
+  if (rendererTransitionRuntime.hooks && rendererTransitionRuntime.game) {
+    const transitionRuntime = rendererTransitionRuntime.runtime;
+    const transitionHooks = rendererTransitionRuntime.hooks;
+    const transitionNames = ['Abrams', 'Bebop', 'Calico'];
+    transitionHooks.handleReadyEvent(readyPayload('Abrams', 50, true));
+    transitionHooks.modules.TableRenderer.renderGame();
+    drainScheduledCallbacks(transitionRuntime, 256);
+    const activeSurface = captureRendererTransitionSurface(transitionRuntime);
+    assertEqual(transitionHooks.state.game.active, true, 'renderer transition active fixture should start with an active hand');
+    assertEqual(activeSurface.playerRows.length, 3, 'renderer transition active fixture should render three player rows');
+    assertEqual(activeSurface.tableSeats.length, 3, 'renderer transition active fixture should render three table seats');
+    assertEqual(activeSurface.communityCards.length, 5, 'renderer transition active fixture should render five community card panels');
+    assertGreaterThan(activeSurface.potChips.length, 0, 'renderer transition active fixture should render pot chip panels');
+    assertGreaterThan(activeSurface.logRows.length, 0, 'renderer transition active fixture should render hand log rows');
+    assertGreaterThan(activeSurface.actionButtons.length, 0, 'renderer transition active fixture should render semantic action buttons');
+    for (const surfaceRow of activeSurface.playerRows) {
+      assertEqual(
+        surfaceRow.cardKeys.length,
+        2,
+        `renderer transition active fixture should render two hole-card slots for ${surfaceRow.name}`,
+      );
+      assert(
+        surfaceRow.name === 'Abrams'
+          ? surfaceRow.cardKeys.every((key) => key !== '??')
+          : surfaceRow.cardKeys.every((key) => key === '??'),
+        `renderer transition active fixture should reveal only Abrams hole cards for ${surfaceRow.name}`,
+      );
+    }
+    for (const surfaceRow of activeSurface.tableSeats) {
+      assert(
+        surfaceRow.name === 'Abrams'
+          ? surfaceRow.cardKeys.every((key) => key !== '??')
+          : surfaceRow.cardKeys.every((key) => key === '??'),
+        `renderer transition active fixture should mirror local-only table card reveal for ${surfaceRow.name}`,
+      );
+    }
+
+    let foldSteps = 0;
+    while (transitionHooks.state.game && transitionHooks.state.game.active && foldSteps < 8) {
+      const actor = transitionHooks.state.game.players[transitionHooks.state.game.currentIndex];
+      assert(actor, 'renderer transition finish fixture should have a current actor for every fold');
+      if (!actor) break;
+      transitionHooks.processChatRecord({ sender: actor.name, message: 'fold' });
+      drainScheduledCallbacks(transitionRuntime, 256);
+      foldSteps += 1;
+    }
+    assert(foldSteps > 0, 'renderer transition finish fixture should submit at least one public fold action');
+    assertEqual(transitionHooks.state.game.active, false, 'renderer transition finish fixture should reach an inactive hand');
+    assertEqual(transitionHooks.state.game.finished, true, 'renderer transition finish fixture should reach a finished hand');
+    assertEqual(transitionHooks.state.game.phase, 'finished', 'renderer transition finish fixture should expose the finished phase');
+    transitionHooks.modules.TableRenderer.renderGame();
+    drainScheduledCallbacks(transitionRuntime, 256);
+    const finishedSurface = captureRendererTransitionSurface(transitionRuntime);
+    assertEqual(finishedSurface.playerRows.length, activeSurface.playerRows.length, 'renderer transition finished fixture should keep the full player surface');
+    assertEqual(finishedSurface.tableSeats.length, activeSurface.tableSeats.length, 'renderer transition finished fixture should keep the full table surface');
+    assertEqual(finishedSurface.actionButtons.length, 0, 'renderer transition finished fixture should clear stale action buttons');
+    assertEqual(finishedSurface.potChips.length, 0, 'renderer transition finished fixture should clear stale pot chips after payout');
+    assert(
+      finishedSurface.logRows.length > activeSurface.logRows.length,
+      'renderer transition finished fixture should append fold and winner log rows',
+    );
+    for (const name of transitionNames) {
+      const activePlayer = activeSurface.playerRows.find((entry) => entry.name === name);
+      const finishedPlayer = finishedSurface.playerRows.find((entry) => entry.name === name);
+      const activeSeat = activeSurface.tableSeats.find((entry) => entry.name === name);
+      const finishedSeat = finishedSurface.tableSeats.find((entry) => entry.name === name);
+      assert(activePlayer && finishedPlayer, `renderer transition finished fixture should retain ${name} player row`);
+      assert(activeSeat && finishedSeat, `renderer transition finished fixture should retain ${name} table seat`);
+      if (activePlayer && finishedPlayer) {
+        assert(finishedPlayer.panel === activePlayer.panel, `renderer transition finished fixture should reuse ${name} player row identity`);
+        assertSamePanelIdentityList(
+          finishedPlayer.cards,
+          activePlayer.cards,
+          `renderer transition finished fixture should reuse ${name} player card panel identities`,
+        );
+        assert(finishedPlayer.cardKeys.every((key) => key !== '??'), `renderer transition finished fixture should reveal ${name} cards`);
+      }
+      if (activeSeat && finishedSeat) {
+        assert(finishedSeat.panel === activeSeat.panel, `renderer transition finished fixture should reuse ${name} table seat identity`);
+        assertSamePanelIdentityList(
+          finishedSeat.cards,
+          activeSeat.cards,
+          `renderer transition finished fixture should reuse ${name} table card panel identities`,
+        );
+        assert(finishedSeat.cardKeys.every((key) => key !== '??'), `renderer transition finished fixture should reveal ${name} table cards`);
+      }
+    }
+    for (let i = 0; i < activeSurface.communityCards.length; i += 1) {
+      assert(
+        finishedSurface.communityCards[i] === activeSurface.communityCards[i],
+        `renderer transition finished fixture should reuse community card panel ${i}`,
+      );
+    }
+    for (const panel of activeSurface.potChips) {
+      assert(panel.deleted, 'renderer transition finished fixture should delete stale active pot chip panels');
+    }
+    for (const panel of activeSurface.actionButtons) {
+      assert(panel.deleted, 'renderer transition finished fixture should delete stale active action button panels');
+    }
+    for (let i = 0; i < activeSurface.logRows.length; i += 1) {
+      assert(
+        finishedSurface.logRows[i] === activeSurface.logRows[i],
+        `renderer transition finished fixture should reuse existing log row ${i}`,
+      );
+    }
+
+    const nextRoster = [
+      { key: 'calico', name: 'Calico' },
+      { key: 'abrams', name: 'Abrams' },
+      { key: 'bebop', name: 'Bebop' },
+    ];
+    const nextStart = transitionHooks.buildSynchronizedStartCommand('renderer-transition-next', nextRoster, 2);
+    transitionHooks.processChatRecord({ sender: 'Abrams', message: nextStart });
+    drainScheduledCallbacks(transitionRuntime, 256);
+    transitionHooks.modules.TableRenderer.renderGame();
+    drainScheduledCallbacks(transitionRuntime, 256);
+    const nextSurface = captureRendererTransitionSurface(transitionRuntime);
+    assertEqual(transitionHooks.state.game.active, true, 'renderer transition next-active fixture should start a new active hand');
+    assertEqual(transitionHooks.state.game.finished, false, 'renderer transition next-active fixture should clear finished state');
+    assertEqual(transitionHooks.state.game.handNumber, 2, 'renderer transition next-active fixture should advance hand number');
+    assertEqual(
+      JSON.stringify(nextSurface.playerRows.map((entry) => entry.name)),
+      JSON.stringify(nextRoster.map((entry) => entry.name)),
+      'renderer transition next-active fixture should apply the changed player order',
+    );
+    assertEqual(
+      JSON.stringify(nextSurface.tableSeats.map((entry) => entry.name)),
+      JSON.stringify(nextRoster.map((entry) => entry.name)),
+      'renderer transition next-active fixture should apply the changed table-seat order',
+    );
+    assertGreaterThan(nextSurface.potChips.length, 0, 'renderer transition next-active fixture should restore pot chips');
+    assertEqual(nextSurface.actionButtons.length, activeSurface.actionButtons.length, 'renderer transition next-active fixture should restore action buttons');
+    assertEqual(nextSurface.logRows.length, activeSurface.logRows.length, 'renderer transition next-active fixture should clear stale finished log rows');
+    for (const name of transitionNames) {
+      const activePlayer = activeSurface.playerRows.find((entry) => entry.name === name);
+      const nextPlayer = nextSurface.playerRows.find((entry) => entry.name === name);
+      const activeSeat = activeSurface.tableSeats.find((entry) => entry.name === name);
+      const nextSeat = nextSurface.tableSeats.find((entry) => entry.name === name);
+      assert(activePlayer && nextPlayer, `renderer transition next-active fixture should retain ${name} player row`);
+      assert(activeSeat && nextSeat, `renderer transition next-active fixture should retain ${name} table seat`);
+      if (activePlayer && nextPlayer) {
+        assert(nextPlayer.panel === activePlayer.panel, `renderer transition next-active fixture should reuse keyed ${name} player row after reorder`);
+        assertSamePanelIdentityList(
+          nextPlayer.cards,
+          activePlayer.cards,
+          `renderer transition next-active fixture should reuse keyed ${name} player card panels after reorder`,
+        );
+        assert(
+          name === 'Abrams'
+            ? nextPlayer.cardKeys.every((key) => key !== '??')
+            : nextPlayer.cardKeys.every((key) => key === '??'),
+          `renderer transition next-active fixture should clear stale non-local ${name} player card reveal`,
+        );
+      }
+      if (activeSeat && nextSeat) {
+        assert(nextSeat.panel === activeSeat.panel, `renderer transition next-active fixture should reuse keyed ${name} table seat after reorder`);
+        assertSamePanelIdentityList(
+          nextSeat.cards,
+          activeSeat.cards,
+          `renderer transition next-active fixture should reuse keyed ${name} table card panels after reorder`,
+        );
+        assert(
+          name === 'Abrams'
+            ? nextSeat.cardKeys.every((key) => key !== '??')
+            : nextSeat.cardKeys.every((key) => key === '??'),
+          `renderer transition next-active fixture should clear stale non-local ${name} table card reveal`,
+        );
+      }
+    }
+    for (let i = 0; i < activeSurface.communityCards.length; i += 1) {
+      assert(
+        nextSurface.communityCards[i] === activeSurface.communityCards[i],
+        `renderer transition next-active fixture should reuse community card panel ${i}`,
+      );
+    }
+    for (const panel of finishedSurface.logRows.slice(nextSurface.logRows.length)) {
+      assert(panel.deleted, 'renderer transition next-active fixture should delete stale finished log rows');
+    }
+    for (const panel of activeSurface.actionButtons) {
+      assert(!nextSurface.actionButtons.includes(panel), 'renderer transition next-active fixture should not reuse stale finished action buttons');
+    }
+
+    const gameBeforeParentReplacement = transitionHooks.state.game;
+    const partyBeforeParentReplacement = JSON.stringify(transitionHooks.state.party);
+    const oldPlayersParent = nextSurface.parents.players;
+    assert(oldPlayersParent, 'renderer transition parent replacement fixture should find the original player parent');
+    if (oldPlayersParent) oldPlayersParent.DeleteAsync();
+    const replacementPlayersParent = transitionRuntime.panels.createPanel('Panel', transitionRuntime.panels.root, 'PokerPlayersList');
+    transitionHooks.modules.PanelCache.invalidate('renderer-transition-parent-replacement');
+    transitionHooks.modules.PanelCache.refresh();
+    transitionHooks.modules.TableRenderer.renderGame();
+    drainScheduledCallbacks(transitionRuntime, 256);
+    const replacementSurface = captureRendererTransitionSurface(transitionRuntime);
+    assert(
+      replacementSurface.parents.players === replacementPlayersParent,
+      'renderer transition parent replacement fixture should reacquire the replacement player parent',
+    );
+    assert(
+      transitionHooks.state.game === gameBeforeParentReplacement,
+      'renderer transition parent replacement fixture should preserve game state',
+    );
+    assertEqual(
+      JSON.stringify(transitionHooks.state.party),
+      partyBeforeParentReplacement,
+      'renderer transition parent replacement fixture should preserve party state',
+    );
+    for (const replacementRow of replacementSurface.playerRows) {
+      assert(!nextSurface.playerRows.some((previousRow) => previousRow.panel === replacementRow.panel), 'renderer transition parent replacement fixture should not reuse stale player rows');
+    }
+
+    drainScheduledCallbacks(transitionRuntime, 256);
+    clearDomWrites(transitionRuntime);
+    transitionHooks.modules.TableRenderer.renderGame();
+    drainScheduledCallbacks(transitionRuntime, 256);
+    assertEqual(
+      takeDomWrites(transitionRuntime).length,
+      0,
+      'renderer transition unchanged render should perform zero DOM writes',
+    );
   }
 
   const tableSeatContractNames = [
