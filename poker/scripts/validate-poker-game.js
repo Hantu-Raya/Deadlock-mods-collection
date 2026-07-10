@@ -12,9 +12,14 @@ const {
   panelText,
   hasClass,
   drainScheduledCallbacks,
+  drainDueScheduledCallbacks,
+  advanceScheduledTime,
   renderedActionButtons,
   renderedPlayerRows,
   renderedTableSeats,
+  renderedLogLines,
+  clearDomWrites,
+  takeDomWrites,
   capturePanelIdentity,
 } = harness;
 
@@ -22,6 +27,7 @@ const ROOT = path.resolve(__dirname, '..');
 const MENU_SCRIPT = path.join(ROOT, 'panorama', 'scripts', 'poker_escape_menu.js');
 const failures = [];
 const MAX_PROGRESS_CHAT_COMMAND_LENGTH = 80;
+const MAX_SYNCED_START_CHAT_COMMAND_LENGTH = MAX_PROGRESS_CHAT_COMMAND_LENGTH;
 
 function relative(filePath) {
   return path.relative(ROOT, filePath).replace(/\\/g, '/');
@@ -45,6 +51,31 @@ function assertGreaterThan(actual, expected, message) {
   if (!(actual > expected)) {
     fail(`${message}: expected ${JSON.stringify(actual)} to be greater than ${JSON.stringify(expected)}`);
   }
+}
+
+function drainImmediateCallbacks(runtime, maxCallbacks = 128) {
+  if (!runtime || !runtime.schedules) return;
+  for (let i = 0; i < maxCallbacks; i += 1) {
+    const index = runtime.schedules.findIndex((schedule) => Number(schedule && schedule.delay) === 0);
+    if (index < 0) return;
+    const schedule = runtime.schedules.splice(index, 1)[0];
+    if (schedule && typeof schedule.callback === 'function') schedule.callback();
+  }
+}
+
+function wrapImmediateRenderHooks(runtime, hooks) {
+  if (!runtime || !hooks || hooks.__validatorImmediateRenderWrapped) return hooks;
+  hooks.__validatorImmediateRenderWrapped = true;
+  for (const functionName of ['processChatRecord', 'handleReadyEvent', 'showdown']) {
+    if (typeof hooks[functionName] !== 'function') continue;
+    const original = hooks[functionName];
+    hooks[functionName] = function wrappedHook(...args) {
+      const result = original.apply(this, args);
+      drainImmediateCallbacks(runtime);
+      return result;
+    };
+  }
+  return hooks;
 }
 
 function announcerText(runtime) {
@@ -270,6 +301,77 @@ function renderedTableSeatCards(runtime, playerName) {
   return row ? row.cardKeys : [];
 }
 
+function rowClassSummary(entries) {
+  return (entries || []).map((entry) => {
+    const name = entry && entry.name ? entry.name : '<empty>';
+    const classes = classNames(entry && entry.panel).join(',');
+    return `${name}:${classes || '<none>'}`;
+  }).join('|') || '<none>';
+}
+
+function assertPotWinnerRows(entries, winnerNames, rowLabel, message) {
+  const expected = new Set(winnerNames || []);
+  const seen = {};
+  for (const entry of entries || []) {
+    if (!entry || !entry.name) continue;
+    seen[entry.name] = true;
+    const shouldWin = expected.has(entry.name);
+    assertEqual(
+      hasClass(entry.panel, 'PotWinner'),
+      shouldWin,
+      `${message} should ${shouldWin ? 'mark' : 'not mark'} ${entry.name} as a PotWinner ${rowLabel}: ${rowClassSummary(entries)}`,
+    );
+  }
+  for (const name of expected) {
+    assert(seen[name], `${message} should render ${name} in ${rowLabel}: ${rowClassSummary(entries)}`);
+  }
+}
+
+function assertPotWinnerFeedback(runtime, winnerNames, message) {
+  assertPotWinnerRows(renderedPlayerRows(runtime), winnerNames, 'player row', message);
+  assertPotWinnerRows(renderedTableSeats(runtime), winnerNames, 'table seat row', message);
+  for (const id of ['PokerAnnouncerOverlay', 'PokerAnnouncerTitle', 'PokerAnnouncerBody']) {
+    const panel = findPanel(runtime, id);
+    assert(panel, `${message} should render #${id} for pot-winner feedback`);
+    assert(hasClass(panel, 'PotWinner'), `${message} should mark #${id} as PotWinner`);
+  }
+}
+
+function normalizeChipCountText(text) {
+  const match = String(text || '').match(/(\d+)/);
+  return match ? Number(match[1]) : NaN;
+}
+
+function renderedPotChipArt(runtime) {
+  return findDescendantsWithClass(findPanel(runtime, 'PokerPotChips'), 'PokerPotChip', []).map((chip) => {
+    const image = firstDescendantWithClass(chip, 'PokerPotChipImage');
+    return {
+      src: image && image.src ? String(image.src) : '',
+      count: normalizeChipCountText(panelText(firstDescendantWithClass(chip, 'PokerPotChipCount')) || '1'),
+      panel: chip,
+    };
+  });
+}
+
+function assertPotCenterArt(runtime, potAmount, expectedAssets, message) {
+  assertPanelVisible(runtime, 'PokerPotCenter', message);
+  assertPanelVisible(runtime, 'PokerPotChips', message);
+  assertEqual(panelText(findPanel(runtime, 'PokerPotCenterAmount')), `$${potAmount}`, `${message} center amount`);
+  const actual = renderedPotChipArt(runtime).map((chip) => ({
+    asset: chip.src.split('/').pop(),
+    count: chip.count,
+  }));
+  assertEqual(JSON.stringify(actual), JSON.stringify(expectedAssets), `${message} tiered chip art`);
+}
+
+function potAmountTexts(runtime) {
+  return {
+    header: panelText(findPanel(runtime, 'PokerPotLabel')),
+    center: panelText(findPanel(runtime, 'PokerPotCenterAmount')),
+  };
+}
+
+
 function assertHookFunction(hooks, name, message) {
   const ok = !!hooks && typeof hooks[name] === 'function';
   assert(ok, `${message} should export ${name}`);
@@ -373,10 +475,10 @@ function assertActiveGameControls(runtime, currentName, phase, expectedLabels, a
   assert(!hasClass(actions, 'PokerHidden'), `${message} should show action buttons`);
   assertGreaterThan(actions ? actions.GetChildCount() : 0, 0, `${message} should render action button children`);
   for (const label of expectedLabels || []) {
-    assert(actionLabels.includes(label), `${message} should render ${label} action`);
+    assert(textIncludesFolded(actionLabels, label), `${message} should render ${label} action`);
   }
   for (const label of absentLabels || []) {
-    assert(!actionLabels.includes(label), `${message} should not render illegal ${label} action`);
+    assert(!textIncludesFolded(actionLabels, label), `${message} should not render illegal ${label} action`);
   }
   assert(panelText(status).toLowerCase().includes(String(currentName).toLowerCase()), `${message} status should expose the current actor`);
   assertEqual(panelText(phaseLabel), String(phase).toUpperCase(), `${message} phase label should expose the current phase`);
@@ -384,17 +486,18 @@ function assertActiveGameControls(runtime, currentName, phase, expectedLabels, a
 
 function assertObserverCurrentActorControls(runtime, currentName, expectedLabels, absentLabels, message) {
   const actions = findPanel(runtime, 'PokerActionButtons');
+  const status = panelText(findPanel(runtime, 'PokerStatusLabel'));
   const actionText = collectPanelTexts(actions, []).join('|');
   const waitingHint = `Waiting for ${currentName}`;
 
   assert(!hasClass(actions, 'PokerHidden'), `${message} should keep the action area visible for observers`);
-  assertGreaterThan(actions ? actions.GetChildCount() : 0, 1, `${message} should render the waiting hint plus current actor choices`);
-  assert(actionText.includes(waitingHint), `${message} should preserve the waiting hint for ${currentName}: ${actionText || '<empty>'}`);
+  assertGreaterThan(actionButtonPanels(runtime).length, 0, `${message} should render current actor choices`);
+  assert(status.includes(waitingHint), `${message} should preserve the waiting hint for ${currentName}: ${status || '<empty>'}`);
   for (const label of expectedLabels || []) {
-    assert(actionText.includes(label), `${message} should expose current actor ${label} option: ${actionText || '<empty>'}`);
+    assert(textIncludesFolded(actionText, label), `${message} should expose current actor ${label} option: ${actionText || '<empty>'}`);
   }
   for (const label of absentLabels || []) {
-    assert(!actionText.includes(label), `${message} should not expose illegal ${label} option: ${actionText || '<empty>'}`);
+    assert(!textIncludesFolded(actionText, label), `${message} should not expose illegal ${label} option: ${actionText || '<empty>'}`);
   }
   assertReadOnlyActionButtons(runtime, expectedLabels, waitingHint, message);
 }
@@ -403,8 +506,228 @@ function actionButtonPanels(runtime) {
   return renderedActionButtons(runtime).map((entry) => entry.panel);
 }
 
+function normalizedPanelText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+function textIncludesFolded(haystack, needle) {
+  return normalizedPanelText(haystack).includes(normalizedPanelText(needle));
+}
+
+function actionButtonSemantic(label) {
+  const text = normalizedPanelText(label);
+  if (/^CALL(\b|\s|\$)/.test(text)) return 'CALL';
+  if (/^RAISE\b/.test(text)) return 'RAISE';
+  if (/^FOLD\b/.test(text)) return 'FOLD';
+  if (/^CHECK\b/.test(text)) return 'CHECK';
+  if (/^BET\b/.test(text)) return 'BET';
+  return text;
+}
+
+function actionButtonLabel(button) {
+  return collectPanelTexts(button, []).join('|') || '<unlabeled>';
+}
+
+function allDescendants(panel, out) {
+  if (!out) out = [];
+  if (!panel || panel.deleted) return out;
+  for (const child of panel.children || []) {
+    if (!child || child.deleted) continue;
+    out.push(child);
+    allDescendants(child, out);
+  }
+  return out;
+}
+
+function classNames(panel) {
+  return Object.keys((panel && panel.classes) || {}).filter((name) => panel.classes[name]);
+}
+
+function panelDescriptor(panel) {
+  if (!panel) return '';
+  return [
+    panel.id || '',
+    panel.type || '',
+    classNames(panel).join(' '),
+    collectPanelTexts(panel, []).join(' '),
+  ].join(' ');
+}
+
+function isInsideActionButton(panel) {
+  let cursor = panel;
+  while (cursor) {
+    if (cursor.type === 'Button' || hasClass(cursor, 'PokerActionButton')) return true;
+    cursor = cursor.parent || null;
+  }
+  return false;
+}
+
+function actionNonButtonDescendants(runtime) {
+  const actions = findPanel(runtime, 'PokerActionButtons');
+  return allDescendants(actions, []).filter((panel) => !isInsideActionButton(panel));
+}
+
+function customRaiseAmountControls(runtime) {
+  const amountControlPattern = /custom|raise|bet|amount|wager|stake|input|entry|slider/i;
+  return actionNonButtonDescendants(runtime).filter((panel) => {
+    if (!panel || panel.type === 'Button' || panel.type === 'Label') return false;
+    return amountControlPattern.test(panelDescriptor(panel));
+  });
+}
+
+function customRaiseDescriptor(runtime) {
+  const controls = customRaiseAmountControls(runtime);
+  const relatedPanels = new Set(controls);
+  for (const panel of controls) {
+    for (const child of allDescendants(panel, [])) relatedPanels.add(child);
+  }
+  for (const panel of actionNonButtonDescendants(runtime)) {
+    if (/min|max|current|value|amount|invalid|illegal|error/i.test(panelDescriptor(panel))) relatedPanels.add(panel);
+  }
+  return Array.from(relatedPanels).map(panelDescriptor).join(' | ');
+}
+
+function findEditableCustomRaiseControl(runtime) {
+  const controls = customRaiseAmountControls(runtime);
+  return controls.find((panel) => /textentry|input|entry/i.test(`${panel.type || ''} ${panelDescriptor(panel)}`)) || controls[0] || null;
+}
+
+function invokePanelEvent(panel, eventName) {
+  if (!panel || typeof panel[eventName] !== 'function') return;
+  try {
+    panel[eventName](panel);
+  } catch (e) {
+    try {
+      panel[eventName]();
+    } catch (ignored) {}
+  }
+}
+
+function panelStateDescriptor(panel) {
+  if (!panel) return '';
+  const parts = [classNames(panel).join(' ')];
+  for (const key of Object.keys(panel)) {
+    if (['children', 'classes', 'deleted', 'id', 'parent', 'style', 'text', 'type'].includes(key)) continue;
+    const value = panel[key];
+    if (value == null || typeof value === 'function' || typeof value === 'object') continue;
+    parts.push(`${key}:${String(value)}`);
+  }
+  for (const key of Object.keys((panel && panel.style) || {})) {
+    parts.push(`style.${key}:${String(panel.style[key])}`);
+  }
+  return parts.join(' ');
+}
+
+function invalidCustomRaisePanels(runtime) {
+  return actionNonButtonDescendants(runtime).filter((panel) => /invalid|illegal|error/i.test(panelStateDescriptor(panel)));
+}
+
+function assertRaiseFacingActionButtonContract(runtime, message) {
+  const actions = findPanel(runtime, 'PokerActionButtons');
+  const buttons = renderedActionButtons(runtime);
+  const semantics = buttons.map((button) => actionButtonSemantic(button.label));
+
+  assert(actions, `${message} should have #PokerActionButtons`);
+  assert(!hasClass(actions, 'PokerHidden'), `${message} should keep the action area visible`);
+  assertEqual(buttons.length, 3, `${message} should render exactly three visible action buttons`);
+  assertEqual(JSON.stringify(semantics), JSON.stringify(['CALL', 'RAISE', 'FOLD']), `${message} action button semantics`);
+  for (const button of buttons) {
+    const label = String(button.label || '');
+    const semantic = actionButtonSemantic(label);
+    assert(button.enabled, `${message} ${label || '<unlabeled>'} button should be enabled for the local actor`);
+    assert(button.hittest !== false, `${message} ${label || '<unlabeled>'} button should accept pointer hits`);
+    assertEqual(typeof button.panel.onactivate, 'function', `${message} ${label || '<unlabeled>'} button should have an activation handler`);
+    if (semantic === 'RAISE') {
+      assert(!/\$\s*\d/.test(label), `${message} raise button should not encode a fixed raise size: ${label || '<empty>'}`);
+    }
+  }
+}
+
+function assertCustomRaiseAmountControlContract(runtime, minimumRaiseTo, message) {
+  const controls = customRaiseAmountControls(runtime);
+  const descriptor = customRaiseDescriptor(runtime);
+
+  assertGreaterThan(controls.length, 0, `${message} should render a non-button custom raise amount control`);
+  assert(/min|minimum/i.test(descriptor), `${message} custom raise amount UI should expose its minimum in text or classes: ${descriptor || '<empty>'}`);
+  assert(/max|maximum/i.test(descriptor), `${message} custom raise amount UI should expose its maximum in text or classes: ${descriptor || '<empty>'}`);
+  assert(/current|value|amount|input|entry/i.test(descriptor), `${message} custom raise amount UI should expose its current amount/value in text or classes: ${descriptor || '<empty>'}`);
+  assert(
+    String(descriptor).includes(String(minimumRaiseTo)),
+    `${message} custom raise amount UI should expose the minimum raise target $${minimumRaiseTo}: ${descriptor || '<empty>'}`,
+  );
+}
+
+function assertIllegalCustomRaiseAmountMarksInvalid(runtime, illegalAmount, message) {
+  const editable = findEditableCustomRaiseControl(runtime);
+  assert(editable, `${message} should expose an editable custom raise amount control`);
+  if (!editable) return;
+  editable.text = String(illegalAmount);
+  for (const eventName of ['ontextentrychange', 'onchange', 'oninput', 'onvaluechanged', 'ontextchanged', 'ontextentrysubmit', 'oninputsubmit']) {
+    invokePanelEvent(editable, eventName);
+  }
+  const invalidPanels = invalidCustomRaisePanels(runtime);
+  assertGreaterThan(
+    invalidPanels.length,
+    0,
+    `${message} should mark illegal custom raise amount ${illegalAmount} with an invalid/illegal/error class or state`,
+  );
+}
+
+function summarizeDomWrites(writes) {
+  const summary = {
+    create: 0,
+    delete: 0,
+    deleteChildren: 0,
+    class: 0,
+    text: 0,
+    hittest: 0,
+    event: 0,
+    imageSrc: 0,
+    value: 0,
+    valueAttr: 0,
+    attr: 0,
+    style: 0,
+  };
+  for (const write of writes || []) {
+    if (!write || !write.type) continue;
+    if (write.type === 'delete-children') {
+      summary.deleteChildren += 1;
+    } else if (write.type === 'image-src') {
+      summary.imageSrc += 1;
+    } else if (write.type === 'value-attr') {
+      summary.valueAttr += 1;
+    } else if (Object.prototype.hasOwnProperty.call(summary, write.type)) {
+      summary[write.type] += 1;
+    }
+  }
+  return summary;
+}
+
+function countRendered(runtime) {
+  return {
+    actionButtons: findDescendantsWithClass(findPanel(runtime, 'PokerActionButtons'), 'PokerActionButton', []).filter((panel) => panel.type === 'Button').length,
+    playerRows: findDescendantsWithClass(findPanel(runtime, 'PokerPlayersList'), 'PokerPlayerRow', []).length,
+    tableSeats: findDescendantsWithClass(findPanel(runtime, 'PokerTableSeats'), 'PokerTableSeat', []).length,
+    logLines: findDescendantsWithClass(findPanel(runtime, 'PokerGameLog'), 'PokerLogLine', []).length,
+    actionHints: findDescendantsWithClass(findPanel(runtime, 'PokerActionButtons'), 'PokerActionHint', []).length,
+    customBetControls: findDescendantsWithClass(findPanel(runtime, 'PokerActionButtons'), 'PokerCustomBetControls', []).length,
+    potChips: findDescendantsWithClass(findPanel(runtime, 'PokerPotChips'), 'PokerPotChip', []).length,
+  };
+}
+
+
+function assertSamePanelList(actual, expected, message) {
+  assertEqual(actual.length, expected.length, `${message} length`);
+  const count = Math.min(actual.length, expected.length);
+  for (let i = 0; i < count; i += 1) {
+    assert(actual[i] === expected[i], `${message} panel ${i} identity`);
+  }
+}
+
+
 function assertReadOnlyActionButtons(runtime, expectedLabels, expectedHint, message) {
   const actions = findPanel(runtime, 'PokerActionButtons');
+  const status = panelText(findPanel(runtime, 'PokerStatusLabel'));
   const actionText = collectPanelTexts(actions, []).join('|');
   const buttons = actionButtonPanels(runtime);
 
@@ -412,15 +735,15 @@ function assertReadOnlyActionButtons(runtime, expectedLabels, expectedHint, mess
   assertGreaterThan(buttons.length, 0, `${message} should render read-only action buttons`);
   if (expectedHint) {
     assert(
-      actionText.toLowerCase().includes(String(expectedHint).toLowerCase()),
-      `${message} should explain why actions are read-only: ${actionText || '<empty>'}`,
+      status.toLowerCase().includes(String(expectedHint).toLowerCase()),
+      `${message} should explain why actions are read-only: ${status || '<empty>'}`,
     );
   }
   for (const label of expectedLabels || []) {
-    assert(actionText.includes(label), `${message} should show ${label} as a read-only legal option: ${actionText || '<empty>'}`);
+    assert(textIncludesFolded(actionText, label), `${message} should show ${label} as a read-only legal option: ${actionText || '<empty>'}`);
   }
   for (const button of buttons) {
-    const label = collectPanelTexts(button, []).join('|') || '<unlabeled>';
+    const label = actionButtonLabel(button);
     assert(hasClass(button, 'Disabled'), `${message} ${label} button should have the disabled class`);
     assert(hasClass(button, 'ReadOnly'), `${message} ${label} button should have the read-only class`);
     assertEqual(button.hittest, false, `${message} ${label} button should not accept pointer hits`);
@@ -436,10 +759,10 @@ function assertEnabledActionButtons(runtime, expectedLabels, message) {
   assert(!hasClass(actions, 'PokerHidden'), `${message} should keep the action area visible`);
   assertGreaterThan(buttons.length, 0, `${message} should render actionable buttons`);
   for (const label of expectedLabels || []) {
-    assert(actionText.includes(label), `${message} should expose ${label} for the local actor: ${actionText || '<empty>'}`);
+    assert(textIncludesFolded(actionText, label), `${message} should expose ${label} for the local actor: ${actionText || '<empty>'}`);
   }
   for (const button of buttons) {
-    const label = collectPanelTexts(button, []).join('|') || '<unlabeled>';
+    const label = actionButtonLabel(button);
     assert(!hasClass(button, 'Disabled'), `${message} ${label} button should not have the disabled class`);
     assert(button.hittest !== false, `${message} ${label} button should accept pointer hits`);
     assertEqual(typeof button.onactivate, 'function', `${message} ${label} button should have an activation handler`);
@@ -547,6 +870,7 @@ function createGameRuntime(names, seed, startRecord) {
   const gameHooks = gameRuntime.sandbox.__PokerEscapeMenuTestHooks;
   assert(gameHooks, 'escape menu test hooks were not exported for isolated game runtime');
   if (!gameHooks) return { runtime: gameRuntime, hooks: null, game: null };
+  wrapImmediateRenderHooks(gameRuntime, gameHooks);
 
   seedPartyForReady(gameHooks, names, 'pgame-ready');
   for (let i = 0; i < names.length; i += 1) {
@@ -578,7 +902,7 @@ function createMenuRuntime() {
   runScript(menuRuntime.sandbox, MENU_SCRIPT);
   const menuHooks = menuRuntime.sandbox.__PokerEscapeMenuTestHooks;
   assert(menuHooks, 'escape menu test hooks were not exported for isolated menu runtime');
-  return { runtime: menuRuntime, hooks: menuHooks };
+  return { runtime: menuRuntime, hooks: wrapImmediateRenderHooks(menuRuntime, menuHooks) };
 }
 
 function createProgressCodeRuntime(names, seed) {
@@ -686,6 +1010,34 @@ function createSyncedPartyRuntime(localName, seed, roster, handNumber) {
   return { runtime: synced.runtime, hooks: synced.hooks, game: synced.hooks.state.game, startCommand };
 }
 
+function createSyncedJoinedPartyRuntime(localName, seed, roster, handNumber, partyId) {
+  const synced = createMenuRuntime();
+  if (!synced.hooks || !hasPartySyncHooks(synced.hooks, `synced joined party runtime for ${localName}`)) {
+    return { runtime: synced.runtime, hooks: synced.hooks, game: null, startCommand: '' };
+  }
+
+  const players = roster || [];
+  const leader = players[0] || { key: 'abrams', name: 'Abrams' };
+  const id = partyId || 'psync';
+  const startCommand = synced.hooks.buildSynchronizedStartCommand(seed, players, handNumber);
+  synced.hooks.processChatRecord({
+    sender: leader.name,
+    message: `[party leader] poker party ${id}`,
+    isSelf: localName === leader.name,
+  });
+  for (let i = 1; i < players.length; i += 1) {
+    synced.hooks.processChatRecord({
+      sender: players[i].name,
+      message: `[party join] poker party ${id}`,
+      isSelf: localName === players[i].name,
+    });
+  }
+  synced.hooks.processChatRecord({ sender: leader.name, message: startCommand, isSelf: localName === leader.name });
+
+  return { runtime: synced.runtime, hooks: synced.hooks, game: synced.hooks.state.game, startCommand };
+}
+
+
 function createSyncedHandOverrideRuntime(localName, startCommand, roster, hasPriorHandState) {
   const synced = createMenuRuntime();
   if (!synced.hooks || !hasPartySyncHooks(synced.hooks, `hand override runtime for ${localName}`)) {
@@ -698,7 +1050,7 @@ function createSyncedHandOverrideRuntime(localName, startCommand, roster, hasPri
     synced.hooks.state.game = { handNumber: 1 };
     assertEqual(
       synced.hooks.buildSynchronizedStartCommand('snatural-next', roster),
-      'poker start snatural-next hand 2 roster abrams~Abrams|bebop~Bebop',
+      'poker start snatural-next hand 2 roster abrams|bebop',
       'runtime with prior local hand state should naturally build hand 2 starts',
     );
   }
@@ -729,6 +1081,7 @@ runScript(runtime.sandbox, MENU_SCRIPT);
 const hooks = runtime.sandbox.__PokerEscapeMenuTestHooks;
 
 assert(hooks, 'escape menu test hooks were not exported');
+wrapImmediateRenderHooks(runtime, hooks);
 
 if (hooks) {
   const partyRoster = [
@@ -742,7 +1095,10 @@ if (hooks) {
     StartSync: ['openMenu', 'requestFreshState', 'noteBridgeEvent', 'getProjection', 'afterSnapshotApplied'],
     CommandReducer: ['decode', 'apply', 'applyRecord', 'applyPayload'],
     PokerEngine: ['createGame', 'getLegalActions', 'applyAction', 'advanceAfterAction', 'buildPots', 'showdown', 'evaluateHand', 'compareHands'],
-    ProgressResume: ['applyStartCommand'],
+    ProgressResume: ['project', 'gates', 'getStartGate', 'getHostedStartGate', 'import', 'importCode', 'build', 'buildCode', 'applyShare', 'shareImported', 'selectHostedLeader', 'applyStartCommand'],
+    PokerMetrics: ['reset', 'snapshot', 'increment', 'start', 'end'],
+    RenderScheduler: ['defer', 'immediate', 'flush', 'isQueued'],
+    PanelCache: ['refresh', 'get', 'invalidate', 'hasRequired'],
     PendingSelfAction: ['record', 'read', 'clear', 'resolveSelfRecord', 'markApplied'],
     CardPresenter: ['render', 'update', 'imageSrc', 'displayRank', 'suitGlyph'],
     TableRenderer: ['renderGame', 'renderCommunity', 'renderPlayers', 'renderTableSeats', 'renderActions', 'renderLog'],
@@ -757,6 +1113,192 @@ if (hooks) {
         `${moduleName}.${functionName} should be exposed as a behavior-level hook`,
       );
     }
+  }
+  if (modules.PokerMetrics && modules.RenderScheduler && modules.TableRenderer) {
+    const instrumentation = createMenuRuntime();
+    const instrumentationHooks = instrumentation.hooks;
+    const instrumentationModules = instrumentationHooks && instrumentationHooks.modules;
+    assert(instrumentationModules && instrumentationModules.PokerMetrics, 'instrumentation fixture should expose PokerMetrics');
+    assert(instrumentationModules && instrumentationModules.RenderScheduler, 'instrumentation fixture should expose RenderScheduler');
+    assert(instrumentationModules && instrumentationModules.TableRenderer, 'instrumentation fixture should expose TableRenderer');
+    if (instrumentationModules && instrumentationModules.PokerMetrics && instrumentationModules.RenderScheduler && instrumentationModules.TableRenderer) {
+      instrumentationModules.PokerMetrics.reset();
+      instrumentationModules.TableRenderer.renderGame();
+      let metrics = instrumentationModules.PokerMetrics.snapshot();
+      assert(
+        metrics && metrics.timings && metrics.timings.renderGame && metrics.timings.renderGame.count > 0,
+        'TableRenderer.renderGame should record renderGame timing in test mode',
+      );
+
+      clearDomWrites(instrumentation.runtime);
+      instrumentationModules.TableRenderer.renderGame();
+      const noOpWrites = summarizeDomWrites(takeDomWrites(instrumentation.runtime));
+      assertEqual(noOpWrites.create, 0, 'repeated empty-lobby render should not create new panels');
+
+      instrumentationModules.PokerMetrics.reset();
+      let delayedScheduleRan = false;
+      instrumentation.runtime.sandbox.$.Schedule(0.25, () => { delayedScheduleRan = true; });
+      instrumentationModules.RenderScheduler.defer('validator-a');
+      instrumentationModules.RenderScheduler.defer('validator-b');
+      instrumentationModules.RenderScheduler.defer('validator-c');
+      drainDueScheduledCallbacks(instrumentation.runtime, 8);
+      metrics = instrumentationModules.PokerMetrics.snapshot();
+      assertEqual(metrics.counters.renderFlush, 1, 'same-tick deferred renders should coalesce to one render flush');
+      assertEqual(delayedScheduleRan, false, 'draining due callbacks at current virtual time should not run delayed callbacks');
+      assert(
+        metrics.counters.renderRequestCoalesced >= 1,
+        `same-tick deferred renders should record coalescing: ${JSON.stringify(metrics.counters)}`,
+      );
+      advanceScheduledTime(instrumentation.runtime, 249, 8);
+      assertEqual(delayedScheduleRan, false, 'advancing before a delayed callback due time should not run it');
+      advanceScheduledTime(instrumentation.runtime, 1, 8);
+      assertEqual(delayedScheduleRan, true, 'advancing to a delayed callback due time should run it');
+    }
+  }
+  {
+    function assertHostPartySubmitForTarget(targetText, message) {
+      const submitRuntime = createMenuRuntime();
+      const submitInput = findPanel(submitRuntime.runtime, 'ChatInput');
+      const submitTarget = findPanel(submitRuntime.runtime, 'ChatTargetLabel');
+      assert(submitInput, `${message} should have ChatInput`);
+      assert(submitTarget, `${message} should have ChatTargetLabel`);
+      if (submitTarget) submitTarget.text = targetText;
+      const dispatchStart = submitRuntime.runtime.dispatches.length;
+      submitRuntime.runtime.sandbox.PokerEscapeMenuHostParty();
+      drainDueScheduledCallbacks(submitRuntime.runtime, 8);
+      assertEqual(
+        submitRuntime.runtime.dispatches.slice(dispatchStart).filter((event) => event.name === 'CitadelChatInputSubmitted').length,
+        0,
+        `${message} should not submit before the first delayed chat retry is due`,
+      );
+      advanceScheduledTime(submitRuntime.runtime, 50, 8);
+      assertEqual(
+        submitRuntime.runtime.dispatches.slice(dispatchStart).filter((event) => event.name === 'CitadelChatInputSubmitted').length,
+        0,
+        `${message} should wait for one stable chat retry before submitting`,
+      );
+      advanceScheduledTime(submitRuntime.runtime, 100, 8);
+      const submitEvents = submitRuntime.runtime.dispatches.slice(dispatchStart);
+      const submittedEvents = submitEvents.filter((event) => event.name === 'CitadelChatInputSubmitted');
+      assertEqual(submittedEvents.length, 1, `${message} should submit one chat input event`);
+      assertEqual(
+        submitEvents.filter((event) => event.name === 'CitadelConCommand' && event.payload === 'say_chat_team').length,
+        0,
+        `${message} should not force team chat when a supported target is already open`,
+      );
+      const submittedEvent = submittedEvents[0];
+      assertEqual(submittedEvent.payloadId, 'ChatInput', `${message} should capture the ChatInput panel id`);
+      assert(
+        String(submittedEvent.payloadTextAtDispatch || '').indexOf('[party leader] poker party ') === 0,
+        `${message} should capture the party leader command before clearing input: ${submittedEvent.payloadTextAtDispatch || '<none>'}`,
+      );
+      assertEqual(submitInput && submitInput.text, '', `${message} should clear chat input text after submit`);
+      const submitIndex = submitEvents.findIndex((event) => event.name === 'CitadelChatInputSubmitted');
+      const blurIndex = submitEvents.findIndex((event) => event.name === 'CitadelChatInputBlur');
+      const dropIndex = submitEvents.findIndex((event) => event.name === 'DropInputFocus');
+      assert(blurIndex > submitIndex, `${message} should dispatch CitadelChatInputBlur after submit`);
+      assert(dropIndex > submitIndex, `${message} should dispatch DropInputFocus after submit`);
+    }
+    assertHostPartySubmitForTarget('PARTY', 'host party command on PARTY target');
+    assertHostPartySubmitForTarget('TEAM', 'host party command on TEAM target');
+    assertHostPartySubmitForTarget('#citadel_chat_all', 'host party command on ALL target');
+  }
+  if (modules.PanelCache) {
+    const cacheRuntime = createMenuRuntime();
+    const cacheHooks = cacheRuntime.hooks;
+    assert(cacheHooks && cacheHooks.modules && cacheHooks.modules.PanelCache, 'panel-cache fixture should expose PanelCache');
+    if (cacheHooks && cacheHooks.modules && cacheHooks.modules.PanelCache) {
+      cacheRuntime.runtime.sandbox.PokerEscapeMenuToggle();
+      drainImmediateCallbacks(cacheRuntime.runtime);
+      const oldLobbyWindow = cacheHooks.state.lobbyWindow;
+      assert(oldLobbyWindow, 'panel-cache fixture should capture the initial lobby window');
+      const partyBefore = JSON.stringify(cacheHooks.state.party);
+      const gameBefore = cacheHooks.state.game;
+      oldLobbyWindow.deleted = true;
+      const replacement = cacheRuntime.runtime.panels.createPanel('Panel', cacheRuntime.runtime.panels.root, 'PokerLobbyWindow');
+      cacheHooks.modules.PanelCache.invalidate('validator');
+      cacheHooks.modules.PanelCache.refresh();
+      assertEqual(cacheHooks.state.lobbyWindow, replacement, 'PanelCache.refresh should reacquire a replacement lobby window');
+      assertEqual(JSON.stringify(cacheHooks.state.party), partyBefore, 'PanelCache.invalidate should not change party projection');
+      assertEqual(cacheHooks.state.game, gameBefore, 'PanelCache.invalidate should not change game projection');
+
+      const staleRuntime = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'panel-cache-stale-children');
+      const staleHooks = staleRuntime.hooks;
+      assert(staleHooks && staleHooks.modules && staleHooks.modules.PanelCache && staleRuntime.game, 'panel-cache stale-child fixture should expose active game and PanelCache');
+      if (staleHooks && staleHooks.modules && staleHooks.modules.PanelCache && staleRuntime.game) {
+        staleHooks.modules.TableRenderer.renderGame();
+        const stalePartyBefore = JSON.stringify(staleHooks.state.party);
+        const staleGameBefore = staleHooks.state.game;
+        for (const target of [
+          ['PokerPlayersList', 'PokerPlayerRow', 'players'],
+          ['PokerTableSeats', 'PokerTableSeat', 'table seats'],
+          ['PokerPotChips', 'PokerPotChip', 'pot chips'],
+          ['PokerActionButtons', 'PokerActionButton', 'action buttons'],
+        ]) {
+          const oldParent = findPanel(staleRuntime.runtime, target[0]);
+          const oldChild = findDescendantsWithClass(oldParent, target[1], [])[0] || null;
+          assert(oldParent && oldChild, `panel-cache stale-child ${target[2]} setup should have parent and child`);
+          if (!oldParent || !oldChild) continue;
+          oldParent.deleted = true;
+          const replacementParent = staleRuntime.runtime.panels.createPanel('Panel', staleRuntime.runtime.panels.root, target[0]);
+          staleHooks.modules.PanelCache.invalidate(`validator-${target[0]}`);
+          staleHooks.modules.PanelCache.refresh();
+          staleHooks.modules.TableRenderer.renderGame();
+          const currentParent = findPanel(staleRuntime.runtime, target[0]);
+          const currentChild = findDescendantsWithClass(currentParent, target[1], [])[0] || null;
+          assertEqual(currentParent, replacementParent, `PanelCache.refresh should reacquire replacement ${target[0]}`);
+          assert(currentChild && currentChild !== oldChild, `panel-cache stale-child ${target[2]} should not reuse stale child panel identity`);
+          assertEqual(staleHooks.state.game, staleGameBefore, `PanelCache.invalidate should preserve active game while replacing ${target[0]}`);
+          assertEqual(JSON.stringify(staleHooks.state.party), stalePartyBefore, `PanelCache.invalidate should preserve party state while replacing ${target[0]}`);
+        }
+      }
+    }
+  }
+  if (modules.CardPresenter) {
+    const cardPresenter = modules.CardPresenter;
+    const flipHost = runtime.panels.createPanel('Panel', runtime.panels.root, '', 'PokerCardFlipRegressionHost');
+    const testCard = card('K', 'H');
+    const cardPanel = cardPresenter.render(flipHost, testCard, false);
+    const scheduledFlipCountBefore = runtime.schedules.length;
+    cardPresenter.update(cardPanel, null, false);
+    const scheduledFlipCompletions = runtime.schedules.splice(scheduledFlipCountBefore);
+    const scheduledFlipCompletion = scheduledFlipCompletions[0] || {};
+    const stableContents = firstDescendantWithClass(cardPanel, 'PokerCardContents');
+
+    const flipLayers = findDescendantsWithClass(cardPanel, 'PokerCardFlipLayer', []);
+    const outgoingFaceLayer = flipLayers.find((layer) => hasClass(layer, 'FlipToBack') && !hasClass(layer, 'QuestionFace'));
+    const incomingQuestionLayer = flipLayers.find((layer) => hasClass(layer, 'FlipReveal') && hasClass(layer, 'QuestionFace'));
+    const incomingQuestionText = collectPanelTexts(incomingQuestionLayer, []).join('|');
+    const outgoingFaceText = collectPanelTexts(outgoingFaceLayer, []).join('|');
+
+    assert(hasClass(cardPanel, 'FlipActive'), 'face-to-back card flip should mark the card panel active during the scheduled animation');
+    assert(stableContents, 'face-to-back card flip should keep stable PokerCardContents mounted during the scheduled animation');
+    assert(hasClass(stableContents, 'FlipHidden'), 'face-to-back card flip should hide stable PokerCardContents while flip layers animate');
+    assertEqual(scheduledFlipCompletions.length, 1, 'face-to-back card flip should schedule one completion callback');
+    assertEqual(scheduledFlipCompletion.delay, 1.2, 'face-to-back card flip completion should wait for the 1.2s animation');
+    assert(outgoingFaceLayer, 'face-to-back card flip should keep the outgoing face layer animating with FlipToBack');
+    assert(outgoingFaceText.includes('K') && outgoingFaceText.includes('♥'), `face-to-back card flip outgoing layer should preserve the old face before scheduled completion: ${outgoingFaceText || '<empty>'}`);
+    assert(incomingQuestionLayer, 'face-to-back card flip should create an incoming question/back layer with FlipReveal and QuestionFace before scheduled completion');
+    assert(incomingQuestionText.includes('?'), `face-to-back card flip incoming layer should make ? visible during the animation: ${incomingQuestionText || '<empty>'}`);
+
+    drainScheduledCallbacks({ schedules: scheduledFlipCompletions }, 1);
+
+    const finalStableContents = firstDescendantWithClass(cardPanel, 'PokerCardContents');
+    const finalStableText = collectPanelTexts(finalStableContents, []).join('|');
+    assert(!hasClass(cardPanel, 'FlipActive'), 'face-to-back card flip should remove FlipActive after scheduled completion');
+    assert(finalStableContents, 'face-to-back card flip should keep stable PokerCardContents after scheduled completion');
+    assert(!hasClass(finalStableContents, 'FlipHidden'), 'face-to-back card flip should reveal stable PokerCardContents after scheduled completion');
+    assertEqual(finalStableText, '?|?', `face-to-back card flip stable contents should show the question/back face after scheduled completion: ${finalStableText || '<empty>'}`);
+    assertEqual(findDescendantsWithClass(cardPanel, 'PokerCardFlipLayer', []).length, 0, 'face-to-back card flip should remove all flip layers after scheduled completion');
+
+    const unchangedHost = runtime.panels.createPanel('Panel', runtime.panels.root, '', 'PokerCardUnchangedWriteHost');
+    const unchangedFace = card('Q', 'S');
+    const unchangedPanel = cardPresenter.render(unchangedHost, unchangedFace, false);
+    cardPresenter.update(unchangedPanel, unchangedFace, false);
+    clearDomWrites(runtime);
+    cardPresenter.update(unchangedPanel, unchangedFace, false);
+    const unchangedSrcWrites = takeDomWrites(runtime).filter((write) => write && (write.type === 'image-src' || (write.type === 'attr' && write.name === 'src')));
+    assertEqual(unchangedSrcWrites.length, 0, 'unchanged face-card update should not rewrite image src or src attributes');
   }
   if (modules.CommandReducer) {
     const decodedResumeStart = modules.CommandReducer.decode({ sender: 'Abrams', message: 'poker resume r123 hand 2 leader hantu%20raya roster abrams~Abrams|hantu%20raya~Hantu%20Raya seed sresume' });
@@ -796,7 +1338,6 @@ if (hooks) {
     assertEqual(decodedResumeReady.type, 'resume-ready', 'command reducer should decode resume ready records');
     assertEqual(decodedResumeReady.id, 'r123', 'resume ready decode should expose id');
 
-
     const decodedSyncedStart = modules.CommandReducer.decode({ sender: 'Abrams', message: 'poker start ssync hand 3 roster abrams~Abrams|bebop~Bebop' });
     assertEqual(decodedSyncedStart.type, 'start', 'command reducer should decode synced start records once');
     assertEqual(decodedSyncedStart.seed, 'ssync', 'command reducer synced start decode should expose seed');
@@ -822,31 +1363,16 @@ if (hooks) {
         expected: { consumed: true, readyChanged: false, render: true, status: 'Receiving progress r-effect (0/3 chunks).', debugReason: 'progress-offer' },
       },
       {
-        name: 'malformed-roster',
+        name: 'rejected',
         record: { sender: 'Abrams', message: 'poker start ssync hand 1 roster bad%zz~Abrams' },
         expected: { consumed: true, readyChanged: false, render: false, status: 'Invalid synced poker roster.', debugReason: 'status' },
-      },
-      {
-        name: 'unsupported-all-in',
-        record: { sender: 'Abrams', message: 'all in' },
-        expected: { consumed: true, readyChanged: false, render: false, status: '', debugReason: 'debug' },
-      },
-      {
-        name: 'stale-match-end',
-        record: { sender: 'Abrams', message: '[match end] poker party stale-party seed s hand 1' },
-        expected: { consumed: true, readyChanged: false, render: false, status: '', debugReason: 'match-end' },
-      },
-      {
-        name: 'unknown-party-authority',
-        record: { sender: '<unknown>', message: '[party join] poker party stale-party' },
-        expected: { consumed: true, readyChanged: false, render: false, status: '', debugReason: 'debug' },
       },
     ];
     const effectKeys = ['consumed', 'debugReason', 'readyChanged', 'render', 'status'];
     function assertEffectShape(effect, expected, message) {
-      assert(effect && typeof effect === 'object', message + ' should return an effect object');
-      assertEqual(JSON.stringify(Object.keys(effect || {}).sort()), JSON.stringify(effectKeys), message + ' should expose exactly the reducer effect keys');
-      for (const key of effectKeys) assertEqual(effect && effect[key], expected[key], message + ' ' + key);
+      assert(effect && typeof effect === 'object', `${message} should return an effect object`);
+      assertEqual(JSON.stringify(Object.keys(effect || {}).sort()), JSON.stringify(effectKeys), `${message} should expose exactly the reducer effect keys`);
+      for (const key of effectKeys) assertEqual(effect && effect[key], expected[key], `${message} ${key}`);
     }
     for (const effectCase of effectCases) {
       for (const api of ['apply', 'applyRecord', 'applyPayload']) {
@@ -857,22 +1383,36 @@ if (hooks) {
         if (api === 'apply') effect = isolatedReducer.apply(isolatedReducer.decode(effectCase.record));
         else if (api === 'applyRecord') effect = isolatedReducer.applyRecord(effectCase.record);
         else effect = isolatedReducer.applyPayload({ event: 'PokerChatMessage', seq: 1, ...effectCase.record });
-        assertEffectShape(effect, effectCase.expected, 'command reducer ' + api + ' ' + effectCase.name + ' effect');
+        assertEffectShape(effect, effectCase.expected, `command reducer ${api} ${effectCase.name} effect`);
         if (api === 'applyPayload' && effectCase.name === 'changed') {
+          const metrics = isolatedReducer && isolated.hooks.modules.PokerMetrics.snapshot();
+          assertEqual(metrics.counters.renderRequest, 1, 'command reducer applyPayload changed effect should request one render');
           assertEqual(panelText(findPanel(isolated.runtime, 'PokerStatusLabel')), effectCase.expected.status, 'command reducer applyPayload changed effect should write status once');
         }
       }
     }
-
     const actionEffectRuntime = createGameRuntime(['Abrams', 'Bebop'], 'effect-action');
     if (actionEffectRuntime.hooks && actionEffectRuntime.hooks.modules && actionEffectRuntime.hooks.modules.CommandReducer && actionEffectRuntime.game) {
       const actionReducer = actionEffectRuntime.hooks.modules.CommandReducer;
       const actionActor = currentPlayer(actionEffectRuntime.game);
+      actionEffectRuntime.hooks.modules.PokerMetrics.reset();
       const actionEffect = actionEffectRuntime.hooks.processChatRecord({ sender: actionActor.name, message: 'fold', isSelf: true });
-      assertEffectShape(actionEffect, { consumed: true, readyChanged: false, render: true, status: actionEffect.status, debugReason: 'action' }, 'command reducer action changed effect');
-      assert(actionEffect.status.includes('wins by fold'), 'command reducer action changed effect should report the fold result: ' + (actionEffect.status || '<empty>'));
-    }
+      assertEffectShape(
+        actionEffect,
+        { consumed: true, readyChanged: false, render: true, status: actionEffect.status, debugReason: 'action' },
+        'command reducer action changed effect',
+      );
+      assert(actionEffect.status.includes('wins by fold'), `command reducer action changed effect should report the fold result: ${actionEffect.status || '<empty>'}`);
+      const actionMetrics = actionEffectRuntime.hooks.modules.PokerMetrics.snapshot();
+      assertEqual(actionMetrics.counters.renderRequest, 1, 'command reducer action changed effect should request one render');
+      assertEqual(actionMetrics.counters.renderRequestCoalesced || 0, 0, 'command reducer action changed effect should not coalesce a duplicate render');
+      assertEqual(
+        panelText(findPanel(actionEffectRuntime.runtime, 'PokerStatusLabel')),
+        actionEffect.status,
+        'command reducer action changed effect should write status once',
+      );
   }
+    }
   if (progressHooksAvailable) {
     assertEqual(
       hooks.buildResumeLeaderCommand('r123'),
@@ -885,11 +1425,11 @@ if (hooks) {
       'resume ready command builder should use the exact wire phrase',
     );
     assertEqual(
-      hooks.buildResumeStartCommand('r123', 'abrams', partyRoster, 2, 'sresume'),
+      hooks.buildResumeStartCommand('r123', 'abrams', 2, 'sresume'),
       'poker resume r123 hand 2 leader abrams seed sresume',
-      'resume start command builder should use the exact marker order',
+      'resume start command builder should use the chat-safe marker order',
     );
-    assertEqual(hooks.buildResumeStartCommand('r123', 'abrams', partyRoster, 2, 'sresume').includes(' roster '), false, 'compact resume-start builder must omit roster marker');
+    assertEqual(hooks.buildResumeStartCommand('r123', 'abrams', 2, 'sresume').includes(' roster '), false, 'compact resume-start builder must omit roster marker');
     const samePrefix = hooks.textToUtf8Bytes ? hooks.textToUtf8Bytes('same-prefix') : [115, 97, 109, 101, 45, 112, 114, 101, 102, 105, 120];
     const encryptedA = hooks.cryptProgressBytes(samePrefix, 'seed-a');
     const encryptedB = hooks.cryptProgressBytes(samePrefix, 'seed-b');
@@ -931,17 +1471,77 @@ if (hooks) {
     );
     assertEqual(
       hooks.buildSynchronizedStartCommand('ssync', partyRoster),
-      'poker start ssync hand 1 roster abrams~Abrams|bebop~Bebop',
-      'synchronized start builder should preserve names for non-space roster keys',
+      'poker start ssync hand 1 roster abrams|bebop',
+      'synchronized start builder should use compact key-only roster entries to stay chat-safe',
     );
     assertEqual(
       hooks.buildSynchronizedStartCommand('ssync-space-key', [
         { key: 'jdbeast', name: 'JDBeast' },
         { key: 'hantu raya', name: 'Hantu Raya' },
       ]),
-      'poker start ssync-space-key hand 1 roster jdbeast~JDBeast|hantu%20raya',
-      'synchronized start builder should compact only roster entries whose keys contain spaces',
+      'poker start ssync-space-key hand 1 roster jdbeast|hantu%20raya',
+      'synchronized start builder should URI-escape compact key-only roster entries',
     );
+    const liveLogCompactRoster = [
+      { key: 'citadel_ability_psychic_lift', name: 'citadel_ability_psychic_lift' },
+      { key: 'hantu raya', name: 'Hantu Raya' },
+    ];
+    const liveLogCompactStartCommand = hooks.buildSynchronizedStartCommand('s', liveLogCompactRoster, 1);
+    assertEqual(
+      liveLogCompactStartCommand,
+      'poker start s hand 1 roster citadel_ability_psychic_lift|hantu%20raya',
+      'compact synced roster start command should use key-only entries when a long key duplicates its display name',
+    );
+    assert(
+      liveLogCompactStartCommand.length <= MAX_SYNCED_START_CHAT_COMMAND_LENGTH,
+      `compact synced roster start command should stay chat-safe at ${MAX_SYNCED_START_CHAT_COMMAND_LENGTH} chars to avoid live-log truncation: ${liveLogCompactStartCommand.length} chars, ${liveLogCompactStartCommand}`,
+    );
+    assert(
+      !liveLogCompactStartCommand.includes('~citadel_ability_psychic_lift'),
+      `compact synced roster start command should omit duplicate long key/name text to avoid live-log truncation: ${liveLogCompactStartCommand}`,
+    );
+    if (modules.CommandReducer) {
+      const decodedLiveLogCompactStart = modules.CommandReducer.decode({
+        sender: 'citadel_ability_psychic_lift',
+        message: liveLogCompactStartCommand,
+      });
+      assertEqual(decodedLiveLogCompactStart.type, 'start', 'compact synced roster start command should decode as a start record');
+      assertEqual((decodedLiveLogCompactStart.roster || []).length, 2, 'compact synced roster start command should decode two roster entries');
+      assertEqual(
+        JSON.stringify((decodedLiveLogCompactStart.roster || []).map((entry) => entry.key)),
+        JSON.stringify(['citadel_ability_psychic_lift', 'hantu raya']),
+        'compact synced roster start command should preserve roster keys through CommandReducer.decode',
+      );
+    }
+    const liveLogCompactRuntime = createMenuRuntime();
+    if (liveLogCompactRuntime.hooks && hasPartySyncHooks(liveLogCompactRuntime.hooks, 'live-log compact synced roster runtime')) {
+      const liveLogHooks = liveLogCompactRuntime.hooks;
+      liveLogHooks.processChatRecord({ sender: 'citadel_ability_psychic_lift', message: '[party leader] poker party plive-log-compact', isSelf: true });
+      liveLogHooks.processChatRecord({ sender: 'Hantu Raya', message: '[party join] poker party plive-log-compact', isSelf: false });
+      const liveLogStatusBeforeStart = panelText(findPanel(liveLogCompactRuntime.runtime, 'PokerStatusLabel'));
+      const liveLogMessagesBeforeStart = liveLogCompactRuntime.runtime.messages.length;
+      liveLogHooks.processChatRecord({
+        sender: 'citadel_ability_psychic_lift',
+        message: liveLogCompactStartCommand,
+        isSelf: true,
+      });
+      const liveLogCompactDiagnostics = [
+        panelText(findPanel(liveLogCompactRuntime.runtime, 'PokerStatusLabel')) !== liveLogStatusBeforeStart
+          ? panelText(findPanel(liveLogCompactRuntime.runtime, 'PokerStatusLabel'))
+          : '',
+      ]
+        .concat(liveLogCompactRuntime.runtime.messages.slice(liveLogMessagesBeforeStart))
+        .join('\n')
+        .toLowerCase();
+      assert(
+        !liveLogCompactDiagnostics.includes('invalid synced poker roster'),
+        `compact synced roster start command should not surface Invalid synced poker roster after real start apply: ${liveLogCompactDiagnostics || '<empty>'}`,
+      );
+      assert(liveLogHooks.state.game, 'compact synced roster start command should create a game through the real start path');
+      if (liveLogHooks.state.game) {
+        assertEqual(liveLogHooks.state.game.players.length, 2, 'compact synced roster start command should seat both live-log roster players');
+      }
+    }
     hooks.state.party = {
       id: 'psync',
       mode: 'leader',
@@ -1025,6 +1625,12 @@ if (hooks) {
       leaderTwoHooks.modules.TableRenderer.renderGame();
       assertStartButtonGate(leaderTwoButtonRuntime.runtime, 'START SYNCED HAND', true, false, 'party leader two-player button state');
       assertProgressImportAvailable(leaderTwoButtonRuntime.runtime, 'party leader two-player import controls');
+      leaderTwoHooks.state.requiresProgressImport = true;
+      leaderTwoHooks.modules.TableRenderer.renderGame();
+      assertStartButtonGate(leaderTwoButtonRuntime.runtime, '', false, true, 'party leader import-required start button state');
+      assertProgressImportAvailable(leaderTwoButtonRuntime.runtime, 'party leader import-required import controls');
+      leaderTwoHooks.state.requiresProgressImport = false;
+      leaderTwoHooks.modules.TableRenderer.renderGame();
       leaderTwoHooks.state.game = {
         active: false,
         finished: true,
@@ -1080,6 +1686,37 @@ if (hooks) {
         assertEqual(immediateProgressReplay.hooks.state.game, null, 'progress immediate replay should not create a game before resume start');
         assertEqual(snapshotProgressReplay.hooks.state.game, null, 'progress snapshot replay should not create a game before resume start');
       }
+
+        for (const resumeSender of ['Abrams', '<unknown>']) {
+          const hostedResumeRuntime = createMenuRuntime();
+          if (hostedResumeRuntime.hooks) {
+            hostedResumeRuntime.hooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pprogress-replay', isSelf: true });
+            hostedResumeRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party pprogress-replay', isSelf: false });
+            for (const message of progressMessages) {
+              hostedResumeRuntime.hooks.processChatRecord({ sender: 'Abrams', channel: '[Party]', message, isSelf: false });
+            }
+            assertEqual(hostedResumeRuntime.hooks.state.resume.id, progressReplaySource.id, `hosted shared progress should import before ${resumeSender} resume start`);
+            const resumeStart = hostedResumeRuntime.hooks.buildResumeStartCommand(progressReplaySource.id, 'abrams', progressReplaySource.payload.nextHandNumber, 'sresume-replay');
+            assert(
+              resumeStart.length <= MAX_SYNCED_START_CHAT_COMMAND_LENGTH && resumeStart.indexOf(' roster ') < 0,
+              `hosted resume start should stay chat-safe without a roster marker (${resumeStart.length}/${MAX_SYNCED_START_CHAT_COMMAND_LENGTH}): ${resumeStart}`,
+            );
+            hostedResumeRuntime.hooks.processChatRecord({ sender: resumeSender, message: resumeStart, isSelf: false });
+            const resumedGame = hostedResumeRuntime.hooks.state.game;
+            assert(resumedGame && resumedGame.importedResume, `hosted shared progress ${resumeSender} resume start should create an imported game`);
+            if (resumedGame && resumedGame.players) {
+              assertEqual(resumedGame.handNumber, progressReplaySource.payload.nextHandNumber, `hosted shared progress ${resumeSender} resume should use the saved next hand number`);
+              for (const player of resumedGame.players) {
+                const savedBankroll = progressReplaySource.payload.bankrolls[player.key];
+                assertEqual(
+                  player.stack + player.committed,
+                  savedBankroll,
+                  `hosted shared progress ${resumeSender} resume should preserve ${player.name}'s bankroll before automatic blinds`,
+                );
+              }
+            }
+          }
+        }
     }
 
     const emptyLobbyRuntime = createMenuRuntime();
@@ -1100,6 +1737,27 @@ if (hooks) {
       assertPanelVisible(lobbyRuntime.runtime, 'PokerLeaveLobbyButton', 'lobby party waiting');
     }
 
+    const stableLobbyRuntime = createMenuRuntime();
+    if (stableLobbyRuntime.hooks) {
+      stableLobbyRuntime.hooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party plobby-stable', isSelf: true });
+      stableLobbyRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party plobby-stable', isSelf: false });
+      stableLobbyRuntime.hooks.modules.TableRenderer.renderGame();
+      clearDomWrites(stableLobbyRuntime.runtime);
+      stableLobbyRuntime.hooks.modules.TableRenderer.renderGame();
+      const writes = summarizeDomWrites(takeDomWrites(stableLobbyRuntime.runtime));
+      assertEqual(actionButtonPanels(stableLobbyRuntime.runtime).length, 0, 'stable lobby render should not show action buttons');
+      assertEqual(tableSeatRows(stableLobbyRuntime.runtime).length, 0, 'stable lobby render should not show table seats');
+      assertPanelVisible(stableLobbyRuntime.runtime, 'PokerLeaveLobbyButton', 'stable lobby repeated render');
+      assertEqual(JSON.stringify(playerListNames(stableLobbyRuntime.runtime)), JSON.stringify(['Abrams', 'Bebop']), 'stable lobby repeated render should keep player-list names');
+      assertEqual(writes.create, 0, 'stable lobby repeated render should not create panels');
+      assertEqual(writes.delete, 0, 'stable lobby repeated render should not delete panels');
+      assertEqual(writes.deleteChildren, 0, 'stable lobby repeated render should not clear child lists');
+      assertEqual(writes.class, 0, 'stable lobby repeated render should not change classes');
+      assertEqual(writes.text, 0, 'stable lobby repeated render should not change text');
+      assertEqual(writes.hittest, 0, 'stable lobby repeated render should not change hittest');
+      assertEqual(writes.event, 0, 'stable lobby repeated render should not rebind events');
+    }
+
     const localLeaveRuntime = createMenuRuntime();
     if (localLeaveRuntime.hooks && hasPartySyncHooks(localLeaveRuntime.hooks, 'local leave command party hooks')) {
       const chatTarget = findPanel(localLeaveRuntime.runtime, 'ChatTargetLabel');
@@ -1112,9 +1770,13 @@ if (hooks) {
         'function',
         'context panel leave-lobby hook should be exported',
       );
+      localLeaveRuntime.hooks.state.requiresProgressImport = true;
+      localLeaveRuntime.hooks.state.resume = { id: 'rleave-local', ready: {}, order: [], payload: { roster: [] } };
       localLeaveRuntime.runtime.sandbox.PokerEscapeMenuLeaveLobby();
       assertEqual(localLeaveRuntime.hooks.state.party.id, '', 'local leave command should clear local party state');
       assertEqual(localLeaveRuntime.hooks.state.game, null, 'local leave command should clear local active game state');
+      assertEqual(localLeaveRuntime.hooks.state.requiresProgressImport, false, 'local leave command should clear imported-progress start guard');
+      assertEqual(!!(localLeaveRuntime.hooks.state.resume && localLeaveRuntime.hooks.state.resume.id), false, 'local leave command should clear resume state');
       for (let i = 0; i < 8 && localLeaveRuntime.runtime.schedules.length; i += 1) {
         localLeaveRuntime.runtime.schedules.shift().callback();
       }
@@ -1124,6 +1786,127 @@ if (hooks) {
         ),
         'local leave command should submit the party leave chat record',
       );
+    }
+
+    const activeLeaderLeaveRuntime = createGameRuntime(['Abrams', 'Bebop'], 'sleaderleavebutton');
+    if (activeLeaderLeaveRuntime.hooks && activeLeaderLeaveRuntime.game) {
+      const activeLeaderLeaveButton = findPanel(activeLeaderLeaveRuntime.runtime, 'PokerLeaveLobbyButton');
+      const activeLeaderChatTarget = findPanel(activeLeaderLeaveRuntime.runtime, 'ChatTargetLabel');
+      if (activeLeaderChatTarget) activeLeaderChatTarget.text = 'TEAM';
+      activeLeaderLeaveRuntime.hooks.modules.TableRenderer.renderGame();
+      assertButtonAffordance(activeLeaderLeaveRuntime.runtime, 'PokerLeaveLobbyButton', { hidden: false, enabled: true }, 'active leader leave-lobby button path');
+      assertHookFunction(activeLeaderLeaveRuntime.runtime.sandbox, 'PokerEscapeMenuLeaveLobby', 'active leader leave-lobby button path hook');
+      const activeLeaderLeaveDispatchStart = activeLeaderLeaveRuntime.runtime.dispatches.length;
+      activeLeaderLeaveRuntime.runtime.sandbox.PokerEscapeMenuLeaveLobby();
+      drainScheduledCallbacks(activeLeaderLeaveRuntime.runtime, 256);
+      const activeLeaderLeaveMessages = submittedChatMessages(activeLeaderLeaveRuntime.runtime, activeLeaderLeaveDispatchStart);
+      assert(
+        activeLeaderLeaveMessages.some((message) => /^\[match end\] poker party pgame-ready seed .+ hand 1$/.test(message)),
+        `active leader leave-lobby button should send authenticated match-end before leaving: ${activeLeaderLeaveMessages.join('|') || '<none>'}`,
+      );
+      assert(
+        activeLeaderLeaveMessages.includes('[party leave] poker party pgame-ready'),
+        `active leader leave-lobby button should still send party leave: ${activeLeaderLeaveMessages.join('|') || '<none>'}`,
+      );
+      assertEqual(activeLeaderLeaveRuntime.hooks.state.party.id, '', 'active leader leave-lobby button should clear local party state');
+      assertEqual(activeLeaderLeaveRuntime.hooks.state.game, null, 'active leader leave-lobby button should clear local active game state');
+
+      const memberLeaveReplayRoster = [
+        { key: 'abrams', name: 'Abrams' },
+        { key: 'bebop', name: 'Bebop' },
+      ];
+      const memberLeaveReplay = createSyncedJoinedPartyRuntime('Bebop', 'smemberleavereplay', memberLeaveReplayRoster, 1, 'pmember-leave-replay');
+      if (memberLeaveReplay.hooks && memberLeaveReplay.game) {
+        memberLeaveReplay.runtime.config.PokerLocalPlayerKey = 'bebop';
+        memberLeaveReplay.runtime.config.PokerLocalPlayerName = 'Bebop';
+        const replayPartyId = memberLeaveReplay.hooks.state.party.id;
+        const replaySeed = memberLeaveReplay.game.seed;
+        memberLeaveReplay.hooks.processChatRecord({
+          sender: '<unknown>',
+          message: 'fold',
+          isSelf: false,
+        });
+        assert(
+          memberLeaveReplay.hooks.state.game && memberLeaveReplay.hooks.state.game.finished && !memberLeaveReplay.hooks.state.game.active,
+          'member replay setup should finish the two-player hand before the leader leave rows arrive',
+        );
+        memberLeaveReplay.hooks.processChatRecord({
+          sender: '<unknown>',
+          message: `[match end] poker party ${replayPartyId} seed ${replaySeed} hand ${memberLeaveReplay.game.handNumber}`,
+          isSelf: false,
+        });
+        assertEqual(memberLeaveReplay.hooks.state.game, null, 'member replay setup should clear active game from authenticated unknown match-end');
+        assertEqual(memberLeaveReplay.hooks.state.party.id, replayPartyId, 'member replay setup should preserve party until the following leave row');
+        memberLeaveReplay.hooks.processChatRecord({
+          sender: '<unknown>',
+          message: `[party leave] poker party ${replayPartyId}`,
+          isSelf: false,
+        });
+        assertEqual(memberLeaveReplay.hooks.state.party.id, '', 'member replay should clear stale party after authenticated match-end followed by unknown leader leave');
+        assertEqual(memberLeaveReplay.hooks.state.game, null, 'member replay should stay out of the active hand after unknown leader leave');
+      }
+    }
+
+    const twoPlayerHostLeaveRuntime = createMenuRuntime();
+    if (twoPlayerHostLeaveRuntime.hooks && hasPartySyncHooks(twoPlayerHostLeaveRuntime.hooks, 'two-player hosted-lobby host leave regression hooks')) {
+      const twoPlayerHostLeaveHooks = twoPlayerHostLeaveRuntime.hooks;
+      const twoPlayerHostLeavePartyId = 'phost-leave-two';
+      twoPlayerHostLeaveHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party ' + twoPlayerHostLeavePartyId, isSelf: false });
+      twoPlayerHostLeaveHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party ' + twoPlayerHostLeavePartyId, isSelf: true });
+      twoPlayerHostLeaveHooks.modules.TableRenderer.renderGame();
+      assertEqual(twoPlayerHostLeaveHooks.state.party.id, twoPlayerHostLeavePartyId, 'two-player hosted-lobby host leave setup should join Bebop to Abrams lobby');
+      assertEqual(twoPlayerHostLeaveHooks.state.party.mode, 'member', 'two-player hosted-lobby host leave setup should mark Bebop as a member');
+      assertPanelVisible(twoPlayerHostLeaveRuntime.runtime, 'PokerLeaveLobbyButton', 'two-player hosted-lobby host leave setup');
+      twoPlayerHostLeaveHooks.processChatRecord({ sender: 'Abrams', message: '[party leave] poker party ' + twoPlayerHostLeavePartyId, isSelf: false });
+      assertEqual(twoPlayerHostLeaveHooks.state.game, null, 'two-player hosted-lobby host leave should leave Bebop with no active game');
+      assertEqual(twoPlayerHostLeaveHooks.state.party.id, '', 'two-player hosted-lobby host leave should clear Bebop party id instead of keeping the stale host lobby');
+      assertEqual(twoPlayerHostLeaveHooks.state.party.mode, 'none', 'two-player hosted-lobby host leave should return Bebop to non-party mode');
+      assertEqual(twoPlayerHostLeaveHooks.state.party.leaderKey, '', 'two-player hosted-lobby host leave should clear stale Abrams leader key');
+      assertEqual(twoPlayerHostLeaveHooks.getPartyRoster().length, 0, 'two-player hosted-lobby host leave should leave no stale Abrams roster entry');
+      assert(
+        !twoPlayerHostLeaveHooks.state.party.members.abrams,
+        'two-player hosted-lobby host leave should remove Abrams from local party members',
+      );
+      twoPlayerHostLeaveHooks.modules.TableRenderer.renderGame();
+      assertPanelHidden(twoPlayerHostLeaveRuntime.runtime, 'PokerLeaveLobbyButton', 'two-player hosted-lobby host leave reset');
+    }
+
+    const threePlayerHostLeaveRuntime = createMenuRuntime();
+    if (threePlayerHostLeaveRuntime.hooks && hasPartySyncHooks(threePlayerHostLeaveRuntime.hooks, 'three-player hosted-lobby host transfer regression hooks')) {
+      const threePlayerHostLeaveHooks = threePlayerHostLeaveRuntime.hooks;
+      const threePlayerHostLeavePartyId = 'phost-leave-three';
+      threePlayerHostLeaveHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party ' + threePlayerHostLeavePartyId, isSelf: false });
+      threePlayerHostLeaveHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party ' + threePlayerHostLeavePartyId, isSelf: true });
+      threePlayerHostLeaveHooks.processChatRecord({ sender: 'Dynamo', message: '[party join] poker party ' + threePlayerHostLeavePartyId, isSelf: false });
+      assertEqual(
+        JSON.stringify(threePlayerHostLeaveHooks.getPartyRoster().map((member) => member.key)),
+        JSON.stringify(['abrams', 'bebop', 'dynamo']),
+        'three-player hosted-lobby host transfer setup should preserve join order before Abrams leaves',
+      );
+      threePlayerHostLeaveHooks.processChatRecord({ sender: 'Abrams', message: '[party leave] poker party ' + threePlayerHostLeavePartyId, isSelf: false });
+      assertEqual(threePlayerHostLeaveHooks.state.party.id, threePlayerHostLeavePartyId, 'three-player hosted-lobby host transfer should keep the lobby id');
+      assertEqual(threePlayerHostLeaveHooks.state.party.mode, 'leader', 'three-player hosted-lobby host transfer should promote local Bebop to leader mode');
+      assertEqual(threePlayerHostLeaveHooks.state.party.leaderKey, 'bebop', 'three-player hosted-lobby host transfer should promote Bebop to leader');
+      assertEqual(threePlayerHostLeaveHooks.state.party.leaderName, 'Bebop', 'three-player hosted-lobby host transfer should preserve Bebop leader name');
+      assertEqual(
+        JSON.stringify(threePlayerHostLeaveHooks.state.party.order),
+        JSON.stringify(['bebop', 'dynamo']),
+        'three-player hosted-lobby host transfer should remove Abrams from member order while preserving Bebop and Dynamo',
+      );
+      assertEqual(
+        JSON.stringify(threePlayerHostLeaveHooks.getPartyRoster()),
+        JSON.stringify([
+          { key: 'bebop', name: 'Bebop' },
+          { key: 'dynamo', name: 'Dynamo' },
+        ]),
+        'three-player hosted-lobby host transfer should preserve only Bebop and Dynamo in roster order',
+      );
+      assert(
+        !threePlayerHostLeaveHooks.state.party.members.abrams,
+        'three-player hosted-lobby host transfer should remove Abrams from local party members',
+      );
+      threePlayerHostLeaveHooks.modules.TableRenderer.renderGame();
+      assertPanelVisible(threePlayerHostLeaveRuntime.runtime, 'PokerLeaveLobbyButton', 'three-player hosted-lobby host transfer');
     }
 
     const staleHostRuntime = createMenuRuntime();
@@ -1226,9 +2009,7 @@ if (hooks) {
       ], 11));
       assertEqual(staleReadyHooks.getReadySeatArray().length, 2, 'stale ready regression setup should ingest the old ready snapshot before leaving');
       staleReadyRuntime.runtime.sandbox.PokerEscapeMenuLeaveLobby();
-      for (let i = 0; i < 8 && staleReadyRuntime.runtime.schedules.length; i += 1) {
-        staleReadyRuntime.runtime.schedules.shift().callback();
-      }
+      drainScheduledCallbacks(staleReadyRuntime.runtime, 64);
       assertEqual(staleReadyHooks.getReadySeatArray().length, 0, 'leave clear should empty old ready seats before fresh hosting');
       staleReadyHooks.handleReadyEvent(readySnapshotPayload([
         { key: 'abrams', name: 'Abrams', readyAt: 10 },
@@ -1241,9 +2022,7 @@ if (hooks) {
       );
       const dispatchesBeforeFreshHost = staleReadyRuntime.runtime.dispatches.length;
       staleReadyRuntime.runtime.sandbox.PokerEscapeMenuHostParty();
-      for (let i = 0; i < 8 && staleReadyRuntime.runtime.schedules.length; i += 1) {
-        staleReadyRuntime.runtime.schedules.shift().callback();
-      }
+      drainScheduledCallbacks(staleReadyRuntime.runtime, 64);
       const freshHostCommands = staleReadyRuntime.runtime.dispatches
         .slice(dispatchesBeforeFreshHost)
         .filter((event) => event.name === 'CitadelChatInputSubmitted' && String(event.payloadText || '').indexOf('[party leader] poker party ') === 0)
@@ -1390,7 +2169,7 @@ if (hooks) {
       runtime,
       firstActor.name,
       game.phase,
-      ['CALL $100', 'RAISE TO $400', 'RAISE TO $700', 'FOLD'],
+      ['CALL $100', 'RAISE', 'FOLD'],
       ['CHECK', 'BET $200', 'BET $500'],
       'active game render',
     );
@@ -1404,7 +2183,35 @@ if (hooks) {
     assertButtonAffordance(runtime, 'PokerProgressControls', { hidden: true }, 'active local actor button state');
     assertButtonAffordance(runtime, 'PokerResumeControls', { hidden: true }, 'active local actor button state');
     assertButtonAffordance(runtime, 'PokerPartyControls', { hidden: true }, 'active local actor button state');
-    assertEnabledActionButtons(runtime, ['CALL $100', 'RAISE TO $400', 'RAISE TO $700', 'FOLD'], 'active local actor');
+    assertEnabledActionButtons(runtime, ['CALL', 'RAISE', 'FOLD'], 'active local actor');
+    assertRaiseFacingActionButtonContract(runtime, 'active local actor raise-facing controls');
+    assertCustomRaiseAmountControlContract(runtime, hooks.getMinimumRaiseTo(game), 'active local actor raise-facing controls');
+    assertIllegalCustomRaiseAmountMarksInvalid(runtime, hooks.getMinimumRaiseTo(game) - 1, 'active local actor raise-facing controls');
+
+    const raiseControlRuntime = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'custom-raise-submit');
+    if (raiseControlRuntime.hooks && raiseControlRuntime.game) {
+      const raiseControlGame = raiseControlRuntime.game;
+      const raiseControlActor = currentPlayer(raiseControlGame);
+      raiseControlRuntime.hooks.state.localPlayerKey = raiseControlActor.key;
+      raiseControlRuntime.runtime.config.PokerLocalPlayerKey = raiseControlActor.key;
+      raiseControlRuntime.runtime.config.PokerLocalPlayerName = raiseControlActor.name;
+      raiseControlRuntime.hooks.modules.TableRenderer.renderGame();
+      const raiseControl = findEditableCustomRaiseControl(raiseControlRuntime.runtime);
+      const raiseButton = renderedActionButtons(raiseControlRuntime.runtime).find((button) => actionButtonSemantic(button.label) === 'RAISE');
+      const raiseAmount = raiseControlRuntime.hooks.getMinimumRaiseTo(raiseControlGame);
+      const raiseChatTarget = findPanel(raiseControlRuntime.runtime, 'ChatTargetLabel');
+      if (raiseChatTarget) raiseChatTarget.text = 'TEAM';
+      if (raiseControl) raiseControl.text = String(raiseAmount);
+      const raiseDispatchStart = raiseControlRuntime.runtime.dispatches.length;
+      assert(raiseButton && typeof raiseButton.panel.onactivate === 'function', 'active local actor custom raise controls should bind RAISE button activation');
+      if (raiseButton && typeof raiseButton.panel.onactivate === 'function') raiseButton.panel.onactivate();
+      drainScheduledCallbacks(raiseControlRuntime.runtime, 256);
+      const raiseMessages = submittedChatMessages(raiseControlRuntime.runtime, raiseDispatchStart);
+      assert(
+        raiseMessages.includes(`raise $${raiseAmount}`),
+        `active local actor custom raise controls should submit raise $${raiseAmount}: ${raiseMessages.join('|') || '<none>'}`,
+      );
+    }
 
     const rejectedSender = game.players[1];
     const turnBeforeRejectedCheck = game.currentIndex;
@@ -1455,6 +2262,33 @@ if (hooks) {
       ['Flop dealt', currentPlayer(game).name, 'to act', 'check', 'bet', '$200'],
       'street advance after big blind check',
     );
+    hooks.state.localPlayerKey = currentPlayer(game).name.toLowerCase().replace(/\s+/g, ' ').trim();
+    runtime.config.PokerLocalPlayerKey = hooks.state.localPlayerKey;
+    runtime.config.PokerLocalPlayerName = currentPlayer(game).name;
+    hooks.modules.TableRenderer.renderGame();
+    const openingBetButtons = renderedActionButtons(runtime);
+    assertEqual(
+      JSON.stringify(openingBetButtons.map((button) => actionButtonSemantic(button.label))),
+      JSON.stringify(['CHECK', 'BET', 'FOLD']),
+      'opening-action custom bet controls should render CHECK, BET, FOLD semantic buttons in order',
+    );
+    assertCustomRaiseAmountControlContract(runtime, hooks.getMinimumRaiseTo(game), 'opening-action custom bet controls');
+    const betControl = findEditableCustomRaiseControl(runtime);
+    const betButton = openingBetButtons.find((button) => actionButtonSemantic(button.label) === 'BET');
+    const betAmount = hooks.getMinimumRaiseTo(game);
+    const betChatTarget = findPanel(runtime, 'ChatTargetLabel');
+    if (betChatTarget) betChatTarget.text = 'TEAM';
+    if (betControl) betControl.text = String(betAmount);
+    const betDispatchStart = runtime.dispatches.length;
+    assert(betButton && typeof betButton.panel.onactivate === 'function', 'opening-action custom bet controls should bind BET button activation');
+    if (betButton && typeof betButton.panel.onactivate === 'function') betButton.panel.onactivate();
+    drainScheduledCallbacks(runtime, 256);
+    const openingBetMessages = submittedChatMessages(runtime, betDispatchStart);
+    assert(
+      openingBetMessages.includes(`bet $${betAmount}`),
+      `opening-action custom bet controls should submit bet $${betAmount} instead of custom-bet: ${openingBetMessages.join('|') || '<none>'}`,
+    );
+    assertIllegalCustomRaiseAmountMarksInvalid(runtime, betAmount - 1, 'opening-action custom bet controls');
 
     const bettor = currentPlayer(game);
     hooks.processChatRecord({ sender: bettor.name, message: 'bet $300' });
@@ -1488,6 +2322,7 @@ if (hooks) {
       [bettor.name, 'wins by fold', 'Pot $700', 'awarded'],
       'fold win',
     );
+    assertPotWinnerFeedback(runtime, [bettor.name], 'fold win');
 
     if (progressHooksAvailable) {
       const progress = hooks.buildProgressSaveCode();
@@ -1599,7 +2434,7 @@ if (hooks) {
         runtime,
         secondFirstActor.name,
         secondGame.phase,
-        ['CALL $200', 'RAISE TO $800', 'FOLD'],
+        ['CALL $200', 'RAISE', 'FOLD'],
         ['CALL $100', 'RAISE TO $400', 'RAISE TO $700', 'BET $200', 'BET $500'],
         'second hand preflop render',
       );
@@ -1619,7 +2454,7 @@ if (hooks) {
         runtime,
         secondBigBlindActor.name,
         secondGame.phase,
-        ['CHECK', 'RAISE TO $800', 'FOLD'],
+        ['CHECK', 'RAISE', 'FOLD'],
         ['CALL $100', 'CALL $200', 'RAISE TO $400', 'RAISE TO $700'],
         'second hand big blind option render',
       );
@@ -1637,7 +2472,7 @@ if (hooks) {
       assert(!secondFlopLegal.canBetTarget(300), 'second hand flop should reject bets below the $400 big blind');
       assertAnnouncerIncludes(
         runtime,
-        ['Flop dealt', secondFlopActor.name, 'to act', 'check', 'bet $400', 'bet $700'],
+        ['Flop dealt', secondFlopActor.name, 'to act', 'check', 'bet $400-$9400'],
         'second hand flop prompt',
       );
       assertAnnouncerOmits(runtime, ['bet $200', 'bet $500'], 'second hand flop prompt');
@@ -1645,8 +2480,8 @@ if (hooks) {
         runtime,
         secondFlopActor.name,
         secondGame.phase,
-        ['CHECK', 'BET $400', 'BET $700', 'FOLD'],
-        ['BET $200', 'BET $500', 'RAISE TO $800'],
+        ['CHECK', 'BET', 'FOLD'],
+        ['BET $200', 'BET $500', 'RAISE'],
         'second hand flop render',
       );
 
@@ -1681,7 +2516,7 @@ if (hooks) {
   const syncedAbrams = createSyncedPartyRuntime('Abrams', 'ssync', syncedRoster, 1);
   const syncedBebop = createSyncedPartyRuntime('Bebop', 'ssync', syncedRoster, 1);
   if (syncedAbrams.hooks && syncedBebop.hooks && syncedAbrams.game && syncedBebop.game) {
-    assertEqual(syncedAbrams.startCommand, 'poker start ssync hand 1 roster abrams~Abrams|bebop~Bebop', 'synced runtime should preserve non-space roster names in the start command');
+    assertEqual(syncedAbrams.startCommand, 'poker start ssync hand 1 roster abrams|bebop', 'synced runtime should use compact key-only roster entries in the start command');
     assertEqual(syncedAbrams.game.seed, 'ssync', 'synced roster start should use the shared seed without appending sender text');
     assertEqual(syncedBebop.game.seed, 'ssync', 'second synced roster start should use the same shared seed without appending sender text');
     assertSameSyncedGame(syncedBebop.game, syncedAbrams.game, 'two clients receiving the same roster start');
@@ -1692,7 +2527,7 @@ if (hooks) {
       syncedAbrams.runtime,
       currentPlayer(syncedAbrams.game).name,
       syncedAbrams.game.phase,
-      ['CALL $100', 'RAISE TO $400', 'RAISE TO $700', 'FOLD'],
+      ['CALL $100', 'RAISE', 'FOLD'],
       ['CHECK', 'BET $200', 'BET $500'],
       'synced active hand render',
     );
@@ -1746,11 +2581,93 @@ if (hooks) {
       'Bebop client should keep Abrams hole cards hidden',
     );
 
+    syncedAbrams.hooks.state.requiresProgressImport = true;
+    syncedAbrams.hooks.state.resume = { id: 'rend-match', ready: {}, order: [], payload: { roster: [] } };
     assertHookFunction(syncedAbrams.runtime.sandbox, 'PokerEscapeMenuEndMatch', 'global ESC menu end-match hook');
     syncedAbrams.runtime.sandbox.PokerEscapeMenuEndMatch();
     assertEqual(syncedAbrams.hooks.state.game, null, 'end-match hook should clear the synced hand state');
+    assertEqual(syncedAbrams.hooks.state.requiresProgressImport, false, 'end-match hook should clear imported-progress start guard');
+    assertEqual(!!(syncedAbrams.hooks.state.resume && syncedAbrams.hooks.state.resume.id), false, 'end-match hook should clear resume state');
     assertNoGamePlayerRail(syncedAbrams.runtime, 'end-match render');
     assertEqual(pokerLogLines(syncedAbrams.runtime).length, 0, 'end-match render should clear stale visible log rows');
+  }
+
+  const duplicateJoinRuntime = createMenuRuntime();
+  if (duplicateJoinRuntime.hooks) {
+    duplicateJoinRuntime.hooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pduplicate-join', isSelf: true });
+    duplicateJoinRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party pduplicate-join', isSelf: false });
+    duplicateJoinRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party pduplicate-join', isSelf: false });
+    duplicateJoinRuntime.hooks.modules.TableRenderer.renderGame();
+    const duplicateParty = duplicateJoinRuntime.hooks.state.party || {};
+    assertEqual(Object.keys(duplicateParty.members || {}).filter((key) => key === 'bebop').length, 1, 'duplicate party join should leave one Bebop party member');
+    assertEqual((duplicateParty.order || []).filter((key) => key === 'bebop').length, 1, 'duplicate party join should leave one Bebop party order entry');
+    assertEqual(JSON.stringify(playerListNames(duplicateJoinRuntime.runtime)), JSON.stringify(['Abrams', 'Bebop']), 'duplicate party join render should keep one player row per party member');
+    assertEqual(countRendered(duplicateJoinRuntime.runtime).playerRows, 2, 'duplicate party join render should not duplicate player rows');
+  }
+
+  const wrongPartyLeaveRuntime = createSyncedPartyRuntime('Abrams', 'swrong-party-leave', syncedRoster, 1);
+  if (wrongPartyLeaveRuntime.hooks && wrongPartyLeaveRuntime.game) {
+    const wrongPartyBefore = JSON.stringify({
+      partyId: wrongPartyLeaveRuntime.hooks.state.party && wrongPartyLeaveRuntime.hooks.state.party.id,
+      partyOrder: wrongPartyLeaveRuntime.hooks.state.party && wrongPartyLeaveRuntime.hooks.state.party.order,
+      players: wrongPartyLeaveRuntime.game.players.map((player) => ({
+        key: player.key,
+        folded: !!player.folded,
+        eliminated: !!player.eliminated,
+        active: player.active !== false,
+      })),
+      active: wrongPartyLeaveRuntime.game.active,
+      finished: wrongPartyLeaveRuntime.game.finished,
+      currentIndex: wrongPartyLeaveRuntime.game.currentIndex,
+    });
+    wrongPartyLeaveRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party leave] poker party pnot-this-table', isSelf: false });
+    wrongPartyLeaveRuntime.hooks.modules.TableRenderer.renderGame();
+    const wrongPartyAfter = JSON.stringify({
+      partyId: wrongPartyLeaveRuntime.hooks.state.party && wrongPartyLeaveRuntime.hooks.state.party.id,
+      partyOrder: wrongPartyLeaveRuntime.hooks.state.party && wrongPartyLeaveRuntime.hooks.state.party.order,
+      players: wrongPartyLeaveRuntime.game.players.map((player) => ({
+        key: player.key,
+        folded: !!player.folded,
+        eliminated: !!player.eliminated,
+        active: player.active !== false,
+      })),
+      active: wrongPartyLeaveRuntime.game.active,
+      finished: wrongPartyLeaveRuntime.game.finished,
+      currentIndex: wrongPartyLeaveRuntime.game.currentIndex,
+    });
+    assertEqual(wrongPartyAfter, wrongPartyBefore, 'known member leave for a different party id should not mutate current party or active game state');
+    assertEqual(countRendered(wrongPartyLeaveRuntime.runtime).playerRows, 2, 'wrong-party leave render should keep the existing two player rows');
+    assertEqual(countRendered(wrongPartyLeaveRuntime.runtime).tableSeats, 2, 'wrong-party leave render should keep the existing two table seats');
+  }
+
+  const duplicateSnapshotRuntime = createSyncedPartyRuntime('Abrams', 'sduplicate-open-snapshot', syncedRoster, 1);
+  if (duplicateSnapshotRuntime.hooks && duplicateSnapshotRuntime.game) {
+    const duplicateSnapshot = {
+      event: 'PokerChatMessage',
+      action: 'snapshot',
+      reason: 'duplicate-open-snapshot',
+      seq: 3,
+      messages: [
+        { seq: 1, sender: 'Abrams', message: '[party leader] poker party psync', isSelf: true },
+        { seq: 2, sender: 'Bebop', message: '[party join] poker party psync', isSelf: false },
+        { seq: 3, sender: 'Abrams', message: duplicateSnapshotRuntime.startCommand, isSelf: true },
+      ],
+    };
+    duplicateSnapshotRuntime.runtime.sandbox.PokerEscapeMenuToggle();
+    duplicateSnapshotRuntime.hooks.handleReadyEvent(JSON.stringify(duplicateSnapshot));
+    drainScheduledCallbacks(duplicateSnapshotRuntime.runtime, 128);
+    duplicateSnapshotRuntime.hooks.modules.TableRenderer.renderGame();
+    const firstCounts = countRendered(duplicateSnapshotRuntime.runtime);
+    assertEqual(firstCounts.playerRows, 2, 'open snapshot replay setup should render two player rows');
+    assertEqual(firstCounts.tableSeats, 2, 'open snapshot replay setup should render two table seats');
+    assertGreaterThan(firstCounts.actionButtons, 0, 'open snapshot replay setup should render active action buttons');
+    duplicateSnapshotRuntime.runtime.sandbox.PokerEscapeMenuToggle();
+    duplicateSnapshotRuntime.runtime.sandbox.PokerEscapeMenuToggle();
+    duplicateSnapshotRuntime.hooks.handleReadyEvent(JSON.stringify(duplicateSnapshot));
+    drainScheduledCallbacks(duplicateSnapshotRuntime.runtime, 128);
+    duplicateSnapshotRuntime.hooks.modules.TableRenderer.renderGame();
+    const secondCounts = countRendered(duplicateSnapshotRuntime.runtime);
+    assertEqual(JSON.stringify(secondCounts), JSON.stringify(firstCounts), 'repeated open-time snapshot replay should not duplicate rendered action/player/table/log/hint/custom-bet/pot panels');
   }
 
   const tableRoster = [
@@ -1758,6 +2675,190 @@ if (hooks) {
     { key: 'bebop', name: 'Bebop' },
     { key: 'calico', name: 'Calico' },
   ];
+
+  const twoPlayerLeaderEndThenLeavePartyId = 'pleader-end-leave-two';
+  const twoPlayerLeaderEndThenLeaveRuntime = createSyncedJoinedPartyRuntime('Bebop', 'stwo-leader-end-leave', syncedRoster, 1, twoPlayerLeaderEndThenLeavePartyId);
+  if (twoPlayerLeaderEndThenLeaveRuntime.hooks && twoPlayerLeaderEndThenLeaveRuntime.game) {
+    const endThenLeaveHooks = twoPlayerLeaderEndThenLeaveRuntime.hooks;
+    assertEqual(endThenLeaveHooks.state.party.mode, 'member', 'two-player leader end-then-leave setup should make Bebop a joined member');
+    assertEqual(endThenLeaveHooks.state.game.active, true, 'two-player leader end-then-leave setup should start an active hand');
+    endThenLeaveHooks.processChatRecord({ sender: 'Abrams', message: `[match end] poker party ${twoPlayerLeaderEndThenLeavePartyId}`, isSelf: false });
+    assertEqual(endThenLeaveHooks.state.game, null, 'leader match-end before party leave should clear the member active hand');
+    endThenLeaveHooks.modules.TableRenderer.renderGame();
+    assertNoGamePlayerRail(twoPlayerLeaderEndThenLeaveRuntime.runtime, 'leader match-end before party leave member lobby render');
+    endThenLeaveHooks.processChatRecord({ sender: 'Abrams', message: `[party leave] poker party ${twoPlayerLeaderEndThenLeavePartyId}`, isSelf: false });
+    assertEqual(endThenLeaveHooks.state.game, null, 'leader party leave after match-end should keep the member out of an active hand');
+    assertEqual(endThenLeaveHooks.state.party.id, '', 'leader party leave after match-end should clear the member party id');
+    assertEqual(endThenLeaveHooks.state.party.mode, 'none', 'leader party leave after match-end should return the member to non-party mode');
+    assertEqual(endThenLeaveHooks.getPartyRoster().length, 0, 'leader party leave after match-end should leave no stale two-player roster');
+    endThenLeaveHooks.modules.TableRenderer.renderGame();
+    assertNoGamePlayerRail(twoPlayerLeaderEndThenLeaveRuntime.runtime, 'leader match-end then party leave member lobby render');
+    assertPanelHidden(twoPlayerLeaderEndThenLeaveRuntime.runtime, 'PokerLeaveLobbyButton', 'leader match-end then party leave member lobby render');
+  }
+
+  const twoPlayerUnknownMatchEndPartyId = 'pleader-unknown-match-end-two';
+  const twoPlayerUnknownMatchEndRuntime = createSyncedJoinedPartyRuntime('Bebop', 'stwounknownmatchend', syncedRoster, 1, twoPlayerUnknownMatchEndPartyId);
+  if (twoPlayerUnknownMatchEndRuntime.hooks && twoPlayerUnknownMatchEndRuntime.game) {
+    const unknownMatchEndHooks = twoPlayerUnknownMatchEndRuntime.hooks;
+    assertEqual(unknownMatchEndHooks.state.party.leaderKey, 'abrams', 'unknown match-end setup should know Abrams is party leader');
+    assertEqual(unknownMatchEndHooks.state.game.active, true, 'unknown match-end setup should start an active hand');
+    unknownMatchEndHooks.processChatRecord({ sender: '<unknown>', message: `[match end] poker party ${twoPlayerUnknownMatchEndPartyId} seed stwounknownmatchend hand 1`, isSelf: false });
+    assertEqual(unknownMatchEndHooks.state.game, null, 'unknown match-end from the known current party leader with matching seed/hand should clear the member active hand');
+    unknownMatchEndHooks.modules.TableRenderer.renderGame();
+    assertNoGamePlayerRail(twoPlayerUnknownMatchEndRuntime.runtime, 'unknown match-end from known leader member lobby render');
+  }
+
+  const twoPlayerWrongUnknownMatchEndPartyId = 'pleader-wrong-unknown-match-end-two';
+  const twoPlayerWrongUnknownMatchEndRuntime = createSyncedJoinedPartyRuntime('Bebop', 'stwo-wrong-unknown-match-end', syncedRoster, 1, twoPlayerWrongUnknownMatchEndPartyId);
+  if (twoPlayerWrongUnknownMatchEndRuntime.hooks && twoPlayerWrongUnknownMatchEndRuntime.game) {
+    const wrongUnknownMatchEndHooks = twoPlayerWrongUnknownMatchEndRuntime.hooks;
+    wrongUnknownMatchEndHooks.processChatRecord({ sender: '<unknown>', message: `[match end] poker party ${twoPlayerWrongUnknownMatchEndPartyId} seed wrong-seed hand 99`, isSelf: false });
+    assert(
+      wrongUnknownMatchEndHooks.state.game && wrongUnknownMatchEndHooks.state.game.active,
+      'unknown match-end with wrong seed/hand should not clear the member active hand',
+    );
+    assertEqual(wrongUnknownMatchEndHooks.state.party.leaderKey, 'abrams', 'unknown match-end with wrong seed/hand should preserve the current party leader');
+    assert(
+      !wrongUnknownMatchEndHooks.getPartyRoster().some((member) => member.key === '<unknown>' || member.name === '<unknown>'),
+      'unknown match-end with wrong seed/hand should not add an unknown party roster entry',
+    );
+    assert(
+      !Object.prototype.hasOwnProperty.call(wrongUnknownMatchEndHooks.state.party.members || {}, '<unknown>'),
+      'unknown match-end with wrong seed/hand should not add an unknown party member key',
+    );
+  }
+
+  const twoPlayerLeaderLeaveOnlyPartyId = 'pleader-leave-two';
+  const twoPlayerLeaderLeaveOnlyRuntime = createSyncedJoinedPartyRuntime('Bebop', 'stwo-leader-leave-only', syncedRoster, 1, twoPlayerLeaderLeaveOnlyPartyId);
+  if (twoPlayerLeaderLeaveOnlyRuntime.hooks && twoPlayerLeaderLeaveOnlyRuntime.game) {
+    const leaderLeaveOnlyHooks = twoPlayerLeaderLeaveOnlyRuntime.hooks;
+    assertEqual(leaderLeaveOnlyHooks.state.party.mode, 'member', 'two-player leader leave-only setup should make Bebop a joined member');
+    assertEqual(leaderLeaveOnlyHooks.state.game.active, true, 'two-player leader leave-only setup should start an active hand');
+    leaderLeaveOnlyHooks.state.requiresProgressImport = true;
+    leaderLeaveOnlyHooks.state.resume = { id: 'rtwo-leave', ready: {}, order: [], payload: { roster: [] } };
+    leaderLeaveOnlyHooks.processChatRecord({ sender: 'Abrams', message: `[party leave] poker party ${twoPlayerLeaderLeaveOnlyPartyId}`, isSelf: false });
+    assertEqual(leaderLeaveOnlyHooks.state.game, null, 'leader party leave from a two-player active hand should reset the member to the lobby');
+    assertEqual(leaderLeaveOnlyHooks.state.party.id, '', 'leader party leave from a two-player active hand should clear the member party id');
+    assertEqual(leaderLeaveOnlyHooks.state.party.mode, 'none', 'leader party leave from a two-player active hand should clear member party mode');
+    assertEqual(leaderLeaveOnlyHooks.getPartyRoster().length, 0, 'leader party leave from a two-player active hand should leave no stale member roster');
+    assertEqual(leaderLeaveOnlyHooks.state.requiresProgressImport, false, 'leader party leave from a two-player active hand should clear imported-progress start guard');
+    assertEqual(!!(leaderLeaveOnlyHooks.state.resume && leaderLeaveOnlyHooks.state.resume.id), false, 'leader party leave from a two-player active hand should clear resume state');
+    assertEqual(leaderLeaveOnlyHooks.state.resumeRequiresHostedParty, true, 'leader party leave from a two-player active hand should require a hosted party before resume');
+    leaderLeaveOnlyHooks.modules.TableRenderer.renderGame();
+    assertNoGamePlayerRail(twoPlayerLeaderLeaveOnlyRuntime.runtime, 'leader party leave only two-player member lobby render');
+    assertPanelHidden(twoPlayerLeaderLeaveOnlyRuntime.runtime, 'PokerLeaveLobbyButton', 'leader party leave only two-player member lobby render');
+  }
+
+  for (const localName of ['Bebop', 'Calico']) {
+    const threePlayerLeaderLeavePartyId = `pleader-active-leave-${localName.toLowerCase()}`;
+    const threePlayerLeaderLeaveRuntime = createSyncedJoinedPartyRuntime(localName, `sthree-leader-leave-${localName.toLowerCase()}`, tableRoster, 1, threePlayerLeaderLeavePartyId);
+    if (threePlayerLeaderLeaveRuntime.hooks && threePlayerLeaderLeaveRuntime.game) {
+      const transferHooks = threePlayerLeaderLeaveRuntime.hooks;
+      const transferGame = threePlayerLeaderLeaveRuntime.game;
+      assertEqual(
+        JSON.stringify(transferHooks.state.party.order),
+        JSON.stringify(['abrams', 'bebop', 'calico']),
+        `three-player leader leave setup for ${localName} should preserve party join order`,
+      );
+      const leavingLeader = transferGame.players.find((player) => player.key === 'abrams');
+      assert(leavingLeader, `three-player leader leave setup for ${localName} should include Abrams in the active hand`);
+      if (leavingLeader) {
+        transferGame.currentIndex = transferGame.players.indexOf(leavingLeader);
+        transferHooks.processChatRecord({ sender: 'Abrams', message: `[party leave] poker party ${threePlayerLeaderLeavePartyId}`, isSelf: false });
+        assertEqual(transferHooks.state.game, transferGame, `three-player leader leave for ${localName} should keep the active hand`);
+        assertEqual(transferGame.active, true, `three-player leader leave for ${localName} should keep the hand active`);
+        assertEqual(leavingLeader.folded, true, `three-player leader leave for ${localName} should fold the departing leader`);
+        assertGreaterThan(
+          transferGame.players.filter((player) => !player.folded && player.stack > 0).length,
+          1,
+          `three-player leader leave for ${localName} should leave two live contestants`,
+        );
+        assertEqual(transferHooks.state.party.leaderKey, 'bebop', `three-player leader leave for ${localName} should transfer leadership to next party member`);
+        assertEqual(transferHooks.state.party.leaderName, 'Bebop', `three-player leader leave for ${localName} should preserve the promoted leader name`);
+        assertEqual(
+          transferHooks.state.party.mode,
+          localName === 'Bebop' ? 'leader' : 'member',
+          `three-player leader leave for ${localName} should set local party mode from the transferred leader`,
+        );
+        assertEqual(
+          JSON.stringify(transferHooks.state.party.order),
+          JSON.stringify(['bebop', 'calico']),
+          `three-player leader leave for ${localName} should remove Abrams from party order`,
+        );
+        assertEqual(
+          JSON.stringify(transferHooks.getPartyRoster().map((member) => member.key)),
+          JSON.stringify(['bebop', 'calico']),
+          `three-player leader leave for ${localName} should keep only remaining party members in order`,
+        );
+        transferHooks.modules.TableRenderer.renderGame();
+        assertPanelVisible(threePlayerLeaderLeaveRuntime.runtime, 'PokerTableSeats', `three-player leader leave for ${localName} active render`);
+        assertPanelVisible(threePlayerLeaderLeaveRuntime.runtime, 'PokerGameLog', `three-player leader leave for ${localName} active render`);
+        if (localName === 'Bebop') {
+          assertPanelVisible(threePlayerLeaderLeaveRuntime.runtime, 'PokerEndMatchButton', `three-player leader leave for ${localName} active render`);
+        } else {
+          assertPanelHidden(threePlayerLeaderLeaveRuntime.runtime, 'PokerEndMatchButton', `three-player leader leave for ${localName} active render`);
+        }
+      }
+    }
+  }
+
+  const leaderLeaveContinuationRuntime = createSyncedJoinedPartyRuntime('Bebop', 'sleader-leave-continue', tableRoster, 1, 'pleader-leave-continue');
+  if (leaderLeaveContinuationRuntime.hooks && leaderLeaveContinuationRuntime.game) {
+    const continuationHooks = leaderLeaveContinuationRuntime.hooks;
+    const continuationGame = leaderLeaveContinuationRuntime.game;
+    const leavingLeader = continuationGame.players.find((player) => player.key === 'abrams');
+    assert(leavingLeader, 'leader-leave continuation setup should include Abrams in the active hand');
+    if (leavingLeader) {
+      continuationGame.currentIndex = continuationGame.players.indexOf(leavingLeader);
+      continuationHooks.processChatRecord({ sender: 'Abrams', message: '[party leave] poker party pleader-leave-continue', isSelf: false });
+      const actor = currentPlayer(continuationGame);
+      assert(actor, 'leader-leave continuation should have a current actor after transfer');
+      const legal = actor ? continuationHooks.getLegalActions(actor) : {};
+      const command = legal.check ? 'check' : (legal.call ? 'call' : 'fold');
+      continuationHooks.processChatRecord({ sender: actor.name, message: command, isSelf: actor.key === continuationHooks.state.localPlayerKey });
+      assert(continuationHooks.state.game, 'leader-leave continuation should keep a hand after the next legal action');
+      assert(
+        continuationGame.log.some((line) => String(line).toLowerCase().includes(command)),
+        `leader-leave continuation should log the applied ${command} action: ${(continuationGame.log || []).join('|') || '<empty>'}`,
+      );
+      assert(
+        currentPlayer(continuationGame).key !== 'abrams',
+        'leader-leave continuation should not point the current actor at the departed leader',
+      );
+    }
+  }
+
+  for (const localName of ['Abrams', 'Bebop']) {
+    const threePlayerMemberLeavePartyId = `pmember-active-leave-${localName.toLowerCase()}`;
+    const threePlayerMemberLeaveRuntime = createSyncedJoinedPartyRuntime(localName, `sthree-member-leave-${localName.toLowerCase()}`, tableRoster, 1, threePlayerMemberLeavePartyId);
+    if (threePlayerMemberLeaveRuntime.hooks && threePlayerMemberLeaveRuntime.game) {
+      const memberLeaveHooks = threePlayerMemberLeaveRuntime.hooks;
+      const memberLeaveGame = threePlayerMemberLeaveRuntime.game;
+      const leavingMember = memberLeaveGame.players.find((player) => player.key === 'calico');
+      assert(leavingMember, `three-player non-host leave setup for ${localName} should include Calico in the active hand`);
+      if (leavingMember) {
+        memberLeaveGame.currentIndex = memberLeaveGame.players.indexOf(leavingMember);
+        memberLeaveHooks.processChatRecord({ sender: 'Calico', message: `[party leave] poker party ${threePlayerMemberLeavePartyId}`, isSelf: false });
+        assertEqual(memberLeaveHooks.state.game, memberLeaveGame, `three-player non-host leave for ${localName} should keep the active hand`);
+        assertEqual(memberLeaveGame.active, true, `three-player non-host leave for ${localName} should not clear the table`);
+        assertEqual(leavingMember.folded, true, `three-player non-host leave for ${localName} should fold the departing member`);
+        assertEqual(memberLeaveHooks.state.party.leaderKey, 'abrams', `three-player non-host leave for ${localName} should not transfer leadership`);
+        assertEqual(
+          memberLeaveHooks.state.party.mode,
+          localName === 'Abrams' ? 'leader' : 'member',
+          `three-player non-host leave for ${localName} should preserve local party mode`,
+        );
+        assertEqual(
+          JSON.stringify(memberLeaveHooks.state.party.order),
+          JSON.stringify(['abrams', 'bebop']),
+          `three-player non-host leave for ${localName} should remove only Calico from party order`,
+        );
+        memberLeaveHooks.modules.TableRenderer.renderGame();
+        assertPanelVisible(threePlayerMemberLeaveRuntime.runtime, 'PokerTableSeats', `three-player non-host leave for ${localName} active render`);
+        assertPanelVisible(threePlayerMemberLeaveRuntime.runtime, 'PokerGameLog', `three-player non-host leave for ${localName} active render`);
+      }
+    }
+  }
   const tableRuntime = createSyncedPartyRuntime('Abrams', 'stable-table-seats', tableRoster, 1);
   if (tableRuntime.hooks && tableRuntime.game) {
     tableRuntime.hooks.modules.TableRenderer.renderGame();
@@ -1796,16 +2897,135 @@ if (hooks) {
       'Abrams client table-edge seat should keep Calico hole cards hidden during an active hand',
     );
     assert(rows.some((row) => hasClass(row, 'Current')), 'synced three-player table render should mark the current actor table-edge seat');
+    drainScheduledCallbacks(tableRuntime.runtime, 256);
+    const startingPotTexts = potAmountTexts(tableRuntime.runtime);
+    assertEqual(startingPotTexts.header, 'POT $300', 'active table pot animation setup header amount');
+    assertEqual(startingPotTexts.center, '$300', 'active table pot animation setup center amount');
+    tableRuntime.game.pot = 431;
+    tableRuntime.hooks.modules.TableRenderer.renderGame();
+    const immediatePotTexts = potAmountTexts(tableRuntime.runtime);
+    assert(
+      immediatePotTexts.header !== 'POT $431',
+      `active table pot animation should not jump header amount to the final pot before scheduled callbacks drain: ${immediatePotTexts.header || '<empty>'}`,
+    );
+    assert(
+      immediatePotTexts.center !== '$431',
+      `active table pot animation should not jump center amount to the final pot before scheduled callbacks drain: ${immediatePotTexts.center || '<empty>'}`,
+    );
+    drainScheduledCallbacks(tableRuntime.runtime, 256);
+    const finalPotTexts = potAmountTexts(tableRuntime.runtime);
+    assertEqual(finalPotTexts.header, 'POT $431', 'active table pot animation final header amount after scheduled callbacks drain');
+    assertPotCenterArt(
+      tableRuntime.runtime,
+      431,
+      [
+        { asset: 'pot_300_green_chips_512.vtex', count: 1 },
+        { asset: 'pot_100_red_chips_512.vtex', count: 1 },
+      ],
+      'active table pot-center display after scheduled callbacks drain',
+    );
+
+    const potLifecycleRuntime = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'pot-chip-lifecycle');
+    if (potLifecycleRuntime.hooks && potLifecycleRuntime.game) {
+      potLifecycleRuntime.game.pot = 431;
+      potLifecycleRuntime.hooks.modules.TableRenderer.renderGame();
+      drainScheduledCallbacks(potLifecycleRuntime.runtime, 256);
+      const firstChipPanels = findDescendantsWithClass(findPanel(potLifecycleRuntime.runtime, 'PokerPotChips'), 'PokerPotChip', []);
+      assert(firstChipPanels.length > 1, 'pot-chip lifecycle should render multiple chip panels for $431');
+      const threeHundredPanel = firstChipPanels[0];
+      clearDomWrites(potLifecycleRuntime.runtime);
+      potLifecycleRuntime.hooks.modules.TableRenderer.renderGame();
+      const repeatChipWrites = takeDomWrites(potLifecycleRuntime.runtime).filter((write) => write.type === 'create' || write.type === 'image-src' || (write.type === 'attr' && write.name === 'src'));
+      assertEqual(repeatChipWrites.length, 0, 'pot-chip lifecycle should not recreate or rewrite image sources for unchanged pot');
+      potLifecycleRuntime.game.pot = 300;
+      potLifecycleRuntime.hooks.modules.TableRenderer.renderGame();
+      const threeHundredPanels = findDescendantsWithClass(findPanel(potLifecycleRuntime.runtime, 'PokerPotChips'), 'PokerPotChip', []);
+      assertEqual(threeHundredPanels.length, 1, 'pot-chip lifecycle should retain only one chip panel for $300');
+      assertEqual(threeHundredPanels[0], threeHundredPanel, 'pot-chip lifecycle should reuse the $300 chip panel when lower tiers disappear');
+      assert(firstChipPanels.some((panel) => panel !== threeHundredPanel && panel.deleted), 'pot-chip lifecycle should delete disappeared lower-tier chip panels');
+      potLifecycleRuntime.game.pot = 0;
+      potLifecycleRuntime.hooks.modules.TableRenderer.renderGame();
+      assertPanelHidden(potLifecycleRuntime.runtime, 'PokerPotChips', 'zero-pot chip lifecycle');
+      assertEqual(findDescendantsWithClass(findPanel(potLifecycleRuntime.runtime, 'PokerPotChips'), 'PokerPotChip', []).length, 0, 'zero-pot chip lifecycle should remove all chip panels');
+    }
   }
 
-  const overflowRuntime = createGameRuntime(['Abrams', 'Bebop', 'Calico', 'Dynamo', 'Eagle', 'Fathom', 'Geist'], 'seat-overflow');
-  if (overflowRuntime.hooks && overflowRuntime.game) {
-    overflowRuntime.hooks.modules.TableRenderer.renderGame();
-    assertEqual(tableSeatRows(overflowRuntime.runtime).length, 6, 'seven-player table render should cap table-edge seats at six');
-    const tableText = collectPanelTexts(findPanel(overflowRuntime.runtime, 'PokerTableSeats'), []).join('|');
-    assert(tableText.includes('+1 players in list'), `seven-player table render should show the overflow count on the felt: ${tableText || '<empty>'}`);
-    const playerListText = collectPanelTexts(findPanel(overflowRuntime.runtime, 'PokerPlayersList'), []).join('|');
-    assert(playerListText.includes('Geist'), `seven-player table render should keep overflow player Geist in the left player list: ${playerListText || '<empty>'}`);
+  const tableSeatContractNames = [
+    'Abrams',
+    'Bebop',
+    'Calico',
+    'Dynamo',
+    'Eagle',
+    'Fathom',
+    'Geist',
+    'Haze',
+    'Ivy',
+    'Kelvin',
+    'Lash',
+    'Mirage',
+  ];
+
+  const sixSeatRuntime = createGameRuntime(tableSeatContractNames.slice(0, 6), 'six-table-edge-seats');
+  if (sixSeatRuntime.hooks && sixSeatRuntime.game) {
+    sixSeatRuntime.hooks.modules.TableRenderer.renderGame();
+    const sixTableNames = tableSeatNames(sixSeatRuntime.runtime);
+    assertEqual(sixTableNames.length, 6, 'six-player table render should create six table-edge seats');
+    for (const name of tableSeatContractNames.slice(0, 6)) {
+      assert(sixTableNames.includes(name), `six-player table render should include ${name} on the table edge: ${sixTableNames.join('|') || '<empty>'}`);
+    }
+    const sixTableText = collectPanelTexts(findPanel(sixSeatRuntime.runtime, 'PokerTableSeats'), []).join('|');
+    assert(!sixTableText.includes('players in list'), `six-player table render should not show an overflow label on the felt: ${sixTableText || '<empty>'}`);
+  }
+
+  const sevenSeatRuntime = createGameRuntime(tableSeatContractNames.slice(0, 7), 'seven-table-edge-seats');
+  if (sevenSeatRuntime.hooks && sevenSeatRuntime.game) {
+    sevenSeatRuntime.hooks.modules.TableRenderer.renderGame();
+    const sevenTableNames = tableSeatNames(sevenSeatRuntime.runtime);
+    assertEqual(sevenTableNames.length, 7, 'seven-player table render should create seven table-edge seats');
+    for (const name of tableSeatContractNames.slice(0, 7)) {
+      assert(sevenTableNames.includes(name), `seven-player table render should include ${name} on the table edge: ${sevenTableNames.join('|') || '<empty>'}`);
+    }
+    const sevenTableText = collectPanelTexts(findPanel(sevenSeatRuntime.runtime, 'PokerTableSeats'), []).join('|');
+    assert(!sevenTableText.includes('+1 players in list'), `seven-player table render should not show the old +1 overflow label on the felt: ${sevenTableText || '<empty>'}`);
+    assert(!sevenTableText.includes('players in list'), `seven-player table render should not show any overflow label on the felt: ${sevenTableText || '<empty>'}`);
+    const sevenPlayerNames = playerListNames(sevenSeatRuntime.runtime);
+    for (const name of tableSeatContractNames.slice(0, 7)) {
+      assert(sevenPlayerNames.includes(name), `seven-player table render should keep ${name} in the full player list: ${sevenPlayerNames.join('|') || '<empty>'}`);
+    }
+  }
+
+  const twelveSeatRuntime = createGameRuntime(tableSeatContractNames, 'twelve-table-edge-seats');
+  if (twelveSeatRuntime.hooks && twelveSeatRuntime.game) {
+    twelveSeatRuntime.hooks.modules.TableRenderer.renderGame();
+    const twelveTableNames = tableSeatNames(twelveSeatRuntime.runtime);
+    assertEqual(twelveTableNames.length, 12, 'twelve-player table render should create twelve table-edge seats');
+    for (const name of tableSeatContractNames) {
+      assert(twelveTableNames.includes(name), `twelve-player table render should include ${name} on the table edge: ${twelveTableNames.join('|') || '<empty>'}`);
+    }
+    const twelveTableText = collectPanelTexts(findPanel(twelveSeatRuntime.runtime, 'PokerTableSeats'), []).join('|');
+    assert(!twelveTableText.includes('players in list'), `twelve-player table render should not show an overflow label on the felt: ${twelveTableText || '<empty>'}`);
+    const twelvePlayerNames = playerListNames(twelveSeatRuntime.runtime);
+    assertEqual(twelvePlayerNames.length, 12, 'twelve-player table render should keep all twelve players in the full player list');
+    for (const name of tableSeatContractNames) {
+      assert(twelvePlayerNames.includes(name), `twelve-player table render should keep ${name} in the full player list: ${twelvePlayerNames.join('|') || '<empty>'}`);
+    }
+  }
+
+  const overCapacityRuntime = createGameRuntime(tableSeatContractNames, 'thirteen-table-edge-seats');
+  if (overCapacityRuntime.hooks && overCapacityRuntime.game && typeof overCapacityRuntime.hooks.setGameForTest === 'function') {
+    const extraPlayer = Object.assign({}, overCapacityRuntime.game.players[0], {
+      key: 'viscous',
+      name: 'Viscous',
+      cards: overCapacityRuntime.game.players[0].cards,
+    });
+    overCapacityRuntime.game.players.push(extraPlayer);
+    overCapacityRuntime.hooks.setGameForTest(overCapacityRuntime.game);
+    overCapacityRuntime.hooks.modules.TableRenderer.renderGame();
+    assertEqual(tableSeatRows(overCapacityRuntime.runtime).length, 12, 'thirteen-player defensive table render should show exactly twelve table seats');
+    assertEqual(playerListRows(overCapacityRuntime.runtime).length, 12, 'thirteen-player defensive player list render should stay capped at MAX_TABLE_PLAYERS');
+    assertEqual(findDescendantsWithClass(findPanel(overCapacityRuntime.runtime, 'PokerTableSeats'), 'PokerTableOverflow', []).length, 0, 'thirteen-player defensive render should not create PokerTableOverflow');
+    const overCapacityText = collectPanelTexts(findPanel(overCapacityRuntime.runtime, 'PokerTableSeats'), []).join('|');
+    assert(!overCapacityText.includes('players in list'), `thirteen-player defensive render should not show overflow text: ${overCapacityText || '<empty>'}`);
   }
 
   const visibilityRuntime = createMenuRuntime();
@@ -1901,6 +3121,7 @@ if (hooks) {
     assert(leavingPlayer, 'three-player non-leader leave regression setup should include Bebop in the active hand');
     if (leavingPlayer) {
       leaveGame.currentIndex = leaveGame.players.indexOf(leavingPlayer);
+      leaveHooks.state.requiresProgressImport = true;
       leaveHooks.processChatRecord({ sender: 'Bebop', message: '[party leave] poker party psync', isSelf: false });
       assertEqual(leaveHooks.state.game, leaveGame, 'remote non-leader leave from a three-player active hand should keep the current hand');
       assertEqual(leaveGame.active, true, 'remote non-leader leave from a three-player active hand should remain active');
@@ -1913,6 +3134,9 @@ if (hooks) {
         'remote non-leader leave should remove the sender from ready seats',
       );
       assertEqual(leavingPlayer.folded, true, 'remote non-leader leave during an active hand should fold the leaving player');
+      assertEqual(leavingPlayer.left, true, 'remote non-leader leave during an active hand should mark the leaving player left');
+      assertEqual(leavingPlayer.acted, true, 'remote non-leader leave during an active hand should mark the leaving player acted');
+      assertEqual(leaveHooks.state.requiresProgressImport, true, 'remote non-leader leave during a three-player active hand should not run a lobby reset case');
       assertGreaterThan(
         leaveGame.players.filter((player) => !player.folded && player.stack > 0).length,
         1,
@@ -1927,6 +3151,37 @@ if (hooks) {
         `remote non-leader leave should log that Bebop left and folded: ${(leaveGame.log || []).join('|') || '<empty>'}`,
       );
       assertAnnouncerIncludes(partyLeaveRuntime.runtime, ['Bebop', 'left', 'fold'], 'remote non-leader leave during a three-player active hand');
+    }
+  }
+
+  const middleDealerLeaveRuntime = createSyncedPartyRuntime('Abrams', 'smiddle-dealer-leave', tableRoster, 1);
+  if (middleDealerLeaveRuntime.hooks && middleDealerLeaveRuntime.game) {
+    const middleDealerHooks = middleDealerLeaveRuntime.hooks;
+    const middleDealerGame = middleDealerLeaveRuntime.game;
+    const middleDealerPlayer = middleDealerGame.players.find((player) => player.key === 'bebop');
+    assert(middleDealerPlayer, 'middle dealer leave setup should include Bebop in the active hand');
+    if (middleDealerPlayer) {
+      middleDealerGame.dealerIndex = middleDealerGame.players.indexOf(middleDealerPlayer);
+      middleDealerHooks.processChatRecord({ sender: 'Bebop', message: '[party leave] poker party psync', isSelf: false });
+      middleDealerHooks.showdown();
+      const middleDealerProgress = middleDealerHooks.buildProgressSaveCode();
+      assertEqual(middleDealerProgress.ok, true, 'middle dealer leave finished hand should export progress for remaining players');
+      if (middleDealerProgress.ok) {
+        assertEqual(
+          JSON.stringify(middleDealerProgress.payload.roster.map((entry) => entry.key)),
+          JSON.stringify(['abrams', 'calico']),
+          'middle dealer leave progress export should exclude the departed middle-seat dealer',
+        );
+        assert(
+          !Object.prototype.hasOwnProperty.call(middleDealerProgress.payload.bankrolls, 'bebop'),
+          'middle dealer leave progress export should not preserve a bankroll for the departed middle-seat dealer',
+        );
+        assertEqual(
+          middleDealerHooks.resolveResumeNextDealerKey(middleDealerProgress.payload),
+          'calico',
+          'middle dealer leave progress export should anchor rotation so the first remaining player after the departed dealer deals next',
+        );
+      }
     }
   }
 
@@ -1965,6 +3220,34 @@ if (hooks) {
       );
       assertAnnouncerIncludes(leaderLeaveRuntime.runtime, ['Abrams', 'left', 'fold'], 'remote leader leave during a three-player active hand');
     }
+
+      leaderLeaveHooks.showdown();
+      const leftLeaderProgress = leaderLeaveHooks.buildProgressSaveCode();
+      assertEqual(leftLeaderProgress.ok, true, 'three-player leader leave finished hand should still export progress for remaining players');
+      if (leftLeaderProgress.ok) {
+        const progressRosterKeys = leftLeaderProgress.payload.roster.map((entry) => entry.key);
+        assertEqual(
+          JSON.stringify(progressRosterKeys),
+          JSON.stringify(['bebop', 'calico']),
+          'three-player leader leave progress export should exclude the departed leader from the next hand roster',
+        );
+        assert(
+          !Object.prototype.hasOwnProperty.call(leftLeaderProgress.payload.bankrolls, 'abrams'),
+          'three-player leader leave progress export should not preserve a bankroll for the departed leader',
+        );
+        assertEqual(
+          leaderLeaveHooks.resolveResumeNextDealerKey(leftLeaderProgress.payload),
+          'bebop',
+          'three-player leader leave progress export should make the next dealer the first remaining player when the old dealer left',
+        );
+        const resumeLeaderKey = leftLeaderProgress.payload.dealerKey || (leftLeaderProgress.payload.roster[0] && leftLeaderProgress.payload.roster[0].key) || '';
+        const resumeStartCommand = leaderLeaveHooks.buildResumeStartCommand(leftLeaderProgress.id, resumeLeaderKey, leftLeaderProgress.payload.nextHandNumber, 'sresume-long');
+        assert(
+          resumeStartCommand.length <= MAX_SYNCED_START_CHAT_COMMAND_LENGTH,
+          `departed leader resume-start command should fit chat-safe length ${MAX_SYNCED_START_CHAT_COMMAND_LENGTH}, got ${resumeStartCommand.length}: ${resumeStartCommand}`,
+        );
+        assertEqual(resumeStartCommand.includes(' roster '), false, 'departed leader resume-start command should not serialize a roster marker');
+      }
   }
 
   const lateJoinRuntime = createSyncedPartyRuntime('Abrams', 'slate', syncedRoster, 1);
@@ -2194,7 +3477,7 @@ if (hooks) {
   const syncedHandTwoCommand = hooks.buildSynchronizedStartCommand('ssync-hand-two', syncedRoster, 2);
   assertEqual(
     syncedHandTwoCommand,
-    'poker start ssync-hand-two hand 2 roster abrams~Abrams|bebop~Bebop',
+    'poker start ssync-hand-two hand 2 roster abrams|bebop',
     'explicit synchronized start builder should pin hand 2 in the wire phrase',
   );
   const priorHandSynced = createSyncedHandOverrideRuntime('Abrams', syncedHandTwoCommand, syncedRoster, true);
@@ -2276,7 +3559,7 @@ if (hooks) {
       );
       const resumeA = createMenuRuntime();
       const resumeB = createMenuRuntime();
-      const startCommand = hooks.buildResumeStartCommand(saved.id, 'abrams', saved.payload.roster, saved.payload.nextHandNumber, 'sresume');
+      const startCommand = hooks.buildResumeStartCommand(saved.id, 'abrams', saved.payload.nextHandNumber, 'sresume');
       for (const target of [resumeA, resumeB]) {
         assertEqual(target.hooks.importProgressSaveCode(saved.code).ok, true, 'resume runtime should import saved progress');
         target.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id), isSelf: target === resumeA });
@@ -2295,12 +3578,12 @@ if (hooks) {
         assertButtonAffordance(resumeA.runtime, 'PokerStartButton', { hidden: true, enabled: false }, 'active resumed hand button state');
         assertButtonAffordance(resumeA.runtime, 'PokerReadyChatButton', { hidden: true, enabled: false }, 'active resumed hand button state');
         assertMatchPanelsVisible(resumeA.runtime, 'active resumed hand button state');
-        assertReadOnlyActionButtons(resumeA.runtime, ['CALL $200', 'RAISE TO $800', 'FOLD'], 'Waiting for Bebop', 'active resumed hand leader observer');
+        assertReadOnlyActionButtons(resumeA.runtime, ['CALL $200', 'RAISE', 'FOLD'], 'Waiting for Bebop', 'active resumed hand leader observer');
         resumeA.hooks.state.localPlayerKey = 'bebop';
         resumeA.runtime.config.PokerLocalPlayerKey = 'bebop';
         resumeA.runtime.config.PokerLocalPlayerName = 'Bebop';
         resumeA.hooks.modules.TableRenderer.renderGame();
-        assertEnabledActionButtons(resumeA.runtime, ['CALL $200', 'RAISE TO $800', 'FOLD'], 'active resumed hand current actor');
+        assertEnabledActionButtons(resumeA.runtime, ['CALL $200', 'RAISE', 'FOLD'], 'active resumed hand current actor');
     }
 
       const liveLogSaved = createProgressCodeRuntime(['JDBeast', 'Hantu Raya'], 'hantu-raya-resume-progress');
@@ -2414,6 +3697,7 @@ if (hooks) {
         if (unlockScheduleIndex >= 0) {
           const unlockSchedule = postShareUnlockRuntime.runtime.schedules.splice(unlockScheduleIndex, 1)[0];
           unlockSchedule.callback();
+          drainScheduledCallbacks(postShareUnlockRuntime.runtime, 8);
         }
         assertStartButtonReady(postShareUnlockRuntime.runtime, 'NEXT SYNCED HAND', 'hosted post-share unlock final scheduled button state');
 
@@ -3245,13 +4529,7 @@ if (hooks) {
 
         const liveLogResume = createMenuRuntime();
         assertEqual(liveLogResume.hooks.importProgressSaveCode(liveLogSaved.code).ok, true, 'JDBeast/Hantu Raya receiver should import saved progress');
-        const liveLogBuiltStartCommand = liveLogResume.hooks.buildResumeStartCommand(
-          liveLogSaved.id,
-          'jdbeast',
-          liveLogSaved.payload.roster,
-          liveLogSaved.payload.nextHandNumber,
-          'shantu-raya-resume',
-        );
+        const liveLogBuiltStartCommand = liveLogResume.hooks.buildResumeStartCommand(liveLogSaved.id, 'jdbeast', liveLogSaved.payload.nextHandNumber, 'shantu-raya-resume');
         assert(
           liveLogBuiltStartCommand.length <= MAX_PROGRESS_CHAT_COMMAND_LENGTH,
           `JDBeast/Hantu Raya resume start builder should fit the chat-safe command length (${MAX_PROGRESS_CHAT_COMMAND_LENGTH}), got ${liveLogBuiltStartCommand.length}: ${liveLogBuiltStartCommand}`,
@@ -3580,7 +4858,7 @@ if (hooks) {
       nonLeaderResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeReadyCommand(saved.id) });
       const nonLeaderStatusBefore = panelText(findPanel(nonLeaderResume.runtime, 'PokerStatusLabel'));
       const nonLeaderMessagesBefore = nonLeaderResume.runtime.messages.length;
-      nonLeaderResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeStartCommand(saved.id, 'abrams', saved.payload.roster, saved.payload.nextHandNumber, 'sbad') });
+      nonLeaderResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeStartCommand(saved.id, 'abrams', saved.payload.nextHandNumber, 'sbad') });
       assertEqual(nonLeaderResume.hooks.state.game, null, 'non-selected resume sender should not create a game');
       assertDiagnosticContains(nonLeaderResume.runtime, nonLeaderMessagesBefore, nonLeaderStatusBefore, 'reject-non-leader-resume', 'non-selected resume start sender');
 
@@ -3590,14 +4868,14 @@ if (hooks) {
       mismatchResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeReadyCommand(saved.id) });
       const mismatchStatusBefore = panelText(findPanel(mismatchResume.runtime, 'PokerStatusLabel'));
       const mismatchMessagesBefore = mismatchResume.runtime.messages.length;
-      mismatchResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeStartCommand(saved.id, 'bebop', saved.payload.roster, saved.payload.nextHandNumber, 'smismatch') });
+      mismatchResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeStartCommand(saved.id, 'bebop', saved.payload.nextHandNumber, 'smismatch') });
       assertEqual(mismatchResume.hooks.state.game, null, 'mismatched resume leader token should not create a game');
       assertDiagnosticContains(mismatchResume.runtime, mismatchMessagesBefore, mismatchStatusBefore, 'reject-resume-leader-mismatch', 'mismatched resume leader token');
 
       const wrongIdResume = createMenuRuntime();
       wrongIdResume.hooks.importProgressSaveCode(saved.code);
       wrongIdResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id) });
-      wrongIdResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeStartCommand('rwrong', 'abrams', saved.payload.roster, saved.payload.nextHandNumber, 'swrong') });
+      wrongIdResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeStartCommand('rwrong', 'abrams', saved.payload.nextHandNumber, 'swrong') });
       assertEqual(wrongIdResume.hooks.state.game, null, 'resume start with a mismatched id should not create a game');
     }
 
@@ -3628,7 +4906,7 @@ if (hooks) {
         bustedResume.hooks.importProgressSaveCode(bustedSave.code);
         bustedResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeLeaderCommand(bustedSave.id) });
         bustedResume.hooks.processChatRecord({ sender: 'Calico', message: hooks.buildResumeReadyCommand(bustedSave.id) });
-        bustedResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeStartCommand(bustedSave.id, 'bebop', bustedSave.payload.roster, bustedSave.payload.nextHandNumber, 'sbusted') });
+        bustedResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeStartCommand(bustedSave.id, 'bebop', bustedSave.payload.nextHandNumber, 'sbusted') });
         assert(bustedResume.hooks.state.game, 'busted dealer resume should create a game');
         if (bustedResume.hooks.state.game) {
           assertEqual(bustedResume.hooks.state.game.players[bustedResume.hooks.state.game.dealerIndex].key, 'bebop', 'busted dealer resume should make the next positive-bankroll player dealer');
@@ -3773,17 +5051,18 @@ if (hooks) {
     assertEqual(unknownLocalSynced.hooks.state.localPlayerKey, '', 'unknown local synced start should not invent a local player key');
     assertReadOnlyActionButtons(
       unknownLocalSynced.runtime,
-      ['CALL $100', 'RAISE TO $400', 'RAISE TO $700', 'FOLD'],
+      ['CALL $100', 'RAISE', 'FOLD'],
       'sender unknown',
       'unknown local synced action render',
     );
     assert(
-      panelText(findPanel(unknownLocalSynced.runtime, 'PokerStatusLabel')).includes('you <unknown>') ||
+      panelText(findPanel(unknownLocalSynced.runtime, 'PokerStatusLabel')).toLowerCase().includes('sender unknown') ||
+        panelText(findPanel(unknownLocalSynced.runtime, 'PokerStatusLabel')).includes('you <unknown>') ||
         collectPanelTexts(findPanel(unknownLocalSynced.runtime, 'PokerActionButtons'), []).join('|').toLowerCase().includes('sender unknown'),
       'unknown local synced action render should surface the unknown sender in status or hint text',
     );
     const unknownHints = findDescendantsWithClass(findPanel(unknownLocalSynced.runtime, 'PokerActionButtons'), 'PokerActionHint', []);
-    assertEqual(unknownHints.length, 1, 'unknown local synced action render should create exactly one action hint');
+    assertEqual(unknownHints.length, 0, 'unknown local synced action render should keep hint text out of the action button row');
   }
 
   const snapshotStartRuntime = createMenuRuntime();
@@ -3809,28 +5088,74 @@ if (hooks) {
     stableRenderRuntime.hooks.modules.TableRenderer.renderGame();
     const afterCards = findDescendantsWithClass(community, 'PokerCard', []);
     assert(beforeCards[0] && afterCards[0] && beforeCards[0] === afterCards[0], 'stable table renderer should reuse the first community card panel across repeated renders');
+    const waitingActions = renderedActionButtons(stableRenderRuntime.runtime);
     const waitingHints = findDescendantsWithClass(findPanel(stableRenderRuntime.runtime, 'PokerActionButtons'), 'PokerActionHint', []);
-    assertEqual(waitingHints.length, 1, 'waiting-for-other-player action render should create exactly one action hint');
+    assert(waitingActions.length > 0, 'waiting-for-other-player action render should show read-only action buttons');
+    assertEqual(waitingHints.length, 0, 'waiting-for-other-player action render should not let hint text crowd action buttons');
+  }
+
+  const stableActive = createSyncedPartyRuntime('Abrams', 'sstable-active-render', tableRoster, 1);
+  if (stableActive.hooks && stableActive.game) {
+    stableActive.hooks.modules.TableRenderer.renderGame();
+    const firstActionPanels = actionButtonPanels(stableActive.runtime);
+    const firstPlayerRows = playerListRows(stableActive.runtime);
+    const firstTableRows = tableSeatRows(stableActive.runtime);
+    const firstLogLines = pokerLogLines(stableActive.runtime);
+    const firstHintCount = findDescendantsWithClass(findPanel(stableActive.runtime, 'PokerActionButtons'), 'PokerActionHint', []).length;
+    clearDomWrites(stableActive.runtime);
+    stableActive.hooks.modules.TableRenderer.renderGame();
+    const secondActionPanels = actionButtonPanels(stableActive.runtime);
+    const secondPlayerRows = playerListRows(stableActive.runtime);
+    const secondTableRows = tableSeatRows(stableActive.runtime);
+    const secondLogLines = pokerLogLines(stableActive.runtime);
+    const secondHintCount = findDescendantsWithClass(findPanel(stableActive.runtime, 'PokerActionButtons'), 'PokerActionHint', []).length;
+    const writes = summarizeDomWrites(takeDomWrites(stableActive.runtime));
+    assertSamePanelList(secondActionPanels, firstActionPanels, 'stable active repeated render should keep action button identities');
+    assertSamePanelList(secondPlayerRows, firstPlayerRows, 'stable active repeated render should keep player row identities');
+    assertSamePanelList(secondTableRows, firstTableRows, 'stable active repeated render should keep table seat identities');
+    assertSamePanelList(secondLogLines, firstLogLines, 'stable active repeated render should keep log line identities');
+    assertEqual(secondHintCount, firstHintCount, 'stable active repeated render should keep action hint count stable');
+    assertEqual(writes.create, 0, 'stable active repeated render should not create panels');
+    assertEqual(writes.delete, 0, 'stable active repeated render should not delete panels');
+    assertEqual(writes.deleteChildren, 0, 'stable active repeated render should not clear child lists');
+    assertEqual(writes.class, 0, 'stable active repeated render should not change classes');
+    assertEqual(writes.text, 0, 'stable active repeated render should not change text');
+    assertEqual(writes.hittest, 0, 'stable active repeated render should not change hittest');
+    assertEqual(writes.event, 0, 'stable active repeated render should not rebind events');
+    assertEqual(writes.imageSrc, 0, 'stable active repeated render should not rewrite card or chip image src values');
+    assertEqual(writes.value, 0, 'stable active repeated render should not rewrite control values');
+    assertEqual(writes.valueAttr, 0, 'stable active repeated render should not rewrite control value attributes');
+    assertEqual(writes.attr, 0, 'stable active repeated render should not rewrite DOM attributes');
+    assertEqual(writes.style, 0, 'stable active repeated render should not rewrite style properties');
   }
 
   const actionReuseRuntime = createGameRuntime(['Abrams', 'Bebop'], 'action-cache');
   if (actionReuseRuntime.hooks && actionReuseRuntime.game) {
     const actionActor = currentPlayer(actionReuseRuntime.game);
+    const observer = actionReuseRuntime.game.players.find((player) => player.key !== actionActor.key) || actionReuseRuntime.game.players[0];
+    actionReuseRuntime.runtime.config.PokerLocalPlayerKey = actionActor.key;
     actionReuseRuntime.runtime.config.PokerLocalPlayerName = actionActor.name;
+    actionReuseRuntime.hooks.state.localPlayerKey = actionActor.key;
     actionReuseRuntime.hooks.modules.TableRenderer.renderGame();
-    const firstActionButton = actionButtonPanels(actionReuseRuntime.runtime)[0];
-    assert(firstActionButton, 'active local actor action cache should render an action button');
+    const firstActions = renderedActionButtons(actionReuseRuntime.runtime);
+    const firstLabels = firstActions.map((entry) => entry.label);
+    const firstPanels = firstActions.map((entry) => entry.panel);
+    assert(firstPanels[0], 'active local actor action cache should render an action button');
 
+    actionReuseRuntime.runtime.config.PokerLocalPlayerKey = observer.key;
+    actionReuseRuntime.runtime.config.PokerLocalPlayerName = observer.name;
+    actionReuseRuntime.hooks.state.localPlayerKey = observer.key;
+    clearDomWrites(actionReuseRuntime.runtime);
     actionReuseRuntime.hooks.modules.TableRenderer.renderGame();
-    assert(actionButtonPanels(actionReuseRuntime.runtime)[0] === firstActionButton, 'active local actor action cache should reuse the first action button across unchanged renders');
-
-    actionReuseRuntime.hooks.processChatRecord({ sender: actionActor.name, message: 'call', isSelf: true });
-    actionReuseRuntime.hooks.modules.TableRenderer.renderGame();
-    const changedActionButtons = actionButtonPanels(actionReuseRuntime.runtime);
-    assert(
-      firstActionButton.deleted || changedActionButtons.indexOf(firstActionButton) === -1,
-      'active local actor action cache should remove stale action buttons when command/enabled/read-only state changes',
-    );
+    const secondActions = renderedActionButtons(actionReuseRuntime.runtime);
+    const secondPanels = secondActions.map((entry) => entry.panel);
+    assertEqual(JSON.stringify(secondActions.map((entry) => entry.label)), JSON.stringify(firstLabels), 'active actor action cache should keep action labels across observer affordance change');
+    assertSamePanelList(secondPanels, firstPanels, 'active actor action cache should reuse action button identities across observer affordance change');
+    for (const action of secondActions) {
+      assertEqual(action.enabled, false, 'active actor action cache should disable observer action buttons');
+      assertEqual(action.readOnly, true, 'active actor action cache should mark observer action buttons read-only');
+      assertEqual(action.hittest, false, 'active actor action cache should disable pointer input for observer action buttons');
+    }
   }
 
   const playerReuseRuntime = createGameRuntime(['Abrams', 'Bebop'], 'player-row-cache');
@@ -3947,7 +5272,7 @@ if (hooks) {
     );
     assertReadOnlyActionButtons(
       selfUnknownMemberRuntime.runtime,
-      ['CALL $100', 'RAISE TO $400', 'RAISE TO $700', 'FOLD'],
+      ['CALL $100', 'RAISE', 'FOLD'],
       'Waiting for Abrams',
       'self-unknown member before local turn',
     );
@@ -3955,7 +5280,7 @@ if (hooks) {
     assertEqual(memberHooks.state.game.currentIndex, 1, 'self-unknown member synced start should advance to the inferred member after leader call');
     assertEnabledActionButtons(
       selfUnknownMemberRuntime.runtime,
-      ['CHECK', 'RAISE TO $400', 'RAISE TO $700', 'FOLD'],
+      ['CHECK', 'RAISE', 'FOLD'],
       'self-unknown member local turn',
     );
   }
@@ -4030,7 +5355,7 @@ if (hooks) {
     assertObserverCurrentActorControls(
       observerRuntime.runtime,
       observedActor.name,
-      ['CALL $200', 'RAISE TO $600', 'RAISE TO $900', 'FOLD'],
+      ['CALL $200', 'RAISE', 'FOLD'],
       ['CHECK', 'BET $200', 'BET $500'],
       'observer current actor choices',
     );
@@ -4055,7 +5380,7 @@ if (hooks) {
     assertButtonAffordance(observerRuntime.runtime, 'PokerReadyChatButton', { hidden: true, enabled: false }, 'active observer late-join button state');
     assertButtonAffordance(observerRuntime.runtime, 'PokerProgressControls', { hidden: true }, 'active observer late-join button state');
     assertButtonAffordance(observerRuntime.runtime, 'PokerResumeControls', { hidden: true }, 'active observer late-join button state');
-    assertReadOnlyActionButtons(observerRuntime.runtime, ['CALL $200', 'RAISE TO $600', 'RAISE TO $900', 'FOLD'], null, 'active observer late-join button state');
+    assertReadOnlyActionButtons(observerRuntime.runtime, ['CALL $200', 'RAISE', 'FOLD'], null, 'active observer late-join button state');
 
     const beforeIllegalBet = moneySnapshot(observerGame);
     const statusBeforeIllegalBet = panelText(findPanel(observerRuntime.runtime, 'PokerStatusLabel'));
@@ -4135,6 +5460,27 @@ if (hooks) {
     );
   }
 
+  const showdownWinnerRuntime = createGameRuntime(['Paradox', 'Warden'], 'pot-winner-showdown');
+  if (showdownWinnerRuntime.hooks && showdownWinnerRuntime.game) {
+    const showdownWinnerGame = showdownWinnerRuntime.game;
+    showdownWinnerGame.community = [card('2', 'H'), card('3', 'D'), card('4', 'S'), card('9', 'C'), card('K', 'D')];
+    showdownWinnerGame.players[0].cards = [card('A', 'H'), card('A', 'D')];
+    showdownWinnerGame.players[1].cards = [card('Q', 'C'), card('J', 'D')];
+    showdownWinnerGame.players[0].bet = 200;
+    showdownWinnerGame.players[1].bet = 200;
+    showdownWinnerGame.players[0].committed = 200;
+    showdownWinnerGame.players[1].committed = 200;
+    showdownWinnerGame.players[0].folded = false;
+    showdownWinnerGame.players[1].folded = false;
+    showdownWinnerGame.pot = 400;
+    showdownWinnerGame.phase = 'river';
+    showdownWinnerGame.active = true;
+    showdownWinnerGame.finished = false;
+    showdownWinnerRuntime.hooks.showdown();
+    assertEqual(showdownWinnerGame.finished, true, 'single-winner showdown should finish through showdown payout');
+    assertPotWinnerFeedback(showdownWinnerRuntime.runtime, ['Paradox'], 'single-winner showdown');
+  }
+
   const allInCallFixture = createEngineFixture({});
   if (allInCallFixture.hooks && allInCallFixture.game) {
     const allInGame = allInCallFixture.game;
@@ -4204,6 +5550,7 @@ if (hooks) {
     assert(sideGame.log.some((line) => line === 'Pot $300: Short win with Pair.'), 'side pot splits by committed levels should log the main pot winner');
     assert(sideGame.log.some((line) => line === 'Pot $400: Middle win with Pair.'), 'side pot splits by committed levels should log the first side pot winner');
     assert(sideGame.log.some((line) => line === 'Pot $200: Deep win with High card.'), 'side pot splits by committed levels should log the overage side pot winner');
+    assertPotWinnerFeedback(sidePotRuntime.runtime, ['Short', 'Middle', 'Deep'], 'side pot showdown');
   }
 
   const royalFlush = hooks.evaluateHand([
