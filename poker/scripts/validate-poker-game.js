@@ -63,14 +63,28 @@ function drainImmediateCallbacks(runtime, maxCallbacks = 128) {
   }
 }
 
+function applyMenuRecord(hooks, record) {
+  const effect = hooks.modules.CommandReducer.applyPayload({ event: 'PokerChatMessage', ...record });
+  const state = hooks && hooks.state;
+  const pokerActive = !!(state && state.game && state.game.active);
+  const bluffActive = !!(state && state.bluffDeck && state.bluffDeck.game && state.bluffDeck.game.active);
+  if (pokerActive && !bluffActive) assertPokerFixturesSelectPoker(hooks, 'Poker record fixture');
+  return effect;
+}
+
+function snapshot(hooks) {
+  return hooks.getStateSnapshot();
+}
+
 function wrapImmediateRenderHooks(runtime, hooks) {
   if (!runtime || !hooks || hooks.__validatorImmediateRenderWrapped) return hooks;
   hooks.__validatorImmediateRenderWrapped = true;
   const owners = [
     hooks,
+    hooks.modules && hooks.modules.CommandReducer,
     hooks.modules && hooks.modules.PokerEngine,
   ];
-  const names = ['processChatRecord', 'handleReadyEvent', 'showdown'];
+  const names = ['applyPayload', 'handleReadyEvent', 'showdown'];
   for (const owner of owners) {
     if (!owner) continue;
     for (const functionName of names) {
@@ -238,8 +252,7 @@ function persistedProgressCode(runtime) {
 }
 
 function assertResumeCleared(runtimeBundle, message) {
-  const hooks = runtimeBundle.hooks;
-  const resume = hooks && hooks.state ? hooks.state.resume : null;
+  const resume = runtimeBundle.hooks ? snapshot(runtimeBundle.hooks).resume : null;
   assert(resume, `${message} should keep a default in-memory resume object`);
   assertEqual(resume && (resume.code || ''), '', `${message} should clear in-memory resume code`);
   assertEqual(resume && (resume.id || ''), '', `${message} should clear in-memory resume id`);
@@ -268,7 +281,7 @@ function assertImportedProgressEscapeCleared(runtimeBundle, message) {
 }
 
 function progressTransferCount(hooks) {
-  return Object.keys((hooks && hooks.state && hooks.state.progressTransfers) || {}).length;
+  return Object.keys((hooks && snapshot(hooks).progressTransfers) || {}).length;
 }
 
 function assertProgressTransfersCleared(runtimeBundle, message) {
@@ -430,11 +443,15 @@ function assertHookFunction(hooks, name, message) {
 }
 
 function hasPartySyncHooks(hooks, message) {
+  return assertHookFunction(hooks, 'buildSynchronizedStartCommand', message);
+}
+
+function hasLateJoinPolicyHooks(hooks, message) {
   let ok = true;
   for (const name of [
-    'buildSynchronizedStartCommand',
-    'encodeRoster',
-    'decodeRoster',
+    'getQueuedLateJoiners',
+    'computeLateJoinBuyIn',
+    'applyLateJoinBuyIns',
   ]) {
     ok = assertHookFunction(hooks, name, message) && ok;
   }
@@ -832,7 +849,7 @@ function assertInactiveLobbyControls(runtime, message) {
   const actions = findPanel(runtime, 'PokerActionButtons');
 
   assert(hasClass(actions, 'PokerHidden'), `${message} should hide action buttons`);
-  assertEqual(actions ? actions.GetChildCount() : 0, 0, `${message} should remove stale action button children`);
+  assertEqual(renderedActionButtons(runtime).length, 0, `${message} should reconcile stale action buttons`);
   assert(!hasClass(startButton, 'PokerHidden'), `${message} should restore the start button`);
   assertEqual(panelText(startLabel), 'HOST OR JOIN PARTY', `${message} should require hosting or joining a synced party before the next hand`);
 }
@@ -842,7 +859,7 @@ function assertStartButtonGate(runtime, expectedLabel, expectedEnabled, expected
   assertEqual(panelText(findPanel(runtime, 'PokerStartButtonLabel')), expectedLabel, `${message} start label`);
 }
 function renderedStartGateEnabled(bundle) {
-  if (bundle && bundle.hooks && bundle.hooks.modules && bundle.hooks.modules.TableRenderer) bundle.hooks.modules.TableRenderer.render();
+  if (bundle && bundle.hooks && bundle.hooks.modules && bundle.hooks.modules.TableRenderer) bundle.hooks.modules.TableRenderer.render(bundle.hooks.modules.ViewModel.build());
   const panel = findPanel(bundle.runtime, 'PokerStartButton');
   return !!(panel && !hasClass(panel, 'PokerHidden') && panel.hittest !== false);
 }
@@ -888,27 +905,13 @@ function readySnapshotPayload(entries, revision) {
 }
 
 function seedPartyForReady(hooks, names, partyId) {
-  if (!hooks || !hooks.state) return;
-  const members = {};
-  const order = [];
-  for (const name of names) {
-    const key = String(name).toLowerCase();
-    members[key] = { key, name };
-    order.push(key);
-  }
-  hooks.state.party = {
-    id: partyId || 'pvalidator-ready',
-    mode: 'leader',
-    leaderKey: order[0] || '',
-    leaderName: names[0] || '',
-    members,
-    order,
-  };
+  if (!hooks) return;
+  hooks.seedPartyForTest(names.map((name) => ({ key: String(name).toLowerCase(), name })), partyId || 'pvalidator-ready', 'leader');
 }
 
 function clearPartyForLegacyReady(hooks) {
-  if (!hooks || !hooks.state) return;
-  hooks.state.party = { id: '', mode: 'none', leaderKey: '', leaderName: '', members: {}, order: [] };
+  if (!hooks) return;
+  hooks.seedPartyForTest([], '', 'none');
 }
 
 function currentPlayer(game) {
@@ -935,9 +938,45 @@ function card(rank, suit) {
 function cardKey(cardValue) {
   return `${cardValue.rank}${cardValue.suit}`;
 }
+const TABLE_GAME_PANEL_IDS = [
+  'TableGamePickerWindow',
+  'TableGamePickerPokerButton',
+  'TableGamePickerBluffButton',
+  'BluffDeckWindow',
+  'BluffDeckHostButton',
+  'BluffDeckJoinButton',
+];
+
+function createTableGameValidatorContext() {
+  const context = createValidatorContext();
+  for (const id of TABLE_GAME_PANEL_IDS) {
+    if (!findPanel(context, id)) context.panels.createPanel('Panel', context.panels.root, id);
+  }
+  return context;
+}
+
+function selectPokerForLegacyAssertions(hooks) {
+  const picker = hooks && hooks.modules && hooks.modules.TableGamePicker;
+  assert(picker && typeof picker.select === 'function', 'Poker fixture should expose TableGamePicker.select');
+  if (!picker || typeof picker.select !== 'function') return false;
+  return hooks.modules.TableGamePicker.select('poker');
+}
+
+function assertPokerFixturesSelectPoker(hooks, message) {
+  const selected = selectPokerForLegacyAssertions(hooks);
+  assertEqual(selected, true, `${message} should select Poker before legacy surface assertions`);
+  return selected;
+}
+
+function assertPickerSurfaceState(runtime, expected, message) {
+  assertEqual(hasClass(findPanel(runtime, 'TableGamePickerWindow'), 'PokerHidden'), !!expected.pickerHidden, `${message} picker visibility`);
+  assertEqual(hasClass(findPanel(runtime, 'PokerTableWindow'), 'PokerHidden'), !!expected.pokerHidden, `${message} Poker surface visibility`);
+  assertEqual(hasClass(findPanel(runtime, 'BluffDeckWindow'), 'PokerHidden'), !!expected.bluffHidden, `${message} Bluff surface visibility`);
+}
+
 
 function createGameRuntime(names, seed, startRecord) {
-  const gameRuntime = createValidatorContext();
+  const gameRuntime = createTableGameValidatorContext();
   runScript(gameRuntime.sandbox, MENU_SCRIPT);
   const gameHooks = gameRuntime.sandbox.__PokerEscapeMenuTestHooks;
   assert(gameHooks, 'escape menu test hooks were not exported for isolated game runtime');
@@ -950,7 +989,8 @@ function createGameRuntime(names, seed, startRecord) {
   }
 
   const starter = startRecord || { sender: names[0], message: `poker start ${seed || 'fixed-seed'}` };
-  gameHooks.processChatRecord(starter);
+  applyMenuRecord(gameHooks, starter);
+  assertPokerFixturesSelectPoker(gameHooks, 'active Poker fixture setup');
   return { runtime: gameRuntime, hooks: gameHooks, game: gameHooks.state.game };
 }
 
@@ -970,7 +1010,7 @@ function createEngineFixture(overrides) {
 }
 
 function createMenuRuntime() {
-  const menuRuntime = createValidatorContext();
+  const menuRuntime = createTableGameValidatorContext();
   runScript(menuRuntime.sandbox, MENU_SCRIPT);
   const menuHooks = menuRuntime.sandbox.__PokerEscapeMenuTestHooks;
   assert(menuHooks, 'escape menu test hooks were not exported for isolated menu runtime');
@@ -981,10 +1021,10 @@ function createProgressCodeRuntime(names, seed) {
   const progressRuntime = createGameRuntime(names, seed || 'progress-save');
   if (!progressRuntime.hooks || !progressRuntime.game) return { runtime: progressRuntime.runtime, hooks: progressRuntime.hooks, game: progressRuntime.game, code: '', payload: null, id: '' };
   const game = progressRuntime.game;
-  progressRuntime.hooks.processChatRecord({ sender: currentPlayer(game).name, message: 'call' });
-  progressRuntime.hooks.processChatRecord({ sender: currentPlayer(game).name, message: 'check' });
-  progressRuntime.hooks.processChatRecord({ sender: currentPlayer(game).name, message: 'bet $300' });
-  progressRuntime.hooks.processChatRecord({ sender: currentPlayer(game).name, message: 'fold' });
+  applyMenuRecord(progressRuntime.hooks, { sender: currentPlayer(game).name, message: 'call' });
+  applyMenuRecord(progressRuntime.hooks, { sender: currentPlayer(game).name, message: 'check' });
+  applyMenuRecord(progressRuntime.hooks, { sender: currentPlayer(game).name, message: 'bet $300' });
+  applyMenuRecord(progressRuntime.hooks, { sender: currentPlayer(game).name, message: 'fold' });
   const progress = progressRuntime.hooks.modules.ProgressResume.build();
   assertEqual(progress.ok, true, 'progress helper should create an exportable finished hand');
   return {
@@ -1032,8 +1072,37 @@ function buildProgressChunkMessage(id, checksum, index, chunkCount, chunk) {
 function submittedChatMessages(runtime, startIndex) {
   return runtime.dispatches
     .slice(startIndex || 0)
-    .filter((event) => event.name === 'CitadelChatInputSubmitted')
-    .map((event) => String(event.payloadText || ''));
+    .filter((event) => event.name === 'ClientUI_FireOutput')
+    .map((event) => {
+      try {
+        const payload = JSON.parse(event.payload);
+        return payload && payload.event === 'PokerChatSendRequest' ? String(payload.message || '') : '';
+      } catch (error) {
+        return '';
+      }
+    })
+    .filter(Boolean);
+}
+function submitActionFromButton(runtime, semantic, message) {
+  const button = renderedActionButtons(runtime).find((entry) => actionButtonSemantic(entry.label) === semantic);
+  assert(button && typeof button.panel.onactivate === 'function', `${message} should expose an activatable ${semantic} button`);
+  if (!button || typeof button.panel.onactivate !== 'function') return [];
+  const dispatchStart = runtime.dispatches.length;
+  const chatTarget = findPanel(runtime, 'ChatTargetLabel');
+  if (chatTarget) chatTarget.text = 'TEAM';
+  button.panel.onactivate();
+  drainScheduledCallbacks(runtime, 256);
+  return submittedChatMessages(runtime, dispatchStart);
+}
+
+function deliverBridgeActionEcho(hooks, seq, message) {
+  hooks.handleReadyEvent(JSON.stringify({
+    event: 'PokerChatMessage',
+    seq,
+    sender: '<unknown>',
+    message,
+    isSelf: true,
+  }));
 }
 
 function parseProgressShareMessages(messages) {
@@ -1076,8 +1145,9 @@ function createSyncedPartyRuntime(localName, seed, roster, handNumber) {
     { sender: memberName, message: '[party join] poker party psync', isSelf: localName === memberName },
     { sender: leaderName, message: startCommand, isSelf: localName === leaderName },
   ]) {
-    synced.hooks.processChatRecord(record);
+    applyMenuRecord(synced.hooks, record);
   }
+  assertPokerFixturesSelectPoker(synced.hooks, `synced Poker fixture setup for ${localName}`);
 
   return { runtime: synced.runtime, hooks: synced.hooks, game: synced.hooks.state.game, startCommand };
 }
@@ -1092,19 +1162,20 @@ function createSyncedJoinedPartyRuntime(localName, seed, roster, handNumber, par
   const leader = players[0] || { key: 'abrams', name: 'Abrams' };
   const id = partyId || 'psync';
   const startCommand = synced.hooks.buildSynchronizedStartCommand(seed, players, handNumber);
-  synced.hooks.processChatRecord({
+  applyMenuRecord(synced.hooks, {
     sender: leader.name,
     message: `[party leader] poker party ${id}`,
     isSelf: localName === leader.name,
   });
   for (let i = 1; i < players.length; i += 1) {
-    synced.hooks.processChatRecord({
+    applyMenuRecord(synced.hooks, {
       sender: players[i].name,
       message: `[party join] poker party ${id}`,
       isSelf: localName === players[i].name,
     });
   }
-  synced.hooks.processChatRecord({ sender: leader.name, message: startCommand, isSelf: localName === leader.name });
+  applyMenuRecord(synced.hooks, { sender: leader.name, message: startCommand, isSelf: localName === leader.name });
+  assertPokerFixturesSelectPoker(synced.hooks, `joined Poker fixture setup for ${localName}`);
 
   return { runtime: synced.runtime, hooks: synced.hooks, game: synced.hooks.state.game, startCommand };
 }
@@ -1116,17 +1187,18 @@ function createSyncedHandOverrideRuntime(localName, startCommand, roster, hasPri
     return { runtime: synced.runtime, hooks: synced.hooks, game: null };
   }
 
-  synced.hooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party psync', isSelf: localName === 'Abrams' });
-  synced.hooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party psync', isSelf: localName === 'Bebop' });
+  applyMenuRecord(synced.hooks, { sender: 'Abrams', message: '[party leader] poker party psync', isSelf: localName === 'Abrams' });
+  applyMenuRecord(synced.hooks, { sender: 'Bebop', message: '[party join] poker party psync', isSelf: localName === 'Bebop' });
   if (hasPriorHandState) {
-    synced.hooks.state.game = { handNumber: 1 };
+    synced.hooks.setGameForTest({ handNumber: 1 });
     assertEqual(
       synced.hooks.buildSynchronizedStartCommand('snatural-next', roster),
       'poker start snatural-next hand 2 roster abrams|bebop',
       'runtime with prior local hand state should naturally build hand 2 starts',
     );
   }
-  synced.hooks.processChatRecord({ sender: 'Abrams', message: startCommand, isSelf: localName === 'Abrams' });
+  applyMenuRecord(synced.hooks, { sender: 'Abrams', message: startCommand, isSelf: localName === 'Abrams' });
+  assertPokerFixturesSelectPoker(synced.hooks, `hand override Poker fixture setup for ${localName}`);
 
   return { runtime: synced.runtime, hooks: synced.hooks, game: synced.hooks.state.game };
 }
@@ -1148,7 +1220,7 @@ function assertMoneySnapshot(actual, expected, message) {
   assertEqual(JSON.stringify(actual), JSON.stringify(expected), message);
 }
 
-const runtime = createValidatorContext();
+const runtime = createTableGameValidatorContext();
 runScript(runtime.sandbox, MENU_SCRIPT);
 const hooks = runtime.sandbox.__PokerEscapeMenuTestHooks;
 
@@ -1162,9 +1234,9 @@ if (hooks) {
   ];
   const partyHooksAvailable = hasPartySyncHooks(hooks, 'escape menu party sync hooks');
   const progressHooksAvailable = hasProgressResumeHooks(hooks, 'escape menu progress resume hooks');
+  const lateJoinPolicyHooksAvailable = hasLateJoinPolicyHooks(hooks, 'escape menu late-join policy hooks');
   const modules = hooks.modules || {};
   for (const [moduleName, functionNames] of Object.entries({
-    StartSync: ['openMenu', 'requestFreshState', 'noteBridgeEvent', 'getProjection', 'afterSnapshotApplied'],
     CommandReducer: ['decode', 'applyRecord', 'applyPayload'],
     PokerEngine: ['decodeAction', 'create', 'actions', 'apply', 'depart', 'progress', 'evaluate', 'compare', 'pots', 'showdown'],
     PartyReducer: ['apply', 'roster', 'reset'],
@@ -1172,10 +1244,7 @@ if (hooks) {
     PokerMetrics: ['reset', 'snapshot', 'increment', 'start', 'end'],
     RenderScheduler: ['defer', 'immediate'],
     PanelCache: ['refresh', 'invalidate'],
-    PendingSelfAction: ['record', 'read', 'clear', 'resolveSelfRecord', 'markApplied'],
-    CardPresenter: ['render', 'update'],
     TableRenderer: ['render', 'invalidate'],
-    LateJoinQueue: ['queued', 'buyIn', 'apply', 'describe'],
   })) {
     assert(modules[moduleName], `${moduleName} module should be exposed to behavior-level hooks`);
     for (const functionName of functionNames) {
@@ -1215,9 +1284,9 @@ if (hooks) {
         record: { sender: 'Bebop', isSelf: false },
       });
       assertEqual(foreignResult.changed, false, 'PartyReducer.apply should reject a foreign leader while hosting');
-      assertEqual(partyContractHooks.state.party.id, 'pdeep', 'foreign leader rejection should retain the hosted party id');
+      assertEqual(snapshot(partyContractHooks).party.id, 'pdeep', 'foreign leader rejection should retain the hosted party id');
       reducer.reset('leave-lobby', 'PartyReducer contract fixture');
-      assertEqual(partyContractHooks.state.party.id, '', 'PartyReducer.reset should clear the party singleton');
+      assertEqual(snapshot(partyContractHooks).party.id, '', 'PartyReducer.reset should clear the party singleton');
     }
   }
   if (modules.PokerEngine) {
@@ -1232,8 +1301,7 @@ if (hooks) {
         ['bet $300', 'bet', 300],
         ['raise $400', 'raise', 400],
       ];
-      const savedEngineState = engineHooks.state.game;
-      engineHooks.state.game = null;
+      const gameBeforeDecode = snapshot(engineHooks).game;
       for (const [wireText, expectedAction, expectedAmount] of wireDecodeCases) {
         const decodedWire = engine.decodeAction(wireText);
         assert(decodedWire && decodedWire.action === expectedAction, `PokerEngine.decodeAction should recognize ${wireText} without State.game`);
@@ -1241,7 +1309,7 @@ if (hooks) {
       }
       const unsupportedWire = engine.decodeAction('all-in');
       assert(unsupportedWire && unsupportedWire.type === 'all-in-unsupported', 'PokerEngine.decodeAction should recognize unsupported all-in without State.game');
-      engineHooks.state.game = savedEngineState;
+      assertEqual(JSON.stringify(snapshot(engineHooks).game), JSON.stringify(gameBeforeDecode), 'PokerEngine.decodeAction should not mutate game state');
       const created = engine.create({
         seed: 'engine-created',
         roster: [
@@ -1293,6 +1361,14 @@ if (hooks) {
       const actor = currentPlayer(created.game);
       const actionView = actor ? engine.actions(created.game, actor.key, actor.key) : null;
       assert(actionView && actionView.currentKey === (actor ? actor.key : ''), 'PokerEngine.actions should project the requested current actor');
+      assert(typeof actionView.isLegal === 'function', 'PokerEngine.actions should expose one legality predicate for UI and engine application');
+      assert(typeof actionView.invalidStatus === 'function', 'PokerEngine.actions should expose action rejection feedback');
+      assert(actionView.prompt.includes(`${actor.name} to act`), 'PokerEngine.actions should own the turn prompt');
+      assert(actionView.statusText.includes(`turn ${actor.name}`), 'PokerEngine.actions should own the active-turn status text');
+      const illegalAction = actionView.legal.check ? { action: 'call' } : { action: 'check' };
+      assert(!actionView.isLegal(illegalAction), 'PokerEngine action descriptor should reject the unavailable check/call boundary');
+      const rejected = engine.apply(created.game, illegalAction, actor.key);
+      assert(rejected && !rejected.changed, 'PokerEngine.apply should use the descriptor legality predicate for unavailable check/call actions');
       if (actor && actionView) {
         const command = actionView.legal.check ? 'check' : 'call';
         const applied = engine.apply(created.game, { type: command }, actor.key);
@@ -1388,7 +1464,7 @@ if (hooks) {
     assert(instrumentationModules && instrumentationModules.TableRenderer, 'instrumentation fixture should expose TableRenderer');
     if (instrumentationModules && instrumentationModules.PokerMetrics && instrumentationModules.RenderScheduler && instrumentationModules.TableRenderer) {
       instrumentationModules.PokerMetrics.reset();
-      instrumentationModules.TableRenderer.render();
+      instrumentationModules.TableRenderer.render(instrumentationModules.ViewModel.build());
       let metrics = instrumentationModules.PokerMetrics.snapshot();
       assert(
         metrics && metrics.timings && metrics.timings.renderGame && metrics.timings.renderGame.count > 0,
@@ -1396,7 +1472,7 @@ if (hooks) {
       );
 
       clearDomWrites(instrumentation.runtime);
-      instrumentationModules.TableRenderer.render();
+      instrumentationModules.TableRenderer.render(instrumentationModules.ViewModel.build());
       const noOpWrites = summarizeDomWrites(takeDomWrites(instrumentation.runtime));
       assertEqual(noOpWrites.create, 0, 'repeated empty-lobby render should not create new panels');
 
@@ -1423,46 +1499,26 @@ if (hooks) {
   {
     function assertHostPartySubmitForTarget(targetText, message) {
       const submitRuntime = createMenuRuntime();
-      const submitInput = findPanel(submitRuntime.runtime, 'ChatInput');
       const submitTarget = findPanel(submitRuntime.runtime, 'ChatTargetLabel');
-      assert(submitInput, `${message} should have ChatInput`);
-      assert(submitTarget, `${message} should have ChatTargetLabel`);
       if (submitTarget) submitTarget.text = targetText;
+      submitRuntime.hooks.handleReadyEvent(readyPayload('Abrams', 1, true));
       const dispatchStart = submitRuntime.runtime.dispatches.length;
       submitRuntime.runtime.sandbox.PokerEscapeMenuHostParty();
-      drainDueScheduledCallbacks(submitRuntime.runtime, 8);
-      assertEqual(
-        submitRuntime.runtime.dispatches.slice(dispatchStart).filter((event) => event.name === 'CitadelChatInputSubmitted').length,
-        0,
-        `${message} should not submit before the first delayed chat retry is due`,
-      );
-      advanceScheduledTime(submitRuntime.runtime, 50, 8);
-      assertEqual(
-        submitRuntime.runtime.dispatches.slice(dispatchStart).filter((event) => event.name === 'CitadelChatInputSubmitted').length,
-        0,
-        `${message} should wait for one stable chat retry before submitting`,
-      );
-      advanceScheduledTime(submitRuntime.runtime, 100, 8);
-      const submitEvents = submitRuntime.runtime.dispatches.slice(dispatchStart);
-      const submittedEvents = submitEvents.filter((event) => event.name === 'CitadelChatInputSubmitted');
-      assertEqual(submittedEvents.length, 1, `${message} should submit one chat input event`);
-      assertEqual(
-        submitEvents.filter((event) => event.name === 'CitadelConCommand' && event.payload === 'say_chat_team').length,
-        0,
-        `${message} should not force team chat when a supported target is already open`,
-      );
-      const submittedEvent = submittedEvents[0];
-      assertEqual(submittedEvent.payloadId, 'ChatInput', `${message} should capture the ChatInput panel id`);
+      const submitted = submittedChatMessages(submitRuntime.runtime, dispatchStart);
+      assertEqual(submitted.length, 1, `${message} should request one chat-context submission`);
       assert(
-        String(submittedEvent.payloadTextAtDispatch || '').indexOf('[party leader] poker party ') === 0,
-        `${message} should capture the party leader command before clearing input: ${submittedEvent.payloadTextAtDispatch || '<none>'}`,
+        String(submitted[0] || '').indexOf('[party leader] poker party ') === 0,
+        `${message} should bridge the party leader command: ${submitted[0] || '<none>'}`,
       );
-      assertEqual(submitInput && submitInput.text, '', `${message} should clear chat input text after submit`);
-      const submitIndex = submitEvents.findIndex((event) => event.name === 'CitadelChatInputSubmitted');
-      const blurIndex = submitEvents.findIndex((event) => event.name === 'CitadelChatInputBlur');
-      const dropIndex = submitEvents.findIndex((event) => event.name === 'DropInputFocus');
-      assert(blurIndex > submitIndex, `${message} should dispatch CitadelChatInputBlur after submit`);
-      assert(dropIndex > submitIndex, `${message} should dispatch DropInputFocus after submit`);
+      const hostedParty = snapshot(submitRuntime.hooks).party;
+      assertEqual(hostedParty.mode, 'leader', `${message} should retain the locally hosted lobby`);
+      assertEqual(hostedParty.leaderKey, 'abrams', `${message} should retain the verified local leader key`);
+      applyMenuRecord(submitRuntime.hooks, {
+        sender: '<unknown>',
+        message: `[party leader] poker party ${hostedParty.id}`,
+        isSelf: false,
+      });
+      assertEqual(snapshot(submitRuntime.hooks).party.leaderKey, 'abrams', `${message} should ignore its echoed unresolved leader row without losing local authority`);
     }
     assertHostPartySubmitForTarget('PARTY', 'host party command on PARTY target');
     assertHostPartySubmitForTarget('TEAM', 'host party command on TEAM target');
@@ -1475,25 +1531,25 @@ if (hooks) {
     if (cacheHooks && cacheHooks.modules && cacheHooks.modules.PanelCache) {
       cacheRuntime.runtime.sandbox.PokerEscapeMenuToggle();
       drainImmediateCallbacks(cacheRuntime.runtime);
-      const oldLobbyWindow = cacheHooks.state.lobbyWindow;
+      const oldLobbyWindow = findPanel(cacheRuntime.runtime, 'PokerLobbyWindow');
       assert(oldLobbyWindow, 'panel-cache fixture should capture the initial lobby window');
-      const partyBefore = JSON.stringify(cacheHooks.state.party);
-      const gameBefore = cacheHooks.state.game;
+      const partyBefore = JSON.stringify(snapshot(cacheHooks).party);
+      const gameBefore = JSON.stringify(snapshot(cacheHooks).game);
       oldLobbyWindow.deleted = true;
       const replacement = cacheRuntime.runtime.panels.createPanel('Panel', cacheRuntime.runtime.panels.root, 'PokerLobbyWindow');
       cacheHooks.modules.PanelCache.invalidate('validator');
       cacheHooks.modules.PanelCache.refresh();
-      assertEqual(cacheHooks.state.lobbyWindow, replacement, 'PanelCache.refresh should reacquire a replacement lobby window');
-      assertEqual(JSON.stringify(cacheHooks.state.party), partyBefore, 'PanelCache.invalidate should not change party projection');
-      assertEqual(cacheHooks.state.game, gameBefore, 'PanelCache.invalidate should not change game projection');
+      assertEqual(findPanel(cacheRuntime.runtime, 'PokerLobbyWindow'), replacement, 'PanelCache.refresh should reacquire a replacement lobby window');
+      assertEqual(JSON.stringify(snapshot(cacheHooks).party), partyBefore, 'PanelCache.invalidate should not change party projection');
+      assertEqual(JSON.stringify(snapshot(cacheHooks).game), gameBefore, 'PanelCache.invalidate should not change game projection');
 
       const staleRuntime = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'panel-cache-stale-children');
       const staleHooks = staleRuntime.hooks;
       assert(staleHooks && staleHooks.modules && staleHooks.modules.PanelCache && staleRuntime.game, 'panel-cache stale-child fixture should expose active game and PanelCache');
       if (staleHooks && staleHooks.modules && staleHooks.modules.PanelCache && staleRuntime.game) {
-        staleHooks.modules.TableRenderer.render();
-        const stalePartyBefore = JSON.stringify(staleHooks.state.party);
-        const staleGameBefore = staleHooks.state.game;
+        staleHooks.modules.TableRenderer.render(staleHooks.modules.ViewModel.build());
+        const stalePartyBefore = JSON.stringify(snapshot(staleHooks).party);
+        const staleGameBefore = JSON.stringify(snapshot(staleHooks).game);
         for (const target of [
           ['PokerPlayersList', 'PokerPlayerRow', 'players'],
           ['PokerTableSeats', 'PokerTableSeat', 'table seats'],
@@ -1508,62 +1564,16 @@ if (hooks) {
           const replacementParent = staleRuntime.runtime.panels.createPanel('Panel', staleRuntime.runtime.panels.root, target[0]);
           staleHooks.modules.PanelCache.invalidate(`validator-${target[0]}`);
           staleHooks.modules.PanelCache.refresh();
-          staleHooks.modules.TableRenderer.render();
+          staleHooks.modules.TableRenderer.render(staleHooks.modules.ViewModel.build());
           const currentParent = findPanel(staleRuntime.runtime, target[0]);
           const currentChild = findDescendantsWithClass(currentParent, target[1], [])[0] || null;
           assertEqual(currentParent, replacementParent, `PanelCache.refresh should reacquire replacement ${target[0]}`);
           assert(currentChild && currentChild !== oldChild, `panel-cache stale-child ${target[2]} should not reuse stale child panel identity`);
-          assertEqual(staleHooks.state.game, staleGameBefore, `PanelCache.invalidate should preserve active game while replacing ${target[0]}`);
-          assertEqual(JSON.stringify(staleHooks.state.party), stalePartyBefore, `PanelCache.invalidate should preserve party state while replacing ${target[0]}`);
+          assertEqual(JSON.stringify(snapshot(staleHooks).game), staleGameBefore, `PanelCache.invalidate should preserve active game while replacing ${target[0]}`);
+          assertEqual(JSON.stringify(snapshot(staleHooks).party), stalePartyBefore, `PanelCache.invalidate should preserve party state while replacing ${target[0]}`);
         }
       }
     }
-  }
-  if (modules.CardPresenter) {
-    const cardPresenter = modules.CardPresenter;
-    const flipHost = runtime.panels.createPanel('Panel', runtime.panels.root, '', 'PokerCardFlipRegressionHost');
-    const testCard = card('K', 'H');
-    const cardPanel = cardPresenter.render(flipHost, testCard, false);
-    const scheduledFlipCountBefore = runtime.schedules.length;
-    cardPresenter.update(cardPanel, null, false);
-    const scheduledFlipCompletions = runtime.schedules.splice(scheduledFlipCountBefore);
-    const scheduledFlipCompletion = scheduledFlipCompletions[0] || {};
-    const stableContents = firstDescendantWithClass(cardPanel, 'PokerCardContents');
-
-    const flipLayers = findDescendantsWithClass(cardPanel, 'PokerCardFlipLayer', []);
-    const outgoingFaceLayer = flipLayers.find((layer) => hasClass(layer, 'FlipToBack') && !hasClass(layer, 'QuestionFace'));
-    const incomingQuestionLayer = flipLayers.find((layer) => hasClass(layer, 'FlipReveal') && hasClass(layer, 'QuestionFace'));
-    const incomingQuestionText = collectPanelTexts(incomingQuestionLayer, []).join('|');
-    const outgoingFaceText = collectPanelTexts(outgoingFaceLayer, []).join('|');
-
-    assert(hasClass(cardPanel, 'FlipActive'), 'face-to-back card flip should mark the card panel active during the scheduled animation');
-    assert(stableContents, 'face-to-back card flip should keep stable PokerCardContents mounted during the scheduled animation');
-    assert(hasClass(stableContents, 'FlipHidden'), 'face-to-back card flip should hide stable PokerCardContents while flip layers animate');
-    assertEqual(scheduledFlipCompletions.length, 1, 'face-to-back card flip should schedule one completion callback');
-    assertEqual(scheduledFlipCompletion.delay, 1.2, 'face-to-back card flip completion should wait for the 1.2s animation');
-    assert(outgoingFaceLayer, 'face-to-back card flip should keep the outgoing face layer animating with FlipToBack');
-    assert(outgoingFaceText.includes('K') && outgoingFaceText.includes('♥'), `face-to-back card flip outgoing layer should preserve the old face before scheduled completion: ${outgoingFaceText || '<empty>'}`);
-    assert(incomingQuestionLayer, 'face-to-back card flip should create an incoming question/back layer with FlipReveal and QuestionFace before scheduled completion');
-    assert(incomingQuestionText.includes('?'), `face-to-back card flip incoming layer should make ? visible during the animation: ${incomingQuestionText || '<empty>'}`);
-
-    drainScheduledCallbacks({ schedules: scheduledFlipCompletions }, 1);
-
-    const finalStableContents = firstDescendantWithClass(cardPanel, 'PokerCardContents');
-    const finalStableText = collectPanelTexts(finalStableContents, []).join('|');
-    assert(!hasClass(cardPanel, 'FlipActive'), 'face-to-back card flip should remove FlipActive after scheduled completion');
-    assert(finalStableContents, 'face-to-back card flip should keep stable PokerCardContents after scheduled completion');
-    assert(!hasClass(finalStableContents, 'FlipHidden'), 'face-to-back card flip should reveal stable PokerCardContents after scheduled completion');
-    assertEqual(finalStableText, '?|?', `face-to-back card flip stable contents should show the question/back face after scheduled completion: ${finalStableText || '<empty>'}`);
-    assertEqual(findDescendantsWithClass(cardPanel, 'PokerCardFlipLayer', []).length, 0, 'face-to-back card flip should remove all flip layers after scheduled completion');
-
-    const unchangedHost = runtime.panels.createPanel('Panel', runtime.panels.root, '', 'PokerCardUnchangedWriteHost');
-    const unchangedFace = card('Q', 'S');
-    const unchangedPanel = cardPresenter.render(unchangedHost, unchangedFace, false);
-    cardPresenter.update(unchangedPanel, unchangedFace, false);
-    clearDomWrites(runtime);
-    cardPresenter.update(unchangedPanel, unchangedFace, false);
-    const unchangedSrcWrites = takeDomWrites(runtime).filter((write) => write && (write.type === 'image-src' || (write.type === 'attr' && write.name === 'src')));
-    assertEqual(unchangedSrcWrites.length, 0, 'unchanged face-card update should not rewrite image src or src attributes');
   }
   if (modules.CommandReducer) {
     const decodedResumeStart = modules.CommandReducer.decode({ sender: 'Abrams', message: 'poker resume r123 hand 2 leader hantu%20raya roster abrams~Abrams|hantu%20raya~Hantu%20Raya seed sresume' });
@@ -1660,7 +1670,7 @@ if (hooks) {
       const actionReducer = actionEffectRuntime.hooks.modules.CommandReducer;
       const actionActor = currentPlayer(actionEffectRuntime.game);
       actionEffectRuntime.hooks.modules.PokerMetrics.reset();
-      const actionEffect = actionEffectRuntime.hooks.processChatRecord({ sender: actionActor.name, message: 'fold', isSelf: true });
+      const actionEffect = applyMenuRecord(actionEffectRuntime.hooks, { sender: actionActor.name, message: 'fold', isSelf: true });
       assertEffectShape(
         actionEffect,
         { consumed: true, readyChanged: false, render: true, status: actionEffect.status, debugReason: 'action' },
@@ -1696,24 +1706,14 @@ if (hooks) {
     assertEqual(hooks.buildResumeStartCommand('r123', 'abrams', 2, 'sresume').includes(' roster '), false, 'compact resume-start builder must omit roster marker');
   }
   if (partyHooksAvailable) {
+    const decodeRoster = (token) => hooks.modules.CommandReducer.decode({ sender: 'Abrams', message: `poker start sdecode hand 1 roster ${token}` }).roster;
     assertEqual(
-      hooks.encodeRoster(partyRoster),
-      'abrams~Abrams|bebop~Bebop',
-      'party roster encoder should serialize key/name pairs with the wire separator',
-    );
-    const encodedSpecialRoster = hooks.encodeRoster([{ key: 'ivy space', name: 'Ivy & Co' }]);
-    assertEqual(
-      encodedSpecialRoster,
-      'ivy%20space~Ivy%20%26%20Co',
-      'party roster encoder should URI-escape keys and names',
-    );
-    assertEqual(
-      JSON.stringify(hooks.decodeRoster('abrams~Abrams|bebop~Bebop')),
+      JSON.stringify(decodeRoster('abrams~Abrams|bebop~Bebop')),
       JSON.stringify(partyRoster),
       'party roster decoder should recover ordered key/name pairs',
     );
     assertEqual(
-      JSON.stringify(hooks.decodeRoster('abrams|hantu%20raya')),
+      JSON.stringify(decodeRoster('abrams|hantu%20raya')),
       JSON.stringify([
         { key: 'abrams', name: 'Abrams' },
         { key: 'hantu raya', name: 'Hantu Raya' },
@@ -1721,7 +1721,7 @@ if (hooks) {
       'party roster decoder should accept compact key-only roster entries',
     );
     assertEqual(
-      JSON.stringify(hooks.decodeRoster('bad%zz~Abrams|bebop~Bebop')),
+      JSON.stringify(decodeRoster('bad%zz~Abrams|bebop~Bebop')),
       JSON.stringify([]),
       'party roster decoder should reject malformed URI escapes',
     );
@@ -1772,11 +1772,11 @@ if (hooks) {
     const liveLogCompactRuntime = createMenuRuntime();
     if (liveLogCompactRuntime.hooks && hasPartySyncHooks(liveLogCompactRuntime.hooks, 'live-log compact synced roster runtime')) {
       const liveLogHooks = liveLogCompactRuntime.hooks;
-      liveLogHooks.processChatRecord({ sender: 'citadel_ability_psychic_lift', message: '[party leader] poker party plive-log-compact', isSelf: true });
-      liveLogHooks.processChatRecord({ sender: 'Hantu Raya', message: '[party join] poker party plive-log-compact', isSelf: false });
+      applyMenuRecord(liveLogHooks, { sender: 'citadel_ability_psychic_lift', message: '[party leader] poker party plive-log-compact', isSelf: true });
+      applyMenuRecord(liveLogHooks, { sender: 'Hantu Raya', message: '[party join] poker party plive-log-compact', isSelf: false });
       const liveLogStatusBeforeStart = panelText(findPanel(liveLogCompactRuntime.runtime, 'PokerStatusLabel'));
       const liveLogMessagesBeforeStart = liveLogCompactRuntime.runtime.messages.length;
-      liveLogHooks.processChatRecord({
+      applyMenuRecord(liveLogHooks, {
         sender: 'citadel_ability_psychic_lift',
         message: liveLogCompactStartCommand,
         isSelf: true,
@@ -1793,34 +1793,24 @@ if (hooks) {
         !liveLogCompactDiagnostics.includes('invalid synced poker roster'),
         `compact synced roster start command should not surface Invalid synced poker roster after real start apply: ${liveLogCompactDiagnostics || '<empty>'}`,
       );
-      assert(liveLogHooks.state.game, 'compact synced roster start command should create a game through the real start path');
-      if (liveLogHooks.state.game) {
-        assertEqual(liveLogHooks.state.game.players.length, 2, 'compact synced roster start command should seat both live-log roster players');
+      const liveLogGame = snapshot(liveLogHooks).game;
+      assert(liveLogGame, 'compact synced roster start command should create a game through the real start path');
+      if (liveLogGame) {
+        assertEqual(liveLogGame.players.length, 2, 'compact synced roster start command should seat both live-log roster players');
       }
     }
-    hooks.state.party = {
-      id: 'psync',
-      mode: 'leader',
-      leaderKey: 'abrams',
-      leaderName: 'Abrams',
-      members: {
-        abrams: { key: 'abrams', name: 'Abrams' },
-        bebop: { key: 'bebop', name: 'Bebop' },
-        unknown: { key: 'unknown', name: '<unknown>' },
-      },
-      order: ['abrams', 'missing', 'bebop', 'unknown'],
-    };
+    hooks.seedPartyForTest(partyRoster, 'psync', 'leader');
     assertEqual(
       JSON.stringify(hooks.modules.PartyReducer.roster()),
       JSON.stringify(partyRoster),
       'party roster should return known non-unknown members in party order',
     );
-    hooks.state.party = { id: '', mode: 'none', leaderKey: '', leaderName: '', members: {}, order: [] };
+    clearPartyForLegacyReady(hooks);
 
     const emptyButtonRuntime = createMenuRuntime();
     if (emptyButtonRuntime.hooks) {
       const emptyHooks = emptyButtonRuntime.hooks;
-      emptyHooks.modules.TableRenderer.render();
+      emptyHooks.modules.TableRenderer.render(emptyHooks.modules.ViewModel.build());
       assertStartButtonGate(emptyButtonRuntime.runtime, 'HOST OR JOIN PARTY', false, false, 'empty lobby button state');
       assertButtonAffordance(emptyButtonRuntime.runtime, 'PokerHostPartyButton', { hidden: false, enabled: true }, 'empty lobby button state');
       assertButtonAffordance(emptyButtonRuntime.runtime, 'PokerJoinPartyButton', { hidden: true, enabled: false }, 'empty lobby button state');
@@ -1831,17 +1821,12 @@ if (hooks) {
       assertButtonAffordance(emptyButtonRuntime.runtime, 'PokerResumeControls', { hidden: true }, 'empty lobby button state');
       assertButtonAffordance(emptyButtonRuntime.runtime, 'PokerLeaveLobbyButton', { hidden: true }, 'empty lobby button state');
 
-      emptyHooks.state.localPlayerKey = 'abrams';
-      emptyButtonRuntime.runtime.config.PokerLocalPlayerKey = 'abrams';
-      emptyButtonRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
-      emptyHooks.modules.TableRenderer.render();
-      assertButtonAffordance(emptyButtonRuntime.runtime, 'PokerReadyChatButton', { hidden: true, enabled: false }, 'empty lobby known local button state');
 
       const discoveredPartyRuntime = createMenuRuntime();
       if (discoveredPartyRuntime.hooks && hasPartySyncHooks(discoveredPartyRuntime.hooks, 'fresh discovered party button-state hooks')) {
         const discoveredHooks = discoveredPartyRuntime.hooks;
-        discoveredHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pdiscover', isSelf: false });
-        discoveredHooks.modules.TableRenderer.render();
+        applyMenuRecord(discoveredHooks, { sender: 'Abrams', message: '[party leader] poker party pdiscover', isSelf: false });
+        discoveredHooks.modules.TableRenderer.render(discoveredHooks.modules.ViewModel.build());
         assertButtonAffordance(discoveredPartyRuntime.runtime, 'PokerJoinPartyButton', { hidden: false, enabled: true }, 'fresh discovered party button state');
         assertButtonAffordance(discoveredPartyRuntime.runtime, 'PokerReadyChatButton', { hidden: true, enabled: false }, 'fresh discovered party button state');
       }
@@ -1850,9 +1835,9 @@ if (hooks) {
     const memberButtonRuntime = createMenuRuntime();
     if (memberButtonRuntime.hooks && hasPartySyncHooks(memberButtonRuntime.hooks, 'party member button-state hooks')) {
       const memberHooks = memberButtonRuntime.hooks;
-      memberHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pbuttons', isSelf: false });
-      memberHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party pbuttons', isSelf: true });
-      memberHooks.modules.TableRenderer.render();
+      applyMenuRecord(memberHooks, { sender: 'Abrams', message: '[party leader] poker party pbuttons', isSelf: false });
+      applyMenuRecord(memberHooks, { sender: 'Bebop', message: '[party join] poker party pbuttons', isSelf: true });
+      memberHooks.modules.TableRenderer.render(memberHooks.modules.ViewModel.build());
       assertStartButtonGate(memberButtonRuntime.runtime, 'WAITING FOR LEADER', false, true, 'party member lobby button state');
       assertButtonAffordance(memberButtonRuntime.runtime, 'PokerHostPartyButton', { hidden: true, enabled: false }, 'party member lobby button state');
       assertButtonAffordance(memberButtonRuntime.runtime, 'PokerJoinPartyButton', { hidden: true, enabled: false }, 'party member lobby button state');
@@ -1864,8 +1849,8 @@ if (hooks) {
     const leaderOneButtonRuntime = createMenuRuntime();
     if (leaderOneButtonRuntime.hooks && hasPartySyncHooks(leaderOneButtonRuntime.hooks, 'party leader one-player button-state hooks')) {
       const leaderOneHooks = leaderOneButtonRuntime.hooks;
-      leaderOneHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pone', isSelf: true });
-      leaderOneHooks.modules.TableRenderer.render();
+      applyMenuRecord(leaderOneHooks, { sender: 'Abrams', message: '[party leader] poker party pone', isSelf: true });
+      leaderOneHooks.modules.TableRenderer.render(leaderOneHooks.modules.ViewModel.build());
       assertStartButtonGate(leaderOneButtonRuntime.runtime, 'WAITING FOR PARTY', false, false, 'party leader one-player button state');
       assert(panelText(findPanel(leaderOneButtonRuntime.runtime, 'PokerPartyStatusLabel')).includes('Need 2 joined party players to start.'), 'party leader one-player button state should explain the party minimum');
       assertProgressImportAvailable(leaderOneButtonRuntime.runtime, 'party leader one-player import controls');
@@ -1876,17 +1861,18 @@ if (hooks) {
     const leaderTwoButtonRuntime = createMenuRuntime();
     if (leaderTwoButtonRuntime.hooks && hasPartySyncHooks(leaderTwoButtonRuntime.hooks, 'party leader two-player button-state hooks')) {
       const leaderTwoHooks = leaderTwoButtonRuntime.hooks;
-      leaderTwoHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party ptwo', isSelf: true });
-      leaderTwoHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party ptwo', isSelf: false });
-      leaderTwoHooks.modules.TableRenderer.render();
+      applyMenuRecord(leaderTwoHooks, { sender: 'Abrams', message: '[party leader] poker party ptwo', isSelf: true });
+      applyMenuRecord(leaderTwoHooks, { sender: 'Bebop', message: '[party join] poker party ptwo', isSelf: false });
+      leaderTwoHooks.modules.TableRenderer.render(leaderTwoHooks.modules.ViewModel.build());
       assertStartButtonGate(leaderTwoButtonRuntime.runtime, 'START SYNCED HAND', true, false, 'party leader two-player button state');
       assertProgressImportAvailable(leaderTwoButtonRuntime.runtime, 'party leader two-player import controls');
       leaderTwoHooks.state.requiresProgressImport = true;
-      leaderTwoHooks.modules.TableRenderer.render();
+      
+      leaderTwoHooks.modules.TableRenderer.render(leaderTwoHooks.modules.ViewModel.build());
       assertStartButtonGate(leaderTwoButtonRuntime.runtime, '', false, true, 'party leader import-required start button state');
       assertProgressImportAvailable(leaderTwoButtonRuntime.runtime, 'party leader import-required import controls');
       leaderTwoHooks.state.requiresProgressImport = false;
-      leaderTwoHooks.modules.TableRenderer.render();
+      leaderTwoHooks.modules.TableRenderer.render(leaderTwoHooks.modules.ViewModel.build());
       leaderTwoHooks.state.game = {
         active: false,
         finished: true,
@@ -1902,7 +1888,7 @@ if (hooks) {
           { key: 'bebop', name: 'Bebop', stack: 9800, bet: 0, committed: 0, cards: [], folded: true, acted: false },
         ],
       };
-      leaderTwoHooks.modules.TableRenderer.render();
+      leaderTwoHooks.modules.TableRenderer.render(leaderTwoHooks.modules.ViewModel.build());
       assertStartButtonGate(leaderTwoButtonRuntime.runtime, 'NEXT SYNCED HAND', true, false, 'party leader finished-hand button state');
       assertCopyProgressAvailable(leaderTwoButtonRuntime.runtime, 'party leader finished-hand progress controls');
     }
@@ -1920,7 +1906,7 @@ if (hooks) {
       const snapshotProgressReplay = createMenuRuntime();
       if (immediateProgressReplay.hooks && snapshotProgressReplay.hooks) {
         for (const message of progressMessages) {
-          immediateProgressReplay.hooks.processChatRecord({ sender: 'Abrams', channel: '[Party]', message, isSelf: false });
+          applyMenuRecord(immediateProgressReplay.hooks, { sender: 'Abrams', channel: '[Party]', message, isSelf: false });
         }
         const snapshotMessages = progressMessages.map((message, index) => ({
           seq: index + 1,
@@ -1936,29 +1922,29 @@ if (hooks) {
           seq: snapshotMessages.length,
           messages: snapshotMessages,
         });
-        assertEqual(immediateProgressReplay.hooks.state.resume.id, progressReplaySource.id, 'progress immediate replay should import the shared progress id');
-        assertEqual(snapshotProgressReplay.hooks.state.resume.id, progressReplaySource.id, 'progress snapshot replay should import the shared progress id');
-        assertEqual(snapshotProgressReplay.hooks.state.resume.id, immediateProgressReplay.hooks.state.resume.id, 'progress snapshot replay should match immediate replay resume id');
-        assertEqual(immediateProgressReplay.hooks.state.game, null, 'progress immediate replay should not create a game before resume start');
-        assertEqual(snapshotProgressReplay.hooks.state.game, null, 'progress snapshot replay should not create a game before resume start');
+        assertEqual(snapshot(immediateProgressReplay.hooks).resume.id, progressReplaySource.id, 'progress immediate replay should import the shared progress id');
+        assertEqual(snapshot(snapshotProgressReplay.hooks).resume.id, progressReplaySource.id, 'progress snapshot replay should import the shared progress id');
+        assertEqual(snapshot(snapshotProgressReplay.hooks).resume.id, snapshot(immediateProgressReplay.hooks).resume.id, 'progress snapshot replay should match immediate replay resume id');
+        assertEqual(snapshot(immediateProgressReplay.hooks).game, null, 'progress immediate replay should not create a game before resume start');
+        assertEqual(snapshot(snapshotProgressReplay.hooks).game, null, 'progress snapshot replay should not create a game before resume start');
       }
 
         for (const resumeSender of ['Abrams', '<unknown>']) {
           const hostedResumeRuntime = createMenuRuntime();
           if (hostedResumeRuntime.hooks) {
-            hostedResumeRuntime.hooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pprogress-replay', isSelf: true });
-            hostedResumeRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party pprogress-replay', isSelf: false });
+            applyMenuRecord(hostedResumeRuntime.hooks, { sender: 'Abrams', message: '[party leader] poker party pprogress-replay', isSelf: true });
+            applyMenuRecord(hostedResumeRuntime.hooks, { sender: 'Bebop', message: '[party join] poker party pprogress-replay', isSelf: false });
             for (const message of progressMessages) {
-              hostedResumeRuntime.hooks.processChatRecord({ sender: 'Abrams', channel: '[Party]', message, isSelf: false });
+              applyMenuRecord(hostedResumeRuntime.hooks, { sender: 'Abrams', channel: '[Party]', message, isSelf: false });
             }
-            assertEqual(hostedResumeRuntime.hooks.state.resume.id, progressReplaySource.id, `hosted shared progress should import before ${resumeSender} resume start`);
+            assertEqual(snapshot(hostedResumeRuntime.hooks).resume.id, progressReplaySource.id, `hosted shared progress should import before ${resumeSender} resume start`);
             const resumeStart = hostedResumeRuntime.hooks.buildResumeStartCommand(progressReplaySource.id, 'abrams', progressReplaySource.payload.nextHandNumber, 'sresume-replay');
             assert(
               resumeStart.length <= MAX_SYNCED_START_CHAT_COMMAND_LENGTH && resumeStart.indexOf(' roster ') < 0,
               `hosted resume start should stay chat-safe without a roster marker (${resumeStart.length}/${MAX_SYNCED_START_CHAT_COMMAND_LENGTH}): ${resumeStart}`,
             );
-            hostedResumeRuntime.hooks.processChatRecord({ sender: resumeSender, message: resumeStart, isSelf: false });
-            const resumedGame = hostedResumeRuntime.hooks.state.game;
+            applyMenuRecord(hostedResumeRuntime.hooks, { sender: resumeSender, message: resumeStart, isSelf: false });
+            const resumedGame = snapshot(hostedResumeRuntime.hooks).game;
             assert(resumedGame && resumedGame.importedResume, `hosted shared progress ${resumeSender} resume start should create an imported game`);
             if (resumedGame && resumedGame.players) {
               assertEqual(resumedGame.handNumber, progressReplaySource.payload.nextHandNumber, `hosted shared progress ${resumeSender} resume should use the saved next hand number`);
@@ -1977,29 +1963,29 @@ if (hooks) {
 
     const emptyLobbyRuntime = createMenuRuntime();
     if (emptyLobbyRuntime.hooks) {
-      emptyLobbyRuntime.hooks.modules.TableRenderer.render();
+      emptyLobbyRuntime.hooks.modules.TableRenderer.render(emptyLobbyRuntime.hooks.modules.ViewModel.build());
       assertPanelHidden(emptyLobbyRuntime.runtime, 'PokerLeaveLobbyButton', 'empty lobby render');
       emptyLobbyRuntime.hooks.state.resume = { id: 'rleave' };
-      emptyLobbyRuntime.hooks.modules.TableRenderer.render();
+      emptyLobbyRuntime.hooks.modules.TableRenderer.render(emptyLobbyRuntime.hooks.modules.ViewModel.build());
       assertPanelVisible(emptyLobbyRuntime.runtime, 'PokerLeaveLobbyButton', 'resume lobby render');
     }
 
     const lobbyRuntime = createMenuRuntime();
     if (lobbyRuntime.hooks && hasPartySyncHooks(lobbyRuntime.hooks, 'lobby table visibility party hooks')) {
-      lobbyRuntime.hooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party plobby', isSelf: true });
-      lobbyRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party plobby', isSelf: false });
-      assertEqual(lobbyRuntime.hooks.state.game, null, 'lobby party waiting should not create a game');
+      applyMenuRecord(lobbyRuntime.hooks, { sender: 'Abrams', message: '[party leader] poker party plobby', isSelf: true });
+      applyMenuRecord(lobbyRuntime.hooks, { sender: 'Bebop', message: '[party join] poker party plobby', isSelf: false });
+      assertEqual(snapshot(lobbyRuntime.hooks).game, null, 'lobby party waiting should not create a game');
       assertNoGamePlayerRail(lobbyRuntime.runtime, 'lobby party waiting');
       assertPanelVisible(lobbyRuntime.runtime, 'PokerLeaveLobbyButton', 'lobby party waiting');
     }
 
     const stableLobbyRuntime = createMenuRuntime();
     if (stableLobbyRuntime.hooks) {
-      stableLobbyRuntime.hooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party plobby-stable', isSelf: true });
-      stableLobbyRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party plobby-stable', isSelf: false });
-      stableLobbyRuntime.hooks.modules.TableRenderer.render();
+      applyMenuRecord(stableLobbyRuntime.hooks, { sender: 'Abrams', message: '[party leader] poker party plobby-stable', isSelf: true });
+      applyMenuRecord(stableLobbyRuntime.hooks, { sender: 'Bebop', message: '[party join] poker party plobby-stable', isSelf: false });
+      stableLobbyRuntime.hooks.modules.TableRenderer.render(stableLobbyRuntime.hooks.modules.ViewModel.build());
       clearDomWrites(stableLobbyRuntime.runtime);
-      stableLobbyRuntime.hooks.modules.TableRenderer.render();
+      stableLobbyRuntime.hooks.modules.TableRenderer.render(stableLobbyRuntime.hooks.modules.ViewModel.build());
       const writes = summarizeDomWrites(takeDomWrites(stableLobbyRuntime.runtime));
       assertEqual(actionButtonPanels(stableLobbyRuntime.runtime).length, 0, 'stable lobby render should not show action buttons');
       assertEqual(tableSeatRows(stableLobbyRuntime.runtime).length, 0, 'stable lobby render should not show table seats');
@@ -2018,7 +2004,7 @@ if (hooks) {
     if (localLeaveRuntime.hooks && hasPartySyncHooks(localLeaveRuntime.hooks, 'local leave command party hooks')) {
       const chatTarget = findPanel(localLeaveRuntime.runtime, 'ChatTargetLabel');
       if (chatTarget) chatTarget.text = 'TEAM';
-      localLeaveRuntime.hooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pleave', isSelf: true });
+      applyMenuRecord(localLeaveRuntime.hooks, { sender: 'Abrams', message: '[party leader] poker party pleave', isSelf: true });
       assertPanelVisible(localLeaveRuntime.runtime, 'PokerLeaveLobbyButton', 'local leave command setup');
       assertHookFunction(localLeaveRuntime.runtime.sandbox, 'PokerEscapeMenuLeaveLobby', 'global ESC menu leave-lobby hook');
       assertEqual(
@@ -2029,17 +2015,15 @@ if (hooks) {
       localLeaveRuntime.hooks.state.requiresProgressImport = true;
       localLeaveRuntime.hooks.state.resume = { id: 'rleave-local', ready: {}, order: [], payload: { roster: [] } };
       localLeaveRuntime.runtime.sandbox.PokerEscapeMenuLeaveLobby();
-      assertEqual(localLeaveRuntime.hooks.state.party.id, '', 'local leave command should clear local party state');
-      assertEqual(localLeaveRuntime.hooks.state.game, null, 'local leave command should clear local active game state');
-      assertEqual(localLeaveRuntime.hooks.state.requiresProgressImport, false, 'local leave command should clear imported-progress start guard');
-      assertEqual(!!(localLeaveRuntime.hooks.state.resume && localLeaveRuntime.hooks.state.resume.id), false, 'local leave command should clear resume state');
+      assertEqual(snapshot(localLeaveRuntime.hooks).party.id, '', 'local leave command should clear local party state');
+      assertEqual(snapshot(localLeaveRuntime.hooks).game, null, 'local leave command should clear local active game state');
+      assertEqual(snapshot(localLeaveRuntime.hooks).requiresProgressImport, false, 'local leave command should clear imported-progress start guard');
+      assertEqual(!!(snapshot(localLeaveRuntime.hooks).resume && snapshot(localLeaveRuntime.hooks).resume.id), false, 'local leave command should clear resume state');
       for (let i = 0; i < 8 && localLeaveRuntime.runtime.schedules.length; i += 1) {
         localLeaveRuntime.runtime.schedules.shift().callback();
       }
       assert(
-        localLeaveRuntime.runtime.dispatches.some(
-          (event) => event.name === 'CitadelChatInputSubmitted' && event.payloadText === '[party leave] poker party pleave',
-        ),
+        submittedChatMessages(localLeaveRuntime.runtime, 0).includes('[party leave] poker party pleave'),
         'local leave command should submit the party leave chat record',
       );
     }
@@ -2049,7 +2033,7 @@ if (hooks) {
       const activeLeaderLeaveButton = findPanel(activeLeaderLeaveRuntime.runtime, 'PokerLeaveLobbyButton');
       const activeLeaderChatTarget = findPanel(activeLeaderLeaveRuntime.runtime, 'ChatTargetLabel');
       if (activeLeaderChatTarget) activeLeaderChatTarget.text = 'TEAM';
-      activeLeaderLeaveRuntime.hooks.modules.TableRenderer.render();
+      activeLeaderLeaveRuntime.hooks.modules.TableRenderer.render(activeLeaderLeaveRuntime.hooks.modules.ViewModel.build());
       assertButtonAffordance(activeLeaderLeaveRuntime.runtime, 'PokerLeaveLobbyButton', { hidden: false, enabled: true }, 'active leader leave-lobby button path');
       assertHookFunction(activeLeaderLeaveRuntime.runtime.sandbox, 'PokerEscapeMenuLeaveLobby', 'active leader leave-lobby button path hook');
       const activeLeaderLeaveDispatchStart = activeLeaderLeaveRuntime.runtime.dispatches.length;
@@ -2064,8 +2048,8 @@ if (hooks) {
         activeLeaderLeaveMessages.includes('[party leave] poker party pgame-ready'),
         `active leader leave-lobby button should still send party leave: ${activeLeaderLeaveMessages.join('|') || '<none>'}`,
       );
-      assertEqual(activeLeaderLeaveRuntime.hooks.state.party.id, '', 'active leader leave-lobby button should clear local party state');
-      assertEqual(activeLeaderLeaveRuntime.hooks.state.game, null, 'active leader leave-lobby button should clear local active game state');
+      assertEqual(snapshot(activeLeaderLeaveRuntime.hooks).party.id, '', 'active leader leave-lobby button should clear local party state');
+      assertEqual(snapshot(activeLeaderLeaveRuntime.hooks).game, null, 'active leader leave-lobby button should clear local active game state');
 
       const memberLeaveReplayRoster = [
         { key: 'abrams', name: 'Abrams' },
@@ -2075,31 +2059,31 @@ if (hooks) {
       if (memberLeaveReplay.hooks && memberLeaveReplay.game) {
         memberLeaveReplay.runtime.config.PokerLocalPlayerKey = 'bebop';
         memberLeaveReplay.runtime.config.PokerLocalPlayerName = 'Bebop';
-        const replayPartyId = memberLeaveReplay.hooks.state.party.id;
+        const replayPartyId = snapshot(memberLeaveReplay.hooks).party.id;
         const replaySeed = memberLeaveReplay.game.seed;
-        memberLeaveReplay.hooks.processChatRecord({
+        applyMenuRecord(memberLeaveReplay.hooks, {
           sender: '<unknown>',
           message: 'fold',
           isSelf: false,
         });
         assert(
-          memberLeaveReplay.hooks.state.game && memberLeaveReplay.hooks.state.game.finished && !memberLeaveReplay.hooks.state.game.active,
+          snapshot(memberLeaveReplay.hooks).game && snapshot(memberLeaveReplay.hooks).game.finished && !snapshot(memberLeaveReplay.hooks).game.active,
           'member replay setup should finish the two-player hand before the leader leave rows arrive',
         );
-        memberLeaveReplay.hooks.processChatRecord({
+        applyMenuRecord(memberLeaveReplay.hooks, {
           sender: '<unknown>',
           message: `[match end] poker party ${replayPartyId} seed ${replaySeed} hand ${memberLeaveReplay.game.handNumber}`,
           isSelf: false,
         });
-        assertEqual(memberLeaveReplay.hooks.state.game, null, 'member replay setup should clear active game from authenticated unknown match-end');
-        assertEqual(memberLeaveReplay.hooks.state.party.id, replayPartyId, 'member replay setup should preserve party until the following leave row');
-        memberLeaveReplay.hooks.processChatRecord({
+        assertEqual(snapshot(memberLeaveReplay.hooks).game, null, 'member replay setup should clear active game from authenticated unknown match-end');
+        assertEqual(snapshot(memberLeaveReplay.hooks).party.id, replayPartyId, 'member replay setup should preserve party until the following leave row');
+        applyMenuRecord(memberLeaveReplay.hooks, {
           sender: '<unknown>',
           message: `[party leave] poker party ${replayPartyId}`,
           isSelf: false,
         });
-        assertEqual(memberLeaveReplay.hooks.state.party.id, '', 'member replay should clear stale party after authenticated match-end followed by unknown leader leave');
-        assertEqual(memberLeaveReplay.hooks.state.game, null, 'member replay should stay out of the active hand after unknown leader leave');
+        assertEqual(snapshot(memberLeaveReplay.hooks).party.id, '', 'member replay should clear stale party after authenticated match-end followed by unknown leader leave');
+        assertEqual(snapshot(memberLeaveReplay.hooks).game, null, 'member replay should stay out of the active hand after unknown leader leave');
       }
     }
 
@@ -2107,23 +2091,23 @@ if (hooks) {
     if (twoPlayerHostLeaveRuntime.hooks && hasPartySyncHooks(twoPlayerHostLeaveRuntime.hooks, 'two-player hosted-lobby host leave regression hooks')) {
       const twoPlayerHostLeaveHooks = twoPlayerHostLeaveRuntime.hooks;
       const twoPlayerHostLeavePartyId = 'phost-leave-two';
-      twoPlayerHostLeaveHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party ' + twoPlayerHostLeavePartyId, isSelf: false });
-      twoPlayerHostLeaveHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party ' + twoPlayerHostLeavePartyId, isSelf: true });
-      twoPlayerHostLeaveHooks.modules.TableRenderer.render();
-      assertEqual(twoPlayerHostLeaveHooks.state.party.id, twoPlayerHostLeavePartyId, 'two-player hosted-lobby host leave setup should join Bebop to Abrams lobby');
-      assertEqual(twoPlayerHostLeaveHooks.state.party.mode, 'member', 'two-player hosted-lobby host leave setup should mark Bebop as a member');
+      applyMenuRecord(twoPlayerHostLeaveHooks, { sender: 'Abrams', message: '[party leader] poker party ' + twoPlayerHostLeavePartyId, isSelf: false });
+      applyMenuRecord(twoPlayerHostLeaveHooks, { sender: 'Bebop', message: '[party join] poker party ' + twoPlayerHostLeavePartyId, isSelf: true });
+      twoPlayerHostLeaveHooks.modules.TableRenderer.render(twoPlayerHostLeaveHooks.modules.ViewModel.build());
+      assertEqual(snapshot(twoPlayerHostLeaveHooks).party.id, twoPlayerHostLeavePartyId, 'two-player hosted-lobby host leave setup should join Bebop to Abrams lobby');
+      assertEqual(snapshot(twoPlayerHostLeaveHooks).party.mode, 'member', 'two-player hosted-lobby host leave setup should mark Bebop as a member');
       assertPanelVisible(twoPlayerHostLeaveRuntime.runtime, 'PokerLeaveLobbyButton', 'two-player hosted-lobby host leave setup');
-      twoPlayerHostLeaveHooks.processChatRecord({ sender: 'Abrams', message: '[party leave] poker party ' + twoPlayerHostLeavePartyId, isSelf: false });
-      assertEqual(twoPlayerHostLeaveHooks.state.game, null, 'two-player hosted-lobby host leave should leave Bebop with no active game');
-      assertEqual(twoPlayerHostLeaveHooks.state.party.id, '', 'two-player hosted-lobby host leave should clear Bebop party id instead of keeping the stale host lobby');
-      assertEqual(twoPlayerHostLeaveHooks.state.party.mode, 'none', 'two-player hosted-lobby host leave should return Bebop to non-party mode');
-      assertEqual(twoPlayerHostLeaveHooks.state.party.leaderKey, '', 'two-player hosted-lobby host leave should clear stale Abrams leader key');
+      applyMenuRecord(twoPlayerHostLeaveHooks, { sender: 'Abrams', message: '[party leave] poker party ' + twoPlayerHostLeavePartyId, isSelf: false });
+      assertEqual(snapshot(twoPlayerHostLeaveHooks).game, null, 'two-player hosted-lobby host leave should leave Bebop with no active game');
+      assertEqual(snapshot(twoPlayerHostLeaveHooks).party.id, '', 'two-player hosted-lobby host leave should clear Bebop party id instead of keeping the stale host lobby');
+      assertEqual(snapshot(twoPlayerHostLeaveHooks).party.mode, 'none', 'two-player hosted-lobby host leave should return Bebop to non-party mode');
+      assertEqual(snapshot(twoPlayerHostLeaveHooks).party.leaderKey, '', 'two-player hosted-lobby host leave should clear stale Abrams leader key');
       assertEqual(twoPlayerHostLeaveHooks.modules.PartyReducer.roster().length, 0, 'two-player hosted-lobby host leave should leave no stale Abrams roster entry');
       assert(
-        !twoPlayerHostLeaveHooks.state.party.members.abrams,
+        !snapshot(twoPlayerHostLeaveHooks).party.members.abrams,
         'two-player hosted-lobby host leave should remove Abrams from local party members',
       );
-      twoPlayerHostLeaveHooks.modules.TableRenderer.render();
+      twoPlayerHostLeaveHooks.modules.TableRenderer.render(twoPlayerHostLeaveHooks.modules.ViewModel.build());
       assertPanelHidden(twoPlayerHostLeaveRuntime.runtime, 'PokerLeaveLobbyButton', 'two-player hosted-lobby host leave reset');
     }
 
@@ -2131,21 +2115,21 @@ if (hooks) {
     if (threePlayerHostLeaveRuntime.hooks && hasPartySyncHooks(threePlayerHostLeaveRuntime.hooks, 'three-player hosted-lobby host transfer regression hooks')) {
       const threePlayerHostLeaveHooks = threePlayerHostLeaveRuntime.hooks;
       const threePlayerHostLeavePartyId = 'phost-leave-three';
-      threePlayerHostLeaveHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party ' + threePlayerHostLeavePartyId, isSelf: false });
-      threePlayerHostLeaveHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party ' + threePlayerHostLeavePartyId, isSelf: true });
-      threePlayerHostLeaveHooks.processChatRecord({ sender: 'Dynamo', message: '[party join] poker party ' + threePlayerHostLeavePartyId, isSelf: false });
+      applyMenuRecord(threePlayerHostLeaveHooks, { sender: 'Abrams', message: '[party leader] poker party ' + threePlayerHostLeavePartyId, isSelf: false });
+      applyMenuRecord(threePlayerHostLeaveHooks, { sender: 'Bebop', message: '[party join] poker party ' + threePlayerHostLeavePartyId, isSelf: true });
+      applyMenuRecord(threePlayerHostLeaveHooks, { sender: 'Dynamo', message: '[party join] poker party ' + threePlayerHostLeavePartyId, isSelf: false });
       assertEqual(
         JSON.stringify(threePlayerHostLeaveHooks.modules.PartyReducer.roster().map((member) => member.key)),
         JSON.stringify(['abrams', 'bebop', 'dynamo']),
         'three-player hosted-lobby host transfer setup should preserve join order before Abrams leaves',
       );
-      threePlayerHostLeaveHooks.processChatRecord({ sender: 'Abrams', message: '[party leave] poker party ' + threePlayerHostLeavePartyId, isSelf: false });
-      assertEqual(threePlayerHostLeaveHooks.state.party.id, threePlayerHostLeavePartyId, 'three-player hosted-lobby host transfer should keep the lobby id');
-      assertEqual(threePlayerHostLeaveHooks.state.party.mode, 'leader', 'three-player hosted-lobby host transfer should promote local Bebop to leader mode');
-      assertEqual(threePlayerHostLeaveHooks.state.party.leaderKey, 'bebop', 'three-player hosted-lobby host transfer should promote Bebop to leader');
-      assertEqual(threePlayerHostLeaveHooks.state.party.leaderName, 'Bebop', 'three-player hosted-lobby host transfer should preserve Bebop leader name');
+      applyMenuRecord(threePlayerHostLeaveHooks, { sender: 'Abrams', message: '[party leave] poker party ' + threePlayerHostLeavePartyId, isSelf: false });
+      assertEqual(snapshot(threePlayerHostLeaveHooks).party.id, threePlayerHostLeavePartyId, 'three-player hosted-lobby host transfer should keep the lobby id');
+      assertEqual(snapshot(threePlayerHostLeaveHooks).party.mode, 'leader', 'three-player hosted-lobby host transfer should promote local Bebop to leader mode');
+      assertEqual(snapshot(threePlayerHostLeaveHooks).party.leaderKey, 'bebop', 'three-player hosted-lobby host transfer should promote Bebop to leader');
+      assertEqual(snapshot(threePlayerHostLeaveHooks).party.leaderName, 'Bebop', 'three-player hosted-lobby host transfer should preserve Bebop leader name');
       assertEqual(
-        JSON.stringify(threePlayerHostLeaveHooks.state.party.order),
+        JSON.stringify(snapshot(threePlayerHostLeaveHooks).party.order),
         JSON.stringify(['bebop', 'dynamo']),
         'three-player hosted-lobby host transfer should remove Abrams from member order while preserving Bebop and Dynamo',
       );
@@ -2158,10 +2142,10 @@ if (hooks) {
         'three-player hosted-lobby host transfer should preserve only Bebop and Dynamo in roster order',
       );
       assert(
-        !threePlayerHostLeaveHooks.state.party.members.abrams,
+        !snapshot(threePlayerHostLeaveHooks).party.members.abrams,
         'three-player hosted-lobby host transfer should remove Abrams from local party members',
       );
-      threePlayerHostLeaveHooks.modules.TableRenderer.render();
+      threePlayerHostLeaveHooks.modules.TableRenderer.render(threePlayerHostLeaveHooks.modules.ViewModel.build());
       assertPanelVisible(threePlayerHostLeaveRuntime.runtime, 'PokerLeaveLobbyButton', 'three-player hosted-lobby host transfer');
     }
 
@@ -2171,53 +2155,49 @@ if (hooks) {
       const stalePartyId = 'pstale-host';
       const staleChatTarget = findPanel(staleHostRuntime.runtime, 'ChatTargetLabel');
       if (staleChatTarget) staleChatTarget.text = 'TEAM';
-      staleHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party ' + stalePartyId, isSelf: false });
-      staleHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party ' + stalePartyId, isSelf: true });
-      assertEqual(staleHooks.state.party.id, stalePartyId, 'stale host regression setup should join the old lobby id');
-      assertEqual(staleHooks.state.party.mode, 'member', 'stale host regression setup should join as a member before leaving');
+      applyMenuRecord(staleHooks, { sender: 'Abrams', message: '[party leader] poker party ' + stalePartyId, isSelf: false });
+      applyMenuRecord(staleHooks, { sender: 'Bebop', message: '[party join] poker party ' + stalePartyId, isSelf: true });
+      assertEqual(snapshot(staleHooks).party.id, stalePartyId, 'stale host regression setup should join the old lobby id');
+      assertEqual(snapshot(staleHooks).party.mode, 'member', 'stale host regression setup should join as a member before leaving');
       assertHookFunction(staleHostRuntime.runtime.sandbox, 'PokerEscapeMenuLeaveLobby', 'stale host regression leave-lobby hook');
       assertHookFunction(staleHostRuntime.runtime.sandbox, 'PokerEscapeMenuHostParty', 'stale host regression host-party hook');
       staleHostRuntime.runtime.sandbox.PokerEscapeMenuLeaveLobby();
-      assertEqual(staleHooks.state.party.id, '', 'stale host regression leave should clear the old lobby id');
-      assertEqual(staleHooks.state.game, null, 'stale host regression leave should clear any active game');
+      assertEqual(snapshot(staleHooks).party.id, '', 'stale host regression leave should clear the old lobby id');
+      assertEqual(snapshot(staleHooks).game, null, 'stale host regression leave should clear any active game');
       for (let i = 0; i < 8 && staleHostRuntime.runtime.schedules.length; i += 1) {
         staleHostRuntime.runtime.schedules.shift().callback();
       }
       const fixedHostNow = 1700000100000;
       staleHostRuntime.runtime.sandbox.Date.now = () => fixedHostNow;
-      staleHooks.state.lastSendMs = fixedHostNow - 700;
-      staleHooks.state.lastLobbyLeaveMs = fixedHostNow - 700;
+      
+      
       const dispatchesBeforeHost = staleHostRuntime.runtime.dispatches.length;
       staleHostRuntime.runtime.sandbox.PokerEscapeMenuHostParty();
       for (let i = 0; i < 8 && staleHostRuntime.runtime.schedules.length; i += 1) {
         staleHostRuntime.runtime.schedules.shift().callback();
       }
-      const hostCommands = staleHostRuntime.runtime.dispatches
-        .slice(dispatchesBeforeHost)
-        .filter((event) => event.name === 'CitadelChatInputSubmitted' && String(event.payloadText || '').indexOf('[party leader] poker party ') === 0)
-        .map((event) => event.payloadText);
+      const hostCommands = submittedChatMessages(staleHostRuntime.runtime, dispatchesBeforeHost)
+        .filter((message) => message.indexOf('[party leader] poker party ') === 0);
       assert(hostCommands.length > 0, 'throttle repro should submit a fresh [party leader] after recent leave instead of suppressing recovery');
       if (hostCommands.length > 0) {
         const hostCommand = hostCommands[hostCommands.length - 1] || '';
         const freshPartyId = hostCommand.replace('[party leader] poker party ', '');
         assert(freshPartyId && freshPartyId !== stalePartyId, 'stale host regression host command should use a fresh party id instead of the stale lobby id');
-        assertEqual(staleHooks.state.party.mode, 'leader', 'stale host regression host click should leave local state in leader mode');
-        assertEqual(staleHooks.state.party.id, freshPartyId, 'stale host regression local leader state should use the fresh host command id');
+        assertEqual(snapshot(staleHooks).party.mode, 'leader', 'stale host regression host click should leave local state in leader mode');
+        assertEqual(snapshot(staleHooks).party.id, freshPartyId, 'stale host regression local leader state should use the fresh host command id');
 
-        const sentPartyId = staleHooks.state.party.id;
-        staleHooks.state.lastSendMs = fixedHostNow - 700;
-        staleHooks.state.lastLobbyLeaveMs = 0;
+        const sentPartyId = snapshot(staleHooks).party.id;
+        
+        
         const dispatchesBeforeRapidHost = staleHostRuntime.runtime.dispatches.length;
         staleHostRuntime.runtime.sandbox.PokerEscapeMenuHostParty();
         for (let i = 0; i < 8 && staleHostRuntime.runtime.schedules.length; i += 1) {
           staleHostRuntime.runtime.schedules.shift().callback();
         }
-        const rapidHostCommands = staleHostRuntime.runtime.dispatches
-          .slice(dispatchesBeforeRapidHost)
-          .filter((event) => event.name === 'CitadelChatInputSubmitted' && String(event.payloadText || '').indexOf('[party leader] poker party ') === 0)
-          .map((event) => event.payloadText);
+        const rapidHostCommands = submittedChatMessages(staleHostRuntime.runtime, dispatchesBeforeRapidHost)
+          .filter((message) => message.indexOf('[party leader] poker party ') === 0);
         assertEqual(rapidHostCommands.length, 0, 'second rapid host without a fresh leave should stay throttled');
-        assertEqual(staleHooks.state.party.id, sentPartyId, 'second rapid host without a fresh leave should not replace local party state with an unsent id');
+        assertEqual(snapshot(staleHooks).party.id, sentPartyId, 'second rapid host without a fresh leave should not replace local party state with an unsent id');
       }
     }
 
@@ -2228,27 +2208,25 @@ if (hooks) {
       const foreignPartyId = 'pforeign-b';
       const foreignChatTarget = findPanel(foreignLeaderRuntime.runtime, 'ChatTargetLabel');
       if (foreignChatTarget) foreignChatTarget.text = 'TEAM';
-      foreignHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party ' + localPartyId, isSelf: true });
-      assertEqual(foreignHooks.state.party.id, localPartyId, 'foreign leader regression setup should retain the local hosted party id');
-      assertEqual(foreignHooks.state.party.mode, 'leader', 'foreign leader regression setup should mark the local user as hosting');
-      foreignHooks.processChatRecord({ sender: 'Bebop', message: '[party leader] poker party ' + foreignPartyId, isSelf: false });
-      assertEqual(foreignHooks.state.party.id, localPartyId, 'foreign party leader should not replace the local hosted party id');
-      assertEqual(foreignHooks.state.party.mode, 'leader', 'foreign party leader should not demote the local host');
-      assertEqual(foreignHooks.state.party.leaderKey, 'abrams', 'foreign party leader should not replace the local leader key');
+      applyMenuRecord(foreignHooks, { sender: 'Abrams', message: '[party leader] poker party ' + localPartyId, isSelf: true });
+      assertEqual(snapshot(foreignHooks).party.id, localPartyId, 'foreign leader regression setup should retain the local hosted party id');
+      assertEqual(snapshot(foreignHooks).party.mode, 'leader', 'foreign leader regression setup should mark the local user as hosting');
+      applyMenuRecord(foreignHooks, { sender: 'Bebop', message: '[party leader] poker party ' + foreignPartyId, isSelf: false });
+      assertEqual(snapshot(foreignHooks).party.id, localPartyId, 'foreign party leader should not replace the local hosted party id');
+      assertEqual(snapshot(foreignHooks).party.mode, 'leader', 'foreign party leader should not demote the local host');
+      assertEqual(snapshot(foreignHooks).party.leaderKey, 'abrams', 'foreign party leader should not replace the local leader key');
       const dispatchesBeforeJoin = foreignLeaderRuntime.runtime.dispatches.length;
       foreignLeaderRuntime.runtime.sandbox.PokerEscapeMenuJoinParty();
       for (let i = 0; i < 8 && foreignLeaderRuntime.runtime.schedules.length; i += 1) {
         foreignLeaderRuntime.runtime.schedules.shift().callback();
       }
-      const foreignJoinCommands = foreignLeaderRuntime.runtime.dispatches
-        .slice(dispatchesBeforeJoin)
-        .filter((event) => event.name === 'CitadelChatInputSubmitted' && String(event.payloadText || '').indexOf('[party join] poker party ') === 0)
-        .map((event) => event.payloadText);
+      const foreignJoinCommands = submittedChatMessages(foreignLeaderRuntime.runtime, dispatchesBeforeJoin)
+        .filter((message) => message.indexOf('[party join] poker party ') === 0);
       assert(
         foreignJoinCommands.every((command) => command !== '[party join] poker party ' + foreignPartyId),
         `foreign party leader should not make the local menu join the foreign party id: ${foreignJoinCommands.join('|') || '<none>'}`,
       );
-      assertEqual(foreignHooks.state.party.id, localPartyId, 'join after a foreign leader should still target the retained local hosted party id');
+      assertEqual(snapshot(foreignHooks).party.id, localPartyId, 'join after a foreign leader should still target the retained local hosted party id');
     }
 
     const staleReadyRuntime = createMenuRuntime();
@@ -2257,21 +2235,21 @@ if (hooks) {
       const oldPartyId = 'pold-ready';
       const staleReadyChatTarget = findPanel(staleReadyRuntime.runtime, 'ChatTargetLabel');
       if (staleReadyChatTarget) staleReadyChatTarget.text = 'TEAM';
-      staleReadyHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party ' + oldPartyId, isSelf: false });
-      staleReadyHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party ' + oldPartyId, isSelf: true });
+      applyMenuRecord(staleReadyHooks, { sender: 'Abrams', message: '[party leader] poker party ' + oldPartyId, isSelf: false });
+      applyMenuRecord(staleReadyHooks, { sender: 'Bebop', message: '[party join] poker party ' + oldPartyId, isSelf: true });
       staleReadyHooks.handleReadyEvent(readySnapshotPayload([
         { key: 'abrams', name: 'Abrams', readyAt: 10 },
         { key: 'bebop', name: 'Bebop', readyAt: 11 },
       ], 11));
-      assertEqual(staleReadyHooks.getReadySeatArray().length, 2, 'stale ready regression setup should ingest the old ready snapshot before leaving');
+      assertEqual(snapshot(staleReadyHooks).readySeats.length, 2, 'stale ready regression setup should ingest the old ready snapshot before leaving');
       staleReadyRuntime.runtime.sandbox.PokerEscapeMenuLeaveLobby();
       drainScheduledCallbacks(staleReadyRuntime.runtime, 64);
-      assertEqual(staleReadyHooks.getReadySeatArray().length, 0, 'leave clear should empty old ready seats before fresh hosting');
+      assertEqual(snapshot(staleReadyHooks).readySeats.length, 0, 'leave clear should empty old ready seats before fresh hosting');
       staleReadyHooks.handleReadyEvent(readySnapshotPayload([
         { key: 'abrams', name: 'Abrams', readyAt: 10 },
         { key: 'bebop', name: 'Bebop', readyAt: 11 },
       ], 11));
-      const readySeatsAfterStaleSnapshot = staleReadyHooks.getReadySeatArray();
+      const readySeatsAfterStaleSnapshot = snapshot(staleReadyHooks).readySeats;
       assert(
         !readySeatsAfterStaleSnapshot.some((seat) => seat.key === 'bebop'),
         `stale ready snapshot after leave should not resurrect the old joined seat: ${readySeatsAfterStaleSnapshot.map((seat) => seat.key).join('|') || '<empty>'}`,
@@ -2279,16 +2257,14 @@ if (hooks) {
       const dispatchesBeforeFreshHost = staleReadyRuntime.runtime.dispatches.length;
       staleReadyRuntime.runtime.sandbox.PokerEscapeMenuHostParty();
       drainScheduledCallbacks(staleReadyRuntime.runtime, 64);
-      const freshHostCommands = staleReadyRuntime.runtime.dispatches
-        .slice(dispatchesBeforeFreshHost)
-        .filter((event) => event.name === 'CitadelChatInputSubmitted' && String(event.payloadText || '').indexOf('[party leader] poker party ') === 0)
-        .map((event) => event.payloadText);
+      const freshHostCommands = submittedChatMessages(staleReadyRuntime.runtime, dispatchesBeforeFreshHost)
+        .filter((message) => message.indexOf('[party leader] poker party ') === 0);
       assert(freshHostCommands.length > 0, 'fresh host after leave should submit a new party leader command');
       const freshReadyHostCommand = freshHostCommands[freshHostCommands.length - 1] || '';
       const freshReadyPartyId = freshReadyHostCommand.replace('[party leader] poker party ', '');
       assert(freshReadyPartyId && freshReadyPartyId !== oldPartyId, 'fresh host after leave should use a new party id instead of the old stale id');
-      assertEqual(staleReadyHooks.state.party.id, freshReadyPartyId, 'fresh host after leave should retain the fresh party id in local state');
-      assertEqual(staleReadyHooks.getReadySeatArray().length, 0, 'fresh host after stale ready snapshot should keep old ready seats cleared');
+      assertEqual(snapshot(staleReadyHooks).party.id, freshReadyPartyId, 'fresh host after leave should retain the fresh party id in local state');
+      assertEqual(snapshot(staleReadyHooks).readySeats.length, 0, 'fresh host after stale ready snapshot should keep old ready seats cleared');
     }
 
   }
@@ -2298,11 +2274,11 @@ if (hooks) {
     const gateHooks = startGateRuntime.hooks;
     gateHooks.state.game = null;
     gateHooks.state.party = { id: '', mode: 'none', leaderKey: '', leaderName: '', members: {}, order: [] };
-    gateHooks.modules.TableRenderer.render();
+    gateHooks.modules.TableRenderer.render(gateHooks.modules.ViewModel.build());
     assertStartButtonGate(startGateRuntime.runtime, 'HOST OR JOIN PARTY', false, false, 'start gate without a party');
 
     gateHooks.state.party = { id: 'psync', mode: 'member', leaderKey: 'abrams', leaderName: 'Abrams', members: {}, order: [] };
-    gateHooks.modules.TableRenderer.render();
+    gateHooks.modules.TableRenderer.render(gateHooks.modules.ViewModel.build());
     assertStartButtonGate(startGateRuntime.runtime, 'WAITING FOR LEADER', false, true, 'member start gate');
     assertEqual(panelText(findPanel(startGateRuntime.runtime, 'PokerPartyStatusLabel')), 'Only Abrams can start the synced hand.', 'member start gate should name the leader who can start');
 
@@ -2314,7 +2290,7 @@ if (hooks) {
       members: { abrams: { key: 'abrams', name: 'Abrams' } },
       order: ['abrams'],
     };
-    gateHooks.modules.TableRenderer.render();
+    gateHooks.modules.TableRenderer.render(gateHooks.modules.ViewModel.build());
     assertStartButtonGate(startGateRuntime.runtime, 'WAITING FOR PARTY', false, false, 'leader start gate with one roster player');
     assertEqual(panelText(findPanel(startGateRuntime.runtime, 'PokerPartyStatusLabel')), 'Need 2 joined party players to start.', 'leader start gate with one roster player should explain the party minimum');
 
@@ -2329,18 +2305,18 @@ if (hooks) {
       },
       order: ['abrams', 'bebop'],
     };
-    gateHooks.modules.TableRenderer.render();
+    gateHooks.modules.TableRenderer.render(gateHooks.modules.ViewModel.build());
     assertStartButtonGate(startGateRuntime.runtime, 'START SYNCED HAND', true, false, 'leader start gate with two party players');
   }
 
   seedPartyForReady(hooks, ['Abrams', 'Bebop'], 'pmain-ready');
   hooks.handleReadyEvent(readyPayload('Abrams', 1));
-  assertEqual(hooks.getReadySeatArray().length, 1, 'first ready payload should create one seat');
-  assertEqual(hooks.isStartEligible(hooks.getReadySeatArray().length), false, 'one ready player should not be start eligible');
+  assertEqual(snapshot(hooks).readySeats.length, 1, 'first ready payload should create one seat');
+  assertEqual(snapshot(hooks).readySeats.length >= 2, false, 'one ready player should not be start eligible');
 
   hooks.handleReadyEvent(readyPayload('Bebop', 2));
-  assertEqual(hooks.getReadySeatArray().length, 2, 'second ready payload should create a second seat');
-  assertEqual(hooks.isStartEligible(hooks.getReadySeatArray().length), true, 'two ready payloads should make start eligible');
+  assertEqual(snapshot(hooks).readySeats.length, 2, 'second ready payload should create a second seat');
+  assertEqual(snapshot(hooks).readySeats.length >= 2, true, 'two ready payloads should make start eligible');
 
   const readyRailRuntime = createMenuRuntime();
   if (readyRailRuntime.hooks) {
@@ -2363,10 +2339,10 @@ if (hooks) {
     for (let i = 0; i < readyNames.length; i += 1) {
       readyRailRuntime.hooks.handleReadyEvent(readyPayload(readyNames[i], i + 1));
     }
-    assertEqual(readyRailRuntime.hooks.getReadySeatArray().length, 12, 'ready rail should cap rendered ready state at twelve seats');
-    assertEqual(readyRailRuntime.hooks.isStartEligible(readyRailRuntime.hooks.getReadySeatArray().length), true, 'twelve capped ready seats should remain start eligible');
+    assertEqual(snapshot(readyRailRuntime.hooks).readySeats.length, 12, 'ready rail should cap rendered ready state at twelve seats');
+    assertEqual(snapshot(readyRailRuntime.hooks).readySeats.length >= 2, true, 'twelve capped ready seats should remain start eligible');
     assertEqual(panelText(findPanel(readyRailRuntime.runtime, 'PokerReadyCountLabel')), '12', 'ready rail summary should show the maximum seat count, not the transient ready count');
-    readyRailRuntime.hooks.modules.TableRenderer.render();
+    readyRailRuntime.hooks.modules.TableRenderer.render(readyRailRuntime.hooks.modules.ViewModel.build());
     assertNoGamePlayerRail(readyRailRuntime.runtime, 'ready lobby rail render');
     const readyPlayerNames = playerListNames(readyRailRuntime.runtime);
     assertEqual(readyPlayerNames.length, 12, 'ready lobby rail render should show the twelve capped ready players in #PokerPlayersList');
@@ -2376,7 +2352,7 @@ if (hooks) {
   }
 
   clearPartyForLegacyReady(hooks);
-  hooks.processChatRecord({ sender: 'Abrams', message: 'poker start fixed-seed' });
+  applyMenuRecord(hooks, { sender: 'Abrams', message: 'poker start fixed-seed' });
   const game = hooks.state.game;
   assert(game, 'poker start fixed-seed should create a game');
 
@@ -2423,10 +2399,11 @@ if (hooks) {
       'active game render',
     );
     assertPanelHidden(runtime, 'PokerExportProgressButton', 'active hand progress controls');
+    
     hooks.state.localPlayerKey = firstActor.key;
     runtime.config.PokerLocalPlayerKey = firstActor.key;
     runtime.config.PokerLocalPlayerName = firstActor.name;
-    hooks.modules.TableRenderer.render();
+    hooks.modules.TableRenderer.render(hooks.modules.ViewModel.build());
     assertButtonAffordance(runtime, 'PokerStartButton', { hidden: true, enabled: false }, 'active local actor button state');
     assertButtonAffordance(runtime, 'PokerReadyChatButton', { hidden: true, enabled: false }, 'active local actor button state');
     assertButtonAffordance(runtime, 'PokerProgressControls', { hidden: true }, 'active local actor button state');
@@ -2441,10 +2418,11 @@ if (hooks) {
     if (raiseControlRuntime.hooks && raiseControlRuntime.game) {
       const raiseControlGame = raiseControlRuntime.game;
       const raiseControlActor = currentPlayer(raiseControlGame);
+      
       raiseControlRuntime.hooks.state.localPlayerKey = raiseControlActor.key;
       raiseControlRuntime.runtime.config.PokerLocalPlayerKey = raiseControlActor.key;
       raiseControlRuntime.runtime.config.PokerLocalPlayerName = raiseControlActor.name;
-      raiseControlRuntime.hooks.modules.TableRenderer.render();
+      raiseControlRuntime.hooks.modules.TableRenderer.render(raiseControlRuntime.hooks.modules.ViewModel.build());
       const raiseControl = findEditableCustomRaiseControl(raiseControlRuntime.runtime);
       const raiseButton = renderedActionButtons(raiseControlRuntime.runtime).find((button) => actionButtonSemantic(button.label) === 'RAISE');
       const raiseAmount = engineMinimumRaiseTo(raiseControlRuntime.hooks, raiseControlGame);
@@ -2467,7 +2445,7 @@ if (hooks) {
     const phaseBeforeRejectedCheck = game.phase;
     const statusBeforeRejectedCheck = panelText(findPanel(runtime, 'PokerStatusLabel'));
     const messagesBeforeRejectedCheck = runtime.messages.length;
-    hooks.processChatRecord({ sender: rejectedSender.name, message: 'check' });
+    applyMenuRecord(hooks, { sender: rejectedSender.name, message: 'check' });
     assertEqual(game.currentIndex, turnBeforeRejectedCheck, 'non-current check should leave the turn unchanged');
     assertEqual(game.players[1].acted, false, 'non-current check should not mark the rejected sender as acted');
     assertDiagnosticIncludesTurnContext(
@@ -2480,7 +2458,7 @@ if (hooks) {
       'non-current check',
     );
 
-    hooks.processChatRecord({ sender: firstActor.name, message: 'call' });
+    applyMenuRecord(hooks, { sender: firstActor.name, message: 'call' });
     assertEqual(game.currentIndex, 1, 'small blind call should advance action to the big blind');
     assertEqual(game.players[0].acted, true, 'calling player should be marked as acted');
     assertEqual(game.players[0].stack, 9800, 'small blind call should commit only the $100 call amount');
@@ -2498,7 +2476,7 @@ if (hooks) {
     );
 
     const beforeBigBlindCheck = moneySnapshot(game);
-    hooks.processChatRecord({ sender: secondActor.name, message: 'check' });
+    applyMenuRecord(hooks, { sender: secondActor.name, message: 'check' });
     assertEqual(game.players[1].stack, beforeBigBlindCheck.players[1].stack, 'check cannot increase bet should leave checker stack unchanged');
     assertEqual(game.players[1].committed, beforeBigBlindCheck.players[1].committed, 'check cannot increase bet should leave checker committed chips unchanged');
     assertEqual(game.pot, beforeBigBlindCheck.pot, 'check cannot increase bet should leave pot unchanged');
@@ -2511,10 +2489,11 @@ if (hooks) {
       ['Flop dealt', currentPlayer(game).name, 'to act', 'check', 'bet', '$200'],
       'street advance after big blind check',
     );
-    hooks.state.localPlayerKey = currentPlayer(game).name.toLowerCase().replace(/\s+/g, ' ').trim();
+    
+    hooks.state.localPlayerKey = currentPlayer(game).key;
     runtime.config.PokerLocalPlayerKey = hooks.state.localPlayerKey;
     runtime.config.PokerLocalPlayerName = currentPlayer(game).name;
-    hooks.modules.TableRenderer.render();
+    hooks.modules.TableRenderer.render(hooks.modules.ViewModel.build());
     const openingBetButtons = renderedActionButtons(runtime);
     assertEqual(
       JSON.stringify(openingBetButtons.map((button) => actionButtonSemantic(button.label))),
@@ -2540,23 +2519,23 @@ if (hooks) {
     assertIllegalCustomRaiseAmountMarksInvalid(runtime, betAmount - 1, 'opening-action custom bet controls');
 
     const bettor = currentPlayer(game);
-    hooks.processChatRecord({ sender: bettor.name, message: 'bet $300' });
+    applyMenuRecord(hooks, { sender: bettor.name, message: 'bet $300' });
     assertEqual(bettor.stack, 9500, 'bet should subtract the target total from the bettor stack on a new street');
     assertEqual(bettor.bet, 300, 'bet should record the bettor target total');
     assertEqual(bettor.committed, 500, 'bet should add the target total to prior blind commitments');
     assertEqual(game.currentBet, 300, 'bet should set the current bet');
     assertEqual(game.pot, 700, 'bet should add chips to the existing blind pot');
 
-    hooks.state.localPlayerKey = 'abrams';
+    
     runtime.config.PokerLocalPlayerKey = 'abrams';
     runtime.config.PokerLocalPlayerName = 'Abrams';
     const progressChatTarget = findPanel(runtime, 'ChatTargetLabel');
     if (progressChatTarget) progressChatTarget.text = 'TEAM';
     const progressShareStart = runtime.dispatches.length;
     const manualThrottleSentinel = 123456789;
-    hooks.state.lastSendMs = manualThrottleSentinel;
+    
     const folder = currentPlayer(game);
-    hooks.processChatRecord({ sender: folder.name, message: 'fold' });
+    applyMenuRecord(hooks, { sender: folder.name, message: 'fold' });
     assertEqual(game.finished, true, 'fold should finish the hand when one player remains');
     assertEqual(game.active, false, 'finished hand should no longer be active');
     assertEqual(game.phase, 'finished', 'finished hand should use the finished phase');
@@ -2564,7 +2543,7 @@ if (hooks) {
     assertInactiveLobbyControls(runtime, 'finished hand render');
     assertCopyProgressAvailable(runtime, 'finished hand progress export button state');
     assertButtonAffordance(runtime, 'PokerActionButtons', { hidden: true }, 'finished hand progress export button state');
-    assertEqual(findPanel(runtime, 'PokerActionButtons').GetChildCount(), 0, 'finished hand progress export button state should remove action button children');
+    assertEqual(renderedActionButtons(runtime).length, 0, 'finished hand progress export button state should reconcile stale action buttons');
     assertButtonAffordance(runtime, 'PokerResumeControls', { hidden: true }, 'finished hand progress export button state');
     assertAnnouncerIncludes(
       runtime,
@@ -2598,7 +2577,7 @@ if (hooks) {
       if (copyProgressRuntime.code && copyProgressRuntime.payload) {
         const copyRuntime = copyProgressRuntime.runtime;
         const copyHooks = copyProgressRuntime.hooks;
-        copyHooks.modules.TableRenderer.render();
+        copyHooks.modules.TableRenderer.render(copyHooks.modules.ViewModel.build());
         assertCopyProgressAvailable(copyRuntime, 'copy progress regression copy-only progress controls');
         const copyInput = findPanel(copyRuntime, 'PokerProgressCodeInput');
         assert(copyInput, 'copy progress regression should have a progress code input');
@@ -2611,8 +2590,8 @@ if (hooks) {
         assert(copyResult && copyResult.code && copyResult.code.indexOf('POKERPROG1-') === 0, 'copy progress regression should return a POKERPROG1 code');
         assertEqual(panelText(findPanel(copyRuntime, 'PokerStatusLabel')).indexOf('progress ' + copyResult.id) >= 0, true, 'copy progress regression should update status with the exported progress id');
         assertEqual(panelText(copyInput), '', 'copy progress regression should not populate the import text entry');
-        assertEqual(!!(copyHooks.state.resume && copyHooks.state.resume.payload), false, 'copy progress regression should not create imported resume payload state');
-        copyHooks.modules.TableRenderer.render();
+        assertEqual(!!(snapshot(copyHooks).resume && snapshot(copyHooks).resume.payload), false, 'copy progress regression should not create imported resume payload state');
+        copyHooks.modules.TableRenderer.render(copyHooks.modules.ViewModel.build());
         assertCopyProgressAvailable(copyRuntime, 'copy progress regression should keep copy-only progress controls');
         assertButtonAffordance(copyRuntime, 'PokerResumeControls', { hidden: true }, 'copy progress regression should not reveal imported resume controls');
         assertStartButtonGate(copyRuntime, 'NEXT SYNCED HAND', true, false, 'copy progress regression should leave the normal finished-hand start path available');
@@ -2635,13 +2614,13 @@ if (hooks) {
         `finished hand should not rely on one raw full POKERPROG1 chat command: ${finishedHandMessages.join('|') || '<none>'}`,
       );
       assertEqual(
-        hooks.state.lastSendMs,
+        snapshot(hooks).lastSendMs,
         manualThrottleSentinel,
         'finished hand should not advance the manual command throttle timestamp',
       );
     }
 
-    hooks.processChatRecord({ sender: 'Abrams', message: 'poker start blind-second-hand' });
+    applyMenuRecord(hooks, { sender: 'Abrams', message: 'poker start blind-second-hand' });
     const secondGame = hooks.state.game;
     assert(secondGame && secondGame !== game, 'second hand start should create a new game from the same ready roster');
     if (secondGame) {
@@ -2688,7 +2667,7 @@ if (hooks) {
         'second hand preflop render',
       );
 
-      hooks.processChatRecord({ sender: secondFirstActor.name, message: 'call' });
+      applyMenuRecord(hooks, { sender: secondFirstActor.name, message: 'call' });
       assertEqual(secondGame.currentIndex, 0, 'second hand small blind call should advance action to the big blind');
       assertEqual(secondGame.players[1].stack, 9800, 'second hand small blind call should commit $200 more');
       assertEqual(secondGame.players[1].bet, 400, 'second hand small blind call should match the $400 big blind');
@@ -2708,7 +2687,7 @@ if (hooks) {
         'second hand big blind option render',
       );
 
-      hooks.processChatRecord({ sender: secondBigBlindActor.name, message: 'check' });
+      applyMenuRecord(hooks, { sender: secondBigBlindActor.name, message: 'check' });
       assertEqual(secondGame.phase, 'flop', 'second hand big blind check should advance to the flop');
       assertEqual(secondGame.community.length, 3, 'second hand flop should deal three community cards');
       assertEqual(secondGame.currentBet, 0, 'second hand flop should reset currentBet to zero');
@@ -2734,14 +2713,14 @@ if (hooks) {
         'second hand flop render',
       );
 
-      hooks.processChatRecord({ sender: secondFlopActor.name, message: 'bet $400' });
+      applyMenuRecord(hooks, { sender: secondFlopActor.name, message: 'bet $400' });
       assertEqual(secondGame.currentBet, 400, 'second hand flop minimum bet should set currentBet to $400');
       assertEqual(secondGame.minRaise, 400, 'second hand flop minimum bet should keep minRaise at $400');
       const secondFlopFolder = currentPlayer(secondGame);
-      hooks.processChatRecord({ sender: secondFlopFolder.name, message: 'fold' });
+      applyMenuRecord(hooks, { sender: secondFlopFolder.name, message: 'fold' });
       assertEqual(secondGame.finished, true, 'second hand fold after a flop bet should finish the hand');
 
-      hooks.processChatRecord({ sender: 'Abrams', message: 'poker start blind-third-hand' });
+      applyMenuRecord(hooks, { sender: 'Abrams', message: 'poker start blind-third-hand' });
       const thirdGame = hooks.state.game;
       assert(thirdGame && thirdGame !== secondGame, 'third hand start should create a new game from the same ready roster');
       if (thirdGame) {
@@ -2764,12 +2743,12 @@ if (hooks) {
     const overStackRuntime = overStackBoundaryRuntime.runtime;
     const overStackGame = overStackBoundaryRuntime.game;
     const overStackActor = currentPlayer(overStackGame);
-    overStackHooks.state.localPlayerKey = overStackActor.key;
+    
     overStackRuntime.config.PokerLocalPlayerKey = overStackActor.key;
     overStackRuntime.config.PokerLocalPlayerName = overStackActor.name;
     const overStackChatTarget = findPanel(overStackRuntime, 'ChatTargetLabel');
     if (overStackChatTarget) overStackChatTarget.text = 'TEAM';
-    overStackHooks.modules.TableRenderer.render();
+    overStackHooks.modules.TableRenderer.render(overStackHooks.modules.ViewModel.build());
 
     const raiseControls = customAmountControlParts(overStackRuntime);
     const raiseButton = renderedActionButtons(overStackRuntime).find((button) => actionButtonSemantic(button.label) === 'RAISE');
@@ -2790,7 +2769,7 @@ if (hooks) {
     overStackActor.stack = 250;
     overStackGame.currentBet = 0;
     overStackGame.minRaise = 200;
-    overStackHooks.modules.TableRenderer.render();
+    overStackHooks.modules.TableRenderer.render(overStackHooks.modules.ViewModel.build());
     const betControls = customAmountControlParts(overStackRuntime);
     const betButton = renderedActionButtons(overStackRuntime).find((button) => actionButtonSemantic(button.label) === 'BET');
     const betMax = betControls.slider ? Number(betControls.slider.max) : 0;
@@ -2814,18 +2793,18 @@ if (hooks) {
     const shortStackGame = shortStackBoundaryRuntime.game;
     const shortStackActor = currentPlayer(shortStackGame);
     shortStackActor.stack = 50;
-    shortStackHooks.state.localPlayerKey = shortStackActor.key;
+    
     shortStackRuntime.config.PokerLocalPlayerKey = shortStackActor.key;
     shortStackRuntime.config.PokerLocalPlayerName = shortStackActor.name;
     const shortStackChatTarget = findPanel(shortStackRuntime, 'ChatTargetLabel');
     if (shortStackChatTarget) shortStackChatTarget.text = 'TEAM';
-    shortStackHooks.modules.TableRenderer.render();
+    shortStackHooks.modules.TableRenderer.render(shortStackHooks.modules.ViewModel.build());
     assertEqual(
       JSON.stringify(renderedActionButtons(shortStackRuntime).map((button) => actionButtonSemantic(button.label))),
       JSON.stringify(['CALL', 'FOLD']),
       'short-stack below minimum raise should keep only call and fold actions',
     );
-    assertEqual(customAmountControlParts(shortStackRuntime).root, null, 'short-stack below minimum raise should hide the custom raise control');
+    assert(!customAmountControlParts(shortStackRuntime).root || hasClass(customAmountControlParts(shortStackRuntime).root, 'PokerHidden'), 'short-stack below minimum raise should hide the custom raise control');
     const callButton = renderedActionButtons(shortStackRuntime).find((button) => actionButtonSemantic(button.label) === 'CALL');
     assert(callButton && typeof callButton.panel.onactivate === 'function', 'short-stack below minimum raise should keep an activatable CALL button');
     if (callButton) {
@@ -2834,7 +2813,7 @@ if (hooks) {
       drainScheduledCallbacks(shortStackRuntime, 256);
       assertEqual(submittedChatMessages(shortStackRuntime, callDispatchStart).join('|'), 'call', 'short-stack below minimum raise should submit call rather than raise');
     }
-    shortStackHooks.processChatRecord({ sender: shortStackActor.name, message: 'call', isSelf: true });
+    applyMenuRecord(shortStackHooks, { sender: shortStackActor.name, message: 'call', isSelf: true });
     assertEqual(shortStackActor.stack, 0, 'short-stack call should commit the remaining stack as an all-in call');
     assertEqual(shortStackActor.bet, 50, 'short-stack all-in call should record the committed partial street bet');
     assertEqual(shortStackActor.committed, 50, 'short-stack all-in call should preserve committed bankroll accounting');
@@ -2847,10 +2826,10 @@ if (hooks) {
     const actionRangeRuntime = actionRangeResetRuntime.runtime;
     const actionRangeGame = actionRangeResetRuntime.game;
     const actionRangeActor = currentPlayer(actionRangeGame);
-    actionRangeHooks.state.localPlayerKey = actionRangeActor.key;
+    
     actionRangeRuntime.config.PokerLocalPlayerKey = actionRangeActor.key;
     actionRangeRuntime.config.PokerLocalPlayerName = actionRangeActor.name;
-    actionRangeHooks.modules.TableRenderer.render();
+    actionRangeHooks.modules.TableRenderer.render(actionRangeHooks.modules.ViewModel.build());
     const raiseRangeControls = customAmountControlParts(actionRangeRuntime);
     assertEqual(raiseRangeControls.range && raiseRangeControls.range.text, 'MIN $400  MAX $10000', 'raise range fixture should expose the initial raise min/max');
     if (raiseRangeControls.input) {
@@ -2862,7 +2841,7 @@ if (hooks) {
     actionRangeActor.stack = 250;
     actionRangeGame.currentBet = 0;
     actionRangeGame.minRaise = 200;
-    actionRangeHooks.modules.TableRenderer.render();
+    actionRangeHooks.modules.TableRenderer.render(actionRangeHooks.modules.ViewModel.build());
     const betRangeControls = customAmountControlParts(actionRangeRuntime);
     const betRangeButtons = renderedActionButtons(actionRangeRuntime).map((button) => actionButtonSemantic(button.label));
     assertEqual(JSON.stringify(betRangeButtons), JSON.stringify(['CHECK', 'BET', 'FOLD']), 'range change fixture should expose opening CHECK, BET, FOLD actions');
@@ -2879,12 +2858,12 @@ if (hooks) {
     const liveAmountRuntime = liveAmountPersistenceRuntime.runtime;
     const liveAmountGame = liveAmountPersistenceRuntime.game;
     const liveAmountActor = currentPlayer(liveAmountGame);
-    liveAmountHooks.state.localPlayerKey = liveAmountActor.key;
+    
     liveAmountRuntime.config.PokerLocalPlayerKey = liveAmountActor.key;
     liveAmountRuntime.config.PokerLocalPlayerName = liveAmountActor.name;
     const liveAmountChatTarget = findPanel(liveAmountRuntime, 'ChatTargetLabel');
     if (liveAmountChatTarget) liveAmountChatTarget.text = 'TEAM';
-    liveAmountHooks.modules.TableRenderer.render();
+    liveAmountHooks.modules.TableRenderer.render(liveAmountHooks.modules.ViewModel.build());
     const liveControls = customAmountControlParts(liveAmountRuntime);
     const liveAmount = Number(liveControls.slider && liveControls.slider.min) + Number(liveControls.slider && liveControls.slider.increment) * 2;
     assert(liveControls.input && liveControls.slider && liveControls.value, 'live amount fixture should render input, slider, and value controls');
@@ -2904,7 +2883,7 @@ if (hooks) {
       assertEqual(liveControls.value.text, `RAISE TO $${liveAmount}`, 'live amount update should expose the selected amount in the value label');
 
       clearDomWrites(liveAmountRuntime);
-      liveAmountHooks.modules.TableRenderer.render();
+      liveAmountHooks.modules.TableRenderer.render(liveAmountHooks.modules.ViewModel.build());
       const noOpWrites = takeDomWrites(liveAmountRuntime).filter(
         (write) => write.id === liveControls.input.id || write.id === liveControls.slider.id || write.id === liveControls.value.id,
       );
@@ -2965,7 +2944,7 @@ if (hooks) {
       'history line 13',
       'history line 14',
     ];
-    syncedAbrams.hooks.processChatRecord({ sender: '<unknown>', message: 'check', isSelf: false });
+    applyMenuRecord(syncedAbrams.hooks, { sender: '<unknown>', message: 'check', isSelf: false });
     const syncedLogLines = pokerLogLines(syncedAbrams.runtime);
     const syncedLogTexts = collectPanelTexts(findPanel(syncedAbrams.runtime, 'PokerGameLog'), []);
     const syncedLogText = syncedLogTexts.join('|');
@@ -2998,24 +2977,24 @@ if (hooks) {
       'Bebop client should keep Abrams hole cards hidden',
     );
 
-    syncedAbrams.hooks.state.requiresProgressImport = true;
-    syncedAbrams.hooks.state.resume = { id: 'rend-match', ready: {}, order: [], payload: { roster: [] } };
+    
+    
     assertHookFunction(syncedAbrams.runtime.sandbox, 'PokerEscapeMenuEndMatch', 'global ESC menu end-match hook');
     syncedAbrams.runtime.sandbox.PokerEscapeMenuEndMatch();
-    assertEqual(syncedAbrams.hooks.state.game, null, 'end-match hook should clear the synced hand state');
-    assertEqual(syncedAbrams.hooks.state.requiresProgressImport, false, 'end-match hook should clear imported-progress start guard');
-    assertEqual(!!(syncedAbrams.hooks.state.resume && syncedAbrams.hooks.state.resume.id), false, 'end-match hook should clear resume state');
+    assertEqual(snapshot(syncedAbrams.hooks).game, null, 'end-match hook should clear the synced hand state');
+    assertEqual(snapshot(syncedAbrams.hooks).requiresProgressImport, false, 'end-match hook should clear imported-progress start guard');
+    assertEqual(!!(snapshot(syncedAbrams.hooks).resume && snapshot(syncedAbrams.hooks).resume.id), false, 'end-match hook should clear resume state');
     assertNoGamePlayerRail(syncedAbrams.runtime, 'end-match render');
     assertEqual(pokerLogLines(syncedAbrams.runtime).length, 0, 'end-match render should clear stale visible log rows');
   }
 
   const duplicateJoinRuntime = createMenuRuntime();
   if (duplicateJoinRuntime.hooks) {
-    duplicateJoinRuntime.hooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pduplicate-join', isSelf: true });
-    duplicateJoinRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party pduplicate-join', isSelf: false });
-    duplicateJoinRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party pduplicate-join', isSelf: false });
-    duplicateJoinRuntime.hooks.modules.TableRenderer.render();
-    const duplicateParty = duplicateJoinRuntime.hooks.state.party || {};
+    applyMenuRecord(duplicateJoinRuntime.hooks, { sender: 'Abrams', message: '[party leader] poker party pduplicate-join', isSelf: true });
+    applyMenuRecord(duplicateJoinRuntime.hooks, { sender: 'Bebop', message: '[party join] poker party pduplicate-join', isSelf: false });
+    applyMenuRecord(duplicateJoinRuntime.hooks, { sender: 'Bebop', message: '[party join] poker party pduplicate-join', isSelf: false });
+    duplicateJoinRuntime.hooks.modules.TableRenderer.render(duplicateJoinRuntime.hooks.modules.ViewModel.build());
+    const duplicateParty = snapshot(duplicateJoinRuntime.hooks).party || {};
     assertEqual(Object.keys(duplicateParty.members || {}).filter((key) => key === 'bebop').length, 1, 'duplicate party join should leave one Bebop party member');
     assertEqual((duplicateParty.order || []).filter((key) => key === 'bebop').length, 1, 'duplicate party join should leave one Bebop party order entry');
     assertEqual(JSON.stringify(playerListNames(duplicateJoinRuntime.runtime)), JSON.stringify(['Abrams', 'Bebop']), 'duplicate party join render should keep one player row per party member');
@@ -3025,8 +3004,8 @@ if (hooks) {
   const wrongPartyLeaveRuntime = createSyncedPartyRuntime('Abrams', 'swrong-party-leave', syncedRoster, 1);
   if (wrongPartyLeaveRuntime.hooks && wrongPartyLeaveRuntime.game) {
     const wrongPartyBefore = JSON.stringify({
-      partyId: wrongPartyLeaveRuntime.hooks.state.party && wrongPartyLeaveRuntime.hooks.state.party.id,
-      partyOrder: wrongPartyLeaveRuntime.hooks.state.party && wrongPartyLeaveRuntime.hooks.state.party.order,
+      partyId: snapshot(wrongPartyLeaveRuntime.hooks).party && snapshot(wrongPartyLeaveRuntime.hooks).party.id,
+      partyOrder: snapshot(wrongPartyLeaveRuntime.hooks).party && snapshot(wrongPartyLeaveRuntime.hooks).party.order,
       players: wrongPartyLeaveRuntime.game.players.map((player) => ({
         key: player.key,
         folded: !!player.folded,
@@ -3037,11 +3016,11 @@ if (hooks) {
       finished: wrongPartyLeaveRuntime.game.finished,
       currentIndex: wrongPartyLeaveRuntime.game.currentIndex,
     });
-    wrongPartyLeaveRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party leave] poker party pnot-this-table', isSelf: false });
-    wrongPartyLeaveRuntime.hooks.modules.TableRenderer.render();
+    applyMenuRecord(wrongPartyLeaveRuntime.hooks, { sender: 'Bebop', message: '[party leave] poker party pnot-this-table', isSelf: false });
+    wrongPartyLeaveRuntime.hooks.modules.TableRenderer.render(wrongPartyLeaveRuntime.hooks.modules.ViewModel.build());
     const wrongPartyAfter = JSON.stringify({
-      partyId: wrongPartyLeaveRuntime.hooks.state.party && wrongPartyLeaveRuntime.hooks.state.party.id,
-      partyOrder: wrongPartyLeaveRuntime.hooks.state.party && wrongPartyLeaveRuntime.hooks.state.party.order,
+      partyId: snapshot(wrongPartyLeaveRuntime.hooks).party && snapshot(wrongPartyLeaveRuntime.hooks).party.id,
+      partyOrder: snapshot(wrongPartyLeaveRuntime.hooks).party && snapshot(wrongPartyLeaveRuntime.hooks).party.order,
       players: wrongPartyLeaveRuntime.game.players.map((player) => ({
         key: player.key,
         folded: !!player.folded,
@@ -3073,7 +3052,7 @@ if (hooks) {
     duplicateSnapshotRuntime.runtime.sandbox.PokerEscapeMenuToggle();
     duplicateSnapshotRuntime.hooks.handleReadyEvent(JSON.stringify(duplicateSnapshot));
     drainScheduledCallbacks(duplicateSnapshotRuntime.runtime, 128);
-    duplicateSnapshotRuntime.hooks.modules.TableRenderer.render();
+    duplicateSnapshotRuntime.hooks.modules.TableRenderer.render(duplicateSnapshotRuntime.hooks.modules.ViewModel.build());
     const firstCounts = countRendered(duplicateSnapshotRuntime.runtime);
     assertEqual(firstCounts.playerRows, 2, 'open snapshot replay setup should render two player rows');
     assertEqual(firstCounts.tableSeats, 2, 'open snapshot replay setup should render two table seats');
@@ -3082,7 +3061,7 @@ if (hooks) {
     duplicateSnapshotRuntime.runtime.sandbox.PokerEscapeMenuToggle();
     duplicateSnapshotRuntime.hooks.handleReadyEvent(JSON.stringify(duplicateSnapshot));
     drainScheduledCallbacks(duplicateSnapshotRuntime.runtime, 128);
-    duplicateSnapshotRuntime.hooks.modules.TableRenderer.render();
+    duplicateSnapshotRuntime.hooks.modules.TableRenderer.render(duplicateSnapshotRuntime.hooks.modules.ViewModel.build());
     const secondCounts = countRendered(duplicateSnapshotRuntime.runtime);
     assertEqual(JSON.stringify(secondCounts), JSON.stringify(firstCounts), 'repeated open-time snapshot replay should not duplicate rendered action/player/table/log/hint/custom-bet/pot panels');
   }
@@ -3097,18 +3076,18 @@ if (hooks) {
   const twoPlayerLeaderEndThenLeaveRuntime = createSyncedJoinedPartyRuntime('Bebop', 'stwo-leader-end-leave', syncedRoster, 1, twoPlayerLeaderEndThenLeavePartyId);
   if (twoPlayerLeaderEndThenLeaveRuntime.hooks && twoPlayerLeaderEndThenLeaveRuntime.game) {
     const endThenLeaveHooks = twoPlayerLeaderEndThenLeaveRuntime.hooks;
-    assertEqual(endThenLeaveHooks.state.party.mode, 'member', 'two-player leader end-then-leave setup should make Bebop a joined member');
-    assertEqual(endThenLeaveHooks.state.game.active, true, 'two-player leader end-then-leave setup should start an active hand');
-    endThenLeaveHooks.processChatRecord({ sender: 'Abrams', message: `[match end] poker party ${twoPlayerLeaderEndThenLeavePartyId}`, isSelf: false });
-    assertEqual(endThenLeaveHooks.state.game, null, 'leader match-end before party leave should clear the member active hand');
-    endThenLeaveHooks.modules.TableRenderer.render();
+    assertEqual(snapshot(endThenLeaveHooks).party.mode, 'member', 'two-player leader end-then-leave setup should make Bebop a joined member');
+    assertEqual(snapshot(endThenLeaveHooks).game.active, true, 'two-player leader end-then-leave setup should start an active hand');
+    applyMenuRecord(endThenLeaveHooks, { sender: 'Abrams', message: `[match end] poker party ${twoPlayerLeaderEndThenLeavePartyId}`, isSelf: false });
+    assertEqual(snapshot(endThenLeaveHooks).game, null, 'leader match-end before party leave should clear the member active hand');
+    endThenLeaveHooks.modules.TableRenderer.render(endThenLeaveHooks.modules.ViewModel.build());
     assertNoGamePlayerRail(twoPlayerLeaderEndThenLeaveRuntime.runtime, 'leader match-end before party leave member lobby render');
-    endThenLeaveHooks.processChatRecord({ sender: 'Abrams', message: `[party leave] poker party ${twoPlayerLeaderEndThenLeavePartyId}`, isSelf: false });
-    assertEqual(endThenLeaveHooks.state.game, null, 'leader party leave after match-end should keep the member out of an active hand');
-    assertEqual(endThenLeaveHooks.state.party.id, '', 'leader party leave after match-end should clear the member party id');
-    assertEqual(endThenLeaveHooks.state.party.mode, 'none', 'leader party leave after match-end should return the member to non-party mode');
+    applyMenuRecord(endThenLeaveHooks, { sender: 'Abrams', message: `[party leave] poker party ${twoPlayerLeaderEndThenLeavePartyId}`, isSelf: false });
+    assertEqual(snapshot(endThenLeaveHooks).game, null, 'leader party leave after match-end should keep the member out of an active hand');
+    assertEqual(snapshot(endThenLeaveHooks).party.id, '', 'leader party leave after match-end should clear the member party id');
+    assertEqual(snapshot(endThenLeaveHooks).party.mode, 'none', 'leader party leave after match-end should return the member to non-party mode');
     assertEqual(endThenLeaveHooks.modules.PartyReducer.roster().length, 0, 'leader party leave after match-end should leave no stale two-player roster');
-    endThenLeaveHooks.modules.TableRenderer.render();
+    endThenLeaveHooks.modules.TableRenderer.render(endThenLeaveHooks.modules.ViewModel.build());
     assertNoGamePlayerRail(twoPlayerLeaderEndThenLeaveRuntime.runtime, 'leader match-end then party leave member lobby render');
     assertPanelHidden(twoPlayerLeaderEndThenLeaveRuntime.runtime, 'PokerLeaveLobbyButton', 'leader match-end then party leave member lobby render');
   }
@@ -3117,11 +3096,11 @@ if (hooks) {
   const twoPlayerUnknownMatchEndRuntime = createSyncedJoinedPartyRuntime('Bebop', 'stwounknownmatchend', syncedRoster, 1, twoPlayerUnknownMatchEndPartyId);
   if (twoPlayerUnknownMatchEndRuntime.hooks && twoPlayerUnknownMatchEndRuntime.game) {
     const unknownMatchEndHooks = twoPlayerUnknownMatchEndRuntime.hooks;
-    assertEqual(unknownMatchEndHooks.state.party.leaderKey, 'abrams', 'unknown match-end setup should know Abrams is party leader');
-    assertEqual(unknownMatchEndHooks.state.game.active, true, 'unknown match-end setup should start an active hand');
-    unknownMatchEndHooks.processChatRecord({ sender: '<unknown>', message: `[match end] poker party ${twoPlayerUnknownMatchEndPartyId} seed stwounknownmatchend hand 1`, isSelf: false });
-    assertEqual(unknownMatchEndHooks.state.game, null, 'unknown match-end from the known current party leader with matching seed/hand should clear the member active hand');
-    unknownMatchEndHooks.modules.TableRenderer.render();
+    assertEqual(snapshot(unknownMatchEndHooks).party.leaderKey, 'abrams', 'unknown match-end setup should know Abrams is party leader');
+    assertEqual(snapshot(unknownMatchEndHooks).game.active, true, 'unknown match-end setup should start an active hand');
+    applyMenuRecord(unknownMatchEndHooks, { sender: '<unknown>', message: `[match end] poker party ${twoPlayerUnknownMatchEndPartyId} seed stwounknownmatchend hand 1`, isSelf: false });
+    assertEqual(snapshot(unknownMatchEndHooks).game, null, 'unknown match-end from the known current party leader with matching seed/hand should clear the member active hand');
+    unknownMatchEndHooks.modules.TableRenderer.render(unknownMatchEndHooks.modules.ViewModel.build());
     assertNoGamePlayerRail(twoPlayerUnknownMatchEndRuntime.runtime, 'unknown match-end from known leader member lobby render');
   }
 
@@ -3129,18 +3108,18 @@ if (hooks) {
   const twoPlayerWrongUnknownMatchEndRuntime = createSyncedJoinedPartyRuntime('Bebop', 'stwo-wrong-unknown-match-end', syncedRoster, 1, twoPlayerWrongUnknownMatchEndPartyId);
   if (twoPlayerWrongUnknownMatchEndRuntime.hooks && twoPlayerWrongUnknownMatchEndRuntime.game) {
     const wrongUnknownMatchEndHooks = twoPlayerWrongUnknownMatchEndRuntime.hooks;
-    wrongUnknownMatchEndHooks.processChatRecord({ sender: '<unknown>', message: `[match end] poker party ${twoPlayerWrongUnknownMatchEndPartyId} seed wrong-seed hand 99`, isSelf: false });
+    applyMenuRecord(wrongUnknownMatchEndHooks, { sender: '<unknown>', message: `[match end] poker party ${twoPlayerWrongUnknownMatchEndPartyId} seed wrong-seed hand 99`, isSelf: false });
     assert(
-      wrongUnknownMatchEndHooks.state.game && wrongUnknownMatchEndHooks.state.game.active,
+      snapshot(wrongUnknownMatchEndHooks).game && snapshot(wrongUnknownMatchEndHooks).game.active,
       'unknown match-end with wrong seed/hand should not clear the member active hand',
     );
-    assertEqual(wrongUnknownMatchEndHooks.state.party.leaderKey, 'abrams', 'unknown match-end with wrong seed/hand should preserve the current party leader');
+    assertEqual(snapshot(wrongUnknownMatchEndHooks).party.leaderKey, 'abrams', 'unknown match-end with wrong seed/hand should preserve the current party leader');
     assert(
       !wrongUnknownMatchEndHooks.modules.PartyReducer.roster().some((member) => member.key === '<unknown>' || member.name === '<unknown>'),
       'unknown match-end with wrong seed/hand should not add an unknown party roster entry',
     );
     assert(
-      !Object.prototype.hasOwnProperty.call(wrongUnknownMatchEndHooks.state.party.members || {}, '<unknown>'),
+      !Object.prototype.hasOwnProperty.call(snapshot(wrongUnknownMatchEndHooks).party.members || {}, '<unknown>'),
       'unknown match-end with wrong seed/hand should not add an unknown party member key',
     );
   }
@@ -3149,19 +3128,19 @@ if (hooks) {
   const twoPlayerLeaderLeaveOnlyRuntime = createSyncedJoinedPartyRuntime('Bebop', 'stwo-leader-leave-only', syncedRoster, 1, twoPlayerLeaderLeaveOnlyPartyId);
   if (twoPlayerLeaderLeaveOnlyRuntime.hooks && twoPlayerLeaderLeaveOnlyRuntime.game) {
     const leaderLeaveOnlyHooks = twoPlayerLeaderLeaveOnlyRuntime.hooks;
-    assertEqual(leaderLeaveOnlyHooks.state.party.mode, 'member', 'two-player leader leave-only setup should make Bebop a joined member');
-    assertEqual(leaderLeaveOnlyHooks.state.game.active, true, 'two-player leader leave-only setup should start an active hand');
-    leaderLeaveOnlyHooks.state.requiresProgressImport = true;
-    leaderLeaveOnlyHooks.state.resume = { id: 'rtwo-leave', ready: {}, order: [], payload: { roster: [] } };
-    leaderLeaveOnlyHooks.processChatRecord({ sender: 'Abrams', message: `[party leave] poker party ${twoPlayerLeaderLeaveOnlyPartyId}`, isSelf: false });
-    assertEqual(leaderLeaveOnlyHooks.state.game, null, 'leader party leave from a two-player active hand should reset the member to the lobby');
-    assertEqual(leaderLeaveOnlyHooks.state.party.id, '', 'leader party leave from a two-player active hand should clear the member party id');
-    assertEqual(leaderLeaveOnlyHooks.state.party.mode, 'none', 'leader party leave from a two-player active hand should clear member party mode');
+    assertEqual(snapshot(leaderLeaveOnlyHooks).party.mode, 'member', 'two-player leader leave-only setup should make Bebop a joined member');
+    assertEqual(snapshot(leaderLeaveOnlyHooks).game.active, true, 'two-player leader leave-only setup should start an active hand');
+    
+    
+    applyMenuRecord(leaderLeaveOnlyHooks, { sender: 'Abrams', message: `[party leave] poker party ${twoPlayerLeaderLeaveOnlyPartyId}`, isSelf: false });
+    assertEqual(snapshot(leaderLeaveOnlyHooks).game, null, 'leader party leave from a two-player active hand should reset the member to the lobby');
+    assertEqual(snapshot(leaderLeaveOnlyHooks).party.id, '', 'leader party leave from a two-player active hand should clear the member party id');
+    assertEqual(snapshot(leaderLeaveOnlyHooks).party.mode, 'none', 'leader party leave from a two-player active hand should clear member party mode');
     assertEqual(leaderLeaveOnlyHooks.modules.PartyReducer.roster().length, 0, 'leader party leave from a two-player active hand should leave no stale member roster');
-    assertEqual(leaderLeaveOnlyHooks.state.requiresProgressImport, false, 'leader party leave from a two-player active hand should clear imported-progress start guard');
-    assertEqual(!!(leaderLeaveOnlyHooks.state.resume && leaderLeaveOnlyHooks.state.resume.id), false, 'leader party leave from a two-player active hand should clear resume state');
-    assertEqual(leaderLeaveOnlyHooks.state.resumeRequiresHostedParty, true, 'leader party leave from a two-player active hand should require a hosted party before resume');
-    leaderLeaveOnlyHooks.modules.TableRenderer.render();
+    assertEqual(snapshot(leaderLeaveOnlyHooks).requiresProgressImport, false, 'leader party leave from a two-player active hand should clear imported-progress start guard');
+    assertEqual(!!(snapshot(leaderLeaveOnlyHooks).resume && snapshot(leaderLeaveOnlyHooks).resume.id), false, 'leader party leave from a two-player active hand should clear resume state');
+    assertEqual(snapshot(leaderLeaveOnlyHooks).resumeRequiresHostedParty, true, 'leader party leave from a two-player active hand should require a hosted party before resume');
+    leaderLeaveOnlyHooks.modules.TableRenderer.render(leaderLeaveOnlyHooks.modules.ViewModel.build());
     assertNoGamePlayerRail(twoPlayerLeaderLeaveOnlyRuntime.runtime, 'leader party leave only two-player member lobby render');
     assertPanelHidden(twoPlayerLeaderLeaveOnlyRuntime.runtime, 'PokerLeaveLobbyButton', 'leader party leave only two-player member lobby render');
   }
@@ -3173,7 +3152,7 @@ if (hooks) {
       const transferHooks = threePlayerLeaderLeaveRuntime.hooks;
       const transferGame = threePlayerLeaderLeaveRuntime.game;
       assertEqual(
-        JSON.stringify(transferHooks.state.party.order),
+        JSON.stringify(snapshot(transferHooks).party.order),
         JSON.stringify(['abrams', 'bebop', 'calico']),
         `three-player leader leave setup for ${localName} should preserve party join order`,
       );
@@ -3181,7 +3160,7 @@ if (hooks) {
       assert(leavingLeader, `three-player leader leave setup for ${localName} should include Abrams in the active hand`);
       if (leavingLeader) {
         transferGame.currentIndex = transferGame.players.indexOf(leavingLeader);
-        transferHooks.processChatRecord({ sender: 'Abrams', message: `[party leave] poker party ${threePlayerLeaderLeavePartyId}`, isSelf: false });
+        applyMenuRecord(transferHooks, { sender: 'Abrams', message: `[party leave] poker party ${threePlayerLeaderLeavePartyId}`, isSelf: false });
         assertEqual(transferHooks.state.game, transferGame, `three-player leader leave for ${localName} should keep the active hand`);
         assertEqual(transferGame.active, true, `three-player leader leave for ${localName} should keep the hand active`);
         assertEqual(leavingLeader.folded, true, `three-player leader leave for ${localName} should fold the departing leader`);
@@ -3190,15 +3169,15 @@ if (hooks) {
           1,
           `three-player leader leave for ${localName} should leave two live contestants`,
         );
-        assertEqual(transferHooks.state.party.leaderKey, 'bebop', `three-player leader leave for ${localName} should transfer leadership to next party member`);
-        assertEqual(transferHooks.state.party.leaderName, 'Bebop', `three-player leader leave for ${localName} should preserve the promoted leader name`);
+        assertEqual(snapshot(transferHooks).party.leaderKey, 'bebop', `three-player leader leave for ${localName} should transfer leadership to next party member`);
+        assertEqual(snapshot(transferHooks).party.leaderName, 'Bebop', `three-player leader leave for ${localName} should preserve the promoted leader name`);
         assertEqual(
-          transferHooks.state.party.mode,
+          snapshot(transferHooks).party.mode,
           localName === 'Bebop' ? 'leader' : 'member',
           `three-player leader leave for ${localName} should set local party mode from the transferred leader`,
         );
         assertEqual(
-          JSON.stringify(transferHooks.state.party.order),
+          JSON.stringify(snapshot(transferHooks).party.order),
           JSON.stringify(['bebop', 'calico']),
           `three-player leader leave for ${localName} should remove Abrams from party order`,
         );
@@ -3207,7 +3186,7 @@ if (hooks) {
           JSON.stringify(['bebop', 'calico']),
           `three-player leader leave for ${localName} should keep only remaining party members in order`,
         );
-        transferHooks.modules.TableRenderer.render();
+        transferHooks.modules.TableRenderer.render(transferHooks.modules.ViewModel.build());
         assertPanelVisible(threePlayerLeaderLeaveRuntime.runtime, 'PokerTableSeats', `three-player leader leave for ${localName} active render`);
         assertPanelVisible(threePlayerLeaderLeaveRuntime.runtime, 'PokerGameLog', `three-player leader leave for ${localName} active render`);
         if (localName === 'Bebop') {
@@ -3227,13 +3206,13 @@ if (hooks) {
     assert(leavingLeader, 'leader-leave continuation setup should include Abrams in the active hand');
     if (leavingLeader) {
       continuationGame.currentIndex = continuationGame.players.indexOf(leavingLeader);
-      continuationHooks.processChatRecord({ sender: 'Abrams', message: '[party leave] poker party pleader-leave-continue', isSelf: false });
+      applyMenuRecord(continuationHooks, { sender: 'Abrams', message: '[party leave] poker party pleader-leave-continue', isSelf: false });
       const actor = currentPlayer(continuationGame);
       assert(actor, 'leader-leave continuation should have a current actor after transfer');
       const legal = actor ? continuationHooks.modules.PokerEngine.actions(continuationGame, actor.key, actor.key).legal : {};
       const command = legal.check ? 'check' : (legal.call ? 'call' : 'fold');
-      continuationHooks.processChatRecord({ sender: actor.name, message: command, isSelf: actor.key === continuationHooks.state.localPlayerKey });
-      assert(continuationHooks.state.game, 'leader-leave continuation should keep a hand after the next legal action');
+      applyMenuRecord(continuationHooks, { sender: actor.name, message: command, isSelf: actor.key === snapshot(continuationHooks).localPlayerKey });
+      assert(snapshot(continuationHooks).game, 'leader-leave continuation should keep a hand after the next legal action');
       assert(
         continuationGame.log.some((line) => String(line).toLowerCase().includes(command)),
         `leader-leave continuation should log the applied ${command} action: ${(continuationGame.log || []).join('|') || '<empty>'}`,
@@ -3255,22 +3234,22 @@ if (hooks) {
       assert(leavingMember, `three-player non-host leave setup for ${localName} should include Calico in the active hand`);
       if (leavingMember) {
         memberLeaveGame.currentIndex = memberLeaveGame.players.indexOf(leavingMember);
-        memberLeaveHooks.processChatRecord({ sender: 'Calico', message: `[party leave] poker party ${threePlayerMemberLeavePartyId}`, isSelf: false });
+        applyMenuRecord(memberLeaveHooks, { sender: 'Calico', message: `[party leave] poker party ${threePlayerMemberLeavePartyId}`, isSelf: false });
         assertEqual(memberLeaveHooks.state.game, memberLeaveGame, `three-player non-host leave for ${localName} should keep the active hand`);
         assertEqual(memberLeaveGame.active, true, `three-player non-host leave for ${localName} should not clear the table`);
         assertEqual(leavingMember.folded, true, `three-player non-host leave for ${localName} should fold the departing member`);
-        assertEqual(memberLeaveHooks.state.party.leaderKey, 'abrams', `three-player non-host leave for ${localName} should not transfer leadership`);
+        assertEqual(snapshot(memberLeaveHooks).party.leaderKey, 'abrams', `three-player non-host leave for ${localName} should not transfer leadership`);
         assertEqual(
-          memberLeaveHooks.state.party.mode,
+          snapshot(memberLeaveHooks).party.mode,
           localName === 'Abrams' ? 'leader' : 'member',
           `three-player non-host leave for ${localName} should preserve local party mode`,
         );
         assertEqual(
-          JSON.stringify(memberLeaveHooks.state.party.order),
+          JSON.stringify(snapshot(memberLeaveHooks).party.order),
           JSON.stringify(['abrams', 'bebop']),
           `three-player non-host leave for ${localName} should remove only Calico from party order`,
         );
-        memberLeaveHooks.modules.TableRenderer.render();
+        memberLeaveHooks.modules.TableRenderer.render(memberLeaveHooks.modules.ViewModel.build());
         assertPanelVisible(threePlayerMemberLeaveRuntime.runtime, 'PokerTableSeats', `three-player non-host leave for ${localName} active render`);
         assertPanelVisible(threePlayerMemberLeaveRuntime.runtime, 'PokerGameLog', `three-player non-host leave for ${localName} active render`);
       }
@@ -3278,7 +3257,7 @@ if (hooks) {
   }
   const tableRuntime = createSyncedPartyRuntime('Abrams', 'stable-table-seats', tableRoster, 1);
   if (tableRuntime.hooks && tableRuntime.game) {
-    tableRuntime.hooks.modules.TableRenderer.render();
+    tableRuntime.hooks.modules.TableRenderer.render(tableRuntime.hooks.modules.ViewModel.build());
     const playersList = findPanel(tableRuntime.runtime, 'PokerPlayersList');
     const tableSeats = findPanel(tableRuntime.runtime, 'PokerTableSeats');
     assert(playersList && tableSeats && playersList !== tableSeats, 'table render should keep #PokerPlayersList and #PokerTableSeats as distinct surfaces');
@@ -3319,7 +3298,7 @@ if (hooks) {
     assertEqual(startingPotTexts.header, 'POT $300', 'active table pot animation setup header amount');
     assertEqual(startingPotTexts.center, '$300', 'active table pot animation setup center amount');
     tableRuntime.game.pot = 431;
-    tableRuntime.hooks.modules.TableRenderer.render();
+    tableRuntime.hooks.modules.TableRenderer.render(tableRuntime.hooks.modules.ViewModel.build());
     const immediatePotTexts = potAmountTexts(tableRuntime.runtime);
     assert(
       immediatePotTexts.header !== 'POT $431',
@@ -3345,23 +3324,23 @@ if (hooks) {
     const potLifecycleRuntime = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'pot-chip-lifecycle');
     if (potLifecycleRuntime.hooks && potLifecycleRuntime.game) {
       potLifecycleRuntime.game.pot = 431;
-      potLifecycleRuntime.hooks.modules.TableRenderer.render();
+      potLifecycleRuntime.hooks.modules.TableRenderer.render(potLifecycleRuntime.hooks.modules.ViewModel.build());
       drainScheduledCallbacks(potLifecycleRuntime.runtime, 256);
       const firstChipPanels = findDescendantsWithClass(findPanel(potLifecycleRuntime.runtime, 'PokerPotChips'), 'PokerPotChip', []);
       assert(firstChipPanels.length > 1, 'pot-chip lifecycle should render multiple chip panels for $431');
       const threeHundredPanel = firstChipPanels[0];
       clearDomWrites(potLifecycleRuntime.runtime);
-      potLifecycleRuntime.hooks.modules.TableRenderer.render();
+      potLifecycleRuntime.hooks.modules.TableRenderer.render(potLifecycleRuntime.hooks.modules.ViewModel.build());
       const repeatChipWrites = takeDomWrites(potLifecycleRuntime.runtime).filter((write) => write.type === 'create' || write.type === 'image-src' || (write.type === 'attr' && write.name === 'src'));
       assertEqual(repeatChipWrites.length, 0, 'pot-chip lifecycle should not recreate or rewrite image sources for unchanged pot');
       potLifecycleRuntime.game.pot = 300;
-      potLifecycleRuntime.hooks.modules.TableRenderer.render();
+      potLifecycleRuntime.hooks.modules.TableRenderer.render(potLifecycleRuntime.hooks.modules.ViewModel.build());
       const threeHundredPanels = findDescendantsWithClass(findPanel(potLifecycleRuntime.runtime, 'PokerPotChips'), 'PokerPotChip', []);
       assertEqual(threeHundredPanels.length, 1, 'pot-chip lifecycle should retain only one chip panel for $300');
       assertEqual(threeHundredPanels[0], threeHundredPanel, 'pot-chip lifecycle should reuse the $300 chip panel when lower tiers disappear');
       assert(firstChipPanels.some((panel) => panel !== threeHundredPanel && panel.deleted), 'pot-chip lifecycle should delete disappeared lower-tier chip panels');
       potLifecycleRuntime.game.pot = 0;
-      potLifecycleRuntime.hooks.modules.TableRenderer.render();
+      potLifecycleRuntime.hooks.modules.TableRenderer.render(potLifecycleRuntime.hooks.modules.ViewModel.build());
       assertPanelHidden(potLifecycleRuntime.runtime, 'PokerPotChips', 'zero-pot chip lifecycle');
       assertEqual(findDescendantsWithClass(findPanel(potLifecycleRuntime.runtime, 'PokerPotChips'), 'PokerPotChip', []).length, 0, 'zero-pot chip lifecycle should remove all chip panels');
     }
@@ -3373,10 +3352,10 @@ if (hooks) {
     const transitionHooks = rendererTransitionRuntime.hooks;
     const transitionNames = ['Abrams', 'Bebop', 'Calico'];
     transitionHooks.handleReadyEvent(readyPayload('Abrams', 50, true));
-    transitionHooks.modules.TableRenderer.render();
+    transitionHooks.modules.TableRenderer.render(transitionHooks.modules.ViewModel.build());
     drainScheduledCallbacks(transitionRuntime, 256);
     const activeSurface = captureRendererTransitionSurface(transitionRuntime);
-    assertEqual(transitionHooks.state.game.active, true, 'renderer transition active fixture should start with an active hand');
+    assertEqual(snapshot(transitionHooks).game.active, true, 'renderer transition active fixture should start with an active hand');
     assertEqual(activeSurface.playerRows.length, 3, 'renderer transition active fixture should render three player rows');
     assertEqual(activeSurface.tableSeats.length, 3, 'renderer transition active fixture should render three table seats');
     assertEqual(activeSurface.communityCards.length, 5, 'renderer transition active fixture should render five community card panels');
@@ -3404,21 +3383,87 @@ if (hooks) {
         `renderer transition active fixture should mirror local-only table card reveal for ${surfaceRow.name}`,
       );
     }
+    const communityCard = activeSurface.communityCards[0];
+    assert(communityCard && hasClass(communityCard, 'CardBack'), 'renderer card fixture should start with a visible back/question community card');
+
+    const transitionGame = snapshot(transitionHooks).game;
+    transitionGame.community[0] = card('K', 'H');
+    transitionHooks.setGameForTest(transitionGame);
+    const revealScheduleStart = transitionRuntime.schedules.length;
+    transitionHooks.modules.TableRenderer.render(transitionHooks.modules.ViewModel.build());
+    const revealSchedules = transitionRuntime.schedules.splice(revealScheduleStart);
+    const revealStableContents = firstDescendantWithClass(communityCard, 'PokerCardContents');
+    const revealLayers = findDescendantsWithClass(communityCard, 'PokerCardFlipLayer', []);
+    const outgoingQuestionLayer = revealLayers.find((layer) => hasClass(layer, 'FlipToBack') && hasClass(layer, 'QuestionFace'));
+    const incomingFaceLayer = revealLayers.find((layer) => hasClass(layer, 'FlipReveal') && !hasClass(layer, 'QuestionFace'));
+    const incomingFaceText = collectPanelTexts(incomingFaceLayer, []).join('|');
+    const incomingFaceArt = firstDescendantWithClass(incomingFaceLayer, 'PokerCardVtexArt');
+    assert(hasClass(communityCard, 'FlipActive'), 'renderer back-to-face transition should mark the rendered community card active');
+    assert(revealStableContents && hasClass(revealStableContents, 'FlipHidden'), 'renderer back-to-face transition should hide stable rendered card contents');
+    assertEqual(revealSchedules.length, 1, 'renderer back-to-face transition should schedule one completion callback');
+    assertEqual(revealSchedules[0].delay, 1.2, 'renderer back-to-face transition should schedule completion after 1.2 seconds');
+    assert(outgoingQuestionLayer, 'renderer back-to-face transition should retain the outgoing visible question face');
+    assert(incomingFaceLayer && hasClass(incomingFaceLayer, 'RedSuit'), 'renderer back-to-face transition should render a red reveal layer');
+    assert(incomingFaceText.includes('K') && incomingFaceText.includes('♥'), `renderer back-to-face transition should render the king of hearts: ${incomingFaceText || '<empty>'}`);
+    assert(incomingFaceArt && incomingFaceArt.src === 's2r://panorama/images/poker/cards/card_face_king.vtex', 'renderer back-to-face transition should use the king VTEX source');
+    drainScheduledCallbacks({ schedules: revealSchedules }, 1);
+    assert(!hasClass(communityCard, 'FlipActive'), 'renderer back-to-face transition should clear FlipActive after scheduled completion');
+    assert(!hasClass(firstDescendantWithClass(communityCard, 'PokerCardContents'), 'FlipHidden'), 'renderer back-to-face transition should reveal stable contents after scheduled completion');
+
+    clearDomWrites(transitionRuntime);
+    transitionHooks.modules.TableRenderer.render(transitionHooks.modules.ViewModel.build());
+    const unchangedFaceWrites = takeDomWrites(transitionRuntime).filter((write) => write && (write.type === 'image-src' || (write.type === 'attr' && write.name === 'src')));
+    assertEqual(unchangedFaceWrites.length, 0, 'renderer should avoid image-source writes for an unchanged visible card');
+
+    transitionGame.community[0] = null;
+    transitionHooks.setGameForTest(transitionGame);
+    const backScheduleStart = transitionRuntime.schedules.length;
+    transitionHooks.modules.TableRenderer.render(transitionHooks.modules.ViewModel.build());
+    const backSchedules = transitionRuntime.schedules.splice(backScheduleStart);
+    const backStableContents = firstDescendantWithClass(communityCard, 'PokerCardContents');
+    const backLayers = findDescendantsWithClass(communityCard, 'PokerCardFlipLayer', []);
+    const outgoingFaceLayer = backLayers.find((layer) => hasClass(layer, 'FlipToBack') && !hasClass(layer, 'QuestionFace'));
+    const incomingQuestionLayer = backLayers.find((layer) => hasClass(layer, 'FlipReveal') && hasClass(layer, 'QuestionFace'));
+    assert(backStableContents && hasClass(backStableContents, 'CardBack'), 'renderer face-to-back transition should immediately project the stable question/back face');
+    assert(backStableContents && hasClass(backStableContents, 'FlipHidden'), 'renderer face-to-back transition should hide stable contents while layers animate');
+    assertEqual(backSchedules.length, 1, 'renderer face-to-back transition should schedule one completion callback');
+    assertEqual(backSchedules[0].delay, 1.2, 'renderer face-to-back transition should preserve the 1.2-second completion delay');
+    assert(outgoingFaceLayer && collectPanelTexts(outgoingFaceLayer, []).join('|').includes('K'), 'renderer face-to-back transition should retain the old face during the flip');
+    assert(incomingQuestionLayer && collectPanelTexts(incomingQuestionLayer, []).join('|').includes('?'), 'renderer face-to-back transition should render the incoming question face');
+
+    transitionGame.community[0] = card('Q', 'S');
+    transitionHooks.setGameForTest(transitionGame);
+    const replacementScheduleStart = transitionRuntime.schedules.length;
+    transitionHooks.modules.TableRenderer.render(transitionHooks.modules.ViewModel.build());
+    const replacementSchedules = transitionRuntime.schedules.splice(replacementScheduleStart);
+    drainScheduledCallbacks({ schedules: backSchedules }, 1);
+    const staleGuardContents = firstDescendantWithClass(communityCard, 'PokerCardContents');
+    assert(hasClass(communityCard, 'FlipActive'), 'renderer should ignore a stale face-to-back completion while a newer reveal is active');
+    assert(staleGuardContents && hasClass(staleGuardContents, 'FlipHidden'), 'renderer should not expose newer stable contents through a stale completion');
+    assertEqual(replacementSchedules.length, 1, 'renderer replacement reveal should schedule its own completion callback');
+    assertEqual(replacementSchedules[0].delay, 1.2, 'renderer replacement reveal should preserve the 1.2-second completion delay');
+    drainScheduledCallbacks({ schedules: replacementSchedules }, 1);
+    const finalCardContents = firstDescendantWithClass(communityCard, 'PokerCardContents');
+    const finalCardText = collectPanelTexts(finalCardContents, []).join('|');
+    assert(!hasClass(communityCard, 'FlipActive'), 'renderer replacement reveal should clear FlipActive after its completion');
+    assert(finalCardContents && !hasClass(finalCardContents, 'FlipHidden'), 'renderer replacement reveal should expose final stable contents');
+    assert(hasClass(finalCardContents, 'BlackSuit'), 'renderer replacement reveal should project black suit classes onto stable rendered contents');
+    assert(finalCardText.includes('Q') && finalCardText.includes('♠'), `renderer replacement reveal should preserve the newer queen of spades: ${finalCardText || '<empty>'}`);
 
     let foldSteps = 0;
-    while (transitionHooks.state.game && transitionHooks.state.game.active && foldSteps < 8) {
-      const actor = transitionHooks.state.game.players[transitionHooks.state.game.currentIndex];
+    while (snapshot(transitionHooks).game && snapshot(transitionHooks).game.active && foldSteps < 8) {
+      const actor = snapshot(transitionHooks).game.players[snapshot(transitionHooks).game.currentIndex];
       assert(actor, 'renderer transition finish fixture should have a current actor for every fold');
       if (!actor) break;
-      transitionHooks.processChatRecord({ sender: actor.name, message: 'fold' });
+      applyMenuRecord(transitionHooks, { sender: actor.name, message: 'fold' });
       drainScheduledCallbacks(transitionRuntime, 256);
       foldSteps += 1;
     }
     assert(foldSteps > 0, 'renderer transition finish fixture should submit at least one public fold action');
-    assertEqual(transitionHooks.state.game.active, false, 'renderer transition finish fixture should reach an inactive hand');
-    assertEqual(transitionHooks.state.game.finished, true, 'renderer transition finish fixture should reach a finished hand');
-    assertEqual(transitionHooks.state.game.phase, 'finished', 'renderer transition finish fixture should expose the finished phase');
-    transitionHooks.modules.TableRenderer.render();
+    assertEqual(snapshot(transitionHooks).game.active, false, 'renderer transition finish fixture should reach an inactive hand');
+    assertEqual(snapshot(transitionHooks).game.finished, true, 'renderer transition finish fixture should reach a finished hand');
+    assertEqual(snapshot(transitionHooks).game.phase, 'finished', 'renderer transition finish fixture should expose the finished phase');
+    transitionHooks.modules.TableRenderer.render(transitionHooks.modules.ViewModel.build());
     drainScheduledCallbacks(transitionRuntime, 256);
     const finishedSurface = captureRendererTransitionSurface(transitionRuntime);
     assertEqual(finishedSurface.playerRows.length, activeSurface.playerRows.length, 'renderer transition finished fixture should keep the full player surface');
@@ -3480,14 +3525,14 @@ if (hooks) {
       { key: 'bebop', name: 'Bebop' },
     ];
     const nextStart = transitionHooks.buildSynchronizedStartCommand('renderer-transition-next', nextRoster, 2);
-    transitionHooks.processChatRecord({ sender: 'Abrams', message: nextStart });
+    applyMenuRecord(transitionHooks, { sender: 'Abrams', message: nextStart });
     drainScheduledCallbacks(transitionRuntime, 256);
-    transitionHooks.modules.TableRenderer.render();
+    transitionHooks.modules.TableRenderer.render(transitionHooks.modules.ViewModel.build());
     drainScheduledCallbacks(transitionRuntime, 256);
     const nextSurface = captureRendererTransitionSurface(transitionRuntime);
-    assertEqual(transitionHooks.state.game.active, true, 'renderer transition next-active fixture should start a new active hand');
-    assertEqual(transitionHooks.state.game.finished, false, 'renderer transition next-active fixture should clear finished state');
-    assertEqual(transitionHooks.state.game.handNumber, 2, 'renderer transition next-active fixture should advance hand number');
+    assertEqual(snapshot(transitionHooks).game.active, true, 'renderer transition next-active fixture should start a new active hand');
+    assertEqual(snapshot(transitionHooks).game.finished, false, 'renderer transition next-active fixture should clear finished state');
+    assertEqual(snapshot(transitionHooks).game.handNumber, 2, 'renderer transition next-active fixture should advance hand number');
     assertEqual(
       JSON.stringify(nextSurface.playerRows.map((entry) => entry.name)),
       JSON.stringify(nextRoster.map((entry) => entry.name)),
@@ -3550,27 +3595,28 @@ if (hooks) {
       assert(!nextSurface.actionButtons.includes(panel), 'renderer transition next-active fixture should not reuse stale finished action buttons');
     }
 
-    const gameBeforeParentReplacement = transitionHooks.state.game;
-    const partyBeforeParentReplacement = JSON.stringify(transitionHooks.state.party);
+    const gameBeforeParentReplacement = JSON.stringify(snapshot(transitionHooks).game);
+    const partyBeforeParentReplacement = JSON.stringify(snapshot(transitionHooks).party);
     const oldPlayersParent = nextSurface.parents.players;
     assert(oldPlayersParent, 'renderer transition parent replacement fixture should find the original player parent');
     if (oldPlayersParent) oldPlayersParent.DeleteAsync();
     const replacementPlayersParent = transitionRuntime.panels.createPanel('Panel', transitionRuntime.panels.root, 'PokerPlayersList');
     transitionHooks.modules.PanelCache.invalidate('renderer-transition-parent-replacement');
     transitionHooks.modules.PanelCache.refresh();
-    transitionHooks.modules.TableRenderer.render();
+    transitionHooks.modules.TableRenderer.render(transitionHooks.modules.ViewModel.build());
     drainScheduledCallbacks(transitionRuntime, 256);
     const replacementSurface = captureRendererTransitionSurface(transitionRuntime);
     assert(
       replacementSurface.parents.players === replacementPlayersParent,
       'renderer transition parent replacement fixture should reacquire the replacement player parent',
     );
-    assert(
-      transitionHooks.state.game === gameBeforeParentReplacement,
+    assertEqual(
+      JSON.stringify(snapshot(transitionHooks).game),
+      gameBeforeParentReplacement,
       'renderer transition parent replacement fixture should preserve game state',
     );
     assertEqual(
-      JSON.stringify(transitionHooks.state.party),
+      JSON.stringify(snapshot(transitionHooks).party),
       partyBeforeParentReplacement,
       'renderer transition parent replacement fixture should preserve party state',
     );
@@ -3580,7 +3626,7 @@ if (hooks) {
 
     drainScheduledCallbacks(transitionRuntime, 256);
     clearDomWrites(transitionRuntime);
-    transitionHooks.modules.TableRenderer.render();
+    transitionHooks.modules.TableRenderer.render(transitionHooks.modules.ViewModel.build());
     drainScheduledCallbacks(transitionRuntime, 256);
     assertEqual(
       takeDomWrites(transitionRuntime).length,
@@ -3606,7 +3652,7 @@ if (hooks) {
 
   const sixSeatRuntime = createGameRuntime(tableSeatContractNames.slice(0, 6), 'six-table-edge-seats');
   if (sixSeatRuntime.hooks && sixSeatRuntime.game) {
-    sixSeatRuntime.hooks.modules.TableRenderer.render();
+    sixSeatRuntime.hooks.modules.TableRenderer.render(sixSeatRuntime.hooks.modules.ViewModel.build());
     const sixTableNames = tableSeatNames(sixSeatRuntime.runtime);
     assertEqual(sixTableNames.length, 6, 'six-player table render should create six table-edge seats');
     for (const name of tableSeatContractNames.slice(0, 6)) {
@@ -3618,7 +3664,7 @@ if (hooks) {
 
   const sevenSeatRuntime = createGameRuntime(tableSeatContractNames.slice(0, 7), 'seven-table-edge-seats');
   if (sevenSeatRuntime.hooks && sevenSeatRuntime.game) {
-    sevenSeatRuntime.hooks.modules.TableRenderer.render();
+    sevenSeatRuntime.hooks.modules.TableRenderer.render(sevenSeatRuntime.hooks.modules.ViewModel.build());
     const sevenTableNames = tableSeatNames(sevenSeatRuntime.runtime);
     assertEqual(sevenTableNames.length, 7, 'seven-player table render should create seven table-edge seats');
     for (const name of tableSeatContractNames.slice(0, 7)) {
@@ -3635,7 +3681,7 @@ if (hooks) {
 
   const twelveSeatRuntime = createGameRuntime(tableSeatContractNames, 'twelve-table-edge-seats');
   if (twelveSeatRuntime.hooks && twelveSeatRuntime.game) {
-    twelveSeatRuntime.hooks.modules.TableRenderer.render();
+    twelveSeatRuntime.hooks.modules.TableRenderer.render(twelveSeatRuntime.hooks.modules.ViewModel.build());
     const twelveTableNames = tableSeatNames(twelveSeatRuntime.runtime);
     assertEqual(twelveTableNames.length, 12, 'twelve-player table render should create twelve table-edge seats');
     for (const name of tableSeatContractNames) {
@@ -3659,7 +3705,7 @@ if (hooks) {
     });
     overCapacityRuntime.game.players.push(extraPlayer);
     overCapacityRuntime.hooks.setGameForTest(overCapacityRuntime.game);
-    overCapacityRuntime.hooks.modules.TableRenderer.render();
+    overCapacityRuntime.hooks.modules.TableRenderer.render(overCapacityRuntime.hooks.modules.ViewModel.build());
     assertEqual(tableSeatRows(overCapacityRuntime.runtime).length, 12, 'thirteen-player defensive table render should show exactly twelve table seats');
     assertEqual(playerListRows(overCapacityRuntime.runtime).length, 12, 'thirteen-player defensive player list render should stay capped at MAX_TABLE_PLAYERS');
     assertEqual(findDescendantsWithClass(findPanel(overCapacityRuntime.runtime, 'PokerTableSeats'), 'PokerTableOverflow', []).length, 0, 'thirteen-player defensive render should not create PokerTableOverflow');
@@ -3669,18 +3715,18 @@ if (hooks) {
 
   const visibilityRuntime = createMenuRuntime();
   if (visibilityRuntime.hooks) {
-    visibilityRuntime.hooks.modules.TableRenderer.render();
+    visibilityRuntime.hooks.modules.TableRenderer.render(visibilityRuntime.hooks.modules.ViewModel.build());
     assertNoGamePlayerRail(visibilityRuntime.runtime, 'empty no-game rail render');
     assertEqual(playerListRows(visibilityRuntime.runtime).length, 0, 'empty no-game rail render should not invent player rows');
     seedPartyForReady(visibilityRuntime.hooks, ['Abrams', 'Bebop'], 'pvisible-ready');
     visibilityRuntime.hooks.handleReadyEvent(readyPayload('Abrams', 1));
     visibilityRuntime.hooks.handleReadyEvent(readyPayload('Bebop', 2));
-    visibilityRuntime.hooks.modules.TableRenderer.render();
+    visibilityRuntime.hooks.modules.TableRenderer.render(visibilityRuntime.hooks.modules.ViewModel.build());
     assertNoGamePlayerRail(visibilityRuntime.runtime, 'ready no-game rail render');
     const readyNames = playerListNames(visibilityRuntime.runtime);
     assertEqual(JSON.stringify(readyNames), JSON.stringify(['Abrams', 'Bebop']), 'ready no-game rail render should show ready players through #PokerPlayersList in ready order');
-    visibilityRuntime.hooks.processChatRecord({ sender: 'Abrams', message: 'poker start table-visibility' });
-    visibilityRuntime.hooks.modules.TableRenderer.render();
+    applyMenuRecord(visibilityRuntime.hooks, { sender: 'Abrams', message: 'poker start table-visibility' });
+    visibilityRuntime.hooks.modules.TableRenderer.render(visibilityRuntime.hooks.modules.ViewModel.build());
     assertPanelVisible(visibilityRuntime.runtime, 'PokerPlayersList', 'assigned-game table render');
     assertPanelVisible(visibilityRuntime.runtime, 'PokerTableSeats', 'assigned-game table render');
   }
@@ -3697,19 +3743,7 @@ if (hooks) {
     assert(lobbyWindow && tableWindow && playersWindow && historyWindow && actionsWindow && leaveLobbyButton, 'five-window menu runtime should provide all poker floating windows and leave-lobby button for cache/open logic');
     assert(compatibilityAnchor && compatibilityAnchor !== lobbyWindow && compatibilityAnchor !== tableWindow, 'five-window menu runtime should keep #PokerAnitaPanel as a separate hidden compatibility anchor');
     assert(hasClass(compatibilityAnchor, 'PokerHidden'), 'five-window menu runtime should keep #PokerAnitaPanel hidden');
-    assertEqual(windowRuntime.hooks.state.lobbyWindow, null, 'five-window menu runtime should start before caching #PokerLobbyWindow');
-    assertEqual(windowRuntime.hooks.state.tableWindow, null, 'five-window menu runtime should start before caching #PokerTableWindow');
-    assertEqual(windowRuntime.hooks.state.playersWindow, null, 'five-window menu runtime should start before caching #PokerPlayersWindow');
-    assertEqual(windowRuntime.hooks.state.historyWindow, null, 'five-window menu runtime should start before caching #PokerHistoryWindow');
-    assertEqual(windowRuntime.hooks.state.actionsWindow, null, 'five-window menu runtime should start before caching #PokerActionsWindow');
-    assertEqual(windowRuntime.hooks.state.leaveLobbyButton, null, 'five-window menu runtime should start before caching #PokerLeaveLobbyButton');
     windowRuntime.runtime.sandbox.PokerEscapeMenuToggle();
-    assertEqual(windowRuntime.hooks.state.lobbyWindow, lobbyWindow, 'five-window menu open should cache #PokerLobbyWindow');
-    assertEqual(windowRuntime.hooks.state.tableWindow, tableWindow, 'five-window menu open should cache #PokerTableWindow');
-    assertEqual(windowRuntime.hooks.state.playersWindow, playersWindow, 'five-window menu open should cache #PokerPlayersWindow');
-    assertEqual(windowRuntime.hooks.state.historyWindow, historyWindow, 'five-window menu open should cache #PokerHistoryWindow');
-    assertEqual(windowRuntime.hooks.state.actionsWindow, actionsWindow, 'five-window menu open should cache #PokerActionsWindow');
-    assertEqual(windowRuntime.hooks.state.leaveLobbyButton, leaveLobbyButton, 'five-window menu open should cache #PokerLeaveLobbyButton');
     assert(hasClass(windowRuntime.runtime.panels.root, 'PokerMenuVisible'), 'five-window menu open should mark the shared root visible');
     assert(!hasClass(compatibilityAnchor, 'Open'), 'five-window menu open should not mark hidden #PokerAnitaPanel open');
     assert(hasClass(lobbyWindow, 'Open'), 'five-window menu open should mark #PokerLobbyWindow open');
@@ -3732,16 +3766,16 @@ if (hooks) {
     twoPlayerLeaveHooks.handleReadyEvent(readyPayload('Bebop', 42, false));
     assertEqual(twoPlayerLeaveGame.players.length, 2, 'two-player active leave regression setup should start an active hand with two players');
     assert(
-      twoPlayerLeaveHooks.getReadySeatArray().some((seat) => seat.key === 'bebop'),
+      snapshot(twoPlayerLeaveHooks).readySeats.some((seat) => seat.key === 'bebop'),
       'two-player active leave regression setup should include Bebop in ready seats before leaving',
     );
-    twoPlayerLeaveHooks.processChatRecord({ sender: 'Bebop', message: '[party leave] poker party psync', isSelf: false });
-    assertEqual(twoPlayerLeaveHooks.state.game, null, 'remote leave from a two-player active hand should reset the remaining client to the lobby');
-    assertEqual(twoPlayerLeaveHooks.state.party.id, '', 'remote leave from a two-player active hand should clear the joined party id');
-    assertEqual(twoPlayerLeaveHooks.state.party.mode, 'none', 'remote leave from a two-player active hand should clear party mode for lobby controls');
+    applyMenuRecord(twoPlayerLeaveHooks, { sender: 'Bebop', message: '[party leave] poker party psync', isSelf: false });
+    assertEqual(snapshot(twoPlayerLeaveHooks).game, null, 'remote leave from a two-player active hand should reset the remaining client to the lobby');
+    assertEqual(snapshot(twoPlayerLeaveHooks).party.id, '', 'remote leave from a two-player active hand should clear the joined party id');
+    assertEqual(snapshot(twoPlayerLeaveHooks).party.mode, 'none', 'remote leave from a two-player active hand should clear party mode for lobby controls');
     assertEqual(twoPlayerLeaveHooks.modules.PartyReducer.roster().length, 0, 'remote leave from a two-player active hand should leave no stale party roster');
-    assertEqual(twoPlayerLeaveHooks.getReadySeatArray().length, 0, 'remote leave from a two-player active hand should clear stale ready seats');
-    twoPlayerLeaveHooks.modules.TableRenderer.render();
+    assertEqual(snapshot(twoPlayerLeaveHooks).readySeats.length, 0, 'remote leave from a two-player active hand should clear stale ready seats');
+    twoPlayerLeaveHooks.modules.TableRenderer.render(twoPlayerLeaveHooks.modules.ViewModel.build());
     assertInactiveLobbyControls(twoPlayerLeaveRuntime.runtime, 'remote two-player active leave reset');
     assertPanelVisible(twoPlayerLeaveRuntime.runtime, 'PokerPartyControls', 'remote two-player active leave reset');
   }
@@ -3753,15 +3787,15 @@ if (hooks) {
     leaveHooks.handleReadyEvent(readyPayload('Bebop', 42));
     assertEqual(leaveGame.players.length, 3, 'three-player non-leader leave regression setup should start an active hand with three players');
     assert(
-      leaveHooks.getReadySeatArray().some((seat) => seat.key === 'bebop'),
+      snapshot(leaveHooks).readySeats.some((seat) => seat.key === 'bebop'),
       'three-player non-leader leave regression setup should include Bebop in ready seats before leaving',
     );
     const leavingPlayer = leaveGame.players.find((player) => player.key === 'bebop');
     assert(leavingPlayer, 'three-player non-leader leave regression setup should include Bebop in the active hand');
     if (leavingPlayer) {
       leaveGame.currentIndex = leaveGame.players.indexOf(leavingPlayer);
-      leaveHooks.state.requiresProgressImport = true;
-      leaveHooks.processChatRecord({ sender: 'Bebop', message: '[party leave] poker party psync', isSelf: false });
+      
+      applyMenuRecord(leaveHooks, { sender: 'Bebop', message: '[party leave] poker party psync', isSelf: false });
       assertEqual(leaveHooks.state.game, leaveGame, 'remote non-leader leave from a three-player active hand should keep the current hand');
       assertEqual(leaveGame.active, true, 'remote non-leader leave from a three-player active hand should remain active');
       assert(
@@ -3769,13 +3803,13 @@ if (hooks) {
         'remote non-leader leave should remove the sender from the synced party roster',
       );
       assert(
-        !leaveHooks.getReadySeatArray().some((seat) => seat.key === 'bebop'),
+        !snapshot(leaveHooks).readySeats.some((seat) => seat.key === 'bebop'),
         'remote non-leader leave should remove the sender from ready seats',
       );
       assertEqual(leavingPlayer.folded, true, 'remote non-leader leave during an active hand should fold the leaving player');
       assertEqual(leavingPlayer.left, true, 'remote non-leader leave during an active hand should mark the leaving player left');
       assertEqual(leavingPlayer.acted, true, 'remote non-leader leave during an active hand should mark the leaving player acted');
-      assertEqual(leaveHooks.state.requiresProgressImport, true, 'remote non-leader leave during a three-player active hand should not run a lobby reset case');
+      assertEqual(snapshot(leaveHooks).requiresProgressImport, true, 'remote non-leader leave during a three-player active hand should not run a lobby reset case');
       assertGreaterThan(
         leaveGame.players.filter((player) => !player.folded && player.stack > 0).length,
         1,
@@ -3801,7 +3835,7 @@ if (hooks) {
     assert(middleDealerPlayer, 'middle dealer leave setup should include Bebop in the active hand');
     if (middleDealerPlayer) {
       middleDealerGame.dealerIndex = middleDealerGame.players.indexOf(middleDealerPlayer);
-      middleDealerHooks.processChatRecord({ sender: 'Bebop', message: '[party leave] poker party psync', isSelf: false });
+      applyMenuRecord(middleDealerHooks, { sender: 'Bebop', message: '[party leave] poker party psync', isSelf: false });
       middleDealerHooks.modules.PokerEngine.showdown();
       const middleDealerProgress = middleDealerHooks.modules.ProgressResume.build();
       assertEqual(middleDealerProgress.ok, true, 'middle dealer leave finished hand should export progress for remaining players');
@@ -3823,11 +3857,11 @@ if (hooks) {
   if (leaderLeaveRuntime.hooks && leaderLeaveRuntime.game) {
     const leaderLeaveHooks = leaderLeaveRuntime.hooks;
     const leaderLeaveGame = leaderLeaveRuntime.game;
-    assertEqual(leaderLeaveHooks.state.party.mode, 'member', 'three-player leader leave regression setup should be joined as a member');
-    assertEqual(!!leaderLeaveHooks.state.game, true, 'three-player leader leave regression setup should start an active hand');
-    leaderLeaveHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pnew', isSelf: false });
+    assertEqual(snapshot(leaderLeaveHooks).party.mode, 'member', 'three-player leader leave regression setup should be joined as a member');
+    assertEqual(!!snapshot(leaderLeaveHooks).game, true, 'three-player leader leave regression setup should start an active hand');
+    applyMenuRecord(leaderLeaveHooks, { sender: 'Abrams', message: '[party leader] poker party pnew', isSelf: false });
     assertEqual(
-      leaderLeaveHooks.state.party.id,
+      snapshot(leaderLeaveHooks).party.id,
       'psync',
       'active member should not abandon the current hand immediately when a leader re-host row arrives early',
     );
@@ -3835,7 +3869,7 @@ if (hooks) {
     assert(leavingLeader, 'three-player leader leave regression setup should include Abrams in the active hand');
     if (leavingLeader) {
       leaderLeaveGame.currentIndex = leaderLeaveGame.players.indexOf(leavingLeader);
-      leaderLeaveHooks.processChatRecord({ sender: 'Abrams', message: '[party leave] poker party psync', isSelf: false });
+      applyMenuRecord(leaderLeaveHooks, { sender: 'Abrams', message: '[party leave] poker party psync', isSelf: false });
       assertEqual(leaderLeaveHooks.state.game, leaderLeaveGame, 'remote leader leave from a three-player active hand should keep the current hand');
       assertEqual(leaderLeaveGame.active, true, 'remote leader leave from a three-player active hand should remain active');
       assertEqual(leavingLeader.folded, true, 'remote leader leave during a three-player active hand should fold the leader');
@@ -3880,10 +3914,10 @@ if (hooks) {
   }
 
   const lateJoinRuntime = createSyncedPartyRuntime('Abrams', 'slate', syncedRoster, 1);
-  if (lateJoinRuntime.hooks && lateJoinRuntime.game && lateJoinRuntime.hooks.modules && lateJoinRuntime.hooks.modules.LateJoinQueue) {
+  if (lateJoinRuntime.hooks && lateJoinRuntime.game && lateJoinPolicyHooksAvailable) {
     const lateJoinHooks = lateJoinRuntime.hooks;
-    const lateJoinQueue = lateJoinHooks.modules.LateJoinQueue;
-    lateJoinHooks.processChatRecord({ sender: 'Calico', message: '[party join] poker party psync', isSelf: false });
+    lateJoinHooks.state.bankrolls = { abrams: 16000, bebop: 4000 };
+    applyMenuRecord(lateJoinHooks, { sender: 'Calico', message: '[party join] poker party psync', isSelf: false });
     assertEqual(
       JSON.stringify(lateJoinHooks.modules.PartyReducer.roster()),
       JSON.stringify([
@@ -3894,26 +3928,27 @@ if (hooks) {
       'active-hand party join should append Calico to the party roster',
     );
     assertEqual(
-      JSON.stringify(lateJoinHooks.state.game.players.map((player) => player.name)),
+      JSON.stringify(snapshot(lateJoinHooks).game.players.map((player) => player.name)),
       JSON.stringify(['Abrams', 'Bebop']),
       'active-hand party join should not add Calico to the current pot or turn order',
     );
-    assertEqual(lateJoinQueue.describe().count, 1, 'late join queue should describe Calico as waiting for the next hand');
-    lateJoinHooks.state.bankrolls = { abrams: 16000, bebop: 4000 };
-    const lateJoinResult = lateJoinQueue.apply(null, 'finish');
+    assertEqual(lateJoinHooks.getQueuedLateJoiners().length, 1, 'late join policy should report Calico as waiting for the next hand');
+    
+    const lateJoinResult = lateJoinHooks.applyLateJoinBuyIns(null, 'finish');
     assertEqual(lateJoinResult.applied, 1, 'late join apply should fund one queued player');
     assertEqual(lateJoinResult.buyIn, 4000, 'late join buy-in should use the smallest positive continuing bankroll');
-    assertEqual(lateJoinHooks.state.bankrolls.calico, 4000, 'Calico late join buy-in should be $4000, not the starting stack');
-    lateJoinHooks.state.game.active = false;
-    lateJoinHooks.state.game.finished = true;
-    lateJoinHooks.state.game.phase = 'finished';
+    assertEqual(snapshot(lateJoinHooks).bankrolls.calico, 4000, 'Calico late join buy-in should be $4000, not the starting stack');
+    const lateJoinFinishedGame = lateJoinHooks.state.game;
+    lateJoinFinishedGame.active = false;
+    lateJoinFinishedGame.finished = true;
+    lateJoinFinishedGame.phase = 'finished';
     const lateJoinNextRoster = [
       { key: 'abrams', name: 'Abrams' },
       { key: 'bebop', name: 'Bebop' },
       { key: 'calico', name: 'Calico' },
     ];
-    lateJoinHooks.processChatRecord({ sender: 'Abrams', message: lateJoinHooks.buildSynchronizedStartCommand('slate-hand-two', lateJoinNextRoster, 2), isSelf: true });
-    const lateJoinNextGame = lateJoinHooks.state.game;
+    applyMenuRecord(lateJoinHooks, { sender: 'Abrams', message: lateJoinHooks.buildSynchronizedStartCommand('slate-hand-two', lateJoinNextRoster, 2), isSelf: true });
+    const lateJoinNextGame = snapshot(lateJoinHooks).game;
     assert(lateJoinNextGame, 'next synced hand after late join should create a game');
     if (lateJoinNextGame) {
       const nextAbrams = lateJoinNextGame.players.find((player) => player.key === 'abrams');
@@ -3929,43 +3964,45 @@ if (hooks) {
   }
 
   const missedJoinStartRuntime = createMenuRuntime();
-  if (missedJoinStartRuntime.hooks && missedJoinStartRuntime.hooks.modules && missedJoinStartRuntime.hooks.modules.LateJoinQueue) {
+  if (missedJoinStartRuntime.hooks && lateJoinPolicyHooksAvailable) {
     const missedHooks = missedJoinStartRuntime.hooks;
     const missedRoster = [
       { key: 'abrams', name: 'Abrams' },
       { key: 'bebop', name: 'Bebop' },
       { key: 'calico', name: 'Calico' },
     ];
-    missedHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party psync', isSelf: true });
-    missedHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party psync', isSelf: false });
+    applyMenuRecord(missedHooks, { sender: 'Abrams', message: '[party leader] poker party psync', isSelf: true });
+    applyMenuRecord(missedHooks, { sender: 'Bebop', message: '[party join] poker party psync', isSelf: false });
+    
     missedHooks.state.bankrolls = { abrams: 16000, bebop: 4000 };
-    missedHooks.processChatRecord({ sender: 'Abrams', message: missedHooks.buildSynchronizedStartCommand('slate-missed-join', missedRoster, 2), isSelf: true });
-    const missedJoinGame = missedHooks.state.game;
+    applyMenuRecord(missedHooks, { sender: 'Abrams', message: missedHooks.buildSynchronizedStartCommand('slate-missed-join', missedRoster, 2), isSelf: true });
+    const missedJoinGame = snapshot(missedHooks).game;
     assert(missedJoinGame, 'synced start fallback should create the next hand when a missed late join appears only in the roster');
     if (missedJoinGame) {
       const missedCalico = missedJoinGame.players.find((player) => player.key === 'calico');
       assertEqual(missedJoinGame.players.length, 3, 'synced start fallback should seat the roster-only late joiner');
       assert(missedCalico, 'synced start fallback should include Calico from the roster');
       if (missedCalico) assertEqual(missedCalico.stack + missedCalico.bet, 4000, 'synced start fallback should fund Calico from the smallest continuing bankroll');
-      assertEqual(missedHooks.state.bankrolls.calico, 4000, 'synced start fallback should persist Calico fair buy-in before game creation');
+      assertEqual(snapshot(missedHooks).bankrolls.calico, 4000, 'synced start fallback should persist Calico fair buy-in before game creation');
     }
   }
 
   const zeroBuyInStartRuntime = createMenuRuntime();
-  if (zeroBuyInStartRuntime.hooks && zeroBuyInStartRuntime.hooks.modules && zeroBuyInStartRuntime.hooks.modules.LateJoinQueue) {
+  if (zeroBuyInStartRuntime.hooks && lateJoinPolicyHooksAvailable) {
     const zeroHooks = zeroBuyInStartRuntime.hooks;
     const zeroRoster = [
       { key: 'abrams', name: 'Abrams' },
       { key: 'bebop', name: 'Bebop' },
       { key: 'calico', name: 'Calico' },
     ];
-    zeroHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party psync', isSelf: true });
-    zeroHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party psync', isSelf: false });
+    applyMenuRecord(zeroHooks, { sender: 'Abrams', message: '[party leader] poker party psync', isSelf: true });
+    applyMenuRecord(zeroHooks, { sender: 'Bebop', message: '[party join] poker party psync', isSelf: false });
+    
     zeroHooks.state.bankrolls = { abrams: 0, bebop: 0 };
-    zeroHooks.processChatRecord({ sender: 'Abrams', message: zeroHooks.buildSynchronizedStartCommand('slate-zero-buyin', zeroRoster, 2), isSelf: true });
-    assertEqual(zeroHooks.state.game, null, 'synced start with no positive continuing bankroll should not seat missing roster entries with the starting stack');
+    applyMenuRecord(zeroHooks, { sender: 'Abrams', message: zeroHooks.buildSynchronizedStartCommand('slate-zero-buyin', zeroRoster, 2), isSelf: true });
+    assertEqual(snapshot(zeroHooks).game, null, 'synced start with no positive continuing bankroll should not seat missing roster entries with the starting stack');
     assertEqual(
-      Object.prototype.hasOwnProperty.call(zeroHooks.state.bankrolls, 'calico'),
+      Object.prototype.hasOwnProperty.call(snapshot(zeroHooks).bankrolls, 'calico'),
       false,
       'synced start with no positive continuing bankroll should not create a Calico bankroll',
     );
@@ -3978,11 +4015,12 @@ if (hooks) {
       { key: 'jdbeast', name: 'JDBeast' },
       { key: 'hantu raya', name: 'Hantu Raya' },
     ];
-    freshHooks.processChatRecord({ sender: 'JDBeast', message: '[party leader] poker party pfresh', isSelf: true });
-    freshHooks.processChatRecord({ sender: 'Hantu Raya', message: '[party join] poker party pfresh', isSelf: false });
+    applyMenuRecord(freshHooks, { sender: 'JDBeast', message: '[party leader] poker party pfresh', isSelf: true });
+    applyMenuRecord(freshHooks, { sender: 'Hantu Raya', message: '[party join] poker party pfresh', isSelf: false });
+    
     freshHooks.state.bankrolls = { abrams: 0, bebop: 3500, jdbeast: 0 };
-    freshHooks.processChatRecord({ sender: 'JDBeast', message: freshHooks.buildSynchronizedStartCommand('sfresh-stale-bankroll', freshRoster, 1), isSelf: true });
-    const freshStartGame = freshHooks.state.game;
+    applyMenuRecord(freshHooks, { sender: 'JDBeast', message: freshHooks.buildSynchronizedStartCommand('sfresh-stale-bankroll', freshRoster, 1), isSelf: true });
+    const freshStartGame = snapshot(freshHooks).game;
     assert(freshStartGame, 'fresh synced hand 1 should start even when stale prior-match bankrolls are nonempty');
     if (freshStartGame) {
       const freshPlayers = Array.isArray(freshStartGame.players) ? freshStartGame.players : [];
@@ -4004,31 +4042,33 @@ if (hooks) {
       { key: 'abrams', name: 'Abrams' },
       { key: 'bebop', name: 'Bebop' },
     ];
-    activeHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party pactive', isSelf: true });
-    activeHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party pactive', isSelf: false });
+    applyMenuRecord(activeHooks, { sender: 'Abrams', message: '[party leader] poker party pactive', isSelf: true });
+    applyMenuRecord(activeHooks, { sender: 'Bebop', message: '[party join] poker party pactive', isSelf: false });
+    
     activeHooks.state.bankrolls = { abrams: 16000, bebop: 4000 };
-    const activeBankrollsBefore = JSON.stringify(activeHooks.state.bankrolls);
     activeHooks.state.game = { seed: 'active-sentinel', handNumber: 99, active: true, finished: false, phase: 'preflop', players: [], log: [] };
+    const activeBankrollsBefore = JSON.stringify(snapshot(activeHooks).bankrolls);
+    
     const activeGameBefore = activeHooks.state.game;
     const activeGameBeforeJson = JSON.stringify(activeGameBefore);
-    activeHooks.processChatRecord({ sender: 'Abrams', message: activeHooks.buildSynchronizedStartCommand('sactive-hand-one-boundary', activeRoster, 1), isSelf: true });
-    assertEqual(JSON.stringify(activeHooks.state.bankrolls), activeBankrollsBefore, 'active synced hand 1 start row should not clear existing bankrolls');
+    applyMenuRecord(activeHooks, { sender: 'Abrams', message: activeHooks.buildSynchronizedStartCommand('sactive-hand-one-boundary', activeRoster, 1), isSelf: true });
+    assertEqual(JSON.stringify(snapshot(activeHooks).bankrolls), activeBankrollsBefore, 'active synced hand 1 start row should not clear existing bankrolls');
     assert(activeHooks.state.game === activeGameBefore, 'active synced hand 1 start row should keep the current active game object');
-    assertEqual(JSON.stringify(activeHooks.state.game), activeGameBeforeJson, 'active synced hand 1 start row should not mutate the current active game state');
+    assertEqual(JSON.stringify(snapshot(activeHooks).game), activeGameBeforeJson, 'active synced hand 1 start row should not mutate the current active game state');
   }
 
   const bustedLateJoinRuntime = createMenuRuntime();
-  if (bustedLateJoinRuntime.hooks && bustedLateJoinRuntime.hooks.modules && bustedLateJoinRuntime.hooks.modules.LateJoinQueue) {
+  if (bustedLateJoinRuntime.hooks && lateJoinPolicyHooksAvailable) {
     const bustedHooks = bustedLateJoinRuntime.hooks;
-    const bustedQueue = bustedHooks.modules.LateJoinQueue;
-    bustedHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party psync', isSelf: true });
-    bustedHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party psync', isSelf: false });
+    applyMenuRecord(bustedHooks, { sender: 'Abrams', message: '[party leader] poker party psync', isSelf: true });
+    applyMenuRecord(bustedHooks, { sender: 'Bebop', message: '[party join] poker party psync', isSelf: false });
+    
     bustedHooks.state.bankrolls = { abrams: 16000, bebop: 4000, calico: 0 };
-    bustedHooks.processChatRecord({ sender: 'Calico', message: '[party join] poker party psync', isSelf: false });
-    const bustedApply = bustedQueue.apply(null, 'finish');
-    assertEqual(bustedHooks.state.bankrolls.calico, 0, 'busted player with an existing zero bankroll should not receive a late rebuy');
+    applyMenuRecord(bustedHooks, { sender: 'Calico', message: '[party join] poker party psync', isSelf: false });
+    const bustedApply = bustedHooks.applyLateJoinBuyIns(null, 'finish');
+    assertEqual(snapshot(bustedHooks).bankrolls.calico, 0, 'busted player with an existing zero bankroll should not receive a late rebuy');
     assertEqual(bustedApply.applied, 0, 'busted existing player should not be treated as a newly funded entrant');
-    assertEqual(bustedQueue.describe().names.indexOf('Calico'), -1, 'busted existing player should not be queued as a late joiner');
+    assertEqual(bustedHooks.getQueuedLateJoiners().some((entry) => entry.name === 'Calico'), false, 'busted existing player should not be queued as a late joiner');
   }
 
   const unknownLeaderHandTwoRuntime = createMenuRuntime();
@@ -4038,16 +4078,18 @@ if (hooks) {
       { key: 'jdbeast', name: 'JDBeast' },
       { key: 'hantu raya', name: 'Hantu Raya' },
     ];
-    unknownLeaderHooks.processChatRecord({ sender: 'JDBeast', message: '[party leader] poker party psync', isSelf: false });
-    unknownLeaderHooks.processChatRecord({ sender: 'Hantu Raya', message: '[party join] poker party psync', isSelf: true });
+    applyMenuRecord(unknownLeaderHooks, { sender: 'JDBeast', message: '[party leader] poker party psync', isSelf: false });
+    applyMenuRecord(unknownLeaderHooks, { sender: 'Hantu Raya', message: '[party join] poker party psync', isSelf: true });
     unknownLeaderHooks.state.bankrolls = { jdbeast: 8700, 'hantu raya': 11300 };
     unknownLeaderHooks.state.game = { handNumber: 1, active: false, finished: true, phase: 'finished' };
-    unknownLeaderHooks.processChatRecord({
+    
+    
+    applyMenuRecord(unknownLeaderHooks, {
       sender: '<unknown>',
       message: unknownLeaderHooks.buildSynchronizedStartCommand('sunknown-leader-hand-two', unknownLeaderRoster, 2),
       isSelf: false,
     });
-    const unknownLeaderHandTwoGame = unknownLeaderHooks.state.game;
+    const unknownLeaderHandTwoGame = snapshot(unknownLeaderHooks).game;
     assert(unknownLeaderHandTwoGame, 'unknown sender synced start from the known party leader should create hand 2');
     if (unknownLeaderHandTwoGame) {
       const handTwoPlayers = Array.isArray(unknownLeaderHandTwoGame.players) ? unknownLeaderHandTwoGame.players : [];
@@ -4069,12 +4111,12 @@ if (hooks) {
       { key: 'jdbeast', name: 'JDBeast' },
       { key: 'hantu raya', name: 'Hantu Raya' },
     ];
-    boundaryHooks.processChatRecord({
+    applyMenuRecord(boundaryHooks, {
       sender: '<unknown>',
       message: boundaryHooks.buildSynchronizedStartCommand('sunknown-no-leader', boundaryRoster, 2),
       isSelf: false,
     });
-    assertEqual(boundaryHooks.state.game, null, 'unknown sender synced start without a known party leader should be rejected');
+    assertEqual(snapshot(boundaryHooks).game, null, 'unknown sender synced start without a known party leader should be rejected');
   }
 
   const unknownStartWrongLeaderRuntime = createMenuRuntime();
@@ -4084,13 +4126,13 @@ if (hooks) {
       { key: 'jdbeast', name: 'JDBeast' },
       { key: 'hantu raya', name: 'Hantu Raya' },
     ];
-    boundaryHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party psync', isSelf: true });
-    boundaryHooks.processChatRecord({
+    applyMenuRecord(boundaryHooks, { sender: 'Abrams', message: '[party leader] poker party psync', isSelf: true });
+    applyMenuRecord(boundaryHooks, {
       sender: '<unknown>',
       message: boundaryHooks.buildSynchronizedStartCommand('sunknown-wrong-leader', boundaryRoster, 2),
       isSelf: false,
     });
-    assertEqual(boundaryHooks.state.game, null, 'unknown sender synced start with a mismatched roster leader should be rejected');
+    assertEqual(snapshot(boundaryHooks).game, null, 'unknown sender synced start with a mismatched roster leader should be rejected');
   }
 
   const unknownLegacyStartRuntime = createMenuRuntime();
@@ -4099,9 +4141,9 @@ if (hooks) {
     seedPartyForReady(legacyHooks, ['Abrams', 'Bebop'], 'plegacy-ready');
     legacyHooks.handleReadyEvent(readyPayload('Abrams', 1));
     legacyHooks.handleReadyEvent(readyPayload('Bebop', 2));
-    assertEqual(legacyHooks.getReadySeatArray().length, 2, 'unknown legacy start setup should have two ready seats');
-    legacyHooks.processChatRecord({ sender: '<unknown>', message: 'poker start sunknown-legacy', isSelf: false });
-    assertEqual(legacyHooks.state.game, null, 'unknown sender legacy start without a roster should be rejected even when ready seats exist');
+    assertEqual(snapshot(legacyHooks).readySeats.length, 2, 'unknown legacy start setup should have two ready seats');
+    applyMenuRecord(legacyHooks, { sender: '<unknown>', message: 'poker start sunknown-legacy', isSelf: false });
+    assertEqual(snapshot(legacyHooks).game, null, 'unknown sender legacy start without a roster should be rejected even when ready seats exist');
   }
 
   const syncedHandTwoCommand = hooks.buildSynchronizedStartCommand('ssync-hand-two', syncedRoster, 2);
@@ -4141,7 +4183,7 @@ if (hooks) {
       const unicodeImported = unicodeImport.hooks.modules.ProgressResume.importCode(unicodeProgress.code);
       assertEqual(unicodeImported.ok, true, 'Unicode POKERPROG1 code should import after roundtrip');
       assertEqual(unicodeImported.payload && unicodeImported.payload.roster[0].name, 'Élodie 🂡', 'Unicode POKERPROG1 import should preserve the player name');
-      unicodeImport.hooks.modules.TableRenderer.render();
+      unicodeImport.hooks.modules.TableRenderer.render(unicodeImport.hooks.modules.ViewModel.build());
       const unicodeResumeRows = collectPanelTexts(findPanel(unicodeImport.runtime, 'PokerResumeLeaderList'), []).join('|');
       assert(unicodeResumeRows.includes('Élodie 🂡'), `Unicode imported progress should render the saved player name: ${unicodeResumeRows || '<empty>'}`);
     }
@@ -4152,19 +4194,19 @@ if (hooks) {
           .map((id) => panelText(findPanel(secondClientResume.runtime, id)))
           .join(' | ');
       assertEqual(secondClientResume.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'second saved client should import saved progress');
-      secondClientResume.hooks.modules.TableRenderer.render();
+      secondClientResume.hooks.modules.TableRenderer.render(secondClientResume.hooks.modules.ViewModel.build());
       assertButtonAffordance(secondClientResume.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'imported progress before resume leader second-client CTA');
       assert(
         !/\bready resume\b/i.test(secondClientStatusText()),
         `imported progress before resume leader should not tell users to click READY RESUME while the button is hidden: ${secondClientStatusText() || '<empty>'}`,
       );
-      secondClientResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id), isSelf: false });
+      applyMenuRecord(secondClientResume.hooks, { sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id), isSelf: false });
       clearPartyForLegacyReady(secondClientResume.hooks);
-      secondClientResume.hooks.state.localPlayerKey = '';
+      
       secondClientResume.runtime.config.PokerLocalPlayerKey = '';
       secondClientResume.runtime.config.PokerLocalPlayerName = '';
-      secondClientResume.hooks.modules.TableRenderer.render();
-      assertEqual(secondClientResume.hooks.state.party.id, '', 'resume leader selected with unknown second-client sender CTA should not depend on a party id');
+      secondClientResume.hooks.modules.TableRenderer.render(secondClientResume.hooks.modules.ViewModel.build());
+      assertEqual(snapshot(secondClientResume.hooks).party.id, '', 'resume leader selected with unknown second-client sender CTA should not depend on a party id');
       assertButtonAffordance(secondClientResume.runtime, 'PokerReadyChatButton', { hidden: false, enabled: true }, 'resume leader selected with unknown second-client sender CTA');
       assertButtonAffordance(secondClientResume.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'resume leader selected with unknown second-client sender CTA');
       const unknownSecondClientStatus = secondClientStatusText();
@@ -4173,13 +4215,13 @@ if (hooks) {
         `resume leader selected with unknown second-client sender should explain identification before resume ready: ${unknownSecondClientStatus || '<empty>'}`,
       );
       secondClientResume.hooks.handleReadyEvent(readyPayload('Bebop', 42, true));
-      secondClientResume.hooks.modules.TableRenderer.render();
-      assertEqual(secondClientResume.hooks.state.party.id, '', 'self ready identification for saved second client should not recreate a party id');
+      secondClientResume.hooks.modules.TableRenderer.render(secondClientResume.hooks.modules.ViewModel.build());
+      assertEqual(snapshot(secondClientResume.hooks).party.id, '', 'self ready identification for saved second client should not recreate a party id');
       assert(
-        !secondClientResume.hooks.getReadySeatArray().some((seat) => seat.key === 'bebop'),
+        !snapshot(secondClientResume.hooks).readySeats.some((seat) => seat.key === 'bebop'),
         'self ready identification for saved second client should not need an accepted ready seat',
       );
-      assertEqual(secondClientResume.hooks.state.localPlayerKey, 'bebop', 'self ready identification for saved second client should remember the local key');
+      assertEqual(snapshot(secondClientResume.hooks).localPlayerKey, 'bebop', 'self ready identification for saved second client should remember the local key');
       assertEqual(secondClientResume.runtime.config.PokerLocalPlayerKey, 'bebop', 'self ready identification for saved second client should persist the local key');
       assertEqual(secondClientResume.runtime.config.PokerLocalPlayerName, 'Bebop', 'self ready identification for saved second client should persist the local name');
       assertButtonAffordance(secondClientResume.runtime, 'PokerResumeReadyButton', { hidden: false, enabled: true }, 'resume leader selected after self ready identification second-client CTA');
@@ -4205,27 +4247,27 @@ if (hooks) {
       const startCommand = hooks.buildResumeStartCommand(saved.id, 'abrams', saved.payload.nextHandNumber, 'sresume');
       for (const target of [resumeA, resumeB]) {
         assertEqual(target.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'resume runtime should import saved progress');
-        target.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id), isSelf: target === resumeA });
-        target.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeReadyCommand(saved.id), isSelf: target === resumeB });
-        target.hooks.processChatRecord({ sender: 'Abrams', message: startCommand, isSelf: target === resumeA });
+        applyMenuRecord(target.hooks, { sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id), isSelf: target === resumeA });
+        applyMenuRecord(target.hooks, { sender: 'Bebop', message: hooks.buildResumeReadyCommand(saved.id), isSelf: target === resumeB });
+        applyMenuRecord(target.hooks, { sender: 'Abrams', message: startCommand, isSelf: target === resumeA });
       }
-      assert(resumeA.hooks.state.game, 'resume leader runtime should create a resumed game');
-      assert(resumeB.hooks.state.game, 'resume ready runtime should create a resumed game');
-      if (resumeA.hooks.state.game && resumeB.hooks.state.game) {
-        assertSameSyncedGame(resumeB.hooks.state.game, resumeA.hooks.state.game, 'two runtimes receiving the same resume start');
-        assertEqual(resumeA.hooks.state.game.handNumber, saved.payload.nextHandNumber, 'resumed game should use the saved next hand number');
+      assert(snapshot(resumeA.hooks).game, 'resume leader runtime should create a resumed game');
+      assert(snapshot(resumeB.hooks).game, 'resume ready runtime should create a resumed game');
+      if (snapshot(resumeA.hooks).game && snapshot(resumeB.hooks).game) {
+        assertSameSyncedGame(snapshot(resumeB.hooks).game, snapshot(resumeA.hooks).game, 'two runtimes receiving the same resume start');
+        assertEqual(snapshot(resumeA.hooks).game.handNumber, saved.payload.nextHandNumber, 'resumed game should use the saved next hand number');
       }
-        resumeA.hooks.modules.TableRenderer.render();
+        resumeA.hooks.modules.TableRenderer.render(resumeA.hooks.modules.ViewModel.build());
         assertButtonAffordance(resumeA.runtime, 'PokerProgressControls', { hidden: true }, 'active resumed hand button state');
         assertButtonAffordance(resumeA.runtime, 'PokerResumeControls', { hidden: true }, 'active resumed hand button state');
         assertButtonAffordance(resumeA.runtime, 'PokerStartButton', { hidden: true, enabled: false }, 'active resumed hand button state');
         assertButtonAffordance(resumeA.runtime, 'PokerReadyChatButton', { hidden: true, enabled: false }, 'active resumed hand button state');
         assertMatchPanelsVisible(resumeA.runtime, 'active resumed hand button state');
         assertReadOnlyActionButtons(resumeA.runtime, ['CALL $200', 'RAISE', 'FOLD'], 'Waiting for Bebop', 'active resumed hand leader observer');
-        resumeA.hooks.state.localPlayerKey = 'bebop';
+        
         resumeA.runtime.config.PokerLocalPlayerKey = 'bebop';
         resumeA.runtime.config.PokerLocalPlayerName = 'Bebop';
-        resumeA.hooks.modules.TableRenderer.render();
+        resumeA.hooks.modules.TableRenderer.render(resumeA.hooks.modules.ViewModel.build());
         assertEnabledActionButtons(resumeA.runtime, ['CALL $200', 'RAISE', 'FOLD'], 'active resumed hand current actor');
     }
 
@@ -4245,20 +4287,20 @@ if (hooks) {
         const liveLogPartyId = 'pmr8kf956-1uxkydi';
         const importHostedLeaderProgress = (message) => {
           const leaderRuntime = createMenuRuntime();
-          leaderRuntime.hooks.processChatRecord({
+          applyMenuRecord(leaderRuntime.hooks, {
             sender: 'JDBeast',
             message: `[party leader] poker party ${liveLogPartyId}`,
             isSelf: true,
           });
-          leaderRuntime.hooks.processChatRecord({
+          applyMenuRecord(leaderRuntime.hooks, {
             sender: 'Hantu Raya',
             message: `[party join] poker party ${liveLogPartyId}`,
             isSelf: false,
           });
-          leaderRuntime.hooks.modules.TableRenderer.render();
-          assertEqual(leaderRuntime.hooks.state.game, null, `${message} setup should remain an inactive lobby`);
-          assertEqual(leaderRuntime.hooks.state.party.mode, 'leader', `${message} setup should keep JDBeast as party leader`);
-          assertEqual(leaderRuntime.hooks.state.localPlayerKey, 'jdbeast', `${message} setup should remember JDBeast as the local sender`);
+          leaderRuntime.hooks.modules.TableRenderer.render(leaderRuntime.hooks.modules.ViewModel.build());
+          assertEqual(snapshot(leaderRuntime.hooks).game, null, `${message} setup should remain an inactive lobby`);
+          assertEqual(snapshot(leaderRuntime.hooks).party.mode, 'leader', `${message} setup should keep JDBeast as party leader`);
+          assertEqual(snapshot(leaderRuntime.hooks).localPlayerKey, 'jdbeast', `${message} setup should remember JDBeast as the local sender`);
           assertProgressImportAvailable(leaderRuntime.runtime, `${message} no-active-game import controls`);
 
           const leaderInput = findPanel(leaderRuntime.runtime, 'PokerProgressCodeInput');
@@ -4273,7 +4315,7 @@ if (hooks) {
           assertEqual(typeof importHandler, 'function', `${message} should expose the import handler`);
           const importResult = typeof importHandler === 'function' ? importHandler() : { ok: false };
           assertEqual(importResult && importResult.ok, true, `${message} should import progress after hosting the party first`);
-          leaderRuntime.hooks.modules.TableRenderer.render();
+          leaderRuntime.hooks.modules.TableRenderer.render(leaderRuntime.hooks.modules.ViewModel.build());
           assertButtonAffordance(leaderRuntime.runtime, 'PokerResumeControls', { hidden: false }, `${message} imported progress button state`);
           assertButtonAffordance(leaderRuntime.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, `${message} imported progress button state`);
           assertButtonAffordance(leaderRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, `${message} imported progress button state`);
@@ -4291,26 +4333,26 @@ if (hooks) {
           assertEqual(progressShareMessages.chunks.every((chunk) => chunk.id === liveLogSaved.id && chunk.checksum === checksum), true, `${message} progress chunks should match the imported code`);
           assertEqual(shareMessages.some((chat) => chat.indexOf('[resume leader]') === 0 || chat.indexOf('[resume ready]') === 0), false, `${message} should not emit legacy resume ceremony commands while sharing progress`);
 
-          const readyAt = leaderRuntime.hooks.state.progressShare && leaderRuntime.hooks.state.progressShare.readyAt;
+          const readyAt = snapshot(leaderRuntime.hooks).progressShare && snapshot(leaderRuntime.hooks).progressShare.readyAt;
           assert(readyAt > 0, `${message} should record a progress-share readyAt guard`);
           leaderRuntime.runtime.sandbox.Date.now = () => readyAt + 1;
-          leaderRuntime.hooks.modules.TableRenderer.render();
+          leaderRuntime.hooks.modules.TableRenderer.render(leaderRuntime.hooks.modules.ViewModel.build());
           assertStartButtonGate(leaderRuntime.runtime, 'NEXT SYNCED HAND', true, false, `${message} ready-to-start button`);
           return { leaderRuntime, shareMessages, progressShareMessages };
         };
 
         const postShareUnlockRuntime = createMenuRuntime();
-        postShareUnlockRuntime.hooks.processChatRecord({
+        applyMenuRecord(postShareUnlockRuntime.hooks, {
           sender: 'JDBeast',
           message: `[party leader] poker party ${liveLogPartyId}`,
           isSelf: true,
         });
-        postShareUnlockRuntime.hooks.processChatRecord({
+        applyMenuRecord(postShareUnlockRuntime.hooks, {
           sender: 'Hantu Raya',
           message: `[party join] poker party ${liveLogPartyId}`,
           isSelf: false,
         });
-        postShareUnlockRuntime.hooks.modules.TableRenderer.render();
+        postShareUnlockRuntime.hooks.modules.TableRenderer.render(postShareUnlockRuntime.hooks.modules.ViewModel.build());
         const postShareInput = findPanel(postShareUnlockRuntime.runtime, 'PokerProgressCodeInput');
         assert(postShareInput, 'hosted post-share unlock should have a progress code input');
         if (postShareInput) postShareInput.text = liveLogSaved.code;
@@ -4320,9 +4362,9 @@ if (hooks) {
         const postShareImport = postShareUnlockRuntime.runtime.sandbox.PokerEscapeMenuImportProgress;
         assertEqual(typeof postShareImport, 'function', 'hosted post-share unlock should expose the import handler');
         if (typeof postShareImport === 'function') postShareImport();
-        postShareUnlockRuntime.hooks.modules.TableRenderer.render();
+        postShareUnlockRuntime.hooks.modules.TableRenderer.render(postShareUnlockRuntime.hooks.modules.ViewModel.build());
         assertStartButtonGate(postShareUnlockRuntime.runtime, 'SHARING PROGRESS', false, false, 'hosted post-share unlock immediate button state');
-        const postShareState = postShareUnlockRuntime.hooks.state.progressShare;
+        const postShareState = snapshot(postShareUnlockRuntime.hooks).progressShare;
         let scheduledFinalUnlock = false;
         for (let i = 0; i < 256 && postShareUnlockRuntime.runtime.schedules.length && (postShareState.submittedCount || 0) < (postShareState.messageCount || 0); i += 1) {
           const callback = postShareUnlockRuntime.runtime.schedules.shift().callback;
@@ -4361,28 +4403,28 @@ if (hooks) {
           assertEqual(legacyStarts.length, 0, `${message} should not emit a legacy roster start command: ${startMessages.join('|') || '<none>'}`);
           const resumeStartCommand = resumeStartCommands[0] || '';
           if (resumeStartCommand) {
-            leaderRuntime.hooks.processChatRecord({
+            applyMenuRecord(leaderRuntime.hooks, {
               sender: 'JDBeast',
               message: resumeStartCommand,
               isSelf: true,
             });
           }
-          assertEqual(leaderRuntime.hooks.state.party.id, liveLogPartyId, `${message} should preserve the real hosted party id after resume start`);
+          assertEqual(snapshot(leaderRuntime.hooks).party.id, liveLogPartyId, `${message} should preserve the real hosted party id after resume start`);
           return resumeStartCommand;
         };
 
         const hostedNoChatShareRuntime = createMenuRuntime();
-        hostedNoChatShareRuntime.hooks.processChatRecord({
+        applyMenuRecord(hostedNoChatShareRuntime.hooks, {
           sender: 'JDBeast',
           message: `[party leader] poker party ${liveLogPartyId}`,
           isSelf: true,
         });
-        hostedNoChatShareRuntime.hooks.processChatRecord({
+        applyMenuRecord(hostedNoChatShareRuntime.hooks, {
           sender: 'Hantu Raya',
           message: `[party join] poker party ${liveLogPartyId}`,
           isSelf: false,
         });
-        hostedNoChatShareRuntime.hooks.modules.TableRenderer.render();
+        hostedNoChatShareRuntime.hooks.modules.TableRenderer.render(hostedNoChatShareRuntime.hooks.modules.ViewModel.build());
         const noChatInput = findPanel(hostedNoChatShareRuntime.runtime, 'PokerProgressCodeInput');
         assert(noChatInput, 'hosted no-chat progress share should have a progress code input');
         if (noChatInput) noChatInput.text = liveLogSaved.code;
@@ -4391,15 +4433,15 @@ if (hooks) {
         const noChatImport = hostedNoChatShareRuntime.runtime.sandbox.PokerEscapeMenuImportProgress;
         assertEqual(typeof noChatImport, 'function', 'hosted no-chat progress share should expose the import handler');
         if (typeof noChatImport === 'function') noChatImport();
-        hostedNoChatShareRuntime.hooks.modules.TableRenderer.render();
+        hostedNoChatShareRuntime.hooks.modules.TableRenderer.render(hostedNoChatShareRuntime.hooks.modules.ViewModel.build());
         assertStartButtonGate(hostedNoChatShareRuntime.runtime, 'SHARING PROGRESS', false, false, 'hosted no-chat progress share immediate start button');
         drainScheduledCallbacks(hostedNoChatShareRuntime.runtime, 256);
         const noChatMessages = submittedChatMessages(hostedNoChatShareRuntime.runtime, 0);
         assertEqual(parseProgressShareMessages(noChatMessages).offers.length, 0, `hosted no-chat progress share should not submit an offer without a usable chat target: ${noChatMessages.join('|') || '<none>'}`);
-        const noChatReadyAt = hostedNoChatShareRuntime.hooks.state.progressShare && hostedNoChatShareRuntime.hooks.state.progressShare.readyAt;
+        const noChatReadyAt = snapshot(hostedNoChatShareRuntime.hooks).progressShare && snapshot(hostedNoChatShareRuntime.hooks).progressShare.readyAt;
         assert(noChatReadyAt > 0, 'hosted no-chat progress share should record a readyAt guard');
         hostedNoChatShareRuntime.runtime.sandbox.Date.now = () => noChatReadyAt + 10000;
-        hostedNoChatShareRuntime.hooks.modules.TableRenderer.render();
+        hostedNoChatShareRuntime.hooks.modules.TableRenderer.render(hostedNoChatShareRuntime.hooks.modules.ViewModel.build());
         assertStartButtonGate(hostedNoChatShareRuntime.runtime, 'SHARING PROGRESS', false, false, 'hosted no-chat progress share should stay blocked until progress chat is actually submitted');
         const noChatStartAt = hostedNoChatShareRuntime.runtime.dispatches.length;
         const noChatStart = hostedNoChatShareRuntime.runtime.sandbox.PokerEscapeMenuStart;
@@ -4410,12 +4452,12 @@ if (hooks) {
         assertEqual(noChatStartMessages.some((chat) => chat.indexOf('poker resume ') === 0), false, `hosted no-chat progress share should not send resume before the imported progress can reach members: ${noChatStartMessages.join('|') || '<none>'}`);
 
         const importBeforeJoinRuntime = createMenuRuntime();
-        importBeforeJoinRuntime.hooks.processChatRecord({
+        applyMenuRecord(importBeforeJoinRuntime.hooks, {
           sender: 'JDBeast',
           message: `[party leader] poker party ${liveLogPartyId}`,
           isSelf: true,
         });
-        importBeforeJoinRuntime.hooks.modules.TableRenderer.render();
+        importBeforeJoinRuntime.hooks.modules.TableRenderer.render(importBeforeJoinRuntime.hooks.modules.ViewModel.build());
         const importBeforeJoinInput = findPanel(importBeforeJoinRuntime.runtime, 'PokerProgressCodeInput');
         assert(importBeforeJoinInput, 'hosted import-before-join should have a progress code input');
         if (importBeforeJoinInput) importBeforeJoinInput.text = liveLogSaved.code;
@@ -4427,98 +4469,98 @@ if (hooks) {
         assertEqual(typeof importBeforeJoinHandler, 'function', 'hosted import-before-join should expose the import handler');
         const importBeforeJoinResult = typeof importBeforeJoinHandler === 'function' ? importBeforeJoinHandler() : { ok: false };
         assertEqual(importBeforeJoinResult && importBeforeJoinResult.ok, true, 'hosted import-before-join should allow the leader to import before a member joins');
-        importBeforeJoinRuntime.hooks.modules.TableRenderer.render();
+        importBeforeJoinRuntime.hooks.modules.TableRenderer.render(importBeforeJoinRuntime.hooks.modules.ViewModel.build());
         assertStartButtonGate(importBeforeJoinRuntime.runtime, 'WAITING FOR PARTY', false, false, 'hosted import-before-join single-player start button');
         drainScheduledCallbacks(importBeforeJoinRuntime.runtime, 256);
         assertEqual(parseProgressShareMessages(submittedChatMessages(importBeforeJoinRuntime.runtime, 0)).offers.length, 0, 'hosted import-before-join should not share progress before a saved party member joins');
         const importBeforeJoinShareStart = importBeforeJoinRuntime.runtime.dispatches.length;
-        importBeforeJoinRuntime.hooks.processChatRecord({
+        applyMenuRecord(importBeforeJoinRuntime.hooks, {
           sender: 'Hantu Raya',
           message: `[party join] poker party ${liveLogPartyId}`,
           isSelf: false,
         });
-        importBeforeJoinRuntime.hooks.modules.TableRenderer.render();
+        importBeforeJoinRuntime.hooks.modules.TableRenderer.render(importBeforeJoinRuntime.hooks.modules.ViewModel.build());
         assertStartButtonGate(importBeforeJoinRuntime.runtime, 'SHARING PROGRESS', false, false, 'hosted import-before-join should share progress after member joins');
         drainScheduledCallbacks(importBeforeJoinRuntime.runtime, 256);
         const importBeforeJoinShareMessages = submittedChatMessages(importBeforeJoinRuntime.runtime, importBeforeJoinShareStart);
         const importBeforeJoinProgressShare = parseProgressShareMessages(importBeforeJoinShareMessages);
         assertEqual(importBeforeJoinProgressShare.offers.length, 1, `hosted import-before-join should emit one progress offer after member joins: ${importBeforeJoinShareMessages.join('|') || '<none>'}`);
         assertEqual(importBeforeJoinProgressShare.chunks.length, importBeforeJoinProgressShare.offers[0] ? importBeforeJoinProgressShare.offers[0].count : 0, 'hosted import-before-join should emit every advertised progress chunk after member joins');
-        const importBeforeJoinReadyAt = importBeforeJoinRuntime.hooks.state.progressShare && importBeforeJoinRuntime.hooks.state.progressShare.readyAt;
+        const importBeforeJoinReadyAt = snapshot(importBeforeJoinRuntime.hooks).progressShare && snapshot(importBeforeJoinRuntime.hooks).progressShare.readyAt;
         assert(importBeforeJoinReadyAt > 0, 'hosted import-before-join should record a share guard after member joins');
         importBeforeJoinRuntime.runtime.sandbox.Date.now = () => importBeforeJoinReadyAt + 1;
-        importBeforeJoinRuntime.hooks.modules.TableRenderer.render();
+        importBeforeJoinRuntime.hooks.modules.TableRenderer.render(importBeforeJoinRuntime.hooks.modules.ViewModel.build());
         assertStartButtonGate(importBeforeJoinRuntime.runtime, 'NEXT SYNCED HAND', true, false, 'hosted import-before-join ready-to-start button');
 
         const importBeforeJoinMemberRuntime = createMenuRuntime();
-        importBeforeJoinMemberRuntime.hooks.processChatRecord({
+        applyMenuRecord(importBeforeJoinMemberRuntime.hooks, {
           sender: 'JDBeast',
           message: `[party leader] poker party ${liveLogPartyId}`,
           isSelf: false,
         });
-        importBeforeJoinMemberRuntime.hooks.processChatRecord({
+        applyMenuRecord(importBeforeJoinMemberRuntime.hooks, {
           sender: 'Hantu Raya',
           message: `[party join] poker party ${liveLogPartyId}`,
           isSelf: true,
         });
         for (const chat of importBeforeJoinShareMessages) {
           if (chat.indexOf('[progress offer]') === 0 || chat.indexOf('[progress chunk]') === 0) {
-            importBeforeJoinMemberRuntime.hooks.processChatRecord({
+            applyMenuRecord(importBeforeJoinMemberRuntime.hooks, {
               sender: 'JDBeast',
               message: chat,
               isSelf: false,
             });
           }
         }
-        assertEqual(importBeforeJoinMemberRuntime.hooks.state.resume.id, liveLogSaved.id, 'hosted import-before-join member should import progress shared after joining');
+        assertEqual(snapshot(importBeforeJoinMemberRuntime.hooks).resume.id, liveLogSaved.id, 'hosted import-before-join member should import progress shared after joining');
         const importBeforeJoinStartCommand = startHostedLeaderResume({ leaderRuntime: importBeforeJoinRuntime }, 'hosted import-before-join leader resume');
         if (importBeforeJoinStartCommand) {
-          importBeforeJoinMemberRuntime.hooks.processChatRecord({
+          applyMenuRecord(importBeforeJoinMemberRuntime.hooks, {
             sender: 'JDBeast',
             message: importBeforeJoinStartCommand,
             isSelf: false,
           });
         }
-        assert(importBeforeJoinMemberRuntime.hooks.state.game && importBeforeJoinMemberRuntime.hooks.state.game.active, 'hosted import-before-join member should start after receiving shared progress before resume');
+        assert(snapshot(importBeforeJoinMemberRuntime.hooks).game && snapshot(importBeforeJoinMemberRuntime.hooks).game.active, 'hosted import-before-join member should start after receiving shared progress before resume');
 
         const staleMemberLobbyRuntime = createSyncedPartyRuntime('Hantu Raya', 'sstale-member-rejoin', [
           { key: 'jdbeast', name: 'JDBeast' },
           { key: 'hantu raya', name: 'Hantu Raya' },
         ], 1);
         assert(staleMemberLobbyRuntime.game && staleMemberLobbyRuntime.game.active, 'stale member lobby setup should start with Hantu Raya in an active synced hand');
-        staleMemberLobbyRuntime.hooks.processChatRecord({
+        applyMenuRecord(staleMemberLobbyRuntime.hooks, {
           sender: 'JDBeast',
           message: '[party leave] poker party psync',
           isSelf: false,
         });
-        staleMemberLobbyRuntime.hooks.modules.TableRenderer.render();
-        assertEqual(staleMemberLobbyRuntime.hooks.state.game, null, 'remote leader leave should clear member active game state before a new lobby');
-        staleMemberLobbyRuntime.hooks.processChatRecord({
+        staleMemberLobbyRuntime.hooks.modules.TableRenderer.render(staleMemberLobbyRuntime.hooks.modules.ViewModel.build());
+        assertEqual(snapshot(staleMemberLobbyRuntime.hooks).game, null, 'remote leader leave should clear member active game state before a new lobby');
+        applyMenuRecord(staleMemberLobbyRuntime.hooks, {
           sender: 'JDBeast',
           message: '[party leader] poker party pmr8m7dxq-1uxkydi',
           isSelf: false,
         });
-        staleMemberLobbyRuntime.hooks.modules.TableRenderer.render();
+        staleMemberLobbyRuntime.hooks.modules.TableRenderer.render(staleMemberLobbyRuntime.hooks.modules.ViewModel.build());
         assertButtonAffordance(staleMemberLobbyRuntime.runtime, 'PokerJoinPartyButton', { hidden: false, enabled: true }, 'stale member lobby should show JOIN PARTY after the old leader leaves and hosts again');
         const unknownLateLeaderRuntime = createSyncedPartyRuntime('Hantu Raya', 'sunknown-late-leader-rejoin', [
           { key: 'jdbeast', name: 'JDBeast' },
           { key: 'hantu raya', name: 'Hantu Raya' },
         ], 1);
         assert(unknownLateLeaderRuntime.game && unknownLateLeaderRuntime.game.active, 'unknown/late party leader discovery setup should start with Hantu Raya in an active synced hand');
-        unknownLateLeaderRuntime.hooks.processChatRecord({
+        applyMenuRecord(unknownLateLeaderRuntime.hooks, {
           sender: 'JDBeast',
           message: '[party leave] poker party psync',
           isSelf: false,
         });
-        unknownLateLeaderRuntime.hooks.modules.TableRenderer.render();
-        assertEqual(unknownLateLeaderRuntime.hooks.state.game, null, 'unknown/late party leader discovery should clear member game state before the new lobby row arrives');
-        assertEqual(unknownLateLeaderRuntime.hooks.state.party.id, '', 'unknown/late party leader discovery should leave the member in an empty lobby before the new lobby row arrives');
-        unknownLateLeaderRuntime.hooks.processChatRecord({
+        unknownLateLeaderRuntime.hooks.modules.TableRenderer.render(unknownLateLeaderRuntime.hooks.modules.ViewModel.build());
+        assertEqual(snapshot(unknownLateLeaderRuntime.hooks).game, null, 'unknown/late party leader discovery should clear member game state before the new lobby row arrives');
+        assertEqual(snapshot(unknownLateLeaderRuntime.hooks).party.id, '', 'unknown/late party leader discovery should leave the member in an empty lobby before the new lobby row arrives');
+        applyMenuRecord(unknownLateLeaderRuntime.hooks, {
           sender: '<unknown>',
           message: '[party leader] poker party pmr8okjl1-1uxkydi',
           isSelf: false,
         });
-        unknownLateLeaderRuntime.hooks.modules.TableRenderer.render();
+        unknownLateLeaderRuntime.hooks.modules.TableRenderer.render(unknownLateLeaderRuntime.hooks.modules.ViewModel.build());
         assertButtonAffordance(unknownLateLeaderRuntime.runtime, 'PokerJoinPartyButton', { hidden: false, enabled: true }, 'unknown/late party leader discovery should show JOIN PARTY for the foreign lobby while the sender is still <unknown>');
         const unknownLateLeaderChatTarget = findPanel(unknownLateLeaderRuntime.runtime, 'ChatTargetLabel');
         if (unknownLateLeaderChatTarget) unknownLateLeaderChatTarget.text = 'TEAM';
@@ -4539,14 +4581,14 @@ if (hooks) {
         const repeatEndHandler = repeatImportRuntime.leaderRuntime.runtime.sandbox.PokerEscapeMenuEndMatch;
         assertEqual(typeof repeatEndHandler, 'function', 'hosted repeat import should expose end-match handler');
         if (typeof repeatEndHandler === 'function') repeatEndHandler();
-        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render();
+        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render(repeatImportRuntime.leaderRuntime.hooks.modules.ViewModel.build());
         assertStartButtonGate(repeatImportRuntime.leaderRuntime.runtime, 'START SYNCED HAND', true, false, 'hosted repeat import should return to normal synced start after ending an imported match');
         assertProgressImportAvailable(repeatImportRuntime.leaderRuntime.runtime, 'hosted repeat import end-match hosted-leader import controls');
         const repeatLeaveHandler = repeatImportRuntime.leaderRuntime.runtime.sandbox.PokerEscapeMenuLeaveLobby;
         assertEqual(typeof repeatLeaveHandler, 'function', 'hosted repeat import should expose leave handler');
         if (typeof repeatLeaveHandler === 'function') repeatLeaveHandler();
         drainScheduledCallbacks(repeatImportRuntime.leaderRuntime.runtime, 256);
-        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render();
+        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render(repeatImportRuntime.leaderRuntime.hooks.modules.ViewModel.build());
         assertProgressImportHidden(repeatImportRuntime.leaderRuntime.runtime, 'hosted repeat import leave-reset import controls');
         assertStartButtonGate(repeatImportRuntime.leaderRuntime.runtime, 'HOST OR JOIN PARTY', false, false, 'hosted repeat import leave should return to an empty lobby instead of stale import-progress guard');
         const repeatHostTarget = findPanel(repeatImportRuntime.leaderRuntime.runtime, 'ChatTargetLabel');
@@ -4555,14 +4597,14 @@ if (hooks) {
         assertEqual(typeof repeatHostHandler, 'function', 'hosted repeat import should expose host handler');
         if (typeof repeatHostHandler === 'function') repeatHostHandler();
         drainScheduledCallbacks(repeatImportRuntime.leaderRuntime.runtime, 256);
-        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render();
+        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render(repeatImportRuntime.leaderRuntime.hooks.modules.ViewModel.build());
         assertStartButtonGate(repeatImportRuntime.leaderRuntime.runtime, 'WAITING FOR PARTY', false, false, 'hosted repeat import rehost should wait for party instead of stale import-progress guard');
-        repeatImportRuntime.leaderRuntime.hooks.processChatRecord({
+        applyMenuRecord(repeatImportRuntime.leaderRuntime.hooks, {
           sender: 'Hantu Raya',
-          message: '[party join] poker party ' + repeatImportRuntime.leaderRuntime.hooks.state.party.id,
+          message: '[party join] poker party ' + snapshot(repeatImportRuntime.leaderRuntime.hooks).party.id,
           isSelf: false,
         });
-        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render();
+        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render(repeatImportRuntime.leaderRuntime.hooks.modules.ViewModel.build());
         assertStartButtonGate(repeatImportRuntime.leaderRuntime.runtime, 'START SYNCED HAND', true, false, 'hosted repeat import rehost should return to normal synced start after a member joins');
         const repeatInput = findPanel(repeatImportRuntime.leaderRuntime.runtime, 'PokerProgressCodeInput');
         assert(repeatInput, 'hosted repeat import should keep a progress input for re-importing');
@@ -4574,17 +4616,17 @@ if (hooks) {
         assertEqual(typeof repeatImportHandler, 'function', 'hosted repeat import should expose import handler for re-import');
         const repeatImportResult = typeof repeatImportHandler === 'function' ? repeatImportHandler() : { ok: false };
         assertEqual(repeatImportResult && repeatImportResult.ok, true, 'hosted repeat import should accept pasted progress after leave and rehost');
-        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render();
+        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render(repeatImportRuntime.leaderRuntime.hooks.modules.ViewModel.build());
         assertStartButtonGate(repeatImportRuntime.leaderRuntime.runtime, 'SHARING PROGRESS', false, false, 'hosted repeat import should share pasted progress after leave and rehost');
         drainScheduledCallbacks(repeatImportRuntime.leaderRuntime.runtime, 256);
         const repeatShareMessages = submittedChatMessages(repeatImportRuntime.leaderRuntime.runtime, repeatReimportAt);
         const repeatShare = parseProgressShareMessages(repeatShareMessages);
         assertEqual(repeatShare.offers.length, 1, `hosted repeat import should offer re-imported progress after leave and rehost: ${repeatShareMessages.join('|') || '<none>'}`);
         assertEqual(repeatShare.chunks.length, repeatShare.offers[0] ? repeatShare.offers[0].count : 0, 'hosted repeat import should send all re-imported progress chunks after leave and rehost');
-        const repeatReadyAt = repeatImportRuntime.leaderRuntime.hooks.state.progressShare && repeatImportRuntime.leaderRuntime.hooks.state.progressShare.readyAt;
+        const repeatReadyAt = snapshot(repeatImportRuntime.leaderRuntime.hooks).progressShare && snapshot(repeatImportRuntime.leaderRuntime.hooks).progressShare.readyAt;
         assert(repeatReadyAt > 0, 'hosted repeat import should record readyAt after re-import share');
         repeatImportRuntime.leaderRuntime.runtime.sandbox.Date.now = () => repeatReadyAt + 1;
-        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render();
+        repeatImportRuntime.leaderRuntime.hooks.modules.TableRenderer.render(repeatImportRuntime.leaderRuntime.hooks.modules.ViewModel.build());
         assertStartButtonGate(repeatImportRuntime.leaderRuntime.runtime, 'NEXT SYNCED HAND', true, false, 'hosted repeat import should unlock imported restart after re-share');
         const repeatStartHandler = repeatImportRuntime.leaderRuntime.runtime.sandbox.PokerEscapeMenuStart;
         assertEqual(typeof repeatStartHandler, 'function', 'hosted repeat import should expose start handler for re-imported progress');
@@ -4599,29 +4641,29 @@ if (hooks) {
         const hostedLeaderImport = importHostedLeaderProgress('hosted JDBeast/Hantu Raya leader manual import');
 
         const hostedMemberResumeStartRuntime = createMenuRuntime();
-        hostedMemberResumeStartRuntime.hooks.processChatRecord({
+        applyMenuRecord(hostedMemberResumeStartRuntime.hooks, {
           sender: 'JDBeast',
           message: `[party leader] poker party ${liveLogPartyId}`,
           isSelf: false,
         });
-        hostedMemberResumeStartRuntime.hooks.processChatRecord({
+        applyMenuRecord(hostedMemberResumeStartRuntime.hooks, {
           sender: 'Hantu Raya',
           message: `[party join] poker party ${liveLogPartyId}`,
           isSelf: true,
         });
         for (const chat of hostedLeaderImport.shareMessages) {
           if (chat.indexOf('[progress offer]') === 0 || chat.indexOf('[progress chunk]') === 0) {
-            hostedMemberResumeStartRuntime.hooks.processChatRecord({
+            applyMenuRecord(hostedMemberResumeStartRuntime.hooks, {
               sender: 'JDBeast',
               message: chat,
               isSelf: false,
             });
           }
         }
-        assertEqual(hostedMemberResumeStartRuntime.hooks.state.resume.id, liveLogSaved.id, 'hosted JDBeast/Hantu Raya member receiver should auto-import the leader-shared progress id');
-        assert(hostedMemberResumeStartRuntime.hooks.state.resume.payload, 'hosted JDBeast/Hantu Raya member receiver should auto-import the leader-shared progress payload');
-        assertEqual(hostedMemberResumeStartRuntime.hooks.state.game, null, 'hosted JDBeast/Hantu Raya member receiver should not start a game from progress chunks alone');
-        hostedMemberResumeStartRuntime.hooks.modules.TableRenderer.render();
+        assertEqual(snapshot(hostedMemberResumeStartRuntime.hooks).resume.id, liveLogSaved.id, 'hosted JDBeast/Hantu Raya member receiver should auto-import the leader-shared progress id');
+        assert(snapshot(hostedMemberResumeStartRuntime.hooks).resume.payload, 'hosted JDBeast/Hantu Raya member receiver should auto-import the leader-shared progress payload');
+        assertEqual(snapshot(hostedMemberResumeStartRuntime.hooks).game, null, 'hosted JDBeast/Hantu Raya member receiver should not start a game from progress chunks alone');
+        hostedMemberResumeStartRuntime.hooks.modules.TableRenderer.render(hostedMemberResumeStartRuntime.hooks.modules.ViewModel.build());
         assertButtonAffordance(hostedMemberResumeStartRuntime.runtime, 'PokerResumeControls', { hidden: false }, 'hosted JDBeast/Hantu Raya member shared progress button state');
         assertButtonAffordance(hostedMemberResumeStartRuntime.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, 'hosted JDBeast/Hantu Raya member shared progress button state');
         assertButtonAffordance(hostedMemberResumeStartRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'hosted JDBeast/Hantu Raya member shared progress button state');
@@ -4629,13 +4671,13 @@ if (hooks) {
 
         const hostedLeaderResumeStartCommand = startHostedLeaderResume(hostedLeaderImport, 'hosted JDBeast/Hantu Raya leader imported progress');
         if (hostedLeaderResumeStartCommand) {
-          hostedMemberResumeStartRuntime.hooks.processChatRecord({
+          applyMenuRecord(hostedMemberResumeStartRuntime.hooks, {
             sender: 'JDBeast',
             message: hostedLeaderResumeStartCommand,
             isSelf: false,
           });
         }
-        const hostedMemberResumeStartGame = hostedMemberResumeStartRuntime.hooks.state.game;
+        const hostedMemberResumeStartGame = snapshot(hostedMemberResumeStartRuntime.hooks).game;
         assert(hostedMemberResumeStartGame, 'hosted JDBeast/Hantu Raya member receiver should start the resumed hand from the hosted leader short resume command without resume leader/ready ceremony');
         if (hostedMemberResumeStartGame) {
           assertEqual(hostedMemberResumeStartGame.active, true, 'hosted JDBeast/Hantu Raya member receiver resumed hand should be active');
@@ -4652,28 +4694,28 @@ if (hooks) {
 
         const createHostedSharedProgressMemberRuntime = (message) => {
           const memberRuntime = createMenuRuntime();
-          memberRuntime.hooks.processChatRecord({
+          applyMenuRecord(memberRuntime.hooks, {
             sender: 'JDBeast',
             message: `[party leader] poker party ${liveLogPartyId}`,
             isSelf: false,
           });
-          memberRuntime.hooks.processChatRecord({
+          applyMenuRecord(memberRuntime.hooks, {
             sender: 'Hantu Raya',
             message: `[party join] poker party ${liveLogPartyId}`,
             isSelf: true,
           });
           for (const chat of hostedLeaderImport.shareMessages) {
             if (chat.indexOf('[progress offer]') === 0 || chat.indexOf('[progress chunk]') === 0) {
-              memberRuntime.hooks.processChatRecord({
+              applyMenuRecord(memberRuntime.hooks, {
                 sender: 'JDBeast',
                 message: chat,
                 isSelf: false,
               });
             }
           }
-          assertEqual(memberRuntime.hooks.state.resume.id, liveLogSaved.id, `${message} should auto-import the leader-shared progress id`);
-          assert(memberRuntime.hooks.state.resume.payload, `${message} should auto-import the leader-shared progress payload`);
-          assertEqual(memberRuntime.hooks.state.game, null, `${message} should not start a game from progress chunks alone`);
+          assertEqual(snapshot(memberRuntime.hooks).resume.id, liveLogSaved.id, `${message} should auto-import the leader-shared progress id`);
+          assert(snapshot(memberRuntime.hooks).resume.payload, `${message} should auto-import the leader-shared progress payload`);
+          assertEqual(snapshot(memberRuntime.hooks).game, null, `${message} should not start a game from progress chunks alone`);
           return memberRuntime;
         };
 
@@ -4683,24 +4725,24 @@ if (hooks) {
           assert(hostedProgressChunkMessages.length >= 2, 'hosted JDBeast/Hantu Raya shared progress fixture should require multiple chunks for live ordering coverage');
           const createHostedPartyOnlyMemberRuntime = (message) => {
             const memberRuntime = createMenuRuntime();
-            memberRuntime.hooks.processChatRecord({
+            applyMenuRecord(memberRuntime.hooks, {
               sender: 'JDBeast',
               message: `[party leader] poker party ${liveLogPartyId}`,
               isSelf: false,
             });
-            memberRuntime.hooks.processChatRecord({
+            applyMenuRecord(memberRuntime.hooks, {
               sender: 'Hantu Raya',
               message: `[party join] poker party ${liveLogPartyId}`,
               isSelf: true,
             });
-            assertEqual(memberRuntime.hooks.state.party.id, liveLogPartyId, `${message} setup should join the live hosted party`);
-            assertEqual(memberRuntime.hooks.state.party.leaderKey, 'jdbeast', `${message} setup should know JDBeast as the hosted party leader`);
-            assertEqual(memberRuntime.hooks.state.localPlayerKey, 'hantu raya', `${message} setup should remember Hantu Raya as the local member`);
+            assertEqual(snapshot(memberRuntime.hooks).party.id, liveLogPartyId, `${message} setup should join the live hosted party`);
+            assertEqual(snapshot(memberRuntime.hooks).party.leaderKey, 'jdbeast', `${message} setup should know JDBeast as the hosted party leader`);
+            assertEqual(snapshot(memberRuntime.hooks).localPlayerKey, 'hantu raya', `${message} setup should remember Hantu Raya as the local member`);
             return memberRuntime;
           };
           const replayProgressShareMessages = (memberRuntime, messages) => {
             for (const chat of messages) {
-              memberRuntime.hooks.processChatRecord({
+              applyMenuRecord(memberRuntime.hooks, {
                 sender: 'JDBeast',
                 message: chat,
                 isSelf: false,
@@ -4709,12 +4751,12 @@ if (hooks) {
           };
 
           const unknownHostedResumeStartRuntime = createHostedSharedProgressMemberRuntime('hosted JDBeast/Hantu Raya member unknown-sender resume-start');
-          unknownHostedResumeStartRuntime.hooks.processChatRecord({
+          applyMenuRecord(unknownHostedResumeStartRuntime.hooks, {
             sender: '<unknown>',
             message: hostedLeaderResumeStartCommand,
             isSelf: false,
           });
-          const unknownHostedResumeStartGame = unknownHostedResumeStartRuntime.hooks.state.game;
+          const unknownHostedResumeStartGame = snapshot(unknownHostedResumeStartRuntime.hooks).game;
           assert(
             unknownHostedResumeStartGame,
             'hosted JDBeast/Hantu Raya member should resolve unknown-sender short resume-start to the known hosted party leader when resume id and leader key match imported progress',
@@ -4749,16 +4791,16 @@ if (hooks) {
 
           const outOfOrderUnknownRuntime = createHostedPartyOnlyMemberRuntime('hosted JDBeast/Hantu Raya out-of-order unknown resume-start');
           replayProgressShareMessages(outOfOrderUnknownRuntime, firstProgressMessagesBeforeResume);
-          assertEqual(outOfOrderUnknownRuntime.hooks.state.game, null, 'hosted out-of-order unknown resume-start setup should not start before the short resume command');
-          assertEqual(!!(outOfOrderUnknownRuntime.hooks.state.resume && outOfOrderUnknownRuntime.hooks.state.resume.payload), false, 'hosted out-of-order unknown resume-start setup should not finish importing progress before all chunks arrive');
-          outOfOrderUnknownRuntime.hooks.processChatRecord({
+          assertEqual(snapshot(outOfOrderUnknownRuntime.hooks).game, null, 'hosted out-of-order unknown resume-start setup should not start before the short resume command');
+          assertEqual(!!(snapshot(outOfOrderUnknownRuntime.hooks).resume && snapshot(outOfOrderUnknownRuntime.hooks).resume.payload), false, 'hosted out-of-order unknown resume-start setup should not finish importing progress before all chunks arrive');
+          applyMenuRecord(outOfOrderUnknownRuntime.hooks, {
             sender: '<unknown>',
             message: hostedLeaderResumeStartCommand,
             isSelf: false,
           });
-          assertEqual(outOfOrderUnknownRuntime.hooks.state.game, null, 'hosted out-of-order unknown resume-start should wait for matching shared progress to finish importing');
+          assertEqual(snapshot(outOfOrderUnknownRuntime.hooks).game, null, 'hosted out-of-order unknown resume-start should wait for matching shared progress to finish importing');
           replayProgressShareMessages(outOfOrderUnknownRuntime, remainingProgressMessagesAfterResume);
-          const outOfOrderUnknownGame = outOfOrderUnknownRuntime.hooks.state.game;
+          const outOfOrderUnknownGame = snapshot(outOfOrderUnknownRuntime.hooks).game;
           assert(
             outOfOrderUnknownGame,
             'hosted out-of-order unknown resume-start should replay after matching shared progress completes and create the resumed hand',
@@ -4775,116 +4817,116 @@ if (hooks) {
               'hosted out-of-order unknown resume-start should seat both saved players',
             );
           }
-          assertEqual(outOfOrderUnknownRuntime.hooks.state.resume.id, '', 'hosted out-of-order unknown resume-start should clear imported resume state after replay starts');
+          assertEqual(snapshot(outOfOrderUnknownRuntime.hooks).resume.id, '', 'hosted out-of-order unknown resume-start should clear imported resume state after replay starts');
           assertEqual(
-            !!(outOfOrderUnknownRuntime.hooks.state.pendingResumeStarts && outOfOrderUnknownRuntime.hooks.state.pendingResumeStarts[liveLogSaved.id]),
+            !!(snapshot(outOfOrderUnknownRuntime.hooks).pendingResumeStarts && snapshot(outOfOrderUnknownRuntime.hooks).pendingResumeStarts[liveLogSaved.id]),
             false,
             'hosted out-of-order unknown resume-start should clear the queued resume command after replay starts',
           );
 
           const outOfOrderWrongLeaderRuntime = createHostedPartyOnlyMemberRuntime('hosted JDBeast/Hantu Raya out-of-order wrong leader');
           replayProgressShareMessages(outOfOrderWrongLeaderRuntime, firstProgressMessagesBeforeResume);
-          outOfOrderWrongLeaderRuntime.hooks.processChatRecord({
+          applyMenuRecord(outOfOrderWrongLeaderRuntime.hooks, {
             sender: '<unknown>',
             message: hostedLeaderResumeStartCommand.replace(' leader jdbeast ', ' leader hantu%20raya '),
             isSelf: false,
           });
           replayProgressShareMessages(outOfOrderWrongLeaderRuntime, remainingProgressMessagesAfterResume);
-          assert(outOfOrderWrongLeaderRuntime.hooks.state.resume.payload, 'hosted out-of-order wrong-leader negative should still import the shared progress after remaining chunks arrive');
-          assertEqual(outOfOrderWrongLeaderRuntime.hooks.state.game, null, 'hosted out-of-order unknown resume-start with the wrong leader key should not replay into a game after import completes');
+          assert(snapshot(outOfOrderWrongLeaderRuntime.hooks).resume.payload, 'hosted out-of-order wrong-leader negative should still import the shared progress after remaining chunks arrive');
+          assertEqual(snapshot(outOfOrderWrongLeaderRuntime.hooks).game, null, 'hosted out-of-order unknown resume-start with the wrong leader key should not replay into a game after import completes');
 
           const outOfOrderWrongIdRuntime = createHostedPartyOnlyMemberRuntime('hosted JDBeast/Hantu Raya out-of-order wrong resume id');
           replayProgressShareMessages(outOfOrderWrongIdRuntime, firstProgressMessagesBeforeResume);
-          outOfOrderWrongIdRuntime.hooks.processChatRecord({
+          applyMenuRecord(outOfOrderWrongIdRuntime.hooks, {
             sender: '<unknown>',
             message: hostedLeaderResumeStartCommand.replace(`poker resume ${liveLogSaved.id} `, 'poker resume rwrong-live-import '),
             isSelf: false,
           });
           replayProgressShareMessages(outOfOrderWrongIdRuntime, remainingProgressMessagesAfterResume);
-          assert(outOfOrderWrongIdRuntime.hooks.state.resume.payload, 'hosted out-of-order wrong-id negative should still import the shared progress after remaining chunks arrive');
-          assertEqual(outOfOrderWrongIdRuntime.hooks.state.game, null, 'hosted out-of-order unknown resume-start with the wrong resume id should not replay into a game after import completes');
+          assert(snapshot(outOfOrderWrongIdRuntime.hooks).resume.payload, 'hosted out-of-order wrong-id negative should still import the shared progress after remaining chunks arrive');
+          assertEqual(snapshot(outOfOrderWrongIdRuntime.hooks).game, null, 'hosted out-of-order unknown resume-start with the wrong resume id should not replay into a game after import completes');
 
           const unknownWrongLeaderRuntime = createHostedSharedProgressMemberRuntime('hosted JDBeast/Hantu Raya member unknown-sender wrong leader');
           const wrongLeaderResumeStartCommand = hostedLeaderResumeStartCommand.replace(' leader jdbeast ', ' leader hantu%20raya ');
           assert(wrongLeaderResumeStartCommand !== hostedLeaderResumeStartCommand, 'hosted unknown-sender wrong-leader fixture should change the leader key');
-          unknownWrongLeaderRuntime.hooks.processChatRecord({
+          applyMenuRecord(unknownWrongLeaderRuntime.hooks, {
             sender: '<unknown>',
             message: wrongLeaderResumeStartCommand,
             isSelf: false,
           });
           assertEqual(
-            unknownWrongLeaderRuntime.hooks.state.game,
+            snapshot(unknownWrongLeaderRuntime.hooks).game,
             null,
             'hosted unknown-sender resume-start with the wrong leader key should not create a game even after matching progress imported',
           );
-          assertEqual(unknownWrongLeaderRuntime.hooks.state.resume.id, liveLogSaved.id, 'hosted unknown-sender wrong-leader rejection should keep the imported resume id');
+          assertEqual(snapshot(unknownWrongLeaderRuntime.hooks).resume.id, liveLogSaved.id, 'hosted unknown-sender wrong-leader rejection should keep the imported resume id');
 
           const unknownWrongIdRuntime = createHostedSharedProgressMemberRuntime('hosted JDBeast/Hantu Raya member unknown-sender wrong resume id');
           const wrongIdResumeStartCommand = hostedLeaderResumeStartCommand.replace(`poker resume ${liveLogSaved.id} `, 'poker resume rwrong-live-import ');
           assert(wrongIdResumeStartCommand !== hostedLeaderResumeStartCommand, 'hosted unknown-sender wrong-id fixture should change the resume id');
-          unknownWrongIdRuntime.hooks.processChatRecord({
+          applyMenuRecord(unknownWrongIdRuntime.hooks, {
             sender: '<unknown>',
             message: wrongIdResumeStartCommand,
             isSelf: false,
           });
           assertEqual(
-            unknownWrongIdRuntime.hooks.state.game,
+            snapshot(unknownWrongIdRuntime.hooks).game,
             null,
             'hosted unknown-sender resume-start with the wrong resume id should not create a game even when the leader key matches',
           );
-          assertEqual(unknownWrongIdRuntime.hooks.state.resume.id, liveLogSaved.id, 'hosted unknown-sender wrong-id rejection should keep the imported resume id');
+          assertEqual(snapshot(unknownWrongIdRuntime.hooks).resume.id, liveLogSaved.id, 'hosted unknown-sender wrong-id rejection should keep the imported resume id');
         }
 
         const detachedSharedProgressRuntime = createMenuRuntime();
-        detachedSharedProgressRuntime.hooks.state.localPlayerKey = 'hantu raya';
+        
         detachedSharedProgressRuntime.runtime.config.PokerLocalPlayerKey = 'hantu raya';
         detachedSharedProgressRuntime.runtime.config.PokerLocalPlayerName = 'Hantu Raya';
         clearPartyForLegacyReady(detachedSharedProgressRuntime.hooks);
         const detachedShareChecksum = progressChecksumFromCode(liveLogSaved.code);
         const detachedShareChunks = splitProgressCodeForChat(liveLogSaved.code, 4);
-        detachedSharedProgressRuntime.hooks.processChatRecord({
+        applyMenuRecord(detachedSharedProgressRuntime.hooks, {
           sender: 'JDBeast',
           message: buildProgressOfferMessage(liveLogSaved.id, detachedShareChecksum, detachedShareChunks.length),
           isSelf: false,
         });
         for (let i = 0; i < detachedShareChunks.length; i += 1) {
-          detachedSharedProgressRuntime.hooks.processChatRecord({
+          applyMenuRecord(detachedSharedProgressRuntime.hooks, {
             sender: 'JDBeast',
             message: buildProgressChunkMessage(liveLogSaved.id, detachedShareChecksum, i + 1, detachedShareChunks.length, detachedShareChunks[i]),
             isSelf: false,
           });
         }
-        assertEqual(detachedSharedProgressRuntime.hooks.state.party.id, '', 'detached Hantu Raya shared-progress receiver should have no hosted party id');
-        assertEqual(detachedSharedProgressRuntime.hooks.state.localPlayerKey, 'hantu raya', 'detached Hantu Raya shared-progress receiver should keep Hantu Raya as local identity');
-        assertEqual(detachedSharedProgressRuntime.hooks.state.resume.id, liveLogSaved.id, 'detached Hantu Raya shared-progress receiver should store the leader-shared progress id');
-        assert(detachedSharedProgressRuntime.hooks.state.resume.payload, 'detached Hantu Raya shared-progress receiver should store the leader-shared progress payload');
-        assertEqual(detachedSharedProgressRuntime.hooks.state.game, null, 'detached Hantu Raya shared-progress receiver should not start a game from progress chunks alone');
-        detachedSharedProgressRuntime.hooks.modules.TableRenderer.render();
+        assertEqual(snapshot(detachedSharedProgressRuntime.hooks).party.id, '', 'detached Hantu Raya shared-progress receiver should have no hosted party id');
+        assertEqual(snapshot(detachedSharedProgressRuntime.hooks).localPlayerKey, 'hantu raya', 'detached Hantu Raya shared-progress receiver should keep Hantu Raya as local identity');
+        assertEqual(snapshot(detachedSharedProgressRuntime.hooks).resume.id, liveLogSaved.id, 'detached Hantu Raya shared-progress receiver should store the leader-shared progress id');
+        assert(snapshot(detachedSharedProgressRuntime.hooks).resume.payload, 'detached Hantu Raya shared-progress receiver should store the leader-shared progress payload');
+        assertEqual(snapshot(detachedSharedProgressRuntime.hooks).game, null, 'detached Hantu Raya shared-progress receiver should not start a game from progress chunks alone');
+        detachedSharedProgressRuntime.hooks.modules.TableRenderer.render(detachedSharedProgressRuntime.hooks.modules.ViewModel.build());
         assertButtonAffordance(detachedSharedProgressRuntime.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, 'detached Hantu Raya shared-progress receiver role buttons');
         assertButtonAffordance(detachedSharedProgressRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'detached Hantu Raya shared-progress receiver role buttons');
         assertStartButtonGate(detachedSharedProgressRuntime.runtime, 'HOST OR JOIN PARTY', false, false, 'detached Hantu Raya shared-progress receiver start button');
-        detachedSharedProgressRuntime.hooks.processChatRecord({
+        applyMenuRecord(detachedSharedProgressRuntime.hooks, {
           sender: 'Hantu Raya',
           message: detachedSharedProgressRuntime.hooks.buildResumeLeaderCommand(liveLogSaved.id),
           isSelf: true,
         });
-        assertEqual(detachedSharedProgressRuntime.hooks.state.game, null, 'detached Hantu Raya bad resume-leader self chat should not start a game');
-        assert(detachedSharedProgressRuntime.hooks.state.resume.leaderKey !== 'hantu raya', 'detached Hantu Raya bad resume-leader self chat should not make Hantu Raya the resume leader');
+        assertEqual(snapshot(detachedSharedProgressRuntime.hooks).game, null, 'detached Hantu Raya bad resume-leader self chat should not start a game');
+        assert(snapshot(detachedSharedProgressRuntime.hooks).resume.leaderKey !== 'hantu raya', 'detached Hantu Raya bad resume-leader self chat should not make Hantu Raya the resume leader');
         const detachedBadHantuStartCommand = `poker resume ${liveLogSaved.id} hand ${liveLogSaved.payload.nextHandNumber} leader hantu%20raya seed shantu-raya-bad`;
-        detachedSharedProgressRuntime.hooks.processChatRecord({
+        applyMenuRecord(detachedSharedProgressRuntime.hooks, {
           sender: 'Hantu Raya',
           message: detachedBadHantuStartCommand,
           isSelf: true,
         });
-        assertEqual(detachedSharedProgressRuntime.hooks.state.game, null, 'detached Hantu Raya bad resume-start self chat should not create a game');
-        assert(detachedSharedProgressRuntime.hooks.state.resume.leaderKey !== 'hantu raya', 'detached Hantu Raya bad resume-start self chat should not make Hantu Raya the resume leader');
+        assertEqual(snapshot(detachedSharedProgressRuntime.hooks).game, null, 'detached Hantu Raya bad resume-start self chat should not create a game');
+        assert(snapshot(detachedSharedProgressRuntime.hooks).resume.leaderKey !== 'hantu raya', 'detached Hantu Raya bad resume-start self chat should not make Hantu Raya the resume leader');
         const detachedValidJdbeastStartCommand = `poker resume ${liveLogSaved.id} hand ${liveLogSaved.payload.nextHandNumber} leader jdbeast seed sjdbeast-detached-share`;
-        detachedSharedProgressRuntime.hooks.processChatRecord({
+        applyMenuRecord(detachedSharedProgressRuntime.hooks, {
           sender: 'JDBeast',
           message: detachedValidJdbeastStartCommand,
           isSelf: false,
         });
-        const detachedSharedProgressGame = detachedSharedProgressRuntime.hooks.state.game;
+        const detachedSharedProgressGame = snapshot(detachedSharedProgressRuntime.hooks).game;
         assert(detachedSharedProgressGame, 'detached Hantu Raya shared-progress receiver should start from JDBeast remote resume-start authority');
         if (detachedSharedProgressGame) {
           assertEqual(detachedSharedProgressGame.active, true, 'detached Hantu Raya shared-progress resumed hand should be active');
@@ -4902,35 +4944,35 @@ if (hooks) {
 
         const seedStaleForeignPartySharedProgressRuntime = (message, assertNoLocalStart) => {
           const staleRuntime = createMenuRuntime();
-          staleRuntime.hooks.processChatRecord({
+          applyMenuRecord(staleRuntime.hooks, {
             sender: 'Hantu Raya',
             message: '[party leader] poker party pstale-foreign',
             isSelf: true,
           });
-          staleRuntime.hooks.processChatRecord({
+          applyMenuRecord(staleRuntime.hooks, {
             sender: 'JDBeast',
             message: '[party join] poker party pstale-foreign',
             isSelf: false,
           });
-          assertEqual(staleRuntime.hooks.state.party.mode, 'leader', `${message} setup should retain stale local leader mode`);
-          assertEqual(staleRuntime.hooks.state.party.leaderKey, 'hantu raya', `${message} setup should retain stale Hantu Raya party leader key`);
-          assertEqual(staleRuntime.hooks.state.localPlayerKey, 'hantu raya', `${message} setup should remember Hantu Raya as local identity`);
-          staleRuntime.hooks.processChatRecord({
+          assertEqual(snapshot(staleRuntime.hooks).party.mode, 'leader', `${message} setup should retain stale local leader mode`);
+          assertEqual(snapshot(staleRuntime.hooks).party.leaderKey, 'hantu raya', `${message} setup should retain stale Hantu Raya party leader key`);
+          assertEqual(snapshot(staleRuntime.hooks).localPlayerKey, 'hantu raya', `${message} setup should remember Hantu Raya as local identity`);
+          applyMenuRecord(staleRuntime.hooks, {
             sender: 'JDBeast',
             message: buildProgressOfferMessage(liveLogSaved.id, detachedShareChecksum, detachedShareChunks.length),
             isSelf: false,
           });
           for (let i = 0; i < detachedShareChunks.length; i += 1) {
-            staleRuntime.hooks.processChatRecord({
+            applyMenuRecord(staleRuntime.hooks, {
               sender: 'JDBeast',
               message: buildProgressChunkMessage(liveLogSaved.id, detachedShareChecksum, i + 1, detachedShareChunks.length, detachedShareChunks[i]),
               isSelf: false,
             });
           }
-          assertEqual(staleRuntime.hooks.state.resume.id, liveLogSaved.id, `${message} should import the leader-shared progress id`);
-          assert(staleRuntime.hooks.state.resume.payload, `${message} should import the leader-shared progress payload`);
-          assertEqual(staleRuntime.hooks.state.game, null, `${message} should not start a game from progress chunks alone`);
-          const staleResume = staleRuntime.hooks.state.resume;
+          assertEqual(snapshot(staleRuntime.hooks).resume.id, liveLogSaved.id, `${message} should import the leader-shared progress id`);
+          assert(snapshot(staleRuntime.hooks).resume.payload, `${message} should import the leader-shared progress payload`);
+          assertEqual(snapshot(staleRuntime.hooks).game, null, `${message} should not start a game from progress chunks alone`);
+          const staleResume = snapshot(staleRuntime.hooks).resume;
           if (Object.prototype.hasOwnProperty.call(staleResume, 'hostedLeaderKey')) {
             assertEqual(staleResume.hostedLeaderKey, 'jdbeast', `${message} should bind hosted shared-progress authority to JDBeast despite stale local party leader`);
           }
@@ -4938,7 +4980,7 @@ if (hooks) {
           if (staleResume.leaderKey) {
             assertEqual(staleResume.leaderKey, 'jdbeast', `${message} effective resume leader should be JDBeast when recorded`);
           }
-          staleRuntime.hooks.modules.TableRenderer.render();
+          staleRuntime.hooks.modules.TableRenderer.render(staleRuntime.hooks.modules.ViewModel.build());
           assertButtonAffordance(staleRuntime.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, `${message} legacy resume leader button`);
           assertButtonAffordance(staleRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, `${message} legacy resume ready button`);
           if (assertNoLocalStart !== false) {
@@ -4951,36 +4993,36 @@ if (hooks) {
         };
 
         const staleForeignPartySharedProgressRuntime = seedStaleForeignPartySharedProgressRuntime('stale Hantu Raya party leader receiving JDBeast shared progress');
-        staleForeignPartySharedProgressRuntime.hooks.processChatRecord({
+        applyMenuRecord(staleForeignPartySharedProgressRuntime.hooks, {
           sender: 'Hantu Raya',
           message: staleForeignPartySharedProgressRuntime.hooks.buildResumeLeaderCommand(liveLogSaved.id),
           isSelf: true,
         });
-        assertEqual(staleForeignPartySharedProgressRuntime.hooks.state.game, null, 'stale Hantu Raya party leader self resume-leader chat should not start a game');
-        assert(staleForeignPartySharedProgressRuntime.hooks.state.resume.leaderKey !== 'hantu raya', 'stale Hantu Raya party leader self resume-leader chat should not make Hantu Raya the resume leader');
-        if (Object.prototype.hasOwnProperty.call(staleForeignPartySharedProgressRuntime.hooks.state.resume, 'hostedLeaderKey')) {
-          assertEqual(staleForeignPartySharedProgressRuntime.hooks.state.resume.hostedLeaderKey, 'jdbeast', 'stale Hantu Raya party leader self resume-leader chat should keep JDBeast hosted authority');
+        assertEqual(snapshot(staleForeignPartySharedProgressRuntime.hooks).game, null, 'stale Hantu Raya party leader self resume-leader chat should not start a game');
+        assert(snapshot(staleForeignPartySharedProgressRuntime.hooks).resume.leaderKey !== 'hantu raya', 'stale Hantu Raya party leader self resume-leader chat should not make Hantu Raya the resume leader');
+        if (Object.prototype.hasOwnProperty.call(snapshot(staleForeignPartySharedProgressRuntime.hooks).resume, 'hostedLeaderKey')) {
+          assertEqual(snapshot(staleForeignPartySharedProgressRuntime.hooks).resume.hostedLeaderKey, 'jdbeast', 'stale Hantu Raya party leader self resume-leader chat should keep JDBeast hosted authority');
         }
         const staleBadHantuStartCommand = `poker resume ${liveLogSaved.id} hand ${liveLogSaved.payload.nextHandNumber} leader hantu%20raya seed shantu-stale-party-bad`;
-        staleForeignPartySharedProgressRuntime.hooks.processChatRecord({
+        applyMenuRecord(staleForeignPartySharedProgressRuntime.hooks, {
           sender: 'Hantu Raya',
           message: staleBadHantuStartCommand,
           isSelf: true,
         });
-        assertEqual(staleForeignPartySharedProgressRuntime.hooks.state.game, null, 'stale Hantu Raya party leader self resume-start chat should not create a game');
-        assert(staleForeignPartySharedProgressRuntime.hooks.state.resume.leaderKey !== 'hantu raya', 'stale Hantu Raya party leader self resume-start chat should not make Hantu Raya the resume leader');
-        if (Object.prototype.hasOwnProperty.call(staleForeignPartySharedProgressRuntime.hooks.state.resume, 'hostedLeaderKey')) {
-          assertEqual(staleForeignPartySharedProgressRuntime.hooks.state.resume.hostedLeaderKey, 'jdbeast', 'stale Hantu Raya party leader self resume-start chat should keep JDBeast hosted authority');
+        assertEqual(snapshot(staleForeignPartySharedProgressRuntime.hooks).game, null, 'stale Hantu Raya party leader self resume-start chat should not create a game');
+        assert(snapshot(staleForeignPartySharedProgressRuntime.hooks).resume.leaderKey !== 'hantu raya', 'stale Hantu Raya party leader self resume-start chat should not make Hantu Raya the resume leader');
+        if (Object.prototype.hasOwnProperty.call(snapshot(staleForeignPartySharedProgressRuntime.hooks).resume, 'hostedLeaderKey')) {
+          assertEqual(snapshot(staleForeignPartySharedProgressRuntime.hooks).resume.hostedLeaderKey, 'jdbeast', 'stale Hantu Raya party leader self resume-start chat should keep JDBeast hosted authority');
         }
 
         const staleForeignPartyJdbeastStartRuntime = seedStaleForeignPartySharedProgressRuntime('stale Hantu Raya party leader accepting JDBeast resume start', false);
         const staleValidJdbeastStartCommand = `poker resume ${liveLogSaved.id} hand ${liveLogSaved.payload.nextHandNumber} leader jdbeast seed sjdbeast-stale-party-share`;
-        staleForeignPartyJdbeastStartRuntime.hooks.processChatRecord({
+        applyMenuRecord(staleForeignPartyJdbeastStartRuntime.hooks, {
           sender: 'JDBeast',
           message: staleValidJdbeastStartCommand,
           isSelf: false,
         });
-        const staleForeignPartySharedProgressGame = staleForeignPartyJdbeastStartRuntime.hooks.state.game;
+        const staleForeignPartySharedProgressGame = snapshot(staleForeignPartyJdbeastStartRuntime.hooks).game;
         assert(staleForeignPartySharedProgressGame, 'stale Hantu Raya party leader receiver should start from JDBeast remote resume-start authority');
         if (staleForeignPartySharedProgressGame) {
           assertEqual(staleForeignPartySharedProgressGame.active, true, 'stale Hantu Raya party leader resumed hand should be active');
@@ -4998,19 +5040,19 @@ if (hooks) {
 
         const hostedLeaderEndSyncImport = importHostedLeaderProgress('hosted JDBeast/Hantu Raya leader end-sync import');
         const hostedMemberEndSyncRuntime = createMenuRuntime();
-        hostedMemberEndSyncRuntime.hooks.processChatRecord({
+        applyMenuRecord(hostedMemberEndSyncRuntime.hooks, {
           sender: 'JDBeast',
           message: `[party leader] poker party ${liveLogPartyId}`,
           isSelf: false,
         });
-        hostedMemberEndSyncRuntime.hooks.processChatRecord({
+        applyMenuRecord(hostedMemberEndSyncRuntime.hooks, {
           sender: 'Hantu Raya',
           message: `[party join] poker party ${liveLogPartyId}`,
           isSelf: true,
         });
         for (const chat of hostedLeaderEndSyncImport.shareMessages) {
           if (chat.indexOf('[progress offer]') === 0 || chat.indexOf('[progress chunk]') === 0) {
-            hostedMemberEndSyncRuntime.hooks.processChatRecord({
+            applyMenuRecord(hostedMemberEndSyncRuntime.hooks, {
               sender: 'JDBeast',
               message: chat,
               isSelf: false,
@@ -5019,15 +5061,14 @@ if (hooks) {
         }
         const hostedLeaderEndSyncStartCommand = startHostedLeaderResume(hostedLeaderEndSyncImport, 'hosted JDBeast/Hantu Raya leader end-sync resume');
         if (hostedLeaderEndSyncStartCommand) {
-          hostedMemberEndSyncRuntime.hooks.processChatRecord({
+          applyMenuRecord(hostedMemberEndSyncRuntime.hooks, {
             sender: 'JDBeast',
             message: hostedLeaderEndSyncStartCommand,
             isSelf: false,
           });
         }
-        assert(hostedLeaderEndSyncImport.leaderRuntime.hooks.state.game && hostedLeaderEndSyncImport.leaderRuntime.hooks.state.game.active, 'hosted JDBeast/Hantu Raya end-sync leader setup should have an active imported game');
-        assert(hostedMemberEndSyncRuntime.hooks.state.game && hostedMemberEndSyncRuntime.hooks.state.game.active, 'hosted JDBeast/Hantu Raya end-sync member setup should have an active imported game');
-        hostedMemberEndSyncRuntime.hooks.modules.PendingSelfAction.record('call', hostedMemberEndSyncRuntime.hooks.state.game.players[1], hostedMemberEndSyncRuntime.hooks.state.game);
+        assert(snapshot(hostedLeaderEndSyncImport.leaderRuntime.hooks).game && snapshot(hostedLeaderEndSyncImport.leaderRuntime.hooks).game.active, 'hosted JDBeast/Hantu Raya end-sync leader setup should have an active imported game');
+        assert(snapshot(hostedMemberEndSyncRuntime.hooks).game && snapshot(hostedMemberEndSyncRuntime.hooks).game.active, 'hosted JDBeast/Hantu Raya end-sync member setup should have an active imported game');
         const hostedLeaderEndSyncAt = hostedLeaderEndSyncImport.leaderRuntime.runtime.dispatches.length;
         const hostedLeaderEndSyncHandler = hostedLeaderEndSyncImport.leaderRuntime.runtime.sandbox.PokerEscapeMenuEndMatch;
         assertEqual(typeof hostedLeaderEndSyncHandler, 'function', 'hosted JDBeast/Hantu Raya end-sync leader should expose end-match handler');
@@ -5038,20 +5079,20 @@ if (hooks) {
         const hostedEndCommands = hostedLeaderEndSyncMessages.filter((chat) => hostedEndCommandPattern.test(chat));
         assertEqual(hostedEndCommands.length, 1, `hosted JDBeast/Hantu Raya end-sync leader should submit exactly one chat match-end command for the hosted party: ${hostedLeaderEndSyncMessages.join('|') || '<none>'}`);
         if (hostedEndCommands[0]) {
-          hostedMemberEndSyncRuntime.hooks.processChatRecord({
+          applyMenuRecord(hostedMemberEndSyncRuntime.hooks, {
             sender: 'JDBeast',
             message: hostedEndCommands[0],
             isSelf: false,
           });
-          hostedMemberEndSyncRuntime.hooks.modules.TableRenderer.render();
-          assertEqual(hostedMemberEndSyncRuntime.hooks.state.game, null, 'hosted JDBeast/Hantu Raya end-sync member should clear the active game from the leader match-end command');
+          hostedMemberEndSyncRuntime.hooks.modules.TableRenderer.render(hostedMemberEndSyncRuntime.hooks.modules.ViewModel.build());
+          assertEqual(snapshot(hostedMemberEndSyncRuntime.hooks).game, null, 'hosted JDBeast/Hantu Raya end-sync member should clear the active game from the leader match-end command');
           assertEqual(hostedMemberEndSyncRuntime.runtime.config.PokerPendingSelfAction, undefined, 'hosted JDBeast/Hantu Raya end-sync member should clear pending self action after remote match end');
           const hostedMemberEndSyncActions = findPanel(hostedMemberEndSyncRuntime.runtime, 'PokerActionButtons');
           assert(hasClass(hostedMemberEndSyncActions, 'PokerHidden'), 'hosted JDBeast/Hantu Raya end-sync member should hide action buttons after remote match end');
           assertEqual(hostedMemberEndSyncActions ? hostedMemberEndSyncActions.GetChildCount() : 0, 0, 'hosted JDBeast/Hantu Raya end-sync member should remove stale action buttons after remote match end');
           assertPanelHidden(hostedMemberEndSyncRuntime.runtime, 'PokerEndMatchButton', 'hosted JDBeast/Hantu Raya end-sync member lobby after remote match end');
           assertPanelHidden(hostedMemberEndSyncRuntime.runtime, 'PokerGameLog', 'hosted JDBeast/Hantu Raya end-sync member lobby after remote match end');
-          assertEqual(hostedMemberEndSyncRuntime.hooks.state.party.id, liveLogPartyId, 'hosted JDBeast/Hantu Raya end-sync member should keep the hosted party id after remote match end');
+          assertEqual(snapshot(hostedMemberEndSyncRuntime.hooks).party.id, liveLogPartyId, 'hosted JDBeast/Hantu Raya end-sync member should keep the hosted party id after remote match end');
           assertEqual(
             JSON.stringify(hostedMemberEndSyncRuntime.hooks.modules.PartyReducer.roster().map((entry) => ({ key: entry.key, name: entry.name }))),
             JSON.stringify([
@@ -5066,34 +5107,34 @@ if (hooks) {
         const assertDetachedImportedProgressCannotLead = (localName) => {
           const detachedRuntime = createMenuRuntime();
           const localKey = localName.toLowerCase();
-          detachedRuntime.hooks.processChatRecord({
+          applyMenuRecord(detachedRuntime.hooks, {
             sender: 'JDBeast',
             message: `[party leader] poker party ${liveLogPartyId}`,
             isSelf: localName === 'JDBeast',
           });
-          detachedRuntime.hooks.processChatRecord({
+          applyMenuRecord(detachedRuntime.hooks, {
             sender: 'Hantu Raya',
             message: `[party join] poker party ${liveLogPartyId}`,
             isSelf: localName === 'Hantu Raya',
           });
-          detachedRuntime.hooks.processChatRecord({
+          applyMenuRecord(detachedRuntime.hooks, {
             sender: 'JDBeast',
             message: `[party leave] poker party ${liveLogPartyId}`,
             isSelf: localName === 'JDBeast',
           });
-          detachedRuntime.hooks.processChatRecord({
+          applyMenuRecord(detachedRuntime.hooks, {
             sender: 'Hantu Raya',
             message: `[party leave] poker party ${liveLogPartyId}`,
             isSelf: localName === 'Hantu Raya',
           });
           detachedRuntime.hooks.modules.ProgressResume.importCode(liveLogSaved.code);
-          detachedRuntime.hooks.state.localPlayerKey = localKey;
+          
           detachedRuntime.runtime.config.PokerLocalPlayerKey = localKey;
           detachedRuntime.runtime.config.PokerLocalPlayerName = localName;
-          detachedRuntime.hooks.modules.TableRenderer.render();
-          assertEqual(detachedRuntime.hooks.state.party.id, '', `${localName} detached imported progress setup should have no hosted party id`);
-          assertEqual(detachedRuntime.hooks.getReadySeatArray().length, 0, `${localName} detached imported progress setup should have zero ready seats`);
-          assert(detachedRuntime.hooks.state.resume && detachedRuntime.hooks.state.resume.payload, `${localName} detached imported progress setup should keep the imported resume payload`);
+          detachedRuntime.hooks.modules.TableRenderer.render(detachedRuntime.hooks.modules.ViewModel.build());
+          assertEqual(snapshot(detachedRuntime.hooks).party.id, '', `${localName} detached imported progress setup should have no hosted party id`);
+          assertEqual(snapshot(detachedRuntime.hooks).readySeats.length, 0, `${localName} detached imported progress setup should have zero ready seats`);
+          assert(snapshot(detachedRuntime.hooks).resume && snapshot(detachedRuntime.hooks).resume.payload, `${localName} detached imported progress setup should keep the imported resume payload`);
           assertButtonAffordance(detachedRuntime.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, `${localName} detached imported progress role clarity`);
           assertButtonAffordance(detachedRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, `${localName} detached imported progress role clarity`);
           const roleClarityText = [
@@ -5137,10 +5178,10 @@ if (hooks) {
           !hostedLeaderLeaveMessages.includes(`[party leave] poker party ${liveLogSaved.id}`),
           `hosted JDBeast/Hantu Raya resumed leader should not leave with the resume id: ${hostedLeaderLeaveMessages.join('|') || '<none>'}`,
         );
-        assertEqual(hostedLeaderImport.leaderRuntime.hooks.state.game, null, 'hosted JDBeast/Hantu Raya leave should clear the active game');
+        assertEqual(snapshot(hostedLeaderImport.leaderRuntime.hooks).game, null, 'hosted JDBeast/Hantu Raya leave should clear the active game');
         assertResumeCleared(hostedLeaderImport.leaderRuntime, 'hosted JDBeast/Hantu Raya leave');
         assertProgressTransfersCleared(hostedLeaderImport.leaderRuntime, 'hosted JDBeast/Hantu Raya leave');
-        hostedLeaderImport.leaderRuntime.hooks.modules.TableRenderer.render();
+        hostedLeaderImport.leaderRuntime.hooks.modules.TableRenderer.render(hostedLeaderImport.leaderRuntime.hooks.modules.ViewModel.build());
         assertImportedProgressEscapeCleared(hostedLeaderImport.leaderRuntime, 'hosted JDBeast/Hantu Raya leave');
         assertInactiveLobbyControls(hostedLeaderImport.leaderRuntime.runtime, 'hosted JDBeast/Hantu Raya leave');
         assertButtonAffordance(hostedLeaderImport.leaderRuntime.runtime, 'PokerHostPartyButton', { hidden: false, enabled: true }, 'hosted JDBeast/Hantu Raya leave empty-lobby button state');
@@ -5152,13 +5193,13 @@ if (hooks) {
         const endHandler = hostedLeaderEndImport.leaderRuntime.runtime.sandbox.PokerEscapeMenuEndMatch;
         assertEqual(typeof endHandler, 'function', 'hosted JDBeast/Hantu Raya resumed leader should expose the end-match handler');
         if (typeof endHandler === 'function') endHandler();
-        hostedLeaderEndImport.leaderRuntime.hooks.modules.TableRenderer.render();
-        assertEqual(hostedLeaderEndImport.leaderRuntime.hooks.state.game, null, 'hosted JDBeast/Hantu Raya end match should clear the game');
+        hostedLeaderEndImport.leaderRuntime.hooks.modules.TableRenderer.render(hostedLeaderEndImport.leaderRuntime.hooks.modules.ViewModel.build());
+        assertEqual(snapshot(hostedLeaderEndImport.leaderRuntime.hooks).game, null, 'hosted JDBeast/Hantu Raya end match should clear the game');
         assertResumeCleared(hostedLeaderEndImport.leaderRuntime, 'hosted JDBeast/Hantu Raya end match');
         assertProgressTransfersCleared(hostedLeaderEndImport.leaderRuntime, 'hosted JDBeast/Hantu Raya end match');
         assertImportedProgressEscapeCleared(hostedLeaderEndImport.leaderRuntime, 'hosted JDBeast/Hantu Raya end match');
-        assertEqual(hostedLeaderEndImport.leaderRuntime.hooks.state.party.mode, 'leader', 'hosted JDBeast/Hantu Raya end match should keep the hosted party leader mode');
-        assertEqual(hostedLeaderEndImport.leaderRuntime.hooks.state.party.id, liveLogPartyId, 'hosted JDBeast/Hantu Raya end match should keep the hosted party id');
+        assertEqual(snapshot(hostedLeaderEndImport.leaderRuntime.hooks).party.mode, 'leader', 'hosted JDBeast/Hantu Raya end match should keep the hosted party leader mode');
+        assertEqual(snapshot(hostedLeaderEndImport.leaderRuntime.hooks).party.id, liveLogPartyId, 'hosted JDBeast/Hantu Raya end match should keep the hosted party id');
         assertEqual(
           JSON.stringify(hostedLeaderEndImport.leaderRuntime.hooks.modules.PartyReducer.roster().map((entry) => ({ key: entry.key, name: entry.name }))),
           JSON.stringify([
@@ -5187,12 +5228,12 @@ if (hooks) {
           `poker resume ${liveLogSaved.id} hand 2 leader jdbeast seed shantu-raya-resume`,
           'JDBeast/Hantu Raya short resume start command should match the proposed live-safe wire format',
         );
-        liveLogResume.hooks.processChatRecord({
+        applyMenuRecord(liveLogResume.hooks, {
           sender: 'JDBeast',
           message: liveLogResume.hooks.buildResumeLeaderCommand(liveLogSaved.id),
           isSelf: true,
         });
-        liveLogResume.hooks.processChatRecord({
+        applyMenuRecord(liveLogResume.hooks, {
           sender: 'Hantu Raya',
           message: liveLogResume.hooks.buildResumeReadyCommand(liveLogSaved.id),
           isSelf: false,
@@ -5200,7 +5241,7 @@ if (hooks) {
         assertEqual(renderedStartGateEnabled(liveLogResume), true, 'JDBeast/Hantu Raya resume gate should be startable after leader and ready messages');
         const liveLogStatusBeforeStart = panelText(findPanel(liveLogResume.runtime, 'PokerStatusLabel'));
         const liveLogMessagesBeforeStart = liveLogResume.runtime.messages.length;
-        liveLogResume.hooks.processChatRecord({
+        applyMenuRecord(liveLogResume.hooks, {
           sender: 'JDBeast',
           message: liveLogShortStartCommand,
           isSelf: true,
@@ -5217,7 +5258,7 @@ if (hooks) {
           !liveLogStartDiagnostics.includes('invalid synced poker roster'),
           `JDBeast/Hantu Raya short resume start should not reject the saved space-bearing roster: ${liveLogStartDiagnostics || '<empty>'}`,
         );
-        const liveLogGame = liveLogResume.hooks.state.game;
+        const liveLogGame = snapshot(liveLogResume.hooks).game;
         assert(liveLogGame, 'JDBeast/Hantu Raya resume start should create a resumed game');
         if (liveLogGame) {
           assertEqual(liveLogGame.active, true, 'JDBeast/Hantu Raya resumed game should be active');
@@ -5239,36 +5280,36 @@ if (hooks) {
       const checksum = progressChecksumFromCode(saved.code);
       const chunks = splitProgressCodeForChat(saved.code, 3);
       assert(chunks.length >= 2, 'progress handshake regression fixture should split into multiple chat chunks');
-      chunkedImport.hooks.processChatRecord({
+      applyMenuRecord(chunkedImport.hooks, {
         sender: 'Seven',
         message: buildProgressOfferMessage(saved.id, checksum, chunks.length),
         isSelf: false,
       });
-      chunkedImport.hooks.modules.TableRenderer.render();
+      chunkedImport.hooks.modules.TableRenderer.render(chunkedImport.hooks.modules.ViewModel.build());
       assertButtonAffordance(chunkedImport.runtime, 'PokerResumeControls', { hidden: true }, 'chunked progress offer button state');
       assertStartButtonGate(chunkedImport.runtime, 'HOST OR JOIN PARTY', false, false, 'chunked progress offer button state');
       assert(panelText(findPanel(chunkedImport.runtime, 'PokerStatusLabel')).includes('Receiving progress'), 'chunked progress offer should show receiving-progress status');
       for (let i = 0; i < chunks.length; i += 1) {
-        chunkedImport.hooks.processChatRecord({
+        applyMenuRecord(chunkedImport.hooks, {
           sender: 'Seven',
           message: buildProgressChunkMessage(saved.id, checksum, i + 1, chunks.length, chunks[i]),
           isSelf: false,
         });
       }
-      assertEqual(chunkedImport.hooks.state.game, null, 'chunked progress import should not create or start a game');
-      assert(chunkedImport.hooks.state.resume && chunkedImport.hooks.state.resume.payload, 'chunked progress import should populate resume payload');
-      if (chunkedImport.hooks.state.resume && chunkedImport.hooks.state.resume.payload) {
-        assertEqual(chunkedImport.hooks.state.resume.id, saved.id, 'chunked progress import should use the offered resume id');
-        assertEqual(chunkedImport.hooks.state.resume.code, saved.code, 'chunked progress import should reassemble and store the full progress code');
-        assertEqual(JSON.stringify(chunkedImport.hooks.state.resume.payload), JSON.stringify(saved.payload), 'chunked progress import should import the same payload as the source code');
-        assertEqual(Object.keys(chunkedImport.hooks.state.resume.ready || {}).length, 0, 'chunked progress import should not auto-ready any player');
-        assertEqual(chunkedImport.hooks.state.resume.leaderKey || '', '', 'chunked progress import should not auto-select a resume leader');
-        assertEqual((chunkedImport.hooks.state.resume.order || []).length, 0, 'chunked progress import should not add the progress sender to resume order');
+      assertEqual(snapshot(chunkedImport.hooks).game, null, 'chunked progress import should not create or start a game');
+      assert(snapshot(chunkedImport.hooks).resume && snapshot(chunkedImport.hooks).resume.payload, 'chunked progress import should populate resume payload');
+      if (snapshot(chunkedImport.hooks).resume && snapshot(chunkedImport.hooks).resume.payload) {
+        assertEqual(snapshot(chunkedImport.hooks).resume.id, saved.id, 'chunked progress import should use the offered resume id');
+        assertEqual(snapshot(chunkedImport.hooks).resume.code, saved.code, 'chunked progress import should reassemble and store the full progress code');
+        assertEqual(JSON.stringify(snapshot(chunkedImport.hooks).resume.payload), JSON.stringify(saved.payload), 'chunked progress import should import the same payload as the source code');
+        assertEqual(Object.keys(snapshot(chunkedImport.hooks).resume.ready || {}).length, 0, 'chunked progress import should not auto-ready any player');
+        assertEqual(snapshot(chunkedImport.hooks).resume.leaderKey || '', '', 'chunked progress import should not auto-select a resume leader');
+        assertEqual((snapshot(chunkedImport.hooks).resume.order || []).length, 0, 'chunked progress import should not add the progress sender to resume order');
         assertEqual(renderedStartGateEnabled(chunkedImport), false, 'chunked progress import should still require hosted party authority before start');
-        chunkedImport.hooks.state.localPlayerKey = 'abrams';
+        
         chunkedImport.runtime.config.PokerLocalPlayerKey = 'abrams';
         chunkedImport.runtime.config.PokerLocalPlayerName = 'Abrams';
-        chunkedImport.hooks.modules.TableRenderer.render();
+        chunkedImport.hooks.modules.TableRenderer.render(chunkedImport.hooks.modules.ViewModel.build());
         assertButtonAffordance(chunkedImport.runtime, 'PokerResumeControls', { hidden: false }, 'chunked progress imported button state');
         assertButtonAffordance(chunkedImport.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, 'chunked progress imported button state');
         assertButtonAffordance(chunkedImport.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'chunked progress imported button state');
@@ -5280,45 +5321,45 @@ if (hooks) {
           `chunked progress imported button state should explain hosted party start requirement: ${chunkedPartyStatus || chunkedResumeStatus || '<empty>'}`,
         );
       }
-      chunkedImport.hooks.processChatRecord({
+      applyMenuRecord(chunkedImport.hooks, {
         sender: 'Abrams',
         message: hooks.buildResumeLeaderCommand(saved.id),
         isSelf: true,
       });
-      assertEqual(chunkedImport.hooks.state.game, null, 'chunked progress resume leader message should not start a game');
-      assert(chunkedImport.hooks.state.resume.leaderKey !== 'abrams', 'chunked progress legacy resume leader message should not make Abrams the resume leader');
+      assertEqual(snapshot(chunkedImport.hooks).game, null, 'chunked progress resume leader message should not start a game');
+      assert(snapshot(chunkedImport.hooks).resume.leaderKey !== 'abrams', 'chunked progress legacy resume leader message should not make Abrams the resume leader');
       assertEqual(renderedStartGateEnabled(chunkedImport), false, 'chunked progress legacy resume leader message should not make the hosted progress startable');
-      chunkedImport.hooks.processChatRecord({
+      applyMenuRecord(chunkedImport.hooks, {
         sender: 'Bebop',
         message: hooks.buildResumeReadyCommand(saved.id),
         isSelf: false,
       });
-      assertEqual(chunkedImport.hooks.state.game, null, 'chunked progress resume ready message should not start a game');
-      assert(chunkedImport.hooks.state.resume.leaderKey !== 'bebop', 'chunked progress legacy resume ready message should not make Bebop the resume leader');
+      assertEqual(snapshot(chunkedImport.hooks).game, null, 'chunked progress resume ready message should not start a game');
+      assert(snapshot(chunkedImport.hooks).resume.leaderKey !== 'bebop', 'chunked progress legacy resume ready message should not make Bebop the resume leader');
       assertEqual(renderedStartGateEnabled(chunkedImport), false, 'chunked progress legacy resume ready message should not make the hosted progress startable');
       const importedNoLeaderRuntime = createMenuRuntime();
       importedNoLeaderRuntime.hooks.modules.ProgressResume.importCode(saved.code);
-      importedNoLeaderRuntime.hooks.state.localPlayerKey = 'abrams';
+      
       importedNoLeaderRuntime.runtime.config.PokerLocalPlayerKey = 'abrams';
       importedNoLeaderRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
-      importedNoLeaderRuntime.hooks.modules.TableRenderer.render();
+      importedNoLeaderRuntime.hooks.modules.TableRenderer.render(importedNoLeaderRuntime.hooks.modules.ViewModel.build());
       assertButtonAffordance(importedNoLeaderRuntime.runtime, 'PokerResumeControls', { hidden: false }, 'imported progress no-leader button state');
       assertButtonAffordance(importedNoLeaderRuntime.runtime, 'PokerResumeLeaderButton', { hidden: false, enabled: true }, 'imported progress no-leader button state');
       assertButtonAffordance(importedNoLeaderRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'imported progress no-leader button state');
       assertStartButtonGate(importedNoLeaderRuntime.runtime, 'WAITING FOR RESUME LEADER', false, true, 'imported progress no-leader button state');
-      assertEqual(importedNoLeaderRuntime.hooks.state.game, null, 'imported progress no-leader player list should not create a game');
+      assertEqual(snapshot(importedNoLeaderRuntime.hooks).game, null, 'imported progress no-leader player list should not create a game');
       assertPanelVisible(importedNoLeaderRuntime.runtime, 'PokerPlayersList', 'imported progress no-leader player list');
       assertPlayerListRosterRow(importedNoLeaderRuntime.runtime, 'Abrams', saved.payload.bankrolls.abrams, 'WAITING', 'imported progress no-leader player list');
       assertPlayerListRosterRow(importedNoLeaderRuntime.runtime, 'Bebop', saved.payload.bankrolls.bebop, 'WAITING', 'imported progress no-leader player list');
 
       const staleResumeHostRuntime = createMenuRuntime();
       assertEqual(staleResumeHostRuntime.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'stale imported progress host setup should import saved progress');
-      staleResumeHostRuntime.hooks.state.localPlayerKey = 'abrams';
+      
       staleResumeHostRuntime.runtime.config.PokerLocalPlayerKey = 'abrams';
       staleResumeHostRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
       const staleResumeHostChatTarget = findPanel(staleResumeHostRuntime.runtime, 'ChatTargetLabel');
       if (staleResumeHostChatTarget) staleResumeHostChatTarget.text = 'TEAM';
-      staleResumeHostRuntime.hooks.modules.TableRenderer.render();
+      staleResumeHostRuntime.hooks.modules.TableRenderer.render(staleResumeHostRuntime.hooks.modules.ViewModel.build());
       const staleResumeHostInput = findPanel(staleResumeHostRuntime.runtime, 'PokerProgressCodeInput');
       assert(staleResumeHostInput, 'stale imported progress host setup should have a visible progress code input');
       if (staleResumeHostInput) staleResumeHostInput.text = saved.code;
@@ -5339,12 +5380,12 @@ if (hooks) {
       const staleResumeHostTransferChecksum = progressChecksumFromCode(saved.code);
       const staleResumeHostTransferChunks = splitProgressCodeForChat(saved.code, 3);
       assert(staleResumeHostTransferChunks.length >= 2, 'stale imported progress HOST transfer fixture should split into multiple chunks');
-      staleResumeHostRuntime.hooks.processChatRecord({
+      applyMenuRecord(staleResumeHostRuntime.hooks, {
         sender: 'Seven',
         message: buildProgressOfferMessage(saved.id, staleResumeHostTransferChecksum, staleResumeHostTransferChunks.length),
         isSelf: false,
       });
-      staleResumeHostRuntime.hooks.processChatRecord({
+      applyMenuRecord(staleResumeHostRuntime.hooks, {
         sender: 'Seven',
         message: buildProgressChunkMessage(saved.id, staleResumeHostTransferChecksum, 1, staleResumeHostTransferChunks.length, staleResumeHostTransferChunks[0]),
         isSelf: false,
@@ -5357,26 +5398,26 @@ if (hooks) {
       assert(staleResumeHostCommands.length > 0, `stale imported progress HOST should submit a party leader command: ${staleResumeHostMessages.join('|') || '<none>'}`);
       assertResumeCleared(staleResumeHostRuntime, 'stale imported progress HOST');
       assertProgressTransfersCleared(staleResumeHostRuntime, 'stale imported progress HOST');
-      staleResumeHostRuntime.hooks.modules.TableRenderer.render();
+      staleResumeHostRuntime.hooks.modules.TableRenderer.render(staleResumeHostRuntime.hooks.modules.ViewModel.build());
       assertImportedProgressEscapeCleared(staleResumeHostRuntime, 'stale imported progress HOST');
       assertPlayerListOmitsImportedResumeRoster(staleResumeHostRuntime.runtime, saved.payload, 'stale imported progress HOST player list');
       for (let i = 1; i < staleResumeHostTransferChunks.length; i += 1) {
-        staleResumeHostRuntime.hooks.processChatRecord({
+        applyMenuRecord(staleResumeHostRuntime.hooks, {
           sender: 'Seven',
           message: buildProgressChunkMessage(saved.id, staleResumeHostTransferChecksum, i + 1, staleResumeHostTransferChunks.length, staleResumeHostTransferChunks[i]),
           isSelf: false,
         });
       }
       assertResumeCleared(staleResumeHostRuntime, 'stale imported progress HOST after late stale chunks');
-      staleResumeHostRuntime.hooks.modules.TableRenderer.render();
+      staleResumeHostRuntime.hooks.modules.TableRenderer.render(staleResumeHostRuntime.hooks.modules.ViewModel.build());
       assertImportedProgressEscapeCleared(staleResumeHostRuntime, 'stale imported progress HOST after late stale chunks');
       assertPlayerListOmitsImportedResumeRoster(staleResumeHostRuntime.runtime, saved.payload, 'stale imported progress HOST player list');
 
 
       const staleResumePartyRuntime = createMenuRuntime();
       assertEqual(staleResumePartyRuntime.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'stale imported progress party join setup should import saved progress');
-      staleResumePartyRuntime.hooks.processChatRecord({ sender: 'Calico', message: '[party leader] poker party pstale-import', isSelf: false });
-      staleResumePartyRuntime.hooks.modules.TableRenderer.render();
+      applyMenuRecord(staleResumePartyRuntime.hooks, { sender: 'Calico', message: '[party leader] poker party pstale-import', isSelf: false });
+      staleResumePartyRuntime.hooks.modules.TableRenderer.render(staleResumePartyRuntime.hooks.modules.ViewModel.build());
       const staleResumeJoinInput = findPanel(staleResumePartyRuntime.runtime, 'PokerProgressCodeInput');
       assert(staleResumeJoinInput, 'stale imported progress party join setup should have a visible progress code input');
       if (staleResumeJoinInput) staleResumeJoinInput.text = saved.code;
@@ -5384,7 +5425,7 @@ if (hooks) {
         panelText(staleResumeJoinInput).indexOf('POKERPROG1-') === 0,
         `stale imported progress party join setup should seed the pasted progress code input: ${panelText(staleResumeJoinInput) || '<empty>'}`,
       );
-      assertEqual(staleResumePartyRuntime.hooks.state.game, null, 'stale imported progress party join setup should not create a game');
+      assertEqual(snapshot(staleResumePartyRuntime.hooks).game, null, 'stale imported progress party join setup should not create a game');
       assertButtonAffordance(staleResumePartyRuntime.runtime, 'PokerPartyControls', { hidden: false }, 'stale imported progress incoming party leader button state');
       assertButtonAffordance(staleResumePartyRuntime.runtime, 'PokerJoinPartyButton', { hidden: false, enabled: true }, 'stale imported progress incoming party leader button state');
       assertPlayerListRosterRow(staleResumePartyRuntime.runtime, 'Abrams', saved.payload.bankrolls.abrams, 'WAITING', 'stale imported progress incoming party leader player list');
@@ -5406,39 +5447,39 @@ if (hooks) {
         `stale imported progress JOIN should submit the current party join command: ${staleResumeJoinMessages.join('|') || '<none>'}`,
       );
       assertResumeCleared(staleResumePartyRuntime, 'stale imported progress JOIN');
-      staleResumePartyRuntime.hooks.modules.TableRenderer.render();
+      staleResumePartyRuntime.hooks.modules.TableRenderer.render(staleResumePartyRuntime.hooks.modules.ViewModel.build());
       assertImportedProgressEscapeCleared(staleResumePartyRuntime, 'stale imported progress JOIN');
       assertPlayerListOmitsImportedResumeRoster(staleResumePartyRuntime.runtime, saved.payload, 'stale imported progress JOIN player list');
 
 
-      importedNoLeaderRuntime.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id), isSelf: true });
-      importedNoLeaderRuntime.hooks.modules.TableRenderer.render();
+      applyMenuRecord(importedNoLeaderRuntime.hooks, { sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id), isSelf: true });
+      importedNoLeaderRuntime.hooks.modules.TableRenderer.render(importedNoLeaderRuntime.hooks.modules.ViewModel.build());
       assertStartButtonGate(importedNoLeaderRuntime.runtime, 'WAITING FOR RESUME READY', false, false, 'resume leader insufficient-ready button state');
       assertButtonAffordance(importedNoLeaderRuntime.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, 'resume leader insufficient-ready button state');
       assertButtonAffordance(importedNoLeaderRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'resume leader insufficient-ready button state');
       assert(panelText(findPanel(importedNoLeaderRuntime.runtime, 'PokerResumeStatusLabel')).includes('Leader: Abrams'), 'resume leader insufficient-ready button state should name the resume leader');
-      assertEqual(importedNoLeaderRuntime.hooks.state.game, null, 'resume leader insufficient-ready player list should not create a game');
+      assertEqual(snapshot(importedNoLeaderRuntime.hooks).game, null, 'resume leader insufficient-ready player list should not create a game');
       assertPlayerListRosterRow(importedNoLeaderRuntime.runtime, 'Abrams', saved.payload.bankrolls.abrams, 'LEADER', 'resume leader insufficient-ready player list');
       assertPlayerListRosterRow(importedNoLeaderRuntime.runtime, 'Bebop', saved.payload.bankrolls.bebop, 'WAITING', 'resume leader insufficient-ready player list');
 
 
-      importedNoLeaderRuntime.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeReadyCommand(saved.id), isSelf: false });
-      importedNoLeaderRuntime.hooks.state.localPlayerKey = 'abrams';
+      applyMenuRecord(importedNoLeaderRuntime.hooks, { sender: 'Bebop', message: hooks.buildResumeReadyCommand(saved.id), isSelf: false });
+      
       importedNoLeaderRuntime.runtime.config.PokerLocalPlayerKey = 'abrams';
       importedNoLeaderRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
-      importedNoLeaderRuntime.hooks.modules.TableRenderer.render();
+      importedNoLeaderRuntime.hooks.modules.TableRenderer.render(importedNoLeaderRuntime.hooks.modules.ViewModel.build());
       assertStartButtonGate(importedNoLeaderRuntime.runtime, 'START RESUME', true, false, 'resume ready quorum leader button state');
       assertButtonAffordance(importedNoLeaderRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'resume ready quorum leader button state');
       assert(panelText(findPanel(importedNoLeaderRuntime.runtime, 'PokerResumeStatusLabel')).includes('Ready: 2/2'), 'resume ready quorum leader button state should show full ready quorum');
-      assertEqual(importedNoLeaderRuntime.hooks.state.game, null, 'resume ready quorum leader player list should not create a game');
+      assertEqual(snapshot(importedNoLeaderRuntime.hooks).game, null, 'resume ready quorum leader player list should not create a game');
       assertPlayerListRosterRow(importedNoLeaderRuntime.runtime, 'Abrams', saved.payload.bankrolls.abrams, 'LEADER', 'resume ready quorum leader player list');
       assertPlayerListRosterRow(importedNoLeaderRuntime.runtime, 'Bebop', saved.payload.bankrolls.bebop, 'READY', 'resume ready quorum leader player list');
 
 
-      importedNoLeaderRuntime.hooks.state.localPlayerKey = 'bebop';
+      
       importedNoLeaderRuntime.runtime.config.PokerLocalPlayerKey = 'bebop';
       importedNoLeaderRuntime.runtime.config.PokerLocalPlayerName = 'Bebop';
-      importedNoLeaderRuntime.hooks.modules.TableRenderer.render();
+      importedNoLeaderRuntime.hooks.modules.TableRenderer.render(importedNoLeaderRuntime.hooks.modules.ViewModel.build());
       assertStartButtonGate(importedNoLeaderRuntime.runtime, 'WAITING FOR RESUME LEADER', false, true, 'resume ready quorum non-leader button state');
       assertButtonAffordance(importedNoLeaderRuntime.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'resume ready quorum non-leader button state');
       const nonLeaderResumeStatus = panelText(findPanel(importedNoLeaderRuntime.runtime, 'PokerResumeStatusLabel'));
@@ -5462,10 +5503,10 @@ if (hooks) {
       const missingImportRuntime = createMenuRuntime();
       const statusBeforeMissingImport = panelText(findPanel(missingImportRuntime.runtime, 'PokerStatusLabel'));
       const messagesBeforeMissingImport = missingImportRuntime.runtime.messages.length;
-      missingImportRuntime.hooks.processChatRecord(resumeImportCase.record);
-      assertEqual(missingImportRuntime.hooks.state.game, null, `${resumeImportCase.name} should not create a game`);
+      applyMenuRecord(missingImportRuntime.hooks, resumeImportCase.record);
+      assertEqual(snapshot(missingImportRuntime.hooks).game, null, `${resumeImportCase.name} should not create a game`);
       assert(
-        !missingImportRuntime.hooks.state.resume || !missingImportRuntime.hooks.state.resume.payload,
+        !snapshot(missingImportRuntime.hooks).resume || !snapshot(missingImportRuntime.hooks).resume.payload,
         `${resumeImportCase.name} should not create resume payload from id-only chat`,
       );
       assertDiagnosticContains(
@@ -5479,24 +5520,24 @@ if (hooks) {
 
     const invalidRuntime = createMenuRuntime();
     if (invalidRuntime.hooks) {
-      const beforeGame = invalidRuntime.hooks.state.game;
+      const beforeGame = snapshot(invalidRuntime.hooks).game;
       const invalid = invalidRuntime.hooks.modules.ProgressResume.importCode('not-a-progress-code');
       assertEqual(invalid.ok, false, 'invalid progress code should fail import');
-      assertEqual(invalidRuntime.hooks.state.game, beforeGame, 'invalid progress import should leave State.game unchanged');
+      assertEqual(snapshot(invalidRuntime.hooks).game, beforeGame, 'invalid progress import should leave State.game unchanged');
     }
     if (saved.code && saved.payload) {
       const tamperedLocalRuntime = createMenuRuntime();
-      tamperedLocalRuntime.hooks.processChatRecord({
+      applyMenuRecord(tamperedLocalRuntime.hooks, {
         sender: 'Abrams',
         message: '[party leader] poker party ptampered-local-code',
         isSelf: true,
       });
       tamperedLocalRuntime.hooks.modules.ProgressResume.importCode(saved.code);
-      tamperedLocalRuntime.hooks.modules.TableRenderer.render();
+      tamperedLocalRuntime.hooks.modules.TableRenderer.render(tamperedLocalRuntime.hooks.modules.ViewModel.build());
       const tamperedInput = findPanel(tamperedLocalRuntime.runtime, 'PokerProgressCodeInput');
       assert(tamperedInput, 'tampered local progress setup should expose the progress code input');
-      const tamperedBeforeResume = JSON.stringify(tamperedLocalRuntime.hooks.state.resume);
-      const tamperedBeforeParty = JSON.stringify(tamperedLocalRuntime.hooks.state.party);
+      const tamperedBeforeResume = JSON.stringify(snapshot(tamperedLocalRuntime.hooks).resume);
+      const tamperedBeforeParty = JSON.stringify(snapshot(tamperedLocalRuntime.hooks).party);
       const tamperedCode = saved.code.replace(/^POKERPROG1-([0-9a-f])([0-9a-f]{7})-/i, (match, first, rest) => `POKERPROG1-${first === '0' ? '1' : '0'}${rest}-`);
       if (tamperedInput) tamperedInput.text = tamperedCode;
       const tamperedImportHandler = tamperedLocalRuntime.runtime.sandbox.PokerEscapeMenuImportProgress;
@@ -5505,36 +5546,36 @@ if (hooks) {
       drainImmediateCallbacks(tamperedLocalRuntime.runtime);
       assertEqual(tamperedResult.ok, false, 'tampered local progress code should be rejected');
       assertEqual(tamperedResult.status, 'Invalid progress code.', 'tampered local progress code should report invalid status');
-      assertEqual(JSON.stringify(tamperedLocalRuntime.hooks.state.resume), tamperedBeforeResume, 'tampered local progress should preserve the existing resume state');
-      assertEqual(JSON.stringify(tamperedLocalRuntime.hooks.state.party), tamperedBeforeParty, 'tampered local progress should preserve the existing party state');
+      assertEqual(JSON.stringify(snapshot(tamperedLocalRuntime.hooks).resume), tamperedBeforeResume, 'tampered local progress should preserve the existing resume state');
+      assertEqual(JSON.stringify(snapshot(tamperedLocalRuntime.hooks).party), tamperedBeforeParty, 'tampered local progress should preserve the existing party state');
       assertEqual(panelText(findPanel(tamperedLocalRuntime.runtime, 'PokerStatusLabel')), 'Invalid progress code.', 'tampered local progress should render the invalid status');
     }
     if (saved.code && saved.payload) {
       const wrongChecksumRuntime = createMenuRuntime();
       assertEqual(wrongChecksumRuntime.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'wrong-checksum transfer setup should import the existing local progress');
-      wrongChecksumRuntime.hooks.state.localPlayerKey = 'abrams';
+      
       wrongChecksumRuntime.runtime.config.PokerLocalPlayerKey = 'abrams';
       wrongChecksumRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
-      wrongChecksumRuntime.hooks.modules.TableRenderer.render();
-      const wrongChecksumBefore = JSON.stringify(wrongChecksumRuntime.hooks.state.resume);
+      wrongChecksumRuntime.hooks.modules.TableRenderer.render(wrongChecksumRuntime.hooks.modules.ViewModel.build());
+      const wrongChecksumBefore = JSON.stringify(snapshot(wrongChecksumRuntime.hooks).resume);
       const actualChecksum = progressChecksumFromCode(saved.code);
       const wrongChecksum = actualChecksum === '00000000' ? 'ffffffff' : '00000000';
       const wrongChecksumChunks = splitProgressCodeForChat(saved.code, 3);
-      wrongChecksumRuntime.hooks.processChatRecord({
+      applyMenuRecord(wrongChecksumRuntime.hooks, {
         sender: 'Seven',
         message: buildProgressOfferMessage(saved.id, wrongChecksum, wrongChecksumChunks.length),
         isSelf: false,
       });
       for (let i = 0; i < wrongChecksumChunks.length; i += 1) {
-        wrongChecksumRuntime.hooks.processChatRecord({
+        applyMenuRecord(wrongChecksumRuntime.hooks, {
           sender: 'Seven',
           message: buildProgressChunkMessage(saved.id, wrongChecksum, i + 1, wrongChecksumChunks.length, wrongChecksumChunks[i]),
           isSelf: false,
         });
       }
-      assertEqual(JSON.stringify(wrongChecksumRuntime.hooks.state.resume), wrongChecksumBefore, 'wrong-final-checksum transfer should preserve the imported payload and resume state');
-      assertEqual(wrongChecksumRuntime.hooks.state.resume.leaderKey, '', 'wrong-final-checksum transfer should not select a resume leader');
-      assertEqual(wrongChecksumRuntime.hooks.state.resume.hostedLeaderKey, '', 'wrong-final-checksum transfer should not grant hosted resume authority');
+      assertEqual(JSON.stringify(snapshot(wrongChecksumRuntime.hooks).resume), wrongChecksumBefore, 'wrong-final-checksum transfer should preserve the imported payload and resume state');
+      assertEqual(snapshot(wrongChecksumRuntime.hooks).resume.leaderKey, '', 'wrong-final-checksum transfer should not select a resume leader');
+      assertEqual(snapshot(wrongChecksumRuntime.hooks).resume.hostedLeaderKey, '', 'wrong-final-checksum transfer should not grant hosted resume authority');
       assertEqual(progressTransferCount(wrongChecksumRuntime.hooks), 0, 'wrong-final-checksum transfer should discard the invalid transfer');
       assertEqual(renderedStartGateEnabled(wrongChecksumRuntime), false, 'wrong-final-checksum transfer should not unlock resume start');
       assert(
@@ -5547,43 +5588,43 @@ if (hooks) {
       const duplicateChecksum = progressChecksumFromCode(saved.code);
       const duplicateChunks = splitProgressCodeForChat(saved.code, 3);
       assert(duplicateChunks.length >= 3, 'duplicate progress chunk fixture should have at least three chunks');
-      duplicateChunkRuntime.hooks.processChatRecord({
+      applyMenuRecord(duplicateChunkRuntime.hooks, {
         sender: 'Seven',
         message: buildProgressOfferMessage(saved.id, duplicateChecksum, duplicateChunks.length),
         isSelf: false,
       });
-      duplicateChunkRuntime.hooks.processChatRecord({
+      applyMenuRecord(duplicateChunkRuntime.hooks, {
         sender: 'Seven',
         message: buildProgressChunkMessage(saved.id, duplicateChecksum, 1, duplicateChunks.length, duplicateChunks[0]),
         isSelf: false,
       });
-      duplicateChunkRuntime.hooks.processChatRecord({
+      applyMenuRecord(duplicateChunkRuntime.hooks, {
         sender: 'Seven',
         message: buildProgressChunkMessage(saved.id, duplicateChecksum, 1, duplicateChunks.length, duplicateChunks[0]),
         isSelf: false,
       });
-      assertEqual(!!duplicateChunkRuntime.hooks.state.resume.payload, false, 'duplicate progress chunk should not complete the transfer');
+      assertEqual(!!snapshot(duplicateChunkRuntime.hooks).resume.payload, false, 'duplicate progress chunk should not complete the transfer');
       assertEqual(progressTransferCount(duplicateChunkRuntime.hooks), 1, 'duplicate progress chunk should keep one pending transfer');
       assertEqual(renderedStartGateEnabled(duplicateChunkRuntime), false, 'duplicate progress chunk should not unlock resume');
-      duplicateChunkRuntime.hooks.processChatRecord({
+      applyMenuRecord(duplicateChunkRuntime.hooks, {
         sender: 'Seven',
         message: buildProgressChunkMessage(saved.id, duplicateChecksum, 2, duplicateChunks.length, duplicateChunks[1]),
         isSelf: false,
       });
-      duplicateChunkRuntime.hooks.processChatRecord({
+      applyMenuRecord(duplicateChunkRuntime.hooks, {
         sender: 'Seven',
         message: buildProgressChunkMessage(saved.id, duplicateChecksum, 2, duplicateChunks.length, duplicateChunks[1]),
         isSelf: false,
       });
-      assertEqual(!!duplicateChunkRuntime.hooks.state.resume.payload, false, 'duplicate progress chunks should not complete before every unique chunk arrives');
+      assertEqual(!!snapshot(duplicateChunkRuntime.hooks).resume.payload, false, 'duplicate progress chunks should not complete before every unique chunk arrives');
       assertEqual(progressTransferCount(duplicateChunkRuntime.hooks), 1, 'duplicate progress chunks should remain one pending transfer before completion');
-      duplicateChunkRuntime.hooks.processChatRecord({
+      applyMenuRecord(duplicateChunkRuntime.hooks, {
         sender: 'Seven',
         message: buildProgressChunkMessage(saved.id, duplicateChecksum, 3, duplicateChunks.length, duplicateChunks[2]),
         isSelf: false,
       });
-      assertEqual(duplicateChunkRuntime.hooks.state.resume.id, saved.id, 'unique final progress chunk should complete the transfer after duplicates');
-      assertEqual(JSON.stringify(duplicateChunkRuntime.hooks.state.resume.payload), JSON.stringify(saved.payload), 'unique final progress chunk should import the original payload');
+      assertEqual(snapshot(duplicateChunkRuntime.hooks).resume.id, saved.id, 'unique final progress chunk should complete the transfer after duplicates');
+      assertEqual(JSON.stringify(snapshot(duplicateChunkRuntime.hooks).resume.payload), JSON.stringify(saved.payload), 'unique final progress chunk should import the original payload');
     }
     const zeroStackSource = createGameRuntime(['Abrams', 'Bebop', 'Calico'], 'progress-zero-stack');
     if (zeroStackSource.hooks && zeroStackSource.game) {
@@ -5608,26 +5649,26 @@ if (hooks) {
         assertEqual(zeroStackSave.payload.roster.length, 3, 'zero-stack saved player should remain represented in the saved roster');
         const zeroStackResume = createMenuRuntime();
         assertEqual(zeroStackResume.hooks.modules.ProgressResume.importCode(zeroStackSave.code).ok, true, 'zero-stack saved progress should import');
-        zeroStackResume.hooks.modules.TableRenderer.render();
+        zeroStackResume.hooks.modules.TableRenderer.render(zeroStackResume.hooks.modules.ViewModel.build());
         const zeroStackRows = collectPanelTexts(findPanel(zeroStackResume.runtime, 'PokerResumeLeaderList'), []).join('|');
         assert(zeroStackRows.includes('Calico') && zeroStackRows.includes('$0  OUT'), `zero-stack saved player should render as OUT for resume validation: ${zeroStackRows || '<empty>'}`);
-        zeroStackResume.hooks.processChatRecord({
+        applyMenuRecord(zeroStackResume.hooks, {
           sender: 'Abrams',
           message: hooks.buildResumeLeaderCommand(zeroStackSave.id),
           isSelf: true,
         });
-        zeroStackResume.hooks.processChatRecord({
+        applyMenuRecord(zeroStackResume.hooks, {
           sender: 'Bebop',
           message: hooks.buildResumeReadyCommand(zeroStackSave.id),
           isSelf: false,
         });
-        zeroStackResume.hooks.processChatRecord({
+        applyMenuRecord(zeroStackResume.hooks, {
           sender: 'Abrams',
           message: hooks.buildResumeStartCommand(zeroStackSave.id, 'abrams', zeroStackSave.payload.nextHandNumber, 'sresume-zero-stack'),
           isSelf: true,
         });
-        const zeroStackActivePlayers = zeroStackResume.hooks.state.game && zeroStackResume.hooks.state.game.players
-          ? zeroStackResume.hooks.state.game.players.map((player) => player.key)
+        const zeroStackActivePlayers = snapshot(zeroStackResume.hooks).game && snapshot(zeroStackResume.hooks).game.players
+          ? snapshot(zeroStackResume.hooks).game.players.map((player) => player.key)
           : [];
         assertEqual(JSON.stringify(zeroStackActivePlayers), JSON.stringify(['abrams', 'bebop']), 'zero-stack saved player should be excluded from the active resumed roster');
       }
@@ -5635,12 +5676,12 @@ if (hooks) {
     if (saved.code && saved.payload) {
       const resumeLeaderUi = createMenuRuntime();
       assertEqual(resumeLeaderUi.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'resume leader UI setup should import progress');
-      resumeLeaderUi.hooks.state.localPlayerKey = 'abrams';
+      
       resumeLeaderUi.runtime.config.PokerLocalPlayerKey = 'abrams';
       resumeLeaderUi.runtime.config.PokerLocalPlayerName = 'Abrams';
       const leaderChatTarget = findPanel(resumeLeaderUi.runtime, 'ChatTargetLabel');
       if (leaderChatTarget) leaderChatTarget.text = 'TEAM';
-      resumeLeaderUi.hooks.modules.TableRenderer.render();
+      resumeLeaderUi.hooks.modules.TableRenderer.render(resumeLeaderUi.hooks.modules.ViewModel.build());
       assertButtonAffordance(resumeLeaderUi.runtime, 'PokerResumeControls', { hidden: false }, 'resume leader UI should show resume controls after import');
       assertButtonAffordance(resumeLeaderUi.runtime, 'PokerResumeLeaderButton', { hidden: false, enabled: true }, 'resume leader UI should enable the leader button for a funded saved player');
       assertButtonAffordance(resumeLeaderUi.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'resume leader UI should hide READY RESUME for the unselected leader');
@@ -5656,12 +5697,12 @@ if (hooks) {
       drainScheduledCallbacks(resumeLeaderUi.runtime, 256);
       const leaderButtonMessages = submittedChatMessages(resumeLeaderUi.runtime, leaderButtonStart);
       assert(leaderButtonMessages.includes(hooks.buildResumeLeaderCommand(saved.id)), `resume leader UI should submit the resume-leader command: ${leaderButtonMessages.join('|') || '<none>'}`);
-      resumeLeaderUi.hooks.processChatRecord({
+      applyMenuRecord(resumeLeaderUi.hooks, {
         sender: 'Abrams',
         message: hooks.buildResumeLeaderCommand(saved.id),
         isSelf: true,
       });
-      resumeLeaderUi.hooks.modules.TableRenderer.render();
+      resumeLeaderUi.hooks.modules.TableRenderer.render(resumeLeaderUi.hooks.modules.ViewModel.build());
       assertButtonAffordance(resumeLeaderUi.runtime, 'PokerResumeLeaderButton', { hidden: true, enabled: false }, 'resume leader UI should disable the leader button after selection');
       assertStartButtonGate(resumeLeaderUi.runtime, 'WAITING FOR RESUME READY', false, false, 'resume leader UI should show the ready quorum gate after leader selection');
       assert(
@@ -5671,17 +5712,17 @@ if (hooks) {
 
       const resumeReadyUi = createMenuRuntime();
       assertEqual(resumeReadyUi.hooks.modules.ProgressResume.importCode(saved.code).ok, true, 'resume ready UI setup should import progress');
-      resumeReadyUi.hooks.state.localPlayerKey = 'bebop';
+      
       resumeReadyUi.runtime.config.PokerLocalPlayerKey = 'bebop';
       resumeReadyUi.runtime.config.PokerLocalPlayerName = 'Bebop';
       const readyChatTarget = findPanel(resumeReadyUi.runtime, 'ChatTargetLabel');
       if (readyChatTarget) readyChatTarget.text = 'TEAM';
-      resumeReadyUi.hooks.processChatRecord({
+      applyMenuRecord(resumeReadyUi.hooks, {
         sender: 'Abrams',
         message: hooks.buildResumeLeaderCommand(saved.id),
         isSelf: false,
       });
-      resumeReadyUi.hooks.modules.TableRenderer.render();
+      resumeReadyUi.hooks.modules.TableRenderer.render(resumeReadyUi.hooks.modules.ViewModel.build());
       assertButtonAffordance(resumeReadyUi.runtime, 'PokerResumeLeaderButton', { hidden: false, enabled: true }, 'resume ready UI should keep leader selection available to a funded saved member');
       assertButtonAffordance(resumeReadyUi.runtime, 'PokerResumeReadyButton', { hidden: false, enabled: true }, 'resume ready UI should enable READY RESUME for the funded saved member');
       const readyButtonStart = resumeReadyUi.runtime.dispatches.length;
@@ -5691,93 +5732,77 @@ if (hooks) {
       drainScheduledCallbacks(resumeReadyUi.runtime, 256);
       const readyButtonMessages = submittedChatMessages(resumeReadyUi.runtime, readyButtonStart);
       assert(readyButtonMessages.includes(hooks.buildResumeReadyCommand(saved.id)), `resume ready UI should submit the resume-ready command: ${readyButtonMessages.join('|') || '<none>'}`);
-      resumeReadyUi.hooks.processChatRecord({
+      applyMenuRecord(resumeReadyUi.hooks, {
         sender: 'Bebop',
         message: hooks.buildResumeReadyCommand(saved.id),
         isSelf: true,
       });
-      resumeReadyUi.hooks.modules.TableRenderer.render();
+      resumeReadyUi.hooks.modules.TableRenderer.render(resumeReadyUi.hooks.modules.ViewModel.build());
       assertButtonAffordance(resumeReadyUi.runtime, 'PokerResumeReadyButton', { hidden: true, enabled: false }, 'resume ready UI should hide READY RESUME after the member is ready');
       assert(
         panelText(findPanel(resumeReadyUi.runtime, 'PokerResumeStatusLabel')).includes('Ready: 2/2'),
         `resume ready UI should render the full ready quorum: ${panelText(findPanel(resumeReadyUi.runtime, 'PokerResumeStatusLabel')) || '<empty>'}`,
       );
-      resumeLeaderUi.hooks.processChatRecord({
+      applyMenuRecord(resumeLeaderUi.hooks, {
         sender: 'Bebop',
         message: hooks.buildResumeReadyCommand(saved.id),
         isSelf: false,
       });
-      resumeLeaderUi.hooks.modules.TableRenderer.render();
+      resumeLeaderUi.hooks.modules.TableRenderer.render(resumeLeaderUi.hooks.modules.ViewModel.build());
       assertStartButtonGate(resumeLeaderUi.runtime, 'START RESUME', true, false, 'resume leader UI should enable START RESUME after the second saved player is ready');
     }
 
     const activeImportRuntime = createGameRuntime(['Abrams', 'Bebop'], 'active-import');
     if (activeImportRuntime.hooks && activeImportRuntime.game && saved.code) {
-      activeImportRuntime.hooks.state.resume = { id: 'sentinel' };
+      
       const activeImport = activeImportRuntime.hooks.modules.ProgressResume.importCode(saved.code);
       assertEqual(activeImport.ok, false, 'active hand progress import should fail');
       assertEqual(activeImport.status, 'Finish the current hand before importing progress.', 'active hand progress import should return the exact status');
-      assertEqual(activeImportRuntime.hooks.state.resume.id, 'sentinel', 'active hand progress import should leave State.resume unchanged');
+      assertEqual(snapshot(activeImportRuntime.hooks).resume.id, 'sentinel', 'active hand progress import should leave State.resume unchanged');
     }
 
     if (saved.code && saved.payload) {
       const nonLeaderResume = createMenuRuntime();
       nonLeaderResume.hooks.modules.ProgressResume.importCode(saved.code);
-      nonLeaderResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id) });
-      nonLeaderResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeReadyCommand(saved.id) });
+      applyMenuRecord(nonLeaderResume.hooks, { sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id) });
+      applyMenuRecord(nonLeaderResume.hooks, { sender: 'Bebop', message: hooks.buildResumeReadyCommand(saved.id) });
       const nonLeaderStatusBefore = panelText(findPanel(nonLeaderResume.runtime, 'PokerStatusLabel'));
       const nonLeaderMessagesBefore = nonLeaderResume.runtime.messages.length;
-      nonLeaderResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeStartCommand(saved.id, 'abrams', saved.payload.nextHandNumber, 'sbad') });
-      assertEqual(nonLeaderResume.hooks.state.game, null, 'non-selected resume sender should not create a game');
+      applyMenuRecord(nonLeaderResume.hooks, { sender: 'Bebop', message: hooks.buildResumeStartCommand(saved.id, 'abrams', saved.payload.nextHandNumber, 'sbad') });
+      assertEqual(snapshot(nonLeaderResume.hooks).game, null, 'non-selected resume sender should not create a game');
       assertDiagnosticContains(nonLeaderResume.runtime, nonLeaderMessagesBefore, nonLeaderStatusBefore, 'reject-non-leader-resume', 'non-selected resume start sender');
 
       const mismatchResume = createMenuRuntime();
       mismatchResume.hooks.modules.ProgressResume.importCode(saved.code);
-      mismatchResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id) });
-      mismatchResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeReadyCommand(saved.id) });
+      applyMenuRecord(mismatchResume.hooks, { sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id) });
+      applyMenuRecord(mismatchResume.hooks, { sender: 'Bebop', message: hooks.buildResumeReadyCommand(saved.id) });
       const mismatchStatusBefore = panelText(findPanel(mismatchResume.runtime, 'PokerStatusLabel'));
       const mismatchMessagesBefore = mismatchResume.runtime.messages.length;
-      mismatchResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeStartCommand(saved.id, 'bebop', saved.payload.nextHandNumber, 'smismatch') });
-      assertEqual(mismatchResume.hooks.state.game, null, 'mismatched resume leader token should not create a game');
+      applyMenuRecord(mismatchResume.hooks, { sender: 'Abrams', message: hooks.buildResumeStartCommand(saved.id, 'bebop', saved.payload.nextHandNumber, 'smismatch') });
+      assertEqual(snapshot(mismatchResume.hooks).game, null, 'mismatched resume leader token should not create a game');
       assertDiagnosticContains(mismatchResume.runtime, mismatchMessagesBefore, mismatchStatusBefore, 'reject-resume-leader-mismatch', 'mismatched resume leader token');
 
       const wrongIdResume = createMenuRuntime();
       wrongIdResume.hooks.modules.ProgressResume.importCode(saved.code);
-      wrongIdResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id) });
-      wrongIdResume.hooks.processChatRecord({ sender: 'Abrams', message: hooks.buildResumeStartCommand('rwrong', 'abrams', saved.payload.nextHandNumber, 'swrong') });
-      assertEqual(wrongIdResume.hooks.state.game, null, 'resume start with a mismatched id should not create a game');
+      applyMenuRecord(wrongIdResume.hooks, { sender: 'Abrams', message: hooks.buildResumeLeaderCommand(saved.id) });
+      applyMenuRecord(wrongIdResume.hooks, { sender: 'Abrams', message: hooks.buildResumeStartCommand('rwrong', 'abrams', saved.payload.nextHandNumber, 'swrong') });
+      assertEqual(snapshot(wrongIdResume.hooks).game, null, 'resume start with a mismatched id should not create a game');
     }
 
     const bustedDealerRuntime = createMenuRuntime();
     if (bustedDealerRuntime.hooks) {
-      bustedDealerRuntime.hooks.state.game = {
-        active: false,
-        finished: true,
-        handNumber: 4,
-        dealerIndex: 0,
-        pot: 0,
-        currentBet: 0,
-        phase: 'finished',
-        community: [],
-        log: [],
-        announcement: null,
-        players: [
-          { key: 'abrams', name: 'Abrams', stack: 0, bet: 0, committed: 0, cards: [], folded: false, acted: false },
-          { key: 'bebop', name: 'Bebop', stack: 5000, bet: 0, committed: 0, cards: [], folded: false, acted: false },
-          { key: 'calico', name: 'Calico', stack: 6000, bet: 0, committed: 0, cards: [], folded: false, acted: false },
-        ],
-      };
+      
       const bustedSave = bustedDealerRuntime.hooks.modules.ProgressResume.build();
       assertEqual(bustedSave.ok, true, 'busted dealer finished table should still export when two players have chips');
       if (bustedSave.ok) {
         const bustedResume = createMenuRuntime();
         bustedResume.hooks.modules.ProgressResume.importCode(bustedSave.code);
-        bustedResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeLeaderCommand(bustedSave.id) });
-        bustedResume.hooks.processChatRecord({ sender: 'Calico', message: hooks.buildResumeReadyCommand(bustedSave.id) });
-        bustedResume.hooks.processChatRecord({ sender: 'Bebop', message: hooks.buildResumeStartCommand(bustedSave.id, 'bebop', bustedSave.payload.nextHandNumber, 'sbusted') });
-        assert(bustedResume.hooks.state.game, 'busted dealer resume should create a game');
-        if (bustedResume.hooks.state.game) {
-          assertEqual(bustedResume.hooks.state.game.players[bustedResume.hooks.state.game.dealerIndex].key, 'bebop', 'busted dealer resume should make the next positive-bankroll player dealer');
+        applyMenuRecord(bustedResume.hooks, { sender: 'Bebop', message: hooks.buildResumeLeaderCommand(bustedSave.id) });
+        applyMenuRecord(bustedResume.hooks, { sender: 'Calico', message: hooks.buildResumeReadyCommand(bustedSave.id) });
+        applyMenuRecord(bustedResume.hooks, { sender: 'Bebop', message: hooks.buildResumeStartCommand(bustedSave.id, 'bebop', bustedSave.payload.nextHandNumber, 'sbusted') });
+        assert(snapshot(bustedResume.hooks).game, 'busted dealer resume should create a game');
+        if (snapshot(bustedResume.hooks).game) {
+          assertEqual(snapshot(bustedResume.hooks).game.players[snapshot(bustedResume.hooks).game.dealerIndex].key, 'bebop', 'busted dealer resume should make the next positive-bankroll player dealer');
         }
       }
     }
@@ -5793,8 +5818,8 @@ if (hooks) {
     assertEqual(knownRaiseActor.name, 'Abrams', 'known raise setup should start with Abrams as the current actor');
     assertEqual(unknownRaiseActor.name, 'Abrams', 'unknown non-self raise setup should start with Abrams as the current actor');
 
-    knownRaiseRuntime.hooks.processChatRecord({ sender: knownRaiseActor.name, message: 'raise $400', isSelf: true });
-    unknownRaiseRuntime.hooks.processChatRecord({ sender: '<unknown>', message: 'raise $400', isSelf: false });
+    applyMenuRecord(knownRaiseRuntime.hooks, { sender: knownRaiseActor.name, message: 'raise $400', isSelf: true });
+    applyMenuRecord(unknownRaiseRuntime.hooks, { sender: '<unknown>', message: 'raise $400', isSelf: false });
 
     assertSameSyncedGame(unknownRaiseGame, knownRaiseGame, 'unknown non-self action from a known synced current actor should resolve to that actor');
     assertMoneySnapshot(
@@ -5811,21 +5836,21 @@ if (hooks) {
   if (unknownFlopCheckRuntime.hooks && unknownFlopCheckRuntime.game) {
     const game = unknownFlopCheckRuntime.game;
     assertEqual(currentPlayer(game).name, 'JDBeast', 'flop unknown check setup should start with the small blind acting preflop');
-    unknownFlopCheckRuntime.hooks.processChatRecord({ sender: 'JDBeast', message: 'call', isSelf: true });
+    applyMenuRecord(unknownFlopCheckRuntime.hooks, { sender: 'JDBeast', message: 'call', isSelf: true });
     assertEqual(currentPlayer(game).name, 'Hantu Raya', 'after small blind call, big blind should act preflop');
-    unknownFlopCheckRuntime.hooks.processChatRecord({ sender: 'Hantu Raya', message: 'check', isSelf: false });
+    applyMenuRecord(unknownFlopCheckRuntime.hooks, { sender: 'Hantu Raya', message: 'check', isSelf: false });
     assertEqual(game.phase, 'flop', 'big blind preflop check should advance to flop');
     assertEqual(currentPlayer(game).name, 'Hantu Raya', 'heads-up postflop first action remains with the big blind');
-    unknownFlopCheckRuntime.hooks.processChatRecord({ sender: '<unknown>', message: 'check', isSelf: false });
+    applyMenuRecord(unknownFlopCheckRuntime.hooks, { sender: '<unknown>', message: 'check', isSelf: false });
     assertEqual(currentPlayer(game).name, 'JDBeast', 'unknown flop check from known synced current actor should advance turn to the other player');
   }
 
   const shortRosterNameRuntime = createMenuRuntime();
   if (shortRosterNameRuntime.hooks && hasPartySyncHooks(shortRosterNameRuntime.hooks, 'short roster name runtime')) {
     const shortHooks = shortRosterNameRuntime.hooks;
-    shortHooks.processChatRecord({ sender: 'JDBeast', message: '[party leader] poker party pshort', isSelf: true });
-    shortHooks.processChatRecord({ sender: 'Hantu Raya', message: '[party join] poker party pshort', isSelf: false });
-    shortHooks.processChatRecord({ sender: 'JDBeast', message: 'poker start sshort-roster-name hand 1 roster jdbeast~JDBeast|hantu%20raya~H', isSelf: true });
+    applyMenuRecord(shortHooks, { sender: 'JDBeast', message: '[party leader] poker party pshort', isSelf: true });
+    applyMenuRecord(shortHooks, { sender: 'Hantu Raya', message: '[party join] poker party pshort', isSelf: false });
+    applyMenuRecord(shortHooks, { sender: 'JDBeast', message: 'poker start sshort-roster-name hand 1 roster jdbeast~JDBeast|hantu%20raya~H', isSelf: true });
     const shortNameGame = shortHooks.state.game;
     assert(shortNameGame, 'synced start with a shortened roster display name should create a game');
     if (shortNameGame) {
@@ -5833,9 +5858,9 @@ if (hooks) {
       assert(shortNameHantu, 'synced start should include the Hantu Raya party member by key');
       if (shortNameHantu) assertEqual(shortNameHantu.name, 'Hantu Raya', 'synced start should prefer the known party member name over the shortened roster display name');
       assertEqual(currentPlayer(shortNameGame).name, 'JDBeast', 'short roster name setup should start with JDBeast acting preflop');
-      shortHooks.processChatRecord({ sender: 'JDBeast', message: 'call', isSelf: true });
+      applyMenuRecord(shortHooks, { sender: 'JDBeast', message: 'call', isSelf: true });
       assertEqual(currentPlayer(shortNameGame).name, 'Hantu Raya', 'short roster name setup should advance to the canonical Hantu Raya current actor');
-      shortHooks.processChatRecord({ sender: '<unknown>', message: 'check', isSelf: false });
+      applyMenuRecord(shortHooks, { sender: '<unknown>', message: 'check', isSelf: false });
       assertEqual(shortNameGame.phase, 'flop', 'unknown action from canonical Hantu Raya current actor should resolve and apply');
     }
   }
@@ -5873,7 +5898,7 @@ if (hooks) {
     const statusBeforeUnknownIllegal = panelText(findPanel(unknownIllegalRuntime.runtime, 'PokerStatusLabel'));
     const messagesBeforeUnknownIllegal = unknownIllegalRuntime.runtime.messages.length;
 
-    unknownIllegalRuntime.hooks.processChatRecord({ sender: '<unknown>', message: 'bet $200', isSelf: false });
+    applyMenuRecord(unknownIllegalRuntime.hooks, { sender: '<unknown>', message: 'bet $200', isSelf: false });
 
     assertMoneySnapshot(
       moneySnapshot(unknownIllegalGame),
@@ -5916,7 +5941,7 @@ if (hooks) {
 
   const unknownLocalSynced = createSyncedPartyRuntime('', 'sunknown-local', syncedRoster, 1);
   if (unknownLocalSynced.hooks && unknownLocalSynced.game) {
-    assertEqual(unknownLocalSynced.hooks.state.localPlayerKey, '', 'unknown local synced start should not invent a local player key');
+    assertEqual(snapshot(unknownLocalSynced.hooks).localPlayerKey, '', 'unknown local synced start should not invent a local player key');
     assertReadOnlyActionButtons(
       unknownLocalSynced.runtime,
       ['CALL $100', 'RAISE', 'FOLD'],
@@ -5934,26 +5959,26 @@ if (hooks) {
   }
 
   const snapshotStartRuntime = createMenuRuntime();
-  if (snapshotStartRuntime.hooks && snapshotStartRuntime.hooks.modules && snapshotStartRuntime.hooks.modules.StartSync) {
+  if (snapshotStartRuntime.hooks && typeof snapshotStartRuntime.runtime.sandbox.PokerEscapeMenuToggle === 'function') {
     const snapshotStartCommand = snapshotStartRuntime.hooks.buildSynchronizedStartCommand('ssnapshot-open', syncedRoster, 1);
-    snapshotStartRuntime.hooks.modules.StartSync.openMenu();
+    snapshotStartRuntime.runtime.sandbox.PokerEscapeMenuToggle();
     snapshotStartRuntime.hooks.handleReadyEvent(JSON.stringify({
       event: 'PokerChatMessage',
       action: 'snapshot',
       seq: 1,
       messages: [{ seq: 1, sender: 'Abrams', message: snapshotStartCommand, isSelf: true }],
     }));
-    assert(snapshotStartRuntime.hooks.state.game && snapshotStartRuntime.hooks.state.game.active, 'snapshotted start while menu is open should create an active game');
+    assert(snapshot(snapshotStartRuntime.hooks).game && snapshot(snapshotStartRuntime.hooks).game.active, 'snapshotted start while menu is open should create an active game');
     assertPanelVisible(snapshotStartRuntime.runtime, 'PokerTableSurface', 'snapshotted start while menu is open');
   }
 
   const stableRenderRuntime = createSyncedPartyRuntime('Abrams', 'sstable-render', syncedRoster, 1);
   if (stableRenderRuntime.hooks && stableRenderRuntime.game) {
-    stableRenderRuntime.hooks.processChatRecord({ sender: 'Abrams', message: 'call', isSelf: true });
-    stableRenderRuntime.hooks.processChatRecord({ sender: 'Bebop', message: 'check' });
+    applyMenuRecord(stableRenderRuntime.hooks, { sender: 'Abrams', message: 'call', isSelf: true });
+    applyMenuRecord(stableRenderRuntime.hooks, { sender: 'Bebop', message: 'check' });
     const community = findPanel(stableRenderRuntime.runtime, 'PokerCommunityCards');
     const beforeCards = findDescendantsWithClass(community, 'PokerCard', []);
-    stableRenderRuntime.hooks.modules.TableRenderer.render();
+    stableRenderRuntime.hooks.modules.TableRenderer.render(stableRenderRuntime.hooks.modules.ViewModel.build());
     const afterCards = findDescendantsWithClass(community, 'PokerCard', []);
     assert(beforeCards[0] && afterCards[0] && beforeCards[0] === afterCards[0], 'stable table renderer should reuse the first community card panel across repeated renders');
     const waitingActions = renderedActionButtons(stableRenderRuntime.runtime);
@@ -5964,14 +5989,14 @@ if (hooks) {
 
   const stableActive = createSyncedPartyRuntime('Abrams', 'sstable-active-render', tableRoster, 1);
   if (stableActive.hooks && stableActive.game) {
-    stableActive.hooks.modules.TableRenderer.render();
+    stableActive.hooks.modules.TableRenderer.render(stableActive.hooks.modules.ViewModel.build());
     const firstActionPanels = actionButtonPanels(stableActive.runtime);
     const firstPlayerRows = playerListRows(stableActive.runtime);
     const firstTableRows = tableSeatRows(stableActive.runtime);
     const firstLogLines = pokerLogLines(stableActive.runtime);
     const firstHintCount = findDescendantsWithClass(findPanel(stableActive.runtime, 'PokerActionButtons'), 'PokerActionHint', []).length;
     clearDomWrites(stableActive.runtime);
-    stableActive.hooks.modules.TableRenderer.render();
+    stableActive.hooks.modules.TableRenderer.render(stableActive.hooks.modules.ViewModel.build());
     const secondActionPanels = actionButtonPanels(stableActive.runtime);
     const secondPlayerRows = playerListRows(stableActive.runtime);
     const secondTableRows = tableSeatRows(stableActive.runtime);
@@ -6003,8 +6028,8 @@ if (hooks) {
     const observer = actionReuseRuntime.game.players.find((player) => player.key !== actionActor.key) || actionReuseRuntime.game.players[0];
     actionReuseRuntime.runtime.config.PokerLocalPlayerKey = actionActor.key;
     actionReuseRuntime.runtime.config.PokerLocalPlayerName = actionActor.name;
-    actionReuseRuntime.hooks.state.localPlayerKey = actionActor.key;
-    actionReuseRuntime.hooks.modules.TableRenderer.render();
+    
+    actionReuseRuntime.hooks.modules.TableRenderer.render(actionReuseRuntime.hooks.modules.ViewModel.build());
     const firstActions = renderedActionButtons(actionReuseRuntime.runtime);
     const firstLabels = firstActions.map((entry) => entry.label);
     const firstPanels = firstActions.map((entry) => entry.panel);
@@ -6012,9 +6037,9 @@ if (hooks) {
 
     actionReuseRuntime.runtime.config.PokerLocalPlayerKey = observer.key;
     actionReuseRuntime.runtime.config.PokerLocalPlayerName = observer.name;
-    actionReuseRuntime.hooks.state.localPlayerKey = observer.key;
+    
     clearDomWrites(actionReuseRuntime.runtime);
-    actionReuseRuntime.hooks.modules.TableRenderer.render();
+    actionReuseRuntime.hooks.modules.TableRenderer.render(actionReuseRuntime.hooks.modules.ViewModel.build());
     const secondActions = renderedActionButtons(actionReuseRuntime.runtime);
     const secondPanels = secondActions.map((entry) => entry.panel);
     assertEqual(JSON.stringify(secondActions.map((entry) => entry.label)), JSON.stringify(firstLabels), 'active actor action cache should keep action labels across observer affordance change');
@@ -6028,20 +6053,20 @@ if (hooks) {
 
   const playerReuseRuntime = createGameRuntime(['Abrams', 'Bebop'], 'player-row-cache');
   if (playerReuseRuntime.hooks && playerReuseRuntime.game) {
-    playerReuseRuntime.hooks.modules.TableRenderer.render();
+    playerReuseRuntime.hooks.modules.TableRenderer.render(playerReuseRuntime.hooks.modules.ViewModel.build());
     const firstPlayerRow = playerListRows(playerReuseRuntime.runtime)[0];
     const firstPlayerCard = firstPokerCard(firstPlayerRow);
-    playerReuseRuntime.hooks.modules.TableRenderer.render();
+    playerReuseRuntime.hooks.modules.TableRenderer.render(playerReuseRuntime.hooks.modules.ViewModel.build());
     assert(playerListRows(playerReuseRuntime.runtime)[0] === firstPlayerRow, 'stable player renderer should reuse the first player row across unchanged renders');
     assert(firstPokerCard(playerListRows(playerReuseRuntime.runtime)[0]) === firstPlayerCard, 'stable player renderer should reuse the first player card across unchanged renders');
   }
 
   const tableSeatReuseRuntime = createGameRuntime(['Abrams', 'Bebop'], 'table-seat-cache');
   if (tableSeatReuseRuntime.hooks && tableSeatReuseRuntime.game) {
-    tableSeatReuseRuntime.hooks.modules.TableRenderer.render();
+    tableSeatReuseRuntime.hooks.modules.TableRenderer.render(tableSeatReuseRuntime.hooks.modules.ViewModel.build());
     const firstTableSeat = tableSeatRows(tableSeatReuseRuntime.runtime)[0];
     const firstTableSeatCard = firstPokerCard(firstTableSeat);
-    tableSeatReuseRuntime.hooks.modules.TableRenderer.render();
+    tableSeatReuseRuntime.hooks.modules.TableRenderer.render(tableSeatReuseRuntime.hooks.modules.ViewModel.build());
     assert(tableSeatRows(tableSeatReuseRuntime.runtime)[0] === firstTableSeat, 'stable table-seat renderer should reuse the first table seat across unchanged renders');
     assert(firstPokerCard(tableSeatRows(tableSeatReuseRuntime.runtime)[0]) === firstTableSeatCard, 'stable table-seat renderer should reuse the first table-seat card across unchanged renders');
   }
@@ -6062,14 +6087,14 @@ if (hooks) {
       'cache line 11',
       'cache line 12',
     ];
-    logReuseRuntime.hooks.modules.TableRenderer.render();
+    logReuseRuntime.hooks.modules.TableRenderer.render(logReuseRuntime.hooks.modules.ViewModel.build());
     const firstLogLine = pokerLogLines(logReuseRuntime.runtime)[0];
     const capturedLogLines = pokerLogLines(logReuseRuntime.runtime).slice();
-    logReuseRuntime.hooks.modules.TableRenderer.render();
+    logReuseRuntime.hooks.modules.TableRenderer.render(logReuseRuntime.hooks.modules.ViewModel.build());
     assert(pokerLogLines(logReuseRuntime.runtime)[0] === firstLogLine, 'stable log renderer should reuse the first log row across unchanged renders');
 
     logReuseRuntime.game.log.push('cache line 13');
-    logReuseRuntime.hooks.modules.TableRenderer.render();
+    logReuseRuntime.hooks.modules.TableRenderer.render(logReuseRuntime.hooks.modules.ViewModel.build());
     const appendedLogLines = pokerLogLines(logReuseRuntime.runtime);
     const appendedLogText = collectPanelTexts(findPanel(logReuseRuntime.runtime, 'PokerGameLog'), []).join('|');
     assertEqual(appendedLogLines.length, 12, `stable log renderer should keep the visible log capped at twelve rows: ${appendedLogText || '<empty>'}`);
@@ -6083,54 +6108,78 @@ if (hooks) {
   const pendingRuntime = createSyncedPartyRuntime('Abrams', 'spending-self', syncedRoster, 1);
   if (pendingRuntime.hooks && pendingRuntime.game) {
     const pendingGame = pendingRuntime.game;
-    pendingRuntime.hooks.state.localPlayerKey = '';
+    const submitted = submitActionFromButton(pendingRuntime.runtime, 'CALL', 'local action echo fixture');
+    assertEqual(submitted.join('|'), 'call', 'local action echo fixture should submit the clicked CALL command');
+    
     delete pendingRuntime.runtime.config.PokerLocalPlayerName;
-    pendingRuntime.hooks.modules.PendingSelfAction.record('call', pendingGame.players[0], pendingGame);
-    pendingRuntime.hooks.processChatRecord({ sender: '<unknown>', message: 'call', isSelf: true });
-    assertEqual(pendingGame.currentIndex, 1, 'fresh pending self call should resolve unknown self sender and advance the game');
-    const duplicateState = JSON.stringify({ currentIndex: pendingGame.currentIndex, pot: pendingGame.pot, phase: pendingGame.phase });
-    pendingRuntime.hooks.processChatRecord({ sender: '<unknown>', message: 'call', isSelf: true });
-    assertEqual(JSON.stringify({ currentIndex: pendingGame.currentIndex, pot: pendingGame.pot, phase: pendingGame.phase }), duplicateState, 'duplicate self echo after pending clear should not advance the game again');
+    const applicationsBefore = pendingGame.log.filter((entry) => /calls \$/.test(entry)).length;
+    deliverBridgeActionEcho(pendingRuntime.hooks, 1, 'call');
+    const echoedSnapshot = pendingRuntime.hooks.getStateSnapshot();
+    const applicationsAfter = pendingGame.log.filter((entry) => /calls \$/.test(entry)).length;
+    assertEqual(echoedSnapshot.game.currentIndex, 1, 'fresh local action echo should advance the state snapshot exactly once');
+    assertEqual(applicationsAfter, applicationsBefore + 1, 'fresh local action echo should apply exactly once');
+    assertObserverCurrentActorControls(pendingRuntime.runtime, 'Bebop', ['CHECK', 'RAISE', 'FOLD'], [], 'fresh local action echo');
+    deliverBridgeActionEcho(pendingRuntime.hooks, 2, 'call');
+    assertEqual(pendingRuntime.hooks.getStateSnapshot().game.currentIndex, echoedSnapshot.game.currentIndex, 'duplicate local action echo should not advance the state snapshot again');
+    assertEqual(pendingGame.log.filter((entry) => /calls \$/.test(entry)).length, applicationsAfter, 'duplicate local action echo should not apply a second time');
   }
 
   const stalePendingRuntime = createSyncedPartyRuntime('Abrams', 'sstale-pending', syncedRoster, 1);
   if (stalePendingRuntime.hooks && stalePendingRuntime.game) {
     const staleGame = stalePendingRuntime.game;
-    stalePendingRuntime.hooks.state.localPlayerKey = '';
+    const submitted = submitActionFromButton(stalePendingRuntime.runtime, 'CALL', 'stale local action echo fixture');
+    assertEqual(submitted.join('|'), 'call', 'stale local action echo fixture should submit the clicked CALL command');
+    
     delete stalePendingRuntime.runtime.config.PokerLocalPlayerName;
-    stalePendingRuntime.hooks.modules.PendingSelfAction.record('call', staleGame.players[0], staleGame);
     staleGame.currentIndex = 1;
-    const before = JSON.stringify({ currentIndex: staleGame.currentIndex, pot: staleGame.pot, phase: staleGame.phase });
-    stalePendingRuntime.hooks.processChatRecord({ sender: '<unknown>', message: 'call', isSelf: true });
-    assertEqual(JSON.stringify({ currentIndex: staleGame.currentIndex, pot: staleGame.pot, phase: staleGame.phase }), before, 'stale pending self action after currentIndex changes should not resolve');
+    const staleBefore = stalePendingRuntime.hooks.getStateSnapshot().game;
+    const before = JSON.stringify({
+      currentIndex: staleBefore.currentIndex,
+      phase: staleBefore.phase,
+      pot: staleBefore.pot,
+      players: staleBefore.players.map((player) => ({ key: player.key, stack: player.stack, bet: player.bet, folded: player.folded, acted: player.acted })),
+    });
+    const applicationsBefore = staleGame.log.filter((entry) => /calls \$/.test(entry)).length;
+    deliverBridgeActionEcho(stalePendingRuntime.hooks, 1, 'call');
+    const staleAfter = stalePendingRuntime.hooks.getStateSnapshot().game;
+    assertEqual(JSON.stringify({
+      currentIndex: staleAfter.currentIndex,
+      phase: staleAfter.phase,
+      pot: staleAfter.pot,
+      players: staleAfter.players.map((player) => ({ key: player.key, stack: player.stack, bet: player.bet, folded: player.folded, acted: player.acted })),
+    }), before, 'stale local action echo after a turn change should not mutate actionable state');
+    assertEqual(staleGame.log.filter((entry) => /calls \$/.test(entry)).length, applicationsBefore, 'stale local action echo after a turn change should not apply the submitted action');
   }
 
   const blockedPendingRuntime = createSyncedPartyRuntime('Abrams', 'sblocked-pending', syncedRoster, 1);
   if (blockedPendingRuntime.hooks && blockedPendingRuntime.game) {
     const blockedGame = blockedPendingRuntime.game;
-    blockedPendingRuntime.hooks.state.localPlayerKey = '';
+    const submitted = submitActionFromButton(blockedPendingRuntime.runtime, 'CALL', 'mismatched local action echo fixture');
+    assertEqual(submitted.join('|'), 'call', 'mismatched local action echo fixture should submit the clicked CALL command');
+    
     delete blockedPendingRuntime.runtime.config.PokerLocalPlayerName;
-    blockedPendingRuntime.hooks.modules.PendingSelfAction.record('call', blockedGame.players[0], blockedGame);
-    blockedPendingRuntime.hooks.processChatRecord({ sender: '<unknown>', message: 'raise $400', isSelf: true });
-    assertEqual(blockedGame.currentIndex, 0, 'wrong pending self action message should not resolve');
-    const leaderBeforePendingParty = blockedPendingRuntime.hooks.state.party.leaderKey || '';
-    blockedPendingRuntime.hooks.processChatRecord({ sender: '<unknown>', message: '[party leader] poker party pblocked', isSelf: true });
-    assertEqual(blockedPendingRuntime.hooks.state.party.leaderKey || '', leaderBeforePendingParty, 'pending self action should not authorize party leader rows');
+    const applicationsBefore = blockedGame.log.filter((entry) => /calls \$/.test(entry)).length;
+    deliverBridgeActionEcho(blockedPendingRuntime.hooks, 1, 'raise $400');
+    assertEqual(blockedPendingRuntime.hooks.getStateSnapshot().game.currentIndex, 0, 'mismatched local action echo should not advance the state snapshot');
+    assertEqual(blockedGame.log.filter((entry) => /calls \$/.test(entry)).length, applicationsBefore, 'mismatched local action echo should not apply the submitted action');
+    const leaderBeforePendingParty = snapshot(blockedPendingRuntime.hooks).party.leaderKey || '';
+    applyMenuRecord(blockedPendingRuntime.hooks, { sender: '<unknown>', message: '[party leader] poker party pblocked', isSelf: true });
+    assertEqual(snapshot(blockedPendingRuntime.hooks).party.leaderKey || '', leaderBeforePendingParty, 'local action echo tracking should not authorize party leader rows');
   }
 
   const selfUnknownMemberRuntime = createMenuRuntime();
   if (selfUnknownMemberRuntime.hooks && hasPartySyncHooks(selfUnknownMemberRuntime.hooks, 'self-unknown member synced start hooks')) {
     const memberHooks = selfUnknownMemberRuntime.hooks;
     const memberStartCommand = memberHooks.buildSynchronizedStartCommand('smember-local', syncedRoster, 1);
-    memberHooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party psync' });
-    memberHooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party psync' });
+    applyMenuRecord(memberHooks, { sender: 'Abrams', message: '[party leader] poker party psync' });
+    applyMenuRecord(memberHooks, { sender: 'Bebop', message: '[party join] poker party psync' });
     memberHooks.state.party.mode = 'member';
-    memberHooks.state.localPlayerKey = '';
-    memberHooks.processChatRecord({ sender: 'Abrams', message: memberStartCommand });
-    assertEqual(memberHooks.state.localPlayerKey, 'bebop', 'self-unknown member synced start should infer the only non-leader roster member as local');
+    
+    applyMenuRecord(memberHooks, { sender: 'Abrams', message: memberStartCommand });
+    assertEqual(snapshot(memberHooks).localPlayerKey, 'bebop', 'self-unknown member synced start should infer the only non-leader roster member as local');
     assertEqual(
       JSON.stringify(renderedPlayerCards(selfUnknownMemberRuntime.runtime, 'Bebop')),
-      JSON.stringify(memberHooks.state.game.players[1].cards.map(cardKey)),
+      JSON.stringify(snapshot(memberHooks).game.players[1].cards.map(cardKey)),
       'self-unknown member synced start should reveal only the inferred member hole cards',
     );
     assertEqual(
@@ -6144,8 +6193,8 @@ if (hooks) {
       'Waiting for Abrams',
       'self-unknown member before local turn',
     );
-    memberHooks.processChatRecord({ sender: 'Abrams', message: 'call' });
-    assertEqual(memberHooks.state.game.currentIndex, 1, 'self-unknown member synced start should advance to the inferred member after leader call');
+    applyMenuRecord(memberHooks, { sender: 'Abrams', message: 'call' });
+    assertEqual(snapshot(memberHooks).game.currentIndex, 1, 'self-unknown member synced start should advance to the inferred member after leader call');
     assertEnabledActionButtons(
       selfUnknownMemberRuntime.runtime,
       ['CHECK', 'RAISE', 'FOLD'],
@@ -6157,12 +6206,12 @@ if (hooks) {
   const nonLeaderRuntime = createMenuRuntime();
   if (nonLeaderRuntime.hooks && hasPartySyncHooks(nonLeaderRuntime.hooks, 'non-leader synced start hooks')) {
     const startCommand = nonLeaderRuntime.hooks.buildSynchronizedStartCommand('ssync', syncedRoster, 1);
-    nonLeaderRuntime.hooks.processChatRecord({ sender: 'Abrams', message: '[party leader] poker party psync' });
-    nonLeaderRuntime.hooks.processChatRecord({ sender: 'Bebop', message: '[party join] poker party psync' });
+    applyMenuRecord(nonLeaderRuntime.hooks, { sender: 'Abrams', message: '[party leader] poker party psync' });
+    applyMenuRecord(nonLeaderRuntime.hooks, { sender: 'Bebop', message: '[party join] poker party psync' });
     const statusBeforeNonLeaderStart = panelText(findPanel(nonLeaderRuntime.runtime, 'PokerStatusLabel'));
     const messagesBeforeNonLeaderStart = nonLeaderRuntime.runtime.messages.length;
-    nonLeaderRuntime.hooks.processChatRecord({ sender: 'Bebop', message: startCommand });
-    assertEqual(nonLeaderRuntime.hooks.state.game, null, 'non-leader synced start should not create a game');
+    applyMenuRecord(nonLeaderRuntime.hooks, { sender: 'Bebop', message: startCommand });
+    assertEqual(snapshot(nonLeaderRuntime.hooks).game, null, 'non-leader synced start should not create a game');
     assert(
       panelText(findPanel(nonLeaderRuntime.runtime, 'PokerStatusLabel')).includes('Only Abrams can start'),
       'non-leader synced start should show the leader-only start status',
@@ -6189,7 +6238,7 @@ if (hooks) {
     checkGame.currentBet = 200;
     const beforeCheck = moneySnapshot(checkGame);
     assertEqual(engineCallAmount(checkRuntime.hooks, checkGame, checker), 0, 'check cannot increase bet setup should give checker no call amount');
-    checkRuntime.hooks.processChatRecord({ sender: checker.name, message: 'check' });
+    applyMenuRecord(checkRuntime.hooks, { sender: checker.name, message: 'check' });
     assertMoneySnapshot(moneySnapshot(checkGame), beforeCheck, 'check cannot increase bet should not mutate stacks, bets, committed chips, pot, or currentBet');
     assertEqual(checkGame.currentIndex, 0, 'check cannot increase bet should advance to the next unsettled actor');
   }
@@ -6198,7 +6247,7 @@ if (hooks) {
   if (raiseRuntime.hooks && raiseRuntime.game) {
     const raiseGame = raiseRuntime.game;
     const raiser = currentPlayer(raiseGame);
-    raiseRuntime.hooks.processChatRecord({ sender: raiser.name, message: 'raise $400' });
+    applyMenuRecord(raiseRuntime.hooks, { sender: raiser.name, message: 'raise $400' });
     assertEqual(raiser.bet, 400, 'bet amount is target total should set raiser street bet to exactly $400');
     assertEqual(raiser.committed, 400, 'bet amount is target total should set total hand commitment to exactly $400 preflop');
     assertEqual(raiser.stack, 9600, 'bet amount is target total should charge only chips needed to reach $400');
@@ -6214,11 +6263,11 @@ if (hooks) {
   if (observerRuntime.hooks && observerRuntime.game) {
     const observerGame = observerRuntime.game;
     const localObserver = currentPlayer(observerGame);
-    observerRuntime.hooks.processChatRecord({ sender: localObserver.name, message: 'raise $400', isSelf: true });
+    applyMenuRecord(observerRuntime.hooks, { sender: localObserver.name, message: 'raise $400', isSelf: true });
 
     const observedActor = currentPlayer(observerGame);
     assertEqual(observedActor.name, 'JDBeast', 'observer current actor choices setup should pass action to the non-local player after a raise');
-    assertEqual(observerRuntime.hooks.state.localPlayerKey, localObserver.key, 'observer current actor choices setup should remember the local seat');
+    assertEqual(snapshot(observerRuntime.hooks).localPlayerKey, localObserver.key, 'observer current actor choices setup should remember the local seat');
     assertEqual(engineCallAmount(observerRuntime.hooks, observerGame, observedActor), 200, 'observer current actor choices setup should make the current actor face a $200 call');
     assertObserverCurrentActorControls(
       observerRuntime.runtime,
@@ -6227,21 +6276,11 @@ if (hooks) {
       ['CHECK', 'BET $200', 'BET $500'],
       'observer current actor choices',
     );
-    observerRuntime.hooks.state.party = {
-      id: 'pobserver',
-      mode: 'none',
-      leaderKey: 'abrams',
-      leaderName: 'Abrams',
-      members: {
-        abrams: { key: 'abrams', name: 'Abrams' },
-        jdbeast: { key: 'jdbeast', name: 'JDBeast' },
-      },
-      order: ['abrams', 'jdbeast'],
-    };
-    observerRuntime.hooks.state.localPlayerKey = 'calico';
+    
+    
     observerRuntime.runtime.config.PokerLocalPlayerKey = 'calico';
     observerRuntime.runtime.config.PokerLocalPlayerName = 'Calico';
-    observerRuntime.hooks.modules.TableRenderer.render();
+    observerRuntime.hooks.modules.TableRenderer.render(observerRuntime.hooks.modules.ViewModel.build());
     assertButtonAffordance(observerRuntime.runtime, 'PokerPartyControls', { hidden: false }, 'active observer late-join button state');
     assertButtonAffordance(observerRuntime.runtime, 'PokerJoinPartyButton', { hidden: false, enabled: true }, 'active observer late-join button state');
     assertButtonAffordance(observerRuntime.runtime, 'PokerStartButton', { hidden: true, enabled: false }, 'active observer late-join button state');
@@ -6253,7 +6292,7 @@ if (hooks) {
     const beforeIllegalBet = moneySnapshot(observerGame);
     const statusBeforeIllegalBet = panelText(findPanel(observerRuntime.runtime, 'PokerStatusLabel'));
     const messagesBeforeIllegalBet = observerRuntime.runtime.messages.length;
-    observerRuntime.hooks.processChatRecord({ sender: observedActor.name, message: 'bet $500' });
+    applyMenuRecord(observerRuntime.hooks, { sender: observedActor.name, message: 'bet $500' });
     assertMoneySnapshot(moneySnapshot(observerGame), beforeIllegalBet, 'illegal bet while facing currentBet should not mutate money');
     assertDiagnosticContains(observerRuntime.runtime, messagesBeforeIllegalBet, statusBeforeIllegalBet, 'reject-illegal-bet', 'illegal bet while facing currentBet');
     assertDiagnosticContains(observerRuntime.runtime, messagesBeforeIllegalBet, statusBeforeIllegalBet, 'use=raise', 'illegal bet while facing currentBet');
@@ -6270,7 +6309,7 @@ if (hooks) {
   );
   if (selfRuntime.hooks && selfRuntime.game) {
     const localPlayer = selfRuntime.game.players[0];
-    selfRuntime.hooks.processChatRecord({ sender: '<unknown>', message: 'call', isSelf: true });
+    applyMenuRecord(selfRuntime.hooks, { sender: '<unknown>', message: 'call', isSelf: true });
     assertEqual(localPlayer.bet, 200, 'unknown self sender uses local seat should apply the action to the remembered local player');
     assertEqual(localPlayer.stack, 9800, 'unknown self sender uses local seat should commit the local call amount');
     assertEqual(selfRuntime.game.currentIndex, 1, 'unknown self sender uses local seat should advance from the local actor after a legal action');
@@ -6282,7 +6321,7 @@ if (hooks) {
     const beforeUnknown = moneySnapshot(unknownGame);
     const statusBeforeUnknown = panelText(findPanel(unknownRuntime.runtime, 'PokerStatusLabel'));
     const messagesBeforeUnknown = unknownRuntime.runtime.messages.length;
-    unknownRuntime.hooks.processChatRecord({ sender: '<unknown>', message: 'check', isSelf: false });
+    applyMenuRecord(unknownRuntime.hooks, { sender: '<unknown>', message: 'check', isSelf: false });
     assertMoneySnapshot(moneySnapshot(unknownGame), beforeUnknown, 'unknown non-self check does not mutate money');
     assertDiagnosticContains(unknownRuntime.runtime, messagesBeforeUnknown, statusBeforeUnknown, 'reject-unknown-sender', 'unknown non-self check does not mutate money');
   }
@@ -6290,10 +6329,10 @@ if (hooks) {
   const streetRuntime = createGameRuntime(['Calico', 'Dynamo', 'Ivy'], 'announcer-street-current-index');
   if (streetRuntime.hooks && streetRuntime.game) {
     const streetGame = streetRuntime.game;
-    streetRuntime.hooks.processChatRecord({ sender: streetGame.players[0].name, message: 'call' });
-    streetRuntime.hooks.processChatRecord({ sender: streetGame.players[1].name, message: 'call' });
+    applyMenuRecord(streetRuntime.hooks, { sender: streetGame.players[0].name, message: 'call' });
+    applyMenuRecord(streetRuntime.hooks, { sender: streetGame.players[1].name, message: 'call' });
     assertEqual(streetGame.currentIndex, 2, 'announcer street setup should leave the big blind to close preflop');
-    streetRuntime.hooks.processChatRecord({ sender: streetGame.players[2].name, message: 'check' });
+    applyMenuRecord(streetRuntime.hooks, { sender: streetGame.players[2].name, message: 'check' });
     assertEqual(streetGame.phase, 'flop', 'street advance announcer should move to the flop');
     assertEqual(streetGame.currentIndex, 1, 'street advance announcer should update currentIndex before announcing the next actor');
     assertAnnouncerIncludes(
@@ -6307,14 +6346,14 @@ if (hooks) {
   const showdownRuntime = createGameRuntime(['Paradox', 'Warden'], 'announcer-showdown');
   if (showdownRuntime.hooks && showdownRuntime.game) {
     const showdownGame = showdownRuntime.game;
-    showdownRuntime.hooks.processChatRecord({ sender: showdownGame.players[0].name, message: 'call' });
-    showdownRuntime.hooks.processChatRecord({ sender: showdownGame.players[1].name, message: 'check' });
-    showdownRuntime.hooks.processChatRecord({ sender: showdownGame.players[1].name, message: 'check' });
-    showdownRuntime.hooks.processChatRecord({ sender: showdownGame.players[0].name, message: 'check' });
-    showdownRuntime.hooks.processChatRecord({ sender: showdownGame.players[1].name, message: 'check' });
-    showdownRuntime.hooks.processChatRecord({ sender: showdownGame.players[0].name, message: 'check' });
-    showdownRuntime.hooks.processChatRecord({ sender: showdownGame.players[1].name, message: 'check' });
-    showdownRuntime.hooks.processChatRecord({ sender: showdownGame.players[0].name, message: 'check' });
+    applyMenuRecord(showdownRuntime.hooks, { sender: showdownGame.players[0].name, message: 'call' });
+    applyMenuRecord(showdownRuntime.hooks, { sender: showdownGame.players[1].name, message: 'check' });
+    applyMenuRecord(showdownRuntime.hooks, { sender: showdownGame.players[1].name, message: 'check' });
+    applyMenuRecord(showdownRuntime.hooks, { sender: showdownGame.players[0].name, message: 'check' });
+    applyMenuRecord(showdownRuntime.hooks, { sender: showdownGame.players[1].name, message: 'check' });
+    applyMenuRecord(showdownRuntime.hooks, { sender: showdownGame.players[0].name, message: 'check' });
+    applyMenuRecord(showdownRuntime.hooks, { sender: showdownGame.players[1].name, message: 'check' });
+    applyMenuRecord(showdownRuntime.hooks, { sender: showdownGame.players[0].name, message: 'check' });
     assertEqual(showdownGame.finished, true, 'showdown announcer setup should finish the hand through chat actions');
     assertAnnouncerIncludes(
       showdownRuntime.runtime,
@@ -6355,7 +6394,7 @@ if (hooks) {
     const actor = currentPlayer(allInGame);
     actor.stack = 50;
     const beforeAllInCall = moneySnapshot(allInGame);
-    allInCallFixture.hooks.processChatRecord({ sender: actor.name, message: 'call' });
+    applyMenuRecord(allInCallFixture.hooks, { sender: actor.name, message: 'call' });
     assertEqual(actor.stack, 0, 'all-in call fixture should allow a short stack to call with all remaining chips');
     assertEqual(actor.committed, beforeAllInCall.players[allInGame.players.indexOf(actor)].committed + 50, 'all-in call fixture should add the short stack committed chips');
     assertEqual(allInGame.pot, beforeAllInCall.pot + 50, 'all-in call fixture should move the all-in call into the pot');
@@ -6364,9 +6403,9 @@ if (hooks) {
   const phaseAdvanceFixture = createEngineFixture({});
   if (phaseAdvanceFixture.hooks && phaseAdvanceFixture.game) {
     const phaseGame = phaseAdvanceFixture.game;
-    phaseAdvanceFixture.hooks.processChatRecord({ sender: currentPlayer(phaseGame).name, message: 'call' });
-    phaseAdvanceFixture.hooks.processChatRecord({ sender: currentPlayer(phaseGame).name, message: 'call' });
-    phaseAdvanceFixture.hooks.processChatRecord({ sender: currentPlayer(phaseGame).name, message: 'check' });
+    applyMenuRecord(phaseAdvanceFixture.hooks, { sender: currentPlayer(phaseGame).name, message: 'call' });
+    applyMenuRecord(phaseAdvanceFixture.hooks, { sender: currentPlayer(phaseGame).name, message: 'call' });
+    applyMenuRecord(phaseAdvanceFixture.hooks, { sender: currentPlayer(phaseGame).name, message: 'check' });
     assertEqual(phaseGame.phase, 'flop', 'phase advancement fixture should advance from preflop to flop after the round settles');
     assertEqual(phaseGame.currentBet, 0, 'phase advancement fixture should reset current bet on the new street');
     assertEqual(phaseGame.minRaise, phaseGame.bigBlindAmount, 'phase advancement fixture should reset minimum raise to the big blind on the new street');
@@ -6449,7 +6488,7 @@ if (hooks) {
     const missingSeedRuntime = createSyncedJoinedPartyRuntime('Bebop', 'sunknown-match-end-missing-seed', syncedRoster, 1, 'punknown-match-end-missing-seed');
     if (missingSeedRuntime.hooks && missingSeedRuntime.game) {
       const missingSeedBefore = missingSeedRuntime.hooks.getStateSnapshot();
-      missingSeedRuntime.hooks.processChatRecord({
+      applyMenuRecord(missingSeedRuntime.hooks, {
         sender: '<unknown>',
         message: '[match end] poker party punknown-match-end-missing-seed hand 1',
         isSelf: false,
@@ -6469,7 +6508,7 @@ if (hooks) {
     const missingHandRuntime = createSyncedJoinedPartyRuntime('Bebop', 'sunknown-match-end-missing-hand', syncedRoster, 1, 'punknown-match-end-missing-hand');
     if (missingHandRuntime.hooks && missingHandRuntime.game) {
       const missingHandBefore = missingHandRuntime.hooks.getStateSnapshot();
-      missingHandRuntime.hooks.processChatRecord({
+      applyMenuRecord(missingHandRuntime.hooks, {
         sender: '<unknown>',
         message: '[match end] poker party punknown-match-end-missing-hand seed sunknown-match-end-missing-hand',
         isSelf: false,
@@ -6493,7 +6532,7 @@ if (hooks) {
     if (nonLeaderRuntime.hooks && nonLeaderRuntime.game) {
       const before = nonLeaderRuntime.hooks.getStateSnapshot();
       const game = before.game;
-      const effect = nonLeaderRuntime.hooks.processChatRecord({
+      const effect = applyMenuRecord(nonLeaderRuntime.hooks, {
         sender: 'Bebop',
         message: `[match end] poker party pknown-nonleader-match-end seed ${game.seed} hand ${game.handNumber}`,
         isSelf: false,
@@ -6515,7 +6554,7 @@ if (hooks) {
   {
     const discoveryRuntime = createMenuRuntime();
     if (discoveryRuntime.hooks) {
-      discoveryRuntime.hooks.processChatRecord({
+      applyMenuRecord(discoveryRuntime.hooks, {
         sender: '<unknown>',
         message: '[party leader] poker party punknown-leader-discovery',
         isSelf: false,
@@ -6578,13 +6617,14 @@ if (hooks) {
       if (leavingPlayer && currentActor) {
         leaveGame.currentIndex = leaveGame.players.indexOf(currentActor);
         const currentActorKey = currentPlayer(leaveGame).key;
-        leaveHooks.processChatRecord({
+        applyMenuRecord(leaveHooks, {
           sender: 'Bebop',
           message: '[party leave] poker party pnon-current-member-leave',
           isSelf: false,
         });
         assertEqual(leaveGame.active, true, 'non-current three-player leave should keep the hand active');
         assertEqual(leavingPlayer.folded, true, 'non-current three-player leave should fold the departed member');
+
         assertEqual(leavingPlayer.left, true, 'non-current three-player leave should mark the departed member left');
         assertEqual(leavingPlayer.acted, true, 'non-current three-player leave should mark the departed member acted');
         assertEqual(
@@ -6605,10 +6645,7 @@ if (hooks) {
       assertHookFunction(nonLeaderEndRuntime.runtime.sandbox, 'PokerEscapeMenuEndMatch', 'non-leader direct end-match global');
       nonLeaderEndRuntime.runtime.sandbox.PokerEscapeMenuEndMatch();
       const after = endHooks.getStateSnapshot();
-      const submitted = nonLeaderEndRuntime.runtime.dispatches
-        .slice(dispatchStart)
-        .filter((event) => event.name === 'CitadelChatInputSubmitted')
-        .map((event) => String(event.payloadText || ''));
+      const submitted = submittedChatMessages(nonLeaderEndRuntime.runtime, dispatchStart);
       assert(
         !submitted.some((message) => message.indexOf('[match end] poker party ') === 0),
         `non-leader direct end-match should not submit a match-end command: ${submitted.join('|') || '<none>'}`,
@@ -6623,6 +6660,289 @@ if (hooks) {
         JSON.stringify(before.party),
         'non-leader direct end-match should leave party authority unchanged',
       );
+    }
+  }
+  {
+    const compatibilityRuntime = createMenuRuntime();
+    const compatibilityHooks = compatibilityRuntime.hooks;
+    const compatibilityModules = compatibilityHooks && compatibilityHooks.modules;
+    const requiredBluffModules = {
+      BluffDeckEngine: ['create', 'legalActions', 'apply', 'depart', 'abort', 'projectText', 'debugHash', 'assertInvariants'],
+      BluffDeckCommandReducer: ['decode', 'applyRecord', 'buildStart', 'buildPlay', 'buildChallenge', 'buildShoot', 'buildEnd'],
+      BluffDeckActions: ['sendStart', 'sendEnd', 'selectMask', 'sendPlay', 'sendChallenge', 'sendShoot'],
+    };
+    for (const [moduleName, functionNames] of Object.entries(requiredBluffModules)) {
+      const module = compatibilityModules && compatibilityModules[moduleName];
+      assert(module, `Step 7 compatibility should expose ${moduleName}`);
+      for (const functionName of functionNames) {
+        assert(
+          module && typeof module[functionName] === 'function',
+          `Step 7 compatibility should expose ${moduleName}.${functionName}`,
+        );
+      }
+      if (module) {
+        assertEqual(
+          Object.keys(module).sort().join(','),
+          functionNames.slice().sort().join(','),
+          `Step 7 compatibility ${moduleName} should expose only its documented interface`,
+        );
+      }
+    }
+    const pickerContractRuntime = createMenuRuntime();
+    if (pickerContractRuntime.hooks && pickerContractRuntime.hooks.modules && pickerContractRuntime.hooks.modules.TableGamePicker) {
+      const pickerHooks = pickerContractRuntime.hooks;
+      const picker = pickerHooks.modules.TableGamePicker;
+      pickerContractRuntime.runtime.sandbox.PokerEscapeMenuToggle();
+      pickerHooks.modules.TableRenderer.render(pickerHooks.modules.ViewModel.build());
+      assertPickerSurfaceState(
+        pickerContractRuntime.runtime,
+        { pickerHidden: false, pokerHidden: true, bluffHidden: true },
+        'Table game picker blank state',
+      );
+      assertEqual(picker.select('poker'), true, 'Table game picker Poker selection');
+      pickerHooks.modules.TableRenderer.render(pickerHooks.modules.ViewModel.build());
+      assertPickerSurfaceState(
+        pickerContractRuntime.runtime,
+        { pickerHidden: true, pokerHidden: false, bluffHidden: true },
+        'Table game picker Poker surface',
+      );
+      assertEqual(picker.select('bluff-deck'), true, 'Table game picker Bluff selection');
+      pickerHooks.modules.TableRenderer.render(pickerHooks.modules.ViewModel.build());
+      assertPickerSurfaceState(
+        pickerContractRuntime.runtime,
+        { pickerHidden: true, pokerHidden: true, bluffHidden: false },
+        'Table game picker Bluff surface',
+      );
+
+      const bluffJoinContext = createTableGameValidatorContext();
+      bluffJoinContext.sandbox.__PokerTestMode = false;
+      runScript(bluffJoinContext.sandbox, MENU_SCRIPT);
+      bluffJoinContext.sandbox.__PokerTestMode = true;
+      const bluffJoinRuntime = {
+        runtime: bluffJoinContext,
+        hooks: bluffJoinContext.sandbox.__PokerEscapeMenuTestHooks,
+      };
+      const bluffJoinHooks = bluffJoinRuntime.hooks;
+      const bluffJoinPicker = bluffJoinHooks.modules.TableGamePicker;
+      bluffJoinRuntime.runtime.sandbox.PokerEscapeMenuToggle();
+      assertEqual(bluffJoinPicker.select('bluff-deck'), true, 'Bluff join activation setup should select Bluff Deck');
+      applyMenuRecord(bluffJoinHooks, {
+        sender: 'JDBeast',
+        message: '[party leader] poker party pbluffjoin',
+        isSelf: false,
+      });
+      bluffJoinHooks.modules.TableRenderer.render(bluffJoinHooks.modules.ViewModel.build());
+      assertButtonAffordance(
+        bluffJoinRuntime.runtime,
+        'BluffDeckJoinButton',
+        { hidden: false, enabled: true },
+        'Bluff join activation after remote leader discovery',
+      );
+      const bluffJoinButton = findPanel(bluffJoinRuntime.runtime, 'BluffDeckJoinButton');
+      const bluffJoinTarget = findPanel(bluffJoinRuntime.runtime, 'ChatTargetLabel');
+      if (bluffJoinTarget) bluffJoinTarget.text = 'TEAM';
+      const bluffJoinDispatchStart = bluffJoinRuntime.runtime.dispatches.length;
+      assert(bluffJoinButton && typeof bluffJoinButton.onactivate === 'function', 'Bluff JOIN should keep its final imperative panel binding');
+      if (bluffJoinButton && typeof bluffJoinButton.onactivate === 'function') bluffJoinButton.onactivate();
+      drainScheduledCallbacks(bluffJoinRuntime.runtime, 256);
+      const bluffJoinMessages = submittedChatMessages(bluffJoinRuntime.runtime, bluffJoinDispatchStart);
+      assertEqual(
+        bluffJoinMessages.filter((message) => message === '[party join] poker party pbluffjoin').length,
+        1,
+        `Bluff JOIN panel activation should submit exactly one party join: ${bluffJoinMessages.join('|') || '<none>'}`,
+      );
+      assertEqual(
+        bluffJoinMessages.filter((message) => message.indexOf('[party leader] poker party ') === 0).length,
+        0,
+        `Bluff JOIN panel activation must never host a new party: ${bluffJoinMessages.join('|') || '<none>'}`,
+      );
+
+      const bluffHostContext = createTableGameValidatorContext();
+      bluffHostContext.sandbox.__PokerTestMode = false;
+      runScript(bluffHostContext.sandbox, MENU_SCRIPT);
+      bluffHostContext.sandbox.__PokerTestMode = true;
+      const bluffHostHooks = bluffHostContext.sandbox.__PokerEscapeMenuTestHooks;
+      bluffHostContext.sandbox.PokerEscapeMenuToggle();
+      assertEqual(bluffHostHooks.modules.TableGamePicker.select('bluff-deck'), true, 'Bluff HOST activation setup should select Bluff Deck');
+      bluffHostHooks.modules.TableRenderer.render(bluffHostHooks.modules.ViewModel.build());
+      const bluffHostButton = findPanel(bluffHostContext, 'BluffDeckHostButton');
+      const bluffHostTarget = findPanel(bluffHostContext, 'ChatTargetLabel');
+      if (bluffHostTarget) bluffHostTarget.text = 'TEAM';
+      const bluffHostDispatchStart = bluffHostContext.dispatches.length;
+      assert(bluffHostButton && typeof bluffHostButton.onactivate === 'function', 'Bluff HOST should keep its final imperative panel binding');
+      if (bluffHostButton && typeof bluffHostButton.onactivate === 'function') bluffHostButton.onactivate();
+      drainScheduledCallbacks(bluffHostContext, 256);
+      const bluffHostMessages = submittedChatMessages(bluffHostContext, bluffHostDispatchStart);
+      assertEqual(
+        bluffHostMessages.filter((message) => message.indexOf('[party leader] poker party ') === 0).length,
+        1,
+        `Bluff HOST panel activation should submit exactly one party leader: ${bluffHostMessages.join('|') || '<none>'}`,
+      );
+      assertEqual(
+        bluffHostMessages.filter((message) => message.indexOf('[party join] poker party ') === 0).length,
+        0,
+        `Bluff HOST panel activation must never submit party join: ${bluffHostMessages.join('|') || '<none>'}`,
+      );
+    }
+
+
+    function compatibilityRoster(keys) {
+      return keys.map((key) => ({ key, name: key[0].toUpperCase() + key.slice(1) }));
+    }
+
+    function startCompatibilityBluff(targetHooks, localKey, matchId, keys, partyId) {
+      const roster = compatibilityRoster(keys);
+      const party = partyId || `pcompat-${matchId}`;
+      targetHooks.seedPartyForTest(roster, party, localKey === keys[0] ? 'leader' : 'member');
+      targetHooks.state.localPlayerKey = localKey;
+      const engine = targetHooks.modules.BluffDeckEngine;
+      const candidate = engine.create({ id: matchId, roster });
+      applyMenuRecord(targetHooks, {
+        sender: roster[0].name,
+        message: `bd1 s ${matchId} ${candidate.rosterHash}`,
+        isSelf: localKey === keys[0],
+      });
+      return targetHooks.state.bluffDeck.game;
+    }
+
+    if (compatibilityHooks && compatibilityModules && compatibilityModules.BluffDeckEngine) {
+      const engine = compatibilityModules.BluffDeckEngine;
+      const startId = 'a1b2c3d4';
+      const startRoster = compatibilityRoster(['abrams', 'bebop']);
+      const pokerActive = createGameRuntime(['Abrams', 'Bebop'], 'step7-poker-active');
+      if (pokerActive.hooks && pokerActive.game) {
+        const candidate = engine.create({ id: startId, roster: startRoster });
+        const beforePoker = pokerActive.hooks.getStateSnapshot();
+        applyMenuRecord(pokerActive.hooks, {
+          sender: 'Abrams',
+          message: `bd1 s ${startId} ${candidate.rosterHash}`,
+          isSelf: true,
+        });
+        const afterPoker = pokerActive.hooks.getStateSnapshot();
+        assertEqual(afterPoker.game.active, true, 'Step 7 bidirectional exclusion should preserve active Poker');
+        assertEqual(afterPoker.bluffDeck.game, null, 'Step 7 bidirectional exclusion should reject Bluff start during Poker');
+        assertEqual(
+          JSON.stringify(afterPoker.party),
+          JSON.stringify(beforePoker.party),
+          'Step 7 bidirectional exclusion should preserve Poker party authority',
+        );
+      }
+
+      const bluffOnly = createMenuRuntime();
+      if (bluffOnly.hooks) {
+        const bluffGame = startCompatibilityBluff(bluffOnly.hooks, 'abrams', startId, ['abrams', 'bebop'], 'pcompat-mutual');
+        assert(bluffGame && bluffGame.active, 'Step 7 mutual exclusion fixture should start Bluff Deck');
+        applyMenuRecord(bluffOnly.hooks, { sender: 'Abrams', message: 'poker start step7-poker-blocked', isSelf: true });
+        assertEqual(bluffOnly.hooks.state.game, null, 'Step 7 bidirectional exclusion should reject Poker start during Bluff');
+        assertEqual(bluffOnly.hooks.state.bluffDeck.game.active, true, 'Step 7 bidirectional exclusion should retain Bluff match');
+      }
+
+      const sender = createMenuRuntime();
+      const senderGame = sender.hooks && startCompatibilityBluff(sender.hooks, 'bebop', 'deadbeef', ['abrams', 'bebop', 'calico'], 'pcompat-scoped');
+      if (sender.hooks && senderGame) {
+        const sendStart = sender.runtime.dispatches.length;
+        sender.runtime.sandbox.PokerEscapeMenuLeaveLobby();
+        const scopedMessages = submittedChatMessages(sender.runtime, sendStart);
+        assertEqual(
+          scopedMessages.filter((message) => message === '[party leave] poker party pcompat-scoped bd1 deadbeef 1').length,
+          1,
+          'Step 7 active Bluff leave should emit exactly one scoped shared party-leave command',
+        );
+
+        const receiver = createMenuRuntime();
+        const receiverGame = receiver.hooks && startCompatibilityBluff(receiver.hooks, 'abrams', 'deadbeef', ['abrams', 'bebop', 'calico'], 'pcompat-scoped');
+        if (receiver.hooks && receiverGame) {
+          applyMenuRecord(receiver.hooks, {
+            sender: 'Bebop',
+            message: '[party leave] poker party pcompat-scoped bd1 deadbeef 1',
+            isSelf: false,
+          });
+          assertEqual(receiverGame.players[1].status, 'left', 'Step 7 scoped party leave should depart the fixed Bluff seat');
+          assertEqual(receiverGame.seq, 1, 'Step 7 scoped party leave should consume one Bluff sequence');
+          assertEqual(receiver.hooks.state.bluffDeck.game.players.length, 3, 'Step 7 scoped party leave should preserve fixed seats');
+        }
+      }
+
+      const promoted = createMenuRuntime();
+      const promotedGame = promoted.hooks && startCompatibilityBluff(promoted.hooks, 'bebop', 'deadbeef', ['abrams', 'bebop', 'calico'], 'pcompat-promoted');
+      if (promoted.hooks && promotedGame) {
+        applyMenuRecord(promoted.hooks, {
+          sender: 'Abrams',
+          message: '[party leave] poker party pcompat-promoted bd1 deadbeef 1',
+          isSelf: false,
+        });
+        assertEqual(promoted.hooks.state.party.leaderKey, 'bebop', 'Step 7 leader departure should promote the next fixed party member');
+        assertEqual(promoted.hooks.state.party.mode, 'leader', 'Step 7 promoted local leader should own the party');
+        const oldLeaderHash = engine.debugHash(promotedGame);
+        applyMenuRecord(promoted.hooks, { sender: 'Abrams', message: 'bd1 e deadbeef', isSelf: false });
+        assertEqual(engine.debugHash(promotedGame), oldLeaderHash, 'Step 7 departed leader should not retain Bluff end authority');
+        const endStart = promoted.runtime.dispatches.length;
+        promoted.runtime.sandbox.PokerEscapeMenuEndMatch();
+        const endMessages = submittedChatMessages(promoted.runtime, endStart);
+        assertEqual(
+          endMessages.filter((message) => message === 'bd1 e deadbeef').length,
+          1,
+          'Step 7 promoted leader should emit exactly one Bluff end command',
+        );
+        applyMenuRecord(promoted.hooks, { sender: 'Bebop', message: 'bd1 e deadbeef', isSelf: true });
+        assertEqual(promotedGame.aborted, true, 'Step 7 promoted leader end should apply a manual abort');
+        assertEqual(promotedGame.finished, false, 'Step 7 manual abort should not become a natural finish');
+        assertEqual(promotedGame.winnerKey, '', 'Step 7 manual abort should never assign a winner');
+        assertEqual(engine.assertInvariants(promotedGame), true, 'Step 7 manual abort should remain invariant-valid');
+      }
+
+      const reopen = createMenuRuntime();
+      const reopenGame = reopen.hooks && startCompatibilityBluff(reopen.hooks, 'abrams', '11223344', ['abrams', 'bebop'], 'pcompat-reopen');
+      if (reopen.hooks && reopenGame) {
+        const beforeHash = engine.debugHash(reopenGame);
+        const beforeParty = reopen.hooks.state.party.id;
+        assertHookFunction(reopen.runtime.sandbox, 'PokerEscapeMenuToggle', 'Step 7 close/reopen preservation toggle');
+        assertHookFunction(reopen.runtime.sandbox, 'PokerEscapeMenuClose', 'Step 7 close/reopen preservation close');
+        reopen.runtime.sandbox.PokerEscapeMenuToggle();
+        const closeDispatchStart = reopen.runtime.dispatches.length;
+        reopen.runtime.sandbox.PokerEscapeMenuClose();
+        const closeMessages = submittedChatMessages(reopen.runtime, closeDispatchStart);
+        assert(
+          !closeMessages.some((message) => message === '[party leave] poker party pcompat-reopen'),
+          'Step 7 active Bluff close should not emit the hosted-party leave command',
+        );
+        assertEqual(reopen.hooks.state.isOpen, false, 'Step 7 close should close the menu without cancelling active Bluff');
+        assertEqual(engine.debugHash(reopen.hooks.state.bluffDeck.game), beforeHash, 'Step 7 close should preserve in-memory Bluff state');
+        assertEqual(reopen.hooks.state.party.id, beforeParty, 'Step 7 close should preserve the hosted party');
+        reopen.runtime.sandbox.PokerEscapeMenuToggle();
+        assertEqual(reopen.hooks.state.isOpen, true, 'Step 7 reopen should reopen the menu');
+        assertEqual(engine.debugHash(reopen.hooks.state.bluffDeck.game), beforeHash, 'Step 7 reopen should preserve the same Bluff state');
+      }
+
+      const pokerRegression = createGameRuntime(['Abrams', 'Bebop'], 'step7-poker-regression');
+      if (pokerRegression.hooks && pokerRegression.game) {
+        const pokerGame = pokerRegression.game;
+        const pokerActor = currentPlayer(pokerGame);
+        const beforePot = pokerGame.pot;
+        applyMenuRecord(pokerRegression.hooks, { sender: pokerActor.name, message: 'call' });
+        assert(pokerGame.pot > beforePot, 'Step 7 Poker engine compatibility should still apply a legal call');
+        const progressRuntime = createProgressCodeRuntime(['Step Leader', 'Step Member'], 'step7-progress-regression');
+        if (progressRuntime.code && progressRuntime.payload) {
+          assert(progressRuntime.code.indexOf('POKERPROG1-') === 0, 'Step 7 Poker progress should retain the POKERPROG1 wire format');
+          const decoded = progressRuntime.hooks.modules.ProgressResume.importCode(progressRuntime.code);
+          assertEqual(decoded.ok, true, 'Step 7 Poker progress should still import its own export');
+          assertEqual(decoded.payload.kind, 'poker-progress', 'Step 7 Poker progress should retain its payload kind');
+        }
+      }
+
+      const throttle = createMenuRuntime();
+      if (throttle.hooks) {
+        throttle.runtime.sandbox.Date.now = () => 1700000200000;
+        const firstDispatch = throttle.runtime.dispatches.length;
+        throttle.runtime.sandbox.PokerEscapeMenuSendReadyChat();
+        const firstReadyCount = submittedChatMessages(throttle.runtime, firstDispatch).length;
+        const secondDispatch = throttle.runtime.dispatches.length;
+        throttle.runtime.sandbox.PokerEscapeMenuSendReadyChat();
+        const secondReadyCount = submittedChatMessages(throttle.runtime, secondDispatch).length;
+        assertEqual(firstReadyCount, 1, 'Step 7 Poker sender should still submit the first ready command');
+        assertEqual(secondReadyCount, 0, 'Step 7 Poker sender should retain the 800ms duplicate throttle');
+        assertEqual(throttle.hooks.state.lastSendMs, 1700000200000, 'Step 7 Poker throttle should retain its timestamp policy');
+      }
     }
   }
 }

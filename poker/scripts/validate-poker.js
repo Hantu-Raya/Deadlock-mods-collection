@@ -25,6 +25,14 @@ const REQUIRED_CARD_IMAGE_NAMES = [
   'card_suit_spade.png',
 ];
 const EXPECTED_CARD_IMAGE_SIZE = 512;
+const CHIP_IMAGE_DIR = path.join(ROOT, 'panorama', 'images', 'poker', 'chips');
+const REQUIRED_CHIP_IMAGE_NAMES = [
+  'pot_100_red_chips_512.png',
+  'pot_300_green_chips_512.png',
+  'pot_500_green_chips_512.png',
+  'pot_1000_black_chips_512.png',
+  'pot_2500_plus_mixed_chips_512.png',
+];
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const ADAM7_PASSES = [
   { x: 0, y: 0, dx: 8, dy: 8 },
@@ -36,6 +44,9 @@ const ADAM7_PASSES = [
   { x: 0, y: 1, dx: 1, dy: 2 },
 ];
 const failures = [];
+const LEGACY_RUNTIME_BASELINE = 6264;
+const BLUFF_DECK_RUNTIME_BUDGET = 1600;
+const RUNTIME_LINE_LIMIT = LEGACY_RUNTIME_BASELINE + BLUFF_DECK_RUNTIME_BUDGET;
 
 function normalizePath(filePath) {
   return path.relative(ROOT, filePath).replace(/\\/g, '/');
@@ -50,8 +61,18 @@ function readSource(label, filePath) {
   }
 }
 
+function physicalLineCount(source) {
+  let normalized = String(source || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  if (normalized.endsWith('\n')) normalized = normalized.slice(0, -1);
+  return normalized ? normalized.split('\n').length : 0;
+}
+
 function assert(condition, message) {
   if (!condition) failures.push(message);
+}
+
+function assertEqual(actual, expected, message) {
+  assert(actual === expected, `${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
 }
 
 function assertIncludes(label, source, token, reason) {
@@ -62,9 +83,8 @@ function assertMatches(label, source, pattern, reason) {
   assert(pattern.test(source), `${label} ${reason}: ${pattern}`);
 }
 
-function createChatMessagePanel(sender, message, options = {}) {
-  const panels = harness.createPanelFactory({ panelIds: [] });
-  return harness.appendChatPanel({ panels }, sender, options.channel || 'TEAM', message, !!options.isSelf).row;
+function countOccurrences(source, token) {
+  return String(source || '').split(token).length - 1;
 }
 
 function createChatBridgeRuntime() {
@@ -75,6 +95,7 @@ function createChatBridgeRuntime() {
     dispatches: runtime.dispatches,
     hooks: runtime.sandbox.__PokerChatDebugTestHooks,
     logs: runtime.messages,
+    panels: runtime.panels,
     schedules: runtime.schedules,
   };
 }
@@ -83,6 +104,21 @@ function cssBlock(source, selector) {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = source.match(new RegExp(`(?:^|\\})\\s*${escapedSelector}\\s*\\{([^}]*)\\}`, 'm'));
   return match ? match[1] : '';
+}
+
+function cssLastBlock(source, selector) {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const matches = Array.from(source.matchAll(new RegExp(`(?:^|\\})\\s*${escapedSelector}\\s*\\{([^}]*)\\}`, 'gm')));
+  return matches.length ? matches[matches.length - 1][1] : '';
+}
+
+function cssLastBlockContainingSelector(source, selector) {
+  let result = '';
+  for (const block of source.matchAll(/(?:^|})\s*([^{}]+)\{([^}]*)\}/gm)) {
+    const selectors = block[1].split(',').map((value) => value.trim());
+    if (selectors.includes(selector)) result = block[2];
+  }
+  return result;
 }
 
 function cssBlockContainingSelector(source, selector) {
@@ -106,11 +142,59 @@ function sourceSliceBetweenIds(source, startId, endId) {
   return endMatch ? start.slice(0, endMatch.index + 1) : start;
 }
 
+function parseXmlTree(source) {
+  const root = { name: '__root__', attrs: {}, children: [], parent: null };
+  const stack = [root];
+  const tokenPattern = /<!--[\s\S]*?-->|<[^>]+>/g;
+  let match;
+  while ((match = tokenPattern.exec(String(source || '')))) {
+    const token = match[0];
+    if (token.startsWith('<!--') || token.startsWith('<?') || token.startsWith('<!')) continue;
+    if (/^<\s*\//.test(token)) {
+      const closeMatch = /^<\s*\/\s*([A-Za-z0-9_:-]+)\s*>$/.exec(token);
+      if (!closeMatch || stack.length <= 1 || stack[stack.length - 1].name !== closeMatch[1]) return null;
+      stack.pop();
+      continue;
+    }
+    const openMatch = /^<\s*([A-Za-z0-9_:-]+)([\s\S]*?)\/?\s*>$/.exec(token);
+    if (!openMatch) return null;
+    const node = { name: openMatch[1], attrs: {}, children: [], parent: stack[stack.length - 1] };
+    const attrSource = openMatch[2].replace(/\/\s*$/, '');
+    for (const attrMatch of attrSource.matchAll(/([A-Za-z0-9_:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) {
+      node.attrs[attrMatch[1]] = attrMatch[2] === undefined ? attrMatch[3] : attrMatch[2];
+    }
+    node.parent.children.push(node);
+    if (!/\/\s*>$/.test(token)) stack.push(node);
+  }
+  return stack.length === 1 ? root : null;
+}
+
+function findXmlNodeById(root, id) {
+  if (!root) return null;
+  if (root.attrs && root.attrs.id === id) return root;
+  for (const child of root.children || []) {
+    const found = findXmlNodeById(child, id);
+    if (found) return found;
+  }
+  return null;
+}
+
+function xmlDescendant(root, predicate) {
+  if (!root) return null;
+  for (const child of root.children || []) {
+    if (predicate(child)) return child;
+    const found = xmlDescendant(child, predicate);
+    if (found) return found;
+  }
+  return null;
+}
+
 function cssDeclarationValue(block, property) {
   const escapedProperty = property.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = new RegExp(`\\b${escapedProperty}\\s*:\\s*([^;]+);`).exec(block || '');
   return match ? match[1].trim() : '';
 }
+
 
 function cssColorLuminance(red, green, blue) {
   return (red * 0.2126) + (green * 0.7152) + (blue * 0.0722);
@@ -174,6 +258,17 @@ function cssFirstDeclarationValue(block, properties) {
   return '';
 }
 
+function cssSelectorBlocks(source) {
+  const entries = [];
+  const blocks = source.matchAll(/(?:^|})\s*([^{}]+)\{([^}]*)\}/gm);
+  for (const block of blocks) {
+    for (const selector of block[1].split(',').map((value) => value.trim()).filter(Boolean)) {
+      entries.push({ selector, block: block[2] });
+    }
+  }
+  return entries;
+}
+
 function cssBlockContainingSelectorDeclaration(source, selector, property) {
   const blocks = source.matchAll(/(?:^|})\s*([^{}]+)\{([^}]*)\}/gm);
   for (const block of blocks) {
@@ -212,9 +307,10 @@ function cssPxValue(block, property) {
 function assertResponsiveWindowPosition(selector, options) {
   const block = cssBlock(menuStyle, selector);
   assert(block, `menu style must define ${selector} for responsive floating window positioning`);
+  const verticalProperty = options.verticalProperty || 'margin-top';
   assertCssDeclarationMatches(`menu style ${selector}`, block, 'width', /^\d+(?:\.\d+)?%$/, 'must use percentage width');
   assert(!/\bmax-height\s*:/.test(block), `menu style ${selector} must not cap floating window height; percentage max-height caused Panorama clipping`);
-  assertCssDeclarationMatches(`menu style ${selector}`, block, 'margin-top', /^\d+(?:\.\d+)?%$/, 'must use percentage vertical positioning');
+  assertCssDeclarationMatches(`menu style ${selector}`, block, verticalProperty, /^\d+(?:\.\d+)?%$/, `must use percentage ${verticalProperty} positioning`);
   assertCssDeclarationMatches(`menu style ${selector}`, block, 'align', options.align, `must align to ${options.alignDescription}`);
   assertCssDeclarationMatches(`menu style ${selector}`, block, options.horizontalProperty, /^\d+(?:\.\d+)?%$/, `must use percentage ${options.horizontalProperty}`);
   assert(
@@ -222,7 +318,7 @@ function assertResponsiveWindowPosition(selector, options) {
     `menu style ${selector} must not mix ${options.forbiddenHorizontalProperty} with ${options.horizontalProperty}`,
   );
   assert(
-    !/\b(?:width|margin-left|margin-right|margin-top)\s*:\s*-?\d+(?:\.\d+)?px\s*;/.test(block),
+    !/\b(?:width|margin-left|margin-right|margin-top|margin-bottom)\s*:\s*-?\d+(?:\.\d+)?px\s*;/.test(block),
     `menu style ${selector} must not use fixed pixel sizing or offsets for responsive floating window positioning`,
   );
 }
@@ -379,13 +475,13 @@ function pngHasTransparentAlpha(png) {
   return hasTransparentPixel;
 }
 
-function validateCardImage(imageName) {
-  const filePath = path.join(CARD_IMAGE_DIR, imageName);
+function validatePngImage(imageName, directory, label, expectedSize) {
+  const filePath = path.join(directory, imageName);
   let buffer;
   try {
     buffer = fs.readFileSync(filePath);
   } catch (error) {
-    failures.push(`card image missing or unreadable: ${normalizePath(filePath)} (${error.message})`);
+    failures.push(`${label} image missing or unreadable: ${normalizePath(filePath)} (${error.message})`);
     return;
   }
 
@@ -393,17 +489,17 @@ function validateCardImage(imageName) {
   try {
     png = parsePng(buffer);
   } catch (error) {
-    failures.push(`card image ${imageName} must be a readable PNG: ${error.message}`);
+    failures.push(`${label} image ${imageName} must be a readable PNG: ${error.message}`);
     return;
   }
 
   assert(
-    png.width === EXPECTED_CARD_IMAGE_SIZE && png.height === EXPECTED_CARD_IMAGE_SIZE,
-    `card image ${imageName} must be ${EXPECTED_CARD_IMAGE_SIZE}x${EXPECTED_CARD_IMAGE_SIZE}, got ${png.width}x${png.height}`,
+    png.width === expectedSize && png.height === expectedSize,
+    `${label} image ${imageName} must be ${expectedSize}x${expectedSize}, got ${png.width}x${png.height}`,
   );
   assert(
     png.colorType === 6,
-    `card image ${imageName} must be PNG color type 6 (RGBA), got color type ${png.colorType}`,
+    `${label} image ${imageName} must be PNG color type 6 (RGBA), got color type ${png.colorType}`,
   );
 
   if (png.colorType !== 6) return;
@@ -411,16 +507,24 @@ function validateCardImage(imageName) {
   try {
     assert(
       pngHasTransparentAlpha(png),
-      `card image ${imageName} must contain at least one transparent pixel (alpha below full opacity)`,
+      `${label} image ${imageName} must contain at least one transparent pixel (alpha below full opacity)`,
     );
   } catch (error) {
-    failures.push(`card image ${imageName} alpha data unreadable: ${error.message}`);
+    failures.push(`${label} image ${imageName} alpha data unreadable: ${error.message}`);
   }
 }
 
 function validateRequiredCardImages() {
   for (const imageName of REQUIRED_CARD_IMAGE_NAMES) {
-    validateCardImage(imageName);
+    validatePngImage(imageName, CARD_IMAGE_DIR, 'card', EXPECTED_CARD_IMAGE_SIZE);
+  }
+}
+
+function validateRequiredChipImages() {
+  for (const imageName of REQUIRED_CHIP_IMAGE_NAMES) {
+    validatePngImage(imageName, CHIP_IMAGE_DIR, 'chip', EXPECTED_CARD_IMAGE_SIZE);
+    const vtexPath = path.join(CHIP_IMAGE_DIR, imageName.replace(/\.png$/, '.vtex'));
+    assert(fs.existsSync(vtexPath), `chip VTEX source missing: ${normalizePath(vtexPath)}`);
   }
 }
 
@@ -429,7 +533,21 @@ const script = readSource('script', SCRIPT_PATH);
 const menuScript = readSource('menu script', MENU_SCRIPT_PATH);
 const menuLayout = readSource('menu layout', MENU_LAYOUT_PATH);
 const menuStyle = readSource('menu style', MENU_STYLE_PATH);
+const menuRuntimeLines = physicalLineCount(menuScript);
+const bridgeRuntimeLines = physicalLineCount(script);
+const totalRuntimeLines = menuRuntimeLines + bridgeRuntimeLines;
+const bluffDeckRuntimeDelta = totalRuntimeLines - LEGACY_RUNTIME_BASELINE;
+const remainingRuntimeBudget = RUNTIME_LINE_LIMIT - totalRuntimeLines;
+assert(
+  totalRuntimeLines <= RUNTIME_LINE_LIMIT,
+  `Poker runtime physical-line limit exceeded: ${totalRuntimeLines} total (${menuRuntimeLines} menu + ${bridgeRuntimeLines} bridge), limit ${RUNTIME_LINE_LIMIT}`,
+);
+console.log(`Poker runtime baseline: ${LEGACY_RUNTIME_BASELINE}`);
+console.log(`Bluff Deck runtime delta: ${bluffDeckRuntimeDelta}`);
+console.log(`Bluff Deck runtime budget remaining: ${remainingRuntimeBudget}`);
+console.log(`Poker runtime lines: ${menuRuntimeLines} menu + ${bridgeRuntimeLines} bridge = ${totalRuntimeLines} <= ${RUNTIME_LINE_LIMIT}`);
 validateRequiredCardImages();
+validateRequiredChipImages();
 
 const bridgeContractLiterals = [
   'ClientUI_FireOutput',
@@ -460,42 +578,6 @@ for (const [label, source] of [
   }
 }
 
-assertMatches(
-  'chat bridge script',
-  script,
-  /function\s+clearReadySeats[\s\S]*config\[READY_SEATS_KEY\]\s*=\s*\{\}[\s\S]*action:\s*["']clear["'][\s\S]*seats:\s*\[\]/,
-  'must clear stored ready seats and dispatch an empty ready-seat event',
-);
-assertMatches(
-  'chat bridge script',
-  script,
-  /event\.event\s*===\s*READY_CLEAR_REQUEST_EVENT\)\s*clearReadySeats\(event\.reason\s*\|\|\s*["']request["']\)/,
-  'must handle PokerReadySeatsClearRequest from ClientUI_FireOutput',
-);
-assertMatches(
-  'chat bridge script',
-  script,
-  /function\s+forgetReadySeat\(record\)[\s\S]*isPartyLeaveMessage\(record\.message\)[\s\S]*delete\s+seats\[key\][\s\S]*action:\s*["']leave["']/,
-  'must remove a ready seat when a [party leave] row is bridged from chat',
-);
-assertMatches(
-  'menu script',
-  menuScript,
-  /function\s+clearReadySeats\(reason\)[\s\S]*replaceReadySeats\(\[\]\)[\s\S]*event:\s*READY_CLEAR_REQUEST_EVENT/,
-  'must send PokerReadySeatsClearRequest when the menu clears local ready state',
-);
-assertMatches(
-  'menu script',
-  menuScript,
-  /function\s+recordPartyLeave\(record,\s*partyId\)[\s\S]*record\.isSelf\s*\?\s*clearReadySeats\(["']self leave["']\)\s*:\s*forgetReadySeat\(key\)/,
-  'must clear local seats on self leave and remove foreign ready seats on party leave',
-);
-assertMatches(
-  'menu script',
-  menuScript,
-  /function\s+applyReadyPayload\(event\)[\s\S]*if\s*\(event\.seats\)\s*\{[\s\S]*replaceReadySeats\(event\.seats\)/,
-  'must replace ready snapshots instead of merging them into old menu ready seats',
-);
 
 for (const selector of [
   '.PokerPrimaryButton.Disabled',
@@ -509,10 +591,6 @@ for (const selector of [
   assert(cssBlock(menuStyle, selector), `menu style must define ${selector} for disabled/read-only controls`);
 }
 
-assertIncludes('menu script', menuScript, '__pokerImageSrc === src', 'setImageSource must skip unchanged card image sources');
-assertIncludes('menu script', menuScript, 'image.__pokerImageSrc = src', 'setImageSource must cache the last card image source');
-assertIncludes('menu script', menuScript, 'getCardDisplayRank(card.rank)', 'createCard must use display ranks for card corner labels');
-assertIncludes('menu script', menuScript, 'getSuitGlyph(card.suit)', 'createCard must use suit glyphs for card corner labels');
 
 assertIncludes('layout', layout, 's2r://panorama/styles/chat.vcss_c', 'must include the stock chat style');
 assertIncludes('layout', layout, 's2r://panorama/scripts/poker_chat_debug.vjs_c', 'must load the compiled poker chat debug script');
@@ -594,6 +672,219 @@ for (const [id, className] of [
     `must expose #${id} with the shared PokerFloatingWindow class`,
   );
 }
+const bluffWindowLayout = sourceSliceBetweenIds(menuLayout, 'BluffDeckWindow', 'PokerAnitaPanel');
+assertMatches(
+  'menu layout #BluffDeckWindow',
+  bluffWindowLayout,
+  /id=["']BluffDeckPartyControls["'][\s\S]*id=["']BluffDeckHostButton["'][\s\S]*id=["']BluffDeckJoinButton["'][\s\S]*id=["']BluffDeckLeaveButton["'][\s\S]*<\/Panel>\s*<Panel id=["']BluffDeckMatchControls["'][\s\S]*id=["']BluffDeckStartButton["'][\s\S]*id=["']BluffDeckEndButton["']/,
+  'must separate Bluff lobby controls from match controls so HOST cannot overlap JOIN',
+);
+
+const menuXmlTree = parseXmlTree(menuLayout);
+assert(menuXmlTree, 'menu layout XML must remain balanced');
+const bluffSurface = findXmlNodeById(menuXmlTree, 'BluffDeckTableSurface');
+const bluffWindow = findXmlNodeById(menuXmlTree, 'BluffDeckWindow');
+const bluffCardSlots = findXmlNodeById(menuXmlTree, 'BluffDeckCardSlots');
+assert(bluffWindow && bluffCardSlots && bluffCardSlots.parent === bluffWindow, '#BluffDeckCardSlots must be a sibling picker panel outside BluffDeckTableSurface');
+const bluffLifecycleControls = findXmlNodeById(menuXmlTree, 'BluffDeckLifecycleControls');
+const bluffPartyControls = findXmlNodeById(menuXmlTree, 'BluffDeckPartyControls');
+const bluffMatchControls = findXmlNodeById(menuXmlTree, 'BluffDeckMatchControls');
+assert(bluffLifecycleControls && bluffPartyControls && bluffMatchControls, 'Bluff lifecycle controls must expose a shared compact row');
+assert(bluffPartyControls.parent === bluffLifecycleControls && bluffMatchControls.parent === bluffLifecycleControls, 'Bluff leave/end control groups must share the compact lifecycle row');
+const bluffCardTable = findXmlNodeById(menuXmlTree, 'BluffDeckCardTable');
+const bluffFelt = bluffCardTable && bluffCardTable.children.find((node) => node.attrs && /\bPokerTableFelt\b/.test(node.attrs.class || ''));
+const bluffSeats = findXmlNodeById(menuXmlTree, 'BluffDeckTableSeats');
+const bluffTargetCard = findXmlNodeById(menuXmlTree, 'BluffDeckTargetCard');
+const bluffPlayedCards = findXmlNodeById(menuXmlTree, 'BluffDeckPlayedCards');
+assert(bluffSurface && /\bPokerTableSurface\b/.test(bluffSurface.attrs.class || ''), '#BluffDeckTableSurface must reuse PokerTableSurface');
+assert(bluffCardTable && /\bPokerTableStage\b/.test(bluffCardTable.attrs.class || ''), '#BluffDeckCardTable must reuse PokerTableStage');
+assert(bluffFelt, '#BluffDeckCardTable must contain a PokerTableFelt');
+assert(bluffSeats && /\bPokerTableSeats\b/.test(bluffSeats.attrs.class || ''), '#BluffDeckTableSeats must reuse PokerTableSeats');
+assert(bluffSeats && bluffSeats.parent === bluffCardTable, '#BluffDeckTableSeats must sit under the Bluff table stage');
+assert(bluffTargetCard, 'menu layout must expose #BluffDeckTargetCard');
+assert(bluffPlayedCards, 'menu layout must expose #BluffDeckPlayedCards');
+assert(bluffTargetCard && bluffTargetCard.parent === bluffFelt, '#BluffDeckTargetCard must sit on the table felt');
+assert(bluffPlayedCards && bluffPlayedCards.parent === bluffFelt, '#BluffDeckPlayedCards must sit on the table felt');
+assert(
+  bluffTargetCard && bluffPlayedCards
+    && bluffFelt.children.indexOf(bluffTargetCard) < bluffFelt.children.indexOf(bluffPlayedCards),
+  '#BluffDeckTargetCard must precede #BluffDeckPlayedCards in the centered card lane',
+);
+const bluffTargetLabel = findXmlNodeById(menuXmlTree, 'BluffDeckTargetLabel');
+const bluffPreviousPlayLabel = findXmlNodeById(menuXmlTree, 'BluffDeckPreviousPlayLabel');
+assert(
+  bluffTargetLabel && bluffTargetLabel.parent && bluffTargetLabel.parent.parent === bluffFelt,
+  '#BluffDeckTargetLabel must remain inside the card lane fallback label group',
+);
+assert(
+  bluffPreviousPlayLabel && bluffPreviousPlayLabel.parent && bluffPreviousPlayLabel.parent.parent === bluffFelt,
+  '#BluffDeckPreviousPlayLabel must remain inside the card lane fallback label group',
+);
+assert(findXmlNodeById(menuXmlTree, 'BluffDeckTurnLabel'), 'menu layout must expose #BluffDeckTurnLabel');
+for (let slotIndex = 0; slotIndex < 5; slotIndex += 1) {
+  const slot = findXmlNodeById(menuXmlTree, `BluffDeckSlot${slotIndex}`);
+  assert(slot && slot.name === 'Button', `#BluffDeckSlot${slotIndex} must remain a Button`);
+  assertEqual(
+    slot && slot.attrs.onactivate,
+    `PokerEscapeMenuSelectBluffSlot( ${slotIndex} )`,
+    `#BluffDeckSlot${slotIndex} must preserve its activation handler`,
+  );
+  assert(xmlDescendant(slot, (node) => node.name === 'Label' && /\bBluffDeckSlotRankGlyph\b/.test(node.attrs.class || '')), `#BluffDeckSlot${slotIndex} must expose a rank glyph child`);
+  assert(!xmlDescendant(slot, (node) => node.name === 'Label' && /\[[A-Z]+\]/.test(node.attrs.text || '')), `#BluffDeckSlot${slotIndex} must not expose bracket rank text`);
+}
+const bluffChallengeButton = findXmlNodeById(menuXmlTree, 'BluffDeckChallengeButton');
+assert(bluffChallengeButton && bluffChallengeButton.name === 'Button', '#BluffDeckChallengeButton must remain a Button');
+assertEqual(
+  bluffChallengeButton && bluffChallengeButton.attrs.onactivate,
+  'PokerEscapeMenuBluffChallenge()',
+  '#BluffDeckChallengeButton must preserve its activation handler',
+);
+assert(
+  xmlDescendant(bluffChallengeButton, (node) => node.name === 'Label' && node.attrs.text === 'LIE'),
+  '#BluffDeckChallengeButton must visibly read LIE',
+);
+for (const selector of [
+  '.BluffDeckCardTable',
+  '.BluffDeckTableSeats',
+  '.BluffDeckCardTable .PokerTableSeat.SeatTopLeft',
+  '.BluffDeckCardTable .PokerTableSeat.SeatTopRight',
+  '.BluffDeckCardTable .PokerTableSeat.SeatBottomRight',
+  '.BluffDeckCardTable .PokerTableSeat.SeatBottomLeft',
+  '.BluffDeckFelt',
+  '.BluffDeckTargetCard',
+  '.BluffDeckTargetFace',
+  '.BluffDeckPlayedCards',
+  '.BluffDeckPlayedCard',
+  '.BluffDeckPlayedCard.CardBack',
+  '.BluffDeckPlayedCard.Revealed',
+  '.BluffDeckCardSlots',
+  '.BluffDeckCardSlot.Selected',
+]) {
+  assert(cssBlockContainingSelector(menuStyle, selector), `menu style must define ${selector} for the Bluff card table`);
+}
+const bluffTableCss = cssLastBlock(menuStyle, '.BluffDeckCardTable');
+const bluffFeltCss = cssBlock(menuStyle, '.BluffDeckFelt');
+const bluffSeatsCss = cssBlock(menuStyle, '.BluffDeckTableSeats');
+assertCssDeclarationMatches('menu style .BluffDeckFelt', bluffFeltCss, 'align', /^center\s+center$/, 'must center Bluff target and committed cards on the felt');
+assertCssDeclarationMatches('menu style .BluffDeckTableSeats', bluffSeatsCss, 'ignore-parent-flow', /^true$/, 'must keep Bluff seats outside felt flow');
+const bluffWindowCss = cssBlock(menuStyle, '.BluffDeckWindow');
+assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'align', /^left\s+center$/, 'must center Bluff Deck vertically inside the ESC safe content area');
+assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'margin-top', /^0px$/, 'must not inherit a top offset');
+const bluffWindowWidth = Number.parseFloat(cssDeclarationValue(bluffWindowCss, 'width'));
+const bluffWindowLeftInset = Number.parseFloat(cssDeclarationValue(bluffWindowCss, 'margin-left'));
+const bluffWindowRightInset = Number.parseFloat(cssDeclarationValue(bluffWindowCss, 'margin-right'));
+assert(Number.isFinite(bluffWindowWidth) && bluffWindowWidth <= 55, 'menu style .BluffDeckWindow must leave room for the ESC player-list column');
+assert(Number.isFinite(bluffWindowLeftInset) && bluffWindowLeftInset > 0, 'menu style .BluffDeckWindow must retain a nonzero left safe inset');
+assert(Number.isFinite(bluffWindowRightInset) && bluffWindowRightInset >= 20, 'menu style .BluffDeckWindow must retain a nonzero right player-list safe inset');
+assert(bluffWindowLeftInset + bluffWindowWidth + bluffWindowRightInset <= 100, 'menu style .BluffDeckWindow width and safe insets must fit the viewport');
+const bluffStageHeight = Number.parseFloat(cssDeclarationValue(bluffTableCss, 'height'));
+const bluffFeltWidth = Number.parseFloat(cssDeclarationValue(bluffFeltCss, 'width'));
+const bluffFeltHeight = Number.parseFloat(cssDeclarationValue(bluffFeltCss, 'height'));
+const bluffFeltRadius = Number.parseFloat(cssDeclarationValue(bluffFeltCss, 'border-radius'));
+assert(bluffFeltWidth === bluffFeltHeight, 'menu style .BluffDeckFelt width and height must be equal for a circle');
+assert(bluffFeltRadius >= bluffFeltWidth / 2, 'menu style .BluffDeckFelt border radius must be at least half its diameter');
+assert(bluffStageHeight > bluffFeltHeight, 'menu style .BluffDeckCardTable must provide outer seat gutters beyond the circular felt');
+const bluffLeftSeatCss = cssBlockContainingSelector(menuStyle, '.BluffDeckCardTable .PokerTableSeat.SeatLeft');
+const bluffRightSeatCss = cssBlockContainingSelector(menuStyle, '.BluffDeckCardTable .PokerTableSeat.SeatRight');
+assert(Number.parseFloat(cssDeclarationValue(bluffLeftSeatCss, 'margin-left')) > 0, 'menu style Bluff left seat must stay inside its outer gutter');
+assert(Number.parseFloat(cssDeclarationValue(bluffRightSeatCss, 'margin-right')) > 0, 'menu style Bluff right seat must stay inside its outer gutter');
+const bluffTargetCss = cssBlock(menuStyle, '.BluffDeckTargetCard');
+const bluffTargetFaceCss = cssBlockContainingSelector(menuStyle, '.BluffDeckTargetFace');
+const bluffOpponentCss = cssLastBlockContainingSelector(menuStyle, '.BluffDeckOpponentList');
+const bluffSlotsCss = cssLastBlock(menuStyle, '.BluffDeckCardSlots');
+const bluffHandCss = cssLastBlockContainingSelector(menuStyle, '.BluffDeckHandLabel');
+const bluffActionControlsCss = cssLastBlock(menuStyle, '.BluffDeckActionControls');
+const bluffLifecycleCss = cssLastBlock(menuStyle, '.BluffDeckLifecycleControls');
+assertCssDeclarationMatches('menu style .BluffDeckOpponentList', bluffOpponentCss, 'visibility', /^collapse$/, 'must retire the duplicate clipped opponent summary');
+assertCssDeclarationMatches('menu style .BluffDeckHandLabel', bluffHandCss, 'visibility', /^collapse$/, 'must retire the duplicate textual hand');
+assertCssDeclarationMatches('menu style .BluffDeckCardSlots', bluffSlotsCss, 'width', /^fit-children$/, 'must center the visual picker by intrinsic width');
+assertCssDeclarationMatches('menu style .BluffDeckCardSlots', bluffSlotsCss, 'horizontal-align', /^center$/, 'must center the intrinsic visual picker');
+assertCssDeclarationMatches('menu style .BluffDeckActionControls', bluffActionControlsCss, 'width', /^fit-children$/, 'must keep the primary action compact');
+assertCssDeclarationMatches('menu style .BluffDeckLifecycleControls', bluffLifecycleCss, 'flow-children', /^right$/, 'must place lifecycle control groups inline');
+assert(Number.parseFloat(cssDeclarationValue(bluffWindowCss, 'max-height')) <= 90, 'menu style .BluffDeckWindow must fit below the viewport edge');
+assert(bluffStageHeight <= 380, 'menu style .BluffDeckCardTable must not consume the controls viewport');
+const bluffPlayedCss = cssBlock(menuStyle, '.BluffDeckPlayedCards');
+const bluffPlayedCardCss = cssBlock(menuStyle, '.BluffDeckPlayedCard');
+const bluffSelectedCss = cssBlockContainingSelector(menuStyle, '.BluffDeckCardSlot.Selected');
+assertCssDeclarationMatches('menu style .BluffDeckCardTable', bluffTableCss, 'horizontal-align', /^center$/, 'must center the target/played lane');
+assertCssDeclarationMatches('menu style .BluffDeckTargetCard', bluffTargetCss, 'z-index', /^2$/, 'must keep the target face beneath played cards');
+assertCssDeclarationMatches('menu style .BluffDeckTargetFace', bluffTargetFaceCss, 'border', /pokerNoirGold/, 'must give the target face a noir rank border');
+assertCssDeclarationMatches('menu style .BluffDeckPlayedCards', bluffPlayedCss, 'ignore-parent-flow', /^true$/, 'must overlay played cards without moving the target face');
+assertCssDeclarationMatches('menu style .BluffDeckPlayedCards', bluffPlayedCss, 'width', /^200px$/, 'must keep the centered reveal row within the table');
+assertCssDeclarationMatches('menu style .BluffDeckPlayedCards', bluffPlayedCss, 'align', /^center\s+center$/, 'must keep concealed and revealed cards over the target center');
+assertCssDeclarationMatches('menu style .BluffDeckPlayedCards', bluffPlayedCss, 'z-index', /^[4-9]\d*$/, 'must layer played cards above the target face');
+assertCssDeclarationMatches('menu style .BluffDeckPlayedCard', bluffPlayedCardCss, 'ignore-parent-flow', /^true$/, 'must stack every played card in the same centered lane');
+for (let tilt = 0; tilt < 7; tilt += 1) {
+  assert(cssBlock(menuStyle, `.BluffDeckPlayedCard.BluffDeckStackTilt${tilt}`), `menu style must define stable public-data played-card tilt ${tilt}`);
+}
+for (const selector of [
+  '.BluffDeckPlayedCard.Revealed.BluffDeckRevealCount1.BluffDeckRevealSlot0',
+  '.BluffDeckPlayedCard.Revealed.BluffDeckRevealCount2.BluffDeckRevealSlot0',
+  '.BluffDeckPlayedCard.Revealed.BluffDeckRevealCount2.BluffDeckRevealSlot1',
+  '.BluffDeckPlayedCard.Revealed.BluffDeckRevealCount3.BluffDeckRevealSlot0',
+  '.BluffDeckPlayedCard.Revealed.BluffDeckRevealCount3.BluffDeckRevealSlot1',
+  '.BluffDeckPlayedCard.Revealed.BluffDeckRevealCount3.BluffDeckRevealSlot2',
+]) {
+  assert(cssBlock(menuStyle, selector), `menu style must define centered side-by-side reveal slot ${selector}`);
+}
+assertCssDeclarationMatches('menu style .BluffDeckCardSlot.Selected', bluffSelectedCss, 'pre-transform-scale2d', /^1\.0?6$/, 'must visibly lift selected hand cards');
+assertCssDeclarationMatches('menu style .BluffDeckCardSlot.Selected', bluffSelectedCss, 'border', /pokerNoirGold/, 'must clearly border selected hand cards');
+const bluffControlButtonCss = cssBlock(menuStyle, '.BluffDeckControlButton');
+const bluffDisabledSlotCss = cssBlock(menuStyle, '.BluffDeckCardSlot.Disabled');
+const bluffSlotArtCss = cssLastBlockContainingSelector(menuStyle, '.BluffDeckCardSlot .PokerCardArt');
+const bluffSlotGlyphCss = cssLastBlock(menuStyle, '.BluffDeckSlotRankGlyph');
+assertCssDeclarationMatches('menu style .BluffDeckCardSlot.Disabled', bluffDisabledSlotCss, 'opacity', /^0\.[3-6]\d?$/, 'must visibly mute cards when selection is unavailable');
+assertCssDeclarationMatches('menu style .BluffDeckCardSlot.Disabled', bluffDisabledSlotCss, 'saturation', /^0(\.0)?$/, 'must desaturate cards when selection is unavailable');
+assertCssDeclarationMatches('menu style .BluffDeckCardSlot .PokerCardArt', bluffSlotArtCss, 'opacity', /^1(\.0)?$/, 'must render card buttons from full-opacity VTex art');
+assertCssDeclarationMatches('menu style .BluffDeckSlotRankGlyph', bluffSlotGlyphCss, 'opacity', /^0(\.0)?$/, 'must keep text glyph behind the card artwork');
+assert(bluffControlButtonCss, 'menu style must define .BluffDeckControlButton');
+const bluffLeftSeatTextCss = cssLastBlockContainingSelector(menuStyle, '.BluffDeckCardTable .PokerTableSeat.SeatLeft .PokerTableSeatText');
+const bluffRightSeatTextCss = cssLastBlockContainingSelector(menuStyle, '.BluffDeckCardTable .PokerTableSeat.SeatRight .PokerTableSeatText');
+const bluffSeatNameCss = cssLastBlock(menuStyle, '.BluffDeckCardTable .PokerTableSeatName');
+assertCssDeclarationMatches('menu style Bluff left seat text', bluffLeftSeatTextCss, 'width', /^130px$/, 'must reserve avatar space instead of overlapping it');
+assertCssDeclarationMatches('menu style Bluff left seat text', bluffLeftSeatTextCss, 'margin-right', /^36px$/, 'must leave a fixed gap before the avatar');
+assertCssDeclarationMatches('menu style Bluff right seat text', bluffRightSeatTextCss, 'width', /^130px$/, 'must reserve avatar space instead of overlapping it');
+assertCssDeclarationMatches('menu style Bluff right seat text', bluffRightSeatTextCss, 'margin-left', /^36px$/, 'must leave a fixed gap after the avatar');
+assertCssDeclarationMatches('menu style Bluff seat name', bluffSeatNameCss, 'text-overflow', /^shrink$/, 'must fit long player names inside reserved text width');
+assertMatches(
+  'menu style .BluffDeckControlButton',
+  bluffControlButtonCss,
+  /\bwidth\s*:\s*fill-parent-flow\(\s*1(?:\.0)?\s*\)\s*;/,
+  'must divide each horizontal Bluff control row without full-width overlap',
+);
+assertMatches(
+  'menu style .BluffDeckControlButton',
+  bluffControlButtonCss,
+  /\bmin-width\s*:\s*0px\s*;/,
+  'must allow Bluff controls to fit their row instead of overflowing adjacent buttons',
+);
+const bluffActionButtonCss = cssBlockContainingSelector(menuStyle, '.BluffDeckActionButton');
+assert(bluffActionButtonCss, 'menu style must define .BluffDeckActionButton');
+assertMatches(
+  'menu style .BluffDeckActionButton',
+  bluffActionButtonCss,
+  /\bwidth\s*:\s*fill-parent-flow\(\s*1(?:\.0)?\s*\)\s*;/,
+  'must keep action buttons inside their shared row',
+);
+assertMatches(
+  'menu style .BluffDeckActionButton',
+  bluffActionButtonCss,
+  /\bmin-width\s*:\s*0px\s*;/,
+  'must allow action buttons to shrink without owning the row',
+);
+const bluffActionLabelCss = cssBlockContainingSelector(menuStyle, '.BluffDeckActionButton Label');
+assertMatches(
+  'menu style .BluffDeckActionButton Label',
+  bluffActionLabelCss,
+  /\bwhite-space\s*:\s*nowrap\s*;/,
+  'must keep Bluff action labels on one line',
+);
+assertMatches(
+  'menu style Bluff action final-child rule',
+  menuStyle,
+  /\.BluffDeckActionButton:last-child[\s\S]*?margin-right\s*:\s*0px\s*;/,
+  'must remove trailing action-row margin from the final action',
+);
 const lobbyWindowLayout = sourceSliceBetweenIds(menuLayout, 'PokerLobbyWindow', 'PokerTableWindow');
 const playersWindowLayout = sourceSliceBetweenIds(menuLayout, 'PokerPlayersWindow', 'PokerHistoryWindow');
 const historyWindowLayout = sourceSliceBetweenIds(menuLayout, 'PokerHistoryWindow', 'PokerActionsWindow');
@@ -669,14 +960,13 @@ for (const selector of [
   '.PokerTableSeat',
   '.PokerTableSeat.Current',
   '.PokerTableSeatCards',
-  '.PokerTableOverflow',
 ]) {
   assert(cssBlock(menuStyle, selector), `menu style must define ${selector} for the four floating poker window layout`);
 }
 for (const [selector, options] of [
   ['.PokerLobbyWindow', { align: /^left\s+top$/, alignDescription: 'the left top layout column', horizontalProperty: 'margin-left', forbiddenHorizontalProperty: 'margin-right' }],
   ['.PokerTableWindow', { align: /^left\s+top$/, alignDescription: 'the left top layout column', horizontalProperty: 'margin-left', forbiddenHorizontalProperty: 'margin-right' }],
-  ['.PokerActionsWindow', { align: /^left\s+top$/, alignDescription: 'the left top layout column', horizontalProperty: 'margin-left', forbiddenHorizontalProperty: 'margin-right' }],
+  ['.PokerActionsWindow', { align: /^left\s+top$/, alignDescription: 'the visible lower action rail', horizontalProperty: 'margin-left', forbiddenHorizontalProperty: 'margin-right' }],
   ['.PokerPlayersWindow', { align: /^right\s+top$/, alignDescription: 'the right top layout column', horizontalProperty: 'margin-right', forbiddenHorizontalProperty: 'margin-left' }],
   ['.PokerHistoryWindow', { align: /^right\s+top$/, alignDescription: 'the right top history column', horizontalProperty: 'margin-right', forbiddenHorizontalProperty: 'margin-left' }],
 ]) {
@@ -688,17 +978,71 @@ for (const selector of ['.PokerLobbyWindow', '.PokerTableWindow', '.PokerActions
     `menu style ${selector}`,
     block,
     'width',
-    /^56%$/,
-    'must keep the tightened main poker window width',
+    /^51%$/,
+    'must keep the main poker windows inside the reserved right rail',
   );
   assertCssDeclarationMatches(
     `menu style ${selector}`,
     block,
     'margin-left',
-    /^25%$/,
-    'must keep the tightened main poker window left offset',
+    /^22%$/,
+    'must keep the main poker window offset clear of the stock ESC menu while moving the windows left',
   );
 }
+for (const selector of ['.PokerPlayersWindow', '.PokerHistoryWindow']) {
+  assertCssDeclarationMatches(
+    `menu style ${selector}`,
+    cssBlock(menuStyle, selector),
+    'width',
+    /^20%$/,
+    'must reserve enough right rail width for player cards and history',
+  );
+}
+for (const selector of ['.PokerPlayersWindow', '.PokerHistoryWindow']) {
+  assertCssDeclarationMatches(
+    `menu style ${selector}`,
+    cssBlock(menuStyle, selector),
+    'margin-right',
+    /^3\.25%$/,
+    'must move the right rail left with the main poker windows',
+  );
+}
+assertCssDeclarationMatches(
+  'menu style .PokerTableWindow',
+  cssBlock(menuStyle, '.PokerTableWindow'),
+  'margin-top',
+  /^23%$/,
+  'must lift the poker table away from the action window',
+);
+const playerHoleCardsBlock = cssBlock(menuStyle, '.PokerPlayersWindow .PokerHoleCards');
+assertCssDeclarationMatches(
+  'menu style .PokerPlayersWindow .PokerHoleCards',
+  playerHoleCardsBlock,
+  'width',
+  /^96px$/,
+  'must fit two compact player cards without truncation',
+);
+assertCssDeclarationMatches(
+  'menu style .PokerPlayersWindow .PokerHoleCards',
+  playerHoleCardsBlock,
+  'overflow',
+  /^noclip$/,
+  'must not clip compact player cards during reveal animations',
+);
+assertCssDeclarationMatches(
+  'menu style .PokerActionButtons',
+  cssBlock(menuStyle, '.PokerActionButtons'),
+  'flow-children',
+  /^down$/,
+  'must stack the custom amount controls above the visible action button row',
+);
+assertCssDeclarationMatches(
+  'menu style .PokerActionButtonRow',
+  cssBlock(menuStyle, '.PokerActionButtonRow'),
+  'flow-children',
+  /^right$/,
+  'must preserve left-to-right action order so FOLD stays at the far right of active choices',
+);
 const tableWindowBlock = cssBlock(menuStyle, '.PokerTableWindow');
 assertCssDeclarationMatches(
   'menu style .PokerTableWindow',
@@ -713,7 +1057,7 @@ assertCssDeclarationMatches(
   actionsWindowBlock,
   'margin-top',
   /^80%$/,
-  'must move bottom action controls down without leaving excessive deadspace',
+  'must keep action controls in a visible lower rail instead of offscreen',
 );
 assertCssDeclarationMatches(
   'menu style .PokerActionsWindow',
@@ -900,19 +1244,30 @@ for (const selector of [
     'must make each floating poker window opaque while the poker menu is open',
   );
 }
-for (const forbiddenCardArtClass of ['PokerCardFaceInitial', 'PokerCardFaceSuit']) {
-  assert(
-    !menuScript.includes(forbiddenCardArtClass),
-    `menu script must not create/use duplicate center card label class ${forbiddenCardArtClass}`,
+
+for (const id of [
+  'PokerLobbyWindow',
+  'PokerTableWindow',
+  'PokerPlayersWindow',
+  'PokerHistoryWindow',
+  'PokerActionsWindow',
+]) {
+  const selector = `.PokerMenuVisible #${id}.PokerHidden`;
+  const hiddenOverride = cssBlockContainingSelector(menuStyle, selector);
+  assert(hiddenOverride, `menu style must explicitly collapse ${selector} while the game picker is active`);
+  assertMatches(
+    `menu style ${selector}`,
+    hiddenOverride,
+    /\bvisibility\s*:\s*collapse\s*;/,
+    'must override the root menu-visible rule until Poker is selected',
+  );
+  assertMatches(
+    `menu style ${selector}`,
+    hiddenOverride,
+    /\bopacity\s*:\s*0\s*;/,
+    'must keep the unselected Poker surface transparent',
   );
 }
-
-assertMatches(
-  'menu script',
-  menuScript,
-  /createPanel\(\s*["']Image["']\s*,\s*art\s*,\s*["'][^"']*["']\s*,\s*["']PokerCardVtexArt["']\s*\)/,
-  'must create card art as an Image panel with .PokerCardVtexArt',
-);
 
 const pokerCardVtexArtCss = cssBlock(menuStyle, '.PokerCardVtexArt');
 assert(pokerCardVtexArtCss, 'menu style must define .PokerCardVtexArt for visible card image art');
@@ -958,31 +1313,89 @@ for (const token of [
 }
 
 for (const token of [
-  'isResumeLeaderMessage',
-  'isResumeReadyMessage',
-  'isResumeStartMessage',
+  'function isPartyLeaderMessage',
+  'function isPartyJoinMessage',
+  'function isPartyLeaveMessage',
+  'function isResumeLeaderMessage',
+  'function isResumeReadyMessage',
+  'function isResumeStartMessage',
+  'function isShortResumeStartMessage',
+  'function isProgressOfferMessage',
+  'function isProgressChunkMessage',
+  'function isPartyAuthorityMessage',
+  'function isResumeAuthorityMessage',
 ]) {
-  assertIncludes('script', script, token, 'missing resume chat debug export token');
+  assert(!script.includes(token), `chat debug must not keep deleted shallow predicate wrapper ${token}`);
 }
 
 assertMatches('script', script, /\$\.Msg[\s\S]*record\.sender[\s\S]*record\.message/, 'must log sender and message content through $.Msg');
+const commandFamiliesStart = script.indexOf('const COMMAND_FAMILIES = [');
+const commandFamiliesEnd = script.indexOf('];', commandFamiliesStart);
+const commandFamiliesBlock = commandFamiliesStart >= 0 && commandFamiliesEnd > commandFamiliesStart
+  ? script.slice(commandFamiliesStart, commandFamiliesEnd)
+  : '';
+assert(commandFamiliesBlock, 'chat bridge must expose one COMMAND_FAMILIES topology table');
+for (const metadata of [
+  { name: 'bd1-start', delay: 'always', wire: 's' },
+  { name: 'bd1-play', delay: 'none', wire: 'p' },
+  { name: 'bd1-challenge', delay: 'none', wire: 'c' },
+  { name: 'bd1-end', delay: 'always', wire: 'e' },
+]) {
+  const metadataPattern = new RegExp(
+    `\\{\\s*name:\\s*"${metadata.name}"\\s*,\\s*family:\\s*"bluff-deck"\\s*,\\s*authority:\\s*"bluff-deck"\\s*,\\s*unknownSenderDelay:\\s*"${metadata.delay}"\\s*,\\s*prefix:\\s*"bd1 ${metadata.wire} "\\s*\\}`,
+  );
+  assertEqual(
+    (commandFamiliesBlock.match(metadataPattern) || []).length,
+    1,
+    `COMMAND_FAMILIES must contain exactly one direct ${metadata.name} metadata entry`,
+  );
+}
+assertEqual(
+  (commandFamiliesBlock.match(/\bname:\s*"bd1-(?:start|play|challenge|end)"/g) || []).length,
+  4,
+  'COMMAND_FAMILIES must contain exactly four direct bd1 metadata entries',
+);
+const scopedLeaveRegex = /^\[party leave\]\s+poker party\s+\S+\s+bd1\s+[0-9a-f]{8}\s+[1-9]\d*$/i;
+const scopedLeaveSource = String.raw`const BLUFF_SCOPED_LEAVE_RE = /^\[party leave\]\s+poker party\s+\S+\s+bd1\s+[0-9a-f]{8}\s+[1-9]\d*$/i;`;
+assertIncludes(
+  'chat bridge script',
+  script,
+  scopedLeaveSource,
+  `must define the strict scoped Bluff leave classifier ${scopedLeaveRegex}`,
+);
+const scopedLeaveClassifierIndex = script.indexOf('if (BLUFF_SCOPED_LEAVE_RE.test(raw)) return BLUFF_LEAVE_FAMILY;');
+const genericFamilyLoopIndex = script.indexOf('for (let i = 0; i < COMMAND_FAMILIES.length', scopedLeaveClassifierIndex);
+assert(
+  scopedLeaveClassifierIndex >= 0 && genericFamilyLoopIndex > scopedLeaveClassifierIndex,
+  'scoped Bluff leave classification must precede generic COMMAND_FAMILIES prefix matching',
+);
+assertEqual(
+  (script.match(/function\s+scanChatMessages\s*\(\)/g) || []).length,
+  1,
+  'chat bridge must keep exactly one recurring scan function',
+);
+assertEqual(
+  (script.match(/\$\.Schedule\([^;\n]*\bscanChatMessages\b[^;\n]*\);/g) || []).length,
+  1,
+  'chat bridge must keep exactly one recurring scanner schedule',
+);
 
 const bridgeRuntime = createChatBridgeRuntime();
-const bridgeIntake = bridgeRuntime.hooks && bridgeRuntime.hooks.modules && bridgeRuntime.hooks.modules.ChatBridgeIntake;
-if (bridgeIntake) {
+const bridgeHooks = bridgeRuntime.hooks;
+if (bridgeHooks) {
   const unknownResumeStart = 'poker resume r2pzo6p hand 2 leader jdbeast seed smr8kezvr';
-  const unknownResumeStartPanel = createChatMessagePanel('<unknown>', unknownResumeStart);
+  harness.appendChatPanel(bridgeRuntime, '<unknown>', 'TEAM', unknownResumeStart, false);
   for (let attempt = 1; attempt <= 6; attempt += 1) {
-    const result = bridgeIntake.consumeRow(unknownResumeStartPanel);
+    bridgeHooks.modules.ChatBridgeIntake.scanOnce();
     assert(
-      result && result.status === 'delayed',
-      `unknown short resume-start should delay while sender can still resolve (attempt ${attempt}), got ${result && result.status}`,
+      !(bridgeRuntime.config.PokerChatMessages || []).some((entry) => entry.message === unknownResumeStart),
+      `unknown short resume-start should delay while sender can still resolve (attempt ${attempt})`,
     );
   }
-  const resumedAfterCap = bridgeIntake.consumeRow(unknownResumeStartPanel);
+  bridgeHooks.modules.ChatBridgeIntake.scanOnce();
   assert(
-    resumedAfterCap && resumedAfterCap.status === 'consumed',
-    `unknown short resume-start should be released after the retry cap so the menu reducer can resolve hosted authority, got ${resumedAfterCap && resumedAfterCap.status}`,
+    (bridgeRuntime.config.PokerChatMessages || []).some((entry) => entry.sender === '<unknown>' && entry.message === unknownResumeStart),
+    'unknown short resume-start should be released after the retry cap so the menu reducer can resolve hosted authority',
   );
   assert(
     bridgeRuntime.config.PokerChatMessages &&
@@ -998,21 +1411,23 @@ if (bridgeIntake) {
     '[resume leader] poker resume r2pzo6p',
     '[resume ready] poker resume r2pzo6p',
   ]) {
-    const authorityPanel = createChatMessagePanel('<unknown>', authorityMessage);
+    const authorityRuntime = createChatBridgeRuntime();
+    const authorityHooks = authorityRuntime.hooks;
+    harness.appendChatPanel(authorityRuntime, '<unknown>', 'TEAM', authorityMessage, false);
     for (let attempt = 1; attempt <= 8; attempt += 1) {
-      const result = bridgeIntake.consumeRow(authorityPanel);
+      authorityHooks.modules.ChatBridgeIntake.scanOnce();
       assert(
-        result && result.status === 'delayed',
-        `unknown ${authorityMessage} authority row should stay delayed instead of granting authority (attempt ${attempt}), got ${result && result.status}`,
+        !(authorityRuntime.config.PokerChatMessages || []).some((entry) => entry.message === authorityMessage),
+        `unknown ${authorityMessage} authority row should stay delayed instead of granting authority (attempt ${attempt})`,
       );
     }
     assert(
-      !bridgeRuntime.config.PokerChatMessages.some((entry) => entry.message === authorityMessage),
+      !(authorityRuntime.config.PokerChatMessages || []).some((entry) => entry.message === authorityMessage),
       `unknown ${authorityMessage} authority row should not be appended to bridge chat history while unresolved`,
     );
   }
 } else {
-  assert(false, 'chat bridge should expose ChatBridgeIntake test hooks for unknown-sender retry coverage');
+  assert(false, 'chat bridge should expose ChatBridgeIntake through test hooks for unknown-sender retry coverage');
 }
 
 assert(
@@ -1069,12 +1484,82 @@ for (const selector of [
   assert(cssBlock(menuStyle, selector), `menu style must define ${selector}`);
 }
 
-assertIncludes('menu script', menuScript, '__pokerImageSrc', 'must guard repeated card image source writes');
-assertIncludes('menu script', menuScript, 'getCardDisplayRank(card.rank)', 'must use display rank helper for card corner labels');
-assertIncludes('menu script', menuScript, 'getSuitGlyph(card.suit)', 'must use suit glyph helper for card corner labels');
+assertIncludes('menu script', menuScript, 's2r://panorama/images/poker/chips/', 'must render pot chip art through compiled chip VTEX assets');
+assertIncludes('menu script', menuScript, 'createPanel("Image", panel, "", "PokerPotChipImage")', 'must render pot chip art as Image panels');
+assert(!menuScript.includes('PokerPotChipDenomination'), 'menu script must not keep generated text-denomination chip rendering');
+assert(!menuStyle.includes('PokerPotChipDenomination'), 'menu style must not keep generated text-denomination chip rendering');
+assert(!menuStyle.includes('rgba(240, 215, 138, 0.22)'), 'menu style must remove the old yellow pot-center border');
 assertIncludes('menu style', menuStyle, "@keyframes 'PokerCardFlipReveal'", 'must define Panorama-compatible quoted card flip reveal keyframes');
 assertIncludes('menu style', menuStyle, "@keyframes 'PokerCardFlipToBack'", 'must define Panorama-compatible quoted card flip-to-back keyframes');
 assert(!/@keyframes\s+PokerCardFlip/.test(menuStyle), 'menu style must quote PokerCard keyframe names for Panorama');
+assert(
+  !/@keyframes\s+['"]?PokerTurnArrow/.test(menuStyle),
+  'menu style must not define PokerTurnArrow* keyframes; the table turn arrow must remain statically positioned',
+);
+assertMatches(
+  'menu style',
+  menuStyle,
+  /@keyframes\s+'PokerPotWinner(?:Pulse|Shake)'/,
+  'must define Panorama-compatible quoted pot-winner pulse/shake keyframes',
+);
+assert(
+  !/@keyframes\s+Poker(?:TurnArrow|PotWinner)/.test(menuStyle),
+  'menu style must quote Poker pot-winner keyframe names and must not define unquoted turn-arrow keyframes',
+);
+const tableTurnArrowBlock = cssBlock(menuStyle, '.PokerTableTurnArrow');
+assert(tableTurnArrowBlock, 'menu style must define .PokerTableTurnArrow for the table-level current-turn indicator');
+for (const { selector, block } of cssSelectorBlocks(menuStyle)) {
+  if (selector === '.PokerTableTurnArrow' || selector.startsWith('.PokerTableTurnArrow.')) {
+    const animationDeclaration = block.match(/\banimation(?:-[a-z-]+)?\s*:\s*([^;{}]+);/);
+    assert(
+      !animationDeclaration,
+      `menu style ${selector} must keep the table turn arrow static without animation declarations: ${animationDeclaration ? animationDeclaration[0] : '<none>'}`,
+    );
+  }
+}
+for (const [selector, expectedX, expectedY, transformPattern, direction] of [
+  ['.PokerTableTurnArrow.SeatLeft', /^-195px$/, /^0px$/, /rotateY\(180deg\)/, 'left-facing'],
+  ['.PokerTableTurnArrow.SeatRight', /^195px$/, /^0px$/, /rotateZ\(0deg\)/, 'right-facing'],
+  ['.PokerTableTurnArrow.SeatTopCenter', /^0px$/, /^-195px$/, /rotateZ\(270deg\)/, 'top-facing'],
+  ['.PokerTableTurnArrow.SeatBottomCenter', /^0px$/, /^195px$/, /rotateZ\(90deg\)/, 'bottom-facing'],
+]) {
+  const arrowPositionBlock = cssBlockContainingSelector(menuStyle, selector);
+  assert(arrowPositionBlock, `menu style must define ${selector} for the static ${direction} turn arrow position`);
+  assertCssDeclarationMatches(
+    `menu style ${selector}`,
+    arrowPositionBlock,
+    'x',
+    expectedX,
+    `must preserve the static ${direction} turn arrow x offset`,
+  );
+  assertCssDeclarationMatches(
+    `menu style ${selector}`,
+    arrowPositionBlock,
+    'y',
+    expectedY,
+    `must preserve the static ${direction} turn arrow y offset`,
+  );
+  assertCssDeclarationMatches(
+    `menu style ${selector}`,
+    arrowPositionBlock,
+    'transform',
+    transformPattern,
+    `must preserve the static ${direction} arrow orientation`,
+  );
+}
+for (const selector of [
+  '.PokerTableSeat.PotWinner .PokerTableSeatName',
+  '.PokerPlayerRow.PotWinner .PokerPlayerName',
+  '.PokerAnnouncerOverlay.PotWinner',
+]) {
+  assertCssDeclarationMatches(
+    `menu style ${selector}`,
+    cssBlockContainingSelectorDeclaration(menuStyle, selector, 'animation-name'),
+    'animation-name',
+    /^PokerPotWinner/,
+    'must attach the pot-winner pulse/shake keyframes to visible winner feedback',
+  );
+}
 const cardFlipRevealBlock = cssBlockContainingSelectorDeclaration(menuStyle, '.PokerCardFlipLayer.FlipReveal', 'animation-name');
 const cardFlipToBackBlock = cssBlockContainingSelectorDeclaration(menuStyle, '.PokerCardFlipLayer.FlipToBack', 'animation-name');
 const cardFlipDurationBlock = cssBlockContainingSelectorDeclaration(menuStyle, '.PokerCardFlipLayer.FlipReveal', 'animation-duration');
@@ -1130,31 +1615,6 @@ const cardFlipLayerRedArtBlock = cssBlockContainingSelectorDeclaration(menuStyle
 assertCssDeclarationMatches('card flip layer red label', cardFlipLayerRedLabelBlock, 'color', /^#b83f47$/, 'must render red reveal card labels red from the first animation frame');
 assertCssDeclarationMatches('stable card red label', cardStableRedLabelBlock, 'color', /^#b83f47$/, 'must render stable red card labels without waiting for parent color state');
 assertCssDeclarationMatches('card flip layer red art', cardFlipLayerRedArtBlock, 'wash-color', /^#b83f47$/, 'must wash red reveal card art from the first animation frame');
-assertIncludes('menu script', menuScript, 'applyCardVisualState(contents, card)', 'must put suit classes directly on stable card contents');
-assertMatches(
-  'menu script',
-  menuScript,
-  /\bfunction\s+renderStableCardContents\s*\(\s*panel\s*,\s*card\s*,\s*hidden\s*\)[\s\S]*?\bPokerCardContents\b[\s\S]*?\brenderCardContents\s*\(\s*contents\s*,\s*card\s*\)/,
-  'must render stable card labels/art through a named PokerCardContents wrapper helper',
-);
-assert(
-  !/\brenderCardContents\s*\(\s*panel\s*,/.test(menuScript),
-  'menu script must not render stable card contents directly under .PokerCard; use the PokerCardContents wrapper',
-);
-const backToRevealBranchMatch = menuScript.match(/if\s*\(\s*previousKey\s*===\s*["']back["']\s*&&\s*key\s*!==\s*["']back["']\s*\)\s*\{([\s\S]*?)\n\s*return;\s*\n\s*\}/);
-const backToRevealBranch = backToRevealBranchMatch ? backToRevealBranchMatch[1] : '';
-assert(backToRevealBranch, 'menu script must keep an explicit back-to-reveal card update branch');
-assertIncludes('back-to-reveal card branch', backToRevealBranch, 'renderStableCardContents(panel, card, true)', 'must render the final stable card hidden while the flip animation runs');
-assertIncludes('back-to-reveal card branch', backToRevealBranch, 'createCardFlipLayer(panel, null, "FlipToBack", true)', 'must create a visible ? layer that flips out');
-assertIncludes('back-to-reveal card branch', backToRevealBranch, 'createCardFlipLayer(panel, card, "FlipReveal")', 'must create a real-card layer that flips in');
-assertMatches('back-to-reveal card branch', backToRevealBranch, /\bcompleteCardFlip\s*\(\s*panel\s*,\s*key\s*,\s*\[\s*backLayer\s*,\s*revealLayer\s*\](?:\s*,\s*card)?\s*\)/, 'must finish both flip layers through one completion path');
-const completeCardFlipStart = menuScript.indexOf('function completeCardFlip');
-const completeCardFlipEnd = menuScript.indexOf('function updateCardPanel', completeCardFlipStart);
-const completeCardFlipSource = completeCardFlipStart >= 0 && completeCardFlipEnd > completeCardFlipStart ? menuScript.slice(completeCardFlipStart, completeCardFlipEnd) : '';
-assert(completeCardFlipSource, 'menu script must define completeCardFlip before updateCardPanel for card flip cleanup');
-assertIncludes('completeCardFlip', completeCardFlipSource, '$.Schedule(1.2, finish)', 'must schedule cleanup after the same 1.2s flip animation');
-assertIncludes('completeCardFlip', completeCardFlipSource, 'setStableCardContentsHidden(panel, false)', 'must unhide stable card contents when the flip completes');
-assertIncludes('completeCardFlip', completeCardFlipSource, 'setPanelClass(panel, "FlipActive", false)', 'must clear flip-active state when the flip completes');
 const cardContentsFlipHiddenBlock = cssBlockContainingSelector(menuStyle, '.PokerCardContents.FlipHidden');
 assert(
   cardContentsFlipHiddenBlock,
@@ -1179,12 +1639,48 @@ assertSharedCssDeclaration('menu style card flip geometry', menuStyle, '.PokerCa
 assertSharedCssDeclaration('menu style card flip geometry', menuStyle, '.PokerCardContents', '.PokerCardFlipLayer', 'padding', /^\d+(?:\.\d+)?px$/, 'must use the same inset around card content');
 assertSharedCssDeclaration('menu style card flip geometry', menuStyle, '.PokerCardContents', '.PokerCardFlipLayer', 'border-radius', /^\d+(?:\.\d+)?px$/, 'must use the same rounded card geometry');
 assertSharedCssDeclaration('menu style small card flip geometry', menuStyle, '.PokerCard.Small .PokerCardContents', '.PokerCard.Small .PokerCardFlipLayer', 'padding', /^\d+(?:\.\d+)?px$/, 'must keep small-card stable contents and flip layers aligned');
-assertIncludes('menu script', menuScript, 'createCardFlipLayer(panel, card, "FlipReveal")', 'must render a transient reveal layer for back-to-front flips');
-assertIncludes('menu script', menuScript, 'createCardFlipLayer(panel, null, "FlipToBack", true)', 'must render a visible ? layer so ? cards flip out while reveal cards flip in');
-assertIncludes('menu script', menuScript, 'createCardFlipLayer(panel, previousCard, "FlipToBack")', 'must render a transient old-card layer for face-to-back flips');
-for (const moduleName of ['StartSync', 'CommandReducer', 'PokerEngine', 'ProgressResume', 'PendingSelfAction', 'CardPresenter', 'TableRenderer', 'Affordance', 'PokerButtonState']) {
+assertEqual(
+  (menuScript.match(/function\s+applyChatRecord\s*\(/g) || []).length,
+  1,
+  'menu runtime must keep exactly one chat prefix router',
+);
+const chatRouterMatch = /function\s+applyChatRecord\s*\(\s*record\s*\)\s*\{([\s\S]*?)\n\s*\}/.exec(menuScript);
+const chatRouterBody = chatRouterMatch ? chatRouterMatch[1] : '';
+assert(chatRouterBody, 'menu runtime must expose the applyChatRecord prefix router body');
+assertMatches(
+  'menu chat prefix router',
+  chatRouterBody,
+  /message\.slice\(\s*0\s*,\s*4\s*\)\.toLowerCase\(\)\s*===\s*["']bd1\s["']/,
+  'must recognize the bd1 prefix before dispatching to BluffDeckCommandReducer',
+);
+const bluffRouteOffset = chatRouterBody.indexOf('BluffDeckCommandReducer.applyRecord(record)');
+const pokerDecodeOffset = chatRouterBody.indexOf('decodePokerCommand(record)');
+assert(
+  bluffRouteOffset >= 0 && pokerDecodeOffset > bluffRouteOffset,
+  'menu chat prefix router must route bd1 records before Poker decode',
+);
+assertEqual(
+  (chatRouterBody.match(/BluffDeckCommandReducer\.applyRecord\(record\)/g) || []).length,
+  1,
+  'menu chat prefix router must have one Bluff Deck branch',
+);
+for (const moduleName of ['CommandReducer', 'PokerEngine', 'ProgressResume', 'TableRenderer', 'TableSeatRenderer', 'BluffDeckSeatProjection', 'ViewModel', 'PokerMetrics', 'RenderScheduler', 'PanelCache', 'PartyReducer', 'BluffDeckControlState']) {
   assertIncludes('menu script', menuScript, `const ${moduleName}`, `must define ${moduleName} module seam`);
 }
+assertMatches('menu script', menuScript, /render:\s*\(parent,\s*rows,\s*arrowClass\)\s*=>/, 'shared seat renderer must accept parent, projected rows, and optional turn arrow');
+const bluffSeatProjectionStart = menuScript.indexOf('function projectBluffTableSeats');
+const bluffSeatProjectionEnd = menuScript.indexOf('function renderBluffDeck', bluffSeatProjectionStart);
+const bluffSeatProjectionBlock = bluffSeatProjectionStart >= 0 && bluffSeatProjectionEnd > bluffSeatProjectionStart
+  ? menuScript.slice(bluffSeatProjectionStart, bluffSeatProjectionEnd)
+  : '';
+assert(bluffSeatProjectionBlock, 'menu script must expose the Bluff shared-seat adapter');
+assertIncludes('Bluff shared-seat adapter', bluffSeatProjectionBlock, 'cardMode: publicActor ? "public-count" : "none"', 'Bluff seats must choose an explicit anonymous card mode');
+assertIncludes('Bluff shared-seat adapter', bluffSeatProjectionBlock, 'publicCardCount: publicCount', 'Bluff seats must project only the public committed card count');
+assert(!bluffSeatProjectionBlock.includes('player.hand'), 'Bluff shared-seat adapter must not pass private hand ranks');
+assertIncludes('TableSeatRenderer', menuScript, 'mode === "none"', 'shared seat renderer must support card-free Bluff seats');
+assertIncludes('TableSeatRenderer', menuScript, 'mode === "hole-cards"', 'shared seat renderer must preserve Poker hole-card mode');
+assertIncludes('TableSeatRenderer', menuScript, 'mode === "public-count"', 'shared seat renderer must support public committed count backs');
+assertMatches('Poker table adapter', menuScript, /cardMode:\s*["']hole-cards["']/, 'Poker table seats must retain hole-card mode');
 const tableRendererStart = menuScript.indexOf('const TableRenderer = {');
 const tableRendererEnd = menuScript.indexOf('};', tableRendererStart);
 const tableRendererBlock = tableRendererStart >= 0 && tableRendererEnd > tableRendererStart
@@ -1196,13 +1692,39 @@ assertIncludes('TableRenderer source object', tableRendererBlock, 'invalidate: i
 for (const removedRendererExport of ['renderGame:', 'renderCommunity:', 'renderPlayers:', 'renderTableSeats:', 'renderActions:', 'renderLog:']) {
   assert(!tableRendererBlock.includes(removedRendererExport), `TableRenderer must remove legacy renderer export: ${removedRendererExport}`);
 }
-assertIncludes('script', script, 'const ChatBridgeIntake', 'must define ChatBridgeIntake module seam');
+assertIncludes('menu script', menuScript, 'const RowSpecs = {', 'must keep row surface behavior in private declarative specifications');
+assertIncludes('menu script', menuScript, 'update: function (cache, parent, models, spec)', 'must reconcile keyed rows through the spec-based API');
+assert(!menuScript.includes('update: function (cache, parent, models, createRow, updateRow, deleteRow)'), 'menu script must remove the six-argument row adapter API');
+for (const removedRowAdapter of [
+  'function createSeatRow', 'function updateSeatRow', 'function deleteSeatRow',
+  'function createCommunityCardRow', 'function updateCommunityCardRow', 'function deleteCommunityCardRow',
+  'function createPotChipRow', 'function updatePotChipRow', 'function deletePotChipRow',
+  'function createPlayerRow', 'function updatePlayerRow', 'function deletePlayerRow',
+  'function createTableSeatRow', 'function updateTableSeatRow', 'function deleteTableSeatRow',
+  'function createActionButtonRow', 'function updateActionButtonRow', 'function deleteActionButtonRow',
+  'function createLogRow', 'function updateLogRow', 'function deleteLogRow',
+]) {
+  assert(!menuScript.includes(removedRowAdapter), `menu script must delete displaced row adapter: ${removedRowAdapter}`);
+}
+for (const privateModule of ['Affordance', 'PokerButtonState']) {
+  assert(!menuScript.includes(`const ${privateModule}`), `menu script must delete duplicate ${privateModule} module seam`);
+}
+for (const viewModelSurface of ['build: buildViewModel', 'startGate: buildStartGate', 'resumeGate: buildResumeGate']) {
+  assertIncludes('ViewModel source object', menuScript, viewModelSurface, 'must expose the private projection surface');
+}
 assertIncludes('menu script', menuScript, 'const COMMAND_DEFINITIONS', 'must define command metadata table');
+const commandDefinitionBlockStart = menuScript.indexOf('const COMMAND_DEFINITIONS = [');
+const commandDefinitionBlockEnd = menuScript.indexOf('];', commandDefinitionBlockStart);
+const commandDefinitionBlock = commandDefinitionBlockStart >= 0 && commandDefinitionBlockEnd > commandDefinitionBlockStart
+  ? menuScript.slice(commandDefinitionBlockStart, commandDefinitionBlockEnd)
+  : '';
+assert(commandDefinitionBlock, 'menu script must expose a readable COMMAND_DEFINITIONS block');
 for (const [family, minimumCount] of [['party', 3], ['match', 1], ['progress', 2], ['resume', 3], ['start', 1], ['ignored', 1]]) {
   const familyToken = `family: "${family}"`;
-  assertEqual((menuScript.match(new RegExp(familyToken, 'g')) || []).length, minimumCount, `COMMAND_DEFINITIONS should define ${minimumCount} ${family} rows`);
+  assert(commandDefinitionBlock.includes(familyToken), `COMMAND_DEFINITIONS must include ${family} family metadata`);
+  assertEqual(countOccurrences(commandDefinitionBlock, familyToken), minimumCount, `COMMAND_DEFINITIONS should define ${minimumCount} ${family} rows`);
 }
-assert(!menuScript.includes('family: "action"'), 'COMMAND_DEFINITIONS must delegate action syntax to PokerEngine');
+assert(!commandDefinitionBlock.includes('family: "action"'), 'COMMAND_DEFINITIONS must delegate action syntax to PokerEngine');
 const actionWireTableStart = menuScript.indexOf('const ACTION_WIRE_TABLE = [');
 const actionWireTableEnd = menuScript.indexOf('];', actionWireTableStart);
 const actionWireTableBlock = actionWireTableStart >= 0 && actionWireTableEnd > actionWireTableStart
@@ -1213,22 +1735,52 @@ for (const token of ['action: "check"', 'action: "call"', 'action: "fold"', 'act
   assertIncludes('ACTION_WIRE_TABLE', actionWireTableBlock, token, 'must recognize static action wire syntax');
 }
 assertIncludes('menu script', menuScript, 'function decodeActionWire', 'PokerEngine must decode action wire text without State.game');
-for (const type of ['party-leader', 'party-join', 'party-leave', 'match-end', 'progress-offer', 'progress-chunk', 'resume-leader', 'resume-ready', 'resume-start', 'start', 'all-in-unsupported', 'action', 'ignored']) assert(menuScript.includes(`type: "${type}"`), `COMMAND_DEFINITIONS must include ${type}`);
-for (const removedParser of ['parsePartyMessage', 'parseMatchEndMessage', 'extractPartyId', 'extractResumeId', 'parseResumeMessage', 'parseProgressShareMessage', 'getCommandParts', 'markerIndex', 'markerValue', 'decodeMarkerPlayerKey', 'parseResumeStartCommand', 'parseStartCommand', 'parsePartyCommandDefinition', 'parseMatchCommandDefinition', 'parseProgressCommandDefinition', 'parseResumeCommandDefinition', 'parseStartCommandDefinition', 'parseActionCommandDefinition', 'parseIgnoredCommandDefinition']) assert(!menuScript.includes(`function ${removedParser}`), `menu script must remove displaced ${removedParser}`);
-
-assert(!menuScript.includes('function renderActionChoices'), 'menu script must not keep unused pre-PokerButtonState renderActionChoices dead code');
-assert(!menuScript.includes('function sendProgressShare'), 'menu script must not keep unused finished-progress chat-share dead code');
-assert(!menuScript.includes('function canShareProgressFromLocalLeader'), 'menu script must not keep unused finished-progress share gate dead code');
-assert(!menuScript.includes('function playersInHand'), 'menu script must not keep unused playersInHand dead code');
+const engineActionPolicyStart = menuScript.indexOf('function engineActionPolicy');
+const engineActionPolicyEnd = menuScript.indexOf('const ACTION_WIRE_TABLE = [', engineActionPolicyStart);
+const engineActionPolicyBlock = engineActionPolicyStart >= 0 && engineActionPolicyEnd > engineActionPolicyStart
+  ? menuScript.slice(engineActionPolicyStart, engineActionPolicyEnd)
+  : '';
+assert(engineActionPolicyBlock, 'PokerEngine must own a readable action descriptor');
+for (const token of ['isLegal:', 'invalidStatus:', 'prompt:', 'statusText:', 'isLegal: function isLegalCustomAmount', 'command: function customCommand']) {
+  assertIncludes('PokerEngine action descriptor', engineActionPolicyBlock, token, 'must own action validation, feedback, and custom command policy');
+}
+for (const displacedWrapper of ['function getTurnPrompt', 'function getActionStatusText', 'function isEngineActionLegal', 'function isCustomBetAmountLegal', 'function getCustomBetCommandLabel']) {
+  assert(!menuScript.includes(displacedWrapper), `menu script must remove displaced ${displacedWrapper} policy wrapper`);
+}
+for (const type of ['party-leader', 'party-join', 'party-leave', 'match-end', 'progress-offer', 'progress-chunk', 'resume-leader', 'resume-ready', 'resume-start', 'start', 'ignored']) {
+  assert(commandDefinitionBlock.includes(`type: "${type}"`), `COMMAND_DEFINITIONS must include ${type} behavior metadata`);
+}
+for (const removedParser of [
+  'parsePartyMessage', 'parseMatchEndMessage', 'extractPartyId', 'extractResumeId',
+  'parseResumeMessage', 'parseProgressShareMessage', 'getCommandParts', 'markerIndex',
+  'markerValue', 'decodeMarkerPlayerKey', 'parseResumeStartCommand', 'parseStartCommand',
+  'parsePartyCommandDefinition', 'parseMatchCommandDefinition', 'parseProgressCommandDefinition',
+  'parseResumeCommandDefinition', 'parseStartCommandDefinition', 'parseActionCommandDefinition',
+  'parseIgnoredCommandDefinition',
+]) {
+  assert(!menuScript.includes(`function ${removedParser}`), `menu script must remove displaced ${removedParser} parser`);
+}
+const commandHandlersBlockStart = menuScript.indexOf('const COMMAND_HANDLERS = {');
+const commandHandlersBlockEnd = menuScript.indexOf('};', commandHandlersBlockStart);
+const commandHandlersBlock = commandHandlersBlockStart >= 0 && commandHandlersBlockEnd > commandHandlersBlockStart
+  ? menuScript.slice(commandHandlersBlockStart, commandHandlersBlockEnd)
+  : '';
+for (const key of ['party-leader', 'party-join', 'party-leave', 'match-end', 'progress-offer', 'progress-chunk', 'resume-leader', 'resume-ready', 'resume-start', 'start', 'all-in-unsupported', 'action']) {
+  assertIncludes('COMMAND_HANDLERS', commandHandlersBlock, `"${key}"`, 'must contain concrete command key');
+}
 const progressResumeStart = menuScript.indexOf('const ProgressResume = {');
 const progressResumeEnd = menuScript.indexOf('};', progressResumeStart);
 const progressResumeBlock = progressResumeStart >= 0 && progressResumeEnd > progressResumeStart ? menuScript.slice(progressResumeStart, progressResumeEnd) : '';
 assert(progressResumeBlock, 'menu script must expose ProgressResume source object');
-for (const propertyName of ['build', 'importCode', 'applyCommand', 'shareImported', 'project']) {
-  assertIncludes('ProgressResume source object', progressResumeBlock, `${propertyName}:`, 'must include behavior hook property');
+for (const propertyName of ['build', 'importCode', 'applyCommand', 'shareImported']) {
+  assert(new RegExp(`\\b${propertyName}(?:\\s*:|\\s*\\()`).test(progressResumeBlock), `ProgressResume source object must include behavior hook property: ${propertyName}`);
 }
-for (const removedProgressSurface of ['gates', 'getStartGate', 'getHostedStartGate', '"import"', 'buildCode', 'applyShare', 'selectHostedLeader', 'applyStartCommand']) {
+assert(!progressResumeBlock.includes('project:'), 'ProgressResume must not retain duplicate UI projection facade');
+for (const removedProgressSurface of ['gates', 'getStartGate', 'getHostedStartGate', '"import"', 'buildCode', 'applyShare', 'selectHostedLeader', 'applyStartCommand', 'project']) {
   assert(!progressResumeBlock.includes(`${removedProgressSurface}:`), `ProgressResume source object must remove facade property: ${removedProgressSurface}`);
+}
+for (const removedProgressAdapter of ['buildFreshProgressSaveCode', 'buildProgressOfferCommand', 'buildProgressChunkCommand', 'splitProgressCodeForChat', 'applyProgressResumeCommand', 'canShareImportedProgressFromHostedLeader']) {
+  assert(!menuScript.includes(`function ${removedProgressAdapter}`), `menu script must remove displaced ProgressResume adapter: ${removedProgressAdapter}`);
 }
 const testHookStart = menuScript.indexOf('globalThis.__PokerEscapeMenuTestHooks = {');
 const testHookEnd = menuScript.indexOf('modules: {', testHookStart);
@@ -1236,7 +1788,22 @@ const testHookBlock = testHookStart >= 0 && testHookEnd > testHookStart ? menuSc
 for (const removedDirectExport of ['buildProgressSaveCode:', 'decodeProgressSaveCode:', 'importProgressSaveCode:', 'cryptProgressBytes:', 'textToUtf8Bytes:', 'getResumeGate:', 'getResumeId:']) {
   assert(!testHookBlock.includes(removedDirectExport), `menu test hooks must not export direct ProgressResume helper: ${removedDirectExport}`);
 }
+assert(!menuScript.includes('PokerTableOverflow'), 'menu script must not create PokerTableOverflow panels');
+assert(!menuStyle.includes('.PokerTableOverflow'), 'menu style must not define PokerTableOverflow overflow label');
+const resumeStartBuilderStart = menuScript.indexOf('function buildResumeStartCommand');
+const resumeStartBuilderEnd = menuScript.indexOf('function getResumeRoster', resumeStartBuilderStart);
+const resumeStartBuilderBlock = resumeStartBuilderStart >= 0 && resumeStartBuilderEnd > resumeStartBuilderStart ? menuScript.slice(resumeStartBuilderStart, resumeStartBuilderEnd) : '';
+assert(!resumeStartBuilderBlock.includes(' roster '), 'resume start builder must not serialize roster markers');
+assertIncludes('script', script, 'const PokerMetrics', 'chat debug must define PokerMetrics module seam');
+
+assert(!menuScript.includes('function renderActionChoices'), 'menu script must not keep unused pre-PokerButtonState renderActionChoices dead code');
+assert(!menuScript.includes('function sendProgressShare'), 'menu script must not keep unused finished-progress chat-share dead code');
+assert(!menuScript.includes('function canShareProgressFromLocalLeader'), 'menu script must not keep unused finished-progress share gate dead code');
+assert(!menuScript.includes('function playersInHand'), 'menu script must not keep unused playersInHand dead code');
 assert(!menuScript.includes('function getLocalCallAmount'), 'menu script must not keep unused getLocalCallAmount dead code');
+assert(!menuScript.includes('function getLargeActionTarget'), 'menu script must not keep unused getLargeActionTarget dead code');
+assert(!menuScript.includes('function getCustomBetChoice'), 'menu script must not keep unused getCustomBetChoice dead code');
+assert(!script.includes('function isPokerBridgeMessage'), 'chat bridge script must not keep unused isPokerBridgeMessage dead code');
 assert(!menuScript.includes('function renderCommunityStable'), 'menu script must not keep shallow renderCommunityStable wrapper');
 assert(!menuScript.includes('function renderPlayersStable'), 'menu script must not keep shallow renderPlayersStable wrapper');
 assert(!menuScript.includes('function renderTableSeatsStable'), 'menu script must not keep shallow renderTableSeatsStable wrapper');

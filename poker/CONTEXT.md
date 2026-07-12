@@ -25,39 +25,61 @@ The module is Panorama-only plus card texture assets:
 
 ## State & Wire Protocol
 
-Important config keys shared through `GameUI.CustomUIConfig()`:
-
-- `PokerReadySeats`
-- `PokerReadyRevision`
-- `PokerChatMessages`
-- `PokerChatSequence`
+- `PokerPartyState` - authoritative party/table session: `tableGame`, `tableSessionId`, `readyGeneration`, leader, member epochs, and roster order.
+- `PokerReadySeats` / `PokerReadyRevision` - per-member ready observations scoped to the current table session and generation.
+- `PokerChatMessages` / `PokerChatSequence` - retained stock-chat history and monotonic row sequence.
 - `PokerLastReadyEvent`
 - `PokerLocalPlayerKey`
 - `PokerLocalPlayerName`
 - `PokerPendingSelfAction`
-- `PokerPartyState`
 - `PokerProgressState`
+- `PokerBluffDeckMatchState` - committed Bluff match envelope; pending selection/send state is not persisted.
 
 Bridge event names:
 
 - `ClientUI_FireOutput`
 - `PokerReadySeatsChanged`
 - `PokerReadySeatsRequest`
+- `PokerReadySeatsClearRequest`
 - `PokerChatMessage`
 - `PokerChatSnapshotRequest`
+- `PokerChatSendRequest` / `PokerChatSendStatus` / `PokerChatSendCancelRequest`
+- `BluffDeckFastPollRequest`
 
-Exact chat wire phrases are contract-critical:
+The table lifecycle is chat-authoritative. The host alone may switch the party table; switching preserves the roster, rotates the table session and ready generation, clears active match/progress state, and opens the target lobby without auto-dealing. A one-seat target lobby is valid, but Bluff Deck starts require 2–4 seats and switching a party larger than four into Bluff Deck is rejected. Retained pre-cutover unscoped lifecycle rows are ignored.
+
+Canonical lifecycle rows are strict, case-insensitive, and carry session/generation/member epoch/intent nonce tokens:
 
 ```text
-[party leader] poker party <id>
-[party join] poker party <id>
-poker start <seed> hand <handNumber> roster <encodedRoster>
-[resume leader] poker resume <id>
-[resume ready] poker resume <id>
-poker resume <id> hand <handNumber> leader <leaderKey> roster <encodedRoster> seed <seed>
+[party leader] poker party <partyId> table <poker|bluff-deck> session <token8> ready <token8> member <token8> intent <token8>
+[party join|leave] poker party <partyId> session <token8> member <token8> intent <token8>
+[table switch] poker party <partyId> from <token8> current-ready <token8> to <poker|bluff-deck> session <token8> next-ready <token8> member <token8> roster <hash8> intent <token8>
+[match end] poker party <partyId> table <poker|bluff-deck> session <token8> current-ready <token8> next-ready <token8> member <token8> ... intent <token8>
+poker ready <token8> ready <token8> member <token8> intent <token8>
+poker start <seed> hand <number> session <token8> ready <token8> next-ready <token8> member <token8> roster <encodedRoster> members <hash8> intent <token8>
+poker act <token8> ready <token8> <seed> <handNumber> member <token8> intent <token8> <action>
 ```
 
-Roster encoding uses URI-escaped `key~name` entries separated by `|`. Malformed decode returns an empty roster.
+Bluff Deck uses its own strict action grammar under the same party session:
+
+```text
+bd1 s <match8> <rosterHash8> session <token8> ready <token8> member <token8> intent <token8>
+bd1 p|c|r <match8> <seq> session <token8> ready <token8> member <token8> intent <token8> [maskHex]
+```
+
+Every canonical row is checked against the current party/session/generation, sender member epoch, roster hash, leader/current-seat authority, and next sequence before mutation. Unknown authority rows wait for sender stabilization and never grant authority. Snapshot hydration reconciles retained rows through the same reducer; malformed, stale, duplicate, or pre-cutover unscoped rows fail closed.
+
+Roster encoding uses URI-escaped canonical player-key entries separated by `|`; names are resolved from the authoritative party roster. Malformed decode returns an empty roster.
+
+### Bluff Deck backend (`basic-v1`)
+
+Bluff Deck is a separate 2–4-seat backend beside Poker. `BluffDeckEngine` is pure and deterministic: it uses the fixed 20-rank deck (six Ace, six King, six Queen, two Joker), fixed seat order, deterministic deal/target/risk streams, challenge risk progression, fixed-seat departures, and canonical debug hashes. Its rules and chat protocol remain separate from Poker, while `BluffDeckViewModel` adapts the state to Poker's canonical seat, card, flip, action-row, and log presenters.
+
+`BluffDeckMatchState` stores only committed `{ version, sourceChatSeq, game }` state. Hydration requires a retained matching start row, a retained-chat high-water mark at or beyond `sourceChatSeq`, and engine invariants; otherwise it clears the envelope and reports `MATCH STATE UNAVAILABLE — OBSERVE UNTIL NEXT MATCH`. Selection and send pending state are intentionally nonpersistent.
+
+`BluffDeckFastPollRequest` crosses menu and chat contexts to extend the bridge-local `TableGameFastPollUntil` TTL. Active/open Bluff Deck uses the bridge's existing 100 ms scanner; expiry restores the existing 500 ms cadence. The bridge retains the reliable team-chat lifecycle—open `say_chat_team`, wait, then require a second stable readiness observation—and does not use a cached-panel zero-delay submit path.
+
+`BluffDeckActions` powers the production table interface: the `TABLE GAMES` picker selects Poker or Bluff Deck, and `BluffDeckViewModel` adapts the canonical Bluff game into Poker's shared seat, card-art, flip, action-row, and log presenters. Accepted plays append deterministic `roundPlays`; their anonymous cards accumulate over the centered target, and a committed challenge reveals only the immediately preceding play through the shared Poker flip presenter. Accepted transitions update the canonical twelve-entry `game.log` and the dedicated persisted `PokerBluffDeckHistoryV1` projection. The view model reads that persisted projection—even after match cleanup, back-to-picker, or UI recreation—and renders it chronologically through `RowSpecs.log`; an empty history renders `NO TURNS YET` rather than a blank body. The fit-content main Bluff window provides a back control, shared party controls, leader start/end controls, five local VTex card slots, Play Selected, LIE, PULL TRIGGER, and projected state. History changes only after a stock-chat record passes Bluff authority, legality, and sequence checks. The implementation remains honest-client and makes no secure-dealing claim.
 
 ## Game Model
 
@@ -182,6 +204,7 @@ Run from repo root:
 node poker/scripts/validate-poker.js
 node poker/scripts/validate-ready-state.js
 node poker/scripts/validate-poker-game.js
+node poker/scripts/validate-bluff-deck-game.js
 powershell -ExecutionPolicy Bypass -File build_poker.ps1
 ```
 
@@ -202,6 +225,7 @@ Validators:
 - `validate-poker.js` - static/layout/CSS/chat/card asset contract, including 512x512 RGBA transparent card images and visible wash-color card art.
 - `validate-ready-state.js` - VM bridge/ready-state/chat snapshot behavior across chat and menu contexts.
 - `validate-poker-game.js` - VM game engine/progress/resume/UI behavior: party sync, legal actions, side pots, progress codes, resume, table visibility, log cap, end match.
+- `validate-bluff-deck-game.js` - deterministic Bluff Deck engine, protocol, persistence, pending-action, bridge, and convergence VM contracts.
 
 What validators do not prove:
 
