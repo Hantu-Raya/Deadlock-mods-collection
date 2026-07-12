@@ -18,7 +18,7 @@ These XML files are contract surfaces for the scripts and validators. The source
 ### Stable ID contract
 `poker_escape_menu.js` mirrors XML IDs in its `IDS` table and resolves them by walking from `$.GetContextPanel()` to the root. The XML IDs below are therefore API, not decoration:
 
-- Entry/root: `PokerMenuButton`, `TableGamePickerWindow`, `TableGamePickerPokerButton`, `TableGamePickerBluffButton`, `BluffDeckWindow`, `PokerAnitaPanel`, `PokerLobbyWindow`, `PokerTableWindow`, `PokerPlayersWindow`, `PokerHistoryWindow`, `PokerActionsWindow`, `PokerCloseButton`.
+- Entry/root: `PokerMenuButton`, `TableGamePickerWindow`, `TableGamePickerPokerButton`, `TableGamePickerBluffButton`, `BluffDeckWindow`, `BluffDeckPlayersWindow`, `BluffDeckHistoryWindow`, `BluffDeckActionsWindow`, `BluffDeckAnnouncementOverlay`, `BluffDeckAnnouncementTitle`, `BluffDeckAnnouncementBody`, `PokerAnitaPanel`, `PokerLobbyWindow`, `PokerTableWindow`, `PokerPlayersWindow`, `PokerHistoryWindow`, `PokerActionsWindow`, `PokerCloseButton`.
 - Party: `PokerPartyControls`, `PokerHostPartyButton`, `PokerJoinPartyButton`, `PokerPartyStatusLabel`.
 - Progress: `PokerProgressControls`, `PokerExportProgressButton`, `PokerImportProgressButton`, `PokerProgressCodeInput`, `PokerProgressCodeLabel`.
 - Resume: `PokerResumeControls`, `PokerResumeLeaderButton`, `PokerResumeReadyButton`, `PokerResumeStatusLabel`, `PokerResumeLeaderList`.
@@ -60,13 +60,8 @@ The poker menu sender sets `#ChatInput.text`, dispatches `CitadelChatInputSubmit
 1. The ESC context loads `poker_escape_menu.vjs_c`; script export happens before `boot()` unless `globalThis.__PokerTestMode` is set.
 2. `boot()` calls `cachePanels()`, resolving the contract IDs listed above, then registers `ClientUI_FireOutput` with `handleBridgeEvent` once required panels exist.
 3. Opening Poker through `#PokerMenuButton` toggles `#PokerAnitaPanel` and the floating windows. The script requests fresh ready/chat state, refreshes seats, and calls `renderGame()`.
-4. `renderGame()` projects state into the XML containers:
-   - party/progress/resume affordances in `#PokerLobbyWindow`;
-   - ready seats in `#PokerSeatsList`;
-   - game/table state in `#PokerTableSurface`, `#PokerCommunityCards`, `#PokerTableSeats`, and `#PokerPlayersList`;
-   - action choices in `#PokerActionButtons` plus the persistent `#PokerStartButton`/`#PokerStartButtonLabel`;
-   - history in `#PokerGameLog`.
-5. Runtime-created child panels use classes such as `PokerSeatRow`, `PokerPlayerRow`, `PokerTableSeat`, `PokerCard`, and `PokerActionButton`; XML only owns the stable parent containers.
+4. `renderGame()` projects Poker into its lobby/table/players/history/actions containers. When Bluff Deck is selected, it builds `BluffDeckViewModel` and projects four sibling surfaces: `#BluffDeckWindow` (table/felt and announcement), `#BluffDeckPlayersWindow` (roster/lifecycle), `#BluffDeckHistoryWindow` (result/feed), and `#BluffDeckActionsWindow` (keyed card picker and actions).
+5. Runtime-created child panels use classes such as `PokerSeatRow`, `PokerPlayerRow`, `PokerTableSeat`, `PokerCard`, `PokerActionButton`, `BluffDeckOpponentRow`, `BluffDeckLogRow`, and `BluffDeckPlayedCard`; XML owns only stable parent containers.
 
 ### Chat bridge flow (`chat.xml`)
 1. The chat context loads `poker_chat_debug.vjs_c` and stock `CitadelChat` renders rows under `#ChatMessages` from the `ChatMessage` snippet.
@@ -91,7 +86,7 @@ Contract-critical commands carried through this path include `[party leader]`, `
 - Loads `poker_escape_menu.vjs_c` and supplies all containers used by `State` panel refs.
 - `CitadelHudEscapeMenu oncancel` and `#EscapeBackground` still call `CitadelResumePlaying()`; Poker does not replace stock ESC cancellation behavior.
 - `#PokerAnitaPanel` starts as `PokerHidden` and `hittest="false"`; menu open/close policy is script-controlled.
-- Floating windows have fixed roles: lobby controls (`#PokerLobbyWindow`), table/felt (`#PokerTableWindow`), player list and leave/end controls (`#PokerPlayersWindow`), log (`#PokerHistoryWindow`), and action/start/status controls (`#PokerActionsWindow`).
+- Floating windows have fixed roles. Poker keeps lobby/table/players/history/actions surfaces; Bluff Deck mirrors the table composition with `#BluffDeckWindow` for table/felt and announcements, `#BluffDeckPlayersWindow` for roster/lifecycle, `#BluffDeckHistoryWindow` for result/feed, and `#BluffDeckActionsWindow` for card selection/actions.
 - `#PokerTableSeats` and `#PokerPlayersList` are both required: the former is the compact table-edge in-hand view, the latter is the full player list. Do not collapse one into the other.
 
 ### `chat.xml` -> `poker_chat_debug.js`

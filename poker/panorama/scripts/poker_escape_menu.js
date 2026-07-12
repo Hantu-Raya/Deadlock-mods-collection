@@ -1,6 +1,5 @@
 (() => {
   "use strict";
-
   const LOG_PREFIX = "[PokerMenu]";
   const TEST_READY_MESSAGE = "ready";
   const BridgeContract = {
@@ -84,7 +83,6 @@
     action: 60,
     error: 70,
   };
-
   const IDS = {
     rootButton: "PokerMenuButton", panel: "PokerAnitaPanel", tableWindow: "PokerTableWindow", lobbyWindow: "PokerLobbyWindow",
     playersWindow: "PokerPlayersWindow", historyWindow: "PokerHistoryWindow", actionsWindow: "PokerActionsWindow", closeButton: "PokerCloseButton", backButton: "PokerBackButton",
@@ -100,14 +98,13 @@
     resumeControls: "PokerResumeControls", resumeLeaderButton: "PokerResumeLeaderButton", resumeReadyButton: "PokerResumeReadyButton", resumeStatus: "PokerResumeStatusLabel",
     resumeLeaderList: "PokerResumeLeaderList",
     pickerWindow: "TableGamePickerWindow", pickerWarning: "TableGamePickerWarning", pickerPokerButton: "TableGamePickerPokerButton", pickerPokerLabel: "TableGamePickerPokerLabel", pickerBluffButton: "TableGamePickerBluffButton", pickerBluffLabel: "TableGamePickerBluffLabel",
-    bluffWindow: "BluffDeckWindow", bluffCardTable: "BluffDeckCardTable", bluffTableSeats: "BluffDeckTableSeats", bluffCloseButton: "BluffDeckCloseButton", bluffBackButton: "BluffDeckBackButton", bluffHeader: "BluffDeckHeaderLabel", bluffHostButton: "BluffDeckHostButton", bluffJoinButton: "BluffDeckJoinButton",
+    bluffWindow: "BluffDeckWindow", bluffPlayersWindow: "BluffDeckPlayersWindow", bluffHistoryWindow: "BluffDeckHistoryWindow", bluffActionsWindow: "BluffDeckActionsWindow", bluffCardTable: "BluffDeckCardTable", bluffTableSeats: "BluffDeckTableSeats", bluffCloseButton: "BluffDeckCloseButton", bluffBackButton: "BluffDeckBackButton", bluffHeader: "BluffDeckHeaderLabel", bluffAnnouncement: "BluffDeckAnnouncementOverlay", bluffAnnouncementTitle: "BluffDeckAnnouncementTitle", bluffAnnouncementBody: "BluffDeckAnnouncementBody", bluffHostButton: "BluffDeckHostButton", bluffJoinButton: "BluffDeckJoinButton",
     bluffLeaveButton: "BluffDeckLeaveButton", bluffStartButton: "BluffDeckStartButton", bluffEndButton: "BluffDeckEndButton",
     bluffTarget: "BluffDeckTargetLabel", bluffTargetCard: "BluffDeckTargetCard", bluffTurn: "BluffDeckTurnLabel", bluffPrevious: "BluffDeckPreviousPlayLabel", bluffHand: "BluffDeckHandLabel",
     bluffPlayedCards: "BluffDeckPlayedCards", bluffOpponents: "BluffDeckOpponentList", bluffSlots: "BluffDeckCardSlots", bluffAction: "BluffDeckActionLabel", bluffPlayButton: "BluffDeckPlayButton",
     bluffChallengeButton: "BluffDeckChallengeButton", bluffPending: "BluffDeckPendingLabel", bluffResult: "BluffDeckResultLabel", bluffLog: "BluffDeckLog",
     bluffStatus: "BluffDeckStatusLabel", bluffSlot0: "BluffDeckSlot0", bluffSlot1: "BluffDeckSlot1", bluffSlot2: "BluffDeckSlot2", bluffSlot3: "BluffDeckSlot3", bluffSlot4: "BluffDeckSlot4",
   };
-
   const PANEL_BINDINGS = [
     ["menuButton", "rootButton"], ["panel", "panel"], ["tableWindow", "tableWindow"], ["lobbyWindow", "lobbyWindow"],
     ["playersWindow", "playersWindow"], ["historyWindow", "historyWindow"], ["actionsWindow", "actionsWindow"], ["closeButton", "closeButton"], ["backButton", "backButton"],
@@ -120,7 +117,7 @@
     ["tableSurface", "tableSurface"], ["announcer", "announcer"], ["announcerTitle", "announcerTitle"], ["announcerBody", "announcerBody"],
     ["community", "community"], ["players", "players"], ["tableSeats", "tableSeats"], ["actions", "actions"], ["log", "log"],
     ["pickerWindow", "pickerWindow"], ["pickerWarning", "pickerWarning"], ["pickerPokerButton", "pickerPokerButton"], ["pickerPokerLabel", "pickerPokerLabel"], ["pickerBluffButton", "pickerBluffButton"], ["pickerBluffLabel", "pickerBluffLabel"],
-    ["bluffWindow", "bluffWindow"], ["bluffCardTable", "bluffCardTable"], ["bluffTableSeats", "bluffTableSeats"], ["bluffCloseButton", "bluffCloseButton"], ["bluffBackButton", "bluffBackButton"], ["bluffHeader", "bluffHeader"], ["bluffHostButton", "bluffHostButton"], ["bluffJoinButton", "bluffJoinButton"],
+    ["bluffWindow", "bluffWindow"], ["bluffPlayersWindow", "bluffPlayersWindow"], ["bluffHistoryWindow", "bluffHistoryWindow"], ["bluffActionsWindow", "bluffActionsWindow"], ["bluffCardTable", "bluffCardTable"], ["bluffTableSeats", "bluffTableSeats"], ["bluffCloseButton", "bluffCloseButton"], ["bluffBackButton", "bluffBackButton"], ["bluffHeader", "bluffHeader"], ["bluffAnnouncement", "bluffAnnouncement"], ["bluffAnnouncementTitle", "bluffAnnouncementTitle"], ["bluffAnnouncementBody", "bluffAnnouncementBody"], ["bluffHostButton", "bluffHostButton"], ["bluffJoinButton", "bluffJoinButton"],
     ["bluffLeaveButton", "bluffLeaveButton"], ["bluffStartButton", "bluffStartButton"], ["bluffEndButton", "bluffEndButton"], ["bluffTarget", "bluffTarget"], ["bluffTargetCard", "bluffTargetCard"],
     ["bluffTurn", "bluffTurn"], ["bluffPrevious", "bluffPrevious"], ["bluffHand", "bluffHand"], ["bluffPlayedCards", "bluffPlayedCards"], ["bluffOpponents", "bluffOpponents"], ["bluffSlots", "bluffSlots"],
     ["bluffAction", "bluffAction"], ["bluffPlayButton", "bluffPlayButton"], ["bluffChallengeButton", "bluffChallengeButton"], ["bluffPending", "bluffPending"],
@@ -128,12 +125,10 @@
     ["bluffSlot2", "bluffSlot2"], ["bluffSlot3", "bluffSlot3"], ["bluffSlot4", "bluffSlot4"],
   ];
   const BOOT_REQUIRED_PANELS = ["menuButton", "panel", "tableWindow", "lobbyWindow", "playersWindow", "actionsWindow", "readyChatButton", "partyHostButton", "partyJoinButton", "startButton", "seatsList", "players", "tableSeats"];
-
   const CLASSES = {
     visible: "PokerMenuVisible", open: "Open", active: "Active", eligible: "Eligible", disabled: "Disabled", readOnly: "ReadOnly",
     hidden: "PokerHidden", current: "Current", folded: "Folded", eliminated: "Eliminated", winner: "PotWinner", red: "RedSuit", black: "BlackSuit",
   };
-
   const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A"];
   const SUITS = ["S", "H", "D", "C"];
   const TABLE_EDGE_SEAT_LIMIT = MAX_TABLE_PLAYERS;
@@ -158,12 +153,10 @@
     { value: 300, className: "PokerPotStack300", asset: "pot_300_green_chips_512.vtex", label: "$300" },
     { value: 100, className: "PokerPotStack100", asset: "pot_100_red_chips_512.vtex", label: "$100" },
   ];
-
   const RANK_VALUE = {
     "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8,
     "9": 9, T: 10, J: 11, Q: 12, K: 13, A: 14,
   };
-
   const State = {
     isOpen: false,
     selectedTableGame: "",
@@ -347,13 +340,11 @@
     config[METRICS_KEY].timings = config[METRICS_KEY].timings || {};
     return config[METRICS_KEY];
   }
-
   function resetMetrics() {
     const config = getConfig();
     config[METRICS_KEY] = { counters: {}, timings: {} };
     return config[METRICS_KEY];
   }
-
   function getMetricsSnapshot() {
     const store = getMetricsStore();
     return {
@@ -361,7 +352,6 @@
       timings: JSON.parse(JSON.stringify(store.timings || {})),
     };
   }
-
   function incrementMetric(name, amount) {
     if (!metricsEnabled()) return 0;
     const store = getMetricsStore();
@@ -371,12 +361,10 @@
     store.counters[key] = (Number(store.counters[key]) || 0) + delta;
     return store.counters[key];
   }
-
   function startMetric(name) {
     if (!metricsEnabled() || !name) return 0;
     return Date.now();
   }
-
   function endMetric(name, started) {
     if (!metricsEnabled() || !name || !started) return;
     const elapsed = Math.max(0, Date.now() - started);
@@ -387,7 +375,6 @@
     timing.maxMs = Math.max(timing.maxMs || 0, elapsed);
     store.timings[name] = timing;
   }
-
   const PokerMetrics = {
     reset: resetMetrics,
     snapshot: getMetricsSnapshot,
@@ -395,42 +382,34 @@
     start: startMetric,
     end: endMetric,
   };
-
   function getReadySeats() {
     const config = getConfig();
     config[READY_SEATS_KEY] = config[READY_SEATS_KEY] || {};
     if (typeof config[READY_REVISION_KEY] !== "number") config[READY_REVISION_KEY] = 0;
     return config[READY_SEATS_KEY];
   }
-
   function getReadyRevision() {
     const config = getConfig();
     return typeof config[READY_REVISION_KEY] === "number" ? config[READY_REVISION_KEY] : 0;
   }
-
   function normalizeText(text) {
     return String(text || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9$]+/g, " ").replace(/\s+/g, " ").trim();
   }
-
   function normalizePartyId(id) {
     return String(id || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
   }
-
   function samePartyId(left, right) {
     const leftId = normalizePartyId(left);
     const rightId = normalizePartyId(right);
     return !!(leftId && rightId && leftId === rightId);
   }
-
   function normalizePlayerKey(sender) {
     return String(sender || "").replace(/\s+/g, " ").trim().toLowerCase();
   }
-
   function isUnknownSender(sender) {
     const key = normalizePlayerKey(sender);
     return !key || key === normalizePlayerKey("<unknown>");
   }
-
   function rememberLocalPlayer(sender) {
     if (isUnknownSender(sender)) return;
     const key = normalizePlayerKey(sender);
@@ -439,13 +418,11 @@
     config[LOCAL_PLAYER_KEY] = key;
     config[LOCAL_PLAYER_NAME_KEY] = sender;
   }
-
   function getRememberedLocalPlayerName() {
     const config = getConfig();
     const name = String(config[LOCAL_PLAYER_NAME_KEY] || "").replace(/\s+/g, " ").trim();
     return isUnknownSender(name) ? "" : name;
   }
-
   function defaultPartyState() {
     return {
       id: "",
@@ -456,11 +433,9 @@
       order: [],
     };
   }
-
   function sanitizePartyMode(mode) {
     return mode === "leader" || mode === "member" ? mode : "none";
   }
-
   function getPartyState() {
     const fallback = defaultPartyState();
     try {
@@ -493,14 +468,12 @@
       return fallback;
     }
   }
-
   function savePartyState() {
     try {
       const config = getConfig();
       config[PARTY_STATE_KEY] = State.party || defaultPartyState();
     } catch (e) {}
   }
-
   function defaultResumeState() {
     return {
       code: "",
@@ -514,7 +487,6 @@
       order: [],
     };
   }
-
   function defaultProgressShareState() {
     return {
       key: "",
@@ -528,7 +500,6 @@
       readyAt: 0,
     };
   }
-
   function findProgressRosterEntry(payload, key) {
     const normalized = normalizePlayerKey(key);
     const roster = payload && payload.roster ? payload.roster : [];
@@ -537,12 +508,10 @@
     }
     return null;
   }
-
   function getProgressBankroll(payload, key) {
     if (!payload || !payload.bankrolls) return 0;
     return Number(payload.bankrolls[normalizePlayerKey(key)]) || 0;
   }
-
   function getLocalProgressEntry() {
     const resume = ensureResume();
     const payload = resume.payload;
@@ -551,7 +520,6 @@
     if (byKey) return byKey;
     return findProgressRosterEntry(payload, getRememberedLocalPlayerName());
   }
-
   function validateProgressPayload(payload) {
     if (!payload || typeof payload !== "object") return { ok: false, status: "Invalid progress code." };
     if (payload.version !== 1 || payload.kind !== "poker-progress") return { ok: false, status: "Invalid progress code." };
@@ -596,7 +564,6 @@
       },
     };
   }
-
   function canonicalProgressPayload(payload) {
     const valid = validateProgressPayload(payload);
     const source = valid.ok ? valid.payload : payload;
@@ -617,11 +584,9 @@
       savedAt: source.savedAt,
     });
   }
-
   function getResumeId(payload) {
     return "r" + (hashString(canonicalProgressPayload(payload)) >>> 0).toString(36);
   }
-
   function textToUtf8Bytes(text) {
     const input = String(text || "");
     const bytes = [];
@@ -651,7 +616,6 @@
     }
     return bytes;
   }
-
   function utf8BytesToText(bytes) {
     let out = "";
     for (let i = 0; i < bytes.length; i += 1) {
@@ -675,7 +639,6 @@
     }
     return out;
   }
-
   function encodeBase64UrlBytes(bytes) {
     const table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     let out = "";
@@ -690,7 +653,6 @@
     }
     return out;
   }
-
   function decodeBase64UrlBytes(text) {
     const table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     const input = String(text || "");
@@ -709,18 +671,15 @@
     }
     return bytes;
   }
-
   function cryptProgressBytes(bytes, seed) {
     const rand = seededRandom(hashString(seed));
     const out = [];
     for (let i = 0; i < bytes.length; i += 1) out.push((bytes[i] & 255) ^ Math.floor(rand() * 256));
     return out;
   }
-
   function isDepartedPlayer(player) {
     return !!(player && player.left);
   }
-
   function buildProgressPayload(gameOverride) {
     const game = gameOverride || State.game;
     if (!game || !game.finished || game.active) return { ok: false, status: "Finish the current hand before copying progress." };
@@ -755,11 +714,9 @@
     const valid = validateProgressPayload(payload);
     return valid.ok ? { ok: true, payload: valid.payload } : { ok: false, status: valid.status };
   }
-
   function checksumHex(checksum) {
     return ("00000000" + (checksum >>> 0).toString(16)).slice(-8);
   }
-
   function getProgressShareKey(gameOverride) {
     const game = gameOverride || State.game;
     if (!game || !game.finished || game.active || !game.players || !game.players.length) return "";
@@ -772,12 +729,10 @@
     }
     return parts.join("|");
   }
-
   function checksumFromProgressCode(code) {
     const match = String(code || "").match(/^POKERPROG1-([0-9a-f]{8})-/i);
     return match ? match[1].toLowerCase() : "";
   }
-
   function buildProgressSaveCode(gameOverride) {
     const shareKey = getProgressShareKey(gameOverride);
     if (shareKey && State.progressShare && State.progressShare.key === shareKey && State.progressShare.code) {
@@ -810,7 +765,6 @@
     }
     return result;
   }
-
   function decodeProgressSaveCode(code) {
     const text = String(code || "").replace(/^\s+|\s+$/g, "");
     const match = text.match(/^POKERPROG1-([0-9a-f]{8})-([A-Za-z0-9_-]+)$/);
@@ -830,7 +784,6 @@
       return { ok: false, status: "Invalid progress code." };
     }
   }
-
   function getResumeState() {
     const fallback = defaultResumeState();
     try {
@@ -869,7 +822,6 @@
       return fallback;
     }
   }
-
   function saveResumeState() {
     try {
       const resume = State.resume || defaultResumeState();
@@ -885,7 +837,6 @@
       };
     } catch (e) {}
   }
-
   function clearResumeState(reason) {
     State.resume = defaultResumeState();
     State.progressTransfers = {};
@@ -898,7 +849,6 @@
     saveResumeState();
     if (reason) log("cleared resume state: " + reason);
   }
-
   function importProgressSaveCode(code, source) {
     if (State.game && State.game.active) return { ok: false, status: "Finish the current hand before importing progress." };
     const decoded = decodeProgressSaveCode(code);
@@ -921,15 +871,12 @@
     }
     return decoded;
   }
-
   function makePartyId(sender) {
     return "p" + Date.now().toString(36) + "-" + hashString(sender || "leader").toString(36);
   }
-
   function buildMatchEndCommand(game, partyId) {
     return MATCH_END_PREFIX + " poker party " + partyId + " seed " + ((game && game.seed) || "") + " hand " + ((game && game.handNumber) || 0);
   }
-
   function resolveUnknownMatchEndRecord(record, matchEnd, party) {
     if (!record || record.isSelf || !isUnknownSender(record.sender)) return record;
     if (!matchEnd || !matchEnd.id || !party || !party.id || !samePartyId(party.id, matchEnd.id)) return record;
@@ -942,7 +889,6 @@
     log("resolved unknown match end sender to party leader " + resolved.sender);
     return resolved;
   }
-
   function rememberLeaderLeaveAfterMatchEnd(party, senderKey, senderName) {
     if (!party || !party.id || !senderKey) return;
     State.pendingLeaderLeaveAfterMatchEnd = {
@@ -952,7 +898,6 @@
       atMs: Date.now ? Date.now() : 0,
     };
   }
-
   function resolveUnknownLeaderLeaveAfterMatchEnd(record, partyId, party) {
     if (!record || record.isSelf || !isUnknownSender(record.sender)) return record;
     const pending = State.pendingLeaderLeaveAfterMatchEnd;
@@ -965,14 +910,12 @@
     log("resolved unknown party leave sender after authenticated match end to " + resolved.sender);
     return resolved;
   }
-
   function ensureParty() {
     if (!State.party || typeof State.party !== "object") State.party = defaultPartyState();
     State.party.members = State.party.members || {};
     State.party.order = State.party.order || [];
     return State.party;
   }
-
   function applyPartyLeaderTransition(record, partyId) {
     const party = ensureParty();
     if (State.game && State.game.active) {
@@ -1024,7 +967,6 @@
     if (record.isSelf) rememberLocalPlayer(record.sender);
     return true;
   }
-
   function applyPartyJoinTransition(record, partyId) {
     const party = ensureParty();
     if (!party.id || party.id !== partyId) return false;
@@ -1045,7 +987,6 @@
     }
     return true;
   }
-
   function forgetReadySeat(key) {
     const normalized = normalizePlayerKey(key);
     if (!normalized) return false;
@@ -1058,7 +999,6 @@
     } catch (e) {}
     return true;
   }
-
   function canAcceptReadyEntry(entry) {
     const key = normalizePlayerKey(entry && (entry.key || entry.name));
     if (!key) return false;
@@ -1068,7 +1008,6 @@
     if (State.localPlayerKey && key === State.localPlayerKey) return true;
     return !!(party.members && party.members[key]);
   }
-
   function replaceReadySeats(entries) {
     const next = {};
     const list = entries || [];
@@ -1091,7 +1030,6 @@
     if (before !== after) config[READY_REVISION_KEY] = (config[READY_REVISION_KEY] || 0) + 1;
     return before !== after;
   }
-
   function clearReadySeats(reason) {
     const changed = replaceReadySeats([]);
     try {
@@ -1099,7 +1037,6 @@
     } catch (e) {}
     return changed;
   }
-
   const LOBBY_RESET_CASES = {
     remoteMatchEnd: "remote-match-end",
     snapshotMatchEnd: "snapshot-match-end",
@@ -1146,7 +1083,6 @@
     clearResumeState(reason);
     State.requiresProgressImport = false;
   }
-
   function promotePartyLeaderAfterLeave(leavingKey) {
     const party = ensureParty();
     if (!party.leaderKey || party.leaderKey !== normalizePlayerKey(leavingKey)) return null;
@@ -1173,7 +1109,6 @@
     party.mode = nextKey === State.localPlayerKey ? "leader" : "member";
     return { key: nextKey, name: party.leaderName };
   }
-
   function recordPartyLeave(record, partyId, scoped) {
     const party = ensureParty();
     if (!party.id || !samePartyId(party.id, partyId)) return null;
@@ -1282,7 +1217,6 @@
     if (readyAction.progressShareReason) ProgressResume.shareImported(readyAction.progressShareReason);
     return { readyChanged: readyChanged };
   }
-
   function applyPartyTransition(command) {
     const event = command || {};
     const type = event.type === "party-leader" ? "leader"
@@ -1339,7 +1273,6 @@
     }
     return makePartyResult(changed, readyAction, "", null, status, true);
   }
-
   function projectPartyRoster() {
     const party = ensureParty();
     const roster = [];
@@ -1353,13 +1286,11 @@
     }
     return roster;
   }
-
   const PartyReducer = {
     apply: applyPartyTransition,
     roster: projectPartyRoster,
     reset: resetPartyState,
   };
-
   function resolveRosterNamesFromKnownParty(roster) {
     if (!roster || !roster.length) return roster || [];
     const party = ensureParty();
@@ -1375,7 +1306,6 @@
     }
     return resolved;
   }
-
   function getQueuedLateJoiners(rosterOverride) {
     const source = rosterOverride || PartyReducer.roster();
     const queued = [];
@@ -1393,7 +1323,6 @@
     }
     return queued;
   }
-
   function computeLateJoinBuyIn() {
     const keys = Object.keys(State.bankrolls);
     const values = [];
@@ -1405,7 +1334,6 @@
     values.sort((a, b) => a - b);
     return Math.min(STARTING_STACK, values[0]);
   }
-
   function applyLateJoinBuyIns(rosterOverride, reason) {
     const bankrollKeys = Object.keys(State.bankrolls);
     if (!bankrollKeys.length) return { applied: 0, buyIn: 0, players: [] };
@@ -1421,13 +1349,11 @@
     }
     return { applied: players.length, buyIn: buyIn, players: players };
   }
-
   function formatLateJoinApplied(result) {
     if (!result || !result.applied) return "";
     const names = result.players.map((player) => player.name).join(", ");
     return names + (result.applied === 1 ? " joins" : " join") + " next hand with $" + result.buyIn + ".";
   }
-
   function displayNameFromPlayerKey(key) {
     const text = String(key || "").replace(/\s+/g, " ").trim();
     if (!text) return "";
@@ -1437,14 +1363,12 @@
     }
     return words.join(" ");
   }
-
   function repairDecodedRosterName(key, name) {
     const cleanName = String(name || "").replace(/\s+/g, " ").trim();
     if (cleanName.length > 1) return cleanName;
     const fallback = displayNameFromPlayerKey(key);
     return fallback || cleanName;
   }
-
   function encodeCompactRoster(roster) {
     if (!roster || !roster.length) return "";
     return roster.map((player) => {
@@ -1452,7 +1376,6 @@
       return encodeURIComponent(key);
     }).join("|");
   }
-
   function decodeRoster(token) {
     const text = String(token || "");
     if (!text) return [];
@@ -1473,33 +1396,26 @@
     }
     return roster.length >= MIN_READY_PLAYERS ? roster : [];
   }
-
   function getNextHandNumber() {
     return State.game && State.game.handNumber ? State.game.handNumber + 1 : 1;
   }
-
   function parseHandNumberToken(token) {
     const value = Math.floor(Number(token));
     return value > 0 ? value : 0;
   }
-
   function buildSynchronizedStartCommand(seed, roster, handNumber) {
     const syncedHandNumber = getBlindLevelForHand(handNumber || getNextHandNumber());
     return "poker start " + seed + " " + START_HAND_MARKER + " " + syncedHandNumber + " " + START_ROSTER_MARKER + " " + encodeCompactRoster(resolveRosterNamesFromKnownParty(roster));
   }
-
   function buildResumeLeaderCommand(id) {
     return RESUME_LEADER_PREFIX + " poker resume " + id;
   }
-
   function buildResumeReadyCommand(id) {
     return RESUME_READY_PREFIX + " poker resume " + id;
   }
-
   function buildResumeStartCommand(id, leaderKey, handNumber, seed) {
     return "poker resume " + id + " " + START_HAND_MARKER + " " + handNumber + " " + START_LEADER_MARKER + " " + encodeURIComponent(leaderKey) + " " + START_SEED_MARKER + " " + seed;
   }
-
   function getResumeRoster() {
     const resume = State.resume;
     const payload = resume && resume.payload;
@@ -1511,14 +1427,12 @@
     }
     return roster;
   }
-
   function ensureResume() {
     if (!State.resume || typeof State.resume !== "object") State.resume = defaultResumeState();
     State.resume.ready = State.resume.ready || {};
     State.resume.order = State.resume.order || [];
     return State.resume;
   }
-
   function recordResumeLeader(record, id) {
     const resume = ensureResume();
     if (State.game && State.game.active) return false;
@@ -1536,7 +1450,6 @@
     saveResumeState();
     return true;
   }
-
   function recordResumeReady(record, id) {
     const resume = ensureResume();
     if (State.game && State.game.active) return false;
@@ -1551,7 +1464,6 @@
     saveResumeState();
     return true;
   }
-
   function applyPartyRoster(roster, mode, partyId) {
     if (!roster || roster.length < MIN_READY_PLAYERS) return false;
     const party = ensureParty();
@@ -1572,7 +1484,6 @@
     savePartyState();
     return true;
   }
-
   function rememberLocalFromPartyRoster(roster) {
     if (State.localPlayerKey || !roster || roster.length < MIN_READY_PLAYERS) return;
     const party = ensureParty();
@@ -1589,7 +1500,6 @@
       }
     }
   }
-
   function getReadySeatArray() {
     const seats = getReadySeats();
     const keys = Object.keys(seats);
@@ -1601,18 +1511,15 @@
     list.sort((a, b) => (a.readyAt || 0) - (b.readyAt || 0));
     return list.slice(0, MAX_TABLE_PLAYERS);
   }
-
   function isStartEligible(count) {
     return count >= MIN_READY_PLAYERS;
   }
-
   function setText(panel, text) {
     if (!isValid(panel)) return;
     try {
       if (panel.text !== text) panel.text = text;
     } catch (e) {}
   }
-
   function hasPanelClass(panel, className) {
     if (!isValid(panel)) return null;
     try {
@@ -1621,7 +1528,6 @@
     } catch (e) {}
     return null;
   }
-
   function setHitTest(panel, enabled) {
     if (!isValid(panel)) return;
     const next = !!enabled;
@@ -1629,7 +1535,6 @@
       if (panel.hittest !== next) panel.hittest = next;
     } catch (e) {}
   }
-
   function setStatus(text, priority, ttlMs) {
     cachePanels();
     const statusText = String(text || "");
@@ -1645,7 +1550,6 @@
     setText(State.status, statusText);
     return true;
   }
-
   function setPanelClass(panel, className, enabled) {
     if (!isValid(panel)) return;
     const next = !!enabled;
@@ -1655,12 +1559,10 @@
       panel.SetHasClass(className, next);
     } catch (e) {}
   }
-
   function applyHiddenAffordance(panel, hidden) {
     setPanelClass(panel, CLASSES.hidden, !!hidden);
     setHitTest(panel, !hidden);
   }
-
   function applyButtonAffordance(panel, options) {
     if (!isValid(panel)) return;
     const opts = options || {};
@@ -1674,7 +1576,6 @@
     setPanelClass(panel, CLASSES.readOnly, readOnly);
     setHitTest(panel, enabled && !readOnly);
   }
-
   function makeButtonDecision(hidden, enabled, eligible, readOnly, reason) {
     return {
       hidden: !!hidden,
@@ -1684,7 +1585,6 @@
       reason: reason || "",
     };
   }
-
   function makeGateDecision(hidden, enabled, label, reason) {
     return {
       hidden: !!hidden,
@@ -1693,7 +1593,6 @@
       reason: reason || "",
     };
   }
-
   function getViewModelState(count) {
     return {
       game: State.game,
@@ -1712,13 +1611,11 @@
       readySeats: getReadySeatArray(),
     };
   }
-
   function importedResumeRequiresHostedParty(snapshot) {
     const state = snapshot || getViewModelState();
     const resume = state.resume || ensureResume();
     return !!((State.resumeRequiresHostedParty || (resume && resume.hostedLeaderKey)) && resume.payload && resume.id && !isHostedImportedResumeState(state));
   }
-
   function countReadySavedPlayers(resume, includeLeaderFallback) {
     if (!resume || !resume.payload) return 0;
     let readyCount = 0;
@@ -1730,7 +1627,6 @@
     if (includeLeaderFallback && resume.leaderKey && !(resume.ready && resume.ready[resume.leaderKey])) readyCount += 1;
     return readyCount;
   }
-
   function countSavedFundedPartyPlayers(resume, partyRoster) {
     if (!resume || !resume.payload) return 0;
     const roster = partyRoster || [];
@@ -1741,7 +1637,6 @@
     }
     return count;
   }
-
   function isHostedImportedResumeState(snapshot) {
     const state = snapshot || getViewModelState();
     const resume = state.resume || ensureResume();
@@ -1749,12 +1644,10 @@
     if (resume.hostedLeaderKey && party.leaderKey && party.leaderKey !== resume.hostedLeaderKey) return false;
     return !!(resume.payload && resume.id && party.id && party.leaderKey && party.mode !== "none");
   }
-
   function getHostedSharedProgressLeaderKey(resume) {
     const state = resume || ensureResume();
     return normalizePlayerKey(state.hostedLeaderKey || "");
   }
-
   function bindHostedSharedProgressAuthority(imported, record) {
     const resume = ensureResume();
     const party = ensureParty();
@@ -1787,7 +1680,6 @@
     saveResumeState();
     return true;
   }
-
   function buildHostedResumeGate(snapshot) {
     const state = snapshot || getViewModelState();
     const resume = state.resume || ensureResume();
@@ -1808,7 +1700,6 @@
     }
     return makeGateDecision(false, true, "NEXT SYNCED HAND", "");
   }
-
   function buildResumeGate(snapshot, hostedResumeGate) {
     const state = snapshot || getViewModelState();
     const resume = state.resume || ensureResume();
@@ -1824,7 +1715,6 @@
     }
     return makeGateDecision(false, true, "START RESUME", "");
   }
-
   function countGamePlayersWithChips(game) {
     if (!game || !game.players) return 0;
     let count = 0;
@@ -1833,7 +1723,6 @@
     }
     return count;
   }
-
   function buildStartGate(snapshot, resumeGate) {
     const state = snapshot || getViewModelState();
     const game = state.game;
@@ -1856,7 +1745,6 @@
     }
     return makeGateDecision(false, false, "HOST OR JOIN PARTY", "Host a synced table or join a [party leader] before starting.");
   }
-
   function buildViewModel(state) {
     const snapshot = state || getViewModelState();
     const game = snapshot.game;
@@ -1912,7 +1800,6 @@
     else if (hostedPartyRequiredResume) partyStatus = "Imported progress loaded. Host or join a Poker party; the party leader imports progress and starts NEXT SYNCED HAND.";
     else if (party.id && party.mode === "none" && !party.leaderKey) partyStatus = "Hosted Poker party found. Click JOIN PARTY to join the lobby.";
     else partyStatus = (imported ? resumeGate.reason : startGate.reason) || "";
-
     let actionHint = "";
     let actionChoices = [];
     if (activeGame && snapshot.currentPlayer) {
@@ -1928,7 +1815,6 @@
         actionChoices = turn.actionChoices;
       }
     }
-
     const playerRows = buildPlayerRenderModelForState(snapshot);
     const tableModel = buildTableRenderModelForState(snapshot, playerRows);
     const readyRows = buildReadySeatModels(snapshot.readySeats);
@@ -1989,7 +1875,6 @@
       gates: { start: startGate, resume: resumeGate, hostedResume: hostedResumeGate },
     };
   }
-
   const ViewModel = {
     build: buildViewModel,
     startGate: buildStartGate,
@@ -2008,38 +1893,31 @@
     savePartyState();
     setStatus("Hosted Poker lobby closed.");
   }
-
   function tableGameName(gameType) {
     return gameType === "bluff-deck" ? "Bluff Deck" : "Poker";
   }
-
   function tableSyncPending() {
     return !!(State.sync && (State.sync.waitingForReadySnapshot || State.sync.waitingForChatSnapshot));
   }
-
   function getTerminalTableGameType() {
     if (State.game && !State.game.active) return "poker";
     const bluffGame = State.bluffDeck && State.bluffDeck.game;
     if (bluffGame && !bluffGame.active) return "bluff-deck";
     return State.terminalTableGame || "";
   }
-
   function getTablePickerSource() {
     return getActiveTableGameType() || getTerminalTableGameType() || State.pickerSourceGame || "";
   }
-
   function clearLocalTableForSwitch() {
     PartyReducer.reset(LOBBY_RESET_CASES.leaveLobby, "switch table");
     savePartyState();
   }
-
   function leaveTerminalTableForSwitch() {
     const party = ensureParty();
     if (party.mode === "leader" || party.mode === "member") leaveLobby();
     else clearLocalTableForSwitch();
     State.terminalTableGame = "";
   }
-
   function selectTableGame(gameType) {
     const next = String(gameType || "").toLowerCase();
     if (next !== "poker" && next !== "bluff-deck") return false;
@@ -2072,7 +1950,6 @@
     RenderScheduler.immediate(destructiveSwitch ? "table-game-switched-after-leave" : "table-game-selected");
     return true;
   }
-
   function backToTablePicker() {
     if (!State.isOpen || !State.selectedTableGame) return false;
     State.pickerSourceGame = State.selectedTableGame;
@@ -2082,7 +1959,6 @@
     RenderScheduler.immediate("table-game-back");
     return true;
   }
-
   function selectBluffSlot(index) {
     const game = State.bluffDeck && State.bluffDeck.game;
     const local = game && bdPlayerAt(game, localBluffKey());
@@ -2094,19 +1970,21 @@
     const selected = Number(State.bluffDeck.selectedMask) || 0;
     return BluffDeckActions.selectMask(selected & bit ? selected & ~bit : selected | bit);
   }
-
   function selectBluffSlot0() { return selectBluffSlot(0); }
   function selectBluffSlot1() { return selectBluffSlot(1); }
   function selectBluffSlot2() { return selectBluffSlot(2); }
   function selectBluffSlot3() { return selectBluffSlot(3); }
   function selectBluffSlot4() { return selectBluffSlot(4); }
-
   function hidePokerSurface(hidden) {
     for (const panel of [State.lobbyWindow, State.tableWindow, State.playersWindow, State.historyWindow, State.actionsWindow]) {
       applyHiddenAffordance(panel, hidden);
     }
   }
-
+  function hideBluffSurface(hidden) {
+    for (const panel of [State.bluffWindow, State.bluffPlayersWindow, State.bluffHistoryWindow, State.bluffActionsWindow]) {
+      applyHiddenAffordance(panel, hidden);
+    }
+  }
   function setOpen(open) {
     cachePanels();
     const wasOpen = State.isOpen;
@@ -2121,6 +1999,9 @@
     setPanelClass(State.historyWindow, CLASSES.open, State.isOpen);
     setPanelClass(State.pickerWindow, CLASSES.open, State.isOpen);
     setPanelClass(State.bluffWindow, CLASSES.open, State.isOpen);
+    setPanelClass(State.bluffPlayersWindow, CLASSES.open, State.isOpen);
+    setPanelClass(State.bluffHistoryWindow, CLASSES.open, State.isOpen);
+    setPanelClass(State.bluffActionsWindow, CLASSES.open, State.isOpen);
     setPanelClass(State.menuButton, CLASSES.active, State.isOpen);
     if (State.isOpen) {
       if (!isTestMode()) startRefreshLoop();
@@ -2128,15 +2009,12 @@
       openMenuSync();
     }
   }
-
   function toggleOpen() {
     setOpen(!State.isOpen);
   }
-
   function closeMenu() {
     setOpen(false);
   }
-
   function addClass(panel, className) {
     if (!isValid(panel)) return;
     try {
@@ -2144,13 +2022,11 @@
       else panel.SetHasClass(className, true);
     } catch (e) {}
   }
-
   function deletePanel(panel) {
     try {
       if (panel && typeof panel.DeleteAsync === "function") panel.DeleteAsync(0);
     } catch (e) {}
   }
-
   function clearChildren(parent) {
     if (!isValid(parent)) return;
     try {
@@ -2167,7 +2043,6 @@
       }
     } catch (e) {}
   }
-
   function createPanel(type, parent, id, className, attrs) {
     if (!isValid(parent) || typeof $.CreatePanel !== "function") return null;
     try {
@@ -4559,20 +4434,29 @@
     return bdResult("aborted", true, true, true);
   }
   function bdProject(game, localPlayerKey, selectedMask, pending) {
-    if (selectedMask && typeof selectedMask === "object") {
+    let providedLocal = null;
+    let providedLegal = null;
+    if (localPlayerKey && typeof localPlayerKey === "object") {
+      const options = localPlayerKey;
+      localPlayerKey = options.localPlayerKey || options.localKey || "";
+      selectedMask = options.selectionMask || options.selectedMask || 0;
+      pending = options.pending || options.pendingText || pending;
+      providedLocal = options.localPlayer || null;
+      providedLegal = options.legalActions || null;
+    } else if (selectedMask && typeof selectedMask === "object") {
       pending = selectedMask.pending || selectedMask.pendingText || pending;
       selectedMask = selectedMask.selectionMask || selectedMask.selectedMask || 0;
     }
     const empty = { headerText: "", targetText: "", turnText: "", previousPlayText: "", handText: "", opponentTexts: [], actionText: "", pendingText: "", resultText: "", logTexts: [] };
     if (!game || !Array.isArray(game.players)) return empty;
-    const local = bdPlayerAt(game, localPlayerKey);
+    const local = providedLocal || bdPlayerAt(game, localPlayerKey);
     const selected = bdValidMask(selectedMask) ? selectedMask : 0;
     const model = {
-      headerText: game.active ? "BLUFF DECK — ROUND " + game.round : "BLUFF DECK — MATCH ENDED",
-      targetText: "TARGET: " + BD_LABELS[game.target],
-      turnText: game.active ? "TURN: " + game.players[game.currentIndex].name.toUpperCase() : "",
+      headerText: game.active ? "BLUFF DECK\nROUND " + game.round : "BLUFF DECK\nMATCH ENDED",
+      targetText: "TARGET\n" + BD_LABELS[game.target],
+      turnText: game.active ? "TURN\n" + game.players[game.currentIndex].name.toUpperCase() : "",
       previousPlayText: game.lastPlay ? game.players[game.lastPlay.actorIndex].name.toUpperCase() + " PLAYED " + game.lastPlay.count + " CARD" + (game.lastPlay.count === 1 ? "" : "S") : "",
-      handText: "", opponentTexts: [], actionText: "", pendingText: "", resultText: "", logTexts: game.log.slice(),
+      handText: "", opponentTexts: [], actionText: "", pendingText: "", resultText: "", logTexts: Array.isArray(game.log) ? game.log.slice() : [],
     };
     if (local) {
       const labels = [];
@@ -4581,17 +4465,17 @@
       for (let i = 0; i < game.players.length; i += 1) {
         const opponent = game.players[i];
         if (opponent === local) continue;
-        if (opponent.status === "active") model.opponentTexts.push(opponent.name.toUpperCase() + " — " + bdCount(opponent.remainingMask) + " CARDS — RISK " + opponent.riskIndex + "/6");
-        else model.opponentTexts.push(opponent.name.toUpperCase() + " — " + opponent.status.toUpperCase());
+        if (opponent.status === "active") model.opponentTexts.push(opponent.name.toUpperCase() + "\nCARDS " + bdCount(opponent.remainingMask) + "\nRISK " + opponent.riskIndex + "/6");
+        else model.opponentTexts.push(opponent.name.toUpperCase() + "\n" + opponent.status.toUpperCase());
       }
       if (!game.active) model.actionText = "MATCH ENDED";
       else if (game.pendingShot && game.pendingShot.shooterIndex === game.players.indexOf(local)) model.actionText = "PULL TRIGGER";
       else {
-        const legal = bdLegalActions(game, local.key);
+        const legal = providedLegal || bdLegalActions(game, local.key);
         const parts = [];
         if (legal.canPlay) parts.push("PLAY " + bdCount(selected & local.remainingMask) + " SELECTED");
         if (legal.canChallenge) parts.push("LIE");
-        model.actionText = parts.length ? parts.join(" | ") : "WAITING";
+        model.actionText = parts.length ? parts.join("\n") : "WAITING";
       }
     } else if (!game.active) model.actionText = "MATCH ENDED";
     else model.actionText = "WAITING";
@@ -4634,28 +4518,40 @@
     const isLeader = options.isLeader == null
       ? !!(localKey && party.leaderKey && bdPlayerKey(party.leaderKey) === localKey)
       : !!options.isLeader;
-    const choice = function choice(hidden, enabled, label) {
-      return { hidden: !!hidden, enabled: !!enabled && !hidden, label: String(label || "") };
+    const choice = function choice(hidden, enabled, label, eligible, readOnly) {
+      return {
+        hidden: !!hidden,
+        enabled: !!enabled && !hidden,
+        eligible: !!eligible && !hidden,
+        readOnly: !!readOnly && !hidden,
+        label: String(label || ""),
+      };
     };
     const controls = {
-      host: choice(tableActive || !!partyId || mode !== "none", !tableActive && !partyId && mode === "none", "HOST"),
-      join: choice(tableActive || !partyId || mode !== "none", !tableActive && !!partyId && mode === "none", "JOIN"),
-      leave: choice(!partyId, !!partyId, "LEAVE"),
-      start: choice(tableActive || mode !== "leader" || !isLeader || memberCount < 2 || memberCount > 4, !tableActive && mode === "leader" && isLeader && memberCount >= 2 && memberCount <= 4, "START BLUFF"),
-      end: choice(!bluffActive || !isLeader || mode !== "leader", bluffActive && isLeader && mode === "leader", "END"),
-      play: choice(true, false, "PLAY SELECTED"),
-      challenge: choice(true, false, "LIE"),
+      host: choice(tableActive || !!partyId || mode !== "none", !tableActive && !partyId && mode === "none", "HOST", false, false),
+      join: choice(tableActive || !partyId || mode !== "none", !tableActive && !!partyId && mode === "none", "JOIN", false, false),
+      leave: choice(!partyId, !!partyId, "LEAVE", false, false),
+      start: choice(tableActive || mode !== "leader" || !isLeader || memberCount < 2 || memberCount > 4, !tableActive && mode === "leader" && isLeader && memberCount >= 2 && memberCount <= 4, "START BLUFF", false, false),
+      end: choice(!bluffActive || !isLeader || mode !== "leader", bluffActive && isLeader && mode === "leader", "END", false, false),
+      play: choice(true, false, "PLAY SELECTED", false, false),
+      challenge: choice(true, false, "LIE", false, false),
     };
-    if (!bluffActive || !local || !current || current.key !== local.key || options.pending) return controls;
+    if (options.pending) {
+      controls.play = choice(false, false, "PLAY SELECTED", false, false);
+      controls.challenge = choice(false, false, legal.canShoot ? "PULL TRIGGER" : "LIE", false, false);
+      return controls;
+    }
+    if (!bluffActive || !local || !current || current.key !== local.key) return controls;
     const selectedMask = bdValidMask(options.selectedMask) ? options.selectedMask : 0;
     const selectedCount = bdCount(selectedMask & (local.remainingMask || 0));
     if (legal.canShoot) {
-      controls.challenge = choice(false, true, "PULL TRIGGER");
+      controls.challenge = choice(false, true, "PULL TRIGGER", true, false);
     } else if (legal.canPlay) {
       const minCards = Number.isInteger(legal.minCards) ? legal.minCards : 1;
       const maxCards = Number.isInteger(legal.maxCards) ? legal.maxCards : 3;
-      controls.play = choice(false, selectedCount >= minCards && selectedCount <= maxCards, "PLAY SELECTED");
-      if (legal.canChallenge) controls.challenge = choice(false, true, "LIE");
+      const eligible = selectedCount >= minCards && selectedCount <= maxCards;
+      controls.play = choice(false, eligible, "PLAY SELECTED", eligible, false);
+      if (legal.canChallenge) controls.challenge = choice(false, true, "LIE", true, false);
     }
     return controls;
   }
@@ -6209,6 +6105,28 @@
       update: (row, model) => setText(row, model.text),
       remove: (row) => deletePanel(row),
     },
+    bluffText: {
+      create: (parent, model) => ({ panel: createLabel(parent, model.className || "BluffDeckOpponentRow", "") }),
+      update: (row, model) => setText(row.panel, model.text),
+      remove: (row) => deletePanel(row && row.panel),
+    },
+    bluffPlayedCard: {
+      create: (parent) => {
+        const panel = createPanel("Panel", parent, "", "BluffDeckPlayedCard");
+        return { panel: panel, rank: null, art: createCardArt(panel, null), className: "" };
+      },
+      update: (row, model) => {
+        const nextClasses = String(model.className || "").split(/\s+/).filter(Boolean);
+        const oldClasses = row.className ? row.className.split(/\s+/).filter(Boolean) : [];
+        for (let i = 0; i < oldClasses.length; i += 1) setPanelClass(row.panel, oldClasses[i], false);
+        for (let i = 0; i < nextClasses.length; i += 1) setPanelClass(row.panel, nextClasses[i], true);
+        row.className = nextClasses.join(" ");
+        if (model.revealed && !row.rank) row.rank = createLabel(row.panel, "PokerCardRank", "");
+        if (row.rank) setText(row.rank, model.rankLabel || "");
+        setImageSource(bluffPanelChild(row.art, 0), model.rank ? getCardImageSrc({ rank: model.rank }) : "");
+      },
+      remove: (row) => deletePanel(row && row.panel),
+    },
   };
   function getTableSeatPositionClass(index, count) {
     const visibleCount = Math.min(TABLE_EDGE_SEAT_LIMIT, Math.max(1, count || 1));
@@ -6508,49 +6426,17 @@
   function bluffPanelChild(panel, index) {
     try { return panel && typeof panel.GetChild === "function" ? panel.GetChild(index) : null; } catch (e) { return null; }
   }
-  function bluffPlayedCardTilt(game, index, count) {
-    const publicSeed = [
-      game && game.id || "",
-      game && game.round || 0,
-      game && game.lastPlay && game.lastPlay.actorIndex || 0,
-      count || 0,
-      index || 0,
-    ].join("|");
-    return (hashString(publicSeed) >>> 0) % 7;
-  }
-  function renderBluffPublicCards(game) {
-    const target = game && (game.target === BD_ACE ? "A" : game.target === BD_KING ? "K" : "Q");
+  function renderBluffTargetCard(target) {
     const face = bluffPanelChild(State.bluffTargetCard, 0);
-    if (isValid(face)) {
-      if (!State.renderCache.bluffTargetRank) {
-        const fallback = bluffPanelChild(face, 0);
-        if (isValid(fallback)) setPanelClass(fallback, CLASSES.hidden, true);
-        State.renderCache.bluffTargetRank = createLabel(face, "PokerCardRank", "");
-        State.renderCache.bluffTargetArt = createCardArt(face, target ? { rank: target } : null);
-      }
-      setText(State.renderCache.bluffTargetRank, target || "?");
-      const image = bluffPanelChild(State.renderCache.bluffTargetArt, 0);
-      setImageSource(image, target ? getCardImageSrc({ rank: target }) : "");
+    if (!isValid(face)) return;
+    if (!State.renderCache.bluffTargetRank) {
+      const fallback = bluffPanelChild(face, 0);
+      if (isValid(fallback)) setPanelClass(fallback, CLASSES.hidden, true);
+      State.renderCache.bluffTargetRank = createLabel(face, "PokerCardRank", "");
+      State.renderCache.bluffTargetArt = createCardArt(face, target ? { rank: target } : null);
     }
-    if (!isValid(State.bluffPlayedCards) || !game) return;
-    clearChildren(State.bluffPlayedCards);
-    const revealed = game.pendingShot && game.lastResult && Array.isArray(game.lastResult.revealed) ? game.lastResult.revealed : null;
-    const count = revealed ? revealed.length : (game.lastPlay ? game.lastPlay.count : 0);
-    for (let i = 0; i < count; i += 1) {
-      const tiltClass = "BluffDeckStackTilt" + bluffPlayedCardTilt(game, i, count);
-      const revealLayout = revealed ? " BluffDeckRevealCount" + count + " BluffDeckRevealSlot" + i : "";
-      const card = createPanel("Panel", State.bluffPlayedCards, "", "BluffDeckPlayedCard " + tiltClass + revealLayout + " " + (revealed ? "Revealed" : "CardBack"));
-      if (!revealed || !card) continue;
-      const rank = revealed[i] === BD_ACE ? "A" : revealed[i] === BD_KING ? "K" : revealed[i] === BD_QUEEN ? "Q" : "";
-      createLabel(card, "PokerCardRank", rank ? BD_LABELS[revealed[i]] : "JOKER");
-      createCardArt(card, rank ? { rank: rank } : null);
-    }
-  }
-  function renderBluffRows(parent, rows, className) {
-    if (!isValid(parent)) return;
-    clearChildren(parent);
-    const values = Array.isArray(rows) ? rows : [];
-    for (let i = 0; i < values.length; i += 1) createLabel(parent, className, values[i]);
+    setText(State.renderCache.bluffTargetRank, target || "?");
+    setImageSource(bluffPanelChild(State.renderCache.bluffTargetArt, 0), target ? getCardImageSrc({ rank: target }) : "");
   }
   function bluffSlotContents(button) {
     if (!isValid(button) || typeof button.GetChildCount !== "function") return null;
@@ -6644,81 +6530,195 @@
   }
   const BluffDeckSeatProjection = { project: projectBluffTableSeats };
 
-  function renderBluffDeck() {
-    const game = State.bluffDeck && State.bluffDeck.game;
-    const pending = State.bluffDeck && State.bluffDeck.pending;
-    const localKey = localBluffKey();
-    const projection = BluffDeckEngine.projectText(game, localKey, State.bluffDeck.selectedMask, pending);
-    renderBluffPublicCards(game);
-    const local = game && bdPlayerAt(game, localKey);
-    const legal = game && local ? BluffDeckEngine.legalActions(game, local.key) : null;
-    let selected = Number(State.bluffDeck.selectedMask) || 0;
-    const canSelectCards = canSelectBluffCards(game, local);
-    if (!canSelectCards && !pending && selected) {
-      State.bluffDeck.selectedMask = 0;
-      selected = 0;
+  function bluffViewName(player) {
+    return String(player && player.name || "Player").replace(/\s+/g, " ").trim().toUpperCase() || "PLAYER";
+  }
+  function bluffViewStateClass(game, pending, localKey, localPlayer) {
+    if (pending) return "Pending";
+    if (game && !game.active) return "Finished";
+    if (game && game.active && (game.lastResult || game.pendingShot)) return "Challenge";
+    if (game && game.active) {
+      const current = game.players && game.players[game.currentIndex];
+      if (current && localPlayer && current.key === localKey) return "LocalTurn";
+      return "OpponentTurn";
     }
-    const party = ensureParty();
+    if (localKey || (game && game.players && game.players.length)) return "Lobby";
+    return "Idle";
+  }
+  function buildBluffDeckAnnouncement(stateClass, game, current, localKey, textProjection) {
+    if (stateClass === "Pending") return { tone: "pending", title: "ACTION PENDING", body: "WAITING FOR CHAT CONFIRMATION" };
+    if (stateClass === "Finished") {
+      if (game && game.aborted) return { tone: "danger", title: "TABLE ENDED", body: "MATCH ENDED BY TABLE LEADER" };
+      const winner = game && game.winnerKey ? bdPlayerAt(game, game.winnerKey) : null;
+      return { tone: "result", title: winner ? bluffViewName(winner) + " WINS" : "MATCH COMPLETE", body: "THE BLUFF DECK MATCH IS OVER" };
+    }
+    if (stateClass === "Challenge") {
+      const result = game && game.lastResult;
+      return {
+        tone: result && result.eliminated ? "danger" : "result",
+        title: game && game.pendingShot ? "PULL TRIGGER" : "CHALLENGE RESULT",
+        body: textProjection.resultText || "REVEAL COMPLETE",
+      };
+    }
+    if (stateClass === "LocalTurn") {
+      return { tone: "turn", title: "YOUR TURN", body: game && game.pendingShot ? "PULL TRIGGER" : "CHOOSE YOUR PLAY" };
+    }
+    if (stateClass === "OpponentTurn") {
+      return { tone: "turn", title: current ? bluffViewName(current) + "'S TURN" : "OPPONENT TURN", body: current ? "WAITING FOR " + bluffViewName(current) : "WAITING FOR THE OTHER PLAYER" };
+    }
+    if (stateClass === "Lobby") return { tone: "neutral", title: "WAITING FOR PLAYERS", body: "START BLUFF WHEN 2-4 PLAYERS ARE READY" };
+    return { tone: "neutral", title: "BLUFF DECK", body: "HOST OR JOIN A PARTY TO BEGIN" };
+  }
+  function buildBluffDeckViewModel(state) {
+    const source = state && typeof state === "object" ? state : {};
+    const bluffState = source.bluffDeck && typeof source.bluffDeck === "object" ? source.bluffDeck : {};
+    const game = bluffState.game && typeof bluffState.game === "object" ? bluffState.game : null;
+    const pending = bluffState.pending && typeof bluffState.pending === "object" ? bluffState.pending : null;
+    const party = source.party && typeof source.party === "object" ? source.party : {};
+    const localKey = bdPlayerKey(source.localPlayerKey || "");
     const roster = bluffRosterFromParty(party);
-    const seatProjection = projectBluffTableSeats(game, party);
-    if (isValid(State.bluffTableSeats)) {
-      setPanelClass(State.bluffTableSeats, CLASSES.hidden, seatProjection.rows.length === 0);
-      TableSeatRenderer.render(State.bluffTableSeats, seatProjection.rows, seatProjection.arrowClass);
-    }
-    const controls = BluffDeckControlState.project({
+    const localPlayer = game ? bdPlayerAt(game, localKey) : null;
+    const legalActions = game && localPlayer ? BluffDeckEngine.legalActions(game, localPlayer.key) : {};
+    const selectedMask = bdValidMask(bluffState.selectedMask) ? bluffState.selectedMask : 0;
+    const textProjection = BluffDeckEngine.projectText(game, {
+      localPlayerKey: localKey,
+      selectedMask: selectedMask,
+      pending: pending,
+      localPlayer: localPlayer,
+      legalActions: legalActions,
+    });
+    const seatProjection = BluffDeckSeatProjection.project(game, party);
+    const controlProjection = BluffDeckControlState.project({
       game: game,
-      legal: legal,
+      legal: legalActions,
       pending: pending,
       party: party,
       roster: roster,
       localKey: localKey,
-      localPlayer: local,
-      selectedMask: selected,
-      isLeader: localBluffLeader(party),
-      otherActive: !!(State.game && State.game.active),
+      localPlayer: localPlayer,
+      selectedMask: selectedMask,
+      isLeader: !!(localKey && party.leaderKey && bdPlayerKey(party.leaderKey) === localKey),
+      otherActive: !!(source.game && source.game.active),
     });
-    setText(State.bluffHeader, projection.headerText || "BLUFF DECK");
-    setText(State.bluffTarget, projection.targetText || "TARGET: —");
-    setText(State.bluffTurn, projection.turnText || (game ? "WAITING FOR MATCH" : "WAITING FOR MATCH"));
-    setText(State.bluffPrevious, projection.previousPlayText || "");
-    setText(State.bluffHand, projection.handText || "HAND: WAITING FOR MATCH");
-    setText(State.bluffAction, projection.actionText || (game ? "WAITING" : "HOST OR JOIN A PARTY"));
-    setText(State.bluffPending, projection.pendingText || "");
-    setText(State.bluffResult, projection.resultText || "");
-    setText(State.bluffStatus, pending ? (pending.bridgeStatus === "cancelling" ? "CANCELLING..." : "SENDING...") : (projection.pendingText || ""));
-    renderBluffRows(State.bluffOpponents, projection.opponentTexts, "BluffDeckOpponentRow");
-    const transcript = State.bluffDeck && Array.isArray(State.bluffDeck.transcript) ? State.bluffDeck.transcript : [];
-    renderBluffRows(State.bluffLog, transcript, "BluffDeckLogRow");
+    const stateClass = bluffViewStateClass(game, pending, localKey, localPlayer);
+    const current = game && game.players && game.players[game.currentIndex] ? game.players[game.currentIndex] : null;
+    const revealed = game && game.pendingShot && game.lastResult && Array.isArray(game.lastResult.revealed) ? game.lastResult.revealed : null;
+    const playedCount = revealed ? revealed.length : (game && game.lastPlay ? game.lastPlay.count : 0);
+    const played = [];
+    for (let i = 0; i < playedCount; i += 1) {
+      const rank = revealed ? bluffRankGlyph(revealed[i]) : "";
+      const tilt = (hashString(String(game && game.id || "") + "|" + i) >>> 0) % 7;
+      const className = "BluffDeckStackTilt" + tilt + (revealed ? " BluffDeckRevealCount" + playedCount + " BluffDeckRevealSlot" + i + " Revealed" : " CardBack");
+      played.push({ key: "played-" + i, rank: rank, rankLabel: revealed ? (rank ? BD_LABELS[revealed[i]] : "JOKER") : "", revealed: !!revealed, className: className });
+    }
+    const slots = [];
+    for (let i = 0; i < 5; i += 1) {
+      const hasCard = !!(localPlayer && Array.isArray(localPlayer.hand) && i < localPlayer.hand.length && (localPlayer.remainingMask & (1 << i)) !== 0);
+      const rank = hasCard ? bluffRankGlyph(localPlayer.hand[i]) : "";
+      const selected = hasCard && (selectedMask & (1 << i)) !== 0;
+      slots.push({ key: "slot-" + i, rank: rank, valid: hasCard, selected: selected, disabled: !hasCard || !!pending || stateClass !== "LocalTurn" });
+    }
+    const rosterRows = roster.map((entry, index) => {
+      const player = game ? bdPlayerAt(game, entry.key) : null;
+      let text = entry.name.toUpperCase() + "\nWAITING";
+      if (player && player.status !== "active") text = bluffViewName(player) + "\n" + player.status.toUpperCase();
+      else if (player && game && game.active && current && current.key === player.key) text = bluffViewName(player) + "\nTURN";
+      else if (player) text = bluffViewName(player) + "\nCARDS " + bdCount(player.remainingMask) + "\nRISK " + player.riskIndex + "/6";
+      return { key: entry.key || ("roster-" + index), text: text, className: "BluffDeckOpponentRow" };
+    });
+    const minCards = Number.isInteger(legalActions.minCards) ? legalActions.minCards : 1;
+    const maxCards = Number.isInteger(legalActions.maxCards) ? legalActions.maxCards : 3;
+    let actionHint = "HOST OR JOIN A PARTY";
+    if (stateClass === "Pending") actionHint = "ACTION LOCKED UNTIL CHAT CONFIRMS";
+    else if (stateClass === "Finished") actionHint = "MATCH COMPLETE";
+    else if (stateClass === "Lobby") actionHint = "START BLUFF WHEN 2-4 PLAYERS ARE READY";
+    else if (stateClass === "OpponentTurn") actionHint = current ? "WAITING FOR " + bluffViewName(current) : "WAITING FOR THE OTHER PLAYER";
+    else if (stateClass === "Challenge") actionHint = game && game.pendingShot ? "PULL TRIGGER" : "RESULT CONFIRMED";
+    else if (stateClass === "LocalTurn" && legalActions.canShoot) actionHint = "PULL TRIGGER";
+    else if (stateClass === "LocalTurn" && legalActions.canPlay) {
+      const count = bdCount(selectedMask & (localPlayer ? localPlayer.remainingMask : 0));
+      actionHint = count < minCards || count > maxCards ? "SELECT " + minCards + "-" + maxCards + " CARDS" : (legalActions.canChallenge ? "SELECT CARDS OR CALL LIE" : "SELECT CARDS TO PLAY");
+    }
+    const transcript = bluffState.transcript && Array.isArray(bluffState.transcript) ? bluffState.transcript.slice(-6) : [];
+    const logTexts = transcript.length ? transcript : ["NO TURNS YET"];
+    const target = game ? (game.target === BD_ACE ? "A" : game.target === BD_KING ? "K" : "Q") : "";
+    const phase = game ? (game.active ? "ROUND " + game.round : "MATCH ENDED") : (party.id ? "LOBBY" : "IDLE");
+    const announcement = buildBluffDeckAnnouncement(stateClass, game, current, localKey, textProjection);
+    return {
+      stateClass: stateClass,
+      header: { title: "BLUFF DECK", phase: phase, target: target, turn: textProjection.turnText || "WAITING FOR MATCH" },
+      announcement: announcement,
+      seats: { rows: seatProjection.rows, arrowClass: seatProjection.arrowClass },
+      rosterRows: rosterRows,
+      cards: { targetRank: target, played: played, slots: slots },
+      actions: { hint: actionHint, play: controlProjection.play, challenge: controlProjection.challenge },
+      lifecycle: { host: controlProjection.host, join: controlProjection.join, leave: controlProjection.leave, start: controlProjection.start, end: controlProjection.end },
+      feedback: {
+        statusText: pending ? (pending.bridgeStatus === "cancelling" ? "CANCELLING..." : "SENDING...") : "",
+        resultText: textProjection.resultText || (game && game.aborted ? "MATCH ENDED BY TABLE LEADER" : ""),
+        previousPlayText: textProjection.previousPlayText || "",
+        logRows: logTexts.map((text, index) => ({ key: "log-" + index, text: text, className: "BluffDeckLogRow" })),
+      },
+    };
+  }
+  const BluffDeckViewModel = { build: buildBluffDeckViewModel };
+  function renderBluffDeck(model) {
+    if (!model) return;
+    setText(State.bluffHeader, model.header.title + " · " + model.header.phase);
+    if (model.stateClass !== "LocalTurn" && State.bluffDeck && State.bluffDeck.selectedMask) {
+      State.bluffDeck.selectedMask = 0;
+      for (let i = 0; i < model.cards.slots.length; i += 1) model.cards.slots[i].selected = false;
+    }
+    setText(State.bluffAnnouncementTitle, model.announcement.title);
+    setText(State.bluffAnnouncementBody, model.announcement.body);
+    const previousClass = State.renderCache.bluffStateClass || "";
+    if (previousClass) setPanelClass(State.bluffAnnouncement, previousClass, false);
+    setPanelClass(State.bluffAnnouncement, model.stateClass, true);
+    State.renderCache.bluffStateClass = model.stateClass;
+    setText(State.bluffTarget, "TARGET: " + (model.cards.targetRank || "—"));
+    renderBluffTargetCard(model.cards.targetRank);
+    setText(State.bluffTurn, model.header.turn || "WAITING FOR MATCH");
+    setText(State.bluffPrevious, model.feedback.previousPlayText);
+    setText(State.bluffAction, model.actions.hint);
+    setText(State.bluffPending, model.feedback.statusText);
+    setText(State.bluffResult, model.feedback.resultText);
+    setText(State.bluffStatus, model.feedback.statusText || model.actions.hint);
+    setPanelClass(State.bluffTableSeats, CLASSES.hidden, !model.seats.rows.length);
+    TableSeatRenderer.render(State.bluffTableSeats, model.seats.rows, model.seats.arrowClass);
+    State.renderCache.bluffRosterRows = State.renderCache.bluffRosterRows || {};
+    State.renderCache.bluffLogRows = State.renderCache.bluffLogRows || {};
+    State.renderCache.bluffPlayedRows = State.renderCache.bluffPlayedRows || {};
+    Rows.update(State.renderCache.bluffRosterRows, State.bluffOpponents, model.rosterRows, RowSpecs.bluffText);
+    Rows.update(State.renderCache.bluffLogRows, State.bluffLog, model.feedback.logRows, RowSpecs.bluffText);
+    Rows.update(State.renderCache.bluffPlayedRows, State.bluffPlayedCards, model.cards.played, RowSpecs.bluffPlayedCard);
     const slotPanels = [State.bluffSlot0, State.bluffSlot1, State.bluffSlot2, State.bluffSlot3, State.bluffSlot4];
     for (let i = 0; i < slotPanels.length; i += 1) {
       const button = slotPanels[i];
-      const valid = !!(local && Array.isArray(local.hand) && i < local.hand.length && (local.remainingMask & (1 << i)) !== 0);
-      applyButtonAffordance(button, { hidden: !valid, enabled: valid && canSelectCards });
-      setPanelClass(button, "Selected", valid && canSelectCards && (selected & (1 << i)) !== 0);
+      const slot = model.cards.slots[i] || {};
+      applyButtonAffordance(button, { hidden: !slot.valid, enabled: slot.valid && !slot.disabled });
+      setPanelClass(button, "Selected", !!slot.selected);
       const glyph = bluffSlotGlyph(button, i);
-      const slotContents = bluffSlotContents(button);
+      const contents = bluffSlotContents(button);
       State.renderCache.bluffSlotArts = State.renderCache.bluffSlotArts || [];
-      const slotCard = valid ? { rank: local.hand[i] === BD_ACE ? "A" : local.hand[i] === BD_KING ? "K" : local.hand[i] === BD_QUEEN ? "Q" : "" } : null;
-      const slotArt = State.renderCache.bluffSlotArts[i] || (State.renderCache.bluffSlotArts[i] = createCardArt(slotContents || button, slotCard));
-      if (slotArt) {
-        setPanelClass(slotArt, CLASSES.hidden, !valid);
-        if (valid) setImageSource(bluffPanelChild(slotArt, 0), getCardImageSrc(slotCard));
-      }
-      setText(glyph, valid ? bluffRankGlyph(local.hand[i]) : "");
-      setPanelClass(glyph, CLASSES.hidden, !valid);
+      const art = State.renderCache.bluffSlotArts[i] || (State.renderCache.bluffSlotArts[i] = createCardArt(contents || button, slot.rank ? { rank: slot.rank } : null));
+      setPanelClass(art, CLASSES.hidden, !slot.valid);
+      setImageSource(bluffPanelChild(art, 0), slot.rank ? getCardImageSrc({ rank: slot.rank }) : "");
+      setText(glyph, slot.valid ? slot.rank : "");
+      setPanelClass(glyph, CLASSES.hidden, !slot.valid);
     }
-    const renderControl = function renderControl(panel, decision) {
+    const renderControl = (panel, decision) => {
       applyButtonAffordance(panel, decision);
       setButtonLabel(panel, decision.label);
     };
-    renderControl(State.bluffHostButton, controls.host);
-    renderControl(State.bluffJoinButton, controls.join);
-    renderControl(State.bluffLeaveButton, controls.leave);
-    renderControl(State.bluffStartButton, controls.start);
-    renderControl(State.bluffEndButton, controls.end);
-    renderControl(State.bluffPlayButton, controls.play);
-    renderControl(State.bluffChallengeButton, controls.challenge);
+    renderControl(State.bluffHostButton, model.lifecycle.host);
+    renderControl(State.bluffJoinButton, model.lifecycle.join);
+    renderControl(State.bluffLeaveButton, model.lifecycle.leave);
+    renderControl(State.bluffStartButton, model.lifecycle.start);
+    renderControl(State.bluffEndButton, model.lifecycle.end);
+    renderControl(State.bluffPlayButton, model.actions.play);
+    renderControl(State.bluffChallengeButton, model.actions.challenge);
   }
+  const BluffDeckRenderer = { render: renderBluffDeck };
   const TableRenderer = { render: render, invalidate: invalidateRenderer };
 
   function renderAnnouncer(model) {
@@ -6803,12 +6803,12 @@
     const showBluff = selected === "bluff-deck";
     const showPicker = !selected;
     hidePokerSurface(!showPoker || !State.isOpen);
-    applyHiddenAffordance(State.bluffWindow, !showBluff || !State.isOpen);
+    hideBluffSurface(!showBluff || !State.isOpen);
     applyHiddenAffordance(State.pickerWindow, !showPicker || !State.isOpen);
     setPanelClass(State.pickerPokerButton, "Selected", showPoker);
     setPanelClass(State.pickerBluffButton, "Selected", showBluff);
     renderTableGamePicker(active);
-    if (showBluff) renderBluffDeck();
+    if (showBluff) BluffDeckRenderer.render(BluffDeckViewModel.build(State));
     return showPoker || showBluff;
   }
 
@@ -6907,7 +6907,7 @@
       "tableTurnArrow", "tableTurnArrowClass", "potChipRows",
       "actionButtons", "actionHint", "actionButtonRow",
       "customBetControls", "customBetChoice", "customBetRange", "customBetRangeKey",
-      "bluffTargetRank", "bluffTargetArt", "bluffSlotArts", "logRows",
+      "bluffTargetRank", "bluffTargetArt", "bluffSlotArts", "bluffStateClass", "bluffRosterRows", "bluffLogRows", "bluffPlayedRows", "logRows",
     ]) {
       if (!Object.prototype.hasOwnProperty.call(cache, key)) continue;
       if (key === "bluffSlotArts") cache[key] = [];
@@ -7068,6 +7068,8 @@
           BluffDeckActions: BluffDeckActions,
           BluffDeckControlState: BluffDeckControlState,
           BluffDeckSeatProjection: BluffDeckSeatProjection,
+          BluffDeckViewModel: BluffDeckViewModel,
+          BluffDeckRenderer: BluffDeckRenderer,
           TableSeatRenderer: TableSeatRenderer,
           TableGamePicker: { select: selectTableGame, selectBluffSlot: selectBluffSlot },
           ProgressResume: ProgressResume,

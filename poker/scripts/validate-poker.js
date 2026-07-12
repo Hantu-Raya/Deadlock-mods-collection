@@ -672,25 +672,53 @@ for (const [id, className] of [
     `must expose #${id} with the shared PokerFloatingWindow class`,
   );
 }
-const bluffWindowLayout = sourceSliceBetweenIds(menuLayout, 'BluffDeckWindow', 'PokerAnitaPanel');
+const bluffPlayersLayout = sourceSliceBetweenIds(menuLayout, 'BluffDeckPlayersWindow', 'BluffDeckHistoryWindow');
 assertMatches(
-  'menu layout #BluffDeckWindow',
-  bluffWindowLayout,
-  /id=["']BluffDeckPartyControls["'][\s\S]*id=["']BluffDeckHostButton["'][\s\S]*id=["']BluffDeckJoinButton["'][\s\S]*id=["']BluffDeckLeaveButton["'][\s\S]*<\/Panel>\s*<Panel id=["']BluffDeckMatchControls["'][\s\S]*id=["']BluffDeckStartButton["'][\s\S]*id=["']BluffDeckEndButton["']/,
-  'must separate Bluff lobby controls from match controls so HOST cannot overlap JOIN',
+  'menu layout #BluffDeckPlayersWindow',
+  bluffPlayersLayout,
+  /id=["']BluffDeckOpponentList["'][\s\S]*id=["']BluffDeckPartyControls["'][\s\S]*id=["']BluffDeckMatchControls["'][\s\S]*id=["']BluffDeckStartButton["'][\s\S]*id=["']BluffDeckEndButton["']/,
+  'must keep Bluff roster and lifecycle controls in the right-side players surface',
 );
+for (const [id, className] of [
+  ['BluffDeckWindow', 'BluffDeckWindow'],
+  ['BluffDeckPlayersWindow', 'BluffDeckPlayersWindow'],
+  ['BluffDeckHistoryWindow', 'BluffDeckHistoryWindow'],
+  ['BluffDeckActionsWindow', 'BluffDeckActionsWindow'],
+]) {
+  assertMatches(
+    'menu layout',
+    menuLayout,
+    new RegExp(`id=["']${id}["'][^>]*class=["'][^"']*\\b${className}\\b`),
+    `must expose #${id} as a Bluff surface`,
+  );
+  assertMatches(
+    'menu layout',
+    menuLayout,
+    new RegExp(`id=["']${id}["'][^>]*class=["'][^"']*\\bPokerFloatingWindow\\b`),
+    `must expose #${id} with the shared PokerFloatingWindow class`,
+  );
+}
 
 const menuXmlTree = parseXmlTree(menuLayout);
 assert(menuXmlTree, 'menu layout XML must remain balanced');
 const bluffSurface = findXmlNodeById(menuXmlTree, 'BluffDeckTableSurface');
 const bluffWindow = findXmlNodeById(menuXmlTree, 'BluffDeckWindow');
+const bluffPlayersWindow = findXmlNodeById(menuXmlTree, 'BluffDeckPlayersWindow');
+const bluffHistoryWindow = findXmlNodeById(menuXmlTree, 'BluffDeckHistoryWindow');
+const bluffActionsWindow = findXmlNodeById(menuXmlTree, 'BluffDeckActionsWindow');
 const bluffCardSlots = findXmlNodeById(menuXmlTree, 'BluffDeckCardSlots');
-assert(bluffWindow && bluffCardSlots && bluffCardSlots.parent === bluffWindow, '#BluffDeckCardSlots must be a sibling picker panel outside BluffDeckTableSurface');
+assert(bluffWindow && bluffPlayersWindow && bluffHistoryWindow && bluffActionsWindow, 'Bluff must expose all four sibling surfaces');
+const bluffAnnouncement = findXmlNodeById(menuXmlTree, 'BluffDeckAnnouncementOverlay');
+const bluffAnnouncementTitle = findXmlNodeById(menuXmlTree, 'BluffDeckAnnouncementTitle');
+const bluffAnnouncementBody = findXmlNodeById(menuXmlTree, 'BluffDeckAnnouncementBody');
+assert(bluffAnnouncement && bluffAnnouncement.parent === bluffWindow, '#BluffDeckAnnouncementOverlay must live in the main Bluff table surface');
+assert(bluffAnnouncementTitle && bluffAnnouncementBody && bluffAnnouncementTitle.parent === bluffAnnouncement && bluffAnnouncementBody.parent === bluffAnnouncement, 'Bluff announcement must expose title and body labels');
+assert(bluffCardSlots && bluffCardSlots.parent && bluffCardSlots.parent.parent === bluffActionsWindow, '#BluffDeckCardSlots must live in the Bluff actions surface');
 const bluffLifecycleControls = findXmlNodeById(menuXmlTree, 'BluffDeckLifecycleControls');
 const bluffPartyControls = findXmlNodeById(menuXmlTree, 'BluffDeckPartyControls');
 const bluffMatchControls = findXmlNodeById(menuXmlTree, 'BluffDeckMatchControls');
 assert(bluffLifecycleControls && bluffPartyControls && bluffMatchControls, 'Bluff lifecycle controls must expose a shared compact row');
-assert(bluffPartyControls.parent === bluffLifecycleControls && bluffMatchControls.parent === bluffLifecycleControls, 'Bluff leave/end control groups must share the compact lifecycle row');
+assert(bluffLifecycleControls.parent === bluffPlayersWindow && bluffPartyControls.parent === bluffLifecycleControls && bluffMatchControls.parent === bluffLifecycleControls, 'Bluff lifecycle controls must share the roster surface');
 const bluffCardTable = findXmlNodeById(menuXmlTree, 'BluffDeckCardTable');
 const bluffFelt = bluffCardTable && bluffCardTable.children.find((node) => node.attrs && /\bPokerTableFelt\b/.test(node.attrs.class || ''));
 const bluffSeats = findXmlNodeById(menuXmlTree, 'BluffDeckTableSeats');
@@ -768,8 +796,8 @@ const bluffSeatsCss = cssBlock(menuStyle, '.BluffDeckTableSeats');
 assertCssDeclarationMatches('menu style .BluffDeckFelt', bluffFeltCss, 'align', /^center\s+center$/, 'must center Bluff target and committed cards on the felt');
 assertCssDeclarationMatches('menu style .BluffDeckTableSeats', bluffSeatsCss, 'ignore-parent-flow', /^true$/, 'must keep Bluff seats outside felt flow');
 const bluffWindowCss = cssBlock(menuStyle, '.BluffDeckWindow');
-assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'align', /^left\s+center$/, 'must center Bluff Deck vertically inside the ESC safe content area');
-assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'margin-top', /^0px$/, 'must not inherit a top offset');
+assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'align', /^left\s+top$/, 'must align Bluff Deck with the shared Poker table column');
+assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'margin-top', /^23%$/, 'must mirror the shared Poker table vertical anchor');
 const bluffWindowWidth = Number.parseFloat(cssDeclarationValue(bluffWindowCss, 'width'));
 const bluffWindowLeftInset = Number.parseFloat(cssDeclarationValue(bluffWindowCss, 'margin-left'));
 const bluffWindowRightInset = Number.parseFloat(cssDeclarationValue(bluffWindowCss, 'margin-right'));
@@ -795,7 +823,7 @@ const bluffSlotsCss = cssLastBlock(menuStyle, '.BluffDeckCardSlots');
 const bluffHandCss = cssLastBlockContainingSelector(menuStyle, '.BluffDeckHandLabel');
 const bluffActionControlsCss = cssLastBlock(menuStyle, '.BluffDeckActionControls');
 const bluffLifecycleCss = cssLastBlock(menuStyle, '.BluffDeckLifecycleControls');
-assertCssDeclarationMatches('menu style .BluffDeckOpponentList', bluffOpponentCss, 'visibility', /^collapse$/, 'must retire the duplicate clipped opponent summary');
+assertCssDeclarationMatches('menu style .BluffDeckOpponentList', bluffOpponentCss, 'overflow', /^squish\s+scroll$/, 'must keep the roster readable in its dedicated side surface');
 assertCssDeclarationMatches('menu style .BluffDeckHandLabel', bluffHandCss, 'visibility', /^collapse$/, 'must retire the duplicate textual hand');
 assertCssDeclarationMatches('menu style .BluffDeckCardSlots', bluffSlotsCss, 'width', /^fit-children$/, 'must center the visual picker by intrinsic width');
 assertCssDeclarationMatches('menu style .BluffDeckCardSlots', bluffSlotsCss, 'horizontal-align', /^center$/, 'must center the intrinsic visual picker');

@@ -40,7 +40,7 @@ Both scripts duplicate the same `BridgeContract` constants and must stay aligned
 - `BluffDeckEngine` is the pure deterministic `basic-v1` sibling reducer. It owns fixed seats, the 20-rank deck, risk/elimination, canonical debug hashes, invariant validation, and text projection; it never reads Panorama state.
 - `BluffDeckCommandReducer` owns strict `bd1` decode/build/apply semantics. Prefix routing occurs before loose Poker decoding; committed state is restored only after retained start/high-water evidence and invariants.
 - `BluffDeckActions` owns nonpersistent local selection and identity-bearing pending play/challenge requests. These requests bypass Poker's 800 ms click throttle without changing its timestamp, then wait for bridge status and chat echo.
-- `State.bluffDeck` is separate from `State.game`; `getActiveTableGameType()` prevents Poker and Bluff Deck from running together. `TableGamePicker` selects the existing Poker surface or the temporary text-only Bluff panel. That panel renders `projectText()` output and binds only the existing party/Bluff action modules; it is not a final visual game surface.
+- `State.bluffDeck` is separate from `State.game`; `getActiveTableGameType()` prevents Poker and Bluff Deck from running together. `TableGamePicker` selects the existing Poker surface or the Bluff four-surface composition. `BluffDeckViewModel` is a pure projection adapter over engine/party state; `BluffDeckRenderer` applies semantic announcement/control classes and keyed roster, feed, and played-card rows without exposing opponent ranks.
 
 ### `poker_chat_debug.js` module boundaries
 
@@ -110,11 +110,11 @@ Both scripts duplicate the same `BridgeContract` constants and must stay aligned
 
 ### Rendering flow and layout globals
 
-`renderGame()` is the only high-level projection step. It caches panels, updates pot/phase, match visibility, announcer, community cards, player list, compact table seats, action buttons, log, progress/resume controls, and start/party buttons.
+- `renderGame()` is the only high-level projection step. It caches panels, updates pot/phase, Poker match visibility, announcer, community cards, player list, compact table seats, action buttons, log, progress/resume controls, and start/party buttons. When Bluff Deck is selected it builds `BluffDeckViewModel` and sends it to `BluffDeckRenderer`, which projects the four Bluff surfaces.
 
 Important layout IDs cached in `IDS` and consumed by renderers/buttons:
 
-- Root/open: `PokerMenuButton`, `PokerAnitaPanel`, `PokerTableWindow`, `PokerLobbyWindow`, `PokerPlayersWindow`, `PokerHistoryWindow`, `PokerActionsWindow`, `PokerCloseButton`.
+- Root/open: `PokerMenuButton`, `PokerAnitaPanel`, `PokerTableWindow`, `PokerLobbyWindow`, `PokerPlayersWindow`, `PokerHistoryWindow`, `PokerActionsWindow`, `PokerCloseButton`, `BluffDeckWindow`, `BluffDeckPlayersWindow`, `BluffDeckHistoryWindow`, `BluffDeckActionsWindow`, `BluffDeckAnnouncementOverlay`.
 - Party/lobby: `PokerPartyControls`, `PokerHostPartyButton`, `PokerJoinPartyButton`, `PokerPartyStatusLabel`, `PokerReadyCountLabel`, `PokerSeatsList`, `PokerReadyChatButton`, `PokerStartButton`, `PokerStartButtonLabel`, `PokerLeaveLobbyButton`.
 - Progress/resume: `PokerProgressControls`, `PokerExportProgressButton`, `PokerImportProgressButton`, `PokerProgressCodeInput`, `PokerProgressCodeLabel`, `PokerResumeControls`, `PokerResumeLeaderButton`, `PokerResumeReadyButton`, `PokerResumeStatusLabel`, `PokerResumeLeaderList`.
 - Table/action/log: `PokerTableSurface`, `PokerPhaseLabel`, `PokerPotLabel`, `PokerAnnouncerOverlay`, `PokerAnnouncerTitle`, `PokerAnnouncerBody`, `PokerCommunityCards`, full list `PokerPlayersList`, compact edge seats `PokerTableSeats`, `PokerActionButtons`, `PokerEndMatchButton`, `PokerGameLog`.
@@ -175,7 +175,7 @@ Important invariants:
 
 Validators depend on stable hooks:
 
-- `globalThis.__PokerEscapeMenuTestHooks`: exposes existing Poker helpers plus `BluffDeckEngine`, `BluffDeckCommandReducer`, `BluffDeckActions`, copied Bluff state, and raw `state`.
+- `globalThis.__PokerEscapeMenuTestHooks`: exposes existing Poker helpers plus `BluffDeckEngine`, `BluffDeckCommandReducer`, `BluffDeckActions`, `BluffDeckViewModel`, `BluffDeckRenderer`, copied Bluff state, and raw `state`.
 - `globalThis.__PokerChatDebugTestHooks`: exposes chat classifiers, ready-seat mutation, snapshot request handler, chat append/read/delay/scan helpers, `localPlayerKeys`, and `BridgeContract`/`ChatBridgeIntake` modules.
 
 ### External files in this module
