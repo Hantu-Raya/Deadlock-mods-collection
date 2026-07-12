@@ -1,201 +1,320 @@
-<!-- Poker ESC menu hook. Based on SteamTracking Deadlock pak01_dir/panorama/layout/hud_escape_menu.xml. -->
+<!-- xml reconstructed by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io -->
 <root>
-  <styles>
-    <include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
-    <include src="s2r://panorama/styles/hud_escape_menu.vcss_c" />
-    <include src="s2r://panorama/styles/poker_escape_menu.vcss_c" />
-  </styles>
-  <scripts>
-    <include src="s2r://panorama/scripts/poker_escape_menu.vjs_c" />
-  </scripts>
-  <CitadelHudEscapeMenu oncancel="CitadelResumePlaying()">
-    <Panel id="EscapeBackground" onactivate="CitadelResumePlaying()" />
-    <Panel id="LeftStripeBlur" />
-    <Panel id="LeftStripe" hittest="false">
-      <Panel id="Menu" hittest="false">
-        <Panel id="ContextualMenu">
-          <Panel class="MatchmakingOptions OptionGroup">
-            <Button id="matchmakingLeaveQueue" class="nav_menu_item primary endsession" onactivate="CitadelLeaveMatchmaking()">
-              <Label text="#menu_leave_queue" class="menuButtonLabel" antialias="true" />
-            </Button>
-            <Button id="matchmakingEditRoster" class="nav_menu_item primary" onactivate="CitadelEditMatchmakingRoster()">
-              <Panel class="MenuIcon" />
-              <Label text="#menu_roster_detail2" class="menuButtonLabel" />
-            </Button>
-          </Panel>
-          <Panel class="ReconnectOptions OptionGroup">
-            <Button id="reconnectRejoin" class="nav_menu_item primary" onactivate="CitadelReconnect()" onmouseover="UIShowTextTooltip( #Citadel_Dashboard_RejoinTooltip )" onmouseout="UIHideTextTooltip()">
-              <Label text="#menu_rejoin" class="menuButtonLabel" />
-            </Button>
-            <Button id="reconnectAbandon" class="nav_menu_item primary endsession" onactivate="CitadelConfirmAbandonGame()">
-              <Label text="{s:reconnect_abandon_action}" class="menuButtonLabel" />
-            </Button>
-          </Panel>
-          <Button id="disconnect" class="nav_menu_item primary" onactivate="CitadelDisconnectFromGame()">
-            <Label text="#menu_disconnect" class="menuButtonLabel" />
-          </Button>
-          <Button id="abandon" class="nav_menu_item primary endsession" onactivate="CitadelConfirmAbandonGame()">
-            <Label text="{s:abandon_action}" class="menuButtonLabel" />
-          </Button>
-          <Button id="Unstick" class="nav_menu_item minor" onactivate="CitadelConCommand( &apos;unstick&apos; );" onmouseover="CitadelUIShowTextTooltip( &apos;#DevMenu_UnstickHeroTooltip&apos; )" onmouseout="CitadelUIHideTextTooltip()">
-            <Label text="#DevMenu_UnstickHero" class="menuButtonLabel" />
-          </Button>
-        </Panel>
-        <Button id="changehero" class="nav_menu_item primary" onactivate="CitadelEscapeMenuChangeHero()">
-          <Label text="#menu_changehero" class="menuButtonLabel" />
-        </Button>
-        <Button id="PokerMenuButton" class="nav_menu_item primary PokerMenuButton" onactivate="PokerEscapeMenuToggle()">
-          <Label text="POKER" class="menuButtonLabel" />
-        </Button>
-        <Panel id="SubOptions">
-          <Panel class="FeedbackRow">
-            <Button id="PlayerFeedback" class="nav_menu_item minor" onactivate="CitadelShowPlayerFeedbackPopup()">
-              <Label text="#Citadel_PlayerFeedback_Title" class="menuButtonLabel" />
-            </Button>
-          </Panel>
-          <Panel class="SettingsRow">
-            <Button id="settings" class="nav_menu_item minor" onactivate="CitadelSettings()">
-              <Panel class="smallIcon GearIcon" />
-              <Label text="#menu_settings" class="menuButtonLabel" />
-            </Button>
-            <Button id="QuickMute" class="nav_menu_item minor" onactivate="CitadelMuteButtonClicked();" onmouseover="CitadelUIShowTextTooltip( &apos;#citadel_mute_game_audio&apos; )" onmouseout="CitadelUIHideTextTooltip()" />
-          </Panel>
-          <Button id="quit" onactivate="CitadelQuitConfirm()">
-            <Label text="#menu_exit_deadlock" />
-          </Button>
-        </Panel>
-      </Panel>
-    </Panel>
-    <CitadelPrivilegedFeatures id="PrivilegedFeatures" />
-    <CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="CitadelResumePlaying()" text="#menu_resume" />
-    <Panel id="RightSideBlur" hittest="false" />
-    <Panel id="RightSide" hittest="false">
-      <Panel id="PartySpacer" />
-      <Panel class="FriendsOrPlayersTabs">
-        <Panel class="Center">
-          <TabButton id="FriendsTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Friends_WindowTitle" selected="true" />
-          <TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" />
-        </Panel>
-      </Panel>
-      <Panel class="FriendsOrPlayersContents" hittest="false">
-        <TabContents id="FriendsTabContents" tabid="FriendsTab" group="people_list_tabs" hittest="false" selected="true">
-          <CitadelFriendsList id="FriendsList" />
-        </TabContents>
-        <TabContents id="PlayersTabContents" tabid="PlayersTab" group="people_list_tabs" hittest="false">
-          <CitadelPlayersList id="PlayersList" />
-        </TabContents>
-      </Panel>
-    </Panel>
-    <Panel id="PokerAnitaPanel" class="PokerAnitaPanel PokerHidden" hittest="false" />
-    <Panel id="PokerLobbyWindow" class="PokerFloatingWindow PokerLobbyWindow" hittest="true">
-      <Panel class="PokerFloatingHeader">
-        <Panel class="PokerTableTitleBlock">
-          <Label class="PokerAnitaEyebrow" text="ANITA UI / DEBUG" />
-          <Label class="PokerAnitaTitle" text="Poker Lobby" />
-        </Panel>
-        <Button id="PokerCloseButton" class="PokerIconButton" onactivate="PokerEscapeMenuClose()">
-          <Label text="×" />
-        </Button>
-      </Panel>
-      <Panel class="PokerLobbyBar">
-        <Panel id="PokerPartyControls" class="PokerPartyControls">
-          <Button id="PokerHostPartyButton" class="PokerPrimaryButton PokerPartyButton" onactivate="PokerEscapeMenuHostParty()">
-            <Label text="HOST PARTY" />
-          </Button>
-          <Button id="PokerJoinPartyButton" class="PokerPrimaryButton PokerPartyButton Secondary" onactivate="PokerEscapeMenuJoinParty()">
-            <Label text="JOIN PARTY" />
-          </Button>
-        </Panel>
-        <Panel id="PokerProgressControls" class="PokerProgressControls">
-          <Button id="PokerExportProgressButton" class="PokerSecondaryButton" onactivate="PokerEscapeMenuCopyProgress()">
-            <Label text="COPY PROGRESS" />
-          </Button>
-          <Button id="PokerImportProgressButton" class="PokerSecondaryButton" onactivate="PokerEscapeMenuImportProgress()">
-            <Label text="IMPORT PROGRESS" />
-          </Button>
-        </Panel>
-        <Panel id="PokerResumeControls" class="PokerResumeControls">
-          <Button id="PokerResumeLeaderButton" class="PokerPrimaryButton" onactivate="PokerEscapeMenuResumeLeader()">
-            <Label text="LEAD RESUME" />
-          </Button>
-          <Button id="PokerResumeReadyButton" class="PokerSecondaryButton" onactivate="PokerEscapeMenuResumeReady()">
-            <Label text="READY RESUME" />
-          </Button>
-        </Panel>
-        <Button id="PokerReadyChatButton" class="PokerPrimaryButton PokerReadyTopButton" onactivate="PokerEscapeMenuSendReadyChat()">
-          <Label text="READY UP" />
-        </Button>
-      </Panel>
-      <Panel class="PokerLobbyMeta">
-        <Panel class="PokerLobbyMetaColumn">
-          <Label id="PokerPartyStatusLabel" class="PokerPartyStatusLabel" text="Host a synced table or join the latest [party leader] in chat." />
-          <TextEntry id="PokerProgressCodeInput" class="PokerProgressCodeInput" placeholder="Paste POKERPROG1 code" />
-          <Label id="PokerProgressCodeLabel" class="PokerProgressCodeLabel" text="Finish a hand to copy progress, or paste a code to resume." />
-        </Panel>
-        <Panel class="PokerLobbyMetaColumn">
-          <Label id="PokerResumeStatusLabel" class="PokerStatusLabel" text="Import progress to choose a resume leader." />
-          <Panel id="PokerResumeLeaderList" class="PokerSeatsList" />
-        </Panel>
-      </Panel>
-    </Panel>
-    <Panel id="PokerTableWindow" class="PokerFloatingWindow PokerTableWindow" hittest="false">
-      <Panel id="PokerTableSurface" class="PokerTableSurface">
-        <Panel class="PokerTableHeader">
-          <Label id="PokerPhaseLabel" class="PokerPhaseLabel" text="LOBBY" />
-          <Label id="PokerPotLabel" class="PokerPotLabel" text="POT $0" />
-        </Panel>
-        <Panel id="PokerAnnouncerOverlay" class="PokerAnnouncerOverlay" hittest="false">
-          <Label id="PokerAnnouncerTitle" class="PokerAnnouncerTitle" text="Poker announcer" />
-          <Label id="PokerAnnouncerBody" class="PokerAnnouncerBody" text="Ready up, start a hand, and the table will call blinds, turns, checks, bets, raises, folds, and winners here." />
-        </Panel>
-        <Panel id="PokerTableFelt" class="PokerTableFelt" hittest="false">
-          <Panel id="PokerCommunityCards" class="PokerCommunityCards" />
-          <Panel id="PokerTableSeats" class="PokerTableSeats PokerHidden" />
-        </Panel>
-      </Panel>
-    </Panel>
-    <Panel id="PokerPlayersWindow" class="PokerFloatingWindow PokerPlayersWindow" hittest="true">
-      <Panel class="PokerFloatingHeader">
-        <Panel class="PokerTableTitleBlock">
-          <Label class="PokerAnitaEyebrow" text="TABLE" />
-          <Label class="PokerWindowTitleSmall" text="Players" />
-        </Panel>
-      </Panel>
-      <Panel class="PokerReadySummary">
-        <Label class="PokerSectionLabel" text="MAX SEATS" />
-        <Label id="PokerReadyCountLabel" class="PokerReadyCountLabel" text="12" />
-      </Panel>
-      <Panel id="PokerSeatsList" class="PokerSeatsList" />
-      <Panel class="PokerSideSection">
-        <Label class="PokerSideSectionLabel" text="PLAYERS" />
-        <Panel id="PokerPlayersList" class="PokerPlayersList PokerHidden" />
-      </Panel>
-      <Panel class="PokerPlayerWindowControls">
-        <Button id="PokerEndMatchButton" class="PokerSecondaryButton PokerHidden" onactivate="PokerEscapeMenuEndMatch()">
-          <Label text="END MATCH" />
-        </Button>
-        <Button id="PokerLeaveLobbyButton" class="PokerSecondaryButton PokerHidden" onactivate="PokerEscapeMenuLeaveLobby()">
-          <Label text="LEAVE LOBBY" />
-        </Button>
-      </Panel>
-    </Panel>
-    <Panel id="PokerHistoryWindow" class="PokerFloatingWindow PokerHistoryWindow" hittest="false">
-      <Panel class="PokerFloatingHeader">
-        <Panel class="PokerTableTitleBlock">
-          <Label class="PokerAnitaEyebrow" text="HISTORY" />
-          <Label class="PokerWindowTitleSmall" text="Last 12" />
-        </Panel>
-      </Panel>
-      <Panel id="PokerGameLog" class="PokerGameLog" />
-    </Panel>
-    <Panel id="PokerActionsWindow" class="PokerFloatingWindow PokerActionsWindow" hittest="true">
-      <Panel class="PokerTableActionButtonsRow">
-        <Panel id="PokerActionButtons" class="PokerActionButtons PokerHidden" />
-        <Button id="PokerStartButton" class="PokerStartButton Disabled" onactivate="PokerEscapeMenuStart()">
-          <Label id="PokerStartButtonLabel" text="WAITING FOR 2 PLAYERS" />
-        </Button>
-      </Panel>
-      <Label id="PokerStatusLabel" class="PokerStatusLabel" text="Waiting for ready players." />
-    </Panel>
-  </CitadelHudEscapeMenu>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/hud_escape_menu.vcss_c" />
+		<include src="s2r://panorama/styles/poker_escape_menu.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/poker_escape_menu.vjs_c" />
+	</scripts>
+	<CitadelHudEscapeMenu oncancel="CitadelResumePlaying()">
+		<Panel id="EscapeBackground" onactivate="CitadelResumePlaying()" />
+		<Panel id="LeftStripeBlur" />
+		<Panel id="LeftStripe" hittest="false">
+			<Panel id="Menu" hittest="false">
+				<Panel id="ContextualMenu">
+					<Panel class="MatchmakingOptions OptionGroup">
+						<Button id="matchmakingLeaveQueue" class="nav_menu_item primary endsession" onactivate="CitadelLeaveMatchmaking()">
+							<Label text="#menu_leave_queue" class="menuButtonLabel" antialias="true" />
+						</Button>
+						<Button id="matchmakingEditRoster" class="nav_menu_item primary" onactivate="CitadelEditMatchmakingRoster()">
+							<Panel class="MenuIcon" />
+							<Label text="#menu_roster_detail2" class="menuButtonLabel" />
+						</Button>
+					</Panel>
+					<Panel class="ReconnectOptions OptionGroup">
+						<Button id="reconnectRejoin" class="nav_menu_item primary" onactivate="CitadelReconnect()" onmouseover="UIShowTextTooltip( #Citadel_Dashboard_RejoinTooltip )" onmouseout="UIHideTextTooltip()">
+							<Label text="#menu_rejoin" class="menuButtonLabel" />
+						</Button>
+						<Button id="reconnectAbandon" class="nav_menu_item primary endsession" onactivate="CitadelConfirmAbandonGame()">
+							<Label text="{s:reconnect_abandon_action}" class="menuButtonLabel" />
+						</Button>
+					</Panel>
+					<Button id="disconnect" class="nav_menu_item primary" onactivate="CitadelDisconnectFromGame()">
+						<Label text="#menu_disconnect" class="menuButtonLabel" />
+					</Button>
+					<Button id="abandon" class="nav_menu_item primary endsession" onactivate="CitadelConfirmAbandonGame()">
+						<Label text="{s:abandon_action}" class="menuButtonLabel" />
+					</Button>
+					<Button id="Unstick" class="nav_menu_item minor" onactivate="CitadelConCommand( &apos;unstick&apos; );" onmouseover="CitadelUIShowTextTooltip( &apos;#DevMenu_UnstickHeroTooltip&apos; )" onmouseout="CitadelUIHideTextTooltip()">
+						<Label text="#DevMenu_UnstickHero" class="menuButtonLabel" />
+					</Button>
+				</Panel>
+				<Button id="changehero" class="nav_menu_item primary" onactivate="CitadelEscapeMenuChangeHero()">
+					<Label text="#menu_changehero" class="menuButtonLabel" />
+				</Button>
+				<Button id="PokerMenuButton" class="nav_menu_item primary PokerMenuButton" onactivate="PokerEscapeMenuToggle()">
+					<Label text="TABLE GAMES" class="menuButtonLabel" />
+				</Button>
+				<Panel id="SubOptions">
+					<Panel class="FeedbackRow">
+						<Button id="PlayerFeedback" class="nav_menu_item minor" onactivate="CitadelShowPlayerFeedbackPopup()">
+							<Label text="#Citadel_PlayerFeedback_Title" class="menuButtonLabel" />
+						</Button>
+					</Panel>
+					<Panel class="SettingsRow">
+						<Button id="settings" class="nav_menu_item minor" onactivate="CitadelSettings()">
+							<Panel class="smallIcon GearIcon" />
+							<Label text="#menu_settings" class="menuButtonLabel" />
+						</Button>
+						<Button id="QuickMute" class="nav_menu_item minor" onactivate="CitadelMuteButtonClicked();" onmouseover="CitadelUIShowTextTooltip( &apos;#citadel_mute_game_audio&apos; )" onmouseout="CitadelUIHideTextTooltip()" />
+					</Panel>
+					<Button id="quit" onactivate="CitadelQuitConfirm()">
+						<Label text="#menu_exit_deadlock" />
+					</Button>
+				</Panel>
+			</Panel>
+		</Panel>
+		<CitadelPrivilegedFeatures id="PrivilegedFeatures" />
+		<CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="CitadelResumePlaying()" text="#menu_resume" />
+		<Panel id="RightSideBlur" hittest="false" />
+		<Panel id="RightSide" hittest="false">
+			<Panel id="PartySpacer" />
+			<Panel class="FriendsOrPlayersTabs">
+				<Panel class="Center">
+					<TabButton id="FriendsTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Friends_WindowTitle" selected="true" />
+					<TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" />
+				</Panel>
+			</Panel>
+			<Panel class="FriendsOrPlayersContents" hittest="false">
+				<TabContents id="FriendsTabContents" tabid="FriendsTab" group="people_list_tabs" hittest="false" selected="true">
+					<CitadelFriendsList id="FriendsList" />
+				</TabContents>
+				<TabContents id="PlayersTabContents" tabid="PlayersTab" group="people_list_tabs" hittest="false">
+					<CitadelPlayersList id="PlayersList" />
+				</TabContents>
+			</Panel>
+		</Panel>
+		<Panel id="TableGamePickerWindow" class="TableGamePickerWindow PokerFloatingWindow" hittest="true">
+			<Label class="TableGamePickerEyebrow" text="TABLE GAMES" />
+			<Label class="TableGamePickerTitle" text="Choose a table" />
+			<Label id="TableGamePickerWarning" class="TableGamePickerWarning PokerHidden" text="" />
+			<Panel class="TableGamePickerChoices">
+				<Button id="TableGamePickerPokerButton" class="TableGamePickerChoice" onactivate="PokerEscapeMenuSelectTableGame( &apos;poker&apos; )">
+					<Label id="TableGamePickerPokerLabel" class="TableGamePickerChoiceLabel" text="POKER" />
+					<Label class="TableGamePickerChoiceHint" text="PRIVATE NOIR TABLE" />
+				</Button>
+				<Button id="TableGamePickerBluffButton" class="TableGamePickerChoice" onactivate="PokerEscapeMenuSelectTableGame( &apos;bluff-deck&apos; )">
+					<Label id="TableGamePickerBluffLabel" class="TableGamePickerChoiceLabel" text="BLUFF DECK" />
+					<Label class="TableGamePickerChoiceHint" text="TEXT-ONLY TABLE" />
+				</Button>
+			</Panel>
+		</Panel>
+		<Panel id="BluffDeckWindow" class="BluffDeckWindow PokerFloatingWindow" hittest="true">
+			<Panel class="PokerFloatingHeader">
+				<Panel class="PokerTableTitleBlock">
+					<Label class="PokerAnitaEyebrow" text="TABLE GAME" />
+					<Label id="BluffDeckHeaderLabel" class="PokerAnitaTitle BluffDeckHeaderLabel" text="BLUFF DECK" />
+				</Panel>
+				<Button id="BluffDeckBackButton" class="PokerHeaderBackButton" onactivate="PokerEscapeMenuBackToPicker()">
+					<Label text="BACK" />
+				</Button>
+				<Button id="BluffDeckCloseButton" class="PokerIconButton" onactivate="PokerEscapeMenuClose()">
+					<Label text="×" />
+				</Button>
+			</Panel>
+			<Panel id="BluffDeckTableSurface" class="PokerTableSurface BluffDeckTableSurface">
+				<Panel id="BluffDeckCardTable" class="PokerTableStage BluffDeckCardTable">
+					<Panel class="PokerTableFelt BluffDeckFelt">
+						<Panel id="BluffDeckTargetCard" class="BluffDeckTargetCard">
+							<Panel class="BluffDeckTargetFace PokerCardContents">
+								<Label class="BluffDeckTargetFallback" text="TARGET CARD" />
+							</Panel>
+						</Panel>
+						<Panel id="BluffDeckPlayedCards" class="BluffDeckPlayedCards" />
+						<Panel class="BluffDeckCardTableLabels">
+							<Label id="BluffDeckTargetLabel" class="BluffDeckInfoLabel BluffDeckTargetLabel" text="TARGET: —" />
+							<Label id="BluffDeckTurnLabel" class="BluffDeckInfoLabel BluffDeckTurnLabel" text="WAITING FOR MATCH" />
+							<Label id="BluffDeckPreviousPlayLabel" class="BluffDeckInfoLabel BluffDeckPreviousPlayLabel" text="" />
+						</Panel>
+						<Panel id="BluffDeckOpponentList" class="BluffDeckOpponentList" />
+					</Panel>
+					<Panel id="BluffDeckTableSeats" class="PokerTableSeats BluffDeckTableSeats PokerHidden" />
+				</Panel>
+			</Panel>
+			<Panel id="BluffDeckCardSlots" class="BluffDeckCardSlots">
+				<Button id="BluffDeckSlot0" class="BluffDeckCardSlot" onactivate="PokerEscapeMenuSelectBluffSlot( 0 )">
+					<Panel class="BluffDeckSlotContents PokerCardContents">
+						<Label class="BluffDeckSlotRankGlyph" text="" />
+					</Panel>
+				</Button>
+				<Button id="BluffDeckSlot1" class="BluffDeckCardSlot" onactivate="PokerEscapeMenuSelectBluffSlot( 1 )">
+					<Panel class="BluffDeckSlotContents PokerCardContents">
+						<Label class="BluffDeckSlotRankGlyph" text="" />
+					</Panel>
+				</Button>
+				<Button id="BluffDeckSlot2" class="BluffDeckCardSlot" onactivate="PokerEscapeMenuSelectBluffSlot( 2 )">
+					<Panel class="BluffDeckSlotContents PokerCardContents">
+						<Label class="BluffDeckSlotRankGlyph" text="" />
+					</Panel>
+				</Button>
+				<Button id="BluffDeckSlot3" class="BluffDeckCardSlot" onactivate="PokerEscapeMenuSelectBluffSlot( 3 )">
+					<Panel class="BluffDeckSlotContents PokerCardContents">
+						<Label class="BluffDeckSlotRankGlyph" text="" />
+					</Panel>
+				</Button>
+				<Button id="BluffDeckSlot4" class="BluffDeckCardSlot" onactivate="PokerEscapeMenuSelectBluffSlot( 4 )">
+					<Panel class="BluffDeckSlotContents PokerCardContents">
+						<Label class="BluffDeckSlotRankGlyph" text="" />
+					</Panel>
+				</Button>
+			</Panel>
+			<Label id="BluffDeckHandLabel" class="BluffDeckHandLabel" text="" />
+			<Label id="BluffDeckActionLabel" class="BluffDeckActionLabel" text="WAITING" />
+			<Panel class="BluffDeckActionControls">
+				<Button id="BluffDeckPlayButton" class="PokerPrimaryButton BluffDeckActionButton" onactivate="PokerEscapeMenuBluffPlay()">
+					<Label text="PLAY SELECTED" />
+				</Button>
+				<Button id="BluffDeckChallengeButton" class="PokerSecondaryButton BluffDeckActionButton" onactivate="PokerEscapeMenuBluffChallenge()">
+					<Label text="LIE" />
+				</Button>
+			</Panel>
+			<Label id="BluffDeckPendingLabel" class="BluffDeckPendingLabel" text="" />
+			<Label id="BluffDeckResultLabel" class="BluffDeckResultLabel" text="" />
+			<Panel id="BluffDeckLog" class="BluffDeckLog" />
+			<Panel id="BluffDeckLifecycleControls" class="BluffDeckLifecycleControls">
+				<Panel id="BluffDeckPartyControls" class="BluffDeckPartyControls">
+					<Button id="BluffDeckHostButton" class="PokerPrimaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuHostParty()">
+						<Label text="HOST" />
+					</Button>
+					<Button id="BluffDeckJoinButton" class="PokerSecondaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuJoinParty()">
+						<Label text="JOIN" />
+					</Button>
+					<Button id="BluffDeckLeaveButton" class="PokerSecondaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuLeaveLobby()">
+						<Label text="LEAVE" />
+					</Button>
+				</Panel>
+				<Panel id="BluffDeckMatchControls" class="BluffDeckMatchControls">
+					<Button id="BluffDeckStartButton" class="PokerPrimaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuBluffStart()">
+						<Label text="START BLUFF" />
+					</Button>
+					<Button id="BluffDeckEndButton" class="PokerSecondaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuBluffEnd()">
+						<Label text="END" />
+					</Button>
+				</Panel>
+			</Panel>
+			<Label id="BluffDeckStatusLabel" class="PokerStatusLabel BluffDeckStatusLabel" text="Host or join a party to begin." />
+		</Panel>
+		<Panel id="PokerAnitaPanel" class="PokerAnitaPanel PokerHidden" hittest="false" />
+		<Panel id="PokerLobbyWindow" class="PokerFloatingWindow PokerLobbyWindow" hittest="true">
+			<Panel class="PokerFloatingHeader">
+				<Panel class="PokerTableTitleBlock">
+					<Label class="PokerAnitaEyebrow" text="CUSTOM LOBBY" />
+					<Label class="PokerAnitaTitle" text="Private Table" />
+				</Panel>
+				<Button id="PokerBackButton" class="PokerHeaderBackButton" onactivate="PokerEscapeMenuBackToPicker()">
+					<Label text="BACK" />
+				</Button>
+				<Button id="PokerCloseButton" class="PokerIconButton" onactivate="PokerEscapeMenuClose()">
+					<Label text="×" />
+				</Button>
+			</Panel>
+			<Panel class="PokerLobbyBar">
+				<Panel id="PokerPartyControls" class="PokerPartyControls">
+					<Button id="PokerHostPartyButton" class="PokerPrimaryButton PokerPartyButton" onactivate="PokerEscapeMenuHostParty()">
+						<Label text="HOST PARTY" />
+					</Button>
+					<Button id="PokerJoinPartyButton" class="PokerPrimaryButton PokerPartyButton Secondary" onactivate="PokerEscapeMenuJoinParty()">
+						<Label text="JOIN PARTY" />
+					</Button>
+				</Panel>
+				<Panel id="PokerProgressControls" class="PokerProgressControls">
+					<Button id="PokerExportProgressButton" class="PokerSecondaryButton" onactivate="PokerEscapeMenuCopyProgress()">
+						<Label text="COPY PROGRESS" />
+					</Button>
+					<Button id="PokerImportProgressButton" class="PokerSecondaryButton" onactivate="PokerEscapeMenuImportProgress()">
+						<Label text="IMPORT PROGRESS" />
+					</Button>
+				</Panel>
+				<Panel id="PokerResumeControls" class="PokerResumeControls">
+					<Button id="PokerResumeLeaderButton" class="PokerPrimaryButton" onactivate="PokerEscapeMenuResumeLeader()">
+						<Label text="LEAD RESUME" />
+					</Button>
+					<Button id="PokerResumeReadyButton" class="PokerSecondaryButton" onactivate="PokerEscapeMenuResumeReady()">
+						<Label text="READY RESUME" />
+					</Button>
+				</Panel>
+				<Button id="PokerReadyChatButton" class="PokerPrimaryButton PokerReadyTopButton" onactivate="PokerEscapeMenuSendReadyChat()">
+					<Label text="READY UP" />
+				</Button>
+			</Panel>
+			<Panel class="PokerLobbyMeta">
+				<Panel class="PokerLobbyMetaColumn">
+					<Label id="PokerPartyStatusLabel" class="PokerPartyStatusLabel" text="Host a synced table or join the latest [party leader] in chat." />
+					<TextEntry id="PokerProgressCodeInput" class="PokerProgressCodeInput" placeholder="Paste POKERPROG1 code" />
+					<Label id="PokerProgressCodeLabel" class="PokerProgressCodeLabel" text="Finish a hand to copy progress, or paste a code to resume." />
+				</Panel>
+				<Panel class="PokerLobbyMetaColumn">
+					<Label id="PokerResumeStatusLabel" class="PokerStatusLabel" text="Import progress to choose a resume leader." />
+					<Panel id="PokerResumeLeaderList" class="PokerSeatsList" />
+				</Panel>
+			</Panel>
+		</Panel>
+		<Panel id="PokerTableWindow" class="PokerFloatingWindow PokerTableWindow" hittest="false">
+			<Panel id="PokerTableSurface" class="PokerTableSurface">
+				<Panel class="PokerTableHeader">
+					<Label id="PokerPhaseLabel" class="PokerPhaseLabel" text="LOBBY" />
+					<Label id="PokerPotLabel" class="PokerPotLabel" text="POT $0" />
+				</Panel>
+				<Panel id="PokerAnnouncerOverlay" class="PokerAnnouncerOverlay" hittest="false">
+					<Label id="PokerAnnouncerTitle" class="PokerAnnouncerTitle" text="Poker announcer" />
+					<Label id="PokerAnnouncerBody" class="PokerAnnouncerBody" text="Ready up, start a hand, and the table will call blinds, turns, checks, bets, raises, folds, and winners here." />
+				</Panel>
+				<Panel id="PokerTableStage" class="PokerTableStage" hittest="false">
+					<Panel id="PokerTableFelt" class="PokerTableFelt" hittest="false">
+						<Panel id="PokerPotCenter" class="PokerPotCenter" hittest="false">
+							<Label id="PokerPotCenterAmount" class="PokerPotCenterAmount" text="$0" />
+							<Panel id="PokerPotChips" class="PokerPotChips" hittest="false" />
+						</Panel>
+						<Panel id="PokerCommunityCards" class="PokerCommunityCards" />
+					</Panel>
+					<Panel id="PokerTableSeats" class="PokerTableSeats PokerHidden" />
+				</Panel>
+			</Panel>
+		</Panel>
+		<Panel id="PokerPlayersWindow" class="PokerFloatingWindow PokerPlayersWindow" hittest="true">
+			<Panel class="PokerFloatingHeader">
+				<Panel class="PokerTableTitleBlock">
+					<Label class="PokerAnitaEyebrow" text="ROSTER" />
+					<Label class="PokerWindowTitleSmall" text="Seats" />
+				</Panel>
+			</Panel>
+			<Panel class="PokerReadySummary">
+				<Label class="PokerSectionLabel" text="MAX SEATS" />
+				<Label id="PokerReadyCountLabel" class="PokerReadyCountLabel" text="12" />
+			</Panel>
+			<Panel id="PokerSeatsList" class="PokerSeatsList" />
+			<Panel class="PokerSideSection">
+				<Label class="PokerSideSectionLabel" text="PLAYERS" />
+				<Panel id="PokerPlayersList" class="PokerPlayersList PokerHidden" />
+			</Panel>
+			<Panel class="PokerPlayerWindowControls">
+				<Button id="PokerEndMatchButton" class="PokerSecondaryButton PokerHidden" onactivate="PokerEscapeMenuEndMatch()">
+					<Label text="END MATCH" />
+				</Button>
+				<Button id="PokerLeaveLobbyButton" class="PokerSecondaryButton PokerHidden" onactivate="PokerEscapeMenuLeaveLobby()">
+					<Label text="LEAVE LOBBY" />
+				</Button>
+			</Panel>
+		</Panel>
+		<Panel id="PokerHistoryWindow" class="PokerFloatingWindow PokerHistoryWindow" hittest="false">
+			<Panel class="PokerFloatingHeader">
+				<Panel class="PokerTableTitleBlock">
+					<Label class="PokerAnitaEyebrow" text="FEED" />
+					<Label class="PokerWindowTitleSmall" text="Last 12" />
+				</Panel>
+			</Panel>
+			<Panel id="PokerGameLog" class="PokerGameLog" />
+		</Panel>
+		<Panel id="PokerActionsWindow" class="PokerFloatingWindow PokerActionsWindow" hittest="true">
+			<Panel class="PokerTableActionButtonsRow">
+				<Panel id="PokerActionButtons" class="PokerActionButtons PokerHidden" />
+				<Button id="PokerStartButton" class="PokerStartButton Disabled" onactivate="PokerEscapeMenuStart()">
+					<Label id="PokerStartButtonLabel" text="WAITING FOR 2 PLAYERS" />
+				</Button>
+			</Panel>
+			<Label id="PokerStatusLabel" class="PokerStatusLabel" text="Waiting for ready players." />
+		</Panel>
+	</CitadelHudEscapeMenu>
 </root>

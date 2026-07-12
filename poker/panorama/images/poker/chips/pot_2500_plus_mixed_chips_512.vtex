@@ -6,7 +6,7 @@
         "CDmeInputTexture"
         {
             "m_name" "string" "InputTexture0"
-            "m_fileName" "string" "panorama/images/poker/cards/card_suit_heart.png"
+            "m_fileName" "string" "panorama/images/poker/chips/pot_2500_plus_mixed_chips_512.png"
             "m_colorSpace" "string" "srgb"
             "m_typeString" "string" "2D"
             "m_imageProcessorArray" "element_array"

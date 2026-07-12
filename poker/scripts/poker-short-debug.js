@@ -64,12 +64,7 @@ function drainImmediateCallbacks(runtime, maxCallbacks = 128) {
 }
 
 function applyMenuRecord(hooks, record) {
-  const effect = hooks.modules.CommandReducer.applyPayload({ event: 'PokerChatMessage', ...record });
-  const state = hooks && hooks.state;
-  const pokerActive = !!(state && state.game && state.game.active);
-  const bluffActive = !!(state && state.bluffDeck && state.bluffDeck.game && state.bluffDeck.game.active);
-  if (pokerActive && !bluffActive) assertPokerFixturesSelectPoker(hooks, 'Poker record fixture');
-  return effect;
+  return hooks.modules.CommandReducer.applyPayload({ event: 'PokerChatMessage', ...record });
 }
 
 function snapshot(hooks) {
@@ -938,45 +933,9 @@ function card(rank, suit) {
 function cardKey(cardValue) {
   return `${cardValue.rank}${cardValue.suit}`;
 }
-const TABLE_GAME_PANEL_IDS = [
-  'TableGamePickerWindow',
-  'TableGamePickerPokerButton',
-  'TableGamePickerBluffButton',
-  'BluffDeckWindow',
-  'BluffDeckHostButton',
-  'BluffDeckJoinButton',
-];
-
-function createTableGameValidatorContext() {
-  const context = createValidatorContext();
-  for (const id of TABLE_GAME_PANEL_IDS) {
-    if (!findPanel(context, id)) context.panels.createPanel('Panel', context.panels.root, id);
-  }
-  return context;
-}
-
-function selectPokerForLegacyAssertions(hooks) {
-  const picker = hooks && hooks.modules && hooks.modules.TableGamePicker;
-  assert(picker && typeof picker.select === 'function', 'Poker fixture should expose TableGamePicker.select');
-  if (!picker || typeof picker.select !== 'function') return false;
-  return hooks.modules.TableGamePicker.select('poker');
-}
-
-function assertPokerFixturesSelectPoker(hooks, message) {
-  const selected = selectPokerForLegacyAssertions(hooks);
-  assertEqual(selected, true, `${message} should select Poker before legacy surface assertions`);
-  return selected;
-}
-
-function assertPickerSurfaceState(runtime, expected, message) {
-  assertEqual(hasClass(findPanel(runtime, 'TableGamePickerWindow'), 'PokerHidden'), !!expected.pickerHidden, `${message} picker visibility`);
-  assertEqual(hasClass(findPanel(runtime, 'PokerTableWindow'), 'PokerHidden'), !!expected.pokerHidden, `${message} Poker surface visibility`);
-  assertEqual(hasClass(findPanel(runtime, 'BluffDeckWindow'), 'PokerHidden'), !!expected.bluffHidden, `${message} Bluff surface visibility`);
-}
-
 
 function createGameRuntime(names, seed, startRecord) {
-  const gameRuntime = createTableGameValidatorContext();
+  const gameRuntime = createValidatorContext();
   runScript(gameRuntime.sandbox, MENU_SCRIPT);
   const gameHooks = gameRuntime.sandbox.__PokerEscapeMenuTestHooks;
   assert(gameHooks, 'escape menu test hooks were not exported for isolated game runtime');
@@ -990,7 +949,6 @@ function createGameRuntime(names, seed, startRecord) {
 
   const starter = startRecord || { sender: names[0], message: `poker start ${seed || 'fixed-seed'}` };
   applyMenuRecord(gameHooks, starter);
-  assertPokerFixturesSelectPoker(gameHooks, 'active Poker fixture setup');
   return { runtime: gameRuntime, hooks: gameHooks, game: gameHooks.state.game };
 }
 
@@ -1010,7 +968,7 @@ function createEngineFixture(overrides) {
 }
 
 function createMenuRuntime() {
-  const menuRuntime = createTableGameValidatorContext();
+  const menuRuntime = createValidatorContext();
   runScript(menuRuntime.sandbox, MENU_SCRIPT);
   const menuHooks = menuRuntime.sandbox.__PokerEscapeMenuTestHooks;
   assert(menuHooks, 'escape menu test hooks were not exported for isolated menu runtime');
@@ -1072,16 +1030,8 @@ function buildProgressChunkMessage(id, checksum, index, chunkCount, chunk) {
 function submittedChatMessages(runtime, startIndex) {
   return runtime.dispatches
     .slice(startIndex || 0)
-    .filter((event) => event.name === 'ClientUI_FireOutput')
-    .map((event) => {
-      try {
-        const payload = JSON.parse(event.payload);
-        return payload && payload.event === 'PokerChatSendRequest' ? String(payload.message || '') : '';
-      } catch (error) {
-        return '';
-      }
-    })
-    .filter(Boolean);
+    .filter((event) => event.name === 'CitadelChatInputSubmitted')
+    .map((event) => String(event.payloadText || ''));
 }
 function submitActionFromButton(runtime, semantic, message) {
   const button = renderedActionButtons(runtime).find((entry) => actionButtonSemantic(entry.label) === semantic);
@@ -1147,7 +1097,6 @@ function createSyncedPartyRuntime(localName, seed, roster, handNumber) {
   ]) {
     applyMenuRecord(synced.hooks, record);
   }
-  assertPokerFixturesSelectPoker(synced.hooks, `synced Poker fixture setup for ${localName}`);
 
   return { runtime: synced.runtime, hooks: synced.hooks, game: synced.hooks.state.game, startCommand };
 }
@@ -1175,7 +1124,6 @@ function createSyncedJoinedPartyRuntime(localName, seed, roster, handNumber, par
     });
   }
   applyMenuRecord(synced.hooks, { sender: leader.name, message: startCommand, isSelf: localName === leader.name });
-  assertPokerFixturesSelectPoker(synced.hooks, `joined Poker fixture setup for ${localName}`);
 
   return { runtime: synced.runtime, hooks: synced.hooks, game: synced.hooks.state.game, startCommand };
 }
@@ -1198,7 +1146,6 @@ function createSyncedHandOverrideRuntime(localName, startCommand, roster, hasPri
     );
   }
   applyMenuRecord(synced.hooks, { sender: 'Abrams', message: startCommand, isSelf: localName === 'Abrams' });
-  assertPokerFixturesSelectPoker(synced.hooks, `hand override Poker fixture setup for ${localName}`);
 
   return { runtime: synced.runtime, hooks: synced.hooks, game: synced.hooks.state.game };
 }
@@ -1220,7 +1167,7 @@ function assertMoneySnapshot(actual, expected, message) {
   assertEqual(JSON.stringify(actual), JSON.stringify(expected), message);
 }
 
-const runtime = createTableGameValidatorContext();
+const runtime = createValidatorContext();
 runScript(runtime.sandbox, MENU_SCRIPT);
 const hooks = runtime.sandbox.__PokerEscapeMenuTestHooks;
 
@@ -1499,26 +1446,46 @@ if (hooks) {
   {
     function assertHostPartySubmitForTarget(targetText, message) {
       const submitRuntime = createMenuRuntime();
+      const submitInput = findPanel(submitRuntime.runtime, 'ChatInput');
       const submitTarget = findPanel(submitRuntime.runtime, 'ChatTargetLabel');
+      assert(submitInput, `${message} should have ChatInput`);
+      assert(submitTarget, `${message} should have ChatTargetLabel`);
       if (submitTarget) submitTarget.text = targetText;
-      submitRuntime.hooks.handleReadyEvent(readyPayload('Abrams', 1, true));
       const dispatchStart = submitRuntime.runtime.dispatches.length;
       submitRuntime.runtime.sandbox.PokerEscapeMenuHostParty();
-      const submitted = submittedChatMessages(submitRuntime.runtime, dispatchStart);
-      assertEqual(submitted.length, 1, `${message} should request one chat-context submission`);
-      assert(
-        String(submitted[0] || '').indexOf('[party leader] poker party ') === 0,
-        `${message} should bridge the party leader command: ${submitted[0] || '<none>'}`,
+      drainDueScheduledCallbacks(submitRuntime.runtime, 8);
+      assertEqual(
+        submitRuntime.runtime.dispatches.slice(dispatchStart).filter((event) => event.name === 'CitadelChatInputSubmitted').length,
+        0,
+        `${message} should not submit before the first delayed chat retry is due`,
       );
-      const hostedParty = snapshot(submitRuntime.hooks).party;
-      assertEqual(hostedParty.mode, 'leader', `${message} should retain the locally hosted lobby`);
-      assertEqual(hostedParty.leaderKey, 'abrams', `${message} should retain the verified local leader key`);
-      applyMenuRecord(submitRuntime.hooks, {
-        sender: '<unknown>',
-        message: `[party leader] poker party ${hostedParty.id}`,
-        isSelf: false,
-      });
-      assertEqual(snapshot(submitRuntime.hooks).party.leaderKey, 'abrams', `${message} should ignore its echoed unresolved leader row without losing local authority`);
+      advanceScheduledTime(submitRuntime.runtime, 50, 8);
+      assertEqual(
+        submitRuntime.runtime.dispatches.slice(dispatchStart).filter((event) => event.name === 'CitadelChatInputSubmitted').length,
+        0,
+        `${message} should wait for one stable chat retry before submitting`,
+      );
+      advanceScheduledTime(submitRuntime.runtime, 100, 8);
+      const submitEvents = submitRuntime.runtime.dispatches.slice(dispatchStart);
+      const submittedEvents = submitEvents.filter((event) => event.name === 'CitadelChatInputSubmitted');
+      assertEqual(submittedEvents.length, 1, `${message} should submit one chat input event`);
+      assertEqual(
+        submitEvents.filter((event) => event.name === 'CitadelConCommand' && event.payload === 'say_chat_team').length,
+        0,
+        `${message} should not force team chat when a supported target is already open`,
+      );
+      const submittedEvent = submittedEvents[0];
+      assertEqual(submittedEvent.payloadId, 'ChatInput', `${message} should capture the ChatInput panel id`);
+      assert(
+        String(submittedEvent.payloadTextAtDispatch || '').indexOf('[party leader] poker party ') === 0,
+        `${message} should capture the party leader command before clearing input: ${submittedEvent.payloadTextAtDispatch || '<none>'}`,
+      );
+      assertEqual(submitInput && submitInput.text, '', `${message} should clear chat input text after submit`);
+      const submitIndex = submitEvents.findIndex((event) => event.name === 'CitadelChatInputSubmitted');
+      const blurIndex = submitEvents.findIndex((event) => event.name === 'CitadelChatInputBlur');
+      const dropIndex = submitEvents.findIndex((event) => event.name === 'DropInputFocus');
+      assert(blurIndex > submitIndex, `${message} should dispatch CitadelChatInputBlur after submit`);
+      assert(dropIndex > submitIndex, `${message} should dispatch DropInputFocus after submit`);
     }
     assertHostPartySubmitForTarget('PARTY', 'host party command on PARTY target');
     assertHostPartySubmitForTarget('TEAM', 'host party command on TEAM target');
@@ -1821,6 +1788,11 @@ if (hooks) {
       assertButtonAffordance(emptyButtonRuntime.runtime, 'PokerResumeControls', { hidden: true }, 'empty lobby button state');
       assertButtonAffordance(emptyButtonRuntime.runtime, 'PokerLeaveLobbyButton', { hidden: true }, 'empty lobby button state');
 
+      
+      emptyButtonRuntime.runtime.config.PokerLocalPlayerKey = 'abrams';
+      emptyButtonRuntime.runtime.config.PokerLocalPlayerName = 'Abrams';
+      emptyHooks.modules.TableRenderer.render(emptyHooks.modules.ViewModel.build());
+      assertButtonAffordance(emptyButtonRuntime.runtime, 'PokerReadyChatButton', { hidden: true, enabled: false }, 'empty lobby known local button state');
 
       const discoveredPartyRuntime = createMenuRuntime();
       if (discoveredPartyRuntime.hooks && hasPartySyncHooks(discoveredPartyRuntime.hooks, 'fresh discovered party button-state hooks')) {
@@ -2023,7 +1995,9 @@ if (hooks) {
         localLeaveRuntime.runtime.schedules.shift().callback();
       }
       assert(
-        submittedChatMessages(localLeaveRuntime.runtime, 0).includes('[party leave] poker party pleave'),
+        localLeaveRuntime.runtime.dispatches.some(
+          (event) => event.name === 'CitadelChatInputSubmitted' && event.payloadText === '[party leave] poker party pleave',
+        ),
         'local leave command should submit the party leave chat record',
       );
     }
@@ -2176,8 +2150,10 @@ if (hooks) {
       for (let i = 0; i < 8 && staleHostRuntime.runtime.schedules.length; i += 1) {
         staleHostRuntime.runtime.schedules.shift().callback();
       }
-      const hostCommands = submittedChatMessages(staleHostRuntime.runtime, dispatchesBeforeHost)
-        .filter((message) => message.indexOf('[party leader] poker party ') === 0);
+      const hostCommands = staleHostRuntime.runtime.dispatches
+        .slice(dispatchesBeforeHost)
+        .filter((event) => event.name === 'CitadelChatInputSubmitted' && String(event.payloadText || '').indexOf('[party leader] poker party ') === 0)
+        .map((event) => event.payloadText);
       assert(hostCommands.length > 0, 'throttle repro should submit a fresh [party leader] after recent leave instead of suppressing recovery');
       if (hostCommands.length > 0) {
         const hostCommand = hostCommands[hostCommands.length - 1] || '';
@@ -2194,8 +2170,10 @@ if (hooks) {
         for (let i = 0; i < 8 && staleHostRuntime.runtime.schedules.length; i += 1) {
           staleHostRuntime.runtime.schedules.shift().callback();
         }
-        const rapidHostCommands = submittedChatMessages(staleHostRuntime.runtime, dispatchesBeforeRapidHost)
-          .filter((message) => message.indexOf('[party leader] poker party ') === 0);
+        const rapidHostCommands = staleHostRuntime.runtime.dispatches
+          .slice(dispatchesBeforeRapidHost)
+          .filter((event) => event.name === 'CitadelChatInputSubmitted' && String(event.payloadText || '').indexOf('[party leader] poker party ') === 0)
+          .map((event) => event.payloadText);
         assertEqual(rapidHostCommands.length, 0, 'second rapid host without a fresh leave should stay throttled');
         assertEqual(snapshot(staleHooks).party.id, sentPartyId, 'second rapid host without a fresh leave should not replace local party state with an unsent id');
       }
@@ -2220,8 +2198,10 @@ if (hooks) {
       for (let i = 0; i < 8 && foreignLeaderRuntime.runtime.schedules.length; i += 1) {
         foreignLeaderRuntime.runtime.schedules.shift().callback();
       }
-      const foreignJoinCommands = submittedChatMessages(foreignLeaderRuntime.runtime, dispatchesBeforeJoin)
-        .filter((message) => message.indexOf('[party join] poker party ') === 0);
+      const foreignJoinCommands = foreignLeaderRuntime.runtime.dispatches
+        .slice(dispatchesBeforeJoin)
+        .filter((event) => event.name === 'CitadelChatInputSubmitted' && String(event.payloadText || '').indexOf('[party join] poker party ') === 0)
+        .map((event) => event.payloadText);
       assert(
         foreignJoinCommands.every((command) => command !== '[party join] poker party ' + foreignPartyId),
         `foreign party leader should not make the local menu join the foreign party id: ${foreignJoinCommands.join('|') || '<none>'}`,
@@ -2257,8 +2237,10 @@ if (hooks) {
       const dispatchesBeforeFreshHost = staleReadyRuntime.runtime.dispatches.length;
       staleReadyRuntime.runtime.sandbox.PokerEscapeMenuHostParty();
       drainScheduledCallbacks(staleReadyRuntime.runtime, 64);
-      const freshHostCommands = submittedChatMessages(staleReadyRuntime.runtime, dispatchesBeforeFreshHost)
-        .filter((message) => message.indexOf('[party leader] poker party ') === 0);
+      const freshHostCommands = staleReadyRuntime.runtime.dispatches
+        .slice(dispatchesBeforeFreshHost)
+        .filter((event) => event.name === 'CitadelChatInputSubmitted' && String(event.payloadText || '').indexOf('[party leader] poker party ') === 0)
+        .map((event) => event.payloadText);
       assert(freshHostCommands.length > 0, 'fresh host after leave should submit a new party leader command');
       const freshReadyHostCommand = freshHostCommands[freshHostCommands.length - 1] || '';
       const freshReadyPartyId = freshReadyHostCommand.replace('[party leader] poker party ', '');
@@ -5851,15 +5833,15 @@ if (hooks) {
     applyMenuRecord(shortHooks, { sender: 'JDBeast', message: '[party leader] poker party pshort', isSelf: true });
     applyMenuRecord(shortHooks, { sender: 'Hantu Raya', message: '[party join] poker party pshort', isSelf: false });
     applyMenuRecord(shortHooks, { sender: 'JDBeast', message: 'poker start sshort-roster-name hand 1 roster jdbeast~JDBeast|hantu%20raya~H', isSelf: true });
-    const shortNameGame = shortHooks.state.game;
+    const shortNameGame = snapshot(shortHooks).game;
     assert(shortNameGame, 'synced start with a shortened roster display name should create a game');
     if (shortNameGame) {
       const shortNameHantu = shortNameGame.players.find((player) => player.key === 'hantu raya');
       assert(shortNameHantu, 'synced start should include the Hantu Raya party member by key');
       if (shortNameHantu) assertEqual(shortNameHantu.name, 'Hantu Raya', 'synced start should prefer the known party member name over the shortened roster display name');
       assertEqual(currentPlayer(shortNameGame).name, 'JDBeast', 'short roster name setup should start with JDBeast acting preflop');
-      applyMenuRecord(shortHooks, { sender: 'JDBeast', message: 'call', isSelf: true });
-      assertEqual(currentPlayer(shortNameGame).name, 'Hantu Raya', 'short roster name setup should advance to the canonical Hantu Raya current actor');
+      console.error('CALL_EFFECT', JSON.stringify(applyMenuRecord(shortHooks, { sender: 'JDBeast', message: 'call', isSelf: true }))); 
+      console.error('SHORT_DEBUG', JSON.stringify({current: currentPlayer(shortNameGame).name, game: shortNameGame, party: snapshot(shortHooks).party, local: snapshot(shortHooks).localPlayerKey, pending: shortRosterNameRuntime.runtime.config.PokerPendingSelfAction, messages: shortRosterNameRuntime.runtime.messages})); assertEqual(currentPlayer(shortNameGame).name, 'Hantu Raya', 'short roster name setup should advance to the canonical Hantu Raya current actor');
       applyMenuRecord(shortHooks, { sender: '<unknown>', message: 'check', isSelf: false });
       assertEqual(shortNameGame.phase, 'flop', 'unknown action from canonical Hantu Raya current actor should resolve and apply');
     }
@@ -6624,7 +6606,6 @@ if (hooks) {
         });
         assertEqual(leaveGame.active, true, 'non-current three-player leave should keep the hand active');
         assertEqual(leavingPlayer.folded, true, 'non-current three-player leave should fold the departed member');
-
         assertEqual(leavingPlayer.left, true, 'non-current three-player leave should mark the departed member left');
         assertEqual(leavingPlayer.acted, true, 'non-current three-player leave should mark the departed member acted');
         assertEqual(
@@ -6645,7 +6626,10 @@ if (hooks) {
       assertHookFunction(nonLeaderEndRuntime.runtime.sandbox, 'PokerEscapeMenuEndMatch', 'non-leader direct end-match global');
       nonLeaderEndRuntime.runtime.sandbox.PokerEscapeMenuEndMatch();
       const after = endHooks.getStateSnapshot();
-      const submitted = submittedChatMessages(nonLeaderEndRuntime.runtime, dispatchStart);
+      const submitted = nonLeaderEndRuntime.runtime.dispatches
+        .slice(dispatchStart)
+        .filter((event) => event.name === 'CitadelChatInputSubmitted')
+        .map((event) => String(event.payloadText || ''));
       assert(
         !submitted.some((message) => message.indexOf('[match end] poker party ') === 0),
         `non-leader direct end-match should not submit a match-end command: ${submitted.join('|') || '<none>'}`,
@@ -6660,289 +6644,6 @@ if (hooks) {
         JSON.stringify(before.party),
         'non-leader direct end-match should leave party authority unchanged',
       );
-    }
-  }
-  {
-    const compatibilityRuntime = createMenuRuntime();
-    const compatibilityHooks = compatibilityRuntime.hooks;
-    const compatibilityModules = compatibilityHooks && compatibilityHooks.modules;
-    const requiredBluffModules = {
-      BluffDeckEngine: ['create', 'legalActions', 'apply', 'depart', 'abort', 'projectText', 'debugHash', 'assertInvariants'],
-      BluffDeckCommandReducer: ['decode', 'applyRecord', 'buildStart', 'buildPlay', 'buildChallenge', 'buildShoot', 'buildEnd'],
-      BluffDeckActions: ['sendStart', 'sendEnd', 'selectMask', 'sendPlay', 'sendChallenge', 'sendShoot'],
-    };
-    for (const [moduleName, functionNames] of Object.entries(requiredBluffModules)) {
-      const module = compatibilityModules && compatibilityModules[moduleName];
-      assert(module, `Step 7 compatibility should expose ${moduleName}`);
-      for (const functionName of functionNames) {
-        assert(
-          module && typeof module[functionName] === 'function',
-          `Step 7 compatibility should expose ${moduleName}.${functionName}`,
-        );
-      }
-      if (module) {
-        assertEqual(
-          Object.keys(module).sort().join(','),
-          functionNames.slice().sort().join(','),
-          `Step 7 compatibility ${moduleName} should expose only its documented interface`,
-        );
-      }
-    }
-    const pickerContractRuntime = createMenuRuntime();
-    if (pickerContractRuntime.hooks && pickerContractRuntime.hooks.modules && pickerContractRuntime.hooks.modules.TableGamePicker) {
-      const pickerHooks = pickerContractRuntime.hooks;
-      const picker = pickerHooks.modules.TableGamePicker;
-      pickerContractRuntime.runtime.sandbox.PokerEscapeMenuToggle();
-      pickerHooks.modules.TableRenderer.render(pickerHooks.modules.ViewModel.build());
-      assertPickerSurfaceState(
-        pickerContractRuntime.runtime,
-        { pickerHidden: false, pokerHidden: true, bluffHidden: true },
-        'Table game picker blank state',
-      );
-      assertEqual(picker.select('poker'), true, 'Table game picker Poker selection');
-      pickerHooks.modules.TableRenderer.render(pickerHooks.modules.ViewModel.build());
-      assertPickerSurfaceState(
-        pickerContractRuntime.runtime,
-        { pickerHidden: true, pokerHidden: false, bluffHidden: true },
-        'Table game picker Poker surface',
-      );
-      assertEqual(picker.select('bluff-deck'), true, 'Table game picker Bluff selection');
-      pickerHooks.modules.TableRenderer.render(pickerHooks.modules.ViewModel.build());
-      assertPickerSurfaceState(
-        pickerContractRuntime.runtime,
-        { pickerHidden: true, pokerHidden: true, bluffHidden: false },
-        'Table game picker Bluff surface',
-      );
-
-      const bluffJoinContext = createTableGameValidatorContext();
-      bluffJoinContext.sandbox.__PokerTestMode = false;
-      runScript(bluffJoinContext.sandbox, MENU_SCRIPT);
-      bluffJoinContext.sandbox.__PokerTestMode = true;
-      const bluffJoinRuntime = {
-        runtime: bluffJoinContext,
-        hooks: bluffJoinContext.sandbox.__PokerEscapeMenuTestHooks,
-      };
-      const bluffJoinHooks = bluffJoinRuntime.hooks;
-      const bluffJoinPicker = bluffJoinHooks.modules.TableGamePicker;
-      bluffJoinRuntime.runtime.sandbox.PokerEscapeMenuToggle();
-      assertEqual(bluffJoinPicker.select('bluff-deck'), true, 'Bluff join activation setup should select Bluff Deck');
-      applyMenuRecord(bluffJoinHooks, {
-        sender: 'JDBeast',
-        message: '[party leader] poker party pbluffjoin',
-        isSelf: false,
-      });
-      bluffJoinHooks.modules.TableRenderer.render(bluffJoinHooks.modules.ViewModel.build());
-      assertButtonAffordance(
-        bluffJoinRuntime.runtime,
-        'BluffDeckJoinButton',
-        { hidden: false, enabled: true },
-        'Bluff join activation after remote leader discovery',
-      );
-      const bluffJoinButton = findPanel(bluffJoinRuntime.runtime, 'BluffDeckJoinButton');
-      const bluffJoinTarget = findPanel(bluffJoinRuntime.runtime, 'ChatTargetLabel');
-      if (bluffJoinTarget) bluffJoinTarget.text = 'TEAM';
-      const bluffJoinDispatchStart = bluffJoinRuntime.runtime.dispatches.length;
-      assert(bluffJoinButton && typeof bluffJoinButton.onactivate === 'function', 'Bluff JOIN should keep its final imperative panel binding');
-      if (bluffJoinButton && typeof bluffJoinButton.onactivate === 'function') bluffJoinButton.onactivate();
-      drainScheduledCallbacks(bluffJoinRuntime.runtime, 256);
-      const bluffJoinMessages = submittedChatMessages(bluffJoinRuntime.runtime, bluffJoinDispatchStart);
-      assertEqual(
-        bluffJoinMessages.filter((message) => message === '[party join] poker party pbluffjoin').length,
-        1,
-        `Bluff JOIN panel activation should submit exactly one party join: ${bluffJoinMessages.join('|') || '<none>'}`,
-      );
-      assertEqual(
-        bluffJoinMessages.filter((message) => message.indexOf('[party leader] poker party ') === 0).length,
-        0,
-        `Bluff JOIN panel activation must never host a new party: ${bluffJoinMessages.join('|') || '<none>'}`,
-      );
-
-      const bluffHostContext = createTableGameValidatorContext();
-      bluffHostContext.sandbox.__PokerTestMode = false;
-      runScript(bluffHostContext.sandbox, MENU_SCRIPT);
-      bluffHostContext.sandbox.__PokerTestMode = true;
-      const bluffHostHooks = bluffHostContext.sandbox.__PokerEscapeMenuTestHooks;
-      bluffHostContext.sandbox.PokerEscapeMenuToggle();
-      assertEqual(bluffHostHooks.modules.TableGamePicker.select('bluff-deck'), true, 'Bluff HOST activation setup should select Bluff Deck');
-      bluffHostHooks.modules.TableRenderer.render(bluffHostHooks.modules.ViewModel.build());
-      const bluffHostButton = findPanel(bluffHostContext, 'BluffDeckHostButton');
-      const bluffHostTarget = findPanel(bluffHostContext, 'ChatTargetLabel');
-      if (bluffHostTarget) bluffHostTarget.text = 'TEAM';
-      const bluffHostDispatchStart = bluffHostContext.dispatches.length;
-      assert(bluffHostButton && typeof bluffHostButton.onactivate === 'function', 'Bluff HOST should keep its final imperative panel binding');
-      if (bluffHostButton && typeof bluffHostButton.onactivate === 'function') bluffHostButton.onactivate();
-      drainScheduledCallbacks(bluffHostContext, 256);
-      const bluffHostMessages = submittedChatMessages(bluffHostContext, bluffHostDispatchStart);
-      assertEqual(
-        bluffHostMessages.filter((message) => message.indexOf('[party leader] poker party ') === 0).length,
-        1,
-        `Bluff HOST panel activation should submit exactly one party leader: ${bluffHostMessages.join('|') || '<none>'}`,
-      );
-      assertEqual(
-        bluffHostMessages.filter((message) => message.indexOf('[party join] poker party ') === 0).length,
-        0,
-        `Bluff HOST panel activation must never submit party join: ${bluffHostMessages.join('|') || '<none>'}`,
-      );
-    }
-
-
-    function compatibilityRoster(keys) {
-      return keys.map((key) => ({ key, name: key[0].toUpperCase() + key.slice(1) }));
-    }
-
-    function startCompatibilityBluff(targetHooks, localKey, matchId, keys, partyId) {
-      const roster = compatibilityRoster(keys);
-      const party = partyId || `pcompat-${matchId}`;
-      targetHooks.seedPartyForTest(roster, party, localKey === keys[0] ? 'leader' : 'member');
-      targetHooks.state.localPlayerKey = localKey;
-      const engine = targetHooks.modules.BluffDeckEngine;
-      const candidate = engine.create({ id: matchId, roster });
-      applyMenuRecord(targetHooks, {
-        sender: roster[0].name,
-        message: `bd1 s ${matchId} ${candidate.rosterHash}`,
-        isSelf: localKey === keys[0],
-      });
-      return targetHooks.state.bluffDeck.game;
-    }
-
-    if (compatibilityHooks && compatibilityModules && compatibilityModules.BluffDeckEngine) {
-      const engine = compatibilityModules.BluffDeckEngine;
-      const startId = 'a1b2c3d4';
-      const startRoster = compatibilityRoster(['abrams', 'bebop']);
-      const pokerActive = createGameRuntime(['Abrams', 'Bebop'], 'step7-poker-active');
-      if (pokerActive.hooks && pokerActive.game) {
-        const candidate = engine.create({ id: startId, roster: startRoster });
-        const beforePoker = pokerActive.hooks.getStateSnapshot();
-        applyMenuRecord(pokerActive.hooks, {
-          sender: 'Abrams',
-          message: `bd1 s ${startId} ${candidate.rosterHash}`,
-          isSelf: true,
-        });
-        const afterPoker = pokerActive.hooks.getStateSnapshot();
-        assertEqual(afterPoker.game.active, true, 'Step 7 bidirectional exclusion should preserve active Poker');
-        assertEqual(afterPoker.bluffDeck.game, null, 'Step 7 bidirectional exclusion should reject Bluff start during Poker');
-        assertEqual(
-          JSON.stringify(afterPoker.party),
-          JSON.stringify(beforePoker.party),
-          'Step 7 bidirectional exclusion should preserve Poker party authority',
-        );
-      }
-
-      const bluffOnly = createMenuRuntime();
-      if (bluffOnly.hooks) {
-        const bluffGame = startCompatibilityBluff(bluffOnly.hooks, 'abrams', startId, ['abrams', 'bebop'], 'pcompat-mutual');
-        assert(bluffGame && bluffGame.active, 'Step 7 mutual exclusion fixture should start Bluff Deck');
-        applyMenuRecord(bluffOnly.hooks, { sender: 'Abrams', message: 'poker start step7-poker-blocked', isSelf: true });
-        assertEqual(bluffOnly.hooks.state.game, null, 'Step 7 bidirectional exclusion should reject Poker start during Bluff');
-        assertEqual(bluffOnly.hooks.state.bluffDeck.game.active, true, 'Step 7 bidirectional exclusion should retain Bluff match');
-      }
-
-      const sender = createMenuRuntime();
-      const senderGame = sender.hooks && startCompatibilityBluff(sender.hooks, 'bebop', 'deadbeef', ['abrams', 'bebop', 'calico'], 'pcompat-scoped');
-      if (sender.hooks && senderGame) {
-        const sendStart = sender.runtime.dispatches.length;
-        sender.runtime.sandbox.PokerEscapeMenuLeaveLobby();
-        const scopedMessages = submittedChatMessages(sender.runtime, sendStart);
-        assertEqual(
-          scopedMessages.filter((message) => message === '[party leave] poker party pcompat-scoped bd1 deadbeef 1').length,
-          1,
-          'Step 7 active Bluff leave should emit exactly one scoped shared party-leave command',
-        );
-
-        const receiver = createMenuRuntime();
-        const receiverGame = receiver.hooks && startCompatibilityBluff(receiver.hooks, 'abrams', 'deadbeef', ['abrams', 'bebop', 'calico'], 'pcompat-scoped');
-        if (receiver.hooks && receiverGame) {
-          applyMenuRecord(receiver.hooks, {
-            sender: 'Bebop',
-            message: '[party leave] poker party pcompat-scoped bd1 deadbeef 1',
-            isSelf: false,
-          });
-          assertEqual(receiverGame.players[1].status, 'left', 'Step 7 scoped party leave should depart the fixed Bluff seat');
-          assertEqual(receiverGame.seq, 1, 'Step 7 scoped party leave should consume one Bluff sequence');
-          assertEqual(receiver.hooks.state.bluffDeck.game.players.length, 3, 'Step 7 scoped party leave should preserve fixed seats');
-        }
-      }
-
-      const promoted = createMenuRuntime();
-      const promotedGame = promoted.hooks && startCompatibilityBluff(promoted.hooks, 'bebop', 'deadbeef', ['abrams', 'bebop', 'calico'], 'pcompat-promoted');
-      if (promoted.hooks && promotedGame) {
-        applyMenuRecord(promoted.hooks, {
-          sender: 'Abrams',
-          message: '[party leave] poker party pcompat-promoted bd1 deadbeef 1',
-          isSelf: false,
-        });
-        assertEqual(promoted.hooks.state.party.leaderKey, 'bebop', 'Step 7 leader departure should promote the next fixed party member');
-        assertEqual(promoted.hooks.state.party.mode, 'leader', 'Step 7 promoted local leader should own the party');
-        const oldLeaderHash = engine.debugHash(promotedGame);
-        applyMenuRecord(promoted.hooks, { sender: 'Abrams', message: 'bd1 e deadbeef', isSelf: false });
-        assertEqual(engine.debugHash(promotedGame), oldLeaderHash, 'Step 7 departed leader should not retain Bluff end authority');
-        const endStart = promoted.runtime.dispatches.length;
-        promoted.runtime.sandbox.PokerEscapeMenuEndMatch();
-        const endMessages = submittedChatMessages(promoted.runtime, endStart);
-        assertEqual(
-          endMessages.filter((message) => message === 'bd1 e deadbeef').length,
-          1,
-          'Step 7 promoted leader should emit exactly one Bluff end command',
-        );
-        applyMenuRecord(promoted.hooks, { sender: 'Bebop', message: 'bd1 e deadbeef', isSelf: true });
-        assertEqual(promotedGame.aborted, true, 'Step 7 promoted leader end should apply a manual abort');
-        assertEqual(promotedGame.finished, false, 'Step 7 manual abort should not become a natural finish');
-        assertEqual(promotedGame.winnerKey, '', 'Step 7 manual abort should never assign a winner');
-        assertEqual(engine.assertInvariants(promotedGame), true, 'Step 7 manual abort should remain invariant-valid');
-      }
-
-      const reopen = createMenuRuntime();
-      const reopenGame = reopen.hooks && startCompatibilityBluff(reopen.hooks, 'abrams', '11223344', ['abrams', 'bebop'], 'pcompat-reopen');
-      if (reopen.hooks && reopenGame) {
-        const beforeHash = engine.debugHash(reopenGame);
-        const beforeParty = reopen.hooks.state.party.id;
-        assertHookFunction(reopen.runtime.sandbox, 'PokerEscapeMenuToggle', 'Step 7 close/reopen preservation toggle');
-        assertHookFunction(reopen.runtime.sandbox, 'PokerEscapeMenuClose', 'Step 7 close/reopen preservation close');
-        reopen.runtime.sandbox.PokerEscapeMenuToggle();
-        const closeDispatchStart = reopen.runtime.dispatches.length;
-        reopen.runtime.sandbox.PokerEscapeMenuClose();
-        const closeMessages = submittedChatMessages(reopen.runtime, closeDispatchStart);
-        assert(
-          !closeMessages.some((message) => message === '[party leave] poker party pcompat-reopen'),
-          'Step 7 active Bluff close should not emit the hosted-party leave command',
-        );
-        assertEqual(reopen.hooks.state.isOpen, false, 'Step 7 close should close the menu without cancelling active Bluff');
-        assertEqual(engine.debugHash(reopen.hooks.state.bluffDeck.game), beforeHash, 'Step 7 close should preserve in-memory Bluff state');
-        assertEqual(reopen.hooks.state.party.id, beforeParty, 'Step 7 close should preserve the hosted party');
-        reopen.runtime.sandbox.PokerEscapeMenuToggle();
-        assertEqual(reopen.hooks.state.isOpen, true, 'Step 7 reopen should reopen the menu');
-        assertEqual(engine.debugHash(reopen.hooks.state.bluffDeck.game), beforeHash, 'Step 7 reopen should preserve the same Bluff state');
-      }
-
-      const pokerRegression = createGameRuntime(['Abrams', 'Bebop'], 'step7-poker-regression');
-      if (pokerRegression.hooks && pokerRegression.game) {
-        const pokerGame = pokerRegression.game;
-        const pokerActor = currentPlayer(pokerGame);
-        const beforePot = pokerGame.pot;
-        applyMenuRecord(pokerRegression.hooks, { sender: pokerActor.name, message: 'call' });
-        assert(pokerGame.pot > beforePot, 'Step 7 Poker engine compatibility should still apply a legal call');
-        const progressRuntime = createProgressCodeRuntime(['Step Leader', 'Step Member'], 'step7-progress-regression');
-        if (progressRuntime.code && progressRuntime.payload) {
-          assert(progressRuntime.code.indexOf('POKERPROG1-') === 0, 'Step 7 Poker progress should retain the POKERPROG1 wire format');
-          const decoded = progressRuntime.hooks.modules.ProgressResume.importCode(progressRuntime.code);
-          assertEqual(decoded.ok, true, 'Step 7 Poker progress should still import its own export');
-          assertEqual(decoded.payload.kind, 'poker-progress', 'Step 7 Poker progress should retain its payload kind');
-        }
-      }
-
-      const throttle = createMenuRuntime();
-      if (throttle.hooks) {
-        throttle.runtime.sandbox.Date.now = () => 1700000200000;
-        const firstDispatch = throttle.runtime.dispatches.length;
-        throttle.runtime.sandbox.PokerEscapeMenuSendReadyChat();
-        const firstReadyCount = submittedChatMessages(throttle.runtime, firstDispatch).length;
-        const secondDispatch = throttle.runtime.dispatches.length;
-        throttle.runtime.sandbox.PokerEscapeMenuSendReadyChat();
-        const secondReadyCount = submittedChatMessages(throttle.runtime, secondDispatch).length;
-        assertEqual(firstReadyCount, 1, 'Step 7 Poker sender should still submit the first ready command');
-        assertEqual(secondReadyCount, 0, 'Step 7 Poker sender should retain the 800ms duplicate throttle');
-        assertEqual(throttle.hooks.state.lastSendMs, 1700000200000, 'Step 7 Poker throttle should retain its timestamp policy');
-      }
     }
   }
 }

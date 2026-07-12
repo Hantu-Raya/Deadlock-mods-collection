@@ -2,254 +2,154 @@
 
 ## Project Overview
 
-Deadlock Mods Collection is a Windows-first Source 2 mod workspace for Deadlock. Most modules are Panorama HUD/UI overrides (`panorama/layout`, `panorama/scripts`, `panorama/styles`) that compile to sibling `*_compiled` folders and package into `pakXX_dir.vpk` files. A smaller part of the repo transforms large VData ability files into packaged variants.
+Deadlock Mods Collection is a Windows-first workspace for Source 2/Deadlock mods. Most active modules override Panorama HUD/UI assets; the abilities lane transforms large KV3/VData files. Source is compiled, packed into `pak*_dir.vpk`, and optionally deployed to Deadlock's `citadel/addons` directory.
 
-Work in source folders, not compiled outputs. Compile/package only the target mod you changed.
+Work in source directories only. Treat `*_compiled/`, Closure staging directories, pak staging trees, VPKs, `.7z` archives, and generated diagnostics as build output unless a task explicitly targets them.
 
 ## Architecture & Data Flow
 
-- **Panorama mods**: XML includes compiled `.vjs_c`/`.vcss_c` assets; source is edited as `.js`/`.css`/`.xml`. Runtime code uses Source 2 Panorama globals: `$`, `Game`, `GameUI`, `$.Schedule`, `$.DispatchEvent`, `$.RegisterForUnhandledEvent`, panel traversal, panel attributes, and `GameUI.CustomUIConfig()`.
-- **Build flow**: `{mod}/panorama` → optional validator/minifier/staging folder → `sr2compiler/New folder.exe` → `{mod}_compiled` → `vpkeditcli.exe` → `pakXX_dir.vpk` → Deadlock `citadel/addons`.
-- **HP Colors full**: `hp_registrar.js` defines schema → `anita_ui_core.js` renders settings and emits updates → `anita_persist_loader.js` replays persisted values → `healthbar_logic.js` paints unit-status overlays.
-- **HP Colors minimal**: separate builder preset VPK (`pak96_dir.vpk`) supplies preset snapshots; minimal runtime VPK (`pak97_dir.vpk`) ships only overlay/bootstrap/runtime compatibility assets.
-- **Topbar Rank**: layout hooks call guarded wrappers in `topbar_rank_rank_bridge.js`; bridge resolves accounts/rank images/profile/player-list state. `topbar_rank_hud.js` separately manages timers, team networth advantage, and unspent souls.
-- **Buff Timer**: one scheduled runtime engine updates Rejuvenator/bridge-buff timers, minimap snapshots, claim UI, pings, and watchdog recovery.
-- **3D HUD**: stock binding IDs remain in XML so Source 2 continues feeding health data; custom JS reads those panels and overlays 3D hero/HP visuals.
-- **Recent Purchase**: quickbuy layout adds total/per-entry labels; JS polls volatile queue/sell panels, computes effective remaining cost, and writes guarded labels.
-- **Abilities**: Python mutates VData text records, compiles `.vdata_c`, stages pak03/pak04/pak05 variants, then archives dated `.7z` deliverables.
+### Panorama modules
+
+The common flow is:
+
+```text
+panorama/{layout,scripts,styles,images}
+  -> sr2compiler / resourcecompiler
+  -> <module>_compiled
+  -> vpkeditcli
+  -> pakXX_dir.vpk
+  -> Deadlock citadel/addons
+```
+
+- XML layouts are module entry points and the import seam: they include compiled `s2r://...vjs_c`/`vcss_c` assets and expose engine-fed panel IDs.
+- Runtime JavaScript uses strict IIFEs and Source 2 globals (`$`, panels, `GameUI`, `Game`). There is no normal JS module graph.
+- Cross-context communication uses `GameUI.CustomUIConfig()`, root/panel attributes, `ClientUI_FireOutput` JSON events, static stores, and observed stock chat rows.
+- Runtime state lives in singleton `State`/`UI` objects. Renderers project state into panels; reducers or command handlers own transitions.
+- `$.Schedule` drives polling, retries, and backoff in **seconds**. Long-lived loops use generation/token checks so stale callbacks stop safely.
+- Engine APIs and panels race load order. Cache panel references, validate them before use, and guard volatile calls with `try/catch`.
+
+Important lanes:
+
+- **Poker/Bluff Deck**: `poker_escape_menu.js` owns deterministic engines, party/ready/progress/resume state, reducers, and rendering. `poker_chat_debug.js` polls stock `#ChatMessages` and bridges sender-stabilized rows. Chat is the synchronization authority; never replace it with an assumed network API or grant authority to `<unknown>`.
+- **HP Colors full**: `anita_ui_core.js` owns ANITA UI, presets, persistence, and publishing; `healthbar_logic.js` consumes settings and paints stock unit-status overlays.
+- **HP Colors minimal**: a runtime-only pak consumes a separate builder preset-store VPK through the static request/snapshot bridge. Do not add full-lane UI, persistence, convars, or runtime preset-store rescans.
+- **Topbar Rank/ShowRank**: layouts load `showrank_common.js` plus the combined topbar runtime. Guarded global wrappers bridge profile, player-list, topbar, and Escape contexts.
+- **Topbar Status Buffs**: a healthbar publisher writes compact status snapshots; a topbar consumer renders them. It conflicts with other pak89 variants.
+- **Abilities**: Python performs streaming/text-span transforms over huge VData inputs. Do not introduce a full parser; transforms may mutate inputs and wrappers restore baselines.
 
 ## Key Directories
 
-- `topbar_rank/` — rank badges, topbar timers, objective-map/topbar CSS overrides, profile/player-list rank surfaces.
-- `hp_colors/` — full Anita UI + HP Colors runtime and schema validators.
-- `hp_color_debug/` — debug fork of full HP Colors with behavior parity plus extra tracing.
-- `hp_colors_minimal/` — small runtime-only HP Colors VPK; depends on separate web-builder preset VPK.
-- `hp_colors_minimal_color_debug/` — minimal runtime color-debug variant.
-- `buff_timer_virgin/` — Rejuvenator/bridge-buff timer HUD with minimap/claim/ping support.
-- `3d hud/` — static 3D hero scene HUD and custom local-player health overlay.
-- `recent_purchase/` — quickbuy queue cost/deficit HUD.
-- `abilities/scripts/` — large `abilities.vdata` / `abilities2.vdata` plus Python transforms.
-- `passive_items_mod/` — passive item mod layout and build/tool references.
-- `test/` and `api_test/` — experimental/reference/diagnostic mods. Use as comparison fixtures, not production modules.
-- `scripts/` — cross-module utilities, currently including HP preset-store VPK/XML sync.
-- `sr2compiler/` — custom .NET 9 Source 2 compile wrapper and preferences.
-- `vpk cli/` and `passive_items_mod/compiler/` — VPK packer locations used by wrappers.
-- `fps/` — performance/convar research and ETW wave tooling; require fresh evidence before recommendations.
-- `.agents/system-prompts/` — local prompt/reference corpus, not runtime mod code.
-
-Before editing a module, check its local `AGENTS.md` if present; local rules override this file.
+- `poker/` — chat-authoritative Poker and Bluff Deck ESC-menu minigames; see `poker/AGENTS.md`, `poker/CONTEXT.md`, and `poker/codemap.md` first.
+- `hp_colors/` — full ANITA UI and HP Colors runtime.
+- `hp_colors_minimal/` — minimal pak97 runtime paired with a separate pak96 builder preset.
+- `hp_color_debug/`, `hp_colors_minimal*_debug/` — diagnostic variants; follow their local contracts instead of copying them into production lanes.
+- `topbar_rank/`, `showrank/` — rank surfaces, topbar HUD, profile/player-list hooks, and build variants. Current combined code uses `showrank_common.js`; legacy `topbar_rank_rank_bridge.js` references are stale.
+- `topbar_status_buffs/` — healthbar-to-topbar status-effect bridge.
+- `buff_timer_virgin/`, `recent_purchase/`, `3d hud/` — independent Panorama HUD/shop overrides.
+- `abilities/scripts/` — mutable VData baselines and Python text transforms.
+- `scripts/` — shared packaging helpers, HP codecs/contracts, VM adapters, and preset-store utilities.
+- `sr2compiler/` — shipped Source 2 compiler wrapper, .NET runtime config, and Dota Workshop Tools preference.
+- `vpk cli/` — repository-local VPK pack/list tooling candidate.
+- `docs/` — workspace structure and API research. Use `docs/WORKSPACE_STRUCTURE.md` for source/archive layout.
+- `test/`, `api_test/` — mixed fixtures, manual diagnostics, experiments, and a few buildable probes such as `test/qollite`; inspect the local wrapper before classifying a subtree.
+- `_archive/` and generated siblings — historical or generated material, not default edit targets.
 
 ## Development Commands
 
-Run from repo root unless noted.
-
-### Generic Panorama compile
+There is no root package manifest or repo-wide command. Run the focused validator and wrapper for the module being changed.
 
 ```powershell
-$repo = "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection"
-& "$repo\sr2compiler\New folder.exe" "$repo\{mod_name}"
-```
+# Shared packaging helper self-test
+powershell -ExecutionPolicy Bypass -File scripts\validate-source2-package-pipeline.ps1
 
-The compiler may exit nonzero after successful output because of an interactive `ReadKey()` prompt. Treat required compiled files plus `0 failed` as the real signal.
+# Poker / Bluff Deck
+node poker/scripts/validate-poker.js
+node poker/scripts/validate-ready-state.js
+node poker/scripts/validate-poker-game.js
+node poker/scripts/validate-bluff-deck-game.js
+powershell -ExecutionPolicy Bypass -File build_poker.ps1
 
-### Main build/package commands
-
-```powershell
+# Full HP Colors
+node hp_colors/scripts/validate-schema.js
+node hp_colors/scripts/validate-hero-selector.js
+node hp_colors/scripts/validate-runtime-replay.js
 powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
-node hp_colors_minimal\scripts\validate-minimal.js
+
+# Minimal HP Colors
+node hp_colors_minimal/scripts/validate-minimal.js
+node --test hp_colors_minimal/scripts/validate-minimal.test.js
 powershell -ExecutionPolicy Bypass -File build_hp_colors_minimal.ps1
-powershell -ExecutionPolicy Bypass -File build_hp_color_debug.ps1
-powershell -ExecutionPolicy Bypass -File build_hp_colors_minimal_color_debug.ps1
-powershell -ExecutionPolicy Bypass -File build_hp_colors_paks.ps1 -Variant all
-powershell -ExecutionPolicy Bypass -File build_abilities_paks.ps1
-powershell -ExecutionPolicy Bypass -File build_buff_timer_virgin.ps1
-powershell -ExecutionPolicy Bypass -File build_hud_3d_heroes.ps1
-powershell -ExecutionPolicy Bypass -File build_recent_purchase.ps1
+
+# Topbar Rank / ShowRank
+npm --prefix showrank test
 powershell -ExecutionPolicy Bypass -File build_showrank_variants.ps1 -Variant all
+
+# Other production wrappers
+powershell -ExecutionPolicy Bypass -File build_topbar_status_buffs.ps1
+powershell -ExecutionPolicy Bypass -File build_buff_timer_virgin.ps1
+powershell -ExecutionPolicy Bypass -File build_recent_purchase.ps1
+powershell -ExecutionPolicy Bypass -File build_hud_3d_heroes.ps1
+powershell -ExecutionPolicy Bypass -File build_abilities_paks.ps1
 ```
 
-### Focused validators
+Use `build_abilities_paks.ps1 -RefreshFromSteamTracking` only when intentionally refreshing upstream baselines. Prefer module wrappers over direct compiler/packer calls: wrappers encode staging, Closure transforms, required/forbidden asset checks, safe cleanup, archives, and deployment.
 
-```powershell
-node hp_colors\scripts\validate-schema.js
-node hp_colors\scripts\validate-hero-selector.js
-node hp_colors\scripts\validate-runtime-replay.js
-node hp_color_debug\scripts\validate-schema.js
-node hp_color_debug\scripts\validate-hero-selector.js
-node hp_color_debug\scripts\validate-runtime-replay.js
-node hp_colors_minimal\scripts\validate-minimal.js
-node --test hp_colors_minimal\scripts\validate-minimal.test.js
-node hp_colors_minimal_color_debug\scripts\validate-minimal.js
-node --test hp_colors_minimal_color_debug\scripts\validate-minimal.test.js
-node topbar_rank\scripts\validate-topbar-rank.js
-```
-
-### Ability transforms
-
-```powershell
-cd abilities\scripts
-py passive.py abilities2.vdata
-py active.py abilities.vdata
-py active_no_behavior.py abilities.vdata
-```
-
-Prefer `build_abilities_paks.ps1` for packaged deliverables; use `build_abilities_paks.ps1 -RefreshFromSteamTracking` when pulling fresh SteamTracking ability data so both `abilities.vdata` and `abilities2.vdata` are refreshed together. Direct Python scripts may mutate input files when no output path is supplied.
+Multiple builds reuse pak slots, notably pak89, pak97, and pak98. Treat those outputs as mutually exclusive unless a wrapper explicitly combines them.
 
 ## Code Conventions & Common Patterns
 
-- JS files use IIFEs and strict mode:
+- Follow the nearest module's `AGENTS.md`/`CONTEXT.md` and existing local style; do not create a second convention.
+- Panorama JS usually uses two-space indentation, `UPPER_SNAKE_CASE` constants, and `camelCase` state/functions inside a strict IIFE:
+
   ```js
   (() => {
     "use strict";
   })();
   ```
-- Indentation is 2 spaces in JS guidance; keep local file style when editing.
-- Constants: `UPPER_SNAKE_CASE`; state/local variables: `camelCase`; cached/internal state may use `_prefix`.
-- Group panel references in a `UI` object or equivalent root-state object.
-- Always guard panel access: `if (!panel?.IsValid?.()) return;` or local equivalent.
-- Cache panel refs during boot/init. Do not call `FindChildTraverse` or tree scans inside hot scheduled loops unless no safer path exists.
-- Guard DOM writes: update text/classes/styles only when the value changed.
-- Prefer adaptive `$.Schedule` polling/backoff over fixed high-frequency loops.
-- Wrap volatile engine calls (`Game.*`, `$.*`, panel APIs racing layout load) in `try/catch` or guarded helpers.
-- CSS uses `visibility: collapse` for hidden Panorama panels and `overflow: noclip` for glows/overlays.
-- Use `pre-transform-scale2d`, not `scale3d`; avoid `clip-path`; use `style.clip` if clipping is needed.
-- Use `s2r://` compiled asset includes in XML/CSS.
-- Set `hittest="false"` on passive overlays so gameplay input is not captured.
-- Preserve stock Source 2 binding IDs/classes in XML when the engine feeds values into them.
-- For large VData, use streaming/text replacement patterns; do not introduce full parsers for the huge ability files.
 
-## Key Classes and Functions
-
-### `topbar_rank/`
-
-- `TopbarRankTopBarRootLoaded()` — installs topbar rank bridge behavior for the root topbar layout.
-- `TopbarRankRegisterTopBarPlayer()` — registers one topbar player panel for account/rank matching.
-- `TopbarRankTriggerProfileCard()` — reads profile-card context and requests rank/profile updates.
-- `TopbarRankEscapePreloadFromPlayerList()` — preloads rank evidence from Escape players-list rows.
-- `TopbarRankRegisterPlayerListRowReady()` — marks player-list rows ready for rank image population.
-- `TopbarRankHudRootLoaded()` — initializes timer/networth HUD state.
-- `RootTick()` — scheduled topbar HUD loop for game time, powerup, Rejuvenator, buff, hideout/street-brawl visibility, and networth advantage.
-- `TopbarRankHudPlayerLoaded()` — initializes per-player unspent-souls tracking.
-- `CountSpentSouls()` — sums purchased item tier costs from current `PlayerModsContainer` panels.
-- `topbar_rank/scripts/validate-topbar-rank.js` helpers (`assert`, `count`) — enforce source/layout/CSS/rank API invariants.
-
-### `hp_colors/` and variants
-
-- `hp_registrar.js: buildConfig()` — clones HP Colors setting schema into Anita config.
-- `hp_registrar.js: register()` — registers schema via direct `AnitaUI.Register` and event handshake.
-- `anita_ui_core.js: emitUpdate()` / `emitBulkUpdate()` — publish settings changes to runtime overlays.
-- `anita_ui_core.js: selectBakedPresetForHero()` — chooses hero-scoped or global baked preset.
-- `anita_ui_core.js: applyHpColorsBakedPresetOnce()` — applies selected baked preset only once per relevant context.
-- `anita_ui_core.js: publishHpPresetSnapshot()` — broadcasts compact preset payloads for runtimes.
-- `anita_persist_loader.js` bootstrap handlers — sanitize persisted compact payloads and replay defaults/stored values.
-- `healthbar_logic.js: tryCache()` — finds and caches unit-status panel refs safely.
-- `healthbar_logic.js: handleRuntimeEventPayload()` / `handleBulkRuntimeUpdate()` / `handleSingleRuntimeUpdate()` — ingest Anita updates.
-- `healthbar_logic.js: applyCurrentSettings()` — paints current unit-status visuals from coerced config.
-- `healthbar_logic.js: startEnemyLoop()` / `startAllyLoop()` / `startLevelLoop()` — scheduled overlay loops with guarded writes.
-- `healthbar_logic.js: startPulse()` / `clearPulse()` — low-HP pulse lifecycle.
-- Validator `MockPanel` classes — Node VM stand-ins for Panorama panels; track traversal, attributes, classes, and style writes.
-
-### `hp_colors_minimal/`
-
-- `anita_ui_core.js: buildHeroTables()` — builds hero alias lookup tables.
-- `detectLocalHero()` — probes local hero identity from available UI signals.
-- `selectPresetForHero()` — picks hero-specific preset first, then global fallback.
-- `readPresetEntries()` / `readPresetValues()` — extracts baked preset data from preset-store panels/raw payloads.
-- `publishPreset()` / `publishUntilReady()` — sends `HP_COLORS_PRESET_SNAPSHOT` until runtime is ready.
-- `startBoundedHeroPresetProbe()` — bounded 10s hero-detection/preset-publish probe.
-- `validate-minimal.js: getValidationReport()` — enforces minimal shipped file set and forbidden full-UI/persistence terms.
-
-### `buff_timer_virgin/`
-
-- `boot()` — resolves HUD refs and starts timer runtime.
-- `loop()` — main scheduled engine for rejuv/buff/claim/minimap/ping state.
-- `reset()` / `startRun()` — reset and phase-start helpers.
-- `collectMinimapSnapshot()` — caches minimap/player markers for later checks.
-- `computeNearestForTargets()` — finds nearest relevant targets without repeated full scans.
-- `updateNeutralPhase()` — handles neutral objective timing state.
-- `startBuff()` / `endBuff()` — bridge buff lifecycle.
-- `showClaimIndicator()` — displays claim/contest UI.
-- `handleRejuvPingActivate()` / `handleBuffPingActivate()` — sends team-chat timer pings.
-- `fmt()` / `fmtCompact()` — timer formatting helpers.
-
-### `3d hud/`
-
-- `buildTables()` — constructs hero alias/scene lookup tables.
-- `detectHero()` and probe helpers — determine local hero from runtime UI signals.
-- `evaluateLobbyStatus()` — controls lobby/match scene visibility.
-- `resolveHealthPanels()` — caches stock health binding panels.
-- `readHealthState()` — reads current/max/deferred/damage/heal values.
-- `writeHealthLabels()` — writes custom HP text.
-- `writeHealthClips()` — updates clipped custom HP layers.
-- `heldDamageClip()` / `resolveDeferredDamageClip()` / `resolveHealClip()` — compute visual clip regions.
-- `healthLoop()` — scheduled local-player health overlay update.
-
-### `recent_purchase/`
-
-- `canon()` — canonicalizes item names for matching.
-- `parseCost()` — parses soul costs from panel text.
-- `formatSouls()` — displays compact soul values.
-- `getItems()` / `getSellCredit()` — reads quickbuy and queued sell state.
-- `compute()` — calculates effective remaining costs after recipe deductions and sell credit.
-- `applyLabels()` — writes total/per-entry labels with guards.
-- `sendQuickbuyChatMessage()` / `trySubmitTeamChat()` / `isTeamChatReady()` — opens/verifies/submits team-chat need messages.
-- `tick()` — 50ms quickbuy polling loop.
-
-### `abilities/scripts/`
-
-- `active.py: iter_record_spans()` — walks VData record blocks without loading a full parser.
-- `active.py: add_passive_item_flag()` — toggles passive-area flags and optional active behavior/targeting mutations.
-- `active.py: append_behavior_bits()` / `remove_behavior_bits()` — edits `m_AbilityBehaviorsBits` idempotently.
-- `active.py: set_targeting_location()` / `remove_targeting_location()` — manages `m_eAbilityTargetingLocation`.
-- `active.py: verify_behavior_state()` / `find_behavior_state_issues()` — validates active yes/no-behavior expectations.
-- `passive.py: add_passive_item_flag()` — simpler passive upgrade allow/deny transform for `abilities2.vdata`.
-- `active_no_behavior.py` — calls `active.add_passive_item_flag(..., enable_behavior_bits=False)`.
-
-### Build and utility scripts
-
-- `scripts/sync_hp_preset_store.js: readVpk()` — parses single-file VPK v2 tree/data.
-- `readSource2DataBlock()` — locates Source 2 `DATA` blocks.
-- `extractPanoramaLayoutSource()` — decodes compiled layout XML from `.vxml_c`.
-- `extractPresetStore()` / `injectPresetStore()` — copies `HPColorsPresetStore` into full HP Colors `base_hud.xml`.
-- PowerShell helpers commonly named `Require-Path`, `Assert-UnderRoot`, `Remove-TreeUnderRoot`, `Invoke-*Compiler`, `Stage-*`, `Compress-*` — validate paths, clean staging, compile, pack, and archive safely.
+- XML IDs are semantic/Pascal-style and act as runtime API. Keep XML IDs, JS lookup tables/global handlers, CSS classes, and validators synchronized.
+- Cache panels at boot or first discovery. Avoid repeated full-tree scans in hot scheduled loops.
+- Guard writes with change detection or render caches; do not repeatedly assign unchanged text, classes, attributes, or styles.
+- Use `visibility: collapse` to hide Panorama panels, `overflow: noclip` for overlays/glows, and `hittest="false"` for passive surfaces. Prefer supported Source 2 CSS such as `pre-transform-scale2d`; avoid browser-only CSS assumptions.
+- Preserve stock binding IDs/classes when the engine populates them.
+- Treat identity, session IDs, revisions, epochs, generations, and nonces as authority boundaries. Reject stale or mismatched state instead of guessing.
+- Error handling differs by boundary: runtime panel/engine races are guarded and often logged; build scripts fail hard on missing inputs, unsafe paths, absent outputs, or VPK asset-contract violations.
+- Source asset references use `.vtex`; packed VPKs contain `.vtex_c`.
 
 ## Important Files
 
-- `README.md` — human project overview and mod-loading guidance.
-- `CLAUDE.md` and module `AGENTS.md` / `CLAUDE.md` / `design.md` files — module invariants and assistant workflow rules.
-- `.fallowrc.json` — Fallow static-analysis config and dynamic entry settings.
-- `sr2compiler/pref.json` — Dota Workshop Tools location used by the compile wrapper.
-- `sr2compiler/New folder.runtimeconfig.json` — .NET 9 runtime constraint for compile wrapper.
-- `build_*.ps1` — module-specific build/package/deploy contracts.
-- `hp_colors/scripts/validate-*.js`, `hp_colors_minimal/scripts/validate-*`, `topbar_rank/scripts/validate-topbar-rank.js` — source invariant gates.
-- `abilities/scripts/abilities.vdata`, `abilities/scripts/abilities2.vdata` — huge mutable VData inputs.
-- `test/topbar/` — legacy/reconstructed topbar reference; useful for visual parity, not production code.
+- `README.md` — human-facing mod overview and loading guidance; wrappers and module docs are more authoritative for development.
+- `docs/WORKSPACE_STRUCTURE.md` — source, generated-output, and archive layout.
+- `CONTEXT-MAP.md` — index of available domain context documents.
+- `scripts/source2_package_pipeline.ps1` — root-bounded cleanup, compiler handling, VPK packing/listing/assertions, and 7-Zip helpers.
+- `scripts/hp-colors-validator-contract.js` — current shared HP schema/runtime validation contract; avoid duplicating setting counts in this guide.
+- `scripts/hp-colors-panorama-test-adapter.js` — reusable Panorama VM/panel/scheduler harness.
+- `scripts/hp-colors-preset-codec.js` — Node-side HP preset codec and compatibility logic.
+- `sr2compiler/pref.json` — Dota Workshop Tools install preference.
+- `sr2compiler/New folder.runtimeconfig.json` — compiler wrapper .NET runtime requirement.
+- `build_*.ps1` — authoritative module-specific compile/package/deploy workflows.
+- `abilities/scripts/abilities.vdata`, `abilities/scripts/abilities2.vdata` — large mutable ability inputs used by the main abilities build.
 
 ## Runtime/Tooling Preferences
 
-- OS/path assumptions are Windows-specific. Many scripts target `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons`.
-- Use PowerShell wrappers for build/deploy work; they encode required output and forbidden asset checks.
-- Node is used directly for validators. There is no root package manifest or repo-wide npm script set.
-- `npx --yes terser` is used by build wrappers for staged JS minification.
-- Python launcher `py` is used for abilities transforms.
-- Source 2 compile requires `sr2compiler/New folder.exe` and Dota 2 Workshop Tools configured by `sr2compiler/pref.json`.
-- VPK packaging uses `vpkeditcli.exe`, usually from `passive_items_mod/compiler/`, `vpk cli/`, or release fallback paths.
-- 7-Zip is used for dated deploy archives.
-- Do not edit or validate compiled folders as source. Regenerate them from source.
+- The automated workflow is Windows PowerShell-first. Paths commonly target Deadlock under `G:\SteamLibrary\steamapps\common\Deadlock` and Dota Workshop Tools under `E:\SteamLibrary\steamapps\common\dota 2 beta`; build parameters/config are authoritative when local installs differ.
+- Required tooling varies by wrapper: Node, PowerShell, .NET 9, Dota 2 Workshop Tools/resourcecompiler, `vpkeditcli.exe`, 7-Zip, and the Python launcher for abilities.
+- There is no root package manager. Node validators run directly. Closure builds invoke `npx --yes google-closure-compiler`; do not assume dependencies are pinned locally.
+- `sr2compiler/New folder.exe` may exit nonzero after successful redirected execution because its final `Console.ReadKey` cannot read stdin. Required compiled outputs plus the compiler's `0 failed` summary are the success signal.
+- `scripts/source2_package_pipeline.ps1` may choose among configured VPK-tool candidates; do not hardcode a different tool path when the wrapper already resolves one.
+- Never hand-edit compiled assets, VPKs, staging directories, or archives. Build wrappers may delete/recreate them.
 
 ## Testing & QA
 
-- No repo-wide lint/test command is defined. Use focused validators and module build wrappers.
-- Always run the validator for the module you changed when one exists.
-- After `.js`, `.css`, or `.xml` edits, compile the target mod and confirm the expected compiled `.vjs_c`, `.vcss_c`, or `.vxml_c` exists.
-- For deployable changes, pack the target VPK and confirm it exists both in the repo and Deadlock addons path.
-- Validators are mostly static/VM checks; they do not prove in-game rendering, panel lifecycle, API image loading, or Source 2 timing.
-- Manual runtime smoke for Panorama changes:
-  1. Launch Deadlock with `-dev -tools`.
-  2. Open Panorama debugger (`F7`) or VConsole (`F8`).
-  3. Run `panorama_reload_layout`.
-  4. Check for script/style errors and verify changed panels visually.
-- For HP Colors, verify first paint, hero detection, preset replay, late panel creation, no VConsole errors, and no build-only validator assets in VPKs.
-- For Topbar Rank, verify rank images, Escape → Players rank evidence, objective map visibility, timer alignment, and hideout/street-brawl hiding.
-- For abilities, verify behavior-bit state after transforms and inspect the staged pak variant, not only Python stdout.
-- For FPS/convar work, rely on ETW wave traces and clean-window P99/P95/max frame data; do not recommend old rejected convars without newer evidence.
+- Most checks are direct Node scripts using `assert`, VM mocks, or Node's built-in `node:test`; there is no root Jest/Vitest setup and no repo-wide coverage target.
+- Shared Node tests include `scripts/hp-colors-*.test.js`. ShowRank's local `package.json` provides its own chained `npm test`; this does not apply to the repository root.
+- Static validators prove source/layout/style/token/asset contracts. VM validators prove behavior only inside synthetic Panorama mocks.
+- After changing deployable JS/XML/CSS/images/VTex:
+  1. run every focused validator for that module;
+  2. run the module build wrapper;
+  3. confirm required compiled/VPK assets and forbidden raw assets;
+  4. perform an in-game Panorama smoke test for rendering, timing, chat, or cross-client behavior.
+- Poker changes require all four Poker/Bluff validators and `build_poker.ps1`; multiplayer/chat authority still requires a real multi-client smoke where relevant.
+- HP Colors changes should pair schema checks with hero/runtime replay checks. Minimal lanes also run their `node --test` suites.
+- FPS/convar recommendations require fresh ETW/PerfView evidence; do not rely on old traces.
+- Keep tests deterministic, isolated, and full-suite safe. Test observable transitions, authority boundaries, precedence, invalid/stale input, and real error paths—not source-text implementation details.

@@ -3,13 +3,6 @@
 
   const LOG_PREFIX = "[PokerMenu]";
   const TEST_READY_MESSAGE = "ready";
-  const CHAT_RETRY_DELAYS = [0.05, 0.1, 0.2, 0.35, 0.6, 1.0];
-  const CHAT_TARGET_LABELS = {
-    placeholder: "#citadel_chat_placeholder",
-    all: "#citadel_chat_all",
-    party: "#citadel_chat_party",
-    team: "#citadel_chat_team",
-  };
   const BridgeContract = {
     clientOutputEvent: "ClientUI_FireOutput",
     readyEvent: "PokerReadySeatsChanged",
@@ -17,6 +10,10 @@
     readyClearRequestEvent: "PokerReadySeatsClearRequest",
     chatEvent: "PokerChatMessage",
     chatSnapshotRequestEvent: "PokerChatSnapshotRequest",
+    chatSendRequestEvent: "PokerChatSendRequest",
+    bluffDeckFastPollRequestEvent: "BluffDeckFastPollRequest",
+    bluffDeckSendStatusEvent: "BluffDeckSendStatus",
+    bluffDeckSendCancelRequestEvent: "BluffDeckSendCancelRequest",
     keys: {
       readySeats: "PokerReadySeats",
       readyRevision: "PokerReadyRevision",
@@ -28,6 +25,8 @@
       pendingSelfAction: "PokerPendingSelfAction",
       partyState: "PokerPartyState",
       progressState: "PokerProgressState",
+      bluffDeckMatchState: "BluffDeckMatchState",
+      tableGameFastPollUntil: "TableGameFastPollUntil",
     },
   };
   const CLIENT_OUTPUT_EVENT = BridgeContract.clientOutputEvent;
@@ -41,6 +40,8 @@
   const LOCAL_PLAYER_KEY = BridgeContract.keys.localPlayerKey;
   const LOCAL_PLAYER_NAME_KEY = BridgeContract.keys.localPlayerName;
   const PENDING_SELF_ACTION_KEY = BridgeContract.keys.pendingSelfAction;
+  const BLUFF_DECK_MATCH_STATE_KEY = BridgeContract.keys.bluffDeckMatchState;
+  const TABLE_GAME_FAST_POLL_UNTIL_KEY = BridgeContract.keys.tableGameFastPollUntil;
   const PARTY_STATE_KEY = BridgeContract.keys.partyState;
   const PROGRESS_STATE_KEY = BridgeContract.keys.progressState;
   const METRICS_KEY = "PokerRuntimeMetrics";
@@ -70,6 +71,9 @@
   const ACTION_BET_EXTRA = 300;
   const MAX_GAME_LOG_ENTRIES = 12;
   const PENDING_SELF_ACTION_TTL_MS = 5000;
+  const BLUFF_PREPARE_DEADLINE_MS = 3500;
+  const BLUFF_ECHO_DEADLINE_MS = 3000;
+  let bluffRequestSerial = 0;
   const STATUS_LOCK_MS = 1600;
   const STATUS_PRIORITY = {
     ready: 10,
@@ -83,7 +87,7 @@
 
   const IDS = {
     rootButton: "PokerMenuButton", panel: "PokerAnitaPanel", tableWindow: "PokerTableWindow", lobbyWindow: "PokerLobbyWindow",
-    playersWindow: "PokerPlayersWindow", historyWindow: "PokerHistoryWindow", actionsWindow: "PokerActionsWindow", closeButton: "PokerCloseButton",
+    playersWindow: "PokerPlayersWindow", historyWindow: "PokerHistoryWindow", actionsWindow: "PokerActionsWindow", closeButton: "PokerCloseButton", backButton: "PokerBackButton",
     readyChatButton: "PokerReadyChatButton", startButton: "PokerStartButton", startButtonLabel: "PokerStartButtonLabel", endButton: "PokerEndMatchButton",
     leaveLobbyButton: "PokerLeaveLobbyButton", readyCount: "PokerReadyCountLabel", seatsList: "PokerSeatsList", status: "PokerStatusLabel",
     pot: "PokerPotLabel", potCenter: "PokerPotCenter", potCenterAmount: "PokerPotCenterAmount", potChips: "PokerPotChips",
@@ -95,11 +99,18 @@
     exportProgressButton: "PokerExportProgressButton", importProgressButton: "PokerImportProgressButton", progressCodeInput: "PokerProgressCodeInput", progressCodeLabel: "PokerProgressCodeLabel",
     resumeControls: "PokerResumeControls", resumeLeaderButton: "PokerResumeLeaderButton", resumeReadyButton: "PokerResumeReadyButton", resumeStatus: "PokerResumeStatusLabel",
     resumeLeaderList: "PokerResumeLeaderList",
+    pickerWindow: "TableGamePickerWindow", pickerWarning: "TableGamePickerWarning", pickerPokerButton: "TableGamePickerPokerButton", pickerPokerLabel: "TableGamePickerPokerLabel", pickerBluffButton: "TableGamePickerBluffButton", pickerBluffLabel: "TableGamePickerBluffLabel",
+    bluffWindow: "BluffDeckWindow", bluffCardTable: "BluffDeckCardTable", bluffTableSeats: "BluffDeckTableSeats", bluffCloseButton: "BluffDeckCloseButton", bluffBackButton: "BluffDeckBackButton", bluffHeader: "BluffDeckHeaderLabel", bluffHostButton: "BluffDeckHostButton", bluffJoinButton: "BluffDeckJoinButton",
+    bluffLeaveButton: "BluffDeckLeaveButton", bluffStartButton: "BluffDeckStartButton", bluffEndButton: "BluffDeckEndButton",
+    bluffTarget: "BluffDeckTargetLabel", bluffTargetCard: "BluffDeckTargetCard", bluffTurn: "BluffDeckTurnLabel", bluffPrevious: "BluffDeckPreviousPlayLabel", bluffHand: "BluffDeckHandLabel",
+    bluffPlayedCards: "BluffDeckPlayedCards", bluffOpponents: "BluffDeckOpponentList", bluffSlots: "BluffDeckCardSlots", bluffAction: "BluffDeckActionLabel", bluffPlayButton: "BluffDeckPlayButton",
+    bluffChallengeButton: "BluffDeckChallengeButton", bluffPending: "BluffDeckPendingLabel", bluffResult: "BluffDeckResultLabel", bluffLog: "BluffDeckLog",
+    bluffStatus: "BluffDeckStatusLabel", bluffSlot0: "BluffDeckSlot0", bluffSlot1: "BluffDeckSlot1", bluffSlot2: "BluffDeckSlot2", bluffSlot3: "BluffDeckSlot3", bluffSlot4: "BluffDeckSlot4",
   };
 
   const PANEL_BINDINGS = [
     ["menuButton", "rootButton"], ["panel", "panel"], ["tableWindow", "tableWindow"], ["lobbyWindow", "lobbyWindow"],
-    ["playersWindow", "playersWindow"], ["historyWindow", "historyWindow"], ["actionsWindow", "actionsWindow"], ["closeButton", "closeButton"],
+    ["playersWindow", "playersWindow"], ["historyWindow", "historyWindow"], ["actionsWindow", "actionsWindow"], ["closeButton", "closeButton"], ["backButton", "backButton"],
     ["readyChatButton", "readyChatButton"], ["startButton", "startButton"], ["startButtonLabel", "startButtonLabel"], ["endButton", "endButton"],
     ["leaveLobbyButton", "leaveLobbyButton"], ["partyControls", "partyControls"], ["partyHostButton", "partyHostButton"], ["partyJoinButton", "partyJoinButton"],
     ["partyStatus", "partyStatus"], ["progressControls", "progressControls"], ["exportProgressButton", "exportProgressButton"], ["importProgressButton", "importProgressButton"],
@@ -108,6 +119,13 @@
     ["seatsList", "seatsList"], ["status", "status"], ["pot", "pot"], ["potCenter", "potCenter"], ["potCenterAmount", "potCenterAmount"], ["potChips", "potChips"], ["phase", "phase"],
     ["tableSurface", "tableSurface"], ["announcer", "announcer"], ["announcerTitle", "announcerTitle"], ["announcerBody", "announcerBody"],
     ["community", "community"], ["players", "players"], ["tableSeats", "tableSeats"], ["actions", "actions"], ["log", "log"],
+    ["pickerWindow", "pickerWindow"], ["pickerWarning", "pickerWarning"], ["pickerPokerButton", "pickerPokerButton"], ["pickerPokerLabel", "pickerPokerLabel"], ["pickerBluffButton", "pickerBluffButton"], ["pickerBluffLabel", "pickerBluffLabel"],
+    ["bluffWindow", "bluffWindow"], ["bluffCardTable", "bluffCardTable"], ["bluffTableSeats", "bluffTableSeats"], ["bluffCloseButton", "bluffCloseButton"], ["bluffBackButton", "bluffBackButton"], ["bluffHeader", "bluffHeader"], ["bluffHostButton", "bluffHostButton"], ["bluffJoinButton", "bluffJoinButton"],
+    ["bluffLeaveButton", "bluffLeaveButton"], ["bluffStartButton", "bluffStartButton"], ["bluffEndButton", "bluffEndButton"], ["bluffTarget", "bluffTarget"], ["bluffTargetCard", "bluffTargetCard"],
+    ["bluffTurn", "bluffTurn"], ["bluffPrevious", "bluffPrevious"], ["bluffHand", "bluffHand"], ["bluffPlayedCards", "bluffPlayedCards"], ["bluffOpponents", "bluffOpponents"], ["bluffSlots", "bluffSlots"],
+    ["bluffAction", "bluffAction"], ["bluffPlayButton", "bluffPlayButton"], ["bluffChallengeButton", "bluffChallengeButton"], ["bluffPending", "bluffPending"],
+    ["bluffResult", "bluffResult"], ["bluffLog", "bluffLog"], ["bluffStatus", "bluffStatus"], ["bluffSlot0", "bluffSlot0"], ["bluffSlot1", "bluffSlot1"],
+    ["bluffSlot2", "bluffSlot2"], ["bluffSlot3", "bluffSlot3"], ["bluffSlot4", "bluffSlot4"],
   ];
   const BOOT_REQUIRED_PANELS = ["menuButton", "panel", "tableWindow", "lobbyWindow", "playersWindow", "actionsWindow", "readyChatButton", "partyHostButton", "partyJoinButton", "startButton", "seatsList", "players", "tableSeats"];
 
@@ -148,6 +166,11 @@
 
   const State = {
     isOpen: false,
+    selectedTableGame: "",
+    tablePickerRequested: false,
+    pickerSourceGame: "",
+    pendingTableSwitch: "",
+    terminalTableGame: "",
     eventsBound: false,
     readyRevision: -1,
     readyCountValue: 0,
@@ -192,6 +215,13 @@
     localPlayerKey: "",
     bankrolls: {},
     game: null,
+    bluffDeck: {
+      game: null,
+      selectedMask: 0,
+      pending: null,
+      transcript: [],
+      revision: 0,
+    },
     party: {
       id: "",
       mode: "none",
@@ -208,22 +238,19 @@
     pendingPartyLeader: null,
     pendingLeaderLeaveAfterMatchEnd: null,
     resumeRequiresHostedParty: false,
+    progressSharePartyId: "",
+    progressShareRequested: false,
   };
   State.root = null;
   for (let i = 0; i < PANEL_BINDINGS.length; i += 1) State[PANEL_BINDINGS[i][0]] = null;
-  State.chat = null;
-  State.chatInput = null;
-  State.chatTargetLabel = null;
   function isValid(panel) {
     return !!(panel && (!panel.IsValid || panel.IsValid()));
   }
-
   function log(message) {
     try {
       $.Msg(LOG_PREFIX + " " + message);
     } catch (e) {}
   }
-
   function isTestMode() {
     try {
       return !!globalThis.__PokerTestMode;
@@ -231,17 +258,14 @@
       return false;
     }
   }
-
   function shouldRunMenuWork() {
     return State.isOpen || isTestMode();
   }
-
   function getRoot(panel) {
     let cursor = panel;
     while (cursor && cursor.GetParent && cursor.GetParent()) cursor = cursor.GetParent();
     return cursor || panel;
   }
-
   function findChild(root, id) {
     if (!isValid(root) || typeof root.FindChildTraverse !== "function") return null;
     try {
@@ -251,7 +275,6 @@
       return null;
     }
   }
-
   function getConfig() {
     try {
       if (typeof GameUI !== "undefined" && GameUI.CustomUIConfig) return GameUI.CustomUIConfig();
@@ -263,7 +286,53 @@
       return {};
     }
   }
-
+  let bluffDeckHydrationCandidate = null;
+  function getBluffDeckMatchState() {
+    try {
+      const stored = getConfig()[BLUFF_DECK_MATCH_STATE_KEY];
+      if (!stored || typeof stored !== "object") return null;
+      const sourceChatSeq = Number(stored.sourceChatSeq);
+      if (stored.version !== 1 || !Number.isInteger(sourceChatSeq) || sourceChatSeq < 0 || !stored.game) {
+        delete getConfig()[BLUFF_DECK_MATCH_STATE_KEY];
+        return null;
+      }
+      return { version: 1, sourceChatSeq: sourceChatSeq, game: stored.game };
+    } catch (e) {
+      try { delete getConfig()[BLUFF_DECK_MATCH_STATE_KEY]; } catch (ignored) {}
+      return null;
+    }
+  }
+  function saveBluffDeckMatchState(sourceChatSeq) {
+    const game = State.bluffDeck && State.bluffDeck.game;
+    if (!game) return false;
+    try {
+      BluffDeckEngine.assertInvariants(game);
+      const seq = Number(sourceChatSeq);
+      if (!Number.isInteger(seq) || seq < 0) return false;
+      const stored = { version: 1, sourceChatSeq: seq, game: copyForTest(game) };
+      getConfig()[BLUFF_DECK_MATCH_STATE_KEY] = stored;
+      State.bluffDeck.revision += 1;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  function clearBluffDeckMatchState() {
+    bluffDeckHydrationCandidate = null;
+    try {
+      delete getConfig()[BLUFF_DECK_MATCH_STATE_KEY];
+    } catch (e) {}
+    if (State.bluffDeck) {
+      State.bluffDeck.game = null;
+      resetBluffDeckTranscript();
+    }
+    return true;
+  }
+  function getActiveTableGameType() {
+    if (State.game && State.game.active) return "poker";
+    if (State.bluffDeck.game && State.bluffDeck.game.active) return "bluff-deck";
+    return "";
+  }
   function metricsEnabled() {
     try {
       return !!(isTestMode() || globalThis.__PokerMetricsEnabled);
@@ -271,7 +340,6 @@
       return false;
     }
   }
-
   function getMetricsStore() {
     const config = getConfig();
     config[METRICS_KEY] = config[METRICS_KEY] || { counters: {}, timings: {} };
@@ -653,7 +721,6 @@
     return !!(player && player.left);
   }
 
-
   function buildProgressPayload(gameOverride) {
     const game = gameOverride || State.game;
     if (!game || !game.finished || game.active) return { ok: false, status: "Finish the current hand before copying progress." };
@@ -711,22 +778,6 @@
     return match ? match[1].toLowerCase() : "";
   }
 
-  function buildFreshProgressSaveCode(gameOverride) {
-    const built = buildProgressPayload(gameOverride);
-    if (!built.ok) return built;
-    const payload = built.payload;
-    const checksum = hashString(canonicalProgressPayload(payload)) >>> 0;
-    const wrapper = { checksum: checksum, payload: payload };
-    const bytes = textToUtf8Bytes(JSON.stringify(wrapper));
-    const encrypted = cryptProgressBytes(bytes, PROGRESS_CODE_SECRET + "|" + checksum);
-    return {
-      ok: true,
-      code: PROGRESS_CODE_PREFIX + "-" + checksumHex(checksum) + "-" + encodeBase64UrlBytes(encrypted),
-      id: getResumeId(payload),
-      payload: payload,
-    };
-  }
-
   function buildProgressSaveCode(gameOverride) {
     const shareKey = getProgressShareKey(gameOverride);
     if (shareKey && State.progressShare && State.progressShare.key === shareKey && State.progressShare.code) {
@@ -735,18 +786,29 @@
         return { ok: true, code: State.progressShare.code, id: State.progressShare.id, payload: decoded.payload };
       }
     }
-    const built = buildFreshProgressSaveCode(gameOverride);
-    if (built.ok && shareKey) {
+    const built = buildProgressPayload(gameOverride);
+    if (!built.ok) return built;
+    const payload = built.payload;
+    const checksum = hashString(canonicalProgressPayload(payload)) >>> 0;
+    const wrapper = { checksum: checksum, payload: payload };
+    const encrypted = cryptProgressBytes(textToUtf8Bytes(JSON.stringify(wrapper)), PROGRESS_CODE_SECRET + "|" + checksum);
+    const result = {
+      ok: true,
+      code: PROGRESS_CODE_PREFIX + "-" + checksumHex(checksum) + "-" + encodeBase64UrlBytes(encrypted),
+      id: getResumeId(payload),
+      payload: payload,
+    };
+    if (shareKey) {
       State.progressShare = {
         key: shareKey,
-        code: built.code,
-        id: built.id,
-        checksum: checksumFromProgressCode(built.code),
+        code: result.code,
+        id: result.id,
+        checksum: checksumHex(checksum),
         chunkCount: 0,
         sent: false,
       };
     }
-    return built;
+    return result;
   }
 
   function decodeProgressSaveCode(code) {
@@ -767,25 +829,6 @@
     } catch (e) {
       return { ok: false, status: "Invalid progress code." };
     }
-  }
-
-
-
-  function splitProgressCodeForChat(code) {
-    const text = String(code || "");
-    const chunks = [];
-    for (let i = 0; i < text.length; i += PROGRESS_SHARE_CHUNK_SIZE) {
-      chunks.push(text.slice(i, i + PROGRESS_SHARE_CHUNK_SIZE));
-    }
-    return chunks;
-  }
-
-  function buildProgressOfferCommand(id, checksum, chunkCount) {
-    return PROGRESS_OFFER_PREFIX + " poker progress " + id + " " + checksum + " " + chunkCount;
-  }
-
-  function buildProgressChunkCommand(id, checksum, index, chunkCount, chunk) {
-    return PROGRESS_CHUNK_PREFIX + " poker progress " + id + " " + checksum + " " + index + "/" + chunkCount + " " + chunk;
   }
 
   function getResumeState() {
@@ -883,11 +926,9 @@
     return "p" + Date.now().toString(36) + "-" + hashString(sender || "leader").toString(36);
   }
 
-
   function buildMatchEndCommand(game, partyId) {
     return MATCH_END_PREFIX + " poker party " + partyId + " seed " + ((game && game.seed) || "") + " hand " + ((game && game.handNumber) || 0);
   }
-
 
   function resolveUnknownMatchEndRecord(record, matchEnd, party) {
     if (!record || record.isSelf || !isUnknownSender(record.sender)) return record;
@@ -924,7 +965,6 @@
     log("resolved unknown party leave sender after authenticated match end to " + resolved.sender);
     return resolved;
   }
-
 
   function ensureParty() {
     if (!State.party || typeof State.party !== "object") State.party = defaultPartyState();
@@ -1006,7 +1046,6 @@
     return true;
   }
 
-
   function forgetReadySeat(key) {
     const normalized = normalizePlayerKey(key);
     if (!normalized) return false;
@@ -1070,19 +1109,19 @@
     leaveLobby: "leave-lobby",
     hostClose: "host-close",
   };
-
   const RESET_FIELD_SETS = {
     "host-close": ["party"],
-    "remote-match-end": ["game"],
-    "snapshot-match-end": ["game", "pendingLeaderLeaveAfterMatchEnd", "party"],
-    "two-player-active-leave": ["party", "game", "bankrolls", "resumeRequiresHostedParty", "pendingPartyLeader", "pendingLeaderLeaveAfterMatchEnd"],
-    "leader-or-self-leave": ["party", "game", "bankrolls", "resumeRequiresHostedParty", "pendingPartyLeader", "pendingLeaderLeaveAfterMatchEnd"],
-    "leave-lobby": ["party", "game", "resumeRequiresHostedParty", "pendingLeaderLeaveAfterMatchEnd"],
-    "end-match": ["game"],
+    "remote-match-end": ["game", "bluffDeck"],
+    "snapshot-match-end": ["game", "pendingLeaderLeaveAfterMatchEnd", "party", "bluffDeck"],
+    "two-player-active-leave": ["party", "game", "bankrolls", "resumeRequiresHostedParty", "pendingPartyLeader", "pendingLeaderLeaveAfterMatchEnd", "bluffDeck"],
+    "leader-or-self-leave": ["party", "game", "bankrolls", "resumeRequiresHostedParty", "pendingPartyLeader", "pendingLeaderLeaveAfterMatchEnd", "bluffDeck"],
+    "leave-lobby": ["party", "game", "resumeRequiresHostedParty", "pendingLeaderLeaveAfterMatchEnd", "bluffDeck"],
+    "end-match": ["game", "bluffDeck"],
   };
   const RESET_FIELD_DEFAULTS = {
     party: () => defaultPartyState(),
     game: () => null,
+    bluffDeck: () => ({ game: null, selectedMask: 0, pending: null, transcript: [], revision: State.bluffDeck.revision + 1 }),
     bankrolls: () => ({}),
     resumeRequiresHostedParty: () => true,
     pendingPartyLeader: () => null,
@@ -1090,19 +1129,23 @@
   };
   function resetPartyState(resetCase, reason) {
     const fields = RESET_FIELD_SETS[resetCase] || [];
+    const preserveActiveBluff = !!(State.bluffDeck && State.bluffDeck.game
+      && (State.bluffDeck.game.active || resetCase === LOBBY_RESET_CASES.leaderOrSelfLeave));
     for (let i = 0; i < fields.length; i += 1) {
       const field = fields[i];
+      if (field === "bluffDeck" && preserveActiveBluff) {
+        State.bluffDeck.selectedMask = 0;
+        State.bluffDeck.pending = null;
+        continue;
+      }
       const factory = RESET_FIELD_DEFAULTS[field];
       if (factory) State[field] = factory();
     }
     if (resetCase === LOBBY_RESET_CASES.hostClose) return;
-    PendingSelfAction.clear();
+    clearLocalActionEcho();
     clearResumeState(reason);
     State.requiresProgressImport = false;
   }
-
-
-
 
   function promotePartyLeaderAfterLeave(leavingKey) {
     const party = ensureParty();
@@ -1131,10 +1174,7 @@
     return { key: nextKey, name: party.leaderName };
   }
 
-
-
-
-  function recordPartyLeave(record, partyId) {
+  function recordPartyLeave(record, partyId, scoped) {
     const party = ensureParty();
     if (!party.id || !samePartyId(party.id, partyId)) return null;
     if (!record || isUnknownSender(record.sender)) return null;
@@ -1142,24 +1182,45 @@
     const name = record.sender;
     if (!key || !party.members[key]) return null;
     const game = State.game;
+    const bluffGame = State.bluffDeck && State.bluffDeck.game;
+    let bluffDeparture = null;
+    const bluffSeat = bluffGame && bluffGame.active
+      ? bluffGame.players.find((player) => player.key === key && player.status === "active")
+      : null;
+    if (scoped && bluffGame && bluffGame.active && bluffSeat
+      && scoped.matchId === bluffGame.id && scoped.nextSeq === bluffGame.seq + 1) {
+      bluffDeparture = BluffDeckEngine.depart(bluffGame, key);
+      if (bluffDeparture && bluffDeparture.changed) {
+        State.bluffDeck.selectedMask = 0;
+        State.bluffDeck.pending = null;
+        bluffPersistTransition(record);
+      } else {
+        bluffDeparture = null;
+      }
+    }
     const engineDeparture = !record.isSelf && game
       ? PokerEngine.depart(game, key, { name: name, isSelf: !!record.isSelf })
       : null;
     const departureTransition = engineDeparture && engineDeparture.ok ? engineDeparture : null;
     const resetForTwoPlayerActiveLeave = !!(departureTransition && departureTransition.reset);
     const continueActiveLeave = !!(departureTransition && departureTransition.continuation);
+    if (continueActiveLeave) State.requiresProgressImport = true;
     delete party.members[key];
     const memberIndex = (party.order || []).indexOf(key);
     if (memberIndex >= 0) party.order.splice(memberIndex, 1);
     const leaderLeaving = party.leaderKey === key;
-    const transferLeader = leaderLeaving && !record.isSelf && !continueActiveLeave && !resetForTwoPlayerActiveLeave && party.order.length > 1;
+    const bluffActiveCount = bluffGame && bluffGame.players
+      ? bluffGame.players.filter((player) => player.status === "active").length
+      : 0;
+    const transferLeader = leaderLeaving && !record.isSelf && !continueActiveLeave && !resetForTwoPlayerActiveLeave
+      && (bluffDeparture ? bluffActiveCount >= 2 : party.order.length > 1);
     const resetLobby = resetForTwoPlayerActiveLeave || record.isSelf || (leaderLeaving && !transferLeader && !continueActiveLeave);
     const pendingLeader = State.pendingPartyLeader && State.pendingPartyLeader.key === key
       ? State.pendingPartyLeader
       : null;
     let departure = resetLobby
-      ? (resetForTwoPlayerActiveLeave ? departureTransition : null)
-      : (departureTransition || { key: key, name: name, active: !!(game && game.active) });
+      ? (resetForTwoPlayerActiveLeave ? departureTransition : (bluffDeparture || null))
+      : (bluffDeparture || departureTransition || { key: key, name: name, active: !!(game && game.active) });
     if (pendingLeader && resetLobby && !resetForTwoPlayerActiveLeave) {
       if (!departure) departure = {};
       departure.pendingLeader = pendingLeader;
@@ -1256,7 +1317,7 @@
       );
     }
     if (type === "leave") {
-      return recordPartyLeave(record, partyId)
+      return recordPartyLeave(record, partyId, command.scopedBluffLeave)
         || makePartyResult(false, { type: "none" }, "", null, "", false);
     }
     const beforeId = party.id || "";
@@ -1270,7 +1331,7 @@
     if (type === "leader" && (beforeId !== partyId || beforeMode !== "leader")) {
       readyAction = { type: "clear", reason: "party leader" };
     }
-    if (type === "join") {
+    if (type === "join" && ((State.game && State.game.active) || samePartyId(State.progressSharePartyId, partyId))) {
       readyAction.progressShareReason = "party-join-import";
       if (State.game && State.game.active && record && !Object.prototype.hasOwnProperty.call(State.bankrolls, normalizePlayerKey(record.sender))) {
         status = String(record.sender || "Player") + " will join after this hand.";
@@ -1367,22 +1428,6 @@
     return names + (result.applied === 1 ? " joins" : " join") + " next hand with $" + result.buyIn + ".";
   }
 
-  function describeLateJoinQueue() {
-    const queued = getQueuedLateJoiners();
-    return {
-      count: queued.length,
-      names: queued.map((entry) => entry.name),
-      buyIn: computeLateJoinBuyIn(),
-    };
-  }
-
-  const LateJoinQueue = {
-    queued: getQueuedLateJoiners,
-    buyIn: computeLateJoinBuyIn,
-    apply: applyLateJoinBuyIns,
-    describe: describeLateJoinQueue,
-  };
-
   function displayNameFromPlayerKey(key) {
     const text = String(key || "").replace(/\s+/g, " ").trim();
     if (!text) return "";
@@ -1398,11 +1443,6 @@
     if (cleanName.length > 1) return cleanName;
     const fallback = displayNameFromPlayerKey(key);
     return fallback || cleanName;
-  }
-
-  function encodeRoster(roster) {
-    if (!roster || !roster.length) return "";
-    return roster.map((player) => encodeURIComponent(player.key || "") + "~" + encodeURIComponent(player.name || "")).join("|");
   }
 
   function encodeCompactRoster(roster) {
@@ -1471,7 +1511,6 @@
     }
     return roster;
   }
-
 
   function ensureResume() {
     if (!State.resume || typeof State.resume !== "object") State.resume = defaultResumeState();
@@ -1551,7 +1590,6 @@
     }
   }
 
-
   function getReadySeatArray() {
     const seats = getReadySeats();
     const keys = Object.keys(seats);
@@ -1592,7 +1630,6 @@
     } catch (e) {}
   }
 
-
   function setStatus(text, priority, ttlMs) {
     cachePanels();
     const statusText = String(text || "");
@@ -1608,7 +1645,6 @@
     setText(State.status, statusText);
     return true;
   }
-
 
   function setPanelClass(panel, className, enabled) {
     if (!isValid(panel)) return;
@@ -1639,8 +1675,6 @@
     setHitTest(panel, enabled && !readOnly);
   }
 
-
-
   function makeButtonDecision(hidden, enabled, eligible, readOnly, reason) {
     return {
       hidden: !!hidden,
@@ -1665,9 +1699,9 @@
       game: State.game,
       party: ensureParty(),
       resume: ensureResume(),
-      localPlayerKey: State.localPlayerKey,
+      localPlayerKey: normalizePlayerKey(getConfig()[LOCAL_PLAYER_KEY]) || State.localPlayerKey,
       readyCount: count || State.readyCountValue || getReadySeatArray().length,
-      sync: StartSync.getProjection(),
+      sync: getSyncProjection(),
       minReadyPlayers: MIN_READY_PLAYERS,
       partyRoster: PartyReducer.roster(),
       resumeRoster: getResumeRoster(),
@@ -1806,6 +1840,7 @@
     const party = state.party || ensureParty();
     const resume = state.resume || ensureResume();
     const activeGame = !!(game && game.active);
+    if (getActiveTableGameType() === "bluff-deck") return makeGateDecision(true, false, "", "Finish the active Bluff Deck match before starting Poker.");
     const imported = !!(resume && resume.payload && resume.id);
     const finishedProgressAvailable = !!(game && game.finished && !game.active && (state.remainingPlayersWithChips > 1 || countGamePlayersWithChips(game) > 1));
     if (activeGame) return makeGateDecision(true, false, "", "");
@@ -1820,11 +1855,6 @@
       return makeGateDecision(true, false, "WAITING FOR LEADER", "Only " + (party.leaderName || "<leader>") + " can start the synced hand.");
     }
     return makeGateDecision(false, false, "HOST OR JOIN PARTY", "Host a synced table or join a [party leader] before starting.");
-  }
-
-  function getCustomBetCommandLabel(range, amount) {
-    if (!range) return "";
-    return (range.action === "bet" ? "BET $" : "RAISE TO $") + amount;
   }
 
   function buildViewModel(state) {
@@ -1851,8 +1881,26 @@
     const canUseReadyChat = !!(!activeGame && needsResumeIdentity);
     const resumeGate = ViewModel.resumeGate(snapshot, hostedImportedResume ? hostedResumeGate : null);
     const startGate = ViewModel.startGate(snapshot, resumeGate);
-    const resumeProjection = buildProgressProjection(snapshot, resumeGate, hostedResumeGate);
-    const canJoinParty = !!(party.id && party.mode === "none" && (activeObserver || !activeGame));
+    const resumeReadyCount = countReadySavedPlayers(resume, false);
+    const resumeFundedCount = (snapshot.resumeRoster || []).length;
+    let resumeStatus = imported ? (hostedPartyRequiredResume ? "Imported progress loaded. Host or join a party; the party leader imports progress and starts NEXT SYNCED HAND." : "Leader: " + (resume.leaderName || "none") + ". Ready: " + resumeReadyCount + "/" + resumeFundedCount + ".") : "Import progress to choose a resume leader.";
+    if (hostedImportedResume && party.mode === "leader" && hostedResumeGate.enabled) resumeStatus = "Ready from imported progress. Click NEXT SYNCED HAND to start.";
+    else if (hostedImportedResume && party.mode === "leader") resumeStatus = hostedResumeGate.reason || "Waiting to start synced imported progress.";
+    else if (hostedImportedResume) resumeStatus = "Imported progress. Waiting for " + (party.leaderName || "<leader>") + " to start NEXT SYNCED HAND.";
+    const resumeProjection = {
+      imported: imported,
+      hostedImported: hostedImportedResume,
+      hostedPartyRequired: hostedPartyRequiredResume,
+      localSavedFunded: localSavedFunded,
+      localIsLeader: localIsResumeLeader,
+      localAlreadyReady: localAlreadyResumeReady,
+      readyCount: resumeReadyCount,
+      fundedCount: resumeFundedCount,
+      progressLabel: imported ? "Imported progress " + resume.id + "." : "Finish a hand to copy progress, or paste a code to resume.",
+      resumeStatus: resumeStatus,
+      partyStatus: (snapshot.sync && (snapshot.sync.waitingForReadySnapshot || snapshot.sync.waitingForChatSnapshot)) ? "Syncing poker chat state..." : (imported ? resumeGate.reason : ""),
+    };
+    const canJoinParty = !!(party.id && (party.mode === "none" || activeObserver) && (activeObserver || !activeGame));
     let partyStatus = "";
     if (snapshot.sync && (snapshot.sync.waitingForReadySnapshot || snapshot.sync.waitingForChatSnapshot)) partyStatus = "Syncing poker chat state...";
     else if (activeObserver) partyStatus = "Join now to wait for the next hand.";
@@ -1883,6 +1931,17 @@
 
     const playerRows = buildPlayerRenderModelForState(snapshot);
     const tableModel = buildTableRenderModelForState(snapshot, playerRows);
+    const readyRows = buildReadySeatModels(snapshot.readySeats);
+    const resumeRows = buildResumeLeaderModels(resume);
+    const communityRows = [];
+    const community = game && game.community ? game.community : [];
+    for (let i = 0; i < 5; i += 1) communityRows.push({ key: String(i), card: community[i] || null });
+    const potAmount = game ? Math.max(0, Math.floor(Number(game.pot) || 0)) : 0;
+    const logEntries = game && game.log && game.log.length ? game.log : (hasGame ? ["Hand history will appear here."] : []);
+    const logStart = Math.max(0, logEntries.length - MAX_GAME_LOG_ENTRIES);
+    const logRows = logEntries.slice(logStart).map((text, index) => ({ key: String(index), text: text }));
+    const announcement = game && game.announcement;
+    const hasWinnerFeedback = !!(game && game.potWinnerKeys && Object.keys(game.potWinnerKeys).length);
     return {
       state: snapshot,
       controls: {
@@ -1910,7 +1969,20 @@
         resumeStatus: resumeProjection.resumeStatus,
         actionHint: actionHint,
       },
-      actionChoices: actionChoices,
+      hasGame: hasGame,
+      activeGame: activeGame,
+      phase: game ? String(game.phase || "lobby").toUpperCase() : "LOBBY",
+      announcer: {
+        title: announcement && announcement.title ? announcement.title : "Poker announcer",
+        detail: announcement && announcement.detail ? announcement.detail : "Ready up, start a hand, and the table will call blinds, turns, checks, bets, raises, folds, and winners here.",
+        winner: hasWinnerFeedback,
+      },
+      pot: { amount: potAmount, chips: getPotChipArtRows(potAmount) },
+      communityRows: communityRows,
+      actions: { rows: actionChoices, hint: actionHint },
+      logRows: logRows,
+      readyRows: readyRows,
+      resumeRows: resumeRows,
       playerRows: playerRows,
       table: tableModel,
       progress: resumeProjection,
@@ -1927,6 +1999,7 @@
     const party = ensureParty();
     if (!party.id || party.mode !== "leader") return;
     if (State.game && State.game.active) return;
+    if (State.bluffDeck && State.bluffDeck.game && State.bluffDeck.game.active) return;
     const partyId = party.id;
     sendChatMessage(PARTY_LEAVE_PREFIX + " poker party " + partyId, true, true);
     State.lastLobbyLeaveMs = Date.now();
@@ -1936,20 +2009,123 @@
     setStatus("Hosted Poker lobby closed.");
   }
 
+  function tableGameName(gameType) {
+    return gameType === "bluff-deck" ? "Bluff Deck" : "Poker";
+  }
+
+  function tableSyncPending() {
+    return !!(State.sync && (State.sync.waitingForReadySnapshot || State.sync.waitingForChatSnapshot));
+  }
+
+  function getTerminalTableGameType() {
+    if (State.game && !State.game.active) return "poker";
+    const bluffGame = State.bluffDeck && State.bluffDeck.game;
+    if (bluffGame && !bluffGame.active) return "bluff-deck";
+    return State.terminalTableGame || "";
+  }
+
+  function getTablePickerSource() {
+    return getActiveTableGameType() || getTerminalTableGameType() || State.pickerSourceGame || "";
+  }
+
+  function clearLocalTableForSwitch() {
+    PartyReducer.reset(LOBBY_RESET_CASES.leaveLobby, "switch table");
+    savePartyState();
+  }
+
+  function leaveTerminalTableForSwitch() {
+    const party = ensureParty();
+    if (party.mode === "leader" || party.mode === "member") leaveLobby();
+    else clearLocalTableForSwitch();
+    State.terminalTableGame = "";
+  }
+
+  function selectTableGame(gameType) {
+    const next = String(gameType || "").toLowerCase();
+    if (next !== "poker" && next !== "bluff-deck") return false;
+    const active = getActiveTableGameType();
+    if (active && active !== next) {
+      setStatus("Finish the active " + tableGameName(active) + " match before switching games.", STATUS_PRIORITY.gate);
+      RenderScheduler.immediate("table-game-switch-rejected");
+      return false;
+    }
+    const terminal = getTerminalTableGameType();
+    const source = getTablePickerSource();
+    const destructiveSwitch = !!(terminal && source === terminal && source !== next);
+    if (destructiveSwitch && (tableSyncPending() || (State.bluffDeck && State.bluffDeck.pending))) {
+      RenderScheduler.immediate("table-game-switch-waiting");
+      return false;
+    }
+    if (destructiveSwitch && State.pendingTableSwitch !== next) {
+      State.pendingTableSwitch = next;
+      RenderScheduler.immediate("table-game-switch-confirm");
+      return false;
+    }
+    if (destructiveSwitch) leaveTerminalTableForSwitch();
+    State.pendingTableSwitch = "";
+    State.pickerSourceGame = "";
+    State.tablePickerRequested = false;
+    State.selectedTableGame = next;
+    setPanelClass(State.pickerPokerButton, "Selected", next === "poker");
+    setPanelClass(State.pickerBluffButton, "Selected", next === "bluff-deck");
+    if (next === "bluff-deck") requestBluffDeckFastPoll();
+    RenderScheduler.immediate(destructiveSwitch ? "table-game-switched-after-leave" : "table-game-selected");
+    return true;
+  }
+
+  function backToTablePicker() {
+    if (!State.isOpen || !State.selectedTableGame) return false;
+    State.pickerSourceGame = State.selectedTableGame;
+    State.selectedTableGame = "";
+    State.pendingTableSwitch = "";
+    State.tablePickerRequested = true;
+    RenderScheduler.immediate("table-game-back");
+    return true;
+  }
+
+  function selectBluffSlot(index) {
+    const game = State.bluffDeck && State.bluffDeck.game;
+    const local = game && bdPlayerAt(game, localBluffKey());
+    const slot = Number(index);
+    if (!canSelectBluffCards(game, local)) return false;
+    if (!local || !Array.isArray(local.hand) || !Number.isInteger(slot) || slot < 0 || slot >= local.hand.length) return false;
+    const bit = 1 << slot;
+    if ((local.remainingMask & bit) === 0) return false;
+    const selected = Number(State.bluffDeck.selectedMask) || 0;
+    return BluffDeckActions.selectMask(selected & bit ? selected & ~bit : selected | bit);
+  }
+
+  function selectBluffSlot0() { return selectBluffSlot(0); }
+  function selectBluffSlot1() { return selectBluffSlot(1); }
+  function selectBluffSlot2() { return selectBluffSlot(2); }
+  function selectBluffSlot3() { return selectBluffSlot(3); }
+  function selectBluffSlot4() { return selectBluffSlot(4); }
+
+  function hidePokerSurface(hidden) {
+    for (const panel of [State.lobbyWindow, State.tableWindow, State.playersWindow, State.historyWindow, State.actionsWindow]) {
+      applyHiddenAffordance(panel, hidden);
+    }
+  }
+
   function setOpen(open) {
     cachePanels();
     const wasOpen = State.isOpen;
     State.isOpen = !!open;
     if (wasOpen && !State.isOpen) cancelHostedLobbyOnClose();
+    if (!State.isOpen) State.pendingTableSwitch = "";
     setPanelClass(State.root, CLASSES.visible, State.isOpen);
     setPanelClass(State.tableWindow, CLASSES.open, State.isOpen);
     setPanelClass(State.lobbyWindow, CLASSES.open, State.isOpen);
     setPanelClass(State.playersWindow, CLASSES.open, State.isOpen);
     setPanelClass(State.actionsWindow, CLASSES.open, State.isOpen);
+    setPanelClass(State.historyWindow, CLASSES.open, State.isOpen);
+    setPanelClass(State.pickerWindow, CLASSES.open, State.isOpen);
+    setPanelClass(State.bluffWindow, CLASSES.open, State.isOpen);
     setPanelClass(State.menuButton, CLASSES.active, State.isOpen);
     if (State.isOpen) {
       if (!isTestMode()) startRefreshLoop();
-      StartSync.openMenu();
+      requestBluffDeckFastPoll();
+      openMenuSync();
     }
   }
 
@@ -1974,7 +2150,6 @@
       if (panel && typeof panel.DeleteAsync === "function") panel.DeleteAsync(0);
     } catch (e) {}
   }
-
 
   function clearChildren(parent) {
     if (!isValid(parent)) return;
@@ -2100,8 +2275,8 @@
     else addClass(art, "Pips");
     const image = createPanel("Image", art, "", "PokerCardVtexArt");
     setImageSource(image, getCardImageSrc(card));
+    return art;
   }
-
 
   function renderCardContents(parent, card) {
     createLabel(parent, "PokerCardRank", card ? getCardDisplayRank(card.rank) : "?");
@@ -2123,9 +2298,6 @@
     if (isValid(contents)) setPanelClass(contents, "FlipHidden", !!hidden);
   }
 
-
-
-
   function applyCardVisualState(panel, card) {
     const red = card && (card.suit === "H" || card.suit === "D");
     setPanelClass(panel, CLASSES.red, !!red);
@@ -2142,8 +2314,6 @@
     renderStableCardContents(panel, card, false);
     return panel;
   }
-
-
 
   function createCardFlipLayer(panel, card, className, showQuestionFace) {
     const layer = createPanel("Panel", panel, "", "PokerCardFlipLayer " + className + (showQuestionFace ? " QuestionFace" : ""));
@@ -2211,30 +2381,10 @@
     renderStableCardContents(panel, card, false);
   }
 
-  const CardPresenter = {
-    render: createCard,
-    update: updateCardPanel,
-  };
-
-  function createSeatRow(parent, model) {
-    const row = createPanel("Panel", parent, (model.idPrefix || "PokerSeat") + model.key, "PokerSeatRow");
-    return {
-      row: row,
-      number: createLabel(row, "PokerSeatNumber", ""),
-      name: createLabel(row, "PokerSeatName", ""),
-      meta: createLabel(row, "PokerSeatMeta", ""),
-    };
-  }
-
-  function updateSeatRow(row, model) {
-    setPanelClass(row.row, "Empty", !!model.empty);
-    setText(row.number, model.empty ? "" : model.number);
-    setText(row.name, model.name);
-    setText(row.meta, model.meta);
-  }
-
-  function deleteSeatRow(row) {
-    deletePanel(row && row.row);
+  function renderSeatRows(cacheKey, parent, models) {
+    if (!isValid(parent)) return;
+    State.renderCache[cacheKey] = State.renderCache[cacheKey] || {};
+    Rows.update(State.renderCache[cacheKey], parent, models || [], RowSpecs.seat);
   }
 
   function buildReadySeatModels(seats) {
@@ -2248,20 +2398,6 @@
       name: seat && seat.name ? seat.name : "Player",
       meta: "READY",
     }));
-  }
-
-  function renderSeatRows(seats) {
-    cachePanels();
-    if (!isValid(State.seatsList)) return;
-    State.renderCache.readySeatRows = State.renderCache.readySeatRows || {};
-    Rows.update(
-      State.renderCache.readySeatRows,
-      State.seatsList,
-      buildReadySeatModels(seats),
-      createSeatRow,
-      updateSeatRow,
-      deleteSeatRow,
-    );
   }
 
   function buildResumeLeaderModels(resume) {
@@ -2285,22 +2421,8 @@
     });
   }
 
-
-  function renderResumeLeaderRows() {
-    if (!isValid(State.resumeLeaderList)) return;
-    State.renderCache.resumeLeaderRows = State.renderCache.resumeLeaderRows || {};
-    Rows.update(
-      State.renderCache.resumeLeaderRows,
-      State.resumeLeaderList,
-      buildResumeLeaderModels(ensureResume()),
-      createSeatRow,
-      updateSeatRow,
-      deleteSeatRow,
-    );
-  }
-
-  function renderProgressControls(viewModel) {
-    const state = viewModel || ViewModel.build();
+  function renderProgressControls(state) {
+    if (!state) return;
     applyHiddenAffordance(State.progressControls, state.controls.progressControls.hidden);
     applyButtonAffordance(State.exportProgressButton, state.controls.exportProgress);
     applyButtonAffordance(State.importProgressButton, state.controls.importProgress);
@@ -2311,11 +2433,11 @@
     applyButtonAffordance(State.resumeReadyButton, state.controls.resumeReady);
     setText(State.progressCodeLabel, state.text.progressCodeLabel);
     setText(State.resumeStatus, state.text.resumeStatus);
-    renderResumeLeaderRows();
+    renderSeatRows("resumeLeaderRows", State.resumeLeaderList, state.resumeRows);
   }
 
-  function updateStartButton(count, viewModel) {
-    const state = viewModel || ViewModel.build(getViewModelState(count));
+  function updateStartButton(state) {
+    if (!state) return;
     applyButtonAffordance(State.startButton, state.controls.start);
     applyButtonAffordance(State.readyChatButton, state.controls.readyChat);
     applyHiddenAffordance(State.partyControls, state.controls.partyControls.hidden);
@@ -2325,23 +2447,22 @@
     if (state.text.partyStatus) setText(State.partyStatus, state.text.partyStatus);
   }
 
-
-
   function updateReadySeats(force) {
     cachePanels();
     const revision = getReadyRevision();
     const seats = getReadySeatArray();
     const count = seats.length;
     if (!force && State.readyRevision === revision && State.readyCountValue === count) return;
+    const viewModel = ViewModel.build(getViewModelState(count));
     PokerMetrics.increment("readyUpdate");
     State.readyRevision = revision;
     State.readyCountValue = count;
-    renderSeatRows(seats);
+    renderSeatRows("readySeatRows", State.seatsList, viewModel.readyRows);
     setText(State.readyCount, String(MAX_TABLE_PLAYERS));
-    if (!State.game) renderPlayers();
-    updateStartButton(count);
-    if (!State.game || !State.game.active) {
-      setStatus(isStartEligible(count) ? "Ready to start with " + count + " players." : "Waiting for " + (MIN_READY_PLAYERS - count) + " more ready player" + (MIN_READY_PLAYERS - count === 1 ? "." : "s."), STATUS_PRIORITY.ready, 0);
+    if (!viewModel.hasGame) renderPlayers(viewModel);
+    updateStartButton(viewModel);
+    if (!viewModel.activeGame) {
+      setStatus(count >= MIN_READY_PLAYERS ? "Ready to start with " + count + " players." : "Waiting for " + (MIN_READY_PLAYERS - count) + " more ready player" + (MIN_READY_PLAYERS - count === 1 ? "." : "s."), STATUS_PRIORITY.ready, 0);
     }
     log("render ready seats: " + count + " player(s), revision " + revision);
   }
@@ -2391,19 +2512,23 @@
     }
     if (!event || !event.event) return;
     if (!shouldRunMenuWork()) return;
-    StartSync.noteBridgeEvent(event);
+    noteBridgeEvent(event);
+    if (event.event === "BluffDeckSendStatus") {
+      handleBluffDeckSendStatus(event);
+      return;
+    }
     if (event.event === READY_EVENT) {
       PokerMetrics.increment("readyPayload");
       if (applyReadyPayload(event)) {
         log("received ready payload; rendering seats");
         updateReadySeats(true);
       }
-      StartSync.afterSnapshotApplied();
+      afterSnapshotApplied();
       return;
     }
     if (event.event === CHAT_EVENT) {
-      CommandReducer.applyPayload(event);
-      StartSync.afterSnapshotApplied();
+      CommandReducer.applyPayload(event, true);
+      afterSnapshotApplied();
     }
   }
 
@@ -2451,9 +2576,9 @@
     updateReadySeats(true);
     RenderScheduler.immediate("open-menu");
     try {
-      $.Schedule(0.05, StartSync.afterSnapshotApplied);
-      $.Schedule(0.2, StartSync.afterSnapshotApplied);
-      $.Schedule(0.75, StartSync.afterSnapshotApplied);
+      $.Schedule(0.05, afterSnapshotApplied);
+      $.Schedule(0.2, afterSnapshotApplied);
+      $.Schedule(0.75, afterSnapshotApplied);
     } catch (e) {}
   }
 
@@ -2480,50 +2605,30 @@
     };
   }
 
-  const StartSync = {
-    openMenu: openMenuSync,
-    requestFreshState: requestFreshState,
-    noteBridgeEvent: noteBridgeEvent,
-    getProjection: getSyncProjection,
-    afterSnapshotApplied: afterSnapshotApplied,
-  };
+  function requestBluffDeckFastPoll() {
+    if (!State.bluffDeck || !State.bluffDeck.game || !State.bluffDeck.game.active) return false;
+    try {
+      $.DispatchEvent(CLIENT_OUTPUT_EVENT, JSON.stringify({
+        event: BridgeContract.bluffDeckFastPollRequestEvent,
+        until: Date.now() + 1000,
+      }));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
   function startRefreshLoop() {
     if (State.refreshLoopStarted) return;
     State.refreshLoopStarted = true;
     const tick = () => {
-      if (State.isOpen) updateReadySeats(false);
+      if (State.isOpen) {
+        updateReadySeats(false);
+        requestBluffDeckFastPoll();
+      }
       $.Schedule(State.isOpen ? 0.35 : 1.0, tick);
     };
     $.Schedule(0.35, tick);
-  }
-
-  function resolveChatPanels() {
-    const context = $.GetContextPanel();
-    const root = getRoot(context);
-    const chat = isValid(State.chat) ? State.chat : findChild(root, IDS.chat);
-    State.chat = isValid(chat) ? chat : null;
-    const controls = findChild(State.chat, IDS.chatControls);
-    const input = findChild(controls, IDS.chatInput) || findChild(State.chat, IDS.chatInput) || findChild(root, IDS.chatInput);
-    const label = findChild(controls, IDS.chatTargetLabel) || findChild(State.chat, IDS.chatTargetLabel) || findChild(root, IDS.chatTargetLabel);
-    State.chatInput = isValid(input) ? input : null;
-    State.chatTargetLabel = isValid(label) ? label : null;
-    return !!(State.chatInput && State.chatTargetLabel);
-  }
-
-  function getSupportedChatTargetKind(label) {
-    if (!isValid(label)) return "";
-    const text = String(label.text || "").trim();
-    if (!text || text === CHAT_TARGET_LABELS.placeholder) return "";
-    const upper = text.toUpperCase();
-    if (text === CHAT_TARGET_LABELS.all || upper === "ALL" || upper.indexOf("(ALL)") >= 0 || upper.indexOf("[ALL]") >= 0) return "all";
-    if (text === CHAT_TARGET_LABELS.party || upper === "PARTY" || upper.indexOf("(PARTY)") >= 0 || upper.indexOf("[PARTY]") >= 0) return "party";
-    if (text === CHAT_TARGET_LABELS.team || upper === "TEAM" || upper.indexOf("(TEAM)") >= 0 || upper.indexOf("[TEAM]") >= 0) return "team";
-    return "";
-  }
-
-  function isUsableChatTarget(label) {
-    return !!getSupportedChatTargetKind(label);
   }
 
   function markProgressShareSubmitted(message) {
@@ -2542,49 +2647,6 @@
     }
   }
 
-  function submitChatInput(input, message) {
-    try {
-      input.text = message;
-      $.DispatchEvent("CitadelChatInputSubmitted", input);
-      input.text = "";
-      closeChatInput(input);
-      setStatus("Sent: " + message);
-      log("sent chat: " + message);
-      markProgressShareSubmitted(message);
-      return true;
-    } catch (e) {
-      setStatus("Send failed; see console.");
-      log("send failed");
-      return false;
-    }
-  }
-
-  function closeChatInput(input) {
-    try {
-      $.DispatchEvent("CitadelChatInputBlur", input);
-    } catch (e) {}
-    try {
-      $.DispatchEvent("DropInputFocus", input);
-    } catch (e) {}
-  }
-
-  function retrySendChat(message, attempt, readyStreak) {
-    resolveChatPanels();
-    if (!isValid(State.chatInput) || !isUsableChatTarget(State.chatTargetLabel)) {
-      if (attempt >= CHAT_RETRY_DELAYS.length - 1) {
-        setStatus("Chat not ready. Open team or party chat once, then retry.");
-        return;
-      }
-      $.Schedule(CHAT_RETRY_DELAYS[attempt + 1], () => retrySendChat(message, attempt + 1, 0));
-      return;
-    }
-    if (readyStreak < 1 && attempt < CHAT_RETRY_DELAYS.length - 1) {
-      $.Schedule(CHAT_RETRY_DELAYS[attempt + 1], () => retrySendChat(message, attempt + 1, readyStreak + 1));
-      return;
-    }
-    submitChatInput(State.chatInput, message);
-  }
-
   function sendChatMessage(message, skipOpenSync, forceSend) {
     const now = Date.now();
     if (!forceSend && now - State.lastSendMs < 800) {
@@ -2596,15 +2658,20 @@
     }
     State.lastSendMs = now;
     if (!skipOpenSync) setOpen(true);
-    const hadUsableTarget = resolveChatPanels() && isValid(State.chatInput) && isUsableChatTarget(State.chatTargetLabel);
-    setStatus("Opening chat and sending: " + message);
-    if (!hadUsableTarget) {
-      try {
-        $.DispatchEvent("CitadelConCommand", "say_chat_team");
-      } catch (e) {}
+    setStatus("Sending through poker chat bridge: " + message);
+    try {
+      $.DispatchEvent(CLIENT_OUTPUT_EVENT, JSON.stringify({
+        event: BridgeContract.chatSendRequestEvent,
+        message: message,
+        source: "poker_escape_menu",
+      }));
+      markProgressShareSubmitted(message);
+      return true;
+    } catch (e) {
+      setStatus("Chat bridge send failed; see console.");
+      log("chat bridge send failed");
+      return false;
     }
-    $.Schedule(CHAT_RETRY_DELAYS[0], () => retrySendChat(message, 0, 0));
-    return true;
   }
 
   function sendBackgroundChatMessage(message) {
@@ -2612,13 +2679,6 @@
     const sent = sendChatMessage(message, false, true);
     State.lastSendMs = lastManualSendMs;
     return sent;
-  }
-
-
-  function canShareImportedProgressFromHostedLeader(payload) {
-    const state = getViewModelState();
-    const viewModel = ViewModel.build(state);
-    return !!(payload && isHostedImportedResumeState(state) && state.party && state.party.mode === "leader" && viewModel.gates.hostedResume.enabled);
   }
 
   function isProgressShareInProgressForResume(resume) {
@@ -2630,13 +2690,15 @@
 
   function shareProgressCode(code, id, reason, shareKeyOverride) {
     const checksum = checksumFromProgressCode(code);
-    const chunks = splitProgressCodeForChat(code);
+    const text = String(code || "");
+    const chunks = [];
+    for (let i = 0; i < text.length; i += PROGRESS_SHARE_CHUNK_SIZE) chunks.push(text.slice(i, i + PROGRESS_SHARE_CHUNK_SIZE));
     const shareKey = shareKeyOverride || getProgressShareKey();
     if (!checksum || !chunks.length || !shareKey) return false;
     if (State.progressShare && State.progressShare.key === shareKey && State.progressShare.sent) return false;
-    const messages = [buildProgressOfferCommand(id, checksum, chunks.length)];
+    const messages = [PROGRESS_OFFER_PREFIX + " poker progress " + id + " " + checksum + " " + chunks.length];
     for (let i = 0; i < chunks.length; i += 1) {
-      messages.push(buildProgressChunkCommand(id, checksum, i + 1, chunks.length, chunks[i]));
+      messages.push(PROGRESS_CHUNK_PREFIX + " poker progress " + id + " " + checksum + " " + (i + 1) + "/" + chunks.length + " " + chunks[i]);
     }
     const readyAt = Date.now() + Math.ceil((0.2 + Math.max(0, messages.length - 1) * PROGRESS_SHARE_SEND_INTERVAL) * 1000) + PROGRESS_SHARE_START_GRACE_MS;
     State.progressShare = {
@@ -2659,11 +2721,11 @@
     return true;
   }
 
-
   function shareImportedProgressFromHostedLeader(reason) {
     const resume = ensureResume();
-    if (!resume.code || !resume.id || !resume.payload) return false;
-    if (!canShareImportedProgressFromHostedLeader(resume.payload)) return false;
+    const state = getViewModelState();
+    if (!resume.code || !resume.id || !resume.payload || !isHostedImportedResumeState(state)) return false;
+    if (!state.party || state.party.mode !== "leader" || !ViewModel.build(state).gates.hostedResume.enabled) return false;
     return shareProgressCode(resume.code, resume.id, reason, "import:" + resume.id + ":" + checksumFromProgressCode(resume.code));
   }
 
@@ -2683,12 +2745,19 @@
     }
     const remembered = getRememberedLocalPlayerName();
     const bypassHostThrottle = State.lastLobbyLeaveMs && Date.now() - State.lastLobbyLeaveMs < 1200;
-    State.lastLobbyLeaveMs = 0;
-    clearResumeState("host party");
-    State.resumeRequiresHostedParty = false;
+    const resumeHost = !!State.progressShareRequested;
     const partyId = makePartyId(remembered || "leader");
     const sent = sendChatMessage(PARTY_LEADER_PREFIX + " poker party " + partyId, false, !!bypassHostThrottle);
     if (!sent) return;
+    State.lastLobbyLeaveMs = 0;
+    if (!resumeHost) {
+      State.game = null;
+      State.bankrolls = {};
+    }
+    clearResumeState("host party");
+    State.resumeRequiresHostedParty = false;
+    State.progressShareRequested = false;
+    State.progressSharePartyId = resumeHost ? partyId : "";
     const leaderResult = PartyReducer.apply({
       type: "leader",
       partyId: partyId,
@@ -2700,7 +2769,7 @@
   }
 
   function sendPartyJoinCommand() {
-    StartSync.requestFreshState("join");
+    requestFreshState("join");
     const party = ensureParty();
     const activeGame = !!(State.game && State.game.active);
     const localSeated = !!findGamePlayerByKey(State.localPlayerKey);
@@ -2777,8 +2846,13 @@
       return { ok: false, status: "Paste a progress code first." };
     }
     const result = ProgressResume.importCode(text, "manual");
-    if (result.ok) State.requiresProgressImport = false;
-    if (result.ok) ProgressResume.shareImported("manual-import");
+    if (result.ok) {
+      State.requiresProgressImport = false;
+      State.progressShareRequested = true;
+      const hostedParty = ensureParty();
+      if (hostedParty.mode === "leader" && hostedParty.id) State.progressSharePartyId = hostedParty.id;
+      ProgressResume.shareImported("manual-import");
+    }
     if (!result.ok) setStatus(result.status || "Invalid progress code.");
     RenderScheduler.immediate(result.ok ? "import-progress" : "import-progress-invalid");
     return result;
@@ -2955,70 +3029,30 @@
     return rejectedCommandEffect(created.status || "Cannot resume; saved dealer state is invalid.", "status");
   }
 
-  function buildProgressProjection(snapshot, resumeGate, hostedResumeGate) {
-    const state = snapshot || getViewModelState();
-    const resume = state.resume || ensureResume();
-    const party = state.party || ensureParty();
-    const imported = !!(resume && resume.payload && resume.id);
-    const hostedImported = isHostedImportedResumeState(state);
-    const hostedPartyRequired = importedResumeRequiresHostedParty(state);
-    const localSavedFunded = !!(state.localProgressEntry && getProgressBankroll(resume.payload, state.localProgressEntry.key) > 0);
-    const localIsLeader = !!(imported && resume.leaderKey && state.localPlayerKey === resume.leaderKey);
-    const localAlreadyReady = !!(imported && resume.ready && resume.ready[state.localPlayerKey]);
-    const readyCount = countReadySavedPlayers(resume, false);
-    const fundedCount = (state.resumeRoster || []).length;
-    const gate = resumeGate || ViewModel.resumeGate(state);
-    const hostedGate = hostedResumeGate || buildHostedResumeGate(state);
-    let resumeStatus = imported ? (hostedPartyRequired ? "Imported progress loaded. Host or join a party; the party leader imports progress and starts NEXT SYNCED HAND." : "Leader: " + (resume.leaderName || "none") + ". Ready: " + readyCount + "/" + fundedCount + ".") : "Import progress to choose a resume leader.";
-    if (hostedImported && party.mode === "leader" && hostedGate.enabled) resumeStatus = "Ready from imported progress. Click NEXT SYNCED HAND to start.";
-    else if (hostedImported && party.mode === "leader") resumeStatus = hostedGate.reason || "Waiting to start synced imported progress.";
-    else if (hostedImported) resumeStatus = "Imported progress. Waiting for " + (party.leaderName || "<leader>") + " to start NEXT SYNCED HAND.";
-    return {
-      imported: imported,
-      hostedImported: hostedImported,
-      hostedPartyRequired: hostedPartyRequired,
-      localSavedFunded: localSavedFunded,
-      localIsLeader: localIsLeader,
-      localAlreadyReady: localAlreadyReady,
-      readyCount: readyCount,
-      fundedCount: fundedCount,
-      progressLabel: imported ? "Imported progress " + resume.id + "." : "Finish a hand to copy progress, or paste a code to resume.",
-      resumeStatus: resumeStatus,
-      partyStatus: (state.sync && (state.sync.waitingForReadySnapshot || state.sync.waitingForChatSnapshot)) ? "Syncing poker chat state..." : (imported ? gate.reason : ""),
-    };
-  }
-
-
-  function applyProgressResumeCommand(command) {
-    if (!command || !command.type) return ignoredCommandEffect("progress-resume");
-    const resolvedRecord = command.record ? command.record : resolveSelfRecord(command);
-    if (!resolvedRecord || !resolvedRecord.message) {
-      return command.type === "resume-start" ? applyResumeStartCommand(command) : ignoredCommandEffect("progress-resume");
-    }
-    if (command.type === "progress-offer" || command.type === "progress-chunk") {
-      return applyProgressShareMessage({
-        type: command.type === "progress-offer" ? "offer" : "chunk",
-        id: command.id,
-        checksum: command.checksum,
-        count: command.count,
-        index: command.index || 0,
-        chunk: command.chunk || "",
-        record: resolvedRecord,
-      });
-    }
-    if (command.type === "resume-leader" || command.type === "resume-ready") {
-      return applyResumeAuthorityCommand(command, resolvedRecord);
-    }
-    if (command.type === "resume-start") {
-      return applyResumeStartCommand(Object.assign({}, command, { record: resolvedRecord }));
-    }
-    return ignoredCommandEffect("progress-resume");
-  }
-
   const ProgressResume = {
     build: buildProgressSaveCode,
     importCode: importProgressSaveCode,
-    applyCommand: applyProgressResumeCommand,
+    applyCommand(command) {
+      if (!command || !command.type) return ignoredCommandEffect("progress-resume");
+      const resolvedRecord = command.record ? command.record : resolveSelfRecord(command);
+      if (!resolvedRecord || !resolvedRecord.message) {
+        return command.type === "resume-start" ? applyResumeStartCommand(command) : ignoredCommandEffect("progress-resume");
+      }
+      if (command.type === "progress-offer" || command.type === "progress-chunk") {
+        return applyProgressShareMessage({
+          type: command.type === "progress-offer" ? "offer" : "chunk",
+          id: command.id,
+          checksum: command.checksum,
+          count: command.count,
+          index: command.index || 0,
+          chunk: command.chunk || "",
+          record: resolvedRecord,
+        });
+      }
+      if (command.type === "resume-leader" || command.type === "resume-ready") return applyResumeAuthorityCommand(command, resolvedRecord);
+      if (command.type === "resume-start") return applyResumeStartCommand(Object.assign({}, command, { record: resolvedRecord }));
+      return ignoredCommandEffect("progress-resume");
+    },
     shareImported: shareImportedProgressFromHostedLeader,
   };
 
@@ -3061,7 +3095,6 @@
     return game.deck.shift();
   }
 
-
   function remainingPlayersWithChips() {
     const keys = Object.keys(State.bankrolls);
     let count = 0;
@@ -3081,9 +3114,11 @@
   }
 
   function getLocalPlayer() {
-    if (!State.game || !State.localPlayerKey) return null;
+    if (!State.game) return null;
+    const localKey = normalizePlayerKey(getConfig()[LOCAL_PLAYER_KEY]) || State.localPlayerKey;
+    if (!localKey) return null;
     for (let i = 0; i < State.game.players.length; i += 1) {
-      if (State.game.players[i].key === State.localPlayerKey) return State.game.players[i];
+      if (State.game.players[i].key === localKey) return State.game.players[i];
     }
     return null;
   }
@@ -3093,7 +3128,6 @@
     if (!game || !player) return 0;
     return Math.max(0, (game.currentBet || 0) - (player.bet || 0));
   }
-
 
   function getBlindLevelForHand(handNumber) {
     const level = Math.floor(Number(handNumber) || 1);
@@ -3112,24 +3146,8 @@
     return game && game.bigBlindAmount ? game.bigBlindAmount : BIG_BLIND;
   }
 
-
   function getMinimumRaiseTo(game) {
     return (game ? game.currentBet || 0 : 0) + (game ? game.minRaise || getCurrentBigBlind(game) : BIG_BLIND);
-  }
-
-
-  function getTurnPrompt() {
-    const game = State.game;
-    const current = getCurrentPlayer();
-    if (!game || !game.active || !current) return "";
-    const turn = PokerEngine.actions(game, current.key, "");
-    const choices = [];
-    if (turn.legal.check) choices.push("check");
-    if (turn.legal.call) choices.push("call $" + turn.toCall);
-    if (turn.legal.bet) choices.push("bet $" + turn.minBetTarget + "-$" + turn.maxBetTarget);
-    if (turn.legal.raise) choices.push("raise $" + turn.minRaiseTarget + "-$" + turn.maxRaiseTarget);
-    if (turn.legal.fold) choices.push("fold");
-    return current.name + " to act" + (choices.length ? ": " + choices.join(", ") + "." : ".");
   }
 
   function setGameAnnouncement(game, title, detail) {
@@ -3143,22 +3161,6 @@
   function announce(title, detail) {
     if (!State.game) return;
     setGameAnnouncement(State.game, title, detail);
-  }
-
-
-  function getActionStatusText() {
-    const game = State.game;
-    if (!game || !game.active) return "";
-    const current = getCurrentPlayer();
-    const local = getLocalPlayer();
-    const actor = local || current;
-    const toCall = getCallAmount(actor);
-    return String(game.phase || "lobby").toUpperCase() +
-      " | turn " + (current ? current.name : "<none>") +
-      " | pot $" + (game.pot || 0) +
-      " | bet $" + (game.currentBet || 0) +
-      " | you " + (local ? local.name : "<unknown>") +
-      " | call $" + toCall;
   }
 
   function describeActionState(reason, record, player) {
@@ -3193,12 +3195,10 @@
     log("action debug " + detail);
     setStatus("DEBUG " + detail);
     if (State.game) {
-      addGameLog("DEBUG " + reason + ": " + (getActionStatusText() || detail));
-      renderLog();
+      addGameLog("DEBUG " + reason + ": " + (PokerEngine.actions(State.game, getCurrentPlayer() && getCurrentPlayer().key, State.localPlayerKey).statusText || detail));
+      renderLog(ViewModel.build());
     }
   }
-
-
 
   function compareNumberArrays(a, b) {
     const len = Math.max(a.length, b.length);
@@ -3307,7 +3307,6 @@
     return compareNumberArrays(a.kickers, b.kickers);
   }
 
-
   function resolveResumeNextDealerKey(payload) {
     const roster = payload && payload.roster ? payload.roster : [];
     const dealerKey = normalizePlayerKey(payload && payload.dealerKey);
@@ -3332,15 +3331,17 @@
     return { key: key, name: name, stack: stack, bet: 0, committed: 0, cards: [], folded: false, acted: false, result: null };
   }
 
-
-
-
   function addGameLogTo(game, text) {
     game.log.push(text);
     while (game.log.length > MAX_GAME_LOG_ENTRIES) game.log.shift();
   }
 
   function sendStartCommand() {
+    if (getActiveTableGameType() === "bluff-deck") {
+      setStatus("Finish the active Bluff Deck match before starting Poker.");
+      RenderScheduler.immediate("start-bluff-active");
+      return;
+    }
     const viewModel = ViewModel.build(getViewModelState(State.readyCountValue || getReadySeatArray().length));
     const gate = viewModel.gates.start;
     if (State.resume && State.resume.payload) {
@@ -3358,8 +3359,12 @@
     sendChatMessage(buildSynchronizedStartCommand(seed, roster, getNextHandNumber()));
   }
 
-
   function endMatch() {
+    const bluffGame = State.bluffDeck && State.bluffDeck.game;
+    if (bluffGame && bluffGame.active) {
+      sendBluffDeckEnd();
+      return;
+    }
     if (!State.game) {
       setStatus("No poker match is active.");
       RenderScheduler.immediate("end-match-invalid");
@@ -3369,6 +3374,7 @@
     if (party.id && party.mode !== "leader") return;
     const endedGame = State.game;
     if (party.id && party.mode === "leader") sendChatMessage(buildMatchEndCommand(endedGame, party.id), true, true);
+    State.terminalTableGame = "poker";
     PartyReducer.reset(LOBBY_RESET_CASES.endMatch, "end match");
     setStatus("Match ended. Host a party or wait for players to join before showing the table again.");
     RenderScheduler.immediate("end-match");
@@ -3378,6 +3384,21 @@
     const party = ensureParty();
     const partyId = party.id || "";
     const activeGame = State.game;
+    const bluffGame = State.bluffDeck && State.bluffDeck.game;
+    const localKey = localBluffKey();
+    const bluffSeat = bluffGame && bluffGame.active && bluffGame.players
+      ? bluffGame.players.find((player) => player.key === localKey && player.status === "active")
+      : null;
+    if (partyId && bluffSeat) {
+      const scoped = buildScopedBluffPartyLeave(partyId, bluffGame);
+      if (scoped) {
+        sendChatMessage(scoped, true, true);
+        State.lastLobbyLeaveMs = Date.now();
+        setStatus("Leaving Bluff Deck match...");
+        RenderScheduler.immediate("leave-bluff");
+        return;
+      }
+    }
     if (partyId && party.mode === "leader" && activeGame) {
       sendChatMessage(buildMatchEndCommand(activeGame, partyId), true, true);
     }
@@ -3386,6 +3407,8 @@
       State.lastLobbyLeaveMs = Date.now();
     }
     PartyReducer.reset(LOBBY_RESET_CASES.leaveLobby, "leave lobby");
+    State.terminalTableGame = "";
+    State.pendingTableSwitch = "";
     clearReadySeats("leave");
     savePartyState();
     RenderScheduler.immediate("leave-lobby");
@@ -3410,7 +3433,6 @@
     }
     return fromIndex;
   }
-
 
   function activeContestants() {
     const out = [];
@@ -3498,7 +3520,7 @@
     if (!dealNextStreet(suppressRender)) return;
     game.currentIndex = firstActiveAfter(game.dealerIndex);
     game.streetOpenerIndex = game.currentIndex;
-    announce(String(game.phase || "street").charAt(0).toUpperCase() + String(game.phase || "street").slice(1) + " dealt", getTurnPrompt());
+    announce(String(game.phase || "street").charAt(0).toUpperCase() + String(game.phase || "street").slice(1) + " dealt", PokerEngine.actions(game, game.players[game.currentIndex].key, "").prompt);
     if (!suppressRender) RenderScheduler.defer("game-advance");
   }
 
@@ -3644,8 +3666,8 @@
       State.bankrolls[player.key] = player.stack;
       if (player.stack <= 0) addGameLog(player.name + " is out.");
     }
-    const lateJoinResult = LateJoinQueue.apply(null, "finish");
-    PendingSelfAction.clear();
+    const lateJoinResult = applyLateJoinBuyIns(null, "finish");
+    clearLocalActionEcho();
     const lateJoinStatus = formatLateJoinApplied(lateJoinResult);
     const finalStatus = lateJoinStatus ? status + " " + lateJoinStatus : status;
     if (suppressRender) State.reducerActionStatus = finalStatus;
@@ -3654,7 +3676,6 @@
       RenderScheduler.defer("game-advance");
     }
   }
-
 
   function rejectAction(prefix, command, amount, record, player) {
     const game = State.game;
@@ -3675,7 +3696,6 @@
     return action;
   }
 
-
   function advanceEngineAction(record, actionAnnouncement, suppressRender) {
     const game = State.game;
     if (!game || !game.active) return;
@@ -3683,7 +3703,7 @@
     else if (hasBettingRoundSettled()) advancePhase(suppressRender);
     else {
       game.currentIndex = nextActorIndexFrom(game, game.currentIndex);
-      announce(actionAnnouncement || "Next turn", getTurnPrompt());
+      announce(actionAnnouncement || "Next turn", PokerEngine.actions(game, game.players[game.currentIndex].key, "").prompt);
     }
     if (!suppressRender) RenderScheduler.defer("game-advance");
   }
@@ -3721,28 +3741,11 @@
       }
       const policy = engineActionPolicy(activeGame, player && player.key, "");
       const legal = policy.legal;
-      if (!player || current.key !== player.key) {
-        rejectAction("reject-out-of-turn", normalized.action, normalized.amount, record, player);
-        return result;
-      }
-      if (normalized.action === "fold" && !legal.fold) {
-        rejectAction("reject-illegal-fold", normalized.action, normalized.amount, record, player);
-        return result;
-      }
-      if (normalized.action === "check" && !legal.check) {
-        rejectAction("reject-illegal-check", normalized.action, normalized.amount, record, player);
-        return result;
-      }
-      if (normalized.action === "call" && !legal.call) {
-        rejectAction("reject-illegal-call", normalized.action, normalized.amount, record, player);
-        return result;
-      }
-      if (normalized.action === "bet" && !legal.canBetTarget(normalized.amount)) {
-        rejectAction("reject-illegal-bet", normalized.action, normalized.amount, record, player);
-        return result;
-      }
-      if (normalized.action === "raise" && !legal.canRaiseTarget(normalized.amount)) {
-        rejectAction("reject-illegal-raise", normalized.action, normalized.amount, record, player);
+      if (!policy.isLegal(normalized)) {
+        const prefix = !player || !current || current.key !== player.key
+          ? "reject-out-of-turn"
+          : "reject-illegal-" + normalized.action;
+        rejectAction(prefix, normalized.action, normalized.amount, record, player);
         return result;
       }
       let actionAmount = normalized.amount;
@@ -3787,15 +3790,15 @@
       const suppressRender = !!options.suppressRender;
       State.reducerActionStatus = "";
       advanceEngineAction(record, actionAnnouncement, suppressRender);
-      const pendingSelfApplied = record && record.isSelf
-        ? PendingSelfAction.markApplied(getActionCommandText(normalized.action, actionAmount))
+      const localActionEchoApplied = record && record.isSelf
+        ? markLocalActionEchoApplied(getActionCommandText(normalized.action, actionAmount))
         : false;
       result.ok = true;
       result.changed = true;
       result.status = State.reducerActionStatus || actionAnnouncement;
       result.log = logText;
       result.announcement = actionAnnouncement || null;
-      result.pendingSelfApplied = !!pendingSelfApplied;
+      result.pendingSelfApplied = !!localActionEchoApplied;
       result.render = !suppressRender;
       State.reducerActionStatus = "";
       return result;
@@ -3803,7 +3806,6 @@
       State.game = previousGame;
     }
   }
-
 
   function createEngine(options) {
     options = options || {};
@@ -3924,7 +3926,6 @@
     return null;
   }
 
-
   function engineActionPolicy(game, actorKey, localKey) {
     const activeGame = game || null;
     const players = activeGame && activeGame.players ? activeGame.players : [];
@@ -3953,8 +3954,36 @@
     };
     const kind = activeGame && activeGame.currentBet === 0 ? "bet" : "raise";
     const minTarget = activeGame ? (kind === "bet" ? getCurrentBigBlind(activeGame) : getMinimumRaiseTo(activeGame)) : BIG_BLIND;
-    const custom = !!(activeGame && actor && (kind === "bet" ? legal.canBetTarget(minTarget) : legal.canRaiseTarget(minTarget)) && chipsAvailable >= minTarget)
-      ? { action: kind, min: minTarget, max: chipsAvailable, step: SMALL_BLIND, value: minTarget }
+    const isLegal = function isLegal(action) {
+      const decoded = normalizeEngineAction(action);
+      if (!decoded) return false;
+      if (decoded.action === "check") return !!legal.check;
+      if (decoded.action === "call") return !!legal.call;
+      if (decoded.action === "fold") return !!legal.fold;
+      if (decoded.action === "bet") return legal.canBetTarget(decoded.amount);
+      if (decoded.action === "raise") return legal.canRaiseTarget(decoded.amount);
+      return false;
+    };
+    const custom = !!(activeGame && actor && isLegal({ action: kind, amount: minTarget }) && chipsAvailable >= minTarget)
+      ? {
+        action: kind,
+        min: minTarget,
+        max: chipsAvailable,
+        step: SMALL_BLIND,
+        value: minTarget,
+        isLegal: function isLegalCustomAmount(amount) {
+          return isLegal({ action: kind, amount: amount });
+        },
+        command: function customCommand(amount) {
+          return getActionCommandText(kind, amount);
+        },
+        label: function customLabel(amount) {
+          return (kind === "bet" ? "BET $" : "RAISE TO $") + amount;
+        },
+        invalidStatus: function invalidCustomStatus() {
+          return (kind === "bet" ? "Bet" : "Raise") + " must be between $" + minTarget + " and $" + chipsAvailable + ".";
+        },
+      }
       : null;
     legal.bet = !!(custom && kind === "bet");
     legal.raise = !!(custom && kind === "raise");
@@ -3964,6 +3993,14 @@
     if (legal.call) choices.push({ label: "CALL $" + legal.toCall, command: "call", className: "PokerActionButton", enabled: enabled, readOnly: !enabled });
     if (custom) choices.push({ label: kind === "bet" ? "BET" : "RAISE", command: "custom-" + kind, className: "PokerActionButton", enabled: enabled, readOnly: !enabled, customBet: custom });
     if (legal.fold) choices.push({ label: "FOLD", command: "fold", className: "PokerActionButton Danger", enabled: enabled, readOnly: !enabled });
+    const promptChoices = [];
+    if (legal.check) promptChoices.push("check");
+    if (legal.call) promptChoices.push("call $" + toCall);
+    if (custom) promptChoices.push(kind + " $" + custom.min + "-$" + custom.max);
+    if (legal.fold) promptChoices.push("fold");
+    const prompt = activeGame && activeGame.active && current
+      ? current.name + " to act" + (promptChoices.length ? ": " + promptChoices.join(", ") + "." : ".")
+      : "";
     const statusText = activeGame && activeGame.active
       ? String(activeGame.phase || "lobby").toUpperCase() +
         " | turn " + (current ? current.name : "<none>") +
@@ -3972,6 +4009,13 @@
         " | you " + (local ? local.name : "<unknown>") +
         " | call $" + toCall
       : "";
+    const invalidStatus = function invalidStatus(action) {
+      if (!activeGame || !activeGame.active || !current) return "No active synced hand is waiting for an action.";
+      if (!local) return "Chat sender unknown. Type ready or reopen party chat so Deadlock exposes your name before acting.";
+      if (current.key !== local.key) return "Waiting for " + current.name + ". You are " + local.name + ".";
+      if (!isLegal(action)) return "Action no longer legal for " + local.name + ". Waiting for " + current.name + ".";
+      return "";
+    };
     return {
       currentKey: current && current.key ? current.key : "",
       localKey: local && local.key ? local.key : (localKey || ""),
@@ -3985,6 +4029,9 @@
       minRaiseTarget: activeGame ? getMinimumRaiseTo(activeGame) : BIG_BLIND,
       maxRaiseTarget: chipsAvailable,
       legal: legal,
+      isLegal: isLegal,
+      invalidStatus: invalidStatus,
+      prompt: prompt,
       ranges: { bet: kind === "bet" ? custom : null, raise: kind === "raise" ? custom : null },
       readOnly: !enabled,
       illegal: { customAmount: !!(activeGame && actor && !custom && (kind === "bet" || kind === "raise")) },
@@ -3992,7 +4039,6 @@
       actionChoices: choices,
     };
   }
-
 
   const ACTION_WIRE_TABLE = [
     { action: "check", pattern: /^check$/i },
@@ -4017,15 +4063,6 @@
     }
     return null;
   }
-  function isEngineActionLegal(policy, decoded) {
-    if (!policy || !policy.legal || !decoded || decoded.unsupported) return false;
-    if (decoded.action === "check") return !!policy.legal.check;
-    if (decoded.action === "call") return !!policy.legal.call;
-    if (decoded.action === "fold") return !!policy.legal.fold;
-    if (decoded.action === "bet") return policy.legal.canBetTarget(decoded.amount);
-    if (decoded.action === "raise") return policy.legal.canRaiseTarget(decoded.amount);
-    return false;
-  }
 
   function normalizeEngineAction(action) {
     if (typeof action === "string") {
@@ -4042,7 +4079,6 @@
     const parsed = decodeActionWire(raw);
     return parsed && !parsed.unsupported ? parsed : null;
   }
-
 
   function departEngineGame(game, playerKey, context) {
     const key = normalizePlayerKey(playerKey);
@@ -4078,7 +4114,7 @@
         if (activeContestants().length <= 1) awardFoldWin();
         else {
           if (wasCurrent) game.currentIndex = nextActorIndexFrom(game, index);
-          announce(base.announcement.title, getTurnPrompt());
+          announce(base.announcement.title, PokerEngine.actions(game, game.players[game.currentIndex].key, "").prompt);
           if (hasBettingRoundSettled()) advancePhase();
         }
         base.advanced = wasCurrent;
@@ -4127,6 +4163,504 @@
     return { players: eligible, dealerKey: normalizePlayerKey(eligible[eligible.length - 1].key || eligible[eligible.length - 1].name) };
   }
 
+  const BD_ACE = 0;
+  const BD_KING = 1;
+  const BD_QUEEN = 2;
+  const BD_JOKER = 3;
+  const BD_LABELS = Object.freeze(["ACE", "KING", "QUEEN", "JOKER"]);
+  const BD_DECK = Object.freeze([BD_ACE, BD_ACE, BD_ACE, BD_ACE, BD_ACE, BD_ACE, BD_KING, BD_KING, BD_KING, BD_KING, BD_KING, BD_KING, BD_QUEEN, BD_QUEEN, BD_QUEEN, BD_QUEEN, BD_QUEEN, BD_QUEEN, BD_JOKER, BD_JOKER]);
+  const BD_MASK = 31;
+  const BD_EMPTY_RESULT = Object.freeze({ changed: false, status: "rejected", roundEnded: false, matchEnded: false });
+
+  function bdHex8(value) {
+    return (value >>> 0).toString(16).padStart(8, "0").toLowerCase();
+  }
+  function bdCount(mask) {
+    let value = mask >>> 0;
+    let count = 0;
+    while (value) {
+      value &= value - 1;
+      count += 1;
+    }
+    return count;
+  }
+  function bdPlayerKey(value) {
+    return normalizePlayerKey(value);
+  }
+  function bdPlayerAt(game, key) {
+    const wanted = bdPlayerKey(key);
+    if (!wanted) return null;
+    for (let i = 0; i < game.players.length; i += 1) {
+      if (game.players[i].key === wanted) return game.players[i];
+    }
+    return null;
+  }
+  function bdActivePlayers(game) {
+    const result = [];
+    for (let i = 0; i < game.players.length; i += 1) {
+      if (game.players[i].status === "active") result.push(game.players[i]);
+    }
+    return result;
+  }
+  function bdActiveWithCards(game) {
+    const result = [];
+    for (let i = 0; i < game.players.length; i += 1) {
+      const player = game.players[i];
+      if (player.status === "active" && player.remainingMask !== 0) result.push(player);
+    }
+    return result;
+  }
+  function bdNextIndex(game, fromIndex, requireCards) {
+    const count = game.players.length;
+    for (let offset = 1; offset <= count; offset += 1) {
+      const index = (fromIndex + offset + count) % count;
+      const player = game.players[index];
+      if (player.status !== "active") continue;
+      if (requireCards && player.remainingMask === 0) continue;
+      return index;
+    }
+    return -1;
+  }
+  function bdDeal(game) {
+    const deck = BD_DECK.slice();
+    const random = seededRandom(hashString(game.id + "|bd1|deck|" + game.round));
+    for (let i = deck.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(random() * (i + 1));
+      const temp = deck[i];
+      deck[i] = deck[j];
+      deck[j] = temp;
+    }
+    for (let i = 0; i < game.players.length; i += 1) {
+      if (game.players[i].status === "active") game.players[i].hand = [];
+      else if (!Array.isArray(game.players[i].hand) || game.players[i].hand.length !== 5) game.players[i].hand = [BD_ACE, BD_ACE, BD_ACE, BD_ACE, BD_ACE];
+      game.players[i].remainingMask = 0;
+    }
+    const active = bdActivePlayers(game);
+    let cursor = 0;
+    for (let pass = 0; pass < 5; pass += 1) {
+      for (let i = 0; i < active.length; i += 1) {
+        active[i].hand.push(deck[cursor]);
+        active[i].remainingMask |= 1 << pass;
+        cursor += 1;
+      }
+    }
+    const targetRandom = seededRandom(hashString(game.id + "|bd1|target|" + game.round));
+    game.target = Math.floor(targetRandom() * 3);
+  }
+  function bdCanonical(game) {
+    const players = [];
+    for (let i = 0; i < game.players.length; i += 1) {
+      const player = game.players[i];
+      players.push({
+        key: player.key,
+        name: player.name,
+        status: player.status,
+        hand: player.hand.slice(),
+        remainingMask: player.remainingMask,
+        outIndex: player.outIndex,
+        riskIndex: player.riskIndex,
+      });
+    }
+    const canonical = {
+      version: game.version,
+      ruleset: game.ruleset,
+      id: game.id,
+      rosterHash: game.rosterHash,
+      active: game.active,
+      finished: game.finished,
+      aborted: game.aborted,
+      endReason: game.endReason,
+      desynced: game.desynced,
+      round: game.round,
+      seq: game.seq,
+      target: game.target,
+      currentIndex: game.currentIndex,
+      lastPlay: game.lastPlay ? { actorIndex: game.lastPlay.actorIndex, mask: game.lastPlay.mask, count: game.lastPlay.count } : null,
+      lastResult: null,
+      winnerKey: game.winnerKey,
+      players: players,
+      log: game.log.slice(),
+    };
+    if (game.lastResult) {
+      canonical.lastResult = {};
+      const fields = ["actorIndex", "accusedIndex", "mask", "revealed", "truthful", "loserIndex", "riskBefore", "riskAfter", "eliminated"];
+      for (let i = 0; i < fields.length; i += 1) {
+        const field = fields[i];
+        if (Object.prototype.hasOwnProperty.call(game.lastResult, field)) {
+          const value = game.lastResult[field];
+          canonical.lastResult[field] = Array.isArray(value) ? value.slice() : value;
+        }
+      }
+    }
+    // Keep the historical null-state hash stable, but include all pending-shot
+    // fields once a challenge has committed a reveal.
+    if (game.pendingShot) {
+      canonical.pendingShot = {
+        shooterIndex: game.pendingShot.shooterIndex,
+        challengeSeq: game.pendingShot.challengeSeq,
+      };
+    }
+    return canonical;
+  }
+  function bdInvalid(reason) {
+    throw new Error("Invalid Bluff Deck state: " + reason);
+  }
+  function bdValidMask(mask) {
+    return Number.isInteger(mask) && mask >= 0 && mask <= BD_MASK;
+  }
+  function bdAssert(game) {
+    if (!game || typeof game !== "object") bdInvalid("missing game");
+    if (game.version !== 1 || game.ruleset !== "basic-v1") bdInvalid("version");
+    if (typeof game.id !== "string" || !/^[0-9a-f]{8}$/i.test(game.id)) bdInvalid("match id");
+    if (typeof game.rosterHash !== "string" || !/^[0-9a-f]{8}$/i.test(game.rosterHash)) bdInvalid("roster hash");
+    if (!Array.isArray(game.players) || game.players.length < 2 || game.players.length > 4) bdInvalid("seat count");
+    if (!Number.isInteger(game.round) || game.round < 1 || !Number.isInteger(game.seq) || game.seq < 0) bdInvalid("counters");
+    if (!Number.isInteger(game.target) || game.target < BD_ACE || game.target > BD_QUEEN) bdInvalid("target");
+    if (!Number.isInteger(game.currentIndex) || game.currentIndex < 0 || game.currentIndex >= game.players.length) bdInvalid("current index");
+    if (!Array.isArray(game.log) || game.log.length > 8) bdInvalid("log");
+    if (game.lastResult !== null && (!game.lastResult || typeof game.lastResult !== "object")) bdInvalid("last result");
+    if (game.pendingShot !== null) {
+      if (!game.pendingShot || !Number.isInteger(game.pendingShot.shooterIndex)
+        || game.pendingShot.shooterIndex < 0 || game.pendingShot.shooterIndex >= game.players.length
+        || !Number.isInteger(game.pendingShot.challengeSeq) || game.pendingShot.challengeSeq < 1
+        || !game.lastPlay || !game.lastResult || game.lastResult.loserIndex !== game.pendingShot.shooterIndex
+        || game.lastResult.riskAfter !== null || game.lastResult.eliminated !== null
+        || game.players[game.pendingShot.shooterIndex].status !== "active"
+        || game.currentIndex !== game.pendingShot.shooterIndex || !game.active) bdInvalid("pending shot");
+    }
+    const keys = [];
+    let activeCount = 0;
+    let winnerCount = 0;
+    for (let i = 0; i < game.players.length; i += 1) {
+      const player = game.players[i];
+      if (!player || typeof player.key !== "string" || !player.key || player.key !== bdPlayerKey(player.key)) bdInvalid("seat key");
+      if (keys.indexOf(player.key) !== -1) bdInvalid("duplicate seat");
+      keys.push(player.key);
+      if (typeof player.name !== "string" || !player.name) bdInvalid("seat name");
+      if (player.status !== "active" && player.status !== "eliminated" && player.status !== "left") bdInvalid("seat status");
+      if (!Array.isArray(player.hand) || player.hand.length !== 5) bdInvalid("hand");
+      if (!bdValidMask(player.remainingMask)) bdInvalid("mask");
+      if (!Number.isInteger(player.outIndex) || player.outIndex < 0 || player.outIndex > 5) bdInvalid("out index");
+      if (!Number.isInteger(player.riskIndex) || player.riskIndex < 0 || player.riskIndex > 6) bdInvalid("risk index");
+      if (player.status === "active") {
+        activeCount += 1;
+        if (player.riskIndex > 5) bdInvalid("active seat");
+      } else if (player.remainingMask !== 0) bdInvalid("inactive hand");
+      if (player.status === "eliminated" && player.riskIndex <= player.outIndex) bdInvalid("eliminated risk");
+      for (let j = 0; j < player.hand.length; j += 1) {
+        if (!Number.isInteger(player.hand[j]) || player.hand[j] < BD_ACE || player.hand[j] > BD_JOKER) bdInvalid("rank");
+      }
+      if (player.key === game.winnerKey) winnerCount += 1;
+    }
+    if (game.rosterHash !== bdHex8(hashString(keys.join("|")))) bdInvalid("roster hash");
+    if (game.active) {
+      if (game.finished || game.aborted || game.endReason) bdInvalid("active terminal flags");
+      if (activeCount < 2) bdInvalid("active seats");
+    } else if (game.finished) {
+      if (game.aborted || game.endReason || activeCount !== 1 || winnerCount !== 1 || game.pendingShot !== null) bdInvalid("natural terminal");
+    } else if (!game.aborted || game.endReason !== "leader" || game.winnerKey || activeCount < 2 || game.pendingShot !== null) {
+      bdInvalid("manual terminal");
+    }
+    if (game.winnerKey && winnerCount !== 1) bdInvalid("winner");
+    if (!game.winnerKey && winnerCount !== 0) bdInvalid("winner");
+    if (game.lastPlay !== null) {
+      const play = game.lastPlay;
+      if (!play || !Number.isInteger(play.actorIndex) || play.actorIndex < 0 || play.actorIndex >= game.players.length) bdInvalid("last play actor");
+      if (!bdValidMask(play.mask) || play.mask === 0 || !Number.isInteger(play.count) || play.count < 1 || play.count > 3 || play.count !== bdCount(play.mask)) bdInvalid("last play");
+      const actor = game.players[play.actorIndex];
+      if ((play.mask & ~((1 << actor.hand.length) - 1)) !== 0) bdInvalid("last play slots");
+    }
+    return true;
+  }
+  function bdForcedChallenge(game) {
+    return !!game.lastPlay && !game.pendingShot && bdActiveWithCards(game).length === 1
+      && game.players[game.currentIndex].status === "active" && game.players[game.currentIndex].remainingMask !== 0;
+  }
+  function bdResult(status, changed, roundEnded, matchEnded) {
+    return { changed: !!changed, status: status, roundEnded: !!roundEnded, matchEnded: !!matchEnded };
+  }
+  function bdCreate(input) {
+    if (!input || typeof input !== "object") throw new Error("Invalid Bluff Deck roster");
+    const id = String(input.id || "").trim().toLowerCase();
+    if (!/^[0-9a-f]{8}$/.test(id)) throw new Error("Invalid Bluff Deck match id");
+    if (!Array.isArray(input.roster) || input.roster.length < 2 || input.roster.length > 4) throw new Error("Invalid Bluff Deck roster");
+    const players = [];
+    const keys = [];
+    for (let i = 0; i < input.roster.length; i += 1) {
+      const entry = input.roster[i];
+      const key = bdPlayerKey(entry && entry.key);
+      const name = String(entry && entry.name || "").replace(/\s+/g, " ").trim();
+      if (!key || !name || keys.indexOf(key) !== -1) throw new Error("Invalid Bluff Deck roster");
+      keys.push(key);
+      players.push({ key: key, name: name, status: "active", hand: [], remainingMask: BD_MASK, outIndex: Math.floor(seededRandom(hashString(id + "|bd1|risk|" + key))() * 6), riskIndex: 0 });
+    }
+    const game = {
+      version: 1, ruleset: "basic-v1", id: id, rosterHash: bdHex8(hashString(keys.join("|"))),
+      active: true, finished: false, aborted: false, endReason: "", desynced: false,
+      round: 1, seq: 0, target: BD_ACE,
+      currentIndex: Math.floor(seededRandom(hashString(id + "|bd1|starter"))() * players.length),
+      lastPlay: null, lastResult: null, pendingShot: null, winnerKey: "", players: players, log: [],
+    };
+    bdDeal(game);
+    bdAssert(game);
+    return game;
+  }
+  function bdLegalActions(game, actorKey) {
+    const unavailable = { canPlay: false, canChallenge: false, canShoot: false, minCards: 0, maxCards: 0, legal: { play: false, challenge: false, shoot: false, forcedChallenge: false } };
+    if (!game || !game.active || game.desynced || !Array.isArray(game.players)) return unavailable;
+    const index = game.players.findIndex((player) => player.key === bdPlayerKey(actorKey));
+    if (index !== game.currentIndex || game.players[index].status !== "active") return unavailable;
+    if (game.pendingShot) {
+      const canShoot = game.pendingShot.shooterIndex === index;
+      return { canPlay: false, canChallenge: false, canShoot: canShoot, minCards: 0, maxCards: 0, legal: { play: false, challenge: false, shoot: canShoot, forcedChallenge: false } };
+    }
+    if (bdForcedChallenge(game)) return { canPlay: false, canChallenge: true, canShoot: false, minCards: 0, maxCards: 0, legal: { play: false, challenge: true, shoot: false, forcedChallenge: true } };
+    if (game.players[index].remainingMask === 0) return unavailable;
+    return { canPlay: true, canChallenge: !!game.lastPlay, canShoot: false, minCards: 1, maxCards: 3, legal: { play: true, challenge: !!game.lastPlay, shoot: false, forcedChallenge: false } };
+  }
+  function bdApply(game, actorKey, action, options) {
+    // Keep old callers harmless while exposing the documented (game, actor, action) API.
+    if (action === undefined && actorKey && typeof actorKey === "object") {
+      action = actorKey;
+      actorKey = "";
+    }
+    if (!game || !Array.isArray(game.players) || !action || typeof action !== "object") return BD_EMPTY_RESULT;
+    bdAssert(game);
+    const matchId = action.id || action.matchId || (options && (options.id || options.matchId)) || "";
+    if (matchId && String(matchId).toLowerCase() !== game.id) return BD_EMPTY_RESULT;
+    const seq = action.seq != null ? action.seq : (options && options.seq);
+    if (seq != null && Number(seq) !== game.seq + 1) return BD_EMPTY_RESULT;
+    const index = game.players.findIndex((player) => player.key === bdPlayerKey(actorKey));
+    if (!game.active || game.desynced || index !== game.currentIndex || game.players[index].status !== "active") return BD_EMPTY_RESULT;
+    if (action.type === "play") {
+      const mask = action.mask;
+      if (game.pendingShot || bdForcedChallenge(game) || !bdValidMask(mask) || mask === 0 || (mask & ~game.players[index].remainingMask) !== 0) return BD_EMPTY_RESULT;
+      const count = bdCount(mask);
+      if (count < 1 || count > 3) return BD_EMPTY_RESULT;
+      game.lastResult = null;
+      game.players[index].remainingMask &= ~mask;
+      game.lastPlay = { actorIndex: index, mask: mask, count: count };
+      game.seq += 1;
+      const next = bdNextIndex(game, index, true);
+      game.currentIndex = next < 0 ? index : next;
+      bdAssert(game);
+      return bdResult(game.players[index].name.toUpperCase() + " PLAYED " + count + " CARD" + (count === 1 ? "" : "S"), true, false, false);
+    }
+    if (action.type === "challenge") {
+      if (game.pendingShot || !game.lastPlay) return BD_EMPTY_RESULT;
+      const play = game.lastPlay;
+      const accused = game.players[play.actorIndex];
+      const revealed = [];
+      let truthful = true;
+      for (let slot = 0; slot < accused.hand.length; slot += 1) {
+        if ((play.mask & (1 << slot)) === 0) continue;
+        revealed.push(accused.hand[slot]);
+        if (accused.hand[slot] !== game.target && accused.hand[slot] !== BD_JOKER) truthful = false;
+      }
+      const loserIndex = truthful ? index : play.actorIndex;
+      game.lastResult = {
+        actorIndex: index, accusedIndex: play.actorIndex, mask: play.mask, revealed: revealed,
+        truthful: truthful, loserIndex: loserIndex, riskBefore: game.players[loserIndex].riskIndex,
+        riskAfter: null, eliminated: null,
+      };
+      game.pendingShot = { shooterIndex: loserIndex, challengeSeq: game.seq + 1 };
+      game.currentIndex = loserIndex;
+      game.seq += 1;
+      bdAppendLog(game, bdChallengeText(game.lastResult, game));
+      bdAssert(game);
+      return bdResult((truthful ? "CALLER" : "ACCUSED") + " MUST PULL TRIGGER", true, false, false);
+    }
+    if (action.type !== "shoot" || !game.pendingShot || game.pendingShot.shooterIndex !== index) return BD_EMPTY_RESULT;
+    const result = game.lastResult;
+    const loser = game.players[index];
+    const riskBefore = loser.riskIndex;
+    loser.riskIndex += 1;
+    const eliminated = riskBefore === loser.outIndex;
+    if (eliminated) {
+      loser.status = "eliminated";
+      loser.remainingMask = 0;
+    }
+    result.riskAfter = loser.riskIndex;
+    result.eliminated = eliminated;
+    game.seq += 1;
+    game.pendingShot = null;
+    game.lastPlay = null;
+    const active = bdActivePlayers(game);
+    const text = bdResultText(result, game);
+    if (active.length === 1) {
+      game.active = false;
+      game.finished = true;
+      game.winnerKey = active[0].key;
+      game.currentIndex = game.players.indexOf(active[0]);
+      bdAppendLog(game, text);
+      bdAssert(game);
+      return bdResult((result.truthful ? "CALLER" : "ACCUSED") + " RESULT: " + (eliminated ? "OUT" : "SAFE"), true, true, true);
+    }
+    game.round += 1;
+    bdDeal(game);
+    game.currentIndex = loser.status === "active" ? index : bdNextIndex(game, index, false);
+    bdAppendLog(game, text);
+    bdAssert(game);
+    return bdResult((result.truthful ? "CALLER" : "ACCUSED") + " RESULT: " + (eliminated ? "OUT" : "SAFE"), true, true, false);
+  }
+  function bdChallengeText(result) {
+    return "REVEAL: " + result.revealed.map((rank) => "[" + BD_LABELS[rank] + "]").join(" ") + " — " + (result.truthful ? "TRUTH" : "LIE")
+      + "\n" + (result.truthful ? "CALLER" : "ACCUSED") + " RESULT: PENDING\nPULL TRIGGER";
+  }
+  function bdResultText(result) {
+    return "REVEAL: " + result.revealed.map((rank) => "[" + BD_LABELS[rank] + "]").join(" ") + " — " + (result.truthful ? "TRUTH" : "LIE")
+      + "\n" + (result.truthful ? "CALLER" : "ACCUSED") + " RESULT: " + (result.eliminated ? "OUT" : "SAFE") + (result.eliminated ? "\nPLAYER ELIMINATED" : "");
+  }
+  function bdAppendLog(game, text) {
+    game.log.push(text);
+    if (game.log.length > 8) game.log.splice(0, game.log.length - 8);
+  }
+  function bdDepart(game, playerKey) {
+    if (!game || !game.active || !Array.isArray(game.players)) return BD_EMPTY_RESULT;
+    bdAssert(game);
+    const index = game.players.findIndex((player) => player.key === bdPlayerKey(playerKey));
+    if (index < 0 || game.players[index].status !== "active") return BD_EMPTY_RESULT;
+    const leaver = game.players[index];
+    game.lastResult = null;
+    game.lastPlay = null;
+    game.pendingShot = null;
+    leaver.status = "left";
+    leaver.remainingMask = 0;
+    game.seq += 1;
+    const active = bdActivePlayers(game);
+    if (active.length === 1) {
+      game.active = false;
+      game.finished = true;
+      game.winnerKey = active[0].key;
+      game.currentIndex = game.players.indexOf(active[0]);
+      bdAppendLog(game, leaver.name + " LEFT");
+      bdAssert(game);
+      return bdResult("finished", true, true, true);
+    }
+    game.round += 1;
+    bdDeal(game);
+    game.currentIndex = bdNextIndex(game, index, false);
+    bdAppendLog(game, leaver.name + " LEFT");
+    bdAssert(game);
+    return bdResult("departed", true, true, false);
+  }
+  function bdAbort(game) {
+    if (!game || !game.active) return BD_EMPTY_RESULT;
+    bdAssert(game);
+    game.active = false;
+    game.finished = false;
+    game.aborted = true;
+    game.endReason = "leader";
+    game.winnerKey = "";
+    game.lastPlay = null;
+    game.pendingShot = null;
+    game.lastResult = null;
+    bdAssert(game);
+    return bdResult("aborted", true, true, true);
+  }
+  function bdProject(game, localPlayerKey, selectedMask, pending) {
+    if (selectedMask && typeof selectedMask === "object") {
+      pending = selectedMask.pending || selectedMask.pendingText || pending;
+      selectedMask = selectedMask.selectionMask || selectedMask.selectedMask || 0;
+    }
+    const empty = { headerText: "", targetText: "", turnText: "", previousPlayText: "", handText: "", opponentTexts: [], actionText: "", pendingText: "", resultText: "", logTexts: [] };
+    if (!game || !Array.isArray(game.players)) return empty;
+    const local = bdPlayerAt(game, localPlayerKey);
+    const selected = bdValidMask(selectedMask) ? selectedMask : 0;
+    const model = {
+      headerText: game.active ? "BLUFF DECK — ROUND " + game.round : "BLUFF DECK — MATCH ENDED",
+      targetText: "TARGET: " + BD_LABELS[game.target],
+      turnText: game.active ? "TURN: " + game.players[game.currentIndex].name.toUpperCase() : "",
+      previousPlayText: game.lastPlay ? game.players[game.lastPlay.actorIndex].name.toUpperCase() + " PLAYED " + game.lastPlay.count + " CARD" + (game.lastPlay.count === 1 ? "" : "S") : "",
+      handText: "", opponentTexts: [], actionText: "", pendingText: "", resultText: "", logTexts: game.log.slice(),
+    };
+    if (local) {
+      const labels = [];
+      for (let i = 0; i < local.hand.length; i += 1) labels.push("[" + BD_LABELS[local.hand[i]] + ((selected & local.remainingMask & (1 << i)) !== 0 ? "*" : "") + "]");
+      model.handText = labels.join(" ");
+      for (let i = 0; i < game.players.length; i += 1) {
+        const opponent = game.players[i];
+        if (opponent === local) continue;
+        if (opponent.status === "active") model.opponentTexts.push(opponent.name.toUpperCase() + " — " + bdCount(opponent.remainingMask) + " CARDS — RISK " + opponent.riskIndex + "/6");
+        else model.opponentTexts.push(opponent.name.toUpperCase() + " — " + opponent.status.toUpperCase());
+      }
+      if (!game.active) model.actionText = "MATCH ENDED";
+      else if (game.pendingShot && game.pendingShot.shooterIndex === game.players.indexOf(local)) model.actionText = "PULL TRIGGER";
+      else {
+        const legal = bdLegalActions(game, local.key);
+        const parts = [];
+        if (legal.canPlay) parts.push("PLAY " + bdCount(selected & local.remainingMask) + " SELECTED");
+        if (legal.canChallenge) parts.push("LIE");
+        model.actionText = parts.length ? parts.join(" | ") : "WAITING";
+      }
+    } else if (!game.active) model.actionText = "MATCH ENDED";
+    else model.actionText = "WAITING";
+    if (game.lastResult) model.resultText = game.pendingShot ? bdChallengeText(game.lastResult) : bdResultText(game.lastResult);
+    if (game.aborted) model.resultText = "MATCH ENDED BY TABLE LEADER";
+    if (pending) model.pendingText = pending.bridgeStatus === "cancelling" ? "CANCELLING..." : "SENDING...";
+    return model;
+  }
+  function bdDebugHash(game) {
+    return bdHex8(hashString(JSON.stringify(bdCanonical(game))));
+  }
+  const BluffDeckEngine = {
+    create: bdCreate,
+    legalActions: bdLegalActions,
+    apply: bdApply,
+    abort: bdAbort,
+    depart: bdDepart,
+    projectText: bdProject,
+    debugHash: bdDebugHash,
+    assertInvariants: bdAssert,
+  };
+
+  function projectBluffControlState(input) {
+    const options = input && typeof input === "object" ? input : {};
+    const game = options.game && typeof options.game === "object" ? options.game : null;
+    const party = options.party && typeof options.party === "object" ? options.party : {};
+    const legal = options.legal && typeof options.legal === "object" ? options.legal : {};
+    const localKey = bdPlayerKey(options.localKey || options.localPlayerKey || "");
+    const current = game && Array.isArray(game.players) && game.players[game.currentIndex] ? game.players[game.currentIndex] : null;
+    const local = options.localPlayer || (game ? bdPlayerAt(game, localKey) : null);
+    const bluffActive = !!(game && game.active);
+    const tableActive = !!(bluffActive || options.otherActive);
+    const partyId = String(party.id || "").trim();
+    const mode = String(party.mode || "none").toLowerCase();
+    const memberCount = Array.isArray(options.roster)
+      ? options.roster.length
+      : Array.isArray(party.order)
+        ? party.order.filter((key) => party.members && party.members[bdPlayerKey(key)]).length
+        : Object.keys(party.members || {}).length;
+    const isLeader = options.isLeader == null
+      ? !!(localKey && party.leaderKey && bdPlayerKey(party.leaderKey) === localKey)
+      : !!options.isLeader;
+    const choice = function choice(hidden, enabled, label) {
+      return { hidden: !!hidden, enabled: !!enabled && !hidden, label: String(label || "") };
+    };
+    const controls = {
+      host: choice(tableActive || !!partyId || mode !== "none", !tableActive && !partyId && mode === "none", "HOST"),
+      join: choice(tableActive || !partyId || mode !== "none", !tableActive && !!partyId && mode === "none", "JOIN"),
+      leave: choice(!partyId, !!partyId, "LEAVE"),
+      start: choice(tableActive || mode !== "leader" || !isLeader || memberCount < 2 || memberCount > 4, !tableActive && mode === "leader" && isLeader && memberCount >= 2 && memberCount <= 4, "START BLUFF"),
+      end: choice(!bluffActive || !isLeader || mode !== "leader", bluffActive && isLeader && mode === "leader", "END"),
+      play: choice(true, false, "PLAY SELECTED"),
+      challenge: choice(true, false, "LIE"),
+    };
+    if (!bluffActive || !local || !current || current.key !== local.key || options.pending) return controls;
+    const selectedMask = bdValidMask(options.selectedMask) ? options.selectedMask : 0;
+    const selectedCount = bdCount(selectedMask & (local.remainingMask || 0));
+    if (legal.canShoot) {
+      controls.challenge = choice(false, true, "PULL TRIGGER");
+    } else if (legal.canPlay) {
+      const minCards = Number.isInteger(legal.minCards) ? legal.minCards : 1;
+      const maxCards = Number.isInteger(legal.maxCards) ? legal.maxCards : 3;
+      controls.play = choice(false, selectedCount >= minCards && selectedCount <= maxCards, "PLAY SELECTED");
+      if (legal.canChallenge) controls.challenge = choice(false, true, "LIE");
+    }
+    return controls;
+  }
+  const BluffDeckControlState = { project: projectBluffControlState };
+
   const PokerEngine = {
     create: createEngine,
     decodeAction: decodeActionWire,
@@ -4146,13 +4680,12 @@
     return null;
   }
 
-
-  function clearPendingSelfAction() {
+  function clearLocalActionEcho() {
     try {
       delete getConfig()[PENDING_SELF_ACTION_KEY];
     } catch (e) {}
   }
-  function recordPendingSelfAction(command, local, game) {
+  function recordLocalActionEcho(command, local, game) {
     if (!command || !local || !game || !game.active) return;
     const now = Date.now();
     try {
@@ -4168,7 +4701,7 @@
     } catch (e) {}
   }
 
-  function readPendingSelfAction() {
+  function readLocalActionEcho() {
     let pending = null;
     try {
       pending = getConfig()[PENDING_SELF_ACTION_KEY];
@@ -4178,23 +4711,23 @@
     const game = State.game;
     const current = getCurrentPlayer();
     if (!pending || !game || !game.active || !current) {
-      clearPendingSelfAction();
+      clearLocalActionEcho();
       return null;
     }
     if (Date.now() > Number(pending.expiresAt || 0)) {
-      clearPendingSelfAction();
+      clearLocalActionEcho();
       return null;
     }
     if (pending.phase !== game.phase || pending.currentIndex !== game.currentIndex || normalizePlayerKey(pending.playerKey) !== current.key) {
-      clearPendingSelfAction();
+      clearLocalActionEcho();
       return null;
     }
     return pending;
   }
-  function resolvePendingSelfRecord(record, text) {
+  function resolveLocalActionEchoRecord(record, text) {
     if (!record || !record.isSelf || !isUnknownSender(record.sender)) return record;
     if (!PokerEngine.decodeAction(text)) return record;
-    const pending = readPendingSelfAction();
+    const pending = readLocalActionEcho();
     if (!pending) return record;
     if (normalizeText(pending.message) !== normalizeText(text)) return record;
     if (!pending.playerName || isUnknownSender(pending.playerName)) return record;
@@ -4205,24 +4738,23 @@
     return resolved;
   }
 
-  function markPendingSelfActionApplied(command) {
-    const pending = readPendingSelfAction();
+  function markLocalActionEchoApplied(command) {
+    const pending = readLocalActionEcho();
     if (!pending) return false;
     if (normalizeText(pending.message) !== normalizeText(command)) return false;
-    clearPendingSelfAction();
+    clearLocalActionEcho();
     return true;
   }
 
-  const PendingSelfAction = {
-    record: recordPendingSelfAction,
-    read: readPendingSelfAction,
-    clear: clearPendingSelfAction,
-    resolveSelfRecord: resolvePendingSelfRecord,
-    markApplied: markPendingSelfActionApplied,
-  };
-
   function resolveSelfRecord(record) {
     if (!record || !record.isSelf) return record;
+    const isAction = !!PokerEngine.decodeAction(record.message);
+    const pending = isAction ? readLocalActionEcho() : null;
+    if (isAction && pending) {
+      const echoed = resolveLocalActionEchoRecord(record, normalizeText(record.message));
+      if (isUnknownSender(echoed.sender)) return echoed;
+      return echoed;
+    }
     if (!isUnknownSender(record.sender)) {
       rememberLocalPlayer(record.sender);
       return record;
@@ -4230,7 +4762,7 @@
     const localPlayer = findGamePlayerByKey(State.localPlayerKey);
     const rememberedName = getRememberedLocalPlayerName();
     const name = localPlayer ? localPlayer.name : rememberedName;
-    if (!name) return PendingSelfAction.resolveSelfRecord(record, normalizeText(record.message));
+    if (!name) return resolveLocalActionEchoRecord(record, normalizeText(record.message));
     const resolved = copyChatRecord(record);
     if (!resolved) return record;
     resolved.sender = name;
@@ -4253,7 +4785,7 @@
       (party.order && party.order.indexOf(current.key) !== -1)
     );
     if (!knownPartyActor) return record;
-    if (!isEngineActionLegal(PokerEngine.actions(game, current.key, ""), decoded)) return record;
+    if (!PokerEngine.actions(game, current.key, "").isLegal(decoded)) return record;
     const resolved = copyChatRecord(record);
     if (!resolved) return record;
     resolved.sender = current.name;
@@ -4314,23 +4846,25 @@
     const hostedLeaderKey = getHostedSharedProgressLeaderKey(resume);
     const expectedLeaderKey = hostedLeaderKey || (party.id && party.leaderKey ? party.leaderKey : "");
     if (!expectedLeaderKey || leaderKey !== expectedLeaderKey) return record;
-    if (!party.id || party.mode === "none" || party.leaderKey !== expectedLeaderKey) return record;
+    if (!party.id || party.mode === "none") return record;
+    if (party.leaderKey && party.leaderKey !== expectedLeaderKey) return record;
     const entry = findProgressRosterEntry(resume.payload, expectedLeaderKey);
     if (!entry || getProgressBankroll(resume.payload, expectedLeaderKey) <= 0) return record;
     const resolved = copyChatRecord(record) || {};
-    resolved.sender = party.leaderName || resume.hostedLeaderName || entry.name || expectedLeaderKey;
+    resolved.sender = resume.hostedLeaderName || party.leaderName || entry.name || expectedLeaderKey;
     log("resolved unknown resume start sender to party leader " + resolved.sender);
     return resolved;
   }
 
-  function getProgressTransfer(id, checksum, count) {
+  function getProgressTransfer(id, checksum, count, record) {
     const key = id + ":" + checksum;
     State.progressTransfers = State.progressTransfers || {};
     let transfer = State.progressTransfers[key];
     if (!transfer || transfer.count !== count) {
-      transfer = { id: id, checksum: checksum, count: count, chunks: {} };
+      transfer = { id: id, checksum: checksum, count: count, chunks: {}, authorityRecord: null };
       State.progressTransfers[key] = transfer;
     }
+    if (record && !isUnknownSender(record.sender)) transfer.authorityRecord = copyChatRecord(record);
     return transfer;
   }
 
@@ -4353,7 +4887,7 @@
     if (!message || !message.id || !message.checksum || !message.count) return ignoredCommandEffect("progress-share");
     if (message.record && message.record.isSelf) return consumedNoChangeEffect("progress-self");
     if (message.type === "offer") {
-      getProgressTransfer(message.id, message.checksum, message.count);
+      getProgressTransfer(message.id, message.checksum, message.count, message.record);
       const offerStatus = "Receiving progress " + message.id + " (0/" + message.count + " chunks).";
       return changedCommandEffect(offerStatus, "progress-offer");
     }
@@ -4379,7 +4913,7 @@
       return changedCommandEffect(status, "progress-chunk");
     }
     const party = ensureParty();
-    const boundHostedLeader = bindHostedSharedProgressAuthority(imported, message.record);
+    const boundHostedLeader = bindHostedSharedProgressAuthority(imported, transfer.authorityRecord || message.record);
     if (!boundHostedLeader) {
       State.resumeRequiresHostedParty = true;
       saveResumeState();
@@ -4405,6 +4939,7 @@
       type: partyType,
       record: resolvedRecord,
       partyId: command.partyId,
+      scopedBluffLeave: command.scopedBluffLeave || null,
     });
     const applied = applyPartyResultEffects(result);
     if (!applied) return consumedNoChangeEffect("party");
@@ -4423,7 +4958,6 @@
     if (!applied || !result.changed) return consumedNoChangeEffect("match-end");
     return commandEffect(true, applied.readyChanged, !!result.render, result.status || "Match ended by party leader.", "match-end");
   }
-
 
   function applyResumeAuthorityCommand(command, resolvedRecord) {
     if (isUnknownSender(resolvedRecord.sender)) {
@@ -4456,6 +4990,7 @@
   }
 
   function applyStartCommand(command, resolvedRecord) {
+    if (getActiveTableGameType() === "bluff-deck") return rejectedCommandEffect("Finish the active Bluff Deck match before starting Poker.", "start");
     if (command.rosterText) {
       const seed = command.seed || String(Date.now());
       if (command.hasHandMarker && !command.handNumber) return rejectedCommandEffect("Invalid synced poker hand number.", "status");
@@ -4490,7 +5025,7 @@
       }
       applyPartyRoster(decodedRoster, party.mode, party.id);
       rememberLocalFromPartyRoster(decodedRoster);
-      LateJoinQueue.apply(decodedRoster, "start");
+      applyLateJoinBuyIns(decodedRoster, "start");
       const created = PokerEngine.create({
         seed: seed,
         roster: decodedRoster,
@@ -4556,11 +5091,11 @@
     "party-join": applyPartyCommand,
     "party-leave": applyPartyCommand,
     "match-end": applyMatchEndCommand,
-    "progress-offer": applyProgressResumeCommand,
-    "progress-chunk": applyProgressResumeCommand,
-    "resume-leader": applyProgressResumeCommand,
-    "resume-ready": applyProgressResumeCommand,
-    "resume-start": applyProgressResumeCommand,
+    "progress-offer": ProgressResume.applyCommand,
+    "progress-chunk": ProgressResume.applyCommand,
+    "resume-leader": ProgressResume.applyCommand,
+    "resume-ready": ProgressResume.applyCommand,
+    "resume-start": ProgressResume.applyCommand,
     "start": applyStartCommand,
     "all-in-unsupported": applyUnsupportedAllInCommand,
     "action": applyActionCommand,
@@ -4656,6 +5191,15 @@
       if (definition.type === "party-leader" || definition.type === "party-join" || definition.type === "party-leave" || definition.type === "match-end") {
         const partyMatch = rawText.match(/poker\s+party\s+([a-z0-9-]+)/i);
         command.partyId = cleanId(partyMatch && partyMatch[1]);
+        if (definition.type === "party-leave") {
+          const scoped = rawText.match(/^\[party leave\]\s+poker party\s+(\S+)\s+bd1\s+([0-9a-f]{8})\s+([1-9]\d*)$/i);
+          if (scoped) {
+            command.scopedBluffLeave = {
+              matchId: scoped[2].toLowerCase(),
+              nextSeq: Number(scoped[3]),
+            };
+          }
+        }
       } else if (definition.type === "progress-offer") {
         command.id = match[1].toLowerCase();
         command.checksum = match[2].toLowerCase();
@@ -4702,7 +5246,6 @@
     return ignored;
   }
 
-
   function commandEffect(consumed, readyChanged, render, status, debugReason) {
     return {
       consumed: !!consumed,
@@ -4741,14 +5284,466 @@
     );
   }
 
+  function bluffRosterFromParty(party) {
+    const source = party || ensureParty();
+    const roster = [];
+    const order = Array.isArray(source.order) ? source.order : [];
+    const members = source.members && typeof source.members === "object" ? source.members : {};
+    for (let i = 0; i < order.length && roster.length < 4; i += 1) {
+      const key = normalizePlayerKey(order[i]);
+      const member = members[key];
+      if (!key || !member || roster.some((entry) => entry.key === key)) continue;
+      roster.push({ key: key, name: String(member.name || key).replace(/\s+/g, " ").trim() || key });
+    }
+    return roster;
+  }
+  function bluffRosterHash(roster) {
+    const keys = [];
+    for (let i = 0; i < roster.length; i += 1) keys.push(roster[i].key);
+    return bdHex8(hashString(keys.join("|")));
+  }
+  function bluffKnownPartyKey(key, party) {
+    const normalized = normalizePlayerKey(key);
+    const source = party || ensureParty();
+    return !!(normalized && ((source.members && source.members[normalized]) || source.leaderKey === normalized || (source.order || []).indexOf(normalized) >= 0));
+  }
+  function bluffSeq(record) {
+    const value = Number(record && record.seq);
+    return Number.isInteger(value) && value >= 0 ? value : 0;
+  }
+  function decodeBluffDeckCommand(text) {
+    const raw = String(text || "").trim();
+    if (raw.slice(0, 4).toLowerCase() !== "bd1 ") return null;
+    let match = raw.match(/^bd1\s+r\s+([0-9a-f]{8})\s+([1-9]\d*)$/i);
+    if (match) return { type: "shoot", matchId: match[1].toLowerCase(), seq: Number(match[2]), raw: raw };
+    match = raw.match(/^bd1\s+s\s+([0-9a-f]{8})\s+([0-9a-f]{8})$/i);
+    if (match) return { type: "start", matchId: match[1].toLowerCase(), rosterHash: match[2].toLowerCase(), raw: raw };
+    match = raw.match(/^bd1\s+p\s+([0-9a-f]{8})\s+([1-9]\d*)\s+([0-9a-f]{1,2})$/i);
+    if (match) return { type: "play", matchId: match[1].toLowerCase(), seq: Number(match[2]), mask: parseInt(match[3], 16), raw: raw };
+    match = raw.match(/^bd1\s+c\s+([0-9a-f]{8})\s+([1-9]\d*)$/i);
+    if (match) return { type: "challenge", matchId: match[1].toLowerCase(), seq: Number(match[2]), raw: raw };
+    match = raw.match(/^bd1\s+e\s+([0-9a-f]{8})$/i);
+    if (match) return { type: "end", matchId: match[1].toLowerCase(), raw: raw };
+    return { type: "invalid", raw: raw };
+  }
+  function buildBluffDeckStart(party, matchId) {
+    const id = String(matchId || "").trim().toLowerCase();
+    if (!/^[0-9a-f]{8}$/.test(id)) return "";
+    const roster = bluffRosterFromParty(party);
+    if (roster.length < 2 || roster.length > 4) return "";
+    return "bd1 s " + id + " " + bluffRosterHash(roster);
+  }
+  function buildBluffDeckPlay(game, mask) {
+    if (!game || !/^[0-9a-f]{8}$/i.test(String(game.id || "")) || !Number.isInteger(mask) || mask < 0 || mask > 255) return "";
+    return "bd1 p " + String(game.id).toLowerCase() + " " + (game.seq + 1) + " " + mask.toString(16);
+  }
+  function buildBluffDeckChallenge(game) {
+    if (!game || !/^[0-9a-f]{8}$/i.test(String(game.id || ""))) return "";
+    return "bd1 c " + String(game.id).toLowerCase() + " " + (game.seq + 1);
+  }
+  function buildBluffDeckShoot(game) {
+    if (!game || !/^[0-9a-f]{8}$/i.test(String(game.id || ""))) return "";
+    return "bd1 r " + String(game.id).toLowerCase() + " " + (game.seq + 1);
+  }
+  function buildBluffDeckEnd(game) {
+    if (!game || !/^[0-9a-f]{8}$/i.test(String(game.id || ""))) return "";
+    return "bd1 e " + String(game.id).toLowerCase();
+  }
+  function buildScopedBluffPartyLeave(partyId, game) {
+    const id = String(partyId || "").trim();
+    const matchId = String(game && game.id || "").trim().toLowerCase();
+    const nextSeq = Number(game && game.seq) + 1;
+    if (!id || !/^[0-9a-f]{8}$/.test(matchId) || !Number.isInteger(nextSeq) || nextSeq < 1) return "";
+    return PARTY_LEAVE_PREFIX + " poker party " + id + " bd1 " + matchId + " " + nextSeq;
+  }
+  function bluffPersistTransition(record) {
+    const seq = Math.max(State.processedChatSeq || 0, bluffSeq(record));
+    saveBluffDeckMatchState(seq);
+  }
+  function resetBluffDeckTranscript() {
+    if (State.bluffDeck) State.bluffDeck.transcript = [];
+  }
+  function bluffTranscriptName(game, index) {
+    const player = game && Array.isArray(game.players) ? game.players[index] : null;
+    return player && player.name ? String(player.name).toUpperCase() : "";
+  }
+  function appendBluffDeckTranscript(command, game, result) {
+    if (!State.bluffDeck || !game || !result || !result.changed) return;
+    let text = "";
+    if (command.type === "play" && game.lastPlay) {
+      const actor = bluffTranscriptName(game, game.lastPlay.actorIndex);
+      if (actor) text = actor + " PLAYED " + game.lastPlay.count + " CARD" + (game.lastPlay.count === 1 ? "" : "S");
+    } else if (command.type === "challenge" && game.lastResult) {
+      const caller = bluffTranscriptName(game, game.lastResult.actorIndex);
+      const accused = bluffTranscriptName(game, game.lastResult.accusedIndex);
+      if (caller && accused) text = caller + " CALLED LIE ON " + accused;
+    } else if (command.type === "shoot" && game.lastResult) {
+      const actor = bluffTranscriptName(game, game.lastResult.loserIndex);
+      if (actor) text = actor + " PULLED TRIGGER: " + (game.lastResult.eliminated ? "OUT" : "SAFE");
+    }
+    if (!text) return;
+    const rows = Array.isArray(State.bluffDeck.transcript) ? State.bluffDeck.transcript : [];
+    if (rows.length && rows[rows.length - 1] === text) return;
+    rows.push(text);
+    if (rows.length > 6) rows.splice(0, rows.length - 6);
+    State.bluffDeck.transcript = rows;
+  }
+  function applyBluffDeckRecord(record) {
+    const command = decodeBluffDeckCommand(record && record.message);
+    if (!command) return ignoredCommandEffect("not-bluff");
+    if (command.type === "invalid") return rejectedCommandEffect("", "bluff-invalid");
+    incrementMetric("bluffCommandObserved");
+    let sender = normalizePlayerKey(record && record.sender);
+    const party = ensureParty();
+    const unknownSender = isUnknownSender(sender);
+    if (!unknownSender && !bluffKnownPartyKey(sender, party)) return rejectedCommandEffect("", "bluff-unauthorized");
+    if (command.type === "start") {
+      if (party.leaderKey !== sender) return rejectedCommandEffect("Only the party leader can start Bluff Deck.", "bluff-start");
+      if (getActiveTableGameType() === "poker") return rejectedCommandEffect("Finish the active Poker game before starting Bluff Deck.", "bluff-start");
+      const roster = bluffRosterFromParty(party);
+      if (roster.length < 2 || roster.length > 4 || bluffRosterHash(roster) !== command.rosterHash) {
+        requestChatSnapshot();
+        return rejectedCommandEffect("Bluff Deck roster mismatch; observing chat history.", "bluff-roster");
+      }
+      if (State.bluffDeck.game && State.bluffDeck.game.active) return consumedNoChangeEffect("bluff-start");
+      try {
+        State.bluffDeck.game = BluffDeckEngine.create({ id: command.matchId, roster: roster });
+        State.bluffDeck.selectedMask = 0;
+        State.bluffDeck.pending = null;
+        resetBluffDeckTranscript();
+        bluffPersistTransition(record);
+        requestBluffDeckFastPoll();
+        return changedCommandEffect("Bluff Deck started.", "bluff-start");
+      } catch (e) {
+        return rejectedCommandEffect("", "bluff-start-invalid");
+      }
+    }
+    const game = State.bluffDeck.game;
+    if (!game || game.id !== command.matchId || !game.active) return consumedNoChangeEffect("bluff-foreign-or-inactive");
+    if (unknownSender && (command.type === "play" || command.type === "challenge" || command.type === "shoot")) {
+      const current = game.players[game.currentIndex];
+      const expectedSeq = game.seq + 1;
+      const actionLegal = current && current.status === "active" && command.seq === expectedSeq &&
+        (command.type === "challenge"
+          ? BluffDeckEngine.legalActions(game, current.key).canChallenge
+          : command.type === "shoot"
+            ? BluffDeckEngine.legalActions(game, current.key).canShoot
+            : (BluffDeckEngine.legalActions(game, current.key).canPlay && Number.isInteger(command.mask) && command.mask > 0 && command.mask <= BD_MASK && (command.mask & ~current.remainingMask) === 0 && bdCount(command.mask) >= 1 && bdCount(command.mask) <= 3));
+      if (record && record.isSelf) {
+        const pending = State.bluffDeck.pending;
+        if (!pending || pending.message !== String(record.message || "") || pending.matchId !== command.matchId || pending.expectedSeq !== command.seq || !actionLegal) {
+          return rejectedCommandEffect("", "bluff-unknown-self");
+        }
+      } else if (!current || !bluffKnownPartyKey(current.key, party) || !actionLegal) {
+        return rejectedCommandEffect("", "bluff-unknown");
+      }
+      sender = current.key;
+    }
+    if (!game || game.id !== command.matchId || !game.active) return consumedNoChangeEffect("bluff-foreign-or-inactive");
+    if (command.type === "end") {
+      if (party.leaderKey !== sender) return rejectedCommandEffect("", "bluff-end-authority");
+      const ended = BluffDeckEngine.abort(game);
+      if (!ended.changed) return consumedNoChangeEffect("bluff-end");
+      State.bluffDeck.pending = null;
+      resetBluffDeckTranscript();
+      incrementMetric("bluffCommandApplied");
+      bluffPersistTransition(record);
+      return changedCommandEffect("MATCH ENDED BY TABLE LEADER", "bluff-end");
+    }
+    const seat = game.players[game.currentIndex];
+    if (!seat || seat.key !== sender) return rejectedCommandEffect("", "bluff-unauthorized");
+    const expected = game.seq + 1;
+    if (command.seq <= game.seq) return consumedNoChangeEffect("bluff-stale");
+    const legal = BluffDeckEngine.legalActions(game, sender);
+    const legalAction = command.type === "challenge"
+      ? legal.canChallenge
+      : command.type === "shoot"
+        ? legal.canShoot
+        : (legal.canPlay && Number.isInteger(command.mask) && command.mask > 0 && command.mask <= BD_MASK && (command.mask & ~seat.remainingMask) === 0 && bdCount(command.mask) >= 1 && bdCount(command.mask) <= 3);
+    if (!legalAction) return rejectedCommandEffect("", "bluff-illegal");
+    if (command.seq > expected) {
+      if (game.desynced) return consumedNoChangeEffect("bluff-gap");
+      game.desynced = true;
+      State.bluffDeck.selectedMask = 0;
+      State.bluffDeck.pending = null;
+      incrementMetric("bluffSequenceGap");
+      bluffPersistTransition(record);
+      requestChatSnapshot();
+      return changedCommandEffect("Bluff Deck state gap; observing chat history.", "bluff-gap");
+    }
+    let result;
+    try {
+      const action = command.type === "challenge" ? { type: "challenge" } : command.type === "shoot" ? { type: "shoot" } : { type: "play", mask: command.mask };
+      result = BluffDeckEngine.apply(game, sender, action);
+    } catch (e) {
+      return rejectedCommandEffect("", "bluff-apply-invalid");
+    }
+    if (!result || !result.changed) return rejectedCommandEffect("", "bluff-rejected");
+    State.bluffDeck.pending = null;
+    State.bluffDeck.selectedMask = 0;
+    appendBluffDeckTranscript(command, game, result);
+    incrementMetric("bluffCommandApplied");
+    bluffPersistTransition(record);
+    return changedCommandEffect(result.status || "", "bluff-" + command.type);
+  }
+  function restoreBluffDeckCandidate(messages) {
+    if (!bluffDeckHydrationCandidate) return;
+    const candidate = bluffDeckHydrationCandidate;
+    let valid = true;
+    try {
+      if (candidate.version !== 1 || !candidate.game || candidate.game.ruleset !== "basic-v1") valid = false;
+      else BluffDeckEngine.assertInvariants(candidate.game);
+    } catch (e) {
+      valid = false;
+    }
+    let hasStart = false;
+    let highWater = 0;
+    const rows = Array.isArray(messages) ? messages : [];
+    for (let i = 0; valid && i < rows.length; i += 1) {
+      const row = rows[i] || {};
+      highWater = Math.max(highWater, bluffSeq(row));
+      const decoded = decodeBluffDeckCommand(row.message);
+      if (decoded && decoded.type === "start" && decoded.matchId === candidate.game.id && decoded.rosterHash === candidate.game.rosterHash) hasStart = true;
+    }
+    if (!valid || !hasStart || highWater < candidate.sourceChatSeq) {
+      clearBluffDeckMatchState();
+      setStatus("MATCH STATE UNAVAILABLE — OBSERVE UNTIL NEXT MATCH");
+      return;
+    }
+    State.bluffDeck.game = candidate.game;
+    resetBluffDeckTranscript();
+    State.processedChatSeq = Math.max(State.processedChatSeq, candidate.sourceChatSeq);
+    bluffDeckHydrationCandidate = null;
+  }
+  function bluffPendingMatches(event, pending) {
+    return !!(pending
+      && event
+      && String(event.requestId || "") === String(pending.requestId || "")
+      && String(event.message || "") === String(pending.message || ""));
+  }
+  function clearBluffPending(reason) {
+    if (!State.bluffDeck.pending) return false;
+    State.bluffDeck.pending = null;
+    RenderScheduler.defer(reason || "bluff-pending-clear");
+    return true;
+  }
+  function scheduleBluffPendingDeadline(pending) {
+    if (!pending) return;
+    const requestId = pending.requestId;
+    const message = pending.message;
+    const waitMs = pending.bridgeStatus === "submitted" ? BLUFF_ECHO_DEADLINE_MS : BLUFF_PREPARE_DEADLINE_MS;
+    try {
+      $.Schedule(waitMs / 1000, () => {
+        const current = State.bluffDeck.pending;
+        if (!current || current.requestId !== requestId || current.message !== message) return;
+        if (current.bridgeStatus === "queued") {
+          current.bridgeStatus = "cancelling";
+          try {
+            $.DispatchEvent(CLIENT_OUTPUT_EVENT, JSON.stringify({
+              event: "BluffDeckSendCancelRequest",
+              requestId: requestId,
+            }));
+          } catch (e) {}
+          RenderScheduler.defer("bluff-send-cancelling");
+          return;
+        }
+        if (current.bridgeStatus === "submitted") {
+          State.bluffDeck.pending = null;
+          incrementMetric("bluffPendingTimeout");
+          requestChatSnapshot();
+          RenderScheduler.defer("bluff-pending-timeout");
+        }
+      });
+    } catch (e) {}
+  }
+  function handleBluffDeckSendStatus(event) {
+    const pending = State.bluffDeck.pending;
+    if (!bluffPendingMatches(event, pending)) return false;
+    const status = String(event.status || "").toLowerCase();
+    if (status === "submitted") {
+      if (pending.bridgeStatus !== "queued") return false;
+      pending.bridgeStatus = "submitted";
+      pending.sentAt = Date.now();
+      pending.expiresAt = pending.sentAt + BLUFF_ECHO_DEADLINE_MS;
+      incrementMetric("bluffSendSubmitted");
+      scheduleBluffPendingDeadline(pending);
+      RenderScheduler.defer("bluff-send-submitted");
+      return true;
+    }
+    if (status === "failed" || status === "cancelled") {
+      if (pending.bridgeStatus === "submitted" && status === "cancelled") return false;
+      State.bluffDeck.pending = null;
+      RenderScheduler.defer("bluff-send-" + status);
+      return true;
+    }
+    return false;
+  }
+  function makeBluffRequestIdentity(message, expectedSeq) {
+    const game = State.bluffDeck && State.bluffDeck.game;
+    const matchId = String(game && game.id || "").toLowerCase();
+    const seq = Number(expectedSeq);
+    if (!/^[0-9a-f]{8}$/.test(matchId) || !Number.isInteger(seq) || seq < 1 || !message) return null;
+    bluffRequestSerial += 1;
+    return "bd1:" + matchId + ":" + seq + ":" + bluffRequestSerial;
+  }
+  function sendBluffDeckCommand(message, expectedSeq, requestId) {
+    const game = State.bluffDeck && State.bluffDeck.game;
+    const matchId = String(game && game.id || "").toLowerCase();
+    const seq = Number(expectedSeq);
+    if (!/^[0-9a-f]{8}$/.test(matchId) || !Number.isInteger(seq) || seq < 1 || !message) return null;
+    const id = requestId || makeBluffRequestIdentity(message, expectedSeq);
+    if (!id) return null;
+    try {
+      $.DispatchEvent(CLIENT_OUTPUT_EVENT, JSON.stringify({
+        event: BridgeContract.chatSendRequestEvent,
+        message: String(message),
+        source: "bluff-deck",
+        requestId: id,
+      }));
+      return { requestId: id, message: String(message), sent: true };
+    } catch (e) {
+      return { requestId: id, message: String(message), sent: false };
+    }
+  }
+  function installBluffPending(message, game, expectedSeq) {
+    const requestId = makeBluffRequestIdentity(message, expectedSeq);
+    if (!requestId) return null;
+    const now = Date.now();
+    State.bluffDeck.pending = {
+      message: message,
+      matchId: game.id,
+      expectedSeq: expectedSeq,
+      requestId: requestId,
+      bridgeStatus: "queued",
+      requestedAt: now,
+      sentAt: 0,
+      expiresAt: now + BLUFF_PREPARE_DEADLINE_MS,
+    };
+    requestBluffDeckFastPoll();
+    return sendBluffDeckCommand(message, expectedSeq, requestId);
+  }
+  function localBluffKey() {
+    return normalizePlayerKey(State.localPlayerKey || getRememberedLocalPlayerName());
+  }
+  function localBluffLeader(party) {
+    const localKey = localBluffKey();
+    return !!(party && localKey && party.leaderKey === localKey && party.members && party.members[localKey]);
+  }
+  function sendBluffDeckStart() {
+    const party = ensureParty();
+    if (getActiveTableGameType() || !localBluffLeader(party)) return false;
+    const roster = bluffRosterFromParty(party);
+    if (roster.length < 2 || roster.length > 4) return false;
+    const matchId = bdHex8(hashString(String(party.id || "") + "|bd1|" + Date.now() + "|" + normalizePlayerKey(party.leaderKey)));
+    const message = BluffDeckCommandReducer.buildStart(party, matchId);
+    if (!message || !sendChatMessage(message)) return false;
+    return true;
+  }
+  function sendBluffDeckEnd() {
+    const party = ensureParty();
+    const game = State.bluffDeck && State.bluffDeck.game;
+    if (!game || !game.active || !localBluffLeader(party)) return false;
+    const message = BluffDeckCommandReducer.buildEnd(game);
+    if (!message || !sendChatMessage(message, false, true)) return false;
+    return true;
+  }
+  function canSelectBluffCards(game, local) {
+    if (!game || !game.active || !local || State.bluffDeck.pending) return false;
+    const legal = BluffDeckEngine.legalActions(game, local.key);
+    return !!(legal && legal.canPlay);
+  }
+  function selectBluffMask(mask) {
+    const game = State.bluffDeck && State.bluffDeck.game;
+    const local = game && bdPlayerAt(game, localBluffKey());
+    const value = Number(mask);
+    if (!canSelectBluffCards(game, local) || !Number.isInteger(value) || value < 0 || value > BD_MASK || (value & ~local.remainingMask) !== 0) return false;
+    if (State.bluffDeck.selectedMask === value) return true;
+    State.bluffDeck.selectedMask = value;
+    incrementMetric("bluffSelectionChange");
+    RenderScheduler.defer("bluff-selection");
+    return true;
+  }
+  function sendBluffPlay() {
+    const game = State.bluffDeck && State.bluffDeck.game;
+    if (State.bluffDeck.pending) {
+      incrementMetric("bluffDuplicateBlocked");
+      return false;
+    }
+    const key = localBluffKey();
+    const local = game && bdPlayerAt(game, key);
+    const legal = game && local ? BluffDeckEngine.legalActions(game, key) : null;
+    const mask = State.bluffDeck.selectedMask;
+    if (!game || !local || !legal || !legal.canPlay || !Number.isInteger(mask) || mask === 0 || (mask & ~local.remainingMask) !== 0 || bdCount(mask) < 1 || bdCount(mask) > 3) return false;
+    const message = BluffDeckCommandReducer.buildPlay(game, mask);
+    const expectedSeq = game.seq + 1;
+    const request = installBluffPending(message, game, expectedSeq);
+    if (!request || !request.sent) {
+      State.bluffDeck.pending = null;
+      RenderScheduler.defer("bluff-play-send-failed");
+      return false;
+    }
+    incrementMetric("bluffSendRequested");
+    setStatus("SENDING PLAY...");
+    RenderScheduler.defer("bluff-play-send");
+    scheduleBluffPendingDeadline(State.bluffDeck.pending);
+    return true;
+  }
+  function sendBluffChallenge() {
+    const game = State.bluffDeck && State.bluffDeck.game;
+    if (State.bluffDeck.pending) {
+      incrementMetric("bluffDuplicateBlocked");
+      return false;
+    }
+    const key = localBluffKey();
+    const legal = game ? BluffDeckEngine.legalActions(game, key) : null;
+    if (!game || !legal || (!legal.canChallenge && !legal.canShoot)) return false;
+    const shooting = !!legal.canShoot;
+    const message = shooting ? BluffDeckCommandReducer.buildShoot(game) : BluffDeckCommandReducer.buildChallenge(game);
+    const expectedSeq = game.seq + 1;
+    const request = installBluffPending(message, game, expectedSeq);
+    if (!request || !request.sent) {
+      State.bluffDeck.pending = null;
+      RenderScheduler.defer(shooting ? "bluff-shoot-send-failed" : "bluff-challenge-send-failed");
+      return false;
+    }
+    incrementMetric("bluffSendRequested");
+    setStatus(shooting ? "SENDING SHOOT..." : "SENDING CHALLENGE...");
+    RenderScheduler.defer(shooting ? "bluff-shoot-send" : "bluff-challenge-send");
+    scheduleBluffPendingDeadline(State.bluffDeck.pending);
+    return true;
+  }
+  function sendBluffShoot() {
+    return sendBluffChallenge();
+  }
+  const BluffDeckActions = {
+    sendStart: sendBluffDeckStart,
+    sendEnd: sendBluffDeckEnd,
+    selectMask: selectBluffMask,
+    sendPlay: sendBluffPlay,
+    sendChallenge: sendBluffChallenge,
+    sendShoot: sendBluffShoot,
+  };
+  const BluffDeckCommandReducer = {
+    decode: decodeBluffDeckCommand,
+    applyRecord: applyBluffDeckRecord,
+    buildStart: buildBluffDeckStart,
+    buildPlay: buildBluffDeckPlay,
+    buildChallenge: buildBluffDeckChallenge,
+    buildShoot: buildBluffDeckShoot,
+    buildEnd: buildBluffDeckEnd,
+  };
+
   function applyChatRecord(record) {
+    const message = String(record && record.message || "").trim();
+    if (message.slice(0, 4).toLowerCase() === "bd1 ") return BluffDeckCommandReducer.applyRecord(record);
     return applyPokerCommand(decodePokerCommand(record)) || ignoredCommandEffect("record");
   }
 
-  function applyChatPayload(event) {
+  function applyChatPayload(event, suppressRender) {
     PokerMetrics.increment("chatPayload");
     if (event && event.action === "snapshot") PokerMetrics.increment("chatSnapshotReplay");
-    if (!event) return applyReducerEffect(ignoredCommandEffect("payload"), false);
+    if (!event) return applyReducerEffect(ignoredCommandEffect("payload"), !!suppressRender);
+    if (event.action === "snapshot" && event.messages && event.messages.length) restoreBluffDeckCandidate(event.messages);
     if (event.messages && event.messages.length) {
       const wasReplayingSnapshot = State.replayingChatSnapshot;
       let aggregate = ignoredCommandEffect("payload");
@@ -4763,11 +5758,11 @@
       } finally {
         State.replayingChatSnapshot = wasReplayingSnapshot;
       }
-      return applyReducerEffect(aggregate, false);
+      return applyReducerEffect(aggregate, !!suppressRender);
     }
-    if (event.seq && event.seq <= State.processedChatSeq) return applyReducerEffect(ignoredCommandEffect("old-seq"), false);
+    if (event.seq && event.seq <= State.processedChatSeq) return applyReducerEffect(ignoredCommandEffect("old-seq"), !!suppressRender);
     State.processedChatSeq = Math.max(State.processedChatSeq, event.seq || 0);
-    return applyReducerEffect(applyChatRecord(event), false);
+    return applyReducerEffect(applyChatRecord(event), !!suppressRender);
   }
 
   const CommandReducer = {
@@ -4780,53 +5775,22 @@
     const current = getCurrentPlayer();
     const local = getLocalPlayer();
     const decoded = PokerEngine.decodeAction(command);
-    let status = "";
-    if (!State.game || !State.game.active || !current) {
-      status = "No active synced hand is waiting for an action.";
-    } else if (!local) {
-      status = "Chat sender unknown. Type ready or reopen party chat so Deadlock exposes your name before acting.";
-    } else if (current.key !== local.key) {
-      status = "Waiting for " + current.name + ". You are " + local.name + ".";
-    } else if (!decoded || !isEngineActionLegal(PokerEngine.actions(State.game, current.key, local.key), decoded)) {
-      status = "Action no longer legal for " + local.name + ". Waiting for " + current.name + ".";
-    }
+    const turn = PokerEngine.actions(State.game, current && current.key, local && local.key);
+    const status = turn.invalidStatus(decoded);
     if (status) {
       setStatus(status);
       RenderScheduler.immediate("send-action-invalid");
       return;
     }
-    const turn = PokerEngine.actions(State.game, current.key, local.key);
-    PendingSelfAction.record(command, local, State.game);
+    recordLocalActionEcho(command, local, State.game);
     log("action click label=" + (label || command) + " command=" + command + " phase=" + (State.game.phase || "") + " current=" + current.name + " toCall=" + turn.toCall);
     sendChatMessage(command);
   }
 
-  function createCommunityCardRow(parent) {
-    return CardPresenter.render(parent, null, false);
-  }
-
-  function updateCommunityCardRow(panel, model) {
-    CardPresenter.update(panel, model.card || null, false);
-  }
-
-  function deleteCommunityCardRow(panel) {
-    deletePanel(panel);
-  }
-
-  function renderCommunity() {
+  function renderCommunity(model) {
     if (!isValid(State.community)) return;
-    const cards = State.game ? State.game.community : [];
-    const models = [];
-    for (let i = 0; i < 5; i += 1) models.push({ key: String(i), card: cards[i] || null });
     State.renderCache.communityCards = State.renderCache.communityCards || {};
-    Rows.update(
-      State.renderCache.communityCards,
-      State.community,
-      models,
-      createCommunityCardRow,
-      updateCommunityCardRow,
-      deleteCommunityCardRow,
-    );
+    Rows.update(State.renderCache.communityCards, State.community, model.communityRows, RowSpecs.communityCard);
   }
 
   function getPlayerChipText(game, player, index) {
@@ -4913,33 +5877,14 @@
     }
   }
 
-  function createPotChipRow(parent, model) {
-    const panel = createPanel("Panel", parent, "", "PokerPotChip " + model.className);
-    const image = createPanel("Image", panel, "", "PokerPotChipImage");
-    const count = createLabel(panel, "PokerPotChipCount", "");
-    return { panel: panel, image: image, count: count };
-  }
-
-  function updatePotChipRow(row, model) {
-    if (!row || !model) return;
-    setPanelClass(row.panel, model.className, true);
-    setImageSource(row.image, getPotChipArtSrc(model.asset));
-    setText(row.count, model.count > 1 ? "x" + model.count : "");
-  }
-
-  function deletePotChipRow(row) {
-    deletePanel(row && row.panel);
-  }
-
-  function renderPotCenter(game) {
+  function renderPotCenter(model) {
     if (!isValid(State.potCenter)) return;
-    const amount = game ? Math.max(0, Math.floor(Number(game.pot) || 0)) : 0;
-    animatePotAmount(amount);
-    const chips = getPotChipArtRows(amount);
+    const pot = model.pot;
+    animatePotAmount(pot.amount);
     if (!isValid(State.potChips)) return;
-    setPanelClass(State.potChips, CLASSES.hidden, chips.length === 0);
+    setPanelClass(State.potChips, CLASSES.hidden, pot.chips.length === 0);
     State.renderCache.potChipRows = State.renderCache.potChipRows || {};
-    Rows.update(State.renderCache.potChipRows, State.potChips, chips, createPotChipRow, updatePotChipRow, deletePotChipRow);
+    Rows.update(State.renderCache.potChipRows, State.potChips, pot.chips, RowSpecs.potChip);
   }
 
   function makeRenderPlayer(key, name, stack, result) {
@@ -4947,13 +5892,40 @@
   }
 
   function createHoleCards(parent) {
-    return [CardPresenter.render(parent, null, true), CardPresenter.render(parent, null, true)];
+    return [createCard(parent, null, true), createCard(parent, null, true)];
+  }
+  function removeTableSeatCards(row) {
+    if (!row || !row.cardsParent) return;
+    deletePanel(row.cardsParent);
+    row.cardsParent = null;
+    row.cards = [];
   }
 
+  function ensureTableSeatCards(row, count) {
+    const desired = Math.max(0, Math.min(5, Number(count) || 0));
+    if (!row || !row.seat || desired === 0) {
+      if (row) removeTableSeatCards(row);
+      return [];
+    }
+    if (!isValid(row.cardsParent)) {
+      row.cardsParent = createPanel("Panel", row.seat, "", "PokerTableSeatCards");
+      row.cards = [];
+    }
+    while (row.cards.length < desired) row.cards.push(createCard(row.cardsParent, null, true));
+    while (row.cards.length > desired) deletePanel(row.cards.pop());
+    return row.cards;
+  }
+
+  function updateTableSeatCards(row, model) {
+    const mode = model && model.cardMode ? model.cardMode : "hole-cards";
+    const count = mode === "none" ? 0 : (mode === "public-count" ? model.publicCardCount : (mode === "hole-cards" ? 2 : 0));
+    const cards = ensureTableSeatCards(row, count);
+    for (let i = 0; i < cards.length; i += 1) updateCardPanel(cards[i], model && model.cards && model.cards[i] || null, true);
+  }
 
   function updateRenderedCardModels(cards, models) {
-    CardPresenter.update(cards[0], models && models[0] || null, true);
-    CardPresenter.update(cards[1], models && models[1] || null, true);
+    updateCardPanel(cards[0], models && models[0] || null, true);
+    updateCardPanel(cards[1], models && models[1] || null, true);
   }
 
   function applyRenderClasses(panel, classes) {
@@ -4963,8 +5935,6 @@
     setPanelClass(panel, CLASSES.eliminated, !!classes.eliminated);
     setPanelClass(panel, CLASSES.winner, !!classes.winner);
   }
-
-
 
   function getPlayerRenderSource(snapshot) {
     const state = snapshot || {};
@@ -5010,36 +5980,12 @@
     return player.left ? "LEFT / FOLD" : (player.folded ? "FOLD" : player.result || (game && game.active && index === game.currentIndex ? (player.key === State.localPlayerKey ? "YOUR TURN" : "TURN") : ""));
   }
 
-  function createPlayerRow(parent) {
-    const row = createPanel("Panel", parent, "", "PokerPlayerRow");
-    const info = createPanel("Panel", row, "", "PokerPlayerInfo");
-    return {
-      row: row,
-      name: createLabel(info, "PokerPlayerName", ""),
-      stack: createLabel(info, "PokerPlayerStack", ""),
-      cards: createHoleCards(createPanel("Panel", row, "", "PokerHoleCards")),
-      state: createLabel(row, "PokerPlayerState", ""),
-    };
-  }
-
-  function updatePlayerRow(row, model) {
-    applyRenderClasses(row.row, model.classes);
-    setText(row.name, model.name || "Player");
-    setText(row.stack, model.stackText);
-    updateRenderedCardModels(row.cards, model.cards);
-    setText(row.state, model.stateText);
-  }
-
-  function deletePlayerRow(row) {
-    deletePanel(row && row.row);
-  }
-
   function renderPlayers(viewModel) {
     if (!isValid(State.players)) return;
     const metricStarted = PokerMetrics.start("renderPlayers");
-    const rows = viewModel && viewModel.playerRows ? viewModel.playerRows : buildPlayerRenderModel();
+    const rows = viewModel && viewModel.playerRows ? viewModel.playerRows : [];
     State.renderCache.playerRows = State.renderCache.playerRows || {};
-    Rows.update(State.renderCache.playerRows, State.players, rows, createPlayerRow, updatePlayerRow, deletePlayerRow);
+    Rows.update(State.renderCache.playerRows, State.players, rows, RowSpecs.player);
     PokerMetrics.end("renderPlayers", metricStarted);
   }
 
@@ -5070,10 +6016,6 @@
     return rows;
   }
 
-  function buildPlayerRenderModel() {
-    return buildPlayerRenderModelForState(getViewModelState());
-  }
-
   function buildTableRenderModelForState(state, playerRows) {
     const snapshot = state || {};
     const game = snapshot.game !== undefined ? snapshot.game : State.game;
@@ -5089,6 +6031,7 @@
         initial: getPlayerInitial(projection.name),
         stackText: projection.stackText,
         stateText: projection.stateText,
+        cardMode: "hole-cards",
         cards: projection.cards,
         positionClass: getTableSeatPositionClass(i, Math.min(projections.length, TABLE_EDGE_SEAT_LIMIT)),
         densityClass: densityClass,
@@ -5100,10 +6043,6 @@
       arrowClass: game && game.active && game.currentIndex >= 0 ? getTableSeatPositionClass(game.currentIndex, Math.min(visible.length, TABLE_EDGE_SEAT_LIMIT)) : "",
       hidden: !game,
     };
-  }
-
-  function buildTableRenderModel() {
-    return buildTableRenderModelForState(getViewModelState());
   }
 
   function getRowPanel(row) {
@@ -5137,8 +6076,8 @@
   }
 
   const Rows = {
-    update: function (cache, parent, models, createRow, updateRow, deleteRow) {
-      if (!cache || !parent) return;
+    update: function (cache, parent, models, spec) {
+      if (!cache || !parent || !spec) return;
       const rows = models || [];
       const seen = {};
       const ordered = [];
@@ -5148,20 +6087,127 @@
         seen[key] = true;
         let row = cache[key];
         if (!row || !isValid(getRowPanel(row))) {
-          row = createRow(parent, model, i);
+          row = spec.create(parent, model, i);
           cache[key] = row;
         }
-        updateRow(row, model, i);
+        spec.update(row, model, i);
         ordered.push(row);
       }
       const cachedKeys = Object.keys(cache);
       for (let i = 0; i < cachedKeys.length; i += 1) {
         const key = cachedKeys[i];
         if (seen[key]) continue;
-        if (deleteRow) deleteRow(cache[key]);
+        spec.remove(cache[key]);
         delete cache[key];
       }
       for (let i = 0; i < ordered.length; i += 1) moveRowBefore(parent, getRowPanel(ordered[i]), i);
+    },
+  };
+
+  const RowSpecs = {
+    seat: {
+      create: (parent, model) => {
+        const row = createPanel("Panel", parent, (model.idPrefix || "PokerSeat") + model.key, "PokerSeatRow");
+        return { row: row, number: createLabel(row, "PokerSeatNumber", ""), name: createLabel(row, "PokerSeatName", ""), meta: createLabel(row, "PokerSeatMeta", "") };
+      },
+      update: (row, model) => {
+        setPanelClass(row.row, "Empty", !!model.empty);
+        setText(row.number, model.empty ? "" : model.number);
+        setText(row.name, model.name);
+        setText(row.meta, model.meta);
+      },
+      remove: (row) => deletePanel(row && row.row),
+    },
+    communityCard: {
+      create: (parent) => createCard(parent, null, false),
+      update: (panel, model) => updateCardPanel(panel, model.card || null, false),
+      remove: (panel) => deletePanel(panel),
+    },
+    potChip: {
+      create: (parent, model) => {
+        const panel = createPanel("Panel", parent, "", "PokerPotChip " + model.className);
+        return { panel: panel, image: createPanel("Image", panel, "", "PokerPotChipImage"), count: createLabel(panel, "PokerPotChipCount", "") };
+      },
+      update: (row, model) => {
+        if (!row || !model) return;
+        setPanelClass(row.panel, model.className, true);
+        setImageSource(row.image, getPotChipArtSrc(model.asset));
+        setText(row.count, model.count > 1 ? "x" + model.count : "");
+      },
+      remove: (row) => deletePanel(row && row.panel),
+    },
+    player: {
+      create: (parent) => {
+        const row = createPanel("Panel", parent, "", "PokerPlayerRow");
+        const info = createPanel("Panel", row, "", "PokerPlayerInfo");
+        return { row: row, name: createLabel(info, "PokerPlayerName", ""), stack: createLabel(info, "PokerPlayerStack", ""), cards: createHoleCards(createPanel("Panel", row, "", "PokerHoleCards")), state: createLabel(row, "PokerPlayerState", "") };
+      },
+      update: (row, model) => {
+        applyRenderClasses(row.row, model.classes);
+        setText(row.name, model.name || "Player");
+        setText(row.stack, model.stackText);
+        updateRenderedCardModels(row.cards, model.cards);
+        setText(row.state, model.stateText);
+      },
+      remove: (row) => deletePanel(row && row.row),
+    },
+    tableSeat: {
+      create: (parent) => {
+        const seat = createPanel("Panel", parent, "", "PokerTableSeat");
+        const row = createPanel("Panel", seat, "", "PokerTableSeatMetaRow");
+        const avatar = createPanel("Panel", row, "", "PokerTableSeatAvatar");
+        const text = createPanel("Panel", row, "", "PokerTableSeatText");
+        return { seat: seat, avatarLabel: createLabel(avatar, "", ""), name: createLabel(text, "PokerTableSeatName", ""), stack: createLabel(text, "PokerTableSeatStack", ""), state: createLabel(text, "PokerTableSeatState", ""), cardsParent: null, cards: [], positionClass: "", densityClass: "" };
+      },
+      update: (row, model) => {
+        const seat = row.seat;
+        applyRenderClasses(seat, model.classes);
+        if (row.positionClass !== model.positionClass) {
+          if (row.positionClass) setPanelClass(seat, row.positionClass, false);
+          if (model.positionClass) setPanelClass(seat, model.positionClass, true);
+          row.positionClass = model.positionClass || "";
+        }
+        if (row.densityClass !== model.densityClass) {
+          if (row.densityClass) setPanelClass(seat, row.densityClass, false);
+          if (model.densityClass) setPanelClass(seat, model.densityClass, true);
+          row.densityClass = model.densityClass || "";
+        }
+        setText(row.avatarLabel, model.initial);
+        setText(row.name, model.name || "Player");
+        setText(row.stack, model.stackText);
+        setText(row.state, model.stateText);
+        updateTableSeatCards(row, model);
+      },
+      remove: (row) => deletePanel(row && row.seat),
+    },
+    actionButton: {
+      create: (parent, choice) => {
+        const button = createPanel("Button", parent, "", choice.className || "PokerActionButton");
+        return { panel: button, button: button, label: createLabel(button, "PokerActionButtonLabel", ""), lastCommand: "", lastLabel: "", lastEnabled: null, lastReadOnly: null };
+      },
+      update: (row, choice) => {
+        const enabled = choice.enabled !== false;
+        const readOnly = !!choice.readOnly;
+        applyButtonAffordance(row.button, { enabled: enabled, hidden: false, eligible: enabled, readOnly: readOnly });
+        setText(row.label, choice.label);
+        const changed = row.lastCommand !== choice.command || row.lastLabel !== choice.label || row.lastEnabled !== enabled || row.lastReadOnly !== readOnly;
+        if (changed) {
+          try {
+            if (enabled && !readOnly) row.button.SetPanelEvent("onactivate", () => choice.customBet ? sendCustomBetAction(choice) : sendAction(choice.command, choice.label));
+            else if (row.button.onactivate) delete row.button.onactivate;
+          } catch (e) {}
+          row.lastCommand = choice.command;
+          row.lastLabel = choice.label;
+          row.lastEnabled = enabled;
+          row.lastReadOnly = readOnly;
+        }
+      },
+      remove: (row) => deletePanel(row && row.button),
+    },
+    log: {
+      create: (parent) => createLabel(parent, "PokerLogLine", ""),
+      update: (row, model) => setText(row, model.text),
+      remove: (row) => deletePanel(row),
     },
   };
   function getTableSeatPositionClass(index, count) {
@@ -5170,86 +6216,57 @@
     return layout[index] || "";
   }
 
-
   function getPlayerInitial(name) {
     const text = String(name || "P").trim();
     return text ? text.charAt(0).toUpperCase() : "P";
   }
 
-
-  function renderTableTurnArrow(visible, game) {
-    if (!isValid(State.tableSeats)) return;
-    const activeIndex = game && game.active ? Math.floor(Number(game.currentIndex) || 0) : -1;
-    const hasActiveSeat = activeIndex >= 0 && activeIndex < visible.length;
-    const positionClass = hasActiveSeat ? getTableSeatPositionClass(activeIndex, Math.min(visible.length, TABLE_EDGE_SEAT_LIMIT)) : "";
-    const nextClass = positionClass;
-    if (!isValid(State.renderCache.tableTurnArrow)) {
-      State.renderCache.tableTurnArrow = createPanel("Panel", State.tableSeats, "", "PokerTableTurnArrow PokerHidden");
-      State.renderCache.tableTurnArrowClass = "";
+  function renderTableTurnArrow(parent, cache, positionClass) {
+    if (!isValid(parent)) return;
+    const nextClass = positionClass || "";
+    if (!isValid(cache.arrow)) {
+      cache.arrow = createPanel("Panel", parent, "", "PokerTableTurnArrow PokerHidden");
+      cache.arrowClass = "";
     }
-    const arrow = State.renderCache.tableTurnArrow;
-    if (State.renderCache.tableTurnArrowClass !== nextClass) {
-      if (State.renderCache.tableTurnArrowClass) setPanelClass(arrow, State.renderCache.tableTurnArrowClass, false);
+    const arrow = cache.arrow;
+    if (cache.arrowClass !== nextClass) {
+      if (cache.arrowClass) setPanelClass(arrow, cache.arrowClass, false);
       if (nextClass) setPanelClass(arrow, nextClass, true);
-      State.renderCache.tableTurnArrowClass = nextClass;
+      cache.arrowClass = nextClass;
     }
     setPanelClass(arrow, CLASSES.hidden, !nextClass);
   }
 
-  function createTableSeatRow(parent) {
-    const seat = createPanel("Panel", parent, "", "PokerTableSeat");
-    const cards = createHoleCards(createPanel("Panel", seat, "", "PokerTableSeatCards"));
-    const row = createPanel("Panel", seat, "", "PokerTableSeatMetaRow");
-    const avatar = createPanel("Panel", row, "", "PokerTableSeatAvatar");
-    const text = createPanel("Panel", row, "", "PokerTableSeatText");
+  const TableSeatRenderer = (() => {
+    const entries = [];
+    function cacheFor(parent) {
+      for (let i = 0; i < entries.length; i += 1) {
+        if (entries[i].parent === parent) return entries[i];
+      }
+      const entry = { parent: parent, rows: {}, arrow: null, arrowClass: "" };
+      entries.push(entry);
+      return entry;
+    }
     return {
-      seat: seat,
-      avatarLabel: createLabel(avatar, "", ""),
-      name: createLabel(text, "PokerTableSeatName", ""),
-      stack: createLabel(text, "PokerTableSeatStack", ""),
-      state: createLabel(text, "PokerTableSeatState", ""),
-      cards: cards,
-      positionClass: "",
-      densityClass: "",
+      render: (parent, rows, arrowClass) => {
+        if (!isValid(parent)) return;
+        const cache = cacheFor(parent);
+        Rows.update(cache.rows, parent, rows || [], RowSpecs.tableSeat);
+        renderTableTurnArrow(parent, cache, arrowClass);
+      },
+      reset: () => {
+        entries.length = 0;
+      },
     };
-  }
-
-  function updateTableSeatRow(row, model) {
-    const seat = row.seat;
-    applyRenderClasses(seat, model.classes);
-    if (row.positionClass !== model.positionClass) {
-      if (row.positionClass) setPanelClass(seat, row.positionClass, false);
-      if (model.positionClass) setPanelClass(seat, model.positionClass, true);
-      row.positionClass = model.positionClass || "";
-    }
-    if (row.densityClass !== model.densityClass) {
-      if (row.densityClass) setPanelClass(seat, row.densityClass, false);
-      if (model.densityClass) setPanelClass(seat, model.densityClass, true);
-      row.densityClass = model.densityClass || "";
-    }
-    setText(row.avatarLabel, model.initial);
-    setText(row.name, model.name || "Player");
-    setText(row.stack, model.stackText);
-    setText(row.state, model.stateText);
-    updateRenderedCardModels(row.cards, model.cards);
-  }
-
-  function deleteTableSeatRow(row) {
-    deletePanel(row && row.seat);
-  }
+  })();
 
   function renderTableSeats(viewModel) {
     if (!isValid(State.tableSeats)) return;
     const metricStarted = PokerMetrics.start("renderTableSeats");
-    const model = viewModel && viewModel.table ? viewModel.table : buildTableRenderModel();
-    State.renderCache.tableSeatRows = State.renderCache.tableSeatRows || {};
-    Rows.update(State.renderCache.tableSeatRows, State.tableSeats, model.rows, createTableSeatRow, updateTableSeatRow, deleteTableSeatRow);
-    renderTableTurnArrow(model.rows, State.game);
+    const model = viewModel.table;
+    TableSeatRenderer.render(State.tableSeats, model.rows, model.arrowClass);
     PokerMetrics.end("renderTableSeats", metricStarted);
   }
-
-
-
 
   function clampCustomBetAmount(value, range) {
     const amount = Math.floor(Number(value));
@@ -5264,16 +6281,6 @@
     return { hasInput: true, amount: amount, validNumber: isFinite(amount) };
   }
 
-  function isCustomBetAmountLegal(range, amount) {
-    if (!range || !isFinite(amount)) return false;
-    const game = State.game;
-    const player = getLocalPlayer();
-    if (!game || !player) return false;
-    const policy = PokerEngine.actions(game, getCurrentPlayer() && getCurrentPlayer().key, player.key);
-    if (amount < range.min || amount > range.max) return false;
-    return range.action === "bet" ? policy.legal.canBetTarget(amount) : policy.legal.canRaiseTarget(amount);
-  }
-
   function getCustomBetDraft(range) {
     const controls = State.renderCache.customBetControls || {};
     const input = controls.input;
@@ -5285,7 +6292,7 @@
       amount = Math.floor(Number(slider.value));
       validNumber = true;
     }
-    const legal = validNumber && isCustomBetAmountLegal(range, amount);
+    const legal = validNumber && !!(range && range.isLegal && range.isLegal(amount));
     return {
       amount: amount,
       legal: legal,
@@ -5325,7 +6332,7 @@
     const draft = getCustomBetDraft(range);
     const displayAmount = draft.legal ? draft.amount : clampCustomBetAmount(draft.amount, range);
     if (draft.legal) State.renderCache.customBetValue = displayAmount;
-    setText(controls.value, getCustomBetCommandLabel(range, displayAmount));
+    setText(controls.value, range.label(displayAmount));
     setText(controls.range, "MIN $" + range.min + "  MAX $" + range.max);
     setCustomBetIllegal(controls, draft.invalid);
     if (!skipSliderSync && !State.renderCache.customBetSliderSyncing && controls.slider && isFinite(displayAmount)) {
@@ -5426,40 +6433,11 @@
     const draft = getCustomBetDraft(range);
     if (!draft.legal) {
       setCustomBetIllegal(controls, true);
-      if (range) setStatus("Raise must be between $" + range.min + " and $" + range.max + ".");
+      if (range) setStatus(range.invalidStatus());
       return;
     }
     State.renderCache.customBetValue = draft.amount;
-    const command = range.action + " $" + draft.amount;
-    sendAction(command, getCustomBetCommandLabel(range, draft.amount));
-  }
-
-  function createActionButtonRow(parent, choice) {
-    const button = createPanel("Button", parent, "", choice.className || "PokerActionButton");
-    const label = createLabel(button, "PokerActionButtonLabel", "");
-    return { panel: button, button: button, label: label, lastCommand: "", lastLabel: "", lastEnabled: null, lastReadOnly: null };
-  }
-
-  function updateActionButtonRow(row, choice) {
-    const enabled = choice.enabled !== false;
-    const readOnly = !!choice.readOnly;
-    applyButtonAffordance(row.button, { enabled: enabled, hidden: false, eligible: enabled, readOnly: readOnly });
-    setText(row.label, choice.label);
-    const changed = row.lastCommand !== choice.command || row.lastLabel !== choice.label || row.lastEnabled !== enabled || row.lastReadOnly !== readOnly;
-    if (changed) {
-      try {
-        if (enabled && !readOnly) row.button.SetPanelEvent("onactivate", () => choice.customBet ? sendCustomBetAction(choice) : sendAction(choice.command, choice.label));
-        else if (row.button.onactivate) delete row.button.onactivate;
-      } catch (e) {}
-      row.lastCommand = choice.command;
-      row.lastLabel = choice.label;
-      row.lastEnabled = enabled;
-      row.lastReadOnly = readOnly;
-    }
-  }
-
-  function deleteActionButtonRow(row) {
-    deletePanel(row && row.button);
+    sendAction(range.command(draft.amount), range.label(draft.amount));
   }
 
   function getActionButtonParent() {
@@ -5472,38 +6450,32 @@
   function renderActions(buttonState) {
     if (!isValid(State.actions)) return;
     const metricStarted = PokerMetrics.start("renderActions");
-    const state = buttonState || ViewModel.build();
+    const state = buttonState;
     State.renderCache.actionButtons = State.renderCache.actionButtons || {};
     applyHiddenAffordance(State.actions, state.controls.actionContainer.hidden);
+    const buttonParent = getActionButtonParent();
     if (state.controls.actionContainer.hidden) {
-      if (isValid(State.renderCache.actionButtonRow)) {
-        Rows.update(State.renderCache.actionButtons, State.renderCache.actionButtonRow, [], createActionButtonRow, updateActionButtonRow, deleteActionButtonRow);
-      } else {
-        State.renderCache.actionButtons = {};
-      }
+      Rows.update(State.renderCache.actionButtons, buttonParent, [], RowSpecs.actionButton);
       if (isValid(State.renderCache.actionHint)) deletePanel(State.renderCache.actionHint);
       State.renderCache.actionHint = null;
       removeCustomBetControls();
-      if (isValid(State.renderCache.actionButtonRow)) deletePanel(State.renderCache.actionButtonRow);
-      State.renderCache.actionButtonRow = null;
       PokerMetrics.end("renderActions", metricStarted);
       return;
     }
 
-    const choices = state.actionChoices || [];
+    const choices = state.actions.rows;
     const hasButtons = choices.length > 0;
-    const hasHint = !!state.text.actionHint && !hasButtons;
+    const hasHint = !!state.actions.hint && !hasButtons;
     if (hasHint) {
       if (!isValid(State.renderCache.actionHint)) {
         State.renderCache.actionHint = createLabel(State.actions, "PokerActionHint", "");
       }
-      setText(State.renderCache.actionHint, state.text.actionHint);
+      setText(State.renderCache.actionHint, state.actions.hint);
     } else if (isValid(State.renderCache.actionHint)) {
       deletePanel(State.renderCache.actionHint);
       State.renderCache.actionHint = null;
     }
 
-    const buttonParent = getActionButtonParent();
     applyHiddenAffordance(buttonParent, !hasButtons);
     let customBetChoice = null;
     for (let i = 0; i < choices.length; i += 1) {
@@ -5512,41 +6484,20 @@
         break;
       }
     }
-    Rows.update(State.renderCache.actionButtons, buttonParent, choices, createActionButtonRow, updateActionButtonRow, deleteActionButtonRow);
-    if (customBetChoice) {
-      renderCustomBetControls(customBetChoice, buttonParent);
-    } else {
-      removeCustomBetControls();
-    }
+    Rows.update(State.renderCache.actionButtons, buttonParent, choices, RowSpecs.actionButton);
+    if (customBetChoice) renderCustomBetControls(customBetChoice, buttonParent);
+    else removeCustomBetControls();
     PokerMetrics.end("renderActions", metricStarted);
   }
 
-  function createLogRow(parent) {
-    return createLabel(parent, "PokerLogLine", "");
-  }
-
-  function updateLogRow(row, model) {
-    setText(row, model.text);
-  }
-
-  function deleteLogRow(row) {
-    deletePanel(row);
-  }
-
-  function renderLog() {
+  function renderLog(model) {
     if (!isValid(State.log)) return;
     const metricStarted = PokerMetrics.start("renderLog");
-    const hasGame = !!State.game;
-    setPanelClass(State.log, CLASSES.hidden, !hasGame);
+    setPanelClass(State.log, CLASSES.hidden, !model.hasGame);
     State.renderCache.logRows = State.renderCache.logRows || {};
-    const entries = hasGame && State.game.log && State.game.log.length ? State.game.log : (hasGame ? ["Hand history will appear here."] : []);
-    const start = Math.max(0, entries.length - MAX_GAME_LOG_ENTRIES);
-    const visible = entries.slice(start).map((text, index) => ({ key: String(index), text: text }));
-    Rows.update(State.renderCache.logRows, State.log, visible, createLogRow, updateLogRow, deleteLogRow);
+    Rows.update(State.renderCache.logRows, State.log, model.logRows, RowSpecs.log);
     PokerMetrics.end("renderLog", metricStarted);
   }
-
-
 
   function invalidateRenderer(reason) {
     resetRenderChildCache();
@@ -5554,61 +6505,340 @@
     return true;
   }
 
-  const TableRenderer = {
-    render: render,
-    invalidate: invalidateRenderer,
-  };
+  function bluffPanelChild(panel, index) {
+    try { return panel && typeof panel.GetChild === "function" ? panel.GetChild(index) : null; } catch (e) { return null; }
+  }
+  function bluffPlayedCardTilt(game, index, count) {
+    const publicSeed = [
+      game && game.id || "",
+      game && game.round || 0,
+      game && game.lastPlay && game.lastPlay.actorIndex || 0,
+      count || 0,
+      index || 0,
+    ].join("|");
+    return (hashString(publicSeed) >>> 0) % 7;
+  }
+  function renderBluffPublicCards(game) {
+    const target = game && (game.target === BD_ACE ? "A" : game.target === BD_KING ? "K" : "Q");
+    const face = bluffPanelChild(State.bluffTargetCard, 0);
+    if (isValid(face)) {
+      if (!State.renderCache.bluffTargetRank) {
+        const fallback = bluffPanelChild(face, 0);
+        if (isValid(fallback)) setPanelClass(fallback, CLASSES.hidden, true);
+        State.renderCache.bluffTargetRank = createLabel(face, "PokerCardRank", "");
+        State.renderCache.bluffTargetArt = createCardArt(face, target ? { rank: target } : null);
+      }
+      setText(State.renderCache.bluffTargetRank, target || "?");
+      const image = bluffPanelChild(State.renderCache.bluffTargetArt, 0);
+      setImageSource(image, target ? getCardImageSrc({ rank: target }) : "");
+    }
+    if (!isValid(State.bluffPlayedCards) || !game) return;
+    clearChildren(State.bluffPlayedCards);
+    const revealed = game.pendingShot && game.lastResult && Array.isArray(game.lastResult.revealed) ? game.lastResult.revealed : null;
+    const count = revealed ? revealed.length : (game.lastPlay ? game.lastPlay.count : 0);
+    for (let i = 0; i < count; i += 1) {
+      const tiltClass = "BluffDeckStackTilt" + bluffPlayedCardTilt(game, i, count);
+      const revealLayout = revealed ? " BluffDeckRevealCount" + count + " BluffDeckRevealSlot" + i : "";
+      const card = createPanel("Panel", State.bluffPlayedCards, "", "BluffDeckPlayedCard " + tiltClass + revealLayout + " " + (revealed ? "Revealed" : "CardBack"));
+      if (!revealed || !card) continue;
+      const rank = revealed[i] === BD_ACE ? "A" : revealed[i] === BD_KING ? "K" : revealed[i] === BD_QUEEN ? "Q" : "";
+      createLabel(card, "PokerCardRank", rank ? BD_LABELS[revealed[i]] : "JOKER");
+      createCardArt(card, rank ? { rank: rank } : null);
+    }
+  }
+  function renderBluffRows(parent, rows, className) {
+    if (!isValid(parent)) return;
+    clearChildren(parent);
+    const values = Array.isArray(rows) ? rows : [];
+    for (let i = 0; i < values.length; i += 1) createLabel(parent, className, values[i]);
+  }
+  function bluffSlotContents(button) {
+    if (!isValid(button) || typeof button.GetChildCount !== "function") return null;
+    try {
+      for (let i = 0; i < button.GetChildCount(); i += 1) {
+        const child = button.GetChild(i);
+        if (child && child.BHasClass && child.BHasClass("BluffDeckSlotContents")) return child;
+      }
+    } catch (e) {}
+    return createPanel("Panel", button, "", "BluffDeckSlotContents PokerCardContents");
+  }
+  function bluffSlotGlyph(button, index) {
+    State.renderCache.bluffSlotGlyphs = State.renderCache.bluffSlotGlyphs || [];
+    if (isValid(State.renderCache.bluffSlotGlyphs[index])) return State.renderCache.bluffSlotGlyphs[index];
+    const contents = bluffSlotContents(button);
+    let glyph = null;
+    if (isValid(contents) && typeof contents.GetChildCount === "function") {
+      try {
+        for (let i = 0; i < contents.GetChildCount(); i += 1) {
+          const child = contents.GetChild(i);
+          if (child && child.BHasClass && child.BHasClass("BluffDeckSlotRankGlyph")) {
+            glyph = child;
+            break;
+          }
+        }
+      } catch (e) {}
+    }
+    if (!glyph) glyph = createLabel(isValid(contents) ? contents : button, "BluffDeckSlotRankGlyph", "");
+    State.renderCache.bluffSlotGlyphs[index] = glyph;
+    return glyph;
+  }
+  function bluffRankGlyph(rank) {
+    return rank === BD_ACE ? "A" : rank === BD_KING ? "K" : rank === BD_QUEEN ? "Q" : rank === BD_JOKER ? "J" : "";
+  }
+  function projectBluffTableSeats(game, party) {
+    const source = game && Array.isArray(game.players) ? game.players : bluffRosterFromParty(party);
+    const rows = [];
+    const count = Math.min(TABLE_EDGE_SEAT_LIMIT, source.length);
+    const densityClass = count <= 6 ? "SeatScaleLarge" : (count <= 8 ? "SeatScaleMedium" : "SeatScaleCompact");
+    const publicPlay = game && game.lastPlay
+      && Number.isInteger(game.lastPlay.actorIndex)
+      && Number.isInteger(game.lastPlay.count)
+      && game.lastPlay.count >= 1 && game.lastPlay.count <= 3
+      ? game.lastPlay : null;
+    for (let i = 0; i < count; i += 1) {
+      const player = source[i] || {};
+      const key = normalizePlayerKey(player.key) || ("bluff-seat-" + i);
+      const name = String(player.name || key).replace(/\s+/g, " ").trim() || "Player";
+      const active = !!(game && game.active);
+      const eliminated = player.status === "eliminated";
+      const left = player.status === "left";
+      const publicActor = !!(publicPlay && publicPlay.actorIndex === i);
+      const publicCount = publicActor ? publicPlay.count : 0;
+      let stateText = "WAITING";
+      if (game) {
+        if (eliminated) stateText = "OUT";
+        else if (left) stateText = "LEFT";
+        else if (game.finished && game.winnerKey === key) stateText = "WINNER";
+        else if (!game.active) stateText = "MATCH ENDED";
+        else if (i === game.currentIndex) stateText = "TURN";
+      }
+      if (publicActor) stateText = "PLAYED " + publicCount;
+      const stackText = game
+        ? "CARDS " + bdCount(Number(player.remainingMask) || 0) + "  RISK " + (Number(player.riskIndex) || 0) + "/6"
+        : "WAITING";
+      const publicCards = [];
+      for (let j = 0; j < publicCount; j += 1) publicCards.push(null);
+      rows.push({
+        key: key,
+        name: name,
+        initial: getPlayerInitial(name),
+        stackText: stackText,
+        stateText: stateText,
+        cardMode: publicActor ? "public-count" : "none",
+        publicCardCount: publicCount,
+        cards: publicCards,
+        positionClass: getTableSeatPositionClass(i, count),
+        densityClass: densityClass,
+        classes: {
+          current: active && i === game.currentIndex && !eliminated && !left,
+          folded: false,
+          eliminated: eliminated,
+          winner: !!(game && game.finished && game.winnerKey === key),
+        },
+      });
+    }
+    return {
+      rows: rows,
+      arrowClass: game && game.active && game.currentIndex >= 0 ? getTableSeatPositionClass(game.currentIndex, count) : "",
+    };
+  }
+  const BluffDeckSeatProjection = { project: projectBluffTableSeats };
 
-  function renderAnnouncer() {
+  function renderBluffDeck() {
+    const game = State.bluffDeck && State.bluffDeck.game;
+    const pending = State.bluffDeck && State.bluffDeck.pending;
+    const localKey = localBluffKey();
+    const projection = BluffDeckEngine.projectText(game, localKey, State.bluffDeck.selectedMask, pending);
+    renderBluffPublicCards(game);
+    const local = game && bdPlayerAt(game, localKey);
+    const legal = game && local ? BluffDeckEngine.legalActions(game, local.key) : null;
+    let selected = Number(State.bluffDeck.selectedMask) || 0;
+    const canSelectCards = canSelectBluffCards(game, local);
+    if (!canSelectCards && !pending && selected) {
+      State.bluffDeck.selectedMask = 0;
+      selected = 0;
+    }
+    const party = ensureParty();
+    const roster = bluffRosterFromParty(party);
+    const seatProjection = projectBluffTableSeats(game, party);
+    if (isValid(State.bluffTableSeats)) {
+      setPanelClass(State.bluffTableSeats, CLASSES.hidden, seatProjection.rows.length === 0);
+      TableSeatRenderer.render(State.bluffTableSeats, seatProjection.rows, seatProjection.arrowClass);
+    }
+    const controls = BluffDeckControlState.project({
+      game: game,
+      legal: legal,
+      pending: pending,
+      party: party,
+      roster: roster,
+      localKey: localKey,
+      localPlayer: local,
+      selectedMask: selected,
+      isLeader: localBluffLeader(party),
+      otherActive: !!(State.game && State.game.active),
+    });
+    setText(State.bluffHeader, projection.headerText || "BLUFF DECK");
+    setText(State.bluffTarget, projection.targetText || "TARGET: —");
+    setText(State.bluffTurn, projection.turnText || (game ? "WAITING FOR MATCH" : "WAITING FOR MATCH"));
+    setText(State.bluffPrevious, projection.previousPlayText || "");
+    setText(State.bluffHand, projection.handText || "HAND: WAITING FOR MATCH");
+    setText(State.bluffAction, projection.actionText || (game ? "WAITING" : "HOST OR JOIN A PARTY"));
+    setText(State.bluffPending, projection.pendingText || "");
+    setText(State.bluffResult, projection.resultText || "");
+    setText(State.bluffStatus, pending ? (pending.bridgeStatus === "cancelling" ? "CANCELLING..." : "SENDING...") : (projection.pendingText || ""));
+    renderBluffRows(State.bluffOpponents, projection.opponentTexts, "BluffDeckOpponentRow");
+    const transcript = State.bluffDeck && Array.isArray(State.bluffDeck.transcript) ? State.bluffDeck.transcript : [];
+    renderBluffRows(State.bluffLog, transcript, "BluffDeckLogRow");
+    const slotPanels = [State.bluffSlot0, State.bluffSlot1, State.bluffSlot2, State.bluffSlot3, State.bluffSlot4];
+    for (let i = 0; i < slotPanels.length; i += 1) {
+      const button = slotPanels[i];
+      const valid = !!(local && Array.isArray(local.hand) && i < local.hand.length && (local.remainingMask & (1 << i)) !== 0);
+      applyButtonAffordance(button, { hidden: !valid, enabled: valid && canSelectCards });
+      setPanelClass(button, "Selected", valid && canSelectCards && (selected & (1 << i)) !== 0);
+      const glyph = bluffSlotGlyph(button, i);
+      const slotContents = bluffSlotContents(button);
+      State.renderCache.bluffSlotArts = State.renderCache.bluffSlotArts || [];
+      const slotCard = valid ? { rank: local.hand[i] === BD_ACE ? "A" : local.hand[i] === BD_KING ? "K" : local.hand[i] === BD_QUEEN ? "Q" : "" } : null;
+      const slotArt = State.renderCache.bluffSlotArts[i] || (State.renderCache.bluffSlotArts[i] = createCardArt(slotContents || button, slotCard));
+      if (slotArt) {
+        setPanelClass(slotArt, CLASSES.hidden, !valid);
+        if (valid) setImageSource(bluffPanelChild(slotArt, 0), getCardImageSrc(slotCard));
+      }
+      setText(glyph, valid ? bluffRankGlyph(local.hand[i]) : "");
+      setPanelClass(glyph, CLASSES.hidden, !valid);
+    }
+    const renderControl = function renderControl(panel, decision) {
+      applyButtonAffordance(panel, decision);
+      setButtonLabel(panel, decision.label);
+    };
+    renderControl(State.bluffHostButton, controls.host);
+    renderControl(State.bluffJoinButton, controls.join);
+    renderControl(State.bluffLeaveButton, controls.leave);
+    renderControl(State.bluffStartButton, controls.start);
+    renderControl(State.bluffEndButton, controls.end);
+    renderControl(State.bluffPlayButton, controls.play);
+    renderControl(State.bluffChallengeButton, controls.challenge);
+  }
+  const TableRenderer = { render: render, invalidate: invalidateRenderer };
+
+  function renderAnnouncer(model) {
     if (!isValid(State.announcer)) return;
-    const game = State.game;
-    const announcement = game && game.announcement;
-    const title = announcement && announcement.title ? announcement.title : "Poker announcer";
-    const detail = announcement && announcement.detail ? announcement.detail : "Ready up, start a hand, and the table will call blinds, turns, checks, bets, raises, folds, and winners here.";
-    const hasWinnerFeedback = !!(game && game.potWinnerKeys && Object.keys(game.potWinnerKeys).length);
-    setPanelClass(State.announcer, CLASSES.winner, hasWinnerFeedback);
-    setPanelClass(State.announcerTitle, CLASSES.winner, hasWinnerFeedback);
-    setPanelClass(State.announcerBody, CLASSES.winner, hasWinnerFeedback);
-    setText(State.announcerTitle, title);
-    setText(State.announcerBody, detail);
+    const announcement = model.announcer;
+    setPanelClass(State.announcer, CLASSES.winner, announcement.winner);
+    setPanelClass(State.announcerTitle, CLASSES.winner, announcement.winner);
+    setPanelClass(State.announcerBody, CLASSES.winner, announcement.winner);
+    setText(State.announcerTitle, announcement.title);
+    setText(State.announcerBody, announcement.detail);
   }
 
-
-  function updateMatchPanels(buttonState) {
-    const hasGame = !!State.game;
-    const state = buttonState || ViewModel.build();
+  function updateMatchPanels(model) {
     setPanelClass(State.tableSurface, CLASSES.hidden, false);
     setPanelClass(State.players, CLASSES.hidden, false);
     setPanelClass(State.seatsList, CLASSES.hidden, true);
-    setPanelClass(State.tableSeats, CLASSES.hidden, !hasGame);
-    setPanelClass(State.log, CLASSES.hidden, !hasGame);
-    applyButtonAffordance(State.endButton, state.controls.endMatch);
-    applyButtonAffordance(State.leaveLobbyButton, state.controls.leaveLobby);
+    setPanelClass(State.tableSeats, CLASSES.hidden, !model.hasGame);
+    setPanelClass(State.log, CLASSES.hidden, !model.hasGame);
+    applyButtonAffordance(State.endButton, model.controls.endMatch);
+    applyButtonAffordance(State.leaveLobbyButton, model.controls.leaveLobby);
+  }
+
+  function setButtonLabel(button, text) {
+    if (!isValid(button)) return;
+    let label = null;
+    try { label = button.GetChild && button.GetChild(0); } catch (e) {}
+    setText(label, text);
+  }
+
+  function pickerChoiceLabel(target, active, terminal, source) {
+    const targetName = tableGameName(target).toUpperCase();
+    if (source === target) return "RETURN TO " + targetName;
+    if (active && active !== target) return targetName + " · MATCH LOCKED";
+    if (terminal && terminal !== target) {
+      if (State.pendingTableSwitch === target) return "CONFIRM LEAVE & OPEN " + targetName;
+      return "LEAVE " + tableGameName(terminal).toUpperCase() + " & OPEN " + targetName;
+    }
+    return targetName;
+  }
+
+  function renderTableGamePicker(active) {
+    const terminal = getTerminalTableGameType();
+    const source = getTablePickerSource();
+    const transitionWaiting = !!(terminal && (tableSyncPending() || (State.bluffDeck && State.bluffDeck.pending)));
+    let warning = "";
+    if (active) {
+      warning = tableGameName(active).toUpperCase() + " MATCH IN PROGRESS — OTHER TABLE GAMES REMAIN LOCKED UNTIL THE MATCH ENDS.";
+    } else if (terminal && transitionWaiting) {
+      warning = "WAITING FOR THE FINISHED " + tableGameName(terminal).toUpperCase() + " TABLE TO SETTLE. SWITCHING IS TEMPORARILY LOCKED.";
+    } else if (terminal) {
+      const party = ensureParty();
+      const target = terminal === "poker" ? "Bluff Deck" : "Poker";
+      if (party.mode === "leader") warning = "LEAVING " + tableGameName(terminal).toUpperCase() + " MAY MOVE LOBBY LEADERSHIP TO ANOTHER PLAYER.";
+      else if (party.mode === "member") warning = "OPENING " + target.toUpperCase() + " WILL LEAVE YOUR CURRENT " + tableGameName(terminal).toUpperCase() + " LOBBY.";
+      else warning = "OPENING " + target.toUpperCase() + " WILL CLEAR THIS FINISHED " + tableGameName(terminal).toUpperCase() + " VIEW LOCALLY.";
+      if (terminal === "poker" && State.game && State.game.finished) warning += " COPY POKER PROGRESS FIRST IF YOU WANT TO RESUME.";
+      warning += State.pendingTableSwitch
+        ? " CLICK " + pickerChoiceLabel(State.pendingTableSwitch, "", terminal, source) + " AGAIN TO CONFIRM."
+        : " THE FIRST CLICK ARMS THE SWITCH; THE SECOND CONFIRMS IT.";
+    }
+    setText(State.pickerWarning, warning);
+    applyHiddenAffordance(State.pickerWarning, !warning);
+    setText(State.pickerPokerLabel, pickerChoiceLabel("poker", active, terminal, source));
+    setText(State.pickerBluffLabel, pickerChoiceLabel("bluff-deck", active, terminal, source));
+    const pokerCrossTerminal = !!(terminal && source === terminal && terminal !== "poker");
+    const bluffCrossTerminal = !!(terminal && source === terminal && terminal !== "bluff-deck");
+    applyButtonAffordance(State.pickerPokerButton, {
+      hidden: false,
+      enabled: (!active || active === "poker") && !(pokerCrossTerminal && transitionWaiting),
+    });
+    applyButtonAffordance(State.pickerBluffButton, {
+      hidden: false,
+      enabled: (!active || active === "bluff-deck") && !(bluffCrossTerminal && transitionWaiting),
+    });
+  }
+
+  function renderTableGameSurface(model) {
+    const active = getActiveTableGameType();
+    if (State.isOpen && !State.selectedTableGame && !State.tablePickerRequested && active) State.selectedTableGame = active;
+    const selected = State.selectedTableGame;
+    const showPoker = selected === "poker";
+    const showBluff = selected === "bluff-deck";
+    const showPicker = !selected;
+    hidePokerSurface(!showPoker || !State.isOpen);
+    applyHiddenAffordance(State.bluffWindow, !showBluff || !State.isOpen);
+    applyHiddenAffordance(State.pickerWindow, !showPicker || !State.isOpen);
+    setPanelClass(State.pickerPokerButton, "Selected", showPoker);
+    setPanelClass(State.pickerBluffButton, "Selected", showBluff);
+    renderTableGamePicker(active);
+    if (showBluff) renderBluffDeck();
+    return showPoker || showBluff;
   }
 
   function render(model) {
+    if (!model) return;
     const metricStarted = PokerMetrics.start("renderGame");
     cachePanels();
     if (!shouldRunMenuWork()) {
       PokerMetrics.end("renderGame", metricStarted);
       return;
     }
-    const game = State.game;
-    const hasGame = !!game;
-    const readyCount = State.readyCountValue || getReadySeatArray().length;
-    const buttonState = model || ViewModel.build(getViewModelState(readyCount));
-    renderPotCenter(game);
-    setText(State.phase, game ? String(game.phase || "lobby").toUpperCase() : "LOBBY");
-    updateMatchPanels(buttonState);
-    if (game && game.active) setStatus(buttonState.text.actionHint || getActionStatusText());
-    renderAnnouncer();
-    renderCommunity();
-    renderPlayers(buttonState);
-    if (hasGame) renderTableSeats(buttonState);
-    renderActions(buttonState);
-    renderLog();
-    renderProgressControls(buttonState);
-    updateStartButton(readyCount, buttonState);
+    if (State.isOpen) {
+      const tableSurfaceRendered = renderTableGameSurface(model);
+      if (State.selectedTableGame !== "poker" || !tableSurfaceRendered) {
+        PokerMetrics.end("renderGame", metricStarted);
+        return;
+      }
+    }
+    renderPotCenter(model);
+    setText(State.phase, model.phase);
+    updateMatchPanels(model);
+    if (model.activeGame) setStatus(model.actions.hint);
+    renderAnnouncer(model);
+    renderCommunity(model);
+    renderPlayers(model);
+    if (model.hasGame) renderTableSeats(model);
+    renderActions(model);
+    renderLog(model);
+    renderProgressControls(model);
+    updateStartButton(model);
     PokerMetrics.end("renderGame", metricStarted);
   }
 
@@ -5616,7 +6846,7 @@
     State.renderCache.renderQueued = false;
     State.renderCache.renderReason = "";
     PokerMetrics.increment("renderFlush");
-    if (shouldRunMenuWork()) render();
+    if (shouldRunMenuWork()) render(ViewModel.build());
   }
 
   function deferRender(reason) {
@@ -5643,9 +6873,8 @@
     State.renderCache.renderQueued = false;
     State.renderCache.renderReason = reason || "";
     PokerMetrics.increment("renderImmediate");
-    if (shouldRunMenuWork()) render();
+    if (shouldRunMenuWork()) render(ViewModel.build());
   }
-
 
   const RenderScheduler = {
     defer: deferRender,
@@ -5670,18 +6899,19 @@
     }
   }
 
-
   function resetRenderChildCache() {
+    TableSeatRenderer.reset();
     const cache = State.renderCache || {};
     for (const key of [
       "communityCards", "readySeatRows", "resumeLeaderRows", "playerRows", "tableSeatRows",
       "tableTurnArrow", "tableTurnArrowClass", "potChipRows",
       "actionButtons", "actionHint", "actionButtonRow",
       "customBetControls", "customBetChoice", "customBetRange", "customBetRangeKey",
-      "logRows",
+      "bluffTargetRank", "bluffTargetArt", "bluffSlotArts", "logRows",
     ]) {
       if (!Object.prototype.hasOwnProperty.call(cache, key)) continue;
-      if (/Rows$|Cards$|Buttons$/.test(key)) cache[key] = Array.isArray(cache[key]) ? [] : {};
+      if (key === "bluffSlotArts") cache[key] = [];
+      else if (/Rows$|Cards$|Buttons$/.test(key)) cache[key] = Array.isArray(cache[key]) ? [] : {};
       else cache[key] = key.indexOf("OrderKey") >= 0 || key.indexOf("Class") >= 0 ? "" : null;
     }
   }
@@ -5689,9 +6919,6 @@
   function invalidatePanelCache(reason) {
     for (let i = 0; i < PANEL_BINDINGS.length; i += 1) State[PANEL_BINDINGS[i][0]] = null;
     State.root = null;
-    State.chat = null;
-    State.chatInput = null;
-    State.chatTargetLabel = null;
     invalidateRenderer(reason);
     State.renderCache.panelInvalidationReason = reason || "";
     return true;
@@ -5704,10 +6931,18 @@
 
   function getCommandBindings() {
     return [
-      ["PokerEscapeMenuToggle", "menuButton", toggleOpen], ["PokerEscapeMenuClose", "closeButton", closeMenu], ["PokerEscapeMenuSendReadyChat", "readyChatButton", sendReadyChat],
+      ["PokerEscapeMenuToggle", "menuButton", toggleOpen], ["PokerEscapeMenuClose", "closeButton", closeMenu], ["PokerEscapeMenuBackToPicker", "backButton", backToTablePicker], ["PokerEscapeMenuSendReadyChat", "readyChatButton", sendReadyChat],
       ["PokerEscapeMenuStart", "startButton", sendStartCommand], ["PokerEscapeMenuEndMatch", "endButton", endMatch], ["PokerEscapeMenuLeaveLobby", "leaveLobbyButton", leaveLobby],
       ["PokerEscapeMenuHostParty", "partyHostButton", sendPartyLeaderCommand], ["PokerEscapeMenuJoinParty", "partyJoinButton", sendPartyJoinCommand], ["PokerEscapeMenuCopyProgress", "exportProgressButton", copyProgressCode],
       ["PokerEscapeMenuImportProgress", "importProgressButton", importProgressCodeFromInput], ["PokerEscapeMenuResumeLeader", "resumeLeaderButton", sendResumeLeaderCommand], ["PokerEscapeMenuResumeReady", "resumeReadyButton", sendResumeReadyCommand],
+      ["PokerEscapeMenuSelectPoker", "pickerPokerButton", () => selectTableGame("poker")], ["PokerEscapeMenuSelectBluffDeck", "pickerBluffButton", () => selectTableGame("bluff-deck")],
+      ["PokerEscapeMenuClose", "bluffCloseButton", closeMenu], ["PokerEscapeMenuHostParty", "bluffHostButton", sendPartyLeaderCommand], ["PokerEscapeMenuJoinParty", "bluffJoinButton", sendPartyJoinCommand],
+      ["PokerEscapeMenuBackToPicker", "bluffBackButton", backToTablePicker],
+      ["PokerEscapeMenuLeaveLobby", "bluffLeaveButton", leaveLobby], ["PokerEscapeMenuBluffStart", "bluffStartButton", BluffDeckActions.sendStart], ["PokerEscapeMenuBluffEnd", "bluffEndButton", BluffDeckActions.sendEnd],
+      ["PokerEscapeMenuBluffPlay", "bluffPlayButton", BluffDeckActions.sendPlay], ["PokerEscapeMenuBluffChallenge", "bluffChallengeButton", BluffDeckActions.sendChallenge],
+      ["PokerEscapeMenuSelectBluffSlot0", "bluffSlot0", selectBluffSlot0], ["PokerEscapeMenuSelectBluffSlot1", "bluffSlot1", selectBluffSlot1],
+      ["PokerEscapeMenuSelectBluffSlot2", "bluffSlot2", selectBluffSlot2], ["PokerEscapeMenuSelectBluffSlot3", "bluffSlot3", selectBluffSlot3],
+      ["PokerEscapeMenuSelectBluffSlot4", "bluffSlot4", selectBluffSlot4],
     ];
   }
 
@@ -5720,6 +6955,7 @@
     cachePanels();
     State.party = getPartyState();
     State.resume = getResumeState();
+    if (!bluffDeckHydrationCandidate) bluffDeckHydrationCandidate = getBluffDeckMatchState();
     const bindings = getCommandBindings();
     for (let i = 0; i < bindings.length; i += 1) bindButton(State[bindings[i][1]], bindings[i][2]);
     if (!State.eventsBound && hasRequiredPanels()) {
@@ -5742,6 +6978,12 @@
         globalThis[name] = handler;
         if (context) context[name] = handler;
       }
+      globalThis.PokerEscapeMenuSelectTableGame = selectTableGame;
+      globalThis.PokerEscapeMenuSelectBluffSlot = selectBluffSlot;
+      if (context) {
+        context.PokerEscapeMenuSelectTableGame = selectTableGame;
+        context.PokerEscapeMenuSelectBluffSlot = selectBluffSlot;
+      }
     } catch (e) {}
   }
 
@@ -5755,12 +6997,21 @@
 
   function getStateSnapshot() {
     return {
+      selectedTableGame: State.selectedTableGame || "",
       party: copyForTest(ensureParty()),
       game: copyForTest(State.game),
+      bluffDeck: copyForTest(State.bluffDeck),
+      bankrolls: copyForTest(State.bankrolls || {}),
       resume: copyForTest(ensureResume()),
+      readySeats: copyForTest(getReadySeatArray()),
+      requiresProgressImport: !!State.requiresProgressImport,
+      resumeRequiresHostedParty: !!State.resumeRequiresHostedParty,
+      lastSendMs: State.lastSendMs,
       localPlayerKey: State.localPlayerKey || "",
       sync: copyForTest(State.sync),
       status: copyForTest(State.statusModel),
+      progressTransfers: copyForTest(State.progressTransfers || {}),
+      processedChatSeq: State.processedChatSeq || 0,
     };
   }
 
@@ -5768,8 +7019,8 @@
     if (!globalThis.__PokerTestMode) return false;
     const roster = resolveRosterNamesFromKnownParty(entries || []);
     State.party = defaultPartyState();
-    State.party.id = partyId || "ptest";
-    State.party.mode = mode || "leader";
+    State.party.id = partyId == null ? "ptest" : partyId;
+    State.party.mode = mode == null ? "leader" : mode;
     State.party.order = [];
     State.party.members = {};
     for (let i = 0; i < roster.length; i += 1) {
@@ -5801,25 +7052,31 @@
         handleReadyEvent: handleBridgeEvent,
         requestReadySnapshot: requestReadySnapshot,
         processChatRecord: processChatRecord,
-        encodeRoster: encodeRoster,
+        getQueuedLateJoiners: getQueuedLateJoiners,
+        computeLateJoinBuyIn: computeLateJoinBuyIn,
+        applyLateJoinBuyIns: applyLateJoinBuyIns,
         decodeRoster: decodeRoster,
         buildSynchronizedStartCommand: buildSynchronizedStartCommand,
         buildResumeLeaderCommand: buildResumeLeaderCommand,
         buildResumeReadyCommand: buildResumeReadyCommand,
         buildResumeStartCommand: buildResumeStartCommand,
         modules: {
-          StartSync: StartSync,
+          BluffDeckCommandReducer: BluffDeckCommandReducer,
           CommandReducer: CommandReducer,
           PokerEngine: PokerEngine,
+          BluffDeckEngine: BluffDeckEngine,
+          BluffDeckActions: BluffDeckActions,
+          BluffDeckControlState: BluffDeckControlState,
+          BluffDeckSeatProjection: BluffDeckSeatProjection,
+          TableSeatRenderer: TableSeatRenderer,
+          TableGamePicker: { select: selectTableGame, selectBluffSlot: selectBluffSlot },
           ProgressResume: ProgressResume,
-          PendingSelfAction: PendingSelfAction,
-          CardPresenter: CardPresenter,
+          ViewModel: ViewModel,
           TableRenderer: TableRenderer,
           PokerMetrics: PokerMetrics,
           RenderScheduler: RenderScheduler,
           PanelCache: PanelCache,
           PartyReducer: PartyReducer,
-          LateJoinQueue: LateJoinQueue,
         },
         state: State,
       };
