@@ -1,7 +1,7 @@
 # panorama/styles/
 
 ## Responsibility
-`poker/panorama/styles/` defines the runtime visual contract for the ESC-menu Poker Panorama module. Its only stylesheet, `poker_escape_menu.css`, skins the Poker entry button, the floating lobby/table/players/history/actions windows, the Anita-inspired typography/buttons, the table felt, community/hole cards, table-edge seats, player roster, legal action buttons, and game log rows consumed by `poker/panorama/layout/hud_escape_menu.xml` and `poker/panorama/scripts/poker_escape_menu.js`.
+`poker/panorama/styles/` defines the runtime visual contract for the ESC-menu Poker Panorama module. Its only stylesheet, `poker_escape_menu.css`, skins the Poker entry button, the floating lobby/table/players/history/actions windows, the Bluff Deck four-surface composition, the noir-industrial typography/buttons, the table felt, community/hole cards, table-edge seats, player roster, legal action buttons, semantic announcement states, and keyed game-log/played-card rows consumed by `poker/panorama/layout/hud_escape_menu.xml` and `poker/panorama/scripts/poker_escape_menu.js`.
 
 The stylesheet is presentation-only: it does not own poker state, chat transport, visibility decisions, or game rules. Those decisions are projected by `poker_escape_menu.js` through panel classes such as `PokerMenuVisible`, `Open`, `PokerHidden`, `Eligible`, `Disabled`, `ReadOnly`, `Current`, `Folded`, `Eliminated`, `RedSuit`, and `BlackSuit`.
 
@@ -9,35 +9,28 @@ The stylesheet is presentation-only: it does not own poker state, chat transport
 
 ### Visual system
 - **Anita-style debug panel language:** dark green/black floating windows, soft radial gradients, thin low-alpha borders, mint green primary accents (`#66cc99` / `#a6ffc9`), muted grey support text (`#7d8688`), cream card faces (`#e8eee9`), red suit accent (`#b83f47`), and gold table/pot announcer accent (`#f0d78a`).
-- **Floating window composition:** `.PokerFloatingWindow` is the shared base for `#PokerLobbyWindow`, `#PokerTableWindow`, `#PokerPlayersWindow`, `#PokerHistoryWindow`, and `#PokerActionsWindow`. Each window uses absolute-ish Panorama alignment/margins rather than normal document flow:
-  - `.PokerLobbyWindow`: 56% width, left/top at `margin-left: 25%`, `margin-top: 4%`.
-  - `.PokerTableWindow`: 56% width, below lobby at `margin-top: 26%`, with zero padding for the felt surface.
-  - `.PokerPlayersWindow`: right side, 16% width, `margin-top: 7%`.
-  - `.PokerHistoryWindow`: right side, 16% width, `margin-top: 62%`.
-  - `.PokerActionsWindow`: bottom center action strip, 56% width, `margin-top: 80%`.
+- **Floating window composition:** `.PokerFloatingWindow` is the shared base for Poker's five windows and Bluff Deck's `#BluffDeckWindow`, `#BluffDeckPlayersWindow`, `#BluffDeckHistoryWindow`, and `#BluffDeckActionsWindow`. Each window uses absolute-ish Panorama alignment/margins rather than normal document flow:
+  - Poker keeps the existing lobby/table/players/history/actions anchors.
+  - Bluff mirrors those anchors: table/felt at 51% left/top with `margin-left: 22%`, roster at 20% right/top, history at 20% right with `margin-top: 62%`, and actions at 51% left with `margin-top: 80%`.
 - **Typography hierarchy:** `.PokerAnitaEyebrow`, `.PokerAnitaTitle`, `.PokerWindowTitleSmall`, `.PokerSectionLabel`, `.PokerSideSectionLabel`, `.PokerPhaseLabel`, and button labels all use uppercase + letter spacing for system/debug tone. Player and seat names are bold high-contrast labels; metadata is smaller uppercase grey or mint.
 - **Button affordance classes:** `.PokerPrimaryButton`, `.PokerSecondaryButton`, `.PokerStartButton`, `.PokerActionButton`, and `.PokerIconButton` share short `transition-duration: 0.12s` hover transforms using Source 2 `pre-transform-scale2d`. Runtime state is class-driven: `.Eligible` turns `#PokerStartButton` green and lit; `.Disabled` dims with brightness/saturation/opacity; `.ReadOnly` dims action buttons without making them look broken; `.Danger` only changes fold hover color when actionable.
 - **State-as-class styling:** the script applies classes instead of replacing styles. Important class meanings:
   - `.PokerHidden`: `visibility: collapse` for runtime-hidden panels.
-  - `.PokerMenuVisible` on the root and `.Open` on floating windows make windows visible, opaque, and scaled to 1.
+  - `.PokerMenuVisible` on the root and `.Open` on floating windows make windows visible, opaque, and scaled to 1; Bluff's four surfaces share the same open/hidden contract.
   - `.Current`, `.Folded`, `.Eliminated` are shared by `.PokerPlayerRow` and `.PokerTableSeat` to highlight current actor, dim folded players, and desaturate eliminated players.
+  - `.Pending`, `.LocalTurn`, `.OpponentTurn`, `.Challenge`, and `.Finished` on `.BluffDeckAnnouncementOverlay` communicate action ownership and short-lived feedback without changing reducer state.
   - `.RedSuit` / `.BlackSuit` tint card labels and `.PokerCardVtexArt` wash colors.
-
-### Major class groups
-- **Entry/open state:** `.PokerMenuButton`, `.PokerMenuButton.Active`, `.PokerAnitaPanel`, `.PokerMenuVisible ...`, `.Open`.
-- **Window shells/header:** `.PokerFloatingWindow`, `.PokerLobbyWindow`, `.PokerTableWindow`, `.PokerPlayersWindow`, `.PokerHistoryWindow`, `.PokerActionsWindow`, `.PokerFloatingHeader`, `.PokerTableTitleBlock`, `.PokerAnitaHeader`, `.PokerIconButton`.
 - **Lobby controls:** `.PokerLobbyBar`, `.PokerPartyControls`, `.PokerProgressControls`, `.PokerResumeControls`, `.PokerPartyButton`, `.PokerReadyTopButton`, `.PokerPartyStatusLabel`, `.PokerProgressCodeInput`, `.PokerProgressCodeLabel`, `.PokerStatusLabel`.
 - **Ready/resume lists:** `.PokerReadySummary`, `.PokerSeatsList`, `.PokerSeatRow`, `.PokerSeatRow.Empty`, `.PokerSeatNumber`, `.PokerSeatName`, `.PokerSeatMeta`.
-- **Table:** `.PokerTableSurface`, `.PokerTableHeader`, `.PokerPhaseLabel`, `.PokerPotLabel`, `.PokerAnnouncerOverlay`, `.PokerAnnouncerTitle`, `.PokerAnnouncerBody`, `.PokerTableFelt`, `.PokerCommunityCards`, `.PokerTableSeats`.
+- **Window shells/header:** `.PokerFloatingWindow`, `.PokerLobbyWindow`, `.PokerTableWindow`, `.PokerPlayersWindow`, `.PokerHistoryWindow`, `.PokerActionsWindow`, `.BluffDeckWindow`, `.BluffDeckPlayersWindow`, `.BluffDeckHistoryWindow`, `.BluffDeckActionsWindow`, `.PokerFloatingHeader`, `.PokerTableTitleBlock`, `.PokerAnitaHeader`, `.PokerIconButton`.
 - **Table-edge seats:** `.PokerTableSeat`, `.PokerTableSeatCards`, `.PokerTableSeatMetaRow`, `.PokerTableSeatAvatar`, `.PokerTableSeatText`, `.PokerTableSeatName`, `.PokerTableSeatStack`, `.PokerTableSeatState`, `.PokerTableOverflow`, and position classes `.SeatTopLeft`, `.SeatTopRight`, `.SeatRight`, `.SeatBottomRight`, `.SeatBottomLeft`, `.SeatLeft`, `.SeatBottom`.
 - **Cards:** `.PokerCard`, `.PokerCard.Small`, `.PokerCardRank`, `.PokerCardSuit`, `.PokerCardArt`, `.PokerCardArt.Hidden`, `.PokerCardVtexArt`, `.RedSuit`, `.BlackSuit`.
 - **Player side list:** `.PokerPlayersList`, `.PokerPlayerRow`, `.PokerPlayerInfo`, `.PokerPlayerName`, `.PokerPlayerStack`, `.PokerHoleCards`, `.PokerPlayerState`, `.PokerPlayerWindowControls`.
-- **Actions/history:** `.PokerActionButtons`, `.PokerActionButton`, `.PokerActionButtonLabel`, `.PokerActionHint`, `.PokerGameLog`, `.PokerLogLine`.
-
+- **Table:** `.PokerTableSurface`, `.PokerTableHeader`, `.PokerPhaseLabel`, `.PokerPotLabel`, `.PokerAnnouncerOverlay`, `.PokerAnnouncerTitle`, `.PokerAnnouncerBody`, `.BluffDeckAnnouncementOverlay`, `.BluffDeckAnnouncementTitle`, `.BluffDeckAnnouncementBody`, `.PokerTableFelt`, `.PokerCommunityCards`, `.PokerTableSeats`.
 ### Hidden/disabled patterns
 - Static XML starts the main root `#PokerAnitaPanel` with `PokerHidden`; individual match-only regions such as `#PokerPlayersList`, `#PokerTableSeats`, `#PokerActionButtons`, and `#PokerEndMatchButton` also start hidden in `hud_escape_menu.xml`.
 - `poker_escape_menu.js` centralizes visual state through `setPanelClass()` and the affordance helpers around `applyHiddenAffordance()` / `applyButtonAffordance()`. These helpers toggle `.PokerHidden`, `.Eligible`, `.Disabled`, and `.ReadOnly`, and also adjust `panel.hittest` so visual disabled/read-only state matches click behavior.
-- `.PokerHidden` uses `visibility: collapse`, not opacity-only hiding. `.PokerFloatingWindow` starts with `visibility: collapse; opacity: 0; pre-transform-scale2d: 0.96`; `.PokerMenuVisible #Poker...Window` and `....Window.Open` restore visibility/opacity/scale.
+- **Actions/history:** `.PokerActionButtons`, `.PokerActionButton`, `.PokerActionButtonLabel`, `.PokerActionHint`, `.PokerGameLog`, `.PokerLogLine`, `.BluffDeckCardSlots`, `.BluffDeckActionControls`, `.BluffDeckOpponentList`, `.BluffDeckLog`, `.BluffDeckPlayedCards`, `.BluffDeckPlayedCard`.
 - Disabled buttons rely on `brightness`, `saturation`, and `opacity`. Hover selectors for disabled/read-only states reset background and scale so a disabled control does not animate like an enabled one.
 - Lobby metadata is intentionally compacted: within `.PokerLobbyWindow`, `.PokerAnitaEyebrow`, `.PokerPartyStatusLabel`, `.PokerProgressCodeLabel`, `.PokerResumeStatusLabel`, and `.PokerResumeLeaderList` are collapsed to `height: 0px` and `visibility: collapse`; the visible lobby surface emphasizes the button row and progress input.
 

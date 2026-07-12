@@ -47,11 +47,13 @@ function runtime(options = {}) {
   runScript(rt.sandbox, MENU_SCRIPT);
   const hooks = rt.sandbox.__PokerEscapeMenuTestHooks;
   assert(hooks, 'menu test hooks exported');
-  return { rt, hooks, E: hooks.modules.BluffDeckEngine, R: hooks.modules.BluffDeckCommandReducer, A: hooks.modules.BluffDeckActions, C: hooks.modules.BluffDeckControlState };
+  return { rt, hooks, E: hooks.modules.BluffDeckEngine, R: hooks.modules.BluffDeckCommandReducer, A: hooks.modules.BluffDeckActions, C: hooks.modules.BluffDeckControlState, V: hooks.modules.BluffDeckViewModel };
 }
 function visualRuntime() {
   const panelIds = [
     'BluffDeckWindow', 'BluffDeckCardTable', 'BluffDeckTableSeats', 'BluffDeckTargetCard', 'BluffDeckPlayedCards',
+    'BluffDeckPlayersWindow', 'BluffDeckHistoryWindow', 'BluffDeckActionsWindow',
+    'BluffDeckAnnouncementOverlay', 'BluffDeckAnnouncementTitle', 'BluffDeckAnnouncementBody',
     'BluffDeckTargetLabel', 'BluffDeckTurnLabel', 'BluffDeckPreviousPlayLabel', 'BluffDeckHandLabel',
     'BluffDeckOpponentList', 'BluffDeckCardSlots', 'BluffDeckActionLabel', 'BluffDeckPlayButton',
     'BluffDeckChallengeButton', 'BluffDeckPendingLabel', 'BluffDeckResultLabel', 'BluffDeckLog',
@@ -69,7 +71,7 @@ function visualRuntime() {
   runScript(rt.sandbox, MENU_SCRIPT);
   const hooks = rt.sandbox.__PokerEscapeMenuTestHooks;
   assert(hooks, 'visual menu hooks exported');
-  return { rt, hooks, E: hooks.modules.BluffDeckEngine, R: hooks.modules.BluffDeckCommandReducer, A: hooks.modules.BluffDeckActions, C: hooks.modules.BluffDeckControlState };
+  return { rt, hooks, E: hooks.modules.BluffDeckEngine, R: hooks.modules.BluffDeckCommandReducer, A: hooks.modules.BluffDeckActions, C: hooks.modules.BluffDeckControlState, V: hooks.modules.BluffDeckViewModel };
 }
 function bridgeRuntime(options = {}) {
   const rt = createValidatorContext({ ...options, nowStep: 0 });
@@ -134,8 +136,8 @@ function testOracleAndEngine() {
   const g = game(E, 'a1b2c3d4', ['abrams', 'bebop']);
   const p = E.projectText(g, 'abrams', 0x05, null);
   equal(p, {
-    headerText: 'BLUFF DECK — ROUND 1', targetText: 'TARGET: QUEEN', turnText: 'TURN: ABRAMS', previousPlayText: '',
-    handText: '[ACE*] [JOKER] [JOKER*] [KING] [QUEEN]', opponentTexts: ['BEBOP — 5 CARDS — RISK 0/6'],
+    headerText: 'BLUFF DECK\nROUND 1', targetText: 'TARGET\nQUEEN', turnText: 'TURN\nABRAMS', previousPlayText: '',
+    handText: '[ACE*] [JOKER] [JOKER*] [KING] [QUEEN]', opponentTexts: ['BEBOP\nCARDS 5\nRISK 0/6'],
     actionText: 'PLAY 2 SELECTED', pendingText: '', resultText: '', logTexts: [],
   }, 'oracle projection');
   assert(!JSON.stringify(p).includes('BEBOP.*ACE'), 'opponent ranks never projected');
@@ -216,6 +218,71 @@ function testOracleAndEngine() {
   }
   assert(cap.log.length <= 8, 'log is capped at eight entries');
   assertInvariant(E, cap, 'log cap');
+}
+
+function testViewModelAdapter() {
+  const r = runtime();
+  const { hooks, E, V } = r;
+  const emptyParty = { id: "", mode: "none", leaderKey: "", leaderName: "", members: {}, order: [] };
+  const makeState = (gameState, localKey, selectedMask = 0, pending = null, party = emptyParty) => ({
+    game: null,
+    localPlayerKey: localKey || "",
+    party: clone(party),
+    bluffDeck: { game: gameState ? clone(gameState) : null, selectedMask, pending, transcript: [] },
+  });
+  equal(V.build(makeState(null, "")).stateClass, "Idle", "view model idle state");
+  const lobbyParty = {
+    id: "party-test",
+    mode: "leader",
+    leaderKey: "abrams",
+    leaderName: "Abrams",
+    members: { abrams: { key: "abrams", name: "Abrams" }, bebop: { key: "bebop", name: "Bebop" } },
+    order: ["abrams", "bebop"],
+  };
+  const lobby = V.build(makeState(null, "abrams", 0, null, lobbyParty));
+  equal(lobby.stateClass, "Lobby", "view model lobby state");
+  equal(lobby.header.phase, "LOBBY", "lobby phase");
+  const localGame = E.create({ id: "a1b2c3d4", roster: roster(["abrams", "bebop"]) });
+  const localKey = localGame.players[localGame.currentIndex].key;
+  const opponentKey = localGame.players.find((player) => player.key !== localKey).key;
+  const local = V.build(makeState(localGame, localKey, 1, null, lobbyParty));
+  equal(local.stateClass, "LocalTurn", "view model local turn state");
+  assert(local.seats.arrowClass && local.actions.play.eligible, "local turn exposes static arrow and eligible play");
+  assert(local.actions.hint === "SELECT CARDS OR CALL LIE" || /^SELECT CARDS/.test(local.actions.hint), "local turn action hint");
+  assert(local.cards.slots.every((slot) => slot.rank || !slot.valid), "local slots expose only local ranks");
+  const opponent = V.build(makeState(localGame, opponentKey, 0, null, lobbyParty));
+  equal(opponent.stateClass, "OpponentTurn", "view model opponent turn state");
+  assert(/^WAITING FOR /.test(opponent.actions.hint) && opponent.actions.play.hidden, "opponent turn is read-only waiting");
+  const pending = V.build(makeState(localGame, localKey, 1, { bridgeStatus: "queued" }, lobbyParty));
+  equal(pending.stateClass, "Pending", "pending state takes precedence");
+  assert(pending.feedback.statusText === "SENDING..." && !pending.actions.play.enabled && !pending.actions.challenge.enabled, "pending disables choice controls once");
+  const invalidCount = V.build(makeState(localGame, localKey, 0, null, lobbyParty));
+  assert(invalidCount.actions.hint === "SELECT 1-3 CARDS" && !invalidCount.actions.play.eligible, "invalid selection count is explicit");
+  const challengeGame = E.create({ id: "a1b2c3d4", roster: roster(["abrams", "bebop"]) });
+  const actor = challengeGame.players[challengeGame.currentIndex];
+  assert(E.apply(challengeGame, actor.key, { type: "play", mask: 1 }).changed, "adapter challenge play");
+  const caller = challengeGame.players[challengeGame.currentIndex];
+  assert(E.apply(challengeGame, caller.key, { type: "challenge" }).changed, "adapter challenge transition");
+  const challenge = V.build(makeState(challengeGame, caller.key, 0, null, lobbyParty));
+  equal(challenge.stateClass, "Challenge", "view model challenge state");
+  assert(challenge.feedback.resultText.includes("REVEAL:"), "challenge result is primary feedback");
+  const finishedGame = E.create({ id: "11223344", roster: roster(["abrams", "bebop", "calico"]) });
+  finishedGame.active = false;
+  finishedGame.finished = true;
+  finishedGame.winnerKey = "bebop";
+  const finished = V.build(makeState(finishedGame, "abrams", 0, null, lobbyParty));
+  equal(finished.stateClass, "Finished", "view model finished state");
+  assert(finished.announcement.title === "BEBOP WINS", "finished announcement names winner");
+  for (const [id, keys, positions] of [
+    ["a1b2c3d4", ["abrams", "bebop"], ["SeatLeft", "SeatRight"]],
+    ["11223344", ["abrams", "bebop", "calico"], ["SeatLeft", "SeatTopRight", "SeatBottomRight"]],
+    ["deadbeef", ["abrams", "bebop", "calico", "dynamo"], ["SeatTopLeft", "SeatTopRight", "SeatBottomRight", "SeatBottomLeft"]],
+  ]) {
+    const model = V.build(makeState(E.create({ id, roster: roster(keys) }), "abrams", 0, null, { ...lobbyParty, order: keys, members: Object.fromEntries(keys.map((key) => [key, { key, name: key }])) }));
+    equal(model.seats.rows.map((row) => row.positionClass), positions, `${keys.length}-player seat geometry`);
+  }
+  const serialized = JSON.stringify(local);
+  assert(!serialized.includes("BEBOP") || !serialized.includes("ACE"), "view model keeps opponent ranks private");
 }
 
 function testProtocolAndHydration() {
@@ -400,6 +467,9 @@ function testVisualProjection() {
   v.rt.sandbox.PokerEscapeMenuToggle();
   drainDueScheduledCallbacks(v.rt, 64);
   const target = findPanel(v.rt, 'BluffDeckTargetCard');
+  const announcement = findPanel(v.rt, 'BluffDeckAnnouncementOverlay');
+  assert(announcement.BHasClass('LocalTurn'), 'Bluff announcement exposes local turn semantic state');
+  assert(findPanel(v.rt, 'BluffDeckAnnouncementTitle').text === 'YOUR TURN', 'Bluff announcement title names local turn');
   const targetArts = findDescendantsWithClass(target, 'PokerCardVtexArt');
   assert(targetArts.length === 1 && targetArts[0].src.indexOf('card_face_queen.vtex') >= 0, 'target card renders public VTex art');
   const bluffSeats = findPanel(v.rt, 'BluffDeckTableSeats');
@@ -680,6 +750,7 @@ function testIndependentConvergence() {
 
 try {
   testOracleAndEngine();
+  testViewModelAdapter();
   testProtocolAndHydration();
   testActionsPendingAndRender();
   testVisualProjection();
