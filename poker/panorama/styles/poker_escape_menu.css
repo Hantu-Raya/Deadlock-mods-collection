@@ -2271,8 +2271,8 @@
 	border: 1px solid pokerNoirGold&55;
 	border-top: 3px solid pokerNoirGold;
 	border-radius: 2px;
-	background-color: gradient(linear, 0% 0%, 0% 100%, from(#10130df5), to(#060705f5));
-	box-shadow: inset offWhite&04 0px 1px 0px 0px, rgba(0, 24, 16, 0.68) 0px 18px 40px 0px;
+	background-color: #0b0e0bfa;
+	box-shadow: none;
 	z-index: 10000;
 }
 
@@ -2290,7 +2290,7 @@
 	border-top: 1px solid pokerNoirLine;
 	border-bottom: 1px solid pokerNoirLine;
 	border-radius: 0px;
-	background-color: gradient(linear, 0% 0%, 0% 100%, from(#10130df5), to(#060705f5));
+	background-color: #0b0e0bfa;
 	box-shadow: none;
 	z-index: 9999;
 }
@@ -2427,7 +2427,7 @@
 	flow-children: down;
 	border: 0px;
 	border-radius: 0px;
-	background-color: gradient(linear, 0% 0%, 0% 100%, from(#09120df2), to(#050806f2));
+	background-color: #07100bfa;
 	box-shadow: none;
 	overflow: noclip;
 }
@@ -2445,28 +2445,16 @@
 
 .BluffDeckFelt
 {
-	width: 720px;
-	height: 350px;
+	width: 500px;
+	height: 500px;
 	align: center center;
-	border-radius: 175px;
-	background-color: gradient(linear, 0% 0%, 0% 100%, from(#0b3a2d), to(#061e18));
-	border: 2px solid pokerNoirGold&66;
-	box-shadow: inset offWhite&08 0px 2px 0px 0px, rgba(0, 0, 0, 0.62) 0px 18px 42px 0px;
+	border-radius: 250px;
+	background-color: #0b3a2d;
+	border: 1px solid pokerNoirGold&66;
+	box-shadow: none;
 	overflow: noclip;
 }
 
-.BluffDeckFeltSigil
-{
-	width: 190px;
-	height: 190px;
-	align: center center;
-	ignore-parent-flow: true;
-	transform: rotateZ(45deg);
-	border: 1px solid pokerNoirGold&18;
-	background-color: transparent;
-	box-shadow: none;
-	z-index: 1;
-}
 
 .BluffDeckTargetCard
 {
@@ -2487,7 +2475,7 @@
 	border-radius: 6px;
 	border: 1px solid pokerNoirGold;
 	background-color: #efe6d0;
-	box-shadow: rgba(0, 0, 0, 0.46) 0px 8px 16px 0px;
+	box-shadow: none;
 	color: #111315;
 	flow-children: down;
 	z-index: 3;
@@ -2538,7 +2526,7 @@
 	padding: 7px;
 	align: center center;
 	border-radius: 6px;
-	box-shadow: rgba(0, 0, 0, 0.52) 0px 8px 16px 0px;
+	box-shadow: none;
 	flow-children: down;
 	z-index: 5;
 }
@@ -2770,20 +2758,20 @@
 .BluffDeckActionDeck
 {
 	width: 100%;
-	height: 170px;
-	flow-children: right;
-	padding: 12px 16px;
-	border-top: 1px solid pokerNoirGold&44;
+	height: 210px;
+	flow-children: down;
+	padding: 8px 16px;
+	border-top: 1px solid pokerNoirLine;
 	background-color: #0b100cee;
 }
 
 .BluffDeckCardSlots
 {
-	width: fill-parent-flow(1.0);
+	width: fit-children;
 	min-height: 104px;
 	margin: 0px;
 	flow-children: right;
-	horizontal-align: left;
+	horizontal-align: center;
 	vertical-align: center;
 	overflow: noclip;
 }
@@ -2799,7 +2787,7 @@
 	border: 1px solid pokerNoirLine;
 	border-radius: 5px;
 	background-color: #efe6d0;
-	box-shadow: rgba(0, 0, 0, 0.42) 0px 6px 12px 0px;
+	box-shadow: none;
 	color: #111315;
 	flow-children: down;
 	horizontal-align: center;
@@ -2847,7 +2835,7 @@
 {
 	y: -3px;
 	pre-transform-scale2d: 1.03;
-	box-shadow: rgba(0, 0, 0, 0.58) 0px 10px 18px 0px;
+	box-shadow: none;
 	z-index: 7;
 }
 
@@ -2856,7 +2844,7 @@
 	y: -6px;
 	pre-transform-scale2d: 1.05;
 	border: 2px solid pokerNoirGold;
-	box-shadow: rgba(0, 0, 0, 0.58) 0px 10px 18px 0px;
+	box-shadow: none;
 	z-index: 8;
 }
 
@@ -2873,13 +2861,14 @@
 	y: 0px;
 	pre-transform-scale2d: 1;
 	border: 1px solid pokerNoirLine;
-	box-shadow: rgba(0, 0, 0, 0.42) 0px 6px 12px 0px;
+	box-shadow: none;
 }
 
 .BluffDeckActionRail
 {
 	width: 360px;
-	height: 100%;
+	height: fit-children;
+	horizontal-align: center;
 	vertical-align: center;
 	flow-children: down;
 }
@@ -2892,12 +2881,14 @@
 	font-family: block;
 	font-weight: bold;
 	letter-spacing: 1px;
+	text-align: center;
 }
 
 .BluffDeckActionControls
 {
 	width: 100%;
 	flow-children: right;
+	horizontal-align: center;
 }
 
 .BluffDeckActionButton
@@ -2932,14 +2923,6 @@
 	font-size: 12px;
 }
 
-.BluffDeckStatusLabel
-{
-	width: 100%;
-	margin-top: 2px;
-	color: pokerNoirMuted;
-	font-family: sans;
-	font-size: 12px;
-}
 
 .BluffDeckLifecycleControls
 {

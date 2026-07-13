@@ -118,7 +118,6 @@
 			<Panel id="BluffDeckTableSurface" class="PokerTableSurface BluffDeckTableSurface">
 				<Panel id="BluffDeckCardTable" class="PokerTableStage BluffDeckCardTable">
 					<Panel class="PokerTableFelt BluffDeckFelt">
-						<Panel class="BluffDeckFeltSigil" hittest="false" />
 						<Panel id="BluffDeckTargetCard" class="BluffDeckTargetCard">
 							<Panel class="BluffDeckTargetFace PokerCardContents">
 								<Label class="BluffDeckTargetFallback" text="TARGET CARD" />
@@ -173,7 +172,6 @@
 						</Button>
 					</Panel>
 					<Label id="BluffDeckPendingLabel" class="BluffDeckPendingLabel" text="" />
-					<Label id="BluffDeckStatusLabel" class="PokerStatusLabel BluffDeckStatusLabel" text="Host or join a party to begin." />
 				</Panel>
 			</Panel>
 			<Panel id="BluffDeckLifecycleControls" class="BluffDeckLifecycleControls">

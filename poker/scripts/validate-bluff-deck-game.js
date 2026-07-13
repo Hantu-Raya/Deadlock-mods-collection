@@ -55,7 +55,7 @@ function visualRuntime() {
     'BluffDeckTargetCard', 'BluffDeckPlayedCards', 'BluffDeckAnnouncementOverlay', 'BluffDeckAnnouncementTitle', 'BluffDeckAnnouncementBody',
     'BluffDeckTargetLabel', 'BluffDeckTurnLabel', 'BluffDeckPreviousPlayLabel', 'BluffDeckResultLabel', 'BluffDeckLog',
     'BluffDeckCardSlots', 'BluffDeckActionLabel', 'BluffDeckActionControls', 'BluffDeckPlayButton', 'BluffDeckChallengeButton',
-    'BluffDeckPendingLabel', 'BluffDeckStatusLabel', 'BluffDeckSlot0', 'BluffDeckSlot1', 'BluffDeckSlot2', 'BluffDeckSlot3', 'BluffDeckSlot4',
+    'BluffDeckPendingLabel', 'BluffDeckSlot0', 'BluffDeckSlot1', 'BluffDeckSlot2', 'BluffDeckSlot3', 'BluffDeckSlot4',
     'BluffDeckLifecycleControls', 'BluffDeckPartyControls', 'BluffDeckMatchControls',
     'BluffDeckHostButton', 'BluffDeckJoinButton', 'BluffDeckLeaveButton', 'BluffDeckStartButton', 'BluffDeckEndButton',
   ];
