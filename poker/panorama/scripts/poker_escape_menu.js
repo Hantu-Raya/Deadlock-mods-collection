@@ -4453,7 +4453,7 @@
     const model = {
       headerText: game.active ? "BLUFF DECK\nROUND " + game.round : "BLUFF DECK\nMATCH ENDED",
       targetText: "TARGET\n" + BD_LABELS[game.target],
-      turnText: game.active ? "TURN\n" + game.players[game.currentIndex].name.toUpperCase() : "",
+      turnText: game.active ? "TURN\n" + (local && game.players[game.currentIndex].key === local.key ? "YOU" : game.players[game.currentIndex].name.toUpperCase()) : "",
       previousPlayText: game.lastPlay ? game.players[game.lastPlay.actorIndex].name.toUpperCase() + " PLAYED " + game.lastPlay.count + " CARD" + (game.lastPlay.count === 1 ? "" : "S") : "",
       handText: "", opponentTexts: [], actionText: "", pendingText: "", resultText: "", logTexts: Array.isArray(game.log) ? game.log.slice() : [],
     };
