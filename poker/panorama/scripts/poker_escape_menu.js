@@ -104,7 +104,7 @@
     bluffTarget: "BluffDeckTargetLabel", bluffTargetCard: "BluffDeckTargetCard", bluffTurn: "BluffDeckTurnLabel", bluffPrevious: "BluffDeckPreviousPlayLabel",
     bluffPlayedCards: "BluffDeckPlayedCards", bluffSlots: "BluffDeckCardSlots", bluffAction: "BluffDeckActionLabel", bluffPlayButton: "BluffDeckPlayButton",
     bluffChallengeButton: "BluffDeckChallengeButton", bluffPending: "BluffDeckPendingLabel", bluffResult: "BluffDeckResultLabel", bluffLog: "BluffDeckLog",
-    bluffStatus: "BluffDeckStatusLabel", bluffSlot0: "BluffDeckSlot0", bluffSlot1: "BluffDeckSlot1", bluffSlot2: "BluffDeckSlot2", bluffSlot3: "BluffDeckSlot3", bluffSlot4: "BluffDeckSlot4",
+    bluffSlot0: "BluffDeckSlot0", bluffSlot1: "BluffDeckSlot1", bluffSlot2: "BluffDeckSlot2", bluffSlot3: "BluffDeckSlot3", bluffSlot4: "BluffDeckSlot4",
   };
   const PANEL_BINDINGS = [
     ["menuButton", "rootButton"], ["panel", "panel"], ["tableWindow", "tableWindow"], ["lobbyWindow", "lobbyWindow"],
@@ -122,7 +122,7 @@
     ["bluffLeaveButton", "bluffLeaveButton"], ["bluffStartButton", "bluffStartButton"], ["bluffEndButton", "bluffEndButton"], ["bluffTarget", "bluffTarget"], ["bluffTargetCard", "bluffTargetCard"],
     ["bluffTurn", "bluffTurn"], ["bluffPrevious", "bluffPrevious"], ["bluffPlayedCards", "bluffPlayedCards"], ["bluffSlots", "bluffSlots"],
     ["bluffAction", "bluffAction"], ["bluffPlayButton", "bluffPlayButton"], ["bluffChallengeButton", "bluffChallengeButton"], ["bluffPending", "bluffPending"],
-    ["bluffResult", "bluffResult"], ["bluffLog", "bluffLog"], ["bluffStatus", "bluffStatus"], ["bluffSlot0", "bluffSlot0"], ["bluffSlot1", "bluffSlot1"],
+    ["bluffResult", "bluffResult"], ["bluffLog", "bluffLog"], ["bluffSlot0", "bluffSlot0"], ["bluffSlot1", "bluffSlot1"],
     ["bluffSlot2", "bluffSlot2"], ["bluffSlot3", "bluffSlot3"], ["bluffSlot4", "bluffSlot4"],
   ];
   const BOOT_REQUIRED_PANELS = ["menuButton", "panel", "tableWindow", "lobbyWindow", "playersWindow", "actionsWindow", "readyChatButton", "partyHostButton", "partyJoinButton", "startButton", "seatsList", "players", "tableSeats"];
@@ -6684,7 +6684,6 @@
     setText(State.bluffAction, model.actions.hint);
     setText(State.bluffPending, model.feedback.statusText);
     setText(State.bluffResult, model.feedback.resultText);
-    setText(State.bluffStatus, model.feedback.statusText || model.actions.hint);
     setPanelClass(State.bluffTableSeats, CLASSES.hidden, !model.seats.rows.length);
     TableSeatRenderer.render(State.bluffTableSeats, model.seats.rows, model.seats.arrowClass);
     State.renderCache.bluffLogRows = State.renderCache.bluffLogRows || {};

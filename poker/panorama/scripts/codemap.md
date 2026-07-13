@@ -110,7 +110,7 @@ Both scripts duplicate the same `BridgeContract` constants and must stay aligned
 
 ### Rendering flow and layout globals
 
-- `renderGame()` is the only high-level projection step. It caches panels, updates pot/phase, Poker match visibility, announcer, community cards, player list, compact table seats, action buttons, log, progress/resume controls, and start/party buttons. When Bluff Deck is selected it builds `BluffDeckViewModel` and sends it to `BluffDeckRenderer`, which projects the dominant occult table and noninteractive latest-twelve-turn archive ledger.
+- `renderGame()` is the only high-level projection step. It caches panels, updates pot/phase, Poker match visibility, announcer, community cards, player list, compact table seats, action buttons, log, progress/resume controls, and start/party buttons. When Bluff Deck is selected it builds `BluffDeckViewModel` and sends it to `BluffDeckRenderer`, which projects the dominant flat circular table with centered actions and the noninteractive latest-twelve-turn archive ledger.
 
 Important layout IDs cached in `IDS` and consumed by renderers/buttons:
 

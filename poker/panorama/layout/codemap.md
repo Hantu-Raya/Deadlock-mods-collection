@@ -61,7 +61,7 @@ The poker menu sender sets `#ChatInput.text`, dispatches `CitadelChatInputSubmit
 1. The ESC context loads `poker_escape_menu.vjs_c`; script export happens before `boot()` unless `globalThis.__PokerTestMode` is set.
 2. `boot()` calls `cachePanels()`, resolving the contract IDs listed above, then registers `ClientUI_FireOutput` with `handleBridgeEvent` once required panels exist.
 3. Opening Poker through `#PokerMenuButton` toggles `#PokerAnitaPanel` and the floating windows. The script requests fresh ready/chat state, refreshes seats, and calls `renderGame()`.
-4. `renderGame()` projects Poker into its lobby/table/players/history/actions containers. When Bluff Deck is selected, it builds `BluffDeckViewModel` and projects exactly two windows: `#BluffDeckWindow` (occult felt, seats-as-roster, cards, action deck, lifecycle footer, and announcement) and `#BluffDeckHistoryWindow` (archive result and latest-twelve-turn ledger).
+4. `renderGame()` projects Poker into its lobby/table/players/history/actions containers. When Bluff Deck is selected, it builds `BluffDeckViewModel` and projects exactly two windows: `#BluffDeckWindow` (flat circular felt, seats-as-roster, cards, centered action deck, lifecycle footer, and announcement) and `#BluffDeckHistoryWindow` (archive result and latest-twelve-turn ledger).
 5. Runtime-created child panels use classes such as `PokerSeatRow`, `PokerPlayerRow`, `PokerTableSeat`, `PokerCard`, `PokerActionButton`, `BluffDeckLogRow`, and `BluffDeckPlayedCard`; Bluff seats are the only player-list presentation and XML owns only stable parent containers.
 
 ### Chat bridge flow (`chat.xml`)
@@ -87,7 +87,7 @@ Contract-critical commands carried through this path include `[party leader]`, `
 - Loads `poker_escape_menu.vjs_c` and supplies all containers used by `State` panel refs.
 - `CitadelHudEscapeMenu oncancel` and `#EscapeBackground` still call `CitadelResumePlaying()`; Poker does not replace stock ESC cancellation behavior.
 - `#PokerAnitaPanel` starts as `PokerHidden` and `hittest="false"`; menu open/close policy is script-controlled.
-- Floating windows have fixed roles. Poker keeps lobby/table/players/history/actions surfaces; Bluff Deck uses `#BluffDeckWindow` for the occult table, seats-as-roster, cards, action/lifecycle controls, and announcement, plus noninteractive `#BluffDeckHistoryWindow` for the latest-twelve-turn archive ledger.
+- Floating windows have fixed roles. Poker keeps lobby/table/players/history/actions surfaces; Bluff Deck uses `#BluffDeckWindow` for the flat circular table, seats-as-roster, cards, centered action/lifecycle controls, and announcement, plus noninteractive `#BluffDeckHistoryWindow` for the latest-twelve-turn archive ledger.
 - `#PokerTableSeats` and `#PokerPlayersList` are both required: the former is the compact table-edge in-hand view, the latter is the full player list. Do not collapse one into the other.
 
 ### `chat.xml` -> `poker_chat_debug.js`

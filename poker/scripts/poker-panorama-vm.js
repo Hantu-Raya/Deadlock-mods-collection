@@ -91,7 +91,6 @@ const DEFAULT_PANEL_IDS = [
   'BluffDeckPlayButton',
   'BluffDeckChallengeButton',
   'BluffDeckPendingLabel',
-  'BluffDeckStatusLabel',
   'ChatControls',
   'ChatInput',
   'ChatTargetLabel',
