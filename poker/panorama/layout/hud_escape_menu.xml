@@ -130,7 +130,7 @@
 							<Label id="BluffDeckPreviousPlayLabel" class="BluffDeckInfoLabel BluffDeckPreviousPlayLabel" text="" />
 						</Panel>
 					</Panel>
-					<Panel id="BluffDeckTableSeats" class="PokerTableSeats BluffDeckTableSeats PokerHidden" />
+					<Panel id="BluffDeckTableSeats" class="PokerTableSeats BluffDeckTableSeats" />
 				</Panel>
 			</Panel>
 			<Panel class="BluffDeckActionDeck">
