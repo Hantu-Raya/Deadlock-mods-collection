@@ -2172,12 +2172,6 @@
 	z-index: 10020;
 }
 
-.TableGamePickerWindow.Open,.BluffDeckWindow.Open,.BluffDeckPlayersWindow.Open,.BluffDeckHistoryWindow.Open,.BluffDeckActionsWindow.Open
-{
-	visibility: visible;
-	opacity: 1;
-	pre-transform-scale2d: 1;
-}
 
 .TableGamePickerEyebrow
 {
@@ -2267,63 +2261,125 @@
 
 .BluffDeckWindow
 {
-	width: 51%;
-	max-height: 90%;
+	width: 69%;
+	height: 88%;
 	align: left top;
-	margin-left: 22%;
-	margin-right: 27%;
-	margin-top: 23%;
+	margin-left: 3%;
+	margin-top: 6%;
 	padding: 0px;
 	overflow: noclip;
+	border: 1px solid pokerNoirGold&55;
+	border-top: 3px solid pokerNoirGold;
+	border-radius: 2px;
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(#10130df5), to(#060705f5));
+	box-shadow: inset offWhite&04 0px 1px 0px 0px, rgba(0, 24, 16, 0.68) 0px 18px 40px 0px;
 	z-index: 10000;
-}
-
-.BluffDeckPlayersWindow
-{
-	width: 20%;
-	align: right top;
-	margin-right: 3.25%;
-	margin-top: 7%;
 }
 
 .BluffDeckHistoryWindow
 {
-	width: 20%;
+	width: 23%;
+	height: 88%;
 	align: right top;
-	margin-right: 3.25%;
-	margin-top: 62%;
+	margin-right: 3%;
+	margin-top: 6%;
+	padding: 14px 12px;
 	overflow: noclip;
+	border: 0px;
+	border-left: 2px solid pokerNoirGold&77;
+	border-top: 1px solid pokerNoirLine;
+	border-bottom: 1px solid pokerNoirLine;
+	border-radius: 0px;
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(#10130df5), to(#060705f5));
+	box-shadow: none;
+	z-index: 9999;
 }
 
-.BluffDeckActionsWindow
+.BluffDeckWindow.LocalTurn
 {
-	width: 51%;
-	align: left top;
-	margin-left: 22%;
-	margin-top: 80%;
-	overflow: noclip;
-	padding: 10px 14px;
+	border-top: 3px solid pokerNoirSoul;
+}
+
+.BluffDeckHistoryWindow.LocalTurn
+{
+	border-left: 2px solid pokerNoirSoul;
+}
+
+.BluffDeckWindow.Pending
+{
+	border-top: 3px solid pokerNoirAmber;
+}
+
+.BluffDeckHistoryWindow.Pending
+{
+	border-left: 2px solid pokerNoirAmber;
+}
+
+.BluffDeckWindow.Challenge
+{
+	border-top: 3px solid pokerNoirDanger;
+}
+
+.BluffDeckHistoryWindow.Challenge
+{
+	border-left: 2px solid pokerNoirDanger;
+}
+
+.BluffDeckWindow.Finished
+{
+	border-top: 3px solid pokerNoirGold;
+}
+
+.BluffDeckHistoryWindow.Finished
+{
+	border-left: 2px solid pokerNoirGold;
+}
+
+.TableGamePickerWindow.Open,.BluffDeckWindow.Open,.BluffDeckHistoryWindow.Open
+{
+	visibility: visible;
+	opacity: 1;
+	pre-transform-scale2d: 1;
+}
+
+.BluffDeckMainHeader
+{
+	width: 100%;
+	height: 52px;
+	margin-bottom: 0px;
+	padding: 10px 16px;
+	flow-children: right;
+	border-bottom: 1px solid pokerNoirGold&33;
 }
 
 .BluffDeckHeaderLabel
 {
+	width: fill-parent-flow(1.0);
+	color: offWhite;
+	font-family: block;
+	font-size: 26px;
+	font-weight: bold;
+	line-height: 28px;
+	letter-spacing: 1px;
+	text-align: left;
 	text-transform: uppercase;
+	vertical-align: center;
 }
 
 .BluffDeckAnnouncementOverlay
 {
-	margin-bottom: 8px;
+	width: 100%;
+	height: 64px;
+	min-height: 0px;
+	margin-bottom: 0px;
+	padding: 8px 16px;
+	flow-children: down;
+	border: 0px;
 	border-left: 3px solid pokerNoirGold;
-}
-
-.BluffDeckAnnouncementOverlay.Pending
-{
-	border-left-color: pokerNoirAmber;
-}
-
-.BluffDeckAnnouncementOverlay.Challenge,.BluffDeckAnnouncementOverlay.Finished
-{
-	border-left-color: pokerNoirDanger;
+	border-bottom: 1px solid pokerNoirLine;
+	border-radius: 0px;
+	background-color: transparent;
+	box-shadow: none;
 }
 
 .BluffDeckAnnouncementOverlay.LocalTurn
@@ -2331,10 +2387,55 @@
 	border-left-color: pokerNoirSoul;
 }
 
+.BluffDeckAnnouncementOverlay.Pending
+{
+	border-left-color: pokerNoirAmber;
+}
+
+.BluffDeckAnnouncementOverlay.Challenge
+{
+	border-left-color: pokerNoirDanger;
+}
+
+.BluffDeckAnnouncementOverlay.Finished
+{
+	border-left-color: pokerNoirGold;
+}
+
+.BluffDeckAnnouncementTitle
+{
+	font-family: block;
+	font-size: 16px;
+	line-height: 18px;
+}
+
+.BluffDeckAnnouncementBody
+{
+	font-family: sans;
+	font-size: 13px;
+	line-height: 18px;
+	white-space: normal;
+}
+
+.BluffDeckTableSurface
+{
+	width: 100%;
+	height: 600px;
+	min-height: 0px;
+	margin: 0px;
+	padding: 8px 12px;
+	flow-children: down;
+	border: 0px;
+	border-radius: 0px;
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(#09120df2), to(#050806f2));
+	box-shadow: none;
+	overflow: noclip;
+}
+
 .BluffDeckCardTable
 {
 	width: 100%;
-	height: 360px;
+	height: 570px;
 	margin: 0px;
 	padding: 0px;
 	horizontal-align: center;
@@ -2342,11 +2443,37 @@
 	overflow: noclip;
 }
 
+.BluffDeckFelt
+{
+	width: 720px;
+	height: 350px;
+	align: center center;
+	border-radius: 175px;
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(#0b3a2d), to(#061e18));
+	border: 2px solid pokerNoirGold&66;
+	box-shadow: inset offWhite&08 0px 2px 0px 0px, rgba(0, 0, 0, 0.62) 0px 18px 42px 0px;
+	overflow: noclip;
+}
+
+.BluffDeckFeltSigil
+{
+	width: 190px;
+	height: 190px;
+	align: center center;
+	ignore-parent-flow: true;
+	transform: rotateZ(45deg);
+	border: 1px solid pokerNoirGold&18;
+	background-color: transparent;
+	box-shadow: none;
+	z-index: 1;
+}
+
 .BluffDeckTargetCard
 {
-	width: 96px;
-	height: 124px;
-	margin-top: 8px;
+	width: 112px;
+	height: 150px;
+	align: center center;
+	margin-top: 0px;
 	flow-children: down;
 	overflow: noclip;
 	z-index: 2;
@@ -2547,156 +2674,11 @@
 	text-align: center;
 }
 
-.BluffDeckPartyControls,.BluffDeckMatchControls,.BluffDeckActionControls
+.BluffDeckTargetLabel,.BluffDeckTurnLabel,.BluffDeckPreviousPlayLabel
 {
-	width: 100%;
-	flow-children: right;
-	margin-bottom: 8px;
-}
-
-.BluffDeckControlButton
-{
-	width: fill-parent-flow(1.0);
-	min-width: 0px;
-	margin-right: 6px;
-}
-
-.BluffDeckActionButton
-{
-	width: fill-parent-flow(1.0);
-	min-width: 0px;
-	margin-right: 6px;
-}
-
-.BluffDeckControlButton:last-child,.BluffDeckActionButton:last-child
-{
-	margin-right: 0px;
-}
-
-.BluffDeckControlButton Label,.BluffDeckActionButton Label
-{
-	width: 100%;
-	white-space: nowrap;
-}
-
-.BluffDeckInfoLabel,.BluffDeckHandLabel,.BluffDeckActionLabel,.BluffDeckPendingLabel,.BluffDeckResultLabel,.BluffDeckStatusLabel
-{
-	width: 100%;
-	margin-bottom: 4px;
-	color: pokerNoirMuted;
-	font-family: sans;
-	font-size: 13px;
-}
-
-.BluffDeckHandLabel,.BluffDeckActionLabel
-{
-	color: pokerNoirText;
-	font-family: block;
-	font-weight: bold;
-	letter-spacing: 1px;
-}
-
-.BluffDeckCardSlots
-{
-	width: 100%;
-	min-height: 88px;
-	margin-top: 7px;
-	margin-bottom: 8px;
-	flow-children: right;
 	horizontal-align: center;
-	vertical-align: center;
-	overflow: noclip;
-}
-
-.BluffDeckCardSlot
-{
-	width: 54px;
-	height: 78px;
-	min-width: 54px;
-	min-height: 78px;
-	margin-right: 6px;
-	padding: 0px;
-	border: 1px solid pokerNoirLine;
-	border-radius: 5px;
-	background-color: #efe6d0;
-	box-shadow: rgba(0, 0, 0, 0.42) 0px 6px 12px 0px;
-	color: #111315;
-	flow-children: down;
-	horizontal-align: center;
-	vertical-align: center;
-	z-index: 1;
-}
-
-.BluffDeckCardSlot Label
-{
-	width: 100%;
-	height: 100%;
-	padding: 8px 4px;
-	color: #111315;
-	font-family: block;
-	font-size: 15px;
-	font-weight: bold;
-	horizontal-align: center;
-	vertical-align: center;
 	text-align: center;
 }
-
-.BluffDeckCardSlot:hover,.BluffDeckCardSlot.Selected
-{
-	y: -6px;
-	pre-transform-scale2d: 1.06;
-	border: 2px solid pokerNoirGold;
-	background-color: #fff3d3;
-	box-shadow: rgba(0, 0, 0, 0.58) 0px 10px 18px 0px;
-	wash-color: pokerNoirGold;
-	z-index: 8;
-}
-
-.BluffDeckOpponentList,.BluffDeckLog
-{
-	width: 100%;
-	max-height: 86px;
-	margin-bottom: 7px;
-	padding: 6px 8px;
-	flow-children: down;
-	border-top: 1px solid pokerNoirLine;
-}
-
-.BluffDeckOpponentRow,.BluffDeckLogRow
-{
-	width: 100%;
-	margin-bottom: 2px;
-	color: pokerNoirMuted;
-	font-family: sans;
-	font-size: 12px;
-}
-
-.BluffDeckPreviousPlayLabel,.BluffDeckPendingLabel
-{
-	color: pokerNoirAmber;
-}
-
-.BluffDeckResultLabel
-{
-	color: pokerNoirGold;
-}
-
-.BluffDeckStatusLabel
-{
-	color: pokerNoirMuted;
-}
-
-.BluffDeckTableSurface
-{
-	min-height: 0px;
-	margin-top: 8px;
-	margin-bottom: 8px;
-	padding: 10px 12px 12px 12px;
-	flow-children: down;
-	overflow: noclip;
-	background-color: gradient(linear, 0% 0%, 0% 100%, from(#10130dee), to(#060705ee));
-}
-
 
 .BluffDeckTableSeats
 {
@@ -2727,64 +2709,107 @@
 	margin-right: 4%;
 }
 
-.BluffDeckFelt
+.BluffDeckCardTable .PokerTableSeat
 {
-	width: 320px;
-	height: 320px;
-	align: center center;
-	border-radius: 160px;
-	background-color: #00422b;
-	border: 2px solid #043b0c;
-	box-shadow: inset rgba(255, 255, 255, 0.08) 0px 2px 0px 0px, rgba(0, 0, 0, 0.52) 0px 18px 42px 0px;
-	overflow: noclip;
+	width: 22%;
 }
 
-.BluffDeckTargetCard
+.BluffDeckCardTable .PokerTableSeatText
 {
-	align: center center;
-	margin-top: 0px;
+	z-index: 2;
 }
 
-.BluffDeckTargetLabel,.BluffDeckTurnLabel,.BluffDeckPreviousPlayLabel
+.BluffDeckCardTable .PokerTableSeat.SeatLeft .PokerTableSeatText,.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatText,.BluffDeckCardTable .PokerTableSeat.SeatBottomLeft .PokerTableSeatText
 {
-	horizontal-align: center;
-	text-align: center;
+	width: 130px;
+	margin-right: 36px;
+	horizontal-align: right;
 }
 
-.BluffDeckOpponentList
+.BluffDeckCardTable .PokerTableSeat.SeatRight .PokerTableSeatText,.BluffDeckCardTable .PokerTableSeat.SeatTopRight .PokerTableSeatText,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatText
+{
+	width: 130px;
+	margin-left: 36px;
+	horizontal-align: left;
+}
+
+.BluffDeckCardTable .PokerTableSeatAvatar
+{
+	z-index: 4;
+}
+
+.BluffDeckCardTable .PokerTableSeatName
 {
 	width: 100%;
-	max-height: 320px;
-	min-height: 86px;
-	margin-bottom: 8px;
-	padding: 6px 8px;
-	flow-children: down;
-	overflow: squish scroll;
-	background-color: offBlack&55;
-	border-top: 1px solid pokerNoirLine;
+	color: pokerNoirText;
+	white-space: nowrap;
+	text-overflow: shrink;
 }
 
-.BluffDeckPlayedCards
+.BluffDeckCardTable .PokerTableSeatStack,.BluffDeckCardTable .PokerTableSeatState
 {
-	margin-top: 0px;
-	align: center center;
+	color: pokerNoirMuted;
+}
+
+.BluffDeckCardTable .PokerTableTurnArrow
+{
+	width: 36px;
+	height: 28px;
+}
+
+.BluffDeckCardTable .PokerTableTurnArrow.SeatLeft
+{
+	x: -160px;
+}
+
+.BluffDeckCardTable .PokerTableTurnArrow.SeatRight
+{
+	x: 160px;
+}
+
+.BluffDeckActionDeck
+{
+	width: 100%;
+	height: 170px;
+	flow-children: right;
+	padding: 12px 16px;
+	border-top: 1px solid pokerNoirGold&44;
+	background-color: #0b100cee;
 }
 
 .BluffDeckCardSlots
 {
+	width: fill-parent-flow(1.0);
 	min-height: 104px;
-	margin-top: 4px;
-	margin-bottom: 4px;
-	horizontal-align: center;
+	margin: 0px;
 	flow-children: right;
+	horizontal-align: left;
+	vertical-align: center;
+	overflow: noclip;
 }
 
 .BluffDeckCardSlot
 {
-	width: 64px;
-	height: 92px;
-	min-width: 64px;
-	min-height: 92px;
+	width: 72px;
+	height: 104px;
+	min-width: 72px;
+	min-height: 104px;
+	margin-right: 8px;
+	padding: 0px;
+	border: 1px solid pokerNoirLine;
+	border-radius: 5px;
+	background-color: #efe6d0;
+	box-shadow: rgba(0, 0, 0, 0.42) 0px 6px 12px 0px;
+	color: #111315;
+	flow-children: down;
+	horizontal-align: center;
+	vertical-align: center;
+	z-index: 1;
+}
+
+.BluffDeckCardSlot:last-child
+{
+	margin-right: 0px;
 }
 
 .BluffDeckSlotContents
@@ -2805,6 +2830,7 @@
 	font-weight: bold;
 	text-align: center;
 	vertical-align: center;
+	opacity: 0;
 	z-index: 8;
 }
 
@@ -2813,18 +2839,25 @@
 	width: 100%;
 	height: 100%;
 	align: center center;
-	opacity: 0.88;
+	opacity: 1;
 	z-index: 2;
 }
 
-.BluffDeckSlotRankGlyph
+.BluffDeckCardSlot:hover
 {
-	opacity: 0;
+	y: -3px;
+	pre-transform-scale2d: 1.03;
+	box-shadow: rgba(0, 0, 0, 0.58) 0px 10px 18px 0px;
+	z-index: 7;
 }
 
-.BluffDeckSlotContents .PokerCardArt,.BluffDeckCardSlot .PokerCardArt
+.BluffDeckCardSlot.Selected
 {
-	opacity: 1;
+	y: -6px;
+	pre-transform-scale2d: 1.05;
+	border: 2px solid pokerNoirGold;
+	box-shadow: rgba(0, 0, 0, 0.58) 0px 10px 18px 0px;
+	z-index: 8;
 }
 
 .BluffDeckCardSlot.Disabled
@@ -2843,111 +2876,194 @@
 	box-shadow: rgba(0, 0, 0, 0.42) 0px 6px 12px 0px;
 }
 
-.BluffDeckCardTable .PokerTableSeat.SeatLeft .PokerTableSeatText,.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatText,.BluffDeckCardTable .PokerTableSeat.SeatBottomLeft .PokerTableSeatText
+.BluffDeckActionRail
 {
-	width: 130px;
-	margin-right: 36px;
-	horizontal-align: right;
-	z-index: 2;
+	width: 360px;
+	height: 100%;
+	vertical-align: center;
+	flow-children: down;
 }
 
-.BluffDeckCardTable .PokerTableSeat.SeatRight .PokerTableSeatText,.BluffDeckCardTable .PokerTableSeat.SeatTopRight .PokerTableSeatText,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatText
-{
-	width: 130px;
-	margin-left: 36px;
-	horizontal-align: left;
-	z-index: 2;
-}
-
-.BluffDeckCardTable .PokerTableSeatAvatar
-{
-	z-index: 4;
-}
-
-.BluffDeckCardTable .PokerTableSeatName
+.BluffDeckActionLabel
 {
 	width: 100%;
-	white-space: nowrap;
-	text-overflow: shrink;
-}
-
-.BluffDeckLog
-{
-	max-height: 100%;
-	min-height: 36px;
-	margin-top: 6px;
 	margin-bottom: 8px;
-	flow-children: down;
-	overflow: squish scroll;
-	background-color: offBlack&55;
-	border-top: 1px solid pokerNoirGold&55;
-}
-
-
-.BluffDeckHandLabel
-{
-	visibility: collapse;
-}
-
-.BluffDeckCardSlots
-{
-	width: fit-children;
-	min-height: 96px;
-	margin-top: 2px;
-	margin-bottom: 2px;
-	horizontal-align: center;
+	color: pokerNoirText;
+	font-family: block;
+	font-weight: bold;
+	letter-spacing: 1px;
 }
 
 .BluffDeckActionControls
 {
-	width: fit-children;
-	margin-bottom: 4px;
-	horizontal-align: center;
+	width: 100%;
+	flow-children: right;
 }
 
 .BluffDeckActionButton
 {
-	width: 240px;
+	width: fill-parent-flow(1.0);
+	min-width: 0px;
+	margin-right: 8px;
+}
+
+.BluffDeckActionButton:last-child
+{
+	margin-right: 0px;
+}
+
+.BluffDeckActionButton Label,.BluffDeckControlButton Label
+{
+	width: 100%;
+	white-space: nowrap;
+}
+
+.BluffDeckChallengeButton.Eligible
+{
+	border: 1px solid pokerNoirDanger;
+}
+
+.BluffDeckPendingLabel
+{
+	width: 100%;
+	margin-top: 6px;
+	color: pokerNoirAmber;
+	font-family: sans;
+	font-size: 12px;
+}
+
+.BluffDeckStatusLabel
+{
+	width: 100%;
+	margin-top: 2px;
+	color: pokerNoirMuted;
+	font-family: sans;
+	font-size: 12px;
 }
 
 .BluffDeckLifecycleControls
 {
 	width: 100%;
+	height: 48px;
 	flow-children: right;
-	margin-bottom: 4px;
+	padding: 8px 16px;
+	border-top: 1px solid pokerNoirLine;
 }
 
-.BluffDeckLifecycleControls .BluffDeckPartyControls,.BluffDeckLifecycleControls .BluffDeckMatchControls
+.BluffDeckPartyControls
 {
 	width: fill-parent-flow(1.0);
-	margin-bottom: 0px;
+	flow-children: right;
+	horizontal-align: left;
 }
 
-.BluffDeckLifecycleControls .BluffDeckPartyControls
+.BluffDeckMatchControls
 {
-	margin-right: 6px;
+	width: fit-children;
+	flow-children: right;
+	horizontal-align: right;
 }
 
-
-.BluffDeckCardTable .PokerTableSeat
+.BluffDeckControlButton
 {
-	width: 22%;
+	width: 112px;
+	min-width: 0px;
+	margin-right: 8px;
 }
 
-.BluffDeckCardTable .PokerTableTurnArrow
+.BluffDeckControlButton:last-child
 {
-	width: 36px;
-	height: 28px;
+	margin-right: 0px;
 }
 
-.BluffDeckCardTable .PokerTableTurnArrow.SeatLeft
+.BluffDeckHistorySection
 {
-	x: -160px;
+	width: 100%;
+	height: fill-parent-flow(1.0);
+	margin: 0px;
+	padding: 0px;
+	flow-children: down;
+	background-color: transparent;
+	border: 0px;
 }
 
-.BluffDeckCardTable .PokerTableTurnArrow.SeatRight
+.BluffDeckHistorySection .PokerAnitaEyebrow
 {
-	x: 160px;
+	font-size: 11px;
+	color: pokerNoirGold;
+}
+
+.BluffDeckHistorySection .PokerWindowTitleSmall
+{
+	font-family: block;
+	font-size: 19px;
+}
+
+.BluffDeckResultLabel
+{
+	width: 100%;
+	min-height: 30px;
+	margin: 8px 0px 10px 0px;
+	padding-bottom: 8px;
+	color: offWhite;
+	font-family: sans;
+	font-size: 13px;
+	line-height: 18px;
+	white-space: normal;
+	border-bottom: 1px solid pokerNoirLine;
+}
+
+.BluffDeckLog
+{
+	width: 100%;
+	height: fill-parent-flow(1.0);
+	min-height: 0px;
+	margin: 0px;
+	padding: 0px;
+	flow-children: down;
+	overflow: squish scroll;
+	background-color: transparent;
+	border: 0px;
+}
+
+.BluffDeckLogRow
+{
+	width: 100%;
+	min-height: 34px;
+	padding: 8px 0px;
+	color: pokerNoirMuted;
+	font-family: sans;
+	font-size: 12px;
+	line-height: 16px;
+	border-bottom: 1px solid pokerNoirLine&55;
+}
+
+.BluffDeckLogRow.Latest
+{
+	padding-left: 10px;
+	border-left: 2px solid pokerNoirGold;
+	background-color: #101a14cc;
+	color: offWhite;
+}
+
+.BluffDeckInfoLabel
+{
+	width: 100%;
+	margin-bottom: 4px;
+	color: pokerNoirMuted;
+	font-family: sans;
+	font-size: 13px;
+}
+
+.BluffDeckPreviousPlayLabel
+{
+	color: pokerNoirAmber;
+}
+
+.BluffDeckControlButton Label
+{
+	width: 100%;
+	white-space: nowrap;
 }
 
 .PokerMenuVisible #PokerLobbyWindow.PokerHidden,.PokerMenuVisible #PokerTableWindow.PokerHidden,.PokerMenuVisible #PokerPlayersWindow.PokerHidden,.PokerMenuVisible #PokerHistoryWindow.PokerHidden,.PokerMenuVisible #PokerActionsWindow.PokerHidden
@@ -2957,7 +3073,7 @@
 	pre-transform-scale2d: 0.96;
 }
 
-.TableGamePickerWindow.PokerHidden,.BluffDeckWindow.PokerHidden,.BluffDeckPlayersWindow.PokerHidden,.BluffDeckHistoryWindow.PokerHidden,.BluffDeckActionsWindow.PokerHidden
+.TableGamePickerWindow.PokerHidden,.BluffDeckWindow.PokerHidden,.BluffDeckHistoryWindow.PokerHidden
 {
 	visibility: collapse;
 	opacity: 0;
