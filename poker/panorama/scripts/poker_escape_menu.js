@@ -72,6 +72,7 @@
   const PENDING_SELF_ACTION_TTL_MS = 5000;
   const BLUFF_PREPARE_DEADLINE_MS = 3500;
   const BLUFF_ECHO_DEADLINE_MS = 3000;
+  const BLUFF_DECK_HISTORY_LIMIT = 12;
   let bluffRequestSerial = 0;
   const STATUS_LOCK_MS = 1600;
   const STATUS_PRIORITY = {
@@ -98,10 +99,10 @@
     resumeControls: "PokerResumeControls", resumeLeaderButton: "PokerResumeLeaderButton", resumeReadyButton: "PokerResumeReadyButton", resumeStatus: "PokerResumeStatusLabel",
     resumeLeaderList: "PokerResumeLeaderList",
     pickerWindow: "TableGamePickerWindow", pickerWarning: "TableGamePickerWarning", pickerPokerButton: "TableGamePickerPokerButton", pickerPokerLabel: "TableGamePickerPokerLabel", pickerBluffButton: "TableGamePickerBluffButton", pickerBluffLabel: "TableGamePickerBluffLabel",
-    bluffWindow: "BluffDeckWindow", bluffPlayersWindow: "BluffDeckPlayersWindow", bluffHistoryWindow: "BluffDeckHistoryWindow", bluffActionsWindow: "BluffDeckActionsWindow", bluffCardTable: "BluffDeckCardTable", bluffTableSeats: "BluffDeckTableSeats", bluffCloseButton: "BluffDeckCloseButton", bluffBackButton: "BluffDeckBackButton", bluffHeader: "BluffDeckHeaderLabel", bluffAnnouncement: "BluffDeckAnnouncementOverlay", bluffAnnouncementTitle: "BluffDeckAnnouncementTitle", bluffAnnouncementBody: "BluffDeckAnnouncementBody", bluffHostButton: "BluffDeckHostButton", bluffJoinButton: "BluffDeckJoinButton",
+    bluffWindow: "BluffDeckWindow", bluffHistoryWindow: "BluffDeckHistoryWindow", bluffCardTable: "BluffDeckCardTable", bluffTableSeats: "BluffDeckTableSeats", bluffCloseButton: "BluffDeckCloseButton", bluffBackButton: "BluffDeckBackButton", bluffHeader: "BluffDeckHeaderLabel", bluffAnnouncement: "BluffDeckAnnouncementOverlay", bluffAnnouncementTitle: "BluffDeckAnnouncementTitle", bluffAnnouncementBody: "BluffDeckAnnouncementBody", bluffHostButton: "BluffDeckHostButton", bluffJoinButton: "BluffDeckJoinButton",
     bluffLeaveButton: "BluffDeckLeaveButton", bluffStartButton: "BluffDeckStartButton", bluffEndButton: "BluffDeckEndButton",
-    bluffTarget: "BluffDeckTargetLabel", bluffTargetCard: "BluffDeckTargetCard", bluffTurn: "BluffDeckTurnLabel", bluffPrevious: "BluffDeckPreviousPlayLabel", bluffHand: "BluffDeckHandLabel",
-    bluffPlayedCards: "BluffDeckPlayedCards", bluffOpponents: "BluffDeckOpponentList", bluffSlots: "BluffDeckCardSlots", bluffAction: "BluffDeckActionLabel", bluffPlayButton: "BluffDeckPlayButton",
+    bluffTarget: "BluffDeckTargetLabel", bluffTargetCard: "BluffDeckTargetCard", bluffTurn: "BluffDeckTurnLabel", bluffPrevious: "BluffDeckPreviousPlayLabel",
+    bluffPlayedCards: "BluffDeckPlayedCards", bluffSlots: "BluffDeckCardSlots", bluffAction: "BluffDeckActionLabel", bluffPlayButton: "BluffDeckPlayButton",
     bluffChallengeButton: "BluffDeckChallengeButton", bluffPending: "BluffDeckPendingLabel", bluffResult: "BluffDeckResultLabel", bluffLog: "BluffDeckLog",
     bluffStatus: "BluffDeckStatusLabel", bluffSlot0: "BluffDeckSlot0", bluffSlot1: "BluffDeckSlot1", bluffSlot2: "BluffDeckSlot2", bluffSlot3: "BluffDeckSlot3", bluffSlot4: "BluffDeckSlot4",
   };
@@ -117,9 +118,9 @@
     ["tableSurface", "tableSurface"], ["announcer", "announcer"], ["announcerTitle", "announcerTitle"], ["announcerBody", "announcerBody"],
     ["community", "community"], ["players", "players"], ["tableSeats", "tableSeats"], ["actions", "actions"], ["log", "log"],
     ["pickerWindow", "pickerWindow"], ["pickerWarning", "pickerWarning"], ["pickerPokerButton", "pickerPokerButton"], ["pickerPokerLabel", "pickerPokerLabel"], ["pickerBluffButton", "pickerBluffButton"], ["pickerBluffLabel", "pickerBluffLabel"],
-    ["bluffWindow", "bluffWindow"], ["bluffPlayersWindow", "bluffPlayersWindow"], ["bluffHistoryWindow", "bluffHistoryWindow"], ["bluffActionsWindow", "bluffActionsWindow"], ["bluffCardTable", "bluffCardTable"], ["bluffTableSeats", "bluffTableSeats"], ["bluffCloseButton", "bluffCloseButton"], ["bluffBackButton", "bluffBackButton"], ["bluffHeader", "bluffHeader"], ["bluffAnnouncement", "bluffAnnouncement"], ["bluffAnnouncementTitle", "bluffAnnouncementTitle"], ["bluffAnnouncementBody", "bluffAnnouncementBody"], ["bluffHostButton", "bluffHostButton"], ["bluffJoinButton", "bluffJoinButton"],
+    ["bluffWindow", "bluffWindow"], ["bluffHistoryWindow", "bluffHistoryWindow"], ["bluffCardTable", "bluffCardTable"], ["bluffTableSeats", "bluffTableSeats"], ["bluffCloseButton", "bluffCloseButton"], ["bluffBackButton", "bluffBackButton"], ["bluffHeader", "bluffHeader"], ["bluffAnnouncement", "bluffAnnouncement"], ["bluffAnnouncementTitle", "bluffAnnouncementTitle"], ["bluffAnnouncementBody", "bluffAnnouncementBody"], ["bluffHostButton", "bluffHostButton"], ["bluffJoinButton", "bluffJoinButton"],
     ["bluffLeaveButton", "bluffLeaveButton"], ["bluffStartButton", "bluffStartButton"], ["bluffEndButton", "bluffEndButton"], ["bluffTarget", "bluffTarget"], ["bluffTargetCard", "bluffTargetCard"],
-    ["bluffTurn", "bluffTurn"], ["bluffPrevious", "bluffPrevious"], ["bluffHand", "bluffHand"], ["bluffPlayedCards", "bluffPlayedCards"], ["bluffOpponents", "bluffOpponents"], ["bluffSlots", "bluffSlots"],
+    ["bluffTurn", "bluffTurn"], ["bluffPrevious", "bluffPrevious"], ["bluffPlayedCards", "bluffPlayedCards"], ["bluffSlots", "bluffSlots"],
     ["bluffAction", "bluffAction"], ["bluffPlayButton", "bluffPlayButton"], ["bluffChallengeButton", "bluffChallengeButton"], ["bluffPending", "bluffPending"],
     ["bluffResult", "bluffResult"], ["bluffLog", "bluffLog"], ["bluffStatus", "bluffStatus"], ["bluffSlot0", "bluffSlot0"], ["bluffSlot1", "bluffSlot1"],
     ["bluffSlot2", "bluffSlot2"], ["bluffSlot3", "bluffSlot3"], ["bluffSlot4", "bluffSlot4"],
@@ -1981,7 +1982,7 @@
     }
   }
   function hideBluffSurface(hidden) {
-    for (const panel of [State.bluffWindow, State.bluffPlayersWindow, State.bluffHistoryWindow, State.bluffActionsWindow]) {
+    for (const panel of [State.bluffWindow, State.bluffHistoryWindow]) {
       applyHiddenAffordance(panel, hidden);
     }
   }
@@ -1999,9 +2000,7 @@
     setPanelClass(State.historyWindow, CLASSES.open, State.isOpen);
     setPanelClass(State.pickerWindow, CLASSES.open, State.isOpen);
     setPanelClass(State.bluffWindow, CLASSES.open, State.isOpen);
-    setPanelClass(State.bluffPlayersWindow, CLASSES.open, State.isOpen);
     setPanelClass(State.bluffHistoryWindow, CLASSES.open, State.isOpen);
-    setPanelClass(State.bluffActionsWindow, CLASSES.open, State.isOpen);
     setPanelClass(State.menuButton, CLASSES.active, State.isOpen);
     if (State.isOpen) {
       if (!isTestMode()) startRefreshLoop();
@@ -5281,7 +5280,7 @@
     const rows = Array.isArray(State.bluffDeck.transcript) ? State.bluffDeck.transcript : [];
     if (rows.length && rows[rows.length - 1] === text) return;
     rows.push(text);
-    if (rows.length > 6) rows.splice(0, rows.length - 6);
+    if (rows.length > BLUFF_DECK_HISTORY_LIMIT) rows.splice(0, rows.length - BLUFF_DECK_HISTORY_LIMIT);
     State.bluffDeck.transcript = rows;
   }
   function applyBluffDeckRecord(record) {
@@ -6106,8 +6105,15 @@
       remove: (row) => deletePanel(row),
     },
     bluffText: {
-      create: (parent, model) => ({ panel: createLabel(parent, model.className || "BluffDeckOpponentRow", "") }),
-      update: (row, model) => setText(row.panel, model.text),
+      create: (parent, model) => ({ panel: createLabel(parent, model.className || "", ""), className: "" }),
+      update: (row, model) => {
+        const nextClasses = String(model.className || "").split(/\s+/).filter(Boolean);
+        const oldClasses = row.className ? row.className.split(/\s+/).filter(Boolean) : [];
+        for (let i = 0; i < oldClasses.length; i += 1) setPanelClass(row.panel, oldClasses[i], false);
+        for (let i = 0; i < nextClasses.length; i += 1) setPanelClass(row.panel, nextClasses[i], true);
+        row.className = nextClasses.join(" ");
+        setText(row.panel, model.text);
+      },
       remove: (row) => deletePanel(row && row.panel),
     },
     bluffPlayedCard: {
@@ -6618,14 +6624,6 @@
       const selected = hasCard && (selectedMask & (1 << i)) !== 0;
       slots.push({ key: "slot-" + i, rank: rank, valid: hasCard, selected: selected, disabled: !hasCard || !!pending || stateClass !== "LocalTurn" });
     }
-    const rosterRows = roster.map((entry, index) => {
-      const player = game ? bdPlayerAt(game, entry.key) : null;
-      let text = entry.name.toUpperCase() + "\nWAITING";
-      if (player && player.status !== "active") text = bluffViewName(player) + "\n" + player.status.toUpperCase();
-      else if (player && game && game.active && current && current.key === player.key) text = bluffViewName(player) + "\nTURN";
-      else if (player) text = bluffViewName(player) + "\nCARDS " + bdCount(player.remainingMask) + "\nRISK " + player.riskIndex + "/6";
-      return { key: entry.key || ("roster-" + index), text: text, className: "BluffDeckOpponentRow" };
-    });
     const minCards = Number.isInteger(legalActions.minCards) ? legalActions.minCards : 1;
     const maxCards = Number.isInteger(legalActions.maxCards) ? legalActions.maxCards : 3;
     let actionHint = "HOST OR JOIN A PARTY";
@@ -6639,8 +6637,9 @@
       const count = bdCount(selectedMask & (localPlayer ? localPlayer.remainingMask : 0));
       actionHint = count < minCards || count > maxCards ? "SELECT " + minCards + "-" + maxCards + " CARDS" : (legalActions.canChallenge ? "SELECT CARDS OR CALL LIE" : "SELECT CARDS TO PLAY");
     }
-    const transcript = bluffState.transcript && Array.isArray(bluffState.transcript) ? bluffState.transcript.slice(-6) : [];
-    const logTexts = transcript.length ? transcript : ["NO TURNS YET"];
+    const transcript = bluffState.transcript && Array.isArray(bluffState.transcript) ? bluffState.transcript.slice(-BLUFF_DECK_HISTORY_LIMIT) : [];
+    const hasHistory = transcript.length > 0;
+    const logTexts = hasHistory ? transcript : ["NO TURNS YET"];
     const target = game ? (game.target === BD_ACE ? "A" : game.target === BD_KING ? "K" : "Q") : "";
     const phase = game ? (game.active ? "ROUND " + game.round : "MATCH ENDED") : (party.id ? "LOBBY" : "IDLE");
     const announcement = buildBluffDeckAnnouncement(stateClass, game, current, localKey, textProjection);
@@ -6649,7 +6648,6 @@
       header: { title: "BLUFF DECK", phase: phase, target: target, turn: textProjection.turnText || "WAITING FOR MATCH" },
       announcement: announcement,
       seats: { rows: seatProjection.rows, arrowClass: seatProjection.arrowClass },
-      rosterRows: rosterRows,
       cards: { targetRank: target, played: played, slots: slots },
       actions: { hint: actionHint, play: controlProjection.play, challenge: controlProjection.challenge },
       lifecycle: { host: controlProjection.host, join: controlProjection.join, leave: controlProjection.leave, start: controlProjection.start, end: controlProjection.end },
@@ -6657,7 +6655,11 @@
         statusText: pending ? (pending.bridgeStatus === "cancelling" ? "CANCELLING..." : "SENDING...") : "",
         resultText: textProjection.resultText || (game && game.aborted ? "MATCH ENDED BY TABLE LEADER" : ""),
         previousPlayText: textProjection.previousPlayText || "",
-        logRows: logTexts.map((text, index) => ({ key: "log-" + index, text: text, className: "BluffDeckLogRow" })),
+        logRows: logTexts.map((text, index) => ({
+          key: "log-" + index,
+          text: (hasHistory ? String(index + 1).padStart(2, "0") + "  " : "") + text,
+          className: "BluffDeckLogRow" + (hasHistory && index === logTexts.length - 1 ? " Latest" : ""),
+        })),
       },
     };
   }
@@ -6671,9 +6673,9 @@
     }
     setText(State.bluffAnnouncementTitle, model.announcement.title);
     setText(State.bluffAnnouncementBody, model.announcement.body);
-    const previousClass = State.renderCache.bluffStateClass || "";
-    if (previousClass) setPanelClass(State.bluffAnnouncement, previousClass, false);
-    setPanelClass(State.bluffAnnouncement, model.stateClass, true);
+    const previousClass = State.renderCache.bluffStateClass || ""; const stateClassPanels = [State.bluffWindow, State.bluffHistoryWindow, State.bluffAnnouncement];
+    if (previousClass) for (let i = 0; i < stateClassPanels.length; i += 1) setPanelClass(stateClassPanels[i], previousClass, false);
+    for (let i = 0; i < stateClassPanels.length; i += 1) setPanelClass(stateClassPanels[i], model.stateClass, true);
     State.renderCache.bluffStateClass = model.stateClass;
     setText(State.bluffTarget, "TARGET: " + (model.cards.targetRank || "—"));
     renderBluffTargetCard(model.cards.targetRank);
@@ -6685,10 +6687,8 @@
     setText(State.bluffStatus, model.feedback.statusText || model.actions.hint);
     setPanelClass(State.bluffTableSeats, CLASSES.hidden, !model.seats.rows.length);
     TableSeatRenderer.render(State.bluffTableSeats, model.seats.rows, model.seats.arrowClass);
-    State.renderCache.bluffRosterRows = State.renderCache.bluffRosterRows || {};
     State.renderCache.bluffLogRows = State.renderCache.bluffLogRows || {};
     State.renderCache.bluffPlayedRows = State.renderCache.bluffPlayedRows || {};
-    Rows.update(State.renderCache.bluffRosterRows, State.bluffOpponents, model.rosterRows, RowSpecs.bluffText);
     Rows.update(State.renderCache.bluffLogRows, State.bluffLog, model.feedback.logRows, RowSpecs.bluffText);
     Rows.update(State.renderCache.bluffPlayedRows, State.bluffPlayedCards, model.cards.played, RowSpecs.bluffPlayedCard);
     const slotPanels = [State.bluffSlot0, State.bluffSlot1, State.bluffSlot2, State.bluffSlot3, State.bluffSlot4];
@@ -6907,7 +6907,7 @@
       "tableTurnArrow", "tableTurnArrowClass", "potChipRows",
       "actionButtons", "actionHint", "actionButtonRow",
       "customBetControls", "customBetChoice", "customBetRange", "customBetRangeKey",
-      "bluffTargetRank", "bluffTargetArt", "bluffSlotArts", "bluffStateClass", "bluffRosterRows", "bluffLogRows", "bluffPlayedRows", "logRows",
+      "bluffTargetRank", "bluffTargetArt", "bluffSlotArts", "bluffStateClass", "bluffLogRows", "bluffPlayedRows", "logRows",
     ]) {
       if (!Object.prototype.hasOwnProperty.call(cache, key)) continue;
       if (key === "bluffSlotArts") cache[key] = [];

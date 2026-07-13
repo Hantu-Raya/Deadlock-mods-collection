@@ -51,13 +51,12 @@ function runtime(options = {}) {
 }
 function visualRuntime() {
   const panelIds = [
-    'BluffDeckWindow', 'BluffDeckCardTable', 'BluffDeckTableSeats', 'BluffDeckTargetCard', 'BluffDeckPlayedCards',
-    'BluffDeckPlayersWindow', 'BluffDeckHistoryWindow', 'BluffDeckActionsWindow',
-    'BluffDeckAnnouncementOverlay', 'BluffDeckAnnouncementTitle', 'BluffDeckAnnouncementBody',
-    'BluffDeckTargetLabel', 'BluffDeckTurnLabel', 'BluffDeckPreviousPlayLabel', 'BluffDeckHandLabel',
-    'BluffDeckOpponentList', 'BluffDeckCardSlots', 'BluffDeckActionLabel', 'BluffDeckPlayButton',
-    'BluffDeckChallengeButton', 'BluffDeckPendingLabel', 'BluffDeckResultLabel', 'BluffDeckLog',
-    'BluffDeckStatusLabel', 'BluffDeckSlot0', 'BluffDeckSlot1', 'BluffDeckSlot2', 'BluffDeckSlot3', 'BluffDeckSlot4',
+    'BluffDeckWindow', 'BluffDeckHistoryWindow', 'BluffDeckTableSurface', 'BluffDeckCardTable', 'BluffDeckTableSeats',
+    'BluffDeckTargetCard', 'BluffDeckPlayedCards', 'BluffDeckAnnouncementOverlay', 'BluffDeckAnnouncementTitle', 'BluffDeckAnnouncementBody',
+    'BluffDeckTargetLabel', 'BluffDeckTurnLabel', 'BluffDeckPreviousPlayLabel', 'BluffDeckResultLabel', 'BluffDeckLog',
+    'BluffDeckCardSlots', 'BluffDeckActionLabel', 'BluffDeckActionControls', 'BluffDeckPlayButton', 'BluffDeckChallengeButton',
+    'BluffDeckPendingLabel', 'BluffDeckStatusLabel', 'BluffDeckSlot0', 'BluffDeckSlot1', 'BluffDeckSlot2', 'BluffDeckSlot3', 'BluffDeckSlot4',
+    'BluffDeckLifecycleControls', 'BluffDeckPartyControls', 'BluffDeckMatchControls',
     'BluffDeckHostButton', 'BluffDeckJoinButton', 'BluffDeckLeaveButton', 'BluffDeckStartButton', 'BluffDeckEndButton',
   ];
   const rt = createValidatorContext({ panelIds, nowStep: 0 });
@@ -626,41 +625,75 @@ function testVisualProjection() {
 }
 
 function testTranscriptCapAndReset() {
-  const cap = runtime();
+  const cap = visualRuntime();
   startParty(cap.hooks, ['abrams', 'bebop', 'calico', 'dynamo']);
   startRecord(cap.hooks, 'deadbeef', 1, 'Abrams', ['abrams', 'bebop', 'calico', 'dynamo']);
+  cap.hooks.state.localPlayerKey = 'abrams';
+  cap.hooks.state.selectedTableGame = 'bluff-deck';
+  cap.rt.sandbox.PokerEscapeMenuToggle();
+  drainDueScheduledCallbacks(cap.rt, 64);
   let chatSeq = 2;
+  const accepted = [];
   for (let cycle = 0; cycle < 5; cycle += 1) {
     const current = cap.hooks.getStateSnapshot().bluffDeck.game;
+    assert(current && current.active, 'cap cycle starts with an active match ' + cycle);
     if (!current || !current.active) break;
     const actor = current.players[current.currentIndex];
-    const mask = current.players[current.currentIndex].remainingMask & 1 ? 1 : 2;
+    const mask = actor.remainingMask & 1 ? 1 : 2;
     applyPayload(cap.hooks, { seq: chatSeq++, sender: actor.name, message: cap.R.buildPlay(current, mask), isSelf: false });
     const playedState = cap.hooks.getStateSnapshot().bluffDeck.game;
-    if (!playedState || playedState.seq === current.seq) fail('cap play rejected for ' + actor.name);
+    assert(playedState && playedState.seq !== current.seq, 'cap play accepted for ' + actor.name);
+    if (!playedState || playedState.seq === current.seq) break;
+    accepted.push(actor.name.toUpperCase() + ' PLAYED ' + playedState.lastPlay.count + ' CARD' + (playedState.lastPlay.count === 1 ? '' : 'S'));
     const challenged = cap.hooks.getStateSnapshot().bluffDeck.game;
+    assert(challenged && challenged.active, 'cap challenge starts with an active match');
     if (!challenged || !challenged.active) break;
     const caller = challenged.players[challenged.currentIndex];
     applyPayload(cap.hooks, { seq: chatSeq++, sender: caller.name, message: cap.R.buildChallenge(challenged), isSelf: false });
     const pending = cap.hooks.getStateSnapshot().bluffDeck.game;
+    assert(pending && pending.pendingShot, 'cap challenge creates a pending shot');
     if (!pending || !pending.pendingShot) break;
+    const challengeResult = pending.lastResult;
+    accepted.push(caller.name.toUpperCase() + ' CALLED LIE ON ' + pending.players[challengeResult.accusedIndex].name.toUpperCase());
     const shooter = pending.players[pending.currentIndex];
+    shooter.outIndex = (shooter.riskIndex + 1) % 6;
     applyPayload(cap.hooks, { seq: chatSeq++, sender: shooter.name, message: cap.R.buildShoot(pending), isSelf: false });
+    const afterShoot = cap.hooks.getStateSnapshot().bluffDeck.game;
+    assert(afterShoot && afterShoot.lastResult, 'cap shoot accepted for ' + shooter.name);
+    if (!afterShoot || !afterShoot.lastResult) break;
+    accepted.push(shooter.name.toUpperCase() + ' PULLED TRIGGER: ' + (afterShoot.lastResult.eliminated ? 'OUT' : 'SAFE'));
   }
+  assert(accepted.length === 15, 'deadbeef fixture produces fifteen accepted transcript summaries (got ' + accepted.length + ')');
   const capped = cap.hooks.getStateSnapshot().bluffDeck.transcript || [];
-  assert(capped.length > 0 && capped.length <= 6, 'Bluff transcript is bounded to six visible rows (got ' + capped.length + ')');
+  equal(capped, accepted.slice(-12), 'state transcript retains summaries 4-15 oldest-first');
+  cap.hooks.modules.RenderScheduler.immediate('transcript-cap');
+  const log = findPanel(cap.rt, 'BluffDeckLog');
+  const logRows = findDescendantsWithClass(log, 'BluffDeckLogRow');
+  equal(logRows.length, 12, 'rendered transcript retains twelve rows');
+  equal(logRows.map((row) => row.text), accepted.slice(-12).map((text, index) => String(index + 1).padStart(2, '0') + '  ' + text), 'rendered transcript prefixes rows 01-12');
+  assert(logRows.every((row, index) => row.BHasClass('Latest') === (index === 11)), 'only newest transcript row is Latest');
   const beforeStale = capped.slice();
   applyPayload(cap.hooks, { seq: chatSeq++, sender: 'Abrams', message: 'bd1 malformed', isSelf: false });
-  equal(cap.hooks.getStateSnapshot().bluffDeck.transcript, beforeStale, 'malformed rows cannot enter bounded transcript');
+  applyPayload(cap.hooks, { seq: chatSeq++, sender: '<unknown>', message: 'bd1 p deadbeef 99 1', isSelf: false });
+  equal(cap.hooks.getStateSnapshot().bluffDeck.transcript, beforeStale, 'malformed/stale rows cannot enter bounded transcript');
 
-  const reset = runtime();
+  const reset = visualRuntime();
   startParty(reset.hooks);
   startRecord(reset.hooks);
+  reset.hooks.state.localPlayerKey = 'abrams';
+  reset.hooks.state.selectedTableGame = 'bluff-deck';
+  reset.rt.sandbox.PokerEscapeMenuToggle();
+  drainDueScheduledCallbacks(reset.rt, 64);
   const opening = reset.hooks.getStateSnapshot().bluffDeck.game;
   applyPayload(reset.hooks, { seq: 2, sender: 'Abrams', message: reset.R.buildPlay(opening, 1), isSelf: false });
   assert((reset.hooks.getStateSnapshot().bluffDeck.transcript || []).length === 1, 'reset fixture has a committed row');
   applyPayload(reset.hooks, { seq: 3, sender: 'Abrams', message: 'bd1 e a1b2c3d4', isSelf: false });
   equal(reset.hooks.getStateSnapshot().bluffDeck.transcript, [], 'accepted match end resets Bluff transcript');
+  reset.hooks.modules.RenderScheduler.immediate('transcript-reset');
+  const resetRows = findDescendantsWithClass(findPanel(reset.rt, 'BluffDeckLog'), 'BluffDeckLogRow');
+  equal(resetRows.length, 1, 'reset renders one empty transcript row');
+  equal(resetRows[0].text, 'NO TURNS YET', 'empty transcript row is unnumbered');
+  assert(!resetRows[0].BHasClass('Latest'), 'empty transcript row is not Latest');
 }
 
 function testControlStateProjection() {

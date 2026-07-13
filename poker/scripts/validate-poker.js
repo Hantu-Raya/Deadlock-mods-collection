@@ -130,6 +130,14 @@ function cssBlockContainingSelector(source, selector) {
   return '';
 }
 
+function countCssSelectorBlocks(source, selector) {
+  let count = 0;
+  for (const block of source.matchAll(/(?:^|})\s*([^{}]+)\{([^}]*)\}/gm)) {
+    if (block[1].split(',').map((value) => value.trim()).includes(selector)) count += 1;
+  }
+  return count;
+}
+
 function sourceSliceFromId(source, id) {
   const match = new RegExp(`\\bid=["']${id}["']`).exec(source);
   return match ? source.slice(match.index) : '';
@@ -672,176 +680,184 @@ for (const [id, className] of [
     `must expose #${id} with the shared PokerFloatingWindow class`,
   );
 }
-const bluffPlayersLayout = sourceSliceBetweenIds(menuLayout, 'BluffDeckPlayersWindow', 'BluffDeckHistoryWindow');
-assertMatches(
-  'menu layout #BluffDeckPlayersWindow',
-  bluffPlayersLayout,
-  /id=["']BluffDeckOpponentList["'][\s\S]*id=["']BluffDeckPartyControls["'][\s\S]*id=["']BluffDeckMatchControls["'][\s\S]*id=["']BluffDeckStartButton["'][\s\S]*id=["']BluffDeckEndButton["']/,
-  'must keep Bluff roster and lifecycle controls in the right-side players surface',
-);
-for (const [id, className] of [
-  ['BluffDeckWindow', 'BluffDeckWindow'],
-  ['BluffDeckPlayersWindow', 'BluffDeckPlayersWindow'],
-  ['BluffDeckHistoryWindow', 'BluffDeckHistoryWindow'],
-  ['BluffDeckActionsWindow', 'BluffDeckActionsWindow'],
-]) {
-  assertMatches(
-    'menu layout',
-    menuLayout,
-    new RegExp(`id=["']${id}["'][^>]*class=["'][^"']*\\b${className}\\b`),
-    `must expose #${id} as a Bluff surface`,
-  );
-  assertMatches(
-    'menu layout',
-    menuLayout,
-    new RegExp(`id=["']${id}["'][^>]*class=["'][^"']*\\bPokerFloatingWindow\\b`),
-    `must expose #${id} with the shared PokerFloatingWindow class`,
-  );
+const bluffWindowLayout = sourceSliceFromId(menuLayout, 'BluffDeckWindow');
+const bluffHistoryLayout = sourceSliceFromId(menuLayout, 'BluffDeckHistoryWindow');
+assertEqual((menuLayout.match(/id=["']BluffDeck[^"']*Window["']/g) || []).length, 2, 'Bluff must expose exactly two floating shells');
+for (const deletedId of ['BluffDeckPlayersWindow', 'BluffDeckActionsWindow', 'BluffDeckOpponentList', 'BluffDeckHandLabel']) {
+  assert(!new RegExp(`id=["']${deletedId}["']`).test(menuLayout), `menu layout must remove obsolete #${deletedId}`);
+}
+for (const [id, className] of [['BluffDeckWindow', 'BluffDeckWindow'], ['BluffDeckHistoryWindow', 'BluffDeckHistoryWindow']]) {
+  assertMatches('menu layout', menuLayout, new RegExp(`id=["']${id}["'][^>]*class=["'][^"']*\\b${className}\\b`), `must expose #${id} as a Bluff surface`);
+  assertMatches('menu layout', menuLayout, new RegExp(`id=["']${id}["'][^>]*class=["'][^"']*\\bPokerFloatingWindow\\b`), `must expose #${id} with the shared PokerFloatingWindow class`);
 }
 
 const menuXmlTree = parseXmlTree(menuLayout);
 assert(menuXmlTree, 'menu layout XML must remain balanced');
 const bluffSurface = findXmlNodeById(menuXmlTree, 'BluffDeckTableSurface');
 const bluffWindow = findXmlNodeById(menuXmlTree, 'BluffDeckWindow');
-const bluffPlayersWindow = findXmlNodeById(menuXmlTree, 'BluffDeckPlayersWindow');
 const bluffHistoryWindow = findXmlNodeById(menuXmlTree, 'BluffDeckHistoryWindow');
-const bluffActionsWindow = findXmlNodeById(menuXmlTree, 'BluffDeckActionsWindow');
-const bluffCardSlots = findXmlNodeById(menuXmlTree, 'BluffDeckCardSlots');
-assert(bluffWindow && bluffPlayersWindow && bluffHistoryWindow && bluffActionsWindow, 'Bluff must expose all four sibling surfaces');
-const bluffAnnouncement = findXmlNodeById(menuXmlTree, 'BluffDeckAnnouncementOverlay');
-const bluffAnnouncementTitle = findXmlNodeById(menuXmlTree, 'BluffDeckAnnouncementTitle');
-const bluffAnnouncementBody = findXmlNodeById(menuXmlTree, 'BluffDeckAnnouncementBody');
-assert(bluffAnnouncement && bluffAnnouncement.parent === bluffWindow, '#BluffDeckAnnouncementOverlay must live in the main Bluff table surface');
-assert(bluffAnnouncementTitle && bluffAnnouncementBody && bluffAnnouncementTitle.parent === bluffAnnouncement && bluffAnnouncementBody.parent === bluffAnnouncement, 'Bluff announcement must expose title and body labels');
-assert(bluffCardSlots && bluffCardSlots.parent && bluffCardSlots.parent.parent === bluffActionsWindow, '#BluffDeckCardSlots must live in the Bluff actions surface');
-const bluffLifecycleControls = findXmlNodeById(menuXmlTree, 'BluffDeckLifecycleControls');
-const bluffPartyControls = findXmlNodeById(menuXmlTree, 'BluffDeckPartyControls');
-const bluffMatchControls = findXmlNodeById(menuXmlTree, 'BluffDeckMatchControls');
-assert(bluffLifecycleControls && bluffPartyControls && bluffMatchControls, 'Bluff lifecycle controls must expose a shared compact row');
-assert(bluffLifecycleControls.parent === bluffPlayersWindow && bluffPartyControls.parent === bluffLifecycleControls && bluffMatchControls.parent === bluffLifecycleControls, 'Bluff lifecycle controls must share the roster surface');
 const bluffCardTable = findXmlNodeById(menuXmlTree, 'BluffDeckCardTable');
 const bluffFelt = bluffCardTable && bluffCardTable.children.find((node) => node.attrs && /\bPokerTableFelt\b/.test(node.attrs.class || ''));
 const bluffSeats = findXmlNodeById(menuXmlTree, 'BluffDeckTableSeats');
 const bluffTargetCard = findXmlNodeById(menuXmlTree, 'BluffDeckTargetCard');
 const bluffPlayedCards = findXmlNodeById(menuXmlTree, 'BluffDeckPlayedCards');
+const bluffCardSlots = findXmlNodeById(menuXmlTree, 'BluffDeckCardSlots');
+const bluffActionControls = findXmlNodeById(menuXmlTree, 'BluffDeckActionControls');
+const bluffLifecycleControls = findXmlNodeById(menuXmlTree, 'BluffDeckLifecycleControls');
+const bluffPartyControls = findXmlNodeById(menuXmlTree, 'BluffDeckPartyControls');
+const bluffMatchControls = findXmlNodeById(menuXmlTree, 'BluffDeckMatchControls');
+const bluffResultLabel = findXmlNodeById(menuXmlTree, 'BluffDeckResultLabel');
+const bluffLog = findXmlNodeById(menuXmlTree, 'BluffDeckLog');
+assert(bluffWindow && bluffHistoryWindow, 'Bluff must expose the two retained shells');
+const bluffActionDeck = bluffCardSlots && bluffCardSlots.parent;
+assert(bluffActionDeck && /\bBluffDeckActionDeck\b/.test(bluffActionDeck.attrs.class || '') && bluffActionDeck.parent === bluffWindow, '#BluffDeckCardSlots must live inside the main Bluff action deck');
+assert(bluffActionControls && bluffActionControls.parent && bluffActionControls.parent.parent && bluffActionControls.parent.parent.parent === bluffWindow, '#BluffDeckActionControls must remain inside the main Bluff window');
+assert(bluffLifecycleControls && bluffLifecycleControls.parent === bluffWindow, '#BluffDeckLifecycleControls must live in the main Bluff window');
+assert(bluffPartyControls && bluffMatchControls && bluffPartyControls.parent === bluffLifecycleControls && bluffMatchControls.parent === bluffLifecycleControls, 'Bluff lifecycle groups must remain inside the main footer');
+assert(bluffResultLabel && bluffLog && bluffResultLabel.parent && bluffLog.parent && bluffResultLabel.parent.parent === bluffHistoryWindow && bluffLog.parent.parent === bluffHistoryWindow, 'Bluff result and log must remain inside the archive ledger');
 assert(bluffSurface && /\bPokerTableSurface\b/.test(bluffSurface.attrs.class || ''), '#BluffDeckTableSurface must reuse PokerTableSurface');
 assert(bluffCardTable && /\bPokerTableStage\b/.test(bluffCardTable.attrs.class || ''), '#BluffDeckCardTable must reuse PokerTableStage');
 assert(bluffFelt, '#BluffDeckCardTable must contain a PokerTableFelt');
-assert(bluffSeats && /\bPokerTableSeats\b/.test(bluffSeats.attrs.class || ''), '#BluffDeckTableSeats must reuse PokerTableSeats');
-assert(bluffSeats && bluffSeats.parent === bluffCardTable, '#BluffDeckTableSeats must sit under the Bluff table stage');
-assert(bluffTargetCard, 'menu layout must expose #BluffDeckTargetCard');
-assert(bluffPlayedCards, 'menu layout must expose #BluffDeckPlayedCards');
-assert(bluffTargetCard && bluffTargetCard.parent === bluffFelt, '#BluffDeckTargetCard must sit on the table felt');
-assert(bluffPlayedCards && bluffPlayedCards.parent === bluffFelt, '#BluffDeckPlayedCards must sit on the table felt');
-assert(
-  bluffTargetCard && bluffPlayedCards
-    && bluffFelt.children.indexOf(bluffTargetCard) < bluffFelt.children.indexOf(bluffPlayedCards),
-  '#BluffDeckTargetCard must precede #BluffDeckPlayedCards in the centered card lane',
-);
-const bluffTargetLabel = findXmlNodeById(menuXmlTree, 'BluffDeckTargetLabel');
-const bluffPreviousPlayLabel = findXmlNodeById(menuXmlTree, 'BluffDeckPreviousPlayLabel');
-assert(
-  bluffTargetLabel && bluffTargetLabel.parent && bluffTargetLabel.parent.parent === bluffFelt,
-  '#BluffDeckTargetLabel must remain inside the card lane fallback label group',
-);
-assert(
-  bluffPreviousPlayLabel && bluffPreviousPlayLabel.parent && bluffPreviousPlayLabel.parent.parent === bluffFelt,
-  '#BluffDeckPreviousPlayLabel must remain inside the card lane fallback label group',
-);
-assert(findXmlNodeById(menuXmlTree, 'BluffDeckTurnLabel'), 'menu layout must expose #BluffDeckTurnLabel');
+assert(bluffSeats && /\bPokerTableSeats\b/.test(bluffSeats.attrs.class || '') && bluffSeats.parent === bluffCardTable, '#BluffDeckTableSeats must sit directly under the Bluff table stage');
+assert(bluffTargetCard && bluffPlayedCards && bluffTargetCard.parent === bluffFelt && bluffPlayedCards.parent === bluffFelt, 'Bluff target and played cards must remain children of the felt');
+assert(bluffFelt && xmlDescendant(bluffFelt, (node) => /\bBluffDeckFeltSigil\b/.test(node.attrs.class || '')), 'Bluff felt must expose the passive sigil panel');
+
+const bluffAnnouncement = findXmlNodeById(menuXmlTree, 'BluffDeckAnnouncementOverlay');
+const bluffAnnouncementTitle = findXmlNodeById(menuXmlTree, 'BluffDeckAnnouncementTitle');
+const bluffAnnouncementBody = findXmlNodeById(menuXmlTree, 'BluffDeckAnnouncementBody');
+assert(bluffAnnouncement && bluffAnnouncement.parent === bluffWindow, '#BluffDeckAnnouncementOverlay must live in the main Bluff window');
+assert(bluffAnnouncementTitle && bluffAnnouncementBody && bluffAnnouncementTitle.parent === bluffAnnouncement && bluffAnnouncementBody.parent === bluffAnnouncement, 'Bluff announcement must expose title and body labels');
+for (const [id, handler] of [
+  ['BluffDeckBackButton', 'PokerEscapeMenuBackToPicker()'],
+  ['BluffDeckCloseButton', 'PokerEscapeMenuClose()'],
+  ['BluffDeckPlayButton', 'PokerEscapeMenuBluffPlay()'],
+  ['BluffDeckChallengeButton', 'PokerEscapeMenuBluffChallenge()'],
+  ['BluffDeckHostButton', 'PokerEscapeMenuHostParty()'],
+  ['BluffDeckJoinButton', 'PokerEscapeMenuJoinParty()'],
+  ['BluffDeckLeaveButton', 'PokerEscapeMenuLeaveLobby()'],
+  ['BluffDeckStartButton', 'PokerEscapeMenuBluffStart()'],
+  ['BluffDeckEndButton', 'PokerEscapeMenuBluffEnd()'],
+]) {
+  const node = findXmlNodeById(menuXmlTree, id);
+  assert(node && node.name === 'Button', `#${id} must remain a Button`);
+  assertEqual(node && node.attrs.onactivate, handler, `#${id} must preserve its activation handler`);
+}
 for (let slotIndex = 0; slotIndex < 5; slotIndex += 1) {
   const slot = findXmlNodeById(menuXmlTree, `BluffDeckSlot${slotIndex}`);
   assert(slot && slot.name === 'Button', `#BluffDeckSlot${slotIndex} must remain a Button`);
-  assertEqual(
-    slot && slot.attrs.onactivate,
-    `PokerEscapeMenuSelectBluffSlot( ${slotIndex} )`,
-    `#BluffDeckSlot${slotIndex} must preserve its activation handler`,
-  );
+  assertEqual(slot && slot.attrs.onactivate, `PokerEscapeMenuSelectBluffSlot( ${slotIndex} )`, `#BluffDeckSlot${slotIndex} must preserve its activation handler`);
   assert(xmlDescendant(slot, (node) => node.name === 'Label' && /\bBluffDeckSlotRankGlyph\b/.test(node.attrs.class || '')), `#BluffDeckSlot${slotIndex} must expose a rank glyph child`);
   assert(!xmlDescendant(slot, (node) => node.name === 'Label' && /\[[A-Z]+\]/.test(node.attrs.text || '')), `#BluffDeckSlot${slotIndex} must not expose bracket rank text`);
 }
 const bluffChallengeButton = findXmlNodeById(menuXmlTree, 'BluffDeckChallengeButton');
-assert(bluffChallengeButton && bluffChallengeButton.name === 'Button', '#BluffDeckChallengeButton must remain a Button');
-assertEqual(
-  bluffChallengeButton && bluffChallengeButton.attrs.onactivate,
-  'PokerEscapeMenuBluffChallenge()',
-  '#BluffDeckChallengeButton must preserve its activation handler',
-);
-assert(
-  xmlDescendant(bluffChallengeButton, (node) => node.name === 'Label' && node.attrs.text === 'LIE'),
-  '#BluffDeckChallengeButton must visibly read LIE',
-);
+assert(xmlDescendant(bluffChallengeButton, (node) => node.name === 'Label' && node.attrs.text === 'LIE'), '#BluffDeckChallengeButton must visibly read LIE');
+
 for (const selector of [
-  '.BluffDeckCardTable',
-  '.BluffDeckTableSeats',
-  '.BluffDeckCardTable .PokerTableSeat.SeatTopLeft',
-  '.BluffDeckCardTable .PokerTableSeat.SeatTopRight',
-  '.BluffDeckCardTable .PokerTableSeat.SeatBottomRight',
-  '.BluffDeckCardTable .PokerTableSeat.SeatBottomLeft',
-  '.BluffDeckFelt',
-  '.BluffDeckTargetCard',
-  '.BluffDeckTargetFace',
-  '.BluffDeckPlayedCards',
-  '.BluffDeckPlayedCard',
-  '.BluffDeckPlayedCard.CardBack',
-  '.BluffDeckPlayedCard.Revealed',
-  '.BluffDeckCardSlots',
-  '.BluffDeckCardSlot.Selected',
+  '.BluffDeckCardTable', '.BluffDeckTableSeats', '.BluffDeckFelt', '.BluffDeckFeltSigil',
+  '.BluffDeckTargetCard', '.BluffDeckTargetFace', '.BluffDeckPlayedCards', '.BluffDeckPlayedCard',
+  '.BluffDeckPlayedCard.CardBack', '.BluffDeckPlayedCard.Revealed', '.BluffDeckActionDeck',
+  '.BluffDeckActionRail', '.BluffDeckCardSlots', '.BluffDeckCardSlot', '.BluffDeckCardSlot.Selected',
+  '.BluffDeckActionControls', '.BluffDeckActionButton', '.BluffDeckLifecycleControls',
+  '.BluffDeckHistorySection', '.BluffDeckResultLabel', '.BluffDeckLog', '.BluffDeckLogRow', '.BluffDeckLogRow.Latest',
 ]) {
-  assert(cssBlockContainingSelector(menuStyle, selector), `menu style must define ${selector} for the Bluff card table`);
+  assert(cssBlockContainingSelector(menuStyle, selector), `menu style must define ${selector} for the Bluff two-window composition`);
 }
-const bluffTableCss = cssLastBlock(menuStyle, '.BluffDeckCardTable');
-const bluffFeltCss = cssBlock(menuStyle, '.BluffDeckFelt');
-const bluffSeatsCss = cssBlock(menuStyle, '.BluffDeckTableSeats');
-assertCssDeclarationMatches('menu style .BluffDeckFelt', bluffFeltCss, 'align', /^center\s+center$/, 'must center Bluff target and committed cards on the felt');
-assertCssDeclarationMatches('menu style .BluffDeckTableSeats', bluffSeatsCss, 'ignore-parent-flow', /^true$/, 'must keep Bluff seats outside felt flow');
+for (const selector of ['.BluffDeckWindow', '.BluffDeckHistoryWindow', '.BluffDeckTargetCard', '.BluffDeckPlayedCards', '.BluffDeckCardSlots', '.BluffDeckActionControls', '.BluffDeckActionButton', '.BluffDeckLog', '.BluffDeckLogRow']) {
+  assertEqual(countCssSelectorBlocks(menuStyle, selector), 1, `menu style must keep one authoritative declaration for ${selector}`);
+}
+assert(!/\.BluffDeckPlayersWindow|\.BluffDeckActionsWindow|\.BluffDeckOpponentList|\.BluffDeckHandLabel/.test(menuStyle), 'menu style must remove obsolete Bluff shell and roster selectors');
+assertEqual(countOccurrences(menuStyle, '.TableGamePickerWindow.Open,.BluffDeckWindow.Open,.BluffDeckHistoryWindow.Open'), 1, 'menu style must expose one retained Bluff Open selector list');
+assertEqual(countOccurrences(menuStyle, '.TableGamePickerWindow.PokerHidden,.BluffDeckWindow.PokerHidden,.BluffDeckHistoryWindow.PokerHidden'), 1, 'menu style must expose one retained Bluff hidden selector list');
+
 const bluffWindowCss = cssBlock(menuStyle, '.BluffDeckWindow');
-assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'align', /^left\s+top$/, 'must align Bluff Deck with the shared Poker table column');
-assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'margin-top', /^23%$/, 'must mirror the shared Poker table vertical anchor');
-const bluffWindowWidth = Number.parseFloat(cssDeclarationValue(bluffWindowCss, 'width'));
-const bluffWindowLeftInset = Number.parseFloat(cssDeclarationValue(bluffWindowCss, 'margin-left'));
-const bluffWindowRightInset = Number.parseFloat(cssDeclarationValue(bluffWindowCss, 'margin-right'));
-assert(Number.isFinite(bluffWindowWidth) && bluffWindowWidth <= 55, 'menu style .BluffDeckWindow must leave room for the ESC player-list column');
-assert(Number.isFinite(bluffWindowLeftInset) && bluffWindowLeftInset > 0, 'menu style .BluffDeckWindow must retain a nonzero left safe inset');
-assert(Number.isFinite(bluffWindowRightInset) && bluffWindowRightInset >= 20, 'menu style .BluffDeckWindow must retain a nonzero right player-list safe inset');
-assert(bluffWindowLeftInset + bluffWindowWidth + bluffWindowRightInset <= 100, 'menu style .BluffDeckWindow width and safe insets must fit the viewport');
-const bluffStageHeight = Number.parseFloat(cssDeclarationValue(bluffTableCss, 'height'));
-const bluffFeltWidth = Number.parseFloat(cssDeclarationValue(bluffFeltCss, 'width'));
-const bluffFeltHeight = Number.parseFloat(cssDeclarationValue(bluffFeltCss, 'height'));
-const bluffFeltRadius = Number.parseFloat(cssDeclarationValue(bluffFeltCss, 'border-radius'));
-assert(bluffFeltWidth === bluffFeltHeight, 'menu style .BluffDeckFelt width and height must be equal for a circle');
-assert(bluffFeltRadius >= bluffFeltWidth / 2, 'menu style .BluffDeckFelt border radius must be at least half its diameter');
-assert(bluffStageHeight > bluffFeltHeight, 'menu style .BluffDeckCardTable must provide outer seat gutters beyond the circular felt');
-const bluffLeftSeatCss = cssBlockContainingSelector(menuStyle, '.BluffDeckCardTable .PokerTableSeat.SeatLeft');
-const bluffRightSeatCss = cssBlockContainingSelector(menuStyle, '.BluffDeckCardTable .PokerTableSeat.SeatRight');
-assert(Number.parseFloat(cssDeclarationValue(bluffLeftSeatCss, 'margin-left')) > 0, 'menu style Bluff left seat must stay inside its outer gutter');
-assert(Number.parseFloat(cssDeclarationValue(bluffRightSeatCss, 'margin-right')) > 0, 'menu style Bluff right seat must stay inside its outer gutter');
-const bluffTargetCss = cssBlock(menuStyle, '.BluffDeckTargetCard');
-const bluffTargetFaceCss = cssBlockContainingSelector(menuStyle, '.BluffDeckTargetFace');
-const bluffOpponentCss = cssLastBlockContainingSelector(menuStyle, '.BluffDeckOpponentList');
-const bluffSlotsCss = cssLastBlock(menuStyle, '.BluffDeckCardSlots');
-const bluffHandCss = cssLastBlockContainingSelector(menuStyle, '.BluffDeckHandLabel');
-const bluffActionControlsCss = cssLastBlock(menuStyle, '.BluffDeckActionControls');
-const bluffLifecycleCss = cssLastBlock(menuStyle, '.BluffDeckLifecycleControls');
-assertCssDeclarationMatches('menu style .BluffDeckOpponentList', bluffOpponentCss, 'overflow', /^squish\s+scroll$/, 'must keep the roster readable in its dedicated side surface');
-assertCssDeclarationMatches('menu style .BluffDeckHandLabel', bluffHandCss, 'visibility', /^collapse$/, 'must retire the duplicate textual hand');
-assertCssDeclarationMatches('menu style .BluffDeckCardSlots', bluffSlotsCss, 'width', /^fit-children$/, 'must center the visual picker by intrinsic width');
-assertCssDeclarationMatches('menu style .BluffDeckCardSlots', bluffSlotsCss, 'horizontal-align', /^center$/, 'must center the intrinsic visual picker');
-assertCssDeclarationMatches('menu style .BluffDeckActionControls', bluffActionControlsCss, 'width', /^fit-children$/, 'must keep the primary action compact');
-assertCssDeclarationMatches('menu style .BluffDeckLifecycleControls', bluffLifecycleCss, 'flow-children', /^right$/, 'must place lifecycle control groups inline');
-assert(Number.parseFloat(cssDeclarationValue(bluffWindowCss, 'max-height')) <= 90, 'menu style .BluffDeckWindow must fit below the viewport edge');
-assert(bluffStageHeight <= 380, 'menu style .BluffDeckCardTable must not consume the controls viewport');
+const bluffHistoryCss = cssBlock(menuStyle, '.BluffDeckHistoryWindow');
+const bluffSurfaceCss = cssBlock(menuStyle, '.BluffDeckTableSurface');
+const bluffTableCss = cssBlock(menuStyle, '.BluffDeckCardTable');
+const bluffFeltCss = cssBlock(menuStyle, '.BluffDeckFelt');
+const bluffActionDeckCss = cssBlock(menuStyle, '.BluffDeckActionDeck');
+const bluffActionRailCss = cssBlock(menuStyle, '.BluffDeckActionRail');
+const bluffSlotsCss = cssBlock(menuStyle, '.BluffDeckCardSlots');
+const bluffSlotCss = cssBlock(menuStyle, '.BluffDeckCardSlot');
+const bluffSelectedCss = cssBlock(menuStyle, '.BluffDeckCardSlot.Selected');
+const bluffActionControlsCss = cssBlock(menuStyle, '.BluffDeckActionControls');
+const bluffActionButtonCss = cssBlock(menuStyle, '.BluffDeckActionButton');
+const bluffLifecycleCss = cssBlock(menuStyle, '.BluffDeckLifecycleControls');
+const bluffPartyCss = cssBlock(menuStyle, '.BluffDeckPartyControls');
+const bluffMatchCss = cssBlock(menuStyle, '.BluffDeckMatchControls');
+const bluffResultCss = cssBlock(menuStyle, '.BluffDeckResultLabel');
+const bluffLogCss = cssBlock(menuStyle, '.BluffDeckLog');
+const bluffLogRowCss = cssBlock(menuStyle, '.BluffDeckLogRow');
+const bluffLatestCss = cssBlock(menuStyle, '.BluffDeckLogRow.Latest');
 const bluffPlayedCss = cssBlock(menuStyle, '.BluffDeckPlayedCards');
 const bluffPlayedCardCss = cssBlock(menuStyle, '.BluffDeckPlayedCard');
-const bluffSelectedCss = cssBlockContainingSelector(menuStyle, '.BluffDeckCardSlot.Selected');
-assertCssDeclarationMatches('menu style .BluffDeckCardTable', bluffTableCss, 'horizontal-align', /^center$/, 'must center the target/played lane');
-assertCssDeclarationMatches('menu style .BluffDeckTargetCard', bluffTargetCss, 'z-index', /^2$/, 'must keep the target face beneath played cards');
-assertCssDeclarationMatches('menu style .BluffDeckTargetFace', bluffTargetFaceCss, 'border', /pokerNoirGold/, 'must give the target face a noir rank border');
-assertCssDeclarationMatches('menu style .BluffDeckPlayedCards', bluffPlayedCss, 'ignore-parent-flow', /^true$/, 'must overlay played cards without moving the target face');
-assertCssDeclarationMatches('menu style .BluffDeckPlayedCards', bluffPlayedCss, 'width', /^200px$/, 'must keep the centered reveal row within the table');
-assertCssDeclarationMatches('menu style .BluffDeckPlayedCards', bluffPlayedCss, 'align', /^center\s+center$/, 'must keep concealed and revealed cards over the target center');
-assertCssDeclarationMatches('menu style .BluffDeckPlayedCards', bluffPlayedCss, 'z-index', /^[4-9]\d*$/, 'must layer played cards above the target face');
-assertCssDeclarationMatches('menu style .BluffDeckPlayedCard', bluffPlayedCardCss, 'ignore-parent-flow', /^true$/, 'must stack every played card in the same centered lane');
+const bluffTargetCss = cssBlock(menuStyle, '.BluffDeckTargetCard');
+const bluffTargetFaceCss = cssBlockContainingSelector(menuStyle, '.BluffDeckTargetFace');
+const bluffSeatsCss = cssBlock(menuStyle, '.BluffDeckTableSeats');
+
+assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'width', /^69%$/, 'must use the dominant 69% table width');
+assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'height', /^88%$/, 'must share the fixed 88% desktop height');
+assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'align', /^left\s+top$/, 'must anchor the main table at left top');
+assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'margin-left', /^3%$/, 'must use the fixed main left inset');
+assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'margin-top', /^6%$/, 'must share the fixed top inset');
+assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'padding', /^0px$/, 'must keep the main shell edge-to-edge');
+assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'border', /^1px\s+solid\s+pokerNoirGold&55$/, 'must use the subdued brass shell border');
+assertCssDeclarationMatches('menu style .BluffDeckWindow', bluffWindowCss, 'border-top', /^3px\s+solid\s+pokerNoirGold$/, 'must use the gold idle shell accent');
+assertCssDeclarationMatches('menu style .BluffDeckHistoryWindow', bluffHistoryCss, 'width', /^23%$/, 'must use the narrow 23% archive width');
+assertCssDeclarationMatches('menu style .BluffDeckHistoryWindow', bluffHistoryCss, 'height', /^88%$/, 'must share the fixed 88% desktop height');
+assertCssDeclarationMatches('menu style .BluffDeckHistoryWindow', bluffHistoryCss, 'align', /^right\s+top$/, 'must anchor the archive at right top');
+assertCssDeclarationMatches('menu style .BluffDeckHistoryWindow', bluffHistoryCss, 'margin-right', /^3%$/, 'must use the fixed archive right inset');
+assertCssDeclarationMatches('menu style .BluffDeckHistoryWindow', bluffHistoryCss, 'margin-top', /^6%$/, 'must share the fixed top inset');
+assertCssDeclarationMatches('menu style .BluffDeckHistoryWindow', bluffHistoryCss, 'padding', /^14px\s+12px$/, 'must use the compact archive padding');
+assertCssDeclarationMatches('menu style .BluffDeckHistoryWindow', bluffHistoryCss, 'border', /^0px$/, 'must remove the generic floating border');
+assertCssDeclarationMatches('menu style .BluffDeckHistoryWindow', bluffHistoryCss, 'border-left', /^2px\s+solid\s+pokerNoirGold&77$/, 'must use the archive brass rail');
+const mainEdge = Number.parseFloat(cssDeclarationValue(bluffWindowCss, 'margin-left')) + Number.parseFloat(cssDeclarationValue(bluffWindowCss, 'width'));
+const historyEdge = 100 - Number.parseFloat(cssDeclarationValue(bluffHistoryCss, 'margin-right')) - Number.parseFloat(cssDeclarationValue(bluffHistoryCss, 'width'));
+assert(mainEdge === 72 && historyEdge === 74 && historyEdge - mainEdge === 2, 'Bluff main/archive geometry must leave the intentional 2% gap');
+assertCssDeclarationMatches('menu style .BluffDeckTableSurface', bluffSurfaceCss, 'height', /^600px$/, 'must reserve the fixed table surface height');
+assertCssDeclarationMatches('menu style .BluffDeckTableSurface', bluffSurfaceCss, 'margin', /^0px$/, 'must remove inherited table margins');
+assertCssDeclarationMatches('menu style .BluffDeckTableSurface', bluffSurfaceCss, 'padding', /^8px\s+12px$/, 'must use the fixed table surface padding');
+assertCssDeclarationMatches('menu style .BluffDeckCardTable', bluffTableCss, 'width', /^100%$/, 'must fill the main table surface');
+assertCssDeclarationMatches('menu style .BluffDeckCardTable', bluffTableCss, 'height', /^570px$/, 'must keep the felt stage inside the table surface');
+assertCssDeclarationMatches('menu style .BluffDeckFelt', bluffFeltCss, 'width', /^720px$/, 'must use the wide occult felt');
+assertCssDeclarationMatches('menu style .BluffDeckFelt', bluffFeltCss, 'height', /^350px$/, 'must use the shallow occult felt');
+assertCssDeclarationMatches('menu style .BluffDeckFelt', bluffFeltCss, 'border-radius', /^175px$/, 'must use the oval felt radius');
+assertCssDeclarationMatches('menu style .BluffDeckFeltSigil', cssBlock(menuStyle, '.BluffDeckFeltSigil'), 'transform', /^rotateZ\(45deg\)$/, 'must keep the passive brass sigil rotated');
+assertCssDeclarationMatches('menu style .BluffDeckTargetCard', bluffTargetCss, 'width', /^112px$/, 'must use the target card width');
+assertCssDeclarationMatches('menu style .BluffDeckTargetCard', bluffTargetCss, 'height', /^150px$/, 'must use the target card height');
+assertCssDeclarationMatches('menu style .BluffDeckPlayedCards', bluffPlayedCss, 'z-index', /^4$/, 'must layer played cards above the target');
+assertCssDeclarationMatches('menu style .BluffDeckPlayedCard', bluffPlayedCardCss, 'ignore-parent-flow', /^true$/, 'must stack played cards over the target');
+assertCssDeclarationMatches('menu style .BluffDeckCardSlots', bluffSlotsCss, 'width', /^fill-parent-flow\(1\.0\)$/, 'must let the hand occupy the action deck');
+assertCssDeclarationMatches('menu style .BluffDeckCardSlots', bluffSlotsCss, 'horizontal-align', /^left$/, 'must anchor the hand to the action deck left');
+assertCssDeclarationMatches('menu style .BluffDeckCardSlot', bluffSlotCss, 'width', /^72px$/, 'must use the fixed hand-card width');
+assertCssDeclarationMatches('menu style .BluffDeckCardSlot', bluffSlotCss, 'height', /^104px$/, 'must use the fixed hand-card height');
+assertCssDeclarationMatches('menu style .BluffDeckCardSlot', bluffSlotCss, 'margin-right', /^8px$/, 'must separate hand cards without gaps');
+assertCssDeclarationMatches('menu style .BluffDeckCardSlot.Selected', bluffSelectedCss, 'y', /^-6px$/, 'must lift selected hand cards');
+assertCssDeclarationMatches('menu style .BluffDeckCardSlot.Selected', bluffSelectedCss, 'pre-transform-scale2d', /^1\.05$/, 'must scale selected hand cards');
+assertCssDeclarationMatches('menu style .BluffDeckActionDeck', bluffActionDeckCss, 'height', /^170px$/, 'must reserve the fixed action deck height');
+assertCssDeclarationMatches('menu style .BluffDeckActionDeck', bluffActionDeckCss, 'flow-children', /^right$/, 'must place hand and action rail side by side');
+assertCssDeclarationMatches('menu style .BluffDeckActionRail', bluffActionRailCss, 'width', /^360px$/, 'must use the fixed action rail width');
+assertCssDeclarationMatches('menu style .BluffDeckActionControls', bluffActionControlsCss, 'width', /^100%$/, 'must fill the action rail');
+assertMatches('menu style .BluffDeckActionButton', bluffActionButtonCss, /\bwidth\s*:\s*fill-parent-flow\(\s*1(?:\.0)?\s*\)\s*;/, 'must divide the action row');
+assertCssDeclarationMatches('menu style .BluffDeckLifecycleControls', bluffLifecycleCss, 'height', /^48px$/, 'must keep lifecycle controls subordinate');
+assertCssDeclarationMatches('menu style .BluffDeckLifecycleControls', bluffLifecycleCss, 'flow-children', /^right$/, 'must place lifecycle groups inline');
+assertCssDeclarationMatches('menu style .BluffDeckPartyControls', bluffPartyCss, 'width', /^fill-parent-flow\(1\.0\)$/, 'must let party controls occupy the footer');
+assertCssDeclarationMatches('menu style .BluffDeckMatchControls', bluffMatchCss, 'width', /^fit-children$/, 'must keep match controls right-sized');
+assertCssDeclarationMatches('menu style .BluffDeckResultLabel', bluffResultCss, 'white-space', /^normal$/, 'must allow archive result text to wrap');
+assertCssDeclarationMatches('menu style .BluffDeckLog', bluffLogCss, 'overflow', /^squish\s+scroll$/, 'must keep the archive scrollable');
+assertCssDeclarationMatches('menu style .BluffDeckLogRow', bluffLogRowCss, 'min-height', /^34px$/, 'must keep ledger rows readable');
+assertCssDeclarationMatches('menu style .BluffDeckLogRow.Latest', bluffLatestCss, 'border-left', /^2px\s+solid\s+pokerNoirGold$/, 'must mark only the latest ledger row');
+assertCssDeclarationMatches('menu style .BluffDeckTableSeats', bluffSeatsCss, 'ignore-parent-flow', /^true$/, 'must overlay the full Bluff table stage');
+const bluffLeftSeatCss = cssBlockContainingSelector(menuStyle, '.BluffDeckCardTable .PokerTableSeat.SeatLeft');
+const bluffRightSeatCss = cssBlockContainingSelector(menuStyle, '.BluffDeckCardTable .PokerTableSeat.SeatRight');
+const bluffSeatNameCss = cssBlock(menuStyle, '.BluffDeckCardTable .PokerTableSeatName');
+assert(Number.parseFloat(cssDeclarationValue(bluffLeftSeatCss, 'margin-left')) > 0, 'menu style Bluff left seat must stay inside its outer gutter');
+assert(Number.parseFloat(cssDeclarationValue(bluffRightSeatCss, 'margin-right')) > 0, 'menu style Bluff right seat must stay inside its outer gutter');
+assertCssDeclarationMatches('menu style Bluff seat name', bluffSeatNameCss, 'color', /^pokerNoirText$/, 'must keep Bluff seat names on the text token');
+assertCssDeclarationMatches('menu style Bluff seat stack/state', cssBlockContainingSelector(menuStyle, '.BluffDeckCardTable .PokerTableSeatStack'), 'color', /^pokerNoirMuted$/, 'must keep Bluff seat metadata muted');
+const bluffControlButtonCss = cssBlock(menuStyle, '.BluffDeckControlButton');
+assertMatches('menu style .BluffDeckControlButton', bluffControlButtonCss, /\bwidth\s*:\s*112px\s*;/, 'must keep lifecycle buttons compact');
+assertMatches('menu style .BluffDeckControlButton', bluffControlButtonCss, /\bmin-width\s*:\s*0px\s*;/, 'must allow lifecycle controls to fit their row');
+assertMatches('menu style Bluff action final-child rule', menuStyle, /\.BluffDeckActionButton:last-child[\s\S]*?margin-right\s*:\s*0px\s*;/, 'must remove trailing action-row margin from the final action');
 for (let tilt = 0; tilt < 7; tilt += 1) {
   assert(cssBlock(menuStyle, `.BluffDeckPlayedCard.BluffDeckStackTilt${tilt}`), `menu style must define stable public-data played-card tilt ${tilt}`);
 }
@@ -855,64 +871,6 @@ for (const selector of [
 ]) {
   assert(cssBlock(menuStyle, selector), `menu style must define centered side-by-side reveal slot ${selector}`);
 }
-assertCssDeclarationMatches('menu style .BluffDeckCardSlot.Selected', bluffSelectedCss, 'pre-transform-scale2d', /^1\.0?6$/, 'must visibly lift selected hand cards');
-assertCssDeclarationMatches('menu style .BluffDeckCardSlot.Selected', bluffSelectedCss, 'border', /pokerNoirGold/, 'must clearly border selected hand cards');
-const bluffControlButtonCss = cssBlock(menuStyle, '.BluffDeckControlButton');
-const bluffDisabledSlotCss = cssBlock(menuStyle, '.BluffDeckCardSlot.Disabled');
-const bluffSlotArtCss = cssLastBlockContainingSelector(menuStyle, '.BluffDeckCardSlot .PokerCardArt');
-const bluffSlotGlyphCss = cssLastBlock(menuStyle, '.BluffDeckSlotRankGlyph');
-assertCssDeclarationMatches('menu style .BluffDeckCardSlot.Disabled', bluffDisabledSlotCss, 'opacity', /^0\.[3-6]\d?$/, 'must visibly mute cards when selection is unavailable');
-assertCssDeclarationMatches('menu style .BluffDeckCardSlot.Disabled', bluffDisabledSlotCss, 'saturation', /^0(\.0)?$/, 'must desaturate cards when selection is unavailable');
-assertCssDeclarationMatches('menu style .BluffDeckCardSlot .PokerCardArt', bluffSlotArtCss, 'opacity', /^1(\.0)?$/, 'must render card buttons from full-opacity VTex art');
-assertCssDeclarationMatches('menu style .BluffDeckSlotRankGlyph', bluffSlotGlyphCss, 'opacity', /^0(\.0)?$/, 'must keep text glyph behind the card artwork');
-assert(bluffControlButtonCss, 'menu style must define .BluffDeckControlButton');
-const bluffLeftSeatTextCss = cssLastBlockContainingSelector(menuStyle, '.BluffDeckCardTable .PokerTableSeat.SeatLeft .PokerTableSeatText');
-const bluffRightSeatTextCss = cssLastBlockContainingSelector(menuStyle, '.BluffDeckCardTable .PokerTableSeat.SeatRight .PokerTableSeatText');
-const bluffSeatNameCss = cssLastBlock(menuStyle, '.BluffDeckCardTable .PokerTableSeatName');
-assertCssDeclarationMatches('menu style Bluff left seat text', bluffLeftSeatTextCss, 'width', /^130px$/, 'must reserve avatar space instead of overlapping it');
-assertCssDeclarationMatches('menu style Bluff left seat text', bluffLeftSeatTextCss, 'margin-right', /^36px$/, 'must leave a fixed gap before the avatar');
-assertCssDeclarationMatches('menu style Bluff right seat text', bluffRightSeatTextCss, 'width', /^130px$/, 'must reserve avatar space instead of overlapping it');
-assertCssDeclarationMatches('menu style Bluff right seat text', bluffRightSeatTextCss, 'margin-left', /^36px$/, 'must leave a fixed gap after the avatar');
-assertCssDeclarationMatches('menu style Bluff seat name', bluffSeatNameCss, 'text-overflow', /^shrink$/, 'must fit long player names inside reserved text width');
-assertMatches(
-  'menu style .BluffDeckControlButton',
-  bluffControlButtonCss,
-  /\bwidth\s*:\s*fill-parent-flow\(\s*1(?:\.0)?\s*\)\s*;/,
-  'must divide each horizontal Bluff control row without full-width overlap',
-);
-assertMatches(
-  'menu style .BluffDeckControlButton',
-  bluffControlButtonCss,
-  /\bmin-width\s*:\s*0px\s*;/,
-  'must allow Bluff controls to fit their row instead of overflowing adjacent buttons',
-);
-const bluffActionButtonCss = cssBlockContainingSelector(menuStyle, '.BluffDeckActionButton');
-assert(bluffActionButtonCss, 'menu style must define .BluffDeckActionButton');
-assertMatches(
-  'menu style .BluffDeckActionButton',
-  bluffActionButtonCss,
-  /\bwidth\s*:\s*fill-parent-flow\(\s*1(?:\.0)?\s*\)\s*;/,
-  'must keep action buttons inside their shared row',
-);
-assertMatches(
-  'menu style .BluffDeckActionButton',
-  bluffActionButtonCss,
-  /\bmin-width\s*:\s*0px\s*;/,
-  'must allow action buttons to shrink without owning the row',
-);
-const bluffActionLabelCss = cssBlockContainingSelector(menuStyle, '.BluffDeckActionButton Label');
-assertMatches(
-  'menu style .BluffDeckActionButton Label',
-  bluffActionLabelCss,
-  /\bwhite-space\s*:\s*nowrap\s*;/,
-  'must keep Bluff action labels on one line',
-);
-assertMatches(
-  'menu style Bluff action final-child rule',
-  menuStyle,
-  /\.BluffDeckActionButton:last-child[\s\S]*?margin-right\s*:\s*0px\s*;/,
-  'must remove trailing action-row margin from the final action',
-);
 const lobbyWindowLayout = sourceSliceBetweenIds(menuLayout, 'PokerLobbyWindow', 'PokerTableWindow');
 const playersWindowLayout = sourceSliceBetweenIds(menuLayout, 'PokerPlayersWindow', 'PokerHistoryWindow');
 const historyWindowLayout = sourceSliceBetweenIds(menuLayout, 'PokerHistoryWindow', 'PokerActionsWindow');

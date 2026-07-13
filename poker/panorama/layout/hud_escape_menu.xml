@@ -104,6 +104,12 @@
 		<Panel id="BluffDeckWindow" class="BluffDeckWindow PokerFloatingWindow" hittest="true">
 			<Panel class="PokerTableHeader BluffDeckMainHeader">
 				<Label id="BluffDeckHeaderLabel" class="PokerPhaseLabel BluffDeckHeaderLabel" text="BLUFF DECK" />
+				<Button id="BluffDeckBackButton" class="PokerHeaderBackButton BluffDeckBackButton" onactivate="PokerEscapeMenuBackToPicker()">
+					<Label text="BACK" />
+				</Button>
+				<Button id="BluffDeckCloseButton" class="PokerIconButton BluffDeckCloseButton" onactivate="PokerEscapeMenuClose()">
+					<Label text="×" />
+				</Button>
 			</Panel>
 			<Panel id="BluffDeckAnnouncementOverlay" class="PokerAnnouncerOverlay BluffDeckAnnouncementOverlay">
 				<Label id="BluffDeckAnnouncementTitle" class="PokerAnnouncerTitle BluffDeckAnnouncementTitle" text="BLUFF DECK" />
@@ -112,6 +118,7 @@
 			<Panel id="BluffDeckTableSurface" class="PokerTableSurface BluffDeckTableSurface">
 				<Panel id="BluffDeckCardTable" class="PokerTableStage BluffDeckCardTable">
 					<Panel class="PokerTableFelt BluffDeckFelt">
+						<Panel class="BluffDeckFeltSigil" hittest="false" />
 						<Panel id="BluffDeckTargetCard" class="BluffDeckTargetCard">
 							<Panel class="BluffDeckTargetFace PokerCardContents">
 								<Label class="BluffDeckTargetFallback" text="TARGET CARD" />
@@ -127,61 +134,7 @@
 					<Panel id="BluffDeckTableSeats" class="PokerTableSeats BluffDeckTableSeats PokerHidden" />
 				</Panel>
 			</Panel>
-			<Button id="BluffDeckBackButton" class="PokerHeaderBackButton BluffDeckBackButton" onactivate="PokerEscapeMenuBackToPicker()">
-				<Label text="BACK" />
-			</Button>
-			<Button id="BluffDeckCloseButton" class="PokerIconButton BluffDeckCloseButton" onactivate="PokerEscapeMenuClose()">
-				<Label text="×" />
-			</Button>
-		</Panel>
-		<Panel id="BluffDeckPlayersWindow" class="BluffDeckPlayersWindow PokerFloatingWindow" hittest="true">
-			<Panel class="PokerFloatingHeader">
-				<Panel class="PokerTableTitleBlock">
-					<Label class="PokerAnitaEyebrow" text="ROSTER" />
-					<Label class="PokerWindowTitleSmall" text="Bluff seats" />
-				</Panel>
-			</Panel>
-			<Panel class="PokerSideSection BluffDeckRosterSection">
-				<Label class="PokerSideSectionLabel" text="PLAYERS" />
-				<Panel id="BluffDeckOpponentList" class="BluffDeckOpponentList" />
-			</Panel>
-			<Panel id="BluffDeckLifecycleControls" class="BluffDeckLifecycleControls">
-				<Panel id="BluffDeckPartyControls" class="BluffDeckPartyControls">
-					<Button id="BluffDeckHostButton" class="PokerPrimaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuHostParty()">
-						<Label text="HOST" />
-					</Button>
-					<Button id="BluffDeckJoinButton" class="PokerSecondaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuJoinParty()">
-						<Label text="JOIN" />
-					</Button>
-					<Button id="BluffDeckLeaveButton" class="PokerSecondaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuLeaveLobby()">
-						<Label text="LEAVE" />
-					</Button>
-				</Panel>
-				<Panel id="BluffDeckMatchControls" class="BluffDeckMatchControls">
-					<Button id="BluffDeckStartButton" class="PokerPrimaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuBluffStart()">
-						<Label text="START BLUFF" />
-					</Button>
-					<Button id="BluffDeckEndButton" class="PokerSecondaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuBluffEnd()">
-						<Label text="END" />
-					</Button>
-				</Panel>
-			</Panel>
-		</Panel>
-		<Panel id="BluffDeckHistoryWindow" class="BluffDeckHistoryWindow PokerFloatingWindow" hittest="false">
-			<Panel class="PokerFloatingHeader">
-				<Panel class="PokerTableTitleBlock">
-					<Label class="PokerAnitaEyebrow" text="FEED" />
-					<Label class="PokerWindowTitleSmall" text="Bluff history" />
-				</Panel>
-			</Panel>
-			<Panel class="PokerSideSection BluffDeckHistorySection">
-				<Label class="PokerSideSectionLabel" text="RESULT" />
-				<Label id="BluffDeckResultLabel" class="BluffDeckResultLabel" text="" />
-				<Panel id="BluffDeckLog" class="BluffDeckLog" />
-			</Panel>
-		</Panel>
-		<Panel id="BluffDeckActionsWindow" class="BluffDeckActionsWindow PokerFloatingWindow" hittest="true">
-			<Panel class="PokerTableActionButtonsRow BluffDeckActionRow">
+			<Panel class="BluffDeckActionDeck">
 				<Panel id="BluffDeckCardSlots" class="BluffDeckCardSlots">
 					<Button id="BluffDeckSlot0" class="BluffDeckCardSlot" onactivate="PokerEscapeMenuSelectBluffSlot( 0 )">
 						<Panel class="BluffDeckSlotContents PokerCardContents">
@@ -210,7 +163,6 @@
 					</Button>
 				</Panel>
 				<Panel class="BluffDeckActionRail">
-					<Label id="BluffDeckHandLabel" class="BluffDeckHandLabel" text="" />
 					<Label id="BluffDeckActionLabel" class="PokerStatusLabel BluffDeckActionLabel" text="WAITING" />
 					<Panel id="BluffDeckActionControls" class="BluffDeckActionControls">
 						<Button id="BluffDeckPlayButton" class="PokerPrimaryButton BluffDeckActionButton" onactivate="PokerEscapeMenuBluffPlay()">
@@ -220,10 +172,44 @@
 							<Label text="LIE" />
 						</Button>
 					</Panel>
+					<Label id="BluffDeckPendingLabel" class="BluffDeckPendingLabel" text="" />
+					<Label id="BluffDeckStatusLabel" class="PokerStatusLabel BluffDeckStatusLabel" text="Host or join a party to begin." />
 				</Panel>
 			</Panel>
-			<Label id="BluffDeckPendingLabel" class="BluffDeckPendingLabel" text="" />
-			<Label id="BluffDeckStatusLabel" class="PokerStatusLabel BluffDeckStatusLabel" text="Host or join a party to begin." />
+			<Panel id="BluffDeckLifecycleControls" class="BluffDeckLifecycleControls">
+				<Panel id="BluffDeckPartyControls" class="BluffDeckPartyControls">
+					<Button id="BluffDeckHostButton" class="PokerPrimaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuHostParty()">
+						<Label text="HOST" />
+					</Button>
+					<Button id="BluffDeckJoinButton" class="PokerSecondaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuJoinParty()">
+						<Label text="JOIN" />
+					</Button>
+					<Button id="BluffDeckLeaveButton" class="PokerSecondaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuLeaveLobby()">
+						<Label text="LEAVE" />
+					</Button>
+				</Panel>
+				<Panel id="BluffDeckMatchControls" class="BluffDeckMatchControls">
+					<Button id="BluffDeckStartButton" class="PokerPrimaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuBluffStart()">
+						<Label text="START BLUFF" />
+					</Button>
+					<Button id="BluffDeckEndButton" class="PokerSecondaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuBluffEnd()">
+						<Label text="END" />
+					</Button>
+				</Panel>
+			</Panel>
+		</Panel>
+		<Panel id="BluffDeckHistoryWindow" class="BluffDeckHistoryWindow PokerFloatingWindow" hittest="false">
+			<Panel class="PokerFloatingHeader">
+				<Panel class="PokerTableTitleBlock">
+					<Label class="PokerAnitaEyebrow" text="ARCHIVE" />
+					<Label class="PokerWindowTitleSmall" text="PAST 12 TURNS" />
+				</Panel>
+			</Panel>
+			<Panel class="PokerSideSection BluffDeckHistorySection">
+				<Label class="PokerSideSectionLabel" text="RESULT" />
+				<Label id="BluffDeckResultLabel" class="BluffDeckResultLabel" text="" />
+				<Panel id="BluffDeckLog" class="BluffDeckLog" />
+			</Panel>
 		</Panel>
 		<Panel id="PokerAnitaPanel" class="PokerAnitaPanel PokerHidden" hittest="false" />
 		<Panel id="PokerLobbyWindow" class="PokerFloatingWindow PokerLobbyWindow" hittest="true">

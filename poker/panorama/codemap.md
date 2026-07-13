@@ -8,7 +8,7 @@ Source Panorama surface for the Poker ESC-menu mod. This subtree owns the runtim
 
 - **Two-context Panorama architecture:** `layout/hud_escape_menu.xml` loads the poker menu runtime (`scripts/poker_escape_menu.js`) into the ESC menu context; `layout/chat.xml` loads the chat bridge (`scripts/poker_chat_debug.js`) into the stock chat context.
 - **Chat as transport:** no server or direct client API exists. Menu buttons send stock team/party chat; the chat context polls stock rows and replays normalized records through `ClientUI_FireOutput`.
-- **State projection:** `poker_escape_menu.js` owns state, rules, reducer, button policy, progress/resume logic, and renderers. Poker uses shared row/card presenters; Bluff Deck builds a pure `BluffDeckViewModel` and projects keyed roster, feed, and played-card rows into four sibling surfaces with semantic announcement/control states. Layout supplies stable IDs, CSS supplies class-based visuals, and assets supply logical `.vtex` card images.
+- **State projection:** `poker_escape_menu.js` owns state, rules, reducer, button policy, progress/resume logic, and renderers. Poker uses shared row/card presenters; Bluff Deck builds a pure `BluffDeckViewModel` and projects seats as the only player roster on the dominant table, plus a latest-twelve-turn archive ledger, with semantic announcement/control states. Layout supplies stable IDs, CSS supplies class-based visuals, and assets supply logical `.vtex` card images.
 - **Source-only tree:** authorable XML/JS/CSS/PNG/VTEX lives here. Compiled `.vxml_c`, `.vjs_c`, `.vcss_c`, `.vtex_c`, VPKs, and staged pak folders are generated outside this source tree.
 
 ## Directory Map
