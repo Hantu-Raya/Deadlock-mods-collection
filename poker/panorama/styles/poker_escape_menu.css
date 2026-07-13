@@ -2357,14 +2357,19 @@
 	width: fill-parent-flow(1.0);
 	color: offWhite;
 	font-family: block;
-	font-size: 20px;
+	font-size: 22px;
 	font-weight: bold;
-	line-height: 22px;
+	line-height: 24px;
 	letter-spacing: 1px;
 	text-align: left;
 	text-transform: uppercase;
 	vertical-align: center;
 }
+.BluffDeckMainHeader .PokerHeaderBackButton Label
+{
+	font-size: 14px;
+}
+
 
 .BluffDeckAnnouncementOverlay
 {
@@ -2405,15 +2410,15 @@
 .BluffDeckAnnouncementTitle
 {
 	font-family: block;
-	font-size: 14px;
-	line-height: 16px;
+	font-size: 16px;
+	line-height: 17px;
 }
 
 .BluffDeckAnnouncementBody
 {
 	font-family: sans;
-	font-size: 11px;
-	line-height: 14px;
+	font-size: 13px;
+	line-height: 15px;
 	white-space: normal;
 }
 
@@ -2700,6 +2705,13 @@
 	margin-right: 0px;
 	margin-bottom: -90px;
 }
+.BluffDeckCardTable .PokerTableSeat.SeatBottom
+{
+	horizontal-align: center;
+	vertical-align: bottom;
+	margin-bottom: -90px;
+}
+
 
 .BluffDeckCardTable .PokerTableSeat.SeatBottomLeft
 {
@@ -2745,13 +2757,22 @@
 
 .BluffDeckCardTable .PokerTableSeatAvatar
 {
+	width: 32px;
+	height: 32px;
 	z-index: 4;
+}
+
+.BluffDeckCardTable .PokerTableSeatAvatar Label
+{
+	font-size: 13px;
 }
 
 .BluffDeckCardTable .PokerTableSeatName
 {
 	width: 100%;
 	color: pokerNoirText;
+	font-size: 16px;
+	line-height: 18px;
 	white-space: nowrap;
 	text-overflow: shrink;
 }
@@ -2759,21 +2780,23 @@
 .BluffDeckCardTable .PokerTableSeatStack,.BluffDeckCardTable .PokerTableSeatState
 {
 	color: pokerNoirMuted;
+	font-size: 13px;
+	line-height: 15px;
 }
 
-.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatMetaRow,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatMetaRow
+.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatMetaRow,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatMetaRow,.BluffDeckCardTable .PokerTableSeat.SeatBottom .PokerTableSeatMetaRow
 {
 	width: 100%;
 	min-height: 44px;
 }
 
-.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatAvatar,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatAvatar
+.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatAvatar,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatAvatar,.BluffDeckCardTable .PokerTableSeat.SeatBottom .PokerTableSeatAvatar
 {
 	horizontal-align: center;
 	margin-right: 0px;
 }
 
-.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatText,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatText
+.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatText,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatText,.BluffDeckCardTable .PokerTableSeat.SeatBottom .PokerTableSeatText
 {
 	width: 100%;
 	margin-left: 0px;
@@ -2781,14 +2804,14 @@
 	horizontal-align: center;
 }
 
-.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatCards,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatCards
+.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatCards,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatCards,.BluffDeckCardTable .PokerTableSeat.SeatBottom .PokerTableSeatCards
 {
 	horizontal-align: center;
 	margin-left: 0px;
 	margin-right: 0px;
 }
 
-.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatName,.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatStack,.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatState,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatName,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatStack,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatState
+.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatName,.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatStack,.BluffDeckCardTable .PokerTableSeat.SeatTopLeft .PokerTableSeatState,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatName,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatStack,.BluffDeckCardTable .PokerTableSeat.SeatBottomRight .PokerTableSeatState,.BluffDeckCardTable .PokerTableSeat.SeatBottom .PokerTableSeatName,.BluffDeckCardTable .PokerTableSeat.SeatBottom .PokerTableSeatStack,.BluffDeckCardTable .PokerTableSeat.SeatBottom .PokerTableSeatState
 {
 	horizontal-align: center;
 	text-align: center;
@@ -2951,6 +2974,7 @@
 	margin-bottom: 4px;
 	color: pokerNoirText;
 	font-family: block;
+	font-size: 14px;
 	font-weight: bold;
 	letter-spacing: 1px;
 	text-align: center;
@@ -2979,6 +3003,7 @@
 {
 	width: 100%;
 	white-space: nowrap;
+	font-size: 13px;
 }
 
 .BluffDeckChallengeButton.Eligible
@@ -2992,7 +3017,7 @@
 	margin-top: 6px;
 	color: pokerNoirAmber;
 	font-family: sans;
-	font-size: 12px;
+	font-size: 13px;
 }
 
 
@@ -3056,14 +3081,14 @@
 
 .BluffDeckHistorySection .PokerAnitaEyebrow
 {
-	font-size: 11px;
+	font-size: 13px;
 	color: pokerNoirGold;
 }
 
 .BluffDeckHistorySection .PokerWindowTitleSmall
 {
 	font-family: block;
-	font-size: 19px;
+	font-size: 22px;
 }
 
 .BluffDeckResultLabel
@@ -3074,8 +3099,8 @@
 	padding-bottom: 8px;
 	color: offWhite;
 	font-family: sans;
-	font-size: 13px;
-	line-height: 18px;
+	font-size: 14px;
+	line-height: 20px;
 	white-space: normal;
 	border-bottom: 1px solid pokerNoirLine;
 }
@@ -3100,8 +3125,8 @@
 	padding: 8px 0px;
 	color: pokerNoirMuted;
 	font-family: sans;
-	font-size: 12px;
-	line-height: 16px;
+	font-size: 13px;
+	line-height: 18px;
 	border-bottom: 1px solid pokerNoirLine&55;
 }
 
@@ -3119,7 +3144,7 @@
 	margin-bottom: 4px;
 	color: pokerNoirMuted;
 	font-family: sans;
-	font-size: 13px;
+	font-size: 15px;
 }
 
 .BluffDeckPreviousPlayLabel
