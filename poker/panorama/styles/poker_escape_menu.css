@@ -2770,11 +2770,12 @@
 {
 	font-size: 13px;
 }
-.BluffDeckCardTable .PokerTableSeat.SeatLeft .PokerTableSeatAvatar,.BluffDeckCardTable .PokerTableSeat.SeatRight .PokerTableSeatAvatar,.BluffDeckCardTable .PokerTableSeat.SeatTopRight .PokerTableSeatAvatar,.BluffDeckCardTable .PokerTableSeat.SeatBottomLeft .PokerTableSeatAvatar
+.BluffDeckCardTable .PokerTableSeat.SeatLeft .PokerTableSeatMetaRow,.BluffDeckCardTable .PokerTableSeat.SeatBottomLeft .PokerTableSeatMetaRow,.BluffDeckCardTable .PokerTableSeat.SeatRight .PokerTableSeatMetaRow,.BluffDeckCardTable .PokerTableSeat.SeatTopRight .PokerTableSeatMetaRow
 {
-	ignore-parent-flow: false;
-	horizontal-align: left;
-	margin-right: 6px;
+	width: 150px;
+	min-height: 44px;
+	flow-children: none;
+	overflow: noclip;
 }
 
 .BluffDeckCardTable .PokerTableSeat.SeatLeft .PokerTableSeatCards,.BluffDeckCardTable .PokerTableSeat.SeatRight .PokerTableSeatCards,.BluffDeckCardTable .PokerTableSeat.SeatTopRight .PokerTableSeatCards,.BluffDeckCardTable .PokerTableSeat.SeatBottomLeft .PokerTableSeatCards
@@ -2824,7 +2825,8 @@
 .BluffDeckCardTable .PokerTableSeat.SeatLeft .PokerTableSeatAvatar,.BluffDeckCardTable .PokerTableSeat.SeatBottomLeft .PokerTableSeatAvatar
 {
 	ignore-parent-flow: true;
-	horizontal-align: right;
+	horizontal-align: left;
+	x: 118px;
 	margin-right: 0px;
 }
 
@@ -2832,6 +2834,26 @@
 {
 	ignore-parent-flow: true;
 	width: 112px;
+	x: 0px;
+	margin-left: 0px;
+	margin-right: 0px;
+	horizontal-align: left;
+	overflow: noclip;
+}
+
+.BluffDeckCardTable .PokerTableSeat.SeatRight .PokerTableSeatAvatar,.BluffDeckCardTable .PokerTableSeat.SeatTopRight .PokerTableSeatAvatar
+{
+	ignore-parent-flow: true;
+	horizontal-align: left;
+	x: 0px;
+	margin-right: 0px;
+}
+
+.BluffDeckCardTable .PokerTableSeat.SeatRight .PokerTableSeatText,.BluffDeckCardTable .PokerTableSeat.SeatTopRight .PokerTableSeatText
+{
+	ignore-parent-flow: true;
+	width: 112px;
+	x: 38px;
 	margin-left: 0px;
 	margin-right: 0px;
 	horizontal-align: left;
@@ -2865,21 +2887,21 @@
 	transform: rotateZ(270deg);
 }
 
-.BluffDeckCardTable .PokerTableTurnArrow.SeatTopRight
+.BluffDeckCardTable .PokerTableTurnArrow.SeatTopRight,.BluffDeckCardTable .PokerTableTurnArrow.SeatRight
 {
 	x: 165px;
 	y: 0px;
 	transform: rotateZ(0deg);
 }
 
-.BluffDeckCardTable .PokerTableTurnArrow.SeatBottomRight
+.BluffDeckCardTable .PokerTableTurnArrow.SeatBottomRight,.BluffDeckCardTable .PokerTableTurnArrow.SeatBottom
 {
 	x: 0px;
 	y: 165px;
 	transform: rotateZ(90deg);
 }
 
-.BluffDeckCardTable .PokerTableTurnArrow.SeatBottomLeft
+.BluffDeckCardTable .PokerTableTurnArrow.SeatBottomLeft,.BluffDeckCardTable .PokerTableTurnArrow.SeatLeft
 {
 	x: -165px;
 	y: 0px;
