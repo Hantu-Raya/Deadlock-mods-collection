@@ -61,7 +61,7 @@ The poker menu sender sets `#ChatInput.text`, dispatches `CitadelChatInputSubmit
 1. The ESC context loads `poker_escape_menu.vjs_c`; script export happens before `boot()` unless `globalThis.__PokerTestMode` is set.
 2. `boot()` calls `cachePanels()`, resolving the contract IDs listed above, then registers `ClientUI_FireOutput` with `handleBridgeEvent` once required panels exist.
 3. Opening Poker through `#PokerMenuButton` toggles `#PokerAnitaPanel` and the floating windows. The script requests fresh ready/chat state, refreshes seats, and calls `renderGame()`.
-4. `renderGame()` projects Poker into its lobby/table/players/history/actions containers. When Bluff Deck is selected, it builds `BluffDeckViewModel` and projects exactly two windows: `#BluffDeckWindow` (flat circular felt, seats-as-roster, cards, centered action deck, lifecycle footer, and announcement) and `#BluffDeckHistoryWindow` (archive result and latest-twelve-turn ledger).
+4. `renderGame()` projects Poker into its lobby/table/players/history/actions containers. When Bluff Deck is selected, it builds `BluffDeckViewModel` and projects exactly two windows: `#BluffDeckWindow` (flat compact circular felt, cardinal edge seats-as-roster, reduced cards, centered action deck, lifecycle footer, and announcement) and `#BluffDeckHistoryWindow` (archive result and latest-twelve-turn ledger).
 5. Runtime-created child panels use classes such as `PokerSeatRow`, `PokerPlayerRow`, `PokerTableSeat`, `PokerCard`, `PokerActionButton`, `BluffDeckLogRow`, and `BluffDeckPlayedCard`; Bluff seats are the only player-list presentation and XML owns only stable parent containers.
 
 ### Chat bridge flow (`chat.xml`)
