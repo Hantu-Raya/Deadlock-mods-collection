@@ -2675,7 +2675,7 @@
 
 .BluffDeckTableSeats
 {
-	width: 600px;
+	width: 640px;
 	height: 460px;
 	align: center center;
 	ignore-parent-flow: true;
@@ -2833,8 +2833,9 @@
 	ignore-parent-flow: true;
 	width: 112px;
 	margin-left: 0px;
-	margin-right: 38px;
+	margin-right: 0px;
 	horizontal-align: left;
+	overflow: noclip;
 }
 
 
@@ -3102,12 +3103,17 @@
 
 .BluffDeckControlButton
 {
-	width: 120px;
+	width: 112px;
 	min-width: 0px;
-	margin-right: 4px;
+	margin-right: 6px;
 	height: 40px;
 	margin-top: 0px;
 }
+.PokerPrimaryButton.BluffDeckControlButton
+{
+	width: 156px;
+}
+
 
 .BluffDeckControlButton:last-child
 {
