@@ -2502,7 +2502,7 @@
 {
 	width: 42px;
 	height: 42px;
-	opacity: 0.48;
+	opacity: 0.92;
 	z-index: 2;
 }
 
@@ -2825,8 +2825,7 @@
 .BluffDeckCardTable .PokerTableSeat.SeatLeft .PokerTableSeatAvatar,.BluffDeckCardTable .PokerTableSeat.SeatBottomLeft .PokerTableSeatAvatar
 {
 	ignore-parent-flow: true;
-	horizontal-align: left;
-	x: 118px;
+	horizontal-align: right;
 	margin-right: 0px;
 }
 
@@ -2834,7 +2833,6 @@
 {
 	ignore-parent-flow: true;
 	width: 112px;
-	x: 0px;
 	margin-left: 0px;
 	margin-right: 0px;
 	horizontal-align: left;
@@ -2845,7 +2843,6 @@
 {
 	ignore-parent-flow: true;
 	horizontal-align: left;
-	x: 0px;
 	margin-right: 0px;
 }
 
@@ -2853,10 +2850,9 @@
 {
 	ignore-parent-flow: true;
 	width: 112px;
-	x: 38px;
 	margin-left: 0px;
 	margin-right: 0px;
-	horizontal-align: left;
+	horizontal-align: right;
 	overflow: noclip;
 }
 
@@ -2883,13 +2879,13 @@
 .BluffDeckCardTable .PokerTableTurnArrow.SeatTopLeft
 {
 	x: 0px;
-	y: -165px;
+	y: -150px;
 	transform: rotateZ(270deg);
 }
 
 .BluffDeckCardTable .PokerTableTurnArrow.SeatTopRight,.BluffDeckCardTable .PokerTableTurnArrow.SeatRight
 {
-	x: 165px;
+	x: 150px;
 	y: 0px;
 	transform: rotateZ(0deg);
 }
@@ -2897,13 +2893,13 @@
 .BluffDeckCardTable .PokerTableTurnArrow.SeatBottomRight,.BluffDeckCardTable .PokerTableTurnArrow.SeatBottom
 {
 	x: 0px;
-	y: 165px;
+	y: 150px;
 	transform: rotateZ(90deg);
 }
 
 .BluffDeckCardTable .PokerTableTurnArrow.SeatBottomLeft,.BluffDeckCardTable .PokerTableTurnArrow.SeatLeft
 {
-	x: -165px;
+	x: -150px;
 	y: 0px;
 	transform: rotateY(180deg);
 }
@@ -2983,6 +2979,13 @@
 	opacity: 1;
 	z-index: 2;
 }
+.BluffDeckSlotContents .PokerCardVtexArt
+{
+	width: 52px;
+	height: 52px;
+	opacity: 0.92;
+}
+
 
 .BluffDeckCardSlot:hover
 {
@@ -2994,19 +2997,24 @@
 
 .BluffDeckCardSlot.Selected
 {
-	y: -6px;
-	pre-transform-scale2d: 1.05;
-	border: 2px solid pokerNoirGold;
+	y: -8px;
+	pre-transform-scale2d: 1.06;
+	border: 3px solid pokerNoirSoul;
+	brightness: 1.18;
 	box-shadow: none;
 	z-index: 8;
 }
+.BluffDeckCardSlot.Selected .PokerCardVtexArt
+{
+	opacity: 1;
+}
+
 
 .BluffDeckCardSlot.Disabled
 {
-	opacity: 0.48;
-	saturation: 0;
-	brightness: 0.55;
-	wash-color: pokerNoirMuted;
+	opacity: 0.78;
+	saturation: 0.65;
+	brightness: 0.80;
 }
 
 .BluffDeckCardSlot.Disabled:hover
@@ -3061,8 +3069,11 @@
 .BluffDeckActionButton Label,.BluffDeckControlButton Label
 {
 	width: 100%;
+	height: 100%;
+	align: center center;
 	white-space: nowrap;
 	font-size: 13px;
+	text-align: center;
 }
 
 .BluffDeckChallengeButton.Eligible

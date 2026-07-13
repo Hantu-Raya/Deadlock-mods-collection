@@ -123,7 +123,7 @@ Important layout IDs cached in `IDS` and consumed by renderers/buttons:
 Renderer invariants:
 
 - `PokerPlayersList` is the full roster/player list; `PokerTableSeats` is the compact table-edge projection capped by `TABLE_EDGE_SEAT_LIMIT` with overflow label.
-- Cards render rank/suit text plus `PokerCardVtexArt` image panels from logical `.vtex` assets; active hands reveal only local hole cards, inactive/showdown/resume roster views reveal as allowed by `shouldRevealPlayerCards()`.
+- Cards render rank/suit text plus `PokerCardVtexArt` image panels from logical `.vtex` assets; active hands reveal only local hole cards, inactive/showdown/resume roster views reveal as allowed by `shouldRevealPlayerCards()`. Bluff reuses retained target/slot art panels and must clear both the shared `PokerHidden` class and the card-local `Hidden` class when a rank becomes valid.
 - `renderProgressControls()` applies progress/resume button state and always rerenders `PokerResumeLeaderList` when imported progress exists.
 
 ## Integration Points

@@ -6441,7 +6441,7 @@
       State.renderCache.bluffTargetRank = createLabel(face, "PokerCardRank", "");
       State.renderCache.bluffTargetArt = createCardArt(face, target ? { rank: target } : null);
     }
-    setText(State.renderCache.bluffTargetRank, target || "?");
+    setText(State.renderCache.bluffTargetRank, target || "?"); setPanelClass(State.renderCache.bluffTargetRank, CLASSES.hidden, !!target); setPanelClass(State.renderCache.bluffTargetArt, "Hidden", !target);
     setImageSource(bluffPanelChild(State.renderCache.bluffTargetArt, 0), target ? getCardImageSrc({ rank: target }) : "");
   }
   function bluffSlotContents(button) {
@@ -6700,7 +6700,7 @@
       const contents = bluffSlotContents(button);
       State.renderCache.bluffSlotArts = State.renderCache.bluffSlotArts || [];
       const art = State.renderCache.bluffSlotArts[i] || (State.renderCache.bluffSlotArts[i] = createCardArt(contents || button, slot.rank ? { rank: slot.rank } : null));
-      setPanelClass(art, CLASSES.hidden, !slot.valid);
+      setPanelClass(art, CLASSES.hidden, !slot.valid); setPanelClass(art, "Hidden", !slot.valid);
       setImageSource(bluffPanelChild(art, 0), slot.rank ? getCardImageSrc({ rank: slot.rank }) : "");
       setText(glyph, slot.valid ? slot.rank : "");
       setPanelClass(glyph, CLASSES.hidden, !slot.valid);
