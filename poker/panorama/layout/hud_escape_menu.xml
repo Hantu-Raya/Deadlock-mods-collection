@@ -176,6 +176,14 @@
 			</Panel>
 			<Panel id="BluffDeckLifecycleControls" class="BluffDeckLifecycleControls">
 				<Panel class="BluffDeckLifecycleInner">
+					<Panel id="BluffDeckMatchControls" class="BluffDeckMatchControls">
+						<Button id="BluffDeckStartButton" class="PokerPrimaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuBluffStart()">
+							<Label text="START BLUFF" />
+						</Button>
+						<Button id="BluffDeckEndButton" class="PokerSecondaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuBluffEnd()">
+							<Label text="END" />
+						</Button>
+					</Panel>
 					<Panel id="BluffDeckPartyControls" class="BluffDeckPartyControls">
 						<Button id="BluffDeckHostButton" class="PokerPrimaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuHostParty()">
 							<Label text="HOST" />
@@ -185,14 +193,6 @@
 						</Button>
 						<Button id="BluffDeckLeaveButton" class="PokerSecondaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuLeaveLobby()">
 							<Label text="LEAVE" />
-						</Button>
-					</Panel>
-					<Panel id="BluffDeckMatchControls" class="BluffDeckMatchControls">
-						<Button id="BluffDeckStartButton" class="PokerPrimaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuBluffStart()">
-							<Label text="START BLUFF" />
-						</Button>
-						<Button id="BluffDeckEndButton" class="PokerSecondaryButton BluffDeckControlButton" onactivate="PokerEscapeMenuBluffEnd()">
-							<Label text="END" />
 						</Button>
 					</Panel>
 				</Panel>
