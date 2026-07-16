@@ -8,17 +8,31 @@
 
 const fs = require('fs');
 const path = require('path');
+const {
+  HP_COLORS_LANE_CONTRACT,
+  HP_EXPECTED_LOOP_REASONS,
+  checkFullSettingsContract,
+  checkFunctionDeclarationCap,
+  checkLevelTierCssParity,
+  checkLoopReasonContract,
+  checkObjectInterface,
+  checkRuntimePanelIds,
+} = require('../../scripts/hp-colors-validator-contract.js');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const SCRIPTS_DIR = path.join(ROOT, 'hp_colors', 'panorama', 'scripts');
 const STYLES_DIR = path.join(ROOT, 'hp_colors', 'panorama', 'styles');
 const LAYOUTS_DIR = path.join(ROOT, 'hp_colors', 'panorama', 'layout');
 const MAX_HEALTHBAR_RUNTIME_FUNCTIONS = 95;
+const EXPECTED_HP_COLORS_SETTING_COUNT = HP_COLORS_LANE_CONTRACT.full.expectedCount;
 const ALLOWED_RUNTIME_PANEL_IDS = new Set([
   'UnitStatus',
   'InfoHealthContainer',
   'UnitHealthbarContainer',
   'unit_healthbar_lagging',
+  'unit_healthbar_healing',
+  'unit_healthbar_delta',
+  'unit_healthbar_bullet_shield',
   'unit_healthbar_bg',
   'unit_healthbar_pip_label',
   'unit_ult_ready_icon',
@@ -48,254 +62,7 @@ function extractPanoramaScriptIncludes(text) {
   return Array.from(text.matchAll(/scripts\/([^"']+\.vjs_c)/g), match => match[1]).sort();
 }
 
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
-function extractAssignedString(text, name) {
-  const match = text.match(new RegExp('(?:const|var)\\s+' + escapeRegExp(name) + '\\s*=\\s*"([^"]+)"'));
-  return match ? match[1] : null;
-}
-
-function extractProtocolString(text, propertyName) {
-  const direct = text.match(new RegExp(escapeRegExp(propertyName) + '\\s*:\\s*"([^"]+)"'));
-  if (direct) return direct[1];
-  const ref = text.match(new RegExp(escapeRegExp(propertyName) + '\\s*:\\s*([A-Za-z_$][\\w$]*)'));
-  return ref ? extractAssignedString(text, ref[1]) : null;
-}
-
-
-function findBalancedBlock(text, openIndex, openChar, closeChar) {
-  if (openIndex < 0 || text[openIndex] !== openChar) return null;
-  let depth = 0;
-  let quote = '';
-  let escaped = false;
-  let lineComment = false;
-  let blockComment = false;
-  for (let i = openIndex; i < text.length; i++) {
-    const ch = text[i];
-    const next = text[i + 1];
-    if (lineComment) {
-      if (ch === '\n') lineComment = false;
-      continue;
-    }
-    if (blockComment) {
-      if (ch === '*' && next === '/') {
-        blockComment = false;
-        i += 1;
-      }
-      continue;
-    }
-    if (quote) {
-      if (escaped) {
-        escaped = false;
-      } else if (ch === '\\') {
-        escaped = true;
-      } else if (ch === quote) {
-        quote = '';
-      }
-      continue;
-    }
-    if (ch === '/' && next === '/') {
-      lineComment = true;
-      i += 1;
-      continue;
-    }
-    if (ch === '/' && next === '*') {
-      blockComment = true;
-      i += 1;
-      continue;
-    }
-    if (ch === '"' || ch === "'") {
-      quote = ch;
-      continue;
-    }
-    if (ch === openChar) depth += 1;
-    else if (ch === closeChar) {
-      depth -= 1;
-      if (depth === 0) return text.slice(openIndex + 1, i);
-    }
-  }
-  return null;
-}
-
-function extractAssignedBlock(text, varName, openChar, closeChar) {
-  const re = new RegExp('(?:var|const)\\s+' + escapeRegExp(varName) + '\\s*=\\s*\\' + openChar);
-  const m = re.exec(text);
-  if (!m) return null;
-  return findBalancedBlock(text, m.index + m[0].length - 1, openChar, closeChar);
-}
-
-function extractContractPropertyBlock(text, propName, openChar, closeChar) {
-  const re = new RegExp('\\b' + escapeRegExp(propName) + '\\s*:\\s*\\' + openChar);
-  const m = re.exec(text);
-  if (!m) return null;
-  return findBalancedBlock(text, m.index + m[0].length - 1, openChar, closeChar);
-}
-
-function extractSchemaBlock(text) {
-  return extractContractPropertyBlock(text, 'SETTINGS', '[', ']') ||
-    extractAssignedBlock(text, 'SCHEMA', '[', ']');
-}
-
-function extractDefaultsBlock(text) {
-  return extractContractPropertyBlock(text, 'DEFAULTS', '{', '}') ||
-    extractAssignedBlock(text, 'DEFAULTS', '{', '}');
-}
-
-function extractAliasesBlock(text, varName) {
-  const contractName = varName === 'HP_PERSIST_ALIASES' ? 'ALIASES' : varName;
-  return extractContractPropertyBlock(text, contractName, '{', '}') ||
-    extractAssignedBlock(text, varName, '{', '}');
-}
-
-function extractSchemaObjects(text) {
-  const block = extractSchemaBlock(text);
-  if (!block) return null;
-  const objects = [];
-  for (let i = 0; i < block.length; i++) {
-    if (block[i] !== '{') continue;
-    const body = findBalancedBlock(block, i, '{', '}');
-    if (body === null) continue;
-    objects.push(body);
-    i += body.length + 1;
-  }
-  return objects;
-}
-
-function extractSchemaIds(text) {
-  const objects = extractSchemaObjects(text);
-  if (!objects) return null;
-  const ids = [];
-  for (const objectText of objects) {
-    const idMatch = objectText.match(/\bid:\s*["']([^"']+)["']/);
-    if (idMatch) ids.push(idMatch[1]);
-  }
-  return ids;
-}
-
-function extractDefaultsKeys(text) {
-  const block = extractDefaultsBlock(text);
-  if (!block) return null;
-  const keys = [];
-  const kvRe = /(?:"([^"]+)"|'([^']+)'|([a-z_][a-z0-9_]*))\s*:/g;
-  let km;
-  while ((km = kvRe.exec(block)) !== null) keys.push(km[1] || km[2] || km[3]);
-  return keys;
-}
-
-function parseSimpleJsLiteral(token) {
-  if (token === 'true') return true;
-  if (token === 'false') return false;
-  if (/^-?\d+$/.test(token)) return parseInt(token, 10);
-  if (
-    (token.startsWith('"') && token.endsWith('"')) ||
-    (token.startsWith("'") && token.endsWith("'"))
-  ) {
-    return token.slice(1, -1);
-  }
-  return undefined;
-}
-
-function extractDefaultsValues(text) {
-  const block = extractDefaultsBlock(text);
-  if (!block) return null;
-  const values = {};
-  const kvRe = /(?:"([^"]+)"|'([^']+)'|([a-z_][a-z0-9_]*))\s*:\s*("[^"]*"|'[^']*'|true|false|-?\d+)/g;
-  let km;
-  while ((km = kvRe.exec(block)) !== null) {
-    const key = km[1] || km[2] || km[3];
-    values[key] = parseSimpleJsLiteral(km[4]);
-  }
-  return values;
-}
-
-
-function extractAliases(text, varName) {
-  const block = extractAliasesBlock(text, varName);
-  if (!block) return null;
-  const aliases = {};
-  // Support both quoted and unquoted keys, values always quoted
-  const kvRe = /(?:"([^"]+)"|'([^']+)'|([a-z_][a-z0-9_]*))\s*:\s*"([^"]+)"/g;
-  let km;
-  while ((km = kvRe.exec(block)) !== null) {
-    const key = km[1] || km[2] || km[3];
-    aliases[key] = km[4];
-  }
-  return aliases;
-}
-
-function extractReverseAliases(text, varName) {
-  const block = extractAliasesBlock(text, varName);
-  if (!block) return null;
-  const rev = {};
-  // Support both quoted and unquoted keys, values always quoted
-  const kvRe = /(?:"([^"]+)"|'([^']+)'|([a-z_][a-z0-9_]*))\s*:\s*"([^"]+)"/g;
-  let km;
-  while ((km = kvRe.exec(block)) !== null) {
-    const key = km[1] || km[2] || km[3];
-    rev[key] = km[4];
-  }
-  return rev;
-}
-
-function extractSchemaDefaults(text) {
-  const objects = extractSchemaObjects(text);
-  if (!objects) return null;
-  const defs = {};
-  for (const objectText of objects) {
-    const idMatch = objectText.match(/\bid:\s*["']([^"']+)["']/);
-    if (!idMatch) continue;
-    const id = idMatch[1];
-    const dvMatch = objectText.match(/defaultValue:\s*("[^"]*"|'[^']*'|true|false|-?\d+)/);
-    if (dvMatch) {
-      let v = dvMatch[1];
-      if (v === 'true') v = true;
-      else if (v === 'false') v = false;
-      else if (/^-?\d+$/.test(v)) v = parseInt(v, 10);
-      else v = v.slice(1, -1);
-      defs[id] = v;
-    }
-  }
-  return defs;
-}
-
-function extractContractString(text, propName) {
-  const re = new RegExp("\\b" + escapeRegExp(propName) + "\\s*:\\s*[\"']([^\"']+)[\"']");
-  const m = text.match(re);
-  return m ? m[1] : null;
-}
-
-function extractContractNumber(text, propName) {
-  const re = new RegExp('\\b' + escapeRegExp(propName) + '\\s*:\\s*(-?\\d+)');
-  const m = text.match(re);
-  return m ? parseInt(m[1], 10) : null;
-}
-
-
-function extractFunctionDeclarationNames(text) {
-  const names = [];
-  const re = /^\s*function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
-  let m;
-  while ((m = re.exec(text)) !== null) names.push(m[1]);
-  return names;
-}
-
-function extractFindChildIds(text) {
-  const ids = [];
-  const re = /FindChildTraverse\(\s*["']([^"']+)["']\s*\)/g;
-  let m;
-  while ((m = re.exec(text)) !== null) ids.push(m[1]);
-  return ids;
-}
-
-function extractRuntimeIdConstants(text) {
-  const ids = [];
-  const re = /^\s*var\s+ID_[A-Z0-9_]+\s*=\s*["']([^"']+)["'];/gm;
-  let m;
-  while ((m = re.exec(text)) !== null) ids.push(m[1]);
-  return ids;
-}
 
 function main() {
   const healthbar = readFile('healthbar_logic.js');
@@ -305,29 +72,13 @@ function main() {
   const baseHud = readLayoutFile('base_hud.xml');
   const unitStatusOverlay = readLayoutFile('unit_status_overlay.xml');
 
-  const schemaIds = extractSchemaIds(uiCore);
-  const defaultsKeys = extractDefaultsKeys(healthbar);
-  const aliasesCore = extractAliases(uiCore, 'HP_PERSIST_ALIASES');
-  const revAliases = extractReverseAliases(healthbar, 'HP_PERSIST_ALIAS_TO_ID') || {};
-  const schemaDefaults = extractSchemaDefaults(uiCore);
-  const runtimeDefaults = extractDefaultsValues(healthbar);
-  const schemaNamespace = extractContractString(uiCore, 'storageNamespace');
-  const schemaVersion = extractContractNumber(uiCore, 'storageVersion');
+  const fullContractReport = checkFullSettingsContract(uiCore, healthbar);
+  const schemaIds = fullContractReport.contract.schemaIds || [];
+  const errors = fullContractReport.errors.slice();
 
-  const errors = [];
-
-  if (schemaNamespace !== 'hp_colors') {
-    errors.push(`anita_ui_core.js storageNamespace must be "hp_colors", got: ${schemaNamespace}`);
+  if (schemaIds.length !== EXPECTED_HP_COLORS_SETTING_COUNT) {
+    errors.push(`HP Colors setting count changed: expected ${EXPECTED_HP_COLORS_SETTING_COUNT}, got ${schemaIds.length}`);
   }
-  if (schemaVersion !== 97) {
-    errors.push(`anita_ui_core.js storageVersion must be 97, got: ${schemaVersion}`);
-  }
-
-  if (!schemaIds || schemaIds.length === 0) errors.push('Could not extract SETTINGS from anita_ui_core.js');
-  if (!defaultsKeys || defaultsKeys.length === 0) errors.push('Could not extract DEFAULTS from healthbar_logic.js');
-  if (!aliasesCore || Object.keys(aliasesCore).length === 0) errors.push('Could not extract HP_PERSIST_ALIASES from anita_ui_core.js');
-  if (!runtimeDefaults || Object.keys(runtimeDefaults).length === 0) errors.push('Could not extract DEFAULTS values from healthbar_logic.js');
-  if (!schemaDefaults || Object.keys(schemaDefaults).length === 0) errors.push('Could not extract SETTINGS defaults from anita_ui_core.js');
 
   const sourceScripts = fs.readdirSync(SCRIPTS_DIR)
     .filter(name => name.endsWith('.js'))
@@ -342,74 +93,56 @@ function main() {
     process.exit(1);
   }
 
-  const healthbarFunctionNames = extractFunctionDeclarationNames(healthbar);
-  if (healthbarFunctionNames.length > MAX_HEALTHBAR_RUNTIME_FUNCTIONS) {
-    errors.push(
-      `healthbar_logic.js declares ${healthbarFunctionNames.length} runtime functions; max ${MAX_HEALTHBAR_RUNTIME_FUNCTIONS}`
-    );
-  }
-  for (const id of extractFindChildIds(healthbar).concat(extractRuntimeIdConstants(healthbar))) {
-    if (!ALLOWED_RUNTIME_PANEL_IDS.has(id)) {
-      errors.push(`healthbar_logic.js uses unverified runtime panel id: ${id}`);
+  checkFunctionDeclarationCap(errors, 'healthbar_logic.js', healthbar, MAX_HEALTHBAR_RUNTIME_FUNCTIONS);
+  checkRuntimePanelIds(errors, 'healthbar_logic.js', healthbar, ALLOWED_RUNTIME_PANEL_IDS, FORBIDDEN_RUNTIME_PANEL_IDS);
+  for (const runtimeMarker of [
+    'var UNIT_STATUS_TARGET_SNAPSHOT = {',
+    'var loopScheduleReason = ["", "", ""];',
+    'var loopLastRunReason = ["", "", ""];',
+    'var LOOP_REASON_ALLOWLIST = {'
+  ]) {
+    if (!healthbar.includes(runtimeMarker)) {
+      errors.push(`healthbar_logic.js missing runtime safety marker: ${runtimeMarker}`);
     }
   }
-  for (const id of FORBIDDEN_RUNTIME_PANEL_IDS) {
-    const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const exactString = new RegExp(`["']${escaped}["']`);
-    if (exactString.test(healthbar)) {
-      errors.push(`healthbar_logic.js contains forbidden fallback panel id: ${id}`);
+  for (const deadRuntimeMarker of [
+    'var ALLY_STATUS_TARGET_SNAPSHOT = {',
+    'classifyAlly: function',
+    'allySnapshot:',
+    'applyKillMarkerPlan: function'
+  ]) {
+    if (healthbar.includes(deadRuntimeMarker)) {
+      errors.push(`healthbar_logic.js retained dead runtime marker: ${deadRuntimeMarker}`);
     }
   }
-
-  const schemaSet = new Set(schemaIds);
-  const defaultsSet = new Set(defaultsKeys);
-  const aliasIdsCore = Object.keys(aliasesCore);
-  const aliasIdsSetCore = new Set(aliasIdsCore);
-
-  // 1. Schema IDs missing from DEFAULTS
-  for (const id of schemaIds) {
-    if (!defaultsSet.has(id)) errors.push(`DEFAULTS missing key: ${id}`);
+  checkObjectInterface(errors, 'healthbar_logic.js', healthbar, 'UnitStatusTargetClassifier', ['classify']);
+  checkObjectInterface(errors, 'healthbar_logic.js', healthbar, 'UnitStatusOverlayAdapter', ['setEnemyBarColor', 'clearUltColor', 'hasEnemyBarStyleDrift', 'hasEnemyStyleDrift']);
+  checkObjectInterface(errors, 'healthbar_logic.js', healthbar, 'HpReadoutPolicy', ['parseMax', 'reset', 'enemy']);
+  checkObjectInterface(errors, 'healthbar_logic.js', healthbar, 'LowHpPulsePolicy', ['resetEnemy', 'enemy', 'resetAlly', 'ally']);
+  checkObjectInterface(errors, 'healthbar_logic.js', healthbar, 'EnemyHealthPaintPolicy', ['reset', 'colorForPulse', 'enemy']);
+  checkObjectInterface(errors, 'healthbar_logic.js', healthbar, 'KillMarkerPolicy', ['enemy']);
+  checkObjectInterface(errors, 'healthbar_logic.js', healthbar, 'AllyHealthPaintPolicy', ['ally']);
+  checkObjectInterface(errors, 'healthbar_logic.js', healthbar, 'LevelTierPolicy', ['level']);
+  checkObjectInterface(errors, 'healthbar_logic.js', healthbar, 'EnemyHealthbarLoopPolicy', ['decide']);
+  checkObjectInterface(errors, 'healthbar_logic.js', healthbar, 'ReplayWakePolicy', ['shouldWakeSameRaw', 'wakeLoops']);
+  checkObjectInterface(errors, 'healthbar_logic.js', healthbar, 'LoopSchedulePolicy', ['schedule', 'requestKick']);
+  if (!/\bvar\s+ENEMY_ACTION_CONTINUE\s*=\s*0\s*;/.test(healthbar)) {
+    errors.push('healthbar_logic.js ENEMY_ACTION_CONTINUE must be 0');
   }
+  if (!/\bvar\s+ENEMY_ACTION_PAINT\s*=\s*9\s*;/.test(healthbar)) {
+    errors.push('healthbar_logic.js ENEMY_ACTION_PAINT must be 9');
+  }
+  checkLoopReasonContract(errors, 'healthbar_logic.js', healthbar, HP_EXPECTED_LOOP_REASONS);
+  checkLevelTierCssParity(errors, 'healthbar_logic.js', healthbar, unitStyle, [
+    { min: 11, cls: 'level_tier2' },
+    { min: 19, cls: 'level_tier3' },
+    { min: 27, cls: 'level_tier4' },
+    { min: 35, cls: 'level_tier5' },
+  ]);
 
-  // 2. DEFAULTS keys missing from SCHEMA
-  for (const key of defaultsKeys) {
-    if (!schemaSet.has(key)) errors.push(`SCHEMA missing id: ${key} (present in DEFAULTS)`);
-  }
 
-  // 3. Schema IDs missing from aliases
-  for (const id of schemaIds) {
-    if (!aliasIdsSetCore.has(id)) errors.push(`anita_ui_core.js alias missing: ${id}`);
-  }
-
-  // 4. Alias IDs missing from SCHEMA (orphaned aliases)
-  for (const id of aliasIdsCore) {
-    if (!schemaSet.has(id)) errors.push(`anita_ui_core.js orphaned alias: ${id}`);
-  }
-
-  // 5. Alias values duplicate check
-  const valCounts = {};
-  for (const [id, val] of Object.entries(aliasesCore)) {
-    valCounts[val] = (valCounts[val] || 0) + 1;
-  }
-  for (const [val, count] of Object.entries(valCounts)) {
-    if (count > 1) errors.push(`Duplicate alias value in anita_ui_core.js: "${val}" used ${count} times`);
-  }
-
-  // 7. Compact alias conversion belongs to Anita/import loaders, not the hot healthbar runtime.
-  // 8. UI schema defaults vs runtime defaults
-  for (const id of schemaIds) {
-    const schemaValue = schemaDefaults[id];
-    const runtimeValue = runtimeDefaults[id];
-    if (schemaValue !== runtimeValue) {
-      errors.push(
-        `Default mismatch for ${id}: Anita=${JSON.stringify(schemaValue)} runtime=${JSON.stringify(runtimeValue)}`
-      );
-    }
-  }
+  checkObjectInterface(errors, 'anita_ui_core.js', uiCore, 'HPSettingsContract', ['buildOrderedIds', 'buildDefaults', 'buildSupportedPresetIds']);
   for (const contractMarker of [
-    'buildOrderedIds: function ()',
-    'buildDefaults: function ()',
-    'buildSupportedPresetIds: function ()',
     'const HP_SETTING_IDS = HPSettingsContract.buildOrderedIds();',
     'const HP_SETTING_DEFAULTS = HPSettingsContract.buildDefaults();',
     'HPSettingsContract.buildSupportedPresetIds();'
@@ -419,32 +152,40 @@ function main() {
     }
   }
   if (uiCore.includes('hp_kill_zone_width: true')) {
-    errors.push('anita_ui_core.js should derive HP_PRESET_BUILDER_SUPPORTED_IDS from HPSettingsContract instead of hand-maintaining the 49-key map');
+    errors.push('anita_ui_core.js should derive HP_PRESET_BUILDER_SUPPORTED_IDS from HPSettingsContract instead of hand-maintaining the schema-id map');
   }
+  checkObjectInterface(errors, 'anita_ui_core.js', uiCore, 'HPValueCodecs', ['sanitizeBoolean', 'sanitizeCyclerIndex', 'sanitizeNumber', 'sanitizeColor', 'sanitizePosition', 'sanitizeElementValue']);
   for (const codecMarker of [
-    'const HPValueCodecs = {',
-    'sanitizeBoolean: function (value, fallback)',
-    'sanitizeCyclerIndex: function (element, value)',
-    'sanitizeNumber: function (element, value)',
-    'sanitizeColor: function (value, fallback)',
-    'sanitizePosition: function (value, fallback)',
-    'sanitizeElementValue: function (element, value)',
     'return HPValueCodecs.sanitizeElementValue(element, value);',
     'this.clampNumber(source[0], 0, 400, 0)',
     'this.clampNumber(source.y, -50, 400, 200)',
     'source.match(/-?\\d+(?:\\.\\d+)?/g)'
   ]) {
     if (!uiCore.includes(codecMarker)) {
-      errors.push(`HPValueCodecs missing marker: ${codecMarker}`);
+      errors.push(`HPValueCodecs missing behavior marker: ${codecMarker}`);
     }
   }
+  checkObjectInterface(errors, 'anita_ui_core.js', uiCore, 'HPPresetCodeCodec', ['encodeBase64Url', 'decodeBase64Url', 'normalizeHeroToken', 'normalizeHeroes', 'normalizeHeroScope', 'normalizeOverrides', 'compactOverrides', 'encodePresetToken', 'encodePresetBundle']);
+  for (const presetCodecMarker of [
+    'HPPresetCodeCodec.encodeBase64Url(raw)',
+    'HPPresetCodeCodec.decodeBase64Url(encoded)'
+  ]) {
+    if (!uiCore.includes(presetCodecMarker)) {
+      errors.push(`HPPresetCodeCodec missing behavior marker: ${presetCodecMarker}`);
+    }
+  }
+  for (const deadCodecMethod of ['expandValues', 'decodePresetPayload', 'extractToken', 'decodePresetToken', 'decodePresetBundle']) {
+    if (uiCore.includes(`${deadCodecMethod}: function`)) {
+      errors.push(`HPPresetCodeCodec retained unused Panorama method: ${deadCodecMethod}`);
+    }
+  }
+  for (const nativeBase64Marker of ['btoa(', 'atob(', 'AnitaBase64']) {
+    if (uiCore.includes(nativeBase64Marker) || healthbar.includes(nativeBase64Marker)) {
+      errors.push(`HP Colors scripts should not use native Panorama base64 marker: ${nativeBase64Marker}`);
+    }
+  }
+  checkObjectInterface(errors, 'healthbar_logic.js', healthbar, 'HPValueCodecs', ['formatPositionValue', 'coerceBooleanValue', 'coerceNumberValue', 'coerceStringValue', 'coerceCfgValue']);
   for (const runtimeCodecMarker of [
-    'var HPValueCodecs = {',
-    'formatPositionValue: function (rawPos)',
-    'coerceBooleanValue: function (value, fallback)',
-    'coerceNumberValue: function (value, fallback)',
-    'coerceStringValue: function (value, fallback)',
-    'coerceCfgValue: function (id, value)',
     'return HPValueCodecs.coerceCfgValue(id, value);',
     'Array.isArray(rawPos)',
     'Object.prototype.hasOwnProperty.call(rawPos, "x")',
@@ -453,7 +194,7 @@ function main() {
     'clampNum(rawPos.y, -50, 400, 200)'
   ]) {
     if (!healthbar.includes(runtimeCodecMarker)) {
-      errors.push(`runtime HPValueCodecs missing marker: ${runtimeCodecMarker}`);
+      errors.push(`runtime HPValueCodecs missing behavior marker: ${runtimeCodecMarker}`);
     }
   }
 
@@ -496,7 +237,9 @@ function main() {
     'refreshChangedDependentsVisibility: function (config, sourceIds)',
     'ensureCategoryCache: function (config)',
     'config.__anitaCategoryCache = {',
-    'const categoryCache = this.ensureCategoryCache(config)'
+    'renderCategoryTree: function (config, state, activeCategory)',
+    'state.categoryCache !== categoryCache',
+    'detailPanel.RemoveAndDeleteChildren();'
   ]) {
     if (!uiCore.includes(uiCoreMarker)) {
       errors.push(`anita_ui_core.js missing optimization marker: ${uiCoreMarker}`);
@@ -560,19 +303,16 @@ function main() {
     'var knownFriendlyTeamId = 0;',
     'isFriendlyBuilding: function (flags, teamId)',
     'isEnemyBuilding: function (flags, teamId)',
-    'getIgnoredTargetColor: function (snapshot)',
+    'getIgnoredTargetColor: function (flags, teamId)',
     'if (cfg.hp_skip_buildings && target.isBuilding)',
     'normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_high)',
-    'HealthbarPainter.setBarColor(getHighColor());'
+    'UnitStatusOverlayAdapter.setEnemyBarColor(getHighColor());'
   ]) {
     if (!healthbar.includes(runtimeColorMarker)) {
       errors.push(`healthbar_logic.js missing first-paint/building color marker: ${runtimeColorMarker}`);
     }
   }
-  const ignoredColorStart =
-    healthbar.indexOf('getIgnoredTargetColor: function (snapshot)') >= 0
-      ? healthbar.indexOf('getIgnoredTargetColor: function (snapshot)')
-      : healthbar.indexOf('function getIgnoredTargetColor(snapshot)');
+  const ignoredColorStart = healthbar.indexOf('getIgnoredTargetColor: function (flags, teamId)');
   const ignoredColorEnd =
     healthbar.indexOf('var _allyScanPanel') > ignoredColorStart
       ? healthbar.indexOf('var _allyScanPanel')
@@ -615,17 +355,30 @@ function main() {
       errors.push(`healthbar_logic.js contains production debug marker: ${debugMarker}`);
     }
   }
-  for (const gateMarker of [
-    'const HP_OPTIMIZED_FORCED_VALUES = {};',
-    'const HP_OPTIMIZED_HIDDEN_SETTINGS = {',
-    'function applyHpOptimizedHardGates(config)',
-    'element.runtimeLocked = !!forced;',
-    'element.runtimeHidden = !!hidden;',
-    'if (element && element.runtimeHidden) return false;',
-    'AnitaRuntimeLocked'
+  for (const staleUiGateMarker of [
+    'HP_OPTIMIZED_FORCED_VALUES',
+    'HP_OPTIMIZED_HIDDEN_SETTINGS',
+    'applyHpOptimizedHardGates(',
   ]) {
-    if (!uiCore.includes(gateMarker) && !uiStyle.includes(gateMarker)) {
-      errors.push(`HP Colors menu gate marker missing: ${gateMarker}`);
+    if (uiCore.includes(staleUiGateMarker)) {
+      errors.push(`anita_ui_core.js still contains removed HP optimized hard-gate marker: ${staleUiGateMarker}`);
+    }
+  }
+  for (const staleRuntimeGateMarker of [
+    'RUNTIME_OPTIMIZED_PROFILE',
+    'OPTIMIZED_FORCED_VALUES',
+    'enforceOptimizedRuntimeProfile(',
+  ]) {
+    if (healthbar.includes(staleRuntimeGateMarker)) {
+      errors.push(`healthbar_logic.js still contains removed runtime optimized profile marker: ${staleRuntimeGateMarker}`);
+    }
+  }
+  for (const staleHeroSelector of [
+    '.AnitaPresetHeroOptionName',
+    '.AnitaPresetHeroCheck',
+  ]) {
+    if (uiStyle.includes(staleHeroSelector)) {
+      errors.push(`anita_ui.css still contains removed stale hero selector: ${staleHeroSelector}`);
     }
   }
   for (const liveToggleMarker of [
@@ -640,22 +393,6 @@ function main() {
   ]) {
     if (uiCore.includes(liveToggleMarker)) {
       errors.push(`HP Colors optimized hard gate must not lock live feature toggle: ${liveToggleMarker}`);
-    }
-  }
-  const runtimeForcedMatch = healthbar.match(/var OPTIMIZED_FORCED_VALUES = \{([\s\S]*?)\};/);
-  const runtimeForcedBlock = runtimeForcedMatch ? runtimeForcedMatch[1] : '';
-  for (const runtimeLiveToggle of [
-    'hp_ult_color_enabled',
-    'hp_pulse_enabled',
-    'hp_pulse_text_enabled',
-    'hp_pulse_color_enabled',
-    'hp_friend_enabled',
-    'hp_friend_pulse_enabled',
-    'hp_friend_pulse_color_enabled',
-    'hp_kill_zone_enabled'
-  ]) {
-    if (runtimeForcedBlock.includes(runtimeLiveToggle)) {
-      errors.push(`healthbar_logic.js runtime optimized profile must not force live feature toggle: ${runtimeLiveToggle}`);
     }
   }
   const hiddenGateMatch = uiCore.match(/const HP_OPTIMIZED_HIDDEN_SETTINGS = \{([\s\S]*?)\};/);
@@ -719,7 +456,8 @@ function main() {
     'modConfig.__anitaPresetHeroSelections',
     'modConfig.__anitaPresetHeroModes',
     'readRuntimePresetEntries: function (modConfig)',
-    'var presets = HPPresetRepository.readRuntimePresetEntries(modConfig);',
+    'resolveSelectionFromEntries: function (',
+    'HPPresetRepository.readRuntimePresetEntries(modConfig)',
     'source: "hero"',
     'usedFallback: false',
     'source: "global"',
@@ -747,13 +485,14 @@ function main() {
     'reason: "global"',
     'HPPresetHeroSelection.hasSelectedScopedPreset(config)',
     'config.__hpHeroPresetWatchStarted = false;',
-    'function applyHpColorsBakedPresetValues(config, values, presetKey, heroId)',
+    'function applyHpColorsBakedPresetValues(',
     'AnitaPersistence.applyResolvedValues(config, values);',
     'AnitaPersistence.persistConfig(config, true);',
     'AnitaRenderer.renderModSettings(config);',
     'update_source: "baked_preset_apply"',
     'force_persist: true',
-    'if (config.title === "HP Colors" && changed) {\n        writeHpSharedSnapshot(config);'
+    'HPPresetSnapshotPublisher.writeShared(config);',
+    'HPPresetSnapshotPublisher.publish('
   ]) {
     if (!uiCore.includes(bakedPresetMarker)) {
       errors.push(`anita_ui_core.js missing baked preset apply marker: ${bakedPresetMarker}`);
@@ -790,49 +529,118 @@ function main() {
   }
 
   // 12. Anita UI and healthbar runtime duplicate the bridge protocol in two scripts; shared literals must not drift.
-  if (!uiCore.includes('const HPBridgeProtocol = {')) {
-    errors.push('anita_ui_core.js missing Anita-side HPBridgeProtocol');
-  }
-  if (!healthbar.includes('var HPBridgeProtocol = {')) {
-    errors.push('healthbar_logic.js missing runtime HPBridgeProtocol');
-  }
-  for (const [label, uiProp, runtimeProp] of [
-    ['event channel', 'eventChannel', 'eventChannel'],
-    ['preset snapshot magic', 'presetSnapshotMagic', 'presetSnapshotMagic'],
-    ['preset request magic', 'presetRequestMagic', 'presetRequestMagic'],
-    ['bulk update magic', 'bulkUpdateMagic', 'bulkUpdateMagic'],
-    ['single update magic', 'singleUpdateMagic', 'singleUpdateMagic'],
-    ['bootstrap request magic', 'bootstrapRequestMagic', 'bootstrapRequestMagic'],
-    ['shared config raw key', 'sharedCfgRawKey', 'sharedCfgRawKey'],
-    ['shared match reset key', 'sharedMatchResetKey', 'sharedMatchResetKey']
-  ]) {
-    const uiValue = extractProtocolString(uiCore, uiProp);
-    const runtimeValue = extractProtocolString(healthbar, runtimeProp);
-    if (!uiValue || !runtimeValue || uiValue !== runtimeValue) {
-      errors.push(`HPBridgeProtocol ${label} drift: Anita=${JSON.stringify(uiValue)} runtime=${JSON.stringify(runtimeValue)}`);
-    }
-  }
-  for (const sharedMethod of [
+  checkObjectInterface(errors, 'anita_ui_core.js', uiCore, 'HPBridgeProtocol', [
     'dispatchPayload',
     'dispatchRawPayload',
     'readSharedConfigRaw',
     'writeSharedConfigRaw',
     'isBulkUpdate',
     'isSingleUpdate'
-  ]) {
-    const marker = `${sharedMethod}: function`;
-    if (!uiCore.includes(marker)) {
-      errors.push(`Anita HPBridgeProtocol missing shared method marker: ${sharedMethod}`);
-    }
-    if (!healthbar.includes(marker)) {
-      errors.push(`runtime HPBridgeProtocol missing shared method marker: ${sharedMethod}`);
-    }
-  }
+  ]);
+  checkObjectInterface(errors, 'healthbar_logic.js', healthbar, 'HPBridgeProtocol', [
+    'dispatchPayload',
+    'readSharedConfigRaw',
+    'writeSharedConfigRaw',
+    'isBulkUpdate',
+    'isSingleUpdate'
+  ]);
 
 
   // 12. Full hp_colors builds from source base_hud.xml directly; pak96 preset-store sync is intentionally not part of this build.
   if (!baseHud.includes('id="AnitaUI_Anchor"')) {
     errors.push('base_hud.xml missing AnitaUI_Anchor for Anita UI bootstrap');
+  }
+  for (const removedConditionalMouseMarker of [
+    'AnitaConditionalContextRow',
+    'HandleConditionalContextMenu',
+    'oncontextmenu=',
+  ]) {
+    if (baseHud.includes(removedConditionalMouseMarker)) {
+      errors.push(`base_hud.xml retains failed conditional mouse marker: ${removedConditionalMouseMarker}`);
+    }
+  }
+  if (!uiStyle.includes('.AnitaConditionalEligible:hover .AnitaConditionalMarker') ||
+      !uiStyle.includes('.AnitaConditionalMarker.Configured')) {
+    errors.push('anita_ui.css must reveal the conditional star on row hover');
+  }
+  if (!uiStyle.match(/\.AnitaConditionalEligible\s*\{[\s\S]*?padding-right:\s*26px\s*;/) ||
+      !uiStyle.match(/\.AnitaConditionalEligible \.AnitaLabel\s*\{[\s\S]*?padding-right:\s*0px\s*;/) ||
+      !uiStyle.match(/\.AnitaConditionalMarker\s*\{[\s\S]*?margin-left:\s*0px\s*;/) ||
+      !uiCore.includes('marker.style.align = "right center"')) {
+    errors.push('Anita conditional stars must occupy the reserved right-hand setting lane');
+  }
+  if (!uiStyle.match(/\.AnitaSliderValueGroup,\s*\.SliderValueGroup\s*\{[\s\S]*?width:\s*296px\s*;/) ||
+      !uiStyle.match(/\.AnitaSliderContainer,\s*\.SliderContainer\s*\{[\s\S]*?width:\s*230px\s*;/) ||
+      uiCore.includes('valueGroup.style.width = "296px"') ||
+      uiCore.includes('sliderContainer.style.width = "230px"')) {
+    errors.push('Anita slider rows must use one CSS-owned 230px track and 66px readout lane');
+  }
+  if (!uiStyle.match(/\.AnitaPositionPickerGroup\s*\{[\s\S]*?width:\s*296px\s*;/) ||
+      !uiStyle.match(/\.AnitaPositionAxisLabel\s*\{[\s\S]*?ignore-parent-flow:\s*true\s*;[\s\S]*?transform:\s*translateX\(\s*-36px\s*\)\s*;/) ||
+      !uiStyle.match(/\.AnitaPositionSliderContainer\s*\{[\s\S]*?width:\s*230px\s*;/) ||
+      uiCore.includes('posPickerValueGroup.style.width = "332px"') ||
+      uiCore.includes('posPickerXContainer.style.width = "230px"') ||
+      uiCore.includes('posPickerYContainer.style.width = "230px"')) {
+    errors.push('Anita position sliders must keep axis labels outside flow and share the standard slider track lane');
+  }
+  if (!uiStyle.match(/Slider\.AnitaSlider\.HorizontalSlider #SliderThumb,\s*SlottedSlider\.AnitaSlider\.HorizontalSlider #SliderThumb\s*\{\s*vertical-align:\s*center\s*;\s*\}/)) {
+    errors.push('Anita sliders must center Valve #SliderThumb without replacing Valve thumb artwork');
+  }
+  if (!uiStyle.match(/\.HorizontalSlider \.SliderThumb\s*\{[^}]*transform:\s*translateY\(\s*4px\s*\)\s*;/)) {
+    errors.push('Anita slider thumb artwork must compensate for its measured 4px visual offset above the track');
+  }
+  if (!uiStyle.match(/\n\.HorizontalSlider #SliderTrack,[^{]*\{[^}]*padding:\s*0px\s*;/)) {
+    errors.push('Anita sliders must clear Valve horizontal-track padding so the visible bar shares the thumb centerline');
+  }
+  if (!uiCore.match(/AnitaRenderer\.attachLocalTooltip\(\s*marker,\s*"Configure signature condition",?\s*\)/) ||
+      uiCore.includes('var markerTooltip = $.CreatePanel("Label", row, "");') ||
+      uiStyle.includes('.AnitaConditionalMarkerTooltip')) {
+    errors.push('Anita conditional markers must reuse the layout-stable preset tooltip path');
+  }
+  for (const conditionalEditorStyle of [
+    '.AnitaConditionalAbilityGroup',
+    '.AnitaConditionalAbilityFrame',
+    '.AnitaConditionalAbilityRing',
+    '.AnitaConditionalAbilityArt',
+    '.AnitaConditionalTierBadge',
+    '.AnitaConditionalToggleStatus',
+    'ability_frame_passive_0_psd.vtex',
+    'ability_frame_passive_1_psd.vtex',
+    'ability_frame_passive_2_psd.vtex',
+    'ability_frame_passive_3_psd.vtex',
+  ]) {
+    if (!uiStyle.includes(conditionalEditorStyle)) {
+      errors.push(`anita_ui.css missing signature icon editor style: ${conditionalEditorStyle}`);
+    }
+  }
+  if (uiStyle.includes('.AnitaConditionalChoice')) {
+    errors.push('anita_ui.css retains obsolete text slot/tier choices');
+  }
+  for (const removedConditionalEditorStyle of [
+    '.AnitaConditionalAbilityFallback',
+    'box-shadow: rgba(0, 0, 0, 0.68) 0px 10px 32px 0px',
+    'box-shadow: fill rgba(102, 204, 153, 0.22) 0px 0px 10px 0px',
+  ]) {
+    if (uiStyle.includes(removedConditionalEditorStyle)) {
+      errors.push(`anita_ui.css retains obsolete conditional editor style: ${removedConditionalEditorStyle}`);
+    }
+  }
+  for (const conditionalEditorRuntime of [
+    'readAbilityImageSource',
+    'AnitaConditionalAbilityArt',
+    '"VisualTier" + String(tierIndex)',
+    'state.minTier >= 3 ? 1 : state.minTier + 1',
+    'slider.style.height = "12px"',
+    'state.enabled && index + 1 === state.slot',
+    'sourceImage.style.backgroundImage',
+    'AnitaConditionalToggleStatus',
+  ]) {
+    if (!uiCore.includes(conditionalEditorRuntime)) {
+      errors.push(`anita_ui_core.js missing signature icon editor runtime: ${conditionalEditorRuntime}`);
+    }
+  }
+  if (uiCore.includes('$.CreatePanel("CitadelAbilityIcon"')) {
+    errors.push('anita_ui_core.js must snapshot stock ability art instead of creating unbound CitadelAbilityIcon panels');
   }
   const buildScript = fs.readFileSync(path.join(ROOT, 'build_hp_colors.ps1'), 'utf-8');
   if (!fs.existsSync(path.join(ROOT, 'hp_colors', 'scripts', 'validate-hero-selector.js'))) {
@@ -853,8 +661,8 @@ function main() {
     'ECMASCRIPT5_STRICT',
     'anita_ui_core.vjs_c',
     'anita_ui.vcss_c',
-    'Packed VPK missing required asset',
-    '--file-tree --no-progress'
+    'Assert-PackedVpkAssets',
+    'Get-PackedVpkTree'
   ]) {
     if (!buildScript.includes(buildMarker)) {
       errors.push(`build_hp_colors.ps1 missing build marker: ${buildMarker}`);
@@ -894,7 +702,7 @@ function main() {
     'icon.style.backgroundImage = \'url("\' + path + \'")\';',
     'option.__anitaHeroId = isHero ? String(heroId || "") : "";',
     'option.__anitaHeroKind = optionKind;',
-    'option.__anitaHeroCheckLabel.text = selected ? "✓" : "";',
+    'option.__anitaHeroCheckLabel.text = selected ? "\\u2713" : "";',
     'menu.__anitaHeroOptions.push(option);',
     'function hpHeroIconPath(heroId)',
     's2r://panorama/images/heroes/',
@@ -904,7 +712,7 @@ function main() {
     'heroPicker.__anitaHeroSummaryLabel = heroSummary;',
     'HPPresetHeroSelection.getRowHeroes',
     'HPPresetHeroSelection.getRowHeroMode',
-    'HPPresetHeroSelection.setRowScope',
+    'HPPresetBuilderActions.setRowHeroScope',
     'face.AddClass("AnitaPresetHeroDropDownFace");',
     'face.hittest = false;',
     'faceIcon.AddClass("AnitaPresetHeroDropDownFaceIcon");',
@@ -915,7 +723,6 @@ function main() {
     'heroMode: normalizeHpHeroScopeMode(preset.heroMode, preset.heroes)',
     'store["id:" + String(row.id)] = normalized.slice(0);',
     'modeStore["id:" + String(row.id)] = scopeMode;',
-    'else tuple.push(scopeMode);',
     'function updateHeroMenuOptionState(option, selectedHeroes, scopeMode)'
   ]) {
     if (!uiCore.includes(iconMarker)) {
@@ -1092,8 +899,8 @@ function main() {
     'movePresetRowPriority: function (config, rows, row, delta)',
     'priorityUpBtn.AddClass("AnitaPresetPriorityUpBtn")',
     'priorityDownBtn.AddClass("AnitaPresetPriorityDownBtn")',
-    'priorityUpLbl.text = "▲"',
-    'priorityDownLbl.text = "▼"',
+    'priorityUpLbl.text = "\\u25B2"',
+    'priorityDownLbl.text = "\\u25BC"',
     'attachPresetTooltip(priorityUpBtn, "Move preset up.")',
     'function selectPresetRow(presetRow)',
     'heroSelector.SetPanelEvent('
@@ -1106,7 +913,7 @@ function main() {
   // 14. Preset Builder import should use the same base64 Import path and auto-clear status.
   for (const importMarker of [
     'applyImportCode: function (config, text, source)',
-    'var raw = AnitaBase64.decode(encoded)',
+    'var raw = HPPresetCodeCodec.decodeBase64Url(encoded)',
     'import_source: String(source || "import")',
     'var titleImportBtn = $.CreatePanel("Button", titleRow, "")',
     'titleImportBtn.AddClass("AnitaPresetImportBtn")',
@@ -1121,23 +928,26 @@ function main() {
     'renderModSettings: function (config) {\n      this.hideLocalTooltip();',
     'this.hideLocalTooltip();\n        if (this.activeColorPickerClose)',
     'this.presetTooltip = $.CreatePanel(',
-    'tooltip.style.zIndex = "10090"',
+    'this.presetTooltip.style.zIndex = "10090"',
     'this.attachLocalTooltip(\n          resetPageHeader.btn',
     'PAGE resets only this page. Other pages stay unchanged.',
     'ALL resets HP settings. Saved presets stay.',
-    'capturePresetBuilderState: function (config)',
-    'restorePresetBuilderState: function (config, state)',
+    'HPPresetBuilderModel.capturePresetBuilderState(config)',
+    'HPPresetBuilderModel.restorePresetBuilderState(config, presetBuilderState)',
     'Opened web builder. Use COPY ALL to export presets.',
     'attachPresetTooltip(titleImportBtn, "Paste a custom preset code.")',
     'attachPresetTooltip(nameLabel, "Click to rename this preset.")',
     'Click a preset name to rename.',
-    'defaultPresetKey = rows[defaultIndex].key',
+    'HPPresetBuilderModel.buildPresetBuilderViewModel(config)',
     'config.__anitaSelectedPresetKey = row.key;',
-    'var result = AnitaRenderer.applyImportCode(',
+    'var result = AnitaRenderer.applyImportCode(config',
     'function selectPresetRow(presetRow) {\n        if (importPreset(presetRow)) {',
     'selectPresetRow(presetRow);',
-    '$.Schedule(durationSec, function () {\n          if (statusToken !== config.__anitaPresetStatusToken) return;',
-    '"import_popup",'
+    'AnitaLifetime.defer(durationSec, function () {\n          if (statusToken !== config.__anitaPresetStatusToken) return;',
+    '"import_popup",',
+    'var AnitaLifetime = {',
+    '$.UnregisterForUnhandledEvent(',
+    'AnitaLifetime.replace(\n        "escape_monitor",',
   ]) {
     if (!uiCore.includes(importMarker)) {
       errors.push(`anita_ui_core.js missing preset import marker: ${importMarker}`);

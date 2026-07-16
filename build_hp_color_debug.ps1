@@ -1,8 +1,14 @@
+param(
+    [switch]$SmokeTestOnly
+)
+
 $ErrorActionPreference = 'Stop'
 
 $root        = Split-Path -Parent $MyInvocation.MyCommand.Path
-$modSrc      = "$root\hp_color_debug"
+$modSrc = "$root\hp_colors"
 $modCompiled = "$root\hp_color_debug_compiled"
+$debugProbeSrc = "$root\hp_color_debug\panorama\scripts\hero_detection_debug.js"
+$debugProbeTest = "$root\hp_color_debug\scripts\validate-hero-detection-debug.test.js"
 $terserSrc   = "$root\hp_color_debug_terser"
 $terserCompiled = "$root\hp_color_debug_terser_compiled"
 $compiler    = "$root\sr2compiler\New folder.exe"
@@ -30,6 +36,7 @@ if (Test-Path $terserCompiled) { Remove-Item -Recurse -Force $terserCompiled }
 if (Test-Path $vpkOut)      { Remove-Item -Force $vpkOut }
 
 # ## Step 0: Schema drift audit ################################################
+if (-not $SmokeTestOnly) {
 Write-Host "`n[0/4] Running schema drift audit..." -ForegroundColor Cyan
 $auditScript = "$modSrc\scripts\validate-schema.js"
 if (Test-Path $auditScript) {
@@ -66,9 +73,22 @@ if (Test-Path $runtimeReplayAuditScript) {
     Write-Host "[ERROR] Runtime replay audit script not found: $runtimeReplayAuditScript" -ForegroundColor Red
     exit 1
 }
+if (-not (Test-Path -LiteralPath $debugProbeTest)) {
+    Write-Host "[ERROR] Hero detection debug probe test not found: $debugProbeTest" -ForegroundColor Red
+    exit 1
+}
+& node --test $debugProbeTest
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Hero detection debug probe validation failed." -ForegroundColor Red
+    exit 1
+}
+Write-Host "  Hero detection debug probe validation passed." -ForegroundColor Green
+} else {
+    Write-Host "`n[0/4] Smoke-test-only build: validators skipped by request." -ForegroundColor Yellow
+}
 
 # ## Step 1: Prepare minified build source #####################################
-Write-Host "`n[1/4] Preparing minified hp_color_debug source..." -ForegroundColor Cyan
+Write-Host "`n[1/4] Preparing current hp_colors source with hero detection debug overlay..." -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path $terserSrc | Out-Null
 Copy-Item -Path "$modSrc\panorama" -Destination "$terserSrc\panorama" -Recurse -Force
 
@@ -83,6 +103,22 @@ if ((Test-Path $builderPresetVpk) -and (Test-Path $presetStoreSync) -and (Test-P
 } else {
     Write-Host "  [WARN] HPColorsPresetStore sync skipped; pak96_dir.vpk or sync script not found." -ForegroundColor Yellow
 }
+if (-not (Test-Path -LiteralPath $debugProbeSrc)) {
+    Write-Host "[ERROR] Hero detection debug probe not found: $debugProbeSrc" -ForegroundColor Red
+    exit 1
+}
+$stagedProbe = "$terserSrc\panorama\scripts\hero_detection_debug.js"
+Copy-Item -LiteralPath $debugProbeSrc -Destination $stagedProbe -Force
+
+$coreInclude = '<include src="s2r://panorama/scripts/anita_ui_core.vjs_c" />'
+$probeInclude = '<include src="s2r://panorama/scripts/hero_detection_debug.vjs_c" />'
+$baseHudText = [IO.File]::ReadAllText($terserBaseHud)
+if (-not $baseHudText.Contains($coreInclude)) {
+    Write-Host "[ERROR] Current base_hud.xml is missing the Anita core include required for the debug overlay." -ForegroundColor Red
+    exit 1
+}
+$baseHudText = $baseHudText.Replace($coreInclude, "$coreInclude`r`n`t`t$probeInclude")
+[IO.File]::WriteAllText($terserBaseHud, $baseHudText, [Text.UTF8Encoding]::new($false))
 
 $scriptFiles = Get-ChildItem "$terserSrc\panorama\scripts" -Filter *.js | Sort-Object Name
 if (-not $scriptFiles) {
@@ -173,12 +209,22 @@ function Test-HpClosureOutput {
     }
 }
 
-$closureSourcePaths = $scriptFiles | ForEach-Object { Join-Path "$modSrc\panorama\scripts" $_.Name }
+$closureSourcePaths = $scriptFiles | ForEach-Object {
+    if ($_.Name -eq "hero_detection_debug.js") {
+        $debugProbeSrc
+    } else {
+        Join-Path "$modSrc\panorama\scripts" $_.Name
+    }
+}
 $closureExterns = Join-Path $terserSrc "hp_colors_closure_externs.js"
 Write-HpClosureExterns $closureExterns $closureSourcePaths
 
 foreach ($script in $scriptFiles) {
-    $sourceScript = Join-Path "$modSrc\panorama\scripts" $script.Name
+    $sourceScript = if ($script.Name -eq "hero_detection_debug.js") {
+        $debugProbeSrc
+    } else {
+        Join-Path "$modSrc\panorama\scripts" $script.Name
+    }
     $minifiedScript = $script.FullName
     $closureArgs = @(
         "--yes"
@@ -198,23 +244,34 @@ foreach ($script in $scriptFiles) {
         Write-Host "[ERROR] Closure ADVANCED failed for $($script.Name) with code $LASTEXITCODE" -ForegroundColor Red
         exit 1
     }
-    Test-HpClosureOutput $sourceScript $minifiedScript $script.Name
+    if (-not $SmokeTestOnly) {
+        Test-HpClosureOutput $sourceScript $minifiedScript $script.Name
+    }
 }
 
 Remove-Item -LiteralPath $closureExterns -Force
 Write-Host "  Closure ADVANCED JS OK -> $terserSrc" -ForegroundColor Green
-& node $heroSelectorAuditScript "$terserSrc\panorama\scripts\anita_ui_core.js"
+if (-not $SmokeTestOnly) {
+$optimizedAuditDir = "$terserSrc\hp_colors_closure"
+New-Item -ItemType Directory -Force -Path $optimizedAuditDir | Out-Null
+$optimizedAnitaAudit = "$optimizedAuditDir\anita_ui_core.js"
+$optimizedRuntimeAudit = "$optimizedAuditDir\healthbar_logic.js"
+Copy-Item -LiteralPath "$terserSrc\panorama\scripts\anita_ui_core.js" -Destination $optimizedAnitaAudit -Force
+Copy-Item -LiteralPath "$terserSrc\panorama\scripts\healthbar_logic.js" -Destination $optimizedRuntimeAudit -Force
+& node $heroSelectorAuditScript $optimizedAnitaAudit
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Minified hero selector audit failed - fix preset hero dropdown before compiling." -ForegroundColor Red
     exit 1
 }
 Write-Host "  Minified hero selector audit passed." -ForegroundColor Green
-& node $runtimeReplayAuditScript "$terserSrc\panorama\scripts\healthbar_logic.js"
+& node $runtimeReplayAuditScript $optimizedRuntimeAudit
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Minified runtime replay audit failed - fix healthbar preset replay before compiling." -ForegroundColor Red
     exit 1
 }
 Write-Host "  Minified runtime replay audit passed." -ForegroundColor Green
+Remove-Item -LiteralPath $optimizedAuditDir -Recurse -Force
+}
 
 $buildOnlyScriptsDir = "$terserSrc\scripts"
 if (Test-Path $buildOnlyScriptsDir) {
@@ -295,7 +352,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Could not inspect packed VPK contents" -ForegroundColor Red
     exit 1
 }
-foreach ($packedAsset in @("anita_ui_core.vjs_c", "anita_ui.vcss_c", "healthbar_logic.vjs_c")) {
+foreach ($packedAsset in @("anita_ui_core.vjs_c", "anita_ui.vcss_c", "healthbar_logic.vjs_c", "hero_detection_debug.vjs_c")) {
     if (-not (($vpkTree | Select-String -SimpleMatch $packedAsset -Quiet))) {
         Write-Host "[ERROR] Packed VPK missing required asset: $packedAsset" -ForegroundColor Red
         exit 1
@@ -330,4 +387,4 @@ if (-not (Test-Path $destDir)) {
 Copy-Item -Path $vpkOut -Destination $vpkDest -Force
 Write-Host "  Deployed OK -> $vpkDest" -ForegroundColor Green
 
-Write-Host "`n  Done! Launch Deadlock and send console.log lines containing [HP_HERO_DEBUG]." -ForegroundColor Yellow
+Write-Host "`n  Done! Launch Deadlock and filter console lines containing [HP_HERO_TOPBAR_DEBUG]." -ForegroundColor Yellow
