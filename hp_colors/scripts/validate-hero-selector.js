@@ -3,180 +3,154 @@
 
 const fs = require('fs');
 const path = require('path');
-const vm = require('vm');
+const {
+  MockPanel,
+  createPanoramaHarness,
+  createVmContext,
+  runInVm,
+  createPresetEntryPanel,
+  installGameTimeTree,
+  findByClass,
+} = require('../../scripts/hp-colors-panorama-test-adapter.js');
+const { HPPresetCodeCodec } = require('../../scripts/hp-colors-preset-codec.js');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULT_TARGET = path.join(ROOT, 'hp_colors', 'panorama', 'scripts', 'anita_ui_core.js');
 const targetScript = path.resolve(process.argv[2] || DEFAULT_TARGET);
+const IS_OPTIMIZED_TARGET = targetScript.split(path.sep).includes('hp_colors_closure');
 
 let root = null;
-const dispatched = [];
-const scheduled = [];
-const sharedStore = {};
-const eventHandlers = {};
-let mockGameState = 6;
-const presetStoreLookups = {
-  findStore: 0,
-  scanEntries: 0
-};
+let activeHarness = null;
+let dispatched = [];
+let scheduled = [];
+let sharedStore = {};
+let eventHandlers = {};
+let mockGameState = 7;
+const presetStoreLookups = { findStore: 0, scanEntries: 0 };
+const MOCK_RETAIL_HERO_NAMES = Object.freeze({
+  hero_inferno: "INFERNUS",
+  hero_haze: "HAZE",
+  hero_shiv: "SHIV",
+  hero_magician: "SINCLAIR",
+});
 
-class MockPanel {
-  constructor(type, parent, id) {
-    this.type = type;
-    this.paneltype = type;
-    this.parent = null;
-    this.id = id || '';
-    this.children = [];
-    this.classes = new Set();
-    this.events = {};
-    this.attrs = {};
-    this.style = {};
-    this.options = [];
-    this.selected = null;
-    this.valid = true;
-    this.text = '';
-    this.explicitHitFlags = {};
-    this._hittest = true;
-    this._hittestchildren = true;
-    Object.defineProperty(this, 'hittest', {
-      get: () => this._hittest,
-      set: value => {
-        this.explicitHitFlags.hittest = true;
-        this._hittest = value;
-      }
-    });
-    Object.defineProperty(this, 'hittestchildren', {
-      get: () => this._hittestchildren,
-      set: value => {
-        this.explicitHitFlags.hittestchildren = true;
-        this._hittestchildren = value;
-      }
-    });
-    this.visible = true;
-    this.canfocus = false;
-    this.actualxoffset = 0;
-    this.actualyoffset = 0;
-    this.actuallayoutwidth = 120;
-    this.actuallayoutheight = 32;
-    this.contentwidth = 120;
-    this.contentheight = 32;
-    if (parent === true) parent = root;
-    if (parent && parent.children) this.SetParent(parent);
-  }
+function assert(condition, message) { if (!condition) throw new Error(message); }
 
-  IsValid() { return this.valid; }
-  GetParent() { return this.parent; }
-  Children() { return this.children.slice(); }
-  GetChildCount() { return this.children.length; }
-  GetChild(index) { return this.children[index] || null; }
-  AddClass(className) { this.classes.add(className); }
-  RemoveClass(className) { this.classes.delete(className); }
-  BHasClass(className) { return this.classes.has(className); }
-  SetHasClass(className, enabled) { enabled ? this.AddClass(className) : this.RemoveClass(className); }
-  ToggleClass(className) { this.SetHasClass(className, !this.BHasClass(className)); }
-  SetPanelEvent(eventName, handler) { this.events[eventName] = handler; }
-  SetDisableFocusOnMouseDown() {}
-  SetFocus() { this.focused = true; }
-  AddOption(panel) {
-    if (!panel) return;
-    if (!this.options.includes(panel)) this.options.push(panel);
-    if (panel.parent !== this) panel.SetParent(this);
-  }
-  RemoveOption(id) {
-    this.options = this.options.filter(option => option.id !== id);
-  }
-  RemoveAllOptions() {
-    this.options = [];
-    this.selected = null;
-  }
-  HasOption(id) {
-    return this.options.some(option => option.id === id);
-  }
-  GetSelected() { return this.selected; }
-  SetSelected(panelOrId) {
-    if (typeof panelOrId === 'string') {
-      if (this.ignoreStringSetSelected) return;
-      this.selected = this.FindChildTraverse(panelOrId);
-    } else {
-      this.selected = panelOrId || null;
-    }
-  }
-  FindDropDownMenuChild(id) { return this.FindChildTraverse(id); }
-  AccessDropDownMenu() { return this; }
-  SetImage(src) { this.src = src; }
-  SetAttributeString(key, value) { this.attrs[key] = String(value); }
-  GetAttributeString(key, fallback) {
-    return Object.prototype.hasOwnProperty.call(this.attrs, key) ? this.attrs[key] : fallback;
-  }
-
-  SetParent(parent) {
-    if (this.parent) this.parent.children = this.parent.children.filter(child => child !== this);
-    this.parent = parent;
-    if (parent && parent.children && !parent.children.includes(this)) parent.children.push(this);
-  }
-
-  FindChildTraverse(id) {
-    if (id === 'HPColorsPresetStore') presetStoreLookups.findStore += 1;
-    if (this.id === id) return this;
-    for (const child of this.children) {
-      const found = child.FindChildTraverse(id);
-      if (found) return found;
-    }
-    return null;
-  }
-
-  FindChildrenWithClassTraverse(className) {
-    if (className === 'hp_colors_preset_entry') presetStoreLookups.scanEntries += 1;
-    let out = [];
-    if (this.classes.has(className)) out.push(this);
-    for (const child of this.children) out = out.concat(child.FindChildrenWithClassTraverse(className));
-    return out;
-  }
-
-  DeleteAsync() {
-    this.valid = false;
-    if (this.parent) this.parent.children = this.parent.children.filter(child => child !== this);
-    this.children = [];
-  }
-
-  RemoveAndDeleteChildren() {
-    for (const child of this.children) child.valid = false;
-    this.children = [];
-    this.options = [];
-    this.selected = null;
-  }
-}
-
-function assert(condition, message) {
-  if (!condition) throw new Error(message);
+function syncHeroGlobals() {
+  root = activeHarness.root;
+  dispatched = activeHarness.dispatches;
+  scheduled = activeHarness.scheduler.jobs;
+  sharedStore = activeHarness.shared;
+  eventHandlers = activeHarness.handlers;
 }
 
 function resetPresetStoreLookupCounters() {
   presetStoreLookups.findStore = 0;
   presetStoreLookups.scanEntries = 0;
+  if (activeHarness) {
+    activeHarness.findCounts.HPColorsPresetStore = 0;
+    activeHarness.findCounts.hp_colors_preset_entry = 0;
+  }
 }
 
-function findByClass(panel, className, out = []) {
-  if (panel.valid && panel.classes && panel.classes.has(className)) out.push(panel);
-  for (const child of panel.children || []) findByClass(child, className, out);
-  return out;
+function refreshPresetStoreLookupCounters() {
+  if (!activeHarness) return;
+  presetStoreLookups.findStore = activeHarness.findCounts.HPColorsPresetStore || 0;
+  presetStoreLookups.scanEntries = activeHarness.findCounts.hp_colors_preset_entry || 0;
 }
+
+function encodePresetStorePayload(payload) {
+  return HPPresetCodeCodec.encodeBase64Url(JSON.stringify(payload));
+}
+
+function installMockPresetStore(presetsOverride) {
+  root.children.filter(child => child && child.id === 'HPColorsPresetStore').forEach(child => child.DeleteAsync());
+  const store = new MockPanel('HPColorsPresetStore');
+  root.add(store);
+  const presets = presetsOverride || [
+    { id: 'HPColorsPreset_001', name: 'Main Hunt 2', category: 'Builder VPK', values: { hp_enabled: false, hp_low_threshold: 25 } },
+    { id: 'HPColorsPreset_002', name: 'Shift', category: 'Builder VPK', values: { hp_enabled: true, hp_low_threshold: 45 } }
+  ];
+  for (const preset of presets) {
+    const payload = {
+      version: preset.version || 1,
+      name: preset.name,
+      category: preset.category,
+      values: preset.values,
+    };
+    if (preset.overrides) payload.o = preset.overrides;
+    payload.hm = preset.heroMode || (preset.heroes ? 'selected' : 'off');
+    if (preset.heroes) payload.heroes = preset.heroes;
+    const entry = createPresetEntryPanel(preset.id, payload);
+    store.add(entry);
+  }
+  return store;
+}
+
+function copiedHpToken() {
+  return dispatched.find(args => args[0] === 'CopyStringToClipboard' && String(args[1] || '').includes('[ANITA-v1-hp_colors]:'));
+}
+
+function runNextScheduledByDelay(delay) {
+  const job = activeHarness.scheduler.runByDelay(delay);
+  refreshPresetStoreLookupCounters();
+  return job;
+}
+
+function runScheduledUntil(predicate, message, limit = 40) {
+  for (let i = 0; i < limit; i++) {
+    if (predicate()) return;
+    assert(scheduled.length > 0, message + '; no scheduled jobs left');
+    scheduled.sort((a, b) => Number(a.delay || 0) - Number(b.delay || 0));
+    const job = scheduled.shift();
+    if (job && typeof job.handler === 'function') job.handler();
+    refreshPresetStoreLookupCounters();
+  }
+  assert(predicate(), message + '; exhausted scheduled job limit');
+}
+
+function runScheduledJobsByDelay(delay, limit = 20) {
+  for (let i = 0; i < limit; i++) {
+    const index = scheduled.findIndex(job => Number(job && job.delay) === Number(delay));
+    if (index < 0) return;
+    const job = scheduled.splice(index, 1)[0];
+    if (job && typeof job.handler === 'function') job.handler();
+    refreshPresetStoreLookupCounters();
+  }
+}
+
+function installMockTopbarHero(heroId) {
+  const topBar = root.add(new MockPanel('TopBar'));
+  const player = topBar.add(new MockPanel('TopBarPlayer0'));
+  player.AddClass('LocalPlayer');
+  const nameContainer = player.add(new MockPanel('PlayerNameNWContainer'));
+  const nameLabel = nameContainer.add(new MockPanel('', { type: 'Label' }));
+  nameLabel.AddClass('HeroName');
+  player.__heroNameLabel = nameLabel;
+
+  const addClass = player.AddClass.bind(player);
+  const removeClass = player.RemoveClass.bind(player);
+  let currentHero = '';
+  player.AddClass = function (className) {
+    addClass(className);
+    if (!Object.prototype.hasOwnProperty.call(MOCK_RETAIL_HERO_NAMES, className)) return;
+    currentHero = className;
+    nameLabel.text = MOCK_RETAIL_HERO_NAMES[className];
+  };
+  player.RemoveClass = function (className) {
+    removeClass(className);
+    if (className !== currentHero) return;
+    currentHero = '';
+    nameLabel.text = '';
+  };
+  player.AddClass(heroId);
+  return player;
+}
+function installMockGameTime(text) { return installGameTimeTree(activeHarness, text); }
 
 function decodeBase64UrlPayload(encoded) {
   assert(encoded, 'Copied token missing encoded payload');
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-  const lookup = Object.fromEntries([...chars].map((ch, index) => [ch, index]));
-  const bytes = [];
-  for (let i = 0; i < encoded.length; i += 4) {
-    const c0 = lookup[encoded[i]];
-    const c1 = lookup[encoded[i + 1]];
-    const c2 = encoded[i + 2] !== undefined ? lookup[encoded[i + 2]] : 0;
-    const c3 = encoded[i + 3] !== undefined ? lookup[encoded[i + 3]] : 0;
-    bytes.push((c0 << 2) | (c1 >> 4));
-    if (encoded[i + 2] !== undefined) bytes.push(((c1 & 15) << 4) | (c2 >> 2));
-    if (encoded[i + 3] !== undefined) bytes.push(((c2 & 3) << 6) | c3);
-  }
-  return JSON.parse(Buffer.from(bytes).toString('utf8'));
+  return JSON.parse(HPPresetCodeCodec.decodeBase64Url(encoded));
 }
 
 function decodePresetToken(token) {
@@ -191,96 +165,6 @@ function decodeCopiedBundleToken() {
   return decodeBase64UrlPayload(copied[1]);
 }
 
-function encodePresetStorePayload(payload) {
-  return Buffer.from(JSON.stringify(payload), 'utf8')
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-}
-
-function installMockPresetStore(presetsOverride) {
-  root.children
-    .filter(child => child && child.id === 'HPColorsPresetStore')
-    .forEach(child => child.DeleteAsync());
-  const store = new MockPanel('Panel', root, 'HPColorsPresetStore');
-  const presets = presetsOverride || [
-    {
-      id: 'HPColorsPreset_001',
-      name: 'Main Hunt 2',
-      category: 'Builder VPK',
-      values: { hp_enabled: false, hp_low_threshold: 25 }
-    },
-    {
-      id: 'HPColorsPreset_002',
-      name: 'Shift',
-      category: 'Builder VPK',
-      values: { hp_enabled: true, hp_low_threshold: 45 }
-    }
-  ];
-  for (const preset of presets) {
-    const entry = new MockPanel('Label', store, preset.id);
-    entry.AddClass('hp_colors_preset_entry');
-    const payload = {
-      version: 1,
-      name: preset.name,
-      category: preset.category,
-      values: preset.values
-    };
-    if (preset.heroes) payload.heroes = preset.heroes;
-    if (preset.heroMode) payload.hm = preset.heroMode;
-    entry.text = encodePresetStorePayload(payload);
-  }
-  return store;
-}
-
-function copiedHpToken() {
-  return dispatched.find(args => args[0] === 'CopyStringToClipboard' &&
-    String(args[1] || '').includes('[ANITA-v1-hp_colors]:'));
-}
-
-function runNextScheduledByDelay(delay) {
-  const index = scheduled.findIndex(job => Number(job && job.delay) === Number(delay));
-  assert(index >= 0, `No scheduled validation job found for delay ${delay}`);
-  const job = scheduled.splice(index, 1)[0];
-  if (job && typeof job.handler === 'function') job.handler();
-}
-
-function runScheduledUntil(predicate, message, limit = 40) {
-  for (let i = 0; i < limit; i++) {
-    if (predicate()) return;
-    assert(scheduled.length > 0, `${message}; no scheduled jobs left`);
-    scheduled.sort((a, b) => Number(a.delay || 0) - Number(b.delay || 0));
-    const job = scheduled.shift();
-    if (job && typeof job.handler === 'function') job.handler();
-  }
-  assert(predicate(), `${message}; exhausted scheduled job limit`);
-}
-
-function runScheduledJobsByDelay(delay, limit = 20) {
-  for (let i = 0; i < limit; i++) {
-    const index = scheduled.findIndex(job => Number(job && job.delay) === Number(delay));
-    if (index < 0) return;
-    const job = scheduled.splice(index, 1)[0];
-    if (job && typeof job.handler === 'function') job.handler();
-  }
-}
-
-function installMockHeroProgress(heroId) {
-  const alive = new MockPanel('Panel', root, 'gameplay_hud_alive');
-  const crosshair = new MockPanel('Panel', alive, 'crosshair');
-  const progress = new MockPanel('Panel', crosshair, 'progress');
-  if (heroId) progress.AddClass(heroId);
-  return progress;
-}
-
-function installMockGameTime(text) {
-  const topBar = new MockPanel('Panel', root, 'TopBar');
-  const gameTime = new MockPanel('Label', topBar, 'GameTime');
-  gameTime.AddClass('GameTime');
-  gameTime.text = String(text || '00:00');
-  return gameTime;
-}
 
 function decodedBulkUpdates() {
   return dispatched
@@ -311,62 +195,99 @@ function findBakedPresetUpdate(updates, predicate, message) {
 }
 
 function createMockContext(options = {}) {
-  mockGameState = Object.prototype.hasOwnProperty.call(options, 'gameState') ? Number(options.gameState) : 6;
-  root = new MockPanel('Root', null, 'Root');
-  for (const key of Object.keys(sharedStore)) delete sharedStore[key];
-  for (const key of Object.keys(eventHandlers)) delete eventHandlers[key];
+  mockGameState = Object.prototype.hasOwnProperty.call(options, 'gameState') ? Number(options.gameState) : 7;
+  activeHarness = createPanoramaHarness({ now: options.now || 0 });
+  activeHarness.Game = { GetState: () => mockGameState };
+  syncHeroGlobals();
   root.actuallayoutwidth = 1920;
   root.actuallayoutheight = 1080;
   root.contentwidth = 1920;
   root.contentheight = 1080;
-
-  return {
-    console,
+  return createVmContext(activeHarness, {
     Date,
-    JSON,
-    Math,
-    Number,
-    String,
-    Boolean,
-    Array,
-    Object,
-    RegExp,
-    Error,
-    Buffer,
-    isFinite,
-    parseFloat,
-    setTimeout,
-    clearTimeout,
-    Game: {
-      GetState: () => mockGameState
-    },
-    GameUI: {
-      CustomUIConfig: () => sharedStore
-    },
-    $: {
-      GetContextPanel: () => root,
-      CreatePanel: (type, parent, id) => new MockPanel(type, parent === true ? root : parent, id),
-      DispatchEvent: (...args) => {
-        dispatched.push(args);
-        return true;
-      },
-      DispatchEventAsync: (...args) => {
-        dispatched.push(args);
-        return true;
-      },
-      RegisterForUnhandledEvent: (eventName, handler) => {
-        eventHandlers[eventName] = handler;
-      },
-      RegisterEventHandler: () => {},
-      Schedule: (delay, handler) => {
-        scheduled.push({ delay, handler });
-        return null;
+    globals: { Game: activeHarness.Game, SteamOverlayAPI: { OpenURL: () => {} } }
+  });
+}
+
+function exposePresetBuilderTestHooks(source) {
+  const marker = '\n  AnitaCore.init();';
+  const hooks = `
+  if (typeof global !== "undefined") {
+    global.__hpPresetBuilderTestHooks = {
+      model: HPPresetBuilderModel,
+      actions: HPPresetBuilderActions,
+      heroSelection: HPPresetHeroSelection,
+      renderer: AnitaRenderer,
+      setHeroDetectionMode: setHpHeroDetectionMode,
+      detectLocalHero: detectHpLocalHero,
+      constants: {
+        HP_HERO_SCOPE_OFF: HP_HERO_SCOPE_OFF,
+        HP_HERO_SCOPE_ALL: HP_HERO_SCOPE_ALL,
+        HP_HERO_SCOPE_SELECTED: HP_HERO_SCOPE_SELECTED,
+        HP_HERO_DETECTION_AUTO: HP_HERO_DETECTION_AUTO,
+        HP_HERO_DETECTION_OVERRIDE: HP_HERO_DETECTION_OVERRIDE,
+        HP_HERO_DETECTION_OFF: HP_HERO_DETECTION_OFF
       }
-    },
-    SteamOverlayAPI: {
-      OpenURL: () => {}
-    }
+    };
+  }
+`;
+  const instrumented = source.replace(marker, hooks + marker);
+  assert(instrumented !== source, 'Preset builder test hook marker should be present');
+  return instrumented;
+}
+
+function exposePipConvarTestHooks(source) {
+  const marker = '\n  AnitaCore.init();';
+  const hooks = `
+  if (typeof global !== "undefined") {
+    global.__hpColorsPipConvarTestHooks = {
+      core: AnitaCore,
+      persistence: AnitaPersistence,
+      settingsContract: HPSettingsContract
+    };
+  }
+`;
+  const instrumented = source.replace(marker, hooks + marker);
+  assert(instrumented !== source, 'Pip convar test hook marker should be present');
+  return instrumented;
+}
+
+function exposeConditionalEditorTestHooks(source) {
+  const marker = '\n  AnitaCore.init();';
+  const hooks = `
+  if (typeof global !== "undefined") {
+    global.__hpColorsConditionalEditorTestHooks = {
+      conditional: HPSignatureConditionalController,
+      renderer: AnitaRenderer,
+      maxTierConfirmMs: HP_SIGNATURE_MAX_TIER_CONFIRM_MS
+    };
+  }
+`;
+  const instrumented = source.replace(marker, hooks + marker);
+  assert(instrumented !== source, 'Conditional editor test hook marker should be present');
+  return instrumented;
+}
+
+function createPresetBuilderVm(source) {
+  const context = createMockContext();
+  runInVm(exposePresetBuilderTestHooks(source), context, targetScript);
+  assert(context.__hpPresetBuilderTestHooks, 'Preset builder VM hooks were not exposed');
+  return { context, hooks: context.__hpPresetBuilderTestHooks };
+}
+
+function makePresetBuilderConfig(overrides = {}) {
+  const config = {
+    title: 'HP Colors',
+    description: 'preset builder behavior validation',
+    storageNamespace: 'hp_colors',
+    storageVersion: 97,
+    elements: [
+      { id: 'hp_enabled', type: 'toggle', defaultValue: true, currentValue: true, category: 'General' },
+      { id: 'hp_low_threshold', type: 'slider', defaultValue: 35, currentValue: 35, category: 'General', min: 0, max: 100, step: 1 },
+      { id: 'hp_kill_zone_enabled', type: 'toggle', defaultValue: false, currentValue: false, category: 'Effects' }
+    ]
   };
+  return Object.assign(config, overrides);
 }
 
 function runValidation() {
@@ -377,10 +298,52 @@ function runValidation() {
     'anita_ui_core.js must publish replayable HP Colors preset snapshots with values_raw');
   assert(source.includes('__hpColorsMatchReset') && !source.includes('__hpColorsMatchResetStatus') && !source.includes('monitor_started'),
     'anita_ui_core.js must start match-reset publishing outside the scoped hero preset watcher');
+  const isOptimizedTarget = IS_OPTIMIZED_TARGET;
+  if (!isOptimizedTarget) {
+    assert(source.includes('resolveSelectionFromEntries: function'),
+      'HPPresetHeroSelection must expose resolveSelectionFromEntries as the pure preset/hero policy seam');
+    assert(/selectForHero:\s*function[\s\S]*resolveSelectionFromEntries\(/.test(source),
+      'HPPresetHeroSelection.selectForHero must delegate to resolveSelectionFromEntries');
+    assert(source.includes('buildPresetSnapshotPayload: function ('),
+      'anita_ui_core.js must build HP Colors preset snapshots through HPBridgeProtocol');
+    assert(source.includes('HPPresetSnapshotPublisher.publish(') &&
+        source.includes('HPBridgeProtocol.buildPresetSnapshotPayload('),
+      'HPPresetSnapshotPublisher must own HPBridgeProtocol snapshot publication');
+    assert(source.includes('"effective_values"'),
+      'HP Colors snapshots must publish effective_values separately from base values');
+    assert(source.includes('HPBridgeProtocol.dispatchRawPayload(this.payload)'),
+      'snapshot publisher replay must dispatch its retained payload');
+    [
+      'const AnitaMouseRouter =',
+      'const HPSignatureConditionalController =',
+      'replaceRules: function (config, rawRules)',
+      'clearRules: function (config, elementsOrNull)',
+      'openEditor: function (config, element)',
+      'decorateRow: function (config, element, row)',
+      'getEffectiveValues: function (config)',
+      'notifyBaseValuesChanged: function (config, publish)',
+      'HPSignatureConditionalController.start(config)',
+    ].forEach(marker => assert(source.includes(marker),
+      `signature conditional controller missing marker: ${marker}`));
+    assert(!source.includes('HPSignatureTierDebug'),
+      'legacy signature debug controller must not remain in production');
+    [
+      "const HPPresetBuilderModel = {",
+      "buildPresetBuilderViewModel: function",
+      "ensureSelectedPresetKey: function",
+      "getDefaultSelectedPresetKey: function",
+      "const HPPresetBuilderActions = {",
+      "applyPresetRow: function",
+      "setRowHeroScope: function"
+    ].forEach(marker => assert(source.includes(marker),
+      `anita_ui_core.js missing Preset builder model/action marker: ${marker}`));
+    assert(/renderPresetBuilderPanel:\s*function\s*\(parent,\s*config\)[\s\S]*HPPresetBuilderModel\.buildPresetBuilderViewModel\(config\)/.test(source),
+      "renderPresetBuilderPanel must build its row state through HPPresetBuilderModel.buildPresetBuilderViewModel(config)");
+    assert(!/renderPresetBuilderPanel:\s*function\s*\(parent,\s*config\)[\s\S]*var\s+defaultPresetKey\s*=\s*""/.test(source),
+      "renderPresetBuilderPanel must not keep local defaultPresetKey selection repair");
+  }
   const context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
+  runInVm(source, context, targetScript);
   installMockPresetStore();
 
   assert(root.AnitaUI && typeof root.AnitaUI.Register === 'function', 'AnitaUI.Register was not exposed');
@@ -400,6 +363,44 @@ function runValidation() {
       { id: 'hp_kill_zone_enabled', type: 'toggle', label: 'Show kill marker', defaultValue: false, currentValue: false, category: 'VISUAL EFFECTS|Kill Marker' }
     ]
   };
+  const codecOptions = {
+    aliasToId: { e: 'hp_enabled', l: 'hp_low_threshold', kzs: 'hp_kill_zone_color' },
+    allowedIds: ['hp_enabled', 'hp_low_threshold', 'hp_kill_zone_color'],
+    heroById: { hero_inferno: true, hero_gigawatt: true },
+    heroIdToKey: { 1: 'hero_inferno', 2: 'hero_gigawatt' }
+  };
+  const semanticToken = HPPresetCodeCodec.encodePresetToken(
+    validationConfig,
+    { e: true },
+    { name: 'Semantic', heroMode: 'selected', heroes: ['1', '2', 'hero_inferno'], heroById: codecOptions.heroById, heroIdToKey: codecOptions.heroIdToKey }
+  );
+  const semanticPayload = decodePresetToken(semanticToken);
+  assert(semanticPayload.v === 99 && semanticPayload.c === 1 && semanticPayload.values.e === true &&
+      semanticPayload.hm === 'selected' && semanticPayload.hs.length === 2 && semanticPayload.name === 'Semantic',
+    `Single preset token shape drifted: ${JSON.stringify(semanticPayload)}`);
+  const fullAndAlias = HPPresetCodeCodec.decodePresetToken(validationConfig, `[ANITA-v1-hp_colors]:${encodePresetStorePayload({ v: 97, c: 1, values: { hp_enabled: false, e: true } })}`, codecOptions);
+  assert(fullAndAlias.values.hp_enabled === true && Object.keys(fullAndAlias.values).length === 1,
+    'Import should accept full ids and compact aliases in compact payloads');
+  const legacyKillZone = HPPresetCodeCodec.decodePresetToken(validationConfig, `[ANITA-v1-hp_colors]:${encodePresetStorePayload({ version: 1, values: { kzs: '#112233' } })}`, codecOptions);
+  assert(legacyKillZone.values.hp_kill_zone_color === '#112233' && Object.keys(legacyKillZone.values).length === 1,
+    'Import should accept legacy kzs kill-zone alias');
+  const mixedUnknown = HPPresetCodeCodec.decodePresetToken(validationConfig, `[ANITA-v1-hp_colors]:${encodePresetStorePayload({ v: 97, values: { bogus: 1, l: 44 } })}`, codecOptions);
+  assert(mixedUnknown.values.hp_low_threshold === 44 && Object.keys(mixedUnknown.values).length === 1, 'Import should skip unknown values but keep recognized ids');
+  const allUnknown = HPPresetCodeCodec.decodePresetToken(validationConfig, `[ANITA-v1-hp_colors]:${encodePresetStorePayload({ v: 97, values: { bogus: 1 } })}`, codecOptions);
+  assert(allUnknown && Object.keys(allUnknown.values).length === 0, 'All-unknown values should decode to an empty recognized value set for No IDs UI status');
+  assert(!HPPresetCodeCodec.decodePresetToken(validationConfig, `[ANITA-v1-hp_colors]:${encodePresetStorePayload({ v: 2, values: { e: true } })}`, codecOptions),
+    'Unsupported preset versions should be invalid');
+  assert(!HPPresetCodeCodec.decodePresetToken(validationConfig, '[ANITA-v1-hp_colors]:bad=chars', codecOptions),
+    'Malformed Base64URL should be invalid');
+  const bundle = HPPresetCodeCodec.encodePresetBundle({ storageVersion: 97, heroById: codecOptions.heroById, heroIdToKey: codecOptions.heroIdToKey }, [
+    { name: 'Off', payloadValues: { e: true }, heroMode: 'off' },
+    { name: 'All', payloadValues: { l: 55 }, heroMode: 'all' },
+    { name: 'Selected', payloadValues: { e: false }, heroMode: 'selected', heroes: ['1', '2'] }
+  ]);
+  const bundleScopes = decodeBase64UrlPayload(bundle).p.map(tuple => tuple[2]);
+  assert(bundleScopes[0] === 'off' && bundleScopes[1] === 'all' &&
+      Array.isArray(bundleScopes[2]) && bundleScopes[2][0] === 'hero_inferno' && bundleScopes[2][1] === 'hero_gigawatt',
+    'COPY ALL bundle should preserve off/all/selected tuple semantics');
   root.AnitaUI.Register(validationConfig);
   runNextScheduledByDelay(0.25);
   assert(sharedStore.__hpColorsMatchReset &&
@@ -449,9 +450,9 @@ function runValidation() {
   assert(hpModeElement.currentValue === 1 && !hpModeElement.runtimeLocked && !hpModeElement.__anitaRowPanel.BHasClass('AnitaRuntimeLocked'),
     'HP Colors should leave hp_mode interactive so Fixed/Gradient can be changed');
   assert(hpPulseEnabledElement.currentValue === true && !hpPulseEnabledElement.runtimeLocked,
-    'Optimized profile should leave non-General feature toggles interactive');
+    'HP Colors should leave non-General feature toggles interactive');
   assert(!hpPulseThresholdElement.runtimeHidden,
-    'Optimized profile should let enabled feature toggles show their customization controls');
+    'HP Colors should let enabled feature toggles show their customization controls');
 
   function activateCategory(mainText, subText) {
     const mainBtn = findByClass(root, 'AnitaMainCategoryBtn')
@@ -763,7 +764,7 @@ function runValidation() {
   assert(heroSummary.text === '1 hero selected',
     `Hero summary label did not update after selection: ${heroSummary.text}`);
   const firstHeroCheck = firstHeroOption.__anitaHeroCheckLabel;
-  assert(firstHeroCheck && firstHeroCheck.text === '✓',
+  assert(firstHeroCheck && firstHeroCheck.text === '\u2713',
     `Selected hero marker should be a compact checkmark, got: ${firstHeroCheck && firstHeroCheck.text}`);
   assert(heroFaceLabel.text === '1 hero',
     `Hero picker face label did not update to selected count: ${heroFaceLabel.text}`);
@@ -888,28 +889,626 @@ function runValidation() {
   console.log(`[HERO SELECTOR PASS] ${path.relative(ROOT, targetScript)} uses custom hero picker, isolates preset rows, survives rerender, and copies off/all/selected hero scope tokens.`);
 }
 
+function runPipConvarPopupValidation() {
+  const source = fs.readFileSync(targetScript, 'utf8');
+  dispatched.length = 0;
+  scheduled.length = 0;
+
+  const context = createMockContext();
+  runInVm(exposePipConvarTestHooks(source), context, targetScript);
+  installMockPresetStore([]);
+
+  const hooks = context.__hpColorsPipConvarTestHooks;
+  assert(hooks && hooks.core && hooks.settingsContract,
+    'HP Colors registrar test hooks were not exposed');
+  runNextScheduledByDelay(0.07);
+
+  const config = hooks.core.findRegisteredMod('HP Colors');
+  assert(config && Array.isArray(config.elements),
+    'HP Colors registrar did not register a config');
+
+  const persistedElements = config.elements.filter(element => element && element.id);
+  const persistedIds = hooks.settingsContract.buildOrderedIds();
+  assert(config.storageVersion === 99 && hooks.settingsContract.storageVersion === 99,
+    `HP Colors full persisted schema version changed: ${config.storageVersion}/${hooks.settingsContract.storageVersion}`);
+  assert(persistedElements.length === 56 && persistedIds.length === 56,
+    `HP Colors persisted setting count changed: ${persistedElements.length}/${persistedIds.length}`);
+  const persistedById = {};
+  persistedElements.forEach(element => {
+    persistedById[element.id] = element;
+  });
+  persistedIds.forEach(id => {
+    assert(persistedById[id] && persistedById[id].defaultValue === hooks.settingsContract.buildDefaults()[id],
+      `HP Colors persisted setting contract changed for ${id}`);
+  });
+  assert(hooks.settingsContract.ALIASES &&
+      hooks.settingsContract.ALIASES.hp_precise_pips_enabled === 'ppe',
+    'More Precise HP Pips must use the compact persisted alias ppe');
+  const pipAction = config.elements.find(element => element && element.id === 'hp_precise_pips_enabled');
+  assert(pipAction && pipAction.type === 'toggle' &&
+      pipAction.label === 'More Precise HP Pips' &&
+      pipAction.presetSupported === false &&
+      pipAction.defaultValue === false &&
+      pipAction.category === 'HEALTH BARS|Number Overlay' &&
+      typeof pipAction.onChange === 'function',
+    'More Precise HP Pips must be a persisted Number Overlay toggle');
+
+  function findPanelById(panel, id) {
+    if (!panel) return null;
+    if (panel.id === id) return panel;
+    for (const child of panel.children || []) {
+      const found = findPanelById(child, id);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function activateCategory(mainText, subText) {
+    const mainBtn = findByClass(root, 'AnitaMainCategoryBtn')
+      .find(button => button.children.some(child => child.text === mainText));
+    assert(mainBtn && mainBtn.events.onactivate, `Missing main category button: ${mainText}`);
+    mainBtn.events.onactivate();
+    const subBtn = findByClass(root, 'AnitaSubCategoryBtn')
+      .find(button => button.children.some(child => child.text === subText));
+    assert(subBtn && subBtn.events.onactivate, `Missing subcategory button: ${mainText}|${subText}`);
+    subBtn.events.onactivate();
+  }
+
+  const tabs = findByClass(root, 'AnitaTabBtn');
+  assert(tabs.length >= 1 && tabs[tabs.length - 1].events.onactivate,
+    'HP Colors tab missing activation handler');
+  tabs[tabs.length - 1].events.onactivate();
+  activateCategory('HEALTH BARS', 'Number Overlay');
+
+  const actionRow = findByClass(root, 'AnitaToggleRow')
+    .find(row => row.children.some(child => child.text === 'More Precise HP Pips'));
+  const actionButton = actionRow && findByClass(actionRow, 'AnitaToggleBtn')[0];
+  assert(actionButton && actionButton.events.onactivate,
+    'More Precise HP Pips toggle did not render in Number Overlay');
+
+  const persistedSignature = () => JSON.stringify(config.elements
+    .filter(element => element && element.id)
+    .map(element => [element.id, element.defaultValue]));
+  const initialPersistedSignature = persistedSignature();
+  function parseSettingUpdates() {
+    return dispatched
+      .filter(args => args[0] === 'ClientUI_FireOutput' && typeof args[1] === 'string')
+      .map(args => {
+        try { return JSON.parse(args[1]); } catch (err) { return null; }
+      })
+      .filter(payload => payload && payload.magic_word === 'ANITA_UPDATE');
+  }
+
+  function assertPipPopupWorkflow(command, phase) {
+    const popup = findPanelById(root, 'AnitaPipConvarPopup');
+    const commandLabel = findPanelById(popup, 'AnitaPipConvarCommand');
+    const copyButton = findPanelById(popup, 'AnitaPipConvarCopy');
+    const acknowledgeButton = findPanelById(popup, 'AnitaPipConvarAcknowledge');
+    assert(popup && popup.IsValid() && commandLabel && commandLabel.text === command,
+      `${phase} pip convar popup should show the exact command: ${commandLabel && commandLabel.text}`);
+    assert(copyButton && copyButton.events.onactivate &&
+        copyButton.children.some(child => child.text === 'COPY COMMAND'),
+      `${phase} pip convar popup should expose a COPY COMMAND button`);
+    assert(acknowledgeButton && acknowledgeButton.events.onactivate &&
+        acknowledgeButton.children.some(child => child.text === "I'VE DONE THIS"),
+      `${phase} pip convar popup should expose an I'VE DONE THIS button`);
+
+    dispatched.length = 0;
+    copyButton.events.onactivate();
+    assert(dispatched.some(args => args[0] === 'CopyStringToClipboard' && args[1] === command),
+      `${phase} COPY COMMAND should dispatch the exact clipboard value: ${JSON.stringify(dispatched)}`);
+
+    acknowledgeButton.events.onactivate();
+    assert(!popup.IsValid() && !findPanelById(root, 'AnitaPipConvarPopup'),
+      `${phase} I'VE DONE THIS should delete the pip convar popup`);
+  }
+
+  dispatched.length = 0;
+  actionButton.events.onactivate();
+  assert(actionRow.BHasClass('Checked'),
+    'More Precise HP Pips toggle did not switch on');
+  const enableUpdates = parseSettingUpdates();
+  assert(enableUpdates.length === 1 &&
+      enableUpdates[0].setting_id === 'hp_precise_pips_enabled' &&
+      enableUpdates[0].value === true,
+    `More Precise HP Pips should emit exactly one ANITA_UPDATE true payload: ${JSON.stringify(enableUpdates)}`);
+  assertPipPopupWorkflow(
+    '"citadel_unit_status_health_per_minor_pip" "10"\n' +
+    '"citadel_unit_status_health_per_pip" "10"\n' +
+    '"citadel_unit_status_minor_pip_per_major_pip" "10"',
+    'Enable');
+  hooks.persistence.applyResolvedValues(config, { hp_enabled: true });
+  assert(pipAction.currentValue === true,
+    'Applying a visual preset without precise-pip data must preserve precise mode');
+
+  dispatched.length = 0;
+  actionButton.events.onactivate();
+  assert(!actionRow.BHasClass('Checked'),
+    'More Precise HP Pips toggle did not switch off');
+  const disableUpdates = parseSettingUpdates();
+  assert(disableUpdates.length === 1 &&
+      disableUpdates[0].setting_id === 'hp_precise_pips_enabled' &&
+      disableUpdates[0].value === false,
+    `More Precise HP Pips should emit exactly one ANITA_UPDATE false payload: ${JSON.stringify(disableUpdates)}`);
+  assertPipPopupWorkflow(
+    '"citadel_unit_status_health_per_minor_pip" "100"\n' +
+    '"citadel_unit_status_health_per_pip" "100"\n' +
+    '"citadel_unit_status_minor_pip_per_major_pip" "5"',
+    'Disable');
+  assert(persistedSignature() === initialPersistedSignature,
+    'Pip convar workflow must not alter persisted HP Colors settings');
+
+  console.log(`[HP PIP CONVAR PASS] ${path.relative(ROOT, targetScript)} renders the persisted precise-pip toggle and enable/reset popups, emits exact updates, copies exact commands, and closes on acknowledgement.`);
+
+}
+function runSignatureTierConditionalValidation() {
+  const source = fs.readFileSync(targetScript, 'utf8');
+  dispatched.length = 0;
+  for (const removedMouseMarker of [
+    '[HP_MOUSE_DEBUG]',
+    'GameUI.WasMousePressed(',
+    'bindContextMenuTargets',
+    'consumeContextMenuAtCursor',
+    'AnitaConditionalContextRow',
+    'HandleConditionalContextMenu',
+  ]) {
+    assert(!source.includes(removedMouseMarker),
+      `Failed conditional mouse path must be removed: ${removedMouseMarker}`);
+  }
+  if (!IS_OPTIMIZED_TARGET) {
+    assert(source.includes('var marker = $.CreatePanel("Button", row, "");') &&
+        source.includes('marker.SetPanelEvent("onactivate"'),
+      'Conditional editor must use the row-end star button activation path');
+  }
+  scheduled.length = 0;
+  const context = createMockContext();
+  const decoyAbilities = new MockPanel('abilities', root);
+  const decoySlot = new MockPanel('slot_signature_1', decoyAbilities);
+  decoySlot.AddClass('Tier3');
+
+  function installSignatureTree(tiers) {
+    const signature = new MockPanel('hud_signature', root);
+    const abilities = new MockPanel('abilities', signature);
+    const slots = [];
+    for (let slot = 1; slot <= 4; slot++) {
+      const panel = new MockPanel(`slot_signature_${slot}`, abilities);
+      panel.AddClass(`Tier${tiers[slot - 1]}`);
+      const image = new MockPanel('Image', panel, 'ability_image');
+      if (slot === 4) {
+        image.style.backgroundImage =
+          'url("s2r://panorama/images/abilities/signature_4.vtex")';
+      } else {
+        image.SetAttributeString(
+          'src',
+          `s2r://panorama/images/abilities/signature_${slot}.vtex`,
+        );
+      }
+      slots.push(panel);
+    }
+    return { signature, abilities, slots };
+  }
+
+  const tree = installSignatureTree([2, 0, 2, 3]);
+  runInVm(
+    IS_OPTIMIZED_TARGET ? source : exposeConditionalEditorTestHooks(source),
+    context,
+    targetScript,
+  );
+  if (!IS_OPTIMIZED_TARGET) {
+    assert(context.__hpColorsConditionalEditorTestHooks,
+      'Conditional editor VM hooks were not exposed');
+  }
+  installMockTopbarHero('hero_inferno');
+  const conditionalPayload = HPPresetCodeCodec.encodeBase64Url(JSON.stringify({
+    v: 99,
+    values: { hp_low_threshold: 25 },
+    o: { hp_low_threshold: [1, 2, 45] },
+  }));
+  root.SetAttributeString('anita_v1_hp_colors', conditionalPayload);
+  assert(root.AnitaUI && typeof root.AnitaUI.Register === 'function',
+    'AnitaUI.Register was not exposed for signature conditional validation');
+  const config = {
+    title: 'HP Colors',
+    description: 'signature conditional validation',
+    storageNamespace: 'hp_colors',
+    storageVersion: 99,
+    elements: [
+      {
+        id: 'hp_low_threshold',
+        type: 'slider',
+        defaultValue: 25,
+        currentValue: 25,
+        category: 'General',
+        min: 0,
+        max: 100,
+        step: 1,
+      },
+      {
+        id: 'hp_number_format',
+        label: 'HP number format',
+        type: 'cycler',
+        defaultValue: 0,
+        currentValue: 0,
+        category: 'Health Bars',
+        options: ['HP', '%', 'Current HP'],
+      },
+      {
+        id: 'hp_counter_visible',
+        label: 'Show HP number',
+        type: 'toggle',
+        defaultValue: true,
+        currentValue: true,
+        category: 'Health Bars',
+      },
+    ],
+  };
+  root.AnitaUI.Register(config);
+  assert(config.__hpSignatureConditionalRules &&
+    config.__hpSignatureConditionalRules.hp_low_threshold,
+    `Conditional rules did not hydrate: ${JSON.stringify(config.__hpSignatureConditionalRules || null)}`);
+  if (!IS_OPTIMIZED_TARGET) {
+    const hooks = context.__hpColorsConditionalEditorTestHooks;
+    assert(!source.includes('AnitaConditionalChoice'),
+      'Conditional editor must remove the separate text slot/tier choice rows');
+    assert(source.includes('ability_frame_passive_0_psd.vtex') === false,
+      'Tier frame assets belong in CSS, not duplicated in controller code');
+    assert(!source.includes('AnitaConditionalAbilityFallback') &&
+        !source.includes('artFallback.text = "?"'),
+      'Conditional editor must not render question-mark ability fallbacks');
+    assert(hooks.conditional.openEditor(config, config.elements[0]),
+      'Conditional icon editor did not open');
+    const popup = hooks.conditional.popup;
+    assert(popup && popup.panel,
+      'Conditional icon editor did not retain popup state');
+    const abilityButtons = popup.panel.FindChildrenWithClassTraverse(
+      'AnitaConditionalAbility',
+    );
+    assert(abilityButtons.length === 4,
+      'Conditional editor must render four signature ability controls');
+    abilityButtons.forEach((button, index) => {
+      const art = button.FindChildrenWithClassTraverse(
+        'AnitaConditionalAbilityArt',
+      )[0];
+      assert(art && art.src ===
+        `s2r://panorama/images/abilities/signature_${index + 1}.vtex`,
+      `Signature ${index + 1} art was not copied from the live HUD slot`);
+    });
+    assert(abilityButtons[0].BHasClass('Active') &&
+        abilityButtons[0].BHasClass('VisualTier2'),
+      'Hydrated signature 1 Tier 2 rule was not reflected by the icon control');
+    const selectedTierBadge = abilityButtons[0].FindChildrenWithClassTraverse(
+      'AnitaConditionalTierBadge',
+    )[0];
+    assert(selectedTierBadge && selectedTierBadge.text === 'T2',
+      'Hydrated icon control must expose its minimum tier badge');
+    const toggle = popup.panel.FindChildrenWithClassTraverse(
+      'AnitaConditionalToggle',
+    )[0];
+    const toggleStatus = popup.panel.FindChildrenWithClassTraverse(
+      'AnitaConditionalToggleStatus',
+    )[0];
+    assert(toggle && toggleStatus &&
+        toggleStatus.text === 'Signature 1 · Tier 2+',
+      'Hydrated setting must refresh its compact condition summary');
+    abilityButtons[0].events.onactivate();
+    assert(abilityButtons[0].BHasClass('VisualTier3') &&
+        selectedTierBadge.text === 'T3',
+      'Repeated icon activation must cycle Tier 2 to Tier 3');
+    abilityButtons[0].events.onactivate();
+    assert(abilityButtons[0].BHasClass('VisualTier1') &&
+        selectedTierBadge.text === 'T1',
+      'Repeated icon activation must wrap Tier 3 to Tier 1');
+    abilityButtons[1].events.onactivate();
+    assert(!abilityButtons[0].BHasClass('Active') &&
+        abilityButtons[1].BHasClass('Active') &&
+        abilityButtons[1].BHasClass('VisualTier1'),
+      'Activating another signature icon must transfer selection and tier frame');
+    assert(toggleStatus.text === 'Signature 2 · Tier 1+',
+      'Changing signature slot must refresh the condition summary');
+    toggle.events.onactivate();
+    assert(toggleStatus.text === 'No condition' &&
+        abilityButtons.every(button => !button.BHasClass('Active')),
+      'Disabling a setting condition must clear stale selected visuals');
+    toggle.events.onactivate();
+    assert(toggleStatus.text === 'Signature 2 · Tier 1+' &&
+        abilityButtons[1].BHasClass('Active'),
+      'Re-enabling a setting condition must restore its own selection');
+    const conditionalSlider = popup.panel.FindChildrenWithClassTraverse(
+      'AnitaSlider',
+    )[0];
+    assert(conditionalSlider && conditionalSlider.style.height === '12px',
+      'Conditional slider must restrict dragging to its compact slider hit area');
+    const sliderContainer = popup.panel.FindChildrenWithClassTraverse(
+      'AnitaSliderContainer',
+    )[0];
+    assert(sliderContainer && sliderContainer.style.width === '290px' &&
+        sliderContainer.hittest === false &&
+        sliderContainer.hittestchildren === true,
+      'Conditional slider must fit the value card and ignore its outer box');
+    hooks.conditional.closePopup();
+    assert(hooks.conditional.openEditor(config, config.elements[1]),
+      'Conditional editor did not open for a new setting');
+    const freshPopup = hooks.conditional.popup;
+    const freshButtons = freshPopup.panel.FindChildrenWithClassTraverse(
+      'AnitaConditionalAbility',
+    );
+    const freshStatus = freshPopup.panel.FindChildrenWithClassTraverse(
+      'AnitaConditionalToggleStatus',
+    )[0];
+    assert(freshStatus && freshStatus.text === 'No condition' &&
+        freshButtons.every(button => !button.BHasClass('Active')),
+      'New setting must start with refreshed, unselected tier visuals');
+    assert(freshPopup.panel.FindChildrenWithClassTraverse(
+      'AnitaConditionalAbilityFallback',
+    ).length === 0,
+    'New setting must not recreate question-mark ability fallbacks');
+    freshButtons[2].events.onactivate();
+    assert(freshStatus.text === 'Signature 3 · Tier 1+' &&
+        freshButtons[2].BHasClass('Active'),
+      'Selecting an icon must enable and summarize the new setting condition');
+    const cyclerSegments = freshPopup.panel.FindChildrenWithClassTraverse(
+      'AnitaCyclerSegment',
+    );
+    assert(cyclerSegments.length === 3,
+      'Conditional cycler editor must render every radio option');
+    cyclerSegments[2].events.onactivate();
+    assert(cyclerSegments[2].BHasClass('Active'),
+      'Conditional cycler radio option did not become selected');
+    const applyConditional = freshPopup.panel.FindChildrenWithClassTraverse(
+      'Primary',
+    )[0];
+    assert(applyConditional && typeof applyConditional.events.onactivate === 'function',
+      'Conditional cycler editor is missing its apply action');
+    applyConditional.events.onactivate();
+    assert(config.__hpSignatureConditionalRules.hp_number_format &&
+        config.__hpSignatureConditionalRules.hp_number_format.value === 2,
+      `Conditional cycler radio selection was not saved: ${JSON.stringify(config.__hpSignatureConditionalRules)}`);
+    const cyclerEffective =
+      hooks.conditional.getEffectiveValues(config);
+    assert(cyclerEffective.hp_number_format === 2,
+      `Conditional cycler radio selection was not resolved at its live tier: ${JSON.stringify(cyclerEffective)}`);
+    const sliderOnlyRules =
+      hooks.conditional.cloneValue(config.__hpSignatureConditionalRules);
+    delete sliderOnlyRules.hp_number_format;
+    hooks.conditional.replaceRules(config, sliderOnlyRules);
+    assert(hooks.conditional.openEditor(config, config.elements[2]),
+      'Conditional editor did not open for an AnitaToggleBtn setting');
+    const togglePopup = hooks.conditional.popup;
+    const toggleAbilityButtons =
+      togglePopup.panel.FindChildrenWithClassTraverse(
+        'AnitaConditionalAbility',
+      );
+    toggleAbilityButtons[2].events.onactivate();
+    const conditionalValueToggle =
+      togglePopup.panel.FindChildrenWithClassTraverse(
+        'AnitaConditionalValueToggle',
+      )[0];
+    const conditionalValueStatus =
+      togglePopup.panel.FindChildrenWithClassTraverse(
+        'AnitaConditionalValueToggleStatus',
+      )[0];
+    assert(conditionalValueToggle &&
+        conditionalValueToggle.BHasClass('Active') &&
+        conditionalValueStatus &&
+        conditionalValueStatus.text === 'ON' &&
+        typeof conditionalValueToggle.events.onactivate === 'function',
+      'Conditional boolean editor must begin at the base true value');
+    conditionalValueToggle.events.onactivate();
+    assert(!conditionalValueToggle.BHasClass('Active') &&
+        conditionalValueStatus.text === 'OFF',
+      'Conditional boolean editor did not switch to false');
+    const applyToggleConditional =
+      togglePopup.panel.FindChildrenWithClassTraverse('Primary')[0];
+    assert(applyToggleConditional &&
+        typeof applyToggleConditional.events.onactivate === 'function',
+      'Conditional boolean editor is missing its apply action');
+    applyToggleConditional.events.onactivate();
+    const toggleRule =
+      config.__hpSignatureConditionalRules.hp_counter_visible;
+    assert(toggleRule &&
+        Object.prototype.hasOwnProperty.call(toggleRule, 'value') &&
+        toggleRule.value === false,
+      `Conditional AnitaToggleBtn false value was not saved: ${JSON.stringify(config.__hpSignatureConditionalRules)}`);
+    const toggleEffective =
+      hooks.conditional.getEffectiveValues(config);
+    assert(Object.prototype.hasOwnProperty.call(
+      toggleEffective,
+      'hp_counter_visible',
+    ) && toggleEffective.hp_counter_visible === false,
+    `Conditional AnitaToggleBtn false value was not resolved: ${JSON.stringify(toggleEffective)}`);
+    const sliderRulesAfterToggle =
+      hooks.conditional.cloneValue(config.__hpSignatureConditionalRules);
+    delete sliderRulesAfterToggle.hp_counter_visible;
+    hooks.conditional.replaceRules(config, sliderRulesAfterToggle);
+
+    const controller = hooks.conditional;
+    assert(hooks.maxTierConfirmMs === 5000,
+      'Signature max-tier confirmation window must be exactly five seconds');
+    controller.resetMaxTierScanState(config, false);
+    tree.slots[0].RemoveClass('Tier2');
+    tree.slots[0].AddClass('Tier3');
+    const originalReadTier = controller.readTier;
+    let slotOneTierReads = 0;
+    controller.readTier = function(panel) {
+      if (panel === tree.slots[0]) slotOneTierReads += 1;
+      return originalReadTier.call(controller, panel);
+    };
+    controller.refreshTiers();
+    assert(controller.maxTierSeenAtMs[0] >= 0 &&
+        controller.maxTierRetired[0] === false,
+      'First Tier 3 observation must begin, not complete, confirmation');
+    tree.slots[0].RemoveClass('Tier3');
+    tree.slots[0].AddClass('Tier2');
+    controller.refreshTiers();
+    assert(controller.maxTierSeenAtMs[0] === -1 &&
+        controller.maxTierRetired[0] === false,
+      'Dropping below Tier 3 must cancel pending confirmation');
+    tree.slots[0].RemoveClass('Tier2');
+    tree.slots[0].AddClass('Tier3');
+    controller.refreshTiers();
+    controller.maxTierSeenAtMs[0] =
+      Date.now() - hooks.maxTierConfirmMs - 1;
+    controller.refreshTiers();
+    assert(controller.maxTierRetired[0] === true &&
+        controller.tiers[0] === 3 &&
+        controller.hasPendingTierScans() === false,
+      'Continuous Tier 3 must retire its scan after five seconds');
+    const readsAtRetirement = slotOneTierReads;
+    controller.refreshTiers();
+    assert(slotOneTierReads === readsAtRetirement &&
+        controller.tiers[0] === 3,
+      'Retired max signature must stay cached without another tier read');
+    const pollCountBeforeRetiredSchedule = scheduled.filter(
+      job => Number(job && job.delay) === 0.1,
+    ).length;
+    controller.rebuildReferencedSlots(config);
+    controller.schedulePoll(config, 0.1);
+    assert(controller.maxTierRetired[0] === true &&
+        scheduled.filter(job => Number(job && job.delay) === 0.1).length ===
+          pollCountBeforeRetiredSchedule,
+      'Rule rebuilds must preserve retirement and must not restart its poll');
+    const retiredRules = controller.cloneValue(
+      config.__hpSignatureConditionalRules,
+    );
+    controller.clearRules(config, null);
+    assert(controller.referencedSlots[0] === false &&
+        controller.maxTierRetired[0] === false &&
+        controller.tiers[0] === -1,
+      'Removing the last slot rule must clear its retired tier cache');
+    tree.slots[0].RemoveClass('Tier3');
+    tree.slots[0].AddClass('Tier2');
+    controller.replaceRules(config, retiredRules);
+    assert(controller.referencedSlots[0] === true &&
+        controller.maxTierRetired[0] === false &&
+        controller.tiers[0] === 2 &&
+        controller.hasPendingTierScans() === true,
+      'Re-adding a retired slot rule must read the live tier and resume scanning');
+    controller.refreshTiers();
+    assert(controller.tiers[0] === 2,
+      'Re-added slot rule must read its current tier instead of stale Tier 3');
+    controller.readTier = originalReadTier;
+    controller.resetMaxTierScanState(config, true);
+
+    const row = new MockPanel('Panel', root, 'ConditionalStarTestRow');
+    let openedElement = null;
+    hooks.conditional.openEditor = (openedConfig, openedSetting) => {
+      assert(openedConfig === config,
+        'Conditional star opened the wrong config');
+      openedElement = openedSetting;
+      return true;
+    };
+    assert(hooks.conditional.decorateRow(config, config.elements[0], row),
+      'Conditional controller did not decorate star test row');
+    const marker = config.elements[0].__anitaConditionalMarker;
+    assert(marker && marker.type === 'Button',
+      'Conditional row-end marker must be a clickable Button');
+    assert(marker.GetChildCount() === 1 && marker.GetChild(0).text === '*',
+      'Conditional row-end button must render only the star glyph');
+    assert(config.elements[0].__anitaConditionalTooltip === undefined,
+      'Conditional star tooltip must not be a child of the setting row or marker');
+    assert(typeof marker.events.onmouseover === 'function' &&
+      typeof marker.events.onmouseout === 'function',
+    'Conditional star must use the established local-tooltip hover path');
+    marker.events.onmouseover();
+    const localTooltip = hooks.renderer.presetTooltip;
+    const localTooltipLabel = localTooltip && localTooltip.__anitaTooltipLabel;
+    assert(localTooltip && localTooltip.GetParent() !== row &&
+      localTooltipLabel &&
+      localTooltipLabel.text === 'Configure signature condition' &&
+      localTooltip.style.opacity === '1',
+    `Conditional star did not show the established local tooltip: ${localTooltipLabel && localTooltipLabel.text}`);
+    const tooltipHost = localTooltip.GetParent();
+    tooltipHost.actuallayoutwidth = 1920;
+    tooltipHost.contentwidth = 1920;
+    tooltipHost.actuallayoutheight = 1080;
+    tooltipHost.contentheight = 1080;
+    runNextScheduledByDelay(0.02);
+    const tooltipPositionBeforeScroll = localTooltip.style.position;
+    const scrollHandler = activeHarness.handlerEntries.find((entry) =>
+      entry.eventName === 'ScrollPositionChanged' &&
+      entry.panel &&
+      entry.panel.BHasClass('AnitaSettingsList'));
+    assert(scrollHandler &&
+      scrollHandler.panel.sendScrollPositionChangedEvents === true,
+    'Settings list did not enable event-driven tooltip repositioning');
+    marker.actualyoffset += 80;
+    scrollHandler.handler();
+    assert(localTooltip.style.position !== tooltipPositionBeforeScroll,
+      'Visible local tooltip did not follow its anchor after simulated scrolling');
+    marker.events.onmouseout();
+    assert(localTooltip.style.opacity === '0',
+      'Conditional star mouseout did not hide the established local tooltip');
+    const hiddenTooltipPosition = localTooltip.style.position;
+    marker.actualyoffset += 80;
+    scrollHandler.handler();
+    assert(localTooltip.style.position === hiddenTooltipPosition &&
+      localTooltip.style.opacity === '0',
+    'Hidden local tooltip kept tracking its former anchor');
+    assert(typeof marker.events.onactivate === 'function',
+      'Conditional row-end star button is missing onactivate');
+    marker.events.onactivate();
+    assert(openedElement === config.elements[0],
+      'Conditional row-end star opened the wrong setting');
+  }
+  runScheduledJobsByDelay(0.0);
+  runScheduledJobsByDelay(0.1);
+  runScheduledJobsByDelay(0.5);
+  const snapshotPayloads = () => dispatched
+    .filter(args => args[0] === 'ClientUI_FireOutput' && typeof args[1] === 'string')
+    .map(args => {
+      try { return JSON.parse(args[1]); } catch (err) { return null; }
+    })
+    .filter(payload => payload && payload.magic_word === 'HP_COLORS_PRESET_SNAPSHOT');
+  let snapshots = snapshotPayloads();
+  assert(snapshots.some(payload =>
+    payload.effective_values &&
+    payload.effective_values.hp_low_threshold === 45),
+  `Tier 2 condition did not publish effective value: ${JSON.stringify(snapshots)}`);
+
+  dispatched.length = 0;
+  tree.slots[0].RemoveClass('Tier2');
+  tree.slots[0].AddClass('Tier1');
+  runNextScheduledByDelay(0.1);
+  snapshots = snapshotPayloads();
+  assert(snapshots.some(payload =>
+    payload.effective_values &&
+    Object.keys(payload.effective_values).length === 0),
+  `Tier transition did not fall back to base: ${JSON.stringify(snapshots)}`);
+
+  dispatched.length = 0;
+  tree.slots[0].RemoveClass('Tier1');
+  tree.slots[0].AddClass('Tier3');
+  runNextScheduledByDelay(0.1);
+  snapshots = snapshotPayloads();
+  assert(snapshots.some(payload =>
+    payload.effective_values &&
+    payload.effective_values.hp_low_threshold === 45),
+  `Tier transition did not republish effective value: ${JSON.stringify(snapshots)}`);
+  console.log(`[HP SIGNATURE CONDITIONAL PASS] ${path.relative(ROOT, targetScript)} refreshes per-setting selection and summaries, saves cycler and boolean values, resolves false toggle overrides, snapshots live icon sources including CSS-bound images, cycles Tier 1–3 frames, constrains slider hit testing, republishes transitions, and falls back to base when unresolved.`);
+}
+
+
 function runHeroPresetApplyValidation() {
   const source = fs.readFileSync(targetScript, 'utf8');
   dispatched.length = 0;
   scheduled.length = 0;
 
   const context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
-  const progress = installMockHeroProgress('hero_inferno');
+  runInVm(source, context, targetScript);
+  const topbarPlayer = installMockTopbarHero('hero_inferno');
   const presetRows = [
     {
       id: 'HPColorsPreset_001',
       name: 'Main Hunt 2',
       category: 'Builder VPK',
+      heroMode: 'selected',
       heroes: ['hero_inferno'],
       values: { hp_enabled: false, hp_low_threshold: 25 }
     },
     {
       id: 'HPColorsPreset_002',
       name: 'Shift',
-      category: 'Builder VPK',
+      heroMode: 'selected',
       heroes: ['hero_haze'],
       values: { hp_enabled: true, hp_low_threshold: 45 }
     }
@@ -928,7 +1527,7 @@ function runHeroPresetApplyValidation() {
     ]
   });
 
-  runNextScheduledByDelay(0.5);
+  runScheduledJobsByDelay(0.5);
   let updates = decodedBulkUpdates();
   findBakedPresetUpdate(updates, payload =>
     payload.hero_id === 'hero_inferno' &&
@@ -937,8 +1536,8 @@ function runHeroPresetApplyValidation() {
     'Initial detected hero did not apply Infernus preset');
 
   runNextScheduledByDelay(2.0);
-  progress.RemoveClass('hero_inferno');
-  progress.AddClass('hero_haze');
+  topbarPlayer.RemoveClass('hero_inferno');
+  topbarPlayer.AddClass('hero_haze');
   runNextScheduledByDelay(2.0);
   updates = decodedBulkUpdates();
   findBakedPresetUpdate(updates, payload =>
@@ -950,8 +1549,8 @@ function runHeroPresetApplyValidation() {
   store.DeleteAsync();
   runNextScheduledByDelay(2.0);
   installMockPresetStore(presetRows);
-  progress.RemoveClass('hero_haze');
-  progress.AddClass('hero_inferno');
+  topbarPlayer.RemoveClass('hero_haze');
+  topbarPlayer.AddClass('hero_inferno');
   runNextScheduledByDelay(2.0);
   updates = decodedBulkUpdates();
   findBakedPresetUpdate(updates, payload =>
@@ -969,10 +1568,8 @@ function runHeroPresetStableIdPriorityValidation() {
   scheduled.length = 0;
 
   const context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
-  installMockHeroProgress('hero_inferno');
+  runInVm(source, context, targetScript);
+  installMockTopbarHero('hero_inferno');
   installMockPresetStore([
     {
       id: 'HPColorsPreset_001',
@@ -1028,10 +1625,8 @@ function runHeroPresetGlobalFallbackBeforeHeroValidation() {
   dispatched.length = 0;
   scheduled.length = 0;
 
-  const context = createMockContext({ gameState: 6 });
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
+  const context = createMockContext({ gameState: 7 });
+  runInVm(source, context, targetScript);
   installMockPresetStore([
     {
       id: 'HPColorsPreset_001',
@@ -1081,10 +1676,8 @@ function runHeroPresetLobbyGateValidation() {
   scheduled.length = 0;
 
   const context = createMockContext({ gameState: 2 });
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
-  const progress = installMockHeroProgress('hero_inferno');
+  runInVm(source, context, targetScript);
+  const topbarPlayer = installMockTopbarHero('hero_inferno');
   installMockGameTime('00:00');
   installMockPresetStore([
     {
@@ -1121,8 +1714,8 @@ function runHeroPresetLobbyGateValidation() {
   assert(!updates.some(payload => payload.update_source === 'baked_preset_apply'),
     `Lobby state should not spend the hero lookup window or apply a scoped preset: ${JSON.stringify(updates)}`);
 
-  progress.RemoveClass('hero_inferno');
-  progress.AddClass('hero_haze');
+  topbarPlayer.RemoveClass('hero_inferno');
+  topbarPlayer.AddClass('hero_haze');
   runNextScheduledByDelay(2.0);
   updates = decodedBulkUpdates();
   assert(!updates.some(payload => payload.update_source === 'baked_preset_apply'),
@@ -1130,6 +1723,17 @@ function runHeroPresetLobbyGateValidation() {
 
   mockGameState = 6;
   runNextScheduledByDelay(5.0);
+  updates = decodedBulkUpdates();
+  assert(!updates.some(payload => payload.update_source === 'baked_preset_apply'),
+    `Valve pre-game-wait state must not open the hero lookup window: ${JSON.stringify(updates)}`);
+
+  mockGameState = 7;
+  runScheduledUntil(
+    () => decodedBulkUpdates().some(payload =>
+      payload.update_source === 'baked_preset_apply' &&
+      payload.hero_id === 'hero_haze'),
+    'Active game state did not schedule the scoped hero preset',
+  );
   updates = decodedBulkUpdates();
   assert(updates.some(payload => payload.update_source === 'baked_preset_apply' &&
     payload.hero_id === 'hero_haze' &&
@@ -1145,10 +1749,8 @@ function runMatchMonitorRollbackValidation() {
   dispatched.length = 0;
   scheduled.length = 0;
 
-  const context = createMockContext({ gameState: 6 });
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
+  const context = createMockContext({ gameState: 7 });
+  runInVm(source, context, targetScript);
   const gameTime = installMockGameTime('01:10');
 
   root.AnitaUI.Register({
@@ -1178,16 +1780,51 @@ function runMatchMonitorRollbackValidation() {
   console.log(`[HERO MATCH MONITOR PASS] ${path.relative(ROOT, targetScript)} publishes a new reset token after active game-time rollback.`);
 }
 
+function runSignatureTierLifecycleResetValidation() {
+  if (IS_OPTIMIZED_TARGET) return;
+  const source = fs.readFileSync(targetScript, 'utf8');
+  dispatched.length = 0;
+  scheduled.length = 0;
+
+  const context = createMockContext({ gameState: 7 });
+  runInVm(exposeConditionalEditorTestHooks(source), context, targetScript);
+  installMockGameTime('00:01');
+  const config = {
+    title: 'HP Colors',
+    description: 'signature tier lifecycle reset validation',
+    storageNamespace: 'hp_colors',
+    storageVersion: 97,
+    elements: [
+      { id: 'hp_enabled', type: 'toggle', defaultValue: true, currentValue: true, category: 'General' }
+    ]
+  };
+  root.AnitaUI.Register(config);
+  const controller =
+    context.__hpColorsConditionalEditorTestHooks.conditional;
+
+  controller.maxTierRetired = [true, true, true, true];
+  runNextScheduledByDelay(0.25);
+  assert(controller.maxTierRetired.every(value => value === false),
+    'Active match start must reset max-tier scan retirement');
+
+  controller.maxTierRetired = [true, true, true, true];
+  mockGameState = 2;
+  runScheduledJobsByDelay(1.0);
+  assert(controller.maxTierRetired.every(value => value === false),
+    'Returning to the lobby must reset max-tier scan retirement');
+
+  console.log(`[HP SIGNATURE LIFECYCLE PASS] ${path.relative(ROOT, targetScript)} resets max-tier scan retirement at match start and on return to lobby.`);
+}
+
+
 function runHeroSelectorRuntimeScopeValidation() {
   const source = fs.readFileSync(targetScript, 'utf8');
   dispatched.length = 0;
   scheduled.length = 0;
 
   const context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
-  installMockHeroProgress('hero_haze');
+  runInVm(source, context, targetScript);
+  installMockTopbarHero('hero_haze');
   installMockPresetStore();
 
   assert(root.AnitaUI && typeof root.AnitaUI.Register === 'function', 'AnitaUI.Register was not exposed for runtime scope validation');
@@ -1242,10 +1879,8 @@ function runHeroScopeModeFallbackValidation() {
   scheduled.length = 0;
 
   let context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
-  installMockHeroProgress('hero_haze');
+  runInVm(source, context, targetScript);
+  installMockTopbarHero('hero_haze');
   installMockPresetStore([
     {
       id: 'HPColorsPreset_001',
@@ -1289,17 +1924,15 @@ function runHeroScopeModeFallbackValidation() {
     payload.preset_key === 'HPColorsPreset_001' &&
     payload.values && payload.values.hp_low_threshold === 45),
     `All-heroes preset should remain the fallback after watcher tick when selected mode misses: ${JSON.stringify(updates)}`);
-  assert(presetStoreLookups.findStore === 0 && presetStoreLookups.scanEntries === 0,
+  assert((refreshPresetStoreLookupCounters(), presetStoreLookups.findStore === 0 && presetStoreLookups.scanEntries === 0),
     `Watcher tick should reuse cached baked preset entries instead of scanning Panorama panels: ${JSON.stringify(presetStoreLookups)}`);
 
   dispatched.length = 0;
   scheduled.length = 0;
-  root = new MockPanel('Panel', null, 'Root');
+  activeHarness = createPanoramaHarness({ now: 0 }); syncHeroGlobals();
   context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
-  installMockHeroProgress('hero_haze');
+  runInVm(source, context, targetScript);
+  installMockTopbarHero('hero_haze');
   installMockPresetStore([
     {
       id: 'HPColorsPreset_003',
@@ -1344,10 +1977,14 @@ function runHeroScopeModeFallbackValidation() {
   dispatched.length = 0;
   scheduled.length = 0;
   context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
-  const progress = installMockHeroProgress('hero_shiv');
+  runInVm(IS_OPTIMIZED_TARGET ? source : exposePresetBuilderTestHooks(source), context, targetScript);
+  const topbarPlayer = installMockTopbarHero('hero_shiv');
+  if (!IS_OPTIMIZED_TARGET) {
+    topbarPlayer.__heroNameLabel.text = 'constructor';
+    assert(context.__hpPresetBuilderTestHooks.detectLocalHero() === '',
+      'Inherited object properties must not resolve as retail hero names');
+  }
+  topbarPlayer.__heroNameLabel.text = '#';
   installMockPresetStore([
     {
       id: 'HPColorsPreset_005',
@@ -1378,16 +2015,31 @@ function runHeroScopeModeFallbackValidation() {
   });
 
   runNextScheduledByDelay(0.5);
-  progress.RemoveClass('hero_shiv');
-  progress.AddClass('hero_magician');
+  assert(!decodedBulkUpdates().some(payload =>
+    payload.update_source === 'baked_preset_apply' &&
+    payload.preset_key === 'HPColorsPreset_006'),
+  'Topbar placeholder must not resolve to a selected hero preset');
+  topbarPlayer.AddClass('hero_shiv');
+  activeHarness.findCounts.LocalPlayer = 0;
+  runNextScheduledByDelay(2.0);
+  const stableTopbarScans = activeHarness.findCounts.LocalPlayer || 0;
+  assert(stableTopbarScans === 0,
+    `Stable hero detection should reuse the cached local topbar card: ${stableTopbarScans} LocalPlayer scans`);
+  assert(decodedBulkUpdates().some(payload =>
+    payload.update_source === 'baked_preset_apply' &&
+    payload.preset_key === 'HPColorsPreset_006' &&
+    payload.hero_id === 'hero_shiv'),
+  `Retail topbar name should resolve to the canonical hero key: ${JSON.stringify(decodedBulkUpdates())}`);
+  topbarPlayer.RemoveClass('hero_shiv');
+  topbarPlayer.AddClass('hero_magician');
   runNextScheduledByDelay(2.0);
   updates = decodedBulkUpdates().filter(payload => payload.update_source === 'baked_preset_apply' &&
     payload.preset_key === 'HPColorsPreset_005' &&
     payload.hero_id === 'hero_magician');
   assert(updates.length >= 1 && updates.some(payload => payload.values && payload.values.hp_low_threshold === 60),
     `Leaving a selected hero should apply the all-heroes fallback for unclaimed heroes: ${JSON.stringify(decodedBulkUpdates())}`);
-  progress.RemoveClass('hero_magician');
-  progress.AddClass('hero_shiv');
+  topbarPlayer.RemoveClass('hero_magician');
+  topbarPlayer.AddClass('hero_shiv');
   runNextScheduledByDelay(2.0);
   updates = decodedBulkUpdates().filter(payload => payload.update_source === 'baked_preset_apply' &&
     payload.preset_key === 'HPColorsPreset_006' &&
@@ -1398,10 +2050,8 @@ function runHeroScopeModeFallbackValidation() {
   dispatched.length = 0;
   scheduled.length = 0;
   context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
-  const activeProgress = installMockHeroProgress('hero_inferno');
+  runInVm(source, context, targetScript);
+  const activeTopbarPlayer = installMockTopbarHero('hero_inferno');
   installMockGameTime('12:00');
   installMockPresetStore([
     {
@@ -1435,8 +2085,8 @@ function runHeroScopeModeFallbackValidation() {
 
   runNextScheduledByDelay(0.5);
   runNextScheduledByDelay(2.0);
-  activeProgress.RemoveClass('hero_inferno');
-  activeProgress.AddClass('hero_haze');
+  activeTopbarPlayer.RemoveClass('hero_inferno');
+  activeTopbarPlayer.AddClass('hero_haze');
   runScheduledJobsByDelay(2.0);
   updates = decodedBulkUpdates().filter(payload => payload.update_source === 'baked_preset_apply' &&
     payload.preset_key === 'HPColorsPreset_014' &&
@@ -1447,10 +2097,8 @@ function runHeroScopeModeFallbackValidation() {
   dispatched.length = 0;
   scheduled.length = 0;
   context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
-  const manualImportProgress = installMockHeroProgress('hero_haze');
+  runInVm(source, context, targetScript);
+  const manualImportTopbarPlayer = installMockTopbarHero('hero_haze');
   const manualImportGameTime = installMockGameTime('12:00');
   installMockPresetStore([
     {
@@ -1533,8 +2181,8 @@ function runHeroScopeModeFallbackValidation() {
       manualImportConfig.__hpHeroManualPresetOverride === false,
     'Hero mode button did not enter HERO OFF mode');
   dispatched.length = 0;
-  manualImportProgress.RemoveClass('hero_haze');
-  manualImportProgress.AddClass('hero_inferno');
+  manualImportTopbarPlayer.RemoveClass('hero_haze');
+  manualImportTopbarPlayer.AddClass('hero_inferno');
   runScheduledJobsByDelay(2.0);
   updates = decodedBulkUpdates();
   assert(!updates.some(payload => payload.update_source === 'baked_preset_apply'),
@@ -1557,10 +2205,8 @@ function runHeroScopeModeFallbackValidation() {
   dispatched.length = 0;
   scheduled.length = 0;
   context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
-  const userRowProgress = installMockHeroProgress('hero_inferno');
+  runInVm(source, context, targetScript);
+  const userRowTopbarPlayer = installMockTopbarHero('hero_inferno');
   installMockGameTime('00:05');
   installMockPresetStore([]);
   const userRowConfig = {
@@ -1594,8 +2240,8 @@ function runHeroScopeModeFallbackValidation() {
   root.AnitaUI.Register(userRowConfig);
 
   runNextScheduledByDelay(0.5);
-  userRowProgress.RemoveClass('hero_inferno');
-  userRowProgress.AddClass('hero_haze');
+  userRowTopbarPlayer.RemoveClass('hero_inferno');
+  userRowTopbarPlayer.AddClass('hero_haze');
   runNextScheduledByDelay(2.0);
   updates = decodedBulkUpdates();
   assert(updates.some(payload => payload.update_source === 'baked_preset_apply' &&
@@ -1607,10 +2253,8 @@ function runHeroScopeModeFallbackValidation() {
   dispatched.length = 0;
   scheduled.length = 0;
   context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
-  installMockHeroProgress('hero_haze');
+  runInVm(source, context, targetScript);
+  installMockTopbarHero('hero_haze');
   installMockPresetStore([
     {
       id: 'HPColorsPreset_007',
@@ -1647,7 +2291,7 @@ function runHeroScopeModeFallbackValidation() {
     payload.values && payload.values.hp_low_threshold === 70),
     `Changing a preset row to All heroes should refresh matching config immediately: ${JSON.stringify(updates)}`);
 
-  console.log(`[HERO SCOPE MODE PASS] ${path.relative(ROOT, targetScript)} keeps off rows disabled, uses all fallback for unclaimed heroes, and prefers selected hero matches.`);
+  console.log(`[HERO SCOPE MODE PASS] ${path.relative(ROOT, targetScript)} maps Valve retail topbar names to canonical hero keys, rejects placeholders, reuses the cached local-player card, and preserves off/all/selected fallback behavior.`);
 }
 
 function runHeroScopeLiveEditValidation() {
@@ -1656,10 +2300,8 @@ function runHeroScopeLiveEditValidation() {
   scheduled.length = 0;
 
   let context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
-  installMockHeroProgress('hero_haze');
+  runInVm(source, context, targetScript);
+  installMockTopbarHero('hero_haze');
   installMockPresetStore([
     {
       id: 'HPColorsPreset_008',
@@ -1751,9 +2393,7 @@ function runHeroBundleScopeTokenValidation() {
   scheduled.length = 0;
 
   let context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
+  runInVm(source, context, targetScript);
   installMockPresetStore([
     {
       id: 'HPColorsPreset_010',
@@ -1821,9 +2461,7 @@ function runUserPresetBundleValidation() {
     hp_enabled: false,
     hp_low_threshold: 62
   });
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
+  runInVm(source, context, targetScript);
   installMockPresetStore([]);
 
   root.AnitaUI.Register({
@@ -1886,9 +2524,7 @@ function runUserPresetRenameValidation() {
     hp_enabled: false,
     hp_low_threshold: 62
   });
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
+  runInVm(source, context, targetScript);
   installMockPresetStore([]);
 
   root.AnitaUI.Register({
@@ -1954,9 +2590,7 @@ function runPresetDeleteValidation() {
     hp_enabled: false,
     hp_low_threshold: 62
   });
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
+  runInVm(source, context, targetScript);
   installMockPresetStore([
     {
       id: 'HPColorsPreset_DELETE_A',
@@ -2044,6 +2678,264 @@ function runPresetDeleteValidation() {
   console.log(`[HERO PRESET DELETE PASS] ${path.relative(ROOT, targetScript)} removes user presets and hides baked preset rows with a trash icon.`);
 }
 
+function runPresetBuilderModelActionValidation() {
+  const source = fs.readFileSync(targetScript, 'utf8');
+  dispatched.length = 0;
+  scheduled.length = 0;
+  resetPresetStoreLookupCounters();
+
+  const vmState = createPresetBuilderVm(source);
+  const hooks = vmState.hooks;
+  const model = hooks.model;
+  const actions = hooks.actions;
+
+  assert(model.getDefaultSelectedPresetKey([
+      { key: 'current', name: 'Current live settings' },
+      { key: 'baked_late_startup', id: 'HPColorsPreset_001', name: 'Startup' },
+      { key: 'baked_other', id: 'HPColorsPreset_002', name: 'Other' }
+    ]) === 'baked_late_startup',
+    'Preset builder default selection should prefer the startup preset even when it is not first');
+  assert(model.getDefaultSelectedPresetKey([
+      { key: 'current', name: 'Current live settings' },
+      { key: 'baked_first', id: 'HPColorsPreset_020', name: 'First baked' },
+      { key: 'user_first', name: 'User first' }
+    ]) === 'baked_first',
+    'Preset builder default selection should fall back to the first baked row');
+  assert(model.getDefaultSelectedPresetKey([
+      { key: 'user_first', name: 'User first' },
+      { key: 'current', name: 'Current live settings' }
+    ]) === 'user_first',
+    'Preset builder default selection should fall back to the first row when no startup or baked row exists');
+  assert(model.getDefaultSelectedPresetKey([]) === '',
+    'Preset builder default selection should be empty for an empty row list');
+
+  const selectionConfig = makePresetBuilderConfig({ __anitaSelectedPresetKey: 'baked_existing' });
+  const selectionRows = [
+    { key: 'baked_existing', id: 'HPColorsPreset_030', name: 'Existing' },
+    { key: 'baked_startup', id: 'HPColorsPreset_001', name: 'Startup' }
+  ];
+  assert(model.ensureSelectedPresetKey(selectionConfig, selectionRows) === 'baked_existing',
+    'ensureSelectedPresetKey should preserve a valid selected key');
+  selectionConfig.__anitaSelectedPresetKey = 'stale_missing_key';
+  assert(model.ensureSelectedPresetKey(selectionConfig, selectionRows) === 'baked_startup' &&
+      selectionConfig.__anitaSelectedPresetKey === 'baked_startup',
+    `ensureSelectedPresetKey should repair stale selections to the default: ${selectionConfig.__anitaSelectedPresetKey}`);
+
+  installMockPresetStore([
+    {
+      id: 'HPColorsPreset_PRIORITY_A',
+      name: 'Priority A',
+      category: 'Builder VPK',
+      values: { hp_enabled: false, hp_low_threshold: 25 }
+    },
+    {
+      id: 'HPColorsPreset_PRIORITY_B',
+      name: 'Priority B',
+      category: 'Builder VPK',
+      values: { hp_enabled: true, hp_low_threshold: 45 }
+    }
+  ]);
+  const priorityConfig = makePresetBuilderConfig({
+    __anitaPresetPriorityOrder: ['id:HPColorsPreset_PRIORITY_B', 'id:HPColorsPreset_PRIORITY_A']
+  });
+  const priorityModel = model.buildPresetBuilderViewModel(priorityConfig);
+  const priorityNames = priorityModel.rows.map(row => row.name);
+  assert(priorityNames[0] === 'Priority B' && priorityNames[1] === 'Priority A' &&
+      priorityNames[2] === 'Current live settings',
+    `Preset builder view model should apply priority order to visible rows: ${JSON.stringify(priorityNames)}`);
+  assert(priorityModel.bundleRows.length === 2 && priorityModel.bundlePresetCount === 2,
+    `Preset builder view model should count only exportable preset rows: ${priorityModel.bundlePresetCount}`);
+  const priorityBundle = decodeBase64UrlPayload(
+    model.buildPresetBundleCodeToken(priorityConfig, priorityModel.bundleRows),
+  );
+  assert(Array.isArray(priorityBundle.p) &&
+      priorityBundle.p[0][0] === 'Priority B' &&
+      priorityBundle.p[1][0] === 'Priority A',
+    `COPY ALL token should preserve model priority order: ${JSON.stringify(priorityBundle.p)}`);
+
+  const importConfig = makePresetBuilderConfig();
+  const importToken = HPPresetCodeCodec.encodePresetToken(
+    importConfig,
+    { hp_enabled: false, hp_low_threshold: 22 },
+    { name: 'Imported No Apply' },
+  );
+  dispatched.length = 0;
+  const importResult = actions.addUserPresetFromImportCode(importConfig, importToken);
+  assert(importResult && importResult.ok && importResult.row,
+    `Import should save a preset row without applying it live: ${JSON.stringify(importResult)}`);
+  assert(importConfig.elements[0].currentValue === true &&
+      importConfig.elements[1].currentValue === 35,
+    `Import-without-apply should preserve current live settings: ${JSON.stringify(importConfig.elements)}`);
+  assert(!decodedBulkUpdates().some(payload => payload.update_source === 'ui_code_apply'),
+    `Import-without-apply should not dispatch a live apply: ${JSON.stringify(decodedBulkUpdates())}`);
+
+  installMockTopbarHero('hero_haze');
+  const scopedConfig = makePresetBuilderConfig({
+    __hpHeroDetectionMode: 'auto',
+    __hpLastAppliedHeroPresetKey: 'stale_key',
+    __hpLastAppliedHeroPresetHero: 'hero_haze'
+  });
+  const scopedRow = actions.addUserPresetFromValues(
+    scopedConfig,
+    'Inferno Only',
+    { hp_enabled: false, hp_low_threshold: 22 },
+    {},
+    'Imported',
+    ['hero_inferno'],
+    'selected',
+  );
+  scheduled.length = 0;
+  dispatched.length = 0;
+  const waitResult = actions.applyPresetRow(scopedConfig, scopedRow);
+  assert(waitResult && waitResult.waiting === true && waitResult.applied !== true,
+    `Selected scoped row should wait when AUTO HERO detects an incompatible current hero: ${JSON.stringify(waitResult)}`);
+  assert(scopedConfig.__anitaSelectedPresetKey === scopedRow.key &&
+      scopedConfig.__hpHeroPresetHasScopedPreset === true &&
+      scopedConfig.__hpLastAppliedHeroPresetKey === '' &&
+      scopedConfig.__hpLastAppliedHeroPresetHero === '',
+    `Waiting scoped apply should select the row and invalidate hero apply cache: ${JSON.stringify(scopedConfig)}`);
+  assert(!decodedBulkUpdates().some(payload => payload.update_source === 'ui_code_apply'),
+    `Waiting scoped apply should not emit live setting changes: ${JSON.stringify(decodedBulkUpdates())}`);
+  assert(scheduled.some(job => Number(job.delay) === 0.05),
+    `Waiting scoped apply should schedule a hero refresh: ${JSON.stringify(scheduled.map(job => job.delay))}`);
+
+  hooks.setHeroDetectionMode(scopedConfig, 'override');
+  scheduled.length = 0;
+  dispatched.length = 0;
+  const overrideResult = actions.applyPresetRow(scopedConfig, scopedRow);
+  assert(overrideResult && overrideResult.applied === true,
+    `Manual override should apply the selected scoped row immediately: ${JSON.stringify(overrideResult)}`);
+  assert(scopedConfig.elements[0].currentValue === false &&
+      scopedConfig.elements[1].currentValue === 22,
+    `Manual override should apply scoped preset values to live settings: ${JSON.stringify(scopedConfig.elements)}`);
+  assert(decodedBulkUpdates().some(payload => payload.update_source === 'ui_code_apply' &&
+      payload.values && payload.values.hp_low_threshold === 22),
+    `Manual override should emit a live ui_code_apply bulk update: ${JSON.stringify(decodedBulkUpdates())}`);
+
+  const cleanupConfig = makePresetBuilderConfig({
+    __anitaUserPresetRows: [
+      {
+        key: 'user_cleanup',
+        name: 'User Cleanup',
+        category: 'Imported',
+        values: { hp_enabled: true, hp_low_threshold: 33 },
+        payloadValues: { l: 33 },
+        heroes: ['hero_haze'],
+        heroMode: 'selected'
+      }
+    ],
+    __anitaPresetNameOverrides: {
+      user_cleanup: 'Old User Name',
+      'id:HPColorsPreset_REMOVE': 'Old Baked Name'
+    },
+    __anitaPresetHeroSelections: {
+      user_cleanup: ['hero_haze'],
+      baked_remove: ['hero_inferno'],
+      'id:HPColorsPreset_REMOVE': ['hero_inferno']
+    },
+    __anitaPresetHeroModes: {
+      user_cleanup: 'selected',
+      baked_remove: 'selected',
+      'id:HPColorsPreset_REMOVE': 'selected'
+    },
+    __anitaPresetPriorityOrder: ['id:HPColorsPreset_KEEP', 'id:HPColorsPreset_REMOVE', 'user_cleanup'],
+    __anitaSelectedPresetKey: 'user_cleanup',
+    __anitaEditingPresetNameKey: 'user_cleanup',
+    __hpLastAppliedHeroPresetKey: 'stale_key',
+    __hpLastAppliedHeroPresetHero: 'hero_haze',
+    __hpHeroPresetDetectionLocked: true
+  });
+  const keepRow = {
+    key: 'baked_keep',
+    id: 'HPColorsPreset_KEEP',
+    name: 'Baked Keep',
+    values: { hp_enabled: true, hp_low_threshold: 20 },
+    payloadValues: { l: 20 },
+    heroes: [],
+    heroMode: 'off'
+  };
+  const removeRow = {
+    key: 'baked_remove',
+    id: 'HPColorsPreset_REMOVE',
+    name: 'Baked Remove',
+    values: { hp_enabled: false, hp_low_threshold: 44 },
+    payloadValues: { e: false, l: 44 },
+    heroes: ['hero_inferno'],
+    heroMode: 'selected'
+  };
+  const userRow = cleanupConfig.__anitaUserPresetRows[0];
+  keepRow.token = model.buildPresetCodeToken(cleanupConfig, keepRow.values, keepRow.name, keepRow.payloadValues, keepRow.heroes, keepRow.heroMode);
+  removeRow.token = model.buildPresetCodeToken(cleanupConfig, removeRow.values, removeRow.name, removeRow.payloadValues, removeRow.heroes, removeRow.heroMode);
+  userRow.token = model.buildPresetCodeToken(cleanupConfig, userRow.values, userRow.name, userRow.payloadValues, userRow.heroes, userRow.heroMode);
+
+  assert(actions.setPresetRowName(cleanupConfig, removeRow, 'Renamed Baked') === true,
+    'Renaming a baked preset row should succeed');
+  assert(cleanupConfig.__anitaPresetNameOverrides['id:HPColorsPreset_REMOVE'] === 'Renamed Baked' &&
+      cleanupConfig.__anitaSelectedPresetKey === 'baked_remove' &&
+      decodePresetToken(removeRow.token).name === 'Renamed Baked',
+    `Renaming a baked preset should update override state, selection, and token metadata: ${JSON.stringify(cleanupConfig.__anitaPresetNameOverrides)}`);
+
+  scheduled.length = 0;
+  cleanupConfig.__hpLastAppliedHeroPresetKey = 'stale_key';
+  cleanupConfig.__hpLastAppliedHeroPresetHero = 'hero_inferno';
+  assert(actions.movePresetRowPriority(cleanupConfig, [keepRow, removeRow, userRow], removeRow, -1) === true,
+    'Moving preset priority should succeed for exportable rows');
+  assert(cleanupConfig.__anitaPresetPriorityOrder[0] === 'id:HPColorsPreset_REMOVE' &&
+      cleanupConfig.__anitaPresetPriorityOrder[1] === 'id:HPColorsPreset_KEEP' &&
+      cleanupConfig.__anitaSelectedPresetKey === 'baked_remove',
+    `Priority move should update order and keep the moved row selected: ${JSON.stringify(cleanupConfig.__anitaPresetPriorityOrder)}`);
+  assert(cleanupConfig.__hpLastAppliedHeroPresetKey === '' &&
+      cleanupConfig.__hpLastAppliedHeroPresetHero === '' &&
+      cleanupConfig.__hpHeroPresetDetectionLocked === false &&
+      scheduled.some(job => Number(job.delay) === 0.05),
+    `Priority move should invalidate hero apply state and schedule refresh: ${JSON.stringify({ key: cleanupConfig.__hpLastAppliedHeroPresetKey, hero: cleanupConfig.__hpLastAppliedHeroPresetHero, scheduled: scheduled.map(job => job.delay) })}`);
+
+  scheduled.length = 0;
+  cleanupConfig.__hpLastAppliedHeroPresetKey = 'stale_key';
+  cleanupConfig.__hpLastAppliedHeroPresetHero = 'hero_inferno';
+  assert(actions.removePresetRow(cleanupConfig, removeRow) === true,
+    'Deleting a baked preset row should succeed');
+  assert(cleanupConfig.__anitaRemovedPresetRows &&
+      cleanupConfig.__anitaRemovedPresetRows['id:HPColorsPreset_REMOVE'] === true,
+    `Deleting a baked preset should tombstone by stable id: ${JSON.stringify(cleanupConfig.__anitaRemovedPresetRows)}`);
+  assert(!Object.prototype.hasOwnProperty.call(cleanupConfig.__anitaPresetNameOverrides, 'id:HPColorsPreset_REMOVE') &&
+      !Object.prototype.hasOwnProperty.call(cleanupConfig.__anitaPresetHeroSelections, 'baked_remove') &&
+      !Object.prototype.hasOwnProperty.call(cleanupConfig.__anitaPresetHeroSelections, 'id:HPColorsPreset_REMOVE') &&
+      !Object.prototype.hasOwnProperty.call(cleanupConfig.__anitaPresetHeroModes, 'baked_remove') &&
+      !Object.prototype.hasOwnProperty.call(cleanupConfig.__anitaPresetHeroModes, 'id:HPColorsPreset_REMOVE') &&
+      !cleanupConfig.__anitaPresetPriorityOrder.includes('id:HPColorsPreset_REMOVE') &&
+      cleanupConfig.__anitaSelectedPresetKey === '',
+    `Deleting a baked preset should clean stale name/hero/mode/priority/selection state: ${JSON.stringify(cleanupConfig)}`);
+  assert(cleanupConfig.__hpLastAppliedHeroPresetKey === '' &&
+      cleanupConfig.__hpLastAppliedHeroPresetHero === '' &&
+      cleanupConfig.__hpHeroPresetDetectionLocked === false &&
+      scheduled.some(job => Number(job.delay) === 0.05),
+    `Deleting a baked preset should invalidate hero state and schedule refresh: ${JSON.stringify(scheduled.map(job => job.delay))}`);
+
+  scheduled.length = 0;
+  cleanupConfig.__anitaSelectedPresetKey = 'user_cleanup';
+  cleanupConfig.__anitaEditingPresetNameKey = 'user_cleanup';
+  cleanupConfig.__hpLastAppliedHeroPresetKey = 'stale_user';
+  cleanupConfig.__hpLastAppliedHeroPresetHero = 'hero_haze';
+  assert(actions.removePresetRow(cleanupConfig, userRow) === true,
+    'Deleting a saved user preset row should succeed');
+  assert(Array.isArray(cleanupConfig.__anitaUserPresetRows) &&
+      cleanupConfig.__anitaUserPresetRows.length === 0 &&
+      !Object.prototype.hasOwnProperty.call(cleanupConfig.__anitaPresetNameOverrides, 'user_cleanup') &&
+      !Object.prototype.hasOwnProperty.call(cleanupConfig.__anitaPresetHeroSelections, 'user_cleanup') &&
+      !Object.prototype.hasOwnProperty.call(cleanupConfig.__anitaPresetHeroModes, 'user_cleanup') &&
+      !cleanupConfig.__anitaPresetPriorityOrder.includes('user_cleanup') &&
+      cleanupConfig.__anitaSelectedPresetKey === '' &&
+      cleanupConfig.__anitaEditingPresetNameKey === '',
+    `Deleting a saved user preset should remove row and clean per-row state: ${JSON.stringify(cleanupConfig)}`);
+  assert(cleanupConfig.__hpLastAppliedHeroPresetKey === '' &&
+      cleanupConfig.__hpLastAppliedHeroPresetHero === '' &&
+      scheduled.some(job => Number(job.delay) === 0.05),
+    `Deleting a saved user preset should invalidate hero state and schedule refresh: ${JSON.stringify(scheduled.map(job => job.delay))}`);
+
+  console.log(`[HERO PRESET BUILDER MODEL PASS] ${path.relative(ROOT, targetScript)} validates direct builder model defaults, priority, import, scoped apply, override, and cleanup behavior.`);
+}
+
 function runPresetBuilderCompatibilityValidation() {
   const source = fs.readFileSync(targetScript, 'utf8');
   assert(!/hp_counter_visible\s*:\s*(?:true|!0)/.test(source),
@@ -2061,9 +2953,7 @@ function runPresetPriorityBundleValidation() {
   resetPresetStoreLookupCounters();
 
   const context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
+  runInVm(source, context, targetScript);
   installMockPresetStore([
     {
       id: 'HPColorsPreset_001',
@@ -2102,7 +2992,7 @@ function runPresetPriorityBundleValidation() {
   assert(downButtons[0] && downButtons[0].events.onactivate,
     'Preset rows should expose a priority-down button');
   const firstDownLabel = downButtons[0].children && downButtons[0].children[0];
-  assert(firstDownLabel && firstDownLabel.text === '▼',
+  assert(firstDownLabel && firstDownLabel.text === '\u25BC',
     `Priority down button should use compact chevron text: ${firstDownLabel && firstDownLabel.text}`);
   assert(downButtons[0].events.onmouseover && downButtons[0].events.onmouseout,
     'Priority down button should expose a tooltip for dumb-friendly discovery');
@@ -2124,7 +3014,7 @@ function runPresetPriorityBundleValidation() {
   assert(upButtons[1] && upButtons[1].events.onactivate,
     'Preset rows should expose a priority-up button');
   const secondUpLabel = upButtons[1].children && upButtons[1].children[0];
-  assert(secondUpLabel && secondUpLabel.text === '▲',
+  assert(secondUpLabel && secondUpLabel.text === '\u25B2',
     `Priority up button should use compact chevron text: ${secondUpLabel && secondUpLabel.text}`);
   assert(upButtons[1].events.onmouseover && upButtons[1].events.onmouseout,
     'Priority up button should expose a tooltip for dumb-friendly discovery');
@@ -2143,9 +3033,7 @@ function runAllNonGeneralToggleValidation() {
   resetPresetStoreLookupCounters();
 
   const context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
+  runInVm(source, context, targetScript);
   installMockPresetStore([]);
 
   const config = {
@@ -2240,9 +3128,7 @@ function runDependentCustomizationVisibilityValidation() {
   resetPresetStoreLookupCounters();
 
   const context = createMockContext();
-  context.global = context;
-  vm.createContext(context);
-  vm.runInContext(source, context, { filename: targetScript });
+  runInVm(source, context, targetScript);
   installMockPresetStore([]);
 
   const config = {
@@ -2392,13 +3278,342 @@ function runDependentCustomizationVisibilityValidation() {
 
   console.log(`[HERO DEPENDENT SETTINGS PASS] ${path.relative(ROOT, targetScript)} reveals dependent customization rows when parent toggles are enabled.`);
 }
+function runRetainedSettingsShellValidation() {
+  const source = fs.readFileSync(targetScript, 'utf8');
+  const marker = '\n  AnitaCore.init();';
+  const hookedSource = source.replace(marker, `
+  if (typeof global !== "undefined") {
+    global.__anitaRetainedShellTestHooks = {
+      renderer: AnitaRenderer
+    };
+  }
+` + marker);
+  assert(hookedSource !== source,
+    'Retained shell test hook marker should be present');
+
+  const context = createMockContext();
+  runInVm(hookedSource, context, targetScript);
+  installMockPresetStore([]);
+  const renderer = context.__anitaRetainedShellTestHooks.renderer;
+  const config = {
+    title: 'HP Colors',
+    description: 'retained shell validation',
+    storageNamespace: 'hp_colors',
+    storageVersion: 97,
+    elements: [
+      { id: 'hp_enabled', type: 'toggle', defaultValue: true, currentValue: true, category: 'GENERAL|Core' },
+      { id: 'hp_low_threshold', type: 'slider', defaultValue: 35, currentValue: 35, category: 'GENERAL|Thresholds', min: 0, max: 100, step: 1 },
+      { id: 'hp_pulse_enabled', type: 'toggle', defaultValue: true, currentValue: true, category: 'VISUAL EFFECTS|Pulse' }
+    ]
+  };
+
+  activeHarness.createPanelCount = 0;
+  activeHarness.eventSetCounter.count = 0;
+  root.AnitaUI.Register(config);
+  const initialShellPanelCount = activeHarness.createPanelCount;
+  const initialShellHandlerCount = activeHarness.eventSetCounter.count;
+  const container = findByClass(root, 'ModContainer')[0];
+  const tree = findByClass(root, 'AnitaTreePanel')[0];
+  const treeButtons = findByClass(root, 'AnitaMainCategoryBtn');
+  const firstDetailBody = findByClass(root, 'AnitaDetailBody')[0];
+  assert(container && tree && treeButtons.length >= 2 && firstDetailBody,
+    'Retained shell validation requires a rendered shell with multiple categories');
+
+  let colorPickerCloseCount = 0;
+  renderer.activeColorPickerClose = () => {
+    colorPickerCloseCount += 1;
+  };
+
+  activeHarness.createPanelCount = 0;
+  activeHarness.eventSetCounter.count = 0;
+  renderer.renderModSettings(config);
+  const retainedProjectionPanelCount = activeHarness.createPanelCount;
+  const retainedProjectionHandlerCount = activeHarness.eventSetCounter.count;
+  assert(colorPickerCloseCount === 1 &&
+      renderer.activeColorPickerClose === null,
+    'Settings rerender should close and release the active color picker owner');
+  assert(findByClass(root, 'ModContainer')[0] === container &&
+      findByClass(root, 'AnitaTreePanel')[0] === tree,
+    'Repeated settings render should retain the container and tree');
+  const retainedTreeButtons = findByClass(root, 'AnitaMainCategoryBtn');
+  assert(retainedTreeButtons.length === treeButtons.length &&
+      retainedTreeButtons.every((button, index) => button === treeButtons[index]),
+    'Repeated settings render should retain category buttons and handlers');
+  assert(findByClass(root, 'AnitaDetailBody')[0] !== firstDetailBody,
+    'Repeated settings render should replace the detail projection');
+  assert(retainedProjectionPanelCount < initialShellPanelCount,
+    `Retained projection should allocate fewer panels than the initial shell: ${retainedProjectionPanelCount} vs ${initialShellPanelCount}`);
+  assert(retainedProjectionHandlerCount < initialShellHandlerCount,
+    `Retained projection should install fewer panel handlers than the initial shell: ${retainedProjectionHandlerCount} vs ${initialShellHandlerCount}`);
+
+  const nextMain = retainedTreeButtons.find(button => !button.BHasClass('Active'));
+  const detailBeforeSwitch = findByClass(root, 'AnitaDetailBody')[0];
+  assert(nextMain && nextMain.events.onactivate,
+    'Retained shell validation requires another main category');
+  nextMain.events.onactivate();
+  assert(findByClass(root, 'AnitaTreePanel')[0] === tree &&
+      nextMain.BHasClass('Active') &&
+      findByClass(root, 'AnitaDetailBody')[0] !== detailBeforeSwitch,
+    'Category switch should update the retained tree and replace only detail content');
+  const visibleSubcategories = findByClass(root, 'AnitaSubCategoryBtn')
+    .filter(button => button.style.visibility !== 'collapse');
+  assert(visibleSubcategories.length > 0 &&
+      visibleSubcategories.some(button => button.BHasClass('Active')),
+    'Retained tree should expose the active main category subcategories');
+
+  assert(config.elements.some(element =>
+      element.__anitaRowPanel && element.__anitaRowPanel.IsValid()),
+    'Active detail projection should retain live row references');
+  const replacementConfig = {
+    title: 'Renderer Replacement',
+    storageNamespace: 'renderer_replacement',
+    storageVersion: 1,
+    elements: [
+      { id: 'replacement_toggle', type: 'toggle', defaultValue: false, currentValue: false, category: 'GENERAL|Core' }
+    ]
+  };
+  renderer.renderModSettings(replacementConfig);
+  assert(config.elements.every(element =>
+      element.__anitaRowPanel === null &&
+      element.__anitaConditionalMarker === null &&
+      element.__anitaConditionalEligible === false) &&
+      config.__anitaPresetNotice === null,
+    'Replacing the shell should clear previous config panel references and flags');
+  assert(!container.IsValid() &&
+      findByClass(root, 'ModContainer')[0] !== container,
+    'Replacing the shell should delete the previous config panels');
+
+  root.DeleteAsync();
+  eventHandlers.ClientUI_FireOutput('{}');
+  assert(renderer.settingsShell === null,
+    'Anita teardown should release retained shell panel references');
+  assert(replacementConfig.elements[0].__anitaRowPanel === null,
+    'Anita teardown should clear the final config row reference');
+
+  console.log(`[ANITA RETAINED SHELL PASS] ${path.relative(ROOT, targetScript)} retains the container/category tree, cuts focused-rerender allocations from ${initialShellPanelCount} panels and ${initialShellHandlerCount} panel-handler writes to ${retainedProjectionPanelCount} and ${retainedProjectionHandlerCount}, and releases refs on replacement/teardown.`);
+}
+
+function runPresetSnapshotPublisherValidation() {
+  const source = fs.readFileSync(targetScript, 'utf8');
+  const marker = '\n  AnitaCore.init();';
+  const hookedSource = source.replace(marker, `
+  if (typeof global !== "undefined") {
+    global.__hpPresetSnapshotTestHooks = {
+      publisher: HPPresetSnapshotPublisher,
+      core: AnitaCore,
+      persistence: AnitaPersistence,
+      conditional: HPSignatureConditionalController
+    };
+  }
+` + marker);
+  assert(hookedSource !== source,
+    'Preset snapshot test hook marker should be present');
+
+  let stringifyCount = 0;
+  const context = createMockContext();
+  context.Date = class SnapshotTestDate extends Date {
+    static now() { return activeHarness.now; }
+  };
+  context.JSON = {
+    parse: JSON.parse,
+    stringify: (value) => {
+      stringifyCount += 1;
+      return JSON.stringify(value);
+    }
+  };
+  runInVm(hookedSource, context, targetScript);
+  const publisher = context.__hpPresetSnapshotTestHooks.publisher;
+  const config = makePresetBuilderConfig();
+
+  stringifyCount = 0;
+  dispatched.length = 0;
+  const first = publisher.publish(config, 'snapshot_first', true);
+  assert(first && first.emittableCount === config.elements.length &&
+      stringifyCount === 2,
+    `First snapshot without signature rules should encode base and payload once: ${stringifyCount}`);
+  const firstPayload = publisher.payload;
+  const firstHotUntil = publisher.replayHotUntil;
+
+  activeHarness.now += 1000;
+  stringifyCount = 0;
+  dispatched.length = 0;
+  const unchanged = publisher.publish(config, 'snapshot_unchanged', false);
+  const unchangedDispatches = dispatched.filter(args => {
+    if (args[0] !== 'ClientUI_FireOutput') return false;
+    try {
+      return JSON.parse(args[1]).magic_word === 'HP_COLORS_PRESET_SNAPSHOT';
+    } catch (err) {
+      return false;
+    }
+  });
+  assert(unchanged && stringifyCount === 1 &&
+      publisher.payload === firstPayload &&
+      publisher.replayHotUntil === firstHotUntil &&
+      unchangedDispatches.length === 0,
+    'Unchanged snapshots without signature rules should only encode base values');
+  const emitConfig = makePresetBuilderConfig();
+  const originalSanitizeValue = context.__hpPresetSnapshotTestHooks.persistence.sanitizeValue;
+  let sanitizeCount = 0;
+  context.__hpPresetSnapshotTestHooks.persistence.sanitizeValue = function (element, value) {
+    sanitizeCount += 1;
+    return originalSanitizeValue.call(this, element, value);
+  };
+  context.__hpPresetSnapshotTestHooks.core.emitCurrentValues(emitConfig, {
+    update_source: 'snapshot_single_materialization',
+    force_emit: true,
+    bulk_emit: true
+  });
+  assert(sanitizeCount === emitConfig.elements.length,
+    `HP Colors emit should sanitize each setting once, saw ${sanitizeCount} for ${emitConfig.elements.length} settings`);
+  context.__hpPresetSnapshotTestHooks.persistence.sanitizeValue = originalSanitizeValue;
+
+  const bulkConfig = makePresetBuilderConfig();
+  context.__hpPresetSnapshotTestHooks.core.registerMod(bulkConfig);
+  const conditional = context.__hpPresetSnapshotTestHooks.conditional;
+  const originalNotifyBaseValuesChanged =
+    conditional.notifyBaseValuesChanged;
+  const originalPublish = publisher.publish;
+  let notifyCount = 0;
+  let publishCount = 0;
+  conditional.notifyBaseValuesChanged = function (nextConfig, shouldPublish) {
+    notifyCount += 1;
+    return originalNotifyBaseValuesChanged.call(
+      this,
+      nextConfig,
+      shouldPublish,
+    );
+  };
+  publisher.publish = function () {
+    publishCount += 1;
+    return originalPublish.apply(this, arguments);
+  };
+  const bulkValues = {
+    hp_enabled: false,
+    hp_low_threshold: 44,
+    hp_kill_zone_enabled: true
+  };
+  context.__hpPresetSnapshotTestHooks.core.handleBulkUpdateEvent({
+    mod_title: 'HP Colors',
+    values: bulkValues,
+    update_source: 'unit_test_bulk',
+    skip_bridge_persist: true
+  });
+  assert(notifyCount === 1 && publishCount === 1,
+    `One changed bulk update must coalesce marker refresh and snapshot publication: ${JSON.stringify({ notifyCount, publishCount })}`);
+  context.__hpPresetSnapshotTestHooks.core.handleBulkUpdateEvent({
+    mod_title: 'HP Colors',
+    values: bulkValues,
+    update_source: 'unit_test_bulk',
+    skip_bridge_persist: true
+  });
+  assert(notifyCount === 1 && publishCount === 1,
+    `Unchanged bulk updates must not refresh markers or publish snapshots: ${JSON.stringify({ notifyCount, publishCount })}`);
+  conditional.notifyBaseValuesChanged = originalNotifyBaseValuesChanged;
+  publisher.publish = originalPublish;
+
+  config.elements[1].currentValue = 44;
+  activeHarness.now += 1000;
+  stringifyCount = 0;
+  dispatched.length = 0;
+  const changed = publisher.publish(config, 'snapshot_changed', false);
+  const changedPayload = JSON.parse(publisher.payload);
+  assert(changed && stringifyCount === 2 &&
+      changedPayload.values.hp_low_threshold === 44 &&
+      changedPayload.update_source === 'snapshot_changed' &&
+      publisher.replayHotUntil > firstHotUntil,
+    `Changed snapshots should publish one newly materialized payload: ${JSON.stringify({ stringifyCount, changedPayload, firstHotUntil, replayHotUntil: publisher.replayHotUntil, now: activeHarness.now })}`);
+  root.DeleteAsync();
+  eventHandlers.ClientUI_FireOutput('{}');
+  assert(publisher.payload === '' && !publisher.replayStarted &&
+      publisher.replayCount === 0 && publisher.replayHotUntil === 0,
+    'Preset snapshot teardown should release retained payload and replay state');
+
+  console.log(`[HP PRESET SNAPSHOT PASS] ${path.relative(ROOT, targetScript)} materializes values once and skips unchanged payload encoding, dispatch, and replay reheating.`);
+}
+
+
+function runAnitaLifetimeOwnerValidation() {
+  const source = fs.readFileSync(targetScript, 'utf8');
+  const directSchedules = source.match(/\$\.Schedule\(/g) || [];
+  assert(directSchedules.length === 1,
+    `Anita lifetime owner should be the only direct scheduler, saw ${directSchedules.length}`);
+  assert(source.includes('var AnitaLifetime = {') &&
+      source.includes('$.UnregisterForUnhandledEvent('),
+    'Anita UI should own callback and listener teardown');
+  const hookMarker = '\n  AnitaCore.init();';
+  const hookedSource = source.replace(hookMarker, `
+  if (typeof global !== "undefined") {
+    global.__anitaLifetimeTestHooks = {
+      emitUpdateThrottled: emitUpdateThrottled,
+      cancelThrottledEmit: cancelThrottledEmit,
+      mouseRouter: AnitaMouseRouter
+    };
+  }
+` + hookMarker);
+  assert(hookedSource !== source,
+    'Anita lifetime test hook marker should be present');
+
+  const context = createMockContext();
+  runInVm(hookedSource, context, targetScript);
+  const eventHandler = eventHandlers.ClientUI_FireOutput;
+  assert(typeof eventHandler === 'function',
+    'Anita lifetime test requires the ClientUI_FireOutput listener');
+  assert(scheduled.length > 0,
+    'Anita lifetime test requires owned scheduled work');
+  const hooks = context.__anitaLifetimeTestHooks;
+  assert(hooks && typeof hooks.emitUpdateThrottled === 'function',
+    'Anita lifetime test hooks were not exposed');
+  hooks.mouseRouter.setModalHandler(root, () => false);
+  assert(typeof activeHarness.mouseCallback === 'function' &&
+      activeHarness.mouseCallbackWrites === 1,
+    'Anita lifetime test requires one installed GameUI mouse callback');
+  dispatched.length = 0;
+  hooks.emitUpdateThrottled('Lifetime Race', 'setting', 1, null, 0.04);
+  hooks.cancelThrottledEmit('Lifetime Race', 'setting');
+  hooks.emitUpdateThrottled('Lifetime Race', 'setting', 2, null, 0.04);
+  runNextScheduledByDelay(0.04);
+  hooks.emitUpdateThrottled('Lifetime Race', 'setting', 3, null, 0.04);
+  assert(scheduled.filter(job => Number(job.delay) === 0.04).length === 1,
+    'A cancelled throttled callback cleared ownership of its replacement');
+  runNextScheduledByDelay(0.04);
+  const raceUpdates = dispatched
+    .filter(args => args[0] === 'ClientUI_FireOutput')
+    .map(args => {
+      try { return JSON.parse(args[1]); } catch (err) { return null; }
+    })
+    .filter(payload => payload && payload.mod_title === 'Lifetime Race');
+  assert(raceUpdates.length === 1 && raceUpdates[0].value === 3,
+    `Throttled replacement should emit only the latest value: ${JSON.stringify(raceUpdates)}`);
+
+  const dispatchCountAtTeardown = dispatched.length;
+  root.DeleteAsync();
+  eventHandler('{}');
+  assert(activeHarness.handlerEntries.length === 0 &&
+      !activeHarness.handlers.ClientUI_FireOutput,
+    `Anita teardown retained its unhandled-event listener: ${JSON.stringify(activeHarness.handlerEntries)}`);
+  assert(activeHarness.mouseCallback === null &&
+      activeHarness.mouseCallbackWrites === 2,
+    'Anita teardown should release the GameUI mouse callback exactly once');
+  for (let i = 0; i < 100 && scheduled.length; i++) {
+    activeHarness.scheduler.runNext();
+  }
+  assert(scheduled.length === 0,
+    `Anita teardown callbacks should drain without requeueing: ${JSON.stringify(scheduled.map(job => job.delay))}`);
+  assert(dispatched.length === dispatchCountAtTeardown,
+    'Anita teardown allowed stale scheduled work to dispatch events');
+
+  console.log(`[ANITA LIFETIME PASS] ${path.relative(ROOT, targetScript)} unregisters its listener and drains stale callbacks when the Panorama root dies.`);
+}
 
 try {
   runValidation();
+  if (!IS_OPTIMIZED_TARGET) runPipConvarPopupValidation();
+  runSignatureTierConditionalValidation();
   runHeroPresetApplyValidation();
   runHeroPresetStableIdPriorityValidation();
   runHeroPresetGlobalFallbackBeforeHeroValidation();
   runHeroPresetLobbyGateValidation();
+  if (!IS_OPTIMIZED_TARGET) runSignatureTierLifecycleResetValidation();
   runMatchMonitorRollbackValidation();
   runHeroSelectorRuntimeScopeValidation();
   runHeroScopeModeFallbackValidation();
@@ -2407,11 +3622,15 @@ try {
   runUserPresetBundleValidation();
   runUserPresetRenameValidation();
   runPresetDeleteValidation();
+  if (!IS_OPTIMIZED_TARGET) runPresetBuilderModelActionValidation();
   runPresetBuilderCompatibilityValidation();
+  if (!IS_OPTIMIZED_TARGET) runRetainedSettingsShellValidation();
   runPresetPriorityBundleValidation();
   runAllNonGeneralToggleValidation();
+  if (!IS_OPTIMIZED_TARGET) runPresetSnapshotPublisherValidation();
   runDependentCustomizationVisibilityValidation();
+  if (!IS_OPTIMIZED_TARGET) runAnitaLifetimeOwnerValidation();
 } catch (err) {
-  console.error(`[HERO SELECTOR FAIL] ${path.relative(ROOT, targetScript)}: ${err && err.message ? err.message : err}`);
+  console.error(`[HERO SELECTOR FAIL] ${path.relative(ROOT, targetScript)}: ${err && err.stack ? err.stack : err && err.message ? err.message : err}`);
   process.exit(1);
 }

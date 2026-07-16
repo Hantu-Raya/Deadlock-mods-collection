@@ -64,6 +64,20 @@ _Avoid_: Hero filter, character targeting
 The preset currently chosen by hero scope and priority. It is the preset expected to drive the active runtime visuals.
 _Avoid_: Active profile, current theme
 
+**Preset snapshot**:
+The canonical base and effective HP Colors values published by Anita UI so new healthbar contexts can replay the current settings. It is runtime state, not a preset selected by hero scope.
+_Avoid_: Selected preset, cache blob
+
 **Anita UI**:
 The in-game settings surface used by HP Colors. Anita UI is the player-facing configuration host, not the runtime healthbar itself.
 _Avoid_: Settings bridge, menu framework
+
+## Anita UI Tooltip Lifecycle
+
+Detached local tooltips must use the shared `AnitaRenderer.attachLocalTooltip` path. They must not be children of setting rows or hover targets because their visibility can change row geometry and repeatedly break hover.
+
+Detached tooltip ownership must not be split across unrelated surfaces. The hovered control owns show, hide, and placement; the tooltip panel itself remains under the root popup host so it cannot affect setting-row geometry. Conditional stars therefore use the star marker as their placement anchor through the same `AnitaRenderer.attachLocalTooltip` path as preset and support controls. Never substitute the navigation bar or outer window as a placement anchor: those stable surfaces avoid scroll coupling only by putting the tooltip somewhere unrelated to the hovered star.
+
+When the active `.AnitaSettingsList` scrolls, it must reposition the visible detached tooltip from its active hover anchor through Panorama's `ScrollPositionChanged` event. Enable that event on each newly rendered settings list with `Panel.SetSendScrollPositionChangedEvents(true)` and register it on that same panel with `$.RegisterEventHandler`. `AnitaContentArea` is not the scroll owner—it uses `overflow: clip`—so registering there silently misses settings scrolling. This event is the bridge between the scrolling subtree and root popup host; do not replace it with scheduled position polling. Clearing the active anchor on mouseout also invalidates the one-shot post-layout callback so a hidden tooltip cannot reappear.
+
+Root-space coordinates must come from `Panel.GetPositionWithinWindow()` and be normalized by `actualuiscale_x` / `actualuiscale_y`, matching Valve's detached-overlay placement in GameTracking-Dota2 `npx_hud_main.js`. Summing `actualxoffset` / `actualyoffset` is not equivalent: Panorama exposes `scrolloffset_x` / `scrolloffset_y` separately, so that manual sum retains pre-scroll coordinates. A compatibility fallback may accumulate layout offsets only if it also subtracts every traversed panel's scroll offsets.

@@ -25,6 +25,7 @@
       MONITOR_INTERVAL: 0.05,
     },
   };
+
   const HP_PRESET_BUILDER_CATEGORY = "PRESETS|Preset Builder";
   const HP_PRESET_BUILDER_URL =
     "https://hantu-raya.github.io/hp-colors-preset-builder/";
@@ -33,6 +34,8 @@
   const HP_HERO_DETECTION_OVERRIDE = "override";
   const HP_HERO_DETECTION_OFF = "off";
   const HP_STARTUP_PRESET_ID = "HPColorsPreset_001";
+  const HP_PRESET_STORE_ID = "HPColorsPresetStore";
+  const HP_PRESET_ENTRY_CLASS = "hp_colors_preset_entry";
   const HP_PRESET_SNAPSHOT_MAGIC = "HP_COLORS_PRESET_SNAPSHOT";
   const HP_PRESET_REQUEST_MAGIC = "HP_COLORS_PRESET_REQUEST";
   const HP_PRESET_SNAPSHOT_REPLAY_HOT_SEC = 1.0;
@@ -43,6 +46,14 @@
   const HP_PRESET_SNAPSHOT_REQUEST_HOT_MS = 5000;
   const HP_MATCH_RESET_SHARED_KEY = "__hpColorsMatchReset";
   const HP_SHARED_CFG_RAW_KEY = "__hpColorsCfgRaw";
+  const HP_PIP_CONVAR_ENABLE_COMMAND =
+    '"citadel_unit_status_health_per_minor_pip" "10"\n' +
+    '"citadel_unit_status_health_per_pip" "10"\n' +
+    '"citadel_unit_status_minor_pip_per_major_pip" "10"';
+  const HP_PIP_CONVAR_RESET_COMMAND =
+    '"citadel_unit_status_health_per_minor_pip" "100"\n' +
+    '"citadel_unit_status_health_per_pip" "100"\n' +
+    '"citadel_unit_status_minor_pip_per_major_pip" "5"';
   const HPBridgeProtocol = {
     eventChannel: "ClientUI_FireOutput",
     presetSnapshotMagic: HP_PRESET_SNAPSHOT_MAGIC,
@@ -55,6 +66,9 @@
     handshakeMagic: "ANITA_HANDSHAKE",
     sharedCfgRawKey: HP_SHARED_CFG_RAW_KEY,
     sharedMatchResetKey: HP_MATCH_RESET_SHARED_KEY,
+    storeId: HP_PRESET_STORE_ID,
+    startupPresetId: HP_STARTUP_PRESET_ID,
+    entryClass: HP_PRESET_ENTRY_CLASS,
     getSharedStore: function () {
       try {
         if (typeof GameUI !== "undefined" && GameUI && GameUI.CustomUIConfig)
@@ -82,15 +96,6 @@
         return typeof payload === "string" ? JSON.parse(payload) : payload;
       } catch (e) {}
       return null;
-    },
-    shouldInspectPayload: function (payload) {
-      if (typeof payload !== "string") return true;
-      if (
-        payload.indexOf("ANITA_") === -1 &&
-        payload.indexOf(this.presetRequestMagic) === -1
-      )
-        return false;
-      return true;
     },
     isRegister: function (payload) {
       return !!(payload && payload.magic_word === this.registerMagic);
@@ -133,19 +138,23 @@
       } catch (e) {}
       return false;
     },
-    buildPresetSnapshotPayload: function (values, raw, reason) {
+    buildPresetSnapshotPayload: function (
+      values,
+      raw,
+      reason,
+      effectiveValues,
+    ) {
       return {
         magic_word: this.presetSnapshotMagic,
         mod_title: "HP Colors",
         version: 1,
         values_raw: raw,
         values: values,
+        "effective_values": effectiveValues || {},
         update_source: String(reason || "full_static"),
       };
     },
   };
-  const HP_OPTIMIZED_FORCED_VALUES = {};
-  const HP_OPTIMIZED_HIDDEN_SETTINGS = {};
   const HP_BAKED_PRESET_APPLY_DELAYS = [0.5, 1.5, 3.0, 5.0, 8.0, 12.0];
   const HP_HERO_WATCH_RETRY_SEC = 2.0;
   const HP_HERO_WATCH_EMPTY_GRACE_TICKS = 3;
@@ -157,18 +166,14 @@
   const HP_MATCH_MONITOR_RESTART_PREV_SEC = 30;
   const HP_MATCH_MONITOR_RESTART_NOW_SEC = 12;
   const HP_HERO_GAME_TIME_CACHE_MS = 250;
-  const HP_HERO_MATCH_ACTIVE_GAME_STATE = 6;
-  var _lastHpSharedRaw = "";
-  var _hpPresetSnapshotPayload = "";
-  var _hpPresetSnapshotReplayStarted = false;
-  var _hpPresetSnapshotReplayCount = 0;
-  var _hpPresetSnapshotReplayHotUntil = 0;
+  const HP_SIGNATURE_MAX_TIER_CONFIRM_MS = 5000;
+  const HP_HERO_MATCH_ACTIVE_GAME_STATE = 7;
   var _didApplyHpColorsBakedPresetOnce = false;
   var _hpBakedPresetApplyToken = 0;
   var _hpHeroRoot = null;
-  var _hpHeroGameplayAlive = null;
-  var _hpHeroCrosshair = null;
-  var _hpHeroProgress = null;
+  var _hpHeroTopBar = null;
+  var _hpHeroTopBarPlayer = null;
+  var _hpHeroNameLabel = null;
   var _hpHeroGameTimePanel = null;
   var _hpHeroGameTimePanelMs = 0;
   var _hpHeroMatchStateConfirmedActive = false;
@@ -183,6 +188,78 @@
   var _hpPresetStorePanel = null;
   var _hpPresetStoreEntries = null;
   const HP_COMPACT_PERSIST_VERSION = 1;
+
+  var AnitaLifetime = {
+    contextPanel: null,
+    eventHandlerId: null,
+    epoch: 1,
+    stopped: false,
+    jobs: Object.create(null),
+    start: function (contextPanel) {
+      this.contextPanel = contextPanel;
+      this.stopped = false;
+    },
+    isActive: function (epoch) {
+      if (
+        this.stopped ||
+        (epoch !== undefined && epoch !== this.epoch)
+      )
+        return false;
+      try {
+        if (
+          this.contextPanel &&
+          (!this.contextPanel.IsValid || this.contextPanel.IsValid())
+        )
+          return true;
+      } catch (eContextPanel) {}
+      this.stop();
+      return false;
+    },
+    defer: function (delay, callback) {
+      if (!this.isActive()) return false;
+      var epoch = this.epoch;
+      $.Schedule(delay, function () {
+        if (AnitaLifetime.isActive(epoch)) callback();
+      });
+      return true;
+    },
+    replace: function (key, delay, callback) {
+      var token = (this.jobs[key] || 0) + 1;
+      this.jobs[key] = token;
+      return this.defer(delay, function () {
+        if (AnitaLifetime.jobs[key] === token) callback();
+      });
+    },
+    cancel: function (key) {
+      this.jobs[key] = (this.jobs[key] || 0) + 1;
+    },
+    stop: function () {
+      if (this.stopped) return false;
+      this.stopped = true;
+      this.epoch += 1;
+      this.jobs = Object.create(null);
+      this.contextPanel = null;
+      if (this.eventHandlerId !== null) {
+        try {
+          $.UnregisterForUnhandledEvent(
+            HPBridgeProtocol.eventChannel,
+            this.eventHandlerId,
+          );
+        } catch (eUnregister) {}
+        this.eventHandlerId = null;
+      }
+      try {
+        AnitaRenderer.releaseSettingsShell();
+      } catch (eSettingsShell) {}
+      try {
+        AnitaMouseRouter.uninstall();
+      } catch (eMouseRouter) {}
+      try {
+        HPPresetSnapshotPublisher.stop();
+      } catch (ePresetSnapshot) {}
+      return true;
+    },
+  };
   const HP_HERO_SCOPE_OFF = "off";
   const HP_HERO_SCOPE_ALL = "all";
   const HP_HERO_SCOPE_SELECTED = "selected";
@@ -418,9 +495,10 @@
   ];
   const HP_HERO_BY_ID = {};
   const HP_HERO_ID_TO_KEY = {};
+  const HP_HERO_BY_RETAIL_NAME = {};
   const HPSettingsContract = {
     storageNamespace: "hp_colors",
-    storageVersion: 97,
+    storageVersion: 99,
     description: "Set enemy, ally, pulse, HP number, and kill marker colors.",
     SETTINGS: [
     // General - Core Behavior
@@ -535,6 +613,27 @@
       id: "hp_color_high",
       label: "High HP bar color",
       defaultValue: "#00FF00",
+      category: "HEALTH BARS|Enemy Colors",
+    },
+    {
+      type: "colorpicker",
+      id: "hp_heal_color",
+      label: "Enemy heal overlay color",
+      defaultValue: "#5fff80",
+      category: "HEALTH BARS|Enemy Colors",
+    },
+    {
+      type: "colorpicker",
+      id: "hp_delta_color",
+      label: "Enemy damage delta color",
+      defaultValue: "#ffe55b",
+      category: "HEALTH BARS|Enemy Colors",
+    },
+    {
+      type: "colorpicker",
+      id: "hp_bullet_shield_color",
+      label: "Enemy shield color",
+      defaultValue: "#ffffff",
       category: "HEALTH BARS|Enemy Colors",
     },
     // Visual Effects - Low HP Pulse
@@ -692,6 +791,17 @@
       category: "HEALTH BARS|Number Overlay",
     },
     {
+      type: "toggle",
+      id: "hp_precise_pips_enabled",
+      label: "More Precise HP Pips",
+      defaultValue: false,
+      presetSupported: false,
+      category: "HEALTH BARS|Number Overlay",
+      onChange: function (enabled) {
+        AnitaRenderer.openPipConvarPopup(enabled);
+      },
+    },
+    {
       type: "colorpicker",
       id: "hp_text_color_low",
       label: "Low HP number color",
@@ -744,6 +854,30 @@
       id: "hp_friend_color_high",
       label: "Ally high HP color",
       defaultValue: "#00FF00",
+      category: "HEALTH BARS|Ally Colors",
+      visibleWhen: { id: "hp_friend_enabled", equals: true },
+    },
+    {
+      type: "colorpicker",
+      id: "hp_friend_heal_color",
+      label: "Ally heal overlay color",
+      defaultValue: "#5fff80",
+      category: "HEALTH BARS|Ally Colors",
+      visibleWhen: { id: "hp_friend_enabled", equals: true },
+    },
+    {
+      type: "colorpicker",
+      id: "hp_friend_delta_color",
+      label: "Ally damage delta color",
+      defaultValue: "#504c47",
+      category: "HEALTH BARS|Ally Colors",
+      visibleWhen: { id: "hp_friend_enabled", equals: true },
+    },
+    {
+      type: "colorpicker",
+      id: "hp_friend_bullet_shield_color",
+      label: "Ally shield color",
+      defaultValue: "#ffffff",
       category: "HEALTH BARS|Ally Colors",
       visibleWhen: { id: "hp_friend_enabled", equals: true },
     },
@@ -854,12 +988,16 @@
     hp_color_low: "cl",
     hp_color_mid: "cm",
     hp_color_high: "ch",
+    hp_heal_color: "ehc",
+    hp_delta_color: "edc",
+    hp_bullet_shield_color: "ebsc",
     hp_counter_visible: "cv",
     hp_counter_size: "s",
     hp_counter_position: "p",
     hp_text_color_mode: "tm",
     hp_level_number_visible: "lnv",
     hp_pip_visible: "plv",
+    hp_precise_pips_enabled: "ppe",
     hp_ult_color_enabled: "uce",
     hp_ult_color_custom: "ucc",
     hp_text_color_low: "tl",
@@ -885,6 +1023,9 @@
     hp_friend_color_low: "fcl",
     hp_friend_color_mid: "fcm",
     hp_friend_color_high: "fch",
+    hp_friend_heal_color: "fhc",
+    hp_friend_delta_color: "fdc",
+    hp_friend_bullet_shield_color: "fbsc",
     hp_friend_pulse_color_enabled: "fpce",
     hp_friend_pulse_color: "fpc",
     hp_kill_zone_enabled: "kze",
@@ -924,7 +1065,9 @@
     buildSupportedPresetIds: function () {
       var supported = {};
       for (var i = 0; i < this.SETTINGS.length; i++) {
-        supported[this.SETTINGS[i].id] = true;
+        var element = this.SETTINGS[i];
+        if (element.presetSupported === false) continue;
+        supported[element.id] = true;
       }
       return supported;
     },
@@ -1095,11 +1238,19 @@
     return "";
   }
 
+  function normalizeHpHeroRetailName(value) {
+    if (value === null || value === undefined) return "";
+    return String(value)
+      .replace(/^\s+|\s+$/g, "")
+      .toLowerCase();
+  }
+
   function buildHpHeroTables() {
     for (var i = 0; i < HP_HERO_DATA.length; i++) {
       var hero = HP_HERO_DATA[i];
       HP_HERO_BY_ID[hero.id] = hero;
       HP_HERO_ID_TO_KEY[String(hero.heroId)] = hero.id;
+      HP_HERO_BY_RETAIL_NAME[normalizeHpHeroRetailName(hero.name)] = hero.id;
     }
   }
 
@@ -1258,17 +1409,6 @@
       scheduleHpHeroPresetRefresh(config);
       return row.heroes.slice(0);
     },
-    summarize: function (heroes, mode) {
-      var normalized = normalizeHpHeroSelection(heroes);
-      var scopeMode = normalizeHpHeroScopeMode(mode, normalized);
-      if (scopeMode === HP_HERO_SCOPE_OFF) return "Hero select off";
-      if (scopeMode === HP_HERO_SCOPE_ALL) return "All heroes";
-      return (
-        String(normalized.length) +
-        " hero" +
-        (normalized.length === 1 ? "" : "es")
-      );
-    },
     materializeBakedEntry: function (base, modConfig, displayIndex) {
       if (!base) return null;
       var selectionStore = modConfig && modConfig.__anitaPresetHeroSelections;
@@ -1297,19 +1437,21 @@
         name: base.name,
         category: base.category,
         values: base.values,
+        overrides: HPPresetBuilderModel.clonePresetBuilderStateValue(
+          base.overrides || {},
+        ),
         heroes: heroes,
         heroMode: heroMode,
         key: rowKey,
         source: base.source,
       };
     },
-    selectForHero: function (
-      modConfig,
+    resolveSelectionFromEntries: function (
+      presets,
+      heroId,
       allowUnknownFallback,
       allowHeroMatch,
     ) {
-      var presets = HPPresetRepository.readRuntimePresetEntries(modConfig);
-      var heroId = detectHpLocalHero();
       var canUseHeroMatch = allowHeroMatch !== false;
       var startupPreset = null;
       var firstPreset = null;
@@ -1398,6 +1540,18 @@
         usedFallback: false,
       };
     },
+    selectForHero: function (
+      modConfig,
+      allowUnknownFallback,
+      allowHeroMatch,
+    ) {
+      return this.resolveSelectionFromEntries(
+        HPPresetRepository.readRuntimePresetEntries(modConfig),
+        detectHpLocalHero(),
+        allowUnknownFallback,
+        allowHeroMatch,
+      );
+    },
     hasSelectedScopedPreset: function (config) {
       var presets = HPPresetRepository.readRuntimePresetEntries(config);
       for (var i = 0; i < presets.length; i++) {
@@ -1408,6 +1562,935 @@
           return true;
       }
       return false;
+    },
+  };
+
+  const HPPresetBuilderModel = {
+    getDefaultSelectedPresetKey: function (rows) {
+      if (!Array.isArray(rows) || !rows.length) return "";
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i] && rows[i].id === HP_STARTUP_PRESET_ID)
+          return rows[i].key || "";
+      }
+      for (var bakedIndex = 0; bakedIndex < rows.length; bakedIndex++) {
+        if (String((rows[bakedIndex] && rows[bakedIndex].key) || "").indexOf("baked_") === 0)
+          return rows[bakedIndex].key || "";
+      }
+      return rows[0] && rows[0].key ? rows[0].key : "";
+    },
+
+    ensureSelectedPresetKey: function (config, rows) {
+      if (!config) return "";
+      var selectedKey = String(config.__anitaSelectedPresetKey || "");
+      if (Array.isArray(rows)) {
+        for (var i = 0; i < rows.length; i++) {
+          if (rows[i] && rows[i].key === selectedKey) return selectedKey;
+        }
+      }
+      selectedKey = this.getDefaultSelectedPresetKey(rows);
+      config.__anitaSelectedPresetKey = selectedKey;
+      return selectedKey;
+    },
+
+    getSelectedRow: function (rows, selectedKey) {
+      if (!Array.isArray(rows) || !rows.length) return null;
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i] && rows[i].key === selectedKey) return rows[i];
+      }
+      return rows[0] || null;
+    },
+
+    getSelectedStatusText: function (row) {
+      return row ? "Selected: " + row.name : "No preset selected";
+    },
+
+    initializeRowHeroState: function (config, rows) {
+      if (!Array.isArray(rows)) return;
+      for (var i = 0; i < rows.length; i++) {
+        HPPresetHeroSelection.getRowHeroes(config, rows[i]);
+      }
+    },
+
+    buildPresetBuilderViewModel: function (config) {
+      var rows = this.getPresetRows(config);
+      var selectedKey = this.ensureSelectedPresetKey(config, rows);
+      this.initializeRowHeroState(config, rows);
+      var selectedRow = this.getSelectedRow(rows, selectedKey);
+      var bundleRows = this.getPresetBundleRows(rows);
+      return {
+        rows: rows,
+        selectedKey: selectedKey,
+        selectedRow: selectedRow,
+        selectedStatusText: this.getSelectedStatusText(selectedRow),
+        bundleRows: bundleRows,
+        bundlePresetCount: bundleRows.length,
+        heroDetectionMode: normalizeHpHeroDetectionMode(config),
+        heroDetectionLabel: getHpHeroDetectionModeLabel(config),
+        heroManualOverrideEnabled: hpHeroManualOverrideEnabled(config),
+        builderUrl: HP_PRESET_BUILDER_URL,
+      };
+    },
+
+    getHeroPickerDisplay: function (config, row) {
+      var heroes = HPPresetHeroSelection.getRowHeroes(config, row);
+      var scopeMode = HPPresetHeroSelection.getRowHeroMode(config, row);
+      var heroCount = heroes.length;
+      var isOff = scopeMode === HP_HERO_SCOPE_OFF;
+      var isAll = scopeMode === HP_HERO_SCOPE_ALL;
+      var isSelected = scopeMode === HP_HERO_SCOPE_SELECTED;
+      return {
+        heroes: heroes,
+        scopeMode: scopeMode,
+        heroCount: heroCount,
+        summaryText: isOff ? "Hero select off" : isAll ? "All heroes" : String(heroCount) + " hero" + (heroCount === 1 ? "" : "es") + " selected",
+        faceText: isOff ? "Off" : isAll ? "All heroes" : String(heroCount) + " hero" + (heroCount === 1 ? "" : "es"),
+        isOff: isOff,
+        isAll: isAll,
+        isSelected: isSelected,
+      };
+    },
+    collectCurrentValues: function (config) {
+      var values = {};
+      if (!config || !Array.isArray(config.elements)) return values;
+      for (var i = 0; i < config.elements.length; i++) {
+        var element = config.elements[i];
+        if (!AnitaPersistence.shouldPersistElement(element)) continue;
+        values[element.id] = AnitaPersistence.sanitizeValue(
+          element,
+          element.currentValue !== undefined
+            ? element.currentValue
+            : element.defaultValue,
+        );
+      }
+      return values;
+    },
+    isBuilderSupportedPresetElement: function (element) {
+      return !!(
+        element &&
+        element.id &&
+        Object.prototype.hasOwnProperty.call(
+          HP_PRESET_BUILDER_SUPPORTED_IDS,
+          element.id,
+        )
+      );
+    },
+    buildPresetPayloadValues: function (config, values) {
+      var payloadValues = {};
+      var elements = AnitaPersistence.getElements(config);
+      var sourceValues = values || {};
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!AnitaPersistence.shouldPersistElement(element)) continue;
+        if (
+          AnitaRenderer.isHpColorsConfig(config) &&
+          !this.isBuilderSupportedPresetElement(element)
+        )
+          continue;
+        var hasValue = Object.prototype.hasOwnProperty.call(
+          sourceValues,
+          element.id,
+        );
+        var value = AnitaPersistence.sanitizeValue(
+          element,
+          hasValue ? sourceValues[element.id] : element.defaultValue,
+        );
+        var defaultValue = AnitaPersistence.sanitizeValue(
+          element,
+          element.defaultValue,
+        );
+        if (AnitaRenderer.isHpColorsConfig(config) && value === defaultValue) continue;
+        payloadValues[
+          AnitaRenderer.isHpColorsConfig(config)
+            ? HP_PERSIST_ALIASES[element.id] || element.id
+            : element.id
+        ] = value;
+      }
+      return payloadValues;
+    },
+    buildPresetCodeToken: function (
+      config,
+      values,
+      name,
+      payloadValuesOverride,
+      heroes,
+      heroMode,
+      overrides,
+    ) {
+      if (!config || !config.storageNamespace) return "";
+      var payloadValues =
+        payloadValuesOverride || this.buildPresetPayloadValues(config, values);
+      return HPPresetCodeCodec.encodePresetToken(config, payloadValues, {
+        name: name,
+        heroes: heroes,
+        heroMode: heroMode,
+        overrides: overrides || {},
+        aliasToId: HP_PERSIST_ALIAS_TO_ID,
+        idToAlias: HP_PERSIST_ALIASES,
+        allowedIds: HP_PRESET_BUILDER_SUPPORTED_IDS,
+        ineligibleIds: { hp_precise_pips_enabled: true },
+        heroById: HP_HERO_BY_ID,
+        heroIdToKey: HP_HERO_ID_TO_KEY,
+      });
+    },
+    isPresetBundleRow: function (row) {
+      return !!(row && row.values && row.key !== "current");
+    },
+    isUserPresetRow: function (row) {
+      return !!(row && String(row.key || "").indexOf("user_") === 0);
+    },
+    getPresetBundleRows: function (rows) {
+      var bundleRows = [];
+      if (!Array.isArray(rows)) return bundleRows;
+      for (var i = 0; i < rows.length; i++) {
+        if (this.isPresetBundleRow(rows[i])) bundleRows.push(rows[i]);
+      }
+      return bundleRows;
+    },
+    getPresetPriorityIdentity: function (row) {
+      if (!row) return "";
+      if (row.id) return "id:" + String(row.id);
+      return String(row.key || "");
+    },
+    getRemovedPresetRows: function (config) {
+      if (!config.__anitaRemovedPresetRows)
+        config.__anitaRemovedPresetRows = {};
+      return config.__anitaRemovedPresetRows;
+    },
+    isPresetRowRemoved: function (config, row) {
+      if (!config || !row) return false;
+      var key = this.getPresetPriorityIdentity(row);
+      return !!(
+        key &&
+        config.__anitaRemovedPresetRows &&
+        config.__anitaRemovedPresetRows[key]
+      );
+    },
+    cleanupPresetRowState: function (config, row, identity) {
+      if (!config || !row) return;
+      var key = String(row.key || "");
+      var idKey = row.id ? "id:" + String(row.id) : "";
+      if (config.__anitaPresetHeroSelections) {
+        try {
+          delete config.__anitaPresetHeroSelections[key];
+        } catch (eHeroKey) {}
+        if (idKey) {
+          try {
+            delete config.__anitaPresetHeroSelections[idKey];
+          } catch (eHeroId) {}
+        }
+      }
+      if (config.__anitaPresetHeroModes) {
+        try {
+          delete config.__anitaPresetHeroModes[key];
+        } catch (eModeKey) {}
+        if (idKey) {
+          try {
+            delete config.__anitaPresetHeroModes[idKey];
+          } catch (eModeId) {}
+        }
+      }
+      if (config.__anitaPresetNameOverrides) {
+        try {
+          delete config.__anitaPresetNameOverrides[key];
+        } catch (eNameKey) {}
+        if (idKey) {
+          try {
+            delete config.__anitaPresetNameOverrides[idKey];
+          } catch (eNameId) {}
+        }
+      }
+      if (Array.isArray(config.__anitaPresetPriorityOrder)) {
+        var nextOrder = [];
+        for (var i = 0; i < config.__anitaPresetPriorityOrder.length; i++) {
+          var orderKey = String(config.__anitaPresetPriorityOrder[i] || "");
+          if (
+            orderKey &&
+            orderKey !== key &&
+            orderKey !== idKey &&
+            orderKey !== identity
+          )
+            nextOrder.push(orderKey);
+        }
+        config.__anitaPresetPriorityOrder = nextOrder;
+      }
+      if (config.__anitaSelectedPresetKey === key)
+        config.__anitaSelectedPresetKey = "";
+      if (config.__anitaEditingPresetNameKey === key)
+        config.__anitaEditingPresetNameKey = "";
+    },
+    applyPresetPriorityOrder: function (config, rows) {
+      if (!config || !Array.isArray(rows) || !rows.length) return rows;
+      var movable = [];
+      var fixed = [];
+      var byKey = {};
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        if (this.isPresetBundleRow(row)) {
+          var key = this.getPresetPriorityIdentity(row);
+          if (key) {
+            movable.push(row);
+            byKey[key] = row;
+          }
+        } else {
+          fixed.push(row);
+        }
+      }
+      if (!movable.length) return rows;
+
+      var stored = Array.isArray(config.__anitaPresetPriorityOrder)
+        ? config.__anitaPresetPriorityOrder
+        : [];
+      var order = [];
+      var seen = {};
+      for (var storedIndex = 0; storedIndex < stored.length; storedIndex++) {
+        var storedKey = String(stored[storedIndex] || "");
+        if (!storedKey || !byKey[storedKey] || seen[storedKey]) continue;
+        seen[storedKey] = true;
+        order.push(storedKey);
+      }
+      for (var moveIndex = 0; moveIndex < movable.length; moveIndex++) {
+        var moveKey = this.getPresetPriorityIdentity(movable[moveIndex]);
+        if (!moveKey || seen[moveKey]) continue;
+        seen[moveKey] = true;
+        order.push(moveKey);
+      }
+      config.__anitaPresetPriorityOrder = order;
+
+      var sorted = [];
+      for (var orderIndex = 0; orderIndex < order.length; orderIndex++) {
+        var orderedRow = byKey[order[orderIndex]];
+        if (orderedRow) sorted.push(orderedRow);
+      }
+      for (var fixedIndex = 0; fixedIndex < fixed.length; fixedIndex++) {
+        sorted.push(fixed[fixedIndex]);
+      }
+      return sorted;
+    },
+    buildPresetBundleCodeToken: function (config, rows) {
+      if (!config || !Array.isArray(rows) || !rows.length) return "";
+      var bundleRows = [];
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        if (!this.isPresetBundleRow(row)) continue;
+        bundleRows.push({
+          name: row.name,
+          payloadValues:
+            row.payloadValues ||
+            this.buildPresetPayloadValues(config, row.values),
+          overrides: row.overrides || {},
+          values: row.values,
+          heroMode: row.heroMode,
+          heroes: row.heroes,
+        });
+      }
+      return HPPresetCodeCodec.encodePresetBundle(config, bundleRows);
+    },
+    countBuilderPresetOverrides: function (config, values) {
+      var count = 0;
+      var elements = AnitaPersistence.getElements(config);
+      var sourceValues = values || {};
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!AnitaPersistence.shouldPersistElement(element)) continue;
+        if (!this.isBuilderSupportedPresetElement(element)) continue;
+        if (!Object.prototype.hasOwnProperty.call(sourceValues, element.id))
+          continue;
+        var value = AnitaPersistence.sanitizeValue(
+          element,
+          sourceValues[element.id],
+        );
+        var defaultValue = AnitaPersistence.sanitizeValue(
+          element,
+          element.defaultValue,
+        );
+        if (value !== defaultValue) count += 1;
+      }
+      return count;
+    },
+    countUnsupportedPresetOverrides: function (config, values) {
+      var count = 0;
+      var elements = AnitaPersistence.getElements(config);
+      var sourceValues = values || {};
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!AnitaPersistence.shouldPersistElement(element)) continue;
+        if (this.isBuilderSupportedPresetElement(element)) continue;
+        if (!Object.prototype.hasOwnProperty.call(sourceValues, element.id))
+          continue;
+        var value = AnitaPersistence.sanitizeValue(
+          element,
+          sourceValues[element.id],
+        );
+        var defaultValue = AnitaPersistence.sanitizeValue(
+          element,
+          element.defaultValue,
+        );
+        if (value !== defaultValue) count += 1;
+      }
+      return count;
+    },
+    countPresetValues: function (values) {
+      var count = 0;
+      for (var key in values || {}) {
+        if (Object.prototype.hasOwnProperty.call(values, key)) count += 1;
+      }
+      return count;
+    },
+    sanitizeUserPresetName: function (name, fallbackIndex) {
+      var clean = String(name || "")
+        .replace(/^\s+|\s+$/g, "")
+        .replace(/\s+/g, " ");
+      if (clean.length > 34) clean = clean.substr(0, 34);
+      if (clean) return clean;
+      return "Game preset " + String(Math.max(1, Number(fallbackIndex) || 1));
+    },
+    sanitizePresetRenameName: function (name, fallbackName) {
+      var clean = String(name || "")
+        .replace(/^\s+|\s+$/g, "")
+        .replace(/\s+/g, " ");
+      if (clean.length > 34) clean = clean.substr(0, 34);
+      if (clean) return clean;
+      return (
+        String(fallbackName || "").replace(/^\s+|\s+$/g, "") || "Game preset"
+      );
+    },
+    getUserPresetRows: function (config) {
+      if (!config.__anitaUserPresetRows) config.__anitaUserPresetRows = [];
+      return config.__anitaUserPresetRows;
+    },
+    getPresetNameOverride: function (config, key, id, fallbackName) {
+      var overrides = config && config.__anitaPresetNameOverrides;
+      if (!overrides) return fallbackName;
+      var idKey = id ? "id:" + String(id) : "";
+      if (idKey && Object.prototype.hasOwnProperty.call(overrides, idKey))
+        return overrides[idKey];
+      if (key && Object.prototype.hasOwnProperty.call(overrides, key))
+        return overrides[key];
+      return fallbackName;
+    },
+    getNextImportPresetName: function (config) {
+      var nextIndex = 1;
+      var rows = this.getUserPresetRows(config);
+      for (var i = 0; i < rows.length; i++) {
+        var match = String(rows[i].name || "").match(/^Import\s+(\d+)$/i);
+        if (match) {
+          var num = Number(match[1]);
+          if (isFinite(num) && num >= nextIndex) nextIndex = num + 1;
+        }
+      }
+      return "Import " + String(nextIndex);
+    },
+    getPresetRows: function (config) {
+      var rows = [];
+      var baked = readBakedPresetEntries(config);
+      for (var i = 0; i < baked.length; i++) {
+        var preset = baked[i];
+        var valueCount = this.countPresetValues(preset.values);
+        var overrideCount = this.countBuilderPresetOverrides(
+          config,
+          preset.values,
+        );
+        var unsupportedCount = this.countUnsupportedPresetOverrides(
+          config,
+          preset.values,
+        );
+        var payloadValues = this.buildPresetPayloadValues(
+          config,
+          preset.values || {},
+        );
+        var bakedKey = "baked_" + String(i);
+        var bakedName = this.getPresetNameOverride(
+          config,
+          bakedKey,
+          preset.id || "",
+          preset.name || "Builder preset " + String(i + 1),
+        );
+        rows.push({
+          key: bakedKey,
+          id: preset.id || "",
+          name: bakedName,
+          category: preset.category || "Builder VPK",
+          status: valueCount
+            ? String(valueCount) +
+              " recognized setting" +
+              (valueCount === 1 ? "" : "s") +
+              ", " +
+              String(overrideCount) +
+              " builder override" +
+              (overrideCount === 1 ? "" : "s") +
+              (unsupportedCount
+                ? ", " + String(unsupportedCount) + " omitted"
+                : "")
+            : "No recognized HP Colors settings",
+          token: this.buildPresetCodeToken(
+            config,
+            preset.values || {},
+            bakedName,
+            payloadValues,
+            preset.heroes,
+            preset.heroMode,
+            preset.overrides || {},
+          ),
+          values: preset.values || {},
+          payloadValues: payloadValues,
+          overrides: HPPresetBuilderModel.clonePresetBuilderStateValue(
+            preset.overrides || {},
+          ),
+          heroes: normalizeHpHeroSelection(preset.heroes),
+          heroMode: normalizeHpHeroScopeMode(preset.heroMode, preset.heroes),
+        });
+        if (this.isPresetRowRemoved(config, rows[rows.length - 1])) rows.pop();
+      }
+
+      var userRows = this.getUserPresetRows(config);
+      for (var userIndex = 0; userIndex < userRows.length; userIndex++) {
+        var userRow = userRows[userIndex];
+        if (!userRow || !userRow.values) continue;
+        if (this.isPresetRowRemoved(config, userRow)) continue;
+        userRow.payloadValues =
+          userRow.payloadValues ||
+          this.buildPresetPayloadValues(config, userRow.values || {});
+        userRow.overrides = this.clonePresetBuilderStateValue(
+          userRow.overrides || {},
+        );
+        userRow.category = userRow.category || "Game preset";
+        userRow.name = this.sanitizeUserPresetName(userRow.name, userIndex + 1);
+        userRow.heroes = normalizeHpHeroSelection(userRow.heroes);
+        userRow.heroMode = normalizeHpHeroScopeMode(
+          userRow.heroMode,
+          userRow.heroes,
+        );
+        userRow.token = this.buildPresetCodeToken(
+          config,
+          userRow.values || {},
+          userRow.name,
+          userRow.payloadValues,
+          userRow.heroes,
+          userRow.heroMode,
+          userRow.overrides,
+        );
+        rows.push(userRow);
+      }
+
+      var currentValues = this.collectCurrentValues(config);
+      var currentOverrides = this.countBuilderPresetOverrides(
+        config,
+        currentValues,
+      );
+      var omittedOverrides = this.countUnsupportedPresetOverrides(
+        config,
+        currentValues,
+      );
+      var currentConditionalRules = this.clonePresetBuilderStateValue(
+        config.__hpSignatureConditionalRules || {},
+      );
+      rows.push({
+        key: "current",
+        id: "",
+        name: "Current live settings",
+        category: "Live settings",
+        status:
+          (currentOverrides
+            ? String(currentOverrides) +
+              " builder override" +
+              (currentOverrides === 1 ? "" : "s")
+            : "Default builder values") +
+          (omittedOverrides
+            ? "; " +
+              String(omittedOverrides) +
+              " live-only setting" +
+              (omittedOverrides === 1 ? "" : "s") +
+              " omitted"
+            : ""),
+        token: this.buildPresetCodeToken(
+          config,
+          currentValues,
+          "Current live settings",
+          null,
+          [],
+          HP_HERO_SCOPE_OFF,
+          currentConditionalRules,
+        ),
+        values: currentValues,
+        payloadValues: this.buildPresetPayloadValues(config, currentValues),
+        overrides: currentConditionalRules,
+        heroes: [],
+        heroMode: HP_HERO_SCOPE_OFF,
+      });
+      return this.applyPresetPriorityOrder(config, rows);
+    },
+    clonePresetBuilderStateValue: function (value) {
+      if (Array.isArray(value)) {
+        var arrayCopy = [];
+        for (var i = 0; i < value.length; i++) {
+          arrayCopy.push(this.clonePresetBuilderStateValue(value[i]));
+        }
+        return arrayCopy;
+      }
+      if (value && typeof value === "object") {
+        var objectCopy = {};
+        for (var key in value) {
+          if (Object.prototype.hasOwnProperty.call(value, key)) {
+            objectCopy[key] = this.clonePresetBuilderStateValue(value[key]);
+          }
+        }
+        return objectCopy;
+      }
+      return value;
+    },
+    capturePresetBuilderState: function (config) {
+      if (!AnitaRenderer.hasPresetBuilder(config)) return null;
+      return {
+        userPresetRows: this.clonePresetBuilderStateValue(
+          config.__anitaUserPresetRows || [],
+        ),
+        nameOverrides: this.clonePresetBuilderStateValue(
+          config.__anitaPresetNameOverrides || {},
+        ),
+        heroSelections: this.clonePresetBuilderStateValue(
+          config.__anitaPresetHeroSelections || {},
+        ),
+        heroModes: this.clonePresetBuilderStateValue(
+          config.__anitaPresetHeroModes || {},
+        ),
+        priorityOrder: this.clonePresetBuilderStateValue(
+          config.__anitaPresetPriorityOrder || [],
+        ),
+        removedPresets: this.clonePresetBuilderStateValue(
+          config.__anitaRemovedPresetRows || {},
+        ),
+        selectedPresetKey: String(config.__anitaSelectedPresetKey || ""),
+        editingPresetKey: String(config.__anitaEditingPresetNameKey || ""),
+        heroDetectionMode: normalizeHpHeroDetectionMode(config),
+        heroManualOverride: !!config.__hpHeroManualPresetOverride,
+      };
+    },
+    restorePresetBuilderState: function (config, state) {
+      if (!config || !state) return;
+      config.__anitaUserPresetRows = this.clonePresetBuilderStateValue(
+        state.userPresetRows || [],
+      );
+      config.__anitaPresetNameOverrides = this.clonePresetBuilderStateValue(
+        state.nameOverrides || {},
+      );
+      config.__anitaPresetHeroSelections = this.clonePresetBuilderStateValue(
+        state.heroSelections || {},
+      );
+      config.__anitaPresetHeroModes = this.clonePresetBuilderStateValue(
+        state.heroModes || {},
+      );
+      config.__anitaPresetPriorityOrder = this.clonePresetBuilderStateValue(
+        state.priorityOrder || [],
+      );
+      config.__anitaRemovedPresetRows = this.clonePresetBuilderStateValue(
+        state.removedPresets || {},
+      );
+      config.__anitaSelectedPresetKey = String(state.selectedPresetKey || "");
+      config.__anitaEditingPresetNameKey = String(state.editingPresetKey || "");
+      setHpHeroDetectionMode(
+        config,
+        state.heroDetectionMode ||
+          (state.heroManualOverride
+            ? HP_HERO_DETECTION_OVERRIDE
+            : HP_HERO_DETECTION_AUTO),
+      );
+    },
+  };
+
+  const HPPresetBuilderActions = {
+    removePresetRow: function (config, row) {
+      if (
+        !config ||
+        !row ||
+        row.key === "current" ||
+        !HPPresetBuilderModel.isPresetBundleRow(row)
+      )
+        return false;
+      var identity = HPPresetBuilderModel.getPresetPriorityIdentity(row);
+      var userRows = HPPresetBuilderModel.getUserPresetRows(config);
+      var removedUser = false;
+      for (var i = userRows.length - 1; i >= 0; i--) {
+        if (userRows[i] && userRows[i].key === row.key) {
+          userRows.splice(i, 1);
+          removedUser = true;
+        }
+      }
+      if (!removedUser) {
+        if (!identity) return false;
+        HPPresetBuilderModel.getRemovedPresetRows(config)[identity] = true;
+      }
+      HPPresetBuilderModel.cleanupPresetRowState(config, row, identity);
+      resetHpHeroPresetDetectionLock(config);
+      invalidateHpHeroPresetApplyCache(config);
+      startHpHeroPresetWatch(config);
+      scheduleHpHeroPresetRefresh(config);
+      return true;
+    },
+    movePresetRowPriority: function (config, rows, row, delta) {
+      if (
+        !config ||
+        !Array.isArray(rows) ||
+        !row ||
+        !HPPresetBuilderModel.isPresetBundleRow(row)
+      )
+        return false;
+      var ordered = HPPresetBuilderModel.applyPresetPriorityOrder(config, rows);
+      var keys = [];
+      for (var i = 0; i < ordered.length; i++) {
+        if (!HPPresetBuilderModel.isPresetBundleRow(ordered[i])) continue;
+        var key = HPPresetBuilderModel.getPresetPriorityIdentity(ordered[i]);
+        if (key) keys.push(key);
+      }
+      var rowKey = HPPresetBuilderModel.getPresetPriorityIdentity(row);
+      var index = keys.indexOf(rowKey);
+      var nextIndex = index + (Number(delta) || 0);
+      if (index < 0 || nextIndex < 0 || nextIndex >= keys.length) return false;
+      var tmp = keys[index];
+      keys[index] = keys[nextIndex];
+      keys[nextIndex] = tmp;
+      config.__anitaPresetPriorityOrder = keys;
+      config.__anitaSelectedPresetKey = row.key;
+      resetHpHeroPresetDetectionLock(config);
+      invalidateHpHeroPresetApplyCache(config);
+      startHpHeroPresetWatch(config);
+      scheduleHpHeroPresetRefresh(config);
+      return true;
+    },
+    setPresetRowName: function (config, row, name) {
+      if (!config || !row || row.key === "current") return false;
+      var clean = HPPresetBuilderModel.sanitizePresetRenameName(name, row.name);
+      if (!clean || clean === row.name) return false;
+      var userRows = HPPresetBuilderModel.getUserPresetRows(config);
+      var changed = false;
+      for (var i = 0; i < userRows.length; i++) {
+        if (userRows[i] && userRows[i].key === row.key) {
+          userRows[i].name = clean;
+          changed = true;
+          break;
+        }
+      }
+      if (!changed) {
+        if (!config.__anitaPresetNameOverrides)
+          config.__anitaPresetNameOverrides = {};
+        var overrideKey = row.id ? "id:" + String(row.id) : row.key;
+        config.__anitaPresetNameOverrides[overrideKey] = clean;
+        changed = true;
+      }
+      row.name = clean;
+      row.token = HPPresetBuilderModel.buildPresetCodeToken(
+        config,
+        row.values || {},
+        row.name,
+        row.payloadValues,
+        row.heroes,
+        row.heroMode,
+        row.overrides || {},
+      );
+      config.__anitaSelectedPresetKey = row.key;
+      return changed;
+    },
+    addUserPresetFromCurrent: function (config, name) {
+      if (!config) return null;
+      var userRows = HPPresetBuilderModel.getUserPresetRows(config);
+      var nextIndex = userRows.length + 1;
+      var presetName = HPPresetBuilderModel.sanitizeUserPresetName(name, nextIndex);
+      var currentValues = HPPresetBuilderModel.collectCurrentValues(config);
+      var payloadValues = HPPresetBuilderModel.buildPresetPayloadValues(config, currentValues);
+      var currentOverrides = HPPresetBuilderModel.clonePresetBuilderStateValue(
+        config.__hpSignatureConditionalRules || {},
+      );
+      var overrideCount = HPPresetBuilderModel.countBuilderPresetOverrides(
+        config,
+        currentValues,
+      );
+      var omittedOverrides = HPPresetBuilderModel.countUnsupportedPresetOverrides(
+        config,
+        currentValues,
+      );
+      var key =
+        "user_" +
+        String(Date.now ? Date.now() : +new Date()) +
+        "_" +
+        String(nextIndex);
+      var row = {
+        key: key,
+        id: "",
+        name: presetName,
+        category: "Game preset",
+        status:
+          (overrideCount
+            ? String(overrideCount) +
+              " builder override" +
+              (overrideCount === 1 ? "" : "s")
+            : "Default builder values") +
+          (omittedOverrides
+            ? "; " +
+              String(omittedOverrides) +
+              " live-only setting" +
+              (omittedOverrides === 1 ? "" : "s") +
+              " omitted"
+            : ""),
+        token: "",
+        values: currentValues,
+        payloadValues: payloadValues,
+        overrides: currentOverrides,
+        heroes: [],
+        heroMode: HP_HERO_SCOPE_OFF,
+      };
+      row.token = HPPresetBuilderModel.buildPresetCodeToken(
+        config,
+        row.values,
+        row.name,
+        row.payloadValues,
+        row.heroes,
+        row.heroMode,
+        row.overrides,
+      );
+      userRows.push(row);
+      config.__anitaSelectedPresetKey = row.key;
+      return row;
+    },
+    addUserPresetFromValues: function (
+      config,
+      name,
+      values,
+      overrides,
+      category,
+      heroes,
+      heroMode,
+    ) {
+      if (!config || !values) return null;
+      var userRows = HPPresetBuilderModel.getUserPresetRows(config);
+      var nextIndex = userRows.length + 1;
+      var presetName = HPPresetBuilderModel.sanitizeUserPresetName(name, nextIndex);
+      var sourceValues = {};
+      for (var key in values) {
+        if (Object.prototype.hasOwnProperty.call(values, key))
+          sourceValues[key] = values[key];
+      }
+      var payloadValues = HPPresetBuilderModel.buildPresetPayloadValues(config, sourceValues);
+      var overrideCount = HPPresetBuilderModel.countBuilderPresetOverrides(
+        config,
+        sourceValues,
+      );
+      var omittedOverrides = HPPresetBuilderModel.countUnsupportedPresetOverrides(
+        config,
+        sourceValues,
+      );
+      var keyName =
+        "user_" +
+        String(Date.now ? Date.now() : +new Date()) +
+        "_" +
+        String(nextIndex);
+      var heroTargets = normalizeHpHeroSelection(heroes);
+      var scopeMode = normalizeHpHeroScopeMode(heroMode, heroTargets);
+      if (scopeMode !== HP_HERO_SCOPE_SELECTED) heroTargets = [];
+      var row = {
+        key: keyName,
+        id: "",
+        name: presetName,
+        category: String(category || "Imported"),
+        status:
+          (overrideCount
+            ? String(overrideCount) +
+              " builder override" +
+              (overrideCount === 1 ? "" : "s")
+            : "Default builder values") +
+          (omittedOverrides
+            ? "; " +
+              String(omittedOverrides) +
+              " live-only setting" +
+              (omittedOverrides === 1 ? "" : "s") +
+              " omitted"
+            : ""),
+        token: "",
+        values: sourceValues,
+        payloadValues: payloadValues,
+        overrides: HPPresetBuilderModel.clonePresetBuilderStateValue(
+          overrides || {},
+        ),
+        heroes: heroTargets,
+        heroMode: scopeMode,
+      };
+      row.token = HPPresetBuilderModel.buildPresetCodeToken(
+        config,
+        row.values,
+        row.name,
+        row.payloadValues,
+        row.heroes,
+        row.heroMode,
+        row.overrides,
+      );
+      userRows.push(row);
+      config.__anitaSelectedPresetKey = row.key;
+      if (scopeMode !== HP_HERO_SCOPE_OFF) {
+        resetHpHeroPresetDetectionLock(config);
+        invalidateHpHeroPresetApplyCache(config);
+        startHpHeroPresetWatch(config);
+        scheduleHpHeroPresetRefresh(config);
+      }
+      return row;
+    },
+    addUserPresetFromImportCode: function (config, text) {
+      var parsed = AnitaRenderer.parseImportCode(config, text);
+      if (!parsed.ok) return parsed;
+      var row = HPPresetBuilderActions.addUserPresetFromValues(
+        config,
+        HPPresetBuilderModel.getNextImportPresetName(config),
+        parsed.values,
+        parsed.overrides,
+        "Imported",
+        parsed.heroes,
+        parsed.heroMode,
+      );
+      if (!row) return { ok: false, status: "Invalid" };
+      return { ok: true, status: "Saved", row: row };
+    },
+
+    applyPresetRow: function (config, row) {
+      if (!config || !row || !row.token) {
+        return { ok: false, status: "No code available for this preset." };
+      }
+      config.__anitaSelectedPresetKey = row.key;
+      var rowHeroes = HPPresetHeroSelection.getRowHeroes(config, row);
+      var rowHeroMode = HPPresetHeroSelection.getRowHeroMode(config, row);
+      if (rowHeroMode === HP_HERO_SCOPE_SELECTED && !hpHeroManualPresetAllowed(config)) {
+        var currentHero = detectHpLocalHero();
+        if (!currentHero || !presetTargetsHero(row, currentHero)) {
+          resetHpHeroPresetDetectionLock(config);
+          invalidateHpHeroPresetApplyCache(config);
+          config.__hpHeroPresetHasScopedPreset = true;
+          startHpHeroPresetWatch(config);
+          scheduleHpHeroPresetRefresh(config);
+          return {
+            ok: true,
+            waiting: true,
+            status: currentHero ? row.name + " is saved for selected heroes." : "Waiting for hero detection before applying " + row.name + ".",
+          };
+        }
+        row.heroes = rowHeroes;
+      }
+      var result = AnitaRenderer.applyImportCode(config, row.token, "preset_builder");
+      if (result.ok) return { ok: true, applied: true, status: "Imported " + row.name + "." };
+      return { ok: false, status: result.status || "Invalid" };
+    },
+
+    setRowHeroScope: function (config, row, nextMode, heroes) {
+      if (!config || !row) return [];
+      var selectedHeroes = HPPresetHeroSelection.setRowScope(config, row, nextMode, heroes);
+      row.token = HPPresetBuilderModel.buildPresetCodeToken(
+        config,
+        row.values || {},
+        row.name || "",
+        row.payloadValues,
+        row.heroes,
+        row.heroMode,
+        row.overrides || {},
+      );
+      invalidateHpHeroPresetApplyCache(config);
+      refreshHpHeroPresetSelection(config);
+      scheduleHpHeroPresetRefresh(config);
+      return selectedHeroes;
     },
   };
 
@@ -1435,13 +2518,6 @@
     return "";
   }
 
-  function hpHeroChildren(panel) {
-    try {
-      return panel && panel.Children ? panel.Children() : [];
-    } catch (e) {}
-    return [];
-  }
-
   function hpHeroIsValidPanel(panel) {
     try {
       return !!(panel && panel.IsValid && panel.IsValid());
@@ -1467,35 +2543,10 @@
     return [];
   }
 
-  function hpHeroFindDirectChildWhere(panel, id, predicate) {
-    var children = hpHeroChildren(panel);
-    var fallback = null;
-    for (var i = 0; i < children.length; i++) {
-      var child = children[i];
-      if (hpHeroPanelId(child) !== id) continue;
-      if (!fallback) fallback = child;
-      if (!predicate || predicate(child)) return child;
-    }
-    return fallback;
-  }
-
-  function hpHeroClassOn(panel) {
-    if (!hpHeroIsValidPanel(panel)) return "";
-    for (var i = 0; i < HP_HERO_DATA.length; i++) {
-      if (hpHeroHasClass(panel, HP_HERO_DATA[i].id)) return HP_HERO_DATA[i].id;
-    }
-    return "";
-  }
-
-  function hpHeroHasDirectProgress(panel) {
-    var progress = hpHeroFindDirectChildWhere(panel, "progress", hpHeroClassOn);
-    return !!hpHeroClassOn(progress);
-  }
-
   function clearHpHeroDetectionRefs() {
-    _hpHeroGameplayAlive = null;
-    _hpHeroCrosshair = null;
-    _hpHeroProgress = null;
+    _hpHeroTopBar = null;
+    _hpHeroTopBarPlayer = null;
+    _hpHeroNameLabel = null;
   }
 
   function clearHpHeroGameTimeCache() {
@@ -1611,6 +2662,7 @@
     resetHpHeroPresetDetectionLock(config);
     invalidateHpHeroPresetApplyCache(config);
     clearHpHeroDetectionRefs();
+    HPSignatureConditionalController.resetMaxTierScanState(config, true);
     if (
       config &&
       (config.__hpHeroPresetHasScopedPreset ||
@@ -1684,13 +2736,18 @@
         _hpMatchMonitorSawZero = false;
         _hpMatchMonitorLastGameTime = -1;
         _hpMatchResetLastReason = "lobby";
+        HPSignatureConditionalController.resetMaxTierScanState(config, false);
       }
 
       rememberHpMatchGameTime(gameTime, active);
-      $.Schedule(getHpMatchMonitorDelay(gameTime, active), tick);
+      AnitaLifetime.replace(
+        "match_monitor",
+        getHpMatchMonitorDelay(gameTime, active),
+        tick,
+      );
     }
 
-    $.Schedule(0.25, tick);
+    AnitaLifetime.replace("match_monitor", 0.25, tick);
   }
 
   function hpHeroEvaluateLobbyStatus() {
@@ -1813,7 +2870,7 @@
     _hpPresetStoreEntries = null;
   }
 
-  function resolveHpHeroProgressPanel() {
+  function resolveHpHeroNameLabel() {
     var root = getRootPanelForPresetStore();
     if (root !== _hpHeroRoot) {
       _hpHeroRoot = root;
@@ -1821,36 +2878,51 @@
     }
     if (!hpHeroIsValidPanel(root)) return null;
 
-    if (!hpHeroIsValidPanel(_hpHeroGameplayAlive)) {
-      _hpHeroGameplayAlive = hpHeroFindChild(root, "gameplay_hud_alive");
-      _hpHeroCrosshair = null;
-      _hpHeroProgress = null;
+    if (!hpHeroIsValidPanel(_hpHeroTopBar)) {
+      _hpHeroTopBar = hpHeroFindChild(root, "TopBar");
+      _hpHeroTopBarPlayer = null;
+      _hpHeroNameLabel = null;
     }
-    if (!hpHeroIsValidPanel(_hpHeroGameplayAlive)) return null;
+    if (!hpHeroIsValidPanel(_hpHeroTopBar)) return null;
 
-    var crosshair = hpHeroFindDirectChildWhere(
-      _hpHeroGameplayAlive,
-      "crosshair",
-      hpHeroHasDirectProgress,
-    );
-    if (crosshair !== _hpHeroCrosshair) {
-      _hpHeroCrosshair = crosshair;
-      _hpHeroProgress = null;
+    if (
+      hpHeroIsValidPanel(_hpHeroTopBarPlayer) &&
+      hpHeroHasClass(_hpHeroTopBarPlayer, "LocalPlayer") &&
+      hpHeroIsValidPanel(_hpHeroNameLabel)
+    ) {
+      return _hpHeroNameLabel;
     }
-    if (!hpHeroIsValidPanel(_hpHeroCrosshair)) return null;
 
-    var progress = hpHeroFindDirectChildWhere(
-      _hpHeroCrosshair,
-      "progress",
-      hpHeroClassOn,
-    );
-    if (progress !== _hpHeroProgress) _hpHeroProgress = progress;
-    if (!hpHeroIsValidPanel(_hpHeroProgress)) return null;
-    return _hpHeroProgress;
+    _hpHeroTopBarPlayer = null;
+    _hpHeroNameLabel = null;
+    var candidates = hpHeroFindChildrenWithClass(_hpHeroTopBar, "LocalPlayer");
+    for (var i = 0; i < candidates.length; i++) {
+      var nameContainer = hpHeroFindChild(
+        candidates[i],
+        "PlayerNameNWContainer",
+      );
+      var labels = hpHeroFindChildrenWithClass(nameContainer, "HeroName");
+      if (!labels.length || !hpHeroIsValidPanel(labels[0])) continue;
+      _hpHeroTopBarPlayer = candidates[i];
+      _hpHeroNameLabel = labels[0];
+      return _hpHeroNameLabel;
+    }
+    return null;
   }
 
   function detectHpLocalHero() {
-    return hpHeroClassOn(resolveHpHeroProgressPanel());
+    var nameLabel = resolveHpHeroNameLabel();
+    if (!hpHeroIsValidPanel(nameLabel)) return "";
+    try {
+      var retailName = normalizeHpHeroRetailName(nameLabel.text);
+      return Object.prototype.hasOwnProperty.call(
+        HP_HERO_BY_RETAIL_NAME,
+        retailName,
+      )
+        ? HP_HERO_BY_RETAIL_NAME[retailName]
+        : "";
+    } catch (e) {}
+    return "";
   }
 
   function presetTargetsHero(preset, heroId) {
@@ -1952,15 +3024,54 @@
 
   buildHpHeroTables();
 
-  // Base64url encode/decode — no btoa/atob in Deadlock Panorama
-  var AnitaBase64 = (function () {
-    var CHARS =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-
-    function encode(str) {
+  // Panorama adapter for the preset-code contract; Node tests run both adapters.
+  const HPPresetCodeCodec = {
+    _chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",
+    _hasOwn: function (object, key) {
+      return Object.prototype.hasOwnProperty.call(object || {}, key);
+    },
+    _normalizeNamespace: function (value) {
+      return String(value || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+    },
+    _toLookup: function (value) {
+      if (!value) return {};
+      if (value instanceof Set) {
+        var fromSet = {};
+        value.forEach(function (key) {
+          fromSet[key] = true;
+        });
+        return fromSet;
+      }
+      if (Array.isArray(value)) {
+        var fromArray = {};
+        for (var i = 0; i < value.length; i++) fromArray[value[i]] = true;
+        return fromArray;
+      }
+      return value;
+    },
+    encodeBase64Url: function (text) {
+      var str = String(text || "");
       var bytes = [];
       for (var i = 0; i < str.length; i++) {
         var code = str.charCodeAt(i);
+        if (code >= 0xd800 && code <= 0xdbff) {
+          var low = str.charCodeAt(i + 1);
+          if (low >= 0xdc00 && low <= 0xdfff) {
+            var point = 0x10000 + ((code - 0xd800) << 10) + (low - 0xdc00);
+            bytes.push(0xf0 | (point >> 18));
+            bytes.push(0x80 | ((point >> 12) & 0x3f));
+            bytes.push(0x80 | ((point >> 6) & 0x3f));
+            bytes.push(0x80 | (point & 0x3f));
+            i++;
+            continue;
+          }
+          code = 0xfffd;
+        } else if (code >= 0xdc00 && code <= 0xdfff) {
+          code = 0xfffd;
+        }
         if (code < 128) {
           bytes.push(code);
         } else if (code < 2048) {
@@ -1974,25 +3085,26 @@
       }
       var out = "";
       for (var j = 0; j < bytes.length; j += 3) {
-        var b0 = bytes[j],
-          b1 = bytes[j + 1] || 0,
-          b2 = bytes[j + 2] || 0;
-        out += CHARS[b0 >> 2];
-        out += CHARS[((b0 & 3) << 4) | (b1 >> 4)];
-        out += j + 1 < bytes.length ? CHARS[((b1 & 15) << 2) | (b2 >> 6)] : "";
-        out += j + 2 < bytes.length ? CHARS[b2 & 63] : "";
+        var b0 = bytes[j];
+        var b1 = bytes[j + 1] || 0;
+        var b2 = bytes[j + 2] || 0;
+        out += this._chars[b0 >> 2];
+        out += this._chars[((b0 & 3) << 4) | (b1 >> 4)];
+        out += j + 1 < bytes.length ? this._chars[((b1 & 15) << 2) | (b2 >> 6)] : "";
+        out += j + 2 < bytes.length ? this._chars[b2 & 63] : "";
       }
       return out;
-    }
-
-    function decode(str) {
+    },
+    decodeBase64Url: function (text) {
+      var str = String(text || "").replace(/^\s+|\s+$/g, "");
+      if (!/^[A-Za-z0-9_-]*$/.test(str) || str.length % 4 === 1)
+        throw new Error("Invalid base64url");
       var lookup = {};
-      for (var i = 0; i < CHARS.length; i++) lookup[CHARS[i]] = i;
+      for (var i = 0; i < this._chars.length; i++) lookup[this._chars[i]] = i;
       function getVal(ch) {
         if (ch === undefined) return 0;
-        if (!Object.prototype.hasOwnProperty.call(lookup, ch)) {
-          throw new Error("Invalid base64url char: " + ch);
-        }
+        if (!Object.prototype.hasOwnProperty.call(lookup, ch))
+          throw new Error("Invalid base64url");
         return lookup[ch];
       }
       var decodedBytes = [];
@@ -2012,22 +3124,241 @@
         if (b < 128) {
           out += String.fromCharCode(b);
         } else if (b < 224) {
-          out += String.fromCharCode(
-            ((b & 31) << 6) | (decodedBytes[++k] & 63),
-          );
+          out += String.fromCharCode(((b & 31) << 6) | (decodedBytes[++k] & 63));
+        } else if (b < 240) {
+          var cont2 = decodedBytes[++k];
+          var cont3 = decodedBytes[++k];
+          out += String.fromCharCode(((b & 15) << 12) | ((cont2 & 63) << 6) | (cont3 & 63));
         } else {
-          var cont2 = decodedBytes[++k],
-            cont3 = decodedBytes[++k];
+          var codePoint =
+            ((b & 7) << 18) |
+            ((decodedBytes[++k] & 63) << 12) |
+            ((decodedBytes[++k] & 63) << 6) |
+            (decodedBytes[++k] & 63);
+          codePoint -= 0x10000;
           out += String.fromCharCode(
-            ((b & 15) << 12) | ((cont2 & 63) << 6) | (cont3 & 63),
+            0xd800 | (codePoint >> 10),
+            0xdc00 | (codePoint & 0x3ff),
           );
         }
       }
       return out;
-    }
-
-    return { encode: encode, decode: decode };
-  })();
+    },
+    normalizeHeroToken: function (value, heroById, heroIdToKey) {
+      if (value === null || value === undefined) return "";
+      var text = String(value);
+      if (this._hasOwn(heroById, text)) return text;
+      if (/^\d+$/.test(text) && this._hasOwn(heroIdToKey, text)) return String(heroIdToKey[text] || "");
+      return "";
+    },
+    normalizeHeroes: function (value, heroById, heroIdToKey) {
+      var source = [];
+      if (Array.isArray(value)) source = value;
+      else if (typeof value === "string") source = value.split(/[,|;]/);
+      else if (value !== null && value !== undefined) source = [value];
+      var out = [];
+      var seen = {};
+      for (var i = 0; i < source.length; i++) {
+        var hero = this.normalizeHeroToken(source[i], heroById, heroIdToKey);
+        if (!hero || this._hasOwn(seen, hero)) continue;
+        seen[hero] = true;
+        out.push(hero);
+      }
+      return out;
+    },
+    normalizeHeroScope: function (mode, heroes, heroTables, options) {
+      var tables = heroTables || {};
+      var normalized = this.normalizeHeroes(
+        heroes,
+        tables.heroById || tables.HERO_BY_ID || HP_HERO_BY_ID,
+        tables.heroIdToKey || tables.HERO_ID_TO_KEY || HP_HERO_ID_TO_KEY,
+      );
+      var text = String(mode || "").toLowerCase();
+      var scopeMode = "";
+      if (text === HP_HERO_SCOPE_OFF || text === "disabled" || text === "none") scopeMode = HP_HERO_SCOPE_OFF;
+      else if (text === HP_HERO_SCOPE_ALL || text === "global") scopeMode = HP_HERO_SCOPE_ALL;
+      else if (text === HP_HERO_SCOPE_SELECTED || text === "heroes" || text === "hero") scopeMode = normalized.length ? HP_HERO_SCOPE_SELECTED : HP_HERO_SCOPE_OFF;
+      else if (normalized.length) scopeMode = HP_HERO_SCOPE_SELECTED;
+      else scopeMode = String((options && options.defaultModeWithoutHeroes) || HP_HERO_SCOPE_OFF);
+      if (scopeMode !== HP_HERO_SCOPE_SELECTED) normalized = [];
+      return { mode: scopeMode, heroes: normalized };
+    },
+    _normalizeOverrideRule: function (rawRule) {
+      var slot;
+      var minTier;
+      var value;
+      if (Array.isArray(rawRule)) {
+        if (rawRule.length !== 3) return null;
+        slot = rawRule[0];
+        minTier = rawRule[1];
+        value = rawRule[2];
+      } else if (rawRule && typeof rawRule === "object") {
+        if (
+          !this._hasOwn(rawRule, "slot") ||
+          !this._hasOwn(rawRule, "minTier") ||
+          !this._hasOwn(rawRule, "value")
+        )
+          return null;
+        slot = rawRule.slot;
+        minTier = rawRule.minTier;
+        value = rawRule.value;
+      } else {
+        return null;
+      }
+      if (
+        typeof slot !== "number" ||
+        !isFinite(slot) ||
+        Math.floor(slot) !== slot ||
+        slot < 1 ||
+        slot > 4 ||
+        typeof minTier !== "number" ||
+        !isFinite(minTier) ||
+        Math.floor(minTier) !== minTier ||
+        minTier < 0 ||
+        minTier > 3
+      )
+        return null;
+      return { slot: slot, minTier: minTier, value: value };
+    },
+    normalizeOverrides: function (rawOverrides, options) {
+      options = options || {};
+      if (!rawOverrides || typeof rawOverrides !== "object" || Array.isArray(rawOverrides)) return {};
+      var aliases = options.aliasToId || HP_PERSIST_ALIAS_TO_ID;
+      var allowed = this._toLookup(
+        options.allowedIds || HP_PRESET_BUILDER_SUPPORTED_IDS,
+      );
+      var ineligible = this._toLookup(options.ineligibleIds || {});
+      var canonical = {};
+      var out = {};
+      var keys = Object.keys(rawOverrides);
+      for (var i = 0; i < keys.length; i++) {
+        var canonicalKey = keys[i];
+        if (
+          this._hasOwn(allowed, canonicalKey) &&
+          !this._hasOwn(ineligible, canonicalKey)
+        )
+          canonical[canonicalKey] = true;
+      }
+      for (var j = 0; j < keys.length; j++) {
+        var key = keys[j];
+        var isCanonical = this._hasOwn(allowed, key);
+        var id = isCanonical
+          ? key
+          : key === "kzs"
+            ? "hp_kill_zone_color"
+            : aliases[key] || "";
+        if (
+          !id ||
+          !this._hasOwn(allowed, id) ||
+          this._hasOwn(ineligible, id) ||
+          (!isCanonical && this._hasOwn(canonical, id))
+        )
+          continue;
+        var rule = this._normalizeOverrideRule(rawOverrides[key]);
+        if (rule) out[id] = rule;
+      }
+      return out;
+    },
+    compactOverrides: function (overrides, options) {
+      options = options || {};
+      var normalized = this.normalizeOverrides(overrides, options);
+      var idToAlias = options.idToAlias || HP_PERSIST_ALIASES;
+      var out = {};
+      for (var id in normalized) {
+        if (!this._hasOwn(normalized, id)) continue;
+        var alias = idToAlias[id] || id;
+        var rule = normalized[id];
+        out[alias] = [rule.slot, rule.minTier, rule.value];
+      }
+      return out;
+    },
+    encodePresetToken: function (config, values, meta) {
+      meta = meta || {};
+      var ns = this._normalizeNamespace(
+        meta.namespace || (config && config.storageNamespace),
+      );
+      if (!ns) return "";
+      var payloadValues = {};
+      for (var key in values || {}) {
+        if (!this._hasOwn(values, key) || key === "kzs") continue;
+        payloadValues[key] = values[key];
+      }
+      var scope = this.normalizeHeroScope(
+        meta.heroMode || meta.hm,
+        meta.heroes || meta.hs,
+        {
+          heroById: meta.heroById || HP_HERO_BY_ID,
+          heroIdToKey: meta.heroIdToKey || HP_HERO_ID_TO_KEY,
+        },
+        { defaultModeWithoutHeroes: HP_HERO_SCOPE_OFF },
+      );
+      var payload = {
+        v: 99,
+        c:
+          Number(meta.compactVersion || HP_COMPACT_PERSIST_VERSION) ||
+          HP_COMPACT_PERSIST_VERSION,
+        values: payloadValues,
+        hm: scope.mode,
+      };
+      var compactOverrides = this.compactOverrides(meta.overrides, {
+        aliasToId: meta.aliasToId || HP_PERSIST_ALIAS_TO_ID,
+        idToAlias: meta.idToAlias || HP_PERSIST_ALIASES,
+        allowedIds: meta.allowedIds || HP_PRESET_BUILDER_SUPPORTED_IDS,
+        ineligibleIds: meta.ineligibleIds || {},
+      });
+      if (Object.keys(compactOverrides).length) payload.o = compactOverrides;
+      if (scope.mode === HP_HERO_SCOPE_SELECTED && scope.heroes.length)
+        payload.hs = scope.heroes;
+      var name = String(meta.name || "").replace(/^\s+|\s+$/g, "");
+      if (name) payload.name = name;
+      return (
+        "[ANITA-v1-" +
+        ns +
+        "]:" +
+        this.encodeBase64Url(JSON.stringify(payload))
+      );
+    },
+    encodePresetBundle: function (config, rows) {
+      if (!Array.isArray(rows) || !rows.length) return "";
+      var tuples = [];
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        if (!row) continue;
+        var sourceValues = row.payloadValues || row.values || {};
+        var payloadValues = {};
+        for (var key in sourceValues) {
+          if (!this._hasOwn(sourceValues, key) || key === "kzs") continue;
+          payloadValues[key] = sourceValues[key];
+        }
+        var scope = this.normalizeHeroScope(
+          row.heroMode || row.hm,
+          row.heroes || row.hs,
+          { heroById: (config && config.heroById) || HP_HERO_BY_ID, heroIdToKey: (config && config.heroIdToKey) || HP_HERO_ID_TO_KEY },
+          { defaultModeWithoutHeroes: HP_HERO_SCOPE_OFF },
+        );
+        var fallbackName = "Preset " + String(i + 1);
+        var tuple = [
+          String(row.name || fallbackName).replace(/^\s+|\s+$/g, "") || fallbackName,
+          payloadValues,
+        ];
+        tuple.push(
+          scope.mode === HP_HERO_SCOPE_SELECTED && scope.heroes.length
+            ? scope.heroes
+            : scope.mode,
+        );
+        var compactOverrides = this.compactOverrides(row.overrides, {
+          aliasToId: (config && config.aliasToId) || HP_PERSIST_ALIAS_TO_ID,
+          idToAlias: (config && config.idToAlias) || HP_PERSIST_ALIASES,
+          allowedIds: (config && config.allowedIds) || HP_PRESET_BUILDER_SUPPORTED_IDS,
+          ineligibleIds: (config && config.ineligibleIds) || {},
+        });
+        tuple.push(compactOverrides);
+        tuples.push(tuple);
+      }
+      if (!tuples.length) return "";
+      return this.encodeBase64Url(JSON.stringify({ v: 99, p: tuples }));
+    },
+  };
 
   function rememberLastEmittedValue(modTitle, settingId, newValue) {
     try {
@@ -2102,11 +3433,8 @@
     var token = state.token;
     if (state.pending) return;
     state.pending = true;
-    $.Schedule(delaySec || 0.04, function () {
-      if (token !== state.token) {
-        state.pending = false;
-        return;
-      }
+    AnitaLifetime.replace("emit:" + key, delaySec || 0.04, function () {
+      if (token !== state.token) return;
       state.pending = false;
       emitUpdate(modTitle, settingId, state.value, state.meta);
     });
@@ -2118,6 +3446,7 @@
     if (!state) return;
     state.pending = false;
     state.token++;
+    AnitaLifetime.cancel("emit:" + modTitle + "::" + settingId);
   }
 
   function getRootPanelForPresetStore() {
@@ -2155,7 +3484,13 @@
     if (!modConfig || !Array.isArray(modConfig.elements)) return allowed;
     for (var i = 0; i < modConfig.elements.length; i++) {
       var element = modConfig.elements[i];
-      if (!element || !element.id || element.type === "button") continue;
+      if (
+        !element ||
+        !element.id ||
+        element.type === "button" ||
+        element.presetSupported === false
+      )
+        continue;
       allowed[element.id] = true;
     }
     return allowed;
@@ -2228,7 +3563,7 @@
 
     if (!hpHeroIsValidPanel(_hpPresetStorePanel)) {
       try {
-        _hpPresetStorePanel = root.FindChildTraverse("HPColorsPresetStore");
+        _hpPresetStorePanel = root.FindChildTraverse(HP_PRESET_STORE_ID);
       } catch (e0) {
         _hpPresetStorePanel = null;
       }
@@ -2240,7 +3575,7 @@
       if (_hpPresetStorePanel.FindChildrenWithClassTraverse) {
         entries =
           _hpPresetStorePanel.FindChildrenWithClassTraverse(
-            "hp_colors_preset_entry",
+            HP_PRESET_ENTRY_CLASS,
           ) || [];
       }
     } catch (e1) {}
@@ -2257,7 +3592,7 @@
   ) {
     try {
       if (!encoded) return null;
-      var preset = JSON.parse(AnitaBase64.decode(encoded));
+      var preset = JSON.parse(HPPresetCodeCodec.decodeBase64Url(encoded));
       var presetVersion = Number(
         preset && preset.version !== undefined
           ? preset.version
@@ -2267,6 +3602,19 @@
       var values = filterPresetValues(
         expandBakedPresetValues(preset),
         modConfig,
+      );
+      var overrideOptions = AnitaPersistence.getOverrideCodecOptions(modConfig);
+      if (
+        !(
+          preset.c === HP_COMPACT_PERSIST_VERSION ||
+          preset.compact === true ||
+          preset.v !== undefined
+        )
+      )
+        overrideOptions.aliasToId = {};
+      var overrides = HPPresetCodeCodec.normalizeOverrides(
+        preset.o || {},
+        overrideOptions,
       );
       var name = String(preset.name || "").replace(/^\s+|\s+$/g, "");
       var category = String(preset.category || preset.type || "").replace(
@@ -2287,6 +3635,7 @@
         category: category || "Builder VPK",
         values: values,
         heroes: heroes,
+        overrides: overrides,
         heroMode: heroMode,
         source: "baked",
       };
@@ -2358,6 +3707,9 @@
         name: String(row.name || "User preset " + String(i + 1)),
         category: String(row.category || "Game preset"),
         values: filterPresetValues(row.values || {}, modConfig),
+        overrides: HPPresetBuilderModel.clonePresetBuilderStateValue(
+          row.overrides || {},
+        ),
         heroes: heroes,
         heroMode: heroMode,
         source: "user",
@@ -2383,7 +3735,6 @@
   function resetHpHeroPresetDetectionLock(config) {
     if (!config) return;
     config.__hpHeroPresetDetectionLocked = false;
-    config.__hpHeroPresetLockedHero = "";
     config.__hpHeroPresetLockAfterGameTime = 0;
   }
 
@@ -2406,9 +3757,6 @@
     var gameTime = readHpHeroGameTimeSec();
     if (gameTime < getHpHeroPresetLockAfterGameTime(config)) return false;
     config.__hpHeroPresetDetectionLocked = true;
-    config.__hpHeroPresetLockedHero = String(
-      heroId || config.__hpLastAppliedHeroPresetHero || "",
-    );
     clearHpHeroDetectionRefs();
     return true;
   }
@@ -2418,14 +3766,21 @@
     var token = (config.__hpHeroScopeRefreshToken || 0) + 1;
     config.__hpHeroScopeRefreshToken = token;
     try {
-      $.Schedule(0.05, function () {
+      AnitaLifetime.defer(0.05, function () {
         if (!config || config.__hpHeroScopeRefreshToken !== token) return;
         refreshHpHeroPresetSelection(config);
       });
     } catch (e0) {}
   }
 
-  function applyHpColorsBakedPresetValues(config, values, presetKey, heroId) {
+  function applyHpColorsBakedPresetValues(
+    config,
+    values,
+    presetKey,
+    heroId,
+    overrides,
+  ) {
+    overrides = overrides || {};
     var hasValues = false;
     for (var valueKey in values || {}) {
       if (Object.prototype.hasOwnProperty.call(values, valueKey)) {
@@ -2433,7 +3788,14 @@
         break;
       }
     }
-    if (!hasValues) return false;
+    var hasOverrides = false;
+    for (var overrideKey in overrides || {}) {
+      if (Object.prototype.hasOwnProperty.call(overrides, overrideKey)) {
+        hasOverrides = true;
+        break;
+      }
+    }
+    if (!hasValues && !hasOverrides) return false;
 
     var appliedKey = String(presetKey || "");
     var appliedHero = String(heroId || "");
@@ -2446,6 +3808,7 @@
       return true;
     }
 
+    HPSignatureConditionalController.replaceRules(config, overrides || {});
     AnitaPersistence.applyResolvedValues(config, values);
     AnitaPersistence.persistConfig(config, true);
     AnitaRenderer.syncSaveCodeInput(config);
@@ -2504,6 +3867,7 @@
         selection.preset.values || {},
         presetKey,
         detectedHero,
+        selection.preset.overrides || {},
       );
       return true;
     }
@@ -2524,15 +3888,17 @@
       return;
     config.__hpHeroPresetHasScopedPreset = true;
     config.__hpHeroPresetWatchStarted = true;
-    config.__hpHeroPresetWatchTicks = 0;
     config.__hpHeroPresetEmptyTicks = 0;
 
     function tick() {
       if (!config || !config.__hpHeroPresetWatchStarted) return;
-      config.__hpHeroPresetWatchTicks += 1;
       var lookupState = getHpHeroPresetLookupState(config);
       if (!lookupState.run) {
-        $.Schedule(lookupState.delay || HP_HERO_LOBBY_POLL_SEC, tick);
+        AnitaLifetime.replace(
+          "hero_watch",
+          lookupState.delay || HP_HERO_LOBBY_POLL_SEC,
+          tick,
+        );
         return;
       }
       try {
@@ -2542,10 +3908,18 @@
         config.__hpHeroPresetWatchStarted = false;
         return;
       }
-      $.Schedule(lookupState.delay || HP_HERO_WATCH_RETRY_SEC, tick);
+      AnitaLifetime.replace(
+        "hero_watch",
+        lookupState.delay || HP_HERO_WATCH_RETRY_SEC,
+        tick,
+      );
     }
 
-    $.Schedule(HP_HERO_WATCH_RETRY_SEC, tick);
+    AnitaLifetime.replace(
+      "hero_watch",
+      HP_HERO_WATCH_RETRY_SEC,
+      tick,
+    );
   }
 
   function applyHpColorsBakedPresetOnce(config) {
@@ -2553,7 +3927,7 @@
     var token = ++_hpBakedPresetApplyToken;
     for (var i = 0; i < HP_BAKED_PRESET_APPLY_DELAYS.length; i++) {
       (function (delaySec, delayIndex) {
-        $.Schedule(delaySec, function () {
+        AnitaLifetime.defer(delaySec, function () {
           if (
             _didApplyHpColorsBakedPresetOnce ||
             token !== _hpBakedPresetApplyToken
@@ -2582,6 +3956,7 @@
                 selection.preset.values || {},
                 selection.preset.id || selection.preset.name,
                 selection.heroId,
+                selection.preset.overrides || {},
               )
             ) {
               _didApplyHpColorsBakedPresetOnce = true;
@@ -2592,147 +3967,149 @@
     }
   }
 
-  function applyHpOptimizedHardGates(config) {
-    if (
-      !config ||
-      config.title !== "HP Colors" ||
-      !Array.isArray(config.elements)
-    )
-      return false;
-    var changed = false;
-    for (var i = 0; i < config.elements.length; i++) {
-      var element = config.elements[i];
-      if (!element || !element.id) continue;
-      var forced = Object.prototype.hasOwnProperty.call(
-        HP_OPTIMIZED_FORCED_VALUES,
-        element.id,
-      );
-      var hidden = Object.prototype.hasOwnProperty.call(
-        HP_OPTIMIZED_HIDDEN_SETTINGS,
-        element.id,
-      );
-      element.runtimeLocked = !!forced;
-      element.runtimeHidden = !!hidden;
+  var HPPresetSnapshotPublisher = {
+    sharedRaw: "",
+    payload: "",
+    replayStarted: false,
+    replayCount: 0,
+    replayHotUntil: 0,
+    capture: function (config) {
       if (
-        forced &&
-        element.currentValue !== HP_OPTIMIZED_FORCED_VALUES[element.id]
+        !config ||
+        config.title !== "HP Colors" ||
+        !Array.isArray(config.elements)
       ) {
-        element.currentValue = HP_OPTIMIZED_FORCED_VALUES[element.id];
-        changed = true;
+        return null;
       }
-    }
-    return changed;
-  }
-
-  function collectHpSharedSnapshotValues(config) {
-    if (
-      !config ||
-      config.title !== "HP Colors" ||
-      !Array.isArray(config.elements)
-    )
-      return null;
-    applyHpOptimizedHardGates(config);
-    var values = {};
-    var count = 0;
-    for (var i = 0; i < config.elements.length; i++) {
-      var element = config.elements[i];
-      if (!element || !element.id) continue;
-      if (element.currentValue !== undefined)
-        values[element.id] = element.currentValue;
-      else values[element.id] = element.defaultValue;
-      count += 1;
-    }
-    return count ? values : null;
-  }
-
-  function writeHpSharedSnapshot(config) {
-    var values = collectHpSharedSnapshotValues(config);
-    if (!values) return "";
-    var raw = "";
-    try {
-      raw = JSON.stringify(values);
-    } catch (e) {
-      return "";
-    }
-    if (!raw) return "";
-    if (raw === _lastHpSharedRaw) return raw;
-    if (!HPBridgeProtocol.writeSharedConfigRaw(raw)) return "";
-    _lastHpSharedRaw = raw;
-    return raw;
-  }
-
-
-  function hpNowMs() {
-    return Date.now ? Date.now() : +new Date();
-  }
-
-  function markHpPresetSnapshotReplayHot() {
-    _hpPresetSnapshotReplayCount = 0;
-    _hpPresetSnapshotReplayHotUntil =
-      hpNowMs() + HP_PRESET_SNAPSHOT_REQUEST_HOT_MS;
-  }
-
-  function getHpPresetSnapshotReplayDelay() {
-    if (
-      _hpPresetSnapshotReplayHotUntil &&
-      hpNowMs() < _hpPresetSnapshotReplayHotUntil
-    ) {
-      return HP_PRESET_SNAPSHOT_REPLAY_HOT_SEC;
-    }
-    if (_hpPresetSnapshotReplayCount < HP_PRESET_SNAPSHOT_REPLAY_HOT_COUNT) {
-      return HP_PRESET_SNAPSHOT_REPLAY_HOT_SEC;
-    }
-    if (_hpPresetSnapshotReplayCount < HP_PRESET_SNAPSHOT_REPLAY_WARM_COUNT) {
-      return HP_PRESET_SNAPSHOT_REPLAY_WARM_SEC;
-    }
-    return HP_PRESET_SNAPSHOT_REPLAY_IDLE_SEC;
-  }
-
-  function scheduleHpPresetSnapshotReplay() {
-    if (!_hpPresetSnapshotPayload) return;
-    try {
-      $.Schedule(getHpPresetSnapshotReplayDelay(), replayHpPresetSnapshot);
-    } catch (eSchedule) {}
-  }
-
-  function replayHpPresetSnapshot() {
-    if (!_hpPresetSnapshotPayload) return;
-    HPBridgeProtocol.dispatchRawPayload(_hpPresetSnapshotPayload);
-    _hpPresetSnapshotReplayCount += 1;
-    scheduleHpPresetSnapshotReplay();
-  }
-
-  function startHpPresetSnapshotReplay() {
-    if (_hpPresetSnapshotReplayStarted || !_hpPresetSnapshotPayload) return;
-    _hpPresetSnapshotReplayStarted = true;
-    scheduleHpPresetSnapshotReplay();
-  }
-
-  function publishHpPresetSnapshot(config, reason, force) {
-    var values = collectHpSharedSnapshotValues(config);
-    if (!values) return false;
-    var raw = "";
-    try {
-      raw = JSON.stringify(values);
-    } catch (eRaw) {
-      raw = "";
-    }
-    if (!raw) return false;
-    HPBridgeProtocol.writeSharedConfigRaw(raw);
-    try {
-      _hpPresetSnapshotPayload = JSON.stringify(
-        HPBridgeProtocol.buildPresetSnapshotPayload(values, raw, reason),
+      var values = {};
+      var emittableValues = {};
+      var valueCount = 0;
+      var emittableCount = 0;
+      for (var i = 0; i < config.elements.length; i++) {
+        var element = config.elements[i];
+        if (!element || !element.id) continue;
+        var hasCurrentValue = element.currentValue !== undefined;
+        var value = AnitaPersistence.sanitizeValue(
+          element,
+          hasCurrentValue ? element.currentValue : element.defaultValue,
+        );
+        if (hasCurrentValue) {
+          element.currentValue = value;
+          emittableValues[element.id] = value;
+          emittableCount += 1;
+        }
+        if (!AnitaPersistence.shouldPersistElement(element)) continue;
+        values[element.id] = value;
+        valueCount += 1;
+      }
+      if (!valueCount) return null;
+      try {
+        return {
+          values: values,
+          emittableValues: emittableValues,
+          emittableCount: emittableCount,
+          raw: JSON.stringify(values),
+        };
+      } catch (eRaw) {
+        return null;
+      }
+    },
+    writeSharedRaw: function (raw) {
+      if (!raw) return "";
+      if (raw === this.sharedRaw) return raw;
+      if (!HPBridgeProtocol.writeSharedConfigRaw(raw)) return "";
+      this.sharedRaw = raw;
+      return raw;
+    },
+    writeShared: function (config) {
+      var snapshot = this.capture(config);
+      return snapshot ? this.writeSharedRaw(snapshot.raw) : "";
+    },
+    getReplayDelay: function () {
+      var now = Date.now ? Date.now() : +new Date();
+      if (this.replayHotUntil && now < this.replayHotUntil) {
+        return HP_PRESET_SNAPSHOT_REPLAY_HOT_SEC;
+      }
+      if (this.replayCount < HP_PRESET_SNAPSHOT_REPLAY_HOT_COUNT) {
+        return HP_PRESET_SNAPSHOT_REPLAY_HOT_SEC;
+      }
+      if (this.replayCount < HP_PRESET_SNAPSHOT_REPLAY_WARM_COUNT) {
+        return HP_PRESET_SNAPSHOT_REPLAY_WARM_SEC;
+      }
+      return HP_PRESET_SNAPSHOT_REPLAY_IDLE_SEC;
+    },
+    scheduleReplay: function () {
+      if (!this.payload) return;
+      AnitaLifetime.replace(
+        "snapshot_replay",
+        this.getReplayDelay(),
+        function () {
+          HPPresetSnapshotPublisher.replay();
+        },
       );
-    } catch (ePayload) {
-      _hpPresetSnapshotPayload = "";
-      return false;
-    }
-    markHpPresetSnapshotReplayHot();
-    startHpPresetSnapshotReplay();
-    if (!force && config.__hpColorsLastPresetSnapshotRaw === raw) return true;
-    config.__hpColorsLastPresetSnapshotRaw = raw;
-    return HPBridgeProtocol.dispatchRawPayload(_hpPresetSnapshotPayload);
-  }
+    },
+    replay: function () {
+      if (!this.payload) return;
+      HPBridgeProtocol.dispatchRawPayload(this.payload);
+      this.replayCount += 1;
+      this.scheduleReplay();
+    },
+    stop: function () {
+      this.sharedRaw = "";
+      this.payload = "";
+      this.replayStarted = false;
+      this.replayCount = 0;
+      this.replayHotUntil = 0;
+    },
+    publish: function (config, reason, force) {
+      var snapshot = this.capture(config);
+      if (!snapshot || !snapshot.raw) return null;
+      var effectiveValues = {};
+      var effectiveRaw = "{}";
+      try {
+        if (
+          typeof HPSignatureConditionalController !== "undefined" &&
+          HPSignatureConditionalController.hasRules(config)
+        ) {
+          effectiveValues =
+            HPSignatureConditionalController.getEffectiveValues(config) || {};
+          effectiveRaw = JSON.stringify(effectiveValues);
+        }
+      } catch (eEffective) {
+        return null;
+      }
+      this.writeSharedRaw(snapshot.raw);
+      var signature = snapshot.raw + "\n" + effectiveRaw;
+      if (!force && config.__hpColorsLastPresetSnapshotRaw === signature) {
+        return snapshot;
+      }
+      try {
+        this.payload = JSON.stringify(
+          HPBridgeProtocol.buildPresetSnapshotPayload(
+            snapshot.values,
+            snapshot.raw,
+            reason,
+            effectiveValues,
+          ),
+        );
+      } catch (ePayload) {
+        this.payload = "";
+        return null;
+      }
+      config.__hpColorsLastPresetSnapshotRaw = signature;
+      this.replayCount = 0;
+      this.replayHotUntil =
+        (Date.now ? Date.now() : +new Date()) +
+        HP_PRESET_SNAPSHOT_REQUEST_HOT_MS;
+      if (!this.replayStarted) {
+        this.replayStarted = true;
+        this.scheduleReplay();
+      }
+      HPBridgeProtocol.dispatchRawPayload(this.payload);
+      return snapshot;
+    },
+  };
+
 
   const AnitaPersistence = {
     normalizeNamespace: function (storageNamespace) {
@@ -2838,6 +4215,30 @@
     sanitizeValue: function (element, value) {
       return HPValueCodecs.sanitizeElementValue(element, value);
     },
+    getOverrideCodecOptions: function (config) {
+      var allowed = {};
+      var ineligible = { hp_precise_pips_enabled: true };
+      var elements = this.getElements(config);
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!element || !element.id || element.type === "button") continue;
+        allowed[element.id] = true;
+      }
+      return {
+        aliasToId: HP_PERSIST_ALIAS_TO_ID,
+        idToAlias: HP_PERSIST_ALIASES,
+        allowedIds: allowed,
+        ineligibleIds: ineligible,
+      };
+    },
+
+    normalizeOverrides: function (config, rawOverrides) {
+      if (!this.isHpColorsConfig(config)) return {};
+      return HPPresetCodeCodec.normalizeOverrides(
+        rawOverrides,
+        this.getOverrideCodecOptions(config),
+      );
+    },
 
 
     expandStoredValues: function (config, parsed) {
@@ -2867,8 +4268,7 @@
 
       for (var alias in rawValues) {
         if (!Object.prototype.hasOwnProperty.call(rawValues, alias)) continue;
-        var fullId = HP_PERSIST_ALIAS_TO_ID[alias];
-        if (!fullId) continue;
+        var fullId = HP_PERSIST_ALIAS_TO_ID[alias] || alias;
         expanded[fullId] = rawValues[alias];
       }
       return expanded;
@@ -2907,6 +4307,8 @@
         );
       }
 
+      var overrides = this.normalizeOverrides(config, parsed.o);
+      
       var heroTargets = normalizeHpHeroSelection(
         parsed.heroes || parsed.hs || parsed.hero || parsed.h,
       );
@@ -2919,6 +4321,7 @@
       return {
         raw: text,
         values: values,
+        overrides: overrides,
         heroes: heroTargets,
         heroMode: heroMode,
       };
@@ -2932,7 +4335,11 @@
         return {
           raw: raw,
           encoded: "",
-          values: parsed,
+          values:
+            parsed.values && typeof parsed.values === "object"
+              ? parsed.values
+              : parsed,
+          overrides: {},
           source: "shared",
         };
       } catch (eShared) {}
@@ -2940,32 +4347,34 @@
     },
 
     readStoredPayload: function (config) {
-      var persisted = null;
-
-      persisted = this.readSharedSnapshotPayload(config);
-      if (persisted) {
-        return persisted;
-      }
-
+      var shared = this.readSharedSnapshotPayload(config);
+      var session = null;
       try {
         var sessionEncoded = this.getSessionEncoded(config);
         if (sessionEncoded) {
-          var sessionRaw = AnitaBase64.decode(sessionEncoded);
-          persisted = this.parseStoredPayload(config, sessionRaw);
-          if (persisted) {
-            return {
-              raw: persisted.raw,
+          var sessionRaw = HPPresetCodeCodec.decodeBase64Url(sessionEncoded);
+          var parsedSession = this.parseStoredPayload(config, sessionRaw);
+          if (parsedSession) {
+            session = {
+              raw: parsedSession.raw,
               encoded: sessionEncoded,
-              values: persisted.values,
+              values: parsedSession.values,
+              overrides: parsedSession.overrides || {},
+              heroes: parsedSession.heroes || [],
+              heroMode: parsedSession.heroMode || HP_HERO_SCOPE_OFF,
               source: "session",
             };
           }
         }
       } catch (eSess) {}
-
-      return null;
+      if (shared) {
+        shared.overrides = session ? session.overrides : {};
+        shared.heroes = session ? session.heroes : [];
+        shared.heroMode = session ? session.heroMode : HP_HERO_SCOPE_OFF;
+        return shared;
+      }
+      return session;
     },
-
     applyResolvedValues: function (config, values) {
       var elements = this.getElements(config);
       for (var i = 0; i < elements.length; i++) {
@@ -2980,39 +4389,55 @@
           continue;
         }
 
-        var nextValue = Object.prototype.hasOwnProperty.call(
+        var hasValue = Object.prototype.hasOwnProperty.call(
           values || {},
           element.id,
+        );
+        if (
+          !hasValue &&
+          element.presetSupported === false &&
+          element.currentValue !== undefined
         )
-          ? values[element.id]
-          : element.defaultValue;
+          continue;
+        var nextValue = hasValue ? values[element.id] : element.defaultValue;
         element.currentValue = this.sanitizeValue(element, nextValue);
       }
+      if (
+        typeof HPSignatureConditionalController !== "undefined" &&
+        this.isHpColorsConfig(config)
+      )
+        HPSignatureConditionalController.notifyBaseValuesChanged(config, false);
     },
 
     hydrateConfig: function (config) {
       var hydrateSource = "defaults";
+      var persisted = null;
 
-      if (!this.hasPersistentConfig(config)) {
-        config.__anitaLastPersistedRaw = "";
-        this.applyResolvedValues(config, {});
-        return;
+      if (this.hasPersistentConfig(config)) {
+        persisted = this.readStoredPayload(config);
+        if (persisted) hydrateSource = persisted.source;
       }
 
-      var persisted = this.readStoredPayload(config);
-      if (persisted) {
-        hydrateSource = persisted.source;
+      this.applyResolvedValues(config, persisted ? persisted.values : {});
+      if (this.isHpColorsConfig(config)) {
+        if (typeof HPSignatureConditionalController !== "undefined") {
+          HPSignatureConditionalController.replaceRules(
+            config,
+            persisted ? persisted.overrides || {} : {},
+          );
+        } else {
+          config.__hpSignatureConditionalRules = {};
+        }
       }
 
       if (persisted) {
-        this.applyResolvedValues(config, persisted.values);
         if (persisted.encoded && hydrateSource !== "session") {
           this.writeSessionMirror(config, persisted.encoded);
         } else if (hydrateSource === "shared") {
           this.persistConfig(config, true);
         }
       } else {
-        this.applyResolvedValues(config, {});
+        config.__anitaLastPersistedRaw = "";
       }
 
       config.__anitaLastPersistedRaw = persisted ? persisted.raw : "";
@@ -3043,10 +4468,15 @@
         ] = value;
       }
       if (isHpColors) {
+        var compactOverrides = HPPresetCodeCodec.compactOverrides(
+          config.__hpSignatureConditionalRules || {},
+          this.getOverrideCodecOptions(config),
+        );
         return JSON.stringify({
           v: this.getVersion(config),
           c: HP_COMPACT_PERSIST_VERSION,
           values: values,
+          o: compactOverrides,
         });
       }
       return JSON.stringify({
@@ -3066,7 +4496,7 @@
 
       var encoded = "";
       try {
-        encoded = AnitaBase64.encode(raw);
+        encoded = HPPresetCodeCodec.encodeBase64Url(raw);
       } catch (eEnc) {
         return false;
       }
@@ -3081,26 +4511,23 @@
       if (!this.hasPersistentConfig(config)) return;
       var payload = {
         magic_word: HPBridgeProtocol.bootstrapRequestMagic,
-        mod_title: config.title,
         storageNamespace: this.normalizeNamespace(config.storageNamespace),
         reason: String(reason || "request"),
       };
       HPBridgeProtocol.dispatchPayload(payload);
     },
 
-    applyUpdate: function (config, settingId, value) {
-      var elements = this.getElements(config);
-      for (var i = 0; i < elements.length; i++) {
-        var element = elements[i];
-        if (!element || element.id !== settingId) continue;
-        element.currentValue = this.sanitizeValue(element, value);
-        return true;
-      }
-      return false;
+    applyElementValue: function (element, value) {
+      if (!element) return false;
+      var nextValue = this.sanitizeValue(element, value);
+      if (element.currentValue === nextValue) return false;
+      element.currentValue = nextValue;
+      return true;
     },
   };
 
   const AnitaComponents = {
+
     isInteractionLocked: function (config) {
       return !!(config && (config.runtimeLocked || config.disabled));
     },
@@ -3248,16 +4675,16 @@
       valueGroup.style.flowChildren = "right";
       valueGroup.style.verticalAlign = "center";
       valueGroup.style.horizontalAlign = "left";
-      valueGroup.style.width = "296px";
 
       const sliderContainer = $.CreatePanel("Panel", valueGroup, "");
       sliderContainer.AddClass("AnitaSliderContainer");
       sliderContainer.AddClass("SliderContainer");
-      sliderContainer.style.width = "230px";
       sliderContainer.style.height = "26px";
       sliderContainer.style.padding = "0px";
       sliderContainer.style.verticalAlign = "center";
       sliderContainer.style.overflow = "noclip";
+      sliderContainer.hittest = false;
+      sliderContainer.hittestchildren = true;
 
       const slider = $.CreatePanel("Slider", sliderContainer, "", {
         direction: "horizontal",
@@ -3265,7 +4692,7 @@
       slider.AddClass("AnitaSlider");
       slider.AddClass("HorizontalSlider");
       slider.style.width = "100%";
-      slider.style.height = "100%";
+      slider.style.height = "12px";
       slider.style.verticalAlign = "center";
       slider.style.overflow = "noclip";
 
@@ -3371,7 +4798,7 @@
         }
 
         btn.AddClass("Activated");
-        $.Schedule(0.1, () => btn.RemoveClass("Activated"));
+        AnitaLifetime.defer(0.1, () => btn.RemoveClass("Activated"));
       });
       return btn;
     },
@@ -3448,6 +4875,7 @@
       let pickerBoxSat = 1;
       let pickerBoxVal = 1;
       let colorPopupPanel = null;
+      let colorMouseOwner = {};
       let colorBoxFrame = null;
       let colorBoxPanel = null;
       let colorBoxCursor = null;
@@ -4353,11 +5781,11 @@
 
           if (colorDragging) {
             syncFromBestDragSource(true);
-            $.Schedule(0.016, tick);
+            AnitaLifetime.defer(0.016, tick);
           }
         }
 
-        if (colorDragging) $.Schedule(0.016, tick);
+        if (colorDragging) AnitaLifetime.defer(0.016, tick);
       }
 
       function syncFromCursorPosition(emitUpdateEvent) {
@@ -4368,12 +5796,7 @@
       function closePalette() {
         stopPickerPolling();
         endColorDrag();
-
-        if (hasGameUI && typeof GameUI.SetMouseCallback === "function") {
-          try {
-            GameUI.SetMouseCallback(null);
-          } catch (e) {}
-        }
+        AnitaMouseRouter.clearModalHandler(colorMouseOwner);
 
         if (
           colorPopupPanel &&
@@ -4667,7 +6090,7 @@
                 popupH <= 1) &&
               attempt < 3
             ) {
-              $.Schedule(0.03, function () {
+              AnitaLifetime.defer(0.03, function () {
                 positionColorPopup(attempt + 1);
               });
               return;
@@ -4867,52 +6290,53 @@
           } catch (dragEndError) {}
         }
 
-        if (hasGameUI && typeof GameUI.SetMouseCallback === "function") {
-          try {
-            GameUI.SetMouseCallback(function (eventName, arg) {
-              if (
-                !colorPopupPanel ||
-                !colorPopupPanel.IsValid ||
-                !colorPopupPanel.IsValid()
-              ) {
-                return false;
-              }
-
-              if (eventName === "pressed" && arg === 0) {
-                const cursor = getCursorPosition();
-                if (!cursor) return false;
-                const metrics = getColorBoxMetrics();
-                if (!metrics) return false;
-                const bounds = metrics.bounds;
-                const inside =
-                  cursor.x >= bounds.left &&
-                  cursor.x <= bounds.left + bounds.width &&
-                  cursor.y >= bounds.top &&
-                  cursor.y <= bounds.top + bounds.height;
-                if (inside) {
-                  syncFromCursorPosition(true);
-                  beginColorDrag("gameui", false);
-                  return true;
-                }
-              }
-
-              if (
-                colorDragging &&
-                eventName !== "pressed" &&
-                eventName !== "released"
-              ) {
-                syncPickerFromPointer(true);
-                return true;
-              }
-
-              if (eventName === "released" && arg === 0 && colorDragging) {
-                endColorDrag();
-                return true;
-              }
-
+        if (hasGameUI) {
+          AnitaMouseRouter.setModalHandler(colorMouseOwner, function (
+            eventName,
+            arg,
+          ) {
+            if (
+              !colorPopupPanel ||
+              !colorPopupPanel.IsValid ||
+              !colorPopupPanel.IsValid()
+            ) {
               return false;
-            });
-          } catch (e) {}
+            }
+
+            if (eventName === "pressed" && arg === 0) {
+              const cursor = getCursorPosition();
+              if (!cursor) return false;
+              const metrics = getColorBoxMetrics();
+              if (!metrics) return false;
+              const bounds = metrics.bounds;
+              const inside =
+                cursor.x >= bounds.left &&
+                cursor.x <= bounds.left + bounds.width &&
+                cursor.y >= bounds.top &&
+                cursor.y <= bounds.top + bounds.height;
+              if (inside) {
+                syncFromCursorPosition(true);
+                beginColorDrag("gameui", false);
+                return true;
+              }
+            }
+
+            if (
+              colorDragging &&
+              eventName !== "pressed" &&
+              eventName !== "released"
+            ) {
+              syncPickerFromPointer(true);
+              return true;
+            }
+
+            if (eventName === "released" && arg === 0 && colorDragging) {
+              endColorDrag();
+              return true;
+            }
+
+            return false;
+          });
         }
 
         // Hue slider row
@@ -5090,7 +6514,7 @@
         const initState = getBoxStateFromColor(currentColor);
         syncColorVisuals(currentColor, false, false, initState);
         positionColorPopup(0);
-        $.Schedule(0.0, function () {
+        AnitaLifetime.defer(0.0, function () {
           if (
             colorPopupPanel &&
             colorPopupPanel.IsValid &&
@@ -5209,7 +6633,6 @@
       posPickerValueGroup.style.flowChildren = "down";
       posPickerValueGroup.style.verticalAlign = "center";
       posPickerValueGroup.style.horizontalAlign = "left";
-      posPickerValueGroup.style.width = "332px";
       posPickerValueGroup.style.overflow = "noclip";
 
       const posPickerXGroup = $.CreatePanel("Panel", posPickerValueGroup, "");
@@ -5226,7 +6649,6 @@
       posPickerXContainer.AddClass("AnitaSliderContainer");
       posPickerXContainer.AddClass("SliderContainer");
       posPickerXContainer.AddClass("AnitaPositionSliderContainer");
-      posPickerXContainer.style.width = "230px";
       posPickerXContainer.style.height = "26px";
       posPickerXContainer.style.padding = "0px";
       posPickerXContainer.style.verticalAlign = "center";
@@ -5278,7 +6700,6 @@
       posPickerYContainer.AddClass("AnitaSliderContainer");
       posPickerYContainer.AddClass("SliderContainer");
       posPickerYContainer.AddClass("AnitaPositionSliderContainer");
-      posPickerYContainer.style.width = "230px";
       posPickerYContainer.style.height = "26px";
       posPickerYContainer.style.padding = "0px";
       posPickerYContainer.style.verticalAlign = "center";
@@ -5404,6 +6825,25 @@
 
       return row;
     },
+    createSettingRow: function (parent, element, modTitle) {
+      if (!element) return null;
+      var type = String(element.type || "");
+      if (type === "toggle")
+        return this.createToggle(parent, element, modTitle);
+      if (type === "stepper")
+        return this.createStepper(parent, element, modTitle);
+      if (type === "slider")
+        return this.createSlider(parent, element, modTitle);
+      if (type === "button")
+        return this.createButton(parent, element, modTitle);
+      if (type === "cycler")
+        return this.createCycler(parent, element, modTitle);
+      if (type === "colorpicker")
+        return this.createColorPicker(parent, element, modTitle);
+      if (type === "positionpicker")
+        return this.createPositionPicker(parent, element, modTitle);
+      return null;
+    },
   };
 
   const AnitaRenderer = {
@@ -5413,11 +6853,14 @@
     menuArea: null,
     contentArea: null,
     popupHost: null,
+    localTooltipAnchor: null,
     activeModTitle: "",
     isOpen: false,
     activeColorPickerClose: null,
     activeHeroMenuClose: null,
     activeImportPopupClose: null,
+    activeConditionalPopupClose: null,
+    settingsShell: null,
 
     isHpColorsConfig: function (config) {
       return AnitaPersistence.isHpColorsConfig(config);
@@ -5676,7 +7119,7 @@
         AnitaPersistence.TOKEN_PREFIX +
         ns +
         "]:" +
-        AnitaBase64.encode(raw)
+        HPPresetCodeCodec.encodeBase64Url(raw)
       );
     },
 
@@ -5691,7 +7134,6 @@
 
       var scopedMatch = body.match(AnitaPersistence.getTokenRegex(ns));
       if (scopedMatch && scopedMatch[0]) return scopedMatch[0];
-
       var genericMatch = body.match(/\[ANITA-v1-[a-z0-9_]+\]:[A-Za-z0-9_-]+/i);
       if (genericMatch && genericMatch[0]) return genericMatch[0];
 
@@ -5708,10 +7150,12 @@
 
       var encoded = token.split("]:")[1] || "";
       try {
-        var raw = AnitaBase64.decode(encoded);
+        var raw = HPPresetCodeCodec.decodeBase64Url(encoded);
         var parsed = AnitaPersistence.parseStoredPayload(config, raw);
-        if (!parsed) return { ok: false, status: "Invalid" };
-        if (!parsed.values || !Object.keys(parsed.values).length) {
+        if (
+          (!parsed.values || !Object.keys(parsed.values).length) &&
+          (!parsed.overrides || !Object.keys(parsed.overrides).length)
+        ) {
           return { ok: false, status: "No IDs" };
         }
         return {
@@ -5719,7 +7163,8 @@
           status: "Imported",
           token: token,
           raw: raw,
-          values: parsed.values,
+          values: parsed.values || {},
+          overrides: parsed.overrides || {},
           heroes: parsed.heroes || [],
           heroMode: parsed.heroMode || HP_HERO_SCOPE_OFF,
         };
@@ -5734,6 +7179,7 @@
 
       AnitaPersistence.applyResolvedValues(config, parsed.values);
       AnitaPersistence.persistConfig(config, true);
+      HPSignatureConditionalController.replaceRules(config, parsed.overrides || {});
       this.syncSaveCodeInput(config);
       AnitaCore.emitCurrentValues(config, {
         update_source: "ui_code_apply",
@@ -5743,859 +7189,6 @@
         bulk_emit: true,
       });
       return { ok: true, status: "Imported" };
-    },
-
-    collectCurrentValues: function (config) {
-      var values = {};
-      if (!config || !Array.isArray(config.elements)) return values;
-      for (var i = 0; i < config.elements.length; i++) {
-        var element = config.elements[i];
-        if (!AnitaPersistence.shouldPersistElement(element)) continue;
-        values[element.id] = AnitaPersistence.sanitizeValue(
-          element,
-          element.currentValue !== undefined
-            ? element.currentValue
-            : element.defaultValue,
-        );
-      }
-      return values;
-    },
-
-    isBuilderSupportedPresetElement: function (element) {
-      return !!(
-        element &&
-        element.id &&
-        Object.prototype.hasOwnProperty.call(
-          HP_PRESET_BUILDER_SUPPORTED_IDS,
-          element.id,
-        )
-      );
-    },
-
-    buildPresetPayloadValues: function (config, values) {
-      var payloadValues = {};
-      var elements = AnitaPersistence.getElements(config);
-      var sourceValues = values || {};
-      for (var i = 0; i < elements.length; i++) {
-        var element = elements[i];
-        if (!AnitaPersistence.shouldPersistElement(element)) continue;
-        if (
-          this.isHpColorsConfig(config) &&
-          !this.isBuilderSupportedPresetElement(element)
-        )
-          continue;
-        var hasValue = Object.prototype.hasOwnProperty.call(
-          sourceValues,
-          element.id,
-        );
-        var value = AnitaPersistence.sanitizeValue(
-          element,
-          hasValue ? sourceValues[element.id] : element.defaultValue,
-        );
-        var defaultValue = AnitaPersistence.sanitizeValue(
-          element,
-          element.defaultValue,
-        );
-        if (this.isHpColorsConfig(config) && value === defaultValue) continue;
-        payloadValues[
-          this.isHpColorsConfig(config)
-            ? HP_PERSIST_ALIASES[element.id] || element.id
-            : element.id
-        ] = value;
-      }
-      return payloadValues;
-    },
-
-    buildPresetCodeToken: function (
-      config,
-      values,
-      name,
-      payloadValuesOverride,
-      heroes,
-      heroMode,
-    ) {
-      if (!config || !config.storageNamespace) return "";
-      var ns = AnitaPersistence.normalizeNamespace(config.storageNamespace);
-      if (!ns) return "";
-
-      var payloadValues =
-        payloadValuesOverride || this.buildPresetPayloadValues(config, values);
-      var heroTargets = normalizeHpHeroSelection(heroes);
-      var scopeMode = normalizeHpHeroScopeMode(heroMode, heroTargets);
-      if (scopeMode !== HP_HERO_SCOPE_SELECTED) heroTargets = [];
-      var rawPayload = this.isHpColorsConfig(config)
-        ? {
-            v: AnitaPersistence.getVersion(config),
-            c: HP_COMPACT_PERSIST_VERSION,
-            values: payloadValues,
-          }
-        : {
-            version: AnitaPersistence.getVersion(config),
-            values: payloadValues,
-          };
-      if (this.isHpColorsConfig(config)) rawPayload.hm = scopeMode;
-      else rawPayload.heroMode = scopeMode;
-      if (scopeMode === HP_HERO_SCOPE_SELECTED && heroTargets.length) {
-        if (this.isHpColorsConfig(config)) rawPayload.hs = heroTargets;
-        else rawPayload.heroes = heroTargets;
-      }
-      var presetName = String(name || "").replace(/^\s+|\s+$/g, "");
-      if (presetName) rawPayload.name = presetName;
-      var raw = JSON.stringify(rawPayload);
-      return (
-        "[" +
-        AnitaPersistence.TOKEN_PREFIX +
-        ns +
-        "]:" +
-        AnitaBase64.encode(raw)
-      );
-    },
-
-    isPresetBundleRow: function (row) {
-      return !!(row && row.values && row.key !== "current");
-    },
-
-    isUserPresetRow: function (row) {
-      return !!(row && String(row.key || "").indexOf("user_") === 0);
-    },
-
-    getPresetBundleRows: function (rows) {
-      var bundleRows = [];
-      if (!Array.isArray(rows)) return bundleRows;
-      for (var i = 0; i < rows.length; i++) {
-        if (this.isPresetBundleRow(rows[i])) bundleRows.push(rows[i]);
-      }
-      return bundleRows;
-    },
-
-    getPresetPriorityIdentity: function (row) {
-      if (!row) return "";
-      if (row.id) return "id:" + String(row.id);
-      return String(row.key || "");
-    },
-
-    getRemovedPresetRows: function (config) {
-      if (!config.__anitaRemovedPresetRows)
-        config.__anitaRemovedPresetRows = {};
-      return config.__anitaRemovedPresetRows;
-    },
-
-    isPresetRowRemoved: function (config, row) {
-      if (!config || !row) return false;
-      var key = this.getPresetPriorityIdentity(row);
-      return !!(
-        key &&
-        config.__anitaRemovedPresetRows &&
-        config.__anitaRemovedPresetRows[key]
-      );
-    },
-
-    cleanupPresetRowState: function (config, row, identity) {
-      if (!config || !row) return;
-      var key = String(row.key || "");
-      var idKey = row.id ? "id:" + String(row.id) : "";
-      if (config.__anitaPresetHeroSelections) {
-        try {
-          delete config.__anitaPresetHeroSelections[key];
-        } catch (eHeroKey) {}
-        if (idKey) {
-          try {
-            delete config.__anitaPresetHeroSelections[idKey];
-          } catch (eHeroId) {}
-        }
-      }
-      if (config.__anitaPresetHeroModes) {
-        try {
-          delete config.__anitaPresetHeroModes[key];
-        } catch (eModeKey) {}
-        if (idKey) {
-          try {
-            delete config.__anitaPresetHeroModes[idKey];
-          } catch (eModeId) {}
-        }
-      }
-      if (config.__anitaPresetNameOverrides) {
-        try {
-          delete config.__anitaPresetNameOverrides[key];
-        } catch (eNameKey) {}
-        if (idKey) {
-          try {
-            delete config.__anitaPresetNameOverrides[idKey];
-          } catch (eNameId) {}
-        }
-      }
-      if (Array.isArray(config.__anitaPresetPriorityOrder)) {
-        var nextOrder = [];
-        for (var i = 0; i < config.__anitaPresetPriorityOrder.length; i++) {
-          var orderKey = String(config.__anitaPresetPriorityOrder[i] || "");
-          if (
-            orderKey &&
-            orderKey !== key &&
-            orderKey !== idKey &&
-            orderKey !== identity
-          )
-            nextOrder.push(orderKey);
-        }
-        config.__anitaPresetPriorityOrder = nextOrder;
-      }
-      if (config.__anitaSelectedPresetKey === key)
-        config.__anitaSelectedPresetKey = "";
-      if (config.__anitaEditingPresetNameKey === key)
-        config.__anitaEditingPresetNameKey = "";
-    },
-
-    removePresetRow: function (config, row) {
-      if (
-        !config ||
-        !row ||
-        row.key === "current" ||
-        !this.isPresetBundleRow(row)
-      )
-        return false;
-      var identity = this.getPresetPriorityIdentity(row);
-      var userRows = this.getUserPresetRows(config);
-      var removedUser = false;
-      for (var i = userRows.length - 1; i >= 0; i--) {
-        if (userRows[i] && userRows[i].key === row.key) {
-          userRows.splice(i, 1);
-          removedUser = true;
-        }
-      }
-      if (!removedUser) {
-        if (!identity) return false;
-        this.getRemovedPresetRows(config)[identity] = true;
-      }
-      this.cleanupPresetRowState(config, row, identity);
-      resetHpHeroPresetDetectionLock(config);
-      invalidateHpHeroPresetApplyCache(config);
-      startHpHeroPresetWatch(config);
-      scheduleHpHeroPresetRefresh(config);
-      return true;
-    },
-
-    applyPresetPriorityOrder: function (config, rows) {
-      if (!config || !Array.isArray(rows) || !rows.length) return rows;
-      var movable = [];
-      var fixed = [];
-      var byKey = {};
-      for (var i = 0; i < rows.length; i++) {
-        var row = rows[i];
-        if (this.isPresetBundleRow(row)) {
-          var key = this.getPresetPriorityIdentity(row);
-          if (key) {
-            movable.push(row);
-            byKey[key] = row;
-          }
-        } else {
-          fixed.push(row);
-        }
-      }
-      if (!movable.length) return rows;
-
-      var stored = Array.isArray(config.__anitaPresetPriorityOrder)
-        ? config.__anitaPresetPriorityOrder
-        : [];
-      var order = [];
-      var seen = {};
-      for (var storedIndex = 0; storedIndex < stored.length; storedIndex++) {
-        var storedKey = String(stored[storedIndex] || "");
-        if (!storedKey || !byKey[storedKey] || seen[storedKey]) continue;
-        seen[storedKey] = true;
-        order.push(storedKey);
-      }
-      for (var moveIndex = 0; moveIndex < movable.length; moveIndex++) {
-        var moveKey = this.getPresetPriorityIdentity(movable[moveIndex]);
-        if (!moveKey || seen[moveKey]) continue;
-        seen[moveKey] = true;
-        order.push(moveKey);
-      }
-      config.__anitaPresetPriorityOrder = order;
-
-      var sorted = [];
-      for (var orderIndex = 0; orderIndex < order.length; orderIndex++) {
-        var orderedRow = byKey[order[orderIndex]];
-        if (orderedRow) sorted.push(orderedRow);
-      }
-      for (var fixedIndex = 0; fixedIndex < fixed.length; fixedIndex++) {
-        sorted.push(fixed[fixedIndex]);
-      }
-      return sorted;
-    },
-
-    movePresetRowPriority: function (config, rows, row, delta) {
-      if (
-        !config ||
-        !Array.isArray(rows) ||
-        !row ||
-        !this.isPresetBundleRow(row)
-      )
-        return false;
-      var ordered = this.applyPresetPriorityOrder(config, rows);
-      var keys = [];
-      for (var i = 0; i < ordered.length; i++) {
-        if (!this.isPresetBundleRow(ordered[i])) continue;
-        var key = this.getPresetPriorityIdentity(ordered[i]);
-        if (key) keys.push(key);
-      }
-      var rowKey = this.getPresetPriorityIdentity(row);
-      var index = keys.indexOf(rowKey);
-      var nextIndex = index + (Number(delta) || 0);
-      if (index < 0 || nextIndex < 0 || nextIndex >= keys.length) return false;
-      var tmp = keys[index];
-      keys[index] = keys[nextIndex];
-      keys[nextIndex] = tmp;
-      config.__anitaPresetPriorityOrder = keys;
-      config.__anitaSelectedPresetKey = row.key;
-      resetHpHeroPresetDetectionLock(config);
-      invalidateHpHeroPresetApplyCache(config);
-      startHpHeroPresetWatch(config);
-      scheduleHpHeroPresetRefresh(config);
-      return true;
-    },
-
-    buildPresetBundleCodeToken: function (config, rows) {
-      if (!config || !Array.isArray(rows) || !rows.length) return "";
-
-      var presets = [];
-      for (var i = 0; i < rows.length; i++) {
-        var row = rows[i];
-        if (!this.isPresetBundleRow(row)) continue;
-        var presetName = String(row.name || "Preset " + String(i + 1)).replace(
-          /^\s+|\s+$/g,
-          "",
-        );
-        var tuple = [
-          presetName || "Preset " + String(i + 1),
-          row.payloadValues ||
-            this.buildPresetPayloadValues(config, row.values),
-        ];
-        var heroTargets = normalizeHpHeroSelection(row.heroes);
-        var scopeMode = normalizeHpHeroScopeMode(row.heroMode, heroTargets);
-        if (scopeMode === HP_HERO_SCOPE_SELECTED && heroTargets.length)
-          tuple.push(heroTargets);
-        else tuple.push(scopeMode);
-        presets.push(tuple);
-      }
-      if (!presets.length) return "";
-
-      var payload = {
-        v: AnitaPersistence.getVersion(config),
-        p: presets,
-      };
-      return AnitaBase64.encode(JSON.stringify(payload));
-    },
-
-    countPresetOverrides: function (config, values) {
-      var count = 0;
-      var elements = AnitaPersistence.getElements(config);
-      var sourceValues = values || {};
-      for (var i = 0; i < elements.length; i++) {
-        var element = elements[i];
-        if (!AnitaPersistence.shouldPersistElement(element)) continue;
-        if (!Object.prototype.hasOwnProperty.call(sourceValues, element.id))
-          continue;
-        var value = AnitaPersistence.sanitizeValue(
-          element,
-          sourceValues[element.id],
-        );
-        var defaultValue = AnitaPersistence.sanitizeValue(
-          element,
-          element.defaultValue,
-        );
-        if (value !== defaultValue) count += 1;
-      }
-      return count;
-    },
-
-    countBuilderPresetOverrides: function (config, values) {
-      var count = 0;
-      var elements = AnitaPersistence.getElements(config);
-      var sourceValues = values || {};
-      for (var i = 0; i < elements.length; i++) {
-        var element = elements[i];
-        if (!AnitaPersistence.shouldPersistElement(element)) continue;
-        if (!this.isBuilderSupportedPresetElement(element)) continue;
-        if (!Object.prototype.hasOwnProperty.call(sourceValues, element.id))
-          continue;
-        var value = AnitaPersistence.sanitizeValue(
-          element,
-          sourceValues[element.id],
-        );
-        var defaultValue = AnitaPersistence.sanitizeValue(
-          element,
-          element.defaultValue,
-        );
-        if (value !== defaultValue) count += 1;
-      }
-      return count;
-    },
-
-    countUnsupportedPresetOverrides: function (config, values) {
-      var count = 0;
-      var elements = AnitaPersistence.getElements(config);
-      var sourceValues = values || {};
-      for (var i = 0; i < elements.length; i++) {
-        var element = elements[i];
-        if (!AnitaPersistence.shouldPersistElement(element)) continue;
-        if (this.isBuilderSupportedPresetElement(element)) continue;
-        if (!Object.prototype.hasOwnProperty.call(sourceValues, element.id))
-          continue;
-        var value = AnitaPersistence.sanitizeValue(
-          element,
-          sourceValues[element.id],
-        );
-        var defaultValue = AnitaPersistence.sanitizeValue(
-          element,
-          element.defaultValue,
-        );
-        if (value !== defaultValue) count += 1;
-      }
-      return count;
-    },
-
-    countPresetValues: function (values) {
-      var count = 0;
-      for (var key in values || {}) {
-        if (Object.prototype.hasOwnProperty.call(values, key)) count += 1;
-      }
-      return count;
-    },
-
-    sanitizeUserPresetName: function (name, fallbackIndex) {
-      var clean = String(name || "")
-        .replace(/^\s+|\s+$/g, "")
-        .replace(/\s+/g, " ");
-      if (clean.length > 34) clean = clean.substr(0, 34);
-      if (clean) return clean;
-      return "Game preset " + String(Math.max(1, Number(fallbackIndex) || 1));
-    },
-
-    sanitizePresetRenameName: function (name, fallbackName) {
-      var clean = String(name || "")
-        .replace(/^\s+|\s+$/g, "")
-        .replace(/\s+/g, " ");
-      if (clean.length > 34) clean = clean.substr(0, 34);
-      if (clean) return clean;
-      return (
-        String(fallbackName || "").replace(/^\s+|\s+$/g, "") || "Game preset"
-      );
-    },
-
-    getUserPresetRows: function (config) {
-      if (!config.__anitaUserPresetRows) config.__anitaUserPresetRows = [];
-      return config.__anitaUserPresetRows;
-    },
-
-    getPresetNameOverride: function (config, key, id, fallbackName) {
-      var overrides = config && config.__anitaPresetNameOverrides;
-      if (!overrides) return fallbackName;
-      var idKey = id ? "id:" + String(id) : "";
-      if (idKey && Object.prototype.hasOwnProperty.call(overrides, idKey))
-        return overrides[idKey];
-      if (key && Object.prototype.hasOwnProperty.call(overrides, key))
-        return overrides[key];
-      return fallbackName;
-    },
-
-    setPresetRowName: function (config, row, name) {
-      if (!config || !row || row.key === "current") return false;
-      var clean = this.sanitizePresetRenameName(name, row.name);
-      if (!clean || clean === row.name) return false;
-      var userRows = this.getUserPresetRows(config);
-      var changed = false;
-      for (var i = 0; i < userRows.length; i++) {
-        if (userRows[i] && userRows[i].key === row.key) {
-          userRows[i].name = clean;
-          changed = true;
-          break;
-        }
-      }
-      if (!changed) {
-        if (!config.__anitaPresetNameOverrides)
-          config.__anitaPresetNameOverrides = {};
-        var overrideKey = row.id ? "id:" + String(row.id) : row.key;
-        config.__anitaPresetNameOverrides[overrideKey] = clean;
-        changed = true;
-      }
-      row.name = clean;
-      row.token = this.buildPresetCodeToken(
-        config,
-        row.values || {},
-        row.name,
-        row.payloadValues,
-        row.heroes,
-        row.heroMode,
-      );
-      config.__anitaSelectedPresetKey = row.key;
-      return changed;
-    },
-
-    addUserPresetFromCurrent: function (config, name) {
-      if (!config) return null;
-      var userRows = this.getUserPresetRows(config);
-      var nextIndex = userRows.length + 1;
-      var presetName = this.sanitizeUserPresetName(name, nextIndex);
-      var currentValues = this.collectCurrentValues(config);
-      var payloadValues = this.buildPresetPayloadValues(config, currentValues);
-      var overrideCount = this.countBuilderPresetOverrides(
-        config,
-        currentValues,
-      );
-      var omittedOverrides = this.countUnsupportedPresetOverrides(
-        config,
-        currentValues,
-      );
-      var key =
-        "user_" +
-        String(Date.now ? Date.now() : +new Date()) +
-        "_" +
-        String(nextIndex);
-      var row = {
-        key: key,
-        id: "",
-        name: presetName,
-        category: "Game preset",
-        status:
-          (overrideCount
-            ? String(overrideCount) +
-              " builder override" +
-              (overrideCount === 1 ? "" : "s")
-            : "Default builder values") +
-          (omittedOverrides
-            ? "; " +
-              String(omittedOverrides) +
-              " live-only setting" +
-              (omittedOverrides === 1 ? "" : "s") +
-              " omitted"
-            : ""),
-        token: "",
-        values: currentValues,
-        payloadValues: payloadValues,
-        heroes: [],
-        heroMode: HP_HERO_SCOPE_OFF,
-      };
-      row.token = this.buildPresetCodeToken(
-        config,
-        row.values,
-        row.name,
-        row.payloadValues,
-        row.heroes,
-        row.heroMode,
-      );
-      userRows.push(row);
-      config.__anitaSelectedPresetKey = row.key;
-      return row;
-    },
-
-    getNextImportPresetName: function (config) {
-      var nextIndex = 1;
-      var rows = this.getUserPresetRows(config);
-      for (var i = 0; i < rows.length; i++) {
-        var match = String(rows[i].name || "").match(/^Import\s+(\d+)$/i);
-        if (match) {
-          var num = Number(match[1]);
-          if (isFinite(num) && num >= nextIndex) nextIndex = num + 1;
-        }
-      }
-      return "Import " + String(nextIndex);
-    },
-
-    addUserPresetFromValues: function (
-      config,
-      name,
-      values,
-      category,
-      heroes,
-      heroMode,
-    ) {
-      if (!config || !values) return null;
-      var userRows = this.getUserPresetRows(config);
-      var nextIndex = userRows.length + 1;
-      var presetName = this.sanitizeUserPresetName(name, nextIndex);
-      var sourceValues = {};
-      for (var key in values) {
-        if (Object.prototype.hasOwnProperty.call(values, key))
-          sourceValues[key] = values[key];
-      }
-      var payloadValues = this.buildPresetPayloadValues(config, sourceValues);
-      var overrideCount = this.countBuilderPresetOverrides(
-        config,
-        sourceValues,
-      );
-      var omittedOverrides = this.countUnsupportedPresetOverrides(
-        config,
-        sourceValues,
-      );
-      var keyName =
-        "user_" +
-        String(Date.now ? Date.now() : +new Date()) +
-        "_" +
-        String(nextIndex);
-      var heroTargets = normalizeHpHeroSelection(heroes);
-      var scopeMode = normalizeHpHeroScopeMode(heroMode, heroTargets);
-      if (scopeMode !== HP_HERO_SCOPE_SELECTED) heroTargets = [];
-      var row = {
-        key: keyName,
-        id: "",
-        name: presetName,
-        category: String(category || "Imported"),
-        status:
-          (overrideCount
-            ? String(overrideCount) +
-              " builder override" +
-              (overrideCount === 1 ? "" : "s")
-            : "Default builder values") +
-          (omittedOverrides
-            ? "; " +
-              String(omittedOverrides) +
-              " live-only setting" +
-              (omittedOverrides === 1 ? "" : "s") +
-              " omitted"
-            : ""),
-        token: "",
-        values: sourceValues,
-        payloadValues: payloadValues,
-        heroes: heroTargets,
-        heroMode: scopeMode,
-      };
-      row.token = this.buildPresetCodeToken(
-        config,
-        row.values,
-        row.name,
-        row.payloadValues,
-        row.heroes,
-        row.heroMode,
-      );
-      userRows.push(row);
-      config.__anitaSelectedPresetKey = row.key;
-      if (scopeMode !== HP_HERO_SCOPE_OFF) {
-        resetHpHeroPresetDetectionLock(config);
-        invalidateHpHeroPresetApplyCache(config);
-        startHpHeroPresetWatch(config);
-        scheduleHpHeroPresetRefresh(config);
-      }
-      return row;
-    },
-
-    addUserPresetFromImportCode: function (config, text) {
-      var parsed = this.parseImportCode(config, text);
-      if (!parsed.ok) return parsed;
-      var row = this.addUserPresetFromValues(
-        config,
-        this.getNextImportPresetName(config),
-        parsed.values,
-        "Imported",
-        parsed.heroes,
-        parsed.heroMode,
-      );
-      if (!row) return { ok: false, status: "Invalid" };
-      return { ok: true, status: "Saved", row: row };
-    },
-
-    getPresetRows: function (config) {
-      var rows = [];
-      var baked = readBakedPresetEntries(config);
-      for (var i = 0; i < baked.length; i++) {
-        var preset = baked[i];
-        var valueCount = this.countPresetValues(preset.values);
-        var overrideCount = this.countBuilderPresetOverrides(
-          config,
-          preset.values,
-        );
-        var unsupportedCount = this.countUnsupportedPresetOverrides(
-          config,
-          preset.values,
-        );
-        var payloadValues = this.buildPresetPayloadValues(
-          config,
-          preset.values || {},
-        );
-        var bakedKey = "baked_" + String(i);
-        var bakedName = this.getPresetNameOverride(
-          config,
-          bakedKey,
-          preset.id || "",
-          preset.name || "Builder preset " + String(i + 1),
-        );
-        rows.push({
-          key: bakedKey,
-          id: preset.id || "",
-          name: bakedName,
-          category: preset.category || "Builder VPK",
-          status: valueCount
-            ? String(valueCount) +
-              " recognized setting" +
-              (valueCount === 1 ? "" : "s") +
-              ", " +
-              String(overrideCount) +
-              " builder override" +
-              (overrideCount === 1 ? "" : "s") +
-              (unsupportedCount
-                ? ", " + String(unsupportedCount) + " omitted"
-                : "")
-            : "No recognized HP Colors settings",
-          token: this.buildPresetCodeToken(
-            config,
-            preset.values || {},
-            bakedName,
-            payloadValues,
-            preset.heroes,
-            preset.heroMode,
-          ),
-          values: preset.values || {},
-          payloadValues: payloadValues,
-          heroes: normalizeHpHeroSelection(preset.heroes),
-          heroMode: normalizeHpHeroScopeMode(preset.heroMode, preset.heroes),
-        });
-        if (this.isPresetRowRemoved(config, rows[rows.length - 1])) rows.pop();
-      }
-
-      var userRows = this.getUserPresetRows(config);
-      for (var userIndex = 0; userIndex < userRows.length; userIndex++) {
-        var userRow = userRows[userIndex];
-        if (!userRow || !userRow.values) continue;
-        if (this.isPresetRowRemoved(config, userRow)) continue;
-        userRow.payloadValues =
-          userRow.payloadValues ||
-          this.buildPresetPayloadValues(config, userRow.values || {});
-        userRow.category = userRow.category || "Game preset";
-        userRow.name = this.sanitizeUserPresetName(userRow.name, userIndex + 1);
-        userRow.heroes = normalizeHpHeroSelection(userRow.heroes);
-        userRow.heroMode = normalizeHpHeroScopeMode(
-          userRow.heroMode,
-          userRow.heroes,
-        );
-        userRow.token = this.buildPresetCodeToken(
-          config,
-          userRow.values || {},
-          userRow.name,
-          userRow.payloadValues,
-          userRow.heroes,
-          userRow.heroMode,
-        );
-        rows.push(userRow);
-      }
-
-      var currentValues = this.collectCurrentValues(config);
-      var currentOverrides = this.countBuilderPresetOverrides(
-        config,
-        currentValues,
-      );
-      var omittedOverrides = this.countUnsupportedPresetOverrides(
-        config,
-        currentValues,
-      );
-      rows.push({
-        key: "current",
-        id: "",
-        name: "Current live settings",
-        category: "Live settings",
-        status:
-          (currentOverrides
-            ? String(currentOverrides) +
-              " builder override" +
-              (currentOverrides === 1 ? "" : "s")
-            : "Default builder values") +
-          (omittedOverrides
-            ? "; " +
-              String(omittedOverrides) +
-              " live-only setting" +
-              (omittedOverrides === 1 ? "" : "s") +
-              " omitted"
-            : ""),
-        token: this.buildPresetCodeToken(
-          config,
-          currentValues,
-          "Current live settings",
-          null,
-          [],
-          HP_HERO_SCOPE_OFF,
-        ),
-        values: currentValues,
-        payloadValues: this.buildPresetPayloadValues(config, currentValues),
-        heroes: [],
-        heroMode: HP_HERO_SCOPE_OFF,
-      });
-      return this.applyPresetPriorityOrder(config, rows);
-    },
-
-    clonePresetBuilderStateValue: function (value) {
-      if (Array.isArray(value)) {
-        var arrayCopy = [];
-        for (var i = 0; i < value.length; i++) {
-          arrayCopy.push(this.clonePresetBuilderStateValue(value[i]));
-        }
-        return arrayCopy;
-      }
-      if (value && typeof value === "object") {
-        var objectCopy = {};
-        for (var key in value) {
-          if (Object.prototype.hasOwnProperty.call(value, key)) {
-            objectCopy[key] = this.clonePresetBuilderStateValue(value[key]);
-          }
-        }
-        return objectCopy;
-      }
-      return value;
-    },
-
-    capturePresetBuilderState: function (config) {
-      if (!this.hasPresetBuilder(config)) return null;
-      return {
-        userPresetRows: this.clonePresetBuilderStateValue(
-          config.__anitaUserPresetRows || [],
-        ),
-        nameOverrides: this.clonePresetBuilderStateValue(
-          config.__anitaPresetNameOverrides || {},
-        ),
-        heroSelections: this.clonePresetBuilderStateValue(
-          config.__anitaPresetHeroSelections || {},
-        ),
-        heroModes: this.clonePresetBuilderStateValue(
-          config.__anitaPresetHeroModes || {},
-        ),
-        priorityOrder: this.clonePresetBuilderStateValue(
-          config.__anitaPresetPriorityOrder || [],
-        ),
-        removedPresets: this.clonePresetBuilderStateValue(
-          config.__anitaRemovedPresetRows || {},
-        ),
-        selectedPresetKey: String(config.__anitaSelectedPresetKey || ""),
-        editingPresetKey: String(config.__anitaEditingPresetKey || ""),
-        heroDetectionMode: normalizeHpHeroDetectionMode(config),
-        heroManualOverride: !!config.__hpHeroManualPresetOverride,
-      };
-    },
-
-    restorePresetBuilderState: function (config, state) {
-      if (!config || !state) return;
-      config.__anitaUserPresetRows = this.clonePresetBuilderStateValue(
-        state.userPresetRows || [],
-      );
-      config.__anitaPresetNameOverrides = this.clonePresetBuilderStateValue(
-        state.nameOverrides || {},
-      );
-      config.__anitaPresetHeroSelections = this.clonePresetBuilderStateValue(
-        state.heroSelections || {},
-      );
-      config.__anitaPresetHeroModes = this.clonePresetBuilderStateValue(
-        state.heroModes || {},
-      );
-      config.__anitaPresetPriorityOrder = this.clonePresetBuilderStateValue(
-        state.priorityOrder || [],
-      );
-      config.__anitaRemovedPresetRows = this.clonePresetBuilderStateValue(
-        state.removedPresets || {},
-      );
-      config.__anitaSelectedPresetKey = String(state.selectedPresetKey || "");
-      config.__anitaEditingPresetKey = String(state.editingPresetKey || "");
-      setHpHeroDetectionMode(
-        config,
-        state.heroDetectionMode ||
-          (state.heroManualOverride
-            ? HP_HERO_DETECTION_OVERRIDE
-            : HP_HERO_DETECTION_AUTO),
-      );
     },
 
     copyTextToClipboard: function (text) {
@@ -6620,6 +7213,102 @@
         }
       } catch (e1) {}
       return false;
+    },
+
+    openPipConvarPopup: function (enabled) {
+      if (this.activeImportPopupClose) {
+        try {
+          this.activeImportPopupClose();
+        } catch (closeErr) {}
+      }
+
+      var popupPanel = $.CreatePanel(
+        "Panel",
+        $.GetContextPanel(),
+        "AnitaPipConvarPopup",
+      );
+      var copyBtn = null;
+      var copyLabel = null;
+      var preciseEnabled = !!enabled;
+      var commandText = preciseEnabled
+        ? HP_PIP_CONVAR_ENABLE_COMMAND
+        : HP_PIP_CONVAR_RESET_COMMAND;
+
+      function closePopup() {
+        if (popupPanel && popupPanel.IsValid && popupPanel.IsValid()) {
+          popupPanel.DeleteAsync(0);
+        }
+        if (AnitaRenderer.activeImportPopupClose === closePopup) {
+          AnitaRenderer.activeImportPopupClose = null;
+        }
+      }
+
+      this.activeImportPopupClose = closePopup;
+      popupPanel.AddClass("AnitaImportPopup");
+      popupPanel.AddClass("AnitaPipConvarPopup");
+      popupPanel.style.align = "center center";
+      popupPanel.style.ignoreParentFlow = true;
+      popupPanel.style.flowChildren = "down";
+      popupPanel.style.uiScale = "100%";
+      popupPanel.canfocus = true;
+      popupPanel.SetPanelEvent("oncancel", closePopup);
+
+      var title = $.CreatePanel("Label", popupPanel, "");
+      title.AddClass("AnitaImportPopupTitle");
+      title.text = "More Precise HP Pips";
+
+      var warning = $.CreatePanel("Label", popupPanel, "");
+      warning.AddClass("AnitaImportPopupHint");
+      warning.AddClass("AnitaPipConvarWarning");
+      warning.text = preciseEnabled
+        ? "Copy these commands and paste them under your convar block. HP Colors cannot apply or verify these game settings."
+        : "Copy these reset commands and paste them under your convar block to restore the default pip scale.";
+
+      var command = $.CreatePanel(
+        "Label",
+        popupPanel,
+        "AnitaPipConvarCommand",
+      );
+      command.AddClass("AnitaPipConvarCommand");
+      command.text = commandText;
+
+      var actions = $.CreatePanel("Panel", popupPanel, "");
+      actions.AddClass("AnitaPipConvarActions");
+
+      copyBtn = $.CreatePanel(
+        "Button",
+        actions,
+        "AnitaPipConvarCopy",
+      );
+      copyBtn.AddClass("AnitaActionBtn");
+      copyLabel = $.CreatePanel("Label", copyBtn, "");
+      copyLabel.text = "COPY COMMAND";
+      copyBtn.SetPanelEvent("onactivate", function () {
+        var copied = AnitaRenderer.copyTextToClipboard(commandText);
+        copyLabel.text = copied ? "COPIED" : "COPY FAILED";
+        copyBtn.SetHasClass("AnitaFooterBtnSuccess", copied);
+        AnitaLifetime.defer(1.25, function () {
+          if (copyLabel && copyLabel.IsValid && copyLabel.IsValid()) {
+            copyLabel.text = "COPY COMMAND";
+          }
+          if (copyBtn && copyBtn.IsValid && copyBtn.IsValid()) {
+            copyBtn.RemoveClass("AnitaFooterBtnSuccess");
+          }
+        });
+      });
+
+      var acknowledgeBtn = $.CreatePanel(
+        "Button",
+        actions,
+        "AnitaPipConvarAcknowledge",
+      );
+      acknowledgeBtn.AddClass("AnitaActionBtn");
+      acknowledgeBtn.AddClass("AnitaPipConvarAcknowledge");
+      var acknowledgeLabel = $.CreatePanel("Label", acknowledgeBtn, "");
+      acknowledgeLabel.text = "I'VE DONE THIS";
+      acknowledgeBtn.SetPanelEvent("onactivate", closePopup);
+
+      popupPanel.SetFocus();
     },
 
     openExternalUrl: function (url) {
@@ -6657,12 +7346,31 @@
     },
 
     getPanelOffset: function (panel) {
+      if (
+        this.isPanelValid(panel) &&
+        typeof panel.GetPositionWithinWindow === "function"
+      ) {
+        try {
+          var windowPosition = panel.GetPositionWithinWindow();
+          var scaleX = Number(panel.actualuiscale_x || 1);
+          var scaleY = Number(panel.actualuiscale_y || 1);
+          var windowX = Number(windowPosition && windowPosition.x);
+          var windowY = Number(windowPosition && windowPosition.y);
+          if (!isFinite(scaleX) || scaleX <= 0) scaleX = 1;
+          if (!isFinite(scaleY) || scaleY <= 0) scaleY = 1;
+          if (isFinite(windowX) && isFinite(windowY))
+            return { x: windowX / scaleX, y: windowY / scaleY };
+        } catch (positionErr) {}
+      }
+
       var x = 0;
       var y = 0;
       var p = panel;
       while (this.isPanelValid(p)) {
         x += Number(p.actualxoffset || p.actualx || 0);
         y += Number(p.actualyoffset || p.actualy || 0);
+        x -= Number(p.scrolloffset_x || 0);
+        y -= Number(p.scrolloffset_y || 0);
         p = p.GetParent ? p.GetParent() : null;
       }
       if (!isFinite(x)) x = 0;
@@ -6697,18 +7405,17 @@
         }
         this.popupHost = $.CreatePanel("Panel", trueRoot, "AnitaUI_PopupHost");
         this.popupHost.AddClass("AnitaPopupHost");
+        this.popupHost.style.align = "left top";
+        this.popupHost.style.ignoreParentFlow = true;
+        this.popupHost.style.flowChildren = "none";
+        this.popupHost.style.overflow = "noclip";
+        this.popupHost.style.zIndex = "10050";
+        this.popupHost.style.width = "100%";
+        this.popupHost.style.height = "100%";
+        this.popupHost.hittest = false;
+        this.popupHost.hittestchildren = true;
       }
-      var host = this.isPanelValid(this.popupHost) ? this.popupHost : trueRoot;
-      host.style.align = "left top";
-      host.style.ignoreParentFlow = true;
-      host.style.flowChildren = "none";
-      host.style.overflow = "noclip";
-      host.style.zIndex = "10050";
-      host.style.width = "100%";
-      host.style.height = "100%";
-      host.hittest = false;
-      host.hittestchildren = true;
-      return host;
+      return this.isPanelValid(this.popupHost) ? this.popupHost : trueRoot;
     },
 
     getLocalTooltipPanel: function () {
@@ -6729,6 +7436,8 @@
         this.presetTooltip.style.position = "-200% -200% 0px";
         this.presetTooltip.style.opacity = "0";
         this.presetTooltip.style.zIndex = "10090";
+        this.presetTooltip.style.align = "left top";
+        this.presetTooltip.style.ignoreParentFlow = true;
         var label = $.CreatePanel("Label", this.presetTooltip, "");
         label.AddClass("AnitaPresetLocalTooltipLabel");
         label.hittest = false;
@@ -6804,29 +7513,41 @@
       if (y + tooltipH > hostH - edge) y = hostH - tooltipH - edge;
       if (y < edge) y = edge;
 
-      tooltip.style.align = "left top";
-      tooltip.style.ignoreParentFlow = true;
-      tooltip.style.position = Math.round(x) + "px " + Math.round(y) + "px 0px";
-      tooltip.style.opacity = "1";
-      tooltip.style.zIndex = "10090";
+      var nextPosition =
+        Math.round(x) + "px " + Math.round(y) + "px 0px";
+      if (tooltip.style.position !== nextPosition)
+        tooltip.style.position = nextPosition;
+      if (tooltip.style.opacity !== "1") tooltip.style.opacity = "1";
     },
+    positionActiveLocalTooltip: function () {
+      var tooltip = this.presetTooltip;
+      var anchor = this.localTooltipAnchor;
+      if (!this.isPanelValid(tooltip) || !this.isPanelValid(anchor)) return;
+      this.positionLocalTooltip(anchor, tooltip);
+    },
+
 
     showLocalTooltip: function (panel, text) {
       var tooltip = this.getLocalTooltipPanel();
       if (!this.isPanelValid(tooltip)) return;
+      this.localTooltipAnchor = panel;
       var label = tooltip.__anitaTooltipLabel || null;
       if (label && label.IsValid && label.IsValid())
         label.text = String(text || "");
-      this.positionLocalTooltip(panel, tooltip);
+      this.positionActiveLocalTooltip();
       try {
-        $.Schedule(0.02, function () {
-          if (AnitaRenderer.presetTooltip === tooltip)
-            AnitaRenderer.positionLocalTooltip(panel, tooltip);
+        AnitaLifetime.defer(0.02, function () {
+          if (
+            AnitaRenderer.presetTooltip === tooltip &&
+            AnitaRenderer.localTooltipAnchor === panel
+          )
+            AnitaRenderer.positionActiveLocalTooltip();
         });
       } catch (scheduleErr) {}
     },
 
     hideLocalTooltip: function () {
+      this.localTooltipAnchor = null;
       var tooltip = this.presetTooltip;
       if (!this.isPanelValid(tooltip)) return;
       tooltip.style.opacity = "0";
@@ -6870,57 +7591,11 @@
     renderPresetBuilderPanel: function (parent, config) {
       if (!parent || !config) return;
 
-      var rows = this.getPresetRows(config);
-      var selectedKeyValid = false;
-      for (
-        var selectedKeyIndex = 0;
-        selectedKeyIndex < rows.length;
-        selectedKeyIndex++
-      ) {
-        if (rows[selectedKeyIndex].key === config.__anitaSelectedPresetKey) {
-          selectedKeyValid = true;
-          break;
-        }
-      }
-      if (!config.__anitaSelectedPresetKey || !selectedKeyValid) {
-        var defaultPresetKey = "";
-        for (var startupIndex = 0; startupIndex < rows.length; startupIndex++) {
-          if (rows[startupIndex].id === HP_STARTUP_PRESET_ID) {
-            defaultPresetKey = rows[startupIndex].key;
-            break;
-          }
-        }
-        for (
-          var defaultIndex = 0;
-          !defaultPresetKey && defaultIndex < rows.length;
-          defaultIndex++
-        ) {
-          if (String(rows[defaultIndex].key || "").indexOf("baked_") === 0) {
-            defaultPresetKey = rows[defaultIndex].key;
-            break;
-          }
-        }
-        config.__anitaSelectedPresetKey =
-          defaultPresetKey || (rows.length ? rows[0].key : "");
-      }
-
-      for (
-        var heroInitIndex = 0;
-        heroInitIndex < rows.length;
-        heroInitIndex++
-      ) {
-        HPPresetHeroSelection.getRowHeroes(config, rows[heroInitIndex]);
-      }
-
-      var selected = rows.length ? rows[0] : null;
-      for (var i = 0; i < rows.length; i++) {
-        if (rows[i].key === config.__anitaSelectedPresetKey) {
-          selected = rows[i];
-          break;
-        }
-      }
-      var bundleRows = this.getPresetBundleRows(rows);
-      var bundlePresetCount = bundleRows.length;
+      var model = HPPresetBuilderModel.buildPresetBuilderViewModel(config);
+      var rows = model.rows;
+      var selected = model.selectedRow;
+      var bundleRows = model.bundleRows;
+      var bundlePresetCount = model.bundlePresetCount;
 
       var panel = $.CreatePanel("Panel", parent, "");
       panel.AddClass("AnitaPresetBuilderPanel");
@@ -6944,14 +7619,14 @@
       heroOverrideBtn.AddClass("AnitaPresetHeroOverrideBtn");
       heroOverrideBtn.SetHasClass(
         "Enabled",
-        hpHeroManualOverrideEnabled(config),
+        model.heroManualOverrideEnabled,
       );
       heroOverrideBtn.SetHasClass(
         "Off",
-        normalizeHpHeroDetectionMode(config) === HP_HERO_DETECTION_OFF,
+        model.heroDetectionMode === HP_HERO_DETECTION_OFF,
       );
       var heroOverrideLbl = $.CreatePanel("Label", heroOverrideBtn, "");
-      heroOverrideLbl.text = getHpHeroDetectionModeLabel(config);
+      heroOverrideLbl.text = model.heroDetectionLabel;
       title.AddClass("AnitaPresetTitle");
       title.text = "HP Preset Builder";
 
@@ -6987,13 +7662,11 @@
 
       var status = $.CreatePanel("Label", metaRow, "");
       status.AddClass("AnitaPresetStatusText");
-      status.text = selected
-        ? "Selected: " + selected.name
-        : "No preset selected";
+      status.text = model.selectedStatusText;
 
       var fallback = $.CreatePanel("Label", metaRow, "");
       fallback.AddClass("AnitaPresetFallbackUrl");
-      fallback.text = HP_PRESET_BUILDER_URL;
+      fallback.text = model.builderUrl;
 
       var createRow = $.CreatePanel("Panel", panel, "");
       createRow.AddClass("AnitaPresetCreateRow");
@@ -7019,7 +7692,7 @@
         "Saves current live HP settings. Click a preset name to rename.";
 
       function addCurrentPreset() {
-        var saved = AnitaRenderer.addUserPresetFromCurrent(
+        var saved = HPPresetBuilderActions.addUserPresetFromCurrent(
           config,
           nameInput.text || "",
         );
@@ -7044,17 +7717,10 @@
       var list = $.CreatePanel("Panel", panel, "");
       list.AddClass("AnitaPresetList");
 
-      function getSelectedRow() {
-        for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-          if (rows[rowIndex].key === config.__anitaSelectedPresetKey)
-            return rows[rowIndex];
-        }
-        return rows.length ? rows[0] : null;
-      }
-
       function getSelectedStatusText() {
-        var active = getSelectedRow();
-        return active ? "Selected: " + active.name : "No preset selected";
+        return HPPresetBuilderModel.getSelectedStatusText(
+          HPPresetBuilderModel.getSelectedRow(rows, config.__anitaSelectedPresetKey),
+        );
       }
 
       function showPresetStatus(text, good, durationSec) {
@@ -7062,13 +7728,19 @@
         config.__anitaPresetStatusToken = statusToken;
         AnitaRenderer.setPresetStatus(status, text, good);
         if (!durationSec) return;
-        $.Schedule(durationSec, function () {
+        AnitaLifetime.defer(durationSec, function () {
           if (statusToken !== config.__anitaPresetStatusToken) return;
           AnitaRenderer.setPresetStatus(status, getSelectedStatusText(), false);
         });
       }
 
       function openPresetImportPopup() {
+        if (AnitaRenderer.activeConditionalPopupClose) {
+          try {
+            AnitaRenderer.activeConditionalPopupClose();
+          } catch (conditionalErr) {}
+          AnitaRenderer.activeConditionalPopupClose = null;
+        }
         if (AnitaRenderer.activeImportPopupClose) {
           try {
             AnitaRenderer.activeImportPopupClose();
@@ -7096,7 +7768,7 @@
           if (!applyLbl || !applyLbl.IsValid || !applyLbl.IsValid()) return;
           applyLbl.text = text;
           applyBtn.AddClass("AnitaFooterBtnSuccess");
-          $.Schedule(1.5, function () {
+          AnitaLifetime.defer(1.5, function () {
             if (applyLbl && applyLbl.IsValid && applyLbl.IsValid())
               applyLbl.text = "IMPORT";
             if (applyBtn && applyBtn.IsValid && applyBtn.IsValid())
@@ -7112,7 +7784,7 @@
             flashApplyLabel("Empty");
             return;
           }
-          var result = AnitaRenderer.addUserPresetFromImportCode(config, text);
+          var result = HPPresetBuilderActions.addUserPresetFromImportCode(config, text);
           if (!result.ok) {
             flashApplyLabel(result.status || "Invalid");
             return;
@@ -7167,7 +7839,7 @@
         applyBtn.SetPanelEvent("onactivate", applyInputCode);
         importInput.SetPanelEvent("ontextentrysubmit", applyInputCode);
 
-        $.Schedule(0.0, function () {
+        AnitaLifetime.defer(0.0, function () {
           if (importInput && importInput.IsValid && importInput.IsValid()) {
             importInput.SetFocus();
           }
@@ -7179,13 +7851,14 @@
           showPresetStatus("No code available for this preset.", false, 2.0);
           return false;
         }
-        var token = AnitaRenderer.buildPresetCodeToken(
+        var token = HPPresetBuilderModel.buildPresetCodeToken(
           config,
           row.values || {},
           row.name || "",
           row.payloadValues,
           row.heroes,
           row.heroMode,
+          row.overrides || {},
         );
         if (!token) {
           showPresetStatus("No code available for this preset.", false, 2.0);
@@ -7204,7 +7877,7 @@
       }
 
       function copyPresetBundle(doneText) {
-        var bundleToken = AnitaRenderer.buildPresetBundleCodeToken(
+        var bundleToken = HPPresetBuilderModel.buildPresetBundleCodeToken(
           config,
           bundleRows,
         );
@@ -7224,50 +7897,14 @@
       }
 
       function importPreset(row) {
-        if (!row || !row.token) {
-          showPresetStatus("No code available for this preset.", false, 2.0);
-          return false;
-        }
-        config.__anitaSelectedPresetKey = row.key;
-        var rowHeroes = HPPresetHeroSelection.getRowHeroes(config, row);
-        var rowHeroMode = HPPresetHeroSelection.getRowHeroMode(config, row);
-        if (
-          rowHeroMode === HP_HERO_SCOPE_SELECTED &&
-          !hpHeroManualPresetAllowed(config)
-        ) {
-          var currentHero = detectHpLocalHero();
-          if (!currentHero || !presetTargetsHero(row, currentHero)) {
-            resetHpHeroPresetDetectionLock(config);
-            invalidateHpHeroPresetApplyCache(config);
-            config.__hpHeroPresetHasScopedPreset = true;
-            startHpHeroPresetWatch(config);
-            scheduleHpHeroPresetRefresh(config);
-            showPresetStatus(
-              currentHero
-                ? row.name + " is saved for selected heroes."
-                : "Waiting for hero detection before applying " +
-                    row.name +
-                    ".",
-              true,
-              2.5,
-            );
-            return true;
-          }
-          row.heroes = rowHeroes;
-        }
-        var result = AnitaRenderer.applyImportCode(
-          config,
-          row.token,
-          "preset_builder",
-        );
+        var result = HPPresetBuilderActions.applyPresetRow(config, row);
         if (result.ok) {
-          showPresetStatus("Imported " + row.name + ".", true, 2.5);
+          showPresetStatus(result.status || (row ? "Imported " + row.name + "." : "Imported."), true, 2.5);
           return true;
         }
         showPresetStatus(result.status || "Invalid", false, 2.0);
         return false;
       }
-
 
       function safeHeroOptionKey(row, suffix) {
         return (
@@ -7280,50 +7917,25 @@
 
       function renderHeroPickerState(button, row, summaryLabel) {
         if (!button || !button.IsValid || !button.IsValid()) return;
-        var heroes = HPPresetHeroSelection.getRowHeroes(config, row);
-        var scopeMode = HPPresetHeroSelection.getRowHeroMode(config, row);
-        var heroCount = heroes.length;
-        var summaryText =
-          scopeMode === HP_HERO_SCOPE_OFF
-            ? "Hero select off"
-            : scopeMode === HP_HERO_SCOPE_ALL
-              ? "All heroes"
-              : String(heroCount) +
-                " hero" +
-                (heroCount === 1 ? "" : "es") +
-                " selected";
-        var faceText =
-          scopeMode === HP_HERO_SCOPE_OFF
-            ? "Off"
-            : scopeMode === HP_HERO_SCOPE_ALL
-              ? "All heroes"
-              : String(heroCount) + " hero" + (heroCount === 1 ? "" : "es");
-        button.SetHasClass("ScopeOff", scopeMode === HP_HERO_SCOPE_OFF);
-        button.SetHasClass("ScopeAll", scopeMode === HP_HERO_SCOPE_ALL);
-        button.SetHasClass(
-          "ScopeSelected",
-          scopeMode === HP_HERO_SCOPE_SELECTED,
-        );
+        var display = HPPresetBuilderModel.getHeroPickerDisplay(config, row);
+        button.SetHasClass("ScopeOff", display.isOff);
+        button.SetHasClass("ScopeAll", display.isAll);
+        button.SetHasClass("ScopeSelected", display.isSelected);
         summaryLabel = summaryLabel || button.__anitaHeroSummaryLabel;
         if (summaryLabel && summaryLabel.IsValid && summaryLabel.IsValid()) {
-          summaryLabel.SetHasClass("ScopeOff", scopeMode === HP_HERO_SCOPE_OFF);
-          summaryLabel.SetHasClass("ScopeAll", scopeMode === HP_HERO_SCOPE_ALL);
-          summaryLabel.SetHasClass(
-            "ScopeSelected",
-            scopeMode === HP_HERO_SCOPE_SELECTED,
-          );
-          summaryLabel.text = summaryText;
+          summaryLabel.SetHasClass("ScopeOff", display.isOff);
+          summaryLabel.SetHasClass("ScopeAll", display.isAll);
+          summaryLabel.SetHasClass("ScopeSelected", display.isSelected);
+          summaryLabel.text = display.summaryText;
         }
         var facePanel = button.__anitaHeroFacePanel;
         if (!facePanel || !facePanel.IsValid || !facePanel.IsValid()) return;
         var icon = facePanel.__anitaHeroFaceIcon || null;
         var label = facePanel.__anitaHeroFaceLabel || null;
-        if (label && label.IsValid && label.IsValid()) label.text = faceText;
+        if (label && label.IsValid && label.IsValid()) label.text = display.faceText;
         if (icon && icon.IsValid && icon.IsValid()) {
           icon.SetHasClass("Visible", false);
-          try {
-            icon.style.backgroundImage = "none";
-          } catch (e0) {}
+          try { icon.style.backgroundImage = "none"; } catch (e0) {}
         }
       }
 
@@ -7606,7 +8218,7 @@
             selectedHeroes.indexOf(heroId) >= 0;
         option.SetHasClass("Selected", selected);
         if (option.__anitaHeroCheckLabel)
-          option.__anitaHeroCheckLabel.text = selected ? "✓" : "";
+          option.__anitaHeroCheckLabel.text = selected ? "\u2713" : "";
       }
 
       function syncHeroMenuState(menu, row) {
@@ -7686,15 +8298,7 @@
           nextMode = HP_HERO_SCOPE_SELECTED;
           row.__anitaLastHeroDropDownSelection = heroId;
         }
-        HPPresetHeroSelection.setRowScope(config, row, nextMode, current);
-        row.token = AnitaRenderer.buildPresetCodeToken(
-          config,
-          row.values || {},
-          row.name || "",
-          row.payloadValues,
-          row.heroes,
-          row.heroMode,
-        );
+        HPPresetBuilderActions.setRowHeroScope(config, row, nextMode, current);
         renderHeroPickerState(
           button,
           row,
@@ -7750,6 +8354,12 @@
             closeHeroMenu(button);
             return;
           }
+          if (AnitaRenderer.activeConditionalPopupClose) {
+            try {
+              AnitaRenderer.activeConditionalPopupClose();
+            } catch (conditionalErr) {}
+            AnitaRenderer.activeConditionalPopupClose = null;
+          }
           if (AnitaRenderer.activeHeroMenuClose) {
             try {
               AnitaRenderer.activeHeroMenuClose();
@@ -7772,7 +8382,7 @@
           renderHeroMenu(menu, button, row, button.__anitaHeroSummaryLabel);
           positionHeroMenu(menu, button, host);
           try {
-            $.Schedule(0.03, function () {
+            AnitaLifetime.defer(0.03, function () {
               if (button.__anitaHeroMenu === menu) {
                 positionHeroMenu(menu, button, host);
                 settleHeroMenuIcons(menu);
@@ -7793,7 +8403,7 @@
           true,
           2.5,
         );
-        AnitaRenderer.openExternalUrl(HP_PRESET_BUILDER_URL);
+        AnitaRenderer.openExternalUrl(model.builderUrl);
       });
 
       bundleBtn.SetPanelEvent("onactivate", function () {
@@ -7805,7 +8415,7 @@
             ".",
         );
         bundleLbl.text = "COPIED";
-        $.Schedule(1.25, function () {
+        AnitaLifetime.defer(1.25, function () {
           if (bundleLbl && bundleLbl.IsValid && bundleLbl.IsValid())
             bundleLbl.text = "COPY ALL";
         });
@@ -7892,7 +8502,7 @@
                 inputPanel && inputPanel.IsValid && inputPanel.IsValid()
                   ? inputPanel.text
                   : presetRow.name;
-              AnitaRenderer.setPresetRowName(config, presetRow, nextName);
+              HPPresetBuilderActions.setPresetRowName(config, presetRow, nextName);
               config.__anitaEditingPresetNameKey = "";
               AnitaRenderer.renderModSettings(config);
             };
@@ -7900,7 +8510,7 @@
           renameInput.SetPanelEvent("ontextentrysubmit", commitRename);
           renameInput.SetPanelEvent("onblur", commitRename);
           try {
-            $.Schedule(0.01, function () {
+            AnitaLifetime.defer(0.01, function () {
               if (renameInput && renameInput.IsValid && renameInput.IsValid())
                 renameInput.SetFocus();
             });
@@ -7952,7 +8562,7 @@
 
         var priorityBtns = $.CreatePanel("Panel", rowPanel, "");
         priorityBtns.AddClass("AnitaPresetPriorityBtns");
-        var canPrioritize = AnitaRenderer.isPresetBundleRow(row);
+        var canPrioritize = HPPresetBuilderModel.isPresetBundleRow(row);
         var canDeleteRow = canPrioritize && row.key !== "current";
         var priorityUpBtn = $.CreatePanel("Button", priorityBtns, "");
         priorityUpBtn.AddClass("AnitaPresetPriorityBtn");
@@ -7961,7 +8571,7 @@
         priorityUpBtn.hittest = canPrioritize && r > 0;
         priorityUpBtn.hittestchildren = false;
         var priorityUpLbl = $.CreatePanel("Label", priorityUpBtn, "");
-        priorityUpLbl.text = "▲";
+        priorityUpLbl.text = "\u25B2";
         var priorityDownBtn = $.CreatePanel("Button", priorityBtns, "");
         priorityDownBtn.AddClass("AnitaPresetPriorityBtn");
         priorityDownBtn.AddClass("AnitaPresetPriorityDownBtn");
@@ -7972,7 +8582,7 @@
         priorityDownBtn.hittest = canPrioritize && r < bundlePresetCount - 1;
         priorityDownBtn.hittestchildren = false;
         var priorityDownLbl = $.CreatePanel("Label", priorityDownBtn, "");
-        priorityDownLbl.text = "▼";
+        priorityDownLbl.text = "\u25BC";
         if (canPrioritize) {
           attachPresetTooltip(priorityUpBtn, "Move preset up.");
           attachPresetTooltip(priorityDownBtn, "Move preset down.");
@@ -7983,7 +8593,7 @@
           (function (presetRow) {
             return function () {
               if (
-                AnitaRenderer.movePresetRowPriority(config, rows, presetRow, -1)
+                HPPresetBuilderActions.movePresetRowPriority(config, rows, presetRow, -1)
               ) {
                 AnitaRenderer.renderModSettings(config);
               }
@@ -7995,7 +8605,7 @@
           (function (presetRow) {
             return function () {
               if (
-                AnitaRenderer.movePresetRowPriority(config, rows, presetRow, 1)
+                HPPresetBuilderActions.movePresetRowPriority(config, rows, presetRow, 1)
               ) {
                 AnitaRenderer.renderModSettings(config);
               }
@@ -8025,7 +8635,7 @@
           deleteIcon.hittest = false;
           attachPresetTooltip(
             deleteBtn,
-            AnitaRenderer.isUserPresetRow(row)
+            HPPresetBuilderModel.isUserPresetRow(row)
               ? "Delete this saved preset."
               : "Remove this preset from the in-game list.",
           );
@@ -8033,7 +8643,7 @@
             "onactivate",
             (function (presetRow) {
               return function () {
-                if (AnitaRenderer.removePresetRow(config, presetRow)) {
+                if (HPPresetBuilderActions.removePresetRow(config, presetRow)) {
                   AnitaRenderer.renderModSettings(config);
                 }
               };
@@ -8057,7 +8667,7 @@
               config.__anitaSelectedPresetKey = presetRow.key;
               copyPreset(presetRow, status, "Copied " + presetRow.name + ".");
               buttonLabel.text = "COPIED";
-              $.Schedule(1.25, function () {
+              AnitaLifetime.defer(1.25, function () {
                 if (buttonLabel && buttonLabel.IsValid && buttonLabel.IsValid())
                   buttonLabel.text = "COPY";
               });
@@ -8153,6 +8763,12 @@
           } catch (popupErr) {}
           this.activeImportPopupClose = null;
         }
+        if (this.activeConditionalPopupClose) {
+          try {
+            this.activeConditionalPopupClose();
+          } catch (conditionalErr) {}
+          this.activeConditionalPopupClose = null;
+        }
         $.DispatchEvent("DropInputFocus", this.mainWindow);
 
         let root = $.GetContextPanel();
@@ -8193,8 +8809,120 @@
       }
     },
 
+    releaseSettingsShell: function () {
+      var state = this.settingsShell;
+      if (state && state.config && Array.isArray(state.config.elements)) {
+        for (var i = 0; i < state.config.elements.length; i++) {
+          state.config.elements[i].__anitaRowPanel = null;
+          state.config.elements[i].__anitaConditionalMarker = null;
+          state.config.elements[i].__anitaConditionalEligible = false;
+        }
+      }
+      if (state && state.config) state.config.__anitaPresetNotice = null;
+      this.settingsShell = null;
+    },
+
+    canReuseSettingsShell: function (config) {
+      var state = this.settingsShell;
+      return !!(
+        state &&
+        state.config === config &&
+        this.isPanelValid(state.container) &&
+        this.isPanelValid(state.treeList) &&
+        this.isPanelValid(state.detailPanel)
+      );
+    },
+
+    renderCategoryTree: function (config, state, activeCategory) {
+      var categoryCache = this.ensureCategoryCache(config);
+      if (state.categoryCache !== categoryCache) {
+        state.treeList.RemoveAndDeleteChildren();
+        state.categoryEntries = [];
+        state.categoryCache = categoryCache;
+        var groupedCategories = categoryCache.groupedCategories;
+        for (var mainCat in groupedCategories) {
+          if (!Object.prototype.hasOwnProperty.call(groupedCategories, mainCat))
+            continue;
+          var subCats = groupedCategories[mainCat];
+          var mainBtn = $.CreatePanel("Button", state.treeList, "");
+          mainBtn.AddClass("AnitaMainCategoryBtn");
+          if (mainCat === "PRESETS")
+            mainBtn.AddClass("AnitaPresetMainCategoryBtn");
+          var mainLabel = $.CreatePanel("Label", mainBtn, "");
+          mainLabel.AddClass("AnitaMainCategoryLabel");
+          mainLabel.text = mainCat;
+          mainBtn.SetPanelEvent(
+            "onactivate",
+            (function (nextCategory) {
+              return function () {
+                if (config.__anitaActiveCategory === nextCategory) return;
+                config.__anitaActiveCategory = nextCategory;
+                AnitaRenderer.renderModSettings(config);
+              };
+            })(subCats[0].full),
+          );
+          var entry = { button: mainBtn, subcategories: [] };
+          for (var i = 0; i < subCats.length; i++) {
+            var subData = subCats[i];
+            var subBtn = $.CreatePanel("Button", state.treeList, "");
+            subBtn.AddClass("AnitaSubCategoryBtn");
+            if (mainCat === "PRESETS")
+              subBtn.AddClass("AnitaPresetSubCategoryBtn");
+            var subLabel = $.CreatePanel("Label", subBtn, "");
+            subLabel.AddClass("AnitaSubCategoryLabel");
+            subLabel.text = subData.sub;
+            var subCount = $.CreatePanel("Label", subBtn, "");
+            subCount.AddClass("AnitaSubCategoryCount");
+            subCount.text = String(subData.count || 0);
+            subBtn.SetPanelEvent(
+              "onactivate",
+              (function (nextCategory) {
+                return function () {
+                  if (config.__anitaActiveCategory === nextCategory) return;
+                  config.__anitaActiveCategory = nextCategory;
+                  AnitaRenderer.renderModSettings(config);
+                };
+              })(subData.full),
+            );
+            entry.subcategories.push({
+              button: subBtn,
+              category: subData.full,
+            });
+          }
+          state.categoryEntries.push(entry);
+        }
+      }
+      for (var entryIndex = 0; entryIndex < state.categoryEntries.length; entryIndex++) {
+        var categoryEntry = state.categoryEntries[entryIndex];
+        var isMainActive = false;
+        for (var subIndex = 0; subIndex < categoryEntry.subcategories.length; subIndex++) {
+          if (categoryEntry.subcategories[subIndex].category === activeCategory) {
+            isMainActive = true;
+            break;
+          }
+        }
+        categoryEntry.button.SetHasClass("Active", isMainActive);
+        for (var visibleIndex = 0; visibleIndex < categoryEntry.subcategories.length; visibleIndex++) {
+          var subcategory = categoryEntry.subcategories[visibleIndex];
+          subcategory.button.SetHasClass(
+            "Active",
+            subcategory.category === activeCategory,
+          );
+          subcategory.button.style.visibility = isMainActive
+            ? "visible"
+            : "collapse";
+        }
+      }
+    },
+
     renderModSettings: function (config) {
       this.hideLocalTooltip();
+      if (this.activeColorPickerClose) {
+        try {
+          this.activeColorPickerClose();
+        } catch (colorPickerErr) {}
+        this.activeColorPickerClose = null;
+      }
       if (this.activeHeroMenuClose) {
         try {
           this.activeHeroMenuClose();
@@ -8207,194 +8935,157 @@
         } catch (popupErr) {}
         this.activeImportPopupClose = null;
       }
-      this.contentArea.RemoveAndDeleteChildren();
-
-      this.contentArea.canfocus = true;
-      this.contentArea.SetPanelEvent("onactivate", () =>
-        this.contentArea.SetFocus(),
-      );
-
-      const container = $.CreatePanel("Panel", this.contentArea, "");
-      container.AddClass("ModContainer");
-      container.canfocus = true;
-
-      const bgShield = $.CreatePanel("Panel", container, "BackgroundShield");
-      bgShield.style.width = "100%";
-      bgShield.style.height = "100%";
-      bgShield.style.ignoreParentFlow = "true";
-      bgShield.style.zIndex = "-1";
-      bgShield.hittest = true;
-
-      const syncAll = () => {
-        var now = 0;
+      if (this.activeConditionalPopupClose) {
         try {
-          now = new Date().getTime();
-        } catch (eNow) {}
-        if (
-          config.__anitaLastRenderSyncAt &&
-          now - config.__anitaLastRenderSyncAt < 250
-        )
-          return;
-        config.__anitaLastRenderSyncAt = now;
-        AnitaCore.emitCurrentValues(config, {
-          update_source: "ui_resync",
-          skip_bridge_persist: true,
-          force_emit: true,
-          bulk_emit: true,
-        });
-      };
-
-      bgShield.SetPanelEvent("onmouseover", () => {
-        syncAll();
-      });
-
-      bgShield.SetPanelEvent("onactivate", () => {
-        container.SetFocus();
-        syncAll();
-      });
-
-      const headerRow = $.CreatePanel("Panel", container, "");
-      headerRow.AddClass("ModHeaderRow");
-
-      const title = $.CreatePanel("Label", headerRow, "");
-      title.text = config.title;
-      title.AddClass("SectionHeader");
-
-      if (String(config.title || "") === "HP Colors") {
-        var donateBtn = $.CreatePanel("Button", headerRow, "AnitaDonateBtn");
-        donateBtn.AddClass("AnitaDonateBtn");
-        donateBtn.hittestchildren = false;
-        var donateIcon = $.CreatePanel("Panel", donateBtn, "");
-        donateIcon.AddClass("AnitaDonateIcon");
-        donateIcon.hittest = false;
-        var donateLabel = $.CreatePanel("Label", donateBtn, "");
-        donateLabel.text = "Donate";
-        donateBtn.SetPanelEvent("onactivate", function () {
-          AnitaRenderer.openExternalUrl(HP_DONATION_URL);
-        });
-        this.attachLocalTooltip(donateBtn, "Support HP Colors on Ko-fi.");
+          this.activeConditionalPopupClose();
+        } catch (conditionalErr) {}
+        this.activeConditionalPopupClose = null;
       }
-
-      const line = $.CreatePanel("Panel", container, "");
-      line.AddClass("SectionHeaderLine");
-
-      if (config.description) {
-        const desc = $.CreatePanel("Label", container, "");
-        desc.text = config.description;
-        desc.AddClass("ModDescription");
-      }
-
       const activeCategory = this.ensureActiveCategory(config);
       if (this.isPresetBuilderCategory(activeCategory)) {
         this.dismissPresetNotice(config);
       }
-
-      if (this.shouldShowPresetNotice(config)) {
-        const notice = $.CreatePanel("Panel", container, "");
-        notice.AddClass("AnitaPresetNotice");
-        config.__anitaPresetNotice = notice;
-
-        const noticeText = $.CreatePanel("Label", notice, "");
-        noticeText.AddClass("AnitaPresetNoticeText");
-        noticeText.text =
-          "Settings reset after restart. Build a preset VPK to keep them.";
-
-        const noticeBtn = $.CreatePanel("Button", notice, "");
-        noticeBtn.AddClass("AnitaPresetNoticeBtn");
-        const noticeBtnLabel = $.CreatePanel("Label", noticeBtn, "");
-        noticeBtnLabel.text = "PRESETS";
-        noticeBtn.SetPanelEvent("onactivate", () => {
-          AnitaRenderer.selectPresetBuilder(config);
-        });
-      } else {
-        config.__anitaPresetNotice = null;
+      if (Array.isArray(config.elements)) {
+        for (var elementIndex = 0; elementIndex < config.elements.length; elementIndex++) {
+          config.elements[elementIndex].__anitaRowPanel = null;
+          config.elements[elementIndex].__anitaConditionalMarker = null;
+        }
       }
 
-      const shell = $.CreatePanel("Panel", container, "");
-      shell.AddClass("AnitaSettingsShell");
-
-      const treePanel = $.CreatePanel("Panel", shell, "");
-      treePanel.AddClass("AnitaTreePanel");
-
-      const treeHeader = $.CreatePanel("Label", treePanel, "");
-      treeHeader.text = "Settings";
-      treeHeader.AddClass("AnitaTreeHeader");
-
-      const treeList = $.CreatePanel("Panel", treePanel, "");
-      treeList.AddClass("AnitaTreeList");
-
-      const detailPanel = $.CreatePanel("Panel", shell, "");
-      detailPanel.AddClass("AnitaDetailPanel");
-
-      const categoryCache = this.ensureCategoryCache(config);
-      const groupedCategories = categoryCache.groupedCategories;
-
-      // Render Tree
-      for (var mainCat in groupedCategories) {
-        if (!Object.prototype.hasOwnProperty.call(groupedCategories, mainCat))
-          continue;
-
-        var mainBtn = $.CreatePanel("Button", treeList, "");
-        mainBtn.AddClass("AnitaMainCategoryBtn");
-        if (mainCat === "PRESETS")
-          mainBtn.AddClass("AnitaPresetMainCategoryBtn");
-
-        var mainLabel = $.CreatePanel("Label", mainBtn, "");
-        mainLabel.AddClass("AnitaMainCategoryLabel");
-        mainLabel.text = mainCat;
-
-        var subCats = groupedCategories[mainCat];
-        var isMainActive = false;
-        for (var i = 0; i < subCats.length; i++) {
-          if (subCats[i].full === activeCategory) {
-            isMainActive = true;
-            break;
-          }
+      var showPresetNotice = this.shouldShowPresetNotice(config);
+      var reuseShell = this.canReuseSettingsShell(config);
+      if (
+        reuseShell &&
+        showPresetNotice &&
+        !this.settingsShell.notice
+      ) {
+        reuseShell = false;
+      }
+      var state = this.settingsShell;
+      var detailPanel = null;
+      if (reuseShell) {
+        detailPanel = state.detailPanel;
+        detailPanel.RemoveAndDeleteChildren();
+        if (state.notice) {
+          state.notice.style.visibility = showPresetNotice
+            ? "visible"
+            : "collapse";
         }
-        mainBtn.SetHasClass("Active", isMainActive);
-
-        // Click main category to open/activate its first subcategory
-        mainBtn.SetPanelEvent(
-          "onactivate",
-          (function (firstSub) {
-            return function () {
-              if (config.__anitaActiveCategory !== firstSub) {
-                config.__anitaActiveCategory = firstSub;
-                AnitaRenderer.renderModSettings(config);
-              }
-            };
-          })(subCats[0].full),
+        config.__anitaPresetNotice = showPresetNotice ? state.notice : null;
+      } else {
+        this.releaseSettingsShell();
+        this.contentArea.RemoveAndDeleteChildren();
+        this.contentArea.canfocus = true;
+        this.contentArea.SetPanelEvent("onactivate", () =>
+          this.contentArea.SetFocus(),
         );
 
-        if (isMainActive) {
-          for (var s = 0; s < subCats.length; s++) {
-            var subData = subCats[s];
-            var subBtn = $.CreatePanel("Button", treeList, "");
-            subBtn.AddClass("AnitaSubCategoryBtn");
-            if (mainCat === "PRESETS")
-              subBtn.AddClass("AnitaPresetSubCategoryBtn");
-            subBtn.SetHasClass("Active", subData.full === activeCategory);
+        var container = $.CreatePanel("Panel", this.contentArea, "");
+        container.AddClass("ModContainer");
+        container.canfocus = true;
 
-            var subLabel = $.CreatePanel("Label", subBtn, "");
-            subLabel.AddClass("AnitaSubCategoryLabel");
-            subLabel.text = subData.sub;
+        var bgShield = $.CreatePanel("Panel", container, "BackgroundShield");
+        bgShield.style.width = "100%";
+        bgShield.style.height = "100%";
+        bgShield.style.ignoreParentFlow = "true";
+        bgShield.style.zIndex = "-1";
+        bgShield.hittest = true;
 
-            var subCount = $.CreatePanel("Label", subBtn, "");
-            subCount.AddClass("AnitaSubCategoryCount");
-            subCount.text = String(subData.count || 0);
+        var syncAll = function () {
+          var now = 0;
+          try {
+            now = new Date().getTime();
+          } catch (eNow) {}
+          if (
+            config.__anitaLastRenderSyncAt &&
+            now - config.__anitaLastRenderSyncAt < 250
+          )
+            return;
+          config.__anitaLastRenderSyncAt = now;
+          AnitaCore.emitCurrentValues(config, {
+            update_source: "ui_resync",
+            skip_bridge_persist: true,
+            force_emit: true,
+            bulk_emit: true,
+          });
+        };
+        bgShield.SetPanelEvent("onmouseover", syncAll);
+        bgShield.SetPanelEvent("onactivate", function () {
+          container.SetFocus();
+          syncAll();
+        });
 
-            subBtn.SetPanelEvent(
-              "onactivate",
-              (function (nextCategory) {
-                return function () {
-                  config.__anitaActiveCategory = nextCategory;
-                  AnitaRenderer.renderModSettings(config);
-                };
-              })(subData.full),
-            );
-          }
+        var headerRow = $.CreatePanel("Panel", container, "");
+        headerRow.AddClass("ModHeaderRow");
+        var title = $.CreatePanel("Label", headerRow, "");
+        title.text = config.title;
+        title.AddClass("SectionHeader");
+        if (String(config.title || "") === "HP Colors") {
+          var donateBtn = $.CreatePanel("Button", headerRow, "AnitaDonateBtn");
+          donateBtn.AddClass("AnitaDonateBtn");
+          donateBtn.hittestchildren = false;
+          var donateIcon = $.CreatePanel("Panel", donateBtn, "");
+          donateIcon.AddClass("AnitaDonateIcon");
+          donateIcon.hittest = false;
+          var donateLabel = $.CreatePanel("Label", donateBtn, "");
+          donateLabel.text = "Donate";
+          donateBtn.SetPanelEvent("onactivate", function () {
+            AnitaRenderer.openExternalUrl(HP_DONATION_URL);
+          });
+          this.attachLocalTooltip(donateBtn, "Support HP Colors on Ko-fi.");
         }
+        var line = $.CreatePanel("Panel", container, "");
+        line.AddClass("SectionHeaderLine");
+        if (config.description) {
+          var desc = $.CreatePanel("Label", container, "");
+          desc.text = config.description;
+          desc.AddClass("ModDescription");
+        }
+
+        var notice = null;
+        if (showPresetNotice) {
+          notice = $.CreatePanel("Panel", container, "");
+          notice.AddClass("AnitaPresetNotice");
+          var noticeText = $.CreatePanel("Label", notice, "");
+          noticeText.AddClass("AnitaPresetNoticeText");
+          noticeText.text =
+            "Settings reset after restart. Build a preset VPK to keep them.";
+          var noticeBtn = $.CreatePanel("Button", notice, "");
+          noticeBtn.AddClass("AnitaPresetNoticeBtn");
+          var noticeBtnLabel = $.CreatePanel("Label", noticeBtn, "");
+          noticeBtnLabel.text = "PRESETS";
+          noticeBtn.SetPanelEvent("onactivate", function () {
+            AnitaRenderer.selectPresetBuilder(config);
+          });
+        }
+        config.__anitaPresetNotice = notice;
+
+        var shell = $.CreatePanel("Panel", container, "");
+        shell.AddClass("AnitaSettingsShell");
+        var treePanel = $.CreatePanel("Panel", shell, "");
+        treePanel.AddClass("AnitaTreePanel");
+        var treeHeader = $.CreatePanel("Label", treePanel, "");
+        treeHeader.text = "Settings";
+        treeHeader.AddClass("AnitaTreeHeader");
+        var treeList = $.CreatePanel("Panel", treePanel, "");
+        treeList.AddClass("AnitaTreeList");
+        detailPanel = $.CreatePanel("Panel", shell, "");
+        detailPanel.AddClass("AnitaDetailPanel");
+        state = {
+          config: config,
+          container: container,
+          notice: notice,
+          treeList: treeList,
+          detailPanel: detailPanel,
+          categoryCache: null,
+          categoryEntries: [],
+        };
+        this.settingsShell = state;
       }
+
+      this.renderCategoryTree(config, state, activeCategory);
+
+      // The shell and category buttons stay alive; only the detail projection changes.
 
       const detailHeaderRow = $.CreatePanel("Panel", detailPanel, "");
       detailHeaderRow.AddClass("AnitaDetailHeaderRow");
@@ -8411,7 +9102,7 @@
         var previous = label.text;
         label.text = text;
         button.AddClass("AnitaHeaderActionBtnSuccess");
-        $.Schedule(1.25, function () {
+        AnitaLifetime.defer(1.25, function () {
           if (label && label.IsValid && label.IsValid()) label.text = previous;
           if (button && button.IsValid && button.IsValid())
             button.RemoveClass("AnitaHeaderActionBtnSuccess");
@@ -8446,9 +9137,11 @@
           } catch (closeErr) {}
         }
         var presetBuilderState =
-          AnitaRenderer.capturePresetBuilderState(config);
+          HPPresetBuilderModel.capturePresetBuilderState(config);
         AnitaPersistence.applyResolvedValues(config, {});
-        AnitaRenderer.restorePresetBuilderState(config, presetBuilderState);
+        if (AnitaPersistence.isHpColorsConfig(config))
+          HPSignatureConditionalController.clearRules(config, null);
+        HPPresetBuilderModel.restorePresetBuilderState(config, presetBuilderState);
         emitHeaderReset(button, label, "Reset");
       }
 
@@ -8473,6 +9166,8 @@
           if (element.currentValue !== nextValue) changed = true;
           element.currentValue = nextValue;
         }
+        if (AnitaPersistence.isHpColorsConfig(config))
+          HPSignatureConditionalController.clearRules(config, elements);
         if (
           !elements.length ||
           AnitaRenderer.isPresetBuilderCategory(activeCategory)
@@ -8517,73 +9212,46 @@
 
       const settingsList = $.CreatePanel("Panel", detailBody, "");
       settingsList.AddClass("AnitaSettingsList");
+      if (
+        this.isHpColorsConfig(config) &&
+        typeof settingsList.SetSendScrollPositionChangedEvents === "function"
+      ) {
+        settingsList.SetSendScrollPositionChangedEvents(true);
+        $.RegisterEventHandler(
+          "ScrollPositionChanged",
+          settingsList,
+          function () {
+            AnitaRenderer.positionActiveLocalTooltip();
+          },
+        );
+      }
 
       if (this.isPresetBuilderCategory(activeCategory)) {
         this.renderPresetBuilderPanel(settingsList, config);
       } else if (config.elements) {
-        config.elements.forEach((el) => {
-          el.__anitaRowPanel = null;
-        });
         this.getCategoryElements(config, activeCategory).forEach((el) => {
-          var row = null;
-          switch (el.type) {
-            case "toggle":
-              row = AnitaComponents.createToggle(
-                settingsList,
-                el,
-                config.title,
-              );
-              break;
-            case "stepper":
-              row = AnitaComponents.createStepper(
-                settingsList,
-                el,
-                config.title,
-              );
-              break;
-            case "slider":
-              row = AnitaComponents.createSlider(
-                settingsList,
-                el,
-                config.title,
-              );
-              break;
-            case "button":
-              row = AnitaComponents.createButton(
-                settingsList,
-                el,
-                config.title,
-              );
-              break;
-            case "cycler":
-              row = AnitaComponents.createCycler(
-                settingsList,
-                el,
-                config.title,
-              );
-              break;
-            case "positionpicker":
-              row = AnitaComponents.createPositionPicker(
-                settingsList,
-                el,
-                config.title,
-              );
-              break;
-            case "colorpicker":
-              row = AnitaComponents.createColorPicker(
-                settingsList,
-                el,
-                config.title,
-              );
-              break;
-          }
+          var row = AnitaComponents.createSettingRow(
+            settingsList,
+            el,
+            config.title,
+          );
           el.__anitaRowPanel = row || null;
+          el.__anitaConditionalMarker = null;
+          el.__anitaConditionalEligible = false;
+          if (
+            row &&
+            AnitaPersistence.isHpColorsConfig(config) &&
+            HPSignatureConditionalController.isEligible(el)
+          )
+            HPSignatureConditionalController.decorateRow(config, el, row);
         });
+        if (AnitaPersistence.isHpColorsConfig(config))
+          HPSignatureConditionalController.refreshMarkers(config);
         this.refreshConditionalVisibility(config);
       }
 
       // Footer: Reset / Import (only for mods with storageNamespace)
-      if (config.storageNamespace) {
+      if (!reuseShell && config.storageNamespace) {
         var footerWrap = $.CreatePanel("Panel", treePanel, "");
         footerWrap.AddClass("AnitaTreeFooter");
 
@@ -8603,7 +9271,7 @@
           var orig = lbl.text;
           lbl.text = msg;
           btn.AddClass("AnitaFooterBtnSuccess");
-          $.Schedule(durationSec, function () {
+          AnitaLifetime.defer(durationSec, function () {
             if (lbl && lbl.IsValid()) lbl.text = orig;
             if (btn && btn.IsValid()) btn.RemoveClass("AnitaFooterBtnSuccess");
           });
@@ -8631,6 +9299,12 @@
         }
 
         function openImportPopup() {
+          if (AnitaRenderer.activeConditionalPopupClose) {
+            try {
+              AnitaRenderer.activeConditionalPopupClose();
+            } catch (conditionalErr) {}
+            AnitaRenderer.activeConditionalPopupClose = null;
+          }
           if (
             importPopupPanel &&
             importPopupPanel.IsValid &&
@@ -8742,7 +9416,7 @@
             "ontextentrysubmit",
             applySaveCodeInput,
           );
-          $.Schedule(0.0, function () {
+          AnitaLifetime.defer(0.0, function () {
             if (
               importPopupInput &&
               importPopupInput.IsValid &&
@@ -8771,6 +9445,8 @@
             closeImportPopup();
           }
           AnitaPersistence.applyResolvedValues(config, {});
+          if (AnitaPersistence.isHpColorsConfig(config))
+            HPSignatureConditionalController.clearRules(config, null);
           emitResetAndRender(button, label, "Reset");
         }
 
@@ -8800,6 +9476,849 @@
     },
   };
 
+  const AnitaMouseRouter = {
+    installed: false,
+    callback: null,
+    modalOwner: null,
+    modalHandler: null,
+
+    isValidPanel: function (panel) {
+      try {
+        return !!(panel && panel.IsValid && panel.IsValid());
+      } catch (e) {}
+      return false;
+    },
+
+    install: function () {
+      if (this.installed) return true;
+      if (
+        typeof GameUI === "undefined" ||
+        !GameUI ||
+        typeof GameUI.SetMouseCallback !== "function"
+      )
+        return false;
+      var self = this;
+      this.callback = function (eventName, arg) {
+        if (!self.modalHandler) return false;
+        try {
+          return !!self.modalHandler(eventName, arg);
+        } catch (e) {}
+        return false;
+      };
+      try {
+        GameUI.SetMouseCallback(this.callback);
+        this.installed = true;
+        return true;
+      } catch (e) {}
+      this.callback = null;
+      return false;
+    },
+
+    uninstall: function () {
+      if (this.installed) {
+        try {
+          if (typeof GameUI !== "undefined" && GameUI.SetMouseCallback)
+            GameUI.SetMouseCallback(null);
+        } catch (e) {}
+      }
+      this.installed = false;
+      this.callback = null;
+      this.modalOwner = null;
+      this.modalHandler = null;
+    },
+
+    setModalHandler: function (owner, handler) {
+      this.modalOwner = owner;
+      this.modalHandler = typeof handler === "function" ? handler : null;
+      this.install();
+    },
+
+    clearModalHandler: function (owner) {
+      if (owner !== this.modalOwner) return false;
+      this.uninstall();
+      return true;
+    },
+  };
+
+  const HPSignatureConditionalController = {
+    rootPanel: null,
+    signaturePanel: null,
+    abilitiesPanel: null,
+    slotPanels: [null, null, null, null],
+    tiers: [-1, -1, -1, -1],
+    referencedSlots: [false, false, false, false],
+    maxTierSeenAtMs: [-1, -1, -1, -1],
+    maxTierRetired: [false, false, false, false],
+    generation: 0,
+    polling: false,
+    activeConfig: null,
+    popup: null,
+
+    cloneValue: function (value) {
+      if (Array.isArray(value)) {
+        var arrayCopy = [];
+        for (var i = 0; i < value.length; i++)
+          arrayCopy.push(this.cloneValue(value[i]));
+        return arrayCopy;
+      }
+      if (value && typeof value === "object") {
+        var objectCopy = {};
+        for (var key in value) {
+          if (Object.prototype.hasOwnProperty.call(value, key))
+            objectCopy[key] = this.cloneValue(value[key]);
+        }
+        return objectCopy;
+      }
+      return value;
+    },
+
+    isEligible: function (element) {
+      return !!(
+        element &&
+        element.id &&
+        element.type !== "button" &&
+        element.id !== "hp_precise_pips_enabled"
+      );
+    },
+
+    getOptions: function (config) {
+      return AnitaPersistence.getOverrideCodecOptions(config);
+    },
+
+    normalizeRules: function (config, rawRules) {
+      var structural = HPPresetCodeCodec.normalizeOverrides(
+        rawRules,
+        this.getOptions(config),
+      );
+      var out = {};
+      var elements = AnitaPersistence.getElements(config);
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        if (!this.isEligible(element) || !structural[element.id]) continue;
+        var rule = structural[element.id];
+        out[element.id] = {
+          slot: rule.slot,
+          minTier: rule.minTier,
+          value: AnitaPersistence.sanitizeValue(element, rule.value),
+        };
+      }
+      return out;
+    },
+
+    replaceRules: function (config, rawRules) {
+      if (!AnitaPersistence.isHpColorsConfig(config)) return {};
+      var next = this.normalizeRules(config, rawRules || {});
+      config.__hpSignatureConditionalRules = next;
+      this.activeConfig = config;
+      this.rebuildReferencedSlots(config);
+      this.refreshMarkers(config);
+      return next;
+    },
+
+    clearRules: function (config, elementsOrNull) {
+      if (!config) return {};
+      if (!elementsOrNull) return this.replaceRules(config, {});
+      var current = this.cloneValue(config.__hpSignatureConditionalRules || {});
+      for (var i = 0; i < elementsOrNull.length; i++) {
+        var element = elementsOrNull[i];
+        if (element && element.id) delete current[element.id];
+      }
+      return this.replaceRules(config, current);
+    },
+
+    rebuildReferencedSlots: function (config) {
+      this.referencedSlots = [false, false, false, false];
+      var rules = config.__hpSignatureConditionalRules || {};
+      for (var id in rules) {
+        if (!Object.prototype.hasOwnProperty.call(rules, id)) continue;
+        var slot = Number(rules[id].slot);
+        if (slot >= 1 && slot <= 4) this.referencedSlots[slot - 1] = true;
+      }
+      for (var i = 0; i < 4; i++) {
+        if (this.referencedSlots[i]) continue;
+        this.maxTierSeenAtMs[i] = -1;
+        this.maxTierRetired[i] = false;
+        this.tiers[i] = -1;
+      }
+      this.generation += 1;
+      this.polling = false;
+      if (this.hasRules(config) && this.hasPendingTierScans())
+        this.schedulePoll(config, 0);
+    },
+
+    hasRules: function (config) {
+      var rules = config && config.__hpSignatureConditionalRules;
+      if (!rules) return false;
+      for (var id in rules)
+        if (Object.prototype.hasOwnProperty.call(rules, id)) return true;
+      return false;
+    },
+
+    hasPendingTierScans: function () {
+      for (var i = 0; i < 4; i++) {
+        if (this.referencedSlots[i] && !this.maxTierRetired[i]) return true;
+      }
+      return false;
+    },
+
+    resetMaxTierScanState: function (config, resumePolling) {
+      this.maxTierSeenAtMs = [-1, -1, -1, -1];
+      this.maxTierRetired = [false, false, false, false];
+      this.tiers = [-1, -1, -1, -1];
+      this.invalidatePanels();
+      this.generation += 1;
+      this.polling = false;
+      if (
+        resumePolling &&
+        config &&
+        this.activeConfig === config &&
+        this.hasRules(config) &&
+        this.hasPendingTierScans()
+      )
+        this.schedulePoll(config, 0);
+    },
+
+    panelParent: function (panel) {
+      try {
+        return panel && panel.GetParent ? panel.GetParent() : null;
+      } catch (e) {}
+      return null;
+    },
+
+    isDescendantOf: function (panel, ancestor) {
+      var current = panel;
+      while (hpHeroIsValidPanel(current)) {
+        if (current === ancestor) return true;
+        current = this.panelParent(current);
+      }
+      return false;
+    },
+
+    hasAllSlots: function () {
+      for (var i = 0; i < 4; i++) {
+        if (
+          !hpHeroIsValidPanel(this.slotPanels[i]) ||
+          this.panelParent(this.slotPanels[i]) !== this.abilitiesPanel
+        )
+          return false;
+      }
+      return true;
+    },
+
+    cacheIsCurrent: function (root) {
+      return !!(
+        root === this.rootPanel &&
+        hpHeroIsValidPanel(this.signaturePanel) &&
+        hpHeroIsValidPanel(this.abilitiesPanel) &&
+        this.isDescendantOf(this.signaturePanel, root) &&
+        this.isDescendantOf(this.abilitiesPanel, this.signaturePanel) &&
+        this.hasAllSlots()
+      );
+    },
+
+    invalidatePanels: function () {
+      this.rootPanel = null;
+      this.signaturePanel = null;
+      this.abilitiesPanel = null;
+      this.slotPanels = [null, null, null, null];
+    },
+
+    resolvePanels: function () {
+      var root = getRootPanelForPresetStore();
+      if (!hpHeroIsValidPanel(root)) return false;
+      if (this.cacheIsCurrent(root)) return true;
+      this.invalidatePanels();
+      var signaturePanel = hpHeroFindChild(root, "hud_signature");
+      if (!hpHeroIsValidPanel(signaturePanel)) return false;
+      var anchor = hpHeroFindChild(signaturePanel, "slot_signature_1");
+      if (!hpHeroIsValidPanel(anchor)) return false;
+      var abilitiesPanel = this.panelParent(anchor);
+      if (!hpHeroIsValidPanel(abilitiesPanel)) return false;
+      this.rootPanel = root;
+      this.signaturePanel = signaturePanel;
+      this.abilitiesPanel = abilitiesPanel;
+      this.slotPanels = [null, null, null, null];
+      try {
+        var count = abilitiesPanel.GetChildCount();
+        for (var index = 0; index < count; index++) {
+          var child = abilitiesPanel.GetChild(index);
+          var id = hpHeroPanelId(child);
+          for (var slot = 1; slot <= 4; slot++) {
+            if (id === "slot_signature_" + slot) {
+              this.slotPanels[slot - 1] = child;
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        this.invalidatePanels();
+        return false;
+      }
+      if (!this.hasAllSlots()) {
+        this.invalidatePanels();
+        return false;
+      }
+      return true;
+    },
+
+    readTier: function (panel) {
+      for (var tier = 3; tier >= 0; tier--) {
+        if (hpHeroHasClass(panel, "Tier" + tier)) return tier;
+      }
+      return -1;
+    },
+
+    refreshTiers: function () {
+      var changed = false;
+      var hasPendingScans = this.hasPendingTierScans();
+      var resolved = hasPendingScans ? this.resolvePanels() : false;
+      var now = hasPendingScans
+        ? Date.now
+          ? Date.now()
+          : +new Date()
+        : 0;
+      for (var i = 0; i < 4; i++) {
+        var next = -1;
+        if (this.referencedSlots[i]) {
+          if (this.maxTierRetired[i]) {
+            next = 3;
+          } else if (resolved) {
+            next = this.readTier(this.slotPanels[i]);
+            if (next === 3) {
+              var seenAt = this.maxTierSeenAtMs[i];
+              if (seenAt < 0 || now < seenAt) {
+                this.maxTierSeenAtMs[i] = now;
+              } else if (
+                now - seenAt >= HP_SIGNATURE_MAX_TIER_CONFIRM_MS
+              ) {
+                this.maxTierSeenAtMs[i] = -1;
+                this.maxTierRetired[i] = true;
+              }
+            } else {
+              this.maxTierSeenAtMs[i] = -1;
+            }
+          } else {
+            this.maxTierSeenAtMs[i] = -1;
+          }
+        } else {
+          this.maxTierSeenAtMs[i] = -1;
+        }
+        if (next !== this.tiers[i]) changed = true;
+        this.tiers[i] = next;
+      }
+      return changed;
+    },
+
+    valuesEqual: function (left, right) {
+      if (left === right) return true;
+      try {
+        return JSON.stringify(left) === JSON.stringify(right);
+      } catch (e) {}
+      return false;
+    },
+
+    getEffectiveValues: function (config) {
+      if (!AnitaPersistence.isHpColorsConfig(config)) return {};
+      this.activeConfig = config;
+      this.refreshTiers();
+      var rules = config.__hpSignatureConditionalRules || {};
+      var out = {};
+      var elements = AnitaPersistence.getElements(config);
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        var rule = element && rules[element.id];
+        if (!rule || this.tiers[rule.slot - 1] < rule.minTier) continue;
+        var base = AnitaPersistence.sanitizeValue(
+          element,
+          element.currentValue !== undefined
+            ? element.currentValue
+            : element.defaultValue,
+        );
+        if (!this.valuesEqual(base, rule.value)) out[element.id] = rule.value;
+      }
+      return out;
+    },
+
+    refreshMarkers: function (config) {
+      if (!config || !Array.isArray(config.elements)) return;
+      var effective = this.getEffectiveValues(config);
+      var rules = config.__hpSignatureConditionalRules || {};
+      for (var i = 0; i < config.elements.length; i++) {
+        var element = config.elements[i];
+        var row = element && element.__anitaRowPanel;
+        var marker = element && element.__anitaConditionalMarker;
+        if (!element || !row || !marker || !hpHeroIsValidPanel(row)) continue;
+        var rule = rules[element.id];
+        var configured = !!rule;
+        var active =
+          configured &&
+          Object.prototype.hasOwnProperty.call(effective, element.id);
+        marker.SetHasClass("Configured", configured);
+        marker.SetHasClass("Active", active);
+        row.SetHasClass("ConditionalActive", active);
+      }
+    },
+
+
+    decorateRow: function (config, element, row) {
+      if (
+        !AnitaPersistence.isHpColorsConfig(config) ||
+        !this.isEligible(element) ||
+        !row
+      )
+        return false;
+      element.__anitaConditionalEligible = true;
+      row.AddClass("AnitaConditionalEligible");
+      var marker = $.CreatePanel("Button", row, "");
+      marker.AddClass("AnitaConditionalMarker");
+      marker.style.ignoreParentFlow = true;
+      marker.style.align = "right center";
+      marker.style.zIndex = "8";
+      marker.hittest = true;
+      marker.hittestchildren = false;
+      var markerLabel = $.CreatePanel("Label", marker, "");
+      markerLabel.text = "*";
+      markerLabel.hittest = false;
+      markerLabel.AddClass("AnitaConditionalMarkerGlyph");
+      AnitaRenderer.attachLocalTooltip(
+        marker,
+        "Configure signature condition",
+      );
+      marker.SetPanelEvent("onactivate", () =>
+        this.openEditor(config, element),
+      );
+      element.__anitaConditionalMarker = marker;
+      return true;
+    },
+
+    closePopup: function () {
+      var popup = this.popup;
+      if (AnitaRenderer.activeColorPickerClose) {
+        try {
+          AnitaRenderer.activeColorPickerClose();
+        } catch (eColor) {}
+      }
+      this.popup = null;
+      if (
+        popup &&
+        popup.close &&
+        AnitaRenderer.activeConditionalPopupClose === popup.close
+      )
+        AnitaRenderer.activeConditionalPopupClose = null;
+      if (popup && popup.panel && popup.panel.DeleteAsync) {
+        try {
+          popup.panel.DeleteAsync(0);
+        } catch (e) {}
+      }
+    },
+
+    ensurePopupHost: function () {
+      var root = AnitaRenderer.mainWindow && AnitaRenderer.mainWindow.GetParent
+        ? AnitaRenderer.mainWindow.GetParent()
+        : $.GetContextPanel();
+      if (!AnitaMouseRouter.isValidPanel(root)) root = $.GetContextPanel();
+      if (
+        !AnitaMouseRouter.isValidPanel(AnitaRenderer.popupHost) ||
+        AnitaRenderer.popupHost.GetParent() !== root
+      ) {
+        if (AnitaMouseRouter.isValidPanel(AnitaRenderer.popupHost))
+          AnitaRenderer.popupHost.DeleteAsync(0);
+        AnitaRenderer.popupHost = $.CreatePanel("Panel", root, "AnitaUI_PopupHost");
+        AnitaRenderer.popupHost.AddClass("AnitaPopupHost");
+      }
+      AnitaRenderer.popupHost.style.ignoreParentFlow = true;
+      AnitaRenderer.popupHost.style.flowChildren = "none";
+      AnitaRenderer.popupHost.style.zIndex = "10050";
+      AnitaRenderer.popupHost.hittest = false;
+      AnitaRenderer.popupHost.hittestchildren = true;
+      return AnitaRenderer.popupHost;
+    },
+
+    openEditor: function (config, element) {
+      if (!this.isEligible(element)) return false;
+      if (AnitaRenderer.activeColorPickerClose) {
+        try {
+          AnitaRenderer.activeColorPickerClose();
+        } catch (eColor) {}
+      }
+      if (AnitaRenderer.activeHeroMenuClose) {
+        try {
+          AnitaRenderer.activeHeroMenuClose();
+        } catch (eHero) {}
+      }
+      if (AnitaRenderer.activeImportPopupClose) {
+        try {
+          AnitaRenderer.activeImportPopupClose();
+        } catch (eImport) {}
+      }
+      if (AnitaRenderer.activeConditionalPopupClose)
+        AnitaRenderer.activeConditionalPopupClose();
+
+      var host = this.ensurePopupHost();
+      var panel = $.CreatePanel("Panel", host, "");
+      panel.AddClass("AnitaConditionalPopup");
+      panel.style.align = "center center";
+      panel.style.ignoreParentFlow = true;
+      panel.style.flowChildren = "down";
+      panel.hittest = true;
+      panel.hittestchildren = true;
+
+      var heading = $.CreatePanel("Label", panel, "");
+      heading.AddClass("AnitaConditionalPopupTitle");
+      heading.text = "SIGNATURE CONDITION";
+      var settingLabel = $.CreatePanel("Label", panel, "");
+      settingLabel.AddClass("AnitaConditionalPopupSetting");
+      settingLabel.text = String(element.label || element.id);
+
+      var existing = (config.__hpSignatureConditionalRules || {})[element.id];
+      var existingTier = existing ? Number(existing.minTier) : 1;
+      var state = {
+        panel: panel,
+        config: config,
+        element: element,
+        enabled: !!existing,
+        slot: existing ? existing.slot : 1,
+        minTier: isFinite(existingTier)
+          ? Math.max(1, Math.min(3, Math.round(existingTier)))
+          : 1,
+        draft: null,
+      };
+
+      var toggle = $.CreatePanel("Button", panel, "");
+      toggle.AddClass("AnitaConditionalToggle");
+      var toggleLabel = $.CreatePanel("Label", toggle, "");
+      toggleLabel.AddClass("AnitaConditionalToggleLabel");
+      toggleLabel.text = "Use signature tier";
+      var toggleStatus = $.CreatePanel("Label", toggle, "");
+      toggleStatus.AddClass("AnitaConditionalToggleStatus");
+      var toggleTrack = $.CreatePanel("Panel", toggle, "");
+      toggleTrack.AddClass("AnitaConditionalToggleTrack");
+      var toggleThumb = $.CreatePanel("Panel", toggleTrack, "");
+      toggleThumb.AddClass("AnitaConditionalToggleThumb");
+
+      function refreshToggle() {
+        toggle.SetHasClass("Active", state.enabled);
+        panel.SetHasClass("ConditionalDisabled", !state.enabled);
+        toggleStatus.text = state.enabled
+          ? "Signature " +
+            String(state.slot) +
+            " · Tier " +
+            String(state.minTier) +
+            "+"
+          : "No condition";
+      }
+
+      toggle.SetPanelEvent("onactivate", function () {
+        state.enabled = !state.enabled;
+        refreshToggle();
+        refreshAbilityButtons();
+      });
+
+      var triggerLabel = $.CreatePanel("Label", panel, "");
+      triggerLabel.AddClass("AnitaConditionalSectionLabel");
+      triggerLabel.text = "MINIMUM SIGNATURE TIER";
+      var triggerHelp = $.CreatePanel("Label", panel, "");
+      triggerHelp.AddClass("AnitaConditionalHelp");
+      triggerHelp.text =
+        "Select an ability. Click it again to cycle Tier 1 → 2 → 3.";
+
+      var abilityGroup = $.CreatePanel("Panel", panel, "");
+      abilityGroup.AddClass("AnitaConditionalAbilityGroup");
+      var abilityButtons = [];
+      var controller = this;
+      controller.resolvePanels();
+
+      function readAbilityImageSource(sourceSlot) {
+        if (!hpHeroIsValidPanel(sourceSlot)) return "";
+        var sourceImage = hpHeroFindChild(sourceSlot, "ability_image");
+        if (!hpHeroIsValidPanel(sourceImage)) return "";
+        try {
+          var source = "";
+          if (typeof sourceImage.GetAttributeString === "function") {
+            source = sourceImage.GetAttributeString("src", "");
+            if (!source || source === "none")
+              source = sourceImage.GetAttributeString("defaultsrc", "");
+          }
+          if (
+            (!source || source === "none") &&
+            typeof sourceImage["GetSource"] === "function"
+          )
+            source = sourceImage["GetSource"]();
+          if (
+            (!source || source === "none") &&
+            typeof sourceImage["src"] === "string"
+          )
+            source = sourceImage["src"];
+          if (
+            (!source || source === "none") &&
+            sourceImage.style &&
+            sourceImage.style.backgroundImage
+          ) {
+            var backgroundImage = String(sourceImage.style.backgroundImage);
+            var backgroundMatch = /url\(\s*["']?([^"')]+)["']?\s*\)/.exec(
+              backgroundImage,
+            );
+            if (backgroundMatch) source = backgroundMatch[1];
+          }
+          source = source && source !== "none" ? String(source) : "";
+          return source.indexOf("://") >= 0 ? source : "";
+        } catch (eImageSource) {}
+        return "";
+      }
+
+      function refreshAbilityButtons() {
+        for (var index = 0; index < abilityButtons.length; index++) {
+          var entry = abilityButtons[index];
+          var selected = state.enabled && index + 1 === state.slot;
+          entry.button.SetHasClass("Active", selected);
+          for (var tierIndex = 0; tierIndex <= 3; tierIndex++) {
+            entry.button.SetHasClass(
+              "VisualTier" + String(tierIndex),
+              tierIndex === (selected ? state.minTier : entry.liveTier),
+            );
+          }
+          if (selected) entry.tierLabel.text = "T" + String(state.minTier);
+        }
+      }
+
+      for (var slot = 1; slot <= 4; slot++) {
+        (function (slotValue) {
+          var button = $.CreatePanel("Button", abilityGroup, "");
+          button.AddClass("AnitaConditionalAbility");
+
+          var frame = $.CreatePanel("Panel", button, "");
+          frame.AddClass("AnitaConditionalAbilityFrame");
+          var ring = $.CreatePanel("Panel", button, "");
+          ring.AddClass("AnitaConditionalAbilityRing");
+          var abilityArt = $.CreatePanel("Image", button, "");
+          abilityArt.AddClass("AnitaConditionalAbilityArt");
+          abilityArt.hittest = false;
+          if (typeof abilityArt.SetAttributeString === "function")
+            abilityArt.SetAttributeString(
+              "scaling",
+              "stretch-to-fit-preserve-aspect",
+            );
+          var sourceSlot = controller.slotPanels[slotValue - 1];
+          var imageSource = readAbilityImageSource(sourceSlot);
+          if (imageSource && typeof abilityArt.SetImage === "function") {
+            try {
+              abilityArt.SetImage(imageSource);
+            } catch (eSetImage) {
+              imageSource = "";
+            }
+          }
+
+          var slotLabel = $.CreatePanel("Label", button, "");
+          slotLabel.AddClass("AnitaConditionalSlotNumber");
+          slotLabel.text = String(slotValue);
+          var tierLabel = $.CreatePanel("Label", button, "");
+          tierLabel.AddClass("AnitaConditionalTierBadge");
+          tierLabel.text = "T" + String(state.minTier);
+
+          button.SetPanelEvent("onactivate", function () {
+            if (state.slot === slotValue) {
+              state.minTier = state.minTier >= 3 ? 1 : state.minTier + 1;
+            } else {
+              state.slot = slotValue;
+            }
+            state.enabled = true;
+            refreshToggle();
+            refreshAbilityButtons();
+          });
+          AnitaRenderer.attachLocalTooltip(
+            button,
+            "Signature " +
+              String(slotValue) +
+              " — select, then click again to cycle its minimum tier.",
+          );
+          var liveTier = controller.readTier(sourceSlot);
+          abilityButtons.push({
+            button: button,
+            tierLabel: tierLabel,
+            liveTier: liveTier >= 0 ? liveTier : 0,
+          });
+        })(slot);
+      }
+
+      var valueLabel = $.CreatePanel("Label", panel, "");
+      valueLabel.AddClass("AnitaConditionalSectionLabel");
+      valueLabel.text = "VALUE WHEN ACTIVE";
+      var editorElement = {};
+      for (var editorKey in element) {
+        if (
+          !Object.prototype.hasOwnProperty.call(element, editorKey) ||
+          editorKey.indexOf("__") === 0
+        )
+          continue;
+        editorElement[editorKey] = this.cloneValue(element[editorKey]);
+      }
+      editorElement.id = "";
+      editorElement.modTitle = "";
+      editorElement.label = "Conditional value";
+      editorElement.currentValue = existing
+        ? this.cloneValue(existing.value)
+        : this.cloneValue(
+            element.currentValue !== undefined
+              ? element.currentValue
+              : element.defaultValue,
+          );
+      state.draft = editorElement;
+      var editorHost = $.CreatePanel("Panel", panel, "");
+      editorHost.AddClass("AnitaConditionalValueEditor");
+      var draftRow = null;
+      if (String(editorElement.type || "") === "toggle") {
+        draftRow = $.CreatePanel("Button", editorHost, "");
+        draftRow.AddClass("AnitaConditionalToggle");
+        draftRow.AddClass("AnitaConditionalValueToggle");
+        var valueToggleLabel = $.CreatePanel("Label", draftRow, "");
+        valueToggleLabel.AddClass("AnitaConditionalToggleLabel");
+        valueToggleLabel.text = "Conditional value";
+        var valueToggleStatus = $.CreatePanel("Label", draftRow, "");
+        valueToggleStatus.AddClass("AnitaConditionalToggleStatus");
+        valueToggleStatus.AddClass("AnitaConditionalValueToggleStatus");
+        var valueToggleTrack = $.CreatePanel("Panel", draftRow, "");
+        valueToggleTrack.AddClass("AnitaConditionalToggleTrack");
+        var valueToggleThumb = $.CreatePanel("Panel", valueToggleTrack, "");
+        valueToggleThumb.AddClass("AnitaConditionalToggleThumb");
+        var refreshConditionalValueToggle = function () {
+          var active = HPValueCodecs.sanitizeBoolean(
+            editorElement.currentValue,
+            editorElement.defaultValue,
+          );
+          editorElement.currentValue = active;
+          draftRow.SetHasClass("Active", active);
+          valueToggleStatus.text = active ? "ON" : "OFF";
+        };
+        draftRow.SetPanelEvent("onactivate", function () {
+          editorElement.currentValue = !HPValueCodecs.sanitizeBoolean(
+            editorElement.currentValue,
+            editorElement.defaultValue,
+          );
+          refreshConditionalValueToggle();
+        });
+        refreshConditionalValueToggle();
+      } else {
+        draftRow = AnitaComponents.createSettingRow(
+          editorHost,
+          editorElement,
+          "",
+        );
+      }
+      editorElement.__anitaRowPanel = draftRow;
+      var conditionalValueGroups = hpHeroFindChildrenWithClass(
+        draftRow,
+        "AnitaSliderValueGroup",
+      );
+      if (conditionalValueGroups.length)
+        conditionalValueGroups[0].style.width = "100%";
+      var conditionalSliderContainers = hpHeroFindChildrenWithClass(
+        draftRow,
+        "AnitaSliderContainer",
+      );
+      if (conditionalSliderContainers.length)
+        conditionalSliderContainers[0].style.width = "290px";
+
+      var footer = $.CreatePanel("Panel", panel, "");
+      footer.AddClass("AnitaColorPopupFooter");
+      var cancel = $.CreatePanel("Button", footer, "");
+      cancel.AddClass("AnitaColorPopupBtn");
+      $.CreatePanel("Label", cancel, "").text = "CANCEL";
+      cancel.SetPanelEvent("onactivate", () => this.closePopup());
+      var apply = $.CreatePanel("Button", footer, "");
+      apply.AddClass("AnitaColorPopupBtn");
+      apply.AddClass("Primary");
+      $.CreatePanel("Label", apply, "").text = "APPLY";
+      apply.SetPanelEvent("onactivate", () => {
+        var next = this.cloneValue(config.__hpSignatureConditionalRules || {});
+        if (state.enabled) {
+          next[element.id] = {
+            slot: state.slot,
+            minTier: state.minTier,
+            value: this.cloneValue(editorElement.currentValue),
+          };
+        } else {
+          delete next[element.id];
+        }
+        this.replaceRules(config, next);
+        config.__anitaSelectedPresetKey = "current";
+        AnitaPersistence.persistConfig(config, true);
+        AnitaRenderer.syncSaveCodeInput(config);
+        AnitaCore.emitCurrentValues(config, {
+          update_source: "ui_conditional_apply",
+          force_persist: true,
+          force_emit: true,
+          bulk_emit: true,
+        });
+        this.closePopup();
+        this.refreshMarkers(config);
+      });
+
+      state.close = () => this.closePopup();
+      panel.SetPanelEvent("oncancel", state.close);
+      state.abilityButtons = abilityButtons;
+      this.popup = state;
+      AnitaRenderer.activeConditionalPopupClose = state.close;
+      refreshToggle();
+      refreshAbilityButtons();
+      return true;
+    },
+
+    notifyBaseValuesChanged: function (config, publish) {
+      if (!config) return;
+      this.refreshMarkers(config);
+      if (publish && AnitaPersistence.isHpColorsConfig(config))
+        HPPresetSnapshotPublisher.publish(config, "base_values_changed", false);
+    },
+
+    start: function (config) {
+      if (!config || !AnitaPersistence.isHpColorsConfig(config)) return;
+      this.activeConfig = config;
+      this.rebuildReferencedSlots(config);
+      this.refreshMarkers(config);
+    },
+
+    schedulePoll: function (config, delay) {
+      if (
+        !this.hasRules(config) ||
+        this.activeConfig !== config ||
+        !this.hasPendingTierScans()
+      ) {
+        this.polling = false;
+        return;
+      }
+      var generation = this.generation;
+      var self = this;
+      if (this.polling && delay !== 0) return;
+      this.polling = true;
+      try {
+        AnitaLifetime.replace(
+          "signature_poll",
+          delay === undefined ? 0.1 : delay,
+          function () {
+            if (
+              generation !== self.generation ||
+              !self.hasRules(config) ||
+              self.activeConfig !== config ||
+              !self.hasPendingTierScans()
+            ) {
+              self.polling = false;
+              return;
+            }
+            var changed = self.refreshTiers();
+            if (changed) {
+              self.refreshMarkers(config);
+              HPPresetSnapshotPublisher.publish(config, "signature_tier_changed", false);
+            }
+            self.polling = false;
+            if (self.hasPendingTierScans()) self.schedulePoll(config, 0.1);
+          },
+        );
+      } catch (e) {
+        this.polling = false;
+      }
+    },
+  };
+
   const AnitaCore = {
     registeredMods: [],
 
@@ -8809,7 +10328,7 @@
       this.__hpColorsRegistrationQueued = true;
       var attempts = (this.__hpColorsRegistrationAttempts || 0) + 1;
       this.__hpColorsRegistrationAttempts = attempts;
-      $.Schedule(0.07, () => {
+      AnitaLifetime.replace("registration", 0.07, () => {
         this.__hpColorsRegistrationQueued = false;
         if (this.findRegisteredMod("HP Colors")) return;
         try {
@@ -8826,7 +10345,9 @@
     },
 
     init: function () {
-      const root = this.getRoot($.GetContextPanel());
+      const contextPanel = $.GetContextPanel();
+      const root = this.getRoot(contextPanel);
+      AnitaLifetime.start(contextPanel);
       AnitaRenderer.initWindow(root);
 
       root.AnitaUI = {
@@ -8861,21 +10382,20 @@
         AnitaRenderer.contentArea.RemoveAndDeleteChildren();
       }
 
-      AnitaPersistence.hydrateConfig(config);
-      applyHpOptimizedHardGates(config);
-
       for (let i = 0; i < this.registeredMods.length; i++) {
         if (this.registeredMods[i].title === config.title) {
           return;
         }
       }
+
+      AnitaPersistence.hydrateConfig(config);
       if (config.title === "HP Colors") {
-        writeHpSharedSnapshot(config);
-        publishHpPresetSnapshot(config, "register_startup", true);
+        HPPresetSnapshotPublisher.publish(config, "register_startup", true);
         startHpMatchResetMonitor(config);
         applyHpColorsBakedPresetOnce(config);
       }
       this.registeredMods.push(config);
+        HPSignatureConditionalController.start(config);
       AnitaRenderer.addTab(config.title, () => {
         AnitaRenderer.renderModSettings(config);
       });
@@ -8895,10 +10415,9 @@
       if (!config || !Array.isArray(config.elements)) return;
       var forceEmit = !!(meta && meta.force_emit);
       var bulkEmit = !!(meta && meta.bulk_emit);
-      applyHpOptimizedHardGates(config);
+      var presetSnapshot = null;
       if (config.title === "HP Colors") {
-        writeHpSharedSnapshot(config);
-        publishHpPresetSnapshot(
+        presetSnapshot = HPPresetSnapshotPublisher.publish(
           config,
           meta && meta.update_source ? meta.update_source : "current_values",
           false,
@@ -8907,19 +10426,23 @@
       if (!config.__anitaLastEmittedValues)
         config.__anitaLastEmittedValues = {};
       var lastValues = config.__anitaLastEmittedValues;
-      var values = {};
-      var hasValues = false;
-      for (var i = 0; i < config.elements.length; i++) {
-        var element = config.elements[i];
-        if (!element || !element.id || element.currentValue === undefined)
-          continue;
-        var value = AnitaPersistence.sanitizeValue(
-          element,
-          element.currentValue,
-        );
-        element.currentValue = value;
-        values[element.id] = value;
-        hasValues = true;
+      var values = presetSnapshot ? presetSnapshot.emittableValues : {};
+      var hasValues = !!(
+        presetSnapshot && presetSnapshot.emittableCount
+      );
+      if (!presetSnapshot) {
+        for (var i = 0; i < config.elements.length; i++) {
+          var element = config.elements[i];
+          if (!element || !element.id || element.currentValue === undefined)
+            continue;
+          var value = AnitaPersistence.sanitizeValue(
+            element,
+            element.currentValue,
+          );
+          element.currentValue = value;
+          values[element.id] = value;
+          hasValues = true;
+        }
       }
       if (!hasValues) return;
       if (bulkEmit) {
@@ -8976,7 +10499,7 @@
       var delays = [0.35, 1.0, 2.0];
       for (var i = 0; i < delays.length; i++) {
         (function (delaySec, burstToken, burstIndex) {
-          $.Schedule(delaySec, function () {
+          AnitaLifetime.defer(delaySec, function () {
             if (!config || config.__anitaPortableSyncBurstToken !== burstToken)
               return;
             AnitaCore.emitPortableSync(
@@ -8995,7 +10518,7 @@
       var delays = [0.25, 1.0, 2.25, 5.0];
       for (var i = 0; i < delays.length; i++) {
         (function (delaySec, burstToken, burstIndex) {
-          $.Schedule(delaySec, function () {
+          AnitaLifetime.defer(delaySec, function () {
             if (!config || config.__hpColorsStartupSyncToken !== burstToken)
               return;
             AnitaCore.emitPortableSync(
@@ -9032,10 +10555,10 @@
           config.__anitaPortableSyncLoopStarted = false;
           return;
         }
-        $.Schedule(3.0, tick);
+        AnitaLifetime.replace("portable_sync", 3.0, tick);
       };
 
-      $.Schedule(3.0, tick);
+      AnitaLifetime.replace("portable_sync", 3.0, tick);
     },
 
     isReplayUpdateSource: function (updateSource) {
@@ -9053,10 +10576,14 @@
     schedulePersistConfig: function (config, forceWrite) {
       var writeToken = (config.__anitaPendingWriteToken || 0) + 1;
       config.__anitaPendingWriteToken = writeToken;
-      $.Schedule(2.0, function () {
-        if (!config || config.__anitaPendingWriteToken !== writeToken) return;
-        AnitaPersistence.persistConfig(config, !!forceWrite);
-      });
+      AnitaLifetime.replace(
+        "persist:" + String(config.storageNamespace || config.title || ""),
+        2.0,
+        function () {
+          if (!config || config.__anitaPendingWriteToken !== writeToken) return;
+          AnitaPersistence.persistConfig(config, !!forceWrite);
+        },
+      );
     },
 
     handleBulkUpdateEvent: function (data) {
@@ -9080,32 +10607,22 @@
         if (!Object.prototype.hasOwnProperty.call(data.values, settingId))
           continue;
         var targetElement = AnitaRenderer.findElementById(config, settingId);
-        var before = targetElement ? targetElement.currentValue : null;
         if (
-          !AnitaPersistence.applyUpdate(
-            config,
-            settingId,
+          !AnitaPersistence.applyElementValue(
+            targetElement,
             data.values[settingId],
           )
         )
           continue;
+        changed = true;
         if (AnitaRenderer.hasVisibilityDependents(config, settingId))
           visibilityDirtyIds.push(settingId);
-        targetElement =
-          targetElement || AnitaRenderer.findElementById(config, settingId);
-        if (targetElement && targetElement.currentValue !== before)
-          changed = true;
-      }
-      var hardGateChanged = applyHpOptimizedHardGates(config);
-      if (hardGateChanged) {
-        changed = true;
-        visibilityDirtyIds = [];
       }
 
       AnitaRenderer.syncSaveCodeInput(config);
       if (isBootstrap) config.__anitaBootstrapReceived = true;
 
-      if (isBootstrap || hardGateChanged) {
+      if (isBootstrap) {
         AnitaRenderer.refreshConditionalVisibility(config);
       } else if (visibilityDirtyIds.length) {
         AnitaRenderer.refreshChangedDependentsVisibility(
@@ -9114,8 +10631,14 @@
         );
       }
 
-      if (config.title === "HP Colors" && changed) {
-        writeHpSharedSnapshot(config);
+      if (changed && AnitaPersistence.isHpColorsConfig(config))
+        HPSignatureConditionalController.notifyBaseValuesChanged(config, false);
+      if (
+        config.title === "HP Colors" &&
+        changed &&
+        isReplaySource
+      ) {
+        HPPresetSnapshotPublisher.writeShared(config);
       }
 
       if (!isReplaySource && config.title === "HP Colors" && changed) {
@@ -9136,10 +10659,14 @@
       var updateSource = String(data.update_source || "");
       var isBootstrap = updateSource === "bridge_bootstrap";
       var isReplaySource = this.isReplayUpdateSource(updateSource);
-      if (!AnitaPersistence.applyUpdate(config, data.setting_id, data.value)) {
-        return;
-      }
-      var hardGateChanged = applyHpOptimizedHardGates(config);
+      var targetElement = AnitaRenderer.findElementById(
+        config,
+        data.setting_id,
+      );
+      if (!AnitaPersistence.applyElementValue(targetElement, data.value)) return;
+      if (AnitaPersistence.isHpColorsConfig(config))
+        HPSignatureConditionalController.notifyBaseValuesChanged(config, false);
+      var hardGateChanged = false;
       AnitaRenderer.syncSaveCodeInput(config);
       if (isBootstrap) {
         config.__anitaBootstrapReceived = true;
@@ -9203,8 +10730,7 @@
       if (data && data.mod_title && data.mod_title !== "HP Colors") return;
       var config = this.findRegisteredMod("HP Colors");
       if (!config) return;
-      writeHpSharedSnapshot(config);
-      publishHpPresetSnapshot(
+      HPPresetSnapshotPublisher.publish(
         config,
         data && data.reason ? data.reason : "preset_request",
         true,
@@ -9232,23 +10758,26 @@
 
     setupEventListener: function () {
       try {
-        $.RegisterForUnhandledEvent(HPBridgeProtocol.eventChannel, (payload) => {
-          if (!HPBridgeProtocol.shouldInspectPayload(payload)) return;
-          try {
-            let data = HPBridgeProtocol.parsePayload(payload);
-            if (HPBridgeProtocol.isRegister(data)) {
-              this.registerMod(data.config);
-            } else if (HPBridgeProtocol.isPresetRequest(data)) {
-              this.handlePresetSnapshotRequest(data);
-            } else if (HPBridgeProtocol.isBootstrapRequest(data)) {
-              this.handleBootstrapRequest(data);
-            } else if (HPBridgeProtocol.isBulkUpdate(data)) {
-              this.handleBulkUpdateEvent(data);
-            } else if (HPBridgeProtocol.isSingleUpdate(data)) {
-              this.handleUpdateEvent(data);
-            }
-          } catch (e) {}
-        });
+        AnitaLifetime.eventHandlerId = $.RegisterForUnhandledEvent(
+          HPBridgeProtocol.eventChannel,
+          (payload) => {
+            if (!AnitaLifetime.isActive()) return;
+            try {
+              let data = HPBridgeProtocol.parsePayload(payload);
+              if (HPBridgeProtocol.isRegister(data)) {
+                this.registerMod(data.config);
+              } else if (HPBridgeProtocol.isPresetRequest(data)) {
+                this.handlePresetSnapshotRequest(data);
+              } else if (HPBridgeProtocol.isBootstrapRequest(data)) {
+                this.handleBootstrapRequest(data);
+              } else if (HPBridgeProtocol.isBulkUpdate(data)) {
+                this.handleBulkUpdateEvent(data);
+              } else if (HPBridgeProtocol.isSingleUpdate(data)) {
+                this.handleUpdateEvent(data);
+              }
+            } catch (e) {}
+          },
+        );
       } catch (e) {}
     },
 
@@ -9314,7 +10843,7 @@
             const attentionToken = (this._attentionToken || 0) + 1;
             this._attentionToken = attentionToken;
             btn.AddClass(CONFIG.CLASSES.ATTENTION);
-            $.Schedule(4.0, () => {
+            AnitaLifetime.defer(4.0, () => {
               if (this._attentionToken !== attentionToken) return;
               if (btn && btn.IsValid && btn.IsValid()) {
                 btn.RemoveClass(CONFIG.CLASSES.ATTENTION);
@@ -9338,7 +10867,11 @@
         nextDelay = Math.max(CONFIG.UI.MONITOR_INTERVAL * 16, 0.75);
       }
 
-      $.Schedule(nextDelay, () => this.monitorEscapeMenu(root));
+      AnitaLifetime.replace(
+        "escape_monitor",
+        nextDelay,
+        () => this.monitorEscapeMenu(root),
+      );
     },
 
     getRoot: function (p) {
