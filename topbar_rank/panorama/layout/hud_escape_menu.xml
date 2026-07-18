@@ -3,11 +3,12 @@
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
 		<include src="s2r://panorama/styles/hud_escape_menu.vcss_c" />
+		<include src="s2r://panorama/styles/topbar_rank_escape_menu.vcss_c" />
 	</styles>
 	<scripts>
-		<include src="s2r://panorama/scripts/topbar_rank_rank_bridge.vjs_c" />
+		<include src="s2r://panorama/scripts/showrank_common.vjs_c" />
 	</scripts>
-	<CitadelHudEscapeMenu oncancel="CitadelResumePlaying()" onload="if ($.TopbarRankEscapePreloadFromPlayerList) $.TopbarRankEscapePreloadFromPlayerList('escape_menu_onload');">
+	<CitadelHudEscapeMenu oncancel="CitadelResumePlaying()">
 		<Panel id="EscapeBackground" onactivate="CitadelResumePlaying()" />
 		<Panel id="LeftStripeBlur" />
 		<Panel id="LeftStripe" hittest="false">
@@ -70,7 +71,8 @@
 			<Panel class="FriendsOrPlayersTabs">
 				<Panel class="Center">
 					<TabButton id="FriendsTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Friends_WindowTitle" />
-					<TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" selected="true" onactivate="if ($.TopbarRankEscapePreloadFromPlayerList) $.TopbarRankEscapePreloadFromPlayerList('escape_menu_players_tab_activate');" />
+					<TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" selected="true" onactivate="if ($.ShowRankEscapePreloadFromPlayerList) $.ShowRankEscapePreloadFromPlayerList('escape_menu_players_tab_activate');" />
+					<TabButton id="ShowRankRetryMissingRanks" class="FriendsOrPlayersButton ShowRankRetryMissingButton" text="Retry ranks" onactivate="if ($.ShowRankEscapePreloadFromPlayerList) $.ShowRankEscapePreloadFromPlayerList('players_list_retry_missing');" />
 				</Panel>
 			</Panel>
 			<Panel class="FriendsOrPlayersContents" hittest="false">
@@ -78,7 +80,7 @@
 					<CitadelFriendsList id="FriendsList" />
 				</TabContents>
 			<TabContents id="PlayersTabContents" tabid="PlayersTab" group="people_list_tabs" hittest="false" selected="true">
-					<CitadelPlayersList id="PlayersList" onload="if ($.TopbarRankEscapePreloadFromPlayerList) $.TopbarRankEscapePreloadFromPlayerList('escape_menu_players_list_onload');" />
+					<CitadelPlayersList id="PlayersList" />
 				</TabContents>
 			</Panel>
 		</Panel>

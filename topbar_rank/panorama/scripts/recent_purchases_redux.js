@@ -96,6 +96,7 @@
     var HERO_MAP_BUILDING = 1;
     var HERO_MAP_BUILT = 2;
     var heroMapState = HERO_MAP_IDLE;
+    var heroMapGeneration = 0;
     var quickPanelsByHero = {};     // UPPERCASE hero name → QuickPurchasesPanel
     var quickActiveEntriesByHero = {}; // UPPERCASE hero name → []
     var quickLastEntryTime = {};    // UPPERCASE hero name → timestamp of most recent AddQuickEntry
@@ -126,39 +127,72 @@
         return false;
     }
 
-    function GetPurchaseName(panel) {
-        if (!panel || !panel.IsValid()) return "";
-        var labels = panel.FindChildrenWithClassTraverse("recentModPurchaseName");
-        return (labels && labels.length > 0 && labels[0].IsValid()) ? labels[0].text.trim() : "";
+    function IsValidPanel(panel) {
+        return !!(panel && panel.IsValid && panel.IsValid());
     }
 
-    function GetPurchaseTime(panel) {
-        if (!panel || !panel.IsValid()) return "";
-        var labels = panel.FindChildrenWithClassTraverse("recentTimePurchased");
-        return (labels && labels.length > 0 && labels[0].IsValid()) ? labels[0].text.trim() : "";
+    function FindFirstWithClassCached(panel, cacheKey, className) {
+        var cached;
+        var children;
+        if (!IsValidPanel(panel)) return null;
+        cached = panel[cacheKey];
+        if (IsValidPanel(cached)) return cached;
+        children = panel.FindChildrenWithClassTraverse(className);
+        cached = children && children.length > 0 ? children[0] : null;
+        panel[cacheKey] = cached;
+        return IsValidPanel(cached) ? cached : null;
     }
 
-    function GetPurchaseHeroName(panel) {
-        if (!panel || !panel.IsValid()) return "";
-        var labels = panel.FindChildrenWithClassTraverse("recentModPurchaserHero");
-        return (labels && labels.length > 0 && labels[0].IsValid()) ? labels[0].text.trim() : "";
+    function ReadPanelText(panel) {
+        return IsValidPanel(panel) && typeof panel.text === "string" ? panel.text.trim() : "";
+    }
+
+    function ReadPurchaseRow(panel) {
+        var namePanel = FindFirstWithClassCached(panel, "__TopbarRankRecentPurchaseName", "recentModPurchaseName");
+        var timePanel = FindFirstWithClassCached(panel, "__TopbarRankRecentPurchaseTime", "recentTimePurchased");
+        var heroPanel = FindFirstWithClassCached(panel, "__TopbarRankRecentPurchaseHero", "recentModPurchaserHero");
+        var iconPanel = FindFirstWithClassCached(panel, "__TopbarRankRecentPurchaseIcon", "mod_icon");
+        var name = ReadPanelText(namePanel);
+        var time = ReadPanelText(timePanel);
+        var heroName = ReadPanelText(heroPanel);
+        return {
+            panel: panel,
+            name: name,
+            time: time,
+            heroName: heroName,
+            heroNameUpper: heroName ? heroName.toUpperCase() : "",
+            key: name && time ? name + "|" + time : "",
+            icon: iconPanel
+        };
+    }
+
+    function ReadPurchaseRows(container) {
+        var panels;
+        var rows = [];
+        var i;
+        if (!container || !container.IsValid()) return rows;
+        panels = container.FindChildrenWithClassTraverse("recentPurchase");
+        for (i = 0; panels && i < panels.length; i++) {
+            if (IsValidPanel(panels[i])) rows.push(ReadPurchaseRow(panels[i]));
+        }
+        return rows;
     }
 
     // ─── Mod icon setting ─────────────────────────────────────────────────────────
 
-    function UpdateModIcons(container, purchases) {
+    function UpdateModIcons(container, rows) {
+        var row;
+        var icon;
+        var image;
         if (!container || !container.IsValid()) return;
-        if (!purchases) purchases = container.FindChildrenWithClassTraverse("recentPurchase");
-        for (var i = 0; i < purchases.length; i++) {
-            var purchase = purchases[i];
-            if (!purchase || !purchase.IsValid()) continue;
-            var icons = purchase.FindChildrenWithClassTraverse("mod_icon");
-            if (!icons || icons.length === 0) continue;
-            var icon = icons[0];
-            if (!icon.IsValid() || icon.BHasClass("iconSet")) continue;
-            var itemName = GetPurchaseName(purchase);
-            if (!itemName) continue;
-            var image = MOD_ICONS[itemName];
+        if (!rows) rows = ReadPurchaseRows(container);
+        for (var i = 0; i < rows.length; i++) {
+            row = rows[i];
+            if (!row || !IsValidPanel(row.panel)) continue;
+            icon = row.icon;
+            if (!IsValidPanel(icon) || icon.BHasClass("iconSet")) continue;
+            if (!row.name) continue;
+            image = MOD_ICONS[row.name];
             if (!image) continue;
             icon.style.backgroundImage = image;
             icon.style.washColor = "none";
@@ -265,7 +299,7 @@
         else purchase.RemoveClass("filterHidden");
     }
 
-    function ApplyFilters(container, ctx, purchases) {
+    function ApplyFilters(container, ctx, rows) {
         if (!container || !container.IsValid()) return;
         var sig = GetFilterSignature(ctx, container);
         var firstChild = container.GetChildCount() > 0 ? container.GetChild(0) : null;
@@ -274,9 +308,9 @@
         lastFirstPurchase = firstChild;
         if (DEBUG) $.Msg("[Filters] Signature changed: " + sig);
 
-        if (!purchases) purchases = container.FindChildrenWithClassTraverse("recentPurchase");
-        for (var i = 0; i < purchases.length; i++) {
-            ApplyPurchaseFilterClass(purchases[i], ctx);
+        if (!rows) rows = ReadPurchaseRows(container);
+        for (var i = 0; i < rows.length; i++) {
+            ApplyPurchaseFilterClass(rows[i].panel, ctx);
         }
     }
 
@@ -292,17 +326,15 @@
     }
 
     var _seenKeysPruneCounter = 0;
-    function PruneSeenKeys(container, purchases) {
+    function PruneSeenKeys(container, rows) {
         _seenKeysPruneCounter++;
         if (_seenKeysPruneCounter < SEEN_KEYS_PRUNE_INTERVAL) return;
         _seenKeysPruneCounter = 0;
         if (!container || !container.IsValid()) return;
-        if (!purchases) purchases = container.FindChildrenWithClassTraverse("recentPurchase");
+        if (!rows) rows = ReadPurchaseRows(container);
         var valid = {};
-        for (var i = 0; i < purchases.length; i++) {
-            var n = GetPurchaseName(purchases[i]);
-            var t = GetPurchaseTime(purchases[i]);
-            if (n && t) valid[n + "|" + t] = true;
+        for (var i = 0; i < rows.length; i++) {
+            if (rows[i].key) valid[rows[i].key] = true;
         }
         quickSeenKeys = valid;
     }
@@ -339,6 +371,7 @@
     // ─── Quick purchases overlay ──────────────────────────────────────────────────
 
     function ResetHeroMap() {
+        heroMapGeneration++;
         for (var hero in quickPanelsByHero) {
             var panel = quickPanelsByHero[hero];
             if (panel && panel.IsValid()) panel.DeleteAsync(0);
@@ -364,6 +397,7 @@
     }
 
     function FinishHeroMapLabel(pendingState) {
+        if (pendingState.generation !== heroMapGeneration) return;
         pendingState.pending--;
         if (pendingState.pending !== 0) return;
         heroMapState = HERO_MAP_BUILT;
@@ -400,6 +434,7 @@
     function ScheduleHeroNameResolve(label, playerPanel, heroId, pendingState) {
         playerPanel.SetDialogVariableInt("hero_id", heroId);
         $.Schedule(0.3, function () {
+            if (pendingState.generation !== heroMapGeneration) return;
             if (heroMapState !== HERO_MAP_BUILDING) return;
             if (label.IsValid()) {
                 var name = label.text.trim().toUpperCase();
@@ -428,6 +463,7 @@
     function BuildHeroNameMap() {
         if (heroMapState === HERO_MAP_BUILDING) return;
         heroMapState = HERO_MAP_BUILDING;
+        heroMapGeneration++;
         var globalRoot = GetAbsoluteRoot();
         var labels = globalRoot.FindChildrenWithClassTraverse("HeroNameHidden");
         if (!labels || labels.length === 0) {
@@ -436,7 +472,7 @@
             return;
         }
         if (DEBUG_QUICK) $.Msg("[QuickPurchases] BuildHeroNameMap: found " + labels.length + " label(s), resolving...");
-        var pendingState = { pending: labels.length };
+        var pendingState = { pending: labels.length, generation: heroMapGeneration };
         for (var i = 0; i < labels.length; i++) {
             QueueHeroNameResolve(labels[i], pendingState);
         }
@@ -601,10 +637,20 @@
         ScheduleResolveOverlaps(0);
     }
 
-    function AddQuickEntry(sourcePurchase, nameText) {
-        var heroNameUpper = GetPurchaseHeroName(sourcePurchase).toUpperCase();
-        if (DEBUG_QUICK) $.Msg("[QuickPurchases] AddQuickEntry: item='" + nameText + "' hero='" + heroNameUpper + "'");
-        var quickPanel = GetOrCreateQuickPanelForHero(heroNameUpper);
+    function AddQuickEntry(row) {
+        var heroNameUpper;
+        var quickPanel;
+        var entry;
+        var itemInfo;
+        var sourceIcon;
+        var iconUrl;
+        var icon;
+        var nameLabel;
+        var i;
+        if (!row || !IsValidPanel(row.panel)) return;
+        heroNameUpper = row.heroNameUpper;
+        if (DEBUG_QUICK) $.Msg("[QuickPurchases] AddQuickEntry: item='" + row.name + "' hero='" + heroNameUpper + "'");
+        quickPanel = GetOrCreateQuickPanelForHero(heroNameUpper);
         if (!quickPanel) {
             if (DEBUG_QUICK) $.Msg("[QuickPurchases] AddQuickEntry: no panel for '" + heroNameUpper + "', dropping entry.");
             return;
@@ -617,29 +663,31 @@
             QuickEvictEntry(quickActiveEntriesByHero[heroNameUpper][0], heroNameUpper);
         }
 
-        var entry = $.CreatePanel("Panel", quickPanel, "");
+        entry = $.CreatePanel("Panel", quickPanel, "");
         entry.AddClass("quickPurchase");
 
-        for (var i = 0; i < QUICK_CLASSES_TO_COPY.length; i++) {
-            if (sourcePurchase.BHasClass(QUICK_CLASSES_TO_COPY[i])) {
+        for (i = 0; i < QUICK_CLASSES_TO_COPY.length; i++) {
+            if (row.panel.BHasClass(QUICK_CLASSES_TO_COPY[i])) {
                 entry.AddClass(QUICK_CLASSES_TO_COPY[i]);
             }
         }
 
         // Item info panel — item icon + item name
-        var itemInfo = $.CreatePanel("Panel", entry, "");
+        itemInfo = $.CreatePanel("Panel", entry, "");
         itemInfo.AddClass("quickItemInfo");
 
-        var iconUrl = MOD_ICONS[nameText];
+        sourceIcon = row.icon;
+        iconUrl = MOD_ICONS[row.name];
+        if (!iconUrl && IsValidPanel(sourceIcon)) iconUrl = sourceIcon.style.backgroundImage;
         if (iconUrl) {
-            var icon = $.CreatePanel("Panel", itemInfo, "");
+            icon = $.CreatePanel("Panel", itemInfo, "");
             icon.AddClass("mod_icon");
             (function (p, url) { $.Schedule(0, function () { if (p.IsValid()) { p.style.backgroundImage = url; p.style.backgroundSize = "100% 100%"; } }); })(icon, iconUrl);
         }
 
-        var nameLabel = $.CreatePanel("Label", itemInfo, "");
+        nameLabel = $.CreatePanel("Label", itemInfo, "");
         nameLabel.AddClass("quickPurchaseName");
-        nameLabel.text = nameText;
+        nameLabel.text = row.name;
 
         quickActiveEntriesByHero[heroNameUpper].push(entry);
 
@@ -653,52 +701,44 @@
         })(entry, heroNameUpper);
     }
 
-    function MarkPurchaseSeen(purchase) {
-        if (!purchase || !purchase.IsValid()) return;
-        var name = GetPurchaseName(purchase);
-        var time = GetPurchaseTime(purchase);
-        if (name && time) quickSeenKeys[name + "|" + time] = true;
+    function MarkPurchaseSeen(row) {
+        if (row && row.key) quickSeenKeys[row.key] = true;
     }
 
-    function MarkExistingPurchasesSeen(purchases) {
-        for (var i = 0; i < purchases.length; i++) {
-            MarkPurchaseSeen(purchases[i]);
+    function MarkExistingPurchasesSeen(rows) {
+        for (var i = 0; i < rows.length; i++) {
+            MarkPurchaseSeen(rows[i]);
         }
         quickInitialized = true;
     }
 
-    function AddNewQuickPurchase(purchase) {
-        if (!purchase || !purchase.IsValid()) return;
-        var name = GetPurchaseName(purchase);
-        var time = GetPurchaseTime(purchase);
-        if (!name || !time) return;
-
-        var key = name + "|" + time;
-        if (quickSeenKeys[key]) return;
-        quickSeenKeys[key] = true;
-        if (!purchase.BHasClass("filterHidden")) {
-            AddQuickEntry(purchase, name);
+    function AddNewQuickPurchase(row) {
+        if (!row || !row.key || !IsValidPanel(row.panel)) return;
+        if (quickSeenKeys[row.key]) return;
+        quickSeenKeys[row.key] = true;
+        if (!row.panel.BHasClass("filterHidden")) {
+            AddQuickEntry(row);
         }
     }
 
-    function UpdateQuickPurchases(container, purchases) {
+    function UpdateQuickPurchases(container, rows) {
         if (heroMapState !== HERO_MAP_BUILT) {
             if (DEBUG_QUICK && heroMapState !== HERO_MAP_BUILDING) $.Msg("[QuickPurchases] UpdateQuickPurchases: waiting for hero map...");
             return;
         }
         if (!container || !container.IsValid()) return;
 
-        if (!purchases) purchases = container.FindChildrenWithClassTraverse("recentPurchase");
+        if (!rows) rows = ReadPurchaseRows(container);
 
         // On first run, mark all existing entries as already seen so we only
         // show purchases that happen after the mod loads.
         if (!quickInitialized) {
-            MarkExistingPurchasesSeen(purchases);
+            MarkExistingPurchasesSeen(rows);
             return;
         }
 
-        for (var i = 0; i < purchases.length; i++) {
-            AddNewQuickPurchase(purchases[i]);
+        for (var i = 0; i < rows.length; i++) {
+            AddNewQuickPurchase(rows[i]);
         }
     }
 
@@ -708,18 +748,17 @@
         try {
             var globalRoot = GetAbsoluteRoot();
             var container = GetContainer(globalRoot);
-            // Fetch purchases once per tick to avoid redundant tree walks
-            var purchases = container && container.IsValid() ? container.FindChildrenWithClassTraverse("recentPurchase") : [];
-            UpdateModIcons(container, purchases);
+            var rows = ReadPurchaseRows(container);
+            UpdateModIcons(container, rows);
             var ctx = BuildContext(container);
             CreateFilterCheckboxes(globalRoot);
             UpdateFilterVisibility(globalRoot, ctx);
             CapContainer(container);
-            ApplyFilters(container, ctx, purchases);
+            ApplyFilters(container, ctx, rows);
             if (IsHeroMapStale()) ResetHeroMap();
             if (heroMapState !== HERO_MAP_BUILT) BuildHeroNameMap();
-            UpdateQuickPurchases(container, purchases);
-            PruneSeenKeys(container, purchases);
+            UpdateQuickPurchases(container, rows);
+            PruneSeenKeys(container, rows);
         } catch (e) {
             if (DEBUG) $.Msg("[MainPoll] ERROR: " + e);
         }

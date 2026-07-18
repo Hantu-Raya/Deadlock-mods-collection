@@ -7,22 +7,23 @@
 		<include src="s2r://panorama/styles/topbar_rank_profile_card.vcss_c" />
 	</styles>
 	<scripts>
-		<include src="s2r://panorama/scripts/topbar_rank_rank_bridge.vjs_c" />
+		<include src="s2r://panorama/scripts/showrank_common.vjs_c" />
 	</scripts>
-	<CitadelProfileCard class="TopbarRankProfileCardRoot" onload="if ($.TopbarRankTriggerProfileCard) $.TopbarRankTriggerProfileCard('profile_card_onload');" onmouseover="if ($.TopbarRankTriggerProfileCard) $.TopbarRankTriggerProfileCard('profile_card_mouseover');">
+	<CitadelProfileCard class="ShowRankProfileCardRoot" onmouseover="if ($.ShowRankTriggerProfileCard) $.ShowRankTriggerProfileCard('profile_card_mouseover');">
 		<Panel id="MiniProfileContainer" class="TopBottomFlow">
 			<Panel id="ContentsMain">
 				<Panel id="ContentsMainBackground" />
 				<Panel id="ContentsMainForeground">
-					<Panel id="AccountID" onload="if ($.TopbarRankTriggerProfileCard) $.TopbarRankTriggerProfileCard('account_id_onload');">
-						<Label id="TopbarRankAccountLabel" class="AccountID" text="#Citadel_ProfileCard_AccountID" />
-						<Panel class="TopbarRankAccountIdRow">
-							<Button class="TopbarRankProfileLink" onactivate="if ($.TopbarRankOpenStatlocker) $.TopbarRankOpenStatlocker();">
+					<Panel id="AccountID">
+						<Label id="WebMediaDemoAccountLabel" class="AccountID" text="#Citadel_ProfileCard_AccountID" />
+						<Label id="ShowRankHiddenAccountID" class="HiddenAccountID" text="{i:r:account_id}" hittest="false" />
+						<Panel class="WebMediaDemoAccountIdRow">
+							<Button class="WebMediaDemoProfileLink" onactivate="if ($.ShowRankOpenStatlocker) $.ShowRankOpenStatlocker();">
 								<Label text="StatLocker Profile" />
 							</Button>
-							<Panel class="TopbarRankProfileRankSlot" hittest="false">
-								<CitadelRankedBadgeMini id="TopbarRankProfileLocalBadge" class="TopbarRankProfileLocalBadge" hittest="false" />
-								<Image id="TopbarRankProfileRankImage" class="TopbarRankProfileRankImage" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+							<Panel class="WebMediaDemoMediaSlot" hittest="false">
+								<CitadelRankedBadgeMini id="WebMediaDemoLocalBadge" class="WebMediaDemoLocalBadge" hittest="false" />
+								<Image id="WebMediaDemoMedia" class="WebMediaDemoMedia" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 							</Panel>
 						</Panel>
 					</Panel>

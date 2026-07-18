@@ -1,4 +1,4 @@
-/* Prettified by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io */
+/* Prettified by Source 2 Viewer - https://valveresourceformat.github.io */
 
 @define rightPanelWidth: 1160px;
 @define tabHeight: 75px;
@@ -2217,9 +2217,50 @@ Label.recentTimePurchased
 	visibility: collapse;
 }
 
+/* Topbar Rank compatibility: recent_purchases_redux.js creates and reads these controls at runtime. */
+#RecentPurchaseHeroImage
+{
+	height: 20px;
+	width: 20px;
+}
 
+.recentPurchase .mod_icon
+{
+	height: 20px;
+	width: 20px;
+	background-size: 100% 100%;
+	margin: 0px 5px;
+}
 
-/* Topbar Rank compatibility: recent_purchases_redux.js creates these controls at runtime. */
+.recentModPurchaseName
+{
+	font-weight: semi-bold;
+	margin-right: 5px;
+	opacity: 0.7;
+}
+
+Label.recentModTierCost
+{
+	font-size: 12px;
+	opacity: 0.3;
+	font-weight: semi-bold;
+	vertical-align: bottom;
+	margin-bottom: 2px;
+}
+
+Label.recentTimePurchased
+{
+	opacity: 0.3;
+	font-weight: semi-bold;
+	margin-right: 4px;
+	font-size: 14px;
+	vertical-align: middle;
+	width: 30px;
+	height: 100%;
+	text-overflow: shrink;
+	margin-left: 5px;
+}
+
 .filterHidden,
 .filterButtonHidden
 {

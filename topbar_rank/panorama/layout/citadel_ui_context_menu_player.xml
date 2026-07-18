@@ -5,7 +5,7 @@
 		<include src="s2r://panorama/styles/citadel_ui_context_menu_player.vcss_c" />
 	</styles>
 	<scripts>
-		<include src="s2r://panorama/scripts/topbar_rank_rank_bridge.vjs_c" />
+		<include src="s2r://panorama/scripts/showrank_common.vjs_c" />
 	</scripts>
 	<snippets>
 		<snippet name="InviteToParty">
@@ -114,16 +114,16 @@
 			</Panel>
 		</snippet>
 	</snippets>
-	<CitadelContextMenuPlayer class="PlayerMenuContents TopbarRankPlayerContextMenuRoot" onload="if ($.TopbarRankContextMenuTriggerProfileCard) $.TopbarRankContextMenuTriggerProfileCard('context_menu_player_onload');">
-		<CitadelProfileCard id="ProfileCard" onload="if ($.TopbarRankContextMenuTriggerProfileCard) $.TopbarRankContextMenuTriggerProfileCard('context_menu_profile_card_onload');" />
+	<CitadelContextMenuPlayer class="PlayerMenuContents ShowRankPlayerContextMenuRoot">
+		<CitadelProfileCard id="ProfileCard" />
 		<Panel id="MenuOptionsContainer">
 			<Panel id="PlayerContainer" />
 			<Panel id="MenuOptionsPanel" />
 			<Panel class="MenuRow">
-				<TextButton id="MenuButton" text="StatLocker Profile" onactivate="if ($.TopbarRankContextMenuOpenStatlocker) $.TopbarRankContextMenuOpenStatlocker();" />
+				<TextButton id="MenuButton" text="StatLocker Profile" onactivate="if ($.ShowRankContextMenuOpenStatlocker) $.ShowRankContextMenuOpenStatlocker();" />
 			</Panel>
 			<Panel class="MenuRow">
-				<TextButton id="MenuButton" text="Deadlock Profile" onactivate="if ($.TopbarRankContextMenuOpenDeadlock) $.TopbarRankContextMenuOpenDeadlock();" />
+				<TextButton id="MenuButton" text="Deadlock Profile" onactivate="if ($.ShowRankContextMenuOpenDeadlock) $.ShowRankContextMenuOpenDeadlock();" />
 			</Panel>
 		</Panel>
 	</CitadelContextMenuPlayer>

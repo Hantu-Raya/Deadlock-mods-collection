@@ -1,4 +1,4 @@
-<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<!-- xml reconstructed by Source 2 Viewer - https://valveresourceformat.github.io -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
@@ -8,9 +8,9 @@
 	</styles>
 	<scripts>
 		<include src="s2r://panorama/scripts/topbar_rank_v40_hud.vjs_c" />
-		<include src="s2r://panorama/scripts/topbar_rank_rank_bridge.vjs_c" />
+		<include src="s2r://panorama/scripts/showrank_common.vjs_c" />
 	</scripts>
-	<CitadelHudTopBar hittest="false" onload="if ($.TopbarRankTopBarRootLoaded) $.TopbarRankTopBarRootLoaded('topbar_root_onload');">
+	<CitadelHudTopBar hittest="false">
 		<GlobalClassListener classes="gDetailView gScoreboardOpen" />
 		<Panel id="GradientBacker" />
 		<Panel class="GameClock">
@@ -33,17 +33,9 @@
 				</Panel>
 			</Panel>
 		</Panel>
-		<Panel id="TopbarRankTeamAverageLayer" class="TopbarRankTeamAverageLayer" hittest="false">
-			<Image id="TopbarRankAverageFriendlyImage" class="TopbarRankTeamAverageRankImage TopbarRankTeamAverageFriendlyImage" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
-			<Image id="TopbarRankAverageEnemyImage" class="TopbarRankTeamAverageRankImage TopbarRankTeamAverageEnemyImage" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
-		</Panel>
-		<Panel id="UrnTracker" class="UrnTracker" visible="true">
-			<Panel id="UrnNetworthCard" class="UrnTrackerCard UrnNetworthCard neutral" visible="true">
-				<Label id="UrnTrackerLabel" class="UrnTrackerLabel" text="--" />
-			</Panel>
-			<Panel id="UrnHudCard" class="UrnTrackerCard UrnHudCard" visible="true">
-				<Label id="UrnHUD" class="UrnHUD" text="0:00" />
-			</Panel>
+		<Panel id="ShowRankTeamAverageLayer" class="ShowRankTeamAverageLayer" hittest="false">
+			<Image id="ShowRankAverageFriendlyImage" class="ShowRankTeamAverageRankImage ShowRankTeamAverageFriendlyImage" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+			<Image id="ShowRankAverageEnemyImage" class="ShowRankTeamAverageRankImage ShowRankTeamAverageEnemyImage" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 		</Panel>
 		<Panel id="StretBrawlContainer">
 			<Label class="roundTitle" text="#Citadel_StreetBrawl_RoundTitle" />
@@ -65,17 +57,25 @@
 			<CitadelHudTopBarTeam id="TeamEnemy" team="3" />
 		</Panel>
 		<CitadelObjectivesMap id="ObjectivesMap" liveGame="true" />
-		<Panel id="BuffHUD" class="BuffP" hittest="false">
-			<Label id="BuffTimeHUD" text="0:00" />
-			<Image id="BuffImgHUD" src="s2r://panorama/images/hud/modifiers/icon_powerup.svg" />
+		<Panel id="UrnTracker" class="UrnTracker" visible="true">
+			<Panel id="UrnNetworthCard" class="UrnTrackerCard UrnNetworthCard neutral" visible="true">
+				<Label id="UrnTrackerLabel" class="UrnTrackerLabel" text="--" />
+			</Panel>
+			<Panel id="UrnHudCard" class="UrnTrackerCard UrnHudCard" visible="true">
+				<Label id="UrnHUD" class="UrnHUD" text="0:00" />
+			</Panel>
 		</Panel>
-		<Panel id="RejuvHUD" hittest="false">
-			<Label id="RejuvTimeHUD" text="0:00" />
-			<Image id="RejuvImgHUD" src="s2r://panorama/images/hud/modifiers/icon_rejuvenator.svg" />
-			<Label id="RejuvNumHUD" text="1" />
+		<Panel id="BuffHUD" class="BuffP TopbarRankTimerPill TopbarRankPowerupHud" hittest="false">
+			<Label id="BuffTimeHUD" class="TopbarRankTimerValue" text="0:00" />
+			<Image id="BuffImgHUD" class="TopbarRankTimerIcon" src="s2r://panorama/images/hud/modifiers/icon_powerup.svg" />
 		</Panel>
-		<Panel id="RejuvBuff" hittest="false">
-			<Label id="RejuvTimeBuff" text="0:00" />
+		<Panel id="RejuvHUD" class="TopbarRankTimerPill TopbarRankRejuvHud" hittest="false">
+			<Label id="RejuvTimeHUD" class="TopbarRankTimerValue" text="0:00" />
+			<Image id="RejuvImgHUD" class="TopbarRankTimerIcon" src="s2r://panorama/images/hud/modifiers/icon_rejuvenator.svg" />
+			<Label id="RejuvNumHUD" class="TopbarRankTimerPhase" text="1" />
+		</Panel>
+		<Panel id="RejuvBuff" class="TopbarRankRejuvBuff" hittest="false">
+			<Label id="RejuvTimeBuff" class="TopbarRankRejuvBuffTime" text="0:00" />
 		</Panel>
 		<Panel id="Buff" class="BuffP" hittest="false">
 			<Label id="BuffTime" text="0:00" />
@@ -129,30 +129,39 @@
 				</Panel>
 			</Panel>
 		</Panel>
-		<Panel id="IdolCashInMeter">
-			<Panel id="IdolIndicator">
-				<Panel id="IdolCashInMeterTeam1" class="IdolCashInMeter">
-					<ProgressBar id="IdolCashInTeamBar1" class="IdolProgressBar" />
-					<Label id="IdolCashInTeamLabel1" class="IdolTeamText" text="{i:IdolTeam1Progress}%" />
+		<Panel id="KothCashInMeter">
+			<Panel class="bg_backer" />
+			<Panel id="Koth_Center">
+				<Panel class="koth_gold">
+					<Panel class="soul_icon" />
+					<Label id="KothCashInValueLabel" class="koth_gold_text" text="{i:gold_value}" />
 				</Panel>
-				<Panel id="Idol_Center">
-					<Panel class="idol_icon" />
-				</Panel>
-				<Panel id="IdolCashInMeterTeam2" class="IdolCashInMeter">
-					<ProgressBar id="IdolCashInTeamBar2" class="IdolProgressBar" />
-					<Label id="IdolCashInTeamLabel2" class="IdolTeamText" text="{i:IdolTeam2Progress}%" />
-				</Panel>
-			</Panel>
-			<Panel id="IdolParticipants">
-				<Panel id="IdolParticipantsColumnLeft" class="IdolParticipantsColumn">
-					<Panel id="IdolParticipantsTeam1" class="IdolParticipantsTeam friendly" />
-				</Panel>
-				<Panel id="IdolParticipantsColumnRight" class="IdolParticipantsColumn">
-					<Panel id="IdolParticipantsTeam2" class="IdolParticipantsTeam enemy" />
+				<Panel class="koth_result">
+					<Label class="koth_result_label" text="#Citadel_HUD_KothCompleted" />
+					<Label class="koth_result_label_enemy" text="#Citadel_HUD_KothCompletedEnemy" />
+					<Label class="koth_result_label_timeout" text="#Citadel_HUD_KothTimeRanOut" />
 				</Panel>
 			</Panel>
-			<Panel id="IdolTextureElement" />
-			<Label class="idol_time_warning" text="#Citadel_HUD_Idol_Time_Warning" />
+			<Panel id="KothIndicator">
+				<Panel id="KothCashInMeterTeam1" class="KothCashInMeter">
+					<ProgressBar id="KothCashInTeamBar1" class="KothProgressBar" />
+					<Label id="KothCashInTeamLabel1" class="KothTeamText" text="{i:KothTeam1Progress}%" />
+				</Panel>
+				<Panel id="KothCashInMeterTeam2" class="KothCashInMeter">
+					<ProgressBar id="KothCashInTeamBar2" class="KothProgressBar" />
+					<Label id="KothCashInTeamLabel2" class="KothTeamText" text="{i:KothTeam2Progress}%" />
+				</Panel>
+			</Panel>
+			<Panel id="KothParticipants">
+				<Panel id="KothParticipantsColumnLeft" class="KothParticipantsColumn">
+					<Panel id="KothParticipantsTeam1" class="KothParticipantsTeam friendly" />
+				</Panel>
+				<Panel id="KothParticipantsColumnRight" class="KothParticipantsColumn">
+					<Panel id="KothParticipantsTeam2" class="KothParticipantsTeam enemy" />
+				</Panel>
+			</Panel>
+			<Panel id="KothTextureElement" />
+			<Label class="koth_time_warning" text="#Citadel_HUD_Koth_Time_Warning" />
 		</Panel>
 	</CitadelHudTopBar>
 </root>

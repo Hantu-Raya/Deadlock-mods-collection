@@ -3,15 +3,37 @@
 
   var ROOT_TICK_SECONDS = 1.0;
   var PLAYER_TICK_SECONDS = 0.5;
-  var REJUV_DURATION = 240;
+  var REJUV_DURATION = 180;
   var BRIDGE_DURATION = 300;
-  var INITIAL_URN = 720;
-  var URN_DURATION = 360;
+  var RIFT_SPAWN_WARNING_SECONDS = 25;
+  var RIFT_FIRST_SPAWN_CENTER_SECONDS = 745;
+  var RIFT_RESPAWN_INTERVAL_SECONDS = 420;
+  var RIFT_SPAWN_JITTER_SECONDS = 60;
+  var RIFT_CAPTURE_SECONDS_COMEBACK = 6;
+  var RIFT_CAPTURE_SECONDS_NEUTRAL = 12;
+  var RIFT_CAPTURE_SECONDS_LEADING = 18;
+  var RIFT_FULL_COMEBACK_DIFF_PCT = 15;
+  var URN_FIRST_SPAWN_SECONDS = 600;
+  var URN_SPAWN_INTERVAL_SECONDS = 300;
+  var URN_WALK_AFTER_SECONDS = 180;
+  var URN_PICKUP_DECAY_START_SECONDS = 45;
+  var URN_PICKUP_DECAY_DURATION_SECONDS = 45;
+  var OBJECTIVE_IDLE_TEXT = "Obj --";
+  var RIFT_LIVE_TEXT = "Rift live";
+  var RIFT_SPAWN_TEXT = "Rift spawn";
+  var URN_LIVE_TEXT = "Urn live";
+  var URN_HELD_TEXT = "Urn held";
+  var URN_DROP_TEXT = "Urn drop";
+  var URN_WALK_TEXT = "Urn walk";
+  var URN_DECAY_TEXT = "Urn decay";
+  var URN_EMPTY_TEXT = "Urn empty";
+  var OBJECTIVE_MARKER_ROOT_IDS = ["HudMinimap", "hud_minimap", "HudMinimapContainer", "minimap_container", "ObjectivesMap"];
   var ROOT_GENERATION_KEY = "__TopbarRankV40HudRootGeneration";
   var PLAYER_GENERATION_KEY = "__TopbarRankV40HudPlayerGeneration";
   var PREFERRED_GAME_TIME_IDS = ["HudGameTime", "GameTime", "MainGameTime"];
   var REJUV_TOKENS = ["RejuvCount_1", "RejuvCount_2", "RejuvCount_3", "RejuvCount_4"];
   var TIER_COSTS = { isTier1: 800, isTier2: 1600, isTier3: 3200, isTier4: 6400 };
+  var TIER_CLASS_NAMES = ["isTier1", "isTier2", "isTier3", "isTier4"];
   var REJUV_SEQUENCE = [
     { name: "initial", duration: 0, label: "1" },
     { name: "firstCd", duration: 413, label: "2" },
@@ -49,6 +71,16 @@
       if (root.FindChildTraverse) return root.FindChildTraverse(id);
       if (root.FindChild) return root.FindChild(id);
     } catch (e) { }
+    return null;
+  }
+
+  function FindFirstPanelByIds(root, ids) {
+    var panel;
+    var i;
+    for (i = 0; ids && i < ids.length; i += 1) {
+      panel = Find(root, ids[i]);
+      if (IsValid(panel)) return panel;
+    }
     return null;
   }
 
@@ -101,6 +133,23 @@
     return "";
   }
 
+  function PanelHasClassToken(panel, token) {
+    return HasClass(panel, token) || PanelClassText(panel).indexOf(token) !== -1;
+  }
+
+  function PanelHasAnyClassToken(panel, tokens) {
+    var i;
+    for (i = 0; i < tokens.length; i += 1) if (PanelHasClassToken(panel, tokens[i])) return true;
+    return false;
+  }
+
+  function ReadObjectiveMarkerRoot(state) {
+    if (!IsValid(state.objectiveMarkerRoot)) {
+      state.objectiveMarkerRoot = FindFirstPanelByIds(state.root, OBJECTIVE_MARKER_ROOT_IDS);
+    }
+    return state.objectiveMarkerRoot;
+  }
+
   function PanelHasToken(panel, token) {
     var children;
     var i;
@@ -135,6 +184,12 @@
     else if (suffix === "m") value *= 1000000;
     else if (suffix === "b") value *= 1000000000;
     return Math.round(value);
+  }
+
+  function Clamp(value, min, max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
   }
 
   function ParseClock(text) {
@@ -295,7 +350,7 @@
     var souls = ReadTeamSouls(state);
     var higher = Math.max(souls.friendly, souls.enemy);
     var lower = Math.min(souls.friendly, souls.enemy);
-    var diff;
+    var diff = 0;
     var threshold;
     var text = "--";
     var urnClass = "neutral";
@@ -313,6 +368,241 @@
       }
     }
     ApplyTeamDiffState(state, text, urnClass, advantageClass);
+    return { diffPct: diff || 0, friendly: souls.friendly, enemy: souls.enemy };
+  }
+
+  function ReadRiftMarker(state) {
+    var markerRoot = ReadObjectiveMarkerRoot(state);
+    var candidates;
+    var panel;
+    var i;
+    if (!IsValid(markerRoot)) return { panel: null, warning: false, present: false };
+    candidates = ChildrenWithClass(markerRoot, "capture_point");
+    for (i = 0; candidates && i < candidates.length; i += 1) {
+      panel = candidates[i];
+      if (!IsValid(panel)) continue;
+      if (!PanelHasClassToken(panel, "capture_point")) continue;
+      if (PanelHasClassToken(panel, "koth_warning")) return { panel: panel, warning: true, present: true };
+      if (PanelHasClassToken(panel, "active") && PanelHasAnyClassToken(panel, ["team_neutral", "team_1", "team_2", "team1", "team2"])) {
+        return { panel: panel, warning: false, present: true };
+      }
+    }
+    return { panel: null, warning: false, present: false };
+  }
+
+  function ReadUrnMarker(state) {
+    var markerRoot = ReadObjectiveMarkerRoot(state);
+    var heldByRoot = PanelHasClassToken(state.root, "PlayerIsHoldingIdol");
+    var candidates;
+    var panel;
+    var i;
+    var result = { panel: null, present: false, held: heldByRoot, dropped: false, returnTarget: false };
+    if (!IsValid(markerRoot)) return result;
+    candidates = ChildrenWithClass(markerRoot, "map_button");
+    for (i = 0; candidates && i < candidates.length; i += 1) {
+      panel = candidates[i];
+      if (!IsValid(panel)) continue;
+      if (PanelHasAnyClassToken(panel, ["idol_spawn", "old_spawn", "idol_return_snippet", "idol_return", "idol_return_friendly", "idol_return_enemy", "idol_dropping"])) {
+        result.panel = panel;
+        result.present = true;
+        result.held = result.held || PanelHasClassToken(panel, "holding_idol");
+        result.dropped = PanelHasClassToken(panel, "idol_dropping");
+        result.returnTarget = PanelHasAnyClassToken(panel, ["idol_return", "idol_return_friendly", "idol_return_enemy", "idol_return_snippet"]);
+        return result;
+      }
+    }
+    return result;
+  }
+
+  function ReadUrnSchedule(now) {
+    var elapsed;
+    var remaining;
+    if (now < URN_FIRST_SPAWN_SECONDS) return { remaining: URN_FIRST_SPAWN_SECONDS - now, due: false };
+    elapsed = (now - URN_FIRST_SPAWN_SECONDS) % URN_SPAWN_INTERVAL_SECONDS;
+    remaining = elapsed === 0 ? 0 : URN_SPAWN_INTERVAL_SECONDS - elapsed;
+    return { remaining: remaining, due: remaining <= 1 };
+  }
+
+  function EstimateRiftSpawnAccumulator(now) {
+    var elapsed;
+    var cycles;
+    if (now <= RIFT_FIRST_SPAWN_CENTER_SECONDS + RIFT_SPAWN_JITTER_SECONDS) return RIFT_FIRST_SPAWN_CENTER_SECONDS;
+    elapsed = now - (RIFT_FIRST_SPAWN_CENTER_SECONDS + RIFT_SPAWN_JITTER_SECONDS);
+    cycles = Math.floor(elapsed / RIFT_RESPAWN_INTERVAL_SECONDS) + 1;
+    return RIFT_FIRST_SPAWN_CENTER_SECONDS + cycles * RIFT_RESPAWN_INTERVAL_SECONDS;
+  }
+
+  function ReadRiftSpawnWindow(state, now) {
+    var accumulator = state.riftSpawnAccumulator || EstimateRiftSpawnAccumulator(now);
+    var minRemaining;
+    var maxRemaining;
+    if (now > accumulator + RIFT_SPAWN_JITTER_SECONDS) accumulator = EstimateRiftSpawnAccumulator(now);
+    state.riftSpawnAccumulator = accumulator;
+    minRemaining = Math.max(0, accumulator - RIFT_SPAWN_JITTER_SECONDS - now);
+    maxRemaining = Math.max(0, accumulator + RIFT_SPAWN_JITTER_SECONDS - now);
+    return { min: minRemaining, max: maxRemaining };
+  }
+
+  function AdvanceRiftSpawnAccumulatorAfterLive(state, now) {
+    var accumulator = state.riftSpawnAccumulator || EstimateRiftSpawnAccumulator(now);
+    if (now > accumulator + RIFT_SPAWN_JITTER_SECONDS) accumulator = EstimateRiftSpawnAccumulator(now);
+    state.riftSpawnAccumulator = accumulator + RIFT_RESPAWN_INTERVAL_SECONDS;
+    state.riftObservedLive = false;
+  }
+
+  function FormatRiftSpawnWindow(window) {
+    return "Rift " + FormatSeconds(window.min) + "-" + FormatSeconds(window.max);
+  }
+
+  function ReadRiftCapturingSide(state) {
+    var team1 = state.kothTeam1;
+    var team2 = state.kothTeam2;
+    if (!IsValid(team1)) state.kothTeam1 = team1 = Find(state.root, "KothCashInMeterTeam1");
+    if (!IsValid(team2)) state.kothTeam2 = team2 = Find(state.root, "KothCashInMeterTeam2");
+    if (PanelHasClassToken(team1, "capturing")) {
+      if (PanelHasClassToken(team1, "friendly")) return "friendly";
+      if (PanelHasClassToken(team1, "enemy")) return "enemy";
+    }
+    if (PanelHasClassToken(team2, "capturing")) {
+      if (PanelHasClassToken(team2, "friendly")) return "friendly";
+      if (PanelHasClassToken(team2, "enemy")) return "enemy";
+    }
+    if (PanelHasClassToken(state.kothCashInMeter, "friendly")) return "friendly";
+    if (PanelHasClassToken(state.kothCashInMeter, "enemy")) return "enemy";
+    return "";
+  }
+
+  function ReadRiftCaptureModel(teamDiff, side) {
+    var diff = teamDiff && typeof teamDiff.diffPct === "number" ? teamDiff.diffPct : 0;
+    var scale;
+    var seconds = RIFT_CAPTURE_SECONDS_NEUTRAL;
+    var className = "TopbarRankObjectiveRiftNeutral";
+    if (side === "enemy") diff = -diff;
+    else if (side !== "friendly") diff = 0;
+    scale = Clamp(Math.abs(diff) / RIFT_FULL_COMEBACK_DIFF_PCT, 0, 1);
+    if (diff < 0) {
+      seconds = RIFT_CAPTURE_SECONDS_NEUTRAL + (RIFT_CAPTURE_SECONDS_COMEBACK - RIFT_CAPTURE_SECONDS_NEUTRAL) * scale;
+      className = "TopbarRankObjectiveRiftGood";
+    } else if (diff > 0) {
+      seconds = RIFT_CAPTURE_SECONDS_NEUTRAL + (RIFT_CAPTURE_SECONDS_LEADING - RIFT_CAPTURE_SECONDS_NEUTRAL) * scale;
+      className = "TopbarRankObjectiveRiftBad";
+    }
+    return { seconds: seconds, className: className };
+  }
+
+  function KothStateHasAnyToken(state, tokens) {
+    return PanelHasAnyClassToken(state.kothCashInMeter, tokens) || PanelHasAnyClassToken(state.root, tokens);
+  }
+
+  function ReadNativeKothState(state) {
+    if (!IsValid(state.kothCashInMeter)) state.kothCashInMeter = Find(state.root, "KothCashInMeter");
+    return {
+      active: KothStateHasAnyToken(state, ["koth_enabled", "in_range", "capturing", "contested", "captured", "give_up_warning", "gave_up"]),
+      capturing: KothStateHasAnyToken(state, ["capturing", "contested", "give_up_warning"]),
+      done: KothStateHasAnyToken(state, ["captured", "gave_up", "captured_neutral"])
+    };
+  }
+
+  function ApplyObjectiveHudClass(panel, className) {
+    RemoveClass(panel, "TopbarRankObjectiveIdle");
+    RemoveClass(panel, "TopbarRankObjectiveRiftWarning");
+    RemoveClass(panel, "TopbarRankObjectiveRiftLive");
+    RemoveClass(panel, "TopbarRankObjectiveRiftGood");
+    RemoveClass(panel, "TopbarRankObjectiveRiftNeutral");
+    RemoveClass(panel, "TopbarRankObjectiveRiftBad");
+    RemoveClass(panel, "TopbarRankObjectiveUrnSoon");
+    RemoveClass(panel, "TopbarRankObjectiveUrnLive");
+    RemoveClass(panel, "TopbarRankObjectiveUrnHeld");
+    RemoveClass(panel, "TopbarRankObjectiveUrnDrop");
+    RemoveClass(panel, "TopbarRankObjectiveUrnDecay");
+    AddClass(panel, className);
+  }
+
+  function UpdateObjectiveTracker(state, now, teamDiff) {
+    var riftMarker = ReadRiftMarker(state);
+    var nativeState = ReadNativeKothState(state);
+    var urnMarker;
+    var urnSchedule;
+    var capture;
+    var remaining;
+    var side;
+    var heldElapsed;
+    var liveElapsed;
+    var riftWindow;
+    var text = OBJECTIVE_IDLE_TEXT;
+    var className = "TopbarRankObjectiveIdle";
+    if (riftMarker.warning) {
+      if (!state.riftWarningStartedAt) state.riftWarningStartedAt = now;
+      remaining = Math.max(0, RIFT_SPAWN_WARNING_SECONDS - (now - state.riftWarningStartedAt));
+      text = remaining > 0 ? "Rift " + FormatSeconds(remaining) : RIFT_SPAWN_TEXT;
+      className = "TopbarRankObjectiveRiftWarning";
+      state.riftObservedLive = true;
+    } else {
+      state.riftWarningStartedAt = 0;
+      if (nativeState.capturing) {
+        side = ReadRiftCapturingSide(state);
+        capture = ReadRiftCaptureModel(teamDiff, side);
+        text = "Cap " + Math.round(capture.seconds) + "s";
+        className = capture.className;
+        state.riftObservedLive = true;
+      } else if (nativeState.active || riftMarker.present) {
+        text = nativeState.done ? "Rift done" : RIFT_LIVE_TEXT;
+        className = "TopbarRankObjectiveRiftLive";
+        state.riftObservedLive = true;
+      } else {
+        if (state.riftObservedLive) AdvanceRiftSpawnAccumulatorAfterLive(state, now);
+        urnMarker = ReadUrnMarker(state);
+        urnSchedule = ReadUrnSchedule(now);
+        if (urnMarker.held) {
+          if (!state.urnHeldSeenAt) state.urnHeldSeenAt = now;
+          heldElapsed = now - state.urnHeldSeenAt;
+          if (heldElapsed >= URN_PICKUP_DECAY_START_SECONDS + URN_PICKUP_DECAY_DURATION_SECONDS) {
+            text = URN_EMPTY_TEXT;
+            className = "TopbarRankObjectiveUrnDecay";
+          } else if (heldElapsed >= URN_PICKUP_DECAY_START_SECONDS) {
+            text = URN_DECAY_TEXT;
+            className = "TopbarRankObjectiveUrnDecay";
+          } else {
+            text = URN_HELD_TEXT;
+            className = "TopbarRankObjectiveUrnHeld";
+          }
+        } else {
+          state.urnHeldSeenAt = 0;
+          if (urnMarker.present) {
+            if (!state.urnLiveSeenAt) state.urnLiveSeenAt = now;
+            liveElapsed = now - state.urnLiveSeenAt;
+            if (urnMarker.dropped) {
+              text = URN_DROP_TEXT;
+              className = "TopbarRankObjectiveUrnDrop";
+            } else if (liveElapsed >= URN_WALK_AFTER_SECONDS) {
+              text = URN_WALK_TEXT;
+              className = "TopbarRankObjectiveUrnLive";
+            } else {
+              text = URN_LIVE_TEXT;
+              className = "TopbarRankObjectiveUrnLive";
+            }
+          } else {
+            state.urnLiveSeenAt = 0;
+            riftWindow = ReadRiftSpawnWindow(state, now);
+            if (urnSchedule.due || urnSchedule.remaining <= riftWindow.min) {
+              text = urnSchedule.due ? "Urn now" : "Urn " + FormatSeconds(urnSchedule.remaining);
+              className = urnSchedule.remaining <= 30 ? "TopbarRankObjectiveUrnSoon" : "TopbarRankObjectiveIdle";
+            } else {
+              text = FormatRiftSpawnWindow(riftWindow);
+              className = "TopbarRankObjectiveRiftLive";
+            }
+          }
+        }
+      }
+    }
+    if (text !== state.lastObjectiveText) {
+      state.lastObjectiveText = text;
+      SetText(state.urnHud, text);
+    }
+    if (className !== state.lastObjectiveClass) {
+      state.lastObjectiveClass = className;
+      ApplyObjectiveHudClass(state.urnHudCard, className);
+    }
   }
 
 
@@ -386,16 +676,18 @@
   function StartRejuvBuff(state, now) {
     state.buffEndAt = now + REJUV_DURATION;
     SetText(state.rejuvBuffTime, FormatSeconds(REJUV_DURATION));
-    RemoveClass(state.rejuvBuff, "pop-in");
-    AddClass(state.rejuvBuff, "pop-out");
+    AddClass(state.rejuvBuff, "TopbarRankRejuvBuffVisible");
     try { if (IsValid(state.rejuvBuff)) state.rejuvBuff.style.opacity = "1"; } catch (e) { }
   }
 
   function EndRejuvBuff(state) {
-    if (!state.buffEndAt) return;
+    if (!state.buffEndAt) {
+      RemoveClass(state.rejuvBuff, "TopbarRankRejuvBuffVisible");
+      try { if (IsValid(state.rejuvBuff)) state.rejuvBuff.style.opacity = "0"; } catch (e0) { }
+      return;
+    }
     state.buffEndAt = 0;
-    RemoveClass(state.rejuvBuff, "pop-out");
-    AddClass(state.rejuvBuff, "pop-in");
+    RemoveClass(state.rejuvBuff, "TopbarRankRejuvBuffVisible");
     Schedule(state, 0.5, function () {
       try { if (IsValid(state.rejuvBuff) && !state.buffEndAt) state.rejuvBuff.style.opacity = "0"; } catch (e) { }
     });
@@ -476,9 +768,10 @@
 
 
   function UpdateRoot(state) {
+    if (!RootStateIsActive(state)) return;
     var now = ReadGameSeconds(state, false);
     var bridgeRemaining;
-    var urnRemaining;
+    var teamDiff;
     var chargeActive;
     if (now + 5 < state.lastSeconds || (state.lastSeconds > 30 && now <= 2)) ResetRootState(state, now);
     state.lastSeconds = now;
@@ -491,19 +784,48 @@
     SetText(state.buffHudTime, FormatSeconds(bridgeRemaining));
     SetWarningClass(state.buffHud, bridgeRemaining);
     SetBuffTimerWarning(state, bridgeRemaining);
-    urnRemaining = now < INITIAL_URN ? INITIAL_URN - (now % INITIAL_URN) : URN_DURATION - (now % URN_DURATION);
-    SetText(state.urnHud, FormatSeconds(urnRemaining));
     chargeActive = HasRejuvCharge(state);
     UpdateRejuv(state, now, chargeActive);
-    UpdateTeamDiff(state, now);
+    teamDiff = UpdateTeamDiff(state, now);
+    UpdateObjectiveTracker(state, now, teamDiff);
     Schedule(state, ROOT_TICK_SECONDS, function () { UpdateRoot(state); });
   }
 
+  function StateIsActive(state) {
+    var currentGeneration;
+    if (!state) return false;
+    if (state.context && !IsValid(state.context)) return false;
+    if (state.root && !IsValid(state.root)) return false;
+    if (state.generationKey && state.context) {
+      try { currentGeneration = state.context[state.generationKey]; } catch (e) { return false; }
+      if (currentGeneration !== state.generation) return false;
+    }
+    return true;
+  }
+
+  function RootStateIsActive(state) {
+    return StateIsActive(state) && IsValid(state.buffTime) && IsValid(state.rejuvTime) && IsValid(state.urnTrackerLabel);
+  }
+
+  function PlayerStateIsActive(state) {
+    return StateIsActive(state) && IsValid(state.display) && IsValid(state.modsContainer);
+  }
+
+  function ScheduleBootRetry(context) {
+    try {
+      $.Schedule(0.5, function () {
+        if (IsValid(context)) Boot();
+      });
+    } catch (e) { }
+  }
+
   function Schedule(state, delay, callback) {
-    var generation = state.generation;
+    var generation = state ? state.generation : null;
     try {
       $.Schedule(delay, function () {
-        if (state.generation === generation) callback();
+        if (state && state.generation !== generation) return;
+        if (state && !StateIsActive(state)) return;
+        callback();
       });
     } catch (e) { }
   }
@@ -517,6 +839,7 @@
       context: context,
       root: root,
       generation: context[ROOT_GENERATION_KEY] || 1,
+      generationKey: ROOT_GENERATION_KEY,
       lastSeconds: 0,
       phaseIndex: 0,
       phaseStart: 0,
@@ -549,7 +872,18 @@
       advantageLabel: Find(root, "TopbarRankAdvantageLabel"),
       rejuvenatorCharges: null,
       rejuvenatorFriendly: null,
-      rejuvenatorEnemy: null
+      rejuvenatorEnemy: null,
+      kothCashInMeter: Find(root, "KothCashInMeter"),
+      kothTeam1: Find(root, "KothCashInMeterTeam1"),
+      kothTeam2: Find(root, "KothCashInMeterTeam2"),
+      objectiveMarkerRoot: FindFirstPanelByIds(root, OBJECTIVE_MARKER_ROOT_IDS),
+      riftWarningStartedAt: 0,
+      riftSpawnAccumulator: 0,
+      riftObservedLive: false,
+      urnLiveSeenAt: 0,
+      urnHeldSeenAt: 0,
+      lastObjectiveText: "",
+      lastObjectiveClass: ""
     };
     RefreshChargePanels(state);
     return state;
@@ -565,33 +899,54 @@
     return true;
   }
 
-  function ReadPlayerGold(state) {
-    var value = ParseNumber(IsValid(state.hiddenGold) ? state.hiddenGold.text : "");
-    if (!value) value = ParseNumber(IsValid(state.goldRaw) ? state.goldRaw.text : "");
-    if (!value) value = ParseNumber(IsValid(state.soulsValue) ? state.soulsValue.text : "");
-    return value;
-  }
 
-  function CountSpentSouls(mods) {
-    var spent = 0;
-    var key;
-    var panels;
+  function TierCostForPanel(panel, counts) {
+    var classText = PanelClassText(panel);
     var i;
-    for (key in TIER_COSTS) {
-      if (!Object.prototype.hasOwnProperty.call(TIER_COSTS, key)) continue;
-      panels = ChildrenWithClass(mods, key);
-      for (i = 0; panels && i < panels.length; i += 1) if (IsValid(panels[i])) spent += TIER_COSTS[key];
+    var key;
+    var spent = 0;
+    for (i = 0; i < TIER_CLASS_NAMES.length; i += 1) {
+      key = TIER_CLASS_NAMES[i];
+      if (HasClass(panel, key) || classText.indexOf(key) !== -1) {
+        counts[i] += 1;
+        spent += TIER_COSTS[key] || 0;
+      }
     }
     return spent;
   }
 
+  function ReadSpentSoulsSnapshot(mods) {
+    var counts = [0, 0, 0, 0];
+    var stack;
+    var panel;
+    var children;
+    var i;
+    var spent = 0;
+    if (!IsValid(mods)) return { spent: 0, signature: "0:0:0:0" };
+    stack = [mods];
+    while (stack.length) {
+      panel = stack.pop();
+      if (!IsValid(panel)) continue;
+      spent += TierCostForPanel(panel, counts);
+      try { children = panel.Children ? panel.Children() : []; } catch (e) { children = []; }
+      for (i = 0; children && i < children.length; i += 1) stack.push(children[i]);
+    }
+    return { spent: spent, signature: counts[0] + ":" + counts[1] + ":" + counts[2] + ":" + counts[3] };
+  }
+
   function UpdatePlayer(state) {
+    var snapshot;
     var text;
-    var unspent;
-    if (!IsValid(state.context)) return;
-    unspent = ReadPlayerGold(state) - CountSpentSouls(state.modsContainer);
-    text = (unspent / 1000).toFixed(1) + "k";
-    SetText(state.display, text);
+    if (!PlayerStateIsActive(state)) return;
+    snapshot = ReadSpentSoulsSnapshot(state.modsContainer);
+    if (snapshot.signature !== state.lastSpentSignature) {
+      state.lastSpentSignature = snapshot.signature;
+      text = (snapshot.spent / 1000).toFixed(1) + "k";
+      if (text !== state.lastSpentText) {
+        state.lastSpentText = text;
+        SetText(state.display, text);
+      }
+    }
     Schedule(state, PLAYER_TICK_SECONDS, function () { UpdatePlayer(state); });
   }
 
@@ -601,11 +956,11 @@
       context: context,
       root: context,
       generation: context[PLAYER_GENERATION_KEY] || 1,
-      hiddenGold: Find(context, "HiddenGoldValue"),
-      goldRaw: Find(context, "TopbarRankGoldRaw"),
-      soulsValue: Find(context, "SoulsValue"),
+      generationKey: PLAYER_GENERATION_KEY,
       display: Find(context, "SpentSoulDisplay"),
-      modsContainer: Find(context, "PlayerModsContainer")
+      modsContainer: Find(context, "PlayerModsContainer"),
+      lastSpentSignature: "",
+      lastSpentText: ""
     };
   }
 
@@ -620,11 +975,11 @@
     var context = ContextPanel();
     if (!IsValid(context)) return;
     if (Find(context, "BuffTime") && Find(context, "RejuvTime") && Find(context, "UrnTrackerLabel")) {
-      if (!InitRoot(context)) Schedule({ generation: 1 }, 0.5, Boot);
+      if (!InitRoot(context)) ScheduleBootRetry(context);
       return;
     }
     if (Find(context, "SpentSoulDisplay") && Find(context, "PlayerModsContainer")) {
-      if (!InitPlayer(context)) Schedule({ generation: 1 }, 0.5, Boot);
+      if (!InitPlayer(context)) ScheduleBootRetry(context);
     }
   }
 
