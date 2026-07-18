@@ -5,22 +5,22 @@
 		<include src="s2r://panorama/styles/topbar_rank_player_list.vcss_c" />
 	</styles>
 	<scripts>
-		<include src="s2r://panorama/scripts/topbar_rank_rank_bridge.vjs_c" />
+		<include src="s2r://panorama/scripts/showrank_common.vjs_c" />
 	</scripts>
-	<CitadelPlayersListEntry class="TopbarRankPlayersListEntry" onload="if ($.TopbarRankRegisterPlayerListRowReady) $.TopbarRankRegisterPlayerListRowReady('escape_menu_players_list_row_ready');" onmouseover="if ($.TopbarRankMarkPlayerListHover) $.TopbarRankMarkPlayerListHover('players_list_hover');" onmouseout="if ($.TopbarRankClearPlayerListHover) $.TopbarRankClearPlayerListHover('players_list_out');">
+	<CitadelPlayersListEntry class="ShowRankCleanPlayersListEntry" onmouseover="if ($.ShowRankMarkPlayerListHover) $.ShowRankMarkPlayerListHover('players_list_hover');" onmouseout="if ($.ShowRankClearPlayerListHover) $.ShowRankClearPlayerListHover('players_list_out');" onactivate="if ($.ShowRankMarkPlayerListHover) $.ShowRankMarkPlayerListHover('players_list_activate'); if ($.ShowRankRegisterPlayerListRowReady) $.ShowRankRegisterPlayerListRowReady('players_list_manual_activate');">
 		<Panel class="Controls">
 			<Button class="MuteButton ToggleMuteButton" onmouseover="UIShowTextTooltip( #citadel_mute_player )" onmouseout="UIHideTextTooltip()" onactivate="CitadelPlayerListEntrySetMuted( true )" />
 			<Button class="UnmuteButton ToggleMuteButton" onmouseover="UIShowTextTooltip( #citadel_unmute_player )" onmouseout="UIHideTextTooltip()" onactivate="CitadelPlayerListEntrySetMuted( false )" />
 		</Panel>
-		<Panel id="MainContents" hittestchildren="false" onmouseover="if ($.TopbarRankMarkPlayerListHover) $.TopbarRankMarkPlayerListHover('players_list_hover');" onmouseout="if ($.TopbarRankClearPlayerListHover) $.TopbarRankClearPlayerListHover('players_list_out');" onactivate="if ($.TopbarRankMarkPlayerListHover) $.TopbarRankMarkPlayerListHover('players_list_activate'); if ($.TopbarRankRegisterPlayerListRowReady) $.TopbarRankRegisterPlayerListRowReady('players_list_manual_activate');">
+		<Panel id="MainContents" hittestchildren="false" onmouseover="if ($.ShowRankMarkPlayerListHover) $.ShowRankMarkPlayerListHover('players_list_hover');" onmouseout="if ($.ShowRankClearPlayerListHover) $.ShowRankClearPlayerListHover('players_list_out');" onactivate="if ($.ShowRankMarkPlayerListHover) $.ShowRankMarkPlayerListHover('players_list_activate'); if ($.ShowRankRegisterPlayerListRowReady) $.ShowRankRegisterPlayerListRowReady('players_list_manual_activate');">
 			<CitadelHeroBadge id="HeroBadge" />
 			<Panel class="Details">
-				<Panel class="TopbarRankPlayerNameRow" hittest="false">
+				<Panel class="ShowRankPlayerNameRow" hittest="false">
 					<Label id="PlayerName" class="PlayerName" text="{s:player_name}" />
 				</Panel>
 				<Label class="PlayerHero" text="#Citadel_Player_Level_HeroLevel" />
 			</Panel>
-			<Image id="TopbarRankPlayerListRankImage" class="TopbarRankPlayerListRankImage" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+			<Image id="ShowRankPlayerListRankImage" class="ShowRankPlayerListRankImage" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 		</Panel>
 	</CitadelPlayersListEntry>
 </root>

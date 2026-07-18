@@ -5,6 +5,7 @@ param(
     [switch]$Install,
     [switch]$KeepStaging,
     [switch]$Diagnostics,
+    [switch]$TopbarRank,
 
 
     [string]$AddonsPath = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons",
@@ -15,8 +16,11 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $root = $PSScriptRoot
-$modSrc = Join-Path $root "showrank"
-$buildRoot = Join-Path $root "_showrank_variant_build"
+. (Join-Path $root 'scripts\source2_package_pipeline.ps1')
+$modSrc = if ($TopbarRank) { Join-Path $root "topbar_rank" } else { Join-Path $root "showrank" }
+$buildRoot = if ($TopbarRank) { Join-Path $root "_topbar_rank_variant_build" } else { Join-Path $root "_showrank_variant_build" }
+$topbarCssRelativePath = if ($TopbarRank) { "panorama\styles\topbar_rank_topbar.css" } else { "panorama\styles\showrank_top_bar.css" }
+$variantFamilyName = if ($TopbarRank) { "Topbar Rank" } else { "ShowRank" }
 $compiler = Join-Path $root "sr2compiler\New folder.exe"
 $compilerPref = Join-Path $root "sr2compiler\pref.json"
 $addons = $AddonsPath
@@ -24,24 +28,34 @@ $dateTag = Get-Date -Format "yyyyMMdd_HHmmss"
 $showrankScriptNames = @(
     "showrank_common.js"
 )
+$topbarRankCompiledScriptNames = @(
+    "showrank_common.js",
+    "topbar_rank_v40_hud.js",
+    "recent_purchases_redux.js",
+    "recent_purchases_redux_data.js"
+)
+$topbarRankCompiledOutputNames = @(
+    "showrank_common.vjs_c",
+    "topbar_rank_v40_hud.vjs_c",
+    "recent_purchases_redux.vjs_c",
+    "recent_purchases_redux_data.vjs_c"
+)
 $showrankScriptRelativeRoot = "panorama\scripts"
 $showrankCommonScriptRelative = Join-Path $showrankScriptRelativeRoot "showrank_common.js"
 $showrankDiagnosticsTool = Join-Path $modSrc "tools\apply-showrank-diagnostics.js"
+$canonicalShowRankCommonScriptPath = Join-Path $root "showrank\panorama\scripts\showrank_common.js"
 
-$vpkeditcliCandidates = @(
+$vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
     (Join-Path $root "passive_items_mod\compiler\vpkeditcli.exe"),
     (Join-Path $root "vpk cli\vpkeditcli.exe"),
     (Join-Path $root "passive_items_mod_release\compiler\vpkeditcli.exe")
 )
-$vpkeditcli = $vpkeditcliCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-
-$sevenZipCandidates = @(
+$sevenZip = Get-RepoToolPath -ToolName '7z.exe' -Candidates @(
     "C:\Program Files\7-Zip\7z.exe",
     "C:\Program Files (x86)\7-Zip\7z.exe",
     (Join-Path $root "7z.exe"),
     (Join-Path $root "tools\7z.exe")
 )
-$sevenZip = $sevenZipCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 
 $variantSpecs = @(
     @{
@@ -83,6 +97,18 @@ $variantSpecs = @(
         ScoreboardOnlyTopBar = $true
         MinifyRanks = $true
         Description = "Minify-ranks scoreboard-only ShowRank: player rank images use the small Deadlock API image and top-bar ranks stay hidden until Tab/scoreboard is open."
+    }
+)
+$topbarRankVariantSpecs = @(
+    @{
+        Id = "normal"
+        PublishName = "topbar_rank_normal"
+        DisplayName = "Topbar Rank normal"
+        InstallVpkName = "pak89_dir.vpk"
+        StageName = "src_normal"
+        ScoreboardOnlyTopBar = $false
+        MinifyRanks = $false
+        Description = "Normal Topbar Rank: the combined top-bar HUD, recent-purchases, and ShowRank assets."
     }
 )
 
@@ -142,6 +168,20 @@ function Get-ShowRankScriptPaths {
     return $paths
 }
 
+function Get-ClosureScriptPaths {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$StageSrc
+    )
+
+    $paths = @()
+    $scriptNames = if ($TopbarRank) { $topbarRankCompiledScriptNames } else { $showrankScriptNames }
+    foreach ($scriptName in $scriptNames) {
+        $paths += Join-Path $StageSrc (Join-Path $showrankScriptRelativeRoot $scriptName)
+    }
+    return $paths
+}
+
 function Get-ShowRankCompiledScriptPaths {
     param(
         [Parameter(Mandatory = $true)]
@@ -149,11 +189,60 @@ function Get-ShowRankCompiledScriptPaths {
     )
 
     $paths = @()
-    foreach ($scriptName in $showrankScriptNames) {
-        $compiledName = [System.IO.Path]::ChangeExtension($scriptName, ".vjs_c")
-        $paths += Join-Path $StageCompiled (Join-Path $showrankScriptRelativeRoot $compiledName)
+    if ($TopbarRank) {
+        foreach ($compiledName in $topbarRankCompiledOutputNames) {
+            $paths += Join-Path $StageCompiled (Join-Path $showrankScriptRelativeRoot $compiledName)
+        }
+    } else {
+        foreach ($scriptName in $showrankScriptNames) {
+            $compiledName = [System.IO.Path]::ChangeExtension($scriptName, ".vjs_c")
+            $paths += Join-Path $StageCompiled (Join-Path $showrankScriptRelativeRoot $compiledName)
+        }
     }
     return $paths
+}
+
+function Assert-TopbarRankCanonicalCommonScript {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$StageSrc
+    )
+
+    $stagedPath = Join-Path $StageSrc $showrankCommonScriptRelative
+    if (-not (Test-Path -LiteralPath $canonicalShowRankCommonScriptPath)) {
+        throw "Canonical ShowRank common script not found: $canonicalShowRankCommonScriptPath"
+    }
+    if (-not (Test-Path -LiteralPath $stagedPath)) {
+        throw "Topbar Rank staged common script not found: $stagedPath"
+    }
+
+    $canonicalBytes = [System.IO.File]::ReadAllBytes($canonicalShowRankCommonScriptPath)
+    $stagedBytes = [System.IO.File]::ReadAllBytes($stagedPath)
+    if ($canonicalBytes.Length -ne $stagedBytes.Length) {
+        throw "Topbar Rank staged showrank_common.js differs from the canonical ShowRank script"
+    }
+    for ($index = 0; $index -lt $canonicalBytes.Length; $index++) {
+        if ($canonicalBytes[$index] -ne $stagedBytes[$index]) {
+            throw "Topbar Rank staged showrank_common.js differs from the canonical ShowRank script"
+        }
+    }
+}
+
+function Assert-TopbarRankCompiledOutputs {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$StageCompiled
+    )
+
+    foreach ($compiledPath in (Get-ShowRankCompiledScriptPaths -StageCompiled $StageCompiled)) {
+        if (-not (Test-Path -LiteralPath $compiledPath)) {
+            throw "Compiled Topbar Rank script not found: $compiledPath"
+        }
+    }
+    $obsoleteBridgePath = Join-Path $StageCompiled (Join-Path $showrankScriptRelativeRoot "topbar_rank_rank_bridge.vjs_c")
+    if (Test-Path -LiteralPath $obsoleteBridgePath) {
+        throw "Obsolete Topbar Rank bridge must not be present before packing: $obsoleteBridgePath"
+    }
 }
 
 function Test-AllShowRankCompiledScripts {
@@ -365,7 +454,9 @@ function Assert-ShowRankReleaseCleanCompiledScripts {
         [string]$StageCompiled
     )
 
-    foreach ($compiledPath in (Get-ShowRankCompiledScriptPaths -StageCompiled $StageCompiled)) {
+    foreach ($scriptName in $showrankScriptNames) {
+        $compiledName = [System.IO.Path]::ChangeExtension($scriptName, ".vjs_c")
+        $compiledPath = Join-Path $StageCompiled (Join-Path $showrankScriptRelativeRoot $compiledName)
         $compiledName = Split-Path -Leaf $compiledPath
         $compiledSource = Get-Content -LiteralPath $compiledPath -Raw
         Assert-ShowRankReleaseCleanContent -Content $compiledSource -Name $compiledName
@@ -416,8 +507,8 @@ function Assert-LatestTopBarContract {
     $commonScriptPath = Join-Path $StageSrc $showrankCommonScriptRelative
     $scriptPaths = Get-ShowRankScriptPaths -StageSrc $StageSrc
     $topBarXml = Join-Path $StageSrc "panorama\layout\citadel_hud_top_bar.xml"
+    $topBarCss = Join-Path $StageSrc $topbarCssRelativePath
     $topBarPlayerXml = Join-Path $StageSrc "panorama\layout\citadel_hud_top_bar_player.xml"
-    $topBarCss = Join-Path $StageSrc "panorama\styles\showrank_top_bar.css"
     $requiredPaths = @()
     $requiredPaths += $scriptPaths
     $requiredPaths += @($topBarXml, $topBarPlayerXml, $topBarCss)
@@ -483,12 +574,14 @@ function New-ShowRankClosureAdvancedExterns {
         "BHasClass",
         "ClearPlayerListHover",
         "CountTopBarRankState",
+        "CreatePanel",
         "CustomUIConfig",
         "DispatchEvent",
         "EscapeAutoPopulateFromRowReady",
         "FindChildTraverse",
         "FindChildrenWithClassTraverse",
         "FindTopBarCandidates",
+        "FrameTime",
         "GetAttributeString",
         "GetChild",
         "GetChildCount",
@@ -639,6 +732,13 @@ function New-ShowRankClosureAdvancedExterns {
         "`$.Msg = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
         "/** @const */ var GameUI = {};",
         "GameUI.CustomUIConfig = function() {};",
+        "/** @const */ var Game = {};",
+        "Game.GetMapInfo = function() {};",
+        "Game.GetDOTATime = function() {};",
+        "Game.GetGameTime = function() {};",
+        "Game.Time = 0;",
+        "Game.GameTime = 0;",
+        "var MOD_ICONS = {};",
         "/** @const */ var SteamOverlayAPI = {};",
         "SteamOverlayAPI.OpenURL = function(url) {};",
         "SteamOverlayAPI.OpenExternalBrowserURL = function(url) {};",
@@ -662,12 +762,14 @@ function Assert-ShowRankClosureAdvancedOutput {
     )
 
     $source = Get-Content -LiteralPath $ScriptPath -Raw
-    $requiredFragments = @("__ShowRankWebMediaBridgeClean")
     if ($source.Length -lt 128) {
-        throw "Closure ADVANCED produced suspiciously small ShowRank output: $ScriptName"
+        throw "Closure ADVANCED produced suspiciously small output: $ScriptName"
     }
+
+    $requiredFragments = @()
     if ($ScriptName -eq "showrank_common.js") {
-        $requiredFragments += @(
+        $requiredFragments = @(
+            "__ShowRankWebMediaBridgeClean",
             "ShowRankTriggerProfileCard",
             "ShowRankOpenStatlocker",
             "ShowRankContextMenuOpenStatlocker",
@@ -678,7 +780,16 @@ function Assert-ShowRankClosureAdvancedOutput {
             "ShowRankEscapePreloadFromPlayerList",
             "ShowRankRegisterPlayerListRowReady"
         )
+    } elseif ($ScriptName -eq "topbar_rank_v40_hud.js") {
+        $requiredFragments = @("__TopbarRankV40HudRootGeneration", "__TopbarRankV40HudPlayerGeneration", "SpentSoulDisplay")
+    } elseif ($ScriptName -eq "recent_purchases_redux.js") {
+        $requiredFragments = @("RecentPurchasesContainer", "__TopbarRankRecentPurchaseName", "MOD_ICONS")
+    } elseif ($ScriptName -eq "recent_purchases_redux_data.js") {
+        $requiredFragments = @("MOD_ICONS")
+    } else {
+        throw "Closure ADVANCED output guard has no contract for script: $ScriptName"
     }
+
     foreach ($fragment in $requiredFragments) {
         if (-not $source.Contains($fragment)) {
             throw "Closure ADVANCED output for $ScriptName is missing required runtime fragment: $fragment"
@@ -694,7 +805,7 @@ function Invoke-ShowRankClosureMinifier {
         [hashtable]$Spec
     )
 
-    $scriptPaths = Get-ShowRankScriptPaths -StageSrc $StageSrc
+    $scriptPaths = Get-ClosureScriptPaths -StageSrc $StageSrc
     $externsPath = New-ShowRankClosureAdvancedExterns
 
     Write-Host "[minify:closure-advanced] $($Spec.Id)" -ForegroundColor Cyan
@@ -710,22 +821,41 @@ function Invoke-ShowRankClosureMinifier {
         }
 
         $beforeSize = (Get-Item -LiteralPath $scriptPath).Length
+        $closureInputPath = $scriptPath
+        if ($scriptName -eq "recent_purchases_redux_data.js") {
+            $closureInputPath = Join-Path $buildRoot ("$($Spec.Id)_recent_purchases_redux_data.closure-input.js")
+            $dataSource = Get-Content -LiteralPath $scriptPath -Raw
+            $closureDataSource = $dataSource -replace '(?m)^\s*const MOD_ICONS\s*=', 'this["MOD_ICONS"] ='
+            if ($closureDataSource -eq $dataSource) {
+                throw "Could not preserve MOD_ICONS global in Closure input: $scriptPath"
+            }
+            Set-Content -LiteralPath $closureInputPath -Value $closureDataSource -NoNewline
+        }
+
         $closureArgs = @(
             '--yes'
             'google-closure-compiler'
             '--externs'
             $externsPath
             '--js'
-            $scriptPath
+            $closureInputPath
             '--compilation_level'
             'ADVANCED'
             '--js_output_file'
             $minifiedPath
         )
 
-        & npx @closureArgs
-        if ($LASTEXITCODE -ne 0) {
-            throw "google-closure-compiler ADVANCED failed for $($Spec.Id) $scriptName with exit code $LASTEXITCODE"
+        $closureExitCode = $null
+        try {
+            & npx @closureArgs
+            $closureExitCode = $LASTEXITCODE
+        } finally {
+            if ($closureInputPath -ne $scriptPath -and (Test-Path -LiteralPath $closureInputPath)) {
+                Remove-Item -LiteralPath $closureInputPath -Force
+            }
+        }
+        if ($closureExitCode -ne 0) {
+            throw "google-closure-compiler ADVANCED failed for $($Spec.Id) $scriptName with exit code $closureExitCode"
         }
         if (-not (Test-Path -LiteralPath $minifiedPath)) {
             throw "Closure ADVANCED ShowRank script not created: $minifiedPath"
@@ -746,7 +876,7 @@ function New-VariantStage {
     )
 
     if (-not (Test-Path -LiteralPath $modSrc)) {
-        throw "ShowRank source folder not found: $modSrc"
+        throw "$variantFamilyName source folder not found: $modSrc"
     }
 
     New-Item -ItemType Directory -Path $buildRoot -Force | Out-Null
@@ -760,16 +890,19 @@ function New-VariantStage {
     New-Item -ItemType Directory -Path $stageSrc -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $modSrc "panorama") -Destination $stageSrc -Recurse -Force
 
-    if ($Spec.ScoreboardOnlyTopBar) {
-        Apply-ScoreboardOnlyTopBarVariant -StageSrc $stageSrc
+    if ($TopbarRank) {
+        Assert-TopbarRankCanonicalCommonScript -StageSrc $stageSrc
+    } else {
+        if ($Spec.ScoreboardOnlyTopBar) {
+            Apply-ScoreboardOnlyTopBarVariant -StageSrc $stageSrc
+        }
+        if ($Spec.MinifyRanks) {
+            Apply-MinifyRanksVariant -StageSrc $stageSrc
+        }
+        if ($Diagnostics) {
+            Apply-ShowRankDiagnosticsPatch -StageSrc $stageSrc -Spec $Spec
+        }
     }
-    if ($Spec.MinifyRanks) {
-        Apply-MinifyRanksVariant -StageSrc $stageSrc
-    }
-    if ($Diagnostics) {
-        Apply-ShowRankDiagnosticsPatch -StageSrc $stageSrc -Spec $Spec
-    }
-
 
     Assert-LatestTopBarContract -StageSrc $stageSrc -Spec $Spec -AllowDiagnostics:$Diagnostics
 
@@ -902,26 +1035,12 @@ function Pack-VariantVpk {
         [hashtable]$Spec
     )
 
-    if (-not $vpkeditcli -or -not (Test-Path -LiteralPath $vpkeditcli)) {
-        throw "vpkeditcli.exe was not found in passive_items_mod\compiler, vpk cli, or passive_items_mod_release\compiler"
-    }
-
     $packStage = Join-Path $buildRoot ("pack_" + $Spec.Id)
     $vpkOut = Join-Path $packStage $Spec.InstallVpkName
     Remove-TreeUnderRoot -Path $packStage -RootPath $buildRoot
     New-Item -ItemType Directory -Path $packStage -Force | Out-Null
-    if (Test-Path -LiteralPath $vpkOut) {
-        Remove-Item -LiteralPath $vpkOut -Force
-    }
-
     Write-Host "[pack] $($Spec.Id) -> $($Spec.InstallVpkName)" -ForegroundColor Cyan
-    $pack = Start-Process -FilePath $vpkeditcli -ArgumentList "`"$StageCompiled`" -o `"$vpkOut`" -s --no-progress" -PassThru -Wait -NoNewWindow
-    if ($pack.ExitCode -ne 0) {
-        throw "vpkeditcli failed for $($Spec.Id) with exit code $($pack.ExitCode)"
-    }
-    if (-not (Test-Path -LiteralPath $vpkOut)) {
-        throw "VPK not created: $vpkOut"
-    }
+    Invoke-VpkPack -VpkEditCli $vpkeditcli -InputDir $StageCompiled -OutputPath $vpkOut
 
     return $vpkOut
 }
@@ -956,7 +1075,7 @@ Install:
 Copy $($Spec.InstallVpkName) into:
 $addons
 
-Do not install both ShowRank variants at the same time. They use the same pak slot intentionally so switching variants is a direct hot swap.
+Do not install both $variantFamilyName variants at the same time. They use the same pak slot intentionally so switching variants is a direct hot swap.
 "@
     Set-Content -LiteralPath (Join-Path $archiveStage "README.txt") -Value $readme.Trim() -NoNewline
 
@@ -965,19 +1084,7 @@ Do not install both ShowRank variants at the same time. They use the same pak sl
     }
 
     Write-Host "[7z] $(Split-Path -Leaf $archivePath) -> $addons" -ForegroundColor Cyan
-    Push-Location -LiteralPath $archiveStage
-    try {
-        & $sevenZip a -t7z $archivePath ".\*" -mx=9 -bso0 -bsp0
-        if ($LASTEXITCODE -ne 0) {
-            throw "7z failed for $($Spec.Id) with exit code $LASTEXITCODE"
-        }
-    } finally {
-        Pop-Location
-    }
-    if (-not (Test-Path -LiteralPath $archivePath)) {
-        throw "7z archive not created: $archivePath"
-    }
-
+    Compress-Vpk7Zip -SevenZip $sevenZip -InputPath $archiveStage -ArchivePath $archivePath -ExpectedLeaf $Spec.InstallVpkName
     return $archivePath
 }
 
@@ -1013,17 +1120,30 @@ if ($Install -and ($buildsAllVariants -or $requestedVariants.Count -ne 1)) {
 if ($Diagnostics -and ($buildsAllVariants -or $requestedVariants.Count -ne 1)) {
     throw "Use a single explicit -Variant with -Diagnostics. Diagnostic builds are temporary and must not publish multiple release variants."
 }
+if ($TopbarRank -and ($requestedVariants.Count -ne 1 -or $requestedVariants[0] -ne "normal")) {
+    throw "Topbar Rank mode supports exactly -Variant normal."
+}
+if ($TopbarRank -and $Diagnostics) {
+    throw "Topbar Rank mode does not support -Diagnostics."
+}
 
 $selectedSpecs = if ($buildsAllVariants) {
     $variantSpecs
 } else {
     $variantSpecs | Where-Object { $requestedVariants -contains $_.Id }
 }
+if ($TopbarRank) {
+    $selectedSpecs = $topbarRankVariantSpecs
+}
+
 
 $results = @()
 foreach ($spec in $selectedSpecs) {
     $stage = New-VariantStage -Spec $spec
     Invoke-ShowRankCompiler -StageSrc $stage.Source -StageCompiled $stage.Compiled -Spec $spec
+    if ($TopbarRank) {
+        Assert-TopbarRankCompiledOutputs -StageCompiled $stage.Compiled
+    }
     if (-not $Diagnostics) {
         Assert-ShowRankReleaseCleanCompiledScripts -StageCompiled $stage.Compiled
     }
@@ -1050,5 +1170,5 @@ if (-not $KeepStaging -and -not $Diagnostics) {
     Remove-TreeUnderRoot -Path $buildRoot -RootPath $root
 }
 
-Write-Host "`nShowRank variants built:" -ForegroundColor Green
+Write-Host "`n$variantFamilyName variants built:" -ForegroundColor Green
 $results | Format-Table -AutoSize

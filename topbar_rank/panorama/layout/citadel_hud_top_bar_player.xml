@@ -7,20 +7,20 @@
 	</styles>
 	<scripts>
 		<include src="s2r://panorama/scripts/topbar_rank_v40_hud.vjs_c" />
-		<include src="s2r://panorama/scripts/topbar_rank_rank_bridge.vjs_c" />
+		<include src="s2r://panorama/scripts/showrank_common.vjs_c" />
 	</scripts>
-	<CitadelHudTopBarPlayer class="TopbarRankTopBarPlayer" onload="if ($.TopbarRankRegisterTopBarPlayer) $.TopbarRankRegisterTopBarPlayer('topbar_player_onload');" onmouseover="if ($.TopbarRankMarkTopBarHover) $.TopbarRankMarkTopBarHover('topbar_hover');">
+	<CitadelHudTopBarPlayer class="ShowRankCleanTopBarPlayer" onmouseover="if ($.ShowRankMarkTopBarHover) $.ShowRankMarkTopBarHover('topbar_hover');">
 		<GlobalClassListener classes="gDetailView" />
 		<Panel id="PauseIndicator">
 			<Panel id="PauseIcon" />
 			<Label text="#Citadel_Notification_Paused_Title" />
 		</Panel>
 		<Panel class="VoiceBar" />
-		<Panel id="PlayerDetailsContainer" hittest="false" onmouseover="if (typeof CitadelTopDownScoreboardPlayerHovered === 'function') CitadelTopDownScoreboardPlayerHovered(); if ($.TopbarRankMarkTopBarHover) $.TopbarRankMarkTopBarHover('topbar_details_hover');">
+		<Panel id="PlayerDetailsContainer" hittest="false" onmouseover="if (typeof CitadelTopDownScoreboardPlayerHovered === 'function') CitadelTopDownScoreboardPlayerHovered(); if ($.ShowRankMarkTopBarHover) $.ShowRankMarkTopBarHover('topbar_details_hover');">
 			<Panel id="KillStreakContainer" hittest="false">
 				<ParticleScenePanel id="KillStreakParticlePanel" particleonly="false" particleName="particles/ui/ui_topbar_killstreak_stylized.vpcf" fov="33" lookAt="0 0 0" squarePixels="true" renderdeferred="true" deferredalpha="true" />
 				<Panel id="KillStreakText">
-					<Label class="KillStreakNum" text="{d:kill_streak}" />
+					<Label class="KillStreakNum" text="#kill_hype_KillStreak_count" />
 					<Panel class="KillStreakLabelContainer">
 						<Label class="KillStreakLabel SpreeText TopLine" html="true" text="#kill_hype_KillStreak" />
 						<Label class="KillStreakLabel FirstBlood TopLine" html="true" text="#kill_hype_FirstBlood" />
@@ -34,8 +34,8 @@
 					<Panel class="SoulsImage" />
 					<Label id="SoulsValue" class="SoulsValue" html="true" text="{g:citadel_thousands:gold}" />
 				</Panel>
-				<Image id="TopbarRankStatusImage" class="TopbarRankStatusImage TopbarRankStatusVisible" src="s2r://panorama/images/ranked/badges/rank0/badge_sm_psd.vtex" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
-				<Image id="TopbarRankRankImage" class="TopbarRankRankImage" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+				<Image id="ShowRankTopBarStatusImage" class="ShowRankTopBarStatusImage ShowRankTopBarStatusVisible" src="s2r://panorama/images/ranked/badges/rank0/badge_sm_psd.vtex" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+				<Image id="ShowRankTopBarRankImage" class="ShowRankTopBarRankImage" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 				<Panel id="HeroImageArea">
 					<Panel class="HeroContentsCoinBackground" />
 					<Panel class="HeroIconContainer">
@@ -82,7 +82,7 @@
 				</Panel>
 			</Panel>
 		</Panel>
-		<Panel id="PlayerNameNWContainer" onmouseover="if (typeof CitadelTopDownScoreboardPlayerHovered === 'function') CitadelTopDownScoreboardPlayerHovered(); if ($.TopbarRankMarkTopBarHover) $.TopbarRankMarkTopBarHover('topbar_name_hover');">
+		<Panel id="PlayerNameNWContainer" onmouseover="if (typeof CitadelTopDownScoreboardPlayerHovered === 'function') CitadelTopDownScoreboardPlayerHovered(); if ($.ShowRankMarkTopBarHover) $.ShowRankMarkTopBarHover('topbar_name_hover');">
 			<Panel id="BackgroundStrip" />
 			<Panel class="PlayerInfoContainer TopBottomFlow">
 				<Label id="PlayerName" class="PlayerName" text="{s:player_name}" />
@@ -115,11 +115,9 @@
 				<CitadelAbilityIcon id="AbilityButton3" class="abilityButton3" read_only="true" ability_slot="3" show_upgrade_pips="true" />
 				<CitadelAbilityIcon id="AbilityButton4" class="abilityButton4" read_only="true" ability_slot="4" show_upgrade_pips="true" />
 			</Panel>
-			<Panel class="LeftRightFlow AlignHorizontalCenter UnSoulsValueContainer">
-				<Label class="SpentSoulDisplay SpentSoulsTitle" text="Unspent:" />
-				<Label id="SpentSoulDisplay" class="SpentSoulDisplay" text="-" />
-				<Label id="HiddenGoldValue" class="hiddenGoldValue" text="{i:gold}" />
-				<Label id="TopbarRankGoldRaw" class="TopbarRankGoldRaw" text="{i:gold}" />
+			<Panel class="LeftRightFlow AlignHorizontalCenter SpentSoulsValueContainer TopbarRankSpentRow">
+				<Label class="SpentSoulDisplay SpentSoulsTitle TopbarRankSpentTitle" text="Spent:" />
+				<Label id="SpentSoulDisplay" class="SpentSoulDisplay TopbarRankSpentValue" text="-" />
 			</Panel>
 			<Panel id="PlayerModsContainer" class="TopBottomFlow">
 				<CitadelModsPurchasedPanel id="mod_universal" class="mod_universal" mod_category="Universal" read_only="true" is_top_bar="true" />
@@ -129,6 +127,6 @@
 		<CitadelHudTopBarLaneSwapContainer id="LaneSwapContainer" onmouseout="UIHideTextTooltip()">
 			<Panel id="LaneSwapIcon" />
 		</CitadelHudTopBarLaneSwapContainer>
-		<Panel id="SpectatePlayerButtonPanel" onmouseover="$.GetContextPanel().AddClass(&apos;SpectateHover&apos;); if ($.TopbarRankMarkTopBarHover) $.TopbarRankMarkTopBarHover('topbar_spectate_hover');" onmouseout="$.GetContextPanel().RemoveClass(&apos;SpectateHover&apos;)" />
+		<Panel id="SpectatePlayerButtonPanel" onmouseover="$.GetContextPanel().AddClass(&apos;SpectateHover&apos;); if ($.ShowRankMarkTopBarHover) $.ShowRankMarkTopBarHover('topbar_spectate_hover');" onmouseout="$.GetContextPanel().RemoveClass(&apos;SpectateHover&apos;)" />
 	</CitadelHudTopBarPlayer>
 </root>

@@ -1,4 +1,4 @@
-<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<!-- xml reconstructed by Source 2 Viewer - https://valveresourceformat.github.io -->
 <root>
 	<scripts>
 		<include src="s2r://panorama/scripts/recent_purchases_redux_data.vjs_c" />
@@ -24,55 +24,6 @@
 	<CitadelHudHeroShop class="CitadelHudHeroShop gShopOpen" oncancel="CitadelExitUpgradeShop();" disallowedstyleflags="hover,descendantfocus" onactivate="">
 		<GlobalClassListener classes="gEditingBuilds gScoreboardOpen gShopOpen" />
 		<Panel id="Shop" disallowedstyleflags="hover,descendantfocus">
-			<Panel id="NavPanel" class="TopBottomFlow">
-				<CitadelHeroScenePanelNew id="HeroScenePanel" heroscenestyle="Shop" />
-				<Panel id="ShopNav">
-					<Panel class="ShopHeader">
-						<Panel class="ShopName" />
-						<CitadelHudSoulAPContainer id="GoldAPContainer" />
-					</Panel>
-					<Panel class="ReadOnlyShop">
-						<Label class="ReadOnlyTitle" text="#BrowseItems_Title" />
-						<Label class="ReadOnlyDesc" text="#BrowseItems_Desc" />
-					</Panel>
-					<Panel class="APHeader">
-						<Panel class="SectionTitle">
-							<Label class="SectionLabel" text="Purchase Items" />
-						</Panel>
-					</Panel>
-				</Panel>
-				<Panel id="RecentPurchasesPanel">
-					<Label id="RecentPurchases" text="#Citadel_Hud_RecentPurchases" />
-					<Panel id="RecentPurchasesContainer" />
-				</Panel>
-				<Panel id="HeroPanel">
-					<Image id="HeroImage" scaling="stretch-to-fit-y-preserve-aspect" />
-					<Panel id="SoulsContainer">
-						<Panel id="SoulAmount">
-							<Panel class="SoulsImage" />
-							<Label class="AbilitiesLabel" text="{i:total_souls}" />
-						</Panel>
-						<Label class="totalSouls" text="Total Souls Collected" />
-						<Panel id="SoulRewards">
-							<Label text="View Soul Rewards" />
-						</Panel>
-						<Panel id="HeroStatsBtn" onmouseout="CitadelHideHeroStatsTooltip();">
-							<Label text="View Hero Stats" />
-						</Panel>
-					</Panel>
-				</Panel>
-				<Panel class="streetbrawl_info_container">
-					<Panel class="streetbrawl_round_start_timer">
-						<Label class="streetbrawl_timer_text" text="#Citadel_Hud_StreetBrawlShopCountdown" />
-						<Panel class="streetbrawl_countdown_container">
-							<Label class="streetbrawl_countdown" text="{d:sb_countdown}" />
-						</Panel>
-					</Panel>
-				</Panel>
-				<Panel id="InCombatAlert">
-					<Label text="#Citadel_Shop_InCombat_Alert" />
-				</Panel>
-			</Panel>
 			<Panel id="MainPanel" disallowedstyleflags="hover,descendantfocus">
 				<Panel id="ShopModsContainer" disallowedstyleflags="hover,descendantfocus">
 					<Panel id="ShopNavigation" disallowedstyleflags="hover,descendantfocus">
@@ -123,6 +74,55 @@
 							</Panel>
 						</Panel>
 					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="NavPanel" class="TopBottomFlow" hittest="false">
+				<CitadelHeroScenePanelNew id="HeroScenePanel" heroscenestyle="Shop" hittest="false" />
+				<Panel id="ShopNav">
+					<Panel class="ShopHeader">
+						<Panel class="ShopName" />
+						<CitadelHudSoulAPContainer id="GoldAPContainer" />
+					</Panel>
+					<Panel class="ReadOnlyShop">
+						<Label class="ReadOnlyTitle" text="#BrowseItems_Title" />
+						<Label class="ReadOnlyDesc" text="#BrowseItems_Desc" />
+					</Panel>
+					<Panel class="APHeader">
+						<Panel class="SectionTitle">
+							<Label class="SectionLabel" text="Purchase Items" />
+						</Panel>
+					</Panel>
+				</Panel>
+				<Panel id="RecentPurchasesPanel">
+					<Label id="RecentPurchases" text="#Citadel_Hud_RecentPurchases" />
+					<Panel id="RecentPurchasesContainer" />
+				</Panel>
+				<Panel id="HeroPanel">
+					<Image id="HeroImage" scaling="stretch-to-fit-y-preserve-aspect" />
+					<Panel id="SoulsContainer">
+						<Panel id="SoulAmount">
+							<Panel class="SoulsImage" />
+							<Label class="AbilitiesLabel" text="{i:total_souls}" />
+						</Panel>
+						<Label class="totalSouls" text="Total Souls Collected" />
+						<Panel id="SoulRewards">
+							<Label text="View Soul Rewards" />
+						</Panel>
+						<Panel id="HeroStatsBtn" onmouseout="CitadelHideHeroStatsTooltip();">
+							<Label text="View Hero Stats" />
+						</Panel>
+					</Panel>
+				</Panel>
+				<Panel class="streetbrawl_info_container">
+					<Panel class="streetbrawl_round_start_timer">
+						<Label class="streetbrawl_timer_text" text="#Citadel_Hud_StreetBrawlShopCountdown" />
+						<Panel class="streetbrawl_countdown_container">
+							<Label class="streetbrawl_countdown" text="{d:sb_countdown}" />
+						</Panel>
+					</Panel>
+				</Panel>
+				<Panel id="InCombatAlert">
+					<Label text="#Citadel_Shop_InCombat_Alert" />
 				</Panel>
 			</Panel>
 			<Panel id="BackButton">
