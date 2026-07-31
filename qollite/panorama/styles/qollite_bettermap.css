@@ -1,0 +1,139 @@
+#hud_minimap.qollite-minimal-map
+{
+  border-radius: 0;
+  background-color: #0000;
+}
+
+#minimap_persp.qollite-minimal-map #minimap_container,
+#minimap_persp.qollite-minimal-map #HudMinimapContainer
+{
+  border-radius: 0;
+  background-color: #0000;
+  world-blur: none;
+}
+
+#minimap_persp.qollite-minimal-map #minimap_frame
+{
+  opacity: 0;
+}
+
+#hud_minimap.qollite-minimal-map #map_render
+{
+  opacity: 1;
+  brightness: 1;
+}
+
+.is_underground #hud_minimap.qollite-minimal-map #map_render,
+#hud_minimap.qollite-minimal-map.is_underground #map_render
+{
+  opacity: 0.6;
+  brightness: 0;
+}
+
+#hud_minimap.qollite-minimal-map .map_button.shop_tunnel
+{
+  background-image: url("s2r://panorama/images/minimap/base/minimap_midtown_mid_tunnels_psd.vtex");
+}
+
+#qollite_minimal_map_controls
+{
+  flow-children: right;
+  horizontal-align: center;
+  vertical-align: bottom;
+}
+
+#qollite_minimal_map_opacity
+{
+  width: 120px;
+}
+
+#minimap_persp.qollite-map-corner-top-left
+{
+  horizontal-align: left;
+  vertical-align: top;
+}
+
+#minimap_persp.qollite-map-corner-top-right
+{
+  horizontal-align: right;
+  vertical-align: top;
+}
+
+#minimap_persp.qollite-map-corner-bottom-left
+{
+  horizontal-align: left;
+  vertical-align: bottom;
+}
+
+#minimap_persp.qollite-map-corner-bottom-right
+{
+  horizontal-align: right;
+  vertical-align: bottom;
+}
+
+#gameplay_hud.qollite-full-width-hud
+{
+  width: 100%;
+}
+
+.gDetailView #minimap_persp.qollite-larger-when-targeting #minimap_container
+{
+  pre-transform-scale2d: 1.15;
+}
+
+#hud_minimap.qollite-marker-size-2 .qollite-adjustable-marker
+{
+  pre-transform-scale2d: 1.2;
+}
+
+#hud_minimap.qollite-marker-size-3 .qollite-adjustable-marker
+{
+  pre-transform-scale2d: 1.4;
+}
+
+#hud_minimap.qollite-marker-size-4 .qollite-adjustable-marker
+{
+  pre-transform-scale2d: 1.6;
+}
+
+#hud_minimap.qollite-marker-size-5 .qollite-adjustable-marker
+{
+  pre-transform-scale2d: 1.8;
+}
+
+#hud_minimap.qollite-marker-size-6 .qollite-adjustable-marker
+{
+  pre-transform-scale2d: 2;
+}
+
+#hud_minimap.qollite-marker-size-7 .qollite-adjustable-marker
+{
+  pre-transform-scale2d: 2.2;
+}
+
+#hud_minimap.qollite-marker-size-8 .qollite-adjustable-marker
+{
+  pre-transform-scale2d: 2.4;
+}
+
+.is_underground #hud_minimap.qollite-auto-underground-level #map_render,
+#hud_minimap.qollite-auto-underground-level.is_underground #map_render
+{
+  opacity: 0.6;
+  brightness: 0;
+}
+
+#hud_minimap.qollite-show-crates.qollite-objects-ready .map_button.powerup_spawn.is_visible,
+#hud_minimap.qollite-show-crates.qollite-objects-ready .map_button.powerup_spawn.active,
+#hud_minimap.qollite-show-golden-statues.qollite-objects-ready .map_button.gold_spawn.is_visible,
+#hud_minimap.qollite-show-golden-statues.qollite-objects-ready .map_button.gold_spawn.active,
+#hud_minimap.qollite-show-small-objects.qollite-objects-ready .map_button.neutral_weak.is_visible,
+#hud_minimap.qollite-show-small-objects.qollite-objects-ready .map_button.neutral_weak.active,
+#hud_minimap.qollite-urn-tracker.qollite-objects-ready .map_button.idol_spawn.is_visible,
+#hud_minimap.qollite-urn-tracker.qollite-objects-ready .map_button.idol_return.is_visible,
+#hud_minimap.qollite-urn-tracker.qollite-objects-ready .map_button.idol_spawn.active,
+#hud_minimap.qollite-urn-tracker.qollite-objects-ready .map_button.idol_return.active
+{
+  opacity: 1;
+  visibility: visible;
+}

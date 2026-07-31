@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "runtime": {
+    "namespace": "GameUI.CustomUIConfig().QolLite",
+    "featureInterface": ["init", "refresh", "destroy"],
+    "scheduledCallbacksRequireGeneration": true,
+    "renderOnlyChangedValues": true
+  },
+  "betterMap": {
+    "minimalMapDefault": false,
+    "minimalMapOpacityDefault": 0.9,
+    "minimalMapOpacityRange": [0, 1],
+    "surfaceMapRender": {"opacity": 1, "brightness": 1},
+    "undergroundMapRender": {"opacity": 0.6, "brightness": 0},
+    "mapRenderOpacityOwner": "css",
+    "minimalBacking": "transparent",
+    "tunnelTexture": "valve-stock"
+  },
+  "topbar": {
+    "hideoutGameClock": true,
+    "hideoutTeamNetworth": true,
+    "hideDuringWaitingForHudUpdate": true,
+    "nativeKothAuthority": true,
+    "clockRewindResetsMatchState": true
+  },
+  "recentPurchases": {
+    "enabledDefault": true,
+    "ummProtocol": 1,
+    "disablePreservesValveRows": true,
+    "reenableIsIdempotent": true,
+    "reenableReplaysExistingRows": false
+  },
+  "package": {
+    "output": "qollite_passive_enabled_dir.vpk",
+    "passiveItems": "enabled",
+    "abilitiesOverrideAllowed": false,
+    "opaqueSourceInputsAllowed": false
+  }
+}

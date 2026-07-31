@@ -1,0 +1,12 @@
+#PlayersRatingContainer .qollite_leaderboard_search {
+  flow-children: right;
+  margin-bottom: 8px;
+}
+
+#PlayersRatingContainer .qollite_leaderboard_search_input {
+  width: fill-parent-flow(1);
+}
+
+#PlayersContainer .qollite_leaderboard_hidden {
+  visibility: collapse;
+}
