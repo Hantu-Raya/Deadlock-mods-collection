@@ -10,6 +10,16 @@ const source = fs.readFileSync(
   "utf8"
 );
 
+const styleSource = fs.readFileSync(
+  path.join(__dirname, "..", "panorama", "styles", "qollite_topbar.css"),
+  "utf8"
+);
+assert.doesNotMatch(
+  styleSource,
+  /:not\(/,
+  "topbar CSS must avoid :not selectors rejected by the Panorama runtime"
+);
+
 class Panel {
   constructor(id, parent) {
     this.id = id || "";

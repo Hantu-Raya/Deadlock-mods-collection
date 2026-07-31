@@ -42,6 +42,15 @@ function load(context, name) {
   vm.runInNewContext(source, context, { filename: name });
 }
 
+for (const name of fs.readdirSync(path.join(process.cwd(), 'qollite', 'panorama', 'scripts'))) {
+  if (!/^qollite_.*\.js$/.test(name)) continue;
+  try {
+    load({ console }, name);
+  } catch (error) {
+    throw new Error(`${name} must tolerate Panorama contexts without GameUI: ${error.message}`);
+  }
+}
+
 const root = createPanel('Root');
 const sibling = createPanel('Sibling', root);
 const leaf = createPanel('Leaf', sibling);
