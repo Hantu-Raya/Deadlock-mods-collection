@@ -1,6 +1,7 @@
 (function () {
   "use strict";
 
+  if (typeof GameUI === "undefined" || !GameUI.CustomUIConfig) return;
   var qolLite = GameUI.CustomUIConfig().QolLite;
   var runtime = qolLite.Runtime;
   var owner = "qollite_topbar";

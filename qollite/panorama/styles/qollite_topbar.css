@@ -1,12 +1,18 @@
-CitadelHudTopBar.QolLiteTopbarHideout:not(.WaitingForHudUpdate):not(.QolLiteTopbarWaitingForHudUpdate):not(.gStreetBrawl):not(.PreGame):not(.gPreGame) .GameClock,
-CitadelHudTopBar.QolLiteTopbarHideout:not(.WaitingForHudUpdate):not(.QolLiteTopbarWaitingForHudUpdate):not(.gStreetBrawl):not(.PreGame):not(.gPreGame) .TeamNetworth {
+CitadelHudTopBar.QolLiteTopbarHideout .GameClock,
+CitadelHudTopBar.QolLiteTopbarHideout .TeamNetworth {
   visibility: visible;
 }
 
 CitadelHudTopBar.WaitingForHudUpdate .GameClock,
 CitadelHudTopBar.WaitingForHudUpdate .TeamNetworth,
 CitadelHudTopBar.QolLiteTopbarWaitingForHudUpdate .GameClock,
-CitadelHudTopBar.QolLiteTopbarWaitingForHudUpdate .TeamNetworth {
+CitadelHudTopBar.QolLiteTopbarWaitingForHudUpdate .TeamNetworth,
+CitadelHudTopBar.gStreetBrawl .GameClock,
+CitadelHudTopBar.gStreetBrawl .TeamNetworth,
+CitadelHudTopBar.PreGame .GameClock,
+CitadelHudTopBar.PreGame .TeamNetworth,
+CitadelHudTopBar.gPreGame .GameClock,
+CitadelHudTopBar.gPreGame .TeamNetworth {
   visibility: collapse;
 }
 

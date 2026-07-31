@@ -1,6 +1,7 @@
 (function () {
   "use strict";
 
+  if (typeof GameUI === "undefined" || !GameUI.CustomUIConfig) return;
   var qolLite = GameUI.CustomUIConfig().QolLite;
   if (!qolLite || !qolLite.Runtime || !qolLite.Settings || !qolLite.UMM) {
     return;
