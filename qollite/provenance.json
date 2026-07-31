@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "release": "2.2",
+  "passiveItems": "enabled",
+  "stock": {
+    "repository": "SteamTracking/GameTracking-Deadlock",
+    "commit": "3573cbb746581eccc7752fc2e00c21d4447d72bb",
+    "build": 6655,
+    "root": "game/citadel/pak01_dir/panorama"
+  },
+  "allowedOrigins": [
+    "valve-stock-pinned",
+    "qol-lite-original"
+  ],
+  "forbiddenInputs": {
+    "paths": [
+      "G:\\QOLLOCK",
+      "pak47_dir.vpk",
+      "qollite_passive_disabled_dir.vpk"
+    ],
+    "sha256": [
+      "fd1760f41eb79bc0b8cd0898a828c7cf5f737456f158ba2373956a5211624a99",
+      "09a3e3a57ac9edc11f9103a7096fc09008501385a0c70de4b0b6a78ebaca8378"
+    ],
+    "sourceExtensions": [
+      ".vtex_c",
+      ".vpcf_c",
+      ".vmdl_c",
+      ".vmat_c",
+      ".vcss_c",
+      ".vxml_c",
+      ".vjs_c"
+    ]
+  }
+}
