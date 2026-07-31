@@ -1,0 +1,126 @@
+<!-- xml reconstructed by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/hud_quickbuy.vcss_c" />
+		<include src="s2r://panorama/styles/hud_quickbuy_entry.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/qollite_quickbuy.vjs_c" />
+	</scripts>
+	<Panel class="HudQuickbuy" acceptsfocus="false">
+		<Panel class="EmptyContents HudQuickbuyElement">
+			<Panel class="PurchaseDisabledContainer">
+				<Panel class="purchasingDisabledX disabledX1" />
+				<Panel class="purchasingDisabledX disabledX2" />
+			</Panel>
+			<Label class="QuickbuyLabel" text="#Citadel_Hud_Quickbuy" html="true" />
+			<Panel class="rightClick" />
+		</Panel>
+		<Panel id="HudMini" class="HudQuickbuyElement">
+			<Panel class="PurchaseDisabledContainer">
+				<Panel class="purchasingDisabledX disabledX1" />
+				<Panel class="purchasingDisabledX disabledX2" />
+				<Panel id="DisabledCooldownMask" />
+			</Panel>
+			<CitadelHudQuickbuyEntry id="QuickbuyNext" />
+			<Panel class="ItemReadyIndicator">
+				<Label class="ItemReadyLabel" text="#Citadel_Hud_Quickbuy_ItemsReady" />
+			</Panel>
+			<Panel class="QueueSize">
+				<Label class="ItemReadyLabel" text="#Citadel_Hud_Quickbuy_ItemsReady" />
+			</Panel>
+		</Panel>
+		<Panel id="QuickbuyNextSoulsNeeded" hittest="false">
+			<Image class="goldIcon QuickbuyNextSoulsNeededIcon" hittest="false" />
+			<Label id="QuickbuyNextSoulsNeededLabel" text="0" hittest="false" />
+		</Panel>
+		<Panel id="QuickbuyUpcomingPreviewContainer" hittest="false">
+			<Panel id="QuickbuyUpcomingPreview2" class="QuickbuyUpcomingPreviewSlot" hittest="false">
+				<Panel class="QuickbuyUpcomingPreviewSoulsNeeded" hittest="false">
+					<Image class="goldIcon QuickbuyUpcomingPreviewSoulsNeededIcon" hittest="false" />
+					<Label id="QuickbuyUpcomingPreview2SoulsNeededLabel" text="0" hittest="false" />
+				</Panel>
+				<Panel class="QuickbuyUpcomingMini" hittest="false">
+					<CitadelHudQuickbuyEntry id="QuickbuyPreview2Entry" class="QuickbuyPreviewEntry" hittest="false" />
+				</Panel>
+			</Panel>
+			<Panel id="QuickbuyUpcomingPreview3" class="QuickbuyUpcomingPreviewSlot" hittest="false">
+				<Panel class="QuickbuyUpcomingPreviewSoulsNeeded" hittest="false">
+					<Image class="goldIcon QuickbuyUpcomingPreviewSoulsNeededIcon" hittest="false" />
+					<Label id="QuickbuyUpcomingPreview3SoulsNeededLabel" text="0" hittest="false" />
+				</Panel>
+				<Panel class="QuickbuyUpcomingMini" hittest="false">
+					<CitadelHudQuickbuyEntry id="QuickbuyPreview3Entry" class="QuickbuyPreviewEntry" hittest="false" />
+				</Panel>
+			</Panel>
+			<Panel id="QuickbuyUpcomingPreview4" class="QuickbuyUpcomingPreviewSlot" hittest="false">
+				<Panel class="QuickbuyUpcomingPreviewSoulsNeeded" hittest="false">
+					<Image class="goldIcon QuickbuyUpcomingPreviewSoulsNeededIcon" hittest="false" />
+					<Label id="QuickbuyUpcomingPreview4SoulsNeededLabel" text="0" hittest="false" />
+				</Panel>
+				<Panel class="QuickbuyUpcomingMini" hittest="false">
+					<CitadelHudQuickbuyEntry id="QuickbuyPreview4Entry" class="QuickbuyPreviewEntry" hittest="false" />
+				</Panel>
+			</Panel>
+			<Panel id="QuickbuyUpcomingPreview5" class="QuickbuyUpcomingPreviewSlot" hittest="false">
+				<Panel class="QuickbuyUpcomingPreviewSoulsNeeded" hittest="false">
+					<Image class="goldIcon QuickbuyUpcomingPreviewSoulsNeededIcon" hittest="false" />
+					<Label id="QuickbuyUpcomingPreview5SoulsNeededLabel" text="0" hittest="false" />
+				</Panel>
+				<Panel class="QuickbuyUpcomingMini" hittest="false">
+					<CitadelHudQuickbuyEntry id="QuickbuyPreview5Entry" class="QuickbuyPreviewEntry" hittest="false" />
+				</Panel>
+			</Panel>
+		</Panel>
+		<Panel id="KeyboardHints">
+			<Label class="hudHint itemName" text="{s:quickbuy_item_name}" />
+			<Label class="hudHint combatText" text="#Citadel_Hud_Autobuy_HudHint_CantPurchase" />
+			<Label class="hudHint buyKey" text="#Citadel_Hud_Autobuy_HudHint_BuyKey" html="true" />
+			<Label class="hudHint shopKey" text="#Citadel_Hud_Autobuy_HudHint_ShopKey" html="true" />
+		</Panel>
+		<Panel id="QuickBuyQueueContainer">
+			<Panel class="QuickbuyQueueOuter">
+				<Label class="BuildOrderLabel" text="#Citadel_Shop_SelectedBuildHeader" />
+				<Label class="InstructionalText" text="#Citadel_Hud_BuildOrder_RemoveText" />
+				<Panel id="QuickbuySellQueue" />
+				<Panel id="QuickbuyQueue" />
+				<Panel id="QueueActions">
+					<CitadelSettingsCheckbox id="AutoQueueToggleButton" convar="citadel_auto_queue_build" text="#Citadel_Hud_BuildOrder_AutoQueue" />
+					<Panel id="ToggleAutoBuyContainer">
+						<ToggleButton id="AutoBuyToggleButton" text="#Citadel_Hud_BuildOrder_AutobuyToggle" html="true" onactivate="CitadelQuickbuyToggleAutoBuy()" />
+					</Panel>
+					<Button id="ClearQueue" class="SecondaryButton outline red" onactivate="CitadelQuickbuyClearQueue()">
+						<Label text="#Citadel_Hud_BuildOrder_ClearQueue" />
+					</Button>
+					<Button id="ClearQueueButton" class="BuildHeaderButton SecondaryButton light hasIcon fill" onmouseactivate="CitadelQuickbuyClearQueue();">
+						<Label class="ClearQueue" text="#Citadel_Hud_BuildOrder_ClearQueue" />
+					</Button>
+				</Panel>
+				<Label class="emptyQueueLabel" html="true" text="#Citadel_Hud_Quickbuy_Empty" />
+			</Panel>
+		</Panel>
+		<Panel id="QuickbuyShopTotalSummary" hittest="false">
+			<Panel class="QuickbuyShopTotalSummaryIconFrame" hittest="false">
+				<Image class="goldIcon QuickbuyShopTotalSummaryIcon" hittest="false" />
+			</Panel>
+			<Panel class="Labels" hittest="false">
+				<Panel class="BindingLabel" hittest="false">
+					<Label class="ShopSummaryLabel" text="Total Cost" hittest="false" />
+				</Panel>
+				<Panel class="QuickbuyShopTotalCostRow" hittest="false">
+					<Image class="goldIcon QuickbuyShopTotalCostIcon" hittest="false" />
+					<Label id="QuickbuyShopTotalCostLabel" class="QuickbuyShopTotalCostLabel" text="0" hittest="false" />
+				</Panel>
+			</Panel>
+		</Panel>
+		<Panel id="QuickbuyShopSummary" onmouseactivate="CitadelQuickbuyToggleShopQueue()">
+			<CitadelModIcon id="QuickbuyShopSummaryModIcon" hittest="false" />
+			<Panel class="Labels">
+				<Panel class="BindingLabel">
+					<Label class="ShopSummaryLabel" text="#Citadel_Hud_Quickbuy" />
+				</Panel>
+				<Label class="ItemsReadyLabel" text="#Citadel_Hud_Quickbuy_ShopSummaryItemsInQueue:f" />
+			</Panel>
+		</Panel>
+	</Panel>
+</root>

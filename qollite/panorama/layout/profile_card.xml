@@ -1,0 +1,85 @@
+<!-- xml reconstructed by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_ranked_badge_mini.vcss_c" />
+		<include src="s2r://panorama/styles/profile_card.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/qollite_showrank.vjs_c" />
+	</scripts>
+	<CitadelProfileCard class="ShowRankProfileCardRoot" onmouseover="if ($.ShowRankTriggerProfileCard) $.ShowRankTriggerProfileCard(&apos;profile_card_mouseover&apos;);">
+		<Panel id="MiniProfileContainer" class="TopBottomFlow">
+			<Panel id="ContentsMain">
+				<Panel id="ContentsMainBackground" />
+				<Panel id="ContentsMainForeground">
+					<Panel id="AccountID">
+						<Label id="WebMediaDemoAccountLabel" class="AccountID" text="#Citadel_ProfileCard_AccountID" />
+						<Label id="ShowRankHiddenAccountID" class="HiddenAccountID" text="{i:r:account_id}" hittest="false" />
+						<Panel class="WebMediaDemoAccountIdRow">
+							<Button class="WebMediaDemoProfileLink" onactivate="if ($.ShowRankOpenStatlocker) $.ShowRankOpenStatlocker();">
+								<Label text="StatLocker Profile" />
+							</Button>
+							<Panel class="WebMediaDemoMediaSlot" hittest="false">
+								<CitadelRankedBadgeMini id="WebMediaDemoLocalBadge" class="WebMediaDemoLocalBadge" hittest="false" />
+								<Image id="WebMediaDemoMedia" class="WebMediaDemoMedia" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+							</Panel>
+						</Panel>
+					</Panel>
+					<Panel id="HeroInfo">
+						<CitadelHeroImage id="HeroImage" />
+						<Label class="HeroName" text="{g:citadel_hero_name:HeroName}" />
+					</Panel>
+					<Panel id="CardHeader">
+						<Panel id="AccountArea">
+							<CitadelAvatarImage id="AvatarImage" />
+							<Panel class="ProfileTextDetails">
+								<Panel class="LeftRightFlow NameContainer">
+									<CitadelUserName id="UserName" />
+								</Panel>
+								<Panel class="LeftRightFlow nicknameContainer">
+									<CitadelUserName id="UserNickname" />
+									<CitadelUserRichPresence id="UserRichPresence" />
+								</Panel>
+							</Panel>
+						</Panel>
+					</Panel>
+					<Panel id="CardMain">
+						<Panel id="CardLoading">
+							<Panel class="Spinner" />
+						</Panel>
+						<Panel id="CardContents">
+							<Panel id="Showcase">
+								<Panel id="ShowcaseItems" />
+							</Panel>
+							<Panel id="BottomRow" class="SimpleBevel">
+								<Panel id="StatItems" />
+							</Panel>
+						</Panel>
+					</Panel>
+					<Panel id="PartyInfo">
+						<Panel id="InMatchmakingBanner" class="PartyStateBanner">
+							<Label class="PartyStateBannerText" text="#Citadel_ProfileCard_PartyMatchmaking" />
+						</Panel>
+						<Panel id="InviteBanner" class="PartyStateBanner">
+							<Label class="PartyStateBannerText" text="#Citadel_ProfileCard_PartyInvited" />
+						</Panel>
+						<Panel id="NotReadyBanner" class="PartyStateBanner">
+							<Label class="PartyStateBannerText" text="#Citadel_ProfileCard_PartyNotReady" />
+						</Panel>
+						<Panel id="ReadyBanner" class="PartyStateBanner">
+							<Label class="PartyStateBannerText" text="#Citadel_ProfileCard_PartyReady" />
+						</Panel>
+						<Panel id="RosterSection">
+							<Label class="RosterTitle" text="#Citadel_ProfileCard_PartyRoster" />
+							<Panel id="RosterList" />
+						</Panel>
+					</Panel>
+				</Panel>
+			</Panel>
+		</Panel>
+		<Panel id="CardOverlay" hittest="false">
+			<Panel id="ProfileBadgeBackground" />
+		</Panel>
+	</CitadelProfileCard>
+</root>

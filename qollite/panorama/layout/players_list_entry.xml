@@ -1,0 +1,27 @@
+<!-- xml reconstructed by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/players_list_entry.vcss_c" />
+		<include src="s2r://panorama/styles/topbar_rank_player_list.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/qollite_showrank.vjs_c" />
+	</scripts>
+	<CitadelPlayersListEntry class="ShowRankCleanPlayersListEntry" onmouseover="if ($.ShowRankMarkPlayerListHover) $.ShowRankMarkPlayerListHover(&apos;players_list_hover&apos;);" onmouseout="if ($.ShowRankClearPlayerListHover) $.ShowRankClearPlayerListHover(&apos;players_list_out&apos;);" onactivate="if ($.ShowRankMarkPlayerListHover) $.ShowRankMarkPlayerListHover(&apos;players_list_activate&apos;); if ($.ShowRankRegisterPlayerListRowReady) $.ShowRankRegisterPlayerListRowReady(&apos;players_list_manual_activate&apos;);">
+		<Panel class="Controls">
+			<Button class="MuteButton ToggleMuteButton" onmouseover="UIShowTextTooltip( #citadel_mute_player )" onmouseout="UIHideTextTooltip()" onactivate="CitadelPlayerListEntrySetMuted( true )" />
+			<Button class="UnmuteButton ToggleMuteButton" onmouseover="UIShowTextTooltip( #citadel_unmute_player )" onmouseout="UIHideTextTooltip()" onactivate="CitadelPlayerListEntrySetMuted( false )" />
+		</Panel>
+		<Panel id="MainContents" hittestchildren="false" onmouseover="if ($.ShowRankMarkPlayerListHover) $.ShowRankMarkPlayerListHover(&apos;players_list_hover&apos;);" onmouseout="if ($.ShowRankClearPlayerListHover) $.ShowRankClearPlayerListHover(&apos;players_list_out&apos;);" onactivate="if ($.ShowRankMarkPlayerListHover) $.ShowRankMarkPlayerListHover(&apos;players_list_activate&apos;); if ($.ShowRankRegisterPlayerListRowReady) $.ShowRankRegisterPlayerListRowReady(&apos;players_list_manual_activate&apos;);">
+			<CitadelHeroBadge id="HeroBadge" />
+			<Panel class="Details">
+				<Panel class="ShowRankPlayerNameRow" hittest="false">
+					<Label id="PlayerName" class="PlayerName" text="{s:player_name}" />
+				</Panel>
+				<Label class="PlayerHero" text="#Citadel_Player_Level_HeroLevel" />
+			</Panel>
+			<Image id="ShowRankPlayerListRankImage" class="ShowRankPlayerListRankImage" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+		</Panel>
+	</CitadelPlayersListEntry>
+</root>

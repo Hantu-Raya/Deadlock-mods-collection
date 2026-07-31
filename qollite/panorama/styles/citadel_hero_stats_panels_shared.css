@@ -1,0 +1,182 @@
+/* Prettified by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io */
+
+.statsContainer
+{
+	flow-children: right-wrap;
+	width: 100%;
+}
+
+.WeaponName
+{
+	font-size: 22px;
+	font-weight: bold;
+	margin-top: 4px;
+}
+
+.heroStatsDisplay
+{
+	width: 520px;
+	flow-children: down;
+	border-radius: 10px;
+}
+
+.gShopOpen .heroStatsDisplay
+{
+	width: 650px;
+	border-radius: 5px;
+	ui-scale: 105%;
+}
+
+.statAttributeContainer
+{
+	width: 80px;
+	height: 40px;
+	margin: 2px;
+	padding: 0px 0px 0px 10px;
+	background-color: #00000070;
+	border-radius: 3px;
+}
+
+.statAttributeContainer:hover
+{
+	background-color: #ffffff05;
+}
+
+.isZeroValue.statAttributeContainer:hover
+{
+	background-color: #00000070;
+}
+
+.displayStatsContainer .statAttributeContainer
+{
+	width: 48%;
+}
+
+.gShopOpen .displayStatsContainer .statAttributeContainer
+{
+	width: 19%;
+	height: 40px;
+	padding: 0px 0px 0px 4px;
+}
+
+.isZeroValue.statAttributeContainer
+{
+	opacity: 0.5;
+}
+
+.HasScalingStat .statAttributeContainer
+{
+	border: 2px solid spiritColor&40;
+	background-color: gradient( radial, 50% 50%, 0% 0%, 100% 100%, from( #00000080 ), to( spiritDarkColor&50 ) );
+}
+
+.statAttributeContainer CitadelModifiedAttributeLabel
+{
+	vertical-align: center;
+	width: 100%;
+	height: 24px;
+}
+
+.gShopOpen .statAttributeContainer CitadelModifiedAttributeLabel
+{
+	ui-scale: 95%;
+	margin-right: 2px;
+}
+
+.otherStats,#SpiritImpactContainer
+{
+	background-color: #00000060;
+}
+
+.statTitle
+{
+	font-size: 18px;
+	text-transform: uppercase;
+	font-weight: bold;
+	opacity: 0.6;
+	margin-bottom: 0px;
+	font-family: serif;
+}
+
+.gShopOpen,.statTitle
+{
+	visibility: collapse;
+}
+
+.displayStatsContainer
+{
+	padding: 15px;
+	width: 100%;
+	flow-children: down;
+}
+
+.gShopOpen .displayStatsContainer
+{
+	padding: 2px;
+}
+
+.weaponDesc
+{
+	font-size: 17px;
+	font-weight: medium;
+	opacity: 0.9;
+	margin-bottom: 10px;
+	margin-top: -5px;
+}
+
+.NoWeaponDesc .weaponDesc
+{
+	visibility: collapse;
+}
+
+#BackgroundContainer
+{
+	height: 100%;
+	width: 100%;
+	ignore-parent-flow: true;
+	background-size: cover;
+}
+
+CitadelHeroStatsWeapon #BackgroundContainer
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #493516 ), to( #271904) );
+	background-image: url("s2r://panorama/images/shop/catalog/catalog_tooltip_bg_modifies_weapon_psd.vtex");
+}
+
+.gShopOpen CitadelHeroStatsWeapon #BackgroundContainer
+{
+	opacity: 0.5;
+}
+
+CitadelHeroStatsArmor #BackgroundContainer
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #375B3B ), to( #072F0B) );
+	background-image: url("s2r://panorama/images/shop/catalog/catalog_tooltip_bg_modifies_vitality_psd.vtex");
+}
+
+.gShopOpen CitadelHeroStatsArmor #BackgroundContainer
+{
+	opacity: 0.5;
+}
+
+CitadelHeroStatsTech #BackgroundContainer
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #653A6D ), to( #452456) );
+	background-image: url("s2r://panorama/images/shop/catalog/catalog_tooltip_bg_modifies_spirit_psd.vtex");
+}
+
+.gShopOpen CitadelHeroStatsTech #BackgroundContainer
+{
+	opacity: 0.5;
+}
+
+#ArmorOtherStatsDisplay
+{
+	background-color: #00000050;
+}
+
+CitadelHeroDetailsPage #StatContainer_BaseWeaponDamage,CitadelHeroDetailsPage #StatContainer_ClipSizeIncrease,CitadelHeroDetailsPage #StatContainer_ReloadSpeed,CitadelHeroDetailsPage #StatContainer_BulletSpeedIncrease,CitadelHeroDetailsPage #StatContainer_BulletLifesteal,CitadelHeroDetailsPage #StatContainer_HealingOutput,CitadelHeroDetailsPage #StatContainer_OutOfCombatHealthRegen,CitadelHeroDetailsPage #StatContainer_MeleeResist,CitadelHeroDetailsPage #StatContainer_DebuffResist,CitadelHeroDetailsPage #StatContainer_StaminaRegenIncrease
+{
+	visibility: collapse;
+}
+

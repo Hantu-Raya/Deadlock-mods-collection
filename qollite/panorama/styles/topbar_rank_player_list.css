@@ -1,0 +1,76 @@
+/* Prettified by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io */
+
+#MainContents
+{
+	overflow: noclip;
+}
+
+#MainContents .Details .TopbarRankPlayerNameRow
+{
+	height: 22px;
+	vertical-align: top;
+}
+
+#MainContents .Details
+{
+	width: 232px;
+}
+
+#MainContents .Details .TopbarRankPlayerNameRow .PlayerName
+{
+	max-width: 232px;
+	text-overflow: shrink;
+}
+
+#MainContents .TopbarRankPlayerListRankImage
+{
+	width: 72px;
+	height: 47px;
+	horizontal-align: right;
+	vertical-align: middle;
+	margin-right: 12px;
+	ignore-parent-flow: true;
+	overflow: noclip;
+	visibility: collapse;
+	opacity: 0;
+	z-index: 10;
+}
+
+#MainContents .TopbarRankPlayerListRankImage.TopbarRankPlayerListRankVisible
+{
+	visibility: visible;
+	opacity: 1;
+}
+
+#MainContents .Details .ShowRankPlayerNameRow
+{
+	height: 22px;
+	vertical-align: top;
+}
+
+#MainContents .Details .ShowRankPlayerNameRow .PlayerName
+{
+	max-width: 232px;
+	text-overflow: shrink;
+}
+
+#MainContents .ShowRankPlayerListRankImage
+{
+	width: 72px;
+	height: 47px;
+	horizontal-align: right;
+	vertical-align: middle;
+	margin-right: 12px;
+	ignore-parent-flow: true;
+	overflow: noclip;
+	visibility: collapse;
+	opacity: 0;
+	z-index: 10;
+}
+
+#MainContents .ShowRankPlayerListRankImage.ShowRankPlayerListRankVisible
+{
+	visibility: visible;
+	opacity: 1;
+}
+

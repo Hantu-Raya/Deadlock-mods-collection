@@ -1,0 +1,946 @@
+/* Prettified by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io */
+
+CitadelPostGameScoreboardNew
+{
+	width: 100%;
+	height: 100%;
+	background-color: offBlack;
+	flow-children: down;
+	padding: 64px;
+}
+
+.ScoreboardScrollContainer
+{
+	overflow: scroll squish;
+	flow-children: down;
+	height: 100%;
+	horizontal-align: center;
+	transform: translateY(80px);
+}
+
+.CanCommendPlayers .ScoreboardScrollContainer
+{
+	margin-left: -24px;
+}
+
+.Team
+{
+	flow-children: down;
+}
+
+.VictoryLabel
+{
+	visibility: collapse;
+}
+
+.Team.IsWinningTeam .VictoryLabel
+{
+	visibility: visible;
+}
+
+.TeamPlayerContainer
+{
+	flow-children: right;
+}
+
+.CanCommendPlayers .TeamNameContainer
+{
+	margin-left: 52px;
+}
+
+.TeamNameContainer
+{
+	vertical-align: bottom;
+	margin-right: 8px;
+}
+
+.TeamNameContainer .TeamName
+{
+	width: 160px;
+	height: 48px;
+	background-size: 100% 100%;
+	background-repeat: no-repeat;
+	background-position: left bottom;
+	horizontal-align: left;
+	opacity: 0.9;
+	margin: 0px 0px -4px 8px;
+}
+
+#Team1 .TeamNameContainer .TeamName
+{
+	background-image: url("s2r://panorama/images/hud/objectives/team1_patron_logo_psd.vtex");
+	wash-color: team1Color;
+	margin-bottom: -2px;
+}
+
+#Team2 .TeamNameContainer .TeamName
+{
+	background-image: url("s2r://panorama/images/hud/objectives/team2_patron_logo_psd.vtex");
+	wash-color: team2Color;
+}
+
+.TeamNameContainer .VictoryLabel
+{
+	font-family: oracle;
+	font-weight: bold;
+	font-size: 18px;
+	vertical-align: bottom;
+	padding: 8px;
+}
+
+.TeamNameContainer #RankedBadge
+{
+	visibility: collapse;
+	vertical-align: middle;
+	ui-scale: 80%;
+	margin-top: 6px;
+}
+
+.ShowRankedBadges .TeamNameContainer #RankedBadge
+{
+	visibility: visible;
+}
+
+.ShowRankedBadges .TeamNameContainer .TeamName
+{
+	margin-left: 48px;
+}
+
+#Team2 .ShowRankedBadges .TeamNameContainer .TeamName
+{
+	margin-left: 40px;
+}
+
+.ShowRankedBadges .TeamNameContainer .VictoryLabel
+{
+	transform: translateX(40px);
+}
+
+#Team1 .VictoryLabel
+{
+	text-shadow: 0px 0px 6px team1Color;
+	margin-bottom: -10px;
+	margin-left: 166px;
+}
+
+#Team2 .VictoryLabel
+{
+	text-shadow: 0px 0px 6px team2Color;
+	margin-bottom: -6px;
+	margin-left: 156px;
+}
+
+.Player
+{
+	margin-bottom: 4px;
+	height: 52px;
+}
+
+.Player #HeroBadge
+{
+	margin-top: 4px;
+	width: 44px;
+	height: 44px;
+	vertical-align: middle;
+	padding-left: 4px;
+}
+
+.Player .PlayerRow
+{
+	height: 100%;
+}
+
+#Team1 .Player.IsLocalPlayer .PlayerRow
+{
+	background-color: team1Color&28;
+	brightness: 2.0;
+	saturation: 0.96;
+}
+
+#Team2 .Player.IsLocalPlayer .PlayerRow
+{
+	background-color: team2Color&28;
+	brightness: 2.0;
+	saturation: 0.96;
+}
+
+#Team1 .Player:nth-child(odd) .PlayerRow
+{
+	background-color: team1Color&12;
+}
+
+#Team1 .Player:nth-child(even) .PlayerRow
+{
+	background-color: team1Color&08;
+}
+
+#Team2 .Player:nth-child(odd) .PlayerRow
+{
+	background-color: team2Color&12;
+}
+
+#Team2 .Player:nth-child(even) .PlayerRow
+{
+	background-color: team2Color&08;
+}
+
+.Player:last-child
+{
+	margin-bottom: 0px;
+}
+
+.Player.CommendedPlayer #CommendPlayerButton,.Player.IsLocalPlayer #CommendPlayerButton
+{
+	visibility: collapse;
+}
+
+.Player.CommendedPlayer .GotCommendedIcon.CommendColumn
+{
+	width: 48px;
+	height: 48px;
+	background-image: url("s2r://panorama/images/icons/icon_thumbsup.vsvg");
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: 32% 32%;
+	wash-color: offWhite;
+	opacity: 1;
+	margin-bottom: 4px;
+	img-shadow: 0px 0px 4px #00000088;
+	horizontal-align: center;
+	vertical-align: center;
+	visibility: visible;
+	animation-name: CommendPulse;
+	animation-duration: 2s;
+	animation-iteration-count: infinite;
+}
+
+@keyframes 'CommendPulse'
+{
+	0%
+	{
+		pre-transform-scale2d: 0.95;
+		opacity: 0.15;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.05;
+		opacity: 0.3;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 0.95;
+		opacity: 0.15;
+	}
+	
+}
+
+#Team1 .GotCommendedIcon
+{
+	wash-color: team1Color;
+	img-shadow: 0px 0px 6px #000000cc;
+}
+
+#Team2 .GotCommendedIcon
+{
+	wash-color: team2Color;
+	img-shadow: 0px 0px 6px #000000cc;
+}
+
+.Player .GotCommendedIcon.CommendColumn
+{
+	visibility: collapse;
+}
+
+.Player.IsLocalPlayer #LocalPlayerIdentifier
+{
+	width: 48px;
+	height: 48px;
+	wash-color: offWhite;
+	background-image: url("s2r://panorama/images/icons/caret_up.vsvg");
+	background-size: contain;
+	background-size: 20px;
+	background-repeat: no-repeat;
+	background-position: center center;
+	vertical-align: bottom;
+	visibility: collapse;
+	pre-transform-rotate2d: 90deg;
+	brightness: 1.5;
+	saturation: 0.96;
+}
+
+#CommendPlayerButton
+{
+	vertical-align: bottom;
+	tooltip-position: bottom;
+	background-color: offWhite&05;
+	pre-transform-scale2d: 0.7;
+}
+
+#CommendPlayerButton:hover
+{
+	pre-transform-scale2d: 0.8;
+}
+
+#CommendPlayerButton:active
+{
+	sound: "UI.CommendConfirmation";
+}
+
+#Team1 #LocalPlayerIdentifier
+{
+	wash-color: team1Color;
+	text-shadow: 0px 0px 10px team1Color;
+}
+
+#Team2 #LocalPlayerIdentifier
+{
+	wash-color: team2Color;
+	text-shadow: 0px 0px 10px team2Color;
+}
+
+.Player.IsLocalPlayer #LocalPlayerIdentifier
+{
+	visibility: visible;
+}
+
+#LocalPlayerIdentifier
+{
+	visibility: collapse;
+}
+
+.Player.TotalsRow #CommendPlayerButton
+{
+	visibility: collapse;
+}
+
+.TeamNameContainer,.PlayerInfoContainer
+{
+	width: 320px;
+}
+
+#TeamTableHeader
+{
+	flow-children: right;
+	width: 100%;
+}
+
+.TableHeaderStats
+{
+	width: 100%;
+	flow-children: right;
+	vertical-align: bottom;
+	margin-left: 8px;
+}
+
+.TableHeaderStats Label
+{
+	font-size: 14px;
+}
+
+.SoulsContainer Label
+{
+	width: 100px;
+}
+
+.KDAContainer Label
+{
+	width: 40px;
+	padding-right: 4px;
+}
+
+.DamageContainer Label,.HealingContainer Label
+{
+	width: 88px;
+}
+
+.HealingContainer
+{
+	tooltip-position: bottom;
+}
+
+.TeamPlayerContainer
+{
+	flow-children: down;
+	padding: 8px;
+}
+
+.Player,.PlayerRow,.PlayerInfoContainer
+{
+	flow-children: right;
+}
+
+.PlayerNameContainer
+{
+	flow-children: down;
+	vertical-align: center;
+	margin-left: 8px;
+}
+
+.PlayerInfoContainer .RightSide
+{
+	horizontal-align: right;
+	height: 100%;
+	flow-children: right;
+}
+
+#PlayerName Label
+{
+	font-family: oracle;
+	font-size: 18px;
+	color: offWhite;
+	text-overflow: shrink;
+	height: 26px;
+	max-width: 160px;
+}
+
+#HeroName
+{
+	font-family: oracle;
+	font-size: 18px;
+	margin-top: -8px;
+	color: offWhite&33;
+}
+
+#Team1 #HeroName
+{
+	color: copperFlat&55;
+}
+
+#Team2 #HeroName
+{
+	color: steelFlat&55;
+}
+
+.CanCommendPlayers .CommendColumn
+{
+	visibility: visible;
+}
+
+.CommendColumn
+{
+	visibility: collapse;
+	width: 48px;
+	margin-right: 4px;
+}
+
+.MVPContainer
+{
+	vertical-align: center;
+	width: 36px;
+	height: 48px;
+	img-shadow: 0px 0px 4px #00000088;
+}
+
+.MVPContainer .MVP
+{
+	background-image: url("s2r://panorama/images/post_game/mvp_trophy.vsvg");
+	background-size: contain;
+	background-position: center;
+	background-repeat: no-repeat;
+	width: 100%;
+	height: 100%;
+	visibility: collapse;
+}
+
+.Player.MVP_Rank1 .MVPContainer .MVP
+{
+	visibility: visible;
+}
+
+.MVPContainer .MVP_HonorableMention
+{
+	background-image: url("s2r://panorama/images/post_game/key_player_trophy.vsvg");
+	background-size: contain;
+	background-position: center;
+	background-repeat: no-repeat;
+	width: 100%;
+	height: 100%;
+	visibility: collapse;
+}
+
+.Player.MVP_Rank2 .MVPContainer .MVP_HonorableMention,.Player.MVP_Rank3 .MVPContainer .MVP_HonorableMention
+{
+	visibility: visible;
+}
+
+.PlayerAbilitiesContainer
+{
+	flow-children: right;
+}
+
+.ItemBreakdown
+{
+	margin: 6px 4px;
+}
+
+#Team1 .TeamPlayerContainer
+{
+	background-color: team1Color&00;
+}
+
+#Team2 .TeamPlayerContainer
+{
+	background-color: team2Color&00;
+}
+
+.Player .PlayerInfoContainer,.Player .StatsContainer
+{
+	height: 100%;
+}
+
+.TeamNameContainer,.HealingContainer
+{
+	margin-right: 8px;
+}
+
+.KDAContainer
+{
+	margin-right: 20px;
+	margin-left: 20px;
+}
+
+.PlayerInfoContainer
+{
+	margin-right: 8px;
+}
+
+#Team1 .Player.AwardSouls #SoulsValue,#Team2 .Player.AwardSouls #SoulsValue
+{
+	color: soulShine;
+}
+
+.Player.AwardSouls #SoulsValue .demote
+{
+	color: soulFlat;
+}
+
+#Team1 .Player.AwardKills #KillsValue,#Team2 .Player.AwardKills #KillsValue
+{
+	color: redShine;
+}
+
+#Team1 .Player.AwardAssists #AssistsValue,#Team2 .Player.AwardAssists #AssistsValue
+{
+	color: lightRedShine;
+}
+
+#Team1 .Player.AwardObjDmg #ObjDmgValue,#Team1 .Player.AwardPlayerDmg #PlayerDmgValue
+{
+	color: copperShine;
+}
+
+#Team1 .Player.AwardObjDmg #ObjDmgValue .demote,#Team1 .Player.AwardPlayerDmg #PlayerDmgValue .demote
+{
+	color: copperFlat;
+}
+
+#Team2 .Player.AwardObjDmg #ObjDmgValue,#Team2 .Player.AwardPlayerDmg #PlayerDmgValue
+{
+	color: steelShine;
+}
+
+#Team2 .Player.AwardObjDmg #ObjDmgValue .demote,#Team2 .Player.AwardPlayerDmg #PlayerDmgValue .demote
+{
+	color: steelFlat;
+}
+
+#Team1 .Player.AwardHealing #HealingValue,#Team2 .Player.AwardHealing #HealingValue,#Team1 .Player.IsLocalPlayer.AwardHealing #HealingValue,#Team2 .Player.IsLocalPlayer.AwardHealing #HealingValue
+{
+	color: greenShine;
+}
+
+#Team1 .Player.AwardHealing #HealingValue .demote,#Team2 .Player.AwardHealing #HealingValue .demote
+{
+	color: greenFlat;
+}
+
+#Team1 #SoulsValue,#Team1 #KillsValue,#Team1 #DeathsValue,#Team1 #AssistsValue,#Team1 #PlayerDmgValue,#Team1 #ObjDmgValue,#Team1 #HealingValue
+{
+	color: copperFlat;
+}
+
+#Team1 #DeathsValue
+{
+	opacity: 0.3;
+}
+
+#Team1 .demote
+{
+	color: copperFlat&77;
+}
+
+#Team2 #SoulsValue,#Team2 #KillsValue,#Team2 #DeathsValue,#Team2 #AssistsValue,#Team2 #PlayerDmgValue,#Team2 #ObjDmgValue,#Team2 #HealingValue
+{
+	color: steelFlat;
+}
+
+#Team2 #DeathsValue
+{
+	opacity: 0.3;
+}
+
+#Team2 .demote
+{
+	color: steelFlat&77;
+}
+
+#Team1 .Player.IsLocalPlayer #SoulsValue,#Team1 .Player.IsLocalPlayer #KillsValue,#Team1 .Player.IsLocalPlayer #DeathsValue,#Team1 .Player.IsLocalPlayer #AssistsValue,#Team1 .Player.IsLocalPlayer #PlayerDmgValue,#Team1 .Player.IsLocalPlayer #ObjDmgValue,#Team1 .Player.IsLocalPlayer #HealingValue
+{
+	color: copperFlat;
+}
+
+#Team2 .Player.IsLocalPlayer #SoulsValue,#Team2 .Player.IsLocalPlayer #KillsValue,#Team2 .Player.IsLocalPlayer #DeathsValue,#Team2 .Player.IsLocalPlayer #AssistsValue,#Team2 .Player.IsLocalPlayer #PlayerDmgValue,#Team2 .Player.IsLocalPlayer #ObjDmgValue,#Team2 .Player.IsLocalPlayer #HealingValue
+{
+	color: steelFlat;
+}
+
+#Team1 .Player.IsLocalPlayer .demote
+{
+	color: copperFlat&77;
+}
+
+#Team2 .Player.IsLocalPlayer .demote
+{
+	color: steelFlat&77;
+}
+
+#ItemsContainer
+{
+	ui-scale: 80%;
+	vertical-align: center;
+	padding: 8px;
+	margin-left: 4px;
+}
+
+#ItemsContainer CitadelModIcon
+{
+	opacity: 0.6;
+	saturation: 0.9;
+	ui-scale: 90%;
+	pre-transform-scale2d: 0.96;
+	vertical-align: center;
+	transition-property: saturation, opacity, pre-transform-scale2d;
+	transition-duration: 0.08s;
+	transition-timing-function: ease-in-out;
+}
+
+#ItemsContainer CitadelModIcon:hover
+{
+	opacity: 1;
+	saturation: 1;
+	pre-transform-scale2d: 1.5;
+}
+
+#AbilitiesContainer
+{
+	vertical-align: center;
+	flow-children: right;
+	padding: 8px;
+	margin-left: 4px;
+	opacity: 0.8;
+}
+
+.StatsContainer
+{
+	flow-children: right;
+}
+
+.TableHeaderStats .StatsContainer
+{
+	vertical-align: bottom;
+}
+
+.StatsContainer Label
+{
+	text-align: center;
+	horizontal-align: middle;
+	vertical-align: middle;
+	font-size: 17px;
+	color: offWhite&44;
+	font-family: oracle;
+	font-weight: light;
+	text-shadow: 0px 0px 0px 3 black;
+	font-weight: bold;
+}
+
+.TableHeaderStats .StatsContainer Label
+{
+	vertical-align: bottom;
+	color: offWhite&16;
+	font-size: 13.8px;
+	font-family: block;
+	text-transform: uppercase;
+	text-overflow: shrink;
+}
+
+#Team1 .TableHeaderStats .StatsContainer Label
+{
+	color: copperFlat&55;
+}
+
+#Team2 .TableHeaderStats .StatsContainer Label
+{
+	color: steelFlat&55;
+}
+
+.StatsContainer.ItemsContainer Label
+{
+	margin-left: 12px;
+}
+
+.TableHeaderStats .MatchTimeContainer
+{
+	horizontal-align: right;
+}
+
+#Team2 .TableHeaderStats .MatchTimeContainer
+{
+	visibility: collapse;
+}
+
+.TableHeaderStats .MatchTimeContainer Label
+{
+	margin-right: 16px;
+}
+
+.TableHeaderStats .MatchTimeContainer .TimeLabel
+{
+	font-weight: bold;
+	margin-right: 8px;
+}
+
+.GameMode_StreetBrawl .TableHeaderStats .MatchTimeContainer .TimeLabel
+{
+	visibility: collapse;
+}
+
+.TableHeaderStats .MatchTimeContainer #MatchID
+{
+	transition-property: color;
+	transition-duration: 0.08s;
+}
+
+.TableHeaderStats .MatchTimeContainer #MatchID:hover
+{
+	color: offWhite&88;
+}
+
+#CopyBuildButton
+{
+	width: 16px;
+	height: 16px;
+	vertical-align: middle;
+	margin: 8px 24px 8px 8px;
+	opacity: 0.2;
+	background-image: url("s2r://panorama/images/icons/icon_copy.vsvg");
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	transition-property: opacity, brightness;
+	transition-duration: 0.12s;
+	transition-timing-function: ease-in-out;
+}
+
+#CopyBuildButton:hover
+{
+	opacity: 0.9;
+}
+
+#CopyBuildButton:active
+{
+	opacity: 1;
+}
+
+#Team1 #CopyBuildButton
+{
+	wash-color: copperFlat;
+}
+
+#Team2 #CopyBuildButton
+{
+	wash-color: steelFlat;
+}
+
+#Team1 .Player.AwardSouls #SoulsValue,#Team1 .Player.AwardKills #KillsValue,#Team1 .Player.AwardAssists #AssistsValue,#Team1 .Player.AwardPlayerDmg #PlayerDmgValue,#Team1 .Player.AwardObjDmg #ObjDmgValue,#Team1 .Player.AwardHealing #HealingValue
+{
+	background-image: url("s2r://panorama/images/post_game/starburst_team1.vsvg");
+}
+
+#Team2 .Player.AwardSouls #SoulsValue,#Team2 .Player.AwardKills #KillsValue,#Team2 .Player.AwardAssists #AssistsValue,#Team2 .Player.AwardPlayerDmg #PlayerDmgValue,#Team2 .Player.AwardObjDmg #ObjDmgValue,#Team2 .Player.AwardHealing #HealingValue
+{
+	background-image: url("s2r://panorama/images/post_game/starburst_team2.vsvg");
+}
+
+.Player.AwardSouls #SoulsValue,.Player.AwardKills #KillsValue,.Player.AwardAssists #AssistsValue,.Player.AwardPlayerDmg #PlayerDmgValue,.Player.AwardObjDmg #ObjDmgValue,.Player.AwardHealing #HealingValue
+{
+	font-size: 18px;
+	height:40px;
+	line-height: 28px;
+	vertical-align: center;
+	horizontal-align: center;
+	brightness: 1.3;
+	text-shadow: 0px 0px 0px 4 black;
+	saturation: 1;
+	padding: 4px 0px 3px 0px;
+	background-size: 40px 40px;
+	background-repeat: no-repeat;
+	background-position: center center;
+	background-img-opacity: 0.4;
+	animation-name: QuestGroove;
+	animation-duration: 2s;
+	animation-iteration-count: infinite;
+}
+
+@keyframes 'QuestGroove'
+{
+	0%
+	{
+		transform: rotateZ(-3deg);
+	}
+	
+	25%
+	{
+		transform: rotateZ(-3deg);
+	}
+	
+	26%
+	{
+		transform: rotateZ(2deg);
+	}
+	
+	50%
+	{
+		transform: rotateZ(2deg);
+	}
+	
+	51%
+	{
+		transform: rotateZ(-1deg);
+	}
+	
+	75%
+	{
+		transform: rotateZ(-1deg);
+	}
+	
+	76%
+	{
+		transform: rotateZ(0deg);
+	}
+	
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+	
+}
+
+#Team1 .Player.TotalsRow .PlayerRow,#Team2 .Player.TotalsRow .PlayerRow
+{
+	background-color: none;
+}
+
+#Team2 .Player.TotalsRow .StatsContainer
+{
+	border: 2px solid team2Color&09;
+	border-radius: 4px;
+}
+
+#Team1 .Player.TotalsRow .StatsContainer
+{
+	border: 2px solid team1Color&09;
+	border-radius: 4px;
+}
+
+.CanCommendPlayers .Player.TotalsRow
+{
+	margin-left: 376px;
+}
+
+.Player.TotalsRow
+{
+	height: 28px;
+	margin-top: 4px;
+	margin-left: 324px;
+}
+
+.Player.TotalsRow Label
+{
+	font-size: 16px;
+	padding-top: 1px;
+}
+
+.Player.TotalsRow .PlayerInfoContainer
+{
+	visibility: collapse;
+}
+
+.Player.TotalsRow .KDAContainer,.Player.TotalsRow .DamageContainer,.Player.TotalsRow .HealingContainer,.Player.TotalsRow #AbilitiesContainer,.Player.TotalsRow #ItemsContainer,.Player.TotalsRow #CopyBuildButton
+{
+	visibility: collapse;
+}
+
+.GameMode_StreetBrawl .SoulsContainer
+{
+	visibility: collapse;
+}
+
+.GameMode_StreetBrawl #CopyBuildButton
+{
+	visibility: collapse;
+}
+
+#MatchInfoContainer
+{
+	width: 100%;
+}
+
+.GameMode_StreetBrawl #MatchInfoContainer
+{
+	margin-top: 40px;
+}
+
+#RoundInfoContainer
+{
+	flow-children: right;
+	vertical-align: bottom;
+	horizontal-align: center;
+}
+
+#RoundInfoContainer .RoundInfo
+{
+	flow-children: right;
+	margin-right: 32px;
+}
+
+#RoundInfoContainer .RoundInfo Label
+{
+	font-family: oracle;
+}
+
+#RoundInfoContainer .RoundInfo .RoundName
+{
+	font-weight: light;
+	color: colorCommonOffWhiteA35;
+	margin-right: 8px;
+	margin-left: 8px;
+}
+
+#RoundInfoContainer .RoundInfo.Win_Team1 .RoundTime
+{
+	color: team1Color;
+}
+
+#RoundInfoContainer .RoundInfo.Win_Team2 .RoundTime
+{
+	color: team2Color;
+}
+
+.CanCommendPlayers #RoundInfoContainer
+{
+	margin-left: 52px;
+}
+

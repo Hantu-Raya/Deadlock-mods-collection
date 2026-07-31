@@ -1,0 +1,56 @@
+<!-- xml reconstructed by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_hero_stats_panels_shared.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_hero_stats_weapon_panel.vcss_c" />
+	</styles>
+	<snippets>
+		<snippet name="StatElement">
+			<Panel class="StatElement">
+				<CitadelModifiedAttributeLabel id="AttributeLabel" />
+				<CitadelStatScalingLabel id="ScalingStatLabel" />
+			</Panel>
+		</snippet>
+		<snippet name="AttributePanel">
+			<Panel class="AttributePanel">
+				<Label id="AttributeLabel" text="{s:attribute_name}" />
+			</Panel>
+		</snippet>
+	</snippets>
+	<CitadelHeroStatsWeapon>
+		<GlobalClassListener classes="gDetailView gShopOpen" />
+		<Panel id="BackgroundContainer" />
+		<Panel id="WeaponInfoContainer">
+			<Image id="GunImage" defaultsrc="s2r://panorama/images/heroes/guns/generic_gun_psd.vtex" scaling="cover" />
+			<Panel class="weaponNameAndAttributes TopBottomFlow">
+				<Label class="statTitle" text="#CitadelHeroStats_Weapon" />
+				<Label class="WeaponName" text="{s:weapon_name}" />
+				<Panel class="LeftRightFlow" id="WeaponAttributesContainer" />
+			</Panel>
+			<Panel id="BulletDPSContainer" />
+			<Panel id="WeaponFalloffRange">
+				<Label class="FalloffLabel" text="#CitadelHeroStats_Weapon_Falloff" />
+				<Panel id="WeaponRangeContainer" class="LeftRightFlow">
+					<Panel id="WeaponMinRangeContainer" />
+					<Panel class="RangeArrow" />
+					<Panel id="WeaponMaxRangeContainer" />
+				</Panel>
+				<Panel id="NAWeaponRangeContainer" class="LeftRightFlow">
+					<Label id="NAWeaponRangeLabel" text="#CitadelHeroStats_Weapon_Falloff_NA" />
+				</Panel>
+			</Panel>
+		</Panel>
+		<Panel id="WeaponDisplayStats" class="displayStatsContainer">
+			<Label class="weaponDesc" text="{s:weapon_desc}" />
+			<Panel id="InitialWeaponStatsContainer" class="statsContainer" />
+		</Panel>
+		<Panel id="SecondaryWeaponDisplayStats" class="displayStatsContainer">
+			<Label class="secondaryWeaponDesc" text="{s:secondary_weapon_desc}" />
+			<Panel id="SecondaryWeaponStatsContainer" class="statsContainer" />
+		</Panel>
+		<Panel id="WeaponOtherStatsDisplay" class="displayStatsContainer otherStats TopBottomFlow">
+			<Panel id="OtherWeaponStatsContainer" class="statsContainer" />
+		</Panel>
+	</CitadelHeroStatsWeapon>
+</root>

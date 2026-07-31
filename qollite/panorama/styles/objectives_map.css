@@ -1,0 +1,42 @@
+/* Prettified by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/topbar_rank_base/objectives_map.vcss_c");
+#ObjectivesMap
+{
+	visibility: visible;
+	opacity: 1;
+	vertical-align: top;
+	horizontal-align: center;
+	margin-top: 35px;
+	width: 100px;
+	height: 100px;
+	ui-scale: 70%;
+	transform: translateY(0px);
+	z-index: 95;
+}
+
+.IconCtn
+{
+	width: 110%;
+	height: 110%;
+}
+
+.gamemode_streetbrawl #ObjectivesMap
+{
+	visibility: collapse;
+}
+
+.LiveGame .ObjectiveCtn,.LiveGame.ObjectiveCtn,#ObjectivesMap .ObjectiveCtn
+{
+	background-color: #00000030;
+	world-blur: ingameHudBlur;
+	visibility: visible;
+	opacity: 1;
+}
+
+#ObjectivesMap .Background,#ObjectivesMap .IconCtn,#ObjectivesMap .Icon
+{
+	visibility: visible;
+	opacity: 1;
+}
+

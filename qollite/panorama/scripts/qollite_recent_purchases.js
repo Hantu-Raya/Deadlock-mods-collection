@@ -1,260 +1,851 @@
 (function () {
-  "use strict";
+    "use strict";
 
-  if (typeof GameUI === "undefined" || !GameUI.CustomUIConfig) return;
-  var qolLite = GameUI.CustomUIConfig().QolLite;
-  if (!qolLite || !qolLite.Runtime || !qolLite.Settings || !qolLite.UMM) {
-    return;
-  }
+    // ─── Config ───────────────────────────────────────────────────────────────────
 
-  var Runtime = qolLite.Runtime;
-  var Settings = qolLite.Settings;
-  var UMM = qolLite.UMM;
-  var SETTING_ID = "recent_purchases";
-  var SCHEDULE_OWNER = "QolLiteRecentPurchases";
-  var ROW_CLASS = "QolLiteRecentPurchase";
-  var HERO_CLASS = "QolLiteRecentPurchaseHasHero";
-  var HERO_ID = "QolLiteRecentPurchaseHero";
-  var initialized = false;
-  var active = false;
-  var generation = 0;
-  var settingsRegistered = false;
-  var unsubscribe = null;
-  var decoratedRows = [];
-  var seenRows = typeof WeakSet === "function" ? new WeakSet() : [];
+    const DEBUG = false;
+    const DEBUG_QUICK = false;
 
-  function normalizeState(state) {
-    if (!state || typeof state.enabled !== "boolean") {
-      return null;
-    }
-    return { enabled: state.enabled };
-  }
+    const MAIN_POLL_INTERVAL = 0.1;
+    const HIDEOUT_POLL_INTERVAL = 1.0;
 
-  function rememberRow(row) {
-    if (typeof seenRows.add === "function") {
-      seenRows.add(row);
-    } else {
-      seenRows.push(row);
-    }
-  }
+    const QUICK_MAX_ENTRIES = 3;
+    const QUICK_DISPLAY_DURATION = 10.0;
+    const QUICK_FADE_DURATION = 0.3;
+    const QUICK_OVERLAP_GAP = 0;
+    const QUICK_ROW_UI_SCALE = 0.75; // must match ui-scale on .quickPurchase in CSS
+    const SEEN_KEYS_PRUNE_INTERVAL = 100;
+    const SEEN_KEYS_MAX = 300;
 
-  function hasSeenRow(row) {
-    if (typeof seenRows.has === "function") {
-      return seenRows.has(row);
-    }
-    return seenRows.indexOf(row) !== -1;
-  }
+    const CONTAINER_MAX_ITEMS = 50;
 
-  function findChild(panel, id) {
-    try {
-      return panel && typeof panel.FindChildTraverse === "function" ? panel.FindChildTraverse(id) : null;
-    } catch (error) {
-      return null;
-    }
-  }
+    const UMM_CHANNEL = "ClientUI_FireOutput";
+    const UMM_PROTOCOL = 1;
+    const UMM_MANIFEST = {
+        umm: UMM_PROTOCOL,
+        t: "register",
+        id: "recent_purchases",
+        name: "Recent Purchases",
+        settings: [
+            {
+                id: "enabled",
+                type: "toggle",
+                label: "Enabled",
+                "default": true,
+                description: "Show and process recent purchases."
+            }
+        ],
+        values: { enabled: true }
+    };
 
-  function findRows(panel) {
-    try {
-      return panel && typeof panel.FindChildrenWithClassTraverse === "function" ?
-        panel.FindChildrenWithClassTraverse("recentPurchase") : [];
-    } catch (error) {
-      return [];
-    }
-  }
+    // ─── Filter definitions ───────────────────────────────────────────────────────
 
-  function getContextContainer() {
-    var panel;
-    try {
-      panel = $.GetContextPanel();
-    } catch (error) {
-      return null;
-    }
-
-    while (panel) {
-      var container = findChild(panel, "RecentPurchasesContainer");
-      if (container) {
-        return container;
-      }
-      try {
-        panel = typeof panel.GetParent === "function" ? panel.GetParent() : null;
-      } catch (error) {
-        panel = null;
-      }
-    }
-    return null;
-  }
-
-  function readHeroIdentity(stockHero) {
-    var names = ["hero", "hero_id", "heroname"];
-    var index;
-    for (index = 0; index < names.length; index += 1) {
-      try {
-        var value = stockHero.GetAttributeString(names[index], "");
-        if (typeof value === "string" && value.length > 0) {
-          return { name: names[index], value: value };
+    const FILTERS = [
+        {
+            id: "Tier1Toggle", label: "T1", group: "tier", active: true, invert: true,
+            ShouldHideItem: function (p) { return p.BHasClass("isTier1Purchase"); }
+        },
+        {
+            id: "Tier2Toggle", label: "T2", group: "tier", active: true, invert: true,
+            ShouldHideItem: function (p) { return p.BHasClass("isTier2Purchase"); }
+        },
+        {
+            id: "Tier3Toggle", label: "T3", group: "tier", active: true, invert: true,
+            ShouldHideItem: function (p) { return p.BHasClass("isTier3Purchase"); }
+        },
+        {
+            id: "Tier4Toggle", label: "T4", group: "tier", active: true, invert: true,
+            ShouldHideItem: function (p) { return p.BHasClass("isTier4Purchase"); }
+        },
+        {
+            id: "Team1OnlyToggle", label: "Hidden King", group: "team", active: true, invert: true,
+            ShouldShowToggle: function (ctx) { return ctx.isSpectator; },
+            ShouldHideItem: function (p) { return p.BHasClass("isTeam1Purchase"); }
+        },
+        {
+            id: "Team2OnlyToggle", label: "Archmother", group: "team", active: true, invert: true,
+            ShouldShowToggle: function (ctx) { return ctx.isSpectator; },
+            ShouldHideItem: function (p) { return p.BHasClass("isTeam2Purchase"); }
+        },
+        {
+            id: "MyTeamToggle", label: "My Team", group: "team", active: true, invert: true,
+            ShouldShowToggle: function (ctx) { return !ctx.isSpectator; },
+            ShouldHideItem: function (p, ctx) {
+                if (ctx.localTeam === 1) return p.BHasClass("isTeam1Purchase");
+                if (ctx.localTeam === 2) return p.BHasClass("isTeam2Purchase");
+                return false;
+            }
+        },
+        {
+            id: "EnemyTeamToggle", label: "Enemy Team", group: "team", active: true, invert: true,
+            ShouldShowToggle: function (ctx) { return !ctx.isSpectator; },
+            ShouldHideItem: function (p, ctx) {
+                if (ctx.localTeam === 1) return p.BHasClass("isTeam2Purchase");
+                if (ctx.localTeam === 2) return p.BHasClass("isTeam1Purchase");
+                return false;
+            }
         }
-      } catch (error) {
-        return null;
-      }
-    }
-    return null;
-  }
+    ];
 
-  function setClass(panel, className, enabled) {
-    try {
-      Runtime.setClass(panel, className, enabled);
-    } catch (error) {
-      // Invalidated Valve panels are ignored until the next refresh.
-    }
-  }
+    const QUICK_CLASSES_TO_COPY = [
+        "isTier1Purchase", "isTier2Purchase", "isTier3Purchase", "isTier4Purchase",
+        "isWeaponPurchase", "isArmorPurchase", "isTechPurchase",
+        "isTeam1Purchase", "isTeam2Purchase"
+    ];
 
-  function removeOwnedRow(row) {
-    var ownedHero = findChild(row, HERO_ID);
-    if (ownedHero) {
-      try {
-        ownedHero.DeleteAsync(0);
-      } catch (error) {
-        // The stock row was removed by Valve first.
-      }
-    }
-    setClass(row, ROW_CLASS, false);
-    setClass(row, HERO_CLASS, false);
-  }
+    // ─── Shared state ─────────────────────────────────────────────────────────────
 
-  function removeOwnedRows() {
-    var index;
-    for (index = 0; index < decoratedRows.length; index += 1) {
-      removeOwnedRow(decoratedRows[index]);
-    }
-    decoratedRows = [];
-  }
+    var cachedRoot = null;
+    var cachedContainer = null;
 
-  function decorateRow(row) {
-    if (hasSeenRow(row)) {
-      return;
-    }
+    // Filter state
+    var filtersCreated = false;
+    var lastFilterSig = null;
+    var lastFirstPurchase = null;
+    var lastVisibilitySig = null;
 
-    var stockHero = findChild(row, "RecentPurchaseHeroImage");
-    var identity = stockHero ? readHeroIdentity(stockHero) : null;
-    if (!identity) {
-      return;
-    }
+    // Hideout state
+    var wasInHideout = null;
 
-    var hero;
-    try {
-      hero = $.CreatePanel("CitadelHeroImage", row, HERO_ID);
-      hero.SetAttributeString(identity.name, identity.value);
-      hero.SetAttributeString("heroimagestyle", "small");
-    } catch (error) {
-      return;
+    // Quick purchases state
+    var quickSeenKeys = {};
+    var quickInitialized = false;
+    var heroNameMap = {};           // UPPERCASE hero name → CitadelHudTopBarPlayer panel
+    // heroMapState enum
+    var HERO_MAP_IDLE = 0;
+    var HERO_MAP_BUILDING = 1;
+    var HERO_MAP_BUILT = 2;
+    var heroMapState = HERO_MAP_IDLE;
+    var quickPanelsByHero = {};     // UPPERCASE hero name → QuickPurchasesPanel
+    var quickActiveEntriesByHero = {}; // UPPERCASE hero name → []
+    var quickLastEntryTime = {};    // UPPERCASE hero name → timestamp of most recent AddQuickEntry
+
+    // Lifecycle state. A generation invalidates every callback queued by an
+    // earlier enabled session, so disabling performs no background work.
+    var enabled = true;
+    var lifecycleGeneration = 0;
+    var loopsRunning = false;
+    var heroMapGeneration = 0;
+
+    function ScheduleActive(delay, callback, generation) {
+        var expectedGeneration = generation === undefined ? lifecycleGeneration : generation;
+        $.Schedule(delay, function () {
+            if (!enabled || expectedGeneration !== lifecycleGeneration) return;
+            callback(expectedGeneration);
+        });
     }
 
-    setClass(row, ROW_CLASS, true);
-    setClass(row, HERO_CLASS, true);
-    decoratedRows.push(row);
-    rememberRow(row);
-  }
 
-  function scanRows() {
-    var container = getContextContainer();
-    var rows = findRows(container);
-    var index;
-    for (index = 0; index < rows.length; index += 1) {
-      decorateRow(rows[index]);
-    }
-  }
+    // ─── Shared utilities ─────────────────────────────────────────────────────────
 
-  function cancelWork() {
-    try {
-      Runtime.cancel(SCHEDULE_OWNER);
-    } catch (error) {
-      // The runtime may already have discarded this owner.
-    }
-  }
-
-  function scheduleRefresh() {
-    if (!active) {
-      return;
+    function GetAbsoluteRoot() {
+        if (cachedRoot && cachedRoot.IsValid()) return cachedRoot;
+        var root = $.GetContextPanel();
+        while (root.GetParent() !== null) root = root.GetParent();
+        cachedRoot = root;
+        return root;
     }
 
-    cancelWork();
-    var callbackGeneration = generation;
-    try {
-      Runtime.schedule(SCHEDULE_OWNER, 0.25, function () {
-        if (!active || callbackGeneration !== generation) {
-          return;
+    function GetContainer(globalRoot) {
+        if (cachedContainer && cachedContainer.IsValid()) return cachedContainer;
+        cachedContainer = globalRoot.FindChildTraverse("RecentPurchasesContainer");
+        return cachedContainer;
+    }
+
+    function HasAncestorClass(panel, className) {
+        var p = panel;
+        while (p) {
+            if (p.BHasClass(className)) return true;
+            p = p.GetParent();
         }
-        scanRows();
-        scheduleRefresh();
-      });
-    } catch (error) {
-      // Scheduling is optional while Panorama is tearing down.
+        return false;
     }
-  }
 
-  function enable() {
-    if (active) {
-      return;
+    function GetPurchaseName(panel) {
+        if (!panel || !panel.IsValid()) return "";
+        var labels = panel.FindChildrenWithClassTraverse("recentModPurchaseName");
+        return (labels && labels.length > 0 && labels[0].IsValid()) ? labels[0].text.trim() : "";
     }
-    active = true;
-    generation += 1;
-    scanRows();
-    scheduleRefresh();
-  }
 
-  function disable() {
-    generation += 1;
-    active = false;
-    cancelWork();
-    removeOwnedRows();
-  }
-
-  function onSettingsChanged(state) {
-    if (state && state.enabled === true) {
-      enable();
-    } else if (state && state.enabled === false) {
-      disable();
+    function GetPurchaseTime(panel) {
+        if (!panel || !panel.IsValid()) return "";
+        var labels = panel.FindChildrenWithClassTraverse("recentTimePurchased");
+        return (labels && labels.length > 0 && labels[0].IsValid()) ? labels[0].text.trim() : "";
     }
-  }
 
-  function ensureSettings() {
-    if (!settingsRegistered) {
-      UMM.register(SETTING_ID, {
-        defaults: { enabled: true },
-        normalize: normalizeState
-      });
-      UMM.announce(SETTING_ID);
-      settingsRegistered = true;
+    function GetPurchaseHeroName(panel) {
+        if (!panel || !panel.IsValid()) return "";
+        var labels = panel.FindChildrenWithClassTraverse("recentModPurchaserHero");
+        return (labels && labels.length > 0 && labels[0].IsValid()) ? labels[0].text.trim() : "";
     }
-    if (!unsubscribe) {
-      unsubscribe = Settings.subscribe(SETTING_ID, onSettingsChanged);
+
+    // ─── Mod icon setting ─────────────────────────────────────────────────────────
+
+    function UpdateModIcons(container, purchases) {
+        if (!container || !container.IsValid()) return;
+        if (!purchases) purchases = container.FindChildrenWithClassTraverse("recentPurchase");
+        for (var i = 0; i < purchases.length; i++) {
+            var purchase = purchases[i];
+            if (!purchase || !purchase.IsValid()) continue;
+            var icons = purchase.FindChildrenWithClassTraverse("mod_icon");
+            if (!icons || icons.length === 0) continue;
+            var icon = icons[0];
+            if (!icon.IsValid() || icon.BHasClass("iconSet")) continue;
+            var itemName = GetPurchaseName(purchase);
+            if (!itemName) continue;
+            var image = QOL_LITE_PURCHASE_ICONS[itemName];
+            if (!image) continue;
+            icon.style.backgroundImage = image;
+            icon.style.washColor = "none";
+            icon.AddClass("iconSet");
+        }
     }
-  }
 
-  var feature = {
-    init: function () {
-      ensureSettings();
-      initialized = true;
-      onSettingsChanged(Settings.get(SETTING_ID));
-    },
+    // ─── Purchase filters ─────────────────────────────────────────────────────────
 
-    refresh: function () {
-      if (!initialized || !active) {
-        return;
-      }
-      scanRows();
-      scheduleRefresh();
-    },
-
-    destroy: function () {
-      initialized = false;
-      disable();
-      if (typeof unsubscribe === "function") {
-        unsubscribe();
-      }
-      unsubscribe = null;
+    function BuildContext(container) {
+        var ctx = { isSpectator: false, localTeam: 0 };
+        ctx.isSpectator = HasAncestorClass($.GetContextPanel(), "TeamSpectator");
+        if (!ctx.isSpectator && container && container.IsValid()) {
+            if (HasAncestorClass(container, "localPlayerTeam1")) ctx.localTeam = 1;
+            else if (HasAncestorClass(container, "localPlayerTeam2")) ctx.localTeam = 2;
+        }
+        return ctx;
     }
-  };
 
-  Runtime.register("recentPurchases", feature);
-}());
+    function GetFilterSignature(ctx, container) {
+        var sig = (ctx.isSpectator ? "1" : "0") + ctx.localTeam + container.GetChildCount();
+        for (var i = 0; i < FILTERS.length; i++) sig += FILTERS[i].active ? "1" : "0";
+        return sig;
+    }
+
+    function CreateFilterCheckboxes(globalRoot) {
+        if (filtersCreated) return;
+        var panel = globalRoot.FindChildTraverse("RecentPurchasesPanel");
+        if (!panel) return;
+
+        var collapseToggle = $.CreatePanel("ToggleButton", panel, "FiltersCollapseToggle");
+        collapseToggle.AddClass("PurchaseFilterToggle");
+        collapseToggle.checked = true;
+        var collapseLabel = $.CreatePanel("Label", collapseToggle, "");
+        collapseLabel.text = "Show Filters";
+
+        var filtersPanel = $.CreatePanel("Panel", panel, "PurchaseFiltersContainer");
+        var filtersVisible = true;
+        $.RegisterEventHandler("Activated", collapseToggle, function () {
+            filtersVisible = !filtersVisible;
+            if (filtersVisible) filtersPanel.RemoveClass("filterButtonHidden");
+            else filtersPanel.AddClass("filterButtonHidden");
+        });
+
+        var groupPanels = {};
+        for (var i = 0; i < FILTERS.length; i++) {
+            var filter = FILTERS[i];
+            var parent = filtersPanel;
+            if (filter.group) {
+                if (!groupPanels[filter.group]) {
+                    groupPanels[filter.group] = $.CreatePanel("Panel", filtersPanel, "FilterGroup_" + filter.group);
+                    groupPanels[filter.group].AddClass("PurchaseFilterGroup");
+                }
+                parent = groupPanels[filter.group];
+            }
+            var toggle = $.CreatePanel("ToggleButton", parent, filter.id);
+            toggle.AddClass("PurchaseFilterToggle");
+            toggle.checked = filter.active;
+            var label = $.CreatePanel("Label", toggle, "");
+            label.text = filter.label;
+            (function (f) {
+                $.RegisterEventHandler("Activated", toggle, function () {
+                    f.active = !f.active;
+                    if (DEBUG) $.Msg("[Filters] " + f.id + " active=" + f.active);
+                });
+            })(filter);
+        }
+
+        var existingLabel = panel.FindChild("RecentPurchases");
+        var container = panel.FindChild("RecentPurchasesContainer");
+        if (existingLabel) existingLabel.SetParent(panel);
+        if (container) container.SetParent(panel);
+
+        filtersCreated = true;
+    }
+
+    function UpdateFilterVisibility(globalRoot, ctx) {
+        var visSig = (ctx.isSpectator ? "1" : "0") + ctx.localTeam;
+        if (visSig === lastVisibilitySig) return;
+        lastVisibilitySig = visSig;
+        for (var i = 0; i < FILTERS.length; i++) {
+            var filter = FILTERS[i];
+            if (!filter.ShouldShowToggle) continue;
+            var toggle = globalRoot.FindChildTraverse(filter.id);
+            if (!toggle) continue;
+            if (filter.ShouldShowToggle(ctx)) toggle.RemoveClass("filterButtonHidden");
+            else toggle.AddClass("filterButtonHidden");
+        }
+    }
+
+    function ApplyFilters(container, ctx, purchases) {
+        if (!container || !container.IsValid()) return;
+        var sig = GetFilterSignature(ctx, container);
+        var firstChild = container.GetChildCount() > 0 ? container.GetChild(0) : null;
+        if (sig === lastFilterSig && firstChild === lastFirstPurchase) return;
+        lastFilterSig = sig;
+        lastFirstPurchase = firstChild;
+        if (DEBUG) $.Msg("[Filters] Signature changed: " + sig);
+
+        if (!purchases) purchases = container.FindChildrenWithClassTraverse("recentPurchase");
+        for (var i = 0; i < purchases.length; i++) {
+            var purchase = purchases[i];
+            if (!purchase || !purchase.IsValid()) continue;
+            var hidden = false;
+            for (var j = 0; j < FILTERS.length; j++) {
+                var filter = FILTERS[j];
+                if (filter.ShouldShowToggle && !filter.ShouldShowToggle(ctx)) continue;
+                var shouldApply = filter.invert ? !filter.active : filter.active;
+                if (shouldApply && filter.ShouldHideItem(purchase, ctx)) { hidden = true; break; }
+            }
+            if (hidden) purchase.AddClass("filterHidden");
+            else purchase.RemoveClass("filterHidden");
+        }
+    }
+
+    // ─── Container cap ───────────────────────────────────────────────────────────
+
+    function GetCappedPurchases(container) {
+        if (!container || !container.IsValid()) return [];
+        var purchases = container.FindChildrenWithClassTraverse("recentPurchase");
+        for (var i = CONTAINER_MAX_ITEMS; i < purchases.length; i++) {
+            purchases[i].DeleteAsync(0);
+        }
+        if (purchases.length > CONTAINER_MAX_ITEMS) {
+            purchases.length = CONTAINER_MAX_ITEMS;
+        }
+        return purchases;
+    }
+
+    var _seenKeysPruneCounter = 0;
+    function RebuildSeenKeys(container, purchases) {
+        if (!container || !container.IsValid()) return;
+        if (!purchases) purchases = container.FindChildrenWithClassTraverse("recentPurchase");
+        var valid = {};
+        for (var i = 0; i < purchases.length; i++) {
+            var name = GetPurchaseName(purchases[i]);
+            var time = GetPurchaseTime(purchases[i]);
+            if (name && time) valid[name + "|" + time] = true;
+        }
+        quickSeenKeys = valid;
+    }
+
+    function CapSeenKeys(container, purchases) {
+        var count = 0;
+        for (var key in quickSeenKeys) {
+            if (quickSeenKeys.hasOwnProperty(key)) count++;
+        }
+        if (count > SEEN_KEYS_MAX) RebuildSeenKeys(container, purchases);
+    }
+
+    function PruneSeenKeys(container, purchases) {
+        _seenKeysPruneCounter++;
+        if (_seenKeysPruneCounter < SEEN_KEYS_PRUNE_INTERVAL) return;
+        _seenKeysPruneCounter = 0;
+        RebuildSeenKeys(container, purchases);
+    }
+
+    // ─── Hideout reset ────────────────────────────────────────────────────────────
+
+    function IsConnectedToHideout(globalRoot) {
+        try {
+            if (typeof Game !== "undefined" && Game.GetMapInfo) {
+                var mapName = Game.GetMapInfo().map_display_name;
+                if (["hero_testing_hideout", "hideout", "dl_hideout"].indexOf(mapName) !== -1) return true;
+            }
+        } catch (e) { }
+        var hud = globalRoot.FindChildTraverse("Hud");
+        if (hud && (hud.BHasClass("connectedToHideout") || hud.BHasClass("InHideout"))) return true;
+        return globalRoot.BHasClass("connectedToHideout") || globalRoot.BHasClass("InHideout");
+    }
+
+    function ClearContainer(globalRoot) {
+        var container = GetContainer(globalRoot);
+        if (container && container.IsValid()) {
+            var count = container.GetChildCount();
+            if (count > 0) {
+                for (var i = 0; i < count; i++) container.GetChild(i).DeleteAsync(0);
+                if (DEBUG) $.Msg("[HideoutMonitor] Deleted " + count + " children.");
+            }
+        }
+        // Reset quick purchases so it doesn't re-show stale entries after container is cleared
+        quickSeenKeys = {};
+        quickInitialized = false;
+        ResetHeroMap();
+    }
+
+    // ─── Quick purchases overlay ──────────────────────────────────────────────────
+
+    function ResetHeroMap() {
+        heroMapGeneration++;
+        _overlapResolvePending = false;
+        for (var hero in quickPanelsByHero) {
+            var panel = quickPanelsByHero[hero];
+            if (panel && panel.IsValid()) panel.DeleteAsync(0);
+        }
+        heroNameMap = {};
+        heroMapState = HERO_MAP_IDLE;
+        quickPanelsByHero = {};
+        quickActiveEntriesByHero = {};
+        quickLastEntryTime = {};
+        if (DEBUG_QUICK) $.Msg("[QuickPurchases] Hero map reset — will rebuild next poll.");
+    }
+
+    function IsHeroMapStale() {
+        if (heroMapState !== HERO_MAP_BUILT) return false;
+        for (var hero in heroNameMap) {
+            var pp = heroNameMap[hero];
+            if (!pp || !pp.IsValid()) {
+                if (DEBUG_QUICK) $.Msg("[QuickPurchases] Stale map detected: panel for '" + hero + "' is invalid.");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function BuildHeroNameMap() {
+        if (heroMapState === HERO_MAP_BUILDING) return;
+        heroMapState = HERO_MAP_BUILDING;
+        var buildGeneration = ++heroMapGeneration;
+        var globalRoot = GetAbsoluteRoot();
+        var labels = globalRoot.FindChildrenWithClassTraverse("HeroNameHidden");
+        if (!labels || labels.length === 0) {
+            if (DEBUG_QUICK) $.Msg("[QuickPurchases] BuildHeroNameMap: no .HeroNameHidden labels found.");
+            heroMapState = HERO_MAP_IDLE;
+            return;
+        }
+        if (DEBUG_QUICK) $.Msg("[QuickPurchases] BuildHeroNameMap: found " + labels.length + " label(s), resolving...");
+        var pending = labels.length;
+        function onDone() {
+            if (buildGeneration !== heroMapGeneration) return;
+            pending--;
+            if (pending === 0) {
+                heroMapState = HERO_MAP_BUILT;
+                if (DEBUG_QUICK) {
+                    var keys = [];
+                    for (var k in heroNameMap) keys.push(k);
+                    $.Msg("[QuickPurchases] BuildHeroNameMap: done. Heroes mapped: [" + keys.join(", ") + "]");
+                }
+            }
+        }
+        for (var i = 0; i < labels.length; i++) {
+            (function (label) {
+                var playerPanel = label.GetParent();
+                var badge = null;
+                var parentDepth = 0;
+                while (playerPanel && playerPanel.IsValid() && parentDepth < 16) {
+                    badge = playerPanel.FindChildTraverse("HeroBadge");
+                    if (badge) break;
+                    playerPanel = playerPanel.GetParent();
+                    parentDepth++;
+                }
+                if (!badge || !playerPanel) {
+                    if (DEBUG_QUICK) $.Msg("[QuickPurchases] BuildHeroNameMap: label has no HeroBadge ancestor, skipping.");
+                    onDone(); return;
+                }
+                var heroId = badge.heroid;
+                if (DEBUG_QUICK) $.Msg("[QuickPurchases] BuildHeroNameMap: badge found, heroid=" + heroId + " (type=" + typeof heroId + ")");
+                if (typeof heroId !== "number" || heroId <= 0) {
+                    if (DEBUG_QUICK) $.Msg("[QuickPurchases] BuildHeroNameMap: invalid heroid, skipping.");
+                    onDone(); return;
+                }
+                playerPanel.SetDialogVariableInt("hero_id", heroId);
+                (function (pp, hid) {
+                    ScheduleActive(0.3, function () {
+                        if (buildGeneration !== heroMapGeneration || heroMapState !== HERO_MAP_BUILDING) return;
+                        if (label.IsValid()) {
+                            var name = label.text.trim().toUpperCase();
+                            if (name) {
+                                heroNameMap[name] = pp;
+                                if (DEBUG_QUICK) $.Msg("[QuickPurchases] BuildHeroNameMap: mapped '" + name + "' (heroid=" + hid + ")");
+                            } else {
+                                if (DEBUG_QUICK) $.Msg("[QuickPurchases] BuildHeroNameMap: heroid=" + hid + " resolved to empty string — binding may not be set up.");
+                            }
+                        } else {
+                            if (DEBUG_QUICK) $.Msg("[QuickPurchases] BuildHeroNameMap: label became invalid during resolve (heroid=" + hid + ").");
+                        }
+                        onDone();
+                    });
+                })(playerPanel, heroId);
+            })(labels[i]);
+        }
+    }
+
+    function GetOrCreateQuickPanelForHero(heroNameUpper) {
+        if (quickPanelsByHero[heroNameUpper] && quickPanelsByHero[heroNameUpper].IsValid()) {
+            return quickPanelsByHero[heroNameUpper];
+        }
+        var playerPanel = heroNameMap[heroNameUpper];
+        if (!playerPanel || !playerPanel.IsValid()) {
+            if (DEBUG_QUICK) {
+                var _keys = [];
+                for (var _k in heroNameMap) _keys.push(_k);
+                $.Msg("[QuickPurchases] GetOrCreateQuickPanelForHero: no valid player panel for '" + heroNameUpper + "'. Map keys: [" + _keys.join(", ") + "]. Triggering rebuild.");
+            }
+            if (heroMapState !== HERO_MAP_BUILDING) {
+                heroMapState = HERO_MAP_IDLE;
+            }
+            return null;
+        }
+        var panel = $.CreatePanel("Panel", playerPanel, "");
+        panel.AddClass("QuickPurchasesPanel");
+        quickPanelsByHero[heroNameUpper] = panel;
+        if (DEBUG_QUICK) $.Msg("[QuickPurchases] Created QuickPurchasesPanel for '" + heroNameUpper + "'.");
+        return panel;
+    }
+
+    function GetPanelLeftInTopBar(panel) {
+        var topBar = GetAbsoluteRoot().FindChildTraverse("TopBar");
+        var x = 0;
+        var current = panel;
+        while (current && current.IsValid() && current !== topBar) {
+            x += current.actualxoffset;
+            current = current.GetParent();
+        }
+        return x;
+    }
+
+    var _overlapResolvePending = false;
+    function ScheduleResolveOverlaps(delay) {
+        if (_overlapResolvePending) return;
+        _overlapResolvePending = true;
+        ScheduleActive(delay || 0, function () {
+            try {
+                ResolveOverlaps();
+            } finally {
+                _overlapResolvePending = false;
+            }
+        });
+    }
+
+    function ResolveOverlaps() {
+        // Collect panels that currently have visible entries
+        var active = [];
+        for (var hero in quickPanelsByHero) {
+            var p = quickPanelsByHero[hero];
+            if (!p || !p.IsValid()) continue;
+            var entries = quickActiveEntriesByHero[hero];
+            if (!entries || entries.length === 0) continue;
+            active.push({ hero: hero, panel: p });
+        }
+
+        // Reset all to their base margin before re-computing.
+        // The hero portrait area sits at a consistent offset from the top
+        // regardless of aspect ratio or showNewTopbar mode.
+        // Ultimate-status heroes get extra room for the ult icon.
+        for (var i = 0; i < active.length; i++) {
+            var margin = 125;
+            var pp = active[i].panel.GetParent();
+            if (pp && pp.IsValid()) {
+                // UltimateUnlocked is on the player card ancestor, not the icon itself
+                if (pp.BHasClass("UltimateUnlocked")) margin = 152;
+            }
+            active[i].panel.style.marginTop = margin + "px";
+            active[i].baseMargin = margin;
+        }
+
+        if (active.length < 2) return;
+
+        // Compute each panel's left edge in TopBar coordinate space
+        for (var i = 0; i < active.length; i++) {
+            active[i].leftX = GetPanelLeftInTopBar(active[i].panel);
+            active[i].width = active[i].panel.actuallayoutwidth;
+        }
+
+        // Sort newest first — newest panels stay at base margin (top), older panels get pushed down
+        // Manual bubble sort for Panorama ES5 compat (n ≤ 12, so O(n²) is fine)
+        for (var _si = 0; _si < active.length - 1; _si++) {
+            for (var _sj = _si + 1; _sj < active.length; _sj++) {
+                var _ti = quickLastEntryTime[active[_si].hero] || 0;
+                var _tj = quickLastEntryTime[active[_sj].hero] || 0;
+                if (_tj > _ti) { var _tmp = active[_si]; active[_si] = active[_sj]; active[_sj] = _tmp; }
+            }
+        }
+
+        // Process left to right — shift each panel down to clear all overlapping panels to its left
+        var margins = [];
+        for (var i = 0; i < active.length; i++) margins[i] = active[i].baseMargin;
+
+        for (var i = 1; i < active.length; i++) {
+            var aLeft = active[i].leftX;
+            var aRight = aLeft + active[i].width;
+            if (active[i].width <= 0) continue;
+
+            for (var j = 0; j < i; j++) {
+                if (active[j].width <= 0) continue;
+                var bLeft = active[j].leftX;
+                var bRight = bLeft + active[j].width;
+
+                if (aLeft < bRight && aRight > bLeft) {
+                    var needed = margins[j] + active[j].panel.contentheight * QUICK_ROW_UI_SCALE + QUICK_OVERLAP_GAP;
+                    if (needed > margins[i]) margins[i] = needed;
+                }
+            }
+        }
+
+        for (var i = 0; i < active.length; i++) {
+            active[i].panel.style.marginTop = margins[i] + "px";
+        }
+    }
+
+    function QuickRemoveEntry(entry, heroNameUpper) {
+        var arr = quickActiveEntriesByHero[heroNameUpper];
+        if (arr) {
+            var _filtered = [];
+            for (var _fi = 0; _fi < arr.length; _fi++) { if (arr[_fi] !== entry) _filtered.push(arr[_fi]); }
+            quickActiveEntriesByHero[heroNameUpper] = _filtered;
+        }
+        if (!entry.IsValid()) return;
+        entry.AddClass("quickFading");
+        ScheduleActive(QUICK_FADE_DURATION, function () {
+            if (entry.IsValid()) entry.DeleteAsync(0);
+            ScheduleResolveOverlaps(0);
+        });
+    }
+
+    function QuickEvictEntry(entry, heroNameUpper) {
+        var arr = quickActiveEntriesByHero[heroNameUpper];
+        if (arr) {
+            var _filtered = [];
+            for (var _fi = 0; _fi < arr.length; _fi++) { if (arr[_fi] !== entry) _filtered.push(arr[_fi]); }
+            quickActiveEntriesByHero[heroNameUpper] = _filtered;
+        }
+        if (entry.IsValid()) entry.DeleteAsync(0);
+        ScheduleResolveOverlaps(0);
+    }
+
+    function AddQuickEntry(sourcePurchase, nameText) {
+        var heroNameUpper = GetPurchaseHeroName(sourcePurchase).toUpperCase();
+        if (DEBUG_QUICK) $.Msg("[QuickPurchases] AddQuickEntry: item='" + nameText + "' hero='" + heroNameUpper + "'");
+        var quickPanel = GetOrCreateQuickPanelForHero(heroNameUpper);
+        if (!quickPanel) {
+            if (DEBUG_QUICK) $.Msg("[QuickPurchases] AddQuickEntry: no panel for '" + heroNameUpper + "', dropping entry.");
+            return;
+        }
+
+        if (!quickActiveEntriesByHero[heroNameUpper]) quickActiveEntriesByHero[heroNameUpper] = [];
+        quickLastEntryTime[heroNameUpper] = $.FrameTime();
+
+        if (quickActiveEntriesByHero[heroNameUpper].length >= QUICK_MAX_ENTRIES) {
+            QuickEvictEntry(quickActiveEntriesByHero[heroNameUpper][0], heroNameUpper);
+        }
+
+        var entry = $.CreatePanel("Panel", quickPanel, "");
+        entry.AddClass("quickPurchase");
+
+        for (var i = 0; i < QUICK_CLASSES_TO_COPY.length; i++) {
+            if (sourcePurchase.BHasClass(QUICK_CLASSES_TO_COPY[i])) {
+                entry.AddClass(QUICK_CLASSES_TO_COPY[i]);
+            }
+        }
+
+        // Item info panel — item icon + item name
+        var itemInfo = $.CreatePanel("Panel", entry, "");
+        itemInfo.AddClass("quickItemInfo");
+
+        var iconUrl = QOL_LITE_PURCHASE_ICONS[nameText];
+        if (iconUrl) {
+            var icon = $.CreatePanel("Panel", itemInfo, "");
+            icon.AddClass("mod_icon");
+            (function (p, url) { ScheduleActive(0, function () { if (p.IsValid()) { p.style.backgroundImage = url; p.style.backgroundSize = "100% 100%"; } }); })(icon, iconUrl);
+        }
+
+        var nameLabel = $.CreatePanel("Label", itemInfo, "");
+        nameLabel.AddClass("quickPurchaseName");
+        nameLabel.text = nameText;
+
+        quickActiveEntriesByHero[heroNameUpper].push(entry);
+
+        // Delay slightly so the panel has a layout pass before we read its dimensions
+        ScheduleResolveOverlaps(0.05);
+
+        (function (e, h) {
+            ScheduleActive(QUICK_DISPLAY_DURATION, function () {
+                if (e.IsValid()) QuickRemoveEntry(e, h);
+            });
+        })(entry, heroNameUpper);
+    }
+
+    function UpdateQuickPurchases(container, purchases) {
+        if (heroMapState !== HERO_MAP_BUILT) {
+            if (DEBUG_QUICK && heroMapState !== HERO_MAP_BUILDING) $.Msg("[QuickPurchases] UpdateQuickPurchases: waiting for hero map...");
+            return;
+        }
+        if (!container || !container.IsValid()) return;
+
+        if (!purchases) purchases = container.FindChildrenWithClassTraverse("recentPurchase");
+
+        // On first run, mark all existing entries as already seen so we only
+        // show purchases that happen after the mod loads.
+        if (!quickInitialized) {
+            for (var i = 0; i < purchases.length; i++) {
+                var p = purchases[i];
+                if (!p || !p.IsValid()) continue;
+                var n = GetPurchaseName(p);
+                var t = GetPurchaseTime(p);
+                if (n && t) quickSeenKeys[n + "|" + t] = true;
+            }
+            quickInitialized = true;
+            return;
+        }
+
+        for (var i = 0; i < purchases.length; i++) {
+            var purchase = purchases[i];
+            if (!purchase || !purchase.IsValid()) continue;
+            var name = GetPurchaseName(purchase);
+            var time = GetPurchaseTime(purchase);
+            if (!name || !time) continue;
+
+            var key = name + "|" + time;
+            if (!quickSeenKeys[key]) {
+                quickSeenKeys[key] = true;
+                if (!purchase.BHasClass("filterHidden")) {
+                    AddQuickEntry(purchase, name);
+                }
+            }
+        }
+        CapSeenKeys(container, purchases);
+    }
+
+    // ─── Lifecycle and UMM control ────────────────────────────────────────────────
+
+    function MainPoll(generation) {
+        if (!enabled || generation !== lifecycleGeneration) return;
+        try {
+            var globalRoot = GetAbsoluteRoot();
+            var container = GetContainer(globalRoot);
+            // Delete overflow rows, but process only the retained snapshot because
+            // DeleteAsync(0) does not invalidate panels synchronously in Panorama.
+            var purchases = GetCappedPurchases(container);
+            UpdateModIcons(container, purchases);
+            var ctx = BuildContext(container);
+            CreateFilterCheckboxes(globalRoot);
+            UpdateFilterVisibility(globalRoot, ctx);
+            ApplyFilters(container, ctx, purchases);
+            if (IsHeroMapStale()) ResetHeroMap();
+            if (heroMapState !== HERO_MAP_BUILT) BuildHeroNameMap();
+            UpdateQuickPurchases(container, purchases);
+            PruneSeenKeys(container, purchases);
+        } catch (e) {
+            if (DEBUG) $.Msg("[MainPoll] ERROR: " + e);
+        }
+        ScheduleActive(MAIN_POLL_INTERVAL, MainPoll, generation);
+    }
+
+    function HideoutPoll(generation) {
+        if (!enabled || generation !== lifecycleGeneration) return;
+        try {
+            var globalRoot = GetAbsoluteRoot();
+            var isInHideout = IsConnectedToHideout(globalRoot);
+            if (wasInHideout === null || isInHideout !== wasInHideout) {
+                ClearContainer(globalRoot);
+                ScheduleActive(0.5, function () { ClearContainer(globalRoot); }, generation);
+            }
+            wasInHideout = isInHideout;
+        } catch (e) {
+            if (DEBUG) $.Msg("[HideoutPoll] ERROR: " + e);
+        }
+        ScheduleActive(HIDEOUT_POLL_INTERVAL, HideoutPoll, generation);
+    }
+
+    function DeleteCreatedPanel(globalRoot, id) {
+        var panel = globalRoot.FindChildTraverse(id);
+        if (panel && panel.IsValid()) panel.DeleteAsync(0);
+    }
+
+    function ResetPurchaseDecorations(container) {
+        if (!container || !container.IsValid()) return;
+        var purchases = container.FindChildrenWithClassTraverse("recentPurchase");
+        for (var i = 0; i < purchases.length; i++) {
+            var purchase = purchases[i];
+            if (!purchase || !purchase.IsValid()) continue;
+            purchase.RemoveClass("filterHidden");
+            var icons = purchase.FindChildrenWithClassTraverse("mod_icon");
+            if (!icons || icons.length === 0) continue;
+            var icon = icons[0];
+            if (!icon || !icon.IsValid() || !icon.BHasClass("iconSet")) continue;
+            icon.RemoveClass("iconSet");
+            icon.style.backgroundImage = "none";
+            icon.style.washColor = "none";
+        }
+    }
+
+    function ApplyEnabledClass() {
+        var globalRoot = GetAbsoluteRoot();
+        globalRoot.SetHasClass("recent_purchases_disabled", !enabled);
+    }
+
+    function CleanupDisabledState() {
+        var globalRoot = GetAbsoluteRoot();
+        var container = GetContainer(globalRoot);
+
+        DeleteCreatedPanel(globalRoot, "FiltersCollapseToggle");
+        DeleteCreatedPanel(globalRoot, "PurchaseFiltersContainer");
+        ResetPurchaseDecorations(container);
+        ResetHeroMap();
+
+        filtersCreated = false;
+        lastFilterSig = null;
+        lastFirstPurchase = null;
+        lastVisibilitySig = null;
+        quickSeenKeys = {};
+        quickInitialized = false;
+        _seenKeysPruneCounter = 0;
+    }
+
+    function StartLoops() {
+        if (!enabled || loopsRunning) return;
+        loopsRunning = true;
+        var generation = lifecycleGeneration;
+        MainPoll(generation);
+        HideoutPoll(generation);
+    }
+
+    function SetEnabled(nextEnabled) {
+        nextEnabled = !!nextEnabled;
+        if (enabled === nextEnabled && loopsRunning === nextEnabled) {
+            ApplyEnabledClass();
+            return;
+        }
+
+        enabled = nextEnabled;
+        lifecycleGeneration++;
+        loopsRunning = false;
+        ApplyEnabledClass();
+
+        if (!enabled) {
+            CleanupDisabledState();
+            return;
+        }
+        StartLoops();
+    }
+
+    function AnnounceToUmm() {
+        UMM_MANIFEST.values.enabled = enabled;
+        try { $.DispatchEvent(UMM_CHANNEL, JSON.stringify(UMM_MANIFEST)); } catch (e) {}
+    }
+
+    function OnUmmMessage(payload) {
+        if (typeof payload !== "string" || payload.indexOf("\"umm\"") === -1) return;
+        var message;
+        try { message = JSON.parse(payload); } catch (e) { return; }
+        if (!message || message.umm !== UMM_PROTOCOL) return;
+
+        if (message.t === "hello") {
+            AnnounceToUmm();
+        } else if (message.t === "set" && message.id === UMM_MANIFEST.id &&
+                   message.key === "enabled" && typeof message.value === "boolean") {
+            SetEnabled(message.value);
+        }
+    }
+
+    try { $.RegisterForUnhandledEvent(UMM_CHANNEL, OnUmmMessage); } catch (e) {}
+    AnnounceToUmm();
+    if (enabled) SetEnabled(true);
+})();

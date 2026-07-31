@@ -1,0 +1,289 @@
+/* Prettified by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/citadel_hero_builds_shared.vcss_c");
+CitadelHudHeroBuilds
+{
+	vertical-align: bottom;
+	margin-bottom: 100px;
+	margin-left: 10px;
+	visibility: collapse;
+	flow-children: down;
+	vertical-align: bottom;
+	width: 100%;
+	height: 100%;
+}
+
+CitadelHudHeroBuilds.gEditingBuilds,CitadelHudHeroBuilds.DashboardBuilds
+{
+	visibility: visible;
+}
+
+#DashboardShop
+{
+	visibility: visible;
+}
+
+.ButtonItems
+{
+	flow-children: right;
+	horizontal-align: middle;
+	vertical-align: middle;
+}
+
+.actionItemButton
+{
+	background-color: offWhite;
+	transition-property: background-color;
+	transition-duration: 0.3s;
+	overflow: squish;
+	padding: 5px 10px;
+	width: 150px;
+	height: 40px;
+	max-height: 40px;
+	z-index: 10;
+	margin: 5px 0px;
+	margin-bottom: 10px;
+	border-radius: 3px;
+	transition-property: background-color, border;
+	transition-duration: 0.3s;
+	visibility: collapse;
+	flow-children: right;
+}
+
+.actionItemButton.visibleByDefault
+{
+	visibility: visible;
+}
+
+.actionItemButton Label
+{
+	vertical-align: center;
+	horizontal-align: center;
+	font-weight: semi-bold;
+	font-size: 18px;
+	transition-property: transform, color, brightness;
+	transition-duration: 0.3s;
+	text-overflow: shrink;
+	color: offBlack;
+}
+
+.actionItemButton:hover
+{
+	brightness: 1.3;
+}
+
+.actionItemButton:hover .Arrow
+{
+	transform: translateX(5px);
+}
+
+.changeHeroIcon
+{
+	background-image: url("s2r://panorama/images/icons/hero_grid.vsvg");
+	wash-color: offBlack;
+	background-position: center;
+	margin-right: 5px;
+	background-size: contain;
+	vertical-align: middle;
+	background-repeat: no-repeat;
+	width: 20px;
+	height: 20px;
+}
+
+.actionItemButton.disabled,.disabled .ButtonItems,.disabled Label
+{
+	opacity: 0.6;
+}
+
+.disabled.actionItemButton:hover
+{
+	opacity: 0.6;
+}
+
+.disabled.actionItemButton:hover Label
+{
+	color: offWhite;
+}
+
+.disabled.actionItemButton:hover
+{
+	brightness: 1;
+}
+
+.testingButton:hover
+{
+	brightness: 1.3;
+	background-color: #ffffff30;
+}
+
+.BuildEditSection
+{
+	visibility: collapse;
+	flow-children: down;
+	vertical-align: top;
+	width: 500px;
+	height: fit-children;
+	margin: 5px 10px;
+	padding: 10px 20px;
+	background-color: offBlack&90;
+	border-radius: 5px;
+	border: 2px solid #ffffff05;
+}
+
+.gEditingBuilds .BuildEditSection
+{
+	visibility: visible;
+}
+
+.DashboardBuilds .BuildEditSection
+{
+	margin-top: 0px;
+}
+
+#EditBuildSection
+{
+	margin-top: 75px;
+}
+
+.DashboardBuilds #EditBuildSection
+{
+	margin-top: 50px;
+}
+
+.VerticalFill
+{
+	height: fill-parent-flow(1.0);
+}
+
+#EditTagsSection
+{
+	flow-children: down;
+	visibility: collapse;
+}
+
+.gEditingBuilds #EditTagsSection
+{
+	visibility: visible;
+}
+
+#EditTagsSection .EditHeroTagsLabel
+{
+	horizontal-align: center;
+	vertical-align: top;
+	font-weight: semi-bold;
+	font-size: 16px;
+}
+
+#EditTagsSection .TagList
+{
+	horizontal-align: center;
+	flow-children: right;
+}
+
+.EditSectionTitle
+{
+	vertical-align: top;
+	horizontal-align: center;
+	font-weight: bold;
+	margin-bottom: 10px;
+}
+
+.FocusedMod #EditCategorySection
+{
+	visibility: collapse;
+}
+
+.EditFieldLabel
+{
+	margin-top: 8px;
+	font-weight: semi-bold;
+}
+
+.EditFieldTextEntry
+{
+	width: 100%;
+	margin-bottom: 5px;
+}
+
+#SellPriorityTextEntry
+{
+	width: 60px;
+}
+
+#CategoryDescriptionTextEntry
+{
+	text-overflow: shrink;
+}
+
+#EditModSection
+{
+	visibility: collapse;
+}
+
+.FocusedMod #EditModSection
+{
+	visibility: visible;
+}
+
+#EditModSection .EditModTitle
+{
+	vertical-align: top;
+	horizontal-align: center;
+	font-weight: bold;
+}
+
+#EditModSection .SetImbueTargetContainer
+{
+	opacity: 0;
+	flow-children: right;
+}
+
+#EditModSection .SetImbueTargetContainer Label
+{
+	vertical-align: center;
+}
+
+.DashboardBuilds #EditModSection .SetImbueTargetContainer
+{
+	visibility: collapse;
+}
+
+.ShowImbueButton #EditModSection .SetImbueTargetContainer
+{
+	opacity: 1;
+}
+
+.HeroBuildsTitle
+{
+	font-size: 34px;
+	font-weight: bold;
+	horizontal-align: left;
+	text-align: center;
+	margin-bottom: 5px;
+}
+
+#ChooseHeroButton
+{
+	width: fit-children;
+}
+
+.HeroBuildsSubTitle
+{
+	horizontal-align: left;
+	font-weight: bold;
+	font-size: 18px;
+}
+
+#BuildDescriptionTextEntry
+{
+	height: 150px;
+	width: 600px;
+	overflow: scroll;
+	white-space: normal;
+}
+
+#ImbueTargetAbilityIcon
+{
+	ui-scale: 60%;
+}
+
