@@ -1,0 +1,83 @@
+/* Prettified by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/citadel_db_page_profile.vcss_c");
+#AllStats,#CoreRating
+{
+	visibility: visible;
+}
+
+.StatlockerButton
+{
+	horizontal-align: right;
+	vertical-align: bottom;
+	height: 44px;
+	width: 44px;
+	margin-bottom: 4px;
+	margin-right: 8px;
+	padding: 0px;
+	background-color: none;
+	border: 0px solid transparent;
+	border-radius: 4px;
+	box-shadow: none;
+}
+
+.StatlockerImage
+{
+	horizontal-align: center;
+	vertical-align: center;
+	width: 44px;
+	height: 44px;
+	wash-color: #9ca3aa;
+	opacity: 0.92;
+	transition-property: wash-color, opacity;
+	transition-duration: 0.12s;
+	transition-timing-function: ease-in-out;
+}
+
+.StatlockerButton:hover .StatlockerImage
+{
+	wash-color: #ffffff;
+	opacity: 1;
+}
+
+#AccountID
+{
+	visibility: visible;
+}
+
+@import url("s2r://panorama/styles/base/citadel_db_page_profile.vcss_c");
+.AspectRatio4x3 .MainContents
+{
+	margin-left: 0px;
+}
+
+.AspectRatio4x3 .BlockStat
+{
+	ui-scale: 95%;
+}
+
+.AspectRatio4x3 #StatsRight
+{
+	padding-top: 160px;
+}
+
+.AspectRatio4x3 #MatchHistoryList,.AspectRatio4x3 #MatchHistoryArea #ShowcaseList
+{
+	ui-scale: 85%;
+}
+
+.AspectRatio4x3 #TabsContainer
+{
+	margin-top: 5px;
+}
+
+.AspectRatio4x3 #MatchHistoryButton,.AspectRatio4x3 #ViewLeaderboardContainer
+{
+	margin-right: 7px;
+}
+
+.AspectRatio4x3 #HeroScenePanel
+{
+	margin-left: -70px;
+}
+

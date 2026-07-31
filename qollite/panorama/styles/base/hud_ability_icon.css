@@ -1,0 +1,1666 @@
+/* Prettified by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io */
+
+@define unlearnedWashColor: rgba(255, 255, 255, 0.2);
+@define abilityOffsetX: 440px;
+@define abilityOffsetY: 240px;
+.hud_abilities
+{
+	flow-children: down;
+	vertical-align: bottom;
+	margin-bottom: 10px;
+}
+
+.ability_container
+{
+	width: fit-children;
+	height: fit-children;
+	flow-children: up;
+	vertical-align: bottom;
+	overflow: clip;
+	tooltip-position: right;
+	transition-property: transform, wash-color, margin, background-color;
+	transition-duration: 0.1s;
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( spiritBrightColor&00 ), color-stop( 0.25, spiritBrightColor&00 ), color-stop( 0.5, spiritBrightColor&00 ), color-stop( 0.75, spiritBrightColor&00 ), to( spiritBrightColor&00 ) );
+}
+
+.ability_container:hover
+{
+	z-index: 1;
+}
+
+.ability_container.trained.ability_upgrade_available:hover
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( spiritBrightColor&00 ), color-stop( 0.25, spiritBrightColor&10 ), color-stop( 0.5, spiritBrightColor&20 ), color-stop( 0.75, spiritBrightColor&10 ), to( spiritBrightColor&00 ) );
+}
+
+#hud_signature .ability_container,.wants_scoreboard .gShopOpen #hud_signature .ability_container,.gDetailView .gShopOpen #hud_signature .ability_container,.gShopOpen #hud_signature .ability_container
+{
+	height: 245px;
+	padding: 0px 20px;
+	margin: 0px -20px;
+}
+
+CitadelHudTopBarPlayer #PlayerAbilitiesContainer CitadelAbilityIcon
+{
+	margin-right: 2px;
+	margin-left: 2px;
+	margin-bottom: 5px;
+}
+
+#ReadOnlyPipsContainer
+{
+	flow-children: down;
+	visibility: collapse;
+	horizontal-align: center;
+	margin-bottom: 3px;
+}
+
+.alwaysShowPips #ReadOnlyPipsContainer
+{
+	visibility: visible;
+}
+
+.readOnlyPip
+{
+	width: 12px;
+	height: 3px;
+	background-color: black;
+	margin: 1px 0px 1px 0px;
+	border-radius: 3px;
+}
+
+.readOnlyPip.upgraded
+{
+	background-color: #E1A0FF;
+}
+
+#slot_signature_2 #button_container,#slot_signature_3 #button_container
+{
+	margin-bottom: 20px;
+}
+
+.gShopOpen #slot_signature_2 #button_container,.gShopOpen #slot_signature_3 #button_container
+{
+	margin-bottom: 0px;
+}
+
+.items .ability_container
+{
+	width: 40px;
+	height: 40px;
+}
+
+.teleport .ability_container
+{
+	width: 60px;
+	height: 60px;
+	padding: 5px;
+}
+
+.items .ability_container.item_passive
+{
+	visibility: visible;
+}
+
+.items .ability_container.item_passive.Hidden
+{
+	visibility: collapse;
+}
+
+.items .ability_container.empty
+{
+	opacity: 0;
+}
+
+.held .ability_container.empty
+{
+	visibility: collapse;
+}
+
+.action_button .ability_container
+{
+	width: 80px;
+}
+
+.button_container
+{
+	width: 120px;
+	height: 120px;
+	margin: 0px -5px;
+	vertical-align: center;
+	transition-property: pre-transform-scale2d, transform;
+	transition-duration: 0.15s;
+}
+
+CitadelHudTopBarPlayer #PlayerAbilitiesContainer .button_container
+{
+	height: 15px;
+	width: 15px;
+	margin: 0px 0px;
+}
+
+CitadelPostGameScoreboardNew #AbilitiesContainer .ability_container
+{
+	flow-children: down;
+	ui-scale: 30%;
+}
+
+CitadelPostGameScoreboardNew #AbilitiesContainer .button_container
+{
+	margin: 0px 0px;
+}
+
+CitadelPostGameScoreboardNew #AbilitiesContainer #BonusContainer
+{
+	visibility: collapse;
+}
+
+.SegmentHover CitadelAbilityIcon:not(.ReadOnly) .button_container,CitadelAbilityIcon:not(.ReadOnly):hover .button_container
+{
+	pre-transform-scale2d: 1.15;
+	transform: translateY(-5px);
+}
+
+CitadelHudTopBarPlayer #PlayerAbilitiesContainer CitadelAbilityIcon:hover .button_container
+{
+	pre-transform-scale2d: 1;
+	transform: translateY(0px);
+}
+
+CitadelAbilityIcon.Tier1 .button_container
+{
+	width: 120px;
+}
+
+.ability_bg
+{
+	width: 100%;
+	height: 100%;
+	background-size: cover;
+	wash-color: keybindBGColor;
+	background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_0_psd.vtex");
+}
+
+.hasSubAbility .ability_bg
+{
+	background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_withsub_0_psd.vtex");
+}
+
+CitadelHudTopBarPlayer #PlayerAbilitiesContainer .ability_bg
+{
+	background-image: none;
+	background-color: #d9d9d9;
+	border-radius: 13px;
+}
+
+.build_suggestion_container
+{
+	visibility: collapse;
+	opacity: 1;
+	vertical-align: bottom;
+	margin-bottom: 95px;
+	horizontal-align: center;
+	ignore-parent-flow: true;
+}
+
+.gDetailView .build_suggestion .build_suggestion_container,.wants_scoreboard .build_suggestion .build_suggestion_container
+{
+	visibility: visible;
+}
+
+#slot_signature_2 .build_suggestion_container,#slot_signature_3 .build_suggestion_container
+{
+	margin-bottom: 110px;
+}
+
+#RadialAbilitiesMenu #AbilityIcon.build_suggestion .build_suggestion_container,#AbilityPopup #AbilityIcon.build_suggestion .build_suggestion_container
+{
+	visibility: visible;
+}
+
+.build_suggestion.ability_upgradable .build_suggestion_container,.build_suggestion.ability_upgrade_available .build_suggestion_container
+{
+	visibility: visible;
+}
+
+.build_suggestion.not_trained .build_suggestion_container
+{
+	visibility: collapse;
+}
+
+.build_suggestion.not_trained.ability_upgradable .build_suggestion_container
+{
+	visibility: visible;
+}
+
+.build_next
+{
+	font-weight: bold;
+	text-transform: uppercase;
+	font-size: 16px;
+	text-align: center;
+	horizontal-align: center;
+	background-color: buildsDarkColor;
+	padding: 0px 5px 1px 5px;
+	border-radius: 5px;
+	text-overflow: shrink;
+	max-width: 110px;
+}
+
+CitadelAbilityIcon.Tier0.not_trained .ability_bg,CitadelAbilityIcon.Tier0.not_trained .ability_ring
+{
+	opacity: 0.1;
+	saturation: 0;
+	wash-color: #000000aa;
+	transition-property: background-image, pre-transform-scale2d;
+	transition-duration: 0.35s;
+}
+
+.learning_ability .ability_bg
+{
+	pre-transform-scale2d: 1.2;
+}
+
+.wants_scoreboard .ability_upgrade_available .ability_bg,.gDetailView .ability_upgrade_available .ability_bg,.gShopOpen .ability_upgrade_available .ability_bg
+{
+	animation-name: IconClickable;
+	animation-duration: 1s;
+	animation-iteration-count: infinite;
+}
+
+@keyframes 'IconClickable'
+{
+	0%
+	{
+		brightness: 1;
+		wash-color: spiritBrightColor&00;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.03;
+		wash-color: spiritBrightColor;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+		wash-color: spiritBrightColor&00;
+	}
+	
+}
+
+.wants_scoreboard CitadelAbilityIcon:hover .ability_bg,.gDetailView CitadelAbilityIcon:hover .ability_bg,.gShopOpen CitadelAbilityIcon:hover .ability_bg
+{
+	animation-name: CancelAnim;
+	animation-iteration-count: infinite;
+	animation-duration: 0.1s;
+}
+
+@keyframes 'CancelAnim'
+{
+	0%
+	{
+		wash-color: #fff;
+	}
+	
+	50%
+	{
+		wash-color: #fff;
+	}
+	
+	100%
+	{
+		wash-color: #fff;
+	}
+	
+}
+
+CitadelAbilityIcon.upgradeApplied .ability_bg,.wants_scoreboard CitadelAbilityIcon.upgradeApplied:hover .ability_bg,.gDetailView CitadelAbilityIcon.upgradeApplied:hover .ability_bg,.gShopOpen CitadelAbilityIcon.upgradeApplied:hover .ability_bg
+{
+	animation-name: testUpgrade;
+	animation-duration: 0.5s;
+	animation-iteration-count: 1;
+}
+
+@keyframes 'testUpgrade'
+{
+	0%
+	{
+		brightness: 1;
+		wash-color: spiritBrightColor&00;
+		transform: rotateZ(0deg);
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.3;
+		wash-color: spiritBrightColor;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+		wash-color: spiritBrightColor&00;
+		transform: rotateZ(0deg);
+	}
+	
+}
+
+.AbilityCastFailed .button_container
+{
+	animation-name: abilityCastFailedAnimation;
+	animation-timing-function: ease-out;
+	animation-duration: 0.06666s;
+	animation-iteration-count: 4;
+}
+
+@keyframes 'abilityCastFailedAnimation'
+{
+	0%
+	{
+		wash-color: colorEnemy;
+		transform: translateX(2px);
+	}
+	
+	60%
+	{
+		transform: translateX(2px);
+	}
+	
+	61%
+	{
+		transform: translateX(-2px);
+	}
+	
+	100%
+	{
+		transform: translateX(-2px);
+	}
+	
+}
+
+.AbilityUpgradeFailed .button_container
+{
+	animation-name: abilityUpgradeFailedAnimation;
+	animation-timing-function: ease-out;
+	animation-duration: 0.06666s;
+	animation-iteration-count: 4;
+}
+
+@keyframes 'abilityUpgradeFailedAnimation'
+{
+	0%
+	{
+		wash-color: apCurrencyColor;
+		transform: translateX(2px);
+	}
+	
+	60%
+	{
+		transform: translateX(2px);
+	}
+	
+	61%
+	{
+		transform: translateX(-2px);
+	}
+	
+	100%
+	{
+		transform: translateX(-2px);
+	}
+	
+}
+
+CitadelAbilityIcon.AbilityCooldownEndChanged .ability_bg
+{
+	animation-name: cooldownChanged;
+	animation-duration: 0.5s;
+	animation-iteration-count: 1;
+}
+
+@keyframes 'cooldownChanged'
+{
+	0%
+	{
+		brightness: 1;
+		wash-color: spiritBrightColor&00;
+		opacity: 1;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.3;
+		wash-color: spiritBrightColor&F0;
+		opacity: 1;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+		wash-color: spiritBrightColor&00;
+		opacity: 1;
+	}
+	
+}
+
+.AbilityCooldownEndChanged #cooldown_mask
+{
+	animation-name: cooldownChangedRadial;
+	animation-duration: 0.3s;
+	animation-iteration-count: 1;
+}
+
+@keyframes 'cooldownChangedRadial'
+{
+	0%
+	{
+		background-color: spiritBrightColor&00 opacity: 0.9;
+	}
+	
+	50%
+	{
+		background-color: spiritBrightColor&F0 opacity: 0.9;
+	}
+	
+	100%
+	{
+		background-color: spiritBrightColor&00 opacity: 0.9;
+	}
+	
+}
+
+.ability_ring
+{
+	width: 100%;
+	height: 100%;
+	background-size: cover;
+	wash-color: keybindBGColor;
+	opacity: 0.8;
+	background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_1_psd.vtex");
+}
+
+CitadelAbilityIcon.Tier0 .ability_ring
+{
+	visibility: collapse;
+}
+
+.ability_ring
+{
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+}
+
+CitadelAbilityIcon.Tier2 .ability_bg
+{
+	background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_2_psd.vtex");
+}
+
+CitadelAbilityIcon.Tier3 .ability_bg
+{
+	background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_3_psd.vtex");
+}
+
+.ReadOnly .ability_bg,.ReadOnly.item_passive.signature .ability_bg
+{
+	animation-name: none;
+}
+
+.cooling_down .ability_bg,.cooling_down #SubAbility,.ability_not_ready .ability_bg,.ability_not_ready #SubAbility
+{
+	opacity: 0.05;
+	transition-property: opacity, pre-transform-scale2d;
+	transition-duration: 0.2s;
+}
+
+.cooling_down .ability_ring,.ability_not_ready .ability_ring
+{
+	opacity: 0.5;
+	wash-color: #000000;
+	transition-property: opacity, pre-transform-scale2d;
+	transition-duration: 0.2s;
+}
+
+.active .ability_bg,.active .ability_ring,.channeling .ability_bg,.channeling .ability_ring,.ability_upgradable .ability_ring,.toggled_on .ability_bg,.toggled_on .ability_ring
+{
+	opacity: 1;
+	wash-color: #dab0ffc2;
+}
+
+.image_container
+{
+	width: 100%;
+	height: 100%;
+	vertical-align: middle;
+	horizontal-align: middle;
+}
+
+CitadelHudTopBarPlayer CitadelAbilityIcon.cooling_down
+{
+	background-color: #696969;
+}
+
+CitadelHudTopBarPlayer CitadelAbilityIcon
+{
+	background-color: offWhite;
+}
+
+.action_button .button_container
+{
+	height: 50px;
+	background-color: rgba(0, 0, 0, 0.438);
+}
+
+.active #button_container,.active #stack_charges,.toggled_on #button_container,.toggled_on #stack_charges
+{
+	transform: translateY(-10px);
+}
+
+.active .image_container,.toggled_on .image_container
+{
+	background-size: 100% 100%;
+}
+
+CitadelAbilityIcon.Tier0.active .ability_ring,CitadelAbilityIcon.Tier1.active .ability_ring,CitadelAbilityIcon.Tier2.active .ability_ring,CitadelAbilityIcon.Tier3.active .ability_ring,CitadelAbilityIcon.Tier0.toggled_on .ability_ring,CitadelAbilityIcon.Tier1.toggled_on .ability_ring,CitadelAbilityIcon.Tier2.toggled_on .ability_ring,CitadelAbilityIcon.Tier3.toggled_on .ability_ring,.channeling .ability_ring
+{
+	transform: rotateZ(10deg);
+	animation-name: ActiveRotate;
+	animation-duration: 3s;
+	animation-iteration-count: infinite;
+}
+
+@keyframes 'ActiveRotate'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	
+	100%
+	{
+		transform: rotateZ(180deg);
+	}
+	
+}
+
+.ability_icon
+{
+	width: 24px;
+	background-size: 24px;
+	height: width-percentage(100%);
+	horizontal-align: right;
+	vertical-align: top;
+}
+
+.action_button .ability_icon
+{
+	opacity: 0;
+}
+
+.new_item .button_container
+{
+	background-color: #ffe91ec2;
+	wash-color: #b969ffc2;
+	transition-property: background-color;
+	transition-duration: 1s;
+}
+
+.active .button_container,.toggled_on .button_container,.channeling .button_container
+{
+	z-index: 100;
+	animation-name: ability_active;
+	animation-duration: 1.5s;
+	animation-iteration-count: infinite;
+}
+
+.not_trained .image_container
+{
+	saturation: 0;
+	opacity: 0.8;
+}
+
+@keyframes 'ability_active'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+		transform: translateY(0px);
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.1;
+		transform: translateY(-10px);
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+		transform: translateY(0px);
+	}
+	
+}
+
+.learning_ability .image_container
+{
+	saturation: 1;
+	wash-color: offWhite;
+	opacity: 1;
+}
+
+.not_enough_mana .button_container
+{
+	wash-color: rgb(36, 75, 100);
+	border: 0px;
+}
+
+.ability_upgradable .button_container
+{
+	border: 0px solid transparent;
+}
+
+.ability_key_container
+{
+	width: fit-children;
+	height: fit-children;
+	padding-top: 0px;
+	font-size: 14px;
+	margin-bottom: 5px;
+	background-size: cover;
+	text-align: center;
+	border-radius: 2px;
+	text-transform: uppercase;
+	horizontal-align: middle;
+	vertical-align: bottom;
+	visibility: collapse;
+	wash-color: none;
+}
+
+.usingControllerSpecificGlyphs.isUsingController .ability_key_container
+{
+	margin-bottom: 5px;
+}
+
+CitadelHudTopBarPlayer #PlayerAbilitiesContainer .ability_key_container
+{
+	visibility: collapse;
+}
+
+.HasKeyBind .ability_key_container
+{
+	visibility: visible;
+}
+
+.HasUpgradeKeyBind #ability_upgrade_binding_component
+{
+	visibility: collapse;
+}
+
+.ReadOnly .ability_key_container
+{
+	opacity: 0;
+}
+
+#UltimateAbilityIcon .ability_key_container
+{
+	visibility: collapse;
+}
+
+.not_trained .ability_key_container
+{
+	opacity: 0.4;
+}
+
+.ability_upgradable .ability_key_container
+{
+	opacity: 1;
+}
+
+.ability_not_ready .ability_key_container
+{
+	opacity: 0.2;
+}
+
+.active .ability_key_container,.toggled_on .ability_key_container,.channeling .ability_key_container
+{
+	wash-color: #dab0ffc2;
+	opacity: 1;
+}
+
+.ability_key
+{
+	font-size: 14px;
+	font-weight: bold;
+	margin-bottom: 0px;
+	horizontal-align: left;
+	text-overflow: shrink;
+	color: offBlack&ee;
+	text-align: center;
+	text-transform: uppercase;
+	horizontal-align: middle;
+	vertical-align: bottom;
+}
+
+.not_trained .ability_key
+{
+	color: offBlack;
+}
+
+.ability_upgradable .ability_key
+{
+	opacity: 1;
+}
+
+Label.ability_key
+{
+	font-weight: bold;
+}
+
+.action_button .ability_key
+{
+	line-height: 18px;
+}
+
+.action_button .ability_key
+{
+	font-size: 15px;
+	width: 100%;
+	height: 18px;
+	vertical-align: bottom;
+}
+
+.item_passive .ability_key
+{
+	opacity: 0;
+}
+
+.learning_ability .ability_key,.ability_upgradable .ability_key
+{
+	opacity: 1;
+	color: white;
+}
+
+.connectedToNewPlayerSandbox.heroTestingDisableUpgrades #abilities
+{
+	visibility: collapse;
+}
+
+#abilities
+{
+	width: fit-children;
+	height: 250px;
+	vertical-align: top;
+	flow-children: right;
+	padding: 20px 20px 10px 20px;
+}
+
+.ability_name
+{
+	horizontal-align: center;
+	vertical-align: center;
+	text-align: center;
+	font-size: 12px;
+	color: darkgrey;
+	text-transform: uppercase;
+}
+
+.action_button .ability_name
+{
+	opacity: 0;
+}
+
+.active.trained .ability_name
+{
+	color: white;
+}
+
+.has_ability_image .ability_name
+{
+	visibility: collapse;
+}
+
+.unlockProgress
+{
+	color: white;
+	opacity: 0.1;
+	vertical-align: middle;
+	horizontal-align: center;
+	font-size: 18px;
+	font-weight: semi-bold;
+	text-overflow: shrink;
+	visibility: collapse;
+}
+
+.trained .unlockProgress,.learning_ability .unlockProgress,.ability_upgradable .unlockProgress
+{
+	visibility: collapse;
+}
+
+.ability_image
+{
+	height: 47%;
+	margin-top: 3px;
+	width: height-percentage( 100% );
+	vertical-align: center;
+	horizontal-align: center;
+	visibility: collapse;
+	opacity: 0.95;
+	wash-color: offBlack;
+}
+
+CitadelHudTopBarPlayer #PlayerAbilitiesContainer .ability_image
+{
+	wash-color: offBlack;
+}
+
+.not_trained .ability_image
+{
+	height: 53%;
+	margin-top: 0px;
+	width: height-percentage( 100% );
+	wash-color: #ffffff;
+	opacity: 0.05;
+	transition-property: wash-color, opacity, pre-transform-scale2d;
+	transition-duration: 0.35s;
+}
+
+.ability_upgradable .ability_image
+{
+	height: 53%;
+	margin-top: 0px;
+	width: height-percentage( 100% );
+	wash-color: #ffffff;
+	opacity: 1;
+	transition-property: wash-color, opacity, pre-transform-scale2d;
+	transition-duration: 0.35s;
+}
+
+#ability_subcasts
+{
+	height: 36px;
+	width: fit-children;
+	margin-top: 70px;
+	flow-children: right;
+	ignore-parent-flow: true;
+	horizontal-align: center;
+	margin-left: -6px;
+	margin-right: -6px;
+}
+
+.gScoreboardOpen #ability_subcasts,.gShopOpen #ability_subcasts
+{
+	visibility: collapse;
+}
+
+.subcast_icon_container
+{
+	height: 26px;
+	width: 26px;
+	horizontal-align: center;
+	opacity: 0.9;
+	transform: scale3d(0.8,0.8,1);
+	margin: 0px 2px;
+	background-color: keybindBGColor ;
+	border-radius: 50%;
+	transform: scale3d(1,1,1);
+}
+
+.Tier3 .subcast_icon_container:nth-child(1),.Tier3 .subcast_icon_container:nth-child(4)
+{
+	margin-top: 6px;
+}
+
+.subcast_icon_container.is_progress_active
+{
+	animation-name: subcastReplenished;
+	animation-duration: 0.2s;
+	animation-iteration-count: 1;
+}
+
+.subcast_icon_container.has_progress,.subcast_icon_container.is_progress_inactive
+{
+	background-color: offBlack&ee;
+}
+
+@keyframes 'subcastReplenished'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+		brightness: 1;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.2;
+		brightness: 2;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+		brightness: 1;
+	}
+	
+}
+
+.subcast_icon_container.has_progress
+{
+	opacity: 1.0;
+	transform: scale3d(1,1,1);
+}
+
+.subcast_icon
+{
+	height: 85%;
+	width: 85%;
+	background-size: 80% 60%;
+	background-repeat: no-repeat;
+	background-position: center;
+	horizontal-align: center;
+	vertical-align: center;
+	wash-color: offBlack;
+}
+
+.has_progress .subcast_icon,.is_progress_inactive .subcast_icon
+{
+	opacity: 0.4;
+	wash-color: offWhite&50;
+	background-size: 70% 50%;
+}
+
+.is_progress_inactive .subcast_icon
+{
+	opacity: 0.1;
+}
+
+.subcast_timer_border
+{
+	height: 100%;
+	width: 100%;
+	align: center center;
+	border: 2px solid rgba(200, 200, 200, 0.8 );
+	border-radius: 30px;
+	align: center center;
+}
+
+.subcast_familiar .subcast_timer_border
+{
+	wash-color: #d1dfff;
+}
+
+.subcast_familiar .subcast_icon
+{
+	background-image: url("s2r://panorama/images/hud/hero_specific/familiar_helper.vsvg");
+	margin-bottom: 1px;
+}
+
+.subcast_necro .subcast_timer_border
+{
+	wash-color: #d1dfff;
+	wash-color: necroColor;
+}
+
+.subcast_necro .subcast_icon
+{
+	background-image: url("s2r://panorama/images/hud/hero_specific/necro_gravestone.vsvg");
+	margin-bottom: 2px;
+	background-size: 70% 70%;
+}
+
+.subcast_necro .subcast_icon_container
+{
+	height: 30px;
+	width: 30px;
+}
+
+.subcast_doorman_doorway .subcast_timer_border
+{
+	wash-color: #d1dfff;
+	wash-color: doormanColor;
+}
+
+.subcast_doorman_doorway .subcast_icon
+{
+	background-image: url("s2r://panorama/images/hud/hero_specific/doorman_doorway_psd.vtex");
+	margin-bottom: 2px;
+	background-size: 70% 70%;
+}
+
+.subcast_doorman_doorway .subcast_icon_container
+{
+	height: 30px;
+	width: 30px;
+}
+
+@keyframes 'FlashAbilityIcon'
+{
+	0%
+	{
+		opacity: 0.6;
+		pre-transform-scale2d: 1;
+		wash-color: offBlack;
+	}
+	
+	50%
+	{
+		opacity: 1;
+		pre-transform-scale2d: 1.1;
+		wash-color: offBlack;
+	}
+	
+	100%
+	{
+		opacity: 0.6;
+		pre-transform-scale2d: 1;
+		wash-color: offBlack;
+	}
+	
+}
+
+@keyframes 'FlashAbilityBG'
+{
+	0%
+	{
+		opacity: 0.3;
+		wash-color: #9d87ff;
+		pre-transform-scale2d: 1;
+	}
+	
+	50%
+	{
+		opacity: 1.0;
+		wash-color: #9d87ff;
+		pre-transform-scale2d: 1.1;
+	}
+	
+	100%
+	{
+		opacity: 0.3;
+		wash-color: #9d87ff;
+		pre-transform-scale2d: 1;
+	}
+	
+}
+
+.ability_upgradable .image_container
+{
+	saturation: 1;
+	wash-color: #9d87ff;
+	opacity: 1;
+	animation-name: FlashAbilityIcon;
+	animation-duration: 2s;
+	animation-timing-function: ease-out;
+	animation-iteration-count: infinite;
+}
+
+.gAbilityUpgradeMenu .ability_upgradable .image_container
+{
+	saturation: 1;
+	wash-color: offBlack;
+	opacity: 0.9;
+	animation-name: none;
+}
+
+.ability_upgradable .ability_bg
+{
+	saturation: 1;
+	wash-color: #7662cf;
+	opacity: 1;
+	animation-name: FlashAbilityBG;
+	animation-duration: 2s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-out;
+}
+
+.gAbilityUpgradeMenu .ability_upgradable.trained .ability_bg
+{
+	wash-color: keybindBGColor;
+	animation-name: none;
+}
+
+.ability_upgradable .ability_ring
+{
+	saturation: 1;
+	wash-color: #9d87ff;
+	opacity: 1;
+	animation-name: FlashAbilityBG;
+	animation-duration: 2s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-out;
+}
+
+.gAbilityUpgradeMenu .ability_upgradable.trained .ability_ring
+{
+	wash-color: none;
+	animation-name: none;
+}
+
+.ability_upgradable.build_suggestion .ability_bg
+{
+	saturation: 1;
+	wash-color: buildsColor;
+	opacity: 1;
+	animation-name: FlashAbilityBuildBG;
+	animation-duration: 2s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-out;
+}
+
+@keyframes 'FlashAbilityBuildBG'
+{
+	0%
+	{
+		opacity: 0.3;
+		wash-color: buildsColor;
+		pre-transform-scale2d: 1;
+		brightness: 1;
+	}
+	
+	50%
+	{
+		opacity: 1.0;
+		wash-color: buildsLightColor;
+		pre-transform-scale2d: 1.1;
+		brightness: 1.2;
+	}
+	
+	100%
+	{
+		opacity: 0.3;
+		wash-color: buildsColor;
+		pre-transform-scale2d: 1;
+		brightness: 1;
+	}
+	
+}
+
+.learning_ability .ability_image
+{
+	pre-transform-scale2d: 1.5;
+	wash-color: #ffffff;
+}
+
+.ability_image
+{
+	height: 50%;
+	margin-top: 0px;
+	width: height-percentage( 100% );
+}
+
+#ModImbuedContainer .ability_image
+{
+	height: 50%;
+}
+
+#UltimateAbilityIcon .ability_image
+{
+	height: 20px;
+	margin-top: -1px;
+}
+
+.cooling_down .ability_image
+{
+	wash-color: offBlack;
+}
+
+.ability_not_ready .ability_image
+{
+	wash-color: offBlack&30;
+}
+
+.has_ability_image .ability_image
+{
+	visibility: visible;
+}
+
+#BonusContainer
+{
+	horizontal-align: center;
+	margin-top: 0px;
+	height: 40px;
+	width: 40px;
+	ignore-parent-flow: true;
+	margin-top: 85px;
+	opacity: 0;
+}
+
+#slot_signature_2 #BonusContainer,#slot_signature_3 #BonusContainer
+{
+	margin-top: 65px;
+}
+
+.bonusBG
+{
+	width: 90%;
+	height: 90%;
+	horizontal-align: center;
+	vertical-align: center;
+	border: 2px solid rgba(200, 200, 200, 0.1);
+	border-radius: 50px;
+}
+
+.bonusCounter
+{
+	font-size: 18px;
+	font-weight: bold;
+	ignore-parent-flow: true;
+	horizontal-align: center;
+	text-align: center;
+	vertical-align: middle;
+	padding: 5px;
+	color: offWhite&90;
+	font-family: oracle;
+	text-shadow: 0px 0px 0px 6.0 offBlack&90;
+	text-overflow: shrink;
+}
+
+.active .bonusCounter,.toggled_on .bonusCounter
+{
+	text-shadow: 0px 0px 0px 5.0 #dab0ffc2;
+}
+
+.hasBonusCounter #BonusContainer
+{
+	opacity: 0.3;
+	z-index: 1;
+}
+
+.gScoreboardOpen #BonusContainer,.gShopOpen #BonusContainer
+{
+	visibility: collapse;
+}
+
+@keyframes 'FlashBonusCounter'
+{
+	0%
+	{
+		transform: translateY(0px);
+		opacity: 0.3;
+	}
+	
+	50%
+	{
+		wash-color: spiritLightColor;
+		color: spiritBrightColor;
+		transform: translateY(-10px);
+		pre-transform-scale2d: 1.2;
+		opacity: 1;
+	}
+	
+	100%
+	{
+		transform: translateY(0px);
+		opacity: 0.3;
+	}
+	
+}
+
+.bonusCounterIncreased #BonusContainer
+{
+	animation-name: FlashBonusCounter;
+	animation-duration: 0.8s;
+}
+
+.unifiedChargeCounter
+{
+	font-size: 18px;
+	font-weight: bold;
+	horizontal-align: right;
+	text-align: center;
+	vertical-align: top;
+	color: black;
+	background-color: rgba(200, 200, 200, 0.95);
+	opacity: 0;
+}
+
+.cooldown_refills_all_charges.trained .unifiedChargeCounter
+{
+	opacity: 1;
+	z-index: 1;
+}
+
+@keyframes 'FlashUnifiedRechargeCounter'
+{
+	0%
+	{
+		background-color: rgba(200, 200, 200, 0.95);
+	}
+	
+	50%
+	{
+		background-color: yellow;
+	}
+	
+	100%
+	{
+		background-color: rgba(200, 200, 200, 0.95);
+	}
+	
+}
+
+.unifiedChargeCounterIncreased .unifiedChargeCounter
+{
+	animation-name: FlashUnifiedRechargeCounter;
+	animation-duration: 0.8s;
+}
+
+.tier
+{
+	horizontal-align: left;
+	margin-right: 5px;
+	vertical-align: bottom;
+	font-size: 16px;
+	line-height: 20px;
+	color: gold;
+	visibility: collapse;
+}
+
+.cooling_down #cooldown_mask,.ability_not_ready #cooldown_mask
+{
+	width: 100%;
+	height: 100%;
+	background-color: offBlack&ee;
+	opacity: 0.90;
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_standard.vsvg");
+}
+
+.not_trained #cooldown_mask
+{
+	visibility: collapse;
+}
+
+CitadelAbilityIcon.Tier0.cooling_down #cooldown_mask,CitadelAbilityIcon.Tier0.ability_not_ready #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_0.vsvg");
+}
+
+CitadelAbilityIcon.Tier1.cooling_down #cooldown_mask,CitadelAbilityIcon.Tier1.ability_not_ready #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_1.vsvg");
+}
+
+CitadelAbilityIcon.Tier2.cooling_down #cooldown_mask,CitadelAbilityIcon.Tier2.ability_not_ready #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_2.vsvg");
+}
+
+CitadelAbilityIcon.Tier3.cooling_down #cooldown_mask,CitadelAbilityIcon.Tier3.ability_not_ready #cooldown_mask
+{
+	opacity-mask: url("s2r://panorama/images/hud/core/ability_frame_3.vsvg");
+}
+
+.cooling_down .ability_image
+{
+	opacity: 0.6;
+}
+
+.active .ability_image,.toggled_on .ability_image,.channeling .ability_image
+{
+	opacity: 1;
+	wash-color: offBlack;
+}
+
+#cooldown_mask
+{
+	transform: scaleX(-1);
+}
+
+.cooling_down .ability_name,.ability_not_ready .ability_name
+{
+	color: lightgrey;
+	opacity: 0.3;
+}
+
+.active.cooling_down #cooldown_mask,.active.ability_not_ready #cooldown_mask,.toggled_on.cooling_down #cooldown_mask,.toggled_on.ability_not_ready #cooldown_mask,.channeling.cooling_down #cooldown_mask,.channeling.ability_not_ready #cooldown_mask
+{
+	visibility: collapse;
+	opacity: 0;
+}
+
+.cooldown_timer
+{
+	horizontal-align: center;
+	vertical-align: center;
+	text-align: center;
+	font-size: 32px;
+	color: offWhite;
+	visibility: collapse;
+	text-overflow: shrink;
+	font-weight: bold;
+	font-family: oracle;
+	text-shadow: 0px 0px 0px 6.0 offBlack;
+}
+
+.cooling_down .cooldown_timer
+{
+	visibility: visible;
+}
+
+.UltimateStatus .cooldown_timer
+{
+	visibility: collapse;
+}
+
+.active.cooling_down .cooldown_timer,.toggled_on.cooling_down .cooldown_timer,.channeling.cooling_down .cooldown_timer
+{
+	visibility: collapse;
+}
+
+.action_button .cooldown_timer
+{
+	font-size: 35px;
+}
+
+#active_toggle
+{
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	border: 2px solid yellow;
+	box-shadow: inset rgba(255,255,0, 0.2) 0px 0px 12px 0px;
+	pre-transform-scale2d: 1.3;
+}
+
+.toggled_on #active_toggle
+{
+	opacity: 1;
+}
+
+.stack_charges
+{
+	width: 60%;
+	height: 10px;
+	border: 1px solid #000;
+	border-radius: 15px;
+	margin-bottom: 115px;
+	visibility: collapse;
+	vertical-align: bottom;
+	horizontal-align: middle;
+	ignore-parent-flow: true;
+	transition-property: margin, transform;
+	transition-duration: 0.3s;
+}
+
+.cooling_down .stack_charges
+{
+	opacity: 0.4;
+}
+
+#slot_signature_2 .stack_charges,#slot_signature_3 .stack_charges
+{
+	margin-bottom: 135px;
+}
+
+.gShopOpen #slot_signature_2 .stack_charges,.gShopOpen #slot_signature_3 .stack_charges
+{
+	margin-bottom: 115px;
+}
+
+.has_stack_charges .stack_charges
+{
+	visibility: visible;
+	height: 10px;
+}
+
+CitadelAbilityIcon.Tier2 .stack_charges,CitadelAbilityIcon.Tier3 .stack_charges
+{
+	transform: translateY(-5px);
+}
+
+.has_stack_charges .stack_charges.stack_cooldown_complete
+{
+	opacity: 0;
+}
+
+.has_stack_charges
+{
+	margin-top: 0px;
+}
+
+.cooldown_refills_all_charges .stack_divider_container
+{
+	visibility: collapse;
+}
+
+.items .stack_charges
+{
+	width: 100%;
+}
+
+.stack_charges .ProgressBarLeft
+{
+	background-color: #f5f5f5;
+}
+
+.stack_charges .ProgressBarMiddle
+{
+	background-color: #8b7ca7;
+}
+
+.stack_charges .ProgressBarRight
+{
+	background-color: #00000088;
+}
+
+.stack_divider_container
+{
+	width: 100%;
+	height: 100%;
+	z-index: 1;
+}
+
+.stack_divider
+{
+	width: 1px;
+	height: 100%;
+	background-color: black;
+}
+
+.ability_key,.ability_level,.ability_icon
+{
+	z-index: 1;
+}
+
+#expanded_info
+{
+	width: 100%;
+	visibility: collapse;
+}
+
+.gDetailView .items #expanded_info
+{
+	visibility: collapse;
+}
+
+.expanded_name
+{
+	margin-top: 2px;
+	horizontal-align: center;
+	text-align: center;
+	font-size: 12px;
+	text-transform: uppercase;
+	color: white;
+}
+
+#slot_item_1
+{
+	margin-right: 8px;
+}
+
+#slot_item_2
+{
+	margin-right: 455px;
+}
+
+#slot_item_3
+{
+	margin-right: 8px;
+}
+
+CitadelRadialAbilitiesSegment CitadelHudAbilityUpgradePips,CitadelHudAbilities CitadelHudAbilityUpgradePips
+{
+	ignore-parent-flow: true;
+	visibility: collapse;
+	ui-scale: 60%;
+}
+
+.wants_scoreboard CitadelHudAbilities CitadelHudAbilityUpgradePips,.gDetailView CitadelHudAbilities CitadelHudAbilityUpgradePips,.gShopOpen CitadelHudAbilities:hover CitadelHudAbilityUpgradePips,.alwaysShowPips CitadelHudAbilityUpgradePips,#hud_signature:hover CitadelHudAbilityUpgradePips
+{
+	visibility: visible;
+	background-color: none;
+}
+
+CitadelHeroDetailsPage .ability_ring
+{
+	visibility: collapse;
+}
+
+CitadelHeroDetailsPage .item_passive .ability_bg,.usingControllerSpecificGlyphs.isUsingController .ability_bg,.usingControllerSpecificGlyphs.isUsingController CitadelHeroDetailsPage .ability_bg
+{
+	background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_0.vsvg");
+}
+
+#SubAbility
+{
+	width: 36px;
+	height: 36px;
+	vertical-align: bottom;
+	horizontal-align: right;
+	ignore-parent-flow: true;
+	background-image: url("s2r://panorama/images/hud/core/ability_sub_frame_psd.vtex");
+	background-size: contain;
+	margin-bottom: 12px;
+	margin-right: 2px;
+	visibility: collapse;
+}
+
+.hasSubAbility #SubAbility
+{
+	visibility: visible;
+}
+
+CitadelHudTopBar .hasSubAbility #SubAbility
+{
+	visibility: collapse;
+}
+
+#SubAbility #SubAbilityImage
+{
+	width: 100%;
+	height: 100%;
+	horizontal-align: center;
+	vertical-align: middle;
+	margin: 4px;
+	wash-color: offBlack;
+	opacity: 0.95;
+}
+
+CitadelAbilityIcon.disabled
+{
+	opacity: 1;
+	wash-color: offBlack&ee;
+}
+

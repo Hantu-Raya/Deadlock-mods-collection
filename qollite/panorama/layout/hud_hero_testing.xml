@@ -1,0 +1,1409 @@
+<!-- xml reconstructed by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/base.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/hero_testing_menu.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/qollite_hero_testing.vjs_c" />
+	</scripts>
+	<CitadelHudHeroTesting class="hud_hero_testing_root">
+		<GlobalClassListener classes="gScoreboardOpen gShopOpen" />
+		<Panel id="hero_testing_stub" onactivate="">
+			<Panel id="hero_testing_stub_header_row">
+				<Label id="hero_testing_stub_title" text="#HeroTesting_TestTools" />
+				<Panel id="hero_testing_stub_header_spacer" />
+				<Label id="hero_testing_stub_hint" text="Press Tab" />
+			</Panel>
+			<Panel id="LaneChallengePanel" onactivate="">
+				<Panel class="nav_menu_item_header">
+					<Label text="#HeroTesting_LaneChallenge" />
+				</Panel>
+				<Label class="lane_challenge" text="#HeroTesting_LastHits" />
+				<Label class="lane_challenge" text="#HeroTesting_OrbsSecured" />
+				<Label class="lane_challenge" text="#HeroTesting_OrbsDenied" />
+			</Panel>
+		</Panel>
+		<Panel id="hero_testing_container" onactivate="" onload="InitializeTestingToolsLayout();">
+			<Button id="htpp_drag_bar" class="htpp_drag_bar">
+				<Label text="Click to Drag" />
+			</Button>
+			<Panel id="htpp_tab_group" class="htpp_tab_group">
+				<Panel id="htpp_primary_tab_buttons_container" class="htpp_primary_tab_buttons_container">
+					<Button id="htpp_primary_tab_button_Core" class="htpp_primary_tab_button" onactivate="PrimaryTabSelect(&apos;Core&apos;)">
+						<Label text="Basic" />
+					</Button>
+					<Button id="htpp_primary_tab_button_World" class="htpp_primary_tab_button hide_in_coop" onactivate="PrimaryTabSelect(&apos;World&apos;)">
+						<Label text="Advanced" />
+					</Button>
+				</Panel>
+				<Panel id="htpp_tab_buttons_container" class="htpp_tab_buttons_container">
+					<Button id="htpp_tab_button_GameRules" class="htpp_tab_button htpp_section_tab" onactivate="TabSelect(&apos;GameRules&apos;)">
+						<Label text="Basic" />
+					</Button>
+					<Button id="htpp_tab_button_HUD" class="htpp_tab_button htpp_section_tab" onactivate="TabSelect(&apos;HUD&apos;)">
+						<Label text="Hud" />
+					</Button>
+					<Button id="htpp_tab_button_LegendaryItems" class="htpp_tab_button htpp_section_tab" onactivate="TabSelect(&apos;LegendaryItems&apos;)">
+						<Label text="Legendary" />
+					</Button>
+					<Button id="htpp_tab_button_Entities" class="htpp_tab_button htpp_section_tab hide_in_coop" onactivate="TabSelect(&apos;Entities&apos;)">
+						<Label text="Entities" />
+					</Button>
+					<Button id="htpp_tab_button_Props" class="htpp_tab_button htpp_section_tab hide_in_coop" onactivate="TabSelect(&apos;Props&apos;)">
+						<Label text="Props" />
+					</Button>
+					<Button id="htpp_tab_button_Modifiers" class="htpp_tab_button htpp_section_tab hide_in_coop" onactivate="TabSelect(&apos;Modifiers&apos;)">
+						<Label text="Modifiers" />
+					</Button>
+					<Button id="htpp_tab_button_Skybox" class="htpp_tab_button htpp_section_tab hide_in_coop" onactivate="TabSelect(&apos;Skybox&apos;)">
+						<Label text="Skybox" />
+					</Button>
+					<Button id="htpp_tab_button_Maps" class="htpp_tab_button htpp_section_tab" onactivate="TabSelect(&apos;Maps&apos;)">
+						<Label text="Maps" />
+					</Button>
+				</Panel>
+				<Panel id="htpp_dynamic_subtabs" class="htpp_dynamic_subtabs" />
+			</Panel>
+			<Panel id="htpp_section_GameRules" class="htpp_section">
+				<Panel class="nav_menu_item_header">
+					<Label text="Basic" />
+					<Panel class="dash" />
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button id="HTPP_LoadTestingEnvironmentButton" class="nav_menu_item small_text full_width htpp_spawn_action htpp_glow_white" onactivate="LoadTestingEnvironment(); $.DispatchEvent( &apos;PlaySoundEffect&apos;, &apos;Stinger.LevelUp&apos; )">
+						<Label text="Load Testing Environment" />
+					</Button>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Label text="Movement" />
+				</Panel>
+				<Panel class="nav_menu_item_container htpp_separator_top">
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_5 htpp_toggle_compact small_text" id="HTPP_NoclipCheckbox" text="Noclip" onactivate="SetNoclipModeFromCheckbox();" />
+					<Panel class="htpp_adjust_row htpp_adjust_row_compact htpp_noclip_speed_inline">
+						<Label id="HTPP_NoclipSpeedStatus" class="htpp_adjust_title" text="NOCLIP SPEED: 1000" />
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_minus" onactivate="AdjustNoclipSpeed(-1);">
+							<Label text="-" />
+						</Button>
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_equal" onactivate="AdjustNoclipSpeed(0);">
+							<Label text="=" />
+						</Button>
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_plus" onactivate="AdjustNoclipSpeed(1);">
+							<Label text="+" />
+						</Button>
+					</Panel>
+					<Button class="nav_menu_item small_text htpp_btn_5 htpp_spawn_action htpp_glow_white" onactivate="LoadMidtownMap();">
+						<Label text="Load Map" />
+					</Button>
+				</Panel>
+			</Panel>
+			<Panel id="htpp_section_Tools" class="htpp_section">
+				<Panel class="nav_menu_item_header">
+					<Label text="Tools" />
+					<Panel class="dash" />
+				</Panel>
+				<Panel class="nav_menu_item_container htpp_basic_action_row">
+					<Button class="nav_menu_item small_text quarter_width htpp_spawn_action htpp_glow_white" onactivate="HeroTestingChangeHero()">
+						<Label text="#HeroTesting_ChangeHero" />
+					</Button>
+					<Button class="nav_menu_item small_text quarter_width htpp_spawn_action htpp_glow_white" onactivate="HeroTestingChangeTeam();">
+						<Label text="#HeroTesting_ChangeTeam" />
+					</Button>
+					<Button class="nav_menu_item small_text quarter_width htpp_spawn_action htpp_glow_white" onactivate="Cmd( &apos;resetme&apos; ); $.DispatchEvent( &apos;PlaySoundEffect&apos;, &apos;Stinger.LevelUp&apos; )">
+						<Label text="#HeroTesting_ResetHero" />
+					</Button>
+					<Button class="nav_menu_item small_text quarter_width htpp_spawn_action htpp_glow_white" onactivate="giveAllItems();">
+						<Label text="Give All Items" />
+					</Button>
+				</Panel>
+				<Panel class="nav_menu_item_container htpp_basic_action_row">
+					<Button class="small_text nav_menu_item quarter_width htpp_spawn_action htpp_glow_white" onactivate="Cmd( &apos;killme&apos; ); $.DispatchEvent( &apos;PlaySoundEffect&apos;, &apos;Stinger.LevelUp&apos; )">
+						<Label text="#HeroTesting_KillHero" />
+					</Button>
+					<Button class="small_text nav_menu_item quarter_width htpp_spawn_action htpp_glow_white" onactivate="Cmd( &apos;healthpct 50&apos; ); $.DispatchEvent( &apos;PlaySoundEffect&apos;, &apos;Stinger.LevelUp&apos; )">
+						<Label text="#HeroTesting_HalfHealth" />
+					</Button>
+					<Button class="small_text nav_menu_item quarter_width htpp_spawn_action htpp_glow_white" onactivate="Cmd( &apos;healthpct 100&apos; ); $.DispatchEvent( &apos;PlaySoundEffect&apos;, &apos;Stinger.LevelUp&apos; )">
+						<Label text="#HeroTesting_FullHealth" />
+					</Button>
+					<Button class="nav_menu_item small_text quarter_width htpp_spawn_action htpp_glow_white" onactivate="Cmd(`unstick`);">
+						<Label text="Unstick" />
+					</Button>
+				</Panel>
+				<Panel class="nav_menu_item_container htpp_basic_action_row">
+					<Button class="small_text nav_menu_item htpp_btn_4 htpp_spawn_action htpp_glow_white" onactivate="Cmd( &apos;givelevelupgold 1&apos; ); $.DispatchEvent( &apos;PlaySoundEffect&apos;, &apos;Stinger.LevelUp&apos; )">
+						<Label text="#HeroTesting_LevelUp" />
+					</Button>
+					<Button class="small_text nav_menu_item htpp_btn_4 htpp_spawn_action htpp_glow_white" onactivate="Cmd( &apos;givelevelupgold 32&apos; ); $.DispatchEvent( &apos;PlaySoundEffect&apos;, &apos;Stinger.LevelUp&apos; )">
+						<Label text="#HeroTesting_MaxLevel" />
+					</Button>
+					<Button class="nav_menu_item small_text htpp_btn_4 htpp_spawn_action htpp_glow_white" onactivate="Cmd(`kingme`);">
+						<Label text="King Hero" />
+					</Button>
+					<Button class="nav_menu_item small_text htpp_btn_4 htpp_spawn_action htpp_glow_white" onactivate="Cmd( &apos;giveallupgrades&apos; ); $.DispatchEvent( &apos;PlaySoundEffect&apos;, &apos;Stinger.LevelUp&apos; )">
+						<Label text="#HeroTesting_AllPerks" />
+					</Button>
+				</Panel>
+				<Panel class="nav_menu_item_container htpp_row_4col htpp_separator_top">
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_5 htpp_toggle_compact small_text" id="DisableDeathCheckbox" text="#HeroTesting_NoDeath" onactivate="UpdateNoDeathToggle(); $.DispatchEvent( &apos;PlaySoundEffect&apos;, &apos;Stinger.LevelUp&apos; )" />
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_5 htpp_toggle_compact small_text" id="EnableUnlimitedAmmoCheckbox" text="#HeroTesting_UnlimitedAmmo" onactivate="HeroTestingUpdateEnableUnlimitedAmmo()" />
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_5 htpp_toggle_compact small_text" id="DisableCooldownCheckbox" text="#HeroTesting_NoCooldown" onactivate="HeroTestingUpdateDisableCooldowns()" />
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_5 htpp_toggle_compact small_text" id="EnableFastStaminaCheckbox" text="#HeroTesting_FastStamina" onactivate="HeroTestingUpdateEnableFastStamina()" />
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_5 htpp_toggle_compact small_text hide_in_coop" id="HTPP_ActuallyDisableCooldownsCheckbox" text="∞ Cooldown" onactivate="UpdateEnableActuallyNoCooldowns()" />
+				</Panel>
+				<Panel class="nav_menu_item_container htpp_row_4col">
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_5 htpp_toggle_compact small_text hide_in_coop" id="HTPP_DisableAICheckbox" text="Troopers AI" onactivate="UpdateDisableAI();" />
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_5 htpp_toggle_compact small_text hide_in_coop" text="Bots AI" onactivate="Cmd(`toggle citadel_solo_bot_match`);" />
+					<CitadelSettingsCheckbox class="nav_menu_item CitadelSettingsCheckbox htpp_btn_5 htpp_toggle_compact small_text" id="HTPP_EnableInfiniteMoneyCheckbox" text="∞ Souls" convar="citadel_hero_testing_infinite_money" onload="$.FindChildInContext(`#HTPP_EnableInfiniteMoneyCheckbox`).SetSelected(true)" />
+					<CitadelSettingsCheckbox class="nav_menu_item CitadelSettingsCheckbox htpp_btn_5 htpp_toggle_compact small_text" id="HTPP_BuyAnywhereCheckbox" text="Buy Anywhere" convar="citadel_allow_purchasing_anywhere" onload="$.FindChildInContext(`#HTPP_BuyAnywhereCheckbox`).SetSelected(true)" />
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_5 htpp_toggle_compact small_text hide_in_coop" id="HTPP_EnhancedItems" text="Enhanced Items" onactivate="UpdateEnhancedItems();" />
+				</Panel>
+				<Panel class="nav_menu_item_container hide_in_coop htpp_adjust_pair_row htpp_adjust_single_row htpp_separator_top htpp_separator_bottom">
+					<Panel class="htpp_adjust_row htpp_adjust_row_compact">
+						<Label id="HTPP_AdjustLabel_Speed" class="htpp_adjust_title" text="Speed:" />
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_minus" onactivate="AdjustSpeed(-1);">
+							<Label text="-" />
+						</Button>
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_equal" onactivate="AdjustSpeed(0);">
+							<Label text="=" />
+						</Button>
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_plus" onactivate="AdjustSpeed(1);">
+							<Label text="+" />
+						</Button>
+					</Panel>
+					<Panel class="htpp_adjust_row htpp_adjust_row_compact">
+						<Label id="HTPP_AdjustLabel_Sprint" class="htpp_adjust_title" text="Sprint:" />
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_minus" onactivate="AdjustSprint(-1);">
+							<Label text="-" />
+						</Button>
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_equal" onactivate="AdjustSprint(0);">
+							<Label text="=" />
+						</Button>
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_plus" onactivate="AdjustSprint(1);">
+							<Label text="+" />
+						</Button>
+					</Panel>
+					<Panel class="htpp_adjust_row htpp_adjust_row_compact">
+						<Label id="HTPP_AdjustLabel_Gravity" class="htpp_adjust_title" text="Gravity:" />
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_minus" onactivate="AdjustGravity(-1);">
+							<Label text="-" />
+						</Button>
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_equal" onactivate="AdjustGravity(0);">
+							<Label text="=" />
+						</Button>
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_plus" onactivate="AdjustGravity(1);">
+							<Label text="+" />
+						</Button>
+					</Panel>
+					<Panel class="htpp_adjust_row htpp_adjust_row_compact">
+						<Label id="HTPP_AdjustLabel_Damage" class="htpp_adjust_title" text="Damage:" />
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_minus" onactivate="AdjustDamage(-1);">
+							<Label text="-" />
+						</Button>
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_equal" onactivate="AdjustDamage(0);">
+							<Label text="=" />
+						</Button>
+						<Button class="small_text nav_menu_item htpp_adjust_button htpp_adjust_button_flat htpp_adjust_btn_plus" onactivate="AdjustDamage(1);">
+							<Label text="+" />
+						</Button>
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="htpp_section_HeroControl" class="htpp_section">
+				<Panel class="nav_menu_item_header">
+					<Label text="Hero Control" />
+					<Panel class="dash" />
+				</Panel>
+				<Panel class="nav_menu_item_container htpp_hero_control_split">
+					<CitadelHeroCard id="SpawnBotCard" onactivate="HeroTestingChangeSelectedBot()" />
+					<Panel class="htpp_hero_control_rows">
+						<Panel class="htpp_hero_control_row">
+							<Button class="nav_menu_item small_text htpp_hero_ctrl_btn htpp_spawn_action htpp_glow_red hide_in_coop" onactivate="Cmd( &apos;bot_kick_all&apos; );">
+								<Label text="#HeroTesting_RemoveBots" />
+							</Button>
+							<Button class="nav_menu_item small_text htpp_hero_ctrl_btn htpp_spawn_action htpp_glow_green hide_in_coop" onactivate="Cmd( &apos;citadel_assume_pawn_control&apos; );">
+								<Label text="#HeroTesting_TakeControl" />
+							</Button>
+							<Button class="nav_menu_item small_text htpp_hero_ctrl_btn htpp_spawn_action htpp_glow_white hide_in_coop" onactivate="Cmd( &apos;bot_mimic 0&apos; ); Cmd( &apos; bot_puppet 0&apos; );">
+								<Label text="#HeroTesting_ClearFollow" />
+							</Button>
+						</Panel>
+						<Panel class="htpp_hero_control_row">
+							<Button class="nav_menu_item small_text htpp_hero_ctrl_btn htpp_spawn_action htpp_glow_red" onactivate="HeroTestingSpawnBotHero(&apos;enemy&apos;)">
+								<Label text="Spawn As Enemy" />
+							</Button>
+							<Button class="nav_menu_item small_text htpp_hero_ctrl_btn htpp_spawn_action htpp_glow_green" onactivate="HeroTestingSpawnBotHero(&apos;friend&apos;)">
+								<Label text="Spawn As Friendly" />
+							</Button>
+							<Button class="nav_menu_item small_text htpp_hero_ctrl_btn htpp_spawn_action htpp_glow_white hide_in_coop" onactivate="Cmd( &apos;bot_mimic_target&apos; );">
+								<Label text="#HeroTesting_MakeMimic" />
+							</Button>
+						</Panel>
+						<Panel class="htpp_hero_control_row">
+							<Button class="nav_menu_item small_text htpp_hero_ctrl_btn htpp_spawn_action htpp_glow_white" onactivate="HeroTestingSpawnBotHero(&apos;neutral&apos;)">
+								<Label text="Spawn As Neutral" />
+							</Button>
+							<Button class="nav_menu_item small_text htpp_hero_ctrl_btn htpp_spawn_action htpp_glow_white" onactivate="HeroTestingSpawnBotHero(&apos;unassigned&apos;)">
+								<Label text="Spawn As Unassigned" />
+							</Button>
+							<Button class="nav_menu_item small_text htpp_hero_ctrl_btn htpp_spawn_action htpp_glow_white hide_in_coop" onactivate="Cmd( &apos;bot_puppet_target&apos; );">
+								<Label text="#HeroTesting_MakePuppet" />
+							</Button>
+						</Panel>
+						<Panel class="htpp_hero_control_row">
+							<Button class="nav_menu_item small_text htpp_hero_ctrl_btn htpp_spawn_action htpp_glow_white" onactivate="HeroTestingSpawnBotHero(&apos;spectator&apos;)">
+								<Label text="Spawn As Spectator" />
+							</Button>
+							<Button class="nav_menu_item small_text htpp_hero_ctrl_btn htpp_spawn_action htpp_glow_white hide_in_coop" onactivate="Cmd(`citadel_spawn_all_heroes_in_a_line`)">
+								<Label text="Spawn Enemy Team" />
+							</Button>
+							<Button class="nav_menu_item small_text htpp_hero_ctrl_btn htpp_spawn_action htpp_glow_white hide_in_coop" onactivate="Cmd( &apos;citadel_spawn_nearby_neutrals&apos; ); $.DispatchEvent( &apos;PlaySoundEffect&apos;, &apos;Stinger.LevelUp&apos; )">
+								<Label text="#HeroTesting_SpawnCamp" />
+							</Button>
+						</Panel>
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="htpp_section_HUD" class="htpp_section">
+				<Panel class="nav_menu_item_header">
+					<Label text="HUD" />
+					<Panel class="dash" />
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox full_width small_text" text="Testing Tools Stub" onactivate="ToggleHeroTestingStub()" />
+				</Panel>
+				<Panel class="nav_menu_item_container htpp_row_4col">
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_4 htpp_toggle_compact small_text" text="Top Bar" onactivate="ToggleTopBar()" />
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_4 htpp_toggle_compact small_text" text="Health" onactivate="ToggleHealth()" />
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_4 htpp_toggle_compact small_text" id="HTPP_CheckboxDisableDamageReport" text="Damage Report" onactivate="UpdateToggleDamageReport()" />
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_4 htpp_toggle_compact small_text" text="Objectives Health" onactivate="ToggleObjectivesHealth()" />
+				</Panel>
+				<Panel class="nav_menu_item_container htpp_row_4col">
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_4 htpp_toggle_compact small_text" text="Abilities" onactivate="ToggleAbilities()" />
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_4 htpp_toggle_compact small_text" text="Crosshair" onactivate="ToggleCrosshair()" />
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_4 htpp_toggle_compact small_text" id="HTPP_CheckboxToggleItems" text="Items" onactivate="UpdateToggleItems()" />
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_4 htpp_toggle_compact small_text" text="Modifiers" onactivate="ToggleModifiers()" />
+				</Panel>
+				<Panel class="nav_menu_item_container htpp_row_4col">
+					<CitadelSettingsCheckbox class="nav_menu_item CitadelSettingsCheckbox htpp_btn_4 htpp_toggle_compact small_text" text="DPS Meter" convar="hud_damagemeter" />
+					<CitadelSettingsCheckbox class="nav_menu_item CitadelSettingsCheckbox htpp_btn_4 htpp_toggle_compact small_text" text="Unit Status" convar="citadel_unit_status_enabled" />
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox htpp_btn_4 htpp_toggle_compact small_text" text="Minimap" onactivate="ToggleMinimap()" />
+					<CitadelSettingsCheckbox class="nav_menu_item CitadelSettingsCheckbox htpp_btn_4 htpp_toggle_compact small_text" text="Lock Camera" convar="cl_lock_camera" />
+				</Panel>
+			</Panel>
+			<Panel id="htpp_section_Entities" class="htpp_section">
+				<Panel class="nav_menu_item_header">
+					<Label text="Entities" />
+					<Panel class="dash" />
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`ent_fire !picker Kill`)">
+						<Label class="htpp_center_text" text="Remove Entity" />
+					</Button>
+					<Button class="nav_menu_item small_text half_width" onactivate="RemoveAllObjectives()">
+						<Label class="htpp_center_text" text="Remove Units" />
+					</Button>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_TeamSelect" onactivate="ToggleSubsection(`TeamSelect`)" />
+					<Label text="Team Select" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_TeamSelect">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="TeamNumber = 0;">
+							<Label class="htpp_center_text" text="Unassigned" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="TeamNumber = 1;">
+							<Label class="htpp_center_text" text="Spectator" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="TeamNumber = 2;">
+							<Label class="htpp_center_text" text="Hidden King" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="TeamNumber = 4;">
+							<Label class="htpp_center_text" text="Neutral" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="TeamNumber = 3;">
+							<Label class="htpp_center_text" text="Arch Mother" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Powerups" onactivate="ToggleSubsection(`Powerups`)" />
+					<Label text="Powerups" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Powerups">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`subclass_create citadel_item_pickup_rejuv_herotest`)">
+							<Label class="htpp_center_text" text="Rejuvenator" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`subclass_create citadel_herotest_orbspawner`)">
+							<Label class="htpp_center_text" text="Orb Spawner" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`subclass_create citadel_item_powerup_spawner`)">
+							<Label class="htpp_center_text" text="Bridge Buff" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`subclass_create citadel_refresh_spawner`)">
+							<Label class="htpp_center_text" text="Refresher Buff" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Objectives" onactivate="ToggleSubsection(`Objectives`)" />
+					<Label text="Objectives" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Objectives">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnTeamEntity(`npc_boss_tier1`)">
+							<Label class="htpp_center_text" text="Guardian" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnTeamEntity(`npc_boss_tier2`)">
+							<Label class="htpp_center_text" text="Walker" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnTeamEntity(`destroyable_building {model models/props_street/generator.vmdl}`)">
+							<Label class="htpp_center_text" text="Shrine" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnTeamEntity(`npc_base_defense_sentry`)">
+							<Label class="htpp_center_text" text="Base Sentry" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnTeamEntity(`npc_barrack_boss_amber`)">
+							<Label class="htpp_center_text" text="Barrack King" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnTeamEntity(`npc_barrack_boss_sapphire`)">
+							<Label class="htpp_center_text" text="Barrack Mother" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnTeamEntity(`npc_boss_tier3`)">
+							<Label class="htpp_center_text" text="Patron King" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnTeamEntity(`alt_npc_boss_tier3`)">
+							<Label class="htpp_center_text" text="Patron Mother" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text" onactivate="Cmd(`citadel_spawn_urn`)">
+							<Label class="htpp_center_text" text="Soul Urn" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Neutrals" onactivate="ToggleSubsection(`Neutrals`)" />
+					<Label text="Neutrals" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Neutrals">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnTeamEntity(`neutral_trooper_weak`)">
+							<Label class="htpp_center_text" text="Weak" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnTeamEntity(`neutral_trooper_normal`)">
+							<Label class="htpp_center_text" text="Normal" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnTeamEntity(`neutral_trooper_strong`)">
+							<Label class="htpp_center_text" text="Strong" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnTeamEntity(`neutral_sinners_sacrifice`)">
+							<Label class="htpp_center_text" text="Sacrifice" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text" onactivate="SpawnTeamEntity(`npc_super_neutral`)">
+							<Label class="htpp_center_text" text="MidBoss" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Troopers" onactivate="ToggleSubsection(`Troopers`)" />
+					<Label text="Troopers" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Troopers">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnTeamEntity(`trooper_normal`)">
+							<Label class="htpp_center_text" text="Normal" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnTeamEntity(`trooper_medic`)">
+							<Label class="htpp_center_text" text="Medic" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnTeamEntity(`trooper_melee`)">
+							<Label class="htpp_center_text" text="Melee" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnTeamEntity(`npc_necro_skele`)">
+							<Label class="htpp_center_text" text="Necro" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Breakables" onactivate="ToggleSubsection(`Breakables`)" />
+					<Label text="Breakables" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Breakables">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_prop_wooden_crate {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Fairfax Crate" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_wooden_crate_02 {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Small Crate" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_wooden_crate_03 {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Large  Crate" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_jar_01 {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Jar" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_prop_vase {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Vase" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_sake_barrel {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Barrel" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_item_container {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Golden Statue" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_lion_statue {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Lion  Statue" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_prop_pumpkin04 {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Scared Pumpkin" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_prop_pumpkin01 {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Fat Pumpkin" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_prop_pumpkin02 {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Tall Pumpkin" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_prop_pumpkin03 {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Small Pumpkin" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_prop_xmaspresent01 {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Red Present" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_prop_xmaspresent02 {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Green Present" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`subclass_create citadel_breakable_prop_xmaspresent03 {&quot;initial_spawn_time_override&quot; &quot;0&quot;}`)">
+							<Label class="htpp_center_text" text="Blue Present" />
+						</Button>
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="htpp_section_Props" class="htpp_section">
+				<Panel class="nav_menu_item_header">
+					<Label text="Deadlock Props" />
+					<Panel class="dash" />
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text" onactivate="Cmd(`ent_fire !picker Kill`)">
+						<Label class="htpp_center_text" text="Remove Prop" />
+					</Button>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_PropScale" onactivate="ToggleSubsection(`PropScale`)" />
+					<Label text="Scale" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_PropScale">
+					<Panel class="nav_menu_item_container htpp_adjust_row">
+						<Label class="htpp_adjust_title" text="Scale" />
+						<Button class="nav_menu_item small_text htpp_adjust_button" onactivate="ChangePropScale(-0.1);">
+							<Label class="htpp_center_text" text="-" />
+						</Button>
+						<Button class="nav_menu_item small_text htpp_adjust_button" onactivate="SetPropScale(1.0);">
+							<Label id="prop_scale_label" class="htpp_center_text" text="=" />
+						</Button>
+						<Button class="nav_menu_item small_text htpp_adjust_button" onactivate="ChangePropScale(0.1);">
+							<Label class="htpp_center_text" text="+" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Heroes" onactivate="ToggleSubsection(`Heroes`)" />
+					<Label text="Heroes" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Heroes">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/heroes_staging/atlas_detective_v2/atlas_detective.vmdl use_animgraph 0 IdleAnim respawn_countdown_idle`)">
+							<Label class="htpp_center_text" text="Abrams" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/heroes_staging/engineer/engineer.vmdl use_animgraph 0 StartingAnim melee_hold_1 IdleAnim primary_stand_idle`)">
+							<Label class="htpp_center_text" text="McGinnis" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/heroes_staging/shiv_ult/shiv_ult.vmdl use_animgraph 0 StartingAnim melee_hold_1 IdleAnim primary_stand_idle`)">
+							<Label class="htpp_center_text" text="Shiv" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/heroes_staging/skymonk/skymonk.vmdl use_animgraph 0 StartingAnim melee_hold_1 IdleAnim primary_stand_idle`)">
+							<Label class="htpp_center_text" text="Skymonk" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/heroes_staging/wraith_magician/wraith_magician.vmdl use_animgraph 0 StartingAnim melee_hold_1 IdleAnim primary_stand_idle`)">
+							<Label class="htpp_center_text" text="Maigician" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/heroes_staging/wraith_puppeteer/wraith_puppeteer.vmdl use_animgraph 0 StartingAnim melee_hold_1 IdleAnim primary_stand_idle`)">
+							<Label class="htpp_center_text" text="Puppeteer" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/heroes_staging/gigawatt/gigawatt.vmdl use_animgraph 0 StartingAnim melee_hold_1 IdleAnim primary_idle`)">
+							<Label class="htpp_center_text" text="Seven" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/heroes_staging/gunslinger/gunslinger.vmdl use_animgraph 0 StartingAnim melee_hold_1 IdleAnim primary_idle`)">
+							<Label class="htpp_center_text" text="Gunslinger" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Units" onactivate="ToggleSubsection(`Units`)" />
+					<Label text="Units" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Units">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/npc/plant_neutral/neutral_barb_plant.vmdl use_animgraph 0 StartingAnim sleep_to_idle IdleAnim idle`)">
+							<Label class="htpp_center_text" text="Plant Neutral" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/npc/trooper/trooper.vmdl`)">
+							<Label class="htpp_center_text" text="Sewer Neutral" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/npc/trooper/trooper_siege.vmdl use_animgraph 0 StartingAnim trooper_humanoid_gesture_follow_me IdleAnim primary_idle_no_target`)">
+							<Label class="htpp_center_text" text="Siege Trooper" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/npc/t2_clock_tower/t2_clock_tower_shape.vmdl`)">
+							<Label class="htpp_center_text" text="Clock Tower" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/props_gameplay/generator_charger/generator_charger.vmdl use_animgraph 0 StartingAnim struggle_01 IdleAnim death`)">
+							<Label class="htpp_center_text" text="Old Shrine" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/npc/titan_v2/titan.vmdl StartingAnim titan_transform IdleAnim titan_start_idle`)">
+							<Label class="htpp_center_text" text="Old Patron" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/props_endgame/amber_hand_throne/amber_hand_throne.vmdl`)">
+							<Label class="htpp_center_text" text="Leaked Patron" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/props_endgame/amber_hand_shrine/amber_hand_shrine.vmdl IdleAnim spin`)">
+							<Label class="htpp_center_text" text="Leaked Shrine" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/npc/effigy_amber/effigy_amber_model.vmdl`)">
+							<Label class="htpp_center_text" text="Effigy King" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/npc/effigy_sapphire/effigy_sapphire_model.vmdl`)">
+							<Label class="htpp_center_text" text="Effigy Mother" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/npc/patron_amber/patron_amber.vmdl StartingAnim transforming_down IdleAnim idle`)">
+							<Label class="htpp_center_text" text="Patron King" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/npc/patron_sapphire/patron_sapphire.vmdl StartingAnim sapphire_phase_two_death IdleAnim idle`)">
+							<Label class="htpp_center_text" text="Patron Mother" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/props_endgame/amber_hand_avatar/amber_hand_avatar_test.vmdl IdleAnim idle`)">
+							<Label class="htpp_center_text" text="Old King" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/props_endgame/endgame_temp_summoner.vmdl`)">
+							<Label class="htpp_center_text" text="Temp Summoner" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Abilities" onactivate="ToggleSubsection(`Abilities`)" />
+					<Label text="Abilities" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Abilities">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnTeamEntity(`citadel_bounce_pad`)">
+							<Label class="htpp_center_text" text="Jump Pad" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnTeamEntity(`npc_yakuza_gangster`)">
+							<Label class="htpp_center_text" text="Gangster" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnTeamEntity(`citadel_viscous_ball`)">
+							<Label class="htpp_center_text" text="Viscous Ball" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/abilities/viscous_cube.vmdl`)">
+							<Label class="htpp_center_text" text="Viscous Cube" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/abilities/warden_ghost_model.vmdl`)">
+							<Label class="htpp_center_text" text="Warden Ghost" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/particle/warden_spirit_fx.vmdl IdleAnim muerta_summon_run`)">
+							<Label class="htpp_center_text" text="Warden Spirit" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/hideout/hideout_item_sword.vmdl`)">
+							<Label class="htpp_center_text" text="Apollo Sword" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/heroes_staging/cadence/cadence_grandfinale_stage_piece.vmdl`)">
+							<Label class="htpp_center_text" text="McGinnis Wall" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/abilities/magician_cloneturret_model.vmdl`)">
+							<Label class="htpp_center_text" text="Magician Clone" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/abilities/magic_carpet.vmdl`)">
+							<Label class="htpp_center_text" text="Magic Carpet" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/abilities/bookworm_dragon_model.vmdl IdleAnim n_creep_black_dragon_idle`)">
+							<Label class="htpp_center_text" text="Bookworm&apos;s Dragon" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnProp(`models/backdrop/hotel_doorman/hotel_doorman_sky_01.vmdl`)">
+							<Label class="htpp_center_text" text="Doorman&apos;s Dimension" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Shop" onactivate="ToggleSubsection(`Shop`)" />
+					<Label text="Shop" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Shop">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/shop/park_shop.vmdl`)">
+							<Label class="htpp_center_text" text="Secret Shop" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/props_gameplay/shop/shop_01.vmdl StartingAnim open IdleAnim idle`)">
+							<Label class="htpp_center_text" text="Default Shop" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/props_gameplay/shop/shop_xmas_01.vmdl StartingAnim open IdleAnim idle`)">
+							<Label class="htpp_center_text" text="Xmas  Shop" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_BuildingsProps" onactivate="ToggleSubsection(`BuildingsProps`)" />
+					<Label text="Buildings" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_BuildingsProps">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/backdrop/bridge/bridge_blockout_01.vmdl`)">
+							<Label class="htpp_center_text" text="Bridge" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/waterfront/cargo_ship_01/cargo_ship_01.vmdl`)">
+							<Label class="htpp_center_text" text="Ship" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/broadway/blockout/broadway_blockout_01.vmdl`)">
+							<Label class="htpp_center_text" text="Broadway" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/backdrop/water/liberty_island.vmdl`)">
+							<Label class="htpp_center_text" text="Liberty Island" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/backdrop/water/pier_building.vmdl`)">
+							<Label class="htpp_center_text" text="Pier Building" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/waterfront/wf_bridge_01/wf_bridge_01.vmdl`)">
+							<Label class="htpp_center_text" text="Rail Bridge" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/backdrop/water/tugboat.vmdl`)">
+							<Label class="htpp_center_text" text="Tugboat" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/waterfront/pier_crane_01/pier_crane_01.vmdl`)">
+							<Label class="htpp_center_text" text="Crane" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/gym/lashgym_ring.vmdl`)">
+							<Label class="htpp_center_text" text="Lash Gym" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/props_structures/washington_arch.vmdl`)">
+							<Label class="htpp_center_text" text="Mid Arch" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/park/park_backdrop/park_backdrop_arch_01.vmdl`)">
+							<Label class="htpp_center_text" text="Arch" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/park/park_props/park_arch_01.vmdl`)">
+							<Label class="htpp_center_text" text="Park Arch" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnRandomProp(`backdrop/buildings`, dlBuildings)">
+							<Label class="htpp_center_text" text="Midtown Building" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SpawnRandomProp(`buildings_background`, dlHideoutBuildings)">
+							<Label class="htpp_center_text" text="Hideout Building" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Statues" onactivate="ToggleSubsection(`Statues`)" />
+					<Label text="Animals" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Statues">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/architecture/arch_stock_exchange_uptown_01/arch_stock_exchance_uptown_bull_01.vmdl`)">
+							<Label class="htpp_center_text" text="Bull" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/props_statues/bear_statue_01.vmdl`)">
+							<Label class="htpp_center_text" text="Bear" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/props_structures/statue_owl_01.vmdl`)">
+							<Label class="htpp_center_text" text="Owl" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/props_structures/statue_dog_01.vmdl`)">
+							<Label class="htpp_center_text" text="Dog" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/hideout/hideout_stuffed_bear.vmdl`)">
+							<Label class="htpp_center_text" text="Bear 2" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/props_statues/statue_bust_a.vmdl`)">
+							<Label class="htpp_center_text" text="Bust" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/heroes_staging/nano/cat_statue/cat_statue.vmdl`)">
+							<Label class="htpp_center_text" text="Cat Statue" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/abilities/rabbit/rabbit.vmdl`)">
+							<Label class="htpp_center_text" text="Rabbit Hex" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/hideout/hideout_giant_head.vmdl`)">
+							<Label class="htpp_center_text" text="Giant Head" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/heroes_staging/archer/archer_pet/archer_pet.vmdl`)">
+							<Label class="htpp_center_text" text="Archer Pet" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/abilities/pocket_frog_small.vmdl`)">
+							<Label class="htpp_center_text" text="Cheater Frog" style="font-size:18px;" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/props_structures/statue_gargoyle_01.vmdl`)">
+							<Label class="htpp_center_text" text="Gargoyle" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Hideout" onactivate="ToggleSubsection(`Hideout`)" />
+					<Label text="Hideout" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Hideout">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnRandomProp(&apos;npc/ghosts_passive&apos;, dlGhosts)">
+							<Label class="htpp_center_text" text="Ghosts" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnTeamEntity(&apos;citadel_hideout_ball&apos;)">
+							<Label class="htpp_center_text" text="Ball" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnTeamEntity(&apos;citadel_hideout_clock&apos;)">
+							<Label class="htpp_center_text" text="Clock" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnRandomProp(&apos;hideout&apos;, dlHeroGhosts)">
+							<Label class="htpp_center_text" text="Hero Ghosts" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/hideout/hideout_wintertree01.vmdl`)">
+							<Label class="htpp_center_text" text="Christmas Tree" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/hideout/hideout_deadlock_logo.vmdl`)">
+							<Label class="htpp_center_text" text="Deadlock Logo" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/hideout/fortune_teller_smoke.vmdl`);SpawnProp(`models/hideout/fortune_teller_summoning_circle.vmd`);Cmd(`ent_create citadel_hideout_button { model models/hideout/fortune_teller_table.vmdl interact_distance 180 interact_loc_string #Citadel_Hideout_Play hideout_action 1 }`);SpawnProp(`models/hideout/fortune_teller.vmdl`);">
+							<Label class="htpp_center_text" text="Fortune Teller" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`ent_create citadel_hideout_button { model models/hideout/news_computer.vmdl interact_distance 160 interact_loc_string #Citadel_Hideout_News_Button idleanim news_computer hideout_action 7 }`);">
+							<Label class="htpp_center_text" text="Computer News" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`ent_create citadel_hideout_button { model models/hideout/hideout_voting_button.vmdl interact_distance 130 interact_loc_string #Citadel_Hideout_VoteHero hideout_action 8 }`);">
+							<Label class="htpp_center_text" text="Voting Table" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`ent_create citadel_hideout_button { model models/hideout/hideout_button_watch.vmdl interact_distance 130 interact_loc_string #Citadel_Hideout_Watch idleanim projector_spin hideout_action 2 }`);">
+							<Label class="htpp_center_text" text="Movie Projector" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`ent_create citadel_hideout_button { model models/hideout/hideout_button_learn.vmdl interact_distance 130 interact_loc_string #Citadel_Hideout_Learn hideout_action 4 }`);">
+							<Label class="htpp_center_text" text="Learning Chair" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`ent_create citadel_hideout_button { model models/hideout/hideout_button_gramophone.vmdl interact_distance 180 interact_loc_string #Citadel_Hideout_Heroes hideout_action 3 }`);">
+							<Label class="htpp_center_text" text="Gramophone" style="font-size:17px;" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Misc" onactivate="ToggleSubsection(`Misc`)" />
+					<Label text="Misc" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Misc">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/props_structures/teleporter_box.vmdl`)">
+							<Label class="htpp_center_text" text="Teleport" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/props_gameplay/rejuv/rejuv.vmdl StartingAnim rejuv_descend IdleAnim rejuv_idle`)">
+							<Label class="htpp_center_text" text="Rejuv" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/props_gameplay/soul_container/soul_container.vmdl`)">
+							<Label class="htpp_center_text" text="Souls" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnRandomProp(&apos;props_vehicles&apos;, dlTrucks)">
+							<Label class="htpp_center_text" text="Truck" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnRandomProp(&apos;props_vehicles&apos;, dlCars)">
+							<Label class="htpp_center_text" text="Car" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SpawnProp(`models/ui/glyphs/picker_glyph.vmdl IdleAnim picker_glyph`)">
+							<Label class="htpp_center_text" text="Glyph" />
+						</Button>
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="htpp_section_Modifiers" class="htpp_section">
+				<Panel class="nav_menu_item_header">
+					<Label text="Modifiers" />
+					<Panel class="dash" />
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text" onactivate="Cmd(`modifier_create modifier_citadel_hideout_intro player`);">
+						<Label class="htpp_center_text" text="Hideout Intro" />
+					</Button>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Status" onactivate="ToggleSubsection(`Status`)" />
+					<Label text="Status" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Status">
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_disarmed" text="Disarm" onactivate="ToggleModdifier(`modifier_citadel_disarmed`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_silenced" text="Silence" onactivate="ToggleModdifier(`modifier_citadel_silenced`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_stunned" text="Stun" onactivate="ToggleModdifier(`modifier_citadel_stunned`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_knockdown" text="Knockdown" onactivate="ToggleModdifier(`modifier_citadel_knockdown`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_root" text="Immobilize" onactivate="ToggleModdifier(`modifier_citadel_root`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_muted" text="Mute" onactivate="ToggleModdifier(`modifier_citadel_muted`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_unstick" text="Unstick" onactivate="ToggleModdifier(`modifier_citadel_unstick`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_capacitor/modifier_weapon_capacitor_slow" text="Capacitor" onactivate="ToggleModdifier(`upgrade_capacitor/modifier_weapon_capacitor_slow`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_cheat_death/modifier_cheat_death_immunity" text="Cheat Death" onactivate="ToggleModdifier(`upgrade_cheat_death/modifier_cheat_death_immunity`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_colossus/modifier_colossus_active" text="Colossus" onactivate="ToggleModdifier(`upgrade_colossus/modifier_colossus_active`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_divine_barrier/modifier_divine_barrier" text="Divine Barrier" onactivate="ToggleModdifier(`upgrade_divine_barrier/modifier_divine_barrier`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_infuser/modifier_infuser" text="Infuser" onactivate="ToggleModdifier(`upgrade_infuser/modifier_infuser`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_surging_power/surge/active" text="Vampiric" onactivate="ToggleModdifier(`upgrade_surging_power/surge/active`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_healbuff/modifier_healbuff/modifier_healbuff_buff" text="Heal Tempo" onactivate="ToggleModdifier(`upgrade_healbuff/modifier_healbuff/modifier_healbuff_buff`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_warp_stone/modifier_warp_stone_caster" text="Warp Stone" onactivate="ToggleModdifier(`upgrade_warp_stone/modifier_warp_stone_caster`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_veil_walker/modifier_veil_walker_watcher/modifier_invis " text="Veil Walker" onactivate="ToggleModdifier(`upgrade_veil_walker/modifier_veil_walker_watcher/modifier_invis `);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_fury_trance/modifier_fury_trance" text="Fury Trance" onactivate="ToggleModdifier(`upgrade_fury_trance/modifier_fury_trance`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_metal_skin/modifier_citadel_metal_skin" text="Metal Skin" onactivate="ToggleModdifier(`upgrade_metal_skin/modifier_citadel_metal_skin`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_health_nova/modifier_healing_Nova_active" text="Healing Nova" onactivate="ToggleModdifier(`upgrade_health_nova/modifier_healing_Nova_active`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_health_stimpak/modifier_stimpak_regen" text="Healing Rite" onactivate="ToggleModdifier(`upgrade_health_stimpak/modifier_stimpak_regen`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_return_fire/modifier_armor_return_fire" text="Return Fire" onactivate="ToggleModdifier(`upgrade_return_fire/modifier_armor_return_fire`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_containment/modifier_slow_base" text="Slowing Hex" onactivate="ToggleModdifier(`upgrade_containment/modifier_slow_base`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_spirit_sap/modifier_spirit_sap_debuff" text="Spirit Sap" onactivate="ToggleModdifier(`upgrade_spirit_sap/modifier_spirit_sap_debuff`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_arctic_blast/modifier_item_arctic_blast_aoe/modifier_arctic_blast_freeze" text="Arctic Blast" onactivate="ToggleModdifier(`upgrade_arctic_blast/modifier_item_arctic_blast_aoe/modifier_arctic_blast_freeze`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_self_bubble/modifier_citadel_bubble" text="Ethereal Shift" onactivate="ToggleModdifier(`upgrade_self_bubble/modifier_citadel_bubble`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_magic_carpet/modifier_magiccarpet_flying_visual" text="Magic Carpet" onactivate="ToggleModdifier(`upgrade_magic_carpet/modifier_magiccarpet_flying_visual`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_magic_carpet/modifier_magiccarpet_flying" text="Magic Fov" onactivate="ToggleModdifier(`upgrade_magic_carpet/modifier_magiccarpet_flying`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_focus_lens/modifier_citadel_silenced" text="Focus Lens" onactivate="ToggleModdifier(`upgrade_focus_lens/modifier_citadel_silenced`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_upgrade_aoe_root/modifier_citadel_containment_victim" text="Vortex Web" onactivate="ToggleModdifier(`upgrade_aoe_root/modifier_citadel_containment_victim`);" />
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Skills" onactivate="ToggleSubsection(`Skills`)" />
+					<Label text="Skills" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Skills">
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_petrify" text="Petrify" onactivate="ToggleModdifier(`modifier_citadel_petrify`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_hooktarget" text="Hook" onactivate="ToggleModdifier(`modifier_citadel_hooktarget`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_sleep" text="Sleep" onactivate="ToggleModdifier(`modifier_citadel_sleep`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_ability_doorman_hotel/teleport_fx" text="Doorman Ult" onactivate="ToggleModdifier(`ability_doorman_hotel/teleport_fx`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_mirage_tornado_hold_in_place" text="Tornado" onactivate="ToggleModdifier(`modifier_mirage_tornado_hold_in_place`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_chrono_swap_bubble_move" text="Paradox Swap" onactivate="ToggleModdifier(`modifier_chrono_swap_bubble_move`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_nano_shadow_step" text="Shadow Step" onactivate="ToggleModdifier(`modifier_nano_shadow_step`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_copyult" text="Copyult" onactivate="ToggleModdifier(`modifier_citadel_copyult`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_super_neutral_charge_active" text="Charge" onactivate="ToggleModdifier(`modifier_citadel_super_neutral_charge_active`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_citadel_ability_self_vacuum/modifier_vacuumaura" text="Singularity" onactivate="ToggleModdifier(`citadel_ability_self_vacuum/modifier_vacuumaura`);" />
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_ModfiersMisc" onactivate="ToggleSubsection(`ModfiersMisc`)" />
+					<Label text="Misc" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_ModfiersMisc">
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_cheater_curse" text="Frog" onactivate="ToggleModdifier(`modifier_citadel_cheater_curse`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_halloween_mask" text="Halloween" onactivate="ToggleModdifier(`modifier_citadel_halloween_mask`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_respawn_credit" text="Rejuv Credit" onactivate="ToggleModdifier(`modifier_citadel_respawn_credit`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_rebirth_credit" text="Rebirth Credit" onactivate="ToggleModdifier(`modifier_citadel_rebirth_credit`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_in_fountain" text="Base Zone" onactivate="ToggleModdifier(`modifier_citadel_in_fountain`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_in_hideout_zone" text="Hideout Zone" onactivate="ToggleModdifier(`modifier_citadel_in_hideout_zone`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_shield" text="Shield" onactivate="ToggleModdifier(`modifier_citadel_shield`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_disable_gravity" text="Gravity" onactivate="ToggleModdifier(`modifier_disable_gravity`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_obscured_by_steam" text="Steam" onactivate="ToggleModdifier(`modifier_obscured_by_steam`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_boss_invuln" text="Boss Winds" onactivate="ToggleModdifier(`modifier_boss_invuln`);" />
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_nano_catform" text="Invisible" onactivate="ToggleModdifier(`modifier_nano_catform`);" />
+						<ToggleButton class="nav_menu_item CitadelSettingsCheckbox half_width" id="HTPP_modifier_citadel_trooper_disabled_invuln" text="Invulnerability" onactivate="ToggleModdifier(`modifier_citadel_trooper_disabled_invuln`);" />
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="htpp_section_Skybox" class="htpp_section">
+				<Panel class="nav_menu_item_header">
+					<Label text="Skybox" />
+					<Panel class="dash" />
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_Skybox" onactivate="ToggleSubsection(`Skybox`)" />
+					<Label text="Deadlock" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_Skybox">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SelectSkybox(`light_test_psa_low_moon`)">
+							<Label class="htpp_center_text" text="Dark" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SelectSkybox(`sky_dl_dusk02`)">
+							<Label class="htpp_center_text" text="Day" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SelectSkybox(`sunset_reference_01`)">
+							<Label class="htpp_center_text" text="Sunset" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SelectSkybox(`sky_dl_dusk03`)">
+							<Label class="htpp_center_text" text="Sunset 2" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SelectSkybox(`sky_dl_hideout_sunset_clouds_01`)">
+							<Label class="htpp_center_text" text="Hideout" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SelectSkybox(`sky_dl_hideout_dusk01`)">
+							<Label class="htpp_center_text" text="Hideout 2" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SelectSkybox(`sky_dl_hideout_storm_01`)">
+							<Label class="htpp_center_text" text="Hideout Storm" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SelectSkybox(`sky_dl_hideout_sunset_clouds_01_winter`)">
+							<Label class="htpp_center_text" text="Hideout Winter" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SelectSkybox(`sky_dl_sandbox`)">
+							<Label class="htpp_center_text" text="Sandbox" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SelectSkybox(`fog_dl_dusk02`)">
+							<Label class="htpp_center_text" text="Fog" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_SkyboxDay" onactivate="ToggleSubsection(`SkyboxDay`)" />
+					<Label text="Day" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_SkyboxDay">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_kloppenheim_01`)">
+							<Label class="htpp_center_text" text="Overcast 1" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`sky_overcast_03_hdr`)">
+							<Label class="htpp_center_text" text="Overcast 2" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`sky_l4d_c5_1_hdr`)">
+							<Label class="htpp_center_text" text="Overcast 3" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`sky_l4d_c1_1_hdr`)">
+							<Label class="htpp_center_text" text="Dusty" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_evening_road`)">
+							<Label class="htpp_center_text" text="Cirrus" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_farm_field`)">
+							<Label class="htpp_center_text" text="Cumulus" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_SkyboxSunset" onactivate="ToggleSubsection(`SkyboxSunset`)" />
+					<Label text="Sunset" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_SkyboxSunset">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_golden_sunset_01`)">
+							<Label class="htpp_center_text" text="Golden 1" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_golden_sunset_02`)">
+							<Label class="htpp_center_text" text="Golden 2" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`sky_l4d_predawn03_hdr`)">
+							<Label class="htpp_center_text" text="Dawn" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_golden_sunset_03`)">
+							<Label class="htpp_center_text" text="Pink 1" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_golden_sunset_04`)">
+							<Label class="htpp_center_text" text="Pink 2" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_sky_sunset_light_only`)">
+							<Label class="htpp_center_text" text="Pink 3" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_SkyboxDark" onactivate="ToggleSubsection(`SkyboxDark`)" />
+					<Label text="Dark" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_SkyboxDark">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`new_york_sunset`)">
+							<Label class="htpp_center_text" text="New York" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`sky_l4d_rural02_hdr`)">
+							<Label class="htpp_center_text" text="Rural" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`visdev_diorama`)">
+							<Label class="htpp_center_text" text="Diorama" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_SkyboxBlue" onactivate="ToggleSubsection(`SkyboxBlue`)" />
+					<Label text="Blue" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_SkyboxBlue">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_sky_night_basic`)">
+							<Label class="htpp_center_text" text="Clean 1" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_sky_procedural`)">
+							<Label class="htpp_center_text" text="Clean 2" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`sky_l4d_c1_2_hdr`)">
+							<Label class="htpp_center_text" text="Clouds 1" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`skymodel_hosekwilkie_ref/skymodel_hosekwilkie_albedo_0_30_turbidity_02_0_elevation_05_0`)">
+							<Label class="htpp_center_text" text="Clean 3" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`skymodel_hosekwilkie_ref/skymodel_hosekwilkie_albedo_0_30_turbidity_02_0_elevation_15_0`)">
+							<Label class="htpp_center_text" text="Clean 4" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`sky_l4d_c2m1_hdr`)">
+							<Label class="htpp_center_text" text="Clouds 2" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_SkyboxField" onactivate="ToggleSubsection(`SkyboxField`)" />
+					<Label text="Field" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_SkyboxField">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_sunset_field`)">
+							<Label class="htpp_center_text" text="Overcast" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_cloudy_sunset`)">
+							<Label class="htpp_center_text" text="Sunset" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_evening_fog`)">
+							<Label class="htpp_center_text" text="Fog" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_sky_industrial_sunset`)">
+							<Label class="htpp_center_text" text="Industrial" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_sky_sunset_light`)">
+							<Label class="htpp_center_text" text="Dawn" />
+						</Button>
+						<Button class="nav_menu_item small_text" onactivate="SelectSkybox(`spruit_sunrise_4k`)">
+							<Label class="htpp_center_text" text="Sunrise" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_SkyboxRoad" onactivate="ToggleSubsection(`SkyboxRoad`)" />
+					<Label text="Road" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_SkyboxRoad">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_dark`)">
+							<Label class="htpp_center_text" text="Dark" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_sky_overcast`)">
+							<Label class="htpp_center_text" text="Light" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_sky_sunny_basic`)">
+							<Label class="htpp_center_text" text="Sunny" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_sky_sunset`)">
+							<Label class="htpp_center_text" text="Sunset" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`sky_overcast_02_hdr`)">
+							<Label class="htpp_center_text" text="Overcast" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_road_dawn`)">
+							<Label class="htpp_center_text" text="Hill" />
+						</Button>
+					</Panel>
+				</Panel>
+				<Panel class="small_text full_width htpp_subsection_header">
+					<Button class="htpp_subsection_arrow" id="HTPP_SubSectionButton_SkyboxPlace" onactivate="ToggleSubsection(`SkyboxPlace`)" />
+					<Label text="Place" />
+				</Panel>
+				<Panel class="htpp_subsection" id="HTPP_SubSection_SkyboxPlace">
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_limehouse`)">
+							<Label class="htpp_center_text" text="Limehouse" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_cambridge`)">
+							<Label class="htpp_center_text" text="Cambridge" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_citadel`)">
+							<Label class="htpp_center_text" text="City" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_interior_basic`)">
+							<Label class="htpp_center_text" text="Warehouse" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`light_test_interior_basic_2`)">
+							<Label class="htpp_center_text" text="Garage" />
+						</Button>
+						<Button class="nav_menu_item small_text third_width" onactivate="SelectSkybox(`test_sky_burning_01`)">
+							<Label class="htpp_center_text" text="Sea" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SelectSkybox(`light_test_sunset_coast`)">
+							<Label class="htpp_center_text" text="Pier 1" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SelectSkybox(`light_test_sunset_pier`)">
+							<Label class="htpp_center_text" text="Pier 2" />
+						</Button>
+					</Panel>
+					<Panel class="nav_menu_item_container">
+						<Button class="nav_menu_item small_text half_width" onactivate="SelectSkybox(`light_test_interior_studio_basic`)">
+							<Label class="htpp_center_text" text="Studio 1" />
+						</Button>
+						<Button class="nav_menu_item small_text half_width" onactivate="SelectSkybox(`light_test_interior_studio_small_9`)">
+							<Label class="htpp_center_text" text="Studio 2" />
+						</Button>
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="htpp_section_Maps" class="htpp_section">
+				<Panel class="nav_menu_item_header">
+					<Label text="Maps" />
+					<Panel class="dash" />
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<ToggleButton class="nav_menu_item CitadelSettingsCheckbox full_width small_text" id="HTPP_EnableStreetBrawlGamemode" text="Enable Street Brawl Gamemode" onactivate="ToggleStreeBrawlMode();" />
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`changelevel dl_midtown`);">
+						<Label class="htpp_center_text" text="Midtown" />
+					</Button>
+					<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`changelevel dl_streets`);">
+						<Label class="htpp_center_text" text="Streets" />
+					</Button>
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`changelevel street_test`);">
+						<Label class="htpp_center_text" text="Street Test" />
+					</Button>
+					<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`changelevel caldera_trooper`);">
+						<Label class="htpp_center_text" text="Caldera Trooper" />
+					</Button>
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`changelevel dl_hideout`);">
+						<Label class="htpp_center_text" text="Hideout" />
+					</Button>
+					<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`changelevel 1v1_test`);">
+						<Label class="htpp_center_text" text="1 versus 1" />
+					</Button>
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`changelevel hero_testing`);">
+						<Label class="htpp_center_text" text="Hero Testing" />
+					</Button>
+					<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`changelevel new_player_basics`);">
+						<Label class="htpp_center_text" text="Sandbox" />
+					</Button>
+				</Panel>
+			</Panel>
+			<Panel id="htpp_section_LegendaryItems" class="htpp_section">
+				<Panel class="nav_menu_item_header">
+					<Label text="Legendary Items" />
+					<Panel class="dash" />
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text" onactivate="Cmd(`citadel_loot_table_test_street_brawl_draft_round`)">
+						<Label class="htpp_center_text" text="Draft Items" />
+					</Button>
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text quarter_width" onactivate="imbuedSkill = 0;">
+						<Label class="htpp_center_text" text="1" />
+					</Button>
+					<Button class="nav_menu_item small_text quarter_width" onactivate="imbuedSkill = 1;">
+						<Label class="htpp_center_text" text="2" />
+					</Button>
+					<Button class="nav_menu_item small_text quarter_width" onactivate="imbuedSkill = 2;">
+						<Label class="htpp_center_text" text="3" />
+					</Button>
+					<Button class="nav_menu_item small_text quarter_width" onactivate="imbuedSkill = 3;">
+						<Label class="htpp_center_text" text="4" />
+					</Button>
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`giveitem upgrade_infinite_rounds`)">
+						<Label class="htpp_center_text" text="Infinite Rounds" />
+					</Button>
+					<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`giveitem upgrade_eldritch_shot`)">
+						<Label class="htpp_center_text" text="Haunting Shot" />
+					</Button>
+					<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`giveitem upgrade_runed_gauntlets`)">
+						<Label class="htpp_center_text" text="Runed Gauntlets" />
+					</Button>
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`giveitem upgrade_icarus_wings`)">
+						<Label class="htpp_center_text" text="Seraphim Wings" />
+					</Button>
+					<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`giveitem upgrade_nullification_aura`)">
+						<Label class="htpp_center_text" text="Nullification Burst" style="font-size:19px;" />
+					</Button>
+					<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`giveitem upgrade_celestial_guidance`)">
+						<Label class="htpp_center_text" text="Celestial Blessing" />
+					</Button>
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`giveitem upgrade_eternal_gift`)">
+						<Label class="htpp_center_text" text="Eternal Gift" />
+					</Button>
+					<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`giveitem upgrade_cloak_of_opportunity`)">
+						<Label class="htpp_center_text" text="Cloak of Opportunity" style="font-size:19px;" />
+					</Button>
+					<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`giveitem upgrade_electric_slippers`)">
+						<Label class="htpp_center_text" text="Electric Slippers" />
+					</Button>
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`giveitem upgrade_shadow_strike`)">
+						<Label class="htpp_center_text" text="Shadow Strike" />
+					</Button>
+					<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`giveitem upgrade_mystical_piano`)">
+						<Label class="htpp_center_text" text="Mystical Piano" />
+					</Button>
+					<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`giveitem upgrade_patrons_blessing`)">
+						<Label class="htpp_center_text" text="Mystic Conduit" />
+					</Button>
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text third_width" onactivate="giveImbueItem(`upgrade_shivas_bracelet`)">
+						<Label class="htpp_center_text" text="Frostbite Charm" />
+					</Button>
+					<Button class="nav_menu_item small_text third_width" onactivate="giveImbueItem(`upgrade_omnicharge_pendant`)">
+						<Label class="htpp_center_text" text="Omnicharge Signet" style="font-size:19px;" />
+					</Button>
+					<Button class="nav_menu_item small_text third_width" onactivate="Cmd(`giveitem upgrade_unstable_concoction`)">
+						<Label class="htpp_center_text" text="Unstable Concoction" />
+					</Button>
+				</Panel>
+				<Panel class="nav_menu_item_container">
+					<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`giveitem upgrade_shrink_ray`)">
+						<Label class="htpp_center_text" text="Shrink Ray" />
+					</Button>
+					<Button class="nav_menu_item small_text half_width" onactivate="Cmd(`giveitem upgrade_prism_blast`)">
+						<Label class="htpp_center_text" text="Prism Blast" />
+					</Button>
+				</Panel>
+			</Panel>
+		</Panel>
+	</CitadelHudHeroTesting>
+</root>

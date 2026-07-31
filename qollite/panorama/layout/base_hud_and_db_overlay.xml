@@ -1,0 +1,24 @@
+<!-- xml reconstructed by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/base.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_hud_game_announcements.vcss_c" />
+		<include src="s2r://panorama/styles/notif.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/qollite_notifications_log.js" />
+		<include src="s2r://panorama/scripts/qollite_notifications_config.js" />
+		<include src="s2r://panorama/scripts/qollite_notifications_strings.js" />
+		<include src="s2r://panorama/scripts/qollite_notifications_event_schedule.js" />
+		<include src="s2r://panorama/scripts/qollite_notifications_clock.js" />
+		<include src="s2r://panorama/scripts/qollite_notifications_scheduler.js" />
+		<include src="s2r://panorama/scripts/qollite_notifications_manager.js" />
+		<include src="s2r://panorama/scripts/qollite_notifications_umm_adapter.js" />
+		<include src="s2r://panorama/scripts/qollite_notifications_bootstrap.js" />
+	</scripts>
+	<Panel class="WindowRoot" hittest="false">
+		<CitadelOverlay id="HudAndDBOverlay" hittest="false" />
+		<Panel id="NotificationRoot" hittest="false" />
+	</Panel>
+</root>

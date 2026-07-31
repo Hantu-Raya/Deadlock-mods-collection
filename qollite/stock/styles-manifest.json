@@ -1,0 +1,228 @@
+{
+  "upstream_repository": "SteamTracking/GameTracking-Deadlock",
+  "upstream_commit": "3573cbb746581eccc7752fc2e00c21d4447d72bb",
+  "files": [
+    {
+      "source": "panorama/styles/hud_minimap.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/hud_minimap.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/topbar_rank_topbar.css",
+      "upstream": null,
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_hud_top_bar.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_hud_top_bar.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/hero_testing_menu.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/hero_testing_menu.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/hud.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/hud.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_hud_hero_shop.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_hud_hero_shop.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/profile_card.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/profile_card.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_ui_modified_abilities_panel.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_ui_modified_abilities_panel.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_hero_stats_panels_shared.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_hero_stats_panels_shared.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_ui_modified_stats_panel.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_ui_modified_stats_panel.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_hero_stats_weapon_panel.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_hero_stats_weapon_panel.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_hero_stats_armor_panel.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_hero_stats_armor_panel.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_hero_stats_tech_panel.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_hero_stats_tech_panel.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/hud_ability_icon_passive.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/hud_ability_icon_passive.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_ui_ability_order.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_ui_ability_order.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_item_draft_panel.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_item_draft_panel.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_db_page_training.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_db_page_training.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/topbar_rank_player_list.css",
+      "upstream": null,
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/topbar_rank_escape_menu.css",
+      "upstream": null,
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_hud_hero_builds.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_hud_hero_builds.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_db_page_profile.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_db_page_profile.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_db_page_shared.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_db_page_shared.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_db_page_watch.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_db_page_watch.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/citadel_db_page_learn.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/citadel_db_page_learn.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/hud_event_indicator.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/hud_event_indicator.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/leaderboard_search.css",
+      "upstream": null,
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/hud_quickbuy_entry.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/hud_quickbuy_entry.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/hud_damage_report.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/hud_damage_report.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/hud_ability_icon.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/hud_ability_icon.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/hud_escape_menu.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/hud_escape_menu.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/objectives_map.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/objectives_map.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/hud_abilities.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/hud_abilities.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/hud_quickbuy.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/hud_quickbuy.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/hud_paused.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/hud_paused.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/notif.css",
+      "upstream": null,
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/post_game/citadel_db_post_game_scoreboard_new.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/post_game/citadel_db_post_game_scoreboard_new.css",
+      "origin": "qol-lite-original",
+      "sha256": null
+    },
+    {
+      "source": "panorama/styles/ability_hud_elements/hero_testing_menu.css",
+      "upstream": null,
+      "origin": "qol-lite-original",
+      "sha256": null
+    }
+  ]
+}

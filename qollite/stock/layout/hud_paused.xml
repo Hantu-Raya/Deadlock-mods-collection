@@ -1,0 +1,30 @@
+<!-- xml reconstructed by Source 2 Viewer - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/hud_paused.vcss_c" />
+	</styles>
+	<CitadelPaused hittest="false" hittestchildren="false">
+		<Panel id="PausedGameContainer" class="Hidden">
+			<Panel id="PausedContainer" hittest="false" hittestchildren="false">
+				<Panel class="PausedTextContainer LeftRightFlow align_center">
+					<Label id="PausedLabel" class="PausedText" text="{s:paused_text}" />
+					<Label id="PauserLabel" class="PausedText" text="#Citadel_Hud_Pauser" />
+					<Label id="UnpauseButtonLabel" class="PausedText" text="#Citadel_PauseMsg_UnpauseButton" html="true" />
+				</Panel>
+			</Panel>
+			<Label id="PausedCountdownLabel" hittest="false" hittestchildren="false" />
+			<Panel id="PrevTip" class="TipButton" onactivate="CitadelPrevTipText()" />
+			<Panel id="TipContainer" hittest="false">
+				<Label id="TipText" text="{s:tip_text}" onactivate="CitadelTipClicked()" allowtextselection="false" />
+			</Panel>
+			<Panel id="NextTip" class="TipButton" onactivate="CitadelNextTipText()" />
+		</Panel>
+		<Panel id="CantPauseContainer">
+			<Label id="CantPauseLabel" class="PausedText CantPauseLabels" text="#Citadel_Hud_CantPause" />
+			<Label id="CantUnpauseLabel" class="PausedText CantPauseLabels" text="#Citadel_Hud_CantUnpause" />
+			<Label id="NoPausesLeftLabel" class="PausedText CantPauseLabels" text="#Citadel_Hud_NoPausesLeft" />
+			<Label id="NoTeamPausesLeftLabel" class="PausedText CantPauseLabels" text="#Citadel_Hud_NoTeamPausesLeft" />
+		</Panel>
+	</CitadelPaused>
+</root>

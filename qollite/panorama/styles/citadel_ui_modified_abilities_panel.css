@@ -1,0 +1,35 @@
+/* Prettified by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io */
+
+.WeaponMod CitadelModifiedAbilities
+{
+	background-color: courageDarkerColor;
+}
+
+.TechMod CitadelModifiedAbilities
+{
+	background-color: spiritDarkerColor;
+}
+
+CitadelModifiedAbilities
+{
+	background-color: #26142e50;
+}
+
+CitadelModifiedAbilities.noModifiedAbilities
+{
+	opacity: 0.5;
+}
+
+.modifiedContainer
+{
+	margin-left: 10px;
+	padding-right: 20px;
+	width: 100%;
+	flow-children: right-wrap;
+}
+
+.gShopOpen #InnateModified
+{
+	visibility: collapse;
+}
+

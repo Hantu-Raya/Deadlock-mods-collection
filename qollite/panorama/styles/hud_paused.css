@@ -1,0 +1,301 @@
+/* Prettified by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io */
+
+@keyframes 'ShrinkAnimation'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 0.5;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 0.5;
+	}
+	
+}
+
+CitadelPaused
+{
+	width: 80px;
+	height: 80px;
+	horizontal-align: center;
+	margin-top: 150px;
+	flow-children: down;
+	z-index: -1;
+}
+
+#PausedGameContainer
+{
+	width: 100%;
+	height: fit-children;
+}
+
+CitadelPaused.MinigameVisible
+{
+	margin-top: 50px;
+	width: 1200px;
+}
+
+#PausedContainer
+{
+	width: 500px;
+	height: 120px;
+	vertical-align: top;
+	horizontal-align: center;
+	background-color: #000000aa;
+	border-radius: 5px;
+	flow-children: right;
+	world-blur: ingameHudBlur;
+}
+
+.Hidden
+{
+	visibility: collapse;
+}
+
+#PausedCountdownLabel
+{
+	horizontal-align: center;
+	vertical-align: middle;
+	font-size: 100px;
+	font-family: block;
+	color: offWhite;
+	overflow: noclip;
+}
+
+#PausedCountdownLabel.ShrinkCountdown
+{
+	animation-name: ShrinkAnimation;
+	animation-duration: 1.0s;
+	animation-timing-function: ease-in-out;
+	animation-iteration-count: 1;
+}
+
+.PausedText
+{
+	font-weight: semi-bold;
+	font-size: 18px;
+	line-height: 32px;
+	color: offWhite&66;
+	horizontal-align: center;
+	vertical-align: middle;
+}
+
+.PausedTextContainer
+{
+	vertical-align: center;
+	flow-children: down;
+	width: 100%;
+	text-align: center;
+	margin-bottom: 2px;
+}
+
+#PauserLabel,#UnpauseButtonLabel
+{
+	visibility: collapse;
+}
+
+#PauserLabel
+{
+	margin-top: -4px;
+}
+
+.gameIsPaused #PauserLabel,.gameIsPaused #UnpauseButtonLabel
+{
+	visibility: visible;
+}
+
+.gShopOpen #PausedContainer
+{
+	visibility: collapse;
+}
+
+.CantPauseLabels
+{
+	margin: 30px 10px 30px 10px;
+}
+
+#PausedLabel
+{
+	text-transform: uppercase;
+	font-family: block;
+	font-size: 58px;
+	line-height: 32px;
+	color: offWhite;
+	max-width: 300px;
+}
+
+.gameIsPaused #PausedLabel
+{
+	max-width: 600px;
+}
+
+.PausedTextMoved
+{
+	visibility: collapse;
+}
+
+#CantPauseContainer
+{
+	width: 500px;
+	height: fit-children;
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.5s;
+	transition-timing-function: ease-in;
+	background-color: #000000cc;
+	border-radius: 5px;
+	horizontal-align: center;
+	flow-children: down;
+	margin-top: 10px;
+}
+
+#CantPauseLabel,#CantUnpauseLabel,#NoPausesLeftLabel,#NoTeamPausesLeftLabel
+{
+	visibility: collapse;
+}
+
+.CantPause #CantPauseLabel,.CantUnpause #CantUnpauseLabel
+{
+	visibility: visible;
+}
+
+#NoPausesLeftLabel,#NoTeamPausesLeftLabel
+{
+	text-align: center;
+}
+
+.NoPausesLeft #NoPausesLeftLabel,.NoTeamPausesLeft #NoTeamPausesLeftLabel
+{
+	visibility: visible;
+}
+
+.PauseCooldown #CantPauseContainer,.NoPausesLeft #CantPauseContainer,.NoTeamPausesLeft #CantPauseContainer
+{
+	opacity: 1;
+}
+
+#TipContainer
+{
+	margin-top: 120px;
+	width: 100%;
+	height: 110px;
+	background-color: gradient( linear, 0% 50%, 100% 50%, color-stop(0.0, #0000 ), color-stop(0.15, #000022dd), color-stop(0.85, #000022dd), color-stop(1.0, #00000000 ) );
+	border-radius: 5px;
+	padding: 8px;
+	horizontal-align: center;
+	visibility: collapse;
+}
+
+.IsLocalPlayerSpectating #PrevTip,.IsLocalPlayerSpectating #NextTip,.IsLocalPlayerSpectating #TipContainer
+{
+	visibility: collapse;
+}
+
+.IsLocalPlayerLiveSpectating #TipContainer
+{
+	visibility: visible;
+}
+
+.InPreGame #TipContainer
+{
+	visibility: collapse;
+}
+
+#TipText
+{
+	margin-right: 10px;
+	margin-left: 10px;
+	max-width: 750px;
+	horizontal-align: center;
+	vertical-align: center;
+	text-align: center;
+	text-overflow: shrink;
+	color: #ffffff;
+	font-size: 21px;
+}
+
+.TipButton
+{
+	width: 36px;
+	height: 36px;
+	min-width: 0px;
+	min-height: 0px;
+	background-size: 80% 80%;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	wash-color: white;
+	visibility: collapse;
+}
+
+.TipButton:hover
+{
+	wash-color: #aaaaaa;
+}
+
+.TipButton:active
+{
+	wash-color: white;
+	pre-transform-scale2d: 0.9;
+}
+
+#PrevTip
+{
+	margin-top: 156px;
+	margin-left: 5px;
+	horizontal-align: left;
+	background-image: url("s2r://panorama/images/control_icons/arrow_solid_left_png.vtex");
+}
+
+#NextTip
+{
+	margin-top: 156px;
+	margin-right: 5px;
+	horizontal-align: right;
+	background-image: url("s2r://panorama/images/control_icons/arrow_solid_right_png.vtex");
+}
+
+.InPreGame #PrevTip,.InPreGame #NextTip
+{
+	visibility: collapse;
+}
+
+#PausedBackground
+{
+	width:1000px;
+	height:100%;
+	background-color: black;
+	opacity:0.8;
+}
+
+.MinigameVisible #TipContainer,.MinigameVisible #PrevTip,.MinigameVisible #NextTip
+{
+	visibility: collapse;
+}
+
+#PausedInfo.MinigameVisible
+{
+	width:100%;
+}
+
+.botmatch_warning_title
+{
+	horizontal-align: center;
+	font-weight: bold;
+	font-size: 22px;
+}
+
+.botmatch_warning_details
+{
+	font-size: 20px;
+	margin-top: 10px;
+	text-align: center;
+	font-weight: medium;
+	opacity: 0.9;
+}
+

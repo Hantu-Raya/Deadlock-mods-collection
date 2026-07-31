@@ -1,0 +1,102 @@
+@import url("s2r://panorama/styles/base/profile_card.vcss_c");
+
+.ShowRankProfileCardRoot #AccountID
+{
+    visibility: visible;
+    width: 100%;
+    background-color: black;
+    flow-children: down;
+}
+
+.ShowRankProfileCardRoot #WebMediaDemoAccountLabel
+{
+    width: 100%;
+    margin-bottom: 3px;
+}
+
+.ShowRankProfileCardRoot .HiddenAccountID
+{
+    visibility: collapse;
+    width: 0px;
+    height: 0px;
+}
+
+.ShowRankProfileCardRoot .WebMediaDemoAccountIdRow
+{
+    flow-children: right;
+    horizontal-align: left;
+    vertical-align: middle;
+    margin-top: 2px;
+}
+
+.ShowRankProfileCardRoot .WebMediaDemoProfileLink
+{
+    horizontal-align: left;
+    vertical-align: middle;
+    background-color: transparent;
+    border: 0px solid transparent;
+    border-bottom: 1px solid #6ab7ff99;
+    padding: 0px;
+    margin: 0px;
+}
+
+.ShowRankProfileCardRoot .WebMediaDemoProfileLink Label
+{
+    color: #77c8ff;
+    font-size: 13px;
+}
+
+.ShowRankProfileCardRoot .WebMediaDemoProfileLink:hover Label
+{
+    color: #a8dcff;
+}
+
+.ShowRankProfileCardRoot .WebMediaDemoMediaSlot
+{
+    width: 56px;
+    height: 36px;
+    margin-left: 8px;
+    vertical-align: middle;
+    overflow: noclip;
+}
+
+.ShowRankProfileCardRoot .WebMediaDemoLocalBadge
+{
+    width: 56px;
+    height: 36px;
+    horizontal-align: center;
+    vertical-align: middle;
+    visibility: collapse;
+}
+
+.ShowRankProfileCardRoot .WebMediaDemoMedia
+{
+    width: 56px;
+    height: 36px;
+    horizontal-align: center;
+    vertical-align: middle;
+    z-index: 2;
+    visibility: visible;
+}
+
+.ShowRankProfileCardRoot #BottomRow
+{
+    flow-children: right;
+    width: 100%;
+    visibility: visible;
+}
+
+.ShowRankProfileCardRoot #CardMain
+{
+    width: 100%;
+    visibility: visible;
+}
+
+.ShowRankProfileCardRoot #StatItems
+{
+    flow-children: right;
+    vertical-align: middle;
+    width: fill-parent-flow( 1.0 );
+    height: 50px;
+    visibility: visible;
+}

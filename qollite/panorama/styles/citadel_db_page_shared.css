@@ -1,0 +1,244 @@
+/* Prettified by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io */
+
+.DashboardPage
+{
+	opacity: 0.0;
+	pre-transform-scale2d: 0.975;
+	wash-color: #63b5af;
+	transition-property: opacity, pre-transform-scale2d, wash-color;
+	transition-duration: 0.25s;
+	transition-timing-function: ease-in;
+}
+
+.DashboardPage.PageVisible
+{
+	opacity: 1.0;
+	pre-transform-scale2d: 1.0;
+	wash-color: white;
+}
+
+#HeaderBar
+{
+	background-color: black;
+	height: 100%;
+	width: 70px;
+	flow-children: right;
+}
+
+#BackArrowContainer
+{
+	width: 60px;
+	height: 60px;
+	margin: 5px;
+	background-color: #D8D5CD;
+	border-radius: 5px;
+}
+
+.backArrow
+{
+	width: 40px;
+	height: 40px;
+	background-size: 100% 100%;
+	background-image: url("s2r://panorama/images/icons/arrow_west.vsvg");
+	horizontal-align: center;
+	vertical-align: center;
+	wash-color: black;
+}
+
+#MatchTitle
+{
+	flow-children: right;
+	padding: 20px;
+	font-weight: bold;
+}
+
+.GameMode
+{
+	font-size: 26px;
+	font-family: serif;
+	text-transform: uppercase;
+	margin-top: 5px;
+	margin-right: 10px;
+	opacity: 0.6;
+}
+
+.GameModeRank
+{
+	font-size: 26px;
+	font-family: serif;
+	text-transform: uppercase;
+	opacity: 0.4;
+	margin-top: 5px;
+}
+
+.matchRank3 .GameModeRank
+{
+	color: #20616d;
+}
+
+#FooterBar
+{
+	background-color: black;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #00000000 ), to( #000000 ) );
+	width: 100%;
+	height: 100px;
+	flow-children: right;
+	vertical-align: bottom;
+	padding: 0px 50px 30px 50px;
+	ignore-parent-flow: true;
+	z-index: 100;
+}
+
+#FooterBar .FooterCommand
+{
+	vertical-align: bottom;
+	flow-children: right;
+	transition-property: transform, brightness;
+	transition-duration: 0.1s;
+	transition-timing-function: ease;
+}
+
+#FooterBar .FooterCommand:hover
+{
+	brightness: 1.3;
+	transform: translateY(-2px);
+}
+
+.FooterCommandLabel
+{
+	vertical-align: middle;
+	margin-left: 8px;
+}
+
+#FooterBar .controlKeyBind
+{
+	min-width: 32px;
+	min-height: 32px;
+	margin: 2px;
+	padding-left: 10px;
+	padding-right: 10px;
+	padding-top: 2px;
+	border-radius: 4px;
+	text-align: center;
+	font-weight: bold;
+	background-color: rgba(240, 233, 231, 0.1);
+}
+
+#PageName
+{
+	font-size: 68px;
+	font-weight: bold;
+	vertical-align: center;
+	margin-left: 50px;
+	color: #D8D5CD;
+}
+
+#Library
+{
+	visibility: visible;
+	horizontal-align: right;
+	vertical-align: bottom;
+	margin-bottom: 100px;
+	margin-right: 1550px;
+	width: 340px;
+}
+
+#Library #BookBacker
+{
+	height: 180px;
+	width: 100%;
+	background-size: cover;
+	vertical-align: bottom;
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.2s;
+}
+
+#BookCover
+{
+	width: 265px;
+	height: 400px;
+	opacity: 0.6;
+	overflow: noclip;
+	saturation: 0.8;
+	background-image: url("s2r://panorama/images/book_images/geist/geist_book_cover_vertical_png.vtex");
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center center;
+	horizontal-align: right;
+	vertical-align: bottom;
+	border: 2px solid offWhite&05;
+	box-shadow: 0px 0px 150px #000000aa;
+	ui-scale: 90%;
+	margin: 50px;
+	transition-property: ui-scale, opacity, saturation, transform;
+	transition-duration: 0.2s;
+}
+
+#Library #BookNewViolator
+{
+	width: 50px;
+	height: 50px;
+	horizontal-align: right;
+	margin-top: 25px;
+	margin-right: 25px;
+}
+
+#Library #BookNewViolator #BookNewCircle
+{
+	width: 15px;
+	height: 15px;
+	background-color: brandGreen;
+	border-radius: 50px;
+	horizontal-align: center;
+	vertical-align: middle;
+}
+
+#Library #BookNewViolator #BookNewFrame
+{
+	width: 15px;
+	height: 15px;
+	border: 2px solid brandGreen;
+	border-radius: 50px;
+	horizontal-align: center;
+	vertical-align: middle;
+	animation-name: violatorPulse;
+	animation-duration: 1s;
+	animation-iteration-count: infinite;
+}
+
+#Library .ViewLabel
+{
+	horizontal-align: right;
+	vertical-align: bottom;
+	text-transform: uppercase;
+	margin-right: 70px;
+	margin-bottom: 10px;
+	font-weight: bold;
+	font-size: 28px;
+	text-shadow: 2px 2px 3px #000000;
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.2s;
+}
+
+#Library:hover #BookBacker
+{
+	opacity: 1.0;
+}
+
+#Library:hover #BookCover
+{
+	ui-scale: 100%;
+	opacity: 1;
+	saturation: 1;
+	border: 2px solid offWhite&00;
+	box-shadow: 2px 2px 5px #000000aa;
+	transform: rotateZ(-3deg);
+}
+
+#Library:hover .ViewLabel
+{
+	opacity: 1.0;
+}
+
