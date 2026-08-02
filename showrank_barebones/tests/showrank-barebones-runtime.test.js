@@ -27,7 +27,7 @@ function profile(account, options = {}) {
   return { root, witness, image };
 }
 function setProfileAccount(card, account) { card.witness.text = account; card.root.attributes.accountid = account; delete card.root.attributes.steamid; }
-function topbar(hero, id = `Topbar-${hero}`) { const root = new Panel('CitadelHudTopBarPlayer', { id, classes: ['ShowRankBarebonesTopbarPlayer'] }); const heroLabel = root.add(new Panel('Label', { id: 'ShowRankBarebonesTopbarHero', text: hero })); const image = root.add(new Panel('Panel', { id: 'PlayerNameNWContainer' })).add(new Panel('Image', { id: 'ShowRankBarebonesTopbarRankImage', visible: false })); return { root, heroLabel, image }; }
+function topbar(hero, id = `Topbar-${hero}`) { const root = new Panel('CitadelHudTopBarPlayer', { id, classes: ['ShowRankBarebonesTopbarPlayer'] }); const heroLabel = root.add(new Panel('Label', { id: 'ShowRankBarebonesTopbarHero', text: hero })); const image = root.add(new Panel('Panel', { id: 'HeroContents' })).add(new Panel('Image', { id: 'ShowRankBarebonesTopbarRankImage', visible: false })); return { root, heroLabel, image }; }
 function row(hero, options = {}) { const root = new Panel('CitadelPlayersListEntry', { id: options.id || `Row-${hero}`, classes: ['ShowRankBarebonesPlayerRow'] }); const mainContents = root.add(new Panel('Panel', { id: 'MainContents', valid: options.mainValid })); const heroLabel = mainContents.add(new Panel('Label', { id: 'ShowRankBarebonesRowHero', text: hero })); return { root, mainContents, heroLabel }; }
 function escape() { const root = new Panel('CitadelHudEscapeMenu', { id: 'Escape' }); return { root, playersTab: root.add(new Panel('TabButton', { id: 'PlayersTab' })) }; }
 
@@ -95,11 +95,11 @@ for (const invalid of ['', '0', '-1', '1.5', '1e3', ' 123456', '123456 ', '12345
   h.on(hazeRow.mainContents, () => setProfileAccount(reused, '201'));
   h.on(infernusRow.mainContents, () => { created = profile('202', { id: 'NewProfileCard' }); h.evaluate(created.root); });
   const menuDollar = h.evaluate(menu.root); menuDollar.ShowRankBarebonesEscapeOpen(); const callbacks = h.drain();
-  assert.ok(h.documentRoot.__showrank_barebones_state_v1, 'the shared document root owns cross-context registries');
+  assert.ok(h.documentRoot.__showrank_barebones_state_v1, 'the shared document root owns the Escape session and scanned records');
   assert.ok(h.dollars.every((dollar) => !Object.prototype.hasOwnProperty.call(dollar, '__showrank_barebones_state_v1')), 'each script evaluation receives a context-local $');
-  assert.deepStrictEqual(h.events.map((panel) => panel.id), ['PlayersTab', 'MainContents', 'MainContents'], 'PlayersTab activation precedes later row registration and row probes are sequential');
+  assert.deepStrictEqual(h.events.map((panel) => panel.id), ['PlayersTab', 'MainContents', 'MainContents'], 'PlayersTab activation precedes row discovery and row probes are sequential');
   assert.deepStrictEqual(haze.image.images.filter(Boolean), [rankUrl('201')], 'Haze gets changed reused-card evidence, not row position');
-  assert.deepStrictEqual(infernus.image.images.filter(Boolean), [rankUrl('202')], 'Infernus gets exactly one newly registered card account');
+  assert.deepStrictEqual(infernus.image.images.filter(Boolean), [rankUrl('202')], 'Infernus gets exactly one newly opened card account');
   assert.ok(created); assert.ok(callbacks < 20, 'two-player Escape probe completes within a bound'); assert.strictEqual(h.pending(), 0, 'no recurring callback remains');
 }
 
@@ -126,14 +126,14 @@ for (const invalid of ['', '0', '-1', '1.5', '1e3', ' 123456', '123456 ', '12345
   assert.ok(h.messages.some((message) => message.includes('activePlayer[0] hero=haze account=201')), 'hover reports the joined player-list account mapping');
 }
 
-// Role scripts that execute before attachment migrate their records to the shared HUD root on bounded retries.
+// Direct HUD scans discover role panels that attach after their local scripts execute.
 {
   const h = harness(); const card = profile('101'), bar = topbar('Haze'), player = row('haze'), menu = escape();
   h.evaluate(card.root, { attach: false }); h.evaluate(bar.root, { attach: false }); h.evaluate(player.root, { attach: false });
   h.attach(card.root); h.attach(bar.root); h.attach(player.root); h.drain();
   h.on(player.mainContents, () => setProfileAccount(card, '201'));
   h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain();
-  assert.deepStrictEqual(bar.image.images.filter(Boolean), [rankUrl('201')], 'late-attached roles migrate into one document-root registry');
+  assert.deepStrictEqual(bar.image.images.filter(Boolean), [rankUrl('201')], 'late-attached roles are found without a registration layer');
 }
 
 // Duplicate heroes and account evidence are ambiguous and must fail closed.

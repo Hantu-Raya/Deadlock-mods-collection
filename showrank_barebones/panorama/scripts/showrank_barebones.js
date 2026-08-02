@@ -202,49 +202,20 @@
                     profiles: [],
                     topbars: [],
                     rows: [],
-                    documentRoot: null,
+                    documentRoot: documentRoot,
                     escapeToken: 0,
                     escapeOpenLatched: false,
                     escape: null
                 };
                 documentRoot.__showrank_barebones_state_v1 = shared;
             }
+            shared.documentRoot = documentRoot;
             return shared;
         } catch (ignore) {
             return null;
         }
     }
 
-    function register(list, record) {
-        var index;
-
-        for (index = list.length - 1; index >= 0; index -= 1) {
-            if (!isValid(list[index].root)) {
-                list.splice(index, 1);
-            } else if (list[index].root === record.root) {
-                list[index] = record;
-                return record;
-            }
-        }
-
-        list.push(record);
-        return record;
-    }
-    function registerCurrent(record, listName) {
-        var shared;
-
-        if (!record || !isValid(record.root)) {
-            return record;
-        }
-
-        shared = getState(record.root);
-        if (!shared || !shared[listName]) {
-            return record;
-        }
-
-        state = shared;
-        return register(shared[listName], record);
-    }
 
 
     function clearRankImage(record) {
@@ -323,7 +294,6 @@
         if (!record || !isValid(record.root) || !isValid(record.accountLabel) || !isValid(record.rankImage)) {
             return;
         }
-        registerCurrent(record, "profiles");
 
         account = resolveProfileAccount(record);
         if (!account) {
@@ -344,29 +314,19 @@
     function schedule(delay, callback) {
         $.Schedule(delay, callback);
     }
-    function scheduleRegistrationRefresh(record, callback, delay) {
-        schedule(delay, function () {
-            callback(record);
-        });
-    }
 
-    function startRegistrationWatch(record, callback) {
+    function startTopbarWatch(record) {
         var index;
 
-        callback(record);
+        refreshTopbar(record);
         for (index = 0; index < STARTUP_REFRESH_DELAYS.length; index += 1) {
-            scheduleRegistrationRefresh(record, callback, STARTUP_REFRESH_DELAYS[index]);
+            schedule(STARTUP_REFRESH_DELAYS[index], function () {
+                refreshTopbar(record);
+            });
         }
     }
 
 
-    function scheduleProfileRefresh(record, delay, token) {
-        schedule(delay, function () {
-            if (token === record.refreshToken) {
-                refreshProfile(record);
-            }
-        });
-    }
 
     function startProfileWatch(record, delays) {
         var index;
@@ -380,7 +340,11 @@
         record.refreshToken = token;
         refreshProfile(record);
         for (index = 0; index < delays.length; index += 1) {
-            scheduleProfileRefresh(record, delays[index], token);
+            schedule(delays[index], function () {
+                if (token === record.refreshToken) {
+                    refreshProfile(record);
+                }
+            });
         }
     }
 
@@ -390,7 +354,6 @@
         if (!record || !isValid(record.root) || !isValid(record.heroLabel) || !isValid(record.rankImage)) {
             return "";
         }
-        registerCurrent(record, "topbars");
 
         hero = normalizeHero(readText(record.heroLabel));
         if (record.hero !== hero) {
@@ -415,7 +378,6 @@
                 state.topbars.splice(index, 1);
             } else {
                 clearRankImage(record);
-                record.hero = normalizeHero(readText(record.heroLabel));
             }
         }
     }
@@ -426,13 +388,6 @@
         }
 
         return normalizeHero(readText(record.heroLabel));
-    }
-    function refreshRow(record) {
-        if (!record || !isValid(record.root) || !isValid(record.heroLabel) || !isValid(record.mainContents)) {
-            return;
-        }
-
-        registerCurrent(record, "rows");
     }
 
 
@@ -458,10 +413,7 @@
             if (isValid(profileRoot) && isValid(accountLabel)) {
                 records.push({
                     root: profileRoot,
-                    accountLabel: accountLabel,
-                    rankImage: findChild(profileRoot, "ShowRankBarebonesRankImage", "Image"),
-                    shownAccount: null,
-                    refreshToken: 0
+                    accountLabel: accountLabel
                 });
             }
         }
@@ -495,8 +447,7 @@
                     root: topbarRoot,
                     heroLabel: heroLabel,
                     rankImage: rankImage,
-                    hero: "",
-                    shownAccount: null
+                    hero: ""
                 });
             }
         }
@@ -530,7 +481,6 @@
                     root: rowRoot,
                     heroLabel: heroLabel,
                     mainContents: mainContents,
-                    hero: "",
                     account: null
                 });
             }
@@ -544,9 +494,6 @@
         var sessionRows;
 
         state = getState(record && record.root);
-        if (state) {
-            state.documentRoot = getDocumentRoot(record.root);
-        }
 
         trace("hover id=" + String(record && record.root && record.root.id || "") +
             " hero=" + String(record ? normalizeHero(readText(record.heroLabel) || "") : "") +
@@ -601,31 +548,20 @@
     function snapshotProfiles() {
         var index;
         var profiles = [];
-        var accounts = [];
         var record;
         scanProfilesFromDocument();
 
-        if (!state) {
-            return {
-                profiles: profiles,
-                accounts: accounts
-            };
-        }
-
-        for (index = state.profiles.length - 1; index >= 0; index -= 1) {
+        for (index = state ? state.profiles.length - 1 : -1; index >= 0; index -= 1) {
             record = state.profiles[index];
             if (!isValid(record.root)) {
                 state.profiles.splice(index, 1);
             } else {
+                record.accountAtSnapshot = resolveProfileAccount(record);
                 profiles.push(record);
-                accounts.push(resolveProfileAccount(record));
             }
         }
 
-        return {
-            profiles: profiles,
-            accounts: accounts
-        };
+        return profiles;
     }
 
     function changedProfileAccount(snapshot) {
@@ -646,15 +582,15 @@
             }
 
             snapshotIndex = -1;
-            for (beforeIndex = 0; beforeIndex < snapshot.profiles.length; beforeIndex += 1) {
-                if (snapshot.profiles[beforeIndex].root === record.root) {
+            for (beforeIndex = 0; beforeIndex < snapshot.length; beforeIndex += 1) {
+                if (snapshot[beforeIndex].root === record.root) {
                     snapshotIndex = beforeIndex;
                     break;
                 }
             }
 
             account = resolveProfileAccount(record);
-            if (account && (snapshotIndex < 0 || account !== snapshot.accounts[snapshotIndex])) {
+            if (account && (snapshotIndex < 0 || account !== snapshot[snapshotIndex].accountAtSnapshot)) {
                 accepted = account;
                 count += 1;
                 if (count > 1) {
@@ -716,7 +652,6 @@
             record = state.topbars[index];
             hero = record.hero;
             if (hero && topbarCounts[hero] === 1 && rowCounts[hero] === 1) {
-                rowByHero[hero].hero = hero;
                 if (rowByHero[hero].account) {
                     applyRankImage(record, rowByHero[hero].account);
                 }
@@ -724,14 +659,6 @@
         }
     }
 
-    function finishEscape(session) {
-        if (!escapeIsCurrent(session, session.token)) {
-            return;
-        }
-
-        renderTopbarMatches(session);
-        session.finished = true;
-    }
 
     function inspectRow(session, record, snapshot, attempt) {
         var account;
@@ -768,13 +695,12 @@
         }
 
         if (session.index >= session.rows.length) {
-            finishEscape(session);
+            renderTopbarMatches(session);
             return;
         }
 
         record = session.rows[session.index];
         record.account = null;
-        record.hero = currentRowHero(record);
         if (!isValid(record.mainContents)) {
             session.index += 1;
             probeNextRow(session);
@@ -828,9 +754,6 @@
         var playersTab;
         var session;
         state = getState(escapeRoot);
-        if (state) {
-            state.documentRoot = getDocumentRoot(escapeRoot);
-        }
         if (!state || !isValid(escapeRoot)) {
             return;
         }
@@ -853,8 +776,7 @@
             root: escapeRoot,
             rows: [],
             index: 0,
-            started: false,
-            finished: false
+            started: false
         };
         state.escape = session;
         clearTopbars();
@@ -881,7 +803,6 @@
     }
 
 
-    state = getState(root);
 
     if (root && root.paneltype === "CitadelProfileCard") {
         var profileRecord = {
@@ -892,7 +813,6 @@
             refreshToken: 0
         };
 
-        profileRecord = registerCurrent(profileRecord, "profiles");
         root.ShowRankBarebonesRefresh = function () {
             startProfileWatch(profileRecord, PROFILE_REFRESH_DELAYS);
         };
@@ -902,27 +822,14 @@
             root: root,
             heroLabel: findChild(root, "ShowRankBarebonesTopbarHero", "Label"),
             rankImage: findChild(root, "ShowRankBarebonesTopbarRankImage", "Image"),
-            hero: "",
-            shownAccount: null
+            hero: ""
         };
 
-        topbarRecord = registerCurrent(topbarRecord, "topbars");
         root.ShowRankBarebonesTopbarRefresh = function () {
             refreshTopbar(topbarRecord);
             traceTopbarHover(topbarRecord);
         };
-        startRegistrationWatch(topbarRecord, refreshTopbar);
-    } else if (isValid(root) && root.paneltype === "CitadelPlayersListEntry") {
-        var rowRecord = {
-            root: root,
-            heroLabel: findChild(root, "ShowRankBarebonesRowHero", "Label"),
-            mainContents: findChild(root, "MainContents", "Panel"),
-            hero: "",
-            account: null
-        };
-
-        rowRecord = registerCurrent(rowRecord, "rows");
-        startRegistrationWatch(rowRecord, refreshRow);
+        startTopbarWatch(topbarRecord);
     } else if (isValid(root) && root.paneltype === "CitadelHudEscapeMenu") {
         $.ShowRankBarebonesEscapeOpen = function () {
             startEscapePass(root);

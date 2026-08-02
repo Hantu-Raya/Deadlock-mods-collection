@@ -69,7 +69,8 @@ assert.deepStrictEqual(
   'the feature ships exactly four layout assets, one runtime, and one topbar style',
 );
 
-for (const [name, xml] of Object.entries(layouts)) assertRuntimeInclude(xml, name);
+for (const name of ['profile_card.xml', 'citadel_hud_top_bar_player.xml', 'hud_escape_menu.xml']) assertRuntimeInclude(layouts[name], name);
+assert.doesNotMatch(layouts['players_list_entry.xml'], /<scripts>/, 'the passive row binding does not load an unused role-local runtime');
 
 const profile = layouts['profile_card.xml'];
 assert.strictEqual(openingTags(profile, 'CitadelProfileCard').length, 1, 'one profile-card root');
