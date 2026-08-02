@@ -1,0 +1,18 @@
+CitadelHudTopBarPlayer,
+#PlayerDetailsContainer,
+#HeroContents
+{
+	overflow: noclip;
+}
+
+CitadelHudTopBarPlayer #ShowRankBarebonesTopbarRankImage
+{
+	width: 48px;
+	height: 31px;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 62px;
+	z-index: 60;
+	ignore-parent-flow: true;
+	overflow: noclip;
+}
