@@ -3,6 +3,7 @@
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
 		<include src="s2r://panorama/styles/players_list_entry.vcss_c" />
+		<include src="s2r://panorama/styles/showrank_barebones_topbar.vcss_c" />
 	</styles>
 	<CitadelPlayersListEntry class="ShowRankBarebonesPlayerRow">
 		<Panel class="Controls">
@@ -15,7 +16,8 @@
 				<Label class="PlayerName" text="{s:player_name}" />
 				<Label class="PlayerHero" text="#Citadel_Player_Level_HeroLevel" />
 			</Panel>
-				<Label id="ShowRankBarebonesRowHero" text="{g:citadel_hero_name:hero_id}" visible="false" hittest="false" />
+			<Image id="ShowRankBarebonesPlayerListRankImage" class="ShowRankBarebonesPlayerListRankImage" scaling="stretch-to-fit-preserve-aspect" visible="false" hittest="false" />
+			<Label id="ShowRankBarebonesRowHero" text="{g:citadel_hero_name:hero_id}" visible="false" hittest="false" />
 		</Panel>
 	</CitadelPlayersListEntry>
 </root>

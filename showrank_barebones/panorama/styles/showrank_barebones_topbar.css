@@ -16,3 +16,62 @@ CitadelHudTopBarPlayer #ShowRankBarebonesTopbarRankImage
 	ignore-parent-flow: true;
 	overflow: noclip;
 }
+
+.ShowRankBarebonesTeamAverageLayer
+{
+	width: 300px;
+	height: 84px;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 118px;
+	z-index: 35;
+	ignore-parent-flow: true;
+	overflow: noclip;
+}
+
+.ShowRankBarebonesTeamAverageRankImage
+{
+	width: 92px;
+	height: 60px;
+	vertical-align: top;
+	z-index: 35;
+	visibility: collapse;
+	opacity: 0;
+	ignore-parent-flow: true;
+}
+
+.wants_scoreboard .ShowRankBarebonesTeamAverageRankImage.ShowRankBarebonesTeamAverageRankVisible,
+.gScoreboardOpen .ShowRankBarebonesTeamAverageRankImage.ShowRankBarebonesTeamAverageRankVisible
+{
+	visibility: visible;
+	opacity: 1;
+}
+
+.ShowRankBarebonesTeamAverageFriendlyImage
+{
+	horizontal-align: left;
+	margin-left: 26px;
+}
+
+.ShowRankBarebonesTeamAverageEnemyImage
+{
+	horizontal-align: right;
+	margin-right: 26px;
+}
+
+CitadelPlayersListEntry #MainContents
+{
+	overflow: noclip;
+}
+
+CitadelPlayersListEntry .ShowRankBarebonesPlayerListRankImage
+{
+	width: 72px;
+	height: 47px;
+	horizontal-align: right;
+	vertical-align: middle;
+	margin-right: 12px;
+	ignore-parent-flow: true;
+	overflow: noclip;
+	z-index: 10;
+}

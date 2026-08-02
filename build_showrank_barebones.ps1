@@ -24,6 +24,8 @@ $source2Viewer = Join-Path $root '.tmp\vrf-cli-19.2\Source2Viewer-CLI.exe'
 
 $requiredSourceAssets = @(
     'panorama/layout/profile_card.xml',
+    'panorama/layout/citadel_ui_context_menu_player.xml',
+    'panorama/layout/citadel_hud_top_bar.xml',
     'panorama/layout/citadel_hud_top_bar_player.xml',
     'panorama/layout/hud_escape_menu.xml',
     'panorama/layout/players_list_entry.xml',
@@ -32,6 +34,8 @@ $requiredSourceAssets = @(
 )
 $requiredCompiledAssets = @(
     'panorama/layout/profile_card.vxml_c',
+    'panorama/layout/citadel_ui_context_menu_player.vxml_c',
+    'panorama/layout/citadel_hud_top_bar.vxml_c',
     'panorama/layout/citadel_hud_top_bar_player.vxml_c',
     'panorama/layout/hud_escape_menu.vxml_c',
     'panorama/layout/players_list_entry.vxml_c',
