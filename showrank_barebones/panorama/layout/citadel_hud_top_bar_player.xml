@@ -9,9 +9,8 @@
 	<scripts>
 		<include src="s2r://panorama/scripts/showrank_barebones.vjs_c" />
 	</scripts>
-	<CitadelHudTopBarPlayer class="ShowRankBarebonesTopbarPlayer" onmouseover="if ($.GetContextPanel().ShowRankBarebonesTopbarRefresh) $.GetContextPanel().ShowRankBarebonesTopbarRefresh();">
+	<CitadelHudTopBarPlayer class="ShowRankBarebonesTopbarPlayer">
 		<GlobalClassListener classes="gDetailView" />
-		<Label id="ShowRankBarebonesTopbarHero" text="{s:hero_name}" visible="false" hittest="false" />
 		<Panel id="PauseIndicator">
 			<Panel id="PauseIcon" />
 			<Label text="#Citadel_Notification_Paused_Title" />

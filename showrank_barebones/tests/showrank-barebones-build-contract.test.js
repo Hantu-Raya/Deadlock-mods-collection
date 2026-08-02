@@ -31,25 +31,29 @@ assert.deepStrictEqual(
   assignedStringArray('requiredSourceAssets'),
   [
     'panorama/layout/profile_card.xml',
+    'panorama/layout/citadel_ui_context_menu_player.xml',
+    'panorama/layout/citadel_hud_top_bar.xml',
     'panorama/layout/citadel_hud_top_bar_player.xml',
     'panorama/layout/hud_escape_menu.xml',
     'panorama/layout/players_list_entry.xml',
     'panorama/scripts/showrank_barebones.js',
     'panorama/styles/showrank_barebones_topbar.css',
   ],
-  'the source inventory admits exactly the six barebones assets',
+  'the source inventory admits exactly the eight barebones assets',
 );
 assert.deepStrictEqual(
   assignedStringArray('requiredCompiledAssets'),
   [
     'panorama/layout/profile_card.vxml_c',
+    'panorama/layout/citadel_ui_context_menu_player.vxml_c',
+    'panorama/layout/citadel_hud_top_bar.vxml_c',
     'panorama/layout/citadel_hud_top_bar_player.vxml_c',
     'panorama/layout/hud_escape_menu.vxml_c',
     'panorama/layout/players_list_entry.vxml_c',
     'panorama/scripts/showrank_barebones.vjs_c',
     'panorama/styles/showrank_barebones_topbar.vcss_c',
   ],
-  'the compiled inventory admits exactly the six expected Source 2 assets',
+  'the compiled inventory admits exactly the eight expected Source 2 assets',
 );
 assert.match(build, /Assert-BarebonesAssetSet -Actual \(Get-BarebonesAssetPaths -RootPath \$barebonesRoot\) -ExpectedAssets \$requiredSourceAssets -Label 'Barebones source package'/, 'the full source inventory is rejected unless exact');
 assert.match(build, /Assert-BarebonesAssetSet -Actual \(Get-BarebonesAssetPaths -RootPath \$stageSource\) -ExpectedAssets \$requiredSourceAssets -Label 'Staged barebones source'/, 'staging is rejected unless exact');
