@@ -4,9 +4,6 @@
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
 		<include src="s2r://panorama/styles/players_list_entry.vcss_c" />
 	</styles>
-	<scripts>
-		<include src="s2r://panorama/scripts/showrank_barebones.vjs_c" />
-	</scripts>
 	<CitadelPlayersListEntry class="ShowRankBarebonesPlayerRow">
 		<Panel class="Controls">
 			<Button class="MuteButton ToggleMuteButton" onmouseover="UIShowTextTooltip( #citadel_mute_player )" onmouseout="UIHideTextTooltip()" onactivate="CitadelPlayerListEntrySetMuted( true )" />
