@@ -159,6 +159,12 @@
       "sha256": null
     },
     {
+      "source": "panorama/styles/popups/citadel_popup_global_leaderboard.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/popups/citadel_popup_global_leaderboard.css",
+      "origin": "valve-stock-pinned",
+      "sha256": "a3400300f255775b1199c4c95b37f2709c8f983896c4c0584bde968b2996a73a"
+    },
+    {
       "source": "panorama/styles/hud_quickbuy_entry.css",
       "upstream": "game/citadel/pak01_dir/panorama/styles/hud_quickbuy_entry.css",
       "origin": "qol-lite-original",
