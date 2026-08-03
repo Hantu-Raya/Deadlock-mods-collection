@@ -25,6 +25,11 @@
 				<CitadelHeroCard id="LeaderboardHeroCard" />
 			</Panel>
 		</snippet>
+		<snippet name="Hero">
+			<Panel class="Hero">
+				<CitadelHeroImage id="HeroImage" heroimagestyle="vertical" scaling="cover" />
+			</Panel>
+		</snippet>
 	</snippets>
 	<CitadelPopupGlobalLeaderboard class="PopupPanel Hidden" popupbackground="dim" oncancel="CitadelIntroPopupClosed();">
 		<Panel id="HeroSelectionContainer">
