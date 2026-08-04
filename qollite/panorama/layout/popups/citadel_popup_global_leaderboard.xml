@@ -47,7 +47,7 @@
 			<Panel id="CountriesSelection" />
 			<Panel id="PlayersRatingContainer" class="TopBottomFlow">
 				<Panel class="searchContainer">
-					<TextEntry id="PlayerSearchInput" acceptsfocus="true" acceptsinput="true" placeholder="Search players..." ontextentrychange="FilterLeaderboardPlayers()" />
+					<TextEntry id="PlayerSearchInput" acceptsfocus="true" acceptsinput="true" placeholder="Search players..." ontextentrychange="QolLiteLeaderboardFilterPlayers()" />
 				</Panel>
 				<Panel id="PlayersHeader" />
 				<Panel id="PlayersContainer" />
