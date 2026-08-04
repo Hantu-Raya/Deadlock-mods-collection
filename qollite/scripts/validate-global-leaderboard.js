@@ -37,6 +37,18 @@ assert.match(layout, /panorama\/styles\/popups\/citadel_popup_global_leaderboard
 assert.match(layout, /panorama\/styles\/leaderboard_search\.vcss_c/, 'global leaderboard must retain custom search CSS');
 assert.deepEqual(baseStyle, pinnedBaseStyle, 'packaged base-game leaderboard CSS must match its pinned stock copy');
 assert.match(customStyle, /\.searchContainer/, 'custom leaderboard search CSS must remain intact');
+assert.match(
+  layout,
+  /<Panel class="countryHeader LeftRightFlow">[\s\S]*?<Label class="heroLabel"[\s\S]*?<Image id="LeaderboardHeroIcon"/,
+  'leaderboard heading must precede its optional hero icon'
+);
+assert.match(
+  layout,
+  /<Panel class="playerInfoContainer LeftRightFlow">[\s\S]*?<Label class="playerRatingLabel"[\s\S]*?<Label class="playerRatingName"[\s\S]*?<CitadelRankedBadgeMini id="RankedBadge"/,
+  'player row must keep the rank badge after the player name'
+);
+assert.match(customStyle, /\.countryHeader \.heroIcon[\s\S]*?margin:\s*0px 0px 0px 12px/, 'hero icon must follow the aligned heading with a trailing gap');
+assert.match(customStyle, /\.playerInfoContainer \.playerRatingName[\s\S]*?margin-left:\s*4px/, 'rank number and player name must use compact spacing');
 
 const playerRows = ['Alice', 'Bob'].map((name) => ({
   visible: true,
