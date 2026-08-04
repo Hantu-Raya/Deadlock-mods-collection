@@ -14,8 +14,8 @@
 			<Panel class="playerSnippet">
 				<Panel class="playerInfoContainer LeftRightFlow">
 					<Label class="playerRatingLabel" text="{i:player_rank}" />
-					<CitadelRankedBadgeMini id="RankedBadge" show_rank_tooltip="true" />
 					<Label class="playerRatingName" text="{s:player_name}" />
+					<CitadelRankedBadgeMini id="RankedBadge" show_rank_tooltip="true" />
 				</Panel>
 				<Panel id="TopHeroesContainer" />
 			</Panel>
@@ -41,8 +41,8 @@
 		</Panel>
 		<Panel id="CountryContainer" class="TopBottomFlow">
 			<Panel class="countryHeader LeftRightFlow">
-				<Image id="LeaderboardHeroIcon" class="heroIcon" />
 				<Label class="heroLabel" text="{s:leaderboard_hero_name}" />
+				<Image id="LeaderboardHeroIcon" class="heroIcon" />
 			</Panel>
 			<Panel id="CountriesSelection" />
 			<Panel id="PlayersRatingContainer" class="TopBottomFlow">
