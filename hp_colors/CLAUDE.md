@@ -1,277 +1,177 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file is the working context for `hp_colors/`.
 
-## 1. BUILD COMMAND
+## Build command
 
-Run:
+Run from the repo root:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
 ```
 
-`build_hp_colors.ps1` performs four stages:
+The build is Closure-first:
 
-1. Minify — copies `hp_colors/` → `hp_colors_terser/` and runs `npx terser` on every JS file (`passes=2`, `keep_fnames=true`, `keep_classnames=true`).
-2. Compile — runs `sr2compiler\New folder.exe` against `hp_colors_terser/`, produces `hp_colors_terser_compiled/`, then copies to `hp_colors_compiled/`. Sentinel file: `hp_colors_compiled\panorama\scripts\healthbar_logic.vjs_c`.
-3. Pack — runs `passive_items_mod\compiler\vpkeditcli.exe` against `hp_colors_compiled/`, writes `pak97_dir.vpk` at the repo root.
-4. Deploy — copies `pak97_dir.vpk` to `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak97_dir.vpk`.
+1. Run focused audits:
+   - `node hp_colors/scripts/validate-schema.js`
+   - `node hp_colors/scripts/validate-hero-selector.js`
+   - `node hp_colors/scripts/validate-runtime-replay.js`
+2. Copy `hp_colors/` to `hp_colors_closure/`.
+3. Closure ADVANCED-compile the Panorama scripts in `hp_colors_closure/`.
+4. Re-run hero selector and runtime replay validators against the Closure output.
+5. Compile `hp_colors_closure/` with `sr2compiler/New folder.exe` into `hp_colors_closure_compiled/`.
+6. Copy compiled output to `hp_colors_compiled/`.
+7. Pack `pak97_dir.vpk` with `vpkeditcli.exe`.
+8. Deploy to `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak97_dir.vpk`.
 
-`hp_colors_terser/` and `hp_colors_compiled/` are intermediate build artifacts — do not edit them directly.
+The compiler wrapper may exit nonzero after output exists. The build script treats required compiled files plus successful pack/deploy as the real signal.
 
-## 2. RUNTIME ARCHITECTURE
+`hp_colors_closure/`, `hp_colors_closure_compiled/`, and `hp_colors_compiled/` are generated. Do not edit them directly; regenerate them from `hp_colors/`.
 
-Script to XML context mapping:
+The full build no longer syncs `HPColorsPresetStore` from `pak96_dir.vpk`. It uses source `hp_colors/panorama/layout/base_hud.xml` as-is.
 
-| Script | XML context | What it does |
+## Runtime files
+
+| File | Context | Purpose |
 |---|---|---|
-| `anita_ui_core.js` | `panorama/layout/base_hud.xml` | Defines the HP Colors schema, registers the mod, creates the Anita-UI window, handles persistence/bootstrap replay, and publishes settings/preset snapshots. |
-| `healthbar_logic.js` | `panorama/layout/unit_status_overlay.xml` | Consumes `ANITA_UPDATE`, `ANITA_BULK_UPDATE`, and preset snapshots; scans panel ancestry; applies live healthbar/counter styling. |
+| `panorama/layout/base_hud.xml` | Base HUD | Loads Anita UI style/script and hosts `AnitaUI_Anchor`. |
+| `panorama/layout/unit_status_overlay.xml` | Unit status overlay | Hosts healthbar, counter, level, and kill-marker panels. |
+| `panorama/layout/hud_escape_menu.xml` | Escape menu | Stock escape menu context; use as layout reference only. |
+| `panorama/scripts/anita_ui_core.js` | Anita UI | Settings schema, UI rendering, persistence, preset builder, hero scope, bridge messages, and preset snapshots. |
+| `panorama/scripts/healthbar_logic.js` | Runtime overlay | Consumes bridge messages and applies healthbar, HP number, pulse, ally, kill marker, and level visuals. |
+| `panorama/styles/anita_ui.css` | Anita UI style | Settings window, controls, preset builder, color picker, import popup, donation button. |
+| `panorama/styles/unit_status.css` | Runtime style | Healthbar overrides, HP number, health pips, pulse, level tiers, kill marker. |
 
-Event flow:
+The runtime script set is intentionally exactly two JS files:
 
-1. `anita_ui_core.js` builds `HPSettingsContract.SETTINGS` and queues HP Colors registration with `HPSettingsContract.buildRegistrarConfig()`.
-2. Registration enters `AnitaCore.registerMod(config)`, hydrates current values, adds the Anita tab, then dispatches `ANITA_HANDSHAKE` for that mod.
-3. `healthbar_logic.js` dispatches `ANITA_REQUEST_BOOTSTRAP` during overlay startup, enemy detection, and retry loops when bootstrap has not been satisfied.
-4. `anita_ui_core.js` handles `ANITA_REQUEST_BOOTSTRAP` by replaying current registered values through `emitCurrentValues(..., { update_source: "bridge_bootstrap" })`.
-5. `anita_ui_core.js` owns persistence/bootstrap replay. It reads stored/session/shared payloads, mirrors state, and emits `ANITA_BULK_UPDATE`/`ANITA_UPDATE`.
-6. `healthbar_logic.js` listens for runtime updates, coerces values into `cfg`, refreshes derived state, invalidates cached visual state when needed, and treats `bridge_bootstrap`, `ui_resync`, `ui_reset`, `ui_code_apply`, and `core_auto_resync` as bootstrap-satisfying sync sources.
+- `anita_ui_core.js`
+- `healthbar_logic.js`
 
-`ANITA_UPDATE` is the runtime settings-application event used by both the overlay and the Anita core.
+Do not add a third runtime script unless the build/layout contract is deliberately redesigned.
 
-## 3. REGISTRATION PATH
+## Anita UI architecture
 
-`anita_ui_core.js` owns HP Colors registration in the same script as the Anita UI:
+`anita_ui_core.js` owns the player-facing configuration surface.
 
-1. `AnitaCore.init()` installs `root.AnitaUI`, sets up the bridge listener, and queues HP Colors registration.
-2. `queueHpColorsRegistration()` retries bounded registration with `HPSettingsContract.buildRegistrarConfig()` until the HP Colors tab exists.
-3. `root.AnitaUI.Register(config)` remains available for other mods and validation harnesses.
+Key modules:
 
-Behavior details:
+- `HPBridgeProtocol` — message-level bridge constants and dispatch/shared-store helpers.
+- `HPSettingsContract` — 56 persisted settings, storage namespace/version, aliases, derived IDs/defaults/preset support, and registrar config.
+- `HPValueCodecs` — Anita-side value normalization for toggles, cyclers, numeric controls, colors, and position values.
+- `HPPresetRepository` — baked/user preset rows, removed rows, and priority order.
+- `HPPresetHeroSelection` — hero-scope rules and selected-preset choice.
+- `AnitaPersistence` — compact payload encoding/decoding, storage mirror, import/reset persistence, and resolved-value application.
+- `AnitaRenderer` / `AnitaComponents` — settings UI, preset builder, color picker, import popup, and controls.
 
-- Registration uses the same `AnitaCore.registerMod(config)` path as externally registered mods.
-- Retry loop: 24 attempts.
-- `ANITA_ALIVE` from `anita_ui_core.js` is still published for compatibility.
+Persistence rules:
 
-## 4. CONFIG KEYS TABLE
+- Namespace: `hp_colors`.
+- Storage key: `anita_v1_hp_colors`.
+- `HPSettingsContract.storageVersion` is currently `99`.
+- Compact payloads store only non-default values using aliases.
+- `$.persistentStorage` is not used; do not restore it.
+- Current values are mirrored to root/Hud attributes and `GameUI.CustomUIConfig().__hpColorsCfgRaw`.
 
-These are the keys in `DEFAULTS` inside `healthbar_logic.js`:
+Preset rules:
 
-| Key | Type | Default |
-|---|---|---|
-| `hp_enabled` | bool | `true` |
-| `hp_mode` | int | `1` |
-| `hp_low_threshold` | int | `25` |
-| `hp_high_threshold` | int | `65` |
-| `hp_bg_visible` | bool | `true` |
-| `hp_team_colors` | bool | `false` |
-| `hp_color_low` | string | `"#E16161"` |
-| `hp_color_mid` | string | `"#FF7B00"` |
-| `hp_color_high` | string | `"#00FF00"` |
-| `hp_counter_size` | int | `120` |
-| `hp_counter_position` | string | `"20,196"` |
-| `hp_text_color_mode` | int | `0` |
-| `hp_text_color_low` | string | `"#E16161"` |
-| `hp_text_color_mid` | string | `"#FF7B00"` |
-| `hp_text_color_high` | string | `"#FFFFFF"` |
-| `hp_pulse_enabled` | bool | `true` |
-| `hp_pulse_threshold` | int | `25` |
-| `hp_pulse_bpm` | int | `75` |
-| `hp_pulse_intensity` | int | `1` |
-| `hp_pulse_hide_bar` | bool | `false` |
-| `hp_pulse_text_enabled` | bool | `true` |
-| `hp_pulse_text_scale` | int | `120` |
-| `hp_pulse_text_position` | string | `"20,196"` |
-| `hp_skip_buildings` | bool | `false` |
-| `hp_friend_enabled` | bool | `false` |
-| `hp_friend_color_low` | string | `"#E16161"` |
-| `hp_friend_color_mid` | string | `"#FF7B00"` |
-| `hp_friend_color_high` | string | `"#00FF00"` |
-| `hp_friend_pulse_enabled` | bool | `false` |
-| `hp_friend_pulse_threshold` | int | `25` |
-| `hp_friend_pulse_bpm` | int | `75` |
-| `hp_friend_pulse_intensity` | int | `1` |
-| `hp_friend_pulse_color_enabled` | bool | `false` |
-| `hp_friend_pulse_color` | string | `"#FF2222"` |
-| `hp_counter_format` | int | `0` |
-| `hp_level_number_visible` | bool | `true` |
-| `hp_kill_zone_enabled` | bool | `false` |
-| `hp_kill_zone_threshold` | int | `25` |
-| `hp_kill_zone_color` | string | `"#FF2222"` |
-| `hp_kill_zone_width` | int | `3` |
+- Preset rows can be baked or user-created.
+- Hero scope modes are `off`, `all`, and `selected`.
+- Selected preset selection must preserve priority order and user row identity.
+- `COPY ALL` bundles must preserve off/all/selected hero scope tokens.
+- Compact-token parsing belongs in Anita/import/preset paths, not in `healthbar_logic.js`.
 
-## 5. PERSISTENCE STACK
+## Runtime architecture
 
-Primary storage:
+`healthbar_logic.js` consumes bridge updates and paints many unit-status contexts. Avoid allocations and broad tree scans in scheduled loops.
 
-- The namespace is `hp_colors`.
-- The storage key is `anita_v1_hp_colors`.
-- `anita_ui_core.js` owns the key and payload parsing; `healthbar_logic.js` only consumes shared/runtime replay data.
-- `$.persistentStorage` is deprecated/non-functional in Source 2 Panorama — do not use it.
+Key modules/objects:
 
-Shared/runtime replay:
+- `HPBridgeProtocol` — runtime bridge constants, shared config reads/writes, preset snapshot/request handling, and match-reset ack helpers.
+- `HPValueCodecs` — runtime value coercion entrypoint; wraps the existing stable boolean/number/string/position helpers.
+- `HealthbarContext.snapshot` — enemy target classification and current metrics.
+- `ENEMY_PAINT_PLAN` — enemy bar/ult/text color, HP number, health pips, and kill marker plan fields.
+- `ENEMY_PULSE_PLAN` — low-HP pulse lifecycle plan.
+- `ALLY_SNAPSHOT` / `ALLY_PAINT_PLAN` — ally healthbar metrics, color, pulse, and delay.
+- `LEVEL_SNAPSHOT` / `LEVEL_PAINT_PLAN` — level label/container/wrapper, parsed level, tier class, visibility.
+- `dc` — derived config cache refreshed after settings changes.
 
-- HP Colors writes current values to `GameUI.CustomUIConfig().__hpColorsCfgRaw`.
-- HP Colors publishes `HP_COLORS_PRESET_SNAPSHOT` with `values_raw`.
-- Compact-token parsing stays in `anita_ui_core.js`, not `healthbar_logic.js`.
+Main loop ownership:
 
-Session mirror:
+- `gL()` handles enemy healthbar runtime: target snapshot, counter/pip plan, pulse lifecycle, color paint, kill marker, and schedule.
+- `aL()` handles ally healthbar runtime through `ALLY_SNAPSHOT` and `ALLY_PAINT_PLAN`.
+- `lL()` handles enemy level-number styling through `LEVEL_SNAPSHOT` and `LEVEL_PAINT_PLAN`.
 
-- The same encoded payload is mirrored to root and `Hud` attributes under `anita_v1_hp_colors`.
-- `anita_ui_core.js` writes that mirror.
-- Runtime healthbars consume shared config and replay events; compact-token parsing stays out of `healthbar_logic.js`.
+Runtime invariants:
 
-Manual Copy/Import:
+- Do not allocate new plan/snapshot objects inside hot loops.
+- Reuse existing snapshot/plan objects.
+- Guard panel refs with `IsValid()` checks.
+- Guard style/text writes with last-value caches.
+- Do not call `FindChildTraverse` inside steady hot paths unless guarded by cache/TTL behavior.
+- Keep hidden healthbar backgrounds `visibility: visible` with opacity toggles; collapsing the background can stall width updates.
+- Enemy pulse remains CSS keyframe-driven. Do not add JS frame animation.
 
-- Anita footer controls are only created for configs with `storageNamespace`.
-- `Copy` copies the current save token to the clipboard.
-- `Import` reveals a text entry, extracts a token, decodes it, applies parsed values, persists them, rerenders the UI, and emits updates with `update_source: "ui_code_apply"`.
-- `Reset` reapplies defaults, persists them, rerenders, and emits updates with `update_source: "ui_reset"`.
+## Bridge and match reset
 
-Write timing seen in source:
+Shared bridge channel: `ClientUI_FireOutput`.
 
-- `anita_ui_core.js` schedules `persistConfig(config, false)` after `2.0` seconds for non-replay update events.
+Shared messages/keys:
 
-## 6. COMPACT ALIAS MAP
+- `ANITA_UPDATE`
+- `ANITA_BULK_UPDATE`
+- `ANITA_REQUEST_BOOTSTRAP`
+- `HP_COLORS_PRESET_REQUEST`
+- `HP_COLORS_PRESET_SNAPSHOT`
+- `GameUI.CustomUIConfig().__hpColorsCfgRaw`
+- `GameUI.CustomUIConfig().__hpColorsMatchReset`
 
-Payloads are stored as `{ v: <storageVersion>, c: 1, values: { <alias>: <value> } }` with only non-default keys included. `anita_ui_core.js` owns the compact alias map; `healthbar_logic.js` must not parse compact aliases.
+`anita_ui_core.js` publishes match-reset tokens from game-time rollback/active-match detection. `healthbar_logic.js` consumes those tokens, clears volatile panel/style/bootstrap caches, writes an ack, and requests a preset snapshot with reason `match_reset`.
 
-| Alias | Key |
-|---|---|
-| `e` | `hp_enabled` |
-| `m` | `hp_mode` |
-| `l` | `hp_low_threshold` |
-| `h` | `hp_high_threshold` |
-| `b` | `hp_bg_visible` |
-| `t` | `hp_team_colors` |
-| `cl` | `hp_color_low` |
-| `cm` | `hp_color_mid` |
-| `ch` | `hp_color_high` |
-| `s` | `hp_counter_size` |
-| `p` | `hp_counter_position` |
-| `tm` | `hp_text_color_mode` |
-| `tl` | `hp_text_color_low` |
-| `ti` | `hp_text_color_mid` |
-| `th` | `hp_text_color_high` |
-| `pe` | `hp_pulse_enabled` |
-| `pt` | `hp_pulse_threshold` |
-| `bp` | `hp_pulse_bpm` |
-| `pi` | `hp_pulse_intensity` |
-| `phb` | `hp_pulse_hide_bar` |
-| `pte` | `hp_pulse_text_enabled` |
-| `pts` | `hp_pulse_text_scale` |
-| `ptp` | `hp_pulse_text_position` |
-| `sb` | `hp_skip_buildings` |
-| `fe` | `hp_friend_enabled` |
-| `fcl` | `hp_friend_color_low` |
-| `fcm` | `hp_friend_color_mid` |
-| `fch` | `hp_friend_color_high` |
-| `fpe` | `hp_friend_pulse_enabled` |
-| `fpt` | `hp_friend_pulse_threshold` |
-| `fpb` | `hp_friend_pulse_bpm` |
-| `fpi` | `hp_friend_pulse_intensity` |
-| `fpce` | `hp_friend_pulse_color_enabled` |
-| `fpc` | `hp_friend_pulse_color` |
-| `lnv` | `hp_level_number_visible` |
-| `kze` | `hp_kill_zone_enabled` |
-| `kzt` | `hp_kill_zone_threshold` |
-| `kzc` | `hp_kill_zone_color` |
-| `kzw` | `hp_kill_zone_width` |
+Do not ship verbose bridge/debug status helpers in production.
 
-## 7. storageVersion
+## Settings contract
 
-`anita_ui_core.js` sets `HPSettingsContract.storageVersion` (currently `97`). Bump this whenever schema compatibility requires it, and keep schema/default/alias/runtime adapters in sync.
+There are 56 persisted settings. If adding, removing, or renaming one, update these together:
 
-## 8. POLLING CADENCE TIERS
+- `anita_ui_core.js` `HPSettingsContract.SETTINGS`
+- `anita_ui_core.js` `HPSettingsContract.ALIASES`
+- `healthbar_logic.js` `DEFAULTS`
+- Runtime handling/coercion when needed
+- `hp_colors/scripts/validate-schema.js` audit expectations
 
-`healthbar_logic.js` uses these actual schedule values:
+`validate-schema.js` now enforces exact Anita default vs runtime default parity. Default drift is a hard error.
 
-| Condition | Next schedule |
-|---|---|
-| `hp_enabled === false` | loop stops (`gRunning=false`, no reschedule) |
-| Root bar not found yet | `0.15` |
-| Panel cache not ready yet | `0.15` |
-| skip_buildings + `fl & 4` (building/boss) | `0.5` |
-| Neutral target (`fl & 2`) | `1.5` |
-| Non-enemy target (`!(fl & 1)`) | `0.4` |
-| Parent width `<= 0` | `0.18` |
-| Width unchanged, no pulse, age > 2000 ms | `1.0` |
-| Width unchanged, no pulse, age ≤ 2000 ms | `0.15` |
-| Low HP — pulse text enabled | `0.05` |
-| Default active cadence | `0.15` |
-| Stable above high-HP (`sFC >= 5`) | `min(0.15 × 2^⌊sFC/5⌋, 1.0)` |
-| Error recovery path | `0.5` |
+Bullet-shield defaults now match the native shield fallback: `hp_bullet_shield_color` (`ebsc`) and `hp_friend_bullet_shield_color` (`fbsc`) both default to `#ffffff`, the native `#unit_healthbar_bullet_shield` layer color. Web-builder and preset-store changes must keep those defaults aligned with the full and minimal runtime/schema contract.
 
-Other fixed loops in the same file:
+Current setting groups:
 
-- Bootstrap retry interval: `BOOTSTRAP_RETRY_SEC = 0.5`
-- Level-tier loop `lL()`: `0.5`
-- Overlay startup bootstrap kick: `0.05`
+- General: `hp_enabled`, `hp_bg_visible`, `hp_mode`, `hp_low_threshold`, `hp_high_threshold`, `hp_team_colors`, `hp_skip_buildings`, `hp_info_health_margin_top`, `hp_healthbar_height`
+- Enemy colors: `hp_ult_color_enabled`, `hp_ult_color_custom`, `hp_color_low`, `hp_color_mid`, `hp_color_high`, `hp_heal_color`, `hp_delta_color`, `hp_bullet_shield_color`
+- Enemy pulse: `hp_pulse_enabled`, `hp_pulse_threshold`, `hp_pulse_bpm`, `hp_pulse_intensity`, `hp_pulse_color_enabled`, `hp_pulse_color_mode`, `hp_pulse_color`, `hp_pulse_hide_bar`, `hp_pulse_text_enabled`, `hp_pulse_text_scale`, `hp_pulse_text_position`
+- Enemy counter: `hp_counter_visible`, `hp_counter_size`, `hp_counter_position`, `hp_counter_format`, `hp_text_color_mode`, `hp_level_number_visible`, `hp_pip_visible`, `hp_text_color_low`, `hp_text_color_mid`, `hp_text_color_high`
+- Ally bars: `hp_friend_enabled`, `hp_friend_color_low`, `hp_friend_color_mid`, `hp_friend_color_high`, `hp_friend_heal_color`, `hp_friend_delta_color`, `hp_friend_bullet_shield_color`, `hp_friend_pulse_enabled`, `hp_friend_pulse_threshold`, `hp_friend_pulse_bpm`, `hp_friend_pulse_intensity`, `hp_friend_pulse_color_enabled`, `hp_friend_pulse_color`
+- Kill marker: `hp_kill_zone_enabled`, `hp_kill_zone_threshold`, `hp_kill_zone_color`, `hp_kill_zone_width`
 
-## 9. ANCESTOR SCAN FLAGS
+## Validation
 
-`healthbar_logic.js` uses `fl` as a bitmask during ancestor scanning (`scan()` walks up to 10 parent levels):
+After any `.js`, `.css`, or `.xml` behavior edit, run:
 
-| Bit | Value | Class detected | Meaning |
-|---|---|---|---|
-| FLAG_ENEMY | `1` | `enemy` | Unit is on the enemy team |
-| FLAG_NEUTRAL | `2` | `team_neutral` or `neutral` | Neutral/jungle unit |
-| FLAG_BUILDING | `4` | `building`, `boss_tier1`, `boss_tier2`, `boss_barracks` | Building or boss — triggers skip_buildings logic |
-| FLAG_FRIEND | `8` | `friend` | Friendly unit — enables early scan break |
+```powershell
+powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
+```
 
-Confirmed Deadlock class names from in-game inspection:
-- Neutral trooper: `"alive creature WorldUIRoot team_neutral trooper_neutral"`
-- Boss: `"alive creature team2 enemy WorldUIRoot boss_tier2"`
-- Building/Tower: `"alive creature team2 enemy WorldUIRoot building"`
+Focused validators:
 
-Derived flags:
-- `isEnemy = !!(fl & 1) && !(fl & 2)`
-- `isBuilding = !!(fl & 4)` — checked as `if (cfg.hp_skip_buildings && (fl & 4))`
+```powershell
+node hp_colors/scripts/validate-schema.js
+node hp_colors/scripts/validate-hero-selector.js
+node hp_colors/scripts/validate-runtime-replay.js
+```
 
-Early-break rules: scan breaks when team ID is set AND any of bits `1|2|4|8` confirmed — `if (t && (f & (1|2|4|8))) break`. The `player` class is NOT scanned by `scan()`; the ally loop `aL()` has its own inline scan checking `friend` (bit 1) and `player` (bit 2) in separate vars `f2`/`aScanF2`.
+Manual in-game smoke remains required for visual certainty:
 
-## 10. SCAN CACHE
-
-- Ancestor scan max depth: `10` levels
-- `scan()` (used by `gL()`) runs every tick — no TTL cache
-- Ally scan TTL (inline in `aL()`): `2000` ms — friend+player class hierarchy is stable mid-game; uses `aScanF2`/`aScanT2`/`aScanAt`
-- `resetScanCache()` clears `scanNextAt` back to `0` and nulls the cached ancestor array
-
-`ensureScanState(now)` rescans when the cached ancestor chain changes or the TTL expires.
-
-## 11. DEBUG FLAG NAMES PER FILE
-
-| File | Debug flags actually present |
-|---|---|
-| `healthbar_logic.js` | None |
-| `anita_ui_core.js` | No debug flags in production build |
-| `anita_ui.css` | None |
-| `unit_status.css` | None |
-| `base_hud.xml` | None |
-| `hud_escape_menu.xml` | None |
-| `unit_status_overlay.xml` | None |
-| `build_hp_colors.ps1` | None |
-
-## 12. KNOWN LIMITATIONS
-
-- Restart persistence relies on the shared/session mirror and manual Copy/Import token path; do not restore convar storage.
-- If bridge replay is unavailable in a Panorama context, Copy/Import is the safe manual fallback.
-- Neutral units are intentionally ignored by the enemy coloring path; the overlay hides the HP counter and skips the enemy HP-ratio loop for neutral targets.
-- The color-box drag path still has multiple input sources in the codebase and can vary by Panorama context.
-- The picker still polls while drag is active.
-- `build_hp_colors.ps1` hardcodes the Deadlock addon destination to `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\` — update this path if your Steam library is on a different drive.
-
-## 13. COLOR PICKER ARCHITECTURE
-
-`anita_ui_core.js` renders color-picker rows inside Anita settings and uses Anita footer/UI refresh plumbing to keep picker state, saved values, and emitted `ANITA_UPDATE` events aligned. `anita_ui.css` defines the picker shell and popup visuals.
-
-The picker structure visible in source is:
-
-- A preview swatch button (`AnitaColorPickerPreview`)
-- A popup container (`AnitaColorPopup`)
-- A `240x240` framed color box (`AnitaColorBoxFrame`) with hue and saturation layers plus a draggable cursor (`AnitaColorBoxCursor`)
-- A hue slider group and a separate saturation slider style (`AnitaHueSliderContainer`, `AnitaSatSliderContainer`)
-- Preview/meta/hex labels (`AnitaColorPopupPreview`, `AnitaColorPopupHex`, `AnitaColorPopupMeta`)
-- Popup footer buttons (`AnitaColorPopupFooter`, `AnitaColorPopupBtn`)
-
-The existing module documentation and current CSS both indicate the popup is opened from the clicked swatch and presented as a compact anchored panel rather than a full-screen picker.
+- Anita UI registers HP Colors.
+- Settings changes reach healthbars.
+- Presets import/export and hero scope work.
+- Match reset replays selected preset.
+- Enemy, ally, HP number, health pips, pulse, kill marker, and level visuals update without VConsole errors.

@@ -9,8 +9,7 @@ $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $OutDir = Join-Path (Join-Path $Root "results") $RunId
 if (!(Test-Path $OutDir)) { New-Item -ItemType Directory -Path $OutDir | Out-Null }
 
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-[System.IO.Compression.ZipFile]::ExtractToDirectory($TraceZip, $OutDir, $true)
+Expand-Archive -LiteralPath $TraceZip -DestinationPath $OutDir -Force
 $etlEntry = Get-ChildItem -LiteralPath $OutDir -Filter "*.etl" -File | Sort-Object Length -Descending | Select-Object -First 1
 if (!$etlEntry) { throw "No .etl file found after extracting $TraceZip to $OutDir" }
 $etl = $etlEntry.FullName

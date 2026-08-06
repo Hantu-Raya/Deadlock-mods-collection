@@ -1,17 +1,17 @@
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $root 'scripts\source2_package_pipeline.ps1')
 $modSrc = Join-Path $root 'recent_purchase'
 $modCompiled = Join-Path $root 'recent_purchase_compiled'
 $stagingSrc = Join-Path $root 'recent_purchase_terser'
 $stagingCompiled = Join-Path $root 'recent_purchase_terser_compiled'
 $compiler = Join-Path $root 'sr2compiler\New folder.exe'
-$vpkeditcliCandidates = @(
+$vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
     (Join-Path $root 'passive_items_mod\compiler\vpkeditcli.exe'),
     (Join-Path $root 'vpk cli\vpkeditcli.exe'),
     (Join-Path $root 'passive_items_mod_release\compiler\vpkeditcli.exe')
 )
-$vpkeditcli = $vpkeditcliCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 $vpkOut = Join-Path $root 'pak81_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak81_dir.vpk'
 $scriptRelative = 'panorama\scripts\recent_purchase_queue_costs.js'
@@ -26,6 +26,8 @@ $.Schedule = function(delay, callback) {};
 $.DispatchEvent = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};
 $.GetContextPanel = function() {};
 var GameUI = {};
+var module = {};
+module.exports = {};
 var SteamOverlayAPI = {};
 Object.prototype.FindChildTraverse = function(id) {};
 Object.prototype.GetParent = function() {};
@@ -89,23 +91,25 @@ function Remove-RepoChild {
 
 if (-not (Test-Path -LiteralPath $modSrc)) { throw "Source mod not found: $modSrc" }
 if (-not (Test-Path -LiteralPath $compiler)) { throw "Compiler not found: $compiler" }
-if (-not $vpkeditcli) { throw "vpkeditcli not found in known repo tool paths" }
 
 # Clean rebuild: remove stale minified, compiled output, and previous pack artifacts.
-Remove-RepoChild -Path $modCompiled -Leaf 'recent_purchase_compiled'
-Remove-RepoChild -Path $stagingSrc -Leaf 'recent_purchase_terser'
-Remove-RepoChild -Path $stagingCompiled -Leaf 'recent_purchase_terser_compiled'
+Remove-TreeUnderRoot -Path $modCompiled -RootPath $root -ExpectedLeaf 'recent_purchase_compiled'
+Remove-TreeUnderRoot -Path $stagingSrc -RootPath $root -ExpectedLeaf 'recent_purchase_terser'
+Remove-TreeUnderRoot -Path $stagingCompiled -RootPath $root -ExpectedLeaf 'recent_purchase_terser_compiled'
 if (Test-Path -LiteralPath $vpkOut) { Remove-Item -LiteralPath $vpkOut -Force }
 
 # -- Step 1: Prepare Closure ADVANCED source --------------------------------------
 Write-Host "`n[1/4] Preparing Closure ADVANCED recent_purchase source..." -ForegroundColor Cyan
 Copy-Item -LiteralPath $modSrc -Destination $stagingSrc -Recurse -Force
+Remove-TreeUnderRoot -Path (Join-Path $stagingSrc 'scripts') -RootPath $stagingSrc -ExpectedLeaf 'scripts'
 
 $sourceScript = Join-Path $modSrc $scriptRelative
 $compressedScript = Join-Path $stagingSrc $scriptRelative
 if (-not (Test-Path -LiteralPath $compressedScript)) {
     throw "Compressed script target was not created: $compressedScript"
 }
+
+node recent_purchase\scripts\validate-team-chat-intent.js
 
 $closureExterns = New-RecentPurchaseClosureExterns -Path (Join-Path $stagingSrc 'closure-externs.js')
 $closureArgs = @(
@@ -140,47 +144,18 @@ Write-Host "  Closure ADVANCED OK -> $compressedScript ($([math]::Round($sourceI
 # -- Step 2: Compile --------------------------------------------------------------
 Write-Host "`n[2/4] Compiling recent_purchase..." -ForegroundColor Cyan
 $compileTarget = Join-Path $stagingCompiled 'panorama\scripts\recent_purchase_queue_costs.vjs_c'
-$proc = Start-Process -FilePath $compiler -ArgumentList "`"$stagingSrc`"" -PassThru -WindowStyle Hidden
-$compileDeadline = (Get-Date).AddSeconds(120)
-while (-not $proc.HasExited -and (Get-Date) -lt $compileDeadline) {
-    Start-Sleep -Milliseconds 500
-    if (Test-Path -LiteralPath $compileTarget) {
-        Start-Sleep -Seconds 2
-        if (-not $proc.HasExited) {
-            Write-Host "[WARN] Compiler produced output but did not exit; stopping wrapper." -ForegroundColor Yellow
-            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-            $proc.WaitForExit()
-        }
-        break
-    }
-}
-if (-not $proc.HasExited) {
-    Write-Host "[WARN] Compiler timed out; stopping wrapper." -ForegroundColor Yellow
-    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-    $proc.WaitForExit()
-}
-if ($proc.ExitCode -ne 0) {
-    if (-not (Test-Path -LiteralPath $compileTarget)) {
-        throw "Compiler exited $($proc.ExitCode) and no output produced"
-    }
-    Write-Host "[WARN] Compiler exited $($proc.ExitCode) but output exists; continuing." -ForegroundColor Yellow
-}
-if (-not (Test-Path -LiteralPath $compileTarget)) {
-    throw "Compiled output not found at: $compileTarget"
-}
+Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $stagingSrc -RequiredOutputs @($compileTarget) -TimeoutSeconds 120 -HiddenWindow
 Copy-Item -LiteralPath $stagingCompiled -Destination $modCompiled -Recurse -Force
 Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 
 # -- Step 3: Pack VPK ------------------------------------------------------------
 Write-Host "`n[3/4] Packing VPK..." -ForegroundColor Cyan
-$packArgs = "`"$modCompiled`" -o `"$vpkOut`" -s --no-progress"
-$pack = Start-Process -FilePath $vpkeditcli -ArgumentList $packArgs -PassThru -Wait -NoNewWindow
-if ($pack.ExitCode -ne 0) {
-    throw "vpkeditcli failed with code $($pack.ExitCode)"
-}
-if (-not (Test-Path -LiteralPath $vpkOut)) {
-    throw "VPK not created at $vpkOut"
-}
+Invoke-VpkPack -VpkEditCli $vpkeditcli -InputDir $modCompiled -OutputPath $vpkOut
+$vpkTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut
+Assert-PackedVpkAssets -Tree $vpkTree `
+    -Required @('recent_purchase_queue_costs.vjs_c') `
+    -Forbidden @('validate-team-chat-intent.vjs_c') `
+    -Label 'recent_purchase VPK'
 $vpkSize = (Get-Item -LiteralPath $vpkOut).Length
 Write-Host "  Packed OK -> $vpkOut ($([math]::Round($vpkSize / 1KB, 1)) KB)" -ForegroundColor Green
 

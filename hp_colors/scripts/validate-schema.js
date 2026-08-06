@@ -10,11 +10,9 @@ const fs = require('fs');
 const path = require('path');
 const {
   HP_COLORS_LANE_CONTRACT,
-  HP_EXPECTED_LOOP_REASONS,
   checkFullSettingsContract,
   checkFunctionDeclarationCap,
   checkLevelTierCssParity,
-  checkLoopReasonContract,
   checkObjectInterface,
   checkRuntimePanelIds,
 } = require('../../scripts/hp-colors-validator-contract.js');
@@ -33,6 +31,7 @@ const ALLOWED_RUNTIME_PANEL_IDS = new Set([
   'unit_healthbar_healing',
   'unit_healthbar_delta',
   'unit_healthbar_bullet_shield',
+  'unit_healthbar_tech_shield',
   'unit_healthbar_bg',
   'unit_healthbar_pip_label',
   'unit_ult_ready_icon',
@@ -97,9 +96,6 @@ function main() {
   checkRuntimePanelIds(errors, 'healthbar_logic.js', healthbar, ALLOWED_RUNTIME_PANEL_IDS, FORBIDDEN_RUNTIME_PANEL_IDS);
   for (const runtimeMarker of [
     'var UNIT_STATUS_TARGET_SNAPSHOT = {',
-    'var loopScheduleReason = ["", "", ""];',
-    'var loopLastRunReason = ["", "", ""];',
-    'var LOOP_REASON_ALLOWLIST = {'
   ]) {
     if (!healthbar.includes(runtimeMarker)) {
       errors.push(`healthbar_logic.js missing runtime safety marker: ${runtimeMarker}`);
@@ -132,7 +128,6 @@ function main() {
   if (!/\bvar\s+ENEMY_ACTION_PAINT\s*=\s*9\s*;/.test(healthbar)) {
     errors.push('healthbar_logic.js ENEMY_ACTION_PAINT must be 9');
   }
-  checkLoopReasonContract(errors, 'healthbar_logic.js', healthbar, HP_EXPECTED_LOOP_REASONS);
   checkLevelTierCssParity(errors, 'healthbar_logic.js', healthbar, unitStyle, [
     { min: 11, cls: 'level_tier2' },
     { min: 19, cls: 'level_tier3' },

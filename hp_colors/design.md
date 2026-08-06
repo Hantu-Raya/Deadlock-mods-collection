@@ -203,8 +203,11 @@ Defaults:
 - Mid enemy HP: `#FF7B00`.
 - High enemy HP: `#00FF00` unless team-color high HP is enabled.
 - Team high colors: `#FFC961` for team 1, `#6485FC` for team 2.
+- Enemy heal overlay: `#5fff80`; enemy damage delta overlay: `#ffe55b`; enemy bullet shield overlay: `#ffffff`.
 - Neutral units: `#5BEFB5`.
 - Friend base color in CSS: `#FFEFD7`.
+- Ally heal overlay: `#5fff80`; ally damage delta overlay: `#504c47`; ally bullet shield overlay: `#ffffff`.
+- Bullet shield fallback note: the native `#unit_healthbar_bullet_shield` layer defaults to `#ffffff`, and HP Colors preset/runtime defaults now match it for enemy and ally shields. Keep web-builder defaults aligned with the runtime contract.
 
 Modes:
 

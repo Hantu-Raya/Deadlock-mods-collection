@@ -262,16 +262,16 @@ test('duplicate compact alias value fails', () => {
   assert.match(report.errors.join('\n'), /duplicate compact alias value: a0/);
 });
 
-test('minimal projection excludes full-only settings and keeps 55 shared ids', () => {
+test('minimal projection keeps the full 56-setting runtime schema', () => {
   const full = makeFullSources();
   const fullReport = checkFullSettingsContract(full.ui, full.runtime);
   const minimal = makeMinimalSources(fullReport.contract);
   const report = checkMinimalSettingsContract(minimal.publisher, minimal.runtime, fullReport.contract);
   assert.deepEqual(report.errors, []);
-  assert.deepEqual(FULL_ONLY_SETTING_IDS, ['hp_precise_pips_enabled']);
-  assert.equal(report.expectedMinimalIds.length, 55);
-  assert.equal(report.contract.runtimeDefaultKeys.length, 55);
-  assert.equal(Object.keys(report.contract.aliases).length, 55);
+  assert.deepEqual(FULL_ONLY_SETTING_IDS, []);
+  assert.equal(report.expectedMinimalIds.length, 56);
+  assert.equal(report.contract.runtimeDefaultKeys.length, 56);
+  assert.equal(Object.keys(report.contract.aliases).length, 56);
   for (const id of SHARED_RUNTIME_COLOR_SETTING_IDS) {
     assert.equal(report.expectedMinimalIds.includes(id), true, `${id} is part of the minimal projection`);
     assert.equal(report.contract.runtimeDefaultKeys.includes(id), true, `${id} is present in minimal DEFAULTS`);

@@ -9,6 +9,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from active import add_passive_item_flag
 
 
+
 """
 Adds or removes m_bShowInPassiveItemsArea = true without behavior-bit injection.
 Usage: python active_no_behavior.py <input_file> [output_file]

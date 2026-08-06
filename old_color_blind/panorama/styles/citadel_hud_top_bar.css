@@ -82,11 +82,6 @@ CitadelHudTopBarPlayer.LaneSwapDefault.LaneNum1 #LaneSwapContainer,CitadelHudTop
 	wash-color: #F0E442;
 }
 
-CitadelHudTopBarPlayer.LaneSwapDefault.LaneNum3 #LaneSwapContainer,CitadelHudTopBarPlayer.LaneSwapRequesting.LaneNum3 #LaneSwapContainer,CitadelHudTopBarPlayer.LaneSwapReceiving.LaneNum3 #LaneSwapContainer
-{
-	wash-color: #009E73;
-}
-
 CitadelHudTopBarPlayer.LaneSwapDefault.LaneNum4 #LaneSwapContainer,CitadelHudTopBarPlayer.LaneSwapRequesting.LaneNum4 #LaneSwapContainer,CitadelHudTopBarPlayer.LaneSwapReceiving.LaneNum4 #LaneSwapContainer
 {
 	wash-color: #56B4E9;
@@ -94,5 +89,5 @@ CitadelHudTopBarPlayer.LaneSwapDefault.LaneNum4 #LaneSwapContainer,CitadelHudTop
 
 CitadelHudTopBarPlayer.LaneSwapDefault.LaneNum6 #LaneSwapContainer,CitadelHudTopBarPlayer.LaneSwapRequesting.LaneNum6 #LaneSwapContainer,CitadelHudTopBarPlayer.LaneSwapReceiving.LaneNum6 #LaneSwapContainer
 {
-	wash-color: #CC79A7;
+	wash-color: #009E73;
 }

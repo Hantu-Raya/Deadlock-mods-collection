@@ -47,16 +47,16 @@ cp "F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection\pak81_dir.vpk" "G:\Stea
 
 ## Architecture
 
-- **Recipe components**: `RECIPES_RAW` maps 53 upgrade items to prerequisite components (e.g. `Colossus` -> `Extra Health`). Canonicalized via lowercase + stripped punctuation.
+- **Recipe components**: `RECIPES_RAW` maps 65 upgrade items to prerequisite components (e.g. `Colossus` -> `Extra Health`). Canonicalized via lowercase + stripped punctuation.
 - **Cost math per tick**:
   1. Parse base cost from `#ModCost` text
   2. Deduct prerequisite costs for earlier queued items
-  3. Apply 50% sell-queue credit to available souls
-  4. Incrementally subtract from available souls per queue position
+  3. Apply 50% sell-queue credit only to the net total; queued sale proceeds are not spendable yet
+  4. Incrementally subtract current souls per queue position
   5. Write remaining to `#RecentPurchaseDeficitLabel`
   6. Attach a click handler to the remaining label that can team-chat `Need X more for item`
-- **Total summary**: total is the effective queue cost after recipe deductions and sell-credit subtraction, clamped to 0.
-- **Panel caching**: `_totalLbl`, `_queuePanel`, `_sellPanel` cached with `.IsValid()` check each tick. Dynamic quickbuy entries and labels are traversed every 50ms because the queue is volatile; treat this as a deliberate exception to the repo-wide hot-loop traversal rule unless you are actively optimizing this module.
+- **Total summary**: total is the effective queue cost after recipe deductions and planned sell credit, clamped to 0. Per-item remaining souls use current spendable souls only.
+- **Panel caching**: `_totalLbl`, `_queuePanel`, `_sellPanel` cached with `.IsValid()` check each tick. Dynamic quickbuy entries are traversed every 50ms in visual order; their child references are cached on each entry and reacquired when invalid.
 
 ## DOM Traversal Order (Critical)
 

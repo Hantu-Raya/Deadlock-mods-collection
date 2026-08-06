@@ -426,7 +426,7 @@
 {
 	width: 26px;
 	height: 26px;
-	background-image: url("s2r://panorama/images/control_icons/x_close.vsvg");
+	background-image: url("s2r://panorama/images/control_icons/24px/x_close.vsvg");
 	background-size: contain;
 	background-position: 50% 50%;
 	background-repeat: no-repeat;
@@ -1420,25 +1420,6 @@
 	color: #bff2d6;
 }
 
-.AnitaPresetHeroOptionName
-{
-	width: fill-parent-flow(1.0);
-	color: #edf4f1;
-	font-size: 11px;
-	font-weight: bold;
-	vertical-align: center;
-	text-overflow: shrink;
-}
-
-.AnitaPresetHeroCheck
-{
-	width: 22px;
-	color: #8ee4ad;
-	font-size: 9px;
-	font-weight: black;
-	text-align: right;
-	vertical-align: center;
-}
 
 .AnitaPresetPriorityBtns
 {
@@ -1684,7 +1665,7 @@
 
 .AnitaSliderValueGroup, .SliderValueGroup
 {
-	width: 312px;
+	width: 296px;
 	flow-children: right;
 	vertical-align: center;
 	horizontal-align: left;
@@ -1713,7 +1694,7 @@
 .AnitaSlider
 {
 	width: 100%;
-	height: 26px;
+	height: 12px;
 	vertical-align: center;
 	overflow: noclip;
 }
@@ -1730,6 +1711,7 @@ Slider.AnitaSlider.HorizontalSlider #SliderTrack,
 SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrack
 {
 	height: 4px;
+	padding: 0px;
 	background-color: #23282a;
 	border-radius: 999px;
 	vertical-align: center;
@@ -1754,6 +1736,7 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	border: 1px solid #66cc99;
 	border-radius: 50%;
 	vertical-align: center;
+	transform: translateY(4px);
 	box-shadow: fill rgba(0, 0, 0, 0.55) 0px 0px 5px 0px;
 	transition-property: box-shadow, pre-transform-scale2d, background-color, border-color;
 	transition-duration: 0.16s;
@@ -1769,6 +1752,12 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	background-color: #66cc99;
 	box-shadow: fill rgba(102, 204, 153, 0.7) 0px 0px 8px 0px;
 	pre-transform-scale2d: 1.15;
+}
+
+Slider.AnitaSlider.HorizontalSlider #SliderThumb,
+SlottedSlider.AnitaSlider.HorizontalSlider #SliderThumb
+{
+	vertical-align: center;
 }
 
 .AnitaStepBtn
@@ -2013,6 +2002,411 @@ SlottedSlider.AnitaSlider.HorizontalSlider #SliderTrackProgress
 	align: left top;
 	overflow: noclip;
 	z-index: 10050;
+}
+
+.AnitaConditionalEligible
+{
+	padding-right: 26px;
+	overflow: noclip;
+}
+
+.AnitaConditionalEligible .AnitaLabel
+{
+	padding-right: 0px;
+}
+
+.AnitaConditionalMarker
+{
+	width: 18px;
+	height: 18px;
+	margin-left: 0px;
+	margin-right: 0px;
+	visibility: collapse;
+	opacity: 0;
+	color: #9aa4a4;
+	background-color: rgba(26, 36, 32, 0.95);
+	border: 1px solid rgba(154, 164, 164, 0.55);
+	border-radius: 9px;
+	transition-property: opacity, background-color, color;
+	transition-duration: 0.08s;
+	overflow: noclip;
+}
+
+.AnitaConditionalEligible:hover .AnitaConditionalMarker,
+.AnitaConditionalEligible.ConditionalActive .AnitaConditionalMarker
+{
+	visibility: visible;
+	opacity: 1;
+}
+
+.AnitaConditionalMarker.Configured
+{
+	color: #66cc99;
+	border-color: rgba(102, 204, 153, 0.7);
+}
+
+.AnitaConditionalMarkerGlyph
+{
+	width: 100%;
+	height: 100%;
+	font-size: 16px;
+	font-weight: bold;
+	text-align: center;
+	vertical-align: center;
+}
+
+
+.AnitaConditionalMarker:hover
+{
+	color: #f0f2f2;
+	background-color: #2c4a3e;
+}
+
+.AnitaConditionalPopup
+{
+	width: 430px;
+	height: fit-children;
+	max-height: 90%;
+	padding: 18px;
+	background-color: #151a1b;
+	border: 1px solid #536164;
+	border-radius: 10px;
+	flow-children: down;
+	overflow: noclip;
+}
+
+.AnitaConditionalPopupTitle
+{
+	width: 100%;
+	color: #78d3a7;
+	font-size: 11px;
+	font-weight: bold;
+	letter-spacing: 2px;
+}
+
+.AnitaConditionalPopupSetting
+{
+	width: 100%;
+	margin-top: 3px;
+	margin-bottom: 14px;
+	color: #f2f5f5;
+	font-size: 18px;
+	font-weight: semi-bold;
+	text-overflow: shrink;
+}
+
+.AnitaConditionalToggle
+{
+	width: 100%;
+	height: 40px;
+	margin-bottom: 14px;
+	padding: 0px 11px;
+	background-color: #202728;
+	border: 1px solid #3b4648;
+	border-radius: 6px;
+	transition-property: background-color, border-color;
+	transition-duration: 0.12s;
+}
+
+.AnitaConditionalToggle:hover
+{
+	background-color: #263031;
+	border-color: #647174;
+}
+
+.AnitaConditionalToggle.Active
+{
+	background-color: #213a31;
+	border-color: #66cc99;
+}
+
+.AnitaConditionalToggleLabel
+{
+	color: #dce5e2;
+	font-size: 13px;
+	font-weight: semi-bold;
+	vertical-align: center;
+}
+
+.AnitaConditionalToggleStatus
+{
+	width: 154px;
+	horizontal-align: right;
+	vertical-align: center;
+	margin-right: 48px;
+	color: #9da8a6;
+	font-size: 10px;
+	font-weight: medium;
+	text-align: right;
+}
+
+.AnitaConditionalToggle.Active .AnitaConditionalToggleStatus
+{
+	color: #b9d7c7;
+}
+
+.AnitaConditionalToggleTrack
+{
+	width: 38px;
+	height: 20px;
+	horizontal-align: right;
+	vertical-align: center;
+	background-color: #0f1314;
+	border: 1px solid #4b5557;
+	border-radius: 10px;
+	padding: 2px;
+}
+
+.AnitaConditionalToggle.Active .AnitaConditionalToggleTrack
+{
+	background-color: #315d49;
+	border-color: #78d3a7;
+}
+
+.AnitaConditionalToggleThumb
+{
+	width: 14px;
+	height: 14px;
+	horizontal-align: left;
+	vertical-align: center;
+	background-color: #9aa4a5;
+	border-radius: 50%;
+	transition-property: horizontal-align, background-color;
+	transition-duration: 0.12s;
+}
+
+.AnitaConditionalToggle.Active .AnitaConditionalToggleThumb
+{
+	horizontal-align: right;
+	background-color: #f1f6f3;
+}
+
+.AnitaConditionalSectionLabel
+{
+	width: 100%;
+	margin-bottom: 4px;
+	color: #92a09f;
+	font-size: 10px;
+	font-weight: bold;
+	letter-spacing: 1.4px;
+}
+
+.AnitaConditionalHelp
+{
+	width: 100%;
+	margin-bottom: 10px;
+	color: #aeb9b8;
+	font-size: 11px;
+}
+
+.AnitaConditionalAbilityGroup
+{
+	width: 100%;
+	height: 108px;
+	margin-bottom: 15px;
+	flow-children: right;
+	horizontal-align: center;
+}
+
+.ConditionalDisabled .AnitaConditionalAbilityGroup
+{
+	opacity: 0.45;
+}
+
+.AnitaConditionalAbility
+{
+	width: 91px;
+	height: 104px;
+	margin-right: 6px;
+	background-color: #101516;
+	border: 1px solid #303a3c;
+	border-radius: 9px;
+	overflow: noclip;
+	transition-property: background-color, border-color, pre-transform-scale2d, opacity;
+	transition-duration: 0.12s;
+}
+
+.AnitaConditionalAbility:hover
+{
+	background-color: #1d2526;
+	border-color: #788587;
+	pre-transform-scale2d: 1.02;
+}
+
+.AnitaConditionalAbility:active
+{
+	pre-transform-scale2d: 0.98;
+}
+
+.AnitaConditionalAbility.Active
+{
+	background-color: #20372f;
+	border-color: #66cc99;
+}
+
+.AnitaConditionalAbilityFrame,
+.AnitaConditionalAbilityRing
+{
+	width: 80px;
+	height: 80px;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 3px;
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	wash-color: #eef2f1;
+}
+
+.AnitaConditionalAbility.VisualTier0 .AnitaConditionalAbilityFrame,
+.AnitaConditionalAbility.VisualTier1 .AnitaConditionalAbilityFrame
+{
+	background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_0_psd.vtex");
+}
+
+.AnitaConditionalAbility.VisualTier2 .AnitaConditionalAbilityFrame
+{
+	background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_2_psd.vtex");
+}
+
+.AnitaConditionalAbility.VisualTier3 .AnitaConditionalAbilityFrame
+{
+	background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_3_psd.vtex");
+}
+
+.AnitaConditionalAbilityRing
+{
+	background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_1_psd.vtex");
+	visibility: collapse;
+	opacity: 0.86;
+}
+
+.AnitaConditionalAbility.VisualTier1 .AnitaConditionalAbilityRing,
+.AnitaConditionalAbility.VisualTier2 .AnitaConditionalAbilityRing,
+.AnitaConditionalAbility.VisualTier3 .AnitaConditionalAbilityRing
+{
+	visibility: visible;
+}
+
+.AnitaConditionalAbilityArt
+{
+	width: 42px;
+	height: 42px;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 22px;
+	wash-color: #182021;
+	opacity: 0.96;
+}
+
+.AnitaConditionalSlotNumber
+{
+	width: 26px;
+	height: 20px;
+	horizontal-align: center;
+	vertical-align: bottom;
+	padding-top: 2px;
+	color: #101516;
+	background-color: #eef2f1;
+	border-radius: 0px 0px 6px 6px;
+	font-size: 11px;
+	font-weight: bold;
+	text-align: center;
+}
+
+.AnitaConditionalAbility.Active .AnitaConditionalSlotNumber
+{
+	color: #101516;
+	background-color: #eef2f1;
+}
+
+.AnitaConditionalTierBadge
+{
+	min-width: 26px;
+	height: 18px;
+	horizontal-align: right;
+	vertical-align: top;
+	margin-top: 6px;
+	margin-right: 4px;
+	padding: 2px 5px;
+	color: #102019;
+	background-color: #78d3a7;
+	border: 1px solid #d8f5e6;
+	border-radius: 9px;
+	font-size: 9px;
+	font-weight: bold;
+	text-align: center;
+	visibility: collapse;
+}
+
+.AnitaConditionalAbility.Active .AnitaConditionalTierBadge
+{
+	visibility: visible;
+}
+
+.AnitaConditionalValueEditor
+{
+	width: 100%;
+	margin-bottom: 8px;
+	padding: 10px;
+	background-color: #101516;
+	border: 1px solid #303a3c;
+	border-radius: 7px;
+	flow-children: down;
+}
+
+.AnitaConditionalValueEditor .AnitaRow
+{
+	width: 100%;
+	margin-bottom: 0px;
+	padding: 0px;
+	flow-children: down;
+}
+
+.AnitaConditionalValueToggle
+{
+	margin-bottom: 0px;
+}
+
+.AnitaConditionalValueEditor .AnitaLabel
+{
+	width: 100%;
+	margin-right: 0px;
+	margin-bottom: 8px;
+	color: #cbd4d2;
+	font-size: 12px;
+}
+
+.AnitaConditionalValueEditor .AnitaSliderValueGroup
+{
+	width: 100%;
+}
+
+.AnitaConditionalPopup .AnitaColorPopupFooter
+{
+	width: 100%;
+	horizontal-align: right;
+}
+
+.AnitaConditionalPopup .AnitaColorPopupBtn
+{
+	min-width: 76px;
+	height: 30px;
+	margin-left: 7px;
+	text-align: center;
+	background-color: #232829;
+	border-color: #465052;
+}
+
+.AnitaConditionalPopup .AnitaColorPopupBtn.Primary
+{
+	background-color: #315d49;
+	border-color: #78d3a7;
+}
+
+.AnitaConditionalPopup .AnitaColorPopupBtn.Primary:hover
+{
+	background-color: #3a7158;
 }
 
 .AnitaPresetLocalTooltip
@@ -2288,7 +2682,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 
 .AnitaPositionPickerGroup
 {
-	width: 316px;
+	width: 296px;
 }
 
 .AnitaPositionSliderRow
@@ -2301,6 +2695,8 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 {
 	width: 28px;
 	margin-right: 8px;
+	ignore-parent-flow: true;
+	transform: translateX(-36px);
 	font-size: 12px;
 	letter-spacing: 0px;
 	text-align: left;
@@ -2309,7 +2705,7 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 
 .AnitaPositionSliderContainer
 {
-	width: 214px;
+	width: 230px;
 }
 
 .AnitaPositionReadout
@@ -2465,6 +2861,52 @@ SlottedSlider.AnitaHueSlider.HorizontalSlider:active #SliderThumb,
 	color: #98a1a2;
 	font-size: 13px;
 	line-height: 1.4;
+}
+
+.AnitaPipConvarPopup
+{
+	width: 560px;
+}
+
+.AnitaPipConvarWarning
+{
+	margin-top: 12px;
+	margin-bottom: 14px;
+	color: #e2c47a;
+}
+
+.AnitaPipConvarCommand
+{
+	width: 100%;
+	padding: 10px 12px;
+	margin-bottom: 16px;
+	background-color: #0f1315;
+	border: 1px solid #364042;
+	border-radius: 5px;
+	color: #f0f2f2;
+	font-size: 14px;
+	text-align: center;
+	white-space: normal;
+	text-overflow: shrink;
+}
+
+.AnitaPipConvarActions
+{
+	width: 100%;
+	flow-children: right;
+}
+
+.AnitaPipConvarActions .AnitaActionBtn
+{
+	width: fill-parent-flow(1.0);
+	margin-right: 6px;
+	margin-bottom: 0px;
+}
+
+.AnitaPipConvarActions .AnitaPipConvarAcknowledge
+{
+	margin-right: 0px;
+	border-color: rgba(102, 204, 153, 0.45);
 }
 
 .AnitaImportPopupRow .AnitaFooterBtn

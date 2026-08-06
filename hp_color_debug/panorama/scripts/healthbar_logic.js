@@ -14,6 +14,8 @@
     hp_color_low: "#E16161",
     hp_color_mid: "#FF7B00",
     hp_color_high: "#00FF00",
+    hp_heal_color: "#5fff80",
+    hp_delta_color: "#ffe55b",
     hp_counter_visible: true,
     hp_counter_size: 145,
     hp_counter_position: "27,20",
@@ -42,6 +44,8 @@
     hp_friend_color_low: "#E16161",
     hp_friend_color_mid: "#FF7B00",
     hp_friend_color_high: "#00FF00",
+    hp_friend_heal_color: "#5fff80",
+    hp_friend_delta_color: "#504c47",
     hp_friend_pulse_color_enabled: false,
     hp_friend_pulse_color: "#FF2222",
     hp_level_number_visible: true,
@@ -63,6 +67,8 @@
   var CSS_TEAM2_COLOR = "#5B79E6";
   var CSS_TEAM_ENEMY_COLOR = "#E16161";
   var CSS_TEAM_FRIEND_COLOR = "#FFEFD7";
+  var ID_HEAL_BAR = "unit_healthbar_healing";
+  var ID_DELTA_BAR = "unit_healthbar_delta";
   
 
   var WHITE_WASH = "#ffffff";
@@ -98,9 +104,9 @@
   var lTB = null;
 
   // ── Ally state ───────────────────────────────────────────────────────────────
-  var rbA = null, cpA = null;
+  var rbA = null, cpA = null, healA = null, deltaA = null;
   var allyOwnedPanel = null;
-  var lColA = null, lWA = -1, lPWA = -1, sfcA = 0, allyColorActive = false;
+  var lColA = null, lHealA = null, lDeltaA = null, lWA = -1, lPWA = -1, sfcA = 0, allyColorActive = false;
   var noAllyParentWidthFrames = 0;
   var pulseA = 0, lPIA = -1;
   var aIdleMiss = 0;
@@ -330,6 +336,8 @@
       id === "hp_friend_color_low" ||
       id === "hp_friend_color_mid" ||
       id === "hp_friend_color_high" ||
+      id === "hp_friend_heal_color" ||
+      id === "hp_friend_delta_color" ||
       id === "hp_friend_pulse_enabled" ||
       id === "hp_friend_pulse_threshold" ||
       id === "hp_friend_pulse_bpm" ||
@@ -560,7 +568,7 @@
   }
 
   function resetRuntimeCachesForMatch(token, reason) {
-    us = hc = hca = bg = pl = lb = lbp = rb = cp = ui = kz = ihc = uhc = nm = null;
+    us = hc = hca = bg = pl = lb = lbp = rb = cp = ui = heal = delta = kz = ihc = uhc = nm = null;
     cached = 0;
     att = 0;
     nextCacheProbeAt = 0;
@@ -1047,7 +1055,7 @@
 
   // â”€â”€ Panel cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var ctx = $.GetContextPanel();
-  var us = null, hc = null, hca = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, kz = null, ihc = null, uhc = null, nm = null;
+  var us = null, hc = null, hca = null, bg = null, pl = null, lb = null, lbp = null, rb = null, cp = null, ui = null, heal = null, delta = null, kz = null, ihc = null, uhc = null, nm = null;
   var cached = 0, att = 0;
   var nextCacheProbeAt = 0;
   var nextRbProbeAt = 0;
@@ -1088,6 +1096,8 @@
     if (!vPanel(bg)) bg = us.FindChildTraverse('unit_healthbar_bg');
     if (!vPanel(pl)) pl = us.FindChildTraverse('unit_healthbar_pip_label');
     if (!vPanel(lb)) lb = us.FindChildTraverse('unit_healthbar_lagging');
+    if (!vPanel(heal)) heal = us.FindChildTraverse(ID_HEAL_BAR);
+    if (!vPanel(delta)) delta = us.FindChildTraverse(ID_DELTA_BAR);
     if (cfg.hp_kill_zone_enabled && !vPanel(kz)) kz = us.FindChildTraverse('hp_kill_zone_marker');
     if (!vPanel(ui)) ui = us.FindChildTraverse('unit_ult_ready_icon') || us.FindChildTraverse('ult_icon');
     if (vPanel(ui)) _uiMissAt = 0;
@@ -1109,12 +1119,12 @@
 
   function resetCachedPanelRefsIfInvalid() {
     if (!cached && !rb) return;
-    if (!isInvalidPanel(us) && !isInvalidPanel(hc) && !isInvalidPanel(bg) && !isInvalidPanel(pl) && !isInvalidPanel(lb) && !isInvalidPanel(lbp) && !isInvalidPanel(rb) && !isInvalidPanel(cp) && !isInvalidPanel(nm)) return;
-    us = hc = hca = bg = pl = lb = lbp = rb = cp = ui = kz = ihc = uhc = nm = null;
+    if (!isInvalidPanel(us) && !isInvalidPanel(hc) && !isInvalidPanel(bg) && !isInvalidPanel(pl) && !isInvalidPanel(lb) && !isInvalidPanel(lbp) && !isInvalidPanel(rb) && !isInvalidPanel(cp) && !isInvalidPanel(heal) && !isInvalidPanel(delta) && !isInvalidPanel(nm)) return;
+    us = hc = hca = bg = pl = lb = lbp = rb = cp = ui = heal = delta = kz = ihc = uhc = nm = null;
     cached = 0;
     att = 0;
     nextCacheProbeAt = 0;
-    lastRbPanel = lastCpPanel = lastLbpPanel = lastHcPanel = lastBgPanel = lastKzPanel = lastPlPanel = null;
+    lastRbPanel = lastCpPanel = lastLbpPanel = lastHcPanel = lastBgPanel = lastKzPanel = lastPlPanel = lastHealPanel = lastDeltaPanel = null;
     lastUnitName = "";
     invalidateEnemyVisualCaches();
     settingsDirty = true;
@@ -1442,12 +1452,12 @@
   }
 
   // â”€â”€ Setter helpers (skip redundant writes) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  var lCol = null, lUlt = null, lTxt = null;
-  var lColRaw = null, lUltRaw = null, lTxtRaw = null, lKzRaw = null;
+  var lCol = null, lUlt = null, lTxt = null, lHeal = null, lDelta = null;
+  var lColRaw = null, lUltRaw = null, lTxtRaw = null, lKzRaw = null, lHealRaw = null, lDeltaRaw = null;
   var lSH = -1, lSM = -1, lVis = null;
   var lTx = null, cMax = 0;
   var lCounterLowMode = false;
-  var lastRbPanel = null, lastCpPanel = null, lastLbpPanel = null, lastHcPanel = null, lastBgPanel = null, lastKzPanel = null, lastPlPanel = null, lastUnitName = "";
+  var lastRbPanel = null, lastCpPanel = null, lastLbpPanel = null, lastHcPanel = null, lastBgPanel = null, lastKzPanel = null, lastPlPanel = null, lastHealPanel = null, lastDeltaPanel = null, lastUnitName = "";
   var panelBornAt = 0;
   var panelGeneration = 0, colorGeneration = -1;
   var lastEnemySignature = "";
@@ -1463,6 +1473,22 @@
         lCol = next;
       } catch (e) {
         lCol = null;
+      }
+    }
+  }
+  function sLC(healColor, deltaColor) {
+    if (lHealRaw !== healColor || lHeal === null) {
+      lHealRaw = healColor;
+      var nextHeal = normalizeWashColor(healColor) || "#5fff80";
+      if (lHeal !== nextHeal && heal && heal.style) {
+        try { heal.style.washColor = nextHeal; lHeal = nextHeal; } catch (eHeal) { lHeal = null; }
+      }
+    }
+    if (lDeltaRaw !== deltaColor || lDelta === null) {
+      lDeltaRaw = deltaColor;
+      var nextDelta = normalizeWashColor(deltaColor) || "#ffe55b";
+      if (lDelta !== nextDelta && delta && delta.style) {
+        try { delta.style.washColor = nextDelta; lDelta = nextDelta; } catch (eDelta) { lDelta = null; }
       }
     }
   }
@@ -1540,6 +1566,8 @@
     allyColorActive = false;
     clearAllyPulse(panel);
     lColA = null;
+    lHealA = null;
+    lDeltaA = null;
     lWA = -1;
     lPWA = -1;
     sfcA = 0;
@@ -1552,11 +1580,15 @@
     } catch (e) {
       lColA = null;
     }
+    if (healA && healA.style) { try { healA.style.washColor = ""; } catch (eHealReset) {} }
+    if (deltaA && deltaA.style) { try { deltaA.style.washColor = ""; } catch (eDeltaReset) {} }
   }
 
   function resetAllyLoopCache(panel) {
     allyColorActive = false;
     lColA = null;
+    lHealA = null;
+    lDeltaA = null;
     lWA = -1;
     lPWA = -1;
     sfcA = 0;
@@ -1581,6 +1613,17 @@
     _allyScanPanel = panel;
     _allyScanAt = now;
     return _allyScanFlags;
+  }
+  function findDirectChildById(parent, id) {
+    if (!parent || !parent.Children) return null;
+    try {
+      var children = parent.Children();
+      for (var i = 0; i < children.length; i++) {
+        var child = children[i];
+        if (child && child.id === id) return child;
+      }
+    } catch (eChildren) {}
+    return null;
   }
 
   function isConfirmedAllyHealthbar(flags) {
@@ -1651,8 +1694,8 @@
   var lKzVis = null, lKzX = null, lKzW = null, lKzColor = null, lKzAppliedColor = null, lKzSig = null;
 
   function invalidateEnemyVisualCaches() {
-    lCol = lUlt = lTxt = null;
-    lColRaw = lUltRaw = lTxtRaw = lKzRaw = null;
+    lCol = lUlt = lTxt = lHeal = lDelta = null;
+    lColRaw = lUltRaw = lTxtRaw = lKzRaw = lHealRaw = lDeltaRaw = null;
     lBgVis = lBgOp = lHpSize = lHpHeight = lHcaTransform = lIhcMarginTop = lUhcHeight = lPipHeight = lPipFontSize = lPipVis = null;
     lKzVis = lKzX = lKzW = lKzColor = lKzAppliedColor = lKzSig = null;
     lSH = -1;
@@ -1811,7 +1854,7 @@
     try {
       if (nm) unitName = nm.text || nm.GetAttributeString('text', '') || "";
     } catch (eName) { unitName = ""; }
-    if (rb === lastRbPanel && cp === lastCpPanel && lbp === lastLbpPanel && hc === lastHcPanel && bg === lastBgPanel && kz === lastKzPanel && pl === lastPlPanel) {
+    if (rb === lastRbPanel && cp === lastCpPanel && lbp === lastLbpPanel && hc === lastHcPanel && bg === lastBgPanel && kz === lastKzPanel && pl === lastPlPanel && heal === lastHealPanel && delta === lastDeltaPanel) {
       if (unitName !== lastUnitName) {
         lastUnitName = unitName;
         lTx = null;
@@ -1836,6 +1879,8 @@
     lastBgPanel = bg;
     lastKzPanel = kz;
     lastPlPanel = pl;
+    lastHealPanel = heal;
+    lastDeltaPanel = delta;
     lastUnitName = unitName;
     panelGeneration++;
     colorGeneration = -1;
@@ -1852,6 +1897,10 @@
     ihc = null;
     rbA = null;
     cpA = null;
+    healA = null;
+    deltaA = null;
+    lHealA = null;
+    lDeltaA = null;
     lColA = null;
     lWA = -1;
     lPWA = -1;
@@ -1893,9 +1942,11 @@
     if (rb && rb.style) { try { rb.style.washColor = ""; } catch (eRbWash) {} }
     if (ui && ui.style) { try { ui.style.washColor = ""; } catch (eUiWash) {} }
     if (hc && hc.style) { try { hc.style.washColor = ""; } catch (eHcWash) {} }
+    if (heal && heal.style) { try { heal.style.washColor = ""; } catch (eHealWash) {} }
+    if (delta && delta.style) { try { delta.style.washColor = ""; } catch (eDeltaWash) {} }
     lCol = null; lColRaw = null;
     lUlt = null; lUltRaw = null;
-    lTxt = null; lTxtRaw = null;
+    lTxt = null; lTxtRaw = null; lHeal = null; lHealRaw = null; lDelta = null; lDeltaRaw = null;
     sKZ(false, 0);
     if (bg && bg.style) {
       if (lBgVis !== 'collapse') { bg.style.visibility = 'collapse'; lBgVis = 'collapse'; }
@@ -2039,6 +2090,113 @@
     }
     lSH = cu; lSM = mx;
   }
+
+  var ENEMY_PAINT_PLAN = {
+    hasBarVisible: false,
+    barVisible: false,
+    barColor: "",
+    ultColor: "",
+    textColor: "",
+    healColor: "",
+    deltaColor: "",
+    updateDelta: false,
+    clearPulse: false,
+    stopAfterApply: false,
+    nextDelay: 0.15
+  };
+
+  const HealthStatePaintPlan = {
+    resetEnemy: function (plan) {
+      plan.hasBarVisible = false;
+      plan.barVisible = false;
+      plan.barColor = "";
+      plan.ultColor = "";
+      plan.textColor = "";
+      plan.healColor = "";
+      plan.deltaColor = "";
+      plan.updateDelta = false;
+      plan.clearPulse = false;
+      plan.stopAfterApply = false;
+      plan.nextDelay = 0.15;
+      return plan;
+    },
+    enemy: function (hp, prevHp, now, shouldPulse, plan) {
+      plan = this.resetEnemy(plan || ENEMY_PAINT_PLAN);
+      var low = dc.low;
+      var high = dc.high;
+      var pulseThresh = dc.pulseThreshold;
+      var cl;
+      var textCol;
+      var normalBarColor;
+      var finalBarColor;
+      if (hp <= low && panelBornAt && (now - panelBornAt) < 900 &&
+          (prevHp < 0 || (prevHp <= low && hp > prevHp))) {
+        var warmupCol = getHighColor();
+        plan.clearPulse = true;
+        plan.barColor = warmupCol;
+        plan.ultColor = warmupCol;
+        plan.textColor = getTextColor(100, low, high);
+        plan.nextDelay = 0.05;
+        plan.stopAfterApply = true;
+        return plan;
+      }
+      plan.hasBarVisible = true;
+      plan.barVisible = shouldPulse && cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible;
+      if (hp <= low) {
+        if (cfg.hp_mode === 1) {
+          cl = cfg.hp_color_low;
+          textCol = cfg.hp_text_color_mode ? cfg.hp_text_color_low : cfg.hp_color_low;
+        } else {
+          cl = cfg.hp_color_low;
+          textCol = getTextColor(hp, low, high);
+        }
+      } else {
+        var denomMid = dc.denomMid;
+        var denomHigh = dc.denomHigh;
+        var highCol = getHighColor();
+        if (hp <= high) {
+          if (cfg.hp_mode === 1) {
+            cl = ipHex(cfg.hp_color_low, cfg.hp_color_mid, (hp - low) / denomMid);
+            textCol = getGradientTextColor(hp, low, high);
+          } else {
+            cl = cfg.hp_color_mid;
+            textCol = getTextColor(hp, low, high);
+          }
+        } else {
+          if (cfg.hp_mode === 1) {
+            cl = ipHex(cfg.hp_color_mid, highCol, (hp - high) / denomHigh);
+            textCol = getGradientTextColor(hp, low, high);
+          } else {
+            cl = highCol;
+            textCol = getTextColor(hp, low, high);
+          }
+          if (sFC >= 5) {
+            plan.nextDelay = ENEMY_IDLE_BACKOFF[Math.min(Math.floor((sFC - 5) / 5), 3)];
+          }
+        }
+      }
+      normalBarColor = cl;
+      finalBarColor = normalBarColor;
+      if (shouldPulse && cfg.hp_pulse_color_enabled) {
+        if ((cfg.hp_pulse_color_mode | 0) === 1) {
+          finalBarColor = ipHex(
+            normalBarColor,
+            cfg.hp_pulse_color,
+            clampNum((pulseThresh - hp) / Math.max(1, pulseThresh), 0, 1, 0)
+          );
+        } else {
+          finalBarColor = cfg.hp_pulse_color;
+        }
+      }
+      plan.barColor = finalBarColor;
+      plan.ultColor = finalBarColor;
+      plan.textColor = textCol;
+      plan.healColor = cfg.hp_heal_color;
+      plan.deltaColor = cfg.hp_delta_color;
+      plan.updateDelta = true;
+      return plan;
+    }
+  };
 
   // â”€â”€ Poll state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var lUT = 0, lW = -1, lPW = -1, lHp = -1, pPct = -1, sFC = 0, noParentWidthFrames = 0, nonEnemyExitFrames = 0, buildingNotEnemyExitFrames = 0, stableCurrentRedBarFrames = 0;
@@ -2223,72 +2381,18 @@
         sHCV(false);
       }
 
-      var sc = 0.15, cl, textCol, normalBarColor, finalBarColor;
-
-      if (hp <= low) {
-        if (panelBornAt && (now - panelBornAt) < 900 && (prevHp < 0 || (prevHp <= low && hp > prevHp))) {
-          var warmupCol = getHighColor();
-          clearPulse();
-          sBC(warmupCol); sUC(warmupCol); sTC(getTextColor(100, low, high));
-          scheduleEnemyLoop(0.05); return;
-        }
-        sHBV(shouldPulse && cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible);
-        if (cfg.hp_mode === 1) {
-          cl = cfg.hp_color_low;
-          textCol = cfg.hp_text_color_mode ? cfg.hp_text_color_low : cfg.hp_color_low;
-        } else {
-          cl = cfg.hp_color_low;
-          textCol = getTextColor(hp, low, high);
-        }
-        normalBarColor = cl;
-        finalBarColor = normalBarColor;
-        if (shouldPulse && cfg.hp_pulse_color_enabled) {
-          if ((cfg.hp_pulse_color_mode | 0) === 1) {
-            var lowPulseDepth = clampNum((pulseThresh - hp) / Math.max(1, pulseThresh), 0, 1, 0);
-            finalBarColor = ipHex(normalBarColor, cfg.hp_pulse_color, lowPulseDepth);
-          } else {
-            finalBarColor = cfg.hp_pulse_color;
-          }
-        }
-        sBC(finalBarColor); sUC(finalBarColor); sTC(textCol);
-      } else {
-        sHBV(shouldPulse && cfg.hp_pulse_hide_bar ? false : !!cfg.hp_bg_visible);
-        var denomMid = dc.denomMid;
-        var denomHigh = dc.denomHigh;
-        var highCol = getHighColor();
-
-        if (hp <= high) {
-          if (cfg.hp_mode === 1) {
-            cl = ipHex(cfg.hp_color_low, cfg.hp_color_mid, (hp - low) / denomMid);
-            textCol = getGradientTextColor(hp, low, high);
-          } else {
-            cl = cfg.hp_color_mid;
-            textCol = getTextColor(hp, low, high);
-          }
-        } else {
-          if (cfg.hp_mode === 1) {
-            cl = ipHex(cfg.hp_color_mid, highCol, (hp - high) / denomHigh);
-            textCol = getGradientTextColor(hp, low, high);
-          } else {
-            cl = highCol;
-            textCol = getTextColor(hp, low, high);
-          }
-          if (sFC >= 5) {
-            sc = ENEMY_IDLE_BACKOFF[Math.min(Math.floor((sFC - 5) / 5), 3)];
-          }
-        }
-        normalBarColor = cl;
-        finalBarColor = normalBarColor;
-        if (shouldPulse && cfg.hp_pulse_color_enabled) {
-          if ((cfg.hp_pulse_color_mode | 0) === 1) {
-            var pulseDepth = clampNum((pulseThresh - hp) / Math.max(1, pulseThresh), 0, 1, 0);
-            finalBarColor = ipHex(normalBarColor, cfg.hp_pulse_color, pulseDepth);
-          } else {
-            finalBarColor = cfg.hp_pulse_color;
-          }
-        }
-        sBC(finalBarColor); sUC(finalBarColor); sTC(textCol);
+      var paintPlan = HealthStatePaintPlan.enemy(hp, prevHp, now, shouldPulse, ENEMY_PAINT_PLAN);
+      if (paintPlan.clearPulse) clearPulse();
+      if (paintPlan.hasBarVisible) sHBV(paintPlan.barVisible);
+      sBC(paintPlan.barColor);
+      sUC(paintPlan.ultColor);
+      sTC(paintPlan.textColor);
+      if (paintPlan.updateDelta) sLC(paintPlan.healColor, paintPlan.deltaColor);
+      if (paintPlan.stopAfterApply) {
+        scheduleEnemyLoop(paintPlan.nextDelay);
+        return;
       }
+      var sc = paintPlan.nextDelay;
       if (shouldPulse) {
         if (!pulse) startPulse();
         if (cfg.hp_pulse_text_enabled) {
@@ -2373,7 +2477,9 @@
         if (!rbA) { aIdleMiss++; scheduleAllyLoop(aIdleMiss > 75 ? 3.0 : 0.2); return; }
       }
       aIdleMiss = 0;
-      if (rbA.GetParent) { var pa = rbA.GetParent(); if (cpA !== pa) cpA = pa; }
+      if (rbA.GetParent) { var pa = rbA.GetParent(); if (cpA !== pa) { cpA = pa; healA = null; deltaA = null; lHealA = null; lDeltaA = null; } }
+      if (!vPanel(healA)) healA = findDirectChildById(cpA, ID_HEAL_BAR);
+      if (!vPanel(deltaA)) deltaA = findDirectChildById(cpA, ID_DELTA_BAR);
 
       if (allySettingsDirty) {
         if (now < allySettingsRefreshHoldUntil) {
@@ -2435,6 +2541,14 @@
       var nextColA = normalizeWashColor(acl);
       if (lColA !== nextColA && rbA) {
         try { rbA.style.washColor = nextColA; lColA = nextColA; allyColorActive = true; allyOwnedPanel = rbA; } catch (e) { lColA = null; }
+      }
+      var nextHealA = normalizeWashColor(cfg.hp_friend_heal_color) || "#5fff80";
+      if (lHealA !== nextHealA && healA && healA.style) {
+        try { healA.style.washColor = nextHealA; lHealA = nextHealA; } catch (eHealA) { lHealA = null; }
+      }
+      var nextDeltaA = normalizeWashColor(cfg.hp_friend_delta_color) || "#504c47";
+      if (lDeltaA !== nextDeltaA && deltaA && deltaA.style) {
+        try { deltaA.style.washColor = nextDeltaA; lDeltaA = nextDeltaA; } catch (eDeltaA) { lDeltaA = null; }
       }
 
       var sc = 0.35;

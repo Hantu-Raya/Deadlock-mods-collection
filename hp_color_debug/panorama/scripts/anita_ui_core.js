@@ -196,6 +196,8 @@
     hp_color_low: "cl",
     hp_color_mid: "cm",
     hp_color_high: "ch",
+    hp_heal_color: "ehc",
+    hp_delta_color: "edc",
     hp_counter_visible: "cv",
     hp_counter_size: "s",
     hp_counter_position: "p",
@@ -227,6 +229,8 @@
     hp_friend_color_low: "fcl",
     hp_friend_color_mid: "fcm",
     hp_friend_color_high: "fch",
+    hp_friend_heal_color: "fhc",
+    hp_friend_delta_color: "fdc",
     hp_friend_pulse_color_enabled: "fpce",
     hp_friend_pulse_color: "fpc",
     hp_kill_zone_enabled: "kze",
@@ -260,6 +264,8 @@
     hp_color_low: true,
     hp_color_mid: true,
     hp_color_high: true,
+    hp_heal_color: true,
+    hp_delta_color: true,
     hp_pulse_enabled: true,
     hp_pulse_threshold: true,
     hp_pulse_bpm: true,
@@ -284,6 +290,8 @@
     hp_friend_color_low: true,
     hp_friend_color_mid: true,
     hp_friend_color_high: true,
+    hp_friend_heal_color: true,
+    hp_friend_delta_color: true,
     hp_friend_pulse_enabled: true,
     hp_friend_pulse_threshold: true,
     hp_friend_pulse_bpm: true,
@@ -343,14 +351,103 @@
     return out;
   }
 
+  const HeroScopedPresetSelection = {
+    normalizeHeroes: function (heroes) {
+      var source = Array.isArray(heroes) ? heroes : (heroes ? [heroes] : []);
+      var out = [];
+      var seen = {};
+      for (var i = 0; i < source.length; i++) {
+        var heroId = normalizeHpHeroToken(source[i]);
+        if (!heroId || seen[heroId]) continue;
+        seen[heroId] = true;
+        out.push(heroId);
+      }
+      return out;
+    },
+    normalizeMode: function (mode, heroes) {
+      var text = String(mode || "").toLowerCase();
+      if (text === HP_HERO_SCOPE_OFF) return HP_HERO_SCOPE_OFF;
+      if (text === HP_HERO_SCOPE_ALL || text === "global") return HP_HERO_SCOPE_ALL;
+      if (text === HP_HERO_SCOPE_SELECTED || text === "heroes" || text === "hero") {
+        return this.normalizeHeroes(heroes).length ? HP_HERO_SCOPE_SELECTED : HP_HERO_SCOPE_OFF;
+      }
+      return this.normalizeHeroes(heroes).length ? HP_HERO_SCOPE_SELECTED : HP_HERO_SCOPE_OFF;
+    },
+    targetsHero: function (preset, heroId) {
+      if (!preset || !heroId || !Array.isArray(preset.heroes)) return false;
+      if (this.normalizeMode(preset.heroMode, preset.heroes) !== HP_HERO_SCOPE_SELECTED) return false;
+      for (var i = 0; i < preset.heroes.length; i++) {
+        if (preset.heroes[i] === heroId) return true;
+      }
+      return false;
+    },
+    hasScopedPreset: function (presets) {
+      for (var i = 0; i < presets.length; i++) {
+        if (!presetIsDisabled(presets[i]) && hpHeroScopeIsSelected(presets[i].heroMode, presets[i].heroes)) return true;
+      }
+      return false;
+    },
+    findById: function (presets, presetId) {
+      for (var i = 0; i < presets.length; i++) {
+        if (presets[i] && presets[i].id === presetId) return presets[i];
+      }
+      return null;
+    },
+    resolve: function (presets, heroId, allowUnknownFallback, allowHeroMatch) {
+      var canUseHeroMatch = allowHeroMatch !== false;
+      var startupPreset = null;
+      var firstPreset = null;
+      var firstGlobal = null;
+      var firstHeroMatch = null;
+      var hasScopedPreset = false;
+      var scopedCount = 0;
+      var globalCount = 0;
+      var heroMatchCount = 0;
+      for (var i = 0; i < presets.length; i++) {
+        var preset = presets[i];
+        if (presetIsDisabled(preset)) continue;
+        if (!firstPreset) firstPreset = preset;
+        if (!firstGlobal && presetIsGlobal(preset)) firstGlobal = preset;
+        if (presetIsGlobal(preset)) globalCount++;
+        if (hpHeroScopeIsSelected(preset.heroMode, preset.heroes)) {
+          hasScopedPreset = true;
+          scopedCount++;
+        }
+        if (preset.id === HP_STARTUP_PRESET_ID) startupPreset = preset;
+        if (heroId && this.targetsHero(preset, heroId)) {
+          heroMatchCount++;
+          if (!firstHeroMatch) firstHeroMatch = preset;
+        }
+      }
+      var result = null;
+      if (canUseHeroMatch && heroId && firstHeroMatch) {
+        result = { preset: firstHeroMatch, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "hero", source: "hero", usedFallback: false };
+      } else if (startupPreset && (presetIsGlobal(startupPreset) ||
+          (canUseHeroMatch && heroId && this.targetsHero(startupPreset, heroId)) ||
+          (!heroId && allowUnknownFallback))) {
+        result = { preset: startupPreset, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "startup", source: "startup", usedFallback: true };
+      } else if (firstGlobal) {
+        result = { preset: firstGlobal, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "global", source: "global", usedFallback: true };
+      } else if (hasScopedPreset && (!heroId || !canUseHeroMatch) && !allowUnknownFallback) {
+        result = { preset: null, heroId: heroId, hasScopedPreset: true, reason: "waiting_for_hero", source: "waiting_for_hero", usedFallback: false };
+      } else if (firstPreset) {
+        result = { preset: firstPreset, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "first", source: "first", usedFallback: true };
+      } else {
+        result = { preset: null, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "none", source: "none", usedFallback: false };
+      }
+      result.startupPreset = startupPreset;
+      result.firstGlobal = firstGlobal;
+      result.firstHeroMatch = firstHeroMatch;
+      result.scopedCount = scopedCount;
+      result.globalCount = globalCount;
+      result.heroMatchCount = heroMatchCount;
+      result.canUseHeroMatch = canUseHeroMatch;
+      return result;
+    },
+  };
+
   function normalizeHpHeroScopeMode(mode, heroes) {
-    var text = String(mode || "").toLowerCase();
-    if (text === HP_HERO_SCOPE_OFF) return HP_HERO_SCOPE_OFF;
-    if (text === HP_HERO_SCOPE_ALL || text === "global") return HP_HERO_SCOPE_ALL;
-    if (text === HP_HERO_SCOPE_SELECTED || text === "heroes" || text === "hero") {
-      return normalizeHpHeroSelection(heroes).length ? HP_HERO_SCOPE_SELECTED : HP_HERO_SCOPE_OFF;
-    }
-    return normalizeHpHeroSelection(heroes).length ? HP_HERO_SCOPE_SELECTED : HP_HERO_SCOPE_OFF;
+    return HeroScopedPresetSelection.normalizeMode(mode, heroes);
   }
 
   function hpHeroScopeIsSelected(mode, heroes) {
@@ -768,11 +865,7 @@
   }
 
   function presetTargetsHero(preset, heroId) {
-    if (!preset || !heroId || !Array.isArray(preset.heroes) || !hpHeroScopeIsSelected(preset.heroMode, preset.heroes)) return false;
-    for (var i = 0; i < preset.heroes.length; i++) {
-      if (preset.heroes[i] === heroId) return true;
-    }
-    return false;
+    return HeroScopedPresetSelection.targetsHero(preset, heroId);
   }
 
   function presetIsGlobal(preset) {
@@ -1283,62 +1376,26 @@
   function selectBakedPresetForHero(modConfig, allowUnknownFallback, allowHeroMatch) {
     var presets = readRuntimePresetEntries(modConfig);
     var heroId = detectHpLocalHero();
-    var canUseHeroMatch = allowHeroMatch !== false;
-    var startupPreset = null;
-    var firstPreset = null;
-    var firstGlobal = null;
-    var firstHeroMatch = null;
-    var hasScopedPreset = false;
-    var scopedCount = 0;
-    var globalCount = 0;
-    var heroMatchCount = 0;
-    for (var i = 0; i < presets.length; i++) {
-      var preset = presets[i];
-      if (presetIsDisabled(preset)) continue;
-      if (!firstPreset) firstPreset = preset;
-      if (!firstGlobal && presetIsGlobal(preset)) firstGlobal = preset;
-      if (presetIsGlobal(preset)) globalCount++;
-      if (hpHeroScopeIsSelected(preset.heroMode, preset.heroes)) {
-        hasScopedPreset = true;
-        scopedCount++;
-      }
-      if (preset.id === HP_STARTUP_PRESET_ID) startupPreset = preset;
-      if (heroId && presetTargetsHero(preset, heroId)) {
-        heroMatchCount++;
-        if (!firstHeroMatch) firstHeroMatch = preset;
-      }
-    }
-
-    var result = null;
-    if (canUseHeroMatch && heroId && firstHeroMatch) {
-      result = { preset: firstHeroMatch, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "hero" };
-    } else if (startupPreset && (presetIsGlobal(startupPreset) ||
-        (canUseHeroMatch && heroId && presetTargetsHero(startupPreset, heroId)) ||
-        (!heroId && allowUnknownFallback))) {
-      result = { preset: startupPreset, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "startup" };
-    } else if (firstGlobal) {
-      result = { preset: firstGlobal, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "global" };
-    } else if (hasScopedPreset && (!heroId || !canUseHeroMatch) && !allowUnknownFallback) {
-      result = { preset: null, heroId: heroId, hasScopedPreset: true, reason: "waiting_for_hero" };
-    } else if (firstPreset) {
-      result = { preset: firstPreset, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "first" };
-    } else {
-      result = { preset: null, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "none" };
-    }
+    var result = HeroScopedPresetSelection.resolve(
+      presets,
+      heroId,
+      allowUnknownFallback,
+      allowHeroMatch,
+    );
 
     hpHeroDebug("select", {
       hero: heroId || "none",
       allowUnknown: !!allowUnknownFallback,
-      allowHero: canUseHeroMatch,
+      allowHero: result.canUseHeroMatch,
       reason: result ? result.reason : "missing",
       result: result && result.preset ? hpHeroDebugPreset(result.preset) : "none",
-      startup: hpHeroDebugPreset(startupPreset),
-      global: hpHeroDebugPreset(firstGlobal),
-      heroMatch: hpHeroDebugPreset(firstHeroMatch),
+      startup: hpHeroDebugPreset(result.startupPreset),
+      global: hpHeroDebugPreset(result.firstGlobal),
+      heroMatch: hpHeroDebugPreset(result.firstHeroMatch),
       presets: presets.length,
-      scoped: scopedCount,
-      globals: globalCount,
-      heroMatches: heroMatchCount,
+      scoped: result.scopedCount,
+      globals: result.globalCount,
+      heroMatches: result.heroMatchCount,
       lastKey: modConfig && modConfig.__hpLastAppliedHeroPresetKey,
       lastHero: modConfig && modConfig.__hpLastAppliedHeroPresetHero,
       selectedKey: modConfig && modConfig.__anitaSelectedPresetKey,

@@ -494,9 +494,15 @@ function runValidation() {
       .find(payload => payload && payload.magic_word === 'ANITA_UPDATE' && payload.setting_id === id);
     assert(update && update.value === element.currentValue,
       `Toggle did not emit ANITA_UPDATE for ${id}: ${JSON.stringify(dispatched)}`);
+    return update;
   }
 
-  clickToggleSetting('hp_ult_color_enabled', 'HEALTH BARS', 'Enemy Colors');
+  const liveUltToggleUpdate = clickToggleSetting('hp_ult_color_enabled', 'HEALTH BARS', 'Enemy Colors');
+  eventHandlers.ClientUI_FireOutput(JSON.stringify(liveUltToggleUpdate));
+  const liveUltSnapshot = JSON.parse(sharedStore.__hpColorsCfgRaw || '{}');
+  assert(liveUltSnapshot.hp_ult_color_enabled ===
+      validationConfig.elements.find(element => element.id === 'hp_ult_color_enabled').currentValue,
+    `Live toggle did not refresh the shared runtime snapshot: ${JSON.stringify(liveUltSnapshot)}`);
   clickToggleSetting('hp_friend_enabled', 'HEALTH BARS', 'Ally Colors');
   clickToggleSetting('hp_pulse_enabled', 'VISUAL EFFECTS', 'Low HP Pulse');
   clickToggleSetting('hp_kill_zone_enabled', 'VISUAL EFFECTS', 'Kill Marker');
@@ -1485,6 +1491,72 @@ function runSignatureTierConditionalValidation() {
     payload.effective_values.hp_low_threshold === 45),
   `Tier transition did not republish effective value: ${JSON.stringify(snapshots)}`);
   console.log(`[HP SIGNATURE CONDITIONAL PASS] ${path.relative(ROOT, targetScript)} refreshes per-setting selection and summaries, saves cycler and boolean values, resolves false toggle overrides, snapshots live icon sources including CSS-bound images, cycles Tier 1–3 frames, constrains slider hit testing, republishes transitions, and falls back to base when unresolved.`);
+}
+
+
+function runBakedPresetPayloadCompatibilityValidation() {
+  const source = fs.readFileSync(targetScript, 'utf8');
+
+  function runCase(label, payload, expectedValues, expectedRule) {
+    dispatched.length = 0;
+    scheduled.length = 0;
+    const context = createMockContext();
+    runInVm(source, context, targetScript);
+    const store = root.add(new MockPanel('HPColorsPresetStore'));
+    store.add(createPresetEntryPanel(`HPColorsPreset_${label}`, payload));
+
+    const config = {
+      title: 'HP Colors',
+      description: `baked ${label} payload compatibility`,
+      storageNamespace: 'hp_colors',
+      storageVersion: 99,
+      elements: [
+        { id: 'hp_enabled', type: 'toggle', defaultValue: true, currentValue: true, category: 'General' },
+        { id: 'hp_low_threshold', type: 'slider', defaultValue: 35, currentValue: 35, category: 'General', min: 0, max: 100, step: 1 },
+        { id: 'hp_precise_pips_enabled', type: 'toggle', presetSupported: false, defaultValue: false, currentValue: false, category: 'General' },
+      ],
+    };
+    root.AnitaUI.Register(config);
+    runNextScheduledByDelay(0.5);
+
+    assert(config.elements[0].currentValue === expectedValues.hp_enabled &&
+      config.elements[1].currentValue === expectedValues.hp_low_threshold &&
+      config.elements[2].currentValue === false,
+      `${label} baked values did not hydrate while excluding precise pips: ${JSON.stringify(config.elements.map(element => element.currentValue))}`);
+    assert(config.__hpSignatureConditionalRules &&
+      config.__hpSignatureConditionalRules.hp_low_threshold &&
+      config.__hpSignatureConditionalRules.hp_low_threshold.slot === expectedRule.slot &&
+      config.__hpSignatureConditionalRules.hp_low_threshold.minTier === expectedRule.minTier &&
+      config.__hpSignatureConditionalRules.hp_low_threshold.value === expectedRule.value &&
+      !config.__hpSignatureConditionalRules.hp_precise_pips_enabled,
+      `${label} baked signature overrides did not reach the controller: ${JSON.stringify(config.__hpSignatureConditionalRules || null)}`);
+    const payloads = decodedBulkUpdates();
+    assert(payloads.some(item => item.preset_key === `HPColorsPreset_${label}` &&
+      item.values &&
+      item.values.hp_enabled === expectedValues.hp_enabled &&
+      item.values.hp_low_threshold === expectedValues.hp_low_threshold &&
+      item.values.hp_precise_pips_enabled === false),
+    `${label} baked apply did not emit sanitized base values without applying precise pips: ${JSON.stringify(payloads)}`);
+  }
+
+  runCase('compact', {
+    v: 99,
+    c: 1,
+    name: 'Compact baked',
+    values: { e: false, l: 64, ppe: true },
+    o: { l: [2, 1, 73], ppe: [1, 0, true] },
+    hm: 'all',
+  }, { hp_enabled: false, hp_low_threshold: 64 }, { slot: 2, minTier: 1, value: 73 });
+
+  runCase('legacy', {
+    version: 1,
+    name: 'Legacy baked',
+    values: { hp_enabled: false, hp_low_threshold: 41, hp_precise_pips_enabled: true },
+    o: { l: [3, 2, 28], ppe: [1, 0, true] },
+    heroMode: 'all',
+  }, { hp_enabled: false, hp_low_threshold: 41 }, { slot: 3, minTier: 2, value: 28 });
+
+  console.log(`[HP BAKED PAYLOAD PASS] ${path.relative(ROOT, targetScript)} accepts compact v99/c1 and version:1 canonical baked payloads, normalizes compact signature rules, hydrates sanitized values, and excludes precise-pip settings from Full presets.`);
 }
 
 
@@ -3609,6 +3681,7 @@ try {
   runValidation();
   if (!IS_OPTIMIZED_TARGET) runPipConvarPopupValidation();
   runSignatureTierConditionalValidation();
+  runBakedPresetPayloadCompatibilityValidation();
   runHeroPresetApplyValidation();
   runHeroPresetStableIdPriorityValidation();
   runHeroPresetGlobalFallbackBeforeHeroValidation();

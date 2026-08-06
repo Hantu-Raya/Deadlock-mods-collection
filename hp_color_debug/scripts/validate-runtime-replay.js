@@ -127,6 +127,8 @@ function buildEnemyHealthbarTree() {
   parent.actuallayoutwidth = 100;
   const rb = new MockPanel('unit_healthbar_lagging', parent);
   rb.actuallayoutwidth = 82;
+  const heal = new MockPanel('unit_healthbar_healing', parent);
+  const delta = new MockPanel('unit_healthbar_delta', parent);
   const pip = new MockPanel('unit_healthbar_pip_label', unitStatus);
   pip.text = '||||';
   const counterAnchor = new MockPanel('hp_counter_anchor', unitStatus);
@@ -137,7 +139,7 @@ function buildEnemyHealthbarTree() {
   new MockPanel('UnitHealthbarContainer', unitStatus);
   const name = new MockPanel('name', root);
 
-  return { root, unitStatus, rb, bg, pip, counterAnchor, counter, killMarker, ultIcon, name };
+  return { root, unitStatus, rb, heal, delta, bg, pip, counterAnchor, counter, killMarker, ultIcon, name };
 }
 
 function resetFindCounts() {
@@ -519,6 +521,8 @@ function runValidation() {
     hp_mode: 0,
     hp_team_colors: false,
     hp_color_high: '#336699',
+    hp_heal_color: '#66ff88',
+    hp_delta_color: '#ffee66',
     hp_counter_visible: false,
     hp_pulse_enabled: false,
     hp_friend_enabled: false,
@@ -573,6 +577,8 @@ function runValidation() {
     hp_bg_visible: true,
     hp_team_colors: false,
     hp_color_high: '#456789',
+    hp_heal_color: '#66ff88',
+    hp_delta_color: '#ffee66',
     hp_counter_visible: false,
     hp_ult_color_enabled: false,
     hp_ult_color_custom: '#bada55',
@@ -586,6 +592,10 @@ function runValidation() {
   );
   assert(ultDisabledTree.ultIcon.style.washColor === '#bada55',
     `Custom ult color setting did not apply when bar-color ult mode was disabled: ${JSON.stringify(ultDisabledTree.ultIcon.style)}`);
+  assert(ultDisabledTree.heal.style.washColor === '#66ff88',
+    `Custom heal color setting did not apply: ${JSON.stringify(ultDisabledTree.heal.style)}`);
+  assert(ultDisabledTree.delta.style.washColor === '#ffee66',
+    `Custom delta color setting did not apply: ${JSON.stringify(ultDisabledTree.delta.style)}`);
 
   scheduled.length = 0;
   dispatched.length = 0;
@@ -799,6 +809,8 @@ function runValidation() {
     hp_friend_enabled: true,
     hp_mode: 0,
     hp_friend_color_high: '#44dd88',
+    hp_friend_heal_color: '#55ee99',
+    hp_friend_delta_color: '#776655',
     hp_friend_pulse_enabled: false,
     hp_counter_visible: false,
     hp_pulse_enabled: false,
@@ -810,6 +822,10 @@ function runValidation() {
     1000
   );
 
+  assert(friendlyTree.heal.style.washColor === '#55ee99',
+    `Friendly non-player healthbar did not receive ally healing color: ${JSON.stringify(friendlyTree.heal.style)}`);
+  assert(friendlyTree.delta.style.washColor === '#776655',
+    `Friendly non-player healthbar did not receive ally delta color: ${JSON.stringify(friendlyTree.delta.style)}`);
   scheduled.length = 0;
   for (const key of Object.keys(sharedStore)) delete sharedStore[key];
   const lateFriendlyTree = buildEnemyHealthbarTree();
@@ -820,6 +836,8 @@ function runValidation() {
     hp_friend_enabled: true,
     hp_mode: 0,
     hp_friend_color_high: '#33cc99',
+    hp_friend_heal_color: '#22cc88',
+    hp_friend_delta_color: '#665544',
     hp_friend_pulse_enabled: false,
     hp_counter_visible: false,
     hp_pulse_enabled: false,
@@ -835,6 +853,10 @@ function runValidation() {
     `Late friendly healthbar did not start ally loop from durable snapshot: ${JSON.stringify(lateFriendlyTree.rb.style)}`,
     1000
   );
+  assert(lateFriendlyTree.heal.style.washColor === '#22cc88',
+    `Late friendly healthbar did not receive ally healing color: ${JSON.stringify(lateFriendlyTree.heal.style)}`);
+  assert(lateFriendlyTree.delta.style.washColor === '#665544',
+    `Late friendly healthbar did not receive ally delta color: ${JSON.stringify(lateFriendlyTree.delta.style)}`);
 
 
   console.log(`[RUNTIME REPLAY PASS] ${path.relative(ROOT, targetScript)} replays preset values onto reused, reset, and replaced healthbar panels.`);

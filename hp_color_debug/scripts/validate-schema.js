@@ -12,6 +12,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const SCRIPTS_DIR = path.join(ROOT, 'hp_color_debug', 'panorama', 'scripts');
 const STYLES_DIR = path.join(ROOT, 'hp_color_debug', 'panorama', 'styles');
+const EXPECTED_HP_COLORS_SETTING_COUNT = 53;
 
 function readFile(name) {
   return fs.readFileSync(path.join(SCRIPTS_DIR, name), 'utf-8').replace(/\r\n/g, '\n');
@@ -125,6 +126,9 @@ function main() {
   if (!aliasesCore || Object.keys(aliasesCore).length === 0) errors.push('Could not extract HP_PERSIST_ALIASES from anita_ui_core.js');
   if (!aliasesLoader || Object.keys(aliasesLoader).length === 0) errors.push('Could not extract HP_PERSIST_ALIASES from anita_persist_loader.js');
   if (!registrarDefaults || Object.keys(registrarDefaults).length === 0) errors.push('Could not extract SCHEMA defaults from hp_registrar.js');
+  if (schemaIds && schemaIds.length !== EXPECTED_HP_COLORS_SETTING_COUNT) {
+    errors.push(`HP Colors setting count changed: expected ${EXPECTED_HP_COLORS_SETTING_COUNT}, got ${schemaIds.length}`);
+  }
 
   if (errors.length) {
     errors.forEach(e => console.error('[AUDIT ERROR]', e));
@@ -328,7 +332,10 @@ function main() {
     'function getIgnoredTargetColor()',
     'if (cfg.hp_skip_buildings && (fl & 4))',
     'normalizeWashColor(cfg.hp_color_high) === normalizeWashColor(DEFAULTS.hp_color_high)',
-    'sBC(getHighColor());'
+    'sBC(getHighColor());',
+    'plan.healColor = cfg.hp_heal_color;',
+    'sLC(paintPlan.healColor, paintPlan.deltaColor);',
+    'findDirectChildById(cpA, ID_HEAL_BAR)',
   ]) {
     if (!healthbar.includes(runtimeColorMarker)) {
       errors.push(`healthbar_logic.js missing first-paint/building color marker: ${runtimeColorMarker}`);
@@ -489,9 +496,11 @@ function main() {
     'function lockHpHeroPresetDetectionIfReady(config, heroId)',
     'config.__hpHeroPresetDetectionLocked = true;',
     'lockHpHeroPresetDetectionIfReady(config, appliedHero);',
-    'result = { preset: firstHeroMatch, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "hero" }',
-    'result = { preset: null, heroId: heroId, hasScopedPreset: true, reason: "waiting_for_hero" }',
-    'result = { preset: firstGlobal, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "global" }',
+    'const HeroScopedPresetSelection = {',
+    'resolve: function (presets, heroId, allowUnknownFallback, allowHeroMatch)',
+    'result = { preset: firstHeroMatch, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "hero", source: "hero", usedFallback: false }',
+    'result = { preset: null, heroId: heroId, hasScopedPreset: true, reason: "waiting_for_hero", source: "waiting_for_hero", usedFallback: false }',
+    'result = { preset: firstGlobal, heroId: heroId, hasScopedPreset: hasScopedPreset, reason: "global", source: "global", usedFallback: true }',
     'watch_start_skip", { reason: "no_scoped" }',
     'config.__hpHeroPresetWatchStarted = false;',
     'function applyHpColorsBakedPresetValues(config, values, presetKey, heroId)',

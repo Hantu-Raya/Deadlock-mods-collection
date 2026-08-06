@@ -515,6 +515,22 @@
 	box-shadow: inset DropshadowColor 0px 8px 5px 0px;
 }
 
+.team1 #unit_healthbar_bullet_shield {
+	background-color: #e9e76a;
+}
+
+.team2 #unit_healthbar_bullet_shield {
+	background-color: #6a75e9;
+}
+
+.enemy #unit_healthbar_bullet_shield {
+	background-color: #ffffff;
+}
+
+.friend #unit_healthbar_bullet_shield {
+	background-color: #ffffff;
+}
+
 
 #unit_healthbar_tech_shield {
 	min-width: 0%;

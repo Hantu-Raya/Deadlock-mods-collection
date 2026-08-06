@@ -1,17 +1,17 @@
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $root 'scripts\source2_package_pipeline.ps1')
 $modSrc = Join-Path $root 'buff_timer_virgin'
 $modCompiled = Join-Path $root 'buff_timer_virgin_compiled'
 $stagingSrc = Join-Path $root 'buff_timer_virgin_terser'
 $stagingCompiled = Join-Path $root 'buff_timer_virgin_terser_compiled'
 $compiler = Join-Path $root 'sr2compiler\New folder.exe'
-$vpkeditcliCandidates = @(
+$vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
     (Join-Path $root 'passive_items_mod\compiler\vpkeditcli.exe'),
     (Join-Path $root 'vpk cli\vpkeditcli.exe'),
     (Join-Path $root 'passive_items_mod_release\compiler\vpkeditcli.exe')
 )
-$vpkeditcli = $vpkeditcliCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 $vpkOut = Join-Path $root 'pak98_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak98_dir.vpk'
 $scriptRelative = 'panorama\scripts\rejuvnbufftimer.js'
@@ -115,24 +115,53 @@ function Assert-ClosureOutput {
     return $scriptInfo
 }
 
-if (-not $vpkeditcli) { throw "vpkeditcli not found in known repo tool paths" }
 
 
 # Clean rebuild: remove stale compiled output and previous pack artifacts.
-if (Test-Path $modCompiled) { Remove-Item -Recurse -Force $modCompiled }
-if (Test-Path $stagingSrc) { Remove-Item -Recurse -Force $stagingSrc }
-if (Test-Path $stagingCompiled) { Remove-Item -Recurse -Force $stagingCompiled }
+Remove-TreeUnderRoot -Path $modCompiled -RootPath $root -ExpectedLeaf 'buff_timer_virgin_compiled'
+Remove-TreeUnderRoot -Path $stagingSrc -RootPath $root -ExpectedLeaf 'buff_timer_virgin_terser'
+Remove-TreeUnderRoot -Path $stagingCompiled -RootPath $root -ExpectedLeaf 'buff_timer_virgin_terser_compiled'
 if (Test-Path $vpkOut) { Remove-Item -Force $vpkOut }
 
 # [1/4] Prepare Closure ADVANCED source
 Write-Host "`n[1/4] Preparing Closure ADVANCED buff_timer_virgin source..." -ForegroundColor Cyan
-Copy-Item -Path $modSrc -Destination $stagingSrc -Recurse -Force
+New-Item -ItemType Directory -Path $stagingSrc -Force | Out-Null
+Copy-Item -Path (Join-Path $modSrc 'panorama') -Destination $stagingSrc -Recurse -Force
 
 $sourceScript = Join-Path $modSrc $scriptRelative
 $compressedScript = Join-Path $stagingSrc $scriptRelative
 if (-not (Test-Path $compressedScript)) {
     throw "Compressed script target was not created: $compressedScript"
 }
+
+$runtimeValidator = Join-Path $root 'buff_timer_virgin\scripts\validate-runtime-engine.js'
+& node $runtimeValidator
+if ($LASTEXITCODE -ne 0) {
+    throw "Runtime engine validator failed with exit code $LASTEXITCODE"
+}
+
+$teamChatValidator = Join-Path $root 'buff_timer_virgin\scripts\validate-team-chat-intent.js'
+& node $teamChatValidator
+if ($LASTEXITCODE -ne 0) {
+    throw "Team chat validator failed with exit code $LASTEXITCODE"
+}
+$stagedSource = [System.IO.File]::ReadAllText($compressedScript)
+$productionSource = [regex]::Replace(
+    $stagedSource,
+    '(?s)\s*// TEST_EXPORTS_BEGIN.*?// TEST_EXPORTS_END\s*',
+    "`r`n"
+)
+if ($productionSource -eq $stagedSource) {
+    throw "Test export markers were not found in staged runtime source"
+}
+[System.IO.File]::WriteAllText(
+    $compressedScript,
+    $productionSource,
+    [System.Text.UTF8Encoding]::new($false)
+)
+
+$closureOutput = "$compressedScript.closure.js"
+
 
 $closureExterns = New-BuffTimerClosureExterns -Path (Join-Path $stagingSrc 'closure-externs.js')
 $closureArgs = @(
@@ -141,17 +170,18 @@ $closureArgs = @(
     '--externs'
     $closureExterns
     '--js'
-    $sourceScript
+    $compressedScript
     '--compilation_level'
     'ADVANCED'
     '--js_output_file'
-    $compressedScript
+    $closureOutput
 )
 
 & npx @closureArgs
 if ($LASTEXITCODE -ne 0) {
     throw "Closure ADVANCED failed with exit code $LASTEXITCODE"
 }
+Move-Item -LiteralPath $closureOutput -Destination $compressedScript -Force
 
 $scriptInfo = Assert-ClosureOutput -Path $compressedScript -MinBytes 8192 -RequiredFragments @(
     'handleRejuvPingActivate',
@@ -165,48 +195,32 @@ Write-Host "  Closure ADVANCED OK -> $compressedScript ($([math]::Round($scriptI
 
 # [2/4] Compile
 Write-Host "`n[2/4] Compiling buff_timer_virgin..." -ForegroundColor Cyan
-$compileTarget = Join-Path $stagingCompiled 'panorama\scripts\rejuvnbufftimer.vjs_c'
-$proc = Start-Process -FilePath $compiler -ArgumentList "`"$stagingSrc`"" -PassThru
-$compileDeadline = (Get-Date).AddSeconds(120)
-while (-not $proc.HasExited -and (Get-Date) -lt $compileDeadline) {
-    Start-Sleep -Milliseconds 500
-    if (Test-Path $compileTarget) {
-        Start-Sleep -Seconds 2
-        if (-not $proc.HasExited) {
-            Write-Host "[WARN] Compiler produced output but did not exit; stopping wrapper." -ForegroundColor Yellow
-            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-            $proc.WaitForExit()
-        }
-        break
-    }
-}
-if (-not $proc.HasExited) {
-    Write-Host "[WARN] Compiler timed out; stopping wrapper." -ForegroundColor Yellow
-    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-    $proc.WaitForExit()
-}
-if ($proc.ExitCode -ne 0) {
-    if (-not (Test-Path $compileTarget)) {
-        throw "Compiler exited $($proc.ExitCode) and no output produced"
-    }
-    Write-Host "[WARN] Compiler exited $($proc.ExitCode) but output exists; continuing." -ForegroundColor Yellow
-}
-if (-not (Test-Path $compileTarget)) {
-    throw "Compiled output not found"
-}
+$compileScript = Join-Path $stagingCompiled 'panorama\scripts\rejuvnbufftimer.vjs_c'
+$compileLayout = Join-Path $stagingCompiled 'panorama\layout\hud.vxml_c'
+$compileTimerStyle = Join-Path $stagingCompiled 'panorama\styles\hud_timer.vcss_c'
+$compileClaimStyle = Join-Path $stagingCompiled 'panorama\styles\buff_claim.vcss_c'
+Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $stagingSrc -RequiredOutputs @(
+    $compileScript,
+    $compileLayout,
+    $compileTimerStyle,
+    $compileClaimStyle
+) -TimeoutSeconds 120
 Copy-Item -Path $stagingCompiled -Destination $modCompiled -Recurse -Force
 Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 
 # [3/4] Pack VPK
 Write-Host "`n[3/4] Packing VPK..." -ForegroundColor Cyan
-$packArgs = "`"$modCompiled`" -o `"$vpkOut`" -s --no-progress"
-$pack = Start-Process -FilePath $vpkeditcli -ArgumentList $packArgs -PassThru -Wait -NoNewWindow
-if ($pack.ExitCode -ne 0) {
-    throw "vpkeditcli failed with code $($pack.ExitCode)"
-}
-if (-not (Test-Path $vpkOut)) {
-    throw "VPK not created at $vpkOut"
-}
+Invoke-VpkPack -VpkEditCli $vpkeditcli -InputDir $modCompiled -OutputPath $vpkOut
+$packedTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut
+Assert-PackedVpkAssets -Tree $packedTree -Label 'Buff Timer VPK' -Required @(
+    'panorama/scripts/rejuvnbufftimer.vjs_c',
+    'panorama/layout/hud.vxml_c',
+    'panorama/styles/hud_timer.vcss_c',
+    'panorama/styles/buff_claim.vcss_c'
+) -Forbidden @(
+    'scripts/validate-runtime-engine.vjs_c',
+    'scripts/validate-team-chat-intent.vjs_c'
+)
 $vpkSize = (Get-Item $vpkOut).Length
 Write-Host "  Packed OK -> $vpkOut ($([math]::Round($vpkSize / 1KB, 1)) KB)" -ForegroundColor Green
 

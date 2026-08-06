@@ -1,18 +1,26 @@
 param(
     [string]$BuilderPresetVpkPath = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak96_dir.vpk",
-    [string]$PakName = "pak97_dir.vpk"
+    [string]$PakName = "pak97_dir.vpk",
+    [string]$SourceDir = "",
+    [string]$CompiledDir = "",
+    [string]$ClosureSourceDir = "",
+    [string]$ClosureCompiledDir = "",
+    [switch]$SkipSourceValidation
 )
 
 $ErrorActionPreference = 'Stop'
 
 $root            = Split-Path -Parent $MyInvocation.MyCommand.Path
-$modSrc          = "$root\hp_colors_minimal"
-$modCompiled     = "$root\hp_colors_minimal_compiled"
-$closureSrc       = "$root\hp_colors_minimal_closure"
-$closureCompiled  = "$root\hp_colors_minimal_closure_compiled"
+. (Join-Path $root 'scripts\source2_package_pipeline.ps1')
+$modSrc          = if ($SourceDir) { $SourceDir } else { "$root\hp_colors_minimal" }
+$modCompiled     = if ($CompiledDir) { $CompiledDir } else { "$root\hp_colors_minimal_compiled" }
+$closureSrc      = if ($ClosureSourceDir) { $ClosureSourceDir } else { "$root\hp_colors_minimal_closure" }
+$closureCompiled = if ($ClosureCompiledDir) { $ClosureCompiledDir } else { "$root\hp_colors_minimal_closure_compiled" }
 $compiler        = "$root\sr2compiler\New folder.exe"
-$vpkeditcli      = "$root\passive_items_mod\compiler\vpkeditcli.exe"
-$vpkeditFallback = "$root\vpk cli\vpkeditcli.exe"
+$vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
+    "$root\passive_items_mod\compiler\vpkeditcli.exe",
+    "$root\vpk cli\vpkeditcli.exe"
+)
 $vpkOut          = "$root\$PakName"
 $addonsDir       = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons"
 $vpkDest         = Join-Path $addonsDir $PakName
@@ -26,7 +34,11 @@ function Assert-UnderRepoRoot {
     param([Parameter(Mandatory = $true)][string]$Path)
     $fullRoot = Get-FullPathSafe $root
     $fullPath = Get-FullPathSafe $Path
-    if (-not $fullPath.StartsWith($fullRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    $rootPrefix = $fullRoot.TrimEnd('\', '/')
+    $underRoot = $fullPath.Equals($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $fullPath.StartsWith("$rootPrefix\", [System.StringComparison]::OrdinalIgnoreCase) -or
+        $fullPath.StartsWith("$rootPrefix/", [System.StringComparison]::OrdinalIgnoreCase)
+    if (-not $underRoot) {
         throw "Refusing to touch path outside repo root: $fullPath"
     }
 }
@@ -72,10 +84,13 @@ function New-HpMinimalClosureAdvancedExterns {
         "FindChildTraverse",
         "GetAttributeString",
         "GetContextPanel",
+        "GetChild",
+        "GetChildCount",
         "GetParent",
         "IsValid",
         "Msg",
         "RegisterForUnhandledEvent",
+        "UnregisterForUnhandledEvent",
         "RemoveClass",
         "Schedule",
         "SetAttributeString",
@@ -89,7 +104,23 @@ function New-HpMinimalClosureAdvancedExterns {
         "alive",
         "cfg_raw",
         "__hpColorsPresetDebug",
+        "__hpColorsMinimalDebug",
         "crosshair",
+        "applied_ids",
+        "enabled",
+        "inactive_ids",
+        "leading_minor_pips",
+        "major_hp",
+        "major_pips",
+        "max",
+        "minor_hp",
+        "minor_pips",
+        "present",
+        "referenced_slots",
+        "retired",
+        "rule_ids",
+        "status",
+        "tiers",
         "gameui",
         "gameui_ready",
         "hero",
@@ -99,6 +130,9 @@ function New-HpMinimalClosureAdvancedExterns {
         "hp_color_high",
         "hp_color_low",
         "hp_color_mid",
+        "hp_delta_color",
+        "hp_bullet_shield_color",
+        "hp_heal_color",
         "hp_counter_format",
         "hp_counter_position",
         "hp_counter_size",
@@ -107,6 +141,9 @@ function New-HpMinimalClosureAdvancedExterns {
         "hp_friend_color_high",
         "hp_friend_color_low",
         "hp_friend_color_mid",
+        "hp_friend_delta_color",
+        "hp_friend_bullet_shield_color",
+        "hp_friend_heal_color",
         "hp_friend_enabled",
         "h",
         "hm",
@@ -128,6 +165,7 @@ function New-HpMinimalClosureAdvancedExterns {
         "hp_low_threshold",
         "hp_mode",
         "hp_pip_visible",
+        "hp_precise_pips_enabled",
         "hp_pulse_bpm",
         "hp_pulse_color",
         "hp_pulse_color_enabled",
@@ -196,7 +234,7 @@ function New-HpMinimalClosureAdvancedExterns {
         "`$.GetContextPanel = function() {};",
         "`$.Msg = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
         "`$.RegisterForUnhandledEvent = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
-        "`$.Schedule = function(delay, callback) {};",
+        "`$.UnregisterForUnhandledEvent = function(opt_a, opt_b, opt_c, opt_d, opt_e) {};",
         "/** @const */ var GameUI = {};",
         "GameUI.CustomUIConfig = function() {};",
         "/** @const */ var SteamOverlayAPI = {};",
@@ -227,9 +265,9 @@ function Assert-HpMinimalClosureAdvancedOutput {
 
     $requiredFragments = @("HP_COLORS_PRESET_SNAPSHOT", "HP_COLORS_PRESET_REQUEST", "ClientUI_FireOutput")
     if ($ScriptName -eq "anita_ui_core.js") {
-        $requiredFragments += @("__hpColorsCfgRaw", "hp_colors_minimal_cfg_raw", "values_raw", "magic_word")
+        $requiredFragments += @("__hpColorsCfgRaw", "hp_colors_minimal_cfg_raw", "values_raw", "magic_word", "UnregisterForUnhandledEvent")
     } elseif ($ScriptName -eq "healthbar_logic.js") {
-        $requiredFragments += @("hp_info_health_margin_top", "hp_healthbar_height", "low_hp_pulsing", "magic_word")
+        $requiredFragments += @("hp_info_health_margin_top", "hp_healthbar_height", "low_hp_pulsing", "magic_word", "UnregisterForUnhandledEvent")
     }
     foreach ($fragment in $requiredFragments) {
         if (-not $source.Contains($fragment)) {
@@ -239,27 +277,51 @@ function Assert-HpMinimalClosureAdvancedOutput {
 }
 
 
+Assert-UnderRepoRoot $modSrc
+Assert-UnderRepoRoot $modCompiled
+Assert-UnderRepoRoot $closureSrc
+Assert-UnderRepoRoot $closureCompiled
+
 Remove-RepoPathIfExists $modCompiled -Recurse
 Remove-RepoPathIfExists $closureSrc -Recurse
 Remove-RepoPathIfExists $closureCompiled -Recurse
 Remove-VpkFamilyIfExists $vpkOut
 
 Write-Host "`n[0/4] Validating minimal hp_colors source..." -ForegroundColor Cyan
-$auditScript = "$modSrc\scripts\validate-minimal.js"
-if (-not (Test-Path $auditScript)) {
-    Write-Host "[ERROR] Minimal audit script not found: $auditScript" -ForegroundColor Red
-    exit 1
-}
-& node $auditScript
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] Minimal audit failed - fix drift before building." -ForegroundColor Red
-    exit 1
+if ($SkipSourceValidation) {
+    Write-Host "  Skipping production minimal audit for staged/debug source." -ForegroundColor Yellow
+    $debugScripts = @(
+        "$modSrc\panorama\scripts\anita_ui_core.js",
+        "$modSrc\panorama\scripts\healthbar_logic.js"
+    )
+    foreach ($debugScript in $debugScripts) {
+        if (-not (Test-Path $debugScript)) {
+            Write-Host "[ERROR] Debug source script not found: $debugScript" -ForegroundColor Red
+            exit 1
+        }
+        & node --check $debugScript
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "[ERROR] Debug source syntax check failed: $debugScript" -ForegroundColor Red
+            exit 1
+        }
+    }
+} else {
+    $auditScript = "$modSrc\scripts\validate-minimal.js"
+    if (-not (Test-Path $auditScript)) {
+        Write-Host "[ERROR] Minimal audit script not found: $auditScript" -ForegroundColor Red
+        exit 1
+    }
+    & node $auditScript
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] Minimal audit failed - fix drift before building." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "  Minimal audit passed." -ForegroundColor Green
 }
 if (-not (Test-Path $BuilderPresetVpkPath)) {
     Write-Host "[WARN] Builder preset VPK not found yet: $BuilderPresetVpkPath" -ForegroundColor Yellow
     Write-Host "       Install/download the web-builder settings VPK alongside this minimal VPK before in-game testing." -ForegroundColor Yellow
 }
-Write-Host "  Minimal audit passed." -ForegroundColor Green
 
 Write-Host "`n[1/4] Preparing Closure ADVANCED hp_colors_minimal source..." -ForegroundColor Cyan
 Copy-Item -LiteralPath $modSrc -Destination $closureSrc -Recurse -Force
@@ -313,8 +375,26 @@ foreach ($script in $scriptFiles) {
 Remove-Item -LiteralPath $externsPath -Force
 Write-Host "  Closure ADVANCED JS OK -> $closureSrc" -ForegroundColor Green
 
+Write-Host "`n[2/5] Running fresh Closure behavioral tests..." -ForegroundColor Cyan
+$closureTestScript = "$modSrc\scripts\validate-minimal.test.js"
+if (-not (Test-Path -LiteralPath $closureTestScript)) {
+    Write-Host "[ERROR] Minimal behavioral test script not found: $closureTestScript" -ForegroundColor Red
+    exit 1
+}
+$env:HP_COLORS_MINIMAL_SOURCE_ROOT = $closureSrc
+$env:HP_COLORS_MINIMAL_CLOSURE_TEST = "1"
+& node --test $closureTestScript
+$closureTestExit = $LASTEXITCODE
+Remove-Item Env:HP_COLORS_MINIMAL_SOURCE_ROOT -ErrorAction SilentlyContinue
+Remove-Item Env:HP_COLORS_MINIMAL_CLOSURE_TEST -ErrorAction SilentlyContinue
+if ($closureTestExit -ne 0) {
+    Write-Host "[ERROR] Closure behavioral tests failed with code $closureTestExit" -ForegroundColor Red
+    exit $closureTestExit
+}
+Write-Host "  Closure behavioral tests passed." -ForegroundColor Green
 
-Write-Host "`n[2/4] Compiling hp_colors_minimal..." -ForegroundColor Cyan
+
+Write-Host "`n[3/5] Compiling hp_colors_minimal..." -ForegroundColor Cyan
 $healthbarTarget = "$closureCompiled\panorama\scripts\healthbar_logic.vjs_c"
 $coreTarget = "$closureCompiled\panorama\scripts\anita_ui_core.vjs_c"
 $requiredCompileTargets = @(
@@ -369,62 +449,19 @@ foreach ($target in $requiredCompileTargets) {
 Copy-Item -LiteralPath $closureCompiled -Destination $modCompiled -Recurse -Force
 Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 
-Write-Host "`n[3/4] Packing VPK..." -ForegroundColor Cyan
-if (-not (Test-Path $vpkeditcli) -and (Test-Path $vpkeditFallback)) {
-    $vpkeditcli = $vpkeditFallback
-}
-if (-not (Test-Path $vpkeditcli)) {
-    Write-Host "[ERROR] vpkeditcli not found: $vpkeditcli" -ForegroundColor Red
-    exit 1
-}
-$packArgs = @($modCompiled, "-o", $vpkOut, "-s", "--no-progress")
-$pack = Start-Process -FilePath $vpkeditcli -ArgumentList $packArgs -PassThru -Wait -NoNewWindow
-if ($pack.ExitCode -ne 0) {
-    Write-Host "[ERROR] vpkeditcli failed with code $($pack.ExitCode)" -ForegroundColor Red
-    exit 1
-}
-if (-not (Test-Path $vpkOut)) {
-    Write-Host "[ERROR] VPK not created at $vpkOut" -ForegroundColor Red
-    exit 1
-}
+Write-Host "`n[4/5] Packing VPK..." -ForegroundColor Cyan
+Invoke-VpkPack -VpkEditCli $vpkeditcli -InputDir $modCompiled -OutputPath $vpkOut
 $vpkSize = (Get-Item $vpkOut).Length
 Write-Host "  Packed OK -> $vpkOut  ($([math]::Round($vpkSize/1KB, 1)) KB)" -ForegroundColor Green
 
 $source2Viewer = "$root\.tmp\source2viewer-cli\Source2Viewer-CLI.exe"
-if (Test-Path $source2Viewer) {
-    $tree = & $source2Viewer -i $vpkOut --vpk_list
-    $treeTool = "Source2Viewer CLI"
-} else {
-    $tree = & $vpkeditcli $vpkOut --file-tree --no-progress
-    $treeTool = "vpkeditcli"
-}
-$treeExit = $LASTEXITCODE
-if ($treeExit -ne 0) {
-    Write-Host "[ERROR] Could not inspect packed VPK contents with $treeTool (exit $treeExit)" -ForegroundColor Red
-    exit 1
-}
-function Test-PackedAsset {
-    param(
-        [Parameter(Mandatory = $true)]$Tree,
-        [Parameter(Mandatory = $true)][string]$Asset
-    )
-    $leaf = Split-Path -Leaf $Asset
-    return (($Tree | Select-String -SimpleMatch $Asset -Quiet) -or
-        ($Tree | Select-String -SimpleMatch $leaf -Quiet))
-}
-$requiredPacked = @(
+$tree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut -Source2ViewerPath $source2Viewer
+Assert-PackedVpkAssets -Tree $tree -Label 'minimal HP Colors VPK' -Required @(
     "panorama/layout/unit_status_overlay.vxml_c",
     "panorama/scripts/anita_ui_core.vjs_c",
     "panorama/scripts/healthbar_logic.vjs_c",
     "panorama/styles/unit_status.vcss_c"
-)
-foreach ($required in $requiredPacked) {
-    if (-not (Test-PackedAsset -Tree $tree -Asset $required)) {
-        Write-Host "[ERROR] Packed VPK missing required minimal asset: $required" -ForegroundColor Red
-        exit 1
-    }
-}
-$forbiddenPacked = @(
+) -Forbidden @(
     "panorama/layout/base_hud.vxml_c",
     "panorama/layout/hud_escape_menu.vxml_c",
     "panorama/layout/unit_status_overlay_v2.vxml_c",
@@ -433,15 +470,9 @@ $forbiddenPacked = @(
     "panorama/scripts/hp_registrar.vjs_c",
     "panorama/styles/anita_ui.vcss_c"
 )
-foreach ($forbidden in $forbiddenPacked) {
-    if (Test-PackedAsset -Tree $tree -Asset $forbidden) {
-        Write-Host "[ERROR] Packed VPK contains forbidden non-minimal asset: $forbidden" -ForegroundColor Red
-        exit 1
-    }
-}
-Write-Host "  Packed file tree verified minimal-only with $treeTool." -ForegroundColor Green
+Write-Host "  Packed file tree verified minimal-only." -ForegroundColor Green
 
-Write-Host "`n[4/4] Deploying minimal runtime VPK..." -ForegroundColor Cyan
+Write-Host "`n[5/5] Deploying minimal runtime VPK..." -ForegroundColor Cyan
 $destDir = Split-Path $vpkDest -Parent
 if (-not (Test-Path $destDir)) {
     Write-Host "[ERROR] Destination folder not found: $destDir" -ForegroundColor Red
