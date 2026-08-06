@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const FULL_ONLY_SETTING_IDS = Object.freeze(['hp_precise_pips_enabled']);
+const FULL_ONLY_SETTING_IDS = Object.freeze([]);
 
 const HP_COLORS_LANE_CONTRACT = Object.freeze({
   title: 'HP Colors',
@@ -14,7 +14,7 @@ const HP_COLORS_LANE_CONTRACT = Object.freeze({
     scriptNames: Object.freeze(['anita_ui_core.js', 'healthbar_logic.js']),
   }),
   minimal: Object.freeze({
-    expectedCount: 55,
+    expectedCount: 56,
     staticBridge: true,
     rootCfgRawAttr: 'hp_colors_minimal_cfg_raw',
   }),
@@ -52,7 +52,6 @@ const HP_COLORS_BRIDGE_PROTOCOL_PROPERTIES = Object.freeze({
 
 const HP_LEGACY_PRESET_ALIASES = Object.freeze({ kzs: 'hp_kill_zone_color' });
 const HP_RUNTIME_POSITION_SETTING_IDS = Object.freeze(['hp_counter_position', 'hp_pulse_text_position']);
-const HP_EXPECTED_LOOP_REASONS = Object.freeze(['preset_apply','preset_same_raw','preset_replay_enemy','preset_replay_ally','preset_replay_level','match_reset','enemy_probe_missing_bar','enemy_skip_building','enemy_neutral','enemy_not_enemy','enemy_friend_target','enemy_dirty_hold','enemy_preset_wait','enemy_bootstrap_wait','enemy_style_drift','enemy_no_parent_width','enemy_stable','enemy_small_delta','enemy_warmup','enemy_pulse','enemy_paint','enemy_error','friendly_target','ally_missing_bar','ally_missing_building','ally_missing_rejected','ally_dirty_hold','ally_unconfirmed','ally_rebind','ally_no_parent_width','ally_stable','ally_paint','ally_error','level_poll','level_backoff']);
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -841,7 +840,6 @@ function checkMinimalSettingsContract(minimalPublisherSource, minimalRuntimeSour
 module.exports = {
   FULL_ONLY_SETTING_IDS,
   HP_COLORS_LANE_CONTRACT,
-  HP_EXPECTED_LOOP_REASONS,
   buildMinimalSettingIds,
   checkBooleanFlagDefaults,
   checkForbiddenSourceTerms,

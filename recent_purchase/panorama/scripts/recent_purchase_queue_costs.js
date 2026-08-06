@@ -7,9 +7,12 @@
   const DIVIDER_COLOR = '#d8d0c088';
 
   const RECIPES_RAW = {
+    'Aerial Supremacy': ['Stamina Mastery'],
+    'Apex Combat': ['Ricochet'],
     'Arcane Surge': ['Extra Stamina'],
     'Arctic Blast': ['Cold Front'],
-    'Armor Piercing Rounds': ['High Velocity Rounds'],
+    'Armor Piercing Rounds': ['High-Velocity Rounds'],
+    'Ballistic Enchantment': ['Mystic Expansion'],
     'Boundless Spirit': ['Improved Spirit'],
     'Burst Fire': ['Rapid Rounds'],
     'Capacitor': ['Tesla Bullets'],
@@ -22,16 +25,18 @@
     'Enduring Speed': ['Sprint Boots'],
     'Escalating Exposure': ['Mystic Vulnerability'],
     'Escalating Resilience': ['Extended Magazine'],
-    'Express Shot': ['High Velocity Rounds'],
+    'Express Shot': ['High-Velocity Rounds'],
     'Focus Lens': ['Spirit Sap'],
     'Fortitude': ['Extra Health'],
     'Fury Trance': ['Bullet Lifesteal'],
     'Greater Expansion': ['Mystic Expansion'],
+    'Guardian Ward': ['Grit'],
     'Headhunter': ['Headshot Booster'],
     'Healing Booster': ['Extra Regen'],
     'Healing Nova': ['Healing Rite'],
     'Healing Tempo': ['Healing Booster'],
     'Improved Spirit': ['Extra Spirit'],
+    'Indomitable': ['Reactive Barrier'],
     'Infuser': ['Spirit Lifesteal'],
     'Juggernaut': ['Enduring Speed'],
     'Kinetic Dash': ['Extra Stamina'],
@@ -39,14 +44,18 @@
     'Lifestrike': ['Melee Lifesteal'],
     'Lightning Scroll': ['Mystic Slow'],
     'Mercurial Magnum': ['Quicksilver Reload'],
+    'Opening Rounds': ['High-Velocity Rounds'],
     'Point Blank': ['Close Quarters'],
     'Radiant Regeneration': ['Mystic Regeneration'],
     'Rapid Recharge': ['Extra Charge'],
+    'Reactive Barrier': ['Grit'],
     'Rescue Beam': ['Healing Rite'],
-    'Sharpshooter': ['Long Range'],
+    'Sharpshooter': ['Long Range', 'High-Velocity Rounds'],
     'Spellbreaker': ['Debuff Reducer'],
     'Spirit Rend': ['Spirit Shredder Bullets'],
     'Spirit Snatch': ['Spirit Strike'],
+    'Spiritual Overflow': ['Spirit Lifesteal'],
+    'Spirit Shielding': ['Grit'],
     'Stamina Mastery': ['Extra Stamina'],
     'Superior Cooldown': ['Compress Cooldown'],
     'Superior Duration': ['Duration Extender'],
@@ -54,12 +63,15 @@
     'Swift Striker': ['Rapid Rounds'],
     'Tankbuster': ['Mystic Burst'],
     'Titanic Magazine': ['Extended Magazine'],
+    'Timeless Emblem': ['Transcendent Cooldown'],
     'Transcendent Cooldown': ['Superior Cooldown'],
     'Trophy Collector': ['Sprint Boots'],
     'Unstoppable': ['Debuff Reducer'],
     'Vampiric Burst': ['Bullet Lifesteal'],
+    'Veil Walker': ['Sprint Boots'],
     'Vortex Web': ['Slowing Hex'],
-    'Weighted Shots': ['Slowing Bullets']
+    'Weighted Shots': ['Slowing Bullets'],
+    'Weapon Shielding': ['Grit'],
   };
 
   const RECIPES = {};
@@ -103,23 +115,36 @@
     }
   }
 
-  function findUp(start, id) {
-    let p = start;
-    while (p) {
-      const f = p.FindChildTraverse(id);
-      if (f) return f;
-      if (!p.GetParent) break;
-      p = p.GetParent();
-    }
-    return null;
-  }
 
   function getGold() {
-    const ctx = $.GetContextPanel();
-    const gp = findUp(ctx, 'CurrentGoldAmount');
-    if (!gp) return 0;
-    const lbl = gp.FindChildTraverse('hudCurGoldLabel');
-    return lbl ? parseCost(lbl.text) : 0;
+    if (!_goldLabel || !_goldLabel.IsValid()) {
+      const root = findRoot($.GetContextPanel());
+      const gold = root.FindChildTraverse('CurrentGoldAmount');
+      _goldLabel = gold ? gold.FindChildTraverse('hudCurGoldLabel') : null;
+    }
+    return _goldLabel ? parseCost(_goldLabel.text) : 0;
+  }
+
+  function getItemChild(panel, refs, key, id) {
+    const cached = refs[key];
+    if (cached && cached.IsValid()) return cached;
+    refs[key] = panel.FindChildTraverse(id);
+    return refs[key];
+  }
+
+  function getItemRefs(panel) {
+    const refs = panel._rpItemRefs || (panel._rpItemRefs = {});
+    getItemChild(panel, refs, 'cost', 'ModCost');
+    getItemChild(panel, refs, 'name', 'ModName');
+    return refs;
+  }
+
+  function getItemVisualRefs(panel) {
+    const refs = getItemRefs(panel);
+    getItemChild(panel, refs, 'deficit', 'RecentPurchaseDeficitLabel');
+    getItemChild(panel, refs, 'divider', 'RecentPurchaseCostDivider');
+    getItemChild(panel, refs, 'goldIcon', 'goldIcon');
+    return refs;
   }
 
   function getItems(root) {
@@ -129,8 +154,9 @@
     while (stack.length) {
       const p = stack.pop();
       if (p.BHasClass && p.BHasClass('QuickbuyItem')) {
-        const costLbl = p.FindChildTraverse('ModCost');
-        const nameLbl = p.FindChildTraverse('ModName');
+        const refs = getItemRefs(p);
+        const costLbl = refs.cost;
+        const nameLbl = refs.name;
         out.push({
           panel: p,
           key: canon(nameLbl ? nameLbl.text : ''),
@@ -152,7 +178,7 @@
     while (stack.length) {
       const p = stack.pop();
       if (p.BHasClass && p.BHasClass('QuickbuyItem')) {
-        const lbl = p.FindChildTraverse('ModCost');
+        const lbl = getItemRefs(p).cost;
         cred += Math.floor(parseCost(lbl ? lbl.text : '') / 2);
         continue;
       }
@@ -165,7 +191,6 @@
   function compute(items, souls, sellCredit) {
     const pool = {};
     let total = 0;
-    const available = souls + sellCredit;
 
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
@@ -190,7 +215,7 @@
       }
     }
 
-    let run = available;
+    let run = souls;
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       if (it.eff < 0) it.eff = 0;
@@ -215,7 +240,8 @@
       const need = it.rem;
       const hasNeed = need > 0;
 
-      const lbl = it.panel.FindChildTraverse('RecentPurchaseDeficitLabel');
+      const refs = getItemVisualRefs(it.panel);
+      const lbl = refs.deficit;
       const needText = formatSouls(need);
       if (lbl) {
         const labelText = hasNeed ? '-' + needText : '0';
@@ -226,11 +252,11 @@
         styleMoneyLabel(lbl, hasNeed ? NEED_COLOR : OWNED_COLOR);
       }
 
-      const divider = it.panel.FindChildTraverse('RecentPurchaseCostDivider');
+      const divider = refs.divider;
       styleMoneyLabel(divider, DIVIDER_COLOR);
 
-      const modCost = it.panel.FindChildTraverse('ModCost');
-      const goldIcon = it.panel.FindChildTraverse('goldIcon');
+      const modCost = refs.cost;
+      const goldIcon = refs.goldIcon;
       if (modCost) {
         if (hasNeed) {
           setStyle(modCost, 'color', NEED_COLOR);
@@ -267,42 +293,51 @@
     return p;
   }
 
+  const TeamChatIntent = {
+    sanitize: function (message) {
+      return String(message || "").replace(/["\r\n;]/g, " ").replace(/\s+/g, " ").trim();
+    },
+    canSend: function (nowMs, lastSendMs, cooldownMs) {
+      return Number(nowMs) - Number(lastSendMs || 0) >= Number(cooldownMs || 0);
+    },
+    isTeamTarget: function (label) {
+      if (!label?.IsValid?.()) return false;
+      const text = String(label.text || "").trim();
+      if (!text || text === "#citadel_chat_placeholder") return false;
+      return text !== CHAT_ALL_LABEL && text.indexOf("(ALL)") === -1;
+    },
+    submit: function (input, message) {
+      if (submitWithoutFocus(input, message)) return true;
+      submitWithMinimalFocus(input, message);
+      return true;
+    },
+    retry: function (message, attempt, readyStreak) {
+      const input = getChatInputPanel();
+      const label = getChatTargetLabel();
+      if (!TeamChatIntent.isTeamTarget(label) || !input?.IsValid?.()) {
+        if (attempt >= CHAT_RETRY_DELAYS.length - 1) return;
+        $.Schedule(CHAT_RETRY_DELAYS[attempt + 1], () => TeamChatIntent.retry(message, attempt + 1, 0));
+        return;
+      }
+      if (readyStreak < 1 && attempt < CHAT_RETRY_DELAYS.length - 1) {
+        $.Schedule(CHAT_RETRY_DELAYS[attempt + 1], () => TeamChatIntent.retry(message, attempt + 1, readyStreak + 1));
+        return;
+      }
+      TeamChatIntent.submit(input, message);
+    },
+    send: function (message, wallNowMs) {
+      if (!TeamChatIntent.canSend(wallNowMs, _lastChatTime, 1000)) return false;
+      const safe = TeamChatIntent.sanitize(message);
+      if (!safe) return false;
+      _lastChatTime = wallNowMs;
+      try { $.DispatchEvent("CitadelConCommand", "say_chat_team"); } catch {}
+      $.Schedule(CHAT_RETRY_DELAYS[0], () => TeamChatIntent.retry(safe, 0, 0));
+      return true;
+    }
+  };
+
   function sendQuickbuyChatMessage(message) {
-    const now = Date.now();
-    if (now - _lastChatTime < 1000) return;
-    _lastChatTime = now;
-    if (!message) return;
-    const safe = String(message).replace(/["\r\n;]/g, " ").trim();
-    if (!safe) return;
-    try { $.DispatchEvent("CitadelConCommand", "say_chat_team"); } catch {}
-    $.Schedule(CHAT_RETRY_DELAYS[0], () => trySubmitTeamChat(safe, 0, 0));
-  }
-
-  function trySubmitTeamChat(message, attempt, readyStreak) {
-    const input = getChatInputPanel();
-    const label = getChatTargetLabel();
-    if (!isTeamChatReady(input, label)) {
-      if (attempt >= CHAT_RETRY_DELAYS.length - 1) return;
-      $.Schedule(CHAT_RETRY_DELAYS[attempt + 1], () => trySubmitTeamChat(message, attempt + 1, 0));
-      return;
-    }
-    if (readyStreak < 1 && attempt < CHAT_RETRY_DELAYS.length - 1) {
-      $.Schedule(CHAT_RETRY_DELAYS[attempt + 1], () => trySubmitTeamChat(message, attempt + 1, readyStreak + 1));
-      return;
-    }
-    if (submitWithoutFocus(input, message)) {
-      closeChatUi(input);
-      return;
-    }
-    submitWithMinimalFocus(input, message);
-  }
-
-  function isTeamChatReady(input, label) {
-    if (!input?.IsValid?.()) return false;
-    if (!label?.IsValid?.()) return false;
-    const text = String(label.text || "").trim();
-    if (!text || text === "#citadel_chat_placeholder") return false;
-    return text !== CHAT_ALL_LABEL && text.indexOf("(ALL)") === -1;
+    TeamChatIntent.send(message, Date.now());
   }
 
   function submitWithoutFocus(chatInput, message) {
@@ -340,40 +375,37 @@
 
   function getChatPanel() {
     if (_chat.panel?.IsValid?.()) return _chat.panel;
-    const r = findRoot($.GetContextPanel());
-    if (!r?.IsValid?.()) return null;
-    const chat = r.FindChildTraverse("Chat");
-    if (chat?.IsValid?.()) { _chat.panel = chat; return chat; }
+    const root = findRoot($.GetContextPanel());
+    const chat = root.FindChildTraverse("Chat");
+    if (chat?.IsValid?.()) {
+      _chat.panel = chat;
+      return chat;
+    }
     return null;
+  }
+
+  function getChatChild(key, id) {
+    const cached = _chat[key];
+    if (cached?.IsValid?.()) return cached;
+    const chat = getChatPanel();
+    if (!chat) return null;
+    const controls = chat.FindChildTraverse("ChatControls");
+    const child = controls ? controls.FindChildTraverse(id) : null;
+    if (child?.IsValid?.()) _chat[key] = child;
+    return child;
   }
 
   function getChatInputPanel() {
-    if (_chat.input?.IsValid?.()) return _chat.input;
-    const r = findRoot($.GetContextPanel());
-    if (!r?.IsValid?.()) return null;
-    const chat = _chat.panel?.IsValid?.() ? _chat.panel : r.FindChildTraverse("Chat");
-    if (chat?.IsValid?.()) {
-      const chatControls = chat.FindChildTraverse("ChatControls");
-      const chatInput = chatControls?.FindChildTraverse?.("ChatInput") || chat.FindChildTraverse("ChatInput");
-      if (chatInput?.IsValid?.()) { _chat.panel = chat; _chat.input = chatInput; return chatInput; }
-    }
-    const chatInput = r.FindChildTraverse("ChatInput");
-    if (chatInput?.IsValid?.()) { _chat.input = chatInput; return chatInput; }
-    return null;
+    return getChatChild("input", "ChatInput");
   }
 
   function getChatTargetLabel() {
-    if (_chat.targetLabel?.IsValid?.()) return _chat.targetLabel;
-    const chat = _chat.panel?.IsValid?.() ? _chat.panel : getChatPanel();
-    if (!chat?.IsValid?.()) return null;
-    const controls = chat.FindChildTraverse("ChatControls");
-    const label = controls?.FindChildTraverse?.("ChatTargetLabel") || chat.FindChildTraverse("ChatTargetLabel");
-    if (label?.IsValid?.()) { _chat.targetLabel = label; return label; }
-    return null;
+    return getChatChild("targetLabel", "ChatTargetLabel");
   }
 
   // Cache frequently accessed panels
   let _totalLbl = null;
+  let _goldLabel = null;
   let _queuePanel = null;
   let _sellPanel = null;
 
@@ -388,10 +420,22 @@
 
     const items = getItems(_queuePanel);
     const total = compute(items, getGold(), getSellCredit(_sellPanel));
-    _totalLbl.text = String(total);
+    const totalText = String(total);
+    if (_totalLbl._rpText !== totalText) {
+      _totalLbl.text = totalText;
+      _totalLbl._rpText = totalText;
+    }
     applyLabels(items);
 
     $.Schedule(TICK, tick);
+  }
+
+  if (typeof module !== "undefined" && module && module.exports) {
+    module.exports.__test = module.exports.__test || {};
+    module.exports.__test.TeamChatIntent = TeamChatIntent;
+    module.exports.__test.compute = compute;
+    module.exports.__test.getItemRefs = getItemRefs;
+    module.exports.__test.getItemVisualRefs = getItemVisualRefs;
   }
 
   initRecipes();

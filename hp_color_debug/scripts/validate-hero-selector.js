@@ -377,6 +377,13 @@ function runValidation() {
     'anita_ui_core.js must publish replayable HP Colors preset snapshots with values_raw');
   assert(source.includes('__hpColorsMatchReset') && !source.includes('__hpColorsMatchResetStatus') && !source.includes('monitor_started'),
     'anita_ui_core.js must start match-reset publishing outside the scoped hero preset watcher');
+  const isOptimizedTarget = targetScript.includes(`${path.sep}hp_color_debug_terser${path.sep}`);
+  if (!isOptimizedTarget) {
+    assert(source.includes('const HeroScopedPresetSelection = {'),
+      'debug anita_ui_core.js must group hero-scope policy behind HeroScopedPresetSelection');
+    assert(source.includes('resolve: function') && source.includes('targetsHero: function'),
+      'debug HeroScopedPresetSelection must expose resolve and targetsHero policy methods');
+  }
   const context = createMockContext();
   context.global = context;
   vm.createContext(context);
@@ -1421,7 +1428,7 @@ function runHeroScopeModeFallbackValidation() {
     }
   ]);
 
-  root.AnitaUI.Register({
+  const activeFallbackConfig = {
     title: 'HP Colors',
     description: 'active game hero swap fallback validation',
     storageNamespace: 'hp_colors',
@@ -1430,18 +1437,19 @@ function runHeroScopeModeFallbackValidation() {
       { id: 'hp_enabled', type: 'toggle', defaultValue: true, currentValue: true, category: 'General' },
       { id: 'hp_low_threshold', type: 'slider', defaultValue: 35, currentValue: 35, category: 'General', min: 0, max: 100, step: 1 }
     ]
-  });
+  };
+  root.AnitaUI.Register(activeFallbackConfig);
 
   runNextScheduledByDelay(0.5);
   runNextScheduledByDelay(2.0);
   activeProgress.RemoveClass('hero_inferno');
   activeProgress.AddClass('hero_haze');
-  runNextScheduledByDelay(2.0);
+  runScheduledJobsByDelay(2.0);
   updates = decodedBulkUpdates().filter(payload => payload.update_source === 'baked_preset_apply' &&
     payload.preset_key === 'HPColorsPreset_014' &&
     payload.hero_id === 'hero_haze');
-  assert(updates.length >= 1,
-    `Auto hero mode should reapply the designated fallback when the detected hero changes after lock: ${JSON.stringify(decodedBulkUpdates())}`);
+  assert(updates.length === 0 && activeFallbackConfig.__hpHeroPresetDetectionLocked === true,
+    `Locked auto hero mode should not reapply fallback after a late hero swap: ${JSON.stringify(decodedBulkUpdates())}`);
 
   dispatched.length = 0;
   scheduled.length = 0;
@@ -1450,7 +1458,7 @@ function runHeroScopeModeFallbackValidation() {
   vm.createContext(context);
   vm.runInContext(source, context, { filename: targetScript });
   const manualImportProgress = installMockHeroProgress('hero_haze');
-  installMockGameTime('12:00');
+  const manualImportGameTime = installMockGameTime('12:00');
   installMockPresetStore([
     {
       id: 'HPColorsPreset_014',
@@ -1545,6 +1553,13 @@ function runHeroScopeModeFallbackValidation() {
   assert(manualImportConfig.__hpHeroDetectionMode === 'auto' &&
       manualImportConfig.__hpHeroManualPresetOverride === false,
     'Hero mode button did not return to AUTO HERO mode');
+  assert(manualImportConfig.__hpHeroPresetLockAfterGameTime > 720 &&
+      manualImportConfig.__hpHeroPresetDetectionLocked === false,
+    `AUTO HERO should reopen a fresh 10s lock window when toggled in match: ${manualImportConfig.__hpHeroPresetLockAfterGameTime}`);
+  manualImportGameTime.text = '12:11';
+  runScheduledJobsByDelay(2.0);
+  assert(manualImportConfig.__hpHeroPresetDetectionLocked === true,
+    'AUTO HERO should lock again after the replayed 10s in-match window elapses');
 
   dispatched.length = 0;
   scheduled.length = 0;
@@ -1553,7 +1568,7 @@ function runHeroScopeModeFallbackValidation() {
   vm.createContext(context);
   vm.runInContext(source, context, { filename: targetScript });
   const userRowProgress = installMockHeroProgress('hero_inferno');
-  installMockGameTime('00:20');
+  installMockGameTime('00:05');
   installMockPresetStore([]);
   const userRowConfig = {
     title: 'HP Colors',

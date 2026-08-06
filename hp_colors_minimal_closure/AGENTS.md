@@ -17,12 +17,14 @@ Production minimal runtime pack for HP Colors. This folder now owns the former f
   - `GameUI.CustomUIConfig().__hpColorsCfgRaw`
   - root attribute `hp_colors_minimal_cfg_raw`
   - `values_raw` payloads
-- Preserve the 49-key runtime schema exactly.
+- Preserve the 56-key runtime schema exactly. Minimal shares the full HP Colors setting set, including precise-pip parsing and heal, delta, and bullet-shield colors for enemy and ally healthbars.
 - Preserve hero-scoped preset selection: selected hero wins, global/startup remains fallback, unknown hero waits briefly, bounded late hero probe may correct fallback and then stops.
 - Hero-scoped static selection locks after 10 seconds of active match time. After lock, bounded late probing must not swap to another hero preset until the HUD/root/preset context resets.
 - Preserve same-raw snapshot repaint wakeups without reparsing unchanged raw JSON.
 - Preserve separate enemy, ally, and level runtime loops.
 - Preserve Source 2 unit-status IDs/classes used by shipped layout and styles.
+- Preserve the healing/delta/bullet-shield layer panel ids `unit_healthbar_healing`, `unit_healthbar_delta`, and `unit_healthbar_bullet_shield`; minimal runtime uses them for the shared layer color settings.
+- Bullet-shield defaults now match the native shield fallback: `hp_bullet_shield_color: #ffffff` (`ebsc`) and `hp_friend_bullet_shield_color: #ffffff` (`fbsc`) both align with the native `#unit_healthbar_bullet_shield` CSS fallback. Keep web-builder, preset-store, full runtime, minimal runtime, and validators in lockstep.
 - First-paint policy matches the verified `hp_colors_minimal_color_debug/` lane: the bare main bar defaults to `TeamEnemyColor`; `.team_neutral #unit_healthbar_lagging` overrides it for jungle/neutral bars and must stay present. Do not add width-threshold or recent-panel heuristics here.
 
 ## Runtime Helper Map

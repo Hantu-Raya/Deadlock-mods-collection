@@ -153,3 +153,10 @@ Multiple builds reuse pak slots, notably pak89, pak97, and pak98. Treat those ou
 - HP Colors changes should pair schema checks with hero/runtime replay checks. Minimal lanes also run their `node --test` suites.
 - FPS/convar recommendations require fresh ETW/PerfView evidence; do not rely on old traces.
 - Keep tests deterministic, isolated, and full-suite safe. Test observable transitions, authority boundaries, precedence, invalid/stale input, and real error paths—not source-text implementation details.
+
+## Cloned Dependency Source
+
+Read-only dependency source repositories are available under
+`.slim/clonedeps/repos/` for inspection. Do not edit these clones.
+
+- `.slim/clonedeps/repos/GNOME__pango/` - GNOME Pango at `1.36.8`; inspect the exact Deadlock Pango/PangoFT2 ABI and compare later Windows cache changes.

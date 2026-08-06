@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const REJUV_DUR = 220;
+  const REJUV_DUR = 180;
   const BRIDGE_DUR = 300;
   const SPAWN_TH = 10;
   const TICK_FAST = 0.1;
@@ -11,8 +11,8 @@
   const NEUTRAL_TRANSITION_MS = 220;
   const NEUTRAL_BOT_START_SEC = 60;
   const NEUTRAL_BOT_END_SEC = 120;
-  const NEUTRAL_MEDIUM_START_SEC = 300;
-  const NEUTRAL_MEDIUM_END_SEC = 360;
+  const NEUTRAL_MEDIUM_START_SEC = 240;
+  const NEUTRAL_MEDIUM_END_SEC = 300;
   const NEUTRAL_LARGE_START_SEC = 420;
   const NEUTRAL_LARGE_END_SEC = 480;
   const NEUTRAL_BOT_PROGRESS_COLOR = "#00ff00";
@@ -223,6 +223,9 @@
     }
     return (m < 10 ? "0" + m : "" + m) + ":" + (s < 10 ? "0" + s : "" + s);
   }
+  function computeRejuvBuffRemaining(now, start) {
+    return Math.max(0, REJUV_DUR - (now - start));
+  }
   function findRoot(p) {
     while (p?.GetParent?.()) {
       p = p.GetParent();
@@ -399,8 +402,9 @@
     return n;
   }
   function computeLingerLabelPosition(btn, container, minimap) {
-    const containerWidth = safePanelExtent(container?.contentwidth || container?.actuallayoutwidth, 404, 8192);
-    const containerHeight = safePanelExtent(container?.contentheight || container?.actuallayoutheight, 404, 8192);
+    // Active glow panels expand content bounds; layout bounds remain anchored to the minimap.
+    const containerWidth = safePanelExtent(container?.actuallayoutwidth || container?.contentwidth, 404, 8192);
+    const containerHeight = safePanelExtent(container?.actuallayoutheight || container?.contentheight, 404, 8192);
     const minimapWidth = Number(minimap?.actuallayoutwidth || minimap?.contentwidth);
     const minimapHeight = Number(minimap?.actuallayoutheight || minimap?.contentheight);
     const minimapSize = isFinite(minimapWidth) && minimapWidth > 0 && minimapWidth <= 8192
@@ -977,15 +981,15 @@
     if (!panel?.IsValid?.()) return;
     try { panel.SetImage(src); } catch {}
   }
-  function updateNeutralOverrides(now) {
-    let activePhase = null;
+  function computeNeutralPhase(now) {
     for (let i = 0; i < NEUTRAL_PHASES.length; i++) {
       const phase = NEUTRAL_PHASES[i];
-      if (now >= phase.start && now <= phase.end) {
-        activePhase = phase;
-        break;
-      }
+      if (now >= phase.start && now <= phase.end) return phase;
     }
+    return null;
+  }
+  function updateNeutralOverrides(now) {
+    const activePhase = computeNeutralPhase(now);
 
     for (let i = 0; i < NEUTRAL_PHASES.length; i++) {
       const phase = NEUTRAL_PHASES[i];
@@ -1165,12 +1169,16 @@
     if (!panel?.IsValid?.()) return;
     const cls = type ? GLOW_CLASS_MAP[type] : null;
     if (side.activeGlow && side.activeGlow !== cls) {
-      try { panel.RemoveClass(side.activeGlow); } catch {}
-      side.activeGlow = null;
+      try {
+        panel.RemoveClass(side.activeGlow);
+        side.activeGlow = null;
+      } catch {}
     }
-    if (cls && side.activeGlow !== cls) {
-      try { panel.AddClass(cls); } catch {}
-      side.activeGlow = cls;
+    if (cls && !side.activeGlow) {
+      try {
+        panel.AddClass(cls);
+        side.activeGlow = cls;
+      } catch {}
     }
     if (enemyClaimed === true) {
       cancelScheduledHandle(side, "enemyGlowHandle");
@@ -1316,15 +1324,18 @@
         return;
       }
       powerups.sort((a, b) => a.x - b.x);
-      writeSideGlow(0, null, false);
-      writeSideGlow(1, null, false);
-
       const inverted = mm.BHasClass?.("invert_map");
+      let leftGlowType = null;
+      let rightGlowType = null;
       for (let i = 0, len = powerups.length; i < len; i++) {
         const base = i === 0 ? 0 : 1;
-        powerups[i].side = inverted ? (base === 0 ? 1 : 0) : base;
-        writeSideGlow(powerups[i].side, powerups[i].type, false);
+        const side = inverted ? 1 - base : base;
+        powerups[i].side = side;
+        if (side === 0) leftGlowType = powerups[i].type;
+        else rightGlowType = powerups[i].type;
       }
+      writeSideGlow(0, leftGlowType, false);
+      writeSideGlow(1, rightGlowType, false);
 
       const p0 = powerups[0];
       const p1 = powerups[1] || p0;
@@ -1678,7 +1689,7 @@
     const neutralOverride = NEUTRAL_ACTIVE["bot"] || NEUTRAL_ACTIVE["medium"] || NEUTRAL_ACTIVE["card"];
 
     if (isDue("buff", realNowMs, 1000) && buffStart > 0) {
-      buffCnt = Math.max(0, REJUV_DUR - (gameNowSec - buffStart));
+      buffCnt = computeRejuvBuffRemaining(gameNowSec, buffStart);
       if (!neutralOverride) {
         writeText("miniText", null, formatTime(buffCnt, "pad"), UI.rejuvMiniTime, null);
       }
@@ -1718,7 +1729,7 @@
         const miniRem = Math.max(0, SEQ[safeIdx].d - (gameNowSec - phaseStart));
         writeText("miniText", null, formatTime(miniRem, "pad"), UI.rejuvMiniTime, null);
       } else if (buffActive) {
-        const miniBuffRem = Math.max(0, REJUV_DUR - (gameNowSec - buffStart));
+        const miniBuffRem = computeRejuvBuffRemaining(gameNowSec, buffStart);
         writeText("miniText", null, formatTime(miniBuffRem, "pad"), UI.rejuvMiniTime, null);
       }
     }
@@ -1840,10 +1851,20 @@
     module.exports.__test.computeRiftState = computeRiftState;
     module.exports.__test.observeRiftMarker = observeRiftMarker;
     module.exports.__test.computeUrnState = computeUrnState;
+    module.exports.__test.computeRejuvBuffRemaining = computeRejuvBuffRemaining;
+    module.exports.__test.computeNeutralPhase = computeNeutralPhase;
     module.exports.__test.computeLingerLabelPosition = computeLingerLabelPosition;
     module.exports.__test.updateObjectiveTimers = updateObjectiveTimers;
     module.exports.__test.computeAdaptiveLoopDelayMs = computeAdaptiveLoopDelayMs;
     module.exports.__test.maybeClearNeutralCachesForLowGameTime = maybeClearNeutralCachesForLowGameTime;
+    module.exports.__test.scanPowerups = scanPowerups;
+    module.exports.__test.setGlowTestUi = function (minimap, glowPanels) {
+      UI.minimap = minimap;
+      for (let i = 0; i < SIDES.length; i++) {
+        SIDES[i].glow = glowPanels?.[i] || null;
+        SIDES[i].activeGlow = null;
+      }
+    };
     module.exports.__test.loop = loop;
     module.exports.__test.setLoopTestState = function (patch) {
       if (patch && Number.isFinite(patch.generation)) _generation = patch.generation;

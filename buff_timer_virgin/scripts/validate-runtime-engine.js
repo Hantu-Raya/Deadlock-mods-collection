@@ -8,6 +8,8 @@ const vm = require('node:vm');
 
 const scriptPath = path.resolve(__dirname, '..', 'panorama', 'scripts', 'rejuvnbufftimer.js');
 const source = fs.readFileSync(scriptPath, 'utf8');
+const layoutPath = path.resolve(__dirname, '..', 'panorama', 'layout', 'hud.xml');
+const layoutSource = fs.readFileSync(layoutPath, 'utf8');
 const scheduled = [];
 const sandbox = {
   module: { exports: {} },
@@ -39,6 +41,13 @@ assert.equal(test.computeAdaptiveLoopDelayMs(100, 750, false), 100, 'near-spawn 
 assert.equal(test.computeAdaptiveLoopDelayMs(1000, 750, false), 500, 'normal work must cap the loop at 500 ms');
 assert.equal(test.computeAdaptiveLoopDelayMs(1000, 250, false), 250, 'faster minimap work must win the cadence decision');
 assert.equal(test.computeAdaptiveLoopDelayMs(1000, 750, true), 250, 'Rift-hot work must use a 250 ms cadence');
+assert.equal(test.computeRejuvBuffRemaining(100, 100), 180, 'Rejuvenator buff must use the tracked 180-second duration');
+assert.equal(test.computeRejuvBuffRemaining(279, 100), 1, 'Rejuvenator countdown must retain its final second');
+assert.equal(test.computeRejuvBuffRemaining(280, 100), 0, 'Rejuvenator countdown must expire after 180 seconds');
+assert.equal(test.computeNeutralPhase(239), null, 'medium camp countdown must not start before its one-minute lead');
+assert.equal(test.computeNeutralPhase(240)?.key, 'medium', 'medium camp countdown must begin one minute before spawn');
+assert.equal(test.computeNeutralPhase(300)?.key, 'medium', 'medium camp countdown must include the tracked spawn second');
+assert.equal(test.computeNeutralPhase(301), null, 'medium camp countdown must end after the tracked 300-second spawn');
 
 test.maybeClearNeutralCachesForLowGameTime(5);
 let lowTimeState = test.getLoopTestState();
@@ -131,6 +140,13 @@ assert.deepEqual(
   'observed Rift spawn should reset the next interval to a single ±1m uncertainty',
 );
 
+const riftCardLayout = layoutSource.match(/<Panel id="RiftTimerCard"[\s\S]*?<\/Panel>/);
+assert.ok(riftCardLayout, 'Rift timer card layout missing');
+assert.ok(
+  riftCardLayout[0].indexOf('id="RiftTimerSub"') < riftCardLayout[0].indexOf('id="RiftTimerTime"'),
+  'Rift label must render above its timer, matching the Urn card',
+);
+
 let riftCardActive = true;
 let urnCardActive = true;
 const objectiveCard = (setActive) => ({
@@ -160,6 +176,46 @@ assert.deepEqual(
 );
 urn = test.computeUrnState(601);
 assert.deepEqual({ remaining: urn.remaining, warning: urn.warning }, { remaining: 299, warning: false });
+
+const glowClassAdds = [0, 0];
+const glowClassRemoves = [0, 0];
+const glowPanels = [0, 1].map((side) => ({
+  IsValid: () => true,
+  AddClass: (className) => {
+    if (className !== 'glow-enemy') glowClassAdds[side] += 1;
+  },
+  RemoveClass: (className) => {
+    if (className !== 'glow-enemy') glowClassRemoves[side] += 1;
+  },
+}));
+test.setGlowTestUi({ IsValid: () => true, BHasClass: () => false }, glowPanels);
+const glowSnapshot = {
+  powerupSpawns: [
+    { isActive: true, type: 'powerup_casting', xPct: 25, yPct: 50, panel: {} },
+    { isActive: true, type: 'powerup_gun', xPct: 75, yPct: 50, panel: {} },
+  ],
+};
+test.scanPowerups(1000, glowSnapshot, false);
+test.scanPowerups(1250, glowSnapshot, false);
+assert.deepEqual(glowClassAdds, [1, 1], 'unchanged buff glows must not restart their pulse animation');
+assert.deepEqual(glowClassRemoves, [0, 0], 'unchanged buff glows must not be cleared between scans');
+let failedGlowAdds = 0;
+const retryGlowPanels = [
+  {
+    IsValid: () => true,
+    AddClass: (className) => {
+      if (className === 'glow-enemy') return;
+      failedGlowAdds += 1;
+      if (failedGlowAdds === 1) throw new Error('transient Panorama class failure');
+    },
+    RemoveClass: () => {},
+  },
+  { IsValid: () => true, AddClass: () => {}, RemoveClass: () => {} },
+];
+test.setGlowTestUi({ IsValid: () => true, BHasClass: () => false }, retryGlowPanels);
+test.scanPowerups(1500, glowSnapshot, false);
+test.scanPowerups(1750, glowSnapshot, false);
+assert.equal(failedGlowAdds, 2, 'failed glow class writes must retry on the next scan');
 
 const lingerLabel = {
   style: {},
@@ -309,19 +365,36 @@ assert.deepEqual(
   { x: 92.5, y: 92.5 },
   'percentage top-left placement should keep the whole label inside the minimap',
 );
+const capturedLingerButton = {
+  actualxoffset: 262.3905334472656,
+  actualyoffset: 274.3076477050781,
+  actuallayoutwidth: 24.850862503051758,
+  actuallayoutheight: 24.850862503051758,
+};
+const capturedLingerPosition = { x: 65.869, y: 68.855 };
 lingerPosition = test.computeLingerLabelPosition(
-  {
-    actualxoffset: 262.3905334472656,
-    actualyoffset: 274.3076477050781,
-    actuallayoutwidth: 24.850862503051758,
-    actuallayoutheight: 24.850862503051758,
-  },
+  capturedLingerButton,
   { contentwidth: 399, contentheight: 399 },
   null,
 );
 assert.deepEqual(
   { x: lingerPosition.x, y: lingerPosition.y },
-  { x: 65.869, y: 68.855 },
+  capturedLingerPosition,
   'live container fallback should preserve the captured enemy marker center',
+);
+lingerPosition = test.computeLingerLabelPosition(
+  capturedLingerButton,
+  {
+    actuallayoutwidth: 399,
+    actuallayoutheight: 399,
+    contentwidth: 539,
+    contentheight: 539,
+  },
+  null,
+);
+assert.deepEqual(
+  { x: lingerPosition.x, y: lingerPosition.y },
+  capturedLingerPosition,
+  'active oversized glow content must not change percentage linger positioning',
 );
 console.log('[RUNTIME ENGINE PASS] objective timing and linger lifecycle contracts are valid.');

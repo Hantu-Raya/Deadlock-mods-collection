@@ -65,9 +65,8 @@
 			<CitadelHudQuickResponse id="CitadelQuickResponse" />
 			<CitadelRadialAbilities id="RadialAbilitiesMenu" startangle="-70" endangle="70" />
 			<Panel id="SafeToAbandonIndicator">
-				<Button class="MinimizeSafeToLeave CloseButton" onactivate="$.GetContextPanel().ToggleClass(&apos;MinimizeSafeToLeave&apos;)" />
-				<Label class="SafeToAbandonLabel" text="#SafeToAbandon_Text" />
-				<Label class="NotScoredLabel" text="#NotScored_Text" />
+				<Label class="abandon_title" text="#AbandonTriggerTeam_Title" />
+				<Label text="{s:safe_to_abandon_text}" />
 			</Panel>
 			<Panel id="context_action_container">
 				<GlobalClassListener classes="gDetailView" />
@@ -213,6 +212,15 @@
 						<!-- MOD: Mini rejuv card — visible during neutral override or buff active -->
 						<Panel id="RejuvMiniCard" class="rejuv-mini-card" hittest="false">
 							<Label id="RejuvMiniTime" class="rejuv-mini-time" text="" />
+						</Panel>
+						<!-- MOD: New objective schedule cards — Unstable Rift window and standalone Urn spawn cadence -->
+						<Panel id="RiftTimerCard" class="objective-timer-card rift-objective-card" hittest="false">
+							<Label id="RiftTimerSub" class="objective-timer-sub" text="RIFT" />
+							<Label id="RiftTimerTime" class="objective-timer-time" text="" />
+						</Panel>
+						<Panel id="UrnTimerCard" class="objective-timer-card urn-objective-card" hittest="false">
+							<Label id="UrnTimerSub" class="objective-timer-sub" text="URN" />
+							<Label id="UrnTimerTime" class="objective-timer-time" text="" />
 						</Panel>
 						<!-- MOD: Invisible ping buttons overlaying the timer pills -->
 						<Button id="RejuvPingButton" class="timer-ping-button rejuv-ping-button" onactivate="handleRejuvPingActivate()" hittestchildren="false" />
@@ -373,6 +381,7 @@
 			<CitadelHudPregame id="Pregame" hittest="false" />
 			<CitadelHudMatchStart id="MatchStart" />
 		</Panel>
+		<CitadelCommendNotification id="CommendNotification" />
 		<ToastManager id="ToastManager" hittest="false" toastduration="5s" maxtoastsvisible="4" />
 		<CitadelHudEscapeMenu id="EscapeMenu" />
 		<Panel id="CitadelPartyContainer" hittest="false">

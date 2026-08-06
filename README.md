@@ -26,13 +26,25 @@ Archived non-runtime metadata and one-off artifacts are kept in `_archive/`.
 
 This collection includes several discrete modules:
 
-### 🎮 HUD Enhancements
+### TopBar Rank Barebones (V40D TopBarPlus)
 
-- **Soul Timer (`soul_timer`)**: A countdown timer for unsecured soul drainage, positioned above the soul counter.
-- **Soul Timer Warning (`soul_timer_warning_addon`)**: Adds a "Radioactive Breath" pulse animation to the Soul Timer when souls are at risk (≥1000).
-- **Buff Timer (Top Bar)**: Moves active buff timers to the top bar for better visibility during combat.
-- **Radar Tweaks**: Custom modifications to the minimap/radar for clarity.
-- **Rank Display (`showrank`)**: A widget to display MMR or rank badges in-game.
+Two mutually exclusive editions replace the former combined design with a clean cutover: the V40D TopBarPlus base plus the ES5 ShowRank Barebones rank surfaces. They preserve native `GameTime`, all TopBarPlus script includes, account-ID authority, duplicate-name/account safety, bounded Escape probing, six/twelve verified-account caching, native Escape behavior, and ranks in profile, context menu, topbar, team average, and player list. They do not use the old canonical ShowRank bridge.
+
+- **Alert edition (`topbar_rank`)** — ranks plus missing labels, portrait darkening, clock polling, notification root, and hero-icon announcements.
+- **No-missing edition (`topbar_rank_no_missing`)** — rank-only; it contains none of the alert-only features.
+
+Both editions check in 16 TopBarPlus base assets derived from the supplied `G:\v40d_top_bar_plus.zip`. Archive witnesses: ZIP SHA-256 `9610965fc621c7d2f8fa5054c79c1d31f32ef30bb93dfd2ea2475598ba6bd608`; VPK SHA-256 `986d28a49f06919d84a090e9921929075fb2b9c5a445df58de13b1e06921d10d`. Each source tree packages 22 assets: those 16 base assets, four rank layouts (profile, context menu, Escape, player list), one Barebones runtime, and one Barebones style. The topbar root and player layouts are merged replacements, not additions.
+
+Build from the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build_topbar_rank_barebones.ps1
+powershell -ExecutionPolicy Bypass -File .\build_topbar_rank_barebones_no_missing.ps1
+```
+
+The artifacts are `topbar_rank_barebones_dir.vpk` and `topbar_rank_barebones_no_missing_dir.vpk`. Either build may use `-KeepStaging`; use `-Install` only to install one edition as `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak89_dir.vpk`. Because both use `pak89_dir.vpk`, install only one at a time.
+
+These TopBar Rank editions are separate from the standalone `showrank_barebones` editions and their release artifacts. Source/build validation verifies inputs and packages; it is not live in-game proof. Smoke-test the installed edition in Deadlock.
 
 ### ❤️ Health & Status
 

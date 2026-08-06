@@ -26,6 +26,8 @@
     { type: "colorpicker", id: "hp_color_low", label: "Low HP bar color", defaultValue: "#E16161", category: "HEALTH BARS|Enemy Colors" },
     { type: "colorpicker", id: "hp_color_mid", label: "Mid HP bar color", defaultValue: "#FF7B00", category: "HEALTH BARS|Enemy Colors" },
     { type: "colorpicker", id: "hp_color_high", label: "High HP bar color", defaultValue: "#00FF00", category: "HEALTH BARS|Enemy Colors" },
+    { type: "colorpicker", id: "hp_heal_color", label: "Healing bar color", defaultValue: "#5fff80", category: "HEALTH BARS|Enemy Colors" },
+    { type: "colorpicker", id: "hp_delta_color", label: "Damage delta color", defaultValue: "#ffe55b", category: "HEALTH BARS|Enemy Colors" },
     // Visual Effects - Low HP Pulse
     { type: "toggle", id: "hp_pulse_enabled", label: "Pulse at low HP", defaultValue: true, category: "VISUAL EFFECTS|Low HP Pulse" },
     { type: "slider", id: "hp_pulse_threshold", label: "Pulse starts below %", defaultValue: 25, min: 0, max: 100, step: 1, category: "VISUAL EFFECTS|Low HP Pulse", visibleWhen: { id: "hp_pulse_enabled", equals: true } },
@@ -54,6 +56,8 @@
     { type: "colorpicker", id: "hp_friend_color_low", label: "Ally low HP color", defaultValue: "#E16161", category: "HEALTH BARS|Ally Colors", visibleWhen: { id: "hp_friend_enabled", equals: true } },
     { type: "colorpicker", id: "hp_friend_color_mid", label: "Ally mid HP color", defaultValue: "#FF7B00", category: "HEALTH BARS|Ally Colors", visibleWhen: { id: "hp_friend_enabled", equals: true } },
     { type: "colorpicker", id: "hp_friend_color_high", label: "Ally high HP color", defaultValue: "#00FF00", category: "HEALTH BARS|Ally Colors", visibleWhen: { id: "hp_friend_enabled", equals: true } },
+    { type: "colorpicker", id: "hp_friend_heal_color", label: "Ally healing bar color", defaultValue: "#5fff80", category: "HEALTH BARS|Ally Colors", visibleWhen: { id: "hp_friend_enabled", equals: true } },
+    { type: "colorpicker", id: "hp_friend_delta_color", label: "Ally damage delta color", defaultValue: "#504c47", category: "HEALTH BARS|Ally Colors", visibleWhen: { id: "hp_friend_enabled", equals: true } },
     { type: "toggle", id: "hp_friend_pulse_enabled", label: "Pulse ally bars", defaultValue: false, category: "HEALTH BARS|Ally Colors", visibleWhen: { id: "hp_friend_enabled", equals: true } },
     { type: "slider", id: "hp_friend_pulse_threshold", label: "Ally pulse starts below %", defaultValue: 25, min: 0, max: 100, step: 1, category: "HEALTH BARS|Ally Colors", visibleWhen: { id: "hp_friend_pulse_enabled", equals: true } },
     { type: "slider", id: "hp_friend_pulse_bpm", label: "Ally pulse speed", defaultValue: 75, min: 30, max: 300, step: 1, category: "HEALTH BARS|Ally Colors", visibleWhen: { id: "hp_friend_pulse_enabled", equals: true } },

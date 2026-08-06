@@ -1,24 +1,17 @@
 $ErrorActionPreference = 'Stop'
 
 $root        = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $root 'scripts\source2_package_pipeline.ps1')
 $modSrc      = "$root\hp_colors"
 $modCompiled = "$root\hp_colors_compiled"
 $closureSrc   = "$root\hp_colors_closure"
 $closureCompiled = "$root\hp_colors_closure_compiled"
 $compiler    = "$root\sr2compiler\New folder.exe"
-$vpkeditcliCandidates = @(
+$vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
     "$root\passive_items_mod\compiler\vpkeditcli.exe",
     "$root\vpk cli\vpkeditcli.exe",
     "$root\passive_items_mod_release\compiler\vpkeditcli.exe"
 )
-$vpkeditcli = $vpkeditcliCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-if (-not $vpkeditcli) {
-    Write-Host "[ERROR] vpkeditcli.exe not found. Checked:" -ForegroundColor Red
-    foreach ($candidate in $vpkeditcliCandidates) {
-        Write-Host "  $candidate" -ForegroundColor Red
-    }
-    exit 1
-}
 $vpkOut      = "$root\pak97_dir.vpk"
 $vpkDest     = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak97_dir.vpk"
 
@@ -238,36 +231,11 @@ if ((Test-Path $unusedImageDir) -and -not (Get-ChildItem -LiteralPath $unusedIma
 # ## Step 2: Compile ############################################################
 Write-Host "`n[2/4] Compiling hp_colors..." -ForegroundColor Cyan
 $compileTarget = "$closureCompiled\panorama\scripts\healthbar_logic.vjs_c"
-$proc = Start-Process -FilePath $compiler -ArgumentList "`"$closureSrc`"" -PassThru
-$compileDeadline = (Get-Date).AddSeconds(120)
-while (-not $proc.HasExited -and (Get-Date) -lt $compileDeadline) {
-    Start-Sleep -Milliseconds 500
-    if (Test-Path $compileTarget) {
-        Start-Sleep -Seconds 2
-        if (-not $proc.HasExited) {
-            Write-Host "[WARN] Compiler produced output but did not exit; stopping wrapper." -ForegroundColor Yellow
-            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-            $proc.WaitForExit()
-        }
-        break
-    }
-}
-if (-not $proc.HasExited) {
-    Write-Host "[WARN] Compiler timed out; stopping wrapper." -ForegroundColor Yellow
-    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-    $proc.WaitForExit()
-}
-if ($proc.ExitCode -ne 0) {
-    if (-not (Test-Path $compileTarget)) {
-        Write-Host "[ERROR] Compiler exited $($proc.ExitCode) and no output produced" -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "[WARN] Compiler exited $($proc.ExitCode) but output exists; continuing." -ForegroundColor Yellow
-}
-if (-not (Test-Path $compileTarget)) {
-    Write-Host "[ERROR] Compiled output not found" -ForegroundColor Red
-    exit 1
-}
+Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $closureSrc -RequiredOutputs @(
+    $compileTarget,
+    "$closureCompiled\panorama\scripts\anita_ui_core.vjs_c",
+    "$closureCompiled\panorama\styles\anita_ui.vcss_c"
+) -TimeoutSeconds 120
 $compiledSelectorTargets = @(
     "$closureCompiled\panorama\scripts\anita_ui_core.vjs_c",
     "$closureCompiled\panorama\styles\anita_ui.vcss_c"
@@ -284,59 +252,25 @@ Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 # ## Step 3: Pack VPK ##########################################################
 Write-Host "`n[3/4] Packing VPK..." -ForegroundColor Cyan
 Write-Host "  Using vpkeditcli -> $vpkeditcli" -ForegroundColor DarkGray
-$packArgs = "`"$modCompiled`" -o `"$vpkOut`" -s --no-progress"
-$pack = Start-Process -FilePath $vpkeditcli -ArgumentList $packArgs -PassThru -Wait -NoNewWindow
-if ($pack.ExitCode -ne 0) {
-    Write-Host "[ERROR] vpkeditcli failed with code $($pack.ExitCode)" -ForegroundColor Red
-    exit 1
-}
-if (-not (Test-Path $vpkOut)) {
-    Write-Host "[ERROR] VPK not created at $vpkOut" -ForegroundColor Red
-    exit 1
-}
-$vpkTree = & $vpkeditcli $vpkOut --file-tree --no-progress
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] Could not inspect packed VPK contents" -ForegroundColor Red
-    exit 1
-}
-foreach ($packedAsset in @(
+Invoke-VpkPack -VpkEditCli $vpkeditcli -InputDir $modCompiled -OutputPath $vpkOut
+$vpkTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut
+Assert-PackedVpkAssets -Tree $vpkTree -Label 'HP Colors VPK' -Required @(
     "base_hud.vxml_c",
     "unit_status_overlay.vxml_c",
     "anita_ui_core.vjs_c",
     "healthbar_logic.vjs_c",
     "anita_ui.vcss_c",
     "unit_status.vcss_c"
-)) {
-    if (-not (($vpkTree | Select-String -SimpleMatch $packedAsset -Quiet))) {
-        Write-Host "[ERROR] Packed VPK missing required asset: $packedAsset" -ForegroundColor Red
-        exit 1
-    }
-}
-foreach ($removedPackedAsset in @(
+) -Forbidden @(
     "anita_persist_loader.vjs_c",
-    "hp_registrar.vjs_c"
-)) {
-    if (($vpkTree | Select-String -SimpleMatch $removedPackedAsset -Quiet)) {
-        Write-Host "[ERROR] Packed VPK still includes merged script asset: $removedPackedAsset" -ForegroundColor Red
-        exit 1
-    }
-}
-if (($vpkTree | Select-String -SimpleMatch "hud_health.vxml_c" -Quiet)) {
-    Write-Host "[ERROR] Packed VPK still includes unused hud_health.vxml_c" -ForegroundColor Red
-    exit 1
-}
-foreach ($buildOnlyAsset in @("validate-schema.vjs_c", "validate-hero-selector.vjs_c", "validate-runtime-replay.vjs_c")) {
-    if (($vpkTree | Select-String -SimpleMatch $buildOnlyAsset -Quiet)) {
-        Write-Host "[ERROR] Packed VPK still includes build-only asset: $buildOnlyAsset" -ForegroundColor Red
-        exit 1
-    }
-}
-foreach ($unusedImageAsset in @("icon_copy.vsvg_c", "icon_open_builder.vsvg_c")) {
-    if (($vpkTree | Select-String -SimpleMatch $unusedImageAsset -Quiet)) {
-        Write-Host "[ERROR] Packed VPK still includes unused image asset: $unusedImageAsset" -ForegroundColor Red
-        exit 1
-    }
-}
+    "hp_registrar.vjs_c",
+    "hud_health.vxml_c",
+    "validate-schema.vjs_c",
+    "validate-hero-selector.vjs_c",
+    "validate-runtime-replay.vjs_c",
+    "icon_copy.vsvg_c",
+    "icon_open_builder.vsvg_c"
+)
 $vpkSize = (Get-Item $vpkOut).Length
 Write-Host "  Packed OK -> $vpkOut  ($([math]::Round($vpkSize/1KB, 1)) KB)" -ForegroundColor Green
 

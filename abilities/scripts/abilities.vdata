@@ -3971,7 +3971,7 @@
 			}
 			BonusMoveSpeed = 
 			{
-				m_strValue = "3.5m"
+				m_strValue = "2m"
 				m_eDisplayType = "EMaxMoveSpeed"
 				m_strCSSClass = "move_speed"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_MAX"
@@ -3979,13 +3979,13 @@
 			}
 			BonusSprintSpeed = 
 			{
-				m_strValue = "2m"
+				m_strValue = "0m"
 				m_strCSSClass = "move_speed"
 				m_eDisplayType = "ESprintSpeed"
 			}
 			TrailingTeamBonusSprintSpeed = 
 			{
-				m_strValue = "7m"
+				m_strValue = "5m"
 				m_strCSSClass = "move_speed"
 				m_eDisplayType = "ESprintSpeed"
 			}
@@ -4057,7 +4057,7 @@
 			}
 			StaminaCooldownReduction = 
 			{
-				m_strValue = "15"
+				m_strValue = "25"
 				m_eDisplayType = "EStaminaRegenPercent"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_STAMINA_REGEN_PER_SECOND_PERCENTAGE"
 				m_eStatsUsageFlags = ""
@@ -4082,8 +4082,8 @@
 		m_bStartTrained = true
 		m_iMaxLevel = 1
 		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NOT_SILENCABLE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET"
-		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
-		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
+		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
+		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PASSIVE"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY | CITADEL_UNIT_TARGET_HERO_FRIENDLY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/wraith_lift.psd"
 		m_strCastAnimGraphParam = "b_GenericThrow"
@@ -4098,7 +4098,7 @@
 			m_nBehaviors = "PBF_BounceOffWall | PBF_DetonateOnHitWorld | PBF_DetonateOnLifetimeExpire | PBF_DontTravelThroughPortals"
 		}
 		m_ItemModel = resource_name:"models/null.vmdl"
-		m_flRevealTime = 1
+		m_flRevealTime = 12
 		m_flDamageTickRate = 1.0
 		m_flMaxHealthDamage = 0.05
 		m_flTimeToDamage = 40.0
@@ -4124,13 +4124,8 @@
 			_my_subclass_name = "modifier_citadel_holding_golden_idol"
 			m_IdolParticle = resource_name:"particles/generic/idol_carry.vpcf"
 			m_eHudDisplayLocation = "DISPLAY_HUD_CENTER"
-			m_nAmbientLoopingSoundRecipients = "MODIFIER_SOUND_RECIPIENT_PARENT_IS_LOCAL_PLAYER"
-			m_nEnabledStateMask = "MODIFIER_STATE_HOLDING_IDOL | MODIFIER_STATE_TELEPORTER_DISABLED | MODIFIER_STATE_DISARMED | MODIFIER_STATE_ZIPLINE_DISABLED | MODIFIER_ATTRIBUTE_CANNOT_BE_PURGED | MODIFIER_STATE_SILENCE_MOVEMENT_ABILITES"
-			m_vecAlwaysShowInStatModifierUI = 
-			[
-				"MODIFIER_VALUE_SPRINT_SPEED_BONUS",
-			]
-			m_strParticleEffect = resource_name:"particles/environment/soul_jar_disarmed_debuff.vpcf"
+			m_nAmbientLoopingSoundRecipients = "MODIFIER_SOUND_RECIPIENT_ALWAYS"
+			m_nEnabledStateMask = "MODIFIER_STATE_HOLDING_IDOL | MODIFIER_STATE_TELEPORTER_DISABLED | MODIFIER_STATE_ZIPLINE_DISABLED | MODIFIER_ATTRIBUTE_CANNOT_BE_PURGED | MODIFIER_STATE_PARRY_DISABLED"
 			m_sLocalizationName = "modifier_citadel_holding_golden_idol"
 			m_FootStepOverride = 
 			{
@@ -4140,6 +4135,7 @@
 			m_FootStepAdditional = soundevent:"Footstep.Urn.Sweetener"
 			m_sStartSound = soundevent:"Soul.Urn.Pickup"
 			m_sExpiredSound = soundevent:"Soul.Urn.Drop"
+			m_sAmbientLoopingSound = soundevent:"Soul.Urn.Carry.Lp"
 		}
 		m_AutoIntrinsicModifiers = 
 		[
@@ -4162,24 +4158,16 @@
 		]
 		m_HUDPanel = 
 		{
-			m_vecButtonHints = 
-			[
-				{
-					m_strLocToken = "#AbilityButtonHint_DropIdol"
-					m_eHintSide = "EButtonSide_Right"
-					m_bShowAbilityIcon = true
-					m_nButton1 = "IN_ABILITY_HELD"
-				},
-			]
+			m_vecButtonHints = [  ]
 		}
 		m_bitsInterruptingStates = "MODIFIER_STATE_STUNNED"
-		m_strUrnCashedInSoundFriendly = soundevent:"Soul.Urn.CashIn.Complete.Team"
-		m_strUrnCashedInSoundEnemy = soundevent:"Soul.Urn.CashIn.Complete.Opponent"
 		m_OnKnockedOffUrnParticle = resource_name:"particles/environment/soul_jar_force_drop.vpcf"
 		m_OnKnockedOffHolderParticle = resource_name:"particles/environment/soul_jar_force_drop_carrier.vpcf"
 		m_strUrnMeleeDropSound = soundevent:"Soul.Urn.Melee.Drop"
-		m_strUrnOverheldDamageSound = soundevent:"Mods.Weapon.Backstabber.Damage.Tick"
+		m_strUrnOverheldDamageSound = soundevent:"Soul.Urn.Damage.Tick"
 		m_OnOverheldDamageParticle = resource_name:"particles/items/tech_damage_pulse_burst_glow.vpcf"
+		m_strUrnDroppedOffSound = soundevent:"Soul.Urn.CashIn.Complete.Team"
+		m_OnExpireParticle = resource_name:"particles/generic/idol_expire.vpcf"
 	}
 	ability_item_pickup_effects = 
 	{
@@ -6042,15 +6030,15 @@
 				"StaminaRegenReduction",
 			]
 		}
-		m_flDashJumpEndTime = 0.5
+		m_flDashJumpEndTime = 0.55
 		m_flDashJumpMissMaxSpeed = 250.0
 		m_flDashJumpStartTime = 0.3
 		m_flMantleRefundWindow = 0.1
 		m_AirJumpParticle = resource_name:"particles/generic/air_jump.vpcf"
 		m_DashJumpParticle = resource_name:"particles/generic/roll_jump.vpcf"
 		m_flLateJumpGraceWindow = 0.15
-		m_flDashJumpVerticalSpeed = 400.0
-		m_flDashJumpDistanceInMeters = 18.0
+		m_flDashJumpVerticalSpeed = 425.0
+		m_flDashJumpDistanceInMeters = 19.0
 		m_flZiplineRefundWindow = 0.2
 		m_GroundJumpExecutedSound = soundevent:"Player.Jump"
 		m_WallJumpParticle = resource_name:"particles/generic/wall_jump.vpcf"
@@ -28041,7 +28029,7 @@
 			}
 			AbilityCooldownBetweenCharge = 
 			{
-				m_strValue = "7"
+				m_strValue = "7.5"
 				m_strDisableValue = "-2"
 				m_strCSSClass = "charge_cooldown"
 				m_bCanSetTokenOverride = true
@@ -28103,7 +28091,7 @@
 				{
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "BarrelDamage_scale_function"
-					m_flStatScale = 1.4
+					m_flStatScale = 1.05
 					m_eSpecificStatScaleType = "ETechPower"
 				}
 				m_bIsAbilityDamageProperty = true
@@ -28126,7 +28114,7 @@
 			}
 			BarrelLightMeleeForceForward = 
 			{
-				m_strValue = "1600"
+				m_strValue = "1400"
 			}
 			BarrelLightMeleeForceUp = 
 			{
@@ -28134,7 +28122,7 @@
 			}
 			BarrelHeavyMeleeForceForward = 
 			{
-				m_strValue = "2000"
+				m_strValue = "1800"
 			}
 			BarrelHeavyMeleeForceUp = 
 			{
@@ -28196,7 +28184,7 @@
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_eAbilitySpectatePriority = "CITADELTV_ABILITY_SPECTATE_PRIORITY_MEDIUM"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_IGNORE_SELECTION_MASH_PROTECTION | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST | CITADEL_ABILITY_BEHAVIOR_ALLOW_ALT_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_PROJECTILE | CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_IGNORE_SELECTION_MASH_PROTECTION | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST | CITADEL_ABILITY_BEHAVIOR_ALLOW_ALT_CAST | CITADEL_ABILITY_BEHAVIOR_CAST_IMMEDIATE_ON_OTHER_ABILITY"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/astro/holliday_powder_keg.psd"
 		m_strCastAnimGraphParam = "b_ExplosiveBarrel"
 		m_projectileInfo = 
@@ -28241,7 +28229,7 @@
 				[
 					{
 						m_strPropertyName = "BarrelDamage"
-						m_strBonus = "100"
+						m_strBonus = "80"
 					},
 					{
 						m_strPropertyName = "AbilityCooldownBetweenCharge"
@@ -29022,7 +29010,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "115"
+				m_strValue = "130"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -29337,7 +29325,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-50"
+						m_strBonus = "-40"
 					},
 				]
 			},
@@ -32493,7 +32481,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-20"
+						m_strBonus = "-18"
 					},
 					{
 						m_strPropertyName = "WeaponDamageBonus"
@@ -33012,7 +33000,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 185.0
+				m_strValue = 215.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -33266,7 +33254,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -35.0
+						m_strBonus = -30.0
 					},
 				]
 			},
@@ -33880,7 +33868,7 @@
 					},
 					{
 						m_strPropertyName = "Radius"
-						m_strBonus = "3m"
+						m_strBonus = "2m"
 					},
 				]
 			},
@@ -36185,7 +36173,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 105.0
+				m_strValue = 120.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -36477,7 +36465,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -25.0
+						m_strBonus = -20.0
 					},
 				]
 			},
@@ -44300,6 +44288,12 @@
 						m_strPropertyName = "AbilityCooldown"
 						m_strBonus = -12
 					},
+					{
+						m_strPropertyName = "SpeedChange"
+						m_strBonus = 0.06
+						m_eUpgradeType = "EAddToScale"
+						m_eScaleStatFilter = "ETechPower"
+					},
 				]
 			},
 			{
@@ -44308,6 +44302,12 @@
 					{
 						m_strPropertyName = "SpeedBoostDuration"
 						m_strBonus = "2"
+					},
+					{
+						m_strPropertyName = "MinBonusBulletDamage"
+						m_strBonus = "55"
+						m_eUpgradeType = "EAddToScale"
+						m_eScaleStatFilter = "EWeaponPower"
 					},
 					{
 						m_strPropertyName = "MaxBonusBulletDamage"
@@ -44432,7 +44432,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 95.0
+				m_strValue = 110.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -44722,7 +44722,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-35"
+						m_strBonus = "-30"
 					},
 				]
 			},
@@ -47178,7 +47178,7 @@
 			}
 			HealingPerSecond = 
 			{
-				m_strValue = "25"
+				m_strValue = "30"
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
@@ -47417,7 +47417,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 230.0
+				m_strValue = 250.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -50531,7 +50531,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 175.0
+				m_strValue = 200.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -50841,7 +50841,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -55.0
+						m_strBonus = -45.0
 					},
 					{
 						m_strPropertyName = "AbilityDuration"
@@ -55672,7 +55672,7 @@
 			}
 			VulnerabilityPerStack = 
 			{
-				m_strValue = "8"
+				m_strValue = "7"
 				m_strCSSClass = "damage"
 			}
 			DebuffDuration = 
@@ -55798,7 +55798,7 @@
 				[
 					{
 						m_strPropertyName = "VulnerabilityPerStack"
-						m_strBonus = "7"
+						m_strBonus = "8"
 					},
 				]
 			},
@@ -56023,14 +56023,14 @@
 			}
 			LifeDrainPerSecond = 
 			{
-				m_strValue = 32
+				m_strValue = 24
 				m_strCSSClass = "tech_damage"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "LifeDrainPerSecond_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.43
+					m_flStatScale = 0.3225
 				}
 				m_bIsAbilityDamageProperty = true
 			}
@@ -56044,7 +56044,7 @@
 			}
 			LifeDrainHealthMult = 
 			{
-				m_strValue = "75"
+				m_strValue = "100"
 				m_strCSSClass = "healing"
 				m_subclassScaleFunction = subclass:
 				{
@@ -56097,7 +56097,7 @@
 				[
 					{
 						m_strPropertyName = "LifeDrainPerSecond"
-						m_strBonus = 18
+						m_strBonus = 13
 					},
 				]
 			},
@@ -56123,7 +56123,7 @@
 					},
 					{
 						m_strPropertyName = "LifeDrainPerSecond"
-						m_strBonus = 0.4
+						m_strBonus = 0.3
 						m_eUpgradeType = "EAddToScale"
 						m_eScaleStatFilter = "ETechPower"
 					},
@@ -56461,7 +56461,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 190.0
+				m_strValue = 220.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -56730,7 +56730,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -60.0
+						m_strBonus = -50.0
 					},
 				]
 			},
@@ -58024,7 +58024,7 @@
 			}
 			AbilityCooldownBetweenCharge = 
 			{
-				m_strValue = "7"
+				m_strValue = "6"
 				m_strDisableValue = "-2"
 				m_strCSSClass = "charge_cooldown"
 				m_bCanSetTokenOverride = true
@@ -59503,7 +59503,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 180.0
+				m_strValue = 205.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -59665,11 +59665,11 @@
 			}
 			DamageInterval = 
 			{
-				m_strValue = "0.25"
+				m_strValue = "0.3"
 			}
 			ExpandTime = 
 			{
-				m_strValue = "1.5"
+				m_strValue = "3.5"
 				m_strCSSClass = "cooldown"
 			}
 			CloudHeight = 
@@ -59783,6 +59783,10 @@
 					{
 						m_strPropertyName = "Radius"
 						m_strBonus = "10m"
+					},
+					{
+						m_strPropertyName = "InitialRadius"
+						m_strBonus = "5m"
 					},
 					{
 						m_strPropertyName = "AbilityChannelTime"
@@ -61137,7 +61141,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "Damage_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 2.8
+					m_flStatScale = 2.2
 				}
 				m_bIsAbilityDamageProperty = true
 			}
@@ -61161,7 +61165,7 @@
 					_class = "scale_function_multi_stats"
 					_my_subclass_name = "SleepWakeUpDelay_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.003
+					m_flStatScale = 0.002
 					m_vecScalingStats = 
 					[
 						"ETechPower",
@@ -61218,6 +61222,10 @@
 				}
 			}
 			StaminaReduction = 
+			{
+				m_strValue = "0"
+			}
+			FixationStacks = 
 			{
 				m_strValue = "0"
 			}
@@ -61327,7 +61335,7 @@
 				[
 					{
 						m_strPropertyName = "BulletResistReduction"
-						m_strBonus = -8.0
+						m_strBonus = -10.0
 					},
 					{
 						m_strPropertyName = "BulletResistReductionDuration"
@@ -61339,8 +61347,12 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -17.0
+						m_strPropertyName = "SleepDuration"
+						m_strBonus = "1"
+					},
+					{
+						m_strPropertyName = "FixationStacks"
+						m_strBonus = 15
 					},
 				]
 			},
@@ -61348,8 +61360,8 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "SleepDuration"
-						m_strBonus = "1"
+						m_strPropertyName = "AbilityCooldown"
+						m_strBonus = -17.0
 					},
 					{
 						m_strPropertyName = "SlowPercent"
@@ -61751,7 +61763,7 @@
 				[
 					{
 						m_strPropertyName = "BulletLifesteal"
-						m_strBonus = "40"
+						m_strBonus = "50"
 					},
 					{
 						m_strPropertyName = "PostInvisBuffDuration"
@@ -61993,9 +62005,10 @@
 				m_eDisplayType = "EBulletDamage"
 				m_subclassScaleFunction = subclass:
 				{
-					_class = "scale_function_single_stat"
-					_my_subclass_name = "Fixation_scale_function"
-					m_eSpecificStatScaleType = "EDamageScale"
+					_class = "scale_function_ability_weapon_damage"
+					m_eSpecificStatScaleType = "EBaseWeaponDamageIncrease"
+					m_flStatScale = 0.0
+					_my_subclass_name = "damagesf"
 				}
 			}
 			ProcDamage = 
@@ -62111,7 +62124,13 @@
 				[
 					{
 						m_strPropertyName = "DamageBonusFixedPerStack"
-						m_strBonus = "0.14"
+						m_strBonus = "0.11"
+					},
+					{
+						m_strPropertyName = "DamageBonusFixedPerStack"
+						m_strBonus = "0.0003"
+						m_eUpgradeType = "EAddToScale"
+						m_eScaleStatFilter = "EBaseWeaponDamageIncrease"
 					},
 				]
 			},
@@ -62171,7 +62190,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 145.0
+				m_strValue = 165.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -62422,7 +62441,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-75"
+						m_strBonus = "-65"
 					},
 				]
 			},
@@ -63899,7 +63918,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -20.0
+						m_strBonus = -22.0
 					},
 				]
 			},
@@ -64570,7 +64589,7 @@
 			m_flBulletGravityScale = 0.2
 			m_strBulletImpactSound = soundevent:"Hornet.Sting.Proj.Expire"
 			m_strBulletLoopingSound = soundevent:"Hornet.Sting.Proj.Lp"
-			m_flBulletRadius = 20.0
+			m_flBulletRadius = 26.0
 			m_flBulletRadiusVsWorld = 1.5
 			m_iBullets = 13
 			m_bHitOnceAcrossAllBullets = true
@@ -64644,7 +64663,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -12.0
+						m_strBonus = -16.0
 					},
 					{
 						m_strPropertyName = "DotHealthPercent"
@@ -64736,7 +64755,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 50.0
+				m_strValue = 55.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -64891,7 +64910,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "LowHealthEnemyDamageBonus_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 2.0
+					m_flStatScale = 2.3
 				}
 				m_bIsAbilityDamageProperty = true
 			}
@@ -64976,7 +64995,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -20.0
+						m_strBonus = -15.0
 					},
 				]
 			},
@@ -66177,7 +66196,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 165.0
+				m_strValue = 190.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -66441,7 +66460,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -75.0
+						m_strBonus = -65.0
 					},
 					{
 						m_strPropertyName = "LifeStealPercentOnHit"
@@ -70160,7 +70179,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 170
+				m_strValue = 185
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -70393,7 +70412,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-25"
+						m_strBonus = "-20"
 					},
 				]
 			},
@@ -71962,7 +71981,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 21.0
+				m_strValue = 18.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -72409,7 +72428,7 @@
 			}
 			AbilityCooldown = 
 			{
-				m_strValue = 150.0
+				m_strValue = 170.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -72711,7 +72730,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -40
+						m_strBonus = -35
 					},
 				]
 			},
@@ -73021,7 +73040,7 @@
 			}
 			TargetingConeAngle = 
 			{
-				m_strValue = "30"
+				m_strValue = "38"
 				m_strCSSClass = "distance"
 			}
 			EnemySlowPct = 
@@ -74651,13 +74670,9 @@
 					},
 					{
 						m_strPropertyName = "Damage"
-						m_strBonus = 1.0
+						m_strBonus = 0.6
 						m_eUpgradeType = "EAddToScale"
 						m_eScaleStatFilter = "ETechPower"
-					},
-					{
-						m_strPropertyName = "HoldInPlaceDuration"
-						m_strBonus = "0.3"
 					},
 				]
 			},
@@ -74823,7 +74838,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 3
+				m_strValue = 2.75
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -74949,7 +74964,7 @@
 			ProcCooldown = 
 			{
 				m_strLocTokenOverride = "DMarkProcCD"
-				m_strValue = "3"
+				m_strValue = "2.75"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
 				m_subclassScaleFunction = subclass:
@@ -75118,11 +75133,11 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-1"
+						m_strBonus = "-0.75"
 					},
 					{
 						m_strPropertyName = "ProcCooldown"
-						m_strBonus = "-1"
+						m_strBonus = "-0.75"
 					},
 					{
 						m_strPropertyName = "StunDuration"
@@ -75386,7 +75401,7 @@
 			}
 			StealDuration = 
 			{
-				m_strValue = "7"
+				m_strValue = "5"
 				m_strCSSClass = "duration"
 				m_subclassScaleFunction = subclass:
 				{
@@ -75491,6 +75506,10 @@
 				[
 					{
 						m_strPropertyName = "AbilityCharges"
+						m_strBonus = "1"
+					},
+					{
+						m_strPropertyName = "StealDuration"
 						m_strBonus = "2"
 					},
 				]
@@ -75504,7 +75523,7 @@
 					},
 					{
 						m_strPropertyName = "DPS"
-						m_strBonus = "0.17"
+						m_strBonus = "0.13"
 						m_eUpgradeType = "EAddToScale"
 						m_eScaleStatFilter = "ETechPower"
 					},
@@ -75548,7 +75567,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 120.0
+				m_strValue = 140.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -75558,7 +75577,7 @@
 					_my_subclass_name = "AbilityCooldown_scale_function"
 					m_eSpecificStatScaleType = "ETechCooldown"
 				}
-				m_strStreetBrawlValue = 95.0
+				m_strStreetBrawlValue = 110.0
 			}
 			AbilityDuration = 
 			{
@@ -75821,7 +75840,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-80"
+						m_strBonus = "-90"
 					},
 				]
 			},
@@ -77594,7 +77613,7 @@
 		m_iUpdateTime = 1692665750
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_COOLDOWN_ON_CHANNEL_END | CITADEL_ABILITY_BEHAVIOR_DEACTIVATE_CROUCH_TOGGLE_ON_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_DEACTIVATE_CROUCH_TOGGLE_ON_CAST"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/grappler/grappler_spin.psd"
 		m_eAbilitySpectatePriority = "CITADELTV_ABILITY_SPECTATE_PRIORITY_HIGH"
 		m_strCastAnimGraphParam = "b_BurrowStart"
@@ -78069,11 +78088,11 @@
 				[
 					{
 						m_strPropertyName = "SlowPercent"
-						m_strBonus = "25"
+						m_strBonus = "30"
 					},
 					{
 						m_strPropertyName = "GroundDashReductionPercent"
-						m_strBonus = "-25"
+						m_strBonus = "-30"
 					},
 				]
 			},
@@ -78082,7 +78101,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -20.0
+						m_strBonus = -25.0
 					},
 					{
 						m_strPropertyName = "AbilityDuration"
@@ -78151,7 +78170,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 130.0
+				m_strValue = 150.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -78300,7 +78319,7 @@
 			}
 			BonusHealthOnKill = 
 			{
-				m_strValue = "30"
+				m_strValue = "40"
 				m_eDisplayType = "EMaxHealth"
 				m_strCSSClass = "health"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_HEALTH_MAX"
@@ -78309,7 +78328,7 @@
 					_class = "scale_function_single_stat"
 					_my_subclass_name = "BonusHealth_scale_function"
 					m_eSpecificStatScaleType = "ELevelUpBoons"
-					m_flStatScale = 1
+					m_flStatScale = 2
 				}
 			}
 			BulletResist = 
@@ -78374,7 +78393,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -35
+						m_strBonus = -30
 					},
 					{
 						m_strPropertyName = "BulletResist"
@@ -82903,7 +82922,7 @@
 				[
 					{
 						m_strPropertyName = "MaxBonusMoveSpeedPercent"
-						m_strBonus = "45"
+						m_strBonus = "40"
 					},
 					{
 						m_strPropertyName = "HealthRegen"
@@ -82916,7 +82935,7 @@
 				[
 					{
 						m_strPropertyName = "OutgoingDamagePercent"
-						m_strBonus = "20"
+						m_strBonus = "18"
 					},
 					{
 						m_strPropertyName = "DamageAmpDuration"
@@ -83825,7 +83844,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "100"
+				m_strValue = "115"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -84082,7 +84101,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-25"
+						m_strBonus = "-20"
 					},
 				]
 			},
@@ -86221,7 +86240,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 23.0
+				m_strValue = 25.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -87055,7 +87074,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 110.0
+				m_strValue = 125.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -87219,7 +87238,7 @@
 			}
 			BonusTechPowerPerKill = 
 			{
-				m_strValue = "10"
+				m_strValue = "8"
 				m_strCSSClass = "tech_damage"
 				m_eDisplayType = "ETechPower"
 			}
@@ -87291,7 +87310,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -45.0
+						m_strBonus = -40.0
 					},
 				]
 			},
@@ -87622,7 +87641,7 @@
 		m_WeaponInfo = 
 		{
 			m_flBulletSpeed = 24000.0
-			m_Spread = 1.5
+			m_Spread = 0
 			m_StandingSpread = 1.5
 			m_flScatterYawScale = 1
 			m_flShootingUpSpreadPenalty = 0
@@ -87793,7 +87812,7 @@
 	}
 	citadel_weapon_shiv_alt = 
 	{
-		_class = "citadel_ability_primary_weapon"
+		_class = "citadel_ability_primary_weapon_scaling_altfire"
 		m_mapAbilityProperties = 
 		{
 			AbilityCooldown = 
@@ -88067,7 +88086,7 @@
 			m_strBulletImpactSound = soundevent:"Shiv.Wpn.Impact"
 			m_flBulletDamage = 4.36
 			m_flIntraBurstCycleTime = 0.05
-			m_iAmmoConsumedPerShot = 3
+			m_iAmmoConsumedPerShot = 4
 		}
 		m_bitsChannelEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		m_bitsPreCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -88897,7 +88916,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 18
+				m_strValue = 16
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -89180,7 +89199,7 @@
 					},
 					{
 						m_strPropertyName = "BleedDPSPerStack"
-						m_strBonus = 0.09
+						m_strBonus = 0.07
 						m_eUpgradeType = "EAddToScale"
 					},
 				]
@@ -89424,13 +89443,13 @@
 			}
 			ImpactDamage = 
 			{
-				m_strValue = 60
+				m_strValue = 75
 				m_strCSSClass = "tech_damage"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "ImpactDamage_scale_function"
-					m_flStatScale = 1.4415
+					m_flStatScale = 1.2
 					m_eSpecificStatScaleType = "ETechPower"
 				}
 				m_bIsAbilityDamageProperty = true
@@ -89536,7 +89555,7 @@
 				[
 					{
 						m_strPropertyName = "TechArmorDamageReduction"
-						m_strBonus = "-6"
+						m_strBonus = "-4"
 					},
 					{
 						m_strPropertyName = "DashRange"
@@ -89714,7 +89733,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 20.0
+				m_strValue = 25.0
 				m_strDisableValue = "-1"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -89854,7 +89873,7 @@
 			}
 			DeferClearPct = 
 			{
-				m_strValue = "35"
+				m_strValue = "30"
 				m_strCSSClass = "healing"
 			}
 			DamagePctDeferredMaxRage = 
@@ -89900,7 +89919,16 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -10
+						m_strBonus = -15
+					},
+				]
+			},
+			{
+				m_vecPropertyUpgrades = 
+				[
+					{
+						m_strPropertyName = "DeferClearPct"
+						m_strBonus = "40"
 					},
 				]
 			},
@@ -89910,15 +89938,6 @@
 					{
 						m_strPropertyName = "DamagePctDeferred"
 						m_strBonus = "15"
-					},
-				]
-			},
-			{
-				m_vecPropertyUpgrades = 
-				[
-					{
-						m_strPropertyName = "DeferClearPct"
-						m_strBonus = "50"
 					},
 				]
 			},
@@ -90007,7 +90026,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 125.0
+				m_strValue = 145.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -90033,7 +90052,7 @@
 			}
 			AbilityCastRange = 
 			{
-				m_strValue = "18m"
+				m_strValue = "12m"
 				m_eDisplayUnits = "EDisplayUnit_Meters"
 				m_strCSSClass = "range"
 				m_bCanSetTokenOverride = true
@@ -90169,7 +90188,7 @@
 			}
 			BuffDamage = 
 			{
-				m_strValue = "12"
+				m_strValue = "8"
 				m_strCSSClass = "damage"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_ALL_DAMAGE_MULTIPLIER"
 				m_eStatsUsageFlags = "ConditionallyApplied"
@@ -90193,7 +90212,7 @@
 			}
 			EnemyHealthPercent = 
 			{
-				m_strValue = "20"
+				m_strValue = "18"
 				m_strCSSClass = "health"
 			}
 			EnemyHealthPercentBuffer = 
@@ -90218,7 +90237,7 @@
 			}
 			RecastWindow = 
 			{
-				m_strValue = "0"
+				m_strValue = "16"
 				m_strCSSClass = "cooldown"
 				m_subclassScaleFunction = subclass:
 				{
@@ -90260,10 +90279,10 @@
 		m_flBossDamageScale = 1.0
 		m_iUpdateTime = 1667496376
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY"
+		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY | CITADEL_UNIT_TARGET_TROOPER_ENEMY | CITADEL_UNIT_TARGET_NEUTRAL"
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_TRIGGER_POST_CAST_ON_CAST_COMPLETE | CITADEL_ABILITY_BEHAVIOR_MOVEMENT | CITADEL_ABILITY_BEHAVIOR_DEACTIVATE_CROUCH_TOGGLE_ON_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_TRIGGER_POST_CAST_ON_CAST_COMPLETE | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_MOVEMENT | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DEACTIVATE_CROUCH_TOGGLE_ON_CAST"
 		m_flTargetingConeAngle = 20
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/shiv/shiv_killing_blow.psd"
 		m_flMinLeapTime = 0.05
@@ -90281,6 +90300,10 @@
 						m_strPropertyName = "BonusMoveSpeed"
 						m_strBonus = "2m"
 					},
+					{
+						m_strPropertyName = "AbilityCastRange"
+						m_strBonus = "6m"
+					},
 				]
 			},
 			{
@@ -90288,11 +90311,11 @@
 				[
 					{
 						m_strPropertyName = "BuffDamage"
-						m_strBonus = "10"
+						m_strBonus = "16"
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-30"
+						m_strBonus = "-25"
 					},
 				]
 			},
@@ -90300,12 +90323,8 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "RecastWindow"
-						m_strBonus = "20"
-					},
-					{
 						m_strPropertyName = "EnemyHealthPercent"
-						m_strBonus = "5"
+						m_strBonus = "10"
 					},
 				]
 			},
@@ -94915,7 +94934,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-12"
+						m_strBonus = "-10"
 					},
 				]
 			},
@@ -96030,7 +96049,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 150.0
+				m_strValue = 170.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -96166,13 +96185,13 @@
 			}
 			DPS = 
 			{
-				m_strValue = 34
+				m_strValue = 32
 				m_strCSSClass = "tech_damage"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "DPS_scale_function"
-					m_flStatScale = 0.22
+					m_flStatScale = 0.21
 					m_eSpecificStatScaleType = "ETechPower"
 				}
 				m_bIsAbilityDamageProperty = true
@@ -96183,7 +96202,7 @@
 			}
 			DebuffDuration = 
 			{
-				m_strValue = "11"
+				m_strValue = "10"
 				m_strCSSClass = "duration"
 				m_subclassScaleFunction = subclass:
 				{
@@ -96285,7 +96304,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-40"
+						m_strBonus = "-35"
 					},
 				]
 			},
@@ -96307,11 +96326,11 @@
 				[
 					{
 						m_strPropertyName = "DPS"
-						m_strBonus = 14
+						m_strBonus = 13
 					},
 					{
 						m_strPropertyName = "DPS"
-						m_strBonus = 0.11
+						m_strBonus = 0.1
 						m_eUpgradeType = "EAddToScale"
 					},
 					{
@@ -97655,7 +97674,7 @@
 					_class = "scale_function_single_stat"
 					_my_subclass_name = "TetherHeal_scale_function"
 					m_eSpecificStatScaleType = "ELevelUpBoons"
-					m_flStatScale = 0.5
+					m_flStatScale = 0.85
 				}
 			}
 			HealingPerGlub = 
@@ -98262,7 +98281,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "DPS_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 0.45
+					m_flStatScale = 0.55
 				}
 				m_bIsAbilityDamageProperty = true
 			}
@@ -98721,7 +98740,7 @@
 					},
 					{
 						m_strPropertyName = "Damage"
-						m_strBonus = "1.7"
+						m_strBonus = "1.5"
 						m_eUpgradeType = "EAddToScale"
 						m_eScaleStatFilter = "ETechPower"
 					},
@@ -98798,7 +98817,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 85.0
+				m_strValue = 100.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -98924,7 +98943,7 @@
 			}
 			CooldownReductionPctOnOthers = 
 			{
-				m_strValue = "25"
+				m_strValue = "30"
 			}
 			InterruptCooldown = 
 			{
@@ -103866,17 +103885,17 @@
 			}
 			MaxBounces = 
 			{
-				m_strValue = "1"
+				m_strValue = "2"
 			}
 			Damage = 
 			{
-				m_strValue = 70
+				m_strValue = 55
 				m_strCSSClass = "tech_damage"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "damage_scale"
-					m_flStatScale = 0.8
+					m_flStatScale = 0.7
 					m_eSpecificStatScaleType = "ETechPower"
 				}
 				m_bIsAbilityDamageProperty = true
@@ -104006,11 +104025,11 @@
 				[
 					{
 						m_strPropertyName = "MaxBounces"
-						m_strBonus = "2"
+						m_strBonus = "1"
 					},
 					{
 						m_strPropertyName = "Damage"
-						m_strBonus = 1.1
+						m_strBonus = 0.9
 						m_eUpgradeType = "EAddToScale"
 						m_eScaleStatFilter = "ETechPower"
 					},
@@ -104420,7 +104439,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -25.0
+						m_strBonus = -20.0
 					},
 					{
 						m_strPropertyName = "PurgeDebuffs"
@@ -104598,7 +104617,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "130"
+				m_strValue = "150"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -104865,7 +104884,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-30"
+						m_strBonus = "-25"
 					},
 				]
 			},
@@ -104878,11 +104897,11 @@
 					},
 					{
 						m_strPropertyName = "BulletResist"
-						m_strBonus = "10"
+						m_strBonus = "20"
 					},
 					{
 						m_strPropertyName = "TechResist"
-						m_strBonus = "10"
+						m_strBonus = "20"
 					},
 				]
 			},
@@ -104891,7 +104910,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityDuration"
-						m_strBonus = "6"
+						m_strBonus = "7"
 					},
 					{
 						m_strPropertyName = "StunDuration"
@@ -105082,7 +105101,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 24.0
+				m_strValue = 21.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -105275,14 +105294,14 @@
 			}
 			SlowPercent = 
 			{
-				m_strValue = "20"
+				m_strValue = "30"
 				m_strCSSClass = "slow"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_SLOW_PERCENT"
 				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
 			ImpactDuration = 
 			{
-				m_strValue = "4"
+				m_strValue = "3"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_single_stat"
@@ -105453,7 +105472,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -12
+						m_strBonus = -14
 					},
 					{
 						m_strPropertyName = "UseHeavyMelee"
@@ -107157,7 +107176,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-22"
+						m_strBonus = "-24"
 					},
 					{
 						m_strPropertyName = "AbilityDuration"
@@ -107174,7 +107193,7 @@
 					},
 					{
 						m_strPropertyName = "CombatBarrier"
-						m_strBonus = "2.5"
+						m_strBonus = "2.7"
 						m_eUpgradeType = "EAddToScale"
 						m_eScaleStatFilter = "ETechPower"
 					},
@@ -107601,7 +107620,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 155.0
+				m_strValue = 180.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -107864,7 +107883,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -35.0
+						m_strBonus = -30.0
 					},
 				]
 			},
@@ -109101,7 +109120,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "130"
+				m_strValue = "150"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -109339,7 +109358,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-50"
+						m_strBonus = "-45"
 					},
 				]
 			},
@@ -116046,7 +116065,7 @@
 			}
 			AbilityCastRange = 
 			{
-				m_strValue = "28m"
+				m_strValue = "26m"
 				m_eDisplayUnits = "EDisplayUnit_Meters"
 				m_strCSSClass = "range"
 				m_bCanSetTokenOverride = true
@@ -116059,7 +116078,7 @@
 			}
 			AbilityUnitTargetLimit = 
 			{
-				m_strValue = "1"
+				m_strValue = "10"
 				m_bCanSetTokenOverride = true
 			}
 			AbilityCastDelay = 
@@ -116251,7 +116270,7 @@
 		m_strAbilityChargeReadySound = soundevent:""
 		m_skillshotMissParticle = resource_name:"particles/abilities/skillshot_default_miss_owner.vpcf"
 		m_flBossDamageScale = 1.0
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALWAYS_PREVIEW_RADIUS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_MOVEMENT | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DEACTIVATE_CROUCH_TOGGLE_ON_CAST"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_ALWAYS_PREVIEW_RADIUS | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_USE_INSTANT_CAST_UNIT_TARGET_UI | CITADEL_ABILITY_BEHAVIOR_MOVEMENT | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST | CITADEL_ABILITY_BEHAVIOR_DEACTIVATE_CROUCH_TOGGLE_ON_CAST | CITADEL_ABILITY_BEHAVIOR_ALLOW_ALT_CAST"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/yamato/yamato_flying_strike.psd"
 		m_iUpdateTime = 1643091758
@@ -116279,7 +116298,7 @@
 				[
 					{
 						m_strPropertyName = "SpiritBonus"
-						m_strBonus = "40"
+						m_strBonus = "35"
 					},
 					{
 						m_strPropertyName = "BuffDuration"
@@ -116300,11 +116319,11 @@
 					},
 					{
 						m_strPropertyName = "AbilityCharges"
-						m_strBonus = "3"
+						m_strBonus = "2"
 					},
 					{
 						m_strPropertyName = "AbilityCooldownBetweenCharge"
-						m_strBonus = "3"
+						m_strBonus = "5"
 					},
 				]
 			},
@@ -116766,7 +116785,7 @@
 		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_strAbilityImage = panorama:"file://{images}/hud/abilities/yamato/yamato_crimson_slash.psd"
-
+		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strCastSound = soundevent:""
 		m_ImpactParticle = resource_name:"particles/abilities/yamato/yamato_crimson_slash_hit.vpcf"
@@ -116899,7 +116918,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 130.0
+				m_strValue = 150.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -117151,7 +117170,7 @@
 					},
 					{
 						m_StrPropertyNAme = "AbilityCooldown"
-						m_strBonus = "-25"
+						m_strBonus = "-20"
 					},
 				]
 			},
@@ -119139,7 +119158,7 @@
 					},
 					{
 						m_strPropertyName = "CombatBarrier"
-						m_strBonus = "0.6"
+						m_strBonus = "0.8"
 						m_eUpgradeType = "EAddToScale"
 						m_eScaleStatFilter = "ETechPower"
 					},
@@ -119271,8 +119290,8 @@
 					m_eSpecificStatScaleType = "ELevelUpBoons"
 					m_vecScalingStats = 
 					[
-						"ETechRange",
 						"ELevelUpBoons",
+						"ETechRange",
 					]
 					m_flStatScale = 0.2
 				}
@@ -119615,7 +119634,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "60"
+				m_strValue = "70"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -120619,6 +120638,10 @@
 						m_strPropertyName = "MaxStacks"
 						m_strBonus = "2"
 					},
+					{
+						m_strPropertyName = "AbilityCooldownBetweenCharge"
+						m_strBonus = "-2"
+					},
 				]
 			},
 		]
@@ -120759,7 +120782,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "90"
+				m_strValue = "105"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -121099,7 +121122,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-25"
+						m_strBonus = "-20"
 					},
 				]
 			},
@@ -125892,7 +125915,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 127.0
+				m_strValue = 145.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -137162,7 +137185,7 @@
 			}
 			RecastWindow = 
 			{
-				m_strValue = "3.5"
+				m_strValue = "4"
 				m_strCSSClass = "cooldown"
 				m_subclassScaleFunction = subclass:
 				{
@@ -137277,6 +137300,10 @@
 					{
 						m_strPropertyName = "MaxRecasts"
 						m_strBonus = "1"
+					},
+					{
+						m_strPropertyName = "AbilityCastRange"
+						m_strBonus = "4m"
 					},
 				]
 			},
@@ -137851,7 +137878,7 @@
 			}
 			AbilityCooldown = 
 			{
-				m_strValue = "130"
+				m_strValue = "150"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -137995,7 +138022,7 @@
 			}
 			Damage = 
 			{
-				m_strValue = "4.45"
+				m_strValue = "4.6"
 				m_strCSSClass = "tech_damage"
 				m_subclassScaleFunction = subclass:
 				{
@@ -138179,7 +138206,7 @@
 				[
 					{
 						m_strPropertyName = "Damage"
-						m_strBonus = 1.74
+						m_strBonus = 1.9
 					},
 				]
 			},
@@ -138188,7 +138215,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-55"
+						m_strBonus = "-45"
 					},
 				]
 			},
@@ -139301,7 +139328,7 @@
 			}
 			MissingHealthDamagePercentage = 
 			{
-				m_strValue = "5"
+				m_strValue = "6"
 				m_strCSSClass = "tech_damage"
 			}
 			MiniJumpVelocity = 
@@ -139461,7 +139488,7 @@
 		m_skillshotMissParticle = resource_name:"particles/abilities/skillshot_default_miss_owner.vpcf"
 		m_flBossDamageScale = 1.0
 		m_iUpdateTime = 0
-
+		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_DISPLAYS_DAMAGE_IMPACT | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST | CITADEL_ABILITY_BEHAVIOR_USE_LAG_COMPENSATION_FOR_UNIT_TARGETING"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
@@ -154083,7 +154110,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -110
+						m_strBonus = -95
 					},
 				]
 			},
@@ -156076,6 +156103,15 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
+						m_strPropertyName = "AbilityCooldown"
+						m_strBonus = "-12"
+					},
+				]
+			},
+			{
+				m_vecPropertyUpgrades = 
+				[
+					{
 						m_strPropertyName = "GroundFlameDuration"
 						m_strBonus = "2"
 					},
@@ -156084,18 +156120,9 @@
 						m_strBonus = "1m"
 						m_strStreetBrawlBonus = "0.85m"
 					},
-				]
-			},
-			{
-				m_vecPropertyUpgrades = 
-				[
 					{
-						m_strPropertyName = "DragonTravelRange"
-						m_strBonus = "10m"
-					},
-					{
-						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-12"
+						m_strPropertyName = "AbilityCharges"
+						m_strBonus = 1
 					},
 				]
 			},
@@ -156111,8 +156138,8 @@
 						m_strBonus = 30.0
 					},
 					{
-						m_strPropertyName = "AbilityCharges"
-						m_strBonus = 1
+						m_strPropertyName = "DragonTravelRange"
+						m_strBonus = "12m"
 					},
 				]
 			},
@@ -156888,7 +156915,7 @@
 					},
 					{
 						m_strPropertyName = "BonusFireRate"
-						m_strBonus = 0.13
+						m_strBonus = 0.16
 						m_eUpgradeType = "EAddToScale"
 						m_eScaleStatFilter = "ETechPower"
 					},
@@ -156922,7 +156949,7 @@
 					},
 					{
 						m_strPropertyName = "BonusTargetsBarrierPercentage"
-						m_strBonus = "75"
+						m_strBonus = "100"
 					},
 				]
 			},
@@ -157029,7 +157056,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "190"
+				m_strValue = "210"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -157402,7 +157429,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-50"
+						m_strBonus = "-45"
 					},
 				]
 			},
@@ -157419,7 +157446,7 @@
 					},
 					{
 						m_strPropertyName = "MaxAmp"
-						m_strBonus = "50"
+						m_strBonus = "70"
 					},
 				]
 			},
@@ -158245,7 +158272,7 @@
 			m_flPelletScatterFactor = 1.5
 			m_flPelletScatterSpreadFactor = 0.5
 			m_strBulletImpactSound = soundevent:"Doorman.Wpn.Impact"
-			m_flBulletDamage = 29.26
+			m_flBulletDamage = 24
 			m_flIntraBurstCycleTime = 0.05
 			m_iAmmoConsumedPerShot = 1
 			m_flBulletRadiusVsWorld = 1.0
@@ -159387,7 +159414,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "40"
+				m_strValue = "45"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -159400,7 +159427,7 @@
 			}
 			AbilityDuration = 
 			{
-				m_strValue = "20"
+				m_strValue = "15"
 				m_strDisableValue = "0"
 				m_strCSSClass = "duration"
 				m_bCanSetTokenOverride = true
@@ -159608,7 +159635,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityDuration"
-						m_strBonus = "15"
+						m_strBonus = "20"
 					},
 				]
 			},
@@ -159636,7 +159663,7 @@
 				[
 					{
 						m_strPropertyName = "DoorwayDistance"
-						m_strBonus = "45m"
+						m_strBonus = "40m"
 					},
 					{
 						m_strPropertyName = "AbilityCastRange"
@@ -160007,7 +160034,7 @@
 			}
 			AbilityCastRange = 
 			{
-				m_strValue = "25m"
+				m_strValue = "20m"
 				m_eDisplayUnits = "EDisplayUnit_Meters"
 				m_strCSSClass = "range"
 				m_bCanSetTokenOverride = true
@@ -160106,7 +160133,7 @@
 			}
 			CartDamage = 
 			{
-				m_strValue = "80"
+				m_strValue = "60"
 				m_strCSSClass = "tech_damage"
 				m_subclassScaleFunction = subclass:
 				{
@@ -160179,7 +160206,7 @@
 				[
 					{
 						m_strPropertyName = "CartDamage"
-						m_strBonus = "60"
+						m_strBonus = "80"
 					},
 				]
 			},
@@ -160188,7 +160215,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCastRange"
-						m_strBonus = "20m"
+						m_strBonus = "25m"
 					},
 					{
 						m_strPropertyName = "WallImpactDamage"
@@ -160275,6 +160302,7 @@
 			m_LoopingSound = soundevent:"Doorman.LuggageCart.Proj.Lp"
 			m_DetonateSound = soundevent:""
 			m_flPhysicsRadius = 1.0
+			m_nBehaviors = "PBF_TouchAllEntitiesEachTick"
 		}
 		m_ModifierDrag = subclass:
 		{
@@ -160611,7 +160639,7 @@
 			}
 			AbilityCooldownBetweenCharge = 
 			{
-				m_strValue = "6"
+				m_strValue = "7"
 				m_strDisableValue = "-2"
 				m_strCSSClass = "charge_cooldown"
 				m_bCanSetTokenOverride = true
@@ -161125,7 +161153,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "120"
+				m_strValue = "140"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -161305,6 +161333,11 @@
 			LateCheckoutStun = 
 			{
 				m_strValue = "0"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_tech_duration"
+					_my_subclass_name = "late_checkout_duration_scale_function"
+				}
 			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -161347,7 +161380,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-25"
+						m_strBonus = "-20"
 					},
 					{
 						m_strPropertyName = "StaminaDrain"
@@ -161381,7 +161414,7 @@
 					},
 					{
 						m_strPropertyName = "LateCheckoutCooldown"
-						m_strBonus = "13"
+						m_strBonus = "15"
 					},
 				]
 			},
@@ -163498,7 +163531,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "150"
+				m_strValue = "175"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -163932,7 +163965,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-50"
+						m_strBonus = "-40"
 					},
 				]
 			},
@@ -164618,11 +164651,11 @@
 				[
 					{
 						m_strPropertyName = "DealMaxHealthDamagePct"
-						m_strBonus = 10
+						m_strBonus = 7
 					},
 					{
 						m_strPropertyName = "DealMaxHealthDamagePct"
-						m_strBonus = "0.017"
+						m_strBonus = "0.03"
 						m_eUpgradeType = "EAddToScale"
 					},
 					{
@@ -164951,7 +164984,7 @@
 					_class = "scale_function_single_stat"
 					_my_subclass_name = "damage_scale"
 					m_eSpecificStatScaleType = "ELightMeleeDamage"
-					m_flStatScale = 1.1
+					m_flStatScale = 0.9
 				}
 				m_bIsAbilityDamageProperty = true
 			}
@@ -165185,7 +165218,7 @@
 					},
 					{
 						m_strPropertyName = "HeavyMeleeDamage"
-						m_strBonus = 0.6
+						m_strBonus = 0.5
 						m_eUpgradeType = "EAddToScale"
 					},
 					{
@@ -166874,7 +166907,7 @@
 			}
 			AbilityCastDelay = 
 			{
-				m_strValue = "0.5"
+				m_strValue = "0.4"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cast"
 				m_bCanSetTokenOverride = true
@@ -166898,7 +166931,7 @@
 			}
 			AbilityPostCastDuration = 
 			{
-				m_strValue = "0.5"
+				m_strValue = "0.4"
 				m_strDisableValue = "0"
 			}
 			AbilityCharges = 
@@ -167022,7 +167055,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "BonusDamage_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 1.8
+					m_flStatScale = 1.7
 				}
 				m_bIsAbilityDamageProperty = true
 				m_strLocTokenOverride = "DrifterRend_SpiritDamage"
@@ -167134,7 +167167,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = -7.0
+						m_strBonus = -8.0
 					},
 				]
 			},
@@ -167143,7 +167176,7 @@
 				[
 					{
 						m_strPropertyName = "DebuffDuration"
-						m_strBonus = "2.3"
+						m_strBonus = "2"
 					},
 					{
 						m_strPropertyName = "UseHeavyMelee"
@@ -167241,7 +167274,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "20"
+				m_strValue = "24"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -167550,7 +167583,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-8"
+						m_strBonus = "-12"
 					},
 				]
 			},
@@ -167559,7 +167592,7 @@
 				[
 					{
 						m_strPropertyName = "DotHealthPercent"
-						m_strBonus = 2.0
+						m_strBonus = 1.5
 					},
 					{
 						m_strPropertyName = "HealAmpReceivePenaltyPercent"
@@ -168186,7 +168219,7 @@
 				[
 					{
 						m_strPropertyName = "BonusMoveSpeed"
-						m_strBonus = "2m"
+						m_strBonus = "3m"
 					},
 				]
 			},
@@ -168195,7 +168228,7 @@
 				[
 					{
 						m_strPropertyName = "HealOnKillPct"
-						m_strBonus = "18"
+						m_strBonus = "24"
 					},
 					{
 						m_strPropertyName = "StaminaToRestore"
@@ -168208,7 +168241,7 @@
 				[
 					{
 						m_strPropertyName = "AmpDamagePercent"
-						m_strBonus = 12.0
+						m_strBonus = 11.0
 					},
 				]
 			},
@@ -168309,7 +168342,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "125.0"
+				m_strValue = "145.0"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -168553,7 +168586,7 @@
 		m_strAG2CastCompletedAction = "bloodblast_cast_completed"
 		m_CastParticle = resource_name:"particles/abilities/drifter/drifter_darkness_cast.vpcf"
 		m_strCastSound = soundevent:"Drifter.Terror.Cast"
-		m_HitConfirmSound = soundevent:""
+		m_HitConfirmSound = soundevent:"Drifter.Terror.Hit"
 		m_projectileInfo = 
 		{
 			m_flTriggerRadius = 15.0
@@ -168591,7 +168624,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-45"
+						m_strBonus = "-40"
 					},
 				]
 			},
@@ -172013,7 +172046,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -172251,7 +172283,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -172490,7 +172521,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -172730,7 +172760,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -172973,7 +173002,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -173214,7 +173242,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -175269,7 +175296,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -177082,7 +177108,7 @@
 				[
 					"CITADEL_DAMAGETYPE_MELEE",
 				]
-				m_bShouldApplyAbilityCooldown = true
+				m_bShouldApplyAbilityCooldown = false
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
 					"BonusMeleeDamagePercent",
@@ -177884,7 +177910,7 @@
 			}
 			BaseAttackDamagePercent = 
 			{
-				m_strValue = "40"
+				m_strValue = "30"
 				m_strCSSClass = "bullet_damage"
 				m_eDisplayUnits = "EDisplayUnit_Normal"
 				m_eDisplayType = "EBaseWeaponDamageIncrease"
@@ -179074,15 +179100,6 @@
 					_my_subclass_name = "duration_scale_function"
 				}
 			}
-			BaseAttackDamagePercent = 
-			{
-				m_strValue = "15"
-				m_strCSSClass = "bullet_damage"
-				m_eDisplayUnits = "EDisplayUnit_Normal"
-				m_eDisplayType = "EBaseWeaponDamageIncrease"
-				m_eProvidedPropertyType = "MODIFIER_VALUE_WEAPON_DAMAGE_INCREASE"
-				m_eStatsUsageFlags = ""
-			}
 			BuildUpDuration = 
 			{
 				m_strValue = "5"
@@ -179133,18 +179150,6 @@
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_weapon/slowing_bullets.psd"
 		m_vecTooltipSectionInfo = 
 		[
-			{
-				m_eAbilitySectionType = "EArea_Innate"
-				m_vecSectionAttributes = 
-				[
-					{
-						m_vecAbilityProperties = 
-						[
-							"BaseAttackDamagePercent",
-						]
-					},
-				]
-			},
 			{
 				m_eAbilitySectionType = "EArea_Passive"
 				m_vecSectionAttributes = 
@@ -179201,15 +179206,6 @@
 					m_bIsHidden = true
 				}
 			},
-			subclass:
-			{
-				_class = "modifier_intrinsic_base"
-				_my_subclass_name = "modifier_intrinsic_base"
-				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
-				[
-					"BaseAttackDamagePercent",
-				]
-			},
 		]
 		m_eShopFilters = "EShopFilterWeaponDamage | EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/weapon/slowing_bullets.psd"
@@ -179218,10 +179214,6 @@
 			{
 				m_vecPropertyUpgrades = 
 				[
-					{
-						m_strPropertyName = "BaseAttackDamagePercent"
-						m_strBonus = "30"
-					},
 					{
 						m_strPropertyName = "SlowPercent"
 						m_strBonus = "20"
@@ -180736,7 +180728,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -181373,7 +181364,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -181679,7 +181669,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -182345,7 +182334,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -183119,6 +183107,20 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_FIRE_RATE"
 				m_eStatsUsageFlags = ""
 			}
+			BulletLifestealPercent = 
+			{
+				m_strValue = "10"
+				m_strCSSClass = "healing"
+				m_eDisplayType = "EBulletLifesteal"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "BulletLifestealPercent_scale_function"
+					m_eSpecificStatScaleType = "EHealingOutput"
+				}
+				m_eProvidedPropertyType = "MODIFIER_VALUE_BULLET_LIFESTEAL"
+				m_eStatsUsageFlags = ""
+			}
 			FervorMovespeed = 
 			{
 				m_strValue = "4m"
@@ -183186,6 +183188,7 @@
 						[
 							"BonusHealth",
 							"BonusFireRate",
+							"BulletLifestealPercent",
 						]
 					},
 				]
@@ -183227,6 +183230,7 @@
 				[
 					"BonusHealth",
 					"BonusFireRate",
+					"BulletLifestealPercent",
 				]
 			},
 			subclass:
@@ -184120,6 +184124,7 @@
 		m_iItemTier = "EModTier_2"
 		m_strCSSClass = "headshotBooster"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_weapon/headshot_booster.psd"
+		m_bShowInPassiveItemsArea = true
 		m_vecTooltipSectionInfo = 
 		[
 			{
@@ -184513,6 +184518,14 @@
 					{
 						m_strPropertyName = "BonusAttackRangePercent"
 						m_strBonus = "10"
+					},
+					{
+						m_strPropertyName = "BonusBulletSpeedPercent"
+						m_strBonus = "45"
+					},
+					{
+						m_strPropertyName = "BaseAttackDamagePercent"
+						m_strBonus = "15"
 					},
 				]
 			},
@@ -185072,6 +185085,7 @@
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strCSSClass = "spellslingerHeadshots"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_weapon/spellslinger_headshots.psd"
+		m_bShowInPassiveItemsArea = true
 		m_ImpactParticle = resource_name:""
 		m_vecTooltipSectionInfo = 
 		[
@@ -185937,7 +185951,7 @@
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "Damage_scale_function"
 					m_eSpecificStatScaleType = "ETechPower"
-					m_flStatScale = 1.2
+					m_flStatScale = 0.9
 				}
 			}
 			BaseAttackDamagePercent = 
@@ -186264,6 +186278,7 @@
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_strCSSClass = "critshot"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_weapon/crit_damage.psd"
+		m_bShowInPassiveItemsArea = true
 		m_vecTooltipSectionInfo = 
 		[
 			{
@@ -186551,6 +186566,7 @@
 		m_strCSSClass = "pointBlank"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_weapon/point_blank.psd"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY"
+		m_bShowInPassiveItemsArea = true
 		m_vecComponentItems = 
 		[
 			"upgrade_close_range",
@@ -187156,7 +187172,7 @@
 			}
 			DotHealthPercent = 
 			{
-				m_strValue = "1.7"
+				m_strValue = "1.9"
 				m_strCSSClass = "tech_damage"
 				m_subclassScaleFunction = subclass:
 				{
@@ -190622,7 +190638,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -191044,7 +191059,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -191230,7 +191244,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -191456,7 +191469,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -192248,7 +192260,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -192810,6 +192821,7 @@
 		m_iItemTier = "EModTier_3"
 		m_strCSSClass = "revitalizer"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_armor/revitalizer.psd"
+		m_bShowInPassiveItemsArea = true
 		m_vecComponentItems = 
 		[
 			"upgrade_health",
@@ -195698,7 +195710,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -196068,7 +196079,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -196364,7 +196374,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PASSIVE"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -196673,7 +196682,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PASSIVE"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -197242,6 +197250,7 @@
 		m_iItemTier = "EModTier_2"
 		m_strCSSClass = "techArmorPulse"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_tech/tech_shield_pulse.psd"
+		m_bShowInPassiveItemsArea = true
 		m_vecTooltipSectionInfo = 
 		[
 			{
@@ -198220,7 +198229,7 @@
 			}
 			BonusFireRate = 
 			{
-				m_strValue = "32"
+				m_strValue = "30"
 				m_strCSSClass = "fire_rate"
 				m_eDisplayType = "EFireRate"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_FIRE_RATE"
@@ -198235,9 +198244,24 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_POWER"
 				m_eStatsUsageFlags = "IntrinsicallyProvidedInAbility"
 			}
+			BonusSpiritLifesteal = 
+			{
+				m_strValue = "10"
+				m_eDisplayType = "ETechLifesteal"
+				m_strCSSClass = "healing"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "BonusSpiritLifesteal_scale_function"
+					m_eSpecificStatScaleType = "EHealingOutput"
+				}
+				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_LIFESTEAL"
+				m_strConditionalLocTokenOverride = "#AfterProc_conditional"
+				m_eStatsUsageFlags = "IntrinsicallyProvidedInAbility"
+			}
 			BonusAbilityDurationPercent = 
 			{
-				m_strValue = "15"
+				m_strValue = "13"
 				m_strCSSClass = "duration"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BONUS_ABILITY_DURATION_PERCENTAGE"
 				m_eDisplayType = "ETechDuration"
@@ -198326,6 +198350,9 @@
 							{
 								m_strImportantProperty = "BonusSpirit"
 							},
+							{
+								m_strImportantProperty = "BonusSpiritLifesteal"
+							},
 						]
 						m_vecAbilityProperties = 
 						[
@@ -198368,11 +198395,13 @@
 					[
 						"BonusFireRate",
 						"BonusSpirit",
+						"BonusSpiritLifesteal",
 					]
 					m_vecAlwaysShowInStatModifierUI = 
 					[
 						"MODIFIER_VALUE_FIRE_RATE",
 						"MODIFIER_VALUE_TECH_POWER",
+						"MODIFIER_VALUE_TECH_LIFESTEAL",
 						"MODIFIER_VALUE_COOLDOWN_REDUCTION_PERCENTAGE",
 					]
 					m_bIsHidden = false
@@ -198421,6 +198450,14 @@
 					{
 						m_strPropertyName = "AbilityLifestealPercentHero"
 						m_strBonus = "15"
+					},
+					{
+						m_strPropertyName = "BonusHealth"
+						m_strBonus = "80"
+					},
+					{
+						m_strPropertyName = "TechPower"
+						m_strBonus = "9"
 					},
 				]
 			},
@@ -198695,7 +198732,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -199954,7 +199990,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -201166,6 +201201,7 @@
 				_my_subclass_name = "modifier_tech_burst_proc"
 				m_bIsHidden = true
 				m_bCanProcByOtherObjects = true
+				m_bCanProcFromItems = false
 				m_bIgnoreResists = true
 				m_vecProcDamageTypes = 
 				[
@@ -204284,7 +204320,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -204983,7 +205018,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -205283,7 +205317,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -205603,7 +205636,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -205962,7 +205994,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -206273,7 +206304,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -206613,7 +206643,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -208445,8 +208474,8 @@
 					m_eSpecificStatScaleType = "ETechPower"
 					m_vecScalingStats = 
 					[
-						"ETechRange",
 						"ETechPower",
+						"ETechRange",
 					]
 					m_flStatScale = 0.1
 				}
@@ -208599,7 +208628,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -208878,9 +208906,16 @@
 			}
 			MaxHealthPercentAsDPS = 
 			{
-				m_strValue = "3.5"
+				m_strValue = "2.3"
 				m_strCSSClass = "tech_damage"
 				m_eDisplayType = "ETechPower"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_tech_damage"
+					_my_subclass_name = "Damage_scale_function"
+					m_eSpecificStatScaleType = "ETechPower"
+					m_flStatScale = 0.0055
+				}
 			}
 			AuraRadius = 
 			{
@@ -208917,11 +208952,11 @@
 			}
 			StatusResistancePercent = 
 			{
-				m_strValue = "17"
+				m_strValue = "20"
 				m_strCSSClass = "duration"
 				m_eDisplayType = "EDebuffResist"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_STATUS_RESISTANCE"
-				m_eStatsUsageFlags = ""
+				m_eStatsUsageFlags = "ConditionallyApplied"
 			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -208944,7 +208979,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -208981,7 +209015,6 @@
 				m_bIsHidden = true
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
-					"StatusResistancePercent",
 					"BonusHealth",
 				]
 			},
@@ -209032,7 +209065,6 @@
 						m_vecAbilityProperties = 
 						[
 							"BonusHealth",
-							"StatusResistancePercent",
 						]
 					},
 				]
@@ -209050,6 +209082,9 @@
 							},
 							{
 								m_strImportantProperty = "TechResist"
+							},
+							{
+								m_strImportantProperty = "StatusResistancePercent"
 							},
 						]
 						m_vecAbilityProperties = 
@@ -209266,7 +209301,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -209498,7 +209532,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -209809,7 +209842,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -210123,7 +210155,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -210438,7 +210469,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT_OR_GROUND"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -210767,7 +210797,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -210841,7 +210870,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 35.0
+				m_strValue = 30.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -210909,7 +210938,7 @@
 			}
 			AbilityPostCastDuration = 
 			{
-				m_strValue = "0"
+				m_strValue = "0.5"
 				m_strDisableValue = "0"
 			}
 			AbilityCharges = 
@@ -210966,7 +210995,7 @@
 			}
 			BonusFireRate = 
 			{
-				m_strValue = "5"
+				m_strValue = "0"
 				m_strCSSClass = "fire_rate"
 				m_eDisplayType = "EFireRate"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_FIRE_RATE"
@@ -211004,6 +211033,10 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_RADIUS_PERCENT"
 				m_eStatsUsageFlags = ""
 			}
+			ImbuedCooldownMultiplier = 
+			{
+				m_strValue = "1"
+			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
@@ -211025,7 +211058,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -211078,7 +211110,6 @@
 				m_bIsHidden = true
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
-					"BonusFireRate",
 					"TechResist",
 					"BulletResist",
 				]
@@ -211100,20 +211131,8 @@
 						m_strBonus = "5"
 					},
 					{
-						m_strPropertyName = "BonusFireRate"
-						m_strBonus = "5"
-					},
-					{
 						m_strPropertyName = "AbilityCooldown"
 						m_strBonus = "-10"
-					},
-					{
-						m_strPropertyName = "TechRadiusMultiplier"
-						m_strBonus = "5"
-					},
-					{
-						m_strPropertyName = "TechRangeMultiplier"
-						m_strBonus = "5"
 					},
 				]
 			},
@@ -212375,7 +212394,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -212924,7 +212942,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -213172,7 +213189,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -213490,7 +213506,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = ""
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -213833,7 +213848,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -214131,7 +214145,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -214412,7 +214425,7 @@
 				{
 					_class = "scale_function_healing_boon_scale"
 					_my_subclass_name = "TotalHealthRegen_scale_function"
-					m_flStatScale = 0.32
+					m_flStatScale = 0.5
 				}
 			}
 			MaxStacks = 
@@ -214448,7 +214461,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -214729,7 +214741,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -215016,7 +215027,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -215340,7 +215350,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -215672,7 +215681,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -216008,7 +216016,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -216332,7 +216339,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -216652,7 +216658,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -217312,7 +217317,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -217631,6 +217635,7 @@
 		m_bDisabled = false
 		m_strCSSClass = "kineticSash"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_weapon/kinetic_sash.psd"
+		m_bShowInPassiveItemsArea = "true"
 		m_vecComponentItems = 
 		[
 			"upgrade_improved_stamina",
@@ -217961,6 +217966,7 @@
 		]
 		m_strCSSClass = "arcaneSurge"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_tech/arcane_surge.psd"
+		m_bShowInPassiveItemsArea = "true"
 		m_vecTooltipSectionInfo = 
 		[
 			{
@@ -218035,7 +218041,7 @@
 					m_strParticleEffect = resource_name:""
 					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
-					m_bIsHidden = false
+					m_bIsHidden = true
 				}
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
@@ -218656,7 +218662,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -219006,7 +219011,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -219424,7 +219428,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -219779,7 +219782,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -220117,7 +220119,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -220237,7 +220238,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 35.0
+				m_strValue = 37.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -220434,7 +220435,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -220818,7 +220818,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -221126,7 +221125,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -221332,7 +221330,7 @@
 			}
 			OutgoingDamagePenaltyPercent = 
 			{
-				m_strValue = "-10"
+				m_strValue = "-25"
 				m_strCSSClass = "damage"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_ALL_DAMAGE_MULTIPLIER"
 				m_eStatsUsageFlags = "ConditionallyApplied"
@@ -221359,7 +221357,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -221410,20 +221407,21 @@
 			]
 			m_eHudDisplayLocation = "DISPLAY_HUD_CENTER"
 		}
+		m_CasterModifier = subclass:
+		{
+			_my_subclass_name = "modifier_glitch_self_penalty"
+			_class = "modifier_base"
+			m_sLocalizationName = "modifier_glitch_self_penalty"
+			m_strSmallIconCssClass = "glitched"
+			m_eHudDisplayLocation = "DISPLAY_HUD_LEFT"
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_LOCAITON_ALL"
+			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
+			[
+				"OutgoingDamagePenaltyPercent",
+			]
+		}
 		m_vecTooltipSectionInfo = 
 		[
-			{
-				m_eAbilitySectionType = "EArea_Innate"
-				m_vecSectionAttributes = 
-				[
-					{
-						m_vecAbilityProperties = 
-						[
-							"OutgoingDamagePenaltyPercent",
-						]
-					},
-				]
-			},
 			{
 				m_eAbilitySectionType = "EArea_Active"
 				m_vecSectionAttributes = 
@@ -221444,22 +221442,10 @@
 							"AbilityCooldown",
 							"AbilityDuration",
 							"AbilityCastRange",
+							"OutgoingDamagePenaltyPercent",
 						]
 					},
 				]
-			},
-		]
-		m_AutoIntrinsicModifiers = 
-		[
-			subclass:
-			{
-				_class = "modifier_base"
-				_my_subclass_name = "intrinsic_stats"
-				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
-				[
-					"OutgoingDamagePenaltyPercent",
-				]
-				m_bIsHidden = true
 			},
 		]
 		m_eShopFilters = "EShopFilterDisruption | EShopFilterWeaponDamage"
@@ -222698,6 +222684,22 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_WEAPON_DAMAGE_INCREASE"
 				m_eStatsUsageFlags = ""
 			}
+			ActiveBonusMoveSpeed = 
+			{
+				m_strValue = "1m"
+				m_strCSSClass = "move_speed"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_MAX"
+				m_strConditionalLocTokenOverride = "#ActiveItemUse_conditional"
+				m_eStatsUsageFlags = "ConditionallyApplied"
+			}
+			MoveWhileShootingSpeedPenaltyReductionPercent = 
+			{
+				m_strValue = "100"
+				m_strCSSClass = "move_speed"
+				m_bIsHidden = true
+				m_eProvidedPropertyType = "MODIFIER_VALUE_MOVEMENT_SPEED_WHILE_SHOOTING_PENALTY_REDUCTION_PERCENT"
+				m_eStatsUsageFlags = "ConditionallyApplied"
+			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
 		_editor = 
@@ -222719,7 +222721,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -222747,6 +222748,11 @@
 			m_sExpiredSound = soundevent:""
 			m_bIsHidden = true
 			m_strHudMessageText = ""
+			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
+			[
+				"ActiveBonusMoveSpeed",
+				"MoveWhileShootingSpeedPenaltyReductionPercent",
+			]
 			m_SilenceModifier = subclass:
 			{
 				_class = "modifier_citadel_silenced"
@@ -222804,6 +222810,9 @@
 						[
 							{
 								m_strImportantProperty = "ActiveBonusFireRate"
+							},
+							{
+								m_strImportantProperty = "ActiveBonusMoveSpeed"
 							},
 							{
 								m_strImportantProperty = "TechResist"
@@ -223071,7 +223080,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -223419,7 +223427,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -225440,7 +225447,7 @@
 			}
 			StunDuration = 
 			{
-				m_strValue = "0.5"
+				m_strValue = "0.75"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_duration"
@@ -225463,7 +225470,7 @@
 			}
 			BulletResistReduction = 
 			{
-				m_strValue = "-4"
+				m_strValue = "-5"
 				m_strCSSClass = "bullet_armor_down"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_BULLET_AND_MELEE_RESIST_REDUCTION"
 				m_eStatsUsageFlags = "ConditionallyApplied"
@@ -226215,7 +226222,7 @@
 			}
 			TechPower = 
 			{
-				m_strValue = "35"
+				m_strValue = "40"
 				m_strDisableValue = "0"
 				m_bCanSetTokenOverride = true
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_POWER"
@@ -226608,7 +226615,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_DEPLOYED_OBJECT"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -226889,7 +226895,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PASSIVE"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -228593,7 +228598,7 @@
 			}
 			AbilityDuration = 
 			{
-				m_strValue = "5"
+				m_strValue = "4.5"
 				m_strDisableValue = "0"
 				m_strCSSClass = "duration"
 				m_bCanSetTokenOverride = true
@@ -233144,7 +233149,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -234369,7 +234373,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "20"
+				m_strValue = "0"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -234524,7 +234528,7 @@
 			}
 			ExplosionDamage = 
 			{
-				m_strValue = "110"
+				m_strValue = "50"
 				m_strCSSClass = "tech_damage"
 				m_subclassScaleFunction = subclass:
 				{
@@ -234535,7 +234539,7 @@
 			}
 			ExplosionRadius = 
 			{
-				m_strValue = "12m"
+				m_strValue = "3m"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_range"
@@ -234582,7 +234586,18 @@
 			}
 			CooldownReductionPctOnNonHeroes = 
 			{
-				m_strValue = "50"
+				m_strValue = "0"
+			}
+			ImmunityDuration = 
+			{
+				m_strValue = "20"
+				m_strCSSClass = "cooldown"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "ImmunityDuration_scale_function"
+					m_eSpecificStatScaleType = "EItemCooldown"
+				}
 			}
 			DamagePctVsNonHeroes = 
 			{
@@ -234609,7 +234624,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PASSIVE"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -234656,8 +234670,7 @@
 						]
 						m_vecAbilityProperties = 
 						[
-							"AbilityCooldown",
-							"ExplosionRadius",
+							"ImmunityDuration",
 							"DebuffDuration",
 							"HealAmpReceivePenaltyPercent",
 						]
@@ -234702,6 +234715,17 @@
 						m_sExpiredSound = soundevent:"Mods.Tech.Spirit.Burn.Lp.End"
 						m_nAmbientLoopingSoundRecipients = "MODIFIER_SOUND_RECIPIENT_ALWAYS"
 					}
+					m_ImmunityModifier = subclass:
+					{
+						_class = "modifier_base"
+						_my_subclass_name = "modifier_spirit_burn_immunity"
+						m_sLocalizationName = "modifier_spirit_burn_immunity"
+						m_eDebuffType = "MODIFIER_DEBUFF_NO"
+						m_strSmallIconCssClass = "escalating_exposure"
+						m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
+						m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+						m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
+					}
 				}
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
@@ -234736,7 +234760,7 @@
 						m_strBonus = "20"
 					},
 					{
-						m_strPropertyName = "AbilityCooldown"
+						m_strPropertyName = "ImmunityDuration"
 						m_strBonus = "-6"
 					},
 				]
@@ -234979,6 +235003,7 @@
 		m_strCSSClass = "ultimateBurst"
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_weapon/adrenaline_rush.psd"
 		m_bWarnIfNoAffectedAbilities = 1
+		m_bShowInPassiveItemsArea = true
 		m_eShopFilters = "EShopFilterMagicDamage | EShopFilterDisruption"
 		m_strShopIconLarge = panorama:"file://{images}/items/spirit/lightning_scroll.psd"
 		m_vecTooltipSectionInfo = 
@@ -236227,7 +236252,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -237594,7 +237618,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PASSIVE"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -238512,7 +238535,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PASSIVE"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -239434,7 +239456,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_NONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericThrow"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -239757,7 +239778,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -240067,7 +240087,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -242165,7 +242184,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -242478,7 +242496,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -243484,6 +243501,7 @@
 		m_strAbilityImage = panorama:"file://{images}/upgrades/mods_weapon/fire_rate_plus.psd"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
 		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET"
+		m_bShowInPassiveItemsArea = true
 		m_vecTooltipSectionInfo = 
 		[
 			{
@@ -243757,7 +243775,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PASSIVE"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -244044,7 +244061,6 @@
 		m_nUpgradeSlotCost = 1
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
-            m_bShowInPassiveItemsArea = "true"
 		m_strCastAnimGraphParam = "e_GenericCast"
 		m_strCastAnimSequenceName = "ability_generic_cast"
 		m_strSelectionNameOverride = "item"
@@ -245017,8 +245033,8 @@
 			m_flRecoilSpeed = 2.0
 			m_flZoomFOV = 50.0
 			m_flZoomFOV_Relative = -25.0
-			m_flDamageFalloffStartRange = 787
-			m_flDamageFalloffEndRange = 2000.0
+			m_flDamageFalloffStartRange = 708.661
+			m_flDamageFalloffEndRange = 1850.394
 			m_flRange = 7000.0
 			m_flBulletLifetime = 2
 			m_flDamageFalloffStartScale = 1.0
@@ -247896,7 +247912,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "140"
+				m_strValue = "160"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -248069,7 +248085,7 @@
 			}
 			BonusDamage = 
 			{
-				m_strValue = "100"
+				m_strValue = "115"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_multi_stats"
@@ -252095,7 +252111,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = 175.0
+				m_strValue = 200.0
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -252379,7 +252395,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-65"
+						m_strBonus = "-55"
 					},
 				]
 			},
@@ -252891,7 +252907,7 @@
 			}
 			TechArmorGain = 
 			{
-				m_strValue = "15"
+				m_strValue = "12"
 				m_eProvidedPropertyType = "MODIFIER_VALUE_TECH_RESIST"
 				m_strCSSClass = "tech_armor_up"
 			}
@@ -252967,15 +252983,6 @@
 						m_strPropertyName = "HelperCount"
 						m_strBonus = "1"
 					},
-				]
-			},
-			{
-				m_vecPropertyUpgrades = 
-				[
-					{
-						m_strPropertyName = "TechArmorGain"
-						m_strBonus = "8"
-					},
 					{
 						m_strPropertyName = "BonusMoveSpeed"
 						m_strBonus = "1.5m"
@@ -252987,11 +252994,24 @@
 				[
 					{
 						m_strPropertyName = "HelperCount"
-						m_strBonus = "2"
+						m_strBonus = "1"
 					},
 					{
 						m_strPropertyName = "InfestDamageTakenPercent"
-						m_strBonus = "20"
+						m_strBonus = "15"
+					},
+				]
+			},
+			{
+				m_vecPropertyUpgrades = 
+				[
+					{
+						m_strPropertyName = "HelperCount"
+						m_strBonus = "1"
+					},
+					{
+						m_strPropertyName = "TechArmorGain"
+						m_strBonus = "15"
 					},
 				]
 			},
@@ -253474,7 +253494,7 @@
 				{
 					_class = "scale_function_healing_spirit_scale"
 					_my_subclass_name = "HealingPerSecond_scale_function"
-					m_flStatScale = 0.66
+					m_flStatScale = 0.4
 				}
 			}
 			MissingHealthBurstPct = 
@@ -253669,7 +253689,7 @@
 					},
 					{
 						m_strPropertyName = "MissingHealthBurstPct"
-						m_strBonus = 0.02
+						m_strBonus = 0.016
 						m_eUpgradeType = "EAddToScale"
 						m_eScaleStatFilter = "ETechPower"
 					},
@@ -256151,7 +256171,7 @@
 			}
 			AbilityCastRange = 
 			{
-				m_strValue = "25m"
+				m_strValue = "35m"
 				m_eDisplayUnits = "EDisplayUnit_Meters"
 				m_strCSSClass = "range"
 				m_bCanSetTokenOverride = true
@@ -256282,7 +256302,7 @@
 		m_strAG2ChannelingAction = ""
 		m_strAG2CastingAction = ""
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
-		m_flTargetingConeAngle = 70.0
+		m_flTargetingConeAngle = 90.0
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY"
 		m_bShowTargetingPreviewWhileCasting = true
 		m_bForceShowHUDPanel = false
@@ -256425,7 +256445,7 @@
 			}
 			DashRange = 
 			{
-				m_strValue = "20m"
+				m_strValue = "35m"
 				m_strCSSClass = "distance"
 				m_subclassScaleFunction = subclass:
 				{
@@ -256508,7 +256528,7 @@
 			}
 			StunDuration = 
 			{
-				m_strValue = "0.6"
+				m_strValue = "0.8"
 				m_strCSSClass = "duration"
 				m_subclassScaleFunction = subclass:
 				{
@@ -256551,13 +256571,36 @@
 					m_eSpecificStatScaleType = "ETechDuration"
 				}
 			}
+			TargetLifesteal = 
+			{
+				m_strValue = "0"
+				m_strCSSClass = "healing"
+				m_eDisplayType = "ETechLifesteal"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "TargetLifesteal_scale_function"
+					m_eSpecificStatScaleType = "EHealingOutput"
+				}
+			}
+			TargetLifestealDuration = 
+			{
+				m_strValue = "0"
+				m_strCSSClass = "duration"
+				m_subclassScaleFunction = subclass:
+				{
+					_class = "scale_function_single_stat"
+					_my_subclass_name = "TargetLifestealDuration_scale_function"
+					m_eSpecificStatScaleType = "ETechDuration"
+				}
+			}
 			UsesFrontalCheck = 
 			{
 				m_strValue = "0"
 			}
 			DashGraceWindow = 
 			{
-				m_strValue = "1"
+				m_strValue = "1.3"
 			}
 		}
 		m_bitsPostCastEnabledStateMask = "MODIFIER_STATE_BUSY_WITH_ACTION"
@@ -256620,7 +256663,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-7"
+						m_strBonus = "-8"
 					},
 				]
 			},
@@ -256637,8 +256680,12 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "StunDuration"
-						m_strBonus = "1.6"
+						m_strPropertyName = "TargetLifesteal"
+						m_strBonus = "60"
+					},
+					{
+						m_strPropertyName = "TargetLifestealDuration"
+						m_strBonus = "7"
 					},
 				]
 			},
@@ -256707,6 +256754,13 @@
 			[
 				"MeleeResistReduction",
 			]
+		}
+		m_TargetLifestealModifier = subclass:
+		{
+			_class = "modifier_fencer_riposte_target_lifesteal"
+			_my_subclass_name = "modifier_fencer_riposte_target_lifesteal"
+			m_sLocalizationName = "modifier_fencer_riposte_target_lifesteal"
+			m_strSmallIconCssClass = "lifesteal"
 		}
 		m_strChannelSound = soundevent:"Fencer.Riposte.Cast"
 		m_DashLineEffect = resource_name:""
@@ -257079,7 +257133,7 @@
 					},
 					{
 						m_strPropertyName = "HealFixedHealth"
-						m_strBonus = 1.0
+						m_strBonus = 1.3
 						m_eUpgradeType = "EAddToScale"
 						m_eScaleStatFilter = "ETechPower"
 					},
@@ -257327,7 +257381,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "125"
+				m_strValue = "145"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -257719,7 +257773,7 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-40"
+						m_strBonus = "-35"
 					},
 				]
 			},
@@ -257728,7 +257782,7 @@
 				[
 					{
 						m_strPropertyName = "BonusDamagePercent"
-						m_strBonus = "40"
+						m_strBonus = "50"
 					},
 				]
 			},
@@ -259511,7 +259565,7 @@
 			}
 			ImmobilizeDuration = 
 			{
-				m_strValue = "1.25"
+				m_strValue = "1.0"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_duration"
@@ -259616,7 +259670,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-10"
+						m_strBonus = "-14"
 					},
 				]
 			},
@@ -260193,7 +260247,7 @@
 			}
 			PickupsPerNeutralTrooperDeath = 
 			{
-				m_strValue = "2"
+				m_strValue = "3"
 			}
 			SkullKillGold = 
 			{
@@ -260290,7 +260344,7 @@
 					},
 					{
 						m_strPropertyName = "HealPerPickup"
-						m_strBonus = "0.1"
+						m_strBonus = "0.16"
 						m_eUpgradeType = "EAddToScale"
 						m_eScaleStatFilter = "ETechPower"
 					},
@@ -260517,7 +260571,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "120"
+				m_strValue = "140"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -260984,7 +261038,11 @@
 				[
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-20"
+						m_strBonus = "-15"
+					},
+					{
+						m_strPropertyName = "MoveSpeedPercent"
+						m_strBonus = "25"
 					},
 				]
 			},
@@ -260992,13 +261050,13 @@
 				m_vecPropertyUpgrades = 
 				[
 					{
-						m_strPropertyName = "MoveSpeedPercent"
-						m_strBonus = "25"
-					},
-					{
 						m_strPropertyName = "AbilityDuration"
 						m_strBonus = "10"
 						m_strStreetBrawlBonus = "7"
+					},
+					{
+						m_strPropertyName = "SummonFrequency"
+						m_strBonus = "-0.3"
 					},
 				]
 			},
@@ -262589,6 +262647,10 @@
 			{
 				m_strValue = "0"
 			}
+			MeleeBuildUp = 
+			{
+				m_strValue = "0.2"
+			}
 			BonusWeaponAngle = 
 			{
 				m_strValue = "0"
@@ -262665,6 +262727,10 @@
 					{
 						m_strPropertyName = "ZombieExplosionBuildUp"
 						m_strBonus = "1.0"
+					},
+					{
+						m_strPropertyName = "MaxStolenTargets"
+						m_strBonus = "1"
 					},
 				]
 			},
@@ -264601,8 +264667,8 @@
 			m_flRecoilSpeed = 12.0
 			m_flZoomFOV = 35.0
 			m_flZoomFOV_Relative = -40.0
-			m_flDamageFalloffStartRange = 787.0
-			m_flDamageFalloffEndRange = 1800.0
+			m_flDamageFalloffStartRange = 669.291
+			m_flDamageFalloffEndRange = 1653.543
 			m_flRange = 7000.0
 			m_flBulletLifetime = 2
 			m_flDamageFalloffStartScale = 1.0
@@ -265379,6 +265445,14 @@
 				m_eProvidedPropertyType = "MODIFIER_VALUE_WEAPON_DAMAGE_INCREASE"
 				m_strCSSClass = "bullet_damage"
 			}
+			NonPlayerBonusWeaponPower = 
+			{
+				m_strValue = "100"
+				m_strCSSClass = "bullet_damage"
+				m_eDisplayType = "EBaseWeaponDamageIncrease"
+				m_eProvidedPropertyType = "MODIFIER_VALUE_WEAPON_DAMAGE_TO_NPC_INCREASE"
+				m_eStatsUsageFlags = "ConditionallyApplied"
+			}
 			BonusCurrentHealthDamagePercentage = 
 			{
 				m_strValue = "0"
@@ -265501,6 +265575,7 @@
 						"AccuracyPercentage",
 						"BaseAttackDamagePercent",
 						"BonusCurrentHealthDamagePercentage",
+						"NonPlayerBonusWeaponPower",
 					]
 				},
 			]
@@ -268027,7 +268102,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "70"
+				m_strValue = "60"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -268071,7 +268146,7 @@
 			}
 			AbilityCastDelay = 
 			{
-				m_strValue = "0.2"
+				m_strValue = "0.3"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cast"
 				m_bCanSetTokenOverride = true
@@ -268124,7 +268199,7 @@
 			}
 			ChannelMoveSpeed = 
 			{
-				m_strValue = "300"
+				m_strValue = "100"
 				m_eDisplayUnits = "EDisplayUnit_MetersPerSecond"
 				m_strCSSClass = "move_speed"
 				m_bCanSetTokenOverride = true
@@ -268376,11 +268451,11 @@
 				[
 					{
 						m_strPropertyName = "BulletResist"
-						m_strBonus = "20"
+						m_strBonus = "15"
 					},
 					{
 						m_strPropertyName = "TechResist"
-						m_strBonus = "20"
+						m_strBonus = "15"
 					},
 				]
 			},
@@ -272073,7 +272148,7 @@
 		m_skillshotMissParticle = resource_name:"particles/abilities/skillshot_default_miss_owner.vpcf"
 		m_flBossDamageScale = 1.0
 		m_iUpdateTime = 0
-
+		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_UNIT"
 		m_eAbilityTargetingShape = "CITADEL_ABILITY_TARGETING_SHAPE_CONE"
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_INSTANT_CAST"
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_ALL_ENEMY"
@@ -272206,7 +272281,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "35"
+				m_strValue = "32"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -272695,7 +272770,7 @@
 		{
 			AbilityCooldown = 
 			{
-				m_strValue = "140"
+				m_strValue = "160"
 				m_strDisableValue = "0"
 				m_strCSSClass = "cooldown"
 				m_bCanSetTokenOverride = true
@@ -272825,12 +272900,12 @@
 			}
 			Damage = 
 			{
-				m_strValue = "135"
+				m_strValue = "165"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "dazzling_orb_damage_sf"
-					m_flStatScale = 0.73
+					m_flStatScale = 0.88
 				}
 				m_strCSSClass = "tech_damage"
 				m_bIsAbilityDamageProperty = true
@@ -272864,7 +272939,7 @@
 			}
 			BounceRadius = 
 			{
-				m_strValue = "15.5m"
+				m_strValue = "17.5m"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_range"
@@ -272874,12 +272949,12 @@
 			}
 			PriorityBounceRadius = 
 			{
-				m_strValue = "11.5m"
+				m_strValue = "13.5m"
 			}
 			BounceGrace = 
 			{
-				m_strValue = "3"
-				m_strStreetBrawlValue = "2.275"
+				m_strValue = "3.25"
+				m_strStreetBrawlValue = "2.5"
 			}
 			NextTargetDuration = 
 			{
@@ -272951,7 +273026,7 @@
 				[
 					{
 						m_strPropertyName = "Damage"
-						m_strBonus = "70"
+						m_strBonus = "90"
 					},
 				]
 			},
@@ -272964,7 +273039,7 @@
 					},
 					{
 						m_strPropertyName = "AbilityCooldown"
-						m_strBonus = "-35"
+						m_strBonus = "-30"
 					},
 				]
 			},
@@ -273423,7 +273498,7 @@
 				{
 					_class = "scale_function_tech_damage"
 					_my_subclass_name = "luminous_strike_dps_sf"
-					m_flStatScale = 0.56
+					m_flStatScale = 0.63
 				}
 				m_strCSSClass = "tech_damage"
 				m_bIsAbilityDamageProperty = true
@@ -273453,7 +273528,7 @@
 			}
 			BuffDuration = 
 			{
-				m_strValue = "25"
+				m_strValue = "30"
 				m_subclassScaleFunction = subclass:
 				{
 					_class = "scale_function_tech_duration"

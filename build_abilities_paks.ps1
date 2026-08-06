@@ -5,14 +5,15 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $root = $PSScriptRoot
+. (Join-Path $root 'scripts\source2_package_pipeline.ps1')
 $modSrc = Join-Path $root "abilities"
 $modCompiled = Join-Path $root "abilities_compiled"
 $modScripts = Join-Path $modSrc "scripts"
 $compiler = Join-Path $root "sr2compiler\New folder.exe"
-$vpkeditcli = Join-Path $root "passive_items_mod\compiler\vpkeditcli.exe"
-if (-not (Test-Path -LiteralPath $vpkeditcli)) {
-    $vpkeditcli = Join-Path $root "vpk cli\vpkeditcli.exe"
-}
+$vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
+    (Join-Path $root "passive_items_mod\compiler\vpkeditcli.exe"),
+    (Join-Path $root "vpk cli\vpkeditcli.exe")
+)
 $addons = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons"
 $python = (Get-Command py.exe -ErrorAction SilentlyContinue).Source
 $sevenZip = (Get-Command 7z.exe -ErrorAction SilentlyContinue).Source
@@ -40,11 +41,18 @@ if (-not (Test-Path $sevenZip)) {
     throw "7z.exe was not found on PATH or at C:\Program Files\7-Zip\7z.exe"
 }
 
-if (-not (Test-Path -LiteralPath $vpkeditcli)) {
-    throw "vpkeditcli.exe was not found in passive_items_mod\compiler or vpk cli"
-}
 
 $pakSpecs = @(
+    @{
+        Name = "pak02"
+        StageDir = Join-Path $root "pak02_dir"
+        VpkOut = Join-Path $root "pak02_dir.vpk"
+        ArchiveName = "templete_$dateTag.7z"
+        Script = $null
+        InputFile = "abilities.vdata"
+        CompiledSource = Join-Path $modCompiled "scripts\abilities.vdata_c"
+        BehaviorState = "skip"
+    }
     @{
         Name = "pak03"
         StageDir = Join-Path $root "pak03_dir"
@@ -102,6 +110,28 @@ function Remove-RootIncludeBlock {
         [System.IO.File]::WriteAllText($InputPath, $updated, [System.Text.UTF8Encoding]::new($false))
     }
 }
+
+function Copy-ItemWithRetry {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Source,
+        [Parameter(Mandatory = $true)]
+        [string]$Destination
+    )
+
+    for ($attempt = 1; $attempt -le 10; $attempt++) {
+        try {
+            Copy-Item -LiteralPath $Source -Destination $Destination -Force
+            return
+        } catch {
+            if ($attempt -eq 10) {
+                throw
+            }
+            Start-Sleep -Milliseconds 500
+        }
+    }
+}
+
 
 function Update-AbilityBaselinesFromSteamTracking {
     param(
@@ -174,49 +204,11 @@ function Test-AbilityBehaviorState {
 }
 
 function Invoke-AbilityCompiler {
-    if (Test-Path $modCompiled) {
-        Remove-Item -Recurse -Force $modCompiled
-    }
-
+    if (Test-Path $modCompiled) { Remove-Item -Recurse -Force $modCompiled }
     Write-Host "[compile] abilities" -ForegroundColor Cyan
     $compiledActive = Join-Path $modCompiled "scripts\abilities.vdata_c"
     $compiledPassive = Join-Path $modCompiled "scripts\abilities2.vdata_c"
-    $proc = Start-Process -FilePath $compiler -ArgumentList "`"$modSrc`"" -PassThru
-    $compileDeadline = (Get-Date).AddSeconds(180)
-
-    while (-not $proc.HasExited -and (Get-Date) -lt $compileDeadline) {
-        Start-Sleep -Milliseconds 500
-        if ((Test-Path $compiledActive) -and (Test-Path $compiledPassive)) {
-            Start-Sleep -Seconds 2
-            if (-not $proc.HasExited) {
-                Write-Host "[WARN] Compiler produced output but did not exit; stopping wrapper." -ForegroundColor Yellow
-                Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-                $proc.WaitForExit()
-            }
-            break
-        }
-    }
-
-    if (-not $proc.HasExited) {
-        Write-Host "[WARN] Compiler timed out; stopping wrapper." -ForegroundColor Yellow
-        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-        $proc.WaitForExit()
-    }
-
-    if ($proc.ExitCode -ne 0) {
-        if (-not (Test-Path $compiledActive) -or -not (Test-Path $compiledPassive)) {
-            throw "Compiler failed with exit code $($proc.ExitCode)"
-        }
-        Write-Host "[WARN] Compiler exited $($proc.ExitCode) but output exists; continuing." -ForegroundColor Yellow
-    }
-
-    if (-not (Test-Path $compiledActive)) {
-        throw "Compiled active output not found: $compiledActive"
-    }
-
-    if (-not (Test-Path $compiledPassive)) {
-        throw "Compiled passive output not found: $compiledPassive"
-    }
+    Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $modSrc -RequiredOutputs @($compiledActive, $compiledPassive) -TimeoutSeconds 180
 }
 
 function Stage-And-Pack {
@@ -236,20 +228,7 @@ function Stage-And-Pack {
     New-Item -ItemType Directory -Path (Join-Path $StageDir "scripts") -Force | Out-Null
     Copy-Item -LiteralPath $CompiledSource -Destination (Join-Path $StageDir "scripts\abilities.vdata_c") -Force
 
-    if (Test-Path $VpkOut) {
-        Remove-Item -Force $VpkOut
-    }
-
-    Write-Host "[pack] $(Split-Path $VpkOut -Leaf)" -ForegroundColor Cyan
-    $packArgs = "`"$StageDir`" -o `"$VpkOut`" -s --no-progress"
-    $pack = Start-Process -FilePath $vpkeditcli -ArgumentList $packArgs -PassThru -Wait -NoNewWindow
-    if ($pack.ExitCode -ne 0) {
-        throw "vpkeditcli failed for $(Split-Path $VpkOut -Leaf) with exit code $($pack.ExitCode)"
-    }
-
-    if (-not (Test-Path $VpkOut)) {
-        throw "VPK not created: $VpkOut"
-    }
+    Invoke-VpkPack -VpkEditCli $vpkeditcli -InputDir $StageDir -OutputPath $VpkOut
 }
 
 function Compress-Vpk {
@@ -261,16 +240,9 @@ function Compress-Vpk {
     )
 
     $archivePath = Join-Path $addons $ArchiveName
-    if (Test-Path $archivePath) {
-        Remove-Item -Force $archivePath
-    }
-
+    if (Test-Path $archivePath) { Remove-Item -Force $archivePath }
     Write-Host "[archive] $ArchiveName" -ForegroundColor Cyan
-    & $sevenZip a -t7z $archivePath $VpkOut | Out-Null
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $archivePath)) {
-        throw "7z failed for $ArchiveName"
-    }
-
+    Compress-Vpk7Zip -SevenZip $sevenZip -InputPath $VpkOut -ArchivePath $archivePath -ExpectedLeaf (Split-Path -Leaf $VpkOut)
     return $archivePath
 }
 
@@ -299,13 +271,17 @@ foreach ($inputFile in $inputFiles) {
     Remove-RootIncludeBlock -InputPath $inputPath
 
     $baselinePath = Join-Path $baselineDir $inputFile
-    Copy-Item -LiteralPath $inputPath -Destination $baselinePath -Force
+    Copy-ItemWithRetry -Source $inputPath -Destination $baselinePath
     $inputBaselines[$inputFile] = $baselinePath
 }
 
 foreach ($spec in $pakSpecs) {
-    Copy-Item -LiteralPath $inputBaselines[$spec.InputFile] -Destination (Join-Path $modScripts $spec.InputFile) -Force
-    Invoke-AbilityScript -ScriptName $spec.Script -InputFile $spec.InputFile
+    Copy-ItemWithRetry -Source $inputBaselines[$spec.InputFile] -Destination (Join-Path $modScripts $spec.InputFile)
+    if ($spec.Script) {
+        Invoke-AbilityScript -ScriptName $spec.Script -InputFile $spec.InputFile
+    } else {
+        Write-Host "[transform] skip for $($spec.InputFile)" -ForegroundColor Cyan
+    }
     Test-AbilityBehaviorState -InputFile $spec.InputFile -BehaviorState $spec.BehaviorState
     Invoke-AbilityCompiler
     Stage-And-Pack -StageDir $spec.StageDir -CompiledSource $spec.CompiledSource -VpkOut $spec.VpkOut
@@ -325,6 +301,10 @@ foreach ($spec in $pakSpecs) {
     if (Test-Path $spec.VpkOut) {
         Remove-Item -Force $spec.VpkOut
     }
+}
+
+foreach ($inputFile in $inputFiles) {
+    Copy-ItemWithRetry -Source $inputBaselines[$inputFile] -Destination (Join-Path $modScripts $inputFile)
 }
 
 if (Test-Path $baselineDir) {

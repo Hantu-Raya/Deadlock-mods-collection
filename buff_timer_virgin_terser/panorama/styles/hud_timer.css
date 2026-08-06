@@ -100,6 +100,176 @@
 	opacity: 1;
 }
 
+.objective-timer-card
+{
+	background-color: rgba(12, 12, 12, 0.62);
+	width: 10%;
+	height: 5.8%;
+	margin-top: 7.1%;
+	horizontal-align: left;
+	vertical-align: top;
+	border-radius: 6px;
+	world-blur: ingameHudBlur;
+	z-index: 99999;
+	opacity: 0;
+	flow-children: down;
+	overflow: noclip;
+	transition-property: opacity, background-color, wash-color, pre-transform-scale2d;
+}
+
+.objective-timer-card.active
+{
+	opacity: 1;
+}
+
+#RiftTimerCard
+{
+	margin-left: 39.5%;
+}
+
+#UrnTimerCard
+{
+	margin-left: 50.5%;
+}
+
+#RiftTimerCard.rift-warning
+{
+	background-color: rgba(3, 28, 31, 0.9);
+	wash-color: rgba(21, 155, 153, 0.72);
+	pre-transform-scale2d: 1.02;
+}
+
+#UrnTimerCard.urn-warning
+{
+	background-color: rgba(4, 20, 35, 0.88);
+	wash-color: rgba(100, 200, 255, 0.92);
+	pre-transform-scale2d: 1.03;
+	animation-name: objective-card-pulse;
+	animation-duration: 1.5s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+
+#UrnTimerCard.urn-warning .objective-timer-time
+{
+	color: #b9e7ff;
+}
+
+#UrnTimerCard.urn-warning .objective-timer-sub
+{
+	color: #72bfe8;
+}
+
+#RiftTimerCard.rift-window
+{
+	background-color: rgba(3, 28, 31, 0.9);
+	wash-color: rgba(21, 155, 153, 0.82);
+	pre-transform-scale2d: 1.02;
+}
+
+.objective-timer-sub
+{
+	font-size: 9px;
+	color: #9da7b4;
+	horizontal-align: center;
+	text-align: center;
+	width: 100%;
+	height: 34%;
+	font-weight: semi-bold;
+	font-family: sansMono;
+	letter-spacing: 1px;
+	text-shadow: 0px 0px 3px 1.5 black;
+}
+
+.objective-timer-time
+{
+	font-size: 14px;
+	color: #e8e8e8;
+	horizontal-align: center;
+	text-align: center;
+	width: 100%;
+	height: 62%;
+	font-weight: semi-bold;
+	font-family: sansMono;
+	letter-spacing: 1px;
+	text-shadow: 0px 0px 3px 1.5 black;
+}
+
+#RiftTimerCard.rift-warning .objective-timer-time,
+#RiftTimerCard.rift-window .objective-timer-time
+{
+	color: #8bffe8;
+}
+
+#RiftTimerCard.rift-warning .objective-timer-sub,
+#RiftTimerCard.rift-window .objective-timer-sub
+{
+	color: #5cc8bf;
+}
+
+#RiftTimerCard.rift-confirmed
+{
+	background-color: rgba(3, 28, 31, 0.94);
+	wash-color: rgba(85, 238, 219, 0.98);
+	pre-transform-scale2d: 1.06;
+	animation-name: rift-confirmed-pulse;
+	animation-duration: 1.5s;
+	animation-iteration-count: 3;
+	animation-timing-function: ease;
+}
+
+#RiftTimerCard.rift-confirmed .objective-timer-time
+{
+	color: #b0fff0;
+}
+
+#RiftTimerCard.rift-confirmed .objective-timer-sub
+{
+	color: #55eedb;
+}
+
+@keyframes 'rift-confirmed-pulse'
+{
+	0%
+	{
+		brightness: 1;
+		pre-transform-scale2d: 1.03;
+		opacity: 1;
+	}
+
+	50%
+	{
+		brightness: 2.2;
+		pre-transform-scale2d: 1.10;
+		opacity: 1;
+	}
+
+	100%
+	{
+		brightness: 1;
+		pre-transform-scale2d: 1.03;
+		opacity: 1;
+	}
+}
+
+@keyframes 'objective-card-pulse'
+{
+	0%
+	{
+		opacity: 0.78;
+	}
+
+	50%
+	{
+		opacity: 1.0;
+	}
+
+	100%
+	{
+		opacity: 0.78;
+	}
+}
+
 .timer-wrapper
 {
 	flow-children: none;

@@ -120,6 +120,20 @@ Pack all three variants with `build_abilities_paks.ps1` for staged VPKs and date
 - `.agents/system-prompts/skill-init-claudemd-and-skill-setup-new-version.md` — `/init` flow for targeted CLAUDE/skill setup updates
 - `.agents/skills/find-skills/SKILL.md` — skill discovery workflow; verify quality before recommending installs
 
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked as local markdown under `.scratch/hp_colors/`; external PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default five-state label vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Use a multi-context layout; for HP Colors work, read the `hp_colors` context and ADRs when present. See `docs/agents/domain.md`.
+
 ## Agentmemory
 When durable repo facts, architecture notes, workflow lessons, or debugging lessons should be saved, use agentmemory.
 

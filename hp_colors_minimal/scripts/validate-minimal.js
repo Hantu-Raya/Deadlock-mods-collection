@@ -1,7 +1,23 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const {
+  FULL_ONLY_SETTING_IDS,
+  checkBooleanFlagDefaults,
+  checkForbiddenSourceTerms,
+  checkFullSettingsContract,
+  checkFunctionDeclarationCap,
+  checkLevelTierCssParity,
+  checkMinimalSettingsContract,
+  checkObjectInterface,
+  checkRequiredSourceTerms,
+  checkRuntimePanelIds,
+  extractObjectKeys,
+  readHpColorLaneSources,
+} = require("../../scripts/hp-colors-validator-contract.js");
+
 
 const ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(ROOT, "..");
 const REQUIRED_FILES = [
   "AGENTS.md",
   "panorama/layout/unit_status_overlay.xml",
@@ -40,7 +56,14 @@ const FORBIDDEN_SOURCE_TERMS = [
   "localStorage",
   "live_update",
   "live-update",
-  "anita_ui"
+  "anita_ui",
+  "HPPresetBuilderModel",
+  "HPPresetBuilderActions",
+  "AnitaPresetBuilderPanel",
+  "__anitaUserPresetRows",
+  "__anitaPresetPriorityOrder",
+  "__anitaPresetNameOverrides",
+  "AnitaUI.Register"
 ];
 const REQUIRED_BRIDGE_TERMS = [
   "HP_COLORS_PRESET_REQUEST",
@@ -56,6 +79,9 @@ const REQUIRED_UNIT_STATUS_TERMS = [
   "unit_level_label",
   "UnitHealthbarContainer",
   "unit_healthbar_lagging",
+  "unit_healthbar_healing",
+  "unit_healthbar_delta",
+  "unit_healthbar_bullet_shield",
   "unit_healthbar_bg",
   "unit_healthbar_pip_label",
   "unit_ult_ready_icon",
@@ -78,6 +104,9 @@ const ALLOWED_RUNTIME_PANEL_IDS = new Set([
   "InfoHealthContainer",
   "UnitHealthbarContainer",
   "unit_healthbar_lagging",
+  "unit_healthbar_healing",
+  "unit_healthbar_delta",
+  "unit_healthbar_bullet_shield",
   "unit_healthbar_bg",
   "unit_healthbar_pip_label",
   "unit_ult_ready_icon",
@@ -110,9 +139,7 @@ function listFiles(dir = ROOT) {
 }
 
 function extractDefaultKeys(source) {
-  const match = source.match(/var\s+DEFAULTS\s*=\s*\{([\s\S]*?)\n\s*\};/);
-  if (!match) return [];
-  return Array.from(match[1].matchAll(/\n\s*([A-Za-z0-9_]+)\s*:/g), (m) => m[1]);
+  return extractObjectKeys(source, "DEFAULTS") || [];
 }
 
 function countMatches(source, pattern) {
@@ -120,17 +147,7 @@ function countMatches(source, pattern) {
   return matches ? matches.length : 0;
 }
 
-function extractFunctionDeclarationNames(source) {
-  return Array.from(source.matchAll(/^\s*function\s+([A-Za-z_$][\w$]*)\s*\(/gm), (m) => m[1]);
-}
 
-function extractFindChildIds(source) {
-  return Array.from(source.matchAll(/FindChildTraverse\(\s*(["'])(.*?)\1\s*\)/g), (m) => m[2]);
-}
-
-function extractRuntimeIdConstants(source) {
-  return Array.from(source.matchAll(/var\s+ID_[A-Z0-9_]+\s*=\s*(["'])(.*?)\1/g), (m) => m[2]);
-}
 
 function getValidationReport() {
   const errors = [];
@@ -141,6 +158,12 @@ function getValidationReport() {
   const css = readText("panorama/styles/unit_status.css");
   const combinedSource = healthbar + "\n" + publisher;
   const combinedAssets = combinedSource + "\n" + xml + "\n" + css;
+  const laneSources = readHpColorLaneSources(REPO_ROOT);
+  const fullReport = checkFullSettingsContract(laneSources.fullUiSource, laneSources.fullRuntimeSource);
+  const minimalReport = checkMinimalSettingsContract(publisher, healthbar, fullReport.contract);
+  errors.push(...fullReport.errors.map((error) => `full lane contract: ${error}`));
+  errors.push(...minimalReport.errors.map((error) => `minimal lane contract: ${error}`));
+
 
   for (const file of REQUIRED_FILES) {
     if (!fs.existsSync(path.join(ROOT, file))) errors.push(`missing required file: ${file}`);
@@ -153,46 +176,21 @@ function getValidationReport() {
     if (!ALLOWED_FILES.has(file)) errors.push(`unexpected minimal file: ${file}`);
   }
 
-  const defaultKeys = extractDefaultKeys(healthbar);
-  if (defaultKeys.length !== 49) errors.push(`DEFAULTS key count is ${defaultKeys.length}, expected 49`);
-  if (new Set(defaultKeys).size !== defaultKeys.length) errors.push("DEFAULTS contains duplicate keys");
+  const defaultKeys = minimalReport.contract.runtimeDefaultKeys || extractDefaultKeys(healthbar);
 
-  const healthbarFunctions = extractFunctionDeclarationNames(healthbar);
-  const publisherFunctions = extractFunctionDeclarationNames(publisher);
+  const healthbarFunctions = checkFunctionDeclarationCap(errors, "healthbar runtime", healthbar, MAX_HEALTHBAR_RUNTIME_FUNCTIONS);
+  const publisherFunctions = checkFunctionDeclarationCap(errors, "publisher", publisher, MAX_PUBLISHER_FUNCTIONS);
   const functionCounts = {
     healthbar: healthbarFunctions.length,
     publisher: publisherFunctions.length
   };
-  if (functionCounts.healthbar > MAX_HEALTHBAR_RUNTIME_FUNCTIONS) {
-    errors.push(`healthbar runtime function count is ${functionCounts.healthbar}, max ${MAX_HEALTHBAR_RUNTIME_FUNCTIONS}`);
-  }
-  if (functionCounts.publisher > MAX_PUBLISHER_FUNCTIONS) {
-    errors.push(`publisher function count is ${functionCounts.publisher}, max ${MAX_PUBLISHER_FUNCTIONS}`);
-  }
 
-  const runtimePanelIds = [
-    ...extractFindChildIds(healthbar),
-    ...extractRuntimeIdConstants(healthbar)
-  ];
-  for (const id of [...new Set(runtimePanelIds)].sort()) {
-    if (!ALLOWED_RUNTIME_PANEL_IDS.has(id)) errors.push(`runtime uses unverified panel id: ${id}`);
-  }
-  for (const id of FORBIDDEN_RUNTIME_PANEL_IDS) {
-    if (new RegExp(`(["'])${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\1`).test(healthbar)) {
-      errors.push(`runtime uses forbidden panel id literal: ${id}`);
-    }
-  }
+  checkRuntimePanelIds(errors, "runtime", healthbar, ALLOWED_RUNTIME_PANEL_IDS, FORBIDDEN_RUNTIME_PANEL_IDS);
 
 
-  for (const term of REQUIRED_BRIDGE_TERMS) {
-    if (!combinedSource.includes(term)) errors.push(`missing bridge term: ${term}`);
-  }
-  for (const term of REQUIRED_UNIT_STATUS_TERMS) {
-    if (!combinedAssets.includes(term)) errors.push(`missing unit-status term: ${term}`);
-  }
-  for (const term of FORBIDDEN_SOURCE_TERMS) {
-    if (combinedSource.includes(term)) errors.push(`forbidden production source term: ${term}`);
-  }
+  checkRequiredSourceTerms(errors, "bridge", combinedSource, REQUIRED_BRIDGE_TERMS);
+  checkRequiredSourceTerms(errors, "unit-status", combinedAssets, REQUIRED_UNIT_STATUS_TERMS);
+  checkForbiddenSourceTerms(errors, "production source", combinedSource, FORBIDDEN_SOURCE_TERMS);
   for (const heroMarker of [
     "HERO_ALIAS_TO_ID",
     "HERO_ALIAS_LIST",
@@ -218,6 +216,45 @@ function getValidationReport() {
     if (!publisher.includes(exactHeroMarker)) errors.push(`publisher missing exact SteamTracking hero marker: ${exactHeroMarker}`);
   }
 
+  checkObjectInterface(errors, "publisher", publisher, "HeroScopedPresetSelection", ["normalizeMode", "normalizeHeroes", "targetsHero", "resolve"]);
+  checkObjectInterface(errors, "publisher", publisher, "HPPresetCodeCodec", ["decodeBase64Url", "expandValues", "decodePresetPayload", "normalizeHeroScope"]);
+  for (const presetCodecMarker of [
+    "HPPresetCodeCodec.decodeBase64Url(encoded)",
+    "HPPresetCodeCodec.decodePresetPayload(preset"
+  ]) {
+    if (!publisher.includes(presetCodecMarker)) errors.push(`publisher missing preset codec behavior marker: ${presetCodecMarker}`);
+  }
+  checkObjectInterface(errors, "publisher", publisher, "PresetSnapshotReplay", ["buildPayload", "acceptsRequest", "markRequestHot", "replayDelay", "publishCached"]);
+
+  for (const runtimeMarker of [
+    "var UNIT_STATUS_TARGET_SNAPSHOT = {",
+    "var ALLY_STATUS_TARGET_SNAPSHOT = {",
+  ]) {
+    if (!healthbar.includes(runtimeMarker)) errors.push(`runtime missing safety marker: ${runtimeMarker}`);
+  }
+  checkObjectInterface(errors, "runtime", healthbar, "UnitStatusTargetClassifier", ["classify", "classifyAlly", "redBarCandidateMatchesMode"]);
+  checkObjectInterface(errors, "runtime", healthbar, "UnitStatusOverlayAdapter", ["setEnemyBarColor", "clearLayerColors", "clearUltColor", "hasEnemyBarStyleDrift", "hasEnemyStyleDrift"]);
+  checkObjectInterface(errors, "runtime", healthbar, "HpReadoutPolicy", ["parseMax", "reset", "enemy"]);
+  checkObjectInterface(errors, "runtime", healthbar, "LowHpPulsePolicy", ["resetEnemy", "enemy", "resetAlly", "ally"]);
+  checkObjectInterface(errors, "runtime", healthbar, "HealthStatePaintPlan", ["resetEnemy", "enemy"]);
+  checkObjectInterface(errors, "runtime", healthbar, "AllyHealthPaintPolicy", ["ally"]);
+  checkObjectInterface(errors, "runtime", healthbar, "LevelTierPolicy", ["parse", "classFor"]);
+  checkObjectInterface(errors, "runtime", healthbar, "EnemyHealthbarLoopPolicy", ["decide"]);
+  checkObjectInterface(errors, "runtime", healthbar, "ReplayWakePolicy", ["shouldWakeSameRaw", "wakeLoops"]);
+  checkObjectInterface(errors, "runtime", healthbar, "LoopSchedulePolicy", ["schedule", "requestKick"]);
+  if (!/\bvar\s+ENEMY_ACTION_CONTINUE\s*=\s*0\s*;/.test(healthbar)) {
+    errors.push("runtime ENEMY_ACTION_CONTINUE must be 0");
+  }
+  if (!/\bvar\s+ENEMY_ACTION_PAINT\s*=\s*9\s*;/.test(healthbar)) {
+    errors.push("runtime ENEMY_ACTION_PAINT must be 9");
+  }
+  checkLevelTierCssParity(errors, "runtime", healthbar, css, [
+    { min: 11, cls: "level_tier2" },
+    { min: 19, cls: "level_tier3" },
+    { min: 27, cls: "level_tier4" },
+    { min: 35, cls: "level_tier5" },
+  ]);
+
   const buildScriptPath = path.join(ROOT, "..", "build_hp_colors_minimal.ps1");
   const buildScript = fs.existsSync(buildScriptPath) ? fs.readFileSync(buildScriptPath, "utf8") : "";
   for (const term of [
@@ -228,22 +265,25 @@ function getValidationReport() {
     "backgroundColor",
     "marginLeft",
     "transform",
-    "zIndex"
+    "zIndex",
+    "UnregisterForUnhandledEvent"
   ]) {
     if (!buildScript.includes(term)) errors.push(`build_hp_colors_minimal.ps1 missing Closure compatibility term: ${term}`);
   }
 
-  if (!/var\s+DEBUG_PRESET_SELECTION\s*=\s*false\s*;/.test(publisher)) {
-    errors.push("publisher DEBUG_PRESET_SELECTION must default false");
-  }
-  if (!/var\s+DEBUG_REPLAY_VERBOSE_ENABLED\s*=\s*false\s*;/.test(publisher)) {
-    errors.push("publisher DEBUG_REPLAY_VERBOSE_ENABLED must default false");
-  }
-  if (!/var\s+DEBUG_ENABLED\s*=\s*false\s*;/.test(healthbar)) {
-    errors.push("runtime DEBUG_ENABLED must default false");
-  }
-  if (!/var\s+CAPTURE_ENABLED\s*=\s*false\s*;/.test(healthbar)) {
-    errors.push("runtime CAPTURE_ENABLED must default false");
+  checkBooleanFlagDefaults(errors, "runtime", healthbar, {
+    CAPTURE_ENABLED: false,
+  });
+  for (const forbiddenDiagnosticMarker of [
+    "__hpColorsMinimalDebug",
+    "DEBUG_PRESET_SELECTION",
+    "DEBUG_REPLAY_VERBOSE_ENABLED",
+    "function debugLog(",
+    "function debugPrecise",
+  ]) {
+    if (publisher.includes(forbiddenDiagnosticMarker) || healthbar.includes(forbiddenDiagnosticMarker)) {
+      errors.push(`production minimal source contains diagnostic marker: ${forbiddenDiagnosticMarker}`);
+    }
   }
   if (/PERF_CAPTURE_RUNTIME_WORK_ENABLED\s*=\s*true/.test(healthbar)) {
     errors.push("runtime capture must not ship enabled");
@@ -317,6 +357,12 @@ function getValidationReport() {
     files,
     bridgeTerms: REQUIRED_BRIDGE_TERMS,
     functionCounts,
+    laneContract: {
+      fullCount: fullReport.contract.schemaIds.length,
+      minimalCount: minimalReport.contract.runtimeDefaultKeys.length,
+      expectedMinimalIds: minimalReport.expectedMinimalIds,
+      fullOnlySettingIds: FULL_ONLY_SETTING_IDS.slice(),
+    },
   };
 }
 

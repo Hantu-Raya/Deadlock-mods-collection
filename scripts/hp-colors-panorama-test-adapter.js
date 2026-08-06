@@ -262,6 +262,12 @@ function createScheduler(harness) {
       jobs.push(job);
       return job;
     },
+    cancel(job) {
+      const index = jobs.indexOf(job);
+      if (index < 0) return false;
+      jobs.splice(index, 1);
+      return true;
+    },
     takeNext() {
       sortJobs();
       return jobs.shift() || null;
@@ -341,6 +347,7 @@ function createPanoramaHarness(options = {}) {
     dispatches: [],
     handlers: Object.create(null),
     handlerEntries: [],
+    unregisterCalls: [],
     nextHandlerId: 1,
     logs: [],
     scheduler: null,
@@ -376,6 +383,7 @@ function createPanoramaHarness(options = {}) {
       return new MockPanel(type, parent === true ? harness.root : parent, id);
     },
     Schedule: (delay, fn) => harness.scheduler.schedule(delay, fn),
+    CancelScheduled: (job) => harness.scheduler.cancel(job),
     RegisterForUnhandledEvent: (eventName, handler) => {
       const id = harness.nextHandlerId++;
       harness.handlers[eventName] = handler;
@@ -383,6 +391,7 @@ function createPanoramaHarness(options = {}) {
       return id;
     },
     UnregisterForUnhandledEvent: (eventName, id) => {
+      harness.unregisterCalls.push({ eventName, id });
       const index = harness.handlerEntries.findIndex((entry) =>
         entry.channel === eventName && entry.id === id);
       if (index < 0) return;
@@ -415,6 +424,7 @@ function createPanoramaHarness(options = {}) {
   harness.reset = () => {
     harness.dispatches.length = 0;
     harness.handlerEntries.length = 0;
+    harness.unregisterCalls.length = 0;
     for (const key of Object.keys(harness.handlers)) delete harness.handlers[key];
     harness.logs.length = 0;
     harness.mouseCallback = null;
@@ -556,13 +566,20 @@ function buildUnitStatusTree(harness, options = {}) {
   const pip = redParent.add(new MockPanel('unit_healthbar_pip_label', { text: options.pipText || '100', attributes: { text: options.pipText || '100' }, findCounts: harness.findCounts }));
   const heal = redParent.add(new MockPanel('unit_healthbar_healing', { findCounts: harness.findCounts }));
   const delta = redParent.add(new MockPanel('unit_healthbar_delta', { findCounts: harness.findCounts }));
-  const bulletShield = redParent.add(new MockPanel('unit_healthbar_bullet_shield', { findCounts: harness.findCounts }));
+  const bulletShield = redParent.add(new MockPanel('unit_healthbar_bullet_shield', {
+    actuallayoutwidth: options.bulletShieldWidth === undefined ? 0 : options.bulletShieldWidth,
+    findCounts: harness.findCounts,
+  }));
+  const techShield = redParent.add(new MockPanel('unit_healthbar_tech_shield', {
+    actuallayoutwidth: options.techShieldWidth === undefined ? 0 : options.techShieldWidth,
+    findCounts: harness.findCounts,
+  }));
   const killZone = unitHealthbar.add(new MockPanel('hp_kill_zone_marker', { findCounts: harness.findCounts }));
   const killMarker = killZone;
   const counterAnchor = infoHealth.add(new MockPanel('hp_counter_anchor', { findCounts: harness.findCounts }));
   const counter = counterAnchor.add(new MockPanel('hp_counter', { findCounts: harness.findCounts }));
   const name = root.add(new MockPanel('name', { text: options.nameText || 'Enemy', attributes: { text: options.nameText || 'Enemy' }, findCounts: harness.findCounts }));
-  return { root, unitStatus, infoHealth, unitInfo, unitHealthbar, bg, missing, redParent, lagging, rb, pip, heal, delta, bulletShield, ult, ultIcon, levelContainer, level, name, counterAnchor, counter, killZone, killMarker };
+  return { root, unitStatus, infoHealth, unitInfo, unitHealthbar, bg, missing, redParent, lagging, rb, pip, heal, delta, bulletShield, techShield, ult, ultIcon, levelContainer, level, name, counterAnchor, counter, killZone, killMarker };
 }
 
 function findByClass(panel, className, out = []) {

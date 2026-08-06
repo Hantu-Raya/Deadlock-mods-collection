@@ -512,7 +512,7 @@
     {
       type: "toggle",
       id: "hp_bg_visible",
-      label: "Show enemy HP background",
+      label: "Show enemy healthbar",
       defaultValue: true,
       category: "GENERAL|Core Behavior",
     },
@@ -578,18 +578,18 @@
       step: 1,
       category: "GENERAL|Core Behavior",
     },
-    // Health Bars - Enemy Colors
+    // Health Bars - Enemy and Ally Ult Colors
     {
       type: "toggle",
       id: "hp_ult_color_enabled",
-      label: "Color ult icon",
+      label: "Make enemy and ally ult icons follow healthbars",
       defaultValue: true,
       category: "HEALTH BARS|Enemy Colors",
     },
     {
       type: "colorpicker",
       id: "hp_ult_color_custom",
-      label: "Ult icon custom color",
+      label: "Enemy and ally ult icon custom color",
       defaultValue: "#E16161",
       category: "HEALTH BARS|Enemy Colors",
       visibleWhen: { id: "hp_ult_color_enabled", equals: false },
@@ -3026,6 +3026,12 @@
 
   // Panorama adapter for the preset-code contract; Node tests run both adapters.
   const HPPresetCodeCodec = {
+    supportedVersion: function (value) {
+      var version = Number(value);
+      return version === 1 || version === 97 || version === 98 || version === 99
+        ? version
+        : 0;
+    },
     _chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",
     _hasOwn: function (object, key) {
       return Object.prototype.hasOwnProperty.call(object || {}, key);
@@ -3598,20 +3604,12 @@
           ? preset.version
           : preset && preset.v,
       );
-      if (!preset || presetVersion !== 1) return null;
+      if (!preset || !HPPresetCodeCodec.supportedVersion(presetVersion)) return null;
       var values = filterPresetValues(
         expandBakedPresetValues(preset),
         modConfig,
       );
       var overrideOptions = AnitaPersistence.getOverrideCodecOptions(modConfig);
-      if (
-        !(
-          preset.c === HP_COMPACT_PERSIST_VERSION ||
-          preset.compact === true ||
-          preset.v !== undefined
-        )
-      )
-        overrideOptions.aliasToId = {};
       var overrides = HPPresetCodeCodec.normalizeOverrides(
         preset.o || {},
         overrideOptions,
@@ -10663,8 +10661,11 @@
         config,
         data.setting_id,
       );
-      if (!AnitaPersistence.applyElementValue(targetElement, data.value)) return;
-      if (AnitaPersistence.isHpColorsConfig(config))
+      var changed = AnitaPersistence.applyElementValue(
+        targetElement,
+        data.value,
+      );
+      if (changed && AnitaPersistence.isHpColorsConfig(config))
         HPSignatureConditionalController.notifyBaseValuesChanged(config, false);
       var hardGateChanged = false;
       AnitaRenderer.syncSaveCodeInput(config);

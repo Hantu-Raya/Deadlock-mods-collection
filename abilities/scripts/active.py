@@ -51,6 +51,8 @@ ADD_BEHAVIOR_BITS_ABILITIES = [
     "ability_werewolf_kickflip",
     "ability_werewolf_maulingleap",
     "citadel_ability_healing_slash",
+    "ability_punkgoat_tether",
+    "ability_punkgoat_ult",
 ]
 
 TARGETING_LOCATION_VALUE = 'CITADEL_ABILITY_TARGETING_LOCATION_UNIT'
@@ -291,6 +293,7 @@ def add_passive_item_flag(file_path, output_path=None, enable_behavior_bits=True
         out_file.write(updated_content)
 
     print(f"Update completed: {changes} block(s) modified. Output -> {target}")
+
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:

@@ -77,3 +77,10 @@ originalcss/
 citadel_events/
 /showrank/
 /_reference
+
+# BEGIN oh-my-opencode-slim clonedeps
+.slim/clonedeps/repos/
+# END oh-my-opencode-slim clonedeps
+
+# Local deep-work progress
+.slim/deepwork/

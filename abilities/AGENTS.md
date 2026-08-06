@@ -34,11 +34,13 @@ powershell -ExecutionPolicy Bypass -File build_abilities_paks.ps1 -RefreshFromSt
 ```
 
 That wrapper derives the repo root from `$PSScriptRoot`, locates `py.exe` or a
-known Python install, requires 7-Zip, transforms each variant in place, compiles
-after each transform, stages each compiled output as `scripts/abilities.vdata_c`,
-packs `pak03_dir.vpk`/`pak04_dir.vpk`/`pak05_dir.vpk`, writes three dated `.7z`
-archives to the Deadlock addons folder, then removes temporary stage folders and
-temporary VPKs.
+known Python install, requires 7-Zip, builds a stripped-but-unedited template
+pak from `abilities.vdata`, transforms each variant in place, compiles after
+each template/transform pass, stages each compiled output as
+`scripts/abilities.vdata_c`, packs `pak02_dir.vpk`/`pak03_dir.vpk`/
+`pak04_dir.vpk`/`pak05_dir.vpk`, writes four dated `.7z` archives to the
+Deadlock addons folder, then removes temporary stage folders and temporary
+VPKs.
 
 The dated `.7z` archives are the durable packaged outputs from the full flow;
 temporary stage folders and intermediate VPKs are intentionally cleaned up.
