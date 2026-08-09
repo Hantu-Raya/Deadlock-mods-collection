@@ -12,7 +12,7 @@ const stylePath = path.join(panoramaDir, 'styles', 'showrank_barebones_topbar.cs
 const source = fs.readFileSync(scriptPath, 'utf8');
 const style = fs.readFileSync(stylePath, 'utf8');
 const layouts = Object.fromEntries(
-  ['profile_card.xml', 'citadel_ui_context_menu_player.xml', 'citadel_hud_top_bar.xml', 'citadel_hud_top_bar_player.xml', 'players_list_entry.xml', 'hud_escape_menu.xml']
+  ['profile_card.xml', 'citadel_db_page_profile.xml', 'citadel_ui_context_menu_player.xml', 'citadel_hud_top_bar.xml', 'citadel_hud_top_bar_player.xml', 'players_list_entry.xml', 'hud_escape_menu.xml']
     .map((name) => [name, fs.readFileSync(path.join(layoutDir, name), 'utf8')]),
 );
 
@@ -53,12 +53,17 @@ function includes(xml) {
 function assertRuntimeInclude(xml, name) {
   const scripts = /<scripts>([\s\S]*?)<\/scripts>/.exec(xml);
   assert.ok(scripts, `${name}: script block exists`);
-  assert.deepStrictEqual(includes(scripts[1]), ['s2r://panorama/scripts/showrank_barebones.vjs_c'], `${name}: only local runtime hook`);
+  assert.deepStrictEqual(
+    includes(scripts[1]),
+    ['s2r://panorama/scripts/showrank_barebones.vjs_c'],
+    `${name}: loads only the local runtime hook`,
+  );
 }
 
 assert.deepStrictEqual(
   sourceAssets(panoramaDir).sort(),
   [
+    'layout/citadel_db_page_profile.xml',
     'layout/citadel_hud_top_bar.xml',
     'layout/citadel_hud_top_bar_player.xml',
     'layout/citadel_ui_context_menu_player.xml',
@@ -68,12 +73,19 @@ assert.deepStrictEqual(
     'scripts/showrank_barebones.js',
     'styles/showrank_barebones_topbar.css',
   ],
-  'the feature ships exactly six layout assets, one runtime, and one topbar style',
+  'the feature ships exactly seven layout assets, one runtime, and one shared stylesheet',
 );
 
-for (const name of ['profile_card.xml', 'citadel_ui_context_menu_player.xml', 'citadel_hud_top_bar_player.xml', 'hud_escape_menu.xml']) assertRuntimeInclude(layouts[name], name);
-assert.doesNotMatch(layouts['players_list_entry.xml'], /<scripts>/, 'the passive row binding does not load an unused role-local runtime');
-assert.doesNotMatch(layouts['citadel_hud_top_bar.xml'], /<scripts>/, 'the passive topbar-root layer loads no second runtime context');
+assert.match(source, /RANK_API_BASE_URL = "https:\/\/api\.deadlock-api\.com\/v1\/players"/, 'the runtime owns the canonical API base');
+assert.match(source, /RANK_IMAGE_FORMAT = "webp"/, 'the runtime owns the canonical image format');
+assert.match(source, /function rankImageUrl\(account\)/, 'the runtime exposes the policy-free rank URL helper');
+assert.match(source, /function teamAverageImageUrl\(accounts\)/, 'the runtime exposes the policy-free average URL helper');
+assert.doesNotMatch(source, /RANK_IMAGE_API_BASE_URL|buildRankImageUrl|buildTeamAverageImageUrl/, 'old private URL symbols stay removed');
+
+for (const name of ['profile_card.xml', 'citadel_db_page_profile.xml', 'citadel_hud_top_bar_player.xml', 'hud_escape_menu.xml']) assertRuntimeInclude(layouts[name], name);
+for (const name of ['players_list_entry.xml', 'citadel_ui_context_menu_player.xml', 'citadel_hud_top_bar.xml']) {
+  assert.doesNotMatch(layouts[name], /<scripts>/, `${name}: unhandled or passive root does not load the runtime`);
+}
 
 const profile = layouts['profile_card.xml'];
 assert.strictEqual(openingTags(profile, 'CitadelProfileCard').length, 1, 'one profile-card root');
@@ -86,8 +98,8 @@ assert.strictEqual(
 assert.strictEqual(attributes(profileRoot).class, 'ShowRankBarebonesProfileCard', 'profile cards are discoverable from the shared HUD tree');
 assert.deepStrictEqual(
   includes(/<styles>([\s\S]*?)<\/styles>/.exec(profile)[1]),
-  ['s2r://panorama/styles/citadel_base_styles.vcss_c', 's2r://panorama/styles/profile_card.vcss_c'],
-  'profile keeps its native style set',
+  ['s2r://panorama/styles/citadel_base_styles.vcss_c', 's2r://panorama/styles/profile_card.vcss_c', 's2r://panorama/styles/showrank_barebones_topbar.vcss_c'],
+  'profile adds the shared Barebones rank stylesheet after its native styles',
 );
 for (const id of [
   'MiniProfileContainer', 'ContentsMain', 'ContentsMainBackground', 'ContentsMainForeground', 'AccountID', 'HeroInfo',
@@ -99,12 +111,53 @@ for (const id of [
 assert.deepStrictEqual(attributes(tagWithId(profile, 'Label', 'ShowRankBarebonesAccount')), {
   id: 'ShowRankBarebonesAccount', text: '{i:r:account_id}', visible: 'false', hittest: 'false',
 }, 'profile account witness is inert and data-bound');
-assert.match(profile, /<Panel\b[^>]*\bid="AccountID"[^>]*>\s*<Label\b[^>]*class="AccountID"[^>]*text="#Citadel_ProfileCard_AccountID"[^>]*\/>\s*<\/Panel>/, 'the native account ID row remains intact');
+assert.doesNotMatch(tagWithId(profile, 'Panel', 'AccountID'), /\bonload=/, 'the native account ID row remains unmodified');
 assert.doesNotMatch(profile, /ShowRankBarebonesStatlockerProfile/, 'StatLocker is not injected into the profile-card XML');
 assert.deepStrictEqual(attributes(tagWithId(profile, 'Image', 'ShowRankBarebonesRankImage')), {
   id: 'ShowRankBarebonesRankImage', visible: 'false', hittest: 'false', scaling: 'stretch-to-fit-preserve-aspect',
 }, 'profile rank image has no input behavior');
 assert.match(profile, /<Panel\b[^>]*\bid="CardOverlay"[^>]*>\s*<Panel\b[^>]*\bid="ProfileBadgeBackground"[^>]*\/>\s*<Image\b[^>]*\bid="ShowRankBarebonesRankImage"[^>]*\/>\s*<\/Panel>/, 'profile image remains directly over the native badge background');
+assert.match(style, /\.ShowRankBarebonesProfileCard #ShowRankBarebonesRankImage\s*\{[\s\S]*?width:\s*88px;[\s\S]*?height:\s*66px;[\s\S]*?horizontal-align:\s*right;[\s\S]*?margin-top:\s*32px;[\s\S]*?margin-right:\s*-2px;[\s\S]*?ignore-parent-flow:\s*true;/, 'profile rank image uses the shared 4:3 profile-badge footprint');
+assert.match(style, /CitadelTooltipProfileCard \.ShowRankBarebonesProfileCard #ShowRankBarebonesRankImage\s*\{[\s\S]*?width:\s*68px;[\s\S]*?height:\s*51px;[\s\S]*?margin-top:\s*0px;[\s\S]*?pre-transform-scale2d:\s*1;[\s\S]*?overflow:\s*noclip;/, 'tooltip rank fits completely inside the shortest observed 52-pixel profile header');
+assert.match(style, /CitadelContextMenuPlayer \.ShowRankBarebonesProfileCard #ShowRankBarebonesRankImage\s*\{[\s\S]*?width:\s*68px;[\s\S]*?height:\s*51px;[\s\S]*?margin-top:\s*0px;[\s\S]*?margin-right:\s*8px;[\s\S]*?pre-transform-scale2d:\s*1;/, 'context-menu profile rank shares the contained popup footprint');
+
+const profilePage = layouts['citadel_db_page_profile.xml'];
+assert.strictEqual(openingTags(profilePage, 'CitadelProfilePage').length, 1, 'one dashboard profile-page root');
+const profilePageRoot = openingTags(profilePage, 'CitadelProfilePage')[0];
+assert.deepStrictEqual(
+  attributes(profilePageRoot),
+  {
+    class: 'DashboardPage ShowRankBarebonesProfilePage',
+    oncancel: 'CitadelNavigateBack();',
+    dashboardclass: 'isShowingProfilePage',
+    onmouseover: 'if ($.GetContextPanel().ShowRankBarebonesRefresh) $.GetContextPanel().ShowRankBarebonesRefresh();',
+  },
+  'the dashboard profile page retains its native navigation contract and local refresh seam',
+);
+assert.deepStrictEqual(
+  includes(/<styles>([\s\S]*?)<\/styles>/.exec(profilePage)[1]),
+  [
+    's2r://panorama/styles/citadel_base_styles.vcss_c',
+    's2r://panorama/styles/citadel_db_page_shared.vcss_c',
+    's2r://panorama/styles/citadel_db_page_profile.vcss_c',
+    's2r://panorama/styles/showrank_barebones_topbar.vcss_c',
+  ],
+  'the dashboard page adds the shared barebones stylesheet after its native dashboard styles',
+);
+assert.deepStrictEqual(attributes(tagWithId(profilePage, 'Label', 'ShowRankBarebonesProfilePageAccount')), {
+  id: 'ShowRankBarebonesProfilePageAccount', text: '{i:r:account_id}', visible: 'false', hittest: 'false',
+}, 'the dashboard page exposes only an inert direct account witness');
+assert.deepStrictEqual(attributes(tagWithId(profilePage, 'Panel', 'ShowRankBarebonesProfilePageRankHost')), {
+  id: 'ShowRankBarebonesProfilePageRankHost', hittest: 'false',
+}, 'the dashboard page rank host cannot intercept native input');
+assert.deepStrictEqual(attributes(tagWithId(profilePage, 'Image', 'ShowRankBarebonesProfilePageRankImage')), {
+  id: 'ShowRankBarebonesProfilePageRankImage', visible: 'false', hittest: 'false', scaling: 'stretch-to-fit-preserve-aspect',
+}, 'the dashboard page rank image is inert');
+assert.match(profilePage, /<Button\b[^>]*\bid="ForumButton"[^>]*>[\s\S]*?<\/Button>\s*<Label\b[^>]*\bid="ShowRankBarebonesProfilePageAccount"[^>]*\/>\s*<Panel\b[^>]*\bid="ShowRankBarebonesProfilePageRankHost"[^>]*>\s*<Image\b[^>]*\bid="ShowRankBarebonesProfilePageRankImage"[^>]*\/>\s*<\/Panel>/, 'the page rank witness and badge follow the native forum button inside ProfileInfo');
+assert.match(style, /\.ShowRankBarebonesProfilePage #ProfileInfo\s*\{[\s\S]*?min-width:\s*190px;[\s\S]*?overflow:\s*noclip;/, 'the profile identity block allows the adjacent rank to extend into the reserved gap');
+assert.match(style, /\.ShowRankBarebonesProfilePage #ShowRankBarebonesProfilePageRankHost\s*\{[\s\S]*?width:\s*90px;[\s\S]*?height:\s*70px;[\s\S]*?margin-left:\s*200px;[\s\S]*?margin-top:\s*-10px;[\s\S]*?ignore-parent-flow:\s*true;/, 'the dashboard rank occupies the marked gap beside Steam identity text');
+assert.match(style, /\.ShowRankBarebonesProfilePage #ForumButton\s*\{[\s\S]*?visibility:\s*collapse;/, 'the optional forum row stays hidden so the identity header remains compact');
+assert.match(style, /\.ShowRankBarebonesProfilePage #ShowRankBarebonesProfilePageRankImage\s*\{[\s\S]*?width:\s*88px;[\s\S]*?height:\s*66px;[\s\S]*?horizontal-align:\s*center;[\s\S]*?vertical-align:\s*center;/, 'the dashboard page rank image uses the shared 4:3 profile-badge footprint');
 
 const topbar = layouts['citadel_hud_top_bar_player.xml'];
 assert.strictEqual(openingTags(topbar, 'CitadelHudTopBarPlayer').length, 1, 'one topbar-player root');
@@ -135,10 +188,28 @@ assert.deepStrictEqual(attributes(tagWithId(topbar, 'Image', 'ShowRankBarebonesT
 }, 'topbar rank image is inert');
 assert.match(topbar, /<Panel\b[^>]*\bid="HeroContents"[^>]*>[\s\S]*?<Panel\b[^>]*class="SoulsValueContainer"[^>]*>[\s\S]*?<\/Panel>\s*<Image\b[^>]*\bid="ShowRankBarebonesTopbarRankImage"[^>]*\/>\s*<Panel\b[^>]*\bid="HeroImageArea"/, 'topbar image uses the always-visible native HeroContents overlay seam');
 assert.match(style, /CitadelHudTopBarPlayer #ShowRankBarebonesTopbarRankImage\s*\{[\s\S]*?width:\s*48px;[\s\S]*?height:\s*31px;[\s\S]*?margin-top:\s*62px;[\s\S]*?z-index:\s*60;/, 'the local stylesheet sizes the per-player rank image');
+assert.deepStrictEqual(attributes(tagWithId(topbar, 'Panel', 'ShowRankBarebonesMissingIndicator')), {
+  id: 'ShowRankBarebonesMissingIndicator', hittest: 'false',
+}, 'the missing-enemy overlay is inert');
+assert.match(topbar, /<Panel\b[^>]*class="HeroIconContainer"[^>]*>[\s\S]*?<\/Panel>\s*<Panel\b[^>]*\bid="ShowRankBarebonesMissingIndicator"[^>]*>\s*<Label\b[^>]*text="MISSING"[^>]*hittest="false"[^>]*\/>\s*<\/Panel>\s*<Panel\b[^>]*class="HeroContentsCoinInnerBorder"/, 'the compact warning text overlays the portrait without replacing native portrait panels');
+assert.match(style, /CitadelHudTopBarPlayer:not\(\.HealthVisible\) #ShowRankBarebonesMissingIndicator\s*\{[\s\S]*?visibility:\s*visible;[\s\S]*?wash-color:\s*none;/, 'the per-player warning directly follows the proven native hidden-health state');
+assert.match(style, /#ShowRankBarebonesMissingIndicator Label\s*\{[\s\S]*?height:\s*16px;[\s\S]*?background-color:\s*#11100ff2;[\s\S]*?font-size:\s*11px;/, 'the per-player warning uses compact reminder-style text');
+assert.match(style, /CitadelHudTopBarPlayer:not\(\.HealthVisible\) #HeroImageArea\s*\{[\s\S]*?wash-color:\s*#00000090;/, 'portrait darkening directly follows the native visibility seam');
+assert.doesNotMatch(style, /ShowRankBarebonesMissingPulse|animation-(?:name|duration|iteration-count)|box-shadow|#ff3b3c|#ff2d2d|#b91616|#ffb0a8/, 'the warning has no pulse, glow, or red treatment');
+assert.match(style, /CitadelHudTopBarPlayer\.Dead #ShowRankBarebonesMissingIndicator,[\s\S]*?CitadelHudTopBarPlayer\.Disconnected #ShowRankBarebonesMissingIndicator\s*\{[\s\S]*?visibility:\s*collapse;/, 'dead and disconnected states suppress the per-player warning overlay');
+assert.doesNotMatch(style, /:not\([^)]*\)[^{]*:not\(/, 'Panorama selectors never chain unsupported :not pseudo-classes');
+assert.match(source, /var MISSING_WINDOW_END_SECONDS = 8 \* 60;[\s\S]*?var MISSING_WINDOW_RETRY_INTERVAL = 0\.5;[\s\S]*?var MISSING_WINDOW_MAX_RETRIES = 1800;/, 'each local missing window has a bounded acquisition path and exact eight-minute cutoff');
+assert.match(source, /ShowRankBarebonesMissingWindowExpired/, 'the runtime owns only the explicit per-player expiry class');
+assert.doesNotMatch(source, /ShowRankBarebonesMissingWindowActive|setMissingWindowActive/, 'warning visibility never depends on JavaScript activation');
+assert.match(style, /ShowRankBarebonesMissingWindowExpired:not\(\.HealthVisible\) #HeroImageArea\s*\{[\s\S]*?wash-color:\s*none;/, 'expiry removes early-lane portrait darkening');
+assert.match(style, /ShowRankBarebonesMissingWindowExpired #ShowRankBarebonesMissingIndicator\s*\{[\s\S]*?visibility:\s*collapse;/, 'expiry hides warning text at the eight-minute boundary');
 assert.match(style, /\.ShowRankBarebonesTeamAverageLayer\s*\{[\s\S]*?width:\s*300px;[\s\S]*?margin-top:\s*118px;/, 'the local stylesheet positions the team-average layer');
 assert.match(style, /\.gScoreboardOpen \.ShowRankBarebonesTeamAverageRankImage\.ShowRankBarebonesTeamAverageRankVisible\s*\{[\s\S]*?visibility:\s*visible;/, 'team averages appear only with the native scoreboard class');
 
 const topbarRootLayout = layouts['citadel_hud_top_bar.xml'];
+assert.deepStrictEqual(attributes(tagWithId(topbarRootLayout, 'Label', 'GameTime')), {
+  class: 'GameTime', id: 'GameTime', text: '{s:game_clock}',
+}, 'the topbar keeps the native GameTime child required by Panorama');
 assert.deepStrictEqual(
   includes(/<styles>([\s\S]*?)<\/styles>/.exec(topbarRootLayout)[1]),
   [
@@ -146,9 +217,42 @@ assert.deepStrictEqual(
     's2r://panorama/styles/hud_common.vcss_c',
     's2r://panorama/styles/citadel_hud_top_bar.vcss_c',
     's2r://panorama/styles/unit_status_icons.vcss_c',
+    's2r://panorama/styles/citadel_hud_game_announcements.vcss_c',
     's2r://panorama/styles/showrank_barebones_topbar.vcss_c',
   ],
   'the topbar root adds only the shared barebones style after native styles',
+);
+assert.deepStrictEqual(attributes(tagWithId(topbarRootLayout, 'Panel', 'ShowRankBarebonesNotificationRoot')), {
+  id: 'ShowRankBarebonesNotificationRoot', hittest: 'false',
+}, 'the topbar owns one inert persistent notification root');
+assert.match(style, /#ShowRankBarebonesNotificationRoot\s*\{[\s\S]*?width:\s*100%;[\s\S]*?height:\s*100%;[\s\S]*?margin-top:\s*205px;[\s\S]*?ignore-parent-flow:\s*true;[\s\S]*?overflow:\s*noclip;[\s\S]*?z-index:\s*100;/, 'the notification root uses the proven full-overlay reminder placement');
+assert.match(style, /#ShowRankBarebonesNotificationRoot \.GenericAnnouncement\s*\{[\s\S]*?opacity:\s*0;[\s\S]*?pre-transform-scale2d:\s*0\.9;[\s\S]*?transition-property:\s*opacity, pre-transform-scale2d;[\s\S]*?transition-duration:\s*0\.3s;/, 'missing toasts start hidden with the reminder transition');
+assert.match(style, /\.GenericAnnouncement\.ShowRankBarebonesToastVisible\s*\{[\s\S]*?opacity:\s*0\.8;[\s\S]*?pre-transform-scale2d:\s*1;/, 'a new missing announcement is prominent without fully obscuring combat');
+assert.match(style, /\.GenericAnnouncement\.ShowRankBarebonesToastAged\s*\{[\s\S]*?opacity:\s*0\.2;/, 'an active missing announcement becomes subtle after three seconds');
+assert.match(style, /\.GenericAnnouncement\.ShowRankBarebonesToastExpired\s*\{[\s\S]*?opacity:\s*0;/, 'a cleared toast fades out');
+assert.match(style, /#ShowRankBarebonesNotificationRoot \.AnnouncementTitle\s*\{[\s\S]*?font-size:\s*21px;/, 'the toast title is smaller than the native announcement default');
+assert.match(style, /\.ShowRankBarebonesMissingToastIcons\s*\{[\s\S]*?flow-children:\s*right;[\s\S]*?horizontal-align:\s*center;/, 'multiple hero icons share one centered row');
+assert.match(style, /\.ShowRankBarebonesMissingToastIcon\s*\{[\s\S]*?width:\s*34px;[\s\S]*?height:\s*34px;/, 'toast hero icons remain compact');
+assert.match(source, /MISSING_TOAST_ID[\s\S]*?"GenericAnnouncement"[\s\S]*?"AnnouncementTitle"[\s\S]*?"ENEMY MISSING"[\s\S]*?"ShowRankBarebonesMissingToastIcons"/, 'the runtime retains the native title and icon-row toast contract');
+assert.doesNotMatch(source, /AnnouncementDescription|toast\.description|description = names|names\.join/, 'the announcement has no redundant bottom hero-name text');
+assert.match(source, /MISSING_HERO_ICON_URL_PREFIX = "s2r:\/\/panorama\/images\/heroes\/";[\s\S]*?MISSING_HERO_ICON_FILES = \{[\s\S]*?"abrams": "bull_sm_psd\.vtex"[\s\S]*?"vindicta": "hornet_sm_psd\.vtex"/, 'the icon resolver retains verified engine-owned hero textures');
+assert.match(source, /CreatePanel\("Image", toast\.iconRow,[\s\S]*?ShowRankBarebonesMissingToastIcon[\s\S]*?SetImage\(MISSING_HERO_ICON_URL_PREFIX \+ file\)/, 'the native announcement renders resolved hero images');
+assert.match(source, /missingHealthArmed = true;[\s\S]*?missingHealthWasVisible = true;[\s\S]*?setMissingActive\(shared, record, true\)/, 'only an observed visible-to-hidden transition activates a missing enemy');
+assert.match(source, /visible \|\| unavailable[\s\S]*?setMissingActive\(shared, record, false\)[\s\S]*?!unavailable && record\.missingHealthArmed/, 'visibility, death, and disconnect clear missing state before reporting');
+assert.match(source, /MISSING_TOAST_DURATION = 3\.0;[\s\S]*?schedule\(MISSING_TOAST_DURATION[\s\S]*?MISSING_TOAST_AGED_CLASS, true\)/, 'the active announcement becomes subtle after exactly three seconds');
+assert.match(source, /activeHeroes: \[\],[\s\S]*?activeHeroKeys: Object\.create\(null\)/, 'the notification root owns shared active-hero state');
+for (const symbol of ['scheduleMissingToastRefresh', 'showMissingToast', 'hideMissingToast']) {
+  assert.match(source, new RegExp(`function ${symbol}\\(`), `${symbol} remains part of shared toast coordination`);
+}
+assert.doesNotMatch(
+  `${topbarRootLayout}\n${style}\n${source}`,
+  /ShowRankBarebonesMissingAnnouncement|ShowRankBarebonesMissingAnnouncementIcon|MISSING_ANNOUNCEMENT|missingAnnouncement|badge\.heroid/,
+  'the release contains no retired announcement implementation or badge-only identity path',
+);
+assert.doesNotMatch(
+  source,
+  /startMissingRootWatch|continueMissingWatch|updateMissingPlayers|clearMissingWatch|finishMissingWatch|missingWatch(?:Running|Checks|BaselineReady|Token)|__showrank_barebones_visibility_v1/,
+  'the release contains no root-owned missing watcher or transition-state signature',
 );
 assert.match(topbarRootLayout, /<\/Panel>\s*<Panel\b[^>]*\bid="ShowRankBarebonesTeamAverageLayer"[\s\S]*?<\/Panel>\s*<Panel\b[^>]*\bid="StretBrawlContainer"/, 'the average layer sits after TeamNetworth and before the native Street Brawl panel');
 assert.deepStrictEqual(attributes(tagWithId(topbarRootLayout, 'Image', 'ShowRankBarebonesAverageFriendlyImage')), {
@@ -176,7 +280,8 @@ assert.deepStrictEqual(
 );
 assert.deepStrictEqual(attributes(tagWithId(row, 'Label', 'ShowRankBarebonesRowHero')), {
   id: 'ShowRankBarebonesRowHero', text: '{g:citadel_hero_name:hero_id}', visible: 'false', hittest: 'false',
-}, 'row hero identity is directly bound without an account guess');
+  style: 'visibility: collapse; width: 0px; height: 0px;',
+}, 'row hero identity is directly bound but fully collapsed from the visible layout');
 assert.deepStrictEqual(attributes(tagWithId(row, 'Image', 'ShowRankBarebonesPlayerListRankImage')), {
   id: 'ShowRankBarebonesPlayerListRankImage', class: 'ShowRankBarebonesPlayerListRankImage',
   scaling: 'stretch-to-fit-preserve-aspect', visible: 'false', hittest: 'false',
@@ -190,7 +295,7 @@ assert.match(style, /CitadelPlayersListEntry \.ShowRankBarebonesPlayerListRankIm
 const contextMenu = layouts['citadel_ui_context_menu_player.xml'];
 const contextRoot = openingTags(contextMenu, 'CitadelContextMenuPlayer')[0];
 assert.strictEqual(openingTags(contextMenu, 'CitadelContextMenuPlayer').length, 1, 'one player context-menu root');
-assert.strictEqual(attributes(contextRoot).class, 'PlayerMenuContents ShowRankBarebonesContextMenu', 'the context menu exposes only its local role marker');
+assert.strictEqual(attributes(contextRoot).class, 'PlayerMenuContents', 'the context menu carries no unused role marker');
 assert.deepStrictEqual(
   includes(/<styles>([\s\S]*?)<\/styles>/.exec(contextMenu)[1]),
   ['s2r://panorama/styles/citadel_base_styles.vcss_c', 's2r://panorama/styles/citadel_ui_context_menu_player.vcss_c'],
@@ -206,14 +311,14 @@ assert.doesNotMatch(source, /ExecuteSteamURL|SteamOverlayAPI/, 'StatLocker conta
 
 const escape = layouts['hud_escape_menu.xml'];
 const escapeRoot = openingTags(escape, 'CitadelHudEscapeMenu')[0];
-assert.strictEqual(attributes(escapeRoot).oncancel, 'if ($.ShowRankBarebonesEscapeOut) $.ShowRankBarebonesEscapeOut(); CitadelResumePlaying()', 'Escape cancellation resets ShowRank state before retaining the native close action');
+assert.strictEqual(attributes(escapeRoot).oncancel, 'CitadelResumePlaying()', 'Escape cancellation preserves the native action exactly');
 assert.strictEqual(attributes(escapeRoot).onload, 'if ($.ShowRankBarebonesEscapeOpen) $.ShowRankBarebonesEscapeOpen();', 'Escape opens only the local probe hook');
 assert.strictEqual(attributes(escapeRoot).onmouseover, 'if ($.ShowRankBarebonesEscapeOpen) $.ShowRankBarebonesEscapeOpen();', 'Escape hover rechecks the HUD open class without polling');
 assert.strictEqual(attributes(escapeRoot).onmouseout, 'if ($.ShowRankBarebonesEscapeOut) $.ShowRankBarebonesEscapeOut();', 'Escape exit resets the one-pass latch only after the HUD closes');
-assert.strictEqual(attributes(tagWithId(escape, 'Panel', 'EscapeBackground')).onactivate, 'if ($.ShowRankBarebonesEscapeOut) $.ShowRankBarebonesEscapeOut(); CitadelResumePlaying()', 'Escape backdrop resets ShowRank state before retaining the native close action');
+assert.strictEqual(attributes(tagWithId(escape, 'Panel', 'EscapeBackground')).onactivate, 'CitadelResumePlaying()', 'Escape backdrop preserves the native close action exactly');
 assert.deepStrictEqual(attributes(tagWithId(escape, 'CitadelBindingButton', 'EscapeButton')), {
-  id: 'EscapeButton', action: 'MenuBack', onactivate: 'if ($.ShowRankBarebonesEscapeOut) $.ShowRankBarebonesEscapeOut(); CitadelResumePlaying()', text: '#menu_resume',
-}, 'native Escape binding resets ShowRank state before retaining the native close action');
+  id: 'EscapeButton', action: 'MenuBack', onactivate: 'CitadelResumePlaying()', text: '#menu_resume',
+}, 'native Escape binding preserves the native close action exactly');
 assert.deepStrictEqual(attributes(tagWithId(escape, 'TabButton', 'PlayersTab')), {
   id: 'PlayersTab', class: 'FriendsOrPlayersButton', group: 'people_list_tabs', text: '#Citadel_Players_WindowTitle',
 }, 'the native Players tab remains the activation target');

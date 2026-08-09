@@ -24,6 +24,7 @@ $source2Viewer = Join-Path $root '.tmp\vrf-cli-19.2\Source2Viewer-CLI.exe'
 
 $requiredSourceAssets = @(
     'panorama/layout/profile_card.xml',
+    'panorama/layout/citadel_db_page_profile.xml',
     'panorama/layout/citadel_ui_context_menu_player.xml',
     'panorama/layout/citadel_hud_top_bar.xml',
     'panorama/layout/citadel_hud_top_bar_player.xml',
@@ -34,6 +35,7 @@ $requiredSourceAssets = @(
 )
 $requiredCompiledAssets = @(
     'panorama/layout/profile_card.vxml_c',
+    'panorama/layout/citadel_db_page_profile.vxml_c',
     'panorama/layout/citadel_ui_context_menu_player.vxml_c',
     'panorama/layout/citadel_hud_top_bar.vxml_c',
     'panorama/layout/citadel_hud_top_bar_player.vxml_c',
@@ -130,6 +132,73 @@ function Get-BarebonesSha256 {
         $stream.Dispose()
     }
 }
+function Invoke-BarebonesClosureMinification {
+    param(
+        [Parameter(Mandatory = $true)][string]$ReadableSourcePath,
+        [Parameter(Mandatory = $true)][string]$StagedSourcePath,
+        [Parameter(Mandatory = $true)][string]$TemporaryRoot
+    )
+
+    $externsPath = Join-Path $TemporaryRoot 'showrank_barebones.externs.js'
+    $minifiedPath = Join-Path $TemporaryRoot 'showrank_barebones.min.js'
+    New-Item -ItemType Directory -Path $TemporaryRoot -Force | Out-Null
+
+    try {
+        $propertyNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+        foreach ($match in [regex]::Matches([System.IO.File]::ReadAllText($ReadableSourcePath), '\.([A-Za-z_$][A-Za-z0-9_$]*)')) {
+            [void]$propertyNames.Add($match.Groups[1].Value)
+        }
+
+        $externs = [System.Collections.Generic.List[string]]::new()
+        $externs.Add('var $;')
+        $externs.Add('function DismissAllContextMenus() {}')
+        $externs.Add('function DropInputFocus() {}')
+        foreach ($propertyName in ($propertyNames | Sort-Object)) {
+            $externs.Add("Object.prototype.$propertyName;")
+        }
+        [System.IO.File]::WriteAllLines($externsPath, $externs, [System.Text.UTF8Encoding]::new($false))
+
+        & npx --yes google-closure-compiler --js $StagedSourcePath --js_output_file $minifiedPath --externs $externsPath --compilation_level ADVANCED --language_in ECMASCRIPT5 --language_out ECMASCRIPT5 --warning_level QUIET
+        if ($LASTEXITCODE -ne 0) { throw "Closure Compiler failed with exit code $LASTEXITCODE" }
+
+        if (-not (Test-Path -LiteralPath $minifiedPath)) {
+            throw "Closure Compiler did not produce minified runtime: $minifiedPath"
+        }
+        $readableBytes = (Get-Item -LiteralPath $ReadableSourcePath).Length
+        $minifiedBytes = (Get-Item -LiteralPath $minifiedPath).Length
+        if ($minifiedBytes -lt 512) {
+            throw "Closure Compiler output is implausibly small: $minifiedBytes bytes"
+        }
+        if ($minifiedBytes -ge $readableBytes) {
+            throw "Closure Compiler output was not smaller than readable source: $minifiedBytes >= $readableBytes bytes"
+        }
+
+        & node --check $minifiedPath
+        if ($LASTEXITCODE -ne 0) { throw "Closure Compiler output has invalid JavaScript syntax" }
+
+        foreach ($publicFragment in @(
+            'ShowRankBarebonesRefresh',
+            'ShowRankBarebonesOpenStatlocker',
+            'ShowRankBarebonesCopyAccount',
+            'ShowRankBarebonesEscapeOpen',
+            'ShowRankBarebonesEscapeOut',
+            'ShowRankBarebonesMissingWindowExpired'
+        )) {
+            if (-not (Select-String -LiteralPath $minifiedPath -Pattern $publicFragment -SimpleMatch -Quiet)) {
+                throw "Closure Compiler output is missing required public fragment: $publicFragment"
+            }
+        }
+
+        Move-Item -LiteralPath $minifiedPath -Destination $StagedSourcePath -Force
+    } finally {
+        foreach ($temporaryPath in @($externsPath, $minifiedPath)) {
+            if (Test-Path -LiteralPath $temporaryPath) {
+                Remove-Item -LiteralPath $temporaryPath -Force
+            }
+        }
+    }
+}
+
 
 function Remove-BarebonesInstallTemporary {
     param(
@@ -211,6 +280,27 @@ try {
         Copy-Item -LiteralPath $sourcePath -Destination $stagedPath -Force
     }
     Assert-BarebonesAssetSet -Actual (Get-BarebonesAssetPaths -RootPath $stageSource) -ExpectedAssets $requiredSourceAssets -Label 'Staged barebones source'
+    $readableRuntime = Join-Path $barebonesRoot 'panorama\scripts\showrank_barebones.js'
+    $stagedRuntime = Join-Path $stageSource 'panorama\scripts\showrank_barebones.js'
+    if ((Get-BarebonesSha256 -Path $readableRuntime) -ne (Get-BarebonesSha256 -Path $stagedRuntime)) {
+        throw 'Staged barebones runtime does not exactly match readable source before minification.'
+    }
+    Invoke-BarebonesClosureMinification -ReadableSourcePath $readableRuntime -StagedSourcePath $stagedRuntime -TemporaryRoot (Join-Path $buildRoot 'minify')
+
+    $hadRuntimeOverride = Test-Path Env:SHOWRANK_BAREBONES_RUNTIME
+    $previousRuntimeOverride = $env:SHOWRANK_BAREBONES_RUNTIME
+    try {
+        $env:SHOWRANK_BAREBONES_RUNTIME = $stagedRuntime
+        & node (Join-Path $barebonesRoot 'tests\showrank-barebones-runtime.test.js')
+        if ($LASTEXITCODE -ne 0) { throw "Minified barebones runtime test failed with exit code $LASTEXITCODE" }
+    } finally {
+        if ($hadRuntimeOverride) {
+            $env:SHOWRANK_BAREBONES_RUNTIME = $previousRuntimeOverride
+        } else {
+            Remove-Item Env:SHOWRANK_BAREBONES_RUNTIME -ErrorAction SilentlyContinue
+        }
+    }
+
 
     if (-not (Test-Path -LiteralPath $compiler)) {
         throw "Source2 compiler not found: $compiler"

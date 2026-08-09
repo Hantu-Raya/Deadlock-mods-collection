@@ -17,7 +17,7 @@
 				<Label class="PlayerHero" text="#Citadel_Player_Level_HeroLevel" />
 			</Panel>
 			<Image id="ShowRankBarebonesPlayerListRankImage" class="ShowRankBarebonesPlayerListRankImage" scaling="stretch-to-fit-preserve-aspect" visible="false" hittest="false" />
-			<Label id="ShowRankBarebonesRowHero" text="{g:citadel_hero_name:hero_id}" visible="false" hittest="false" />
+			<Label id="ShowRankBarebonesRowHero" text="{g:citadel_hero_name:hero_id}" visible="false" hittest="false" style="visibility: collapse; width: 0px; height: 0px;" />
 		</Panel>
 	</CitadelPlayersListEntry>
 </root>

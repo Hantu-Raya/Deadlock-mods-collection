@@ -3,6 +3,7 @@
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
 		<include src="s2r://panorama/styles/profile_card.vcss_c" />
+		<include src="s2r://panorama/styles/showrank_barebones_topbar.vcss_c" />
 	</styles>
 	<scripts>
 		<include src="s2r://panorama/scripts/showrank_barebones.vjs_c" />
