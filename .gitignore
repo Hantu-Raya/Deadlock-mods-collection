@@ -30,6 +30,9 @@
 .tmp*
 _temp/
 
+# Local QOLLite 2.2 working copy
+/qollite-source-2.2/
+
 # Raw ETW / PerfView captures and conversion caches
 *.etl
 *.etlx
