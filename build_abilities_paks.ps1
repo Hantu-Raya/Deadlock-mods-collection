@@ -269,6 +269,7 @@ New-Item -ItemType Directory -Path $baselineDir -Force | Out-Null
 foreach ($inputFile in $inputFiles) {
     $inputPath = Join-Path $modScripts $inputFile
     Remove-RootIncludeBlock -InputPath $inputPath
+    Invoke-AbilityScript -ScriptName "apply_healthbar_status_overrides.py" -InputFile $inputFile
 
     $baselinePath = Join-Path $baselineDir $inputFile
     Copy-ItemWithRetry -Source $inputPath -Destination $baselinePath
