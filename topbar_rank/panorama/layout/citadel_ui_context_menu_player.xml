@@ -4,9 +4,6 @@
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
 		<include src="s2r://panorama/styles/citadel_ui_context_menu_player.vcss_c" />
 	</styles>
-	<scripts>
-		<include src="s2r://panorama/scripts/showrank_common.vjs_c" />
-	</scripts>
 	<snippets>
 		<snippet name="InviteToParty">
 			<Panel class="MenuRow">
@@ -114,16 +111,17 @@
 			</Panel>
 		</snippet>
 	</snippets>
-	<CitadelContextMenuPlayer class="PlayerMenuContents ShowRankPlayerContextMenuRoot">
+	<CitadelContextMenuPlayer class="PlayerMenuContents">
 		<CitadelProfileCard id="ProfileCard" />
 		<Panel id="MenuOptionsContainer">
 			<Panel id="PlayerContainer" />
-			<Panel id="MenuOptionsPanel" />
-			<Panel class="MenuRow">
-				<TextButton id="MenuButton" text="StatLocker Profile" onactivate="if ($.ShowRankContextMenuOpenStatlocker) $.ShowRankContextMenuOpenStatlocker();" />
-			</Panel>
-			<Panel class="MenuRow">
-				<TextButton id="MenuButton" text="Deadlock Profile" onactivate="if ($.ShowRankContextMenuOpenDeadlock) $.ShowRankContextMenuOpenDeadlock();" />
+			<Panel id="MenuOptionsPanel">
+				<Panel id="ShowRankBarebonesStatlockerRow" class="MenuRow">
+					<TextButton id="MenuButton" text="Statlocker Profile" onactivate="if ($('#ProfileCard').ShowRankBarebonesOpenStatlocker) $('#ProfileCard').ShowRankBarebonesOpenStatlocker();" />
+				</Panel>
+				<Panel id="ShowRankBarebonesCopyAccountRow" class="MenuRow">
+					<TextButton id="MenuButton" text="Copy Account ID" onactivate="if ($('#ProfileCard').ShowRankBarebonesCopyAccount) $('#ProfileCard').ShowRankBarebonesCopyAccount();" />
+				</Panel>
 			</Panel>
 		</Panel>
 	</CitadelContextMenuPlayer>
