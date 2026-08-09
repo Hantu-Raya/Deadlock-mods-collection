@@ -7,8 +7,8 @@
 	<scripts>
 		<include src="s2r://panorama/scripts/showrank_barebones.vjs_c" />
 	</scripts>
-	<CitadelHudEscapeMenu oncancel="if ($.ShowRankBarebonesEscapeOut) $.ShowRankBarebonesEscapeOut(); CitadelResumePlaying()" onload="if ($.ShowRankBarebonesEscapeOpen) $.ShowRankBarebonesEscapeOpen();" onmouseover="if ($.ShowRankBarebonesEscapeOpen) $.ShowRankBarebonesEscapeOpen();" onmouseout="if ($.ShowRankBarebonesEscapeOut) $.ShowRankBarebonesEscapeOut();">
-		<Panel id="EscapeBackground" onactivate="if ($.ShowRankBarebonesEscapeOut) $.ShowRankBarebonesEscapeOut(); CitadelResumePlaying()" />
+	<CitadelHudEscapeMenu oncancel="CitadelResumePlaying()" onload="if ($.ShowRankBarebonesEscapeOpen) $.ShowRankBarebonesEscapeOpen();" onmouseover="if ($.ShowRankBarebonesEscapeOpen) $.ShowRankBarebonesEscapeOpen();" onmouseout="if ($.ShowRankBarebonesEscapeOut) $.ShowRankBarebonesEscapeOut();">
+		<Panel id="EscapeBackground" onactivate="CitadelResumePlaying()" />
 		<Panel id="LeftStripeBlur" />
 		<Panel id="LeftStripe" hittest="false">
 			<Panel id="Menu" hittest="false">
@@ -62,7 +62,7 @@
 				</Panel>
 			</Panel>
 		</Panel>
-		<CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="if ($.ShowRankBarebonesEscapeOut) $.ShowRankBarebonesEscapeOut(); CitadelResumePlaying()" text="#menu_resume" />
+		<CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="CitadelResumePlaying()" text="#menu_resume" />
 		<Panel id="RightSideBlur" hittest="false" />
 		<Panel id="RightSide" hittest="false">
 			<Panel id="PartySpacer" />

@@ -9,6 +9,7 @@ const repositoryDir = path.join(packageDir, '..');
 const buildPath = path.join(repositoryDir, 'build_showrank_barebones.ps1');
 const build = fs.readFileSync(buildPath, 'utf8');
 const packageJson = JSON.parse(fs.readFileSync(path.join(packageDir, 'package.json'), 'utf8'));
+const runtimeTest = fs.readFileSync(path.join(packageDir, 'tests', 'showrank-barebones-runtime.test.js'), 'utf8');
 
 function assignedStringArray(name) {
   const assignment = new RegExp(`\\$${name}\\s*=\\s*@\\(([\\s\\S]*?)\\n\\)`).exec(build);
@@ -22,15 +23,17 @@ function indexOfRequired(fragment) {
   return index;
 }
 
-assert.match(build, /param\(\s*\[switch\]\$Install,\s*\[switch\]\$KeepStaging,/s, 'the dedicated build supports -Install and -KeepStaging');
+assert.match(build, /param\(\s*\[switch\]\$Install,\s*\[switch\]\$KeepStaging,\s*\[string\]\$AddonsPath\s*=\s*"G:\\SteamLibrary\\steamapps\\common\\Deadlock\\game\\citadel\\addons"\s*\)/s, 'the dedicated build supports only explicit install, staging, and addons-path modes');
 assert.match(build, /\$barebonesRoot\s*=\s*Join-Path \$root 'showrank_barebones'/, 'the source root is the barebones package');
 assert.match(build, /\$vpkOutput\s*=\s*Join-Path \$root 'showrank_barebones_dir\.vpk'/, 'the artifact has its dedicated name');
 assert.doesNotMatch(build, /qollock|showrank_probe|showrank_variants|showrank_common|showrank[\\/]panorama/i, 'the build has no QOLLOCK, active ShowRank, or probe source dependency');
+assert.doesNotMatch(build, /\$Diagnostics|diagnostic|apply-missing-diagnostics/i, 'the release build contains no stage-only missing diagnostic infrastructure');
 
 assert.deepStrictEqual(
   assignedStringArray('requiredSourceAssets'),
   [
     'panorama/layout/profile_card.xml',
+    'panorama/layout/citadel_db_page_profile.xml',
     'panorama/layout/citadel_ui_context_menu_player.xml',
     'panorama/layout/citadel_hud_top_bar.xml',
     'panorama/layout/citadel_hud_top_bar_player.xml',
@@ -39,12 +42,13 @@ assert.deepStrictEqual(
     'panorama/scripts/showrank_barebones.js',
     'panorama/styles/showrank_barebones_topbar.css',
   ],
-  'the source inventory admits exactly the eight barebones assets',
+  'the source inventory admits exactly the nine barebones assets',
 );
 assert.deepStrictEqual(
   assignedStringArray('requiredCompiledAssets'),
   [
     'panorama/layout/profile_card.vxml_c',
+    'panorama/layout/citadel_db_page_profile.vxml_c',
     'panorama/layout/citadel_ui_context_menu_player.vxml_c',
     'panorama/layout/citadel_hud_top_bar.vxml_c',
     'panorama/layout/citadel_hud_top_bar_player.vxml_c',
@@ -53,7 +57,7 @@ assert.deepStrictEqual(
     'panorama/scripts/showrank_barebones.vjs_c',
     'panorama/styles/showrank_barebones_topbar.vcss_c',
   ],
-  'the compiled inventory admits exactly the eight expected Source 2 assets',
+  'the compiled inventory admits exactly the nine expected Source 2 assets',
 );
 assert.match(build, /Assert-BarebonesAssetSet -Actual \(Get-BarebonesAssetPaths -RootPath \$barebonesRoot\) -ExpectedAssets \$requiredSourceAssets -Label 'Barebones source package'/, 'the full source inventory is rejected unless exact');
 assert.match(build, /Assert-BarebonesAssetSet -Actual \(Get-BarebonesAssetPaths -RootPath \$stageSource\) -ExpectedAssets \$requiredSourceAssets -Label 'Staged barebones source'/, 'staging is rejected unless exact');
@@ -62,6 +66,51 @@ assert.match(build, /\[System\.Collections\.Generic\.HashSet\[string\]\]::new\(\
 assert.match(build, /if \(-not \$actualSet\.Add\(\$asset\)\) \{ \$duplicates\.Add\(\$asset\) \}/, 'asset validation rejects duplicate paths');
 assert.match(build, /\$missing\.Count -or \$unexpected\.Count/, 'asset validation rejects missing and extra paths');
 assert.match(build, /Get-BarebonesPackedAssetPaths/, 'packed VPK trees are normalized before validation');
+assert.match(build, /function Invoke-BarebonesClosureMinification/, 'the staged runtime is minified through a dedicated Closure step');
+assert.match(build, /& npx --yes google-closure-compiler --js \$StagedSourcePath --js_output_file \$minifiedPath --externs \$externsPath --compilation_level ADVANCED --language_in ECMASCRIPT5 --language_out ECMASCRIPT5 --warning_level QUIET/, 'Closure uses ADVANCED ES5 compilation with quiet warnings on the staged source');
+assert.doesNotMatch(build, /google-closure-compiler --js \$ReadableSourcePath/, 'Closure never minifies the editable source');
+assert.match(build, /\[regex\]::Matches\(\[System\.IO\.File\]::ReadAllText\(\$ReadableSourcePath\)/, 'extern generation reads the readable source');
+assert.ok(build.includes("'\\.([A-Za-z_$][A-Za-z0-9_$]*)'"), 'all readable dot-properties are extracted for extern generation');
+assert.match(build, /\$externs\.Add\('var \$;'\)/, 'Panorama $ is declared as an extern');
+assert.match(build, /\$externs\.Add\('function DismissAllContextMenus\(\) \{\}'\)/, 'native context dismissal is declared as an extern');
+assert.match(build, /\$externs\.Add\('function DropInputFocus\(\) \{\}'\)/, 'native focus release is declared as an extern');
+assert.match(build, /\$externs\.Add\("Object\.prototype\.\$propertyName;"\)/, 'extracted Panorama properties are emitted as Object.prototype externs');
+assert.match(build, /\$externsPath = Join-Path \$TemporaryRoot 'showrank_barebones\.externs\.js'/, 'externs are generated outside the staged asset tree');
+assert.match(build, /\$minifiedPath = Join-Path \$TemporaryRoot 'showrank_barebones\.min\.js'/, 'Closure output is generated outside the staged asset tree');
+assert.match(build, /if \(-not \(Test-Path -LiteralPath \$minifiedPath\)\)/, 'missing Closure output fails closed');
+assert.match(build, /\$minifiedBytes -lt 512/, 'implausibly small Closure output fails closed');
+assert.match(build, /\$minifiedBytes -ge \$readableBytes/, 'Closure output that is not smaller fails closed');
+assert.match(build, /& node --check \$minifiedPath/, 'minified output receives a syntax check');
+for (const fragment of [
+  'ShowRankBarebonesRefresh',
+  'ShowRankBarebonesOpenStatlocker',
+  'ShowRankBarebonesCopyAccount',
+  'ShowRankBarebonesEscapeOpen',
+  'ShowRankBarebonesEscapeOut',
+  'ShowRankBarebonesMissingWindowExpired',
+]) {
+  assert.ok(build.includes(`'${fragment}'`), `Closure output must retain ${fragment}`);
+}
+assert.match(build, /Move-Item -LiteralPath \$minifiedPath -Destination \$StagedSourcePath -Force/, 'only the staged runtime is replaced with Closure output');
+assert.match(build, /foreach \(\$temporaryPath in @\(\$externsPath, \$minifiedPath\)\)[\s\S]*?Remove-Item -LiteralPath \$temporaryPath -Force/s, 'temporary extern and output files are deleted');
+assert.match(runtimeTest, /const runtimePath = process\.env\.SHOWRANK_BAREBONES_RUNTIME \|\| editableSourcePath;/, 'runtime tests accept an explicit staged-runtime source');
+assert.match(runtimeTest, /const source = fs\.readFileSync\(runtimePath, 'utf8'\);/, 'runtime behavior executes the selected source');
+
+const validateIndex = indexOfRequired('& npm --prefix $barebonesRoot run validate');
+const stagedCopyIndex = indexOfRequired('Copy-Item -LiteralPath $sourcePath -Destination $stagedPath -Force');
+const closureRunIndex = indexOfRequired('& npx --yes google-closure-compiler');
+const minifiedSyntaxIndex = indexOfRequired('& node --check $minifiedPath');
+const minifiedMoveIndex = indexOfRequired('Move-Item -LiteralPath $minifiedPath -Destination $StagedSourcePath -Force');
+const minifyCallIndex = indexOfRequired('Invoke-BarebonesClosureMinification -ReadableSourcePath $readableRuntime -StagedSourcePath $stagedRuntime');
+const runtimeSmokeIndex = indexOfRequired("& node (Join-Path $barebonesRoot 'tests\\showrank-barebones-runtime.test.js')");
+const compilerIndex = indexOfRequired('Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $stageSource');
+const packIndex = indexOfRequired('Invoke-VpkPack -VpkEditCli $vpkEditCli -InputDir $stageCompiled');
+assert.ok(validateIndex < stagedCopyIndex, 'readable runtime validation precedes staging');
+assert.ok(closureRunIndex < minifiedSyntaxIndex && minifiedSyntaxIndex < minifiedMoveIndex, 'Closure output is syntax-checked before replacing the staged runtime');
+assert.ok(stagedCopyIndex < minifyCallIndex && minifyCallIndex < runtimeSmokeIndex, 'the exact staged runtime is minified before its VM smoke test');
+assert.ok(runtimeSmokeIndex < compilerIndex, 'the minified runtime smoke test precedes Source2 compilation');
+assert.ok(compilerIndex < packIndex, 'Source2 compilation precedes strict packing');
+
 assert.match(build, /Invoke-Source2Compiler[\s\S]*?Assert-BarebonesAssetSet -Actual \(Get-BarebonesAssetPaths -RootPath \$stageCompiled\) -ExpectedAssets \$requiredCompiledAssets -Label 'Compiled barebones output'/, 'compiler output is strictly checked');
 assert.match(build, /Invoke-VpkPack[\s\S]*?Assert-BarebonesAssetSet -Actual \(Get-BarebonesPackedAssetPaths -Tree \$packedTree\) -ExpectedAssets \$requiredCompiledAssets -Label 'Packed barebones VPK'/, 'packed artifact is strictly checked');
 assert.doesNotMatch(build, /Compress-Vpk7Zip|\b7z(?:\.exe)?\b/i, 'the dedicated pipeline creates no archive');
@@ -87,6 +136,12 @@ assert.strictEqual(
   packageJson.scripts.test,
   'node tests/showrank-barebones-runtime.test.js && node tests/showrank-barebones-contract.test.js && node tests/showrank-barebones-build-contract.test.js',
   'npm test runs runtime, XML, then build-contract tests in that order',
+);
+
+assert.strictEqual(
+  packageJson.scripts.validate,
+  'npm test && node --check panorama/scripts/showrank_barebones.js',
+  'npm validation runs the package contract suite and checks the sole runtime syntax',
 );
 
 console.log('showrank barebones build contract tests passed');

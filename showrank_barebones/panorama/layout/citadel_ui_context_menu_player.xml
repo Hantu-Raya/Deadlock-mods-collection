@@ -4,9 +4,6 @@
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
 		<include src="s2r://panorama/styles/citadel_ui_context_menu_player.vcss_c" />
 	</styles>
-	<scripts>
-		<include src="s2r://panorama/scripts/showrank_barebones.vjs_c" />
-	</scripts>
 	<snippets>
 		<snippet name="InviteToParty">
 			<Panel class="MenuRow">
@@ -114,7 +111,7 @@
 			</Panel>
 		</snippet>
 	</snippets>
-	<CitadelContextMenuPlayer class="PlayerMenuContents ShowRankBarebonesContextMenu">
+	<CitadelContextMenuPlayer class="PlayerMenuContents">
 		<CitadelProfileCard id="ProfileCard" />
 		<Panel id="MenuOptionsContainer">
 			<Panel id="PlayerContainer" />
