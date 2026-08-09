@@ -12498,7 +12498,10 @@
 			_my_subclass_name = "parry_cooldown_display"
 			_class = "modifier_base"
 			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
-			m_bIsHidden = true
+			m_bIsHidden = false
+			m_strSmallIconCssClass = "disarm_proc"
+			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 		}
 		m_flParryEndVisualTime = 0.6
 		m_ParryEndVisualModifier = subclass:
@@ -21185,6 +21188,7 @@
 			m_bIsHidden = false
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 		}
 	}
 	ability_npc_shield = 
@@ -32556,6 +32560,7 @@
 			m_sLocalizationName = "modifier_shoulder_charge_buff"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 			[
 				"WeaponDamageBonus",
@@ -35455,6 +35460,7 @@
 			m_nEnabledStateMask = "MODIFIER_STATE_NO_WINDUP"
 			m_sStartSound = soundevent:"Wraith.RapidFire.Cast"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			m_strSmallIconCssClass = "bebup_uppercut_buff"
 			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
@@ -37098,6 +37104,7 @@
 			m_strParticleEffect = resource_name:"particles/modifiers/armor_suppressor.vpcf"
 			m_strSmallIconCssClass = "bullet_armor_reduction"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 		}
 		m_AbilityTooltipDetails = 
@@ -62142,6 +62149,7 @@
 			_class = "modifier_passive_haze_stacking_damage"
 			m_strSmallIconCssClass = "fixated"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			m_SlowModifier = subclass:
 			{
@@ -83042,6 +83050,7 @@
 			}
 			m_sExpiredSound = soundevent:""
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 		}
 		m_mapDependentAbilities = 
 		{
@@ -83064,6 +83073,7 @@
 			_class = "modifier_nano_damageamp"
 			_my_subclass_name = "damageamp"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 			m_strParticleEffect = resource_name:"particles/abilities/nano/nano_ultimate_shadows_buff.vpcf"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 		}
@@ -89660,6 +89670,7 @@
 			m_strParticleEffect = resource_name:"particles/upgrades/tech_resist_debuff.vpcf"
 			m_sLocalizationName = "citadel_ability_shiv_dash"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 		}
 		m_AbilityTooltipDetails = 
@@ -95969,6 +95980,7 @@
 			m_sLocalizationName = "modifier_synth_barrage_amp"
 			m_strSmallIconCssClass = "pocket_damage_amp"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			m_bIsHidden = false
 			m_strParticleEffect = resource_name:"particles/abilities/pocket/pocket_damage_buff.vpcf"
@@ -119604,6 +119616,7 @@
 			m_bIsHidden = false
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 		}
 		m_nAbilityTargetTypes = "CITADEL_UNIT_TARGET_HERO_ENEMY | CITADEL_UNIT_TARGET_BOSS_ENEMY | CITADEL_UNIT_TARGET_BUILDING_ENEMY | CITADEL_UNIT_TARGET_PROP_ENEMY | CITADEL_UNIT_TARGET_MINION_ENEMY | CITADEL_UNIT_TARGET_NEUTRAL"
 		m_CastVenomParticle = resource_name:"particles/abilities/viper/viper_venom_cast.vpcf"
@@ -157557,6 +157570,7 @@
 			_my_subclass_name = "buff"
 			m_strParticleEffect = resource_name:"particles/abilities/bookworm/bookworm_speed_buff.vpcf"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 		}
 		m_flNavMeshSearchRange = 1800.0
@@ -163434,6 +163448,7 @@
 			_my_subclass_name = "blastedhealthdisplay"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 			m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 		}
 		m_HealthModifier = subclass:
@@ -165307,6 +165322,7 @@
 			]
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 		}
 		m_BatChargingEffect = resource_name:"particles/abilities/punkgoat/punkgoat_bashdown_bat.vpcf"
 		m_eAbilityTargetingLocation = "CITADEL_ABILITY_TARGETING_LOCATION_SELF"
@@ -168325,6 +168341,7 @@
 			m_sLocalizationName = "modifier_drifter_hunger_stealth"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 			m_strParticleEffect = resource_name:"particles/items/veil_walker.vpcf"
 			m_InvisLoopParticle = resource_name:"particles/modifiers/invis_loop.vpcf"
 			m_InvisDetectRadiusParticle = resource_name:"particles/modifiers/invis_delay.vpcf"
@@ -168737,6 +168754,7 @@
 			m_strHudMessageText = ""
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 			m_VictimParticleEffect = resource_name:"particles/abilities/drifter/drifter_ult_victim_debuff_test.vpcf"
 			m_BlindedStatusParticle = resource_name:"particles/abilities/drifter/drifter_darkness_blinded.vpcf"
 			m_sAmbientLoopingSound = soundevent:"Drifter.Terror.Victim.Active"
@@ -175387,7 +175405,10 @@
 			m_strParticleEffect = resource_name:"particles/generic/generic_slow_debuff.vpcf"
 			m_strSmallIconCssClass = "slowed"
 			m_nEnabledStateMask = "MODIFIER_STATE_SLOWED | MODIFIER_STATE_DASH_DISABLED_DEBUFF | MODIFIER_STATE_SILENCE_MOVEMENT_ABILITES"
-			m_bIsHidden = true
+			m_bIsHidden = false
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 		}
 		m_AutoIntrinsicModifiers = 
 		[
@@ -176095,11 +176116,14 @@
 					m_strSmallIconCssClass = "bullet_armor_reduction"
 					m_bKeepMaximumDurationOnRefresh = true
 					m_bDurationAffectedByEffectiveness = true
-					m_bIsHidden = true
+					m_bIsHidden = false
 					m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 					[
 						"BulletArmorReduction",
 					]
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
+					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				}
 			},
 		]
@@ -179510,6 +179534,7 @@
 					m_bIsHidden = false
 					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 				}
 				m_DebuffModifier = subclass:
 				{
@@ -180007,6 +180032,7 @@
 					m_bKeepMaximumDurationOnRefresh = true
 					m_sLocalizationName = "modifier_tech_defense_shredders_debuff"
 					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 					m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 					[
@@ -180806,10 +180832,12 @@
 			m_sLocalizationName = "modifier_dps_aura_active"
 			m_strParticleStatusEffect = resource_name:""
 			m_strParticleEffect = resource_name:"particles/upgrades/onslaught_aura_speed_buff.vpcf"
-			m_bIsHidden = true
+			m_bIsHidden = false
 			m_strHudMessageText = "#upgrade_dps_aura"
 			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 			m_strSmallIconCssClass = "dps_aura"
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 		}
 		m_AutoIntrinsicModifiers = 
 		[
@@ -182097,7 +182125,7 @@
 					_my_subclass_name = "modifier_citadel_silence_proc_tech_damage_reduction"
 					m_sLocalizationName = "modifier_citadel_silence_proc_tech_damage_reduction"
 					m_strSmallIconCssClass = "tech_armor_reduction"
-					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_NEVER"
 					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 					m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 					[
@@ -182922,6 +182950,7 @@
 					_class = "modifier_berserker_damage_stack"
 					_my_subclass_name = "modifier_berserker_damage_stack"
 					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 					m_BuffStatusParticle = resource_name:"particles/upgrades/upgrades_berserker_stacks_buff.vpcf"
 					m_BuffStatusParticleEnemy = resource_name:"particles/upgrades/upgrades_berserker_stacks_buff.vpcf"
@@ -183242,7 +183271,7 @@
 				{
 					_class = "modifier_fervor_bonuses"
 					_my_subclass_name = "modifier_fervor_bonuses"
-					m_bIsHidden = true
+					m_bIsHidden = false
 					m_vecAlwaysShowInStatModifierUI = 
 					[
 						"MODIFIER_VALUE_MOVEMENT_SPEED_MAX",
@@ -183262,6 +183291,8 @@
 					m_strSmallIconCssClass = "fervor_aura"
 					m_strHudIcon = panorama:"file://{images}/upgrades/mods_weapon/fervor.psd"
 					m_strHudMessageText = "#modifier_fervor_aura_active"
+					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				}
 				m_sLocalizationName = ""
 				m_eDrawOverheadStatus = "OVERHEAD_DRAW_NEVER"
@@ -183592,6 +183623,7 @@
 						m_strParticleEffect = resource_name:"particles/upgrades/siphon_bullets_buff.vpcf"
 						m_strSmallIconCssClass = "siphon_bullets"
 						m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+						m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 						m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 					}
 					m_StatStolenDebuffModifier = subclass:
@@ -185182,6 +185214,7 @@
 					m_bKeepMaximumDurationOnRefresh = true
 					m_sLocalizationName = "modifier_tech_defense_shredders_debuff"
 					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 					m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 					[
@@ -186627,6 +186660,10 @@
 					[
 						"SlowPercent",
 					]
+					m_bIsHidden = false
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
+					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				}
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
@@ -187302,6 +187339,7 @@
 				_my_subclass_name = "modifier_item_bleeding_bullets_active"
 				m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+				m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 				m_BulletImpactParticle = resource_name:"particles/weapon_fx/burning_bullets_tgt_crit_impact.vpcf"
 				m_BuildUpModifier = subclass:
 				{
@@ -192309,7 +192347,7 @@
 			_class = "modifier_citadel_metal_skin"
 			_my_subclass_name = "modifier_citadel_metal_skin"
 			m_sLocalizationName = "upgrade_metal_skin"
-			m_bIsHidden = true
+			m_bIsHidden = false
 			m_BuffStartParticle = resource_name:""
 			m_BuffEndParticle = resource_name:"particles/upgrades/metal_skin_end.vpcf"
 			m_strParticleEffect = resource_name:"particles/upgrades/metal_skin_buff.vpcf"
@@ -192323,6 +192361,8 @@
 				"GroundDashReductionPercent",
 			]
 			m_FootstepAdditional = soundevent:"Footstep.MetalSkin.Sweetener"
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 		}
 		m_AutoIntrinsicModifiers = 
 		[
@@ -197783,6 +197823,7 @@
 			m_nAttributes = "MODIFIER_ATTRIBUTE_CANNOT_BE_PURGED"
 			m_sLocalizationName = "upgrade_mystic_regeneration"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 		}
 		m_AutoIntrinsicModifiers = 
@@ -198379,13 +198420,17 @@
 					m_flBuildUpDecayDelay = 2.0
 					m_sLocalizationName = "modifier_tech_overflow_building"
 					m_eBuildupMode = "BUILDUP_MODE_ONE_AND_DONE"
-					m_bIsHidden = true
+					m_bIsHidden = false
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
+					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
+					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 				}
 				m_ProcModifier = subclass:
 				{
 					_class = "modifier_base"
 					_my_subclass_name = "modifier_base"
 					m_sLocalizationName = "modifier_tech_overflow"
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 					m_strSmallIconCssClass = "magicOverflow"
 					m_strParticleEffect = resource_name:"particles/upgrades/magic_overflow_buff.vpcf"
 					m_sStartSound = soundevent:"Mods.Weapon.Tech.Overflow.Mod.Start"
@@ -200324,11 +200369,14 @@
 					m_strSmallIconCssClass = "bullet_armor_reduction"
 					m_bKeepMaximumDurationOnRefresh = true
 					m_bDurationAffectedByEffectiveness = true
-					m_bIsHidden = true
+					m_bIsHidden = false
 					m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 					[
 						"BulletArmorReduction",
 					]
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
+					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				}
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
@@ -201976,13 +202024,15 @@
 					m_strSmallIconCssClass = "escalating_exposure"
 					m_strParticleEffect = resource_name:"particles/upgrades/tech_resist_debuff.vpcf"
 					m_bDurationAffectedByEffectiveness = true
-					m_bIsHidden = true
-					m_eDrawOverheadStatus = "OVERHEAD_DRAW_NEVER"
+					m_bIsHidden = false
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 					m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 					[
 						"HealAmpReceivePenaltyPercent",
 						"HealAmpRegenPenaltyPercent",
 					]
+					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				}
 			},
 		]
@@ -206397,6 +206447,7 @@
 			m_sStartSound = soundevent:""
 			m_sExpiredSound = soundevent:"Mods.Tech.Disarming.Hex.Debuff.End"
 			m_nAmbientLoopingSoundRecipients = "MODIFIER_SOUND_RECIPIENT_ALWAYS"
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 		}
 		m_AutoIntrinsicModifiers = 
 		[
@@ -209563,7 +209614,8 @@
 			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 			m_strSmallIconCssClass = "delayed_stun"
 			m_strParticleEffect = resource_name:"particles/upgrades/knock_down_debuff_counter.vpcf"
-			m_bIsHidden = true
+			m_bIsHidden = false
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 		}
 		m_CastParticle = resource_name:"particles/upgrades/knock_down_cast.vpcf"
 		m_strCastSound = soundevent:"Mods.Tech.Knockdown.Cast"
@@ -209881,6 +209933,7 @@
 			m_strSmallIconCssClass = "disarm_proc"
 			m_eHudDisplayLocation = "DISPLAY_HUD_CENTER"
 			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_TEAM_ONLY"
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 		}
 		m_PullDownModifier = subclass:
 		{
@@ -212412,7 +212465,7 @@
 			_class = "modifier_cloaking_device_active_ambush"
 			_my_subclass_name = "modifier_cloaking_device_active_ambush"
 			m_sLocalizationName = "modifier_cloaking_device_active_ambush"
-			m_bIsHidden = true
+			m_bIsHidden = false
 			m_strActivateAmbushSound = soundevent:"Mods.Armor.Cloak.Ambush"
 			m_InvisRevealedParticle = resource_name:"particles/generic/invis_revealed.vpcf"
 			m_AmbushParticle = resource_name:"particles/upgrades/upgrades_fervor_buff.vpcf"
@@ -212422,8 +212475,10 @@
 				"AmbushBonusFireRate",
 				"AmbushBonusMeleeDamage",
 			]
-			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 			m_strSmallIconCssClass = "cloaking_device_active_ambush"
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 		}
 		m_InvisModifier = subclass:
 		{
@@ -212440,6 +212495,9 @@
 			m_nAmbientLoopingSoundRecipients = "MODIFIER_SOUND_RECIPIENT_PARENT_IS_LOCAL_PLAYER"
 			m_sExpiredSound = soundevent:"Mods.Armor.Cloak.Expire"
 			m_sAmbientLoopingSound = soundevent:"Mods.Armor.Cloak.Mod.Lp"
+			m_bIsHidden = false
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 		}
 		m_vecTooltipSectionInfo = 
 		[
@@ -214230,8 +214288,10 @@
 			_my_subclass_name = "modifier_healing_Nova_active"
 			m_strHudIcon = panorama:"file://{images}/upgrades/mods_utility/health_nova.psd"
 			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
-			m_bIsHidden = true
+			m_bIsHidden = false
 			m_sStartSound = soundevent:"Mods.Armor.Healing.Nova.Buff"
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 		}
 		m_strShopIconLarge = panorama:"file://{images}/items/vitality/healing_nova.psd"
 		m_vecAbilityUpgrades = 
@@ -214775,6 +214835,7 @@
 			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 			m_strSmallIconCssClass = "stimpak"
 			m_strHudIcon = panorama:"file://{images}/upgrades/mods_armor/stimpak.psd"
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 		}
 		m_vecTooltipSectionInfo = 
 		[
@@ -216730,9 +216791,12 @@
 			{
 				_class = "modifier_citadel_thermal_detonator_debuff"
 				_my_subclass_name = "modifier_citadel_thermal_detonator_debuff"
-				m_bIsHidden = true
+				m_bIsHidden = false
 				m_strParticleEffect = resource_name:"particles/modifiers/armor_suppressor.vpcf"
 				m_strSmallIconCssClass = "bullet_armor_reduction"
+				m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
+				m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+				m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			}
 			m_GroundParticleFriendly = resource_name:"particles/items/alchemical_fire_friendly_aoe.vpcf"
 			m_sExpiredSound = soundevent:"Mods.Weapon.Alchemical.Fire.End"
@@ -217344,7 +217408,8 @@
 			]
 			m_bIsHidden = false
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
-			m_eDrawOverheadStatus = "OVERHEAD_DRAW_NEVER"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 			m_strSmallIconCssClass = "fleetfoot_boots"
 			m_strHudMessageText = ""
 			m_strParticleEffect = resource_name:"particles/upgrades/upgrade_fleet_foot_boost_buff.vpcf"
@@ -217703,6 +217768,7 @@
 					m_strParticleEffect = resource_name:"particles/upgrades/kinetic_sash_triggered.vpcf"
 					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 				}
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
@@ -218029,6 +218095,7 @@
 					m_strParticleEffect = resource_name:"particles/upgrades/arcane_surge_triggered.vpcf"
 					m_sStartSound = soundevent:""
 					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				}
 				m_AbilityWatcherModifier = subclass:
@@ -218040,6 +218107,7 @@
 					m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
 					m_strParticleEffect = resource_name:""
 					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 					m_bIsHidden = true
 				}
@@ -218701,6 +218769,9 @@
 			m_Style = resource_name:"panorama/styles/ability_hud_elements/abilities_items.vcss"
 			m_bReverseHudProgressBar = true
 			m_sLocalizationName = "modifier_unstoppable"
+			m_bIsHidden = false
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 		}
 		m_vecTooltipSectionInfo = 
 		[
@@ -219033,7 +219104,7 @@
 			_class = "modifier_colossus_active"
 			_my_subclass_name = "modifier_colossus_active"
 			m_sLocalizationName = "modifier_colossus_active"
-			m_bIsHidden = true
+			m_bIsHidden = false
 			m_eHudDisplayLocation = "DISPLAY_HUD_LEFT"
 			m_sAmbientLoopingSound = soundevent:"Mods.Armor.Colossus.Lp"
 			m_sStartSound = soundevent:"Mods.Armor.Colossus.Cast"
@@ -219069,10 +219140,11 @@
 				}
 				m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+				m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 				m_strHudMessageText = "#modifier_colossus_active"
 				m_strHintText = "modifier_colossus_active"
 			}
-			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_NEVER"
 			m_strSmallIconCssClass = "colossus_active"
 			m_cameraSequenceCreated = 
 			{
@@ -219461,6 +219533,7 @@
 				m_strParticleEffect = resource_name:"particles/generic/generic_ice_slow.vpcf"
 				m_strSmallIconCssClass = "cold_front"
 				m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+				m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 				m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			}
 		}
@@ -219813,6 +219886,7 @@
 				m_strParticleEffect = resource_name:"particles/upgrades/arctic_blast_root.vpcf"
 				m_strSmallIconCssClass = "cold_front"
 				m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+				m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 				m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				m_eDebuffType = "MODIFIER_DEBUFF_YES"
 				m_sStartSound = soundevent:""
@@ -219825,6 +219899,7 @@
 				m_strParticleEffect = resource_name:"particles/generic/generic_ice_slow.vpcf"
 				m_strSmallIconCssClass = "cold_front"
 				m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+				m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 				m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				m_eDebuffType = "MODIFIER_DEBUFF_YES"
 				m_nEnabledStateMask = "MODIFIER_STATE_STAMINA_REGEN_PAUSED"
@@ -220507,6 +220582,7 @@
 				m_LoopingSound = soundevent:""
 				m_strSmallIconCssClass = "ethereal_shift_buff"
 				m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+				m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 				m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				m_bForceHideHUDPanel = true
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
@@ -221406,6 +221482,8 @@
 				"SkipFrames",
 			]
 			m_eHudDisplayLocation = "DISPLAY_HUD_CENTER"
+			m_bIsHidden = false
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 		}
 		m_CasterModifier = subclass:
 		{
@@ -221414,11 +221492,13 @@
 			m_sLocalizationName = "modifier_glitch_self_penalty"
 			m_strSmallIconCssClass = "glitched"
 			m_eHudDisplayLocation = "DISPLAY_HUD_LEFT"
-			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_LOCAITON_ALL"
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 			m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 			[
 				"OutgoingDamagePenaltyPercent",
 			]
+			m_bIsHidden = false
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 		}
 		m_vecTooltipSectionInfo = 
 		[
@@ -222772,7 +222852,7 @@
 				_my_subclass_name = "active"
 				m_eHudDisplayLocation = "DISPLAY_HUD_CENTER"
 				m_bReverseHudProgressBar = false
-				m_bIsHidden = true
+				m_bIsHidden = false
 				m_strParticleEffect = resource_name:"particles/upgrades/fury_trance.vpcf"
 				m_sExpiredSound = soundevent:"Mods.Armor.Fury.Trance.Mod.End"
 				m_sAmbientLoopingSound = soundevent:"Mods.Armor.Fury.Trance.Mod.Lp"
@@ -222781,6 +222861,7 @@
 				m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 				m_strSmallIconCssClass = "surging_power_active"
 				m_strHudIcon = panorama:"file://{images}/upgrades/mods_weapon/vampiric_burst.psd"
+				m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 			}
 		}
 		m_vecTooltipSectionInfo = 
@@ -224327,11 +224408,14 @@
 					_class = "modifier_slow_base"
 					_my_subclass_name = "modifier_slow_base"
 					m_strSmallIconCssClass = "slowed"
-					m_bIsHidden = true
+					m_bIsHidden = false
 					m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 					[
 						"SlowPercent",
 					]
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
+					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				}
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
@@ -226989,6 +227073,7 @@
 			m_nAttributes = "MODIFIER_ATTRIBUTE_CANNOT_BE_PURGED"
 			m_sLocalizationName = "upgrade_mystic_regeneration"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 		}
 		m_OnCastModifier = subclass:
@@ -233244,6 +233329,8 @@
 			}
 			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 			m_strSmallIconCssClass = "upgrade_magic_carpet"
+			m_bIsHidden = false
+			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 		}
 		m_vecTooltipSectionInfo = 
 		[
@@ -234693,7 +234780,7 @@
 					m_strParticleEffect = resource_name:""
 					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 					m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
-					m_bIsHidden = true
+					m_bIsHidden = false
 					m_strHudIcon = panorama:"file://{images}/upgrades/mods_tech/escalating_exposure.psd"
 					m_ExplodeParticle = resource_name:"particles/upgrades/spirit_burn_explode.vpcf"
 					m_DebuffModifier = subclass:
@@ -234704,7 +234791,7 @@
 						m_strParticleEffect = resource_name:""
 						m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 						m_nAttributes = "MODIFIER_ATTRIBUTE_MULTIPLE"
-						m_bIsHidden = true
+						m_bIsHidden = false
 						m_strHudIcon = panorama:"file://{images}/upgrades/mods_tech/escalating_exposure.psd"
 						m_sBurnParticle = resource_name:"particles/upgrades/spirit_burn_debuff.vpcf"
 						m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
@@ -234714,6 +234801,8 @@
 						m_sAmbientLoopingSound = soundevent:"Mods.Tech.Spirit.Burn.Lp"
 						m_sExpiredSound = soundevent:"Mods.Tech.Spirit.Burn.Lp.End"
 						m_nAmbientLoopingSoundRecipients = "MODIFIER_SOUND_RECIPIENT_ALWAYS"
+						m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+						m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 					}
 					m_ImmunityModifier = subclass:
 					{
@@ -234726,6 +234815,8 @@
 						m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
 						m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 					}
+					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				}
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 				[
@@ -237986,12 +238077,15 @@
 					_class = "modifier_base"
 					_my_subclass_name = "juggeranut_firerate_slow"
 					m_strParticleEffect = resource_name:"particles/upgrades/juggernaut_fire_rate_debuff.vpcf"
-					m_bIsHidden = true
+					m_bIsHidden = false
 					m_strSmallIconCssClass = "juggernaut"
 					m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 					[
 						"FireRateSlow",
 					]
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
+					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				}
 				m_TargetModifierDurationAbilityProp = "FireRateSlowDuration"
 				m_vecDamageTypes = 
@@ -238286,6 +238380,7 @@
 					m_sExpiredSound = soundevent:"Mods.Weapon.Spellslinger.Expire"
 					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 				}
 				m_sStartSound = soundevent:""
 				m_strRefreshStackSound = soundevent:"Mods.Weapon.Spellslinger.Proc"
@@ -238602,7 +238697,7 @@
 				{
 					_class = "modifier_backstabber_debuff"
 					_my_subclass_name = "modifier_backstabber_debuff"
-					m_bIsHidden = true
+					m_bIsHidden = false
 					m_strSmallIconCssClass = "bullet_armor_reduction"
 					m_sLocalizationName = "modifier_bullet_armor_reduction"
 					m_nEnabledStateMask = "MODIFIER_STATE_GLOW_THROUGH_WALLS_TO_ENEMY"
@@ -238624,6 +238719,9 @@
 					m_sStartSound = soundevent:""
 					m_sAmbientLoopingSound = soundevent:""
 					m_strDamageTickSound = soundevent:"Mods.Weapon.Backstabber.Damage.Tick"
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
+					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				}
 				m_ProcNotificationModifier = subclass:
 				{
@@ -239847,6 +239945,7 @@
 				m_vecAutoRegisterModifierValueFromAbilityPropertyName = [  ]
 				m_nEnabledStateMask = "MODIFIER_STATE_DASH_DISABLED_DEBUFF | MODIFIER_STATE_HEALING_DISABLED"
 				m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+				m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 				m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 				m_strParticleEffect = resource_name:"particles/upgrades/nullification_aura_impact.vpcf"
 			}
@@ -242868,6 +242967,7 @@
 					m_strParticleEffect = resource_name:"particles/upgrades/arctic_blast_root.vpcf"
 					m_strSmallIconCssClass = "cold_front"
 					m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+					m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_CASTER_ONLY"
 					m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 					m_eDebuffType = "MODIFIER_DEBUFF_YES"
 					m_sStartSound = soundevent:"Mods.Tech.Arctic.Blast.Freeze.Proc"
@@ -243200,6 +243300,7 @@
 				m_bIsHidden = true
 				m_strSmallIconCssClass = "siphon_bullets"
 				m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+				m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 				m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			}
 			m_StatStolenDebuffModifier = subclass:
@@ -246444,6 +246545,7 @@
 			m_strParticleEffect = resource_name:"particles/abilities/priest/priest_anim_melee_blessed.vpcf"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 		}
 		m_eTargettingLOSCheck = "ELOSCheck_Bounds_IgnoreObscureBlockers"
 		m_bCollectNearbyTargetsWithCone = true
@@ -268615,6 +268717,7 @@
 				_class = "modifier_werewolf_stackingbuff"
 				_my_subclass_name = "stackingbuff"
 				m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+				m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 				m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			}
 			m_strParticleStatusEffect = resource_name:"particles/status_fx/status_fx_werewolf_untransform.vpcf"
@@ -273720,6 +273823,7 @@
 			m_IncomingParticle = resource_name:"particles/abilities/unicorn/unicorn_flux_buff_incoming.vpcf"
 			m_strBuffReceivedSound = soundevent:"Unicorn.Luminous.Flux.Buff"
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_HEALTHBAR"
+			m_eDrawOverheadStatus = "OVERHEAD_DRAW_FOR_EVERYONE"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
 			m_strMaxBuffReceivedSound = soundevent:"Unicorn.Luminous.Flux.Buff.Max"
 			m_sAmbientLoopingSound = soundevent:"Unicorn.Luminous.Flux.Buff.Lp"
