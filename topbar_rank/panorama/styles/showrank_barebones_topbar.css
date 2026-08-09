@@ -1,0 +1,254 @@
+CitadelHudTopBarPlayer,
+#PlayerDetailsContainer,
+#HeroContents
+{
+	overflow: noclip;
+}
+
+#ShowRankBarebonesNotificationRoot
+{
+	width: 100%;
+	height: 100%;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 205px;
+	ignore-parent-flow: true;
+	overflow: noclip;
+	z-index: 100;
+}
+
+#ShowRankBarebonesNotificationRoot .GenericAnnouncement
+{
+	opacity: 0;
+	pre-transform-scale2d: 0.9;
+	transition-property: opacity, pre-transform-scale2d;
+	transition-duration: 0.3s;
+}
+
+#ShowRankBarebonesNotificationRoot .GenericAnnouncement.ShowRankBarebonesToastVisible
+{
+	opacity: 0.8;
+	pre-transform-scale2d: 1;
+}
+	
+#ShowRankBarebonesNotificationRoot .GenericAnnouncement.ShowRankBarebonesToastAged
+{
+	opacity: 0.2;
+}
+
+#ShowRankBarebonesNotificationRoot .GenericAnnouncement.ShowRankBarebonesToastExpired
+{
+	opacity: 0;
+}
+
+#ShowRankBarebonesNotificationRoot .AnnouncementTitle
+{
+	font-size: 21px;
+}
+
+
+.ShowRankBarebonesMissingToastIcons
+{
+	width: fit-children;
+	height: 38px;
+	flow-children: right;
+	horizontal-align: center;
+	margin-top: 3px;
+}
+
+.ShowRankBarebonesMissingToastIcon
+{
+	width: 34px;
+	height: 34px;
+	margin: 0px 2px;
+}
+
+.ShowRankBarebonesProfileCard #ShowRankBarebonesRankImage
+{
+	width: 88px;
+	height: 66px;
+	horizontal-align: right;
+	vertical-align: top;
+	margin-top: 32px;
+	margin-right: -2px;
+	z-index: 2;
+	ignore-parent-flow: true;
+}
+
+CitadelTooltipProfileCard .ShowRankBarebonesProfileCard #ShowRankBarebonesRankImage
+{
+	width: 68px;
+	height: 51px;
+	margin-top: 0px;
+	pre-transform-scale2d: 1;
+	overflow: noclip;
+}
+
+CitadelContextMenuPlayer .ShowRankBarebonesProfileCard #ShowRankBarebonesRankImage
+{
+	width: 68px;
+	height: 51px;
+	margin-top: 0px;
+	margin-right: 8px;
+	pre-transform-scale2d: 1;
+	overflow: noclip;
+}
+
+CitadelHudTopBarPlayer #ShowRankBarebonesTopbarRankImage
+{
+	width: 48px;
+	height: 31px;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 62px;
+	z-index: 60;
+	ignore-parent-flow: true;
+	overflow: noclip;
+}
+
+.ShowRankBarebonesTeamAverageLayer
+{
+	width: 300px;
+	height: 84px;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 118px;
+	z-index: 35;
+	ignore-parent-flow: true;
+	overflow: noclip;
+}
+
+.ShowRankBarebonesTeamAverageRankImage
+{
+	width: 92px;
+	height: 60px;
+	vertical-align: top;
+	z-index: 35;
+	visibility: collapse;
+	opacity: 0;
+	ignore-parent-flow: true;
+}
+
+.wants_scoreboard .ShowRankBarebonesTeamAverageRankImage.ShowRankBarebonesTeamAverageRankVisible,
+.gScoreboardOpen .ShowRankBarebonesTeamAverageRankImage.ShowRankBarebonesTeamAverageRankVisible
+{
+	visibility: visible;
+	opacity: 1;
+}
+
+.ShowRankBarebonesTeamAverageFriendlyImage
+{
+	horizontal-align: left;
+	margin-left: 26px;
+}
+
+.ShowRankBarebonesTeamAverageEnemyImage
+{
+	horizontal-align: right;
+	margin-right: 26px;
+}
+
+CitadelPlayersListEntry #MainContents
+{
+	overflow: noclip;
+}
+
+CitadelPlayersListEntry .ShowRankBarebonesPlayerListRankImage
+{
+	width: 72px;
+	height: 47px;
+	horizontal-align: right;
+	vertical-align: middle;
+	margin-right: 12px;
+	ignore-parent-flow: true;
+	overflow: noclip;
+	z-index: 10;
+}
+
+
+#ShowRankBarebonesMissingIndicator
+{
+	width: 100%;
+	height: 100%;
+	ignore-parent-flow: true;
+	z-index: 55;
+	visibility: collapse;
+}
+
+#ShowRankBarebonesMissingIndicator Label
+{
+	width: fit-children;
+	height: 16px;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 6px;
+	padding: 1px 5px 1px 5px;
+	background-color: #11100ff2;
+	color: #f0e5cf;
+	font-family: oracle;
+	font-size: 11px;
+	font-weight: semi-bold;
+	text-align: center;
+	text-overflow: shrink;
+	opacity: 1;
+}
+
+CitadelHudTopBarPlayer:not(.HealthVisible) #HeroImageArea
+{
+	wash-color: #00000090;
+}
+
+CitadelHudTopBarPlayer:not(.HealthVisible) #ShowRankBarebonesMissingIndicator
+{
+	visibility: visible;
+	wash-color: none;
+}
+
+
+CitadelHudTopBarPlayer.ShowRankBarebonesMissingWindowExpired:not(.HealthVisible) #HeroImageArea
+{
+	wash-color: none;
+}
+
+CitadelHudTopBarPlayer.ShowRankBarebonesMissingWindowExpired #ShowRankBarebonesMissingIndicator
+{
+	visibility: collapse;
+}
+
+CitadelHudTopBarPlayer.Dead #ShowRankBarebonesMissingIndicator,
+CitadelHudTopBarPlayer.Disconnected #ShowRankBarebonesMissingIndicator
+{
+	visibility: collapse;
+}
+
+.ShowRankBarebonesProfilePage #ProfileInfo
+{
+	min-width: 190px;
+	overflow: noclip;
+}
+
+.ShowRankBarebonesProfilePage #ShowRankBarebonesProfilePageRankHost
+{
+	width: 90px;
+	height: 70px;
+	margin-left: 200px;
+	margin-top: -10px;
+	horizontal-align: left;
+	vertical-align: top;
+	ignore-parent-flow: true;
+	overflow: noclip;
+}
+
+.ShowRankBarebonesProfilePage #ShowRankBarebonesProfilePageRankImage
+{
+	width: 88px;
+	height: 66px;
+	horizontal-align: center;
+	vertical-align: center;
+}
+
+.ShowRankBarebonesProfilePage #ForumButton
+{
+	visibility: collapse;
+}
+

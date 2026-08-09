@@ -1,31 +1,20 @@
-<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<!-- xml reconstructed by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
-		<include src="s2r://panorama/styles/citadel_ranked_badge_mini.vcss_c" />
 		<include src="s2r://panorama/styles/profile_card.vcss_c" />
-		<include src="s2r://panorama/styles/topbar_rank_profile_card.vcss_c" />
+		<include src="s2r://panorama/styles/showrank_barebones_topbar.vcss_c" />
 	</styles>
 	<scripts>
-		<include src="s2r://panorama/scripts/showrank_common.vjs_c" />
+		<include src="s2r://panorama/scripts/showrank_barebones.vjs_c" />
 	</scripts>
-	<CitadelProfileCard class="ShowRankProfileCardRoot" onmouseover="if ($.ShowRankTriggerProfileCard) $.ShowRankTriggerProfileCard('profile_card_mouseover');">
+	<CitadelProfileCard class="ShowRankBarebonesProfileCard" onmouseover="if ($.GetContextPanel().ShowRankBarebonesRefresh) $.GetContextPanel().ShowRankBarebonesRefresh();">
 		<Panel id="MiniProfileContainer" class="TopBottomFlow">
 			<Panel id="ContentsMain">
 				<Panel id="ContentsMainBackground" />
 				<Panel id="ContentsMainForeground">
 					<Panel id="AccountID">
-						<Label id="WebMediaDemoAccountLabel" class="AccountID" text="#Citadel_ProfileCard_AccountID" />
-						<Label id="ShowRankHiddenAccountID" class="HiddenAccountID" text="{i:r:account_id}" hittest="false" />
-						<Panel class="WebMediaDemoAccountIdRow">
-							<Button class="WebMediaDemoProfileLink" onactivate="if ($.ShowRankOpenStatlocker) $.ShowRankOpenStatlocker();">
-								<Label text="StatLocker Profile" />
-							</Button>
-							<Panel class="WebMediaDemoMediaSlot" hittest="false">
-								<CitadelRankedBadgeMini id="WebMediaDemoLocalBadge" class="WebMediaDemoLocalBadge" hittest="false" />
-								<Image id="WebMediaDemoMedia" class="WebMediaDemoMedia" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
-							</Panel>
-						</Panel>
+						<Label class="AccountID" text="#Citadel_ProfileCard_AccountID" />
 					</Panel>
 					<Panel id="HeroInfo">
 						<CitadelHeroImage id="HeroImage" />
@@ -81,6 +70,8 @@
 		</Panel>
 		<Panel id="CardOverlay" hittest="false">
 			<Panel id="ProfileBadgeBackground" />
+			<Image id="ShowRankBarebonesRankImage" visible="false" hittest="false" scaling="stretch-to-fit-preserve-aspect" />
 		</Panel>
+		<Label id="ShowRankBarebonesAccount" text="{i:r:account_id}" visible="false" hittest="false" />
 	</CitadelProfileCard>
 </root>

@@ -1,14 +1,13 @@
-<!-- xml reconstructed by Source 2 Viewer - https://valveresourceformat.github.io -->
+<!-- xml reconstructed by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
 		<include src="s2r://panorama/styles/hud_escape_menu.vcss_c" />
-		<include src="s2r://panorama/styles/topbar_rank_escape_menu.vcss_c" />
 	</styles>
 	<scripts>
-		<include src="s2r://panorama/scripts/showrank_common.vjs_c" />
+		<include src="s2r://panorama/scripts/showrank_barebones.vjs_c" />
 	</scripts>
-	<CitadelHudEscapeMenu oncancel="CitadelResumePlaying()">
+	<CitadelHudEscapeMenu oncancel="CitadelResumePlaying()" onload="if ($.ShowRankBarebonesEscapeOpen) $.ShowRankBarebonesEscapeOpen();" onmouseover="if ($.ShowRankBarebonesEscapeOpen) $.ShowRankBarebonesEscapeOpen();" onmouseout="if ($.ShowRankBarebonesEscapeOut) $.ShowRankBarebonesEscapeOut();">
 		<Panel id="EscapeBackground" onactivate="CitadelResumePlaying()" />
 		<Panel id="LeftStripeBlur" />
 		<Panel id="LeftStripe" hittest="false">
@@ -20,7 +19,7 @@
 						</Button>
 						<Button id="matchmakingEditRoster" class="nav_menu_item primary" onactivate="CitadelEditMatchmakingRoster()">
 							<Panel class="MenuIcon" />
-							<Label text="#menu_roster_detail2" class="menuButtonLabel" />
+							<Label text="#menu_edit_roster" class="menuButtonLabel" />
 						</Button>
 					</Panel>
 					<Panel class="ReconnectOptions OptionGroup">
@@ -63,23 +62,21 @@
 				</Panel>
 			</Panel>
 		</Panel>
-		<CitadelPrivilegedFeatures id="PrivilegedFeatures" />
 		<CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="CitadelResumePlaying()" text="#menu_resume" />
 		<Panel id="RightSideBlur" hittest="false" />
 		<Panel id="RightSide" hittest="false">
 			<Panel id="PartySpacer" />
 			<Panel class="FriendsOrPlayersTabs">
 				<Panel class="Center">
-					<TabButton id="FriendsTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Friends_WindowTitle" />
-					<TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" selected="true" onactivate="if ($.ShowRankEscapePreloadFromPlayerList) $.ShowRankEscapePreloadFromPlayerList('escape_menu_players_tab_activate');" />
-					<TabButton id="ShowRankRetryMissingRanks" class="FriendsOrPlayersButton ShowRankRetryMissingButton" text="Retry ranks" onactivate="if ($.ShowRankEscapePreloadFromPlayerList) $.ShowRankEscapePreloadFromPlayerList('players_list_retry_missing');" />
+					<TabButton id="FriendsTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Friends_WindowTitle" selected="true" />
+					<TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" />
 				</Panel>
 			</Panel>
 			<Panel class="FriendsOrPlayersContents" hittest="false">
-				<TabContents id="FriendsTabContents" tabid="FriendsTab" group="people_list_tabs" hittest="false">
+				<TabContents id="FriendsTabContents" tabid="FriendsTab" group="people_list_tabs" hittest="false" selected="true">
 					<CitadelFriendsList id="FriendsList" />
 				</TabContents>
-			<TabContents id="PlayersTabContents" tabid="PlayersTab" group="people_list_tabs" hittest="false" selected="true">
+				<TabContents id="PlayersTabContents" tabid="PlayersTab" group="people_list_tabs" hittest="false">
 					<CitadelPlayersList id="PlayersList" />
 				</TabContents>
 			</Panel>
