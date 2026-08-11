@@ -1,0 +1,166 @@
+<!-- Stock hud_escape_menu.xml from SteamDatabase/GameTracking-Deadlock with only HP Colors Rewrite includes and panels added. -->
+<root>
+  <styles>
+    <include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+    <include src="s2r://panorama/styles/hud_escape_menu.vcss_c" />
+    <include src="s2r://panorama/styles/hp_colors_menu.vcss_c" />
+  </styles>
+  <scripts>
+    <include src="s2r://panorama/scripts/hp_colors_menu.vjs_c" />
+  </scripts>
+  <CitadelHudEscapeMenu onload="$.HPColorsMenuBoot()" oncancel="$.HPColorsMenuCancel()">
+    <Panel id="EscapeBackground" onactivate="CitadelResumePlaying()" />
+    <Panel id="LeftStripeBlur" />
+    <Panel id="LeftStripe" hittest="false">
+      <Panel id="Menu" hittest="false">
+        <Panel id="ContextualMenu">
+          <Panel class="MatchmakingOptions OptionGroup">
+            <Button id="matchmakingLeaveQueue" class="nav_menu_item primary endsession" onactivate="CitadelLeaveMatchmaking()">
+              <Label text="#menu_leave_queue" class="menuButtonLabel" antialias="true" />
+            </Button>
+            <Button id="matchmakingEditRoster" class="nav_menu_item primary" onactivate="CitadelEditMatchmakingRoster()">
+              <Panel class="MenuIcon" />
+              <Label text="#menu_edit_roster" class="menuButtonLabel" />
+            </Button>
+          </Panel>
+          <Panel class="ReconnectOptions OptionGroup">
+            <Button id="reconnectRejoin" class="nav_menu_item primary" onactivate="CitadelReconnect()" onmouseover="UIShowTextTooltip( #Citadel_Dashboard_RejoinTooltip )" onmouseout="UIHideTextTooltip()">
+              <Label text="#menu_rejoin" class="menuButtonLabel" />
+            </Button>
+            <Button id="reconnectAbandon" class="nav_menu_item primary endsession" onactivate="CitadelConfirmAbandonGame()">
+              <Label text="{s:reconnect_abandon_action}" class="menuButtonLabel" />
+            </Button>
+          </Panel>
+          <Button id="disconnect" class="nav_menu_item primary" onactivate="CitadelDisconnectFromGame()">
+            <Label text="#menu_disconnect" class="menuButtonLabel" />
+          </Button>
+          <Button id="abandon" class="nav_menu_item primary endsession" onactivate="CitadelConfirmAbandonGame()">
+            <Label text="{s:abandon_action}" class="menuButtonLabel" />
+          </Button>
+          <Button id="Unstick" class="nav_menu_item minor" onactivate="CitadelConCommand( &apos;unstick&apos; );" onmouseover="CitadelUIShowTextTooltip( &apos;#DevMenu_UnstickHeroTooltip&apos; )" onmouseout="CitadelUIHideTextTooltip()">
+            <Label text="#DevMenu_UnstickHero" class="menuButtonLabel" />
+          </Button>
+        </Panel>
+        <Button id="changehero" class="nav_menu_item primary" onactivate="CitadelEscapeMenuChangeHero()">
+          <Label text="#menu_changehero" class="menuButtonLabel" />
+        </Button>
+        <Button id="HPColorsMenuButton" class="nav_menu_item primary HPColorsMenuButton">
+          <Panel class="HPColorsMenuAccent" />
+          <Panel class="HPColorsMenuSwatch">
+            <Panel class="HPColorsMenuSwatchEnemy" />
+            <Panel class="HPColorsMenuSwatchSoul" />
+          </Panel>
+          <Label text="HP COLORS" class="menuButtonLabel" />
+          <Label id="HPColorsMenuBinding" class="HPColorsMenuBinding" />
+        </Button>
+        <Panel id="SubOptions">
+          <Panel class="FeedbackRow">
+            <Button id="PlayerFeedback" class="nav_menu_item minor" onactivate="CitadelShowPlayerFeedbackPopup()">
+              <Label text="#Citadel_PlayerFeedback_Title" class="menuButtonLabel" />
+            </Button>
+          </Panel>
+          <Panel class="SettingsRow">
+            <Button id="settings" class="nav_menu_item minor" onactivate="CitadelSettings()">
+              <Panel class="smallIcon GearIcon" />
+              <Label text="#menu_settings" class="menuButtonLabel" />
+            </Button>
+            <Button id="QuickMute" class="nav_menu_item minor" onactivate="CitadelMuteButtonClicked();" onmouseover="CitadelUIShowTextTooltip( &apos;#citadel_mute_game_audio&apos; )" onmouseout="CitadelUIHideTextTooltip()" />
+          </Panel>
+          <Button id="quit" onactivate="CitadelQuitConfirm()">
+            <Label text="#menu_exit_deadlock" />
+          </Button>
+        </Panel>
+      </Panel>
+    </Panel>
+    <CitadelPrivilegedFeatures id="PrivilegedFeatures" />
+    <CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="CitadelResumePlaying()" text="#menu_resume" />
+    <Panel id="RightSideBlur" hittest="false" />
+    <Panel id="RightSide" hittest="false">
+      <Panel id="PartySpacer" />
+      <Panel class="FriendsOrPlayersTabs">
+        <Panel class="Center">
+          <TabButton id="FriendsTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Friends_WindowTitle" selected="true" />
+          <TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" />
+        </Panel>
+      </Panel>
+      <Panel class="FriendsOrPlayersContents" hittest="false">
+        <TabContents id="FriendsTabContents" tabid="FriendsTab" group="people_list_tabs" hittest="false" selected="true">
+          <CitadelFriendsList id="FriendsList" />
+        </TabContents>
+        <TabContents id="PlayersTabContents" tabid="PlayersTab" group="people_list_tabs" hittest="false">
+          <CitadelPlayersList id="PlayersList" />
+        </TabContents>
+      </Panel>
+    </Panel>
+
+    <Panel id="HPColorsEditorRoot" class="HPColorsEditorRoot" hittest="true">
+      <Panel class="HPColorsEditorBackdrop" hittest="false" />
+      <Panel id="HPColorsEditorShell" class="HPColorsEditorShell">
+        <Panel class="HPColorsEditorHeader">
+          <Panel class="HPColorsTitleBlock">
+            <Label text="HP COLORS" class="HPColorsTitle" />
+            <Label id="HPColorsHeaderCategory" text="OVERVIEW" class="HPColorsHeaderCategory" />
+          </Panel>
+          <Panel class="HPColorsHeaderRule" />
+          <Label text="LIVE" class="HPColorsLiveStatus" />
+        </Panel>
+
+        <Panel class="HPColorsEditorBody">
+          <Panel class="HPColorsCategoryRail">
+            <Label text="HEALTHBAR CONTROL" class="HPColorsRailEyebrow" />
+            <Button id="HPColorsCategoryOverview" class="HPColorsCategoryButton Selected">
+              <Label text="01" class="HPColorsCategoryIndex" />
+              <Label text="OVERVIEW" class="HPColorsCategoryLabel" />
+            </Button>
+            <Button id="HPColorsCategoryEnemy" class="HPColorsCategoryButton">
+              <Label text="02" class="HPColorsCategoryIndex" />
+              <Label text="ENEMY" class="HPColorsCategoryLabel" />
+            </Button>
+            <Button id="HPColorsCategoryAlly" class="HPColorsCategoryButton">
+              <Label text="03" class="HPColorsCategoryIndex" />
+              <Label text="ALLY" class="HPColorsCategoryLabel" />
+            </Button>
+            <Button id="HPColorsCategoryReadout" class="HPColorsCategoryButton">
+              <Label text="04" class="HPColorsCategoryIndex" />
+              <Label text="READOUT" class="HPColorsCategoryLabel" />
+            </Button>
+            <Button id="HPColorsCategoryEffects" class="HPColorsCategoryButton">
+              <Label text="05" class="HPColorsCategoryIndex" />
+              <Label text="EFFECTS" class="HPColorsCategoryLabel" />
+            </Button>
+          </Panel>
+
+          <Panel class="HPColorsContent">
+            <Panel class="HPColorsTabStrip">
+              <Button id="HPColorsTab0" class="HPColorsTabButton Available Selected"><Label id="HPColorsTabLabel0" class="HPColorsTabLabel" /></Button>
+              <Button id="HPColorsTab1" class="HPColorsTabButton Available"><Label id="HPColorsTabLabel1" class="HPColorsTabLabel" /></Button>
+              <Button id="HPColorsTab2" class="HPColorsTabButton"><Label id="HPColorsTabLabel2" class="HPColorsTabLabel" /></Button>
+            </Panel>
+            <Panel class="HPColorsPage">
+              <Label id="HPColorsPageEyebrow" text="OVERVIEW / STATUS" class="HPColorsPageEyebrow" />
+              <Label id="HPColorsPageTitle" text="CURRENT CONFIGURATION" class="HPColorsPageTitle" />
+              <Panel class="HPColorsPageRule" />
+              <Label id="HPColorsPageDescription" text="The editor lifecycle is active. Healthbar settings remain unchanged in this build." class="HPColorsPageDescription" />
+              <Panel class="HPColorsScopeNotice">
+                <Panel class="HPColorsScopeMark" />
+                <Panel class="HPColorsScopeCopy">
+                  <Label text="V1 HEALTHBARS" class="HPColorsScopeTitle" />
+                  <Label text="This surface controls the classic unit-status overlay only." class="HPColorsScopeDescription" />
+                </Panel>
+              </Panel>
+            </Panel>
+            <Panel class="HPColorsEditorFooter">
+              <Button id="HPColorsPeekButton" class="HPColorsSecondaryAction">
+                <Label text="HOLD TO PEEK" />
+                <Label id="HPColorsPeekBinding" class="HPColorsActionBinding" />
+              </Button>
+              <Panel class="HPColorsFooterSpacer" />
+              <Button id="HPColorsDoneButton" class="HPColorsPrimaryAction"><Label text="DONE" /></Button>
+            </Panel>
+          </Panel>
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsPeekCapture" class="HPColorsPeekCapture" />
+    </Panel>
+  </CitadelHudEscapeMenu>
+</root>
