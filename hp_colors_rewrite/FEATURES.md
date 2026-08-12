@@ -62,7 +62,7 @@ Implemented source files:
 
 Each probe reads its local healthbar panels directly. It writes one transition-only line when the displayed pip text or calculated fill percentage changes:
 
-`[HP Colors Rewrite] data id=... generation=N pip="..." fill=N parent=N width_percent=N`
+`[HP Colors Rewrite] data id=... generation=N pip="..." fill=N parent=N shield=N health_parent=N width_percent=N`
 
 Each probe owns its local data. Replacement panels increment the local generation and reset the data signature.
 
@@ -78,19 +78,88 @@ Implemented source files:
 - `panorama/scripts/hp_colors_menu.js` owns open, close, category/tab navigation, and hold-to-peek.
 - `panorama/styles/hp_colors_menu.css` owns the Ritual Stripe presentation.
 
-The current editor intentionally renders no setting controls. It must first prove entry visibility, navigation, Peek behavior, stock ESC restoration, and real healthbar visibility in Deadlock.
+The user confirmed that the entry, editor navigation, and hold-to-peek behavior work in Deadlock.
+
+## Milestone 3: core healthbar customization
+
+Implemented controls:
+
+- Master customization is enabled by default; bypass preserves configured values.
+- Global v1 width and height scaling.
+- Enemy and ally enable/visibility controls.
+- Fixed or legacy-compatible low/mid/high gradient color modes.
+- Shared thresholds: low color holds through the low threshold, mid color is reached at the high threshold, and high color is reached at full health.
+- Section reset and session-scoped Undo.
+
+### Settings path
+
+`hp_colors_menu.js` owns one versioned session snapshot. Changed controls publish immediately. While the master switch is enabled, the unchanged cached snapshot replays at 1-second hot, 3-second warm, then 8-second idle intervals because isolated late unit-status contexts cannot read the ESC root attribute. Each `healthbar_probe.js` context accepts a snapshot once, ignores identical replays, and reapplies its local cache when a bar or its parts are discovered or replaced.
+
+The renderer classifies stock relation classes neutral-first, then enemy/friend. It changes only settings-owned inline styles and clears them when customization is bypassed so stock CSS resumes.
+
+
+## Milestone 4: feedback and bullet-shield colors
+
+Implemented controls:
+
+- Separate enemy and ally healing-layer colors.
+- Separate enemy and ally recent-damage delta colors.
+- Separate enemy and ally bullet-shield colors.
+
+The local renderer uses the already cached v1 panels. It changes healing and delta `washColor` plus bullet-shield `backgroundColor`; the engine remains the sole owner of every layer's live width and timing. Disabled relations, neutral/other roles, and the master bypass clear these inline properties so stock styling resumes.
+
+## Milestone 5: shared HSL color palette
+
+Every color swatch opens one reusable palette with three native horizontal Panorama `Slider` controls: Hue `0–359`, Saturation `0–100`, and Lumen `0–100`. Changes publish to visible bars while dragging and create one session Undo entry when each slider gesture ends. Strict editable `#RRGGBB` fields remain beside each swatch.
+
+The picker uses one modal panel and one active setting key. Closing, Escape, page changes, Peek, or another color closes or reuses the modal without rolling back committed changes.
+
+## Milestone 6: target-aware controls, position, and ultimate icons
+
+Implemented controls:
+
+- Optional stock team color as the enemy high-health endpoint; unknown teams retain the configured high color.
+- Independent building/sentry and boss exclusions that restore stock relation colors.
+- Horizontal and vertical translation of the complete healthbar stack without moving the unit icon.
+- Ultimate-ready icon color that follows the final customized bar color or uses one custom color.
+
+The renderer classifies relation, team, building, sentry, and boss facts from the current overlay ancestry. Neutral classification remains authoritative. Exclusions bypass relation-owned bar, feedback, shield, and ultimate-icon colors while global size and position controls remain active. Ultimate-icon styling owns only inline `washColor`; stock visibility and boss-specific images remain engine-owned.
+
+The 2026-08-12 in-game smoke confirmed fixed low/mid/high threshold stepping, team-high colors, independent exclusions, X/Y positioning, ultimate-icon modes, reversible non-culling visibility, and the existing picker/renderer controls. `console.log` recorded configuration, role, team, building, boss, generation, and health transitions with no HP Colors Rewrite exceptions.
 
 ### In-game smoke test
 
 1. Run `powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite.ps1`.
-2. Restart Deadlock with `-dev -tools`.
-3. Open ESC and confirm the accented `HP COLORS` row is obvious and sits before the smaller Settings section.
-4. Open the editor and exercise every category and contextual tab.
-5. Hold Peek; require the editor to disappear, gameplay input to remain blocked, and real v1 healthbars to remain visible.
-6. Release Peek; require the editor to return.
-7. Require Done and the first Escape to return to the stock ESC menu.
-8. Exit and require menu-ready/open/close logs with no rewrite exceptions.
+2. Ask the user to restart Deadlock with `-dev -tools`.
+3. Require enemy fixed/gradient colors, thresholds, visibility, width, height, healing, damage-delta, and bullet-shield colors to update real bars.
+4. Enable ally styling and require only friend bar, healing, damage-delta, and bullet-shield colors to update.
+5. Require neutral and unclassified bars to remain stock.
+6. Require late/replaced bars to receive the current snapshot.
+7. Enable team-high color on both teams; require the stock team color only above the high threshold and the configured high color for unknown-team bars.
+8. Toggle building and boss exclusions independently; require sentries, buildings, all boss tiers, and boss barracks to return to stock colors while global size and position remain active.
+9. Move horizontal and vertical position controls through positive, negative, and zero values; require the complete bar stack to move without moving the unit icon.
+10. Test ultimate-icon Follow Bar and Custom modes on enemies and customized allies; require excluded, neutral, unclassified, and bypassed icons to return to stock.
+11. Drag each native Hue, Saturation, and Lumen slider; require the slider value, canonical hex, and visible bars to update live, then require one Undo to restore the color from before that slider gesture.
+12. Exercise Reset Section, Peek, Done, and Escape, including palette dismissal.
+13. Exit and require config/role/data logs with no rewrite exceptions.
+
+
+## Milestone 7: HP readout
+
+Implemented controls:
+
+- Show or hide the enemy HP number.
+- Current/max HP, percentage, and current-only formats.
+- Font chooser with Default (`Retail Demo, Noto Sans, sans-serif`), Oracle (`VALVEOracle, Reaver, sans-serif`), and Pulp (`VALVEPulp, Noto Sans, sans-serif`). Runtime writes the expanded families because stock `sans`, `oracle`, and `block` are compile-time CSS aliases.
+- Text size plus direct horizontal (`-405px…405px`) and vertical (`-365px…270px`) offsets.
+- Bar-derived or custom low/mid/high text colors. Bar Color inherits the enemy bar's Fixed/Gradient mode and shared thresholds, with those followed controls visible but disabled. Custom enables its own Fixed/Gradient choice and edits the same shared thresholds. The white label is tinted through `washColor`, matching the bar and legacy rendering path instead of assigning a darker flat `color`.
+
+The stock overlay exposes only `unit_healthbar_pip_label`, so the rewrite owns `hp_counter_anchor` and `hp_counter` panels without changing stock fill geometry. Current/max formats derive maximum HP from the stock pip string and current HP from the existing shield-aware fill ratio; percentage remains available when a maximum cannot be derived. Enemy-disabled, excluded, neutral, ally, unclassified, and bypassed paths collapse and clear the owned counter. Pip-text changes and replacement counter panels invalidate local caches and reapply through the existing scan and paint loops.
+
+The counter anchor is `160%` wide and `1140px` high. A separate in-flow `399px` top extent sits before `InfoHealthContainer`, enlarging `UnitStatus` and the world-panel render surface above the stock bar; the anchor remains centered on the existing healthbar origin.
+
+The focused VM regression covers all formats, shield-aware values, missing pip data, visibility/scope, size, offsets, fixed/gradient colors, team-high/custom color ownership, unchanged-write caching, and replacement replay.
 
 ## Not implemented yet
 
-Coloring, sizing, settings state, persistence, presets, classification, and healthbar rendering remain unimplemented until the Milestone 2 editor smoke passes.
+Settings are session-scoped. Durable persistence, health pips and levels, pulse, kill marker, presets, hero scopes, and Anita compatibility remain unimplemented.
