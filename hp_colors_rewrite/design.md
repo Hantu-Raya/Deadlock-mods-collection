@@ -143,7 +143,7 @@ Color must never be the only state indicator.
 - Keep disabled essential controls visible but dimmed.
 - Collapse disabled advanced dependencies.
 - Pair sliders with bounded numeric fields.
-- Open color swatches into a hue/value popover with hex input, Deadlock semantic swatches, and recent colors.
+- Open color swatches into one shared HSL palette with a modal-routed Hue × Saturation field, a blue-ring selection pointer, one native Lumen slider, a canonical hex readout, and the existing strict hex input.
 - Keep opacity separate and expose it only where the runtime supports it.
 - Show short helper text inline; reserve tooltips for detailed caveats.
 
@@ -177,23 +177,57 @@ Runtime verification must prove that v1 bars remain visible while the custom edi
 
 Use one authoritative current settings snapshot.
 
-1. A healthbar applies the current snapshot once when discovered or replaced.
-2. Opening the editor reads the snapshot once and renders its controls.
-3. A changed control updates the authoritative snapshot and only the affected healthbar property.
-4. Existing bars receive only the changed setting.
-5. Slider and color interactions coalesce persistence at gesture completion.
-6. Closing the editor stops all editor work while applied bars retain their appearance.
+1. The ESC editor owns the versioned session snapshot.
+2. A changed control updates the snapshot and publishes immediately.
+3. An adaptive cached replay (1-second hot, 3-second warm, 8-second idle) feeds late isolated overlays while customization is enabled.
+4. Render caches prevent unchanged inline style writes.
+5. Closing the editor stops editor work while applied bars retain their appearance.
+6. The master bypass clears only code-owned inline styles; it does not delete configured values.
 
-Do not add polling, heartbeats, mouseover resynchronization, bulk refreshes, duplicate stores, or fallback transports.
+Do not add mouseover resynchronization, full-tree refreshes, duplicate authorities, or overlay-to-menu request paths. Replay only the cached serialized snapshot; never rebuild it or touch bars from the publisher.
 
-## First implementation slice
+## Implementation slices
 
-The first slice proves the editor seam without implementing healthbar coloring:
+The first slice proved the editor seam:
 
-1. Add the stock-derived `hud_escape_menu.xml` override.
-2. Add the visible `HP COLORS` entry.
-3. Add the Ritual Stripe shell, category rail, tabs, Peek, and Done controls.
-4. Open and close the shell through one guarded local runtime path.
-5. Do not render setting or Undo controls until they have real state transitions to own.
+1. Stock-derived `hud_escape_menu.xml` override and visible `HP COLORS` entry.
+2. Ritual Stripe shell, category rail, tabs, Peek, Undo, and Done controls.
+3. One guarded local editor lifecycle.
 
-Only after that smoke should settings state and v1 healthbar rendering be added incrementally.
+The second slice adds core functional customization:
+
+1. Session-scoped master, width, height, enemy, ally, mode, color, and threshold controls.
+2. One versioned snapshot, immediate base-to-overlay changes, and adaptive cached replay for late contexts.
+3. Neutral-first relation classification.
+4. Shield-aware health percentage and legacy-compatible low-to-mid/high-to-full gradient interpolation with cached wash-color writes.
+5. Stock restoration when customization is bypassed.
+
+The third slice adds feedback-layer controls without adding another runtime path:
+
+1. Enemy and ally tabs expose healing, recent-damage delta, and bullet-shield colors.
+2. The existing snapshot carries the six colors.
+3. The cached local renderer changes only layer color properties and leaves all engine-driven widths and timing untouched.
+4. Disabled relations, neutral/other roles, and master bypass restore stock inline styling.
+
+The fourth slice adds one reusable HSL color palette:
+
+1. Three native horizontal Panorama `Slider` controls expose Hue `0–359`, Saturation `0–100`, and Lumen `0–100`.
+2. Every slider updates the authoritative snapshot and visible healthbars live.
+3. Each completed slider gesture adds one Undo entry.
+4. One modal popup is reused for every color setting and closes without rollback.
+
+The fifth slice adds target-aware healthbar controls:
+
+1. The existing snapshot carries team-high color, independent building/boss exclusions, X/Y bar position, and ultimate-icon mode/color.
+2. One ancestry classification records relation, team, building, sentry, and boss facts; neutral remains authoritative and unknown teams retain the configured high color.
+3. Position translates only `UnitHealthbarContainer`, preserving stock icon placement and engine-owned fill geometry.
+4. Exclusions clear relation-owned colors while retaining global size and position controls.
+5. Ultimate-icon styling changes only `washColor`; stock image selection and visibility remain engine-owned.
+
+The sixth slice adds the static enemy HP readout:
+
+1. The existing snapshot carries visibility, format, size, direct X/Y offsets, color source, and custom low/mid/high colors.
+2. `unit_status_overlay.xml` owns one non-interactive counter anchor and label outside the engine-owned fill hierarchy.
+3. The local renderer derives current/max HP from cached stock pip text and the existing shield-aware health ratio; percentage can render without a derived maximum.
+4. Bar-derived text follows the final enemy palette, including team-high color. Custom text uses its own three colors while sharing thresholds and Fixed/Gradient behavior.
+5. Bypass, disabled, excluded, neutral, ally, and unclassified paths collapse and clear the owned counter. Late or replaced panels reuse the cached snapshot without another authority or scheduler.

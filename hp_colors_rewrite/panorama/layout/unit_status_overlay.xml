@@ -39,11 +39,12 @@
       </Panel>
     </snippet>
   </snippets>
-  <Panel class="WindowRoot" hittest="false">
+  <Panel class="WindowRoot" hittest="false" style="overflow: noclip;">
     <Label id="name" text="{s:name}" />
-    <Panel id="UnitStatus" hittest="false">
+    <Panel id="UnitStatus" hittest="false" style="overflow: noclip;">
       <CitadelStatusEffect id="StatusEffects" />
-      <Panel id="InfoHealthContainer">
+      <Panel id="hp_counter_top_extent" hittest="false" style="width: 1px; height: 399px; horizontal-align: center;" />
+      <Panel id="InfoHealthContainer" style="overflow: noclip;">
         <Panel id="UnitInfoContainer" />
         <Panel id="UnitHealthbarContainer">
           <Panel id="unit_healthbar_bg">
@@ -59,6 +60,9 @@
             </Panel>
           </Panel>
           <Panel class="healthbar_border" />
+        </Panel>
+        <Panel id="hp_counter_anchor" hittest="false" hittestchildren="false" style="ignore-parent-flow: true; width: 160%; height: 1140px; horizontal-align: center; vertical-align: center; overflow: noclip;">
+          <Label id="hp_counter" text="" hittest="false" style="horizontal-align: center; vertical-align: middle; visibility: collapse; font-size: 145px; color: #FFFFFF; font-weight: bold; font-family: sans; text-align: center; white-space: nowrap; overflow: noclip; text-shadow: 0px 0px 10px 12 #12101880;" />
         </Panel>
       </Panel>
     </Panel>

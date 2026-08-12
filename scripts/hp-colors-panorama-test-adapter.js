@@ -51,13 +51,6 @@ class MockPanel {
     this.visible = options.visible !== undefined ? Boolean(options.visible) : true;
     this.canfocus = Boolean(options.canfocus);
     this.focused = false;
-    this.actualxoffset = options.actualxoffset || 0;
-    this.actualyoffset = options.actualyoffset || 0;
-    this.scrolloffset_x = options.scrolloffset_x || 0;
-    this.scrolloffset_y = options.scrolloffset_y || 0;
-    this.actualuiscale_x = options.actualuiscale_x || 1;
-    this.actualuiscale_y = options.actualuiscale_y || 1;
-    this.sendScrollPositionChangedEvents = false;
     this.actuallayoutwidth = options.actuallayoutwidth === undefined ? 120 : options.actuallayoutwidth;
     this._actualLayoutHeight = options.actuallayoutheight === undefined ? 32 : options.actuallayoutheight;
     this.layoutHeightReads = 0;
@@ -134,21 +127,6 @@ class MockPanel {
   }
   IsValid() { return this.valid; }
   GetParent() { return this.parent; }
-  GetPositionWithinWindow() {
-    let x = 0;
-    let y = 0;
-    for (let panel = this; panel && panel.IsValid(); panel = panel.GetParent()) {
-      x += Number(panel.actualxoffset || 0) - Number(panel.scrolloffset_x || 0);
-      y += Number(panel.actualyoffset || 0) - Number(panel.scrolloffset_y || 0);
-    }
-    return {
-      x: x * this.actualuiscale_x,
-      y: y * this.actualuiscale_y,
-    };
-  }
-  SetSendScrollPositionChangedEvents(enabled) {
-    this.sendScrollPositionChangedEvents = Boolean(enabled);
-  }
   Children() {
     if (this.childReadCounts) {
       const key = this.id || '(anonymous)';
@@ -359,8 +337,6 @@ function createPanoramaHarness(options = {}) {
     childReadCounts: Object.create(null),
     createPanelCount: 0,
     eventSetCounter: { count: 0 },
-    mouseCallback: null,
-    mouseCallbackWrites: 0,
   };
   harness.root = new MockPanel('Root', {
     findCounts: harness.findCounts,
@@ -408,11 +384,6 @@ function createPanoramaHarness(options = {}) {
   };
   harness.GameUI = {
     CustomUIConfig: () => harness.shared,
-    GetCursorPosition: () => (options.cursorPosition || [0, 0]).slice(0),
-    SetMouseCallback: (callback) => {
-      harness.mouseCallback = typeof callback === 'function' ? callback : null;
-      harness.mouseCallbackWrites += 1;
-    },
   };
   if (options.includeGame !== false) {
     let gameState = options.gameState === undefined ? 7 : Number(options.gameState);
@@ -427,8 +398,6 @@ function createPanoramaHarness(options = {}) {
     harness.unregisterCalls.length = 0;
     for (const key of Object.keys(harness.handlers)) delete harness.handlers[key];
     harness.logs.length = 0;
-    harness.mouseCallback = null;
-    harness.mouseCallbackWrites = 0;
     harness.scheduler.jobs.length = 0;
     for (const key of Object.keys(harness.shared)) delete harness.shared[key];
     for (const key of Object.keys(harness.findCounts)) delete harness.findCounts[key];

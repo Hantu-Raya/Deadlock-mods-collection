@@ -295,22 +295,22 @@
 .HPColorsPage {
   width: 100%;
   height: fill-parent-flow(1);
-  padding: 46px 54px;
+  padding: 28px 40px 18px 40px;
   flow-children: down;
 }
 
 .HPColorsPageEyebrow {
   font-family: oracle;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: semi-bold;
   color: #5fe69e;
   letter-spacing: 2px;
 }
 
 .HPColorsPageTitle {
-  margin-top: 8px;
+  margin-top: 5px;
   font-family: block;
-  font-size: 38px;
+  font-size: 30px;
   font-weight: bold;
   color: #ffefd7;
   letter-spacing: 1px;
@@ -319,60 +319,458 @@
 .HPColorsPageRule {
   width: 100%;
   height: 1px;
-  margin-top: 18px;
-  margin-bottom: 22px;
+  margin-top: 12px;
+  margin-bottom: 12px;
   background-color: gradient(linear, 0% 0%, 100% 0%, from(#5fe69e77), color-stop(0.35, #ffefd71f), to(#ffefd700));
 }
 
 .HPColorsPageDescription {
-  width: 650px;
+  width: 100%;
   font-family: sans;
-  font-size: 19px;
-  line-height: 26px;
+  font-size: 16px;
+  line-height: 22px;
   color: #ffefd799;
 }
 
-.HPColorsScopeNotice {
-  width: 650px;
-  min-height: 94px;
-  margin-top: 34px;
-  padding: 18px 20px;
-  flow-children: right;
-  background-color: gradient(linear, 0% 0%, 100% 0%, from(#5fe69e12), to(#5fe69e03));
-  border-left: 2px solid #5fe69e;
-  border-top: 1px solid #ffefd70f;
-  border-right: 1px solid #ffefd70a;
-  border-bottom: 1px solid #ffefd70a;
+.HPColorsSettingsList {
+  width: 100%;
+  height: fill-parent-flow(1);
+  margin-top: 18px;
+  overflow: squish scroll;
 }
 
-.HPColorsScopeMark {
-  width: 8px;
-  height: 8px;
-  margin-top: 6px;
-  margin-right: 16px;
-  border-radius: 50%;
-  background-color: #5fe69e;
-  box-shadow: #5fe69e55 0px 0px 10px 0px;
-}
-
-.HPColorsScopeCopy {
-  width: fill-parent-flow(1);
+.HPColorsSettingsPage {
+  width: 100%;
+  visibility: collapse;
   flow-children: down;
 }
 
-.HPColorsScopeTitle {
+.HPColorsSettingsPage.Active {
+  visibility: visible;
+}
+
+.HPColorsSettingRow {
+  width: 100%;
+  min-height: 72px;
+  padding: 12px 16px;
+  margin-bottom: 5px;
+  flow-children: right;
+  vertical-align: center;
+  background-color: gradient(linear, 0% 0%, 100% 0%, from(#ffefd70a), to(#ffefd703));
+  border-left: 2px solid #ffefd714;
+  border-top: 1px solid #ffefd70a;
+  border-right: 1px solid #ffefd706;
+  border-bottom: 1px solid #ffefd706;
+  transition-property: brightness, border;
+  transition-duration: 0.1s;
+  transition-timing-function: ease-out;
+}
+
+.HPColorsSettingRow:hover {
+  brightness: 1.12;
+  border-left: 2px solid #5fe69e66;
+}
+
+.HPColorsSettingCopy {
+  width: fill-parent-flow(1);
+  vertical-align: center;
+  flow-children: down;
+}
+
+.HPColorsSettingTitle {
   font-family: oracle;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: bold;
-  color: #ffefd7;
+  color: #ffefd7dd;
   letter-spacing: 1px;
 }
 
-.HPColorsScopeDescription {
-  margin-top: 7px;
+.HPColorsSettingHelp {
+  margin-top: 5px;
   font-family: sans;
-  font-size: 17px;
+  font-size: 14px;
+  color: #ffefd766;
+}
+
+.HPColorsToggle {
+  width: 46px;
+  height: 24px;
+  margin-left: 18px;
+  vertical-align: center;
+  background-color: #292e2e;
+  border: 1px solid #ffefd72b;
+  border-radius: 12px;
+  transition-property: background-color, border, brightness;
+  transition-duration: 0.1s;
+  transition-timing-function: ease-out;
+}
+
+.HPColorsToggleKnob {
+  width: 18px;
+  height: 18px;
+  margin-left: 2px;
+  vertical-align: center;
+  background-color: #ffefd799;
+  border-radius: 50%;
+  transition-property: transform, background-color;
+  transition-duration: 0.1s;
+  transition-timing-function: ease-out;
+}
+
+.HPColorsToggle.Checked {
+  background-color: #5fe69e;
+  border: 1px solid #5fe69e;
+}
+
+.HPColorsToggle.Checked .HPColorsToggleKnob {
+  transform: translateX(21px);
+  background-color: #10130d;
+}
+
+.HPColorsToggle:hover,
+.HPColorsToggle:focus {
+  brightness: 1.3;
+}
+
+.HPColorsSegment {
+  height: 36px;
+  margin-left: 18px;
+  vertical-align: center;
+  flow-children: right;
+  border: 1px solid #ffefd71f;
+}
+
+.HPColorsSegmentButton {
+  min-width: 102px;
+  height: 34px;
+  padding: 0px 14px;
+  background-color: #10130d99;
+  border-bottom: 2px solid #5fe69e00;
+}
+
+.HPColorsSegmentButton Label {
+  horizontal-align: center;
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 13px;
+  font-weight: bold;
   color: #ffefd777;
+  letter-spacing: 1px;
+}
+
+.HPColorsSegmentButton.Selected {
+  background-color: #5fe69e1f;
+  border-bottom: 2px solid #5fe69e;
+}
+
+.HPColorsSegmentButton.Selected Label,
+.HPColorsSegmentButton:hover Label {
+  color: #ffefd7;
+}
+
+.HPColorsSliderGroup {
+  width: 320px;
+  height: 38px;
+  margin-left: 18px;
+  vertical-align: center;
+  flow-children: right;
+}
+
+.HPColorsSliderTrackContainer {
+  width: 230px;
+  height: 26px;
+  padding: 0px;
+  vertical-align: center;
+  overflow: noclip;
+}
+
+.HPColorsSlider {
+  width: 100%;
+  height: 12px;
+  vertical-align: center;
+  overflow: noclip;
+}
+
+.HPColorsSlider.HorizontalSlider #SliderTrack {
+  width: 100%;
+  height: 4px;
+  padding: 0px;
+  vertical-align: center;
+  background-color: #23282a;
+  border-radius: 999px;
+}
+
+.HPColorsSlider.HorizontalSlider #SliderTrackProgress {
+  height: 4px;
+  vertical-align: center;
+  background-color: gradient(linear, 0% 0%, 100% 0%, from(#355c46), to(#5fe69e));
+  border-radius: 999px;
+  box-shadow: fill #5fe69e40 0px 0px 6px 0px;
+}
+
+.HPColorsSlider.HorizontalSlider .SliderThumb,
+Slider.HPColorsSlider.HorizontalSlider #SliderThumb {
+  width: 12px;
+  height: 12px;
+  vertical-align: center;
+  background-color: #f2f5f5;
+  border: 1px solid #5fe69e;
+  border-radius: 50%;
+  box-shadow: fill #0000008c 0px 0px 5px 0px;
+  transition-property: box-shadow, pre-transform-scale2d, background-color;
+  transition-duration: 0.16s;
+}
+
+.HPColorsSlider.HorizontalSlider:hover .SliderThumb {
+  box-shadow: fill #5fe69ead 0px 0px 8px 0px;
+}
+
+.HPColorsSlider.HorizontalSlider:active .SliderThumb {
+  background-color: #5fe69e;
+  box-shadow: fill #5fe69eb3 0px 0px 8px 0px;
+  pre-transform-scale2d: 1.15;
+}
+
+.HPColorsNumberEntry,
+.HPColorsHexEntry {
+  height: 34px;
+  vertical-align: center;
+  background-color: #090b09cc;
+  border: 1px solid #ffefd724;
+  color: #ffefd7;
+  font-family: oracle;
+  font-size: 15px;
+  padding: 5px 8px;
+}
+
+.HPColorsNumberEntry {
+  width: 54px;
+  margin-left: 10px;
+  text-align: center;
+}
+
+.HPColorsUnitLabel {
+  margin-left: 5px;
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 13px;
+  color: #ffefd766;
+}
+
+.HPColorsColorRow {
+  flow-children: right;
+}
+
+.HPColorsColorSwatch {
+  width: 42px;
+  height: 34px;
+  margin-left: 18px;
+  vertical-align: center;
+  border: 2px solid #ffefd744;
+  box-shadow: #00000088 0px 3px 8px 0px;
+}
+
+.HPColorsColorSwatch:hover,
+.HPColorsColorSwatch:focus {
+  brightness: 1.25;
+  border: 2px solid #5fe69e;
+}
+
+.HPColorsHexEntry {
+  width: 104px;
+  margin-left: 10px;
+}
+
+.HPColorsGradientRows {
+  width: 100%;
+  visibility: collapse;
+  flow-children: down;
+}
+
+.HPColorsGradientRows.Active {
+  visibility: visible;
+}
+
+.HPColorsConditionalRow {
+  visibility: collapse;
+}
+
+.HPColorsConditionalRow.Active {
+  visibility: visible;
+}
+
+.HPColorsFollowedRow.Disabled {
+  opacity: 0.35;
+}
+
+
+.HPColorsPickerRoot {
+  width: 100%;
+  height: 100%;
+  visibility: collapse;
+  opacity: 0;
+  z-index: 40;
+  transition-property: opacity;
+  transition-duration: 0.1s;
+  transition-timing-function: ease-out;
+}
+
+.HPColorsPickerRoot.Open {
+  visibility: visible;
+  opacity: 1;
+}
+
+.HPColorsPickerBackdrop {
+  width: 100%;
+  height: 100%;
+  background-color: #050605b8;
+  z-index: 0;
+}
+
+.HPColorsPickerPanel {
+  width: 340px;
+  height: 380px;
+  padding: 18px 20px;
+  horizontal-align: center;
+  vertical-align: center;
+  flow-children: down;
+  background-color: gradient(linear, 0% 0%, 100% 100%, from(#20251d), to(#0d100c));
+  border: 1px solid #5fe69e66;
+  box-shadow: #000000cc 0px 14px 38px 0px;
+  z-index: 2;
+}
+
+.HPColorsPickerHeader {
+  width: 100%;
+  height: 58px;
+  flow-children: right;
+  border-bottom: 1px solid #ffefd714;
+}
+
+.HPColorsPickerHeading {
+  flow-children: down;
+}
+
+.HPColorsPickerEyebrow {
+  font-family: oracle;
+  font-size: 11px;
+  font-weight: bold;
+  color: #5fe69e;
+  letter-spacing: 2px;
+}
+
+
+.HPColorsPickerSliderRow {
+  width: 100%;
+  height: 60px;
+  flow-children: right;
+  border-bottom: 1px solid #ffefd70d;
+}
+
+.HPColorsPickerSliderName,
+.HPColorsPickerSliderValue {
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 12px;
+  font-weight: bold;
+  color: #ffefd799;
+}
+
+.HPColorsPickerSliderName {
+  width: 82px;
+  letter-spacing: 1px;
+}
+
+.HPColorsPickerSliderValue {
+  width: 48px;
+  text-align: right;
+  color: #ffefd7;
+}
+
+.HPColorsPickerSliderHost {
+  width: 170px;
+  height: 30px;
+  vertical-align: center;
+  overflow: noclip;
+}
+
+.HPColorsPickerSlider {
+  width: 100%;
+  height: 16px;
+  vertical-align: center;
+  overflow: noclip;
+}
+
+.HPColorsPickerSlider.HorizontalSlider #SliderTrack {
+  width: 100%;
+  height: 8px;
+  padding: 0px;
+  vertical-align: center;
+  background-color: #303532;
+  border: 1px solid #ffefd71f;
+  border-radius: 999px;
+}
+
+
+.HPColorsPickerSlider.HorizontalSlider #SliderTrackProgress {
+  height: 8px;
+  vertical-align: center;
+  background-color: #00000000;
+  box-shadow: none;
+}
+
+.HPColorsPickerSlider.HorizontalSlider .SliderThumb,
+Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
+  width: 15px;
+  height: 15px;
+  vertical-align: center;
+  background-color: #ffefd7;
+  border: 2px solid #10130d;
+  border-radius: 2px;
+  box-shadow: fill #000000cc 0px 0px 5px 0px;
+  transform: rotateZ(45deg);
+  transition-property: border, box-shadow, pre-transform-scale2d, background-color;
+  transition-duration: 0.1s;
+}
+
+.HPColorsPickerSlider.HorizontalSlider:hover .SliderThumb,
+.HPColorsPickerSlider.HorizontalSlider:focus .SliderThumb,
+.HPColorsPickerSlider.HorizontalSlider:active .SliderThumb {
+  border: 2px solid #5fe69e;
+  box-shadow: fill #5fe69eb3 0px 0px 8px 0px;
+  pre-transform-scale2d: 1.18;
+}
+
+.HPColorsPickerHelp {
+  width: 100%;
+  margin-top: 10px;
+  font-family: sans;
+  font-size: 12px;
+  line-height: 16px;
+  color: #ffefd766;
+}
+
+.HPColorsPickerDone {
+  width: 100%;
+  height: 38px;
+  margin-top: 11px;
+  background-color: #5fe69e;
+  border: 1px solid #5fe69e;
+}
+
+.HPColorsPickerDone:hover,
+.HPColorsPickerDone:focus {
+  brightness: 1.2;
+}
+
+.HPColorsPickerDone Label {
+  horizontal-align: center;
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 14px;
+  font-weight: bold;
+  color: #10130d;
+  letter-spacing: 1px;
 }
 
 .HPColorsEditorFooter {
@@ -429,6 +827,10 @@
 
 .HPColorsSecondaryAction Label {
   color: #ffefd7;
+}
+
+.HPColorsSecondaryAction.Disabled {
+  opacity: 0.35;
 }
 
 .HPColorsPrimaryAction Label {
