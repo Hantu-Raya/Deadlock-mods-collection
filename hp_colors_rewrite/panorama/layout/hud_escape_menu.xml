@@ -455,16 +455,9 @@
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">
                       <Label text="PRECISE PIP CALCULATION" class="HPColorsSettingTitle" />
-                      <Label text="Assume the known 10-HP minor-pip profile when deriving maximum HP for the owned readout." class="HPColorsSettingHelp" />
+                      <Label text="Interpret minor pip marks as 10 HP when deriving the owned HP readout. Requires the documented game configuration." class="HPColorsSettingHelp" />
                     </Panel>
                     <Button id="HPColorsPrecisePipsToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
-                  </Panel>
-                  <Panel class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy">
-                      <Label text="PRECISE-PIP COMMANDS" class="HPColorsSettingTitle" />
-                      <Label text="Copies the 10-HP profile when enabled or stock reset values when disabled. This panel cannot apply or verify them." class="HPColorsSettingHelp" />
-                    </Panel>
-                    <Button id="HPColorsPrecisePipsCopy" class="HPColorsSecondaryAction"><Label id="HPColorsPrecisePipsCopyLabel" text="COPY COMMANDS" /></Button>
                   </Panel>
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">
@@ -598,9 +591,37 @@
               </Button>
               <Button id="HPColorsUndoButton" class="HPColorsSecondaryAction Disabled"><Label text="UNDO" /></Button>
               <Button id="HPColorsResetSectionButton" class="HPColorsSecondaryAction"><Label text="RESET SECTION" /></Button>
+              <Button id="HPColorsTransferButton" class="HPColorsSecondaryAction"><Label text="IMPORT / EXPORT" /></Button>
               <Panel class="HPColorsFooterSpacer" />
               <Button id="HPColorsDoneButton" class="HPColorsPrimaryAction"><Label text="DONE" /></Button>
             </Panel>
+          </Panel>
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsTransferDialog" class="HPColorsTransferDialog" hittest="false" hittestchildren="true">
+        <Panel class="HPColorsTransferDialogBackdrop" hittest="false" />
+        <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">
+          <Label class="HPColorsTransferDialogEyebrow" text="REWRITE-NATIVE SETTINGS" />
+          <Label class="HPColorsTransferDialogTitle" text="IMPORT / EXPORT" />
+          <Label class="HPColorsTransferDialogMessage" text="Copy a compact one-line settings code, or import directly from the clipboard. If automatic paste is unavailable, paste the code below and apply it." />
+          <TextEntry id="HPColorsTransferInput" class="HPColorsTransferInput" multiline="false" maxchars="4096" placeholder="Paste HPCR2 settings code" />
+          <Label id="HPColorsTransferFeedback" class="HPColorsTransferFeedback" text="" />
+          <Panel class="HPColorsTransferDialogActions">
+            <Button id="HPColorsTransferExportButton" class="HPColorsPrimaryAction"><Label text="COPY CURRENT" /></Button>
+            <Button id="HPColorsTransferImportButton" class="HPColorsPrimaryAction"><Label text="IMPORT &amp; APPLY" /></Button>
+            <Button id="HPColorsTransferCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
+          </Panel>
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsPrecisePipsDialog" class="HPColorsPrecisePipsDialog" hittest="false" hittestchildren="true">
+        <Panel class="HPColorsPrecisePipsDialogBackdrop" hittest="false" />
+        <Panel class="HPColorsPrecisePipsDialogPanel" hittest="true" hittestchildren="true">
+          <Label id="HPColorsPrecisePipsDialogTitle" class="HPColorsPrecisePipsDialogTitle" text="ENABLE PRECISE PIPS" />
+          <Label id="HPColorsPrecisePipsDialogMessage" class="HPColorsPrecisePipsDialogMessage" text="" />
+          <Label id="HPColorsPrecisePipsDialogCommands" class="HPColorsPrecisePipsDialogCommands" text="" />
+          <Panel class="HPColorsPrecisePipsDialogActions">
+            <Button id="HPColorsPrecisePipsCopyButton" class="HPColorsPrimaryAction"><Label id="HPColorsPrecisePipsCopyLabel" text="COPY" /></Button>
+            <Button id="HPColorsPrecisePipsCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
           </Panel>
         </Panel>
       </Panel>

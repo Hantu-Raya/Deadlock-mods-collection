@@ -145,11 +145,10 @@ test('level tiers activate on exact lower boundaries', () => {
   }
 });
 
-
-test('precise pip mode invalidates maximum-health parsing', () => {
+test('precise pip calculation switches minor marks from 100 HP to 10 HP', () => {
   const probe = bootProbe(['enemy', 'player', 'team1'], {
     barWidth: 50,
-    pipText: '\"\'|',
+    pipText: '""|',
   });
   publishConfig(probe.harness, 1, {
     enabled: true,
@@ -171,6 +170,8 @@ test('precise pip mode invalidates maximum-health parsing', () => {
   });
   assert.equal(probe.tree.counter.text, '15 / 30');
 });
+
+
 test('stable scan and paint do not repeat panel writes', () => {
   const probe = bootProbe(['enemy', 'player', 'team1'], { barWidth: 50 });
   publishConfig(probe.harness, 1, {
@@ -889,10 +890,6 @@ test('editor, overlay, and CSS expose the focused feature contract', () => {
   assert.match(hudLayoutSource, /id="HPColorsSettingsReadoutLevels"/);
   assert.match(hudLayoutSource, /id="HPColorsSettingsEnemyPulse"/);
   assert.match(hudLayoutSource, /id="HPColorsSettingsAllyPulse"/);
-  assert.match(hudLayoutSource, /cannot apply or verify them/);
-  assert.match(menuSource, /citadel_unit_status_health_per_minor_pip/);
-  assert.match(menuSource, /citadel_unit_status_health_per_pip/);
-  assert.match(menuSource, /citadel_unit_status_minor_pip_per_major_pip/);
   assert.equal(
     (overlayLayoutSource.match(/id="LevelContainer"/g) || []).length,
     1,

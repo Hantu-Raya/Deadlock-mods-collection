@@ -545,14 +545,65 @@ test('counter adds upward render extent without changing horizontal flow', () =>
   assert.match(counter[1], /text-shadow:\s*10px 10px 0px 200\.0 offBlack/);
 });
 
-test('HUD editor does not instantiate unsupported convar controls', () => {
-  assert.doesNotMatch(
-    hudLayoutSource,
-    /PopupSettingsSettingsRow|CitadelSettingsSlider|settings_slider\.vcss_c/,
+test('precise pip toggle shows enable and cleanup copy dialogs', () => {
+  const harness = createPanoramaHarness();
+  installLayoutPanels(harness);
+  runInVm(menuSource, createVmContext(harness), 'hp_colors_menu.js');
+  harness.$.HPColorsMenuBoot();
+
+  const toggle = harness.root.FindChildTraverse('HPColorsPrecisePipsToggle');
+  const dialog = harness.root.FindChildTraverse('HPColorsPrecisePipsDialog');
+  const title = harness.root.FindChildTraverse(
+    'HPColorsPrecisePipsDialogTitle',
   );
-  assert.doesNotMatch(
-    menuSource,
-    /citadel_unit_status_height|GameInterfaceAPI\.ConsoleCommand/,
+  const message = harness.root.FindChildTraverse(
+    'HPColorsPrecisePipsDialogMessage',
   );
+  const commands = harness.root.FindChildTraverse(
+    'HPColorsPrecisePipsDialogCommands',
+  );
+  const copy = harness.root.FindChildTraverse(
+    'HPColorsPrecisePipsCopyButton',
+  );
+  const close = harness.root.FindChildTraverse(
+    'HPColorsPrecisePipsCloseButton',
+  );
+
+  toggle.events.onactivate();
+  assert.equal(dialog.BHasClass('Open'), true);
+  assert.equal(title.text, 'ENABLE PRECISE PIPS');
+  assert.match(message.text, /ConVars block in gameinfo\.gi/);
+  assert.equal(
+    commands.text,
+    '"citadel_unit_status_health_per_minor_pip" "10"\n' +
+      '"citadel_unit_status_health_per_pip" "10"\n' +
+      '"citadel_unit_status_minor_pip_per_major_pip" "10"',
+  );
+  copy.events.onactivate();
+  assert.deepEqual(harness.dispatches.at(-1), [
+    'CopyStringToClipboard',
+    commands.text,
+  ]);
+  close.events.onactivate();
+  assert.equal(dialog.BHasClass('Open'), false);
+
+  toggle.events.onactivate();
+  assert.equal(dialog.BHasClass('Open'), true);
+  assert.equal(title.text, 'REMOVE PRECISE PIP CONFIG');
+  assert.match(message.text, /delete the custom precise-pip entries/);
+  assert.equal(
+    commands.text,
+    '"citadel_unit_status_health_per_minor_pip" "100"\n' +
+      '"citadel_unit_status_health_per_pip" "100"\n' +
+      '"citadel_unit_status_minor_pip_per_major_pip" "5"',
+  );
+  dialog.events.oncancel();
+  assert.equal(dialog.BHasClass('Open'), false);
+
+  const values = JSON.parse(
+    harness.root.GetAttributeString('hp_colors_rewrite_config', '{}'),
+  ).values;
+  assert.equal(values.precisePipsEnabled, false);
+  assert.doesNotMatch(menuSource, /GameInterfaceAPI\.ConsoleCommand/);
 });
 

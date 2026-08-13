@@ -4,7 +4,7 @@
 
 Add an obvious, Deadlock-native ESC-menu entry for configuring the v1 healthbar. The editor changes visible healthbars live, persists only real setting changes, and performs no continuous synchronization.
 
-This design covers the v1 editor only. It excludes presets, import/export, Anita UI compatibility, and v2 healthbars.
+This design covers the v1 editor only. It excludes presets, Anita UI compatibility, and v2 healthbars. Rewrite-native live settings import/export uses a focused editor modal and the existing canonical snapshot.
 
 ## Entry point
 
@@ -114,7 +114,6 @@ Color must never be the only state indicator.
 
 - Level visibility.
 - Pip visibility.
-- Precise-pip behavior.
 
 #### Placement
 

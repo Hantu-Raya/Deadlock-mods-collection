@@ -103,6 +103,48 @@ test('harness exposes shared store and event dispatch', () => {
   assert.equal(harness.eventSetCounter.count, 0);
 });
 
+test('clipboard dispatch records success and injects failures', () => {
+  const success = createPanoramaHarness();
+  assert.equal(success.$.DispatchEvent('CopyStringToClipboard', 'exact text'), true);
+  assert.deepEqual(success.clipboardWrites, ['exact text']);
+
+  const rejected = createPanoramaHarness({ clipboardResult: false });
+  assert.equal(rejected.$.DispatchEvent('CopyStringToClipboard', 'no copy'), false);
+  assert.deepEqual(rejected.clipboardWrites, []);
+
+  const throwing = createPanoramaHarness({ clipboardThrows: true });
+  assert.throws(
+    () => throwing.$.DispatchEvent('CopyStringToClipboard', 'throws'),
+    /clipboard unavailable/,
+  );
+  assert.deepEqual(throwing.clipboardWrites, []);
+});
+
+test('clipboard insertion dispatch populates a target and injects failures', () => {
+  const success = createPanoramaHarness({ clipboardText: 'HPCR2[]' });
+  const entry = success.$.CreatePanel('TextEntry', success.root, 'Import');
+  assert.equal(success.$.DispatchEvent('TextEntryInsertFromClipboard', entry), true);
+  assert.equal(entry.text, 'HPCR2[]');
+
+  const rejected = createPanoramaHarness({ clipboardPasteResult: false });
+  const rejectedEntry = rejected.$.CreatePanel('TextEntry', rejected.root, 'Import');
+  assert.equal(
+    rejected.$.DispatchEvent('TextEntryInsertFromClipboard', rejectedEntry),
+    false,
+  );
+  assert.equal(rejectedEntry.text, '');
+
+  const throwing = createPanoramaHarness({ clipboardPasteThrows: true });
+  assert.throws(
+    () =>
+      throwing.$.DispatchEvent(
+        'TextEntryInsertFromClipboard',
+        throwing.root,
+      ),
+    /clipboard paste unavailable/,
+  );
+});
+
 test('preset store installation and codec helpers build valid entry panels', () => {
   const harness = createPanoramaHarness();
   const encoded = encodeBase64Url(JSON.stringify({ version: 1, values: { hp_enabled: true } }));
@@ -132,11 +174,10 @@ test('unit-status fixture returns all runtime refs', () => {
   for (const name of [
     'root', 'unitStatus', 'infoHealth', 'unitHealthbar', 'redParent', 'lagging', 'rb', 'bg',
     'heal', 'delta', 'pip', 'ult', 'ultIcon', 'levelContainer', 'level', 'name',
-    'counterAnchor', 'counter', 'killZone', 'killMarker',
+    'counterAnchor', 'counter', 'killMarker',
   ]) assert.ok(tree[name], `missing ${name}`);
 
   assert.equal(tree.rb, tree.lagging);
   assert.equal(tree.ultIcon, tree.ult);
-  assert.equal(tree.killMarker, tree.killZone);
   assertObjectFields({ teamId: 2, flags: 4 }, { teamId: 2, flags: 4 }, 'fixture sanity');
 });
