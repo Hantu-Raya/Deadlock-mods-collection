@@ -3,16 +3,16 @@
 
   var CONFIG_ATTR = "hp_colors_rewrite_config";
   var EVENT_CHANNEL = "ClientUI_FireOutput";
-  var PIP_CONVAR_ENABLE_COMMAND =
+  var CONFIG_MAGIC = "HP_COLORS_REWRITE_CONFIG";
+  var HISTORY_LIMIT = 40;
+  var PRECISE_PIPS_ENABLE_TEXT =
     '"citadel_unit_status_health_per_minor_pip" "10"\n' +
     '"citadel_unit_status_health_per_pip" "10"\n' +
     '"citadel_unit_status_minor_pip_per_major_pip" "10"';
-  var PIP_CONVAR_RESET_COMMAND =
+  var PRECISE_PIPS_RESET_TEXT =
     '"citadel_unit_status_health_per_minor_pip" "100"\n' +
     '"citadel_unit_status_health_per_pip" "100"\n' +
     '"citadel_unit_status_minor_pip_per_major_pip" "5"';
-  var CONFIG_MAGIC = "HP_COLORS_REWRITE_CONFIG";
-  var HISTORY_LIMIT = 40;
   var REPLAY_HOT_SEC = 1;
   var REPLAY_WARM_SEC = 3;
   var REPLAY_IDLE_SEC = 8;
@@ -88,6 +88,11 @@
     enemyKillMarkerWidth: 3,
     enemyKillMarkerColor: "#FF2222",
   };
+  var DEFAULT_KEYS = [];
+  for (var defaultKey in DEFAULTS) {
+    if (Object.prototype.hasOwnProperty.call(DEFAULTS, defaultKey))
+      DEFAULT_KEYS.push(defaultKey);
+  }
 
   var CATEGORY_DEFS = [
     {
@@ -312,6 +317,7 @@
     enemyPulseColorEnabled: true,
     enemyPulseHideBar: true,
     enemyPulseReadout: true,
+    enemyPulseReadoutModifiers: true,
     allyPulseEnabled: true,
     allyPulseColorEnabled: true,
   };
@@ -387,6 +393,14 @@
     tabButtons: [],
     tabLabels: [],
     settingsPages: [],
+    precisePipsToggle: null,
+    precisePipsDialog: null,
+    precisePipsDialogTitle: null,
+    precisePipsDialogMessage: null,
+    precisePipsDialogCommands: null,
+    precisePipsCopyLabel: null,
+    precisePipsCopyButton: null,
+    precisePipsCloseButton: null,
     enemyKillMarkerToggle: null,
     enemyKillMarkerThresholdRow: null,
     enemyKillMarkerThresholdSlider: null,
@@ -481,39 +495,240 @@
       if (panel.SetFocus) panel.SetFocus();
     } catch (error) {}
   }
-
-  function copyTextToClipboard(text) {
-    var value = String(text || "");
-    if (!value) return false;
-    var panel = $.GetContextPanel();
-    var attempts = [
-      ["CopyStringToClipboard", value],
-      ["CopyStringToClipboard", value, panel],
-      ["CopyToClipboard", value, panel],
-      ["CopyToClipboard", value],
-    ];
-    for (var index = 0; index < attempts.length; index++) {
-      try {
-        $.DispatchEvent.apply($, attempts[index]);
-        return true;
-      } catch (error) {}
-    }
-    return false;
+  function closePrecisePipsDialog() {
+    setClass(ui.precisePipsDialog, "Open", false);
+    focus(ui.precisePipsToggle);
   }
 
-  function copyPrecisePipCommands() {
-    var label = find("HPColorsPrecisePipsCopyLabel");
-    var copied = copyTextToClipboard(
-      state.values.precisePipsEnabled
-        ? PIP_CONVAR_ENABLE_COMMAND
-        : PIP_CONVAR_RESET_COMMAND,
+  function openPrecisePipsDialog(enabled) {
+    setText(
+      ui.precisePipsDialogTitle,
+      enabled ? "ENABLE PRECISE PIPS" : "REMOVE PRECISE PIP CONFIG",
     );
-    if (isValid(label)) label.text = copied ? "COPIED" : "COPY FAILED";
+    setText(
+      ui.precisePipsDialogMessage,
+      enabled
+        ? "Copy these lines into the ConVars block in gameinfo.gi. HP Colors cannot apply or verify this game configuration."
+        : "If you do not plan to use precise pips, copy these default lines into the ConVars block in gameinfo.gi, or delete the custom precise-pip entries.",
+    );
+    setText(
+      ui.precisePipsDialogCommands,
+      enabled ? PRECISE_PIPS_ENABLE_TEXT : PRECISE_PIPS_RESET_TEXT,
+    );
+    setText(ui.precisePipsCopyLabel, "COPY");
+    setClass(ui.precisePipsDialog, "Open", true);
+    focus(ui.precisePipsDialog);
+  }
+
+  function copyPrecisePipsText() {
+    var text = state.values.precisePipsEnabled
+      ? PRECISE_PIPS_ENABLE_TEXT
+      : PRECISE_PIPS_RESET_TEXT;
+    var copied = false;
     try {
-      $.Schedule(1.25, function () {
-        if (isValid(label)) label.text = "COPY COMMANDS";
-      });
+      copied = $.DispatchEvent("CopyStringToClipboard", text) !== false;
     } catch (error) {}
+    setText(ui.precisePipsCopyLabel, copied ? "COPIED" : "COPY FAILED");
+  }
+
+  function togglePrecisePips() {
+    if (syncingControls) return;
+    var enabled = !state.values.precisePipsEnabled;
+    commitValue("precisePipsEnabled", enabled, true);
+    openPrecisePipsDialog(enabled);
+  }
+  function setTransferFeedback(message, isError) {
+    setText(ui.transferFeedback, message);
+    setClass(ui.transferDialog, "Error", !!isError);
+  }
+
+  function serializeSettingsExport() {
+    var pairs = [];
+    for (var index = 0; index < DEFAULT_KEYS.length; index++) {
+      var key = DEFAULT_KEYS[index];
+      if (state.values[key] !== DEFAULTS[key])
+        pairs.push([index, state.values[key]]);
+    }
+    return "HPCR2" + JSON.stringify(pairs);
+  }
+
+  function closeTransferDialog() {
+    if (!isValid(ui.transferDialog) || !ui.transferDialog.BHasClass("Open"))
+      return;
+    setClass(ui.transferDialog, "Open", false);
+    setClass(ui.transferDialog, "Error", false);
+    setText(ui.transferInput, "");
+    focus(ui.transferButton);
+  }
+
+  function copyCurrentSettings() {
+    var code = serializeSettingsExport();
+    var copied = false;
+    setText(ui.transferInput, code);
+    try {
+      focus(ui.transferInput);
+      if (typeof ui.transferInput.SelectAll === "function")
+        ui.transferInput.SelectAll();
+      copied =
+        $.DispatchEvent("TextEntryCopyToClipboard", ui.transferInput) !== false;
+    } catch (textEntryError) {}
+    if (!copied) {
+      try {
+        copied = $.DispatchEvent("CopyStringToClipboard", code) !== false;
+      } catch (stringError) {}
+    }
+    setText(ui.transferInput, "");
+    setTransferFeedback(
+      copied
+        ? "CURRENT SETTINGS COPIED"
+        : "COPY FAILED — SETTINGS CODE NOT COPIED",
+      !copied,
+    );
+    return copied;
+  }
+
+  function openTransferDialog() {
+    closePicker();
+    closePrecisePipsDialog();
+    setText(ui.transferInput, "");
+    setClass(ui.transferDialog, "Open", true);
+    setTransferFeedback(
+      "READY — CHOOSE COPY CURRENT OR IMPORT & APPLY",
+      false,
+    );
+    focus(ui.transferInput);
+  }
+
+  function validateImportedValues(values) {
+    var enumValues = {
+      enemyMode: { fixed: true, gradient: true },
+      allyMode: { fixed: true, gradient: true },
+      readoutMode: { fixed: true, gradient: true },
+      enemyPulseColorMode: { fixed: true, gradient: true },
+      ultMode: { follow: true, custom: true },
+      readoutFormat: { hp: true, percent: true, current: true },
+      readoutColorMode: { bar: true, custom: true },
+      readoutFont: { default: true, oracle: true, pulp: true },
+    };
+    for (var key in values) {
+      if (
+        !Object.prototype.hasOwnProperty.call(values, key) ||
+        !Object.prototype.hasOwnProperty.call(DEFAULTS, key)
+      )
+        continue;
+      var value = values[key];
+      if (BOOLEAN_KEYS[key] && typeof value !== "boolean")
+        return "INVALID SETTING: " + key;
+      if (
+        COLOR_KEYS[key] &&
+        (typeof value !== "string" || !normalizeColor(value, ""))
+      )
+        return "INVALID SETTING: " + key;
+      if (enumValues[key] && !enumValues[key][value])
+        return "INVALID SETTING: " + key;
+      if (
+        typeof DEFAULTS[key] === "number" &&
+        (typeof value !== "number" || !isFinite(value))
+      )
+        return "INVALID SETTING: " + key;
+    }
+    return "";
+  }
+
+  function parseSettingsImport(raw) {
+    var text = String(raw || "").trim();
+    if (text.slice(0, 5) !== "HPCR2")
+      return { error: "NOT AN HPCR2 SETTINGS CODE" };
+    var pairs = null;
+    try {
+      pairs = JSON.parse(text.slice(5));
+    } catch (error) {
+      return { error: "INVALID HPCR2 CODE" };
+    }
+    if (!Array.isArray(pairs)) return { error: "INVALID HPCR2 PAIRS" };
+    var values = {};
+    var seen = {};
+    for (var pairIndex = 0; pairIndex < pairs.length; pairIndex++) {
+      var pair = pairs[pairIndex];
+      if (
+        !Array.isArray(pair) ||
+        pair.length !== 2 ||
+        typeof pair[0] !== "number" ||
+        !isFinite(pair[0]) ||
+        Math.floor(pair[0]) !== pair[0] ||
+        pair[0] < 0
+      )
+        return { error: "INVALID HPCR2 PAIR" };
+      var index = pair[0];
+      if (seen[index]) return { error: "DUPLICATE HPCR2 SETTING" };
+      seen[index] = true;
+      if (index >= DEFAULT_KEYS.length)
+        return { error: "UNKNOWN HPCR2 SETTING" };
+      values[DEFAULT_KEYS[index]] = pair[1];
+    }
+    var valueError = validateImportedValues(values);
+    if (valueError) return { error: valueError };
+    return { values: values };
+  }
+
+  function applyImportedText(raw, pasted) {
+    var parsed = parseSettingsImport(raw);
+    if (parsed.error) {
+      setTransferFeedback(parsed.error, true);
+      return;
+    }
+    if (!replaceValues(parsed.values, true)) {
+      setTransferFeedback("SETTINGS ALREADY MATCH", false);
+      return;
+    }
+    setText(ui.transferInput, "");
+    setTransferFeedback(
+      pasted ? "PASTED AND APPLIED" : "IMPORTED AND APPLIED",
+      false,
+    );
+  }
+
+  function showManualPasteFallback() {
+    setTransferFeedback(
+      "CLIPBOARD PASTE UNAVAILABLE — PASTE CODE MANUALLY",
+      true,
+    );
+    focus(ui.transferInput);
+  }
+
+  function importLiveSettings() {
+    var manual = String(ui.transferInput.text || "").trim();
+    if (manual) {
+      applyImportedText(manual, false);
+      return;
+    }
+    var requested = false;
+    try {
+      requested =
+        $.DispatchEvent("TextEntryInsertFromClipboard", ui.transferInput) !==
+        false;
+    } catch (error) {}
+    if (!requested) {
+      showManualPasteFallback();
+      return;
+    }
+    var inserted = String(ui.transferInput.text || "").trim();
+    if (inserted) {
+      applyImportedText(inserted, true);
+      return;
+    }
+    try {
+      $.Schedule(0.05, function () {
+        var pasted = String(ui.transferInput.text || "").trim();
+        if (!pasted) {
+          showManualPasteFallback();
+          return;
+        }
+        applyImportedText(pasted, true);
+      });
+    } catch (error) {
+      showManualPasteFallback();
+    }
   }
 
   function clampNumber(value, min, max, fallback) {
@@ -843,11 +1058,13 @@
   function replaceValues(values, recordHistory) {
     var next = normalizeValues(values);
     var nextRaw = JSON.stringify(next);
-    if (nextRaw === valuesRaw()) return;
-    if (recordHistory !== false) pushHistory(valuesRaw());
+    var currentRaw = valuesRaw();
+    if (nextRaw === currentRaw) return false;
+    if (recordHistory !== false) pushHistory(currentRaw);
     state.values = next;
     publish("*");
     syncControls();
+    return true;
   }
 
   function undo() {
@@ -1126,10 +1343,7 @@
     setToggle("HPColorsExcludeBossesToggle", state.values.excludeBosses);
     setToggle("HPColorsReadoutToggle", state.values.readoutVisible);
     setToggle("HPColorsPipsVisibleToggle", state.values.pipsVisible);
-    setToggle(
-      "HPColorsPrecisePipsToggle",
-      state.values.precisePipsEnabled,
-    );
+    setToggle("HPColorsPrecisePipsToggle", state.values.precisePipsEnabled);
     setToggle("HPColorsLevelsVisibleToggle", state.values.levelsVisible);
     setClass(
       ui.enemyKillMarkerToggle,
@@ -1716,6 +1930,7 @@
 
   function closeEditor() {
     if (!state.open) return;
+    closeTransferDialog();
     closePicker();
     endPeek();
     state.open = false;
@@ -1741,6 +1956,20 @@
   }
 
   function cancel() {
+    if (
+      isValid(ui.transferDialog) &&
+      ui.transferDialog.BHasClass("Open")
+    ) {
+      closeTransferDialog();
+      return;
+    }
+    if (
+      isValid(ui.precisePipsDialog) &&
+      ui.precisePipsDialog.BHasClass("Open")
+    ) {
+      closePrecisePipsDialog();
+      return;
+    }
     if (picker.key) {
       closePicker();
       return;
@@ -1773,6 +2002,13 @@
     ui.doneButton = find("HPColorsDoneButton");
     ui.undoButton = find("HPColorsUndoButton");
     ui.resetButton = find("HPColorsResetSectionButton");
+    ui.transferButton = find("HPColorsTransferButton");
+    ui.transferDialog = find("HPColorsTransferDialog");
+    ui.transferInput = find("HPColorsTransferInput");
+    ui.transferFeedback = find("HPColorsTransferFeedback");
+    ui.transferExportButton = find("HPColorsTransferExportButton");
+    ui.transferImportButton = find("HPColorsTransferImportButton");
+    ui.transferCloseButton = find("HPColorsTransferCloseButton");
     ui.headerCategory = find("HPColorsHeaderCategory");
     ui.pageEyebrow = find("HPColorsPageEyebrow");
     ui.pageTitle = find("HPColorsPageTitle");
@@ -1790,6 +2026,14 @@
     ui.pickerHueHost = find("HPColorsPickerHueSliderHost");
     ui.pickerSaturationHost = find("HPColorsPickerSaturationSliderHost");
     ui.pickerLumenHost = find("HPColorsPickerLumenSliderHost");
+    ui.precisePipsToggle = find("HPColorsPrecisePipsToggle");
+    ui.precisePipsDialog = find("HPColorsPrecisePipsDialog");
+    ui.precisePipsDialogTitle = find("HPColorsPrecisePipsDialogTitle");
+    ui.precisePipsDialogMessage = find("HPColorsPrecisePipsDialogMessage");
+    ui.precisePipsDialogCommands = find("HPColorsPrecisePipsDialogCommands");
+    ui.precisePipsCopyLabel = find("HPColorsPrecisePipsCopyLabel");
+    ui.precisePipsCopyButton = find("HPColorsPrecisePipsCopyButton");
+    ui.precisePipsCloseButton = find("HPColorsPrecisePipsCloseButton");
     ui.enemyKillMarkerToggle = find("HPColorsEnemyKillMarkerToggle");
     ui.enemyKillMarkerThresholdRow = find("HPColorsEnemyKillMarkerThresholdRow");
     ui.enemyKillMarkerThresholdSlider = find(
@@ -1846,10 +2090,25 @@
       isValid(ui.doneButton) &&
       isValid(ui.undoButton) &&
       isValid(ui.resetButton) &&
+      isValid(ui.transferButton) &&
+      isValid(ui.transferDialog) &&
+      isValid(ui.transferInput) &&
+      isValid(ui.transferFeedback) &&
+      isValid(ui.transferExportButton) &&
+      isValid(ui.transferImportButton) &&
+      isValid(ui.transferCloseButton) &&
       isValid(ui.headerCategory) &&
       isValid(ui.pageEyebrow) &&
       isValid(ui.pageTitle) &&
       isValid(ui.pageDescription) &&
+      isValid(ui.precisePipsToggle) &&
+      isValid(ui.precisePipsDialog) &&
+      isValid(ui.precisePipsDialogTitle) &&
+      isValid(ui.precisePipsDialogMessage) &&
+      isValid(ui.precisePipsDialogCommands) &&
+      isValid(ui.precisePipsCopyLabel) &&
+      isValid(ui.precisePipsCopyButton) &&
+      isValid(ui.precisePipsCloseButton) &&
       isValid(ui.pickerRoot) &&
       isValid(ui.pickerPanel) &&
       isValid(ui.pickerBackdrop) &&
@@ -2087,16 +2346,11 @@
     bindMode("HPColorsUltModeCustom", "ultMode", "custom");
     bindToggle("HPColorsReadoutToggle", "readoutVisible");
     bindToggle("HPColorsPipsVisibleToggle", "pipsVisible");
-    bindToggle("HPColorsPrecisePipsToggle", "precisePipsEnabled");
+    setPanelEvent(ui.precisePipsToggle, "onactivate", togglePrecisePips);
     bindToggle("HPColorsLevelsVisibleToggle", "levelsVisible");
     bindToggle(
       "HPColorsEnemyKillMarkerToggle",
       "enemyKillMarkerEnabled",
-    );
-    setPanelEvent(
-      find("HPColorsPrecisePipsCopy"),
-      "onactivate",
-      copyPrecisePipCommands,
     );
     bindToggle("HPColorsEnemyPulseToggle", "enemyPulseEnabled");
     bindToggle("HPColorsEnemyPulseColorToggle", "enemyPulseColorEnabled");
@@ -2336,6 +2590,8 @@
   }
 
 
+
+
   function boot() {
     if (state.booted) return;
     if (!resolvePanels()) {
@@ -2352,6 +2608,11 @@
     setPanelEvent(ui.doneButton, "onactivate", closeEditor);
     setPanelEvent(ui.undoButton, "onactivate", undo);
     setPanelEvent(ui.resetButton, "onactivate", resetSection);
+    setPanelEvent(ui.transferButton, "onactivate", openTransferDialog);
+    setPanelEvent(ui.transferExportButton, "onactivate", copyCurrentSettings);
+    setPanelEvent(ui.transferImportButton, "onactivate", importLiveSettings);
+    setPanelEvent(ui.transferCloseButton, "onactivate", closeTransferDialog);
+    setPanelEvent(ui.transferDialog, "oncancel", closeTransferDialog);
     setPanelEvent(ui.peekButton, "onmousedown", beginPeek);
     setPanelEvent(ui.peekButton, "onmouseup", endPeek);
     setPanelEvent(ui.peekCapture, "onactivate", endPeek);
@@ -2363,6 +2624,9 @@
       bindTab(tabIndex);
     bindControls();
     bindPickerControls();
+    setPanelEvent(ui.precisePipsCopyButton, "onactivate", copyPrecisePipsText);
+    setPanelEvent(ui.precisePipsCloseButton, "onactivate", closePrecisePipsDialog);
+    setPanelEvent(ui.precisePipsDialog, "oncancel", closePrecisePipsDialog);
 
     state.booted = true;
     if (!loadRootSnapshot()) {

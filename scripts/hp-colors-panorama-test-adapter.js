@@ -253,6 +253,7 @@ class MockPanel {
   }
   SetDisableFocusOnMouseDown() {}
   SetFocus() { this.focused = true; }
+  SelectAll() { this.allSelected = true; }
   AddOption(panel) {
     if (!panel) return;
     if (!this.options.includes(panel)) this.options.push(panel);
@@ -413,6 +414,8 @@ function createPanoramaHarness(options = {}) {
     unregisterCalls: [],
     nextHandlerId: 1,
     logs: [],
+    clipboardWrites: [],
+    clipboardText: String(options.clipboardText || ''),
     scheduler: null,
     $: null,
     GameUI: null,
@@ -479,7 +482,26 @@ function createPanoramaHarness(options = {}) {
       harness.handlerEntries.push({ channel: eventName, eventName, panel, fn: handler, handler });
       if (panel && typeof panel.SetPanelEvent === 'function') panel.SetPanelEvent(eventName, handler);
     },
-    DispatchEvent: (...args) => { harness.dispatches.push(args); return true; },
+    DispatchEvent: (...args) => {
+      harness.dispatches.push(args);
+      if (args[0] === 'CopyStringToClipboard') {
+        if (options.clipboardThrows) throw new Error('clipboard unavailable');
+        if (options.clipboardResult === false) return false;
+        harness.clipboardWrites.push(String(args[1] || ''));
+      }
+      if (args[0] === 'TextEntryCopyToClipboard') {
+        if (options.textEntryCopyResult === false) return false;
+        const source = args[1];
+        harness.clipboardWrites.push(String((source && source.text) || ''));
+      }
+      if (args[0] === 'TextEntryInsertFromClipboard') {
+        if (options.clipboardPasteThrows) throw new Error('clipboard paste unavailable');
+        if (options.clipboardPasteResult === false) return false;
+        const target = args[1];
+        if (target) target.text = harness.clipboardText;
+      }
+      return true;
+    },
     DispatchEventAsync: (...args) => { harness.dispatches.push(args); return true; },
     Msg: (message) => { harness.logs.push(String(message)); },
   };
@@ -504,6 +526,7 @@ function createPanoramaHarness(options = {}) {
     harness.unregisterCalls.length = 0;
     for (const key of Object.keys(harness.handlers)) delete harness.handlers[key];
     harness.logs.length = 0;
+    harness.clipboardWrites.length = 0;
     harness.mouseCallback = null;
     harness.mouseCallbackWrites = 0;
     harness.scheduler.jobs.length = 0;

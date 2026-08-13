@@ -873,3 +873,184 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 .EditorOpen #EscapeButton {
   opacity: 0;
 }
+
+.HPColorsTransferDialog {
+  width: 100%;
+  height: 100%;
+  visibility: collapse;
+  opacity: 0;
+  z-index: 55;
+  transition-property: opacity;
+  transition-duration: 0.1s;
+}
+
+.HPColorsTransferDialog.Open {
+  visibility: visible;
+  opacity: 1;
+}
+
+.HPColorsTransferDialogBackdrop {
+  width: 100%;
+  height: 100%;
+  background-color: #050605e6;
+}
+
+.HPColorsTransferDialogPanel {
+  width: 760px;
+  padding: 26px;
+  horizontal-align: center;
+  vertical-align: center;
+  flow-children: down;
+  background-color: gradient(linear, 0% 0%, 100% 100%, from(#20251d), to(#0d100c));
+  border: 1px solid #5fe69e80;
+  box-shadow: #000000cc 0px 14px 38px 0px;
+}
+
+.HPColorsTransferDialogEyebrow {
+  font-family: oracle;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #5fe69e;
+}
+
+.HPColorsTransferDialogTitle {
+  margin-top: 4px;
+  font-family: oracle;
+  font-size: 24px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: #ffefd7;
+}
+
+.HPColorsTransferDialogMessage {
+  width: 100%;
+  margin-top: 12px;
+  font-family: oracle;
+  font-size: 15px;
+  line-height: 21px;
+  color: #e7c77d;
+  white-space: normal;
+}
+
+.HPColorsTransferInput {
+  width: 100%;
+  height: 46px;
+  margin-top: 16px;
+  padding: 0px 14px;
+  background-color: #070907;
+  border: 1px solid #ffefd726;
+  font-family: monospace;
+  font-size: 14px;
+  color: #d9e8dd;
+  white-space: nowrap;
+}
+
+.HPColorsTransferInput:focus {
+  border: 1px solid #5fe69e;
+}
+
+.HPColorsTransferFeedback {
+  width: 100%;
+  height: 22px;
+  margin-top: 10px;
+  font-family: oracle;
+  font-size: 13px;
+  color: #5fe69e;
+}
+
+.HPColorsTransferDialog.Error .HPColorsTransferInput {
+  border: 1px solid #e16161;
+}
+
+.HPColorsTransferDialog.Error .HPColorsTransferFeedback {
+  color: #e16161;
+}
+
+.HPColorsTransferDialogActions {
+  width: 100%;
+  margin-top: 8px;
+  horizontal-align: center;
+  flow-children: right;
+}
+
+.HPColorsTransferDialogActions .HPColorsPrimaryAction {
+  margin-left: 0px;
+  margin-right: 12px;
+}
+
+.HPColorsTransferDialogActions .HPColorsSecondaryAction {
+  margin-left: 0px;
+}
+
+.HPColorsPrecisePipsDialog {
+  width: 100%;
+  height: 100%;
+  visibility: collapse;
+  opacity: 0;
+  z-index: 50;
+  transition-property: opacity;
+  transition-duration: 0.1s;
+}
+
+.HPColorsPrecisePipsDialog.Open {
+  visibility: visible;
+  opacity: 1;
+}
+
+.HPColorsPrecisePipsDialogBackdrop {
+  width: 100%;
+  height: 100%;
+  background-color: #050605d9;
+}
+
+.HPColorsPrecisePipsDialogPanel {
+  width: 560px;
+  padding: 24px;
+  horizontal-align: center;
+  vertical-align: center;
+  flow-children: down;
+  background-color: gradient(linear, 0% 0%, 100% 100%, from(#20251d), to(#0d100c));
+  border: 1px solid #d8a84980;
+  box-shadow: #000000cc 0px 14px 38px 0px;
+}
+
+.HPColorsPrecisePipsDialogTitle {
+  font-family: oracle;
+  font-size: 22px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: #ffefd7;
+}
+
+.HPColorsPrecisePipsDialogMessage {
+  width: 100%;
+  margin-top: 12px;
+  font-family: oracle;
+  font-size: 15px;
+  color: #e7c77d;
+  white-space: normal;
+}
+
+.HPColorsPrecisePipsDialogCommands {
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #070907;
+  border: 1px solid #ffefd726;
+  font-family: monospace;
+  font-size: 14px;
+  color: #d9e8dd;
+  white-space: normal;
+}
+
+.HPColorsPrecisePipsDialogActions {
+  width: 100%;
+  margin-top: 18px;
+  horizontal-align: center;
+  flow-children: right;
+}
+
+.HPColorsPrecisePipsDialogActions .HPColorsPrimaryAction {
+  margin-left: 0px;
+  margin-right: 12px;
+}

@@ -33,7 +33,7 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 - Size and position controls.
 - Bar-derived or custom low/mid/high text colors.
 - Show or hide health pips.
-- Optional precise-pip calculation and its convar-copy instructions.
+- Optional precise-pip calculation for the known 10-HP ConVars profile, with explicit gameinfo.gi enable/reset copy warnings.
 - Show or hide enemy levels and preserve level-tier styling.
 
 ### Low-HP pulse and kill marker
@@ -44,7 +44,7 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 
 ### Anita UI and presets
 
-- Settings categories, conditional rows, tooltips, color picker, position picker, page reset, reset-all, import, and donation link.
+- Settings categories, conditional rows, tooltips, position picker, page reset, reset-all, and donation link.
 - Baked and user presets, rename/delete/reorder, individual copy, bundle copy, and import.
 - Hero scopes: off, all, and selected heroes.
 - Automatic hero detection, manual override, global fallback, and match/lobby reset behavior.
@@ -156,7 +156,7 @@ Implemented controls:
 
 The stock overlay exposes only `unit_healthbar_pip_label`, so the rewrite owns `hp_counter_anchor` and one `hp_counter` label without changing stock fill geometry. Maximum HP comes from the stock pip string and current HP from the existing shield-aware fill ratio; percentage remains available when a maximum cannot be derived. Enemy-disabled, excluded, neutral, ally, unclassified, and bypassed paths collapse and clear the owned label. Pip-text changes and replacement counter panels invalidate local caches and reapply through the existing scan and paint loops.
 
-The readout uses the legacy non-displacing layout: a `100%` × `fit-children` `WindowRoot`, a bottom-aligned `fit-children` `UnitStatus`, a `fit-children` × `300px` `InfoHealthContainer`, and an ignored-flow `100%` × `100%` bottom-aligned `hp_counter_anchor`. The anchor is a direct child of `UnitStatus`, outside the finite health container. Live geometry proved that the engine-owned world-panel root is fixed at `2000px × 1000px`; text translated near the lower edge leaves that texture even though Panorama continues to lay it out. `citadel_unit_status_height 200` expands the root, but it is a `developmentonly` startup setting that requires external `gameinfo.gi` mutation. The portable VPK does not modify game files beyond its addon and exposes the user-selected vertical range through `840px`. Panorama commands, native settings controls, cfg files, and `overflow:noclip` cannot enlarge this engine canvas.
+The readout uses the legacy non-displacing layout: a `100%` × `fit-children` `WindowRoot`, a bottom-aligned `fit-children` `UnitStatus`, a `fit-children` × `300px` `InfoHealthContainer`, and an ignored-flow `100%` × `100%` bottom-aligned `hp_counter_anchor`. The anchor is a direct child of `UnitStatus`, outside the finite health container. Live geometry proved that the engine-owned world-panel root is fixed at `2000px × 1000px`; text translated near the lower edge leaves that texture even though Panorama continues to lay it out. The portable VPK does not mutate external game files or run console commands. Precise-pip calculation is session-scoped and shows a gameinfo.gi warning with copyable enable values when turned on and copyable defaults plus a deletion reminder when turned off; the UI never claims it applied or verified them.
 
 The focused VM regression covers all formats, shield-aware values, missing pip data, visibility/scope, size, offsets, fixed/gradient colors, team-high/custom color ownership, unchanged-write caching, and replacement replay.
 
@@ -165,7 +165,7 @@ The focused VM regression covers all formats, shield-aware values, missing pip d
 Implemented controls:
 
 - Enemy health-pip visibility while leaving the engine-owned pip text and geometry untouched.
-- Optional precise-pip parsing for the known 10-HP command profile, with copy-only enable/reset commands that the VPK does not apply or verify.
+- Optional precise-pip parsing that interprets minor marks as 10 HP after the user configures the copied ConVars block in `gameinfo.gi`; disabling it shows the default values and reminds the user to remove unused custom entries.
 - Enemy-player level visibility with engine-bound level text and custom tier boundaries at levels 11, 19, 27, and 35.
 - Enemy low-HP pulse with an inclusive threshold, 30–300 BPM speed, three intensity levels, optional fixed/gradient pulse color, and temporary non-culling bar hiding. Two independent toggles control HP-number pulse animation and pulse-time text modifiers. The modifier toggle enables independent text size plus horizontal and vertical offsets while the pulse is active, restoring normal geometry above the threshold; it does not enable text animation. Normal brightness pulse targets only `unit_healthbar_lagging`; custom Gradient keeps the base fill color and CSS-pulses a custom-color overlay across the live fill width, independent of health depth.
 - Ally low-HP pulse with an independent threshold, speed, intensity, and optional fixed color.
@@ -185,6 +185,11 @@ Implemented controls:
 The marker is a rewrite-owned, non-interactive overlay directly under `UnitHealthbarContainer`. It never writes engine-owned fill widths. Runtime shows it only for visible enemy panels carrying the stock `player` class; allies, neutrals, non-player units, buildings, sentries, bosses, and boss barracks always remain marker-free. Geometry uses the cached live health-parent width, clamps the effective marker width to that surface, and skips unchanged visibility, position, width, and color writes. Bypass, hidden or pulse-hidden bars, role changes, removal, and panel replacement clear all marker-owned inline state.
 
 
+## Milestone 10: rewrite-native live transfer
+
+The editor copies a compact single-line code with the exact grammar `HPCR2` followed by a JSON array of `[settingIndex, value]` pairs. Export orders pairs by ascending index and omits values equal to shipped defaults. Indexes use the closed, append-only `DEFAULTS` order; unknown indexes are rejected, and any reorder or meaning change requires a new `HPCR` schema prefix. Imports may list valid indexes in any order, but duplicate indexes, malformed pairs, foreign prefixes, and wrong known value types are rejected before normalization. Codes contain no revision, aliases, Base64, presets, or persistence data. Opening the transfer dialog performs no clipboard action; the user explicitly chooses **COPY CURRENT** or **IMPORT & APPLY**. Import requests the stock `TextEntryInsertFromClipboard` event only after that action, and the visible single-line field remains the fallback when automatic insertion is unavailable. Invalid codes preserve live state and Undo history. A valid changed import publishes one wildcard snapshot and creates one Undo entry.
+
+
 ## Not implemented yet
 
-Settings are session-scoped. Durable persistence, presets, hero scopes, and Anita compatibility remain unimplemented.
+Settings remain session-scoped because the Phase 0 runtime probe found no native `$.persistentStorage` interface. Rewrite-native live settings import/export is implemented. Durable persistence, hero identity and scopes, presets, remaining editor surfaces, signature-tier conditions, and measured runtime hardening remain unimplemented. See `to-do.md` for the evidence-backed checklist and explicitly deferred compatibility work.

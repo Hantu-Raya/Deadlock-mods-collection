@@ -543,12 +543,6 @@
     return majorCount * majorValue + trailingMinorCount * minorValue;
   }
 
-  function invalidatePipMaximum(bar) {
-    bar.pipText = null;
-    bar.pipProfile = null;
-    bar.rawMaximumHealth = 0;
-    bar.dirty = true;
-  }
 
   function updatePipMaximum(bar, pipText) {
     var precise = !!config.precisePipsEnabled;
@@ -1720,13 +1714,11 @@
       var previousPrecisePips = !!config.precisePipsEnabled;
       config = normalizeConfig(data.values);
       if (previousPrecisePips !== !!config.precisePipsEnabled)
-        for (var pipIndex = 0; pipIndex < bars.length; pipIndex++) {
-          invalidatePipMaximum(bars[pipIndex]);
+        for (var pipIndex = 0; pipIndex < bars.length; pipIndex++)
           updatePipMaximum(
             bars[pipIndex],
             readPipText(bars[pipIndex].parts.pipLabel),
           );
-        }
       var revision = Math.max(0, Math.round(Number(data.revision) || 0));
       configRaw = raw;
       for (var index = 0; index < bars.length; index++) {
