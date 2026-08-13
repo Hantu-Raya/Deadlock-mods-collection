@@ -19,7 +19,8 @@ $requiredCompiled = @(
     (Join-Path $modCompiled 'panorama\layout\unit_status_overlay.vxml_c'),
     (Join-Path $modCompiled 'panorama\scripts\healthbar_probe.vjs_c'),
     (Join-Path $modCompiled 'panorama\scripts\hp_colors_menu.vjs_c'),
-    (Join-Path $modCompiled 'panorama\styles\hp_colors_menu.vcss_c')
+    (Join-Path $modCompiled 'panorama\styles\hp_colors_menu.vcss_c'),
+    (Join-Path $modCompiled 'panorama\styles\hp_colors_unit_status.vcss_c')
 )
 
 function Require-Path {
@@ -48,6 +49,7 @@ function Get-Sha256 {
     }
 }
 
+
 Require-Path -Path $modSrc -Label 'HP Colors rewrite source folder'
 Require-Path -Path $compiler -Label 'Source 2 compiler'
 Require-Path -Path $vpkeditcli -Label 'vpkeditcli'
@@ -68,7 +70,8 @@ Assert-PackedVpkAssets -Tree $vpkTree -Label 'HP Colors Rewrite VPK' -Required @
     'unit_status_overlay.vxml_c',
     'healthbar_probe.vjs_c',
     'hp_colors_menu.vjs_c',
-    'hp_colors_menu.vcss_c'
+    'hp_colors_menu.vcss_c',
+    'hp_colors_unit_status.vcss_c'
 ) -Forbidden @(
     'AGENTS.md',
     'FEATURES.md',
@@ -77,10 +80,12 @@ Assert-PackedVpkAssets -Tree $vpkTree -Label 'HP Colors Rewrite VPK' -Required @
     'unit_status_overlay.xml',
     'healthbar_probe.js',
     'hp_colors_menu.js',
-    'hp_colors_menu.css'
+    'hp_colors_menu.css',
+    'hp_colors_unit_status.css'
 )
 $vpkSize = (Get-Item -LiteralPath $vpkOut).Length
 Write-Host "  Packed OK -> $vpkOut ($([math]::Round($vpkSize / 1KB, 1)) KB)" -ForegroundColor Green
+
 
 Write-Host "`n[3/3] Backing up and deploying to Deadlock addons..." -ForegroundColor Cyan
 $destDir = Split-Path $vpkDest -Parent

@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-`hp_colors_rewrite/` is a clean-room Panorama rewrite of HP Colors for Deadlock. Milestone 1 proved local v1 observation, and the user confirmed the ESC editor, cached renderer, three-slider palette, reversible visibility, feedback controls, fixed/gradient low-mid-high colors, team-high color, independent exclusions, bar position, and ultimate-icon coloring in game.
+`hp_colors_rewrite/` is a clean-room Panorama rewrite of HP Colors for Deadlock. The current v1 slice includes the ESC editor, cached renderer, reversible visibility, feedback controls, fixed/gradient colors, target exclusions, positioning, ultimate-icon coloring, HP readout, health-pip visibility, enemy level tiers, and CSS-driven enemy/ally low-HP pulse.
 
-Do not add durable persistence, presets, pulse, kill-marker, or Anita compatibility until the next focused slice requires them. `FEATURES.md` lists later compatibility goals; it does not mean they are implemented.
+Do not add durable persistence, presets, kill-marker, or Anita compatibility until a focused slice requires them. `FEATURES.md` distinguishes implemented milestones from later compatibility goals.
 
 Source-of-truth order:
 
@@ -42,10 +42,12 @@ Preserve these authority rules:
 - A bar belongs to the overlay context that discovered it.
 - Replaced panel parts increment the local generation, clear render caches, and reapply the cached snapshot.
 - `team_neutral` wins classification before `enemy` or `friend`; `team1`/`team2` never imply relation. Building and boss flags are classified independently from relation, and unknown teams retain the configured high color.
-- The custom renderer writes fill/healing/delta and ultimate-icon `washColor`, bullet-shield `backgroundColor`, plus container opacity/width/height/transform. It never writes engine-owned fill, feedback, shield widths, icon image, or icon visibility. Bypass and exclusions clear relation-owned inline colors so stock CSS resumes.
+- The custom renderer writes fill/healing/delta and ultimate-icon `washColor`, bullet-shield `backgroundColor`, container opacity/width/height/transform, stock pip-label visibility, rewrite-owned level visibility/tier classes, and namespaced pulse classes/duration. It never writes engine-owned fill, feedback, shield widths, pip or level text, icon image, or icon visibility. Bypass and exclusions clear rewrite-owned state so stock CSS resumes.
 - Hidden enemy and ally bar containers remain rendered at `opacity: 0.01` so the engine continues updating their widths; showing them writes `opacity: 1`. Never use `visibility: collapse` or zero opacity for this control.
-- The owned HP counter may translate beyond the 120px stock health container. A `399px` in-flow `hp_counter_top_extent` before `InfoHealthContainer` enlarges `UnitStatus` above the stock bar; `hp_counter_anchor` remains an ignored-flow `160%` × `1140px` canvas centered on the established healthbar origin. Placement limits are ±405px horizontally, −365px upward, and 270px downward. The counter remains white and receives dynamic text tint through `washColor`; never replace this with dynamic `color`, which renders darker than the bar and legacy wash-color path. `WindowRoot`, `UnitStatus`, `InfoHealthContainer`, and `hp_counter_anchor` must retain `overflow: noclip`. Do not replace the in-flow extent with ignored-flow anchor height: ignored-flow geometry does not enlarge the world-panel render surface.
+- The owned HP counter uses the legacy non-displacing geometry: `WindowRoot` is `100%` wide and `fit-children` high; `UnitStatus` is a bottom-aligned, centered `fit-children` down-flow; and `InfoHealthContainer` is a bottom-aligned `fit-children` × `300px` right-flow. A narrow `1px` × `399px` in-flow extent immediately before `InfoHealthContainer` enlarges the world-panel render surface upward without changing horizontal flow or the bottom-anchored healthbar position. `hp_counter_anchor` is an ignored-flow `100%` × `100%` sibling of `InfoHealthContainer` directly under `UnitStatus`; it must not be nested inside the finite 300px health container. Runtime gives the single `hp_counter` label `height: 100%`, writes the requested font size, and translates the anchor with `translate3d`; never transform the label or add a wide horizontal canvas. Dynamic text tint uses `washColor`; never replace it with dynamic `color`, which renders darker than the bar and legacy wash-color path. Portable placement limits remain ±405px horizontally, −35px upward, and 840px downward, with 500px as the vertical default. Live evidence proves the unmodified engine world-panel root is fixed at `2000px × 1000px`; VPK Panorama cannot expose or set the `developmentonly` height convar. The build deploys only the addon VPK and never patches `gameinfo.gi`. Keep popup-settings-only controls out of `hud_escape_menu.xml`. `WindowRoot`, `UnitStatus`, `InfoHealthContainer`, `hp_counter_anchor`, and `hp_counter` retain `overflow: noclip`.
 - Pip/width, role, and config diagnostics remain transition-only.
+- Low-HP pulse remains CSS-driven. JavaScript changes cached class membership and duration only on state/config transitions; it never animates brightness per frame.
+- Precise-pip controls only copy the known enable/reset command profiles. The VPK never applies or verifies development-only convars and never modifies `gameinfo.gi`.
 - Removed bars are deleted from the local registry.
 
 ## Key Directories
@@ -116,11 +118,11 @@ There is no lint command, package-manager command, local run command, or automat
 - No npm/Bun/Node package manifest belongs to this module. Do not introduce a package manager.
 - The compiler may hang or exit nonzero after producing every required output because of its final redirected `Console.ReadKey`. Required outputs are the success signal; missing output is fatal.
 - Never hand-edit `hp_colors_rewrite_compiled/`, root `pak01_dir.vpk`, deployed VPKs, or timestamped backups.
-- The build must retain exactly the two layouts, two scripts, and one stylesheet required by the current slice and reject raw source or documentation inside the VPK.
+- The build must retain exactly the two layouts, two scripts, editor stylesheet, and unit-status pulse stylesheet required by the current slice and reject raw source or documentation inside the VPK.
 - Never launch, restart, stop, or otherwise control Deadlock. Only the user runs the game and performs interactive smoke steps. After the user exits, inspect `console.log` for evidence.
 
 ## Testing & QA
-Focused regression tests are `../scripts/validate-hp-colors-rewrite-picker.test.js`, `../scripts/validate-hp-colors-rewrite-visibility.test.js`, `../scripts/validate-hp-colors-rewrite-healthbar-controls.test.js`, and `../scripts/validate-hp-colors-rewrite-readout.test.js`. They cover the native palette, reversible non-culling visibility, team-high colors, exclusions, position, ultimate icons, HP readout formats/placement/colors, live publishing, replacement replay, and Undo. Compilation, VPK asset checks, and matching SHA-256 hashes prove packaging and deployment only; they do not prove Panorama runtime behavior.
+Focused regression tests include `../scripts/validate-hp-colors-rewrite-readout.test.js` and the current rewrite feature validators under `../scripts/`. They cover the native palette, reversible non-culling visibility, team-high colors, exclusions, position, ultimate icons, HP readout, pips, levels, CSS-driven pulse, live publishing, replacement replay, and Undo. Compilation, VPK asset checks, and matching SHA-256 hashes prove packaging and deployment only; they do not prove Panorama runtime behavior.
 
 Required smoke:
 
@@ -134,6 +136,8 @@ Required smoke:
 8. Open color swatches across enemy and ally pages; drag hue, saturation, and Lumen to require live canonical hex and bar updates, then require one Undo to restore the pre-drag color.
 9. Exercise Reset Section, Peek, Done, and Escape, including Escape dismissing the palette before closing the editor.
 10. Exercise HP readout visibility, current/max, percentage, and current-only formats; size and positive/negative offsets; bar-derived and custom fixed/gradient colors; exclusions; and late/replaced bars.
-11. Exit so `console.log` flushes; require config/role transitions, probe data, and no rewrite exceptions.
+11. Exercise enemy and ally pulse threshold boundaries, speed, intensity, custom colors, enemy bar hiding, HP-number pulse, bypass/exclusion cleanup, and coexistence with stock `health_critical` styling.
+12. Toggle enemy pips and levels; verify tier boundaries and stock restoration. Copy precise-pip enable/reset commands and require the UI not to claim that it applied or verified them.
+13. Exit so `console.log` flushes; require config/role/data logs with no rewrite exceptions.
 
 Never claim in-game verification unless this smoke was performed in a real Deadlock session. Record packaging/deployment success separately from live runtime proof.

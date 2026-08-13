@@ -1,0 +1,166 @@
+/* HP Colors Rewrite-owned pulse and player-level overlay styles. */
+#unit_healthbar_lagging.HPColorsRewritePulse,
+#hp_counter.HPColorsRewritePulse {
+  animation-name: HPColorsRewritePulseMediumKeyframes;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  animation-direction: alternate;
+  animation-duration: 0.8s;
+}
+
+#unit_healthbar_lagging.HPColorsRewritePulse.HPColorsRewritePulseSubtle,
+#hp_counter.HPColorsRewritePulse.HPColorsRewritePulseSubtle {
+  animation-name: HPColorsRewritePulseSubtleKeyframes;
+}
+
+#unit_healthbar_lagging.HPColorsRewritePulse.HPColorsRewritePulseIntense,
+#hp_counter.HPColorsRewritePulse.HPColorsRewritePulseIntense {
+  animation-name: HPColorsRewritePulseIntenseKeyframes;
+}
+
+@keyframes 'HPColorsRewritePulseSubtleKeyframes'
+{
+  0% {
+    brightness: 1.15;
+  }
+
+  100% {
+    brightness: 0.85;
+  }
+}
+
+@keyframes 'HPColorsRewritePulseMediumKeyframes'
+{
+  0% {
+    brightness: 1.5;
+  }
+
+  100% {
+    brightness: 0.5;
+  }
+}
+
+@keyframes 'HPColorsRewritePulseIntenseKeyframes'
+{
+  0% {
+    brightness: 2.0;
+  }
+
+  100% {
+    brightness: 0.25;
+  }
+}
+
+/* Engine-bound enemy player level badge. */
+.NP_playerlevel_container {
+  height: 70%;
+  width: height-percentage(100%);
+  border: 20px solid Team1Color;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-top: 8%;
+  margin-right: -2%;
+  visibility: collapse;
+  background-color: #0a0a0ae6;
+  box-shadow: inset 0px 0px 10px #000000;
+}
+
+.enemy.player.level_number_visible .NP_playerlevel_container {
+  visibility: visible;
+}
+
+.team1.enemy .NP_playerlevel_container {
+  border-color: Team1Color;
+}
+
+.team2.enemy .NP_playerlevel_container {
+  border-color: Team2Color;
+}
+
+.NP_playerlevel {
+  height: fit-children;
+  width: 100%;
+  horizontal-align: center;
+  vertical-align: middle;
+  color: white;
+  font-size: 100px;
+  font-weight: bold;
+  text-align: center;
+  text-shadow: 0px 1px 2px #000000;
+}
+
+.health_hidden .NP_playerlevel_container,
+.GameStatePreGame .NP_playerlevel_container {
+  visibility: collapse;
+}
+
+.enemy.level_tier2 .NP_playerlevel_container {
+  border-color: #f0d000;
+}
+
+.enemy.level_tier3 .NP_playerlevel_container {
+  border-color: #ff8c00;
+}
+
+.enemy.level_tier4 .NP_playerlevel_container {
+  border-color: #e53935;
+}
+
+.enemy.level_tier5 .NP_playerlevel_container {
+  border-color: #8b0000;
+}
+
+/* Gradient custom-color pulse overlays only the live lagging fill. */
+#hp_colors_pulse_overlay {
+  ignore-parent-flow: true;
+  horizontal-align: left;
+  vertical-align: middle;
+  width: 0%;
+  height: 100%;
+  background-image: url("s2r://panorama/images/hud/world_space/hero_healthbar_fill_center_psd.vtex");
+  background-size: 1024px 128px;
+  border-image-source: url("s2r://panorama/images/hud/world_space/hero_healthbar_bg_psd.vtex");
+  border-image-repeat: round;
+  border-image-slice: 28%;
+  border-width: 10px;
+  border-color: #ffffffff;
+  box-shadow: inset DropshadowColor 4px 8px 5px 8px;
+  visibility: collapse;
+  opacity: 0;
+  z-index: 4;
+}
+
+#hp_colors_pulse_overlay.HPColorsRewriteColorPulse {
+  visibility: visible;
+  animation-name: HPColorsRewriteColorPulseMediumKeyframes;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  animation-direction: alternate;
+  animation-duration: 0.8s;
+}
+
+#hp_colors_pulse_overlay.HPColorsRewriteColorPulse.HPColorsRewritePulseSubtle {
+  animation-name: HPColorsRewriteColorPulseSubtleKeyframes;
+}
+
+#hp_colors_pulse_overlay.HPColorsRewriteColorPulse.HPColorsRewritePulseIntense {
+  animation-name: HPColorsRewriteColorPulseIntenseKeyframes;
+}
+
+@keyframes 'HPColorsRewriteColorPulseSubtleKeyframes'
+{
+  0% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+@keyframes 'HPColorsRewriteColorPulseMediumKeyframes'
+{
+  0% { opacity: 0.15; }
+  100% { opacity: 1; }
+}
+
+@keyframes 'HPColorsRewriteColorPulseIntenseKeyframes'
+{
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}

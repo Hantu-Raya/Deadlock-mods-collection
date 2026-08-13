@@ -13,6 +13,10 @@ function makeClassSet(classes) {
   if (classes instanceof Set) return new ClassSet(classes);
   return new ClassSet(Array.isArray(classes) ? classes : []);
 }
+function incrementCounter(counters, key) {
+  if (counters) counters[key] = (counters[key] || 0) + 1;
+}
+
 
 class MockPanel {
   constructor(first = '', second = {}, third = undefined) {
@@ -46,11 +50,35 @@ class MockPanel {
     this.attributes = Object.assign(Object.create(null), options.attributes || options.attrs || {});
     this.attrs = this.attributes;
     this.valid = options.valid !== undefined ? Boolean(options.valid) : true;
-    this.text = options.text || '';
+    Object.defineProperty(this, '__text', {
+      configurable: true,
+      enumerable: false,
+      writable: true,
+      value: options.text || '',
+    });
+    Object.defineProperty(this, 'text', {
+      configurable: true,
+      enumerable: true,
+      get: () => {
+        incrementCounter(this.operationCounts, 'textReads');
+        return this.__text;
+      },
+      set: (value) => {
+        incrementCounter(this.operationCounts, 'textWrites');
+        this.__text = value;
+      },
+    });
     this.placeholder = options.placeholder || '';
     this.visible = options.visible !== undefined ? Boolean(options.visible) : true;
     this.canfocus = Boolean(options.canfocus);
     this.focused = false;
+    this.actualxoffset = options.actualxoffset || 0;
+    this.actualyoffset = options.actualyoffset || 0;
+    this.scrolloffset_x = options.scrolloffset_x || 0;
+    this.scrolloffset_y = options.scrolloffset_y || 0;
+    this.actualuiscale_x = options.actualuiscale_x || 1;
+    this.actualuiscale_y = options.actualuiscale_y || 1;
+    this.sendScrollPositionChangedEvents = false;
     this.actuallayoutwidth = options.actuallayoutwidth === undefined ? 120 : options.actuallayoutwidth;
     this._actualLayoutHeight = options.actuallayoutheight === undefined ? 32 : options.actuallayoutheight;
     this.layoutHeightReads = 0;
@@ -59,6 +87,7 @@ class MockPanel {
     this.findCounts = options.findCounts || null;
     this.childReadCounts = options.childReadCounts || null;
     this.eventSetCounter = options.eventSetCounter || null;
+    this.operationCounts = options.operationCounts || null;
     this.__styleWrites = [];
     this.__deletedStyleWrites = [];
     this.explicitHitFlags = {};
@@ -92,14 +121,20 @@ class MockPanel {
 
     const initialStyle = Object.assign({}, options.style || {});
     this.style = new Proxy(initialStyle, {
+      get: (target, property, receiver) => {
+        incrementCounter(this.operationCounts, 'styleReads');
+        return Reflect.get(target, property, receiver);
+      },
       set: (target, property, value) => {
         const prop = String(property);
+        incrementCounter(this.operationCounts, 'styleWrites');
         this.__styleWrites.push({ property: prop, value });
         target[property] = value;
         return true;
       },
       deleteProperty: (target, property) => {
         const prop = String(property);
+        incrementCounter(this.operationCounts, 'styleWrites');
         this.__styleWrites.push({ property: prop, value: undefined });
         delete target[property];
         return true;
@@ -126,8 +161,28 @@ class MockPanel {
     return child;
   }
   IsValid() { return this.valid; }
-  GetParent() { return this.parent; }
+  GetParent() {
+    incrementCounter(this.operationCounts, 'parentReads');
+    return this.parent;
+  }
+  GetPositionWithinWindow() {
+    let x = 0;
+    let y = 0;
+    for (let panel = this; panel && panel.IsValid(); panel = panel.GetParent()) {
+      x += Number(panel.actualxoffset || 0) - Number(panel.scrolloffset_x || 0);
+      y += Number(panel.actualyoffset || 0) - Number(panel.scrolloffset_y || 0);
+    }
+    return {
+      x: x * this.actualuiscale_x,
+      y: y * this.actualuiscale_y,
+    };
+  }
+  SetSendScrollPositionChangedEvents(enabled) {
+    this.sendScrollPositionChangedEvents = Boolean(enabled);
+  }
   Children() {
+    incrementCounter(this.operationCounts, 'traversal');
+    incrementCounter(this.operationCounts, 'childrenReads');
     if (this.childReadCounts) {
       const key = this.id || '(anonymous)';
       this.childReadCounts[key] = (this.childReadCounts[key] || 0) + 1;
@@ -135,9 +190,20 @@ class MockPanel {
     }
     return this.children.slice();
   }
-  GetChildCount() { return this.children.length; }
-  GetChild(index) { return this.children[index] || null; }
+  GetChildCount() {
+    incrementCounter(this.operationCounts, 'traversal');
+    return this.children.length;
+  }
+  GetChild(index) {
+    incrementCounter(this.operationCounts, 'traversal');
+    incrementCounter(this.operationCounts, 'childrenReads');
+    return this.children[index] || null;
+  }
   SetParent(parent) {
+    incrementCounter(
+      this.operationCounts || (parent && parent.operationCounts),
+      'parentWrites',
+    );
     if (this.parent && this.parent.children) this.parent.children = this.parent.children.filter((child) => child !== this);
     this.parent = parent || null;
     if (parent && parent.children && !parent.children.includes(this)) {
@@ -145,9 +211,11 @@ class MockPanel {
       if (!this.findCounts) this.findCounts = parent.findCounts || null;
       if (!this.childReadCounts) this.childReadCounts = parent.childReadCounts || null;
       if (!this.eventSetCounter) this.eventSetCounter = parent.eventSetCounter || null;
+      if (!this.operationCounts) this.operationCounts = parent.operationCounts || null;
     }
   }
   DeleteAsync() {
+    incrementCounter(this.operationCounts, 'parentWrites');
     this.valid = false;
     if (this.parent && this.parent.children) this.parent.children = this.parent.children.filter((child) => child !== this);
     this.parent = null;
@@ -157,6 +225,7 @@ class MockPanel {
   }
   RemoveAndDeleteChildren() {
     for (const child of this.children) {
+      incrementCounter(child.operationCounts || this.operationCounts, 'parentWrites');
       child.valid = false;
       child.parent = null;
     }
@@ -164,9 +233,18 @@ class MockPanel {
     this.options = [];
     this.selected = null;
   }
-  AddClass(className) { this.classes.add(String(className)); }
-  RemoveClass(className) { this.classes.delete(String(className)); }
-  BHasClass(className) { return this.classes.has(String(className)); }
+  AddClass(className) {
+    incrementCounter(this.operationCounts, 'classWrites');
+    this.classes.add(String(className));
+  }
+  RemoveClass(className) {
+    incrementCounter(this.operationCounts, 'classWrites');
+    this.classes.delete(String(className));
+  }
+  BHasClass(className) {
+    incrementCounter(this.operationCounts, 'classReads');
+    return this.classes.has(String(className));
+  }
   SetHasClass(className, enabled) { enabled ? this.AddClass(className) : this.RemoveClass(className); }
   ToggleClass(className) { this.SetHasClass(className, !this.BHasClass(className)); }
   SetPanelEvent(eventName, handler) {
@@ -203,6 +281,8 @@ class MockPanel {
     return fallback || '';
   }
   FindChildTraverse(id) {
+    incrementCounter(this.operationCounts, 'traversal');
+    incrementCounter(this.operationCounts, 'findTraversals');
     if (this.findCounts) this.findCounts[id] = (this.findCounts[id] || 0) + 1;
     if (!this.valid) return null;
     if (this.id === id) return this;
@@ -213,9 +293,14 @@ class MockPanel {
     return null;
   }
   FindChildrenWithClassTraverse(className) {
+    incrementCounter(this.operationCounts, 'traversal');
+    incrementCounter(this.operationCounts, 'findTraversals');
     if (this.findCounts) this.findCounts[className] = (this.findCounts[className] || 0) + 1;
     let out = [];
-    if (this.valid && this.classes.has(className)) out.push(this);
+    if (this.valid) {
+      incrementCounter(this.operationCounts, 'classReads');
+      if (this.classes.has(className)) out.push(this);
+    }
     for (const child of this.children) out = out.concat(child.FindChildrenWithClassTraverse(className));
     return out;
   }
@@ -335,13 +420,29 @@ function createPanoramaHarness(options = {}) {
     now: options.now === undefined ? 0 : Number(options.now),
     findCounts: Object.create(null),
     childReadCounts: Object.create(null),
+    operationCounts: Object.assign({
+      traversal: 0,
+      findTraversals: 0,
+      childrenReads: 0,
+      parentReads: 0,
+      parentWrites: 0,
+      classReads: 0,
+      classWrites: 0,
+      styleReads: 0,
+      styleWrites: 0,
+      textReads: 0,
+      textWrites: 0,
+    }, options.operationCounts || {}),
     createPanelCount: 0,
     eventSetCounter: { count: 0 },
+    mouseCallback: null,
+    mouseCallbackWrites: 0,
   };
   harness.root = new MockPanel('Root', {
     findCounts: harness.findCounts,
     childReadCounts: harness.childReadCounts,
     eventSetCounter: harness.eventSetCounter,
+    operationCounts: harness.operationCounts,
   });
   harness.root.actuallayoutwidth = options.rootWidth || 1920;
   harness.root.actuallayoutheight = options.rootHeight || 1080;
@@ -384,6 +485,11 @@ function createPanoramaHarness(options = {}) {
   };
   harness.GameUI = {
     CustomUIConfig: () => harness.shared,
+    GetCursorPosition: () => (options.cursorPosition || [0, 0]).slice(0),
+    SetMouseCallback: (callback) => {
+      harness.mouseCallback = typeof callback === 'function' ? callback : null;
+      harness.mouseCallbackWrites += 1;
+    },
   };
   if (options.includeGame !== false) {
     let gameState = options.gameState === undefined ? 7 : Number(options.gameState);
@@ -398,6 +504,8 @@ function createPanoramaHarness(options = {}) {
     harness.unregisterCalls.length = 0;
     for (const key of Object.keys(harness.handlers)) delete harness.handlers[key];
     harness.logs.length = 0;
+    harness.mouseCallback = null;
+    harness.mouseCallbackWrites = 0;
     harness.scheduler.jobs.length = 0;
     for (const key of Object.keys(harness.shared)) delete harness.shared[key];
     for (const key of Object.keys(harness.findCounts)) delete harness.findCounts[key];
@@ -407,6 +515,7 @@ function createPanoramaHarness(options = {}) {
     harness.root.RemoveAndDeleteChildren();
     harness.root.valid = true;
     harness.contextPanel = harness.root;
+    for (const key of Object.keys(harness.operationCounts)) harness.operationCounts[key] = 0;
   };
   return harness;
 }
@@ -531,6 +640,7 @@ function buildUnitStatusTree(harness, options = {}) {
   const missing = bg.add(new MockPanel('unit_healthbar_missing', { findCounts: harness.findCounts }));
   const redParent = missing.add(new MockPanel('unit_healthbar_active_parent', { actuallayoutwidth: options.parentWidth === undefined ? 100 : options.parentWidth, actuallayoutheight: 12, findCounts: harness.findCounts }));
   const lagging = redParent.add(new MockPanel('unit_healthbar_lagging', { actuallayoutwidth: options.barWidth === undefined ? 100 : options.barWidth, actuallayoutheight: 12, findCounts: harness.findCounts }));
+  const pulseOverlay = redParent.add(new MockPanel('hp_colors_pulse_overlay', { findCounts: harness.findCounts }));
   const rb = lagging;
   const pip = redParent.add(new MockPanel('unit_healthbar_pip_label', { text: options.pipText || '100', attributes: { text: options.pipText || '100' }, findCounts: harness.findCounts }));
   const heal = redParent.add(new MockPanel('unit_healthbar_healing', { findCounts: harness.findCounts }));
@@ -545,10 +655,10 @@ function buildUnitStatusTree(harness, options = {}) {
   }));
   const killZone = unitHealthbar.add(new MockPanel('hp_kill_zone_marker', { findCounts: harness.findCounts }));
   const killMarker = killZone;
-  const counterAnchor = infoHealth.add(new MockPanel('hp_counter_anchor', { findCounts: harness.findCounts }));
+  const counterAnchor = unitStatus.add(new MockPanel('hp_counter_anchor', { findCounts: harness.findCounts }));
   const counter = counterAnchor.add(new MockPanel('hp_counter', { findCounts: harness.findCounts }));
   const name = root.add(new MockPanel('name', { text: options.nameText || 'Enemy', attributes: { text: options.nameText || 'Enemy' }, findCounts: harness.findCounts }));
-  return { root, unitStatus, infoHealth, unitInfo, unitHealthbar, bg, missing, redParent, lagging, rb, pip, heal, delta, bulletShield, techShield, ult, ultIcon, levelContainer, level, name, counterAnchor, counter, killZone, killMarker };
+  return { root, unitStatus, infoHealth, unitInfo, unitHealthbar, bg, missing, redParent, lagging, rb, pulseOverlay, pip, heal, delta, bulletShield, techShield, ult, ultIcon, levelContainer, level, name, counterAnchor, counter, killZone, killMarker };
 }
 
 function findByClass(panel, className, out = []) {
