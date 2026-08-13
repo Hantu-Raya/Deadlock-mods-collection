@@ -164,3 +164,14 @@
   0% { opacity: 0; }
   100% { opacity: 1; }
 }
+
+#hp_colors_kill_marker {
+  ignore-parent-flow: true;
+  horizontal-align: left;
+  vertical-align: middle;
+  width: 3px;
+  height: 100%;
+  background-color: #FF2222;
+  z-index: 100;
+  visibility: collapse;
+}

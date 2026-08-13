@@ -39,7 +39,7 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 ### Low-HP pulse and kill marker
 
 - Enemy pulse threshold, speed, intensity, fixed/gradient color, bar hiding, and pulsing HP number.
-- Configurable kill-marker threshold, width, and color.
+- Configurable kill-marker threshold, width, and color on enemy player/heroes only.
 - Pulse remains CSS-driven rather than JavaScript frame animation.
 
 ### Anita UI and presets
@@ -167,13 +167,24 @@ Implemented controls:
 - Enemy health-pip visibility while leaving the engine-owned pip text and geometry untouched.
 - Optional precise-pip parsing for the known 10-HP command profile, with copy-only enable/reset commands that the VPK does not apply or verify.
 - Enemy-player level visibility with engine-bound level text and custom tier boundaries at levels 11, 19, 27, and 35.
-- Enemy low-HP pulse with an inclusive threshold, 30–300 BPM speed, three intensity levels, optional fixed/gradient pulse color, temporary non-culling bar hiding, and optional HP-number pulse. Normal brightness pulse targets only `unit_healthbar_lagging`; custom Gradient keeps the base fill color and CSS-pulses a custom-color overlay across the live fill width, independent of health depth.
+- Enemy low-HP pulse with an inclusive threshold, 30–300 BPM speed, three intensity levels, optional fixed/gradient pulse color, and temporary non-culling bar hiding. Two independent toggles control HP-number pulse animation and pulse-time text modifiers. The modifier toggle enables independent text size plus horizontal and vertical offsets while the pulse is active, restoring normal geometry above the threshold; it does not enable text animation. Normal brightness pulse targets only `unit_healthbar_lagging`; custom Gradient keeps the base fill color and CSS-pulses a custom-color overlay across the live fill width, independent of health depth.
 - Ally low-HP pulse with an independent threshold, speed, intensity, and optional fixed color.
 
 Pulse animation is CSS-driven. The existing paint loop changes namespaced classes, duration, and the owned custom-color overlay only when pulse state, health width, or configuration changes; it does not animate brightness in JavaScript. Bypass, role changes, exclusions, removal, and panel replacement clear rewrite-owned pulse and level state so stock styling resumes.
 
 The current stock layout retains the engine pip label but no level subtree, while stock CSS still defines `#unit_level_label`. The rewrite therefore adds one minimal circular `LevelContainer` and current engine `{i:player_level}` label to its stock-derived override. It never creates the obsolete `healthpips`/`pip_image` path.
 
+## Milestone 9: enemy-player kill marker
+
+Implemented controls:
+
+- Enable or disable the static enemy-player kill marker.
+- Place the marker at a canonical `5%–80%` health threshold.
+- Set marker width from `1px–100px` and choose an independent color.
+
+The marker is a rewrite-owned, non-interactive overlay directly under `UnitHealthbarContainer`. It never writes engine-owned fill widths. Runtime shows it only for visible enemy panels carrying the stock `player` class; allies, neutrals, non-player units, buildings, sentries, bosses, and boss barracks always remain marker-free. Geometry uses the cached live health-parent width, clamps the effective marker width to that surface, and skips unchanged visibility, position, width, and color writes. Bypass, hidden or pulse-hidden bars, role changes, removal, and panel replacement clear all marker-owned inline state.
+
+
 ## Not implemented yet
 
-Settings are session-scoped. Durable persistence, kill marker, presets, hero scopes, and Anita compatibility remain unimplemented.
+Settings are session-scoped. Durable persistence, presets, hero scopes, and Anita compatibility remain unimplemented.

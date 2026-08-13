@@ -198,6 +198,287 @@ test('stable scan and paint do not repeat panel writes', () => {
     before,
   );
 });
+test('enemy player kill marker renders static cached geometry and color', () => {
+  const probe = bootProbe(['enemy', 'player', 'team1'], {
+    barWidth: 50,
+    parentWidth: 100,
+  });
+  assert.equal(probe.tree.killMarker.id, 'hp_colors_kill_marker');
+  assert.equal(probe.tree.killMarker.GetParent(), probe.tree.unitHealthbar);
+  assert.equal(probe.tree.killMarker.hittest, false);
+
+  publishConfig(probe.harness, 1, {
+    enabled: true,
+    enemyEnabled: true,
+    enemyVisible: true,
+    enemyKillMarkerEnabled: true,
+    enemyKillMarkerThreshold: 40,
+    enemyKillMarkerWidth: 6,
+    enemyKillMarkerColor: '#12abef',
+    enemyPulseEnabled: false,
+  });
+
+  assert.equal(probe.tree.killMarker.style.visibility, 'visible');
+  assert.equal(probe.tree.killMarker.style.marginLeft, '37px');
+  assert.equal(probe.tree.killMarker.style.width, '6px');
+  assert.equal(probe.tree.killMarker.style.backgroundColor, '#12ABEF');
+  assert.equal(probe.tree.unitHealthbar.style.width || '', '');
+});
+
+test('kill marker suppresses non-player and every excluded enemy class', () => {
+  const cases = [
+    ['enemy'],
+    ['friend', 'player'],
+    ['team_neutral', 'player'],
+    ['enemy', 'player', 'building'],
+    ['enemy', 'player', 'boss_tier1'],
+    ['enemy', 'player', 'boss_barracks'],
+    ['enemy', 'player', 'sentry'],
+  ];
+
+  for (const classes of cases) {
+    const probe = bootProbe(classes, { barWidth: 50, parentWidth: 100 });
+    publishConfig(probe.harness, 1, {
+      enabled: true,
+      enemyEnabled: true,
+      enemyVisible: true,
+      enemyKillMarkerEnabled: true,
+      enemyKillMarkerThreshold: 40,
+      enemyKillMarkerWidth: 6,
+      enemyKillMarkerColor: '#12ABEF',
+      enemyPulseEnabled: false,
+    });
+
+    assert.equal(
+      probe.tree.killMarker.style.visibility,
+      'collapse',
+      `kill marker should be hidden for ${classes.join(',')}`,
+    );
+    assert.equal(probe.tree.killMarker.style.marginLeft, '');
+    assert.equal(probe.tree.killMarker.style.width, '');
+    assert.equal(probe.tree.killMarker.style.backgroundColor, '');
+  }
+});
+
+test('kill marker threshold, width, and color normalize to canonical bounds', () => {
+  const probe = bootProbe(['enemy', 'player', 'team1'], {
+    barWidth: 50,
+    parentWidth: 100,
+  });
+  const base = {
+    enabled: true,
+    enemyEnabled: true,
+    enemyVisible: true,
+    enemyKillMarkerEnabled: true,
+    enemyPulseEnabled: false,
+  };
+
+  publishConfig(probe.harness, 1, {
+    ...base,
+    enemyKillMarkerThreshold: 0,
+    enemyKillMarkerWidth: 0,
+    enemyKillMarkerColor: '#abc',
+  });
+  assert.equal(probe.tree.killMarker.style.marginLeft, '5px');
+  assert.equal(probe.tree.killMarker.style.width, '1px');
+  assert.equal(probe.tree.killMarker.style.backgroundColor, '#FF2222');
+
+  publishConfig(probe.harness, 2, {
+    ...base,
+    enemyKillMarkerThreshold: 100,
+    enemyKillMarkerWidth: 1000,
+    enemyKillMarkerColor: '#112233',
+  });
+  assert.equal(probe.tree.killMarker.style.marginLeft, '0px');
+  assert.equal(probe.tree.killMarker.style.width, '100px');
+  assert.equal(probe.tree.killMarker.style.backgroundColor, '#112233');
+
+  publishConfig(probe.harness, 3, {
+    ...base,
+    enemyKillMarkerThreshold: 'invalid',
+    enemyKillMarkerWidth: 'invalid',
+    enemyKillMarkerColor: 'invalid',
+  });
+  assert.equal(probe.tree.killMarker.style.marginLeft, '24px');
+  assert.equal(probe.tree.killMarker.style.width, '3px');
+  assert.equal(probe.tree.killMarker.style.backgroundColor, '#FF2222');
+});
+
+test('kill marker clears on hidden and pulse-hidden bars', () => {
+  const probe = bootProbe(['enemy', 'player', 'team1'], {
+    barWidth: 20,
+    parentWidth: 100,
+  });
+  const base = {
+    enabled: true,
+    enemyEnabled: true,
+    enemyKillMarkerEnabled: true,
+    enemyKillMarkerThreshold: 40,
+    enemyKillMarkerWidth: 6,
+    enemyKillMarkerColor: '#12ABEF',
+    enemyPulseEnabled: false,
+  };
+
+  publishConfig(probe.harness, 1, { ...base, enemyVisible: true });
+  assert.equal(probe.tree.killMarker.style.visibility, 'visible');
+
+  publishConfig(probe.harness, 2, { ...base, enemyVisible: false });
+  assert.equal(probe.tree.killMarker.style.visibility, 'collapse');
+  assert.equal(probe.tree.killMarker.style.marginLeft, '');
+  assert.equal(probe.tree.killMarker.style.width, '');
+  assert.equal(probe.tree.killMarker.style.backgroundColor, '');
+
+  publishConfig(probe.harness, 3, {
+    ...base,
+    enemyVisible: true,
+    enemyPulseEnabled: true,
+    enemyPulseThreshold: 25,
+    enemyPulseHideBar: true,
+  });
+  assert.equal(probe.tree.killMarker.style.visibility, 'collapse');
+  assert.equal(probe.tree.killMarker.style.marginLeft, '');
+  assert.equal(probe.tree.killMarker.style.width, '');
+  assert.equal(probe.tree.killMarker.style.backgroundColor, '');
+});
+
+test('stable kill marker paint does not repeat style writes', () => {
+  const probe = bootProbe(['enemy', 'player', 'team1'], {
+    barWidth: 50,
+    parentWidth: 100,
+  });
+  publishConfig(probe.harness, 1, {
+    enabled: true,
+    enemyEnabled: true,
+    enemyVisible: true,
+    enemyKillMarkerEnabled: true,
+    enemyKillMarkerThreshold: 40,
+    enemyKillMarkerWidth: 6,
+    enemyKillMarkerColor: '#12ABEF',
+    enemyPulseEnabled: false,
+  });
+  const before = {
+    visibility: getStyleWriteCount(probe.tree.killMarker, 'visibility'),
+    marginLeft: getStyleWriteCount(probe.tree.killMarker, 'marginLeft'),
+    width: getStyleWriteCount(probe.tree.killMarker, 'width'),
+    backgroundColor: getStyleWriteCount(
+      probe.tree.killMarker,
+      'backgroundColor',
+    ),
+  };
+
+  probe.harness.scheduler.takeByFunctionName('scan').fn();
+  probe.harness.scheduler.takeByFunctionName('paintColors').fn();
+
+  assert.deepEqual(
+    {
+      visibility: getStyleWriteCount(probe.tree.killMarker, 'visibility'),
+      marginLeft: getStyleWriteCount(probe.tree.killMarker, 'marginLeft'),
+      width: getStyleWriteCount(probe.tree.killMarker, 'width'),
+      backgroundColor: getStyleWriteCount(
+        probe.tree.killMarker,
+        'backgroundColor',
+      ),
+    },
+    before,
+  );
+});
+
+test('kill marker geometry follows raw parent width at unchanged health percent', () => {
+  const probe = bootProbe(['enemy', 'player', 'team1'], {
+    barWidth: 50,
+    parentWidth: 100,
+  });
+  publishConfig(probe.harness, 1, {
+    enabled: true,
+    enemyEnabled: true,
+    enemyVisible: true,
+    enemyKillMarkerEnabled: true,
+    enemyKillMarkerThreshold: 40,
+    enemyKillMarkerWidth: 6,
+    enemyKillMarkerColor: '#12ABEF',
+    enemyPulseEnabled: false,
+  });
+  assert.equal(probe.tree.killMarker.style.marginLeft, '37px');
+
+  const before = {
+    markerWrites: getStyleWriteCount(probe.tree.killMarker),
+    traversal: probe.harness.operationCounts.traversal,
+  };
+  probe.tree.redParent.actuallayoutwidth = 200;
+  probe.tree.lagging.actuallayoutwidth = 100;
+  probe.harness.scheduler.takeByFunctionName('paintColors').fn();
+
+  assert.equal(probe.tree.killMarker.style.marginLeft, '77px');
+  assert.equal(
+    getStyleWriteCount(probe.tree.killMarker) - before.markerWrites,
+    1,
+  );
+  assert.equal(probe.harness.operationCounts.traversal, before.traversal);
+
+  probe.tree.redParent.actuallayoutwidth = 0;
+  probe.tree.lagging.actuallayoutwidth = 0;
+  probe.harness.scheduler.takeByFunctionName('paintColors').fn();
+  assert.equal(probe.tree.killMarker.style.visibility, 'collapse');
+  assert.equal(probe.tree.killMarker.style.marginLeft, '');
+  assert.equal(probe.tree.killMarker.style.width, '');
+  assert.equal(probe.tree.killMarker.style.backgroundColor, '');
+});
+
+test('removed and replaced kill marker panels clear old ownership', () => {
+  const removed = bootProbe(['enemy', 'player', 'team1'], {
+    barWidth: 50,
+    parentWidth: 100,
+  });
+  publishConfig(removed.harness, 1, {
+    enabled: true,
+    enemyEnabled: true,
+    enemyVisible: true,
+    enemyKillMarkerEnabled: true,
+    enemyKillMarkerThreshold: 40,
+    enemyKillMarkerWidth: 6,
+    enemyKillMarkerColor: '#12ABEF',
+    enemyPulseEnabled: false,
+  });
+  removed.tree.redParent.SetParent(null);
+  removed.harness.scheduler.takeByFunctionName('scan').fn();
+  assert.equal(removed.tree.killMarker.style.visibility, 'collapse');
+  assert.equal(removed.tree.killMarker.style.marginLeft, '');
+  assert.equal(removed.tree.killMarker.style.width, '');
+  assert.equal(removed.tree.killMarker.style.backgroundColor, '');
+
+  const replaced = bootProbe(['enemy', 'player', 'team1'], {
+    barWidth: 50,
+    parentWidth: 100,
+  });
+  publishConfig(replaced.harness, 1, {
+    enabled: true,
+    enemyEnabled: true,
+    enemyVisible: true,
+    enemyKillMarkerEnabled: true,
+    enemyKillMarkerThreshold: 40,
+    enemyKillMarkerWidth: 6,
+    enemyKillMarkerColor: '#12ABEF',
+    enemyPulseEnabled: false,
+  });
+  const oldMarker = replaced.tree.killMarker;
+  oldMarker.SetParent(null);
+  const replacement = replaced.tree.unitHealthbar.add(
+    new MockPanel('hp_colors_kill_marker', {
+      hittest: false,
+    }),
+  );
+  replaced.harness.scheduler.takeByFunctionName('scan').fn();
+
+  assert.equal(oldMarker.style.visibility, 'collapse');
+  assert.equal(oldMarker.style.marginLeft, '');
+  assert.equal(oldMarker.style.width, '');
+  assert.equal(oldMarker.style.backgroundColor, '');
+  assert.equal(replacement.style.visibility, 'visible');
+  assert.equal(replacement.style.marginLeft, '37px');
+  assert.equal(replacement.style.width, '6px');
+  assert.equal(replacement.style.backgroundColor, '#12ABEF');
+});
+
 
 
 test('enemy pulse uses cached CSS state and clears above threshold', () => {
@@ -248,6 +529,67 @@ test('enemy pulse uses cached CSS state and clears above threshold', () => {
   assert.equal(probe.tree.lagging.style.animationDuration, '');
   assert.equal(probe.tree.unitHealthbar.style.opacity, '1');
   assert.equal(probe.tree.counter.BHasClass('HPColorsRewritePulse'), false);
+});
+
+test('enemy pulse text animation and geometry modifiers are independent', () => {
+  const probe = bootProbe(['enemy', 'player', 'team1'], {
+    barWidth: 20,
+    parentWidth: 100,
+  });
+  publishConfig(probe.harness, 1, {
+    enabled: true,
+    enemyEnabled: true,
+    readoutVisible: true,
+    readoutFormat: 'percent',
+    readoutOffsetX: 27,
+    readoutOffsetY: 500,
+    readoutSize: 145,
+    enemyPulseEnabled: true,
+    enemyPulseThreshold: 25,
+    enemyPulseReadout: false,
+    enemyPulseReadoutModifiers: true,
+    enemyPulseReadoutOffsetX: -120,
+    enemyPulseReadoutOffsetY: 300,
+    enemyPulseReadoutSize: 220,
+  });
+
+  assert.equal(
+    probe.tree.counterAnchor.style.transform,
+    'translate3d(-120px, 300px, 0px)',
+  );
+  assert.equal(probe.tree.counter.style.fontSize, '220px');
+  assert.equal(probe.tree.counter.BHasClass('HPColorsRewritePulse'), false);
+
+  publishConfig(probe.harness, 2, {
+    enabled: true,
+    enemyEnabled: true,
+    readoutVisible: true,
+    readoutFormat: 'percent',
+    readoutOffsetX: 27,
+    readoutOffsetY: 500,
+    readoutSize: 145,
+    enemyPulseEnabled: true,
+    enemyPulseThreshold: 25,
+    enemyPulseReadout: true,
+    enemyPulseReadoutModifiers: false,
+    enemyPulseReadoutOffsetX: -120,
+    enemyPulseReadoutOffsetY: 300,
+    enemyPulseReadoutSize: 220,
+  });
+  assert.equal(probe.tree.counter.BHasClass('HPColorsRewritePulse'), true);
+  assert.equal(
+    probe.tree.counterAnchor.style.transform,
+    'translate3d(27px, 500px, 0px)',
+  );
+  assert.equal(probe.tree.counter.style.fontSize, '145px');
+
+  probe.tree.lagging.actuallayoutwidth = 26;
+  probe.harness.scheduler.takeByFunctionName('paintColors').fn();
+  assert.equal(
+    probe.tree.counterAnchor.style.transform,
+    'translate3d(27px, 500px, 0px)',
+  );
+  assert.equal(probe.tree.counter.style.fontSize, '145px');
 });
 test('live pulse mode, BPM, and intensity changes apply immediately', () => {
   const probe = bootProbe(['enemy', 'player', 'team1'], {

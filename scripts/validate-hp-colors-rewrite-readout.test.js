@@ -69,6 +69,54 @@ function installLayoutPanels(harness) {
   }
 }
 
+test('editor owns bounded hero kill marker controls', () => {
+  assert.match(
+    overlayLayoutSource,
+    /<Panel class="healthbar_border"[^>]*\/>\s*<Panel id="hp_colors_kill_marker"[^>]*\bhittest="false"[^>]*\/>\s*<\/Panel>\s*<\/Panel>\s*<Panel id="hp_counter_anchor"/,
+  );
+  const harness = createPanoramaHarness();
+  installLayoutPanels(harness);
+  runInVm(menuSource, createVmContext(harness), 'hp_colors_menu.js');
+  harness.$.HPColorsMenuBoot();
+
+  const threshold = harness.root.FindChildTraverse(
+    'HPColorsEnemyKillMarkerThresholdSlider',
+  );
+  const width = harness.root.FindChildTraverse(
+    'HPColorsEnemyKillMarkerWidthSlider',
+  );
+  const color = harness.root.FindChildTraverse(
+    'HPColorsEnemyKillMarkerColorHex',
+  );
+  assert.deepEqual([threshold.min, threshold.max], [5, 80]);
+  assert.deepEqual([width.min, width.max], [1, 100]);
+  assert.equal(threshold.enabled, false);
+  assert.equal(width.enabled, false);
+  assert.equal(color.enabled, false);
+
+  harness.root.FindChildTraverse(
+    'HPColorsEnemyKillMarkerToggle',
+  ).events.onactivate();
+  assert.equal(threshold.enabled, true);
+  assert.equal(width.enabled, true);
+  assert.equal(color.enabled, true);
+
+  threshold.value = 40;
+  threshold.events.onvaluechanged();
+  width.value = 6;
+  width.events.onvaluechanged();
+  color.text = '#12abef';
+  color.events.ontextentrysubmit();
+
+  const values = JSON.parse(
+    harness.root.GetAttributeString('hp_colors_rewrite_config', '{}'),
+  ).values;
+  assert.equal(values.enemyKillMarkerEnabled, true);
+  assert.equal(values.enemyKillMarkerThreshold, 40);
+  assert.equal(values.enemyKillMarkerWidth, 6);
+  assert.equal(values.enemyKillMarkerColor, '#12ABEF');
+});
+
 test('enemy HP readout shows current and maximum health and can be hidden', () => {
   const probe = bootProbe(['enemy', 'team1']);
   publishConfig(probe.harness, 1, {
@@ -140,6 +188,39 @@ test('editor owns and publishes the readout controls', () => {
   assert.deepEqual([sizeSlider.min, sizeSlider.max], [72, 320]);
   assert.deepEqual([xSlider.min, xSlider.max], [-405, 405]);
   assert.deepEqual([ySlider.min, ySlider.max], [-35, 840]);
+  const pulseSizeSlider = harness.root.FindChildTraverse(
+    'HPColorsEnemyPulseReadoutSizeSlider',
+  );
+  const pulseXSlider = harness.root.FindChildTraverse(
+    'HPColorsEnemyPulseReadoutOffsetXSlider',
+  );
+  const pulseYSlider = harness.root.FindChildTraverse(
+    'HPColorsEnemyPulseReadoutOffsetYSlider',
+  );
+  assert.deepEqual([pulseSizeSlider.min, pulseSizeSlider.max], [72, 320]);
+  assert.deepEqual([pulseXSlider.min, pulseXSlider.max], [-405, 405]);
+  assert.deepEqual([pulseYSlider.min, pulseYSlider.max], [-35, 840]);
+  assert.equal(pulseSizeSlider.enabled, false);
+  assert.equal(pulseXSlider.enabled, false);
+  assert.equal(pulseYSlider.enabled, false);
+  harness.root.FindChildTraverse(
+    'HPColorsEnemyPulseReadoutModifiersToggle',
+  ).events.onactivate();
+  assert.equal(pulseSizeSlider.enabled, true);
+  assert.equal(pulseXSlider.enabled, true);
+  assert.equal(
+    harness.root
+      .FindChildTraverse('HPColorsEnemyPulseReadoutToggle')
+      .BHasClass('Active'),
+    false,
+  );
+  assert.equal(pulseYSlider.enabled, true);
+  pulseSizeSlider.value = 220;
+  pulseSizeSlider.events.onvaluechanged();
+  pulseXSlider.value = -120;
+  pulseXSlider.events.onvaluechanged();
+  pulseYSlider.value = 300;
+  pulseYSlider.events.onvaluechanged();
   const readoutLowSlider = harness.root.FindChildTraverse(
     'HPColorsReadoutLowThresholdSlider',
   );
@@ -197,6 +278,11 @@ test('editor owns and publishes the readout controls', () => {
   assert.equal(values.readoutMode, 'gradient');
   assert.equal(values.lowThreshold, 35);
   assert.equal(values.highThreshold, 80);
+  assert.equal(values.enemyPulseReadout, false);
+  assert.equal(values.enemyPulseReadoutModifiers, true);
+  assert.equal(values.enemyPulseReadoutSize, 220);
+  assert.equal(values.enemyPulseReadoutOffsetX, -120);
+  assert.equal(values.enemyPulseReadoutOffsetY, 300);
 });
 
 test('readout applies size, offsets, and bar-derived or custom colors', () => {
@@ -442,10 +528,6 @@ test('counter adds upward render extent without changing horizontal flow', () =>
   assert.match(infoHealth[1], /\bheight:\s*300px/);
   assert.match(infoHealth[1], /\bflow-children:\s*right/);
   assert.match(infoHealth[1], /\bvertical-align:\s*bottom/);
-  assert.match(
-    overlayLayoutSource,
-    /<Panel class="healthbar_border"[^>]*\/>\s*<\/Panel>\s*<\/Panel>\s*<Panel id="hp_counter_anchor"/,
-  );
 
   const anchor = overlayLayoutSource.match(
     /<Panel id="hp_counter_anchor"[^>]*style="([^"]*)"/,

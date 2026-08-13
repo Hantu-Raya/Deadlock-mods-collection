@@ -65,6 +65,7 @@
             </Panel>
           </Panel>
           <Panel class="healthbar_border" />
+          <Panel id="hp_colors_kill_marker" hittest="false" />
         </Panel>
       </Panel>
       <Panel id="hp_counter_anchor" hittest="false" hittestchildren="false" style="ignore-parent-flow: true; horizontal-align: center; vertical-align: bottom; width: 100%; height: 100%; overflow: noclip;">
