@@ -124,6 +124,10 @@
               <Label text="04" class="HPColorsCategoryIndex" />
               <Label text="READOUT" class="HPColorsCategoryLabel" />
             </Button>
+            <Button id="HPColorsCategoryEffects" class="HPColorsCategoryButton">
+              <Label text="05" class="HPColorsCategoryIndex" />
+              <Label text="EFFECTS" class="HPColorsCategoryLabel" />
+            </Button>
           </Panel>
 
           <Panel class="HPColorsContent">
@@ -435,9 +439,118 @@
                     <Panel class="HPColorsSettingCopy"><Label text="VERTICAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move the HP number vertically without changing surrounding layout." class="HPColorsSettingHelp" /></Panel>
                     <Panel class="HPColorsSliderGroup">
                       <Panel id="HPColorsReadoutOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
-                      <TextEntry id="HPColorsReadoutOffsetYEntry" class="HPColorsNumberEntry" text="-130" />
+                      <TextEntry id="HPColorsReadoutOffsetYEntry" class="HPColorsNumberEntry" text="500" />
                       <Label text="PX" class="HPColorsUnitLabel" />
                     </Panel>
+                  </Panel>
+                </Panel>
+                <Panel id="HPColorsSettingsReadoutLevels" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="SHOW HEALTH PIPS" class="HPColorsSettingTitle" />
+                      <Label text="Keep engine pip text visible on enemy bars; ally, neutral, and bypassed bars remain stock." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsPipsVisibleToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="PRECISE PIP CALCULATION" class="HPColorsSettingTitle" />
+                      <Label text="Assume the known 10-HP minor-pip profile when deriving maximum HP for the owned readout." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsPrecisePipsToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="PRECISE-PIP COMMANDS" class="HPColorsSettingTitle" />
+                      <Label text="Copies the 10-HP profile when enabled or stock reset values when disabled. This panel cannot apply or verify them." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsPrecisePipsCopy" class="HPColorsSecondaryAction"><Label id="HPColorsPrecisePipsCopyLabel" text="COPY COMMANDS" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="SHOW ENEMY LEVELS" class="HPColorsSettingTitle" />
+                      <Label text="Show the engine-bound player level only on valid enemy-player bars." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsLevelsVisibleToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsEnemyPulse" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="ENABLE ENEMY PULSE" class="HPColorsSettingTitle" /><Label text="Pulse customized enemy bars at or below the inclusive threshold." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyPulseToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE THRESHOLD" class="HPColorsSettingTitle" /><Label text="Pulse starts when enemy health is at or below this percentage." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseThresholdEntry" class="HPColorsNumberEntry" text="25" /><Label text="%" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE SPEED" class="HPColorsSettingTitle" /><Label text="Choose the CSS pulse rate without changing stock healthbar timing." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseBpmSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseBpmEntry" class="HPColorsNumberEntry" text="75" /><Label text="BPM" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE INTENSITY" class="HPColorsSettingTitle" /><Label text="Set the CSS visual range for subtle, medium, or intense feedback." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsEnemyPulseIntensitySubtle" class="HPColorsSegmentButton"><Label text="SUBTLE" /></Button>
+                      <Button id="HPColorsEnemyPulseIntensityMedium" class="HPColorsSegmentButton"><Label text="MEDIUM" /></Button>
+                      <Button id="HPColorsEnemyPulseIntensityIntense" class="HPColorsSegmentButton"><Label text="INTENSE" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="CUSTOM PULSE COLOR" class="HPColorsSettingTitle" /><Label text="Use a fixed custom fill or pulse between the normal fill and a custom color." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyPulseColorToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsEnemyPulseColorModeRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE COLOR MODE" class="HPColorsSettingTitle" /><Label text="Fixed uses the custom fill color with brightness pulse; Gradient keeps the base fill and pulses a custom-color overlay over time." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsEnemyPulseColorModeFixed" class="HPColorsSegmentButton"><Label text="FIXED" /></Button>
+                      <Button id="HPColorsEnemyPulseColorModeGradient" class="HPColorsSegmentButton"><Label text="GRADIENT" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsEnemyPulseColorRow" class="HPColorsSettingRow HPColorsColorRow HPColorsConditionalRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE COLOR" class="HPColorsSettingTitle" /><Label text="Color the active enemy pulse without replacing engine-owned geometry." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyPulseColorSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsEnemyPulseColorHex" class="HPColorsHexEntry" text="#FF2222" maxchars="7" />
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="HIDE BAR WHILE PULSING" class="HPColorsSettingTitle" /><Label text="Compose temporary pulse hiding with normal visibility at 0.01 opacity." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyPulseHideBarToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE HP NUMBER" class="HPColorsSettingTitle" /><Label text="Apply the same CSS pulse to the existing enemy readout geometry." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyPulseReadoutToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsAllyPulse" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="ENABLE ALLY PULSE" class="HPColorsSettingTitle" /><Label text="Pulse customized ally bars at or below their independent threshold." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyPulseToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE THRESHOLD" class="HPColorsSettingTitle" /><Label text="Pulse starts when ally health is at or below this percentage." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsAllyPulseThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsAllyPulseThresholdEntry" class="HPColorsNumberEntry" text="25" /><Label text="%" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE SPEED" class="HPColorsSettingTitle" /><Label text="Choose the CSS pulse rate for customized ally bars." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsAllyPulseBpmSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsAllyPulseBpmEntry" class="HPColorsNumberEntry" text="75" /><Label text="BPM" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE INTENSITY" class="HPColorsSettingTitle" /><Label text="Set the CSS brightness range for subtle, medium, or intense ally feedback." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsAllyPulseIntensitySubtle" class="HPColorsSegmentButton"><Label text="SUBTLE" /></Button>
+                      <Button id="HPColorsAllyPulseIntensityMedium" class="HPColorsSegmentButton"><Label text="MEDIUM" /></Button>
+                      <Button id="HPColorsAllyPulseIntensityIntense" class="HPColorsSegmentButton"><Label text="INTENSE" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="CUSTOM PULSE COLOR" class="HPColorsSettingTitle" /><Label text="Use an optional fixed color while the ally pulse is active." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyPulseColorToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsAllyPulseColorRow" class="HPColorsSettingRow HPColorsColorRow HPColorsConditionalRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE COLOR" class="HPColorsSettingTitle" /><Label text="Color the active ally pulse without changing engine-owned geometry." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyPulseColorSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsAllyPulseColorHex" class="HPColorsHexEntry" text="#FF2222" maxchars="7" />
                   </Panel>
                 </Panel>
               </Panel>

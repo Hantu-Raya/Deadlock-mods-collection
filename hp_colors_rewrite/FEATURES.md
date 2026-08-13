@@ -151,15 +151,29 @@ Implemented controls:
 - Show or hide the enemy HP number.
 - Current/max HP, percentage, and current-only formats.
 - Font chooser with Default (`Retail Demo, Noto Sans, sans-serif`), Oracle (`VALVEOracle, Reaver, sans-serif`), and Pulp (`VALVEPulp, Noto Sans, sans-serif`). Runtime writes the expanded families because stock `sans`, `oracle`, and `block` are compile-time CSS aliases.
-- Text size plus direct horizontal (`-405px…405px`) and vertical (`-365px…270px`) offsets.
+- Text size plus direct horizontal (`-405px…405px`) and portable vertical (`-35px…840px`, default `500px`) offsets.
 - Bar-derived or custom low/mid/high text colors. Bar Color inherits the enemy bar's Fixed/Gradient mode and shared thresholds, with those followed controls visible but disabled. Custom enables its own Fixed/Gradient choice and edits the same shared thresholds. The white label is tinted through `washColor`, matching the bar and legacy rendering path instead of assigning a darker flat `color`.
 
-The stock overlay exposes only `unit_healthbar_pip_label`, so the rewrite owns `hp_counter_anchor` and `hp_counter` panels without changing stock fill geometry. Current/max formats derive maximum HP from the stock pip string and current HP from the existing shield-aware fill ratio; percentage remains available when a maximum cannot be derived. Enemy-disabled, excluded, neutral, ally, unclassified, and bypassed paths collapse and clear the owned counter. Pip-text changes and replacement counter panels invalidate local caches and reapply through the existing scan and paint loops.
+The stock overlay exposes only `unit_healthbar_pip_label`, so the rewrite owns `hp_counter_anchor` and one `hp_counter` label without changing stock fill geometry. Maximum HP comes from the stock pip string and current HP from the existing shield-aware fill ratio; percentage remains available when a maximum cannot be derived. Enemy-disabled, excluded, neutral, ally, unclassified, and bypassed paths collapse and clear the owned label. Pip-text changes and replacement counter panels invalidate local caches and reapply through the existing scan and paint loops.
 
-The counter anchor is `160%` wide and `1140px` high. A separate in-flow `399px` top extent sits before `InfoHealthContainer`, enlarging `UnitStatus` and the world-panel render surface above the stock bar; the anchor remains centered on the existing healthbar origin.
+The readout uses the legacy non-displacing layout: a `100%` × `fit-children` `WindowRoot`, a bottom-aligned `fit-children` `UnitStatus`, a `fit-children` × `300px` `InfoHealthContainer`, and an ignored-flow `100%` × `100%` bottom-aligned `hp_counter_anchor`. The anchor is a direct child of `UnitStatus`, outside the finite health container. Live geometry proved that the engine-owned world-panel root is fixed at `2000px × 1000px`; text translated near the lower edge leaves that texture even though Panorama continues to lay it out. `citadel_unit_status_height 200` expands the root, but it is a `developmentonly` startup setting that requires external `gameinfo.gi` mutation. The portable VPK does not modify game files beyond its addon and exposes the user-selected vertical range through `840px`. Panorama commands, native settings controls, cfg files, and `overflow:noclip` cannot enlarge this engine canvas.
 
 The focused VM regression covers all formats, shield-aware values, missing pip data, visibility/scope, size, offsets, fixed/gradient colors, team-high/custom color ownership, unchanged-write caching, and replacement replay.
 
+## Milestone 8: health pips, enemy levels, and low-HP effects
+
+Implemented controls:
+
+- Enemy health-pip visibility while leaving the engine-owned pip text and geometry untouched.
+- Optional precise-pip parsing for the known 10-HP command profile, with copy-only enable/reset commands that the VPK does not apply or verify.
+- Enemy-player level visibility with engine-bound level text and custom tier boundaries at levels 11, 19, 27, and 35.
+- Enemy low-HP pulse with an inclusive threshold, 30–300 BPM speed, three intensity levels, optional fixed/gradient pulse color, temporary non-culling bar hiding, and optional HP-number pulse. Normal brightness pulse targets only `unit_healthbar_lagging`; custom Gradient keeps the base fill color and CSS-pulses a custom-color overlay across the live fill width, independent of health depth.
+- Ally low-HP pulse with an independent threshold, speed, intensity, and optional fixed color.
+
+Pulse animation is CSS-driven. The existing paint loop changes namespaced classes, duration, and the owned custom-color overlay only when pulse state, health width, or configuration changes; it does not animate brightness in JavaScript. Bypass, role changes, exclusions, removal, and panel replacement clear rewrite-owned pulse and level state so stock styling resumes.
+
+The current stock layout retains the engine pip label but no level subtree, while stock CSS still defines `#unit_level_label`. The rewrite therefore adds one minimal circular `LevelContainer` and current engine `{i:player_level}` label to its stock-derived override. It never creates the obsolete `healthpips`/`pip_image` path.
+
 ## Not implemented yet
 
-Settings are session-scoped. Durable persistence, health pips and levels, pulse, kill marker, presets, hero scopes, and Anita compatibility remain unimplemented.
+Settings are session-scoped. Durable persistence, kill marker, presets, hero scopes, and Anita compatibility remain unimplemented.

@@ -3,6 +3,14 @@
 
   var CONFIG_ATTR = "hp_colors_rewrite_config";
   var EVENT_CHANNEL = "ClientUI_FireOutput";
+  var PIP_CONVAR_ENABLE_COMMAND =
+    '"citadel_unit_status_health_per_minor_pip" "10"\n' +
+    '"citadel_unit_status_health_per_pip" "10"\n' +
+    '"citadel_unit_status_minor_pip_per_major_pip" "10"';
+  var PIP_CONVAR_RESET_COMMAND =
+    '"citadel_unit_status_health_per_minor_pip" "100"\n' +
+    '"citadel_unit_status_health_per_pip" "100"\n' +
+    '"citadel_unit_status_minor_pip_per_major_pip" "5"';
   var CONFIG_MAGIC = "HP_COLORS_REWRITE_CONFIG";
   var HISTORY_LIMIT = 40;
   var REPLAY_HOT_SEC = 1;
@@ -45,14 +53,32 @@
     readoutSize: 145,
     readoutFont: "default",
     readoutOffsetX: 27,
-    readoutOffsetY: -130,
+    readoutOffsetY: 500,
     readoutColorMode: "bar",
     readoutMode: "fixed",
     readoutLow: "#E16161",
     readoutMid: "#FF7B00",
     readoutHigh: "#FFFFFF",
+    pipsVisible: true,
+    precisePipsEnabled: false,
+    levelsVisible: true,
     lowThreshold: 25,
     highThreshold: 65,
+    enemyPulseEnabled: true,
+    enemyPulseThreshold: 25,
+    enemyPulseBpm: 75,
+    enemyPulseIntensity: 1,
+    enemyPulseColorEnabled: false,
+    enemyPulseColorMode: "gradient",
+    enemyPulseColor: "#FF2222",
+    enemyPulseHideBar: false,
+    enemyPulseReadout: false,
+    allyPulseEnabled: false,
+    allyPulseThreshold: 25,
+    allyPulseBpm: 75,
+    allyPulseIntensity: 1,
+    allyPulseColorEnabled: false,
+    allyPulseColor: "#FF2222",
   };
 
   var CATEGORY_DEFS = [
@@ -185,6 +211,53 @@
           pageId: "HPColorsSettingsReadoutPlacement",
           keys: ["readoutOffsetX", "readoutOffsetY"],
         },
+        {
+          name: "LEVEL & PIPS",
+          title: "LEVELS & HEALTH PIPS",
+          description:
+            "Control enemy health pips and player level visibility without changing engine-owned text or geometry.",
+          pageId: "HPColorsSettingsReadoutLevels",
+          keys: ["pipsVisible", "precisePipsEnabled", "levelsVisible"],
+        },
+
+      ],
+    },
+    {
+      name: "EFFECTS",
+      tabs: [
+        {
+          name: "ENEMY PULSE",
+          title: "ENEMY LOW-HP PULSE",
+          description:
+            "Pulse enemy bars at or below the threshold without changing engine-owned widths or timing.",
+          pageId: "HPColorsSettingsEnemyPulse",
+          keys: [
+            "enemyPulseEnabled",
+            "enemyPulseThreshold",
+            "enemyPulseBpm",
+            "enemyPulseIntensity",
+            "enemyPulseColorEnabled",
+            "enemyPulseColorMode",
+            "enemyPulseColor",
+            "enemyPulseHideBar",
+            "enemyPulseReadout",
+          ],
+        },
+        {
+          name: "ALLY PULSE",
+          title: "ALLY LOW-HP PULSE",
+          description:
+            "Pulse customized ally bars at or below their independent threshold.",
+          pageId: "HPColorsSettingsAllyPulse",
+          keys: [
+            "allyPulseEnabled",
+            "allyPulseThreshold",
+            "allyPulseBpm",
+            "allyPulseIntensity",
+            "allyPulseColorEnabled",
+            "allyPulseColor",
+          ],
+        },
       ],
     },
   ];
@@ -194,8 +267,8 @@
     "HPColorsCategoryEnemy",
     "HPColorsCategoryAlly",
     "HPColorsCategoryReadout",
+    "HPColorsCategoryEffects",
   ];
-
   var BOOLEAN_KEYS = {
     enabled: true,
     enemyEnabled: true,
@@ -206,6 +279,15 @@
     allyEnabled: true,
     allyVisible: true,
     readoutVisible: true,
+    pipsVisible: true,
+    precisePipsEnabled: true,
+    levelsVisible: true,
+    enemyPulseEnabled: true,
+    enemyPulseColorEnabled: true,
+    enemyPulseHideBar: true,
+    enemyPulseReadout: true,
+    allyPulseEnabled: true,
+    allyPulseColorEnabled: true,
   };
   var COLOR_KEYS = {
     enemyLow: true,
@@ -224,6 +306,8 @@
     readoutLow: true,
     readoutMid: true,
     readoutHigh: true,
+    enemyPulseColor: true,
+    allyPulseColor: true,
   };
   var COLOR_TITLES = {
     enemyLow: "ENEMY LOW",
@@ -242,6 +326,8 @@
     readoutLow: "HP NUMBER LOW",
     readoutMid: "HP NUMBER MID",
     readoutHigh: "HP NUMBER HIGH",
+    enemyPulseColor: "ENEMY PULSE COLOR",
+    allyPulseColor: "ALLY PULSE COLOR",
   };
 
   var context = $.GetContextPanel();
@@ -258,6 +344,9 @@
   var replayGeneration = 0;
   var replayRunning = false;
   var replayDispatches = 0;
+  var serializedSnapshotRaw = "";
+  var serializedReplayPayload = "";
+
   var picker = {
     key: "",
     hue: 0,
@@ -355,6 +444,40 @@
     } catch (error) {}
   }
 
+  function copyTextToClipboard(text) {
+    var value = String(text || "");
+    if (!value) return false;
+    var panel = $.GetContextPanel();
+    var attempts = [
+      ["CopyStringToClipboard", value],
+      ["CopyStringToClipboard", value, panel],
+      ["CopyToClipboard", value, panel],
+      ["CopyToClipboard", value],
+    ];
+    for (var index = 0; index < attempts.length; index++) {
+      try {
+        $.DispatchEvent.apply($, attempts[index]);
+        return true;
+      } catch (error) {}
+    }
+    return false;
+  }
+
+  function copyPrecisePipCommands() {
+    var label = find("HPColorsPrecisePipsCopyLabel");
+    var copied = copyTextToClipboard(
+      state.values.precisePipsEnabled
+        ? PIP_CONVAR_ENABLE_COMMAND
+        : PIP_CONVAR_RESET_COMMAND,
+    );
+    if (isValid(label)) label.text = copied ? "COPIED" : "COPY FAILED";
+    try {
+      $.Schedule(1.25, function () {
+        if (isValid(label)) label.text = "COPY COMMANDS";
+      });
+    } catch (error) {}
+  }
+
   function clampNumber(value, min, max, fallback) {
     var number = Number(value);
     if (!isFinite(number)) number = fallback;
@@ -441,6 +564,17 @@
       key === "readoutMode"
     )
       return value === "gradient" ? "gradient" : "fixed";
+    if (key === "enemyPulseColorMode")
+      return value === "fixed" ? "fixed" : "gradient";
+    if (
+      key === "enemyPulseThreshold" ||
+      key === "allyPulseThreshold"
+    )
+      return clampNumber(value, 0, 100, 25);
+    if (key === "enemyPulseBpm" || key === "allyPulseBpm")
+      return clampNumber(value, 30, 300, 75);
+    if (key === "enemyPulseIntensity" || key === "allyPulseIntensity")
+      return clampNumber(value, 0, 2, 1);
     if (key === "ultMode") return value === "custom" ? "custom" : "follow";
     if (
       key === "readoutFormat"
@@ -455,7 +589,7 @@
     if (key === "readoutOffsetX")
       return clampNumber(value, -405, 405, DEFAULTS[key]);
     if (key === "readoutOffsetY")
-      return clampNumber(value, -365, 270, DEFAULTS[key]);
+      return clampNumber(value, -35, 840, DEFAULTS[key]);
     if (key === "widthScale" || key === "heightScale")
       return clampNumber(value, 60, 160, DEFAULTS[key]);
     if (key === "positionX")
@@ -504,6 +638,28 @@
     });
   }
 
+  function serializeChange(settingId, raw) {
+    return JSON.stringify({
+      magic_word: CONFIG_MAGIC,
+      version: 1,
+      revision: state.revision,
+      setting_id: settingId,
+      value: settingId === "*" ? null : state.values[settingId],
+      values_raw: raw,
+    });
+  }
+
+  function cacheReplayPayload(raw, replayPayload) {
+    serializedSnapshotRaw = raw;
+    serializedReplayPayload =
+      replayPayload || serializeChange("*", raw);
+  }
+
+  function ensureReplayPayload() {
+    if (serializedSnapshotRaw && serializedReplayPayload) return;
+    cacheReplayPayload(snapshotRaw());
+  }
+
   function readRootSnapshot() {
     if (!isValid(ui.absoluteRoot) || !ui.absoluteRoot.GetAttributeString) return "";
     try {
@@ -521,6 +677,8 @@
       if (!data || data.version !== 1 || !data.values) return false;
       state.revision = Math.max(0, Math.round(Number(data.revision) || 0));
       state.values = normalizeValues(data.values);
+      if (serializedSnapshotRaw !== raw || !serializedReplayPayload)
+        cacheReplayPayload(snapshotRaw());
       return true;
     } catch (error) {
       return false;
@@ -541,18 +699,11 @@
     }
   }
 
-  function dispatchChange(settingId, raw) {
+  function dispatchChange(settingId, raw, serialized) {
     try {
       $.DispatchEvent(
         EVENT_CHANNEL,
-        JSON.stringify({
-          magic_word: CONFIG_MAGIC,
-          version: 1,
-          revision: state.revision,
-          setting_id: settingId,
-          value: settingId === "*" ? null : state.values[settingId],
-          values_raw: raw,
-        }),
+        serialized || serializeChange(settingId, raw),
       );
     } catch (error) {
       $.Msg("[HP Colors Rewrite] settings dispatch failed: " + String(error));
@@ -576,7 +727,11 @@
         )
           return;
         replayDispatches += 1;
-        dispatchChange("*", snapshotRaw());
+        dispatchChange(
+          "*",
+          serializedSnapshotRaw,
+          serializedReplayPayload,
+        );
         scheduleSnapshotReplay(generation);
       });
     } catch (error) {
@@ -591,6 +746,7 @@
       replayDispatches = 0;
       return;
     }
+    ensureReplayPayload();
     replayDispatches = 0;
     if (replayRunning) return;
     replayRunning = true;
@@ -601,8 +757,13 @@
   function publish(settingId) {
     state.revision += 1;
     var raw = snapshotRaw();
+    var immediatePayload = serializeChange(settingId, raw);
+    cacheReplayPayload(
+      raw,
+      settingId === "*" ? immediatePayload : "",
+    );
     writeRootSnapshot(raw);
-    dispatchChange(settingId, raw);
+    dispatchChange(settingId, raw, immediatePayload);
     refreshSnapshotReplay();
     $.Msg(
       "[HP Colors Rewrite] setting revision=" +
@@ -922,7 +1083,99 @@
     setToggle("HPColorsExcludeBuildingsToggle", state.values.excludeBuildings);
     setToggle("HPColorsExcludeBossesToggle", state.values.excludeBosses);
     setToggle("HPColorsReadoutToggle", state.values.readoutVisible);
+    setToggle("HPColorsPipsVisibleToggle", state.values.pipsVisible);
+    setToggle(
+      "HPColorsPrecisePipsToggle",
+      state.values.precisePipsEnabled,
+    );
+    setToggle("HPColorsLevelsVisibleToggle", state.values.levelsVisible);
 
+
+    setToggle("HPColorsEnemyPulseToggle", state.values.enemyPulseEnabled);
+    setToggle(
+      "HPColorsEnemyPulseColorToggle",
+      state.values.enemyPulseColorEnabled,
+    );
+    setToggle(
+      "HPColorsEnemyPulseHideBarToggle",
+      state.values.enemyPulseHideBar,
+    );
+    setToggle(
+      "HPColorsEnemyPulseReadoutToggle",
+      state.values.enemyPulseReadout,
+    );
+    setToggle("HPColorsAllyPulseToggle", state.values.allyPulseEnabled);
+    setToggle(
+      "HPColorsAllyPulseColorToggle",
+      state.values.allyPulseColorEnabled,
+    );
+    setClass(
+      find("HPColorsEnemyPulseIntensitySubtle"),
+      "Selected",
+      state.values.enemyPulseIntensity === 0,
+    );
+    setClass(
+      find("HPColorsEnemyPulseIntensityMedium"),
+      "Selected",
+      state.values.enemyPulseIntensity === 1,
+    );
+    setClass(
+      find("HPColorsEnemyPulseIntensityIntense"),
+      "Selected",
+      state.values.enemyPulseIntensity === 2,
+    );
+    setClass(
+      find("HPColorsAllyPulseIntensitySubtle"),
+      "Selected",
+      state.values.allyPulseIntensity === 0,
+    );
+    setClass(
+      find("HPColorsAllyPulseIntensityMedium"),
+      "Selected",
+      state.values.allyPulseIntensity === 1,
+    );
+    setClass(
+      find("HPColorsAllyPulseIntensityIntense"),
+      "Selected",
+      state.values.allyPulseIntensity === 2,
+    );
+    setClass(
+      find("HPColorsEnemyPulseColorModeFixed"),
+      "Selected",
+      state.values.enemyPulseColorMode === "fixed",
+    );
+    setClass(
+      find("HPColorsEnemyPulseColorModeGradient"),
+      "Selected",
+      state.values.enemyPulseColorMode === "gradient",
+    );
+    var enemyPulseActive = state.values.enemyPulseEnabled;
+    var enemyPulseColorActive = enemyPulseActive && state.values.enemyPulseColorEnabled;
+    setClass(
+      find("HPColorsEnemyPulseColorModeRow"),
+      "Disabled",
+      !enemyPulseColorActive,
+    );
+    setClass(
+      find("HPColorsEnemyPulseColorRow"),
+      "Active",
+      enemyPulseColorActive,
+    );
+    setEnabled(
+      find("HPColorsEnemyPulseColorModeFixed"),
+      enemyPulseColorActive,
+    );
+    setEnabled(
+      find("HPColorsEnemyPulseColorModeGradient"),
+      enemyPulseColorActive,
+    );
+    var allyPulseColorActive =
+      state.values.allyPulseEnabled && state.values.allyPulseColorEnabled;
+    setClass(
+      find("HPColorsAllyPulseColorRow"),
+      "Active",
+      allyPulseColorActive,
+    );
     setClass(
       find("HPColorsEnemyModeFixed"),
       "Selected",
@@ -1092,6 +1345,26 @@
       state.values.readoutOffsetY,
     );
 
+    setSlider(
+      "HPColorsEnemyPulseThresholdSlider",
+      "HPColorsEnemyPulseThresholdEntry",
+      state.values.enemyPulseThreshold,
+    );
+    setSlider(
+      "HPColorsEnemyPulseBpmSlider",
+      "HPColorsEnemyPulseBpmEntry",
+      state.values.enemyPulseBpm,
+    );
+    setSlider(
+      "HPColorsAllyPulseThresholdSlider",
+      "HPColorsAllyPulseThresholdEntry",
+      state.values.allyPulseThreshold,
+    );
+    setSlider(
+      "HPColorsAllyPulseBpmSlider",
+      "HPColorsAllyPulseBpmEntry",
+      state.values.allyPulseBpm,
+    );
     setColor(
       "HPColorsEnemyLowSwatch",
       "HPColorsEnemyLowHex",
@@ -1173,6 +1446,16 @@
       state.values.readoutHigh,
     );
 
+    setColor(
+      "HPColorsEnemyPulseColorSwatch",
+      "HPColorsEnemyPulseColorHex",
+      state.values.enemyPulseColor,
+    );
+    setColor(
+      "HPColorsAllyPulseColorSwatch",
+      "HPColorsAllyPulseColorHex",
+      state.values.allyPulseColor,
+    );
     setClass(ui.undoButton, "Disabled", state.history.length === 0);
     if (ui.undoButton) ui.undoButton.enabled = state.history.length > 0;
     syncPicker();
@@ -1345,7 +1628,11 @@
       "HPColorsSettingsAllyShields",
       "HPColorsSettingsReadoutNumber",
       "HPColorsSettingsReadoutPlacement",
+      "HPColorsSettingsReadoutLevels",
+      "HPColorsSettingsEnemyPulse",
+      "HPColorsSettingsAllyPulse",
     ];
+
     for (var pageIndex = 0; pageIndex < pageIds.length; pageIndex++)
       ui.settingsPages.push(find(pageIds[pageIndex]));
 
@@ -1464,8 +1751,8 @@
         createSlider(
           "HPColorsReadoutOffsetYSliderHost",
           "HPColorsReadoutOffsetYSlider",
-          -365,
-          270,
+          -35,
+          840,
         ),
       ) &&
       isValid(
@@ -1500,6 +1787,38 @@
           100,
         ),
       ) &&
+      isValid(
+        createSlider(
+          "HPColorsEnemyPulseThresholdSliderHost",
+          "HPColorsEnemyPulseThresholdSlider",
+          0,
+          100,
+        ),
+      ) &&
+      isValid(
+        createSlider(
+          "HPColorsEnemyPulseBpmSliderHost",
+          "HPColorsEnemyPulseBpmSlider",
+          30,
+          300,
+        ),
+      ) &&
+      isValid(
+        createSlider(
+          "HPColorsAllyPulseThresholdSliderHost",
+          "HPColorsAllyPulseThresholdSlider",
+          0,
+          100,
+        ),
+      ) &&
+      isValid(
+        createSlider(
+          "HPColorsAllyPulseBpmSliderHost",
+          "HPColorsAllyPulseBpmSlider",
+          30,
+          300,
+        ),
+      ) &&
       createPickerSliders()
     );
   }
@@ -1528,6 +1847,36 @@
     bindMode("HPColorsUltModeFollow", "ultMode", "follow");
     bindMode("HPColorsUltModeCustom", "ultMode", "custom");
     bindToggle("HPColorsReadoutToggle", "readoutVisible");
+    bindToggle("HPColorsPipsVisibleToggle", "pipsVisible");
+    bindToggle("HPColorsPrecisePipsToggle", "precisePipsEnabled");
+    bindToggle("HPColorsLevelsVisibleToggle", "levelsVisible");
+    setPanelEvent(
+      find("HPColorsPrecisePipsCopy"),
+      "onactivate",
+      copyPrecisePipCommands,
+    );
+    bindToggle("HPColorsEnemyPulseToggle", "enemyPulseEnabled");
+    bindToggle("HPColorsEnemyPulseColorToggle", "enemyPulseColorEnabled");
+    bindToggle("HPColorsEnemyPulseHideBarToggle", "enemyPulseHideBar");
+    bindToggle("HPColorsEnemyPulseReadoutToggle", "enemyPulseReadout");
+    bindToggle("HPColorsAllyPulseToggle", "allyPulseEnabled");
+    bindToggle("HPColorsAllyPulseColorToggle", "allyPulseColorEnabled");
+    bindMode(
+      "HPColorsEnemyPulseColorModeFixed",
+      "enemyPulseColorMode",
+      "fixed",
+    );
+    bindMode(
+      "HPColorsEnemyPulseColorModeGradient",
+      "enemyPulseColorMode",
+      "gradient",
+    );
+    bindMode("HPColorsEnemyPulseIntensitySubtle", "enemyPulseIntensity", 0);
+    bindMode("HPColorsEnemyPulseIntensityMedium", "enemyPulseIntensity", 1);
+    bindMode("HPColorsEnemyPulseIntensityIntense", "enemyPulseIntensity", 2);
+    bindMode("HPColorsAllyPulseIntensitySubtle", "allyPulseIntensity", 0);
+    bindMode("HPColorsAllyPulseIntensityMedium", "allyPulseIntensity", 1);
+    bindMode("HPColorsAllyPulseIntensityIntense", "allyPulseIntensity", 2);
     bindMode("HPColorsReadoutFormatHP", "readoutFormat", "hp");
     bindMode("HPColorsReadoutFormatPercent", "readoutFormat", "percent");
     bindMode("HPColorsReadoutFormatCurrent", "readoutFormat", "current");
@@ -1572,8 +1921,36 @@
       "HPColorsReadoutOffsetYSlider",
       "HPColorsReadoutOffsetYEntry",
       "readoutOffsetY",
-      -365,
-      270,
+      -35,
+      840,
+    );
+    bindSlider(
+      "HPColorsEnemyPulseThresholdSlider",
+      "HPColorsEnemyPulseThresholdEntry",
+      "enemyPulseThreshold",
+      0,
+      100,
+    );
+    bindSlider(
+      "HPColorsEnemyPulseBpmSlider",
+      "HPColorsEnemyPulseBpmEntry",
+      "enemyPulseBpm",
+      30,
+      300,
+    );
+    bindSlider(
+      "HPColorsAllyPulseThresholdSlider",
+      "HPColorsAllyPulseThresholdEntry",
+      "allyPulseThreshold",
+      0,
+      100,
+    );
+    bindSlider(
+      "HPColorsAllyPulseBpmSlider",
+      "HPColorsAllyPulseBpmEntry",
+      "allyPulseBpm",
+      30,
+      300,
     );
     bindSlider(
       "HPColorsLowThresholdSlider",
@@ -1645,6 +2022,16 @@
       "allyBulletShield",
     );
     bindColor(
+      "HPColorsEnemyPulseColorSwatch",
+      "HPColorsEnemyPulseColorHex",
+      "enemyPulseColor",
+    );
+    bindColor(
+      "HPColorsAllyPulseColorSwatch",
+      "HPColorsAllyPulseColorHex",
+      "allyPulseColor",
+    );
+    bindColor(
       "HPColorsReadoutLowSwatch",
       "HPColorsReadoutLowHex",
       "readoutLow",
@@ -1660,6 +2047,7 @@
       "readoutHigh",
     );
   }
+
 
   function boot() {
     if (state.booted) return;

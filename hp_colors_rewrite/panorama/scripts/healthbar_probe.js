@@ -11,6 +11,12 @@
   var EVENT_CHANNEL = "ClientUI_FireOutput";
   var CONFIG_MAGIC = "HP_COLORS_REWRITE_CONFIG";
   var CONFIG_ATTR = "hp_colors_rewrite_config";
+  var DIRTY_TARGET = 1;
+  var DIRTY_HEALTH = 2;
+  var DIRTY_PIPS = 4;
+  var DIRTY_LEVEL = 8;
+  var DIRTY_PARTS = 16;
+  var DIRTY_CONFIG = 32;
 
   var DEFAULT_CONFIG = {
     enabled: true,
@@ -46,15 +52,41 @@
     readoutSize: 145,
     readoutFont: "default",
     readoutOffsetX: 27,
-    readoutOffsetY: -130,
+    readoutOffsetY: 500,
     readoutColorMode: "bar",
     readoutMode: "fixed",
     readoutLow: "#E16161",
     readoutMid: "#FF7B00",
     readoutHigh: "#FFFFFF",
+    pipsVisible: true,
+    precisePipsEnabled: false,
+    levelsVisible: true,
+    enemyPulseEnabled: true,
+    enemyPulseThreshold: 25,
+    enemyPulseBpm: 75,
+    enemyPulseIntensity: 1,
+    enemyPulseColorEnabled: false,
+    enemyPulseColorMode: "gradient",
+    enemyPulseColor: "#FF2222",
+    enemyPulseHideBar: false,
+    enemyPulseReadout: false,
+    allyPulseEnabled: false,
+    allyPulseThreshold: 25,
+    allyPulseBpm: 75,
+    allyPulseIntensity: 1,
+    allyPulseColorEnabled: false,
+    allyPulseColor: "#FF2222",
     lowThreshold: 25,
     highThreshold: 65,
   };
+
+  var LEVEL_VISIBLE_CLASS = "level_number_visible";
+  var LEVEL_TIERS = [
+    { minimum: 11, className: "level_tier2", color: "#f0d000" },
+    { minimum: 19, className: "level_tier3", color: "#ff8c00" },
+    { minimum: 27, className: "level_tier4", color: "#e53935" },
+    { minimum: 35, className: "level_tier5", color: "#8b0000" },
+  ];
 
   var context = $.GetContextPanel();
   var probeId =
@@ -67,7 +99,6 @@
   var didLogInitialScan = false;
   var configRoot = null;
   var configRaw = "";
-  var configRevision = 0;
   var config = copyConfig(DEFAULT_CONFIG);
   var lastColorChangeAt = 0;
 
@@ -154,17 +185,17 @@
     return false;
   }
 
-  function ancestorHasClass(panel, className) {
+  function findAncestorWithClass(panel, className) {
     var current = panel;
     for (var depth = 0; current && depth < 12; depth++) {
-      if (hasClass(current, className)) return true;
+      if (hasClass(current, className)) return current;
       try {
         current = current.GetParent ? current.GetParent() : null;
       } catch (error) {
-        return false;
+        return null;
       }
     }
-    return false;
+    return null;
   }
 
   function classifyTarget(bar) {
@@ -172,6 +203,8 @@
     var neutral = false;
     var enemy = false;
     var ally = false;
+    var player = false;
+    var vertical = false;
     var team = "";
     var building = false;
     var boss = false;
@@ -181,6 +214,8 @@
       neutral = neutral || hasClass(current, "team_neutral");
       enemy = enemy || hasClass(current, "enemy");
       ally = ally || hasClass(current, "friend");
+      player = player || hasClass(current, "player");
+      vertical = vertical || hasClass(current, "verticalHealthbars");
       if (!team && hasClass(current, "team1")) team = "team1";
       if (!team && hasClass(current, "team2")) team = "team2";
       sentry = sentry || hasClass(current, "sentry");
@@ -198,28 +233,38 @@
       }
     }
     var role = neutral ? "neutral" : enemy ? "enemy" : ally ? "ally" : "other";
-    var signature = [
-      role,
-      team,
-      building ? "building" : "",
-      boss ? "boss" : "",
-      sentry ? "sentry" : "",
-      bossDimensions ? "boss_dimensions" : "",
-    ].join("|");
-    if (signature === bar.targetSignature) return;
+    var changed =
+      role !== bar.role ||
+      player !== bar.isPlayer ||
+      vertical !== bar.isVertical ||
+      team !== bar.team ||
+      building !== bar.isBuilding ||
+      boss !== bar.isBoss ||
+      sentry !== bar.isSentry ||
+      bossDimensions !== bar.usesBossDimensions;
+    if (!changed) return false;
+    clearLevelOwnership(bar);
     bar.role = role;
+    bar.isPlayer = player;
+    bar.isVertical = vertical;
     bar.team = team;
     bar.isBuilding = building;
     bar.isBoss = boss;
     bar.isSentry = sentry;
     bar.usesBossDimensions = bossDimensions;
-    bar.targetSignature = signature;
-    bar.appliedSignature = "";
+    bar.levelWrapper =
+      findAncestorWithClass(bar.parts.levelContainer, "enemy") ||
+      findAncestorWithClass(bar.parts.activeParent, "enemy");
+    bar.stockWidth = 0;
+    bar.stockHeight = 0;
+    bar.dirty |= DIRTY_TARGET;
     $.Msg(
       "[HP Colors Rewrite] role id=" +
         bar.instanceId +
         " value=" +
         role +
+        " player=" +
+        String(player) +
         " team=" +
         (team || "unknown") +
         " building=" +
@@ -227,6 +272,7 @@
         " boss=" +
         String(boss),
     );
+    return true;
   }
 
   function collectActiveParents() {
@@ -252,20 +298,118 @@
   function resolveParts(activeParent) {
     var container = findAncestor(activeParent, "UnitHealthbarContainer");
     var infoHealth = findAncestor(activeParent, "InfoHealthContainer");
+    var unitStatus = findAncestor(activeParent, "UnitStatus");
     return {
       container: container,
+      infoHealth: infoHealth,
+      unitStatus: unitStatus,
       activeParent: activeParent,
       background: findWithin(container, "unit_healthbar_bg"),
       fill: findWithin(activeParent, "unit_healthbar_lagging"),
+      pulseOverlay: findWithin(activeParent, "hp_colors_pulse_overlay"),
       healing: findWithin(activeParent, "unit_healthbar_healing"),
       delta: findWithin(activeParent, "unit_healthbar_delta"),
       bulletShield: findWithin(activeParent, "unit_healthbar_bullet_shield"),
       techShield: findWithin(activeParent, "unit_healthbar_tech_shield"),
       pipLabel: findWithin(activeParent, "unit_healthbar_pip_label"),
-      counterAnchor: findWithin(infoHealth, "hp_counter_anchor"),
-      counter: findWithin(infoHealth, "hp_counter"),
+      levelContainer: findWithin(infoHealth, "LevelContainer"),
+      levelLabel: findWithin(unitStatus, "unit_level_label"),
+      counterAnchor: findWithin(unitStatus, "hp_counter_anchor"),
+      counter: findWithin(unitStatus, "hp_counter"),
       ultIcon: findWithin(infoHealth, "unit_ult_ready_icon"),
     };
+  }
+
+  function isDescendantOf(panel, ancestor) {
+    if (!panel || !ancestor) return true;
+    var current = panel;
+    for (var depth = 0; current && depth < 16; depth++) {
+      if (current === ancestor) return true;
+      try {
+        current = current.GetParent ? current.GetParent() : null;
+      } catch (error) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  function cachedPartsUsable(bar) {
+    var parts = bar.parts;
+    if (
+      !parts ||
+      !isValid(parts.activeParent) ||
+      !isValid(parts.container) ||
+      !isValid(parts.background) ||
+      !isValid(parts.fill) ||
+      (parts.infoHealth && !isValid(parts.infoHealth)) ||
+      (parts.unitStatus && !isValid(parts.unitStatus)) ||
+      !isDescendantOf(parts.activeParent, parts.container) ||
+      !isDescendantOf(parts.background, parts.container) ||
+      !isDescendantOf(parts.fill, parts.activeParent) ||
+      !isDescendantOf(parts.activeParent, parts.infoHealth) ||
+      !isDescendantOf(parts.activeParent, parts.unitStatus)
+    )
+      return false;
+    if (
+      (parts.pulseOverlay &&
+        (!isValid(parts.pulseOverlay) ||
+          !isDescendantOf(parts.pulseOverlay, parts.activeParent))) ||
+      (parts.healing &&
+        (!isValid(parts.healing) ||
+          !isDescendantOf(parts.healing, parts.activeParent))) ||
+      (parts.delta &&
+        (!isValid(parts.delta) ||
+          !isDescendantOf(parts.delta, parts.activeParent))) ||
+      (parts.bulletShield &&
+        (!isValid(parts.bulletShield) ||
+          !isDescendantOf(parts.bulletShield, parts.activeParent))) ||
+      (parts.techShield &&
+        (!isValid(parts.techShield) ||
+          !isDescendantOf(parts.techShield, parts.activeParent))) ||
+      (parts.pipLabel &&
+        (!isValid(parts.pipLabel) ||
+          !isDescendantOf(parts.pipLabel, parts.activeParent))) ||
+      (parts.levelContainer &&
+        (!isValid(parts.levelContainer) ||
+          !isDescendantOf(parts.levelContainer, parts.infoHealth))) ||
+      (parts.levelLabel &&
+        (!isValid(parts.levelLabel) ||
+          !isDescendantOf(parts.levelLabel, parts.unitStatus))) ||
+      (parts.counterAnchor &&
+        (!isValid(parts.counterAnchor) ||
+          !isDescendantOf(parts.counterAnchor, parts.unitStatus))) ||
+      (parts.counter &&
+        (!isValid(parts.counter) ||
+          !isDescendantOf(parts.counter, parts.counterAnchor))) ||
+      (parts.ultIcon &&
+        (!isValid(parts.ultIcon) ||
+          !isDescendantOf(parts.ultIcon, parts.infoHealth)))
+    )
+      return false;
+
+    var missing =
+      !parts.infoHealth ||
+      !parts.unitStatus ||
+      !parts.pulseOverlay ||
+      !parts.healing ||
+      !parts.delta ||
+      !parts.bulletShield ||
+      !parts.techShield ||
+      !parts.pipLabel ||
+      !parts.levelContainer ||
+      !parts.levelLabel ||
+      !parts.counterAnchor ||
+      !parts.counter ||
+      !parts.ultIcon;
+    if (missing) {
+      var now = Date.now ? Date.now() : +new Date();
+      if (bar.partsRetryAt && now < bar.partsRetryAt) return true;
+      bar.partsRetryAt = now + SCAN_INTERVAL_SEC * 1000;
+      return false;
+    }
+    bar.partsRetryAt = 0;
+    return true;
   }
 
   function sameParts(left, right) {
@@ -304,6 +448,7 @@
   }
 
 
+
   function sampleHealthPercent(bar) {
     var fillWidth = readPanelWidthRaw(bar.parts.fill);
     var totalParentWidth = readPanelWidthRaw(bar.parts.activeParent);
@@ -314,15 +459,47 @@
       totalParentWidth > 0
         ? Math.max(fillWidth, totalParentWidth - shieldWidth)
         : 0;
+    var sampled = bar.healthSampled;
+    var rawChanged =
+      !sampled ||
+      fillWidth !== bar.sampleFillWidth ||
+      totalParentWidth !== bar.sampleTotalParentWidth ||
+      shieldWidth !== bar.sampleShieldWidth ||
+      healthParentWidth !== bar.sampleHealthParentWidth;
+    var previousPercent = bar.lastWidthPercent;
+    var overlayPercent =
+      totalParentWidth > 0
+        ? Math.round(
+            Math.max(
+              0,
+              Math.min(100, (fillWidth / totalParentWidth) * 100),
+            ) * 100,
+          ) / 100
+        : 0;
+    var overlayChanged =
+      !sampled || overlayPercent !== bar.pulseOverlayPercent;
+    bar.healthSampled = true;
     bar.sampleFillWidth = fillWidth;
     bar.sampleTotalParentWidth = totalParentWidth;
     bar.sampleShieldWidth = shieldWidth;
     bar.sampleHealthParentWidth = healthParentWidth;
-    if (healthParentWidth <= 0) return -1;
-    return Math.max(
+    bar.pulseOverlayPercent = overlayPercent;
+    bar.healthChanged = rawChanged;
+    if (healthParentWidth <= 0) {
+      bar.healthPresentationChanged = !sampled;
+      if (bar.healthPresentationChanged) bar.dirty |= DIRTY_HEALTH;
+      return -1;
+    }
+    var widthPercent = Math.max(
       0,
       Math.min(100, ((fillWidth / healthParentWidth) * 100) | 0),
     );
+    var percentChanged = !sampled || widthPercent !== previousPercent;
+    bar.healthPresentationChanged =
+      percentChanged || (bar.colorPulseActive && overlayChanged);
+    bar.lastWidthPercent = widthPercent;
+    if (bar.healthPresentationChanged) bar.dirty |= DIRTY_HEALTH;
+    return widthPercent;
   }
 
   function readPipText(panel) {
@@ -334,7 +511,7 @@
     return "";
   }
 
-  function parseMaximumHealth(pipText) {
+  function parseMaximumHealth(pipText, precise) {
     var text = String(pipText || "");
     var firstMajor = text.indexOf("|");
     var lastMajor = text.lastIndexOf("|");
@@ -350,18 +527,60 @@
         else if (index < firstMajor) leadingMinorCount += 1;
       }
     }
-    var minorValue = 100;
+    var minorValue = precise ? 10 : 100;
     var majorValue =
       leadingMinorCount > 0 ? (leadingMinorCount + 1) * minorValue : 500;
     return majorCount * majorValue + trailingMinorCount * minorValue;
   }
 
-  function updatePipMaximum(bar, pipText) {
-    if (bar.pipText === pipText) return;
-    bar.pipText = pipText;
-    bar.rawMaximumHealth = parseMaximumHealth(pipText);
-    bar.appliedSignature = "";
+  function invalidatePipMaximum(bar) {
+    bar.pipText = null;
+    bar.pipProfile = null;
+    bar.rawMaximumHealth = 0;
+    bar.dirty |= DIRTY_PIPS;
   }
+
+  function updatePipMaximum(bar, pipText) {
+    var precise = !!config.precisePipsEnabled;
+    if (bar.pipText === pipText && bar.pipProfile === precise) return false;
+    bar.pipText = pipText;
+    bar.pipProfile = precise;
+    bar.rawMaximumHealth = parseMaximumHealth(pipText, precise);
+    bar.dirty |= DIRTY_PIPS;
+    return true;
+  }
+  function parseLevelNumber(levelText) {
+    var text = String(levelText || "");
+    if (!text || text.charAt(0) === "{") return 0;
+    var level = 0;
+    var found = false;
+    for (var index = 0; index < text.length; index++) {
+      var code = text.charCodeAt(index) - 48;
+      if (code >= 0 && code <= 9) {
+        level = level * 10 + code;
+        found = true;
+      }
+    }
+    return found ? level : 0;
+  }
+
+  function levelTierFor(level) {
+    var tier = null;
+    for (var index = 0; index < LEVEL_TIERS.length; index++) {
+      if (level >= LEVEL_TIERS[index].minimum) tier = LEVEL_TIERS[index];
+    }
+    return tier;
+  }
+
+  function updateLevel(bar, levelText) {
+    if (bar.levelText === levelText) return false;
+    bar.levelText = levelText;
+    bar.level = parseLevelNumber(levelText);
+    bar.levelTier = levelTierFor(bar.level);
+    bar.dirty |= DIRTY_LEVEL;
+    return true;
+  }
+
 
   function readoutHealth(bar) {
     var maximum = bar.rawMaximumHealth;
@@ -461,7 +680,7 @@
         ? source.readoutFont
         : "default";
     next.readoutOffsetX = clampNumber(source.readoutOffsetX, -405, 405, 27);
-    next.readoutOffsetY = clampNumber(source.readoutOffsetY, -365, 270, -130);
+    next.readoutOffsetY = clampNumber(source.readoutOffsetY, -35, 840, 500);
     next.readoutColorMode =
       source.readoutColorMode === "custom" ? "custom" : "bar";
     next.readoutMode =
@@ -478,6 +697,52 @@
       source.readoutHigh,
       DEFAULT_CONFIG.readoutHigh,
     );
+    next.enemyPulseEnabled = source.enemyPulseEnabled !== false;
+    next.enemyPulseThreshold = clampNumber(
+      source.enemyPulseThreshold,
+      0,
+      100,
+      25,
+    );
+    next.enemyPulseBpm = clampNumber(source.enemyPulseBpm, 30, 300, 75);
+    next.enemyPulseIntensity = clampNumber(
+      source.enemyPulseIntensity,
+      0,
+      2,
+      1,
+    );
+    next.enemyPulseColorEnabled = !!source.enemyPulseColorEnabled;
+    next.enemyPulseColorMode =
+      source.enemyPulseColorMode === "fixed" ? "fixed" : "gradient";
+    next.enemyPulseColor = normalizeColor(
+      source.enemyPulseColor,
+      DEFAULT_CONFIG.enemyPulseColor,
+    );
+    next.enemyPulseHideBar = !!source.enemyPulseHideBar;
+    next.enemyPulseReadout = !!source.enemyPulseReadout;
+    next.allyPulseEnabled = !!source.allyPulseEnabled;
+    next.allyPulseThreshold = clampNumber(
+      source.allyPulseThreshold,
+      0,
+      100,
+      25,
+    );
+    next.allyPulseBpm = clampNumber(source.allyPulseBpm, 30, 300, 75);
+    next.allyPulseIntensity = clampNumber(
+      source.allyPulseIntensity,
+      0,
+      2,
+      1,
+    );
+    next.allyPulseColorEnabled = !!source.allyPulseColorEnabled;
+    next.allyPulseColor = normalizeColor(
+      source.allyPulseColor,
+      DEFAULT_CONFIG.allyPulseColor,
+    );
+    next.pipsVisible = source.pipsVisible !== false;
+    next.precisePipsEnabled = !!source.precisePipsEnabled;
+    next.levelsVisible = source.levelsVisible !== false;
+
     next.lowThreshold = clampNumber(source.lowThreshold, 0, 99, 25);
     next.highThreshold = clampNumber(
       source.highThreshold,
@@ -559,22 +824,468 @@
       cache[cacheKey] = null;
     }
   }
+  function setOwnedClass(panel, className, enabled, cache, cacheKey) {
+    var marker = enabled ? "1" : "0";
+    if (!isValid(panel)) {
+      cache[cacheKey] = null;
+      return;
+    }
+    if (cache[cacheKey] === marker) return;
+    try {
+      if (enabled) {
+        if (panel.AddClass) panel.AddClass(className);
+      } else if (panel.RemoveClass) {
+        panel.RemoveClass(className);
+      }
+      cache[cacheKey] = marker;
+    } catch (error) {
+      cache[cacheKey] = null;
+    }
+  }
 
-  function stockDimensions(bar) {
-    if (bar.isSentry) return [600, 80];
-    if (bar.usesBossDimensions) return [1400, 170];
-    if (ancestorHasClass(bar.parts.activeParent, "verticalHealthbars"))
-      return [700, 140];
-    return [900, 130];
+  function clearOwnedStyle(panel, property, cache, cacheKey) {
+    if (!isValid(panel) || !panel.style) {
+      cache[cacheKey] = null;
+      return;
+    }
+    try {
+      if (panel.style[property] !== "") panel.style[property] = "";
+      cache[cacheKey] = "";
+    } catch (error) {
+      cache[cacheKey] = null;
+    }
+  }
+
+  function clearLevelOwnership(bar) {
+    clearOwnedStyle(
+      bar.parts && bar.parts.levelContainer,
+      "visibility",
+      bar.applied,
+      "levelVisibility",
+    );
+    clearOwnedStyle(
+      bar.parts && bar.parts.levelContainer,
+      "borderColor",
+      bar.applied,
+      "levelBorderColor",
+    );
+    var wrapper = bar.levelWrapper;
+    setOwnedClass(
+      wrapper,
+      LEVEL_VISIBLE_CLASS,
+      false,
+      bar.applied,
+      "levelVisibleClass",
+    );
+    for (var index = 0; index < LEVEL_TIERS.length; index++)
+      setOwnedClass(
+        wrapper,
+        LEVEL_TIERS[index].className,
+        false,
+        bar.applied,
+        "levelTier" + index,
+      );
+  }
+  function clearReadoutOwnership(bar) {
+    clearOwnedStyle(
+      bar.parts && bar.parts.pipLabel,
+      "visibility",
+      bar.applied,
+      "pipVisibility",
+    );
+    clearLevelOwnership(bar);
+  }
+
+
+  function applyReadoutDecorations(bar) {
+    var enemyScope = config.enabled && bar.role === "enemy";
+    setStyle(
+      bar.parts.pipLabel,
+      "visibility",
+      enemyScope && !config.pipsVisible ? "collapse" : "",
+      bar.applied,
+      "pipVisibility",
+    );
+
+    var levelScope =
+      config.enabled &&
+      bar.role === "enemy" &&
+      bar.isPlayer &&
+      !bar.isBuilding &&
+      !bar.isSentry &&
+      !bar.isBoss &&
+      isValid(bar.parts.levelContainer) &&
+      isValid(bar.parts.levelLabel);
+    if (!levelScope) {
+      clearLevelOwnership(bar);
+      return;
+    }
+
+    var wrapper =
+      bar.levelWrapper ||
+      findAncestorWithClass(bar.parts.levelContainer, "enemy") ||
+      findAncestorWithClass(bar.parts.activeParent, "enemy");
+    bar.levelWrapper = wrapper;
+    var tier = bar.levelTier;
+    var show = !!wrapper && config.levelsVisible && bar.level > 0;
+    setStyle(
+      bar.parts.levelContainer,
+      "visibility",
+      show ? "visible" : "collapse",
+      bar.applied,
+      "levelVisibility",
+    );
+    setOwnedClass(
+      wrapper,
+      LEVEL_VISIBLE_CLASS,
+      show,
+      bar.applied,
+      "levelVisibleClass",
+    );
+    for (var index = 0; index < LEVEL_TIERS.length; index++)
+      setOwnedClass(
+        wrapper,
+        LEVEL_TIERS[index].className,
+        show && tier === LEVEL_TIERS[index],
+        bar.applied,
+        "levelTier" + index,
+      );
+    setStyle(
+      bar.parts.levelContainer,
+      "borderColor",
+      show && tier ? tier.color : "",
+      bar.applied,
+      "levelBorderColor",
+    );
+  }
+
+
+
+  function clearPulse(bar) {
+    if (
+      !bar.pulseActive &&
+      !bar.colorPulseActive &&
+      !bar.pulseReadoutActive &&
+      !bar.pulseDuration
+    ) {
+      bar.pulseRole = "";
+      return;
+    }
+    var applied = bar.applied;
+    var fill = bar.parts && bar.parts.fill;
+    var overlay = bar.parts && bar.parts.pulseOverlay;
+    var counter = bar.parts && bar.parts.counter;
+    setOwnedClass(fill, "HPColorsRewritePulse", false, applied, "pulseBaseClass");
+    setOwnedClass(
+      fill,
+      "HPColorsRewritePulseSubtle",
+      false,
+      applied,
+      "pulseSubtleClass",
+    );
+    setOwnedClass(
+      fill,
+      "HPColorsRewritePulseIntense",
+      false,
+      applied,
+      "pulseIntenseClass",
+    );
+    setOwnedClass(
+      overlay,
+      "HPColorsRewriteColorPulse",
+      false,
+      applied,
+      "colorPulseBaseClass",
+    );
+    setOwnedClass(
+      overlay,
+      "HPColorsRewritePulseSubtle",
+      false,
+      applied,
+      "colorPulseSubtleClass",
+    );
+    setOwnedClass(
+      overlay,
+      "HPColorsRewritePulseIntense",
+      false,
+      applied,
+      "colorPulseIntenseClass",
+    );
+    setOwnedClass(
+      counter,
+      "HPColorsRewritePulse",
+      false,
+      applied,
+      "pulseReadoutBaseClass",
+    );
+    setOwnedClass(
+      counter,
+      "HPColorsRewritePulseSubtle",
+      false,
+      applied,
+      "pulseReadoutSubtleClass",
+    );
+    setOwnedClass(
+      counter,
+      "HPColorsRewritePulseIntense",
+      false,
+      applied,
+      "pulseReadoutIntenseClass",
+    );
+    clearOwnedStyle(
+      fill,
+      "animationDuration",
+      applied,
+      "pulseAnimationDuration",
+    );
+    clearOwnedStyle(
+      overlay,
+      "animationDuration",
+      applied,
+      "colorPulseAnimationDuration",
+    );
+    clearOwnedStyle(
+      overlay,
+      "washColor",
+      applied,
+      "colorPulseWashColor",
+    );
+    clearOwnedStyle(overlay, "width", applied, "colorPulseWidth");
+    clearOwnedStyle(overlay, "visibility", applied, "colorPulseVisibility");
+    clearOwnedStyle(
+      counter,
+      "animationDuration",
+      applied,
+      "pulseReadoutAnimationDuration",
+    );
+    bar.pulseActive = false;
+    bar.colorPulseActive = false;
+    bar.pulseReadoutActive = false;
+    bar.pulseDuration = "";
+    bar.pulseRole = "";
+  }
+  function syncPulse(
+    bar,
+    shouldPulse,
+    readoutActive,
+    intensity,
+    duration,
+    colorPulse,
+    pulseColor,
+    overlayWidth,
+  ) {
+    if (!shouldPulse) {
+      clearPulse(bar);
+      return false;
+    }
+    var applied = bar.applied;
+    var fill = bar.parts && bar.parts.fill;
+    var overlay = bar.parts && bar.parts.pulseOverlay;
+    var counter = bar.parts && bar.parts.counter;
+    var subtle = intensity === 0;
+    var intense = intensity === 2;
+    var useColorPulse = !!colorPulse && isValid(overlay);
+
+    setOwnedClass(
+      fill,
+      "HPColorsRewritePulse",
+      !useColorPulse,
+      applied,
+      "pulseBaseClass",
+    );
+    setOwnedClass(
+      fill,
+      "HPColorsRewritePulseSubtle",
+      !useColorPulse && subtle,
+      applied,
+      "pulseSubtleClass",
+    );
+    setOwnedClass(
+      fill,
+      "HPColorsRewritePulseIntense",
+      !useColorPulse && intense,
+      applied,
+      "pulseIntenseClass",
+    );
+    if (useColorPulse) {
+      clearOwnedStyle(
+        fill,
+        "animationDuration",
+        applied,
+        "pulseAnimationDuration",
+      );
+      setOwnedClass(
+        overlay,
+        "HPColorsRewriteColorPulse",
+        true,
+        applied,
+        "colorPulseBaseClass",
+      );
+      setOwnedClass(
+        overlay,
+        "HPColorsRewritePulseSubtle",
+        subtle,
+        applied,
+        "colorPulseSubtleClass",
+      );
+      setOwnedClass(
+        overlay,
+        "HPColorsRewritePulseIntense",
+        intense,
+        applied,
+        "colorPulseIntenseClass",
+      );
+      setStyle(
+        overlay,
+        "animationDuration",
+        duration,
+        applied,
+        "colorPulseAnimationDuration",
+      );
+      setStyle(
+        overlay,
+        "washColor",
+        pulseColor,
+        applied,
+        "colorPulseWashColor",
+      );
+      setStyle(overlay, "width", overlayWidth, applied, "colorPulseWidth");
+      setStyle(
+        overlay,
+        "visibility",
+        "visible",
+        applied,
+        "colorPulseVisibility",
+      );
+    } else {
+      setStyle(
+        fill,
+        "animationDuration",
+        duration,
+        applied,
+        "pulseAnimationDuration",
+      );
+      setOwnedClass(
+        overlay,
+        "HPColorsRewriteColorPulse",
+        false,
+        applied,
+        "colorPulseBaseClass",
+      );
+      setOwnedClass(
+        overlay,
+        "HPColorsRewritePulseSubtle",
+        false,
+        applied,
+        "colorPulseSubtleClass",
+      );
+      setOwnedClass(
+        overlay,
+        "HPColorsRewritePulseIntense",
+        false,
+        applied,
+        "colorPulseIntenseClass",
+      );
+      clearOwnedStyle(
+        overlay,
+        "animationDuration",
+        applied,
+        "colorPulseAnimationDuration",
+      );
+      clearOwnedStyle(
+        overlay,
+        "washColor",
+        applied,
+        "colorPulseWashColor",
+      );
+      clearOwnedStyle(overlay, "width", applied, "colorPulseWidth");
+      clearOwnedStyle(overlay, "visibility", applied, "colorPulseVisibility");
+    }
+
+    setOwnedClass(
+      counter,
+      "HPColorsRewritePulse",
+      !!readoutActive,
+      applied,
+      "pulseReadoutBaseClass",
+    );
+    setOwnedClass(
+      counter,
+      "HPColorsRewritePulseSubtle",
+      !!readoutActive && subtle,
+      applied,
+      "pulseReadoutSubtleClass",
+    );
+    setOwnedClass(
+      counter,
+      "HPColorsRewritePulseIntense",
+      !!readoutActive && intense,
+      applied,
+      "pulseReadoutIntenseClass",
+    );
+    if (readoutActive) {
+      setStyle(
+        counter,
+        "animationDuration",
+        duration,
+        applied,
+        "pulseReadoutAnimationDuration",
+      );
+    } else {
+      clearOwnedStyle(
+        counter,
+        "animationDuration",
+        applied,
+        "pulseReadoutAnimationDuration",
+      );
+    }
+    bar.pulseActive = true;
+    bar.colorPulseActive = useColorPulse;
+    bar.pulseReadoutActive = !!readoutActive;
+    bar.pulseDuration = duration;
+    return true;
+  }
+
+  function pulseOverlayWidth(bar) {
+    if (bar.sampleTotalParentWidth <= 0) return "0%";
+    var percent = Math.max(
+      0,
+      Math.min(100, (bar.sampleFillWidth / bar.sampleTotalParentWidth) * 100),
+    );
+    return Math.round(percent * 100) / 100 + "%";
+  }
+
+  function pulseDuration(bpm) {
+    return (60 / bpm).toFixed(3) + "s";
+  }
+
+  function updateStockDimensions(bar) {
+    var width = 900;
+    var height = 130;
+    if (bar.isSentry) {
+      width = 600;
+      height = 80;
+    } else if (bar.usesBossDimensions) {
+      width = 1400;
+      height = 170;
+    } else if (bar.isVertical) {
+      width = 700;
+      height = 140;
+    }
+    if (bar.stockWidth === width && bar.stockHeight === height) return;
+    bar.stockWidth = width;
+    bar.stockHeight = height;
   }
 
   function applyCustomization(bar) {
-    if (!isComplete(bar.parts)) return;
+    if (!bar.dirty || !isComplete(bar.parts)) return;
     var role = bar.role;
     var relationOwned = role === "enemy" || role === "ally";
+    if (bar.pulseRole && bar.pulseRole !== role) clearPulse(bar);
+    bar.pulseRole = role;
     if (!config.enabled || !relationOwned) {
-      if (bar.appliedSignature === "stock") return;
-      setStyle(bar.parts.fill, "washColor", "", bar.applied, "washColor");
+      clearPulse(bar);
+      applyReadoutDecorations(bar);
       setStyle(bar.parts.healing, "washColor", "", bar.applied, "healingWashColor");
       setStyle(bar.parts.delta, "washColor", "", bar.applied, "deltaWashColor");
       setStyle(
@@ -598,6 +1309,7 @@
       );
       setText(bar.parts.counter, "", bar.applied, "readoutText");
       setStyle(bar.parts.counter, "fontSize", "", bar.applied, "readoutFontSize");
+      setStyle(bar.parts.counter, "height", "", bar.applied, "readoutHeight");
       setStyle(
         bar.parts.counter,
         "fontFamily",
@@ -605,7 +1317,13 @@
         bar.applied,
         "readoutFontFamily",
       );
-      setStyle(bar.parts.counter, "transform", "", bar.applied, "readoutTransform");
+      setStyle(
+        bar.parts.counterAnchor,
+        "transform",
+        "",
+        bar.applied,
+        "readoutTransform",
+      );
       setStyle(
         bar.parts.counter,
         "washColor",
@@ -613,7 +1331,7 @@
         bar.applied,
         "readoutWashColor",
       );
-      bar.appliedSignature = "stock";
+      bar.dirty = 0;
       return;
     }
 
@@ -695,22 +1413,63 @@
           ? "VALVEPulp, Noto Sans, sans-serif"
           : "Retail Demo, Noto Sans, sans-serif";
     var readoutTransform = readoutEnabled
-      ? "translateX(" +
+      ? "translate3d(" +
         config.readoutOffsetX +
-        "px) translateY(" +
+        "px, " +
         config.readoutOffsetY +
-        "px)"
+        "px, 0px)"
       : "";
 
-    var dimensions = stockDimensions(bar);
+    var pulseEnabled =
+      colorsEnabled &&
+      (role === "enemy" ? config.enemyPulseEnabled : config.allyPulseEnabled);
+    var pulseThreshold =
+      role === "enemy"
+        ? config.enemyPulseThreshold
+        : config.allyPulseThreshold;
+    var shouldPulse =
+      pulseEnabled && bar.lastWidthPercent <= pulseThreshold;
+    var pulseIntensity =
+      role === "enemy"
+        ? config.enemyPulseIntensity
+        : config.allyPulseIntensity;
+    var pulseBpm =
+      role === "enemy" ? config.enemyPulseBpm : config.allyPulseBpm;
+    var colorPulse =
+      role === "enemy" &&
+      shouldPulse &&
+      config.enemyPulseColorEnabled &&
+      config.enemyPulseColorMode === "gradient";
+    var pulseActive = syncPulse(
+      bar,
+      shouldPulse,
+      role === "enemy" && config.enemyPulseReadout && readoutEnabled,
+      pulseIntensity,
+      pulseDuration(pulseBpm),
+      colorPulse,
+      config.enemyPulseColor,
+      pulseOverlayWidth(bar),
+    );
+    if (pulseActive) {
+      if (
+        role === "enemy" &&
+        config.enemyPulseColorEnabled &&
+        config.enemyPulseColorMode === "fixed"
+      )
+        color = config.enemyPulseColor;
+      else if (role === "ally" && config.allyPulseColorEnabled)
+        color = config.allyPulseColor;
+      if (config.ultMode !== "custom") ultColor = color;
+    }
+    updateStockDimensions(bar);
     var width =
       config.widthScale === 100
         ? ""
-        : Math.round((dimensions[0] * config.widthScale) / 100) + "px";
+        : Math.round((bar.stockWidth * config.widthScale) / 100) + "px";
     var height =
       config.heightScale === 100
         ? ""
-        : Math.round((dimensions[1] * config.heightScale) / 100) + "px";
+        : Math.round((bar.stockHeight * config.heightScale) / 100) + "px";
     var transform =
       config.positionX === 0 && config.positionY === 0
         ? ""
@@ -719,28 +1478,14 @@
           "px) translateY(" +
           config.positionY +
           "px)";
-    var opacity = colorsEnabled ? (visible ? "1" : "0.01") : "";
-    var signature = [
-      configRevision,
-      bar.targetSignature,
-      bar.lastWidthPercent,
-      color,
-      ultColor,
-      opacity,
-      healing,
-      delta,
-      bulletShield,
-      width,
-      height,
-      transform,
-      readoutText,
-      readoutVisibility,
-      readoutColor,
-      readoutFontSize,
-      readoutFontFamily,
-      readoutTransform,
-    ].join("|");
-    if (signature === bar.appliedSignature) return;
+    var opacity =
+      colorsEnabled
+        ? visible &&
+          !(pulseActive && role === "enemy" && config.enemyPulseHideBar)
+          ? "1"
+          : "0.01"
+        : "";
+    applyReadoutDecorations(bar);
 
     setStyle(bar.parts.fill, "washColor", color, bar.applied, "washColor");
     setStyle(
@@ -798,13 +1543,20 @@
     );
     setStyle(
       bar.parts.counter,
+      "height",
+      readoutEnabled ? "100%" : "",
+      bar.applied,
+      "readoutHeight",
+    );
+    setStyle(
+      bar.parts.counter,
       "fontFamily",
       readoutFontFamily,
       bar.applied,
       "readoutFontFamily",
     );
     setStyle(
-      bar.parts.counter,
+      bar.parts.counterAnchor,
       "transform",
       readoutTransform,
       bar.applied,
@@ -817,7 +1569,7 @@
       bar.applied,
       "readoutWashColor",
     );
-    bar.appliedSignature = signature;
+    bar.dirty = 0;
   }
 
   function applyConfigRaw(raw, source) {
@@ -825,11 +1577,20 @@
     try {
       var data = JSON.parse(raw);
       if (!data || data.version !== 1 || !data.values) return false;
+      var previousPrecisePips = !!config.precisePipsEnabled;
       config = normalizeConfig(data.values);
-      configRevision = Math.max(0, Math.round(Number(data.revision) || 0));
+      if (previousPrecisePips !== !!config.precisePipsEnabled)
+        for (var pipIndex = 0; pipIndex < bars.length; pipIndex++) {
+          invalidatePipMaximum(bars[pipIndex]);
+          updatePipMaximum(
+            bars[pipIndex],
+            readPipText(bars[pipIndex].parts.pipLabel),
+          );
+        }
+      var revision = Math.max(0, Math.round(Number(data.revision) || 0));
       configRaw = raw;
       for (var index = 0; index < bars.length; index++) {
-        bars[index].appliedSignature = "";
+        bars[index].dirty |= DIRTY_CONFIG;
         applyCustomization(bars[index]);
       }
       $.Msg(
@@ -838,7 +1599,7 @@
           " source=" +
           source +
           " revision=" +
-          configRevision +
+          revision +
           " enabled=" +
           String(config.enabled),
       );
@@ -879,17 +1640,15 @@
 
   function reportData(bar) {
     if (!isComplete(bar.parts)) return;
-    classifyTarget(bar);
+    var changed = classifyTarget(bar);
     var widthPercent = sampleHealthPercent(bar);
-    if (widthPercent < 0) return;
-    bar.lastWidthPercent = widthPercent;
+    changed = bar.healthChanged || changed;
     var pipText = readPipText(bar.parts.pipLabel);
-    updatePipMaximum(bar, pipText);
-    applyCustomization(bar);
-
-    var signature = pipText + "|" + widthPercent;
-    if (signature === bar.lastDataSignature) return;
-    bar.lastDataSignature = signature;
+    if (updatePipMaximum(bar, pipText)) changed = true;
+    var levelText = readPipText(bar.parts.levelLabel);
+    if (updateLevel(bar, levelText)) changed = true;
+    if (bar.dirty) applyCustomization(bar);
+    if (!changed || widthPercent < 0) return;
 
     $.Msg(
       "[HP Colors Rewrite] data id=" +
@@ -898,6 +1657,8 @@
         bar.generation +
         " pip=" +
         JSON.stringify(pipText) +
+        " level=" +
+        JSON.stringify(levelText) +
         " fill=" +
         Math.round(bar.sampleFillWidth) +
         " parent=" +
@@ -915,39 +1676,40 @@
     var bar = {
       instanceId: probeId + "_bar_" + nextBarSequence,
       generation: 1,
-      lastDataSignature: "",
-      lastWidthPercent: 0,
+      dirty: DIRTY_PARTS,
+      lastWidthPercent: -1,
+      healthSampled: false,
+      healthChanged: false,
+      healthPresentationChanged: false,
+      pulseOverlayPercent: -1,
+      partsRetryAt: 0,
       sampleFillWidth: 0,
       sampleTotalParentWidth: 0,
       sampleShieldWidth: 0,
       sampleHealthParentWidth: 0,
       pipText: "",
+      pipProfile: null,
       rawMaximumHealth: 0,
-      appliedSignature: "",
-      applied: {
-        washColor: null,
-        ultWashColor: null,
-        opacity: null,
-        width: null,
-        height: null,
-        transform: null,
-        healingWashColor: null,
-        deltaWashColor: null,
-        bulletShieldBackgroundColor: null,
-        readoutText: null,
-        readoutVisibility: null,
-        readoutFontSize: null,
-        readoutFontFamily: null,
-        readoutTransform: null,
-        readoutWashColor: null,
-      },
+      levelText: "",
+      level: 0,
+      levelTier: null,
+      levelWrapper: null,
+      applied: {},
+      pulseActive: false,
+      colorPulseActive: false,
+      pulseReadoutActive: false,
+      pulseDuration: "",
+      pulseRole: "",
       role: "",
+      isPlayer: false,
+      isVertical: false,
       team: "",
       isBuilding: false,
       isBoss: false,
       isSentry: false,
       usesBossDimensions: false,
-      targetSignature: "",
+      stockWidth: 0,
+      stockHeight: 0,
       seen: true,
       parts: parts,
     };
@@ -962,41 +1724,51 @@
     var activeParents = collectActiveParents();
     for (var parentIndex = 0; parentIndex < activeParents.length; parentIndex++) {
       var activeParent = activeParents[parentIndex];
-      var nextParts = resolveParts(activeParent);
       var bar = findBarByParent(activeParent);
       if (!bar) {
-        addBar(nextParts);
+        addBar(resolveParts(activeParent));
         continue;
       }
 
       bar.seen = true;
-      if (!sameParts(bar.parts, nextParts)) {
-        bar.parts = nextParts;
-        bar.generation += 1;
-        bar.lastDataSignature = "";
-        bar.appliedSignature = "";
-        bar.applied.washColor = null;
-        bar.applied.ultWashColor = null;
-        bar.applied.opacity = null;
-        bar.applied.width = null;
-        bar.applied.height = null;
-        bar.applied.transform = null;
-        bar.applied.healingWashColor = null;
-        bar.applied.deltaWashColor = null;
-        bar.applied.bulletShieldBackgroundColor = null;
-        bar.applied.readoutText = null;
-        bar.applied.readoutVisibility = null;
-        bar.applied.readoutFontSize = null;
-        bar.applied.readoutFontFamily = null;
-        bar.applied.readoutTransform = null;
-        bar.applied.readoutWashColor = null;
-        bar.targetSignature = "";
+      if (!cachedPartsUsable(bar)) {
+        var nextParts = resolveParts(activeParent);
+        if (!sameParts(bar.parts, nextParts)) {
+          clearPulse(bar);
+          clearReadoutOwnership(bar);
+          bar.parts = nextParts;
+          bar.generation += 1;
+          bar.dirty |= DIRTY_PARTS;
+          bar.applied = {};
+          bar.levelWrapper = null;
+          bar.levelText = "";
+          bar.level = 0;
+          bar.levelTier = null;
+          bar.pipText = null;
+          bar.pipProfile = null;
+          bar.rawMaximumHealth = 0;
+          bar.lastWidthPercent = -1;
+          bar.healthSampled = false;
+          bar.healthChanged = false;
+          bar.healthPresentationChanged = false;
+          bar.pulseOverlayPercent = -1;
+          bar.partsRetryAt = 0;
+          bar.sampleFillWidth = 0;
+          bar.sampleTotalParentWidth = 0;
+          bar.sampleShieldWidth = 0;
+          bar.sampleHealthParentWidth = 0;
+          bar.stockWidth = 0;
+          bar.stockHeight = 0;
+        }
       }
+
       reportData(bar);
     }
 
     for (var removeIndex = bars.length - 1; removeIndex >= 0; removeIndex--) {
       if (bars[removeIndex].seen) continue;
+      clearPulse(bars[removeIndex]);
+      clearReadoutOwnership(bars[removeIndex]);
       bars.splice(removeIndex, 1);
     }
   }
@@ -1010,8 +1782,7 @@
   function refreshColor(bar) {
     if (!isComplete(bar.parts) || !colorRefreshEnabled(bar)) return false;
     var widthPercent = sampleHealthPercent(bar);
-    if (widthPercent < 0 || widthPercent === bar.lastWidthPercent) return false;
-    bar.lastWidthPercent = widthPercent;
+    if (widthPercent < 0 || !bar.healthPresentationChanged) return false;
     applyCustomization(bar);
     return true;
   }

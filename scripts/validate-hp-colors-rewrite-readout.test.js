@@ -139,7 +139,7 @@ test('editor owns and publishes the readout controls', () => {
   const ySlider = harness.root.FindChildTraverse('HPColorsReadoutOffsetYSlider');
   assert.deepEqual([sizeSlider.min, sizeSlider.max], [72, 320]);
   assert.deepEqual([xSlider.min, xSlider.max], [-405, 405]);
-  assert.deepEqual([ySlider.min, ySlider.max], [-365, 270]);
+  assert.deepEqual([ySlider.min, ySlider.max], [-35, 840]);
   const readoutLowSlider = harness.root.FindChildTraverse(
     'HPColorsReadoutLowThresholdSlider',
   );
@@ -225,9 +225,11 @@ test('readout applies size, offsets, and bar-derived or custom colors', () => {
   });
 
   assert.equal(probe.tree.counter.style.fontSize, '200px');
+  assert.equal(probe.tree.counter.style.height, '100%');
+  assert.equal(probe.tree.counter.style.transform, undefined);
   assert.equal(
-    probe.tree.counter.style.transform,
-    'translateX(405px) translateY(-365px)',
+    probe.tree.counterAnchor.style.transform,
+    'translate3d(405px, -35px, 0px)',
   );
   assert.equal(probe.tree.counter.style.color, undefined);
   assert.equal(probe.tree.counter.style.washColor, '#304152');
@@ -277,6 +279,36 @@ test('readout applies size, offsets, and bar-derived or custom colors', () => {
   });
   assert.equal(probe.tree.counter.style.color, undefined);
   assert.equal(probe.tree.counter.style.washColor, '#3f7400');
+});
+
+test('large readout sizes use the selected font size directly', () => {
+  const probe = bootProbe(['enemy', 'team1']);
+  publishConfig(probe.harness, 1, {
+    enabled: true,
+    enemyEnabled: true,
+    readoutVisible: true,
+    readoutFormat: 'hp',
+    readoutSize: 320,
+  });
+
+  assert.equal(probe.tree.counter.style.fontSize, '320px');
+  assert.equal(probe.tree.counter.style.preTransformScale2d, undefined);
+});
+
+
+test('vertical readout offset clamps to the configured bottom limit', () => {
+  const probe = bootProbe(['enemy', 'team1']);
+  publishConfig(probe.harness, 1, {
+    enabled: true,
+    enemyEnabled: true,
+    readoutVisible: true,
+    readoutOffsetY: 1000,
+  });
+
+  assert.equal(
+    probe.tree.counterAnchor.style.transform,
+    'translate3d(27px, 840px, 0px)',
+  );
 });
 
 test('readout stays collapsed outside its owned enemy path', () => {
@@ -376,29 +408,69 @@ test('readout reapplies to replacement panels without repeating unchanged style 
   assert.equal(replacement.style.washColor, '#505050');
 });
 
-test('HP counter can overflow every stock ancestor at vertical offset limits', () => {
-  for (const selector of [
-    /<Panel class="WindowRoot"[^>]*style="[^"]*overflow:\s*noclip/,
-    /<Panel id="UnitStatus"[^>]*style="[^"]*overflow:\s*noclip/,
-    /<Panel id="InfoHealthContainer"[^>]*style="[^"]*overflow:\s*noclip/,
-  ]) {
-    assert.match(overlayLayoutSource, selector);
-  }
-});
-
-test('in-flow top extent enlarges the world panel above the stock bar', () => {
+test('counter adds upward render extent without changing horizontal flow', () => {
   assert.match(
     overlayLayoutSource,
-    /<Panel id="hp_counter_top_extent"[^>]*style="[^"]*\bheight:\s*399px[^"]*"[^>]*\/>\s*<Panel id="InfoHealthContainer"/,
+    /<Panel id="hp_counter_top_extent"[^>]*style="[^"]*\bwidth:\s*1px[^"]*\bheight:\s*399px[^"]*"[^>]*\/>\s*<Panel id="InfoHealthContainer"/,
+  );
+  assert.doesNotMatch(
+    overlayLayoutSource,
+    /\bid="hp_counter_(?:bottom|render)_extent"/,
+  );
+
+  const windowRoot = overlayLayoutSource.match(
+    /<Panel class="WindowRoot"[^>]*style="([^"]*)"/,
+  );
+  assert.ok(windowRoot);
+  assert.match(windowRoot[1], /\bwidth:\s*100%/);
+  assert.match(windowRoot[1], /\bheight:\s*fit-children/);
+
+  const unitStatus = overlayLayoutSource.match(
+    /<Panel id="UnitStatus"[^>]*style="([^"]*)"/,
+  );
+  assert.ok(unitStatus);
+  assert.match(unitStatus[1], /\bwidth:\s*fit-children/);
+  assert.match(unitStatus[1], /\bheight:\s*fit-children/);
+  assert.match(unitStatus[1], /\bflow-children:\s*down/);
+  assert.match(unitStatus[1], /\bvertical-align:\s*bottom/);
+
+  const infoHealth = overlayLayoutSource.match(
+    /<Panel id="InfoHealthContainer"[^>]*style="([^"]*)"/,
+  );
+  assert.ok(infoHealth);
+  assert.match(infoHealth[1], /\bwidth:\s*fit-children/);
+  assert.match(infoHealth[1], /\bheight:\s*300px/);
+  assert.match(infoHealth[1], /\bflow-children:\s*right/);
+  assert.match(infoHealth[1], /\bvertical-align:\s*bottom/);
+  assert.match(
+    overlayLayoutSource,
+    /<Panel class="healthbar_border"[^>]*\/>\s*<\/Panel>\s*<\/Panel>\s*<Panel id="hp_counter_anchor"/,
   );
 
   const anchor = overlayLayoutSource.match(
     /<Panel id="hp_counter_anchor"[^>]*style="([^"]*)"/,
   );
   assert.ok(anchor);
-  assert.match(anchor[1], /\bwidth:\s*160%/);
-  assert.match(anchor[1], /\bheight:\s*1140px/);
-  assert.doesNotMatch(anchor[1], /\bmargin-top:/);
-  assert.match(anchor[1], /horizontal-align:\s*center/);
-  assert.match(anchor[1], /vertical-align:\s*center/);
+  assert.match(anchor[1], /\bwidth:\s*100%/);
+  assert.match(anchor[1], /\bheight:\s*100%/);
+  assert.match(anchor[1], /\bvertical-align:\s*bottom/);
+
+  const counter = overlayLayoutSource.match(
+    /<Label id="hp_counter"[^>]*style="([^"]*)"/,
+  );
+  assert.ok(counter);
+  assert.match(counter[1], /\bz-index:\s*1000/);
+  assert.match(counter[1], /text-shadow:\s*10px 10px 0px 200\.0 offBlack/);
 });
+
+test('HUD editor does not instantiate unsupported convar controls', () => {
+  assert.doesNotMatch(
+    hudLayoutSource,
+    /PopupSettingsSettingsRow|CitadelSettingsSlider|settings_slider\.vcss_c/,
+  );
+  assert.doesNotMatch(
+    menuSource,
+    /citadel_unit_status_height|GameInterfaceAPI\.ConsoleCommand/,
+  );
+});
+
