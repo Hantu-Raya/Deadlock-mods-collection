@@ -4,7 +4,7 @@
 
 Add an obvious, Deadlock-native ESC-menu entry for configuring the v1 healthbar. The editor changes visible healthbars live, persists only real setting changes, and performs no continuous synchronization.
 
-This design covers the v1 editor only. It excludes presets, Anita UI compatibility, and v2 healthbars. Rewrite-native live settings import/export uses a focused editor modal and the existing canonical snapshot.
+This design covers the v1 editor only. It excludes Anita UI compatibility, legacy preset compatibility, durable storage, and v2 healthbars. Rewrite-native live settings transfer and session presets use the existing canonical snapshot and effective-settings resolver.
 
 ## Entry point
 
@@ -62,6 +62,15 @@ Color must never be the only state indicator.
 - Bar height.
 - Bar position.
 - Sliders include bounded numeric fields.
+
+#### Hero & Presets
+
+- Auto, Manual Override, and Off identity controls expose only exact stable hero keys.
+- Current scope controls choose whether the next saved loadout targets Global, All Heroes, or selected stable heroes.
+- Session Presets list baked records before session user records.
+- Save automatically snapshots the latest canonical editor values with the chosen scope metadata.
+- Applying a Selected Heroes preset waits for stable identity and rejects a settled mismatch. Later exact identity transitions select the first matching saved Selected record, otherwise the first saved All Heroes record, then the baked Rewrite Default when leaving a Selected scope.
+- Preset records disappear when Deadlock restarts; the interface must not imply durable storage.
 
 ### Enemy
 
@@ -174,10 +183,10 @@ Runtime verification must prove that v1 bars remain visible while the custom edi
 
 ## Runtime state flow
 
-Use one authoritative current settings snapshot.
+Use one authoritative global base, ordered session scope rows, and one resolved effective settings snapshot.
 
-1. The ESC editor owns the versioned session snapshot.
-2. A changed control updates the snapshot and publishes immediately.
+1. The ESC editor owns the versioned session settings, scope, and user-preset state.
+2. Changed controls and preset applications normalize through the same resolver and publish only when effective values change.
 3. An adaptive cached replay (1-second hot, 3-second warm, 8-second idle) feeds late isolated overlays while customization is enabled.
 4. Render caches prevent unchanged inline style writes.
 5. Closing the editor stops editor work while applied bars retain their appearance.
@@ -241,5 +250,9 @@ The hero identity slice adds one transient read model beside—not inside—the 
 6. Identity metadata remains outside `DEFAULTS`, HPCR2, Undo, root snapshot publication, and unit-status contexts.
 7. The hero-scope slice keeps one canonical global base plus ordered, normalized snapshot rows. Resolution priority is first matching Selected Heroes row, then first All Heroes row, then global base.
 8. Only the resolved effective values cross the existing overlay publication seam. Scope source changes with byte-identical effective values do not increment revision or dispatch.
-9. The Current Settings Scope row captures a frozen copy of the global base. Its searchable multi-select picker stores only validated, deduplicated stable hero keys; removing the final hero normalizes Selected Heroes to Off.
+9. The Current scope controls choose Global, All Heroes, or validated, deduplicated stable hero keys. Save snapshots the latest canonical editor values automatically; removing the final selected hero normalizes Selected Heroes to Off.
 10. Scope rows use a separate menu-only root cache. They remain outside `DEFAULTS`, HPCR2, Undo, and unit-status payloads, while the existing config root attribute remains effective-values-only.
+11. The preset slice adds one baked-before-user repository with stable IDs, normalized frozen values, and scope metadata. The baked `baked_default` record documents the shipped startup state.
+12. Off preset application replaces the canonical base; All Heroes and Selected Heroes application preserve that fallback and replace the Current scope.
+13. Selected preset application waits without live mutation until exact stable identity resolves. Matching identity applies once, mismatch rejects, and subsequent manual mutations cancel and suppress that pending match for the resolving transition. Later hero transitions restore the first matching Selected record, otherwise the first All Heroes record; leaving an active Selected scope without either automatically applies the baked Rewrite Default.
+14. Preset metadata and session user records remain outside `DEFAULTS`, HPCR2, Undo, root unit-status publication, and healthbar contexts.

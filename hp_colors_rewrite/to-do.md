@@ -71,25 +71,28 @@ Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:1229-1567`, `8170-
 
 ### Repository and application
 
-- [ ] Define rewrite-native baked and user preset records with stable IDs.
-- [ ] Load baked presets deterministically before user presets.
-- [ ] Choose and document a default startup preset.
-- [ ] Apply a preset through the same canonical normalize/persist/publish path as manual edits.
-- [ ] Preserve hero scope metadata in preset records.
-- [ ] Wait rather than applying a mismatched selected-hero preset when hero identity is unknown.
+- [x] Define rewrite-native baked and user preset records with stable IDs.
+- [x] Load baked presets deterministically before user presets.
+- [x] Choose and document a default startup preset.
+- [x] Apply a preset through the same canonical normalize/persist/publish path as manual edits.
+- [x] Preserve hero scope metadata in preset records.
+- [x] Wait rather than applying a mismatched selected-hero preset when hero identity is unknown.
 
 ### User operations
 
-- [ ] Save current settings as a named user preset.
+- [x] Save current settings as a named user preset.
 - [ ] Rename user presets and display-name override baked presets without changing stable identity.
 - [ ] Delete user presets and hide baked presets without corrupting priority order.
 - [ ] Reorder movable presets with deterministic boundary behavior.
+- [ ] Preserve monotonic user preset IDs after deletion; never reuse a retired stable ID.
+- [ ] Repair pending and selected repository references after rename, delete/hide, or reorder without applying or publishing a preset.
 - [ ] Copy one preset.
 - [ ] Copy all presets as a bundle, excluding the synthetic Current row.
 - [ ] Import a preset or bundle into the repository without applying it to live settings.
 - [ ] Keep each preset’s scope, selected heroes, conditional rules, and name intact through copy/import.
 - [ ] Persist user presets, ordering, hidden baked IDs, names, scopes, and selection across restarts.
 - [ ] Add repository, ordering, rename, delete, copy, bundle, import, restart, and selection-repair regressions.
+- [ ] Rework the Hero / Presets tab after functional preset management lands: reduce density, add breathing room, strengthen routing/save-target hierarchy, and verify the layout under supported UI scaling.
 
 Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:1293-2493`, `3374-3970`, `7620-8723`; `hp_colors/panorama/styles/anita_ui.css:660-1551`.
 

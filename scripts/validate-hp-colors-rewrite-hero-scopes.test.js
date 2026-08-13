@@ -344,27 +344,6 @@ test('current row scope picker searches and normalizes multi-select state', () =
   assert.equal(all.BHasClass('Selected'), true);
 });
 
-test('Capture Current refreshes scoped values without replacing the global base', () => {
-  const fixture = bootScopedMenu({ version: 1, values: {}, scopes: [] });
-  const root = fixture.harness.root;
-  const enemyVisible = root.FindChildTraverse('HPColorsEnemyVisibleToggle');
-  const all = root.FindChildTraverse('HPColorsCurrentScopeAll');
-  const capture = root.FindChildTraverse('HPColorsCurrentScopeCapture');
-
-  enemyVisible.events.onactivate();
-  assert.equal(menuState(fixture).values.enemyVisible, false);
-  all.events.onactivate();
-  assert.equal(effectiveSnapshot(fixture).values.enemyVisible, false);
-
-  enemyVisible.events.onactivate();
-  assert.equal(menuState(fixture).values.enemyVisible, true);
-  assert.equal(effectiveSnapshot(fixture).values.enemyVisible, false);
-
-  capture.events.onactivate();
-  assert.equal(menuState(fixture).values.enemyVisible, true);
-  assert.equal(menuState(fixture).scopes[0].values.enemyVisible, true);
-  assert.equal(effectiveSnapshot(fixture).values.enemyVisible, true);
-});
 
 test('menu reload keeps a restored selected snapshot until active identity settles', () => {
   const fixture = bootScopedMenu(
