@@ -520,6 +520,42 @@
                     <Panel class="HPColorsSettingCopy"><Label text="PULSE HP NUMBER" class="HPColorsSettingTitle" /><Label text="Apply the same CSS pulse to the existing enemy readout geometry." class="HPColorsSettingHelp" /></Panel>
                     <Button id="HPColorsEnemyPulseReadoutToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
                   </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="APPLY TEXT MODIFIERS DURING PULSE" class="HPColorsSettingTitle" /><Label text="Use the pulse-specific text size and placement without controlling the text pulse animation." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyPulseReadoutModifiersToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsEnemyPulseReadoutSizeRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE TEXT SIZE" class="HPColorsSettingTitle" /><Label text="Change the HP number size only while the enemy low-HP pulse is active." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseReadoutSizeSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseReadoutSizeEntry" class="HPColorsNumberEntry" text="145" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel id="HPColorsEnemyPulseReadoutOffsetXRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE TEXT HORIZONTAL" class="HPColorsSettingTitle" /><Label text="Move the HP number horizontally only while the enemy low-HP pulse is active." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseReadoutOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseReadoutOffsetXEntry" class="HPColorsNumberEntry" text="27" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel id="HPColorsEnemyPulseReadoutOffsetYRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE TEXT VERTICAL" class="HPColorsSettingTitle" /><Label text="Move the HP number vertically only while the enemy low-HP pulse is active." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseReadoutOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseReadoutOffsetYEntry" class="HPColorsNumberEntry" text="500" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsEnemyKillMarker" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="ENABLE ENEMY KILL MARKER" class="HPColorsSettingTitle" /><Label text="Show a static marker on visible enemy player healthbars at the configured health threshold." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyKillMarkerToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsEnemyKillMarkerThresholdRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="MARKER THRESHOLD" class="HPColorsSettingTitle" /><Label text="Place the marker at this percentage of the live enemy healthbar width." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyKillMarkerThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyKillMarkerThresholdEntry" class="HPColorsNumberEntry" text="25" /><Label text="%" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel id="HPColorsEnemyKillMarkerWidthRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="MARKER WIDTH" class="HPColorsSettingTitle" /><Label text="Set the marker width in pixels, capped by the live healthbar width." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyKillMarkerWidthSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyKillMarkerWidthEntry" class="HPColorsNumberEntry" text="3" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel id="HPColorsEnemyKillMarkerColorRow" class="HPColorsSettingRow HPColorsColorRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="MARKER COLOR" class="HPColorsSettingTitle" /><Label text="Use a static color for the marker; animation is not applied." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyKillMarkerColorSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsEnemyKillMarkerColorHex" class="HPColorsHexEntry" text="#FF2222" maxchars="7" />
+                  </Panel>
                 </Panel>
 
                 <Panel id="HPColorsSettingsAllyPulse" class="HPColorsSettingsPage">

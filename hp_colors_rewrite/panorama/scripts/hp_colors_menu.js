@@ -73,12 +73,20 @@
     enemyPulseColor: "#FF2222",
     enemyPulseHideBar: false,
     enemyPulseReadout: false,
+    enemyPulseReadoutModifiers: false,
+    enemyPulseReadoutSize: 145,
+    enemyPulseReadoutOffsetX: 27,
+    enemyPulseReadoutOffsetY: 500,
     allyPulseEnabled: false,
     allyPulseThreshold: 25,
     allyPulseBpm: 75,
     allyPulseIntensity: 1,
     allyPulseColorEnabled: false,
     allyPulseColor: "#FF2222",
+    enemyKillMarkerEnabled: false,
+    enemyKillMarkerThreshold: 25,
+    enemyKillMarkerWidth: 3,
+    enemyKillMarkerColor: "#FF2222",
   };
 
   var CATEGORY_DEFS = [
@@ -241,6 +249,23 @@
             "enemyPulseColor",
             "enemyPulseHideBar",
             "enemyPulseReadout",
+            "enemyPulseReadoutModifiers",
+            "enemyPulseReadoutSize",
+            "enemyPulseReadoutOffsetX",
+            "enemyPulseReadoutOffsetY",
+          ],
+        },
+        {
+          name: "KILL MARKER",
+          title: "ENEMY KILL MARKER",
+          description:
+            "Show a static marker on visible enemy player healthbars at a configurable health threshold.",
+          pageId: "HPColorsSettingsEnemyKillMarker",
+          keys: [
+            "enemyKillMarkerEnabled",
+            "enemyKillMarkerThreshold",
+            "enemyKillMarkerWidth",
+            "enemyKillMarkerColor",
           ],
         },
         {
@@ -283,6 +308,7 @@
     precisePipsEnabled: true,
     levelsVisible: true,
     enemyPulseEnabled: true,
+    enemyKillMarkerEnabled: true,
     enemyPulseColorEnabled: true,
     enemyPulseHideBar: true,
     enemyPulseReadout: true,
@@ -307,6 +333,7 @@
     readoutMid: true,
     readoutHigh: true,
     enemyPulseColor: true,
+    enemyKillMarkerColor: true,
     allyPulseColor: true,
   };
   var COLOR_TITLES = {
@@ -327,6 +354,7 @@
     readoutMid: "HP NUMBER MID",
     readoutHigh: "HP NUMBER HIGH",
     enemyPulseColor: "ENEMY PULSE COLOR",
+    enemyKillMarkerColor: "ENEMY KILL MARKER COLOR",
     allyPulseColor: "ALLY PULSE COLOR",
   };
 
@@ -359,6 +387,16 @@
     tabButtons: [],
     tabLabels: [],
     settingsPages: [],
+    enemyKillMarkerToggle: null,
+    enemyKillMarkerThresholdRow: null,
+    enemyKillMarkerThresholdSlider: null,
+    enemyKillMarkerThresholdEntry: null,
+    enemyKillMarkerWidthRow: null,
+    enemyKillMarkerWidthSlider: null,
+    enemyKillMarkerWidthEntry: null,
+    enemyKillMarkerColorRow: null,
+    enemyKillMarkerColorSwatch: null,
+    enemyKillMarkerColorEntry: null,
   };
   var syncingControls = false;
 
@@ -575,6 +613,10 @@
       return clampNumber(value, 30, 300, 75);
     if (key === "enemyPulseIntensity" || key === "allyPulseIntensity")
       return clampNumber(value, 0, 2, 1);
+    if (key === "enemyKillMarkerThreshold")
+      return clampNumber(value, 5, 80, 25);
+    if (key === "enemyKillMarkerWidth")
+      return clampNumber(value, 1, 100, 3);
     if (key === "ultMode") return value === "custom" ? "custom" : "follow";
     if (
       key === "readoutFormat"
@@ -584,11 +626,11 @@
       return value === "custom" ? "custom" : "bar";
     if (key === "readoutFont")
       return value === "oracle" || value === "pulp" ? value : "default";
-    if (key === "readoutSize")
+    if (key === "readoutSize" || key === "enemyPulseReadoutSize")
       return clampNumber(value, 72, 320, DEFAULTS[key]);
-    if (key === "readoutOffsetX")
+    if (key === "readoutOffsetX" || key === "enemyPulseReadoutOffsetX")
       return clampNumber(value, -405, 405, DEFAULTS[key]);
-    if (key === "readoutOffsetY")
+    if (key === "readoutOffsetY" || key === "enemyPulseReadoutOffsetY")
       return clampNumber(value, -35, 840, DEFAULTS[key]);
     if (key === "widthScale" || key === "heightScale")
       return clampNumber(value, 60, 160, DEFAULTS[key]);
@@ -1089,6 +1131,51 @@
       state.values.precisePipsEnabled,
     );
     setToggle("HPColorsLevelsVisibleToggle", state.values.levelsVisible);
+    setClass(
+      ui.enemyKillMarkerToggle,
+      "Checked",
+      state.values.enemyKillMarkerEnabled,
+    );
+    var enemyKillMarkerActive = state.values.enemyKillMarkerEnabled;
+    setClass(
+      ui.enemyKillMarkerThresholdRow,
+      "Disabled",
+      !enemyKillMarkerActive,
+    );
+    setClass(
+      ui.enemyKillMarkerWidthRow,
+      "Disabled",
+      !enemyKillMarkerActive,
+    );
+    setClass(
+      ui.enemyKillMarkerColorRow,
+      "Disabled",
+      !enemyKillMarkerActive,
+    );
+    setEnabled(
+      ui.enemyKillMarkerThresholdSlider,
+      enemyKillMarkerActive,
+    );
+    setEnabled(
+      ui.enemyKillMarkerThresholdEntry,
+      enemyKillMarkerActive,
+    );
+    setEnabled(
+      ui.enemyKillMarkerWidthSlider,
+      enemyKillMarkerActive,
+    );
+    setEnabled(
+      ui.enemyKillMarkerWidthEntry,
+      enemyKillMarkerActive,
+    );
+    setEnabled(
+      ui.enemyKillMarkerColorSwatch,
+      enemyKillMarkerActive,
+    );
+    setEnabled(
+      ui.enemyKillMarkerColorEntry,
+      enemyKillMarkerActive,
+    );
 
 
     setToggle("HPColorsEnemyPulseToggle", state.values.enemyPulseEnabled);
@@ -1103,6 +1190,10 @@
     setToggle(
       "HPColorsEnemyPulseReadoutToggle",
       state.values.enemyPulseReadout,
+    );
+    setToggle(
+      "HPColorsEnemyPulseReadoutModifiersToggle",
+      state.values.enemyPulseReadoutModifiers,
     );
     setToggle("HPColorsAllyPulseToggle", state.values.allyPulseEnabled);
     setToggle(
@@ -1168,6 +1259,47 @@
     setEnabled(
       find("HPColorsEnemyPulseColorModeGradient"),
       enemyPulseColorActive,
+    );
+    var enemyPulseReadoutModifiersActive =
+      enemyPulseActive && state.values.enemyPulseReadoutModifiers;
+    setClass(
+      find("HPColorsEnemyPulseReadoutSizeRow"),
+      "Disabled",
+      !enemyPulseReadoutModifiersActive,
+    );
+    setEnabled(
+      find("HPColorsEnemyPulseReadoutSizeSlider"),
+      enemyPulseReadoutModifiersActive,
+    );
+    setEnabled(
+      find("HPColorsEnemyPulseReadoutSizeEntry"),
+      enemyPulseReadoutModifiersActive,
+    );
+    setClass(
+      find("HPColorsEnemyPulseReadoutOffsetXRow"),
+      "Disabled",
+      !enemyPulseReadoutModifiersActive,
+    );
+    setClass(
+      find("HPColorsEnemyPulseReadoutOffsetYRow"),
+      "Disabled",
+      !enemyPulseReadoutModifiersActive,
+    );
+    setEnabled(
+      find("HPColorsEnemyPulseReadoutOffsetXSlider"),
+      enemyPulseReadoutModifiersActive,
+    );
+    setEnabled(
+      find("HPColorsEnemyPulseReadoutOffsetXEntry"),
+      enemyPulseReadoutModifiersActive,
+    );
+    setEnabled(
+      find("HPColorsEnemyPulseReadoutOffsetYSlider"),
+      enemyPulseReadoutModifiersActive,
+    );
+    setEnabled(
+      find("HPColorsEnemyPulseReadoutOffsetYEntry"),
+      enemyPulseReadoutModifiersActive,
     );
     var allyPulseColorActive =
       state.values.allyPulseEnabled && state.values.allyPulseColorEnabled;
@@ -1356,9 +1488,40 @@
       state.values.enemyPulseBpm,
     );
     setSlider(
+      "HPColorsEnemyPulseReadoutSizeSlider",
+      "HPColorsEnemyPulseReadoutSizeEntry",
+      state.values.enemyPulseReadoutSize,
+    );
+    setSlider(
+      "HPColorsEnemyPulseReadoutOffsetXSlider",
+      "HPColorsEnemyPulseReadoutOffsetXEntry",
+      state.values.enemyPulseReadoutOffsetX,
+    );
+    setSlider(
+      "HPColorsEnemyPulseReadoutOffsetYSlider",
+      "HPColorsEnemyPulseReadoutOffsetYEntry",
+      state.values.enemyPulseReadoutOffsetY,
+    );
+    setSlider(
       "HPColorsAllyPulseThresholdSlider",
       "HPColorsAllyPulseThresholdEntry",
       state.values.allyPulseThreshold,
+    );
+    setPickerSliderValue(
+      ui.enemyKillMarkerThresholdSlider,
+      state.values.enemyKillMarkerThreshold,
+    );
+    setText(
+      ui.enemyKillMarkerThresholdEntry,
+      String(state.values.enemyKillMarkerThreshold),
+    );
+    setPickerSliderValue(
+      ui.enemyKillMarkerWidthSlider,
+      state.values.enemyKillMarkerWidth,
+    );
+    setText(
+      ui.enemyKillMarkerWidthEntry,
+      String(state.values.enemyKillMarkerWidth),
     );
     setSlider(
       "HPColorsAllyPulseBpmSlider",
@@ -1455,6 +1618,23 @@
       "HPColorsAllyPulseColorSwatch",
       "HPColorsAllyPulseColorHex",
       state.values.allyPulseColor,
+    );
+    if (
+      isValid(ui.enemyKillMarkerColorSwatch) &&
+      ui.enemyKillMarkerColorSwatch.style
+    ) {
+      try {
+        if (
+          ui.enemyKillMarkerColorSwatch.style.backgroundColor !==
+          state.values.enemyKillMarkerColor
+        )
+          ui.enemyKillMarkerColorSwatch.style.backgroundColor =
+            state.values.enemyKillMarkerColor;
+      } catch (error) {}
+    }
+    setText(
+      ui.enemyKillMarkerColorEntry,
+      state.values.enemyKillMarkerColor,
     );
     setClass(ui.undoButton, "Disabled", state.history.length === 0);
     if (ui.undoButton) ui.undoButton.enabled = state.history.length > 0;
@@ -1610,6 +1790,24 @@
     ui.pickerHueHost = find("HPColorsPickerHueSliderHost");
     ui.pickerSaturationHost = find("HPColorsPickerSaturationSliderHost");
     ui.pickerLumenHost = find("HPColorsPickerLumenSliderHost");
+    ui.enemyKillMarkerToggle = find("HPColorsEnemyKillMarkerToggle");
+    ui.enemyKillMarkerThresholdRow = find("HPColorsEnemyKillMarkerThresholdRow");
+    ui.enemyKillMarkerThresholdSlider = find(
+      "HPColorsEnemyKillMarkerThresholdSlider",
+    );
+    ui.enemyKillMarkerThresholdEntry = find(
+      "HPColorsEnemyKillMarkerThresholdEntry",
+    );
+    ui.enemyKillMarkerWidthRow = find("HPColorsEnemyKillMarkerWidthRow");
+    ui.enemyKillMarkerWidthSlider = find(
+      "HPColorsEnemyKillMarkerWidthSlider",
+    );
+    ui.enemyKillMarkerWidthEntry = find("HPColorsEnemyKillMarkerWidthEntry");
+    ui.enemyKillMarkerColorRow = find("HPColorsEnemyKillMarkerColorRow");
+    ui.enemyKillMarkerColorSwatch = find(
+      "HPColorsEnemyKillMarkerColorSwatch",
+    );
+    ui.enemyKillMarkerColorEntry = find("HPColorsEnemyKillMarkerColorHex");
 
     for (var categoryIndex = 0; categoryIndex < CATEGORY_BUTTON_IDS.length; categoryIndex++)
       ui.categoryButtons.push(find(CATEGORY_BUTTON_IDS[categoryIndex]));
@@ -1630,6 +1828,7 @@
       "HPColorsSettingsReadoutPlacement",
       "HPColorsSettingsReadoutLevels",
       "HPColorsSettingsEnemyPulse",
+      "HPColorsSettingsEnemyKillMarker",
       "HPColorsSettingsAllyPulse",
     ];
 
@@ -1805,6 +2004,30 @@
       ) &&
       isValid(
         createSlider(
+          "HPColorsEnemyPulseReadoutSizeSliderHost",
+          "HPColorsEnemyPulseReadoutSizeSlider",
+          72,
+          320,
+        ),
+      ) &&
+      isValid(
+        createSlider(
+          "HPColorsEnemyPulseReadoutOffsetXSliderHost",
+          "HPColorsEnemyPulseReadoutOffsetXSlider",
+          -405,
+          405,
+        ),
+      ) &&
+      isValid(
+        createSlider(
+          "HPColorsEnemyPulseReadoutOffsetYSliderHost",
+          "HPColorsEnemyPulseReadoutOffsetYSlider",
+          -35,
+          840,
+        ),
+      ) &&
+      isValid(
+        createSlider(
           "HPColorsAllyPulseThresholdSliderHost",
           "HPColorsAllyPulseThresholdSlider",
           0,
@@ -1818,6 +2041,22 @@
           30,
           300,
         ),
+      ) &&
+      isValid(
+        (ui.enemyKillMarkerThresholdSlider = createSlider(
+          "HPColorsEnemyKillMarkerThresholdSliderHost",
+          "HPColorsEnemyKillMarkerThresholdSlider",
+          5,
+          80,
+        )),
+      ) &&
+      isValid(
+        (ui.enemyKillMarkerWidthSlider = createSlider(
+          "HPColorsEnemyKillMarkerWidthSliderHost",
+          "HPColorsEnemyKillMarkerWidthSlider",
+          1,
+          100,
+        )),
       ) &&
       createPickerSliders()
     );
@@ -1850,6 +2089,10 @@
     bindToggle("HPColorsPipsVisibleToggle", "pipsVisible");
     bindToggle("HPColorsPrecisePipsToggle", "precisePipsEnabled");
     bindToggle("HPColorsLevelsVisibleToggle", "levelsVisible");
+    bindToggle(
+      "HPColorsEnemyKillMarkerToggle",
+      "enemyKillMarkerEnabled",
+    );
     setPanelEvent(
       find("HPColorsPrecisePipsCopy"),
       "onactivate",
@@ -1859,6 +2102,10 @@
     bindToggle("HPColorsEnemyPulseColorToggle", "enemyPulseColorEnabled");
     bindToggle("HPColorsEnemyPulseHideBarToggle", "enemyPulseHideBar");
     bindToggle("HPColorsEnemyPulseReadoutToggle", "enemyPulseReadout");
+    bindToggle(
+      "HPColorsEnemyPulseReadoutModifiersToggle",
+      "enemyPulseReadoutModifiers",
+    );
     bindToggle("HPColorsAllyPulseToggle", "allyPulseEnabled");
     bindToggle("HPColorsAllyPulseColorToggle", "allyPulseColorEnabled");
     bindMode(
@@ -1939,6 +2186,27 @@
       300,
     );
     bindSlider(
+      "HPColorsEnemyPulseReadoutSizeSlider",
+      "HPColorsEnemyPulseReadoutSizeEntry",
+      "enemyPulseReadoutSize",
+      72,
+      320,
+    );
+    bindSlider(
+      "HPColorsEnemyPulseReadoutOffsetXSlider",
+      "HPColorsEnemyPulseReadoutOffsetXEntry",
+      "enemyPulseReadoutOffsetX",
+      -405,
+      405,
+    );
+    bindSlider(
+      "HPColorsEnemyPulseReadoutOffsetYSlider",
+      "HPColorsEnemyPulseReadoutOffsetYEntry",
+      "enemyPulseReadoutOffsetY",
+      -35,
+      840,
+    );
+    bindSlider(
       "HPColorsAllyPulseThresholdSlider",
       "HPColorsAllyPulseThresholdEntry",
       "allyPulseThreshold",
@@ -1951,6 +2219,20 @@
       "allyPulseBpm",
       30,
       300,
+    );
+    bindSlider(
+      "HPColorsEnemyKillMarkerThresholdSlider",
+      "HPColorsEnemyKillMarkerThresholdEntry",
+      "enemyKillMarkerThreshold",
+      5,
+      80,
+    );
+    bindSlider(
+      "HPColorsEnemyKillMarkerWidthSlider",
+      "HPColorsEnemyKillMarkerWidthEntry",
+      "enemyKillMarkerWidth",
+      1,
+      100,
     );
     bindSlider(
       "HPColorsLowThresholdSlider",
@@ -2020,6 +2302,11 @@
       "HPColorsAllyShieldSwatch",
       "HPColorsAllyShieldHex",
       "allyBulletShield",
+    );
+    bindColor(
+      "HPColorsEnemyKillMarkerColorSwatch",
+      "HPColorsEnemyKillMarkerColorHex",
+      "enemyKillMarkerColor",
     );
     bindColor(
       "HPColorsEnemyPulseColorSwatch",
