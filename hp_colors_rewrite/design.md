@@ -230,3 +230,16 @@ The sixth slice adds the static enemy HP readout:
 3. The local renderer derives current/max HP from cached stock pip text and the existing shield-aware health ratio; percentage can render without a derived maximum.
 4. Bar-derived text follows the final enemy palette, including team-high color. Custom text uses its own three colors while sharing thresholds and Fixed/Gradient behavior.
 5. Bypass, disabled, excluded, neutral, ally, and unclassified paths collapse and clear the owned counter. Late or replaced panels reuse the cached snapshot without another authority or scheduler.
+
+The hero identity slice adds one transient read model beside—not inside—the healthbar snapshot:
+
+1. Auto detection selects the generated topbar card carrying `LocalPlayer`, maps its exact retail-name label to one stable `hero_*` key, and requires two matching active-match samples.
+2. Manual Override uses one explicit stable key; Off clears effective identity and skips local-card scans.
+3. Unknown, blank, placeholder, fuzzy, and unmapped labels resolve to no effective hero. No scoped state is guessed.
+4. Lifecycle state comes from exact hideout, pregame, and post-game HUD classes plus a parseable current topbar clock. Lifecycle changes clear cached panels, candidates, and detected identity.
+5. One generation-guarded watcher polls at one second while active or transitioning and five seconds in lobby/post-match. Cached clocks are retained only while their text remains parseable.
+6. Identity metadata remains outside `DEFAULTS`, HPCR2, Undo, root snapshot publication, and unit-status contexts.
+7. The hero-scope slice keeps one canonical global base plus ordered, normalized snapshot rows. Resolution priority is first matching Selected Heroes row, then first All Heroes row, then global base.
+8. Only the resolved effective values cross the existing overlay publication seam. Scope source changes with byte-identical effective values do not increment revision or dispatch.
+9. The Current Settings Scope row captures a frozen copy of the global base. Its searchable multi-select picker stores only validated, deduplicated stable hero keys; removing the final hero normalizes Selected Heroes to Off.
+10. Scope rows use a separate menu-only root cache. They remain outside `DEFAULTS`, HPCR2, Undo, and unit-status payloads, while the existing config root attribute remains effective-values-only.

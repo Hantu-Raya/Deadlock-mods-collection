@@ -199,6 +199,31 @@ test('stable scan and paint do not repeat panel writes', () => {
     before,
   );
 });
+
+test('data telemetry ignores raw geometry churn within the same displayed percent', () => {
+  const probe = bootProbe(['enemy', 'player', 'team1'], {
+    barWidth: 50,
+    parentWidth: 100,
+  });
+  probe.harness.logs.length = 0;
+
+  probe.tree.lagging.actuallayoutwidth = 50.4;
+  probe.harness.scheduler.takeByFunctionName('scan').fn();
+  assert.equal(
+    probe.harness.logs.filter((line) =>
+      line.includes('[HP Colors Rewrite] data id='),
+    ).length,
+    0,
+  );
+
+  probe.tree.lagging.actuallayoutwidth = 51.2;
+  probe.harness.scheduler.takeByFunctionName('scan').fn();
+  const dataLogs = probe.harness.logs.filter((line) =>
+    line.includes('[HP Colors Rewrite] data id='),
+  );
+  assert.equal(dataLogs.length, 1);
+  assert.match(dataLogs[0], /width_percent=51$/);
+});
 test('enemy player kill marker renders static cached geometry and color', () => {
   const probe = bootProbe(['enemy', 'player', 'team1'], {
     barWidth: 50,
@@ -401,20 +426,19 @@ test('kill marker geometry follows raw parent width at unchanged health percent'
   });
   assert.equal(probe.tree.killMarker.style.marginLeft, '37px');
 
-  const before = {
-    markerWrites: getStyleWriteCount(probe.tree.killMarker),
-    traversal: probe.harness.operationCounts.traversal,
-  };
+  const beforeMarkerWrites = getStyleWriteCount(probe.tree.killMarker);
   probe.tree.redParent.actuallayoutwidth = 200;
   probe.tree.lagging.actuallayoutwidth = 100;
+  probe.harness.scheduler.takeByFunctionName('scan').fn();
+  const traversalAfterScan = probe.harness.operationCounts.traversal;
   probe.harness.scheduler.takeByFunctionName('paintColors').fn();
 
   assert.equal(probe.tree.killMarker.style.marginLeft, '77px');
   assert.equal(
-    getStyleWriteCount(probe.tree.killMarker) - before.markerWrites,
+    getStyleWriteCount(probe.tree.killMarker) - beforeMarkerWrites,
     1,
   );
-  assert.equal(probe.harness.operationCounts.traversal, before.traversal);
+  assert.equal(probe.harness.operationCounts.traversal, traversalAfterScan);
 
   probe.tree.redParent.actuallayoutwidth = 0;
   probe.tree.lagging.actuallayoutwidth = 0;

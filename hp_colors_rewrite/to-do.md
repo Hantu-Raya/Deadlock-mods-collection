@@ -40,29 +40,30 @@ Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:7106-7214`, `9251-
 
 ## Priority 3 — Hero identity and match lifecycle
 
-- [ ] Detect the local hero from current HUD panels using stable hero IDs.
-- [ ] Support **Auto**, **Manual Override**, and **Off** detection modes.
-- [ ] Expose the detected or overridden hero clearly in the editor.
-- [ ] Define unknown-hero behavior explicitly; never guess a scoped preset.
-- [ ] Detect lobby, active-match, hero-change, and post-match transitions.
-- [ ] Reset detection and effective-selection caches on match/lobby transitions.
-- [ ] Settle hero detection before applying hero-scoped state to avoid transient wrong presets.
-- [ ] Use slower polling outside active matches and stop stale scheduled callbacks by generation.
-- [ ] Add mocked lifecycle regressions, then verify actual panel IDs and transition timing in game.
+- [x] Detect the local hero from current HUD panels and normalize it to a stable `hero_*` key.
+- [x] Support **Auto**, **Manual Override**, and **Off** detection modes.
+- [x] Expose the detected or overridden hero clearly in the editor.
+- [x] Define unknown-hero behavior explicitly; never guess a scoped preset.
+- [x] Detect lobby, active-match, hero-change, and post-match transitions.
+- [x] Reset detection and effective-selection caches on match/lobby transitions.
+- [x] Settle hero detection before exposing effective hero identity to avoid transient wrong presets.
+- [x] Use slower polling outside active matches and stop stale scheduled callbacks by generation.
+- [x] Add mocked lifecycle regressions.
+- [ ] Verify actual panel IDs, locale behavior, and transition timing in game.
 
 Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:2860-3030`, `3724-3970`; `hp_colors/panorama/scripts/healthbar_logic.js:1218-1249`.
 
 ## Priority 4 — Hero scopes and effective settings
 
-- [ ] Add scope modes **Off**, **All Heroes**, and **Selected Heroes**.
-- [ ] Store selected heroes as deduplicated stable IDs.
-- [ ] Normalize Selected-with-no-heroes to Off.
-- [ ] Keep global settings as the fallback when no scoped entry matches.
-- [ ] Resolve effective settings deterministically by scope and explicit priority.
-- [ ] Keep base settings separate from effective hero-scoped settings.
-- [ ] Publish only when the effective snapshot changes.
-- [ ] Add independent row-scope editing and a searchable/selectable hero picker.
-- [ ] Add unknown-hero, global-fallback, duplicate-ID, last-selected removal, and priority regressions.
+- [x] Add scope modes **Off**, **All Heroes**, and **Selected Heroes**.
+- [x] Store selected heroes as deduplicated stable IDs.
+- [x] Normalize Selected-with-no-heroes to Off.
+- [x] Keep global settings as the fallback when no scoped entry matches.
+- [x] Resolve effective settings deterministically by scope and explicit priority.
+- [x] Keep base settings separate from effective hero-scoped settings.
+- [x] Publish only when the effective snapshot changes.
+- [x] Add independent row-scope editing and a searchable/selectable hero picker.
+- [x] Add unknown-hero, global-fallback, duplicate-ID, last-selected removal, and priority regressions.
 
 Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:1229-1567`, `8170-8449`, `3724-3970`.
 
@@ -156,4 +157,4 @@ Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:849-1055`, `3028-3
 
 ## Already implemented
 
-The rewrite already owns the ESC editor lifecycle, immediate session snapshot publication, section reset, Undo, native HSL picker, rewrite-native live settings import/export, enemy/ally bar colors and visibility, gradients and thresholds, feedback/shield colors, dimensions and position, team-high color, building/boss exclusions, ultimate-icon color, HP readout formats/fonts/colors/placement, pips, optional precise-pip calculation with manual gameinfo.gi copy warnings, enemy levels, enemy/ally CSS pulse, and enemy-player-only kill marker. Do not reopen these slices without a reproduced defect or measured performance regression.
+The rewrite already owns the ESC editor lifecycle, immediate session snapshot publication, section reset, Undo, native HSL picker, rewrite-native live settings import/export, transient Auto/Manual/Off hero identity and match lifecycle, enemy/ally bar colors and visibility, gradients and thresholds, feedback/shield colors, dimensions and position, team-high color, building/boss exclusions, ultimate-icon color, HP readout formats/fonts/colors/placement, pips, optional precise-pip calculation with manual gameinfo.gi copy warnings, enemy levels, enemy/ally CSS pulse, and enemy-player-only kill marker. Do not reopen these slices without a reproduced defect or measured performance regression.

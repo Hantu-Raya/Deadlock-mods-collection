@@ -648,6 +648,93 @@ function installGameTimeTree(harness, text, options = {}) {
   }));
   return gameTime;
 }
+function installTopBarIdentityTree(harness, options = {}) {
+  const root = harness.root;
+  const hud = root.add(new MockPanel(options.hudId || 'Hud', {
+    classes: options.hudClasses || [],
+    findCounts: harness.findCounts,
+    childReadCounts: harness.childReadCounts,
+  }));
+  const topBar = hud.add(new MockPanel(options.topBarId || 'TopBar', {
+    findCounts: harness.findCounts,
+    childReadCounts: harness.childReadCounts,
+  }));
+  const gameClock = topBar.add(new MockPanel(options.gameClockId || 'GameClock', {
+    classes: ['GameClock'].concat(options.gameClockClasses || []),
+    findCounts: harness.findCounts,
+    childReadCounts: harness.childReadCounts,
+  }));
+  const gameTimeText = String(
+    options.gameTime === undefined ? '00:00' : options.gameTime,
+  );
+  const gameTime = gameClock.add(new MockPanel(options.gameTimeId || 'GameTime', {
+    type: 'Label',
+    classes: ['GameTime'].concat(options.gameTimeClasses || []),
+    text: gameTimeText,
+    attributes: { text: gameTimeText },
+    findCounts: harness.findCounts,
+    childReadCounts: harness.childReadCounts,
+  }));
+
+
+  function makeLocalPlayerCard(heroName, cardOptions = {}) {
+    const card = topBar.add(new MockPanel(cardOptions.id || 'LocalPlayer', {
+      classes: ['CitadelHudTopBarPlayer', 'LocalPlayer'].concat(cardOptions.classes || []),
+      findCounts: harness.findCounts,
+      childReadCounts: harness.childReadCounts,
+    }));
+    const nameContainer = card.add(new MockPanel(
+      cardOptions.nameContainerId || 'PlayerNameNWContainer',
+      {
+        findCounts: harness.findCounts,
+        childReadCounts: harness.childReadCounts,
+      },
+    ));
+    const heroText = String(heroName === undefined ? '' : heroName);
+    const heroLabel = nameContainer.add(new MockPanel(
+      cardOptions.heroId || 'HeroName',
+      {
+        type: 'Label',
+        classes: ['HeroName'].concat(cardOptions.heroClasses || []),
+        text: heroText,
+        attributes: { text: heroText },
+        findCounts: harness.findCounts,
+        childReadCounts: harness.childReadCounts,
+      },
+    ));
+    return {
+      card,
+      nameContainer,
+      heroLabel,
+    };
+  }
+
+  let localPlayer = makeLocalPlayerCard(options.heroName);
+  return {
+    hud,
+    topBar,
+    gameTime,
+    get playerCard() { return localPlayer.card; },
+    get playerNameNWContainer() { return localPlayer.nameContainer; },
+    get heroName() { return localPlayer.heroLabel; },
+    setHeroName(value) {
+      const text = String(value === undefined ? '' : value);
+      localPlayer.heroLabel.text = text;
+      localPlayer.heroLabel.SetAttributeString('text', text);
+    },
+    setGameTime(value) {
+      const text = String(value === undefined ? '' : value);
+      gameTime.text = text;
+      gameTime.SetAttributeString('text', text);
+    },
+    replaceLocalPlayerCard(heroName, cardOptions = {}) {
+      localPlayer.card.DeleteAsync();
+      localPlayer = makeLocalPlayerCard(heroName, cardOptions);
+      return localPlayer.card;
+    },
+  };
+}
+
 
 function buildUnitStatusTree(harness, options = {}) {
   const root = harness.root;
@@ -731,6 +818,7 @@ module.exports = {
   installPresetStore,
   installHeroProgressTree,
   installGameTimeTree,
+  installTopBarIdentityTree,
   buildUnitStatusTree,
   encodeBase64Url,
   decodeBase64UrlJson,

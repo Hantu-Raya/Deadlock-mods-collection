@@ -2,54 +2,40 @@
 
 ## Goal
 
-Rebuild HP Colors behind small, independently verifiable seams. Milestone 1 proved that each v1 healthbar can be discovered and observed inside its unit-status overlay context. Milestone 2 proves the stock ESC entry and editor lifecycle before settings state is introduced.
+Rebuild HP Colors behind small, independently verifiable seams. The current rewrite owns the v1 healthbar renderer, ESC editor, live settings transfer, transient hero identity, and session-scoped hero settings.
 
 The layout overrides are based on current stock files in `SteamDatabase/GameTracking-Deadlock/game/citadel/pak01_dir/panorama/layout`. The rewrite changes them only by adding its script/style includes and owned panels.
 
-## Features that the rewrite must preserve
+## Implemented feature set
 
-### Enemy healthbars
+### Healthbars and feedback
 
-- Enable or disable enemy coloring.
-- Show or visually hide the bar without breaking width updates.
-- Fixed and gradient low/mid/high colors.
-- Configurable low/high thresholds.
-- Optional team color at high HP.
-- Optional building and boss exclusion.
-- Bar position and width controls.
-- Healing, damage-delta, bullet-shield, and ult-icon colors.
-- Neutral units must never enter the enemy-coloring path.
+- Enemy and optional ally fixed/gradient colors with shared thresholds.
+- Enemy team-high color plus independent building and boss exclusions.
+- Reversible enemy/ally visibility, dimensions, position, healing, damage-delta, bullet-shield, and ultimate-icon coloring.
+- Neutral-first classification; neutral and unclassified targets never enter enemy coloring.
+- Enemy/ally CSS-driven low-HP pulse and enemy-player-only static kill marker.
 
-### Ally healthbars
+### HP readout and stock indicators
 
-- Optional ally coloring.
-- Low/mid/high, healing, damage-delta, and bullet-shield colors.
-- Optional ally low-HP pulse with threshold, speed, intensity, and color.
+- Current/max, percentage, and current-only HP formats.
+- Size, bounded placement, stock-derived or custom colors, and optional pulse-specific presentation.
+- Health-pip visibility and optional precise 10-HP calculation with manual `gameinfo.gi` copy/reset guidance.
+- Enemy-player level visibility and tier styling without writing engine-owned text.
 
-### HP readout
+### Editor and settings
 
-- Show or hide the HP number.
-- Current/max HP, percentage, and current-only formats.
-- Size and position controls.
-- Bar-derived or custom low/mid/high text colors.
-- Show or hide health pips.
-- Optional precise-pip calculation for the known 10-HP ConVars profile, with explicit gameinfo.gi enable/reset copy warnings.
-- Show or hide enemy levels and preserve level-tier styling.
+- Categorized ESC editor, immediate application, section reset, session Undo, Peek, native HSL picker, and HPCR2 live settings import/export.
+- One canonical global base and one resolved effective snapshot.
+- Auto, Manual Override, and Off hero identity with lifecycle settling and stale-callback rejection.
+- Off, All Heroes, and Selected Heroes scopes with searchable stable-key selection, global fallback, and changed-effective-only publication.
 
-### Low-HP pulse and kill marker
+### Deliberately deferred
 
-- Enemy pulse threshold, speed, intensity, fixed/gradient color, bar hiding, and pulsing HP number.
-- Configurable kill-marker threshold, width, and color on enemy player/heroes only.
-- Pulse remains CSS-driven rather than JavaScript frame animation.
-
-### Anita UI and presets
-
-- Settings categories, conditional rows, tooltips, position picker, page reset, reset-all, and donation link.
-- Baked and user presets, rename/delete/reorder, individual copy, bundle copy, and import.
-- Hero scopes: off, all, and selected heroes.
-- Automatic hero detection, manual override, global fallback, and match/lobby reset behavior.
-- Per-setting signature-tier conditions for four ability slots.
-- Version-99 compact storage, existing aliases, legacy import aliases, preset token formats, and bridge message compatibility.
+- Durable persistence, pending a proven storage backend.
+- Preset repository and management.
+- Ability signature-tier conditions and remaining editor surfaces.
+- Legacy v99 encoding, Anita tokens, aliases, bridge keys, and preset-store VPK compatibility.
 
 ## Milestone 1: healthbar observation
 
@@ -60,11 +46,11 @@ Implemented source files:
 
 ### Data path
 
-Each probe reads its local healthbar panels directly. It writes one transition-only line when the displayed pip text or calculated fill percentage changes:
+Each probe reads its local healthbar panels directly. It writes one transition-only line when displayed pip text, level text, or the floored calculated health percentage changes. Raw fill-width movement inside the same displayed percentage does not log:
 
-`[HP Colors Rewrite] data id=... generation=N pip="..." fill=N parent=N shield=N health_parent=N width_percent=N`
+`[HP Colors Rewrite] data id=... generation=N pip="..." level="..." fill=N parent=N shield=N health_parent=N width_percent=N`
 
-Each probe owns its local data. Replacement panels increment the local generation and reset the data signature.
+Each probe owns its local data and telemetry signature. Replacement panels increment the local generation and reset both.
 
 ### Verified in-game
 
@@ -189,7 +175,35 @@ The marker is a rewrite-owned, non-interactive overlay directly under `UnitHealt
 
 The editor copies a compact single-line code with the exact grammar `HPCR2` followed by a JSON array of `[settingIndex, value]` pairs. Export orders pairs by ascending index and omits values equal to shipped defaults. Indexes use the closed, append-only `DEFAULTS` order; unknown indexes are rejected, and any reorder or meaning change requires a new `HPCR` schema prefix. Imports may list valid indexes in any order, but duplicate indexes, malformed pairs, foreign prefixes, and wrong known value types are rejected before normalization. Codes contain no revision, aliases, Base64, presets, or persistence data. Opening the transfer dialog performs no clipboard action; the user explicitly chooses **COPY CURRENT** or **IMPORT & APPLY**. Import requests the stock `TextEntryInsertFromClipboard` event only after that action, and the visible single-line field remains the fallback when automatic insertion is unavailable. Invalid codes preserve live state and Undo history. A valid changed import publishes one wildcard snapshot and creates one Undo entry.
 
+## Milestone 11: hero identity and match lifecycle
+
+The editor owns transient hero identity separately from the canonical healthbar settings snapshot. **Auto** reads the generated `CitadelHudTopBarPlayer.LocalPlayer` card, resolves its `.HeroName` through an exact English retail-name table, and exposes the resulting stable `hero_*` key only after two matching active-match samples. Blank, placeholder, fuzzy, and unmapped names remain unknown. **Manual Override** uses one explicitly selected stable key, while **Off** produces no effective hero and skips local-card scans.
+
+The lifecycle watcher classifies lobby/pregame, active match, post-match, and transitional states from current HUD classes plus a parseable live topbar clock. It clears detected identity and panel caches on lifecycle changes, rediscovers replaced local-player cards and stale clocks, polls at one second while active or transitioning and five seconds in lobby/post-match, and rejects stale scheduled callbacks by generation. Identity modes and the manual choice are session-only metadata: they do not alter `DEFAULTS`, HPCR2, Undo, the root settings snapshot, or unit-status publications.
+
+## Milestone 12: hero scopes and effective settings
+
+The menu keeps the canonical global base separate from ordered, session-scoped snapshot rows. Each row normalizes to **Off**, **All Heroes**, or **Selected Heroes**; selected hero keys are validated against the stable catalogue, deduplicated, and sorted in catalogue order, while an empty Selected row becomes Off. Resolution checks the first matching Selected row, then the first All Heroes row, then the global base. Unknown identity never selects a hero row, but All Heroes remains an explicit fallback.
+
+Only the resolved effective snapshot enters the existing root config attribute, `ClientUI_FireOutput`, and adaptive replay path. Base edits, scope edits, and hero transitions that leave the effective values unchanged do not increment the revision or dispatch config. The Overview / Hero page owns one **Current Settings Scope** row: **Capture Current** freezes the global base into that row, and a searchable multi-select picker assigns stable heroes. Scope metadata remains outside `DEFAULTS`, HPCR2, Undo, and unit-status payloads.
+
+### Verified in-game
+
+The deployed 2026-08-14 build was user-smoke-tested after restart. Hero scopes, effective-setting transitions, fallback behavior, and the optimized transition-only healthbar telemetry worked without reported regressions.
+
+## Next implementation: Milestone 13 preset records and application
+
+The next focused slice is a rewrite-native, session-only preset repository built on the proven effective-settings resolver:
+
+1. Define baked and user preset records with stable IDs, normalized values, scope mode, and selected stable hero keys.
+2. Load baked records before session user records in deterministic order.
+3. Document one default startup preset.
+4. Apply through the existing normalize → resolve → changed-effective publish path; do not add another settings authority.
+5. Wait when a Selected Heroes preset requires identity that is still unknown; never guess a hero.
+6. Add only enough UI to create and apply a session preset for live hero-preset testing.
+
+Rename, delete/hide, reorder, copy, bundles, import, and durable persistence remain later preset-management slices. Legacy preset formats remain excluded.
 
 ## Not implemented yet
 
-Settings remain session-scoped because the Phase 0 runtime probe found no native `$.persistentStorage` interface. Rewrite-native live settings import/export is implemented. Durable persistence, hero identity and scopes, presets, remaining editor surfaces, signature-tier conditions, and measured runtime hardening remain unimplemented. See `to-do.md` for the evidence-backed checklist and explicitly deferred compatibility work.
+Settings, scopes, and the next preset slice remain session-scoped because the Phase 0 runtime probe found no native `$.persistentStorage` interface. Durable persistence, full preset management, remaining editor surfaces, signature-tier conditions, and measured runtime hardening remain unimplemented. See `to-do.md` for the checklist and explicitly deferred compatibility work.
