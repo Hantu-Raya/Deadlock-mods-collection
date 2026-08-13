@@ -28,13 +28,13 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 - Categorized ESC editor, immediate application, section reset, session Undo, Peek, native HSL picker, and HPCR2 live settings import/export.
 - One canonical global base and one resolved effective snapshot.
 - Auto, Manual Override, and Off hero identity with lifecycle settling and stale-callback rejection.
-- Off, All Heroes, and Selected Heroes scopes with searchable stable-key selection, global fallback, and changed-effective-only publication.
-- A baked-before-user session preset repository with named Save, explicit Apply, exact Selected → All Heroes → Rewrite Default routing, and no publication for byte-identical effective values.
+- All Heroes and Selected Heroes user-preset categories with searchable stable-key selection, a hidden canonical fallback, and changed-effective-only publication.
+- A baked-before-user session preset repository with named create/update Save, inert selection, explicit Apply/Cancel, row-local rename/reorder/delete/hide, baked restoration, and exact Selected → All Heroes → Rewrite Default routing.
+- `HPCRP1` single-record and bundle copy/import with atomic validation, fresh monotonic user IDs, preserved opaque conditional metadata, and no live-setting publication.
 
 ### Deliberately deferred
 
-- Durable persistence, pending a proven storage backend.
-- Session preset rename, delete/hide, reorder, copy, bundle, and import management.
+- Durable persistence and restart selection, pending a proven writable storage backend.
 - Ability signature-tier conditions and remaining editor surfaces.
 - Legacy v99 encoding, Anita tokens, aliases, bridge keys, and preset-store VPK compatibility.
 
@@ -186,7 +186,7 @@ The lifecycle watcher classifies lobby/pregame, active match, post-match, and tr
 
 The menu keeps the canonical global base separate from ordered, session-scoped snapshot rows. Each row normalizes to **Off**, **All Heroes**, or **Selected Heroes**; selected hero keys are validated against the stable catalogue, deduplicated, and sorted in catalogue order, while an empty Selected row becomes Off. Resolution checks the first matching Selected row, then the first All Heroes row, then the global base. Unknown identity never selects a hero row, but All Heroes remains an explicit fallback.
 
-Only the resolved effective snapshot enters the existing root config attribute, `ClientUI_FireOutput`, and adaptive replay path. Base edits, scope edits, and hero transitions that leave the effective values unchanged do not increment revision or dispatch config. The Overview / Hero page owns one Current scope target with Off, All Heroes, and Selected Heroes modes plus a searchable stable-hero picker. Selecting a mode initializes its scoped snapshot from the canonical base; preset Save automatically captures the latest canonical editor values with the chosen mode and heroes. Scope metadata remains outside `DEFAULTS`, HPCR2, Undo, and unit-status publication.
+Only the resolved effective snapshot enters the existing root config attribute, `ClientUI_FireOutput`, and adaptive replay path. Base edits, scope edits, and hero transitions that leave the effective values unchanged do not increment revision or dispatch config. The Presets page exposes one Current save target with All Heroes and Selected Heroes modes plus a searchable stable-hero picker. The canonical base remains hidden and is represented by baked **Rewrite Default**; user presets cannot replace it. Selecting a mode initializes its scoped snapshot from the canonical base; removing the final selected hero returns Current to All Heroes.
 
 ### Verified in-game
 
@@ -194,29 +194,38 @@ The deployed 2026-08-14 build was user-smoke-tested after restart. Hero scopes, 
 
 ## Milestone 13: session preset records and application
 
-The menu owns a rewrite-native preset repository beside the canonical global base and ordered scope rows. Each record carries a stable ID, baked/session kind, display name, normalized settings snapshot, scope mode, and validated stable hero keys. The baked `baked_default` / **Rewrite Default** record represents shipped `DEFAULTS`. Baked records render before session records; session records retain deterministic creation order and monotonic `user_####` IDs.
+The menu owns a rewrite-native preset repository beside the canonical global base and ordered scope rows. Each record carries a stable ID, baked/session kind, display name, normalized settings snapshot, scope mode, and validated stable hero keys. The baked `baked_default` / **Rewrite Default** record represents shipped `DEFAULTS`. Baked records render before session records; new session records append in deterministic creation order and Milestone 14 may reorder them.
 
-**Save** captures the latest canonical editor values plus the Current scope mode and selected heroes. It creates a record but does not apply it, change effective values, increment revision, or dispatch configuration. Records remain session-only in the menu root cache and reset when Deadlock restarts.
+**Save** captures the latest canonical editor values plus the Current scope mode and selected heroes. With no selected user row, it creates a record with a monotonic ID. With a selected user row, the same Save action replaces that record’s name, frozen values, and scope metadata without changing its ID or repository position. **New Preset** clears the update target. Neither path applies settings, changes effective values, increments revision, or dispatches configuration. Records remain session-only in the menu root cache and reset when Deadlock restarts.
 
-Applying an Off preset replaces the canonical global base and disables Current. Applying All Heroes or Selected Heroes preserves the global fallback and replaces Current with the preset’s frozen snapshot. Every application passes through the existing normalize → resolve → changed-effective publish seam; byte-identical effective values do not increment revision or dispatch.
+Applying All Heroes or Selected Heroes preserves the hidden canonical base and replaces Current with the preset’s frozen snapshot. Legacy user Global records normalize to All Heroes on load without applying or publishing. Every application passes through the existing normalize → resolve → changed-effective publish seam; byte-identical effective values do not increment revision or dispatch.
 
 A Selected Heroes preset waits without live mutation while identity is unresolved, applies once after an exact match, and rejects a settled mismatch. Later hero transitions choose the first matching saved Selected record, then the first saved All Heroes record, then **Rewrite Default** when leaving an active Selected scope. The matching record rematerializes Current even when an older row targets the same hero with stale values. Manual value or scope mutation cancels a pending request and suppresses it for that resolving transition.
 
 The preset path avoids idle work: baked values are copied once, record lookup scans baked and session arrays directly, unresolved identity returns before repository lookup, and closed-editor automatic routing skips preset-list reconstruction and control synchronization. The list and controls refresh when the editor opens. Effective-value equality remains the publication gate.
 
-## Next implementation: Milestone 14 session preset repository management
+## Milestone 14: session preset repository management
 
-The next slice adds session-only repository editing without changing live settings:
+The session repository now owns a retained next-user-ID counter, baked display-name overrides, hidden baked IDs, and one inert repository selection. Loading derives the counter above every surviving `user_####` suffix while retaining any higher stored value, so deleting the highest record cannot reuse its stable identity. Unknown baked IDs and invalid selected references are discarded during normalization.
 
-1. Rename session records and override baked display names without changing stable IDs.
-2. Delete session records and hide baked rows. Hiding changes repository presentation only; the baked default remains available to automatic fallback.
-3. Reorder movable session records within deterministic bounds while baked records remain fixed before them.
-4. Preserve a monotonic next-user-ID counter so deleting the highest record never reuses its stable ID.
-5. Repair pending and selected repository references after rename, delete, hide, or reorder without applying a record, repainting healthbars, incrementing revision, or dispatching configuration.
-6. Add focused regressions for repository order, stable identity, pending-reference repair, and no-publication mutations.
+Selecting a row never applies settings. The selected row, the preset matching Current values/scope, and a pending Selected application use separate selection, **ACTIVE**, and **WAITING** states. **Apply** is explicit and continues through Milestone 13’s identity and changed-effective publication gates.
 
-Copy, copy-all bundles, import, durable persistence, and the less-cramped Hero / Presets visual redesign remain later slices.
+User records can be renamed, moved within deterministic session-only bounds, and deleted after confirmation. Baked records keep fixed identity and order; rename stores a display override, while Hide removes only the visible row. Hidden baked records remain canonical, so `baked_default` still serves automatic fallback, and **Restore Baked** returns hidden rows before session records.
+
+Rename, reorder, delete, hide, and restore mutate menu-only repository state. They preserve live values and scopes, do not enter Undo, do not increment revision or dispatch configuration, and repair selected/pending references by stable ID. Focus returns to the nearest surviving selected row after destructive or ordering changes.
+
+Creating an **All Heroes** user preset automatically hides the baked **Rewrite Default** row to remove the redundant visible fallback. The baked record remains canonical and available to automatic routing, and **Restore Baked** makes it visible again.
+
+Focused regressions cover inert selection, explicit application, stable rename identity, baked-name overrides, delete/hide confirmation, monotonic allocation, deterministic boundaries, routing-priority changes, hidden-baked fallback, restoration order, reference repair, and byte-identical root configuration during repository-only mutations.
+
+## Milestone 15: full-width Preset Library
+
+The former split Hero / Presets dashboard is now one full-width Preset Library. It keeps automatic identity resolution active while hiding transient lifecycle diagnostics, and surfaces only the active hero plus the Selected → All Heroes → Rewrite Default routing rule. The create/update block groups save target, name, Save state, and New Preset. The expanded repository viewport keeps management local to each record: click the name to rename, use row-local Copy and Apply/Cancel, move user records with valid Up/Down controls, and confirm Delete/Hide in place. **Restore Baked** remains a repository-level header action.
+
+## Milestone 16: preset repository transfer
+
+The Preset Library can copy the selected record or a deterministic baked-before-user repository bundle as an `HPCRP1` clipboard code. Bundles include hidden baked state and selection but never include the synthetic Current scope row. Import validates the entire code before mutation, preserves names, All Heroes/Selected Heroes scope, stable hero keys, frozen settings, baked display names, and opaque conditional metadata, then appends user records with fresh monotonic IDs. Copy and import are repository-only: they never apply settings, enter Undo, increment revision, or dispatch configuration.
 
 ## Not implemented yet
 
-Settings, scopes, and user presets remain session-scoped because the Phase 0 runtime probe found no native `$.persistentStorage` interface. Durable persistence, preset copy/bundle/import management, the Hero / Presets visual redesign, remaining editor surfaces, signature-tier conditions, and measured runtime hardening remain unimplemented. See `to-do.md` for the checklist and explicitly deferred compatibility work.
+Settings, scopes, and user presets remain session-scoped because the Phase 0 runtime probe found no writable native `$.persistentStorage` interface. Durable persistence and restart selection therefore remain blocked; panel attributes and `GameUI.CustomUIConfig()` are session-only, while the pak96 preset store is build-time/read-only. Remaining editor surfaces, executable signature-tier conditions, measured runtime hardening, and in-game validation of the Presets workspace at every other supported UI scale remain unimplemented. See `to-do.md` for the checklist and explicitly deferred compatibility work.

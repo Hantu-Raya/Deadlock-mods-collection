@@ -300,7 +300,7 @@ test('manual hero changes between identical effective snapshots do not publish',
   assert.equal(configDispatches(fixture).length, 0);
 });
 
-test('current row scope picker searches and normalizes multi-select state', () => {
+test('save target exposes only All Heroes and Selected Heroes', () => {
   const fixture = bootScopedMenu({ version: 1, values: {}, scopes: [] });
   const root = fixture.harness.root;
   const off = root.FindChildTraverse('HPColorsCurrentScopeOff');
@@ -310,8 +310,10 @@ test('current row scope picker searches and normalizes multi-select state', () =
   const dialog = root.FindChildTraverse('HPColorsScopeDialog');
   const search = root.FindChildTraverse('HPColorsScopeSearch');
 
-  assert.ok(off && all && selected && summary && dialog && search);
-  assert.equal(off.BHasClass('Selected'), true);
+  assert.equal(off, null);
+  assert.ok(all && selected && summary && dialog && search);
+  assert.equal(all.BHasClass('Selected'), true);
+  assert.match(String(summary.text || ''), /ALL HEROES/i);
 
   selected.events.onactivate();
   assert.equal(dialog.BHasClass('Open'), true);
@@ -334,14 +336,10 @@ test('current row scope picker searches and normalizes multi-select state', () =
   assert.match(String(summary.text || ''), /HAZE/i);
 
   optionFor('hero_haze').events.onactivate();
-  assert.equal(menuState(fixture).scopes[0].mode, 'off');
-  assert.deepEqual(menuState(fixture).scopes[0].heroes, []);
-  assert.equal(off.BHasClass('Selected'), true);
-
-  all.events.onactivate();
   assert.equal(menuState(fixture).scopes[0].mode, 'all');
   assert.deepEqual(menuState(fixture).scopes[0].heroes, []);
   assert.equal(all.BHasClass('Selected'), true);
+  assert.match(String(summary.text || ''), /ALL HEROES/i);
 });
 
 

@@ -199,63 +199,68 @@
                   </Panel>
                 </Panel>
 
-                <Panel id="HPColorsSettingsOverviewHero" class="HPColorsSettingsPage HPColorsHeroWorkspace">
-                  <Panel class="HPColorsHeroDashboard">
-                    <Panel class="HPColorsHeroIdentityCard">
-                      <Label text="IDENTITY ROUTING" class="HPColorsHeroCardEyebrow" />
-                      <Label text="WHO IS ACTIVE?" class="HPColorsHeroCardTitle" />
-                      <Label text="Auto waits for an exact stable hero before selecting hero-specific settings." class="HPColorsHeroCardHelp" />
-                      <Panel class="HPColorsHeroLiveStatus">
-                        <Panel class="HPColorsHeroLiveStatusItem">
-                          <Label text="MATCH" class="HPColorsHeroLiveLabel" />
-                          <Label id="HPColorsHeroPhase" text="TRANSITIONING" class="HPColorsHeroStatusValue" />
-                        </Panel>
-                        <Panel class="HPColorsHeroLiveDivider" />
-                        <Panel class="HPColorsHeroLiveStatusItem HPColorsHeroLiveIdentity">
-                          <Label text="RESOLVED HERO" class="HPColorsHeroLiveLabel" />
-                          <Label id="HPColorsHeroIdentity" text="NONE" class="HPColorsHeroStatusValue" />
-                          <Label id="HPColorsHeroDetail" text="No hero identity resolved." class="HPColorsHeroDetail" />
-                        </Panel>
+                <Panel id="HPColorsSettingsOverviewHero" class="HPColorsSettingsPage HPColorsPresetWorkspace">
+                  <Panel class="HPColorsPresetSurface">
+                    <Panel class="HPColorsPresetHeading">
+                      <Panel class="HPColorsPresetHeadingCopy">
+                        <Label text="SESSION PRESETS" class="HPColorsHeroCardEyebrow" />
+                        <Label text="PRESET LIBRARY" class="HPColorsHeroCardTitle" />
                       </Panel>
-                      <Label text="DETECTION MODE" class="HPColorsHeroFieldLabel" />
-                      <Panel class="HPColorsSegment HPColorsHeroModeSegment">
-                        <Button id="HPColorsHeroModeAuto" class="HPColorsSegmentButton"><Label text="AUTO" /></Button>
-                        <Button id="HPColorsHeroModeManual" class="HPColorsSegmentButton"><Label text="MANUAL" /></Button>
-                        <Button id="HPColorsHeroModeOff" class="HPColorsSegmentButton"><Label text="OFF" /></Button>
-                      </Panel>
-                      <Panel id="HPColorsHeroManualRow" class="HPColorsHeroManualRow">
-                        <Label text="MANUAL HERO" class="HPColorsHeroFieldLabel" />
-                        <Button id="HPColorsHeroManualButton" class="HPColorsSecondaryAction HPColorsHeroManualButton">
-                          <Label id="HPColorsHeroManualValue" text="SELECT HERO" />
-                        </Button>
-                      </Panel>
+                      <Label text="SESSION ONLY" class="HPColorsHeroSessionFlag" />
                     </Panel>
-                    <Panel class="HPColorsHeroPresetCard">
-                      <Panel class="HPColorsHeroPresetHeading">
-                        <Panel class="HPColorsHeroPresetHeadingCopy">
-                          <Label text="SESSION PRESETS" class="HPColorsHeroCardEyebrow" />
-                          <Label text="HERO LOADOUTS" class="HPColorsHeroCardTitle" />
+                    <Label text="Create, update, apply, and order loadouts. Session order controls automatic hero routing." class="HPColorsHeroCardHelp" />
+
+                    <Panel class="HPColorsPresetHeroContext">
+                      <Label text="ACTIVE HERO" class="HPColorsPresetContextLabel" />
+                      <Label id="HPColorsHeroIdentity" text="HERO: UNKNOWN" class="HPColorsPresetHeroValue" />
+                      <Label text="AUTO ROUTING · SELECTED → ALL HEROES → REWRITE DEFAULT" class="HPColorsPresetRoutingValue" />
+                    </Panel>
+
+                    <Panel class="HPColorsPresetCreateBlock">
+                      <Panel class="HPColorsPresetCreateHeader">
+                        <Panel class="HPColorsPresetCreateHeading">
+                          <Label text="SAVE CURRENT SETTINGS" class="HPColorsHeroFieldLabel" />
+                          <Label id="HPColorsPresetSaveMode" text="NEW PRESET" class="HPColorsPresetSaveMode" />
                         </Panel>
-                        <Label text="SESSION ONLY" class="HPColorsHeroSessionFlag" />
+                        <Button id="HPColorsPresetNewButton" class="HPColorsSecondaryAction HPColorsPresetNewButton"><Label text="NEW PRESET" /></Button>
                       </Panel>
-                      <Label text="Choose a save target. Hero routing uses Selected, then All Heroes, then Rewrite Default." class="HPColorsHeroCardHelp" />
                       <Panel class="HPColorsHeroScopeBlock">
                         <Panel class="HPColorsHeroScopeHeader">
-                          <Label text="SAVE TARGET" class="HPColorsHeroFieldLabel" />
-                          <Label id="HPColorsCurrentScopeSummary" text="OFF" class="HPColorsCurrentScopeSummary" />
+                          <Label text="TARGET" class="HPColorsHeroFieldLabel" />
+                          <Label id="HPColorsCurrentScopeSummary" text="ALL HEROES" class="HPColorsCurrentScopeSummary" />
                         </Panel>
                         <Panel class="HPColorsSegment HPColorsCurrentScopeSegment">
-                          <Button id="HPColorsCurrentScopeOff" class="HPColorsSegmentButton"><Label text="GLOBAL" /></Button>
                           <Button id="HPColorsCurrentScopeAll" class="HPColorsSegmentButton"><Label text="ALL HEROES" /></Button>
                           <Button id="HPColorsCurrentScopeSelected" class="HPColorsSegmentButton"><Label text="SELECT HEROES" /></Button>
                         </Panel>
                       </Panel>
                       <Panel class="HPColorsPresetSaveControls">
-                        <TextEntry id="HPColorsPresetNameInput" class="HPColorsPresetNameInput" multiline="false" maxchars="48" placeholder="NAME THIS LOADOUT" />
+                        <TextEntry id="HPColorsPresetNameInput" class="HPColorsPresetNameInput" multiline="false" maxchars="48" placeholder="PRESET NAME" />
                         <Button id="HPColorsPresetSaveButton" class="HPColorsPrimaryAction HPColorsPresetSaveButton"><Label text="SAVE" /></Button>
                       </Panel>
-                      <Label id="HPColorsPresetFeedback" text="" class="HPColorsPresetFeedback" />
-                      <Panel id="HPColorsPresetOptions" class="HPColorsPresetOptions" hittest="true" hittestchildren="true" />
+                    </Panel>
+
+                    <Label id="HPColorsPresetFeedback" text="" class="HPColorsPresetFeedback" />
+                    <Panel class="HPColorsPresetLibraryHeader">
+                      <Label text="PRESETS" class="HPColorsHeroFieldLabel" />
+                      <Label text="APPLY IS PER-ROW  ·  SELECT NEVER APPLIES" class="HPColorsPresetLibraryHint" />
+                      <Button id="HPColorsPresetCopyAllButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="COPY ALL" /></Button>
+                      <Button id="HPColorsPresetImportButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="IMPORT" /></Button>
+                      <Button id="HPColorsPresetRestoreBakedButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="RESTORE BAKED" /></Button>
+                    </Panel>
+                    <Panel id="HPColorsPresetOptions" class="HPColorsPresetOptions" hittest="true" hittestchildren="true" />
+
+                  </Panel>
+
+
+                  <Panel class="HPColorsIdentityRuntime">
+                    <Label id="HPColorsHeroPhase" text="TRANSITIONING" />
+                    <Label id="HPColorsHeroDetail" text="" />
+                    <Button id="HPColorsHeroModeAuto" />
+                    <Button id="HPColorsHeroModeManual" />
+                    <Button id="HPColorsHeroModeOff" />
+                    <Panel id="HPColorsHeroManualRow">
+                      <Button id="HPColorsHeroManualButton"><Label id="HPColorsHeroManualValue" text="" /></Button>
                     </Panel>
                   </Panel>
                 </Panel>
@@ -674,6 +679,20 @@
           </Panel>
         </Panel>
       </Panel>
+                <Panel id="HPColorsPresetTransferDialog" class="HPColorsTransferDialog" hittest="false" hittestchildren="true">
+                  <Panel class="HPColorsTransferDialogBackdrop" hittest="false" />
+                  <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">
+                    <Label class="HPColorsTransferDialogEyebrow" text="PRESET REPOSITORY" />
+                    <Label class="HPColorsTransferDialogTitle" text="IMPORT PRESETS" />
+                    <Label class="HPColorsTransferDialogMessage" text="Import one preset or a bundle into the session repository. Import never applies settings." />
+                    <TextEntry id="HPColorsPresetTransferInput" class="HPColorsTransferInput" multiline="false" maxchars="32768" placeholder="Paste HPCRP1 preset code" />
+                    <Label id="HPColorsPresetTransferFeedback" class="HPColorsTransferFeedback" text="" />
+                    <Panel class="HPColorsTransferDialogActions">
+                      <Button id="HPColorsPresetTransferConfirmButton" class="HPColorsPrimaryAction"><Label text="IMPORT" /></Button>
+                      <Button id="HPColorsPresetTransferCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
+                    </Panel>
+                  </Panel>
+                </Panel>
       <Panel id="HPColorsPrecisePipsDialog" class="HPColorsPrecisePipsDialog" hittest="false" hittestchildren="true">
         <Panel class="HPColorsPrecisePipsDialogBackdrop" hittest="false" />
         <Panel class="HPColorsPrecisePipsDialogPanel" hittest="true" hittestchildren="true">
