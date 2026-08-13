@@ -80,19 +80,26 @@ Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:1229-1567`, `8170-
 
 ### User operations
 
-- [x] Save current settings as a named user preset.
-- [ ] Rename user presets and display-name override baked presets without changing stable identity.
-- [ ] Delete user presets and hide baked presets without corrupting priority order.
-- [ ] Reorder movable presets with deterministic boundary behavior.
-- [ ] Preserve monotonic user preset IDs after deletion; never reuse a retired stable ID.
-- [ ] Repair pending and selected repository references after rename, delete/hide, or reorder without applying or publishing a preset.
-- [ ] Copy one preset.
-- [ ] Copy all presets as a bundle, excluding the synthetic Current row.
-- [ ] Import a preset or bundle into the repository without applying it to live settings.
-- [ ] Keep each preset’s scope, selected heroes, conditional rules, and name intact through copy/import.
-- [ ] Persist user presets, ordering, hidden baked IDs, names, scopes, and selection across restarts.
-- [ ] Add repository, ordering, rename, delete, copy, bundle, import, restart, and selection-repair regressions.
-- [ ] Rework the Hero / Presets tab after functional preset management lands: reduce density, add breathing room, strengthen routing/save-target hierarchy, and verify the layout under supported UI scaling.
+- [x] Save current settings as a named user preset, then update the selected user record through the same single Save action without changing its stable ID.
+- [x] Expose only All Heroes and Selected Heroes user-preset categories; keep the canonical base hidden behind baked Rewrite Default.
+- [x] Migrate legacy user Global records to All Heroes without applying, publishing, or replacing the hidden base.
+- [x] Rename user presets and display-name override baked presets without changing stable identity.
+- [x] Delete user presets and hide baked presets without corrupting priority order.
+- [x] Reorder movable presets with deterministic boundary behavior.
+- [x] Preserve monotonic user preset IDs after deletion; never reuse a retired stable ID.
+- [x] Repair pending and selected repository references after rename, delete/hide, or reorder without applying or publishing a preset.
+- [x] Copy one selected preset as an HPCRP1 repository code.
+- [x] Copy all baked and user presets as a deterministic bundle, excluding the synthetic Current scope row.
+- [x] Import a preset or bundle into the repository without applying it to live settings.
+- [x] Keep each preset’s scope, selected heroes, conditional metadata, and name intact through copy/import.
+- [ ] Persist user presets, ordering, hidden baked IDs, names, scopes, and selection across restarts. Blocked: the verified Deadlock runtime exposes no writable `$.persistentStorage`; panel attributes and `GameUI.CustomUIConfig()` are session-only, while the pak96 preset store is build-time/read-only.
+- [x] Add repository, ordering, rename, delete/hide, monotonic-ID, no-publication, reference-repair, copy, bundle, inert-import, metadata, and atomic-rejection regressions.
+- [ ] Add restart and durable-selection regressions after a verified writable Panorama persistence seam exists.
+- [x] Replace the split Hero / Presets dashboard with one full-width Presets workspace, compact automatic-routing context, clearer create/update state, and no visible identity-debug card.
+- [x] Replace the separate selected-preset management block with compact row-local rename, Copy, Apply/Cancel, Up/Down, and Delete/Hide controls plus in-row confirmation.
+- [x] Auto-hide baked Rewrite Default when Save creates an All Heroes user preset while retaining the baked record as the canonical fallback.
+- [x] Verify the redesigned Presets workspace under the currently used in-game UI scale.
+- [ ] Verify the redesigned Presets workspace under every other supported UI scale.
 
 Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:1293-2493`, `3374-3970`, `7620-8723`; `hp_colors/panorama/styles/anita_ui.css:660-1551`.
 

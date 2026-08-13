@@ -165,6 +165,7 @@
       values: copyValues(DEFAULTS),
       mode: HERO_SCOPE_OFF,
       heroes: [],
+      conditions: null,
     },
   ];
 
@@ -189,10 +190,10 @@
           keys: ["widthScale", "heightScale", "positionX", "positionY"],
         },
         {
-          name: "HERO",
-          title: "HERO LOADOUTS",
+          name: "PRESETS",
+          title: "PRESET LIBRARY",
           description:
-            "Resolve the active hero, choose a save target, and manage automatic session loadouts in one place.",
+            "Create, update, apply, and order session presets without leaving this page.",
           pageId: "HPColorsSettingsOverviewHero",
           keys: [],
         },
@@ -461,6 +462,10 @@
     history: [],
     userPresets: [],
     pendingPresetId: null,
+    selectedPresetId: null,
+    nextUserPresetNumber: 1,
+    bakedPresetNameOverrides: {},
+    hiddenBakedPresetIds: [],
   };
   var replayGeneration = 0;
   var replayRunning = false;
@@ -511,7 +516,6 @@
     heroDialog: null,
     heroOptions: null,
     heroCloseButton: null,
-    currentScopeOff: null,
     currentScopeAll: null,
     currentScopeSelected: null,
     currentScopeSummary: null,
@@ -521,8 +525,18 @@
     scopeCloseButton: null,
     presetNameInput: null,
     presetSaveButton: null,
+    presetSaveMode: null,
+    presetNewButton: null,
     presetOptions: null,
     presetFeedback: null,
+    presetCopyAllButton: null,
+    presetImportButton: null,
+    presetTransferDialog: null,
+    presetTransferInput: null,
+    presetTransferFeedback: null,
+    presetTransferConfirmButton: null,
+    presetTransferCloseButton: null,
+    presetRestoreBakedButton: null,
   };
   var identity = {
     mode: HERO_MODE_AUTO,
@@ -549,6 +563,10 @@
   var scopeOptionPanels = [];
   var syncingControls = false;
   var suppressedIdentityPresetId = "";
+  var presetDeleteConfirmId = "";
+  var presetInlineRenameId = "";
+  var presetInlineRenameInput = null;
+  var presetTransferRequest = 0;
 
   function copyValues(source) {
     var result = {};
@@ -1155,7 +1173,7 @@
     }
     if (!found) next.push(heroKey);
     replaceCurrentScope(
-      next.length ? HERO_SCOPE_SELECTED : HERO_SCOPE_OFF,
+      next.length ? HERO_SCOPE_SELECTED : HERO_SCOPE_ALL,
       next,
       row ? row.values : state.values,
     );
@@ -1181,17 +1199,18 @@
 
   function renderCurrentScope() {
     var row = currentScopeRow();
-    var mode = row ? row.mode : HERO_SCOPE_OFF;
-    setClass(ui.currentScopeOff, "Selected", mode === HERO_SCOPE_OFF);
+    var mode =
+      row && row.mode === HERO_SCOPE_SELECTED
+        ? HERO_SCOPE_SELECTED
+        : HERO_SCOPE_ALL;
     setClass(ui.currentScopeAll, "Selected", mode === HERO_SCOPE_ALL);
     setClass(
       ui.currentScopeSelected,
       "Selected",
       mode === HERO_SCOPE_SELECTED,
     );
-    var summary = "OFF";
-    if (mode === HERO_SCOPE_ALL) summary = "ALL HEROES";
-    else if (mode === HERO_SCOPE_SELECTED) {
+    var summary = "ALL HEROES";
+    if (mode === HERO_SCOPE_SELECTED) {
       var names = [];
       for (var index = 0; index < row.heroes.length; index++)
         names.push(heroDisplayName(row.heroes[index]));
@@ -1272,7 +1291,7 @@
 
   function presetScopeSummary(preset) {
     if (preset.mode === HERO_SCOPE_ALL) return "ALL HEROES";
-    if (preset.mode !== HERO_SCOPE_SELECTED) return "GLOBAL";
+    if (preset.mode !== HERO_SCOPE_SELECTED) return "REWRITE DEFAULT";
     var names = [];
     for (var index = 0; index < preset.heroes.length; index++)
       names.push(heroDisplayName(preset.heroes[index]));
@@ -1290,21 +1309,93 @@
     );
   }
 
+  function createPresetRowAction(
+    option,
+    id,
+    className,
+    text,
+    enabled,
+    activate,
+  ) {
+    var button = $.CreatePanel("Button", option, id);
+    if (!isValid(button)) return null;
+    button.AddClass("HPColorsPresetRowAction");
+    if (className) button.AddClass(className);
+    setClass(button, "Disabled", !enabled);
+    button.enabled = !!enabled;
+    button.hittest = !!enabled;
+    var label = $.CreatePanel("Label", button, id + "Label");
+    if (isValid(label)) label.text = text;
+    setPanelEvent(button, "onactivate", function () {
+      if (enabled && typeof activate === "function") activate();
+    });
+    return button;
+  }
+
   function renderPresetOptions() {
     if (!isValid(ui.presetOptions)) return;
     try {
       ui.presetOptions.RemoveAndDeleteChildren();
     } catch (error) {}
-    var records = presetRecords();
+    presetInlineRenameInput = null;
+    var records = visiblePresetRecords();
     for (var index = 0; index < records.length; index++) {
       (function (preset, optionIndex) {
         var option = $.CreatePanel(
-          "Button",
+          "Panel",
           ui.presetOptions,
           "HPColorsPresetOption" + optionIndex,
         );
+        if (!isValid(option)) return;
+        option.AddClass("HPColorsPresetOption");
+        option.hittest = true;
+        option.hittestchildren = true;
+        option.canfocus = true;
+        option.SetAttributeString("hp_colors_preset_id", preset.id);
+        var active = presetMatchesCurrentScope(preset);
+        var pending = state.pendingPresetId === preset.id;
+        var selected = preset.id === state.selectedPresetId;
+        var confirming = presetDeleteConfirmId === preset.id;
+        setClass(option, "Selected", selected);
+        setClass(option, "Active", active);
+        setClass(option, "Pending", pending);
+        setClass(option, "Confirming", confirming);
+
+        if (confirming) {
+          var confirmMessage = $.CreatePanel(
+            "Label",
+            option,
+            "HPColorsPresetRowConfirmMessage" + optionIndex,
+          );
+          if (isValid(confirmMessage)) {
+            confirmMessage.AddClass("HPColorsPresetRowConfirmMessage");
+            confirmMessage.text =
+              (preset.kind === "baked" ? "HIDE " : "DELETE ") +
+              presetDisplayName(preset).toUpperCase() +
+              "?";
+          }
+          createPresetRowAction(
+            option,
+            "HPColorsPresetRowConfirm" + optionIndex,
+            "HPColorsPresetRowConfirm",
+            "CONFIRM",
+            true,
+            confirmDeleteSelectedPreset,
+          );
+          createPresetRowAction(
+            option,
+            "HPColorsPresetRowCancel" + optionIndex,
+            "HPColorsPresetRowCancel",
+            "CANCEL",
+            true,
+            cancelDeleteSelectedPreset,
+          );
+          return;
+        }
+
+        var editing = presetInlineRenameId === preset.id;
         var name = $.CreatePanel(
-          "Label",
+          editing ? "TextEntry" : "Label",
           option,
           "HPColorsPresetOptionName" + optionIndex,
         );
@@ -1313,40 +1404,768 @@
           option,
           "HPColorsPresetOptionScope" + optionIndex,
         );
-        if (!isValid(option) || !isValid(name) || !isValid(scope)) return;
-        option.AddClass("HPColorsPresetOption");
-        option.AddClass(
-          preset.kind === "baked"
-            ? "HPColorsPresetBaked"
-            : "HPColorsPresetSession",
+        var status = $.CreatePanel(
+          "Label",
+          option,
+          "HPColorsPresetOptionStatus" + optionIndex,
         );
-        option.SetAttributeString("hp_colors_preset_id", preset.id);
-        setClass(option, "Selected", presetMatchesCurrentScope(preset));
+        if (!isValid(name) || !isValid(scope) || !isValid(status)) return;
         name.AddClass("HPColorsPresetOptionName");
         scope.AddClass("HPColorsPresetOptionScope");
-        name.text =
-          preset.name +
-          (preset.kind === "baked" ? "  ·  BAKED" : "  ·  SESSION");
+        status.AddClass("HPColorsPresetOptionStatus");
+        if (editing) {
+          name.AddClass("Editing");
+          name.text = presetDisplayName(preset);
+          name.maxchars = 48;
+          name.canfocus = true;
+          presetInlineRenameInput = name;
+          setPanelEvent(name, "ontextentrysubmit", function () {
+            commitInlinePresetRename(preset.id);
+          });
+          setPanelEvent(name, "onblur", function () {
+            commitInlinePresetRename(preset.id);
+          });
+          setPanelEvent(name, "oncancel", cancelInlinePresetRename);
+        } else {
+          name.AddClass("Editable");
+          name.text =
+            presetDisplayName(preset) +
+            (preset.kind === "baked" ? "  ·  BAKED" : "  ·  SESSION");
+          name.hittest = true;
+          setPanelEvent(name, "onactivate", function () {
+            beginInlinePresetRename(preset.id);
+          });
+        }
         scope.text =
           (preset.mode === HERO_SCOPE_SELECTED ? "AUTO  ·  " : "") +
           presetScopeSummary(preset);
+        status.text = pending ? "WAITING" : active ? "ACTIVE" : "";
+
+        var userIndex = -1;
+        if (preset.kind === "user") {
+          for (
+            var presetIndex = 0;
+            presetIndex < state.userPresets.length;
+            presetIndex++
+          ) {
+            if (state.userPresets[presetIndex].id === preset.id) {
+              userIndex = presetIndex;
+              break;
+            }
+          }
+          createPresetRowAction(
+            option,
+            "HPColorsPresetRowUp" + optionIndex,
+            "HPColorsPresetRowUp",
+            "▲",
+            userIndex > 0,
+            function () {
+              selectPresetForRowAction(preset.id);
+              moveSelectedPreset(-1);
+            },
+          );
+          createPresetRowAction(
+            option,
+            "HPColorsPresetRowDown" + optionIndex,
+            "HPColorsPresetRowDown",
+            "▼",
+            userIndex >= 0 && userIndex < state.userPresets.length - 1,
+            function () {
+              selectPresetForRowAction(preset.id);
+              moveSelectedPreset(1);
+            },
+          );
+        }
+        createPresetRowAction(
+          option,
+          "HPColorsPresetRowCopy" + optionIndex,
+          "HPColorsPresetRowCopy",
+          "COPY",
+          true,
+          function () {
+            selectPresetForRowAction(preset.id);
+            copySelectedPreset();
+          },
+        );
+        createPresetRowAction(
+          option,
+          "HPColorsPresetRowApply" + optionIndex,
+          "HPColorsPresetRowApply",
+          pending ? "CANCEL" : "APPLY",
+          true,
+          function () {
+            selectPresetForRowAction(preset.id);
+            if (pending) {
+              cancelPendingPreset();
+              writeMenuState();
+              focusSelectedPresetRow();
+            } else {
+              applySelectedPreset();
+            }
+          },
+        );
+        createPresetRowAction(
+          option,
+          "HPColorsPresetRowDelete" + optionIndex,
+          "HPColorsPresetRowDelete",
+          preset.kind === "baked" ? "HIDE" : "DELETE",
+          true,
+          function () {
+            selectPresetForRowAction(preset.id);
+            beginDeleteSelectedPreset();
+          },
+        );
         setPanelEvent(option, "onactivate", function () {
-          requestPresetApplication(preset.id);
+          selectPresetRecord(preset.id);
         });
       })(records[index], index);
+    }
+    var hasHiddenBaked = state.hiddenBakedPresetIds.length > 0;
+    setClass(ui.presetRestoreBakedButton, "Active", hasHiddenBaked);
+    if (isValid(ui.presetRestoreBakedButton))
+      ui.presetRestoreBakedButton.enabled = hasHiddenBaked;
+  }
+  function syncPresetSaveForm(resetName) {
+    var preset = findPresetRecord(state.selectedPresetId);
+    var updateTarget = preset && preset.kind === "user" ? preset : null;
+    setText(
+      ui.presetSaveMode,
+      updateTarget
+        ? "UPDATING " + presetDisplayName(updateTarget).toUpperCase()
+        : "NEW PRESET",
+    );
+    if (resetName && isValid(ui.presetNameInput))
+      ui.presetNameInput.text = updateTarget ? updateTarget.name : "";
+    var canStartNew = !!updateTarget;
+    setClass(ui.presetNewButton, "Disabled", !canStartNew);
+    if (isValid(ui.presetNewButton))
+      ui.presetNewButton.enabled = canStartNew;
+  }
+
+  function beginNewPreset() {
+    state.selectedPresetId = null;
+    presetDeleteConfirmId = "";
+    presetInlineRenameId = "";
+    writeMenuState();
+    renderPresetOptions();
+    syncPresetSaveForm(true);
+    setPresetFeedback("READY FOR A NEW PRESET.", false);
+    focus(ui.presetNameInput);
+  }
+
+  function selectPresetForRowAction(id) {
+    if (
+      state.selectedPresetId === id &&
+      !presetInlineRenameId &&
+      !presetDeleteConfirmId
+    )
+      return true;
+    return selectPresetRecord(id);
+  }
+
+  function selectPresetRecord(id) {
+    var preset = findPresetRecord(String(id || ""));
+    if (!preset) return false;
+    state.selectedPresetId = preset.id;
+    presetDeleteConfirmId = "";
+    presetInlineRenameId = "";
+    writeMenuState();
+    renderPresetOptions();
+    syncPresetSaveForm(true);
+    setPresetFeedback(
+      "SELECTED " +
+        presetDisplayName(preset).toUpperCase() +
+        ". APPLY TO USE.",
+      false,
+    );
+    return true;
+  }
+
+  function applySelectedPreset() {
+    if (!state.selectedPresetId) {
+      setPresetFeedback("SELECT A PRESET FIRST.", true);
+      return;
+    }
+    requestPresetApplication(state.selectedPresetId);
+  }
+
+  function renamePresetRecord(preset, name) {
+    if (!preset || !name) return false;
+    if (preset.kind === "baked") {
+      if (name === preset.name)
+        delete state.bakedPresetNameOverrides[preset.id];
+      else state.bakedPresetNameOverrides[preset.id] = name;
+    } else {
+      preset.name = name;
+    }
+    presetInlineRenameId = "";
+    presetInlineRenameInput = null;
+    writeMenuState();
+    renderPresetOptions();
+    syncPresetSaveForm(true);
+    setPresetFeedback("RENAMED TO " + name.toUpperCase() + ".", false);
+    focusSelectedPresetRow();
+    return true;
+  }
+
+  function beginInlinePresetRename(id) {
+    var preset = findPresetRecord(String(id || ""));
+    if (!preset) return;
+    state.selectedPresetId = preset.id;
+    presetDeleteConfirmId = "";
+    presetInlineRenameId = preset.id;
+    writeMenuState();
+    renderPresetOptions();
+    syncPresetSaveForm(true);
+    var renameId = preset.id;
+    var renameInput = presetInlineRenameInput;
+    setPresetFeedback("EDITING " + presetDisplayName(preset).toUpperCase() + ".", false);
+    try {
+      $.Schedule(0.01, function () {
+        if (
+          !state.open ||
+          presetInlineRenameId !== renameId ||
+          presetInlineRenameInput !== renameInput ||
+          !isValid(renameInput)
+        )
+          return;
+        focus(renameInput);
+        if (typeof renameInput.SelectAll === "function") renameInput.SelectAll();
+      });
+    } catch (error) {
+      if (
+        state.open &&
+        presetInlineRenameId === renameId &&
+        presetInlineRenameInput === renameInput
+      )
+        focus(renameInput);
+    }
+  }
+
+  function commitInlinePresetRename(id) {
+    if (presetInlineRenameId !== String(id || "")) return;
+    var preset = findPresetRecord(presetInlineRenameId);
+    var name = String(
+      (presetInlineRenameInput && presetInlineRenameInput.text) || "",
+    ).trim();
+    if (!name) {
+      setPresetFeedback("ENTER A PRESET NAME.", true);
+      focus(presetInlineRenameInput);
+      return;
+    }
+    renamePresetRecord(preset, name);
+  }
+
+  function cancelInlinePresetRename() {
+    if (!presetInlineRenameId) return;
+    presetInlineRenameId = "";
+    presetInlineRenameInput = null;
+    renderPresetOptions();
+    setPresetFeedback("PRESET RENAME CANCELED.", false);
+    focusSelectedPresetRow();
+  }
+
+
+  function moveSelectedPreset(delta) {
+    presetInlineRenameId = "";
+    var selectedIndex = -1;
+    for (var index = 0; index < state.userPresets.length; index++) {
+      if (state.userPresets[index].id === state.selectedPresetId) {
+        selectedIndex = index;
+        break;
+      }
+    }
+    var targetIndex = selectedIndex + delta;
+    if (
+      selectedIndex < 0 ||
+      targetIndex < 0 ||
+      targetIndex >= state.userPresets.length
+    )
+      return false;
+    var moved = state.userPresets[selectedIndex];
+    state.userPresets[selectedIndex] = state.userPresets[targetIndex];
+    state.userPresets[targetIndex] = moved;
+    writeMenuState();
+    renderPresetOptions();
+    setPresetFeedback(
+      "MOVED " + presetDisplayName(moved).toUpperCase() + ".",
+      false,
+    );
+    focusSelectedPresetRow();
+    return true;
+  }
+
+  function beginDeleteSelectedPreset() {
+    var preset = findPresetRecord(state.selectedPresetId);
+    if (!preset) {
+      setPresetFeedback("SELECT A PRESET FIRST.", true);
+      return;
+    }
+    presetDeleteConfirmId = preset.id;
+    presetInlineRenameId = "";
+    renderPresetOptions();
+    setPresetFeedback(
+      "CONFIRM " +
+        (preset.kind === "baked" ? "HIDE " : "DELETE ") +
+        presetDisplayName(preset).toUpperCase() +
+        ".",
+      false,
+    );
+  }
+
+  function cancelDeleteSelectedPreset() {
+    presetDeleteConfirmId = "";
+    renderPresetOptions();
+    setPresetFeedback("PRESET CHANGE CANCELED.", false);
+    focusSelectedPresetRow();
+  }
+
+  function repairSelectedPreset(visibleIndex) {
+    var records = visiblePresetRecords();
+    if (!records.length) {
+      state.selectedPresetId = null;
+      return;
+    }
+    state.selectedPresetId =
+      records[Math.min(Math.max(0, visibleIndex), records.length - 1)].id;
+  }
+
+  function focusSelectedPresetRow() {
+    if (!state.selectedPresetId || !isValid(ui.presetOptions)) return;
+    var rows = ui.presetOptions.Children();
+    for (var index = 0; index < rows.length; index++) {
+      if (
+        rows[index].GetAttributeString("hp_colors_preset_id", "") ===
+        state.selectedPresetId
+      ) {
+        focus(rows[index]);
+        return;
+      }
+    }
+  }
+
+  function confirmDeleteSelectedPreset() {
+    var preset = findPresetRecord(presetDeleteConfirmId);
+    if (!preset || preset.id !== state.selectedPresetId) {
+      cancelDeleteSelectedPreset();
+      return;
+    }
+    var records = visiblePresetRecords();
+    var visibleIndex = 0;
+    for (var index = 0; index < records.length; index++) {
+      if (records[index].id === preset.id) {
+        visibleIndex = index;
+        break;
+      }
+    }
+    if (preset.kind === "baked") {
+      state.hiddenBakedPresetIds = normalizeHiddenBakedPresetIds(
+        state.hiddenBakedPresetIds.concat([preset.id]),
+      );
+    } else {
+      var users = [];
+      for (var userIndex = 0; userIndex < state.userPresets.length; userIndex++) {
+        if (state.userPresets[userIndex].id !== preset.id)
+          users.push(state.userPresets[userIndex]);
+      }
+      state.userPresets = users;
+      if (state.pendingPresetId === preset.id) state.pendingPresetId = null;
+    }
+    repairSelectedPreset(visibleIndex);
+    presetDeleteConfirmId = "";
+    presetInlineRenameId = "";
+    writeMenuState();
+    renderPresetOptions();
+    syncPresetSaveForm(true);
+    setPresetFeedback(
+      (preset.kind === "baked" ? "HIDDEN " : "DELETED ") +
+        presetDisplayName(preset).toUpperCase() +
+        ".",
+      false,
+    );
+    focusSelectedPresetRow();
+  }
+
+  function restoreHiddenBakedPresets() {
+    if (!state.hiddenBakedPresetIds.length) return;
+    presetInlineRenameId = "";
+    state.hiddenBakedPresetIds = [];
+    writeMenuState();
+    renderPresetOptions();
+    setPresetFeedback("RESTORED BAKED PRESETS.", false);
+  }
+
+  function serializePresetValues(values) {
+    var normalized = normalizeValues(values);
+    var pairs = [];
+    for (var index = 0; index < DEFAULT_KEYS.length; index++) {
+      var key = DEFAULT_KEYS[index];
+      if (normalized[key] !== DEFAULTS[key])
+        pairs.push([index, normalized[key]]);
+    }
+    return pairs;
+  }
+
+  function deserializePresetValues(pairs) {
+    if (!Array.isArray(pairs)) return { error: "INVALID PRESET VALUES" };
+    var changed = {};
+    var seen = {};
+    for (var pairIndex = 0; pairIndex < pairs.length; pairIndex++) {
+      var pair = pairs[pairIndex];
+      if (
+        !Array.isArray(pair) ||
+        pair.length !== 2 ||
+        typeof pair[0] !== "number" ||
+        !isFinite(pair[0]) ||
+        Math.floor(pair[0]) !== pair[0] ||
+        pair[0] < 0 ||
+        pair[0] >= DEFAULT_KEYS.length
+      )
+        return { error: "INVALID PRESET VALUE PAIR" };
+      if (seen[pair[0]]) return { error: "DUPLICATE PRESET VALUE" };
+      seen[pair[0]] = true;
+      changed[DEFAULT_KEYS[pair[0]]] = pair[1];
+    }
+    var valueError = validateImportedValues(changed);
+    if (valueError) return { error: valueError };
+    return { values: normalizeValues(changed) };
+  }
+
+  function serializePresetRecord(preset) {
+    return {
+      id: preset.id,
+      kind: preset.kind,
+      name: presetDisplayName(preset),
+      mode: preset.mode,
+      heroes: preset.heroes.slice(0),
+      values: serializePresetValues(preset.values),
+      conditions: normalizePresetConditions(preset.conditions),
+    };
+  }
+
+  function serializePresetTransfer(records, includeRepositoryState) {
+    var payload = { records: [] };
+    for (var index = 0; index < records.length; index++)
+      payload.records.push(serializePresetRecord(records[index]));
+    if (includeRepositoryState) {
+      payload.hiddenBakedPresetIds = state.hiddenBakedPresetIds.slice(0);
+      payload.selectedPresetId = state.selectedPresetId;
+    } else {
+      payload.selectedPresetId = records.length === 1 ? records[0].id : null;
+    }
+    return "HPCRP1" + JSON.stringify(payload);
+  }
+
+  function copyPresetTransfer(code, successText) {
+    var copied = false;
+    setText(ui.presetTransferInput, code);
+    try {
+      focus(ui.presetTransferInput);
+      if (typeof ui.presetTransferInput.SelectAll === "function")
+        ui.presetTransferInput.SelectAll();
+      copied =
+        $.DispatchEvent(
+          "TextEntryCopyToClipboard",
+          ui.presetTransferInput,
+        ) !== false;
+    } catch (textEntryError) {}
+    if (!copied) {
+      try {
+        copied = $.DispatchEvent("CopyStringToClipboard", code) !== false;
+      } catch (stringError) {}
+    }
+    setText(ui.presetTransferInput, "");
+    setPresetFeedback(
+      copied ? successText : "COPY FAILED — PRESET CODE NOT COPIED.",
+      !copied,
+    );
+    return copied;
+  }
+
+  function copySelectedPreset() {
+    var preset = findPresetRecord(state.selectedPresetId);
+    if (!preset) {
+      setPresetFeedback("SELECT A PRESET FIRST.", true);
+      return;
+    }
+    copyPresetTransfer(
+      serializePresetTransfer([preset], false),
+      "COPIED " + presetDisplayName(preset).toUpperCase() + ".",
+    );
+  }
+
+  function copyAllPresets() {
+    var records = presetRecords();
+    if (!records.length) {
+      setPresetFeedback("NO PRESETS TO COPY.", true);
+      return;
+    }
+    copyPresetTransfer(
+      serializePresetTransfer(records, true),
+      "COPIED " + String(records.length) + " PRESETS.",
+    );
+  }
+
+  function setPresetTransferFeedback(text, isError) {
+    setText(ui.presetTransferFeedback, text || "");
+    setClass(ui.presetTransferDialog, "Error", !!isError);
+  }
+
+  function openPresetTransferDialog() {
+    presetTransferRequest += 1;
+    closePicker();
+    closeHeroDialog();
+    closeScopeDialog();
+    setText(ui.presetTransferInput, "");
+    setClass(ui.presetTransferDialog, "Open", true);
+    setPresetTransferFeedback("PASTE AN HPCRP1 PRESET CODE.", false);
+    focus(ui.presetTransferInput);
+  }
+
+  function closePresetTransferDialog() {
+    presetTransferRequest += 1;
+    if (!isValid(ui.presetTransferDialog)) return;
+    setClass(ui.presetTransferDialog, "Open", false);
+    setClass(ui.presetTransferDialog, "Error", false);
+    setText(ui.presetTransferInput, "");
+    focus(ui.presetImportButton);
+  }
+
+  function findBakedPreset(id) {
+    for (var index = 0; index < BAKED_PRESETS.length; index++) {
+      if (BAKED_PRESETS[index].id === id) return BAKED_PRESETS[index];
+    }
+    return null;
+  }
+
+  function parsePresetTransfer(raw) {
+    var text = String(raw || "").trim();
+    if (text.slice(0, 6) !== "HPCRP1")
+      return { error: "NOT AN HPCRP1 PRESET CODE" };
+    var payload = null;
+    try {
+      payload = JSON.parse(text.slice(6));
+    } catch (error) {
+      return { error: "INVALID HPCRP1 CODE" };
+    }
+    if (
+      !payload ||
+      !Array.isArray(payload.records) ||
+      !payload.records.length ||
+      payload.records.length > 128
+    )
+      return { error: "INVALID PRESET RECORDS" };
+    var records = [];
+    var seenIds = {};
+    for (var index = 0; index < payload.records.length; index++) {
+      var source = payload.records[index];
+      var id = String((source && source.id) || "");
+      var kind = String((source && source.kind) || "");
+      var name = String((source && source.name) || "").trim();
+      if (
+        !id ||
+        seenIds[id] ||
+        (kind !== "baked" && kind !== "user") ||
+        !name ||
+        name.length > 48
+      )
+        return { error: "INVALID PRESET RECORD" };
+      seenIds[id] = true;
+      var decoded = deserializePresetValues(source.values);
+      if (decoded.error) return decoded;
+      var heroes = normalizeHeroSelection(source.heroes);
+      if (
+        !Array.isArray(source.heroes) ||
+        JSON.stringify(heroes) !== JSON.stringify(source.heroes)
+      )
+        return { error: "INVALID PRESET HEROES" };
+      var mode = String(source.mode || "");
+      var conditions = normalizePresetConditions(source.conditions);
+      if (source.conditions !== undefined && source.conditions !== null && !conditions)
+        return { error: "INVALID PRESET CONDITIONS" };
+      if (kind === "baked") {
+        var baked = findBakedPreset(id);
+        if (
+          !baked ||
+          mode !== baked.mode ||
+          JSON.stringify(decoded.values) !== JSON.stringify(baked.values) ||
+          JSON.stringify(heroes) !== JSON.stringify(baked.heroes) ||
+          JSON.stringify(conditions) !== JSON.stringify(baked.conditions)
+        )
+          return { error: "INVALID BAKED PRESET" };
+      } else if (
+        !/^user_\d{4,}$/.test(id) ||
+        (mode !== HERO_SCOPE_ALL && mode !== HERO_SCOPE_SELECTED) ||
+        (mode === HERO_SCOPE_SELECTED && !heroes.length) ||
+        (mode === HERO_SCOPE_ALL && heroes.length)
+      ) {
+        return { error: "INVALID USER PRESET SCOPE" };
+      }
+      records.push({
+        id: id,
+        kind: kind,
+        name: name,
+        values: decoded.values,
+        mode: mode,
+        heroes: heroes,
+        conditions: conditions,
+      });
+    }
+    var hidden = [];
+    if (payload.hiddenBakedPresetIds !== undefined) {
+      if (!Array.isArray(payload.hiddenBakedPresetIds))
+        return { error: "INVALID HIDDEN BAKED PRESETS" };
+      hidden = normalizeHiddenBakedPresetIds(payload.hiddenBakedPresetIds);
+      if (hidden.length !== payload.hiddenBakedPresetIds.length)
+        return { error: "INVALID HIDDEN BAKED PRESETS" };
+    }
+    var selectedId = String(payload.selectedPresetId || "");
+    if (selectedId && !seenIds[selectedId])
+      return { error: "INVALID IMPORTED SELECTION" };
+    if (selectedId && hidden.indexOf(selectedId) >= 0)
+      return { error: "INVALID IMPORTED SELECTION" };
+    return {
+      records: records,
+      hiddenBakedPresetIds: hidden,
+      hasRepositoryState: payload.hiddenBakedPresetIds !== undefined,
+      selectedPresetId: selectedId,
+    };
+  }
+
+  function formatUserPresetId(number) {
+    var suffix = String(number);
+    while (suffix.length < 4) suffix = "0" + suffix;
+    return "user_" + suffix;
+  }
+
+  function importPresetTransfer(raw) {
+    var parsed = parsePresetTransfer(raw);
+    if (parsed.error) {
+      setPresetTransferFeedback(parsed.error, true);
+      return false;
+    }
+    var nextNumber = state.nextUserPresetNumber;
+    var importedUsers = [];
+    var importedIds = {};
+    var bakedOverrides = {};
+    for (var index = 0; index < parsed.records.length; index++) {
+      var source = parsed.records[index];
+      if (source.kind === "baked") {
+        var baked = findBakedPreset(source.id);
+        bakedOverrides[source.id] =
+          source.name === baked.name ? null : source.name;
+        importedIds[source.id] = source.id;
+        continue;
+      }
+      var importedId = formatUserPresetId(nextNumber);
+      nextNumber += 1;
+      var imported = normalizePresetRecord(
+        {
+          id: importedId,
+          name: source.name,
+          values: source.values,
+          mode: source.mode,
+          heroes: source.heroes,
+          conditions: source.conditions,
+        },
+        "user",
+      );
+      if (!imported) {
+        setPresetTransferFeedback("INVALID IMPORTED PRESET", true);
+        return false;
+      }
+      importedUsers.push(imported);
+      importedIds[source.id] = importedId;
+    }
+    for (var overrideId in bakedOverrides) {
+      if (!Object.prototype.hasOwnProperty.call(bakedOverrides, overrideId))
+        continue;
+      if (bakedOverrides[overrideId] === null)
+        delete state.bakedPresetNameOverrides[overrideId];
+      else state.bakedPresetNameOverrides[overrideId] = bakedOverrides[overrideId];
+    }
+    if (parsed.hasRepositoryState)
+      state.hiddenBakedPresetIds = parsed.hiddenBakedPresetIds;
+    state.userPresets = state.userPresets.concat(importedUsers);
+    state.nextUserPresetNumber = nextNumber;
+    var selected = importedIds[parsed.selectedPresetId] || "";
+    if (!selected && importedUsers.length === 1) selected = importedUsers[0].id;
+    state.selectedPresetId = selected || state.selectedPresetId;
+    presetDeleteConfirmId = "";
+    writeMenuState();
+    renderPresetOptions();
+    syncPresetSaveForm(true);
+    setText(ui.presetTransferInput, "");
+    setPresetTransferFeedback(
+      "IMPORTED " +
+        String(importedUsers.length) +
+        (importedUsers.length === 1 ? " PRESET." : " PRESETS."),
+      false,
+    );
+    return true;
+  }
+
+  function confirmPresetTransferImport() {
+    presetTransferRequest += 1;
+    var request = presetTransferRequest;
+    var transferInput = ui.presetTransferInput;
+    var manual = String((ui.presetTransferInput && ui.presetTransferInput.text) || "").trim();
+    if (manual) {
+      importPresetTransfer(manual);
+      return;
+    }
+    var requested = false;
+    try {
+      requested =
+        $.DispatchEvent(
+          "TextEntryInsertFromClipboard",
+          ui.presetTransferInput,
+        ) !== false;
+    } catch (error) {}
+    if (!requested) {
+      setPresetTransferFeedback(
+        "CLIPBOARD PASTE UNAVAILABLE — PASTE CODE MANUALLY",
+        true,
+      );
+      return;
+    }
+    var inserted = String(ui.presetTransferInput.text || "").trim();
+    if (inserted) {
+      importPresetTransfer(inserted);
+      return;
+    }
+    try {
+      $.Schedule(0.05, function () {
+        if (
+          request !== presetTransferRequest ||
+          transferInput !== ui.presetTransferInput ||
+          !isValid(transferInput) ||
+          !isValid(ui.presetTransferDialog) ||
+          !ui.presetTransferDialog.BHasClass("Open")
+        )
+          return;
+        var pasted = String(transferInput.text || "").trim();
+        if (!pasted) {
+          setPresetTransferFeedback(
+            "CLIPBOARD PASTE UNAVAILABLE — PASTE CODE MANUALLY",
+            true,
+          );
+          return;
+        }
+        importPresetTransfer(pasted);
+      });
+    } catch (error) {
+      setPresetTransferFeedback(
+        "CLIPBOARD PASTE UNAVAILABLE — PASTE CODE MANUALLY",
+        true,
+      );
     }
   }
 
   function nextUserPresetId() {
-    var nextNumber = 1;
-    for (var index = 0; index < state.userPresets.length; index++) {
-      var match = /^user_(\d+)$/.exec(state.userPresets[index].id);
-      if (match)
-        nextNumber = Math.max(nextNumber, Number(match[1]) + 1);
-    }
-    var suffix = String(nextNumber);
-    while (suffix.length < 4) suffix = "0" + suffix;
-    return "user_" + suffix;
+    var id = formatUserPresetId(state.nextUserPresetNumber);
+    state.nextUserPresetNumber += 1;
+    return id;
   }
 
   function saveCurrentPreset() {
@@ -1356,12 +2175,18 @@
       return;
     }
     var row = currentScopeRow();
-    var mode = row ? row.mode : HERO_SCOPE_OFF;
+    var mode =
+      row && row.mode === HERO_SCOPE_SELECTED
+        ? HERO_SCOPE_SELECTED
+        : HERO_SCOPE_ALL;
+    var selected = findPresetRecord(state.selectedPresetId);
+    var updating = selected && selected.kind === "user";
     var preset = normalizePresetRecord(
       {
-        id: nextUserPresetId(),
+        id: updating ? selected.id : nextUserPresetId(),
         name: name,
         values: state.values,
+        conditions: updating ? selected.conditions : null,
         mode: mode,
         heroes: row ? row.heroes : [],
       },
@@ -1371,13 +2196,33 @@
       setPresetFeedback("PRESET COULD NOT BE SAVED.", true);
       return;
     }
-    state.userPresets.push(preset);
+    if (updating) {
+      for (var index = 0; index < state.userPresets.length; index++) {
+        if (state.userPresets[index].id === preset.id) {
+          state.userPresets[index] = preset;
+          break;
+        }
+      }
+    } else {
+      state.userPresets.push(preset);
+    }
+    if (!updating && preset.mode === HERO_SCOPE_ALL) {
+      state.hiddenBakedPresetIds = normalizeHiddenBakedPresetIds(
+        state.hiddenBakedPresetIds.concat([DEFAULT_PRESET_ID]),
+      );
+    }
+    state.selectedPresetId = preset.id;
     writeMenuState();
-    if (isValid(ui.presetNameInput)) ui.presetNameInput.text = "";
     renderPresetOptions();
-    setPresetFeedback("SAVED " + preset.name.toUpperCase() + ".", false);
+    syncPresetSaveForm(true);
+    setPresetFeedback(
+      (updating ? "UPDATED " : "SAVED ") + preset.name.toUpperCase() + ".",
+      false,
+    );
     $.Msg(
-      "[HP Colors Rewrite] preset saved id=" +
+      "[HP Colors Rewrite] preset " +
+        (updating ? "updated" : "saved") +
+        " id=" +
         preset.id +
         " mode=" +
         preset.mode,
@@ -1413,10 +2258,12 @@
     state.pendingPresetId = null;
     writeMenuState();
     reconcileEffective("*", true);
-    if (state.open) renderPresetOptions();
+    if (state.open) {
+      renderPresetOptions();
+    }
     setPresetFeedback(
       (source === "identity" ? "AUTO-MATCHED " : "APPLIED ") +
-        preset.name.toUpperCase() +
+        presetDisplayName(preset).toUpperCase() +
         ".",
       false,
     );
@@ -1445,12 +2292,18 @@
       if (!heroKey) {
         state.pendingPresetId = preset.id;
         writeMenuState();
+        if (state.open) {
+          renderPresetOptions();
+        }
         setPresetFeedback("WAITING FOR A STABLE HERO IDENTITY.", false);
         return;
       }
       if (preset.heroes.indexOf(heroKey) < 0) {
         state.pendingPresetId = null;
         writeMenuState();
+        if (state.open) {
+          renderPresetOptions();
+        }
         setPresetFeedback("CURRENT HERO DOES NOT MATCH THIS PRESET.", true);
         return;
       }
@@ -1466,12 +2319,18 @@
     if (!preset) {
       state.pendingPresetId = null;
       writeMenuState();
+      if (state.open) {
+        renderPresetOptions();
+      }
       setPresetFeedback("PENDING PRESET NOT FOUND.", true);
       return false;
     }
     if (preset.heroes.indexOf(heroKey) < 0) {
       state.pendingPresetId = null;
       writeMenuState();
+      if (state.open) {
+        renderPresetOptions();
+      }
       setPresetFeedback("CURRENT HERO DOES NOT MATCH THIS PRESET.", true);
       return false;
     }
@@ -1519,6 +2378,9 @@
     if (!state.pendingPresetId) return;
     suppressedIdentityPresetId = state.pendingPresetId;
     state.pendingPresetId = null;
+    if (state.open) {
+      renderPresetOptions();
+    }
     setPresetFeedback("PENDING PRESET CANCELED.", false);
   }
 
@@ -1959,6 +2821,18 @@
     return result;
   }
 
+  function normalizePresetConditions(source) {
+    if (source === undefined || source === null) return null;
+    if (typeof source !== "object" || Array.isArray(source)) return null;
+    try {
+      var raw = JSON.stringify(source);
+      if (!raw || raw.length > 8192) return null;
+      return JSON.parse(raw);
+    } catch (error) {
+      return null;
+    }
+  }
+
   function normalizePresetRecord(source, kind) {
     if (!source) return null;
     var id = String(source.id || "");
@@ -1967,6 +2841,8 @@
     if (kind === "user" && !/^user_\d{4,}$/.test(id)) return null;
     var heroes = normalizeHeroSelection(source.heroes);
     var mode = normalizeScopeMode(String(source.mode || ""), heroes);
+    if (kind === "user" && mode === HERO_SCOPE_OFF)
+      mode = HERO_SCOPE_ALL;
     return {
       id: id,
       kind: kind,
@@ -1974,6 +2850,7 @@
       values: normalizeValues(source.values),
       mode: mode,
       heroes: mode === HERO_SCOPE_SELECTED ? heroes : [],
+      conditions: normalizePresetConditions(source.conditions),
     };
   }
 
@@ -1990,6 +2867,76 @@
       result.push(preset);
     }
     return result;
+  }
+
+  function presetDisplayName(preset) {
+    if (!preset) return "";
+    if (
+      preset.kind === "baked" &&
+      state.bakedPresetNameOverrides[preset.id]
+    )
+      return state.bakedPresetNameOverrides[preset.id];
+    return preset.name;
+  }
+
+  function normalizeBakedPresetNameOverrides(source) {
+    var rows = source && typeof source === "object" ? source : {};
+    var result = {};
+    for (var index = 0; index < BAKED_PRESETS.length; index++) {
+      var preset = BAKED_PRESETS[index];
+      var name = String(rows[preset.id] || "").trim();
+      if (name && name !== preset.name) result[preset.id] = name;
+    }
+    return result;
+  }
+
+  function nextUserPresetNumber(source, presets) {
+    var nextNumber = Math.max(1, Math.floor(Number(source) || 1));
+    for (var index = 0; index < presets.length; index++) {
+      var match = /^user_(\d+)$/.exec(presets[index].id);
+      if (match)
+        nextNumber = Math.max(nextNumber, Number(match[1]) + 1);
+    }
+    return nextNumber;
+  }
+
+  function normalizeHiddenBakedPresetIds(source) {
+    var hidden = {};
+    var rows = Array.isArray(source) ? source : [];
+    for (var index = 0; index < rows.length; index++)
+      hidden[String(rows[index] || "")] = true;
+    var result = [];
+    for (var bakedIndex = 0; bakedIndex < BAKED_PRESETS.length; bakedIndex++) {
+      var id = BAKED_PRESETS[bakedIndex].id;
+      if (hidden[id]) result.push(id);
+    }
+    return result;
+  }
+
+  function isBakedPresetHidden(id) {
+    for (var index = 0; index < state.hiddenBakedPresetIds.length; index++) {
+      if (state.hiddenBakedPresetIds[index] === id) return true;
+    }
+    return false;
+  }
+
+  function visiblePresetRecords() {
+    var result = [];
+    for (var bakedIndex = 0; bakedIndex < BAKED_PRESETS.length; bakedIndex++) {
+      if (!isBakedPresetHidden(BAKED_PRESETS[bakedIndex].id))
+        result.push(BAKED_PRESETS[bakedIndex]);
+    }
+    for (var userIndex = 0; userIndex < state.userPresets.length; userIndex++)
+      result.push(state.userPresets[userIndex]);
+    return result;
+  }
+
+  function isPresetVisible(id) {
+    var records = visiblePresetRecords();
+    for (var index = 0; index < records.length; index++) {
+      if (records[index].id === id) return true;
+    }
+    return false;
   }
 
   function presetRecords() {
@@ -2106,9 +3053,21 @@
       state.values = normalizeValues(data.values);
       state.scopes = normalizeScopes(data.scopes);
       state.userPresets = normalizeUserPresets(data.userPresets);
+      state.bakedPresetNameOverrides =
+        normalizeBakedPresetNameOverrides(data.bakedPresetNameOverrides);
+      state.hiddenBakedPresetIds =
+        normalizeHiddenBakedPresetIds(data.hiddenBakedPresetIds);
+      state.nextUserPresetNumber = nextUserPresetNumber(
+        data.nextUserPresetNumber,
+        state.userPresets,
+      );
       var pendingPresetId = String(data.pendingPresetId || "");
       state.pendingPresetId = findPresetRecord(pendingPresetId)
         ? pendingPresetId
+        : null;
+      var selectedPresetId = String(data.selectedPresetId || "");
+      state.selectedPresetId = isPresetVisible(selectedPresetId)
+        ? selectedPresetId
         : null;
       return true;
     } catch (error) {
@@ -2125,6 +3084,10 @@
       scopes: state.scopes,
       userPresets: state.userPresets,
       pendingPresetId: state.pendingPresetId,
+      selectedPresetId: state.selectedPresetId,
+      nextUserPresetNumber: state.nextUserPresetNumber,
+      bakedPresetNameOverrides: state.bakedPresetNameOverrides,
+      hiddenBakedPresetIds: state.hiddenBakedPresetIds,
     });
     try {
       if (
@@ -3170,6 +4133,7 @@
       reconcileEffective("*");
     }
     renderPresetOptions();
+    syncPresetSaveForm(true);
     setClass(ui.editorRoot, "Peeking", false);
     setClass(ui.editorRoot, "Open", true);
     setClass(ui.escapeRoot, "EditorOpen", true);
@@ -3179,6 +4143,13 @@
   }
 
   function cancel() {
+    if (
+      isValid(ui.presetTransferDialog) &&
+      ui.presetTransferDialog.BHasClass("Open")
+    ) {
+      closePresetTransferDialog();
+      return;
+    }
     if (isValid(ui.scopeDialog) && ui.scopeDialog.BHasClass("Open")) {
       closeScopeDialog();
       return;
@@ -3252,7 +4223,6 @@
     ui.heroDialog = find("HPColorsHeroDialog");
     ui.heroOptions = find("HPColorsHeroOptions");
     ui.heroCloseButton = find("HPColorsHeroCloseButton");
-    ui.currentScopeOff = find("HPColorsCurrentScopeOff");
     ui.currentScopeAll = find("HPColorsCurrentScopeAll");
     ui.currentScopeSelected = find("HPColorsCurrentScopeSelected");
     ui.currentScopeSummary = find("HPColorsCurrentScopeSummary");
@@ -3262,8 +4232,20 @@
     ui.scopeCloseButton = find("HPColorsScopeCloseButton");
     ui.presetNameInput = find("HPColorsPresetNameInput");
     ui.presetSaveButton = find("HPColorsPresetSaveButton");
+    ui.presetSaveMode = find("HPColorsPresetSaveMode");
+    ui.presetNewButton = find("HPColorsPresetNewButton");
     ui.presetOptions = find("HPColorsPresetOptions");
     ui.presetFeedback = find("HPColorsPresetFeedback");
+    ui.presetRestoreBakedButton = find("HPColorsPresetRestoreBakedButton");
+    ui.presetCopyAllButton = find("HPColorsPresetCopyAllButton");
+    ui.presetImportButton = find("HPColorsPresetImportButton");
+    ui.presetTransferDialog = find("HPColorsPresetTransferDialog");
+    ui.presetTransferInput = find("HPColorsPresetTransferInput");
+    ui.presetTransferFeedback = find("HPColorsPresetTransferFeedback");
+    ui.presetTransferConfirmButton = find(
+      "HPColorsPresetTransferConfirmButton",
+    );
+    ui.presetTransferCloseButton = find("HPColorsPresetTransferCloseButton");
     ui.headerCategory = find("HPColorsHeaderCategory");
     ui.pageEyebrow = find("HPColorsPageEyebrow");
     ui.pageTitle = find("HPColorsPageTitle");
@@ -3365,7 +4347,6 @@
       isValid(ui.heroDialog) &&
       isValid(ui.heroOptions) &&
       isValid(ui.heroCloseButton) &&
-      isValid(ui.currentScopeOff) &&
       isValid(ui.currentScopeAll) &&
       isValid(ui.currentScopeSelected) &&
       isValid(ui.currentScopeSummary) &&
@@ -3375,8 +4356,18 @@
       isValid(ui.scopeCloseButton) &&
       isValid(ui.presetNameInput) &&
       isValid(ui.presetSaveButton) &&
+      isValid(ui.presetSaveMode) &&
+      isValid(ui.presetNewButton) &&
       isValid(ui.presetOptions) &&
       isValid(ui.presetFeedback) &&
+      isValid(ui.presetRestoreBakedButton) &&
+      isValid(ui.presetCopyAllButton) &&
+      isValid(ui.presetImportButton) &&
+      isValid(ui.presetTransferDialog) &&
+      isValid(ui.presetTransferInput) &&
+      isValid(ui.presetTransferFeedback) &&
+      isValid(ui.presetTransferConfirmButton) &&
+      isValid(ui.presetTransferCloseButton) &&
       isValid(ui.headerCategory) &&
       isValid(ui.pageEyebrow) &&
       isValid(ui.pageTitle) &&
@@ -3910,9 +4901,6 @@
     setPanelEvent(ui.heroManualButton, "onactivate", openHeroDialog);
     setPanelEvent(ui.heroCloseButton, "onactivate", closeHeroDialog);
     setPanelEvent(ui.heroDialog, "oncancel", closeHeroDialog);
-    setPanelEvent(ui.currentScopeOff, "onactivate", function () {
-      setCurrentScopeMode(HERO_SCOPE_OFF);
-    });
     setPanelEvent(ui.currentScopeAll, "onactivate", function () {
       setCurrentScopeMode(HERO_SCOPE_ALL);
     });
@@ -3921,6 +4909,33 @@
     setPanelEvent(ui.scopeCloseButton, "onactivate", closeScopeDialog);
     setPanelEvent(ui.scopeDialog, "oncancel", closeScopeDialog);
     setPanelEvent(ui.presetSaveButton, "onactivate", saveCurrentPreset);
+    setPanelEvent(ui.presetNewButton, "onactivate", beginNewPreset);
+    setPanelEvent(ui.presetCopyAllButton, "onactivate", copyAllPresets);
+    setPanelEvent(
+      ui.presetImportButton,
+      "onactivate",
+      openPresetTransferDialog,
+    );
+    setPanelEvent(
+      ui.presetTransferConfirmButton,
+      "onactivate",
+      confirmPresetTransferImport,
+    );
+    setPanelEvent(
+      ui.presetTransferCloseButton,
+      "onactivate",
+      closePresetTransferDialog,
+    );
+    setPanelEvent(
+      ui.presetTransferDialog,
+      "oncancel",
+      closePresetTransferDialog,
+    );
+    setPanelEvent(
+      ui.presetRestoreBakedButton,
+      "onactivate",
+      restoreHiddenBakedPresets,
+    );
     setPanelEvent(ui.peekButton, "onmousedown", beginPeek);
     setPanelEvent(ui.peekButton, "onmouseup", endPeek);
     setPanelEvent(ui.peekCapture, "onactivate", endPeek);
@@ -3945,6 +4960,10 @@
       state.scopes = [];
       state.userPresets = [];
       state.pendingPresetId = null;
+      state.selectedPresetId = null;
+      state.nextUserPresetNumber = 1;
+      state.bakedPresetNameOverrides = {};
+      state.hiddenBakedPresetIds = [];
     }
     writeMenuState();
     var bootEffectiveRaw = JSON.stringify(resolveEffectiveValues());

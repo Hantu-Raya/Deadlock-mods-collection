@@ -1055,20 +1055,14 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   margin-right: 12px;
 }
 
-.HPColorsHeroWorkspace {
+.HPColorsPresetWorkspace {
+  width: 100%;
   padding: 2px;
 }
 
-.HPColorsHeroDashboard {
+.HPColorsPresetSurface {
   width: 100%;
-  min-height: 510px;
-  flow-children: right;
-}
-
-.HPColorsHeroIdentityCard,
-.HPColorsHeroPresetCard {
-  min-height: 500px;
-  padding: 22px;
+  padding: 20px 22px 24px 22px;
   flow-children: down;
   background-color: gradient(linear, 0% 0%, 100% 100%, from(#11170f), to(#080b08));
   border-top: 1px solid #ffefd71a;
@@ -1077,18 +1071,19 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   border-left: 2px solid #5fe69e66;
 }
 
-.HPColorsHeroIdentityCard {
-  width: 35%;
-  margin-right: 12px;
+.HPColorsPresetHeading {
+  width: 100%;
+  flow-children: right;
 }
 
-.HPColorsHeroPresetCard {
+.HPColorsPresetHeadingCopy {
   width: fill-parent-flow(1);
+  flow-children: down;
 }
 
 .HPColorsHeroCardEyebrow,
 .HPColorsHeroFieldLabel,
-.HPColorsHeroLiveLabel {
+.HPColorsPresetContextLabel {
   font-family: oracle;
   font-size: 11px;
   color: #ffefd766;
@@ -1096,7 +1091,7 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 }
 
 .HPColorsHeroCardTitle {
-  margin-top: 5px;
+  margin-top: 4px;
   font-family: oracle;
   font-size: 24px;
   color: #ffefd7;
@@ -1105,94 +1100,12 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsHeroCardHelp {
   width: 100%;
-  margin-top: 8px;
+  margin-top: 7px;
   font-family: sans;
   font-size: 13px;
   line-height: 18px;
   color: #ffefd780;
   white-space: normal;
-}
-
-.HPColorsHeroLiveStatus {
-  width: 100%;
-  margin-top: 20px;
-  padding: 14px;
-  flow-children: down;
-  background-color: #050705;
-  border: 1px solid #ffefd712;
-}
-
-.HPColorsHeroLiveStatusItem {
-  width: 100%;
-  flow-children: down;
-}
-
-.HPColorsHeroLiveDivider {
-  width: 100%;
-  height: 1px;
-  margin-top: 12px;
-  margin-bottom: 12px;
-  background-color: #ffefd714;
-}
-
-.HPColorsHeroStatusValue {
-  width: 100%;
-  margin-top: 4px;
-  font-family: oracle;
-  font-size: 16px;
-  font-weight: bold;
-  color: #5fe69e;
-  letter-spacing: 1px;
-  text-overflow: shrink;
-}
-
-.HPColorsHeroDetail {
-  width: 100%;
-  margin-top: 4px;
-  font-family: sans;
-  font-size: 12px;
-  color: #ffefd766;
-  text-overflow: shrink;
-  white-space: normal;
-}
-
-.HPColorsHeroFieldLabel {
-  margin-top: 18px;
-  margin-bottom: 7px;
-}
-
-.HPColorsHeroModeSegment {
-  width: 100%;
-}
-
-.HPColorsHeroModeSegment .HPColorsSegmentButton {
-  min-width: 0px;
-  width: fill-parent-flow(1);
-}
-
-.HPColorsHeroManualRow {
-  width: 100%;
-  visibility: collapse;
-  flow-children: down;
-}
-
-.HPColorsHeroManualRow.Active {
-  visibility: visible;
-}
-
-.HPColorsHeroManualButton {
-  width: 100%;
-  margin-left: 0px;
-}
-
-.HPColorsHeroPresetHeading {
-  width: 100%;
-  flow-children: right;
-}
-
-.HPColorsHeroPresetHeadingCopy {
-  width: fill-parent-flow(1);
-  flow-children: down;
 }
 
 .HPColorsHeroSessionFlag {
@@ -1206,13 +1119,91 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   border: 1px solid #e7c77d33;
 }
 
-.HPColorsHeroScopeBlock {
+.HPColorsPresetHeroContext {
   width: 100%;
-  margin-top: 16px;
+  min-height: 42px;
+  margin-top: 14px;
+  padding: 0px 12px;
+  flow-children: right;
+  background-color: #050705;
+  border-left: 2px solid #5fe69e66;
+}
+
+.HPColorsPresetContextLabel {
+  width: 108px;
+  vertical-align: center;
+}
+
+.HPColorsPresetHeroValue {
+  width: 220px;
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 13px;
+  font-weight: bold;
+  color: #5fe69e;
+  letter-spacing: 1px;
+  text-overflow: shrink;
+}
+
+.HPColorsPresetRoutingValue {
+  width: fill-parent-flow(1);
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 10px;
+  color: #ffefd766;
+  letter-spacing: 1px;
+  text-align: right;
+  text-overflow: shrink;
+}
+
+.HPColorsPresetCreateBlock {
+  width: 100%;
+  margin-top: 14px;
   padding: 12px;
   flow-children: down;
   background-color: #050705;
   border: 1px solid #ffefd712;
+}
+
+.HPColorsPresetCreateHeader {
+  width: 100%;
+  flow-children: right;
+}
+
+.HPColorsPresetCreateHeading {
+  width: fill-parent-flow(1);
+  flow-children: down;
+}
+
+.HPColorsPresetCreateHeading .HPColorsHeroFieldLabel {
+  margin: 0px;
+}
+
+.HPColorsPresetSaveMode {
+  margin-top: 4px;
+  font-family: oracle;
+  font-size: 13px;
+  color: #5fe69e;
+  letter-spacing: 1px;
+  text-overflow: shrink;
+}
+
+.HPColorsPresetNewButton {
+  min-width: 118px;
+  height: 36px;
+  margin-left: 12px;
+  padding: 0px 12px;
+}
+
+.HPColorsPresetNewButton Label {
+  font-size: 11px;
+  horizontal-align: center;
+}
+
+.HPColorsHeroScopeBlock {
+  width: 100%;
+  margin-top: 12px;
+  flow-children: down;
 }
 
 .HPColorsHeroScopeHeader {
@@ -1222,14 +1213,13 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsHeroScopeHeader .HPColorsHeroFieldLabel {
   width: fill-parent-flow(1);
-  margin-top: 0px;
-  margin-bottom: 8px;
+  margin: 0px 0px 7px 0px;
 }
 
 .HPColorsCurrentScopeSummary {
-  width: 220px;
+  width: 260px;
   font-family: oracle;
-  font-size: 12px;
+  font-size: 11px;
   color: #5fe69e;
   text-align: right;
   text-overflow: shrink;
@@ -1242,6 +1232,40 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 .HPColorsCurrentScopeSegment .HPColorsSegmentButton {
   min-width: 0px;
   width: fill-parent-flow(1);
+}
+
+.HPColorsPresetLibraryHeader {
+  width: 100%;
+  margin-top: 4px;
+  flow-children: right;
+}
+
+.HPColorsPresetLibraryHeader .HPColorsHeroFieldLabel {
+  width: fill-parent-flow(1);
+}
+
+.HPColorsPresetLibraryHint {
+  font-family: oracle;
+  font-size: 10px;
+  color: #ffefd766;
+  letter-spacing: 1px;
+  text-align: right;
+}
+
+.HPColorsIdentityRuntime {
+  visibility: collapse;
+}
+
+.HPColorsPresetLibraryAction {
+  min-width: 88px;
+  height: 32px;
+  margin-left: 8px;
+  padding: 0px 10px;
+}
+
+.HPColorsPresetLibraryAction Label {
+  horizontal-align: center;
+  font-size: 10px;
 }
 
 .HPColorsScopeSearch {
@@ -1357,13 +1381,14 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsPresetFeedback {
   width: 100%;
-  height: 20px;
+  height: 34px;
   margin-top: 5px;
   font-family: oracle;
   font-size: 11px;
   color: #5fe69e;
   letter-spacing: 1px;
-  text-align: right;
+  text-align: left;
+  white-space: normal;
 }
 
 .HPColorsPresetFeedback.Error {
@@ -1372,8 +1397,8 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsPresetOptions {
   width: 100%;
-  height: 155px;
-  margin-top: 4px;
+  height: 360px;
+  margin-top: 8px;
   padding: 4px;
   flow-children: down;
   overflow: squish scroll;
@@ -1383,9 +1408,9 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsPresetOption {
   width: 100%;
-  min-height: 42px;
+  height: 46px;
   margin-bottom: 3px;
-  padding: 0px 10px;
+  padding: 0px 6px 0px 10px;
   flow-children: right;
   background-color: gradient(linear, 0% 0%, 100% 0%, from(#ffefd708), to(#ffefd702));
   border-left: 2px solid #ffefd714;
@@ -1407,6 +1432,8 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsPresetOptionName {
   width: fill-parent-flow(1);
+  height: 34px;
+  padding: 7px 6px;
   vertical-align: center;
   font-family: oracle;
   font-size: 13px;
@@ -1414,10 +1441,21 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   color: #ffefd7dd;
   letter-spacing: 1px;
   text-overflow: shrink;
+  border: 1px solid #ffffff00;
+}
+
+.HPColorsPresetOptionName.Editable:hover {
+  color: #5fe69e;
+  border: 1px solid #ffffff;
+}
+
+.HPColorsPresetOptionName.Editing {
+  background-color: #050705;
+  border: 1px solid #5fe69e;
 }
 
 .HPColorsPresetOptionScope {
-  width: 155px;
+  width: 112px;
   vertical-align: center;
   font-family: oracle;
   font-size: 10px;
@@ -1425,4 +1463,105 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   letter-spacing: 1px;
   text-align: right;
   text-overflow: shrink;
+}
+
+.HPColorsPresetOptionStatus {
+  width: 58px;
+  margin-left: 6px;
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 9px;
+  color: #5fe69e;
+  letter-spacing: 1px;
+  text-align: right;
+}
+
+.HPColorsPresetRowAction {
+  min-width: 36px;
+  height: 32px;
+  margin-left: 4px;
+  padding: 0px 7px;
+  vertical-align: center;
+  background-color: #ffefd70a;
+  border: 1px solid #ffefd726;
+}
+
+.HPColorsPresetRowAction:hover,
+.HPColorsPresetRowAction:focus {
+  brightness: 1.35;
+  border: 1px solid #5fe69e;
+}
+
+.HPColorsPresetRowAction Label {
+  horizontal-align: center;
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 10px;
+  color: #ffefd7;
+  letter-spacing: 1px;
+}
+
+.HPColorsPresetRowUp,
+.HPColorsPresetRowDown {
+  width: 32px;
+  min-width: 32px;
+  padding: 0px;
+}
+
+.HPColorsPresetRowUp.Disabled,
+.HPColorsPresetRowDown.Disabled {
+  visibility: collapse;
+}
+
+.HPColorsPresetRowCopy {
+  min-width: 52px;
+}
+
+.HPColorsPresetRowApply {
+  min-width: 60px;
+  background-color: #5fe69e24;
+  border: 1px solid #5fe69e66;
+}
+
+.HPColorsPresetRowDelete {
+  min-width: 62px;
+  margin-left: 12px;
+  border: 1px solid #e1616155;
+}
+
+.HPColorsPresetRowDelete Label {
+  color: #e7a1a1;
+}
+
+.HPColorsPresetRowConfirmMessage {
+  width: fill-parent-flow(1);
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 11px;
+  color: #e7a1a1;
+  letter-spacing: 1px;
+  text-overflow: shrink;
+}
+
+.HPColorsPresetRowConfirm {
+  min-width: 74px;
+  background-color: #e1616124;
+  border: 1px solid #e1616166;
+}
+
+.HPColorsPresetRowCancel {
+  min-width: 62px;
+}
+
+.HPColorsPresetOption.Pending .HPColorsPresetOptionStatus {
+  color: #e7c77d;
+}
+
+
+.HPColorsPresetRestoreBakedButton {
+  visibility: collapse;
+}
+
+.HPColorsPresetRestoreBakedButton.Active {
+  visibility: visible;
 }

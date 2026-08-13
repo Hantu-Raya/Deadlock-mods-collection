@@ -63,14 +63,20 @@ Color must never be the only state indicator.
 - Bar position.
 - Sliders include bounded numeric fields.
 
-#### Hero & Presets
+#### Presets
 
-- Auto, Manual Override, and Off identity controls expose only exact stable hero keys.
-- Current scope controls choose whether the next saved loadout targets Global, All Heroes, or selected stable heroes.
+- The full-width Preset Library combines routing context, save target, repository order, selection, and management in one workspace; transient identity internals remain runtime-owned and hidden.
+- Auto, Manual Override, and Off still expose only exact stable hero keys. The workspace surfaces the active hero and the automatic Selected → All Heroes → Rewrite Default route without presenting lifecycle diagnostics as user controls.
+- Save-target controls expose only All Heroes and selected stable heroes. The canonical base remains hidden and is represented by baked Rewrite Default.
 - Session Presets list baked records before session user records.
-- Save automatically snapshots the latest canonical editor values with the chosen scope metadata.
+- Save automatically snapshots the latest canonical editor values with the chosen scope metadata. With no selected user record it creates a new monotonic ID; creating an All Heroes preset hides the baked Rewrite Default row while retaining it as the canonical fallback. With a selected user record, Save overwrites that record in place. **New Preset** clears that update target.
 - Applying a Selected Heroes preset waits for stable identity and rejects a settled mismatch. Later exact identity transitions select the first matching saved Selected record, otherwise the first saved All Heroes record, then the baked Rewrite Default when leaving a Selected scope.
-- Preset records disappear when Deadlock restarts; the interface must not imply durable storage.
+- Selecting a row never applies it. Rename is initiated from the row name; Copy, Apply/Cancel, valid Up/Down moves, and Delete/Hide live on that row. Destructive confirmation replaces only the affected row, so management never shifts to a separate action panel.
+- Repository-only mutations repair stable-ID references but never apply settings, enter Undo, increment revision, or dispatch configuration.
+- Copy Selected and Copy All produce a separate `HPCRP1` repository code; the existing `HPCR2` path remains live-settings transfer only.
+- Copy All preserves baked-before-user order, hidden baked state, selection, and record metadata while excluding synthetic Current.
+- Import validates the complete code before appending user records with fresh monotonic IDs. It never applies or publishes settings.
+- Preset records and repository metadata disappear when Deadlock restarts; the interface must not imply durable storage.
 
 ### Enemy
 
@@ -250,9 +256,13 @@ The hero identity slice adds one transient read model beside—not inside—the 
 6. Identity metadata remains outside `DEFAULTS`, HPCR2, Undo, root snapshot publication, and unit-status contexts.
 7. The hero-scope slice keeps one canonical global base plus ordered, normalized snapshot rows. Resolution priority is first matching Selected Heroes row, then first All Heroes row, then global base.
 8. Only the resolved effective values cross the existing overlay publication seam. Scope source changes with byte-identical effective values do not increment revision or dispatch.
-9. The Current scope controls choose Global, All Heroes, or validated, deduplicated stable hero keys. Save snapshots the latest canonical editor values automatically; removing the final selected hero normalizes Selected Heroes to Off.
+9. Current save-target controls choose All Heroes or validated, deduplicated stable hero keys. Removing the final selected hero returns Current to All Heroes. Save snapshots the latest canonical editor values automatically.
 10. Scope rows use a separate menu-only root cache. They remain outside `DEFAULTS`, HPCR2, Undo, and unit-status payloads, while the existing config root attribute remains effective-values-only.
 11. The preset slice adds one baked-before-user repository with stable IDs, normalized frozen values, and scope metadata. The baked `baked_default` record documents the shipped startup state.
-12. Off preset application replaces the canonical base; All Heroes and Selected Heroes application preserve that fallback and replace the Current scope.
+12. All Heroes and Selected Heroes application preserve the hidden canonical base and replace Current. Legacy user Global records normalize to All Heroes without applying; baked Rewrite Default remains the immutable base representation.
 13. Selected preset application waits without live mutation until exact stable identity resolves. Matching identity applies once, mismatch rejects, and subsequent manual mutations cancel and suppress that pending match for the resolving transition. Later hero transitions restore the first matching Selected record, otherwise the first All Heroes record; leaving an active Selected scope without either automatically applies the baked Rewrite Default.
 14. Preset metadata and session user records remain outside `DEFAULTS`, HPCR2, Undo, root unit-status publication, and healthbar contexts.
+15. The repository-management slice retains a monotonic next-user number, baked display-name overrides, hidden baked IDs, and one selected record in the menu-only cache.
+16. Visible repository order is fixed visible baked records followed by movable session records. Hidden baked records remain canonical and continue to serve automatic fallback.
+17. Selecting, renaming, reordering, deleting, hiding, and restoring records never call the effective-settings reconciliation or publication seam. Deleting a pending user clears that request; selection repairs to the nearest surviving visible record.
+18. Explicit Apply reuses the existing preset application path. Selection, Active Current match, and pending identity wait remain separate states in both behavior and presentation.
