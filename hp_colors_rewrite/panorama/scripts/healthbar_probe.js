@@ -469,12 +469,6 @@
     var sampled = bar.healthSampled;
     var healthParentChanged =
       !sampled || healthParentWidth !== bar.sampleHealthParentWidth;
-    var rawChanged =
-      !sampled ||
-      fillWidth !== bar.sampleFillWidth ||
-      totalParentWidth !== bar.sampleTotalParentWidth ||
-      shieldWidth !== bar.sampleShieldWidth ||
-      healthParentChanged;
     var previousPercent = bar.lastWidthPercent;
     var overlayPercent =
       totalParentWidth > 0
@@ -492,9 +486,9 @@
     bar.sampleTotalParentWidth = totalParentWidth;
     bar.sampleShieldWidth = shieldWidth;
     bar.sampleHealthParentWidth = healthParentWidth;
-    bar.markerGeometryChanged = healthParentChanged;
+    bar.markerGeometryChanged =
+      bar.markerGeometryChanged || healthParentChanged;
     bar.pulseOverlayPercent = overlayPercent;
-    bar.healthChanged = rawChanged;
     if (healthParentWidth <= 0) {
       bar.healthPresentationChanged = !sampled;
       if (bar.healthPresentationChanged) bar.dirty = true;
@@ -1772,16 +1766,23 @@
 
   function reportData(bar) {
     if (!isComplete(bar.parts)) return;
-    var changed = classifyTarget(bar);
+    classifyTarget(bar);
     var widthPercent = sampleHealthPercent(bar);
-    changed = bar.healthChanged || changed;
     var pipText = readPipText(bar.parts.pipLabel);
-    if (updatePipMaximum(bar, pipText)) changed = true;
+    updatePipMaximum(bar, pipText);
     var levelText = readPipText(bar.parts.levelLabel);
-    if (updateLevel(bar, levelText)) changed = true;
+    updateLevel(bar, levelText);
     if (bar.dirty) applyCustomization(bar);
-    if (!changed || widthPercent < 0) return;
-
+    if (widthPercent < 0) return;
+    if (
+      bar.reportedWidthPercent === widthPercent &&
+      bar.reportedPipText === pipText &&
+      bar.reportedLevelText === levelText
+    )
+      return;
+    bar.reportedWidthPercent = widthPercent;
+    bar.reportedPipText = pipText;
+    bar.reportedLevelText = levelText;
     $.Msg(
       "[HP Colors Rewrite] data id=" +
         bar.instanceId +
@@ -1811,7 +1812,6 @@
       dirty: true,
       lastWidthPercent: -1,
       healthSampled: false,
-      healthChanged: false,
       healthPresentationChanged: false,
       pulseOverlayPercent: -1,
       partsRetryAt: 0,
@@ -1826,6 +1826,9 @@
       levelText: "",
       level: 0,
       levelTier: null,
+      reportedWidthPercent: -1,
+      reportedPipText: null,
+      reportedLevelText: null,
       levelWrapper: null,
       applied: {},
       pulseActive: false,
@@ -1881,9 +1884,11 @@
           bar.pipText = null;
           bar.pipProfile = null;
           bar.rawMaximumHealth = 0;
+          bar.reportedWidthPercent = -1;
+          bar.reportedPipText = null;
+          bar.reportedLevelText = null;
           bar.lastWidthPercent = -1;
           bar.healthSampled = false;
-          bar.healthChanged = false;
           bar.healthPresentationChanged = false;
           bar.pulseOverlayPercent = -1;
           bar.partsRetryAt = 0;

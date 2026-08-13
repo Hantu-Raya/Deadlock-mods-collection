@@ -2,6 +2,7 @@
   "use strict";
 
   var CONFIG_ATTR = "hp_colors_rewrite_config";
+  var MENU_STATE_ATTR = "hp_colors_rewrite_menu_state";
   var EVENT_CHANNEL = "ClientUI_FireOutput";
   var CONFIG_MAGIC = "HP_COLORS_REWRITE_CONFIG";
   var HISTORY_LIMIT = 40;
@@ -18,6 +19,68 @@
   var REPLAY_IDLE_SEC = 8;
   var REPLAY_HOT_COUNT = 3;
   var REPLAY_WARM_COUNT = 12;
+  var HERO_POLL_ACTIVE_SEC = 1;
+  var HERO_POLL_INACTIVE_SEC = 5;
+  var HERO_SETTLE_SAMPLES = 2;
+  var HERO_MODE_AUTO = "auto";
+  var HERO_MODE_MANUAL = "manual";
+  var HERO_MODE_OFF = "off";
+  var HERO_SCOPE_OFF = "off";
+  var HERO_SCOPE_ALL = "all";
+  var HERO_SCOPE_SELECTED = "selected";
+  var CURRENT_SCOPE_ID = "scope_current";
+  var HERO_PHASE_TRANSITIONING = "transitioning";
+  var HERO_PHASE_LOBBY = "lobby";
+  var HERO_PHASE_ACTIVE = "active";
+  var HERO_PHASE_POST_MATCH = "post_match";
+  var HERO_DATA = [
+    ["hero_atlas", "Abrams"],
+    ["hero_fencer", "Apollo"],
+    ["hero_bebop", "Bebop"],
+    ["hero_punkgoat", "Billy"],
+    ["hero_nano", "Calico"],
+    ["hero_unicorn", "Celeste"],
+    ["hero_drifter", "Drifter"],
+    ["hero_dynamo", "Dynamo"],
+    ["hero_necro", "Graves"],
+    ["hero_orion", "Grey Talon"],
+    ["hero_haze", "Haze"],
+    ["hero_astro", "Holliday"],
+    ["hero_inferno", "Infernus"],
+    ["hero_tengu", "Ivy"],
+    ["hero_kelvin", "Kelvin"],
+    ["hero_ghost", "Lady Geist"],
+    ["hero_lash", "Lash"],
+    ["hero_forge", "McGinnis"],
+    ["hero_vampirebat", "Mina"],
+    ["hero_mirage", "Mirage"],
+    ["hero_krill", "Mo & Krill"],
+    ["hero_bookworm", "Paige"],
+    ["hero_chrono", "Paradox"],
+    ["hero_synth", "Pocket"],
+    ["hero_familiar", "Rem"],
+    ["hero_gigawatt", "Seven"],
+    ["hero_shiv", "Shiv"],
+    ["hero_magician", "Sinclair"],
+    ["hero_werewolf", "Silver"],
+    ["hero_doorman", "The Doorman"],
+    ["hero_viper", "Vyper"],
+    ["hero_viscous", "Viscous"],
+    ["hero_hornet", "Vindicta"],
+    ["hero_priest", "Venator"],
+    ["hero_frank", "Victor"],
+    ["hero_warden", "Warden"],
+    ["hero_wraith", "Wraith"],
+    ["hero_yamato", "Yamato"],
+  ];
+  var HERO_BY_KEY = {};
+  var HERO_BY_RETAIL_NAME = {};
+  for (var heroIndex = 0; heroIndex < HERO_DATA.length; heroIndex++) {
+    var heroKey = HERO_DATA[heroIndex][0];
+    var heroName = HERO_DATA[heroIndex][1];
+    HERO_BY_KEY[heroKey] = heroName;
+    HERO_BY_RETAIL_NAME[heroName.toUpperCase()] = heroKey;
+  }
 
   var DEFAULTS = {
     enabled: true,
@@ -113,6 +176,14 @@
             "Scale and position relation-owned v1 healthbars without changing engine-driven fill ratios.",
           pageId: "HPColorsSettingsOverviewLayout",
           keys: ["widthScale", "heightScale", "positionX", "positionY"],
+        },
+        {
+          name: "HERO",
+          title: "HERO IDENTITY",
+          description:
+            "Detect the local hero from the live HUD, choose an explicit override, or disable hero identity.",
+          pageId: "HPColorsSettingsOverviewHero",
+          keys: [],
         },
       ],
     },
@@ -373,6 +444,9 @@
     tabIndex: 0,
     revision: 0,
     values: copyValues(DEFAULTS),
+    scopes: [],
+    effectiveValues: copyValues(DEFAULTS),
+    effectiveValuesRaw: "",
     history: [],
   };
   var replayGeneration = 0;
@@ -380,6 +454,7 @@
   var replayDispatches = 0;
   var serializedSnapshotRaw = "";
   var serializedReplayPayload = "";
+  var scopeResolutionPending = false;
 
   var picker = {
     key: "",
@@ -411,7 +486,51 @@
     enemyKillMarkerColorRow: null,
     enemyKillMarkerColorSwatch: null,
     enemyKillMarkerColorEntry: null,
+    heroModeAuto: null,
+    heroModeManual: null,
+    heroModeOff: null,
+    heroPhase: null,
+    heroIdentity: null,
+    heroDetail: null,
+    heroManualRow: null,
+    heroManualButton: null,
+    heroManualValue: null,
+    heroDialog: null,
+    heroOptions: null,
+    heroCloseButton: null,
+    currentScopeOff: null,
+    currentScopeAll: null,
+    currentScopeSelected: null,
+    currentScopeSummary: null,
+    currentScopeCapture: null,
+    scopeDialog: null,
+    scopeSearch: null,
+    scopeOptions: null,
+    scopeCloseButton: null,
   };
+  var identity = {
+    mode: HERO_MODE_AUTO,
+    phase: HERO_PHASE_TRANSITIONING,
+    status: "unknown",
+    manualHeroKey: "",
+    detectedHeroKey: "",
+    effectiveHeroKey: "",
+    candidateHeroKey: "",
+    candidateSamples: 0,
+    emptySamples: 0,
+    sampledActive: false,
+    lifecycleGeneration: 0,
+    watchGeneration: 0,
+    root: null,
+    hud: null,
+    topBar: null,
+    localPlayer: null,
+    heroNameLabel: null,
+    gameTime: null,
+    renderSignature: "",
+    optionPanels: [],
+  };
+  var scopeOptionPanels = [];
   var syncingControls = false;
 
   function copyValues(source) {
@@ -495,12 +614,642 @@
       if (panel.SetFocus) panel.SetFocus();
     } catch (error) {}
   }
+
+  function panelHasClass(panel, className) {
+    if (!isValid(panel)) return false;
+    try {
+      return !!(panel.BHasClass && panel.BHasClass(className));
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function findChild(panel, id) {
+    if (!isValid(panel)) return null;
+    try {
+      return panel.FindChildTraverse ? panel.FindChildTraverse(id) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function findChildrenWithClass(panel, className) {
+    if (!isValid(panel)) return [];
+    try {
+      return panel.FindChildrenWithClassTraverse
+        ? panel.FindChildrenWithClassTraverse(className) || []
+        : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function normalizeHeroRetailName(value) {
+    return String(value || "")
+      .replace(/^\s+|\s+$/g, "")
+      .replace(/\s+/g, " ")
+      .toUpperCase();
+  }
+
+  function parseGameTimeText(value) {
+    var text = String(value || "").replace(/^\s+|\s+$/g, "");
+    if (!text) return null;
+    var negative = text.charAt(0) === "-";
+    if (negative) text = text.slice(1);
+    var parts = text.split(":");
+    if (parts.length < 2 || parts.length > 3) return null;
+    var seconds = 0;
+    for (var index = 0; index < parts.length; index++) {
+      if (!/^\d+$/.test(parts[index])) return null;
+      seconds = seconds * 60 + Number(parts[index]);
+    }
+    return negative ? -seconds : seconds;
+  }
+
+  function readPanelText(panel) {
+    if (!isValid(panel)) return "";
+    try {
+      return String(panel.text || "");
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function clearIdentityPanelRefs() {
+    identity.hud = null;
+    identity.topBar = null;
+    identity.localPlayer = null;
+    identity.heroNameLabel = null;
+    identity.gameTime = null;
+  }
+
+  function identitySignalHasClass(className) {
+    return (
+      panelHasClass(identity.root, className) ||
+      panelHasClass(identity.hud, className)
+    );
+  }
+
+  function resolveIdentityRoot() {
+    if (!isValid(ui.absoluteRoot)) return false;
+    if (identity.root !== ui.absoluteRoot) {
+      identity.root = ui.absoluteRoot;
+      clearIdentityPanelRefs();
+    }
+    if (!isValid(identity.hud)) {
+      identity.hud =
+        String(identity.root.id || "") === "Hud"
+          ? identity.root
+          : findChild(identity.root, "Hud");
+    }
+    return true;
+  }
+
+  function readGameTimeSec() {
+    if (isValid(identity.gameTime)) {
+      var cached = parseGameTimeText(readPanelText(identity.gameTime));
+      if (cached !== null) return cached;
+      identity.gameTime = null;
+    }
+    if (!isValid(identity.topBar))
+      identity.topBar = findChild(identity.root, "TopBar");
+    var direct = findChild(identity.topBar, "GameTime");
+    var directValue = parseGameTimeText(readPanelText(direct));
+    if (directValue !== null) {
+      identity.gameTime = direct;
+      return directValue;
+    }
+    var candidates = findChildrenWithClass(identity.topBar, "GameTime");
+    for (var index = 0; index < candidates.length; index++) {
+      var value = parseGameTimeText(readPanelText(candidates[index]));
+      if (value === null) continue;
+      identity.gameTime = candidates[index];
+      return value;
+    }
+    return null;
+  }
+
+  function readLifecyclePhase() {
+    if (!resolveIdentityRoot()) return HERO_PHASE_TRANSITIONING;
+    if (identitySignalHasClass("connectedToHideout"))
+      return HERO_PHASE_LOBBY;
+    if (
+      identitySignalHasClass("GameStatePostGame") ||
+      identitySignalHasClass("GameStatePostGamePlayOfTheGame")
+    )
+      return HERO_PHASE_POST_MATCH;
+    if (
+      identitySignalHasClass("GameStatePreGame") ||
+      identitySignalHasClass("GameStatePreGameWait") ||
+      identitySignalHasClass("GameStatePreGameHeroDraft")
+    )
+      return HERO_PHASE_LOBBY;
+    var gameTime = readGameTimeSec();
+    return gameTime !== null && gameTime >= 0
+      ? HERO_PHASE_ACTIVE
+      : HERO_PHASE_TRANSITIONING;
+  }
+
+  function resolveHeroNameLabel() {
+    if (!resolveIdentityRoot()) return null;
+    if (!isValid(identity.topBar))
+      identity.topBar = findChild(identity.root, "TopBar");
+    if (!isValid(identity.topBar)) return null;
+    if (
+      isValid(identity.localPlayer) &&
+      panelHasClass(identity.localPlayer, "LocalPlayer") &&
+      isValid(identity.heroNameLabel)
+    )
+      return identity.heroNameLabel;
+    identity.localPlayer = null;
+    identity.heroNameLabel = null;
+    var candidates = findChildrenWithClass(identity.topBar, "LocalPlayer");
+    for (var index = 0; index < candidates.length; index++) {
+      var nameContainer = findChild(candidates[index], "PlayerNameNWContainer");
+      var labels = findChildrenWithClass(nameContainer, "HeroName");
+      if (!labels.length || !isValid(labels[0])) continue;
+      identity.localPlayer = candidates[index];
+      identity.heroNameLabel = labels[0];
+      return identity.heroNameLabel;
+    }
+    return null;
+  }
+
+  function detectLocalHeroKey() {
+    var nameLabel = resolveHeroNameLabel();
+    var retailName = normalizeHeroRetailName(readPanelText(nameLabel));
+    return Object.prototype.hasOwnProperty.call(
+      HERO_BY_RETAIL_NAME,
+      retailName,
+    )
+      ? HERO_BY_RETAIL_NAME[retailName]
+      : "";
+  }
+
+  function clearAutoIdentity() {
+    identity.detectedHeroKey = "";
+    identity.candidateHeroKey = "";
+    identity.candidateSamples = 0;
+    identity.emptySamples = 0;
+    identity.sampledActive = false;
+  }
+
+  function updateEffectiveHero() {
+    var previousHeroKey = identity.effectiveHeroKey;
+    if (identity.mode === HERO_MODE_OFF) {
+      identity.status = "off";
+      identity.effectiveHeroKey = "";
+    } else if (identity.mode === HERO_MODE_MANUAL) {
+      identity.effectiveHeroKey = Object.prototype.hasOwnProperty.call(
+        HERO_BY_KEY,
+        identity.manualHeroKey,
+      )
+        ? identity.manualHeroKey
+        : "";
+      identity.status = identity.effectiveHeroKey ? "overridden" : "unknown";
+    } else {
+      identity.effectiveHeroKey =
+        identity.phase === HERO_PHASE_ACTIVE ? identity.detectedHeroKey : "";
+      identity.status = identity.effectiveHeroKey
+        ? "detected"
+        : identity.candidateHeroKey
+          ? "settling"
+          : "unknown";
+    }
+    return previousHeroKey !== identity.effectiveHeroKey;
+  }
+
+  function sampleAutoHero() {
+    var nextHeroKey = detectLocalHeroKey();
+    if (!nextHeroKey) {
+      identity.emptySamples += 1;
+      identity.candidateHeroKey = "";
+      identity.candidateSamples = 0;
+      identity.sampledActive =
+        identity.emptySamples >= HERO_SETTLE_SAMPLES;
+      if (identity.sampledActive) identity.detectedHeroKey = "";
+      return;
+    }
+    identity.emptySamples = 0;
+    identity.sampledActive = true;
+    if (nextHeroKey === identity.detectedHeroKey) {
+      identity.candidateHeroKey = "";
+      identity.candidateSamples = 0;
+      return;
+    }
+    if (nextHeroKey !== identity.candidateHeroKey) {
+      identity.candidateHeroKey = nextHeroKey;
+      identity.candidateSamples = 1;
+      return;
+    }
+    identity.candidateSamples += 1;
+    if (identity.candidateSamples >= HERO_SETTLE_SAMPLES) {
+      identity.detectedHeroKey = identity.candidateHeroKey;
+      identity.candidateHeroKey = "";
+      identity.candidateSamples = 0;
+    }
+  }
+
+  function heroDisplayName(heroKey) {
+    return Object.prototype.hasOwnProperty.call(HERO_BY_KEY, heroKey)
+      ? HERO_BY_KEY[heroKey]
+      : "";
+  }
+
+  function phaseDisplayName() {
+    if (identity.phase === HERO_PHASE_LOBBY) return "LOBBY";
+    if (identity.phase === HERO_PHASE_ACTIVE) return "ACTIVE";
+    if (identity.phase === HERO_PHASE_POST_MATCH) return "POST MATCH";
+    return "TRANSITIONING";
+  }
+
+  function syncHeroOptionSelection() {
+    for (var index = 0; index < identity.optionPanels.length; index++) {
+      var option = identity.optionPanels[index];
+      var key = "";
+      try {
+        key = option.GetAttributeString("hp_colors_hero_key", "");
+      } catch (error) {}
+      setClass(option, "Selected", key === identity.manualHeroKey);
+    }
+  }
+
+  function pendingScopeCanResolve() {
+    if (!scopeResolutionPending) return false;
+    if (identity.mode !== HERO_MODE_AUTO) return true;
+    if (
+      identity.phase === HERO_PHASE_LOBBY ||
+      identity.phase === HERO_PHASE_POST_MATCH
+    )
+      return true;
+    if (identity.phase !== HERO_PHASE_ACTIVE) return false;
+    return (
+      identity.sampledActive &&
+      (!identity.candidateHeroKey || !!identity.effectiveHeroKey)
+    );
+  }
+
+  function renderIdentity() {
+    var heroChanged = updateEffectiveHero();
+    if (state.booted && (heroChanged || pendingScopeCanResolve())) {
+      scopeResolutionPending = false;
+      reconcileEffective("*");
+    }
+    var signature = [
+      identity.phase,
+      identity.mode,
+      identity.status,
+      identity.detectedHeroKey,
+      identity.candidateHeroKey,
+      identity.manualHeroKey,
+      identity.effectiveHeroKey,
+    ].join("|");
+    if (signature === identity.renderSignature) return;
+    identity.renderSignature = signature;
+
+    var identityText = "HERO: UNKNOWN";
+    var detailText =
+      "No stable local hero is available. Hero-scoped state will not be selected.";
+    if (identity.mode === HERO_MODE_OFF) {
+      identityText = "HERO DETECTION OFF";
+      detailText = "Hero identity is disabled.";
+    } else if (identity.mode === HERO_MODE_MANUAL) {
+      var manualName = heroDisplayName(identity.effectiveHeroKey);
+      if (manualName) {
+        identityText = "HERO: " + manualName + " (MANUAL)";
+        detailText = "Stable ID: " + identity.effectiveHeroKey;
+      } else {
+        detailText = "Choose a hero for Manual Override.";
+      }
+    } else if (identity.status === "detected") {
+      var detectedName = heroDisplayName(identity.detectedHeroKey);
+      identityText = "HERO: " + detectedName;
+      detailText = "Stable ID: " + identity.detectedHeroKey;
+    } else if (identity.status === "settling") {
+      identityText =
+        "HERO: SETTLING — " + heroDisplayName(identity.candidateHeroKey);
+      detailText = "Waiting for a second matching local-HUD sample.";
+    } else if (identity.phase !== HERO_PHASE_ACTIVE) {
+      detailText = "Auto detection waits for an active match.";
+    }
+    setClass(
+      ui.heroModeAuto,
+      "Selected",
+      identity.mode === HERO_MODE_AUTO,
+    );
+    setClass(
+      ui.heroModeManual,
+      "Selected",
+      identity.mode === HERO_MODE_MANUAL,
+    );
+    setClass(ui.heroModeOff, "Selected", identity.mode === HERO_MODE_OFF);
+    setClass(
+      ui.heroManualRow,
+      "Active",
+      identity.mode === HERO_MODE_MANUAL,
+    );
+    setText(ui.heroPhase, "MATCH: " + phaseDisplayName());
+    setText(ui.heroIdentity, identityText);
+    setText(ui.heroDetail, detailText);
+    setText(
+      ui.heroManualValue,
+      heroDisplayName(identity.manualHeroKey) || "SELECT HERO",
+    );
+    $.Msg(
+      "[HP Colors Rewrite] identity phase=" +
+        identity.phase +
+        " mode=" +
+        identity.mode +
+        " status=" +
+        identity.status +
+        " detected=" +
+        (identity.detectedHeroKey || "<unknown>") +
+        " effective=" +
+        (identity.effectiveHeroKey || "<none>") +
+        " generation=" +
+        identity.lifecycleGeneration,
+    );
+  }
+
+  function identityPollDelay() {
+    return identity.phase === HERO_PHASE_LOBBY ||
+      identity.phase === HERO_PHASE_POST_MATCH
+      ? HERO_POLL_INACTIVE_SEC
+      : HERO_POLL_ACTIVE_SEC;
+  }
+
+  function scheduleIdentityTick(generation, delay) {
+    try {
+      $.Schedule(delay, function identityTick() {
+        if (
+          generation !== identity.watchGeneration ||
+          !isValid(ui.absoluteRoot)
+        )
+          return;
+        var nextPhase = readLifecyclePhase();
+        if (nextPhase !== identity.phase) {
+          identity.phase = nextPhase;
+          identity.lifecycleGeneration += 1;
+          clearIdentityPanelRefs();
+          clearAutoIdentity();
+          renderIdentity();
+          restartIdentityWatch();
+          return;
+        }
+        if (
+          identity.mode === HERO_MODE_AUTO &&
+          identity.phase === HERO_PHASE_ACTIVE
+        )
+          sampleAutoHero();
+        renderIdentity();
+        scheduleIdentityTick(generation, identityPollDelay());
+      });
+    } catch (error) {}
+  }
+
+  function restartIdentityWatch() {
+    identity.watchGeneration += 1;
+    scheduleIdentityTick(identity.watchGeneration, 0);
+  }
+
+  function closeHeroDialog() {
+    if (!isValid(ui.heroDialog) || !ui.heroDialog.BHasClass("Open")) return;
+    setClass(ui.heroDialog, "Open", false);
+    focus(ui.heroManualButton);
+  }
+
+  function openHeroDialog() {
+    if (identity.mode !== HERO_MODE_MANUAL) return;
+    closeTransferDialog();
+    closeScopeDialog();
+    closePicker();
+    closePrecisePipsDialog();
+    syncHeroOptionSelection();
+    setClass(ui.heroDialog, "Open", true);
+    focus(ui.heroDialog);
+  }
+
+  function selectManualHero(heroKey) {
+    if (!Object.prototype.hasOwnProperty.call(HERO_BY_KEY, heroKey)) return;
+    identity.manualHeroKey = heroKey;
+    renderIdentity();
+    closeHeroDialog();
+  }
+
+  function setHeroMode(mode) {
+    if (
+      mode !== HERO_MODE_AUTO &&
+      mode !== HERO_MODE_MANUAL &&
+      mode !== HERO_MODE_OFF
+    )
+      mode = HERO_MODE_AUTO;
+    if (identity.mode === mode) return;
+    identity.mode = mode;
+    closeHeroDialog();
+    clearAutoIdentity();
+    renderIdentity();
+  }
+
+  function createHeroOptions() {
+    if (!isValid(ui.heroOptions)) return false;
+    for (var index = 0; index < HERO_DATA.length; index++) {
+      (function (heroKey, heroName, optionIndex) {
+        var option = $.CreatePanel(
+          "Button",
+          ui.heroOptions,
+          "HPColorsHeroOption" + optionIndex,
+        );
+        var label = $.CreatePanel(
+          "Label",
+          option,
+          "HPColorsHeroOptionLabel" + optionIndex,
+        );
+        if (!isValid(option) || !isValid(label)) return;
+        option.AddClass("HPColorsHeroOption");
+        option.SetAttributeString("hp_colors_hero_key", heroKey);
+        label.text = heroName;
+        setPanelEvent(option, "onactivate", function () {
+          selectManualHero(heroKey);
+        });
+        identity.optionPanels.push(option);
+      })(HERO_DATA[index][0], HERO_DATA[index][1], index);
+    }
+    return identity.optionPanels.length === HERO_DATA.length;
+  }
+  function currentScopeRow() {
+    for (var index = 0; index < state.scopes.length; index++) {
+      if (state.scopes[index].id === CURRENT_SCOPE_ID)
+        return state.scopes[index];
+    }
+    return null;
+  }
+
+  function replaceCurrentScope(mode, heroes, values) {
+    var rows = [
+      {
+        id: CURRENT_SCOPE_ID,
+        mode: mode,
+        heroes: heroes,
+        values: values,
+      },
+    ];
+    for (var index = 0; index < state.scopes.length; index++) {
+      if (state.scopes[index].id !== CURRENT_SCOPE_ID)
+        rows.push(state.scopes[index]);
+    }
+    state.scopes = normalizeScopes(rows);
+    writeMenuState();
+    reconcileEffective("*", true);
+    renderCurrentScope();
+  }
+
+
+  function setCurrentScopeMode(mode) {
+    var row = currentScopeRow();
+    replaceCurrentScope(
+      mode,
+      [],
+      row ? row.values : copyValues(state.values),
+    );
+  }
+
+  function toggleCurrentScopeHero(heroKey) {
+    if (!Object.prototype.hasOwnProperty.call(HERO_BY_KEY, heroKey)) return;
+    var row = currentScopeRow();
+    var heroes = row ? row.heroes.slice(0) : [];
+    var found = false;
+    var next = [];
+    for (var index = 0; index < heroes.length; index++) {
+      if (heroes[index] === heroKey) found = true;
+      else next.push(heroes[index]);
+    }
+    if (!found) next.push(heroKey);
+    replaceCurrentScope(
+      next.length ? HERO_SCOPE_SELECTED : HERO_SCOPE_OFF,
+      next,
+      row ? row.values : state.values,
+    );
+  }
+
+  function captureCurrentScopeValues() {
+    var row = currentScopeRow();
+    replaceCurrentScope(
+      row ? row.mode : HERO_SCOPE_OFF,
+      row ? row.heroes : [],
+      state.values,
+    );
+  }
+
+  function filterScopeHeroOptions() {
+    var query = String((ui.scopeSearch && ui.scopeSearch.text) || "")
+      .trim()
+      .toUpperCase();
+    for (var index = 0; index < scopeOptionPanels.length; index++) {
+      var option = scopeOptionPanels[index];
+      var searchText = "";
+      try {
+        searchText = option.GetAttributeString(
+          "hp_colors_scope_search",
+          "",
+        );
+      } catch (error) {}
+      setClass(option, "FilteredOut", !!query && searchText.indexOf(query) < 0);
+    }
+  }
+
+  function renderCurrentScope() {
+    var row = currentScopeRow();
+    var mode = row ? row.mode : HERO_SCOPE_OFF;
+    setClass(ui.currentScopeOff, "Selected", mode === HERO_SCOPE_OFF);
+    setClass(ui.currentScopeAll, "Selected", mode === HERO_SCOPE_ALL);
+    setClass(
+      ui.currentScopeSelected,
+      "Selected",
+      mode === HERO_SCOPE_SELECTED,
+    );
+    var summary = "OFF";
+    if (mode === HERO_SCOPE_ALL) summary = "ALL HEROES";
+    else if (mode === HERO_SCOPE_SELECTED) {
+      var names = [];
+      for (var index = 0; index < row.heroes.length; index++)
+        names.push(heroDisplayName(row.heroes[index]));
+      summary = names.join(", ");
+    }
+    setText(ui.currentScopeSummary, summary);
+    for (var optionIndex = 0; optionIndex < scopeOptionPanels.length; optionIndex++) {
+      var option = scopeOptionPanels[optionIndex];
+      var heroKey = "";
+      try {
+        heroKey = option.GetAttributeString(
+          "hp_colors_scope_hero_key",
+          "",
+        );
+      } catch (error) {}
+      setClass(
+        option,
+        "Selected",
+        mode === HERO_SCOPE_SELECTED && row.heroes.indexOf(heroKey) >= 0,
+      );
+    }
+  }
+
+  function closeScopeDialog() {
+    if (!isValid(ui.scopeDialog) || !ui.scopeDialog.BHasClass("Open")) return;
+    setClass(ui.scopeDialog, "Open", false);
+    focus(ui.currentScopeSelected);
+  }
+
+  function openScopeDialog() {
+    closeTransferDialog();
+    closeHeroDialog();
+    closePicker();
+    closePrecisePipsDialog();
+    if (isValid(ui.scopeSearch)) ui.scopeSearch.text = "";
+    filterScopeHeroOptions();
+    renderCurrentScope();
+    setClass(ui.scopeDialog, "Open", true);
+    focus(ui.scopeSearch);
+  }
+
+  function createScopeHeroOptions() {
+    if (!isValid(ui.scopeOptions)) return false;
+    for (var index = 0; index < HERO_DATA.length; index++) {
+      (function (heroKey, heroName, optionIndex) {
+        var option = $.CreatePanel(
+          "Button",
+          ui.scopeOptions,
+          "HPColorsScopeHeroOption" + optionIndex,
+        );
+        var label = $.CreatePanel(
+          "Label",
+          option,
+          "HPColorsScopeHeroOptionLabel" + optionIndex,
+        );
+        if (!isValid(option) || !isValid(label)) return;
+        option.AddClass("HPColorsHeroOption");
+        option.AddClass("HPColorsScopeHeroOption");
+        option.SetAttributeString("hp_colors_scope_hero_key", heroKey);
+        option.SetAttributeString(
+          "hp_colors_scope_search",
+          (heroName + " " + heroKey).toUpperCase(),
+        );
+        label.text = heroName;
+        setPanelEvent(option, "onactivate", function () {
+          toggleCurrentScopeHero(heroKey);
+        });
+        scopeOptionPanels.push(option);
+      })(HERO_DATA[index][0], HERO_DATA[index][1], index);
+    }
+    return scopeOptionPanels.length === HERO_DATA.length;
+  }
+
   function closePrecisePipsDialog() {
     setClass(ui.precisePipsDialog, "Open", false);
     focus(ui.precisePipsToggle);
   }
 
   function openPrecisePipsDialog(enabled) {
+    closeHeroDialog();
     setText(
       ui.precisePipsDialogTitle,
       enabled ? "ENABLE PRECISE PIPS" : "REMOVE PRECISE PIP CONFIG",
@@ -590,6 +1339,7 @@
   function openTransferDialog() {
     closePicker();
     closePrecisePipsDialog();
+    closeHeroDialog();
     setText(ui.transferInput, "");
     setClass(ui.transferDialog, "Open", true);
     setTransferFeedback(
@@ -886,12 +1636,84 @@
     );
     return values;
   }
+  function normalizeHeroSelection(source) {
+    var selected = {};
+    var values = Array.isArray(source) ? source : [];
+    for (var index = 0; index < values.length; index++) {
+      var heroKey = String(values[index] || "");
+      if (Object.prototype.hasOwnProperty.call(HERO_BY_KEY, heroKey))
+        selected[heroKey] = true;
+    }
+    var result = [];
+    for (var heroIndex = 0; heroIndex < HERO_DATA.length; heroIndex++) {
+      var stableKey = HERO_DATA[heroIndex][0];
+      if (selected[stableKey]) result.push(stableKey);
+    }
+    return result;
+  }
+
+  function normalizeScopeMode(mode, heroes) {
+    if (mode === HERO_SCOPE_ALL) return HERO_SCOPE_ALL;
+    if (mode === HERO_SCOPE_SELECTED && heroes.length)
+      return HERO_SCOPE_SELECTED;
+    return HERO_SCOPE_OFF;
+  }
+
+  function normalizeScopes(source) {
+    var rows = Array.isArray(source) ? source : [];
+    var result = [];
+    var seenIds = {};
+    for (var index = 0; index < rows.length; index++) {
+      var row = rows[index];
+      var id = String((row && row.id) || "");
+      if (!id || seenIds[id]) continue;
+      seenIds[id] = true;
+      var heroes = normalizeHeroSelection(row.heroes);
+      var mode = normalizeScopeMode(String(row.mode || ""), heroes);
+      result.push({
+        id: id,
+        mode: mode,
+        heroes: mode === HERO_SCOPE_SELECTED ? heroes : [],
+        values: normalizeValues(row.values),
+      });
+    }
+    return result;
+  }
+
+  function scopeTargetsHero(scope, heroKey) {
+    if (!heroKey || scope.mode !== HERO_SCOPE_SELECTED) return false;
+    for (var index = 0; index < scope.heroes.length; index++) {
+      if (scope.heroes[index] === heroKey) return true;
+    }
+    return false;
+  }
+  function hasSelectedScopes() {
+    for (var index = 0; index < state.scopes.length; index++) {
+      if (state.scopes[index].mode === HERO_SCOPE_SELECTED) return true;
+    }
+    return false;
+  }
+
+
+  function resolveEffectiveValues() {
+    var heroKey = identity.effectiveHeroKey;
+    for (var index = 0; index < state.scopes.length; index++) {
+      if (scopeTargetsHero(state.scopes[index], heroKey))
+        return state.scopes[index].values;
+    }
+    for (var fallbackIndex = 0; fallbackIndex < state.scopes.length; fallbackIndex++) {
+      if (state.scopes[fallbackIndex].mode === HERO_SCOPE_ALL)
+        return state.scopes[fallbackIndex].values;
+    }
+    return state.values;
+  }
+
 
   function snapshotRaw() {
     return JSON.stringify({
       version: 1,
       revision: state.revision,
-      values: state.values,
+      values: state.effectiveValues,
     });
   }
 
@@ -901,7 +1723,7 @@
       version: 1,
       revision: state.revision,
       setting_id: settingId,
-      value: settingId === "*" ? null : state.values[settingId],
+      value: settingId === "*" ? null : state.effectiveValues[settingId],
       values_raw: raw,
     });
   }
@@ -917,25 +1739,59 @@
     cacheReplayPayload(snapshotRaw());
   }
 
-  function readRootSnapshot() {
+  function readRootAttribute(name) {
     if (!isValid(ui.absoluteRoot) || !ui.absoluteRoot.GetAttributeString) return "";
     try {
-      return String(ui.absoluteRoot.GetAttributeString(CONFIG_ATTR, "") || "");
+      return String(ui.absoluteRoot.GetAttributeString(name, "") || "");
     } catch (error) {
       return "";
     }
   }
 
-  function loadRootSnapshot() {
-    var raw = readRootSnapshot();
+  function loadPublishedSnapshot() {
+    var raw = readRootAttribute(CONFIG_ATTR);
     if (!raw) return false;
     try {
       var data = JSON.parse(raw);
       if (!data || data.version !== 1 || !data.values) return false;
       state.revision = Math.max(0, Math.round(Number(data.revision) || 0));
+      state.effectiveValues = normalizeValues(data.values);
+      state.effectiveValuesRaw = JSON.stringify(state.effectiveValues);
+      cacheReplayPayload(snapshotRaw());
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function loadMenuState() {
+    var raw = readRootAttribute(MENU_STATE_ATTR);
+    if (!raw) return false;
+    try {
+      var data = JSON.parse(raw);
+      if (!data || data.version !== 1 || !data.values) return false;
       state.values = normalizeValues(data.values);
-      if (serializedSnapshotRaw !== raw || !serializedReplayPayload)
-        cacheReplayPayload(snapshotRaw());
+      state.scopes = normalizeScopes(data.scopes);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function writeMenuState() {
+    if (!isValid(ui.absoluteRoot) || !ui.absoluteRoot.SetAttributeString)
+      return false;
+    var raw = JSON.stringify({
+      version: 1,
+      values: state.values,
+      scopes: state.scopes,
+    });
+    try {
+      if (
+        !ui.absoluteRoot.GetAttributeString ||
+        ui.absoluteRoot.GetAttributeString(MENU_STATE_ATTR, "") !== raw
+      )
+        ui.absoluteRoot.SetAttributeString(MENU_STATE_ATTR, raw);
       return true;
     } catch (error) {
       return false;
@@ -979,7 +1835,7 @@
         if (
           !replayRunning ||
           generation !== replayGeneration ||
-          !state.values.enabled ||
+          !state.effectiveValues.enabled ||
           !isValid(ui.absoluteRoot)
         )
           return;
@@ -997,7 +1853,7 @@
   }
 
   function refreshSnapshotReplay() {
-    if (!state.values.enabled) {
+    if (!state.effectiveValues.enabled) {
       replayGeneration += 1;
       replayRunning = false;
       replayDispatches = 0;
@@ -1030,6 +1886,18 @@
     );
   }
 
+  function reconcileEffective(settingId, forcePending) {
+    if (scopeResolutionPending && forcePending !== true) return false;
+    if (forcePending === true) scopeResolutionPending = false;
+    var next = resolveEffectiveValues();
+    var nextRaw = JSON.stringify(next);
+    if (nextRaw === state.effectiveValuesRaw) return false;
+    state.effectiveValues = copyValues(next);
+    state.effectiveValuesRaw = nextRaw;
+    publish(settingId);
+    return true;
+  }
+
   function pushHistory(raw) {
     if (!raw) return;
     if (state.history.length && state.history[state.history.length - 1] === raw)
@@ -1051,7 +1919,8 @@
     }
     if (recordHistory !== false) pushHistory(valuesRaw());
     state.values[key] = next;
-    publish(key);
+    writeMenuState();
+    reconcileEffective(key);
     syncControls();
   }
 
@@ -1062,7 +1931,8 @@
     if (nextRaw === currentRaw) return false;
     if (recordHistory !== false) pushHistory(currentRaw);
     state.values = next;
-    publish("*");
+    writeMenuState();
+    reconcileEffective("*");
     syncControls();
     return true;
   }
@@ -1320,6 +2190,7 @@
 
   function openPicker(key, returnPanel) {
     if (!COLOR_KEYS[key]) return;
+    closeHeroDialog();
     picker.key = key;
     picker.returnPanel = returnPanel;
     var hsl = hexToHsl(state.values[key]);
@@ -1854,6 +2725,8 @@
     if (ui.undoButton) ui.undoButton.enabled = state.history.length > 0;
     syncPicker();
     syncingControls = false;
+    renderIdentity();
+    renderCurrentScope();
   }
 
   function renderNavigation() {
@@ -1923,6 +2796,8 @@
   function beginPeek() {
     if (!state.open || state.peeking) return;
     closePicker();
+    closeHeroDialog();
+    closeScopeDialog();
     state.peeking = true;
     setClass(ui.editorRoot, "Peeking", true);
     focus(ui.peekCapture);
@@ -1931,6 +2806,8 @@
   function closeEditor() {
     if (!state.open) return;
     closeTransferDialog();
+    closeHeroDialog();
+    closeScopeDialog();
     closePicker();
     endPeek();
     state.open = false;
@@ -1946,7 +2823,10 @@
     state.open = true;
     state.peeking = false;
     state.history = [];
-    loadRootSnapshot();
+    if (loadMenuState()) {
+      writeMenuState();
+      reconcileEffective("*");
+    }
     setClass(ui.editorRoot, "Peeking", false);
     setClass(ui.editorRoot, "Open", true);
     setClass(ui.escapeRoot, "EditorOpen", true);
@@ -1956,6 +2836,14 @@
   }
 
   function cancel() {
+    if (isValid(ui.scopeDialog) && ui.scopeDialog.BHasClass("Open")) {
+      closeScopeDialog();
+      return;
+    }
+    if (isValid(ui.heroDialog) && ui.heroDialog.BHasClass("Open")) {
+      closeHeroDialog();
+      return;
+    }
     if (
       isValid(ui.transferDialog) &&
       ui.transferDialog.BHasClass("Open")
@@ -2009,6 +2897,27 @@
     ui.transferExportButton = find("HPColorsTransferExportButton");
     ui.transferImportButton = find("HPColorsTransferImportButton");
     ui.transferCloseButton = find("HPColorsTransferCloseButton");
+    ui.heroModeAuto = find("HPColorsHeroModeAuto");
+    ui.heroModeManual = find("HPColorsHeroModeManual");
+    ui.heroModeOff = find("HPColorsHeroModeOff");
+    ui.heroPhase = find("HPColorsHeroPhase");
+    ui.heroIdentity = find("HPColorsHeroIdentity");
+    ui.heroDetail = find("HPColorsHeroDetail");
+    ui.heroManualRow = find("HPColorsHeroManualRow");
+    ui.heroManualButton = find("HPColorsHeroManualButton");
+    ui.heroManualValue = find("HPColorsHeroManualValue");
+    ui.heroDialog = find("HPColorsHeroDialog");
+    ui.heroOptions = find("HPColorsHeroOptions");
+    ui.heroCloseButton = find("HPColorsHeroCloseButton");
+    ui.currentScopeOff = find("HPColorsCurrentScopeOff");
+    ui.currentScopeAll = find("HPColorsCurrentScopeAll");
+    ui.currentScopeSelected = find("HPColorsCurrentScopeSelected");
+    ui.currentScopeSummary = find("HPColorsCurrentScopeSummary");
+    ui.currentScopeCapture = find("HPColorsCurrentScopeCapture");
+    ui.scopeDialog = find("HPColorsScopeDialog");
+    ui.scopeSearch = find("HPColorsScopeSearch");
+    ui.scopeOptions = find("HPColorsScopeOptions");
+    ui.scopeCloseButton = find("HPColorsScopeCloseButton");
     ui.headerCategory = find("HPColorsHeaderCategory");
     ui.pageEyebrow = find("HPColorsPageEyebrow");
     ui.pageTitle = find("HPColorsPageTitle");
@@ -2062,6 +2971,7 @@
     var pageIds = [
       "HPColorsSettingsOverviewStatus",
       "HPColorsSettingsOverviewLayout",
+      "HPColorsSettingsOverviewHero",
       "HPColorsSettingsEnemyBar",
       "HPColorsSettingsEnemyFeedback",
       "HPColorsSettingsEnemyShields",
@@ -2097,6 +3007,27 @@
       isValid(ui.transferExportButton) &&
       isValid(ui.transferImportButton) &&
       isValid(ui.transferCloseButton) &&
+      isValid(ui.heroModeAuto) &&
+      isValid(ui.heroModeManual) &&
+      isValid(ui.heroModeOff) &&
+      isValid(ui.heroPhase) &&
+      isValid(ui.heroIdentity) &&
+      isValid(ui.heroDetail) &&
+      isValid(ui.heroManualRow) &&
+      isValid(ui.heroManualButton) &&
+      isValid(ui.heroManualValue) &&
+      isValid(ui.heroDialog) &&
+      isValid(ui.heroOptions) &&
+      isValid(ui.heroCloseButton) &&
+      isValid(ui.currentScopeOff) &&
+      isValid(ui.currentScopeAll) &&
+      isValid(ui.currentScopeSelected) &&
+      isValid(ui.currentScopeSummary) &&
+      isValid(ui.currentScopeCapture) &&
+      isValid(ui.scopeDialog) &&
+      isValid(ui.scopeSearch) &&
+      isValid(ui.scopeOptions) &&
+      isValid(ui.scopeCloseButton) &&
       isValid(ui.headerCategory) &&
       isValid(ui.pageEyebrow) &&
       isValid(ui.pageTitle) &&
@@ -2589,9 +3520,6 @@
     );
   }
 
-
-
-
   function boot() {
     if (state.booted) return;
     if (!resolvePanels()) {
@@ -2600,6 +3528,14 @@
     }
     if (!createSliders()) {
       $.Msg("[HP Colors Rewrite] menu boot failed: slider host missing");
+      return;
+    }
+    if (!createHeroOptions()) {
+      $.Msg("[HP Colors Rewrite] menu boot failed: hero option host missing");
+      return;
+    }
+    if (!createScopeHeroOptions()) {
+      $.Msg("[HP Colors Rewrite] menu boot failed: scope option host missing");
       return;
     }
 
@@ -2613,6 +3549,29 @@
     setPanelEvent(ui.transferImportButton, "onactivate", importLiveSettings);
     setPanelEvent(ui.transferCloseButton, "onactivate", closeTransferDialog);
     setPanelEvent(ui.transferDialog, "oncancel", closeTransferDialog);
+    setPanelEvent(ui.heroModeAuto, "onactivate", function () {
+      setHeroMode(HERO_MODE_AUTO);
+    });
+    setPanelEvent(ui.heroModeManual, "onactivate", function () {
+      setHeroMode(HERO_MODE_MANUAL);
+    });
+    setPanelEvent(ui.heroModeOff, "onactivate", function () {
+      setHeroMode(HERO_MODE_OFF);
+    });
+    setPanelEvent(ui.heroManualButton, "onactivate", openHeroDialog);
+    setPanelEvent(ui.heroCloseButton, "onactivate", closeHeroDialog);
+    setPanelEvent(ui.heroDialog, "oncancel", closeHeroDialog);
+    setPanelEvent(ui.currentScopeOff, "onactivate", function () {
+      setCurrentScopeMode(HERO_SCOPE_OFF);
+    });
+    setPanelEvent(ui.currentScopeAll, "onactivate", function () {
+      setCurrentScopeMode(HERO_SCOPE_ALL);
+    });
+    setPanelEvent(ui.currentScopeSelected, "onactivate", openScopeDialog);
+    setPanelEvent(ui.currentScopeCapture, "onactivate", captureCurrentScopeValues);
+    setPanelEvent(ui.scopeSearch, "ontextentrychange", filterScopeHeroOptions);
+    setPanelEvent(ui.scopeCloseButton, "onactivate", closeScopeDialog);
+    setPanelEvent(ui.scopeDialog, "oncancel", closeScopeDialog);
     setPanelEvent(ui.peekButton, "onmousedown", beginPeek);
     setPanelEvent(ui.peekButton, "onmouseup", endPeek);
     setPanelEvent(ui.peekCapture, "onactivate", endPeek);
@@ -2629,12 +3588,23 @@
     setPanelEvent(ui.precisePipsDialog, "oncancel", closePrecisePipsDialog);
 
     state.booted = true;
-    if (!loadRootSnapshot()) {
-      state.values = copyValues(DEFAULTS);
-      publish("*");
+    var hadPublishedSnapshot = loadPublishedSnapshot();
+    if (!loadMenuState()) {
+      state.values = hadPublishedSnapshot
+        ? copyValues(state.effectiveValues)
+        : copyValues(DEFAULTS);
+      state.scopes = [];
     }
+    writeMenuState();
+    var bootEffectiveRaw = JSON.stringify(resolveEffectiveValues());
+    scopeResolutionPending =
+      hadPublishedSnapshot &&
+      hasSelectedScopes() &&
+      bootEffectiveRaw !== state.effectiveValuesRaw;
+    reconcileEffective("*");
     refreshSnapshotReplay();
     renderNavigation();
+    restartIdentityWatch();
     $.Msg("[HP Colors Rewrite] menu ready");
   }
 

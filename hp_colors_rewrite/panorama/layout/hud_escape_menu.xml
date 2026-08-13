@@ -199,6 +199,63 @@
                   </Panel>
                 </Panel>
 
+                <Panel id="HPColorsSettingsOverviewHero" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="HERO IDENTITY MODE" class="HPColorsSettingTitle" />
+                      <Label text="Resolve the current hero automatically, choose a manual override, or disable identity." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Panel class="HPColorsSegment HPColorsHeroModeSegment">
+                      <Button id="HPColorsHeroModeAuto" class="HPColorsSegmentButton"><Label text="AUTO" /></Button>
+                      <Button id="HPColorsHeroModeManual" class="HPColorsSegmentButton"><Label text="MANUAL OVERRIDE" /></Button>
+                      <Button id="HPColorsHeroModeOff" class="HPColorsSegmentButton"><Label text="OFF" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="MATCH LIFECYCLE" class="HPColorsSettingTitle" />
+                      <Label text="Current phase used while resolving transient hero identity." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Label id="HPColorsHeroPhase" text="TRANSITIONING" class="HPColorsHeroStatusValue" />
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="RESOLVED IDENTITY" class="HPColorsSettingTitle" />
+                      <Label text="Stable hero key resolved for the current match only." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Panel class="HPColorsHeroStatusBlock">
+                      <Label id="HPColorsHeroIdentity" text="NONE" class="HPColorsHeroStatusValue" />
+                      <Label id="HPColorsHeroDetail" text="No hero identity resolved." class="HPColorsHeroDetail" />
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsHeroManualRow" class="HPColorsSettingRow HPColorsHeroManualRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="MANUAL HERO" class="HPColorsSettingTitle" />
+                      <Label text="Select the explicit hero key used while Manual Override is active." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsHeroManualButton" class="HPColorsSecondaryAction HPColorsHeroManualButton">
+                      <Label id="HPColorsHeroManualValue" text="SELECT HERO" />
+                    </Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow HPColorsCurrentScopeRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="CURRENT SETTINGS SCOPE" class="HPColorsSettingTitle" />
+                      <Label text="Capture the global base, then apply that frozen snapshot to all or selected heroes." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Panel class="HPColorsCurrentScopeControls">
+                      <Panel class="HPColorsSegment HPColorsCurrentScopeSegment">
+                        <Button id="HPColorsCurrentScopeOff" class="HPColorsSegmentButton"><Label text="OFF" /></Button>
+                        <Button id="HPColorsCurrentScopeAll" class="HPColorsSegmentButton"><Label text="ALL HEROES" /></Button>
+                        <Button id="HPColorsCurrentScopeSelected" class="HPColorsSegmentButton"><Label text="SELECTED HEROES" /></Button>
+                      </Panel>
+                      <Panel class="HPColorsCurrentScopeActions">
+                        <Label id="HPColorsCurrentScopeSummary" text="OFF" class="HPColorsCurrentScopeSummary" />
+                        <Button id="HPColorsCurrentScopeCapture" class="HPColorsSecondaryAction"><Label text="CAPTURE CURRENT" /></Button>
+                      </Panel>
+                    </Panel>
+                  </Panel>
+                </Panel>
+
                 <Panel id="HPColorsSettingsEnemyBar" class="HPColorsSettingsPage">
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">
@@ -622,6 +679,31 @@
           <Panel class="HPColorsPrecisePipsDialogActions">
             <Button id="HPColorsPrecisePipsCopyButton" class="HPColorsPrimaryAction"><Label id="HPColorsPrecisePipsCopyLabel" text="COPY" /></Button>
             <Button id="HPColorsPrecisePipsCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
+          </Panel>
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsHeroDialog" class="HPColorsHeroDialog" hittest="false" hittestchildren="true">
+        <Panel class="HPColorsTransferDialogBackdrop" hittest="false" />
+        <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">
+          <Label class="HPColorsTransferDialogEyebrow" text="TRANSIENT MATCH IDENTITY" />
+          <Label class="HPColorsTransferDialogTitle" text="SELECT HERO" />
+          <Label class="HPColorsTransferDialogMessage" text="Choose the stable hero identity used by Manual Override for the current session." />
+          <Panel id="HPColorsHeroOptions" class="HPColorsHeroOptions" hittest="true" hittestchildren="true" />
+          <Panel class="HPColorsTransferDialogActions">
+            <Button id="HPColorsHeroCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
+          </Panel>
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsScopeDialog" class="HPColorsHeroDialog" hittest="false" hittestchildren="true">
+        <Panel class="HPColorsTransferDialogBackdrop" hittest="false" />
+        <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">
+          <Label class="HPColorsTransferDialogEyebrow" text="CURRENT SETTINGS SCOPE" />
+          <Label class="HPColorsTransferDialogTitle" text="SELECT HEROES" />
+          <Label class="HPColorsTransferDialogMessage" text="Choose the heroes that receive the captured Current Settings snapshot. Removing the final hero turns this scope Off." />
+          <TextEntry id="HPColorsScopeSearch" class="HPColorsScopeSearch" placeholder="SEARCH HEROES" multiline="false" />
+          <Panel id="HPColorsScopeOptions" class="HPColorsHeroOptions HPColorsScopeOptions" hittest="true" hittestchildren="true" />
+          <Panel class="HPColorsTransferDialogActions">
+            <Button id="HPColorsScopeCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
           </Panel>
         </Panel>
       </Panel>
