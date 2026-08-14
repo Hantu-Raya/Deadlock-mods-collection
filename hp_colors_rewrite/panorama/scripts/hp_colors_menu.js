@@ -473,6 +473,8 @@
   var serializedSnapshotRaw = "";
   var serializedReplayPayload = "";
   var scopeResolutionPending = false;
+  var resetKeys = null;
+  var resetFeedbackGeneration = 0;
 
   var picker = {
     key: "",
@@ -537,6 +539,12 @@
     presetTransferConfirmButton: null,
     presetTransferCloseButton: null,
     presetRestoreBakedButton: null,
+    resetDialog: null,
+    resetDialogTitle: null,
+    resetDialogMessage: null,
+    resetConfirmButton: null,
+    resetCancelButton: null,
+    liveStatus: null,
   };
   var identity = {
     mode: HERO_MODE_AUTO,
@@ -3251,16 +3259,75 @@
     syncControls();
   }
 
-  function resetSection() {
+
+  function showResetFeedback(text) {
+    resetFeedbackGeneration += 1;
+    var generation = resetFeedbackGeneration;
+    setText(ui.liveStatus, text || "LIVE");
+    if (!text) return;
+    try {
+      $.Schedule(1.25, function () {
+        if (generation !== resetFeedbackGeneration || !state.open) return;
+        setText(ui.liveStatus, "LIVE");
+      });
+    } catch (error) {}
+  }
+
+  function closeResetDialog(restoreFocus) {
+    resetKeys = null;
+    setClass(ui.resetDialog, "Open", false);
+    if (restoreFocus !== false && state.open) focus(ui.resetButton);
+  }
+
+  function requestSectionReset() {
     var category = CATEGORY_DEFS[state.categoryIndex];
     var tab = category && category.tabs[state.tabIndex];
-    if (!tab) return;
-    var next = copyValues(state.values);
+    if (!tab || !tab.keys.length) {
+      showResetFeedback("NO SETTINGS TO RESET");
+      return;
+    }
+    var changedCount = 0;
     for (var index = 0; index < tab.keys.length; index++) {
       var key = tab.keys[index];
+      if (state.values[key] !== DEFAULTS[key]) changedCount += 1;
+    }
+    if (!changedCount) {
+      showResetFeedback("SECTION ALREADY DEFAULT");
+      return;
+    }
+    resetKeys = tab.keys.slice(0);
+    setText(ui.resetDialogTitle, "RESET " + tab.name);
+    setText(
+      ui.resetDialogMessage,
+      "Reset " +
+        String(changedCount) +
+        (changedCount === 1 ? " setting" : " settings") +
+        " in " +
+        category.name +
+        " / " +
+        tab.name +
+        " to shipped defaults? This can be undone.",
+    );
+    setClass(ui.resetDialog, "Open", true);
+    focus(ui.resetCancelButton);
+  }
+
+  function confirmSectionReset() {
+    if (!resetKeys) {
+      closeResetDialog(true);
+      return;
+    }
+    var keys = resetKeys;
+    var next = copyValues(state.values);
+    for (var index = 0; index < keys.length; index++) {
+      var key = keys[index];
       next[key] = DEFAULTS[key];
     }
-    replaceValues(next, true);
+    var changed = replaceValues(next, true);
+    closeResetDialog(true);
+    showResetFeedback(
+      changed ? "SECTION RESET \u00b7 UNDO AVAILABLE" : "SECTION ALREADY DEFAULT",
+    );
   }
 
   function bindCategory(index) {
@@ -4060,6 +4127,19 @@
 
     var activeTab = category.tabs[state.tabIndex];
     if (!activeTab) return;
+    var hideHistoryActions =
+      activeTab.pageId === "HPColorsSettingsOverviewHero";
+    setClass(
+      ui.undoButton,
+      "HPColorsFooterActionHidden",
+      hideHistoryActions,
+    );
+    setClass(
+      ui.resetButton,
+      "HPColorsFooterActionHidden",
+      hideHistoryActions,
+    );
+    setEnabled(ui.resetButton, activeTab.keys.length > 0);
     setText(ui.pageEyebrow, category.name + " / " + activeTab.name);
     setText(ui.pageTitle, activeTab.title);
     setText(ui.pageDescription, activeTab.description);
@@ -4110,6 +4190,8 @@
 
   function closeEditor() {
     if (!state.open) return;
+    closeResetDialog(false);
+    showResetFeedback("");
     closeTransferDialog();
     closeHeroDialog();
     closeScopeDialog();
@@ -4127,6 +4209,7 @@
     if (!state.booted || state.open) return;
     state.open = true;
     state.peeking = false;
+    showResetFeedback("");
     state.history = [];
     if (loadMenuState()) {
       writeMenuState();
@@ -4143,6 +4226,10 @@
   }
 
   function cancel() {
+    if (isValid(ui.resetDialog) && ui.resetDialog.BHasClass("Open")) {
+      closeResetDialog(true);
+      return;
+    }
     if (
       isValid(ui.presetTransferDialog) &&
       ui.presetTransferDialog.BHasClass("Open")
@@ -4204,6 +4291,11 @@
     ui.doneButton = find("HPColorsDoneButton");
     ui.undoButton = find("HPColorsUndoButton");
     ui.resetButton = find("HPColorsResetSectionButton");
+    ui.resetDialog = find("HPColorsResetDialog");
+    ui.resetDialogTitle = find("HPColorsResetDialogTitle");
+    ui.resetDialogMessage = find("HPColorsResetDialogMessage");
+    ui.resetConfirmButton = find("HPColorsResetConfirmButton");
+    ui.resetCancelButton = find("HPColorsResetCancelButton");
     ui.transferButton = find("HPColorsTransferButton");
     ui.transferDialog = find("HPColorsTransferDialog");
     ui.transferInput = find("HPColorsTransferInput");
@@ -4247,6 +4339,7 @@
     );
     ui.presetTransferCloseButton = find("HPColorsPresetTransferCloseButton");
     ui.headerCategory = find("HPColorsHeaderCategory");
+    ui.liveStatus = find("HPColorsLiveStatus");
     ui.pageEyebrow = find("HPColorsPageEyebrow");
     ui.pageTitle = find("HPColorsPageTitle");
     ui.pageDescription = find("HPColorsPageDescription");
@@ -4328,6 +4421,11 @@
       isValid(ui.doneButton) &&
       isValid(ui.undoButton) &&
       isValid(ui.resetButton) &&
+      isValid(ui.resetDialog) &&
+      isValid(ui.resetDialogTitle) &&
+      isValid(ui.resetDialogMessage) &&
+      isValid(ui.resetConfirmButton) &&
+      isValid(ui.resetCancelButton) &&
       isValid(ui.transferButton) &&
       isValid(ui.transferDialog) &&
       isValid(ui.transferInput) &&
@@ -4369,6 +4467,7 @@
       isValid(ui.presetTransferConfirmButton) &&
       isValid(ui.presetTransferCloseButton) &&
       isValid(ui.headerCategory) &&
+      isValid(ui.liveStatus) &&
       isValid(ui.pageEyebrow) &&
       isValid(ui.pageTitle) &&
       isValid(ui.pageDescription) &&
@@ -4883,7 +4982,14 @@
     setPanelEvent(ui.menuButton, "onactivate", openEditor);
     setPanelEvent(ui.doneButton, "onactivate", closeEditor);
     setPanelEvent(ui.undoButton, "onactivate", undo);
-    setPanelEvent(ui.resetButton, "onactivate", resetSection);
+    setPanelEvent(ui.resetButton, "onactivate", requestSectionReset);
+    setPanelEvent(ui.resetConfirmButton, "onactivate", confirmSectionReset);
+    setPanelEvent(ui.resetCancelButton, "onactivate", function () {
+      closeResetDialog(true);
+    });
+    setPanelEvent(ui.resetDialog, "oncancel", function () {
+      closeResetDialog(true);
+    });
     setPanelEvent(ui.transferButton, "onactivate", openTransferDialog);
     setPanelEvent(ui.transferExportButton, "onactivate", copyCurrentSettings);
     setPanelEvent(ui.transferImportButton, "onactivate", importLiveSettings);

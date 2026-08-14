@@ -25,7 +25,7 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 
 ### Editor and settings
 
-- Categorized ESC editor, immediate application, section reset, session Undo, Peek, native HSL picker, and HPCR2 live settings import/export.
+- Categorized ESC editor, immediate application, confirmed section reset with guarded feedback, session Undo, Peek, native HSL picker, and HPCR2 live settings import/export.
 - One canonical global base and one resolved effective snapshot.
 - Auto, Manual Override, and Off hero identity with lifecycle settling and stale-callback rejection.
 - All Heroes and Selected Heroes user-preset categories with searchable stable-key selection, a hidden canonical fallback, and changed-effective-only publication.
@@ -35,7 +35,7 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 ### Deliberately deferred
 
 - Durable persistence and restart selection, pending a proven writable storage backend.
-- Ability signature-tier conditions and remaining editor surfaces.
+- Ability signature-tier conditions. Detached tooltips and a grouped two-axis position picker are intentionally omitted.
 - Legacy v99 encoding, Anita tokens, aliases, bridge keys, and preset-store VPK compatibility.
 
 ## Milestone 1: healthbar observation
@@ -127,7 +127,7 @@ The 2026-08-12 in-game smoke confirmed fixed low/mid/high threshold stepping, te
 9. Move horizontal and vertical position controls through positive, negative, and zero values; require the complete bar stack to move without moving the unit icon.
 10. Test ultimate-icon Follow Bar and Custom modes on enemies and customized allies; require excluded, neutral, unclassified, and bypassed icons to return to stock.
 11. Drag each native Hue, Saturation, and Lumen slider; require the slider value, canonical hex, and visible bars to update live, then require one Undo to restore the color from before that slider gesture.
-12. Exercise Reset Section, Peek, Done, and Escape, including palette dismissal.
+12. Exercise Reset Section confirmation, Cancel, already-default feedback, and Undo. Require Reset Section and Undo to stay hidden on Presets, return on settings pages, and Escape to dismiss the reset dialog or palette before closing the editor.
 13. Exit and require config/role/data logs with no rewrite exceptions.
 
 
@@ -226,6 +226,14 @@ The former split Hero / Presets dashboard is now one full-width Preset Library. 
 
 The Preset Library can copy the selected record or a deterministic baked-before-user repository bundle as an `HPCRP1` clipboard code. Bundles include hidden baked state and selection but never include the synthetic Current scope row. Import validates the entire code before mutation, preserves names, All Heroes/Selected Heroes scope, stable hero keys, frozen settings, baked display names, and opaque conditional metadata, then appends user records with fresh monotonic IDs. Copy and import are repository-only: they never apply settings, enter Undo, increment revision, or dispatch configuration.
 
+## Milestone 17: confirmed section reset
+
+**Reset Section** now opens a blocking confirmation dialog for the active settings tab. Opening, cancelling, and already-default requests do not mutate menu state, enter Undo, increment revision, or dispatch configuration. Confirming resets the captured tab keys through the canonical replacement path, creates one Undo entry, and relies on effective-value equality to suppress irrelevant publication.
+
+The header reports completion or already-default state through a generation-guarded transient message. Reset Section and Undo collapse on the Presets page, where neither action has a meaningful target, and return on settings pages. The reset backdrop intercepts outside clicks so the confirmation cannot coexist with underlying editor actions.
+
+Focused regressions cover inert request/cancel behavior, captured-tab reset, unrelated-value preservation, single-entry Undo, effective-equal dispatch suppression, keyless Presets behavior, Escape precedence, stale feedback rejection, and footer-action restoration. Detached tooltips and a grouped two-axis position picker are intentionally omitted; concise inline help and the existing bounded X/Y sliders and numeric entries remain authoritative.
+
 ## Not implemented yet
 
-Settings, scopes, and user presets remain session-scoped because the Phase 0 runtime probe found no writable native `$.persistentStorage` interface. Durable persistence and restart selection therefore remain blocked; panel attributes and `GameUI.CustomUIConfig()` are session-only, while the pak96 preset store is build-time/read-only. Remaining editor surfaces, executable signature-tier conditions, measured runtime hardening, and in-game validation of the Presets workspace at every other supported UI scale remain unimplemented. See `to-do.md` for the checklist and explicitly deferred compatibility work.
+Settings, scopes, and user presets remain session-scoped because the Phase 0 runtime probe found no writable native `$.persistentStorage` interface. Durable persistence, restart selection, and Reset All therefore remain blocked; panel attributes and `GameUI.CustomUIConfig()` are session-only, while the pak96 preset store is build-time/read-only. Executable signature-tier conditions and measured runtime hardening remain unimplemented. Real-game identity panel/locale/timing validation plus Presets and popup verification at every other supported UI scale also remain open. See `to-do.md` for the checklist and explicitly deferred compatibility work.

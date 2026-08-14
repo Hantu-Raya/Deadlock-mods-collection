@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-`hp_colors_rewrite/` is a clean-room Panorama rewrite of HP Colors for Deadlock. The current v1 slice includes the ESC editor, cached renderer, reversible visibility, feedback controls, fixed/gradient colors, target exclusions, positioning, ultimate-icon coloring, HP readout, health-pip visibility, enemy level tiers, CSS-driven enemy/ally low-HP pulse, a static enemy-player kill marker, transient Auto/Manual/Off hero identity with match lifecycle tracking, hero scopes, session preset application, and session repository management.
+`hp_colors_rewrite/` is a clean-room Panorama rewrite of HP Colors for Deadlock. The current v1 slice includes the ESC editor, confirmed section reset with guarded feedback, cached renderer, reversible visibility, feedback controls, fixed/gradient colors, target exclusions, positioning, ultimate-icon coloring, HP readout, health-pip visibility, enemy level tiers, CSS-driven enemy/ally low-HP pulse, a static enemy-player kill marker, transient Auto/Manual/Off hero identity with match lifecycle tracking, hero scopes, session preset application, and session repository management.
 
 Do not add durable persistence, preset copy/bundle/import compatibility, or Anita compatibility until a focused slice requires them. `FEATURES.md` distinguishes implemented milestones from later compatibility goals.
 
@@ -137,7 +137,7 @@ Required smoke:
 6. Require neutral units and unclassified bars to remain stock.
 7. Spawn or reveal late bars and require them to receive the current snapshot without reopening the editor.
 8. Open color swatches across enemy and ally pages; drag hue, saturation, and Lumen to require live canonical hex and bar updates, then require one Undo to restore the pre-drag color.
-9. Exercise Reset Section, Peek, Done, and Escape, including Escape dismissing the palette before closing the editor.
+9. Exercise Reset Section confirmation, Cancel, already-default feedback, Undo, Peek, Done, and Escape, including Escape dismissing the reset dialog or palette before closing the editor. Require Reset Section and Undo to be hidden on the Presets page and restored on settings pages.
 10. Exercise HP readout visibility, current/max, percentage, and current-only formats; size and positive/negative offsets; bar-derived and custom fixed/gradient colors; exclusions; and late/replaced bars.
 11. Exercise enemy and ally pulse threshold boundaries, speed, intensity, custom colors, enemy bar hiding, independent HP-number animation and text-modifier toggles, pulse-only readout size/offsets with normal-geometry restoration, bypass/exclusion cleanup, and coexistence with stock `health_critical` styling.
 12. Enable the kill marker and exercise threshold endpoints, width, and color on enemy heroes; require allies, neutrals, lane units, summons, buildings, sentries, bosses, and boss barracks to remain marker-free. Verify hidden and pulse-hidden bars, bypass, late/replaced panels, and cleanup.

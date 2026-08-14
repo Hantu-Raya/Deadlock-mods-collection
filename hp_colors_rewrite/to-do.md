@@ -105,13 +105,13 @@ Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:1293-2493`, `3374-
 
 ## Priority 6 — Remaining editor surfaces
 
-- [ ] Add detached, edge-clamped tooltips for controls that need detailed explanations.
-- [ ] Reposition an open tooltip when its owning settings list scrolls.
-- [ ] Add a dedicated two-axis position picker while retaining bounded numeric entry.
-- [ ] Keep position writes throttled during drag and immediate on release.
-- [ ] Add explicit reset confirmation/feedback where destructive scope is not obvious.
-- [ ] Decide whether to retain the external preset-builder link; omit it if the in-game preset editor fully replaces it.
-- [ ] Decide whether to add the donation link; it is not required for healthbar behavior.
+- [x] Omit detached tooltips by user decision; retain concise inline helper text.
+- [x] Omit tooltip scroll repositioning because the detached tooltip surface is not being added.
+- [x] Omit the dedicated two-axis position picker by user decision; retain the existing bounded X/Y sliders and numeric entries.
+- [x] Omit position-specific drag throttling with the picker; do not change the existing generic slider path without measured need.
+- [x] Add explicit Reset Section confirmation and guarded feedback where destructive scope is not obvious; hide Reset Section and Undo on the Presets page.
+- [x] Omit the external preset-builder link because the available builder targets the deferred legacy preset/VPK lane.
+- [x] Omit the optional donation link because it is unrelated to editor or healthbar behavior.
 - [ ] Verify popup placement under UI scaling and scrolling in game.
 
 Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:6540-6828`, `7346-7518`, `9016-9473`; `hp_colors/panorama/styles/anita_ui.css:539-657`, `1998-2006`, `2442-3068`.

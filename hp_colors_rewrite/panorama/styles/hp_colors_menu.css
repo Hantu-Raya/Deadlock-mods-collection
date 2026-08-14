@@ -160,6 +160,7 @@
   letter-spacing: 2px;
   border-left: 2px solid #5fe69e;
   padding-left: 10px;
+  white-space: nowrap;
 }
 
 .HPColorsEditorBody {
@@ -787,6 +788,10 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   width: fill-parent-flow(1);
 }
 
+.HPColorsFooterActionHidden {
+  visibility: collapse;
+}
+
 .HPColorsSecondaryAction,
 .HPColorsPrimaryAction {
   min-width: 142px;
@@ -904,6 +909,10 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   background-color: gradient(linear, 0% 0%, 100% 100%, from(#20251d), to(#0d100c));
   border: 1px solid #5fe69e80;
   box-shadow: #000000cc 0px 14px 38px 0px;
+}
+
+.HPColorsResetDialogPanel {
+  width: 560px;
 }
 
 .HPColorsTransferDialogEyebrow {
