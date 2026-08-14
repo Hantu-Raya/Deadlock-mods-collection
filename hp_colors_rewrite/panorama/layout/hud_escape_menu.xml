@@ -102,7 +102,7 @@
             <Label id="HPColorsHeaderCategory" text="OVERVIEW" class="HPColorsHeaderCategory" />
           </Panel>
           <Panel class="HPColorsHeaderRule" />
-          <Label text="LIVE" class="HPColorsLiveStatus" />
+          <Label id="HPColorsLiveStatus" text="LIVE" class="HPColorsLiveStatus" />
         </Panel>
 
         <Panel class="HPColorsEditorBody">
@@ -661,6 +661,18 @@
               <Panel class="HPColorsFooterSpacer" />
               <Button id="HPColorsDoneButton" class="HPColorsPrimaryAction"><Label text="DONE" /></Button>
             </Panel>
+          </Panel>
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsResetDialog" class="HPColorsTransferDialog" hittest="false" hittestchildren="true">
+        <Button class="HPColorsTransferDialogBackdrop" hittest="true" />
+        <Panel class="HPColorsTransferDialogPanel HPColorsResetDialogPanel" hittest="true" hittestchildren="true">
+          <Label class="HPColorsTransferDialogEyebrow" text="RESET CURRENT SECTION" />
+          <Label id="HPColorsResetDialogTitle" class="HPColorsTransferDialogTitle" text="RESET SECTION" />
+          <Label id="HPColorsResetDialogMessage" class="HPColorsTransferDialogMessage" text="" />
+          <Panel class="HPColorsTransferDialogActions">
+            <Button id="HPColorsResetConfirmButton" class="HPColorsPrimaryAction"><Label text="RESET SECTION" /></Button>
+            <Button id="HPColorsResetCancelButton" class="HPColorsSecondaryAction"><Label text="CANCEL" /></Button>
           </Panel>
         </Panel>
       </Panel>
