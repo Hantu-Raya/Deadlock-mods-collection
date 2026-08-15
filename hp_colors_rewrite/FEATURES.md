@@ -2,7 +2,7 @@
 
 ## Goal
 
-Rebuild HP Colors behind small, independently verifiable seams. The current rewrite owns the v1 healthbar renderer, ESC editor, live settings transfer, transient hero identity, session-scoped hero settings, and session preset save/application.
+Rebuild HP Colors behind small, independently verifiable seams. The current rewrite owns the v1 healthbar renderer, a deep send/read Anita state module, ESC editor adapters, live settings transfer, transient hero identity, session-scoped hero settings, and session preset save/application.
 
 The layout overrides are based on current stock files in `SteamDatabase/GameTracking-Deadlock/game/citadel/pak01_dir/panorama/layout`. The rewrite changes them only by adding its script/style includes and owned panels.
 
@@ -30,12 +30,13 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 - Auto, Manual Override, and Off hero identity with lifecycle settling and stale-callback rejection.
 - All Heroes and Selected Heroes user-preset categories with searchable stable-key selection, a hidden canonical fallback, and changed-effective-only publication.
 - A baked-before-user session preset repository with named create/update Save, inert selection, explicit Apply/Cancel, row-local rename/reorder/delete/hide, baked restoration, and exact Selected → All Heroes → Rewrite Default routing.
-- `HPCRP1` single-record and bundle copy/import with atomic validation, fresh monotonic user IDs, preserved opaque conditional metadata, and no live-setting publication.
+- `HPCRP1` single-record and bundle copy/import with atomic validation, fresh monotonic user IDs, canonical typed ability conditions, and no live-setting publication.
+- Session-scoped ability signature-tier conditions for serializable settings, with row markers, ability-card tier cycling, typed override editors, base fallback, and changed-effective-only publication.
 
 ### Deliberately deferred
 
 - Durable persistence and restart selection, pending a proven writable storage backend.
-- Ability signature-tier conditions. Detached tooltips and a grouped two-axis position picker are intentionally omitted.
+- Detached tooltips and a grouped two-axis position picker are intentionally omitted.
 - Legacy v99 encoding, Anita tokens, aliases, bridge keys, and preset-store VPK compatibility.
 
 ## Milestone 1: healthbar observation
@@ -62,7 +63,8 @@ The 2026-08-11 Deadlock session produced 16 probe-ready lines and 21 direct data
 Implemented source files:
 
 - `panorama/layout/hud_escape_menu.xml` preserves the stock ESC layout and adds the explicit `HP COLORS` row plus editor panels.
-- `panorama/scripts/hp_colors_menu.js` owns open, close, category/tab navigation, and hold-to-peek.
+- `panorama/scripts/hp_colors_state.js` owns canonical values, effective resolution, scoped presets, repository policy, conditions, Undo, transactions, and runtime settling behind an immutable factory with `send()` and `read()`.
+- `panorama/scripts/hp_colors_menu.js` owns open, close, category/tab navigation, hold-to-peek, panel observation, scheduling, rendering, transport, replay, and clipboard adapters.
 - `panorama/styles/hp_colors_menu.css` owns the Ritual Stripe presentation.
 
 The user confirmed that the entry, editor navigation, and hold-to-peek behavior work in Deadlock.
@@ -80,7 +82,7 @@ Implemented controls:
 
 ### Settings path
 
-`hp_colors_menu.js` owns one versioned session snapshot. Changed controls publish immediately. While the master switch is enabled, the unchanged cached snapshot replays at 1-second hot, 3-second warm, then 8-second idle intervals because isolated late unit-status contexts cannot read the ESC root attribute. Each `healthbar_probe.js` context accepts a snapshot once, ignores identical replays, and reapplies its local cache when a bar or its parts are discovered or replaced.
+`hp_colors_state.js` owns one versioned same-session state payload and returns declarative same-session replacement, effective publication, and clipboard effects. `hp_colors_menu.js` executes those effects and renders the returned immutable view. Changed controls publish immediately only when resolved effective values differ. While the master switch is enabled, the unchanged cached snapshot replays at 1-second hot, 3-second warm, then 8-second idle intervals because isolated late unit-status contexts cannot read the ESC root attribute. Each `healthbar_probe.js` context accepts a snapshot once, ignores identical replays, and reapplies its local cache when a bar or its parts are discovered or replaced.
 
 The renderer classifies stock relation classes neutral-first, then enemy/friend. It changes only settings-owned inline styles and clears them when customization is bypassed so stock CSS resumes.
 
@@ -174,13 +176,15 @@ The marker is a rewrite-owned, non-interactive overlay directly under `UnitHealt
 
 ## Milestone 10: rewrite-native live transfer
 
-The editor copies a compact single-line code with the exact grammar `HPCR2` followed by a JSON array of `[settingIndex, value]` pairs. Export orders pairs by ascending index and omits values equal to shipped defaults. Indexes use the closed, append-only `DEFAULTS` order; unknown indexes are rejected, and any reorder or meaning change requires a new `HPCR` schema prefix. Imports may list valid indexes in any order, but duplicate indexes, malformed pairs, foreign prefixes, and wrong known value types are rejected before normalization. Codes contain no revision, aliases, Base64, presets, or persistence data. Opening the transfer dialog performs no clipboard action; the user explicitly chooses **COPY CURRENT** or **IMPORT & APPLY**. Import requests the stock `TextEntryInsertFromClipboard` event only after that action, and the visible single-line field remains the fallback when automatic insertion is unavailable. Invalid codes preserve live state and Undo history. A valid changed import publishes one wildcard snapshot and creates one Undo entry.
+The editor copies a compact single-line code prefixed with `HPCR2`. Settings without ability conditions retain the legacy JSON array of `[settingIndex, value]` pairs. When the current editable settings include ability conditions, export emits `{"v":[...],"c":{...}}`: `v` contains the same sparse value pairs and `c` contains the complete typed condition map. Export orders pairs by ascending index and omits values equal to shipped defaults. Indexes use the closed, append-only `DEFAULTS` order; unknown indexes are rejected, and any reorder or meaning change requires a new `HPCR` schema prefix. Imports accept legacy arrays without altering existing conditions; conditioned payloads replace the current editable condition map. Duplicate indexes, malformed pairs, unknown or malformed conditions, foreign prefixes, wrong known value types, and extra payload fields are rejected atomically before normalization. Codes contain no revision, aliases, Base64, presets, hero-scope metadata, or persistence data. Opening the transfer dialog performs no clipboard action; the user explicitly chooses **COPY CURRENT** or **IMPORT & APPLY**. Import requests the stock `TextEntryInsertFromClipboard` event only after that action, and the visible single-line field remains the fallback when automatic insertion is unavailable. Invalid codes preserve live state and Undo history. A valid changed import publishes one wildcard snapshot and creates one Undo entry.
 
 ## Milestone 11: hero identity and match lifecycle
 
 The editor owns transient hero identity separately from the canonical healthbar settings snapshot. **Auto** reads the generated `CitadelHudTopBarPlayer.LocalPlayer` card, resolves its `.HeroName` through an exact English retail-name table, and exposes the resulting stable `hero_*` key only after two matching active-match samples. Blank, placeholder, fuzzy, and unmapped names remain unknown. **Manual Override** uses one explicitly selected stable key, while **Off** produces no effective hero and skips local-card scans.
 
 The lifecycle watcher classifies lobby/pregame, active match, post-match, and transitional states from current HUD classes plus a parseable live topbar clock. It clears detected identity and panel caches on lifecycle changes, rediscovers replaced local-player cards and stale clocks, polls at one second while active or transitioning and five seconds in lobby/post-match, and rejects stale scheduled callbacks by generation. Identity modes and the manual choice are session-only metadata: they do not alter `DEFAULTS`, HPCR2, Undo, the root settings snapshot, or unit-status publications.
+
+Stable Auto observations now avoid state churn without weakening detection. Once a retail name matches the settled hero and no preset is waiting, the state module returns a no-op; repeated unknown samples cap after the required two observations. The watcher still reads the live label every second, so hero changes retain the same two-sample settling and epoch guards.
 
 ## Milestone 12: hero scopes and effective settings
 
@@ -224,7 +228,7 @@ The former split Hero / Presets dashboard is now one full-width Preset Library. 
 
 ## Milestone 16: preset repository transfer
 
-The Preset Library can copy the selected record or a deterministic baked-before-user repository bundle as an `HPCRP1` clipboard code. Bundles include hidden baked state and selection but never include the synthetic Current scope row. Import validates the entire code before mutation, preserves names, All Heroes/Selected Heroes scope, stable hero keys, frozen settings, baked display names, and opaque conditional metadata, then appends user records with fresh monotonic IDs. Copy and import are repository-only: they never apply settings, enter Undo, increment revision, or dispatch configuration.
+The Preset Library can copy the selected record or a deterministic baked-before-user repository bundle as an `HPCRP1` clipboard code. Bundles include hidden baked state and selection but never include the synthetic Current scope row. Import validates the entire code before mutation, preserves names, All Heroes/Selected Heroes scope, stable hero keys, frozen settings, baked display names, and canonical typed ability conditions, then appends user records with fresh monotonic IDs. Copy and import are repository-only: they never apply settings, enter Undo, increment revision, or dispatch configuration.
 
 ## Milestone 17: confirmed section reset
 
@@ -234,6 +238,26 @@ The header reports completion or already-default state through a generation-guar
 
 Focused regressions cover inert request/cancel behavior, captured-tab reset, unrelated-value preservation, single-entry Undo, effective-equal dispatch suppression, keyless Presets behavior, Escape precedence, stale feedback rejection, and footer-action restoration. Detached tooltips and a grouped two-axis position picker are intentionally omitted; concise inline help and the existing bounded X/Y sliders and numeric entries remain authoritative.
 
+## Milestone 18: ability signature-tier conditions
+
+Eligible setting rows expose a compact condition marker and one focused editor for ability slot `1–4`, minimum tier `1–3`, and a typed override value. Shared settings such as the low and high thresholds expose synchronized markers on every rendered settings row rather than only their first control. Clicking another live ability selects it at Tier 1; clicking the selected ability again cycles its requirement through Tier 2, Tier 3, and back to Tier 1. The picker mirrors each live signature ability image and keeps the stock `ability_frame_passive_1` white base ring visible while layering the `ability_frame_passive_2` or `ability_frame_passive_3` tier ornament above it alongside the three-pip requirement row; the unnumbered `_1` spiked ring remains the default Tier 1 frame. Its panel, heading, status message, and actions reuse the same shared dialog theme as Reset and Import/Export. A draft whose typed value or selection matches the current setting reports that it creates no override, keeps Apply disabled, and cannot mutate the rule; a stored rule with that same redundant value remains unlit until it is changed or removed. Rules remain canonical, session-scoped state that travels through scopes, presets, Save, Apply, reset, Undo, and `HPCRP1` transfer. When a synthetic Current scope exists, its condition map is the editor and Undo target; later rule edits must not disappear into the hidden base while that scope remains effective.
+
+The existing lifecycle watcher anchors `#hud_signature`, prefers the live `#hud_abilities > #abilities` slot parent, and falls back to deriving that parent from `#slot_signature_1`. It enumerates exact direct `slot_signature_1` through `slot_signature_4` IDs once, requires only referenced slots to exist, validates their cached parent relationship, and reads `Tier0` through `Tier3` only for referenced slots. It does not depend on `#AbilitiesContainer`, repeatedly scan the full HUD, or ship probe/debug output. Conditional values fall back immediately when a referenced local slot is unavailable and are materialized into the effective snapshot only while their threshold matches, so the healthbar consumer remains unchanged and receives publication only when effective output changes.
+
+Ability polling keeps one observed tier signature per lifecycle identity (`epoch` plus effective hero). It sends the first observation for each identity and every changed tier signature, but skips unchanged observations until either the hero or lifecycle epoch changes. Panel discovery and replacement validation continue at the existing cadence.
+
+Closing the editor cancels editor-only transactions and Undo without stopping the lifecycle/ability watcher or clearing observed tiers. Matched conditions therefore remain active until the referenced tier or lifecycle actually changes.
+
+Focused regressions cover strict import validation, all slots, tier thresholds and loss, live-tree discovery, cached lookup reuse, partial and replacement slot trees, spectating, referenced-slot polling, unchanged observation suppression, typed editors, modal cancellation, markers, scopes, presets, reset, and Undo. The 2026-08-15 in-game pass confirmed the real ability hierarchy and tier timing.
+
+## Priority 8 runtime measurement baseline
+
+The 2026-08-15 detect-only diagnostic build recorded 37m35s of live gameplay. Ninety isolated probe contexts emitted 1,291 bounded summaries. They reported zero transient, confirmed, or recovered rewrite-owned style drift; zero duplicate scan or paint schedules; and 83 part replacements. Every context observed zero-width geometry, but 88 of 90 ended at the normal 1.5-second idle paint cadence and the remaining two were in the 0.25-second recent-change window. The only released-style signal was the intentional `visibility: collapse` cleanup on 83 replaced kill-marker panels.
+
+The menu emitted 38 summaries and observed seven lifecycle changes, including three active-match exits. No rewrite script or runtime exceptions occurred. A targeted follow-up added one active-to-lobby exit with `pending_before=none`, `pending_after=none`, an unchanged effective revision, and the active `user_0001` preset preserved. Closing the editor already cancels WAITING actions by contract, and neither live session showed stale scoped state crossing a match boundary.
+
+The evidence does not justify a style watchdog, an explicit match-reset generation/acknowledgement path, or more clean-state work. The temporary counters were removed after recording the baseline. Repeat this measurement only if new live evidence contradicts it.
+
 ## Not implemented yet
 
-Settings, scopes, and user presets remain session-scoped because the Phase 0 runtime probe found no writable native `$.persistentStorage` interface. Durable persistence, restart selection, and Reset All therefore remain blocked; panel attributes and `GameUI.CustomUIConfig()` are session-only, while the pak96 preset store is build-time/read-only. Executable signature-tier conditions and measured runtime hardening remain unimplemented. Real-game identity panel/locale/timing validation plus Presets and popup verification at every other supported UI scale also remain open. See `to-do.md` for the checklist and explicitly deferred compatibility work.
+Settings, scopes, user presets, and ability conditions remain session-scoped because the Phase 0 runtime probe found no writable native `$.persistentStorage` interface. Durable persistence, restart selection, and Reset All therefore remain blocked; panel attributes and `GameUI.CustomUIConfig()` are session-only, while the pak96 preset store is build-time/read-only. The persistence-dependent first-paint gate remains blocked. Clean live measurement rejected both a style watchdog and an explicit match-reset path. Remaining real-game identity panel, locale, and lifecycle verification plus Presets and popup verification at every other supported UI scale also remain open. See `to-do.md` for the checklist and explicitly deferred compatibility work.

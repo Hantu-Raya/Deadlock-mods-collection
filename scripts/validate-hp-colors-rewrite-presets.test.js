@@ -7,9 +7,8 @@ const test = require('node:test');
 const {
   MockPanel,
   createPanoramaHarness,
-  createVmContext,
   installTopBarIdentityTree,
-  runInVm,
+  runHpColorsSourcesInVm,
 } = require('./hp-colors-panorama-test-adapter');
 
 const rewriteRoot = path.resolve(__dirname, '../hp_colors_rewrite');
@@ -19,6 +18,10 @@ const layoutSource = fs.readFileSync(
 );
 const menuSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/hp_colors_menu.js'),
+  'utf8',
+);
+const stateSource = fs.readFileSync(
+  path.join(rewriteRoot, 'panorama/scripts/hp_colors_state.js'),
   'utf8',
 );
 const MENU_STATE_ATTR = 'hp_colors_rewrite_menu_state';
@@ -68,7 +71,7 @@ function bootPresetMenu(menuState, options = {}) {
       JSON.stringify(options.publishedSnapshot),
     );
   }
-  runInVm(menuSource, createVmContext(harness), 'hp_colors_menu.js');
+  runHpColorsSourcesInVm(stateSource, menuSource, harness);
   harness.$.HPColorsMenuBoot();
   return { harness, topBar };
 }
@@ -565,7 +568,7 @@ test('a manual settings edit cancels a waiting Selected preset', () => {
   assert.equal(configDispatches(fixture).length, 0);
 });
 
-test('a saved Shiv preset replaces a stale matching scope on return to Shiv', () => {
+test('a saved Shiv preset replaces a stale matching scope and republishes its changed snapshot', () => {
   const fixture = bootPresetMenu({
     version: 1,
     values: { enemyLow: '#22AA44' },
@@ -599,7 +602,7 @@ test('a saved Shiv preset replaces a stale matching scope on return to Shiv', ()
   assert.equal(selectedScope.values.enemyLow, '#22AA44');
   assert.equal(state.values.enemyLow, '#22AA44');
   assert.equal(readConfig(fixture).values.enemyLow, '#22AA44');
-  assert.equal(configDispatches(fixture).length, 0);
+  assert.equal(configDispatches(fixture).length, 1);
 });
 
 test('a canceled wait suppresses only the next settled identity transition', () => {
@@ -1270,7 +1273,9 @@ test('Copy selected exports one inert preset with complete metadata', () => {
       values: { enemyLow: '#22AA44', widthScale: 117 },
       mode: 'selected',
       heroes: ['hero_haze'],
-      conditions: { minHealth: 25, tags: ['hero'] },
+      conditions: {
+        enemyLow: { slot: 2, minTier: 1, value: '#33AA55' },
+      },
     }],
     pendingPresetId: null,
   });
@@ -1296,7 +1301,9 @@ test('Copy selected exports one inert preset with complete metadata', () => {
     mode: 'selected',
     heroes: ['hero_haze'],
     values: [[1, 117], [8, '#22AA44']],
-    conditions: { minHealth: 25, tags: ['hero'] },
+    conditions: {
+      enemyLow: { slot: 2, minTier: 1, value: '#33AA55' },
+    },
   });
   assert.deepEqual(readMenuState(fixture), beforeState);
   assert.equal(
@@ -1377,7 +1384,9 @@ test('preset and bundle import append atomically without applying settings', () 
       values: { enemyLow: '#22AA44', widthScale: 117 },
       mode: 'selected',
       heroes: ['hero_haze'],
-      conditions: { minHealth: 25 },
+      conditions: {
+        enemyLow: { slot: 2, minTier: 1, value: '#33AA55' },
+      },
     }],
     selectedPresetId: 'user_0004',
     pendingPresetId: null,
@@ -1419,7 +1428,9 @@ test('preset and bundle import append atomically without applying settings', () 
   assert.deepEqual(state.userPresets[1].heroes, ['hero_haze']);
   assert.equal(state.userPresets[1].values.enemyLow, '#22AA44');
   assert.equal(state.userPresets[1].values.widthScale, 117);
-  assert.deepEqual(state.userPresets[1].conditions, { minHealth: 25 });
+  assert.deepEqual(state.userPresets[1].conditions, {
+    enemyLow: { slot: 2, minTier: 1, value: '#33AA55' },
+  });
   assert.equal(state.selectedPresetId, 'user_0008');
   assert.equal(state.nextUserPresetNumber, 9);
   assert.equal(readConfig(destination).revision, beforeRevision);

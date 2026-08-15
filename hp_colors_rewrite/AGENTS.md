@@ -24,9 +24,10 @@ Source-of-truth order:
 
 ```text
 hud_escape_menu.xml
+  -> hp_colors_state.js
+  -> owns canonical state policy behind one immutable send/read seam
   -> hp_colors_menu.js + hp_colors_menu.css
-  -> owns the session snapshot and functional controls
-  -> publishes versioned base-to-overlay config changes
+  -> adapts Panorama panels, scheduling, transport, replay, and clipboard effects
 
 unit_status_overlay.xml
   -> healthbar_probe.js
@@ -35,9 +36,9 @@ unit_status_overlay.xml
   -> logs transition-only telemetry
 ```
 
-`hp_colors_menu.js` owns one hidden canonical base, ordered session-scoped snapshot rows, and a baked-before-user session preset repository. A deterministic resolver chooses the first matching Selected Heroes row, then the first All Heroes row, then the hidden base represented by baked Rewrite Default. User presets expose only All Heroes and Selected Heroes; legacy user Global records normalize to All Heroes without applying. Applying All/Selected preserves the hidden base and replaces the Current scope. Only the resolved effective snapshot is retained in the existing absolute-root config attribute and published through `ClientUI_FireOutput`; a separate menu-only root attribute retains base, scope rows, user presets, stable IDs, baked display-name overrides, hidden baked IDs, selection, pending identity match, and repository ordering. Effective-value equality gates revision increments and dispatch. While effective customization is enabled, the owner replays the unchanged cached snapshot at 1-second hot, 3-second warm, then 8-second idle intervals so late contexts receive it without full-tree rescans.
+`hp_colors_state.js` owns one hidden canonical base, ordered session-scoped snapshot rows, and a baked-before-user session preset repository. Its menu-owned factory instance accepts atomic domain intents through `send()` and exposes a cached immutable rendering projection through `read()`. A deterministic resolver chooses the first matching Selected Heroes row, then the first All Heroes row, then the hidden base represented by baked Rewrite Default. User presets expose only All Heroes and Selected Heroes; legacy user Global records normalize to All Heroes without applying. Applying All/Selected preserves the hidden base and replaces the Current scope. Only byte-different resolved effective values produce a publication effect and increment the separate effective revision. `hp_colors_menu.js` executes that effect through the existing absolute-root config attribute and `ClientUI_FireOutput`, retains the same-session state effect in the menu-only root attribute, and adaptively replays only its cached serialized publication for late contexts.
 
-Hero identity is transient menu-owned metadata, not part of the healthbar settings snapshot. Auto detection reads only the generated `CitadelHudTopBarPlayer.LocalPlayer` card under `#TopBar`, maps the exact `.HeroName` retail text to a stable `hero_*` key, and requires two matching active-match samples. Blank, `#`, fuzzy, and unmapped values remain unknown. Manual Override uses one explicit stable key; Off clears effective identity and skips local-card scans. Identity/lifecycle state never enters `DEFAULTS`, HPCR2, Undo, the root snapshot publication, or unit-status contexts. Scope rows and preset records validate and deduplicate stable hero keys, normalize empty Selected rows to Off, and remain session-only. A Selected preset waits without live mutation until exact identity resolves; match applies once and mismatch rejects. On later exact identity transitions, the first matching saved Selected record in current session repository order replaces any stale Current row for that hero; otherwise the first saved All Heroes record restores the shared fallback. Leaving an active Selected scope without either automatically applies the baked `baked_default` record. Manual mutation cancels and suppresses a pending record for that resolving transition.
+Hero identity is transient state-module metadata, not part of the healthbar settings snapshot. The menu adapter observes only the generated `CitadelHudTopBarPlayer.LocalPlayer` card under `#TopBar` and reports epoch-tagged lifecycle, exact retail-name, and required ability-slot observations. The state module maps exact names to stable `hero_*` keys, requires two matching active-match samples, rejects stale epochs, and exposes only referenced ability slots for polling. Blank, `#`, fuzzy, and unmapped values remain unknown. Manual Override uses one explicit stable key; Off clears effective identity and skips local-card scans. Identity/lifecycle state never enters the canonical setting schema, HPCR2, Undo, the effective snapshot publication, or unit-status contexts. Scope rows and preset records validate and deduplicate stable hero keys, normalize empty Selected rows to Off, and remain session-only. A Selected preset waits without live mutation until exact identity resolves; match applies once and mismatch rejects. On later exact identity transitions, the first matching saved Selected record in current session repository order replaces any stale Current row for that hero; otherwise the first saved All Heroes record restores the shared fallback. Leaving an active Selected scope without either automatically applies baked Rewrite Default. Manual mutation cancels and suppresses a pending record for that resolving transition.
 
 Preserve these authority rules:
 
@@ -108,6 +109,7 @@ Focused automated regressions live under `../scripts/`; run the validators named
 - `panorama/layout/unit_status_overlay.xml` — classic stock overlay plus probe include.
 - `panorama/layout/hud_escape_menu.xml` — current stock ESC layout plus the HP Colors entry and editor shell.
 - `panorama/scripts/healthbar_probe.js` — local discovery and telemetry entry point.
+- `panorama/scripts/hp_colors_state.js` — deep canonical state policy and immutable factory.
 - `panorama/scripts/hp_colors_menu.js` — local ESC editor lifecycle and navigation.
 - `panorama/styles/hp_colors_menu.css` — Ritual Stripe entry and editor styling.
 - `../scripts/source2_package_pipeline.ps1` — safe cleanup, compiler, VPK pack/list, and asset-contract helpers.
@@ -121,7 +123,7 @@ Focused automated regressions live under `../scripts/`; run the validators named
 - No npm/Bun/Node package manifest belongs to this module. Do not introduce a package manager.
 - The compiler may hang or exit nonzero after producing every required output because of its final redirected `Console.ReadKey`. Required outputs are the success signal; missing output is fatal.
 - Never hand-edit `hp_colors_rewrite_compiled/`, root `pak01_dir.vpk`, deployed VPKs, or timestamped backups.
-- The build must retain exactly the two layouts, two scripts, editor stylesheet, and unit-status pulse stylesheet required by the current slice and reject raw source or documentation inside the VPK.
+- The build must retain exactly the two layouts, three scripts, editor stylesheet, and unit-status pulse stylesheet required by the current slice and reject raw source or documentation inside the VPK.
 - Never launch, restart, stop, or otherwise control Deadlock. Only the user runs the game and performs interactive smoke steps. After the user exits, inspect `console.log` for evidence.
 
 ## Testing & QA

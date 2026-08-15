@@ -118,16 +118,16 @@ Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:6540-6828`, `7346-
 
 ## Priority 7 — Ability signature-tier conditions
 
-- [ ] Define a conditional rule as setting ID, ability slot `1–4`, minimum tier, and typed override value.
-- [ ] Restrict rules to persisted settings with a supported value editor.
-- [ ] Add a row-level condition indicator and focused rule editor.
-- [ ] Read current ability-slot tier classes from the live local-hero HUD.
-- [ ] Fall back to the base setting when the slot panel or tier is unavailable.
-- [ ] Re-scan after hero changes, match resets, and ability-panel replacement.
-- [ ] Keep conditional base values and effective values separate.
-- [ ] Publish only changed effective values and clear stale overrides when conditions stop matching.
-- [ ] Add all four slots, tier boundaries, panel replacement, hero change, unavailable-panel, typed-value, and stale-rule regressions.
-- [ ] Validate the real ability hierarchy and tier timing in game before considering the slice complete.
+- [x] Define a conditional rule as setting ID, ability slot `1–4`, minimum tier, and typed override value.
+- [x] Restrict rules to serializable canonical settings with a supported value editor.
+- [x] Add a row-level condition indicator and focused rule editor where another ability selects Tier 1 and repeated clicks cycle Tier 1 → 2 → 3 → 1.
+- [x] Read current ability-slot tier classes from the live local-hero HUD.
+- [x] Fall back to the base setting when the slot panel or tier is unavailable.
+- [x] Re-scan after hero changes, match resets, and ability-panel replacement.
+- [x] Keep conditional base values and effective values separate.
+- [x] Publish only changed effective values and clear stale overrides when conditions stop matching.
+- [x] Add all four slots, tier boundaries, panel replacement, hero change, unavailable-panel, typed-value, and stale-rule regressions.
+- [x] Validate the real ability hierarchy and tier timing in game before considering the slice complete.
 
 Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:9549-10317`; `hp_colors/panorama/styles/anita_ui.css:2007-2441`.
 
@@ -136,11 +136,11 @@ Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:9549-10317`; `hp_c
 These are reliability behaviors, not new visual controls. Add them only with measured evidence and without increasing the active paint cost.
 
 - [ ] Add a bounded first-paint hydration gate once durable persistence exists.
-- [ ] Add an explicit match-reset generation/acknowledgement path for scoped state.
-- [ ] Measure whether stock Panorama overwrites rewrite-owned inline styles during idle periods.
-- [ ] If live evidence confirms drift, add a slow watchdog that validates only owned properties and backs off when clean.
-- [ ] Preserve local ownership, replacement cleanup, zero-width backoff, and single-flight scheduling.
-- [ ] Record operation counters before and after each hardening change.
+- [x] Omit an explicit match-reset generation/acknowledgement path because two live sessions found no stale scoped state across four active-match exits. The targeted exit preserved `user_0001` with an unchanged revision and no pending request; closing the editor already cancels WAITING actions by contract. Reopen only with contrary live evidence.
+- [x] Measure whether stock Panorama overwrites rewrite-owned inline styles during idle periods. A 2026-08-15 run captured 37m35s across 90 probe contexts and 1,291 summaries with zero transient, confirmed, or recovered drift.
+- [x] Omit the watchdog because live evidence found no style drift; do not add clean-state reads without new contrary evidence.
+- [x] Verify local ownership, replacement handling, zero-width idle cadence, and single-flight scheduling under counters. The run captured 83 part replacements, zero duplicate scan/paint schedules, and zero-width samples in all 90 contexts; 88 contexts ended at the 1.5-second idle paint cadence and two were still in the 0.25-second recent-change window. All 83 released-style signals were the intentional collapsed kill-marker visibility state, not leaked visible styling.
+- [x] Record the drift and scheduling baseline operation counters. The same run exposed 1,921 hero observations and 1,912 unchanged state intents; settled hero samples now no-op and unchanged ability tiers send only once per lifecycle identity. Focused regressions preserve hero settling, tier changes, and epoch resets.
 
 Legacy evidence: `hp_colors/panorama/scripts/healthbar_logic.js:714-879`, `983-1043`, `1218-1249`, `2258-2305`, `3604-3759`.
 

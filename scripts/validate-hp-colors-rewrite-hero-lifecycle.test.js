@@ -8,8 +8,9 @@ const {
   MockPanel,
   createPanoramaHarness,
   createVmContext,
-  runInVm,
   installTopBarIdentityTree,
+  runHpColorsSourcesInVm,
+  runInVm,
   findByClass,
 } = require('./hp-colors-panorama-test-adapter');
 
@@ -20,6 +21,10 @@ const layoutSource = fs.readFileSync(
 );
 const menuSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/hp_colors_menu.js'),
+  'utf8',
+);
+const stateSource = fs.readFileSync(
+  path.join(rewriteRoot, 'panorama/scripts/hp_colors_state.js'),
   'utf8',
 );
 
@@ -64,9 +69,61 @@ function bootHero(options = {}) {
     gameTime: options.gameTime,
     hudClasses: options.hudClasses,
   });
-  runInVm(menuSource, createVmContext(harness), 'hp_colors_menu.js');
+  runHpColorsSourcesInVm(stateSource, menuSource, harness);
   harness.$.HPColorsMenuBoot();
   return { harness, topBar };
+}
+
+function bootHeroWithIntentCounts(options = {}) {
+  const harness = createPanoramaHarness({
+    includeGame: options.includeGame,
+    gameState: options.gameState,
+  });
+  installLayoutPanels(harness);
+  const topBar = installTopBarIdentityTree(harness, {
+    heroName: options.heroName,
+    gameTime: options.gameTime,
+    hudClasses: options.hudClasses,
+  });
+  const context = createVmContext(harness);
+  runInVm(stateSource, context, 'hp_colors_state.js');
+  const baseFactory = harness.$.HPColorsStateFactory;
+  const seed = baseFactory.create();
+  const conditioned = seed.send({
+    type: 'condition_set',
+    key: 'enemyVisible',
+    slot: 1,
+    minTier: 1,
+    value: false,
+  });
+  const sessionEffect = conditioned.effects.find(
+    (effect) => effect.type === 'session_replace',
+  );
+  assert.ok(sessionEffect, 'expected conditioned session state');
+  harness.root.SetAttributeString(
+    'hp_colors_rewrite_menu_state',
+    sessionEffect.raw,
+  );
+  const intentCounts = Object.create(null);
+  let stateInstance = null;
+  harness.$.HPColorsStateFactory = Object.freeze({
+    create(initial) {
+      const instance = baseFactory.create(initial);
+      stateInstance = instance;
+      return Object.freeze({
+        send(intent) {
+          intentCounts[intent.type] = (intentCounts[intent.type] || 0) + 1;
+          return instance.send(intent);
+        },
+        read() {
+          return instance.read();
+        },
+      });
+    },
+  });
+  runInVm(menuSource, context, 'hp_colors_menu.js');
+  harness.$.HPColorsMenuBoot();
+  return { harness, topBar, intentCounts, get stateInstance() { return stateInstance; } };
 }
 
 function identityPanel(fixture, id) {
@@ -252,6 +309,38 @@ test('identity cadence is five seconds while inactive and one second while activ
   assert.equal(nextIdentityDelay(fixture), 0);
   runIdentityTick(fixture);
   assert.equal(nextIdentityDelay(fixture), 1);
+});
+
+test('unchanged ability tiers send once per stable lifecycle identity', () => {
+  const fixture = bootHeroWithIntentCounts({
+    includeGame: false,
+    heroName: 'SHIV',
+    gameTime: '00:01',
+  });
+  for (let index = 0; index < 6; index += 1) runIdentityTick(fixture);
+  assert.equal(fixture.intentCounts.ability_observe, 2);
+
+  fixture.stateInstance.send({
+    type: 'condition_remove',
+    key: 'enemyVisible',
+  });
+  runIdentityTick(fixture);
+  assert.equal(fixture.intentCounts.ability_observe, 2);
+  fixture.stateInstance.send({
+    type: 'condition_set',
+    key: 'enemyVisible',
+    slot: 1,
+    minTier: 1,
+    value: false,
+  });
+  runIdentityTick(fixture);
+  assert.equal(fixture.intentCounts.ability_observe, 3);
+
+  fixture.topBar.hud.AddClass('GameStatePostGame');
+  runIdentityTick(fixture);
+  runIdentityTick(fixture);
+  runIdentityTick(fixture);
+  assert.equal(fixture.intentCounts.ability_observe, 4);
 });
 
 test('stale identity generation callbacks are no-ops after a phase restart', () => {

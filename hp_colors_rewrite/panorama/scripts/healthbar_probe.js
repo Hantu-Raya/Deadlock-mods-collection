@@ -103,7 +103,6 @@
   var configRaw = "";
   var config = copyConfig(DEFAULT_CONFIG);
   var lastColorChangeAt = 0;
-
   function copyConfig(source) {
     var result = {};
     for (var key in DEFAULT_CONFIG) {
@@ -115,7 +114,6 @@
     }
     return result;
   }
-
   function isValid(panel) {
     try {
       return !!(panel && (!panel.IsValid || panel.IsValid()));
@@ -840,55 +838,77 @@
   }
 
   function setStyle(panel, property, value, cache, cacheKey) {
-    if (!isValid(panel) || !panel.style || cache[cacheKey] === value) return;
+    if (!isValid(panel) || !panel.style) {
+      if (cache) cache[cacheKey] = null;
+      return;
+    }
+    if (cache && cache[cacheKey] === value) {
+      return;
+    }
     try {
       panel.style[property] = value;
-      cache[cacheKey] = value;
+      if (cache) cache[cacheKey] = value;
     } catch (error) {
-      cache[cacheKey] = null;
+      if (cache) cache[cacheKey] = null;
+      return;
     }
   }
 
   function setText(panel, value, cache, cacheKey) {
-    if (!isValid(panel) || cache[cacheKey] === value) return;
+    if (!isValid(panel)) {
+      if (cache) cache[cacheKey] = null;
+      return;
+    }
+    if (cache && cache[cacheKey] === value) {
+      return;
+    }
     try {
       panel.text = value;
-      cache[cacheKey] = value;
+      if (cache) cache[cacheKey] = value;
     } catch (error) {
-      cache[cacheKey] = null;
+      if (cache) cache[cacheKey] = null;
     }
   }
+
   function setOwnedClass(panel, className, enabled, cache, cacheKey) {
     var marker = enabled ? "1" : "0";
     if (!isValid(panel)) {
-      cache[cacheKey] = null;
+      if (cache) cache[cacheKey] = null;
       return;
     }
-    if (cache[cacheKey] === marker) return;
+    if (cache && cache[cacheKey] === marker) {
+      return;
+    }
     try {
       if (enabled) {
-        if (panel.AddClass) panel.AddClass(className);
+        if (panel.AddClass) {
+          panel.AddClass(className);
+        }
       } else if (panel.RemoveClass) {
         panel.RemoveClass(className);
       }
-      cache[cacheKey] = marker;
+      if (cache) cache[cacheKey] = marker;
     } catch (error) {
-      cache[cacheKey] = null;
+      if (cache) cache[cacheKey] = null;
     }
   }
 
   function clearOwnedStyle(panel, property, cache, cacheKey) {
     if (!isValid(panel) || !panel.style) {
-      cache[cacheKey] = null;
+      if (cache) cache[cacheKey] = null;
       return;
     }
     try {
-      if (panel.style[property] !== "") panel.style[property] = "";
-      cache[cacheKey] = "";
+      if (panel.style[property] !== "") {
+        panel.style[property] = "";
+      }
+      if (cache) cache[cacheKey] = "";
     } catch (error) {
-      cache[cacheKey] = null;
+      if (cache) cache[cacheKey] = null;
+      return;
     }
   }
+
 
   function clearLevelOwnership(bar) {
     clearOwnedStyle(
@@ -1906,10 +1926,11 @@
     }
 
     for (var removeIndex = bars.length - 1; removeIndex >= 0; removeIndex--) {
-      if (bars[removeIndex].seen) continue;
-      clearPulse(bars[removeIndex]);
-      clearKillMarkerOwnership(bars[removeIndex]);
-      clearReadoutOwnership(bars[removeIndex]);
+      var removedBar = bars[removeIndex];
+      if (removedBar.seen) continue;
+      clearPulse(removedBar);
+      clearKillMarkerOwnership(removedBar);
+      clearReadoutOwnership(removedBar);
       bars.splice(removeIndex, 1);
     }
   }
@@ -1945,6 +1966,9 @@
     applyCustomization(bar);
     return true;
   }
+
+
+
 
   function paintColors() {
     if (!isValid(context)) return;

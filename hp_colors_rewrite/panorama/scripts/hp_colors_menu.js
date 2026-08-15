@@ -5,7 +5,6 @@
   var MENU_STATE_ATTR = "hp_colors_rewrite_menu_state";
   var EVENT_CHANNEL = "ClientUI_FireOutput";
   var CONFIG_MAGIC = "HP_COLORS_REWRITE_CONFIG";
-  var HISTORY_LIMIT = 40;
   var PRECISE_PIPS_ENABLE_TEXT =
     '"citadel_unit_status_health_per_minor_pip" "10"\n' +
     '"citadel_unit_status_health_per_pip" "10"\n' +
@@ -21,153 +20,15 @@
   var REPLAY_WARM_COUNT = 12;
   var HERO_POLL_ACTIVE_SEC = 1;
   var HERO_POLL_INACTIVE_SEC = 5;
-  var HERO_SETTLE_SAMPLES = 2;
   var HERO_MODE_AUTO = "auto";
   var HERO_MODE_MANUAL = "manual";
   var HERO_MODE_OFF = "off";
-  var HERO_SCOPE_OFF = "off";
   var HERO_SCOPE_ALL = "all";
   var HERO_SCOPE_SELECTED = "selected";
-  var CURRENT_SCOPE_ID = "scope_current";
-  var DEFAULT_PRESET_ID = "baked_default";
   var HERO_PHASE_TRANSITIONING = "transitioning";
   var HERO_PHASE_LOBBY = "lobby";
   var HERO_PHASE_ACTIVE = "active";
   var HERO_PHASE_POST_MATCH = "post_match";
-  var HERO_DATA = [
-    ["hero_atlas", "Abrams"],
-    ["hero_fencer", "Apollo"],
-    ["hero_bebop", "Bebop"],
-    ["hero_punkgoat", "Billy"],
-    ["hero_nano", "Calico"],
-    ["hero_unicorn", "Celeste"],
-    ["hero_drifter", "Drifter"],
-    ["hero_dynamo", "Dynamo"],
-    ["hero_necro", "Graves"],
-    ["hero_orion", "Grey Talon"],
-    ["hero_haze", "Haze"],
-    ["hero_astro", "Holliday"],
-    ["hero_inferno", "Infernus"],
-    ["hero_tengu", "Ivy"],
-    ["hero_kelvin", "Kelvin"],
-    ["hero_ghost", "Lady Geist"],
-    ["hero_lash", "Lash"],
-    ["hero_forge", "McGinnis"],
-    ["hero_vampirebat", "Mina"],
-    ["hero_mirage", "Mirage"],
-    ["hero_krill", "Mo & Krill"],
-    ["hero_bookworm", "Paige"],
-    ["hero_chrono", "Paradox"],
-    ["hero_synth", "Pocket"],
-    ["hero_familiar", "Rem"],
-    ["hero_gigawatt", "Seven"],
-    ["hero_shiv", "Shiv"],
-    ["hero_magician", "Sinclair"],
-    ["hero_werewolf", "Silver"],
-    ["hero_doorman", "The Doorman"],
-    ["hero_viper", "Vyper"],
-    ["hero_viscous", "Viscous"],
-    ["hero_hornet", "Vindicta"],
-    ["hero_priest", "Venator"],
-    ["hero_frank", "Victor"],
-    ["hero_warden", "Warden"],
-    ["hero_wraith", "Wraith"],
-    ["hero_yamato", "Yamato"],
-  ];
-  var HERO_BY_KEY = {};
-  var HERO_BY_RETAIL_NAME = {};
-  for (var heroIndex = 0; heroIndex < HERO_DATA.length; heroIndex++) {
-    var heroKey = HERO_DATA[heroIndex][0];
-    var heroName = HERO_DATA[heroIndex][1];
-    HERO_BY_KEY[heroKey] = heroName;
-    HERO_BY_RETAIL_NAME[heroName.toUpperCase()] = heroKey;
-  }
-
-  var DEFAULTS = {
-    enabled: true,
-    widthScale: 100,
-    heightScale: 100,
-    positionX: 0,
-    positionY: 0,
-    enemyEnabled: true,
-    enemyVisible: true,
-    enemyMode: "gradient",
-    enemyLow: "#E16161",
-    enemyMid: "#FF7B00",
-    enemyHigh: "#00FF00",
-    enemyTeamHigh: false,
-    excludeBuildings: false,
-    excludeBosses: false,
-    enemyHealing: "#5FFF80",
-    enemyDelta: "#FFE55B",
-    enemyBulletShield: "#FFFFFF",
-    allyEnabled: false,
-    allyVisible: true,
-    allyMode: "fixed",
-    allyLow: "#E16161",
-    allyMid: "#FFED79",
-    allyHigh: "#70F8C1",
-    allyHealing: "#5FFF80",
-    allyDelta: "#504C47",
-    allyBulletShield: "#FFFFFF",
-    ultMode: "follow",
-    ultCustom: "#E16161",
-    readoutVisible: true,
-    readoutFormat: "hp",
-    readoutSize: 145,
-    readoutFont: "default",
-    readoutOffsetX: 27,
-    readoutOffsetY: 500,
-    readoutColorMode: "bar",
-    readoutMode: "fixed",
-    readoutLow: "#E16161",
-    readoutMid: "#FF7B00",
-    readoutHigh: "#FFFFFF",
-    pipsVisible: true,
-    precisePipsEnabled: false,
-    levelsVisible: true,
-    lowThreshold: 25,
-    highThreshold: 65,
-    enemyPulseEnabled: true,
-    enemyPulseThreshold: 25,
-    enemyPulseBpm: 75,
-    enemyPulseIntensity: 1,
-    enemyPulseColorEnabled: false,
-    enemyPulseColorMode: "gradient",
-    enemyPulseColor: "#FF2222",
-    enemyPulseHideBar: false,
-    enemyPulseReadout: false,
-    enemyPulseReadoutModifiers: false,
-    enemyPulseReadoutSize: 145,
-    enemyPulseReadoutOffsetX: 27,
-    enemyPulseReadoutOffsetY: 500,
-    allyPulseEnabled: false,
-    allyPulseThreshold: 25,
-    allyPulseBpm: 75,
-    allyPulseIntensity: 1,
-    allyPulseColorEnabled: false,
-    allyPulseColor: "#FF2222",
-    enemyKillMarkerEnabled: false,
-    enemyKillMarkerThreshold: 25,
-    enemyKillMarkerWidth: 3,
-    enemyKillMarkerColor: "#FF2222",
-  };
-  var DEFAULT_KEYS = [];
-  for (var defaultKey in DEFAULTS) {
-    if (Object.prototype.hasOwnProperty.call(DEFAULTS, defaultKey))
-      DEFAULT_KEYS.push(defaultKey);
-  }
-  var BAKED_PRESETS = [
-    {
-      id: DEFAULT_PRESET_ID,
-      kind: "baked",
-      name: "Rewrite Default",
-      values: copyValues(DEFAULTS),
-      mode: HERO_SCOPE_OFF,
-      heroes: [],
-      conditions: null,
-    },
-  ];
 
   var CATEGORY_DEFS = [
     {
@@ -382,28 +243,6 @@
     "HPColorsCategoryReadout",
     "HPColorsCategoryEffects",
   ];
-  var BOOLEAN_KEYS = {
-    enabled: true,
-    enemyEnabled: true,
-    enemyVisible: true,
-    enemyTeamHigh: true,
-    excludeBuildings: true,
-    excludeBosses: true,
-    allyEnabled: true,
-    allyVisible: true,
-    readoutVisible: true,
-    pipsVisible: true,
-    precisePipsEnabled: true,
-    levelsVisible: true,
-    enemyPulseEnabled: true,
-    enemyKillMarkerEnabled: true,
-    enemyPulseColorEnabled: true,
-    enemyPulseHideBar: true,
-    enemyPulseReadout: true,
-    enemyPulseReadoutModifiers: true,
-    allyPulseEnabled: true,
-    allyPulseColorEnabled: true,
-  };
   var COLOR_KEYS = {
     enemyLow: true,
     enemyMid: true,
@@ -444,37 +283,127 @@
     readoutHigh: "HP NUMBER HIGH",
     enemyPulseColor: "ENEMY PULSE COLOR",
     enemyKillMarkerColor: "ENEMY KILL MARKER COLOR",
-    allyPulseColor: "ALLY PULSE COLOR",
   };
-
   var context = $.GetContextPanel();
+  var DEFAULTS = {};
   var state = {
     booted: false,
     open: false,
     peeking: false,
     categoryIndex: 0,
     tabIndex: 0,
-    revision: 0,
-    values: copyValues(DEFAULTS),
-    scopes: [],
-    effectiveValues: copyValues(DEFAULTS),
-    effectiveValuesRaw: "",
-    history: [],
-    userPresets: [],
-    pendingPresetId: null,
-    selectedPresetId: null,
-    nextUserPresetNumber: 1,
-    bakedPresetNameOverrides: {},
-    hiddenBakedPresetIds: [],
+    view: null,
   };
+  var stateInstance = null;
   var replayGeneration = 0;
   var replayRunning = false;
   var replayDispatches = 0;
   var serializedSnapshotRaw = "";
   var serializedReplayPayload = "";
-  var scopeResolutionPending = false;
-  var resetKeys = null;
+  var lastClipboardCopied = null;
+  Object.defineProperties(state, {
+    values: {
+      get: function () {
+        var view = currentView();
+        return view ? view.values : {};
+      },
+    },
+    conditions: {
+      get: function () {
+        var view = currentView();
+        if (!view) return {};
+        return view.currentScope ? view.currentScope.conditions : view.conditions;
+      },
+    },
+    history: {
+      get: function () {
+        var view = currentView();
+        return { length: view && view.undoAvailable ? 1 : 0 };
+      },
+    },
+  });
   var resetFeedbackGeneration = 0;
+  function currentView() {
+    if (stateInstance) state.view = stateInstance.read();
+    var view = state.view;
+    if (view && view.schema) DEFAULTS = view.schema.defaults || {};
+    return view;
+  }
+
+
+
+
+  function commitValue(key, value) {
+    var result = sendState({ type: "setting_edit", key: key, value: value });
+    syncControls();
+    return result;
+  }
+
+
+
+  function undo() {
+    sendState({ type: "undo" });
+    syncControls();
+  }
+
+
+
+  function executeStateEffects(effects) {
+    if (!Array.isArray(effects)) return;
+    for (var index = 0; index < effects.length; index++) {
+      var effect = effects[index];
+      if (!effect || !effect.type) continue;
+      if (effect.type === "session_replace") {
+        writeMenuState(effect.raw);
+      } else if (effect.type === "effective_publish") {
+        writeRootSnapshot(effect.raw);
+        var payload = serializeChange(
+          effect.settingId,
+          effect.raw,
+          effect.revision,
+          effect.values,
+        );
+        cacheReplayPayload(effect.raw, payload);
+        dispatchChange(effect.settingId, effect.raw, payload);
+        refreshSnapshotReplay();
+      } else if (effect.type === "clipboard_write") {
+        lastClipboardCopied = executeClipboardEffect(effect);
+      }
+    }
+  }
+  function executeClipboardEffect(effect) {
+    var text = String(effect.text || "");
+    var copied = false;
+    try {
+      copied = $.DispatchEvent("CopyStringToClipboard", text) !== false;
+    } catch (error) {}
+    if (!copied) {
+      var input =
+        effect.purpose === "settings"
+          ? ui.transferInput
+          : ui.presetTransferInput;
+      try {
+        if (isValid(input)) {
+          input.text = text;
+          focus(input);
+          if (typeof input.SelectAll === "function") input.SelectAll();
+          copied =
+            $.DispatchEvent("TextEntryCopyToClipboard", input) !== false;
+          input.text = "";
+        }
+      } catch (error) {}
+    }
+    return copied;
+  }
+
+  function sendState(intent) {
+    if (!stateInstance) return null;
+    lastClipboardCopied = null;
+    var result = stateInstance.send(intent);
+    state.view = result && result.view ? result.view : stateInstance.read();
+    if (result) executeStateEffects(result.effects);
+    return result;
+  }
 
   var picker = {
     key: "",
@@ -482,7 +411,9 @@
     saturation: 0,
     lightness: 100,
     returnPanel: null,
+    condition: false,
   };
+  var pickerGestureActive = false;
   var ui = {
     categoryButtons: [],
     tabButtons: [],
@@ -544,49 +475,65 @@
     resetDialogMessage: null,
     resetConfirmButton: null,
     resetCancelButton: null,
+    transferExportButton: null,
+    transferImportButton: null,
+    transferCloseButton: null,
     liveStatus: null,
+    conditionDialog: null,
+    conditionTitle: null,
+    conditionStatus: null,
+    conditionSlotButtons: [],
+    conditionSlotImages: [],
+    conditionBooleanRow: null,
+    conditionBooleanFalse: null,
+    conditionBooleanTrue: null,
+    conditionEnumRow: null,
+    conditionEnumOptions: null,
+    conditionNumberRow: null,
+    conditionNumberSliderHost: null,
+    conditionNumberSlider: null,
+    conditionNumberEntry: null,
+    conditionColorRow: null,
+    conditionColorSwatch: null,
+    conditionColorEntry: null,
+    conditionRemoveButton: null,
+    conditionCancelButton: null,
+    conditionApplyButton: null,
   };
+  var resetKeys = null;
   var identity = {
-    mode: HERO_MODE_AUTO,
-    phase: HERO_PHASE_TRANSITIONING,
-    status: "unknown",
-    manualHeroKey: "",
-    detectedHeroKey: "",
-    effectiveHeroKey: "",
-    candidateHeroKey: "",
-    candidateSamples: 0,
-    emptySamples: 0,
-    sampledActive: false,
-    lifecycleGeneration: 0,
-    watchGeneration: 0,
     root: null,
     hud: null,
     topBar: null,
     localPlayer: null,
     heroNameLabel: null,
     gameTime: null,
+    watchGeneration: 0,
     renderSignature: "",
     optionPanels: [],
   };
+  var ability = {
+    slotParent: null,
+    signature: null,
+    slots: [null, null, null, null],
+    observedTiers: [-1, -1, -1, -1],
+    observedIdentityKey: "",
+    artSources: ["", "", "", ""],
+  };
+  var conditionControls = {};
+  var conditionDraft = {
+    key: "",
+    slot: 1,
+    minTier: 1,
+    value: null,
+    returnPanel: null,
+  };
   var scopeOptionPanels = [];
   var syncingControls = false;
-  var suppressedIdentityPresetId = "";
   var presetDeleteConfirmId = "";
   var presetInlineRenameId = "";
   var presetInlineRenameInput = null;
   var presetTransferRequest = 0;
-
-  function copyValues(source) {
-    var result = {};
-    for (var key in DEFAULTS) {
-      if (!Object.prototype.hasOwnProperty.call(DEFAULTS, key)) continue;
-      result[key] =
-        source && Object.prototype.hasOwnProperty.call(source, key)
-          ? source[key]
-          : DEFAULTS[key];
-    }
-    return result;
-  }
 
   function isValid(panel) {
     try {
@@ -687,12 +634,6 @@
     }
   }
 
-  function normalizeHeroRetailName(value) {
-    return String(value || "")
-      .replace(/^\s+|\s+$/g, "")
-      .replace(/\s+/g, " ")
-      .toUpperCase();
-  }
 
   function parseGameTimeText(value) {
     var text = String(value || "").replace(/^\s+|\s+$/g, "");
@@ -748,6 +689,228 @@
     return true;
   }
 
+  function clearAbilityPanelRefs() {
+    ability.slotParent = null;
+    ability.signature = null;
+    ability.slots = [null, null, null, null];
+  }
+
+
+  function setObservedAbilityTiers(next) {
+    var signature = next.join("|");
+    if (signature === ability.observedTiers.join("|")) return false;
+    ability.observedTiers = next.slice(0);
+    return true;
+  }
+
+  function clearObservedAbilityTiers() {
+    clearAbilityPanelRefs();
+    return setObservedAbilityTiers([-1, -1, -1, -1]);
+  }
+
+  function readAbilityTier(panel) {
+    if (!isValid(panel)) return -1;
+    for (var tier = 3; tier >= 0; tier--) {
+      if (panelHasClass(panel, "Tier" + String(tier))) return tier;
+    }
+    return -1;
+  }
+
+  function readAbilityArtSource(panel) {
+    if (!isValid(panel)) return "";
+    var image = findChild(panel, "ability_image");
+    if (!isValid(image)) return "";
+    var source = "";
+    try {
+      source = image.GetAttributeString("src", "");
+      if (!source) source = image.GetAttributeString("defaultsrc", "");
+    } catch (error) {
+      source = "";
+    }
+    if (!source) {
+      try {
+        if (typeof image.GetSource === "function")
+          source = String(image.GetSource() || "");
+      } catch (error) {
+        source = "";
+      }
+    }
+    if (!source) {
+      try {
+        source = String(image.src || "");
+      } catch (error) {
+        source = "";
+      }
+    }
+    if (!source && image.style) {
+      try {
+        source = String(image.style.backgroundImage || "");
+      } catch (error) {
+        source = "";
+      }
+    }
+    if (source.indexOf("url(") === 0) {
+      source = source.slice(4, -1);
+      if (
+        (source.charAt(0) === '"' && source.charAt(source.length - 1) === '"') ||
+        (source.charAt(0) === "'" && source.charAt(source.length - 1) === "'")
+      )
+        source = source.slice(1, -1);
+    }
+    return source.indexOf("://") >= 0 ? source : "";
+  }
+
+  function syncConditionAbilityCard(slotIndex) {
+    var button = ui.conditionSlotButtons[slotIndex];
+    var image = ui.conditionSlotImages[slotIndex];
+    if (!isValid(button)) return;
+    var liveTier = ability.observedTiers[slotIndex];
+    var selected = conditionDraft.slot === slotIndex + 1;
+    setClass(button, "Selected", selected);
+    setClass(button, "Unavailable", liveTier < 0);
+    for (var required = 1; required <= 3; required++)
+      setClass(
+        button,
+        "RequiredTier" + String(required),
+        conditionDraft.minTier === required,
+      );
+    var source = readAbilityArtSource(ability.slots[slotIndex]);
+    setClass(button, "HasAbilityArt", !!source);
+    if (
+      source &&
+      isValid(image) &&
+      ability.artSources[slotIndex] !== source
+    ) {
+      try {
+        if (typeof image.SetImage === "function") image.SetImage(source);
+        else image.src = source;
+        ability.artSources[slotIndex] = source;
+      } catch (error) {
+        setClass(button, "HasAbilityArt", false);
+      }
+    }
+  }
+
+
+  function abilityPanelCacheCurrent(referenced) {
+    if (!isValid(ability.signature) || !isValid(ability.slotParent))
+      return false;
+    for (var index = 0; index < ability.slots.length; index++) {
+      if (!referenced[index]) continue;
+      if (!isValid(ability.slots[index])) return false;
+      try {
+        if (ability.slots[index].GetParent() !== ability.slotParent)
+          return false;
+      } catch (error) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function resolveAbilityPanels(hudRoot, referenced) {
+    if (abilityPanelCacheCurrent(referenced)) return true;
+    ability.signature = null;
+    ability.slotParent = null;
+    ability.slots = [null, null, null, null];
+
+    var signature = findChild(hudRoot, "hud_signature");
+    if (!isValid(signature)) return false;
+    ability.signature = signature;
+
+    var slotParent = findChild(signature, "abilities");
+    if (!isValid(slotParent)) {
+      var anchor = findChild(signature, "slot_signature_1");
+      if (isValid(anchor)) {
+        try {
+          slotParent = anchor.GetParent();
+        } catch (error) {
+          slotParent = null;
+        }
+      }
+    }
+    if (!isValid(slotParent)) return false;
+    ability.slotParent = slotParent;
+
+    try {
+      var childCount = slotParent.GetChildCount();
+      for (var childIndex = 0; childIndex < childCount; childIndex++) {
+        var child = slotParent.GetChild(childIndex);
+        if (!isValid(child)) continue;
+        var match = /^slot_signature_([1-4])$/.exec(String(child.id || ""));
+        if (!match) continue;
+        ability.slots[Number(match[1]) - 1] = child;
+      }
+    } catch (error) {}
+
+    var missingReferencedSlot = false;
+    for (var index = 0; index < ability.slots.length; index++) {
+      if (!isValid(ability.slots[index]) && referenced[index]) {
+        missingReferencedSlot = true;
+        break;
+      }
+    }
+    if (missingReferencedSlot) return false;
+
+    return true;
+  }
+
+  function reportAbilityTiers(view, tiers, clearPanels) {
+    if (clearPanels) clearAbilityPanelRefs();
+    var changed = setObservedAbilityTiers(tiers);
+    var observedIdentityKey =
+      String(view.identity.epoch) +
+      "|" +
+      String(view.identity.effectiveHeroKey || "");
+    if (!changed && ability.observedIdentityKey === observedIdentityKey)
+      return false;
+    var result = sendState({
+      type: "ability_observe",
+      epoch: view.identity.epoch,
+      tiers: tiers,
+    });
+    var committed = !!(result && result.outcome.status === "committed");
+    if (result && result.outcome.status !== "rejected")
+      ability.observedIdentityKey = observedIdentityKey;
+    if ((changed || committed) && state.open) syncConditionIndicators();
+    return changed || committed;
+  }
+
+  function sampleAbilityTiers() {
+    var view = currentView();
+    var required = view && view.ability ? view.ability.requiredSlots : null;
+    var phase = view && view.identity ? view.identity.phase : HERO_PHASE_TRANSITIONING;
+    var hasRules = false;
+    var index;
+    if (required) {
+      for (index = 0; index < required.length; index++) {
+        if (required[index]) {
+          hasRules = true;
+          break;
+        }
+      }
+    }
+    if (!hasRules) {
+      ability.observedIdentityKey = "";
+      return clearObservedAbilityTiers();
+    }
+    if (
+      phase !== HERO_PHASE_ACTIVE ||
+      identitySignalHasClass("spec_mode") ||
+      !resolveIdentityRoot()
+    )
+      return reportAbilityTiers(view, [-1, -1, -1, -1], true);
+
+    var next = [-1, -1, -1, -1];
+    var hudRoot = isValid(identity.hud) ? identity.hud : identity.root;
+    if (!resolveAbilityPanels(hudRoot, required))
+      return reportAbilityTiers(view, next, false);
+    for (index = 0; index < required.length; index++) {
+      if (!required[index]) continue;
+      next[index] = readAbilityTier(ability.slots[index]);
+    }
+    return reportAbilityTiers(view, next, false);
+  }
   function readGameTimeSec() {
     if (isValid(identity.gameTime)) {
       var cached = parseGameTimeText(readPanelText(identity.gameTime));
@@ -818,146 +981,51 @@
     return null;
   }
 
-  function detectLocalHeroKey() {
-    var nameLabel = resolveHeroNameLabel();
-    var retailName = normalizeHeroRetailName(readPanelText(nameLabel));
-    return Object.prototype.hasOwnProperty.call(
-      HERO_BY_RETAIL_NAME,
-      retailName,
-    )
-      ? HERO_BY_RETAIL_NAME[retailName]
-      : "";
-  }
-
-  function clearAutoIdentity() {
-    identity.detectedHeroKey = "";
-    identity.candidateHeroKey = "";
-    identity.candidateSamples = 0;
-    identity.emptySamples = 0;
-    identity.sampledActive = false;
-  }
-
-  function updateEffectiveHero() {
-    var previousHeroKey = identity.effectiveHeroKey;
-    if (identity.mode === HERO_MODE_OFF) {
-      identity.status = "off";
-      identity.effectiveHeroKey = "";
-    } else if (identity.mode === HERO_MODE_MANUAL) {
-      identity.effectiveHeroKey = Object.prototype.hasOwnProperty.call(
-        HERO_BY_KEY,
-        identity.manualHeroKey,
-      )
-        ? identity.manualHeroKey
-        : "";
-      identity.status = identity.effectiveHeroKey ? "overridden" : "unknown";
-    } else {
-      identity.effectiveHeroKey =
-        identity.phase === HERO_PHASE_ACTIVE ? identity.detectedHeroKey : "";
-      identity.status = identity.effectiveHeroKey
-        ? "detected"
-        : identity.candidateHeroKey
-          ? "settling"
-          : "unknown";
-    }
-    return previousHeroKey !== identity.effectiveHeroKey;
-  }
-
-  function sampleAutoHero() {
-    var nextHeroKey = detectLocalHeroKey();
-    if (!nextHeroKey) {
-      identity.emptySamples += 1;
-      identity.candidateHeroKey = "";
-      identity.candidateSamples = 0;
-      identity.sampledActive =
-        identity.emptySamples >= HERO_SETTLE_SAMPLES;
-      if (identity.sampledActive) identity.detectedHeroKey = "";
-      return;
-    }
-    identity.emptySamples = 0;
-    identity.sampledActive = true;
-    if (nextHeroKey === identity.detectedHeroKey) {
-      identity.candidateHeroKey = "";
-      identity.candidateSamples = 0;
-      return;
-    }
-    if (nextHeroKey !== identity.candidateHeroKey) {
-      identity.candidateHeroKey = nextHeroKey;
-      identity.candidateSamples = 1;
-      return;
-    }
-    identity.candidateSamples += 1;
-    if (identity.candidateSamples >= HERO_SETTLE_SAMPLES) {
-      identity.detectedHeroKey = identity.candidateHeroKey;
-      identity.candidateHeroKey = "";
-      identity.candidateSamples = 0;
-    }
+  function readLocalHeroName() {
+    return readPanelText(resolveHeroNameLabel());
   }
 
   function heroDisplayName(heroKey) {
-    return Object.prototype.hasOwnProperty.call(HERO_BY_KEY, heroKey)
-      ? HERO_BY_KEY[heroKey]
-      : "";
+    var view = currentView();
+    var heroes = view && view.heroes ? view.heroes : [];
+    for (var index = 0; index < heroes.length; index++) {
+      if (heroes[index].key === heroKey) return heroes[index].name;
+    }
+    return "";
   }
 
-  function phaseDisplayName() {
-    if (identity.phase === HERO_PHASE_LOBBY) return "LOBBY";
-    if (identity.phase === HERO_PHASE_ACTIVE) return "ACTIVE";
-    if (identity.phase === HERO_PHASE_POST_MATCH) return "POST MATCH";
+  function phaseDisplayName(phase) {
+    if (phase === HERO_PHASE_LOBBY) return "LOBBY";
+    if (phase === HERO_PHASE_ACTIVE) return "ACTIVE";
+    if (phase === HERO_PHASE_POST_MATCH) return "POST MATCH";
     return "TRANSITIONING";
   }
 
   function syncHeroOptionSelection() {
+    var view = currentView();
+    var manualHeroKey = view && view.identity ? view.identity.manualHeroKey : "";
     for (var index = 0; index < identity.optionPanels.length; index++) {
       var option = identity.optionPanels[index];
       var key = "";
       try {
         key = option.GetAttributeString("hp_colors_hero_key", "");
       } catch (error) {}
-      setClass(option, "Selected", key === identity.manualHeroKey);
+      setClass(option, "Selected", key === manualHeroKey);
     }
-  }
-
-  function pendingScopeCanResolve() {
-    if (!scopeResolutionPending) return false;
-    if (identity.mode !== HERO_MODE_AUTO) return true;
-    if (
-      identity.phase === HERO_PHASE_LOBBY ||
-      identity.phase === HERO_PHASE_POST_MATCH
-    )
-      return true;
-    if (identity.phase !== HERO_PHASE_ACTIVE) return false;
-    return (
-      identity.sampledActive &&
-      (!identity.candidateHeroKey || !!identity.effectiveHeroKey)
-    );
   }
 
   function renderIdentity() {
-    var heroChanged = updateEffectiveHero();
-    var appliedPendingPreset =
-      state.booted && state.pendingPresetId && tryApplyPendingPreset();
-    var appliedIdentityPreset =
-      state.booted &&
-      !appliedPendingPreset &&
-      heroChanged &&
-      tryApplyIdentityPreset();
-    if (
-      state.booted &&
-      !appliedPendingPreset &&
-      !appliedIdentityPreset &&
-      (heroChanged || pendingScopeCanResolve())
-    ) {
-      scopeResolutionPending = false;
-      reconcileEffective("*");
-    }
+    var view = currentView();
+    if (!view || !view.identity) return;
+    var identityView = view.identity;
     var signature = [
-      identity.phase,
-      identity.mode,
-      identity.status,
-      identity.detectedHeroKey,
-      identity.candidateHeroKey,
-      identity.manualHeroKey,
-      identity.effectiveHeroKey,
+      identityView.phase,
+      identityView.mode,
+      identityView.status,
+      identityView.manualHeroKey,
+      identityView.effectiveHeroKey,
+      identityView.candidateHeroKey,
+      identityView.epoch,
     ].join("|");
     if (signature === identity.renderSignature) return;
     identity.renderSignature = signature;
@@ -965,70 +1033,70 @@
     var identityText = "HERO: UNKNOWN";
     var detailText =
       "No stable local hero is available. Hero-scoped state will not be selected.";
-    if (identity.mode === HERO_MODE_OFF) {
+    if (identityView.mode === HERO_MODE_OFF) {
       identityText = "HERO DETECTION OFF";
       detailText = "Hero identity is disabled.";
-    } else if (identity.mode === HERO_MODE_MANUAL) {
-      var manualName = heroDisplayName(identity.effectiveHeroKey);
+    } else if (identityView.mode === HERO_MODE_MANUAL) {
+      var manualName = heroDisplayName(identityView.effectiveHeroKey);
       if (manualName) {
         identityText = "HERO: " + manualName + " (MANUAL)";
-        detailText = "Stable ID: " + identity.effectiveHeroKey;
+        detailText = "Stable ID: " + identityView.effectiveHeroKey;
       } else {
         detailText = "Choose a hero for Manual Override.";
       }
-    } else if (identity.status === "detected") {
-      var detectedName = heroDisplayName(identity.detectedHeroKey);
+    } else if (identityView.status === "settled") {
+      var detectedName = heroDisplayName(identityView.effectiveHeroKey);
       identityText = "HERO: " + detectedName;
-      detailText = "Stable ID: " + identity.detectedHeroKey;
-    } else if (identity.status === "settling") {
+      detailText = "Stable ID: " + identityView.effectiveHeroKey;
+    } else if (identityView.status === "settling") {
       identityText =
-        "HERO: SETTLING — " + heroDisplayName(identity.candidateHeroKey);
+        "HERO: SETTLING — " +
+        (heroDisplayName(identityView.candidateHeroKey) || "UNKNOWN");
       detailText = "Waiting for a second matching local-HUD sample.";
-    } else if (identity.phase !== HERO_PHASE_ACTIVE) {
+    } else if (identityView.phase !== HERO_PHASE_ACTIVE) {
       detailText = "Auto detection waits for an active match.";
     }
     setClass(
       ui.heroModeAuto,
       "Selected",
-      identity.mode === HERO_MODE_AUTO,
+      identityView.mode === HERO_MODE_AUTO,
     );
     setClass(
       ui.heroModeManual,
       "Selected",
-      identity.mode === HERO_MODE_MANUAL,
+      identityView.mode === HERO_MODE_MANUAL,
     );
-    setClass(ui.heroModeOff, "Selected", identity.mode === HERO_MODE_OFF);
+    setClass(ui.heroModeOff, "Selected", identityView.mode === HERO_MODE_OFF);
     setClass(
       ui.heroManualRow,
       "Active",
-      identity.mode === HERO_MODE_MANUAL,
+      identityView.mode === HERO_MODE_MANUAL,
     );
-    setText(ui.heroPhase, "MATCH: " + phaseDisplayName());
+    setText(ui.heroPhase, "MATCH: " + phaseDisplayName(identityView.phase));
     setText(ui.heroIdentity, identityText);
     setText(ui.heroDetail, detailText);
     setText(
       ui.heroManualValue,
-      heroDisplayName(identity.manualHeroKey) || "SELECT HERO",
+      heroDisplayName(identityView.manualHeroKey) || "SELECT HERO",
     );
     $.Msg(
       "[HP Colors Rewrite] identity phase=" +
-        identity.phase +
+        identityView.phase +
         " mode=" +
-        identity.mode +
+        identityView.mode +
         " status=" +
-        identity.status +
-        " detected=" +
-        (identity.detectedHeroKey || "<unknown>") +
+        identityView.status +
         " effective=" +
-        (identity.effectiveHeroKey || "<none>") +
-        " generation=" +
-        identity.lifecycleGeneration,
+        (identityView.effectiveHeroKey || "<none>") +
+        " epoch=" +
+        identityView.epoch,
     );
   }
 
   function identityPollDelay() {
-    return identity.phase === HERO_PHASE_LOBBY ||
-      identity.phase === HERO_PHASE_POST_MATCH
+    var view = currentView();
+    var phase = view && view.identity ? view.identity.phase : HERO_PHASE_TRANSITIONING;
+    return phase === HERO_PHASE_LOBBY || phase === HERO_PHASE_POST_MATCH
       ? HERO_POLL_INACTIVE_SEC
       : HERO_POLL_ACTIVE_SEC;
   }
@@ -1036,27 +1104,55 @@
   function scheduleIdentityTick(generation, delay) {
     try {
       $.Schedule(delay, function identityTick() {
-        if (
-          generation !== identity.watchGeneration ||
-          !isValid(ui.absoluteRoot)
-        )
+        if (generation !== identity.watchGeneration || !isValid(ui.absoluteRoot))
           return;
+        var view = currentView();
+        if (!view || !view.identity) return;
+        var previousPhase = view.identity.phase;
         var nextPhase = readLifecyclePhase();
-        if (nextPhase !== identity.phase) {
-          identity.phase = nextPhase;
-          identity.lifecycleGeneration += 1;
+        if (nextPhase !== previousPhase) {
           clearIdentityPanelRefs();
-          clearAutoIdentity();
+          sendState({
+            type: "lifecycle_observe",
+            epoch: view.identity.epoch + 1,
+            phase: nextPhase,
+          });
           renderIdentity();
+          sampleAbilityTiers();
           restartIdentityWatch();
           return;
         }
+        view = currentView();
         if (
-          identity.mode === HERO_MODE_AUTO &&
-          identity.phase === HERO_PHASE_ACTIVE
-        )
-          sampleAutoHero();
+          view.identity.mode === HERO_MODE_AUTO &&
+          view.identity.phase === HERO_PHASE_ACTIVE
+        ) {
+          var pendingBefore =
+            view.repository && view.repository.pendingId
+              ? view.repository.pendingId
+              : "";
+          sendState({
+            type: "hero_observe",
+            epoch: view.identity.epoch,
+            heroName: readLocalHeroName(),
+          });
+          var afterObserve = currentView();
+          if (
+            pendingBefore &&
+            afterObserve.repository &&
+            !afterObserve.repository.pendingId
+          ) {
+            renderPresetOptions();
+            setPresetFeedback(
+              afterObserve.repository.activeId === pendingBefore
+                ? "PRESET APPLIED AFTER HERO MATCH."
+                : "PRESET REJECTED — HERO DOES NOT MATCH.",
+              afterObserve.repository.activeId !== pendingBefore,
+            );
+          }
+        }
         renderIdentity();
+        sampleAbilityTiers();
         scheduleIdentityTick(generation, identityPollDelay());
       });
     } catch (error) {}
@@ -1066,7 +1162,6 @@
     identity.watchGeneration += 1;
     scheduleIdentityTick(identity.watchGeneration, 0);
   }
-
   function closeHeroDialog() {
     if (!isValid(ui.heroDialog) || !ui.heroDialog.BHasClass("Open")) return;
     setClass(ui.heroDialog, "Open", false);
@@ -1074,7 +1169,9 @@
   }
 
   function openHeroDialog() {
-    if (identity.mode !== HERO_MODE_MANUAL) return;
+    var view = currentView();
+    if (!view || !view.identity || view.identity.mode !== HERO_MODE_MANUAL)
+      return;
     closeTransferDialog();
     closeScopeDialog();
     closePicker();
@@ -1085,8 +1182,17 @@
   }
 
   function selectManualHero(heroKey) {
-    if (!Object.prototype.hasOwnProperty.call(HERO_BY_KEY, heroKey)) return;
-    identity.manualHeroKey = heroKey;
+    var view = currentView();
+    var heroes = view && view.heroes ? view.heroes : [];
+    var known = false;
+    for (var index = 0; index < heroes.length; index++) {
+      if (heroes[index].key === heroKey) {
+        known = true;
+        break;
+      }
+    }
+    if (!known) return;
+    sendState({ type: "hero_manual", heroKey: heroKey });
     renderIdentity();
     closeHeroDialog();
   }
@@ -1097,17 +1203,17 @@
       mode !== HERO_MODE_MANUAL &&
       mode !== HERO_MODE_OFF
     )
-      mode = HERO_MODE_AUTO;
-    if (identity.mode === mode) return;
-    identity.mode = mode;
+      return;
+    sendState({ type: "hero_mode", mode: mode });
     closeHeroDialog();
-    clearAutoIdentity();
     renderIdentity();
   }
 
   function createHeroOptions() {
     if (!isValid(ui.heroOptions)) return false;
-    for (var index = 0; index < HERO_DATA.length; index++) {
+    var view = currentView();
+    var heroes = view && view.heroes ? view.heroes : [];
+    for (var index = 0; index < heroes.length; index++) {
       (function (heroKey, heroName, optionIndex) {
         var option = $.CreatePanel(
           "Button",
@@ -1127,66 +1233,58 @@
           selectManualHero(heroKey);
         });
         identity.optionPanels.push(option);
-      })(HERO_DATA[index][0], HERO_DATA[index][1], index);
+      })(heroes[index].key, heroes[index].name, index);
     }
-    return identity.optionPanels.length === HERO_DATA.length;
+    return identity.optionPanels.length === heroes.length;
   }
   function currentScopeRow() {
-    for (var index = 0; index < state.scopes.length; index++) {
-      if (state.scopes[index].id === CURRENT_SCOPE_ID)
-        return state.scopes[index];
-    }
-    return null;
+    var view = currentView();
+    return view && view.currentScope ? view.currentScope : null;
   }
-
-  function replaceCurrentScope(mode, heroes, values) {
-    cancelPendingPreset();
-    var rows = [
-      {
-        id: CURRENT_SCOPE_ID,
-        mode: mode,
-        heroes: heroes,
-        values: values,
-      },
-    ];
-    for (var index = 0; index < state.scopes.length; index++) {
-      if (state.scopes[index].id !== CURRENT_SCOPE_ID)
-        rows.push(state.scopes[index]);
-    }
-    state.scopes = normalizeScopes(rows);
-    writeMenuState();
-    reconcileEffective("*", true);
-    renderCurrentScope();
-  }
-
 
   function setCurrentScopeMode(mode) {
+    if (mode !== HERO_SCOPE_ALL && mode !== HERO_SCOPE_SELECTED) return;
     var row = currentScopeRow();
-    replaceCurrentScope(
-      mode,
-      [],
-      row ? row.values : copyValues(state.values),
-    );
+    sendState({
+      type: "scope_set",
+      mode: mode,
+      heroes: mode === HERO_SCOPE_SELECTED && row ? row.heroes : [],
+    });
+    renderCurrentScope();
+    renderPresetOptions();
+    syncControls();
   }
 
   function toggleCurrentScopeHero(heroKey) {
-    if (!Object.prototype.hasOwnProperty.call(HERO_BY_KEY, heroKey)) return;
-    var row = currentScopeRow();
-    var heroes = row ? row.heroes.slice(0) : [];
-    var found = false;
-    var next = [];
-    for (var index = 0; index < heroes.length; index++) {
-      if (heroes[index] === heroKey) found = true;
-      else next.push(heroes[index]);
+    var view = currentView();
+    var heroes = view && view.heroes ? view.heroes : [];
+    var known = false;
+    var index;
+    for (index = 0; index < heroes.length; index++) {
+      if (heroes[index].key === heroKey) {
+        known = true;
+        break;
+      }
     }
+    if (!known) return;
+    var row = currentScopeRow();
+    var selected = row && row.mode === HERO_SCOPE_SELECTED
+      ? row.heroes.slice(0)
+      : [];
+    var found = selected.indexOf(heroKey) >= 0;
+    var next = [];
+    for (index = 0; index < selected.length; index++)
+      if (selected[index] !== heroKey) next.push(selected[index]);
     if (!found) next.push(heroKey);
-    replaceCurrentScope(
-      next.length ? HERO_SCOPE_SELECTED : HERO_SCOPE_ALL,
-      next,
-      row ? row.values : state.values,
-    );
+    sendState({
+      type: "scope_set",
+      mode: next.length ? HERO_SCOPE_SELECTED : HERO_SCOPE_ALL,
+      heroes: next,
+    });
+    renderCurrentScope();
+    renderPresetOptions();
+    syncControls();
   }
-
 
   function filterScopeHeroOptions() {
     var query = String((ui.scopeSearch && ui.scopeSearch.text) || "")
@@ -1218,7 +1316,7 @@
       mode === HERO_SCOPE_SELECTED,
     );
     var summary = "ALL HEROES";
-    if (mode === HERO_SCOPE_SELECTED) {
+    if (mode === HERO_SCOPE_SELECTED && row) {
       var names = [];
       for (var index = 0; index < row.heroes.length; index++)
         names.push(heroDisplayName(row.heroes[index]));
@@ -1237,7 +1335,9 @@
       setClass(
         option,
         "Selected",
-        mode === HERO_SCOPE_SELECTED && row.heroes.indexOf(heroKey) >= 0,
+        mode === HERO_SCOPE_SELECTED &&
+          row &&
+          row.heroes.indexOf(heroKey) >= 0,
       );
     }
   }
@@ -1262,7 +1362,9 @@
 
   function createScopeHeroOptions() {
     if (!isValid(ui.scopeOptions)) return false;
-    for (var index = 0; index < HERO_DATA.length; index++) {
+    var view = currentView();
+    var heroes = view && view.heroes ? view.heroes : [];
+    for (var index = 0; index < heroes.length; index++) {
       (function (heroKey, heroName, optionIndex) {
         var option = $.CreatePanel(
           "Button",
@@ -1287,11 +1389,10 @@
           toggleCurrentScopeHero(heroKey);
         });
         scopeOptionPanels.push(option);
-      })(HERO_DATA[index][0], HERO_DATA[index][1], index);
+      })(heroes[index].key, heroes[index].name, index);
     }
-    return scopeOptionPanels.length === HERO_DATA.length;
+    return scopeOptionPanels.length === heroes.length;
   }
-
   function setPresetFeedback(text, isError) {
     setText(ui.presetFeedback, text || "");
     setClass(ui.presetFeedback, "Error", !!isError);
@@ -1307,13 +1408,11 @@
   }
 
   function presetMatchesCurrentScope(preset) {
-    var row = currentScopeRow();
-    if (preset.mode === HERO_SCOPE_OFF)
-      return !row && JSON.stringify(preset.values) === valuesRaw();
-    if (!row || row.mode !== preset.mode) return false;
-    return (
-      JSON.stringify(row.heroes) === JSON.stringify(preset.heroes) &&
-      JSON.stringify(row.values) === JSON.stringify(preset.values)
+    var view = currentView();
+    return !!(
+      view &&
+      view.repository &&
+      view.repository.activeId === preset.id
     );
   }
 
@@ -1346,7 +1445,14 @@
       ui.presetOptions.RemoveAndDeleteChildren();
     } catch (error) {}
     presetInlineRenameInput = null;
-    var records = visiblePresetRecords();
+    var view = currentView();
+    var repository = view && view.repository ? view.repository : null;
+    var records = repository && repository.rows ? repository.rows : [];
+    var pendingId = repository ? repository.pendingId : "";
+    var selectedId = repository ? repository.selectedId : "";
+    var userRows = [];
+    for (var userRowIndex = 0; userRowIndex < records.length; userRowIndex++)
+      if (records[userRowIndex].kind === "user") userRows.push(records[userRowIndex]);
     for (var index = 0; index < records.length; index++) {
       (function (preset, optionIndex) {
         var option = $.CreatePanel(
@@ -1355,14 +1461,14 @@
           "HPColorsPresetOption" + optionIndex,
         );
         if (!isValid(option)) return;
+        var pending = pendingId === preset.id;
+        var selected = preset.id === selectedId;
         option.AddClass("HPColorsPresetOption");
         option.hittest = true;
         option.hittestchildren = true;
         option.canfocus = true;
         option.SetAttributeString("hp_colors_preset_id", preset.id);
         var active = presetMatchesCurrentScope(preset);
-        var pending = state.pendingPresetId === preset.id;
-        var selected = preset.id === state.selectedPresetId;
         var confirming = presetDeleteConfirmId === preset.id;
         setClass(option, "Selected", selected);
         setClass(option, "Active", active);
@@ -1451,12 +1557,8 @@
 
         var userIndex = -1;
         if (preset.kind === "user") {
-          for (
-            var presetIndex = 0;
-            presetIndex < state.userPresets.length;
-            presetIndex++
-          ) {
-            if (state.userPresets[presetIndex].id === preset.id) {
+          for (var presetIndex = 0; presetIndex < userRows.length; presetIndex++) {
+            if (userRows[presetIndex].id === preset.id) {
               userIndex = presetIndex;
               break;
             }
@@ -1477,7 +1579,7 @@
             "HPColorsPresetRowDown" + optionIndex,
             "HPColorsPresetRowDown",
             "▼",
-            userIndex >= 0 && userIndex < state.userPresets.length - 1,
+            userIndex >= 0 && userIndex < userRows.length - 1,
             function () {
               selectPresetForRowAction(preset.id);
               moveSelectedPreset(1);
@@ -1505,7 +1607,6 @@
             selectPresetForRowAction(preset.id);
             if (pending) {
               cancelPendingPreset();
-              writeMenuState();
               focusSelectedPresetRow();
             } else {
               applySelectedPreset();
@@ -1528,13 +1629,19 @@
         });
       })(records[index], index);
     }
-    var hasHiddenBaked = state.hiddenBakedPresetIds.length > 0;
+    var hasHiddenBaked = !!(
+      repository &&
+      repository.hiddenBakedIds &&
+      repository.hiddenBakedIds.length
+    );
     setClass(ui.presetRestoreBakedButton, "Active", hasHiddenBaked);
     if (isValid(ui.presetRestoreBakedButton))
       ui.presetRestoreBakedButton.enabled = hasHiddenBaked;
   }
   function syncPresetSaveForm(resetName) {
-    var preset = findPresetRecord(state.selectedPresetId);
+    var view = currentView();
+    var selectedId = view && view.repository ? view.repository.selectedId : "";
+    var preset = findPresetRecord(selectedId);
     var updateTarget = preset && preset.kind === "user" ? preset : null;
     setText(
       ui.presetSaveMode,
@@ -1551,10 +1658,14 @@
   }
 
   function beginNewPreset() {
-    state.selectedPresetId = null;
+    var result = sendState({ type: "preset_select", id: null });
+    if (!result || !result.outcome || result.outcome.status === "rejected") {
+      setPresetFeedback("PRESET CHANGE CANCELED.", true);
+      return;
+    }
     presetDeleteConfirmId = "";
     presetInlineRenameId = "";
-    writeMenuState();
+    presetInlineRenameInput = null;
     renderPresetOptions();
     syncPresetSaveForm(true);
     setPresetFeedback("READY FOR A NEW PRESET.", false);
@@ -1562,8 +1673,9 @@
   }
 
   function selectPresetForRowAction(id) {
+    if (!id) return false;
     if (
-      state.selectedPresetId === id &&
+      currentView().repository.selectedId === id &&
       !presetInlineRenameId &&
       !presetDeleteConfirmId
     )
@@ -1574,41 +1686,45 @@
   function selectPresetRecord(id) {
     var preset = findPresetRecord(String(id || ""));
     if (!preset) return false;
-    state.selectedPresetId = preset.id;
+    var result = sendState({ type: "preset_select", id: preset.id });
     presetDeleteConfirmId = "";
     presetInlineRenameId = "";
-    writeMenuState();
+    if (result && result.outcome && result.outcome.status === "rejected") {
+      setPresetFeedback("PRESET NOT FOUND.", true);
+      return false;
+    }
     renderPresetOptions();
     syncPresetSaveForm(true);
     setPresetFeedback(
-      "SELECTED " +
-        presetDisplayName(preset).toUpperCase() +
-        ". APPLY TO USE.",
+      "SELECTED " + presetDisplayName(preset).toUpperCase() + ". APPLY TO USE.",
       false,
     );
     return true;
   }
 
   function applySelectedPreset() {
-    if (!state.selectedPresetId) {
+    var view = currentView();
+    var id = view && view.repository ? view.repository.selectedId : "";
+    if (!id) {
       setPresetFeedback("SELECT A PRESET FIRST.", true);
       return;
     }
-    requestPresetApplication(state.selectedPresetId);
+    requestPresetApplication(id);
   }
 
   function renamePresetRecord(preset, name) {
     if (!preset || !name) return false;
-    if (preset.kind === "baked") {
-      if (name === preset.name)
-        delete state.bakedPresetNameOverrides[preset.id];
-      else state.bakedPresetNameOverrides[preset.id] = name;
-    } else {
-      preset.name = name;
+    var result = sendState({
+      type: "preset_rename",
+      id: preset.id,
+      name: name,
+    });
+    if (result && result.outcome && result.outcome.status === "rejected") {
+      setPresetFeedback("PRESET NOT FOUND.", true);
+      return false;
     }
     presetInlineRenameId = "";
     presetInlineRenameInput = null;
-    writeMenuState();
     renderPresetOptions();
     syncPresetSaveForm(true);
     setPresetFeedback("RENAMED TO " + name.toUpperCase() + ".", false);
@@ -1619,15 +1735,17 @@
   function beginInlinePresetRename(id) {
     var preset = findPresetRecord(String(id || ""));
     if (!preset) return;
-    state.selectedPresetId = preset.id;
+    selectPresetRecord(preset.id);
     presetDeleteConfirmId = "";
     presetInlineRenameId = preset.id;
-    writeMenuState();
     renderPresetOptions();
     syncPresetSaveForm(true);
     var renameId = preset.id;
     var renameInput = presetInlineRenameInput;
-    setPresetFeedback("EDITING " + presetDisplayName(preset).toUpperCase() + ".", false);
+    setPresetFeedback(
+      "EDITING " + presetDisplayName(preset).toUpperCase() + ".",
+      false,
+    );
     try {
       $.Schedule(0.01, function () {
         if (
@@ -1673,40 +1791,36 @@
     focusSelectedPresetRow();
   }
 
-
   function moveSelectedPreset(delta) {
+    var view = currentView();
+    var id = view && view.repository ? view.repository.selectedId : "";
+    if (!id) return false;
     presetInlineRenameId = "";
-    var selectedIndex = -1;
-    for (var index = 0; index < state.userPresets.length; index++) {
-      if (state.userPresets[index].id === state.selectedPresetId) {
-        selectedIndex = index;
-        break;
-      }
-    }
-    var targetIndex = selectedIndex + delta;
+    var result = sendState({ type: "preset_move", id: id, delta: delta });
     if (
-      selectedIndex < 0 ||
-      targetIndex < 0 ||
-      targetIndex >= state.userPresets.length
+      !result ||
+      !result.outcome ||
+      result.outcome.status === "rejected" ||
+      result.outcome.code === "MOVE_BOUNDARY"
     )
       return false;
-    var moved = state.userPresets[selectedIndex];
-    state.userPresets[selectedIndex] = state.userPresets[targetIndex];
-    state.userPresets[targetIndex] = moved;
-    writeMenuState();
     renderPresetOptions();
-    setPresetFeedback(
-      "MOVED " + presetDisplayName(moved).toUpperCase() + ".",
-      false,
-    );
+    setPresetFeedback("MOVED " + id.toUpperCase() + ".", false);
     focusSelectedPresetRow();
     return true;
   }
 
   function beginDeleteSelectedPreset() {
-    var preset = findPresetRecord(state.selectedPresetId);
+    var view = currentView();
+    var id = view && view.repository ? view.repository.selectedId : "";
+    var preset = findPresetRecord(id);
     if (!preset) {
       setPresetFeedback("SELECT A PRESET FIRST.", true);
+      return;
+    }
+    var result = sendState({ type: "preset_remove_request", id: preset.id });
+    if (!result || !result.view || !result.view.transactions.confirmation) {
+      setPresetFeedback("PRESET NOT FOUND.", true);
       return;
     }
     presetDeleteConfirmId = preset.id;
@@ -1722,29 +1836,31 @@
   }
 
   function cancelDeleteSelectedPreset() {
+    var view = currentView();
+    var confirmation = view && view.transactions
+      ? view.transactions.confirmation
+      : null;
+    if (confirmation && confirmation.kind === "preset_remove")
+      sendState({
+        type: "preset_remove_cancel",
+        token: confirmation.token,
+      });
     presetDeleteConfirmId = "";
     renderPresetOptions();
     setPresetFeedback("PRESET CHANGE CANCELED.", false);
     focusSelectedPresetRow();
   }
 
-  function repairSelectedPreset(visibleIndex) {
-    var records = visiblePresetRecords();
-    if (!records.length) {
-      state.selectedPresetId = null;
-      return;
-    }
-    state.selectedPresetId =
-      records[Math.min(Math.max(0, visibleIndex), records.length - 1)].id;
-  }
 
   function focusSelectedPresetRow() {
-    if (!state.selectedPresetId || !isValid(ui.presetOptions)) return;
+    var view = currentView();
+    var selectedId = view && view.repository ? view.repository.selectedId : "";
+    if (!selectedId || !isValid(ui.presetOptions)) return;
     var rows = ui.presetOptions.Children();
     for (var index = 0; index < rows.length; index++) {
       if (
         rows[index].GetAttributeString("hp_colors_preset_id", "") ===
-        state.selectedPresetId
+        selectedId
       ) {
         focus(rows[index]);
         return;
@@ -1753,164 +1869,85 @@
   }
 
   function confirmDeleteSelectedPreset() {
+    var view = currentView();
+    var repository = view && view.repository ? view.repository : null;
+    var confirmation = view && view.transactions
+      ? view.transactions.confirmation
+      : null;
     var preset = findPresetRecord(presetDeleteConfirmId);
-    if (!preset || preset.id !== state.selectedPresetId) {
+    if (
+      !preset ||
+      !repository ||
+      repository.selectedId !== preset.id ||
+      !confirmation ||
+      confirmation.kind !== "preset_remove"
+    ) {
       cancelDeleteSelectedPreset();
       return;
     }
-    var records = visiblePresetRecords();
-    var visibleIndex = 0;
-    for (var index = 0; index < records.length; index++) {
-      if (records[index].id === preset.id) {
-        visibleIndex = index;
-        break;
-      }
-    }
-    if (preset.kind === "baked") {
-      state.hiddenBakedPresetIds = normalizeHiddenBakedPresetIds(
-        state.hiddenBakedPresetIds.concat([preset.id]),
+    var result = sendState({
+      type: "preset_remove_confirm",
+      token: confirmation.token,
+    });
+    if (result && result.outcome && result.outcome.status === "committed") {
+      presetDeleteConfirmId = "";
+      presetInlineRenameId = "";
+      renderPresetOptions();
+      syncPresetSaveForm(true);
+      setPresetFeedback(
+        (preset.kind === "baked" ? "HIDDEN " : "DELETED ") +
+          presetDisplayName(preset).toUpperCase() +
+          ".",
+        false,
       );
-    } else {
-      var users = [];
-      for (var userIndex = 0; userIndex < state.userPresets.length; userIndex++) {
-        if (state.userPresets[userIndex].id !== preset.id)
-          users.push(state.userPresets[userIndex]);
-      }
-      state.userPresets = users;
-      if (state.pendingPresetId === preset.id) state.pendingPresetId = null;
+      focusSelectedPresetRow();
     }
-    repairSelectedPreset(visibleIndex);
-    presetDeleteConfirmId = "";
-    presetInlineRenameId = "";
-    writeMenuState();
-    renderPresetOptions();
-    syncPresetSaveForm(true);
-    setPresetFeedback(
-      (preset.kind === "baked" ? "HIDDEN " : "DELETED ") +
-        presetDisplayName(preset).toUpperCase() +
-        ".",
-      false,
-    );
-    focusSelectedPresetRow();
   }
 
   function restoreHiddenBakedPresets() {
-    if (!state.hiddenBakedPresetIds.length) return;
+    var view = currentView();
+    if (
+      !view ||
+      !view.repository ||
+      !view.repository.hiddenBakedIds ||
+      !view.repository.hiddenBakedIds.length
+    )
+      return;
+    sendState({ type: "preset_restore_baked" });
     presetInlineRenameId = "";
-    state.hiddenBakedPresetIds = [];
-    writeMenuState();
     renderPresetOptions();
     setPresetFeedback("RESTORED BAKED PRESETS.", false);
   }
 
-  function serializePresetValues(values) {
-    var normalized = normalizeValues(values);
-    var pairs = [];
-    for (var index = 0; index < DEFAULT_KEYS.length; index++) {
-      var key = DEFAULT_KEYS[index];
-      if (normalized[key] !== DEFAULTS[key])
-        pairs.push([index, normalized[key]]);
-    }
-    return pairs;
-  }
-
-  function deserializePresetValues(pairs) {
-    if (!Array.isArray(pairs)) return { error: "INVALID PRESET VALUES" };
-    var changed = {};
-    var seen = {};
-    for (var pairIndex = 0; pairIndex < pairs.length; pairIndex++) {
-      var pair = pairs[pairIndex];
-      if (
-        !Array.isArray(pair) ||
-        pair.length !== 2 ||
-        typeof pair[0] !== "number" ||
-        !isFinite(pair[0]) ||
-        Math.floor(pair[0]) !== pair[0] ||
-        pair[0] < 0 ||
-        pair[0] >= DEFAULT_KEYS.length
-      )
-        return { error: "INVALID PRESET VALUE PAIR" };
-      if (seen[pair[0]]) return { error: "DUPLICATE PRESET VALUE" };
-      seen[pair[0]] = true;
-      changed[DEFAULT_KEYS[pair[0]]] = pair[1];
-    }
-    var valueError = validateImportedValues(changed);
-    if (valueError) return { error: valueError };
-    return { values: normalizeValues(changed) };
-  }
-
-  function serializePresetRecord(preset) {
-    return {
-      id: preset.id,
-      kind: preset.kind,
-      name: presetDisplayName(preset),
-      mode: preset.mode,
-      heroes: preset.heroes.slice(0),
-      values: serializePresetValues(preset.values),
-      conditions: normalizePresetConditions(preset.conditions),
-    };
-  }
-
-  function serializePresetTransfer(records, includeRepositoryState) {
-    var payload = { records: [] };
-    for (var index = 0; index < records.length; index++)
-      payload.records.push(serializePresetRecord(records[index]));
-    if (includeRepositoryState) {
-      payload.hiddenBakedPresetIds = state.hiddenBakedPresetIds.slice(0);
-      payload.selectedPresetId = state.selectedPresetId;
-    } else {
-      payload.selectedPresetId = records.length === 1 ? records[0].id : null;
-    }
-    return "HPCRP1" + JSON.stringify(payload);
-  }
-
-  function copyPresetTransfer(code, successText) {
-    var copied = false;
-    setText(ui.presetTransferInput, code);
-    try {
-      focus(ui.presetTransferInput);
-      if (typeof ui.presetTransferInput.SelectAll === "function")
-        ui.presetTransferInput.SelectAll();
-      copied =
-        $.DispatchEvent(
-          "TextEntryCopyToClipboard",
-          ui.presetTransferInput,
-        ) !== false;
-    } catch (textEntryError) {}
-    if (!copied) {
-      try {
-        copied = $.DispatchEvent("CopyStringToClipboard", code) !== false;
-      } catch (stringError) {}
-    }
-    setText(ui.presetTransferInput, "");
-    setPresetFeedback(
-      copied ? successText : "COPY FAILED — PRESET CODE NOT COPIED.",
-      !copied,
-    );
-    return copied;
-  }
-
   function copySelectedPreset() {
-    var preset = findPresetRecord(state.selectedPresetId);
-    if (!preset) {
+    var view = currentView();
+    var selectedId = view && view.repository ? view.repository.selectedId : "";
+    if (!selectedId) {
       setPresetFeedback("SELECT A PRESET FIRST.", true);
       return;
     }
-    copyPresetTransfer(
-      serializePresetTransfer([preset], false),
-      "COPIED " + presetDisplayName(preset).toUpperCase() + ".",
+    var result = sendState({ type: "preset_copy_selected" });
+    var failed =
+      !result ||
+      !result.outcome ||
+      result.outcome.status === "rejected" ||
+      lastClipboardCopied !== true;
+    setPresetFeedback(
+      failed ? "COPY FAILED — PRESET CODE NOT COPIED." : "COPIED PRESET.",
+      failed,
     );
   }
 
   function copyAllPresets() {
-    var records = presetRecords();
-    if (!records.length) {
-      setPresetFeedback("NO PRESETS TO COPY.", true);
-      return;
-    }
-    copyPresetTransfer(
-      serializePresetTransfer(records, true),
-      "COPIED " + String(records.length) + " PRESETS.",
+    var result = sendState({ type: "preset_copy_all" });
+    var failed =
+      !result ||
+      !result.outcome ||
+      result.outcome.status === "rejected" ||
+      lastClipboardCopied !== true;
+    setPresetFeedback(
+      failed ? "NO PRESETS TO COPY." : "COPIED PRESETS.",
+      failed,
     );
   }
 
@@ -1939,177 +1976,38 @@
     focus(ui.presetImportButton);
   }
 
-  function findBakedPreset(id) {
-    for (var index = 0; index < BAKED_PRESETS.length; index++) {
-      if (BAKED_PRESETS[index].id === id) return BAKED_PRESETS[index];
-    }
-    return null;
-  }
-
-  function parsePresetTransfer(raw) {
-    var text = String(raw || "").trim();
-    if (text.slice(0, 6) !== "HPCRP1")
-      return { error: "NOT AN HPCRP1 PRESET CODE" };
-    var payload = null;
-    try {
-      payload = JSON.parse(text.slice(6));
-    } catch (error) {
-      return { error: "INVALID HPCRP1 CODE" };
-    }
-    if (
-      !payload ||
-      !Array.isArray(payload.records) ||
-      !payload.records.length ||
-      payload.records.length > 128
-    )
-      return { error: "INVALID PRESET RECORDS" };
-    var records = [];
-    var seenIds = {};
-    for (var index = 0; index < payload.records.length; index++) {
-      var source = payload.records[index];
-      var id = String((source && source.id) || "");
-      var kind = String((source && source.kind) || "");
-      var name = String((source && source.name) || "").trim();
-      if (
-        !id ||
-        seenIds[id] ||
-        (kind !== "baked" && kind !== "user") ||
-        !name ||
-        name.length > 48
-      )
-        return { error: "INVALID PRESET RECORD" };
-      seenIds[id] = true;
-      var decoded = deserializePresetValues(source.values);
-      if (decoded.error) return decoded;
-      var heroes = normalizeHeroSelection(source.heroes);
-      if (
-        !Array.isArray(source.heroes) ||
-        JSON.stringify(heroes) !== JSON.stringify(source.heroes)
-      )
-        return { error: "INVALID PRESET HEROES" };
-      var mode = String(source.mode || "");
-      var conditions = normalizePresetConditions(source.conditions);
-      if (source.conditions !== undefined && source.conditions !== null && !conditions)
-        return { error: "INVALID PRESET CONDITIONS" };
-      if (kind === "baked") {
-        var baked = findBakedPreset(id);
-        if (
-          !baked ||
-          mode !== baked.mode ||
-          JSON.stringify(decoded.values) !== JSON.stringify(baked.values) ||
-          JSON.stringify(heroes) !== JSON.stringify(baked.heroes) ||
-          JSON.stringify(conditions) !== JSON.stringify(baked.conditions)
-        )
-          return { error: "INVALID BAKED PRESET" };
-      } else if (
-        !/^user_\d{4,}$/.test(id) ||
-        (mode !== HERO_SCOPE_ALL && mode !== HERO_SCOPE_SELECTED) ||
-        (mode === HERO_SCOPE_SELECTED && !heroes.length) ||
-        (mode === HERO_SCOPE_ALL && heroes.length)
-      ) {
-        return { error: "INVALID USER PRESET SCOPE" };
-      }
-      records.push({
-        id: id,
-        kind: kind,
-        name: name,
-        values: decoded.values,
-        mode: mode,
-        heroes: heroes,
-        conditions: conditions,
-      });
-    }
-    var hidden = [];
-    if (payload.hiddenBakedPresetIds !== undefined) {
-      if (!Array.isArray(payload.hiddenBakedPresetIds))
-        return { error: "INVALID HIDDEN BAKED PRESETS" };
-      hidden = normalizeHiddenBakedPresetIds(payload.hiddenBakedPresetIds);
-      if (hidden.length !== payload.hiddenBakedPresetIds.length)
-        return { error: "INVALID HIDDEN BAKED PRESETS" };
-    }
-    var selectedId = String(payload.selectedPresetId || "");
-    if (selectedId && !seenIds[selectedId])
-      return { error: "INVALID IMPORTED SELECTION" };
-    if (selectedId && hidden.indexOf(selectedId) >= 0)
-      return { error: "INVALID IMPORTED SELECTION" };
-    return {
-      records: records,
-      hiddenBakedPresetIds: hidden,
-      hasRepositoryState: payload.hiddenBakedPresetIds !== undefined,
-      selectedPresetId: selectedId,
-    };
-  }
-
-  function formatUserPresetId(number) {
-    var suffix = String(number);
-    while (suffix.length < 4) suffix = "0" + suffix;
-    return "user_" + suffix;
-  }
-
   function importPresetTransfer(raw) {
-    var parsed = parsePresetTransfer(raw);
-    if (parsed.error) {
-      setPresetTransferFeedback(parsed.error, true);
+    var before = currentView();
+    var beforeRows = before && before.repository ? before.repository.allRows : [];
+    var beforeUserCount = 0;
+    for (var index = 0; index < beforeRows.length; index++)
+      if (beforeRows[index].kind === "user") beforeUserCount += 1;
+    var result = sendState({ type: "preset_import", raw: String(raw || "") });
+    var rejected =
+      !result || !result.outcome || result.outcome.status === "rejected";
+    if (rejected) {
+      setPresetTransferFeedback(
+        result && result.outcome && result.outcome.code
+          ? result.outcome.code
+          : "INVALID HPCRP1 CODE",
+        true,
+      );
       return false;
     }
-    var nextNumber = state.nextUserPresetNumber;
-    var importedUsers = [];
-    var importedIds = {};
-    var bakedOverrides = {};
-    for (var index = 0; index < parsed.records.length; index++) {
-      var source = parsed.records[index];
-      if (source.kind === "baked") {
-        var baked = findBakedPreset(source.id);
-        bakedOverrides[source.id] =
-          source.name === baked.name ? null : source.name;
-        importedIds[source.id] = source.id;
-        continue;
-      }
-      var importedId = formatUserPresetId(nextNumber);
-      nextNumber += 1;
-      var imported = normalizePresetRecord(
-        {
-          id: importedId,
-          name: source.name,
-          values: source.values,
-          mode: source.mode,
-          heroes: source.heroes,
-          conditions: source.conditions,
-        },
-        "user",
-      );
-      if (!imported) {
-        setPresetTransferFeedback("INVALID IMPORTED PRESET", true);
-        return false;
-      }
-      importedUsers.push(imported);
-      importedIds[source.id] = importedId;
-    }
-    for (var overrideId in bakedOverrides) {
-      if (!Object.prototype.hasOwnProperty.call(bakedOverrides, overrideId))
-        continue;
-      if (bakedOverrides[overrideId] === null)
-        delete state.bakedPresetNameOverrides[overrideId];
-      else state.bakedPresetNameOverrides[overrideId] = bakedOverrides[overrideId];
-    }
-    if (parsed.hasRepositoryState)
-      state.hiddenBakedPresetIds = parsed.hiddenBakedPresetIds;
-    state.userPresets = state.userPresets.concat(importedUsers);
-    state.nextUserPresetNumber = nextNumber;
-    var selected = importedIds[parsed.selectedPresetId] || "";
-    if (!selected && importedUsers.length === 1) selected = importedUsers[0].id;
-    state.selectedPresetId = selected || state.selectedPresetId;
-    presetDeleteConfirmId = "";
-    writeMenuState();
-    renderPresetOptions();
-    syncPresetSaveForm(true);
+    var after = currentView();
+    var afterRows = after && after.repository ? after.repository.allRows : [];
+    var afterUserCount = 0;
+    for (index = 0; index < afterRows.length; index++)
+      if (afterRows[index].kind === "user") afterUserCount += 1;
+    var importedCount = Math.max(0, afterUserCount - beforeUserCount);
     setText(ui.presetTransferInput, "");
     setPresetTransferFeedback(
-      "IMPORTED " +
-        String(importedUsers.length) +
-        (importedUsers.length === 1 ? " PRESET." : " PRESETS."),
+      "IMPORTED " + String(importedCount) +
+        (importedCount === 1 ? " PRESET." : " PRESETS."),
       false,
     );
+    renderPresetOptions();
+    syncPresetSaveForm(true);
     return true;
   }
 
@@ -2117,7 +2015,9 @@
     presetTransferRequest += 1;
     var request = presetTransferRequest;
     var transferInput = ui.presetTransferInput;
-    var manual = String((ui.presetTransferInput && ui.presetTransferInput.text) || "").trim();
+    var manual = String(
+      (ui.presetTransferInput && ui.presetTransferInput.text) || "",
+    ).trim();
     if (manual) {
       importPresetTransfer(manual);
       return;
@@ -2169,229 +2069,70 @@
       );
     }
   }
-
-  function nextUserPresetId() {
-    var id = formatUserPresetId(state.nextUserPresetNumber);
-    state.nextUserPresetNumber += 1;
-    return id;
-  }
-
   function saveCurrentPreset() {
     var name = String((ui.presetNameInput && ui.presetNameInput.text) || "").trim();
     if (!name) {
       setPresetFeedback("ENTER A PRESET NAME.", true);
       return;
     }
-    var row = currentScopeRow();
-    var mode =
-      row && row.mode === HERO_SCOPE_SELECTED
-        ? HERO_SCOPE_SELECTED
-        : HERO_SCOPE_ALL;
-    var selected = findPresetRecord(state.selectedPresetId);
-    var updating = selected && selected.kind === "user";
-    var preset = normalizePresetRecord(
-      {
-        id: updating ? selected.id : nextUserPresetId(),
-        name: name,
-        values: state.values,
-        conditions: updating ? selected.conditions : null,
-        mode: mode,
-        heroes: row ? row.heroes : [],
-      },
-      "user",
-    );
-    if (!preset) {
+    var result = sendState({ type: "preset_save", name: name });
+    if (!result || !result.outcome || result.outcome.status === "rejected") {
       setPresetFeedback("PRESET COULD NOT BE SAVED.", true);
       return;
     }
-    if (updating) {
-      for (var index = 0; index < state.userPresets.length; index++) {
-        if (state.userPresets[index].id === preset.id) {
-          state.userPresets[index] = preset;
-          break;
-        }
-      }
-    } else {
-      state.userPresets.push(preset);
-    }
-    if (!updating && preset.mode === HERO_SCOPE_ALL) {
-      state.hiddenBakedPresetIds = normalizeHiddenBakedPresetIds(
-        state.hiddenBakedPresetIds.concat([DEFAULT_PRESET_ID]),
-      );
-    }
-    state.selectedPresetId = preset.id;
-    writeMenuState();
     renderPresetOptions();
     syncPresetSaveForm(true);
     setPresetFeedback(
-      (updating ? "UPDATED " : "SAVED ") + preset.name.toUpperCase() + ".",
-      false,
-    );
-    $.Msg(
-      "[HP Colors Rewrite] preset " +
-        (updating ? "updated" : "saved") +
-        " id=" +
-        preset.id +
-        " mode=" +
-        preset.mode,
-    );
-  }
-
-  function removeCurrentScope() {
-    var rows = [];
-    for (var index = 0; index < state.scopes.length; index++) {
-      if (state.scopes[index].id !== CURRENT_SCOPE_ID)
-        rows.push(state.scopes[index]);
-    }
-    return rows;
-  }
-
-  function applyPresetRecord(preset, source) {
-    if (!preset) return false;
-    var rows = removeCurrentScope();
-    if (preset.mode === HERO_SCOPE_OFF) {
-      var currentRaw = valuesRaw();
-      var nextValues = normalizeValues(preset.values);
-      if (JSON.stringify(nextValues) !== currentRaw) pushHistory(currentRaw);
-      state.values = nextValues;
-    } else {
-      rows.unshift({
-        id: CURRENT_SCOPE_ID,
-        mode: preset.mode,
-        heroes: preset.heroes,
-        values: preset.values,
-      });
-    }
-    state.scopes = normalizeScopes(rows);
-    state.pendingPresetId = null;
-    writeMenuState();
-    reconcileEffective("*", true);
-    if (state.open) {
-      renderPresetOptions();
-    }
-    setPresetFeedback(
-      (source === "identity" ? "AUTO-MATCHED " : "APPLIED ") +
-        presetDisplayName(preset).toUpperCase() +
+      (result.outcome.code === "PRESET_UPDATED" ? "UPDATED " : "SAVED ") +
+        name.toUpperCase() +
         ".",
       false,
     );
-    $.Msg(
-      "[HP Colors Rewrite] preset applied id=" +
-        preset.id +
-        " mode=" +
-        preset.mode +
-        " source=" +
-        (source || "user") +
-        " hero=" +
-        (identity.effectiveHeroKey || "<none>"),
-    );
-    if (state.open) syncControls();
-    return true;
   }
 
   function requestPresetApplication(id) {
     var preset = findPresetRecord(String(id || ""));
     if (!preset) {
       setPresetFeedback("PRESET NOT FOUND.", true);
-      return;
-    }
-    if (preset.mode === HERO_SCOPE_SELECTED) {
-      var heroKey = identity.effectiveHeroKey;
-      if (!heroKey) {
-        state.pendingPresetId = preset.id;
-        writeMenuState();
-        if (state.open) {
-          renderPresetOptions();
-        }
-        setPresetFeedback("WAITING FOR A STABLE HERO IDENTITY.", false);
-        return;
-      }
-      if (preset.heroes.indexOf(heroKey) < 0) {
-        state.pendingPresetId = null;
-        writeMenuState();
-        if (state.open) {
-          renderPresetOptions();
-        }
-        setPresetFeedback("CURRENT HERO DOES NOT MATCH THIS PRESET.", true);
-        return;
-      }
-    }
-    applyPresetRecord(preset, "user");
-  }
-
-  function tryApplyPendingPreset() {
-    if (!state.pendingPresetId) return false;
-    var heroKey = identity.effectiveHeroKey;
-    if (!heroKey) return false;
-    var preset = findPresetRecord(state.pendingPresetId);
-    if (!preset) {
-      state.pendingPresetId = null;
-      writeMenuState();
-      if (state.open) {
-        renderPresetOptions();
-      }
-      setPresetFeedback("PENDING PRESET NOT FOUND.", true);
       return false;
     }
-    if (preset.heroes.indexOf(heroKey) < 0) {
-      state.pendingPresetId = null;
-      writeMenuState();
-      if (state.open) {
-        renderPresetOptions();
-      }
-      setPresetFeedback("CURRENT HERO DOES NOT MATCH THIS PRESET.", true);
-      return false;
-    }
-    return applyPresetRecord(preset, "pending");
-  }
-
-  function tryApplyIdentityPreset() {
-    var heroKey = identity.effectiveHeroKey;
-    if (!heroKey) return false;
-    if (suppressedIdentityPresetId) {
-      var suppressed = findPresetRecord(suppressedIdentityPresetId);
-      var suppressCurrentMatch =
-        suppressed &&
-        suppressed.mode === HERO_SCOPE_SELECTED &&
-        suppressed.heroes.indexOf(heroKey) >= 0;
-      suppressedIdentityPresetId = "";
-      if (suppressCurrentMatch) return false;
-    }
-    var current = currentScopeRow();
-    var allFallback = null;
-    for (var index = 0; index < state.userPresets.length; index++) {
-      var preset = state.userPresets[index];
-      if (
-        preset.mode === HERO_SCOPE_SELECTED &&
-        preset.heroes.indexOf(heroKey) >= 0
-      ) {
-        if (presetMatchesCurrentScope(preset)) return false;
-        return applyPresetRecord(preset, "identity");
-      }
-      if (!allFallback && preset.mode === HERO_SCOPE_ALL)
-        allFallback = preset;
-    }
-    if (current && scopeTargetsHero(current, heroKey)) return false;
-    if (allFallback && !presetMatchesCurrentScope(allFallback))
-      return applyPresetRecord(allFallback, "identity");
-    if (current && current.mode === HERO_SCOPE_SELECTED)
-      return applyPresetRecord(
-        findPresetRecord(DEFAULT_PRESET_ID),
-        "identity",
+    var result = sendState({ type: "preset_apply", id: preset.id });
+    var outcome = result && result.outcome ? result.outcome : null;
+    if (!outcome || outcome.status === "rejected") {
+      setPresetFeedback(
+        outcome && outcome.code === "HERO_MISMATCH"
+          ? "CURRENT HERO DOES NOT MATCH THIS PRESET."
+          : "PRESET NOT FOUND.",
+        true,
       );
-    return false;
+      return false;
+    }
+    if (outcome.code === "WAITING_FOR_IDENTITY") {
+      renderPresetOptions();
+      setPresetFeedback("WAITING FOR A STABLE HERO IDENTITY.", false);
+      return true;
+    }
+    renderPresetOptions();
+    syncControls();
+    setPresetFeedback(
+      (outcome.code === "PRESET_APPLIED" ? "APPLIED " : "APPLIED ") +
+        presetDisplayName(preset).toUpperCase() +
+        ".",
+      false,
+    );
+    return true;
   }
+
+
 
   function cancelPendingPreset() {
-    if (!state.pendingPresetId) return;
-    suppressedIdentityPresetId = state.pendingPresetId;
-    state.pendingPresetId = null;
-    if (state.open) {
+    var view = currentView();
+    if (view && view.repository && view.repository.pendingId) {
+      sendState({ type: "preset_cancel_pending" });
       renderPresetOptions();
+      setPresetFeedback("PENDING PRESET CANCELED.", false);
     }
-    setPresetFeedback("PENDING PRESET CANCELED.", false);
   }
-
   function closePrecisePipsDialog() {
     setClass(ui.precisePipsDialog, "Open", false);
     focus(ui.precisePipsToggle);
@@ -2419,9 +2160,11 @@
   }
 
   function copyPrecisePipsText() {
-    var text = state.values.precisePipsEnabled
-      ? PRECISE_PIPS_ENABLE_TEXT
-      : PRECISE_PIPS_RESET_TEXT;
+    var view = currentView();
+    var text =
+      view && view.values && view.values.precisePipsEnabled
+        ? PRECISE_PIPS_ENABLE_TEXT
+        : PRECISE_PIPS_RESET_TEXT;
     var copied = false;
     try {
       copied = $.DispatchEvent("CopyStringToClipboard", text) !== false;
@@ -2431,23 +2174,14 @@
 
   function togglePrecisePips() {
     if (syncingControls) return;
-    var enabled = !state.values.precisePipsEnabled;
-    commitValue("precisePipsEnabled", enabled, true);
+    var view = currentView();
+    var enabled = !(view && view.values && view.values.precisePipsEnabled);
+    sendState({ type: "setting_edit", key: "precisePipsEnabled", value: enabled });
     openPrecisePipsDialog(enabled);
   }
   function setTransferFeedback(message, isError) {
     setText(ui.transferFeedback, message);
     setClass(ui.transferDialog, "Error", !!isError);
-  }
-
-  function serializeSettingsExport() {
-    var pairs = [];
-    for (var index = 0; index < DEFAULT_KEYS.length; index++) {
-      var key = DEFAULT_KEYS[index];
-      if (state.values[key] !== DEFAULTS[key])
-        pairs.push([index, state.values[key]]);
-    }
-    return "HPCR2" + JSON.stringify(pairs);
   }
 
   function closeTransferDialog() {
@@ -2460,22 +2194,12 @@
   }
 
   function copyCurrentSettings() {
-    var code = serializeSettingsExport();
-    var copied = false;
-    setText(ui.transferInput, code);
-    try {
-      focus(ui.transferInput);
-      if (typeof ui.transferInput.SelectAll === "function")
-        ui.transferInput.SelectAll();
-      copied =
-        $.DispatchEvent("TextEntryCopyToClipboard", ui.transferInput) !== false;
-    } catch (textEntryError) {}
-    if (!copied) {
-      try {
-        copied = $.DispatchEvent("CopyStringToClipboard", code) !== false;
-      } catch (stringError) {}
-    }
-    setText(ui.transferInput, "");
+    var result = sendState({ type: "settings_copy" });
+    var copied =
+      !!result &&
+      !!result.outcome &&
+      result.outcome.status !== "rejected" &&
+      lastClipboardCopied === true;
     setTransferFeedback(
       copied
         ? "CURRENT SETTINGS COPIED"
@@ -2498,85 +2222,20 @@
     focus(ui.transferInput);
   }
 
-  function validateImportedValues(values) {
-    var enumValues = {
-      enemyMode: { fixed: true, gradient: true },
-      allyMode: { fixed: true, gradient: true },
-      readoutMode: { fixed: true, gradient: true },
-      enemyPulseColorMode: { fixed: true, gradient: true },
-      ultMode: { follow: true, custom: true },
-      readoutFormat: { hp: true, percent: true, current: true },
-      readoutColorMode: { bar: true, custom: true },
-      readoutFont: { default: true, oracle: true, pulp: true },
-    };
-    for (var key in values) {
-      if (
-        !Object.prototype.hasOwnProperty.call(values, key) ||
-        !Object.prototype.hasOwnProperty.call(DEFAULTS, key)
-      )
-        continue;
-      var value = values[key];
-      if (BOOLEAN_KEYS[key] && typeof value !== "boolean")
-        return "INVALID SETTING: " + key;
-      if (
-        COLOR_KEYS[key] &&
-        (typeof value !== "string" || !normalizeColor(value, ""))
-      )
-        return "INVALID SETTING: " + key;
-      if (enumValues[key] && !enumValues[key][value])
-        return "INVALID SETTING: " + key;
-      if (
-        typeof DEFAULTS[key] === "number" &&
-        (typeof value !== "number" || !isFinite(value))
-      )
-        return "INVALID SETTING: " + key;
-    }
-    return "";
-  }
-
-  function parseSettingsImport(raw) {
-    var text = String(raw || "").trim();
-    if (text.slice(0, 5) !== "HPCR2")
-      return { error: "NOT AN HPCR2 SETTINGS CODE" };
-    var pairs = null;
-    try {
-      pairs = JSON.parse(text.slice(5));
-    } catch (error) {
-      return { error: "INVALID HPCR2 CODE" };
-    }
-    if (!Array.isArray(pairs)) return { error: "INVALID HPCR2 PAIRS" };
-    var values = {};
-    var seen = {};
-    for (var pairIndex = 0; pairIndex < pairs.length; pairIndex++) {
-      var pair = pairs[pairIndex];
-      if (
-        !Array.isArray(pair) ||
-        pair.length !== 2 ||
-        typeof pair[0] !== "number" ||
-        !isFinite(pair[0]) ||
-        Math.floor(pair[0]) !== pair[0] ||
-        pair[0] < 0
-      )
-        return { error: "INVALID HPCR2 PAIR" };
-      var index = pair[0];
-      if (seen[index]) return { error: "DUPLICATE HPCR2 SETTING" };
-      seen[index] = true;
-      if (index >= DEFAULT_KEYS.length)
-        return { error: "UNKNOWN HPCR2 SETTING" };
-      values[DEFAULT_KEYS[index]] = pair[1];
-    }
-    var valueError = validateImportedValues(values);
-    if (valueError) return { error: valueError };
-    return { values: values };
-  }
-
   function applyImportedText(raw, pasted) {
-    var parsed = parseSettingsImport(raw);
-    if (parsed.error) {
-      setTransferFeedback(parsed.error, true);
+    var result = sendState({
+      type: "settings_import",
+      raw: String(raw || ""),
+    });
+    var outcome = result && result.outcome ? result.outcome : null;
+    if (!outcome || outcome.status === "rejected") {
+      setTransferFeedback(
+        outcome && outcome.code ? outcome.code : "INVALID HPCR2 CODE",
+        true,
+      );
       return;
     }
-    if (!replaceValues(parsed.values, true)) {
+    if (outcome.status === "noop") {
       setTransferFeedback("SETTINGS ALREADY MATCH", false);
       return;
     }
@@ -2585,6 +2244,7 @@
       pasted ? "PASTED AND APPLIED" : "IMPORTED AND APPLIED",
       false,
     );
+    syncControls();
   }
 
   function showManualPasteFallback() {
@@ -2707,325 +2367,58 @@
   }
 
 
-  function normalizeValue(key, value, values) {
-    if (BOOLEAN_KEYS[key]) return !!value;
-    if (COLOR_KEYS[key]) return normalizeColor(value, DEFAULTS[key]);
-    if (
-      key === "enemyMode" ||
-      key === "allyMode" ||
-      key === "readoutMode"
-    )
-      return value === "gradient" ? "gradient" : "fixed";
-    if (key === "enemyPulseColorMode")
-      return value === "fixed" ? "fixed" : "gradient";
-    if (
-      key === "enemyPulseThreshold" ||
-      key === "allyPulseThreshold"
-    )
-      return clampNumber(value, 0, 100, 25);
-    if (key === "enemyPulseBpm" || key === "allyPulseBpm")
-      return clampNumber(value, 30, 300, 75);
-    if (key === "enemyPulseIntensity" || key === "allyPulseIntensity")
-      return clampNumber(value, 0, 2, 1);
-    if (key === "enemyKillMarkerThreshold")
-      return clampNumber(value, 5, 80, 25);
-    if (key === "enemyKillMarkerWidth")
-      return clampNumber(value, 1, 100, 3);
-    if (key === "ultMode") return value === "custom" ? "custom" : "follow";
-    if (
-      key === "readoutFormat"
-    )
-      return value === "percent" || value === "current" ? value : "hp";
-    if (key === "readoutColorMode")
-      return value === "custom" ? "custom" : "bar";
-    if (key === "readoutFont")
-      return value === "oracle" || value === "pulp" ? value : "default";
-    if (key === "readoutSize" || key === "enemyPulseReadoutSize")
-      return clampNumber(value, 72, 320, DEFAULTS[key]);
-    if (key === "readoutOffsetX" || key === "enemyPulseReadoutOffsetX")
-      return clampNumber(value, -405, 405, DEFAULTS[key]);
-    if (key === "readoutOffsetY" || key === "enemyPulseReadoutOffsetY")
-      return clampNumber(value, -35, 840, DEFAULTS[key]);
-    if (key === "widthScale" || key === "heightScale")
-      return clampNumber(value, 60, 160, DEFAULTS[key]);
-    if (key === "positionX")
-      return clampNumber(value, -300, 300, DEFAULTS[key]);
-    if (key === "positionY")
-      return clampNumber(value, -200, 200, DEFAULTS[key]);
-    if (key === "lowThreshold")
-      return clampNumber(value, 0, (values || state.values).highThreshold - 1, 25);
-    if (key === "highThreshold")
-      return clampNumber(value, (values || state.values).lowThreshold + 1, 100, 65);
-    return value;
-  }
-
-  function normalizeValues(source) {
-    var values = copyValues(DEFAULTS);
-    for (var key in values) {
-      if (!Object.prototype.hasOwnProperty.call(values, key)) continue;
-      values[key] = normalizeValue(
-        key,
-        source && Object.prototype.hasOwnProperty.call(source, key)
-          ? source[key]
-          : DEFAULTS[key],
-        values,
-      );
-    }
-    values.lowThreshold = clampNumber(
-      values.lowThreshold,
-      0,
-      values.highThreshold - 1,
-      25,
-    );
-    values.highThreshold = clampNumber(
-      values.highThreshold,
-      values.lowThreshold + 1,
-      100,
-      65,
-    );
-    return values;
-  }
-  function normalizeHeroSelection(source) {
-    var selected = {};
-    var values = Array.isArray(source) ? source : [];
-    for (var index = 0; index < values.length; index++) {
-      var heroKey = String(values[index] || "");
-      if (Object.prototype.hasOwnProperty.call(HERO_BY_KEY, heroKey))
-        selected[heroKey] = true;
-    }
-    var result = [];
-    for (var heroIndex = 0; heroIndex < HERO_DATA.length; heroIndex++) {
-      var stableKey = HERO_DATA[heroIndex][0];
-      if (selected[stableKey]) result.push(stableKey);
-    }
-    return result;
-  }
-
-  function normalizeScopeMode(mode, heroes) {
-    if (mode === HERO_SCOPE_ALL) return HERO_SCOPE_ALL;
-    if (mode === HERO_SCOPE_SELECTED && heroes.length)
-      return HERO_SCOPE_SELECTED;
-    return HERO_SCOPE_OFF;
-  }
-
-  function normalizeScopes(source) {
-    var rows = Array.isArray(source) ? source : [];
-    var result = [];
-    var seenIds = {};
-    for (var index = 0; index < rows.length; index++) {
-      var row = rows[index];
-      var id = String((row && row.id) || "");
-      if (!id || seenIds[id]) continue;
-      seenIds[id] = true;
-      var heroes = normalizeHeroSelection(row.heroes);
-      var mode = normalizeScopeMode(String(row.mode || ""), heroes);
-      result.push({
-        id: id,
-        mode: mode,
-        heroes: mode === HERO_SCOPE_SELECTED ? heroes : [],
-        values: normalizeValues(row.values),
-      });
-    }
-    return result;
-  }
-
-  function normalizePresetConditions(source) {
-    if (source === undefined || source === null) return null;
-    if (typeof source !== "object" || Array.isArray(source)) return null;
-    try {
-      var raw = JSON.stringify(source);
-      if (!raw || raw.length > 8192) return null;
-      return JSON.parse(raw);
-    } catch (error) {
-      return null;
-    }
-  }
-
-  function normalizePresetRecord(source, kind) {
-    if (!source) return null;
-    var id = String(source.id || "");
-    var name = String(source.name || "").trim();
-    if (!id || !name) return null;
-    if (kind === "user" && !/^user_\d{4,}$/.test(id)) return null;
-    var heroes = normalizeHeroSelection(source.heroes);
-    var mode = normalizeScopeMode(String(source.mode || ""), heroes);
-    if (kind === "user" && mode === HERO_SCOPE_OFF)
-      mode = HERO_SCOPE_ALL;
-    return {
-      id: id,
-      kind: kind,
-      name: name,
-      values: normalizeValues(source.values),
-      mode: mode,
-      heroes: mode === HERO_SCOPE_SELECTED ? heroes : [],
-      conditions: normalizePresetConditions(source.conditions),
-    };
-  }
-
-  function normalizeUserPresets(source) {
-    var rows = Array.isArray(source) ? source : [];
-    var result = [];
-    var seenIds = {};
-    for (var bakedIndex = 0; bakedIndex < BAKED_PRESETS.length; bakedIndex++)
-      seenIds[BAKED_PRESETS[bakedIndex].id] = true;
-    for (var index = 0; index < rows.length; index++) {
-      var preset = normalizePresetRecord(rows[index], "user");
-      if (!preset || seenIds[preset.id]) continue;
-      seenIds[preset.id] = true;
-      result.push(preset);
-    }
-    return result;
-  }
-
   function presetDisplayName(preset) {
-    if (!preset) return "";
-    if (
-      preset.kind === "baked" &&
-      state.bakedPresetNameOverrides[preset.id]
-    )
-      return state.bakedPresetNameOverrides[preset.id];
-    return preset.name;
+    return preset ? String(preset.name || "") : "";
   }
 
-  function normalizeBakedPresetNameOverrides(source) {
-    var rows = source && typeof source === "object" ? source : {};
-    var result = {};
-    for (var index = 0; index < BAKED_PRESETS.length; index++) {
-      var preset = BAKED_PRESETS[index];
-      var name = String(rows[preset.id] || "").trim();
-      if (name && name !== preset.name) result[preset.id] = name;
-    }
-    return result;
-  }
 
-  function nextUserPresetNumber(source, presets) {
-    var nextNumber = Math.max(1, Math.floor(Number(source) || 1));
-    for (var index = 0; index < presets.length; index++) {
-      var match = /^user_(\d+)$/.exec(presets[index].id);
-      if (match)
-        nextNumber = Math.max(nextNumber, Number(match[1]) + 1);
-    }
-    return nextNumber;
-  }
-
-  function normalizeHiddenBakedPresetIds(source) {
-    var hidden = {};
-    var rows = Array.isArray(source) ? source : [];
-    for (var index = 0; index < rows.length; index++)
-      hidden[String(rows[index] || "")] = true;
-    var result = [];
-    for (var bakedIndex = 0; bakedIndex < BAKED_PRESETS.length; bakedIndex++) {
-      var id = BAKED_PRESETS[bakedIndex].id;
-      if (hidden[id]) result.push(id);
-    }
-    return result;
-  }
-
-  function isBakedPresetHidden(id) {
-    for (var index = 0; index < state.hiddenBakedPresetIds.length; index++) {
-      if (state.hiddenBakedPresetIds[index] === id) return true;
-    }
-    return false;
-  }
-
-  function visiblePresetRecords() {
-    var result = [];
-    for (var bakedIndex = 0; bakedIndex < BAKED_PRESETS.length; bakedIndex++) {
-      if (!isBakedPresetHidden(BAKED_PRESETS[bakedIndex].id))
-        result.push(BAKED_PRESETS[bakedIndex]);
-    }
-    for (var userIndex = 0; userIndex < state.userPresets.length; userIndex++)
-      result.push(state.userPresets[userIndex]);
-    return result;
-  }
-
-  function isPresetVisible(id) {
-    var records = visiblePresetRecords();
-    for (var index = 0; index < records.length; index++) {
-      if (records[index].id === id) return true;
-    }
-    return false;
-  }
 
   function presetRecords() {
-    var result = [];
-    for (var bakedIndex = 0; bakedIndex < BAKED_PRESETS.length; bakedIndex++)
-      result.push(BAKED_PRESETS[bakedIndex]);
-    for (var userIndex = 0; userIndex < state.userPresets.length; userIndex++)
-      result.push(state.userPresets[userIndex]);
-    return result;
+    var view = currentView();
+    return view && view.repository && view.repository.allRows
+      ? view.repository.allRows
+      : [];
   }
 
   function findPresetRecord(id) {
-    for (var bakedIndex = 0; bakedIndex < BAKED_PRESETS.length; bakedIndex++) {
-      if (BAKED_PRESETS[bakedIndex].id === id)
-        return BAKED_PRESETS[bakedIndex];
-    }
-    for (var userIndex = 0; userIndex < state.userPresets.length; userIndex++) {
-      if (state.userPresets[userIndex].id === id)
-        return state.userPresets[userIndex];
-    }
+    var records = presetRecords();
+    for (var index = 0; index < records.length; index++)
+      if (records[index].id === id) return records[index];
     return null;
   }
 
-  function scopeTargetsHero(scope, heroKey) {
-    if (!heroKey || scope.mode !== HERO_SCOPE_SELECTED) return false;
-    for (var index = 0; index < scope.heroes.length; index++) {
-      if (scope.heroes[index] === heroKey) return true;
-    }
-    return false;
-  }
-  function hasSelectedScopes() {
-    for (var index = 0; index < state.scopes.length; index++) {
-      if (state.scopes[index].mode === HERO_SCOPE_SELECTED) return true;
-    }
-    return false;
-  }
 
-
-  function resolveEffectiveValues() {
-    var heroKey = identity.effectiveHeroKey;
-    for (var index = 0; index < state.scopes.length; index++) {
-      if (scopeTargetsHero(state.scopes[index], heroKey))
-        return state.scopes[index].values;
-    }
-    for (var fallbackIndex = 0; fallbackIndex < state.scopes.length; fallbackIndex++) {
-      if (state.scopes[fallbackIndex].mode === HERO_SCOPE_ALL)
-        return state.scopes[fallbackIndex].values;
-    }
-    return state.values;
-  }
-
-
-  function snapshotRaw() {
-    return JSON.stringify({
-      version: 1,
-      revision: state.revision,
-      values: state.effectiveValues,
-    });
-  }
-
-  function serializeChange(settingId, raw) {
+  function serializeChange(settingId, raw, revision, values) {
+    var effectiveValues =
+      values ||
+      (currentView() && currentView().effectiveValues
+        ? currentView().effectiveValues
+        : {});
     return JSON.stringify({
       magic_word: CONFIG_MAGIC,
       version: 1,
-      revision: state.revision,
-      setting_id: settingId,
-      value: settingId === "*" ? null : state.effectiveValues[settingId],
+      revision: Number(revision) || 0,
+      setting_id: settingId || "*",
+      value:
+        settingId && settingId !== "*"
+          ? effectiveValues[settingId]
+          : null,
       values_raw: raw,
     });
   }
 
   function cacheReplayPayload(raw, replayPayload) {
+    if (!raw) return;
     serializedSnapshotRaw = raw;
     serializedReplayPayload =
-      replayPayload || serializeChange("*", raw);
+      replayPayload ||
+      serializeChange(
+        "*",
+        raw,
+        currentView() ? currentView().effectiveRevision : 0,
+      );
   }
 
-  function ensureReplayPayload() {
-    if (serializedSnapshotRaw && serializedReplayPayload) return;
-    cacheReplayPayload(snapshotRaw());
-  }
 
   function readRootAttribute(name) {
     if (!isValid(ui.absoluteRoot) || !ui.absoluteRoot.GetAttributeString) return "";
@@ -3036,67 +2429,9 @@
     }
   }
 
-  function loadPublishedSnapshot() {
-    var raw = readRootAttribute(CONFIG_ATTR);
-    if (!raw) return false;
-    try {
-      var data = JSON.parse(raw);
-      if (!data || data.version !== 1 || !data.values) return false;
-      state.revision = Math.max(0, Math.round(Number(data.revision) || 0));
-      state.effectiveValues = normalizeValues(data.values);
-      state.effectiveValuesRaw = JSON.stringify(state.effectiveValues);
-      cacheReplayPayload(snapshotRaw());
-      return true;
-    } catch (error) {
+  function writeMenuState(raw) {
+    if (!raw || !isValid(ui.absoluteRoot) || !ui.absoluteRoot.SetAttributeString)
       return false;
-    }
-  }
-
-  function loadMenuState() {
-    var raw = readRootAttribute(MENU_STATE_ATTR);
-    if (!raw) return false;
-    try {
-      var data = JSON.parse(raw);
-      if (!data || data.version !== 1 || !data.values) return false;
-      state.values = normalizeValues(data.values);
-      state.scopes = normalizeScopes(data.scopes);
-      state.userPresets = normalizeUserPresets(data.userPresets);
-      state.bakedPresetNameOverrides =
-        normalizeBakedPresetNameOverrides(data.bakedPresetNameOverrides);
-      state.hiddenBakedPresetIds =
-        normalizeHiddenBakedPresetIds(data.hiddenBakedPresetIds);
-      state.nextUserPresetNumber = nextUserPresetNumber(
-        data.nextUserPresetNumber,
-        state.userPresets,
-      );
-      var pendingPresetId = String(data.pendingPresetId || "");
-      state.pendingPresetId = findPresetRecord(pendingPresetId)
-        ? pendingPresetId
-        : null;
-      var selectedPresetId = String(data.selectedPresetId || "");
-      state.selectedPresetId = isPresetVisible(selectedPresetId)
-        ? selectedPresetId
-        : null;
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
-
-  function writeMenuState() {
-    if (!isValid(ui.absoluteRoot) || !ui.absoluteRoot.SetAttributeString)
-      return false;
-    var raw = JSON.stringify({
-      version: 1,
-      values: state.values,
-      scopes: state.scopes,
-      userPresets: state.userPresets,
-      pendingPresetId: state.pendingPresetId,
-      selectedPresetId: state.selectedPresetId,
-      nextUserPresetNumber: state.nextUserPresetNumber,
-      bakedPresetNameOverrides: state.bakedPresetNameOverrides,
-      hiddenBakedPresetIds: state.hiddenBakedPresetIds,
-    });
     try {
       if (
         !ui.absoluteRoot.GetAttributeString ||
@@ -3143,10 +2478,13 @@
   function scheduleSnapshotReplay(generation) {
     try {
       $.Schedule(replayDelay(), function () {
+        var view = currentView();
         if (
           !replayRunning ||
           generation !== replayGeneration ||
-          !state.effectiveValues.enabled ||
+          !view ||
+          !view.effectiveValues ||
+          !view.effectiveValues.enabled ||
           !isValid(ui.absoluteRoot)
         )
           return;
@@ -3164,13 +2502,14 @@
   }
 
   function refreshSnapshotReplay() {
-    if (!state.effectiveValues.enabled) {
+    var view = currentView();
+    if (!view || !view.effectiveValues || !view.effectiveValues.enabled) {
       replayGeneration += 1;
       replayRunning = false;
       replayDispatches = 0;
       return;
     }
-    ensureReplayPayload();
+    if (!serializedSnapshotRaw || !serializedReplayPayload) return;
     replayDispatches = 0;
     if (replayRunning) return;
     replayRunning = true;
@@ -3178,102 +2517,23 @@
     scheduleSnapshotReplay(replayGeneration);
   }
 
-  function publish(settingId) {
-    state.revision += 1;
-    var raw = snapshotRaw();
-    var immediatePayload = serializeChange(settingId, raw);
-    cacheReplayPayload(
-      raw,
-      settingId === "*" ? immediatePayload : "",
-    );
-    writeRootSnapshot(raw);
-    dispatchChange(settingId, raw, immediatePayload);
-    refreshSnapshotReplay();
-    $.Msg(
-      "[HP Colors Rewrite] setting revision=" +
-        state.revision +
-        " id=" +
-        settingId,
-    );
-  }
-
-  function reconcileEffective(settingId, forcePending) {
-    if (scopeResolutionPending && forcePending !== true) return false;
-    if (forcePending === true) scopeResolutionPending = false;
-    var next = resolveEffectiveValues();
-    var nextRaw = JSON.stringify(next);
-    if (nextRaw === state.effectiveValuesRaw) return false;
-    state.effectiveValues = copyValues(next);
-    state.effectiveValuesRaw = nextRaw;
-    publish(settingId);
-    return true;
-  }
-
-  function pushHistory(raw) {
-    if (!raw) return;
-    if (state.history.length && state.history[state.history.length - 1] === raw)
-      return;
-    state.history.push(raw);
-    if (state.history.length > HISTORY_LIMIT) state.history.shift();
-  }
-
-  function valuesRaw() {
-    return JSON.stringify(state.values);
-  }
-
-  function commitValue(key, value, recordHistory) {
-    if (!Object.prototype.hasOwnProperty.call(DEFAULTS, key)) return;
-    var next = normalizeValue(key, value, state.values);
-    if (state.values[key] === next) {
-      syncControls();
-      return;
-    }
-    cancelPendingPreset();
-    if (recordHistory !== false) pushHistory(valuesRaw());
-    state.values[key] = next;
-    writeMenuState();
-    reconcileEffective(key);
-    syncControls();
-  }
-
-  function replaceValues(values, recordHistory) {
-    var next = normalizeValues(values);
-    var nextRaw = JSON.stringify(next);
-    var currentRaw = valuesRaw();
-    if (nextRaw === currentRaw) return false;
-    cancelPendingPreset();
-    if (recordHistory !== false) pushHistory(currentRaw);
-    state.values = next;
-    writeMenuState();
-    reconcileEffective("*");
-    syncControls();
-    return true;
-  }
-
-  function undo() {
-    if (!state.history.length) return;
-    var raw = state.history.pop();
-    try {
-      replaceValues(JSON.parse(raw), false);
-    } catch (error) {}
-    syncControls();
-  }
-
-
   function showResetFeedback(text) {
     resetFeedbackGeneration += 1;
     var generation = resetFeedbackGeneration;
     setText(ui.liveStatus, text || "LIVE");
-    if (!text) return;
     try {
       $.Schedule(1.25, function () {
-        if (generation !== resetFeedbackGeneration || !state.open) return;
-        setText(ui.liveStatus, "LIVE");
+        if (generation === resetFeedbackGeneration)
+          setText(ui.liveStatus, "LIVE");
       });
     } catch (error) {}
   }
-
   function closeResetDialog(restoreFocus) {
+    var view = currentView();
+    var confirmation =
+      view && view.transactions ? view.transactions.confirmation : null;
+    if (confirmation && confirmation.kind === "reset")
+      sendState({ type: "reset_cancel", token: confirmation.token });
     resetKeys = null;
     setClass(ui.resetDialog, "Open", false);
     if (restoreFocus !== false && state.open) focus(ui.resetButton);
@@ -3286,15 +2546,28 @@
       showResetFeedback("NO SETTINGS TO RESET");
       return;
     }
+    var view = currentView();
+    var values = view && view.values ? view.values : {};
+    var conditions = state.conditions;
     var changedCount = 0;
     for (var index = 0; index < tab.keys.length; index++) {
       var key = tab.keys[index];
-      if (state.values[key] !== DEFAULTS[key]) changedCount += 1;
+      if (
+        values[key] !== DEFAULTS[key] ||
+        Object.prototype.hasOwnProperty.call(conditions, key)
+      )
+        changedCount += 1;
     }
     if (!changedCount) {
       showResetFeedback("SECTION ALREADY DEFAULT");
       return;
     }
+    var result = sendState({ type: "reset_request", keys: tab.keys.slice(0) });
+    var confirmation =
+      result && result.view && result.view.transactions
+        ? result.view.transactions.confirmation
+        : null;
+    if (!confirmation) return;
     resetKeys = tab.keys.slice(0);
     setText(ui.resetDialogTitle, "RESET " + tab.name);
     setText(
@@ -3317,16 +2590,23 @@
       closeResetDialog(true);
       return;
     }
-    var keys = resetKeys;
-    var next = copyValues(state.values);
-    for (var index = 0; index < keys.length; index++) {
-      var key = keys[index];
-      next[key] = DEFAULTS[key];
+    var view = currentView();
+    var confirmation =
+      view && view.transactions ? view.transactions.confirmation : null;
+    if (!confirmation || confirmation.kind !== "reset") {
+      closeResetDialog(true);
+      return;
     }
-    var changed = replaceValues(next, true);
+    var result = sendState({
+      type: "reset_confirm",
+      token: confirmation.token,
+    });
     closeResetDialog(true);
+    syncControls();
     showResetFeedback(
-      changed ? "SECTION RESET \u00b7 UNDO AVAILABLE" : "SECTION ALREADY DEFAULT",
+      result && result.outcome && result.outcome.status !== "rejected"
+        ? "SECTION RESET · UNDO AVAILABLE"
+        : "SECTION ALREADY DEFAULT",
     );
   }
 
@@ -3342,8 +2622,68 @@
     });
   }
 
+  function registerConditionControl(panel, key, min, max, option) {
+    if (
+      key === "precisePipsEnabled" ||
+      !Object.prototype.hasOwnProperty.call(DEFAULTS, key) ||
+      !isValid(panel)
+    )
+      return;
+    var row = panel;
+    while (isValid(row) && !panelHasClass(row, "HPColorsSettingRow")) {
+      try {
+        row = row.GetParent();
+      } catch (error) {
+        row = null;
+      }
+    }
+    if (!isValid(row)) return;
+
+    var control = conditionControls[key];
+    if (!control) {
+      var type = typeof DEFAULTS[key];
+      if (COLOR_KEYS[key]) type = "color";
+      else if (type === "string") type = "enum";
+      if (option !== undefined) type = "enum";
+      var titles = findChildrenWithClass(row, "HPColorsSettingTitle");
+      control = {
+        title: titles.length ? readPanelText(titles[0]) : key,
+        type: type,
+        min: min,
+        max: max,
+        options: option === undefined ? [] : [option],
+        indicators: [],
+      };
+      conditionControls[key] = control;
+    } else if (option !== undefined && control.options.indexOf(option) < 0) {
+      control.options.push(option);
+    }
+
+    var indicatorIndex;
+    for (indicatorIndex = 0; indicatorIndex < control.indicators.length; indicatorIndex++) {
+      if (control.indicators[indicatorIndex].row === row) return;
+    }
+    var suffix = control.indicators.length
+      ? "_" + String(control.indicators.length + 1)
+      : "";
+    var button = $.CreatePanel(
+      "Button",
+      row,
+      "HPColorsCondition_" + key + suffix,
+    );
+    var label = $.CreatePanel("Label", button, "");
+    if (!isValid(button) || !isValid(label)) return;
+    button.AddClass("HPColorsConditionIndicator");
+    label.text = "\u25c7";
+    control.indicators.push({ row: row, button: button, label: label });
+    setPanelEvent(button, "onactivate", function () {
+      openConditionEditor(key, button);
+    });
+  }
+
   function bindToggle(panelId, key) {
     var panel = find(panelId);
+    registerConditionControl(panel, key);
     setPanelEvent(panel, "onactivate", function () {
       if (syncingControls) return;
       commitValue(key, !state.values[key], true);
@@ -3352,6 +2692,7 @@
 
   function bindMode(panelId, key, mode) {
     var panel = find(panelId);
+    registerConditionControl(panel, key, undefined, undefined, mode);
     setPanelEvent(panel, "onactivate", function () {
       if (syncingControls) return;
       commitValue(key, mode, true);
@@ -3362,6 +2703,7 @@
     var slider = find(sliderId);
     var entry = find(entryId);
     if (!isValid(slider) || !isValid(entry)) return;
+    registerConditionControl(slider, key, min, max);
     var gestureBefore = "";
 
     try {
@@ -3371,16 +2713,18 @@
     } catch (error) {}
 
     setPanelEvent(slider, "onmousedown", function () {
-      gestureBefore = valuesRaw();
+      gestureBefore = key;
+      sendState({ type: "gesture_begin", key: key, value: slider.value });
     });
     setPanelEvent(slider, "onvaluechanged", function () {
       if (syncingControls) return;
-      var before = gestureBefore ? "" : valuesRaw();
-      commitValue(key, slider.value, false);
-      if (before) pushHistory(before);
+      if (gestureBefore)
+        sendState({ type: "gesture_update", key: key, value: slider.value });
+      else commitValue(key, slider.value);
     });
     setPanelEvent(slider, "onmouseup", function () {
-      if (gestureBefore && gestureBefore !== valuesRaw()) pushHistory(gestureBefore);
+      if (gestureBefore)
+        sendState({ type: "gesture_end", key: key, value: slider.value });
       gestureBefore = "";
       syncControls();
     });
@@ -3401,6 +2745,7 @@
     var swatch = find(swatchId);
     var entry = find(entryId);
     if (!isValid(swatch) || !isValid(entry)) return;
+    registerConditionControl(swatch, key);
     setPanelEvent(swatch, "onactivate", function () {
       openPicker(key, swatch);
     });
@@ -3414,6 +2759,327 @@
     setPanelEvent(entry, "ontextentrysubmit", commitEntry);
     setPanelEvent(entry, "onblur", commitEntry);
     setPanelEvent(entry, "oncancel", syncControls);
+  }
+
+  function conditionValueMatchesSetting(key, value) {
+    return !!key && value === state.values[key];
+  }
+
+  function conditionEditorStatus() {
+    if (
+      conditionValueMatchesSetting(
+        conditionDraft.key,
+        conditionDraft.value,
+      )
+    )
+      return {
+        text: "NO OVERRIDE \u00b7 VALUE OR SELECTION MATCHES CURRENT SETTING",
+        matched: false,
+        unavailable: false,
+      };
+    var tier = ability.observedTiers[conditionDraft.slot - 1];
+    if (tier < 0)
+      return {
+        text:
+          "SLOT " +
+          String(conditionDraft.slot) +
+          " UNAVAILABLE \u00b7 BASE VALUE WILL BE USED",
+        matched: false,
+        unavailable: true,
+      };
+    if (tier >= conditionDraft.minTier)
+      return {
+        text:
+          "SLOT " +
+          String(conditionDraft.slot) +
+          " TIER " +
+          String(tier) +
+          " \u00b7 CONDITION MATCHED",
+        matched: true,
+        unavailable: false,
+      };
+    return {
+      text:
+        "SLOT " +
+        String(conditionDraft.slot) +
+        " TIER " +
+        String(tier) +
+        " \u00b7 NEEDS TIER " +
+        String(conditionDraft.minTier) +
+        "+",
+      matched: false,
+      unavailable: false,
+    };
+  }
+
+  function renderConditionEditor() {
+    if (!conditionDraft.key) return;
+    var control = conditionControls[conditionDraft.key];
+    if (!control) return;
+    setText(
+      ui.conditionTitle,
+      (control.title || conditionDraft.key).toUpperCase(),
+    );
+    for (var slotIndex = 0; slotIndex < ui.conditionSlotButtons.length; slotIndex++)
+      syncConditionAbilityCard(slotIndex);
+    setClass(ui.conditionBooleanRow, "Active", control.type === "boolean");
+    setClass(ui.conditionEnumRow, "Active", control.type === "enum");
+    setClass(ui.conditionNumberRow, "Active", control.type === "number");
+    setClass(ui.conditionColorRow, "Active", control.type === "color");
+    if (control.type === "boolean") {
+      setClass(
+        ui.conditionBooleanFalse,
+        "Selected",
+        conditionDraft.value === false,
+      );
+      setClass(
+        ui.conditionBooleanTrue,
+        "Selected",
+        conditionDraft.value === true,
+      );
+    } else if (control.type === "enum") {
+      if (isValid(ui.conditionEnumOptions))
+        ui.conditionEnumOptions.RemoveAndDeleteChildren();
+      for (var optionIndex = 0; optionIndex < control.options.length; optionIndex++) {
+        (function (option) {
+          var button = $.CreatePanel(
+            "Button",
+            ui.conditionEnumOptions,
+            "HPColorsConditionOption_" + String(option),
+          );
+          var label = $.CreatePanel("Label", button, "");
+          button.AddClass("HPColorsConditionChoice");
+          label.text = String(option).toUpperCase();
+          setClass(button, "Selected", conditionDraft.value === option);
+          setPanelEvent(button, "onactivate", function () {
+            conditionDraft.value = option;
+            renderConditionEditor();
+          });
+        })(control.options[optionIndex]);
+      }
+    } else if (control.type === "number") {
+      if (isValid(ui.conditionNumberSlider)) {
+        ui.conditionNumberSlider.min = control.min;
+        ui.conditionNumberSlider.max = control.max;
+        try {
+          if (typeof ui.conditionNumberSlider.SetValueNoEvents === "function")
+            ui.conditionNumberSlider.SetValueNoEvents(conditionDraft.value);
+          else ui.conditionNumberSlider.value = conditionDraft.value;
+        } catch (error) {}
+      }
+      setText(ui.conditionNumberEntry, String(conditionDraft.value));
+    } else if (control.type === "color") {
+      setText(ui.conditionColorEntry, conditionDraft.value);
+      try {
+        ui.conditionColorSwatch.style.backgroundColor = conditionDraft.value;
+      } catch (error) {}
+    }
+    var status = conditionEditorStatus();
+    setText(ui.conditionStatus, status.text);
+    setClass(ui.conditionDialog, "Matched", status.matched);
+    setClass(ui.conditionDialog, "Unavailable", status.unavailable);
+    setClass(
+      ui.conditionApplyButton,
+      "Disabled",
+      conditionValueMatchesSetting(
+        conditionDraft.key,
+        conditionDraft.value,
+      ),
+    );
+    setClass(
+      ui.conditionRemoveButton,
+      "Disabled",
+      !Object.prototype.hasOwnProperty.call(
+        state.conditions,
+        conditionDraft.key,
+      ),
+    );
+  }
+
+  function syncConditionIndicators() {
+    var activeConditions = state.conditions;
+    for (var key in conditionControls) {
+      if (!Object.prototype.hasOwnProperty.call(conditionControls, key))
+        continue;
+      var control = conditionControls[key];
+      var activeRule = activeConditions[key];
+      var meaningful =
+        !!activeRule &&
+        !conditionValueMatchesSetting(key, activeRule.value);
+      var tier = meaningful
+        ? ability.observedTiers[activeRule.slot - 1]
+        : -1;
+      var matched = meaningful && tier >= activeRule.minTier;
+      var indicators = control.indicators;
+      for (var indicatorIndex = 0; indicatorIndex < indicators.length; indicatorIndex++) {
+        var indicator = indicators[indicatorIndex];
+        setClass(indicator.button, "Configured", meaningful);
+        setClass(indicator.button, "Matched", matched);
+        setClass(
+          indicator.button,
+          "Unavailable",
+          meaningful && tier < 0,
+        );
+        setText(
+          indicator.label,
+          meaningful ? "\u25c6" : "\u25c7",
+        );
+      }
+    }
+    if (
+      conditionDraft.key &&
+      isValid(ui.conditionDialog) &&
+      ui.conditionDialog.BHasClass("Open")
+    )
+      renderConditionEditor();
+  }
+
+  function closeConditionEditor() {
+    if (picker.condition) closePicker();
+    var returnPanel = conditionDraft.returnPanel;
+    conditionDraft.key = "";
+    conditionDraft.returnPanel = null;
+    setClass(ui.conditionDialog, "Open", false);
+    setClass(ui.conditionDialog, "Matched", false);
+    setClass(ui.conditionDialog, "Unavailable", false);
+    if (state.open) focus(returnPanel);
+  }
+
+  function openConditionEditor(key, returnPanel) {
+    if (!conditionControls[key]) return;
+    closeResetDialog(false);
+    closePresetTransferDialog();
+    closeTransferDialog();
+    closeHeroDialog();
+    closeScopeDialog();
+    closePicker();
+    var rule = state.conditions[key];
+    conditionDraft.key = key;
+    conditionDraft.slot = rule ? rule.slot : 1;
+    conditionDraft.minTier = rule ? rule.minTier : 1;
+    conditionDraft.value = rule ? rule.value : state.values[key];
+    conditionDraft.returnPanel = returnPanel;
+    setClass(ui.conditionDialog, "Open", true);
+    sampleAbilityTiers();
+    renderConditionEditor();
+    focus(ui.conditionCancelButton);
+  }
+
+  function setConditionSlot(slot) {
+    if (!conditionDraft.key) return;
+    if (conditionDraft.slot === slot)
+      conditionDraft.minTier = conditionDraft.minTier >= 3
+        ? 1
+        : conditionDraft.minTier + 1;
+    else {
+      conditionDraft.slot = slot;
+      conditionDraft.minTier = 1;
+    }
+    sampleAbilityTiers();
+    renderConditionEditor();
+  }
+
+  function pickConditionColor() {
+    var control = conditionControls[conditionDraft.key];
+    if (!control || control.type !== "color") return;
+    closeHeroDialog();
+    picker.key = conditionDraft.key;
+    picker.returnPanel = ui.conditionColorSwatch;
+    picker.condition = true;
+    var hsl = hexToHsl(conditionDraft.value);
+    picker.hue = hsl.hue;
+    picker.saturation = hsl.saturation;
+    picker.lightness = hsl.lightness;
+    setClass(ui.pickerRoot, "Open", true);
+    syncPicker();
+    focus(ui.pickerHueSlider);
+  }
+
+  function applyConditionDraft() {
+    if (!conditionDraft.key) return;
+    if (
+      conditionValueMatchesSetting(
+        conditionDraft.key,
+        conditionDraft.value,
+      )
+    )
+      return;
+    var result = sendState({
+      type: "condition_set",
+      key: conditionDraft.key,
+      slot: conditionDraft.slot,
+      minTier: conditionDraft.minTier,
+      value: conditionDraft.value,
+    });
+    if (!result || !result.outcome || result.outcome.status === "rejected") {
+      renderConditionEditor();
+      return;
+    }
+    closeConditionEditor();
+    syncControls();
+  }
+
+  function removeConditionDraft() {
+    if (!conditionDraft.key) return;
+    sendState({ type: "condition_remove", key: conditionDraft.key });
+    closeConditionEditor();
+    syncControls();
+  }
+
+  function bindConditionEditorControls() {
+    for (var slotIndex = 0; slotIndex < ui.conditionSlotButtons.length; slotIndex++) {
+      (function (slot) {
+        setPanelEvent(ui.conditionSlotButtons[slot - 1], "onactivate", function () {
+          setConditionSlot(slot);
+        });
+      })(slotIndex + 1);
+    }
+    setPanelEvent(ui.conditionBooleanFalse, "onactivate", function () {
+      conditionDraft.value = false;
+      renderConditionEditor();
+    });
+    setPanelEvent(ui.conditionBooleanTrue, "onactivate", function () {
+      conditionDraft.value = true;
+      renderConditionEditor();
+    });
+    setPanelEvent(ui.conditionNumberSlider, "onvaluechanged", function () {
+      if (!conditionDraft.key) return;
+      conditionDraft.value = Math.round(Number(ui.conditionNumberSlider.value));
+      renderConditionEditor();
+    });
+    function commitNumber() {
+      var control = conditionControls[conditionDraft.key];
+      if (!control || control.type !== "number") return;
+      conditionDraft.value = clampNumber(
+        ui.conditionNumberEntry.text,
+        control.min,
+        control.max,
+        state.values[conditionDraft.key],
+      );
+      renderConditionEditor();
+    }
+    setPanelEvent(ui.conditionNumberEntry, "ontextentrysubmit", commitNumber);
+    setPanelEvent(ui.conditionNumberEntry, "onblur", commitNumber);
+    function commitColor() {
+      var control = conditionControls[conditionDraft.key];
+      if (!control || control.type !== "color") return;
+      conditionDraft.value = normalizeColor(
+        ui.conditionColorEntry.text,
+        String(conditionDraft.value || state.values[conditionDraft.key]),
+      );
+      renderConditionEditor();
+    }
+    setPanelEvent(
+      ui.conditionColorSwatch,
+      "onactivate",
+      pickConditionColor,
+    );
+    setPanelEvent(ui.conditionColorEntry, "ontextentrysubmit", commitColor);
+    setPanelEvent(ui.conditionColorEntry, "onblur", commitColor);
+    setPanelEvent(ui.conditionRemoveButton, "onactivate", removeConditionDraft);
+    setPanelEvent(ui.conditionCancelButton, "onactivate", closeConditionEditor);
+    setPanelEvent(ui.conditionApplyButton, "onactivate", applyConditionDraft);
+    setPanelEvent(ui.conditionDialog, "oncancel", closeConditionEditor);
   }
 
   function setToggle(panelId, value) {
@@ -3520,16 +3186,32 @@
 
   function bindPickerSlider(slider, component) {
     if (!isValid(slider)) return;
-    var gestureBefore = "";
+    function pickerColor() {
+      return hslToHex(
+        picker.hue,
+        picker.saturation,
+        picker.lightness,
+      );
+    }
     try {
       slider.increment = 1;
     } catch (error) {}
     setPanelEvent(slider, "onmousedown", function () {
-      gestureBefore = valuesRaw();
+      if (picker.condition || !picker.key) return;
+      if (pickerGestureActive)
+        sendState({ type: "gesture_cancel", key: picker.key });
+      var result = sendState({
+        type: "gesture_begin",
+        key: picker.key,
+        value: pickerColor(),
+      });
+      pickerGestureActive =
+        !!result &&
+        !!result.outcome &&
+        result.outcome.status !== "rejected";
     });
     setPanelEvent(slider, "onvaluechanged", function () {
       if (syncingControls || !picker.key) return;
-      var before = gestureBefore ? "" : valuesRaw();
       var max = component === "hue" ? 359 : 100;
       picker[component] = clampNumber(
         slider.value,
@@ -3537,26 +3219,48 @@
         max,
         picker[component],
       );
-      commitValue(
-        picker.key,
-        hslToHex(picker.hue, picker.saturation, picker.lightness),
-        false,
-      );
-      if (before) pushHistory(before);
+      var color = pickerColor();
+      if (picker.condition) {
+        conditionDraft.value = color;
+        syncPicker();
+        renderConditionEditor();
+        return;
+      }
+      if (pickerGestureActive) {
+        sendState({ type: "gesture_update", key: picker.key, value: color });
+        syncPicker();
+      } else {
+        commitValue(picker.key, color);
+      }
     });
     setPanelEvent(slider, "onmouseup", function () {
-      if (gestureBefore && gestureBefore !== valuesRaw())
-        pushHistory(gestureBefore);
-      gestureBefore = "";
+      if (picker.condition) {
+        renderConditionEditor();
+        return;
+      }
+      if (pickerGestureActive)
+        sendState({
+          type: "gesture_end",
+          key: picker.key,
+          value: pickerColor(),
+        });
+      pickerGestureActive = false;
       syncControls();
     });
   }
 
   function closePicker() {
     if (!picker.key) return;
+    var wasCondition = picker.condition;
+    if (pickerGestureActive) {
+      sendState({ type: "gesture_cancel", key: picker.key });
+      pickerGestureActive = false;
+    }
     picker.key = "";
+    picker.condition = false;
     setClass(ui.pickerRoot, "Open", false);
     focus(picker.returnPanel);
+    if (wasCondition && conditionDraft.key) renderConditionEditor();
     picker.returnPanel = null;
   }
 
@@ -3564,6 +3268,7 @@
     if (!COLOR_KEYS[key]) return;
     closeHeroDialog();
     picker.key = key;
+    picker.condition = false;
     picker.returnPanel = returnPanel;
     var hsl = hexToHsl(state.values[key]);
     picker.hue = hsl.hue;
@@ -4096,6 +3801,7 @@
     setClass(ui.undoButton, "Disabled", state.history.length === 0);
     if (ui.undoButton) ui.undoButton.enabled = state.history.length > 0;
     syncPicker();
+    syncConditionIndicators();
     syncingControls = false;
     renderIdentity();
     renderCurrentScope();
@@ -4191,14 +3897,15 @@
   function closeEditor() {
     if (!state.open) return;
     closeResetDialog(false);
+    closeConditionEditor();
     showResetFeedback("");
     closeTransferDialog();
     closeHeroDialog();
     closeScopeDialog();
     closePicker();
+    sendState({ type: "editor_close" });
     endPeek();
     state.open = false;
-    state.history = [];
     setClass(ui.editorRoot, "Open", false);
     setClass(ui.escapeRoot, "EditorOpen", false);
     focus(ui.menuButton);
@@ -4207,14 +3914,10 @@
 
   function openEditor() {
     if (!state.booted || state.open) return;
+    sendState({ type: "session_open" });
     state.open = true;
     state.peeking = false;
     showResetFeedback("");
-    state.history = [];
-    if (loadMenuState()) {
-      writeMenuState();
-      reconcileEffective("*");
-    }
     renderPresetOptions();
     syncPresetSaveForm(true);
     setClass(ui.editorRoot, "Peeking", false);
@@ -4226,6 +3929,17 @@
   }
 
   function cancel() {
+    if (picker.key) {
+      closePicker();
+      return;
+    }
+    if (
+      isValid(ui.conditionDialog) &&
+      ui.conditionDialog.BHasClass("Open")
+    ) {
+      closeConditionEditor();
+      return;
+    }
     if (isValid(ui.resetDialog) && ui.resetDialog.BHasClass("Open")) {
       closeResetDialog(true);
       return;
@@ -4257,10 +3971,6 @@
       ui.precisePipsDialog.BHasClass("Open")
     ) {
       closePrecisePipsDialog();
-      return;
-    }
-    if (picker.key) {
-      closePicker();
       return;
     }
     if (state.open) {
@@ -4296,6 +4006,31 @@
     ui.resetDialogMessage = find("HPColorsResetDialogMessage");
     ui.resetConfirmButton = find("HPColorsResetConfirmButton");
     ui.resetCancelButton = find("HPColorsResetCancelButton");
+    ui.conditionDialog = find("HPColorsConditionDialog");
+    ui.conditionTitle = find("HPColorsConditionTitle");
+    ui.conditionStatus = find("HPColorsConditionStatus");
+    for (var conditionSlot = 1; conditionSlot <= 4; conditionSlot++) {
+      ui.conditionSlotButtons.push(
+        find("HPColorsConditionSlot" + String(conditionSlot)),
+      );
+      ui.conditionSlotImages.push(
+        find("HPColorsConditionSlot" + String(conditionSlot) + "Image"),
+      );
+    }
+    ui.conditionBooleanRow = find("HPColorsConditionBooleanRow");
+    ui.conditionBooleanFalse = find("HPColorsConditionBooleanFalse");
+    ui.conditionBooleanTrue = find("HPColorsConditionBooleanTrue");
+    ui.conditionEnumRow = find("HPColorsConditionEnumRow");
+    ui.conditionEnumOptions = find("HPColorsConditionEnumOptions");
+    ui.conditionNumberRow = find("HPColorsConditionNumberRow");
+    ui.conditionNumberSliderHost = find("HPColorsConditionNumberSliderHost");
+    ui.conditionNumberEntry = find("HPColorsConditionNumberEntry");
+    ui.conditionColorRow = find("HPColorsConditionColorRow");
+    ui.conditionColorSwatch = find("HPColorsConditionColorSwatch");
+    ui.conditionColorEntry = find("HPColorsConditionColorEntry");
+    ui.conditionRemoveButton = find("HPColorsConditionRemoveButton");
+    ui.conditionCancelButton = find("HPColorsConditionCancelButton");
+    ui.conditionApplyButton = find("HPColorsConditionApplyButton");
     ui.transferButton = find("HPColorsTransferButton");
     ui.transferDialog = find("HPColorsTransferDialog");
     ui.transferInput = find("HPColorsTransferInput");
@@ -4426,6 +4161,25 @@
       isValid(ui.resetDialogMessage) &&
       isValid(ui.resetConfirmButton) &&
       isValid(ui.resetCancelButton) &&
+      isValid(ui.conditionDialog) &&
+      isValid(ui.conditionTitle) &&
+      isValid(ui.conditionStatus) &&
+      ui.conditionSlotButtons.length === 4 &&
+      ui.conditionSlotImages.length === 4 &&
+      isValid(ui.conditionBooleanRow) &&
+      isValid(ui.conditionBooleanFalse) &&
+      isValid(ui.conditionBooleanTrue) &&
+      isValid(ui.conditionEnumRow) &&
+      isValid(ui.conditionEnumOptions) &&
+      isValid(ui.conditionNumberRow) &&
+      isValid(ui.conditionNumberSliderHost) &&
+      isValid(ui.conditionNumberEntry) &&
+      isValid(ui.conditionColorRow) &&
+      isValid(ui.conditionColorSwatch) &&
+      isValid(ui.conditionColorEntry) &&
+      isValid(ui.conditionRemoveButton) &&
+      isValid(ui.conditionCancelButton) &&
+      isValid(ui.conditionApplyButton) &&
       isValid(ui.transferButton) &&
       isValid(ui.transferDialog) &&
       isValid(ui.transferInput) &&
@@ -4538,6 +4292,7 @@
     }
     return true;
   }
+
 
   function createSliders() {
     return (
@@ -4684,6 +4439,14 @@
           "HPColorsEnemyKillMarkerWidthSliderHost",
           "HPColorsEnemyKillMarkerWidthSlider",
           1,
+          100,
+        )),
+      ) &&
+      isValid(
+        (ui.conditionNumberSlider = createSlider(
+          "HPColorsConditionNumberSliderHost",
+          "HPColorsConditionNumberSlider",
+          0,
           100,
         )),
       ) &&
@@ -4957,6 +4720,7 @@
       "HPColorsReadoutHighHex",
       "readoutHigh",
     );
+    bindConditionEditorControls();
   }
 
   function boot() {
@@ -4965,6 +4729,30 @@
       $.Msg("[HP Colors Rewrite] menu boot failed: required panel missing");
       return;
     }
+    if (
+      !$.HPColorsStateFactory ||
+      typeof $.HPColorsStateFactory.create !== "function"
+    ) {
+      $.Msg("[HP Colors Rewrite] menu boot failed: HPColorsStateFactory missing");
+      return;
+    }
+    var rawSessionState = readRootAttribute(MENU_STATE_ATTR);
+    var publishedRaw = readRootAttribute(CONFIG_ATTR);
+    try {
+      stateInstance = $.HPColorsStateFactory.create({
+        sessionRaw: rawSessionState || null,
+        publishedRaw: publishedRaw || null,
+      });
+    } catch (error) {
+      $.Msg("[HP Colors Rewrite] menu boot failed: state factory create error");
+      return;
+    }
+    if (!stateInstance || typeof stateInstance.send !== "function" || typeof stateInstance.read !== "function") {
+      $.Msg("[HP Colors Rewrite] menu boot failed: invalid state instance");
+      stateInstance = null;
+      return;
+    }
+    state.view = stateInstance.read();
     if (!createSliders()) {
       $.Msg("[HP Colors Rewrite] menu boot failed: slider host missing");
       return;
@@ -5058,28 +4846,24 @@
     setPanelEvent(ui.precisePipsDialog, "oncancel", closePrecisePipsDialog);
 
     state.booted = true;
-    var hadPublishedSnapshot = loadPublishedSnapshot();
-    if (!loadMenuState()) {
-      state.values = hadPublishedSnapshot
-        ? copyValues(state.effectiveValues)
-        : copyValues(DEFAULTS);
-      state.scopes = [];
-      state.userPresets = [];
-      state.pendingPresetId = null;
-      state.selectedPresetId = null;
-      state.nextUserPresetNumber = 1;
-      state.bakedPresetNameOverrides = {};
-      state.hiddenBakedPresetIds = [];
+    sendState({ type: "session_open", publish: true });
+    var effectiveRaw = readRootAttribute(CONFIG_ATTR);
+    if (effectiveRaw) {
+      cacheReplayPayload(
+        effectiveRaw,
+        serializeChange(
+          "*",
+          effectiveRaw,
+          state.view ? state.view.effectiveRevision : 0,
+        ),
+      );
     }
-    writeMenuState();
-    var bootEffectiveRaw = JSON.stringify(resolveEffectiveValues());
-    scopeResolutionPending =
-      hadPublishedSnapshot &&
-      hasSelectedScopes() &&
-      bootEffectiveRaw !== state.effectiveValuesRaw;
-    reconcileEffective("*");
     refreshSnapshotReplay();
-    if (state.pendingPresetId)
+    if (
+      state.view &&
+      state.view.repository &&
+      state.view.repository.pendingId
+    )
       setPresetFeedback("WAITING FOR A STABLE HERO IDENTITY.", false);
     renderNavigation();
     restartIdentityWatch();

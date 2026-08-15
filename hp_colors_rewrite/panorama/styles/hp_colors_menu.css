@@ -835,8 +835,15 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   color: #ffefd7;
 }
 
-.HPColorsSecondaryAction.Disabled {
+.HPColorsSecondaryAction.Disabled,
+.HPColorsPrimaryAction.Disabled {
   opacity: 0.35;
+}
+
+.HPColorsPrimaryAction.Disabled:hover,
+.HPColorsPrimaryAction.Disabled:focus {
+  brightness: 1;
+  transform: none;
 }
 
 .HPColorsPrimaryAction Label {
@@ -1573,4 +1580,313 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsPresetRestoreBakedButton.Active {
   visibility: visible;
+}
+
+.HPColorsConditionIndicator {
+  width: 30px;
+  height: 30px;
+  margin-left: 10px;
+  vertical-align: center;
+  opacity: 0;
+  background-color: #10130dcc;
+  border: 1px solid #ffefd72b;
+  border-radius: 2px;
+}
+
+.HPColorsSettingRow:hover .HPColorsConditionIndicator,
+.HPColorsConditionIndicator.Configured,
+.HPColorsConditionIndicator.Matched,
+.HPColorsConditionIndicator.Unavailable {
+  opacity: 1;
+}
+
+.HPColorsConditionIndicator Label {
+  horizontal-align: center;
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 15px;
+  color: #ffefd777;
+}
+
+.HPColorsConditionIndicator.Configured {
+  border: 1px solid #5fe69e80;
+}
+
+.HPColorsConditionIndicator.Configured Label,
+.HPColorsConditionIndicator.Matched Label {
+  color: #5fe69e;
+}
+
+.HPColorsConditionIndicator.Matched {
+  background-color: #5fe69e24;
+  box-shadow: fill #5fe69e33 0px 0px 8px 0px;
+}
+
+.HPColorsConditionIndicator.Unavailable {
+  border: 1px solid #e7c77d80;
+}
+
+.HPColorsConditionIndicator.Unavailable Label {
+  color: #e7c77d;
+}
+
+.HPColorsConditionDialogPanel {
+  width: 520px;
+  max-height: 90%;
+}
+
+.HPColorsConditionStatus {
+  color: #e7c77d;
+}
+
+.HPColorsConditionDialog.Matched .HPColorsConditionStatus {
+  color: #5fe69e;
+}
+
+.HPColorsConditionDialog.Unavailable .HPColorsConditionStatus {
+  color: #e16161;
+}
+
+.HPColorsConditionSectionLabel {
+  margin-top: 12px;
+  font-family: oracle;
+  font-size: 10px;
+  color: #a8b3b5;
+  letter-spacing: 1px;
+}
+
+.HPColorsConditionChoices {
+  width: 100%;
+  margin-top: 6px;
+  flow-children: right;
+}
+
+.HPColorsConditionAbilityChoices {
+  width: 100%;
+  height: 96px;
+  margin-top: 6px;
+  flow-children: right;
+  overflow: noclip;
+}
+
+.HPColorsConditionAbilityCard {
+  width: 96px;
+  height: 92px;
+  margin-right: 8px;
+  background-color: #0b101199;
+  border: 1px solid #39444799;
+  border-radius: 4px;
+  overflow: noclip;
+  transition-property: pre-transform-scale2d, brightness, background-color, border;
+  transition-duration: 0.12s;
+}
+
+.HPColorsConditionAbilityCard:last-child {
+  margin-right: 0px;
+}
+
+.HPColorsConditionAbilityCard:hover {
+  brightness: 1.18;
+  border: 1px solid #758487;
+}
+
+.HPColorsConditionAbilityCard:active {
+  pre-transform-scale2d: 0.98;
+}
+
+.HPColorsConditionAbilityCard.Selected {
+  background-color: #66cc9914;
+  border: 1px solid #66cc99;
+}
+
+.HPColorsConditionAbilityCard.Unavailable {
+  saturation: 0;
+  opacity: 0.48;
+}
+
+.HPColorsConditionAbilityIcon {
+  width: 72px;
+  height: 72px;
+  horizontal-align: center;
+  vertical-align: top;
+}
+
+.HPColorsConditionAbilityFrame {
+  width: 72px;
+  height: 72px;
+  horizontal-align: center;
+  vertical-align: center;
+  background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_1_psd.vtex");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
+.HPColorsConditionAbilityTierFrame {
+  width: 72px;
+  height: 72px;
+  horizontal-align: center;
+  vertical-align: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  opacity: 0;
+}
+
+.HPColorsConditionAbilityCard.Selected.RequiredTier2 .HPColorsConditionAbilityTierFrame {
+  background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_2_psd.vtex");
+  opacity: 1;
+}
+
+.HPColorsConditionAbilityCard.Selected.RequiredTier3 .HPColorsConditionAbilityTierFrame {
+  background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_3_psd.vtex");
+  opacity: 1;
+}
+
+.HPColorsConditionAbilityArt {
+  width: 44px;
+  height: 44px;
+  horizontal-align: center;
+  vertical-align: center;
+  opacity: 0;
+  saturation: 0.82;
+}
+
+.HPColorsConditionAbilityCard.HasAbilityArt .HPColorsConditionAbilityArt {
+  opacity: 0.92;
+}
+
+.HPColorsConditionAbilityFallback {
+  horizontal-align: center;
+  vertical-align: center;
+  font-family: block;
+  font-size: 27px;
+  color: #c8d1d3aa;
+  text-shadow: 0px 1px 3px 2 #000000ee;
+}
+
+.HPColorsConditionAbilityCard.HasAbilityArt .HPColorsConditionAbilityFallback {
+  opacity: 0;
+}
+
+.HPColorsConditionRequiredPips {
+  width: 44px;
+  height: 14px;
+  margin-bottom: 5px;
+  horizontal-align: center;
+  vertical-align: bottom;
+  visibility: collapse;
+  flow-children: right;
+}
+
+.HPColorsConditionAbilityCard.Selected .HPColorsConditionRequiredPips {
+  visibility: visible;
+}
+
+.HPColorsConditionRequiredPip {
+  width: 12px;
+  height: 12px;
+  margin-right: 4px;
+  background-image: url("s2r://panorama/images/hud/hero_ability_pip_psd.vtex");
+  background-size: contain;
+  background-repeat: no-repeat;
+  wash-color: #182021;
+  opacity: 0.45;
+}
+
+.HPColorsConditionRequiredPip.Pip3 {
+  margin-right: 0px;
+}
+
+.HPColorsConditionAbilityCard.RequiredTier1 .HPColorsConditionRequiredPip.Pip1,
+.HPColorsConditionAbilityCard.RequiredTier2 .HPColorsConditionRequiredPip.Pip1,
+.HPColorsConditionAbilityCard.RequiredTier2 .HPColorsConditionRequiredPip.Pip2,
+.HPColorsConditionAbilityCard.RequiredTier3 .HPColorsConditionRequiredPip {
+  wash-color: #66cc99;
+  opacity: 1;
+}
+
+.HPColorsConditionChoice {
+  min-width: 96px;
+  height: 36px;
+  margin-right: 8px;
+  background-color: #10130dcc;
+  border: 1px solid #ffefd724;
+}
+
+.HPColorsConditionChoice Label {
+  horizontal-align: center;
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 12px;
+  color: #ffefd788;
+  letter-spacing: 1px;
+}
+
+.HPColorsConditionChoice.Selected {
+  background-color: #5fe69e24;
+  border: 1px solid #5fe69e;
+}
+
+.HPColorsConditionChoice.Selected Label,
+.HPColorsConditionChoice:hover Label {
+  color: #ffefd7;
+}
+
+.HPColorsConditionValueRow {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 6px;
+  padding: 4px 6px;
+  visibility: collapse;
+  flow-children: right;
+  background-color: #07090766;
+  border: 1px solid #ffefd712;
+}
+
+#HPColorsConditionBooleanRow,
+#HPColorsConditionColorRow {
+  width: 230px;
+}
+
+.HPColorsConditionValueRow.Active {
+  visibility: visible;
+}
+
+#HPColorsConditionNumberRow {
+  padding: 3px 0px;
+  background-color: transparent;
+  border: 0px;
+}
+
+.HPColorsConditionNumberSliderHost {
+  width: 364px;
+  height: 34px;
+  vertical-align: center;
+  overflow: noclip;
+}
+
+.HPColorsConditionNumberEntry {
+  margin-left: 18px;
+}
+
+.HPColorsConditionSessionNote {
+  width: 100%;
+  margin-top: 8px;
+  font-family: oracle;
+  font-size: 10px;
+  color: #ffefd744;
+  white-space: normal;
+}
+
+
+.HPColorsConditionRemove {
+  margin-left: 12px;
+  border: 1px solid #e1616155;
+}
+
+.HPColorsConditionRemove Label {
+  color: #e7a1a1;
+}
+
+.HPColorsConditionRemove.Disabled {
+  visibility: collapse;
 }

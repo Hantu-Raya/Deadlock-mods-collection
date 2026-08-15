@@ -7,10 +7,9 @@ const test = require('node:test');
 const {
   MockPanel,
   createPanoramaHarness,
-  createVmContext,
   installTopBarIdentityTree,
   findByClass,
-  runInVm,
+  runHpColorsSourcesInVm,
 } = require('./hp-colors-panorama-test-adapter');
 
 const rewriteRoot = path.resolve(__dirname, '../hp_colors_rewrite');
@@ -20,6 +19,10 @@ const layoutSource = fs.readFileSync(
 );
 const menuSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/hp_colors_menu.js'),
+  'utf8',
+);
+const stateSource = fs.readFileSync(
+  path.join(rewriteRoot, 'panorama/scripts/hp_colors_state.js'),
   'utf8',
 );
 const MENU_STATE_ATTR = 'hp_colors_rewrite_menu_state';
@@ -46,12 +49,14 @@ function bootScopedMenu(menuState, options = {}) {
     gameTime: options.gameTime || '00:01',
   });
   harness.root.SetAttributeString(MENU_STATE_ATTR, JSON.stringify(menuState));
-  if (options.publishedSnapshot)
+  if (options.publishedRaw !== undefined)
+    harness.root.SetAttributeString(CONFIG_ATTR, String(options.publishedRaw));
+  else if (options.publishedSnapshot)
     harness.root.SetAttributeString(
       CONFIG_ATTR,
       JSON.stringify(options.publishedSnapshot),
     );
-  runInVm(menuSource, createVmContext(harness), 'hp_colors_menu.js');
+  runHpColorsSourcesInVm(stateSource, menuSource, harness);
   harness.$.HPColorsMenuBoot();
   return { harness, topBar };
 }
@@ -197,34 +202,43 @@ test('scope normalization deduplicates stable heroes and IDs and disables empty 
   );
 });
 
-test('removing the last selected hero normalizes the row to Off and republishes fallback', () => {
+test('empty selected scope hydrates as Off and preserves global fallback', () => {
   const fixture = bootScopedMenu({
     version: 1,
     values: { enemyLow: '#111111' },
-    scopes: [
-      {
-        id: 'scope_shiv',
-        mode: 'selected',
-        heroes: ['hero_shiv'],
-        values: { enemyLow: '#22aa44' },
-      },
-    ],
+    scopes: [{
+      id: 'scope_empty',
+      mode: 'selected',
+      heroes: [],
+      values: { enemyLow: '#22aa44' },
+    }],
   });
-  settleActiveHero(fixture);
-  const before = effectiveSnapshot(fixture);
-  fixture.harness.dispatches.length = 0;
 
-  const next = menuState(fixture);
-  next.scopes[0].heroes = [];
-  fixture.harness.root.SetAttributeString(MENU_STATE_ATTR, JSON.stringify(next));
-  openEditor(fixture);
+  const state = menuState(fixture);
+  assert.equal(state.scopes[0].mode, 'off');
+  assert.deepEqual(state.scopes[0].heroes, []);
+  assert.equal(effectiveSnapshot(fixture).values.enemyLow, '#111111');
+});
 
-  const after = effectiveSnapshot(fixture);
-  assert.equal(menuState(fixture).scopes[0].mode, 'off');
-  assert.deepEqual(menuState(fixture).scopes[0].heroes, []);
-  assert.equal(after.values.enemyLow, '#111111');
-  assert.equal(after.revision, before.revision + 1);
-  assert.equal(configDispatches(fixture).length, 1);
+test('malformed published snapshots are replaced by one canonical publication', () => {
+  for (const publishedRaw of ['not-json', JSON.stringify({
+    version: 2,
+    values: { enemyLow: '#22AA44' },
+  })]) {
+    const fixture = bootScopedMenu(
+      {
+        version: 1,
+        values: { enemyLow: '#111111' },
+        scopes: [],
+      },
+      { publishedRaw },
+    );
+    const snapshot = effectiveSnapshot(fixture);
+    assert.equal(snapshot.version, 1);
+    assert.equal(snapshot.revision, 1);
+    assert.equal(snapshot.values.enemyLow, '#111111');
+    assert.equal(configDispatches(fixture).length, 1);
+  }
 });
 
 test('editing canonical base settings does not publish while a scoped snapshot is effective', () => {

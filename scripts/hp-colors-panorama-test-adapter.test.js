@@ -2,12 +2,17 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const rewriteRoot = path.resolve(__dirname, '../hp_colors_rewrite');
 
 const {
   MockPanel,
   createPanoramaHarness,
   createVmContext,
   runInVm,
+  runHpColorsSourcesInVm,
   createPresetEntryPanel,
   installPresetStore,
   installHeroProgressTree,
@@ -101,6 +106,42 @@ test('harness exposes shared store and event dispatch', () => {
   assert.equal(harness.eventSetCounter.count, 1);
   harness.reset();
   assert.equal(harness.eventSetCounter.count, 0);
+});
+
+test('ordered state and menu sources share one VM context', () => {
+  const harness = createPanoramaHarness();
+  const context = runHpColorsSourcesInVm(
+    fs.readFileSync(
+      path.join(rewriteRoot, 'panorama/scripts/hp_colors_state.js'),
+      'utf8',
+    ),
+    fs.readFileSync(
+      path.join(rewriteRoot, 'panorama/scripts/hp_colors_menu.js'),
+      'utf8',
+    ),
+    harness,
+  );
+
+  assert.equal(typeof context.$.HPColorsStateFactory, 'object');
+  const factory = context.$.HPColorsStateFactory;
+  assert.equal(typeof factory.create, 'function');
+  assert.equal(Object.isFrozen(factory), true);
+  assert.deepEqual(
+    Object.getOwnPropertyNames(context.$).filter((name) => name.startsWith('HPColorsState')),
+    ['HPColorsStateFactory'],
+  );
+  const first = factory.create();
+  const second = factory.create();
+  assert.notEqual(first, second);
+  assert.equal(Object.isFrozen(first), true);
+  assert.equal(Object.isFrozen(second), true);
+  assert.equal(typeof first.send, 'function');
+  assert.equal(typeof first.read, 'function');
+  const firstView = first.read();
+  const secondView = second.read();
+  assert.notEqual(firstView, secondView);
+  assert.equal(Object.isFrozen(firstView), true);
+  assert.equal(Object.isFrozen(secondView), true);
 });
 
 test('clipboard dispatch records success and injects failures', () => {
