@@ -7,9 +7,8 @@ const test = require('node:test');
 const {
   MockPanel,
   createPanoramaHarness,
-  createVmContext,
   installTopBarIdentityTree,
-  runInVm,
+  runHpColorsSourcesInVm,
 } = require('./hp-colors-panorama-test-adapter');
 
 const rewriteRoot = path.resolve(__dirname, '../hp_colors_rewrite');
@@ -19,6 +18,10 @@ const layoutSource = fs.readFileSync(
 );
 const menuSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/hp_colors_menu.js'),
+  'utf8',
+);
+const stateSource = fs.readFileSync(
+  path.join(rewriteRoot, 'panorama/scripts/hp_colors_state.js'),
   'utf8',
 );
 const MENU_STATE_ATTR = 'hp_colors_rewrite_menu_state';
@@ -68,7 +71,7 @@ function bootMenu(menuState, options = {}) {
       JSON.stringify(options.publishedSnapshot),
     );
   }
-  runInVm(menuSource, createVmContext(harness), 'hp_colors_menu.js');
+  runHpColorsSourcesInVm(stateSource, menuSource, harness);
   harness.$.HPColorsMenuBoot();
   return { harness };
 }

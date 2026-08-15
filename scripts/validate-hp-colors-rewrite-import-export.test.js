@@ -7,8 +7,7 @@ const test = require('node:test');
 const {
   MockPanel,
   createPanoramaHarness,
-  createVmContext,
-  runInVm,
+  runHpColorsSourcesInVm,
 } = require('./hp-colors-panorama-test-adapter');
 
 const rewriteRoot = path.resolve(__dirname, '../hp_colors_rewrite');
@@ -18,6 +17,10 @@ const layoutSource = fs.readFileSync(
 );
 const menuSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/hp_colors_menu.js'),
+  'utf8',
+);
+const stateSource = fs.readFileSync(
+  path.join(rewriteRoot, 'panorama/scripts/hp_colors_state.js'),
   'utf8',
 );
 
@@ -36,7 +39,7 @@ function installLayoutPanels(harness) {
 function bootMenu(options = {}) {
   const harness = createPanoramaHarness(options);
   installLayoutPanels(harness);
-  runInVm(menuSource, createVmContext(harness), 'hp_colors_menu.js');
+  runHpColorsSourcesInVm(stateSource, menuSource, harness);
   harness.$.HPColorsMenuBoot();
   harness.root.FindChildTraverse('HPColorsMenuButton').events.onactivate();
   harness.dispatches.length = 0;

@@ -6,6 +6,7 @@
     <include src="s2r://panorama/styles/hp_colors_menu.vcss_c" />
   </styles>
   <scripts>
+    <include src="s2r://panorama/scripts/hp_colors_state.vjs_c" />
     <include src="s2r://panorama/scripts/hp_colors_menu.vjs_c" />
   </scripts>
   <CitadelHudEscapeMenu onload="$.HPColorsMenuBoot()" oncancel="$.HPColorsMenuCancel()">
@@ -661,6 +662,91 @@
               <Panel class="HPColorsFooterSpacer" />
               <Button id="HPColorsDoneButton" class="HPColorsPrimaryAction"><Label text="DONE" /></Button>
             </Panel>
+          </Panel>
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsConditionDialog" class="HPColorsTransferDialog HPColorsConditionDialog" hittest="false" hittestchildren="true">
+        <Button class="HPColorsTransferDialogBackdrop" hittest="true" />
+        <Panel class="HPColorsTransferDialogPanel HPColorsConditionDialogPanel" hittest="true" hittestchildren="true">
+          <Label class="HPColorsTransferDialogEyebrow" text="ABILITY CONDITION" />
+          <Label id="HPColorsConditionTitle" class="HPColorsTransferDialogTitle" text="SETTING CONDITION" />
+          <Label id="HPColorsConditionStatus" class="HPColorsTransferDialogMessage HPColorsConditionStatus" text="SESSION ONLY" />
+          <Label class="HPColorsConditionSectionLabel" text="ABILITY  ·  CLICK SELECTED TO CYCLE REQUIRED TIER" />
+          <Panel class="HPColorsConditionAbilityChoices">
+            <Button id="HPColorsConditionSlot1" class="HPColorsConditionAbilityCard">
+              <Panel class="HPColorsConditionAbilityIcon">
+                <Panel class="HPColorsConditionAbilityFrame" />
+                <Panel class="HPColorsConditionAbilityTierFrame" />
+                <Image id="HPColorsConditionSlot1Image" class="HPColorsConditionAbilityArt" scaling="stretch-to-fit-preserve-aspect" />
+                <Label class="HPColorsConditionAbilityFallback" text="1" />
+              </Panel>
+              <Panel class="HPColorsConditionRequiredPips">
+                <Panel class="HPColorsConditionRequiredPip Pip1" />
+                <Panel class="HPColorsConditionRequiredPip Pip2" />
+                <Panel class="HPColorsConditionRequiredPip Pip3" />
+              </Panel>
+            </Button>
+            <Button id="HPColorsConditionSlot2" class="HPColorsConditionAbilityCard">
+              <Panel class="HPColorsConditionAbilityIcon">
+                <Panel class="HPColorsConditionAbilityFrame" />
+                <Panel class="HPColorsConditionAbilityTierFrame" />
+                <Image id="HPColorsConditionSlot2Image" class="HPColorsConditionAbilityArt" scaling="stretch-to-fit-preserve-aspect" />
+                <Label class="HPColorsConditionAbilityFallback" text="2" />
+              </Panel>
+              <Panel class="HPColorsConditionRequiredPips">
+                <Panel class="HPColorsConditionRequiredPip Pip1" />
+                <Panel class="HPColorsConditionRequiredPip Pip2" />
+                <Panel class="HPColorsConditionRequiredPip Pip3" />
+              </Panel>
+            </Button>
+            <Button id="HPColorsConditionSlot3" class="HPColorsConditionAbilityCard">
+              <Panel class="HPColorsConditionAbilityIcon">
+                <Panel class="HPColorsConditionAbilityFrame" />
+                <Panel class="HPColorsConditionAbilityTierFrame" />
+                <Image id="HPColorsConditionSlot3Image" class="HPColorsConditionAbilityArt" scaling="stretch-to-fit-preserve-aspect" />
+                <Label class="HPColorsConditionAbilityFallback" text="3" />
+              </Panel>
+              <Panel class="HPColorsConditionRequiredPips">
+                <Panel class="HPColorsConditionRequiredPip Pip1" />
+                <Panel class="HPColorsConditionRequiredPip Pip2" />
+                <Panel class="HPColorsConditionRequiredPip Pip3" />
+              </Panel>
+            </Button>
+            <Button id="HPColorsConditionSlot4" class="HPColorsConditionAbilityCard">
+              <Panel class="HPColorsConditionAbilityIcon">
+                <Panel class="HPColorsConditionAbilityFrame" />
+                <Panel class="HPColorsConditionAbilityTierFrame" />
+                <Image id="HPColorsConditionSlot4Image" class="HPColorsConditionAbilityArt" scaling="stretch-to-fit-preserve-aspect" />
+                <Label class="HPColorsConditionAbilityFallback" text="4" />
+              </Panel>
+              <Panel class="HPColorsConditionRequiredPips">
+                <Panel class="HPColorsConditionRequiredPip Pip1" />
+                <Panel class="HPColorsConditionRequiredPip Pip2" />
+                <Panel class="HPColorsConditionRequiredPip Pip3" />
+              </Panel>
+            </Button>
+          </Panel>
+          <Label class="HPColorsConditionSectionLabel" text="VALUE WHEN MATCHED" />
+          <Panel id="HPColorsConditionBooleanRow" class="HPColorsConditionValueRow">
+            <Button id="HPColorsConditionBooleanFalse" class="HPColorsConditionChoice"><Label text="OFF" /></Button>
+            <Button id="HPColorsConditionBooleanTrue" class="HPColorsConditionChoice"><Label text="ON" /></Button>
+          </Panel>
+          <Panel id="HPColorsConditionEnumRow" class="HPColorsConditionValueRow">
+            <Panel id="HPColorsConditionEnumOptions" class="HPColorsConditionChoices" />
+          </Panel>
+          <Panel id="HPColorsConditionNumberRow" class="HPColorsConditionValueRow">
+            <Panel id="HPColorsConditionNumberSliderHost" class="HPColorsConditionNumberSliderHost" />
+            <TextEntry id="HPColorsConditionNumberEntry" class="HPColorsNumberEntry HPColorsConditionNumberEntry" text="0" maxchars="5" />
+          </Panel>
+          <Panel id="HPColorsConditionColorRow" class="HPColorsConditionValueRow">
+            <Panel id="HPColorsConditionColorSwatch" class="HPColorsColorSwatch" hittest="false" />
+            <TextEntry id="HPColorsConditionColorEntry" class="HPColorsHexEntry" text="#FFFFFF" maxchars="7" />
+          </Panel>
+          <Label class="HPColorsConditionSessionNote" text="Conditions and presets remain available for this Deadlock session only." />
+          <Panel class="HPColorsTransferDialogActions">
+            <Button id="HPColorsConditionApplyButton" class="HPColorsPrimaryAction"><Label text="APPLY" /></Button>
+            <Button id="HPColorsConditionCancelButton" class="HPColorsSecondaryAction"><Label text="CANCEL" /></Button>
+            <Button id="HPColorsConditionRemoveButton" class="HPColorsSecondaryAction HPColorsConditionRemove"><Label text="REMOVE RULE" /></Button>
           </Panel>
         </Panel>
       </Panel>

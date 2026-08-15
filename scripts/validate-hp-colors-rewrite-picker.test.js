@@ -7,8 +7,7 @@ const test = require('node:test');
 const {
   MockPanel,
   createPanoramaHarness,
-  createVmContext,
-  runInVm,
+  runHpColorsSourcesInVm,
 } = require('./hp-colors-panorama-test-adapter');
 
 const rewriteRoot = path.resolve(__dirname, '../hp_colors_rewrite');
@@ -18,6 +17,10 @@ const layoutSource = fs.readFileSync(
 );
 const menuSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/hp_colors_menu.js'),
+  'utf8',
+);
+const stateSource = fs.readFileSync(
+  path.join(rewriteRoot, 'panorama/scripts/hp_colors_state.js'),
   'utf8',
 );
 
@@ -38,7 +41,7 @@ function installLayoutPanels(harness) {
 function bootMenu() {
   const harness = createPanoramaHarness();
   installLayoutPanels(harness);
-  runInVm(menuSource, createVmContext(harness), 'hp_colors_menu.js');
+  runHpColorsSourcesInVm(stateSource, menuSource, harness);
   harness.$.HPColorsMenuBoot();
   return harness;
 }
@@ -79,6 +82,8 @@ test('slider gesture publishes live and Undo restores the prior color', () => {
   ).values.enemyLow;
 
   hue.events.onmousedown();
+  hue.value = 60;
+  hue.events.onvaluechanged();
   hue.value = 120;
   hue.events.onvaluechanged();
   const changed = JSON.parse(
@@ -96,6 +101,49 @@ test('slider gesture publishes live and Undo restores the prior color', () => {
       harness.root.GetAttributeString('hp_colors_rewrite_config', '{}'),
     ).values.enemyLow,
     before,
+  );
+});
+
+test('Escape cancels an in-progress picker gesture without blocking later edits', () => {
+  const harness = bootMenu();
+  harness.root.FindChildTraverse('HPColorsMenuButton').events.onactivate();
+  harness.root.FindChildTraverse('HPColorsEnemyLowSwatch').events.onactivate();
+  const hue = harness.root.FindChildTraverse('HPColorsPickerHueSlider');
+  const before = JSON.parse(
+    harness.root.GetAttributeString('hp_colors_rewrite_config', '{}'),
+  ).values.enemyLow;
+
+  hue.events.onmousedown();
+  hue.value = 120;
+  hue.events.onvaluechanged();
+  assert.notEqual(
+    JSON.parse(
+      harness.root.GetAttributeString('hp_colors_rewrite_config', '{}'),
+    ).values.enemyLow,
+    before,
+  );
+
+  harness.$.HPColorsMenuCancel();
+  assert.equal(
+    harness.root.FindChildTraverse('HPColorsPickerRoot').BHasClass('Open'),
+    false,
+  );
+  assert.equal(
+    JSON.parse(
+      harness.root.GetAttributeString('hp_colors_rewrite_config', '{}'),
+    ).values.enemyLow,
+    before,
+  );
+
+  const enemyVisible = harness.root.FindChildTraverse(
+    'HPColorsEnemyVisibleToggle',
+  );
+  enemyVisible.events.onactivate();
+  assert.equal(
+    JSON.parse(
+      harness.root.GetAttributeString('hp_colors_rewrite_config', '{}'),
+    ).values.enemyVisible,
+    false,
   );
 });
 

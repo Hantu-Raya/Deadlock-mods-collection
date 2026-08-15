@@ -88,6 +88,7 @@ class MockPanel {
     this.childReadCounts = options.childReadCounts || null;
     this.eventSetCounter = options.eventSetCounter || null;
     this.operationCounts = options.operationCounts || null;
+    this.classReadCount = 0;
     this.__styleWrites = [];
     this.__deletedStyleWrites = [];
     this.explicitHitFlags = {};
@@ -242,6 +243,7 @@ class MockPanel {
     this.classes.delete(String(className));
   }
   BHasClass(className) {
+    this.classReadCount += 1;
     incrementCounter(this.operationCounts, 'classReads');
     return this.classes.has(String(className));
   }
@@ -578,6 +580,13 @@ function runInVm(source, context, filename = 'panorama-test.js') {
   return vm.runInContext(source, context, { filename });
 }
 
+function runHpColorsSourcesInVm(stateSource, menuSource, harness, options = {}) {
+  const context = createVmContext(harness, options);
+  runInVm(stateSource, context, 'hp_colors_state.js');
+  runInVm(menuSource, context, 'hp_colors_menu.js');
+  return context;
+}
+
 function encodeBase64Url(value) {
   return Buffer.from(String(value), 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
@@ -812,6 +821,7 @@ function dispatchClientUiPayload(harness, payload, options = {}) {
 module.exports = {
   MockPanel,
   createPanoramaHarness,
+  runHpColorsSourcesInVm,
   createVmContext,
   runInVm,
   createPresetEntryPanel,

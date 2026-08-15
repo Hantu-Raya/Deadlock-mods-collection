@@ -18,6 +18,7 @@ $requiredCompiled = @(
     (Join-Path $modCompiled 'panorama\layout\hud_escape_menu.vxml_c'),
     (Join-Path $modCompiled 'panorama\layout\unit_status_overlay.vxml_c'),
     (Join-Path $modCompiled 'panorama\scripts\healthbar_probe.vjs_c'),
+    (Join-Path $modCompiled 'panorama\scripts\hp_colors_state.vjs_c'),
     (Join-Path $modCompiled 'panorama\scripts\hp_colors_menu.vjs_c'),
     (Join-Path $modCompiled 'panorama\styles\hp_colors_menu.vcss_c'),
     (Join-Path $modCompiled 'panorama\styles\hp_colors_unit_status.vcss_c')
@@ -69,6 +70,7 @@ Assert-PackedVpkAssets -Tree $vpkTree -Label 'HP Colors Rewrite VPK' -Required @
     'hud_escape_menu.vxml_c',
     'unit_status_overlay.vxml_c',
     'healthbar_probe.vjs_c',
+    'hp_colors_state.vjs_c',
     'hp_colors_menu.vjs_c',
     'hp_colors_menu.vcss_c',
     'hp_colors_unit_status.vcss_c'
@@ -79,6 +81,7 @@ Assert-PackedVpkAssets -Tree $vpkTree -Label 'HP Colors Rewrite VPK' -Required @
     'hud_escape_menu.xml',
     'unit_status_overlay.xml',
     'healthbar_probe.js',
+    'hp_colors_state.js',
     'hp_colors_menu.js',
     'hp_colors_menu.css',
     'hp_colors_unit_status.css'

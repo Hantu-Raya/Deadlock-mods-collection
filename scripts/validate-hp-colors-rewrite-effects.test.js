@@ -19,8 +19,8 @@ const probeSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/healthbar_probe.js'),
   'utf8',
 );
-const menuSource = fs.readFileSync(
-  path.join(rewriteRoot, 'panorama/scripts/hp_colors_menu.js'),
+const stateSource = fs.readFileSync(
+  path.join(rewriteRoot, 'panorama/scripts/hp_colors_state.js'),
   'utf8',
 );
 const hudLayoutSource = fs.readFileSync(
@@ -909,7 +909,7 @@ test('identical config replay is ignored after immediate application', () => {
 
 
 test('editor, overlay, and CSS expose the focused feature contract', () => {
-  assert.match(menuSource, /enemyPulseColorMode:\s*"gradient"/);
+  assert.match(stateSource, /enemyPulseColorMode:\s*"gradient"/);
   assert.match(probeSource, /enemyPulseColorMode:\s*"gradient"/);
   assert.match(hudLayoutSource, /id="HPColorsSettingsReadoutLevels"/);
   assert.match(hudLayoutSource, /id="HPColorsSettingsEnemyPulse"/);

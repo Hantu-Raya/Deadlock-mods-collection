@@ -9,6 +9,7 @@ const {
   createPanoramaHarness,
   createVmContext,
   runInVm,
+  runHpColorsSourcesInVm,
   buildUnitStatusTree,
   dispatchClientUiPayload,
 } = require('./hp-colors-panorama-test-adapter');
@@ -24,6 +25,10 @@ const layoutSource = fs.readFileSync(
 );
 const menuSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/hp_colors_menu.js'),
+  'utf8',
+);
+const stateSource = fs.readFileSync(
+  path.join(rewriteRoot, 'panorama/scripts/hp_colors_state.js'),
   'utf8',
 );
 
@@ -188,14 +193,14 @@ test('position and ultimate icon modes own only their intended styles', () => {
 });
 
 test('single fixed-color settings are removed from the clean snapshot', () => {
-  assert.doesNotMatch(menuSource, /enemyFixed|allyFixed/);
+  assert.doesNotMatch(stateSource, /enemyFixed|allyFixed/);
   assert.doesNotMatch(layoutSource, /HPColorsEnemyFixed|HPColorsAllyFixed/);
 });
 
 test('editor exposes and publishes the four-feature controls', () => {
   const harness = createPanoramaHarness();
   installLayoutPanels(harness);
-  runInVm(menuSource, createVmContext(harness), 'hp_colors_menu.js');
+  runHpColorsSourcesInVm(stateSource, menuSource, harness);
   harness.$.HPColorsMenuBoot();
 
   const xSlider = harness.root.FindChildTraverse('HPColorsPositionXSlider');
@@ -219,7 +224,7 @@ test('editor exposes and publishes the four-feature controls', () => {
 test('width and height controls retain the 60 through 160 percent range', () => {
   const harness = createPanoramaHarness();
   installLayoutPanels(harness);
-  runInVm(menuSource, createVmContext(harness), 'hp_colors_menu.js');
+  runHpColorsSourcesInVm(stateSource, menuSource, harness);
   harness.$.HPColorsMenuBoot();
 
   const widthSlider = harness.root.FindChildTraverse('HPColorsWidthSlider');

@@ -12,6 +12,7 @@ const {
   buildUnitStatusTree,
   dispatchClientUiPayload,
   getStyleWriteCount,
+  runHpColorsSourcesInVm,
 } = require('./hp-colors-panorama-test-adapter');
 
 const rewriteRoot = path.resolve(__dirname, '../hp_colors_rewrite');
@@ -29,6 +30,10 @@ const overlayLayoutSource = fs.readFileSync(
 );
 const menuSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/hp_colors_menu.js'),
+  'utf8',
+);
+const stateSource = fs.readFileSync(
+  path.join(rewriteRoot, 'panorama/scripts/hp_colors_state.js'),
   'utf8',
 );
 
@@ -76,7 +81,7 @@ test('editor owns bounded hero kill marker controls', () => {
   );
   const harness = createPanoramaHarness();
   installLayoutPanels(harness);
-  runInVm(menuSource, createVmContext(harness), 'hp_colors_menu.js');
+  runHpColorsSourcesInVm(stateSource, menuSource, harness);
   harness.$.HPColorsMenuBoot();
 
   const threshold = harness.root.FindChildTraverse(
@@ -179,7 +184,7 @@ test('editor owns and publishes the readout controls', () => {
 
   const harness = createPanoramaHarness();
   installLayoutPanels(harness);
-  runInVm(menuSource, createVmContext(harness), 'hp_colors_menu.js');
+  runHpColorsSourcesInVm(stateSource, menuSource, harness);
   harness.$.HPColorsMenuBoot();
 
   const sizeSlider = harness.root.FindChildTraverse('HPColorsReadoutSizeSlider');
@@ -548,7 +553,7 @@ test('counter adds upward render extent without changing horizontal flow', () =>
 test('precise pip toggle shows enable and cleanup copy dialogs', () => {
   const harness = createPanoramaHarness();
   installLayoutPanels(harness);
-  runInVm(menuSource, createVmContext(harness), 'hp_colors_menu.js');
+  runHpColorsSourcesInVm(stateSource, menuSource, harness);
   harness.$.HPColorsMenuBoot();
 
   const toggle = harness.root.FindChildTraverse('HPColorsPrecisePipsToggle');
