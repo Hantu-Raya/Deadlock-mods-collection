@@ -309,8 +309,28 @@
     };
   }
 
+  function isObjectValue(value) {
+    var tag;
+    if (value === null || Object(value) !== value) return false;
+    tag = Object.prototype.toString.call(value);
+    return (
+      tag !== "[object Function]" &&
+      tag !== "[object AsyncFunction]" &&
+      tag !== "[object GeneratorFunction]" &&
+      tag !== "[object AsyncGeneratorFunction]"
+    );
+  }
+
+  function isStringValue(value) {
+    return Object(value) !== value && value === String(value);
+  }
+
+  function isBooleanValue(value) {
+    return value === true || value === false;
+  }
+
   function freezeDeep(value) {
-    if (!value || typeof value !== "object" || Object.isFrozen(value))
+    if (!value || !isObjectValue(value) || Object.isFrozen(value))
       return value;
     var keys = Object.keys(value);
     var index;
@@ -322,7 +342,7 @@
   function copyObject(source) {
     var result = {};
     var key;
-    if (!source || typeof source !== "object") return result;
+    if (!source || !isObjectValue(source)) return result;
     for (key in source) {
       if (Object.prototype.hasOwnProperty.call(source, key))
         result[key] = source[key];
@@ -476,7 +496,7 @@
 
   function normalizeConditions(source) {
     var rows =
-      source && typeof source === "object" && !Array.isArray(source)
+      source && isObjectValue(source) && !Array.isArray(source)
         ? source
         : {};
     var result = {};
@@ -489,38 +509,32 @@
       )
         continue;
       var rule = rows[key];
-      if (!rule || typeof rule !== "object" || Array.isArray(rule)) continue;
+      if (!rule || !isObjectValue(rule) || Array.isArray(rule)) continue;
       var slot = rule.slot;
       var minTier = rule.minTier;
       if (
-        typeof slot !== "number" ||
-        typeof minTier !== "number" ||
-        !isFinite(slot) ||
+        !Number.isFinite(slot) ||
+        !Number.isFinite(minTier) ||
         Math.floor(slot) !== slot ||
         slot < 1 ||
         slot > 4 ||
-        !isFinite(minTier) ||
         Math.floor(minTier) !== minTier ||
         minTier < 1 ||
         minTier > 3
       )
         continue;
-      var defaultValue = DEFAULTS[key];
+      var settingType = SETTING_META[key].type;
       var value = rule.value;
-      if (typeof defaultValue === "boolean" && typeof value !== "boolean")
-        continue;
+      if (settingType === "boolean" && !isBooleanValue(value)) continue;
+      if (settingType === "number" && !Number.isFinite(value)) continue;
       if (
-        typeof defaultValue === "number" &&
-        (typeof value !== "number" || !isFinite(value))
+        (settingType === "color" || settingType === "enum") &&
+        !isStringValue(value)
       )
         continue;
-      if (typeof defaultValue === "string" && typeof value !== "string")
-        continue;
       var normalized = normalizeValue(key, value, DEFAULTS);
-      if (typeof defaultValue === "number" && normalized !== value) continue;
       if (
-        typeof defaultValue === "string" &&
-        !COLOR_KEYS[key] &&
+        (settingType === "number" || settingType === "enum") &&
         normalized !== value
       )
         continue;
@@ -544,7 +558,7 @@
   }
 
   function conditionsAreValid(source, normalized, allowEmpty) {
-    if (!source || typeof source !== "object" || Array.isArray(source))
+    if (!source || !isObjectValue(source) || Array.isArray(source))
       return false;
     var normalizedRows = normalized || {};
     var sourceCount = 0;
@@ -557,7 +571,7 @@
       if (
         !Object.prototype.hasOwnProperty.call(normalizedRows, key) ||
         !rule ||
-        typeof rule !== "object" ||
+        !isObjectValue(rule) ||
         Array.isArray(rule)
       )
         return false;
@@ -593,7 +607,7 @@
   }
 
   function normalizeScopeRecord(source) {
-    if (!source || typeof source !== "object") return null;
+    if (!source || !isObjectValue(source)) return null;
     var id = String(source.id || "");
     if (!id) return null;
     var heroes = normalizeHeroSelection(source.heroes);
@@ -622,7 +636,7 @@
   }
 
   function normalizePresetRecord(source, kind) {
-    if (!source || typeof source !== "object") return null;
+    if (!source || !isObjectValue(source)) return null;
     var id = String(source.id || "");
     var name = String(source.name || "").replace(/^\s+|\s+$/g, "");
     if (!id || !name) return null;
@@ -656,7 +670,7 @@
   }
 
   function normalizeBakedPresetNameOverrides(source) {
-    var rows = source && typeof source === "object" ? source : {};
+    var rows = source && isObjectValue(source) ? source : {};
     var result = {};
     var name = String(rows[DEFAULT_PRESET_ID] || "").replace(/^\s+|\s+$/g, "");
     if (name && name !== "Rewrite Default") result[DEFAULT_PRESET_ID] = name;
@@ -697,7 +711,7 @@
   function cloneConditions(source) {
     var result = {};
     var index;
-    if (!source || typeof source !== "object") return result;
+    if (!source || !isObjectValue(source)) return result;
     for (index = 0; index < DEFAULT_KEYS.length; index++) {
       var key = DEFAULT_KEYS[index];
       if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
@@ -750,11 +764,11 @@
       if (!Object.prototype.hasOwnProperty.call(values, key)) continue;
       if (!Object.prototype.hasOwnProperty.call(DEFAULTS, key)) continue;
       var value = values[key];
-      if (BOOLEAN_KEYS[key] && typeof value !== "boolean")
+      if (BOOLEAN_KEYS[key] && !isBooleanValue(value))
         return "INVALID SETTING: " + key;
       if (
         COLOR_KEYS[key] &&
-        (typeof value !== "string" || !normalizeColor(value, ""))
+        (!isStringValue(value) || !normalizeColor(value, ""))
       )
         return "INVALID SETTING: " + key;
       if (ENUM_OPTIONS[key] && !optionContains(key, value))
@@ -763,7 +777,7 @@
         !BOOLEAN_KEYS[key] &&
         !COLOR_KEYS[key] &&
         !ENUM_OPTIONS[key] &&
-        (typeof value !== "number" || !isFinite(value))
+        !Number.isFinite(value)
       )
         return "INVALID SETTING: " + key;
     }
@@ -777,14 +791,14 @@
     var payload;
     try {
       payload = JSON.parse(text.slice(5));
-    } catch (error) {
+    } catch {
       return { error: "INVALID HPCR2 CODE" };
     }
     var pairs = payload;
     var conditions = null;
     var hasConditions = false;
     if (!Array.isArray(payload)) {
-      if (!payload || typeof payload !== "object")
+      if (!payload || !isObjectValue(payload))
         return { error: "INVALID HPCR2 PAYLOAD" };
       var payloadFieldCount = 0;
       var payloadField;
@@ -815,9 +829,7 @@
       var pair = pairs[index];
       if (
         !Array.isArray(pair) ||
-        pair.length !== 2 ||
-        typeof pair[0] !== "number" ||
-        !isFinite(pair[0]) ||
+        !Number.isFinite(pair[0]) ||
         Math.floor(pair[0]) !== pair[0] ||
         pair[0] < 0
       )
@@ -847,9 +859,7 @@
       var pair = pairs[index];
       if (
         !Array.isArray(pair) ||
-        pair.length !== 2 ||
-        typeof pair[0] !== "number" ||
-        !isFinite(pair[0]) ||
+        !Number.isFinite(pair[0]) ||
         Math.floor(pair[0]) !== pair[0] ||
         pair[0] < 0 ||
         pair[0] >= DEFAULT_KEYS.length
@@ -887,7 +897,7 @@
     var payload;
     try {
       payload = JSON.parse(text.slice(6));
-    } catch (error) {
+    } catch {
       return { error: "INVALID HPCRP1 CODE" };
     }
     if (
@@ -1008,23 +1018,34 @@
 
   function parseRawState(raw) {
     var data = raw;
-    if (typeof data === "string") {
+    if (isStringValue(data)) {
       try {
         data = JSON.parse(data);
-      } catch (error) {
+      } catch {
         data = null;
       }
     }
-    if (!data || typeof data !== "object" || Array.isArray(data)) data = null;
+    if (!data || !isObjectValue(data) || Array.isArray(data)) data = null;
     return data;
+  }
+  function rawValueIsEmpty(raw) {
+    if (raw === null || raw === undefined) return true;
+    return (
+      isStringValue(raw) &&
+      raw.replace(/^\s+|\s+$/g, "") === ""
+    );
   }
 
   function initialState(rawSessionState) {
     var envelope = parseRawState(rawSessionState);
     var wrapped =
       envelope &&
-      Object.prototype.hasOwnProperty.call(envelope, "sessionRaw");
-    var data = parseRawState(wrapped ? envelope.sessionRaw : rawSessionState);
+      (Object.prototype.hasOwnProperty.call(envelope, "sessionRaw") ||
+        Object.prototype.hasOwnProperty.call(envelope, "publishedRaw") ||
+        Object.prototype.hasOwnProperty.call(envelope, "builderPresetRaw"));
+    var sessionRaw = wrapped ? envelope.sessionRaw : rawSessionState;
+    var builderPresetRaw = wrapped ? envelope.builderPresetRaw : null;
+    var data = parseRawState(sessionRaw);
     var published = parseRawState(wrapped ? envelope.publishedRaw : null);
     if (!published || published.version !== 1 || !published.values)
       published = null;
@@ -1035,7 +1056,6 @@
       (data.conditions !== undefined ||
         data.scopes !== undefined ||
         data.userPresets !== undefined ||
-        data.pendingPresetId !== undefined ||
         data.selectedPresetId !== undefined ||
         data.nextUserPresetNumber !== undefined ||
         data.bakedPresetNameOverrides !== undefined ||
@@ -1055,12 +1075,48 @@
       users,
     );
     var selectedId = isMenuState ? String(data.selectedPresetId || "") : "";
-    var pendingId = isMenuState ? String(data.pendingPresetId || "") : "";
+    var builderApplied = false;
+    if (rawValueIsEmpty(sessionRaw) && !isMenuState) {
+      var parsedBuilder = parsePresetTransfer(builderPresetRaw);
+      if (!parsedBuilder.error) {
+        var seededUsers = [];
+        var builderSelectedId = String(parsedBuilder.selectedPresetId || "");
+        var builderIndex;
+        for (builderIndex = 0; builderIndex < parsedBuilder.records.length; builderIndex++) {
+          if (parsedBuilder.records[builderIndex].kind === "user")
+            seededUsers.push(parsedBuilder.records[builderIndex]);
+        }
+        users = normalizeUserPresets(seededUsers);
+        if (parsedBuilder.hasRepositoryState)
+          hidden = parsedBuilder.hiddenBakedPresetIds.slice(0);
+        nextNumber = nextUserPresetNumber(1, users);
+        selectedId = "";
+        for (builderIndex = 0; builderIndex < users.length; builderIndex++) {
+          if (users[builderIndex].id === builderSelectedId) {
+            selectedId = builderSelectedId;
+            break;
+          }
+        }
+        if (selectedId) {
+          for (builderIndex = 0; builderIndex < users.length; builderIndex++) {
+            if (users[builderIndex].id !== selectedId) continue;
+            scopes = normalizeScopes([{
+              id: CURRENT_SCOPE_ID,
+              mode: users[builderIndex].mode,
+              heroes: users[builderIndex].heroes.slice(0),
+              values: copyValues(users[builderIndex].values),
+              conditions: normalizeConditions(users[builderIndex].conditions),
+            }]);
+            builderApplied = true;
+            break;
+          }
+        }
+      }
+    }
     var userIds = {};
     var index;
     for (index = 0; index < users.length; index++) userIds[users[index].id] = true;
     if (selectedId !== DEFAULT_PRESET_ID && !userIds[selectedId]) selectedId = "";
-    if (pendingId !== DEFAULT_PRESET_ID && !userIds[pendingId]) pendingId = "";
     if (hidden.indexOf(selectedId) >= 0) selectedId = "";
     var initialRequiredSlots = [false, false, false, false];
     var initialSourceConditions = {};
@@ -1102,18 +1158,17 @@
         ? copyValues(initialSource.values)
         : copyValues(values);
     var revision = 0;
-    if (published && typeof published.revision === "number" && isFinite(published.revision))
+    if (published && Number.isFinite(published.revision))
       revision = Math.max(0, Math.round(published.revision));
-    else if (data && typeof data.effectiveRevision === "number" && isFinite(data.effectiveRevision))
+    else if (data && Number.isFinite(data.effectiveRevision))
       revision = Math.max(0, Math.round(data.effectiveRevision));
-    else if (!isMenuState && data && typeof data.revision === "number" && isFinite(data.revision))
+    else if (!isMenuState && data && Number.isFinite(data.revision))
       revision = Math.max(0, Math.round(data.revision));
     return {
       values: values,
       conditions: conditions,
       scopes: scopes,
       userPresets: users,
-      pendingPresetId: pendingId || null,
       selectedPresetId: selectedId || null,
       nextUserPresetNumber: nextNumber,
       bakedPresetNameOverrides: overrides,
@@ -1126,8 +1181,7 @@
       confirmation: null,
       gesture: null,
       confirmationSerial: 0,
-      suppressedIdentityPresetId: "",
-      restoredEffectivePending: !!published,
+      restoredEffectivePending: !!published && !builderApplied,
       identity: {
         mode: HERO_MODE_AUTO,
         phase: HERO_PHASE_TRANSITIONING,
@@ -1158,6 +1212,11 @@
         if (state.scopes[index].id === CURRENT_SCOPE_ID) return state.scopes[index];
       }
       return null;
+    }
+
+    function editableValues() {
+      var current = currentScopeRow();
+      return current ? current.values : state.values;
     }
 
     function findPreset(id) {
@@ -1212,21 +1271,14 @@
     }
 
     function resolveEffectiveSource() {
+      var current = currentScopeRow();
+      if (current) return current;
       var heroKey = state.identity.effectiveHeroKey;
       var index;
       for (index = 0; index < state.scopes.length; index++) {
         var selected = state.scopes[index];
         if (selected.mode !== HERO_SCOPE_SELECTED || !heroKey) continue;
         if (selected.heroes.indexOf(heroKey) >= 0) return selected;
-      }
-      if (!heroKey) {
-        for (index = 0; index < state.scopes.length; index++) {
-          if (
-            state.scopes[index].id === CURRENT_SCOPE_ID &&
-            state.scopes[index].mode === HERO_SCOPE_SELECTED
-          )
-            return state.scopes[index];
-        }
       }
       for (index = 0; index < state.scopes.length; index++) {
         if (state.scopes[index].mode === HERO_SCOPE_ALL) return state.scopes[index];
@@ -1313,7 +1365,6 @@
         conditions: state.conditions,
         scopes: state.scopes,
         userPresets: state.userPresets,
-        pendingPresetId: state.pendingPresetId,
         selectedPresetId: state.selectedPresetId,
         nextUserPresetNumber: state.nextUserPresetNumber,
         bakedPresetNameOverrides: state.bakedPresetNameOverrides,
@@ -1448,7 +1499,6 @@
         allRows: projectedAllRows,
         selectedId: state.selectedPresetId,
         activeId: activePresetId(),
-        pendingId: state.pendingPresetId,
         nextUserNumber: state.nextUserPresetNumber,
         hiddenBakedIds: state.hiddenBakedPresetIds.slice(0),
       };
@@ -1574,7 +1624,7 @@
       var mutationResult = false;
       try {
         mutationResult = mutate() !== false;
-      } catch (error) {
+      } catch {
         return reject(action, "INVALID_INTENT");
       }
       refreshRequiredSlots();
@@ -1629,12 +1679,6 @@
       if (state.history.length > HISTORY_LIMIT) state.history.shift();
     }
 
-    function cancelPendingInternal() {
-      if (!state.pendingPresetId) return false;
-      state.suppressedIdentityPresetId = state.pendingPresetId;
-      state.pendingPresetId = null;
-      return true;
-    }
 
     function replaceBase(nextValues, nextConditions, recordHistory) {
       var normalizedValues = normalizeValues(nextValues);
@@ -1644,7 +1688,6 @@
         conditions: normalizedConditions,
       });
       if (nextRaw === baseRaw()) return false;
-      cancelPendingInternal();
       if (recordHistory !== false) pushHistory(baseRaw());
       state.values = normalizedValues;
       state.conditions = normalizedConditions;
@@ -1656,18 +1699,22 @@
       var normalizedValues = normalizeValues(nextValues);
       var normalizedConditions = normalizeConditions(nextConditions);
       var current = currentScopeRow();
+      var currentValues = current ? current.values : state.values;
       var currentConditions = current ? current.conditions : state.conditions;
       if (
-        JSON.stringify(normalizedValues) === JSON.stringify(state.values) &&
+        JSON.stringify(normalizedValues) === JSON.stringify(currentValues) &&
         JSON.stringify(normalizedConditions) === JSON.stringify(currentConditions)
       )
         return false;
       if (recordHistory !== false)
         pushHistory(current ? historyRaw() : baseRaw());
-      cancelPendingInternal();
-      state.values = normalizedValues;
-      if (current) current.conditions = normalizedConditions;
-      else state.conditions = normalizedConditions;
+      if (current) {
+        current.values = normalizedValues;
+        current.conditions = normalizedConditions;
+      } else {
+        state.values = normalizedValues;
+        state.conditions = normalizedConditions;
+      }
       state.restoredEffectivePending = false;
       return true;
     }
@@ -1700,8 +1747,6 @@
         });
       }
       state.scopes = normalizeScopes(rows);
-      state.pendingPresetId = null;
-      state.suppressedIdentityPresetId = "";
       return before !== sessionRaw();
     }
 
@@ -1750,25 +1795,6 @@
     function applyAutomaticRoute() {
       var heroKey = state.identity.effectiveHeroKey;
       if (!heroKey) return false;
-      if (state.suppressedIdentityPresetId) {
-        var suppressed = findPreset(state.suppressedIdentityPresetId);
-        var suppressMatch =
-          suppressed &&
-          suppressed.mode === HERO_SCOPE_SELECTED &&
-          suppressed.heroes.indexOf(heroKey) >= 0;
-        state.suppressedIdentityPresetId = "";
-        if (suppressMatch) return false;
-      }
-      if (state.pendingPresetId) {
-        var pending = findPreset(state.pendingPresetId);
-        if (!pending || pending.mode !== HERO_SCOPE_SELECTED) {
-          state.pendingPresetId = null;
-        } else if (pending.heroes.indexOf(heroKey) >= 0) {
-          return applyPresetInternal(pending);
-        } else {
-          state.pendingPresetId = null;
-        }
-      }
       var current = currentScopeRow();
       var allFallback = null;
       var index;
@@ -1801,13 +1827,15 @@
 
     function validateSettingIntent(key, value) {
       if (!Object.prototype.hasOwnProperty.call(DEFAULTS, key)) return false;
-      if (BOOLEAN_KEYS[key]) return typeof value === "boolean";
+      if (BOOLEAN_KEYS[key]) return isBooleanValue(value);
       if (COLOR_KEYS[key])
-        return typeof value === "string" && !!normalizeColor(value, "");
+        return isStringValue(value) && !!normalizeColor(value, "");
       if (ENUM_OPTIONS[key]) return optionContains(key, value);
       return (
-        (typeof value === "number" && isFinite(value)) ||
-        (typeof value === "string" && value !== "" && isFinite(Number(value)))
+        Number.isFinite(value) ||
+        (isStringValue(value) &&
+          value !== "" &&
+          Number.isFinite(Number(value)))
       );
     }
 
@@ -1815,8 +1843,7 @@
       if (!validateSettingIntent(key, value)) return false;
       if (!BOOLEAN_KEYS[key] && !COLOR_KEYS[key] && !ENUM_OPTIONS[key])
         return (
-          typeof value === "number" &&
-          isFinite(value) &&
+          Number.isFinite(value) &&
           normalizeValue(key, value, DEFAULTS) === value
         );
       return true;
@@ -1835,13 +1862,11 @@
       var minTier = intent.minTier;
       return (
         validConditionKey(key) &&
-        typeof slot === "number" &&
-        isFinite(slot) &&
+        Number.isFinite(slot) &&
         Math.floor(slot) === slot &&
         slot >= 1 &&
         slot <= 4 &&
-        typeof minTier === "number" &&
-        isFinite(minTier) &&
+        Number.isFinite(minTier) &&
         Math.floor(minTier) === minTier &&
         minTier >= 1 &&
         minTier <= 3 &&
@@ -1938,14 +1963,10 @@
         var changed =
           state.history.length > 0 ||
           !!state.confirmation ||
-          !!state.gesture ||
-          !!state.pendingPresetId ||
-          !!state.suppressedIdentityPresetId;
+          !!state.gesture;
         state.history = [];
         state.confirmation = null;
         state.gesture = null;
-        state.pendingPresetId = null;
-        state.suppressedIdentityPresetId = "";
         return !!changed;
       });
     }
@@ -1958,7 +1979,6 @@
           state.history.length > 0 ||
           !!state.confirmation ||
           !!state.gesture ||
-          !!state.pendingPresetId ||
           !!identity.effectiveHeroKey ||
           !!identity.manualHeroKey ||
           identity.mode !== HERO_MODE_AUTO ||
@@ -1967,8 +1987,6 @@
         state.history = [];
         state.confirmation = null;
         state.gesture = null;
-        state.pendingPresetId = null;
-        state.suppressedIdentityPresetId = "";
         identity.mode = HERO_MODE_AUTO;
         identity.phase = HERO_PHASE_TRANSITIONING;
         identity.status = "unknown";
@@ -1985,16 +2003,15 @@
       var key = String(intent.key || "");
       if (!validateSettingIntent(key, intent.value)) return reject("setting_edit", "INVALID_SETTING");
       if (state.gesture) return reject("setting_edit", "GESTURE_ACTIVE");
-      var next = normalizeValue(key, intent.value, state.values);
-      if (state.values[key] === next) return noop("setting_edit", "NO_CHANGE");
+      var values = editableValues();
+      var next = normalizeValue(key, intent.value, values);
+      if (values[key] === next) return noop("setting_edit", "NO_CHANGE");
       return commit("setting_edit", function () {
-        return replaceBase(
-          (function () {
-            var values = copyValues(state.values);
-            values[key] = next;
-            return values;
-          })(),
-          state.conditions,
+        var changedValues = copyValues(editableValues());
+        changedValues[key] = next;
+        return replaceEditor(
+          changedValues,
+          editableConditions(),
           true,
         );
       }, { settingId: key });
@@ -2010,17 +2027,20 @@
       if (hasValue) {
         if (!validateSettingIntent(key, intent.value))
           return reject("gesture_begin", "INVALID_SETTING");
-        next = normalizeValue(key, intent.value, state.values);
+        next = normalizeValue(key, intent.value, editableValues());
       }
       return commit("gesture_begin", function () {
-        var before = baseRaw();
+        var before = currentScopeRow() ? historyRaw() : baseRaw();
         var changed = false;
-        if (hasValue && state.values[key] !== next) {
-          var values = copyValues(state.values);
-          values[key] = next;
-          cancelPendingInternal();
-          state.values = normalizeValues(values);
-          changed = true;
+        var values = editableValues();
+        if (hasValue && values[key] !== next) {
+          var changedValues = copyValues(values);
+          changedValues[key] = next;
+          changed = replaceEditor(
+            changedValues,
+            editableConditions(),
+            false,
+          );
         }
         state.gesture = {
           key: key,
@@ -2035,13 +2055,13 @@
       var key = String(intent.key || "");
       if (!state.gesture || state.gesture.key !== key) return reject("gesture_update", "GESTURE_NOT_ACTIVE");
       if (!validateSettingIntent(key, intent.value)) return reject("gesture_update", "INVALID_SETTING");
-      var next = normalizeValue(key, intent.value, state.values);
-      if (state.values[key] === next) return noop("gesture_update", "NO_CHANGE");
+      var values = editableValues();
+      var next = normalizeValue(key, intent.value, values);
+      if (values[key] === next) return noop("gesture_update", "NO_CHANGE");
       return commit("gesture_update", function () {
-        var values = copyValues(state.values);
-        values[key] = next;
-        cancelPendingInternal();
-        state.values = normalizeValues(values);
+        var changedValues = copyValues(editableValues());
+        changedValues[key] = next;
+        replaceEditor(changedValues, editableConditions(), false);
         state.gesture.changed = true;
         return true;
       }, { settingId: key });
@@ -2052,16 +2072,17 @@
       if (!state.gesture || state.gesture.key !== key) return reject("gesture_end", "GESTURE_NOT_ACTIVE");
       if (!validateSettingIntent(key, intent.value)) return reject("gesture_end", "INVALID_SETTING");
       var gesture = state.gesture;
-      var next = normalizeValue(key, intent.value, state.values);
+      var next = normalizeValue(key, intent.value, editableValues());
       return commit("gesture_end", function () {
-        if (state.values[key] !== next) {
-          var values = copyValues(state.values);
-          values[key] = next;
-          cancelPendingInternal();
-          state.values = normalizeValues(values);
+        var values = editableValues();
+        if (values[key] !== next) {
+          var changedValues = copyValues(values);
+          changedValues[key] = next;
+          replaceEditor(changedValues, editableConditions(), false);
           gesture.changed = true;
         }
-        if (baseRaw() !== gesture.before) pushHistory(gesture.before);
+        var after = currentScopeRow() ? historyRaw() : baseRaw();
+        if (after !== gesture.before) pushHistory(gesture.before);
         state.gesture = null;
         return true;
       }, { settingId: key, code: "GESTURE_COMMITTED" });
@@ -2075,12 +2096,15 @@
         var previous;
         try {
           previous = JSON.parse(gesture.before);
-        } catch (error) {
+        } catch {
           previous = null;
         }
         if (previous) {
           state.values = normalizeValues(previous.values);
           state.conditions = normalizeConditions(previous.conditions);
+          if (Array.isArray(previous.scopes))
+            state.scopes = normalizeScopes(previous.scopes);
+          state.restoredEffectivePending = false;
         }
         state.gesture = null;
         return true;
@@ -2094,12 +2118,11 @@
         var previous;
         try {
           previous = JSON.parse(raw);
-        } catch (error) {
+        } catch {
           previous = null;
         }
         if (!previous) return false;
         if (Array.isArray(previous.scopes)) {
-          cancelPendingInternal();
           state.values = normalizeValues(previous.values);
           state.conditions = normalizeConditions(previous.conditions);
           state.scopes = normalizeScopes(previous.scopes);
@@ -2124,11 +2147,12 @@
         seen[key] = true;
         keys.push(key);
       }
+      var values = editableValues();
       var conditions = editableConditions();
       var changed = false;
       for (index = 0; index < keys.length; index++) {
         if (
-          state.values[keys[index]] !== DEFAULTS[keys[index]] ||
+          values[keys[index]] !== DEFAULTS[keys[index]] ||
           Object.prototype.hasOwnProperty.call(conditions, keys[index])
         ) {
           changed = true;
@@ -2147,7 +2171,7 @@
       if (!validConfirmation("reset", token)) return reject("reset_confirm", "INVALID_CONFIRMATION");
       var keys = state.confirmation.keys.slice(0);
       return commit("reset_confirm", function () {
-        var values = copyValues(state.values);
+        var values = copyValues(editableValues());
         var conditions = normalizeConditions(editableConditions());
         var index;
         for (index = 0; index < keys.length; index++) {
@@ -2204,8 +2228,7 @@
     function handleLifecycleObserve(intent) {
       var epoch = intent.epoch;
       if (
-        typeof epoch !== "number" ||
-        !isFinite(epoch) ||
+        !Number.isFinite(epoch) ||
         Math.floor(epoch) !== epoch ||
         epoch < 0
       )
@@ -2239,8 +2262,7 @@
     function handleHeroObserve(intent) {
       var epoch = intent.epoch;
       if (
-        typeof epoch !== "number" ||
-        !isFinite(epoch) ||
+        !Number.isFinite(epoch) ||
         Math.floor(epoch) !== epoch ||
         epoch < 0
       )
@@ -2252,7 +2274,6 @@
       if (
         nextHeroKey &&
         nextHeroKey === state.identity.detectedHeroKey &&
-        !state.pendingPresetId &&
         !state.restoredEffectivePending
       )
         return noop("hero_observe", "NO_CHANGE");
@@ -2290,7 +2311,7 @@
           state.restoredEffectivePending = false;
         var changed = updateIdentityEffective();
         if (changed) state.ability.tiers = [-1, -1, -1, -1];
-        if (changed || state.pendingPresetId) applyAutomaticRoute();
+        if (changed) applyAutomaticRoute();
         return restoredEffectivePending !== state.restoredEffectivePending;
       });
     }
@@ -2298,8 +2319,7 @@
     function handleAbilityObserve(intent) {
       var epoch = intent.epoch;
       if (
-        typeof epoch !== "number" ||
-        !isFinite(epoch) ||
+        !Number.isFinite(epoch) ||
         Math.floor(epoch) !== epoch ||
         epoch < 0
       )
@@ -2313,8 +2333,7 @@
       for (index = 0; index < 4; index++) {
         var tier = intent.tiers[index];
         if (
-          typeof tier !== "number" ||
-          !isFinite(tier) ||
+          !Number.isFinite(tier) ||
           Math.floor(tier) !== tier ||
           tier < -1 ||
           tier > 3
@@ -2347,7 +2366,6 @@
       )
         return noop("scope_set", "NO_CHANGE");
       return commit("scope_set", function () {
-        cancelPendingInternal();
         var rows = removeCurrentScope();
         if (mode !== HERO_SCOPE_OFF) {
           rows.unshift({
@@ -2388,7 +2406,7 @@
       return commit("condition_set", function () {
         var nextConditions = normalizeConditions(editableConditions());
         nextConditions[key] = nextRule;
-        replaceEditor(state.values, nextConditions, true);
+        replaceEditor(editableValues(), nextConditions, true);
         if (!slotWasRequired) state.ability.tiers[nextRule.slot - 1] = -1;
         return true;
       }, { settingId: "*" });
@@ -2402,7 +2420,7 @@
       return commit("condition_remove", function () {
         var conditions = normalizeConditions(editableConditions());
         delete conditions[key];
-        replaceEditor(state.values, conditions, true);
+        replaceEditor(editableValues(), conditions, true);
         return true;
       }, { settingId: "*" });
     }
@@ -2442,8 +2460,8 @@
       var preset = normalizePresetRecord({
         id: id,
         name: name,
-        values: state.values,
-        conditions: state.conditions,
+        values: editableValues(),
+        conditions: editableConditions(),
         mode: mode,
         heroes: current ? current.heroes : [],
       }, "user");
@@ -2475,33 +2493,13 @@
       var preset = findPreset(id);
       if (!preset || (preset.kind === "baked" && isBakedHidden(id)))
         return reject("preset_apply", "PRESET_NOT_FOUND");
-      if (preset.mode === HERO_SCOPE_SELECTED) {
-        var heroKey = state.identity.effectiveHeroKey;
-        if (!heroKey) {
-          if (state.pendingPresetId === preset.id)
-            return noop("preset_apply", "WAITING_FOR_IDENTITY");
-          return commit("preset_apply", function () {
-            state.pendingPresetId = preset.id;
-            return true;
-          }, { code: "WAITING_FOR_IDENTITY" });
-        }
-        if (preset.heroes.indexOf(heroKey) < 0)
-          return reject("preset_apply", "HERO_MISMATCH");
-      }
-      if (presetMatchesCurrent(preset) && !state.pendingPresetId)
+      if (presetMatchesCurrent(preset))
         return noop("preset_apply", "NO_CHANGE");
       return commit("preset_apply", function () {
         return applyPresetInternal(preset);
       }, { settingId: "*", code: "PRESET_APPLIED" });
     }
 
-    function handlePresetCancelPending() {
-      if (!state.pendingPresetId) return noop("preset_cancel_pending", "NO_CHANGE");
-      return commit("preset_cancel_pending", function () {
-        cancelPendingInternal();
-        return true;
-      }, { code: "PENDING_CANCELED" });
-    }
 
     function handlePresetRename(intent) {
       var id = String(intent.id || "");
@@ -2525,7 +2523,7 @@
     function handlePresetMove(intent) {
       var id = String(intent.id || "");
       var delta = intent.delta;
-      if (typeof delta !== "number" || !isFinite(delta) || Math.floor(delta) !== delta || (delta !== -1 && delta !== 1))
+      if (!Number.isFinite(delta) || Math.floor(delta) !== delta || (delta !== -1 && delta !== 1))
         return reject("preset_move", "INVALID_MOVE");
       var index = -1;
       var i;
@@ -2581,7 +2579,6 @@
             if (state.userPresets[index].id !== id) users.push(state.userPresets[index]);
           }
           state.userPresets = users;
-          if (state.pendingPresetId === id) state.pendingPresetId = null;
         }
         state.confirmation = null;
         if (preset.kind === "user" && !state.userPresets.length)
@@ -2610,17 +2607,10 @@
       }, { code: "BAKED_RESTORED" });
     }
     function handleSettingsCopy() {
-      var values = canonicalRecordValues(state.values);
-      var conditions = normalizeConditions(editableConditions());
-      var hasConditions = false;
-      var key;
-      for (key in conditions) {
-        if (Object.prototype.hasOwnProperty.call(conditions, key)) {
-          hasConditions = true;
-          break;
-        }
-      }
-      var payload = hasConditions ? { v: values, c: conditions } : values;
+      var payload = {
+        v: canonicalRecordValues(editableValues()),
+        c: normalizeConditions(editableConditions()),
+      };
       var text = "HPCR2" + JSON.stringify(payload);
       return commit("settings_copy", function () { return false; }, {
         clipboard: { purpose: "settings", text: text },
@@ -2633,7 +2623,7 @@
       return commit("settings_import", function () {
         return replaceEditor(
           parsed.values,
-          parsed.hasConditions ? parsed.conditions : editableConditions(),
+          parsed.hasConditions ? parsed.conditions : {},
           true,
         );
       }, { settingId: "*" });
@@ -2746,7 +2736,6 @@
           case "preset_select": return handlePresetSelect(intent);
           case "preset_save": return handlePresetSave(intent);
           case "preset_apply": return handlePresetApply(intent);
-          case "preset_cancel_pending": return handlePresetCancelPending();
           case "preset_rename": return handlePresetRename(intent);
           case "preset_move": return handlePresetMove(intent);
           case "preset_remove_request": return handlePresetRemoveRequest(intent);
@@ -2760,7 +2749,7 @@
           case "preset_import": return handlePresetImport(intent);
           default: return reject(action, "UNKNOWN_INTENT");
         }
-      } catch (error) {
+      } catch {
         return reject(action, "INVALID_INTENT");
       }
     }

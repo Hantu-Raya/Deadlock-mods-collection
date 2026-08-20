@@ -241,7 +241,7 @@ test('malformed published snapshots are replaced by one canonical publication', 
   }
 });
 
-test('editing canonical base settings does not publish while a scoped snapshot is effective', () => {
+test('editing the hidden base does not publish through a non-Current stored scope', () => {
   const fixture = bootScopedMenu({
     version: 1,
     values: { enemyVisible: true },

@@ -5,6 +5,9 @@ $root = $PSScriptRoot
 
 $modSrc = Join-Path $root 'hp_colors_rewrite'
 $modCompiled = Join-Path $root 'hp_colors_rewrite_compiled'
+$compileStageRoot = Join-Path $root '_hp_colors_rewrite_build'
+$compileStageSource = Join-Path $compileStageRoot 'hp_colors_rewrite'
+$compileStageOutput = Join-Path $compileStageRoot 'hp_colors_rewrite_compiled'
 $compiler = Join-Path $root 'sr2compiler\New folder.exe'
 $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
     (Join-Path $root 'passive_items_mod\compiler\vpkeditcli.exe'),
@@ -15,13 +18,13 @@ $vpkOut = Join-Path $root 'pak01_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak01_dir.vpk'
 
 $requiredCompiled = @(
-    (Join-Path $modCompiled 'panorama\layout\hud_escape_menu.vxml_c'),
-    (Join-Path $modCompiled 'panorama\layout\unit_status_overlay.vxml_c'),
-    (Join-Path $modCompiled 'panorama\scripts\healthbar_probe.vjs_c'),
-    (Join-Path $modCompiled 'panorama\scripts\hp_colors_state.vjs_c'),
-    (Join-Path $modCompiled 'panorama\scripts\hp_colors_menu.vjs_c'),
-    (Join-Path $modCompiled 'panorama\styles\hp_colors_menu.vcss_c'),
-    (Join-Path $modCompiled 'panorama\styles\hp_colors_unit_status.vcss_c')
+    (Join-Path $compileStageOutput 'panorama\layout\hud_escape_menu.vxml_c'),
+    (Join-Path $compileStageOutput 'panorama\layout\unit_status_overlay.vxml_c'),
+    (Join-Path $compileStageOutput 'panorama\scripts\healthbar_probe.vjs_c'),
+    (Join-Path $compileStageOutput 'panorama\scripts\hp_colors_state.vjs_c'),
+    (Join-Path $compileStageOutput 'panorama\scripts\hp_colors_menu.vjs_c'),
+    (Join-Path $compileStageOutput 'panorama\styles\hp_colors_menu.vcss_c'),
+    (Join-Path $compileStageOutput 'panorama\styles\hp_colors_unit_status.vcss_c')
 )
 
 function Require-Path {
@@ -57,10 +60,21 @@ Require-Path -Path $vpkeditcli -Label 'vpkeditcli'
 
 Write-Host "`n[1/3] Compiling HP Colors rewrite..." -ForegroundColor Cyan
 Remove-TreeUnderRoot -Path $modCompiled -RootPath $root -ExpectedLeaf 'hp_colors_rewrite_compiled'
+Remove-TreeUnderRoot -Path $compileStageRoot -RootPath $root -ExpectedLeaf '_hp_colors_rewrite_build'
 if (Test-Path -LiteralPath $vpkOut) {
     Remove-Item -LiteralPath $vpkOut -Force
 }
-Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $modSrc -RequiredOutputs $requiredCompiled -TimeoutSeconds 120
+
+try {
+    $stagePanorama = Join-Path $compileStageSource 'panorama'
+    New-Item -ItemType Directory -Path $stagePanorama -Force | Out-Null
+    Copy-Item -Path (Join-Path $modSrc 'panorama\*') -Destination $stagePanorama -Recurse -Force
+    Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $compileStageSource -RequiredOutputs $requiredCompiled -TimeoutSeconds 120
+    Move-Item -LiteralPath $compileStageOutput -Destination $modCompiled
+}
+finally {
+    Remove-TreeUnderRoot -Path $compileStageRoot -RootPath $root -ExpectedLeaf '_hp_colors_rewrite_build'
+}
 Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 
 Write-Host "`n[2/3] Packing pak01_dir.vpk..." -ForegroundColor Cyan
@@ -72,9 +86,9 @@ Assert-PackedVpkAssets -Tree $vpkTree -Label 'HP Colors Rewrite VPK' -Required @
     'healthbar_probe.vjs_c',
     'hp_colors_state.vjs_c',
     'hp_colors_menu.vjs_c',
-    'hp_colors_menu.vcss_c',
     'hp_colors_unit_status.vcss_c'
 ) -Forbidden @(
+    'node_modules',
     'AGENTS.md',
     'FEATURES.md',
     'design.md',
@@ -83,7 +97,6 @@ Assert-PackedVpkAssets -Tree $vpkTree -Label 'HP Colors Rewrite VPK' -Required @
     'healthbar_probe.js',
     'hp_colors_state.js',
     'hp_colors_menu.js',
-    'hp_colors_menu.css',
     'hp_colors_unit_status.css'
 )
 $vpkSize = (Get-Item -LiteralPath $vpkOut).Length

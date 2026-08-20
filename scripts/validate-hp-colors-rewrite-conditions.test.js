@@ -80,14 +80,10 @@ function installLayoutPanels(harness) {
     'HPColorsEnemyLowSwatch',
     'HPColorsEnemyLowHex',
   ]);
-  wrapRow('lowThreshold', 'LOW THRESHOLD', [
-    'HPColorsLowThresholdSliderHost',
-    'HPColorsLowThresholdEntry',
+  wrapRow('lowThreshold', 'SHARED LOW THRESHOLD', [
+    'HPColorsSharedLowThresholdSliderHost',
+    'HPColorsSharedLowThresholdEntry',
   ]);
-  wrapRow('lowThreshold', 'LOW THRESHOLD', [
-    'HPColorsReadoutLowThresholdSliderHost',
-    'HPColorsReadoutLowThresholdEntry',
-  ], 'readout');
   wrapRow('enemyPulseThreshold', 'PULSE THRESHOLD', [
     'HPColorsEnemyPulseThresholdSliderHost',
     'HPColorsEnemyPulseThresholdEntry',
@@ -461,6 +457,7 @@ test('preset Save and explicit Apply carry conditions without inert selection pu
   }, { tiers: [-1, 2, -1, -1] });
   openEditor(source);
   source.harness.dispatches.length = 0;
+  panel(source, 'HPColorsPresetNewButton').events.onactivate();
   panel(source, 'HPColorsPresetNameInput').text = 'Tier Two';
   panel(source, 'HPColorsPresetSaveButton').events.onactivate();
 
@@ -482,6 +479,7 @@ test('preset Save and explicit Apply carry conditions without inert selection pu
   destination.harness.dispatches.length = 0;
   presetRow(destination, 'user_0001').events.onactivate();
   assert.equal(configDispatches(destination).length, 0);
+  panel(destination, 'HPColorsPresetCancelEditButton').events.onactivate();
   presetRowControl(
     destination,
     'user_0001',
@@ -739,7 +737,7 @@ test('ability card layers tier ornament frames over the persistent white base fr
   });
 });
 
-test('both shared low-threshold rows expose synchronized condition buttons', () => {
+test('the sole shared low-threshold row exposes one condition button', () => {
   const fixture = bootMenu({
     version: 1,
     values: { lowThreshold: 18, highThreshold: 43 },
@@ -751,16 +749,160 @@ test('both shared low-threshold rows expose synchronized condition buttons', () 
   settleActiveLifecycle(fixture);
   openEditor(fixture);
 
-  const primary = panel(fixture, 'HPColorsCondition_lowThreshold');
-  const mirrored = panel(fixture, 'HPColorsCondition_lowThreshold_2');
-  for (const indicator of [primary, mirrored]) {
+  const indicator = panel(fixture, 'HPColorsCondition_lowThreshold');
+  assert.equal(indicator.BHasClass('Configured'), true);
+  assert.equal(indicator.BHasClass('Matched'), true);
+  assert.equal(
+    fixture.harness.root.FindChildTraverse('HPColorsCondition_lowThreshold_2'),
+    null,
+  );
+
+  indicator.events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsConditionDialog').BHasClass('Open'), true);
+  assert.equal(
+    panel(fixture, 'HPColorsConditionTitle').text,
+    'SHARED LOW THRESHOLD',
+  );
+});
+
+test('selected hero condition flags survive All Heroes round trip', () => {
+  const values = {
+    lowThreshold: 18,
+    enemyPulseThreshold: 18,
+    enemyKillMarkerThreshold: 18,
+  };
+  const conditions = {
+    lowThreshold: { slot: 4, minTier: 3, value: 28 },
+    enemyPulseThreshold: { slot: 4, minTier: 3, value: 28 },
+    enemyKillMarkerThreshold: { slot: 4, minTier: 3, value: 28 },
+  };
+  const fixture = bootMenu({
+    version: 1,
+    values,
+    conditions: {},
+    scopes: [{
+      id: 'scope_current',
+      mode: 'selected',
+      heroes: ['hero_shiv'],
+      values,
+      conditions: {},
+    }],
+  }, { tiers: [-1, -1, -1, 3] });
+  settleActiveLifecycle(fixture);
+  openEditor(fixture);
+
+  const indicators = [
+    panel(fixture, 'HPColorsCondition_lowThreshold'),
+    panel(fixture, 'HPColorsCondition_enemyPulseThreshold'),
+    panel(fixture, 'HPColorsCondition_enemyKillMarkerThreshold'),
+  ];
+  for (const key of [
+    'lowThreshold',
+    'enemyPulseThreshold',
+    'enemyKillMarkerThreshold',
+  ]) {
+    panel(fixture, `HPColorsCondition_${key}`).events.onactivate();
+    panel(fixture, 'HPColorsConditionSlot4').events.onactivate();
+    panel(fixture, 'HPColorsConditionSlot4').events.onactivate();
+    panel(fixture, 'HPColorsConditionSlot4').events.onactivate();
+    panel(fixture, 'HPColorsConditionNumberEntry').text = '28';
+    panel(fixture, 'HPColorsConditionNumberEntry').events.ontextentrysubmit();
+    panel(fixture, 'HPColorsConditionApplyButton').events.onactivate();
+  }
+
+  panel(fixture, 'HPColorsPresetNewButton').events.onactivate();
+  panel(fixture, 'HPColorsPresetNameInput').text = 'Shiv Conditional';
+  panel(fixture, 'HPColorsPresetSaveButton').events.onactivate();
+  assert.deepEqual(readMenuState(fixture).userPresets[0].conditions, conditions);
+
+  for (const indicator of indicators) {
     assert.equal(indicator.BHasClass('Configured'), true);
     assert.equal(indicator.BHasClass('Matched'), true);
   }
 
-  mirrored.events.onactivate();
-  assert.equal(panel(fixture, 'HPColorsConditionDialog').BHasClass('Open'), true);
-  assert.equal(panel(fixture, 'HPColorsConditionTitle').text, 'LOW THRESHOLD');
+  panel(fixture, 'HPColorsCurrentScopeAll').events.onactivate();
+  panel(fixture, 'HPColorsCurrentScopeSelected').events.onactivate();
+  function findShivOption(current) {
+    if (!current || !current.IsValid()) return null;
+    if (
+      current.GetAttributeString('hp_colors_scope_hero_key', '') ===
+      'hero_shiv'
+    ) return current;
+    for (const child of current.Children()) {
+      const found = findShivOption(child);
+      if (found) return found;
+    }
+    return null;
+  }
+  const shivOption = findShivOption(
+    panel(fixture, 'HPColorsScopeOptions'),
+  );
+  assert.ok(shivOption, 'expected Shiv scope option');
+  shivOption.events.onactivate();
+
+  const state = readMenuState(fixture);
+  assert.equal(state.scopes[0].mode, 'selected');
+  assert.deepEqual(state.scopes[0].heroes, ['hero_shiv']);
+  assert.deepEqual(state.scopes[0].conditions, conditions);
+  for (const indicator of indicators) {
+    assert.equal(indicator.BHasClass('Configured'), true);
+    assert.equal(indicator.BHasClass('Matched'), true);
+  }
+});
+
+test('nonconditional All Heroes preset does not inherit Shiv conditions', () => {
+  const conditionalCode =
+    'HPCR2{"v":[[7,"fixed"],[11,true],[12,true],[13,true],[30,167],[31,"oracle"],[34,"custom"],[37,"#FFFFFF"],[42,18],[45,18],[52,true],[53,true],[54,205],[56,440],[63,true],[64,18],[65,31]],"c":{"lowThreshold":{"slot":4,"minTier":3,"value":28},"enemyPulseThreshold":{"slot":4,"minTier":3,"value":28},"enemyKillMarkerThreshold":{"slot":4,"minTier":3,"value":28}}}';
+  const allHeroesCode =
+    'HPCR2[[7,"fixed"],[11,true],[12,true],[13,true],[30,167],[31,"oracle"],[34,"custom"],[37,"#FFFFFF"],[52,true],[53,true],[54,205],[56,440],[65,31]]';
+  const expectedConditions = {
+    lowThreshold: { slot: 4, minTier: 3, value: 28 },
+    enemyPulseThreshold: { slot: 4, minTier: 3, value: 28 },
+    enemyKillMarkerThreshold: { slot: 4, minTier: 3, value: 28 },
+  };
+  const fixture = bootMenu(undefined, { tiers: [-1, -1, -1, 3] });
+  settleActiveLifecycle(fixture);
+  openEditor(fixture);
+
+  panel(fixture, 'HPColorsCurrentScopeSelected').events.onactivate();
+  function findShivOption(current) {
+    if (!current || !current.IsValid()) return null;
+    if (
+      current.GetAttributeString('hp_colors_scope_hero_key', '') ===
+      'hero_shiv'
+    ) return current;
+    for (const child of current.Children()) {
+      const found = findShivOption(child);
+      if (found) return found;
+    }
+    return null;
+  }
+  const shivOption = findShivOption(panel(fixture, 'HPColorsScopeOptions'));
+  assert.ok(shivOption, 'expected Shiv scope option');
+  shivOption.events.onactivate();
+
+  panel(fixture, 'HPColorsTransferButton').events.onactivate();
+  panel(fixture, 'HPColorsTransferInput').text = conditionalCode;
+  panel(fixture, 'HPColorsTransferImportButton').events.onactivate();
+  panel(fixture, 'HPColorsPresetNewButton').events.onactivate();
+  panel(fixture, 'HPColorsPresetNameInput').text = 'Shiv Conditional';
+  panel(fixture, 'HPColorsPresetSaveButton').events.onactivate();
+
+  panel(fixture, 'HPColorsTransferButton').events.onactivate();
+  panel(fixture, 'HPColorsTransferInput').text = allHeroesCode;
+  panel(fixture, 'HPColorsTransferImportButton').events.onactivate();
+  panel(fixture, 'HPColorsCurrentScopeAll').events.onactivate();
+  panel(fixture, 'HPColorsPresetNewButton').events.onactivate();
+  panel(fixture, 'HPColorsPresetNameInput').text = 'All Heroes Plain';
+  panel(fixture, 'HPColorsPresetSaveButton').events.onactivate();
+
+  const state = readMenuState(fixture);
+  assert.deepEqual(state.userPresets[0].conditions, expectedConditions);
+  assert.equal(
+    state.userPresets[1].conditions,
+    null,
+    'All Heroes preset must not inherit Shiv ability conditions',
+  );
 });
 
 test('matching setting value warns, disables Apply, and leaves its marker unlit', () => {

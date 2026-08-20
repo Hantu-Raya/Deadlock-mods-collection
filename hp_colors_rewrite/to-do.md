@@ -80,7 +80,7 @@ Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:1229-1567`, `8170-
 
 ### User operations
 
-- [x] Save current settings as a named user preset, then update the selected user record through the same single Save action without changing its stable ID.
+- [x] Separate creation from updates: New Preset opens a create-only form, while clicking a session row exposes an explicit overwrite warning and Save & Apply without changing its stable ID.
 - [x] Expose only All Heroes and Selected Heroes user-preset categories; keep the canonical base hidden behind baked Rewrite Default.
 - [x] Migrate legacy user Global records to All Heroes without applying, publishing, or replacing the hidden base.
 - [x] Rename user presets and display-name override baked presets without changing stable identity.
@@ -95,9 +95,10 @@ Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:1229-1567`, `8170-
 - [ ] Persist user presets, ordering, hidden baked IDs, names, scopes, and selection across restarts. Blocked: the verified Deadlock runtime exposes no writable `$.persistentStorage`; panel attributes and `GameUI.CustomUIConfig()` are session-only, while the pak96 preset store is build-time/read-only.
 - [x] Add repository, ordering, rename, delete/hide, monotonic-ID, no-publication, reference-repair, copy, bundle, inert-import, metadata, and atomic-rejection regressions.
 - [ ] Add restart and durable-selection regressions after a verified writable Panorama persistence seam exists.
-- [x] Replace the split Hero / Presets dashboard with one full-width Presets workspace, compact automatic-routing context, clearer create/update state, and no visible identity-debug card.
-- [x] Replace the separate selected-preset management block with compact row-local rename, Copy, Apply/Cancel, Up/Down, and Delete/Hide controls plus in-row confirmation.
+- [x] Replace the split Hero / Presets dashboard with one full-width Presets workspace, compact automatic-routing context, a collapsed create/edit form, and no visible identity-debug card.
+- [x] Keep repository management row-local; distinguish Apply, Save & Apply, Cancel, ACTIVE, EDITING, and WAITING without conflating selection with live application.
 - [x] Auto-hide baked Rewrite Default when Save creates an All Heroes user preset while retaining the baked record as the canonical fallback.
+- [x] Make web-builder single and bundle exports hide baked Rewrite Default when they contain an All Heroes user preset, and preserve that hidden state during XML first-boot hydration.
 - [x] Verify the redesigned Presets workspace under the currently used in-game UI scale.
 - [ ] Verify the redesigned Presets workspace under every other supported UI scale.
 
@@ -136,7 +137,7 @@ Legacy evidence: `hp_colors/panorama/scripts/anita_ui_core.js:9549-10317`; `hp_c
 These are reliability behaviors, not new visual controls. Add them only with measured evidence and without increasing the active paint cost.
 
 - [ ] Add a bounded first-paint hydration gate once durable persistence exists.
-- [x] Omit an explicit match-reset generation/acknowledgement path because two live sessions found no stale scoped state across four active-match exits. The targeted exit preserved `user_0001` with an unchanged revision and no pending request; closing the editor already cancels WAITING actions by contract. Reopen only with contrary live evidence.
+- [x] Omit an explicit match-reset generation/acknowledgement path because two live sessions found no stale scoped state across four active-match exits. The targeted exit preserved `user_0001` with an unchanged revision. Reopen only with contrary live evidence.
 - [x] Measure whether stock Panorama overwrites rewrite-owned inline styles during idle periods. A 2026-08-15 run captured 37m35s across 90 probe contexts and 1,291 summaries with zero transient, confirmed, or recovered drift.
 - [x] Omit the watchdog because live evidence found no style drift; do not add clean-state reads without new contrary evidence.
 - [x] Verify local ownership, replacement handling, zero-width idle cadence, and single-flight scheduling under counters. The run captured 83 part replacements, zero duplicate scan/paint schedules, and zero-width samples in all 90 contexts; 88 contexts ended at the 1.5-second idle paint cadence and two were still in the 0.25-second recent-change window. All 83 released-style signals were the intentional collapsed kill-marker visibility state, not leaked visible styling.

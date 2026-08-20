@@ -6,6 +6,7 @@
   var PAINT_RECENT_SEC = 0.25;
   var PAINT_IDLE_SEC = 1.5;
   var PAINT_RECENT_MS = 2000;
+  var PERF_DEBUG_INTERVAL_SEC = 5;
   var MAX_SCAN_DEPTH = 12;
   var MAX_SCAN_PANELS = 512;
   var EVENT_CHANNEL = "ClientUI_FireOutput";
@@ -82,6 +83,23 @@
     highThreshold: 65,
   };
 
+  /* Values mirrored from the current stock unit_status.css relation rules. */
+  var STOCK_TEAM1_COLOR = "#E7B659";
+  var STOCK_TEAM2_COLOR = "#5B79E6";
+  var STOCK_NEUTRAL_COLOR = "#5BEFB5";
+  var STOCK_ENEMY_COLOR = "#FD4949";
+  var STOCK_FRIEND_COLOR = "#FFEFD7";
+  var STOCK_HEALING_COLOR = "#5FFF80";
+  var STOCK_TEAM_DELTA_COLOR = "#FFEDB8";
+  var STOCK_NEUTRAL_DELTA_COLOR = "#F24D4D";
+  var STOCK_ENEMY_DELTA_COLOR = "#FFE55B";
+  var STOCK_FRIEND_DELTA_COLOR = "#504C47";
+  var STOCK_TEAM1_BULLET_SHIELD_COLOR = "#E9E76A";
+  var STOCK_TEAM2_BULLET_SHIELD_COLOR = "#6A75E9";
+  var STOCK_ENEMY_BULLET_SHIELD_COLOR = "#B95F5F";
+  var STOCK_FRIEND_BULLET_SHIELD_COLOR = "#ACCA91";
+  var STOCK_DEFAULT_BULLET_SHIELD_COLOR = "#FFFFFF";
+
   var LEVEL_VISIBLE_CLASS = "level_number_visible";
   var LEVEL_TIERS = [
     { minimum: 11, className: "level_tier2", color: "#f0d000" },
@@ -103,6 +121,12 @@
   var configRaw = "";
   var config = copyConfig(DEFAULT_CONFIG);
   var lastColorChangeAt = 0;
+  var perfDebugCalls = {
+    paintColors: 0,
+    refreshColor: 0,
+    applyCustomization: 0,
+    scan: 0,
+  };
   function copyConfig(source) {
     var result = {};
     for (var key in DEFAULT_CONFIG) {
@@ -117,7 +141,7 @@
   function isValid(panel) {
     try {
       return !!(panel && (!panel.IsValid || panel.IsValid()));
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -125,7 +149,7 @@
   function panelId(panel) {
     try {
       return String(panel && panel.id ? panel.id : "");
-    } catch (error) {
+    } catch {
       return "";
     }
   }
@@ -133,7 +157,7 @@
   function children(panel) {
     try {
       return panel && panel.Children ? panel.Children() || [] : [];
-    } catch (error) {
+    } catch {
       return [];
     }
   }
@@ -143,7 +167,7 @@
       return panel && panel.FindChildTraverse
         ? panel.FindChildTraverse(id)
         : null;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -154,7 +178,7 @@
       if (panelId(current) === id) return current;
       try {
         current = current.GetParent ? current.GetParent() : null;
-      } catch (error) {
+      } catch {
         return null;
       }
     }
@@ -170,7 +194,7 @@
         var parent = current.GetParent ? current.GetParent() : null;
         if (!parent || parent === current) break;
         current = parent;
-      } catch (error) {
+      } catch {
         break;
       }
     }
@@ -181,7 +205,7 @@
     try {
       if (panel && panel.BHasClass) return !!panel.BHasClass(className);
       if (panel && panel.HasClass) return !!panel.HasClass(className);
-    } catch (error) {}
+    } catch {}
     return false;
   }
 
@@ -191,7 +215,7 @@
       if (hasClass(current, className)) return current;
       try {
         current = current.GetParent ? current.GetParent() : null;
-      } catch (error) {
+      } catch {
         return null;
       }
     }
@@ -228,7 +252,7 @@
       boss = boss || tierBoss || hasClass(current, "boss_barracks");
       try {
         current = current.GetParent ? current.GetParent() : null;
-      } catch (error) {
+      } catch {
         break;
       }
     }
@@ -328,7 +352,7 @@
       if (current === ancestor) return true;
       try {
         current = current.GetParent ? current.GetParent() : null;
-      } catch (error) {
+      } catch {
         return false;
       }
     }
@@ -447,7 +471,7 @@
   function readPanelWidthRaw(panel) {
     try {
       return Math.max(0, Number(panel.actuallayoutwidth) || 0);
-    } catch (error) {
+    } catch {
       return 0;
     }
   }
@@ -506,10 +530,10 @@
 
   function readPipText(panel) {
     try {
-      if (typeof panel.text === "string") return panel.text;
+      if (panel.text === String(panel.text)) return panel.text;
       if (panel.GetAttributeString)
         return String(panel.GetAttributeString("text", "") || "");
-    } catch (error) {}
+    } catch {}
     return "";
   }
 
@@ -832,9 +856,35 @@
     return high;
   }
   function teamHighColor(team, fallback) {
-    if (team === "team1") return "#E7B659";
-    if (team === "team2") return "#5B79E6";
+    if (team === "team1") return STOCK_TEAM1_COLOR;
+    if (team === "team2") return STOCK_TEAM2_COLOR;
     return fallback;
+  }
+
+  function stockUnitColor(bar) {
+    if (bar.role === "neutral") return STOCK_NEUTRAL_COLOR;
+    if (bar.role === "enemy") return STOCK_ENEMY_COLOR;
+    if (bar.role === "ally") return STOCK_FRIEND_COLOR;
+    if (bar.team === "team1") return STOCK_TEAM1_COLOR;
+    if (bar.team === "team2") return STOCK_TEAM2_COLOR;
+    return "";
+  }
+
+  function stockDeltaColor(bar) {
+    if (bar.role === "neutral") return STOCK_NEUTRAL_DELTA_COLOR;
+    if (bar.role === "enemy") return STOCK_ENEMY_DELTA_COLOR;
+    if (bar.role === "ally") return STOCK_FRIEND_DELTA_COLOR;
+    if (bar.team === "team1" || bar.team === "team2")
+      return STOCK_TEAM_DELTA_COLOR;
+    return "";
+  }
+
+  function stockBulletShieldColor(bar) {
+    if (bar.role === "enemy") return STOCK_ENEMY_BULLET_SHIELD_COLOR;
+    if (bar.role === "ally") return STOCK_FRIEND_BULLET_SHIELD_COLOR;
+    if (bar.team === "team1") return STOCK_TEAM1_BULLET_SHIELD_COLOR;
+    if (bar.team === "team2") return STOCK_TEAM2_BULLET_SHIELD_COLOR;
+    return STOCK_DEFAULT_BULLET_SHIELD_COLOR;
   }
 
   function setStyle(panel, property, value, cache, cacheKey) {
@@ -842,13 +892,17 @@
       if (cache) cache[cacheKey] = null;
       return;
     }
-    if (cache && cache[cacheKey] === value) {
+    if (
+      cache &&
+      cache[cacheKey] === value &&
+      panel.style[property] === value
+    ) {
       return;
     }
     try {
       panel.style[property] = value;
       if (cache) cache[cacheKey] = value;
-    } catch (error) {
+    } catch {
       if (cache) cache[cacheKey] = null;
       return;
     }
@@ -865,7 +919,7 @@
     try {
       panel.text = value;
       if (cache) cache[cacheKey] = value;
-    } catch (error) {
+    } catch {
       if (cache) cache[cacheKey] = null;
     }
   }
@@ -876,7 +930,11 @@
       if (cache) cache[cacheKey] = null;
       return;
     }
-    if (cache && cache[cacheKey] === marker) {
+    if (
+      cache &&
+      cache[cacheKey] === marker &&
+      hasClass(panel, className) === enabled
+    ) {
       return;
     }
     try {
@@ -888,7 +946,7 @@
         panel.RemoveClass(className);
       }
       if (cache) cache[cacheKey] = marker;
-    } catch (error) {
+    } catch {
       if (cache) cache[cacheKey] = null;
     }
   }
@@ -903,7 +961,7 @@
         panel.style[property] = "";
       }
       if (cache) cache[cacheKey] = "";
-    } catch (error) {
+    } catch {
       if (cache) cache[cacheKey] = null;
       return;
     }
@@ -1016,7 +1074,7 @@
     setStyle(
       bar.parts.pipLabel,
       "visibility",
-      enemyScope && !config.pipsVisible ? "collapse" : "",
+      enemyScope ? (config.pipsVisible ? "visible" : "collapse") : "",
       bar.applied,
       "pipVisibility",
     );
@@ -1391,6 +1449,7 @@
   }
 
   function applyCustomization(bar) {
+    perfDebugCalls.applyCustomization += 1;
     if (!bar.dirty || !isComplete(bar.parts)) return;
     var role = bar.role;
     var relationOwned = role === "enemy" || role === "ally";
@@ -1400,16 +1459,41 @@
       clearPulse(bar);
       clearKillMarkerOwnership(bar);
       applyReadoutDecorations(bar);
-      setStyle(bar.parts.healing, "washColor", "", bar.applied, "healingWashColor");
-      setStyle(bar.parts.delta, "washColor", "", bar.applied, "deltaWashColor");
+      setStyle(
+        bar.parts.fill,
+        "washColor",
+        stockUnitColor(bar),
+        bar.applied,
+        "washColor",
+      );
+      setStyle(
+        bar.parts.healing,
+        "washColor",
+        STOCK_HEALING_COLOR,
+        bar.applied,
+        "healingWashColor",
+      );
+      setStyle(
+        bar.parts.delta,
+        "washColor",
+        stockDeltaColor(bar),
+        bar.applied,
+        "deltaWashColor",
+      );
       setStyle(
         bar.parts.bulletShield,
         "backgroundColor",
-        "",
+        stockBulletShieldColor(bar),
         bar.applied,
         "bulletShieldBackgroundColor",
       );
-      setStyle(bar.parts.ultIcon, "washColor", "", bar.applied, "ultWashColor");
+      setStyle(
+        bar.parts.ultIcon,
+        "washColor",
+        stockUnitColor(bar),
+        bar.applied,
+        "ultWashColor",
+      );
       setStyle(bar.parts.container, "opacity", "", bar.applied, "opacity");
       setStyle(bar.parts.container, "width", "", bar.applied, "width");
       setStyle(bar.parts.container, "height", "", bar.applied, "height");
@@ -1467,33 +1551,30 @@
         ? role === "enemy"
           ? config.enemyHealing
           : config.allyHealing
-        : "";
+        : STOCK_HEALING_COLOR;
     var delta =
       colorsEnabled
         ? role === "enemy"
           ? config.enemyDelta
           : config.allyDelta
-        : "";
+        : stockDeltaColor(bar);
     var bulletShield =
       colorsEnabled
         ? role === "enemy"
           ? config.enemyBulletShield
           : config.allyBulletShield
-        : "";
-    var color = "";
+        : stockBulletShieldColor(bar);
+    var color = stockUnitColor(bar);
     if (colorsEnabled)
       color =
         mode === "gradient"
           ? gradientColor(bar.lastWidthPercent, low, mid, high)
           : fixedColor(bar.lastWidthPercent, low, mid, high);
-    var ultColor = "";
-    if (colorsEnabled)
-      ultColor = config.ultMode === "custom" ? config.ultCustom : color;
+    var ultColor = stockUnitColor(bar);
+    if (!excluded && config.ultMode === "custom") ultColor = config.ultCustom;
+    else if (colorsEnabled) ultColor = color;
     var readoutEnabled =
-      role === "enemy" &&
-      config.enemyEnabled &&
-      !excluded &&
-      config.readoutVisible;
+      role === "enemy" && !excluded && config.readoutVisible;
     var readoutText = readoutEnabled ? formatReadout(bar) : "";
     var readoutVisibility = readoutText ? "visible" : "collapse";
     var readoutLow =
@@ -1750,7 +1831,7 @@
           String(config.enabled),
       );
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -1760,7 +1841,7 @@
     if (!isValid(configRoot) || !configRoot.GetAttributeString) return "";
     try {
       return String(configRoot.GetAttributeString(CONFIG_ATTR, "") || "");
-    } catch (error) {
+    } catch {
       return "";
     }
   }
@@ -1772,7 +1853,7 @@
 
   function onConfigEvent(payload) {
     try {
-      var data = typeof payload === "string" ? JSON.parse(payload) : payload;
+      var data = payload === String(payload) ? JSON.parse(payload) : payload;
       if (
         !data ||
         data.magic_word !== CONFIG_MAGIC ||
@@ -1781,7 +1862,7 @@
       )
         return;
       applyConfigRaw(String(data.values_raw), "event");
-    } catch (error) {}
+    } catch {}
   }
 
   function reportData(bar) {
@@ -1942,7 +2023,13 @@
   }
 
   function refreshColor(bar) {
-    if (!isComplete(bar.parts) || !colorRefreshEnabled(bar)) return false;
+    perfDebugCalls.refreshColor += 1;
+    if (!isComplete(bar.parts)) return false;
+    if (!colorRefreshEnabled(bar)) {
+      if (!bar.dirty) return false;
+      applyCustomization(bar);
+      return true;
+    }
     var widthPercent = sampleHealthPercent(bar);
     if (widthPercent < 0) {
       if (
@@ -1972,6 +2059,7 @@
 
   function paintColors() {
     if (!isValid(context)) return;
+    perfDebugCalls.paintColors += 1;
     var changed = false;
     for (var index = 0; index < bars.length; index++) {
       if (refreshColor(bars[index])) changed = true;
@@ -1986,8 +2074,32 @@
     $.Schedule(delay, paintColors);
   }
 
+  function flushPerfDebug() {
+    if (!isValid(context)) return;
+    $.Msg(
+      "[HP Colors Rewrite][Perf] window=5s probe=" +
+        probeId +
+        " paintColors=" +
+        perfDebugCalls.paintColors +
+        " refreshColor=" +
+        perfDebugCalls.refreshColor +
+        " applyCustomization=" +
+        perfDebugCalls.applyCustomization +
+        " scan=" +
+        perfDebugCalls.scan +
+        " bars=" +
+        bars.length,
+    );
+    perfDebugCalls.paintColors = 0;
+    perfDebugCalls.refreshColor = 0;
+    perfDebugCalls.applyCustomization = 0;
+    perfDebugCalls.scan = 0;
+    $.Schedule(PERF_DEBUG_INTERVAL_SEC, flushPerfDebug);
+  }
+
   function scan() {
     if (!isValid(context)) return;
+    perfDebugCalls.scan += 1;
     inspectRootConfig();
     reconcileBars();
     if (!didLogInitialScan) {
@@ -2009,4 +2121,5 @@
   inspectRootConfig();
   scan();
   paintColors();
+  $.Schedule(PERF_DEBUG_INTERVAL_SEC, flushPerfDebug);
 })();

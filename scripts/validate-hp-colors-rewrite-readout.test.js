@@ -227,10 +227,10 @@ test('editor owns and publishes the readout controls', () => {
   pulseYSlider.value = 300;
   pulseYSlider.events.onvaluechanged();
   const readoutLowSlider = harness.root.FindChildTraverse(
-    'HPColorsReadoutLowThresholdSlider',
+    'HPColorsSharedLowThresholdSlider',
   );
   const readoutHighSlider = harness.root.FindChildTraverse(
-    'HPColorsReadoutHighThresholdSlider',
+    'HPColorsSharedHighThresholdSlider',
   );
   assert.deepEqual(
     [readoutLowSlider.min, readoutLowSlider.max],
@@ -244,14 +244,20 @@ test('editor owns and publishes the readout controls', () => {
   const followedControls = [
     'HPColorsReadoutModeFixed',
     'HPColorsReadoutModeGradient',
-    'HPColorsReadoutLowThresholdSlider',
-    'HPColorsReadoutLowThresholdEntry',
-    'HPColorsReadoutHighThresholdSlider',
-    'HPColorsReadoutHighThresholdEntry',
+  ].map((id) => harness.root.FindChildTraverse(id));
+  const sharedThresholdControls = [
+    'HPColorsSharedLowThresholdSlider',
+    'HPColorsSharedLowThresholdEntry',
+    'HPColorsSharedHighThresholdSlider',
+    'HPColorsSharedHighThresholdEntry',
   ].map((id) => harness.root.FindChildTraverse(id));
   for (const control of followedControls) {
     assert.equal(control.enabled, false);
     assert.equal(control.BHasClass('Disabled'), true);
+  }
+  for (const control of sharedThresholdControls) {
+    assert.equal(control.enabled, true);
+    assert.equal(control.BHasClass('Disabled'), false);
   }
 
   harness.root.FindChildTraverse('HPColorsReadoutColorCustom').events.onactivate();
@@ -263,6 +269,10 @@ test('editor owns and publishes the readout controls', () => {
   for (const control of followedControls) {
     assert.equal(control.enabled, false);
     assert.equal(control.BHasClass('Disabled'), true);
+  }
+  for (const control of sharedThresholdControls) {
+    assert.equal(control.enabled, true);
+    assert.equal(control.BHasClass('Disabled'), false);
   }
   harness.root.FindChildTraverse('HPColorsReadoutFormatCurrent').events.onactivate();
   harness.root.FindChildTraverse('HPColorsReadoutColorCustom').events.onactivate();
@@ -575,6 +585,7 @@ test('precise pip toggle shows enable and cleanup copy dialogs', () => {
   );
 
   toggle.events.onactivate();
+  assert.equal(toggle.BHasClass('Checked'), true);
   assert.equal(dialog.BHasClass('Open'), true);
   assert.equal(title.text, 'ENABLE PRECISE PIPS');
   assert.match(message.text, /ConVars block in gameinfo\.gi/);
@@ -593,6 +604,7 @@ test('precise pip toggle shows enable and cleanup copy dialogs', () => {
   assert.equal(dialog.BHasClass('Open'), false);
 
   toggle.events.onactivate();
+  assert.equal(toggle.BHasClass('Checked'), false);
   assert.equal(dialog.BHasClass('Open'), true);
   assert.equal(title.text, 'REMOVE PRECISE PIP CONFIG');
   assert.match(message.text, /delete the custom precise-pip entries/);

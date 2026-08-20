@@ -8,13 +8,11 @@ This design covers the v1 editor only. It excludes Anita UI compatibility, legac
 
 ## Entry point
 
-Add `HP COLORS` as the final large primary row immediately before the smaller stock Settings section.
+Add `HP COLORS` as a stock `nav_menu_item minor` row inside `SubOptions`, after Player Feedback and immediately before Settings. This keeps it below contextual actions and makes the entry visually indistinguishable from neighboring native Escape-menu rows.
 
-- Preserve the stock ESC row geometry, skew, speckle, spacing, and hover behavior.
-- Use an explicit uppercase label rather than an icon-only affordance.
-- Add a restrained brand-green edge and wash plus a small enemy/soul color swatch.
-- Show a shortcut hint only when the runtime resolves a real binding. Never hardcode a key.
-- Do not add a badge, attention pulse, or second entry point.
+- Preserve the stock row geometry, typography, spacing, hover, and focus behavior without entry-specific CSS.
+- Use only the explicit uppercase `menuButtonLabel`; do not add a swatch, accent, icon, shortcut hint, badge, or attention pulse.
+- Do not add a second entry point.
 
 ## Visual direction: Ritual Stripe
 
@@ -49,7 +47,7 @@ Color must never be the only state indicator.
 
 ### Overview
 
-#### Status
+#### Master
 
 - Master customization switch.
 - The switch bypasses custom rendering without deleting configured values.
@@ -69,14 +67,16 @@ Color must never be the only state indicator.
 - Auto, Manual Override, and Off still expose only exact stable hero keys. The workspace surfaces the active hero and the automatic Selected → All Heroes → Rewrite Default route without presenting lifecycle diagnostics as user controls.
 - Save-target controls expose only All Heroes and selected stable heroes. The canonical base remains hidden and is represented by baked Rewrite Default.
 - Session Presets list baked records before session user records.
-- Save automatically snapshots the latest canonical editor values with the chosen scope metadata. With no selected user record it creates a new monotonic ID; creating an All Heroes preset hides the baked Rewrite Default row while retaining it as the canonical fallback. With a selected user record, Save overwrites that record in place. **New Preset** clears that update target.
-- Applying a Selected Heroes preset waits for stable identity and rejects a settled mismatch. Later exact identity transitions select the first matching saved Selected record, otherwise the first saved All Heroes record, then the baked Rewrite Default when leaving a Selected scope.
-- Selecting a row never applies it. Rename is initiated from the row name; Copy, Apply/Cancel, valid Up/Down moves, and Delete/Hide live on that row. Destructive confirmation replaces only the affected row, so management never shifts to a separate action panel.
-- Repository-only mutations repair stable-ID references but never apply settings, enter Undo, increment revision, or dispatch configuration.
-- Copy Selected and Copy All produce a separate `HPCRP1` repository code; the existing `HPCR2` path remains live-settings transfer only.
+- **New Preset** opens a focused create form for name and Current target. **Create Preset** snapshots the latest Current working values with that scope metadata, allocates a monotonic ID, closes the form, and never applies settings.
+- Clicking a session row enters a clearly labeled editing state without changing live settings. Its primary action becomes **Save & Apply**, which warns that it will replace the named record, updates that stable ID from the current editor values and scope, then uses the existing preset-application path. **Cancel** exits editing without mutation.
+- Baked rows remain immutable. Their primary action stays **Apply**; they never expose **Save & Apply**.
+- Explicit **Apply** replaces Current and publishes immediately, even before stable identity resolves or when the current detected hero differs. Later exact identity transitions select the first matching saved Selected record, otherwise the first saved All Heroes record, then baked Rewrite Default when leaving a Selected scope.
+- Rename starts from the row name. Copy, Apply, valid Up/Down moves, and Delete/Hide remain row-local. Destructive confirmation replaces only the affected row.
+- Repository-only mutations repair stable-ID references but never apply settings, enter Undo, increment revision, or dispatch configuration. Explicit **Apply** and the apply half of **Save & Apply** are live-settings transitions.
+- Copy Selected and Copy All produce a separate `HPCRP1` repository code. `HPCR2` remains live-settings transfer only and always represents a complete values-plus-conditions snapshot; array-only historical codes mean zero conditions rather than “preserve current conditions.”
 - Copy All preserves baked-before-user order, hidden baked state, selection, and record metadata while excluding synthetic Current.
 - Import validates the complete code before appending user records with fresh monotonic IDs. It never applies or publishes settings.
-- Preset records and repository metadata disappear when Deadlock restarts; the interface must not imply durable storage.
+- Runtime-created/imported records and repository edits disappear when Deadlock restarts. A builder-generated pak96 repopulates its original `HPCRP1` records from the versioned hidden store in `hud_escape_menu.xml`. On cold boot without a session cache, the builder-selected user record becomes Current and publishes before hero, area, or game-mode lifecycle observation. When the records include an All Heroes user preset, the builder marks baked Rewrite Default hidden and hydration preserves that state. The store is build-time/read-only and does not make in-game edits durable.
 
 ### Enemy
 
@@ -86,19 +86,28 @@ Color must never be the only state indicator.
 - Show or hide the bar without stopping width updates.
 - Fixed or gradient mode.
 - Low, mid, and high colors.
-- Low and high thresholds.
 - Optional high-HP team color.
 - Building and boss exclusions.
 
-#### Feedback
+#### Heal & Damage
 
 - Healing color.
-- Damage-delta color.
+- Recent-damage color.
 
 #### Shields & Icons
 
 - Bullet-shield color.
 - Ultimate-icon behavior and color.
+
+#### Pulse
+
+- Threshold, speed, intensity, and color mode.
+- Optional bar hiding.
+- Optional HP-text pulse.
+
+#### Kill Marker
+
+- Enable, threshold, width, and color.
 
 ### Ally
 
@@ -107,48 +116,37 @@ Color must never be the only state indicator.
 - Enable ally customization.
 - Low, mid, and high colors.
 
-#### Feedback
+#### Heal & Damage
 
 - Healing color.
-- Damage-delta color.
+- Recent-damage color.
 
 #### Shields
 
 - Bullet-shield color.
 
-### Readout
-
-#### HP Number
-
-- Visibility.
-- Current/max, percentage, and current-only formats.
-- Size.
-- Bar-derived or custom colors.
-
-#### Level & Pips
-
-- Level visibility.
-- Pip visibility.
-
-#### Placement
-
-- Number position and offsets.
-
-### Effects
-
-#### Enemy Pulse
-
-- Threshold, speed, intensity, and color mode.
-- Optional bar hiding.
-- Optional HP-number pulse.
-
-#### Ally Pulse
+#### Pulse
 
 - Threshold, speed, intensity, and color.
 
-#### Kill Marker
+### Health Info
 
-- Enable, threshold, width, and color.
+#### HP Text
+
+- Visibility.
+- Current/max, percentage, and current-only formats.
+- Size and font.
+- Bar-derived or custom colors.
+- One always-editable low/high threshold pair shared by enemy bars, ally bars, and custom HP text. Do not repeat these controls under Enemy or Ally.
+
+#### Text Position
+
+- Horizontal and vertical offsets.
+
+#### Pips & Levels
+
+- Pip visibility and optional 10-HP pip calculation.
+- Enemy-player level visibility.
 
 ## Control behavior
 
@@ -157,7 +155,7 @@ Color must never be the only state indicator.
 - Keep disabled essential controls visible but dimmed.
 - Collapse disabled advanced dependencies.
 - Pair sliders with bounded numeric fields.
-- Open color swatches into one shared HSL palette with a modal-routed Hue × Saturation field, a blue-ring selection pointer, one native Lumen slider, a canonical hex readout, and the existing strict hex input.
+- Open color swatches into one shared HSL palette with a modal-routed Hue × Saturation field, a blue-ring selection pointer, one native Lightness slider, a canonical hex readout, and the existing strict hex input.
 - Keep opacity separate and expose it only where the runtime supports it.
 - Show short helper text inline; reserve tooltips for detailed caveats.
 
@@ -192,7 +190,7 @@ Runtime verification must prove that v1 bars remain visible while the custom edi
 Use one authoritative global base, ordered session scope rows, and one resolved effective settings snapshot.
 
 1. The ESC editor owns the versioned session settings, scope, and user-preset state.
-2. Changed controls and preset applications normalize through the same resolver and publish only when effective values change.
+2. Changed controls edit Current when it exists and otherwise edit the hidden base; both control changes and preset applications normalize through the same resolver and publish only when effective values change.
 3. An adaptive cached replay (1-second hot, 3-second warm, 8-second idle) feeds late isolated overlays while customization is enabled.
 4. Render caches prevent unchanged inline style writes.
 5. Closing the editor stops editor work while applied bars retain their appearance.
@@ -232,11 +230,11 @@ The fourth slice adds one reusable HSL color palette:
 
 The fifth slice adds target-aware healthbar controls:
 
-1. The existing snapshot carries team-high color, independent building/boss exclusions, X/Y bar position, and ultimate-icon mode/color.
+1. The existing snapshot carries team-high color, independent building/boss exclusions, X/Y bar position, and one shared ultimate-icon mode/color.
 2. One ancestry classification records relation, team, building, sentry, and boss facts; neutral remains authoritative and unknown teams retain the configured high color.
-3. Position translates only `UnitHealthbarContainer`, preserving stock icon placement and engine-owned fill geometry.
+3. Position translates only `UnitHealthbarContainer`, preserving stock unit, ultimate, and level icon placement plus engine-owned fill geometry.
 4. Exclusions clear relation-owned colors while retaining global size and position controls.
-5. Ultimate-icon styling changes only `washColor`; stock image selection and visibility remain engine-owned.
+5. Ultimate-icon styling changes only `washColor`; Custom applies one shared color to enemy and ally icons even when their bar-color toggle is off, while Follow Bar colors only customized bars. Stock image selection and visibility remain engine-owned.
 
 The sixth slice adds the static enemy HP readout:
 
@@ -244,7 +242,7 @@ The sixth slice adds the static enemy HP readout:
 2. `unit_status_overlay.xml` owns one non-interactive counter anchor and label outside the engine-owned fill hierarchy.
 3. The local renderer derives current/max HP from cached stock pip text and the existing shield-aware health ratio; percentage can render without a derived maximum.
 4. Bar-derived text follows the final enemy palette, including team-high color. Custom text uses its own three colors while sharing thresholds and Fixed/Gradient behavior.
-5. Bypass, disabled, excluded, neutral, ally, and unclassified paths collapse and clear the owned counter. Late or replaced panels reuse the cached snapshot without another authority or scheduler.
+5. The enemy bar-color toggle restores only relation-owned colors; HP text remains controlled by its own visibility setting. Master bypass, exclusions, neutral, ally, and unclassified paths collapse and clear the owned counter. Late or replaced panels reuse the cached snapshot without another authority or scheduler.
 
 The hero identity slice adds one transient read model beside—not inside—the healthbar snapshot:
 
@@ -254,15 +252,16 @@ The hero identity slice adds one transient read model beside—not inside—the 
 4. Lifecycle state comes from exact hideout, pregame, and post-game HUD classes plus a parseable current topbar clock. Lifecycle changes clear cached panels, candidates, and detected identity.
 5. One generation-guarded watcher polls at one second while active or transitioning and five seconds in lobby/post-match. Cached clocks are retained only while their text remains parseable.
 6. Identity metadata remains outside `DEFAULTS`, HPCR2, Undo, root snapshot publication, and unit-status contexts.
-7. The hero-scope slice keeps one canonical global base plus ordered, normalized snapshot rows. Resolution priority is first matching Selected Heroes row, then first All Heroes row, then global base.
+7. The hero-scope slice keeps one hidden canonical base plus ordered, normalized snapshot rows. Resolution priority is Current, then the first matching Selected Heroes row, then the first All Heroes row, then the hidden base.
 8. Only the resolved effective values cross the existing overlay publication seam. Scope source changes with byte-identical effective values do not increment revision or dispatch.
-9. Current save-target controls choose All Heroes or validated, deduplicated stable hero keys. Removing the final selected hero returns Current to All Heroes. Save snapshots the latest canonical editor values automatically.
+9. Current save-target controls choose All Heroes or validated, deduplicated stable hero keys. Removing the final selected hero returns Current to All Heroes. Save snapshots the latest Current working values automatically.
 10. Scope rows use a separate menu-only root cache. They remain outside `DEFAULTS`, HPCR2, Undo, and unit-status payloads, while the existing config root attribute remains effective-values-only.
 11. The preset slice adds one baked-before-user repository with stable IDs, normalized frozen values, and scope metadata. The baked `baked_default` record documents the shipped startup state.
-12. All Heroes and Selected Heroes application preserve the hidden canonical base and replace Current. Legacy user Global records normalize to All Heroes without applying; baked Rewrite Default remains the immutable base representation.
-13. Selected preset application waits without live mutation until exact stable identity resolves. Matching identity applies once, mismatch rejects, and subsequent manual mutations cancel and suppress that pending match for the resolving transition. Later hero transitions restore the first matching Selected record, otherwise the first All Heroes record; leaving an active Selected scope without either automatically applies the baked Rewrite Default.
+12. All Heroes and Selected Heroes application preserve the hidden canonical base and replace Current. Subsequent controls mutate that Current working copy without changing the source preset record; only **Save & Apply** replaces a user record. Legacy user Global records normalize to All Heroes without applying; baked Rewrite Default remains the immutable base representation.
+13. Explicit Selected preset application replaces Current and publishes immediately without waiting for stable identity. Later hero transitions restore the first matching Selected record, otherwise the first All Heroes record; leaving an active Selected scope without either automatically applies baked Rewrite Default.
 14. Preset metadata and session user records remain outside `DEFAULTS`, HPCR2, Undo, root unit-status publication, and healthbar contexts.
 15. The repository-management slice retains a monotonic next-user number, baked display-name overrides, hidden baked IDs, and one selected record in the menu-only cache.
 16. Visible repository order is fixed visible baked records followed by movable session records. Hidden baked records remain canonical and continue to serve automatic fallback.
-17. Selecting, renaming, reordering, deleting, hiding, and restoring records never call the effective-settings reconciliation or publication seam. Deleting a pending user clears that request; selection repairs to the nearest surviving visible record.
-18. Explicit Apply reuses the existing preset application path. Selection, Active Current match, and pending identity wait remain separate states in both behavior and presentation.
+17. Selecting a session row enters menu-local edit mode without applying it. Renaming, reordering, deleting, hiding, restoring, and canceling edit never call the effective-settings reconciliation or publication path. Selection repairs to the nearest surviving visible record.
+18. Explicit **Apply** and the apply half of **Save & Apply** replace Current through the same preset application path. Editing and Active Current match remain separate states in both behavior and presentation.
+19. Cold-boot builder hydration turns the validated `HPCRP1` selected user record into Current and publishes it even when a prior root snapshot exists. It does not wait for identity or another lifecycle transition.

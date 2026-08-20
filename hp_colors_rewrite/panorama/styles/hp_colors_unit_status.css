@@ -1,4 +1,5 @@
 /* HP Colors Rewrite-owned pulse and player-level overlay styles. */
+
 #unit_healthbar_lagging.HPColorsRewritePulse,
 #hp_counter.HPColorsRewritePulse {
   animation-name: HPColorsRewritePulseMediumKeyframes;
@@ -149,14 +150,14 @@
 
 @keyframes 'HPColorsRewriteColorPulseSubtleKeyframes'
 {
-  0% { opacity: 0.4; }
-  100% { opacity: 1; }
+  0% { opacity: 0.15; }
+  100% { opacity: 0.45; }
 }
 
 @keyframes 'HPColorsRewriteColorPulseMediumKeyframes'
 {
-  0% { opacity: 0.15; }
-  100% { opacity: 1; }
+  0% { opacity: 0.10; }
+  100% { opacity: 0.75; }
 }
 
 @keyframes 'HPColorsRewriteColorPulseIntenseKeyframes'

@@ -117,7 +117,6 @@ function makeSession(overrides = {}) {
     conditions: overrides.conditions || {},
     scopes: overrides.scopes || [],
     userPresets: overrides.userPresets || [],
-    pendingPresetId: overrides.pendingPresetId || null,
     selectedPresetId: overrides.selectedPresetId || null,
     nextUserPresetNumber: overrides.nextUserPresetNumber || 1,
     bakedPresetNameOverrides: overrides.bakedPresetNameOverrides || {},
@@ -358,7 +357,10 @@ test('schema and HPCR2 transfer use deterministic setting order and round-trip v
   const copied = send(source, 'settings_copy');
   const copiedClipboard = effect(copied, 'clipboard_write');
   assert.equal(copiedClipboard.purpose, 'settings');
-  assert.equal(copiedClipboard.text, 'HPCR2[[1,120],[6,false]]');
+  assert.equal(
+    copiedClipboard.text,
+    'HPCR2{"v":[[1,120],[6,false]],"c":{}}',
+  );
   assert.equal(copied.view.values.widthScale, 120);
   assert.equal(copied.view.values.enemyVisible, false);
 
@@ -375,7 +377,7 @@ test('schema and HPCR2 transfer use deterministic setting order and round-trip v
     JSON.parse(
       effect(send(destination, 'settings_copy'), 'clipboard_write').text.slice(5),
     ),
-    [[1, 120], [6, false]],
+    { v: [[1, 120], [6, false]], c: {} },
   );
 
   const before = destination.read();
@@ -439,20 +441,22 @@ test('HPCR2 exports and atomically imports ability conditions', () => {
   assert.equal(rejected.view, beforeInvalid);
   assert.deepEqual(rejected.effects, []);
 
-  const legacyDestination = createState();
-  send(legacyDestination, 'condition_set', {
+  const arrayDestination = createState();
+  send(arrayDestination, 'condition_set', {
     key: 'enabled',
     slot: 2,
     minTier: 2,
     value: false,
   });
-  const legacyImported = send(legacyDestination, 'settings_import', {
+  const arrayImported = send(arrayDestination, 'settings_import', {
     raw: 'HPCR2[[1,130]]',
   });
-  assert.equal(legacyImported.status, 'committed');
-  assert.deepEqual(legacyImported.view.conditions, {
-    enabled: { slot: 2, minTier: 2, value: false },
-  });
+  assert.equal(arrayImported.status, 'committed');
+  assert.deepEqual(
+    arrayImported.view.conditions,
+    {},
+    'an array HPCR2 is a complete snapshot with no ability conditions',
+  );
 });
 
 test('invalid intents reject atomically and no-op reads reuse the cached view', () => {
@@ -508,19 +512,22 @@ test('setting changes publish only byte-different effective snapshots', () => {
     heroes: ['hero_haze'],
   });
   const selectedRevision = selected.view.effectiveRevision;
-  const baseEdit = send(state, 'setting_edit', {
+  const currentEdit = send(state, 'setting_edit', {
     key: 'enemyLow',
     value: '#334455',
   });
-  assert.equal(baseEdit.status, 'committed');
-  assert.equal(baseEdit.view.values.enemyLow, '#334455');
-  assert.equal(baseEdit.view.effectiveRevision, selectedRevision);
-  assertNoEffect(baseEdit, 'effective_publish');
+  assert.equal(currentEdit.status, 'committed');
+  assert.equal(currentEdit.view.values.enemyLow, '#112233');
+  assert.equal(currentScope(currentEdit.view).values.enemyLow, '#334455');
+  assert.equal(currentEdit.view.effectiveValues.enemyLow, '#334455');
+  assert.equal(currentEdit.view.repository.activeId, 'scope_current');
+  assert.equal(currentEdit.view.effectiveRevision, selectedRevision + 1);
+  assertEffectivePublish(currentEdit, selectedRevision + 1, 'enemyLow');
 
   const routeBack = send(state, 'scope_set', { mode: 'off', heroes: [] });
-  assert.equal(routeBack.view.effectiveValues.enemyLow, '#334455');
-  assert.equal(routeBack.view.effectiveRevision, selectedRevision + 1);
-  assertEffectivePublish(routeBack, selectedRevision + 1, '*');
+  assert.equal(routeBack.view.effectiveValues.enemyLow, '#112233');
+  assert.equal(routeBack.view.effectiveRevision, selectedRevision + 2);
+  assertEffectivePublish(routeBack, selectedRevision + 2, '*');
 });
 
 test('effective routing is Selected then All then Rewrite Default, with stable equal-scope order', () => {
@@ -832,7 +839,7 @@ test('condition edits update the active Current scope instead of its hidden base
   const resetMarker = send(state, 'reset_confirm', {
     token: resetRequest.view.transactions.confirmation.token,
   });
-  assert.equal(resetMarker.view.effectiveValues.enemyKillMarkerThreshold, 18);
+  assert.equal(resetMarker.view.effectiveValues.enemyKillMarkerThreshold, 25);
   assert.equal(
     currentScope(resetMarker.view).conditions.enemyKillMarkerThreshold,
     undefined,
@@ -1037,7 +1044,6 @@ test('repository rename, remove/hide, restore, and reference repair remain non-l
         rawPreset({ id: 'user_0002', name: 'Two' }),
       ],
       selectedPresetId: 'user_0002',
-      pendingPresetId: 'user_0002',
       hiddenBakedPresetIds: [],
     }),
   );
@@ -1062,13 +1068,16 @@ test('repository rename, remove/hide, restore, and reference repair remain non-l
   const deleted = send(state, 'preset_remove_confirm', { token: removeToken });
   assert.equal(deleted.view.repository.allRows.some((candidate) => candidate.id === 'user_0002'), false);
   assert.equal(deleted.view.repository.selectedId, 'user_0001');
-  assert.equal(deleted.view.repository.pendingId, null);
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(deleted.view.repository, 'pendingId'),
+    false,
+  );
   assert.equal(deleted.view.effectiveRevision, revision);
   assert.equal(deleted.view.undoAvailable, false);
   assertNoEffect(deleted, 'effective_publish');
 });
 
-test('preset application distinguishes selected, active, and waiting without applying selection', () => {
+test('preset selection stays inert while explicit Apply publishes immediately', () => {
   const state = createState(
     makeSession({
       userPresets: [
@@ -1081,25 +1090,27 @@ test('preset application distinguishes selected, active, and waiting without app
   const selected = send(state, 'preset_select', { id: 'user_0002' });
   assert.equal(selected.view.repository.selectedId, 'user_0002');
   assert.equal(selected.view.repository.activeId, null);
-  assert.equal(selected.view.repository.pendingId, null);
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(selected.view.repository, 'pendingId'),
+    false,
+  );
 
-  const waiting = send(state, 'preset_apply', { id: 'user_0002' });
-  assert.equal(waiting.status, 'committed');
-  assert.equal(waiting.view.repository.selectedId, 'user_0002');
-  assert.equal(waiting.view.repository.pendingId, 'user_0002');
-  assert.equal(waiting.view.repository.activeId, null);
-  assert.equal(waiting.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
-  assertNoEffect(waiting, 'effective_publish');
+  const selectedApplied = send(state, 'preset_apply', { id: 'user_0002' });
+  assert.equal(selectedApplied.status, 'committed');
+  assert.equal(selectedApplied.view.repository.selectedId, 'user_0002');
+  assert.equal(selectedApplied.view.repository.activeId, 'user_0002');
+  assert.equal(selectedApplied.view.effectiveValues.enemyLow, '#222222');
+  assert.equal(selectedApplied.view.currentScope.mode, 'selected');
+  assertEffectivePublish(
+    selectedApplied,
+    selectedApplied.view.effectiveRevision,
+    '*',
+  );
 
-  const canceled = send(state, 'preset_cancel_pending');
-  assert.equal(canceled.view.repository.pendingId, null);
-  assert.equal(canceled.view.repository.activeId, null);
-
-  const applied = send(state, 'preset_apply', { id: 'user_0001' });
-  assert.equal(applied.view.repository.activeId, 'user_0001');
-  assert.equal(applied.view.repository.pendingId, null);
-  assert.equal(applied.view.effectiveValues.enemyLow, '#111111');
-  assert.equal(applied.view.currentScope.mode, 'all');
+  const allApplied = send(state, 'preset_apply', { id: 'user_0001' });
+  assert.equal(allApplied.view.repository.activeId, 'user_0001');
+  assert.equal(allApplied.view.effectiveValues.enemyLow, '#111111');
+  assert.equal(allApplied.view.currentScope.mode, 'all');
 });
 
 test('repository-only actions emit replacement data but never revision, effective publish, or Undo', () => {
@@ -1215,7 +1226,7 @@ test('clipboard effects carry only declarative transfer requests and transition 
   const settings = send(state, 'settings_copy');
   const settingsEffect = effect(settings, 'clipboard_write');
   assert.equal(settingsEffect.purpose, 'settings');
-  assert.match(settingsEffect.text, /^HPCR2\[/);
+  assert.match(settingsEffect.text, /^HPCR2\{/);
   assert.equal(settingsEffect.transitionId, settings.transitionId);
 
   const noSelection = send(state, 'preset_copy_selected');
@@ -1326,14 +1337,14 @@ test('editor close clears interactions but keeps runtime conditions observable',
   assert.equal(tierLost.view.effectiveValues.enemyPulseThreshold, 18);
 });
 
-test('session close invalidates history, gestures, confirmations, pending applications, and stale callbacks', () => {
+test('session close invalidates interactions and stale callbacks while preserving applied settings', () => {
   const state = createState(
     makeSession({
       values: { enemyLow: '#112233' },
       userPresets: [
         rawPreset({
           id: 'user_0001',
-          name: 'Waiting Haze',
+          name: 'Haze',
           mode: 'selected',
           heroes: ['hero_haze'],
           values: { enemyLow: '#223344' },
@@ -1351,14 +1362,14 @@ test('session close invalidates history, gestures, confirmations, pending applic
   assert.equal(beforeClose.undoAvailable, true);
   assert.notEqual(beforeClose.transactions.gesture, null);
   assert.notEqual(beforeClose.transactions.confirmation, null);
-  assert.equal(beforeClose.repository.pendingId, 'user_0001');
+  assert.equal(currentScope(beforeClose).values.enemyLow, '#223344');
 
   const closed = send(state, 'session_close');
   assert.equal(closed.status, 'committed');
   assert.equal(closed.view.undoAvailable, false);
   assert.equal(closed.view.transactions.gesture, null);
   assert.equal(closed.view.transactions.confirmation, null);
-  assert.equal(closed.view.repository.pendingId, null);
+  assert.equal(currentScope(closed.view).values.enemyLow, '#223344');
   assert.equal(closed.view.identity.effectiveHeroKey, '');
   assert.equal(closed.view.identity.status, 'unknown');
   assert.equal(send(state, 'undo').status, 'rejected');

@@ -33,8 +33,6 @@ const ENEMY_BAR_DEFAULTS = {
   enemyLow: '#E16161',
   enemyMid: '#FF7B00',
   enemyHigh: '#00FF00',
-  lowThreshold: 25,
-  highThreshold: 65,
   enemyTeamHigh: false,
   excludeBuildings: false,
   excludeBosses: false,
@@ -278,7 +276,7 @@ test('already-default section stays closed without a write, revision, history, o
   assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, false);
 });
 
-test('reset of an inactive current hero row changes menu state but suppresses equal effective publication', () => {
+test('reset edits Current while preserving the hidden base and publishing its effective change', () => {
   const fixture = bootMenu(
     {
       version: 1,
@@ -312,15 +310,46 @@ test('reset of an inactive current hero row changes menu state but suppresses eq
   confirmReset(fixture);
 
   const afterState = readMenuState(fixture);
-  assert.notEqual(afterState.values.enemyLow, beforeState.values.enemyLow);
-  assert.deepEqual(afterState.scopes, beforeState.scopes);
-  assert.deepEqual(readConfig(fixture), beforeConfig);
-  assert.equal(configDispatches(fixture).length, beforeDispatchCount);
+  assert.equal(afterState.values.enemyLow, beforeState.values.enemyLow);
+  const beforeCurrent = beforeState.scopes.find((scope) => scope.id === 'scope_current');
+  const afterCurrent = afterState.scopes.find((scope) => scope.id === 'scope_current');
+  assert.notEqual(afterCurrent.values.enemyLow, beforeCurrent.values.enemyLow);
+  assert.equal(readConfig(fixture).values.enemyLow, afterCurrent.values.enemyLow);
+  assert.equal(configDispatches(fixture).length, beforeDispatchCount + 1);
   assert.ok(
     writes.some((write) => write.name === MENU_STATE_ATTR),
-    'reset should persist the changed canonical menu state',
+    'reset should persist the changed Current menu state',
   );
   assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, true);
+});
+
+test('effect pages live under their healthbar categories', () => {
+  const fixture = bootMenu({
+    version: 1,
+    values: {},
+    scopes: [],
+  });
+  openEditor(fixture);
+
+  assert.equal(
+    fixture.harness.root.FindChildTraverse('HPColorsCategoryEffects'),
+    null,
+  );
+
+  panel(fixture, 'HPColorsCategoryEnemy').events.onactivate();
+  panel(fixture, 'HPColorsTab3').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ENEMY PULSE');
+  panel(fixture, 'HPColorsTab4').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ENEMY KILL MARKER');
+
+  panel(fixture, 'HPColorsCategoryAlly').events.onactivate();
+  panel(fixture, 'HPColorsTab3').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ALLY PULSE');
+  assert.equal(panel(fixture, 'HPColorsTab4').BHasClass('Available'), false);
+
+  panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsHeaderCategory').text, 'HEALTH INFO');
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'HP TEXT');
 });
 
 test('Presets page hides Reset Section and Undo', () => {
@@ -393,4 +422,38 @@ test('stale reset feedback callback cannot overwrite LIVE after editor close', (
 
   fixture.harness.scheduler.runByDelay(1.25);
   assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'LIVE');
+});
+
+test('entry and shared controls use their intended navigation surfaces', () => {
+  const changeHeroIndex = layoutSource.indexOf('<Button id="changehero"');
+  const subOptionsIndex = layoutSource.indexOf('<Panel id="SubOptions">');
+  const feedbackIndex = layoutSource.indexOf('<Panel class="FeedbackRow">');
+  const entryIndex = layoutSource.indexOf('<Button id="HPColorsMenuButton"');
+  const settingsIndex = layoutSource.indexOf('<Panel class="SettingsRow">');
+  assert.ok(changeHeroIndex >= 0);
+  assert.ok(subOptionsIndex > changeHeroIndex);
+  assert.ok(feedbackIndex > subOptionsIndex);
+  assert.ok(entryIndex > feedbackIndex);
+  assert.ok(settingsIndex > entryIndex);
+  assert.match(
+    layoutSource,
+    /<Button id="HPColorsMenuButton" class="nav_menu_item minor">\s*<Label text="HP COLORS" class="menuButtonLabel" \/>\s*<\/Button>/,
+  );
+  assert.doesNotMatch(
+    layoutSource,
+    /HPColorsMenu(?:Accent|Swatch|Binding)|class="[^"]*HPColorsMenuButton/,
+  );
+  assert.match(layoutSource, /text="SHARED LOW THRESHOLD"/);
+  assert.match(layoutSource, /text="SHARED HIGH THRESHOLD"/);
+  assert.doesNotMatch(layoutSource, /HPColorsLowThreshold(?:SliderHost|Entry)/);
+  assert.doesNotMatch(layoutSource, /HPColorsHighThreshold(?:SliderHost|Entry)/);
+
+  const fixture = bootMenu();
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCategoryEnemy').events.onactivate();
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'SHIELDS');
+  panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'INDICATORS');
 });
