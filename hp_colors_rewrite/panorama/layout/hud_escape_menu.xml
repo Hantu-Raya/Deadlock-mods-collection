@@ -6,10 +6,11 @@
     <include src="s2r://panorama/styles/hp_colors_menu.vcss_c" />
   </styles>
   <scripts>
+    <include src="s2r://panorama/scripts/hp_colors_contract.vjs_c" />
     <include src="s2r://panorama/scripts/hp_colors_state.vjs_c" />
     <include src="s2r://panorama/scripts/hp_colors_menu.vjs_c" />
   </scripts>
-  <CitadelHudEscapeMenu onload="$.HPColorsMenuBoot()" oncancel="$.HPColorsMenuCancel()">
+  <CitadelHudEscapeMenu onload="$.HPColorsMenuBoot()" oncancel="if (!$.HPColorsMenuCancel()) CitadelResumePlaying()">
     <Panel id="EscapeBackground" onactivate="CitadelResumePlaying()" />
     <Panel id="LeftStripeBlur" />
     <Panel id="LeftStripe" hittest="false">

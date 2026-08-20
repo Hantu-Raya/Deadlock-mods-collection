@@ -322,6 +322,7 @@ test('installed XML HPCRP1 preset applies on cold boot before any lifecycle tran
   assert.equal(current.mode, 'selected');
   assert.deepEqual(current.heroes, ['hero_shiv']);
   assert.equal(current.values.enemyLow, '#112233');
+  assert.equal(current.sourcePresetId, 'user_0007');
   assert.deepEqual(current.conditions, {
     enemyLow: { slot: 2, minTier: 3, value: '#445566' },
   });
@@ -371,6 +372,7 @@ test('builder preset remains immutable while Current setting edits publish live'
 
   state = readMenuState(fixture);
   assert.equal(state.values.widthScale, 100);
+
   assert.equal(
     state.scopes.find((scope) => scope.id === 'scope_current').values.widthScale,
     131,
@@ -378,6 +380,53 @@ test('builder preset remains immutable while Current setting edits publish live'
   assert.equal(state.userPresets[0].values.widthScale, 100);
   assert.equal(readConfig(fixture).values.widthScale, 131);
   assert.equal(configDispatches(fixture).length, 1);
+});
+
+test('same preset route preserves Current edits across hideout and testing transitions', () => {
+  const fixture = bootPresetMenu(undefined, {
+    storeLabelText: encodeStoreText(REWRITE_PRESET_CODE),
+    heroName: 'Shiv',
+    gameTime: '',
+  });
+  openEditor(fixture);
+  fixture.topBar.hud.AddClass('GameStatePreGame');
+  runIdentityTick(fixture);
+  assert.equal(
+    readMenuState(fixture).scopes.find((scope) => scope.id === 'scope_current')
+      .sourcePresetId,
+    'user_0007',
+  );
+
+  panel(fixture, 'HPColorsWidthEntry').text = '131';
+  panel(fixture, 'HPColorsWidthEntry').events.ontextentrysubmit();
+  assert.equal(readConfig(fixture).values.widthScale, 131);
+
+  fixture.harness.dispatches.length = 0;
+  fixture.topBar.hud.RemoveClass('GameStatePreGame');
+  fixture.topBar.setGameTime('00:01');
+  settleActiveHero(fixture);
+  assert.equal(readConfig(fixture).values.widthScale, 131);
+  assert.equal(configDispatches(fixture).length, 0);
+
+  panel(fixture, 'HPColorsWidthEntry').text = '142';
+  panel(fixture, 'HPColorsWidthEntry').events.ontextentrysubmit();
+  assert.equal(readConfig(fixture).values.widthScale, 142);
+
+  fixture.harness.dispatches.length = 0;
+  fixture.topBar.hud.AddClass('GameStatePreGame');
+  runIdentityTick(fixture);
+  assert.equal(readConfig(fixture).values.widthScale, 142);
+
+  fixture.topBar.hud.RemoveClass('GameStatePreGame');
+  fixture.topBar.setGameTime('00:02');
+  settleActiveHero(fixture);
+  assert.equal(readConfig(fixture).values.widthScale, 142);
+  assert.equal(configDispatches(fixture).length, 0);
+  assert.equal(
+    readMenuState(fixture).scopes.find((scope) => scope.id === 'scope_current')
+      .sourcePresetId,
+    'user_0007',
+  );
 });
 
 test('XML HPCRP1 first boot preserves builder-hidden baked presets', () => {
@@ -717,7 +766,7 @@ test('Selected preset Apply is immediate before automatic routing settles', () =
   assert.equal(configDispatches(fixture).length, 1);
 });
 
-test('Applying an identical effective preset does not publish or leak preset metadata', () => {
+test('Applying a content-identical user preset restamps Current without publishing config metadata', () => {
   const fixture = bootPresetMenu({
     version: 1,
     values: { enemyLow: '#111111' },
@@ -747,6 +796,10 @@ test('Applying an identical effective preset does not publish or leak preset met
     beforeRaw,
   );
   assert.equal(after.values.enemyLow, '#111111');
+  const current = readMenuState(fixture).scopes.find(
+    (scope) => scope.id === 'scope_current',
+  );
+  assert.equal(current.sourcePresetId, 'user_0001');
   for (const key of [
     'id',
     'kind',

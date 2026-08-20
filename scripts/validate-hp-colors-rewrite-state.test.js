@@ -18,6 +18,12 @@ const strictDeepEqual = assert.deepEqual.bind(assert);
 assert.deepEqual = (actual, expected, message) =>
   strictDeepEqual(plain(actual), plain(expected), message);
 
+const contractPath = path.resolve(
+  __dirname,
+  '../hp_colors_rewrite/panorama/scripts/hp_colors_contract.js',
+);
+const contractSource = fs.readFileSync(contractPath, 'utf8');
+
 const statePath = path.resolve(
   __dirname,
   '../hp_colors_rewrite/panorama/scripts/hp_colors_state.js',
@@ -96,8 +102,18 @@ const DEFAULT_ENTRIES = [
 const DEFAULT_KEYS = DEFAULT_ENTRIES.map(([key]) => key);
 const DEFAULTS = Object.fromEntries(DEFAULT_ENTRIES);
 
+function loadSettingsContract() {
+  const context = { $: {} };
+  vm.runInNewContext(contractSource, context, { filename: contractPath });
+  const contractFactory = context.$.HPColorsContractFactory;
+  assert.equal(Object.isFrozen(contractFactory), true);
+  assert.deepEqual(Object.getOwnPropertyNames(contractFactory), ['create']);
+  return contractFactory.create();
+}
+
 function loadFactory() {
   const context = { $: {} };
+  vm.runInNewContext(contractSource, context, { filename: contractPath });
   vm.runInNewContext(stateSource, context, { filename: statePath });
   assert.deepEqual(Object.keys(context.$), ['HPColorsStateFactory']);
   const factory = context.$.HPColorsStateFactory;
@@ -107,6 +123,50 @@ function loadFactory() {
   assert.equal(factory.create.length, 1);
   return factory;
 }
+
+test('state refuses to boot without the shared settings contract', () => {
+  assert.throws(
+    () => vm.runInNewContext(stateSource, { $: {} }, { filename: statePath }),
+    /HP Colors settings contract unavailable/,
+  );
+});
+
+test('shared settings contract owns immutable defaults and normalization policy', () => {
+  const contract = loadSettingsContract();
+  assert.equal(Object.isFrozen(contract), true);
+  assert.equal(Object.isFrozen(contract.defaults), true);
+  assert.equal(Object.isFrozen(contract.keys), true);
+  assert.equal(Object.isFrozen(contract.settingMeta), true);
+  assert.deepEqual(contract.keys, DEFAULT_KEYS);
+  assert.deepEqual(contract.defaults, DEFAULTS);
+  assert.deepEqual(contract.settingMeta.widthScale, {
+    type: 'number',
+    color: false,
+    conditionEligible: true,
+    min: 60,
+    max: 160,
+    options: [],
+  });
+  assert.equal(contract.settingMeta.precisePipsEnabled.conditionEligible, false);
+
+  const normalized = contract.normalizeValues({
+    enabled: 0,
+    widthScale: 999,
+    enemyLow: 'not-a-color',
+    enemyMode: 'unsupported',
+    lowThreshold: 90,
+    highThreshold: 20,
+  });
+  assert.equal(normalized.enabled, false);
+  assert.equal(normalized.widthScale, 160);
+  assert.equal(normalized.enemyLow, DEFAULTS.enemyLow);
+  assert.equal(normalized.enemyMode, DEFAULTS.enemyMode);
+  assert.equal(normalized.lowThreshold, 64);
+  assert.equal(normalized.highThreshold, 65);
+  assert.equal(contract.validateSettingValue('enabled', 1), false);
+  assert.equal(contract.validateSettingValue('widthScale', '120'), true);
+  assert.equal(contract.validateSettingValue('missingSetting', 1), false);
+});
 
 const factory = loadFactory();
 

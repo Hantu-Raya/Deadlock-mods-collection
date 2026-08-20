@@ -5,6 +5,7 @@
     <include src="s2r://panorama/styles/hp_colors_unit_status.vcss_c" />
   </styles>
   <scripts>
+    <include src="s2r://panorama/scripts/hp_colors_contract.vjs_c" />
     <include src="s2r://panorama/scripts/healthbar_probe.vjs_c" />
   </scripts>
   <snippets>

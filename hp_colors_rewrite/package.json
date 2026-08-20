@@ -7,7 +7,7 @@
     "lint": "oxlint --config oxlint.config.ts ."
   },
   "devDependencies": {
-    "@oxlint/plugins": "1.78.0",
-    "oxlint": "1.78.0"
+    "@oxlint/plugins": "1.79.0",
+    "oxlint": "1.79.0"
   }
 }

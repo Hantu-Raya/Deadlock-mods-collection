@@ -7,6 +7,7 @@ const path = require('node:path');
 const {
   createPanoramaHarness,
   createVmContext,
+  runHpColorsContractInVm,
   runInVm,
   buildUnitStatusTree,
   dispatchClientUiPayload,
@@ -29,7 +30,9 @@ function publishConfig(harness, revision, values) {
 function runVisibilityScenario(unitStatusClasses, hiddenValues, shownValues) {
   const harness = createPanoramaHarness();
   const tree = buildUnitStatusTree(harness, { unitStatusClasses });
-  runInVm(PROBE_SOURCE, createVmContext(harness, { includeGameUI: false }), 'healthbar_probe.js');
+  const context = createVmContext(harness, { includeGameUI: false });
+  runHpColorsContractInVm(context);
+  runInVm(PROBE_SOURCE, context, 'healthbar_probe.js');
 
   publishConfig(harness, 1, hiddenValues);
   assert.equal(

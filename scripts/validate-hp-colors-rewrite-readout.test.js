@@ -8,6 +8,7 @@ const {
   MockPanel,
   createPanoramaHarness,
   createVmContext,
+  runHpColorsContractInVm,
   runInVm,
   buildUnitStatusTree,
   dispatchClientUiPayload,
@@ -57,11 +58,9 @@ function bootProbe(classes, options = {}) {
     techShieldWidth:
       options.techShieldWidth === undefined ? 0 : options.techShieldWidth,
   });
-  runInVm(
-    probeSource,
-    createVmContext(harness, { includeGameUI: false }),
-    'healthbar_probe.js',
-  );
+  const context = createVmContext(harness, { includeGameUI: false });
+  runHpColorsContractInVm(context);
+  runInVm(probeSource, context, 'healthbar_probe.js');
   return { harness, tree };
 }
 

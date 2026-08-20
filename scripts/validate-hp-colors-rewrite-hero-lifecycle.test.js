@@ -8,6 +8,7 @@ const {
   MockPanel,
   createPanoramaHarness,
   createVmContext,
+  runHpColorsContractInVm,
   installTopBarIdentityTree,
   runHpColorsSourcesInVm,
   runInVm,
@@ -86,6 +87,7 @@ function bootHeroWithIntentCounts(options = {}) {
     hudClasses: options.hudClasses,
   });
   const context = createVmContext(harness);
+  runHpColorsContractInVm(context);
   runInVm(stateSource, context, 'hp_colors_state.js');
   const baseFactory = harness.$.HPColorsStateFactory;
   const seed = baseFactory.create();

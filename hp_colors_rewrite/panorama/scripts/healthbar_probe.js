@@ -6,82 +6,15 @@
   var PAINT_RECENT_SEC = 0.25;
   var PAINT_IDLE_SEC = 1.5;
   var PAINT_RECENT_MS = 2000;
-  var PERF_DEBUG_INTERVAL_SEC = 5;
-  var MAX_SCAN_DEPTH = 12;
-  var MAX_SCAN_PANELS = 512;
   var EVENT_CHANNEL = "ClientUI_FireOutput";
   var CONFIG_MAGIC = "HP_COLORS_REWRITE_CONFIG";
   var CONFIG_ATTR = "hp_colors_rewrite_config";
 
-  var DEFAULT_CONFIG = {
-    enabled: true,
-    widthScale: 100,
-    heightScale: 100,
-    positionX: 0,
-    positionY: 0,
-    enemyEnabled: true,
-    enemyVisible: true,
-    enemyMode: "gradient",
-    enemyLow: "#E16161",
-    enemyMid: "#FF7B00",
-    enemyHigh: "#00FF00",
-    enemyTeamHigh: false,
-    enemyKillMarkerEnabled: false,
-    enemyKillMarkerThreshold: 25,
-    enemyKillMarkerWidth: 3,
-    enemyKillMarkerColor: "#FF2222",
-    excludeBuildings: false,
-    excludeBosses: false,
-    enemyHealing: "#5FFF80",
-    enemyDelta: "#FFE55B",
-    enemyBulletShield: "#FFFFFF",
-    allyEnabled: false,
-    allyVisible: true,
-    allyMode: "fixed",
-    allyLow: "#E16161",
-    allyMid: "#FFED79",
-    allyHigh: "#70F8C1",
-    allyHealing: "#5FFF80",
-    allyDelta: "#504C47",
-    allyBulletShield: "#FFFFFF",
-    ultMode: "follow",
-    ultCustom: "#E16161",
-    readoutVisible: true,
-    readoutFormat: "hp",
-    readoutSize: 145,
-    readoutFont: "default",
-    readoutOffsetX: 27,
-    readoutOffsetY: 500,
-    readoutColorMode: "bar",
-    readoutMode: "fixed",
-    readoutLow: "#E16161",
-    readoutMid: "#FF7B00",
-    readoutHigh: "#FFFFFF",
-    pipsVisible: true,
-    precisePipsEnabled: false,
-    levelsVisible: true,
-    enemyPulseEnabled: true,
-    enemyPulseThreshold: 25,
-    enemyPulseBpm: 75,
-    enemyPulseIntensity: 1,
-    enemyPulseColorEnabled: false,
-    enemyPulseColorMode: "gradient",
-    enemyPulseColor: "#FF2222",
-    enemyPulseHideBar: false,
-    enemyPulseReadout: false,
-    enemyPulseReadoutModifiers: false,
-    enemyPulseReadoutSize: 145,
-    enemyPulseReadoutOffsetX: 27,
-    enemyPulseReadoutOffsetY: 500,
-    allyPulseEnabled: false,
-    allyPulseThreshold: 25,
-    allyPulseBpm: 75,
-    allyPulseIntensity: 1,
-    allyPulseColorEnabled: false,
-    allyPulseColor: "#FF2222",
-    lowThreshold: 25,
-    highThreshold: 65,
-  };
+  if (!$.HPColorsContractFactory || !$.HPColorsContractFactory.create)
+    throw new Error("HP Colors settings contract unavailable");
+  var settingsContract = $.HPColorsContractFactory.create();
+  delete $.HPColorsContractFactory;
+  var normalizeConfig = settingsContract.normalizeValues;
 
   /* Values mirrored from the current stock unit_status.css relation rules. */
   var STOCK_TEAM1_COLOR = "#E7B659";
@@ -119,25 +52,8 @@
   var didLogInitialScan = false;
   var configRoot = null;
   var configRaw = "";
-  var config = copyConfig(DEFAULT_CONFIG);
+  var config = normalizeConfig(null);
   var lastColorChangeAt = 0;
-  var perfDebugCalls = {
-    paintColors: 0,
-    refreshColor: 0,
-    applyCustomization: 0,
-    scan: 0,
-  };
-  function copyConfig(source) {
-    var result = {};
-    for (var key in DEFAULT_CONFIG) {
-      if (!Object.prototype.hasOwnProperty.call(DEFAULT_CONFIG, key)) continue;
-      result[key] =
-        source && Object.prototype.hasOwnProperty.call(source, key)
-          ? source[key]
-          : DEFAULT_CONFIG[key];
-    }
-    return result;
-  }
   function isValid(panel) {
     try {
       return !!(panel && (!panel.IsValid || panel.IsValid()));
@@ -154,13 +70,6 @@
     }
   }
 
-  function children(panel) {
-    try {
-      return panel && panel.Children ? panel.Children() || [] : [];
-    } catch {
-      return [];
-    }
-  }
 
   function findWithin(panel, id) {
     try {
@@ -299,25 +208,6 @@
     return true;
   }
 
-  function collectActiveParents() {
-    var matches = [];
-    var stack = [{ panel: context, depth: 0 }];
-    var visited = 0;
-
-    while (stack.length && visited < MAX_SCAN_PANELS) {
-      var entry = stack.pop();
-      var panel = entry.panel;
-      visited += 1;
-      if (!isValid(panel)) continue;
-      if (panelId(panel) === "unit_healthbar_active_parent") matches.push(panel);
-      if (entry.depth >= MAX_SCAN_DEPTH) continue;
-
-      var panelChildren = children(panel);
-      for (var index = panelChildren.length - 1; index >= 0; index--)
-        stack.push({ panel: panelChildren[index], depth: entry.depth + 1 });
-    }
-    return matches;
-  }
 
   function resolveParts(activeParent) {
     var container = findAncestor(activeParent, "UnitHealthbarContainer");
@@ -634,182 +524,6 @@
     return health.current + " / " + health.maximum;
   }
 
-  function clampNumber(value, min, max, fallback) {
-    var number = Number(value);
-    if (!isFinite(number)) number = fallback;
-    number = Math.round(number);
-    return Math.max(min, Math.min(max, number));
-  }
-
-  function normalizeColor(value, fallback) {
-    var raw = String(value || "").trim().toUpperCase();
-    if (raw.charAt(0) !== "#") raw = "#" + raw;
-    return /^#[0-9A-F]{6}$/.test(raw) ? raw : fallback;
-  }
-
-  function normalizeConfig(source) {
-    var next = copyConfig(DEFAULT_CONFIG);
-    next.enabled = !!source.enabled;
-    next.widthScale = clampNumber(source.widthScale, 60, 160, 100);
-    next.heightScale = clampNumber(source.heightScale, 60, 160, 100);
-    next.enemyEnabled = source.enemyEnabled !== false;
-    next.positionX = clampNumber(source.positionX, -300, 300, 0);
-    next.positionY = clampNumber(source.positionY, -200, 200, 0);
-    next.enemyVisible = source.enemyVisible !== false;
-    next.enemyMode = source.enemyMode === "fixed" ? "fixed" : "gradient";
-    next.enemyLow = normalizeColor(source.enemyLow, DEFAULT_CONFIG.enemyLow);
-    next.enemyMid = normalizeColor(source.enemyMid, DEFAULT_CONFIG.enemyMid);
-    next.enemyHigh = normalizeColor(source.enemyHigh, DEFAULT_CONFIG.enemyHigh);
-    next.enemyTeamHigh = !!source.enemyTeamHigh;
-    next.enemyKillMarkerEnabled = !!source.enemyKillMarkerEnabled;
-    next.enemyKillMarkerThreshold = clampNumber(
-      source.enemyKillMarkerThreshold,
-      5,
-      80,
-      25,
-    );
-    next.enemyKillMarkerWidth = clampNumber(
-      source.enemyKillMarkerWidth,
-      1,
-      100,
-      3,
-    );
-    next.enemyKillMarkerColor = normalizeColor(
-      source.enemyKillMarkerColor,
-      DEFAULT_CONFIG.enemyKillMarkerColor,
-    );
-    next.excludeBuildings = !!source.excludeBuildings;
-    next.excludeBosses = !!source.excludeBosses;
-    next.enemyHealing = normalizeColor(
-      source.enemyHealing,
-      DEFAULT_CONFIG.enemyHealing,
-    );
-    next.enemyDelta = normalizeColor(source.enemyDelta, DEFAULT_CONFIG.enemyDelta);
-    next.enemyBulletShield = normalizeColor(
-      source.enemyBulletShield,
-      DEFAULT_CONFIG.enemyBulletShield,
-    );
-    next.allyEnabled = !!source.allyEnabled;
-    next.allyVisible = source.allyVisible !== false;
-    next.allyMode = source.allyMode === "gradient" ? "gradient" : "fixed";
-    next.allyLow = normalizeColor(source.allyLow, DEFAULT_CONFIG.allyLow);
-    next.allyMid = normalizeColor(source.allyMid, DEFAULT_CONFIG.allyMid);
-    next.allyHigh = normalizeColor(source.allyHigh, DEFAULT_CONFIG.allyHigh);
-    next.allyHealing = normalizeColor(
-      source.allyHealing,
-      DEFAULT_CONFIG.allyHealing,
-    );
-    next.allyDelta = normalizeColor(source.allyDelta, DEFAULT_CONFIG.allyDelta);
-    next.allyBulletShield = normalizeColor(
-      source.allyBulletShield,
-      DEFAULT_CONFIG.allyBulletShield,
-    );
-    next.ultMode = source.ultMode === "custom" ? "custom" : "follow";
-    next.ultCustom = normalizeColor(source.ultCustom, DEFAULT_CONFIG.ultCustom);
-    next.readoutVisible = source.readoutVisible !== false;
-    next.readoutFormat =
-      source.readoutFormat === "percent" || source.readoutFormat === "current"
-        ? source.readoutFormat
-        : "hp";
-    next.readoutSize = clampNumber(source.readoutSize, 72, 320, 145);
-    next.readoutFont =
-      source.readoutFont === "oracle" || source.readoutFont === "pulp"
-        ? source.readoutFont
-        : "default";
-    next.readoutOffsetX = clampNumber(source.readoutOffsetX, -405, 405, 27);
-    next.readoutOffsetY = clampNumber(source.readoutOffsetY, -35, 840, 500);
-    next.readoutColorMode =
-      source.readoutColorMode === "custom" ? "custom" : "bar";
-    next.readoutMode =
-      source.readoutMode === "gradient" ? "gradient" : "fixed";
-    next.readoutLow = normalizeColor(
-      source.readoutLow,
-      DEFAULT_CONFIG.readoutLow,
-    );
-    next.readoutMid = normalizeColor(
-      source.readoutMid,
-      DEFAULT_CONFIG.readoutMid,
-    );
-    next.readoutHigh = normalizeColor(
-      source.readoutHigh,
-      DEFAULT_CONFIG.readoutHigh,
-    );
-    next.enemyPulseEnabled = source.enemyPulseEnabled !== false;
-    next.enemyPulseThreshold = clampNumber(
-      source.enemyPulseThreshold,
-      0,
-      100,
-      25,
-    );
-    next.enemyPulseBpm = clampNumber(source.enemyPulseBpm, 30, 300, 75);
-    next.enemyPulseIntensity = clampNumber(
-      source.enemyPulseIntensity,
-      0,
-      2,
-      1,
-    );
-    next.enemyPulseColorEnabled = !!source.enemyPulseColorEnabled;
-    next.enemyPulseColorMode =
-      source.enemyPulseColorMode === "fixed" ? "fixed" : "gradient";
-    next.enemyPulseColor = normalizeColor(
-      source.enemyPulseColor,
-      DEFAULT_CONFIG.enemyPulseColor,
-    );
-    next.enemyPulseHideBar = !!source.enemyPulseHideBar;
-    next.enemyPulseReadout = !!source.enemyPulseReadout;
-    next.enemyPulseReadoutModifiers = !!source.enemyPulseReadoutModifiers;
-    next.enemyPulseReadoutSize = clampNumber(
-      source.enemyPulseReadoutSize,
-      72,
-      320,
-      145,
-    );
-    next.enemyPulseReadoutOffsetX = clampNumber(
-      source.enemyPulseReadoutOffsetX,
-      -405,
-      405,
-      27,
-    );
-    next.enemyPulseReadoutOffsetY = clampNumber(
-      source.enemyPulseReadoutOffsetY,
-      -35,
-      840,
-      500,
-    );
-    next.allyPulseEnabled = !!source.allyPulseEnabled;
-    next.allyPulseThreshold = clampNumber(
-      source.allyPulseThreshold,
-      0,
-      100,
-      25,
-    );
-    next.allyPulseBpm = clampNumber(source.allyPulseBpm, 30, 300, 75);
-    next.allyPulseIntensity = clampNumber(
-      source.allyPulseIntensity,
-      0,
-      2,
-      1,
-    );
-    next.allyPulseColorEnabled = !!source.allyPulseColorEnabled;
-    next.allyPulseColor = normalizeColor(
-      source.allyPulseColor,
-      DEFAULT_CONFIG.allyPulseColor,
-    );
-    next.pipsVisible = source.pipsVisible !== false;
-    next.precisePipsEnabled = !!source.precisePipsEnabled;
-    next.levelsVisible = source.levelsVisible !== false;
-
-    next.lowThreshold = clampNumber(source.lowThreshold, 0, 99, 25);
-    next.highThreshold = clampNumber(
-      source.highThreshold,
-      next.lowThreshold + 1,
-      100,
-      65,
-    );
-    if (next.lowThreshold >= next.highThreshold)
-      next.lowThreshold = Math.max(0, next.highThreshold - 1);
-    return next;
-  }
 
   function interpolateHex(left, right, amount) {
     var leftInt = parseInt(left.slice(1), 16);
@@ -1449,7 +1163,6 @@
   }
 
   function applyCustomization(bar) {
-    perfDebugCalls.applyCustomization += 1;
     if (!bar.dirty || !isComplete(bar.parts)) return;
     var role = bar.role;
     var relationOwned = role === "enemy" || role === "ally";
@@ -1868,42 +1581,11 @@
   function reportData(bar) {
     if (!isComplete(bar.parts)) return;
     classifyTarget(bar);
-    var widthPercent = sampleHealthPercent(bar);
-    var pipText = readPipText(bar.parts.pipLabel);
-    updatePipMaximum(bar, pipText);
-    var levelText = readPipText(bar.parts.levelLabel);
-    updateLevel(bar, levelText);
+    if (!bar.healthSampled || !colorRefreshEnabled(bar))
+      sampleHealthPercent(bar);
+    updatePipMaximum(bar, readPipText(bar.parts.pipLabel));
+    updateLevel(bar, readPipText(bar.parts.levelLabel));
     if (bar.dirty) applyCustomization(bar);
-    if (widthPercent < 0) return;
-    if (
-      bar.reportedWidthPercent === widthPercent &&
-      bar.reportedPipText === pipText &&
-      bar.reportedLevelText === levelText
-    )
-      return;
-    bar.reportedWidthPercent = widthPercent;
-    bar.reportedPipText = pipText;
-    bar.reportedLevelText = levelText;
-    $.Msg(
-      "[HP Colors Rewrite] data id=" +
-        bar.instanceId +
-        " generation=" +
-        bar.generation +
-        " pip=" +
-        JSON.stringify(pipText) +
-        " level=" +
-        JSON.stringify(levelText) +
-        " fill=" +
-        Math.round(bar.sampleFillWidth) +
-        " parent=" +
-        Math.round(bar.sampleTotalParentWidth) +
-        " shield=" +
-        Math.round(bar.sampleShieldWidth) +
-        " health_parent=" +
-        Math.round(bar.sampleHealthParentWidth) +
-        " width_percent=" +
-        widthPercent,
-    );
   }
 
   function addBar(parts) {
@@ -1927,9 +1609,6 @@
       levelText: "",
       level: 0,
       levelTier: null,
-      reportedWidthPercent: -1,
-      reportedPipText: null,
-      reportedLevelText: null,
       levelWrapper: null,
       applied: {},
       pulseActive: false,
@@ -1958,52 +1637,47 @@
   function reconcileBars() {
     for (var index = 0; index < bars.length; index++) bars[index].seen = false;
 
-    var activeParents = collectActiveParents();
-    for (var parentIndex = 0; parentIndex < activeParents.length; parentIndex++) {
-      var activeParent = activeParents[parentIndex];
+    var activeParent = findWithin(context, "unit_healthbar_active_parent");
+    if (isValid(activeParent)) {
       var bar = findBarByParent(activeParent);
       if (!bar) {
         addBar(resolveParts(activeParent));
-        continue;
-      }
-
-      bar.seen = true;
-      if (!cachedPartsUsable(bar)) {
-        var nextParts = resolveParts(activeParent);
-        if (!sameParts(bar.parts, nextParts)) {
-          clearPulse(bar);
-          clearReadoutOwnership(bar);
-          clearKillMarkerOwnership(bar);
-          bar.parts = nextParts;
-          bar.generation += 1;
-          bar.dirty = true;
-          bar.applied = {};
-          bar.levelWrapper = null;
-          bar.levelText = "";
-          bar.level = 0;
-          bar.levelTier = null;
-          bar.pipText = null;
-          bar.pipProfile = null;
-          bar.rawMaximumHealth = 0;
-          bar.reportedWidthPercent = -1;
-          bar.reportedPipText = null;
-          bar.reportedLevelText = null;
-          bar.lastWidthPercent = -1;
-          bar.healthSampled = false;
-          bar.healthPresentationChanged = false;
-          bar.pulseOverlayPercent = -1;
-          bar.partsRetryAt = 0;
-          bar.sampleFillWidth = 0;
-          bar.sampleTotalParentWidth = 0;
-          bar.sampleShieldWidth = 0;
-          bar.sampleHealthParentWidth = 0;
-          bar.markerGeometryChanged = false;
-          bar.stockWidth = 0;
-          bar.stockHeight = 0;
+      } else {
+        bar.seen = true;
+        if (!cachedPartsUsable(bar)) {
+          var nextParts = resolveParts(activeParent);
+          if (!sameParts(bar.parts, nextParts)) {
+            clearPulse(bar);
+            clearReadoutOwnership(bar);
+            clearKillMarkerOwnership(bar);
+            bar.parts = nextParts;
+            bar.generation += 1;
+            bar.dirty = true;
+            bar.applied = {};
+            bar.levelWrapper = null;
+            bar.levelText = "";
+            bar.level = 0;
+            bar.levelTier = null;
+            bar.pipText = null;
+            bar.pipProfile = null;
+            bar.rawMaximumHealth = 0;
+            bar.lastWidthPercent = -1;
+            bar.healthSampled = false;
+            bar.healthPresentationChanged = false;
+            bar.pulseOverlayPercent = -1;
+            bar.partsRetryAt = 0;
+            bar.sampleFillWidth = 0;
+            bar.sampleTotalParentWidth = 0;
+            bar.sampleShieldWidth = 0;
+            bar.sampleHealthParentWidth = 0;
+            bar.markerGeometryChanged = false;
+            bar.stockWidth = 0;
+            bar.stockHeight = 0;
+          }
         }
-      }
 
-      reportData(bar);
+        reportData(bar);
+      }
     }
 
     for (var removeIndex = bars.length - 1; removeIndex >= 0; removeIndex--) {
@@ -2023,7 +1697,6 @@
   }
 
   function refreshColor(bar) {
-    perfDebugCalls.refreshColor += 1;
     if (!isComplete(bar.parts)) return false;
     if (!colorRefreshEnabled(bar)) {
       if (!bar.dirty) return false;
@@ -2059,7 +1732,6 @@
 
   function paintColors() {
     if (!isValid(context)) return;
-    perfDebugCalls.paintColors += 1;
     var changed = false;
     for (var index = 0; index < bars.length; index++) {
       if (refreshColor(bars[index])) changed = true;
@@ -2074,32 +1746,9 @@
     $.Schedule(delay, paintColors);
   }
 
-  function flushPerfDebug() {
-    if (!isValid(context)) return;
-    $.Msg(
-      "[HP Colors Rewrite][Perf] window=5s probe=" +
-        probeId +
-        " paintColors=" +
-        perfDebugCalls.paintColors +
-        " refreshColor=" +
-        perfDebugCalls.refreshColor +
-        " applyCustomization=" +
-        perfDebugCalls.applyCustomization +
-        " scan=" +
-        perfDebugCalls.scan +
-        " bars=" +
-        bars.length,
-    );
-    perfDebugCalls.paintColors = 0;
-    perfDebugCalls.refreshColor = 0;
-    perfDebugCalls.applyCustomization = 0;
-    perfDebugCalls.scan = 0;
-    $.Schedule(PERF_DEBUG_INTERVAL_SEC, flushPerfDebug);
-  }
 
   function scan() {
     if (!isValid(context)) return;
-    perfDebugCalls.scan += 1;
     inspectRootConfig();
     reconcileBars();
     if (!didLogInitialScan) {
@@ -2121,5 +1770,4 @@
   inspectRootConfig();
   scan();
   paintColors();
-  $.Schedule(PERF_DEBUG_INTERVAL_SEC, flushPerfDebug);
 })();

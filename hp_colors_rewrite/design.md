@@ -70,7 +70,7 @@ Color must never be the only state indicator.
 - **New Preset** opens a focused create form for name and Current target. **Create Preset** snapshots the latest Current working values with that scope metadata, allocates a monotonic ID, closes the form, and never applies settings.
 - Clicking a session row enters a clearly labeled editing state without changing live settings. Its primary action becomes **Save & Apply**, which warns that it will replace the named record, updates that stable ID from the current editor values and scope, then uses the existing preset-application path. **Cancel** exits editing without mutation.
 - Baked rows remain immutable. Their primary action stays **Apply**; they never expose **Save & Apply**.
-- Explicit **Apply** replaces Current and publishes immediately, even before stable identity resolves or when the current detected hero differs. Later exact identity transitions select the first matching saved Selected record, otherwise the first saved All Heroes record, then baked Rewrite Default when leaving a Selected scope.
+- Explicit **Apply** replaces Current and publishes immediately, even before stable identity resolves or when the current detected hero differs. Applied user presets stamp Current with their stable source ID. Later exact identity transitions preserve edited Current when the first matching saved Selected or All Heroes route has that same ID, and replace Current only when routing resolves to a different preset or baked Rewrite Default.
 - Rename starts from the row name. Copy, Apply, valid Up/Down moves, and Delete/Hide remain row-local. Destructive confirmation replaces only the affected row.
 - Repository-only mutations repair stable-ID references but never apply settings, enter Undo, increment revision, or dispatch configuration. Explicit **Apply** and the apply half of **Save & Apply** are live-settings transitions.
 - Copy Selected and Copy All produce a separate `HPCRP1` repository code. `HPCR2` remains live-settings transfer only and always represents a complete values-plus-conditions snapshot; array-only historical codes mean zero conditions rather than “preserve current conditions.”
@@ -189,6 +189,8 @@ Runtime verification must prove that v1 bars remain visible while the custom edi
 
 Use one authoritative global base, ordered session scope rows, and one resolved effective settings snapshot.
 
+`hp_colors_contract.js` is the sole healthbar setting schema. It defines shipped defaults, deterministic key order, setting types, enum choices, numeric bounds, and normalization. The ESC state owner and every isolated healthbar probe load that contract before accepting state or configuration, so a setting cannot normalize differently across Panorama contexts.
+
 1. The ESC editor owns the versioned session settings, scope, and user-preset state.
 2. Changed controls edit Current when it exists and otherwise edit the hidden base; both control changes and preset applications normalize through the same resolver and publish only when effective values change.
 3. An adaptive cached replay (1-second hot, 3-second warm, 8-second idle) feeds late isolated overlays while customization is enabled.
@@ -258,7 +260,7 @@ The hero identity slice adds one transient read model beside—not inside—the 
 10. Scope rows use a separate menu-only root cache. They remain outside `DEFAULTS`, HPCR2, Undo, and unit-status payloads, while the existing config root attribute remains effective-values-only.
 11. The preset slice adds one baked-before-user repository with stable IDs, normalized frozen values, and scope metadata. The baked `baked_default` record documents the shipped startup state.
 12. All Heroes and Selected Heroes application preserve the hidden canonical base and replace Current. Subsequent controls mutate that Current working copy without changing the source preset record; only **Save & Apply** replaces a user record. Legacy user Global records normalize to All Heroes without applying; baked Rewrite Default remains the immutable base representation.
-13. Explicit Selected preset application replaces Current and publishes immediately without waiting for stable identity. Later hero transitions restore the first matching Selected record, otherwise the first All Heroes record; leaving an active Selected scope without either automatically applies baked Rewrite Default.
+13. Explicit Selected preset application replaces Current and publishes immediately without waiting for stable identity. Later hero transitions preserve edited Current when the resolved Selected or All Heroes record has the same stable source ID, restore a different first matching record when the route changes, and apply baked Rewrite Default when leaving an active Selected scope without either.
 14. Preset metadata and session user records remain outside `DEFAULTS`, HPCR2, Undo, root unit-status publication, and healthbar contexts.
 15. The repository-management slice retains a monotonic next-user number, baked display-name overrides, hidden baked IDs, and one selected record in the menu-only cache.
 16. Visible repository order is fixed visible baked records followed by movable session records. Hidden baked records remain canonical and continue to serve automatic fallback.
