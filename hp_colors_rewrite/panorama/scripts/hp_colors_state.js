@@ -66,248 +66,24 @@
       HERO_DATA[heroIndex][0];
   }
 
-  var DEFAULTS = {
-    enabled: true,
-    widthScale: 100,
-    heightScale: 100,
-    positionX: 0,
-    positionY: 0,
-    enemyEnabled: true,
-    enemyVisible: true,
-    enemyMode: "gradient",
-    enemyLow: "#E16161",
-    enemyMid: "#FF7B00",
-    enemyHigh: "#00FF00",
-    enemyTeamHigh: false,
-    excludeBuildings: false,
-    excludeBosses: false,
-    enemyHealing: "#5FFF80",
-    enemyDelta: "#FFE55B",
-    enemyBulletShield: "#FFFFFF",
-    allyEnabled: false,
-    allyVisible: true,
-    allyMode: "fixed",
-    allyLow: "#E16161",
-    allyMid: "#FFED79",
-    allyHigh: "#70F8C1",
-    allyHealing: "#5FFF80",
-    allyDelta: "#504C47",
-    allyBulletShield: "#FFFFFF",
-    ultMode: "follow",
-    ultCustom: "#E16161",
-    readoutVisible: true,
-    readoutFormat: "hp",
-    readoutSize: 145,
-    readoutFont: "default",
-    readoutOffsetX: 27,
-    readoutOffsetY: 500,
-    readoutColorMode: "bar",
-    readoutMode: "fixed",
-    readoutLow: "#E16161",
-    readoutMid: "#FF7B00",
-    readoutHigh: "#FFFFFF",
-    pipsVisible: true,
-    precisePipsEnabled: false,
-    levelsVisible: true,
-    lowThreshold: 25,
-    highThreshold: 65,
-    enemyPulseEnabled: true,
-    enemyPulseThreshold: 25,
-    enemyPulseBpm: 75,
-    enemyPulseIntensity: 1,
-    enemyPulseColorEnabled: false,
-    enemyPulseColorMode: "gradient",
-    enemyPulseColor: "#FF2222",
-    enemyPulseHideBar: false,
-    enemyPulseReadout: false,
-    enemyPulseReadoutModifiers: false,
-    enemyPulseReadoutSize: 145,
-    enemyPulseReadoutOffsetX: 27,
-    enemyPulseReadoutOffsetY: 500,
-    allyPulseEnabled: false,
-    allyPulseThreshold: 25,
-    allyPulseBpm: 75,
-    allyPulseIntensity: 1,
-    allyPulseColorEnabled: false,
-    allyPulseColor: "#FF2222",
-    enemyKillMarkerEnabled: false,
-    enemyKillMarkerThreshold: 25,
-    enemyKillMarkerWidth: 3,
-    enemyKillMarkerColor: "#FF2222",
-  };
-
-  var DEFAULT_KEYS = [
-    "enabled",
-    "widthScale",
-    "heightScale",
-    "positionX",
-    "positionY",
-    "enemyEnabled",
-    "enemyVisible",
-    "enemyMode",
-    "enemyLow",
-    "enemyMid",
-    "enemyHigh",
-    "enemyTeamHigh",
-    "excludeBuildings",
-    "excludeBosses",
-    "enemyHealing",
-    "enemyDelta",
-    "enemyBulletShield",
-    "allyEnabled",
-    "allyVisible",
-    "allyMode",
-    "allyLow",
-    "allyMid",
-    "allyHigh",
-    "allyHealing",
-    "allyDelta",
-    "allyBulletShield",
-    "ultMode",
-    "ultCustom",
-    "readoutVisible",
-    "readoutFormat",
-    "readoutSize",
-    "readoutFont",
-    "readoutOffsetX",
-    "readoutOffsetY",
-    "readoutColorMode",
-    "readoutMode",
-    "readoutLow",
-    "readoutMid",
-    "readoutHigh",
-    "pipsVisible",
-    "precisePipsEnabled",
-    "levelsVisible",
-    "lowThreshold",
-    "highThreshold",
-    "enemyPulseEnabled",
-    "enemyPulseThreshold",
-    "enemyPulseBpm",
-    "enemyPulseIntensity",
-    "enemyPulseColorEnabled",
-    "enemyPulseColorMode",
-    "enemyPulseColor",
-    "enemyPulseHideBar",
-    "enemyPulseReadout",
-    "enemyPulseReadoutModifiers",
-    "enemyPulseReadoutSize",
-    "enemyPulseReadoutOffsetX",
-    "enemyPulseReadoutOffsetY",
-    "allyPulseEnabled",
-    "allyPulseThreshold",
-    "allyPulseBpm",
-    "allyPulseIntensity",
-    "allyPulseColorEnabled",
-    "allyPulseColor",
-    "enemyKillMarkerEnabled",
-    "enemyKillMarkerThreshold",
-    "enemyKillMarkerWidth",
-    "enemyKillMarkerColor",
-  ];
-
-  var BOOLEAN_KEYS = {
-    enabled: true,
-    enemyEnabled: true,
-    enemyVisible: true,
-    enemyTeamHigh: true,
-    excludeBuildings: true,
-    excludeBosses: true,
-    allyEnabled: true,
-    allyVisible: true,
-    readoutVisible: true,
-    pipsVisible: true,
-    precisePipsEnabled: true,
-    levelsVisible: true,
-    enemyPulseEnabled: true,
-    enemyPulseColorEnabled: true,
-    enemyPulseHideBar: true,
-    enemyPulseReadout: true,
-    enemyPulseReadoutModifiers: true,
-    allyPulseEnabled: true,
-    allyPulseColorEnabled: true,
-    enemyKillMarkerEnabled: true,
-  };
-
-  var COLOR_KEYS = {
-    enemyLow: true,
-    enemyMid: true,
-    enemyHigh: true,
-    enemyHealing: true,
-    enemyDelta: true,
-    enemyBulletShield: true,
-    allyLow: true,
-    allyMid: true,
-    allyHigh: true,
-    allyHealing: true,
-    allyDelta: true,
-    allyBulletShield: true,
-    ultCustom: true,
-    readoutLow: true,
-    readoutMid: true,
-    readoutHigh: true,
-    enemyPulseColor: true,
-    allyPulseColor: true,
-    enemyKillMarkerColor: true,
-  };
-
-  var ENUM_OPTIONS = {
-    enemyMode: ["fixed", "gradient"],
-    allyMode: ["fixed", "gradient"],
-    ultMode: ["follow", "custom"],
-    readoutFormat: ["hp", "percent", "current"],
-    readoutFont: ["default", "oracle", "pulp"],
-    readoutColorMode: ["bar", "custom"],
-    readoutMode: ["fixed", "gradient"],
-    enemyPulseColorMode: ["fixed", "gradient"],
-  };
-
-  var NUMBER_BOUNDS = {
-    widthScale: [60, 160],
-    heightScale: [60, 160],
-    positionX: [-300, 300],
-    positionY: [-200, 200],
-    readoutSize: [72, 320],
-    readoutOffsetX: [-405, 405],
-    readoutOffsetY: [-35, 840],
-    enemyPulseThreshold: [0, 100],
-    enemyPulseBpm: [30, 300],
-    enemyPulseReadoutSize: [72, 320],
-    enemyPulseReadoutOffsetX: [-405, 405],
-    enemyPulseReadoutOffsetY: [-35, 840],
-    allyPulseThreshold: [0, 100],
-    allyPulseBpm: [30, 300],
-    enemyKillMarkerThreshold: [5, 80],
-    enemyKillMarkerWidth: [1, 100],
-    lowThreshold: [0, 99],
-    enemyPulseIntensity: [0, 2],
-    allyPulseIntensity: [0, 2],
-    highThreshold: [1, 100],
-  };
-
-  var SETTING_META = {};
-  var settingMetaIndex;
-  for (settingMetaIndex = 0; settingMetaIndex < DEFAULT_KEYS.length; settingMetaIndex++) {
-    var settingMetaKey = DEFAULT_KEYS[settingMetaIndex];
-    var settingType = BOOLEAN_KEYS[settingMetaKey]
-      ? "boolean"
-      : COLOR_KEYS[settingMetaKey]
-        ? "color"
-        : ENUM_OPTIONS[settingMetaKey]
-          ? "enum"
-          : "number";
-    var settingBounds = NUMBER_BOUNDS[settingMetaKey] || null;
-    SETTING_META[settingMetaKey] = {
-      type: settingType,
-      color: !!COLOR_KEYS[settingMetaKey],
-      conditionEligible: settingMetaKey !== "precisePipsEnabled",
-      min: settingBounds ? settingBounds[0] : null,
-      max: settingBounds ? settingBounds[1] : null,
-      options: ENUM_OPTIONS[settingMetaKey]
-        ? ENUM_OPTIONS[settingMetaKey].slice(0)
-        : [],
-    };
-  }
+  if (!$.HPColorsContractFactory || !$.HPColorsContractFactory.create)
+    throw new Error("HP Colors settings contract unavailable");
+  var settingsContract = $.HPColorsContractFactory.create();
+  delete $.HPColorsContractFactory;
+  var DEFAULTS = settingsContract.defaults;
+  var DEFAULT_KEYS = settingsContract.keys;
+  var BOOLEAN_KEYS = settingsContract.booleanKeys;
+  var COLOR_KEYS = settingsContract.colorKeys;
+  var ENUM_OPTIONS = settingsContract.enumOptions;
+  var SETTING_META = settingsContract.settingMeta;
+  var copyValues = settingsContract.copyValues;
+  var normalizeColor = settingsContract.normalizeColor;
+  var normalizeValue = settingsContract.normalizeValue;
+  var normalizeValues = settingsContract.normalizeValues;
+  var optionContains = settingsContract.optionContains;
+  var isStringValue = settingsContract.isStringValue;
+  var isBooleanValue = settingsContract.isBooleanValue;
+  var validateSettingValue = settingsContract.validateSettingValue;
 
   function isObjectValue(value) {
     var tag;
@@ -321,13 +97,6 @@
     );
   }
 
-  function isStringValue(value) {
-    return Object(value) !== value && value === String(value);
-  }
-
-  function isBooleanValue(value) {
-    return value === true || value === false;
-  }
 
   function freezeDeep(value) {
     if (!value || !isObjectValue(value) || Object.isFrozen(value))
@@ -350,127 +119,6 @@
     return result;
   }
 
-  function copyValues(source) {
-    var result = {};
-    var index;
-    for (index = 0; index < DEFAULT_KEYS.length; index++) {
-      var key = DEFAULT_KEYS[index];
-      result[key] =
-        source && Object.prototype.hasOwnProperty.call(source, key)
-          ? source[key]
-          : DEFAULTS[key];
-    }
-    return result;
-  }
-
-  function normalizeColor(value, fallback) {
-    var raw = String(value || "").replace(/^\s+|\s+$/g, "").toUpperCase();
-    if (raw.charAt(0) !== "#") raw = "#" + raw;
-    return /^#[0-9A-F]{6}$/.test(raw) ? raw : fallback;
-  }
-
-  function clampNumber(value, min, max, fallback) {
-    var number = Number(value);
-    if (!isFinite(number)) number = fallback;
-    number = Math.round(number);
-    return Math.max(min, Math.min(max, number));
-  }
-
-  function optionContains(key, value) {
-    var options = ENUM_OPTIONS[key] || [];
-    var index;
-    for (index = 0; index < options.length; index++) {
-      if (options[index] === value) return true;
-    }
-    return false;
-  }
-
-  function normalizeValue(key, value, values) {
-    if (BOOLEAN_KEYS[key]) return !!value;
-    if (COLOR_KEYS[key]) return normalizeColor(value, DEFAULTS[key]);
-    if (key === "enemyMode" || key === "allyMode" || key === "readoutMode")
-      return value === "gradient" ? "gradient" : "fixed";
-    if (key === "enemyPulseColorMode")
-      return value === "fixed" ? "fixed" : "gradient";
-    if (key === "ultMode") return value === "custom" ? "custom" : "follow";
-    if (key === "readoutFormat")
-      return value === "percent" || value === "current" ? value : "hp";
-    if (key === "readoutColorMode")
-      return value === "custom" ? "custom" : "bar";
-    if (key === "readoutFont")
-      return value === "oracle" || value === "pulp" ? value : "default";
-    if (ENUM_OPTIONS[key]) {
-      if (optionContains(key, value)) return value;
-      return DEFAULTS[key];
-    }
-    if (key === "enemyPulseThreshold" || key === "allyPulseThreshold")
-      return clampNumber(value, 0, 100, DEFAULTS[key]);
-    if (key === "enemyPulseBpm" || key === "allyPulseBpm")
-      return clampNumber(value, 30, 300, DEFAULTS[key]);
-    if (key === "enemyPulseIntensity" || key === "allyPulseIntensity")
-      return clampNumber(value, 0, 2, DEFAULTS[key]);
-    if (key === "enemyPulseReadoutSize" || key === "readoutSize")
-      return clampNumber(value, 72, 320, DEFAULTS[key]);
-    if (
-      key === "enemyPulseReadoutOffsetX" ||
-      key === "readoutOffsetX"
-    )
-      return clampNumber(value, -405, 405, DEFAULTS[key]);
-    if (
-      key === "enemyPulseReadoutOffsetY" ||
-      key === "readoutOffsetY"
-    )
-      return clampNumber(value, -35, 840, DEFAULTS[key]);
-    if (key === "widthScale" || key === "heightScale")
-      return clampNumber(value, 60, 160, DEFAULTS[key]);
-    if (key === "positionX") return clampNumber(value, -300, 300, DEFAULTS[key]);
-    if (key === "positionY") return clampNumber(value, -200, 200, DEFAULTS[key]);
-    if (key === "enemyKillMarkerThreshold")
-      return clampNumber(value, 5, 80, DEFAULTS[key]);
-    if (key === "enemyKillMarkerWidth")
-      return clampNumber(value, 1, 100, DEFAULTS[key]);
-    if (key === "lowThreshold")
-      return clampNumber(
-        value,
-        0,
-        Math.max(0, (values || DEFAULTS).highThreshold - 1),
-        DEFAULTS[key],
-      );
-    if (key === "highThreshold")
-      return clampNumber(
-        value,
-        Math.min(100, (values || DEFAULTS).lowThreshold + 1),
-        100,
-        DEFAULTS[key],
-      );
-    return value;
-  }
-
-  function normalizeValues(source) {
-    var values = copyValues(DEFAULTS);
-    var index;
-    for (index = 0; index < DEFAULT_KEYS.length; index++) {
-      var key = DEFAULT_KEYS[index];
-      var value =
-        source && Object.prototype.hasOwnProperty.call(source, key)
-          ? source[key]
-          : DEFAULTS[key];
-      values[key] = normalizeValue(key, value, values);
-    }
-    values.lowThreshold = clampNumber(
-      values.lowThreshold,
-      0,
-      Math.max(0, values.highThreshold - 1),
-      DEFAULTS.lowThreshold,
-    );
-    values.highThreshold = clampNumber(
-      values.highThreshold,
-      Math.min(100, values.lowThreshold + 1),
-      100,
-      DEFAULTS.highThreshold,
-    );
-    return values;
-  }
 
   function normalizeHeroSelection(source) {
     var selected = {};
@@ -612,13 +260,17 @@
     if (!id) return null;
     var heroes = normalizeHeroSelection(source.heroes);
     var mode = normalizeScopeMode(String(source.mode || ""), heroes);
-    return {
+    var result = {
       id: id,
       mode: mode,
       heroes: mode === HERO_SCOPE_SELECTED ? heroes : [],
       values: normalizeValues(source.values),
       conditions: normalizeConditions(source.conditions),
     };
+    var sourcePresetId = String(source.sourcePresetId || "");
+    if (id === CURRENT_SCOPE_ID && /^user_\d{4,}$/.test(sourcePresetId))
+      result.sourcePresetId = sourcePresetId;
+    return result;
   }
 
   function normalizeScopes(source) {
@@ -726,13 +378,15 @@
   }
 
   function cloneScope(source) {
-    return {
+    var result = {
       id: source.id,
       mode: source.mode,
       heroes: source.heroes.slice(0),
       values: copyValues(source.values),
       conditions: cloneConditions(source.conditions),
     };
+    if (source.sourcePresetId) result.sourcePresetId = source.sourcePresetId;
+    return result;
   }
 
   function clonePreset(source, displayName) {
@@ -1106,6 +760,7 @@
               heroes: users[builderIndex].heroes.slice(0),
               values: copyValues(users[builderIndex].values),
               conditions: normalizeConditions(users[builderIndex].conditions),
+              sourcePresetId: users[builderIndex].id,
             }]);
             builderApplied = true;
             break;
@@ -1744,6 +1399,7 @@
           heroes: preset.heroes.slice(0),
           values: copyValues(preset.values),
           conditions: normalizeConditions(preset.conditions),
+          sourcePresetId: preset.kind === "user" ? preset.id : "",
         });
       }
       state.scopes = normalizeScopes(rows);
@@ -1804,7 +1460,7 @@
           preset.mode === HERO_SCOPE_SELECTED &&
           preset.heroes.indexOf(heroKey) >= 0
         ) {
-          if (presetMatchesCurrent(preset)) return false;
+          if (current && current.sourcePresetId === preset.id) return false;
           return applyPresetInternal(preset);
         }
         if (!allFallback && preset.mode === HERO_SCOPE_ALL) allFallback = preset;
@@ -1815,7 +1471,10 @@
         current.heroes.indexOf(heroKey) >= 0
       )
         return false;
-      if (allFallback && !presetMatchesCurrent(allFallback))
+      if (
+        allFallback &&
+        (!current || current.sourcePresetId !== allFallback.id)
+      )
         return applyPresetInternal(allFallback);
       if (current && current.mode === HERO_SCOPE_SELECTED) {
         var baked = findPreset(DEFAULT_PRESET_ID);
@@ -1826,17 +1485,7 @@
     }
 
     function validateSettingIntent(key, value) {
-      if (!Object.prototype.hasOwnProperty.call(DEFAULTS, key)) return false;
-      if (BOOLEAN_KEYS[key]) return isBooleanValue(value);
-      if (COLOR_KEYS[key])
-        return isStringValue(value) && !!normalizeColor(value, "");
-      if (ENUM_OPTIONS[key]) return optionContains(key, value);
-      return (
-        Number.isFinite(value) ||
-        (isStringValue(value) &&
-          value !== "" &&
-          Number.isFinite(Number(value)))
-      );
+      return validateSettingValue(key, value);
     }
 
     function validateConditionValue(key, value) {
@@ -2493,7 +2142,12 @@
       var preset = findPreset(id);
       if (!preset || (preset.kind === "baked" && isBakedHidden(id)))
         return reject("preset_apply", "PRESET_NOT_FOUND");
-      if (presetMatchesCurrent(preset))
+      var current = currentScopeRow();
+      if (
+        presetMatchesCurrent(preset) &&
+        (preset.kind !== "user" ||
+          (current && current.sourcePresetId === preset.id))
+      )
         return noop("preset_apply", "NO_CHANGE");
       return commit("preset_apply", function () {
         return applyPresetInternal(preset);

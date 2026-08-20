@@ -4025,57 +4025,53 @@
   function cancel() {
     if (picker.key) {
       closePicker();
-      return;
+      return true;
     }
     if (
       isValid(ui.conditionDialog) &&
       ui.conditionDialog.BHasClass("Open")
     ) {
       closeConditionEditor();
-      return;
+      return true;
     }
     if (isValid(ui.resetDialog) && ui.resetDialog.BHasClass("Open")) {
       closeResetDialog(true);
-      return;
+      return true;
     }
     if (
       isValid(ui.presetTransferDialog) &&
       ui.presetTransferDialog.BHasClass("Open")
     ) {
       closePresetTransferDialog();
-      return;
+      return true;
     }
     if (isValid(ui.scopeDialog) && ui.scopeDialog.BHasClass("Open")) {
       closeScopeDialog();
-      return;
+      return true;
     }
     if (isValid(ui.heroDialog) && ui.heroDialog.BHasClass("Open")) {
       closeHeroDialog();
-      return;
+      return true;
     }
     if (
       isValid(ui.transferDialog) &&
       ui.transferDialog.BHasClass("Open")
     ) {
       closeTransferDialog();
-      return;
+      return true;
     }
     if (
       isValid(ui.precisePipsDialog) &&
       ui.precisePipsDialog.BHasClass("Open")
     ) {
       closePrecisePipsDialog();
-      return;
+      return true;
     }
     if (state.open) {
       closeEditor();
-      return;
+      return true;
     }
-    try {
-      if (isCallable(CitadelResumePlaying)) CitadelResumePlaying();
-    } catch (error) {
-      $.Msg("[HP Colors Rewrite] resume failed: " + String(error));
-    }
+    return false;
   }
 
   function resolvePanels() {
@@ -4816,8 +4812,11 @@
         publishedRaw: publishedRaw || null,
         builderPresetRaw: builderPresetRaw,
       });
-    } catch {
-      $.Msg("[HP Colors Rewrite] menu boot failed: state factory create error");
+    } catch (error) {
+      $.Msg(
+        "[HP Colors Rewrite] menu boot failed: state factory create error: " +
+          String(error),
+      );
       return;
     }
     if (

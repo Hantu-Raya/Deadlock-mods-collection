@@ -48,21 +48,20 @@ Implemented source files:
 
 ### Data path
 
-Each probe reads its local healthbar panels directly. It writes one transition-only line when displayed pip text, level text, or the floored calculated health percentage changes. Raw fill-width movement inside the same displayed percentage does not log:
+Each probe reads its local healthbar panels directly. Health samples drive colors, readout, pulse, kill-marker geometry, and local pip/level state. Production does not serialize or emit per-bar pip, width, shield, or health-percentage diagnostics.
 
-`[HP Colors Rewrite] data id=... generation=N pip="..." level="..." fill=N parent=N shield=N health_parent=N width_percent=N`
+Replacement panels increment the local generation and reset cached sampling and presentation state.
 
-Each probe owns its local data and telemetry signature. Replacement panels increment the local generation and reset both.
+### Diagnostic evidence
 
-### Verified in-game
-
-The 2026-08-11 Deadlock session produced 16 probe-ready lines and 21 direct data lines. All parsed widths had positive parents and percentages from 0–100; no probe exceptions were present.
+The final pre-cleanup 2026-08-20 capture contained 1,946 transition-only per-bar data lines and no Rewrite exceptions. Those lines were measurement scaffolding and were removed from production after the health sampling and scan-path comparison.
 
 ## Milestone 2: ESC editor lifecycle
 
 Implemented source files:
 
 - `panorama/layout/hud_escape_menu.xml` preserves the stock ESC layout and adds the explicit `HP COLORS` row plus editor panels.
+- `panorama/scripts/hp_colors_contract.js` owns the frozen healthbar setting defaults, deterministic key order, types, enum options, numeric bounds, and normalization used by both the ESC state owner and isolated healthbar probes.
 - `panorama/scripts/hp_colors_state.js` owns canonical values, effective resolution, scoped presets, repository policy, conditions, Undo, transactions, and runtime settling behind an immutable factory with `send()` and `read()`.
 - `panorama/scripts/hp_colors_menu.js` owns open, close, category/tab navigation, hold-to-peek, panel observation, scheduling, rendering, transport, replay, and clipboard adapters.
 - `panorama/styles/hp_colors_menu.css` owns the Ritual Stripe presentation.
@@ -202,9 +201,9 @@ The menu owns a rewrite-native preset repository beside the canonical global bas
 
 **New Preset** opens a create-only form. **Create Preset** captures the latest Current working values plus the Current scope mode and selected heroes, allocates a monotonic ID, and closes the form without applying settings. Clicking a session row enters an explicit editing state and warns that **Save & Apply** will replace that stable record with the current values, name, conditions, and scope metadata before applying it through the normal resolver. **Cancel** exits editing without mutation. Baked records are immutable and retain **Apply** only. Runtime-created and imported records, plus every in-game edit, remain session-only and reset when Deadlock restarts. On a cold boot with no session cache, an optional builder-generated `pak96_dir.vpk` seeds validated `HPCRP1` user records from the hidden `hud_escape_menu.xml` preset store, creates Current from the builder-selected record, and publishes it before hero or game-mode lifecycle observation. The packaged records remain build-time inputs rather than durable in-game writes.
 
-Applying All Heroes or Selected Heroes preserves the hidden canonical base and replaces Current with the preset's frozen snapshot. Explicit **Apply** publishes that Current snapshot immediately, even if hero identity is unknown or currently different. Controls then edit and publish the Current working copy while the source preset record remains unchanged until **Save & Apply**. Legacy user Global records normalize to All Heroes on load without applying or publishing.
+Applying All Heroes or Selected Heroes preserves the hidden canonical base and replaces Current with the preset's frozen snapshot plus its stable source ID. Explicit **Apply** publishes that Current snapshot immediately, even if hero identity is unknown or currently different. Controls then edit and publish the Current working copy while the source preset record remains unchanged until **Save & Apply**. Legacy user Global records normalize to All Heroes on load without applying or publishing.
 
-Later settled hero transitions choose the first matching saved Selected record, then the first saved All Heroes record, then **Rewrite Default** when leaving an active Selected scope. Automatic routing replaces Current only after identity settles. Every application and edit passes through the normalize, resolve, and changed-effective publication path, so byte-identical effective values do not increment revision or dispatch.
+Later settled hero transitions choose the first matching saved Selected record, then the first saved All Heroes record, then **Rewrite Default** when leaving an active Selected scope. Automatic routing preserves edited Current when the resolved preset has the same stable source ID, including hideout-to-testing and repeated same-hero lifecycle transitions. It replaces Current only when routing resolves to a different preset or fallback. Every application and edit passes through the normalize, resolve, and changed-effective publication path, so byte-identical effective values do not increment revision or dispatch.
 
 ## Milestone 14: session preset repository management
 

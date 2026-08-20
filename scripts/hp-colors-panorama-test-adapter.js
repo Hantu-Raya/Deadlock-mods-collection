@@ -2,6 +2,13 @@
 
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const hpColorsContractSource = fs.readFileSync(
+  path.resolve(__dirname, '../hp_colors_rewrite/panorama/scripts/hp_colors_contract.js'),
+  'utf8',
+);
 
 class ClassSet extends Set {
   includes(value) { return this.has(value); }
@@ -79,10 +86,23 @@ class MockPanel {
     this.actualuiscale_x = options.actualuiscale_x || 1;
     this.actualuiscale_y = options.actualuiscale_y || 1;
     this.sendScrollPositionChangedEvents = false;
-    this.actuallayoutwidth = options.actuallayoutwidth === undefined ? 120 : options.actuallayoutwidth;
+    this._actualLayoutWidth = options.actuallayoutwidth === undefined ? 120 : options.actuallayoutwidth;
+    this.layoutWidthReads = 0;
+    Object.defineProperty(this, 'actuallayoutwidth', {
+      configurable: true,
+      enumerable: true,
+      get: () => {
+        this.layoutWidthReads += 1;
+        incrementCounter(this.operationCounts, 'layoutWidthReads');
+        return this._actualLayoutWidth;
+      },
+      set: (value) => {
+        this._actualLayoutWidth = value;
+      },
+    });
     this._actualLayoutHeight = options.actuallayoutheight === undefined ? 32 : options.actuallayoutheight;
     this.layoutHeightReads = 0;
-    this.contentwidth = options.contentwidth === undefined ? this.actuallayoutwidth : options.contentwidth;
+    this.contentwidth = options.contentwidth === undefined ? this._actualLayoutWidth : options.contentwidth;
     this.contentheight = options.contentheight === undefined ? this._actualLayoutHeight : options.contentheight;
     this.findCounts = options.findCounts || null;
     this.childReadCounts = options.childReadCounts || null;
@@ -437,6 +457,7 @@ function createPanoramaHarness(options = {}) {
       styleWrites: 0,
       textReads: 0,
       textWrites: 0,
+      layoutWidthReads: 0,
     }, options.operationCounts || {}),
     createPanelCount: 0,
     eventSetCounter: { count: 0 },
@@ -580,8 +601,13 @@ function runInVm(source, context, filename = 'panorama-test.js') {
   return vm.runInContext(source, context, { filename });
 }
 
+function runHpColorsContractInVm(context) {
+  return runInVm(hpColorsContractSource, context, 'hp_colors_contract.js');
+}
+
 function runHpColorsSourcesInVm(stateSource, menuSource, harness, options = {}) {
   const context = createVmContext(harness, options);
+  runHpColorsContractInVm(context);
   runInVm(stateSource, context, 'hp_colors_state.js');
   runInVm(menuSource, context, 'hp_colors_menu.js');
   return context;
@@ -822,6 +848,7 @@ module.exports = {
   MockPanel,
   createPanoramaHarness,
   runHpColorsSourcesInVm,
+  runHpColorsContractInVm,
   createVmContext,
   runInVm,
   createPresetEntryPanel,

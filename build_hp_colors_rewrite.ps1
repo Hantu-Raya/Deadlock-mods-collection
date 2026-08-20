@@ -20,6 +20,7 @@ $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak01_
 $requiredCompiled = @(
     (Join-Path $compileStageOutput 'panorama\layout\hud_escape_menu.vxml_c'),
     (Join-Path $compileStageOutput 'panorama\layout\unit_status_overlay.vxml_c'),
+    (Join-Path $compileStageOutput 'panorama\scripts\hp_colors_contract.vjs_c'),
     (Join-Path $compileStageOutput 'panorama\scripts\healthbar_probe.vjs_c'),
     (Join-Path $compileStageOutput 'panorama\scripts\hp_colors_state.vjs_c'),
     (Join-Path $compileStageOutput 'panorama\scripts\hp_colors_menu.vjs_c'),
@@ -83,6 +84,7 @@ $vpkTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut
 Assert-PackedVpkAssets -Tree $vpkTree -Label 'HP Colors Rewrite VPK' -Required @(
     'hud_escape_menu.vxml_c',
     'unit_status_overlay.vxml_c',
+    'hp_colors_contract.vjs_c',
     'healthbar_probe.vjs_c',
     'hp_colors_state.vjs_c',
     'hp_colors_menu.vjs_c',
@@ -94,6 +96,7 @@ Assert-PackedVpkAssets -Tree $vpkTree -Label 'HP Colors Rewrite VPK' -Required @
     'design.md',
     'hud_escape_menu.xml',
     'unit_status_overlay.xml',
+    'hp_colors_contract.js',
     'healthbar_probe.js',
     'hp_colors_state.js',
     'hp_colors_menu.js',

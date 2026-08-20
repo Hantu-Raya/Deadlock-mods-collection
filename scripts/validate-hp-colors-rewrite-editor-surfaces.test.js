@@ -395,9 +395,23 @@ test('Escape closes reset confirmation before closing the editor', () => {
   assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), false);
 });
 
+test('Escape at the menu root delegates to the native resume action', () => {
+  const fixture = bootMenu({
+    version: 1,
+    values: changedEnemyValues(),
+    scopes: [],
+  });
+
+  assert.equal(harnessCancel(fixture), false);
+  assert.match(
+    layoutSource,
+    /oncancel="if \(!\$\.HPColorsMenuCancel\(\)\) CitadelResumePlaying\(\)"/,
+  );
+});
+
 function harnessCancel(fixture) {
   assert.equal(typeof fixture.harness.$.HPColorsMenuCancel, 'function');
-  fixture.harness.$.HPColorsMenuCancel();
+  return fixture.harness.$.HPColorsMenuCancel();
 }
 
 test('stale reset feedback callback cannot overwrite LIVE after editor close', () => {

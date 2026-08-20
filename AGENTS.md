@@ -33,6 +33,7 @@ Important lanes:
 - **Poker/Bluff Deck**: `poker_escape_menu.js` owns deterministic engines, party/ready/progress/resume state, reducers, and rendering. `poker_chat_debug.js` polls stock `#ChatMessages` and bridges sender-stabilized rows. Chat is the synchronization authority; never replace it with an assumed network API or grant authority to `<unknown>`.
 - **HP Colors full**: `anita_ui_core.js` owns ANITA UI, presets, persistence, and publishing; `healthbar_logic.js` consumes settings and paints stock unit-status overlays.
 - **HP Colors minimal**: a runtime-only pak consumes a separate builder preset-store VPK through the static request/snapshot bridge. Do not add full-lane UI, persistence, convars, or runtime preset-store rescans.
+- **HP Colors Rewrite**: `hp_colors_rewrite/` owns the canonical clean-room runtime. `hp_colors_rewrite_qollock/` adds package-derived QOLLOCK compatibility without forking canonical behavior; read `hp_colors_rewrite/AGENTS.md` before changing either lane.
 - **Topbar Rank/ShowRank**: layouts load `showrank_common.js` plus the combined topbar runtime. Guarded global wrappers bridge profile, player-list, topbar, and Escape contexts.
 - **Topbar Status Buffs**: a healthbar publisher writes compact status snapshots; a topbar consumer renders them. It conflicts with other pak89 variants.
 - **Abilities**: Python performs streaming/text-span transforms over huge VData inputs. Do not introduce a full parser; transforms may mutate inputs and wrappers restore baselines.
@@ -42,6 +43,7 @@ Important lanes:
 - `poker/` — chat-authoritative Poker and Bluff Deck ESC-menu minigames; see `poker/AGENTS.md`, `poker/CONTEXT.md`, and `poker/codemap.md` first.
 - `hp_colors/` — full ANITA UI and HP Colors runtime.
 - `hp_colors_minimal/` — minimal pak97 runtime paired with a separate pak96 builder preset.
+- `hp_colors_rewrite/`, `hp_colors_rewrite_qollock/` — canonical Rewrite source and its pak02 compatibility layer for an installed QOLLOCK pak03.
 - `hp_color_debug/`, `hp_colors_minimal*_debug/` — diagnostic variants; follow their local contracts instead of copying them into production lanes.
 - `topbar_rank/`, `showrank/` — rank surfaces, topbar HUD, profile/player-list hooks, and build variants. Current combined code uses `showrank_common.js`; legacy `topbar_rank_rank_bridge.js` references are stale.
 - `topbar_status_buffs/` — healthbar-to-topbar status-effect bridge.
@@ -79,6 +81,10 @@ powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
 node hp_colors_minimal/scripts/validate-minimal.js
 node --test hp_colors_minimal/scripts/validate-minimal.test.js
 powershell -ExecutionPolicy Bypass -File build_hp_colors_minimal.ps1
+
+# HP Colors Rewrite + QOLLOCK compatibility
+node --test scripts/validate-hp-colors-rewrite-qollock.test.js
+powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_qollock.ps1
 
 # Topbar Rank / ShowRank
 npm --prefix showrank test

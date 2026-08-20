@@ -1,0 +1,84 @@
+{
+  "pak": "pak02_dir.vpk",
+  "packageOrder": [
+    "pak01 builder preset",
+    "pak02 support runtime",
+    "pak03 pinned QOLLOCK"
+  ],
+  "qollockAuthority": "installed pak03_dir.vpk",
+  "refreshSwitch": "-RefreshFromInstalledQollock",
+  "requiredSources": [
+    "panorama/layout/hud.xml",
+    "panorama/layout/hud_escape_menu.xml",
+    "panorama/scripts/qollock_runtime_guard.js",
+    "panorama/scripts/qollock_settings_guard.js",
+    "panorama/scripts/qollock_hp_colors_bridge.js",
+    "panorama/scripts/qollock_topbar_warning_guard.js",
+    "qollock-source.sha256"
+  ],
+  "requiredPinnedQollockAssets": [
+    "panorama/scripts/core/ql_namespace.vjs_c",
+    "panorama/scripts/core/ql_feature_registry.vjs_c",
+    "panorama/scripts/features/ql_feat_healthbar.vjs_c",
+    "panorama/scripts/manifests/ql_color_warnings/manifest.vjs_c",
+    "panorama/scripts/core/ql_app.vjs_c"
+  ],
+  "canonicalRewriteAssets": [
+    "panorama/layout/unit_status_overlay.vxml_c",
+    "panorama/scripts/hp_colors_contract.vjs_c",
+    "panorama/scripts/healthbar_probe.vjs_c",
+    "panorama/scripts/hp_colors_state.vjs_c",
+    "panorama/scripts/hp_colors_menu.vjs_c",
+    "panorama/styles/hp_colors_menu.vcss_c",
+    "panorama/styles/hp_colors_unit_status.vcss_c",
+    "panorama/layout/hud_escape_menu.vxml_c"
+  ],
+  "forbiddenSupportAssets": [
+    "panorama/scripts/hp_colors_contract.js",
+    "panorama/scripts/hp_colors_state.js",
+    "panorama/scripts/hp_colors_menu.js",
+    "panorama/styles/hp_colors_menu.css",
+    "panorama/layout/unit_status_overlay.xml",
+    "pak01_dir.vpk",
+    "pak03_dir.vpk"
+  ],
+  "forbiddenBuildInputs": [
+    "hp_colors_rewrite_compiled",
+    "pak01_dir.vpk",
+    "pak03_dir.vpk"
+  ],
+  "requiredPackedAssets": [
+    "hud.vxml_c",
+    "hud_escape_menu.vxml_c",
+    "unit_status_overlay.vxml_c",
+    "hp_colors_contract.vjs_c",
+    "healthbar_probe.vjs_c",
+    "hp_colors_state.vjs_c",
+    "hp_colors_menu.vjs_c",
+    "qollock_runtime_guard.vjs_c",
+    "qollock_settings_guard.vjs_c",
+    "qollock_hp_colors_bridge.vjs_c",
+    "qollock_topbar_warning_guard.vjs_c",
+    "hp_colors_menu.vcss_c",
+    "hp_colors_unit_status.vcss_c"
+  ],
+  "forbiddenPackedAssets": [
+    "hud.xml",
+    "hud_escape_menu.xml",
+    "unit_status_overlay.xml",
+    "hp_colors_contract.js",
+    "healthbar_probe.js",
+    "hp_colors_state.js",
+    "hp_colors_menu.js",
+    "qollock_runtime_guard.js",
+    "qollock_settings_guard.js",
+    "qollock_hp_colors_bridge.js",
+    "qollock_topbar_warning_guard.js",
+    "node_modules",
+    "AGENTS.md",
+    "FEATURES.md",
+    "design.md",
+    "qollock-source.sha256",
+    "pak02-contract.json"
+  ]
+}

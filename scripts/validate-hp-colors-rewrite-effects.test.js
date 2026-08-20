@@ -8,6 +8,7 @@ const {
   MockPanel,
   createPanoramaHarness,
   createVmContext,
+  runHpColorsContractInVm,
   runInVm,
   buildUnitStatusTree,
   dispatchClientUiPayload,
@@ -15,6 +16,10 @@ const {
 } = require('./hp-colors-panorama-test-adapter');
 
 const rewriteRoot = path.resolve(__dirname, '../hp_colors_rewrite');
+const contractSource = fs.readFileSync(
+  path.join(rewriteRoot, 'panorama/scripts/hp_colors_contract.js'),
+  'utf8',
+);
 const probeSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/healthbar_probe.js'),
   'utf8',
@@ -53,41 +58,25 @@ function bootProbe(classes, options = {}) {
     pipText: options.pipText === undefined ? '||||' : options.pipText,
     levelText: options.levelText === undefined ? '12' : options.levelText,
   });
-  runInVm(
-    probeSource,
-    createVmContext(harness, { includeGameUI: false }),
-    'healthbar_probe.js',
-  );
+  const context = createVmContext(harness, { includeGameUI: false });
+  runHpColorsContractInVm(context);
+  runInVm(probeSource, context, 'healthbar_probe.js');
   return { harness, tree };
 }
-test('healthbar probe reports and resets hot-path call counts every five seconds', () => {
-  const probe = bootProbe(['enemy', 'player', 'team1']);
-  assert.equal(
-    probe.harness.scheduler.nextDelayByFunctionName('flushPerfDebug'),
-    5,
-  );
 
-  probe.harness.scheduler.takeByFunctionName('paintColors').fn();
-  probe.harness.scheduler.takeByFunctionName('scan').fn();
-  probe.harness.scheduler.runByDelay(5);
-
-  let perfLogs = probe.harness.logs.filter((line) =>
-    line.includes('[HP Colors Rewrite][Perf]'),
-  );
-  assert.equal(perfLogs.length, 1);
-  assert.match(perfLogs[0], /paintColors=2 refreshColor=2/);
-  assert.match(perfLogs[0], /scan=2 bars=1$/);
-
-  probe.harness.scheduler.runByDelay(5);
-  perfLogs = probe.harness.logs.filter((line) =>
-    line.includes('[HP Colors Rewrite][Perf]'),
-  );
-  assert.equal(perfLogs.length, 2);
-  assert.match(
-    perfLogs[1],
-    /paintColors=0 refreshColor=0 applyCustomization=0 scan=0 bars=1$/,
+test('healthbar probe refuses to boot without the shared settings contract', () => {
+  const harness = createPanoramaHarness();
+  assert.throws(
+    () =>
+      runInVm(
+        probeSource,
+        createVmContext(harness, { includeGameUI: false }),
+        'healthbar_probe.js',
+      ),
+    /HP Colors settings contract unavailable/,
   );
 });
+
 
 
 test('pips and enemy-player level tiers are reversible', () => {
@@ -229,29 +218,42 @@ test('stable scan and paint do not repeat panel writes', () => {
   );
 });
 
-test('data telemetry ignores raw geometry churn within the same displayed percent', () => {
+test('stable scan skips the child-tree walk and duplicate health geometry reads', () => {
+  const probe = bootProbe(['enemy', 'player', 'team1'], { barWidth: 50 });
+  publishConfig(probe.harness, 1, {
+    enabled: true,
+    enemyEnabled: true,
+    enemyPulseEnabled: false,
+  });
+  probe.harness.operationCounts.layoutWidthReads = 0;
+  const childrenReads = probe.harness.operationCounts.childrenReads;
+
+  probe.harness.scheduler.takeByFunctionName('scan').fn();
+
+  assert.equal(probe.harness.operationCounts.childrenReads, childrenReads);
+  assert.equal(probe.harness.operationCounts.layoutWidthReads, 0);
+
+  probe.harness.scheduler.takeByFunctionName('paintColors').fn();
+  assert.equal(probe.harness.operationCounts.layoutWidthReads, 4);
+});
+
+test('health transitions do not emit per-bar data diagnostics', () => {
   const probe = bootProbe(['enemy', 'player', 'team1'], {
     barWidth: 50,
     parentWidth: 100,
   });
   probe.harness.logs.length = 0;
 
-  probe.tree.lagging.actuallayoutwidth = 50.4;
+  probe.tree.lagging.actuallayoutwidth = 51.2;
+  probe.harness.scheduler.takeByFunctionName('paintColors').fn();
   probe.harness.scheduler.takeByFunctionName('scan').fn();
+
   assert.equal(
     probe.harness.logs.filter((line) =>
       line.includes('[HP Colors Rewrite] data id='),
     ).length,
     0,
   );
-
-  probe.tree.lagging.actuallayoutwidth = 51.2;
-  probe.harness.scheduler.takeByFunctionName('scan').fn();
-  const dataLogs = probe.harness.logs.filter((line) =>
-    line.includes('[HP Colors Rewrite] data id='),
-  );
-  assert.equal(dataLogs.length, 1);
-  assert.match(dataLogs[0], /width_percent=51$/);
 });
 test('enemy player kill marker renders static cached geometry and color', () => {
   const probe = bootProbe(['enemy', 'player', 'team1'], {
@@ -988,8 +990,9 @@ test('identical config replay is ignored after immediate application', () => {
 
 
 test('editor, overlay, and CSS expose the focused feature contract', () => {
-  assert.match(stateSource, /enemyPulseColorMode:\s*"gradient"/);
-  assert.match(probeSource, /enemyPulseColorMode:\s*"gradient"/);
+  assert.match(contractSource, /enemyPulseColorMode:\s*"gradient"/);
+  assert.match(hudLayoutSource, /hp_colors_contract\.vjs_c[\s\S]*hp_colors_state\.vjs_c/);
+  assert.match(overlayLayoutSource, /hp_colors_contract\.vjs_c[\s\S]*healthbar_probe\.vjs_c/);
   assert.match(hudLayoutSource, /id="HPColorsSettingsReadoutLevels"/);
   assert.match(hudLayoutSource, /id="HPColorsSettingsEnemyPulse"/);
   assert.match(hudLayoutSource, /id="HPColorsSettingsAllyPulse"/);

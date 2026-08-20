@@ -1,95 +1,151 @@
-<!-- Stock hud_escape_menu.xml from SteamDatabase/GameTracking-Deadlock with only HP Colors includes and panels added. -->
+<!-- Generated from pak03 SHA-256 7e642086e12d05d8ca9f41e46f5104e33d730a37e07c38bee3945c0cfa482bcc by refresh-hp-colors-rewrite-qollock.js -->
 <root>
-  <styles>
-    <include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
-    <include src="s2r://panorama/styles/hud_escape_menu.vcss_c" />
-    <include src="s2r://panorama/styles/hp_colors_menu.vcss_c" />
-  </styles>
-  <scripts>
-    <include src="s2r://panorama/scripts/hp_colors_contract.vjs_c" />
-    <include src="s2r://panorama/scripts/hp_colors_state.vjs_c" />
-    <include src="s2r://panorama/scripts/hp_colors_menu.vjs_c" />
-  </scripts>
-  <CitadelHudEscapeMenu onload="$.HPColorsMenuBoot()" oncancel="if (!$.HPColorsMenuCancel()) CitadelResumePlaying()">
-    <Panel id="EscapeBackground" onactivate="CitadelResumePlaying()" />
-    <Panel id="LeftStripeBlur" />
-    <Panel id="LeftStripe" hittest="false">
-      <Panel id="Menu" hittest="false">
-        <Panel id="ContextualMenu">
-          <Panel class="MatchmakingOptions OptionGroup">
-            <Button id="matchmakingLeaveQueue" class="nav_menu_item primary endsession" onactivate="CitadelLeaveMatchmaking()">
-              <Label text="#menu_leave_queue" class="menuButtonLabel" antialias="true" />
-            </Button>
-            <Button id="matchmakingEditRoster" class="nav_menu_item primary" onactivate="CitadelEditMatchmakingRoster()">
-              <Panel class="MenuIcon" />
-              <Label text="#menu_edit_roster" class="menuButtonLabel" />
-            </Button>
-          </Panel>
-          <Panel class="ReconnectOptions OptionGroup">
-            <Button id="reconnectRejoin" class="nav_menu_item primary" onactivate="CitadelReconnect()" onmouseover="UIShowTextTooltip( #Citadel_Dashboard_RejoinTooltip )" onmouseout="UIHideTextTooltip()">
-              <Label text="#menu_rejoin" class="menuButtonLabel" />
-            </Button>
-            <Button id="reconnectAbandon" class="nav_menu_item primary endsession" onactivate="CitadelConfirmAbandonGame()">
-              <Label text="{s:reconnect_abandon_action}" class="menuButtonLabel" />
-            </Button>
-          </Panel>
-          <Button id="disconnect" class="nav_menu_item primary" onactivate="CitadelDisconnectFromGame()">
-            <Label text="#menu_disconnect" class="menuButtonLabel" />
-          </Button>
-          <Button id="abandon" class="nav_menu_item primary endsession" onactivate="CitadelConfirmAbandonGame()">
-            <Label text="{s:abandon_action}" class="menuButtonLabel" />
-          </Button>
-          <Button id="Unstick" class="nav_menu_item minor" onactivate="CitadelConCommand( &apos;unstick&apos; );" onmouseover="CitadelUIShowTextTooltip( &apos;#DevMenu_UnstickHeroTooltip&apos; )" onmouseout="CitadelUIHideTextTooltip()">
-            <Label text="#DevMenu_UnstickHero" class="menuButtonLabel" />
-          </Button>
-        </Panel>
-        <Button id="changehero" class="nav_menu_item primary" onactivate="CitadelEscapeMenuChangeHero()">
-          <Label text="#menu_changehero" class="menuButtonLabel" />
-        </Button>
-        <Panel id="SubOptions">
-          <Panel class="FeedbackRow">
-            <Button id="PlayerFeedback" class="nav_menu_item minor" onactivate="CitadelShowPlayerFeedbackPopup()">
-              <Label text="#Citadel_PlayerFeedback_Title" class="menuButtonLabel" />
-            </Button>
-          </Panel>
-          <Button id="HPColorsMenuButton" class="nav_menu_item minor">
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/hud_escape_menu.vcss_c" />
+		<include src="s2r://panorama/styles/ql_settings.vcss_c" />
+		<include src="s2r://panorama/styles/hp_colors_menu.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/ql_utils.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_shared_presets.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_bridge.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_config.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_custom_announcer_pack_meta.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_en.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_ko.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_it.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_tr.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_ru.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_uk.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_pl.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_bg.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_by.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_ja.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_zh.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_fr.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_pt.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_pt_br.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_es.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_arcade_games.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_previews.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_tooltips.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_persistence.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_update_checker.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings.vjs_c" />
+		<include src="s2r://panorama/scripts/qollock_settings_guard.vjs_c" />
+		<include src="s2r://panorama/scripts/hp_colors_contract.vjs_c" />
+		<include src="s2r://panorama/scripts/hp_colors_state.vjs_c" />
+		<include src="s2r://panorama/scripts/hp_colors_menu.vjs_c" />
+		<include src="s2r://panorama/scripts/qollock_hp_colors_bridge.vjs_c" />
+	</scripts>
+	<CitadelHudEscapeMenu oncancel="if ($.HPColorsMenuCancel && $.HPColorsMenuCancel()) {} else if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }" onload="$.HPColorsMenuBoot()">
+		<Panel id="EscapeBackground" onactivate="if ($.HPColorsMenuCancel && $.HPColorsMenuCancel()) {} else if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }" />
+		<Panel id="SettingsWindow" hittest="true" onactivate="">
+			<Panel id="SettingsHeader">
+				<Label id="SettingsTitle" text="QOL LOCK" />
+				<Button id="CloseBtn" onactivate="if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }">
+					<Label text="X" />
+				</Button>
+			</Panel>
+			<Panel id="SettingsBody" hittest="true">
+				<Panel id="SettingsList" hittest="true" onload="if ($.BuildUI) { $.BuildUI(); }" />
+			</Panel>
+		</Panel>
+		<Panel id="LeftStripeBlur" />
+		<Panel id="LeftStripe" hittest="false">
+			<Panel id="Menu" hittest="false">
+				<Panel id="ContextualMenu">
+					<Panel class="MatchmakingOptions OptionGroup">
+						<Button id="matchmakingLeaveQueue" class="nav_menu_item primary endsession" onactivate="CitadelLeaveMatchmaking()">
+							<Label text="#menu_leave_queue" class="menuButtonLabel" antialias="true" />
+						</Button>
+						<Button id="matchmakingEditRoster" class="nav_menu_item primary" onactivate="CitadelEditMatchmakingRoster()">
+							<Panel class="MenuIcon" />
+							<Label text="#menu_edit_roster" class="menuButtonLabel" />
+						</Button>
+					</Panel>
+					<Panel class="ReconnectOptions OptionGroup">
+						<Button id="reconnectRejoin" class="nav_menu_item primary" onactivate="CitadelReconnect()" onmouseover="UIShowTextTooltip( #Citadel_Dashboard_RejoinTooltip )" onmouseout="UIHideTextTooltip()">
+							<Label text="#menu_rejoin" class="menuButtonLabel" />
+						</Button>
+						<Button id="reconnectAbandon" class="nav_menu_item primary endsession" onactivate="CitadelConfirmAbandonGame()">
+							<Label text="{s:reconnect_abandon_action}" class="menuButtonLabel" />
+						</Button>
+					</Panel>
+					<Button id="disconnect" class="nav_menu_item primary" onactivate="CitadelDisconnectFromGame()">
+						<Label text="#menu_disconnect" class="menuButtonLabel" />
+					</Button>
+					<Button id="abandon" class="nav_menu_item primary endsession" onactivate="CitadelConfirmAbandonGame()">
+						<Label text="{s:abandon_action}" class="menuButtonLabel" />
+					</Button>
+					<Button id="Unstick" class="nav_menu_item minor" onactivate="CitadelConCommand( &apos;unstick&apos; );" onmouseover="CitadelUIShowTextTooltip( &apos;#DevMenu_UnstickHeroTooltip&apos; )" onmouseout="CitadelUIHideTextTooltip()">
+						<Label text="#DevMenu_UnstickHero" class="menuButtonLabel" />
+					</Button>
+				</Panel>
+				<Button id="newgame" class="nav_menu_item primary" onactivate="CitadelShowPlayPage()">
+					<Label text="#menu_play" class="menuButtonLabel" />
+				</Button>
+				<Button id="watchgame" class="nav_menu_item primary" onactivate="CitadelShowWatchPage( true )">
+					<Label text="#menu_watch" class="menuButtonLabel" />
+				</Button>
+				<Button id="guides" class="nav_menu_item primary" onactivate="CitadelShowTrainingPage()">
+					<Label text="#menu_resources" class="menuButtonLabel" />
+				</Button>
+				<Button id="changehero" class="nav_menu_item primary" onactivate="CitadelEscapeMenuChangeHero()">
+					<Label text="#menu_changehero" class="menuButtonLabel" />
+				</Button>
+				<Panel id="SubOptions">
+					<Panel class="FeedbackRow">
+						<Button id="PlayerFeedback" class="nav_menu_item minor" onactivate="CitadelShowPlayerFeedbackPopup()">
+							<Label text="#Citadel_PlayerFeedback_Title" class="menuButtonLabel" />
+						</Button>
+					</Panel>
+					<Panel class="SettingsRow">
+						<Button id="ModSettingsBtn" class="nav_menu_item minor" onactivate="if ($.ToggleSettingsWindow) { $.ToggleSettingsWindow(); }">
+							<Label text="QOL LOCK" class="menuButtonLabel" />
+							<Image id="ModSettingsGearIcon" class="smallIcon" src="s2r://panorama/images/icons/icon_gear.vsvg" />
+						</Button>
+<Button id="HPColorsMenuButton" class="nav_menu_item minor">
             <Label text="HP COLORS" class="menuButtonLabel" />
           </Button>
-          <Panel class="SettingsRow">
-            <Button id="settings" class="nav_menu_item minor" onactivate="CitadelSettings()">
-              <Panel class="smallIcon GearIcon" />
-              <Label text="#menu_settings" class="menuButtonLabel" />
-            </Button>
-            <Button id="QuickMute" class="nav_menu_item minor" onactivate="CitadelMuteButtonClicked();" onmouseover="CitadelUIShowTextTooltip( &apos;#citadel_mute_game_audio&apos; )" onmouseout="CitadelUIHideTextTooltip()" />
-          </Panel>
-          <Button id="quit" onactivate="CitadelQuitConfirm()">
-            <Label text="#menu_exit_deadlock" />
-          </Button>
-        </Panel>
-      </Panel>
-    </Panel>
-    <CitadelPrivilegedFeatures id="PrivilegedFeatures" />
-    <CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="CitadelResumePlaying()" text="#menu_resume" />
-    <Panel id="RightSideBlur" hittest="false" />
-    <Panel id="RightSide" hittest="false">
-      <Panel id="PartySpacer" />
-      <Panel class="FriendsOrPlayersTabs">
-        <Panel class="Center">
-          <TabButton id="FriendsTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Friends_WindowTitle" selected="true" />
-          <TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" />
-        </Panel>
-      </Panel>
-      <Panel class="FriendsOrPlayersContents" hittest="false">
-        <TabContents id="FriendsTabContents" tabid="FriendsTab" group="people_list_tabs" hittest="false" selected="true">
-          <CitadelFriendsList id="FriendsList" />
-        </TabContents>
-        <TabContents id="PlayersTabContents" tabid="PlayersTab" group="people_list_tabs" hittest="false">
-          <CitadelPlayersList id="PlayersList" />
-        </TabContents>
-      </Panel>
-    </Panel>
-
-    <Panel id="HPColorsEditorRoot" class="HPColorsEditorRoot" hittest="true">
+					</Panel>
+					<Panel class="SettingsRow">
+						<Button id="settings" class="nav_menu_item minor" onactivate="CitadelSettings()">
+							<Panel class="smallIcon GearIcon" />
+							<Label text="#menu_settings" class="menuButtonLabel" />
+						</Button>
+						<Button id="QuickMute" class="nav_menu_item minor" onactivate="CitadelMuteButtonClicked();" onmouseover="CitadelUIShowTextTooltip( &apos;#citadel_mute_game_audio&apos; )" onmouseout="CitadelUIHideTextTooltip()" />
+					</Panel>
+					<Button id="quit" onactivate="CitadelQuitConfirm()">
+						<Label text="#menu_exit_deadlock" />
+					</Button>
+				</Panel>
+			</Panel>
+		</Panel>
+		<CitadelPrivilegedFeatures id="PrivilegedFeatures" />
+		<Button id="EscapeButton" onactivate="CitadelResumePlaying()">
+			<CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="CitadelResumePlaying()" text="#menu_resume" />
+		</Button>
+		<Panel id="RightSideBlur" hittest="false" />
+		<Panel id="RightSide" hittest="false">
+			<Panel id="PartySpacer" />
+			<Panel class="FriendsOrPlayersTabs">
+				<Panel class="Center">
+					<TabButton id="FriendsTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Friends_WindowTitle" selected="true" />
+					<TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" />
+				</Panel>
+			</Panel>
+			<Panel class="FriendsOrPlayersContents" hittest="false">
+				<TabContents id="FriendsTabContents" tabid="FriendsTab" group="people_list_tabs" hittest="false" selected="true">
+					<CitadelFriendsList id="FriendsList" />
+				</TabContents>
+				<TabContents id="PlayersTabContents" tabid="PlayersTab" group="people_list_tabs" hittest="false">
+					<CitadelPlayersList id="PlayersList" />
+				</TabContents>
+			</Panel>
+		</Panel>
+<Panel id="HPColorsEditorRoot" class="HPColorsEditorRoot" hittest="true">
       <Panel class="HPColorsEditorBackdrop" hittest="false" />
       <Panel id="HPColorsEditorShell" class="HPColorsEditorShell">
         <Panel class="HPColorsEditorHeader">
@@ -843,7 +899,7 @@
       </Panel>
       <Panel id="HPColorsPeekCapture" class="HPColorsPeekCapture" />
     </Panel>
-    <Panel id="HPColorsRewritePresetStore"
+<Panel id="HPColorsRewritePresetStore"
       class="hp_colors_rewrite_preset_store"
       hittest="false"
       hittestchildren="false"
@@ -854,5 +910,5 @@
         class="hp_colors_rewrite_preset_entry"
         text="" />
     </Panel>
-  </CitadelHudEscapeMenu>
+	</CitadelHudEscapeMenu>
 </root>
