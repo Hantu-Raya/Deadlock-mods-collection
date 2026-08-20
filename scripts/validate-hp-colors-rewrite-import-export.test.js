@@ -145,7 +145,7 @@ test('copy current refreshes the compact clipboard code without showing it', () 
   dialog.exportButton.events.onactivate();
 
   assert.equal(harness.clipboardWrites.length, 1);
-  assert.match(harness.clipboardWrites[0], /^HPCR2\[/);
+  assert.match(harness.clipboardWrites[0], /^HPCR2\{/);
   assert.equal(dialog.input.text, '');
   assert.equal(dialog.feedback.text, 'CURRENT SETTINGS COPIED');
   assert.equal(configDispatches(harness).length, 0);
@@ -201,8 +201,9 @@ test('compact code uses canonical ascending setting indexes', () => {
   const dialog = openTransfer(harness);
   dialog.exportButton.events.onactivate();
   const code = harness.clipboardWrites[0];
-  const pairs = JSON.parse(code.slice(5));
-  assert.deepEqual(pairs.map((pair) => pair[0]), [1, 6]);
+  const payload = JSON.parse(code.slice(5));
+  assert.deepEqual(payload.v.map((pair) => pair[0]), [1, 6]);
+  assert.deepEqual(payload.c, {});
 });
 
 test('valid compact import creates one Undo entry', () => {
@@ -231,7 +232,10 @@ test('native TextEntry copy succeeds when bare string copy is unavailable', () =
   const dialog = openTransfer(harness);
   dialog.exportButton.events.onactivate();
   assert.equal(harness.clipboardWrites.length, 1);
-  assert.equal(harness.clipboardWrites[0], 'HPCR2[]');
+  assert.equal(
+    harness.clipboardWrites[0],
+    'HPCR2{"v":[],"c":{}}',
+  );
   assert.equal(dialog.input.text, '');
   assert.equal(dialog.feedback.text, 'CURRENT SETTINGS COPIED');
   assert.equal(dialog.root.BHasClass('Error'), false);

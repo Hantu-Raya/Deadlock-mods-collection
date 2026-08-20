@@ -60,6 +60,35 @@ function bootProbe(classes, options = {}) {
   );
   return { harness, tree };
 }
+test('healthbar probe reports and resets hot-path call counts every five seconds', () => {
+  const probe = bootProbe(['enemy', 'player', 'team1']);
+  assert.equal(
+    probe.harness.scheduler.nextDelayByFunctionName('flushPerfDebug'),
+    5,
+  );
+
+  probe.harness.scheduler.takeByFunctionName('paintColors').fn();
+  probe.harness.scheduler.takeByFunctionName('scan').fn();
+  probe.harness.scheduler.runByDelay(5);
+
+  let perfLogs = probe.harness.logs.filter((line) =>
+    line.includes('[HP Colors Rewrite][Perf]'),
+  );
+  assert.equal(perfLogs.length, 1);
+  assert.match(perfLogs[0], /paintColors=2 refreshColor=2/);
+  assert.match(perfLogs[0], /scan=2 bars=1$/);
+
+  probe.harness.scheduler.runByDelay(5);
+  perfLogs = probe.harness.logs.filter((line) =>
+    line.includes('[HP Colors Rewrite][Perf]'),
+  );
+  assert.equal(perfLogs.length, 2);
+  assert.match(
+    perfLogs[1],
+    /paintColors=0 refreshColor=0 applyCustomization=0 scan=0 bars=1$/,
+  );
+});
+
 
 test('pips and enemy-player level tiers are reversible', () => {
   const probe = bootProbe(['enemy', 'player', 'team1'], { levelText: '19' });
@@ -687,6 +716,21 @@ test('live pulse mode, BPM, and intensity changes apply immediately', () => {
   assert.equal(probe.tree.lagging.style.animationDuration, '');
 });
 
+test('custom gradient pulse intensity changes both opacity endpoints', () => {
+  assert.match(
+    unitStatusCssSource,
+    /HPColorsRewriteColorPulseSubtleKeyframes[\s\S]*?0%\s*\{\s*opacity:\s*0\.15;\s*\}[\s\S]*?100%\s*\{\s*opacity:\s*0\.45;\s*\}/,
+  );
+  assert.match(
+    unitStatusCssSource,
+    /HPColorsRewriteColorPulseMediumKeyframes[\s\S]*?0%\s*\{\s*opacity:\s*0\.10;\s*\}[\s\S]*?100%\s*\{\s*opacity:\s*0\.75;\s*\}/,
+  );
+  assert.match(
+    unitStatusCssSource,
+    /HPColorsRewriteColorPulseIntenseKeyframes[\s\S]*?0%\s*\{\s*opacity:\s*0;\s*\}[\s\S]*?100%\s*\{\s*opacity:\s*1;\s*\}/,
+  );
+});
+
 
 test('ally pulse is independent and uses only its fixed custom color', () => {
   const probe = bootProbe(['friend', 'player', 'team1'], {
@@ -793,7 +837,7 @@ test('role and exclusion transitions clear owned presentation', () => {
     ...base,
     excludeBuildings: true,
   });
-  assert.equal(probe.tree.lagging.style.washColor, '');
+  assert.equal(probe.tree.lagging.style.washColor, '#FD4949');
   assert.equal(probe.tree.unitHealthbar.style.opacity, '');
   assert.equal(probe.tree.counter.style.visibility, 'collapse');
   assert.equal(probe.tree.counter.text, '');
@@ -808,6 +852,41 @@ test('role and exclusion transitions clear owned presentation', () => {
   assert.equal(probe.tree.counter.style.visibility, 'collapse');
   assert.equal(probe.tree.counter.text, '');
   assert.equal(probe.tree.unitStatus.BHasClass('level_tier3'), false);
+});
+
+test('neutral role transition clears a recycled enemy pulse without config refresh', () => {
+  const probe = bootProbe(['enemy', 'player', 'team1'], {
+    barWidth: 20,
+    parentWidth: 100,
+  });
+  publishConfig(probe.harness, 1, {
+    enabled: true,
+    enemyEnabled: true,
+    enemyMode: 'gradient',
+    enemyPulseEnabled: true,
+    enemyPulseThreshold: 25,
+    enemyPulseColorEnabled: true,
+    enemyPulseColorMode: 'gradient',
+    enemyPulseColor: '#FF2222',
+  });
+  assert.equal(
+    probe.tree.pulseOverlay.BHasClass('HPColorsRewriteColorPulse'),
+    true,
+  );
+
+  probe.tree.unitStatus.RemoveClass('enemy');
+  probe.tree.unitStatus.AddClass('team_neutral');
+  probe.harness.scheduler.takeByFunctionName('scan').fn();
+  probe.harness.scheduler.takeByFunctionName('paintColors').fn();
+
+  assert.equal(
+    probe.tree.pulseOverlay.BHasClass('HPColorsRewriteColorPulse'),
+    false,
+  );
+  assert.equal(probe.tree.pulseOverlay.style.visibility, '');
+  assert.equal(probe.tree.pulseOverlay.style.washColor, '');
+  assert.equal(probe.tree.pulseOverlay.style.width, '');
+  assert.equal(probe.tree.lagging.style.washColor, '#5BEFB5');
 });
 
 test('removed and replaced panels do not retain pulse ownership', () => {

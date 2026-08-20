@@ -5,6 +5,15 @@
   var MENU_STATE_ATTR = "hp_colors_rewrite_menu_state";
   var EVENT_CHANNEL = "ClientUI_FireOutput";
   var CONFIG_MAGIC = "HP_COLORS_REWRITE_CONFIG";
+  var PRESET_STORE_ID = "HPColorsRewritePresetStore";
+  var PRESET_LABEL_ID = "HPColorsRewritePreset_001";
+  var PRESET_ENTRY_CLASS = "hp_colors_rewrite_preset_entry";
+  var PRESET_STORE_CONTRACT_ATTR = "hp_colors_rewrite_preset_contract";
+  var PRESET_STORE_VERSION_ATTR = "hp_colors_rewrite_preset_version";
+  var PRESET_STORE_CONTRACT = "HPCRP1";
+  var PRESET_STORE_VERSION = "1";
+  var PRESET_STORE_MAX_HEX_LENGTH = 524288;
+  var presetStoreBootMessageShown = false;
   var PRECISE_PIPS_ENABLE_TEXT =
     '"citadel_unit_status_health_per_minor_pip" "10"\n' +
     '"citadel_unit_status_health_per_pip" "10"\n' +
@@ -35,10 +44,10 @@
       name: "OVERVIEW",
       tabs: [
         {
-          name: "STATUS",
-          title: "CURRENT CONFIGURATION",
+          name: "MASTER",
+          title: "MASTER SWITCH",
           description:
-            "Enable the rewrite, then tune enemy and ally bars while holding Peek to inspect the result.",
+            "Turn HP Colors on or off, then use Peek to review enemy and ally bars.",
           pageId: "HPColorsSettingsOverviewStatus",
           keys: ["enabled"],
         },
@@ -46,7 +55,7 @@
           name: "LAYOUT",
           title: "BAR LAYOUT",
           description:
-            "Scale and position relation-owned v1 healthbars without changing engine-driven fill ratios.",
+            "Resize and move the healthbar stack only. Unit, ultimate, and level icons keep their stock size and position.",
           pageId: "HPColorsSettingsOverviewLayout",
           keys: ["widthScale", "heightScale", "positionX", "positionY"],
         },
@@ -54,7 +63,7 @@
           name: "PRESETS",
           title: "PRESET LIBRARY",
           description:
-            "Create, update, apply, and order session presets without leaving this page.",
+            "Create, update, apply, and reorder presets for this session.",
           pageId: "HPColorsSettingsOverviewHero",
           keys: [],
         },
@@ -67,7 +76,7 @@
           name: "BAR",
           title: "ENEMY BAR",
           description:
-            "Fixed steps between low, mid, and high colors; Gradient blends them. Neutral units remain stock.",
+            "Choose fixed low, mid, and high colors or blend between them. Neutral units keep their default bars.",
           pageId: "HPColorsSettingsEnemyBar",
           keys: [
             "enemyEnabled",
@@ -76,117 +85,32 @@
             "enemyLow",
             "enemyMid",
             "enemyHigh",
-            "lowThreshold",
-            "highThreshold",
             "enemyTeamHigh",
             "excludeBuildings",
             "excludeBosses",
           ],
         },
         {
-          name: "FEEDBACK",
-          title: "ENEMY FEEDBACK",
+          name: "HEAL & DAMAGE",
+          title: "HEAL & DAMAGE",
           description:
-            "Color engine-owned healing and recent-damage layers without changing their widths.",
+            "Choose the colors for healing and recent damage on enemy bars.",
           pageId: "HPColorsSettingsEnemyFeedback",
           keys: ["enemyHealing", "enemyDelta"],
         },
         {
-          name: "ICONS",
-          title: "ENEMY SHIELDS & ICONS",
-          description:
-            "Tint bullet shields and ultimate-ready icons without changing engine geometry or visibility.",
-          pageId: "HPColorsSettingsEnemyShields",
-          keys: ["enemyBulletShield", "ultMode", "ultCustom"],
-        },
-      ],
-    },
-    {
-      name: "ALLY",
-      tabs: [
-        {
-          name: "BAR",
-          title: "ALLY BAR",
-          description:
-            "Fixed steps between low, mid, and high colors; Gradient blends them using the shared thresholds.",
-          pageId: "HPColorsSettingsAllyBar",
-          keys: [
-            "allyEnabled",
-            "allyVisible",
-            "allyMode",
-            "allyLow",
-            "allyMid",
-            "allyHigh",
-          ],
-        },
-        {
-          name: "FEEDBACK",
-          title: "ALLY FEEDBACK",
-          description:
-            "Color engine-owned healing and recent-damage layers on customized ally bars.",
-          pageId: "HPColorsSettingsAllyFeedback",
-          keys: ["allyHealing", "allyDelta"],
-        },
-        {
           name: "SHIELDS",
-          title: "ALLY SHIELDS",
+          title: "SHIELDS",
           description:
-            "Tint the ally bullet-shield layer without changing engine shield geometry.",
-          pageId: "HPColorsSettingsAllyShields",
-          keys: ["allyBulletShield"],
-        },
-      ],
-    },
-    {
-      name: "READOUT",
-      tabs: [
-        {
-          name: "NUMBER",
-          title: "HP NUMBER",
-          description:
-            "Show enemy health as current and maximum HP, percentage, or current HP only.",
-          pageId: "HPColorsSettingsReadoutNumber",
-          keys: [
-            "readoutVisible",
-            "readoutFormat",
-            "readoutSize",
-            "readoutFont",
-            "readoutColorMode",
-            "readoutMode",
-            "lowThreshold",
-            "highThreshold",
-            "readoutLow",
-            "readoutMid",
-            "readoutHigh",
-          ],
+            "Choose the color for enemy bullet-shield indicators.",
+          pageId: "HPColorsSettingsEnemyShields",
+          keys: ["enemyBulletShield"],
         },
         {
-          name: "PLACEMENT",
-          title: "HP NUMBER PLACEMENT",
+          name: "PULSE",
+          title: "ENEMY PULSE",
           description:
-            "Offset the owned HP number without moving the stock healthbar or unit icon.",
-          pageId: "HPColorsSettingsReadoutPlacement",
-          keys: ["readoutOffsetX", "readoutOffsetY"],
-        },
-        {
-          name: "LEVEL & PIPS",
-          title: "LEVELS & HEALTH PIPS",
-          description:
-            "Control enemy health pips and player level visibility without changing engine-owned text or geometry.",
-          pageId: "HPColorsSettingsReadoutLevels",
-          keys: ["pipsVisible", "precisePipsEnabled", "levelsVisible"],
-        },
-
-      ],
-    },
-    {
-      name: "EFFECTS",
-      tabs: [
-        {
-          name: "ENEMY PULSE",
-          title: "ENEMY LOW-HP PULSE",
-          description:
-            "Pulse enemy bars at or below the threshold without changing engine-owned widths or timing.",
+            "Make enemy bars pulse when their health reaches the threshold.",
           pageId: "HPColorsSettingsEnemyPulse",
           keys: [
             "enemyPulseEnabled",
@@ -208,7 +132,7 @@
           name: "KILL MARKER",
           title: "ENEMY KILL MARKER",
           description:
-            "Show a static marker on visible enemy player healthbars at a configurable health threshold.",
+            "Show a marker on visible enemy player healthbars at your chosen health threshold.",
           pageId: "HPColorsSettingsEnemyKillMarker",
           keys: [
             "enemyKillMarkerEnabled",
@@ -217,11 +141,46 @@
             "enemyKillMarkerColor",
           ],
         },
+      ],
+    },
+    {
+      name: "ALLY",
+      tabs: [
         {
-          name: "ALLY PULSE",
-          title: "ALLY LOW-HP PULSE",
+          name: "BAR",
+          title: "ALLY BAR",
           description:
-            "Pulse customized ally bars at or below their independent threshold.",
+            "Choose fixed low, mid, and high ally colors or blend between them using the shared thresholds.",
+          pageId: "HPColorsSettingsAllyBar",
+          keys: [
+            "allyEnabled",
+            "allyVisible",
+            "allyMode",
+            "allyLow",
+            "allyMid",
+            "allyHigh",
+          ],
+        },
+        {
+          name: "HEAL & DAMAGE",
+          title: "HEAL & DAMAGE",
+          description:
+            "Choose the colors for healing and recent damage on ally bars.",
+          pageId: "HPColorsSettingsAllyFeedback",
+          keys: ["allyHealing", "allyDelta"],
+        },
+        {
+          name: "SHIELDS",
+          title: "ALLY SHIELDS",
+          description: "Choose the color for ally bullet shields.",
+          pageId: "HPColorsSettingsAllyShields",
+          keys: ["allyBulletShield"],
+        },
+        {
+          name: "PULSE",
+          title: "ALLY PULSE",
+          description:
+            "Make ally bars pulse when their health reaches the threshold.",
           pageId: "HPColorsSettingsAllyPulse",
           keys: [
             "allyPulseEnabled",
@@ -234,6 +193,53 @@
         },
       ],
     },
+    {
+      name: "HEALTH INFO",
+      tabs: [
+        {
+          name: "HP TEXT",
+          title: "HP TEXT",
+          description:
+            "Choose how enemy HP appears: current and maximum, percentage, or current only.",
+          pageId: "HPColorsSettingsReadoutNumber",
+          keys: [
+            "readoutVisible",
+            "readoutFormat",
+            "readoutSize",
+            "readoutFont",
+            "readoutColorMode",
+            "readoutMode",
+            "lowThreshold",
+            "highThreshold",
+            "readoutLow",
+            "readoutMid",
+            "readoutHigh",
+          ],
+        },
+        {
+          name: "TEXT POSITION",
+          title: "TEXT POSITION",
+          description:
+            "Move the HP text without moving the healthbar or unit icon.",
+          pageId: "HPColorsSettingsReadoutPlacement",
+          keys: ["readoutOffsetX", "readoutOffsetY"],
+        },
+        {
+          name: "INDICATORS",
+          title: "INDICATORS",
+          description:
+            "Control enemy health pips and levels plus the shared ultimate-ready icon color rule.",
+          pageId: "HPColorsSettingsReadoutLevels",
+          keys: [
+            "pipsVisible",
+            "precisePipsEnabled",
+            "levelsVisible",
+            "ultMode",
+            "ultCustom",
+          ],
+        },
+      ],
+    },
   ];
 
   var CATEGORY_BUTTON_IDS = [
@@ -241,7 +247,6 @@
     "HPColorsCategoryEnemy",
     "HPColorsCategoryAlly",
     "HPColorsCategoryReadout",
-    "HPColorsCategoryEffects",
   ];
   var COLOR_KEYS = {
     enemyLow: true,
@@ -269,18 +274,18 @@
     enemyMid: "ENEMY MID",
     enemyHigh: "ENEMY HIGH",
     enemyHealing: "ENEMY HEALING",
-    enemyDelta: "ENEMY DAMAGE DELTA",
+    enemyDelta: "ENEMY RECENT DAMAGE",
     enemyBulletShield: "ENEMY BULLET SHIELD",
     allyLow: "ALLY LOW",
     allyMid: "ALLY MID",
     allyHigh: "ALLY HIGH",
     allyHealing: "ALLY HEALING",
-    allyDelta: "ALLY DAMAGE DELTA",
+    allyDelta: "ALLY RECENT DAMAGE",
     allyBulletShield: "ALLY BULLET SHIELD",
     ultCustom: "ULTIMATE ICON",
-    readoutLow: "HP NUMBER LOW",
-    readoutMid: "HP NUMBER MID",
-    readoutHigh: "HP NUMBER HIGH",
+    readoutLow: "HEALTH TEXT LOW",
+    readoutMid: "HEALTH TEXT MID",
+    readoutHigh: "HEALTH TEXT HIGH",
     enemyPulseColor: "ENEMY PULSE COLOR",
     enemyKillMarkerColor: "ENEMY KILL MARKER COLOR",
   };
@@ -305,7 +310,8 @@
     values: {
       get: function () {
         var view = currentView();
-        return view ? view.values : {};
+        if (!view) return {};
+        return view.currentScope ? view.currentScope.values : view.values;
       },
     },
     conditions: {
@@ -376,7 +382,7 @@
     var copied = false;
     try {
       copied = $.DispatchEvent("CopyStringToClipboard", text) !== false;
-    } catch (error) {}
+    } catch {}
     if (!copied) {
       var input =
         effect.purpose === "settings"
@@ -386,12 +392,12 @@
         if (isValid(input)) {
           input.text = text;
           focus(input);
-          if (typeof input.SelectAll === "function") input.SelectAll();
+          if (isCallable(input.SelectAll)) input.SelectAll();
           copied =
             $.DispatchEvent("TextEntryCopyToClipboard", input) !== false;
           input.text = "";
         }
-      } catch (error) {}
+      } catch {}
     }
     return copied;
   }
@@ -458,8 +464,11 @@
     scopeCloseButton: null,
     presetNameInput: null,
     presetSaveButton: null,
+    presetSaveButtonLabel: null,
     presetSaveMode: null,
     presetNewButton: null,
+    presetForm: null,
+    presetCancelEditButton: null,
     presetOptions: null,
     presetFeedback: null,
     presetCopyAllButton: null,
@@ -470,6 +479,7 @@
     presetTransferConfirmButton: null,
     presetTransferCloseButton: null,
     presetRestoreBakedButton: null,
+    presetStorePanel: null,
     resetDialog: null,
     resetDialogTitle: null,
     resetDialogMessage: null,
@@ -533,14 +543,25 @@
   var presetDeleteConfirmId = "";
   var presetInlineRenameId = "";
   var presetInlineRenameInput = null;
+  var presetFormOpen = false;
+  var presetEditId = "";
   var presetTransferRequest = 0;
 
   function isValid(panel) {
     try {
       return !!(panel && (!panel.IsValid || panel.IsValid()));
-    } catch (error) {
+    } catch {
       return false;
     }
+  }
+  function isCallable(value) {
+    var tag = Object.prototype.toString.call(value);
+    return (
+      tag === "[object Function]" ||
+      tag === "[object AsyncFunction]" ||
+      tag === "[object GeneratorFunction]" ||
+      tag === "[object AsyncGeneratorFunction]"
+    );
   }
 
   function find(id) {
@@ -548,7 +569,7 @@
       return context && context.FindChildTraverse
         ? context.FindChildTraverse(id)
         : null;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -562,7 +583,7 @@
         var parent = current.GetParent ? current.GetParent() : null;
         if (!parent || parent === current) break;
         current = parent;
-      } catch (error) {
+      } catch {
         break;
       }
     }
@@ -573,7 +594,7 @@
     if (!isValid(panel)) return;
     try {
       panel.SetHasClass(className, !!enabled);
-    } catch (error) {}
+    } catch {}
   }
 
   function setEnabled(panel, enabled) {
@@ -581,35 +602,35 @@
     try {
       panel.enabled = !!enabled;
       panel.SetHasClass("Disabled", !enabled);
-    } catch (error) {}
+    } catch {}
   }
 
   function setText(panel, value) {
     if (!isValid(panel)) return;
     try {
       if (panel.text !== value) panel.text = value;
-    } catch (error) {}
+    } catch {}
   }
 
   function setPanelEvent(panel, eventName, handler) {
     if (!isValid(panel)) return;
     try {
       panel.SetPanelEvent(eventName, handler);
-    } catch (error) {}
+    } catch {}
   }
 
   function focus(panel) {
     if (!isValid(panel)) return;
     try {
       if (panel.SetFocus) panel.SetFocus();
-    } catch (error) {}
+    } catch {}
   }
 
   function panelHasClass(panel, className) {
     if (!isValid(panel)) return false;
     try {
       return !!(panel.BHasClass && panel.BHasClass(className));
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -618,7 +639,7 @@
     if (!isValid(panel)) return null;
     try {
       return panel.FindChildTraverse ? panel.FindChildTraverse(id) : null;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -629,7 +650,7 @@
       return panel.FindChildrenWithClassTraverse
         ? panel.FindChildrenWithClassTraverse(className) || []
         : [];
-    } catch (error) {
+    } catch {
       return [];
     }
   }
@@ -654,7 +675,7 @@
     if (!isValid(panel)) return "";
     try {
       return String(panel.text || "");
-    } catch (error) {
+    } catch {
       return "";
     }
   }
@@ -724,28 +745,28 @@
     try {
       source = image.GetAttributeString("src", "");
       if (!source) source = image.GetAttributeString("defaultsrc", "");
-    } catch (error) {
+    } catch {
       source = "";
     }
     if (!source) {
       try {
-        if (typeof image.GetSource === "function")
+        if (isCallable(image.GetSource))
           source = String(image.GetSource() || "");
-      } catch (error) {
+      } catch {
         source = "";
       }
     }
     if (!source) {
       try {
         source = String(image.src || "");
-      } catch (error) {
+      } catch {
         source = "";
       }
     }
     if (!source && image.style) {
       try {
         source = String(image.style.backgroundImage || "");
-      } catch (error) {
+      } catch {
         source = "";
       }
     }
@@ -782,10 +803,10 @@
       ability.artSources[slotIndex] !== source
     ) {
       try {
-        if (typeof image.SetImage === "function") image.SetImage(source);
+        if (isCallable(image.SetImage)) image.SetImage(source);
         else image.src = source;
         ability.artSources[slotIndex] = source;
-      } catch (error) {
+      } catch {
         setClass(button, "HasAbilityArt", false);
       }
     }
@@ -801,7 +822,7 @@
       try {
         if (ability.slots[index].GetParent() !== ability.slotParent)
           return false;
-      } catch (error) {
+      } catch {
         return false;
       }
     }
@@ -824,7 +845,7 @@
       if (isValid(anchor)) {
         try {
           slotParent = anchor.GetParent();
-        } catch (error) {
+        } catch {
           slotParent = null;
         }
       }
@@ -841,7 +862,7 @@
         if (!match) continue;
         ability.slots[Number(match[1]) - 1] = child;
       }
-    } catch (error) {}
+    } catch {}
 
     var missingReferencedSlot = false;
     for (var index = 0; index < ability.slots.length; index++) {
@@ -1009,7 +1030,7 @@
       var key = "";
       try {
         key = option.GetAttributeString("hp_colors_hero_key", "");
-      } catch (error) {}
+      } catch {}
       setClass(option, "Selected", key === manualHeroKey);
     }
   }
@@ -1127,35 +1148,17 @@
           view.identity.mode === HERO_MODE_AUTO &&
           view.identity.phase === HERO_PHASE_ACTIVE
         ) {
-          var pendingBefore =
-            view.repository && view.repository.pendingId
-              ? view.repository.pendingId
-              : "";
           sendState({
             type: "hero_observe",
             epoch: view.identity.epoch,
             heroName: readLocalHeroName(),
           });
-          var afterObserve = currentView();
-          if (
-            pendingBefore &&
-            afterObserve.repository &&
-            !afterObserve.repository.pendingId
-          ) {
-            renderPresetOptions();
-            setPresetFeedback(
-              afterObserve.repository.activeId === pendingBefore
-                ? "PRESET APPLIED AFTER HERO MATCH."
-                : "PRESET REJECTED — HERO DOES NOT MATCH.",
-              afterObserve.repository.activeId !== pendingBefore,
-            );
-          }
         }
         renderIdentity();
         sampleAbilityTiers();
         scheduleIdentityTick(generation, identityPollDelay());
       });
-    } catch (error) {}
+    } catch {}
   }
 
   function restartIdentityWatch() {
@@ -1298,7 +1301,7 @@
           "hp_colors_scope_search",
           "",
         );
-      } catch (error) {}
+      } catch {}
       setClass(option, "FilteredOut", !!query && searchText.indexOf(query) < 0);
     }
   }
@@ -1331,7 +1334,7 @@
           "hp_colors_scope_hero_key",
           "",
         );
-      } catch (error) {}
+      } catch {}
       setClass(
         option,
         "Selected",
@@ -1434,7 +1437,7 @@
     var label = $.CreatePanel("Label", button, id + "Label");
     if (isValid(label)) label.text = text;
     setPanelEvent(button, "onactivate", function () {
-      if (enabled && typeof activate === "function") activate();
+      if (enabled && isCallable(activate)) activate();
     });
     return button;
   }
@@ -1443,12 +1446,11 @@
     if (!isValid(ui.presetOptions)) return;
     try {
       ui.presetOptions.RemoveAndDeleteChildren();
-    } catch (error) {}
+    } catch {}
     presetInlineRenameInput = null;
     var view = currentView();
     var repository = view && view.repository ? view.repository : null;
     var records = repository && repository.rows ? repository.rows : [];
-    var pendingId = repository ? repository.pendingId : "";
     var selectedId = repository ? repository.selectedId : "";
     var userRows = [];
     for (var userRowIndex = 0; userRowIndex < records.length; userRowIndex++)
@@ -1461,8 +1463,11 @@
           "HPColorsPresetOption" + optionIndex,
         );
         if (!isValid(option)) return;
-        var pending = pendingId === preset.id;
         var selected = preset.id === selectedId;
+        var editingPreset =
+          presetFormOpen &&
+          presetEditId === preset.id &&
+          preset.kind === "user";
         option.AddClass("HPColorsPresetOption");
         option.hittest = true;
         option.hittestchildren = true;
@@ -1472,8 +1477,8 @@
         var confirming = presetDeleteConfirmId === preset.id;
         setClass(option, "Selected", selected);
         setClass(option, "Active", active);
-        setClass(option, "Pending", pending);
         setClass(option, "Confirming", confirming);
+        setClass(option, "Editing", editingPreset);
 
         if (confirming) {
           var confirmMessage = $.CreatePanel(
@@ -1553,7 +1558,7 @@
         scope.text =
           (preset.mode === HERO_SCOPE_SELECTED ? "AUTO  ·  " : "") +
           presetScopeSummary(preset);
-        status.text = pending ? "WAITING" : active ? "ACTIVE" : "";
+        status.text = editingPreset ? "EDITING" : active ? "ACTIVE" : "";
 
         var userIndex = -1;
         if (preset.kind === "user") {
@@ -1597,22 +1602,21 @@
             copySelectedPreset();
           },
         );
-        createPresetRowAction(
+        var primaryAction = createPresetRowAction(
           option,
           "HPColorsPresetRowApply" + optionIndex,
           "HPColorsPresetRowApply",
-          pending ? "CANCEL" : "APPLY",
+          editingPreset ? "SAVE & APPLY" : "APPLY",
           true,
           function () {
-            selectPresetForRowAction(preset.id);
-            if (pending) {
-              cancelPendingPreset();
-              focusSelectedPresetRow();
+            if (editingPreset) {
+              saveCurrentPreset();
             } else {
-              applySelectedPreset();
+              requestPresetApplication(preset.id, false);
             }
           },
         );
+        if (editingPreset) setClass(primaryAction, "SaveAndApply", true);
         createPresetRowAction(
           option,
           "HPColorsPresetRowDelete" + optionIndex,
@@ -1639,48 +1643,67 @@
       ui.presetRestoreBakedButton.enabled = hasHiddenBaked;
   }
   function syncPresetSaveForm(resetName) {
-    var view = currentView();
-    var selectedId = view && view.repository ? view.repository.selectedId : "";
-    var preset = findPresetRecord(selectedId);
-    var updateTarget = preset && preset.kind === "user" ? preset : null;
+    var editPreset = presetFormOpen ? findPresetRecord(presetEditId) : null;
+    if (!editPreset || editPreset.kind !== "user") {
+      editPreset = null;
+      presetEditId = "";
+    }
     setText(
       ui.presetSaveMode,
-      updateTarget
-        ? "UPDATING " + presetDisplayName(updateTarget).toUpperCase()
-        : "NEW PRESET",
+      editPreset
+        ? "EDITING " + presetDisplayName(editPreset).toUpperCase()
+        : "CREATE A NEW PRESET",
     );
-    if (resetName && isValid(ui.presetNameInput))
-      ui.presetNameInput.text = updateTarget ? updateTarget.name : "";
-    var canStartNew = !!updateTarget;
-    setClass(ui.presetNewButton, "Disabled", !canStartNew);
+    setText(
+      ui.presetSaveButtonLabel,
+      editPreset ? "SAVE & APPLY" : "CREATE PRESET",
+    );
+    setClass(ui.presetForm, "Active", presetFormOpen);
+    setClass(ui.presetNewButton, "FormOpen", presetFormOpen);
     if (isValid(ui.presetNewButton))
-      ui.presetNewButton.enabled = canStartNew;
+      ui.presetNewButton.enabled = !presetFormOpen;
+    if (resetName && isValid(ui.presetNameInput))
+      ui.presetNameInput.text = editPreset ? editPreset.name : "";
   }
 
   function beginNewPreset() {
     var result = sendState({ type: "preset_select", id: null });
     if (!result || !result.outcome || result.outcome.status === "rejected") {
-      setPresetFeedback("PRESET CHANGE CANCELED.", true);
+      setPresetFeedback("COULD NOT START A NEW PRESET.", true);
       return;
     }
     presetDeleteConfirmId = "";
     presetInlineRenameId = "";
     presetInlineRenameInput = null;
+    presetFormOpen = true;
+    presetEditId = "";
     renderPresetOptions();
     syncPresetSaveForm(true);
-    setPresetFeedback("READY FOR A NEW PRESET.", false);
+    setPresetFeedback(
+      "NAME THE PRESET, CHOOSE WHO IT APPLIES TO, THEN CREATE IT.",
+      false,
+    );
     focus(ui.presetNameInput);
+  }
+
+  function cancelPresetEdit() {
+    sendState({ type: "preset_select", id: null });
+    presetFormOpen = false;
+    presetEditId = "";
+    renderPresetOptions();
+    syncPresetSaveForm(true);
+    setPresetFeedback("PRESET EDIT CANCELED. NOTHING CHANGED.", false);
   }
 
   function selectPresetForRowAction(id) {
     if (!id) return false;
-    if (
-      currentView().repository.selectedId === id &&
-      !presetInlineRenameId &&
-      !presetDeleteConfirmId
-    )
-      return true;
-    return selectPresetRecord(id);
+    if (currentView().repository.selectedId === id) return true;
+    var result = sendState({ type: "preset_select", id: id });
+    return !!(
+      result &&
+      result.outcome &&
+      result.outcome.status !== "rejected"
+    );
   }
 
   function selectPresetRecord(id) {
@@ -1690,26 +1713,25 @@
     presetDeleteConfirmId = "";
     presetInlineRenameId = "";
     if (result && result.outcome && result.outcome.status === "rejected") {
-      setPresetFeedback("PRESET NOT FOUND.", true);
+      setPresetFeedback("THAT PRESET NO LONGER EXISTS.", true);
       return false;
     }
+    presetFormOpen = preset.kind === "user";
+    presetEditId = presetFormOpen ? preset.id : "";
     renderPresetOptions();
     syncPresetSaveForm(true);
     setPresetFeedback(
-      "SELECTED " + presetDisplayName(preset).toUpperCase() + ". APPLY TO USE.",
+      presetFormOpen
+        ? "EDITING " +
+            presetDisplayName(preset).toUpperCase() +
+            ". SAVE & APPLY REPLACES IT WITH YOUR CURRENT SETTINGS."
+        : "SELECTED " +
+            presetDisplayName(preset).toUpperCase() +
+            ". APPLY LOADS IT WITHOUT CHANGING THE PRESET.",
       false,
     );
+    if (presetFormOpen) focus(ui.presetNameInput);
     return true;
-  }
-
-  function applySelectedPreset() {
-    var view = currentView();
-    var id = view && view.repository ? view.repository.selectedId : "";
-    if (!id) {
-      setPresetFeedback("SELECT A PRESET FIRST.", true);
-      return;
-    }
-    requestPresetApplication(id);
   }
 
   function renamePresetRecord(preset, name) {
@@ -1735,7 +1757,7 @@
   function beginInlinePresetRename(id) {
     var preset = findPresetRecord(String(id || ""));
     if (!preset) return;
-    selectPresetRecord(preset.id);
+    selectPresetForRowAction(preset.id);
     presetDeleteConfirmId = "";
     presetInlineRenameId = preset.id;
     renderPresetOptions();
@@ -1756,9 +1778,9 @@
         )
           return;
         focus(renameInput);
-        if (typeof renameInput.SelectAll === "function") renameInput.SelectAll();
+        if (isCallable(renameInput.SelectAll)) renameInput.SelectAll();
       });
-    } catch (error) {
+    } catch {
       if (
         state.open &&
         presetInlineRenameId === renameId &&
@@ -1892,6 +1914,10 @@
     if (result && result.outcome && result.outcome.status === "committed") {
       presetDeleteConfirmId = "";
       presetInlineRenameId = "";
+      if (presetEditId === preset.id) {
+        presetEditId = "";
+        presetFormOpen = false;
+      }
       renderPresetOptions();
       syncPresetSaveForm(true);
       setPresetFeedback(
@@ -2029,7 +2055,7 @@
           "TextEntryInsertFromClipboard",
           ui.presetTransferInput,
         ) !== false;
-    } catch (error) {}
+    } catch {}
     if (!requested) {
       setPresetTransferFeedback(
         "CLIPBOARD PASTE UNAVAILABLE — PASTE CODE MANUALLY",
@@ -2062,7 +2088,7 @@
         }
         importPresetTransfer(pasted);
       });
-    } catch (error) {
+    } catch {
       setPresetTransferFeedback(
         "CLIPBOARD PASTE UNAVAILABLE — PASTE CODE MANUALLY",
         true,
@@ -2070,52 +2096,72 @@
     }
   }
   function saveCurrentPreset() {
+    if (!presetFormOpen) return;
     var name = String((ui.presetNameInput && ui.presetNameInput.text) || "").trim();
     if (!name) {
       setPresetFeedback("ENTER A PRESET NAME.", true);
+      focus(ui.presetNameInput);
+      return;
+    }
+    var editing = findPresetRecord(presetEditId);
+    if (!editing || editing.kind !== "user") {
+      sendState({ type: "preset_select", id: null });
+      presetEditId = "";
+    } else if (!selectPresetForRowAction(editing.id)) {
+      setPresetFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
       return;
     }
     var result = sendState({ type: "preset_save", name: name });
     if (!result || !result.outcome || result.outcome.status === "rejected") {
-      setPresetFeedback("PRESET COULD NOT BE SAVED.", true);
+      setPresetFeedback(
+        editing
+          ? "COULD NOT SAVE " + name.toUpperCase() + ". NOTHING CHANGED."
+          : "COULD NOT CREATE " + name.toUpperCase() + ". NOTHING CHANGED.",
+        true,
+      );
       return;
     }
+    var savedId =
+      result.view && result.view.repository
+        ? result.view.repository.selectedId
+        : "";
+    presetFormOpen = false;
+    presetEditId = "";
     renderPresetOptions();
     syncPresetSaveForm(true);
-    setPresetFeedback(
-      (result.outcome.code === "PRESET_UPDATED" ? "UPDATED " : "SAVED ") +
-        name.toUpperCase() +
-        ".",
-      false,
-    );
+    if (editing) {
+      requestPresetApplication(savedId, true);
+      return;
+    }
+    setPresetFeedback("CREATED " + name.toUpperCase() + ".", false);
   }
 
-  function requestPresetApplication(id) {
+  function requestPresetApplication(id, savedFirst) {
     var preset = findPresetRecord(String(id || ""));
     if (!preset) {
-      setPresetFeedback("PRESET NOT FOUND.", true);
+      setPresetFeedback(
+        savedFirst
+          ? "PRESET SAVED, BUT IT COULD NOT BE APPLIED."
+          : "THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.",
+        true,
+      );
       return false;
     }
     var result = sendState({ type: "preset_apply", id: preset.id });
     var outcome = result && result.outcome ? result.outcome : null;
     if (!outcome || outcome.status === "rejected") {
       setPresetFeedback(
-        outcome && outcome.code === "HERO_MISMATCH"
-          ? "CURRENT HERO DOES NOT MATCH THIS PRESET."
-          : "PRESET NOT FOUND.",
+        savedFirst
+          ? "PRESET SAVED, BUT IT COULD NOT BE APPLIED."
+          : "COULD NOT APPLY THAT PRESET. NOTHING CHANGED.",
         true,
       );
       return false;
     }
-    if (outcome.code === "WAITING_FOR_IDENTITY") {
-      renderPresetOptions();
-      setPresetFeedback("WAITING FOR A STABLE HERO IDENTITY.", false);
-      return true;
-    }
     renderPresetOptions();
     syncControls();
     setPresetFeedback(
-      (outcome.code === "PRESET_APPLIED" ? "APPLIED " : "APPLIED ") +
+      (savedFirst ? "SAVED & APPLIED " : "APPLIED ") +
         presetDisplayName(preset).toUpperCase() +
         ".",
       false,
@@ -2125,14 +2171,6 @@
 
 
 
-  function cancelPendingPreset() {
-    var view = currentView();
-    if (view && view.repository && view.repository.pendingId) {
-      sendState({ type: "preset_cancel_pending" });
-      renderPresetOptions();
-      setPresetFeedback("PENDING PRESET CANCELED.", false);
-    }
-  }
   function closePrecisePipsDialog() {
     setClass(ui.precisePipsDialog, "Open", false);
     focus(ui.precisePipsToggle);
@@ -2160,23 +2198,22 @@
   }
 
   function copyPrecisePipsText() {
-    var view = currentView();
     var text =
-      view && view.values && view.values.precisePipsEnabled
+      state.values.precisePipsEnabled
         ? PRECISE_PIPS_ENABLE_TEXT
         : PRECISE_PIPS_RESET_TEXT;
     var copied = false;
     try {
       copied = $.DispatchEvent("CopyStringToClipboard", text) !== false;
-    } catch (error) {}
+    } catch {}
     setText(ui.precisePipsCopyLabel, copied ? "COPIED" : "COPY FAILED");
   }
 
   function togglePrecisePips() {
     if (syncingControls) return;
-    var view = currentView();
-    var enabled = !(view && view.values && view.values.precisePipsEnabled);
+    var enabled = !state.values.precisePipsEnabled;
     sendState({ type: "setting_edit", key: "precisePipsEnabled", value: enabled });
+    syncControls();
     openPrecisePipsDialog(enabled);
   }
   function setTransferFeedback(message, isError) {
@@ -2266,7 +2303,7 @@
       requested =
         $.DispatchEvent("TextEntryInsertFromClipboard", ui.transferInput) !==
         false;
-    } catch (error) {}
+    } catch {}
     if (!requested) {
       showManualPasteFallback();
       return;
@@ -2285,7 +2322,7 @@
         }
         applyImportedText(pasted, true);
       });
-    } catch (error) {
+    } catch {
       showManualPasteFallback();
     }
   }
@@ -2424,9 +2461,74 @@
     if (!isValid(ui.absoluteRoot) || !ui.absoluteRoot.GetAttributeString) return "";
     try {
       return String(ui.absoluteRoot.GetAttributeString(name, "") || "");
-    } catch (error) {
+    } catch {
       return "";
     }
+  }
+  function readPanelAttribute(panel, name) {
+    if (!isValid(panel) || !panel.GetAttributeString) return "";
+    try {
+      return String(panel.GetAttributeString(name, "") || "");
+    } catch {
+      return "";
+    }
+  }
+
+  function logPresetStoreTransition() {
+    if (presetStoreBootMessageShown) return;
+    presetStoreBootMessageShown = true;
+    try {
+      $.Msg(
+        "[HP Colors Rewrite] preset store unavailable; using session/default state",
+      );
+    } catch {}
+  }
+
+  function decodePresetStoreText(encoded) {
+    var text = String(encoded || "");
+    if (!text) return "";
+    if (
+      text.length > PRESET_STORE_MAX_HEX_LENGTH ||
+      text.length % 4 !== 0 ||
+      !/^(?:[0-9A-F]{4})+$/.test(text)
+    )
+      return null;
+    var codeUnits = [];
+    for (var index = 0; index < text.length; index += 4) {
+      var codeUnit = parseInt(text.slice(index, index + 4), 16);
+      if (!isFinite(codeUnit)) return null;
+      codeUnits.push(String.fromCharCode(codeUnit));
+    }
+    return codeUnits.join("");
+  }
+
+  function readBuilderPresetRaw() {
+    var store = ui.presetStorePanel;
+    if (!isValid(store)) return "";
+    if (
+      readPanelAttribute(store, PRESET_STORE_CONTRACT_ATTR) !==
+        PRESET_STORE_CONTRACT ||
+      readPanelAttribute(store, PRESET_STORE_VERSION_ATTR) !==
+        PRESET_STORE_VERSION
+    ) {
+      logPresetStoreTransition();
+      return "";
+    }
+    var label = null;
+    try {
+      label =
+        store.FindChildTraverse && store.FindChildTraverse(PRESET_LABEL_ID);
+    } catch {}
+    if (!isValid(label) || !panelHasClass(label, PRESET_ENTRY_CLASS)) {
+      if (isValid(label)) logPresetStoreTransition();
+      return "";
+    }
+    var decoded = decodePresetStoreText(readPanelText(label));
+    if (decoded === null) {
+      logPresetStoreTransition();
+      return "";
+    }
+    return decoded;
   }
 
   function writeMenuState(raw) {
@@ -2439,7 +2541,7 @@
       )
         ui.absoluteRoot.SetAttributeString(MENU_STATE_ATTR, raw);
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -2453,7 +2555,7 @@
       )
         ui.absoluteRoot.SetAttributeString(CONFIG_ATTR, raw);
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -2496,7 +2598,7 @@
         );
         scheduleSnapshotReplay(generation);
       });
-    } catch (error) {
+    } catch {
       replayRunning = false;
     }
   }
@@ -2526,7 +2628,7 @@
         if (generation === resetFeedbackGeneration)
           setText(ui.liveStatus, "LIVE");
       });
-    } catch (error) {}
+    } catch {}
   }
   function closeResetDialog(restoreFocus) {
     var view = currentView();
@@ -2546,8 +2648,7 @@
       showResetFeedback("NO SETTINGS TO RESET");
       return;
     }
-    var view = currentView();
-    var values = view && view.values ? view.values : {};
+    var values = state.values;
     var conditions = state.conditions;
     var changedCount = 0;
     for (var index = 0; index < tab.keys.length; index++) {
@@ -2633,7 +2734,7 @@
     while (isValid(row) && !panelHasClass(row, "HPColorsSettingRow")) {
       try {
         row = row.GetParent();
-      } catch (error) {
+      } catch {
         row = null;
       }
     }
@@ -2641,9 +2742,20 @@
 
     var control = conditionControls[key];
     if (!control) {
-      var type = typeof DEFAULTS[key];
+      var defaultValue = DEFAULTS[key];
+      var defaultIsString = false;
+      try {
+        defaultIsString = defaultValue === String(defaultValue);
+      } catch {}
+      var type =
+        defaultValue === true || defaultValue === false
+          ? "boolean"
+          : Number.isFinite(defaultValue)
+            ? "number"
+            : defaultIsString
+              ? "enum"
+              : "unknown";
       if (COLOR_KEYS[key]) type = "color";
-      else if (type === "string") type = "enum";
       if (option !== undefined) type = "enum";
       var titles = findChildrenWithClass(row, "HPColorsSettingTitle");
       control = {
@@ -2710,7 +2822,7 @@
       slider.min = min;
       slider.max = max;
       slider.increment = 1;
-    } catch (error) {}
+    } catch {}
 
     setPanelEvent(slider, "onmousedown", function () {
       gestureBefore = key;
@@ -2734,7 +2846,7 @@
       commitValue(key, entry.text, true);
       try {
         $.DispatchEvent("DropInputFocus", entry);
-      } catch (error) {}
+      } catch {}
     }
     setPanelEvent(entry, "ontextentrysubmit", commitEntry);
     setPanelEvent(entry, "onblur", commitEntry);
@@ -2754,7 +2866,7 @@
       commitValue(key, entry.text, true);
       try {
         $.DispatchEvent("DropInputFocus", entry);
-      } catch (error) {}
+      } catch {}
     }
     setPanelEvent(entry, "ontextentrysubmit", commitEntry);
     setPanelEvent(entry, "onblur", commitEntry);
@@ -2862,17 +2974,17 @@
         ui.conditionNumberSlider.min = control.min;
         ui.conditionNumberSlider.max = control.max;
         try {
-          if (typeof ui.conditionNumberSlider.SetValueNoEvents === "function")
+          if (isCallable(ui.conditionNumberSlider.SetValueNoEvents))
             ui.conditionNumberSlider.SetValueNoEvents(conditionDraft.value);
           else ui.conditionNumberSlider.value = conditionDraft.value;
-        } catch (error) {}
+        } catch {}
       }
       setText(ui.conditionNumberEntry, String(conditionDraft.value));
     } else if (control.type === "color") {
       setText(ui.conditionColorEntry, conditionDraft.value);
       try {
         ui.conditionColorSwatch.style.backgroundColor = conditionDraft.value;
-      } catch (error) {}
+      } catch {}
     }
     var status = conditionEditorStatus();
     setText(ui.conditionStatus, status.text);
@@ -3091,10 +3203,10 @@
     var entry = find(entryId);
     if (isValid(slider)) {
       try {
-        if (typeof slider.SetValueNoEvents === "function")
+        if (isCallable(slider.SetValueNoEvents))
           slider.SetValueNoEvents(value);
         else slider.value = value;
-      } catch (error) {}
+      } catch {}
     }
     setText(entry, String(value));
   }
@@ -3105,7 +3217,7 @@
       try {
         if (swatch.style.backgroundColor !== value)
           swatch.style.backgroundColor = value;
-      } catch (error) {}
+      } catch {}
     }
     setText(find(entryId), value);
   }
@@ -3113,10 +3225,10 @@
   function setPickerSliderValue(slider, value) {
     if (!isValid(slider)) return;
     try {
-      if (typeof slider.SetValueNoEvents === "function")
+      if (isCallable(slider.SetValueNoEvents))
         slider.SetValueNoEvents(value);
       else slider.value = value;
-    } catch (error) {}
+    } catch {}
   }
 
   function setPickerTrack(slider, gradient) {
@@ -3125,7 +3237,7 @@
       var track = slider.FindChildTraverse("SliderTrack");
       if (isValid(track) && track.style.backgroundColor !== gradient)
         track.style.backgroundColor = gradient;
-    } catch (error) {}
+    } catch {}
   }
 
   function setPickerThumb(slider, color, lightness) {
@@ -3138,7 +3250,7 @@
       var border = lightness < 35 ? "#FFEFD7" : "#10130D";
       if (thumb.style.borderColor !== border)
         thumb.style.borderColor = border;
-    } catch (error) {}
+    } catch {}
   }
 
   function syncPicker() {
@@ -3195,7 +3307,7 @@
     }
     try {
       slider.increment = 1;
-    } catch (error) {}
+    } catch {}
     setPanelEvent(slider, "onmousedown", function () {
       if (picker.condition || !picker.key) return;
       if (pickerGestureActive)
@@ -3566,22 +3678,12 @@
       "Disabled",
       !customReadoutColors,
     );
-    setClass(
-      find("HPColorsReadoutLowThresholdRow"),
-      "Disabled",
-      !customReadoutColors,
-    );
-    setClass(
-      find("HPColorsReadoutHighThresholdRow"),
-      "Disabled",
-      !customReadoutColors,
-    );
     setEnabled(find("HPColorsReadoutModeFixed"), customReadoutColors);
     setEnabled(find("HPColorsReadoutModeGradient"), customReadoutColors);
-    setEnabled(find("HPColorsReadoutLowThresholdSlider"), customReadoutColors);
-    setEnabled(find("HPColorsReadoutLowThresholdEntry"), customReadoutColors);
-    setEnabled(find("HPColorsReadoutHighThresholdSlider"), customReadoutColors);
-    setEnabled(find("HPColorsReadoutHighThresholdEntry"), customReadoutColors);
+    setEnabled(find("HPColorsSharedLowThresholdSlider"), true);
+    setEnabled(find("HPColorsSharedLowThresholdEntry"), true);
+    setEnabled(find("HPColorsSharedHighThresholdSlider"), true);
+    setEnabled(find("HPColorsSharedHighThresholdEntry"), true);
 
     setSlider(
       "HPColorsWidthSlider",
@@ -3604,23 +3706,13 @@
       state.values.positionY,
     );
     setSlider(
-      "HPColorsLowThresholdSlider",
-      "HPColorsLowThresholdEntry",
+      "HPColorsSharedLowThresholdSlider",
+      "HPColorsSharedLowThresholdEntry",
       state.values.lowThreshold,
     );
     setSlider(
-      "HPColorsHighThresholdSlider",
-      "HPColorsHighThresholdEntry",
-      state.values.highThreshold,
-    );
-    setSlider(
-      "HPColorsReadoutLowThresholdSlider",
-      "HPColorsReadoutLowThresholdEntry",
-      state.values.lowThreshold,
-    );
-    setSlider(
-      "HPColorsReadoutHighThresholdSlider",
-      "HPColorsReadoutHighThresholdEntry",
+      "HPColorsSharedHighThresholdSlider",
+      "HPColorsSharedHighThresholdEntry",
       state.values.highThreshold,
     );
     setSlider(
@@ -3792,7 +3884,7 @@
         )
           ui.enemyKillMarkerColorSwatch.style.backgroundColor =
             state.values.enemyKillMarkerColor;
-      } catch (error) {}
+      } catch {}
     }
     setText(
       ui.enemyKillMarkerColorEntry,
@@ -3903,6 +3995,8 @@
     closeHeroDialog();
     closeScopeDialog();
     closePicker();
+    presetFormOpen = false;
+    presetEditId = "";
     sendState({ type: "editor_close" });
     endPeek();
     state.open = false;
@@ -3978,7 +4072,7 @@
       return;
     }
     try {
-      if (typeof CitadelResumePlaying === "function") CitadelResumePlaying();
+      if (isCallable(CitadelResumePlaying)) CitadelResumePlaying();
     } catch (error) {
       $.Msg("[HP Colors Rewrite] resume failed: " + String(error));
     }
@@ -3989,10 +4083,11 @@
     try {
       ui.escapeRoot =
         marker && marker.GetParent ? marker.GetParent() : context;
-    } catch (error) {
+    } catch {
       ui.escapeRoot = context;
     }
     ui.absoluteRoot = absoluteRoot(ui.escapeRoot);
+    ui.presetStorePanel = find(PRESET_STORE_ID);
     ui.menuButton = find("HPColorsMenuButton");
     ui.editorRoot = find("HPColorsEditorRoot");
     ui.editorShell = find("HPColorsEditorShell");
@@ -4059,8 +4154,11 @@
     ui.scopeCloseButton = find("HPColorsScopeCloseButton");
     ui.presetNameInput = find("HPColorsPresetNameInput");
     ui.presetSaveButton = find("HPColorsPresetSaveButton");
+    ui.presetSaveButtonLabel = find("HPColorsPresetSaveButtonLabel");
     ui.presetSaveMode = find("HPColorsPresetSaveMode");
     ui.presetNewButton = find("HPColorsPresetNewButton");
+    ui.presetForm = find("HPColorsPresetForm");
+    ui.presetCancelEditButton = find("HPColorsPresetCancelEditButton");
     ui.presetOptions = find("HPColorsPresetOptions");
     ui.presetFeedback = find("HPColorsPresetFeedback");
     ui.presetRestoreBakedButton = find("HPColorsPresetRestoreBakedButton");
@@ -4120,7 +4218,7 @@
 
     for (var categoryIndex = 0; categoryIndex < CATEGORY_BUTTON_IDS.length; categoryIndex++)
       ui.categoryButtons.push(find(CATEGORY_BUTTON_IDS[categoryIndex]));
-    for (var tabIndex = 0; tabIndex < 3; tabIndex++) {
+    for (var tabIndex = 0; tabIndex < 5; tabIndex++) {
       ui.tabButtons.push(find("HPColorsTab" + tabIndex));
       ui.tabLabels.push(find("HPColorsTabLabel" + tabIndex));
     }
@@ -4208,8 +4306,11 @@
       isValid(ui.scopeCloseButton) &&
       isValid(ui.presetNameInput) &&
       isValid(ui.presetSaveButton) &&
+      isValid(ui.presetSaveButtonLabel) &&
       isValid(ui.presetSaveMode) &&
       isValid(ui.presetNewButton) &&
+      isValid(ui.presetForm) &&
+      isValid(ui.presetCancelEditButton) &&
       isValid(ui.presetOptions) &&
       isValid(ui.presetFeedback) &&
       isValid(ui.presetRestoreBakedButton) &&
@@ -4340,32 +4441,16 @@
       ) &&
       isValid(
         createSlider(
-          "HPColorsLowThresholdSliderHost",
-          "HPColorsLowThresholdSlider",
+          "HPColorsSharedLowThresholdSliderHost",
+          "HPColorsSharedLowThresholdSlider",
           0,
           99,
         ),
       ) &&
       isValid(
         createSlider(
-          "HPColorsHighThresholdSliderHost",
-          "HPColorsHighThresholdSlider",
-          1,
-          100,
-        ),
-      ) &&
-      isValid(
-        createSlider(
-          "HPColorsReadoutLowThresholdSliderHost",
-          "HPColorsReadoutLowThresholdSlider",
-          0,
-          99,
-        ),
-      ) &&
-      isValid(
-        createSlider(
-          "HPColorsReadoutHighThresholdSliderHost",
-          "HPColorsReadoutHighThresholdSlider",
+          "HPColorsSharedHighThresholdSliderHost",
+          "HPColorsSharedHighThresholdSlider",
           1,
           100,
         ),
@@ -4622,29 +4707,15 @@
       100,
     );
     bindSlider(
-      "HPColorsLowThresholdSlider",
-      "HPColorsLowThresholdEntry",
+      "HPColorsSharedLowThresholdSlider",
+      "HPColorsSharedLowThresholdEntry",
       "lowThreshold",
       0,
       99,
     );
     bindSlider(
-      "HPColorsHighThresholdSlider",
-      "HPColorsHighThresholdEntry",
-      "highThreshold",
-      1,
-      100,
-    );
-    bindSlider(
-      "HPColorsReadoutLowThresholdSlider",
-      "HPColorsReadoutLowThresholdEntry",
-      "lowThreshold",
-      0,
-      99,
-    );
-    bindSlider(
-      "HPColorsReadoutHighThresholdSlider",
-      "HPColorsReadoutHighThresholdEntry",
+      "HPColorsSharedHighThresholdSlider",
+      "HPColorsSharedHighThresholdEntry",
       "highThreshold",
       1,
       100,
@@ -4731,23 +4802,29 @@
     }
     if (
       !$.HPColorsStateFactory ||
-      typeof $.HPColorsStateFactory.create !== "function"
+      !isCallable($.HPColorsStateFactory.create)
     ) {
       $.Msg("[HP Colors Rewrite] menu boot failed: HPColorsStateFactory missing");
       return;
     }
     var rawSessionState = readRootAttribute(MENU_STATE_ATTR);
     var publishedRaw = readRootAttribute(CONFIG_ATTR);
+    var builderPresetRaw = readBuilderPresetRaw();
     try {
       stateInstance = $.HPColorsStateFactory.create({
         sessionRaw: rawSessionState || null,
         publishedRaw: publishedRaw || null,
+        builderPresetRaw: builderPresetRaw,
       });
-    } catch (error) {
+    } catch {
       $.Msg("[HP Colors Rewrite] menu boot failed: state factory create error");
       return;
     }
-    if (!stateInstance || typeof stateInstance.send !== "function" || typeof stateInstance.read !== "function") {
+    if (
+      !stateInstance ||
+      !isCallable(stateInstance.send) ||
+      !isCallable(stateInstance.read)
+    ) {
       $.Msg("[HP Colors Rewrite] menu boot failed: invalid state instance");
       stateInstance = null;
       return;
@@ -4804,6 +4881,11 @@
     setPanelEvent(ui.scopeDialog, "oncancel", closeScopeDialog);
     setPanelEvent(ui.presetSaveButton, "onactivate", saveCurrentPreset);
     setPanelEvent(ui.presetNewButton, "onactivate", beginNewPreset);
+    setPanelEvent(
+      ui.presetCancelEditButton,
+      "onactivate",
+      cancelPresetEdit,
+    );
     setPanelEvent(ui.presetCopyAllButton, "onactivate", copyAllPresets);
     setPanelEvent(
       ui.presetImportButton,
@@ -4859,12 +4941,6 @@
       );
     }
     refreshSnapshotReplay();
-    if (
-      state.view &&
-      state.view.repository &&
-      state.view.repository.pendingId
-    )
-      setPresetFeedback("WAITING FOR A STABLE HERO IDENTITY.", false);
     renderNavigation();
     restartIdentityWatch();
     $.Msg("[HP Colors Rewrite] menu ready");

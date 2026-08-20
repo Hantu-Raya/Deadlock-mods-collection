@@ -149,8 +149,8 @@ test('building and boss exclusions restore stock colors independently', () => {
     excludeBuildings: true,
     positionX: 20,
   });
-  assert.equal(sentry.tree.lagging.style.washColor, '');
-  assert.equal(sentry.tree.ult.style.washColor, '');
+  assert.equal(sentry.tree.lagging.style.washColor, '#FD4949');
+  assert.equal(sentry.tree.ult.style.washColor, '#FD4949');
   assert.equal(sentry.tree.unitHealthbar.style.transform, 'translateX(20px) translateY(0px)');
 
   const boss = bootProbe(['enemy', 'team1', 'boss_barracks']);
@@ -171,7 +171,154 @@ test('building and boss exclusions restore stock colors independently', () => {
     excludeBuildings: false,
     excludeBosses: true,
   });
-  assert.equal(boss.tree.lagging.style.washColor, '');
+  assert.equal(boss.tree.lagging.style.washColor, '#FD4949');
+});
+
+test('master bypass writes every current stock relation palette', () => {
+  const cases = [
+    {
+      classes: ['team1'],
+      unit: '#E7B659',
+      delta: '#FFEDB8',
+      shield: '#E9E76A',
+    },
+    {
+      classes: ['team2'],
+      unit: '#5B79E6',
+      delta: '#FFEDB8',
+      shield: '#6A75E9',
+    },
+    {
+      classes: ['team_neutral'],
+      unit: '#5BEFB5',
+      delta: '#F24D4D',
+      shield: '#FFFFFF',
+    },
+    {
+      classes: ['enemy', 'team1'],
+      unit: '#FD4949',
+      delta: '#FFE55B',
+      shield: '#B95F5F',
+    },
+    {
+      classes: ['enemy', 'team2'],
+      unit: '#FD4949',
+      delta: '#FFE55B',
+      shield: '#B95F5F',
+    },
+    {
+      classes: ['friend', 'team1'],
+      unit: '#FFEFD7',
+      delta: '#504C47',
+      shield: '#ACCA91',
+    },
+    {
+      classes: ['friend', 'team2'],
+      unit: '#FFEFD7',
+      delta: '#504C47',
+      shield: '#ACCA91',
+    },
+  ];
+  for (const item of cases) {
+    const probe = bootProbe(item.classes);
+    publishConfig(probe.harness, 1, {
+      enabled: false,
+      enemyEnabled: true,
+      allyEnabled: true,
+      ultMode: 'custom',
+      ultCustom: '#00FF00',
+    });
+    assert.equal(probe.tree.lagging.style.washColor, item.unit);
+    assert.equal(probe.tree.ult.style.washColor, item.unit);
+    assert.equal(probe.tree.heal.style.washColor, '#5FFF80');
+    assert.equal(probe.tree.delta.style.washColor, item.delta);
+    assert.equal(probe.tree.bulletShield.style.backgroundColor, item.shield);
+  }
+});
+
+test('master and relation toggles restore rewrite-owned presentation', () => {
+  const enemy = bootProbe(['enemy', 'player', 'team2']);
+  const enemyValues = {
+    enabled: true,
+    enemyEnabled: true,
+    enemyMode: 'fixed',
+    enemyLow: '#123456',
+    enemyMid: '#123456',
+    enemyHigh: '#123456',
+    readoutVisible: true,
+    readoutFormat: 'percent',
+    pipsVisible: false,
+    ultMode: 'custom',
+    ultCustom: '#654321',
+  };
+  publishConfig(enemy.harness, 1, enemyValues);
+  assert.equal(enemy.tree.lagging.style.washColor, '#123456');
+  assert.equal(enemy.tree.ult.style.washColor, '#654321');
+  assert.equal(enemy.tree.pip.style.visibility, 'collapse');
+
+  publishConfig(enemy.harness, 2, { ...enemyValues, enabled: false });
+  assert.equal(enemy.tree.lagging.style.washColor, '#FD4949');
+  assert.equal(enemy.tree.ult.style.washColor, '#FD4949');
+  assert.equal(enemy.tree.pip.style.visibility, '');
+
+  publishConfig(enemy.harness, 3, {
+    ...enemyValues,
+    enemyEnabled: false,
+    pipsVisible: true,
+  });
+  assert.equal(enemy.tree.lagging.style.washColor, '#FD4949');
+  assert.equal(enemy.tree.counter.style.visibility, 'visible');
+  assert.notEqual(enemy.tree.counter.text, '');
+  assert.equal(enemy.tree.pip.style.visibility, 'visible');
+
+  publishConfig(enemy.harness, 4, enemyValues);
+  assert.equal(enemy.tree.lagging.style.washColor, '#123456');
+
+  const ally = bootProbe(['friend', 'player', 'team1']);
+  const allyValues = {
+    enabled: true,
+    allyEnabled: true,
+    allyMode: 'fixed',
+    allyLow: '#00AABB',
+    allyMid: '#00AABB',
+    allyHigh: '#00AABB',
+    ultMode: 'custom',
+    ultCustom: '#ABCDEF',
+  };
+  publishConfig(ally.harness, 1, allyValues);
+  assert.equal(ally.tree.lagging.style.washColor, '#00AABB');
+  assert.equal(ally.tree.ult.style.washColor, '#ABCDEF');
+
+  publishConfig(ally.harness, 2, { ...allyValues, allyEnabled: false });
+  assert.equal(ally.tree.lagging.style.washColor, '#FFEFD7');
+  assert.equal(ally.tree.ult.style.washColor, '#ABCDEF');
+
+  publishConfig(ally.harness, 3, {
+    ...allyValues,
+    allyEnabled: false,
+    ultCustom: '#FEDCBA',
+  });
+  assert.equal(ally.tree.ult.style.washColor, '#FEDCBA');
+
+  publishConfig(ally.harness, 4, {
+    ...allyValues,
+    allyEnabled: false,
+    ultMode: 'follow',
+  });
+  assert.equal(ally.tree.ult.style.washColor, '#FFEFD7');
+
+  publishConfig(ally.harness, 5, {
+    ...allyValues,
+    ultMode: 'follow',
+  });
+  assert.equal(ally.tree.ult.style.washColor, '#00AABB');
+
+  ally.tree.ult.style.washColor = '#FEDCBA';
+  publishConfig(ally.harness, 6, {
+    ...allyValues,
+    ultMode: 'follow',
+  });
+  assert.equal(ally.tree.ult.style.washColor, '#00AABB');
 });
 
 test('position and ultimate icon modes own only their intended styles', () => {

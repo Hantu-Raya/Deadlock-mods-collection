@@ -43,11 +43,13 @@ const PRESET_PANEL_IDS = [
   'HPColorsPresetTransferCloseButton',
 ];
 
-function installLayoutPanels(harness) {
+function installLayoutPanels(harness, storeLabelText = '') {
   const ids = new Set([
     ...Array.from(layoutSource.matchAll(/\bid="([^"]+)"/g), (match) => match[1]),
     ...PRESET_PANEL_IDS,
   ]);
+  ids.delete('HPColorsRewritePresetStore');
+  ids.delete('HPColorsRewritePreset_001');
   for (const id of ids) {
     if (harness.root.FindChildTraverse(id)) continue;
     harness.root.add(new MockPanel(id, {
@@ -55,16 +57,48 @@ function installLayoutPanels(harness) {
       childReadCounts: harness.childReadCounts,
     }));
   }
+  const store = new MockPanel('HPColorsRewritePresetStore', {
+    classes: ['hp_colors_rewrite_preset_store'],
+    hittest: false,
+    hittestchildren: false,
+    attributes: {
+      hp_colors_rewrite_preset_contract: 'HPCRP1',
+      hp_colors_rewrite_preset_version: '1',
+    },
+    findCounts: harness.findCounts,
+    childReadCounts: harness.childReadCounts,
+  });
+  store.add(new MockPanel('HPColorsRewritePreset_001', {
+    type: 'Label',
+    classes: ['hp_colors_rewrite_preset_entry'],
+    text: String(storeLabelText || ''),
+    findCounts: harness.findCounts,
+    childReadCounts: harness.childReadCounts,
+  }));
+  harness.root.add(store);
+}
+
+function encodeStoreText(value) {
+  const text = String(value || '');
+  const codeUnits = [];
+  for (let index = 0; index < text.length; index += 1)
+    codeUnits.push(text.charCodeAt(index).toString(16).toUpperCase().padStart(4, '0'));
+  return codeUnits.join('');
 }
 
 function bootPresetMenu(menuState, options = {}) {
   const harness = createPanoramaHarness();
-  installLayoutPanels(harness);
+  installLayoutPanels(harness, options.storeLabelText);
   const topBar = installTopBarIdentityTree(harness, {
     heroName: options.heroName === undefined ? 'SHIV' : options.heroName,
     gameTime: options.gameTime === undefined ? '00:01' : options.gameTime,
   });
-  harness.root.SetAttributeString(MENU_STATE_ATTR, JSON.stringify(menuState));
+  if (menuState !== undefined) {
+    harness.root.SetAttributeString(
+      MENU_STATE_ATTR,
+      typeof menuState === 'string' ? menuState : JSON.stringify(menuState),
+    );
+  }
   if (options.publishedSnapshot !== undefined) {
     harness.root.SetAttributeString(
       CONFIG_ATTR,
@@ -102,7 +136,11 @@ function settleActiveHero(fixture) {
 
 function openEditor(fixture) {
   const button = fixture.harness.root.FindChildTraverse('HPColorsMenuButton');
-  assert.equal(typeof button.events.onactivate, 'function');
+  assert.equal(
+    typeof button.events.onactivate,
+    'function',
+    `menu button unbound: ${fixture.harness.logs.join(' | ')}`,
+  );
   button.events.onactivate();
 }
 
@@ -169,6 +207,8 @@ function presetRowControl(fixture, id, className) {
 
 
 function savePreset(fixture, name) {
+  if (!panel(fixture, 'HPColorsPresetForm').BHasClass('Active'))
+    panel(fixture, 'HPColorsPresetNewButton').events.onactivate();
   panel(fixture, 'HPColorsPresetNameInput').text = name;
   panel(fixture, 'HPColorsPresetSaveButton').events.onactivate();
 }
@@ -211,6 +251,32 @@ function decodePresetTransfer(code) {
   assert.equal(String(code).slice(0, 6), 'HPCRP1');
   return JSON.parse(String(code).slice(6));
 }
+const REWRITE_PRESET_CODE = 'HPCRP1' + JSON.stringify({
+  records: [
+    {
+      id: 'baked_default',
+      kind: 'baked',
+      name: 'Rewrite Default ✨',
+      mode: 'off',
+      heroes: [],
+      values: [],
+      conditions: null,
+    },
+    {
+      id: 'user_0007',
+      kind: 'user',
+      name: 'Builder Shiv Ω',
+      mode: 'selected',
+      heroes: ['hero_shiv'],
+      values: [[8, '#112233']],
+      conditions: {
+        enemyLow: { slot: 2, minTier: 3, value: '#445566' },
+      },
+    },
+  ],
+  hiddenBakedPresetIds: [],
+  selectedPresetId: 'user_0007',
+});
 
 function importPresetTransfer(fixture, code) {
   panel(fixture, 'HPColorsPresetImportButton').events.onactivate();
@@ -234,6 +300,187 @@ function assertRecordShape(record, expected) {
   assert.equal(record.mode, expected.mode);
   assert.deepEqual(record.heroes, expected.heroes);
 }
+
+test('installed XML HPCRP1 preset applies on cold boot before any lifecycle transition', () => {
+  const fixture = bootPresetMenu(undefined, {
+    storeLabelText: encodeStoreText(REWRITE_PRESET_CODE),
+    publishedSnapshot: {
+      version: 1,
+      revision: 7,
+      values: { enemyLow: '#ABCDEF' },
+    },
+  });
+  const seeded = readMenuState(fixture);
+  assert.deepEqual(seeded.userPresets.map((preset) => preset.id), ['user_0007']);
+  assert.equal(seeded.userPresets[0].name, 'Builder Shiv Ω');
+  assert.equal(seeded.userPresets[0].values.enemyLow, '#112233');
+  assert.deepEqual(seeded.userPresets[0].conditions, {
+    enemyLow: { slot: 2, minTier: 3, value: '#445566' },
+  });
+  const current = seeded.scopes.find((scope) => scope.id === 'scope_current');
+  assert.ok(current);
+  assert.equal(current.mode, 'selected');
+  assert.deepEqual(current.heroes, ['hero_shiv']);
+  assert.equal(current.values.enemyLow, '#112233');
+  assert.deepEqual(current.conditions, {
+    enemyLow: { slot: 2, minTier: 3, value: '#445566' },
+  });
+  assert.deepEqual(seeded.conditions, {});
+  assert.equal(seeded.values.enemyLow, '#E16161');
+  assert.equal(seeded.selectedPresetId, 'user_0007');
+  assert.equal(seeded.nextUserPresetNumber, 8);
+  assert.deepEqual(seeded.bakedPresetNameOverrides, {});
+  assert.deepEqual(seeded.hiddenBakedPresetIds, []);
+  assert.equal(readConfig(fixture).values.enemyLow, '#112233');
+  assert.equal(configDispatches(fixture).length, 1);
+});
+
+test('builder preset remains immutable while Current setting edits publish live', () => {
+  const fixture = bootPresetMenu(undefined, {
+    storeLabelText: encodeStoreText(REWRITE_PRESET_CODE),
+  });
+  openEditor(fixture);
+  settleActiveHero(fixture);
+
+  let state = readMenuState(fixture);
+  const originalPresetVisible = state.userPresets[0].values.enemyVisible;
+  assert.equal(
+    state.scopes.find((scope) => scope.id === 'scope_current').values.enemyVisible,
+    true,
+  );
+  fixture.harness.dispatches.length = 0;
+
+  panel(fixture, 'HPColorsEnemyVisibleToggle').events.onactivate();
+
+  state = readMenuState(fixture);
+  assert.equal(state.values.enemyVisible, true);
+  assert.equal(
+    state.scopes.find((scope) => scope.id === 'scope_current').values.enemyVisible,
+    false,
+  );
+  assert.equal(state.userPresets[0].values.enemyVisible, originalPresetVisible);
+  assert.equal(readConfig(fixture).values.enemyVisible, false);
+  assert.equal(configDispatches(fixture).length, 1);
+
+  fixture.harness.dispatches.length = 0;
+  const widthSlider = panel(fixture, 'HPColorsWidthSlider');
+  widthSlider.events.onmousedown();
+  widthSlider.value = 131;
+  widthSlider.events.onvaluechanged();
+  widthSlider.events.onmouseup();
+
+  state = readMenuState(fixture);
+  assert.equal(state.values.widthScale, 100);
+  assert.equal(
+    state.scopes.find((scope) => scope.id === 'scope_current').values.widthScale,
+    131,
+  );
+  assert.equal(state.userPresets[0].values.widthScale, 100);
+  assert.equal(readConfig(fixture).values.widthScale, 131);
+  assert.equal(configDispatches(fixture).length, 1);
+});
+
+test('XML HPCRP1 first boot preserves builder-hidden baked presets', () => {
+  const builderCode = 'HPCRP1' + JSON.stringify({
+    records: [
+      {
+        id: 'user_0001',
+        kind: 'user',
+        name: 'All Heroes',
+        mode: 'all',
+        heroes: [],
+        values: [],
+        conditions: null,
+      },
+    ],
+    hiddenBakedPresetIds: ['baked_default'],
+    selectedPresetId: 'user_0001',
+  });
+  const fixture = bootPresetMenu(undefined, {
+    storeLabelText: encodeStoreText(builderCode),
+  });
+  const seeded = readMenuState(fixture);
+  assert.deepEqual(seeded.hiddenBakedPresetIds, ['baked_default']);
+  openEditor(fixture);
+  assert.deepEqual(
+    presetRows(fixture).map((row) =>
+      row.GetAttributeString('hp_colors_preset_id', ''),
+    ),
+    ['user_0001'],
+  );
+});
+
+test('malformed XML store hex fails closed and logs one transition', () => {
+  const fixture = bootPresetMenu(undefined, { storeLabelText: '00GG' });
+  const state = readMenuState(fixture);
+  assert.deepEqual(state.userPresets, []);
+  assert.equal(state.selectedPresetId, null);
+  assert.equal(state.nextUserPresetNumber, 1);
+  assert.equal(state.values.enemyLow, '#E16161');
+  assert.deepEqual(state.conditions, {});
+  assert.equal(
+    fixture.harness.logs.filter((message) => message.includes('preset store unavailable')).length,
+    1,
+  );
+});
+
+test('empty XML store leaves normal defaults without a boot warning', () => {
+  const fixture = bootPresetMenu(undefined, { storeLabelText: '' });
+  const state = readMenuState(fixture);
+  assert.deepEqual(state.userPresets, []);
+  assert.equal(state.selectedPresetId, null);
+  assert.equal(state.values.enemyLow, '#E16161');
+  assert.equal(fixture.harness.logs.filter((message) => message.includes('preset store unavailable')).length, 0);
+});
+
+test('valid existing menu session wins over XML HPCRP1 seed data', () => {
+  const existing = {
+    version: 1,
+    values: { enemyLow: '#010203' },
+    conditions: {},
+    scopes: [],
+    userPresets: [{
+      id: 'user_0002',
+      kind: 'user',
+      name: 'Existing Session',
+      values: { enemyLow: '#010203' },
+      mode: 'all',
+      heroes: [],
+      conditions: null,
+    }],
+    pendingPresetId: null,
+    selectedPresetId: 'user_0002',
+    nextUserPresetNumber: 3,
+    bakedPresetNameOverrides: {},
+    hiddenBakedPresetIds: [],
+  };
+  const fixture = bootPresetMenu(existing, {
+    storeLabelText: encodeStoreText(REWRITE_PRESET_CODE),
+    publishedSnapshot: {
+      version: 1,
+      revision: 2,
+      values: { enemyLow: '#010203' },
+    },
+  });
+  const state = readMenuState(fixture);
+  assert.deepEqual(state.userPresets.map((preset) => preset.id), ['user_0002']);
+  assert.equal(state.selectedPresetId, 'user_0002');
+  assert.equal(state.nextUserPresetNumber, 3);
+  assert.equal(state.values.enemyLow, '#010203');
+  assert.deepEqual(state.bakedPresetNameOverrides, {});
+  assert.deepEqual(state.hiddenBakedPresetIds, []);
+});
+
+test('XML-seeded presets return on a later boot without session state', () => {
+  const storeLabelText = encodeStoreText(REWRITE_PRESET_CODE);
+  const first = bootPresetMenu(undefined, { storeLabelText });
+  const second = bootPresetMenu(undefined, { storeLabelText });
+  const firstState = readMenuState(first);
+  const secondState = readMenuState(second);
+  assert.deepEqual(secondState.userPresets, firstState.userPresets);
+  assert.equal(secondState.selectedPresetId, 'user_0007');
+  assert.equal(secondState.nextUserPresetNumber, 8);
+});
 
 test('legacy user Global records migrate to All Heroes without applying', () => {
   const restoredUsers = [
@@ -287,7 +534,10 @@ test('legacy user Global records migrate to All Heroes without applying', () => 
   });
   assert.equal(restoredState.userPresets[0].values.enemyLow, '#222222');
   assert.equal(restoredState.userPresets[1].values.enemyLow, '#333333');
-  assert.equal(restoredState.pendingPresetId, 'user_0002');
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(restoredState, 'pendingPresetId'),
+    false,
+  );
   assert.equal(
     fixture.harness.root.GetAttributeString(CONFIG_ATTR, ''),
     beforeOpenConfig,
@@ -295,7 +545,7 @@ test('legacy user Global records migrate to All Heroes without applying', () => 
   assert.equal(configDispatches(fixture).length, beforeOpenDispatches);
 });
 
-test('Save captures current editor values and scope metadata without publishing config', () => {
+test('Save captures Current working values and scope metadata without publishing config', () => {
   const fixture = bootPresetMenu({
     version: 1,
     values: {
@@ -337,8 +587,8 @@ test('Save captures current editor values and scope metadata without publishing 
     heroes: ['hero_haze'],
   });
   assert.deepEqual(state.hiddenBakedPresetIds, []);
-  assert.equal(state.userPresets[0].values.enemyLow, '#111111');
-  assert.equal(state.userPresets[0].values.enemyVisible, true);
+  assert.equal(state.userPresets[0].values.enemyLow, '#22AA44');
+  assert.equal(state.userPresets[0].values.enemyVisible, false);
   assert.equal(state.userPresets[0].values.widthScale, 100);
 
   panel(fixture, 'HPColorsWidthEntry').text = '131';
@@ -352,9 +602,9 @@ test('Save captures current editor values and scope metadata without publishing 
     state.userPresets.map((preset) => preset.id),
     ['user_0001', 'user_0002'],
   );
-  assert.equal(state.userPresets[0].values.enemyLow, '#111111');
+  assert.equal(state.userPresets[0].values.enemyLow, '#22AA44');
   assert.equal(state.userPresets[0].values.widthScale, 100);
-  assert.equal(state.userPresets[1].values.enemyLow, '#111111');
+  assert.equal(state.userPresets[1].values.enemyLow, '#22AA44');
   assert.equal(state.userPresets[1].values.widthScale, 131);
   assert.equal(configDispatches(fixture).length, 0);
 });
@@ -401,7 +651,7 @@ test('legacy user Global applies as All Heroes while preserving the hidden base'
   assert.equal(configDispatches(fixture).length, 1);
 });
 
-test('Selected preset waits for unknown identity, applies once after a match, and keeps global base', () => {
+test('Selected preset Apply publishes immediately while identity is unresolved', () => {
   const fixture = bootPresetMenu({
     version: 1,
     values: { enemyLow: '#111111' },
@@ -417,41 +667,23 @@ test('Selected preset waits for unknown identity, applies once after a match, an
     pendingPresetId: null,
   }, { heroName: '' });
   openEditor(fixture);
-
-  const beforeConfig = fixture.harness.root.GetAttributeString(CONFIG_ATTR, '');
   fixture.harness.dispatches.length = 0;
-  applyPreset(fixture, 'user_0001');
-  let state = readMenuState(fixture);
-  assert.equal(state.pendingPresetId, 'user_0001');
-  assert.equal(state.values.enemyLow, '#111111');
-  assert.equal(
-    fixture.harness.root.GetAttributeString(CONFIG_ATTR, ''),
-    beforeConfig,
-  );
-  assert.equal(configDispatches(fixture).length, 0);
-  assert.match(panel(fixture, 'HPColorsPresetFeedback').text, /WAIT/i);
 
-  fixture.topBar.setHeroName('Haze');
-  settleActiveHero(fixture);
-  state = readMenuState(fixture);
-  assert.equal(state.pendingPresetId, null);
-  assert.equal(state.values.enemyLow, '#111111');
-  const selectedScope = state.scopes.find((scope) => scope.id === 'scope_current');
-  assert.ok(selectedScope);
-  assert.equal(selectedScope.mode, 'selected');
-  assert.deepEqual(selectedScope.heroes, ['hero_haze']);
-  assert.equal(selectedScope.values.enemyLow, '#22AA44');
+  applyPreset(fixture, 'user_0001');
+
+  const state = readMenuState(fixture);
+  const current = state.scopes.find((scope) => scope.id === 'scope_current');
+  assert.ok(current);
+  assert.equal(current.mode, 'selected');
+  assert.deepEqual(current.heroes, ['hero_haze']);
+  assert.equal(current.values.enemyLow, '#22AA44');
   assert.equal(readConfig(fixture).values.enemyLow, '#22AA44');
   assert.equal(configDispatches(fixture).length, 1);
-  assert.match(panel(fixture, 'HPColorsPresetFeedback').text, /APPL|MATCH/i);
-
-  fixture.harness.dispatches.length = 0;
-  runIdentityTick(fixture);
-  assert.equal(configDispatches(fixture).length, 0);
-  assert.equal(readConfig(fixture).values.enemyLow, '#22AA44');
+  assert.match(panel(fixture, 'HPColorsPresetFeedback').text, /APPLIED/i);
 });
 
-test('Selected preset rejects a settled hero mismatch without mutation or publication', () => {
+
+test('Selected preset Apply is immediate before automatic routing settles', () => {
   const fixture = bootPresetMenu({
     version: 1,
     values: { enemyLow: '#111111' },
@@ -464,30 +696,25 @@ test('Selected preset rejects a settled hero mismatch without mutation or public
       mode: 'selected',
       heroes: ['hero_haze'],
     }],
-    pendingPresetId: null,
   }, { heroName: '' });
   openEditor(fixture);
-  const beforeState = readMenuState(fixture);
-  const beforeConfig = fixture.harness.root.GetAttributeString(CONFIG_ATTR, '');
   fixture.harness.dispatches.length = 0;
 
   applyPreset(fixture, 'user_0001');
+  assert.equal(readConfig(fixture).values.enemyLow, '#22AA44');
+  assert.equal(configDispatches(fixture).length, 1);
+
+  fixture.harness.dispatches.length = 0;
   fixture.topBar.setHeroName('Shiv');
   settleActiveHero(fixture);
 
-  const afterState = readMenuState(fixture);
-  assert.equal(afterState.pendingPresetId, null);
-  assert.equal(afterState.values.enemyLow, beforeState.values.enemyLow);
+  const afterRoute = readMenuState(fixture);
   assert.equal(
-    afterState.scopes.some((scope) => scope.id === 'scope_current'),
+    afterRoute.scopes.some((scope) => scope.id === 'scope_current'),
     false,
   );
-  assert.equal(
-    fixture.harness.root.GetAttributeString(CONFIG_ATTR, ''),
-    beforeConfig,
-  );
-  assert.equal(configDispatches(fixture).length, 0);
-  assert.match(panel(fixture, 'HPColorsPresetFeedback').text, /MATCH|REJECT/i);
+  assert.equal(readConfig(fixture).values.enemyLow, '#E16161');
+  assert.equal(configDispatches(fixture).length, 1);
 });
 
 test('Applying an identical effective preset does not publish or leak preset metadata', () => {
@@ -532,41 +759,6 @@ test('Applying an identical effective preset does not publish or leak preset met
   ]) assert.equal(Object.prototype.hasOwnProperty.call(after, key), false, key);
 });
 
-test('a manual settings edit cancels a waiting Selected preset', () => {
-  const fixture = bootPresetMenu({
-    version: 1,
-    values: { enemyLow: '#111111', enemyVisible: true },
-    scopes: [],
-    userPresets: [{
-      id: 'user_0001',
-      kind: 'user',
-      name: 'Haze Only',
-      values: { enemyLow: '#22AA44', enemyVisible: true },
-      mode: 'selected',
-      heroes: ['hero_haze'],
-    }],
-    pendingPresetId: null,
-  }, { heroName: '' });
-  openEditor(fixture);
-
-  applyPreset(fixture, 'user_0001');
-  assert.equal(readMenuState(fixture).pendingPresetId, 'user_0001');
-
-  panel(fixture, 'HPColorsEnemyVisibleToggle').events.onactivate();
-  assert.equal(readMenuState(fixture).pendingPresetId, null);
-
-  fixture.harness.dispatches.length = 0;
-  fixture.topBar.setHeroName('Haze');
-  settleActiveHero(fixture);
-
-  const state = readMenuState(fixture);
-  assert.equal(state.values.enemyVisible, false);
-  assert.equal(
-    state.scopes.some((scope) => scope.id === 'scope_current'),
-    false,
-  );
-  assert.equal(configDispatches(fixture).length, 0);
-});
 
 test('a saved Shiv preset replaces a stale matching scope and republishes its changed snapshot', () => {
   const fixture = bootPresetMenu({
@@ -605,38 +797,6 @@ test('a saved Shiv preset replaces a stale matching scope and republishes its ch
   assert.equal(configDispatches(fixture).length, 1);
 });
 
-test('a canceled wait suppresses only the next settled identity transition', () => {
-  const fixture = bootPresetMenu({
-    version: 1,
-    values: { enemyLow: '#111111', enemyVisible: true },
-    scopes: [],
-    userPresets: [{
-      id: 'user_0001',
-      kind: 'user',
-      name: 'Shiv Session',
-      values: { enemyLow: '#22AA44', enemyVisible: true },
-      mode: 'selected',
-      heroes: ['hero_shiv'],
-    }],
-    pendingPresetId: null,
-  }, { heroName: '' });
-  openEditor(fixture);
-
-  applyPreset(fixture, 'user_0001');
-  panel(fixture, 'HPColorsEnemyVisibleToggle').events.onactivate();
-
-  fixture.topBar.setHeroName('Haze');
-  settleActiveHero(fixture);
-  assert.equal(readConfig(fixture).values.enemyLow, '#111111');
-
-  fixture.harness.dispatches.length = 0;
-  fixture.topBar.setHeroName('Shiv');
-  runIdentityTick(fixture);
-  runIdentityTick(fixture);
-
-  assert.equal(readConfig(fixture).values.enemyLow, '#22AA44');
-  assert.equal(configDispatches(fixture).length, 1);
-});
 
 test('leaving Shiv restores the saved All Heroes fallback automatically', () => {
   const fixture = bootPresetMenu({
@@ -820,7 +980,7 @@ test('preset rows own their actions and inline rename can be canceled', () => {
   assert.equal(configDispatches(fixture).length, 0);
 });
 
-test('pending row Apply becomes Cancel without applying settings', () => {
+test('preset row Apply publishes immediately and remains an Apply action', () => {
   const fixture = bootPresetMenu({
     version: 1,
     values: { enemyLow: '#111111' },
@@ -833,10 +993,8 @@ test('pending row Apply becomes Cancel without applying settings', () => {
       mode: 'selected',
       heroes: ['hero_haze'],
     }],
-    pendingPresetId: null,
   }, { heroName: '' });
   openEditor(fixture);
-  const beforeConfig = fixture.harness.root.GetAttributeString(CONFIG_ATTR, '');
   fixture.harness.dispatches.length = 0;
 
   presetRowControl(
@@ -844,21 +1002,15 @@ test('pending row Apply becomes Cancel without applying settings', () => {
     'user_0001',
     'HPColorsPresetRowApply',
   ).events.onactivate();
-  assert.equal(readMenuState(fixture).pendingPresetId, 'user_0001');
-  const cancel = presetRowControl(
+
+  assert.equal(readConfig(fixture).values.enemyLow, '#22AA44');
+  assert.equal(configDispatches(fixture).length, 1);
+  const apply = presetRowControl(
     fixture,
     'user_0001',
     'HPColorsPresetRowApply',
   );
-  assert.equal(cancel.Children()[0].text, 'CANCEL');
-  cancel.events.onactivate();
-
-  assert.equal(readMenuState(fixture).pendingPresetId, null);
-  assert.equal(
-    fixture.harness.root.GetAttributeString(CONFIG_ATTR, ''),
-    beforeConfig,
-  );
-  assert.equal(configDispatches(fixture).length, 0);
+  assert.equal(apply.Children()[0].text, 'APPLY');
 });
 
 test('repository selection and rename preserve live settings and stable IDs', () => {
@@ -928,7 +1080,7 @@ test('repository selection and rename preserve live settings and stable IDs', ()
   assert.equal(configDispatches(fixture).length, 0);
 });
 
-test('deleting a pending user repairs references and never reuses its ID', () => {
+test('deleting an applied user repairs references without changing Current or reusing its ID', () => {
   const fixture = bootPresetMenu({
     version: 1,
     values: { enemyLow: '#111111' },
@@ -945,7 +1097,7 @@ test('deleting a pending user repairs references and never reuses its ID', () =>
       {
         id: 'user_0003',
         kind: 'user',
-        name: 'Waiting Haze',
+        name: 'Applied Haze',
         values: { enemyLow: '#22AA44' },
         mode: 'selected',
         heroes: ['hero_haze'],
@@ -954,10 +1106,8 @@ test('deleting a pending user repairs references and never reuses its ID', () =>
     pendingPresetId: null,
   }, { heroName: '' });
   openEditor(fixture);
-  const beforeConfig = fixture.harness.root.GetAttributeString(CONFIG_ATTR, '');
-
   applyPreset(fixture, 'user_0003');
-  assert.equal(readMenuState(fixture).pendingPresetId, 'user_0003');
+  const beforeConfig = fixture.harness.root.GetAttributeString(CONFIG_ATTR, '');
   fixture.harness.dispatches.length = 0;
   presetRowControl(
     fixture,
@@ -975,7 +1125,10 @@ test('deleting a pending user repairs references and never reuses its ID', () =>
     readMenuState(fixture).userPresets.map((preset) => preset.id),
     ['user_0001', 'user_0003'],
   );
-  assert.equal(readMenuState(fixture).pendingPresetId, 'user_0003');
+  assert.equal(
+    fixture.harness.root.GetAttributeString(CONFIG_ATTR, ''),
+    beforeConfig,
+  );
   assert.equal(configDispatches(fixture).length, 0);
   deleteOrHideSelectedPreset(fixture);
 
@@ -984,7 +1137,10 @@ test('deleting a pending user repairs references and never reuses its ID', () =>
     state.userPresets.map((preset) => preset.id),
     ['user_0001'],
   );
-  assert.equal(state.pendingPresetId, null);
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(state, 'pendingPresetId'),
+    false,
+  );
   assert.equal(state.selectedPresetId, 'user_0001');
   assert.equal(state.nextUserPresetNumber, 4);
   assert.equal(
@@ -1059,7 +1215,7 @@ test('hiding baked rows preserves fallback behavior and restore order', () => {
   assert.equal(configDispatches(fixture).length, 0);
 });
 
-test('reordering users preserves stable selection and pending references', () => {
+test('reordering users preserves stable selection and live configuration', () => {
   const fixture = bootPresetMenu({
     version: 1,
     values: { enemyLow: '#111111' },
@@ -1090,7 +1246,6 @@ test('reordering users preserves stable selection and pending references', () =>
         heroes: [],
       },
     ],
-    pendingPresetId: 'user_0001',
   }, { heroName: '' });
   openEditor(fixture);
   selectPreset(fixture, 'user_0002');
@@ -1108,7 +1263,6 @@ test('reordering users preserves stable selection and pending references', () =>
     ['user_0002', 'user_0001', 'user_0003'],
   );
   assert.equal(state.selectedPresetId, 'user_0002');
-  assert.equal(state.pendingPresetId, 'user_0001');
 
   const blockedUp = presetRowControl(
     fixture,
@@ -1184,7 +1338,7 @@ test('reordered first matching user becomes the next automatic route', () => {
   assert.equal(configDispatches(fixture).length, 1);
 });
 
-test('one Save action creates then updates the selected user preset', () => {
+test('create form stays distinct while a selected session row exposes Save & Apply', () => {
   const fixture = bootPresetMenu({
     version: 1,
     values: { widthScale: 100 },
@@ -1195,39 +1349,44 @@ test('one Save action creates then updates the selected user preset', () => {
   openEditor(fixture);
   fixture.harness.dispatches.length = 0;
 
-  assert.equal(
-    panel(fixture, 'HPColorsPresetNewButton').BHasClass('Disabled'),
-    true,
-  );
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), false);
+  assert.equal(panel(fixture, 'HPColorsPresetNewButton').enabled, true);
   savePreset(fixture, 'Ranked');
+
   let state = readMenuState(fixture);
   assert.deepEqual(
     state.userPresets.map((preset) => preset.id),
     ['user_0001'],
   );
-  assert.equal(state.userPresets[0].mode, 'all');
   assert.equal(state.userPresets[0].name, 'Ranked');
-  assert.equal(state.nextUserPresetNumber, 2);
+  assert.equal(state.userPresets[0].values.widthScale, 100);
   assert.equal(state.selectedPresetId, 'user_0001');
   assert.deepEqual(state.hiddenBakedPresetIds, ['baked_default']);
-  assert.deepEqual(
-    presetRows(fixture).map((preset) =>
-      preset.GetAttributeString('hp_colors_preset_id', '')),
-    ['user_0001'],
-  );
-  assert.equal(
-    panel(fixture, 'HPColorsPresetRestoreBakedButton').enabled,
-    true,
-  );
-  assert.match(panel(fixture, 'HPColorsPresetSaveMode').text, /UPDAT/i);
-  assert.equal(panel(fixture, 'HPColorsPresetNewButton').enabled, true);
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), false);
   assert.equal(configDispatches(fixture).length, 0);
 
   panel(fixture, 'HPColorsWidthEntry').text = '131';
   panel(fixture, 'HPColorsWidthEntry').events.ontextentrysubmit();
   fixture.harness.dispatches.length = 0;
+  selectPreset(fixture, 'user_0001');
+
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), true);
+  assert.equal(panel(fixture, 'HPColorsPresetNameInput').text, 'Ranked');
+  assert.equal(
+    panel(fixture, 'HPColorsPresetSaveButtonLabel').text,
+    'SAVE & APPLY',
+  );
+  const saveAndApply = presetRowControl(
+    fixture,
+    'user_0001',
+    'HPColorsPresetRowApply',
+  );
+  assert.equal(saveAndApply.Children()[0].text, 'SAVE & APPLY');
+  assert.equal(saveAndApply.BHasClass('SaveAndApply'), true);
+  assert.match(panel(fixture, 'HPColorsPresetFeedback').text, /REPLACES IT/i);
+
   panel(fixture, 'HPColorsPresetNameInput').text = 'Ranked Revised';
-  panel(fixture, 'HPColorsPresetSaveButton').events.onactivate();
+  saveAndApply.events.onactivate();
 
   state = readMenuState(fixture);
   assert.deepEqual(
@@ -1238,18 +1397,12 @@ test('one Save action creates then updates the selected user preset', () => {
   assert.equal(state.userPresets[0].values.widthScale, 131);
   assert.equal(state.nextUserPresetNumber, 2);
   assert.equal(state.selectedPresetId, 'user_0001');
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), false);
+  assert.match(panel(fixture, 'HPColorsPresetFeedback').text, /SAVED & APPLIED/i);
   assert.equal(configDispatches(fixture).length, 0);
 
   panel(fixture, 'HPColorsPresetNewButton').events.onactivate();
-  state = readMenuState(fixture);
-  assert.equal(state.selectedPresetId, null);
-  assert.equal(panel(fixture, 'HPColorsPresetNameInput').text, '');
-  assert.match(panel(fixture, 'HPColorsPresetSaveMode').text, /NEW/i);
-  assert.equal(
-    panel(fixture, 'HPColorsPresetNewButton').BHasClass('Disabled'),
-    true,
-  );
-
+  assert.equal(panel(fixture, 'HPColorsPresetSaveButtonLabel').text, 'CREATE PRESET');
   savePreset(fixture, 'Second');
   state = readMenuState(fixture);
   assert.deepEqual(
@@ -1257,8 +1410,13 @@ test('one Save action creates then updates the selected user preset', () => {
     ['user_0001', 'user_0002'],
   );
   assert.equal(state.nextUserPresetNumber, 3);
-  assert.equal(state.selectedPresetId, 'user_0002');
-  assert.equal(configDispatches(fixture).length, 0);
+
+  const beforeCancel = JSON.stringify(state.userPresets);
+  selectPreset(fixture, 'user_0001');
+  panel(fixture, 'HPColorsPresetCancelEditButton').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), false);
+  assert.equal(JSON.stringify(readMenuState(fixture).userPresets), beforeCancel);
+  assert.match(panel(fixture, 'HPColorsPresetFeedback').text, /NOTHING CHANGED/i);
 });
 
 test('Copy selected exports one inert preset with complete metadata', () => {
