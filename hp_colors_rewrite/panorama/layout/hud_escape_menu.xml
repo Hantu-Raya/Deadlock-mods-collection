@@ -99,7 +99,7 @@
           </Panel>
           <Panel class="HPColorsHeaderRule" />
           <Label id="HPColorsLiveStatus" text="LIVE" class="HPColorsLiveStatus" />
-          <Button id="HPColorsDonateButton" class="HPColorsDonateButton" onactivate="$.DispatchEvent( &apos;SteamOverlayOpenURL&apos;, &apos;https://ko-fi.com/hantuaraya&apos; );"><Label text="DONATE" /></Button>
+          <Button id="HPColorsDonateButton" class="HPColorsDonateButton" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://ko-fi.com/hantuaraya&apos; );"><Label text="DONATE" /></Button>
         </Panel>
 
         <Panel class="HPColorsEditorBody">
@@ -211,7 +211,7 @@
                     <Panel id="HPColorsPresetGuide" class="HPColorsPresetGuide">
                       <Panel class="HPColorsHeroCardHelpBlock">
                         <Label text="Presets created or changed here last until Deadlock closes." class="HPColorsHeroCardHelp" />
-                        <Button id="HPColorsPresetBuilderLink" class="HPColorsPresetBuilderLink" onactivate="$.DispatchEvent( &apos;SteamOverlayOpenURL&apos;, &apos;https://hantu-raya.github.io/hp-colors-preset-builder/v2/&apos; );"><Label text="Presets packaged with the V2 web builder return after restart." /></Button>
+                        <Button id="HPColorsPresetBuilderLink" class="HPColorsPresetBuilderLink" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://hantu-raya.github.io/hp-colors-preset-builder/v2/&apos; );"><Label text="Presets packaged with the V2 web builder return after restart." /></Button>
                         <Label text="One preset VPK can contain both All Heroes and Selected Heroes presets." class="HPColorsHeroCardHelp" />
                       </Panel>
 
