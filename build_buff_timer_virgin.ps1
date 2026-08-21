@@ -4,8 +4,8 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $root 'scripts\source2_package_pipeline.ps1')
 $modSrc = Join-Path $root 'buff_timer_virgin'
 $modCompiled = Join-Path $root 'buff_timer_virgin_compiled'
-$stagingSrc = Join-Path $root 'buff_timer_virgin_terser'
-$stagingCompiled = Join-Path $root 'buff_timer_virgin_terser_compiled'
+$closureSrc = Join-Path $root 'buff_timer_virgin_closure'
+$closureCompiled = Join-Path $root 'buff_timer_virgin_closure_compiled'
 $compiler = Join-Path $root 'sr2compiler\New folder.exe'
 $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
     (Join-Path $root 'passive_items_mod\compiler\vpkeditcli.exe'),
@@ -119,17 +119,17 @@ function Assert-ClosureOutput {
 
 # Clean rebuild: remove stale compiled output and previous pack artifacts.
 Remove-TreeUnderRoot -Path $modCompiled -RootPath $root -ExpectedLeaf 'buff_timer_virgin_compiled'
-Remove-TreeUnderRoot -Path $stagingSrc -RootPath $root -ExpectedLeaf 'buff_timer_virgin_terser'
-Remove-TreeUnderRoot -Path $stagingCompiled -RootPath $root -ExpectedLeaf 'buff_timer_virgin_terser_compiled'
+Remove-TreeUnderRoot -Path $closureSrc -RootPath $root -ExpectedLeaf 'buff_timer_virgin_closure'
+Remove-TreeUnderRoot -Path $closureCompiled -RootPath $root -ExpectedLeaf 'buff_timer_virgin_closure_compiled'
 if (Test-Path $vpkOut) { Remove-Item -Force $vpkOut }
 
 # [1/4] Prepare Closure ADVANCED source
 Write-Host "`n[1/4] Preparing Closure ADVANCED buff_timer_virgin source..." -ForegroundColor Cyan
-New-Item -ItemType Directory -Path $stagingSrc -Force | Out-Null
-Copy-Item -Path (Join-Path $modSrc 'panorama') -Destination $stagingSrc -Recurse -Force
+New-Item -ItemType Directory -Path $closureSrc -Force | Out-Null
+Copy-Item -Path (Join-Path $modSrc 'panorama') -Destination $closureSrc -Recurse -Force
 
 $sourceScript = Join-Path $modSrc $scriptRelative
-$compressedScript = Join-Path $stagingSrc $scriptRelative
+$compressedScript = Join-Path $closureSrc $scriptRelative
 if (-not (Test-Path $compressedScript)) {
     throw "Compressed script target was not created: $compressedScript"
 }
@@ -163,7 +163,7 @@ if ($productionSource -eq $stagedSource) {
 $closureOutput = "$compressedScript.closure.js"
 
 
-$closureExterns = New-BuffTimerClosureExterns -Path (Join-Path $stagingSrc 'closure-externs.js')
+$closureExterns = New-BuffTimerClosureExterns -Path (Join-Path $closureSrc 'closure-externs.js')
 $closureArgs = @(
     '--yes'
     'google-closure-compiler'
@@ -195,17 +195,17 @@ Write-Host "  Closure ADVANCED OK -> $compressedScript ($([math]::Round($scriptI
 
 # [2/4] Compile
 Write-Host "`n[2/4] Compiling buff_timer_virgin..." -ForegroundColor Cyan
-$compileScript = Join-Path $stagingCompiled 'panorama\scripts\rejuvnbufftimer.vjs_c'
-$compileLayout = Join-Path $stagingCompiled 'panorama\layout\hud.vxml_c'
-$compileTimerStyle = Join-Path $stagingCompiled 'panorama\styles\hud_timer.vcss_c'
-$compileClaimStyle = Join-Path $stagingCompiled 'panorama\styles\buff_claim.vcss_c'
-Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $stagingSrc -RequiredOutputs @(
+$compileScript = Join-Path $closureCompiled 'panorama\scripts\rejuvnbufftimer.vjs_c'
+$compileLayout = Join-Path $closureCompiled 'panorama\layout\hud.vxml_c'
+$compileTimerStyle = Join-Path $closureCompiled 'panorama\styles\hud_timer.vcss_c'
+$compileClaimStyle = Join-Path $closureCompiled 'panorama\styles\buff_claim.vcss_c'
+Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $closureSrc -RequiredOutputs @(
     $compileScript,
     $compileLayout,
     $compileTimerStyle,
     $compileClaimStyle
 ) -TimeoutSeconds 120
-Copy-Item -Path $stagingCompiled -Destination $modCompiled -Recurse -Force
+Copy-Item -Path $closureCompiled -Destination $modCompiled -Recurse -Force
 Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 
 # [3/4] Pack VPK

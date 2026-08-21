@@ -1,0 +1,117 @@
+/* Prettified by Source 2 Viewer 15.0.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_ability_icon_passive.vcss_c");
+.ability_container
+{
+	flow-children: up;
+	vertical-align: center;
+	overflow: noclip;
+	tooltip-position: right;
+	transition-property: transform, wash-color, margin;
+	transition-duration: 0.2s;
+	opacity: 0.6;
+}
+
+.items .ability_container.item_passive.Hidden
+{
+	visibility: visible;
+}
+
+#hud_passive_items .isWeaponSlot .button_container
+{
+	wash-color: #FFFFFF00;
+}
+
+#hud_passive_items .isVitalitySlot .button_container
+{
+	wash-color: #FFFFFF00;
+}
+
+#hud_passive_items .isSpiritSlot .button_container
+{
+	wash-color: #FFFFFF00;
+}
+
+#hud_passive_items .ability_image
+{
+	height: 100%;
+}
+
+#hud_passive_items .button_container
+{
+	width: 100%;
+	height: 100%;
+}
+
+#hud_items .cooldown_timer,#hud_passive_items .cooldown_timer
+{
+	font-size: 18px;
+	vertical-align: bottom;
+	margin-bottom: 24%;
+}
+
+#cooldown_mask
+{
+	transform: scale3d(-1.1, 1.4, 0);
+}
+
+#hud_passive_items .button_container
+{
+	margin-top: 0px;
+	background-color: #cacacaee;
+	border-radius: 100%;
+}
+
+#hud_passive_items .ability_container
+{
+	width: 45px;
+	height: 45px;
+	margin: 0px 5px;
+}
+
+#hud_passive_items .ability_bg,#hud_passive_items .ability_ring,#hud_items .ability_ring
+{
+	visibility: visible;
+}
+
+#hud_passive_items .cooldown_timer
+{
+	visibility: visible;
+}
+
+.passiveOffCooldown
+{
+	animation-name: passivePop;
+	animation-duration: 1s;
+	opacity: 0.9;
+}
+
+@keyframes 'passivePop'
+{
+	0%
+	{
+		pre-transform-scale2d: 1.0;
+	}
+	
+	25%
+	{
+		pre-transform-scale2d: 1.4;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1.0;
+	}
+	
+	75%
+	{
+		pre-transform-scale2d: 1.4;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1.0;
+	}
+	
+}
+
