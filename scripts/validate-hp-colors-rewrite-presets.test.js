@@ -317,7 +317,8 @@ test('Preset Library explains packaging, routing, priority, and actions', () => 
     assert.match(layoutSource, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
   assert.match(layoutSource, /id="HPColorsPresetBuilderLink"/);
-  assert.match(layoutSource, /SteamOverlayOpenURL/);
+  assert.match(layoutSource, /ExternalBrowserGoToURL/);
+  assert.doesNotMatch(layoutSource, /SteamOverlayOpenURL/);
   assert.match(
     layoutSource,
     /https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/v2\//,
