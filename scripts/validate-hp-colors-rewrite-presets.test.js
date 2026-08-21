@@ -304,7 +304,7 @@ function assertRecordShape(record, expected) {
 test('Preset Library explains packaging, routing, priority, and actions', () => {
   for (const copy of [
     'Presets created or changed here last until Deadlock closes.',
-    'Presets packaged with the web builder return after restart.',
+    'Presets packaged with the V2 web builder return after restart.',
     'One preset VPK can contain both All Heroes and Selected Heroes presets.',
     'HOW PRESETS ARE CHOSEN',
     'HERO-SPECIFIC FIRST  ·  OTHERWISE ALL HEROES',
@@ -318,7 +318,14 @@ test('Preset Library explains packaging, routing, priority, and actions', () => 
   }
   assert.match(layoutSource, /id="HPColorsPresetBuilderLink"/);
   assert.match(layoutSource, /SteamOverlayOpenURL/);
-  assert.match(layoutSource, /https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\//);
+  assert.match(
+    layoutSource,
+    /https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/v2\//,
+  );
+  assert.match(layoutSource, /id="HPColorsDonateButton"/);
+  assert.match(layoutSource, /https:\/\/ko-fi\.com\/hantuaraya/);
+  assert.match(layoutSource, /id="HPColorsPresetInfoToggle"/);
+  assert.match(layoutSource, /id="HPColorsPresetGuide"/);
 });
 
 test('installed XML HPCRP1 preset applies on cold boot before any lifecycle transition', () => {

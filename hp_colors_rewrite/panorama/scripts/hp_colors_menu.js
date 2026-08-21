@@ -423,6 +423,7 @@
     condition: false,
   };
   var pickerGestureActive = false;
+  var presetGuideVisible = false;
   var ui = {
     categoryButtons: [],
     tabButtons: [],
@@ -485,6 +486,8 @@
     presetTransferConfirmButton: null,
     presetTransferCloseButton: null,
     presetRestoreBakedButton: null,
+    presetGuide: null,
+    presetInfoToggle: null,
     presetStorePanel: null,
     resetDialog: null,
     resetDialogTitle: null,
@@ -3916,6 +3919,26 @@
     renderCurrentScope();
   }
 
+  function syncPresetGuide(presetPageActive) {
+    setClass(ui.presetInfoToggle, "Available", presetPageActive);
+    setClass(
+      ui.presetInfoToggle,
+      "Active",
+      presetPageActive && presetGuideVisible,
+    );
+    setClass(
+      ui.presetGuide,
+      "Visible",
+      presetPageActive && presetGuideVisible,
+    );
+    setEnabled(ui.presetInfoToggle, presetPageActive);
+  }
+
+  function togglePresetGuide() {
+    presetGuideVisible = !presetGuideVisible;
+    syncPresetGuide(true);
+  }
+
   function renderNavigation() {
     var category = CATEGORY_DEFS[state.categoryIndex];
     if (!category) return;
@@ -3942,8 +3965,9 @@
 
     var activeTab = category.tabs[state.tabIndex];
     if (!activeTab) return;
-    var hideHistoryActions =
+    var presetPageActive =
       activeTab.pageId === "HPColorsSettingsOverviewHero";
+    var hideHistoryActions = presetPageActive;
     setClass(
       ui.undoButton,
       "HPColorsFooterActionHidden",
@@ -3965,6 +3989,7 @@
         ui.settingsPages[pageIndex].id === activeTab.pageId,
       );
     }
+    syncPresetGuide(presetPageActive);
     syncControls();
   }
 
@@ -4184,6 +4209,8 @@
       "HPColorsPresetTransferConfirmButton",
     );
     ui.presetTransferCloseButton = find("HPColorsPresetTransferCloseButton");
+    ui.presetGuide = find("HPColorsPresetGuide");
+    ui.presetInfoToggle = find("HPColorsPresetInfoToggle");
     ui.headerCategory = find("HPColorsHeaderCategory");
     ui.liveStatus = find("HPColorsLiveStatus");
     ui.pageEyebrow = find("HPColorsPageEyebrow");
@@ -4337,6 +4364,8 @@
       isValid(ui.presetTransferFeedback) &&
       isValid(ui.presetTransferConfirmButton) &&
       isValid(ui.presetTransferCloseButton) &&
+      isValid(ui.presetGuide) &&
+      isValid(ui.presetInfoToggle) &&
       isValid(ui.headerCategory) &&
       isValid(ui.liveStatus) &&
       isValid(ui.pageEyebrow) &&
@@ -4565,6 +4594,7 @@
   }
 
   function bindControls() {
+    setPanelEvent(ui.presetInfoToggle, "onactivate", togglePresetGuide);
     bindToggle("HPColorsMasterToggle", "enabled");
     bindToggle("HPColorsEnemyToggle", "enemyEnabled");
     bindToggle("HPColorsEnemyVisibleToggle", "enemyVisible");

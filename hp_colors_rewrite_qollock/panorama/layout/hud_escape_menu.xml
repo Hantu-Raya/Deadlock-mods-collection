@@ -156,6 +156,7 @@
           </Panel>
           <Panel class="HPColorsHeaderRule" />
           <Label id="HPColorsLiveStatus" text="LIVE" class="HPColorsLiveStatus" />
+          <Button id="HPColorsDonateButton" class="HPColorsDonateButton" onactivate="$.DispatchEvent( &apos;SteamOverlayOpenURL&apos;, &apos;https://ko-fi.com/hantuaraya&apos; );"><Label text="DONATE" /></Button>
         </Panel>
 
         <Panel class="HPColorsEditorBody">
@@ -190,7 +191,9 @@
             <Panel class="HPColorsPage">
               <Label id="HPColorsPageEyebrow" text="OVERVIEW / MASTER" class="HPColorsPageEyebrow" />
               <Label id="HPColorsPageTitle" text="MASTER SWITCH" class="HPColorsPageTitle" />
-              <Panel class="HPColorsPageRule" />
+              <Panel class="HPColorsPageRule">
+                <Button id="HPColorsPresetInfoToggle" class="HPColorsPresetInfoToggle"><Label text="INFO" /></Button>
+              </Panel>
               <Label id="HPColorsPageDescription" text="Turn HP Colors on or off. Your settings stay saved when it is off." class="HPColorsPageDescription" />
               <Panel id="HPColorsSettingsList" class="HPColorsSettingsList">
                 <Panel id="HPColorsSettingsOverviewStatus" class="HPColorsSettingsPage Active">
@@ -259,19 +262,21 @@
                       </Panel>
                       <Label text="SESSION ONLY" class="HPColorsHeroSessionFlag" />
                     </Panel>
-                    <Panel class="HPColorsHeroCardHelpBlock">
-                      <Label text="Presets created or changed here last until Deadlock closes." class="HPColorsHeroCardHelp" />
-                      <Button id="HPColorsPresetBuilderLink" class="HPColorsPresetBuilderLink" onactivate="$.DispatchEvent( &apos;SteamOverlayOpenURL&apos;, &apos;https://hantu-raya.github.io/hp-colors-preset-builder/&apos; );"><Label text="Presets packaged with the web builder return after restart." /></Button>
-                      <Label text="One preset VPK can contain both All Heroes and Selected Heroes presets." class="HPColorsHeroCardHelp" />
-                    </Panel>
+                    <Panel id="HPColorsPresetGuide" class="HPColorsPresetGuide">
+                      <Panel class="HPColorsHeroCardHelpBlock">
+                        <Label text="Presets created or changed here last until Deadlock closes." class="HPColorsHeroCardHelp" />
+                        <Button id="HPColorsPresetBuilderLink" class="HPColorsPresetBuilderLink" onactivate="$.DispatchEvent( &apos;SteamOverlayOpenURL&apos;, &apos;https://hantu-raya.github.io/hp-colors-preset-builder/v2/&apos; );"><Label text="Presets packaged with the V2 web builder return after restart." /></Button>
+                        <Label text="One preset VPK can contain both All Heroes and Selected Heroes presets." class="HPColorsHeroCardHelp" />
+                      </Panel>
 
-                    <Panel class="HPColorsPresetHeroContext">
-                      <Label text="ACTIVE HERO" class="HPColorsPresetContextLabel" />
-                      <Label id="HPColorsHeroIdentity" text="HERO: UNKNOWN" class="HPColorsPresetHeroValue" />
-                      <Panel class="HPColorsPresetRouting">
-                        <Label text="HOW PRESETS ARE CHOSEN" class="HPColorsPresetRoutingTitle" />
-                        <Label text="HERO-SPECIFIC FIRST  ·  OTHERWISE ALL HEROES" class="HPColorsPresetRoutingValue" />
-                        <Label text="If two presets cover the same hero, the higher one in the list wins." class="HPColorsPresetRoutingHelp" />
+                      <Panel class="HPColorsPresetHeroContext">
+                        <Label text="ACTIVE HERO" class="HPColorsPresetContextLabel" />
+                        <Label id="HPColorsHeroIdentity" text="HERO: UNKNOWN" class="HPColorsPresetHeroValue" />
+                        <Panel class="HPColorsPresetRouting">
+                          <Label text="HOW PRESETS ARE CHOSEN" class="HPColorsPresetRoutingTitle" />
+                          <Label text="HERO-SPECIFIC FIRST  ·  OTHERWISE ALL HEROES" class="HPColorsPresetRoutingValue" />
+                          <Label text="If two presets cover the same hero, the higher one in the list wins." class="HPColorsPresetRoutingHelp" />
+                        </Panel>
                       </Panel>
                     </Panel>
 
