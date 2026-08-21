@@ -33,6 +33,8 @@ const ENEMY_BAR_DEFAULTS = {
   enemyLow: '#E16161',
   enemyMid: '#FF7B00',
   enemyHigh: '#00FF00',
+  lowThreshold: 25,
+  highThreshold: 65,
   enemyTeamHigh: false,
   excludeBuildings: false,
   excludeBosses: false,
@@ -350,6 +352,25 @@ test('effect pages live under their healthbar categories', () => {
   panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsHeaderCategory').text, 'HEALTH INFO');
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'HP TEXT');
+});
+
+test('shared thresholds live on the Enemy Bar page', () => {
+  const enemyBarStart = layoutSource.indexOf(
+    '<Panel id="HPColorsSettingsEnemyBar"',
+  );
+  const enemyBarEnd = layoutSource.indexOf(
+    '<Panel id="HPColorsSettingsEnemyFeedback"',
+    enemyBarStart,
+  );
+  assert.ok(enemyBarStart >= 0);
+  assert.ok(enemyBarEnd > enemyBarStart);
+  for (const id of [
+    'HPColorsSharedLowThresholdRow',
+    'HPColorsSharedHighThresholdRow',
+  ]) {
+    const rowIndex = layoutSource.indexOf(`id="${id}"`);
+    assert.ok(rowIndex > enemyBarStart && rowIndex < enemyBarEnd, id);
+  }
 });
 
 test('Presets page hides Reset Section and Undo', () => {

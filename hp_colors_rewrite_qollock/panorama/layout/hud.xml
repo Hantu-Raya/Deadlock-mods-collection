@@ -20,7 +20,6 @@
 		<include src="s2r://panorama/scripts/ql_state.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_panelcache.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_config.vjs_c" />
-		<include src="s2r://panorama/scripts/qollock_runtime_guard.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_recent_purchases_data.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_minimap_crate_data.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_perf_overlay.vjs_c" />
@@ -46,6 +45,12 @@
 		<include src="s2r://panorama/scripts/features/ql_feat_spm.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_panelcache.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_showrank_card.vjs_c" />
+		<include src="s2r://panorama/scripts/features/ql_feat_healthbar.vjs_c" />
+		<include src="s2r://panorama/scripts/features/healthbar/ql_feat_healthbar_accent.vjs_c" />
+		<include src="s2r://panorama/scripts/features/healthbar/ql_feat_healthbar_budhud.vjs_c" />
+		<include src="s2r://panorama/scripts/features/healthbar/ql_feat_healthbar_minimalist.vjs_c" />
+		<include src="s2r://panorama/scripts/features/healthbar/ql_feat_healthbar_fg.vjs_c" />
+		<include src="s2r://panorama/scripts/features/healthbar/ql_feat_healthbar_mc.vjs_c" />
 		<include src="s2r://panorama/scripts/core/ql_namespace.vjs_c" />
 		<include src="s2r://panorama/scripts/core/ql_logger.vjs_c" />
 		<include src="s2r://panorama/scripts/core/ql_event_bus.vjs_c" />
@@ -89,13 +94,11 @@
 		<include src="s2r://panorama/scripts/manifests/ql_keyboard/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_damage_numbers/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_color_warnings/manifest.vjs_c" />
-		<include src="s2r://panorama/scripts/qollock_topbar_warning_guard.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_showrank/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_rejuv_hud/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_minimap_timers/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_legacy_audio_passive/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/core/ql_app.vjs_c" />
-		<include src="s2r://panorama/scripts/qollock_runtime_guard.vjs_c" />
 	</scripts>
 	<snippets>
 		<snippet name="OffscreenEnemySnippet">

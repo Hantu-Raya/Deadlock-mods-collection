@@ -5,46 +5,28 @@
 		<include src="s2r://panorama/styles/hud_escape_menu.vcss_c" />
 		<include src="s2r://panorama/styles/ql_settings.vcss_c" />
 		<include src="s2r://panorama/styles/hp_colors_menu.vcss_c" />
+		<include src="s2r://panorama/styles/showrank_player_list.vcss_c" />
 	</styles>
 	<scripts>
-		<include src="s2r://panorama/scripts/ql_utils.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_shared_presets.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_bridge.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_config.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_custom_announcer_pack_meta.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_en.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_ko.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_it.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_tr.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_ru.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_uk.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_pl.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_bg.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_by.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_ja.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_zh.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_fr.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_pt.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_pt_br.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_es.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_arcade_games.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_previews.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_tooltips.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_settings_persistence.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_update_checker.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_custom_announcer_slot1_pack_meta.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_custom_announcer_slot2_pack_meta.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_custom_announcer_slot3_pack_meta.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_custom_announcer_slot4_pack_meta.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_custom_announcer_slot5_pack_meta.vjs_c" />
+		<include src="s2r://panorama/scripts/showrank_web_media_bridge.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_settings.vjs_c" />
-		<include src="s2r://panorama/scripts/qollock_settings_guard.vjs_c" />
 		<include src="s2r://panorama/scripts/hp_colors_contract.vjs_c" />
 		<include src="s2r://panorama/scripts/hp_colors_state.vjs_c" />
 		<include src="s2r://panorama/scripts/hp_colors_menu.vjs_c" />
 		<include src="s2r://panorama/scripts/qollock_hp_colors_bridge.vjs_c" />
 	</scripts>
-	<CitadelHudEscapeMenu oncancel="if ($.HPColorsMenuCancel && $.HPColorsMenuCancel()) {} else if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }" onload="$.HPColorsMenuBoot()">
-		<Panel id="EscapeBackground" onactivate="if ($.HPColorsMenuCancel && $.HPColorsMenuCancel()) {} else if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }" />
+	<CitadelHudEscapeMenu oncancel="if ($.HPColorsMenuCancel && $.HPColorsMenuCancel()) {} else if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else if (typeof CitadelResumePlaying === &apos;function&apos;) { CitadelResumePlaying(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }" onload="$.HPColorsMenuBoot()">
+		<Panel id="EscapeBackground" onactivate="if ($.HPColorsMenuCancel && $.HPColorsMenuCancel()) {} else if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else if (typeof CitadelResumePlaying === &apos;function&apos;) { CitadelResumePlaying(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }" />
 		<Panel id="SettingsWindow" hittest="true" onactivate="">
 			<Panel id="SettingsHeader">
 				<Label id="SettingsTitle" text="QOL LOCK" />
-				<Button id="CloseBtn" onactivate="if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }">
+				<Button id="CloseBtn" onactivate="if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else if (typeof CitadelResumePlaying === &apos;function&apos;) { CitadelResumePlaying(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }">
 					<Label text="X" />
 				</Button>
 			</Panel>
@@ -62,7 +44,7 @@
 						</Button>
 						<Button id="matchmakingEditRoster" class="nav_menu_item primary" onactivate="CitadelEditMatchmakingRoster()">
 							<Panel class="MenuIcon" />
-							<Label text="#menu_edit_roster" class="menuButtonLabel" />
+							<Label text="#menu_roster_detail2" class="menuButtonLabel" />
 						</Button>
 					</Panel>
 					<Panel class="ReconnectOptions OptionGroup">
@@ -106,6 +88,8 @@
 							<Label text="QOL LOCK" class="menuButtonLabel" />
 							<Image id="ModSettingsGearIcon" class="smallIcon" src="s2r://panorama/images/icons/icon_gear.vsvg" />
 						</Button>
+					</Panel>
+					<Panel class="SettingsRow">
 <Button id="HPColorsMenuButton" class="nav_menu_item minor">
             <Label text="HP COLORS" class="menuButtonLabel" />
           </Button>
@@ -132,16 +116,16 @@
 			<Panel id="PartySpacer" />
 			<Panel class="FriendsOrPlayersTabs">
 				<Panel class="Center">
-					<TabButton id="FriendsTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Friends_WindowTitle" selected="true" />
-					<TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" />
+					<TabButton id="FriendsTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Friends_WindowTitle" />
+					<TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" selected="true" onactivate="if ($.ShowRankEscapePreloadFromPlayerList) $.ShowRankEscapePreloadFromPlayerList(&apos;escape_menu_players_tab_activate&apos;);" />
 				</Panel>
 			</Panel>
 			<Panel class="FriendsOrPlayersContents" hittest="false">
-				<TabContents id="FriendsTabContents" tabid="FriendsTab" group="people_list_tabs" hittest="false" selected="true">
+				<TabContents id="FriendsTabContents" tabid="FriendsTab" group="people_list_tabs" hittest="false">
 					<CitadelFriendsList id="FriendsList" />
 				</TabContents>
-				<TabContents id="PlayersTabContents" tabid="PlayersTab" group="people_list_tabs" hittest="false">
-					<CitadelPlayersList id="PlayersList" />
+				<TabContents id="PlayersTabContents" tabid="PlayersTab" group="people_list_tabs" hittest="false" selected="true">
+					<CitadelPlayersList id="PlayersList" onload="if ($.ShowRankEscapePreloadFromPlayerList) $.ShowRankEscapePreloadFromPlayerList(&apos;escape_menu_players_list_onload&apos;);" />
 				</TabContents>
 			</Panel>
 		</Panel>
@@ -383,6 +367,22 @@
                       <TextEntry id="HPColorsEnemyHighHex" class="HPColorsHexEntry" text="#00FF00" maxchars="7" />
                     </Panel>
                   </Panel>
+                  <Panel id="HPColorsSharedLowThresholdRow" class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="SHARED LOW THRESHOLD" class="HPColorsSettingTitle" /><Label text="One threshold used by enemy bars, ally bars, and custom HP text." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsSharedLowThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsSharedLowThresholdEntry" class="HPColorsNumberEntry" text="25" />
+                      <Label text="%" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsSharedHighThresholdRow" class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="SHARED HIGH THRESHOLD" class="HPColorsSettingTitle" /><Label text="One threshold used by enemy bars, ally bars, and custom HP text." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsSharedHighThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsSharedHighThresholdEntry" class="HPColorsNumberEntry" text="65" />
+                      <Label text="%" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
                 </Panel>
 
                 <Panel id="HPColorsSettingsEnemyFeedback" class="HPColorsSettingsPage">
@@ -491,22 +491,6 @@
                     <Panel class="HPColorsSegment">
                       <Button id="HPColorsReadoutModeFixed" class="HPColorsSegmentButton"><Label text="FIXED" /></Button>
                       <Button id="HPColorsReadoutModeGradient" class="HPColorsSegmentButton"><Label text="GRADIENT" /></Button>
-                    </Panel>
-                  </Panel>
-                  <Panel id="HPColorsSharedLowThresholdRow" class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="SHARED LOW THRESHOLD" class="HPColorsSettingTitle" /><Label text="One threshold used by enemy bars, ally bars, and custom HP text." class="HPColorsSettingHelp" /></Panel>
-                    <Panel class="HPColorsSliderGroup">
-                      <Panel id="HPColorsSharedLowThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
-                      <TextEntry id="HPColorsSharedLowThresholdEntry" class="HPColorsNumberEntry" text="25" />
-                      <Label text="%" class="HPColorsUnitLabel" />
-                    </Panel>
-                  </Panel>
-                  <Panel id="HPColorsSharedHighThresholdRow" class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="SHARED HIGH THRESHOLD" class="HPColorsSettingTitle" /><Label text="One threshold used by enemy bars, ally bars, and custom HP text." class="HPColorsSettingHelp" /></Panel>
-                    <Panel class="HPColorsSliderGroup">
-                      <Panel id="HPColorsSharedHighThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
-                      <TextEntry id="HPColorsSharedHighThresholdEntry" class="HPColorsNumberEntry" text="65" />
-                      <Label text="%" class="HPColorsUnitLabel" />
                     </Panel>
                   </Panel>
                   <Panel id="HPColorsReadoutCustomRows" class="HPColorsGradientRows HPColorsConditionalRow">

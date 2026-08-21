@@ -46,10 +46,7 @@ $canonicalFiles = @(
 $supportFiles = @(
     'panorama\layout\hud.xml',
     'panorama\layout\hud_escape_menu.xml',
-    'panorama\scripts\qollock_runtime_guard.js',
-    'panorama\scripts\qollock_settings_guard.js',
-    'panorama\scripts\qollock_hp_colors_bridge.js',
-    'panorama\scripts\qollock_topbar_warning_guard.js'
+    'panorama\scripts\qollock_hp_colors_bridge.js'
 )
 
 $requiredCompiled = @(
@@ -60,10 +57,7 @@ $requiredCompiled = @(
     (Join-Path $stageOutput 'panorama\scripts\healthbar_probe.vjs_c'),
     (Join-Path $stageOutput 'panorama\scripts\hp_colors_state.vjs_c'),
     (Join-Path $stageOutput 'panorama\scripts\hp_colors_menu.vjs_c'),
-    (Join-Path $stageOutput 'panorama\scripts\qollock_runtime_guard.vjs_c'),
-    (Join-Path $stageOutput 'panorama\scripts\qollock_settings_guard.vjs_c'),
     (Join-Path $stageOutput 'panorama\scripts\qollock_hp_colors_bridge.vjs_c'),
-    (Join-Path $stageOutput 'panorama\scripts\qollock_topbar_warning_guard.vjs_c'),
     (Join-Path $stageOutput 'panorama\styles\hp_colors_menu.vcss_c'),
     (Join-Path $stageOutput 'panorama\styles\hp_colors_unit_status.vcss_c')
 )

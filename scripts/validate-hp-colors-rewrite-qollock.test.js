@@ -12,18 +12,6 @@ const supportRoot = path.join(root, 'hp_colors_rewrite_qollock');
 const canonicalRoot = path.join(root, 'hp_colors_rewrite');
 const supportLayout = path.join(supportRoot, 'panorama/layout/hud_escape_menu.xml');
 const supportHud = path.join(supportRoot, 'panorama/layout/hud.xml');
-const runtimeGuard = path.join(
-  supportRoot,
-  'panorama/scripts/qollock_runtime_guard.js',
-);
-const topbarWarningGuard = path.join(
-  supportRoot,
-  'panorama/scripts/qollock_topbar_warning_guard.js',
-);
-const settingsGuard = path.join(
-  supportRoot,
-  'panorama/scripts/qollock_settings_guard.js',
-);
 const menuBridge = path.join(
   supportRoot,
   'panorama/scripts/qollock_hp_colors_bridge.js',
@@ -56,6 +44,23 @@ function hash(filePath) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
+function assertThresholdRowsOnEnemyBar(xml) {
+  const enemyBarStart = xml.indexOf('<Panel id="HPColorsSettingsEnemyBar"');
+  const enemyBarEnd = xml.indexOf(
+    '<Panel id="HPColorsSettingsEnemyFeedback"',
+    enemyBarStart,
+  );
+  assert.ok(enemyBarStart >= 0);
+  assert.ok(enemyBarEnd > enemyBarStart);
+  for (const id of [
+    'HPColorsSharedLowThresholdRow',
+    'HPColorsSharedHighThresholdRow',
+  ]) {
+    const rowIndex = xml.indexOf(`id="${id}"`);
+    assert.ok(rowIndex > enemyBarStart && rowIndex < enemyBarEnd, id);
+  }
+}
+
 test('installed pak03 is the only pinned QOLLOCK input', () => {
   const entries = parseHashManifest();
   assert.equal(entries.length, 1);
@@ -64,7 +69,7 @@ test('installed pak03 is the only pinned QOLLOCK input', () => {
   assert.doesNotMatch(entries[0].source, /G:\/QOLLOCK/i);
 });
 
-test('package layout refresh fails closed and injects each owned asset once', () => {
+test('package layout refresh retains QOL healthbars and injects each owned asset once', () => {
   const packageHash = 'a'.repeat(64);
   const packageHud = [
     '<!-- xml reconstructed by fixture -->',
@@ -90,16 +95,17 @@ test('package layout refresh fails closed and injects each owned asset once', ()
     '  </scripts>',
     '  <CitadelHudEscapeMenu oncancel="CitadelResumePlaying()">',
     '    <Panel id="EscapeBackground" onactivate="CitadelResumePlaying()" />',
-    '    <Button id="ModSettingsBtn"><Label text="QOL LOCK" /></Button>',
+    '    <Panel class="SettingsRow">',
+    '      <Button id="ModSettingsBtn"><Label text="QOL LOCK" /></Button>',
+    '    </Panel>',
     '  </CitadelHudEscapeMenu>',
     '</root>',
     '',
   ].join('\n');
 
   const hud = buildHud(packageHud, packageHash);
-  assert.doesNotMatch(hud, /features\/[^"]*healthbar[^"]*\.vjs_c/i);
-  assert.equal((hud.match(/qollock_runtime_guard\.vjs_c/g) || []).length, 2);
-  assert.equal((hud.match(/qollock_topbar_warning_guard\.vjs_c/g) || []).length, 1);
+  assert.ok((hud.match(/features\/[^"]*healthbar[^"]*\.vjs_c/gi) || []).length >= 2);
+  assert.doesNotMatch(hud, /qollock_(?:runtime|topbar_warning)_guard\.vjs_c/i);
 
   const escape = buildEscapeMenu(
     packageEscape,
@@ -113,6 +119,8 @@ test('package layout refresh fails closed and injects each owned asset once', ()
   ]) {
     assert.equal((escape.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1);
   }
+  assert.doesNotMatch(escape, /qollock_settings_guard\.vjs_c/i);
+  assertThresholdRowsOnEnemyBar(escape);
 
   assert.throws(
     () => buildHud(
@@ -170,47 +178,34 @@ test('support folder does not duplicate canonical Rewrite runtime', () => {
   assert.ok(fs.existsSync(path.join(canonicalRoot, 'panorama/scripts/hp_colors_state.js')));
 });
 
-test('QOL healthbar controls and runtimes are removed without removing topbar warnings', () => {
+test('QOL healthbar controls and runtimes remain available', () => {
   const hud = read(supportHud);
-  assert.doesNotMatch(hud, /features\/ql_feat_healthbar|features\/healthbar\/ql_feat_healthbar/i);
-  const warningManifestIndex = hud.indexOf('manifests/ql_color_warnings/manifest.vjs_c');
-  const warningGuardIndex = hud.indexOf('qollock_topbar_warning_guard.vjs_c');
-  assert.ok(warningManifestIndex >= 0 && warningGuardIndex > warningManifestIndex);
-  assert.match(hud, /manifests\/ql_topbar\/manifest/i);
-  const guard = read(settingsGuard);
-  for (const key of [
-    'HEALTHBAR_TYPE',
-    'ENABLE_MINIMALIST_HEALTHBAR',
-    'ENABLE_FG_HEALTHBAR',
-    'ENABLE_ENEMY_V2_ENHANCED',
-    'ENABLE_ENEMY_V2_ULT_INDICATOR',
-    'ENABLE_ENEMY_V2_LEVEL',
-    'ENABLE_ENEMY_ULT_INDICATOR',
-    'PLAYER_HEALTHBAR_SCALE',
-    'PLAYER_HEALTHBAR_OPACITY',
-    'PLAYER_HEALTHBAR_X_OFFSET',
-    'PLAYER_HEALTHBAR_Y_OFFSET',
-  ]) {
-    assert.match(guard, new RegExp(`${key}: true`));
-  }
-  for (const key of [
-    'ENABLE_TOPBAR_ENEMY_HP_WARNING',
-    'ENABLE_TOPBAR_ALLY_HP_WARNING',
-  ]) {
-    assert.doesNotMatch(guard, new RegExp(key));
-  }
+  assert.ok((hud.match(/features\/[^"]*healthbar[^"]*\.vjs_c/gi) || []).length >= 2);
+  assert.doesNotMatch(hud, /qollock_(?:runtime|topbar_warning)_guard\.vjs_c/i);
+  const layout = read(supportLayout);
+  assert.doesNotMatch(layout, /qollock_settings_guard\.vjs_c/i);
 });
 
-test('QOL LOCK and HP COLORS are ordered and mutually exclusive', () => {
+test('QOL LOCK and HP COLORS use separate stable menu rows', () => {
   const layout = read(supportLayout);
-  const qol = layout.indexOf('id="ModSettingsBtn"');
-  const hp = layout.indexOf('id="HPColorsMenuButton"');
-  assert.ok(qol >= 0 && hp > qol);
+  for (const id of ['newgame', 'watchgame', 'guides']) {
+    assert.match(layout, new RegExp(`id="${id}"`));
+  }
+  assert.match(
+    layout,
+    /<Panel class="SettingsRow">\s*<Button id="ModSettingsBtn"[\s\S]*?<\/Button>\s*<\/Panel>\s*<Panel class="SettingsRow">\s*<Button id="HPColorsMenuButton"[\s\S]*?<\/Button>\s*<\/Panel>/,
+  );
+  assertThresholdRowsOnEnemyBar(layout);
   const bridge = read(menuBridge);
   assert.match(bridge, /closeHpColors/);
   assert.match(bridge, /closeQolLock/);
   assert.match(bridge, /ToggleSettingsWindow/);
   assert.match(bridge, /HPColorsMenuBoot/);
+});
+
+test('compact options leave space below Swap Hero', () => {
+  const style = read(path.join(canonicalRoot, 'panorama/styles/hp_colors_menu.css'));
+  assert.match(style, /#SubOptions\s*\{[^}]*margin-bottom:\s*118px;/);
 });
 
 test('opening HP Colors closes QOL settings without resuming gameplay', () => {
@@ -262,211 +257,11 @@ test('opening HP Colors closes QOL settings without resuming gameplay', () => {
   assert.equal(resumed, false);
 });
 
-test('missing QOL marker reports once and HPCRP1 store is empty-safe', () => {
-  const guard = read(runtimeGuard);
-  assert.match(guard, /required QOL runtime marker is absent/);
-  assert.match(guard, /reportMissingQolRuntime\.reported/);
-  assert.match(guard, /hp_colors_rewrite_qollock_missing_qol_reported/);
-  assert.equal((guard.match(/required QOL runtime marker is absent/g) || []).length, 1);
+test('HPCRP1 store is empty-safe', () => {
   const layout = read(supportLayout);
   assert.match(layout, /hp_colors_rewrite_preset_contract="HPCRP1"/);
   assert.match(layout, /hp_colors_rewrite_preset_version="1"/);
   assert.match(layout, /id="HPColorsRewritePreset_001"[\s\S]*text=""/);
-});
-
-test('ignored QOL values are retained and imports warn once', () => {
-  const guard = read(settingsGuard);
-  assert.match(guard, /raw ignored values stay in MOD_CONFIG\/storage/);
-  assert.match(guard, /TryApplyImportStringWithDiagnostics/);
-  assert.match(guard, /ignoredHealthbarKeys/);
-  assert.match(guard, /ignored QOL healthbar values were retained/);
-  assert.match(guard, /ignoredWarningShown = false/);
-});
-
-test('settings guard removes the Healthbar tab and keeps ignored values inert', () => {
-  const warnings = [];
-  const rowCalls = [];
-  const context = {
-    QOL: {
-      persistence: {
-        applyParsedConfigWithDiagnostics: () => ({ clampedKeys: 0, unknownKeys: 0 }),
-      },
-    },
-    currentTab: 'Healthbar',
-    GetSettingsTabOrder: () => ['Support', 'Healthbar', 'HUD'],
-    GetSettingsTabGroups: () => [
-      { title: 'Gameplay', tabs: ['Crosshair', 'Healthbar', 'HUD'] },
-    ],
-    CreateRow: (...args) => rowCalls.push(args),
-    CreateSliderRow: (...args) => {
-      rowCalls.push(args);
-      return 'created';
-    },
-    CreateInlineSecondaryCheckboxToggleRow: (...args) => rowCalls.push(args),
-    InvalidateSearchSectionIndexCache: () => {},
-    TryApplyImportStringWithDiagnostics: () => ({
-      ok: true,
-      parsedConfig: {
-        ENABLE_COMBAT_INDICATOR: 1,
-        PLAYER_HEALTHBAR_SCALE: 175,
-        ENABLE_TOPBAR_ENEMY_HP_WARNING: 1,
-      },
-    }),
-    SetLocalizedConfigFeedbackMessage: (message) => warnings.push(message),
-    $: {
-      Msg: () => {},
-      Schedule: (_delay, callback) => callback(),
-    },
-  };
-
-  vm.runInNewContext(read(settingsGuard), context);
-
-  assert.deepEqual(
-    Array.from(context.GetSettingsTabOrder()),
-    ['Support', 'HUD'],
-  );
-  assert.deepEqual(
-    Array.from(context.GetSettingsTabGroups()[0].tabs),
-    ['Crosshair', 'HUD'],
-  );
-  assert.equal(context.currentTab, 'HUD');
-  assert.equal(context.CreateSliderRow(null, 'Size', 'PLAYER_HEALTHBAR_SCALE'), null);
-  assert.equal(rowCalls.length, 0);
-  assert.equal(context.CreateSliderRow(null, 'Scale', 'SHOP_SCALE'), 'created');
-  const imported = context.TryApplyImportStringWithDiagnostics('payload');
-  assert.equal(imported.parsedConfig.PLAYER_HEALTHBAR_SCALE, 175);
-  assert.equal(imported.parsedConfig.ENABLE_TOPBAR_ENEMY_HP_WARNING, 1);
-  assert.deepEqual(
-    Array.from(imported.ignoredHealthbarKeys).sort(),
-    ['ENABLE_COMBAT_INDICATOR', 'PLAYER_HEALTHBAR_SCALE'],
-  );
-  assert.equal(warnings.length, 0);
-  context.QOL.persistence.applyParsedConfigWithDiagnostics(imported.parsedConfig);
-  assert.equal(warnings.length, 1);
-});
-
-test('runtime guard masks only QOL healthbar values', () => {
-  const rawConfig = {
-    ENABLE_COMBAT_INDICATOR: 1,
-    HEALTHBAR_TYPE: 5,
-    PLAYER_HEALTHBAR_SCALE: 175,
-    ENABLE_TOPBAR_ENEMY_HP_WARNING: 1,
-  };
-  const context = {
-    QOL: {
-      core: { App: { isBooted: () => true } },
-      safeParseConfig: () => rawConfig,
-      buildDefaultConfig: () => rawConfig,
-      mergeConfig: () => rawConfig,
-      applyBuildCategoryPayloadOverride: () => rawConfig,
-    },
-    $: {
-      GetContextPanel: () => null,
-      Msg: () => {},
-    },
-  };
-
-  vm.runInNewContext(read(runtimeGuard), context);
-  const masked = context.QOL.safeParseConfig('payload');
-  assert.equal(masked.ENABLE_COMBAT_INDICATOR, 0);
-  assert.equal(masked.HEALTHBAR_TYPE, 0);
-  assert.equal(masked.PLAYER_HEALTHBAR_SCALE, 100);
-  assert.equal(masked.ENABLE_TOPBAR_ENEMY_HP_WARNING, 1);
-  assert.equal(rawConfig.ENABLE_COMBAT_INDICATOR, 1);
-  assert.equal(rawConfig.PLAYER_HEALTHBAR_SCALE, 175);
-});
-
-test('missing QOL core reports once only after the second guard pass', () => {
-  const attributes = new Map();
-  const messages = [];
-  const panel = {
-    GetAttributeString: (key, fallback) => attributes.get(key) ?? fallback,
-    SetAttributeString: (key, value) => attributes.set(key, value),
-  };
-  const context = {
-    QOL: { core: {} },
-    $: {
-      GetContextPanel: () => panel,
-      Msg: (message) => messages.push(message),
-    },
-  };
-
-  vm.runInNewContext(read(runtimeGuard), context);
-  assert.equal(messages.length, 0);
-  vm.runInNewContext(read(runtimeGuard), context);
-  vm.runInNewContext(read(runtimeGuard), context);
-  assert.equal(messages.length, 1);
-  assert.match(messages[0], /required QOL runtime marker is absent/);
-});
-
-test('topbar warning guard keeps topbar keys and masks body healthbar keys', () => {
-  let capturedConfig = null;
-  const setCalls = [];
-  const manifest = {
-    enableKey: 'ENABLE_COLORED_HEALTHBAR',
-    enabledByDefault: false,
-    create: (context) => {
-      capturedConfig = context.config.view();
-      return {};
-    },
-  };
-  const context = {
-    QOL: {
-      core: {
-        FeatureRegistry: {
-          getManifest: (id) => id === 'ql_color_warnings' ? manifest : null,
-        },
-        ConfigStore: {
-          set: (...args) => setCalls.push(args),
-        },
-      },
-    },
-    $: { Msg: () => {} },
-  };
-
-  vm.runInNewContext(read(topbarWarningGuard), context);
-  manifest.create({
-    config: {
-      view: () => ({
-        ENABLE_COLORED_HEALTHBAR: 1,
-        ENABLE_ENEMY_COLORED_HEALTHBAR: 1,
-        ENABLE_TOPBAR_ENEMY_HP_WARNING_25: 1,
-        ENABLE_TOPBAR_ALLY_HP_WARNING_75: 1,
-        UNRELATED: 7,
-      }),
-    },
-  });
-
-  assert.equal(manifest.enableKey, '');
-  assert.equal(manifest.enabledByDefault, true);
-  assert.deepEqual(setCalls, [['ql_color_warnings', 'enabled', true]]);
-  assert.equal(capturedConfig.ENABLE_COLORED_HEALTHBAR, 0);
-  assert.equal(capturedConfig.ENABLE_ENEMY_COLORED_HEALTHBAR, 0);
-  assert.equal(capturedConfig.ENABLE_TOPBAR_ENEMY_HP_WARNING_25, 1);
-  assert.equal(capturedConfig.ENABLE_TOPBAR_ALLY_HP_WARNING_75, 1);
-  assert.equal(capturedConfig.UNRELATED, 7);
-});
-
-test('runtime mask preserves topbar warning keys and masks body healthbars', () => {
-  const guard = read(runtimeGuard);
-  for (const key of [
-    'HEALTHBAR_TYPE',
-    'ENABLE_ENEMY_V2_ENHANCED',
-    'ENABLE_ENEMY_V2_ULT_INDICATOR',
-    'ENABLE_ENEMY_V2_LEVEL',
-    'PLAYER_HEALTHBAR_SCALE',
-    'ENABLE_COLOR_WARNING_25',
-  ]) {
-    assert.match(guard, new RegExp(`${key}:`));
-  }
-  for (const key of [
-    'ENABLE_TOPBAR_ENEMY_HP_WARNING',
-    'ENABLE_TOPBAR_ENEMY_HP_WARNING_75',
-    'ENABLE_TOPBAR_ALLY_HP_WARNING',
-    'ENABLE_TOPBAR_ALLY_HP_WARNING_75',
-  ]) {
-    assert.doesNotMatch(guard, new RegExp(`${key}:`));
-  }
 });
 
 test('pak02 contract and wrapper enforce canonical reuse and pak02-only output', () => {
@@ -486,6 +281,14 @@ test('pak02 contract and wrapper enforce canonical reuse and pak02-only output',
   assert.ok(contract.requiredPinnedQollockAssets.includes('panorama/scripts/features/ql_feat_healthbar.vjs_c'));
   assert.ok(!contract.forbiddenPackedAssets.includes('hp_colors_state.vjs_c'));
   assert.ok(!contract.forbiddenPackedAssets.includes('unit_status_overlay.vxml_c'));
+  for (const asset of [
+    'qollock_runtime_guard.vjs_c',
+    'qollock_settings_guard.vjs_c',
+    'qollock_topbar_warning_guard.vjs_c',
+  ]) {
+    assert.ok(!contract.requiredPackedAssets.includes(asset));
+    assert.ok(contract.forbiddenPackedAssets.includes(asset));
+  }
   assert.ok(contract.forbiddenBuildInputs.includes('hp_colors_rewrite_compiled'));
   const wrapper = read(buildWrapper);
   assert.match(wrapper, /Assert-QolSourceHashes/);

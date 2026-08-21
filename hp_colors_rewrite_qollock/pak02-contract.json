@@ -10,10 +10,7 @@
   "requiredSources": [
     "panorama/layout/hud.xml",
     "panorama/layout/hud_escape_menu.xml",
-    "panorama/scripts/qollock_runtime_guard.js",
-    "panorama/scripts/qollock_settings_guard.js",
     "panorama/scripts/qollock_hp_colors_bridge.js",
-    "panorama/scripts/qollock_topbar_warning_guard.js",
     "qollock-source.sha256"
   ],
   "requiredPinnedQollockAssets": [
@@ -55,10 +52,7 @@
     "healthbar_probe.vjs_c",
     "hp_colors_state.vjs_c",
     "hp_colors_menu.vjs_c",
-    "qollock_runtime_guard.vjs_c",
-    "qollock_settings_guard.vjs_c",
     "qollock_hp_colors_bridge.vjs_c",
-    "qollock_topbar_warning_guard.vjs_c",
     "hp_colors_menu.vcss_c",
     "hp_colors_unit_status.vcss_c"
   ],
@@ -74,6 +68,9 @@
     "qollock_settings_guard.js",
     "qollock_hp_colors_bridge.js",
     "qollock_topbar_warning_guard.js",
+    "qollock_runtime_guard.vjs_c",
+    "qollock_settings_guard.vjs_c",
+    "qollock_topbar_warning_guard.vjs_c",
     "node_modules",
     "AGENTS.md",
     "FEATURES.md",

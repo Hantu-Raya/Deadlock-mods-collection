@@ -327,6 +327,22 @@
                       <TextEntry id="HPColorsEnemyHighHex" class="HPColorsHexEntry" text="#00FF00" maxchars="7" />
                     </Panel>
                   </Panel>
+                  <Panel id="HPColorsSharedLowThresholdRow" class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="SHARED LOW THRESHOLD" class="HPColorsSettingTitle" /><Label text="One threshold used by enemy bars, ally bars, and custom HP text." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsSharedLowThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsSharedLowThresholdEntry" class="HPColorsNumberEntry" text="25" />
+                      <Label text="%" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsSharedHighThresholdRow" class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="SHARED HIGH THRESHOLD" class="HPColorsSettingTitle" /><Label text="One threshold used by enemy bars, ally bars, and custom HP text." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsSharedHighThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsSharedHighThresholdEntry" class="HPColorsNumberEntry" text="65" />
+                      <Label text="%" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
                 </Panel>
 
                 <Panel id="HPColorsSettingsEnemyFeedback" class="HPColorsSettingsPage">
@@ -435,22 +451,6 @@
                     <Panel class="HPColorsSegment">
                       <Button id="HPColorsReadoutModeFixed" class="HPColorsSegmentButton"><Label text="FIXED" /></Button>
                       <Button id="HPColorsReadoutModeGradient" class="HPColorsSegmentButton"><Label text="GRADIENT" /></Button>
-                    </Panel>
-                  </Panel>
-                  <Panel id="HPColorsSharedLowThresholdRow" class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="SHARED LOW THRESHOLD" class="HPColorsSettingTitle" /><Label text="One threshold used by enemy bars, ally bars, and custom HP text." class="HPColorsSettingHelp" /></Panel>
-                    <Panel class="HPColorsSliderGroup">
-                      <Panel id="HPColorsSharedLowThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
-                      <TextEntry id="HPColorsSharedLowThresholdEntry" class="HPColorsNumberEntry" text="25" />
-                      <Label text="%" class="HPColorsUnitLabel" />
-                    </Panel>
-                  </Panel>
-                  <Panel id="HPColorsSharedHighThresholdRow" class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="SHARED HIGH THRESHOLD" class="HPColorsSettingTitle" /><Label text="One threshold used by enemy bars, ally bars, and custom HP text." class="HPColorsSettingHelp" /></Panel>
-                    <Panel class="HPColorsSliderGroup">
-                      <Panel id="HPColorsSharedHighThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
-                      <TextEntry id="HPColorsSharedHighThresholdEntry" class="HPColorsNumberEntry" text="65" />
-                      <Label text="%" class="HPColorsUnitLabel" />
                     </Panel>
                   </Panel>
                   <Panel id="HPColorsReadoutCustomRows" class="HPColorsGradientRows HPColorsConditionalRow">

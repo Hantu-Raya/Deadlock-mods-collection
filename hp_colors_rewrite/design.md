@@ -86,6 +86,7 @@ Color must never be the only state indicator.
 - Show or hide the bar without stopping width updates.
 - Fixed or gradient mode.
 - Low, mid, and high colors.
+- One always-editable low/high threshold pair shared by enemy bars, ally bars, and custom HP text.
 - Optional high-HP team color.
 - Building and boss exclusions.
 
@@ -137,7 +138,6 @@ Color must never be the only state indicator.
 - Current/max, percentage, and current-only formats.
 - Size and font.
 - Bar-derived or custom colors.
-- One always-editable low/high threshold pair shared by enemy bars, ally bars, and custom HP text. Do not repeat these controls under Enemy or Ally.
 
 #### Text Position
 
