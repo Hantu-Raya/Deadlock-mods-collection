@@ -2,6 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $root = $PSScriptRoot
 . (Join-Path $root 'scripts\source2_package_pipeline.ps1')
+. (Join-Path $root 'scripts\hp-colors-rewrite-closure.ps1')
 
 $modSrc = Join-Path $root 'hp_colors_rewrite'
 $modCompiled = Join-Path $root 'hp_colors_rewrite_compiled'
@@ -16,6 +17,13 @@ $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
 )
 $vpkOut = Join-Path $root 'pak01_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak01_dir.vpk'
+
+$rewriteScripts = @(
+    'panorama\scripts\hp_colors_contract.js',
+    'panorama\scripts\hp_colors_state.js',
+    'panorama\scripts\hp_colors_menu.js',
+    'panorama\scripts\healthbar_probe.js'
+)
 
 $requiredCompiled = @(
     (Join-Path $compileStageOutput 'panorama\layout\hud_escape_menu.vxml_c'),
@@ -59,7 +67,7 @@ Require-Path -Path $modSrc -Label 'HP Colors rewrite source folder'
 Require-Path -Path $compiler -Label 'Source 2 compiler'
 Require-Path -Path $vpkeditcli -Label 'vpkeditcli'
 
-Write-Host "`n[1/3] Compiling HP Colors rewrite..." -ForegroundColor Cyan
+Write-Host "`n[1/4] Preparing Closure ADVANCED HP Colors Rewrite source..." -ForegroundColor Cyan
 Remove-TreeUnderRoot -Path $modCompiled -RootPath $root -ExpectedLeaf 'hp_colors_rewrite_compiled'
 Remove-TreeUnderRoot -Path $compileStageRoot -RootPath $root -ExpectedLeaf '_hp_colors_rewrite_build'
 if (Test-Path -LiteralPath $vpkOut) {
@@ -70,6 +78,12 @@ try {
     $stagePanorama = Join-Path $compileStageSource 'panorama'
     New-Item -ItemType Directory -Path $stagePanorama -Force | Out-Null
     Copy-Item -Path (Join-Path $modSrc 'panorama\*') -Destination $stagePanorama -Recurse -Force
+    Invoke-HpColorsRewriteClosureAdvanced `
+        -StageSourceRoot $compileStageSource `
+        -ScriptRelativePaths $rewriteScripts `
+        -WorkRoot $compileStageRoot
+    Invoke-HpColorsRewriteClosureTests -RepositoryRoot $root -SourceRoot $compileStageSource
+    Write-Host "`n[2/4] Compiling HP Colors rewrite..." -ForegroundColor Cyan
     Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $compileStageSource -RequiredOutputs $requiredCompiled -TimeoutSeconds 120
     Move-Item -LiteralPath $compileStageOutput -Destination $modCompiled
 }
@@ -78,7 +92,7 @@ finally {
 }
 Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 
-Write-Host "`n[2/3] Packing pak01_dir.vpk..." -ForegroundColor Cyan
+Write-Host "`n[3/4] Packing pak01_dir.vpk..." -ForegroundColor Cyan
 Invoke-VpkPack -VpkEditCli $vpkeditcli -InputDir $modCompiled -OutputPath $vpkOut
 $vpkTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut
 Assert-PackedVpkAssets -Tree $vpkTree -Label 'HP Colors Rewrite VPK' -Required @(
@@ -106,7 +120,7 @@ $vpkSize = (Get-Item -LiteralPath $vpkOut).Length
 Write-Host "  Packed OK -> $vpkOut ($([math]::Round($vpkSize / 1KB, 1)) KB)" -ForegroundColor Green
 
 
-Write-Host "`n[3/3] Backing up and deploying to Deadlock addons..." -ForegroundColor Cyan
+Write-Host "`n[4/4] Backing up and deploying to Deadlock addons..." -ForegroundColor Cyan
 $destDir = Split-Path $vpkDest -Parent
 Require-Path -Path $destDir -Label 'Deadlock addons folder'
 
