@@ -1,0 +1,126 @@
+#ammo_panel
+{
+	overflow: noclip;
+}
+
+#MercurialMagnumNotifier
+{
+	width: 18px;
+	height: 18px;
+	horizontal-align: center;
+	vertical-align: center;
+	transform: translate3d(-49px, 80px, 0px);
+	overflow: noclip;
+	opacity: 0;
+	visibility: collapse;
+	transition-property: opacity, transform;
+	transition-duration: 0.08s;
+}
+
+#MercurialMagnumNotifier.MagnumBuffActive
+{
+	opacity: 1;
+	visibility: visible;
+}
+
+#SplitShotNotifier
+{
+	width: 18px;
+	height: 18px;
+	horizontal-align: center;
+	vertical-align: center;
+	transform: translate3d(-49px, 80px, 0px);
+	overflow: noclip;
+	opacity: 0;
+	visibility: collapse;
+	transition-property: opacity, transform;
+	transition-duration: 0.08s;
+}
+
+#SplitShotNotifier.SplitShotActive
+{
+	opacity: 1;
+	visibility: visible;
+}
+
+#MercurialMagnumNotifier.NotifierOneOffset,
+#SplitShotNotifier.NotifierOneOffset,
+#BloodTributeNotifier.NotifierOneOffset
+{
+	transform: translate3d(-69px, 80px, 0px);
+}
+
+#MercurialMagnumNotifier.NotifierTwoOffsets,
+#SplitShotNotifier.NotifierTwoOffsets,
+#BloodTributeNotifier.NotifierTwoOffsets
+{
+	transform: translate3d(-89px, 80px, 0px);
+}
+
+#BloodTributeNotifier
+{
+	width: 18px;
+	height: 18px;
+	horizontal-align: center;
+	vertical-align: center;
+	transform: translate3d(-49px, 80px, 0px);
+	overflow: noclip;
+	opacity: 0;
+	visibility: collapse;
+	transition-property: opacity, transform;
+	transition-duration: 0.08s;
+}
+
+#BloodTributeNotifier.BloodTributeActive
+{
+	opacity: 1;
+	visibility: visible;
+}
+
+.weapon_ammo
+{
+	color: #f2efe4ff;
+}
+
+
+.weapon_ammo.MagnumAmmoGlow
+{
+	color: #c58affff;
+	text-shadow: 0px 0px 5px 1.5 #8d4dccff;
+}
+
+.weapon_ammo.SplitShotAmmoGlow
+{
+	color: #ffb347ff;
+	text-shadow: 0px 0px 5px 1.5 #c66a16ff;
+}
+
+.weapon_ammo.BloodTributeAmmoGlow
+{
+	color: #e9c69cff;
+	text-shadow: 0px 0px 5px 1.5 #b96b3aff;
+}
+
+.weapon_ammo.MagnumAmmoGlow.SplitShotAmmoGlow
+{
+	color: #f58aafff;
+	text-shadow: 0px 0px 5px 1.5 #be4b78ff;
+}
+
+.weapon_ammo.MagnumAmmoGlow.BloodTributeAmmoGlow
+{
+	color: #d9b8e6ff;
+	text-shadow: 0px 0px 5px 1.5 #9461aeff;
+}
+
+.weapon_ammo.SplitShotAmmoGlow.BloodTributeAmmoGlow
+{
+	color: #ffd17aff;
+	text-shadow: 0px 0px 5px 1.5 #c9872dff;
+}
+
+.weapon_ammo.MagnumAmmoGlow.SplitShotAmmoGlow.BloodTributeAmmoGlow
+{
+	color: #fff4d8ff;
+	text-shadow: 0px 0px 6px 2 #caa25dff;
+}

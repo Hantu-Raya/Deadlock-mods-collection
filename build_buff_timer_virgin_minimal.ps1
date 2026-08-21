@@ -2,10 +2,10 @@ $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $root 'scripts\source2_package_pipeline.ps1')
-$modSrc = Join-Path $root 'buff_timer_virgin'
-$modCompiled = Join-Path $root 'buff_timer_virgin_compiled'
-$closureSrc = Join-Path $root 'buff_timer_virgin_closure'
-$closureCompiled = Join-Path $root 'buff_timer_virgin_closure_compiled'
+$modSrc = Join-Path $root 'buff_timer_virgin_minimal'
+$modCompiled = Join-Path $root 'buff_timer_virgin_minimal_compiled'
+$closureSrc = Join-Path $root 'buff_timer_virgin_minimal_closure'
+$closureCompiled = Join-Path $root 'buff_timer_virgin_minimal_closure_compiled'
 $compiler = Join-Path $root 'sr2compiler\New folder.exe'
 $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
     (Join-Path $root 'passive_items_mod\compiler\vpkeditcli.exe'),
@@ -118,13 +118,13 @@ function Assert-ClosureOutput {
 
 
 # Clean rebuild: remove stale compiled output and previous pack artifacts.
-Remove-TreeUnderRoot -Path $modCompiled -RootPath $root -ExpectedLeaf 'buff_timer_virgin_compiled'
-Remove-TreeUnderRoot -Path $closureSrc -RootPath $root -ExpectedLeaf 'buff_timer_virgin_closure'
-Remove-TreeUnderRoot -Path $closureCompiled -RootPath $root -ExpectedLeaf 'buff_timer_virgin_closure_compiled'
+Remove-TreeUnderRoot -Path $modCompiled -RootPath $root -ExpectedLeaf 'buff_timer_virgin_minimal_compiled'
+Remove-TreeUnderRoot -Path $closureSrc -RootPath $root -ExpectedLeaf 'buff_timer_virgin_minimal_closure'
+Remove-TreeUnderRoot -Path $closureCompiled -RootPath $root -ExpectedLeaf 'buff_timer_virgin_minimal_closure_compiled'
 if (Test-Path $vpkOut) { Remove-Item -Force $vpkOut }
 
 # [1/4] Prepare Closure ADVANCED source
-Write-Host "`n[1/4] Preparing Closure ADVANCED buff_timer_virgin source..." -ForegroundColor Cyan
+Write-Host "`n[1/4] Preparing Closure ADVANCED buff_timer_virgin_minimal source..." -ForegroundColor Cyan
 New-Item -ItemType Directory -Path $closureSrc -Force | Out-Null
 Copy-Item -Path (Join-Path $modSrc 'panorama') -Destination $closureSrc -Recurse -Force
 
@@ -134,17 +134,12 @@ if (-not (Test-Path $compressedScript)) {
     throw "Compressed script target was not created: $compressedScript"
 }
 
-$runtimeValidator = Join-Path $root 'buff_timer_virgin\scripts\validate-runtime-engine.js'
+$runtimeValidator = Join-Path $root 'buff_timer_virgin_minimal\scripts\validate-runtime-engine.js'
 & node $runtimeValidator
 if ($LASTEXITCODE -ne 0) {
     throw "Runtime engine validator failed with exit code $LASTEXITCODE"
 }
 
-$teamChatValidator = Join-Path $root 'buff_timer_virgin\scripts\validate-team-chat-intent.js'
-& node $teamChatValidator
-if ($LASTEXITCODE -ne 0) {
-    throw "Team chat validator failed with exit code $LASTEXITCODE"
-}
 $stagedSource = [System.IO.File]::ReadAllText($compressedScript)
 $productionSource = [regex]::Replace(
     $stagedSource,
@@ -194,16 +189,14 @@ Remove-Item -LiteralPath $closureExterns -Force
 Write-Host "  Closure ADVANCED OK -> $compressedScript ($([math]::Round($scriptInfo.Length / 1KB, 1)) KB)" -ForegroundColor Green
 
 # [2/4] Compile
-Write-Host "`n[2/4] Compiling buff_timer_virgin..." -ForegroundColor Cyan
+Write-Host "`n[2/4] Compiling buff_timer_virgin_minimal..." -ForegroundColor Cyan
 $compileScript = Join-Path $closureCompiled 'panorama\scripts\rejuvnbufftimer.vjs_c'
 $compileLayout = Join-Path $closureCompiled 'panorama\layout\hud.vxml_c'
 $compileTimerStyle = Join-Path $closureCompiled 'panorama\styles\hud_timer.vcss_c'
-$compileClaimStyle = Join-Path $closureCompiled 'panorama\styles\buff_claim.vcss_c'
 Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $closureSrc -RequiredOutputs @(
     $compileScript,
     $compileLayout,
-    $compileTimerStyle,
-    $compileClaimStyle
+    $compileTimerStyle
 ) -TimeoutSeconds 120
 Copy-Item -Path $closureCompiled -Destination $modCompiled -Recurse -Force
 Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
@@ -212,12 +205,12 @@ Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 Write-Host "`n[3/4] Packing VPK..." -ForegroundColor Cyan
 Invoke-VpkPack -VpkEditCli $vpkeditcli -InputDir $modCompiled -OutputPath $vpkOut
 $packedTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut
-Assert-PackedVpkAssets -Tree $packedTree -Label 'Buff Timer VPK' -Required @(
+Assert-PackedVpkAssets -Tree $packedTree -Label 'Buff Timer Minimal VPK' -Required @(
     'panorama/scripts/rejuvnbufftimer.vjs_c',
     'panorama/layout/hud.vxml_c',
-    'panorama/styles/hud_timer.vcss_c',
-    'panorama/styles/buff_claim.vcss_c'
+    'panorama/styles/hud_timer.vcss_c'
 ) -Forbidden @(
+    'panorama/styles/buff_claim.vcss_c',
     'scripts/validate-runtime-engine.vjs_c',
     'scripts/validate-team-chat-intent.vjs_c'
 )

@@ -53,6 +53,8 @@ These TopBar Rank editions are separate from the standalone `showrank_barebones`
 ### 📊 Utility
 
 - **Recent Purchase Tracker**: Keeps a history of items bought in the current session.
+- **Buff Timer (`buff_timer_virgin`)**: Full timer edition with Bridge Buff minimap glows, claim indicators, and enemy-fog linger markers.
+- **Buff Timer Minimal (`buff_timer_virgin_minimal`)**: Timers-only edition. It keeps Rejuvenator, Bridge Buff, Rift, Urn, neutral-phase, and team-chat timers without custom minimap glows, claim overlays, or enemy `?` markers.
 - **Legacy Target**: Restores targeting indicators to previous styles.
 
 ## 🏗️ Building from Source

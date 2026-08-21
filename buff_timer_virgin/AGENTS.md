@@ -4,7 +4,7 @@
 
 `buff_timer_virgin` is a Deadlock Panorama HUD override for Rejuvenator and Bridge Buff timing. It adds claim detection, minimap glows, short enemy-fog linger markers, team-chat timer buttons, neutral-phase overrides, and Rift/Urn schedule cards. The runtime is intentionally client-side and reads stock HUD/minimap panels; it does not add a network authority layer.
 
-Work only in source under `buff_timer_virgin/`. Treat `buff_timer_virgin_compiled/`, `buff_timer_virgin_terser/`, `buff_timer_virgin_terser_compiled/`, and `pak98_dir.vpk` as generated output. Neutral minimap respawn rings were removed for fairness and must not be restored.
+Work only in source under `buff_timer_virgin/`. Treat `buff_timer_virgin_compiled/`, `buff_timer_virgin_closure/`, `buff_timer_virgin_closure_compiled/`, and `pak98_dir.vpk` as generated output. Neutral minimap respawn rings were removed for fairness and must not be restored.
 
 ## Architecture & Data Flow
 
@@ -105,8 +105,8 @@ Removed assets are not extension points: do not reintroduce `jungle_timer.js`, `
 - The release workflow is Windows PowerShell-first and requires Node/npm, `npx --yes google-closure-compiler`, `sr2compiler/New folder.exe`, and a repository-local `vpkeditcli.exe`.
 - Closure uses `ADVANCED` mode with generated externs. The wrapper strips the `TEST_EXPORTS` block only from the staged production copy and checks required runtime fragments.
 - The wrapper requires compiled `.vjs_c`, `.vxml_c`, and both `.vcss_c` outputs, inspects the packed VPK, then deploys to `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak98_dir.vpk`.
-- Staging directories retain the historical `_terser` name but the current wrapper uses Closure, not Terser.
-- Prefer `build_buff_timer_virgin.ps1`; legacy one-off terser/manual-pack helpers contain stale paths or incomplete release steps.
+- Closure staging uses `buff_timer_virgin_closure/` and `buff_timer_virgin_closure_compiled/`.
+- Prefer `build_buff_timer_virgin.ps1`; legacy one-off minification or manual-pack helpers contain stale paths or incomplete release steps.
 
 ## Testing & QA
 

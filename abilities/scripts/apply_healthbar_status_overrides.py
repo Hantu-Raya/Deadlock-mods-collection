@@ -30,6 +30,7 @@ EVERYONE_RECORDS = {
 }
 
 CASTER_ONLY_RECORDS = {
+    "ability_explosive_barrel",
     "ability_drifter_hunger",
     "ability_punkgoat_ult",
     "ability_stacking_damage",

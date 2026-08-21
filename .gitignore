@@ -8,7 +8,7 @@
 /.codex*/
 /_codex/
 /_codex*/
-/.playwright-cli/
+/.omp/
 /docs/
 
 # Compiled/Generated directories
@@ -46,6 +46,7 @@ _vpk*_extract/
 pak*.vpk
 pak*.vpk.bak-*
 pak*.bak-*
+pak*.vpk.*-bak-*
 diff*.txt
 help.txt
 
