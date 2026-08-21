@@ -105,6 +105,36 @@
   white-space: nowrap;
 }
 
+.HPColorsDonateButton {
+  min-width: 82px;
+  height: 34px;
+  margin-left: 14px;
+  padding: 0px 12px;
+  vertical-align: center;
+  background-color: #e7c77d12;
+  border: 1px solid #e7c77d55;
+  transition-property: brightness, background-color, border;
+  transition-duration: 0.1s;
+  transition-timing-function: ease-out;
+}
+
+.HPColorsDonateButton Label {
+  horizontal-align: center;
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 11px;
+  font-weight: bold;
+  color: #e7c77d;
+  letter-spacing: 1px;
+}
+
+.HPColorsDonateButton:hover,
+.HPColorsDonateButton:focus {
+  brightness: 1.25;
+  background-color: #e7c77d1f;
+  border: 1px solid #e7c77d88;
+}
+
 .HPColorsEditorBody {
   width: 100%;
   height: fill-parent-flow(1);
@@ -264,7 +294,47 @@
   height: 1px;
   margin-top: 12px;
   margin-bottom: 12px;
+  overflow: noclip;
   background-color: gradient(linear, 0% 0%, 100% 0%, from(#5fe69e77), color-stop(0.35, #ffefd71f), to(#ffefd700));
+}
+
+.HPColorsPresetInfoToggle {
+  width: 62px;
+  height: 26px;
+  horizontal-align: right;
+  vertical-align: center;
+  visibility: collapse;
+  background-color: #11140f;
+  border: 1px solid #5fe69e55;
+  transition-property: brightness, background-color, border;
+  transition-duration: 0.1s;
+  transition-timing-function: ease-out;
+}
+
+.HPColorsPresetInfoToggle.Available {
+  visibility: visible;
+}
+
+.HPColorsPresetInfoToggle Label {
+  horizontal-align: center;
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 10px;
+  font-weight: bold;
+  color: #5fe69eaa;
+  letter-spacing: 1px;
+}
+
+.HPColorsPresetInfoToggle:hover,
+.HPColorsPresetInfoToggle:focus,
+.HPColorsPresetInfoToggle.Active {
+  brightness: 1.2;
+  background-color: #5fe69e1a;
+  border: 1px solid #5fe69e88;
+}
+
+.HPColorsPresetInfoToggle.Active Label {
+  color: #5fe69e;
 }
 
 .HPColorsPageDescription {
@@ -1037,6 +1107,16 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 .HPColorsPresetHeadingCopy {
   width: fill-parent-flow(1);
   flow-children: down;
+}
+
+.HPColorsPresetGuide {
+  width: 100%;
+  visibility: collapse;
+  flow-children: down;
+}
+
+.HPColorsPresetGuide.Visible {
+  visibility: visible;
 }
 
 .HPColorsHeroCardEyebrow,

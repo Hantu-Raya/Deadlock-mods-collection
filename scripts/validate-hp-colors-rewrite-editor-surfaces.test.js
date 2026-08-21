@@ -402,6 +402,35 @@ test('Presets page hides Reset Section and Undo', () => {
   assert.equal(undo.BHasClass('HPColorsFooterActionHidden'), false);
 });
 
+test('Presets guide starts hidden and toggles only on the Presets page', () => {
+  const fixture = bootMenu();
+  openEditor(fixture);
+
+  const info = panel(fixture, 'HPColorsPresetInfoToggle');
+  const guide = panel(fixture, 'HPColorsPresetGuide');
+  assert.equal(info.BHasClass('Available'), false);
+  assert.equal(info.enabled, false);
+  assert.equal(guide.BHasClass('Visible'), false);
+
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+  assert.equal(info.BHasClass('Available'), true);
+  assert.equal(info.enabled, true);
+  assert.equal(guide.BHasClass('Visible'), false);
+
+  info.events.onactivate();
+  assert.equal(info.BHasClass('Active'), true);
+  assert.equal(guide.BHasClass('Visible'), true);
+
+  info.events.onactivate();
+  assert.equal(info.BHasClass('Active'), false);
+  assert.equal(guide.BHasClass('Visible'), false);
+
+  panel(fixture, 'HPColorsCategoryEnemy').events.onactivate();
+  assert.equal(info.BHasClass('Available'), false);
+  assert.equal(info.enabled, false);
+  assert.equal(guide.BHasClass('Visible'), false);
+});
+
 test('Escape closes reset confirmation before closing the editor', () => {
   const fixture = bootMenu({
     version: 1,
