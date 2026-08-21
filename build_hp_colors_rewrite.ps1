@@ -15,8 +15,8 @@ $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
     (Join-Path $root 'vpk cli\vpkeditcli.exe'),
     (Join-Path $root 'passive_items_mod_release\compiler\vpkeditcli.exe')
 )
-$vpkOut = Join-Path $root 'pak01_dir.vpk'
-$vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak01_dir.vpk'
+$vpkOut = Join-Path $root 'pak02_dir.vpk'
+$vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak02_dir.vpk'
 
 $rewriteScripts = @(
     'panorama\scripts\hp_colors_contract.js',
@@ -92,7 +92,7 @@ finally {
 }
 Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 
-Write-Host "`n[3/4] Packing pak01_dir.vpk..." -ForegroundColor Cyan
+Write-Host "`n[3/4] Packing pak02_dir.vpk..." -ForegroundColor Cyan
 Invoke-VpkPack -VpkEditCli $vpkeditcli -InputDir $modCompiled -OutputPath $vpkOut
 $vpkTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut
 Assert-PackedVpkAssets -Tree $vpkTree -Label 'HP Colors Rewrite VPK' -Required @(
