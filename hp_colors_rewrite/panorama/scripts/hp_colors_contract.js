@@ -69,6 +69,9 @@
     enemyKillMarkerThreshold: 25,
     enemyKillMarkerWidth: 3,
     enemyKillMarkerColor: "#FF2222",
+    excludeGhouls: false,
+    ghoulOpacityEnabled: false,
+    ghoulOpacity: 100,
   };
 
   var DEFAULT_KEYS = [
@@ -139,6 +142,9 @@
     "enemyKillMarkerThreshold",
     "enemyKillMarkerWidth",
     "enemyKillMarkerColor",
+    "excludeGhouls",
+    "ghoulOpacityEnabled",
+    "ghoulOpacity",
   ];
 
   var BOOLEAN_KEYS = {
@@ -148,6 +154,8 @@
     enemyTeamHigh: true,
     excludeBuildings: true,
     excludeBosses: true,
+    excludeGhouls: true,
+    ghoulOpacityEnabled: true,
     allyEnabled: true,
     allyVisible: true,
     readoutVisible: true,
@@ -203,6 +211,7 @@
     positionX: [-300, 300],
     positionY: [-200, 200],
     readoutSize: [72, 320],
+    ghoulOpacity: [0, 100],
     readoutOffsetX: [-405, 405],
     readoutOffsetY: [-35, 840],
     enemyPulseThreshold: [0, 100],

@@ -63,7 +63,7 @@
           name: "PRESETS",
           title: "PRESET LIBRARY",
           description:
-            "Create, update, apply, and reorder presets for this session.",
+            "Build All Heroes and Selected Heroes presets, then set their automatic priority.",
           pageId: "HPColorsSettingsOverviewHero",
           keys: [],
         },
@@ -90,6 +90,9 @@
             "enemyTeamHigh",
             "excludeBuildings",
             "excludeBosses",
+            "excludeGhouls",
+            "ghoulOpacityEnabled",
+            "ghoulOpacity",
           ],
         },
         {
@@ -104,7 +107,7 @@
           name: "SHIELDS",
           title: "SHIELDS",
           description:
-            "Choose the color for enemy bullet-shield indicators.",
+            "Choose the color for enemy shield indicators.",
           pageId: "HPColorsSettingsEnemyShields",
           keys: ["enemyBulletShield"],
         },
@@ -275,13 +278,13 @@
     enemyHigh: "ENEMY HIGH",
     enemyHealing: "ENEMY HEALING",
     enemyDelta: "ENEMY RECENT DAMAGE",
-    enemyBulletShield: "ENEMY BULLET SHIELD",
+    enemyBulletShield: "ENEMY SHIELD",
     allyLow: "ALLY LOW",
     allyMid: "ALLY MID",
     allyHigh: "ALLY HIGH",
     allyHealing: "ALLY HEALING",
     allyDelta: "ALLY RECENT DAMAGE",
-    allyBulletShield: "ALLY BULLET SHIELD",
+    allyBulletShield: "ALLY SHIELD",
     ultCustom: "ULTIMATE ICON",
     readoutLow: "HEALTH TEXT LOW",
     readoutMid: "HEALTH TEXT MID",
@@ -433,6 +436,9 @@
     precisePipsCopyLabel: null,
     precisePipsCopyButton: null,
     precisePipsCloseButton: null,
+    ghoulOpacityRow: null,
+    ghoulOpacitySlider: null,
+    ghoulOpacityEntry: null,
     enemyKillMarkerToggle: null,
     enemyKillMarkerThresholdRow: null,
     enemyKillMarkerThresholdSlider: null,
@@ -1680,7 +1686,7 @@
     renderPresetOptions();
     syncPresetSaveForm(true);
     setPresetFeedback(
-      "NAME THE PRESET, CHOOSE WHO IT APPLIES TO, THEN CREATE IT.",
+      "CREATE PRESET SAVES YOUR CURRENT MENU SETTINGS AS A NEW RECORD.",
       false,
     );
     focus(ui.presetNameInput);
@@ -1724,10 +1730,10 @@
       presetFormOpen
         ? "EDITING " +
             presetDisplayName(preset).toUpperCase() +
-            ". SAVE & APPLY REPLACES IT WITH YOUR CURRENT SETTINGS."
+            ". SAVE & APPLY REPLACES THIS PRESET WITH YOUR CURRENT MENU SETTINGS, THEN LOADS IT."
         : "SELECTED " +
             presetDisplayName(preset).toUpperCase() +
-            ". APPLY LOADS IT WITHOUT CHANGING THE PRESET.",
+            ". APPLY LOADS THIS PRESET NOW. IT DOES NOT EDIT THE PRESET.",
       false,
     );
     if (presetFormOpen) focus(ui.presetNameInput);
@@ -3401,6 +3407,12 @@
     setToggle("HPColorsEnemyTeamHighToggle", state.values.enemyTeamHigh);
     setToggle("HPColorsExcludeBuildingsToggle", state.values.excludeBuildings);
     setToggle("HPColorsExcludeBossesToggle", state.values.excludeBosses);
+    setToggle("HPColorsExcludeGhoulsToggle", state.values.excludeGhouls);
+    setToggle("HPColorsGhoulOpacityToggle", state.values.ghoulOpacityEnabled);
+    var ghoulOpacityActive = state.values.ghoulOpacityEnabled;
+    setClass(ui.ghoulOpacityRow, "Disabled", !ghoulOpacityActive);
+    setEnabled(ui.ghoulOpacitySlider, ghoulOpacityActive);
+    setEnabled(ui.ghoulOpacityEntry, ghoulOpacityActive);
     setToggle("HPColorsReadoutToggle", state.values.readoutVisible);
     setToggle("HPColorsPipsVisibleToggle", state.values.pipsVisible);
     setToggle("HPColorsPrecisePipsToggle", state.values.precisePipsEnabled);
@@ -3704,6 +3716,11 @@
       "HPColorsPositionYSlider",
       "HPColorsPositionYEntry",
       state.values.positionY,
+    );
+    setSlider(
+      "HPColorsGhoulOpacitySlider",
+      "HPColorsGhoulOpacityEntry",
+      state.values.ghoulOpacity,
     );
     setSlider(
       "HPColorsSharedLowThresholdSlider",
@@ -4193,6 +4210,9 @@
     ui.precisePipsCopyLabel = find("HPColorsPrecisePipsCopyLabel");
     ui.precisePipsCopyButton = find("HPColorsPrecisePipsCopyButton");
     ui.precisePipsCloseButton = find("HPColorsPrecisePipsCloseButton");
+    ui.ghoulOpacityRow = find("HPColorsGhoulOpacityRow");
+    ui.ghoulOpacitySlider = null;
+    ui.ghoulOpacityEntry = find("HPColorsGhoulOpacityEntry");
     ui.enemyKillMarkerToggle = find("HPColorsEnemyKillMarkerToggle");
     ui.enemyKillMarkerThresholdRow = find("HPColorsEnemyKillMarkerThresholdRow");
     ui.enemyKillMarkerThresholdSlider = find(
@@ -4395,6 +4415,7 @@
     return (
       isValid(createSlider("HPColorsWidthSliderHost", "HPColorsWidthSlider", 60, 160)) &&
       isValid(createSlider("HPColorsHeightSliderHost", "HPColorsHeightSlider", 60, 160)) &&
+      isValid((ui.ghoulOpacitySlider = createSlider("HPColorsGhoulOpacitySliderHost", "HPColorsGhoulOpacitySlider", 0, 100))) &&
       isValid(
         createSlider(
           "HPColorsPositionXSliderHost",
@@ -4552,6 +4573,8 @@
     bindToggle("HPColorsEnemyTeamHighToggle", "enemyTeamHigh");
     bindToggle("HPColorsExcludeBuildingsToggle", "excludeBuildings");
     bindToggle("HPColorsExcludeBossesToggle", "excludeBosses");
+    bindToggle("HPColorsExcludeGhoulsToggle", "excludeGhouls");
+    bindToggle("HPColorsGhoulOpacityToggle", "ghoulOpacityEnabled");
     bindMode("HPColorsEnemyModeFixed", "enemyMode", "fixed");
     bindMode("HPColorsEnemyModeGradient", "enemyMode", "gradient");
     bindMode("HPColorsAllyModeFixed", "allyMode", "fixed");
@@ -4617,6 +4640,13 @@
       "positionY",
       -200,
       200,
+    );
+    bindSlider(
+      "HPColorsGhoulOpacitySlider",
+      "HPColorsGhoulOpacityEntry",
+      "ghoulOpacity",
+      0,
+      100,
     );
     bindSlider(
       "HPColorsReadoutSizeSlider",

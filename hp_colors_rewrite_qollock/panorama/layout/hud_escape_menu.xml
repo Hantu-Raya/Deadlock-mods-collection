@@ -5,28 +5,45 @@
 		<include src="s2r://panorama/styles/hud_escape_menu.vcss_c" />
 		<include src="s2r://panorama/styles/ql_settings.vcss_c" />
 		<include src="s2r://panorama/styles/hp_colors_menu.vcss_c" />
-		<include src="s2r://panorama/styles/showrank_player_list.vcss_c" />
 	</styles>
 	<scripts>
+		<include src="s2r://panorama/scripts/ql_utils.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_shared_presets.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_custom_announcer_slot1_pack_meta.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_custom_announcer_slot2_pack_meta.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_custom_announcer_slot3_pack_meta.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_custom_announcer_slot4_pack_meta.vjs_c" />
-		<include src="s2r://panorama/scripts/ql_custom_announcer_slot5_pack_meta.vjs_c" />
-		<include src="s2r://panorama/scripts/showrank_web_media_bridge.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_bridge.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_config.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_custom_announcer_pack_meta.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_en.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_ko.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_it.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_tr.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_ru.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_uk.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_pl.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_bg.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_by.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_ja.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_zh.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_fr.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_pt.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_pt_br.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_loc/ql_settings_loc_es.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_arcade_games.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_previews.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_tooltips.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_settings_persistence.vjs_c" />
+		<include src="s2r://panorama/scripts/ql_update_checker.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_settings.vjs_c" />
 		<include src="s2r://panorama/scripts/hp_colors_contract.vjs_c" />
 		<include src="s2r://panorama/scripts/hp_colors_state.vjs_c" />
 		<include src="s2r://panorama/scripts/hp_colors_menu.vjs_c" />
 		<include src="s2r://panorama/scripts/qollock_hp_colors_bridge.vjs_c" />
 	</scripts>
-	<CitadelHudEscapeMenu oncancel="if ($.HPColorsMenuCancel && $.HPColorsMenuCancel()) {} else if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else if (typeof CitadelResumePlaying === &apos;function&apos;) { CitadelResumePlaying(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }" onload="$.HPColorsMenuBoot()">
-		<Panel id="EscapeBackground" onactivate="if ($.HPColorsMenuCancel && $.HPColorsMenuCancel()) {} else if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else if (typeof CitadelResumePlaying === &apos;function&apos;) { CitadelResumePlaying(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }" />
+	<CitadelHudEscapeMenu oncancel="if ($.HPColorsMenuCancel && $.HPColorsMenuCancel()) {} else if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }" onload="$.HPColorsMenuBoot()">
+		<Panel id="EscapeBackground" onactivate="if ($.HPColorsMenuCancel && $.HPColorsMenuCancel()) {} else if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }" />
 		<Panel id="SettingsWindow" hittest="true" onactivate="">
 			<Panel id="SettingsHeader">
 				<Label id="SettingsTitle" text="QOL LOCK" />
-				<Button id="CloseBtn" onactivate="if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else if (typeof CitadelResumePlaying === &apos;function&apos;) { CitadelResumePlaying(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }">
+				<Button id="CloseBtn" onactivate="if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }">
 					<Label text="X" />
 				</Button>
 			</Panel>
@@ -44,7 +61,7 @@
 						</Button>
 						<Button id="matchmakingEditRoster" class="nav_menu_item primary" onactivate="CitadelEditMatchmakingRoster()">
 							<Panel class="MenuIcon" />
-							<Label text="#menu_roster_detail2" class="menuButtonLabel" />
+							<Label text="#menu_edit_roster" class="menuButtonLabel" />
 						</Button>
 					</Panel>
 					<Panel class="ReconnectOptions OptionGroup">
@@ -116,16 +133,16 @@
 			<Panel id="PartySpacer" />
 			<Panel class="FriendsOrPlayersTabs">
 				<Panel class="Center">
-					<TabButton id="FriendsTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Friends_WindowTitle" />
-					<TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" selected="true" onactivate="if ($.ShowRankEscapePreloadFromPlayerList) $.ShowRankEscapePreloadFromPlayerList(&apos;escape_menu_players_tab_activate&apos;);" />
+					<TabButton id="FriendsTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Friends_WindowTitle" selected="true" />
+					<TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" />
 				</Panel>
 			</Panel>
 			<Panel class="FriendsOrPlayersContents" hittest="false">
-				<TabContents id="FriendsTabContents" tabid="FriendsTab" group="people_list_tabs" hittest="false">
+				<TabContents id="FriendsTabContents" tabid="FriendsTab" group="people_list_tabs" hittest="false" selected="true">
 					<CitadelFriendsList id="FriendsList" />
 				</TabContents>
-				<TabContents id="PlayersTabContents" tabid="PlayersTab" group="people_list_tabs" hittest="false" selected="true">
-					<CitadelPlayersList id="PlayersList" onload="if ($.ShowRankEscapePreloadFromPlayerList) $.ShowRankEscapePreloadFromPlayerList(&apos;escape_menu_players_list_onload&apos;);" />
+				<TabContents id="PlayersTabContents" tabid="PlayersTab" group="people_list_tabs" hittest="false">
+					<CitadelPlayersList id="PlayersList" />
 				</TabContents>
 			</Panel>
 		</Panel>
@@ -242,12 +259,20 @@
                       </Panel>
                       <Label text="SESSION ONLY" class="HPColorsHeroSessionFlag" />
                     </Panel>
-                    <Label text="Create presets from your current settings. Select a session preset to update it." class="HPColorsHeroCardHelp" />
+                    <Panel class="HPColorsHeroCardHelpBlock">
+                      <Label text="Presets created or changed here last until Deadlock closes." class="HPColorsHeroCardHelp" />
+                      <Button id="HPColorsPresetBuilderLink" class="HPColorsPresetBuilderLink" onactivate="$.DispatchEvent( &apos;SteamOverlayOpenURL&apos;, &apos;https://hantu-raya.github.io/hp-colors-preset-builder/&apos; );"><Label text="Presets packaged with the web builder return after restart." /></Button>
+                      <Label text="One preset VPK can contain both All Heroes and Selected Heroes presets." class="HPColorsHeroCardHelp" />
+                    </Panel>
 
                     <Panel class="HPColorsPresetHeroContext">
                       <Label text="ACTIVE HERO" class="HPColorsPresetContextLabel" />
                       <Label id="HPColorsHeroIdentity" text="HERO: UNKNOWN" class="HPColorsPresetHeroValue" />
-                      <Label text="AUTO ROUTING · SELECTED → ALL HEROES → DEFAULT" class="HPColorsPresetRoutingValue" />
+                      <Panel class="HPColorsPresetRouting">
+                        <Label text="HOW PRESETS ARE CHOSEN" class="HPColorsPresetRoutingTitle" />
+                        <Label text="HERO-SPECIFIC FIRST  ·  OTHERWISE ALL HEROES" class="HPColorsPresetRoutingValue" />
+                        <Label text="If two presets cover the same hero, the higher one in the list wins." class="HPColorsPresetRoutingHelp" />
+                      </Panel>
                     </Panel>
 
                     <Panel class="HPColorsPresetCreateBlock">
@@ -271,6 +296,7 @@
                             <Button id="HPColorsCurrentScopeAll" class="HPColorsSegmentButton"><Label text="ALL HEROES" /></Button>
                             <Button id="HPColorsCurrentScopeSelected" class="HPColorsSegmentButton"><Label text="SELECT HEROES" /></Button>
                           </Panel>
+                          <Label text="Selected Heroes overrides All Heroes for the heroes you choose. All Heroes covers everyone else." class="HPColorsPresetScopeHelp" />
                         </Panel>
                         <Panel class="HPColorsPresetFormActions">
                           <Button id="HPColorsPresetSaveButton" class="HPColorsPrimaryAction HPColorsPresetSaveButton"><Label id="HPColorsPresetSaveButtonLabel" text="CREATE PRESET" /></Button>
@@ -278,11 +304,25 @@
                         </Panel>
                       </Panel>
                     </Panel>
+                    <Panel class="HPColorsPresetActionGuide">
+                      <Panel class="HPColorsPresetActionGuideRow">
+                        <Label text="CREATE PRESET" class="HPColorsPresetActionGuideLabel" />
+                        <Label text="Saves the current menu settings as a new library record. It does not change the live HUD." class="HPColorsPresetActionGuideHelp" />
+                      </Panel>
+                      <Panel class="HPColorsPresetActionGuideRow">
+                        <Label text="APPLY" class="HPColorsPresetActionGuideLabel" />
+                        <Label text="Loads the saved preset now. It does not edit the preset." class="HPColorsPresetActionGuideHelp" />
+                      </Panel>
+                      <Panel class="HPColorsPresetActionGuideRow">
+                        <Label text="SAVE &amp; APPLY" class="HPColorsPresetActionGuideLabel" />
+                        <Label text="Replaces the selected preset with the current menu settings, then loads it." class="HPColorsPresetActionGuideHelp" />
+                      </Panel>
+                    </Panel>
 
                     <Label id="HPColorsPresetFeedback" text="" class="HPColorsPresetFeedback" />
                     <Panel class="HPColorsPresetLibraryHeader">
                       <Label text="PRESETS" class="HPColorsHeroFieldLabel" />
-                      <Label text="APPLY loads a preset. Click a session preset to update it." class="HPColorsPresetLibraryHint" />
+                      <Label text="Click a session preset to edit it." class="HPColorsPresetLibraryHint" />
                       <Button id="HPColorsPresetCopyAllButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="COPY ALL" /></Button>
                       <Button id="HPColorsPresetImportButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="IMPORT" /></Button>
                       <Button id="HPColorsPresetRestoreBakedButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="RESTORE BAKED" /></Button>
@@ -328,17 +368,42 @@
                   </Panel>
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">
-                      <Label text="EXCLUDE BUILDINGS" class="HPColorsSettingTitle" />
-                      <Label text="Keep buildings and sentries in their normal colors." class="HPColorsSettingHelp" />
+                      <Label text="EXCLUDE STRUCTURES" class="HPColorsSettingTitle" />
+                      <Label text="Keep McGinnis turrets, sentries, and other building-class units in their normal colors." class="HPColorsSettingHelp" />
                     </Panel>
                     <Button id="HPColorsExcludeBuildingsToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
                   </Panel>
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">
-                      <Label text="EXCLUDE BOSSES" class="HPColorsSettingTitle" />
-                      <Label text="Keep bosses and boss barracks in their normal colors." class="HPColorsSettingHelp" />
+                      <Label text="EXCLUDE OBJECTIVES" class="HPColorsSettingTitle" />
+                      <Label text="Keep Guardians, Walkers, Shrines, and other boss-class objectives in their normal colors." class="HPColorsSettingHelp" />
                     </Panel>
                     <Button id="HPColorsExcludeBossesToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="EXCLUDE GHOUL COLORS" class="HPColorsSettingTitle" />
+                      <Label text="Keep Graves' ghouls and other creature-class units in their normal colors." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsExcludeGhoulsToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="USE CUSTOM GHOUL OPACITY" class="HPColorsSettingTitle" />
+                      <Label text="Apply one opacity value to the ghoul healthbar and ultimate-ready background, even when colors are excluded." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsGhoulOpacityToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsGhoulOpacityRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="GHOUL HUD OPACITY" class="HPColorsSettingTitle" />
+                      <Label text="0% is nearly invisible. 100% keeps normal opacity." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsGhoulOpacitySliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsGhoulOpacityEntry" class="HPColorsNumberEntry" text="100" />
+                      <Label text="%" class="HPColorsUnitLabel" />
+                    </Panel>
                   </Panel>
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">
@@ -400,7 +465,7 @@
 
                 <Panel id="HPColorsSettingsEnemyShields" class="HPColorsSettingsPage">
                   <Panel class="HPColorsSettingRow HPColorsColorRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="BULLET SHIELD COLOR" class="HPColorsSettingTitle" /><Label text="Set the color of the bullet-shield indicator." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="SHIELD COLOR" class="HPColorsSettingTitle" /><Label text="Set the color of the shield indicator." class="HPColorsSettingHelp" /></Panel>
                     <Button id="HPColorsEnemyShieldSwatch" class="HPColorsColorSwatch" />
                     <TextEntry id="HPColorsEnemyShieldHex" class="HPColorsHexEntry" text="#FFFFFF" maxchars="7" />
                   </Panel>
@@ -444,7 +509,7 @@
 
                 <Panel id="HPColorsSettingsAllyShields" class="HPColorsSettingsPage">
                   <Panel class="HPColorsSettingRow HPColorsColorRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="BULLET SHIELD COLOR" class="HPColorsSettingTitle" /><Label text="Set the color of the ally bullet-shield indicator." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="SHIELD COLOR" class="HPColorsSettingTitle" /><Label text="Set the color of the ally shield indicator." class="HPColorsSettingHelp" /></Panel>
                     <Button id="HPColorsAllyShieldSwatch" class="HPColorsColorSwatch" />
                     <TextEntry id="HPColorsAllyShieldHex" class="HPColorsHexEntry" text="#FFFFFF" maxchars="7" />
                   </Panel>

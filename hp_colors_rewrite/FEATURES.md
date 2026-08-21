@@ -11,8 +11,8 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 ### Healthbars and feedback
 
 - Enemy and optional ally fixed/gradient colors with shared thresholds.
-- Enemy team-high color plus independent building and boss exclusions.
-- Reversible enemy/ally visibility, dimensions, position, healing, damage-delta, bullet-shield, and ultimate-icon coloring.
+- Enemy team-high color plus independent structure, objective, and creature-class ghoul exclusions.
+- Reversible enemy/ally visibility, dimensions, position, ghoul opacity, healing, damage-delta, shield-indicator, and ultimate-icon coloring.
 - Neutral-first classification; neutral and unclassified targets never enter enemy coloring.
 - Enemy/ally CSS-driven low-HP pulse and enemy-player-only static kill marker.
 
@@ -86,13 +86,13 @@ Implemented controls:
 The renderer classifies stock relation classes neutral-first, then enemy/friend. When customization yields color ownership, it writes the current base-game `unit_status.css` relation palette directly to the owned inline properties because clearing Panorama inline colors did not reliably trigger stock selector repainting in live Deadlock. The mirrored values cover team1, team2, neutral, enemy, and friend fill/ultimate colors plus stock healing, damage-delta, and bullet-shield colors; JavaScript constants identify their stock origin.
 
 
-## Milestone 4: feedback and bullet-shield colors
+## Milestone 4: feedback and shield-indicator colors
 
 Implemented controls:
 
 - Separate enemy and ally healing-layer colors.
 - Separate enemy and ally recent-damage delta colors.
-- Separate enemy and ally bullet-shield colors.
+- Separate enemy and ally shield-indicator colors.
 
 The local renderer uses the already cached v1 panels. It changes healing and delta `washColor` plus bullet-shield `backgroundColor`; the engine remains the sole owner of every layer's live width and timing. Disabled relations, neutral/other roles, and the master bypass clear these inline properties so stock styling resumes.
 
@@ -107,11 +107,11 @@ The picker uses one modal panel and one active setting key. Closing, Escape, pag
 Implemented controls:
 
 - Optional stock team color as the enemy high-health endpoint; unknown teams retain the configured high color.
-- Independent building/sentry and boss exclusions that restore stock relation colors.
+- Independent structure, objective, and creature-class ghoul exclusions that restore stock relation colors, plus full-ghoul-healthbar opacity that remains active across exclusion.
 - Horizontal and vertical translation of the complete healthbar stack without moving or scaling unit, ultimate, or level icons.
 - One shared ultimate-ready icon rule: Follow Bar uses each customized relation's final bar color; Custom applies one color to enemy and ally icons even when their bar-color toggle is off.
 
-The renderer classifies relation, team, building, sentry, and boss facts from the current overlay ancestry. Neutral classification remains authoritative. Exclusions bypass relation-owned bar, feedback, shield, and ultimate-icon colors while global size and position controls remain active. Ultimate-icon styling owns only inline `washColor`; stock visibility and boss-specific images remain engine-owned. The shared control lives under Health Info → Indicators rather than an enemy-only page.
+The renderer classifies relation, team, building, sentry, boss, and creature-class ghoul facts in the existing ancestry pass. Neutral classification remains authoritative. Ghoul opacity applies one value to the cached `UnitHealthbarContainer` and `unit_info_bg` before exclusion-controlled colors, so both remain at the requested opacity while ghoul colors are stock. Zero uses `opacity: 0.01` to preserve engine width updates. The slider and number entry stay disabled until custom ghoul opacity is enabled. Exclusions bypass relation-owned bar, feedback, shield, and ultimate-icon colors while global size and position controls remain active.
 
 The 2026-08-12 in-game smoke confirmed fixed low/mid/high threshold stepping, team-high colors, independent exclusions, X/Y positioning, ultimate-icon modes, reversible non-culling visibility, and the existing picker/renderer controls. `console.log` recorded configuration, role, team, building, boss, generation, and health transitions with no HP Colors Rewrite exceptions.
 
@@ -221,7 +221,7 @@ Focused regressions cover cold-boot builder selection publication before lifecyc
 
 ## Milestone 15: full-width Preset Library
 
-The former split Hero / Presets dashboard is now one full-width Preset Library. It keeps automatic identity resolution active while hiding transient lifecycle diagnostics, and surfaces only the active hero plus the Selected → All Heroes → Rewrite Default routing rule. The collapsed preset editor opens only for **New Preset** or a clicked session row. Create and edit use different primary labels, editing shows the overwrite warning, and Cancel closes the form without mutation. The expanded repository viewport keeps management local to each record: click a session row to edit, click the name to rename, use row-local Copy and Apply/Cancel, move user records with valid Up/Down controls, and confirm Delete/Hide in place. **Restore Baked** remains a repository-level header action.
+The former split Hero / Presets dashboard is now one full-width Preset Library. It keeps automatic identity resolution active while hiding transient lifecycle diagnostics. The page explains the lower-commitment session behavior first, then web-builder persistence, then the one-VPK packaging rule. Its routing card says that a hero-specific preset wins first, otherwise All Heroes applies, and the highest matching row wins. Scope help states that Selected Heroes overrides All Heroes for chosen heroes. A compact action guide distinguishes Create Preset, Apply, and Save & Apply before the user edits a record.
 
 ## Milestone 16: preset repository transfer
 

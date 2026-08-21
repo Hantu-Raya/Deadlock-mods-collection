@@ -177,6 +177,45 @@ test('building and boss exclusions restore stock colors independently', () => {
   assert.equal(boss.tree.lagging.style.washColor, '#FD4949');
 });
 
+test('one ghoul opacity setting covers the healthbar and ultimate background', () => {
+  const ghoul = bootProbe(['friend', 'team1', 'creature']);
+  publishConfig(ghoul.harness, 1, {
+    enabled: true,
+    allyEnabled: true,
+    allyMode: 'fixed',
+    allyHigh: '#112233',
+    excludeGhouls: true,
+    ghoulOpacityEnabled: true,
+    ghoulOpacity: 35,
+  });
+  assert.equal(ghoul.tree.lagging.style.washColor, '#FFEFD7');
+  assert.equal(ghoul.tree.unitHealthbar.style.opacity, '0.35');
+  assert.equal(ghoul.tree.ultBackground.style.opacity, '0.35');
+
+  publishConfig(ghoul.harness, 2, {
+    enabled: true,
+    allyEnabled: true,
+    allyMode: 'fixed',
+    allyHigh: '#112233',
+    excludeGhouls: false,
+    ghoulOpacityEnabled: true,
+    ghoulOpacity: 0,
+  });
+  assert.equal(ghoul.tree.lagging.style.washColor, '#112233');
+  assert.equal(ghoul.tree.unitHealthbar.style.opacity, '0.01');
+  assert.equal(ghoul.tree.ultBackground.style.opacity, '0.01');
+
+  const boss = bootProbe(['enemy', 'team1', 'creature', 'boss_tier1']);
+  publishConfig(boss.harness, 1, {
+    enabled: true,
+    enemyEnabled: true,
+    ghoulOpacityEnabled: true,
+    ghoulOpacity: 35,
+  });
+  assert.equal(boss.tree.unitHealthbar.style.opacity, '1');
+  assert.equal(boss.tree.ultBackground.style.opacity, '1');
+});
+
 test('master bypass writes every current stock relation palette', () => {
   const cases = [
     {
@@ -347,11 +386,17 @@ test('single fixed-color settings are removed from the clean snapshot', () => {
   assert.doesNotMatch(layoutSource, /HPColorsEnemyFixed|HPColorsAllyFixed/);
 });
 
-test('editor exposes and publishes the four-feature controls', () => {
+test('editor exposes and publishes the ghoul and existing bar controls', () => {
   const harness = createPanoramaHarness();
   installLayoutPanels(harness);
   runHpColorsSourcesInVm(stateSource, menuSource, harness);
   harness.$.HPColorsMenuBoot();
+  const ghoulOpacityRow = harness.root.FindChildTraverse('HPColorsGhoulOpacityRow');
+  const ghoulOpacityEntry = harness.root.FindChildTraverse('HPColorsGhoulOpacityEntry');
+  const ghoulOpacity = harness.root.FindChildTraverse('HPColorsGhoulOpacitySlider');
+  assert.equal(ghoulOpacityRow.BHasClass('Disabled'), true);
+  assert.equal(ghoulOpacity.enabled, false);
+  assert.equal(ghoulOpacityEntry.enabled, false);
 
   const xSlider = harness.root.FindChildTraverse('HPColorsPositionXSlider');
   const ySlider = harness.root.FindChildTraverse('HPColorsPositionYSlider');
@@ -361,6 +406,14 @@ test('editor exposes and publishes the four-feature controls', () => {
   harness.root.FindChildTraverse('HPColorsEnemyTeamHighToggle').events.onactivate();
   harness.root.FindChildTraverse('HPColorsExcludeBuildingsToggle').events.onactivate();
   harness.root.FindChildTraverse('HPColorsExcludeBossesToggle').events.onactivate();
+  harness.root.FindChildTraverse('HPColorsExcludeGhoulsToggle').events.onactivate();
+  harness.root.FindChildTraverse('HPColorsGhoulOpacityToggle').events.onactivate();
+  assert.deepEqual([ghoulOpacity.min, ghoulOpacity.max], [0, 100]);
+  assert.equal(ghoulOpacityRow.BHasClass('Disabled'), false);
+  assert.equal(ghoulOpacity.enabled, true);
+  assert.equal(ghoulOpacityEntry.enabled, true);
+  ghoulOpacity.value = 35;
+  ghoulOpacity.events.onvaluechanged();
   harness.root.FindChildTraverse('HPColorsUltModeCustom').events.onactivate();
   const values = JSON.parse(
     harness.root.GetAttributeString('hp_colors_rewrite_config', '{}'),
@@ -368,6 +421,9 @@ test('editor exposes and publishes the four-feature controls', () => {
   assert.equal(values.enemyTeamHigh, true);
   assert.equal(values.excludeBuildings, true);
   assert.equal(values.excludeBosses, true);
+  assert.equal(values.excludeGhouls, true);
+  assert.equal(values.ghoulOpacityEnabled, true);
+  assert.equal(values.ghoulOpacity, 35);
   assert.equal(values.ultMode, 'custom');
 });
 

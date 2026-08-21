@@ -301,6 +301,26 @@ function assertRecordShape(record, expected) {
   assert.deepEqual(record.heroes, expected.heroes);
 }
 
+test('Preset Library explains packaging, routing, priority, and actions', () => {
+  for (const copy of [
+    'Presets created or changed here last until Deadlock closes.',
+    'Presets packaged with the web builder return after restart.',
+    'One preset VPK can contain both All Heroes and Selected Heroes presets.',
+    'HOW PRESETS ARE CHOSEN',
+    'HERO-SPECIFIC FIRST  ·  OTHERWISE ALL HEROES',
+    'If two presets cover the same hero, the higher one in the list wins.',
+    'Selected Heroes overrides All Heroes for the heroes you choose.',
+    'Saves the current menu settings as a new library record.',
+    'Loads the saved preset now. It does not edit the preset.',
+    'Replaces the selected preset with the current menu settings, then loads it.',
+  ]) {
+    assert.match(layoutSource, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+  assert.match(layoutSource, /id="HPColorsPresetBuilderLink"/);
+  assert.match(layoutSource, /SteamOverlayOpenURL/);
+  assert.match(layoutSource, /https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\//);
+});
+
 test('installed XML HPCRP1 preset applies on cold boot before any lifecycle transition', () => {
   const fixture = bootPresetMenu(undefined, {
     storeLabelText: encodeStoreText(REWRITE_PRESET_CODE),
@@ -1436,7 +1456,10 @@ test('create form stays distinct while a selected session row exposes Save & App
   );
   assert.equal(saveAndApply.Children()[0].text, 'SAVE & APPLY');
   assert.equal(saveAndApply.BHasClass('SaveAndApply'), true);
-  assert.match(panel(fixture, 'HPColorsPresetFeedback').text, /REPLACES IT/i);
+  assert.equal(
+    panel(fixture, 'HPColorsPresetFeedback').text,
+    'EDITING RANKED. SAVE & APPLY REPLACES THIS PRESET WITH YOUR CURRENT MENU SETTINGS, THEN LOADS IT.',
+  );
 
   panel(fixture, 'HPColorsPresetNameInput').text = 'Ranked Revised';
   saveAndApply.events.onactivate();

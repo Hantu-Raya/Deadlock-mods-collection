@@ -38,6 +38,9 @@ const ENEMY_BAR_DEFAULTS = {
   enemyTeamHigh: false,
   excludeBuildings: false,
   excludeBosses: false,
+  excludeGhouls: false,
+  ghoulOpacityEnabled: false,
+  ghoulOpacity: 100,
 };
 const ENEMY_BAR_KEYS = Object.keys(ENEMY_BAR_DEFAULTS);
 
@@ -136,6 +139,9 @@ function changedEnemyValues() {
     enemyTeamHigh: true,
     excludeBuildings: true,
     excludeBosses: true,
+    excludeGhouls: true,
+    ghoulOpacityEnabled: true,
+    ghoulOpacity: 35,
     allyLow: '#445566',
     widthScale: 123,
   };

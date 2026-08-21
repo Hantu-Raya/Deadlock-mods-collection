@@ -142,6 +142,7 @@
     var building = false;
     var boss = false;
     var sentry = false;
+    var creature = false;
     var bossDimensions = false;
     for (var depth = 0; current && depth < 12; depth++) {
       neutral = neutral || hasClass(current, "team_neutral");
@@ -153,6 +154,7 @@
       if (!team && hasClass(current, "team2")) team = "team2";
       sentry = sentry || hasClass(current, "sentry");
       building = building || sentry || hasClass(current, "building");
+      creature = creature || hasClass(current, "creature");
       var tierBoss =
         hasClass(current, "boss_tier1") ||
         hasClass(current, "boss_tier2") ||
@@ -166,6 +168,7 @@
       }
     }
     var role = neutral ? "neutral" : enemy ? "enemy" : ally ? "ally" : "other";
+    var ghoul = creature && !player && !building && !boss;
     var changed =
       role !== bar.role ||
       player !== bar.isPlayer ||
@@ -174,6 +177,7 @@
       building !== bar.isBuilding ||
       boss !== bar.isBoss ||
       sentry !== bar.isSentry ||
+      ghoul !== bar.isGhoul ||
       bossDimensions !== bar.usesBossDimensions;
     if (!changed) return false;
     clearLevelOwnership(bar);
@@ -184,6 +188,7 @@
     bar.isBuilding = building;
     bar.isBoss = boss;
     bar.isSentry = sentry;
+    bar.isGhoul = ghoul;
     bar.usesBossDimensions = bossDimensions;
     bar.levelWrapper =
       findAncestorWithClass(bar.parts.levelContainer, "enemy") ||
@@ -203,7 +208,9 @@
         " building=" +
         String(building) +
         " boss=" +
-        String(boss),
+        String(boss) +
+        " ghoul=" +
+        String(ghoul),
     );
     return true;
   }
@@ -218,6 +225,7 @@
       infoHealth: infoHealth,
       unitStatus: unitStatus,
       activeParent: activeParent,
+      ultBackground: findWithin(infoHealth, "unit_info_bg"),
       killMarker: findWithin(container, "hp_colors_kill_marker"),
       background: findWithin(container, "unit_healthbar_bg"),
       fill: findWithin(activeParent, "unit_healthbar_lagging"),
@@ -300,6 +308,9 @@
       (parts.counter &&
         (!isValid(parts.counter) ||
           !isDescendantOf(parts.counter, parts.counterAnchor))) ||
+      (parts.ultBackground &&
+        (!isValid(parts.ultBackground) ||
+          !isDescendantOf(parts.ultBackground, parts.infoHealth))) ||
       (parts.ultIcon &&
         (!isValid(parts.ultIcon) ||
           !isDescendantOf(parts.ultIcon, parts.infoHealth)))
@@ -1248,9 +1259,10 @@
 
     var roleEnabled = role === "enemy" ? config.enemyEnabled : config.allyEnabled;
     var excluded =
-      role === "enemy" &&
-      ((config.excludeBuildings && bar.isBuilding) ||
-        (config.excludeBosses && bar.isBoss));
+      (config.excludeGhouls && bar.isGhoul) ||
+      (role === "enemy" &&
+        ((config.excludeBuildings && bar.isBuilding) ||
+          (config.excludeBosses && bar.isBoss)));
     var colorsEnabled = roleEnabled && !excluded;
     var visible = role === "enemy" ? config.enemyVisible : config.allyVisible;
     var mode = role === "enemy" ? config.enemyMode : config.allyMode;
@@ -1421,13 +1433,25 @@
           config.positionY +
           "px)";
     var opacity =
-      colorsEnabled
-        ? visible &&
-          !(pulseActive && role === "enemy" && config.enemyPulseHideBar)
-          ? "1"
-          : "0.01"
-        : "";
+      bar.isGhoul && config.ghoulOpacityEnabled
+        ? config.ghoulOpacity <= 1
+          ? "0.01"
+          : String(config.ghoulOpacity / 100)
+        : colorsEnabled
+          ? visible &&
+            !(pulseActive && role === "enemy" && config.enemyPulseHideBar)
+            ? "1"
+            : "0.01"
+          : "";
     applyReadoutDecorations(bar);
+    setStyle(bar.parts.container, "opacity", opacity, bar.applied, "opacity");
+    setStyle(
+      bar.parts.ultBackground,
+      "opacity",
+      opacity,
+      bar.applied,
+      "ultBackgroundOpacity",
+    );
 
     setStyle(bar.parts.fill, "washColor", color, bar.applied, "washColor");
     setStyle(
@@ -1458,7 +1482,6 @@
       bar.applied,
       "ultWashColor",
     );
-    setStyle(bar.parts.container, "opacity", opacity, bar.applied, "opacity");
     setStyle(bar.parts.container, "width", width, bar.applied, "width");
     setStyle(bar.parts.container, "height", height, bar.applied, "height");
     setStyle(
@@ -1623,6 +1646,7 @@
       isBuilding: false,
       isBoss: false,
       isSentry: false,
+      isGhoul: false,
       usesBossDimensions: false,
       stockWidth: 0,
       stockHeight: 0,

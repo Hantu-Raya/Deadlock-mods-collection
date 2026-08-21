@@ -64,12 +64,14 @@ Color must never be the only state indicator.
 #### Presets
 
 - The full-width Preset Library combines routing context, save target, repository order, selection, and management in one workspace; transient identity internals remain runtime-owned and hidden.
-- Auto, Manual Override, and Off still expose only exact stable hero keys. The workspace surfaces the active hero and the automatic Selected → All Heroes → Rewrite Default route without presenting lifecycle diagnostics as user controls.
-- Save-target controls expose only All Heroes and selected stable heroes. The canonical base remains hidden and is represented by baked Rewrite Default.
+- The workspace explains session presets first: in-game changes last until Deadlock closes, web-builder presets return after restart, and one preset VPK may contain both All Heroes and Selected Heroes records.
+- The routing card shows the active hero and the user-facing rule: a hero-specific preset wins first, otherwise All Heroes applies. If several records cover the same hero, the highest record in the list wins.
+- Save-target controls expose only All Heroes and selected stable heroes. Their help states that Selected Heroes overrides All Heroes for the chosen heroes and that All Heroes covers everyone else.
 - Session Presets list baked records before session user records.
 - **New Preset** opens a focused create form for name and Current target. **Create Preset** snapshots the latest Current working values with that scope metadata, allocates a monotonic ID, closes the form, and never applies settings.
 - Clicking a session row enters a clearly labeled editing state without changing live settings. Its primary action becomes **Save & Apply**, which warns that it will replace the named record, updates that stable ID from the current editor values and scope, then uses the existing preset-application path. **Cancel** exits editing without mutation.
 - Baked rows remain immutable. Their primary action stays **Apply**; they never expose **Save & Apply**.
+- A compact action guide distinguishes all three mutations: **Create Preset** saves a new library record without changing the live HUD, **Apply** loads a record without editing it, and **Save & Apply** replaces the selected user record from Current before loading it.
 - Explicit **Apply** replaces Current and publishes immediately, even before stable identity resolves or when the current detected hero differs. Applied user presets stamp Current with their stable source ID. Later exact identity transitions preserve edited Current when the first matching saved Selected or All Heroes route has that same ID, and replace Current only when routing resolves to a different preset or baked Rewrite Default.
 - Rename starts from the row name. Copy, Apply, valid Up/Down moves, and Delete/Hide remain row-local. Destructive confirmation replaces only the affected row.
 - Repository-only mutations repair stable-ID references but never apply settings, enter Undo, increment revision, or dispatch configuration. Explicit **Apply** and the apply half of **Save & Apply** are live-settings transitions.
@@ -88,7 +90,7 @@ Color must never be the only state indicator.
 - Low, mid, and high colors.
 - One always-editable low/high threshold pair shared by enemy bars, ally bars, and custom HP text.
 - Optional high-HP team color.
-- Building and boss exclusions.
+- Structure and objective color exclusions, plus a separate creature-class ghoul exclusion and full-healthbar opacity control.
 
 #### Heal & Damage
 
@@ -97,7 +99,7 @@ Color must never be the only state indicator.
 
 #### Shields & Icons
 
-- Bullet-shield color.
+- Shield-indicator color.
 - Ultimate-icon behavior and color.
 
 #### Pulse
@@ -124,7 +126,7 @@ Color must never be the only state indicator.
 
 #### Shields
 
-- Bullet-shield color.
+- Shield-indicator color.
 
 #### Pulse
 
@@ -232,10 +234,10 @@ The fourth slice adds one reusable HSL color palette:
 
 The fifth slice adds target-aware healthbar controls:
 
-1. The existing snapshot carries team-high color, independent building/boss exclusions, X/Y bar position, and one shared ultimate-icon mode/color.
-2. One ancestry classification records relation, team, building, sentry, and boss facts; neutral remains authoritative and unknown teams retain the configured high color.
-3. Position translates only `UnitHealthbarContainer`, preserving stock unit, ultimate, and level icon placement plus engine-owned fill geometry.
-4. Exclusions clear relation-owned colors while retaining global size and position controls.
+1. The snapshot carries team-high color, independent structure/objective/ghoul exclusions, ghoul opacity, X/Y bar position, and one shared ultimate-icon mode/color.
+2. One ancestry classification records relation, team, building, sentry, boss, and creature-class ghoul facts; neutral remains authoritative and unknown teams retain the configured high color.
+3. Position writes only `UnitHealthbarContainer`, preserving stock unit, ultimate, and level icon placement plus engine-owned fill geometry. Ghoul opacity applies one value to `UnitHealthbarContainer` and `unit_info_bg`; it does not add a separate ultimate-opacity setting.
+4. Ghoul opacity is resolved independently before color exclusion, so excluded ghouls retain the requested healthbar and ultimate-ready background opacity. Zero uses the existing nonzero hidden value to preserve engine width updates.
 5. Ultimate-icon styling changes only `washColor`; Custom applies one shared color to enemy and ally icons even when their bar-color toggle is off, while Follow Bar colors only customized bars. Stock image selection and visibility remain engine-owned.
 
 The sixth slice adds the static enemy HP readout:

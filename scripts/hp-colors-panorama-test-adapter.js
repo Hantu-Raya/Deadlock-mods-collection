@@ -778,7 +778,9 @@ function buildUnitStatusTree(harness, options = {}) {
   const levelContainer = infoHealth.add(new MockPanel('LevelContainer', { findCounts: harness.findCounts }));
   const level = levelContainer.add(new MockPanel('unit_level_label', { text: options.levelText || '12', attributes: { text: options.levelText || '12' }, findCounts: harness.findCounts }));
   const unitInfo = infoHealth.add(new MockPanel('UnitInfoContainer', { findCounts: harness.findCounts }));
-  const ult = unitInfo.add(new MockPanel('unit_ult_ready_icon', { findCounts: harness.findCounts }));
+  const unitInfoPanel = unitInfo.add(new MockPanel('unit_info_panel', { classes: ['unit_info_panel'], findCounts: harness.findCounts }));
+  const ultBackground = unitInfoPanel.add(new MockPanel('unit_info_bg', { findCounts: harness.findCounts }));
+  const ult = ultBackground.add(new MockPanel('unit_ult_ready_icon', { findCounts: harness.findCounts }));
   const ultIcon = ult;
   const unitHealthbar = infoHealth.add(new MockPanel('UnitHealthbarContainer', { findCounts: harness.findCounts }));
   const bg = unitHealthbar.add(new MockPanel('unit_healthbar_bg', { findCounts: harness.findCounts }));
@@ -805,7 +807,7 @@ function buildUnitStatusTree(harness, options = {}) {
   const counterAnchor = unitStatus.add(new MockPanel('hp_counter_anchor', { findCounts: harness.findCounts }));
   const counter = counterAnchor.add(new MockPanel('hp_counter', { findCounts: harness.findCounts }));
   const name = root.add(new MockPanel('name', { text: options.nameText || 'Enemy', attributes: { text: options.nameText || 'Enemy' }, findCounts: harness.findCounts }));
-  return { root, unitStatus, infoHealth, unitInfo, unitHealthbar, bg, missing, redParent, lagging, rb, pulseOverlay, pip, heal, delta, bulletShield, techShield, ult, ultIcon, levelContainer, level, name, counterAnchor, counter, killMarker };
+  return { root, unitStatus, infoHealth, unitInfo, unitInfoPanel, ultBackground, unitHealthbar, bg, missing, redParent, lagging, rb, pulseOverlay, pip, heal, delta, bulletShield, techShield, ult, ultIcon, levelContainer, level, name, counterAnchor, counter, killMarker };
 }
 
 function findByClass(panel, className, out = []) {
