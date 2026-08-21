@@ -2,16 +2,6 @@
   margin-bottom: 118px;
 }
 
-.HPColorsActionBinding {
-  visibility: collapse;
-  font-family: oracle;
-  color: #5fe69e;
-  letter-spacing: 1px;
-}
-
-.HPColorsActionBinding.Bound {
-  visibility: visible;
-}
 
 .HPColorsEditorRoot {
   width: 100%;
@@ -875,11 +865,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   color: #10130d;
 }
 
-.HPColorsActionBinding {
-  margin-left: 12px;
-  vertical-align: center;
-  font-size: 12px;
-}
 
 .HPColorsPeekCapture {
   width: 100%;
@@ -1719,9 +1704,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   min-width: 62px;
 }
 
-.HPColorsPresetOption.Pending .HPColorsPresetOptionStatus {
-  color: #e7c77d;
-}
 
 
 .HPColorsPresetRestoreBakedButton {
