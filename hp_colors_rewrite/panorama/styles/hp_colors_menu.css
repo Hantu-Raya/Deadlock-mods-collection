@@ -272,6 +272,16 @@
   flow-children: down;
 }
 
+.HPColorsPageHeading {
+  width: 100%;
+  flow-children: right;
+}
+
+.HPColorsPageHeadingCopy {
+  width: fill-parent-flow(1);
+  flow-children: down;
+}
+
 .HPColorsPageEyebrow {
   font-family: oracle;
   font-size: 12px;
@@ -294,15 +304,16 @@
   height: 1px;
   margin-top: 12px;
   margin-bottom: 12px;
-  overflow: noclip;
+  overflow: clip;
   background-color: gradient(linear, 0% 0%, 100% 0%, from(#5fe69e77), color-stop(0.35, #ffefd71f), to(#ffefd700));
 }
 
 .HPColorsPresetInfoToggle {
   width: 62px;
   height: 26px;
-  horizontal-align: right;
-  vertical-align: center;
+  margin-top: 7px;
+  margin-left: 16px;
+  vertical-align: top;
   visibility: collapse;
   background-color: #11140f;
   border: 1px solid #5fe69e55;

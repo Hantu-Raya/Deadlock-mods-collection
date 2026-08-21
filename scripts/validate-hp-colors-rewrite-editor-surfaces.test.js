@@ -402,6 +402,17 @@ test('Presets page hides Reset Section and Undo', () => {
   assert.equal(undo.BHasClass('HPColorsFooterActionHidden'), false);
 });
 
+test('Preset INFO control occupies the page heading instead of the rule', () => {
+  assert.match(
+    layoutSource,
+    /<Panel class="HPColorsPageHeading">[\s\S]*id="HPColorsPresetInfoToggle"[\s\S]*<\/Panel>\s*<Panel class="HPColorsPageRule" \/>/,
+  );
+  assert.doesNotMatch(
+    layoutSource,
+    /<Panel class="HPColorsPageRule">[\s\S]*id="HPColorsPresetInfoToggle"/,
+  );
+});
+
 test('Presets guide starts hidden and toggles only on the Presets page', () => {
   const fixture = bootMenu();
   openEditor(fixture);

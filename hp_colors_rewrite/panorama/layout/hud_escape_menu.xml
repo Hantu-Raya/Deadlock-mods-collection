@@ -132,11 +132,14 @@
               <Button id="HPColorsTab4" class="HPColorsTabButton"><Label id="HPColorsTabLabel4" class="HPColorsTabLabel" /></Button>
             </Panel>
             <Panel class="HPColorsPage">
-              <Label id="HPColorsPageEyebrow" text="OVERVIEW / MASTER" class="HPColorsPageEyebrow" />
-              <Label id="HPColorsPageTitle" text="MASTER SWITCH" class="HPColorsPageTitle" />
-              <Panel class="HPColorsPageRule">
+              <Panel class="HPColorsPageHeading">
+                <Panel class="HPColorsPageHeadingCopy">
+                  <Label id="HPColorsPageEyebrow" text="OVERVIEW / MASTER" class="HPColorsPageEyebrow" />
+                  <Label id="HPColorsPageTitle" text="MASTER SWITCH" class="HPColorsPageTitle" />
+                </Panel>
                 <Button id="HPColorsPresetInfoToggle" class="HPColorsPresetInfoToggle"><Label text="INFO" /></Button>
               </Panel>
+              <Panel class="HPColorsPageRule" />
               <Label id="HPColorsPageDescription" text="Turn HP Colors on or off. Your settings stay saved when it is off." class="HPColorsPageDescription" />
               <Panel id="HPColorsSettingsList" class="HPColorsSettingsList">
                 <Panel id="HPColorsSettingsOverviewStatus" class="HPColorsSettingsPage Active">
