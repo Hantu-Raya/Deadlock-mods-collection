@@ -67,7 +67,7 @@ Preserve these authority rules:
 - `panorama/styles/` — the Ritual Stripe editor and entry styling.
 - `../hp_colors_rewrite_compiled/` — generated `.vxml_c`/`.vjs_c`/`.vcss_c` output. Never edit it.
 - `../scripts/` — shared Source 2 packaging helpers used by the root build wrapper.
-- `../hp_colors_rewrite_qollock/` — package-derived layouts and compatibility guards for the installed QOLLOCK `pak03`; it reuses canonical Rewrite scripts and styles during the build.
+- `../hp_colors_rewrite_qollock/` — package-derived layouts and the menu bridge for the installed QOLLOCK `pak03`; it reuses canonical Rewrite scripts and styles during the build.
 
 Do not copy implementation from `../hp_colors/` or its validators. This rewrite intentionally starts from small seams rather than the old runtime.
 
@@ -106,8 +106,7 @@ The compatibility install order is builder-generated `pak01`, Rewrite support `p
 powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_qollock.ps1 -RefreshFromInstalledQollock
 ```
 
-The refresh extracts and decompiles `hud.vxml_c` and `hud_escape_menu.vxml_c`, removes QOLLOCK body-healthbar includes, injects canonical Rewrite fragments and compatibility guards, updates `qollock-source.sha256`, then compiles and packs `pak02_dir.vpk`. Source2Viewer CLI is required only for this refresh. Use the normal wrapper without the switch when the installed `pak03` hash has not changed.
-
+The refresh extracts and decompiles `hud.vxml_c` and `hud_escape_menu.vxml_c`, retains QOLLOCK's healthbar runtimes and settings, injects canonical Rewrite fragments plus the menu bridge, updates `qollock-source.sha256`, then compiles and packs `pak02_dir.vpk`. Source2Viewer CLI is required only for this refresh. Use the normal wrapper without the switch when the installed `pak03` hash has not changed.
 Never hand-edit the generated compatibility layouts. Update `scripts/refresh-hp-colors-rewrite-qollock.js` and regenerate them. The compatibility bridge must close only QOLLOCK's settings panel before opening HP Colors; calling `ForceCloseModSettings` resumes gameplay and dismisses the Escape menu.
 
 ## Code Conventions & Common Patterns

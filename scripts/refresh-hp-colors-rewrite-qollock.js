@@ -78,7 +78,7 @@ function prefixHandler(tag, name, prefix, label) {
 
 function buildHud(sourceXml, packageHash) {
   const bodyHealthbarInclude =
-    /^[ \t]*<include src="s2r:\/\/panorama\/scripts\/features\/(?:ql_feat_healthbar[^"]*|healthbar\/[^"]+)\.vjs_c" \/>[ \t]*\r?\n/gim;
+    /^[ \t]*<include src="s2r:\/\/panorama\/scripts\/features\/(?:ql_feat_healthbar[^"]*|healthbar\/[^"]+)\.vjs_c" \/>[ \t]*\r?$/gim;
   const injectedInclude =
     /s2r:\/\/panorama\/scripts\/qollock_(?:runtime|topbar_warning)_guard\.vjs_c/g;
   requireMatchCount(
@@ -87,45 +87,11 @@ function buildHud(sourceXml, packageHash) {
     0,
     'pak03 HUD pre-existing compatibility includes',
   );
-  const removed = countMatches(sourceXml, bodyHealthbarInclude);
-  if (removed === 0)
-    fail('pak03 HUD has no QOLLOCK healthbar runtime includes to remove');
-
-  let xml = sourceXml.replace(bodyHealthbarInclude, '');
-
-  xml = insertAfter(
-    xml,
-    /^\s*<include src="s2r:\/\/panorama\/scripts\/ql_config\.vjs_c" \/>/m,
-    '\n\t\t<include src="s2r://panorama/scripts/qollock_runtime_guard.vjs_c" />',
-    'HUD pre-boot guard anchor',
-  );
-  xml = insertAfter(
-    xml,
-    /^\s*<include src="s2r:\/\/panorama\/scripts\/manifests\/ql_color_warnings\/manifest\.vjs_c" \/>/m,
-    '\n\t\t<include src="s2r://panorama/scripts/qollock_topbar_warning_guard.vjs_c" />',
-    'HUD topbar warning guard anchor',
-  );
-  xml = insertAfter(
-    xml,
-    /^\s*<include src="s2r:\/\/panorama\/scripts\/core\/ql_app\.vjs_c" \/>/m,
-    '\n\t\t<include src="s2r://panorama/scripts/qollock_runtime_guard.vjs_c" />',
-    'HUD post-boot guard anchor',
-  );
-  requireMatchCount(xml, bodyHealthbarInclude, 0, 'HUD body-healthbar includes');
-  requireMatchCount(
-    xml,
-    /s2r:\/\/panorama\/scripts\/qollock_runtime_guard\.vjs_c/g,
-    2,
-    'HUD runtime guard includes',
-  );
-  requireMatchCount(
-    xml,
-    /s2r:\/\/panorama\/scripts\/qollock_topbar_warning_guard\.vjs_c/g,
-    1,
-    'HUD topbar-warning guard include',
-  );
+  if (countMatches(sourceXml, bodyHealthbarInclude) === 0) {
+    fail('pak03 HUD has no QOLLOCK healthbar runtime includes to retain');
+  }
   return replaceOnce(
-    xml,
+    sourceXml,
     /^<!-- xml reconstructed[^\n]*-->/,
     `<!-- Generated from pak03 SHA-256 ${packageHash} by refresh-hp-colors-rewrite-qollock.js -->`,
     'HUD generated header',
@@ -160,7 +126,6 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
   let xml = sourceXml;
   const hpButton = extractElementById(canonicalXml, 'Button', 'HPColorsMenuButton');
   const hpEditor = extractElementById(canonicalXml, 'Panel', 'HPColorsEditorRoot');
-  const qolButton = extractElementById(xml, 'Button', 'ModSettingsBtn');
   xml = insertAfter(
     xml,
     /^\s*<include src="s2r:\/\/panorama\/styles\/ql_settings\.vcss_c" \/>/m,
@@ -173,7 +138,6 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
     /^\s*<include src="s2r:\/\/panorama\/scripts\/ql_settings\.vjs_c" \/>/m,
     [
       '',
-      '\t\t<include src="s2r://panorama/scripts/qollock_settings_guard.vjs_c" />',
       '\t\t<include src="s2r://panorama/scripts/hp_colors_contract.vjs_c" />',
       '\t\t<include src="s2r://panorama/scripts/hp_colors_state.vjs_c" />',
       '\t\t<include src="s2r://panorama/scripts/hp_colors_menu.vjs_c" />',
@@ -200,9 +164,14 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
   ), 'Escape background');
   xml = replaceOnce(
     xml,
-    qolButton,
-    `${qolButton}\n${hpButton}`,
-    'QOLLOCK settings button',
+    /<Panel class="SettingsRow">\s*<Button id="ModSettingsBtn"[\s\S]*?<\/Button>\s*<\/Panel>/,
+    (qolRow) => [
+      qolRow,
+      '\t\t\t\t\t<Panel class="SettingsRow">',
+      hpButton,
+      '\t\t\t\t\t</Panel>',
+    ].join('\n'),
+    'QOLLOCK settings row',
   );
   xml = replaceOnce(
     xml,
@@ -224,7 +193,6 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
   }
   for (const asset of [
     'hp_colors_menu.vcss_c',
-    'qollock_settings_guard.vjs_c',
     'hp_colors_contract.vjs_c',
     'hp_colors_state.vjs_c',
     'hp_colors_menu.vjs_c',
