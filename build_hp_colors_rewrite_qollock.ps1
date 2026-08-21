@@ -9,6 +9,7 @@ $ErrorActionPreference = 'Stop'
 
 $root = $PSScriptRoot
 . (Join-Path $root 'scripts\source2_package_pipeline.ps1')
+. (Join-Path $root 'scripts\hp-colors-rewrite-closure.ps1')
 
 $canonicalSrc = Join-Path $root 'hp_colors_rewrite'
 $supportSrc = Join-Path $root 'hp_colors_rewrite_qollock'
@@ -17,6 +18,7 @@ $buildRoot = Join-Path $root '_hp_colors_rewrite_qollock_build'
 $stageSource = Join-Path $buildRoot 'hp_colors_rewrite_qollock'
 $refreshRoot = Join-Path $buildRoot 'refresh'
 $stageOutput = Join-Path $buildRoot 'hp_colors_rewrite_qollock_compiled'
+$canonicalClosureTestRoot = Join-Path $buildRoot 'hp_colors_rewrite_closure_test'
 $compiler = Join-Path $root 'sr2compiler\New folder.exe'
 $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
     (Join-Path $root 'vpk cli\vpkeditcli.exe'),
@@ -33,6 +35,16 @@ $canonicalEscapeMenu = Join-Path $canonicalSrc 'panorama\layout\hud_escape_menu.
 if ([string]::IsNullOrWhiteSpace($Source2ViewerPath)) {
     $Source2ViewerPath = Join-Path $root '.tmp\vrf-cli-19.2\Source2Viewer-CLI.exe'
 }
+
+$canonicalRewriteScripts = @(
+    'panorama\scripts\hp_colors_contract.js',
+    'panorama\scripts\hp_colors_state.js',
+    'panorama\scripts\hp_colors_menu.js',
+    'panorama\scripts\healthbar_probe.js'
+)
+$qollockRewriteScripts = $canonicalRewriteScripts + @(
+    'panorama\scripts\qollock_hp_colors_bridge.js'
+)
 
 $canonicalFiles = @(
     'panorama\layout\unit_status_overlay.xml',
@@ -136,7 +148,7 @@ Require-Path -Path $refreshScript -Label 'QOLLOCK compatibility refresh script'
 Require-Path -Path $qollockPak -Label 'Pinned QOLLOCK package'
 if ($RefreshFromInstalledQollock) {
     Require-Path -Path $Source2ViewerPath -Label 'Source2Viewer CLI for QOLLOCK refresh'
-    Write-Host "`n[0/3] Refreshing compatibility layouts from installed pak03..." -ForegroundColor Cyan
+    Write-Host "`n[0/4] Refreshing compatibility layouts from installed pak03..." -ForegroundColor Cyan
     Remove-TreeUnderRoot -Path $refreshRoot -RootPath $root -ExpectedLeaf 'refresh'
     New-Item -ItemType Directory -Path $refreshRoot -Force | Out-Null
     $compiledHud = Join-Path $refreshRoot 'hud.vxml_c'
@@ -167,7 +179,7 @@ Assert-PackedVpkAssets `
     -Required @($assetContract.requiredPinnedQollockAssets)
 Assert-QolSourceHashes -Path $manifestPath
 
-Write-Host "`n[1/3] Compiling pak02 compatibility runtime..." -ForegroundColor Cyan
+Write-Host "`n[1/4] Preparing Closure ADVANCED pak02 compatibility runtime..." -ForegroundColor Cyan
 Remove-TreeUnderRoot -Path $compiledOut -RootPath $root -ExpectedLeaf 'hp_colors_rewrite_qollock_compiled'
 Remove-TreeUnderRoot -Path $buildRoot -RootPath $root -ExpectedLeaf '_hp_colors_rewrite_qollock_build'
 if (Test-Path -LiteralPath $vpkOut) {
@@ -181,6 +193,25 @@ try {
     foreach ($relativePath in $supportFiles) {
         Copy-StagedFile -RelativePath $relativePath -SourceRoot $supportSrc -DestinationRoot $stageSource -Label 'QOLLOCK compatibility'
     }
+    Invoke-HpColorsRewriteClosureAdvanced `
+        -StageSourceRoot $stageSource `
+        -ScriptRelativePaths $qollockRewriteScripts `
+        -WorkRoot $buildRoot
+
+    Copy-Item -LiteralPath $canonicalSrc -Destination $canonicalClosureTestRoot -Recurse -Force
+    foreach ($relativePath in $canonicalRewriteScripts) {
+        Copy-StagedFile `
+            -RelativePath $relativePath `
+            -SourceRoot $stageSource `
+            -DestinationRoot $canonicalClosureTestRoot `
+            -Label 'Closure ADVANCED Rewrite'
+    }
+    Invoke-HpColorsRewriteClosureTests `
+        -RepositoryRoot $root `
+        -SourceRoot $canonicalClosureTestRoot `
+        -QollockSourceRoot $stageSource
+
+    Write-Host "`n[2/4] Compiling pak02 compatibility runtime..." -ForegroundColor Cyan
 
     Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $stageSource -RequiredOutputs $requiredCompiled -TimeoutSeconds 120
     Move-Item -LiteralPath $stageOutput -Destination $compiledOut
@@ -190,7 +221,7 @@ finally {
 }
 Write-Host "  Compiled OK -> $compiledOut" -ForegroundColor Green
 
-Write-Host "`n[2/3] Packing pak02_dir.vpk..." -ForegroundColor Cyan
+Write-Host "`n[3/4] Packing pak02_dir.vpk..." -ForegroundColor Cyan
 Invoke-VpkPack -VpkEditCli $vpkeditcli -InputDir $compiledOut -OutputPath $vpkOut
 $vpkTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut
 $assetContract = Get-Content -LiteralPath $contractPath -Raw | ConvertFrom-Json
@@ -202,7 +233,7 @@ Assert-PackedVpkAssets `
 Write-Host "  Packed OK -> $vpkOut" -ForegroundColor Green
 
 if ($Deploy) {
-    Write-Host "`n[3/3] Deploying pak02_dir.vpk only..." -ForegroundColor Cyan
+    Write-Host "`n[4/4] Deploying pak02_dir.vpk only..." -ForegroundColor Cyan
     Require-Path -Path (Split-Path -Parent $vpkDest) -Label 'Deadlock addons folder'
     if (Test-Path -LiteralPath $vpkDest) {
         $backupStamp = Get-Date -Format 'yyyyMMdd_HHmmss'
@@ -217,5 +248,5 @@ if ($Deploy) {
     Write-Host "  Deployed OK -> $vpkDest" -ForegroundColor Green
 }
 else {
-    Write-Host "`n[3/3] Deployment skipped (use -Deploy to copy pak02_dir.vpk only)." -ForegroundColor Yellow
+    Write-Host "`n[4/4] Deployment skipped (use -Deploy to copy pak02_dir.vpk only)." -ForegroundColor Yellow
 }

@@ -12,13 +12,17 @@ const supportRoot = path.join(root, 'hp_colors_rewrite_qollock');
 const canonicalRoot = path.join(root, 'hp_colors_rewrite');
 const supportLayout = path.join(supportRoot, 'panorama/layout/hud_escape_menu.xml');
 const supportHud = path.join(supportRoot, 'panorama/layout/hud.xml');
+const runtimeSupportRoot =
+  process.env.HP_COLORS_REWRITE_QOLLOCK_SOURCE_ROOT || supportRoot;
 const menuBridge = path.join(
-  supportRoot,
+  runtimeSupportRoot,
   'panorama/scripts/qollock_hp_colors_bridge.js',
 );
 const hashManifest = path.join(supportRoot, 'qollock-source.sha256');
 const assetContract = path.join(supportRoot, 'pak02-contract.json');
 const buildWrapper = path.join(root, 'build_hp_colors_rewrite_qollock.ps1');
+const canonicalBuildWrapper = path.join(root, 'build_hp_colors_rewrite.ps1');
+const closureHelper = path.join(root, 'scripts/hp-colors-rewrite-closure.ps1');
 const refreshScript = path.join(root, 'scripts/refresh-hp-colors-rewrite-qollock.js');
 const {
   buildEscapeMenu,
@@ -197,8 +201,6 @@ test('QOL LOCK and HP COLORS use separate stable menu rows', () => {
   );
   assertThresholdRowsOnEnemyBar(layout);
   const bridge = read(menuBridge);
-  assert.match(bridge, /closeHpColors/);
-  assert.match(bridge, /closeQolLock/);
   assert.match(bridge, /ToggleSettingsWindow/);
   assert.match(bridge, /HPColorsMenuBoot/);
 });
@@ -262,6 +264,21 @@ test('HPCRP1 store is empty-safe', () => {
   assert.match(layout, /hp_colors_rewrite_preset_contract="HPCRP1"/);
   assert.match(layout, /hp_colors_rewrite_preset_version="1"/);
   assert.match(layout, /id="HPColorsRewritePreset_001"[\s\S]*text=""/);
+});
+
+test('both Rewrite wrappers require Closure ADVANCED staging and behavioral checks', () => {
+  const helper = read(closureHelper);
+  for (const wrapperPath of [canonicalBuildWrapper, buildWrapper]) {
+    const wrapper = read(wrapperPath);
+    assert.match(wrapper, /hp-colors-rewrite-closure\.ps1/);
+    assert.match(wrapper, /Invoke-HpColorsRewriteClosureAdvanced/);
+    assert.match(wrapper, /Invoke-HpColorsRewriteClosureTests/);
+  }
+  assert.match(helper, /google-closure-compiler/);
+  assert.match(helper, /--compilation_level[\s\S]*ADVANCED/);
+  assert.match(helper, /--language_out[\s\S]*ECMASCRIPT5_STRICT/);
+  assert.match(helper, /Object\.prototype\.\$propertyName/);
+  assert.match(helper, /HP_COLORS_REWRITE_SOURCE_ROOT/);
 });
 
 test('pak02 contract and wrapper enforce canonical reuse and pak02-only output', () => {
