@@ -20,6 +20,10 @@ const menuSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/hp_colors_menu.js'),
   'utf8',
 );
+const menuStyleSource = fs.readFileSync(
+  path.join(rewriteRoot, 'panorama/styles/hp_colors_menu.css'),
+  'utf8',
+);
 const stateSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/hp_colors_state.js'),
   'utf8',
@@ -410,6 +414,14 @@ test('Preset INFO control occupies the page heading instead of the rule', () => 
   assert.doesNotMatch(
     layoutSource,
     /<Panel class="HPColorsPageRule">[\s\S]*id="HPColorsPresetInfoToggle"/,
+  );
+  assert.match(
+    menuStyleSource,
+    /\.HPColorsPresetInfoToggle\s*\{[^}]*visibility:\s*visible;[^}]*opacity:\s*0;/s,
+  );
+  assert.match(
+    menuStyleSource,
+    /\.HPColorsPresetInfoToggle\.Available\s*\{[^}]*opacity:\s*1;/s,
   );
 });
 

@@ -314,16 +314,17 @@
   margin-top: 7px;
   margin-left: 16px;
   vertical-align: top;
-  visibility: collapse;
+  visibility: visible;
+  opacity: 0;
   background-color: #11140f;
   border: 1px solid #5fe69e55;
-  transition-property: brightness, background-color, border;
+  transition-property: opacity, brightness, background-color, border;
   transition-duration: 0.1s;
   transition-timing-function: ease-out;
 }
 
 .HPColorsPresetInfoToggle.Available {
-  visibility: visible;
+  opacity: 1;
 }
 
 .HPColorsPresetInfoToggle Label {
