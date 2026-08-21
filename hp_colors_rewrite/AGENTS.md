@@ -79,15 +79,15 @@ Build, pack, back up the existing addon, deploy, and verify the deployment hash:
 powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite.ps1
 ```
 
-The wrapper creates root `pak01_dir.vpk` and deploys it to:
+The wrapper creates root `pak02_dir.vpk` and deploys it to:
 
 ```text
-G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak01_dir.vpk
+G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak02_dir.vpk
 ```
 
 Focused automated regressions live under `../scripts/`; run the validators named in Testing & QA. Runtime verification still happens in Deadlock.
 
-`pak01_dir.vpk` conflicts with other pak01 producers such as Poker and Qollite. The rewrite wrapper creates a timestamped backup before replacing the addon, but running another pak01 wrapper will still replace this mod.
+`pak02_dir.vpk` is reserved for the canonical Rewrite runtime. The web builder's Showranks-compatible preset installs as `pak01_dir.vpk` (lower-numbered addon VPKs win collisions), and `showrank_barebones` installs above it as `pak03_dir.vpk`. The QOLLOCK compatibility lane also claims `pak02`, so the canonical runtime and the QOLLOCK support layer remain mutually exclusive.
 
 ### QOLLOCK compatibility
 
@@ -151,7 +151,7 @@ Never hand-edit the generated compatibility layouts. Update `scripts/refresh-hp-
 - Required tools: `sr2compiler/New folder.exe`, .NET 9 runtime support, Dota Workshop Tools/resourcecompiler, and a repository `vpkeditcli.exe` candidate.
 - The module runtime and build remain package-manager-free. `package.json` and `oxlint.config.ts` exist only for local Oxlint tooling; do not add npm dependencies to runtime or packaging paths.
 - The compiler may hang or exit nonzero after producing every required output because of its final redirected `Console.ReadKey`. Required outputs are the success signal; missing output is fatal.
-- Never hand-edit `hp_colors_rewrite_compiled/`, root `pak01_dir.vpk`, deployed VPKs, or timestamped backups.
+- Never hand-edit `hp_colors_rewrite_compiled/`, root `pak02_dir.vpk`, deployed VPKs, or timestamped backups.
 - The build must retain exactly the two layouts, four scripts, editor stylesheet, and unit-status pulse stylesheet required by the current slice and reject raw source or documentation inside the VPK.
 - Never launch, restart, stop, or otherwise control Deadlock. Only the user runs the game and performs interactive smoke steps. After the user exits, inspect `console.log` for evidence.
 
