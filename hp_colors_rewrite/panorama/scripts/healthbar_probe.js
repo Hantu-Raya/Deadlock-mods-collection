@@ -1183,10 +1183,11 @@
       clearPulse(bar);
       clearKillMarkerOwnership(bar);
       applyReadoutDecorations(bar);
+      var stockColor = stockUnitColor(bar);
       setStyle(
         bar.parts.fill,
         "washColor",
-        stockUnitColor(bar),
+        stockColor,
         bar.applied,
         "washColor",
       );
@@ -1214,7 +1215,7 @@
       setStyle(
         bar.parts.ultIcon,
         "washColor",
-        stockUnitColor(bar),
+        stockColor,
         bar.applied,
         "ultWashColor",
       );
@@ -1289,13 +1290,14 @@
           ? config.enemyBulletShield
           : config.allyBulletShield
         : stockBulletShieldColor(bar);
-    var color = stockUnitColor(bar);
+    var stockColor = stockUnitColor(bar);
+    var color = stockColor;
     if (colorsEnabled)
       color =
         mode === "gradient"
           ? gradientColor(bar.lastWidthPercent, low, mid, high)
           : fixedColor(bar.lastWidthPercent, low, mid, high);
-    var ultColor = stockUnitColor(bar);
+    var ultColor = stockColor;
     if (!excluded && config.ultMode === "custom") ultColor = config.ultCustom;
     else if (colorsEnabled) ultColor = color;
     var readoutEnabled =

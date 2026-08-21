@@ -692,7 +692,6 @@
             <Panel class="HPColorsEditorFooter">
               <Button id="HPColorsPeekButton" class="HPColorsSecondaryAction">
                 <Label text="HOLD TO PEEK" />
-                <Label id="HPColorsPeekBinding" class="HPColorsActionBinding" />
               </Button>
               <Button id="HPColorsUndoButton" class="HPColorsSecondaryAction Disabled"><Label text="UNDO" /></Button>
               <Button id="HPColorsResetSectionButton" class="HPColorsSecondaryAction"><Label text="RESET SECTION" /></Button>
