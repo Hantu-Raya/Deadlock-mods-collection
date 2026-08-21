@@ -1056,6 +1056,29 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   letter-spacing: 1px;
 }
 
+.HPColorsHeroCardHelpBlock {
+  width: 100%;
+  margin-top: 7px;
+  flow-children: down;
+}
+
+.HPColorsHeroCardHelpBlock .HPColorsHeroCardHelp {
+  margin-top: 0px;
+}
+
+.HPColorsPresetBuilderLink Label {
+  font-family: sans;
+  font-size: 13px;
+  line-height: 18px;
+  color: #5fe69e;
+  text-decoration: underline;
+}
+
+.HPColorsPresetBuilderLink:hover Label,
+.HPColorsPresetBuilderLink:focus Label {
+  brightness: 1.35;
+}
+
 .HPColorsHeroCardHelp {
   width: 100%;
   margin-top: 7px;
@@ -1079,9 +1102,9 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsPresetHeroContext {
   width: 100%;
-  min-height: 42px;
+  min-height: 76px;
   margin-top: 14px;
-  padding: 0px 12px;
+  padding: 8px 12px;
   flow-children: right;
   background-color: #050705;
   border-left: 2px solid #5fe69e66;
@@ -1093,7 +1116,7 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 }
 
 .HPColorsPresetHeroValue {
-  width: 220px;
+  width: 190px;
   vertical-align: center;
   font-family: oracle;
   font-size: 13px;
@@ -1103,15 +1126,40 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   text-overflow: shrink;
 }
 
-.HPColorsPresetRoutingValue {
+.HPColorsPresetRouting {
   width: fill-parent-flow(1);
   vertical-align: center;
+  flow-children: down;
+}
+
+.HPColorsPresetRoutingTitle {
+  width: 100%;
   font-family: oracle;
   font-size: 10px;
   color: #ffefd766;
   letter-spacing: 1px;
   text-align: right;
+}
+
+.HPColorsPresetRoutingValue {
+  width: 100%;
+  margin-top: 3px;
+  font-family: oracle;
+  font-size: 10px;
+  color: #ffefd7aa;
+  letter-spacing: 1px;
+  text-align: right;
   text-overflow: shrink;
+}
+
+.HPColorsPresetRoutingHelp {
+  width: 100%;
+  margin-top: 3px;
+  font-family: sans;
+  font-size: 11px;
+  color: #ffefd766;
+  text-align: right;
+  white-space: normal;
 }
 
 .HPColorsPresetCreateBlock {
@@ -1206,6 +1254,15 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   width: fill-parent-flow(1);
 }
 
+.HPColorsPresetScopeHelp {
+  width: 100%;
+  margin-top: 7px;
+  font-family: sans;
+  font-size: 12px;
+  color: #ffefd766;
+  white-space: normal;
+}
+
 .HPColorsPresetLibraryHeader {
   width: 100%;
   margin-top: 4px;
@@ -1222,6 +1279,37 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   color: #ffefd766;
   letter-spacing: 1px;
   text-align: right;
+}
+
+.HPColorsPresetActionGuide {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  flow-children: down;
+  background-color: #050705;
+  border-left: 2px solid #e7c77d55;
+}
+
+.HPColorsPresetActionGuideRow {
+  width: 100%;
+  min-height: 22px;
+  flow-children: right;
+}
+
+.HPColorsPresetActionGuideLabel {
+  width: 132px;
+  font-family: oracle;
+  font-size: 10px;
+  color: #e7c77d;
+  letter-spacing: 1px;
+}
+
+.HPColorsPresetActionGuideHelp {
+  width: fill-parent-flow(1);
+  font-family: sans;
+  font-size: 11px;
+  color: #ffefd780;
+  white-space: normal;
 }
 
 .HPColorsIdentityRuntime {

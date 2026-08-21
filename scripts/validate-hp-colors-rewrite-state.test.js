@@ -98,6 +98,9 @@ const DEFAULT_ENTRIES = [
   ['enemyKillMarkerThreshold', 25],
   ['enemyKillMarkerWidth', 3],
   ['enemyKillMarkerColor', '#FF2222'],
+  ['excludeGhouls', false],
+  ['ghoulOpacityEnabled', false],
+  ['ghoulOpacity', 100],
 ];
 const DEFAULT_KEYS = DEFAULT_ENTRIES.map(([key]) => key);
 const DEFAULTS = Object.fromEntries(DEFAULT_ENTRIES);
