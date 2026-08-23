@@ -27,12 +27,12 @@ The editor extends the stock ESC menu’s dark paper-and-metal language.
 
 ### Supporter ticker
 
-- The flexible header-rule area may show a supporter ticker while the editor is open. Ranked supporters scroll first, followed by a centered `Thank you for supporting my work` card held for three seconds; the cycle then restarts from the first supporter. It sits between the title block and `LIVE`; `LIVE` and `DONATE` keep their existing controls and order.
+- The flexible header-rule area may show a supporter ticker while the editor is open. Ranked supporters scroll first, followed by a centered `Thank you for supporting my work` card held for three seconds. The card then slides left while the next cycle's first supporter enters from the right; duplicate cycle markup makes the reset frame visually identical. It sits between the title block and `LIVE`; `LIVE` and `DONATE` keep their existing controls and order.
 - `HPColorsSupporterTicker` is an optional, display-only `CitadelHTMLPanel`. It cannot take focus, cursor, mouse, keyboard, or Escape input.
 - Each editor open loads `https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/` once. The menu does not poll or fetch supporter data during gameplay.
 - Every close path navigates the panel to `about:blank` and collapses it. A missing panel or failed `SetURL` call must not block editor open or close.
-- The hosted page contains static HTML and CSS generated from the reviewed public supporter CSV. It shows at most ten ranked public aliases and USD totals, uses the Deadlock Oracle family when available, and keeps the appreciation card decorative and display-only. GitHub Pages may retain an older successful deployment for ten minutes.
-- The hosted strip must keep this cycle running when the embedded browser reports `prefers-reduced-motion`; Deadlock reports that preference even when the ticker is expected to animate.
+- The hosted page is generated from the reviewed public supporter CSV. Its static HTML and CSS use the Deadlock Oracle family when available and render at most ten ranked public aliases and USD totals. A same-origin loop controller only restarts the completed one-shot animation; it cannot fetch, store, or transmit data. GitHub Pages may retain an older successful deployment for ten minutes.
+- The hosted strip must keep this cycle running when the embedded browser reports `prefers-reduced-motion`; Deadlock reports that preference even when the ticker is expected to animate. Do not depend on CSS `infinite` iteration because the in-game HTML surface can stop on its final keyframe.
 - Do not package donor rows or show a stale fallback. If the HTML panel captures input, shows browser error UI, scales poorly, fails to unload, or adds measurable closed-editor cost, replace it with the remote image design.
 
 ### Typography
