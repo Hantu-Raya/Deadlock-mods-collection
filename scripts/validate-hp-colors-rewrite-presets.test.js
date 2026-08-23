@@ -340,16 +340,23 @@ test('supporter ticker loads once per editor open and unloads on close', () => {
   const ignoreCursorValues = [];
   ticker.SetURL = (url) => urls.push(url);
   ticker.SetIgnoreCursor = (value) => ignoreCursorValues.push(value);
+  ticker.GetURL = () => urls.at(-1);
+  ticker.GetTitle = () => 'HP Colors supporter debug';
 
   openEditor(fixture);
   openEditor(fixture);
   assert.equal(urls.length, 1);
   assert.match(
     urls[0],
-    /^https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/supporters-strip\/\?refresh=\d+$/,
+    /^https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/supporters-strip-debug\/\?refresh=\d+$/,
   );
   assert.deepEqual(ignoreCursorValues, [true]);
   assert.equal(ticker.BHasClass('Open'), true);
+  fixture.harness.scheduler.runByDelay(1.5);
+  assert.match(
+    fixture.harness.logs.at(-1),
+    /^\[HP Colors Rewrite\] supporter html getters GetURL=https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/supporters-strip-debug\/\?refresh=\d+ \| GetTitle=HP Colors supporter debug \| GetPageTitle=missing \| GetText=missing \| GetHTML=missing \| GetContent=missing$/,
+  );
 
   fixture.harness.$.HPColorsMenuCancel();
   assert.equal(urls.length, 2);
@@ -360,11 +367,7 @@ test('supporter ticker loads once per editor open and unloads on close', () => {
   assert.equal(urls.length, 3);
   assert.match(
     urls[2],
-    /^https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/supporters-strip\/\?refresh=\d+$/,
-  );
-  assert.equal(
-    fixture.harness.logs.some((line) => /supporter ticker/.test(line)),
-    false,
+    /^https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/supporters-strip-debug\/\?refresh=\d+$/,
   );
 });
 
