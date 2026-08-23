@@ -4,7 +4,7 @@
 
 Deadlock Panorama JavaScript cannot fetch and parse a CSV response. The selected design does not ask it to.
 
-The existing `hp-colors-preset-builder` repository will own one reviewed public CSV. Astro will validate that CSV during the Pages build, pass the same rows into the current V2 ticker, and pre-render a dedicated `supporters-strip` page as static HTML and CSS. The page will contain no client JavaScript and will make no CSV request.
+The existing `hp-colors-preset-builder` repository owns one reviewed public CSV. Astro validates that CSV during the Pages build, passes the same rows into the V2 ticker, and pre-renders a dedicated `supporters-strip` page. One same-origin controller restarts the ticker animation. It cannot fetch, store, or transmit data.
 
 Canonical HP Colors Rewrite will load that page through one display-only `CitadelHTMLPanel` in the existing header-rule space. Panorama sees one browser texture and never receives supporter rows. Closing the editor navigates the panel to `about:blank` and collapses it.
 
@@ -12,23 +12,21 @@ This needs no generated leaderboard JavaScript in the VPK. The only Rewrite runt
 
 The existing builder repository is the correct host. It already owns the public supporter presentation, Astro base path, CI, and GitHub Pages deployment. A second repository would add deployment and cross-origin seams without creating a useful security boundary.
 
-The design-confidence score is 10/10. Runtime readiness is 4/10 because the route, CSV, and VPK integration do not exist yet, and no restarted Deadlock client has loaded the page. Research cannot replace that live proof.
-
-This note changes no runtime files, build scripts, compiled output, VPKs, or deployment.
+Implementation status is recorded below. The scores in section 4 are the initial selection scores, not current release readiness.
 
 ## Implementation checkpoint
 
-As of 2026-08-23, the experimental branches satisfy checklist items 1 through 6 and item 8:
+As of 2026-08-23, both experimental branches contain the complete implementation:
 
-- Builder commit `e854ab5` validates the public CSV, feeds V2 and the static strip from it, and deploys both live endpoints.
-- GitHub Actions run `32611602279` passed its CI, build, and Pages deployment jobs.
-- Rewrite commit `83cd6ed` adds the optional editor-only HTML panel, guarded load and unload behavior, focused tests, and the updated design contract.
-- A restarted Deadlock client rendered the live supporter rows without browser chrome. The ticker stayed inside its header slot, did not overlap `LIVE` or `DONATE`, and did not capture editor input.
-- A fresh offline restart initially reused cached HTML. A unique per-open query then prevented the cached donor list from rendering. The bounded probe logged exactly one load and one unload transition, with no repeated ticker output.
-- A restarted-client title probe proved `HTMLTitle` can deliver a controlled, versioned metadata string and `HTMLURLChanged` can report load and `about:blank` navigation. Production does not use either event because the strip remains display-only.
-- The quiet production build removed the temporary logs and deployed `pak02_dir.vpk` with SHA256 `2D20D0558166AB0844FD1257025BC31FA6BFAE7D745D93868B7BC8A98C2609CC`.
+- Builder commit `3a2b3e4` validates the public CSV, feeds V2 and the static strip from it, and cache-busts the 32-second loop controller.
+- GitHub Actions run `32621436227` passed its CI, build, and Pages deployment jobs.
+- Rewrite commit `70fbc9d` contains the optional editor-only HTML panel, guarded load and unload behavior, focused tests, and the current timing contract.
+- A restarted Deadlock client rendered the live supporter rows without browser chrome. The ticker stayed inside its header slot and did not capture editor input.
+- A unique query on each editor open prevented Deadlock from reusing stale page content. The hosted page also versions its loop controller.
+- The quiet production build deployed `pak02_dir.vpk` with SHA256 `2D20D0558166AB0844FD1257025BC31FA6BFAE7D745D93868B7BC8A98C2609CC`.
+- The deployed browser check measured a 32-second cycle, donor #1 at `x=0`, and a 96-pixel protected reset gap.
 
-Runtime readiness is now 7/10. The remaining gates are every supported UI scale, visual confirmation that the offline header stays free of browser error UI, and closed-editor ETW evidence. Do not merge the runtime branch before those checks pass.
+No ETW capture was taken for the embedded browser texture. This document makes no CPU or GPU cost claim.
 
 ## 1. Panorama networking and local assets
 
@@ -95,18 +93,18 @@ https://hantu-raya.github.io/hp-colors-preset-builder/
 
 `astro.config.mjs` sets that site and `/hp-colors-preset-builder/` base. `.github/workflows/deploy.yml` runs CI, builds Astro, uploads `dist`, and deploys Pages from `master`.
 
-The future public endpoints are:
+The public endpoints are:
 
 ```text
 https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/
 https://hantu-raya.github.io/hp-colors-preset-builder/data/supporters.csv
 ```
 
-Both endpoints currently return 404. The deployed `/v2/` route returns 200 and contains the existing static supporter ticker.
+Both endpoints return the deployed supporter data. The strip performs no browser-side CSV fetch.
 
-The CSV is the only supporter-data source. Astro parses it during the build. The V2 island receives the validated rows as serialized props, while `supporters-strip.astro` emits the same rows as plain HTML with two identical sequences and a CSS keyframe. The strip performs no browser-side CSV fetch.
+The CSV is the only supporter-data source. Astro parses it during the build. The V2 island receives the validated rows as serialized props, while `supporters-strip.astro` emits the same rows as plain HTML with two identical cycles. A same-origin script only restarts the finished animation.
 
-Live Pages responses currently return `Cache-Control: max-age=600`. Requests with unique query values returned the same cached object and ETag, so a nonce is not a reliable bypass. The accepted freshness contract is: after a successful Pages deployment, the installed mod may show the prior strip for up to ten minutes.
+Pages responses use `Cache-Control: max-age=600`. Rewrite appends a timestamp to each page load, and the page versions its controller URL. Change that controller version whenever its timing changes.
 
 The public CSV remains permanently visible in Git history and as a static Pages asset. This is accepted only for approved rank, alias, and total fields.
 
@@ -132,12 +130,12 @@ The original Ko-fi export must never enter the public repository, Pages output, 
 
 Invalid CSV fails the builder CI and Pages deployment. The previous valid deployment remains live. The job must not skip bad rows or publish an empty replacement.
 
-## 4. Researched branches and scores
+## 4. Initial alternatives and scores
 
-The scores answer different questions:
+These scores record the choice before implementation:
 
-- Design confidence measures how completely the architecture, constraints, evidence, and fallback are understood.
-- Runtime readiness measures whether the branch is safe to ship today.
+- Design confidence measured how completely the architecture and constraints were understood.
+- Runtime readiness measured the evidence available at that point.
 
 | Branch | Design confidence | Runtime readiness | Decision |
 |---|---:|---:|---|
@@ -149,9 +147,9 @@ The scores answer different questions:
 
 ### Selected: static Astro page
 
-This branch matches the chosen update model. One manual CSV commit feeds both public surfaces. The deployed strip uses no client JavaScript, CORS, runtime parser, third-party script, or generated VPK data file.
+One manual CSV commit feeds both public displays. The deployed strip has no CORS request, runtime parser, third-party script, or generated VPK data file. Its same-origin controller only restarts the one-shot animation because Deadlock stopped the original CSS `infinite` animation at its final keyframe.
 
-Its cost is the embedded browser texture. Current binaries register the HTML URL and cursor APIs, and stock Deadlock uses `CitadelHTMLPanel`, but HP Colors has not proved focus behavior, scaling, animation, memory, GPU cost, or cleanup.
+The embedded browser texture is the remaining cost. In-game checks proved rendering, input isolation, and unload behavior. They did not measure CPU or GPU cost.
 
 ### Fallback: remote PNG or WebP
 
@@ -161,28 +159,28 @@ It needs a deterministic image generator in the builder repository, makes text i
 
 ### Rejected branches
 
-A browser-fetching HTML page adds page JavaScript, a second network request, parser failures, and another cache seam without improving the accepted deployment-plus-ten-minute freshness contract.
+A page that fetches CSV in the browser adds a second network request, parser failures, and another cache seam. The selected controller does none of those things.
 
 A packaged snapshot is deterministic and nearly release-ready, but every supporter update requires a VPK rebuild, install, and Deadlock restart.
 
 Image dimensions are suitable for a tiny version signal, not names and totals. Encoding strings would require serialized image requests, polling, timeouts, and an external relay.
 
-## 5. Locked runtime contract
+## 5. Current runtime contract
 
-- Target canonical `hp_colors_rewrite` first. Do not update `hp_colors_rewrite_qollock` before the probe passes.
+- Target canonical `hp_colors_rewrite` first. Do not update `hp_colors_rewrite_qollock` until the canonical branch merges.
 - Place the strip in the flexible `HPColorsHeaderRule` space between the title and `LIVE`.
 - Keep the existing title, `LIVE`, and `DONATE` controls unchanged.
 - Render at most 10 rows with the V2 rank, name, USD total, and gold, silver, and bronze treatment.
-- Use a fixed CSS animation duration. Do not add ResizeObserver or other page JavaScript.
-- Make the HTML panel display-only: no hit testing, focus, mouse tracking, popup links, tracking scripts, or third-party assets.
-- Load the fixed Pages URL when the editor opens. Do not poll or append donor/player identifiers.
-- On close, navigate to `about:blank`, collapse the panel, and cancel any pending timeout token.
-- Use a bounded load timeout. Failure hides the panel and restores the plain header rule without changing editor behavior.
-- Never show browser error UI or an offline donor list.
+- Use a fixed 32-second CSS animation. The same-origin controller may only restart that animation.
+- Make the HTML panel display-only. It must not accept hit testing, focus, mouse tracking, popup links, tracking scripts, or third-party assets.
+- Load the Pages route once when the editor opens. A timestamp may bypass stale page content. Do not poll or append donor or player identifiers.
+- On close, navigate to `about:blank` and collapse the panel.
+- If `SetURL` fails synchronously, hide the panel without changing editor behavior. Do not register unsupported HTML completion events or claim a timeout can identify a successful load.
+- Never package an offline donor list in the VPK.
 - Disclose that opening the strip sends GitHub Pages normal request metadata such as IP address, request time, user agent, and route.
-- Treat the Pages deployment as live content authority. Protect deployment access, validate the CSV, and keep the route static and dependency-free.
+- Treat the Pages deployment as live content authority. Protect deployment access, validate the CSV, and keep the route static.
 
-## 6. Future implementation map
+## 6. Implemented files
 
 Builder repository:
 
@@ -238,10 +236,10 @@ Any failure in items 7 through 10 promotes the remote-image branch. Until this c
 - `G:\QOLLOCK\.github\workflows\sync-translations.yml:17-75`: scheduled and manual private-to-public publishing pattern.
 - `D:\web\hp-colors-preset-builder\astro.config.mjs:4-7`: current Pages site and base path.
 - `D:\web\hp-colors-preset-builder\.github\workflows\deploy.yml:5-64`: current CI-gated Astro and Pages deployment.
-- `D:\web\hp-colors-preset-builder\src\components\KofiLeaderboardTicker.jsx:3-79`: current seven-row data, duplicated sequences, measured duration, accessibility label, and leaderboard link.
-- `D:\web\hp-colors-preset-builder\README.md:74-83`: current manual-update and privacy rules.
-- Live `https://hantu-raya.github.io/hp-colors-preset-builder/v2/`: deployed static ticker at commit `eca99394dbac`.
-- Live Pages response checks on 2026-08-23: `max-age=600`; unique query variants returned the same ETag and cache hit. The future strip and CSV routes returned 404.
+- `D:\web\hp-colors-preset-builder\src\components\KofiLeaderboardTicker.jsx:3-78`: V2 ticker fed by the shared reviewed CSV.
+- `D:\web\hp-colors-preset-builder\README.md:74-83`: manual-update and privacy rules.
+- Live `https://hantu-raya.github.io/hp-colors-preset-builder/v2/` and `/supporters-strip/`: deployed from builder commit `3a2b3e4`.
+- Live Pages checks on 2026-08-23: the strip and CSV return 200, the page loads `supporters-strip-loop.js?v=32000`, and the controller contains no network or storage calls.
 
 ### GitHub documentation
 

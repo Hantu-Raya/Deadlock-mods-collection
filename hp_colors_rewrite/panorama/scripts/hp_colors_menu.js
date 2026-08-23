@@ -647,9 +647,7 @@
         String(new Date().getTime());
       ticker.SetURL(requestUrl);
       setClass(ticker, "Open", true);
-    } catch {
-      setClass(ticker, "Open", false);
-    }
+    } catch {}
   }
 
   function closeSupporterTicker() {
