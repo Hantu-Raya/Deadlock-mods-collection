@@ -325,8 +325,58 @@ test('Preset Library explains packaging, routing, priority, and actions', () => 
   );
   assert.match(layoutSource, /id="HPColorsDonateButton"/);
   assert.match(layoutSource, /https:\/\/ko-fi\.com\/hantuaraya/);
+  assert.match(
+    layoutSource,
+    /<CitadelHTMLPanel id="HPColorsSupporterTicker"[^>]*hittest="false"[^>]*acceptsfocus="false"/,
+  );
   assert.match(layoutSource, /id="HPColorsPresetInfoToggle"/);
   assert.match(layoutSource, /id="HPColorsPresetGuide"/);
+});
+
+test('supporter ticker loads once per editor open and unloads on close', () => {
+  const fixture = bootPresetMenu();
+  const ticker = panel(fixture, 'HPColorsSupporterTicker');
+  const urls = [];
+  const ignoreCursorValues = [];
+  ticker.SetURL = (url) => urls.push(url);
+  ticker.SetIgnoreCursor = (value) => ignoreCursorValues.push(value);
+
+  openEditor(fixture);
+  openEditor(fixture);
+  assert.deepEqual(urls, [
+    'https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/',
+  ]);
+  assert.deepEqual(ignoreCursorValues, [true]);
+  assert.equal(ticker.BHasClass('Open'), true);
+
+  fixture.harness.$.HPColorsMenuCancel();
+  assert.deepEqual(urls, [
+    'https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/',
+    'about:blank',
+  ]);
+  assert.equal(ticker.BHasClass('Open'), false);
+
+  openEditor(fixture);
+  assert.deepEqual(urls, [
+    'https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/',
+    'about:blank',
+    'https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/',
+  ]);
+});
+
+test('supporter ticker API failure does not block the editor lifecycle', () => {
+  const fixture = bootPresetMenu();
+  const ticker = panel(fixture, 'HPColorsSupporterTicker');
+  ticker.SetURL = () => {
+    throw new Error('HTML surface unavailable');
+  };
+
+  openEditor(fixture);
+  assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), true);
+  assert.equal(ticker.BHasClass('Open'), false);
+
+  fixture.harness.$.HPColorsMenuCancel();
+  assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), false);
 });
 
 test('installed XML HPCRP1 preset applies on cold boot before any lifecycle transition', () => {

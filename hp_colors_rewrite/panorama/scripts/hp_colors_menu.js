@@ -5,6 +5,8 @@
   var MENU_STATE_ATTR = "hp_colors_rewrite_menu_state";
   var EVENT_CHANNEL = "ClientUI_FireOutput";
   var CONFIG_MAGIC = "HP_COLORS_REWRITE_CONFIG";
+  var SUPPORTER_TICKER_URL =
+    "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/";
   var PRESET_STORE_ID = "HPColorsRewritePresetStore";
   var PRESET_LABEL_ID = "HPColorsRewritePreset_001";
   var PRESET_ENTRY_CLASS = "hp_colors_rewrite_preset_entry";
@@ -497,6 +499,7 @@
     transferExportButton: null,
     transferImportButton: null,
     transferCloseButton: null,
+    supporterTicker: null,
     liveStatus: null,
     conditionDialog: null,
     conditionTitle: null,
@@ -626,6 +629,32 @@
     try {
       panel.SetPanelEvent(eventName, handler);
     } catch {}
+  }
+
+  function openSupporterTicker() {
+    var ticker = ui.supporterTicker;
+    if (!isValid(ticker)) return;
+    setClass(ticker, "Open", false);
+    try {
+      if (isCallable(ticker.SetIgnoreCursor))
+        ticker.SetIgnoreCursor(true);
+    } catch {}
+    try {
+      if (!isCallable(ticker.SetURL)) return;
+      ticker.SetURL(SUPPORTER_TICKER_URL);
+      setClass(ticker, "Open", true);
+    } catch {
+      setClass(ticker, "Open", false);
+    }
+  }
+
+  function closeSupporterTicker() {
+    var ticker = ui.supporterTicker;
+    if (!isValid(ticker)) return;
+    try {
+      if (isCallable(ticker.SetURL)) ticker.SetURL("about:blank");
+    } catch {}
+    setClass(ticker, "Open", false);
   }
 
   function focus(panel) {
@@ -4029,6 +4058,7 @@
   }
 
   function closeEditor() {
+    closeSupporterTicker();
     if (!state.open) return;
     closeResetDialog(false);
     closeConditionEditor();
@@ -4059,6 +4089,7 @@
     setClass(ui.editorRoot, "Peeking", false);
     setClass(ui.editorRoot, "Open", true);
     setClass(ui.escapeRoot, "EditorOpen", true);
+    openSupporterTicker();
     renderNavigation();
     focus(ui.editorShell);
     $.Msg("[HP Colors Rewrite] menu open");
@@ -4212,6 +4243,7 @@
     ui.presetGuide = find("HPColorsPresetGuide");
     ui.presetInfoToggle = find("HPColorsPresetInfoToggle");
     ui.headerCategory = find("HPColorsHeaderCategory");
+    ui.supporterTicker = find("HPColorsSupporterTicker");
     ui.liveStatus = find("HPColorsLiveStatus");
     ui.pageEyebrow = find("HPColorsPageEyebrow");
     ui.pageTitle = find("HPColorsPageTitle");
