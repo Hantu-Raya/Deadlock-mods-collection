@@ -7,8 +7,6 @@
   var CONFIG_MAGIC = "HP_COLORS_REWRITE_CONFIG";
   var SUPPORTER_TICKER_URL =
     "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip-debug/";
-  var SUPPORTER_TICKER_DEBUG_DELAY = 1.5;
-  var supporterTickerDebugGeneration = 0;
   var PRESET_STORE_ID = "HPColorsRewritePresetStore";
   var PRESET_LABEL_ID = "HPColorsRewritePreset_001";
   var PRESET_ENTRY_CLASS = "hp_colors_rewrite_preset_entry";
@@ -633,45 +631,35 @@
     } catch {}
   }
 
-  function inspectSupporterTickerHtml(ticker, generation) {
-    $.Schedule(SUPPORTER_TICKER_DEBUG_DELAY, function () {
-      if (
-        generation !== supporterTickerDebugGeneration ||
-        !state.open ||
-        !isValid(ticker)
-      )
-        return;
-      var methodNames = [
-        "GetURL",
-        "GetTitle",
-        "GetPageTitle",
-        "GetText",
-        "GetHTML",
-        "GetContent",
-      ];
-      var results = [];
-      for (var index = 0; index < methodNames.length; index += 1) {
-        var methodName = methodNames[index];
-        if (!isCallable(ticker[methodName])) {
-          results.push(methodName + "=missing");
-          continue;
-        }
-        try {
-          results.push(methodName + "=" + String(ticker[methodName]()));
-        } catch {
-          results.push(methodName + "=error");
-        }
-      }
-      $.Msg(
-        "[HP Colors Rewrite] supporter html getters " + results.join(" | "),
-      );
-    });
+  function logSupporterHtmlEvent(eventName, args) {
+    var values = [];
+    for (var index = 0; index < args.length; index += 1)
+      values.push("arg" + String(index) + "=" + String(args[index]));
+    $.Msg(
+      "[HP Colors Rewrite] supporter html " +
+        eventName +
+        " " +
+        (values.length ? values.join(" | ") : "no arguments"),
+    );
   }
+
+  function bindSupporterTickerDebug() {
+    var ticker = ui.supporterTicker;
+    if (!isValid(ticker) || !isCallable($.RegisterEventHandler)) return;
+    var eventNames = ["HTMLTitle", "HTMLURLChanged", "HTMLContentLoaded"];
+    for (var index = 0; index < eventNames.length; index += 1) {
+      (function (eventName) {
+        $.RegisterEventHandler(eventName, ticker, function () {
+          logSupporterHtmlEvent(eventName, arguments);
+        });
+      })(eventNames[index]);
+    }
+  }
+
 
   function openSupporterTicker() {
     var ticker = ui.supporterTicker;
     if (!isValid(ticker)) return;
-    supporterTickerDebugGeneration += 1;
     setClass(ticker, "Open", false);
     try {
       if (isCallable(ticker.SetIgnoreCursor))
@@ -685,7 +673,6 @@
         String(new Date().getTime());
       ticker.SetURL(requestUrl);
       setClass(ticker, "Open", true);
-      inspectSupporterTickerHtml(ticker, supporterTickerDebugGeneration);
     } catch {
       setClass(ticker, "Open", false);
     }
@@ -694,7 +681,6 @@
   function closeSupporterTicker() {
     var ticker = ui.supporterTicker;
     if (!isValid(ticker)) return;
-    supporterTickerDebugGeneration += 1;
     try {
       if (isCallable(ticker.SetURL)) ticker.SetURL("about:blank");
     } catch {}
@@ -4932,6 +4918,7 @@
       $.Msg("[HP Colors Rewrite] menu boot failed: required panel missing");
       return;
     }
+    bindSupporterTickerDebug();
     if (
       !$.HPColorsStateFactory ||
       !isCallable($.HPColorsStateFactory.create)
