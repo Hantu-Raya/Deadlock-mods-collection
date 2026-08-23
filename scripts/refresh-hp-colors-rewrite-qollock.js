@@ -102,6 +102,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
   for (const id of [
     'HPColorsMenuButton',
     'HPColorsEditorRoot',
+    'HPColorsSupporterTicker',
     'HPColorsRewritePresetStore',
   ]) {
     requireMatchCount(
@@ -182,6 +183,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
   for (const id of [
     'HPColorsMenuButton',
     'HPColorsEditorRoot',
+    'HPColorsSupporterTicker',
     'HPColorsRewritePresetStore',
   ]) {
     requireMatchCount(

@@ -155,6 +155,7 @@
             <Label id="HPColorsHeaderCategory" text="OVERVIEW" class="HPColorsHeaderCategory" />
           </Panel>
           <Panel class="HPColorsHeaderRule" />
+          <CitadelHTMLPanel id="HPColorsSupporterTicker" class="HPColorsSupporterTicker" hittest="false" acceptsfocus="false" />
           <Label id="HPColorsLiveStatus" text="LIVE" class="HPColorsLiveStatus" />
           <Button id="HPColorsDonateButton" class="HPColorsDonateButton" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://ko-fi.com/hantuaraya&apos; );"><Label text="DONATE" /></Button>
         </Panel>
@@ -749,7 +750,6 @@
             <Panel class="HPColorsEditorFooter">
               <Button id="HPColorsPeekButton" class="HPColorsSecondaryAction">
                 <Label text="HOLD TO PEEK" />
-                <Label id="HPColorsPeekBinding" class="HPColorsActionBinding" />
               </Button>
               <Button id="HPColorsUndoButton" class="HPColorsSecondaryAction Disabled"><Label text="UNDO" /></Button>
               <Button id="HPColorsResetSectionButton" class="HPColorsSecondaryAction"><Label text="RESET SECTION" /></Button>
