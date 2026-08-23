@@ -340,8 +340,6 @@ test('supporter ticker loads once per editor open and unloads on close', () => {
   const ignoreCursorValues = [];
   ticker.SetURL = (url) => urls.push(url);
   ticker.SetIgnoreCursor = (value) => ignoreCursorValues.push(value);
-  ticker.GetURL = () => urls.at(-1);
-  ticker.GetTitle = () => 'HP Colors supporter debug';
 
   openEditor(fixture);
   openEditor(fixture);
@@ -352,10 +350,19 @@ test('supporter ticker loads once per editor open and unloads on close', () => {
   );
   assert.deepEqual(ignoreCursorValues, [true]);
   assert.equal(ticker.BHasClass('Open'), true);
-  fixture.harness.scheduler.runByDelay(1.5);
-  assert.match(
-    fixture.harness.logs.at(-1),
-    /^\[HP Colors Rewrite\] supporter html getters GetURL=https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/supporters-strip-debug\/\?refresh=\d+ \| GetTitle=HP Colors supporter debug \| GetPageTitle=missing \| GetText=missing \| GetHTML=missing \| GetContent=missing$/,
+  assert.equal(typeof ticker.events.HTMLTitle, 'function');
+  assert.equal(typeof ticker.events.HTMLURLChanged, 'function');
+  assert.equal(typeof ticker.events.HTMLContentLoaded, 'function');
+  ticker.events.HTMLTitle('HPCRSUP1:[{"rank":1,"displayName":"civo","totalUsd":100}]');
+  ticker.events.HTMLURLChanged('https://example.test/strip', 'HPCRSUP1');
+  ticker.events.HTMLContentLoaded();
+  assert.deepEqual(
+    fixture.harness.logs.filter((line) => /supporter html/.test(line)),
+    [
+      '[HP Colors Rewrite] supporter html HTMLTitle arg0=HPCRSUP1:[{"rank":1,"displayName":"civo","totalUsd":100}]',
+      '[HP Colors Rewrite] supporter html HTMLURLChanged arg0=https://example.test/strip | arg1=HPCRSUP1',
+      '[HP Colors Rewrite] supporter html HTMLContentLoaded no arguments',
+    ],
   );
 
   fixture.harness.$.HPColorsMenuCancel();
