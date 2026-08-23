@@ -27,7 +27,7 @@ The editor extends the stock ESC menu’s dark paper-and-metal language.
 
 ### Supporter ticker
 
-- The flexible header-rule area may show a supporter ticker while the editor is open. Ranked supporters scroll first, followed by a centered `Thank you for supporting my work` card held for three seconds. The card then slides left while the next cycle's first supporter enters from the right; duplicate cycle markup makes the reset frame visually identical. It sits between the title block and `LIVE`; `LIVE` and `DONATE` keep their existing controls and order.
+- The flexible header-rule area may show a supporter ticker while the editor is open. Donor #1 remains stationary for two seconds when each cycle starts, then all ranked supporters scroll. A centered `Thank you for supporting` card holds for three seconds. Its five-second exit uses a fixed spacer before the next cycle's first donor, preventing overlap while donor #1 enters from the right. Duplicate cycle markup makes the reset frame visually identical. The ticker sits between the title block and `LIVE`; `LIVE` and `DONATE` keep their existing controls and order.
 - `HPColorsSupporterTicker` is an optional, display-only `CitadelHTMLPanel`. It cannot take focus, cursor, mouse, keyboard, or Escape input.
 - Each editor open loads `https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/` once. The menu does not poll or fetch supporter data during gameplay.
 - Every close path navigates the panel to `about:blank` and collapses it. A missing panel or failed `SetURL` call must not block editor open or close.
