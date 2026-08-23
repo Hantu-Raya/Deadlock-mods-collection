@@ -474,18 +474,17 @@ test('Escape closes reset confirmation before closing the editor', () => {
   assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), false);
 });
 
-test('Escape at the menu root delegates to the native resume action', () => {
+test('Escape at the menu root delegates through the native resume event', () => {
   const fixture = bootMenu({
     version: 1,
     values: changedEnemyValues(),
     scopes: [],
   });
+  const nativeResumeFallback = 'if (!$.HPColorsMenuCancel()) $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel())';
 
   assert.equal(harnessCancel(fixture), false);
-  assert.match(
-    layoutSource,
-    /oncancel="if \(!\$\.HPColorsMenuCancel\(\)\) CitadelResumePlaying\(\)"/,
-  );
+  assert.equal(layoutSource.split(nativeResumeFallback).length - 1, 3);
+  assert.doesNotMatch(layoutSource, /CitadelResumePlaying\(\)/);
 });
 
 function harnessCancel(fixture) {

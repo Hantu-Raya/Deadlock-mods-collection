@@ -10,8 +10,8 @@
     <include src="s2r://panorama/scripts/hp_colors_state.vjs_c" />
     <include src="s2r://panorama/scripts/hp_colors_menu.vjs_c" />
   </scripts>
-  <CitadelHudEscapeMenu onload="$.HPColorsMenuBoot()" oncancel="if (!$.HPColorsMenuCancel()) CitadelResumePlaying()">
-    <Panel id="EscapeBackground" onactivate="if (!$.HPColorsMenuCancel()) CitadelResumePlaying()" />
+  <CitadelHudEscapeMenu onload="$.HPColorsMenuBoot()" oncancel="if (!$.HPColorsMenuCancel()) $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel())">
+    <Panel id="EscapeBackground" onactivate="if (!$.HPColorsMenuCancel()) $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel())" />
     <Panel id="LeftStripeBlur" />
     <Panel id="LeftStripe" hittest="false">
       <Panel id="Menu" hittest="false">
@@ -69,7 +69,7 @@
       </Panel>
     </Panel>
     <CitadelPrivilegedFeatures id="PrivilegedFeatures" />
-    <CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="if (!$.HPColorsMenuCancel()) CitadelResumePlaying()" text="#menu_resume" />
+    <CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="if (!$.HPColorsMenuCancel()) $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel())" text="#menu_resume" />
     <Panel id="RightSideBlur" hittest="false" />
     <Panel id="RightSide" hittest="false">
       <Panel id="PartySpacer" />
