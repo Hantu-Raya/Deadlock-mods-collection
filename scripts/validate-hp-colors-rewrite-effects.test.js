@@ -176,7 +176,8 @@ test('precise pip calculation switches minor marks from 100 HP to 10 HP', () => 
     precisePipsEnabled: false,
     enemyPulseEnabled: false,
   });
-  assert.equal(probe.tree.counter.text, '150 / 300');
+  assert.equal(probe.tree.counter.text, '150 / ');
+  assert.equal(probe.tree.counterMax.text, '300');
 
   publishConfig(probe.harness, 2, {
     enabled: true,
@@ -186,7 +187,8 @@ test('precise pip calculation switches minor marks from 100 HP to 10 HP', () => 
     precisePipsEnabled: true,
     enemyPulseEnabled: false,
   });
-  assert.equal(probe.tree.counter.text, '15 / 30');
+  assert.equal(probe.tree.counter.text, '15 / ');
+  assert.equal(probe.tree.counterMax.text, '30');
 });
 
 

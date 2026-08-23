@@ -805,9 +805,11 @@ function buildUnitStatusTree(harness, options = {}) {
     hittest: false,
   }));
   const counterAnchor = unitStatus.add(new MockPanel('hp_counter_anchor', { findCounts: harness.findCounts }));
-  const counter = counterAnchor.add(new MockPanel('hp_counter', { findCounts: harness.findCounts }));
+  const counterRow = counterAnchor.add(new MockPanel('hp_counter_row', { findCounts: harness.findCounts }));
+  const counter = counterRow.add(new MockPanel('hp_counter', { findCounts: harness.findCounts }));
+  const counterMax = counterRow.add(new MockPanel('hp_counter_max', { findCounts: harness.findCounts }));
   const name = root.add(new MockPanel('name', { text: options.nameText || 'Enemy', attributes: { text: options.nameText || 'Enemy' }, findCounts: harness.findCounts }));
-  return { root, unitStatus, infoHealth, unitInfo, unitInfoPanel, ultBackground, unitHealthbar, bg, missing, redParent, lagging, rb, pulseOverlay, pip, heal, delta, bulletShield, techShield, ult, ultIcon, levelContainer, level, name, counterAnchor, counter, killMarker };
+  return { root, unitStatus, infoHealth, unitInfo, unitInfoPanel, ultBackground, unitHealthbar, bg, missing, redParent, lagging, rb, pulseOverlay, pip, heal, delta, bulletShield, techShield, ult, ultIcon, levelContainer, level, name, counterAnchor, counterRow, counter, counterMax, killMarker };
 }
 
 function findByClass(panel, className, out = []) {

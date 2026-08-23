@@ -130,8 +130,10 @@ test('enemy HP readout shows current and maximum health and can be hidden', () =
     readoutFormat: 'hp',
   });
 
-  assert.equal(probe.tree.counter.text, '1000 / 2000');
+  assert.equal(probe.tree.counter.text, '1000 / ');
+  assert.equal(probe.tree.counterMax.text, '2000');
   assert.equal(probe.tree.counter.style.visibility, 'visible');
+  assert.equal(probe.tree.counterMax.style.visibility, 'visible');
 
   publishConfig(probe.harness, 2, {
     enabled: true,
@@ -140,6 +142,7 @@ test('enemy HP readout shows current and maximum health and can be hidden', () =
     readoutFormat: 'hp',
   });
   assert.equal(probe.tree.counter.style.visibility, 'collapse');
+  assert.equal(probe.tree.counterMax.style.visibility, 'collapse');
 });
 
 test('readout formats use shield-aware health and refresh when pip text changes', () => {
@@ -154,7 +157,8 @@ test('readout formats use shield-aware health and refresh when pip text changes'
     readoutVisible: true,
     readoutFormat: 'hp',
   });
-  assert.equal(probe.tree.counter.text, '800 / 1600');
+  assert.equal(probe.tree.counter.text, '800 / ');
+  assert.equal(probe.tree.counterMax.text, '1600');
 
   publishConfig(probe.harness, 2, {
     enabled: true,
@@ -163,6 +167,8 @@ test('readout formats use shield-aware health and refresh when pip text changes'
     readoutFormat: 'percent',
   });
   assert.equal(probe.tree.counter.text, '50%');
+  assert.equal(probe.tree.counterMax.text, '');
+  assert.equal(probe.tree.counterMax.style.visibility, 'collapse');
 
   publishConfig(probe.harness, 3, {
     enabled: true,
@@ -171,6 +177,7 @@ test('readout formats use shield-aware health and refresh when pip text changes'
     readoutFormat: 'current',
   });
   assert.equal(probe.tree.counter.text, '800');
+  assert.equal(probe.tree.counterMax.text, '');
 
   probe.tree.pip.text = '||||||';
   probe.harness.scheduler.takeByFunctionName('scan').fn();
@@ -180,6 +187,7 @@ test('readout formats use shield-aware health and refresh when pip text changes'
 test('editor owns and publishes the readout controls', () => {
   assert.match(overlayLayoutSource, /\bid="hp_counter_anchor"/);
   assert.match(overlayLayoutSource, /\bid="hp_counter"/);
+  assert.match(overlayLayoutSource, /\bid="hp_counter_max"/);
 
   const harness = createPanoramaHarness();
   installLayoutPanels(harness);
@@ -278,6 +286,7 @@ test('editor owns and publishes the readout controls', () => {
   harness.root.FindChildTraverse('HPColorsReadoutToggle').events.onactivate();
   harness.root.FindChildTraverse('HPColorsReadoutFontOracle').events.onactivate();
   harness.root.FindChildTraverse('HPColorsReadoutModeGradient').events.onactivate();
+  harness.root.FindChildTraverse('HPColorsReadoutMaxTeamColorToggle').events.onactivate();
   readoutLowSlider.value = 35;
   readoutLowSlider.events.onvaluechanged();
   readoutHighSlider.value = 80;
@@ -290,6 +299,7 @@ test('editor owns and publishes the readout controls', () => {
   assert.equal(values.readoutVisible, false);
   assert.equal(values.readoutFont, 'oracle');
   assert.equal(values.readoutMode, 'gradient');
+  assert.equal(values.readoutMaxTeamColor, true);
   assert.equal(values.lowThreshold, 35);
   assert.equal(values.highThreshold, 80);
   assert.equal(values.enemyPulseReadout, false);
@@ -379,6 +389,36 @@ test('readout applies size, offsets, and bar-derived or custom colors', () => {
   });
   assert.equal(probe.tree.counter.style.color, undefined);
   assert.equal(probe.tree.counter.style.washColor, '#3f7400');
+});
+
+test('maximum HP value can use the unit team color', () => {
+  const cases = [
+    { classes: ['enemy', 'team1'], expected: '#E7B659' },
+    { classes: ['enemy', 'team2'], expected: '#5B79E6' },
+    { classes: ['enemy'], expected: '#00BB00' },
+  ];
+  for (const item of cases) {
+    const probe = bootProbe(item.classes);
+    publishConfig(probe.harness, 1, {
+      enabled: true,
+      enemyEnabled: true,
+      readoutVisible: true,
+      readoutFormat: 'hp',
+      readoutColorMode: 'custom',
+      readoutMode: 'fixed',
+      readoutLow: '#AA0000',
+      readoutMid: '#00BB00',
+      readoutHigh: '#123456',
+      readoutMaxTeamColor: true,
+    });
+    assert.equal(probe.tree.counter.text, '1000 / ');
+    assert.equal(probe.tree.counter.style.washColor, '#00BB00');
+    assert.equal(probe.tree.counterMax.text, '2000');
+    assert.equal(
+      probe.tree.counterMax.style.washColor.toUpperCase(),
+      item.expected,
+    );
+  }
 });
 
 test('large readout sizes use the selected font size directly', () => {
@@ -551,12 +591,23 @@ test('counter adds upward render extent without changing horizontal flow', () =>
   assert.match(anchor[1], /\bheight:\s*100%/);
   assert.match(anchor[1], /\bvertical-align:\s*bottom/);
 
+  const counterRow = overlayLayoutSource.match(
+    /<Panel id="hp_counter_row"[^>]*style="([^"]*)"/,
+  );
+  assert.ok(counterRow);
+  assert.match(counterRow[1], /\bflow-children:\s*right/);
+  assert.match(counterRow[1], /\bhorizontal-align:\s*center/);
   const counter = overlayLayoutSource.match(
     /<Label id="hp_counter"[^>]*style="([^"]*)"/,
   );
   assert.ok(counter);
   assert.match(counter[1], /\bz-index:\s*1000/);
   assert.match(counter[1], /text-shadow:\s*10px 10px 0px 200\.0 offBlack/);
+  const counterMax = overlayLayoutSource.match(
+    /<Label id="hp_counter_max"[^>]*style="([^"]*)"/,
+  );
+  assert.ok(counterMax);
+  assert.match(counterMax[1], /\bz-index:\s*1000/);
 });
 
 test('precise pip toggle shows enable and cleanup copy dialogs', () => {
