@@ -101,6 +101,7 @@ const DEFAULT_ENTRIES = [
   ['excludeGhouls', false],
   ['ghoulOpacityEnabled', false],
   ['ghoulOpacity', 100],
+  ['readoutMaxTeamColor', false],
 ];
 const DEFAULT_KEYS = DEFAULT_ENTRIES.map(([key]) => key);
 const DEFAULTS = Object.fromEntries(DEFAULT_ENTRIES);

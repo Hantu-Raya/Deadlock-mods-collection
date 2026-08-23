@@ -560,6 +560,10 @@
                       <Button id="HPColorsReadoutColorCustom" class="HPColorsSegmentButton"><Label text="CUSTOM" /></Button>
                     </Panel>
                   </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEAM COLOR MAX HP" class="HPColorsSettingTitle" /><Label text="Color only the maximum HP value with the unit team color." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsReadoutMaxTeamColorToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
                   <Panel id="HPColorsReadoutModeRow" class="HPColorsSettingRow HPColorsFollowedRow">
                     <Panel class="HPColorsSettingCopy"><Label text="TEXT COLOR MODE" class="HPColorsSettingTitle" /><Label text="Use fixed color steps or blend smoothly between them." class="HPColorsSettingHelp" /></Panel>
                     <Panel class="HPColorsSegment">

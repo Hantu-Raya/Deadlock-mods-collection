@@ -219,6 +219,7 @@
             "readoutLow",
             "readoutMid",
             "readoutHigh",
+            "readoutMaxTeamColor",
           ],
         },
         {
@@ -3448,6 +3449,10 @@
     setEnabled(ui.ghoulOpacitySlider, ghoulOpacityActive);
     setEnabled(ui.ghoulOpacityEntry, ghoulOpacityActive);
     setToggle("HPColorsReadoutToggle", state.values.readoutVisible);
+    setToggle(
+      "HPColorsReadoutMaxTeamColorToggle",
+      state.values.readoutMaxTeamColor,
+    );
     setToggle("HPColorsPipsVisibleToggle", state.values.pipsVisible);
     setToggle("HPColorsPrecisePipsToggle", state.values.precisePipsEnabled);
     setToggle("HPColorsLevelsVisibleToggle", state.values.levelsVisible);
@@ -4646,6 +4651,10 @@
     bindMode("HPColorsUltModeFollow", "ultMode", "follow");
     bindMode("HPColorsUltModeCustom", "ultMode", "custom");
     bindToggle("HPColorsReadoutToggle", "readoutVisible");
+    bindToggle(
+      "HPColorsReadoutMaxTeamColorToggle",
+      "readoutMaxTeamColor",
+    );
     bindToggle("HPColorsPipsVisibleToggle", "pipsVisible");
     setPanelEvent(ui.precisePipsToggle, "onactivate", togglePrecisePips);
     bindToggle("HPColorsLevelsVisibleToggle", "levelsVisible");

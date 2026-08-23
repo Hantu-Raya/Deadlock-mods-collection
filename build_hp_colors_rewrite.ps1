@@ -1,3 +1,8 @@
+[CmdletBinding()]
+param(
+    [switch]$SkipDeploy
+)
+
 $ErrorActionPreference = 'Stop'
 
 $root = $PSScriptRoot
@@ -118,6 +123,12 @@ Assert-PackedVpkAssets -Tree $vpkTree -Label 'HP Colors Rewrite VPK' -Required @
 )
 $vpkSize = (Get-Item -LiteralPath $vpkOut).Length
 Write-Host "  Packed OK -> $vpkOut ($([math]::Round($vpkSize / 1KB, 1)) KB)" -ForegroundColor Green
+
+if ($SkipDeploy) {
+    Write-Host "`n[4/4] Deployment skipped." -ForegroundColor Yellow
+    Write-Host "`nDone. Compile-only VPK -> $vpkOut" -ForegroundColor Yellow
+    return
+}
 
 
 Write-Host "`n[4/4] Backing up and deploying to Deadlock addons..." -ForegroundColor Cyan

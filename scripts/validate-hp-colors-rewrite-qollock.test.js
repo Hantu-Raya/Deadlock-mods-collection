@@ -327,4 +327,7 @@ test('pak02 contract and wrapper enforce canonical reuse and pak02-only output',
   assert.doesNotMatch(refresh, /G:[/\\]QOLLOCK/i);
   assert.match(refresh, /Generated from pak03 SHA-256/);
   assert.doesNotMatch(wrapper, /pak01_dir\.vpk/);
+  const canonicalWrapper = read(canonicalBuildWrapper);
+  assert.match(canonicalWrapper, /\[switch\]\$SkipDeploy/);
+  assert.match(canonicalWrapper, /Deployment skipped/);
 });

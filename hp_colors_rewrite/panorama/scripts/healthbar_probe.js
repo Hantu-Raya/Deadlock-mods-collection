@@ -239,6 +239,7 @@
       levelLabel: findWithin(unitStatus, "unit_level_label"),
       counterAnchor: findWithin(unitStatus, "hp_counter_anchor"),
       counter: findWithin(unitStatus, "hp_counter"),
+      counterMax: findWithin(unitStatus, "hp_counter_max"),
       ultIcon: findWithin(infoHealth, "unit_ult_ready_icon"),
     };
   }
@@ -308,6 +309,9 @@
       (parts.counter &&
         (!isValid(parts.counter) ||
           !isDescendantOf(parts.counter, parts.counterAnchor))) ||
+      (parts.counterMax &&
+        (!isValid(parts.counterMax) ||
+          !isDescendantOf(parts.counterMax, parts.counterAnchor))) ||
       (parts.ultBackground &&
         (!isValid(parts.ultBackground) ||
           !isDescendantOf(parts.ultBackground, parts.infoHealth))) ||
@@ -331,6 +335,7 @@
       !parts.killMarker ||
       !parts.counterAnchor ||
       !parts.counter ||
+      !parts.counterMax ||
       !parts.ultIcon;
     if (missing) {
       var now = Date.now ? Date.now() : +new Date();
@@ -527,12 +532,14 @@
   }
 
   function formatReadout(bar) {
+    bar.readoutMaximumText = "";
     if (config.readoutFormat === "percent")
       return String(bar.lastWidthPercent) + "%";
     var health = readoutHealth(bar);
     if (health.maximum <= 0) return "";
     if (config.readoutFormat === "current") return String(health.current);
-    return health.current + " / " + health.maximum;
+    bar.readoutMaximumText = String(health.maximum);
+    return health.current + " / ";
   }
 
 
@@ -1231,6 +1238,19 @@
         "readoutVisibility",
       );
       setText(bar.parts.counter, "", bar.applied, "readoutText");
+      setStyle(
+        bar.parts.counterMax,
+        "visibility",
+        "collapse",
+        bar.applied,
+        "readoutMaximumVisibility",
+      );
+      setText(
+        bar.parts.counterMax,
+        "",
+        bar.applied,
+        "readoutMaximumText",
+      );
       setStyle(bar.parts.counter, "fontSize", "", bar.applied, "readoutFontSize");
       setStyle(bar.parts.counter, "height", "", bar.applied, "readoutHeight");
       setStyle(
@@ -1239,6 +1259,27 @@
         "",
         bar.applied,
         "readoutFontFamily",
+      );
+      setStyle(
+        bar.parts.counterMax,
+        "fontFamily",
+        "",
+        bar.applied,
+        "readoutMaximumFontFamily",
+      );
+      setStyle(
+        bar.parts.counterMax,
+        "fontSize",
+        "",
+        bar.applied,
+        "readoutMaximumFontSize",
+      );
+      setStyle(
+        bar.parts.counterMax,
+        "height",
+        "",
+        bar.applied,
+        "readoutMaximumHeight",
       );
       setStyle(
         bar.parts.counterAnchor,
@@ -1253,6 +1294,13 @@
         "",
         bar.applied,
         "readoutWashColor",
+      );
+      setStyle(
+        bar.parts.counterMax,
+        "washColor",
+        "",
+        bar.applied,
+        "readoutMaximumWashColor",
       );
       bar.dirty = 0;
       return;
@@ -1302,8 +1350,15 @@
     else if (colorsEnabled) ultColor = color;
     var readoutEnabled =
       role === "enemy" && !excluded && config.readoutVisible;
+    bar.readoutMaximumText = "";
     var readoutText = readoutEnabled ? formatReadout(bar) : "";
     var readoutVisibility = readoutText ? "visible" : "collapse";
+    var readoutMaximumText = readoutEnabled
+      ? bar.readoutMaximumText
+      : "";
+    var readoutMaximumVisibility = readoutMaximumText
+      ? "visible"
+      : "collapse";
     var readoutLow =
       config.readoutColorMode === "custom" ? config.readoutLow : low;
     var readoutMid =
@@ -1327,6 +1382,10 @@
             readoutHigh,
           )
       : "";
+    var readoutMaximumColor =
+      readoutMaximumText && config.readoutMaxTeamColor
+        ? teamHighColor(bar.team, readoutColor)
+        : readoutColor;
     var readoutFontSize = "";
     var readoutFontFamily =
       config.readoutFont === "oracle"
@@ -1502,11 +1561,31 @@
     );
     setText(bar.parts.counter, readoutText, bar.applied, "readoutText");
     setStyle(
+      bar.parts.counterMax,
+      "visibility",
+      readoutMaximumVisibility,
+      bar.applied,
+      "readoutMaximumVisibility",
+    );
+    setText(
+      bar.parts.counterMax,
+      readoutMaximumText,
+      bar.applied,
+      "readoutMaximumText",
+    );
+    setStyle(
       bar.parts.counter,
       "fontSize",
       readoutFontSize,
       bar.applied,
       "readoutFontSize",
+    );
+    setStyle(
+      bar.parts.counterMax,
+      "fontSize",
+      readoutFontSize,
+      bar.applied,
+      "readoutMaximumFontSize",
     );
     setStyle(
       bar.parts.counter,
@@ -1516,11 +1595,25 @@
       "readoutHeight",
     );
     setStyle(
+      bar.parts.counterMax,
+      "height",
+      readoutEnabled ? "100%" : "",
+      bar.applied,
+      "readoutMaximumHeight",
+    );
+    setStyle(
       bar.parts.counter,
       "fontFamily",
       readoutFontFamily,
       bar.applied,
       "readoutFontFamily",
+    );
+    setStyle(
+      bar.parts.counterMax,
+      "fontFamily",
+      readoutFontFamily,
+      bar.applied,
+      "readoutMaximumFontFamily",
     );
     setStyle(
       bar.parts.counterAnchor,
@@ -1535,6 +1628,13 @@
       readoutColor,
       bar.applied,
       "readoutWashColor",
+    );
+    setStyle(
+      bar.parts.counterMax,
+      "washColor",
+      readoutMaximumColor,
+      bar.applied,
+      "readoutMaximumWashColor",
     );
     bar.dirty = 0;
   }
