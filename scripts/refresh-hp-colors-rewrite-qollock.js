@@ -103,6 +103,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
     'HPColorsMenuButton',
     'HPColorsEditorRoot',
     'HPColorsSupporterTicker',
+    'HPColorsAllyTeamHighToggle',
     'HPColorsRewritePresetStore',
   ]) {
     requireMatchCount(
@@ -184,6 +185,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
     'HPColorsMenuButton',
     'HPColorsEditorRoot',
     'HPColorsSupporterTicker',
+    'HPColorsAllyTeamHighToggle',
     'HPColorsRewritePresetStore',
   ]) {
     requireMatchCount(

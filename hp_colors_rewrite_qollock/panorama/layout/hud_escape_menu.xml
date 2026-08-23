@@ -490,6 +490,13 @@
                     <Button id="HPColorsAllyVisibleToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
                   </Panel>
                   <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="USE TEAM COLOR AT HIGH HP" class="HPColorsSettingTitle" />
+                      <Label text="Use each ally's team color above the high-health threshold and at the top of a gradient." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsAllyTeamHighToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy"><Label text="COLOR MODE" class="HPColorsSettingTitle" /><Label text="Use fixed color steps or blend smoothly between them. Ally thresholds match enemy thresholds." class="HPColorsSettingHelp" /></Panel>
                     <Panel class="HPColorsSegment">
                       <Button id="HPColorsAllyModeFixed" class="HPColorsSegmentButton"><Label text="FIXED" /></Button>

@@ -206,6 +206,7 @@ test('QOL LOCK and HP COLORS use separate stable menu rows', () => {
     layout,
     /<CitadelHTMLPanel id="HPColorsSupporterTicker"[^>]*hittest="false"[^>]*acceptsfocus="false"/,
   );
+  assert.match(layout, /id="HPColorsAllyTeamHighToggle"/);
   assert.match(bridge, /HPColorsMenuBoot/);
 });
 

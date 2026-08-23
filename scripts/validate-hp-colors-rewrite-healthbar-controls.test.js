@@ -140,6 +140,36 @@ test('team-high color uses current stock team colors and preserves unknown fallb
     enemyTeamHigh: true,
   });
   assert.equal(unknown.tree.lagging.style.washColor.toUpperCase(), '#123456');
+
+  const allyTeam1 = bootProbe(['friend', 'team1']);
+  publishConfig(allyTeam1.harness, 1, {
+    enabled: true,
+    allyEnabled: true,
+    allyMode: 'fixed',
+    allyHigh: '#ABCDEF',
+    allyTeamHigh: true,
+  });
+  assert.equal(allyTeam1.tree.lagging.style.washColor.toUpperCase(), '#E7B659');
+
+  const ally = bootProbe(['friend', 'team2']);
+  publishConfig(ally.harness, 1, {
+    enabled: true,
+    allyEnabled: true,
+    allyMode: 'gradient',
+    allyHigh: '#ABCDEF',
+    allyTeamHigh: true,
+  });
+  assert.equal(ally.tree.lagging.style.washColor.toUpperCase(), '#5B79E6');
+
+  const unknownAlly = bootProbe(['friend']);
+  publishConfig(unknownAlly.harness, 1, {
+    enabled: true,
+    allyEnabled: true,
+    allyMode: 'fixed',
+    allyHigh: '#ABCDEF',
+    allyTeamHigh: true,
+  });
+  assert.equal(unknownAlly.tree.lagging.style.washColor.toUpperCase(), '#ABCDEF');
 });
 
 test('building and boss exclusions restore stock colors independently', () => {
@@ -402,6 +432,7 @@ test('editor exposes and publishes the ghoul and existing bar controls', () => {
   const ySlider = harness.root.FindChildTraverse('HPColorsPositionYSlider');
   assert.deepEqual([xSlider.min, xSlider.max], [-300, 300]);
   assert.deepEqual([ySlider.min, ySlider.max], [-200, 200]);
+  harness.root.FindChildTraverse('HPColorsAllyTeamHighToggle').events.onactivate();
 
   harness.root.FindChildTraverse('HPColorsEnemyTeamHighToggle').events.onactivate();
   harness.root.FindChildTraverse('HPColorsExcludeBuildingsToggle').events.onactivate();
@@ -418,6 +449,7 @@ test('editor exposes and publishes the ghoul and existing bar controls', () => {
   const values = JSON.parse(
     harness.root.GetAttributeString('hp_colors_rewrite_config', '{}'),
   ).values;
+  assert.equal(values.allyTeamHigh, true);
   assert.equal(values.enemyTeamHigh, true);
   assert.equal(values.excludeBuildings, true);
   assert.equal(values.excludeBosses, true);
