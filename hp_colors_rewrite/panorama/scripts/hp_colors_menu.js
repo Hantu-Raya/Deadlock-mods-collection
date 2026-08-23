@@ -649,9 +649,15 @@
     var eventNames = ["HTMLTitle", "HTMLURLChanged", "HTMLContentLoaded"];
     for (var index = 0; index < eventNames.length; index += 1) {
       (function (eventName) {
-        $.RegisterEventHandler(eventName, ticker, function () {
-          logSupporterHtmlEvent(eventName, arguments);
-        });
+        try {
+          $.RegisterEventHandler(eventName, ticker, function () {
+            logSupporterHtmlEvent(eventName, arguments);
+          });
+        } catch {
+          $.Msg(
+            "[HP Colors Rewrite] supporter html event unavailable " + eventName,
+          );
+        }
       })(eventNames[index]);
     }
   }
