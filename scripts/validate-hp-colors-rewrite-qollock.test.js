@@ -202,6 +202,10 @@ test('QOL LOCK and HP COLORS use separate stable menu rows', () => {
   assertThresholdRowsOnEnemyBar(layout);
   const bridge = read(menuBridge);
   assert.match(bridge, /ToggleSettingsWindow/);
+  assert.match(
+    layout,
+    /<CitadelHTMLPanel id="HPColorsSupporterTicker"[^>]*hittest="false"[^>]*acceptsfocus="false"/,
+  );
   assert.match(bridge, /HPColorsMenuBoot/);
 });
 
