@@ -105,6 +105,11 @@ function bootPresetMenu(menuState, options = {}) {
       JSON.stringify(options.publishedSnapshot),
     );
   }
+  if (options.registerEventHandlerThrows) {
+    harness.$.RegisterEventHandler = () => {
+      throw new Error('HTML event unavailable');
+    };
+  }
   runHpColorsSourcesInVm(stateSource, menuSource, harness);
   harness.$.HPColorsMenuBoot();
   return { harness, topBar };
@@ -371,10 +376,28 @@ test('supporter ticker loads once per editor open and unloads on close', () => {
   assert.equal(ticker.BHasClass('Open'), false);
 
   openEditor(fixture);
+
   assert.equal(urls.length, 3);
   assert.match(
     urls[2],
     /^https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/supporters-strip-debug\/\?refresh=\d+$/,
+  );
+});
+
+test('unsupported HTML events do not block menu boot or editor open', () => {
+  const fixture = bootPresetMenu(undefined, {
+    registerEventHandlerThrows: true,
+  });
+
+  openEditor(fixture);
+  assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), true);
+  assert.deepEqual(
+    fixture.harness.logs.filter((line) => /supporter html event unavailable/.test(line)),
+    [
+      '[HP Colors Rewrite] supporter html event unavailable HTMLTitle',
+      '[HP Colors Rewrite] supporter html event unavailable HTMLURLChanged',
+      '[HP Colors Rewrite] supporter html event unavailable HTMLContentLoaded',
+    ],
   );
 });
 
