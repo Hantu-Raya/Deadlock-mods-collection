@@ -73,6 +73,7 @@
     ghoulOpacityEnabled: false,
     ghoulOpacity: 100,
     readoutMaxTeamColor: false,
+    allyTeamHigh: false,
   };
 
   var DEFAULT_KEYS = [
@@ -147,6 +148,7 @@
     "ghoulOpacityEnabled",
     "ghoulOpacity",
     "readoutMaxTeamColor",
+    "allyTeamHigh",
   ];
 
   var BOOLEAN_KEYS = {
@@ -173,6 +175,7 @@
     allyPulseColorEnabled: true,
     enemyKillMarkerEnabled: true,
     readoutMaxTeamColor: true,
+    allyTeamHigh: true,
   };
 
   var COLOR_KEYS = {

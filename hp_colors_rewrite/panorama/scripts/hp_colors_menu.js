@@ -166,6 +166,7 @@
             "allyLow",
             "allyMid",
             "allyHigh",
+            "allyTeamHigh",
           ],
         },
         {
@@ -3440,6 +3441,7 @@
     setToggle("HPColorsAllyToggle", state.values.allyEnabled);
     setToggle("HPColorsAllyVisibleToggle", state.values.allyVisible);
     setToggle("HPColorsEnemyTeamHighToggle", state.values.enemyTeamHigh);
+    setToggle("HPColorsAllyTeamHighToggle", state.values.allyTeamHigh);
     setToggle("HPColorsExcludeBuildingsToggle", state.values.excludeBuildings);
     setToggle("HPColorsExcludeBossesToggle", state.values.excludeBosses);
     setToggle("HPColorsExcludeGhoulsToggle", state.values.excludeGhouls);
@@ -4640,6 +4642,7 @@
     bindToggle("HPColorsAllyToggle", "allyEnabled");
     bindToggle("HPColorsAllyVisibleToggle", "allyVisible");
     bindToggle("HPColorsEnemyTeamHighToggle", "enemyTeamHigh");
+    bindToggle("HPColorsAllyTeamHighToggle", "allyTeamHigh");
     bindToggle("HPColorsExcludeBuildingsToggle", "excludeBuildings");
     bindToggle("HPColorsExcludeBossesToggle", "excludeBosses");
     bindToggle("HPColorsExcludeGhoulsToggle", "excludeGhouls");

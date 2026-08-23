@@ -106,7 +106,7 @@ The picker uses one modal panel and one active setting key. Closing, Escape, pag
 
 Implemented controls:
 
-- Optional stock team color as the enemy high-health endpoint; unknown teams retain the configured high color.
+- Independent stock team-color endpoints for enemy and ally high health; unknown teams retain each relation's configured high color.
 - Independent structure, objective, and creature-class ghoul exclusions that restore stock relation colors, plus full-ghoul-healthbar opacity that remains active across exclusion.
 - Horizontal and vertical translation of the complete healthbar stack without moving or scaling unit, ultimate, or level icons.
 - One shared ultimate-ready icon rule: Follow Bar uses each customized relation's final bar color; Custom applies one color to enemy and ally icons even when their bar-color toggle is off.
