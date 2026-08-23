@@ -16,6 +16,17 @@ The design-confidence score is 10/10. Runtime readiness is 4/10 because the rout
 
 This note changes no runtime files, build scripts, compiled output, VPKs, or deployment.
 
+## Implementation checkpoint
+
+As of 2026-08-23, the experimental branches satisfy checklist items 1 through 5:
+
+- Builder commit `e854ab5` validates the public CSV, feeds V2 and the static strip from it, and deploys both live endpoints.
+- GitHub Actions run `32611602279` passed its CI, build, and Pages deployment jobs.
+- Rewrite commit `83cd6ed` adds the optional editor-only HTML panel, guarded load and unload behavior, focused tests, and the updated design contract.
+- The canonical Rewrite build deployed `pak02_dir.vpk` with SHA256 `73B591F879165C8BFC7ED2DC116D5AC0A885D0BBB8DDE63C2A3F5463BB66871B`.
+
+Runtime readiness is now 5/10. Checklist items 6 through 10 still require a restarted Deadlock client, interaction checks at every supported UI scale, failure testing, and closed-editor ETW evidence. Do not merge the runtime branch before those checks pass.
+
 ## 1. Panorama networking and local assets
 
 ### Verified Deadlock evidence
