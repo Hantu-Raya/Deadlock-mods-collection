@@ -83,6 +83,18 @@
   background-color: gradient(linear, 0% 0%, 100% 0%, from(#5fe69e66), to(#ffefd70d));
 }
 
+.HPColorsSupporterTicker {
+  width: 260px;
+  height: 30px;
+  margin-right: 14px;
+  vertical-align: center;
+  visibility: collapse;
+}
+
+.HPColorsSupporterTicker.Open {
+  visibility: visible;
+}
+
 .HPColorsLiveStatus {
   vertical-align: center;
   font-family: oracle;

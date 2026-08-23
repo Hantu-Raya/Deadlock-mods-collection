@@ -25,6 +25,15 @@ The editor extends the stock ESC menu’s dark paper-and-metal language.
 - No embedded or simulated healthbar preview.
 - Restrained transform/opacity transitions only; no frame-driven animation.
 
+### Supporter ticker
+
+- The flexible header-rule area may show a continuous supporter ticker while the editor is open. It sits between the title block and `LIVE`; `LIVE` and `DONATE` keep their existing controls and order.
+- `HPColorsSupporterTicker` is an optional, display-only `CitadelHTMLPanel`. It cannot take focus, cursor, mouse, keyboard, or Escape input.
+- Each editor open loads `https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/` once. The menu does not poll or fetch supporter data during gameplay.
+- Every close path navigates the panel to `about:blank` and collapses it. A missing panel or failed `SetURL` call must not block editor open or close.
+- The hosted page contains static HTML and CSS generated from the reviewed public supporter CSV. It shows at most ten ranked public aliases and USD totals. GitHub Pages may retain an older successful deployment for ten minutes.
+- Do not package donor rows or show a stale fallback. If the HTML panel captures input, shows browser error UI, scales poorly, fails to unload, or adds measurable closed-editor cost, replace it with the remote image design.
+
 ### Typography
 
 - `VALVEPulp`: title and major headings.
