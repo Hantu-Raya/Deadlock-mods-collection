@@ -25,6 +25,7 @@ As of 2026-08-23, the experimental branches satisfy checklist items 1 through 6 
 - Rewrite commit `83cd6ed` adds the optional editor-only HTML panel, guarded load and unload behavior, focused tests, and the updated design contract.
 - A restarted Deadlock client rendered the live supporter rows without browser chrome. The ticker stayed inside its header slot, did not overlap `LIVE` or `DONATE`, and did not capture editor input.
 - A fresh offline restart initially reused cached HTML. A unique per-open query then prevented the cached donor list from rendering. The bounded probe logged exactly one load and one unload transition, with no repeated ticker output.
+- A restarted-client title probe proved `HTMLTitle` can deliver a controlled, versioned metadata string and `HTMLURLChanged` can report load and `about:blank` navigation. Production does not use either event because the strip remains display-only.
 - The quiet production build removed the temporary logs and deployed `pak02_dir.vpk` with SHA256 `2D20D0558166AB0844FD1257025BC31FA6BFAE7D745D93868B7BC8A98C2609CC`.
 
 Runtime readiness is now 7/10. The remaining gates are every supported UI scale, visual confirmation that the offline header stays free of browser error UI, and closed-editor ETW evidence. Do not merge the runtime branch before those checks pass.
