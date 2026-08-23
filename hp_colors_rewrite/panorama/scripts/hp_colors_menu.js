@@ -7,8 +7,6 @@
   var CONFIG_MAGIC = "HP_COLORS_REWRITE_CONFIG";
   var SUPPORTER_TICKER_URL =
     "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/";
-  var supporterTickerProbeId = 0;
-  var supporterTickerLoaded = false;
   var PRESET_STORE_ID = "HPColorsRewritePresetStore";
   var PRESET_LABEL_ID = "HPColorsRewritePreset_001";
   var PRESET_ENTRY_CLASS = "hp_colors_rewrite_preset_entry";
@@ -636,8 +634,6 @@
   function openSupporterTicker() {
     var ticker = ui.supporterTicker;
     if (!isValid(ticker)) return;
-    supporterTickerProbeId += 1;
-    supporterTickerLoaded = false;
     setClass(ticker, "Open", false);
     try {
       if (isCallable(ticker.SetIgnoreCursor))
@@ -645,22 +641,14 @@
     } catch {}
     try {
       if (!isCallable(ticker.SetURL)) return;
-      var probeUrl =
+      var requestUrl =
         SUPPORTER_TICKER_URL +
-        "?probe=" +
-        String(new Date().getTime()) +
-        "-" +
-        String(supporterTickerProbeId);
-      ticker.SetURL(probeUrl);
-      supporterTickerLoaded = true;
+        "?refresh=" +
+        String(new Date().getTime());
+      ticker.SetURL(requestUrl);
       setClass(ticker, "Open", true);
-      $.Msg(
-        "[HP Colors Rewrite] supporter ticker load " +
-          String(supporterTickerProbeId),
-      );
     } catch {
       setClass(ticker, "Open", false);
-      $.Msg("[HP Colors Rewrite] supporter ticker load failed");
     }
   }
 
@@ -671,12 +659,6 @@
       if (isCallable(ticker.SetURL)) ticker.SetURL("about:blank");
     } catch {}
     setClass(ticker, "Open", false);
-    if (!supporterTickerLoaded) return;
-    supporterTickerLoaded = false;
-    $.Msg(
-      "[HP Colors Rewrite] supporter ticker unload " +
-        String(supporterTickerProbeId),
-    );
   }
 
   function focus(panel) {
