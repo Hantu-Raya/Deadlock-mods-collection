@@ -18,14 +18,16 @@ This note changes no runtime files, build scripts, compiled output, VPKs, or dep
 
 ## Implementation checkpoint
 
-As of 2026-08-23, the experimental branches satisfy checklist items 1 through 5:
+As of 2026-08-23, the experimental branches satisfy checklist items 1 through 6 and item 8:
 
 - Builder commit `e854ab5` validates the public CSV, feeds V2 and the static strip from it, and deploys both live endpoints.
 - GitHub Actions run `32611602279` passed its CI, build, and Pages deployment jobs.
 - Rewrite commit `83cd6ed` adds the optional editor-only HTML panel, guarded load and unload behavior, focused tests, and the updated design contract.
-- The canonical Rewrite build deployed `pak02_dir.vpk` with SHA256 `73B591F879165C8BFC7ED2DC116D5AC0A885D0BBB8DDE63C2A3F5463BB66871B`.
+- A restarted Deadlock client rendered the live supporter rows without browser chrome. The ticker stayed inside its header slot, did not overlap `LIVE` or `DONATE`, and did not capture editor input.
+- A fresh offline restart initially reused cached HTML. A unique per-open query then prevented the cached donor list from rendering. The bounded probe logged exactly one load and one unload transition, with no repeated ticker output.
+- The quiet production build removed the temporary logs and deployed `pak02_dir.vpk` with SHA256 `2D20D0558166AB0844FD1257025BC31FA6BFAE7D745D93868B7BC8A98C2609CC`.
 
-Runtime readiness is now 5/10. Checklist items 6 through 10 still require a restarted Deadlock client, interaction checks at every supported UI scale, failure testing, and closed-editor ETW evidence. Do not merge the runtime branch before those checks pass.
+Runtime readiness is now 7/10. The remaining gates are every supported UI scale, visual confirmation that the offline header stays free of browser error UI, and closed-editor ETW evidence. Do not merge the runtime branch before those checks pass.
 
 ## 1. Panorama networking and local assets
 

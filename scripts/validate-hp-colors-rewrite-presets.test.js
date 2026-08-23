@@ -346,7 +346,7 @@ test('supporter ticker loads once per editor open and unloads on close', () => {
   assert.equal(urls.length, 1);
   assert.match(
     urls[0],
-    /^https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/supporters-strip\/\?probe=\d+-1$/,
+    /^https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/supporters-strip\/\?refresh=\d+$/,
   );
   assert.deepEqual(ignoreCursorValues, [true]);
   assert.equal(ticker.BHasClass('Open'), true);
@@ -360,15 +360,11 @@ test('supporter ticker loads once per editor open and unloads on close', () => {
   assert.equal(urls.length, 3);
   assert.match(
     urls[2],
-    /^https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/supporters-strip\/\?probe=\d+-2$/,
+    /^https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/supporters-strip\/\?refresh=\d+$/,
   );
-  assert.deepEqual(
-    fixture.harness.logs.filter((line) => /supporter ticker/.test(line)),
-    [
-      '[HP Colors Rewrite] supporter ticker load 1',
-      '[HP Colors Rewrite] supporter ticker unload 1',
-      '[HP Colors Rewrite] supporter ticker load 2',
-    ],
+  assert.equal(
+    fixture.harness.logs.some((line) => /supporter ticker/.test(line)),
+    false,
   );
 });
 
