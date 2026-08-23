@@ -6,7 +6,7 @@
   var EVENT_CHANNEL = "ClientUI_FireOutput";
   var CONFIG_MAGIC = "HP_COLORS_REWRITE_CONFIG";
   var SUPPORTER_TICKER_URL =
-    "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip-debug/";
+    "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/";
   var PRESET_STORE_ID = "HPColorsRewritePresetStore";
   var PRESET_LABEL_ID = "HPColorsRewritePreset_001";
   var PRESET_ENTRY_CLASS = "hp_colors_rewrite_preset_entry";
@@ -630,38 +630,6 @@
       panel.SetPanelEvent(eventName, handler);
     } catch {}
   }
-
-  function logSupporterHtmlEvent(eventName, args) {
-    var values = [];
-    for (var index = 0; index < args.length; index += 1)
-      values.push("arg" + String(index) + "=" + String(args[index]));
-    $.Msg(
-      "[HP Colors Rewrite] supporter html " +
-        eventName +
-        " " +
-        (values.length ? values.join(" | ") : "no arguments"),
-    );
-  }
-
-  function bindSupporterTickerDebug() {
-    var ticker = ui.supporterTicker;
-    if (!isValid(ticker) || !isCallable($.RegisterEventHandler)) return;
-    var eventNames = ["HTMLTitle", "HTMLURLChanged", "HTMLContentLoaded"];
-    for (var index = 0; index < eventNames.length; index += 1) {
-      (function (eventName) {
-        try {
-          $.RegisterEventHandler(eventName, ticker, function () {
-            logSupporterHtmlEvent(eventName, arguments);
-          });
-        } catch {
-          $.Msg(
-            "[HP Colors Rewrite] supporter html event unavailable " + eventName,
-          );
-        }
-      })(eventNames[index]);
-    }
-  }
-
 
   function openSupporterTicker() {
     var ticker = ui.supporterTicker;
@@ -4924,7 +4892,6 @@
       $.Msg("[HP Colors Rewrite] menu boot failed: required panel missing");
       return;
     }
-    bindSupporterTickerDebug();
     if (
       !$.HPColorsStateFactory ||
       !isCallable($.HPColorsStateFactory.create)
