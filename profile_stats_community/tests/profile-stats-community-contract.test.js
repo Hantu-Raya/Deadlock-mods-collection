@@ -112,6 +112,8 @@ test("layout keeps stock authority and adds only the local bridge surface", func
   assert.equal(count(layout, /id="ProfileStatsCommunityButton"/g), 1);
   assert.match(layout, /<CitadelHTMLPanel id="ProfileStatsCommunityBridge"[^>]*visible="false"[^>]*hittest="false"[^>]*acceptsfocus="false"/);
   assert.doesNotMatch(layout, /GetLocalPlayer|local_player|LocalPlayer|FindChildrenWithClassTraverse/);
+  assert.doesNotMatch(script, /setPanelEvent\(\s*root\s*,\s*"oncancel"/, "runtime must not replace the stock XML cancel path");
+  assert.doesNotMatch(script, /CitadelNavigateBack/, "native profile navigation must stay in XML");
 });
 
 test("community navigation keeps the hero-list alignment contract", function () {
@@ -262,8 +264,13 @@ test("all six ordered groups and every required comparison row are declared", fu
     assert.ok(("PSCMetric" + metric + "Player").length <= 44, "player metric panel ID stays within Panorama's runtime limit");
     assert.ok(("PSCMetric" + metric + "Community").length <= 44, "community metric panel ID stays within Panorama's runtime limit");
   });
-  assert.match(layout, /PLAYER AVERAGE/);
-  assert.match(layout, /COMMUNITY AVERAGE/);
+  assert.match(layout, /id="ProfileStatsCommunityTitle"[^>]*text="PLAYER VS COMMUNITY"/);
+  assert.match(layout, /id="ProfileStatsCommunityPlayerHeadingLeft"[^>]*text="PLAYER"/);
+  assert.match(layout, /id="ProfileStatsCommunityPlayerHeadingRight"[^>]*text="PLAYER"/);
+  assert.equal(count(layout, /text="COMMUNITY"/g), 2);
+  assert.match(layout, /<Button\b[^>]*id="ProfileStatsCommunityStatLocker"[^>]*>\s*<Label text="STATLOCKER PROFILE" \/><\/Button>/);
+  assert.match(script, /STATLOCKER_PROFILE_URL_PREFIX\s*=\s*"https:\/\/statlocker\.gg\/profile\/"/);
+  assert.match(script, /STATLOCKER_PROFILE_URL_SUFFIX\s*=\s*"\/matches"/);
   assert.doesNotMatch(layout, /Back to Hero Stats|ProfileStatsCommunityBack/);
   assert.match(layout, /<TabButton\b[^>]*id="ProfileStatsCommunityRanked"[^>]*text="RANKED"[^>]*selected="true"/);
   assert.match(layout, /<TabButton\b[^>]*id="ProfileStatsCommunityStandard"[^>]*text="STANDARD"/);
@@ -274,28 +281,40 @@ test("all six ordered groups and every required comparison row are declared", fu
   assert.match(layout, /id="ProfileStatsCommunityGenerated"/);
 });
 
-test("filter and metric layout reserve readable scrollbar clearance", function () {
+test("filter and metric layout form a compact non-scrollable grid", function () {
   var matchCountRule = /#ProfileStatsCommunityMatchCount\s*\{([\s\S]*?)\}/.exec(styles);
   var matchCountMenuRule = /#ProfileStatsCommunityMatchCountDropDownMenu\s*\{([\s\S]*?)\}/.exec(styles);
-  var headingsRule = /\.ProfileStatsCommunityColumns\s*\{([\s\S]*?)\}/.exec(styles);
   var metricsRule = /#ProfileStatsCommunityMetrics\s*\{([\s\S]*?)\}/.exec(styles);
+  var gridRowRule = /\.ProfileStatsCommunityGridRow\s*\{([\s\S]*?)\}/.exec(styles);
+  var gridGapRule = /\.ProfileStatsCommunityGridGap\s*\{([\s\S]*?)\}/.exec(styles);
+  var metricRowRule = /\.ProfileStatsCommunityMetricRow\s*\{([\s\S]*?)\}/.exec(styles);
   var matchCountWidth;
   var matchCountMenuWidth;
-  var headingsClearance;
-  var metricsClearance;
+  var metricRowHeight;
 
   assert.ok(matchCountRule, "match-count selector styles must remain declared");
   assert.ok(matchCountMenuRule, "match-count menu styles must remain declared");
-  assert.ok(headingsRule, "column heading styles must remain declared");
-  assert.ok(metricsRule, "metric scroller styles must remain declared");
+  assert.ok(metricsRule, "metric grid styles must remain declared");
+  assert.ok(gridRowRule, "metric grid rows must remain declared");
+  assert.ok(gridGapRule, "metric grid gap must remain declared");
+  assert.ok(metricRowRule, "compact metric rows must remain declared");
   matchCountWidth = /\bwidth\s*:\s*(\d+)px\s*;/.exec(matchCountRule[1]);
   matchCountMenuWidth = /\bwidth\s*:\s*(\d+)px\s*;/.exec(matchCountMenuRule[1]);
-  headingsClearance = /\bpadding-right\s*:\s*(\d+)px\s*;/.exec(headingsRule[1]);
-  metricsClearance = /\bpadding-right\s*:\s*(\d+)px\s*;/.exec(metricsRule[1]);
+  metricRowHeight = /\bheight\s*:\s*(\d+)px\s*;/.exec(metricRowRule[1]);
   assert.equal(Number(matchCountWidth[1]), 184, "selector must retain the 184px contract");
   assert.equal(Number(matchCountMenuWidth[1]), 184, "menu must retain the 184px contract");
-  assert.ok(headingsClearance && Number(headingsClearance[1]) >= 24, "headings must clear the scrollbar");
-  assert.ok(metricsClearance && Number(metricsClearance[1]) >= 24, "metric values must clear the scrollbar");
+  assert.deepEqual(directChildIds(layout, "ProfileStatsCommunityMetrics"), [
+    "ProfileStatsCommunityGridCombatKills",
+    "ProfileStatsCommunityGridSurvivalDamage",
+    "ProfileStatsCommunityGridEconomySustain"
+  ]);
+  assert.match(metricsRule[1], /\bflow-children\s*:\s*down\s*;/);
+  assert.match(metricsRule[1], /\boverflow\s*:\s*clip\s*;/);
+  assert.doesNotMatch(metricsRule[1], /\bscroll\b/);
+  assert.match(gridRowRule[1], /\bwidth\s*:\s*100%\s*;/);
+  assert.match(gridRowRule[1], /\bflow-children\s*:\s*right\s*;/);
+  assert.match(gridGapRule[1], /\bwidth\s*:\s*24px\s*;/);
+  assert.ok(metricRowHeight && Number(metricRowHeight[1]) <= 24, "metric rows must fit the fixed comparison grid");
 });
 
 test("runtime and stylesheet stay Panorama-safe", function () {

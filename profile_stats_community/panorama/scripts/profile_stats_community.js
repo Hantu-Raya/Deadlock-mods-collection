@@ -4,6 +4,8 @@
     var BRIDGE_URL = "https://hantu-raya.github.io/deadlock-stats-bridge/bridge.html";
     var BRIDGE_ORIGIN_PATH = "https://hantu-raya.github.io/deadlock-stats-bridge/bridge.html";
     var SUPPORTER_TICKER_URL = "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/";
+    var STATLOCKER_PROFILE_URL_PREFIX = "https://statlocker.gg/profile/";
+    var STATLOCKER_PROFILE_URL_SUFFIX = "/matches";
     var BRIDGE_TITLE_PREFIX = "DLSTATS2:";
     var BRIDGE_TITLE_MAX_LENGTH = 2048;
     var BRIDGE_URL_MAX_LENGTH = 4096;
@@ -26,6 +28,7 @@
     var MAX_HERO_ROWS = 64;
     var MAX_GENERATED_LENGTH = 64;
     var MAX_ERROR_MESSAGE_LENGTH = 160;
+    var MAX_PLAYER_NAME_LENGTH = 64;
     var STATE_STOCK = "stock";
     var STATE_LOADING = "loading";
     var STATE_READY = "ready";
@@ -105,7 +108,11 @@
     var stockSectionName = null;
     var communityButton = null;
     var customPanel = null;
-    var identityLabel = null;
+    var selfNamePanel = null;
+    var titleLabel = null;
+    var statLockerButton = null;
+    var playerHeadingLeft = null;
+    var playerHeadingRight = null;
     var accountWitness = null;
     var statusLabel = null;
     var metricsPanel = null;
@@ -123,6 +130,7 @@
     var stockRowSignature = "";
 
     var currentIdentity = null;
+    var currentDisplayName = "";
     var lifecycleState = STATE_STOCK;
     var requestGeneration = 0;
     var watcherGeneration = 0;
@@ -297,6 +305,76 @@
             return panel.text === null || panel.text === undefined ? "" : String(panel.text);
         } catch (error) {
             return "";
+        }
+    }
+
+    function normalizeDisplayName(value) {
+        var normalized = trim(String(value || "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " "));
+        if (normalized.length > MAX_PLAYER_NAME_LENGTH) {
+            normalized = normalized.substring(0, MAX_PLAYER_NAME_LENGTH);
+        }
+        return normalized;
+    }
+
+    function readDisplayName() {
+        var displayName;
+        var count;
+        var index;
+        var child;
+        if (!isValidPanel(selfNamePanel)) {
+            selfNamePanel = findPanel("SelfName");
+        }
+        displayName = normalizeDisplayName(textOf(selfNamePanel));
+        if (displayName) {
+            return displayName;
+        }
+        try {
+            count = Math.min(selfNamePanel.GetChildCount(), 8);
+        } catch (error) {
+            return "";
+        }
+        for (index = 0; index < count; index += 1) {
+            try {
+                child = selfNamePanel.GetChild(index);
+            } catch (error2) {
+                return "";
+            }
+            displayName = normalizeDisplayName(textOf(child));
+            if (displayName) {
+                return displayName;
+            }
+        }
+        return "";
+    }
+
+    function renderViewedName() {
+        var displayName = readDisplayName() || "PLAYER";
+        if (displayName === currentDisplayName) {
+            return;
+        }
+        currentDisplayName = displayName;
+        setText(titleLabel, displayName + " VS COMMUNITY");
+        setText(playerHeadingLeft, displayName);
+        setText(playerHeadingRight, displayName);
+    }
+
+    function openStatLockerProfile() {
+        var identity;
+        var url;
+        if (!isCustomActive()) {
+            return;
+        }
+        identity = readIdentity();
+        if (identity.state !== "valid" || !identity.account) {
+            return;
+        }
+        url = STATLOCKER_PROFILE_URL_PREFIX + encodeURIComponent(identity.account) + STATLOCKER_PROFILE_URL_SUFFIX;
+        try {
+            if (isCallable($.DispatchEvent)) {
+                $.DispatchEvent("ExternalBrowserGoToURL", url);
+            }
+        } catch (error) {
+            return;
         }
     }
 
@@ -1039,7 +1117,6 @@
         }
         currentIdentity = identity;
         logIdentity("request identity", identity);
-        setText(identityLabel, identity.state === "valid" ? "VIEWED ACCOUNT " + identity.account : "VIEWED PROFILE");
         if (identity.state !== "valid") {
             invalidateRequest(true);
             rateLimitBlocked = false;
@@ -1214,6 +1291,11 @@
             isValidPanel(heroList) &&
             isValidPanel(stockTitle) &&
             isValidPanel(customPanel) &&
+            isValidPanel(selfNamePanel) &&
+            isValidPanel(titleLabel) &&
+            isValidPanel(statLockerButton) &&
+            isValidPanel(playerHeadingLeft) &&
+            isValidPanel(playerHeadingRight) &&
             isValidPanel(bridgePanel) &&
             isValidPanel(supporterTicker);
     }
@@ -1268,6 +1350,7 @@
         if (!isCustomActive()) {
             return;
         }
+        renderViewedName();
         inspectNativeHeroSignature();
         if (!isCustomActive()) {
             return;
@@ -1351,7 +1434,8 @@
         stockRowSignature = readSelectedHeroSignature();
         setVisibility(customPanel, true);
         openSupporterTicker();
-        setText(identityLabel, currentIdentity.state === "valid" ? "VIEWED ACCOUNT " + currentIdentity.account : "VIEWED PROFILE");
+        currentDisplayName = "";
+        renderViewedName();
         beginRequest();
         startWatcher();
     }
@@ -1421,16 +1505,6 @@
         beginRequest();
     }
 
-    function onPageCancel() {
-        restoreStock("page_leave");
-        try {
-            if (typeof CitadelNavigateBack === "function") {
-                CitadelNavigateBack();
-            }
-        } catch (error) {
-            return;
-        }
-    }
 
     function collectMetricRefs() {
         var metricId;
@@ -1459,7 +1533,11 @@
         stockSectionName = findDirectChildByClass(stockTitle, "statSectionName");
         communityButton = findPanel("ProfileStatsCommunityButton");
         customPanel = findPanel("ProfileStatsCommunityPanel");
-        identityLabel = findPanel("ProfileStatsCommunityIdentity");
+        selfNamePanel = findPanel("SelfName");
+        titleLabel = findPanel("ProfileStatsCommunityTitle");
+        statLockerButton = findPanel("ProfileStatsCommunityStatLocker");
+        playerHeadingLeft = findPanel("ProfileStatsCommunityPlayerHeadingLeft");
+        playerHeadingRight = findPanel("ProfileStatsCommunityPlayerHeadingRight");
         accountWitness = findPanel("ProfileStatsCommunityAccount");
         matchCountDropdown = findPanel("ProfileStatsCommunityMatchCount");
         rankedTab = findPanel("ProfileStatsCommunityRanked");
@@ -1475,16 +1553,16 @@
         stockSectionSignature = textOf(stockSectionName);
         debugLog("panel refs hero=" + (isValidPanel(heroList) ? "1" : "0") + " stats=" + (isValidPanel(statsBlock) ? "1" : "0") + " section=" + (isValidPanel(stockSectionName) ? "1" : "0") + " bridge=" + (isValidPanel(bridgePanel) ? "1" : "0"));
         collectMetricRefs();
-        return !!(heroList && statsBlock && stockTitle && stockLeft && stockRight && communityButton && customPanel && accountWitness && bridgePanel && supporterTicker && matchCountDropdown && rankedTab && standardTab);
+        return !!(heroList && statsBlock && stockTitle && stockLeft && stockRight && communityButton && customPanel && selfNamePanel && titleLabel && statLockerButton && playerHeadingLeft && playerHeadingRight && accountWitness && bridgePanel && supporterTicker && matchCountDropdown && rankedTab && standardTab);
     }
 
     function bindEvents() {
         setPanelEvent(communityButton, "onactivate", showCustomMode);
+        setPanelEvent(statLockerButton, "onactivate", openStatLockerProfile);
         setPanelEvent(matchCountDropdown, "oninputsubmit", onMatchCountChanged);
         setPanelEvent(rankedTab, "onactivate", onRankedSelected);
         setPanelEvent(standardTab, "onactivate", onStandardSelected);
         setPanelEvent(retryButton, "onactivate", onRetry);
-        setPanelEvent(root, "oncancel", onPageCancel);
         registerBridgeEvents();
     }
 
@@ -1498,6 +1576,7 @@
         initialized = true;
         currentIdentity = readIdentity();
         logIdentity("boot identity", currentIdentity);
+        renderViewedName();
         unloadBridge();
         closeSupporterTicker();
         setVisibility(customPanel, false);
