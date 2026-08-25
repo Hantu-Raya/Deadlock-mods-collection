@@ -152,6 +152,11 @@
 								</Panel>
 								<Panel id="StatsRight" />
 								<Panel id="ProfileStatsCommunityPanel" class="ProfileStatsCommunityPanel" visibility="collapse">
+									<Panel id="ProfileStatsCommunitySupportBar" class="ProfileStatsCommunitySupportBar">
+										<CitadelHTMLPanel id="ProfileStatsCommunitySupporterTicker" class="ProfileStatsCommunitySupporterTicker" visible="false" hittest="false" acceptsfocus="false" />
+										<Button id="ProfileStatsCommunityPoweredBy" class="ProfileStatsCommunitySupportButton ProfileStatsCommunityPoweredByButton" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://deadlock-api.com/&apos; );"><Label text="POWERED BY DEADLOCK API" /></Button>
+										<Button id="ProfileStatsCommunityDonate" class="ProfileStatsCommunitySupportButton ProfileStatsCommunityDonateButton" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://ko-fi.com/hantuaraya&apos; );"><Label text="DONATE" /></Button>
+									</Panel>
 									<Panel id="ProfileStatsCommunityHeader" class="ProfileStatsCommunityHeader">
 										<Panel class="ProfileStatsCommunityTitleBlock">
 											<Label class="ProfileStatsCommunityEyebrow" text="STATS VS COMMUNITY" />

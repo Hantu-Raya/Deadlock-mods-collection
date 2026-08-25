@@ -114,6 +114,38 @@ test("layout keeps stock authority and adds only the local bridge surface", func
   assert.doesNotMatch(layout, /GetLocalPlayer|local_player|LocalPlayer|FindChildrenWithClassTraverse/);
 });
 
+test("support strip keeps live ticker, attribution, and donation contracts", function () {
+  var supportChildren = directChildIds(layout, "ProfileStatsCommunityPanel");
+  var tickerTag = /<CitadelHTMLPanel\b[^>]*\bid\s*=\s*"ProfileStatsCommunitySupporterTicker"[^>]*>/.exec(layout);
+  var poweredByTag = /<Button\b[^>]*\bid\s*=\s*"ProfileStatsCommunityPoweredBy"[^>]*>/.exec(layout);
+  var donateTag = /<Button\b[^>]*\bid\s*=\s*"ProfileStatsCommunityDonate"[^>]*>/.exec(layout);
+  var tickerUrl = "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/";
+  var requiredIds = [
+    "ProfileStatsCommunitySupportBar",
+    "ProfileStatsCommunitySupporterTicker",
+    "ProfileStatsCommunityPoweredBy",
+    "ProfileStatsCommunityDonate"
+  ];
+
+  assert.equal(supportChildren[0], "ProfileStatsCommunitySupportBar", "support bar must precede the comparison header");
+  requiredIds.forEach(function (id) {
+    assert.equal(count(layout, new RegExp('id\\s*=\\s*"' + id + '"', "g")), 1, id + " must be unique");
+  });
+  assert.ok(tickerTag, "supporter ticker must remain a CitadelHTMLPanel");
+  assert.doesNotMatch(tickerTag[0], /\burl\s*=/, "ticker must not load before custom mode");
+  assert.match(tickerTag[0], /\bvisible\s*=\s*"false"/);
+  assert.match(tickerTag[0], /\bhittest\s*=\s*"false"/);
+  assert.match(tickerTag[0], /\bacceptsfocus\s*=\s*"false"/);
+  assert.match(script, /SUPPORTER_TICKER_URL\s*=\s*"https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/supporters-strip\/"/);
+  assert.match(script, /findPanel\(\s*"ProfileStatsCommunitySupporterTicker"\s*\)/);
+  assert.equal(count(script, new RegExp(tickerUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")), 1);
+
+  assert.ok(poweredByTag, "Deadlock API attribution button must remain declared");
+  assert.match(poweredByTag[0], /\bonactivate\s*=\s*"[^"]*ExternalBrowserGoToURL[^"]*https:\/\/deadlock-api\.com\/[^"]*"/);
+  assert.ok(donateTag, "donation button must remain declared");
+  assert.match(donateTag[0], /\bonactivate\s*=\s*"[^"]*ExternalBrowserGoToURL[^"]*https:\/\/ko-fi\.com\/hantuaraya[^"]*"/);
+});
+
 test("all six ordered groups and every required comparison row are declared", function () {
   var groups = ["Combat", "Kills", "Survival", "Damage", "Economy", "Sustain"];
   var metrics = [
@@ -149,6 +181,30 @@ test("all six ordered groups and every required comparison row are declared", fu
   });
   assert.match(layout, /id="ProfileStatsCommunitySample"/);
   assert.match(layout, /id="ProfileStatsCommunityGenerated"/);
+});
+
+test("filter and metric layout reserve readable scrollbar clearance", function () {
+  var matchCountRule = /#ProfileStatsCommunityMatchCount\s*\{([\s\S]*?)\}/.exec(styles);
+  var matchCountMenuRule = /#ProfileStatsCommunityMatchCountDropDownMenu\s*\{([\s\S]*?)\}/.exec(styles);
+  var headingsRule = /\.ProfileStatsCommunityColumns\s*\{([\s\S]*?)\}/.exec(styles);
+  var metricsRule = /#ProfileStatsCommunityMetrics\s*\{([\s\S]*?)\}/.exec(styles);
+  var matchCountWidth;
+  var matchCountMenuWidth;
+  var headingsClearance;
+  var metricsClearance;
+
+  assert.ok(matchCountRule, "match-count selector styles must remain declared");
+  assert.ok(matchCountMenuRule, "match-count menu styles must remain declared");
+  assert.ok(headingsRule, "column heading styles must remain declared");
+  assert.ok(metricsRule, "metric scroller styles must remain declared");
+  matchCountWidth = /\bwidth\s*:\s*(\d+)px\s*;/.exec(matchCountRule[1]);
+  matchCountMenuWidth = /\bwidth\s*:\s*(\d+)px\s*;/.exec(matchCountMenuRule[1]);
+  headingsClearance = /\bpadding-right\s*:\s*(\d+)px\s*;/.exec(headingsRule[1]);
+  metricsClearance = /\bpadding-right\s*:\s*(\d+)px\s*;/.exec(metricsRule[1]);
+  assert.ok(matchCountWidth && Number(matchCountWidth[1]) >= 184, "selector must fit 150 MATCHES");
+  assert.ok(matchCountMenuWidth && Number(matchCountMenuWidth[1]) >= 184, "menu must fit 150 MATCHES");
+  assert.ok(headingsClearance && Number(headingsClearance[1]) >= 24, "headings must clear the scrollbar");
+  assert.ok(metricsClearance && Number(metricsClearance[1]) >= 24, "metric values must clear the scrollbar");
 });
 
 test("runtime and stylesheet stay Panorama-safe", function () {
