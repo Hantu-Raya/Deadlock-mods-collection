@@ -1,0 +1,226 @@
+<!-- xml reconstructed by Source 2 Viewer - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_db_page_shared.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_db_page_profile.vcss_c" />
+		<include src="s2r://panorama/styles/profile_stats_community.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/profile_stats_community.vjs_c" />
+	</scripts>
+	<snippets>
+		<snippet name="MatchBlockBig">
+			<Panel class="MatchBlockBig">
+				<Panel class="teamStripe" />
+				<Panel class="gameContent">
+					<Panel class="gameInfo">
+						<Panel id="gameResultRow">
+							<Label class="gameMode" text="{s:match_mode}" />
+							<Label class="gameResult" text="{s:match_outcome}" />
+						</Panel>
+						<Label class="heroName" text="{g:citadel_hero_name:hero_id}" />
+						<Label class="gameDuration" text="{g:citadel_match_time:match_duration}" />
+						<Label class="gameDate" text="{t:s:t:m:match_start_time}" />
+					</Panel>
+					<CitadelHeroImage id="HeroImage" class="heroImg" />
+					<Label class="gameNetworth" text="{s:game_networth_label}" />
+				</Panel>
+				<Panel id="Overlay">
+					<Panel class="viewDetails">
+						<Label text="#Citadel_Profile_MatchHistory_ViewDetails" />
+						<Panel class="arrowIcon" />
+					</Panel>
+				</Panel>
+			</Panel>
+		</snippet>
+		<snippet name="MatchBlockMini">
+			<Panel class="gameMiniBlock">
+				<Panel class="teamStripe" />
+				<Label class="gameResultShort" text="{s:match_outcome}" />
+				<CitadelHeroImage id="HeroImage" class="heroImg" />
+				<Panel id="Overlay">
+					<Panel class="viewDetails">
+						<Panel class="arrowIcon" />
+					</Panel>
+				</Panel>
+			</Panel>
+		</snippet>
+		<snippet name="HeroRow">
+			<Panel class="heroRow">
+				<Panel id="HeroRowBackground" />
+				<CitadelHeroImage id="HeroRowImage" heroimagestyle="small" />
+				<Label class="heroRowName" text="{s:hero_row_name}" />
+			</Panel>
+		</snippet>
+		<snippet name="BlockStat">
+			<Panel class="BlockStat">
+				<Panel class="blockBacker" />
+				<Panel class="StatIcon" />
+				<Label class="statValue" text="{i:stat_value}" />
+				<Panel class="labelContainer">
+					<Label class="statLabel" text="{s:stat_name}" />
+				</Panel>
+			</Panel>
+		</snippet>
+		<snippet name="SeasonalAchievement">
+			<Panel class="SeasonalAchievement">
+				<Label id="AchievementCaption" text="{s:achievement_caption}" />
+			</Panel>
+		</snippet>
+	</snippets>
+	<CitadelProfilePage class="DashboardPage" oncancel="CitadelNavigateBack();" dashboardclass="isShowingProfilePage">
+		<AsyncDataPanel class="AsyncContents" state="{d:player_stats_state}">
+			<Panel class="AsyncSuccessContainer">
+				<CitadelHeroScenePanelNew id="HeroScenePanel" heroscenestyle="Profile" />
+				<Panel class="MainContents">
+					<Panel class="LeftPanel">
+						<Panel class="ProfileSection">
+							<CitadelAvatarImage id="SelfImage" />
+							<Panel id="ProfileInfo">
+								<CitadelUserName id="SelfName" />
+								<Panel class="SteamInfo">
+									<Button id="ViewSteamProfile" onmouseout="UIHideTextTooltip();" onmouseover="UIShowTextTooltip( #Citadel_Profile_ViewSteamProfile );">
+										<Image src="s2r://panorama/images/profile/icon_steam_psd.vtex" />
+									</Button>
+									<Label class="FriendID" text="#Citadel_Profile_FriendID" onmouseover="UIShowTextTooltip( #Citadel_Profile_CopyFriendCode )" onmouseout="UIHideTextTooltip()" onactivate="CitadelProfileCopyFriendCode()" />
+								</Panel>
+								<Button id="ForumButton" onactivate="CitadelJoinForum()">
+									<Panel class="ForumIcon buttonIcon" />
+									<Label class="defaultText" text="#Citadel_JoinForum_ViewInfo" />
+								</Button>
+							</Panel>
+						</Panel>
+					</Panel>
+					<Panel class="RightPanel">
+						<AsyncDataPanel class="AsyncMatchHistory" state="{d:match_history_state}" error-text="#Citadel_ProfileMatchHistory_Failed">
+							<Panel id="MatchHistoryArea" class="AsyncSuccessContainer">
+								<Panel class="titleArea">
+									<Label id="matchHistoryLabel" class="smallTitle" text="#Citadel_Profile_MatchHistory" onactivate="CitadelProfileShowMatchHistoryTab( 0 )" />
+									<Label id="showcaseLabel" class="smallTitle" text="#Citadel_Profile_Showcase" onactivate="CitadelProfileShowMatchHistoryTab( 1 )" />
+									<Panel id="MatchHistoryButton">
+										<Label class="smallTitle" text="#Citadel_Profile_MatchHistory_ViewAll" />
+										<Panel id="allHistoryIcon" />
+									</Panel>
+								</Panel>
+								<Panel id="MatchHistoryList">
+									<Panel id="MatchBlockBigContainer" />
+									<Panel id="MatchBlockMiniContainer" class="MiniMatchBlock" />
+								</Panel>
+								<Panel id="ShowcaseList" />
+							</Panel>
+						</AsyncDataPanel>
+						<Panel id="GamesPlayed">
+							<Panel id="StatsContent">
+								<Panel id="HeroList" />
+								<Button id="ProfileStatsCommunityButton" class="ProfileStatsCommunityHeroButton">
+									<Panel class="ProfileStatsCommunityButtonIcon" />
+									<Label text="Stats vs Community" />
+								</Button>
+								<Panel id="StatsBlock">
+									<Panel id="StatsTitle">
+										<Label class="statSectionLabel" text="#Citadel_Profile_Stats_TitleSection" />
+										<Label class="statSectionName" text="{s:stat_section_name}" />
+									</Panel>
+									<Panel id="StatsLeft">
+										<Panel class="StatRow">
+											<Panel id="GamesPlayedContainer" class="TextStat largeStat">
+												<Label class="statValue" text="{i:games_played}" />
+												<Label class="statLabel" text="#Citadel_Profile_Stats_GamesPlayed:f" />
+												</Panel>
+											<Panel id="GamesWonContainer" class="TextStat largeStat">
+												<Label class="statValue" text="{i:games_won}" />
+												<Label class="statLabel" text="#Citadel_Profile_Stats_GamesWon:f" />
+											</Panel>
+										</Panel>
+										<Panel class="StatRow">
+											<Panel id="LastHitsContainer" class="TextStat">
+												<Label class="statValue" text="{i:last_hits}" />
+												<Label class="statLabel" text="#Citadel_Profile_Stats_LastHits:f" />
+											</Panel>
+											<Panel id="DeniesContainer" class="TextStat">
+												<Label class="statValue" text="{i:denies}" />
+												<Label class="statLabel" text="#Citadel_Profile_Stats_Denies:f" />
+											</Panel>
+										</Panel>
+										<Panel class="StatRow">
+											<Panel id="CommendsContainer" class="TextStat">
+												<Label class="statValue" text="{i:commend_count}" />
+												<Label class="statLabel" text="#Citadel_Profile_Stats_Commends:f" />
+											</Panel>
+									</Panel>
+								</Panel>
+								<Panel id="StatsRight" />
+								<Panel id="ProfileStatsCommunityPanel" class="ProfileStatsCommunityPanel" visibility="collapse">
+									<Panel id="ProfileStatsCommunityHeader" class="ProfileStatsCommunityHeader">
+										<Panel class="ProfileStatsCommunityTitleBlock">
+											<Label class="ProfileStatsCommunityEyebrow" text="STATS VS COMMUNITY" />
+											<Label id="ProfileStatsCommunityIdentity" class="ProfileStatsCommunityIdentity" text="" />
+										</Panel>
+										<Panel id="ProfileStatsCommunityFilters" class="ProfileStatsCommunityFilters">
+											<Panel class="ProfileStatsCommunityModeTabs">
+												<TabButton id="ProfileStatsCommunityRanked" class="ProfileStatsCommunityModeTab" group="profile_stats_community_mode" text="RANKED" selected="true" />
+												<TabButton id="ProfileStatsCommunityStandard" class="ProfileStatsCommunityModeTab" group="profile_stats_community_mode" text="STANDARD" />
+											</Panel>
+											<DropDown id="ProfileStatsCommunityMatchCount" class="ProfileStatsCommunityMatchCount">
+												<Label id="ProfileStatsCommunityMatchCount50" class="ProfileStatsCommunityMatchOption" value="50" text="50 MATCHES" />
+												<Label id="ProfileStatsCommunityMatchCount100" class="ProfileStatsCommunityMatchOption" value="100" text="100 MATCHES" />
+												<Label id="ProfileStatsCommunityMatchCount150" class="ProfileStatsCommunityMatchOption" value="150" text="150 MATCHES" />
+											</DropDown>
+										</Panel>
+									</Panel>
+									<Panel class="ProfileStatsCommunityColumns">
+										<Label class="ProfileStatsCommunityMetricHeading" text="METRIC" />
+										<Label class="ProfileStatsCommunityValueHeading" text="PLAYER AVERAGE" />
+										<Label class="ProfileStatsCommunityValueHeading" text="COMMUNITY AVERAGE" />
+									</Panel>
+									<Label id="ProfileStatsCommunityStatus" class="ProfileStatsCommunityStatus" text="" />
+									<Panel id="ProfileStatsCommunityMetrics" class="ProfileStatsCommunityMetrics" visibility="collapse">
+										<Panel id="ProfileStatsCommunityGroupCombat" class="ProfileStatsCommunityGroup">
+											<Label class="ProfileStatsCommunityGroupTitle" text="COMBAT" />
+											<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="K/D" /><Label id="PSCMetricKdPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricKdCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+											<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="KDA" /><Label id="PSCMetricKdaPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricKdaCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+										</Panel>
+										<Panel id="ProfileStatsCommunityGroupKills" class="ProfileStatsCommunityGroup">
+											<Label class="ProfileStatsCommunityGroupTitle" text="KILLS" />
+											<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="AVERAGE KILLS" /><Label id="PSCMetricAverageKillsPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricAverageKillsCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+											<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="AVERAGE ASSISTS" /><Label id="PSCMetricAverageAssistsPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricAverageAssistsCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+										</Panel>
+										<Panel id="ProfileStatsCommunityGroupSurvival" class="ProfileStatsCommunityGroup">
+											<Label class="ProfileStatsCommunityGroupTitle" text="SURVIVAL" />
+											<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="AVERAGE DEATHS" /><Label id="PSCMetricAverageDeathsPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricAverageDeathsCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+											<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="DAMAGE TAKEN PER MINUTE" /><Label id="PSCMetricDamageTakenPerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricDamageTakenPerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+										</Panel>
+										<Panel id="ProfileStatsCommunityGroupDamage" class="ProfileStatsCommunityGroup">
+											<Label class="ProfileStatsCommunityGroupTitle" text="DAMAGE" />
+											<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="PLAYER DAMAGE PER MINUTE" /><Label id="PSCMetricPlayerDamagePerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricPlayerDamagePerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+											<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="ACCURACY" /><Label id="PSCMetricAccuracyPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricAccuracyCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+											<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="CRITICAL-HIT RATE" /><Label id="PSCMetricCriticalHitRatePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricCriticalHitRateCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+										</Panel>
+										<Panel id="ProfileStatsCommunityGroupEconomy" class="ProfileStatsCommunityGroup">
+											<Label class="ProfileStatsCommunityGroupTitle" text="ECONOMY" />
+											<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="NET WORTH PER MINUTE" /><Label id="PSCMetricNetWorthPerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricNetWorthPerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+											<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="BOSS DAMAGE PER MINUTE" /><Label id="PSCMetricBossDamagePerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricBossDamagePerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+										</Panel>
+										<Panel id="ProfileStatsCommunityGroupSustain" class="ProfileStatsCommunityGroup">
+											<Label class="ProfileStatsCommunityGroupTitle" text="SUSTAIN" />
+											<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="HEALING PER MINUTE" /><Label id="PSCMetricHealingPerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricHealingPerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+										</Panel>
+									</Panel>
+									<Panel id="ProfileStatsCommunityMetadata" class="ProfileStatsCommunityMetadata" visibility="collapse">
+										<Label id="ProfileStatsCommunitySample" class="ProfileStatsCommunityMetadataText" text="" />
+										<Label id="ProfileStatsCommunityGenerated" class="ProfileStatsCommunityMetadataText" text="" />
+									</Panel>
+									<Button id="ProfileStatsCommunityRetry" class="ProfileStatsCommunityRetryButton" visibility="collapse"><Label text="Retry" /></Button>
+									<CitadelHTMLPanel id="ProfileStatsCommunityBridge" class="ProfileStatsCommunityBridge" visible="false" hittest="false" acceptsfocus="false" />
+								</Panel>
+							</Panel>
+						</Panel>
+					</Panel>
+				</Panel>
+			</Panel>
+			</Panel>
+		</AsyncDataPanel>
+		<Label id="ProfileStatsCommunityAccount" text="{i:r:account_id}" visible="false" hittest="false" />
+	</CitadelProfilePage>
+</root>

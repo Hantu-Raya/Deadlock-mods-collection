@@ -1,0 +1,345 @@
+#ProfileStatsCommunityButton
+{
+	ignore-parent-flow: true;
+	horizontal-align: left;
+	vertical-align: top;
+	z-index: 2;
+	width: 264px;
+	height: 52px;
+	margin-bottom: 4px;
+	padding: 0px 12px;
+	flow-children: right;
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #76767614 ), to( #76767604 ) );
+	border-top: 2px solid offWhite&00;
+	border-bottom: 2px solid offWhite&00;
+	box-shadow: inset 0px 0px 20px #00000022;
+	opacity: 0.6;
+	transition-property: opacity, background-color;
+	transition-duration: 0.15s;
+	transition-timing-function: ease-in-out;
+}
+
+#HeroList
+{
+	padding-top: 56px;
+}
+
+#ProfileStatsCommunityButton:hover
+{
+	opacity: 0.9;
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #76767624 ), to( #76767608 ) );
+}
+
+#ProfileStatsCommunityButton:active
+{
+	background-color: #ffffff18;
+}
+
+#ProfileStatsCommunityButton Label
+{
+	margin-left: 12px;
+	vertical-align: center;
+	font-size: 16px;
+	font-weight: bold;
+	text-transform: uppercase;
+	color: offWhite&bb;
+	text-shadow: 0px 0px 12px #00000066;
+}
+
+.ProfileStatsCommunityButtonIcon
+{
+	width: 28px;
+	height: 28px;
+	vertical-align: center;
+	background-image: url("s2r://panorama/images/icons/deadlock_logo.vsvg");
+	background-size: contain;
+	background-repeat: no-repeat;
+	wash-color: offWhite&99;
+}
+
+
+#ProfileStatsCommunityPanel
+{
+	ignore-parent-flow: true;
+	width: 100%;
+	height: 100%;
+	z-index: 3;
+	padding: 34px 42px 24px 42px;
+	flow-children: down;
+	background-color: offBlack;
+	box-shadow: inset -20px 0px 220px #00000088;
+}
+
+#ProfileStatsCommunityHeader
+{
+	width: 100%;
+	height: 84px;
+	flow-children: right;
+	padding-bottom: 14px;
+	border-bottom: 1px solid offWhite&18;
+}
+
+.ProfileStatsCommunityTitleBlock
+{
+	flow-children: down;
+	vertical-align: center;
+	width: fill-parent-flow(1);
+}
+
+.ProfileStatsCommunityEyebrow
+{
+	font-size: 16px;
+	font-weight: bold;
+	text-transform: uppercase;
+	color: offWhite&66;
+}
+
+.ProfileStatsCommunityIdentity
+{
+	margin-top: 4px;
+	font-size: 28px;
+	font-weight: bold;
+	color: offWhite;
+	text-transform: uppercase;
+}
+
+#ProfileStatsCommunityFilters
+{
+	horizontal-align: right;
+	vertical-align: center;
+	flow-children: right;
+}
+
+.ProfileStatsCommunityModeTabs
+{
+	height: 42px;
+	flow-children: right;
+	background-color: #ffffff08;
+	border: 1px solid offWhite&18;
+}
+
+.ProfileStatsCommunityModeTab
+{
+	height: 40px;
+	padding: 0px 16px;
+	background-color: #00000000;
+	transition-property: background-color;
+	transition-duration: 0.12s;
+}
+
+.ProfileStatsCommunityModeTab:hover
+{
+	background-color: #ffffff0d;
+}
+
+.ProfileStatsCommunityModeTab:selected
+{
+	background-color: offWhite&22;
+}
+
+.ProfileStatsCommunityModeTab Label
+{
+	vertical-align: center;
+	font-size: 14px;
+	font-weight: bold;
+	color: offWhite&77;
+}
+
+.ProfileStatsCommunityModeTab:selected Label
+{
+	color: offWhite;
+}
+
+#ProfileStatsCommunityMatchCount
+{
+	width: 158px;
+	height: 42px;
+	margin-left: 12px;
+	background-color: #ffffff0d;
+	border: 1px solid offWhite&22;
+}
+
+#ProfileStatsCommunityMatchCount Label
+{
+	vertical-align: center;
+	font-size: 14px;
+	font-weight: bold;
+	color: offWhite&cc;
+}
+
+#ProfileStatsCommunityMatchCountDropDownMenu
+{
+	width: 158px;
+	background-color: #17191b;
+	border: 1px solid offWhite&22;
+}
+
+.ProfileStatsCommunityMatchOption
+{
+	width: 100%;
+	height: 38px;
+	padding: 0px 12px;
+}
+
+.ProfileStatsCommunityMatchOption:hover
+{
+	background-color: #ffffff12;
+}
+
+#ProfileStatsCommunityStatus
+{
+	width: 100%;
+	min-height: 34px;
+	margin-top: 14px;
+	font-size: 17px;
+	font-weight: semi-bold;
+	color: offWhite&bb;
+	text-overflow: shrink;
+}
+
+.ProfileStatsCommunityColumns
+{
+	width: 100%;
+	height: 24px;
+	margin-top: 4px;
+	flow-children: right;
+}
+
+.ProfileStatsCommunityMetricHeading
+{
+	width: fill-parent-flow(1);
+	font-size: 12px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: offWhite&44;
+	text-transform: uppercase;
+}
+
+.ProfileStatsCommunityValueHeading
+{
+	width: 150px;
+	font-size: 12px;
+	font-weight: bold;
+	text-align: right;
+	color: offWhite&44;
+	text-transform: uppercase;
+}
+
+#ProfileStatsCommunityMetrics
+{
+	width: 100%;
+	height: fill-parent-flow(1);
+	flow-children: down;
+	overflow: squish scroll;
+}
+
+.ProfileStatsCommunityGroup
+{
+	width: 100%;
+	padding: 12px 0px 8px 0px;
+	flow-children: down;
+	border-top: 1px solid offWhite&0d;
+}
+
+.ProfileStatsCommunityGroupTitle
+{
+	margin-bottom: 4px;
+	font-size: 14px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: offWhite&66;
+	text-transform: uppercase;
+}
+
+.ProfileStatsCommunityMetricRow
+{
+	width: 100%;
+	min-height: 30px;
+	flow-children: right;
+	padding: 4px 0px;
+}
+
+.ProfileStatsCommunityMetricLabel
+{
+	width: fill-parent-flow(1);
+	font-size: 16px;
+	font-weight: semi-bold;
+	color: offWhite&cc;
+	text-overflow: shrink;
+}
+
+.ProfileStatsCommunityValue
+{
+	width: 150px;
+	font-size: 17px;
+	font-weight: bold;
+	text-align: right;
+	color: offWhite;
+	text-overflow: shrink;
+}
+
+.ProfileStatsCommunityMetricRow.SubMetric .ProfileStatsCommunityMetricLabel,
+.ProfileStatsCommunityMetricRow.SubMetric .ProfileStatsCommunityValue
+{
+	font-size: 14px;
+	font-weight: medium;
+	color: offWhite&88;
+}
+
+.ProfileStatsCommunityMetadata
+{
+	width: 100%;
+	min-height: 30px;
+	margin-top: 10px;
+	padding-top: 10px;
+	flow-children: right;
+	border-top: 1px solid offWhite&18;
+}
+
+.ProfileStatsCommunityMetadataText
+{
+	width: 50%;
+	font-size: 13px;
+	color: offWhite&66;
+	text-overflow: shrink;
+}
+
+#ProfileStatsCommunityGenerated
+{
+	horizontal-align: right;
+	text-align: right;
+}
+
+#ProfileStatsCommunityRetry
+{
+	horizontal-align: left;
+	margin-top: 8px;
+	padding: 7px 14px;
+	background-color: #ffffff0a;
+	border: 1px solid offWhite&22;
+	transition-property: background-color, opacity;
+	transition-duration: 0.12s;
+	opacity: 0.8;
+}
+
+#ProfileStatsCommunityRetry:hover
+{
+	background-color: #ffffff18;
+	opacity: 1;
+}
+
+#ProfileStatsCommunityRetry Label
+{
+	font-size: 15px;
+	font-weight: semi-bold;
+	color: offWhite;
+}
+
+#ProfileStatsCommunityBridge
+{
+	width: 260px;
+	height: 30px;
+	horizontal-align: right;
+	margin-top: 8px;
+	background-color: offBlack;
+}
