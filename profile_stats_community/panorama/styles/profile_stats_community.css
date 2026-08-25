@@ -370,7 +370,7 @@
 }
 .ProfileStatsCommunityPercentileHeading
 {
-	width: 72px;
+	width: 92px;
 	font-size: 10px;
 	font-weight: bold;
 	text-align: right;
@@ -450,8 +450,7 @@
 
 .ProfileStatsCommunityGroupBadge
 {
-	width: 72px;
-	height: 16px;
+	width: 92px;
 	margin-left: 4px;
 	padding: 1px 4px;
 	font-size: 10px;
@@ -494,7 +493,7 @@
 
 .ProfileStatsCommunityPercentileBadge
 {
-	width: 72px;
+	width: 92px;
 	height: 20px;
 	margin-left: 4px;
 	padding: 1px 4px;
