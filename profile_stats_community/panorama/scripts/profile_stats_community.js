@@ -3,6 +3,7 @@
 
     var BRIDGE_URL = "https://hantu-raya.github.io/deadlock-stats-bridge/bridge.html";
     var BRIDGE_ORIGIN_PATH = "https://hantu-raya.github.io/deadlock-stats-bridge/bridge.html";
+    var SUPPORTER_TICKER_URL = "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/";
     var BRIDGE_TITLE_PREFIX = "DLSTATS2:";
     var BRIDGE_TITLE_MAX_LENGTH = 2048;
     var BRIDGE_URL_MAX_LENGTH = 4096;
@@ -106,6 +107,7 @@
     var generatedLabel = null;
     var retryButton = null;
     var bridgePanel = null;
+    var supporterTicker = null;
     var matchCountDropdown = null;
     var rankedTab = null;
     var standardTab = null;
@@ -755,6 +757,36 @@
         setBridgeVisible(false);
     }
 
+    function openSupporterTicker() {
+        if (!customMode || !isValidPanel(supporterTicker) || !isCallable(supporterTicker.SetURL)) {
+            return;
+        }
+        try {
+            supporterTicker.SetURL(SUPPORTER_TICKER_URL);
+        } catch (error) {
+            return;
+        }
+        setVisibleProperty(supporterTicker, true);
+        setVisibility(supporterTicker, true);
+    }
+
+    function closeSupporterTicker() {
+        if (!isValidPanel(supporterTicker)) {
+            return;
+        }
+        try {
+            if (isCallable(supporterTicker.SetURL)) {
+                supporterTicker.SetURL("about:blank");
+            }
+        } catch (error) {
+            setVisibleProperty(supporterTicker, false);
+            setVisibility(supporterTicker, false);
+            return;
+        }
+        setVisibleProperty(supporterTicker, false);
+        setVisibility(supporterTicker, false);
+    }
+
     function invalidateRequest(unload) {
         requestState = null;
         lifecycleGeneration += 1;
@@ -1145,6 +1177,7 @@
         }
         if (!isValidPanel(root)) {
             invalidateRequest(true);
+            closeSupporterTicker();
             return;
         }
         checkIdentity();
@@ -1180,6 +1213,7 @@
         customMode = false;
         stockRowSignature = "";
         invalidateRequest(true);
+        closeSupporterTicker();
         setVisibility(customPanel, false);
         setRetryVisible(false);
         if (reason === "profile_change" || reason === "stock_selection" || reason === "page_leave" || reason === "native_selection") {
@@ -1195,6 +1229,7 @@
         stockSectionSignature = textOf(stockSectionName);
         stockRowSignature = readSelectedHeroSignature();
         setVisibility(customPanel, true);
+        openSupporterTicker();
         setText(identityLabel, currentIdentity.state === "valid" ? "VIEWED ACCOUNT " + currentIdentity.account : "VIEWED PROFILE");
         beginRequest();
     }
@@ -1306,10 +1341,11 @@
         generatedLabel = findPanel("ProfileStatsCommunityGenerated");
         retryButton = findPanel("ProfileStatsCommunityRetry");
         bridgePanel = findPanel("ProfileStatsCommunityBridge");
+        supporterTicker = findPanel("ProfileStatsCommunitySupporterTicker");
         stockSectionSignature = textOf(stockSectionName);
         debugLog("panel refs hero=" + (isValidPanel(heroList) ? "1" : "0") + " stats=" + (isValidPanel(statsBlock) ? "1" : "0") + " section=" + (isValidPanel(stockSectionName) ? "1" : "0") + " bridge=" + (isValidPanel(bridgePanel) ? "1" : "0"));
         collectMetricRefs();
-        return !!(heroList && statsBlock && stockTitle && stockLeft && stockRight && communityButton && customPanel && bridgePanel && matchCountDropdown && rankedTab && standardTab);
+        return !!(heroList && statsBlock && stockTitle && stockLeft && stockRight && communityButton && customPanel && bridgePanel && supporterTicker && matchCountDropdown && rankedTab && standardTab);
     }
 
     function bindEvents() {
@@ -1333,6 +1369,7 @@
         currentIdentity = readIdentity();
         logIdentity("boot identity", currentIdentity);
         setBridgeVisible(false);
+        closeSupporterTicker();
         setVisibility(customPanel, false);
         bindEvents();
         scheduleCheck(lifecycleGeneration);

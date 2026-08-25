@@ -49,7 +49,8 @@ function makeHarness(account) {
     "ProfileStatsCommunityPanel", "ProfileStatsCommunityIdentity", "ProfileStatsCommunityStatus",
     "ProfileStatsCommunityMetrics", "ProfileStatsCommunityMetadata", "ProfileStatsCommunitySample",
     "ProfileStatsCommunityGenerated", "ProfileStatsCommunityRetry", "ProfileStatsCommunityBridge",
-    "ProfileStatsCommunityAccount", "ProfileStatsCommunityMatchCount", "ProfileStatsCommunityMatchCount50",
+    "ProfileStatsCommunitySupporterTicker", "ProfileStatsCommunityAccount",
+    "ProfileStatsCommunityMatchCount", "ProfileStatsCommunityMatchCount50",
     "ProfileStatsCommunityMatchCount100", "ProfileStatsCommunityMatchCount150",
     "ProfileStatsCommunityRanked", "ProfileStatsCommunityStandard"
   ];
@@ -320,6 +321,41 @@ test("selected hero baseline stays open until a different hero selection", funct
   assert.equal(harness.map.StatsRight.style.visibility, undefined, "hero change does not write stock right visibility");
   assert.equal(bridge.visible, false, "hero change collapses the request bridge");
   assert.equal(bridge.urls[bridge.urls.length - 1], "about:blank");
+});
+
+test("supporter ticker loads only in custom mode and unloads on stock restoration or page cancel", function () {
+  var restoreHarness = makeHarness("42");
+  var restoreTicker = restoreHarness.map.ProfileStatsCommunitySupporterTicker;
+  var cancelHarness;
+  var cancelTicker;
+  var supporterUrl = "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/";
+
+  assert.deepEqual(restoreTicker.urls, ["about:blank"], "stock mode keeps the ticker unloaded");
+  assert.equal(restoreTicker.visible, false);
+  assert.equal(restoreTicker.style.visibility, "collapse");
+
+  restoreHarness.map.ProfileStatsCommunityButton.events.onactivate();
+  assert.equal(restoreTicker.urls[restoreTicker.urls.length - 1], supporterUrl);
+  assert.equal(restoreTicker.visible, true);
+  assert.equal(restoreTicker.style.visibility, "visible");
+
+  restoreHarness.queue.shift().callback();
+  restoreHarness.stockRows[0].classes = ["heroRow"];
+  restoreHarness.stockRows[1].classes.push("selected");
+  restoreHarness.queue.shift().callback();
+  assert.equal(restoreTicker.urls[restoreTicker.urls.length - 1], "about:blank");
+  assert.equal(restoreTicker.visible, false);
+  assert.equal(restoreTicker.style.visibility, "collapse");
+
+  cancelHarness = makeHarness("42");
+  cancelTicker = cancelHarness.map.ProfileStatsCommunitySupporterTicker;
+  assert.deepEqual(cancelTicker.urls, ["about:blank"], "ticker does not load before custom mode");
+  cancelHarness.map.ProfileStatsCommunityButton.events.onactivate();
+  assert.equal(cancelTicker.urls[cancelTicker.urls.length - 1], supporterUrl);
+  cancelHarness.root.events.oncancel();
+  assert.equal(cancelTicker.urls[cancelTicker.urls.length - 1], "about:blank");
+  assert.equal(cancelTicker.visible, false);
+  assert.equal(cancelTicker.style.visibility, "collapse");
 });
 
 test("runtime rejects oversized hostile titles and page cancel restores stock panels", function () {
