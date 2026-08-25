@@ -4,6 +4,6 @@
   "version": "1.0.0",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "validate": "npm test && node --check panorama/scripts/profile_stats_community.js"
+    "validate": "npm test && node --check panorama/scripts/profile_stats_community.js && node --check panorama/scripts/profile_stats_community_context_menu.js"
   }
 }
