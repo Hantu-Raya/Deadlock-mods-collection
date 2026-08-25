@@ -152,10 +152,6 @@
 								</Panel>
 								<Panel id="StatsRight" />
 								<Panel id="ProfileStatsCommunityPanel" class="ProfileStatsCommunityPanel" visibility="collapse">
-									<Panel id="ProfileStatsCommunitySupportBar" class="ProfileStatsCommunitySupportBar">
-										<CitadelHTMLPanel id="ProfileStatsCommunitySupporterTicker" class="ProfileStatsCommunitySupporterTicker" visible="false" hittest="false" acceptsfocus="false" />
-										<Button id="ProfileStatsCommunityDonate" class="ProfileStatsCommunityDonateButton" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://ko-fi.com/hantuaraya&apos; );"><Label text="DONATE" /></Button>
-									</Panel>
 									<Panel id="ProfileStatsCommunityHeader" class="ProfileStatsCommunityHeader">
 										<Panel class="ProfileStatsCommunityTitleBlock">
 											<Label class="ProfileStatsCommunityEyebrow" text="STATS VS COMMUNITY" />
@@ -213,8 +209,12 @@
 									</Panel>
 									<Panel id="ProfileStatsCommunityMetadata" class="ProfileStatsCommunityMetadata" visibility="collapse">
 										<Label id="ProfileStatsCommunitySample" class="ProfileStatsCommunityMetadataText" text="" />
-										<Button id="ProfileStatsCommunityPoweredBy" class="ProfileStatsCommunityPoweredByButton" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://deadlock-api.com/&apos; );"><Label text="POWERED BY DEADLOCK API" /></Button>
 										<Label id="ProfileStatsCommunityGenerated" class="ProfileStatsCommunityMetadataText" text="" />
+										<Button id="ProfileStatsCommunityPoweredBy" class="ProfileStatsCommunityPoweredByLink" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://deadlock-api.com/&apos; );"><Label text="POWERED BY DEADLOCK API" /></Button>
+									</Panel>
+									<Panel id="ProfileStatsCommunitySupportBar" class="ProfileStatsCommunitySupportBar">
+										<CitadelHTMLPanel id="ProfileStatsCommunitySupporterTicker" class="ProfileStatsCommunitySupporterTicker" visible="false" hittest="false" acceptsfocus="false" />
+										<Button id="ProfileStatsCommunityDonate" class="ProfileStatsCommunityDonateButton" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://ko-fi.com/hantuaraya&apos; );"><Label text="DONATE" /></Button>
 									</Panel>
 									<Button id="ProfileStatsCommunityRetry" class="ProfileStatsCommunityRetryButton" visibility="collapse"><Label text="Retry" /></Button>
 									<CitadelHTMLPanel id="ProfileStatsCommunityBridge" class="ProfileStatsCommunityBridge" visible="false" hittest="false" acceptsfocus="false" />

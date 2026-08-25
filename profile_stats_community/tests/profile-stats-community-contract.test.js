@@ -125,11 +125,11 @@ test("community navigation keeps the hero-list alignment contract", function () 
   assert.ok(buttonRule, "community navigation button styles must remain declared");
   assert.ok(buttonLabelRule, "community navigation label styles must remain declared");
   assert.match(buttonRule[1], /\bignore-parent-flow\s*:\s*true\s*;/);
-  assert.match(buttonRule[1], /\bpadding\s*:\s*0px\s+14px\s*;/);
+  assert.match(buttonRule[1], /\bpadding\s*:\s*0px\s+24px\s*;/);
   assert.match(buttonLabelRule[1], /\bmargin-left\s*:\s*10px\s*;/);
 });
 
-test("support banner and metadata keep their shared placement and visual contracts", function () {
+test("statistics lead the minimal support footer and metadata", function () {
   var panelChildren = directChildIds(layout, "ProfileStatsCommunityPanel");
   var supportBarChildren = directChildIds(layout, "ProfileStatsCommunitySupportBar");
   var metadataChildren = directChildIds(layout, "ProfileStatsCommunityMetadata");
@@ -147,9 +147,12 @@ test("support banner and metadata keep their shared placement and visual contrac
   var donateStateLabelRule = /\.ProfileStatsCommunityDonateButton:hover\s+Label\s*,\s*\.ProfileStatsCommunityDonateButton:focus\s+Label\s*\{([\s\S]*?)\}/.exec(styles);
   var metadataRule = /\.ProfileStatsCommunityMetadata\s*\{([\s\S]*?)\}/.exec(styles);
   var metadataTextRule = /\.ProfileStatsCommunityMetadataText\s*\{([\s\S]*?)\}/.exec(styles);
-  var poweredByRule = /\.ProfileStatsCommunityPoweredByButton\s*\{([\s\S]*?)\}/.exec(styles);
-  var poweredByStateRule = /\.ProfileStatsCommunityPoweredByButton:hover\s*,\s*\.ProfileStatsCommunityPoweredByButton:focus\s*\{([\s\S]*?)\}/.exec(styles);
-  var poweredByStateLabelRule = /\.ProfileStatsCommunityPoweredByButton:hover\s+Label\s*,\s*\.ProfileStatsCommunityPoweredByButton:focus\s+Label\s*\{([\s\S]*?)\}/.exec(styles);
+  var poweredByRule = /\.ProfileStatsCommunityPoweredByLink\s*\{([\s\S]*?)\}/.exec(styles);
+  var poweredByStateRule = /\.ProfileStatsCommunityPoweredByLink:hover\s*,\s*\.ProfileStatsCommunityPoweredByLink:focus\s*\{([\s\S]*?)\}/.exec(styles);
+  var poweredByStateLabelRule = /\.ProfileStatsCommunityPoweredByLink:hover\s+Label\s*,\s*\.ProfileStatsCommunityPoweredByLink:focus\s+Label\s*\{([\s\S]*?)\}/.exec(styles);
+  var metricsIndex = panelChildren.indexOf("ProfileStatsCommunityMetrics");
+  var metadataIndex = panelChildren.indexOf("ProfileStatsCommunityMetadata");
+  var supportIndex = panelChildren.indexOf("ProfileStatsCommunitySupportBar");
   var requiredIds = [
     "ProfileStatsCommunitySupportBar",
     "ProfileStatsCommunitySupporterTicker",
@@ -157,9 +160,10 @@ test("support banner and metadata keep their shared placement and visual contrac
     "ProfileStatsCommunityDonate"
   ];
 
-  assert.equal(panelChildren[0], "ProfileStatsCommunitySupportBar", "support bar must be the first custom-panel child");
+  assert.ok(metricsIndex >= 0 && metricsIndex < metadataIndex, "statistics must precede footer metadata");
+  assert.equal(supportIndex, metadataIndex + 1, "support strip must sit below metadata at the panel bottom");
   assert.deepEqual(supportBarChildren, ["ProfileStatsCommunitySupporterTicker", "ProfileStatsCommunityDonate"]);
-  assert.deepEqual(metadataChildren, ["ProfileStatsCommunitySample", "ProfileStatsCommunityPoweredBy", "ProfileStatsCommunityGenerated"]);
+  assert.deepEqual(metadataChildren, ["ProfileStatsCommunitySample", "ProfileStatsCommunityGenerated", "ProfileStatsCommunityPoweredBy"]);
   requiredIds.forEach(function (id) {
     assert.equal(count(layout, new RegExp('id\\s*=\\s*"' + id + '"', "g")), 1, id + " must be unique");
   });
@@ -173,7 +177,8 @@ test("support banner and metadata keep their shared placement and visual contrac
   assert.match(script, /findPanel\(\s*"ProfileStatsCommunitySupporterTicker"\s*\)/);
   assert.equal(count(script, new RegExp(tickerUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")), 1);
 
-  assert.ok(poweredByTag, "Deadlock API attribution button must remain declared");
+  assert.ok(poweredByTag, "Deadlock API attribution link must remain declared");
+  assert.match(poweredByTag[0], /\bclass\s*=\s*"ProfileStatsCommunityPoweredByLink"/);
   assert.ok(donateTag, "donation button must remain declared");
   poweredByUrl = /ExternalBrowserGoToURL&apos;\s*,\s*&apos;([^&]+)&apos;/.exec(poweredByTag[0]);
   donateUrl = /ExternalBrowserGoToURL&apos;\s*,\s*&apos;([^&]+)&apos;/.exec(donateTag[0]);
@@ -182,55 +187,54 @@ test("support banner and metadata keep their shared placement and visual contrac
   assert.equal(poweredByUrl[1], "https://deadlock-api.com/");
   assert.equal(donateUrl[1], "https://ko-fi.com/hantuaraya");
 
-  assert.ok(supportBarRule, "integrated support banner styles must remain declared");
-  assert.match(supportBarRule[1], /\bheight\s*:\s*42px\s*;/);
-  assert.match(supportBarRule[1], /\bpadding\s*:\s*5px\s+8px\s+5px\s+16px\s*;/);
-  assert.match(supportBarRule[1], /\bbackground-color\s*:\s*#262417\s*;/i);
-  assert.match(supportBarRule[1], /\bborder\s*:\s*1px\s+solid\s+#9b824455\s*;/i);
+  assert.ok(supportBarRule, "minimal support strip styles must remain declared");
+  assert.match(supportBarRule[1], /\bheight\s*:\s*28px\s*;/);
+  assert.match(supportBarRule[1], /\bpadding\s*:\s*1px\s+0px\s*;/);
+  assert.match(supportBarRule[1], /\bbackground-color\s*:\s*offBlack\s*;/i);
+  assert.match(supportBarRule[1], /\bopacity\s*:\s*0\.55\s*;/);
+  assert.doesNotMatch(supportBarRule[1], /\bborder\s*:/, "support strip must not compete with statistics");
   assert.match(supportBarRule[1], /\boverflow\s*:\s*clip\s*;/);
   assert.ok(tickerRule, "supporter ticker styles must remain declared");
   assert.match(tickerRule[1], /\bwidth\s*:\s*fill-parent-flow\(\s*1\s*\)\s*;/);
-  assert.match(tickerRule[1], /\bheight\s*:\s*30px\s*;/);
+  assert.match(tickerRule[1], /\bheight\s*:\s*26px\s*;/);
   assert.match(tickerRule[1], /\bmargin-right\s*:\s*8px\s*;/);
-  assert.match(tickerRule[1], /\bbackground-color\s*:\s*#262417\s*;/i);
-  assert.match(tickerRule[1], /\bbrightness\s*:\s*1\.08\s*;/);
+  assert.match(tickerRule[1], /\bbackground-color\s*:\s*offBlack\s*;/i);
+  assert.match(tickerRule[1], /\bbrightness\s*:\s*0\.72\s*;/);
   assert.match(tickerRule[1], /\boverflow\s*:\s*clip\s*;/);
 
   assert.ok(donateRule, "donation button styles must remain declared");
-  assert.match(donateRule[1], /\bwidth\s*:\s*86px\s*;/);
-  assert.match(donateRule[1], /\bheight\s*:\s*30px\s*;/);
-  assert.match(donateRule[1], /\bpadding\s*:\s*0px\s+12px\s*;/);
-  assert.match(donateRule[1], /\bbackground-color\s*:\s*#514320\s*;/i);
-  assert.match(donateRule[1], /\bborder\s*:\s*1px\s+solid\s+#9d8240\s*;/i);
+  assert.match(donateRule[1], /\bwidth\s*:\s*72px\s*;/);
+  assert.match(donateRule[1], /\bheight\s*:\s*26px\s*;/);
+  assert.match(donateRule[1], /\bpadding\s*:\s*0px\s+8px\s*;/);
+  assert.match(donateRule[1], /\bbackground-color\s*:\s*offWhite&03\s*;/i);
+  assert.match(donateRule[1], /\bborder\s*:\s*1px\s+solid\s+#9d824044\s*;/i);
   assert.ok(donateLabelRule, "donation label styles must remain declared");
-  assert.match(donateLabelRule[1], /\bcolor\s*:\s*#e9d799\s*;/i);
+  assert.match(donateLabelRule[1], /\bcolor\s*:\s*#bda66a\s*;/i);
   assert.ok(donateStateRule, "donation hover and focus styles must remain paired");
-  assert.match(donateStateRule[1], /\bbackground-color\s*:\s*#6a5727\s*;/i);
-  assert.match(donateStateRule[1], /\bborder\s*:\s*1px\s+solid\s+#d0ad55\s*;/i);
+  assert.match(donateStateRule[1], /\bbackground-color\s*:\s*#51432066\s*;/i);
+  assert.match(donateStateRule[1], /\bborder\s*:\s*1px\s+solid\s+#9d824088\s*;/i);
   assert.ok(donateStateLabelRule, "donation hover and focus label styles must remain paired");
-  assert.match(donateStateLabelRule[1], /\bcolor\s*:\s*#fff0b8\s*;/i);
+  assert.match(donateStateLabelRule[1], /\bcolor\s*:\s*#e9d799\s*;/i);
 
   assert.ok(metadataRule, "metadata footer styles must remain declared");
-  assert.match(metadataRule[1], /\bheight\s*:\s*30px\s*;/);
-  assert.match(metadataRule[1], /\bmargin-top\s*:\s*8px\s*;/);
+  assert.match(metadataRule[1], /\bheight\s*:\s*24px\s*;/);
+  assert.match(metadataRule[1], /\bmargin-top\s*:\s*4px\s*;/);
   assert.doesNotMatch(metadataRule[1], /\bpadding(?:-[a-z]+)?\s*:/, "metadata footer must not consume horizontal flow width");
   assert.ok(metadataTextRule, "metadata flow styles must remain declared");
   assert.match(metadataTextRule[1], /\bwidth\s*:\s*fill-parent-flow\(\s*1\s*\)\s*;/);
   assert.doesNotMatch(metadataTextRule[1], /\bwidth\s*:\s*50%\s*;/);
 
-  assert.ok(poweredByRule, "metadata attribution styles must remain declared");
-  assert.match(poweredByRule[1], /\bwidth\s*:\s*208px\s*;/);
+  assert.ok(poweredByRule, "text attribution styles must remain declared");
+  assert.match(poweredByRule[1], /\bwidth\s*:\s*190px\s*;/);
   assert.match(poweredByRule[1], /\bheight\s*:\s*24px\s*;/);
-  assert.match(poweredByRule[1], /\bbackground-color\s*:\s*offWhite&03\s*;/i);
-  assert.match(poweredByRule[1], /\bborder\s*:\s*1px\s+solid\s+offWhite&12\s*;/i);
+  assert.match(poweredByRule[1], /\bopacity\s*:\s*0\.55\s*;/);
+  assert.doesNotMatch(poweredByRule[1], /\bbackground-color\s*:/, "attribution must render as text, not a button");
+  assert.doesNotMatch(poweredByRule[1], /\bborder\s*:/, "attribution must render as text, not a button");
+  assert.doesNotMatch(poweredByRule[1], /\bbox-shadow\s*:/, "attribution must not glow");
   assert.ok(poweredByStateRule, "attribution hover and focus styles must remain paired");
-  assert.match(poweredByStateRule[1], /\bbackground-color\s*:\s*#4b171c\s*;/i);
-  assert.match(poweredByStateRule[1], /\bborder\s*:\s*1px\s+solid\s+#a43b47\s*;/i);
   assert.match(poweredByStateRule[1], /\bopacity\s*:\s*1\s*;/);
-  assert.match(poweredByStateRule[1], /\bbox-shadow\s*:\s*fill\s+#a72f4266\s+0px\s+0px\s+10px\s+0px\s*;/i);
   assert.ok(poweredByStateLabelRule, "attribution hover and focus label styles must remain paired");
-  assert.match(poweredByStateLabelRule[1], /\bcolor\s*:\s*#f3d9dc\s*;/i);
-  assert.match(poweredByStateLabelRule[1], /\bbrightness\s*:\s*1\.35\s*;/);
+  assert.match(poweredByStateLabelRule[1], /\bcolor\s*:\s*#c77782\s*;/i);
 });
 
 test("all six ordered groups and every required comparison row are declared", function () {

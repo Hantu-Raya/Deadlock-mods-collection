@@ -7,7 +7,7 @@
 	width: 264px;
 	height: 52px;
 	margin-bottom: 4px;
-	padding: 0px 14px;
+	padding: 0px 24px;
 	flow-children: right;
 	background-color: gradient( linear, 0% 0%, 100% 0%, from( #76767614 ), to( #76767604 ) );
 	border-top: 2px solid offWhite&00;
@@ -73,34 +73,33 @@
 #ProfileStatsCommunitySupportBar
 {
 	width: 100%;
-	height: 42px;
-	padding: 5px 8px 5px 16px;
+	height: 28px;
+	padding: 1px 0px;
 	flow-children: right;
-	background-color: #262417;
-	border: 1px solid #9B824455;
-	box-shadow: inset 0px 0px 16px #00000055;
+	background-color: offBlack;
+	opacity: 0.55;
 	overflow: clip;
 }
 
 #ProfileStatsCommunitySupporterTicker
 {
 	width: fill-parent-flow(1);
-	height: 30px;
+	height: 26px;
 	margin-right: 8px;
 	vertical-align: center;
-	background-color: #262417;
-	brightness: 1.08;
+	background-color: offBlack;
+	brightness: 0.72;
 	overflow: clip;
 }
 
 .ProfileStatsCommunityDonateButton
 {
-	width: 86px;
-	height: 30px;
-	padding: 0px 12px;
+	width: 72px;
+	height: 26px;
+	padding: 0px 8px;
 	vertical-align: center;
-	background-color: #514320;
-	border: 1px solid #9D8240;
+	background-color: offWhite&03;
+	border: 1px solid #9D824044;
 	transition-property: background-color, border;
 	transition-duration: 0.12s;
 }
@@ -109,29 +108,29 @@
 {
 	horizontal-align: center;
 	vertical-align: center;
-	font-size: 11px;
+	font-size: 10px;
 	font-weight: bold;
 	letter-spacing: 1px;
-	color: #E9D799;
+	color: #BDA66A;
 	white-space: nowrap;
 }
 
 .ProfileStatsCommunityDonateButton:hover,
 .ProfileStatsCommunityDonateButton:focus
 {
-	background-color: #6A5727;
-	border: 1px solid #D0AD55;
+	background-color: #51432066;
+	border: 1px solid #9D824088;
 }
 
 .ProfileStatsCommunityDonateButton:hover Label,
 .ProfileStatsCommunityDonateButton:focus Label
 {
-	color: #FFF0B8;
+	color: #E9D799;
 }
 
 .ProfileStatsCommunityDonateButton:active
 {
-	background-color: #9D8240;
+	background-color: #514320;
 }
 
 
@@ -356,71 +355,60 @@
 .ProfileStatsCommunityMetadata
 {
 	width: 100%;
-	height: 30px;
-	margin-top: 8px;
+	height: 24px;
+	margin-top: 4px;
 	flow-children: right;
-	border-top: 1px solid offWhite&18;
+	border-top: 1px solid offWhite&12;
 }
 
 .ProfileStatsCommunityMetadataText
 {
 	width: fill-parent-flow(1);
-	height: 30px;
+	height: 24px;
 	vertical-align: center;
-	font-size: 13px;
-	color: offWhite&66;
+	font-size: 11px;
+	color: offWhite&55;
 	text-overflow: shrink;
 	white-space: nowrap;
 }
 
-.ProfileStatsCommunityPoweredByButton
+.ProfileStatsCommunityPoweredByLink
 {
-	width: 208px;
+	width: 190px;
 	height: 24px;
-	padding: 0px 12px;
+	padding: 0px 8px;
 	vertical-align: center;
-	background-color: offWhite&03;
-	border: 1px solid offWhite&12;
-	opacity: 0.72;
-	transition-property: background-color, border, box-shadow, opacity;
+	opacity: 0.55;
+	transition-property: opacity;
 	transition-duration: 0.12s;
 }
 
-.ProfileStatsCommunityPoweredByButton Label
+.ProfileStatsCommunityPoweredByLink Label
 {
 	width: 100%;
-	horizontal-align: center;
+	horizontal-align: right;
 	vertical-align: center;
 	font-size: 10px;
-	font-weight: bold;
+	font-weight: medium;
 	letter-spacing: 1px;
-	text-align: center;
+	text-align: right;
 	color: offWhite&77;
 	text-overflow: shrink;
 	white-space: nowrap;
-	transition-property: color, brightness;
+	transition-property: color;
 	transition-duration: 0.12s;
 }
 
-.ProfileStatsCommunityPoweredByButton:hover,
-.ProfileStatsCommunityPoweredByButton:focus
+.ProfileStatsCommunityPoweredByLink:hover,
+.ProfileStatsCommunityPoweredByLink:focus
 {
-	background-color: #4B171C;
-	border: 1px solid #A43B47;
-	box-shadow: fill #A72F4266 0px 0px 10px 0px;
 	opacity: 1;
 }
 
-.ProfileStatsCommunityPoweredByButton:hover Label,
-.ProfileStatsCommunityPoweredByButton:focus Label
+.ProfileStatsCommunityPoweredByLink:hover Label,
+.ProfileStatsCommunityPoweredByLink:focus Label
 {
-	color: #F3D9DC;
-	brightness: 1.35;
-}
-
-.ProfileStatsCommunityPoweredByButton:active
-{
-	background-color: #A43B47;
+	color: #C77782;
 }
 
 #ProfileStatsCommunityGenerated
