@@ -158,6 +158,10 @@
 											<Button id="ProfileStatsCommunityStatLocker" class="ProfileStatsCommunityStatLockerLink"><Label text="STATLOCKER PROFILE" /></Button>
 										</Panel>
 										<Panel id="ProfileStatsCommunityFilters" class="ProfileStatsCommunityFilters">
+											<Panel id="ProfileStatsCommunityDisplayToggle" class="ProfileStatsCommunityDisplayToggle">
+												<TabButton id="ProfileStatsCommunityDisplayCommunity" class="ProfileStatsCommunityDisplayTab" group="profile_stats_community_display_mode" text="COMMUNITY AVG" />
+												<TabButton id="ProfileStatsCommunityDisplayPercentile" class="ProfileStatsCommunityDisplayTab" group="profile_stats_community_display_mode" text="TOP %" selected="true" />
+											</Panel>
 											<Panel class="ProfileStatsCommunityModeTabs">
 												<TabButton id="ProfileStatsCommunityRanked" class="ProfileStatsCommunityModeTab" group="profile_stats_community_mode" text="RANKED" selected="true" />
 												<TabButton id="ProfileStatsCommunityStandard" class="ProfileStatsCommunityModeTab" group="profile_stats_community_mode" text="STANDARD" />
@@ -173,54 +177,56 @@
 										<Panel class="ProfileStatsCommunityColumnHeadings">
 											<Label class="ProfileStatsCommunityMetricHeading" text="METRIC" />
 											<Label id="ProfileStatsCommunityPlayerHeadingLeft" class="ProfileStatsCommunityValueHeading" text="PLAYER" />
-											<Label class="ProfileStatsCommunityValueHeading" text="COMMUNITY" />
+											<Label id="ProfileStatsCommunityCommunityHeadingLeft" class="ProfileStatsCommunityValueHeading" text="COMMUNITY" visibility="collapse" />
+											<Label id="ProfileStatsCommunityPercentileHeadingLeft" class="ProfileStatsCommunityPercentileHeading" text="PERCENTILE" />
 										</Panel>
 										<Panel class="ProfileStatsCommunityGridGap" />
 										<Panel class="ProfileStatsCommunityColumnHeadings">
 											<Label class="ProfileStatsCommunityMetricHeading" text="METRIC" />
 											<Label id="ProfileStatsCommunityPlayerHeadingRight" class="ProfileStatsCommunityValueHeading" text="PLAYER" />
-											<Label class="ProfileStatsCommunityValueHeading" text="COMMUNITY" />
+											<Label id="ProfileStatsCommunityCommunityHeadingRight" class="ProfileStatsCommunityValueHeading" text="COMMUNITY" visibility="collapse" />
+											<Label id="ProfileStatsCommunityPercentileHeadingRight" class="ProfileStatsCommunityPercentileHeading" text="PERCENTILE" />
 										</Panel>
 									</Panel>
 									<Label id="ProfileStatsCommunityStatus" class="ProfileStatsCommunityStatus" text="" />
 									<Panel id="ProfileStatsCommunityMetrics" class="ProfileStatsCommunityMetrics" visibility="collapse">
 										<Panel id="ProfileStatsCommunityGridCombatKills" class="ProfileStatsCommunityGridRow">
 											<Panel id="ProfileStatsCommunityGroupCombat" class="ProfileStatsCommunityGroup">
-												<Label class="ProfileStatsCommunityGroupTitle" text="COMBAT" />
-												<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="K/D" /><Label id="PSCMetricKdPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricKdCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
-												<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="KDA" /><Label id="PSCMetricKdaPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricKdaCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityGroupHeader"><Label class="ProfileStatsCommunityGroupTitle" text="COMBAT" /><Label class="ProfileStatsCommunityGroupAverageLabel" text="AVG PERCENTILE" /><Label id="PSCGroupCombatPercentile" class="ProfileStatsCommunityGroupBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="K/D" /><Label id="PSCMetricKdPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricKdCommunity" class="ProfileStatsCommunityValue" text="—" visibility="collapse" /><Label id="PSCMetricKdPercentile" class="ProfileStatsCommunityPercentileBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="KDA" /><Label id="PSCMetricKdaPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricKdaCommunity" class="ProfileStatsCommunityValue" text="—" visibility="collapse" /><Label id="PSCMetricKdaPercentile" class="ProfileStatsCommunityPercentileBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
 											</Panel>
 											<Panel class="ProfileStatsCommunityGridGap" />
 											<Panel id="ProfileStatsCommunityGroupKills" class="ProfileStatsCommunityGroup">
-												<Label class="ProfileStatsCommunityGroupTitle" text="KILLS" />
-												<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="AVERAGE KILLS" /><Label id="PSCMetricAverageKillsPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricAverageKillsCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
-												<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="AVERAGE ASSISTS" /><Label id="PSCMetricAverageAssistsPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricAverageAssistsCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityGroupHeader"><Label class="ProfileStatsCommunityGroupTitle" text="KILLS" /><Label class="ProfileStatsCommunityGroupAverageLabel" text="AVG PERCENTILE" /><Label id="PSCGroupKillsPercentile" class="ProfileStatsCommunityGroupBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="AVERAGE KILLS" /><Label id="PSCMetricAverageKillsPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricAverageKillsCommunity" class="ProfileStatsCommunityValue" text="—" visibility="collapse" /><Label id="PSCMetricAverageKillsPercentile" class="ProfileStatsCommunityPercentileBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="AVERAGE ASSISTS" /><Label id="PSCMetricAverageAssistsPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricAverageAssistsCommunity" class="ProfileStatsCommunityValue" text="—" visibility="collapse" /><Label id="PSCMetricAverageAssistsPercentile" class="ProfileStatsCommunityPercentileBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
 											</Panel>
 										</Panel>
 										<Panel id="ProfileStatsCommunityGridSurvivalDamage" class="ProfileStatsCommunityGridRow">
 											<Panel id="ProfileStatsCommunityGroupSurvival" class="ProfileStatsCommunityGroup">
-												<Label class="ProfileStatsCommunityGroupTitle" text="SURVIVAL" />
-												<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="AVERAGE DEATHS" /><Label id="PSCMetricAverageDeathsPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricAverageDeathsCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
-												<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="DAMAGE TAKEN PER MINUTE" /><Label id="PSCMetricDamageTakenPerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricDamageTakenPerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityGroupHeader"><Label class="ProfileStatsCommunityGroupTitle" text="SURVIVAL" /><Label class="ProfileStatsCommunityGroupAverageLabel" text="AVG PERCENTILE" /><Label id="PSCGroupSurvivalPercentile" class="ProfileStatsCommunityGroupBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="AVERAGE DEATHS" /><Label id="PSCMetricAverageDeathsPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricAverageDeathsCommunity" class="ProfileStatsCommunityValue" text="—" visibility="collapse" /><Label id="PSCMetricAverageDeathsPercentile" class="ProfileStatsCommunityPercentileBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="DAMAGE TAKEN PER MINUTE" /><Label id="PSCMetricDamageTakenPerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricDamageTakenPerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" visibility="collapse" /><Label id="PSCMetricDamageTakenPerMinutePercentile" class="ProfileStatsCommunityPercentileBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
 											</Panel>
 											<Panel class="ProfileStatsCommunityGridGap" />
 											<Panel id="ProfileStatsCommunityGroupDamage" class="ProfileStatsCommunityGroup">
-												<Label class="ProfileStatsCommunityGroupTitle" text="DAMAGE" />
-												<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="PLAYER DAMAGE PER MINUTE" /><Label id="PSCMetricPlayerDamagePerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricPlayerDamagePerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
-												<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="ACCURACY" /><Label id="PSCMetricAccuracyPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricAccuracyCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
-												<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="CRITICAL-HIT RATE" /><Label id="PSCMetricCriticalHitRatePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricCriticalHitRateCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityGroupHeader"><Label class="ProfileStatsCommunityGroupTitle" text="DAMAGE" /><Label class="ProfileStatsCommunityGroupAverageLabel" text="AVG PERCENTILE" /><Label id="PSCGroupDamagePercentile" class="ProfileStatsCommunityGroupBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="PLAYER DAMAGE PER MINUTE" /><Label id="PSCMetricPlayerDamagePerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricPlayerDamagePerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" visibility="collapse" /><Label id="PSCMetricPlayerDamagePerMinutePercentile" class="ProfileStatsCommunityPercentileBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="ACCURACY" /><Label id="PSCMetricAccuracyPlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricAccuracyCommunity" class="ProfileStatsCommunityValue" text="—" visibility="collapse" /><Label id="PSCMetricAccuracyPercentile" class="ProfileStatsCommunityPercentileBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="CRITICAL-HIT RATE" /><Label id="PSCMetricCriticalHitRatePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricCriticalHitRateCommunity" class="ProfileStatsCommunityValue" text="—" visibility="collapse" /><Label id="PSCMetricCriticalHitRatePercentile" class="ProfileStatsCommunityPercentileBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="BOSS DAMAGE PER MINUTE" /><Label id="PSCMetricBossDamagePerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricBossDamagePerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" visibility="collapse" /><Label id="PSCMetricBossDamagePerMinutePercentile" class="ProfileStatsCommunityPercentileBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
 											</Panel>
 										</Panel>
 										<Panel id="ProfileStatsCommunityGridEconomySustain" class="ProfileStatsCommunityGridRow LastRow">
 											<Panel id="ProfileStatsCommunityGroupEconomy" class="ProfileStatsCommunityGroup">
-												<Label class="ProfileStatsCommunityGroupTitle" text="ECONOMY" />
-												<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="NET WORTH PER MINUTE" /><Label id="PSCMetricNetWorthPerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricNetWorthPerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
-												<Panel class="ProfileStatsCommunityMetricRow SubMetric"><Label class="ProfileStatsCommunityMetricLabel" text="BOSS DAMAGE PER MINUTE" /><Label id="PSCMetricBossDamagePerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricBossDamagePerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityGroupHeader"><Label class="ProfileStatsCommunityGroupTitle" text="ECONOMY" /><Label class="ProfileStatsCommunityGroupAverageLabel" text="AVG PERCENTILE" /><Label id="PSCGroupEconomyPercentile" class="ProfileStatsCommunityGroupBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="NET WORTH PER MINUTE" /><Label id="PSCMetricNetWorthPerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricNetWorthPerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" visibility="collapse" /><Label id="PSCMetricNetWorthPerMinutePercentile" class="ProfileStatsCommunityPercentileBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
 											</Panel>
 											<Panel class="ProfileStatsCommunityGridGap" />
 											<Panel id="ProfileStatsCommunityGroupSustain" class="ProfileStatsCommunityGroup">
-												<Label class="ProfileStatsCommunityGroupTitle" text="SUSTAIN" />
-												<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="HEALING PER MINUTE" /><Label id="PSCMetricHealingPerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricHealingPerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityGroupHeader"><Label class="ProfileStatsCommunityGroupTitle" text="SUSTAIN" /><Label class="ProfileStatsCommunityGroupAverageLabel" text="AVG PERCENTILE" /><Label id="PSCGroupSustainPercentile" class="ProfileStatsCommunityGroupBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
+												<Panel class="ProfileStatsCommunityMetricRow PrimaryMetric"><Label class="ProfileStatsCommunityMetricLabel" text="HEALING PER MINUTE" /><Label id="PSCMetricHealingPerMinutePlayer" class="ProfileStatsCommunityValue" text="—" /><Label id="PSCMetricHealingPerMinuteCommunity" class="ProfileStatsCommunityValue" text="—" visibility="collapse" /><Label id="PSCMetricHealingPerMinutePercentile" class="ProfileStatsCommunityPercentileBadge ProfileStatsCommunityPercentileUnavailable" text="—" /></Panel>
 											</Panel>
 										</Panel>
 									</Panel>

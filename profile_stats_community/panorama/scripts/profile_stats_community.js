@@ -20,6 +20,10 @@
         "ranked": true,
         "standard": true
     };
+    var COMPARISON_MODES = {
+        "community": true,
+        "percentile": true
+    };
     var AUTHORITY_NAMES = ["accountid", "steamid"];
     var CACHE_TTL_MS = 10 * 60 * 1000;
     var CONTEXT_CHECK_SECONDS = 0.5;
@@ -51,11 +55,11 @@
         },
         {
             id: "damage",
-            metrics: ["player_damage_per_minute", "accuracy", "critical_hit_rate"]
+            metrics: ["player_damage_per_minute", "accuracy", "critical_hit_rate", "boss_damage_per_minute"]
         },
         {
             id: "economy",
-            metrics: ["net_worth_per_minute", "boss_damage_per_minute"]
+            metrics: ["net_worth_per_minute"]
         },
         {
             id: "sustain",
@@ -64,19 +68,33 @@
     ];
 
     var METRIC_PANELS = {
-        "kd": ["PSCMetricKdPlayer", "PSCMetricKdCommunity"],
-        "kda": ["PSCMetricKdaPlayer", "PSCMetricKdaCommunity"],
-        "average_kills": ["PSCMetricAverageKillsPlayer", "PSCMetricAverageKillsCommunity"],
-        "average_assists": ["PSCMetricAverageAssistsPlayer", "PSCMetricAverageAssistsCommunity"],
-        "average_deaths": ["PSCMetricAverageDeathsPlayer", "PSCMetricAverageDeathsCommunity"],
-        "damage_taken_per_minute": ["PSCMetricDamageTakenPerMinutePlayer", "PSCMetricDamageTakenPerMinuteCommunity"],
-        "player_damage_per_minute": ["PSCMetricPlayerDamagePerMinutePlayer", "PSCMetricPlayerDamagePerMinuteCommunity"],
-        "accuracy": ["PSCMetricAccuracyPlayer", "PSCMetricAccuracyCommunity"],
-        "critical_hit_rate": ["PSCMetricCriticalHitRatePlayer", "PSCMetricCriticalHitRateCommunity"],
-        "net_worth_per_minute": ["PSCMetricNetWorthPerMinutePlayer", "PSCMetricNetWorthPerMinuteCommunity"],
-        "boss_damage_per_minute": ["PSCMetricBossDamagePerMinutePlayer", "PSCMetricBossDamagePerMinuteCommunity"],
-        "healing_per_minute": ["PSCMetricHealingPerMinutePlayer", "PSCMetricHealingPerMinuteCommunity"]
+        "kd": ["PSCMetricKdPlayer", "PSCMetricKdCommunity", "PSCMetricKdPercentile"],
+        "kda": ["PSCMetricKdaPlayer", "PSCMetricKdaCommunity", "PSCMetricKdaPercentile"],
+        "average_kills": ["PSCMetricAverageKillsPlayer", "PSCMetricAverageKillsCommunity", "PSCMetricAverageKillsPercentile"],
+        "average_assists": ["PSCMetricAverageAssistsPlayer", "PSCMetricAverageAssistsCommunity", "PSCMetricAverageAssistsPercentile"],
+        "average_deaths": ["PSCMetricAverageDeathsPlayer", "PSCMetricAverageDeathsCommunity", "PSCMetricAverageDeathsPercentile"],
+        "damage_taken_per_minute": ["PSCMetricDamageTakenPerMinutePlayer", "PSCMetricDamageTakenPerMinuteCommunity", "PSCMetricDamageTakenPerMinutePercentile"],
+        "player_damage_per_minute": ["PSCMetricPlayerDamagePerMinutePlayer", "PSCMetricPlayerDamagePerMinuteCommunity", "PSCMetricPlayerDamagePerMinutePercentile"],
+        "accuracy": ["PSCMetricAccuracyPlayer", "PSCMetricAccuracyCommunity", "PSCMetricAccuracyPercentile"],
+        "critical_hit_rate": ["PSCMetricCriticalHitRatePlayer", "PSCMetricCriticalHitRateCommunity", "PSCMetricCriticalHitRatePercentile"],
+        "net_worth_per_minute": ["PSCMetricNetWorthPerMinutePlayer", "PSCMetricNetWorthPerMinuteCommunity", "PSCMetricNetWorthPerMinutePercentile"],
+        "boss_damage_per_minute": ["PSCMetricBossDamagePerMinutePlayer", "PSCMetricBossDamagePerMinuteCommunity", "PSCMetricBossDamagePerMinutePercentile"],
+        "healing_per_minute": ["PSCMetricHealingPerMinutePlayer", "PSCMetricHealingPerMinuteCommunity", "PSCMetricHealingPerMinutePercentile"]
     };
+
+    var GROUP_PERCENTILE_PANELS = {
+        "combat": "PSCGroupCombatPercentile",
+        "kills": "PSCGroupKillsPercentile",
+        "survival": "PSCGroupSurvivalPercentile",
+        "damage": "PSCGroupDamagePercentile",
+        "economy": "PSCGroupEconomyPercentile",
+        "sustain": "PSCGroupSustainPercentile"
+    };
+
+    var PERCENTILE_TOP_CLASS = "ProfileStatsCommunityPercentileTop";
+    var PERCENTILE_BOTTOM_CLASS = "ProfileStatsCommunityPercentileBottom";
+    var PERCENTILE_UNAVAILABLE_CLASS = "ProfileStatsCommunityPercentileUnavailable";
+    var VALUE_UNAVAILABLE_CLASS = "ProfileStatsCommunityValueUnavailable";
 
     var ERROR_CODES = {
         "invalid_query": true,
@@ -126,6 +144,12 @@
     var matchCountDropdown = null;
     var rankedTab = null;
     var standardTab = null;
+    var displayCommunityTab = null;
+    var displayPercentileTab = null;
+    var communityHeadingLeft = null;
+    var percentileHeadingLeft = null;
+    var communityHeadingRight = null;
+    var percentileHeadingRight = null;
     var metricRefs = {};
     var stockSectionSignature = "";
     var stockRowSignature = "";
@@ -147,6 +171,7 @@
     var initialized = false;
     var selectedMatches = DEFAULT_MATCH_LIMIT;
     var selectedMode = "ranked";
+    var selectedComparison = "percentile";
 
     function isCallable(value) {
         return typeof value === "function";
@@ -290,6 +315,21 @@
         }
         try {
             panel.text = value === null || value === undefined ? "" : String(value);
+        } catch (error) {
+            return;
+        }
+    }
+
+    function setClass(panel, className, enabled) {
+        if (!isValidPanel(panel) || !className) {
+            return;
+        }
+        try {
+            if (enabled && isCallable(panel.AddClass)) {
+                panel.AddClass(className);
+            } else if (!enabled && isCallable(panel.RemoveClass)) {
+                panel.RemoveClass(className);
+            }
         } catch (error) {
             return;
         }
@@ -611,6 +651,9 @@
     function validMatchMode(value) {
         return typeof value === "string" && hasOwn(MATCH_MODES, value);
     }
+    function validComparisonMode(value) {
+        return typeof value === "string" && hasOwn(COMPARISON_MODES, value);
+    }
 
     function validateIdentityFields(payload, request) {
         if (!payload || typeof payload !== "object") {
@@ -632,6 +675,7 @@
         var group;
         var metric;
         var value;
+        var percentile;
         identityResult = validateIdentityFields(payload, request);
         if (identityResult !== "ok") {
             return identityResult;
@@ -639,7 +683,7 @@
         if (!exactKeys(payload, ["v", "kind", "request", "account", "matches", "mode", "sample", "generated", "groups"])) {
             return "invalid";
         }
-        if (payload.v !== 2 || payload.kind !== "profile_stats" || typeof payload.account !== "number" || safeAccountNumber(payload.account) === null || typeof payload.request !== "string") {
+        if (payload.v !== 3 || payload.kind !== "profile_stats" || typeof payload.account !== "number" || safeAccountNumber(payload.account) === null || typeof payload.request !== "string") {
             return "invalid";
         }
         if (!validMatchLimit(payload.matches) || !validMatchMode(payload.mode) || !finiteNumber(payload.sample) || Math.floor(payload.sample) !== payload.sample || payload.sample < 0 || payload.sample > request.matches) {
@@ -658,7 +702,7 @@
             }
             for (metricIndex = 0; metricIndex < GROUPS[groupIndex].metrics.length; metricIndex += 1) {
                 metric = group.metrics[metricIndex];
-                if (!exactKeys(metric, ["id", "player", "community"]) || metric.id !== expectedMetric(groupIndex, metricIndex)) {
+                if (!exactKeys(metric, ["id", "player", "community", "percentile"]) || metric.id !== expectedMetric(groupIndex, metricIndex)) {
                     return "invalid";
                 }
                 value = metric.player;
@@ -667,6 +711,10 @@
                 }
                 value = metric.community;
                 if (value !== null && !finiteNumber(value)) {
+                    return "invalid";
+                }
+                percentile = metric.percentile;
+                if (percentile !== null && (!finiteNumber(percentile) || percentile < 0 || percentile > 100)) {
                     return "invalid";
                 }
             }
@@ -685,7 +733,7 @@
         if (!exactKeys(payload, ["v", "kind", "request", "account", "matches", "mode", "code"], ["status", "retry_after", "message"])) {
             return "invalid";
         }
-        if (payload.v !== 2 || payload.kind !== "error" || typeof payload.account !== "number" || safeAccountNumber(payload.account) === null || typeof payload.request !== "string" || !validMatchLimit(payload.matches) || !validMatchMode(payload.mode) || !ERROR_CODES[payload.code]) {
+        if (payload.v !== 3 || payload.kind !== "error" || typeof payload.account !== "number" || safeAccountNumber(payload.account) === null || typeof payload.request !== "string" || !validMatchLimit(payload.matches) || !validMatchMode(payload.mode) || !ERROR_CODES[payload.code]) {
             return "invalid";
         }
         if (hasOwn(payload, "status")) {
@@ -761,10 +809,76 @@
         return String(value);
     }
 
+    function formatPercentile(value) {
+        var displayed;
+        if (value === null || value === undefined || !finiteNumber(value)) {
+            return "—";
+        }
+        displayed = value >= 50 ? 100 - value : value;
+        return (value >= 50 ? "TOP " : "BOTTOM ") + String(Math.max(1, Math.round(displayed))) + "%";
+    }
+
+    function setPercentileState(panel, value) {
+        var available = value !== null && value !== undefined && finiteNumber(value);
+        setClass(panel, PERCENTILE_TOP_CLASS, available && value >= 50);
+        setClass(panel, PERCENTILE_BOTTOM_CLASS, available && value < 50);
+        setClass(panel, PERCENTILE_UNAVAILABLE_CLASS, !available);
+    }
+
+    function setValueState(panel, value) {
+        setClass(panel, VALUE_UNAVAILABLE_CLASS, value === null || value === undefined || !finiteNumber(value));
+    }
+    function applyComparisonMode() {
+        var showCommunity = selectedComparison === "community";
+        var metricId;
+        var refs;
+        for (metricId in METRIC_PANELS) {
+            if (!hasOwn(METRIC_PANELS, metricId)) {
+                continue;
+            }
+            refs = resolveMetricRefs(metricId);
+            if (!refs) {
+                continue;
+            }
+            setVisibility(refs.community, showCommunity);
+            setVisibility(refs.percentile, !showCommunity);
+        }
+        setVisibility(communityHeadingLeft, showCommunity);
+        setVisibility(percentileHeadingLeft, !showCommunity);
+        setVisibility(communityHeadingRight, showCommunity);
+        setVisibility(percentileHeadingRight, !showCommunity);
+        setClass(displayCommunityTab, "selected", showCommunity);
+        setClass(displayPercentileTab, "selected", !showCommunity);
+    }
+
+    function selectComparisonMode(mode) {
+        if (!validComparisonMode(mode) || mode === selectedComparison) {
+            return;
+        }
+        selectedComparison = mode;
+        applyComparisonMode();
+    }
+
+    function averagePercentile(metrics) {
+        var total = 0;
+        var count = 0;
+        var index;
+        var value;
+        for (index = 0; index < metrics.length; index += 1) {
+            value = metrics[index].percentile;
+            if (value === null || value === undefined || !finiteNumber(value)) {
+                continue;
+            }
+            total += value;
+            count += 1;
+        }
+        return count > 0 ? total / count : null;
+    }
+
     function resolveMetricRefs(metricId) {
         var refs = metricRefs[metricId];
         var pair = METRIC_PANELS[metricId];
-        if (refs && isValidPanel(refs.player) && isValidPanel(refs.community)) {
+        if (refs && isValidPanel(refs.player) && isValidPanel(refs.community) && isValidPanel(refs.percentile)) {
             return refs;
         }
         if (!pair) {
@@ -772,7 +886,8 @@
         }
         refs = {
             player: findPanel(pair[0]),
-            community: findPanel(pair[1])
+            community: findPanel(pair[1]),
+            percentile: findPanel(pair[2])
         };
         metricRefs[metricId] = refs;
         return refs;
@@ -781,19 +896,42 @@
     function renderMetricGroups(groups) {
         var groupIndex;
         var metricIndex;
+        var group;
         var metric;
         var refs;
+        var groupBadge;
+        var groupPercentile;
         for (groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
-            for (metricIndex = 0; metricIndex < groups[groupIndex].metrics.length; metricIndex += 1) {
-                metric = groups[groupIndex].metrics[metricIndex];
+            group = groups[groupIndex];
+            groupPercentile = averagePercentile(group.metrics);
+            groupBadge = findPanel(GROUP_PERCENTILE_PANELS[group.id]);
+            if (isValidPanel(groupBadge)) {
+                setText(groupBadge, formatPercentile(groupPercentile));
+                setPercentileState(groupBadge, groupPercentile);
+            }
+            for (metricIndex = 0; metricIndex < group.metrics.length; metricIndex += 1) {
+                metric = group.metrics[metricIndex];
                 refs = resolveMetricRefs(metric.id);
-                if (refs && isValidPanel(refs.player) && isValidPanel(refs.community)) {
+                if (!refs) {
+                    continue;
+                }
+                if (isValidPanel(refs.player)) {
                     setText(refs.player, formatValue(metric.player));
+                    setValueState(refs.player, metric.player);
+                }
+                if (isValidPanel(refs.community)) {
                     setText(refs.community, formatValue(metric.community));
+                    setValueState(refs.community, metric.community);
+                }
+                if (isValidPanel(refs.percentile)) {
+                    setText(refs.percentile, formatPercentile(metric.percentile));
+                    setPercentileState(refs.percentile, metric.percentile);
                 }
             }
         }
+        applyComparisonMode();
     }
+
 
     function setRetryVisible(visible) {
         if (isValidPanel(retryButton)) {
@@ -969,7 +1107,7 @@
     }
 
     function bridgeUrl(request) {
-        return BRIDGE_URL + "?account_id=" + encodeURIComponent(request.account) + "&matches=" + String(request.matches) + "&mode=" + encodeURIComponent(request.mode) + "&request=" + encodeURIComponent(request.nonce);
+        return BRIDGE_URL + "?account_id=" + encodeURIComponent(request.account) + "&matches=" + String(request.matches) + "&mode=" + encodeURIComponent(request.mode) + "&request=" + encodeURIComponent(request.nonce) + "&protocol=3";
     }
 
     function expectedBridgeUrl(url, request) {
@@ -1367,7 +1505,9 @@
             isValidPanel(playerHeadingLeft) &&
             isValidPanel(playerHeadingRight) &&
             isValidPanel(bridgePanel) &&
-            isValidPanel(supporterTicker);
+            isValidPanel(supporterTicker) &&
+            isValidPanel(displayCommunityTab) &&
+            isValidPanel(displayPercentileTab);
     }
 
     function stopWatcher() {
@@ -1567,6 +1707,13 @@
     function onStandardSelected() {
         selectMatchMode("standard");
     }
+    function onDisplayCommunitySelected() {
+        selectComparisonMode("community");
+    }
+
+    function onDisplayPercentileSelected() {
+        selectComparisonMode("percentile");
+    }
 
     function onRetry() {
         if (!isCustomActive() || rateLimitBlocked) {
@@ -1584,7 +1731,8 @@
                 pair = METRIC_PANELS[metricId];
                 metricRefs[metricId] = {
                     player: findPanel(pair[0]),
-                    community: findPanel(pair[1])
+                    community: findPanel(pair[1]),
+                    percentile: findPanel(pair[2])
                 };
             }
         }
@@ -1612,6 +1760,12 @@
         matchCountDropdown = findPanel("ProfileStatsCommunityMatchCount");
         rankedTab = findPanel("ProfileStatsCommunityRanked");
         standardTab = findPanel("ProfileStatsCommunityStandard");
+        displayCommunityTab = findPanel("ProfileStatsCommunityDisplayCommunity");
+        displayPercentileTab = findPanel("ProfileStatsCommunityDisplayPercentile");
+        communityHeadingLeft = findPanel("ProfileStatsCommunityCommunityHeadingLeft");
+        percentileHeadingLeft = findPanel("ProfileStatsCommunityPercentileHeadingLeft");
+        communityHeadingRight = findPanel("ProfileStatsCommunityCommunityHeadingRight");
+        percentileHeadingRight = findPanel("ProfileStatsCommunityPercentileHeadingRight");
         statusLabel = findPanel("ProfileStatsCommunityStatus");
         metricsPanel = findPanel("ProfileStatsCommunityMetrics");
         metadataPanel = findPanel("ProfileStatsCommunityMetadata");
@@ -1623,7 +1777,7 @@
         stockSectionSignature = textOf(stockSectionName);
         debugLog("panel refs hero=" + (isValidPanel(heroList) ? "1" : "0") + " stats=" + (isValidPanel(statsBlock) ? "1" : "0") + " section=" + (isValidPanel(stockSectionName) ? "1" : "0") + " bridge=" + (isValidPanel(bridgePanel) ? "1" : "0"));
         collectMetricRefs();
-        return !!(heroList && statsBlock && stockTitle && stockLeft && stockRight && communityButton && customPanel && selfNamePanel && titleLabel && statLockerButton && playerHeadingLeft && playerHeadingRight && accountWitness && bridgePanel && supporterTicker && matchCountDropdown && rankedTab && standardTab);
+        return !!(heroList && statsBlock && stockTitle && stockLeft && stockRight && communityButton && customPanel && selfNamePanel && titleLabel && statLockerButton && playerHeadingLeft && playerHeadingRight && bridgePanel && supporterTicker && matchCountDropdown && rankedTab && standardTab && displayCommunityTab && displayPercentileTab);
     }
 
     function bindEvents() {
@@ -1631,6 +1785,8 @@
         setPanelEvent(statLockerButton, "onactivate", openStatLockerProfile);
         setPanelEvent(matchCountDropdown, "oninputsubmit", onMatchCountChanged);
         setPanelEvent(rankedTab, "onactivate", onRankedSelected);
+        setPanelEvent(displayCommunityTab, "onactivate", onDisplayCommunitySelected);
+        setPanelEvent(displayPercentileTab, "onactivate", onDisplayPercentileSelected);
         setPanelEvent(standardTab, "onactivate", onStandardSelected);
         setPanelEvent(retryButton, "onactivate", onRetry);
         registerBridgeEvents();
@@ -1645,6 +1801,8 @@
         }
         initialized = true;
         currentIdentity = readIdentity();
+        selectedComparison = "percentile";
+        applyComparisonMode();
         logIdentity("boot identity", currentIdentity);
         renderViewedName();
         unloadBridge();

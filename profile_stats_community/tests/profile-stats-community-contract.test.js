@@ -251,27 +251,40 @@ test("all six ordered groups and every required comparison row are declared", fu
     "PlayerDamagePerMinute",
     "Accuracy",
     "CriticalHitRate",
-    "NetWorthPerMinute",
     "BossDamagePerMinute",
+    "NetWorthPerMinute",
     "HealingPerMinute"
   ];
+  var groupPercentiles = ["Combat", "Kills", "Survival", "Damage", "Economy", "Sustain"];
   groups.forEach(function (group) {
     assert.match(layout, new RegExp("ProfileStatsCommunityGroup" + group));
+    assert.match(layout, new RegExp('id="PSCGroup' + group + 'Percentile"'));
   });
   metrics.forEach(function (metric) {
     assert.match(layout, new RegExp("PSCMetric" + metric + "Player"));
     assert.match(layout, new RegExp("PSCMetric" + metric + "Community"));
+    assert.match(layout, new RegExp('id="PSCMetric' + metric + 'Percentile"'));
     assert.ok(("PSCMetric" + metric + "Player").length <= 44, "player metric panel ID stays within Panorama's runtime limit");
     assert.ok(("PSCMetric" + metric + "Community").length <= 44, "community metric panel ID stays within Panorama's runtime limit");
+    assert.ok(("PSCMetric" + metric + "Percentile").length <= 44, "percentile metric panel ID stays within Panorama's runtime limit");
   });
+  assert.match(layout, /id="ProfileStatsCommunityGroupDamage"[\s\S]*PSCMetricBossDamagePerMinutePlayer/);
+  assert.doesNotMatch(layout, /id="ProfileStatsCommunityGroupEconomy"[\s\S]*PSCMetricBossDamagePerMinutePlayer/);
+  assert.equal(count(layout, /text="AVG PERCENTILE"/g), 6);
+  assert.equal(count(layout, /class="ProfileStatsCommunityPercentileHeading"/g), 2);
   assert.match(layout, /id="ProfileStatsCommunityTitle"[^>]*text="PLAYER VS COMMUNITY"/);
   assert.match(layout, /id="ProfileStatsCommunityPlayerHeadingLeft"[^>]*text="PLAYER"/);
   assert.match(layout, /id="ProfileStatsCommunityPlayerHeadingRight"[^>]*text="PLAYER"/);
   assert.equal(count(layout, /text="COMMUNITY"/g), 2);
+  assert.match(layout, /<Panel id="ProfileStatsCommunityDisplayToggle" class="ProfileStatsCommunityDisplayToggle">/);
+  assert.match(layout, /<TabButton\b[^>]*id="ProfileStatsCommunityDisplayCommunity"[^>]*text="COMMUNITY AVG"/);
+  assert.match(layout, /<TabButton\b[^>]*id="ProfileStatsCommunityDisplayPercentile"[^>]*text="TOP %"[^>]*selected="true"/);
+  assert.match(layout, /id="PSCMetricKdCommunity"[^>]*visibility="collapse"/);
+  assert.match(layout, /id="PSCMetricKdPercentile"[^>]*class="ProfileStatsCommunityPercentileBadge/);
   assert.match(layout, /<Button\b[^>]*id="ProfileStatsCommunityStatLocker"[^>]*>\s*<Label text="STATLOCKER PROFILE" \/><\/Button>/);
   assert.match(script, /STATLOCKER_PROFILE_URL_PREFIX\s*=\s*"https:\/\/statlocker\.gg\/profile\/"/);
   assert.match(script, /STATLOCKER_PROFILE_URL_SUFFIX\s*=\s*"\/matches"/);
-  assert.doesNotMatch(layout, /Back to Hero Stats|ProfileStatsCommunityBack/);
+  assert.doesNotMatch(layout, /Back to Hero Stats|ProfileStatsCommunityBack|OverallPercentile|GlobalPercentile/);
   assert.match(layout, /<TabButton\b[^>]*id="ProfileStatsCommunityRanked"[^>]*text="RANKED"[^>]*selected="true"/);
   assert.match(layout, /<TabButton\b[^>]*id="ProfileStatsCommunityStandard"[^>]*text="STANDARD"/);
   ["50", "100", "150"].forEach(function (matches) {
@@ -279,6 +292,7 @@ test("all six ordered groups and every required comparison row are declared", fu
   });
   assert.match(layout, /id="ProfileStatsCommunitySample"/);
   assert.match(layout, /id="ProfileStatsCommunityGenerated"/);
+  assert.equal(groupPercentiles.length, groups.length);
 });
 
 test("filter and metric layout form a compact non-scrollable grid", function () {
@@ -288,6 +302,10 @@ test("filter and metric layout form a compact non-scrollable grid", function () 
   var gridRowRule = /\.ProfileStatsCommunityGridRow\s*\{([\s\S]*?)\}/.exec(styles);
   var gridGapRule = /\.ProfileStatsCommunityGridGap\s*\{([\s\S]*?)\}/.exec(styles);
   var metricRowRule = /\.ProfileStatsCommunityMetricRow\s*\{([\s\S]*?)\}/.exec(styles);
+  var percentileHeadingRule = /\.ProfileStatsCommunityPercentileHeading\s*\{([\s\S]*?)\}/.exec(styles);
+  var percentileBadgeRule = /\.ProfileStatsCommunityPercentileBadge\s*\{([\s\S]*?)\}/.exec(styles);
+  var displayToggleRule = /\.ProfileStatsCommunityDisplayToggle\s*\{([\s\S]*?)\}/.exec(styles);
+  var displayTabRule = /\.ProfileStatsCommunityDisplayTab\s*\{([\s\S]*?)\}/.exec(styles);
   var matchCountWidth;
   var matchCountMenuWidth;
   var metricRowHeight;
@@ -315,6 +333,22 @@ test("filter and metric layout form a compact non-scrollable grid", function () 
   assert.match(gridRowRule[1], /\bflow-children\s*:\s*right\s*;/);
   assert.match(gridGapRule[1], /\bwidth\s*:\s*24px\s*;/);
   assert.ok(metricRowHeight && Number(metricRowHeight[1]) <= 24, "metric rows must fit the fixed comparison grid");
+  assert.ok(percentileHeadingRule, "percentile column heading styles must remain declared");
+  assert.ok(percentileBadgeRule, "metric percentile badge styles must remain declared");
+  assert.ok(displayToggleRule, "comparison display toggle styles must remain declared");
+  assert.ok(displayTabRule, "comparison display tab styles must remain declared");
+  assert.match(displayToggleRule[1], /\bheight\s*:\s*42px\s*;/);
+  assert.match(displayTabRule[1], /\bheight\s*:\s*40px\s*;/);
+  assert.match(percentileHeadingRule[1], /\bwidth\s*:\s*72px\s*;/);
+  assert.match(script, /payload\.v !== 3/);
+  assert.match(script, /&protocol=3/);
+  assert.match(script, /"percentile"\]\)/);
+  assert.match(script, /formatPercentile/);
+  assert.match(script, /averagePercentile/);
+  assert.match(percentileBadgeRule[1], /\bwidth\s*:\s*72px\s*;/);
+  assert.match(styles, /\.ProfileStatsCommunityPercentileTop\s*\{/);
+  assert.match(styles, /\.ProfileStatsCommunityPercentileBottom\s*\{/);
+  assert.match(styles, /\.ProfileStatsCommunityPercentileUnavailable\s*\{/);
 });
 
 test("runtime and stylesheet stay Panorama-safe", function () {
@@ -344,6 +378,7 @@ test("runtime and stylesheet stay Panorama-safe", function () {
     "critical_hit_rate", "net_worth_per_minute", "boss_damage_per_minute",
     "healing_per_minute", "invalid_query", "network_error", "upstream_error",
     "rate_limit", "empty_sample", "invalid_payload", "payload_too_large", "internal_error",
+    "combat", "kills", "survival", "damage", "economy", "sustain",
     "ranked", "standard", "50", "100", "150"
   ].forEach(function (key) {
     assert.match(script, new RegExp('"' + key + '"\\s*:'), key + " must remain quoted for Closure dynamic lookup");
