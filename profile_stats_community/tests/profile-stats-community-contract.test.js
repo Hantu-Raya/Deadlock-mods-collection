@@ -136,6 +136,19 @@ test("player context menu opens the selected account in the profile database", f
   assert.doesNotMatch(contextMenuScript, /GetLocalPlayer|local_player|LocalPlayer/);
 });
 
+test("player context menu restores the engine-owned favorite hero and totals row", function () {
+  var restoredRule = /CitadelContextMenuPlayer\s+CitadelProfileCard\.StatsActive:not\(\.ShowPartyInfo\)\s+#CardMain\s*\{([\s\S]*?)\}/.exec(styles);
+
+  assert.match(profileCardLayout, /profile_card\.vcss_c" \/>\s*<include src="s2r:\/\/panorama\/styles\/profile_stats_community\.vcss_c" \/>/);
+  assert.equal(count(profileCardLayout, /id="ShowcaseItems"/g), 1, "favorite hero remains engine populated");
+  assert.equal(count(profileCardLayout, /id="StatItems"/g), 1, "match and kill totals remain engine populated");
+  assert.doesNotMatch(profileCardLayout, /FAVORITE HERO|MATCHES|KILLS/i, "profile values and labels must not be fabricated in XML");
+  assert.ok(restoredRule, "profile statistics are restored only for populated player context-menu cards");
+  assert.match(restoredRule[1], /\bvisibility\s*:\s*visible\s*;/);
+  assert.equal(count(styles, /#CardMain/g), 1, "the custom stylesheet has one narrowly scoped profile-card override");
+  assert.doesNotMatch(contextMenuScript, /\$\.Schedule|SetURL|CitadelHTMLPanel|AsyncWebRequest|XMLHttpRequest/);
+});
+
 test("community navigation keeps the hero-list alignment contract", function () {
   var button = /<Button\b[^>]*\bid\s*=\s*"ProfileStatsCommunityButton"[^>]*>([\s\S]*?)<\/Button>/.exec(layout);
   var buttonRule = /#ProfileStatsCommunityButton\s*\{([\s\S]*?)\}/.exec(styles);

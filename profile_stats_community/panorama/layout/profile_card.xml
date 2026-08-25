@@ -3,6 +3,7 @@
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
 		<include src="s2r://panorama/styles/profile_card.vcss_c" />
+		<include src="s2r://panorama/styles/profile_stats_community.vcss_c" />
 	</styles>
 	<CitadelProfileCard>
 		<Panel id="MiniProfileContainer" class="TopBottomFlow">
