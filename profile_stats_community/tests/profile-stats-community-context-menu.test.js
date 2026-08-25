@@ -14,6 +14,7 @@ function makeHarness(options = {}) {
   const account = options.account === undefined ? '215334735' : options.account;
   const attributes = Object.assign({}, options.attributes);
   const opened = [];
+  const logs = [];
   const witness = {
     text: account,
     IsValid() {
@@ -43,6 +44,9 @@ function makeHarness(options = {}) {
     GetContextPanel() {
       return root;
     },
+    Msg(message) {
+      logs.push(String(message));
+    },
   };
   const context = {
     $: panoramaApi,
@@ -67,6 +71,7 @@ function makeHarness(options = {}) {
     card,
     root,
     opened,
+    logs,
     open() {
       return panoramaApi.ProfileStatsCommunityOpenPlayerProfile();
     },
@@ -82,6 +87,19 @@ test('context action opens the selected profile card account', () => {
   assert.equal(typeof harness.installedAction(), 'function');
   assert.equal(harness.open(), true);
   assert.deepEqual(harness.opened, [215334735]);
+  assert.deepEqual(harness.logs, [
+    '[PSC-PROFILE-DEBUG] script loaded',
+    '[PSC-PROFILE-DEBUG] context root=valid',
+    '[PSC-PROFILE-DEBUG] handler installed type=function',
+    '[PSC-PROFILE-DEBUG] handler called',
+    '[PSC-PROFILE-DEBUG] ProfileCard lookup=found',
+    '[PSC-PROFILE-DEBUG] resolve card=valid witness=valid raw=215334735 normalized=215334735',
+    '[PSC-PROFILE-DEBUG] authority accountid raw=215334735 normalized=215334735',
+    '[PSC-PROFILE-DEBUG] authority steamid raw= normalized=',
+    '[PSC-PROFILE-DEBUG] resolve accepted account=215334735',
+    '[PSC-PROFILE-DEBUG] native opener type=function',
+    '[PSC-PROFILE-DEBUG] navigation dispatched account=215334735',
+  ]);
 });
 
 test('Steam64 authority can corroborate the account witness', () => {
