@@ -18,13 +18,19 @@
         "ranked": true,
         "standard": true
     };
+    var AUTHORITY_NAMES = ["accountid", "steamid"];
     var CACHE_TTL_MS = 10 * 60 * 1000;
     var CONTEXT_CHECK_SECONDS = 0.5;
-    var DEBUG_LOGGING = true;
+    var DEBUG_LOGGING = false;
     var REQUEST_TIMEOUT_SECONDS = 25;
     var MAX_HERO_ROWS = 64;
     var MAX_GENERATED_LENGTH = 64;
     var MAX_ERROR_MESSAGE_LENGTH = 160;
+    var STATE_STOCK = "stock";
+    var STATE_LOADING = "loading";
+    var STATE_READY = "ready";
+    var STATE_ERROR = "error";
+    var STATE_DISABLED = "disabled";
 
     var GROUPS = [
         {
@@ -100,6 +106,7 @@
     var communityButton = null;
     var customPanel = null;
     var identityLabel = null;
+    var accountWitness = null;
     var statusLabel = null;
     var metricsPanel = null;
     var metadataPanel = null;
@@ -116,12 +123,17 @@
     var stockRowSignature = "";
 
     var currentIdentity = null;
-    var customMode = false;
-    var lifecycleGeneration = 0;
+    var lifecycleState = STATE_STOCK;
+    var requestGeneration = 0;
+    var watcherGeneration = 0;
+    var watcherHandle = null;
+    var watcherPending = false;
+    var watcherCallback = null;
     var nonceSerial = 0;
     var requestState = null;
     var memoryCache = null;
-    var checkScheduled = false;
+    var rateLimitUntil = 0;
+    var rateLimitBlocked = false;
     var initialized = false;
     var selectedMatches = DEFAULT_MATCH_LIMIT;
     var selectedMode = "ranked";
@@ -138,6 +150,17 @@
             $.Msg("[ProfileStatsCommunity] " + String(message));
         } catch (error) {
             return;
+        }
+    }
+
+    function isCustomActive() {
+        return lifecycleState === STATE_LOADING || lifecycleState === STATE_READY || lifecycleState === STATE_ERROR;
+    }
+
+    function enterState(nextState) {
+        if (lifecycleState !== nextState) {
+            debugLog("state " + lifecycleState + " -> " + nextState);
+            lifecycleState = nextState;
         }
     }
 
@@ -388,11 +411,16 @@
     }
 
     function readIdentity() {
-        var witness = findPanel("ProfileStatsCommunityAccount");
-        var witnessAccount = normalizeDigits(textOf(witness));
-        var authorityNames;
+        var witness;
+        var witnessAccount;
+        var authorityNames = AUTHORITY_NAMES;
         var index;
         var authority;
+        if (!isValidPanel(accountWitness)) {
+            accountWitness = findPanel("ProfileStatsCommunityAccount");
+        }
+        witness = accountWitness;
+        witnessAccount = normalizeDigits(textOf(witness));
         if (!witnessAccount || !safeAccountText(witnessAccount)) {
             return {
                 state: "missing",
@@ -400,7 +428,6 @@
                 message: "The viewed profile account is unavailable."
             };
         }
-        authorityNames = ["accountid", "steamid"];
         for (index = 0; index < authorityNames.length; index += 1) {
             authority = readRootAuthority(authorityNames[index]);
             if (trim(authority) !== "") {
@@ -711,13 +738,16 @@
         setRetryVisible(true);
         setText(statusLabel, identity && identity.message ? identity.message : "The viewed profile account is unavailable.");
     }
-    function renderLocalError(code, status) {
+    function renderLocalError(code, status, retryVisible, retryAfter) {
         var message = ERROR_TEXT[code] || ERROR_TEXT.invalid_payload;
         if (status) {
             message += " (HTTP " + String(status) + ").";
         }
+        if (finiteNumber(retryAfter) && retryAfter > 0) {
+            message += " Retry after " + String(Math.ceil(retryAfter)) + " seconds.";
+        }
         setMetricsVisible(false);
-        setRetryVisible(true);
+        setRetryVisible(retryVisible !== false);
         setText(statusLabel, message);
     }
 
@@ -758,7 +788,7 @@
     }
 
     function openSupporterTicker() {
-        if (!customMode || !isValidPanel(supporterTicker) || !isCallable(supporterTicker.SetURL)) {
+        if (!isCustomActive() || !isValidPanel(supporterTicker) || !isCallable(supporterTicker.SetURL)) {
             return;
         }
         try {
@@ -789,7 +819,7 @@
 
     function invalidateRequest(unload) {
         requestState = null;
-        lifecycleGeneration += 1;
+        requestGeneration += 1;
         if (unload !== false) {
             unloadBridge();
         }
@@ -797,15 +827,22 @@
 
     function renderBridgeError(payload) {
         var status = hasOwn(payload, "status") ? payload.status : null;
+        var retryAfter = hasOwn(payload, "retry_after") ? payload.retry_after : 0;
         debugLog("error code=" + payload.code + " status=" + (status === null ? "-" : String(status)));
-        renderLocalError(payload.code, status);
+        enterState(STATE_ERROR);
+        rateLimitBlocked = payload.code === "rate_limit" && retryAfter > 0;
+        if (rateLimitBlocked) {
+            rateLimitUntil = Math.max(rateLimitUntil, now() + (retryAfter * 1000));
+        }
+        renderLocalError(payload.code, status, !rateLimitBlocked, rateLimitBlocked ? retryAfter : 0);
     }
 
     function finishError(code, status) {
         debugLog("error code=" + String(code) + " status=" + (status === null || status === undefined ? "-" : String(status)));
         invalidateRequest(true);
-        renderLocalError(code, status);
-        scheduleCheck(lifecycleGeneration);
+        rateLimitBlocked = false;
+        enterState(STATE_ERROR);
+        renderLocalError(code, status, true, 0);
     }
 
     function finishSuccess(payload, request) {
@@ -818,8 +855,9 @@
             payload: payload
         };
         invalidateRequest(true);
+        rateLimitBlocked = false;
+        enterState(STATE_READY);
         renderSuccess(payload);
-        scheduleCheck(lifecycleGeneration);
     }
 
     function bridgeUrl(request) {
@@ -873,7 +911,7 @@
         var expected;
         var fragment;
         var decodedTitle;
-        if (!requestState || requestState.generation !== lifecycleGeneration) {
+        if (lifecycleState !== STATE_LOADING || !requestState || requestState.generation !== requestGeneration) {
             return;
         }
         if (url === "about:blank") {
@@ -919,7 +957,7 @@
         var errorResult;
         var request;
         var value = arguments.length > 1 ? eventValue : panelOrValue;
-        if (!requestState || requestState.generation !== lifecycleGeneration) {
+        if (lifecycleState !== STATE_LOADING || !requestState || requestState.generation !== requestGeneration) {
             return;
         }
         request = requestState;
@@ -980,7 +1018,6 @@
             }
             renderBridgeError(parsed.value);
             invalidateRequest(true);
-            scheduleCheck(lifecycleGeneration);
             return;
         }
         rejectTitle("unknown_kind");
@@ -996,7 +1033,8 @@
         var identity = readIdentity();
         var request;
         var cached;
-        if (!customMode) {
+        var remaining;
+        if (!isCustomActive()) {
             return;
         }
         currentIdentity = identity;
@@ -1004,21 +1042,33 @@
         setText(identityLabel, identity.state === "valid" ? "VIEWED ACCOUNT " + identity.account : "VIEWED PROFILE");
         if (identity.state !== "valid") {
             invalidateRequest(true);
+            rateLimitBlocked = false;
+            enterState(STATE_ERROR);
             renderIdentityError(identity);
-            scheduleCheck(lifecycleGeneration);
             return;
         }
         cached = freshCache(identity.account, selectedMatches, selectedMode);
         if (cached) {
             debugLog("cache hit account=" + identity.account + " mode=" + selectedMode + " matches=" + String(selectedMatches));
             invalidateRequest(true);
+            rateLimitBlocked = false;
+            enterState(STATE_READY);
             renderSuccess(cached);
-            scheduleCheck(lifecycleGeneration);
             return;
         }
+        remaining = rateLimitUntil - now();
+        if (remaining > 0) {
+            invalidateRequest(true);
+            rateLimitBlocked = true;
+            enterState(STATE_ERROR);
+            renderLocalError("rate_limit", 429, false, remaining / 1000);
+            return;
+        }
+        rateLimitUntil = 0;
+        rateLimitBlocked = false;
         invalidateRequest(true);
         request = {
-            generation: lifecycleGeneration,
+            generation: requestGeneration,
             nonce: createNonce(),
             account: identity.account,
             matches: selectedMatches,
@@ -1027,6 +1077,7 @@
             lastTitle: ""
         };
         requestState = request;
+        enterState(STATE_LOADING);
         debugLog("request start account=" + request.account + " mode=" + request.mode + " matches=" + String(request.matches) + " nonce=" + request.nonce + " generation=" + String(request.generation));
         renderLoading();
         setBridgeVisible(true);
@@ -1041,7 +1092,6 @@
         } catch (error) {
             finishError("network_error", null);
         }
-        scheduleCheck(lifecycleGeneration);
     }
 
     function hasSelectionEvidence(panel) {
@@ -1122,7 +1172,7 @@
 
     function inspectStockSelection() {
         var signature;
-        if (!customMode) {
+        if (!isCustomActive()) {
             return;
         }
         signature = readSelectedHeroSignature();
@@ -1141,10 +1191,6 @@
             return;
         }
         signature = textOf(stockSectionName);
-        if (!customMode) {
-            stockSectionSignature = signature;
-            return;
-        }
         if (signature !== stockSectionSignature) {
             debugLog("hero selection signal=statSectionName");
             restoreStock("native_selection");
@@ -1153,65 +1199,137 @@
 
     function checkIdentity() {
         var nextIdentity = readIdentity();
-        if (!sameIdentity(currentIdentity, nextIdentity)) {
-            logIdentity("identity change", nextIdentity);
-            if (currentIdentity && (customMode || requestState)) {
-                restoreStock("profile_change");
-            }
-            currentIdentity = nextIdentity;
-            if (customMode) {
-                if (nextIdentity.state !== "valid") {
-                    renderIdentityError(nextIdentity);
-                } else {
-                    beginRequest();
-                }
+        if (sameIdentity(currentIdentity, nextIdentity)) {
+            return;
+        }
+        logIdentity("identity change", nextIdentity);
+        currentIdentity = nextIdentity;
+        if (isCustomActive()) {
+            restoreStock("profile_change");
+        }
+    }
+
+    function runtimePanelsValid() {
+        return isValidPanel(root) &&
+            isValidPanel(heroList) &&
+            isValidPanel(stockTitle) &&
+            isValidPanel(customPanel) &&
+            isValidPanel(bridgePanel) &&
+            isValidPanel(supporterTicker);
+    }
+
+    function stopWatcher() {
+        var handle = watcherHandle;
+        watcherGeneration += 1;
+        watcherHandle = null;
+        watcherPending = false;
+        watcherCallback = null;
+        if (handle !== null && handle !== undefined && isCallable($.CancelScheduled)) {
+            try {
+                $.CancelScheduled(handle);
+            } catch (error) {
+                return;
             }
         }
     }
 
-    function scheduledCheck(token) {
-        var elapsed;
-        if (token !== lifecycleGeneration) {
-            scheduleCheck(lifecycleGeneration);
+    function disableRuntime(reason) {
+        debugLog("disable reason=" + String(reason || "unknown"));
+        enterState(STATE_DISABLED);
+        stopWatcher();
+        invalidateRequest(true);
+        closeSupporterTicker();
+        setVisibility(customPanel, false);
+        setRetryVisible(false);
+    }
+
+    function updateRateLimit() {
+        if (!rateLimitBlocked || now() < rateLimitUntil) {
             return;
         }
-        if (!isValidPanel(root)) {
-            invalidateRequest(true);
-            closeSupporterTicker();
+        rateLimitBlocked = false;
+        rateLimitUntil = 0;
+        if (lifecycleState === STATE_ERROR) {
+            setRetryVisible(true);
+            setText(statusLabel, "The community service is ready for another request.");
+        }
+    }
+
+    function scheduledCheck() {
+        var elapsed;
+        if (!isCustomActive()) {
+            return;
+        }
+        if (!runtimePanelsValid()) {
+            disableRuntime("panel_invalid");
             return;
         }
         checkIdentity();
+        if (!isCustomActive()) {
+            return;
+        }
         inspectNativeHeroSignature();
+        if (!isCustomActive()) {
+            return;
+        }
         inspectStockSelection();
-        if (requestState && requestState.generation === lifecycleGeneration) {
+        if (!isCustomActive()) {
+            return;
+        }
+        updateRateLimit();
+        if (requestState && requestState.generation === requestGeneration) {
             elapsed = (now() - requestState.startedAt) / 1000;
-            if (elapsed > REQUEST_TIMEOUT_SECONDS) {
+            if (elapsed >= REQUEST_TIMEOUT_SECONDS) {
                 debugLog("timeout generation=" + String(requestState.generation));
                 finishError("network_error", null);
             }
         }
-        scheduleCheck(lifecycleGeneration);
     }
 
-    function scheduleCheck(token) {
-        if (checkScheduled || token !== lifecycleGeneration) {
+    function startWatcher() {
+        var token;
+        function armWatcher() {
+            if (token !== watcherGeneration || !isCustomActive() || watcherPending) {
+                return;
+            }
+            watcherPending = true;
+            try {
+                watcherHandle = $.Schedule(CONTEXT_CHECK_SECONDS, watcherCallback);
+            } catch (error) {
+                watcherPending = false;
+                watcherHandle = null;
+                watcherCallback = null;
+                disableRuntime("schedule_failed");
+            }
+        }
+        if (!isCustomActive() || watcherPending || watcherCallback) {
             return;
         }
-        checkScheduled = true;
-        try {
-            $.Schedule(CONTEXT_CHECK_SECONDS, function () {
-                checkScheduled = false;
-                scheduledCheck(token);
-            });
-        } catch (error) {
-            checkScheduled = false;
-            return;
-        }
+        watcherGeneration += 1;
+        token = watcherGeneration;
+        watcherCallback = function () {
+            if (token !== watcherGeneration) {
+                return;
+            }
+            watcherPending = false;
+            watcherHandle = null;
+            if (!isCustomActive()) {
+                return;
+            }
+            scheduledCheck();
+            armWatcher();
+        };
+        armWatcher();
     }
+
     function restoreStock(reason) {
         debugLog("restore reason=" + String(reason || "unknown"));
-        customMode = false;
+        if (lifecycleState === STATE_DISABLED) {
+            return;
+        }
+        enterState(STATE_STOCK);
         stockRowSignature = "";
+        stopWatcher();
         invalidateRequest(true);
         closeSupporterTicker();
         setVisibility(customPanel, false);
@@ -1219,19 +1337,23 @@
         if (reason === "profile_change" || reason === "stock_selection" || reason === "page_leave" || reason === "native_selection") {
             setText(statusLabel, "");
         }
-        scheduleCheck(lifecycleGeneration);
     }
+
     function showCustomMode() {
+        if (lifecycleState === STATE_DISABLED || isCustomActive()) {
+            return;
+        }
         currentIdentity = readIdentity();
         logIdentity("custom open identity", currentIdentity);
         debugLog("custom open");
-        customMode = true;
+        enterState(STATE_LOADING);
         stockSectionSignature = textOf(stockSectionName);
         stockRowSignature = readSelectedHeroSignature();
         setVisibility(customPanel, true);
         openSupporterTicker();
         setText(identityLabel, currentIdentity.state === "valid" ? "VIEWED ACCOUNT " + currentIdentity.account : "VIEWED PROFILE");
         beginRequest();
+        startWatcher();
     }
 
     function readMatchLimitSelection() {
@@ -1292,6 +1414,13 @@
         selectMatchMode("standard");
     }
 
+    function onRetry() {
+        if (!isCustomActive() || rateLimitBlocked) {
+            return;
+        }
+        beginRequest();
+    }
+
     function onPageCancel() {
         restoreStock("page_leave");
         try {
@@ -1331,6 +1460,7 @@
         communityButton = findPanel("ProfileStatsCommunityButton");
         customPanel = findPanel("ProfileStatsCommunityPanel");
         identityLabel = findPanel("ProfileStatsCommunityIdentity");
+        accountWitness = findPanel("ProfileStatsCommunityAccount");
         matchCountDropdown = findPanel("ProfileStatsCommunityMatchCount");
         rankedTab = findPanel("ProfileStatsCommunityRanked");
         standardTab = findPanel("ProfileStatsCommunityStandard");
@@ -1345,7 +1475,7 @@
         stockSectionSignature = textOf(stockSectionName);
         debugLog("panel refs hero=" + (isValidPanel(heroList) ? "1" : "0") + " stats=" + (isValidPanel(statsBlock) ? "1" : "0") + " section=" + (isValidPanel(stockSectionName) ? "1" : "0") + " bridge=" + (isValidPanel(bridgePanel) ? "1" : "0"));
         collectMetricRefs();
-        return !!(heroList && statsBlock && stockTitle && stockLeft && stockRight && communityButton && customPanel && bridgePanel && supporterTicker && matchCountDropdown && rankedTab && standardTab);
+        return !!(heroList && statsBlock && stockTitle && stockLeft && stockRight && communityButton && customPanel && accountWitness && bridgePanel && supporterTicker && matchCountDropdown && rankedTab && standardTab);
     }
 
     function bindEvents() {
@@ -1353,7 +1483,7 @@
         setPanelEvent(matchCountDropdown, "oninputsubmit", onMatchCountChanged);
         setPanelEvent(rankedTab, "onactivate", onRankedSelected);
         setPanelEvent(standardTab, "onactivate", onStandardSelected);
-        setPanelEvent(retryButton, "onactivate", beginRequest);
+        setPanelEvent(retryButton, "onactivate", onRetry);
         setPanelEvent(root, "oncancel", onPageCancel);
         registerBridgeEvents();
     }
@@ -1368,11 +1498,10 @@
         initialized = true;
         currentIdentity = readIdentity();
         logIdentity("boot identity", currentIdentity);
-        setBridgeVisible(false);
+        unloadBridge();
         closeSupporterTicker();
         setVisibility(customPanel, false);
         bindEvents();
-        scheduleCheck(lifecycleGeneration);
     }
 
     try {
