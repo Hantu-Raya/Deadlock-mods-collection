@@ -23,6 +23,7 @@
     var AUTHORITY_NAMES = ["accountid", "steamid"];
     var CACHE_TTL_MS = 10 * 60 * 1000;
     var CONTEXT_CHECK_SECONDS = 0.5;
+    var BRIDGE_ASSIGN_DELAY_SECONDS = 0.25;
     var DEBUG_LOGGING = false;
     var REQUEST_TIMEOUT_SECONDS = 25;
     var MAX_HERO_ROWS = 64;
@@ -137,6 +138,7 @@
     var watcherHandle = null;
     var watcherPending = false;
     var watcherCallback = null;
+    var bridgeAssignmentHandle = null;
     var nonceSerial = 0;
     var requestState = null;
     var memoryCache = null;
@@ -742,7 +744,7 @@
             return null;
         }
         age = now() - memoryCache.receivedAt;
-        if (age < 0 || age > CACHE_TTL_MS) {
+        if (age < 0 || age >= CACHE_TTL_MS || generatedIsStale(memoryCache.payload.generated)) {
             memoryCache = null;
             return null;
         }
@@ -828,17 +830,28 @@
         setRetryVisible(retryVisible !== false);
         setText(statusLabel, message);
     }
+    function generatedIsStale(value) {
+        var timestamp;
+        try {
+            timestamp = Date.parse(value);
+        } catch (error) {
+            return false;
+        }
+        return finiteNumber(timestamp) && now() - timestamp >= CACHE_TTL_MS;
+    }
+
 
     function renderSuccess(payload) {
         var modeText = payload.mode === "ranked" ? "Ranked" : "Standard";
         var sampleText = modeText + " sample: " + String(payload.sample) + " / " + String(payload.matches);
-        var generatedText = "Generated: " + String(payload.generated);
+        var stale = generatedIsStale(payload.generated);
+        var generatedText = "Generated: " + String(payload.generated) + (stale ? " (stale)" : "");
         renderMetricGroups(payload.groups);
         setText(sampleLabel, sampleText);
         setText(generatedLabel, generatedText);
         setMetricsVisible(true);
-        setRetryVisible(false);
-        setText(statusLabel, modeText + " comparison loaded.");
+        setRetryVisible(stale);
+        setText(statusLabel, stale ? "Showing cached comparison data. Retry for current values." : modeText + " comparison loaded.");
     }
 
 
@@ -895,7 +908,20 @@
         setVisibility(supporterTicker, false);
     }
 
+    function cancelBridgeAssignment() {
+        var handle = bridgeAssignmentHandle;
+        bridgeAssignmentHandle = null;
+        if (handle !== null && handle !== undefined && isCallable($.CancelScheduled)) {
+            try {
+                $.CancelScheduled(handle);
+            } catch (error) {
+                return;
+            }
+        }
+    }
+
     function invalidateRequest(unload) {
+        cancelBridgeAssignment();
         requestState = null;
         requestGeneration += 1;
         if (unload !== false) {
@@ -925,13 +951,17 @@
 
     function finishSuccess(payload, request) {
         debugLog("success sample=" + String(payload.sample) + " account=" + request.account + " mode=" + request.mode + " matches=" + String(request.matches));
-        memoryCache = {
-            account: request.account,
-            matches: request.matches,
-            mode: request.mode,
-            receivedAt: now(),
-            payload: payload
-        };
+        if (generatedIsStale(payload.generated)) {
+            memoryCache = null;
+        } else {
+            memoryCache = {
+                account: request.account,
+                matches: request.matches,
+                mode: request.mode,
+                receivedAt: now(),
+                payload: payload
+            };
+        }
         invalidateRequest(true);
         rateLimitBlocked = false;
         enterState(STATE_READY);
@@ -1106,8 +1136,54 @@
         registerPanelEvent(bridgePanel, "HTMLTitle", onBridgeTitle);
         registerPanelEvent(bridgePanel, "HTMLURLChanged", onBridgeUrlChanged);
     }
+    function assignBridgeUrl(request) {
+        if (requestState !== request || request.generation !== requestGeneration || !isCustomActive()) {
+            return;
+        }
+        if (!runtimePanelsValid()) {
+            disableRuntime("panel_invalid");
+            return;
+        }
+        try {
+            if (isCallable(bridgePanel.SetIgnoreCursor)) {
+                bridgePanel.SetIgnoreCursor(true);
+            }
+            if (!isCallable(bridgePanel.SetURL)) {
+                throw new Error("SetURL unavailable");
+            }
+            bridgePanel.SetURL(bridgeUrl(request));
+        } catch (error) {
+            finishError("network_error", null);
+        }
+    }
 
-    function beginRequest() {
+    function scheduleBridgeAssignment(request) {
+        var generation = request.generation;
+        cancelBridgeAssignment();
+        try {
+            bridgeAssignmentHandle = $.Schedule(BRIDGE_ASSIGN_DELAY_SECONDS, function () {
+                if (requestState !== request || generation !== requestGeneration) {
+                    return;
+                }
+                bridgeAssignmentHandle = null;
+                inspectNativeHeroSignature();
+                if (!isCustomActive()) {
+                    return;
+                }
+                inspectStockSelection();
+                if (!isCustomActive()) {
+                    return;
+                }
+                assignBridgeUrl(request);
+            });
+        } catch (error) {
+            bridgeAssignmentHandle = null;
+            finishError("network_error", null);
+        }
+    }
+
+
+    function beginRequest(deferBridgeAssignment) {
         var identity = readIdentity();
         var request;
         var cached;
@@ -1158,16 +1234,10 @@
         debugLog("request start account=" + request.account + " mode=" + request.mode + " matches=" + String(request.matches) + " nonce=" + request.nonce + " generation=" + String(request.generation));
         renderLoading();
         setBridgeVisible(true);
-        try {
-            if (isCallable(bridgePanel.SetIgnoreCursor)) {
-                bridgePanel.SetIgnoreCursor(true);
-            }
-            if (!isCallable(bridgePanel.SetURL)) {
-                throw new Error("SetURL unavailable");
-            }
-            bridgePanel.SetURL(bridgeUrl(request));
-        } catch (error) {
-            finishError("network_error", null);
+        if (deferBridgeAssignment) {
+            scheduleBridgeAssignment(request);
+        } else {
+            assignBridgeUrl(request);
         }
     }
 
@@ -1479,7 +1549,7 @@
             return;
         }
         selectedMatches = nextMatches;
-        beginRequest();
+        beginRequest(true);
     }
 
     function selectMatchMode(mode) {
@@ -1487,7 +1557,7 @@
             return;
         }
         selectedMode = mode;
-        beginRequest();
+        beginRequest(true);
     }
 
     function onRankedSelected() {
