@@ -4,6 +4,9 @@
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
 		<include src="s2r://panorama/styles/citadel_ui_context_menu_player.vcss_c" />
 	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/profile_stats_community_context_menu.vjs_c" />
+	</scripts>
 	<snippets>
 		<snippet name="InviteToParty">
 			<Panel class="MenuRow">
@@ -115,10 +118,9 @@
 		<CitadelProfileCard id="ProfileCard" />
 		<Panel id="MenuOptionsContainer">
 			<Panel id="PlayerContainer" />
-			<Panel id="MenuOptionsPanel">
-				<Panel id="ProfileStatsCommunityPlayerProfileRow" class="MenuRow">
-					<TextButton id="MenuButton" text="Player Profile" onactivate="if ($('#ProfileCard').ProfileStatsCommunityOpenPlayerProfile) $('#ProfileCard').ProfileStatsCommunityOpenPlayerProfile();" />
-				</Panel>
+			<Panel id="MenuOptionsPanel" />
+			<Panel id="ProfileStatsCommunityPlayerProfileRow" class="MenuRow">
+				<TextButton id="MenuButton" text="Player Profile" onactivate="if ($.ProfileStatsCommunityOpenPlayerProfile) $.ProfileStatsCommunityOpenPlayerProfile();" />
 			</Panel>
 		</Panel>
 	</CitadelContextMenuPlayer>

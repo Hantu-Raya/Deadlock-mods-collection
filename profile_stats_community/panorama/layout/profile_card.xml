@@ -4,9 +4,6 @@
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
 		<include src="s2r://panorama/styles/profile_card.vcss_c" />
 	</styles>
-	<scripts>
-		<include src="s2r://panorama/scripts/profile_stats_community_context_menu.vjs_c" />
-	</scripts>
 	<CitadelProfileCard>
 		<Panel id="MiniProfileContainer" class="TopBottomFlow">
 			<Panel id="ContentsMain">

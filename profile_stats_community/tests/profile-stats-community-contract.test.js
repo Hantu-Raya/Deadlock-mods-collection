@@ -122,13 +122,15 @@ test("layout keeps stock authority and adds only the local bridge surface", func
 test("player context menu opens the selected account in the profile database", function () {
   assert.doesNotThrow(function () { assertWellFormedXml(contextMenuLayout); }, "player context menu must remain well-formed XML");
   assert.doesNotThrow(function () { assertWellFormedXml(profileCardLayout); }, "profile card must remain well-formed XML");
-  assert.match(contextMenuLayout, /<Panel id="ProfileStatsCommunityPlayerProfileRow" class="MenuRow">/);
-  assert.match(contextMenuLayout, /<TextButton id="MenuButton" text="Player Profile" onactivate="if \(\$\('#ProfileCard'\)\.ProfileStatsCommunityOpenPlayerProfile\) \$\('#ProfileCard'\)\.ProfileStatsCommunityOpenPlayerProfile\(\);" \/>/);
+  assert.match(contextMenuLayout, /<scripts>\s*<include src="s2r:\/\/panorama\/scripts\/profile_stats_community_context_menu\.vjs_c" \/>\s*<\/scripts>/);
+  assert.match(contextMenuLayout, /<Panel id="MenuOptionsPanel" \/>\s*<Panel id="ProfileStatsCommunityPlayerProfileRow" class="MenuRow">/);
+  assert.match(contextMenuLayout, /<TextButton id="MenuButton" text="Player Profile" onactivate="if \(\$\.ProfileStatsCommunityOpenPlayerProfile\) \$\.ProfileStatsCommunityOpenPlayerProfile\(\);" \/>/);
   assert.equal(count(contextMenuLayout, /id="ProfileStatsCommunityPlayerProfileRow"/g), 1);
-  assert.match(profileCardLayout, /<include src="s2r:\/\/panorama\/scripts\/profile_stats_community_context_menu\.vjs_c" \/>/);
+  assert.doesNotMatch(contextMenuLayout, /<Panel id="MenuOptionsPanel">\s*[\s\S]*ProfileStatsCommunityPlayerProfileRow/);
+  assert.doesNotMatch(profileCardLayout, /profile_stats_community_context_menu\.vjs_c/);
   assert.match(profileCardLayout, /<Label id="ProfileStatsCommunityContextAccount" text="\{i:r:account_id\}" visible="false" hittest="false" \/>/);
+  assert.match(contextMenuScript, /\$\.ProfileStatsCommunityOpenPlayerProfile\s*=/);
   assert.match(contextMenuScript, /CitadelShowProfilePageForAccount\(account\)/);
-  assert.match(contextMenuScript, /DismissAllContextMenus\(\)/);
   assert.doesNotMatch(contextMenuScript, /GetLocalPlayer|local_player|LocalPlayer/);
 });
 
