@@ -7,7 +7,10 @@ var test = require("node:test");
 
 var moduleRoot = path.resolve(__dirname, "..");
 var layout = fs.readFileSync(path.join(moduleRoot, "panorama", "layout", "citadel_db_page_profile.xml"), "utf8");
+var contextMenuLayout = fs.readFileSync(path.join(moduleRoot, "panorama", "layout", "citadel_ui_context_menu_player.xml"), "utf8");
+var profileCardLayout = fs.readFileSync(path.join(moduleRoot, "panorama", "layout", "profile_card.xml"), "utf8");
 var script = fs.readFileSync(path.join(moduleRoot, "panorama", "scripts", "profile_stats_community.js"), "utf8");
+var contextMenuScript = fs.readFileSync(path.join(moduleRoot, "panorama", "scripts", "profile_stats_community_context_menu.js"), "utf8");
 var styles = fs.readFileSync(path.join(moduleRoot, "panorama", "styles", "profile_stats_community.css"), "utf8");
 var packageJson = JSON.parse(fs.readFileSync(path.join(moduleRoot, "package.json"), "utf8"));
 
@@ -90,8 +93,8 @@ function directChildIds(source, parentId) {
 test("module inventory contains only authored contract files", function () {
   assert.deepEqual(fs.readdirSync(moduleRoot).sort(), ["AGENTS.md", "package.json", "panorama", "tests"]);
   assert.deepEqual(fs.readdirSync(path.join(moduleRoot, "panorama")).sort(), ["layout", "scripts", "styles"]);
-  assert.deepEqual(fs.readdirSync(path.join(moduleRoot, "panorama", "layout")), ["citadel_db_page_profile.xml"]);
-  assert.deepEqual(fs.readdirSync(path.join(moduleRoot, "panorama", "scripts")), ["profile_stats_community.js"]);
+  assert.deepEqual(fs.readdirSync(path.join(moduleRoot, "panorama", "layout")).sort(), ["citadel_db_page_profile.xml", "citadel_ui_context_menu_player.xml", "profile_card.xml"]);
+  assert.deepEqual(fs.readdirSync(path.join(moduleRoot, "panorama", "scripts")).sort(), ["profile_stats_community.js", "profile_stats_community_context_menu.js"]);
   assert.deepEqual(fs.readdirSync(path.join(moduleRoot, "panorama", "styles")), ["profile_stats_community.css"]);
 });
 
@@ -114,6 +117,19 @@ test("layout keeps stock authority and adds only the local bridge surface", func
   assert.doesNotMatch(layout, /GetLocalPlayer|local_player|LocalPlayer|FindChildrenWithClassTraverse/);
   assert.doesNotMatch(script, /setPanelEvent\(\s*root\s*,\s*"oncancel"/, "runtime must not replace the stock XML cancel path");
   assert.doesNotMatch(script, /CitadelNavigateBack/, "native profile navigation must stay in XML");
+});
+
+test("player context menu opens the selected account in the profile database", function () {
+  assert.doesNotThrow(function () { assertWellFormedXml(contextMenuLayout); }, "player context menu must remain well-formed XML");
+  assert.doesNotThrow(function () { assertWellFormedXml(profileCardLayout); }, "profile card must remain well-formed XML");
+  assert.match(contextMenuLayout, /<Panel id="ProfileStatsCommunityPlayerProfileRow" class="MenuRow">/);
+  assert.match(contextMenuLayout, /<TextButton id="MenuButton" text="Player Profile" onactivate="if \(\$\('#ProfileCard'\)\.ProfileStatsCommunityOpenPlayerProfile\) \$\('#ProfileCard'\)\.ProfileStatsCommunityOpenPlayerProfile\(\);" \/>/);
+  assert.equal(count(contextMenuLayout, /id="ProfileStatsCommunityPlayerProfileRow"/g), 1);
+  assert.match(profileCardLayout, /<include src="s2r:\/\/panorama\/scripts\/profile_stats_community_context_menu\.vjs_c" \/>/);
+  assert.match(profileCardLayout, /<Label id="ProfileStatsCommunityContextAccount" text="\{i:r:account_id\}" visible="false" hittest="false" \/>/);
+  assert.match(contextMenuScript, /CitadelShowProfilePageForAccount\(account\)/);
+  assert.match(contextMenuScript, /DismissAllContextMenus\(\)/);
+  assert.doesNotMatch(contextMenuScript, /GetLocalPlayer|local_player|LocalPlayer/);
 });
 
 test("community navigation keeps the hero-list alignment contract", function () {

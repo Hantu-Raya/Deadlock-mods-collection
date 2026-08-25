@@ -18,17 +18,26 @@ $source2Viewer = Join-Path $root '.tmp\vrf-cli-19.2\Source2Viewer-CLI.exe'
 
 $requiredSourceAssets = @(
     'panorama/layout/citadel_db_page_profile.xml',
+    'panorama/layout/citadel_ui_context_menu_player.xml',
+    'panorama/layout/profile_card.xml',
     'panorama/scripts/profile_stats_community.js',
+    'panorama/scripts/profile_stats_community_context_menu.js',
     'panorama/styles/profile_stats_community.css'
 )
 $requiredCompiledAssets = @(
     'panorama/layout/citadel_db_page_profile.vxml_c',
+    'panorama/layout/citadel_ui_context_menu_player.vxml_c',
+    'panorama/layout/profile_card.vxml_c',
     'panorama/scripts/profile_stats_community.vjs_c',
+    'panorama/scripts/profile_stats_community_context_menu.vjs_c',
     'panorama/styles/profile_stats_community.vcss_c'
 )
 $forbiddenPackedAssets = @(
     'panorama/layout/citadel_db_page_profile.xml',
+    'panorama/layout/citadel_ui_context_menu_player.xml',
+    'panorama/layout/profile_card.xml',
     'panorama/scripts/profile_stats_community.js',
+    'panorama/scripts/profile_stats_community_context_menu.js',
     'panorama/styles/profile_stats_community.css',
     'AGENTS.md',
     'README.md',
@@ -130,20 +139,24 @@ function Invoke-ProfileStatsClosureMinification {
     param(
         [Parameter(Mandatory = $true)][string]$ReadableSourcePath,
         [Parameter(Mandatory = $true)][string]$StagedSourcePath,
-        [Parameter(Mandatory = $true)][string]$TemporaryRoot
+        [Parameter(Mandatory = $true)][string]$TemporaryRoot,
+        [switch]$ValidateProtocolKeys
     )
 
     $externsPath = Join-Path $TemporaryRoot 'profile_stats_community.externs.js'
     $minifiedPath = Join-Path $TemporaryRoot 'profile_stats_community.min.js'
     New-Item -ItemType Directory -Path $TemporaryRoot -Force | Out-Null
-    $dynamicLookupKeys = @(
-        'kd', 'kda', 'average_kills', 'average_assists', 'average_deaths',
-        'damage_taken_per_minute', 'player_damage_per_minute', 'accuracy',
-        'critical_hit_rate', 'net_worth_per_minute', 'boss_damage_per_minute',
-        'healing_per_minute', 'invalid_query', 'network_error', 'upstream_error',
-        'rate_limit', 'empty_sample', 'invalid_payload', 'payload_too_large', 'internal_error',
-        'ranked', 'standard'
-    )
+    $dynamicLookupKeys = @()
+    if ($ValidateProtocolKeys) {
+        $dynamicLookupKeys = @(
+            'kd', 'kda', 'average_kills', 'average_assists', 'average_deaths',
+            'damage_taken_per_minute', 'player_damage_per_minute', 'accuracy',
+            'critical_hit_rate', 'net_worth_per_minute', 'boss_damage_per_minute',
+            'healing_per_minute', 'invalid_query', 'network_error', 'upstream_error',
+            'rate_limit', 'empty_sample', 'invalid_payload', 'payload_too_large', 'internal_error',
+            'ranked', 'standard'
+        )
+    }
 
     try {
         $propertyNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
@@ -155,6 +168,7 @@ function Invoke-ProfileStatsClosureMinification {
         $externs.Add('var $;')
         $externs.Add('function DismissAllContextMenus() {}')
         $externs.Add('function DropInputFocus() {}')
+        $externs.Add('function CitadelShowProfilePageForAccount(account) {}')
         foreach ($propertyName in ($propertyNames | Sort-Object)) {
             $externs.Add("Object.prototype.$propertyName;")
         }
@@ -263,7 +277,13 @@ try {
     if ((Get-ProfileStatsSha256 -Path $readableRuntime) -ne (Get-ProfileStatsSha256 -Path $stagedRuntime)) {
         throw 'Staged Profile Stats runtime does not exactly match readable source before minification.'
     }
-    Invoke-ProfileStatsClosureMinification -ReadableSourcePath $readableRuntime -StagedSourcePath $stagedRuntime -TemporaryRoot (Join-Path $buildRoot 'minify')
+    Invoke-ProfileStatsClosureMinification -ReadableSourcePath $readableRuntime -StagedSourcePath $stagedRuntime -TemporaryRoot (Join-Path $buildRoot 'minify') -ValidateProtocolKeys
+    $readableContextRuntime = Join-Path $moduleRoot 'panorama\scripts\profile_stats_community_context_menu.js'
+    $stagedContextRuntime = Join-Path $stageSource 'panorama\scripts\profile_stats_community_context_menu.js'
+    if ((Get-ProfileStatsSha256 -Path $readableContextRuntime) -ne (Get-ProfileStatsSha256 -Path $stagedContextRuntime)) {
+        throw 'Staged Profile Stats context-menu runtime does not exactly match readable source before minification.'
+    }
+    Invoke-ProfileStatsClosureMinification -ReadableSourcePath $readableContextRuntime -StagedSourcePath $stagedContextRuntime -TemporaryRoot (Join-Path $buildRoot 'minify-context-menu')
     Assert-ProfileStatsAssetSet -Actual (Get-ProfileStatsAssetPaths -RootPath $stageSource) -ExpectedAssets $requiredSourceAssets -Label 'Minified Profile Stats source'
 
     if (-not (Test-Path -LiteralPath $compiler)) {

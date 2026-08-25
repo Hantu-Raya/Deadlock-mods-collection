@@ -31,25 +31,34 @@ assert.deepStrictEqual(
   assignedStringArray('requiredSourceAssets'),
   [
     'panorama/layout/citadel_db_page_profile.xml',
+    'panorama/layout/citadel_ui_context_menu_player.xml',
+    'panorama/layout/profile_card.xml',
     'panorama/scripts/profile_stats_community.js',
+    'panorama/scripts/profile_stats_community_context_menu.js',
     'panorama/styles/profile_stats_community.css',
   ],
-  'the source inventory admits exactly the three authored Panorama sources',
+  'the source inventory admits exactly the six authored Panorama sources',
 );
 assert.deepStrictEqual(
   assignedStringArray('requiredCompiledAssets'),
   [
     'panorama/layout/citadel_db_page_profile.vxml_c',
+    'panorama/layout/citadel_ui_context_menu_player.vxml_c',
+    'panorama/layout/profile_card.vxml_c',
     'panorama/scripts/profile_stats_community.vjs_c',
+    'panorama/scripts/profile_stats_community_context_menu.vjs_c',
     'panorama/styles/profile_stats_community.vcss_c',
   ],
-  'the compiled inventory admits exactly the three Source 2 resources',
+  'the compiled inventory admits exactly the six Source 2 resources',
 );
 assert.deepStrictEqual(
   assignedStringArray('forbiddenPackedAssets'),
   [
     'panorama/layout/citadel_db_page_profile.xml',
+    'panorama/layout/citadel_ui_context_menu_player.xml',
+    'panorama/layout/profile_card.xml',
     'panorama/scripts/profile_stats_community.js',
+    'panorama/scripts/profile_stats_community_context_menu.js',
     'panorama/styles/profile_stats_community.css',
     'AGENTS.md',
     'README.md',
@@ -77,6 +86,7 @@ assert.ok(build.includes("'\\.([A-Za-z_$][A-Za-z0-9_$]*)'"), 'all readable dot-p
 assert.match(build, /\$externs\.Add\('var \$;'\)/, 'Panorama $ is declared as an extern');
 assert.match(build, /\$externs\.Add\('function DismissAllContextMenus\(\) \{\}'\)/, 'native context dismissal is declared as an extern');
 assert.match(build, /\$externs\.Add\('function DropInputFocus\(\) \{\}'\)/, 'native focus release is declared as an extern');
+assert.match(build, /\$externs\.Add\('function CitadelShowProfilePageForAccount\(account\) \{\}'\)/, 'native profile database navigation is declared as an extern');
 assert.match(build, /Object\.prototype\.\$propertyName;/, 'extracted Panorama properties are emitted as Object.prototype externs');
 assert.match(build, /Object\.prototype\['\$dynamicLookupKey'\];/, 'external protocol keys are declared as quoted extern properties');
 assert.match(build, /& npx --yes google-closure-compiler --js \$StagedSourcePath --js_output_file \$minifiedPath --externs \$externsPath --compilation_level ADVANCED --language_in ECMASCRIPT5 --language_out ECMASCRIPT5 --warning_level QUIET/, 'Closure uses ADVANCED ES5 compilation on the staged runtime');
@@ -92,7 +102,7 @@ assert.match(build, /foreach \(\$temporaryPath in @\(\$externsPath, \$minifiedPa
 
 assert.match(build, /& npm --prefix \$moduleRoot run validate/, 'the package validation command is explicit');
 assert.match(build, /Copy-Item -LiteralPath \$sourcePath -Destination \$stagedPath -Force/, 'only inventoried source assets are staged');
-assert.match(build, /Invoke-Source2Compiler -CompilerPath \$compiler -SourceDir \$stageSource -RequiredOutputs \$requiredCompiledOutputs -HiddenWindow/, 'the shared Source2 compiler helper is used for all three outputs');
+assert.match(build, /Invoke-Source2Compiler -CompilerPath \$compiler -SourceDir \$stageSource -RequiredOutputs \$requiredCompiledOutputs -HiddenWindow/, 'the shared Source2 compiler helper is used for all six outputs');
 assert.match(build, /Invoke-VpkPack -VpkEditCli \$vpkEditCli -InputDir \$stageCompiled -OutputPath \$vpkOutput/, 'the shared VPK pack helper creates the root artifact');
 assert.match(build, /Get-PackedVpkTree -VpkEditCli \$vpkEditCli -VpkPath \$vpkOutput -Source2ViewerPath \$source2Viewer/, 'the packed output is inspected with the shared tree helper');
 
@@ -101,6 +111,8 @@ const sourceCheckIndex = indexOfRequired("Assert-ProfileStatsAssetSet -Actual (G
 const stagedCopyIndex = indexOfRequired('Copy-Item -LiteralPath $sourcePath -Destination $stagedPath -Force');
 const hashIndex = indexOfRequired('Get-ProfileStatsSha256 -Path $readableRuntime');
 const closureCallIndex = indexOfRequired('Invoke-ProfileStatsClosureMinification -ReadableSourcePath $readableRuntime -StagedSourcePath $stagedRuntime');
+const contextHashIndex = indexOfRequired('Get-ProfileStatsSha256 -Path $readableContextRuntime');
+const contextClosureCallIndex = indexOfRequired('Invoke-ProfileStatsClosureMinification -ReadableSourcePath $readableContextRuntime -StagedSourcePath $stagedContextRuntime');
 const closureRunIndex = indexOfRequired('& npx --yes google-closure-compiler');
 const minifiedSyntaxIndex = indexOfRequired('& node --check $minifiedPath');
 const minifiedMoveIndex = indexOfRequired('Move-Item -LiteralPath $minifiedPath -Destination $StagedSourcePath -Force');
@@ -112,7 +124,7 @@ const packedCheckIndex = indexOfRequired("Assert-ProfileStatsAssetSet -Actual $p
 const forbiddenCheckIndex = indexOfRequired('Assert-PackedVpkAssets -Tree $packedTree -Required $requiredCompiledAssets -Forbidden $forbiddenPackedAssets');
 assert.ok(validateIndex < sourceCheckIndex, 'package validation precedes source inventory validation');
 assert.ok(sourceCheckIndex < stagedCopyIndex, 'source inventory validation precedes staging');
-assert.ok(stagedCopyIndex < hashIndex && hashIndex < closureCallIndex && closureCallIndex < compilerIndex, 'source copies, hash check, and staged Closure invocation precede Source2 compilation');
+assert.ok(stagedCopyIndex < hashIndex && hashIndex < closureCallIndex && closureCallIndex < contextHashIndex && contextHashIndex < contextClosureCallIndex && contextClosureCallIndex < compilerIndex, 'source copies, both hash checks, and both staged Closure invocations precede Source2 compilation');
 assert.ok(closureRunIndex < minifiedSyntaxIndex && minifiedSyntaxIndex < minifiedMoveIndex, 'Closure output is syntax-checked before replacing the staged runtime');
 assert.ok(minifiedMoveIndex < compilerIndex, 'minified staged runtime precedes Source2 compilation');
 assert.ok(compilerIndex < compiledCheckIndex && compiledCheckIndex < packIndex, 'compiled outputs are checked before packing');
