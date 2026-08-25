@@ -4,6 +4,26 @@
     var ACCOUNT_WITNESS_ID = "ProfileStatsCommunityContextAccount";
     var AUTHORITY_NAMES = ["accountid", "steamid"];
     var STEAM_ID_BASE = "76561197960265728";
+    var DEBUG_PREFIX = "[PSC-PROFILE-DEBUG] ";
+
+    function debug(message) {
+        try {
+            if (isCallable($.Msg)) {
+                $.Msg(DEBUG_PREFIX + String(message));
+            }
+        } catch (error) {
+            return;
+        }
+    }
+
+    function errorMessage(error) {
+        try {
+            return error && error.message ? String(error.message) : String(error);
+        } catch (ignored) {
+            return "unknown error";
+        }
+    }
+
 
     function isCallable(value) {
         return typeof value === "function";
@@ -151,47 +171,70 @@
     }
 
     function resolveAccount(card) {
-        var account = normalizeDigits(readText(findWitness(card)));
+        var witness = findWitness(card);
+        var rawWitness = readText(witness);
+        var account = normalizeDigits(rawWitness);
         var accountNumber = Number(account);
         var index;
         var authority;
+        var normalizedAuthority;
+        debug("resolve card=" + (isValidPanel(card) ? "valid" : "missing") + " witness=" + (isValidPanel(witness) ? "valid" : "missing") + " raw=" + rawWitness + " normalized=" + account);
         if (!account || !isFinite(accountNumber) || Math.floor(accountNumber) !== accountNumber || accountNumber <= 0 || accountNumber > 4294967295 || String(accountNumber) !== account) {
+            debug("resolve rejected invalid account");
             return null;
         }
         for (index = 0; index < AUTHORITY_NAMES.length; index += 1) {
             authority = readAttribute(card, AUTHORITY_NAMES[index]);
-            if (authority !== "" && normalizeAuthority(authority, AUTHORITY_NAMES[index]) !== account) {
+            normalizedAuthority = authority === "" ? "" : normalizeAuthority(authority, AUTHORITY_NAMES[index]);
+            debug("authority " + AUTHORITY_NAMES[index] + " raw=" + authority + " normalized=" + normalizedAuthority);
+            if (authority !== "" && normalizedAuthority !== account) {
+                debug("resolve rejected authority mismatch expected=" + account);
                 return null;
             }
         }
+        debug("resolve accepted account=" + account);
         return accountNumber;
     }
 
     function install() {
         var root;
+        debug("script loaded");
         try {
             root = $.GetContextPanel();
         } catch (error) {
+            debug("GetContextPanel threw " + errorMessage(error));
             return;
         }
+        debug("context root=" + (isValidPanel(root) ? "valid" : "invalid"));
         if (!isValidPanel(root)) {
             return;
         }
         $.ProfileStatsCommunityOpenPlayerProfile = function () {
-            var account = resolveAccount(findProfileCard(root));
+            var card;
+            var account;
+            debug("handler called");
+            card = findProfileCard(root);
+            debug("ProfileCard lookup=" + (isValidPanel(card) ? "found" : "missing"));
+            account = resolveAccount(card);
             if (account === null) {
+                debug("navigation blocked: account unresolved");
                 return false;
             }
+            debug("native opener type=" + typeof CitadelShowProfilePageForAccount);
             try {
                 if (typeof CitadelShowProfilePageForAccount !== "function") {
+                    debug("navigation blocked: native opener missing");
                     return false;
                 }
                 CitadelShowProfilePageForAccount(account);
+                debug("navigation dispatched account=" + account);
                 return true;
-            } catch (error) {
+            } catch (error2) {
+                debug("navigation threw " + errorMessage(error2));
                 return false;
             }
         };
+        debug("handler installed type=" + typeof $.ProfileStatsCommunityOpenPlayerProfile);
     }
 
     install();
