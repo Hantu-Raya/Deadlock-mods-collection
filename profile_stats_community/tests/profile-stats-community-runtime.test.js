@@ -132,6 +132,7 @@ function fakeDateFor(scheduler) {
   FakeDate.prototype.getTime = function () { return this.value; };
   FakeDate.prototype.toISOString = function () { return new Date(this.value).toISOString(); };
   FakeDate.now = function () { return scheduler.nowMs; };
+  FakeDate.parse = Date.parse;
   return FakeDate;
 }
 
@@ -540,44 +541,82 @@ test("HTMLTitle renders every validated metric for the viewed profile", function
   assert.equal(harness.map.PSCMetricKdPlayer.text, "1.25", "duplicate title and URL delivery is inert");
 });
 
-test("mode tabs and match dropdown restart requests with active filters", function () {
+test("stale success keeps metrics visible and exposes Retry", function () {
   var harness = makeHarness("42");
   var bridge = harness.bridge;
-  var standardUrl;
-  var hundredUrl;
-  var hundredPayload;
-  var hundredTitle;
-  var hundredFiftyUrl;
-  var rankedUrl;
+  var request;
+  var payload;
   harness.map.ProfileStatsCommunityButton.events.onactivate();
+  request = requestFromUrl(bridge.urls[bridge.urls.length - 1]);
+  payload = payloadFor(request, 50);
+  payload.generated = new Date(harness.scheduler.nowMs - (10 * 60 * 1000) - 1).toISOString();
+  bridge.events.HTMLTitle(bridge, "DLSTATS2:" + JSON.stringify(payload));
+  assert.equal(harness.map.ProfileStatsCommunityMetrics.style.visibility, "visible");
+  assert.match(harness.map.ProfileStatsCommunityGenerated.text, /\(stale\)$/);
+  assert.equal(harness.map.ProfileStatsCommunityRetry.style.visibility, "visible");
+  assert.match(harness.map.ProfileStatsCommunityStatus.text, /cached comparison data/);
+  var requestCount = bridge.urls.filter(function (url) {
+    return /^https:\/\/hantu-raya\.github\.io\/deadlock-stats-bridge\/bridge\.html\?/.test(url);
+  }).length;
+  harness.map.ProfileStatsCommunityRetry.events.onactivate();
+  harness.scheduler.advance(0.25);
+  assert.equal(bridge.urls.filter(function (url) {
+    return /^https:\/\/hantu-raya\.github\.io\/deadlock-stats-bridge\/bridge\.html\?/.test(url);
+  }).length, requestCount + 1, "Retry bypasses stale in-memory data");
+});
+
+test("rapid filter changes debounce to the last request and stock cancels the pending assignment", function () {
+  var harness = makeHarness("42");
+  var bridge = harness.bridge;
+  var requestUrl;
+  var request;
+  var payload;
+  var networkRequestCount;
+
+  harness.map.ProfileStatsCommunityButton.events.onactivate();
+  networkRequestCount = bridge.urls.filter(function (url) {
+    return /^https:\/\/hantu-raya\.github\.io\/deadlock-stats-bridge\/bridge\.html\?/.test(url);
+  }).length;
 
   harness.map.ProfileStatsCommunityStandard.events.onactivate();
-  standardUrl = bridge.urls[bridge.urls.length - 1];
-  assert.equal(queryValue(standardUrl, "mode"), "standard");
-  assert.equal(queryValue(standardUrl, "matches"), "50");
-
   harness.map.ProfileStatsCommunityMatchCount.selectedOption = harness.map.ProfileStatsCommunityMatchCount100;
   harness.map.ProfileStatsCommunityMatchCount.events.oninputsubmit();
-  hundredUrl = bridge.urls[bridge.urls.length - 1];
-  assert.equal(queryValue(hundredUrl, "mode"), "standard");
-  assert.equal(queryValue(hundredUrl, "matches"), "100");
-
-  hundredPayload = payloadFor(requestFromUrl(hundredUrl), 100, 100, "standard");
-  hundredTitle = "DLSTATS2:" + JSON.stringify(hundredPayload);
-  bridge.events.HTMLTitle(bridge, hundredTitle);
-  assert.equal(harness.map.ProfileStatsCommunitySample.text, "Standard sample: 100 / 100");
-  assert.equal(harness.map.ProfileStatsCommunityStatus.text, "Standard comparison loaded.");
-
   harness.map.ProfileStatsCommunityMatchCount.selectedOption = harness.map.ProfileStatsCommunityMatchCount150;
   harness.map.ProfileStatsCommunityMatchCount.events.oninputsubmit();
-  hundredFiftyUrl = bridge.urls[bridge.urls.length - 1];
-  assert.equal(queryValue(hundredFiftyUrl, "mode"), "standard");
-  assert.equal(queryValue(hundredFiftyUrl, "matches"), "150");
 
+  assert.equal(bridge.urls.filter(function (url) {
+    return /^https:\/\/hantu-raya\.github\.io\/deadlock-stats-bridge\/bridge\.html\?/.test(url);
+  }).length, networkRequestCount, "rapid changes do not assign intermediate bridge URLs");
+  assert.equal(harness.scheduler.pendingCount(), 2, "one watcher and one bridge assignment are pending");
+  harness.scheduler.advance(0.24);
+  assert.equal(bridge.urls.filter(function (url) {
+    return /^https:\/\/hantu-raya\.github\.io\/deadlock-stats-bridge\/bridge\.html\?/.test(url);
+  }).length, networkRequestCount);
+
+  harness.scheduler.advance(0.01);
+  requestUrl = bridge.urls[bridge.urls.length - 1];
+  assert.equal(queryValue(requestUrl, "mode"), "standard");
+  assert.equal(queryValue(requestUrl, "matches"), "150");
+  assert.equal(bridge.urls.filter(function (url) {
+    return /^https:\/\/hantu-raya\.github\.io\/deadlock-stats-bridge\/bridge\.html\?/.test(url);
+  }).length, networkRequestCount + 1, "only the final filter selection starts a request");
+
+  request = requestFromUrl(requestUrl);
+  payload = payloadFor(request, 150, 150, "standard");
+  bridge.events.HTMLTitle(bridge, "DLSTATS2:" + JSON.stringify(payload));
+  assert.equal(harness.map.ProfileStatsCommunityStatus.text, "Standard comparison loaded.");
+
+  harness.scheduler.advance(0.25);
   harness.map.ProfileStatsCommunityRanked.events.onactivate();
-  rankedUrl = bridge.urls[bridge.urls.length - 1];
-  assert.equal(queryValue(rankedUrl, "mode"), "ranked");
-  assert.equal(queryValue(rankedUrl, "matches"), "150");
+  harness.stockRows[0].classes = ["heroRow"];
+  harness.stockRows[1].classes.push("selected");
+  harness.scheduler.advance(0.25);
+
+  assert.equal(harness.scheduler.pendingCount(), 0, "stock mode leaves no pending bridge callback");
+  assert.equal(bridge.urls.filter(function (url) {
+    return /^https:\/\/hantu-raya\.github\.io\/deadlock-stats-bridge\/bridge\.html\?/.test(url);
+  }).length, networkRequestCount + 1, "stock restoration cancels the deferred request");
+  assert.equal(bridge.urls[bridge.urls.length - 1], "about:blank");
 });
 
 test("runtime keeps malformed expected fragments pending and rejects wrong-origin URLs", function () {
