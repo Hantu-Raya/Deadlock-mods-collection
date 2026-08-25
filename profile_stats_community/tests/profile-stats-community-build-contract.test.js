@@ -86,7 +86,7 @@ assert.ok(build.includes("'\\.([A-Za-z_$][A-Za-z0-9_$]*)'"), 'all readable dot-p
 assert.match(build, /\$externs\.Add\('var \$;'\)/, 'Panorama $ is declared as an extern');
 assert.match(build, /\$externs\.Add\('function DismissAllContextMenus\(\) \{\}'\)/, 'native context dismissal is declared as an extern');
 assert.match(build, /\$externs\.Add\('function DropInputFocus\(\) \{\}'\)/, 'native focus release is declared as an extern');
-assert.match(build, /\$externs\.Add\('function CitadelShowProfilePageForAccount\(account\) \{\}'\)/, 'native profile database navigation is declared as an extern');
+assert.doesNotMatch(build, /function CitadelShowProfilePageForAccount/, 'event-dispatched profile navigation needs no context-local native extern');
 assert.match(build, /Object\.prototype\.\$propertyName;/, 'extracted Panorama properties are emitted as Object.prototype externs');
 assert.match(build, /Object\.prototype\['\$dynamicLookupKey'\];/, 'external protocol keys are declared as quoted extern properties');
 assert.match(build, /& npx --yes google-closure-compiler --js \$StagedSourcePath --js_output_file \$minifiedPath --externs \$externsPath --compilation_level ADVANCED --language_in ECMASCRIPT5 --language_out ECMASCRIPT5 --warning_level QUIET/, 'Closure uses ADVANCED ES5 compilation on the staged runtime');

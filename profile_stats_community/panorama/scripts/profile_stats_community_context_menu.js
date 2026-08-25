@@ -220,13 +220,13 @@
                 debug("navigation blocked: account unresolved");
                 return false;
             }
-            debug("native opener type=" + typeof CitadelShowProfilePageForAccount);
+            debug("event dispatcher type=" + typeof $.DispatchEvent);
             try {
-                if (typeof CitadelShowProfilePageForAccount !== "function") {
-                    debug("navigation blocked: native opener missing");
+                if (!isCallable($.DispatchEvent)) {
+                    debug("navigation blocked: event dispatcher missing");
                     return false;
                 }
-                CitadelShowProfilePageForAccount(account);
+                $.DispatchEvent("CitadelShowProfilePageForAccount", account);
                 debug("navigation dispatched account=" + account);
                 return true;
             } catch (error2) {
