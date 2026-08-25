@@ -136,6 +136,14 @@ function Invoke-ProfileStatsClosureMinification {
     $externsPath = Join-Path $TemporaryRoot 'profile_stats_community.externs.js'
     $minifiedPath = Join-Path $TemporaryRoot 'profile_stats_community.min.js'
     New-Item -ItemType Directory -Path $TemporaryRoot -Force | Out-Null
+    $dynamicLookupKeys = @(
+        'kd', 'kda', 'average_kills', 'average_assists', 'average_deaths',
+        'damage_taken_per_minute', 'player_damage_per_minute', 'accuracy',
+        'critical_hit_rate', 'net_worth_per_minute', 'boss_damage_per_minute',
+        'healing_per_minute', 'invalid_query', 'network_error', 'upstream_error',
+        'rate_limit', 'empty_sample', 'invalid_payload', 'payload_too_large', 'internal_error',
+        'ranked', 'standard'
+    )
 
     try {
         $propertyNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
@@ -149,6 +157,9 @@ function Invoke-ProfileStatsClosureMinification {
         $externs.Add('function DropInputFocus() {}')
         foreach ($propertyName in ($propertyNames | Sort-Object)) {
             $externs.Add("Object.prototype.$propertyName;")
+        }
+        foreach ($dynamicLookupKey in $dynamicLookupKeys) {
+            $externs.Add("Object.prototype['$dynamicLookupKey'];")
         }
         [System.IO.File]::WriteAllLines($externsPath, $externs, [System.Text.UTF8Encoding]::new($false))
 
@@ -173,17 +184,9 @@ function Invoke-ProfileStatsClosureMinification {
         if ($LASTEXITCODE -ne 0) {
             throw 'Closure Compiler output has invalid JavaScript syntax'
         }
-        $dynamicLookupKeys = @(
-            'kd', 'kda', 'average_kills', 'average_assists', 'average_deaths',
-            'damage_taken_per_minute', 'player_damage_per_minute', 'accuracy',
-            'critical_hit_rate', 'net_worth_per_minute', 'boss_damage_per_minute',
-            'healing_per_minute', 'invalid_query', 'network_error', 'upstream_error',
-            'rate_limit', 'empty_sample', 'invalid_payload', 'payload_too_large', 'internal_error',
-            'ranked', 'standard'
-        )
         $minifiedSource = [System.IO.File]::ReadAllText($minifiedPath)
         foreach ($dynamicLookupKey in $dynamicLookupKeys) {
-            $objectKeyPattern = '(?:\{|,)' + [regex]::Escape($dynamicLookupKey) + ':'
+            $objectKeyPattern = '(?:\{|,)\s*(?:"|'')?' + [regex]::Escape($dynamicLookupKey) + '(?:"|'')?:'
             if (-not [regex]::IsMatch($minifiedSource, $objectKeyPattern)) {
                 throw "Closure Compiler renamed dynamic lookup key: $dynamicLookupKey"
             }
