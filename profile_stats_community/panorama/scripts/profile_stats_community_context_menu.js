@@ -122,6 +122,20 @@
         }
     }
 
+    function findProfileCard(root) {
+        if (!isValidPanel(root)) {
+            return null;
+        }
+        try {
+            if (isCallable(root.FindChildTraverse)) {
+                return root.FindChildTraverse("ProfileCard");
+            }
+        } catch (error) {
+            return null;
+        }
+        return null;
+    }
+
     function findWitness(card) {
         if (!isValidPanel(card)) {
             return null;
@@ -154,31 +168,29 @@
     }
 
     function install() {
-        var card;
+        var root;
         try {
-            card = $.GetContextPanel();
+            root = $.GetContextPanel();
         } catch (error) {
             return;
         }
-        if (!isValidPanel(card)) {
+        if (!isValidPanel(root)) {
             return;
         }
-        card.ProfileStatsCommunityOpenPlayerProfile = function () {
-            var account = resolveAccount(card);
+        $.ProfileStatsCommunityOpenPlayerProfile = function () {
+            var account = resolveAccount(findProfileCard(root));
             if (account === null) {
                 return false;
             }
             try {
+                if (typeof CitadelShowProfilePageForAccount !== "function") {
+                    return false;
+                }
                 CitadelShowProfilePageForAccount(account);
+                return true;
             } catch (error) {
                 return false;
             }
-            try {
-                DismissAllContextMenus();
-            } catch (error2) {
-                return true;
-            }
-            return true;
         };
     }
 
