@@ -135,14 +135,15 @@ function fakeDateFor(scheduler) {
   return FakeDate;
 }
 
-function makeHarness(account) {
+function makeHarness(account, playerName) {
   var ids = [
-    "HeroList", "StatsBlock", "StatsTitle", "StatsLeft", "StatsRight", "ProfileStatsCommunityButton",
-    "ProfileStatsCommunityPanel", "ProfileStatsCommunityIdentity", "ProfileStatsCommunityStatus",
-    "ProfileStatsCommunityMetrics", "ProfileStatsCommunityMetadata", "ProfileStatsCommunitySample",
-    "ProfileStatsCommunityGenerated", "ProfileStatsCommunityRetry", "ProfileStatsCommunityBridge",
-    "ProfileStatsCommunitySupporterTicker", "ProfileStatsCommunityAccount",
-    "ProfileStatsCommunityMatchCount", "ProfileStatsCommunityMatchCount50",
+    "HeroList", "StatsBlock", "StatsTitle", "StatsLeft", "StatsRight", "SelfName",
+    "ProfileStatsCommunityButton", "ProfileStatsCommunityPanel", "ProfileStatsCommunityIdentity",
+    "ProfileStatsCommunityTitle", "ProfileStatsCommunityStatLocker", "ProfileStatsCommunityPlayerHeadingLeft",
+    "ProfileStatsCommunityPlayerHeadingRight", "ProfileStatsCommunityStatus", "ProfileStatsCommunityMetrics",
+    "ProfileStatsCommunityMetadata", "ProfileStatsCommunitySample", "ProfileStatsCommunityGenerated",
+    "ProfileStatsCommunityRetry", "ProfileStatsCommunityBridge", "ProfileStatsCommunitySupporterTicker",
+    "ProfileStatsCommunityAccount", "ProfileStatsCommunityMatchCount", "ProfileStatsCommunityMatchCount50",
     "ProfileStatsCommunityMatchCount100", "ProfileStatsCommunityMatchCount150",
     "ProfileStatsCommunityRanked", "ProfileStatsCommunityStandard"
   ];
@@ -158,6 +159,8 @@ function makeHarness(account) {
   var scheduler = new FakeScheduler(1700000000000);
   var counters = { findChild: 0, childCount: 0, childRead: 0 };
   var messages = [];
+  var externalUrls = [];
+  var navigation = { xmlCancel: 0, navigateBack: 0 };
   var context;
   ids.forEach(function (id) {
     map[id] = new Panel(id);
@@ -171,6 +174,8 @@ function makeHarness(account) {
   map.ProfileStatsCommunityMatchCount150.attributes.value = "150";
   map.ProfileStatsCommunityMatchCount.selectedOption = map.ProfileStatsCommunityMatchCount50;
   map.ProfileStatsCommunityAccount.text = String(account);
+  map.SelfName.children = [new Panel("")];
+  map.SelfName.children[0].text = playerName || "Ishan";
   stockHero = new Panel("StockHero", ["heroRow", "selected"]);
   secondHero = new Panel("SecondHero", ["heroRow"]);
   map.HeroList.children = [stockHero, secondHero];
@@ -191,7 +196,10 @@ function makeHarness(account) {
       Schedule: function (delay, callback) { return scheduler.schedule(delay, callback); },
       CancelScheduled: function (handle) { scheduler.cancel(handle); },
       Msg: function (message) { messages.push(String(message)); },
-      RegisterEventHandler: function (name, panel, callback) { panel.events[name] = callback; }
+      RegisterEventHandler: function (name, panel, callback) { panel.events[name] = callback; },
+      DispatchEvent: function (name, url) {
+        if (name === "ExternalBrowserGoToURL") externalUrls.push(String(url));
+      }
     },
     Date: fakeDateFor(scheduler),
     JSON: JSON,
@@ -203,7 +211,14 @@ function makeHarness(account) {
     parseInt: parseInt,
     encodeURIComponent: encodeURIComponent,
     decodeURIComponent: decodeURIComponent,
-    CitadelNavigateBack: function () { context.navigatedBack = true; }
+    CitadelNavigateBack: function () {
+      navigation.navigateBack += 1;
+      context.navigatedBack = true;
+    }
+  };
+  root.events.oncancel = function () {
+    navigation.xmlCancel += 1;
+    context.CitadelNavigateBack();
   };
   vm.runInNewContext(source, context, { filename: sourcePath });
   assert.equal(scheduler.pendingCount(), 1, "boot is the only initial callback");
@@ -215,6 +230,8 @@ function makeHarness(account) {
     counters: counters,
     messages: messages,
     context: context,
+    externalUrls: externalUrls,
+    navigation: navigation,
     bridge: map.ProfileStatsCommunityBridge,
     stockRows: [stockHero, secondHero]
   };
@@ -288,6 +305,12 @@ function queryValue(url, name) {
   return match ? decodeURIComponent(match[1]) : "";
 }
 
+function selectDifferentHero(harness) {
+  harness.stockRows[0].classes = ["heroRow"];
+  harness.stockRows[1].classes.push("selected");
+  harness.scheduler.runNext();
+}
+
 test("stock mode has no recurring callbacks or panel scans", function () {
   var harness = makeHarness("42");
 
@@ -303,7 +326,59 @@ test("stock mode has no recurring callbacks or panel scans", function () {
   assert.equal(harness.map.ProfileStatsCommunityBridge.visible, false);
 });
 
-test("open mode keeps one watcher and closing cancels it", function () {
+test("viewed display name drives comparison labels and StatLocker profile", function () {
+  var harness = makeHarness("42", "Ishan");
+
+  harness.map.ProfileStatsCommunityButton.events.onactivate();
+
+  assert.equal(harness.map.ProfileStatsCommunityTitle.text, "Ishan VS COMMUNITY");
+  assert.equal(harness.map.ProfileStatsCommunityPlayerHeadingLeft.text, "Ishan");
+  assert.equal(harness.map.ProfileStatsCommunityPlayerHeadingRight.text, "Ishan");
+  harness.map.ProfileStatsCommunityStatLocker.events.onactivate();
+  assert.deepEqual(harness.externalUrls, ["https://statlocker.gg/profile/42/matches"]);
+
+  harness.map.SelfName.children[0].text = "Changed Name";
+  harness.scheduler.runNext();
+  assert.equal(harness.map.ProfileStatsCommunityTitle.text, "Changed Name VS COMMUNITY");
+  assert.equal(harness.map.ProfileStatsCommunityPlayerHeadingLeft.text, "Changed Name");
+  assert.equal(harness.map.ProfileStatsCommunityPlayerHeadingRight.text, "Changed Name");
+});
+
+test("StatLocker link rereads account authority at click time", function () {
+  var harness = makeHarness("42", "Ishan");
+
+  harness.map.ProfileStatsCommunityButton.events.onactivate();
+  harness.map.ProfileStatsCommunityAccount.text = "";
+  harness.map.ProfileStatsCommunityStatLocker.events.onactivate();
+
+  assert.deepEqual(harness.externalUrls, []);
+
+  harness.map.ProfileStatsCommunityAccount.text = "42";
+  harness.root.attributes.accountid = "43";
+  harness.map.ProfileStatsCommunityStatLocker.events.onactivate();
+  assert.deepEqual(harness.externalUrls, [], "mismatched root authority must not open a profile");
+
+  delete harness.root.attributes.accountid;
+  harness.root.attributes.steamid = "76561197960265771";
+  harness.map.ProfileStatsCommunityStatLocker.events.onactivate();
+  assert.deepEqual(harness.externalUrls, [], "mismatched SteamID64 authority must not open a profile");
+
+  harness.root.attributes.steamid = "76561197960265770";
+  harness.map.ProfileStatsCommunityStatLocker.events.onactivate();
+  assert.deepEqual(harness.externalUrls, ["https://statlocker.gg/profile/42/matches"]);
+});
+
+test("Escape preserves the XML profile-page cancel path", function () {
+  var harness = makeHarness("42");
+
+  harness.map.ProfileStatsCommunityButton.events.onactivate();
+  harness.root.events.oncancel();
+
+  assert.deepEqual(harness.navigation, { xmlCancel: 1, navigateBack: 1 });
+  assert.equal(harness.context.navigatedBack, true);
+});
+
+test("open mode keeps one watcher and stock restoration cancels it", function () {
   var harness = makeHarness("42");
   var staleWatcher;
 
@@ -316,7 +391,7 @@ test("open mode keeps one watcher and closing cancels it", function () {
   assert.equal(harness.scheduler.maxPending, 1, "active checks never overlap");
   assert.deepEqual(harness.messages, [], "production lifecycle emits no debug messages");
 
-  harness.root.events.oncancel();
+  selectDifferentHero(harness);
   assert.equal(harness.scheduler.pendingCount(), 0);
   assert.equal(harness.map.ProfileStatsCommunityBridge.urls.at(-1), "about:blank");
   assert.equal(harness.map.ProfileStatsCommunitySupporterTicker.urls.at(-1), "about:blank");
@@ -335,7 +410,7 @@ test("closed-view responses stay stale after reopening", function () {
 
   harness.map.ProfileStatsCommunityButton.events.onactivate();
   oldRequest = requestFromUrl(bridge.urls.at(-1));
-  harness.root.events.oncancel();
+  selectDifferentHero(harness);
   harness.map.ProfileStatsCommunityButton.events.onactivate();
   newRequest = requestFromUrl(bridge.urls.at(-1));
   assert.notEqual(newRequest, oldRequest);
@@ -357,7 +432,7 @@ test("active timeout fails the request but keeps the view responsive", function 
   assert.equal(harness.map.ProfileStatsCommunityBridge.urls.at(-1), "about:blank");
   assert.equal(harness.scheduler.pendingCount(), 1, "error view still watches for stock navigation");
 
-  harness.root.events.oncancel();
+  selectDifferentHero(harness);
   assert.equal(harness.scheduler.pendingCount(), 0);
 });
 
@@ -560,7 +635,7 @@ test("selected hero baseline stays open until a different hero selection", funct
   assert.equal(bridge.urls[bridge.urls.length - 1], "about:blank");
 });
 
-test("supporter ticker loads only in custom mode and unloads on stock restoration or page cancel", function () {
+test("supporter ticker loads only in custom mode and unloads on stock restoration or invalid page", function () {
   var restoreHarness = makeHarness("42");
   var restoreTicker = restoreHarness.map.ProfileStatsCommunitySupporterTicker;
   var cancelHarness;
@@ -589,20 +664,21 @@ test("supporter ticker loads only in custom mode and unloads on stock restoratio
   assert.deepEqual(cancelTicker.urls, ["about:blank"], "ticker does not load before custom mode");
   cancelHarness.map.ProfileStatsCommunityButton.events.onactivate();
   assert.equal(cancelTicker.urls[cancelTicker.urls.length - 1], supporterUrl);
-  cancelHarness.root.events.oncancel();
+  cancelHarness.root.valid = false;
+  cancelHarness.scheduler.runNext();
   assert.equal(cancelTicker.urls[cancelTicker.urls.length - 1], "about:blank");
   assert.equal(cancelTicker.visible, false);
   assert.equal(cancelTicker.style.visibility, "collapse");
 });
 
-test("runtime rejects oversized hostile titles and page cancel restores stock panels", function () {
+test("runtime rejects oversized hostile titles and stock restoration preserves native panels", function () {
   var harness = makeHarness("42");
   var bridge = harness.bridge;
   harness.map.ProfileStatsCommunityButton.events.onactivate();
   bridge.events.HTMLTitle(bridge, "DLSTATS2:" + new Array(2050).join("x"));
   assert.match(harness.map.ProfileStatsCommunityStatus.text, /invalid|response/i);
   assert.equal(harness.map.ProfileStatsCommunityRetry.style.visibility, "visible");
-  harness.root.events.oncancel();
+  selectDifferentHero(harness);
   assert.equal(harness.map.StatsTitle.visible, true);
   assert.equal(harness.map.StatsLeft.visible, true);
   assert.equal(harness.map.StatsRight.visible, true);
@@ -610,7 +686,6 @@ test("runtime rejects oversized hostile titles and page cancel restores stock pa
   assert.equal(harness.map.StatsLeft.style.visibility, undefined);
   assert.equal(harness.map.StatsRight.style.visibility, undefined);
   assert.equal(harness.map.ProfileStatsCommunityPanel.style.visibility, "collapse");
-  assert.equal(harness.context.navigatedBack, true, "page cancel navigates back");
   assert.equal(bridge.urls[bridge.urls.length - 1], "about:blank");
 });
 
