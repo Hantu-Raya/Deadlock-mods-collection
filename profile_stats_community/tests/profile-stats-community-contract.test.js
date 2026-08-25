@@ -130,10 +130,10 @@ test("player context menu opens the selected account in the profile database", f
   assert.doesNotMatch(profileCardLayout, /profile_stats_community_context_menu\.vjs_c/);
   assert.match(profileCardLayout, /<Label id="ProfileStatsCommunityContextAccount" text="\{i:r:account_id\}" visible="false" hittest="false" \/>/);
   assert.match(contextMenuScript, /\$\.ProfileStatsCommunityOpenPlayerProfile\s*=/);
-  assert.match(contextMenuScript, /CitadelShowProfilePageForAccount\(account\)/);
+  assert.match(contextMenuScript, /\$\.DispatchEvent\("CitadelShowProfilePageForAccount", account\)/);
   assert.match(contextMenuScript, /debug\("script loaded"\)/);
   assert.match(contextMenuScript, /debug\("ProfileCard lookup="/);
-  assert.match(contextMenuScript, /debug\("native opener type="/);
+  assert.match(contextMenuScript, /debug\("event dispatcher type="/);
   assert.match(contextMenuScript, /debug\("navigation dispatched account="/);
   assert.match(contextMenuScript, /\[PSC-PROFILE-DEBUG\]/);
   assert.doesNotMatch(contextMenuScript, /GetLocalPlayer|local_player|LocalPlayer/);

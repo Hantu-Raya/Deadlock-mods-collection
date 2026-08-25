@@ -15,6 +15,7 @@ function makeHarness(options = {}) {
   const attributes = Object.assign({}, options.attributes);
   const opened = [];
   const logs = [];
+  const events = [];
   const witness = {
     text: account,
     IsValid() {
@@ -47,15 +48,16 @@ function makeHarness(options = {}) {
     Msg(message) {
       logs.push(String(message));
     },
-  };
-  const context = {
-    $: panoramaApi,
-    CitadelShowProfilePageForAccount(value) {
+    DispatchEvent(name, value) {
       if (options.throwNavigation) {
         throw new Error('navigation failed');
       }
+      events.push([name, value]);
       opened.push(value);
     },
+  };
+  const context = {
+    $: panoramaApi,
     Number,
     Object,
     String,
@@ -72,6 +74,7 @@ function makeHarness(options = {}) {
     root,
     opened,
     logs,
+    events,
     open() {
       return panoramaApi.ProfileStatsCommunityOpenPlayerProfile();
     },
@@ -86,7 +89,7 @@ test('context action opens the selected profile card account', () => {
 
   assert.equal(typeof harness.installedAction(), 'function');
   assert.equal(harness.open(), true);
-  assert.deepEqual(harness.opened, [215334735]);
+  assert.deepEqual(harness.events, [['CitadelShowProfilePageForAccount', 215334735]]);
   assert.deepEqual(harness.logs, [
     '[PSC-PROFILE-DEBUG] script loaded',
     '[PSC-PROFILE-DEBUG] context root=valid',
@@ -97,7 +100,7 @@ test('context action opens the selected profile card account', () => {
     '[PSC-PROFILE-DEBUG] authority accountid raw=215334735 normalized=215334735',
     '[PSC-PROFILE-DEBUG] authority steamid raw= normalized=',
     '[PSC-PROFILE-DEBUG] resolve accepted account=215334735',
-    '[PSC-PROFILE-DEBUG] native opener type=function',
+    '[PSC-PROFILE-DEBUG] event dispatcher type=function',
     '[PSC-PROFILE-DEBUG] navigation dispatched account=215334735',
   ]);
 });
@@ -109,6 +112,7 @@ test('Steam64 authority can corroborate the account witness', () => {
 
   assert.equal(harness.open(), true);
   assert.deepEqual(harness.opened, [198741881]);
+  assert.deepEqual(harness.events, [['CitadelShowProfilePageForAccount', 198741881]]);
 });
 
 test('mismatched or missing selected-player evidence fails closed', () => {

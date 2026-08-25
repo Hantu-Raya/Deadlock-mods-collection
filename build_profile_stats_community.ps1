@@ -168,7 +168,6 @@ function Invoke-ProfileStatsClosureMinification {
         $externs.Add('var $;')
         $externs.Add('function DismissAllContextMenus() {}')
         $externs.Add('function DropInputFocus() {}')
-        $externs.Add('function CitadelShowProfilePageForAccount(account) {}')
         foreach ($propertyName in ($propertyNames | Sort-Object)) {
             $externs.Add("Object.prototype.$propertyName;")
         }
