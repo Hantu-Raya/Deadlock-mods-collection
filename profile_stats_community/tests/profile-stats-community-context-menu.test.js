@@ -13,8 +13,6 @@ const STEAM_ID_BASE = 76561197960265728n;
 function makeHarness(options = {}) {
   const account = options.account === undefined ? '215334735' : options.account;
   const attributes = Object.assign({}, options.attributes);
-  const opened = [];
-  const logs = [];
   const events = [];
   const witness = {
     text: account,
@@ -45,15 +43,11 @@ function makeHarness(options = {}) {
     GetContextPanel() {
       return root;
     },
-    Msg(message) {
-      logs.push(String(message));
-    },
     DispatchEvent(name, value) {
       if (options.throwNavigation) {
         throw new Error('navigation failed');
       }
       events.push([name, value]);
-      opened.push(value);
     },
   };
   const context = {
@@ -72,8 +66,6 @@ function makeHarness(options = {}) {
   return {
     card,
     root,
-    opened,
-    logs,
     events,
     open() {
       return panoramaApi.ProfileStatsCommunityOpenPlayerProfile();
@@ -90,19 +82,6 @@ test('context action opens the selected profile card account', () => {
   assert.equal(typeof harness.installedAction(), 'function');
   assert.equal(harness.open(), true);
   assert.deepEqual(harness.events, [['CitadelShowProfilePageForAccount', 215334735]]);
-  assert.deepEqual(harness.logs, [
-    '[PSC-PROFILE-DEBUG] script loaded',
-    '[PSC-PROFILE-DEBUG] context root=valid',
-    '[PSC-PROFILE-DEBUG] handler installed type=function',
-    '[PSC-PROFILE-DEBUG] handler called',
-    '[PSC-PROFILE-DEBUG] ProfileCard lookup=found',
-    '[PSC-PROFILE-DEBUG] resolve card=valid witness=valid raw=215334735 normalized=215334735',
-    '[PSC-PROFILE-DEBUG] authority accountid raw=215334735 normalized=215334735',
-    '[PSC-PROFILE-DEBUG] authority steamid raw= normalized=',
-    '[PSC-PROFILE-DEBUG] resolve accepted account=215334735',
-    '[PSC-PROFILE-DEBUG] event dispatcher type=function',
-    '[PSC-PROFILE-DEBUG] navigation dispatched account=215334735',
-  ]);
 });
 
 test('Steam64 authority can corroborate the account witness', () => {
@@ -111,7 +90,6 @@ test('Steam64 authority can corroborate the account witness', () => {
   const harness = makeHarness({ account, attributes: { steamid } });
 
   assert.equal(harness.open(), true);
-  assert.deepEqual(harness.opened, [198741881]);
   assert.deepEqual(harness.events, [['CitadelShowProfilePageForAccount', 198741881]]);
 });
 
@@ -123,13 +101,13 @@ test('mismatched or missing selected-player evidence fails closed', () => {
 
   [mismatch, missing, missingCard, oversized].forEach((harness) => {
     assert.equal(harness.open(), false);
-    assert.deepEqual(harness.opened, []);
+    assert.deepEqual(harness.events, []);
   });
 });
 
-test('failed native profile navigation reports failure', () => {
+test('failed profile event dispatch reports failure', () => {
   const harness = makeHarness({ throwNavigation: true });
 
   assert.equal(harness.open(), false);
-  assert.deepEqual(harness.opened, []);
+  assert.deepEqual(harness.events, []);
 });

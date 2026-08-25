@@ -124,18 +124,15 @@ test("player context menu opens the selected account in the profile database", f
   assert.doesNotThrow(function () { assertWellFormedXml(profileCardLayout); }, "profile card must remain well-formed XML");
   assert.match(contextMenuLayout, /<scripts>\s*<include src="s2r:\/\/panorama\/scripts\/profile_stats_community_context_menu\.vjs_c" \/>\s*<\/scripts>/);
   assert.match(contextMenuLayout, /<Panel id="MenuOptionsPanel" \/>\s*<Panel id="ProfileStatsCommunityPlayerProfileRow" class="MenuRow">/);
-  assert.match(contextMenuLayout, /text="Player Profile" onactivate="[^"]*\[PSC-PROFILE-DEBUG\] button activate handler=[^"]*if \(\$\.ProfileStatsCommunityOpenPlayerProfile\) \$\.ProfileStatsCommunityOpenPlayerProfile\(\);[^"]*\[PSC-PROFILE-DEBUG\] handler missing[^"]*" \/>/);
+  assert.match(contextMenuLayout, /text="Player Profile" onactivate="\$\.ProfileStatsCommunityOpenPlayerProfile\(\);" \/>/);
   assert.equal(count(contextMenuLayout, /id="ProfileStatsCommunityPlayerProfileRow"/g), 1);
   assert.doesNotMatch(contextMenuLayout, /<Panel id="MenuOptionsPanel">\s*[\s\S]*ProfileStatsCommunityPlayerProfileRow/);
   assert.doesNotMatch(profileCardLayout, /profile_stats_community_context_menu\.vjs_c/);
   assert.match(profileCardLayout, /<Label id="ProfileStatsCommunityContextAccount" text="\{i:r:account_id\}" visible="false" hittest="false" \/>/);
   assert.match(contextMenuScript, /\$\.ProfileStatsCommunityOpenPlayerProfile\s*=/);
   assert.match(contextMenuScript, /\$\.DispatchEvent\("CitadelShowProfilePageForAccount", account\)/);
-  assert.match(contextMenuScript, /debug\("script loaded"\)/);
-  assert.match(contextMenuScript, /debug\("ProfileCard lookup="/);
-  assert.match(contextMenuScript, /debug\("event dispatcher type="/);
-  assert.match(contextMenuScript, /debug\("navigation dispatched account="/);
-  assert.match(contextMenuScript, /\[PSC-PROFILE-DEBUG\]/);
+  assert.equal(count(contextMenuScript, /CitadelShowProfilePageForAccount/g), 1, "profile navigation has one event-dispatch path and no fallback");
+  assert.doesNotMatch(contextMenuScript, /PSC-PROFILE-DEBUG|\$\.Msg|function debug|errorMessage/);
   assert.doesNotMatch(contextMenuScript, /GetLocalPlayer|local_player|LocalPlayer/);
 });
 

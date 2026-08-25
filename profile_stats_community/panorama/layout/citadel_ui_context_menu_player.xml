@@ -120,7 +120,7 @@
 			<Panel id="PlayerContainer" />
 			<Panel id="MenuOptionsPanel" />
 			<Panel id="ProfileStatsCommunityPlayerProfileRow" class="MenuRow">
-				<TextButton id="MenuButton" text="Player Profile" onactivate="$.Msg('[PSC-PROFILE-DEBUG] button activate handler=' + typeof $.ProfileStatsCommunityOpenPlayerProfile); if ($.ProfileStatsCommunityOpenPlayerProfile) $.ProfileStatsCommunityOpenPlayerProfile(); else $.Msg('[PSC-PROFILE-DEBUG] handler missing');" />
+				<TextButton id="MenuButton" text="Player Profile" onactivate="$.ProfileStatsCommunityOpenPlayerProfile();" />
 			</Panel>
 		</Panel>
 	</CitadelContextMenuPlayer>
