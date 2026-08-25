@@ -115,7 +115,7 @@
 								<Panel id="HeroList" />
 								<Button id="ProfileStatsCommunityButton" class="ProfileStatsCommunityHeroButton">
 									<Panel class="ProfileStatsCommunityButtonIcon" />
-									<Label text="Stats vs Community" />
+									<Label text="VS COMMUNITY" />
 								</Button>
 								<Panel id="StatsBlock">
 									<Panel id="StatsTitle">
@@ -154,8 +154,7 @@
 								<Panel id="ProfileStatsCommunityPanel" class="ProfileStatsCommunityPanel" visibility="collapse">
 									<Panel id="ProfileStatsCommunitySupportBar" class="ProfileStatsCommunitySupportBar">
 										<CitadelHTMLPanel id="ProfileStatsCommunitySupporterTicker" class="ProfileStatsCommunitySupporterTicker" visible="false" hittest="false" acceptsfocus="false" />
-										<Button id="ProfileStatsCommunityPoweredBy" class="ProfileStatsCommunitySupportButton ProfileStatsCommunityPoweredByButton" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://deadlock-api.com/&apos; );"><Label text="POWERED BY DEADLOCK API" /></Button>
-										<Button id="ProfileStatsCommunityDonate" class="ProfileStatsCommunitySupportButton ProfileStatsCommunityDonateButton" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://ko-fi.com/hantuaraya&apos; );"><Label text="DONATE" /></Button>
+										<Button id="ProfileStatsCommunityDonate" class="ProfileStatsCommunityDonateButton" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://ko-fi.com/hantuaraya&apos; );"><Label text="DONATE" /></Button>
 									</Panel>
 									<Panel id="ProfileStatsCommunityHeader" class="ProfileStatsCommunityHeader">
 										<Panel class="ProfileStatsCommunityTitleBlock">
@@ -214,6 +213,7 @@
 									</Panel>
 									<Panel id="ProfileStatsCommunityMetadata" class="ProfileStatsCommunityMetadata" visibility="collapse">
 										<Label id="ProfileStatsCommunitySample" class="ProfileStatsCommunityMetadataText" text="" />
+										<Button id="ProfileStatsCommunityPoweredBy" class="ProfileStatsCommunityPoweredByButton" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://deadlock-api.com/&apos; );"><Label text="POWERED BY DEADLOCK API" /></Button>
 										<Label id="ProfileStatsCommunityGenerated" class="ProfileStatsCommunityMetadataText" text="" />
 									</Panel>
 									<Button id="ProfileStatsCommunityRetry" class="ProfileStatsCommunityRetryButton" visibility="collapse"><Label text="Retry" /></Button>
