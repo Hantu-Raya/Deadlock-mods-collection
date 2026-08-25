@@ -159,7 +159,7 @@
 										</Panel>
 										<Panel id="ProfileStatsCommunityFilters" class="ProfileStatsCommunityFilters">
 											<Panel id="ProfileStatsCommunityDisplayToggle" class="ProfileStatsCommunityDisplayToggle">
-												<TabButton id="ProfileStatsCommunityDisplayCommunity" class="ProfileStatsCommunityDisplayTab" group="profile_stats_community_display_mode" text="COMMUNITY AVG" />
+												<TabButton id="ProfileStatsCommunityDisplayCommunity" class="ProfileStatsCommunityDisplayTab" group="profile_stats_community_display_mode" text="AVG" />
 												<TabButton id="ProfileStatsCommunityDisplayPercentile" class="ProfileStatsCommunityDisplayTab" group="profile_stats_community_display_mode" text="TOP %" selected="true" />
 											</Panel>
 											<Panel class="ProfileStatsCommunityModeTabs">

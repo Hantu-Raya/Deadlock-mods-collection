@@ -277,7 +277,7 @@ test("all six ordered groups and every required comparison row are declared", fu
   assert.match(layout, /id="ProfileStatsCommunityPlayerHeadingRight"[^>]*text="PLAYER"/);
   assert.equal(count(layout, /text="COMMUNITY"/g), 2);
   assert.match(layout, /<Panel id="ProfileStatsCommunityDisplayToggle" class="ProfileStatsCommunityDisplayToggle">/);
-  assert.match(layout, /<TabButton\b[^>]*id="ProfileStatsCommunityDisplayCommunity"[^>]*text="COMMUNITY AVG"/);
+  assert.match(layout, /<TabButton\b[^>]*id="ProfileStatsCommunityDisplayCommunity"[^>]*text="AVG"/);
   assert.match(layout, /<TabButton\b[^>]*id="ProfileStatsCommunityDisplayPercentile"[^>]*text="TOP %"[^>]*selected="true"/);
   assert.match(layout, /id="PSCMetricKdCommunity"[^>]*visibility="collapse"/);
   assert.match(layout, /id="PSCMetricKdPercentile"[^>]*class="ProfileStatsCommunityPercentileBadge/);
@@ -304,6 +304,7 @@ test("filter and metric layout form a compact non-scrollable grid", function () 
   var metricRowRule = /\.ProfileStatsCommunityMetricRow\s*\{([\s\S]*?)\}/.exec(styles);
   var percentileHeadingRule = /\.ProfileStatsCommunityPercentileHeading\s*\{([\s\S]*?)\}/.exec(styles);
   var percentileBadgeRule = /\.ProfileStatsCommunityPercentileBadge\s*\{([\s\S]*?)\}/.exec(styles);
+  var groupBadgeRule = /\.ProfileStatsCommunityGroupBadge\s*\{([\s\S]*?)\}/.exec(styles);
   var displayToggleRule = /\.ProfileStatsCommunityDisplayToggle\s*\{([\s\S]*?)\}/.exec(styles);
   var displayTabRule = /\.ProfileStatsCommunityDisplayTab\s*\{([\s\S]*?)\}/.exec(styles);
   var matchCountWidth;
@@ -339,13 +340,15 @@ test("filter and metric layout form a compact non-scrollable grid", function () 
   assert.ok(displayTabRule, "comparison display tab styles must remain declared");
   assert.match(displayToggleRule[1], /\bheight\s*:\s*42px\s*;/);
   assert.match(displayTabRule[1], /\bheight\s*:\s*40px\s*;/);
-  assert.match(percentileHeadingRule[1], /\bwidth\s*:\s*72px\s*;/);
+  assert.match(percentileHeadingRule[1], /\bwidth\s*:\s*92px\s*;/);
   assert.match(script, /payload\.v !== 3/);
   assert.match(script, /&protocol=3/);
   assert.match(script, /"percentile"\]\)/);
   assert.match(script, /formatPercentile/);
   assert.match(script, /averagePercentile/);
-  assert.match(percentileBadgeRule[1], /\bwidth\s*:\s*72px\s*;/);
+  assert.match(percentileBadgeRule[1], /\bwidth\s*:\s*92px\s*;/);
+  assert.ok(groupBadgeRule, "group percentile badge styles must remain declared");
+  assert.match(groupBadgeRule[1], /\bwidth\s*:\s*92px\s*;/);
   assert.match(styles, /\.ProfileStatsCommunityPercentileTop\s*\{/);
   assert.match(styles, /\.ProfileStatsCommunityPercentileBottom\s*\{/);
   assert.match(styles, /\.ProfileStatsCommunityPercentileUnavailable\s*\{/);
