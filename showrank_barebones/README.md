@@ -2,6 +2,8 @@
 
 `showrank_barebones` is the full barebones ShowRank edition. It adds predicted-rank images to profile cards, dashboard profile pages, player context menus, top-bar slots, team averages, and the Escape player list. It also provides the early-lane `MISSING` portrait indicator and the shared enemy-missing hero-icon announcement.
 
+The dashboard profile page also includes `Stats vs Community` for the viewed account. The player context menu keeps StatLocker and account-copy actions, and adds `Player Profile` through the same selected-account checks. These features ship in the ShowRank package. No separate Profile Stats VPK is required.
+
 ## Build
 
 From the collection root:

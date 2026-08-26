@@ -10,6 +10,8 @@ const buildPath = path.join(repositoryDir, 'build_showrank_barebones.ps1');
 const build = fs.readFileSync(buildPath, 'utf8');
 const packageJson = JSON.parse(fs.readFileSync(path.join(packageDir, 'package.json'), 'utf8'));
 const runtimeTest = fs.readFileSync(path.join(packageDir, 'tests', 'showrank-barebones-runtime.test.js'), 'utf8');
+const profileRuntimeTest = fs.readFileSync(path.join(packageDir, 'tests', 'profile-stats-community-runtime.test.js'), 'utf8');
+const profileRuntimeOracle = fs.readFileSync(path.join(repositoryDir, 'scripts', 'profile-stats-community-runtime-oracle.js'), 'utf8');
 
 function assignedStringArray(name) {
   const assignment = new RegExp(`\\$${name}\\s*=\\s*@\\(([\\s\\S]*?)\\n\\)`).exec(build);
@@ -75,6 +77,9 @@ assert.match(build, /\$externs\.Add\('var \$;'\)/, 'Panorama $ is declared as an
 assert.match(build, /\$externs\.Add\('function DismissAllContextMenus\(\) \{\}'\)/, 'native context dismissal is declared as an extern');
 assert.match(build, /\$externs\.Add\('function DropInputFocus\(\) \{\}'\)/, 'native focus release is declared as an extern');
 assert.match(build, /\$externs\.Add\("Object\.prototype\.\$propertyName;"\)/, 'extracted Panorama properties are emitted as Object.prototype externs');
+assert.match(build, /Object\.prototype\['\$dynamicLookupKey'\];/, 'external profile protocol keys are emitted as quoted extern properties');
+assert.match(build, /\$dynamicLookupKeys\s*=\s*@\(/, 'the merged Closure step declares profile protocol keys');
+assert.match(build, /Closure Compiler renamed dynamic lookup key/, 'renamed profile protocol keys fail the build');
 assert.match(build, /\$externsPath = Join-Path \$TemporaryRoot 'showrank_barebones\.externs\.js'/, 'externs are generated outside the staged asset tree');
 assert.match(build, /\$minifiedPath = Join-Path \$TemporaryRoot 'showrank_barebones\.min\.js'/, 'Closure output is generated outside the staged asset tree');
 assert.match(build, /if \(-not \(Test-Path -LiteralPath \$minifiedPath\)\)/, 'missing Closure output fails closed');
@@ -84,6 +89,7 @@ assert.match(build, /& node --check \$minifiedPath/, 'minified output receives a
 for (const fragment of [
   'ShowRankBarebonesRefresh',
   'ShowRankBarebonesOpenStatlocker',
+  'ShowRankBarebonesOpenPlayerProfile',
   'ShowRankBarebonesCopyAccount',
   'ShowRankBarebonesEscapeOpen',
   'ShowRankBarebonesEscapeOut',
@@ -95,6 +101,11 @@ assert.match(build, /Move-Item -LiteralPath \$minifiedPath -Destination \$Staged
 assert.match(build, /foreach \(\$temporaryPath in @\(\$externsPath, \$minifiedPath\)\)[\s\S]*?Remove-Item -LiteralPath \$temporaryPath -Force/s, 'temporary extern and output files are deleted');
 assert.match(runtimeTest, /const runtimePath = process\.env\.SHOWRANK_BAREBONES_RUNTIME \|\| editableSourcePath;/, 'runtime tests accept an explicit staged-runtime source');
 assert.match(runtimeTest, /const source = fs\.readFileSync\(runtimePath, 'utf8'\);/, 'runtime behavior executes the selected source');
+assert.match(profileRuntimeTest, /process\.env\.SHOWRANK_BAREBONES_RUNTIME \|\| path\.resolve/, 'profile runtime tests accept the same staged-runtime source');
+assert.match(profileRuntimeTest, /contextPanelType:\s*"CitadelProfilePage"/, 'the merged profile adapter enters through the production profile-page role');
+assert.doesNotMatch(profileRuntimeTest, /PROFILE_STATS_COMMUNITY_MODULE_(?:START|END)/, 'profile runtime behavior never depends on readable marker comments');
+assert.match(profileRuntimeOracle, /var source = fs\.readFileSync\(sourcePath, "utf8"\);/, 'the shared oracle executes the complete selected runtime');
+assert.strictEqual([...profileRuntimeOracle.matchAll(/\btest\("/g)].length, 19, 'the shared oracle owns exactly the nineteen profile scenarios');
 
 const validateIndex = indexOfRequired('& npm --prefix $barebonesRoot run validate');
 const stagedCopyIndex = indexOfRequired('Copy-Item -LiteralPath $sourcePath -Destination $stagedPath -Force');
@@ -103,12 +114,13 @@ const minifiedSyntaxIndex = indexOfRequired('& node --check $minifiedPath');
 const minifiedMoveIndex = indexOfRequired('Move-Item -LiteralPath $minifiedPath -Destination $StagedSourcePath -Force');
 const minifyCallIndex = indexOfRequired('Invoke-BarebonesClosureMinification -ReadableSourcePath $readableRuntime -StagedSourcePath $stagedRuntime');
 const runtimeSmokeIndex = indexOfRequired("& node (Join-Path $barebonesRoot 'tests\\showrank-barebones-runtime.test.js')");
+const profileRuntimeSmokeIndex = indexOfRequired("& node (Join-Path $barebonesRoot 'tests\\profile-stats-community-runtime.test.js')");
 const compilerIndex = indexOfRequired('Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $stageSource');
 const packIndex = indexOfRequired('Invoke-VpkPack -VpkEditCli $vpkEditCli -InputDir $stageCompiled');
 assert.ok(validateIndex < stagedCopyIndex, 'readable runtime validation precedes staging');
 assert.ok(closureRunIndex < minifiedSyntaxIndex && minifiedSyntaxIndex < minifiedMoveIndex, 'Closure output is syntax-checked before replacing the staged runtime');
-assert.ok(stagedCopyIndex < minifyCallIndex && minifyCallIndex < runtimeSmokeIndex, 'the exact staged runtime is minified before its VM smoke test');
-assert.ok(runtimeSmokeIndex < compilerIndex, 'the minified runtime smoke test precedes Source2 compilation');
+assert.ok(stagedCopyIndex < minifyCallIndex && minifyCallIndex < runtimeSmokeIndex, 'the exact staged runtime is minified before its VM smoke tests');
+assert.ok(runtimeSmokeIndex < profileRuntimeSmokeIndex && profileRuntimeSmokeIndex < compilerIndex, 'both minified runtime smoke tests precede Source2 compilation');
 assert.ok(compilerIndex < packIndex, 'Source2 compilation precedes strict packing');
 
 assert.match(build, /Invoke-Source2Compiler[\s\S]*?Assert-BarebonesAssetSet -Actual \(Get-BarebonesAssetPaths -RootPath \$stageCompiled\) -ExpectedAssets \$requiredCompiledAssets -Label 'Compiled barebones output'/, 'compiler output is strictly checked');
@@ -134,8 +146,8 @@ assert.match(build, /if \(-not \$KeepStaging\) \{\s*Remove-TreeUnderRoot -Path \
 
 assert.strictEqual(
   packageJson.scripts.test,
-  'node tests/showrank-barebones-runtime.test.js && node tests/showrank-barebones-contract.test.js && node tests/showrank-barebones-build-contract.test.js',
-  'npm test runs runtime, XML, then build-contract tests in that order',
+  'node tests/showrank-barebones-runtime.test.js && node tests/profile-stats-community-runtime.test.js && node tests/showrank-barebones-contract.test.js && node tests/showrank-barebones-build-contract.test.js',
+  'npm test runs ShowRank behavior, profile comparison behavior, XML, then build contracts',
 );
 
 assert.strictEqual(

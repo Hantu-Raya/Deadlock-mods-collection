@@ -141,6 +141,15 @@ function Invoke-BarebonesClosureMinification {
 
     $externsPath = Join-Path $TemporaryRoot 'showrank_barebones.externs.js'
     $minifiedPath = Join-Path $TemporaryRoot 'showrank_barebones.min.js'
+    $dynamicLookupKeys = @(
+        'kd', 'kda', 'average_kills', 'average_assists', 'average_deaths',
+        'damage_taken_per_minute', 'player_damage_per_minute', 'accuracy',
+        'critical_hit_rate', 'net_worth_per_minute', 'boss_damage_per_minute',
+        'healing_per_minute', 'invalid_query', 'network_error', 'upstream_error',
+        'rate_limit', 'empty_sample', 'invalid_payload', 'payload_too_large', 'internal_error',
+        'ranked', 'standard', 'community', 'percentile', 'combat', 'kills',
+        'survival', 'damage', 'economy', 'sustain', '50', '100', '150'
+    )
     New-Item -ItemType Directory -Path $TemporaryRoot -Force | Out-Null
 
     try {
@@ -155,6 +164,9 @@ function Invoke-BarebonesClosureMinification {
         $externs.Add('function DropInputFocus() {}')
         foreach ($propertyName in ($propertyNames | Sort-Object)) {
             $externs.Add("Object.prototype.$propertyName;")
+        }
+        foreach ($dynamicLookupKey in $dynamicLookupKeys) {
+            $externs.Add("Object.prototype['$dynamicLookupKey'];")
         }
         [System.IO.File]::WriteAllLines($externsPath, $externs, [System.Text.UTF8Encoding]::new($false))
 
@@ -175,10 +187,18 @@ function Invoke-BarebonesClosureMinification {
 
         & node --check $minifiedPath
         if ($LASTEXITCODE -ne 0) { throw "Closure Compiler output has invalid JavaScript syntax" }
+        $minifiedSource = [System.IO.File]::ReadAllText($minifiedPath)
+        foreach ($dynamicLookupKey in $dynamicLookupKeys) {
+            $objectKeyPattern = '(?:\{|,)\s*(?:"|'')?' + [regex]::Escape($dynamicLookupKey) + '(?:"|'')?:'
+            if (-not [regex]::IsMatch($minifiedSource, $objectKeyPattern)) {
+                throw "Closure Compiler renamed dynamic lookup key: $dynamicLookupKey"
+            }
+        }
 
         foreach ($publicFragment in @(
             'ShowRankBarebonesRefresh',
             'ShowRankBarebonesOpenStatlocker',
+            'ShowRankBarebonesOpenPlayerProfile',
             'ShowRankBarebonesCopyAccount',
             'ShowRankBarebonesEscapeOpen',
             'ShowRankBarebonesEscapeOut',
@@ -293,6 +313,8 @@ try {
         $env:SHOWRANK_BAREBONES_RUNTIME = $stagedRuntime
         & node (Join-Path $barebonesRoot 'tests\showrank-barebones-runtime.test.js')
         if ($LASTEXITCODE -ne 0) { throw "Minified barebones runtime test failed with exit code $LASTEXITCODE" }
+        & node (Join-Path $barebonesRoot 'tests\profile-stats-community-runtime.test.js')
+        if ($LASTEXITCODE -ne 0) { throw "Minified Profile Stats Community runtime test failed with exit code $LASTEXITCODE" }
     } finally {
         if ($hadRuntimeOverride) {
             $env:SHOWRANK_BAREBONES_RUNTIME = $previousRuntimeOverride

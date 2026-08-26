@@ -11,6 +11,7 @@ const scriptPath = path.join(panoramaDir, 'scripts', 'showrank_barebones.js');
 const stylePath = path.join(panoramaDir, 'styles', 'showrank_barebones_topbar.css');
 const source = fs.readFileSync(scriptPath, 'utf8');
 const style = fs.readFileSync(stylePath, 'utf8');
+const showRankStyle = style.split('#ProfileStatsCommunityButton')[0];
 const layouts = Object.fromEntries(
   ['profile_card.xml', 'citadel_db_page_profile.xml', 'citadel_ui_context_menu_player.xml', 'citadel_hud_top_bar.xml', 'citadel_hud_top_bar_player.xml', 'players_list_entry.xml', 'hud_escape_menu.xml']
     .map((name) => [name, fs.readFileSync(path.join(layoutDir, name), 'utf8')]),
@@ -111,6 +112,12 @@ for (const id of [
 assert.deepStrictEqual(attributes(tagWithId(profile, 'Label', 'ShowRankBarebonesAccount')), {
   id: 'ShowRankBarebonesAccount', text: '{i:r:account_id}', visible: 'false', hittest: 'false',
 }, 'profile account witness is inert and data-bound');
+assert.deepStrictEqual(attributes(tagWithId(profile, 'Label', 'ProfileStatsCommunityContextAccount')), {
+  id: 'ProfileStatsCommunityContextAccount', text: '{i:r:account_id}', visible: 'false', hittest: 'false',
+}, 'the selected-player context witness remains inert and data-bound');
+assert.match(profile, /<Panel\b[^>]*\bid="ShowcaseItems"[^>]*\/>/, 'the engine remains the owner of profile-card showcase items');
+assert.match(profile, /<Panel\b[^>]*\bid="StatItems"[^>]*\/>/, 'the engine remains the owner of profile-card statistics');
+assert.match(style, /CitadelContextMenuPlayer CitadelProfileCard\.StatsActive:not\(\.ShowPartyInfo\) #CardMain\s*\{[\s\S]*?visibility:\s*visible;/, 'native context-card statistics appear only when the engine applies StatsActive');
 assert.doesNotMatch(tagWithId(profile, 'Panel', 'AccountID'), /\bonload=/, 'the native account ID row remains unmodified');
 assert.doesNotMatch(profile, /ShowRankBarebonesStatlockerProfile/, 'StatLocker is not injected into the profile-card XML');
 assert.deepStrictEqual(attributes(tagWithId(profile, 'Image', 'ShowRankBarebonesRankImage')), {
@@ -158,6 +165,25 @@ assert.match(style, /\.ShowRankBarebonesProfilePage #ProfileInfo\s*\{[\s\S]*?min
 assert.match(style, /\.ShowRankBarebonesProfilePage #ShowRankBarebonesProfilePageRankHost\s*\{[\s\S]*?width:\s*90px;[\s\S]*?height:\s*70px;[\s\S]*?margin-left:\s*200px;[\s\S]*?margin-top:\s*-10px;[\s\S]*?ignore-parent-flow:\s*true;/, 'the dashboard rank occupies the marked gap beside Steam identity text');
 assert.match(style, /\.ShowRankBarebonesProfilePage #ForumButton\s*\{[\s\S]*?visibility:\s*collapse;/, 'the optional forum row stays hidden so the identity header remains compact');
 assert.match(style, /\.ShowRankBarebonesProfilePage #ShowRankBarebonesProfilePageRankImage\s*\{[\s\S]*?width:\s*88px;[\s\S]*?height:\s*66px;[\s\S]*?horizontal-align:\s*center;[\s\S]*?vertical-align:\s*center;/, 'the dashboard page rank image uses the shared 4:3 profile-badge footprint');
+assert.deepStrictEqual(attributes(tagWithId(profilePage, 'Label', 'ProfileStatsCommunityAccount')), {
+  id: 'ProfileStatsCommunityAccount', text: '{i:r:account_id}', visible: 'false', hittest: 'false',
+}, 'community comparison keeps a separate viewed-profile witness');
+assert.match(profilePage, /<Panel\b[^>]*\bid="HeroList"[^>]*\/>\s*<Button\b[^>]*\bid="ProfileStatsCommunityButton"/, 'the community action is a sibling after the stock-owned hero list');
+assert.strictEqual(countId(profilePage, 'ProfileStatsCommunityPanel'), 1, 'the profile page owns one comparison panel');
+assert.strictEqual(countId(profilePage, 'ProfileStatsCommunityBridge'), 1, 'the profile page owns one hidden comparison bridge');
+assert.strictEqual(countId(profilePage, 'ProfileStatsCommunitySupporterTicker'), 1, 'the profile page owns one hidden supporter ticker');
+for (const id of [
+  'ProfileStatsCommunityGroupCombat',
+  'ProfileStatsCommunityGroupKills',
+  'ProfileStatsCommunityGroupSurvival',
+  'ProfileStatsCommunityGroupDamage',
+  'ProfileStatsCommunityGroupEconomy',
+  'ProfileStatsCommunityGroupSustain',
+]) assert.strictEqual(countId(profilePage, id), 1, `community group ${id} remains unique`);
+assert.match(style, /\.ShowRankBarebonesProfilePage #HeroList\s*\{[\s\S]*?padding-top:\s*56px;/, 'only the merged ShowRank profile page offsets native hero rows below the comparison action');
+assert.match(source, /function installProfileStatsCommunity\(\)/, 'the dominant runtime owns the profile comparison subsystem');
+assert.match(source, /DLSTATS2:/, 'the dominant runtime retains the community bridge protocol');
+assert.doesNotMatch(profilePage, /profile_stats_community\.vjs_c/, 'the profile page does not load a second runtime');
 
 const topbar = layouts['citadel_hud_top_bar_player.xml'];
 assert.strictEqual(openingTags(topbar, 'CitadelHudTopBarPlayer').length, 1, 'one topbar-player root');
@@ -195,7 +221,7 @@ assert.match(topbar, /<Panel\b[^>]*class="HeroIconContainer"[^>]*>[\s\S]*?<\/Pan
 assert.match(style, /CitadelHudTopBarPlayer:not\(\.HealthVisible\) #ShowRankBarebonesMissingIndicator\s*\{[\s\S]*?visibility:\s*visible;[\s\S]*?wash-color:\s*none;/, 'the per-player warning directly follows the proven native hidden-health state');
 assert.match(style, /#ShowRankBarebonesMissingIndicator Label\s*\{[\s\S]*?height:\s*16px;[\s\S]*?background-color:\s*#11100ff2;[\s\S]*?font-size:\s*11px;/, 'the per-player warning uses compact reminder-style text');
 assert.match(style, /CitadelHudTopBarPlayer:not\(\.HealthVisible\) #HeroImageArea\s*\{[\s\S]*?wash-color:\s*#00000090;/, 'portrait darkening directly follows the native visibility seam');
-assert.doesNotMatch(style, /ShowRankBarebonesMissingPulse|animation-(?:name|duration|iteration-count)|box-shadow|#ff3b3c|#ff2d2d|#b91616|#ffb0a8/, 'the warning has no pulse, glow, or red treatment');
+assert.doesNotMatch(showRankStyle, /ShowRankBarebonesMissingPulse|animation-(?:name|duration|iteration-count)|box-shadow|#ff3b3c|#ff2d2d|#b91616|#ffb0a8/, 'the warning has no pulse, glow, or red treatment');
 assert.match(style, /CitadelHudTopBarPlayer\.Dead #ShowRankBarebonesMissingIndicator,[\s\S]*?CitadelHudTopBarPlayer\.Disconnected #ShowRankBarebonesMissingIndicator\s*\{[\s\S]*?visibility:\s*collapse;/, 'dead and disconnected states suppress the per-player warning overlay');
 assert.doesNotMatch(style, /:not\([^)]*\)[^{]*:not\(/, 'Panorama selectors never chain unsupported :not pseudo-classes');
 assert.match(source, /var MISSING_WINDOW_END_SECONDS = 8 \* 60;[\s\S]*?var MISSING_WINDOW_RETRY_INTERVAL = 0\.5;[\s\S]*?var MISSING_WINDOW_MAX_RETRIES = 1800;/, 'each local missing window has a bounded acquisition path and exact eight-minute cutoff');
@@ -303,11 +329,31 @@ assert.deepStrictEqual(
 );
 assert.match(contextMenu, /<Panel\b[^>]*\bid="ShowRankBarebonesStatlockerRow"[^>]*\bclass="MenuRow"[^>]*>\s*<TextButton\b[^>]*\bid="MenuButton"[^>]*\btext="Statlocker Profile"[^>]*\bonactivate="if \(\$\('#ProfileCard'\)\.ShowRankBarebonesOpenStatlocker\) \$\('#ProfileCard'\)\.ShowRankBarebonesOpenStatlocker\(\);"\s*\/>\s*<\/Panel>/, 'StatLocker calls the nested verified profile card directly');
 assert.match(contextMenu, /<Panel\b[^>]*\bid="ShowRankBarebonesCopyAccountRow"[^>]*\bclass="MenuRow"[^>]*>\s*<TextButton\b[^>]*\bid="MenuButton"[^>]*\btext="Copy Account ID"[^>]*\bonactivate="if \(\$\('#ProfileCard'\)\.ShowRankBarebonesCopyAccount\) \$\('#ProfileCard'\)\.ShowRankBarebonesCopyAccount\(\);"\s*\/>\s*<\/Panel>/, 'Copy Account ID calls the nested verified profile card directly');
+assert.match(contextMenu, /<\/Panel>\s*<Panel\b[^>]*\bid="ProfileStatsCommunityPlayerProfileRow"[^>]*\bclass="MenuRow"[^>]*>\s*<TextButton\b[^>]*\bid="MenuButton"[^>]*\btext="Player Profile"[^>]*\bonactivate="if \(\$\('#ProfileCard'\)\.ShowRankBarebonesOpenPlayerProfile\) \$\('#ProfileCard'\)\.ShowRankBarebonesOpenPlayerProfile\(\);"\s*\/>\s*<\/Panel>\s*<\/Panel>/, 'Player Profile follows the stock options panel and calls the nested verified card');
+assert.doesNotMatch(contextMenu, /<scripts>|profile_stats_community_context_menu/, 'the context menu does not load a second runtime');
 assert.doesNotMatch(contextMenu, /ShowRankBarebones(?:Statlocker|CopyAccount)Button/, 'context action buttons retain the native scoped ID');
 assert.doesNotMatch(contextMenu, /Deadlock Profile|showrank_common|ShowRankContextMenu/, 'the barebones context menu adds no active-ShowRank actions');
-assert.doesNotMatch(source, /\$\.Msg|BareRankTrace|ShowRankBarebonesTopbarRefresh/, 'release runtime contains no diagnostics or hover wrapper');
+const activationDispatches = [...source.matchAll(/\$\.DispatchEvent\s*\(\s*"Activated"\s*,\s*([^)]*)\)/g)];
+assert.strictEqual(activationDispatches.length, 2, 'one tab activation and one row activation are the only panel dispatches');
+assert.deepStrictEqual(activationDispatches.map((match) => match[1].trim()), ['record.mainContents, "mouse"', 'playersTab'], 'rows use verified mouse activation while the Players tab keeps native activation');
+assert.match(source, /root\.ShowRankBarebonesOpenStatlocker\s*=\s*function/, 'profile role installs the XML-facing StatLocker action');
+assert.match(source, /root\.ShowRankBarebonesOpenPlayerProfile\s*=\s*function/, 'profile role installs the XML-facing Player Profile action');
+assert.match(source, /root\.ShowRankBarebonesCopyAccount\s*=\s*function/, 'profile role installs the XML-facing account-copy action');
+assert.doesNotMatch(source, /SetPanelEvent\("onactivate"/, 'context actions do not depend on lifecycle-sensitive programmatic handlers');
+assert.strictEqual((source.match(/\$\.DispatchEvent\("DismissAllContextMenus"\)/g) || []).length, 1, 'one final player-card dismissal exists');
+assert.strictEqual((source.match(/\$\.DispatchEvent\("DropInputFocus"\)/g) || []).length, 1, 'the final cleanup releases profile-card input focus');
 assert.match(source, /\$\.DispatchEvent\("ExternalBrowserGoToURL", url\)/, 'StatLocker uses the proven native external-browser event');
 assert.doesNotMatch(source, /ExecuteSteamURL|SteamOverlayAPI/, 'StatLocker contains no unsupported Steam URL path');
+assert.match(source, /\$\.DispatchEvent\("CopyStringToClipboard", account, account\)/, 'Copy Account ID uses Panorama clipboard text payloads');
+assert.match(source, /\$\.DispatchEvent\("CitadelShowProfilePageForAccount", Number\(account\)\)/, 'Player Profile dispatches the native selected-account event with a numeric SteamID3');
+assert.strictEqual((source.match(/\$\.Schedule\s*\(/g) || []).length, 4, 'one ShowRank scheduler plus three profile-comparison lifecycle schedules are explicit');
+assert.strictEqual((source.match(/\$\.RegisterEventHandler\s*\(/g) || []).length, 1, 'one profile bridge registration seam owns the two allowlisted HTML events');
+assert.doesNotMatch(source, /\$\.RegisterForUnhandledEvent\b|\b(?:Subscribe|Unsubscribe)\s*\(/, 'the merged runtime has no unhandled or generic subscriptions');
+assert.doesNotMatch(source, /\$\.Msg|BareRankTrace|ShowRankBarebonesTopbarRefresh/, 'obsolete overlay paths and diagnostics are absent');
+assert.doesNotMatch(source, /\b(?:XMLHttpRequest|fetch|WebSocket|AsyncWebRequest|WebRequest)\b/, 'no direct network API');
+assert.doesNotMatch(source, /\b(?:GameUI|Players|Entities|SteamFriends|DOTAPlayerIDs|GetHudRoot|GetTopmostPopup)\b|\$\.GetContextPanel\s*\([^)]*,/, 'no cross-context engine traversal');
+assert.doesNotMatch(source, /\b(?:ShowRankCommon|ShowRankTrigger|ShowRankOpenStatlocker|ShowRankProbe|WebMediaDemo|diagnostic|debug)\b/i, 'no old bridge or diagnostics');
+assert.doesNotMatch(source, /\$\.__showrank_barebones_state_v1/, 'state is never shared through context-local $');
 
 const escape = layouts['hud_escape_menu.xml'];
 const escapeRoot = openingTags(escape, 'CitadelHudEscapeMenu')[0];

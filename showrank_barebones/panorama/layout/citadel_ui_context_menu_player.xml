@@ -123,6 +123,9 @@
 					<TextButton id="MenuButton" text="Copy Account ID" onactivate="if ($('#ProfileCard').ShowRankBarebonesCopyAccount) $('#ProfileCard').ShowRankBarebonesCopyAccount();" />
 				</Panel>
 			</Panel>
+			<Panel id="ProfileStatsCommunityPlayerProfileRow" class="MenuRow">
+				<TextButton id="MenuButton" text="Player Profile" onactivate="if ($('#ProfileCard').ShowRankBarebonesOpenPlayerProfile) $('#ProfileCard').ShowRankBarebonesOpenPlayerProfile();" />
+			</Panel>
 		</Panel>
 	</CitadelContextMenuPlayer>
 </root>

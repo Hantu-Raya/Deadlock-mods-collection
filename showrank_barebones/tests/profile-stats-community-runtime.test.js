@@ -4,5 +4,6 @@ var path = require("node:path");
 var oracle = require("../../scripts/profile-stats-community-runtime-oracle");
 
 oracle.registerProfileStatsCommunityRuntimeTests({
-  sourcePath: path.resolve(__dirname, "..", "panorama", "scripts", "profile_stats_community.js")
+  sourcePath: process.env.SHOWRANK_BAREBONES_RUNTIME || path.resolve(__dirname, "..", "panorama", "scripts", "showrank_barebones.js"),
+  contextPanelType: "CitadelProfilePage"
 });

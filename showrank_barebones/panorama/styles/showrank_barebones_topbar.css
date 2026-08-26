@@ -252,3 +252,652 @@ CitadelHudTopBarPlayer.Disconnected #ShowRankBarebonesMissingIndicator
 	visibility: collapse;
 }
 
+
+#ProfileStatsCommunityButton
+{
+	ignore-parent-flow: true;
+	horizontal-align: left;
+	vertical-align: top;
+	z-index: 2;
+	width: 264px;
+	height: 52px;
+	margin-bottom: 4px;
+	padding: 0px 24px;
+	flow-children: right;
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #76767614 ), to( #76767604 ) );
+	border-top: 2px solid offWhite&00;
+	border-bottom: 2px solid offWhite&00;
+	box-shadow: inset 0px 0px 20px #00000022;
+	opacity: 0.6;
+	transition-property: opacity, background-color;
+	transition-duration: 0.15s;
+	transition-timing-function: ease-in-out;
+}
+
+.ShowRankBarebonesProfilePage #HeroList
+{
+	padding-top: 56px;
+}
+
+#ProfileStatsCommunityButton:hover
+{
+	opacity: 0.9;
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #76767624 ), to( #76767608 ) );
+}
+
+#ProfileStatsCommunityButton:active
+{
+	background-color: #ffffff18;
+}
+
+#ProfileStatsCommunityButton Label
+{
+	margin-left: 10px;
+	vertical-align: center;
+	font-size: 16px;
+	font-weight: bold;
+	text-transform: uppercase;
+	color: offWhite&bb;
+	text-shadow: 0px 0px 12px #00000066;
+}
+
+.ProfileStatsCommunityButtonIcon
+{
+	width: 28px;
+	height: 28px;
+	vertical-align: center;
+	background-image: url("s2r://panorama/images/icons/deadlock_logo.vsvg");
+	background-size: contain;
+	background-repeat: no-repeat;
+	wash-color: offWhite&99;
+}
+
+
+#ProfileStatsCommunityPanel
+{
+	ignore-parent-flow: true;
+	width: 100%;
+	height: 100%;
+	z-index: 3;
+	padding: 24px 28px 16px 28px;
+	flow-children: down;
+	background-color: offBlack;
+	box-shadow: inset -20px 0px 220px #00000088;
+}
+
+#ProfileStatsCommunitySupportBar
+{
+	width: 100%;
+	height: 28px;
+	padding: 1px 0px;
+	flow-children: right;
+	background-color: offBlack;
+	opacity: 0.55;
+	overflow: clip;
+}
+
+#ProfileStatsCommunitySupporterTicker
+{
+	width: fill-parent-flow(1);
+	height: 26px;
+	margin-right: 8px;
+	vertical-align: center;
+	background-color: offBlack;
+	brightness: 0.72;
+	overflow: clip;
+}
+
+.ProfileStatsCommunityDonateButton
+{
+	width: 72px;
+	height: 26px;
+	padding: 0px 8px;
+	vertical-align: center;
+	background-color: offWhite&03;
+	border: 1px solid #9D824044;
+	transition-property: background-color, border;
+	transition-duration: 0.12s;
+}
+
+.ProfileStatsCommunityDonateButton Label
+{
+	horizontal-align: center;
+	vertical-align: center;
+	font-size: 10px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: #BDA66A;
+	white-space: nowrap;
+}
+
+.ProfileStatsCommunityDonateButton:hover,
+.ProfileStatsCommunityDonateButton:focus
+{
+	background-color: #51432066;
+	border: 1px solid #9D824088;
+}
+
+.ProfileStatsCommunityDonateButton:hover Label,
+.ProfileStatsCommunityDonateButton:focus Label
+{
+	color: #E9D799;
+}
+
+.ProfileStatsCommunityDonateButton:active
+{
+	background-color: #514320;
+}
+
+
+#ProfileStatsCommunityHeader
+{
+	width: 100%;
+	height: 72px;
+	flow-children: right;
+	padding-bottom: 10px;
+	border-bottom: 1px solid offWhite&18;
+}
+
+.ProfileStatsCommunityTitleBlock
+{
+	flow-children: down;
+	vertical-align: center;
+	width: fill-parent-flow(1);
+}
+
+.ProfileStatsCommunityTitle
+{
+	width: 100%;
+	font-size: 26px;
+	font-weight: bold;
+	color: offWhite;
+	text-overflow: shrink;
+	white-space: nowrap;
+}
+
+.ProfileStatsCommunityStatLockerLink
+{
+	width: 160px;
+	height: 18px;
+	margin-top: 2px;
+	padding: 0px;
+	background-color: #00000000;
+	opacity: 0.58;
+	transition-property: opacity;
+	transition-duration: 0.12s;
+}
+
+.ProfileStatsCommunityStatLockerLink Label
+{
+	vertical-align: center;
+	font-size: 10px;
+	font-weight: medium;
+	letter-spacing: 1px;
+	color: offWhite&88;
+	white-space: nowrap;
+	transition-property: color;
+	transition-duration: 0.12s;
+}
+
+.ProfileStatsCommunityStatLockerLink:hover,
+.ProfileStatsCommunityStatLockerLink:focus
+{
+	opacity: 1;
+}
+
+.ProfileStatsCommunityStatLockerLink:hover Label,
+.ProfileStatsCommunityStatLockerLink:focus Label
+{
+	color: #C77782;
+}
+
+#ProfileStatsCommunityFilters
+{
+	horizontal-align: right;
+	vertical-align: center;
+	flow-children: right;
+}
+.ProfileStatsCommunityDisplayToggle
+{
+	height: 42px;
+	margin-right: 12px;
+	flow-children: right;
+	background-color: #ffffff08;
+	border: 1px solid offWhite&18;
+}
+
+.ProfileStatsCommunityDisplayTab
+{
+	height: 40px;
+	padding: 0px 10px;
+	background-color: #00000000;
+	transition-property: background-color;
+	transition-duration: 0.12s;
+}
+
+.ProfileStatsCommunityDisplayTab:hover
+{
+	background-color: #ffffff0d;
+}
+
+.ProfileStatsCommunityDisplayTab:selected
+{
+	background-color: offWhite&22;
+}
+
+.ProfileStatsCommunityDisplayTab Label
+{
+	vertical-align: center;
+	font-size: 11px;
+	font-weight: bold;
+	letter-spacing: 0.5px;
+	color: offWhite&77;
+	text-overflow: shrink;
+	white-space: nowrap;
+}
+
+.ProfileStatsCommunityDisplayTab:selected Label
+{
+	color: offWhite;
+}
+
+.ProfileStatsCommunityModeTabs
+{
+	height: 42px;
+	flow-children: right;
+	background-color: #ffffff08;
+	border: 1px solid offWhite&18;
+}
+
+.ProfileStatsCommunityModeTab
+{
+	height: 40px;
+	padding: 0px 16px;
+	background-color: #00000000;
+	transition-property: background-color;
+	transition-duration: 0.12s;
+}
+
+.ProfileStatsCommunityModeTab:hover
+{
+	background-color: #ffffff0d;
+}
+
+.ProfileStatsCommunityModeTab:selected
+{
+	background-color: offWhite&22;
+}
+
+.ProfileStatsCommunityModeTab Label
+{
+	vertical-align: center;
+	font-size: 14px;
+	font-weight: bold;
+	color: offWhite&77;
+}
+
+.ProfileStatsCommunityModeTab:selected Label
+{
+	color: offWhite;
+}
+
+#ProfileStatsCommunityMatchCount
+{
+	width: 184px;
+	height: 42px;
+	margin-left: 12px;
+	background-color: #ffffff0d;
+	border: 1px solid offWhite&22;
+}
+
+#ProfileStatsCommunityMatchCount Label
+{
+	vertical-align: center;
+	font-size: 14px;
+	font-weight: bold;
+	color: offWhite&cc;
+}
+
+#ProfileStatsCommunityMatchCountDropDownMenu
+{
+	width: 184px;
+	background-color: #17191b;
+	border: 1px solid offWhite&22;
+}
+
+.ProfileStatsCommunityMatchOption
+{
+	width: 100%;
+	height: 38px;
+	padding: 0px 12px;
+}
+
+.ProfileStatsCommunityMatchOption:hover
+{
+	background-color: #ffffff12;
+}
+
+#ProfileStatsCommunityStatus
+{
+	width: 100%;
+	min-height: 28px;
+	margin-top: 8px;
+	font-size: 14px;
+	font-weight: semi-bold;
+	color: offWhite&99;
+	text-overflow: shrink;
+}
+
+.ProfileStatsCommunityColumns
+{
+	width: 100%;
+	height: 20px;
+	margin-top: 6px;
+	flow-children: right;
+}
+
+.ProfileStatsCommunityColumnHeadings
+{
+	width: fill-parent-flow(1);
+	height: 20px;
+	flow-children: right;
+}
+
+.ProfileStatsCommunityMetricHeading
+{
+	width: fill-parent-flow(1);
+	font-size: 10px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: offWhite&44;
+	text-transform: uppercase;
+}
+
+.ProfileStatsCommunityValueHeading
+{
+	width: 92px;
+	font-size: 10px;
+	font-weight: bold;
+	text-align: right;
+	color: offWhite&44;
+	text-overflow: shrink;
+	white-space: nowrap;
+}
+.ProfileStatsCommunityPercentileHeading
+{
+	width: 92px;
+	font-size: 10px;
+	font-weight: bold;
+	text-align: right;
+	color: offWhite&44;
+	text-overflow: shrink;
+	white-space: nowrap;
+}
+
+
+.ProfileStatsCommunityGridGap
+{
+	width: 24px;
+	height: 100%;
+}
+
+#ProfileStatsCommunityMetrics
+{
+	width: 100%;
+	height: fit-children;
+	flow-children: down;
+	overflow: clip;
+}
+
+.ProfileStatsCommunityGridRow
+{
+	width: 100%;
+	height: fit-children;
+	margin-bottom: 6px;
+	flow-children: right;
+}
+
+.ProfileStatsCommunityGridRow.LastRow
+{
+	margin-bottom: 0px;
+}
+
+.ProfileStatsCommunityGroup
+{
+	width: fill-parent-flow(1);
+	height: fit-children;
+	padding: 5px 6px 4px 6px;
+	flow-children: down;
+	border-top: 1px solid offWhite&0d;
+}
+
+.ProfileStatsCommunityGroupHeader
+{
+	width: 100%;
+	height: 18px;
+	margin-bottom: 1px;
+	flow-children: right;
+}
+
+.ProfileStatsCommunityGroupTitle
+{
+	width: fill-parent-flow(1);
+	height: 16px;
+	font-size: 11px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: offWhite&66;
+	text-transform: uppercase;
+}
+
+.ProfileStatsCommunityGroupAverageLabel
+{
+	width: 72px;
+	height: 16px;
+	font-size: 8px;
+	font-weight: bold;
+	letter-spacing: 0.5px;
+	text-align: right;
+	color: offWhite&44;
+	text-overflow: shrink;
+	white-space: nowrap;
+}
+
+.ProfileStatsCommunityGroupBadge
+{
+	width: 92px;
+	margin-left: 4px;
+	padding: 1px 4px;
+	font-size: 10px;
+	font-weight: bold;
+	text-align: center;
+	color: offWhite;
+	background-color: #ffffff0d;
+	text-overflow: shrink;
+	white-space: nowrap;
+}
+
+.ProfileStatsCommunityMetricRow
+{
+	width: 100%;
+	height: 24px;
+	flow-children: right;
+	padding: 2px 0px;
+}
+
+.ProfileStatsCommunityMetricLabel
+{
+	width: fill-parent-flow(1);
+	font-size: 13px;
+	font-weight: semi-bold;
+	color: offWhite&cc;
+	text-overflow: shrink;
+	white-space: nowrap;
+}
+
+.ProfileStatsCommunityValue
+{
+	width: 92px;
+	font-size: 14px;
+	font-weight: bold;
+	text-align: right;
+	color: offWhite;
+	text-overflow: shrink;
+	white-space: nowrap;
+}
+
+.ProfileStatsCommunityPercentileBadge
+{
+	width: 92px;
+	height: 20px;
+	margin-left: 4px;
+	padding: 1px 4px;
+	font-size: 10px;
+	font-weight: bold;
+	text-align: center;
+	color: offWhite;
+	background-color: #ffffff0d;
+	text-overflow: shrink;
+	white-space: nowrap;
+}
+
+.ProfileStatsCommunityPercentileTop
+{
+	color: #8FD3A2;
+	background-color: #4D956422;
+}
+
+.ProfileStatsCommunityPercentileBottom
+{
+	color: #D68A96;
+	background-color: #A84E5A22;
+}
+
+.ProfileStatsCommunityPercentileUnavailable
+{
+	color: offWhite&44;
+	background-color: #ffffff05;
+}
+
+.ProfileStatsCommunityValueUnavailable
+{
+	color: offWhite&44;
+}
+.ProfileStatsCommunityMetricRow.SubMetric .ProfileStatsCommunityMetricLabel,
+.ProfileStatsCommunityMetricRow.SubMetric .ProfileStatsCommunityValue
+{
+	font-size: 12px;
+	font-weight: medium;
+	color: offWhite&88;
+}
+
+.ProfileStatsCommunityMetricRow.SubMetric .ProfileStatsCommunityPercentileBadge
+{
+	font-size: 10px;
+	font-weight: bold;
+}
+
+.ProfileStatsCommunityMetadata
+{
+	width: 100%;
+	height: 24px;
+	margin-top: 4px;
+	flow-children: right;
+	border-top: 1px solid offWhite&12;
+}
+
+.ProfileStatsCommunityMetadataText
+{
+	width: fill-parent-flow(1);
+	height: 24px;
+	vertical-align: center;
+	font-size: 11px;
+	color: offWhite&55;
+	text-overflow: shrink;
+	white-space: nowrap;
+}
+
+.ProfileStatsCommunityPoweredByLink
+{
+	width: 190px;
+	height: 24px;
+	padding: 0px 8px;
+	vertical-align: center;
+	opacity: 0.55;
+	transition-property: opacity;
+	transition-duration: 0.12s;
+}
+
+.ProfileStatsCommunityPoweredByLink Label
+{
+	width: 100%;
+	horizontal-align: right;
+	vertical-align: center;
+	font-size: 10px;
+	font-weight: medium;
+	letter-spacing: 1px;
+	text-align: right;
+	color: offWhite&77;
+	text-overflow: shrink;
+	white-space: nowrap;
+	transition-property: color;
+	transition-duration: 0.12s;
+}
+
+.ProfileStatsCommunityPoweredByLink:hover,
+.ProfileStatsCommunityPoweredByLink:focus
+{
+	opacity: 1;
+}
+
+.ProfileStatsCommunityPoweredByLink:hover Label,
+.ProfileStatsCommunityPoweredByLink:focus Label
+{
+	color: #C77782;
+}
+
+#ProfileStatsCommunityGenerated
+{
+	horizontal-align: right;
+	text-align: right;
+}
+
+#ProfileStatsCommunityRetry
+{
+	horizontal-align: left;
+	margin-top: 8px;
+	padding: 7px 14px;
+	background-color: #ffffff0a;
+	border: 1px solid offWhite&22;
+	transition-property: background-color, opacity;
+	transition-duration: 0.12s;
+	opacity: 0.8;
+}
+
+#ProfileStatsCommunityRetry:hover
+{
+	background-color: #ffffff18;
+	opacity: 1;
+}
+
+#ProfileStatsCommunityRetry Label
+{
+	font-size: 15px;
+	font-weight: semi-bold;
+	color: offWhite;
+}
+
+#ProfileStatsCommunityBridge
+{
+	width: 260px;
+	height: 30px;
+	horizontal-align: right;
+	margin-top: 8px;
+	background-color: offBlack;
+}
+
+CitadelContextMenuPlayer CitadelProfileCard.StatsActive:not(.ShowPartyInfo) #CardMain
+{
+	visibility: visible;
+}
+
