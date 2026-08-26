@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const RUNTIME_PLACEHOLDER = '        /* PROFILE_STATS_COMMUNITY_RUNTIME: profile_stats_community/panorama/scripts/profile_stats_community.js */';
 const STYLE_PLACEHOLDER = '/* PROFILE_STATS_COMMUNITY_STYLES: profile_stats_community/panorama/styles/profile_stats_community.css */';
+const IDENTITY_POLICY_PLACEHOLDER = '    /* VIEWED_PROFILE_IDENTITY_POLICY: scripts/viewed-profile-identity-policy.js */';
 
 function normalizeLf(source) {
   return source.replace(/\r\n?/g, '\n');
@@ -54,23 +55,65 @@ function compositionPaths(repositoryRoot) {
   return {
     runtimeTemplate: path.join(root, 'showrank_barebones', 'panorama', 'scripts', 'showrank_barebones.js'),
     styleTemplate: path.join(root, 'showrank_barebones', 'panorama', 'styles', 'showrank_barebones_topbar.css'),
-    canonicalRuntime: path.join(root, 'profile_stats_community', 'panorama', 'scripts', 'profile_stats_community.js'),
+    canonicalRuntimeTemplate: path.join(root, 'profile_stats_community', 'panorama', 'scripts', 'profile_stats_community.js'),
+    canonicalContextRuntimeTemplate: path.join(root, 'profile_stats_community', 'panorama', 'scripts', 'profile_stats_community_context_menu.js'),
     canonicalStyle: path.join(root, 'profile_stats_community', 'panorama', 'styles', 'profile_stats_community.css'),
+    identityPolicy: path.join(root, 'scripts', 'viewed-profile-identity-policy.js'),
+  };
+}
+
+function composeProfileStatsCommunitySources(repositoryRoot) {
+  const paths = compositionPaths(repositoryRoot);
+  const runtimeTemplate = fs.readFileSync(paths.canonicalRuntimeTemplate, 'utf8');
+  const contextRuntimeTemplate = fs.readFileSync(paths.canonicalContextRuntimeTemplate, 'utf8');
+  const identityPolicy = fs.readFileSync(paths.identityPolicy, 'utf8');
+
+  return {
+    runtime: composeText(
+      runtimeTemplate,
+      identityPolicy,
+      IDENTITY_POLICY_PLACEHOLDER,
+      'Profile Stats Community runtime identity policy',
+    ),
+    contextRuntime: composeText(
+      contextRuntimeTemplate,
+      identityPolicy,
+      IDENTITY_POLICY_PLACEHOLDER,
+      'Profile Stats Community context runtime identity policy',
+    ),
+    runtimeTemplate,
+    contextRuntimeTemplate,
+    identityPolicy,
+    paths,
   };
 }
 
 function composeBarebonesSources(repositoryRoot) {
   const paths = compositionPaths(repositoryRoot);
+  const profileSources = composeProfileStatsCommunitySources(repositoryRoot);
   const runtimeTemplate = fs.readFileSync(paths.runtimeTemplate, 'utf8');
   const styleTemplate = fs.readFileSync(paths.styleTemplate, 'utf8');
-  const canonicalRuntime = fs.readFileSync(paths.canonicalRuntime, 'utf8');
   const canonicalStyle = fs.readFileSync(paths.canonicalStyle, 'utf8');
+  const runtimeHost = composeText(
+    runtimeTemplate,
+    profileSources.identityPolicy,
+    IDENTITY_POLICY_PLACEHOLDER,
+    'barebones identity policy',
+  );
+  const nestedProfileRuntime = composeText(
+    profileSources.runtimeTemplate,
+    '    /* viewed-profile identity policy is supplied by the barebones host */',
+    IDENTITY_POLICY_PLACEHOLDER,
+    'nested Profile Stats Community identity policy',
+  );
 
   return {
-    runtime: composeText(runtimeTemplate, canonicalRuntime, RUNTIME_PLACEHOLDER, 'barebones runtime'),
+    runtime: composeText(runtimeHost, nestedProfileRuntime, RUNTIME_PLACEHOLDER, 'barebones runtime'),
     style: composeText(styleTemplate, canonicalStyle, STYLE_PLACEHOLDER, 'barebones stylesheet'),
-    canonicalRuntime,
+    canonicalRuntime: profileSources.runtime,
+    nestedProfileRuntime,
     canonicalStyle,
+    identityPolicy: profileSources.identityPolicy,
     paths,
   };
 }
@@ -96,25 +139,58 @@ function writeBarebonesSources(repositoryRoot, outputRoot) {
   return { runtimeOutput, styleOutput };
 }
 
-if (require.main === module) {
-  if (process.argv.length !== 3) {
-    console.error('Usage: node scripts/profile-stats-community-composition.js <staged-source-root>');
-    process.exitCode = 2;
-  } else {
-    try {
-      const repositoryRoot = path.resolve(__dirname, '..');
-      writeBarebonesSources(repositoryRoot, process.argv[2]);
-    } catch (error) {
-      console.error(`[ProfileStatsCommunityComposition] ${error.message}`);
-      process.exitCode = 1;
+function writeProfileStatsCommunitySources(repositoryRoot, outputRoot) {
+  const composition = composeProfileStatsCommunitySources(repositoryRoot);
+  const resolvedOutputRoot = path.resolve(outputRoot);
+  const runtimeOutput = path.join(resolvedOutputRoot, 'panorama', 'scripts', 'profile_stats_community.js');
+  const contextRuntimeOutput = path.join(
+    resolvedOutputRoot,
+    'panorama',
+    'scripts',
+    'profile_stats_community_context_menu.js',
+  );
+  const inputPaths = Object.values(composition.paths).map((inputPath) => path.resolve(inputPath).toLowerCase());
+
+  for (const outputPath of [runtimeOutput, contextRuntimeOutput]) {
+    if (inputPaths.includes(path.resolve(outputPath).toLowerCase())) {
+      throw new Error(`refusing to overwrite composition input: ${outputPath}`);
     }
+    if (!fs.existsSync(path.dirname(outputPath))) {
+      throw new Error(`composition output directory does not exist: ${path.dirname(outputPath)}`);
+    }
+  }
+
+  fs.writeFileSync(runtimeOutput, composition.runtime, 'utf8');
+  fs.writeFileSync(contextRuntimeOutput, composition.contextRuntime, 'utf8');
+  return { runtimeOutput, contextRuntimeOutput };
+}
+
+if (require.main === module) {
+  const repositoryRoot = path.resolve(__dirname, '..');
+  try {
+    if (process.argv.length === 3) {
+      writeBarebonesSources(repositoryRoot, process.argv[2]);
+    } else if (process.argv.length === 4 && process.argv[2] === '--profile-stats') {
+      writeProfileStatsCommunitySources(repositoryRoot, process.argv[3]);
+    } else {
+      console.error(
+        'Usage: node scripts/profile-stats-community-composition.js [--profile-stats] <staged-source-root>',
+      );
+      process.exitCode = 2;
+    }
+  } catch (error) {
+    console.error(`[ProfileStatsCommunityComposition] ${error.message}`);
+    process.exitCode = 1;
   }
 }
 
 module.exports = {
   RUNTIME_PLACEHOLDER,
   STYLE_PLACEHOLDER,
+  IDENTITY_POLICY_PLACEHOLDER,
   composeText,
+  composeProfileStatsCommunitySources,
   composeBarebonesSources,
+  writeProfileStatsCommunitySources,
   writeBarebonesSources,
 };

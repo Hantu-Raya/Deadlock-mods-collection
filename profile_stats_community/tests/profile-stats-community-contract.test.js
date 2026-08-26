@@ -6,11 +6,16 @@ var path = require("node:path");
 var test = require("node:test");
 
 var moduleRoot = path.resolve(__dirname, "..");
+var repositoryRoot = path.resolve(moduleRoot, "..");
+var composition = require(path.join(repositoryRoot, "scripts", "profile-stats-community-composition"));
+var composedSources = composition.composeProfileStatsCommunitySources(repositoryRoot);
 var layout = fs.readFileSync(path.join(moduleRoot, "panorama", "layout", "citadel_db_page_profile.xml"), "utf8");
 var contextMenuLayout = fs.readFileSync(path.join(moduleRoot, "panorama", "layout", "citadel_ui_context_menu_player.xml"), "utf8");
 var profileCardLayout = fs.readFileSync(path.join(moduleRoot, "panorama", "layout", "profile_card.xml"), "utf8");
-var script = fs.readFileSync(path.join(moduleRoot, "panorama", "scripts", "profile_stats_community.js"), "utf8");
-var contextMenuScript = fs.readFileSync(path.join(moduleRoot, "panorama", "scripts", "profile_stats_community_context_menu.js"), "utf8");
+var scriptTemplate = fs.readFileSync(path.join(moduleRoot, "panorama", "scripts", "profile_stats_community.js"), "utf8");
+var contextMenuScriptTemplate = fs.readFileSync(path.join(moduleRoot, "panorama", "scripts", "profile_stats_community_context_menu.js"), "utf8");
+var script = composedSources.runtime;
+var contextMenuScript = composedSources.contextRuntime;
 var styles = fs.readFileSync(path.join(moduleRoot, "panorama", "styles", "profile_stats_community.css"), "utf8");
 var packageJson = JSON.parse(fs.readFileSync(path.join(moduleRoot, "package.json"), "utf8"));
 
@@ -385,6 +390,19 @@ test("filter and metric layout form a compact non-scrollable grid", function () 
   assert.match(styles, /\.ProfileStatsCommunityPercentileTop\s*\{/);
   assert.match(styles, /\.ProfileStatsCommunityPercentileBottom\s*\{/);
   assert.match(styles, /\.ProfileStatsCommunityPercentileUnavailable\s*\{/);
+});
+
+test("one private identity policy is composed into both runtime adapters", function () {
+  assert.equal(count(scriptTemplate, /VIEWED_PROFILE_IDENTITY_POLICY:/g), 1);
+  assert.equal(count(contextMenuScriptTemplate, /VIEWED_PROFILE_IDENTITY_POLICY:/g), 1);
+  assert.equal(count(script, /var viewedProfileIdentityPolicy/g), 1);
+  assert.equal(count(contextMenuScript, /var viewedProfileIdentityPolicy/g), 1);
+  assert.doesNotMatch(script, /VIEWED_PROFILE_IDENTITY_POLICY:/);
+  assert.doesNotMatch(contextMenuScript, /VIEWED_PROFILE_IDENTITY_POLICY:/);
+  assert.match(script, /viewedProfileIdentityPolicy\.resolve/);
+  assert.match(contextMenuScript, /viewedProfileIdentityPolicy\.resolve/);
+  assert.doesNotMatch(composedSources.identityPolicy, /PlayerName|HeroName|SelfName|topbar/i,
+    "names and Passive top-bar evidence are outside the identity policy interface");
 });
 
 test("runtime and stylesheet stay Panorama-safe", function () {

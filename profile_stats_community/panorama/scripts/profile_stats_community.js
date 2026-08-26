@@ -1,5 +1,7 @@
 (function () {
     "use strict";
+    /* VIEWED_PROFILE_IDENTITY_POLICY: scripts/viewed-profile-identity-policy.js */
+
 
     var BRIDGE_URL = "https://hantu-raya.github.io/deadlock-stats-bridge/bridge.html";
     var BRIDGE_ORIGIN_PATH = "https://hantu-raya.github.io/deadlock-stats-bridge/bridge.html";
@@ -434,136 +436,53 @@
         return "";
     }
 
-    function stripLeadingZeroes(value) {
-        var result = String(value).replace(/^0+/, "");
-        return result || "0";
-    }
-
-    function normalizeDigits(value) {
-        var normalized = trim(value);
-        if (!/^\d{1,20}$/.test(normalized)) {
-            return "";
-        }
-        normalized = stripLeadingZeroes(normalized);
-        if (normalized === "0") {
-            return "";
-        }
-        return normalized;
-    }
-
-    function safeAccountNumber(value) {
-        if (!finiteNumber(value) || Math.floor(value) !== value || value <= 0 || value > 9007199254740991) {
-            return null;
-        }
-        return value;
-    }
-
-    function safeAccountText(value) {
-        var number = Number(value);
-        return safeAccountNumber(number) !== null && String(number) === value;
-    }
-
-    function payloadAccountMatches(value, accountText) {
-        var account = safeAccountNumber(value);
-        return account !== null && String(account) === accountText;
-    }
-
-    function compareDecimal(left, right) {
-        left = stripLeadingZeroes(left);
-        right = stripLeadingZeroes(right);
-        if (left.length !== right.length) {
-            return left.length < right.length ? -1 : 1;
-        }
-        if (left === right) {
-            return 0;
-        }
-        return left < right ? -1 : 1;
-    }
-
-    function subtractDecimal(left, right) {
-        var output = "";
-        var borrow = 0;
-        var index = left.length - 1;
-        var rightIndex = right.length - 1;
-        var digit;
-        var rightDigit;
-        var difference;
-        if (compareDecimal(left, right) < 0) {
-            return "";
-        }
-        while (index >= 0) {
-            digit = parseInt(left.charAt(index), 10) - borrow;
-            rightDigit = rightIndex >= 0 ? parseInt(right.charAt(rightIndex), 10) : 0;
-            difference = digit - rightDigit;
-            if (difference < 0) {
-                difference += 10;
-                borrow = 1;
-            } else {
-                borrow = 0;
-            }
-            output = String(difference) + output;
-            index -= 1;
-            rightIndex -= 1;
-        }
-        return stripLeadingZeroes(output);
-    }
-
-    function normalizeAuthority(value, name) {
-        var normalized = normalizeDigits(value);
-        var steamBase = "76561197960265728";
-        if (!normalized) {
-            return "";
-        }
-        if (name === "steamid" && normalized.length > 10) {
-            normalized = subtractDecimal(normalized, steamBase);
-            return normalizeDigits(normalized);
-        }
-        return normalized;
-    }
-
     function readIdentity() {
         var witness;
-        var witnessAccount;
         var authorityNames = AUTHORITY_NAMES;
+        var corroborators = [];
         var index;
-        var authority;
+        var identity;
         if (!isValidPanel(accountWitness)) {
             accountWitness = findPanel("ProfileStatsCommunityAccount");
         }
         witness = accountWitness;
-        witnessAccount = normalizeDigits(textOf(witness));
-        if (!witnessAccount || !safeAccountText(witnessAccount)) {
+        for (index = 0; index < authorityNames.length; index += 1) {
+            corroborators.push({
+                value: readRootAuthority(authorityNames[index]),
+                format: authorityNames[index] === "steamid" ? "identity" : "account"
+            });
+        }
+        identity = viewedProfileIdentityPolicy.resolve({
+            value: textOf(witness),
+            format: "account"
+        }, corroborators);
+        if (identity.state === "missing") {
             return {
                 state: "missing",
                 account: "",
                 message: "The viewed profile account is unavailable."
             };
         }
-        for (index = 0; index < authorityNames.length; index += 1) {
-            authority = readRootAuthority(authorityNames[index]);
-            if (trim(authority) !== "") {
-                authority = normalizeAuthority(authority, authorityNames[index]);
-                if (!authority || authority !== witnessAccount) {
-                    return {
-                        state: "mismatch",
-                        account: witnessAccount,
-                        message: "The viewed profile account witness does not match the profile root."
-                    };
-                }
-            }
+        if (identity.state !== "valid") {
+            return {
+                state: "mismatch",
+                account: identity.account,
+                message: "The viewed profile account witness does not match the profile root."
+            };
         }
         return {
             state: "valid",
-            account: witnessAccount,
+            account: identity.account,
             message: ""
         };
     }
 
+    function payloadAccountMatches(value, accountText) {
+        return viewedProfileIdentityPolicy.payloadMatches(value, accountText);
+    }
+
     function sameIdentity(left, right) {
-        if (!left || !right) {
-            return false;
-        }
-        return left.state === right.state && left.account === right.account;
+        return viewedProfileIdentityPolicy.same(left, right);
     }
 
 
@@ -668,7 +587,7 @@
         if (!exactKeys(payload, ["v", "kind", "request", "account", "matches", "mode", "sample", "generated", "groups"])) {
             return "invalid";
         }
-        if (payload.v !== 3 || payload.kind !== "profile_stats" || typeof payload.account !== "number" || safeAccountNumber(payload.account) === null || typeof payload.request !== "string") {
+        if (payload.v !== 3 || payload.kind !== "profile_stats" || typeof payload.account !== "number" || !viewedProfileIdentityPolicy.payloadMatches(payload.account, String(payload.account)) || typeof payload.request !== "string") {
             return "invalid";
         }
         if (!validMatchLimit(payload.matches) || !validMatchMode(payload.mode) || !finiteNumber(payload.sample) || Math.floor(payload.sample) !== payload.sample || payload.sample < 0 || payload.sample > request.matches) {
@@ -718,7 +637,7 @@
         if (!exactKeys(payload, ["v", "kind", "request", "account", "matches", "mode", "code"], ["status", "retry_after", "message"])) {
             return "invalid";
         }
-        if (payload.v !== 3 || payload.kind !== "error" || typeof payload.account !== "number" || safeAccountNumber(payload.account) === null || typeof payload.request !== "string" || !validMatchLimit(payload.matches) || !validMatchMode(payload.mode) || !ERROR_CODES[payload.code]) {
+        if (payload.v !== 3 || payload.kind !== "error" || typeof payload.account !== "number" || !viewedProfileIdentityPolicy.payloadMatches(payload.account, String(payload.account)) || typeof payload.request !== "string" || !validMatchLimit(payload.matches) || !validMatchMode(payload.mode) || !ERROR_CODES[payload.code]) {
             return "invalid";
         }
         if (hasOwn(payload, "status")) {

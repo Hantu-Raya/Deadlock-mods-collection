@@ -5,6 +5,7 @@ $root = $PSScriptRoot
 
 $moduleRoot = Join-Path $root 'profile_stats_community'
 $buildRoot = Join-Path $root '_profile_stats_community_build'
+$compositionScript = Join-Path $root 'scripts\profile-stats-community-composition.js'
 $stageSource = Join-Path $buildRoot 'src'
 $stageCompiled = Join-Path $buildRoot 'src_compiled'
 $vpkOutput = Join-Path $root 'pak80_dir.vpk'
@@ -220,8 +221,12 @@ function Assert-ProfileStatsProject {
     if (-not (Test-Path -LiteralPath $moduleRoot)) {
         throw "Profile Stats Community source folder not found: $moduleRoot"
     }
+    if (-not (Test-Path -LiteralPath $compositionScript)) {
+        throw "Profile Stats Community composition script not found: $compositionScript"
+    }
     $resolvedModuleRoot = (Resolve-Path -LiteralPath $moduleRoot).Path
     Assert-PathUnderRoot -Path $resolvedModuleRoot -RootPath $root
+    Assert-PathUnderRoot -Path (Resolve-Path -LiteralPath $compositionScript).Path -RootPath $root
     & npm --prefix $moduleRoot run validate
     if ($LASTEXITCODE -ne 0) {
         throw "Profile Stats Community validation failed with exit code $LASTEXITCODE"
@@ -230,7 +235,7 @@ function Assert-ProfileStatsProject {
 }
 
 
-foreach ($path in @($moduleRoot, $buildRoot, $stageSource, $stageCompiled, $vpkOutput, $compiler, $vpkEditCli, $source2Viewer)) {
+foreach ($path in @($moduleRoot, $compositionScript, $buildRoot, $stageSource, $stageCompiled, $vpkOutput, $compiler, $vpkEditCli, $source2Viewer)) {
     Assert-PathUnderRoot -Path $path -RootPath $root
     if (Test-Path -LiteralPath $path) {
         Assert-PathUnderRoot -Path (Resolve-Path -LiteralPath $path).Path -RootPath $root
@@ -269,18 +274,24 @@ try {
         New-Item -ItemType Directory -Path (Split-Path -Parent $stagedPath) -Force | Out-Null
         Copy-Item -LiteralPath $sourcePath -Destination $stagedPath -Force
     }
+    & node $compositionScript --profile-stats $stageSource
+    if ($LASTEXITCODE -ne 0) {
+        throw "Profile Stats Community source composition failed with exit code $LASTEXITCODE"
+    }
     Assert-ProfileStatsAssetSet -Actual (Get-ProfileStatsAssetPaths -RootPath $stageSource) -ExpectedAssets $requiredSourceAssets -Label 'Staged Profile Stats source'
 
-    $readableRuntime = Join-Path $moduleRoot 'panorama\scripts\profile_stats_community.js'
     $stagedRuntime = Join-Path $stageSource 'panorama\scripts\profile_stats_community.js'
+    $readableRuntime = Join-Path $buildRoot 'profile_stats_community.readable.js'
+    Copy-Item -LiteralPath $stagedRuntime -Destination $readableRuntime -Force
     if ((Get-ProfileStatsSha256 -Path $readableRuntime) -ne (Get-ProfileStatsSha256 -Path $stagedRuntime)) {
-        throw 'Staged Profile Stats runtime does not exactly match readable source before minification.'
+        throw 'Staged Profile Stats runtime does not exactly match composed readable source before minification.'
     }
     Invoke-ProfileStatsClosureMinification -ReadableSourcePath $readableRuntime -StagedSourcePath $stagedRuntime -TemporaryRoot (Join-Path $buildRoot 'minify') -ValidateProtocolKeys
-    $readableContextRuntime = Join-Path $moduleRoot 'panorama\scripts\profile_stats_community_context_menu.js'
     $stagedContextRuntime = Join-Path $stageSource 'panorama\scripts\profile_stats_community_context_menu.js'
+    $readableContextRuntime = Join-Path $buildRoot 'profile_stats_community_context_menu.readable.js'
+    Copy-Item -LiteralPath $stagedContextRuntime -Destination $readableContextRuntime -Force
     if ((Get-ProfileStatsSha256 -Path $readableContextRuntime) -ne (Get-ProfileStatsSha256 -Path $stagedContextRuntime)) {
-        throw 'Staged Profile Stats context-menu runtime does not exactly match readable source before minification.'
+        throw 'Staged Profile Stats context-menu runtime does not exactly match composed readable source before minification.'
     }
     Invoke-ProfileStatsClosureMinification -ReadableSourcePath $readableContextRuntime -StagedSourcePath $stagedContextRuntime -TemporaryRoot (Join-Path $buildRoot 'minify-context-menu')
     Assert-ProfileStatsAssetSet -Actual (Get-ProfileStatsAssetPaths -RootPath $stageSource) -ExpectedAssets $requiredSourceAssets -Label 'Minified Profile Stats source'

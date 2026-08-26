@@ -22,6 +22,7 @@ function indexOfRequired(fragment) {
 
 assert.match(build, /\. \(Join-Path \$root 'scripts\\source2_package_pipeline\.ps1'\)/, 'the wrapper sources the shared Source2 pipeline helpers');
 assert.match(build, /\$moduleRoot\s*=\s*Join-Path \$root 'profile_stats_community'/, 'the source root is the profile stats community package');
+assert.match(build, /\$compositionScript\s*=\s*Join-Path \$root 'scripts\\profile-stats-community-composition\.js'/, 'the shared identity-policy composer is explicit');
 assert.match(build, /\$vpkOutput\s*=\s*Join-Path \$root 'pak80_dir\.vpk'/, 'the artifact is the root pak80 VPK');
 assert.doesNotMatch(build, /pak(?:0[1-9]|[1-7][0-9]|8[1-9])_dir\.vpk/i, 'the wrapper does not target another pak number');
 assert.doesNotMatch(build, /^param\(/m, 'the wrapper has no install, deploy, or path override switches');
@@ -102,6 +103,10 @@ assert.match(build, /foreach \(\$temporaryPath in @\(\$externsPath, \$minifiedPa
 
 assert.match(build, /& npm --prefix \$moduleRoot run validate/, 'the package validation command is explicit');
 assert.match(build, /Copy-Item -LiteralPath \$sourcePath -Destination \$stagedPath -Force/, 'only inventoried source assets are staged');
+assert.match(build, /& node \$compositionScript --profile-stats \$stageSource/, 'the private identity policy is composed into both staged runtimes');
+assert.match(build, /Profile Stats Community source composition failed/, 'composition failures stop the package build');
+assert.match(build, /Copy-Item -LiteralPath \$stagedRuntime -Destination \$readableRuntime -Force/, 'the composed profile runtime is snapshotted before Closure');
+assert.match(build, /Copy-Item -LiteralPath \$stagedContextRuntime -Destination \$readableContextRuntime -Force/, 'the composed context runtime is snapshotted before Closure');
 assert.match(build, /Invoke-Source2Compiler -CompilerPath \$compiler -SourceDir \$stageSource -RequiredOutputs \$requiredCompiledOutputs -HiddenWindow/, 'the shared Source2 compiler helper is used for all six outputs');
 assert.match(build, /Invoke-VpkPack -VpkEditCli \$vpkEditCli -InputDir \$stageCompiled -OutputPath \$vpkOutput/, 'the shared VPK pack helper creates the root artifact');
 assert.match(build, /Get-PackedVpkTree -VpkEditCli \$vpkEditCli -VpkPath \$vpkOutput -Source2ViewerPath \$source2Viewer/, 'the packed output is inspected with the shared tree helper');
@@ -109,6 +114,7 @@ assert.match(build, /Get-PackedVpkTree -VpkEditCli \$vpkEditCli -VpkPath \$vpkOu
 const validateIndex = indexOfRequired('& npm --prefix $moduleRoot run validate');
 const sourceCheckIndex = indexOfRequired("Assert-ProfileStatsAssetSet -Actual (Get-ProfileStatsAssetPaths -RootPath $moduleRoot)");
 const stagedCopyIndex = indexOfRequired('Copy-Item -LiteralPath $sourcePath -Destination $stagedPath -Force');
+const compositionIndex = indexOfRequired('& node $compositionScript --profile-stats $stageSource');
 const hashIndex = indexOfRequired('Get-ProfileStatsSha256 -Path $readableRuntime');
 const closureCallIndex = indexOfRequired('Invoke-ProfileStatsClosureMinification -ReadableSourcePath $readableRuntime -StagedSourcePath $stagedRuntime');
 const contextHashIndex = indexOfRequired('Get-ProfileStatsSha256 -Path $readableContextRuntime');
@@ -124,7 +130,7 @@ const packedCheckIndex = indexOfRequired("Assert-ProfileStatsAssetSet -Actual $p
 const forbiddenCheckIndex = indexOfRequired('Assert-PackedVpkAssets -Tree $packedTree -Required $requiredCompiledAssets -Forbidden $forbiddenPackedAssets');
 assert.ok(validateIndex < sourceCheckIndex, 'package validation precedes source inventory validation');
 assert.ok(sourceCheckIndex < stagedCopyIndex, 'source inventory validation precedes staging');
-assert.ok(stagedCopyIndex < hashIndex && hashIndex < closureCallIndex && closureCallIndex < contextHashIndex && contextHashIndex < contextClosureCallIndex && contextClosureCallIndex < compilerIndex, 'source copies, both hash checks, and both staged Closure invocations precede Source2 compilation');
+assert.ok(stagedCopyIndex < compositionIndex && compositionIndex < hashIndex && hashIndex < closureCallIndex && closureCallIndex < contextHashIndex && contextHashIndex < contextClosureCallIndex && contextClosureCallIndex < compilerIndex, 'source copies, identity composition, both hash checks, and both staged Closure invocations precede Source2 compilation');
 assert.ok(closureRunIndex < minifiedSyntaxIndex && minifiedSyntaxIndex < minifiedMoveIndex, 'Closure output is syntax-checked before replacing the staged runtime');
 assert.ok(minifiedMoveIndex < compilerIndex, 'minified staged runtime precedes Source2 compilation');
 assert.ok(compilerIndex < compiledCheckIndex && compiledCheckIndex < packIndex, 'compiled outputs are checked before packing');

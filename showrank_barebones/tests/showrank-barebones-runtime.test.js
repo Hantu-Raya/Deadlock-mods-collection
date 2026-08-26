@@ -394,14 +394,33 @@ function containsPanel(value, seen = new Set()) {
   assert.deepStrictEqual(card.image.images, [rankUrl('123456')], 'matching direct and Steam64 witnesses render the exact URL'); assert.strictEqual(card.image.visible, true); assert.strictEqual(h.drain(), 2, 'startup watch is finite');
 }
 {
+  const h = harness(); const card = profile('123456', {
+    witness: ' 000123456 ',
+    contextWitness: '000123456',
+    accountid: '123456',
+  }); h.evaluate(card.root);
+  assert.deepStrictEqual(card.image.images, [rankUrl('123456')], 'the shared identity policy canonicalizes matching direct witnesses');
+}
+{
   const h = harness(); const card = profile('', { accountid: undefined, witness: '', imageVisible: true }); h.evaluate(card.root); assertCleared(card.image, 'unbound profile'); setProfileAccount(card, '123456'); h.drain(); assert.deepStrictEqual(card.image.images, ['', rankUrl('123456')], 'delayed profile evidence binds on retry');
+}
+{
+  const h = harness(); const card = profile('123456', {
+    witness: '',
+    contextWitness: '',
+    accountid: '123456',
+    imageVisible: true,
+  }); h.evaluate(card.root);
+  assertCleared(card.image, 'root-only profile authority');
 }
 for (const [label, options] of [
   ['hidden mismatch', { witness: '123457', accountid: '123456', steamid: '76561197960389184' }],
   ['account mismatch', { witness: '123456', accountid: '123457', steamid: '76561197960389184' }],
   ['Steam64 mismatch', { witness: '123456', accountid: '123456', steamid: '76561197960389185' }],
+  ['Steam64 direct-witness format', { witness: '76561197960389184', contextWitness: '123456', accountid: '123456' }],
+  ['Steam3 context-witness format', { witness: '123456', contextWitness: '[U:1:123456]', accountid: '123456' }],
 ]) { const h = harness(); const card = profile('123456', { ...options, imageVisible: true }); h.evaluate(card.root); assertCleared(card.image, label); }
-for (const invalid of ['', '0', '-1', '1.5', '1e3', ' 123456', '123456 ', '123456x', '4294967296', '9007199254740993', 'Infinity', 'NaN']) { const h = harness(); const card = profile(invalid, { witness: invalid, accountid: invalid, imageVisible: true }); h.evaluate(card.root); assertCleared(card.image, `invalid ${JSON.stringify(invalid)}`); }
+for (const invalid of ['', '0', '-1', '1.5', '1e3', '123456x', '4294967296', '9007199254740993', 'Infinity', 'NaN']) { const h = harness(); const card = profile(invalid, { witness: invalid, accountid: invalid, imageVisible: true }); h.evaluate(card.root); assertCleared(card.image, `invalid ${JSON.stringify(invalid)}`); }
 {
   const h = harness(); const card = profile('123456'); h.evaluate(card.root); card.root.attributes.accountid = '123457'; h.drain(); assert.deepStrictEqual(card.image.images, [rankUrl('123456'), ''], 'conflicting reused-card evidence clears the old rank');
 }
@@ -530,6 +549,16 @@ for (const [label, options] of [
   assert.deepStrictEqual(h.copiedAccounts, ['234567'], 'Copy Account ID resolves newly bound evidence at click time');
 }
 {
+  const h = harness(); const card = profile(''), menu = contextMenu(card); const passive = topbar('haze');
+  passive.root.attributes.accountid = '123456';
+  h.attach(passive.root);
+  h.evaluate(passive.root);
+  h.evaluate(menu.root);
+  h.evaluate(card.root);
+  card.root.ShowRankBarebonesOpenPlayerProfile();
+  assert.deepStrictEqual(h.openedProfiles, [], 'Passive top-bar evidence cannot establish viewed-profile identity');
+}
+{
   const h = harness({ externalBrowserEvent: false }); const card = profile('123456'), menu = contextMenu(card); h.evaluate(menu.root); h.evaluate(card.root);
   assert.doesNotThrow(() => card.root.ShowRankBarebonesOpenStatlocker(), 'an unavailable native browser event is contained');
   assert.deepStrictEqual(h.openedUrls, [], 'StatLocker has no unrelated browser fallback');
@@ -547,6 +576,30 @@ for (const [label, options] of [
   const h = harness(); const card = profile('123456', { contextWitness: '654321' }), menu = contextMenu(card); h.evaluate(menu.root); h.evaluate(card.root);
   card.root.ShowRankBarebonesOpenPlayerProfile();
   assert.deepStrictEqual(h.openedProfiles, [], 'conflicting selected-card witnesses block native profile navigation');
+}
+{
+  const h = harness(); const card = profile('123456'), menu = contextMenu(card); h.evaluate(menu.root); h.evaluate(card.root);
+  card.contextWitness.text = null;
+  card.root.ShowRankBarebonesOpenStatlocker();
+  card.root.ShowRankBarebonesOpenPlayerProfile();
+  card.root.ShowRankBarebonesCopyAccount();
+  assert.deepStrictEqual(
+    { openedUrls: h.openedUrls, openedProfiles: h.openedProfiles, copiedAccounts: h.copiedAccounts },
+    { openedUrls: [], openedProfiles: [], copiedAccounts: [] },
+    'unreadable selected-card evidence blocks every context action',
+  );
+}
+{
+  const h = harness(); const card = profile('123456'), menu = contextMenu(card); h.evaluate(menu.root); h.evaluate(card.root);
+  card.root.GetAttributeString = () => { throw new Error('unreadable authority'); };
+  card.root.ShowRankBarebonesOpenStatlocker();
+  card.root.ShowRankBarebonesOpenPlayerProfile();
+  card.root.ShowRankBarebonesCopyAccount();
+  assert.deepStrictEqual(
+    { openedUrls: h.openedUrls, openedProfiles: h.openedProfiles, copiedAccounts: h.copiedAccounts },
+    { openedUrls: [], openedProfiles: [], copiedAccounts: [] },
+    'unreadable profile authority blocks every context action',
+  );
 }
 
 {
