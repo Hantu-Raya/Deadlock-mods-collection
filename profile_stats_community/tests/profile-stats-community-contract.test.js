@@ -403,7 +403,7 @@ test("runtime and stylesheet stay Panorama-safe", function () {
   assert.match(script, /GetChildCount\(\)/);
   assert.match(script, /MAX_HERO_ROWS\s*=\s*64/);
   assert.doesNotMatch(script, /FindChildrenWithClassTraverse|GetLocalPlayer|GameUI\.GetLocalPlayer|document\.|window\./);
-  assert.match(script, /\[ProfileStatsCommunity\]/);
+  assert.doesNotMatch(script, /\$\.Msg|DEBUG_LOGGING|debugLog|logIdentity|rejectTitle/);
   assert.match(script, /BHasKeyFocus/);
   assert.match(script, /BHasDescendantKeyFocus/);
   assert.match(script, /statSectionName/);
@@ -422,6 +422,7 @@ test("runtime and stylesheet stay Panorama-safe", function () {
   assert.doesNotMatch(script, /stockVisibility|readStyle/);
   assert.doesNotMatch(script, /setVisibility\(stock(?:Title|Left|Right)/);
   assert.match(styles, /#ProfileStatsCommunityPanel\s*\{[\s\S]*?ignore-parent-flow\s*:\s*true;[\s\S]*?width\s*:\s*100%;[\s\S]*?height\s*:\s*100%;[\s\S]*?background-color\s*:\s*offBlack;/);
+  assert.match(styles, /CitadelProfilePage #HeroList\s*\{[\s\S]*?padding-top\s*:\s*56px;/);
   assert.match(styles, /#ProfileStatsCommunityBridge\s*\{[\s\S]*?width\s*:\s*260px;[\s\S]*?height\s*:\s*30px;[\s\S]*?horizontal-align\s*:\s*right;[\s\S]*?background-color\s*:\s*offBlack;/);
   assert.doesNotMatch(styles, /#ProfileStatsCommunityBridge\s*\{[\s\S]*?opacity\s*:/);
   assert.doesNotMatch(styles, /#ProfileStatsCommunityBack/);

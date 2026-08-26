@@ -10,6 +10,7 @@ $root = $PSScriptRoot
 . (Join-Path $root 'scripts\source2_package_pipeline.ps1')
 
 $barebonesRoot = Join-Path $root 'showrank_barebones'
+$compositionScript = Join-Path $root 'scripts\profile-stats-community-composition.js'
 $buildRoot = Join-Path $root '_showrank_barebones_build'
 $stageSource = Join-Path $buildRoot 'src'
 $stageCompiled = Join-Path $buildRoot 'src_compiled'
@@ -276,6 +277,11 @@ function Install-BarebonesVpk {
 if (-not (Test-Path -LiteralPath $barebonesRoot)) {
     throw "ShowRank barebones source folder not found: $barebonesRoot"
 }
+if (-not (Test-Path -LiteralPath $compositionScript)) {
+    throw "Profile Stats Community composition script not found: $compositionScript"
+}
+Assert-PathUnderRoot -Path (Resolve-Path -LiteralPath $compositionScript).Path -RootPath $root
+
 
 & npm --prefix $barebonesRoot run validate
 if ($LASTEXITCODE -ne 0) { throw "ShowRank barebones validation failed with exit code $LASTEXITCODE" }
@@ -299,11 +305,14 @@ try {
         New-Item -ItemType Directory -Path (Split-Path -Parent $stagedPath) -Force | Out-Null
         Copy-Item -LiteralPath $sourcePath -Destination $stagedPath -Force
     }
-    Assert-BarebonesAssetSet -Actual (Get-BarebonesAssetPaths -RootPath $stageSource) -ExpectedAssets $requiredSourceAssets -Label 'Staged barebones source'
-    $readableRuntime = Join-Path $barebonesRoot 'panorama\scripts\showrank_barebones.js'
+    & node $compositionScript $stageSource
+    if ($LASTEXITCODE -ne 0) { throw "Profile Stats Community composition failed with exit code $LASTEXITCODE" }
+    Assert-BarebonesAssetSet -Actual (Get-BarebonesAssetPaths -RootPath $stageSource) -ExpectedAssets $requiredSourceAssets -Label 'Composed barebones source'
+    $readableRuntime = Join-Path $buildRoot 'showrank_barebones.readable.js'
     $stagedRuntime = Join-Path $stageSource 'panorama\scripts\showrank_barebones.js'
+    Copy-Item -LiteralPath $stagedRuntime -Destination $readableRuntime -Force
     if ((Get-BarebonesSha256 -Path $readableRuntime) -ne (Get-BarebonesSha256 -Path $stagedRuntime)) {
-        throw 'Staged barebones runtime does not exactly match readable source before minification.'
+        throw 'Staged barebones runtime does not exactly match the composed readable source before minification.'
     }
     Invoke-BarebonesClosureMinification -ReadableSourcePath $readableRuntime -StagedSourcePath $stagedRuntime -TemporaryRoot (Join-Path $buildRoot 'minify')
 

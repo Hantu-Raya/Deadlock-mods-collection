@@ -5,13 +5,18 @@ const fs = require('fs');
 const path = require('path');
 
 const rootDir = path.join(__dirname, '..');
+const repositoryDir = path.join(rootDir, '..');
+const composition = require(path.join(repositoryDir, 'scripts', 'profile-stats-community-composition'));
 const panoramaDir = path.join(rootDir, 'panorama');
 const layoutDir = path.join(panoramaDir, 'layout');
 const scriptPath = path.join(panoramaDir, 'scripts', 'showrank_barebones.js');
 const stylePath = path.join(panoramaDir, 'styles', 'showrank_barebones_topbar.css');
-const source = fs.readFileSync(scriptPath, 'utf8');
-const style = fs.readFileSync(stylePath, 'utf8');
-const showRankStyle = style.split('#ProfileStatsCommunityButton')[0];
+const sourceTemplate = fs.readFileSync(scriptPath, 'utf8');
+const styleTemplate = fs.readFileSync(stylePath, 'utf8');
+const composed = composition.composeBarebonesSources(repositoryDir);
+const source = composed.runtime;
+const style = composed.style;
+const showRankStyle = styleTemplate;
 const layouts = Object.fromEntries(
   ['profile_card.xml', 'citadel_db_page_profile.xml', 'citadel_ui_context_menu_player.xml', 'citadel_hud_top_bar.xml', 'citadel_hud_top_bar_player.xml', 'players_list_entry.xml', 'hud_escape_menu.xml']
     .map((name) => [name, fs.readFileSync(path.join(layoutDir, name), 'utf8')]),
@@ -76,6 +81,15 @@ assert.deepStrictEqual(
   ],
   'the feature ships exactly seven layout assets, one runtime, and one shared stylesheet',
 );
+assert.strictEqual(sourceTemplate.split(composition.RUNTIME_PLACEHOLDER).length - 1, 1, 'the runtime host has one canonical composition seam');
+assert.strictEqual(styleTemplate.split(composition.STYLE_PLACEHOLDER).length - 1, 1, 'the stylesheet host has one canonical composition seam');
+assert.doesNotMatch(sourceTemplate, /PROFILE_STATS_COMMUNITY_MODULE_(?:START|END)|DLSTATS2:/, 'the runtime host does not retain a copied profile implementation');
+assert.doesNotMatch(styleTemplate, /#ProfileStatsCommunityButton/, 'the stylesheet host does not retain copied profile styles');
+assert.doesNotMatch(source, /PROFILE_STATS_COMMUNITY_RUNTIME:/, 'composed runtime resolves its source seam');
+assert.doesNotMatch(style, /PROFILE_STATS_COMMUNITY_STYLES:/, 'composed stylesheet resolves its source seam');
+assert.ok(source.replace(/\r\n?/g, '\n').includes(composed.canonicalRuntime.replace(/\r\n?/g, '\n').trimEnd()), 'composed runtime contains the canonical implementation');
+assert.ok(style.replace(/\r\n?/g, '\n').includes(composed.canonicalStyle.replace(/\r\n?/g, '\n').trimEnd()), 'composed stylesheet contains the canonical implementation');
+
 
 assert.match(source, /RANK_API_BASE_URL = "https:\/\/api\.deadlock-api\.com\/v1\/players"/, 'the runtime owns the canonical API base');
 assert.match(source, /RANK_IMAGE_FORMAT = "webp"/, 'the runtime owns the canonical image format');
@@ -180,7 +194,7 @@ for (const id of [
   'ProfileStatsCommunityGroupEconomy',
   'ProfileStatsCommunityGroupSustain',
 ]) assert.strictEqual(countId(profilePage, id), 1, `community group ${id} remains unique`);
-assert.match(style, /\.ShowRankBarebonesProfilePage #HeroList\s*\{[\s\S]*?padding-top:\s*56px;/, 'only the merged ShowRank profile page offsets native hero rows below the comparison action');
+assert.match(style, /CitadelProfilePage #HeroList\s*\{[\s\S]*?padding-top:\s*56px;/, 'the canonical profile-page rule offsets native hero rows below the comparison action');
 assert.match(source, /function installProfileStatsCommunity\(\)/, 'the dominant runtime owns the profile comparison subsystem');
 assert.match(source, /DLSTATS2:/, 'the dominant runtime retains the community bridge protocol');
 assert.doesNotMatch(profilePage, /profile_stats_community\.vjs_c/, 'the profile page does not load a second runtime');

@@ -7,8 +7,9 @@ var vm = require("node:vm");
 
 function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
   assert.equal(typeof runtimeAdapter.sourcePath, "string", "runtime adapter provides a source path");
+  assert.ok(runtimeAdapter.source === undefined || typeof runtimeAdapter.source === "string", "runtime adapter source override is text");
   var sourcePath = runtimeAdapter.sourcePath;
-  var source = fs.readFileSync(sourcePath, "utf8");
+  var source = runtimeAdapter.source === undefined ? fs.readFileSync(sourcePath, "utf8") : runtimeAdapter.source;
 
   function runRuntime(counters, callback, thisArg, args) {
     var previous = counters.inRuntime;

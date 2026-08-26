@@ -4,9 +4,12 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
-const editableSourcePath = path.join(__dirname, '..', 'panorama', 'scripts', 'showrank_barebones.js');
-const runtimePath = process.env.SHOWRANK_BAREBONES_RUNTIME || editableSourcePath;
-const source = fs.readFileSync(runtimePath, 'utf8');
+const repositoryDir = path.join(__dirname, '..', '..');
+const composition = require(path.join(repositoryDir, 'scripts', 'profile-stats-community-composition'));
+const runtimePath = process.env.SHOWRANK_BAREBONES_RUNTIME;
+const source = runtimePath
+  ? fs.readFileSync(runtimePath, 'utf8')
+  : composition.composeBarebonesSources(repositoryDir).runtime;
 const rankUrl = (account, base = 'https://api.deadlock-api.com/v1/players', format = 'webp') => `${base}/${account}/rank/image?format=${format}`;
 const statlockerUrl = (account) => `https://statlocker.gg/profile/${account}/matches`;
 const averageUrl = (accounts, base = 'https://api.deadlock-api.com/v1/players', format = 'webp') => `${base}/rank/image?account_ids=${accounts.join(',')}&format=${format}`;

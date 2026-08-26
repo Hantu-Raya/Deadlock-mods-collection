@@ -28,7 +28,7 @@
     var CACHE_TTL_MS = 10 * 60 * 1000;
     var CONTEXT_CHECK_SECONDS = 0.5;
     var BRIDGE_ASSIGN_DELAY_SECONDS = 0.25;
-    var DEBUG_LOGGING = false;
+
     var REQUEST_TIMEOUT_SECONDS = 25;
     var MAX_HERO_ROWS = 64;
     var MAX_GENERATED_LENGTH = 64;
@@ -177,16 +177,7 @@
         return typeof value === "function";
     }
 
-    function debugLog(message) {
-        if (!DEBUG_LOGGING) {
-            return;
-        }
-        try {
-            $.Msg("[ProfileStatsCommunity] " + String(message));
-        } catch (error) {
-            return;
-        }
-    }
+
 
     function isCustomActive() {
         return lifecycleState === STATE_LOADING || lifecycleState === STATE_READY || lifecycleState === STATE_ERROR;
@@ -194,7 +185,7 @@
 
     function enterState(nextState) {
         if (lifecycleState !== nextState) {
-            debugLog("state " + lifecycleState + " -> " + nextState);
+
             lifecycleState = nextState;
         }
     }
@@ -575,13 +566,7 @@
         return left.state === right.state && left.account === right.account;
     }
 
-    function logIdentity(eventName, identity) {
-        if (!identity) {
-            debugLog(eventName + " state=none");
-            return;
-        }
-        debugLog(eventName + " state=" + identity.state + " account=" + (identity.account || "-"));
-    }
+
 
     function isAscii(value) {
         var index;
@@ -773,9 +758,7 @@
         }
     }
 
-    function rejectTitle(reason) {
-        debugLog("title reject reason=" + String(reason));
-    }
+
 
     function createNonce() {
         nonceSerial += 1;
@@ -1070,7 +1053,7 @@
     function renderBridgeError(payload) {
         var status = hasOwn(payload, "status") ? payload.status : null;
         var retryAfter = hasOwn(payload, "retry_after") ? payload.retry_after : 0;
-        debugLog("error code=" + payload.code + " status=" + (status === null ? "-" : String(status)));
+
         enterState(STATE_ERROR);
         rateLimitBlocked = payload.code === "rate_limit" && retryAfter > 0;
         if (rateLimitBlocked) {
@@ -1080,7 +1063,7 @@
     }
 
     function finishError(code, status) {
-        debugLog("error code=" + String(code) + " status=" + (status === null || status === undefined ? "-" : String(status)));
+
         invalidateRequest(true);
         rateLimitBlocked = false;
         enterState(STATE_ERROR);
@@ -1088,7 +1071,7 @@
     }
 
     function finishSuccess(payload, request) {
-        debugLog("success sample=" + String(payload.sample) + " account=" + request.account + " mode=" + request.mode + " matches=" + String(request.matches));
+
         if (generatedIsStale(payload.generated)) {
             memoryCache = null;
         } else {
@@ -1161,11 +1144,11 @@
             return;
         }
         if (url === "about:blank") {
-            debugLog("url event about:blank");
+
             return;
         }
         expected = expectedBridgeUrl(url, requestState);
-        debugLog("url event " + (expected ? "bridge" : "unexpected"));
+
         if (!expected) {
             finishError("network_error", null);
             return;
@@ -1175,24 +1158,24 @@
             return;
         }
         if (fragment === null) {
-            rejectTitle("invalid_fragment");
+
             return;
         }
         try {
             decodedTitle = decodeURIComponent(fragment);
         } catch (error) {
-            rejectTitle("decode_fragment");
+
             return;
         }
         if (typeof decodedTitle !== "string" || decodedTitle.length > BRIDGE_TITLE_MAX_LENGTH) {
-            rejectTitle("fragment_title_too_large");
+
             return;
         }
         if (decodedTitle.indexOf(BRIDGE_TITLE_PREFIX) !== 0) {
-            rejectTitle("fragment_prefix");
+
             return;
         }
-        debugLog("url event title");
+
         onBridgeTitle(decodedTitle);
     }
 
@@ -1208,43 +1191,43 @@
         }
         request = requestState;
         if (typeof value !== "string") {
-            rejectTitle("non_string");
+
             return;
         }
-        debugLog("title len=" + String(value.length) + " prefix=" + (value.indexOf(BRIDGE_TITLE_PREFIX) === 0 ? "DLSTATS2" : "other"));
+
         if (request.lastTitle === value) {
-            rejectTitle("duplicate");
+
             return;
         }
         request.lastTitle = value;
         parsed = parseTitle(value);
         if (!parsed) {
-            rejectTitle("normal_title");
+
             return;
         }
         if (parsed.kind === "invalid_title") {
-            rejectTitle("invalid_title");
+
             finishError("invalid_payload", null);
             return;
         }
         if (!parsed.value || typeof parsed.value !== "object") {
-            rejectTitle("non_object");
+
             finishError("invalid_payload", null);
             return;
         }
         if (parsed.value.kind === "profile_stats") {
             successResult = validateSuccessPayload(parsed.value, request);
             if (successResult === "stale") {
-                rejectTitle("stale_success");
+
                 return;
             }
             if (successResult !== "ok") {
-                rejectTitle("invalid_success");
+
                 finishError("invalid_payload", null);
                 return;
             }
             if (parsed.value.sample === 0) {
-                rejectTitle("empty_sample");
+
                 finishError("empty_sample", null);
                 return;
             }
@@ -1254,11 +1237,11 @@
         if (parsed.value.kind === "error") {
             errorResult = validateErrorPayload(parsed.value, request);
             if (errorResult === "stale") {
-                rejectTitle("stale_error");
+
                 return;
             }
             if (errorResult !== "ok") {
-                rejectTitle("invalid_error");
+
                 finishError("invalid_payload", null);
                 return;
             }
@@ -1266,7 +1249,7 @@
             invalidateRequest(true);
             return;
         }
-        rejectTitle("unknown_kind");
+
         finishError("invalid_payload", null);
     }
 
@@ -1330,7 +1313,7 @@
             return;
         }
         currentIdentity = identity;
-        logIdentity("request identity", identity);
+
         if (identity.state !== "valid") {
             invalidateRequest(true);
             rateLimitBlocked = false;
@@ -1340,7 +1323,7 @@
         }
         cached = freshCache(identity.account, selectedMatches, selectedMode);
         if (cached) {
-            debugLog("cache hit account=" + identity.account + " mode=" + selectedMode + " matches=" + String(selectedMatches));
+
             invalidateRequest(true);
             rateLimitBlocked = false;
             enterState(STATE_READY);
@@ -1369,7 +1352,7 @@
         };
         requestState = request;
         enterState(STATE_LOADING);
-        debugLog("request start account=" + request.account + " mode=" + request.mode + " matches=" + String(request.matches) + " nonce=" + request.nonce + " generation=" + String(request.generation));
+
         renderLoading();
         setBridgeVisible(true);
         if (deferBridgeAssignment) {
@@ -1462,7 +1445,7 @@
         }
         signature = readSelectedHeroSignature();
         if (signature !== stockRowSignature) {
-            debugLog("hero selection signal=stock_row from=" + (stockRowSignature || "none") + " to=" + (signature || "none"));
+
             restoreStock("stock_selection");
         }
     }
@@ -1477,7 +1460,7 @@
         }
         signature = textOf(stockSectionName);
         if (signature !== stockSectionSignature) {
-            debugLog("hero selection signal=statSectionName");
+
             restoreStock("native_selection");
         }
     }
@@ -1487,7 +1470,7 @@
         if (sameIdentity(currentIdentity, nextIdentity)) {
             return;
         }
-        logIdentity("identity change", nextIdentity);
+
         currentIdentity = nextIdentity;
         if (isCustomActive()) {
             restoreStock("profile_change");
@@ -1526,7 +1509,7 @@
     }
 
     function disableRuntime(reason) {
-        debugLog("disable reason=" + String(reason || "unknown"));
+
         enterState(STATE_DISABLED);
         stopWatcher();
         invalidateRequest(true);
@@ -1573,7 +1556,7 @@
         if (requestState && requestState.generation === requestGeneration) {
             elapsed = (now() - requestState.startedAt) / 1000;
             if (elapsed >= REQUEST_TIMEOUT_SECONDS) {
-                debugLog("timeout generation=" + String(requestState.generation));
+
                 finishError("network_error", null);
             }
         }
@@ -1616,7 +1599,7 @@
     }
 
     function restoreStock(reason) {
-        debugLog("restore reason=" + String(reason || "unknown"));
+
         if (lifecycleState === STATE_DISABLED) {
             return;
         }
@@ -1637,8 +1620,8 @@
             return;
         }
         currentIdentity = readIdentity();
-        logIdentity("custom open identity", currentIdentity);
-        debugLog("custom open");
+
+
         enterState(STATE_LOADING);
         stockSectionSignature = textOf(stockSectionName);
         stockRowSignature = readSelectedHeroSignature();
@@ -1775,7 +1758,7 @@
         bridgePanel = findPanel("ProfileStatsCommunityBridge");
         supporterTicker = findPanel("ProfileStatsCommunitySupporterTicker");
         stockSectionSignature = textOf(stockSectionName);
-        debugLog("panel refs hero=" + (isValidPanel(heroList) ? "1" : "0") + " stats=" + (isValidPanel(statsBlock) ? "1" : "0") + " section=" + (isValidPanel(stockSectionName) ? "1" : "0") + " bridge=" + (isValidPanel(bridgePanel) ? "1" : "0"));
+
         collectMetricRefs();
         return !!(heroList && statsBlock && stockTitle && stockLeft && stockRight && communityButton && customPanel && selfNamePanel && titleLabel && statLockerButton && playerHeadingLeft && playerHeadingRight && bridgePanel && supporterTicker && matchCountDropdown && rankedTab && standardTab && displayCommunityTab && displayPercentileTab);
     }
@@ -1803,7 +1786,7 @@
         currentIdentity = readIdentity();
         selectedComparison = "percentile";
         applyComparisonMode();
-        logIdentity("boot identity", currentIdentity);
+
         renderViewedName();
         unloadBridge();
         closeSupporterTicker();
