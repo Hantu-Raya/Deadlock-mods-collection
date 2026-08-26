@@ -309,7 +309,7 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     return value >= 50 ? "ProfileStatsCommunityPercentileTop" : "ProfileStatsCommunityPercentileBottom";
   }
 
-  function payloadFor(request, sample, matches, mode) {
+  function payloadFor(request, sample, matches, mode, account) {
     var groups = [
       ["combat", ["kd", "kda"]],
       ["kills", ["average_kills", "average_assists"]],
@@ -321,11 +321,12 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     var metricSerial = 0;
     matches = matches || 50;
     mode = mode || "ranked";
+    account = account || 42;
     return {
       v: 3,
       kind: "profile_stats",
       request: request,
-      account: 42,
+      account: account,
       matches: matches,
       mode: mode,
       sample: sample,
@@ -444,8 +445,9 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     assert.equal(harness.map.ProfileStatsCommunityBridge.visible, false);
   });
 
-  test("viewed display name drives comparison labels and StatLocker profile", function () {
-    var harness = makeHarness("42", "Ishan");
+  test("viewed display name drives labels but never account identity", function () {
+    var harness = makeHarness(" 00042 ", "Ishan");
+    var nameOnly;
 
     harness.map.ProfileStatsCommunityButton.events.onactivate();
 
@@ -460,6 +462,11 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     assert.equal(harness.map.ProfileStatsCommunityTitle.text, "Changed Name VS COMMUNITY");
     assert.equal(harness.map.ProfileStatsCommunityPlayerHeadingLeft.text, "Changed Name");
     assert.equal(harness.map.ProfileStatsCommunityPlayerHeadingRight.text, "Changed Name");
+
+    nameOnly = makeHarness("", "42");
+    nameOnly.map.ProfileStatsCommunityButton.events.onactivate();
+    nameOnly.map.ProfileStatsCommunityStatLocker.events.onactivate();
+    assert.deepEqual(nameOnly.externalUrls, [], "a numeric display name never creates account identity");
   });
 
   test("StatLocker link rereads account authority at click time", function () {
@@ -484,6 +491,12 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     harness.root.attributes.steamid = "76561197960265770";
     harness.map.ProfileStatsCommunityStatLocker.events.onactivate();
     assert.deepEqual(harness.externalUrls, ["https://statlocker.gg/profile/42/matches"]);
+
+    delete harness.root.attributes.steamid;
+    harness.map.ProfileStatsCommunityAccount.text = "4294967296";
+    harness.map.ProfileStatsCommunityStatLocker.events.onactivate();
+    assert.deepEqual(harness.externalUrls, ["https://statlocker.gg/profile/42/matches"],
+      "an account outside the Steam AccountID range fails closed");
   });
 
   test("Escape preserves the XML profile-page cancel path", function () {
@@ -522,7 +535,7 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     assert.equal(harness.scheduler.pendingCount(), 1, "a cancelled watcher cannot rearm or cancel the reopened watcher");
   });
 
-  test("closed-view responses stay stale after reopening", function () {
+  test("viewed-account changes invalidate stale responses", function () {
     var harness = makeHarness("42");
     var bridge = harness.bridge;
     var oldRequest;
@@ -530,14 +543,18 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
 
     harness.map.ProfileStatsCommunityButton.events.onactivate();
     oldRequest = requestFromUrl(bridge.urls.at(-1));
-    selectDifferentHero(harness);
+    harness.map.ProfileStatsCommunityAccount.text = "43";
+    harness.root.attributes.accountid = "43";
+    harness.scheduler.runNext();
+    assert.equal(harness.map.ProfileStatsCommunityPanel.style.visibility, "collapse");
+
     harness.map.ProfileStatsCommunityButton.events.onactivate();
     newRequest = requestFromUrl(bridge.urls.at(-1));
     assert.notEqual(newRequest, oldRequest);
 
     bridge.events.HTMLTitle(bridge, "DLSTATS2:" + JSON.stringify(payloadFor(oldRequest, 10)));
     assert.match(harness.map.ProfileStatsCommunityStatus.text, /Loading/);
-    bridge.events.HTMLTitle(bridge, "DLSTATS2:" + JSON.stringify(payloadFor(newRequest, 10)));
+    bridge.events.HTMLTitle(bridge, "DLSTATS2:" + JSON.stringify(payloadFor(newRequest, 10, 50, "ranked", 43)));
     assert.match(harness.map.ProfileStatsCommunityStatus.text, /loaded/);
   });
 

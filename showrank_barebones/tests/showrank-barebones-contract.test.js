@@ -81,14 +81,19 @@ assert.deepStrictEqual(
   ],
   'the feature ships exactly seven layout assets, one runtime, and one shared stylesheet',
 );
-assert.strictEqual(sourceTemplate.split(composition.RUNTIME_PLACEHOLDER).length - 1, 1, 'the runtime host has one canonical composition seam');
+assert.strictEqual(sourceTemplate.split(composition.RUNTIME_PLACEHOLDER).length - 1, 1, 'the runtime host has one canonical comparison seam');
+assert.strictEqual(sourceTemplate.split(composition.IDENTITY_POLICY_PLACEHOLDER).length - 1, 1, 'the runtime host has one private identity-policy seam');
 assert.strictEqual(styleTemplate.split(composition.STYLE_PLACEHOLDER).length - 1, 1, 'the stylesheet host has one canonical composition seam');
 assert.doesNotMatch(sourceTemplate, /PROFILE_STATS_COMMUNITY_MODULE_(?:START|END)|DLSTATS2:/, 'the runtime host does not retain a copied profile implementation');
 assert.doesNotMatch(styleTemplate, /#ProfileStatsCommunityButton/, 'the stylesheet host does not retain copied profile styles');
-assert.doesNotMatch(source, /PROFILE_STATS_COMMUNITY_RUNTIME:/, 'composed runtime resolves its source seam');
+assert.doesNotMatch(source, /PROFILE_STATS_COMMUNITY_RUNTIME:|VIEWED_PROFILE_IDENTITY_POLICY:/, 'composed runtime resolves both source seams');
 assert.doesNotMatch(style, /PROFILE_STATS_COMMUNITY_STYLES:/, 'composed stylesheet resolves its source seam');
-assert.ok(source.replace(/\r\n?/g, '\n').includes(composed.canonicalRuntime.replace(/\r\n?/g, '\n').trimEnd()), 'composed runtime contains the canonical implementation');
+assert.strictEqual((source.match(/var viewedProfileIdentityPolicy/g) || []).length, 1, 'the composed runtime owns one private identity-policy instance');
+assert.ok(source.replace(/\r\n?/g, '\n').includes(composed.nestedProfileRuntime.replace(/\r\n?/g, '\n').trimEnd()), 'composed runtime contains the canonical profile implementation');
 assert.ok(style.replace(/\r\n?/g, '\n').includes(composed.canonicalStyle.replace(/\r\n?/g, '\n').trimEnd()), 'composed stylesheet contains the canonical implementation');
+assert.doesNotMatch(composed.identityPolicy, /PlayerName|HeroName|SelfName|topbar/i, 'names and Passive top-bar evidence are not identity-policy inputs');
+assert.match(sourceTemplate, /function canonicalAccountOrNull\(value\)\s*\{\s*return viewedProfileIdentityPolicy\.canonicalAccount\(value\) \|\| null;\s*\}/, 'cache and roster validation delegates to the shared canonical-account rule');
+assert.doesNotMatch(sourceTemplate, /function normalize(?:Account|Identity)\(/, 'the barebones host has no second account normalization implementation');
 
 
 assert.match(source, /RANK_API_BASE_URL = "https:\/\/api\.deadlock-api\.com\/v1\/players"/, 'the runtime owns the canonical API base');

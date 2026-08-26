@@ -1,6 +1,6 @@
 (function () {
     "use strict";
-    var STEAM64_BASE = "76561197960265728";
+    /* VIEWED_PROFILE_IDENTITY_POLICY: scripts/viewed-profile-identity-policy.js */
     var STATLOCKER_MATCHES_URL_PREFIX = "https://statlocker.gg/profile/";
     var STATLOCKER_MATCHES_URL_SUFFIX = "/matches";
     var RANK_API_BASE_URL = "https://api.deadlock-api.com/v1/players";
@@ -217,48 +217,8 @@
         value = value.replace(/^\s+|\s+$/g, "").toLowerCase();
         return value && value !== "#" ? value: "";
     }
-    function normalizeAccount(value) {
-        if (typeof value !== "string" || !/^[1-9][0-9]*$/.test(value) || value.length > 10 ||
-            (value.length === 10 && value > "4294967295")) {
-            return null;
-        }
-        return value;
-    }
-    function subtractSteamBase(value) {
-        var index;
-        var digit;
-        var baseDigit;
-        var borrow = 0;
-        var result = "";
-        if (value.length !== STEAM64_BASE.length || value < STEAM64_BASE) {
-            return null;
-        }
-        for (index = value.length - 1; index >= 0; index -= 1) {
-            digit = value.charCodeAt(index) - 48 - borrow;
-            baseDigit = STEAM64_BASE.charCodeAt(index) - 48;
-            if (digit < baseDigit) {
-                digit += 10;
-                borrow = 1;
-            } else {
-                borrow = 0;
-            }
-            result = String.fromCharCode(48 + digit - baseDigit) + result;
-        }
-        return normalizeAccount(result.replace(/^0+/, ""));
-    }
-    function normalizeIdentity(value) {
-        var steam3;
-        if (typeof value !== "string") {
-            return null;
-        }
-        steam3 = /^\[U:1:([1-9][0-9]*)\]$/.exec(value) || /^U:1:([1-9][0-9]*)$/.exec(value);
-        if (steam3) {
-            return normalizeAccount(steam3[1]);
-        }
-        if (/^[1-9][0-9]*$/.test(value) && value.length === STEAM64_BASE.length) {
-            return subtractSteamBase(value);
-        }
-        return normalizeAccount(value);
+    function canonicalAccountOrNull(value) {
+        return viewedProfileIdentityPolicy.canonicalAccount(value) || null;
     }
     function rankImageUrl(account) {
         return RANK_API_BASE_URL + "/" + account + "/rank/image?format=" + RANK_IMAGE_FORMAT;
@@ -428,36 +388,28 @@
         }
     }
     function resolveProfileAccount(record) {
-        var account = null;
-        var hidden;
-        var contextHidden;
-        var accountId;
-        var steamId;
-        function accept(raw) {
-            var normalized;
-            if (raw === "") {
-                return true;
-            }
-            normalized = normalizeIdentity(raw);
-            if (!normalized || (account && account !== normalized)) {
-                return false;
-            }
-            account = normalized;
-            return true;
-        }
+        var identity;
         if (!record || !isValid(record.root) || !isValid(record.accountLabel)) {
             return null;
         }
-        hidden = readText(record.accountLabel);
-        contextHidden = isValid(record.contextAccountLabel) ? readText(record.contextAccountLabel) : "";
-        accountId = readAttribute(record.root, "accountid");
-        steamId = readAttribute(record.root, "steamid");
-        if (hidden === null || contextHidden === null || accountId === null || steamId === null ||
-            !accept(hidden) || !accept(contextHidden) || !accept(accountId) ||
-            !accept(steamId)) {
-            return null;
-        }
-        return account;
+        identity = viewedProfileIdentityPolicy.resolve({
+            value: readText(record.accountLabel),
+            format: "account"
+        }, [
+            {
+                value: isValid(record.contextAccountLabel) ? readText(record.contextAccountLabel) : "",
+                format: "account"
+            },
+            {
+                value: readAttribute(record.root, "accountid"),
+                format: "account"
+            },
+            {
+                value: readAttribute(record.root, "steamid"),
+                format: "identity"
+            }
+        ]);
+        return identity.state === "valid" ? identity.account : null;
     }
     function openStatlocker(record) {
         var account = resolveProfileAccount(record);
@@ -1264,7 +1216,7 @@
             account = null;
             for (preservedIndex = 0; preservedRows && preservedIndex < preservedRows.length; preservedIndex += 1) {
                 if (preservedRows[preservedIndex].root === roots[index]) {
-                    account = normalizeAccount(preservedRows[preservedIndex].account);
+                    account = canonicalAccountOrNull(preservedRows[preservedIndex].account);
                     break;
                 }
             }
@@ -1443,7 +1395,7 @@
         var hero;
         for (index = 0; rows && index < rows.length; index += 1) {
             hero = rows[index].hero;
-            rows[index].account = normalizeAccount(session.accountByHero[hero]);
+            rows[index].account = canonicalAccountOrNull(session.accountByHero[hero]);
         }
     }
     function planTeamAverages(session, writes) {
@@ -1515,7 +1467,7 @@
                 };
             }
             rowCounts[hero] = 1;
-            account = normalizeAccount(record.account);
+            account = canonicalAccountOrNull(record.account);
             if (account && seenAccounts[account]) {
                 return {
                     status: "invalid"
@@ -1545,7 +1497,7 @@
             return "invalid";
         }
         state.seenHeroes[hero] = true;
-        account = normalizeAccount(session.accountByHero[hero]);
+        account = canonicalAccountOrNull(session.accountByHero[hero]);
         if (!session.cacheReplay && state.rowCounts[hero] !== 1) {
             if (state.rowCounts[hero] > 1) {
                 return "invalid";
@@ -1731,7 +1683,7 @@
             return;
         }
         session.index += 1;
-        account = normalizeAccount(account);
+        account = canonicalAccountOrNull(account);
         if (account) {
             record.account = account;
             session.accountByHero[record.hero] = account;
@@ -1846,7 +1798,7 @@
         }
         for (index = 0; index < cached.length; index += 1) {
             hero = normalizeHero(cached[index].hero);
-            account = normalizeAccount(cached[index].account);
+            account = canonicalAccountOrNull(cached[index].account);
             if (!hero || !account || accounts[hero] || seenAccounts[account]) {
                 return {
                     topbars: records,

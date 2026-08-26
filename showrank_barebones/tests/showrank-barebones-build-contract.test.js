@@ -115,14 +115,17 @@ assert.match(profileRuntimeTest, /contextPanelType:\s*"CitadelProfilePage"/, 'th
 assert.doesNotMatch(profileRuntimeTest, /PROFILE_STATS_COMMUNITY_MODULE_(?:START|END)/, 'profile runtime behavior never depends on copied-module markers');
 assert.match(profileRuntimeOracle, /runtimeAdapter\.source === undefined \? fs\.readFileSync\(sourcePath, "utf8"\) : runtimeAdapter\.source/, 'the shared oracle executes a complete path or composed source adapter');
 assert.strictEqual([...profileRuntimeOracle.matchAll(/\btest\("/g)].length, 19, 'the shared oracle owns exactly the nineteen profile scenarios');
-assert.strictEqual(runtimeTemplate.split(composition.RUNTIME_PLACEHOLDER).length - 1, 1, 'the runtime template has one composition placeholder');
+assert.strictEqual(runtimeTemplate.split(composition.RUNTIME_PLACEHOLDER).length - 1, 1, 'the runtime template has one comparison placeholder');
+assert.strictEqual(runtimeTemplate.split(composition.IDENTITY_POLICY_PLACEHOLDER).length - 1, 1, 'the runtime template has one identity-policy placeholder');
 assert.strictEqual(styleTemplate.split(composition.STYLE_PLACEHOLDER).length - 1, 1, 'the style template has one composition placeholder');
-assert.doesNotMatch(composedSources.runtime, /PROFILE_STATS_COMMUNITY_RUNTIME:/, 'readable runtime composition resolves its placeholder');
+assert.doesNotMatch(composedSources.runtime, /PROFILE_STATS_COMMUNITY_RUNTIME:|VIEWED_PROFILE_IDENTITY_POLICY:/, 'readable runtime composition resolves both placeholders');
 assert.doesNotMatch(composedSources.style, /PROFILE_STATS_COMMUNITY_STYLES:/, 'readable style composition resolves its placeholder');
+assert.strictEqual((composedSources.runtime.match(/var viewedProfileIdentityPolicy/g) || []).length, 1, 'barebones composition emits one private identity-policy instance');
 assert.throws(() => composition.composeText('missing', 'fragment', 'TOKEN', 'test'), /exactly once/, 'missing placeholders fail closed');
 assert.throws(() => composition.composeText('TOKEN TOKEN', 'fragment', 'TOKEN', 'test'), /exactly once/, 'duplicate placeholders fail closed');
-assert.match(compositionSource, /fs\.writeFileSync\(runtimeOutput, composition\.runtime, 'utf8'\)/, 'the CLI writes only composed runtime text as UTF-8');
-assert.match(compositionSource, /fs\.writeFileSync\(styleOutput, composition\.style, 'utf8'\)/, 'the CLI writes only composed style text as UTF-8');
+assert.match(compositionSource, /fs\.writeFileSync\(runtimeOutput, composition\.runtime, 'utf8'\)/, 'the CLI writes composed runtime text as UTF-8');
+assert.match(compositionSource, /fs\.writeFileSync\(contextRuntimeOutput, composition\.contextRuntime, 'utf8'\)/, 'the CLI writes the standalone composed context runtime as UTF-8');
+assert.match(compositionSource, /fs\.writeFileSync\(styleOutput, composition\.style, 'utf8'\)/, 'the CLI writes composed style text as UTF-8');
 
 const validateIndex = indexOfRequired('& npm --prefix $barebonesRoot run validate');
 const stagedCopyIndex = indexOfRequired('Copy-Item -LiteralPath $sourcePath -Destination $stagedPath -Force');

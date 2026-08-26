@@ -1,13 +1,14 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
+const composition = require('../../scripts/profile-stats-community-composition');
 
+const repositoryDir = path.resolve(__dirname, '..', '..');
 const sourcePath = path.resolve(__dirname, '..', 'panorama', 'scripts', 'profile_stats_community_context_menu.js');
-const source = fs.readFileSync(sourcePath, 'utf8');
+const source = composition.composeProfileStatsCommunitySources(repositoryDir).contextRuntime;
 const STEAM_ID_BASE = 76561197960265728n;
 
 function makeHarness(options = {}) {
@@ -84,22 +85,48 @@ test('context action opens the selected profile card account', () => {
   assert.deepEqual(harness.events, [['CitadelShowProfilePageForAccount', 215334735]]);
 });
 
-test('Steam64 authority can corroborate the account witness', () => {
+test('padded Steam64 authority can corroborate the account witness', () => {
   const account = '198741881';
-  const steamid = String(STEAM_ID_BASE + BigInt(account));
+  const steamid = `000${String(STEAM_ID_BASE + BigInt(account))}`;
   const harness = makeHarness({ account, attributes: { steamid } });
 
   assert.equal(harness.open(), true);
   assert.deepEqual(harness.events, [['CitadelShowProfilePageForAccount', 198741881]]);
 });
 
+test('Steam3 authority can corroborate the account witness', () => {
+  const harness = makeHarness({
+    account: '198741881',
+    attributes: { steamid: '[U:1:198741881]' },
+  });
+
+  assert.equal(harness.open(), true);
+  assert.deepEqual(harness.events, [['CitadelShowProfilePageForAccount', 198741881]]);
+});
+
+test('context identity policy canonicalizes the required account witness', () => {
+  const harness = makeHarness({
+    account: ' 000215334735 ',
+    attributes: { accountid: '215334735' },
+  });
+
+  assert.equal(harness.open(), true);
+  assert.deepEqual(harness.events, [['CitadelShowProfilePageForAccount', 215334735]]);
+});
+
 test('mismatched or missing selected-player evidence fails closed', () => {
   const mismatch = makeHarness({ attributes: { accountid: '215334736' } });
+  const conflictingAuthorities = makeHarness({
+    attributes: {
+      accountid: '215334735',
+      steamid: String(STEAM_ID_BASE + 215334736n),
+    },
+  });
   const missing = makeHarness({ missingWitness: true });
   const missingCard = makeHarness({ missingCard: true });
   const oversized = makeHarness({ account: '4294967296' });
 
-  [mismatch, missing, missingCard, oversized].forEach((harness) => {
+  [mismatch, conflictingAuthorities, missing, missingCard, oversized].forEach((harness) => {
     assert.equal(harness.open(), false);
     assert.deepEqual(harness.events, []);
   });
