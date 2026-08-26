@@ -313,9 +313,7 @@
         if (!session) {
             return;
         }
-        session.rows = [];
         session.roster = null;
-        session.accountByHero = null;
         session.lastPlan = null;
         session.root = null;
         session.shared = null;
@@ -1215,7 +1213,6 @@
     }
     function scanEscapeRows(roots, preservedRows) {
         var rows = [];
-        var counts = Object.create(null);
         var index;
         var preservedIndex;
         var record;
@@ -1223,9 +1220,12 @@
         var target;
         var account;
         for (index = 0; roots && index < roots.length; index += 1) {
+            record = buildRowRecord(roots[index]);
+            hero = currentRowHero(record);
             account = null;
-            for (preservedIndex = 0; preservedRows && preservedIndex < preservedRows.length; preservedIndex += 1) {
-                if (preservedRows[preservedIndex].root === roots[index]) {
+            for (preservedIndex = 0; hero && preservedRows && preservedIndex < preservedRows.length; preservedIndex += 1) {
+                if (preservedRows[preservedIndex].root === roots[index] &&
+                    preservedRows[preservedIndex].hero === hero) {
                     account = canonicalAccountOrNull(preservedRows[preservedIndex].account);
                     break;
                 }
@@ -1234,18 +1234,13 @@
             if (target && !account) {
                 setRankImage(target, null);
             }
-            record = buildRowRecord(roots[index]);
-            hero = currentRowHero(record);
             if (hero) {
                 record.hero = hero;
+                record.account = account;
                 rows.push(record);
-                counts[hero] = (counts[hero] || 0) + 1;
             }
         }
-        return {
-            rows: rows,
-            counts: counts
-        };
+        return rows;
     }
     function readTopbarEvidenceSnapshot(roots) {
         var candidates = [];
@@ -1326,76 +1321,101 @@
             snapshot.teamSideCandidates["enemy"].length === TEAM_AVERAGE_ACCOUNTS;
         return snapshot.allTeamSidesKnown;
     }
-    function indexTopbarEvidence(snapshot, rowCounts, accounts) {
-        var candidates = snapshot.candidates;
-        var counts = snapshot.heroCounts;
-        var unique = snapshot.readiness.completeUniqueTopbarRoster;
+    function buildRosterReadModel(rows, topbarEvidence, completedRoster, cacheReplay) {
+        var rowCounts = Object.create(null);
+        var rowsByHero = Object.create(null);
+        var seenRowAccounts = Object.create(null);
+        var cachedAccounts = Object.create(null);
+        var seenCachedAccounts = Object.create(null);
+        var matches = [];
+        var rowsUnique = true;
+        var topbarsUnique = !!(topbarEvidence &&
+            topbarEvidence.readiness.completeUniqueTopbarRoster);
+        var rowsCoverTopbars = topbarsUnique;
+        var cacheValid = !!(cacheReplay && topbarEvidence && completedRoster &&
+            topbarEvidence.candidates.length === completedRoster.length);
         var index;
         var hero;
-        for (hero in snapshot.duplicateHeroes) {
-            if (Object.prototype.hasOwnProperty.call(snapshot.duplicateHeroes, hero)) {
-                unique = false;
-                break;
+        var account;
+        var row;
+        var candidate;
+        rows = rows || [];
+        for (index = 0; index < rows.length; index += 1) {
+            row = rows[index];
+            hero = row.hero;
+            rowCounts[hero] = (rowCounts[hero] || 0) + 1;
+            if (rowCounts[hero] > 1) {
+                rowsUnique = false;
+            } else {
+                rowsByHero[hero] = row;
+            }
+            account = canonicalAccountOrNull(row.account);
+            if (account && seenRowAccounts[account]) {
+                rowsUnique = false;
+            } else if (account) {
+                seenRowAccounts[account] = true;
             }
         }
-        for (index = 0; index < candidates.length; index += 1) {
-            hero = candidates[index].hero;
-            if (accounts && !accounts[hero]) {
-                unique = false;
+        if (cacheValid) {
+            for (index = 0; index < completedRoster.length; index += 1) {
+                hero = normalizeHero(completedRoster[index].hero);
+                account = canonicalAccountOrNull(completedRoster[index].account);
+                if (!hero || !account || cachedAccounts[hero] || seenCachedAccounts[account]) {
+                    cacheValid = false;
+                    break;
+                }
+                cachedAccounts[hero] = account;
+                seenCachedAccounts[account] = true;
             }
         }
-        if (!unique || !rowCounts) {
-            return {
-                counts: counts,
-                unique: unique,
-                rowsCoverTopbars: false
-            };
-        }
-        for (hero in counts) {
-            if (Object.prototype.hasOwnProperty.call(counts, hero) && rowCounts[hero] !== 1) {
-                return {
-                    counts: counts,
-                    unique: true,
-                    rowsCoverTopbars: false
-                };
+        if (topbarEvidence) {
+            for (index = 0; index < topbarEvidence.candidates.length; index += 1) {
+                candidate = topbarEvidence.candidates[index];
+                hero = candidate.hero;
+                row = rowCounts[hero] === 1 ? rowsByHero[hero]: null;
+                account = cacheReplay ? canonicalAccountOrNull(cachedAccounts[hero]):
+                    canonicalAccountOrNull(row && row.account);
+                if (!row && !cacheReplay) {
+                    rowsCoverTopbars = false;
+                }
+                if (cacheReplay && !account) {
+                    cacheValid = false;
+                }
+                matches.push({
+                    hero: hero,
+                    row: row,
+                    topbar: candidate,
+                    account: account
+                });
             }
+        } else {
+            topbarsUnique = false;
+            rowsCoverTopbars = false;
+            cacheValid = false;
         }
         return {
-            counts: counts,
-            unique: true,
-            rowsCoverTopbars: true
+            probes: rows,
+            matches: matches,
+            evidence: topbarEvidence,
+            cacheReplay: !!cacheReplay,
+            readiness: {
+                available: !!topbarEvidence,
+                supported: !!(topbarEvidence && topbarEvidence.readiness.rankTargetsReady &&
+                    (topbarEvidence.topbarCount === 6 || topbarEvidence.topbarCount === 12)),
+                rowsUnique: rowsUnique,
+                topbarsUnique: topbarsUnique,
+                rowsCoverTopbars: rowsCoverTopbars,
+                cacheValid: cacheValid
+            }
         };
     }
-    function readEscapeRoster(shared, preservedRows) {
+    function readRosterModel(shared, preservedRows, completedRoster, cacheReplay) {
         var documentRoot = shared && shared.documentRoot;
-        var rowRoots = findByClass(documentRoot, PLAYER_ROW_CLASS);
+        var rowRoots = cacheReplay ? []: findByClass(documentRoot, PLAYER_ROW_CLASS);
         var topbarRoots = findByClass(documentRoot, TOPBAR_PLAYER_CLASS);
-        var rowScan = scanEscapeRows(rowRoots, preservedRows);
-        var topbarEvidence;
-        var topbarIndex;
-        if (topbarRoots === null) {
-            return {
-                rows: rowScan.rows,
-                topbars: null,
-                topbarTargets: null,
-                topbarEvidence: null,
-                supported: false,
-                topbarsUnique: false,
-                rowsCoverTopbars: false
-            };
-        }
-        topbarEvidence = readTopbarEvidenceSnapshot(topbarRoots);
-        topbarIndex = indexTopbarEvidence(topbarEvidence, rowScan.counts);
-        return {
-            rows: rowScan.rows,
-            topbars: topbarEvidence.candidates,
-            topbarTargets: topbarEvidence.targets,
-            topbarEvidence: topbarEvidence,
-            supported: topbarEvidence.readiness.rankTargetsReady &&
-                (topbarEvidence.topbarCount === 6 || topbarEvidence.topbarCount === 12),
-            topbarsUnique: topbarIndex.unique,
-            rowsCoverTopbars: topbarIndex.rowsCoverTopbars
-        };
+        var rows = scanEscapeRows(rowRoots, preservedRows);
+        var topbarEvidence = topbarRoots === null ? null: readTopbarEvidenceSnapshot(topbarRoots);
+        return buildRosterReadModel(rows, topbarEvidence, completedRoster, cacheReplay);
     }
     function snapshotProfiles(documentRoot) {
         var profiles = scanRecords(documentRoot, PROFILE_CARD_CLASS, buildProfileRecord) || [];
@@ -1466,16 +1486,28 @@
         return session.cacheReplay ? isValid(session.root) && isEscapeMenuOpen(session.root) &&
             !isHideoutDocumentRoot(session.root): escapeIsCurrent(session, session.token);
     }
-    function hydrateRosterAccounts(session) {
-        var rows = session.roster && session.roster.rows;
-        var index;
-        var hero;
-        for (index = 0; rows && index < rows.length; index += 1) {
-            hero = rows[index].hero;
-            rows[index].account = canonicalAccountOrNull(session.accountByHero[hero]);
-        }
+    function rosterTopbarTargets(roster) {
+        return roster && roster.evidence ? roster.evidence.targets: null;
     }
-    function planTeamAverages(session, writes) {
+    function setRosterAccount(roster, hero, account) {
+        var index;
+        account = canonicalAccountOrNull(account);
+        if (!roster || !hero || !account) {
+            return false;
+        }
+        for (index = 0; index < roster.probes.length; index += 1) {
+            if (roster.probes[index].hero === hero) {
+                roster.probes[index].account = account;
+            }
+        }
+        for (index = 0; index < roster.matches.length; index += 1) {
+            if (roster.matches[index].hero === hero) {
+                roster.matches[index].account = account;
+            }
+        }
+        return true;
+    }
+    function planTeamAverages(roster, writes, documentRoot) {
         var accounts = {
             friendly: [],
             enemy: []
@@ -1489,11 +1521,11 @@
         var account;
         var friendlyImage;
         var enemyImage;
-        if (!session.roster || session.roster.topbars.length !== 12 || writes.length !== 12) {
+        if (!roster || roster.matches.length !== 12 || writes.length !== 12) {
             return null;
         }
-        if (!hydrateTopbarSideEvidence(session.roster.topbarEvidence) ||
-            !session.roster.topbarEvidence.readiness.teamSidesReady) {
+        if (!hydrateTopbarSideEvidence(roster.evidence) ||
+            !roster.evidence.readiness.teamSidesReady) {
             return null;
         }
         for (index = 0; index < writes.length; index += 1) {
@@ -1508,8 +1540,8 @@
         if (accounts.friendly.length !== TEAM_AVERAGE_ACCOUNTS || accounts.enemy.length !== TEAM_AVERAGE_ACCOUNTS) {
             return null;
         }
-        friendlyImage = findChild(session.shared.documentRoot, "ShowRankBarebonesAverageFriendlyImage", "Image");
-        enemyImage = findChild(session.shared.documentRoot, "ShowRankBarebonesAverageEnemyImage", "Image");
+        friendlyImage = findChild(documentRoot, "ShowRankBarebonesAverageFriendlyImage", "Image");
+        enemyImage = findChild(documentRoot, "ShowRankBarebonesAverageEnemyImage", "Image");
         if (!isValid(friendlyImage) || !isValid(enemyImage)) {
             return null;
         }
@@ -1520,91 +1552,10 @@
             enemyUrl: teamAverageImageUrl(accounts.enemy)
         };
     }
-    function indexRosterRows(session, roster) {
-        var rowsByHero = Object.create(null);
-        var rowCounts = Object.create(null);
-        var seenAccounts = Object.create(null);
-        var index;
-        var record;
-        var hero;
-        var account;
-        if (session.cacheReplay) {
-            return {
-                rowsByHero: rowsByHero,
-                rowCounts: rowCounts
-            };
-        }
-        for (index = 0; index < roster.rows.length; index += 1) {
-            record = roster.rows[index];
-            hero = currentRowHero(record);
-            if (!hero || hero !== record.hero) {
-                return {
-                    status: "stale"
-                };
-            }
-            if (rowCounts[hero]) {
-                return {
-                    status: "invalid"
-                };
-            }
-            rowCounts[hero] = 1;
-            account = canonicalAccountOrNull(record.account);
-            if (account && seenAccounts[account]) {
-                return {
-                    status: "invalid"
-                };
-            }
-            if (account) {
-                seenAccounts[account] = true;
-            }
-            rowsByHero[hero] = record;
-        }
-        return {
-            rowsByHero: rowsByHero,
-            rowCounts: rowCounts
-        };
-    }
-    function appendRosterWrite(session, state, record) {
-        var hero = isValid(record.root) && isValid(record.heroLabel) && isValid(record.rankImage) ?
-            record.hero: "";
-        var account;
-        if (!hero) {
-            return "stale";
-        }
-        if (state.seenHeroes[hero]) {
-            return "invalid";
-        }
-        state.seenHeroes[hero] = true;
-        account = canonicalAccountOrNull(session.accountByHero[hero]);
-        if (!session.cacheReplay && state.rowCounts[hero] !== 1) {
-            if (state.rowCounts[hero] > 1) {
-                return "invalid";
-            }
-            state.complete = false;
-            return "";
-        }
-        if (!account || state.seenAccounts[account]) {
-            if (account && state.seenAccounts[account]) {
-                return "invalid";
-            }
-            state.complete = false;
-            return "";
-        }
-        if (!session.cacheReplay && state.rowsByHero[hero].account !== account) {
-            return "stale";
-        }
-        state.seenAccounts[account] = true;
-        state.writes.push({
-            record: record,
-            hero: hero,
-            account: account
-        });
-        return "";
-    }
     function cacheRosterWrites(roster, writes, complete) {
         var cached = [];
         var index;
-        if (!complete || !roster.supported) {
+        if (!complete || !roster.readiness.supported) {
             return null;
         }
         for (index = 0; index < writes.length; index += 1) {
@@ -1613,73 +1564,89 @@
                 account: writes[index].account
             });
         }
-        return cached.length === roster.topbars.length ? cached: null;
+        return cached.length === roster.matches.length ? cached: null;
     }
     function planRosterWrites(session, terminal) {
         var roster = session && session.roster;
-        var rowIndex;
-        var state;
+        var seenAccounts = Object.create(null);
+        var writes = [];
+        var complete = true;
         var index;
-        var status;
-        if (!sessionIsCurrent(session) || !roster || roster.topbars === null) {
+        var match;
+        var record;
+        var account;
+        if (!sessionIsCurrent(session) || !roster || !roster.readiness.available) {
             return {
                 stale: true
             };
         }
-        if (!roster.topbarsUnique) {
+        if (!roster.readiness.topbarsUnique || !roster.readiness.rowsUnique ||
+            roster.cacheReplay && !roster.readiness.cacheValid) {
             return {
                 invalid: true
             };
         }
-        rowIndex = indexRosterRows(session, roster);
-        if (rowIndex.status) {
-            return rowIndex.status === "stale" ? {
-                stale: true
-            } : {
-                invalid: true
-            };
-        }
-        state = {
-            rowsByHero: rowIndex.rowsByHero,
-            rowCounts: rowIndex.rowCounts,
-            seenHeroes: Object.create(null),
-            seenAccounts: Object.create(null),
-            writes: [],
-            complete: true
-        };
-        for (index = 0; index < roster.topbars.length; index += 1) {
-            status = appendRosterWrite(session, state, roster.topbars[index]);
-            if (status) {
-                return status === "stale" ? {
+        for (index = 0; index < roster.matches.length; index += 1) {
+            match = roster.matches[index];
+            record = match.topbar;
+            if (!isValid(record.root) || !isValid(record.heroLabel) || !isValid(record.rankImage)) {
+                return {
                     stale: true
-                } : {
+                };
+            }
+            account = canonicalAccountOrNull(match.account);
+            if (!roster.cacheReplay && !match.row) {
+                complete = false;
+                continue;
+            }
+            if (!account) {
+                complete = false;
+                continue;
+            }
+            if (seenAccounts[account]) {
+                return {
                     invalid: true
                 };
             }
+            if (!roster.cacheReplay && match.row.account !== account) {
+                return {
+                    stale: true
+                };
+            }
+            seenAccounts[account] = true;
+            writes.push({
+                record: record,
+                row: match.row,
+                hero: match.hero,
+                account: account
+            });
         }
-        if (!terminal && (!state.complete || !roster.supported)) {
+        if (!terminal && (!complete || !roster.readiness.supported)) {
             return {
                 waiting: true
             };
         }
         return {
-            writes: state.writes,
-            complete: state.complete,
-            cached: cacheRosterWrites(roster, state.writes, state.complete),
-            average: state.complete ? planTeamAverages(session, state.writes): null
+            writes: writes,
+            complete: complete,
+            cached: cacheRosterWrites(roster, writes, complete),
+            average: complete ? planTeamAverages(roster, writes, session.shared.documentRoot): null
         };
     }
     function rosterPlanIsCurrent(session, plan) {
         var index;
         var record;
+        var row;
         if (!sessionIsCurrent(session)) {
             return false;
         }
         for (index = 0; index < plan.writes.length; index += 1) {
             record = plan.writes[index].record;
+            row = plan.writes[index].row;
             if (!isValid(record.root) || !isValid(record.heroLabel) || !isValid(record.rankImage) ||
                 normalizeHero(readText(record.heroLabel)) !== plan.writes[index].hero ||
-                plan.average && !session.cacheReplay && detectTopbarTeamSide(record.root) !== record.teamSide) {
+                !session.roster.cacheReplay && currentRowHero(row) !== plan.writes[index].hero ||
+                plan.average && !session.roster.cacheReplay && detectTopbarTeamSide(record.root) !== record.teamSide) {
                 return false;
             }
         }
@@ -1695,7 +1662,7 @@
             return "waiting";
         }
         if (plan.invalid) {
-            clearTopbarRecords(session.roster.topbarTargets || session.roster.topbars);
+            clearTopbarRecords(rosterTopbarTargets(session.roster));
             clearTeamAverages(session.shared.documentRoot);
             return "invalid";
         }
@@ -1716,21 +1683,23 @@
     }
     function renderRoster(session, terminal) {
         var result = applyRosterPlan(session, terminal);
+        var preservedRows;
         if (result !== "stale") {
             return result;
         }
         if (session.stalePlans >= 1) {
-            clearTopbarRecords(session.roster && (session.roster.topbarTargets || session.roster.topbars));
+            clearTopbarRecords(rosterTopbarTargets(session.roster));
             clearTeamAverages(session.shared.documentRoot);
             return "invalid";
         }
         session.stalePlans += 1;
-        session.roster = readEscapeRoster(session.shared, session.rows);
-        session.rows = session.roster.rows;
-        hydrateRosterAccounts(session);
+        preservedRows = !session.cacheReplay && session.roster ? session.roster.probes: null;
+        session.roster = session.cacheReplay ?
+            readRosterModel(session.shared, null, session.shared.completedRoster, true):
+            readRosterModel(session.shared, preservedRows, null, false);
         result = applyRosterPlan(session, terminal);
         if (result === "stale") {
-            clearTopbarRecords(session.roster && (session.roster.topbarTargets || session.roster.topbars));
+            clearTopbarRecords(rosterTopbarTargets(session.roster));
             clearTeamAverages(session.shared.documentRoot);
             return "invalid";
         }
@@ -1764,8 +1733,7 @@
         session.index += 1;
         account = canonicalAccountOrNull(account);
         if (account) {
-            record.account = account;
-            session.accountByHero[record.hero] = account;
+            setRosterAccount(session.roster, record.hero, account);
             setRankImage(record, account);
             result = renderRoster(session, false);
             if (result === "invalid") {
@@ -1777,7 +1745,7 @@
                 return;
             }
         }
-        if (session.index >= session.rows.length) {
+        if (session.index >= session.roster.probes.length) {
             finishEscapePass(session);
             return;
         }
@@ -1805,11 +1773,11 @@
         if (session.finished || !escapeIsCurrent(session, session.token)) {
             return;
         }
-        if (session.index >= session.rows.length) {
+        if (session.index >= session.roster.probes.length) {
             finishEscapePass(session);
             return;
         }
-        record = session.rows[session.index];
+        record = session.roster.probes[session.index];
         if (!isValid(record.mainContents)) {
             session.index += 1;
             probeNextRow(session);
@@ -1832,13 +1800,11 @@
         if (!escapeIsCurrent(session, session.token) || session.started) {
             return;
         }
-        roster = readEscapeRoster(session.shared);
-        clearTopbarRecords(roster.topbarTargets || roster.topbars);
+        roster = readRosterModel(session.shared, null, null, false);
+        clearTopbarRecords(rosterTopbarTargets(roster));
         session.roster = roster;
-        session.rows = roster.rows;
-        hydrateRosterAccounts(session);
-        if (attempt >= ESCAPE_ROW_DELAYS.length || roster.rows.length > 0 && (roster.topbars === null ||
-            !roster.supported || roster.rowsCoverTopbars)) {
+        if (attempt >= ESCAPE_ROW_DELAYS.length || roster.probes.length > 0 && (!roster.readiness.available ||
+            !roster.readiness.supported || roster.readiness.rowsCoverTopbars)) {
             session.started = true;
             probeNextRow(session);
             return;
@@ -1847,67 +1813,12 @@
             collectEscapeRows(session, attempt + 1);
         });
     }
-    function readCompletedTopbars(shared) {
-        var roots = findByClass(shared.documentRoot, TOPBAR_PLAYER_CLASS);
-        var evidence;
-        var cached = shared.completedRoster;
-        var accounts = Object.create(null);
-        var seenAccounts = Object.create(null);
-        var index;
-        var hero;
-        var account;
-        if (roots === null) {
-            return {
-                topbars: null,
-                topbarTargets: null,
-                topbarEvidence: null,
-                accounts: null
-            };
-        }
-        evidence = readTopbarEvidenceSnapshot(roots);
-        if (!cached || evidence.candidates.length !== cached.length) {
-            return {
-                topbars: evidence.candidates,
-                topbarTargets: evidence.targets,
-                topbarEvidence: evidence,
-                accounts: null
-            };
-        }
-        for (index = 0; index < cached.length; index += 1) {
-            hero = normalizeHero(cached[index].hero);
-            account = canonicalAccountOrNull(cached[index].account);
-            if (!hero || !account || accounts[hero] || seenAccounts[account]) {
-                return {
-                    topbars: evidence.candidates,
-                    topbarTargets: evidence.targets,
-                    topbarEvidence: evidence,
-                    accounts: null
-                };
-            }
-            accounts[hero] = account;
-            seenAccounts[account] = true;
-        }
-        if (!indexTopbarEvidence(evidence, null, accounts).unique) {
-            return {
-                topbars: evidence.candidates,
-                topbarTargets: evidence.targets,
-                topbarEvidence: evidence,
-                accounts: null
-            };
-        }
-        return {
-            topbars: evidence.candidates,
-            topbarTargets: evidence.targets,
-            topbarEvidence: evidence,
-            accounts: accounts
-        };
-    }
     function reuseCompletedRoster(shared, escapeRoot) {
-        var current = readCompletedTopbars(shared);
+        var roster = readRosterModel(shared, null, shared.completedRoster, true);
         var session;
         var result;
-        if (!current.accounts) {
-            clearTopbarRecords(current.topbarTargets || current.topbars);
+        if (!roster.readiness.cacheValid || !roster.readiness.topbarsUnique) {
+            clearTopbarRecords(rosterTopbarTargets(roster));
             clearTeamAverages(shared.documentRoot);
             shared.completedRoster = null;
             shared.escapeRendered = false;
@@ -1916,15 +1827,7 @@
         session = {
             shared: shared,
             root: escapeRoot,
-            roster: {
-                rows: [],
-                topbars: current.topbars,
-                topbarTargets: current.topbarTargets,
-                topbarEvidence: current.topbarEvidence,
-                supported: true,
-                topbarsUnique: true
-            },
-            accountByHero: current.accounts,
+            roster: roster,
             cacheReplay: true,
             stalePlans: 0
         };
@@ -1933,7 +1836,7 @@
             return true;
         }
         shared.completedRoster = null;
-        clearTopbarRecords(session.roster.topbarTargets || session.roster.topbars);
+        clearTopbarRecords(rosterTopbarTargets(session.roster));
         clearTeamAverages(shared.documentRoot);
         shared.escapeRendered = false;
         return false;
@@ -1980,8 +1883,6 @@
             token: shared.escapeToken,
             root: escapeRoot,
             roster: null,
-            rows: [],
-            accountByHero: Object.create(null),
             index: 0,
             started: false,
             finished: false,
