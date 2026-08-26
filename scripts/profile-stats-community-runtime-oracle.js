@@ -171,7 +171,7 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     return FakeDate;
   }
 
-  function makeHarness(account, playerName) {
+  function makeHarness(account, playerName, options) {
     var ids = [
       "HeroList", "StatsBlock", "StatsTitle", "StatsLeft", "StatsRight", "SelfName",
       "ProfileStatsCommunityButton", "ProfileStatsCommunityPanel", "ProfileStatsCommunityIdentity",
@@ -198,12 +198,18 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     var map = {};
     var stockHero;
     var secondHero;
+    var stockRows;
+    var stockSectionName;
+    var rowIndex;
+    var heroRowCount;
+    var selectedHeroIndex;
     var counters = { findChild: 0, childCount: 0, childRead: 0, attributeRead: 0, textRead: 0, inRuntime: false };
     var scheduler = new FakeScheduler(1700000000000, counters);
     var messages = [];
     var externalUrls = [];
     var navigation = { xmlCancel: 0, navigateBack: 0 };
     var context;
+    options = options || {};
     ids.forEach(function (id) {
       map[id] = new Panel(id);
     });
@@ -219,17 +225,35 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     map.ProfileStatsCommunityAccount.text = String(account);
     map.SelfName.children = [new Panel("")];
     map.SelfName.children[0].text = playerName || "Ishan";
+    stockSectionName = new Panel("StockSectionName", ["statSectionName"]);
+    stockSectionName.text = "HERO";
+    map.StatsTitle.children = [stockSectionName];
     stockHero = new Panel("StockHero", ["heroRow", "selected"]);
     secondHero = new Panel("SecondHero", ["heroRow"]);
-    map.HeroList.children = [stockHero, secondHero];
+    stockRows = [stockHero, secondHero];
+    if (options.heroRowCount) {
+      heroRowCount = Math.max(2, Math.min(64, Number(options.heroRowCount) || 2));
+      selectedHeroIndex = Number(options.selectedHeroIndex);
+      if (!isFinite(selectedHeroIndex) || selectedHeroIndex < 0 || selectedHeroIndex >= heroRowCount) {
+        selectedHeroIndex = 0;
+      }
+      stockRows = [];
+      for (rowIndex = 0; rowIndex < heroRowCount; rowIndex += 1) {
+        stockRows.push(new Panel("StockHero" + String(rowIndex),
+          rowIndex === selectedHeroIndex ? ["heroRow", "selected"] : ["heroRow"]));
+      }
+    }
+    map.HeroList.children = stockRows;
     Object.keys(map).forEach(function (id) {
       map[id].rootMap = map;
       map[id].counters = counters;
     });
-    stockHero.rootMap = map;
-    stockHero.counters = counters;
-    secondHero.rootMap = map;
-    secondHero.counters = counters;
+    stockRows.forEach(function (row) {
+      row.rootMap = map;
+      row.counters = counters;
+    });
+    stockSectionName.rootMap = map;
+    stockSectionName.counters = counters;
     root.rootMap = map;
     root.counters = counters;
     root.GetContextPanel = function () { return root; };
@@ -278,7 +302,8 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
       externalUrls: externalUrls,
       navigation: navigation,
       bridge: map.ProfileStatsCommunityBridge,
-      stockRows: [stockHero, secondHero]
+      stockRows: stockRows,
+      stockSectionName: stockSectionName
     };
   }
 
@@ -422,15 +447,36 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     }, label);
   }
 
-  function assertActiveRuntimeBudget(probe) {
+  function assertActiveRuntimeBudget(probe, state) {
+    var label = state + " five-second budget";
     var panelReads = probe.traversal + probe.childCount + probe.childRead +
       probe.attributeRead + probe.textRead;
-    assert.equal(probe.pending, 1, "active mode keeps one pending watcher");
-    assert.ok(probe.maxPending <= 1, "active mode never overlaps watcher callbacks");
-    assert.ok(probe.scheduled > 0 && probe.scheduled <= 11, "five active seconds schedule at most eleven callbacks");
-    assert.ok(probe.callbacks > 0 && probe.callbacks <= 10, "five active seconds execute at most ten callbacks");
-    assert.equal(probe.cancelled, 0, "stable active mode does not cancel callbacks");
-    assert.ok(panelReads > 0 && panelReads <= 250, "five active seconds stay within the panel-read budget");
+    assert.equal(probe.pending, 1, label + " keeps one pending watcher");
+    assert.ok(probe.maxPending <= 1, label + " never overlaps watcher callbacks");
+    assert.equal(probe.scheduled, 10, label + " rearms at the 0.5-second cadence");
+    assert.equal(probe.callbacks, 10, label + " executes the 0.5-second cadence");
+    assert.equal(probe.cancelled, 0, label + " does not cancel stable callbacks");
+    assert.equal(probe.traversal, 0, label + " performs no full-tree traversal");
+    assert.ok(probe.childCount <= 20, label + " stays within the child-count budget");
+    assert.ok(probe.childRead <= 650, label + " stays within the 64-row child-read budget");
+    assert.ok(probe.attributeRead <= 20, label + " stays within the authority-read budget");
+    assert.ok(probe.textRead <= 40, label + " stays within the text-read budget");
+    assert.ok(panelReads > 0 && panelReads <= 730, label + " stays within the total panel-read budget");
+  }
+
+  function assertCloseRuntimeBudget(probe) {
+    assert.deepEqual(probe, {
+      scheduled: 0,
+      cancelled: 0,
+      callbacks: 1,
+      maxPending: 1,
+      pending: 0,
+      traversal: 0,
+      childCount: 0,
+      childRead: 0,
+      attributeRead: 0,
+      textRead: 0
+    }, "native close consumes the pending watcher once and cannot rearm it");
   }
 
   test("stock mode has no recurring callbacks or panel scans", function () {
@@ -507,18 +553,30 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
 
     assert.deepEqual(harness.navigation, { xmlCancel: 1, navigateBack: 1 });
     assert.equal(harness.context.navigatedBack, true);
+    resetRuntimeProbe(harness);
+    harness.root.valid = false;
+    harness.scheduler.advance(5);
+    assertCloseRuntimeBudget(runtimeProbe(harness));
+    resetRuntimeProbe(harness);
+    harness.scheduler.advance(5);
+    assertNoRuntimeWork(runtimeProbe(harness), "closed profile performs no recurring lifecycle or panel work");
   });
 
-  test("open mode keeps one watcher and stock restoration cancels it", function () {
+  test("active lifecycle states meet budgets and stock restoration cancels the watcher", function () {
     var harness = makeHarness("42");
     var staleWatcher;
+    var states = ["loading", "ready", "error"];
+    var stateHarness;
+    var request;
+    var probe;
+    var index;
 
     harness.map.ProfileStatsCommunityButton.events.onactivate();
     assert.equal(harness.scheduler.pendingCount(), 1);
     staleWatcher = harness.scheduler.pendingCallbacks()[0];
     resetRuntimeProbe(harness);
     harness.scheduler.advance(5);
-    assertActiveRuntimeBudget(runtimeProbe(harness));
+    assertActiveRuntimeBudget(runtimeProbe(harness), "loading");
     assert.deepEqual(harness.messages, [], "production lifecycle emits no debug messages");
 
     selectDifferentHero(harness);
@@ -533,6 +591,46 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     assert.equal(harness.scheduler.pendingCount(), 1);
     staleWatcher();
     assert.equal(harness.scheduler.pendingCount(), 1, "a cancelled watcher cannot rearm or cancel the reopened watcher");
+
+    for (index = 0; index < states.length; index += 1) {
+      stateHarness = makeHarness("42", "Ishan", { heroRowCount: 64, selectedHeroIndex: 63 });
+      stateHarness.map.ProfileStatsCommunityButton.events.onactivate();
+      request = requestFromUrl(stateHarness.bridge.urls.at(-1));
+      if (states[index] === "ready") {
+        stateHarness.bridge.events.HTMLTitle(stateHarness.bridge,
+          "DLSTATS2:" + JSON.stringify(payloadFor(request, 10)));
+      } else if (states[index] === "error") {
+        stateHarness.bridge.events.HTMLTitle(stateHarness.bridge, "DLSTATS2:" + JSON.stringify({
+          v: 3,
+          kind: "error",
+          request: request,
+          account: 42,
+          matches: 50,
+          mode: "ranked",
+          code: "network_error",
+          status: 503,
+          retry_after: 0
+        }));
+      }
+      if (states[index] === "loading") {
+        assert.match(stateHarness.map.ProfileStatsCommunityStatus.text, /Loading/,
+          "loading budget runs against the loading state");
+      } else if (states[index] === "ready") {
+        assert.match(stateHarness.map.ProfileStatsCommunityStatus.text, /loaded/,
+          "ready budget runs after a successful response");
+        assert.equal(stateHarness.map.ProfileStatsCommunityMetrics.style.visibility, "visible");
+      } else {
+        assert.match(stateHarness.map.ProfileStatsCommunityStatus.text, /could not be reached/,
+          "error budget runs after a rejected response");
+        assert.equal(stateHarness.map.ProfileStatsCommunityRetry.style.visibility, "visible");
+        assert.equal(stateHarness.bridge.urls.at(-1), "about:blank");
+      }
+      resetRuntimeProbe(stateHarness);
+      stateHarness.scheduler.advance(5);
+      probe = runtimeProbe(stateHarness);
+      assert.equal(probe.childRead, 650, states[index] + " exercises the last selected row");
+      assertActiveRuntimeBudget(probe, states[index]);
+    }
   });
 
   test("viewed-account changes invalidate stale responses", function () {
@@ -587,6 +685,9 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     assert.equal(harness.map.ProfileStatsCommunitySupporterTicker.urls.at(-1), "about:blank");
     harness.map.ProfileStatsCommunityButton.events.onactivate();
     assert.equal(harness.map.ProfileStatsCommunityBridge.urls.length, requestCount + 1, "disabled runtime does not start another request");
+    resetRuntimeProbe(harness);
+    harness.scheduler.advance(5);
+    assertNoRuntimeWork(runtimeProbe(harness), "disabled runtime performs no recurring lifecycle or panel work");
   });
 
   test("rate-limit Retry-After blocks retries and filter bypasses", function () {
@@ -890,10 +991,11 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     assert.equal(unexpectedBridge.urls[unexpectedBridge.urls.length - 1], "about:blank");
   });
 
-  test("selected hero baseline stays open until a different hero selection", function () {
+  test("selected and native hero changes restore the stock profile view", function () {
     var harness = makeHarness("42");
     var bridge = harness.bridge;
     var requestUrl;
+    var nativeHarness;
     harness.map.ProfileStatsCommunityButton.events.onactivate();
     requestUrl = bridge.urls[bridge.urls.length - 1];
     assert.equal(harness.map.StatsTitle.visible, true);
@@ -919,6 +1021,18 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     assert.equal(harness.map.StatsRight.style.visibility, undefined, "hero change does not write stock right visibility");
     assert.equal(bridge.visible, false, "hero change collapses the request bridge");
     assert.equal(bridge.urls[bridge.urls.length - 1], "about:blank");
+
+    nativeHarness = makeHarness("42");
+    nativeHarness.map.ProfileStatsCommunityButton.events.onactivate();
+    nativeHarness.stockSectionName.text = "OTHER HERO";
+    nativeHarness.scheduler.runNext();
+    assert.equal(nativeHarness.map.ProfileStatsCommunityPanel.style.visibility, "collapse",
+      "native hero heading changes restore the stock view");
+    assert.equal(nativeHarness.scheduler.pendingCount(), 0, "native hero restoration stops the watcher");
+    resetRuntimeProbe(nativeHarness);
+    nativeHarness.scheduler.advance(5);
+    assertNoRuntimeWork(runtimeProbe(nativeHarness),
+      "native hero restoration performs no recurring lifecycle or panel work");
   });
 
   test("supporter ticker loads only in custom mode and unloads on stock restoration or invalid page", function () {
