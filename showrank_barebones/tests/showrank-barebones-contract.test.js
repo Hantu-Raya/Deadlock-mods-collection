@@ -94,6 +94,9 @@ assert.ok(style.replace(/\r\n?/g, '\n').includes(composed.canonicalStyle.replace
 assert.doesNotMatch(composed.identityPolicy, /PlayerName|HeroName|SelfName|topbar/i, 'names and Passive top-bar evidence are not identity-policy inputs');
 assert.match(sourceTemplate, /function canonicalAccountOrNull\(value\)\s*\{\s*return viewedProfileIdentityPolicy\.canonicalAccount\(value\) \|\| null;\s*\}/, 'cache and roster validation delegates to the shared canonical-account rule');
 assert.doesNotMatch(sourceTemplate, /function normalize(?:Account|Identity)\(/, 'the barebones host has no second account normalization implementation');
+assert.match(sourceTemplate, /function buildRosterReadModel\(rows, topbarEvidence, completedRoster, cacheReplay\)/, 'one private roster read-model builder owns active and cache-replay facts');
+assert.match(sourceTemplate, /function readRosterModel\(shared, preservedRows, completedRoster, cacheReplay\)/, 'one adapter read feeds the private roster model');
+assert.doesNotMatch(sourceTemplate, /session\.(?:rows|accountByHero)|function (?:readEscapeRoster|indexRosterRows|appendRosterWrite)\(/, 'Escape callers own no parallel roster rows, account map, or duplicate index');
 
 
 assert.match(source, /RANK_API_BASE_URL = "https:\/\/api\.deadlock-api\.com\/v1\/players"/, 'the runtime owns the canonical API base');
