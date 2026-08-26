@@ -315,6 +315,7 @@
         }
         session.roster = null;
         session.lastPlan = null;
+        session.intent = null;
         session.root = null;
         session.shared = null;
         shared.escape = null;
@@ -1417,6 +1418,94 @@
         var topbarEvidence = topbarRoots === null ? null: readTopbarEvidenceSnapshot(topbarRoots);
         return buildRosterReadModel(rows, topbarEvidence, completedRoster, cacheReplay);
     }
+    function escapeReadinessDecision(source, step) {
+        var decision = {
+            source: source,
+            step: step,
+            mayStartPreload: step === "start_preload",
+            mayProbeRows: step === "probe_rows",
+            shouldReplayCache: step === "replay_cache",
+            shouldScheduleRetry: step === "wait_roster",
+            shouldFinish: step === "finish",
+            shouldStop: step === "source_blocked" || step === "transition_stop"
+        };
+        decision.mayShowSpinner = false;
+        return decision;
+    }
+    function classifyEscapeReadiness(input) {
+        var source = String(input && input.source || "");
+        var phase = String(input && input.phase || "");
+        var readiness = input && input.rosterReadiness;
+        var decision;
+        if (source !== "escape_open" && source !== "escape_out" && source !== "escape_continue") {
+            source = "passive";
+        }
+        decision = escapeReadinessDecision(source, "source_blocked");
+        if (source === "passive") {
+            return decision;
+        }
+        if (!input || input.transition !== "active") {
+            return escapeReadinessDecision(source, "transition_stop");
+        }
+        if (phase === "open") {
+            if (source !== "escape_open") {
+                return decision;
+            }
+            if (input.rootChanged) {
+                return escapeReadinessDecision(source, "replace_root");
+            }
+            if (!input.menuOpen) {
+                return escapeReadinessDecision(source, "transition_stop");
+            }
+            if (input.hasCache) {
+                return escapeReadinessDecision(source, "replay_cache");
+            }
+            if (input.latched) {
+                return escapeReadinessDecision(source, "runtime_idle");
+            }
+            return escapeReadinessDecision(source, "start_preload");
+        }
+        if (phase === "close") {
+            if (source !== "escape_out") {
+                return decision;
+            }
+            return escapeReadinessDecision(source, input.menuOpen ? "runtime_idle": "transition_stop");
+        }
+        if (source !== "escape_continue") {
+            return decision;
+        }
+        if (phase === "collect") {
+            if (input.started) {
+                return escapeReadinessDecision(source, "runtime_idle");
+            }
+            if (Number(input.attempt) >= Number(input.retryLimit) ||
+                Number(input.probeCount) > 0 && (!readiness || !readiness.available ||
+                    !readiness.supported || readiness.rowsCoverTopbars)) {
+                return escapeReadinessDecision(source, "probe_rows");
+            }
+            return escapeReadinessDecision(source, "wait_roster");
+        }
+        if (phase === "probe") {
+            if (input.finished) {
+                return escapeReadinessDecision(source, "runtime_idle");
+            }
+            if (Number(input.probeIndex) >= Number(input.probeCount)) {
+                return escapeReadinessDecision(source, "finish");
+            }
+            return escapeReadinessDecision(source, "probe_rows");
+        }
+        if (phase === "result") {
+            if (input.invalid || input.complete ||
+                Number(input.probeIndex) >= Number(input.probeCount)) {
+                return escapeReadinessDecision(source, "finish");
+            }
+            return escapeReadinessDecision(source, "probe_rows");
+        }
+        if (phase === "finish") {
+            return escapeReadinessDecision(source, "finish");
+        }
+        return decision;
+    }
     function snapshotProfiles(documentRoot) {
         var profiles = scanRecords(documentRoot, PROFILE_CARD_CLASS, buildProfileRecord) || [];
         var index;
@@ -1707,8 +1796,14 @@
     }
     function finishEscapePass(session) {
         var shared = session.shared;
+        var intent = classifyEscapeReadiness({
+            source: "escape_continue",
+            phase: "finish",
+            transition: !session.finished && escapeIsCurrent(session, session.token) ? "active": "stale"
+        });
         var result;
-        if (session.finished || !escapeIsCurrent(session, session.token)) {
+        session.intent = intent;
+        if (!intent.shouldFinish) {
             return;
         }
         result = session.lastPlan && session.lastPlan.cached ? "applied": renderRoster(session, true);
@@ -1727,7 +1822,19 @@
     }
     function completeRowProbe(session, record, account) {
         var result;
-        if (session.finished || !escapeIsCurrent(session, session.token)) {
+        var intent = classifyEscapeReadiness({
+            source: "escape_continue",
+            phase: "probe",
+            transition: escapeIsCurrent(session, session.token) ? "active": "stale",
+            finished: session.finished,
+            probeIndex: session.index,
+            probeCount: session.roster.probes.length
+        });
+        session.intent = intent;
+        if (!intent.mayProbeRows) {
+            if (intent.shouldFinish) {
+                finishEscapePass(session);
+            }
             return;
         }
         session.index += 1;
@@ -1736,24 +1843,38 @@
             setRosterAccount(session.roster, record.hero, account);
             setRankImage(record, account);
             result = renderRoster(session, false);
-            if (result === "invalid") {
-                finishEscapePass(session);
-                return;
-            }
-            if (session.lastPlan && session.lastPlan.cached) {
-                finishEscapePass(session);
-                return;
-            }
         }
-        if (session.index >= session.roster.probes.length) {
+        intent = classifyEscapeReadiness({
+            source: "escape_continue",
+            phase: "result",
+            transition: "active",
+            invalid: result === "invalid",
+            complete: !!(session.lastPlan && session.lastPlan.cached),
+            probeIndex: session.index,
+            probeCount: session.roster.probes.length
+        });
+        session.intent = intent;
+        if (intent.shouldFinish) {
             finishEscapePass(session);
-            return;
+        } else if (intent.mayProbeRows) {
+            probeNextRow(session);
         }
-        probeNextRow(session);
     }
     function inspectRow(session, record, snapshot, attempt) {
+        var intent = classifyEscapeReadiness({
+            source: "escape_continue",
+            phase: "probe",
+            transition: escapeIsCurrent(session, session.token) ? "active": "stale",
+            finished: session.finished,
+            probeIndex: session.index,
+            probeCount: session.roster.probes.length
+        });
         var account;
-        if (session.finished || !escapeIsCurrent(session, session.token)) {
+        session.intent = intent;
+        if (!intent.mayProbeRows) {
+            if (intent.shouldFinish) {
+                finishEscapePass(session);
+            }
             return;
         }
         account = changedProfileAccount(session.shared.documentRoot, snapshot);
@@ -1768,13 +1889,22 @@
         }
     }
     function probeNextRow(session) {
+        var intent = classifyEscapeReadiness({
+            source: "escape_continue",
+            phase: "probe",
+            transition: escapeIsCurrent(session, session.token) ? "active": "stale",
+            finished: session.finished,
+            probeIndex: session.index,
+            probeCount: session.roster.probes.length
+        });
         var record;
         var snapshot;
-        if (session.finished || !escapeIsCurrent(session, session.token)) {
+        session.intent = intent;
+        if (intent.shouldFinish) {
+            finishEscapePass(session);
             return;
         }
-        if (session.index >= session.roster.probes.length) {
-            finishEscapePass(session);
+        if (!intent.mayProbeRows) {
             return;
         }
         record = session.roster.probes[session.index];
@@ -1796,24 +1926,46 @@
         });
     }
     function collectEscapeRows(session, attempt) {
+        var intent = classifyEscapeReadiness({
+            source: "escape_continue",
+            phase: "collect",
+            transition: escapeIsCurrent(session, session.token) ? "active": "stale",
+            started: session.started,
+            attempt: attempt,
+            retryLimit: ESCAPE_ROW_DELAYS.length,
+            probeCount: 0
+        });
         var roster;
-        if (!escapeIsCurrent(session, session.token) || session.started) {
+        session.intent = intent;
+        if (intent.shouldStop || intent.step === "runtime_idle") {
             return;
         }
         roster = readRosterModel(session.shared, null, null, false);
         clearTopbarRecords(rosterTopbarTargets(roster));
         session.roster = roster;
-        if (attempt >= ESCAPE_ROW_DELAYS.length || roster.probes.length > 0 && (!roster.readiness.available ||
-            !roster.readiness.supported || roster.readiness.rowsCoverTopbars)) {
+        intent = classifyEscapeReadiness({
+            source: "escape_continue",
+            phase: "collect",
+            transition: "active",
+            started: false,
+            attempt: attempt,
+            retryLimit: ESCAPE_ROW_DELAYS.length,
+            probeCount: roster.probes.length,
+            rosterReadiness: roster.readiness
+        });
+        session.intent = intent;
+        if (intent.mayProbeRows) {
             session.started = true;
             probeNextRow(session);
             return;
         }
-        scheduleEscape(ESCAPE_ROW_DELAYS[attempt], session, session.token, function () {
-            collectEscapeRows(session, attempt + 1);
-        });
+        if (intent.shouldScheduleRetry) {
+            scheduleEscape(ESCAPE_ROW_DELAYS[attempt], session, session.token, function () {
+                collectEscapeRows(session, attempt + 1);
+            });
+        }
     }
-    function reuseCompletedRoster(shared, escapeRoot) {
+    function reuseCompletedRoster(shared, escapeRoot, intent) {
         var roster = readRosterModel(shared, null, shared.completedRoster, true);
         var session;
         var result;
@@ -1829,7 +1981,8 @@
             root: escapeRoot,
             roster: roster,
             cacheReplay: true,
-            stalePlans: 0
+            stalePlans: 0,
+            intent: intent
         };
         result = renderRoster(session, true);
         if (result === "applied" && session.lastPlan && session.lastPlan.cached) {
@@ -1843,21 +1996,41 @@
     }
     function startEscapePass(escapeRoot) {
         var shared = getState(escapeRoot);
+        var transition = !shared || !isValid(escapeRoot) ? "unavailable":
+            isHideoutDocumentRoot(shared.documentRoot) ? "hideout": "active";
+        var intent = classifyEscapeReadiness({
+            source: "escape_open",
+            phase: "open",
+            transition: transition,
+            rootChanged: !!(shared && shared.escapeOpenLatched && shared.escapeRoot !== escapeRoot),
+            menuOpen: transition === "active" && isEscapeMenuOpen(escapeRoot),
+            hasCache: !!(shared && shared.completedRoster),
+            latched: !!(shared && shared.escapeOpenLatched)
+        });
         var playersTab;
         var session;
         state = shared || state;
-        if (!shared || !isValid(escapeRoot) || isHideoutDocumentRoot(shared.documentRoot)) {
-            if (!shared || !isValid(escapeRoot)) {
+        if (intent.shouldStop && transition !== "active") {
+            if (transition === "unavailable") {
                 state = null;
             }
             return;
         }
-        if (shared.escapeOpenLatched && shared.escapeRoot !== escapeRoot) {
+        if (intent.step === "replace_root") {
             shared.escapeToken += 1;
             releaseEscapeSession(shared);
             shared.escapeOpenLatched = false;
+            intent = classifyEscapeReadiness({
+                source: "escape_open",
+                phase: "open",
+                transition: "active",
+                rootChanged: false,
+                menuOpen: isEscapeMenuOpen(escapeRoot),
+                hasCache: !!shared.completedRoster,
+                latched: false
+            });
         }
-        if (!isEscapeMenuOpen(escapeRoot)) {
+        if (intent.shouldStop) {
             shared.escapeOpenLatched = false;
             shared.escapeRoot = null;
             if (shared.escape) {
@@ -1867,12 +2040,23 @@
             state = null;
             return;
         }
-        if (shared.completedRoster && reuseCompletedRoster(shared, escapeRoot)) {
-            shared.escapeOpenLatched = true;
-            shared.escapeRoot = escapeRoot;
-            return;
+        if (intent.shouldReplayCache) {
+            if (reuseCompletedRoster(shared, escapeRoot, intent)) {
+                shared.escapeOpenLatched = true;
+                shared.escapeRoot = escapeRoot;
+                return;
+            }
+            intent = classifyEscapeReadiness({
+                source: "escape_open",
+                phase: "open",
+                transition: "active",
+                rootChanged: false,
+                menuOpen: true,
+                hasCache: false,
+                latched: shared.escapeOpenLatched
+            });
         }
-        if (shared.escapeOpenLatched) {
+        if (!intent.mayStartPreload) {
             return;
         }
         shared.escapeOpenLatched = true;
@@ -1887,7 +2071,8 @@
             started: false,
             finished: false,
             stalePlans: 0,
-            lastPlan: null
+            lastPlan: null,
+            intent: intent
         };
         shared.escape = session;
         clearTeamAverages(shared.documentRoot);
@@ -1905,11 +2090,21 @@
     }
     function resetEscapePassAfterClose(escapeRoot) {
         var shared = getState(escapeRoot) || state;
+        var intent;
         if (!shared) {
             state = null;
             return;
         }
-        if (isEscapeMenuOpen(escapeRoot)) {
+        intent = classifyEscapeReadiness({
+            source: "escape_out",
+            phase: "close",
+            transition: "active",
+            menuOpen: isEscapeMenuOpen(escapeRoot)
+        });
+        if (!intent.shouldStop) {
+            if (shared.escape) {
+                shared.escape.intent = intent;
+            }
             return;
         }
         shared.escapeOpenLatched = false;
