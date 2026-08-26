@@ -97,6 +97,16 @@ assert.doesNotMatch(sourceTemplate, /function normalize(?:Account|Identity)\(/, 
 assert.match(sourceTemplate, /function buildRosterReadModel\(rows, topbarEvidence, completedRoster, cacheReplay\)/, 'one private roster read-model builder owns active and cache-replay facts');
 assert.match(sourceTemplate, /function readRosterModel\(shared, preservedRows, completedRoster, cacheReplay\)/, 'one adapter read feeds the private roster model');
 assert.doesNotMatch(sourceTemplate, /session\.(?:rows|accountByHero)|function (?:readEscapeRoster|indexRosterRows|appendRosterWrite)\(/, 'Escape callers own no parallel roster rows, account map, or duplicate index');
+const readinessStart = sourceTemplate.indexOf('function escapeReadinessDecision');
+const readinessEnd = sourceTemplate.indexOf('function snapshotProfiles', readinessStart);
+assert.ok(readinessStart >= 0 && readinessEnd > readinessStart, 'one private Escape readiness module sits between roster facts and Panorama adapters');
+const readinessModule = sourceTemplate.slice(readinessStart, readinessEnd);
+assert.match(readinessModule, /function classifyEscapeReadiness\(input\)/, 'the readiness module exposes one decision interface');
+for (const field of ['mayStartPreload', 'mayProbeRows', 'mayShowSpinner', 'shouldReplayCache', 'shouldScheduleRetry', 'shouldFinish', 'shouldStop']) {
+  assert.match(readinessModule, new RegExp(`\\b${field}\\b`), `the readiness decision owns ${field}`);
+}
+assert.doesNotMatch(readinessModule, /\$\.|findChild|findByClass|isValid|schedule(?:Escape)?\(|DispatchEvent|setRankImage|setTeamAverageImage|clearTeamAverages|closePlayerCards/, 'the readiness module has no Panorama traversal or side effects');
+assert.doesNotMatch(sourceTemplate, /attempt >= ESCAPE_ROW_DELAYS\.length \|\| roster\.probes\.length/, 'Escape adapters no longer reinterpret roster readiness or retry limits');
 
 
 assert.match(source, /RANK_API_BASE_URL = "https:\/\/api\.deadlock-api\.com\/v1\/players"/, 'the runtime owns the canonical API base');

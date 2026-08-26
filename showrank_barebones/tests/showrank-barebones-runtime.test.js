@@ -366,6 +366,24 @@ function assertTopbarEvidenceBudget(snapshot, budget, label) {
   assert.ok(snapshot.panelCalls.FindChildTraverse <= budget.findChild, `${label}: child lookups stay within the measured budget`);
   assert.ok(snapshot.panelCalls.GetParent <= budget.getParent, `${label}: parent walks stay within the measured budget`);
 }
+function assertEscapeIntent(intent, sourceName, step, label) {
+  assert.deepStrictEqual(
+    JSON.parse(JSON.stringify(intent)),
+    {
+      source: sourceName,
+      step,
+      mayStartPreload: step === 'start_preload',
+      mayProbeRows: step === 'probe_rows',
+      mayShowSpinner: false,
+      shouldReplayCache: step === 'replay_cache',
+      shouldScheduleRetry: step === 'wait_roster',
+      shouldFinish: step === 'finish',
+      shouldStop: step === 'source_blocked' || step === 'transition_stop',
+    },
+    label,
+  );
+}
+
 
 function missingState(h) {
   return h.documentRoot.__showrank_barebones_state_v1;
@@ -943,6 +961,32 @@ for (const [label, options] of [
   assert.deepStrictEqual(roster.bars[0].image.images.filter(Boolean), [], 'hideout transition cannot populate top-bar ranks');
 }
 
+// Passive top-bar evidence cannot create Escape intent or probe work.
+{
+  const h = harness(); const passive = topbar('haze', 'PassiveReadiness');
+  h.evaluate(passive.root);
+  assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.escape, null, 'Passive top-bar evaluation creates no Escape session');
+  assert.deepStrictEqual(h.events, [], 'Passive top-bar evaluation dispatches neither Players nor profile rows');
+}
+
+// Explicit Escape owns preload intent; roster waiting stays bounded and spinner-free.
+{
+  const h = harness(); const menu = escape(); const menuDollar = h.evaluate(menu.root);
+  h.resetWork();
+  menuDollar.ShowRankBarebonesEscapeOpen();
+  const session = h.documentRoot.__showrank_barebones_state_v1.escape;
+  assertEscapeIntent(session.intent, 'escape_open', 'start_preload', 'explicit Escape starts the barebones preload');
+  assert.deepStrictEqual(h.events.map((panel) => panel.id), ['PlayersTab'], 'preload activates only the native Players tab before roster evidence');
+  h.runNext();
+  assertEscapeIntent(session.intent, 'escape_continue', 'wait_roster', 'missing rows produce one bounded roster retry decision');
+  assert.strictEqual(h.events.filter((panel) => panel.id === 'MainContents').length, 0, 'roster wait cannot probe a row');
+  menuDollar.ShowRankBarebonesEscapeOut(); h.runDelay(0);
+  assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.escape, session, 'mouseout while Escape stays open preserves the explicit session');
+  assertEscapeIntent(session.intent, 'escape_out', 'runtime_idle', 'open-menu mouseout is an idle decision');
+  h.documentRoot.classes.delete('ShowEscapeMenu'); menuDollar.ShowRankBarebonesEscapeOut(); h.drain();
+  assert.strictEqual(h.pending(), 0, 'close drains stale one-shot retries without recurring work');
+}
+
 // A completed match pass stays cached across Escape reopenings; hideout clears it for the next match.
 {
   const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES.slice(0, 6), 'Cache'); let accountBase = 200;
@@ -995,6 +1039,11 @@ for (const playerCount of [6, 12]) {
   h.resetWork();
   menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
   const replayWork = h.snapshotWork();
+  assert.deepStrictEqual(
+    { scheduled: replayWork.scheduled, callbacks: replayWork.callbacks },
+    { scheduled: 0, callbacks: 0 },
+    `recreated ${playerCount}-player cache replay performs no scheduled work`,
+  );
   if (playerCount === 12) {
     captureBaseline('baseline.escape-cache-recreated-topbars-12', h);
     assertTopbarEvidenceBudget(
@@ -1100,6 +1149,7 @@ for (const playerCount of [6, 12]) {
   menuDollar.ShowRankBarebonesEscapeOpen(); h.runNext();
   const session = h.documentRoot.__showrank_barebones_state_v1.escape;
   assert.ok(session && session.roster, 'the active Escape pass owns one roster read model');
+  assertEscapeIntent(session.intent, 'escape_continue', 'probe_rows', 'covered roster evidence permits sequential Direct probing without a spinner');
   assert.deepStrictEqual(
     Object.keys(session.roster).sort(),
     ['cacheReplay', 'evidence', 'matches', 'probes', 'readiness'],
@@ -1178,6 +1228,11 @@ for (const playerCount of [6, 12]) {
   menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
   const delayedWork = h.snapshotWork();
   captureBaseline('baseline.escape-delayed-12-player', h);
+  assert.deepStrictEqual(
+    { scheduled: delayedWork.scheduled, callbacks: delayedWork.callbacks },
+    { scheduled: 15, callbacks: 15 },
+    'delayed twelve-player coverage preserves the accepted callback budget, including the fixture attachment',
+  );
   assertTopbarEvidenceBudget(
     delayedWork,
     { heroReads: 24, rowHeroReads: 24, textReads: 96, findChild: 466, getParent: 157 },
@@ -1212,6 +1267,11 @@ for (const playerCount of [6, 12]) {
   menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
   const completedWork = h.snapshotWork();
   captureBaseline('baseline.escape-complete-12-player', h);
+  assert.deepStrictEqual(
+    { scheduled: completedWork.scheduled, callbacks: completedWork.callbacks },
+    { scheduled: 14, callbacks: 14 },
+    'complete twelve-player preload preserves one collection, twelve witness, and one cleanup callback',
+  );
   assertTopbarEvidenceBudget(
     completedWork,
     { heroReads: 24, rowHeroReads: 24, textReads: 96, findChild: 466, getParent: 157 },

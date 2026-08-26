@@ -12,6 +12,7 @@ The barebones host owns one private top-bar evidence snapshot and one match-cent
 
 Panorama traversal and writes remain in the adapter code. A complete twelve-player pass scans each roster class once, reads each row hero once while building the model and once during atomic freshness validation, then allows one bounded replacement read if the panels changed. This reduced the measured complete-pass row reads from 156 to 24 and total text reads from 228 to 96 without changing the 14-callback schedule. Cache replay remains one topbar scan, no row scan, and no callbacks. Passive top-bar evidence never creates an account ID; only a Direct profile witness or the previously verified pure `{ hero, account }` cache can fill a match.
 
+The host also owns one private ES5 Escape readiness module. Its single `classifyEscapeReadiness(input)` interface consumes explicit source, lifecycle, and roster-readiness facts and returns a closed preload, probe, replay, retry, finish, or stop decision. Passive top-bar evaluations remain blocked; initial open and close/reopen retry remain Explicit Escape intent. Barebones has no top-bar spinner/status surface, so every readiness decision forbids spinner writes. Panorama scans, schedules, Players-tab and row dispatches, rank and average writes, and native context cleanup remain in adapters.
 
 ## Build
 
