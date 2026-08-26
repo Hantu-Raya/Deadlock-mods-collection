@@ -333,11 +333,13 @@
     }
 
     function textOf(panel) {
+        var value;
         if (!isValidPanel(panel)) {
             return "";
         }
         try {
-            return panel.text === null || panel.text === undefined ? "" : String(panel.text);
+            value = panel.text;
+            return value === null || value === undefined ? "" : String(value);
         } catch (error) {
             return "";
         }
