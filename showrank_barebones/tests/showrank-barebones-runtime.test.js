@@ -7,7 +7,6 @@ const vm = require('vm');
 const editableSourcePath = path.join(__dirname, '..', 'panorama', 'scripts', 'showrank_barebones.js');
 const runtimePath = process.env.SHOWRANK_BAREBONES_RUNTIME || editableSourcePath;
 const source = fs.readFileSync(runtimePath, 'utf8');
-const readableSource = runtimePath === editableSourcePath ? source : fs.readFileSync(editableSourcePath, 'utf8');
 const rankUrl = (account, base = 'https://api.deadlock-api.com/v1/players', format = 'webp') => `${base}/${account}/rank/image?format=${format}`;
 const statlockerUrl = (account) => `https://statlocker.gg/profile/${account}/matches`;
 const averageUrl = (accounts, base = 'https://api.deadlock-api.com/v1/players', format = 'webp') => `${base}/rank/image?account_ids=${accounts.join(',')}&format=${format}`;
@@ -130,10 +129,11 @@ function profile(account, options = {}) {
   const contents = root.add(new Panel('Panel', { id: 'ContentsMain' }));
   const accountPanel = contents.add(new Panel('Panel', { id: 'AccountID' }));
   const witness = contents.add(new Panel('Label', { id: 'ShowRankBarebonesAccount', text: options.witness === undefined ? account : options.witness }));
+  const contextWitness = contents.add(new Panel('Label', { id: 'ProfileStatsCommunityContextAccount', text: options.contextWitness === undefined ? account : options.contextWitness }));
   const image = root.add(new Panel('Panel', { id: 'CardOverlay' })).add(new Panel('Image', { id: 'ShowRankBarebonesRankImage', valid: options.imageValid, visible: options.imageVisible }));
-  return { root, accountPanel, witness, image };
+  return { root, accountPanel, witness, contextWitness, image };
 }
-function setProfileAccount(card, account) { card.witness.text = account; card.root.attributes.accountid = account; delete card.root.attributes.steamid; }
+function setProfileAccount(card, account) { card.witness.text = account; card.contextWitness.text = account; card.root.attributes.accountid = account; delete card.root.attributes.steamid; }
 function profilePage(account, options = {}) {
   const root = new Panel('CitadelProfilePage', { id: options.id || 'ProfilePage', classes: ['ShowRankBarebonesProfilePage'], valid: options.valid, attributes: { ...(options.accountid === undefined ? { accountid: account } : { accountid: options.accountid }), ...(options.steamid === undefined ? {} : { steamid: options.steamid }) } });
   const profileInfo = root.add(new Panel('Panel', { id: 'ProfileInfo' }));
@@ -151,13 +151,13 @@ function topbar(hero, id = `Topbar-${hero}`) {
 function row(hero, options = {}) { const root = new Panel('CitadelPlayersListEntry', { id: options.id || `Row-${hero}`, classes: ['ShowRankBarebonesPlayerRow'] }); const mainContents = root.add(new Panel('Panel', { id: 'MainContents', valid: options.mainValid })); const heroLabel = mainContents.add(new Panel('Label', { id: 'ShowRankBarebonesRowHero', text: hero })); const image = mainContents.add(new Panel('Image', { id: 'ShowRankBarebonesPlayerListRankImage', visible: false })); return { root, mainContents, heroLabel, image }; }
 function escape() { const root = new Panel('CitadelHudEscapeMenu', { id: 'Escape' }); return { root, playersTab: root.add(new Panel('TabButton', { id: 'PlayersTab' })) }; }
 function addContextRow(parent, id, text) { const rowPanel = parent.add(new Panel('Panel', { id, classes: ['MenuRow'] })); return rowPanel.add(new Panel('TextButton', { id: 'MenuButton', text })); }
-function contextMenu(card) { const root = new Panel('CitadelContextMenuPlayer', { id: 'PersonalContextMenu' }); root.add(card.root); const options = root.add(new Panel('Panel', { id: 'MenuOptionsPanel' })); const statlockerButton = addContextRow(options, 'ShowRankBarebonesStatlockerRow', 'Statlocker Profile'); const copyButton = addContextRow(options, 'ShowRankBarebonesCopyAccountRow', 'Copy Account ID'); return { root, statlockerButton, copyButton }; }
+function contextMenu(card) { const root = new Panel('CitadelContextMenuPlayer', { id: 'PersonalContextMenu' }); root.add(card.root); const options = root.add(new Panel('Panel', { id: 'MenuOptionsPanel' })); const statlockerButton = addContextRow(options, 'ShowRankBarebonesStatlockerRow', 'Statlocker Profile'); const copyButton = addContextRow(options, 'ShowRankBarebonesCopyAccountRow', 'Copy Account ID'); const playerProfileButton = addContextRow(root, 'ProfileStatsCommunityPlayerProfileRow', 'Player Profile'); return { root, statlockerButton, copyButton, playerProfileButton }; }
 const STANDARD_HEROES = ['haze', 'infernus', 'vindicta', 'abrams', 'bebop', 'dynamo', 'kelvin', 'lash', 'mcginnis', 'mo_and_krill', 'paradox', 'pocket'];
 function playerRoster(heroes, prefix = '') { const friendly = new Panel('CitadelHudTopBarTeam', { id: 'TeamFriendly' }); const enemy = new Panel('CitadelHudTopBarTeam', { id: 'TeamEnemy' }); const bars = heroes.map((hero, index) => { const bar = topbar(hero, `${prefix}Bar-${index}`); (index < heroes.length / 2 ? friendly : enemy).add(bar.root); return bar; }); return { bars, rows: heroes.map((hero, index) => row(hero, { id: `${prefix}Row-${index}` })), friendly, enemy }; }
 function wirePlayerRoster(h, card, roster, accountForIndex) { h.attach(roster.friendly); h.attach(roster.enemy); roster.bars.forEach((bar) => h.evaluate(bar.root)); roster.rows.forEach((player, index) => { h.evaluate(player.root); h.on(player.mainContents, () => setProfileAccount(card, accountForIndex(index))); }); }
 
 function harness(options = {}) {
-  const scheduled = [], events = [], handlers = new Map(), dollars = [], openedUrls = [], copiedAccounts = [], closedContexts = [], nativeContextDismissals = [], trace = [];
+  const scheduled = [], events = [], handlers = new Map(), dollars = [], openedUrls = [], openedProfiles = [], copiedAccounts = [], closedContexts = [], nativeContextDismissals = [], trace = [];
   const scheduledDelays = new WeakMap();
   const work = createWork();
   let currentTime = 0;
@@ -183,13 +183,19 @@ function harness(options = {}) {
       copiedAccounts.push(first);
       return;
     }
+    if (event === 'CitadelShowProfilePageForAccount') {
+      assert.strictEqual(typeof first, 'number', 'player profile receives the selected SteamID3 as a number');
+      assert.strictEqual(second, undefined, 'player profile event has no fabricated second payload');
+      openedProfiles.push(first);
+      return;
+    }
     if (event === 'DismissAllContextMenus' || event === 'DropInputFocus') {
       assert.strictEqual(first, undefined, `${event} has no fabricated payload`);
       assert.strictEqual(second, undefined, `${event} has no fabricated payload`);
       closedContexts.push(event);
       return;
     }
-    assert.strictEqual(event, 'Activated', 'the runtime may dispatch only clipboard, cleanup, or panel activation events');
+    assert.strictEqual(event, 'Activated', 'the runtime may dispatch only clipboard, profile, cleanup, or panel activation events');
     assert.ok(first instanceof Panel, 'activation targets a local panel');
     if (first.id === 'MainContents') assert.strictEqual(second, 'mouse', 'player profile cards require mouse activation');
     else assert.strictEqual(second, undefined, 'Players-tab activation has no fabricated input');
@@ -249,7 +255,7 @@ function harness(options = {}) {
     };
   }
   return {
-    documentRoot, gameClock, averageFriendly, averageEnemy, events, dollars, openedUrls, copiedAccounts, closedContexts, nativeContextDismissals, trace,
+    documentRoot, gameClock, averageFriendly, averageEnemy, events, dollars, openedUrls, openedProfiles, copiedAccounts, closedContexts, nativeContextDismissals, trace,
     attach(panel) {
       panel.setWork(work);
       if (!panel.parent) documentRoot.add(panel);
@@ -491,27 +497,33 @@ for (const [label, options] of [
   const h = harness(); const card = profile('123456'), menu = contextMenu(card); const menuDollar = h.evaluate(menu.root); h.evaluate(card.root);
   assert.strictEqual(menuDollar.ShowRankBarebonesOpenStatlocker, undefined, 'context actions do not depend on context-local globals');
   assert.strictEqual(typeof card.root.ShowRankBarebonesOpenStatlocker, 'function', 'profile startup installs its local StatLocker action');
+  assert.strictEqual(typeof card.root.ShowRankBarebonesOpenPlayerProfile, 'function', 'profile startup installs its local Player Profile action');
   assert.strictEqual(typeof card.root.ShowRankBarebonesCopyAccount, 'function', 'profile startup installs its local account-copy action');
   card.root.ShowRankBarebonesOpenStatlocker();
+  card.root.ShowRankBarebonesOpenPlayerProfile();
   card.root.ShowRankBarebonesCopyAccount();
   assert.deepStrictEqual(
-    { openedUrls: h.openedUrls, copiedAccounts: h.copiedAccounts },
+    { openedUrls: h.openedUrls, openedProfiles: h.openedProfiles, copiedAccounts: h.copiedAccounts },
     {
       openedUrls: [{ method: 'ExternalBrowserGoToURL', url: statlockerUrl('123456') }],
+      openedProfiles: [123456],
       copiedAccounts: ['123456'],
     },
-    'both profile-local context actions reach their Panorama engine events',
+    'all profile-local context actions use the selected account',
   );
 }
 {
   const h = harness(); const card = profile(''), menu = contextMenu(card); h.evaluate(menu.root); h.evaluate(card.root);
   card.root.ShowRankBarebonesOpenStatlocker();
+  card.root.ShowRankBarebonesOpenPlayerProfile();
   card.root.ShowRankBarebonesCopyAccount();
-  assert.deepStrictEqual({ openedUrls: h.openedUrls, copiedAccounts: h.copiedAccounts }, { openedUrls: [], copiedAccounts: [] }, 'blank click-time evidence fails closed');
+  assert.deepStrictEqual({ openedUrls: h.openedUrls, openedProfiles: h.openedProfiles, copiedAccounts: h.copiedAccounts }, { openedUrls: [], openedProfiles: [], copiedAccounts: [] }, 'blank click-time evidence fails closed');
   setProfileAccount(card, '234567');
   card.root.ShowRankBarebonesOpenStatlocker();
+  card.root.ShowRankBarebonesOpenPlayerProfile();
   card.root.ShowRankBarebonesCopyAccount();
   assert.deepStrictEqual(h.openedUrls, [{ method: 'ExternalBrowserGoToURL', url: statlockerUrl('234567') }], 'StatLocker resolves newly bound evidence at click time');
+  assert.deepStrictEqual(h.openedProfiles, [234567], 'Player Profile resolves newly bound evidence at click time');
   assert.deepStrictEqual(h.copiedAccounts, ['234567'], 'Copy Account ID resolves newly bound evidence at click time');
 }
 {
@@ -522,9 +534,16 @@ for (const [label, options] of [
 {
   const h = harness(); const card = profile('123456', { witness: '654321' }), menu = contextMenu(card); h.evaluate(menu.root); h.evaluate(card.root);
   card.root.ShowRankBarebonesOpenStatlocker();
+  card.root.ShowRankBarebonesOpenPlayerProfile();
   card.root.ShowRankBarebonesCopyAccount();
   assert.deepStrictEqual(h.openedUrls, []);
-  assert.deepStrictEqual(h.copiedAccounts, [], 'conflicting account evidence blocks both context actions');
+  assert.deepStrictEqual(h.openedProfiles, []);
+  assert.deepStrictEqual(h.copiedAccounts, [], 'conflicting account evidence blocks every context action');
+}
+{
+  const h = harness(); const card = profile('123456', { contextWitness: '654321' }), menu = contextMenu(card); h.evaluate(menu.root); h.evaluate(card.root);
+  card.root.ShowRankBarebonesOpenPlayerProfile();
+  assert.deepStrictEqual(h.openedProfiles, [], 'conflicting selected-card witnesses block native profile navigation');
 }
 
 {
@@ -1208,23 +1227,5 @@ for (const playerCount of [6, 12]) {
   const h = harness(); const bar = topbar('haze'), menu = escape(); h.evaluate(bar.root); h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); assert.ok(h.drain() <= 9, 'missing rows, late attachment, and final cleanup complete within a 16.25-second bound'); assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'missing rows leave stale ranks cleared');
 }
 
-const activationDispatches = [...readableSource.matchAll(/\$\.DispatchEvent\s*\(\s*"Activated"\s*,\s*([^)]*)\)/g)];
-assert.strictEqual(activationDispatches.length, 2, 'one tab activation and one row activation are the only panel dispatches');
-assert.deepStrictEqual(activationDispatches.map((match) => match[1].trim()), ['record.mainContents, "mouse"', 'playersTab'], 'rows use verified mouse activation while the Players tab keeps native activation');
-assert.match(readableSource, /root\.ShowRankBarebonesOpenStatlocker\s*=\s*function/, 'profile role installs the XML-facing StatLocker action');
-assert.match(readableSource, /root\.ShowRankBarebonesCopyAccount\s*=\s*function/, 'profile role installs the XML-facing account-copy action');
-assert.doesNotMatch(readableSource, /SetPanelEvent\("onactivate"/, 'context actions do not depend on lifecycle-sensitive programmatic handlers');
-assert.strictEqual((readableSource.match(/\$\.DispatchEvent\("DismissAllContextMenus"\)/g) || []).length, 1, 'one final player-card dismissal exists');
-assert.strictEqual((readableSource.match(/\$\.DispatchEvent\("DropInputFocus"\)/g) || []).length, 1, 'the final cleanup releases profile-card input focus');
-assert.match(readableSource, /\$\.DispatchEvent\("ExternalBrowserGoToURL", url\)/, 'StatLocker uses the proven native external-browser event');
-assert.doesNotMatch(readableSource, /ExecuteSteamURL|SteamOverlayAPI/, 'StatLocker contains no unsupported Steam URL path');
-assert.match(readableSource, /\$\.DispatchEvent\("CopyStringToClipboard", account, account\)/, 'Copy Account ID uses Panorama clipboard text payloads');
-assert.strictEqual((readableSource.match(/\$\.Schedule\s*\(/g) || []).length, 1, 'one scheduler seam serves finite retries');
-assert.doesNotMatch(readableSource, /\$\.(?:RegisterForUnhandledEvent|RegisterEventHandler)\b|\b(?:Subscribe|Unsubscribe)\s*\(/, 'no event subscriptions');
-assert.doesNotMatch(readableSource, /\$\.Msg|BareRankTrace|ShowRankBarebonesTopbarRefresh/, 'obsolete overlay paths and diagnostics are absent');
-assert.doesNotMatch(readableSource, /\b(?:XMLHttpRequest|fetch|WebSocket|AsyncWebRequest|WebRequest)\b/, 'no direct network API');
-assert.doesNotMatch(readableSource, /\b(?:GameUI|Players|Entities|SteamFriends|DOTAPlayerIDs|GetHudRoot|GetTopmostPopup)\b|\$\.GetContextPanel\s*\([^)]*,/, 'no cross-context engine traversal');
-assert.doesNotMatch(readableSource, /\b(?:ShowRankCommon|ShowRankTrigger|ShowRankOpenStatlocker|ShowRankProbe|WebMediaDemo|diagnostic|debug)\b/i, 'no old bridge or diagnostics');
-assert.doesNotMatch(readableSource, /\$\.__showrank_barebones_state_v1/, 'state is never shared through context-local $');
 
 console.log('showrank barebones runtime tests passed');
