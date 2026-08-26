@@ -4,6 +4,11 @@
 
 The dashboard profile page also includes `Stats vs Community` for the viewed account. The player context menu keeps StatLocker and account-copy actions, and adds `Player Profile` through the same selected-account checks. These features ship in the ShowRank package. No separate Profile Stats VPK is required.
 
+## Source ownership
+
+The comparison implementation lives in `profile_stats_community/panorama/scripts/profile_stats_community.js` and `profile_stats_community/panorama/styles/profile_stats_community.css`. The barebones runtime and stylesheet contain host placeholders. `scripts/profile-stats-community-composition.js` resolves them in tests and in the staged build. Do not copy the comparison implementation back into the barebones files.
+
+
 ## Build
 
 From the collection root:
@@ -16,7 +21,7 @@ Add `-Install` to replace the active `citadel/addons/pak89_dir.vpk` after valida
 
 The build artifact is `showrank_barebones_dir.vpk`.
 
-The builder runs Closure Compiler ADVANCED on the staged JavaScript before Source 2 compilation. The editable runtime remains readable; `-KeepStaging` retains the minified build source for inspection.
+The builder composes the readable canonical comparison sources into the staged runtime and stylesheet, then runs Closure Compiler ADVANCED before Source 2 compilation. `-KeepStaging` retains the composed readable runtime and the minified staged source for inspection.
 
 ## Validation
 

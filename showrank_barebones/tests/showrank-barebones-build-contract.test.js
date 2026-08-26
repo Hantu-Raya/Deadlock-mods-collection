@@ -12,6 +12,13 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(packageDir, 'package.js
 const runtimeTest = fs.readFileSync(path.join(packageDir, 'tests', 'showrank-barebones-runtime.test.js'), 'utf8');
 const profileRuntimeTest = fs.readFileSync(path.join(packageDir, 'tests', 'profile-stats-community-runtime.test.js'), 'utf8');
 const profileRuntimeOracle = fs.readFileSync(path.join(repositoryDir, 'scripts', 'profile-stats-community-runtime-oracle.js'), 'utf8');
+const compositionPath = path.join(repositoryDir, 'scripts', 'profile-stats-community-composition.js');
+const compositionSource = fs.readFileSync(compositionPath, 'utf8');
+const composition = require(compositionPath);
+const runtimeTemplate = fs.readFileSync(path.join(packageDir, 'panorama', 'scripts', 'showrank_barebones.js'), 'utf8');
+const styleTemplate = fs.readFileSync(path.join(packageDir, 'panorama', 'styles', 'showrank_barebones_topbar.css'), 'utf8');
+const composedSources = composition.composeBarebonesSources(repositoryDir);
+
 
 function assignedStringArray(name) {
   const assignment = new RegExp(`\\$${name}\\s*=\\s*@\\(([\\s\\S]*?)\\n\\)`).exec(build);
@@ -28,6 +35,7 @@ function indexOfRequired(fragment) {
 assert.match(build, /param\(\s*\[switch\]\$Install,\s*\[switch\]\$KeepStaging,\s*\[string\]\$AddonsPath\s*=\s*"G:\\SteamLibrary\\steamapps\\common\\Deadlock\\game\\citadel\\addons"\s*\)/s, 'the dedicated build supports only explicit install, staging, and addons-path modes');
 assert.match(build, /\$barebonesRoot\s*=\s*Join-Path \$root 'showrank_barebones'/, 'the source root is the barebones package');
 assert.match(build, /\$vpkOutput\s*=\s*Join-Path \$root 'showrank_barebones_dir\.vpk'/, 'the artifact has its dedicated name');
+assert.match(build, /\$compositionScript\s*=\s*Join-Path \$root 'scripts\\profile-stats-community-composition\.js'/, 'the build uses the shared canonical composition module');
 assert.doesNotMatch(build, /qollock|showrank_probe|showrank_variants|showrank_common|showrank[\\/]panorama/i, 'the build has no QOLLOCK, active ShowRank, or probe source dependency');
 assert.doesNotMatch(build, /\$Diagnostics|diagnostic|apply-missing-diagnostics/i, 'the release build contains no stage-only missing diagnostic infrastructure');
 
@@ -62,7 +70,7 @@ assert.deepStrictEqual(
   'the compiled inventory admits exactly the nine expected Source 2 assets',
 );
 assert.match(build, /Assert-BarebonesAssetSet -Actual \(Get-BarebonesAssetPaths -RootPath \$barebonesRoot\) -ExpectedAssets \$requiredSourceAssets -Label 'Barebones source package'/, 'the full source inventory is rejected unless exact');
-assert.match(build, /Assert-BarebonesAssetSet -Actual \(Get-BarebonesAssetPaths -RootPath \$stageSource\) -ExpectedAssets \$requiredSourceAssets -Label 'Staged barebones source'/, 'staging is rejected unless exact');
+assert.match(build, /Assert-BarebonesAssetSet -Actual \(Get-BarebonesAssetPaths -RootPath \$stageSource\) -ExpectedAssets \$requiredSourceAssets -Label 'Composed barebones source'/, 'composed staging is rejected unless exact');
 
 assert.match(build, /\[System\.Collections\.Generic\.HashSet\[string\]\]::new\(\[System\.StringComparer\]::Ordinal\)/, 'asset validation uses ordinal paths');
 assert.match(build, /if \(-not \$actualSet\.Add\(\$asset\)\) \{ \$duplicates\.Add\(\$asset\) \}/, 'asset validation rejects duplicate paths');
@@ -99,16 +107,27 @@ for (const fragment of [
 }
 assert.match(build, /Move-Item -LiteralPath \$minifiedPath -Destination \$StagedSourcePath -Force/, 'only the staged runtime is replaced with Closure output');
 assert.match(build, /foreach \(\$temporaryPath in @\(\$externsPath, \$minifiedPath\)\)[\s\S]*?Remove-Item -LiteralPath \$temporaryPath -Force/s, 'temporary extern and output files are deleted');
-assert.match(runtimeTest, /const runtimePath = process\.env\.SHOWRANK_BAREBONES_RUNTIME \|\| editableSourcePath;/, 'runtime tests accept an explicit staged-runtime source');
-assert.match(runtimeTest, /const source = fs\.readFileSync\(runtimePath, 'utf8'\);/, 'runtime behavior executes the selected source');
-assert.match(profileRuntimeTest, /process\.env\.SHOWRANK_BAREBONES_RUNTIME \|\| path\.resolve/, 'profile runtime tests accept the same staged-runtime source');
+assert.match(runtimeTest, /const runtimePath = process\.env\.SHOWRANK_BAREBONES_RUNTIME;/, 'runtime tests accept an explicit staged-runtime source');
+assert.match(runtimeTest, /composition\.composeBarebonesSources\(repositoryDir\)\.runtime/, 'readable runtime behavior uses canonical composition');
+assert.match(profileRuntimeTest, /var runtimePath = process\.env\.SHOWRANK_BAREBONES_RUNTIME;/, 'profile runtime tests accept the same staged-runtime source');
+assert.match(profileRuntimeTest, /runtimeAdapter\.source = composition\.composeBarebonesSources\(repositoryDir\)\.runtime/, 'the readable profile adapter uses canonical composition');
 assert.match(profileRuntimeTest, /contextPanelType:\s*"CitadelProfilePage"/, 'the merged profile adapter enters through the production profile-page role');
-assert.doesNotMatch(profileRuntimeTest, /PROFILE_STATS_COMMUNITY_MODULE_(?:START|END)/, 'profile runtime behavior never depends on readable marker comments');
-assert.match(profileRuntimeOracle, /var source = fs\.readFileSync\(sourcePath, "utf8"\);/, 'the shared oracle executes the complete selected runtime');
+assert.doesNotMatch(profileRuntimeTest, /PROFILE_STATS_COMMUNITY_MODULE_(?:START|END)/, 'profile runtime behavior never depends on copied-module markers');
+assert.match(profileRuntimeOracle, /runtimeAdapter\.source === undefined \? fs\.readFileSync\(sourcePath, "utf8"\) : runtimeAdapter\.source/, 'the shared oracle executes a complete path or composed source adapter');
 assert.strictEqual([...profileRuntimeOracle.matchAll(/\btest\("/g)].length, 19, 'the shared oracle owns exactly the nineteen profile scenarios');
+assert.strictEqual(runtimeTemplate.split(composition.RUNTIME_PLACEHOLDER).length - 1, 1, 'the runtime template has one composition placeholder');
+assert.strictEqual(styleTemplate.split(composition.STYLE_PLACEHOLDER).length - 1, 1, 'the style template has one composition placeholder');
+assert.doesNotMatch(composedSources.runtime, /PROFILE_STATS_COMMUNITY_RUNTIME:/, 'readable runtime composition resolves its placeholder');
+assert.doesNotMatch(composedSources.style, /PROFILE_STATS_COMMUNITY_STYLES:/, 'readable style composition resolves its placeholder');
+assert.throws(() => composition.composeText('missing', 'fragment', 'TOKEN', 'test'), /exactly once/, 'missing placeholders fail closed');
+assert.throws(() => composition.composeText('TOKEN TOKEN', 'fragment', 'TOKEN', 'test'), /exactly once/, 'duplicate placeholders fail closed');
+assert.match(compositionSource, /fs\.writeFileSync\(runtimeOutput, composition\.runtime, 'utf8'\)/, 'the CLI writes only composed runtime text as UTF-8');
+assert.match(compositionSource, /fs\.writeFileSync\(styleOutput, composition\.style, 'utf8'\)/, 'the CLI writes only composed style text as UTF-8');
 
 const validateIndex = indexOfRequired('& npm --prefix $barebonesRoot run validate');
 const stagedCopyIndex = indexOfRequired('Copy-Item -LiteralPath $sourcePath -Destination $stagedPath -Force');
+const compositionIndex = indexOfRequired('& node $compositionScript $stageSource');
+const readableCopyIndex = indexOfRequired('Copy-Item -LiteralPath $stagedRuntime -Destination $readableRuntime -Force');
 const closureRunIndex = indexOfRequired('& npx --yes google-closure-compiler');
 const minifiedSyntaxIndex = indexOfRequired('& node --check $minifiedPath');
 const minifiedMoveIndex = indexOfRequired('Move-Item -LiteralPath $minifiedPath -Destination $StagedSourcePath -Force');
@@ -117,9 +136,10 @@ const runtimeSmokeIndex = indexOfRequired("& node (Join-Path $barebonesRoot 'tes
 const profileRuntimeSmokeIndex = indexOfRequired("& node (Join-Path $barebonesRoot 'tests\\profile-stats-community-runtime.test.js')");
 const compilerIndex = indexOfRequired('Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $stageSource');
 const packIndex = indexOfRequired('Invoke-VpkPack -VpkEditCli $vpkEditCli -InputDir $stageCompiled');
-assert.ok(validateIndex < stagedCopyIndex, 'readable runtime validation precedes staging');
+assert.ok(validateIndex < stagedCopyIndex, 'readable canonical composition validation precedes staging');
+assert.ok(stagedCopyIndex < compositionIndex && compositionIndex < readableCopyIndex && readableCopyIndex < minifyCallIndex, 'canonical sources compose and are snapshotted before Closure');
 assert.ok(closureRunIndex < minifiedSyntaxIndex && minifiedSyntaxIndex < minifiedMoveIndex, 'Closure output is syntax-checked before replacing the staged runtime');
-assert.ok(stagedCopyIndex < minifyCallIndex && minifyCallIndex < runtimeSmokeIndex, 'the exact staged runtime is minified before its VM smoke tests');
+assert.ok(minifyCallIndex < runtimeSmokeIndex, 'the composed staged runtime is minified before its VM smoke tests');
 assert.ok(runtimeSmokeIndex < profileRuntimeSmokeIndex && profileRuntimeSmokeIndex < compilerIndex, 'both minified runtime smoke tests precede Source2 compilation');
 assert.ok(compilerIndex < packIndex, 'Source2 compilation precedes strict packing');
 

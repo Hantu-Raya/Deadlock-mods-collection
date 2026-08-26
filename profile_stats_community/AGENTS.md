@@ -19,6 +19,8 @@ The bridge URL is `https://hantu-raya.github.io/deadlock-stats-bridge/bridge.htm
 
 ## Development and packaging
 
+`panorama/scripts/profile_stats_community.js` and `panorama/styles/profile_stats_community.css` are the canonical comparison sources. `showrank_barebones` composes these files into its staged runtime and stylesheet through `scripts/profile-stats-community-composition.js`. Edit the canonical files, not the barebones placeholders. This is source composition only: pak80 and pak89 remain independent packages with their existing compiled includes and asset counts.
+
 ### Closure boundary
 
 Treat API metric IDs and error codes as external protocol keys. Any object read with `map[externalKey]` must declare those keys as quoted literals so Closure `ADVANCED` cannot rename them. Source-level VM tests are insufficient proof because they run before Closure. The wrapper must reject minified output that does not retain every dynamic key, and package verification must inspect the compiled VJS when renderer behavior differs from source tests. An Accuracy-only table is the known signature: Closure previously renamed every metric-map key except `accuracy`, so the other labels kept their XML dash placeholders. Start diagnosis at the compiled map rather than the API payload, panel references, or an assumed panel-ID limit.
