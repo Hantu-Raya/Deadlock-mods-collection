@@ -147,7 +147,7 @@ function profilePage(account, options = {}) {
 function setProfilePageAccount(page, account) { page.witness.text = account; page.root.attributes.accountid = account; delete page.root.attributes.steamid; }
 function topbar(hero, id = `Topbar-${hero}`) {
   const root = new Panel('CitadelHudTopBarPlayer', { id, classes: ['ShowRankBarebonesTopbarPlayer'] });
-  const heroLabel = root.add(new Panel('Label', { text: hero, classes: ['HeroName'] }));
+  const heroLabel = root.add(new Panel('Label', { id: `${id}-HeroName`, text: hero, classes: ['HeroName'] }));
   const image = root.add(new Panel('Panel', { id: 'HeroContents' })).add(new Panel('Image', { id: 'ShowRankBarebonesTopbarRankImage', visible: false }));
   return { root, heroLabel, image };
 }
@@ -344,6 +344,20 @@ function rootRosterScans(snapshot) {
     topbars: count('ShowRankBarebonesTopbarPlayer'),
     rows: count('ShowRankBarebonesPlayerRow'),
   };
+}
+function topbarHeroReads(snapshot) {
+  return Object.entries(snapshot.panelCalls.text).reduce(
+    (total, [id, count]) => total + (id.endsWith('-HeroName') ? count : 0),
+    0,
+  );
+}
+
+function assertTopbarEvidenceBudget(snapshot, budget, label) {
+  const textReads = Object.values(snapshot.panelCalls.text).reduce((total, count) => total + count, 0);
+  assert.ok(topbarHeroReads(snapshot) <= budget.heroReads, `${label}: top-bar hero reads stay within the snapshot budget`);
+  assert.ok(textReads <= budget.textReads, `${label}: total text reads stay within the measured budget`);
+  assert.ok(snapshot.panelCalls.FindChildTraverse <= budget.findChild, `${label}: child lookups stay within the measured budget`);
+  assert.ok(snapshot.panelCalls.GetParent <= budget.getParent, `${label}: parent walks stay within the measured budget`);
 }
 
 function missingState(h) {
@@ -973,10 +987,18 @@ for (const playerCount of [6, 12]) {
   h.drain();
   h.resetWork();
   menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
-  if (playerCount === 12) captureBaseline('baseline.escape-cache-recreated-topbars-12', h);
+  const replayWork = h.snapshotWork();
+  if (playerCount === 12) {
+    captureBaseline('baseline.escape-cache-recreated-topbars-12', h);
+    assertTopbarEvidenceBudget(
+      replayWork,
+      { heroReads: 24, textReads: 24, findChild: 42, getParent: 23 },
+      'twelve-player cache replay',
+    );
+  }
   assert.strictEqual(h.events.filter((panel) => panel.id === 'MainContents').length, firstRowActivations, `a complete ${playerCount}-account cache prevents a second Escape auto-probe`);
   assert.deepStrictEqual(
-    rootRosterScans(h.snapshotWork()),
+    rootRosterScans(replayWork),
     { topbars: 1, rows: 0 },
     `recreated ${playerCount}-player cache reuse only performs its live topbar validation scan`,
   );
@@ -1088,8 +1110,14 @@ for (const playerCount of [6, 12]) {
   h.drain();
   h.resetWork();
   menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
+  const delayedWork = h.snapshotWork();
   captureBaseline('baseline.escape-delayed-12-player', h);
-  const delayedScans = rootRosterScans(h.snapshotWork());
+  assertTopbarEvidenceBudget(
+    delayedWork,
+    { heroReads: 24, textReads: 228, findChild: 466, getParent: 157 },
+    'delayed twelve-player pass',
+  );
+  const delayedScans = rootRosterScans(delayedWork);
   assert.strictEqual(delayedScans.topbars, delayedScans.rows, 'each delayed roster collection scans topbars and rows together');
   assert.ok(delayedScans.topbars <= 6, 'delayed roster coverage uses at most one root scan pair per initial/delayed attempt');
   assert.strictEqual(rowZeroAttached, true, 'row 0 attaches on the first scheduled tick after PlayersTab activation');
@@ -1116,7 +1144,13 @@ for (const playerCount of [6, 12]) {
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(301 + index));
   const menuDollar = h.evaluate(menu.root); h.drain(); h.resetWork();
   menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
+  const completedWork = h.snapshotWork();
   captureBaseline('baseline.escape-complete-12-player', h);
+  assertTopbarEvidenceBudget(
+    completedWork,
+    { heroReads: 24, textReads: 228, findChild: 466, getParent: 157 },
+    'complete twelve-player pass',
+  );
   const completedRoster = h.documentRoot.__showrank_barebones_state_v1.completedRoster;
   assert.strictEqual(completedRoster.length, 12, 'twelve-player standard mode stores a completed cache');
   assert.ok(completedRoster.every((entry) => Object.keys(entry).sort().join(',') === 'account,hero'), 'completed cache retains pure hero/account data only');
@@ -1127,7 +1161,7 @@ for (const playerCount of [6, 12]) {
     'cache completion releases active Escape roster records',
   );
   assert.deepStrictEqual(
-    rootRosterScans(h.snapshotWork()),
+    rootRosterScans(completedWork),
     { topbars: 1, rows: 1 },
     'a complete non-recreated twelve-player pass scans each roster class once through cache completion',
   );
@@ -1242,7 +1276,13 @@ for (const playerCount of [6, 12]) {
   h.drain();
   h.resetWork();
   h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain();
+  const duplicateWork = h.snapshotWork();
   captureBaseline('baseline.escape-duplicate-heroes', h);
+  assertTopbarEvidenceBudget(
+    duplicateWork,
+    { heroReads: 2, textReads: 7, findChild: 54, getParent: 23 },
+    'duplicate top-bar heroes',
+  );
   assert.deepStrictEqual(first.image.images.filter(Boolean), [], 'duplicate topbar hero does not render');
   assert.deepStrictEqual(duplicate.image.images.filter(Boolean), [], 'both duplicate topbars fail closed');
 }
@@ -1251,6 +1291,20 @@ for (const playerCount of [6, 12]) {
 }
 {
   const h = harness(); const original = profile('101'), bar = topbar('haze'), menu = escape(), player = row('haze'); h.evaluate(original.root); h.evaluate(bar.root); h.evaluate(player.root); h.on(player.mainContents, () => { h.evaluate(profile('201', { id: 'ProfileA' }).root); h.evaluate(profile('202', { id: 'ProfileB' }).root); }); h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain(); assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'multiple changed/new profile witnesses fail closed');
+}
+{
+  const h = harness(); const menu = escape(), bar = topbar('haze', 'PassiveAccount'), player = row('haze');
+  bar.root.attributes.ShowRankBarebonesAccount = '999';
+  bar.root.attributes.accountid = '999';
+  bar.root.attributes.steamid = '[U:1:999]';
+  h.evaluate(bar.root); h.evaluate(player.root);
+  bar.image.visible = true; bar.image.SetImage(rankUrl('999'));
+  h.resetWork();
+  h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain();
+  assert.deepStrictEqual(bar.image.images.filter(Boolean), [rankUrl('999')], 'fixture starts with only an untrusted stale top-bar URL');
+  assert.strictEqual(bar.image.visible, false, 'Passive top-bar attributes cannot preserve a rank without a Direct profile witness');
+  assert.strictEqual(bar.image.images.at(-1), '', 'untrusted passive rank state is cleared before the bounded row pass');
+  assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.completedRoster, null, 'Passive top-bar evidence cannot create a verified account cache');
 }
 
 // The HUD ShowEscapeMenu class gates work; closing cancels one generation and reopening starts the next.

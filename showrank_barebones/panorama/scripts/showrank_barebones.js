@@ -292,12 +292,19 @@
         }
     }
     function clearTopbars(shared) {
-        var scan;
+        var roots;
+        var index;
+        var target;
         if (!shared) {
             return;
         }
-        scan = scanEscapeTopbars(findByClass(shared.documentRoot, TOPBAR_PLAYER_CLASS));
-        clearTopbarRecords(scan.targets);
+        roots = findByClass(shared.documentRoot, TOPBAR_PLAYER_CLASS);
+        for (index = 0; roots && index < roots.length; index += 1) {
+            target = rankTarget(roots[index], "ShowRankBarebonesTopbarRankImage");
+            if (target) {
+                setRankImage(target, null);
+            }
+        }
         clearTeamAverages(shared.documentRoot);
         shared.escapeRendered = false;
     }
@@ -1158,15 +1165,18 @@
             stableSamples: 0
         } : null;
     }
-    function buildTopbarRecord(panel) {
+    function buildTopbarRecord(panel, rankImage) {
         var heroLabels = findByClass(panel, "HeroName");
         var heroLabel = heroLabels && heroLabels.length === 1 ? heroLabels[0]: null;
-        var rankImage = findChild(panel, "ShowRankBarebonesTopbarRankImage", "Image");
+        if (rankImage === undefined) {
+            rankImage = findChild(panel, "ShowRankBarebonesTopbarRankImage", "Image");
+        }
         return isValid(panel) && isValid(heroLabel) && isValid(rankImage) ? {
             root: panel,
             heroLabel: heroLabel,
             rankImage: rankImage,
             hero: "",
+            teamSide: "",
             shownAccount: null
         } : null;
     }
@@ -1237,38 +1247,102 @@
             counts: counts
         };
     }
-    function scanEscapeTopbars(roots) {
-        var topbars = [];
+    function readTopbarEvidenceSnapshot(roots) {
+        var candidates = [];
         var targets = [];
+        var heroCounts = Object.create(null);
+        var duplicateHeroes = Object.create(null);
+        var uniqueHeroCount = 0;
         var index;
         var record;
         var target;
-        for (index = 0; roots && index < roots.length; index += 1) {
+        var hero;
+        roots = roots || [];
+        for (index = 0; index < roots.length; index += 1) {
             target = rankTarget(roots[index], "ShowRankBarebonesTopbarRankImage");
             if (target) {
                 targets.push(target);
             }
-            record = buildTopbarRecord(roots[index]);
-            if (record) {
-                topbars.push(record);
+            record = buildTopbarRecord(roots[index], target ? target.rankImage: null);
+            if (!record) {
+                continue;
+            }
+            hero = refreshTopbar(record);
+            record.hero = hero;
+            candidates.push(record);
+            if (!heroCounts[hero]) {
+                heroCounts[hero] = 1;
+                if (hero) {
+                    uniqueHeroCount += 1;
+                }
+            } else {
+                heroCounts[hero] += 1;
+                if (hero) {
+                    duplicateHeroes[hero] = true;
+                }
             }
         }
         return {
-            records: topbars,
-            targets: targets
+            candidates: candidates,
+            targets: targets,
+            heroCounts: heroCounts,
+            duplicateHeroes: duplicateHeroes,
+            uniqueHeroCount: uniqueHeroCount,
+            topbarCount: candidates.length,
+            teamSideCandidates: {
+                "friendly": [],
+                "enemy": []
+            },
+            sideFactsRead: false,
+            allTeamSidesKnown: false,
+            readiness: {
+                rankTargetsReady: candidates.length === roots.length && targets.length === roots.length,
+                completeUniqueTopbarRoster: candidates.length > 0 && uniqueHeroCount === candidates.length,
+                teamSidesReady: false
+            }
         };
     }
-    function indexTopbarHeroes(topbars, rowCounts, accounts) {
-        var counts = Object.create(null);
-        var unique = topbars.length > 0;
+    function hydrateTopbarSideEvidence(snapshot) {
+        var candidates;
+        var index;
+        var side;
+        if (!snapshot || snapshot.sideFactsRead) {
+            return !!(snapshot && snapshot.allTeamSidesKnown);
+        }
+        snapshot.sideFactsRead = true;
+        snapshot.allTeamSidesKnown = true;
+        candidates = snapshot.candidates;
+        for (index = 0; index < candidates.length; index += 1) {
+            side = detectTopbarTeamSide(candidates[index].root);
+            candidates[index].teamSide = side;
+            if (side === "friendly" || side === "enemy") {
+                snapshot.teamSideCandidates[side].push(candidates[index]);
+            } else {
+                snapshot.allTeamSidesKnown = false;
+            }
+        }
+        snapshot.readiness.teamSidesReady = snapshot.allTeamSidesKnown &&
+            snapshot.teamSideCandidates["friendly"].length === TEAM_AVERAGE_ACCOUNTS &&
+            snapshot.teamSideCandidates["enemy"].length === TEAM_AVERAGE_ACCOUNTS;
+        return snapshot.allTeamSidesKnown;
+    }
+    function indexTopbarEvidence(snapshot, rowCounts, accounts) {
+        var candidates = snapshot.candidates;
+        var counts = snapshot.heroCounts;
+        var unique = snapshot.readiness.completeUniqueTopbarRoster;
         var index;
         var hero;
-        for (index = 0; index < topbars.length; index += 1) {
-            hero = refreshTopbar(topbars[index]);
-            if (!hero || counts[hero] || accounts && !accounts[hero]) {
+        for (hero in snapshot.duplicateHeroes) {
+            if (Object.prototype.hasOwnProperty.call(snapshot.duplicateHeroes, hero)) {
+                unique = false;
+                break;
+            }
+        }
+        for (index = 0; index < candidates.length; index += 1) {
+            hero = candidates[index].hero;
+            if (accounts && !accounts[hero]) {
                 unique = false;
             }
-            counts[hero] = (counts[hero] || 0) + 1;
         }
         if (!unique || !rowCounts) {
             return {
@@ -1297,25 +1371,28 @@
         var rowRoots = findByClass(documentRoot, PLAYER_ROW_CLASS);
         var topbarRoots = findByClass(documentRoot, TOPBAR_PLAYER_CLASS);
         var rowScan = scanEscapeRows(rowRoots, preservedRows);
-        var topbarScan;
+        var topbarEvidence;
         var topbarIndex;
         if (topbarRoots === null) {
             return {
                 rows: rowScan.rows,
                 topbars: null,
                 topbarTargets: null,
+                topbarEvidence: null,
                 supported: false,
                 topbarsUnique: false,
                 rowsCoverTopbars: false
             };
         }
-        topbarScan = scanEscapeTopbars(topbarRoots);
-        topbarIndex = indexTopbarHeroes(topbarScan.records, rowScan.counts);
+        topbarEvidence = readTopbarEvidenceSnapshot(topbarRoots);
+        topbarIndex = indexTopbarEvidence(topbarEvidence, rowScan.counts);
         return {
             rows: rowScan.rows,
-            topbars: topbarScan.records,
-            topbarTargets: topbarScan.targets,
-            supported: topbarScan.records.length === 6 || topbarScan.records.length === 12,
+            topbars: topbarEvidence.candidates,
+            topbarTargets: topbarEvidence.targets,
+            topbarEvidence: topbarEvidence,
+            supported: topbarEvidence.readiness.rankTargetsReady &&
+                (topbarEvidence.topbarCount === 6 || topbarEvidence.topbarCount === 12),
             topbarsUnique: topbarIndex.unique,
             rowsCoverTopbars: topbarIndex.rowsCoverTopbars
         };
@@ -1415,8 +1492,12 @@
         if (!session.roster || session.roster.topbars.length !== 12 || writes.length !== 12) {
             return null;
         }
+        if (!hydrateTopbarSideEvidence(session.roster.topbarEvidence) ||
+            !session.roster.topbarEvidence.readiness.teamSidesReady) {
+            return null;
+        }
         for (index = 0; index < writes.length; index += 1) {
-            side = detectTopbarTeamSide(writes[index].record.root);
+            side = writes[index].record.teamSide;
             account = writes[index].account;
             if ((side !== "friendly" && side !== "enemy") || seen[side][account]) {
                 return null;
@@ -1483,14 +1564,11 @@
             rowCounts: rowCounts
         };
     }
-    function currentTopbarHero(record) {
-        return isValid(record.root) && isValid(record.heroLabel) && isValid(record.rankImage) ?
-            normalizeHero(readText(record.heroLabel)): "";
-    }
     function appendRosterWrite(session, state, record) {
-        var hero = currentTopbarHero(record);
+        var hero = isValid(record.root) && isValid(record.heroLabel) && isValid(record.rankImage) ?
+            record.hero: "";
         var account;
-        if (!hero || hero !== record.hero) {
+        if (!hero) {
             return "stale";
         }
         if (state.seenHeroes[hero]) {
@@ -1600,7 +1678,8 @@
         for (index = 0; index < plan.writes.length; index += 1) {
             record = plan.writes[index].record;
             if (!isValid(record.root) || !isValid(record.heroLabel) || !isValid(record.rankImage) ||
-                normalizeHero(readText(record.heroLabel)) !== plan.writes[index].hero) {
+                normalizeHero(readText(record.heroLabel)) !== plan.writes[index].hero ||
+                plan.average && !session.cacheReplay && detectTopbarTeamSide(record.root) !== record.teamSide) {
                 return false;
             }
         }
@@ -1663,7 +1742,7 @@
         if (session.finished || !escapeIsCurrent(session, session.token)) {
             return;
         }
-        result = renderRoster(session, true);
+        result = session.lastPlan && session.lastPlan.cached ? "applied": renderRoster(session, true);
         session.finished = true;
         shared.completedRoster = result === "applied" && session.lastPlan && session.lastPlan.cached ?
             session.lastPlan.cached: null;
@@ -1770,29 +1849,27 @@
     }
     function readCompletedTopbars(shared) {
         var roots = findByClass(shared.documentRoot, TOPBAR_PLAYER_CLASS);
-        var scan;
+        var evidence;
         var cached = shared.completedRoster;
         var accounts = Object.create(null);
         var seenAccounts = Object.create(null);
         var index;
         var hero;
         var account;
-        var records;
-        var topbarTargets;
         if (roots === null) {
             return {
                 topbars: null,
                 topbarTargets: null,
+                topbarEvidence: null,
                 accounts: null
             };
         }
-        scan = scanEscapeTopbars(roots);
-        records = scan.records;
-        topbarTargets = scan.targets;
-        if (!cached || records.length !== cached.length) {
+        evidence = readTopbarEvidenceSnapshot(roots);
+        if (!cached || evidence.candidates.length !== cached.length) {
             return {
-                topbars: records,
-                topbarTargets: topbarTargets,
+                topbars: evidence.candidates,
+                topbarTargets: evidence.targets,
+                topbarEvidence: evidence,
                 accounts: null
             };
         }
@@ -1801,24 +1878,27 @@
             account = canonicalAccountOrNull(cached[index].account);
             if (!hero || !account || accounts[hero] || seenAccounts[account]) {
                 return {
-                    topbars: records,
-                    topbarTargets: topbarTargets,
+                    topbars: evidence.candidates,
+                    topbarTargets: evidence.targets,
+                    topbarEvidence: evidence,
                     accounts: null
                 };
             }
             accounts[hero] = account;
             seenAccounts[account] = true;
         }
-        if (!indexTopbarHeroes(records, null, accounts).unique) {
+        if (!indexTopbarEvidence(evidence, null, accounts).unique) {
             return {
-                topbars: records,
-                topbarTargets: topbarTargets,
+                topbars: evidence.candidates,
+                topbarTargets: evidence.targets,
+                topbarEvidence: evidence,
                 accounts: null
             };
         }
         return {
-            topbars: records,
-            topbarTargets: topbarTargets,
+            topbars: evidence.candidates,
+            topbarTargets: evidence.targets,
+            topbarEvidence: evidence,
             accounts: accounts
         };
     }
@@ -1840,6 +1920,7 @@
                 rows: [],
                 topbars: current.topbars,
                 topbarTargets: current.topbarTargets,
+                topbarEvidence: current.topbarEvidence,
                 supported: true,
                 topbarsUnique: true
             },

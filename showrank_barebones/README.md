@@ -8,6 +8,8 @@ The dashboard profile page also includes `Stats vs Community` for the viewed acc
 
 The comparison implementation lives in `profile_stats_community/panorama/scripts/profile_stats_community.js` and `profile_stats_community/panorama/styles/profile_stats_community.css`. Its private viewed-profile identity policy lives in `scripts/viewed-profile-identity-policy.js`. The barebones runtime and stylesheet contain host placeholders. `scripts/profile-stats-community-composition.js` resolves them in tests and in the staged build. Do not copy the canonical implementation back into the barebones files.
 
+The barebones host owns one private top-bar evidence snapshot per Escape or cache-replay read pass. The snapshot records the passive `HeroName`, rank target, duplicate-hero facts, and—only when a twelve-player average is ready to plan—team-side ancestry. Roster planning, cache replay, and average planning consume that same snapshot; one failed freshness check permits one bounded rescan. Top-bar evidence never creates an account ID. `accountByHero` still comes only from a direct profile witness or the previously verified pure `{ hero, account }` cache.
+
 
 ## Build
 
