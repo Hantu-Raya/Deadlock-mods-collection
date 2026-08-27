@@ -64,6 +64,32 @@ assert.match(build, new RegExp(`Get-${helperPrefix}PackedAssetPaths`), 'builder 
 assert.match(build, /Join-Path \$AddonsPath 'pak89_dir\.vpk'/, 'optional installation targets only the mutually exclusive pak89 destination');
 assert.match(build, /Get-Process -Name 'deadlock'/, 'optional installation refuses a running game');
 assert.doesNotMatch(build, /showrank_common|topbar_rank_v40_hud|validate-topbar-rank|qollock|showrank_probe/i, 'builder has no old ShowRank bridge, combined HUD, validator, or probe dependency');
+assert.match(build, /\$compositionScript\s*=\s*Join-Path \$root 'scripts\\profile-stats-community-composition\.js'/, 'builder resolves the shared profile composition helper');
+assert.match(build, /npm --prefix \$projectRoot run validate/, 'builder validates the source package before staging');
+assert.match(build, /node \$compositionScript '--host-root' \$projectRoot \$stageSource/, 'staged source composes the current alert runtime and style templates');
+assert.match(build, /Composed Topbar Rank source/, 'builder validates the composed source inventory');
+assert.match(build, new RegExp(`function Invoke-${helperPrefix}ClosureMinification`), 'builder owns an edition-scoped Closure helper');
+assert.match(build, /& npx --yes google-closure-compiler --js \$StagedSourcePath --js_output_file \$minifiedPath --externs \$externsPath --compilation_level ADVANCED --language_in ECMASCRIPT5 --language_out ECMASCRIPT5 --warning_level QUIET/, 'builder Closure-minifies the composed runtime with ADVANCED ES5 settings');
+assert.match(build, /\$minifiedBytes -lt 512/, 'implausibly small Closure output fails closed');
+assert.match(build, /\$minifiedBytes -ge \$readableBytes/, 'Closure output that is not smaller fails closed');
+assert.match(build, /& node --check \$minifiedPath/, 'Closure output receives a syntax check');
+assert.match(build, /\$readableRuntime = Join-Path \$buildRoot '[^']+\.readable\.js'/, 'builder retains the composed readable runtime outside staged assets');
+assert.match(build, /\$stagedRuntime = Join-Path \$stageSource 'panorama\\scripts\\showrank_barebones\.js'/, 'builder targets only the staged Barebones runtime');
+assert.match(build, /Invoke-[A-Za-z]+ClosureMinification -ReadableSourcePath \$readableRuntime -StagedSourcePath \$stagedRuntime/, 'builder minifies before Source 2 compilation');
+assert.match(build, /\$env:SHOWRANK_BAREBONES_RUNTIME = \$stagedRuntime[\s\S]*?showrank-barebones-runtime\.test\.js[\s\S]*?profile-stats-community-runtime\.test\.js/, 'both runtime adapters execute the minified staged source');
+for (const fragment of [
+  'ShowRankBarebonesRefresh',
+  'ShowRankBarebonesOpenStatlocker',
+  'ShowRankBarebonesOpenPlayerProfile',
+  'ShowRankBarebonesCopyAccount',
+  'ShowRankBarebonesEscapeOpen',
+  'ShowRankBarebonesEscapeOut',
+]) assert.ok(build.includes(`'${fragment}'`), `Closure output must retain ${fragment}`);
+if (ALERT_EDITION) {
+  assert.ok(build.includes("'ShowRankBarebonesMissingWindowExpired'"), 'alert Closure output retains the missing-window class');
+} else {
+  assert.doesNotMatch(build, /ShowRankBarebonesMissingWindowExpired/, 'no-missing Closure guards contain no alert-only fragment');
+}
 
 if (ALERT_EDITION) {
   assert.doesNotMatch(build, /topbar_rank_no_missing|topbar_rank_barebones_no_missing_dir/i, 'alert builder has no rank-only project or artifact reference');
@@ -73,7 +99,7 @@ if (ALERT_EDITION) {
 
 assert.strictEqual(
   packageJson.scripts.test,
-  'node tests/showrank-barebones-runtime.test.js && node tests/topbar-rank-contract.test.js && node tests/topbar-rank-build-contract.test.js',
+  'node tests/showrank-barebones-runtime.test.js && node tests/profile-stats-community-runtime.test.js && node tests/topbar-rank-contract.test.js && node tests/topbar-rank-build-contract.test.js',
   'npm test runs runtime identity/cache contracts before integration and build contracts',
 );
 assert.strictEqual(

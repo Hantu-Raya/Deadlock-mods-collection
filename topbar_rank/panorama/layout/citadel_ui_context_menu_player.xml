@@ -124,5 +124,8 @@
 				</Panel>
 			</Panel>
 		</Panel>
+		<Panel id="ProfileStatsCommunityPlayerProfileRow" class="MenuRow">
+			<TextButton id="MenuButton" text="Player Profile" onactivate="if ($('#ProfileCard').ShowRankBarebonesOpenPlayerProfile) $('#ProfileCard').ShowRankBarebonesOpenPlayerProfile();" />
+		</Panel>
 	</CitadelContextMenuPlayer>
 </root>

@@ -1,0 +1,143 @@
+CitadelHudTopBarPlayer,
+#PlayerDetailsContainer,
+#HeroContents
+{
+	overflow: noclip;
+}
+
+.ShowRankBarebonesProfileCard #ShowRankBarebonesRankImage
+{
+	width: 88px;
+	height: 66px;
+	horizontal-align: right;
+	vertical-align: top;
+	margin-top: 32px;
+	margin-right: -2px;
+	z-index: 2;
+	ignore-parent-flow: true;
+}
+
+CitadelTooltipProfileCard .ShowRankBarebonesProfileCard #ShowRankBarebonesRankImage
+{
+	width: 68px;
+	height: 51px;
+	margin-top: 0px;
+	pre-transform-scale2d: 1;
+	overflow: noclip;
+}
+
+CitadelContextMenuPlayer .ShowRankBarebonesProfileCard #ShowRankBarebonesRankImage
+{
+	width: 68px;
+	height: 51px;
+	margin-top: 0px;
+	margin-right: 8px;
+	pre-transform-scale2d: 1;
+	overflow: noclip;
+}
+
+CitadelHudTopBarPlayer #ShowRankBarebonesTopbarRankImage
+{
+	width: 48px;
+	height: 31px;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 62px;
+	z-index: 60;
+	ignore-parent-flow: true;
+	overflow: noclip;
+}
+
+.ShowRankBarebonesTeamAverageLayer
+{
+	width: 300px;
+	height: 84px;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 118px;
+	z-index: 35;
+	ignore-parent-flow: true;
+	overflow: noclip;
+}
+
+.ShowRankBarebonesTeamAverageRankImage
+{
+	width: 92px;
+	height: 60px;
+	vertical-align: top;
+	z-index: 35;
+	visibility: collapse;
+	opacity: 0;
+	ignore-parent-flow: true;
+}
+
+.wants_scoreboard .ShowRankBarebonesTeamAverageRankImage.ShowRankBarebonesTeamAverageRankVisible,
+.gScoreboardOpen .ShowRankBarebonesTeamAverageRankImage.ShowRankBarebonesTeamAverageRankVisible
+{
+	visibility: visible;
+	opacity: 1;
+}
+
+.ShowRankBarebonesTeamAverageFriendlyImage
+{
+	horizontal-align: left;
+	margin-left: 26px;
+}
+
+.ShowRankBarebonesTeamAverageEnemyImage
+{
+	horizontal-align: right;
+	margin-right: 26px;
+}
+
+CitadelPlayersListEntry #MainContents
+{
+	overflow: noclip;
+}
+
+CitadelPlayersListEntry .ShowRankBarebonesPlayerListRankImage
+{
+	width: 72px;
+	height: 47px;
+	horizontal-align: right;
+	vertical-align: middle;
+	margin-right: 12px;
+	ignore-parent-flow: true;
+	overflow: noclip;
+	z-index: 10;
+}
+
+
+.ShowRankBarebonesProfilePage #ProfileInfo
+{
+	min-width: 190px;
+	overflow: noclip;
+}
+
+.ShowRankBarebonesProfilePage #ShowRankBarebonesProfilePageRankHost
+{
+	width: 90px;
+	height: 70px;
+	margin-left: 200px;
+	margin-top: -10px;
+	horizontal-align: left;
+	vertical-align: top;
+	ignore-parent-flow: true;
+	overflow: noclip;
+}
+
+.ShowRankBarebonesProfilePage #ShowRankBarebonesProfilePageRankImage
+{
+	width: 88px;
+	height: 66px;
+	horizontal-align: center;
+	vertical-align: center;
+}
+
+.ShowRankBarebonesProfilePage #ForumButton
+{
+	visibility: collapse;
+}
+
+
+/* PROFILE_STATS_COMMUNITY_STYLES: profile_stats_community/panorama/styles/profile_stats_community.css */

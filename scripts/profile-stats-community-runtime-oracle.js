@@ -185,13 +185,14 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
       "ProfileStatsCommunityDisplayCommunity", "ProfileStatsCommunityDisplayPercentile",
       "ProfileStatsCommunityCommunityHeadingLeft", "ProfileStatsCommunityPercentileHeadingLeft",
       "ProfileStatsCommunityCommunityHeadingRight", "ProfileStatsCommunityPercentileHeadingRight",
-      "PSCGroupCombatPercentile", "PSCGroupKillsPercentile", "PSCGroupSurvivalPercentile",
-      "PSCGroupDamagePercentile", "PSCGroupEconomyPercentile", "PSCGroupSustainPercentile"
+      "PSCGroupPerformancePercentile", "PSCGroupScoreboardPercentile", "PSCGroupAccuracyKdPercentile",
+      "PSCGroupDamagePercentile", "PSCGroupEconomyPercentile", "PSCGroupHealingPercentile"
     ];
     var metricIds = [
-      "Kd", "Kda", "AverageKills", "AverageAssists", "AverageDeaths", "DamageTakenPerMinute",
-      "PlayerDamagePerMinute", "Accuracy", "CriticalHitRate", "BossDamagePerMinute",
-      "NetWorthPerMinute", "HealingPerMinute"
+      "Kda", "KillsPlusAssists", "PlayerDamagePerHealth", "AverageKills", "AverageDeaths",
+      "AverageAssists", "Accuracy", "CriticalHitRate", "Kd", "PlayerDamagePerMinute",
+      "DamageTakenPerMinute", "ObjectiveDamagePerMinute", "NetWorthPerMinute", "AverageLastHits",
+      "AverageDenies", "SelfHealingPerMinute", "PlayerHealingPerMinute", "HealPrevented"
     ];
     var root = new Panel("root");
     root.paneltype = runtimeAdapter.contextPanelType || "";
@@ -306,25 +307,61 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
       stockSectionName: stockSectionName
     };
   }
-
   var metricPanelSuffixes = {
-    kd: "Kd",
     kda: "Kda",
+    kills_plus_assists: "KillsPlusAssists",
+    player_damage_per_health: "PlayerDamagePerHealth",
     average_kills: "AverageKills",
-    average_assists: "AverageAssists",
     average_deaths: "AverageDeaths",
-    damage_taken_per_minute: "DamageTakenPerMinute",
-    player_damage_per_minute: "PlayerDamagePerMinute",
+    average_assists: "AverageAssists",
     accuracy: "Accuracy",
     critical_hit_rate: "CriticalHitRate",
-    boss_damage_per_minute: "BossDamagePerMinute",
+    kd: "Kd",
+    player_damage_per_minute: "PlayerDamagePerMinute",
+    damage_taken_per_minute: "DamageTakenPerMinute",
+    objective_damage_per_minute: "ObjectiveDamagePerMinute",
     net_worth_per_minute: "NetWorthPerMinute",
-    healing_per_minute: "HealingPerMinute"
+    average_last_hits: "AverageLastHits",
+    average_denies: "AverageDenies",
+    self_healing_per_minute: "SelfHealingPerMinute",
+    player_healing_per_minute: "PlayerHealingPerMinute",
+    heal_prevented: "HealPrevented"
+  };
+  var groupPanelSuffixes = {
+    performance: "Performance",
+    scoreboard: "Scoreboard",
+    accuracy_kd: "AccuracyKd",
+    damage: "Damage",
+    economy: "Economy",
+    healing: "Healing"
+  };
+  var ratioMetricIds = {
+    kda: true,
+    player_damage_per_health: true,
+    kd: true
+  };
+  var percentMetricIds = {
+    accuracy: true,
+    critical_hit_rate: true
+  };
+  var excludedFromGroupAverage = {
+    damage_taken_per_minute: true
   };
 
-  function badgeText(value) {
+  function formatMetricValue(id, value) {
+    if (value === null || value === undefined) return "—";
+    if (percentMetricIds[id]) return (value * 100).toFixed(1) + "%";
+    if (ratioMetricIds[id]) return value.toFixed(2);
+    if (Math.abs(value) >= 10000) return (value / 1000).toFixed(1) + "k";
+    return value.toFixed(1);
+  }
+
+  function badgeText(value, kind) {
     var displayed;
     if (value === null || value === undefined) return "—";
+    if (kind === "higher_lower") {
+      return (value >= 50 ? "HIGHER " : "LOWER ") + String(Math.round(value)) + "%";
+    }
     displayed = value >= 50 ? 100 - value : value;
     return (value >= 50 ? "TOP " : "BOTTOM ") + String(Math.max(1, Math.round(displayed))) + "%";
   }
@@ -336,19 +373,19 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
 
   function payloadFor(request, sample, matches, mode, account) {
     var groups = [
-      ["combat", ["kd", "kda"]],
-      ["kills", ["average_kills", "average_assists"]],
-      ["survival", ["average_deaths", "damage_taken_per_minute"]],
-      ["damage", ["player_damage_per_minute", "accuracy", "critical_hit_rate", "boss_damage_per_minute"]],
-      ["economy", ["net_worth_per_minute"]],
-      ["sustain", ["healing_per_minute"]]
+      ["performance", ["kda", "kills_plus_assists", "player_damage_per_health"]],
+      ["scoreboard", ["average_kills", "average_deaths", "average_assists"]],
+      ["accuracy_kd", ["accuracy", "critical_hit_rate", "kd"]],
+      ["damage", ["player_damage_per_minute", "damage_taken_per_minute", "objective_damage_per_minute"]],
+      ["economy", ["net_worth_per_minute", "average_last_hits", "average_denies"]],
+      ["healing", ["self_healing_per_minute", "player_healing_per_minute", "heal_prevented"]]
     ];
     var metricSerial = 0;
     matches = matches || 50;
     mode = mode || "ranked";
     account = account || 42;
     return {
-      v: 3,
+      v: 4,
       kind: "profile_stats",
       request: request,
       account: account,
@@ -360,8 +397,10 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
         return {
           id: group[0],
           metrics: group[1].map(function (id) {
+            var value;
             metricSerial += 1;
-            return { id: id, player: metricSerial + 0.25, community: metricSerial + 0.5, percentile: 10 + (metricSerial * 5) };
+            value = percentMetricIds[id] ? 0.2 + (metricSerial / 100) : metricSerial + 0.25;
+            return [id, value, value + 0.25, 10 + (metricSerial * 5)];
           })
         };
       })
@@ -372,19 +411,27 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     payload.groups.forEach(function (group) {
       var total = 0;
       var count = 0;
+      var complete = true;
       group.metrics.forEach(function (metric) {
-        var suffix = metricPanelSuffixes[metric.id];
+        var id = metric[0];
+        var suffix = metricPanelSuffixes[id];
         var percentilePanel = map["PSCMetric" + suffix + "Percentile"];
-        assert.equal(map["PSCMetric" + suffix + "Player"].text, String(metric.player), metric.id + " player value");
-        assert.equal(map["PSCMetric" + suffix + "Community"].text, String(metric.community), metric.id + " community value");
-        assert.equal(percentilePanel.text, badgeText(metric.percentile), metric.id + " percentile badge");
-        assert.equal(percentilePanel.BHasClass(badgeClass(metric.percentile)), true, metric.id + " percentile class");
-        if (metric.percentile !== null) {
-          total += metric.percentile;
-          count += 1;
+        var kind = id === "damage_taken_per_minute" ? "higher_lower" : "top_bottom";
+        assert.equal(map["PSCMetric" + suffix + "Player"].text, formatMetricValue(id, metric[1]), id + " player value");
+        assert.equal(map["PSCMetric" + suffix + "Community"].text, formatMetricValue(id, metric[2]), id + " community value");
+        assert.equal(percentilePanel.text, badgeText(metric[3], kind), id + " percentile badge");
+        assert.equal(percentilePanel.BHasClass(badgeClass(metric[3])), true, id + " percentile class");
+        if (!excludedFromGroupAverage[id]) {
+          if (metric[3] === null) {
+            complete = false;
+          } else {
+            total += metric[3];
+            count += 1;
+          }
         }
       });
-      assert.equal(map["PSCGroup" + group.id.charAt(0).toUpperCase() + group.id.substring(1) + "Percentile"].text, badgeText(count ? total / count : null), group.id + " average percentile");
+      assert.equal(map["PSCGroup" + groupPanelSuffixes[group.id] + "Percentile"].text,
+        badgeText(complete && count ? total / count : null, "top_bottom"), group.id + " average percentile");
     });
   }
 
@@ -601,7 +648,7 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
           "DLSTATS2:" + JSON.stringify(payloadFor(request, 10)));
       } else if (states[index] === "error") {
         stateHarness.bridge.events.HTMLTitle(stateHarness.bridge, "DLSTATS2:" + JSON.stringify({
-          v: 3,
+          v: 4,
           kind: "error",
           request: request,
           account: 42,
@@ -702,7 +749,7 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     requestUrl = bridge.urls.at(-1);
     request = requestFromUrl(requestUrl);
     errorTitle = "DLSTATS2:" + JSON.stringify({
-      v: 3,
+      v: 4,
       kind: "error",
       request: request,
       account: 42,
@@ -739,7 +786,7 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     var request;
     var title;
     var encodedUrl;
-    var replacementKdPlayer;
+    var replacementKdaPlayer;
     var payload;
     harness.map.ProfileStatsCommunityButton.events.onactivate();
     assert.equal(harness.map.StatsTitle.visible, true, "stock title remains mounted and visible");
@@ -755,20 +802,20 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     assert.match(firstUrl, /^https:\/\/hantu-raya\.github\.io\/deadlock-stats-bridge\/bridge\.html\?/);
     assert.equal(queryValue(firstUrl, "matches"), "50");
     assert.equal(queryValue(firstUrl, "mode"), "ranked");
-    assert.equal(queryValue(firstUrl, "protocol"), "3");
+    assert.equal(queryValue(firstUrl, "protocol"), "4");
     assert.equal(bridge.ignoreCursor, true);
     assert.match(harness.map.ProfileStatsCommunityStatus.text, /Loading/);
     bridge.events.HTMLURLChanged(bridge, firstUrl);
     assert.match(harness.map.ProfileStatsCommunityStatus.text, /Loading/, "initial bridge URL does not finish the request");
-    harness.map.PSCMetricKdPlayer.valid = false;
-    replacementKdPlayer = new Panel("PSCMetricKdPlayer");
-    replacementKdPlayer.rootMap = harness.map;
-    harness.map.PSCMetricKdPlayer = replacementKdPlayer;
+    harness.map.PSCMetricKdaPlayer.valid = false;
+    replacementKdaPlayer = new Panel("PSCMetricKdaPlayer");
+    replacementKdaPlayer.rootMap = harness.map;
+    harness.map.PSCMetricKdaPlayer = replacementKdaPlayer;
     payload = payloadFor(request, 7);
     title = "DLSTATS2:" + JSON.stringify(payload);
     encodedUrl = firstUrl + "#" + harness.context.encodeURIComponent(title);
     bridge.events.HTMLTitle(bridge, title);
-    assert.equal(replacementKdPlayer.text, "1.25", "render resolves a metric label replaced after boot");
+    assert.equal(replacementKdaPlayer.text, "1.25", "render resolves a metric label replaced after boot");
     assertRenderedPayload(harness.map, payload);
     assert.equal(harness.map.ProfileStatsCommunitySample.text, "Ranked sample: 7 / 50");
     assert.equal(harness.map.ProfileStatsCommunityMetrics.style.visibility, "visible");
@@ -776,7 +823,7 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     assert.equal(bridge.urls[bridge.urls.length - 1], "about:blank");
     bridge.events.HTMLURLChanged(bridge, encodedUrl);
     bridge.events.HTMLTitle(bridge, title);
-    assert.equal(harness.map.PSCMetricKdPlayer.text, "1.25", "duplicate title and URL delivery is inert");
+    assert.equal(harness.map.PSCMetricKdaPlayer.text, "1.25", "duplicate title and URL delivery is inert");
   });
 
   test("percentile badges render TOP/BOTTOM states and category means", function () {
@@ -787,23 +834,52 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     harness.map.ProfileStatsCommunityButton.events.onactivate();
     request = requestFromUrl(bridge.urls[bridge.urls.length - 1]);
     payload = payloadFor(request, 12);
-    payload.groups[0].metrics[0].player = null;
-    payload.groups[0].metrics[0].percentile = null;
-    payload.groups[0].metrics[1].percentile = 74.6;
+    payload.groups[0].metrics[0][1] = null;
+    payload.groups[0].metrics[0][3] = null;
+    payload.groups[0].metrics[1][3] = 74.6;
     bridge.events.HTMLTitle(bridge, "DLSTATS2:" + JSON.stringify(payload));
-    assert.equal(harness.map.PSCMetricKdPercentile.text, "—");
-    assert.equal(harness.map.PSCMetricKdPercentile.BHasClass("ProfileStatsCommunityPercentileUnavailable"), true);
-    assert.equal(harness.map.PSCMetricKdPlayer.text, "—");
-    assert.equal(harness.map.PSCMetricKdPlayer.BHasClass("ProfileStatsCommunityValueUnavailable"), true);
-    assert.equal(harness.map.PSCMetricKdaPercentile.text, "TOP 25%");
-    assert.equal(harness.map.PSCMetricKdaPercentile.BHasClass("ProfileStatsCommunityPercentileTop"), true);
-    assert.equal(harness.map.PSCGroupCombatPercentile.text, "TOP 25%");
-    assert.equal(harness.map.PSCGroupCombatPercentile.BHasClass("ProfileStatsCommunityPercentileTop"), true);
+    assert.equal(harness.map.PSCMetricKdaPercentile.text, "—");
+    assert.equal(harness.map.PSCMetricKdaPercentile.BHasClass("ProfileStatsCommunityPercentileUnavailable"), true);
+    assert.equal(harness.map.PSCMetricKdaPlayer.text, "—");
+    assert.equal(harness.map.PSCMetricKdaPlayer.BHasClass("ProfileStatsCommunityValueUnavailable"), true);
+    assert.equal(harness.map.PSCMetricKillsPlusAssistsPercentile.text, "TOP 25%");
+    assert.equal(harness.map.PSCMetricKillsPlusAssistsPercentile.BHasClass("ProfileStatsCommunityPercentileTop"), true);
+    assert.equal(harness.map.PSCGroupPerformancePercentile.text, "—");
+    assert.equal(harness.map.PSCGroupPerformancePercentile.BHasClass("ProfileStatsCommunityPercentileUnavailable"), true);
     assert.equal(harness.map.ProfileStatsCommunityPercentile, undefined, "runtime does not render an overall percentile");
   });
+ 
+  test("damage-taken percentile stays raw and group means require every included metric", function () {
+    var harness = makeHarness("42");
+    var bridge = harness.bridge;
+    var request;
+    var payload;
+    var incompleteHarness;
+    var incompleteBridge;
+    var incompleteRequest;
+    var incompletePayload;
 
+    harness.map.ProfileStatsCommunityButton.events.onactivate();
+    request = requestFromUrl(bridge.urls[bridge.urls.length - 1]);
+    payload = payloadFor(request, 12);
+    payload.groups[3].metrics[1][3] = 99;
+    bridge.events.HTMLTitle(bridge, "DLSTATS2:" + JSON.stringify(payload));
+    assert.equal(harness.map.PSCMetricDamageTakenPerMinutePercentile.text, "HIGHER 99%");
+    assert.equal(harness.map.PSCGroupDamagePercentile.text, "TOP 35%");
 
-  test("comparison toggle defaults to TOP %, switches every row without a request, and switches back", function () {
+    incompleteHarness = makeHarness("42");
+    incompleteBridge = incompleteHarness.bridge;
+    incompleteHarness.map.ProfileStatsCommunityButton.events.onactivate();
+    incompleteRequest = requestFromUrl(incompleteBridge.urls[incompleteBridge.urls.length - 1]);
+    incompletePayload = payloadFor(incompleteRequest, 12);
+    incompletePayload.groups[3].metrics[0][3] = null;
+    incompleteBridge.events.HTMLTitle(incompleteBridge, "DLSTATS2:" + JSON.stringify(incompletePayload));
+    assert.equal(incompleteHarness.map.PSCGroupDamagePercentile.text, "—");
+    assert.equal(incompleteHarness.map.PSCGroupDamagePercentile.BHasClass("ProfileStatsCommunityPercentileUnavailable"), true);
+  });
+ 
+ 
+  test("comparison toggle defaults to PERCENTILE, switches every row without a request, and switches back", function () {
     var harness = makeHarness("42");
     var bridge = harness.bridge;
     var request;
@@ -813,29 +889,29 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     var pendingBefore;
     var groupBadgeTexts;
     var metricIds = Object.keys(metricPanelSuffixes);
-    var groupIds = ["combat", "kills", "survival", "damage", "economy", "sustain"];
+    var groupIds = ["performance", "scoreboard", "accuracy_kd", "damage", "economy", "healing"];
 
     harness.map.ProfileStatsCommunityButton.events.onactivate();
     request = requestFromUrl(bridge.urls[bridge.urls.length - 1]);
     payload = payloadFor(request, 12);
-    payload.groups[0].metrics[0].percentile = 75;
-    payload.groups[0].metrics[1].percentile = 48;
+    payload.groups[0].metrics[0][3] = 75;
+    payload.groups[0].metrics[1][3] = 48;
     bridge.events.HTMLTitle(bridge, "DLSTATS2:" + JSON.stringify(payload));
 
     urlsAfterRender = bridge.urls.slice();
     scheduledBefore = harness.scheduler.scheduledCount;
     pendingBefore = harness.scheduler.pendingCount();
     groupBadgeTexts = groupIds.map(function (groupId) {
-      return harness.map["PSCGroup" + groupId.charAt(0).toUpperCase() + groupId.substring(1) + "Percentile"].text;
+      return harness.map["PSCGroup" + groupPanelSuffixes[groupId] + "Percentile"].text;
     });
     assert.equal(harness.map.ProfileStatsCommunityDisplayPercentile.BHasClass("selected"), true);
     assert.equal(harness.map.ProfileStatsCommunityDisplayCommunity.BHasClass("selected"), false);
-    assert.equal(harness.map.PSCMetricKdCommunity.style.visibility, "collapse");
-    assert.equal(harness.map.PSCMetricKdPercentile.style.visibility, "visible");
+    assert.equal(harness.map.PSCMetricKdaCommunity.style.visibility, "collapse");
+    assert.equal(harness.map.PSCMetricKdaPercentile.style.visibility, "visible");
     assert.equal(harness.map.ProfileStatsCommunityCommunityHeadingLeft.style.visibility, "collapse");
     assert.equal(harness.map.ProfileStatsCommunityPercentileHeadingLeft.style.visibility, "visible");
-    assert.equal(harness.map.PSCMetricKdPercentile.text, "TOP 25%");
-    assert.equal(harness.map.PSCMetricKdaPercentile.text, "BOTTOM 48%");
+    assert.equal(harness.map.PSCMetricKdaPercentile.text, "TOP 25%");
+    assert.equal(harness.map.PSCMetricKillsPlusAssistsPercentile.text, "BOTTOM 48%");
 
     metricIds.forEach(function (metricId) {
       var suffix = metricPanelSuffixes[metricId];
@@ -846,15 +922,15 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     harness.map.ProfileStatsCommunityDisplayCommunity.events.onactivate();
     assert.equal(harness.map.ProfileStatsCommunityDisplayCommunity.BHasClass("selected"), true);
     assert.equal(harness.map.ProfileStatsCommunityDisplayPercentile.BHasClass("selected"), false);
-    assert.equal(harness.map.PSCMetricKdCommunity.style.visibility, "visible");
-    assert.equal(harness.map.PSCMetricKdPercentile.style.visibility, "collapse");
+    assert.equal(harness.map.PSCMetricKdaCommunity.style.visibility, "visible");
+    assert.equal(harness.map.PSCMetricKdaPercentile.style.visibility, "collapse");
     assert.equal(harness.map.ProfileStatsCommunityCommunityHeadingLeft.style.visibility, "visible");
     assert.equal(harness.map.ProfileStatsCommunityPercentileHeadingLeft.style.visibility, "collapse");
-    assert.equal(harness.map.PSCMetricKdCommunity.text, "1.5");
-    assert.equal(harness.map.PSCMetricKdaCommunity.text, "2.5");
-    assert.equal(harness.map.PSCMetricKdPlayer.text, "1.25");
+    assert.equal(harness.map.PSCMetricKdaCommunity.text, "1.50");
+    assert.equal(harness.map.PSCMetricKillsPlusAssistsCommunity.text, "2.5");
+    assert.equal(harness.map.PSCMetricKdaPlayer.text, "1.25");
     assert.deepEqual(groupIds.map(function (groupId) {
-      return harness.map["PSCGroup" + groupId.charAt(0).toUpperCase() + groupId.substring(1) + "Percentile"].text;
+      return harness.map["PSCGroup" + groupPanelSuffixes[groupId] + "Percentile"].text;
     }), groupBadgeTexts);
     metricIds.forEach(function (metricId) {
       var suffix = metricPanelSuffixes[metricId];
@@ -866,9 +942,9 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     assert.equal(harness.scheduler.pendingCount(), pendingBefore);
 
     harness.map.ProfileStatsCommunityDisplayPercentile.events.onactivate();
-    assert.equal(harness.map.PSCMetricKdCommunity.style.visibility, "collapse");
-    assert.equal(harness.map.PSCMetricKdPercentile.style.visibility, "visible");
-    assert.equal(harness.map.PSCMetricKdPercentile.text, "TOP 25%");
+    assert.equal(harness.map.PSCMetricKdaCommunity.style.visibility, "collapse");
+    assert.equal(harness.map.PSCMetricKdaPercentile.style.visibility, "visible");
+    assert.equal(harness.map.PSCMetricKdaPercentile.text, "TOP 25%");
     assert.deepEqual(bridge.urls, urlsAfterRender);
     assert.equal(harness.scheduler.scheduledCount, scheduledBefore);
     assert.equal(harness.scheduler.pendingCount(), pendingBefore);
@@ -882,7 +958,7 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     harness.map.ProfileStatsCommunityButton.events.onactivate();
     request = requestFromUrl(bridge.urls[bridge.urls.length - 1]);
     payload = payloadFor(request, 9);
-    payload.groups[0].metrics[0].percentile = 101;
+    payload.groups[0].metrics[0][3] = 101;
     bridge.events.HTMLTitle(bridge, "DLSTATS2:" + JSON.stringify(payload));
     assert.match(harness.map.ProfileStatsCommunityStatus.text, /invalid|response/i);
     assert.equal(harness.map.ProfileStatsCommunityMetrics.style.visibility, "collapse");
@@ -1069,6 +1145,16 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     assert.equal(cancelTicker.urls[cancelTicker.urls.length - 1], "about:blank");
     assert.equal(cancelTicker.visible, false);
     assert.equal(cancelTicker.style.visibility, "collapse");
+  });
+ 
+  test("runtime parser rejects malformed DLSTATS2 titles", function () {
+    var harness = makeHarness("42");
+    var bridge = harness.bridge;
+    harness.map.ProfileStatsCommunityButton.events.onactivate();
+    bridge.events.HTMLTitle(bridge, "DLSTATS2:{");
+    assert.match(harness.map.ProfileStatsCommunityStatus.text, /invalid|response/i);
+    assert.equal(harness.map.ProfileStatsCommunityRetry.style.visibility, "visible");
+    assert.equal(bridge.urls[bridge.urls.length - 1], "about:blank");
   });
 
   test("runtime rejects oversized hostile titles and stock restoration preserves native panels", function () {

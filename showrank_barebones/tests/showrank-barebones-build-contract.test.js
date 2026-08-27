@@ -88,6 +88,9 @@ assert.match(build, /\$externs\.Add\("Object\.prototype\.\$propertyName;"\)/, 'e
 assert.match(build, /Object\.prototype\['\$dynamicLookupKey'\];/, 'external profile protocol keys are emitted as quoted extern properties');
 assert.match(build, /\$dynamicLookupKeys\s*=\s*@\(/, 'the merged Closure step declares profile protocol keys');
 assert.match(build, /Closure Compiler renamed dynamic lookup key/, 'renamed profile protocol keys fail the build');
+assert.match(build, /\$protocolGroupIds\s*=\s*@\(/, 'the merged Closure step separately tracks profile group IDs');
+assert.match(build, /\$stringValuePattern/, 'the merged Closure step checks quoted profile group values');
+assert.match(build, /Closure Compiler removed protocol group ID/, 'removed profile group values fail the build');
 assert.match(build, /\$externsPath = Join-Path \$TemporaryRoot 'showrank_barebones\.externs\.js'/, 'externs are generated outside the staged asset tree');
 assert.match(build, /\$minifiedPath = Join-Path \$TemporaryRoot 'showrank_barebones\.min\.js'/, 'Closure output is generated outside the staged asset tree');
 assert.match(build, /if \(-not \(Test-Path -LiteralPath \$minifiedPath\)\)/, 'missing Closure output fails closed');
@@ -114,7 +117,7 @@ assert.match(profileRuntimeTest, /runtimeAdapter\.source = composition\.composeB
 assert.match(profileRuntimeTest, /contextPanelType:\s*"CitadelProfilePage"/, 'the merged profile adapter enters through the production profile-page role');
 assert.doesNotMatch(profileRuntimeTest, /PROFILE_STATS_COMMUNITY_MODULE_(?:START|END)/, 'profile runtime behavior never depends on copied-module markers');
 assert.match(profileRuntimeOracle, /runtimeAdapter\.source === undefined \? fs\.readFileSync\(sourcePath, "utf8"\) : runtimeAdapter\.source/, 'the shared oracle executes a complete path or composed source adapter');
-assert.strictEqual([...profileRuntimeOracle.matchAll(/\btest\("/g)].length, 19, 'the shared oracle owns exactly the nineteen profile scenarios');
+assert.strictEqual([...profileRuntimeOracle.matchAll(/\btest\("/g)].length, 21, 'the shared oracle owns exactly the twenty-one profile scenarios');
 assert.strictEqual(runtimeTemplate.split(composition.RUNTIME_PLACEHOLDER).length - 1, 1, 'the runtime template has one comparison placeholder');
 assert.strictEqual(runtimeTemplate.split(composition.IDENTITY_POLICY_PLACEHOLDER).length - 1, 1, 'the runtime template has one identity-policy placeholder');
 assert.strictEqual(styleTemplate.split(composition.STYLE_PLACEHOLDER).length - 1, 1, 'the style template has one composition placeholder');
@@ -152,6 +155,7 @@ assert.doesNotMatch(build, /Compress-Vpk7Zip|\b7z(?:\.exe)?\b/i, 'the dedicated 
 
 assert.match(build, /function Assert-DeadlockClosed/, 'installation checks that Deadlock is closed');
 assert.match(build, /Get-Process -Name 'deadlock'/, 'installation detects the Deadlock process');
+assert.strictEqual((build.match(/Assert-DeadlockClosed/g) || []).length, 3, 'installation rechecks Deadlock immediately before replacing pak89');
 assert.match(build, /\$destination\s*=\s*Join-Path \$AddonsPath 'pak89_dir\.vpk'/, 'installation targets the requested pak');
 assert.match(build, /\$temporary\s*=\s*Join-Path \$AddonsPath 'pak89_dir\.showrank-barebones\.tmp\.vpk'/, 'installation uses a named temporary artifact');
 assert.match(build, /\$replaceBackup\s*=\s*Join-Path \$AddonsPath 'pak89_dir\.showrank-barebones\.replace-backup\.tmp\.vpk'/, 'replacement uses a named recoverable backup');

@@ -28,6 +28,7 @@
     };
     var AUTHORITY_NAMES = ["accountid", "steamid"];
     var CACHE_TTL_MS = 10 * 60 * 1000;
+    var CACHE_SCHEMA = "profile_stats_community_v4";
     var CONTEXT_CHECK_SECONDS = 0.5;
     var BRIDGE_ASSIGN_DELAY_SECONDS = 0.25;
 
@@ -44,53 +45,164 @@
 
     var GROUPS = [
         {
-            id: "combat",
-            metrics: ["kd", "kda"]
+            "id": "performance",
+            "panel": "PSCGroupPerformancePercentile",
+            "metrics": ["kda", "kills_plus_assists", "player_damage_per_health"]
         },
         {
-            id: "kills",
-            metrics: ["average_kills", "average_assists"]
+            "id": "scoreboard",
+            "panel": "PSCGroupScoreboardPercentile",
+            "metrics": ["average_kills", "average_deaths", "average_assists"]
         },
         {
-            id: "survival",
-            metrics: ["average_deaths", "damage_taken_per_minute"]
+            "id": "accuracy_kd",
+            "panel": "PSCGroupAccuracyKdPercentile",
+            "metrics": ["accuracy", "critical_hit_rate", "kd"]
         },
         {
-            id: "damage",
-            metrics: ["player_damage_per_minute", "accuracy", "critical_hit_rate", "boss_damage_per_minute"]
+            "id": "damage",
+            "panel": "PSCGroupDamagePercentile",
+            "metrics": ["player_damage_per_minute", "damage_taken_per_minute", "objective_damage_per_minute"]
         },
         {
-            id: "economy",
-            metrics: ["net_worth_per_minute"]
+            "id": "economy",
+            "panel": "PSCGroupEconomyPercentile",
+            "metrics": ["net_worth_per_minute", "average_last_hits", "average_denies"]
         },
         {
-            id: "sustain",
-            metrics: ["healing_per_minute"]
+            "id": "healing",
+            "panel": "PSCGroupHealingPercentile",
+            "metrics": ["self_healing_per_minute", "player_healing_per_minute", "heal_prevented"]
         }
     ];
 
-    var METRIC_PANELS = {
-        "kd": ["PSCMetricKdPlayer", "PSCMetricKdCommunity", "PSCMetricKdPercentile"],
-        "kda": ["PSCMetricKdaPlayer", "PSCMetricKdaCommunity", "PSCMetricKdaPercentile"],
-        "average_kills": ["PSCMetricAverageKillsPlayer", "PSCMetricAverageKillsCommunity", "PSCMetricAverageKillsPercentile"],
-        "average_assists": ["PSCMetricAverageAssistsPlayer", "PSCMetricAverageAssistsCommunity", "PSCMetricAverageAssistsPercentile"],
-        "average_deaths": ["PSCMetricAverageDeathsPlayer", "PSCMetricAverageDeathsCommunity", "PSCMetricAverageDeathsPercentile"],
-        "damage_taken_per_minute": ["PSCMetricDamageTakenPerMinutePlayer", "PSCMetricDamageTakenPerMinuteCommunity", "PSCMetricDamageTakenPerMinutePercentile"],
-        "player_damage_per_minute": ["PSCMetricPlayerDamagePerMinutePlayer", "PSCMetricPlayerDamagePerMinuteCommunity", "PSCMetricPlayerDamagePerMinutePercentile"],
-        "accuracy": ["PSCMetricAccuracyPlayer", "PSCMetricAccuracyCommunity", "PSCMetricAccuracyPercentile"],
-        "critical_hit_rate": ["PSCMetricCriticalHitRatePlayer", "PSCMetricCriticalHitRateCommunity", "PSCMetricCriticalHitRatePercentile"],
-        "net_worth_per_minute": ["PSCMetricNetWorthPerMinutePlayer", "PSCMetricNetWorthPerMinuteCommunity", "PSCMetricNetWorthPerMinutePercentile"],
-        "boss_damage_per_minute": ["PSCMetricBossDamagePerMinutePlayer", "PSCMetricBossDamagePerMinuteCommunity", "PSCMetricBossDamagePerMinutePercentile"],
-        "healing_per_minute": ["PSCMetricHealingPerMinutePlayer", "PSCMetricHealingPerMinuteCommunity", "PSCMetricHealingPerMinutePercentile"]
-    };
-
-    var GROUP_PERCENTILE_PANELS = {
-        "combat": "PSCGroupCombatPercentile",
-        "kills": "PSCGroupKillsPercentile",
-        "survival": "PSCGroupSurvivalPercentile",
-        "damage": "PSCGroupDamagePercentile",
-        "economy": "PSCGroupEconomyPercentile",
-        "sustain": "PSCGroupSustainPercentile"
+    var METRIC_REGISTRY = {
+        "kda": {
+            "panels": ["PSCMetricKdaPlayer", "PSCMetricKdaCommunity", "PSCMetricKdaPercentile"],
+            "label": "KDA",
+            "format": "ratio",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "kills_plus_assists": {
+            "panels": ["PSCMetricKillsPlusAssistsPlayer", "PSCMetricKillsPlusAssistsCommunity", "PSCMetricKillsPlusAssistsPercentile"],
+            "label": "KILLS + ASSISTS",
+            "format": "average",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "player_damage_per_health": {
+            "panels": ["PSCMetricPlayerDamagePerHealthPlayer", "PSCMetricPlayerDamagePerHealthCommunity", "PSCMetricPlayerDamagePerHealthPercentile"],
+            "label": "PLAYER DAMAGE / HEALTH",
+            "format": "ratio",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "average_kills": {
+            "panels": ["PSCMetricAverageKillsPlayer", "PSCMetricAverageKillsCommunity", "PSCMetricAverageKillsPercentile"],
+            "label": "AVERAGE KILLS",
+            "format": "average",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "average_deaths": {
+            "panels": ["PSCMetricAverageDeathsPlayer", "PSCMetricAverageDeathsCommunity", "PSCMetricAverageDeathsPercentile"],
+            "label": "AVERAGE DEATHS",
+            "format": "average",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "average_assists": {
+            "panels": ["PSCMetricAverageAssistsPlayer", "PSCMetricAverageAssistsCommunity", "PSCMetricAverageAssistsPercentile"],
+            "label": "AVERAGE ASSISTS",
+            "format": "average",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "accuracy": {
+            "panels": ["PSCMetricAccuracyPlayer", "PSCMetricAccuracyCommunity", "PSCMetricAccuracyPercentile"],
+            "label": "ACCURACY",
+            "format": "percent",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "critical_hit_rate": {
+            "panels": ["PSCMetricCriticalHitRatePlayer", "PSCMetricCriticalHitRateCommunity", "PSCMetricCriticalHitRatePercentile"],
+            "label": "CRITICAL HIT RATE",
+            "format": "percent",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "kd": {
+            "panels": ["PSCMetricKdPlayer", "PSCMetricKdCommunity", "PSCMetricKdPercentile"],
+            "label": "K/D",
+            "format": "ratio",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "player_damage_per_minute": {
+            "panels": ["PSCMetricPlayerDamagePerMinutePlayer", "PSCMetricPlayerDamagePerMinuteCommunity", "PSCMetricPlayerDamagePerMinutePercentile"],
+            "label": "PLAYER DAMAGE / MIN",
+            "format": "per_minute",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "damage_taken_per_minute": {
+            "panels": ["PSCMetricDamageTakenPerMinutePlayer", "PSCMetricDamageTakenPerMinuteCommunity", "PSCMetricDamageTakenPerMinutePercentile"],
+            "label": "DAMAGE TAKEN / MIN",
+            "format": "per_minute",
+            "percentileKind": "higher_lower",
+            "includeInGroupAverage": false
+        },
+        "objective_damage_per_minute": {
+            "panels": ["PSCMetricObjectiveDamagePerMinutePlayer", "PSCMetricObjectiveDamagePerMinuteCommunity", "PSCMetricObjectiveDamagePerMinutePercentile"],
+            "label": "OBJECTIVE DAMAGE / MIN",
+            "format": "per_minute",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "net_worth_per_minute": {
+            "panels": ["PSCMetricNetWorthPerMinutePlayer", "PSCMetricNetWorthPerMinuteCommunity", "PSCMetricNetWorthPerMinutePercentile"],
+            "label": "NET WORTH / MIN",
+            "format": "per_minute",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "average_last_hits": {
+            "panels": ["PSCMetricAverageLastHitsPlayer", "PSCMetricAverageLastHitsCommunity", "PSCMetricAverageLastHitsPercentile"],
+            "label": "AVERAGE LAST HITS",
+            "format": "average",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "average_denies": {
+            "panels": ["PSCMetricAverageDeniesPlayer", "PSCMetricAverageDeniesCommunity", "PSCMetricAverageDeniesPercentile"],
+            "label": "AVERAGE DENIES",
+            "format": "average",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "self_healing_per_minute": {
+            "panels": ["PSCMetricSelfHealingPerMinutePlayer", "PSCMetricSelfHealingPerMinuteCommunity", "PSCMetricSelfHealingPerMinutePercentile"],
+            "label": "SELF HEALING / MIN",
+            "format": "per_minute",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "player_healing_per_minute": {
+            "panels": ["PSCMetricPlayerHealingPerMinutePlayer", "PSCMetricPlayerHealingPerMinuteCommunity", "PSCMetricPlayerHealingPerMinutePercentile"],
+            "label": "PLAYER HEALING / MIN",
+            "format": "per_minute",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        },
+        "heal_prevented": {
+            "panels": ["PSCMetricHealPreventedPlayer", "PSCMetricHealPreventedCommunity", "PSCMetricHealPreventedPercentile"],
+            "label": "HEAL PREVENTED",
+            "format": "per_minute",
+            "percentileKind": "top_bottom",
+            "includeInGroupAverage": true
+        }
     };
 
     var PERCENTILE_TOP_CLASS = "ProfileStatsCommunityPercentileTop";
@@ -547,9 +659,56 @@
         return true;
     }
 
-    function expectedMetric(groupIndex, metricIndex) {
-        return GROUPS[groupIndex].metrics[metricIndex];
+    function metricDefinition(metricId) {
+        if (typeof metricId !== "string" || !hasOwn(METRIC_REGISTRY, metricId)) {
+            return null;
+        }
+        return METRIC_REGISTRY[metricId];
     }
+
+    function validMetricValue(value) {
+        return value === null || finiteNumber(value);
+    }
+
+    function validMetricPercentile(value) {
+        return value === null || (finiteNumber(value) && value >= 0 && value <= 100);
+    }
+
+    function validMetricTuple(metric, expectedId) {
+        return isArray(metric) &&
+            metric.length === 4 &&
+            metric[0] === expectedId &&
+            validMetricValue(metric[1]) &&
+            validMetricValue(metric[2]) &&
+            validMetricPercentile(metric[3]);
+    }
+
+    function validMetricGroups(groups) {
+        var groupIndex;
+        var metricIndex;
+        var group;
+        var expectedGroup;
+        if (!isArray(groups) || groups.length !== GROUPS.length) {
+            return false;
+        }
+        for (groupIndex = 0; groupIndex < GROUPS.length; groupIndex += 1) {
+            group = groups[groupIndex];
+            expectedGroup = GROUPS[groupIndex];
+            if (!exactKeys(group, ["id", "metrics"]) ||
+                    group.id !== expectedGroup.id ||
+                    !isArray(group.metrics) ||
+                    group.metrics.length !== expectedGroup.metrics.length) {
+                return false;
+            }
+            for (metricIndex = 0; metricIndex < expectedGroup.metrics.length; metricIndex += 1) {
+                if (!validMetricTuple(group.metrics[metricIndex], expectedGroup.metrics[metricIndex])) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     function validMatchLimit(value) {
         return finiteNumber(value) && Math.floor(value) === value && hasOwn(MATCH_LIMITS, String(value));
     }
@@ -557,6 +716,7 @@
     function validMatchMode(value) {
         return typeof value === "string" && hasOwn(MATCH_MODES, value);
     }
+
     function validComparisonMode(value) {
         return typeof value === "string" && hasOwn(COMPARISON_MODES, value);
     }
@@ -575,21 +735,14 @@
     }
 
     function validateSuccessPayload(payload, request) {
-        var identityResult;
-        var groupIndex;
-        var metricIndex;
-        var group;
-        var metric;
-        var value;
-        var percentile;
-        identityResult = validateIdentityFields(payload, request);
+        var identityResult = validateIdentityFields(payload, request);
         if (identityResult !== "ok") {
             return identityResult;
         }
         if (!exactKeys(payload, ["v", "kind", "request", "account", "matches", "mode", "sample", "generated", "groups"])) {
             return "invalid";
         }
-        if (payload.v !== 3 || payload.kind !== "profile_stats" || typeof payload.account !== "number" || !viewedProfileIdentityPolicy.payloadMatches(payload.account, String(payload.account)) || typeof payload.request !== "string") {
+        if (payload.v !== 4 || payload.kind !== "profile_stats" || typeof payload.account !== "number" || !viewedProfileIdentityPolicy.payloadMatches(payload.account, String(payload.account)) || typeof payload.request !== "string") {
             return "invalid";
         }
         if (!validMatchLimit(payload.matches) || !validMatchMode(payload.mode) || !finiteNumber(payload.sample) || Math.floor(payload.sample) !== payload.sample || payload.sample < 0 || payload.sample > request.matches) {
@@ -598,68 +751,58 @@
         if (typeof payload.generated !== "string" || payload.generated.length === 0 || payload.generated.length > MAX_GENERATED_LENGTH || !isAscii(payload.generated)) {
             return "invalid";
         }
-        if (!isArray(payload.groups) || payload.groups.length !== GROUPS.length) {
-            return "invalid";
+        return validMetricGroups(payload.groups) ? "ok" : "invalid";
+    }
+
+    function validErrorEnvelope(payload) {
+        if (!exactKeys(payload, ["v", "kind", "request", "account", "matches", "mode", "code"], ["status", "retry_after", "message"])) {
+            return false;
         }
-        for (groupIndex = 0; groupIndex < GROUPS.length; groupIndex += 1) {
-            group = payload.groups[groupIndex];
-            if (!exactKeys(group, ["id", "metrics"]) || group.id !== GROUPS[groupIndex].id || !isArray(group.metrics) || group.metrics.length !== GROUPS[groupIndex].metrics.length) {
-                return "invalid";
-            }
-            for (metricIndex = 0; metricIndex < GROUPS[groupIndex].metrics.length; metricIndex += 1) {
-                metric = group.metrics[metricIndex];
-                if (!exactKeys(metric, ["id", "player", "community", "percentile"]) || metric.id !== expectedMetric(groupIndex, metricIndex)) {
-                    return "invalid";
-                }
-                value = metric.player;
-                if (value !== null && !finiteNumber(value)) {
-                    return "invalid";
-                }
-                value = metric.community;
-                if (value !== null && !finiteNumber(value)) {
-                    return "invalid";
-                }
-                percentile = metric.percentile;
-                if (percentile !== null && (!finiteNumber(percentile) || percentile < 0 || percentile > 100)) {
-                    return "invalid";
-                }
-            }
+        return payload.v === 4 &&
+            payload.kind === "error" &&
+            typeof payload.account === "number" &&
+            viewedProfileIdentityPolicy.payloadMatches(payload.account, String(payload.account)) &&
+            typeof payload.request === "string" &&
+            validMatchLimit(payload.matches) &&
+            validMatchMode(payload.mode) &&
+            !!ERROR_CODES[payload.code];
+    }
+
+    function validErrorStatus(payload) {
+        var status;
+        if (!hasOwn(payload, "status")) {
+            return true;
         }
-        return "ok";
+        status = payload.status;
+        return finiteNumber(status) && Math.floor(status) === status && status >= 100 && status <= 599;
+    }
+
+    function validRetryAfter(payload) {
+        var retryAfter;
+        if (!hasOwn(payload, "retry_after")) {
+            return true;
+        }
+        retryAfter = payload.retry_after;
+        return finiteNumber(retryAfter) && retryAfter >= 0 && retryAfter <= 86400;
+    }
+
+    function validErrorMessage(payload) {
+        return !hasOwn(payload, "message") || isPlainMessage(payload.message);
     }
 
     function validateErrorPayload(payload, request) {
-        var identityResult;
-        var status;
-        var retryAfter;
-        identityResult = validateIdentityFields(payload, request);
+        var identityResult = validateIdentityFields(payload, request);
         if (identityResult !== "ok") {
             return identityResult;
         }
-        if (!exactKeys(payload, ["v", "kind", "request", "account", "matches", "mode", "code"], ["status", "retry_after", "message"])) {
-            return "invalid";
-        }
-        if (payload.v !== 3 || payload.kind !== "error" || typeof payload.account !== "number" || !viewedProfileIdentityPolicy.payloadMatches(payload.account, String(payload.account)) || typeof payload.request !== "string" || !validMatchLimit(payload.matches) || !validMatchMode(payload.mode) || !ERROR_CODES[payload.code]) {
-            return "invalid";
-        }
-        if (hasOwn(payload, "status")) {
-            status = payload.status;
-            if (!finiteNumber(status) || Math.floor(status) !== status || status < 100 || status > 599) {
-                return "invalid";
-            }
-        }
-        if (hasOwn(payload, "retry_after")) {
-            retryAfter = payload.retry_after;
-            if (!finiteNumber(retryAfter) || retryAfter < 0 || retryAfter > 86400) {
-                return "invalid";
-            }
-        }
-        if (hasOwn(payload, "message") && !isPlainMessage(payload.message)) {
+        if (!validErrorEnvelope(payload) ||
+                !validErrorStatus(payload) ||
+                !validRetryAfter(payload) ||
+                !validErrorMessage(payload)) {
             return "invalid";
         }
         return "ok";
     }
-
     function parseTitle(title) {
         var body;
         if (typeof title !== "string" || title.length > BRIDGE_TITLE_MAX_LENGTH || !isAscii(title)) {
@@ -679,20 +822,25 @@
         }
     }
 
-
-
     function createNonce() {
         nonceSerial += 1;
-        return "p" + new Date().getTime().toString(36) + nonceSerial.toString(36);
+        return "p" + Date.now().toString(36) + nonceSerial.toString(36);
     }
 
     function now() {
-        return new Date().getTime();
+        return Date.now();
     }
 
     function freshCache(account, matches, mode) {
         var age;
-        if (!memoryCache || memoryCache.account !== account || memoryCache.matches !== matches || memoryCache.mode !== mode) {
+        if (!memoryCache ||
+                memoryCache.schema !== CACHE_SCHEMA ||
+                memoryCache.account !== account ||
+                memoryCache.matches !== matches ||
+                memoryCache.mode !== mode ||
+                !memoryCache.payload ||
+                memoryCache.payload.v !== 4 ||
+                !validMetricGroups(memoryCache.payload.groups)) {
             return null;
         }
         age = now() - memoryCache.receivedAt;
@@ -703,20 +851,33 @@
         return memoryCache.payload;
     }
 
-    function formatValue(value) {
-        if (value === null || value === undefined) {
-            return "—";
-        }
-        if (!finiteNumber(value)) {
-            return "—";
-        }
-        return String(value);
+    function fixedString(value, digits) {
+        return value.toFixed(digits);
     }
 
-    function formatPercentile(value) {
+    function formatValue(value, definition) {
+        if (value === null || value === undefined || !finiteNumber(value)) {
+            return "—";
+        }
+        if (definition && definition.format === "percent") {
+            return fixedString(value * 100, 1) + "%";
+        }
+        if (definition && definition.format === "ratio") {
+            return fixedString(value, 2);
+        }
+        if (Math.abs(value) >= 10000) {
+            return fixedString(value / 1000, 1) + "k";
+        }
+        return fixedString(value, 1);
+    }
+
+    function formatPercentile(value, kind) {
         var displayed;
         if (value === null || value === undefined || !finiteNumber(value)) {
             return "—";
+        }
+        if (kind === "higher_lower") {
+            return (value >= 50 ? "HIGHER " : "LOWER ") + String(Math.round(value)) + "%";
         }
         displayed = value >= 50 ? 100 - value : value;
         return (value >= 50 ? "TOP " : "BOTTOM ") + String(Math.max(1, Math.round(displayed))) + "%";
@@ -732,12 +893,13 @@
     function setValueState(panel, value) {
         setClass(panel, VALUE_UNAVAILABLE_CLASS, value === null || value === undefined || !finiteNumber(value));
     }
+
     function applyComparisonMode() {
         var showCommunity = selectedComparison === "community";
         var metricId;
         var refs;
-        for (metricId in METRIC_PANELS) {
-            if (!hasOwn(METRIC_PANELS, metricId)) {
+        for (metricId in METRIC_REGISTRY) {
+            if (!hasOwn(METRIC_REGISTRY, metricId)) {
                 continue;
             }
             refs = resolveMetricRefs(metricId);
@@ -763,35 +925,44 @@
         applyComparisonMode();
     }
 
-    function averagePercentile(metrics) {
+    function averagePercentile(group) {
         var total = 0;
         var count = 0;
         var index;
-        var value;
-        for (index = 0; index < metrics.length; index += 1) {
-            value = metrics[index].percentile;
-            if (value === null || value === undefined || !finiteNumber(value)) {
+        var metric;
+        var definition;
+        for (index = 0; index < group.metrics.length; index += 1) {
+            metric = group.metrics[index];
+            definition = metricDefinition(metric[0]);
+            if (!definition) {
+                return null;
+            }
+            if (!definition.includeInGroupAverage) {
                 continue;
             }
-            total += value;
+            if (metric[3] === null || !validMetricPercentile(metric[3])) {
+                return null;
+            }
+            total += metric[3];
             count += 1;
         }
         return count > 0 ? total / count : null;
     }
-
     function resolveMetricRefs(metricId) {
         var refs = metricRefs[metricId];
-        var pair = METRIC_PANELS[metricId];
+        var definition = metricDefinition(metricId);
+        var panels;
         if (refs && isValidPanel(refs.player) && isValidPanel(refs.community) && isValidPanel(refs.percentile)) {
             return refs;
         }
-        if (!pair) {
+        if (!definition) {
             return null;
         }
+        panels = definition.panels;
         refs = {
-            player: findPanel(pair[0]),
-            community: findPanel(pair[1]),
-            percentile: findPanel(pair[2])
+            player: findPanel(panels[0]),
+            community: findPanel(panels[1]),
+            percentile: findPanel(panels[2])
         };
         metricRefs[metricId] = refs;
         return refs;
@@ -802,34 +973,36 @@
         var metricIndex;
         var group;
         var metric;
+        var definition;
         var refs;
         var groupBadge;
         var groupPercentile;
         for (groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
             group = groups[groupIndex];
-            groupPercentile = averagePercentile(group.metrics);
-            groupBadge = findPanel(GROUP_PERCENTILE_PANELS[group.id]);
+            groupPercentile = averagePercentile(group);
+            groupBadge = findPanel(GROUPS[groupIndex].panel);
             if (isValidPanel(groupBadge)) {
-                setText(groupBadge, formatPercentile(groupPercentile));
+                setText(groupBadge, formatPercentile(groupPercentile, "top_bottom"));
                 setPercentileState(groupBadge, groupPercentile);
             }
             for (metricIndex = 0; metricIndex < group.metrics.length; metricIndex += 1) {
                 metric = group.metrics[metricIndex];
-                refs = resolveMetricRefs(metric.id);
+                definition = metricDefinition(metric[0]);
+                refs = resolveMetricRefs(metric[0]);
                 if (!refs) {
                     continue;
                 }
                 if (isValidPanel(refs.player)) {
-                    setText(refs.player, formatValue(metric.player));
-                    setValueState(refs.player, metric.player);
+                    setText(refs.player, formatValue(metric[1], definition));
+                    setValueState(refs.player, metric[1]);
                 }
                 if (isValidPanel(refs.community)) {
-                    setText(refs.community, formatValue(metric.community));
-                    setValueState(refs.community, metric.community);
+                    setText(refs.community, formatValue(metric[2], definition));
+                    setValueState(refs.community, metric[2]);
                 }
                 if (isValidPanel(refs.percentile)) {
-                    setText(refs.percentile, formatPercentile(metric.percentile));
-                    setPercentileState(refs.percentile, metric.percentile);
+                    setText(refs.percentile, formatPercentile(metric[3], definition.percentileKind));
+                    setPercentileState(refs.percentile, metric[3]);
                 }
             }
         }
@@ -997,6 +1170,7 @@
             memoryCache = null;
         } else {
             memoryCache = {
+                schema: CACHE_SCHEMA,
                 account: request.account,
                 matches: request.matches,
                 mode: request.mode,
@@ -1011,7 +1185,7 @@
     }
 
     function bridgeUrl(request) {
-        return BRIDGE_URL + "?account_id=" + encodeURIComponent(request.account) + "&matches=" + String(request.matches) + "&mode=" + encodeURIComponent(request.mode) + "&request=" + encodeURIComponent(request.nonce) + "&protocol=3";
+        return BRIDGE_URL + "?account_id=" + encodeURIComponent(request.account) + "&matches=" + String(request.matches) + "&mode=" + encodeURIComponent(request.mode) + "&request=" + encodeURIComponent(request.nonce) + "&protocol=4";
     }
 
     function expectedBridgeUrl(url, request) {
@@ -1629,16 +1803,19 @@
 
     function collectMetricRefs() {
         var metricId;
-        var pair;
-        for (metricId in METRIC_PANELS) {
-            if (hasOwn(METRIC_PANELS, metricId)) {
-                pair = METRIC_PANELS[metricId];
-                metricRefs[metricId] = {
-                    player: findPanel(pair[0]),
-                    community: findPanel(pair[1]),
-                    percentile: findPanel(pair[2])
-                };
+        var definition;
+        var panels;
+        for (metricId in METRIC_REGISTRY) {
+            if (!hasOwn(METRIC_REGISTRY, metricId)) {
+                continue;
             }
+            definition = METRIC_REGISTRY[metricId];
+            panels = definition.panels;
+            metricRefs[metricId] = {
+                player: findPanel(panels[0]),
+                community: findPanel(panels[1]),
+                percentile: findPanel(panels[2])
+            };
         }
     }
 

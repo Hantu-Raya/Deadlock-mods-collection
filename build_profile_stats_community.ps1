@@ -148,14 +148,21 @@ function Invoke-ProfileStatsClosureMinification {
     $minifiedPath = Join-Path $TemporaryRoot 'profile_stats_community.min.js'
     New-Item -ItemType Directory -Path $TemporaryRoot -Force | Out-Null
     $dynamicLookupKeys = @()
+    $protocolGroupIds = @()
     if ($ValidateProtocolKeys) {
         $dynamicLookupKeys = @(
-            'kd', 'kda', 'average_kills', 'average_assists', 'average_deaths',
-            'damage_taken_per_minute', 'player_damage_per_minute', 'accuracy',
-            'critical_hit_rate', 'net_worth_per_minute', 'boss_damage_per_minute',
-            'healing_per_minute', 'invalid_query', 'network_error', 'upstream_error',
+            'kda', 'kills_plus_assists', 'player_damage_per_health',
+            'average_kills', 'average_deaths', 'average_assists',
+            'accuracy', 'critical_hit_rate', 'kd',
+            'player_damage_per_minute', 'damage_taken_per_minute', 'objective_damage_per_minute',
+            'net_worth_per_minute', 'average_last_hits', 'average_denies',
+            'self_healing_per_minute', 'player_healing_per_minute', 'heal_prevented',
+            'invalid_query', 'network_error', 'upstream_error',
             'rate_limit', 'empty_sample', 'invalid_payload', 'payload_too_large', 'internal_error',
-            'ranked', 'standard'
+            'ranked', 'standard', 'community', 'percentile'
+        )
+        $protocolGroupIds = @(
+            'performance', 'scoreboard', 'accuracy_kd', 'damage', 'economy', 'healing'
         )
     }
 
@@ -203,6 +210,12 @@ function Invoke-ProfileStatsClosureMinification {
             $objectKeyPattern = '(?:\{|,)\s*(?:"|'')?' + [regex]::Escape($dynamicLookupKey) + '(?:"|'')?:'
             if (-not [regex]::IsMatch($minifiedSource, $objectKeyPattern)) {
                 throw "Closure Compiler renamed dynamic lookup key: $dynamicLookupKey"
+            }
+        }
+        foreach ($protocolGroupId in $protocolGroupIds) {
+            $stringValuePattern = '["'']' + [regex]::Escape($protocolGroupId) + '["'']'
+            if (-not [regex]::IsMatch($minifiedSource, $stringValuePattern)) {
+                throw "Closure Compiler removed protocol group ID: $protocolGroupId"
             }
         }
 

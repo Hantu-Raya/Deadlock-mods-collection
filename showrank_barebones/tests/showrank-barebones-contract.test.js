@@ -205,12 +205,12 @@ assert.strictEqual(countId(profilePage, 'ProfileStatsCommunityPanel'), 1, 'the p
 assert.strictEqual(countId(profilePage, 'ProfileStatsCommunityBridge'), 1, 'the profile page owns one hidden comparison bridge');
 assert.strictEqual(countId(profilePage, 'ProfileStatsCommunitySupporterTicker'), 1, 'the profile page owns one hidden supporter ticker');
 for (const id of [
-  'ProfileStatsCommunityGroupCombat',
-  'ProfileStatsCommunityGroupKills',
-  'ProfileStatsCommunityGroupSurvival',
+  'ProfileStatsCommunityGroupPerformance',
+  'ProfileStatsCommunityGroupScoreboard',
+  'ProfileStatsCommunityGroupAccuracyKd',
   'ProfileStatsCommunityGroupDamage',
   'ProfileStatsCommunityGroupEconomy',
-  'ProfileStatsCommunityGroupSustain',
+  'ProfileStatsCommunityGroupHealing',
 ]) assert.strictEqual(countId(profilePage, id), 1, `community group ${id} remains unique`);
 assert.match(style, /CitadelProfilePage #HeroList\s*\{[\s\S]*?padding-top:\s*56px;/, 'the canonical profile-page rule offsets native hero rows below the comparison action');
 assert.match(source, /function installProfileStatsCommunity\(\)/, 'the dominant runtime owns the profile comparison subsystem');

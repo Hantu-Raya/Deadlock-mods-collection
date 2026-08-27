@@ -143,13 +143,19 @@ function Invoke-BarebonesClosureMinification {
     $externsPath = Join-Path $TemporaryRoot 'showrank_barebones.externs.js'
     $minifiedPath = Join-Path $TemporaryRoot 'showrank_barebones.min.js'
     $dynamicLookupKeys = @(
-        'kd', 'kda', 'average_kills', 'average_assists', 'average_deaths',
-        'damage_taken_per_minute', 'player_damage_per_minute', 'accuracy',
-        'critical_hit_rate', 'net_worth_per_minute', 'boss_damage_per_minute',
-        'healing_per_minute', 'invalid_query', 'network_error', 'upstream_error',
+        'kda', 'kills_plus_assists', 'player_damage_per_health',
+        'average_kills', 'average_deaths', 'average_assists',
+        'accuracy', 'critical_hit_rate', 'kd',
+        'player_damage_per_minute', 'damage_taken_per_minute', 'objective_damage_per_minute',
+        'net_worth_per_minute', 'average_last_hits', 'average_denies',
+        'self_healing_per_minute', 'player_healing_per_minute', 'heal_prevented',
+        'invalid_query', 'network_error', 'upstream_error',
         'rate_limit', 'empty_sample', 'invalid_payload', 'payload_too_large', 'internal_error',
-        'ranked', 'standard', 'community', 'percentile', 'combat', 'kills',
-        'survival', 'damage', 'economy', 'sustain', '50', '100', '150'
+        'ranked', 'standard', 'community', 'percentile',
+        '50', '100', '150'
+    )
+    $protocolGroupIds = @(
+        'performance', 'scoreboard', 'accuracy_kd', 'damage', 'economy', 'healing'
     )
     New-Item -ItemType Directory -Path $TemporaryRoot -Force | Out-Null
 
@@ -193,6 +199,12 @@ function Invoke-BarebonesClosureMinification {
             $objectKeyPattern = '(?:\{|,)\s*(?:"|'')?' + [regex]::Escape($dynamicLookupKey) + '(?:"|'')?:'
             if (-not [regex]::IsMatch($minifiedSource, $objectKeyPattern)) {
                 throw "Closure Compiler renamed dynamic lookup key: $dynamicLookupKey"
+            }
+        }
+        foreach ($protocolGroupId in $protocolGroupIds) {
+            $stringValuePattern = '["'']' + [regex]::Escape($protocolGroupId) + '["'']'
+            if (-not [regex]::IsMatch($minifiedSource, $stringValuePattern)) {
+                throw "Closure Compiler removed protocol group ID: $protocolGroupId"
             }
         }
 
@@ -261,6 +273,7 @@ function Install-BarebonesVpk {
 
         $temporaryTree = Get-PackedVpkTree -VpkEditCli $vpkEditCli -VpkPath $temporary -Source2ViewerPath $source2Viewer
         Assert-BarebonesAssetSet -Actual (Get-BarebonesPackedAssetPaths -Tree $temporaryTree) -ExpectedAssets $requiredCompiledAssets -Label 'Temporary barebones VPK'
+        Assert-DeadlockClosed
 
         if (Test-Path -LiteralPath $destination) {
             [System.IO.File]::Replace($temporary, $destination, $replaceBackup, $true)

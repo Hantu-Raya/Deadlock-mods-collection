@@ -11,6 +11,8 @@ const panoramaDir = path.join(rootDir, 'panorama');
 const layoutDir = path.join(panoramaDir, 'layout');
 const scriptPath = path.join(panoramaDir, 'scripts', 'showrank_barebones.js');
 const stylePath = path.join(panoramaDir, 'styles', 'showrank_barebones_topbar.css');
+const repositoryDir = path.join(rootDir, '..');
+const composition = require(path.join(repositoryDir, 'scripts', 'profile-stats-community-composition'));
 
 const v40Assets = [
   'layout/citadel_hud_hero_shop.xml',
@@ -33,8 +35,8 @@ const v40Assets = [
 const v40AssetHashes = {
   'layout/citadel_hud_hero_shop.xml': 'b4516fae9c7ce463621f837ec00612cf993ab2f775533fde1ade942b01e8d274',
   'layout/hud_paused.xml': '7cbb7f2f850768edf4a69847bc7d4d996c8e636a73e4e597995f7515a092e830',
-  'scripts/recent_purchases_redux.js': 'b485169a73b2365a3ea2fb8c3c054615104fc73796e71bda0f9b2fa6008f6a2a',
-  'scripts/recent_purchases_redux_data.js': '728603d505549207330aa8d58d41bdeb2883380ba8aa26582e3ae2cfcc171b41',
+  'scripts/recent_purchases_redux.js': 'f6b388db5165a9f82e222ffa30cdf54b7c9b676bfce898d423c8b6ad5e29320a',
+  'scripts/recent_purchases_redux_data.js': 'ed9852528bc9c137d7e7fed52fb337f549b6507d3ba28c556ca682704cd72462',
   'scripts/rejuvnbufftimer.js': 'adb70a55e0c8def38a1c8720962dafd203ce544b0345357e3aeac9324585fd9f',
   'scripts/unspent.js': '2906493c121ecb284443dae6ac12dd92dc18a54f0433d24355e0a18fe6d69655',
   'scripts/urntracker.js': '631fb886fedfe849b6d302c098af3f1ac12c93173d898066ff5699cd5cb4842f',
@@ -102,9 +104,21 @@ const profilePage = readLayout('citadel_db_page_profile.xml');
 const contextMenu = readLayout('citadel_ui_context_menu_player.xml');
 const escape = readLayout('hud_escape_menu.xml');
 const playerList = readLayout('players_list_entry.xml');
-const source = fs.readFileSync(scriptPath, 'utf8');
-const style = fs.readFileSync(stylePath, 'utf8');
-const allEditionSource = [topbar, player, profile, profilePage, contextMenu, escape, playerList, source, style].join('\n');
+const sourceTemplate = fs.readFileSync(scriptPath, 'utf8');
+const styleTemplate = fs.readFileSync(stylePath, 'utf8');
+const composed = composition.composeBarebonesSources(repositoryDir, rootDir);
+const source = composed.runtime;
+const style = composed.style;
+const allEditionSource = [topbar, player, profile, profilePage, contextMenu, escape, playerList, sourceTemplate, styleTemplate].join('\n');
+assert.strictEqual(sourceTemplate.split(composition.RUNTIME_PLACEHOLDER).length - 1, 1, 'the alert runtime host has one canonical comparison seam');
+assert.strictEqual(sourceTemplate.split(composition.IDENTITY_POLICY_PLACEHOLDER).length - 1, 1, 'the alert runtime host has one private identity-policy seam');
+assert.strictEqual(styleTemplate.split(composition.STYLE_PLACEHOLDER).length - 1, 1, 'the alert stylesheet host has one canonical composition seam');
+assert.doesNotMatch(sourceTemplate, /PROFILE_STATS_COMMUNITY_MODULE_(?:START|END)|DLSTATS2:/, 'the alert runtime host does not retain a copied profile implementation');
+assert.doesNotMatch(styleTemplate, /#ProfileStatsCommunityButton/, 'the alert stylesheet host does not retain copied profile styles');
+assert.doesNotMatch(source, /PROFILE_STATS_COMMUNITY_RUNTIME:|VIEWED_PROFILE_IDENTITY_POLICY:/, 'composed alert runtime resolves both source seams');
+assert.doesNotMatch(style, /PROFILE_STATS_COMMUNITY_STYLES:/, 'composed alert stylesheet resolves its source seam');
+assert.ok(source.replace(/\r\n?/g, '\n').includes(composed.nestedProfileRuntime.replace(/\r\n?/g, '\n').trimEnd()), 'composed alert runtime contains the canonical profile implementation');
+assert.ok(style.replace(/\r\n?/g, '\n').includes(composed.canonicalStyle.replace(/\r\n?/g, '\n').trimEnd()), 'composed alert stylesheet contains the canonical implementation');
 
 assert.deepStrictEqual(includes(player, 'scripts'), [
   's2r://panorama/scripts/unspent.vjs_c',
@@ -128,17 +142,32 @@ assert.match(profilePage, /<CitadelProfilePage\b[^>]*\bclass="DashboardPage Show
 for (const id of ['ShowRankBarebonesProfilePageAccount', 'ShowRankBarebonesProfilePageRankHost', 'ShowRankBarebonesProfilePageRankImage']) {
   assertId(profilePage, id, 'dashboard profile page');
 }
+assertId(profile, 'ProfileStatsCommunityContextAccount', 'profile comparison account witness');
+assertId(profilePage, 'ProfileStatsCommunityAccount', 'dashboard comparison account witness');
+assertId(profilePage, 'ProfileStatsCommunityButton', 'dashboard comparison action');
+assertId(profilePage, 'ProfileStatsCommunityPanel', 'dashboard comparison panel');
+assertId(profilePage, 'ProfileStatsCommunityBridge', 'dashboard comparison bridge');
+assertId(contextMenu, 'ProfileStatsCommunityPlayerProfileRow', 'context Player Profile seam');
+for (const id of [
+  'ProfileStatsCommunityGroupPerformance',
+  'ProfileStatsCommunityGroupScoreboard',
+  'ProfileStatsCommunityGroupAccuracyKd',
+  'ProfileStatsCommunityGroupDamage',
+  'ProfileStatsCommunityGroupEconomy',
+  'ProfileStatsCommunityGroupHealing',
+]) assertId(profilePage, id, 'dashboard comparison group');
+assert.match(profilePage, /ProfileStatsCommunityGridPerformanceScoreboard[\s\S]*ProfileStatsCommunityGridAccuracyKdDamage[\s\S]*ProfileStatsCommunityGridEconomyHealing/, 'dashboard comparison grid keeps the six ordered groups');
 assert.match(style, /\.ShowRankBarebonesProfilePage #ProfileInfo\s*\{[\s\S]*?min-width:\s*190px;[\s\S]*?overflow:\s*noclip;/, 'dashboard profile identity block reserves the rank seam');
 assert.match(style, /\.ShowRankBarebonesProfilePage #ShowRankBarebonesProfilePageRankHost\s*\{[\s\S]*?width:\s*90px;[\s\S]*?height:\s*70px;[\s\S]*?ignore-parent-flow:\s*true;/, 'dashboard profile rank host has the shared barebones footprint');
 assert.match(style, /\.ShowRankBarebonesProfilePage #ForumButton\s*\{[\s\S]*?visibility:\s*collapse;/, 'dashboard profile hides the optional forum row');
 assert.match(style, /\.ShowRankBarebonesProfileCard #ShowRankBarebonesRankImage\s*\{[\s\S]*?width:\s*88px;[\s\S]*?height:\s*66px;[\s\S]*?ignore-parent-flow:\s*true;/, 'profile card has the shared barebones rank footprint');
-assert.match(source, /\/rank-predict\/image\?format=" \+ RANK_IMAGE_FORMAT/, 'individual badges use the predicted-rank image endpoint');
-assert.match(source, /\/rank-predict\/image\?account_ids=" \+ accounts\.join\(","\) \+ "&format=" \+ RANK_IMAGE_FORMAT/, 'team averages use the predicted-rank image endpoint');
-assert.doesNotMatch(source, /\/rank\/image\?/, 'the runtime does not request canonical numbered-rank image endpoints');
+assert.match(source, /\/rank\/image\?format=" \+ RANK_IMAGE_FORMAT/, 'individual badges use the current rank-image endpoint');
+assert.match(source, /\/rank\/image\?account_ids=" \+ accounts\.join\(","\) \+ "&format=" \+ RANK_IMAGE_FORMAT/, 'team averages use the current rank-image endpoint');
+assert.doesNotMatch(source, /\/rank-predict\/image\?/, 'the runtime has no stale predicted-rank image endpoint');
 assert.match(source, /function buildProfileRecord\(panel\)[\s\S]*?CitadelProfilePage/, 'the runtime handles profile-card and dashboard profile-page roles');
-assert.match(source, /function readEscapeRoster\(shared, preservedRows\)/, 'the runtime builds generation-local Escape rosters');
-assert.match(source, /function planRosterWrites\(session, terminal\)/, 'the runtime plans atomic roster writes before rendering');
-assert.match(source, /function cacheRosterWrites\(roster, writes, complete\)/, 'the runtime caches only complete Escape roster writes');
+assert.match(source, /function buildRosterReadModel\(rows, topbarEvidence, completedRoster, cacheReplay\)/, 'one private roster read-model builder owns active and cache-replay facts');
+assert.match(source, /function readRosterModel\(shared, preservedRows, completedRoster, cacheReplay\)/, 'one adapter read feeds the private roster model');
+assert.match(source, /function classifyEscapeReadiness\(input\)/, 'one centralized Escape readiness interface owns lifecycle decisions');
 assert.match(source, /function promoteMissingLeader\(shared\)/, 'the alert runtime elects a missing-window leader lease');
 assert.match(source, /missingLeaderToken[\s\S]*?missingLeaderPulse/, 'the alert leader lease has generation and heartbeat tokens');
 assert.match(source, /ShowRankBarebonesOpenStatlocker[\s\S]*?ShowRankBarebonesCopyAccount/, 'profile roles retain their local public wrappers');

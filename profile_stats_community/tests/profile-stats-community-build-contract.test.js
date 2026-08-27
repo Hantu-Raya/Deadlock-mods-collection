@@ -98,6 +98,9 @@ assert.match(build, /& node --check \$minifiedPath/, 'minified output receives a
 assert.match(build, /\$dynamicLookupKeys = @\(/, 'Closure validation declares the external protocol keys used through bracket lookup');
 assert.match(build, /\[regex\]::IsMatch\(\$minifiedSource, \$objectKeyPattern\)/, 'Closure output must preserve every dynamic lookup key');
 assert.match(build, /Closure Compiler renamed dynamic lookup key/, 'renamed protocol keys fail the build before packing');
+assert.match(build, /\$protocolGroupIds\s*=\s*@\(/, 'Closure validation separately tracks protocol group string values');
+assert.match(build, /\$stringValuePattern/, 'Closure validation checks quoted group values');
+assert.match(build, /Closure Compiler removed protocol group ID/, 'removed protocol group values fail the build before packing');
 assert.match(build, /Move-Item -LiteralPath \$minifiedPath -Destination \$StagedSourcePath -Force/, 'only the staged runtime is replaced with Closure output');
 assert.match(build, /foreach \(\$temporaryPath in @\(\$externsPath, \$minifiedPath\)\)[\s\S]*?Remove-Item -LiteralPath \$temporaryPath -Force/s, 'temporary Closure files are deleted');
 
