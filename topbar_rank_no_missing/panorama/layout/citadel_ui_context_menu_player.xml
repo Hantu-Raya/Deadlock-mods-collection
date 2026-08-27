@@ -1,0 +1,131 @@
+<!-- xml reconstructed by Source 2 Viewer 19.1.0.0 - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/citadel_ui_context_menu_player.vcss_c" />
+	</styles>
+	<snippets>
+		<snippet name="InviteToParty">
+			<Panel class="MenuRow">
+				<TextButton id="MenuButton" text="#Citadel_PlayerContextMenu_InviteToParty" />
+			</Panel>
+		</snippet>
+		<snippet name="ReadyUp">
+			<Panel class="MenuRow">
+				<Panel class="contextIcon" />
+				<TextButton id="MenuButton" text="#Citadel_Party_Context_ReadyUp" />
+			</Panel>
+		</snippet>
+		<snippet name="ClearReadyUp">
+			<Panel class="MenuRow">
+				<TextButton id="MenuButton" text="#Citadel_Party_Context_ClearReady" />
+			</Panel>
+		</snippet>
+		<snippet name="SwitchTeam">
+			<Panel class="MenuRow">
+				<TextButton id="MenuButton" text="#Citadel_Party_Context_SwitchTeam" />
+			</Panel>
+		</snippet>
+		<snippet name="PartyLeave">
+			<Panel class="MenuRow">
+				<TextButton id="MenuButton" text="#Citadel_PlayerContextMenu_PartyLeave" />
+			</Panel>
+		</snippet>
+		<snippet name="PartyKick">
+			<Panel class="MenuRow">
+				<TextButton id="MenuButton" text="#Citadel_PlayerContextMenu_PartyKick" />
+			</Panel>
+		</snippet>
+		<snippet name="PartyInvite">
+			<Panel class="MenuRow">
+				<TextButton id="MenuButton" text="#Citadel_PlayerContextMenu_InviteToParty" />
+			</Panel>
+		</snippet>
+		<snippet name="PartyCancelInvite">
+			<Panel class="MenuRow">
+				<TextButton id="MenuButton" text="#Citadel_PlayerContextMenu_PartyCancelInvite" />
+			</Panel>
+		</snippet>
+		<snippet name="SpectateGame">
+			<Panel class="MenuRow">
+				<TextButton id="MenuButton" text="#Citadel_PlayerContextMenu_SpectateGame" />
+			</Panel>
+		</snippet>
+		<snippet name="AddFriend">
+			<Panel class="MenuRow">
+				<TextButton id="MenuButton" text="#Citadel_PlayerContextMenu_AddFriend" />
+			</Panel>
+		</snippet>
+		<snippet name="CancelAddFriend">
+			<Panel class="MenuRow">
+				<TextButton id="MenuButton" text="#Citadel_PlayerContextMenu_CancelFriendInvite" />
+			</Panel>
+		</snippet>
+		<snippet name="RemoveFriend">
+			<Panel class="MenuRow">
+				<TextButton id="MenuButton" text="#Citadel_PlayerContextMenu_RemoveFriend" />
+			</Panel>
+		</snippet>
+		<snippet name="AcceptFriendRequest">
+			<Panel class="MenuRow">
+				<TextButton id="MenuButton" text="#Citadel_PlayerContextMenu_AcceptFriendRequest" />
+			</Panel>
+		</snippet>
+		<snippet name="IgnoreFriendRequest">
+			<Panel class="MenuRow">
+				<TextButton id="MenuButton" text="#Citadel_PlayerContextMenu_IgnoreFriendRequest" />
+			</Panel>
+		</snippet>
+		<snippet name="ViewProfile">
+			<Panel class="MenuRow">
+				<TextButton id="MenuButton" text="#Citadel_PlayerContextMenu_ViewProfile" />
+			</Panel>
+		</snippet>
+		<snippet name="EmptyMenu">
+			<Panel class="MenuRow">
+				<Label text="#Citadel_PlayerContextMenu_EmptyMenu" />
+			</Panel>
+		</snippet>
+		<snippet name="AudioVolume">
+			<Panel class="SliderRow">
+				<Panel class="MenuSlider">
+					<Label class="ItemDescription" text="#Citadel_PlayerContextMenu_AudioVolume" />
+					<Slider id="Slider" class="ItemSlider HorizontalSlider" direction="horizontal" onvaluechanged="CitadelPlayerContextMenuSetAudioVolume()" />
+				</Panel>
+			</Panel>
+		</snippet>
+		<snippet name="Commend">
+			<Panel class="MenuRow PlayerFeedback Commend">
+				<Button id="CommendPlayer" class="MenuButton" onmouseover="UIShowTextTooltip( #Citadel_MatchDetails_CommendTooltip );" onmouseout="UIHideTextTooltip()">
+					<Label class="commendLabel" text="#Citadel_Party_Commend" />
+					<Label class="commendedLabel" text="#Citadel_Party_Commended" />
+				</Button>
+			</Panel>
+		</snippet>
+		<snippet name="Report">
+			<Panel class="MenuRow PlayerFeedback Report">
+				<Button id="ReportPlayer" class="MenuButton" onmouseover="UIShowTextTooltip( #Citadel_MatchDetails_ReportTooltip );" onmouseout="UIHideTextTooltip()">
+					<Label class="reportLabel" text="#Citadel_Party_Report" />
+					<Label class="reportedLabel" text="#Citadel_Party_Reported" />
+				</Button>
+			</Panel>
+		</snippet>
+	</snippets>
+	<CitadelContextMenuPlayer class="PlayerMenuContents">
+		<CitadelProfileCard id="ProfileCard" />
+		<Panel id="MenuOptionsContainer">
+			<Panel id="PlayerContainer" />
+			<Panel id="MenuOptionsPanel">
+				<Panel id="ShowRankBarebonesStatlockerRow" class="MenuRow">
+					<TextButton id="MenuButton" text="Statlocker Profile" onactivate="if ($('#ProfileCard').ShowRankBarebonesOpenStatlocker) $('#ProfileCard').ShowRankBarebonesOpenStatlocker();" />
+				</Panel>
+				<Panel id="ShowRankBarebonesCopyAccountRow" class="MenuRow">
+					<TextButton id="MenuButton" text="Copy Account ID" onactivate="if ($('#ProfileCard').ShowRankBarebonesCopyAccount) $('#ProfileCard').ShowRankBarebonesCopyAccount();" />
+				</Panel>
+			</Panel>
+			<Panel id="ProfileStatsCommunityPlayerProfileRow" class="MenuRow">
+				<TextButton id="MenuButton" text="Player Profile" onactivate="if ($('#ProfileCard').ShowRankBarebonesOpenPlayerProfile) $('#ProfileCard').ShowRankBarebonesOpenPlayerProfile();" />
+			</Panel>
+		</Panel>
+	</CitadelContextMenuPlayer>
+</root>

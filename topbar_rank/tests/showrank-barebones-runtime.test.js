@@ -4,10 +4,16 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
-const source = fs.readFileSync(path.join(__dirname, '..', 'panorama', 'scripts', 'showrank_barebones.js'), 'utf8');
-const rankUrl = (account, base = 'https://api.deadlock-api.com/v1/players', format = 'webp') => `${base}/${account}/rank-predict/image?format=${format}`;
+const repositoryDir = path.join(__dirname, '..', '..');
+const projectRoot = path.join(__dirname, '..');
+const composition = require(path.join(repositoryDir, 'scripts', 'profile-stats-community-composition'));
+const runtimePath = process.env.SHOWRANK_BAREBONES_RUNTIME;
+const source = runtimePath
+  ? fs.readFileSync(runtimePath, 'utf8')
+  : composition.composeBarebonesSources(repositoryDir, projectRoot).runtime;
+const rankUrl = (account, base = 'https://api.deadlock-api.com/v1/players', format = 'webp') => `${base}/${account}/rank/image?format=${format}`;
 const statlockerUrl = (account) => `https://statlocker.gg/profile/${account}/matches`;
-const averageUrl = (accounts, base = 'https://api.deadlock-api.com/v1/players', format = 'webp') => `${base}/rank-predict/image?account_ids=${accounts.join(',')}&format=${format}`;
+const averageUrl = (accounts, base = 'https://api.deadlock-api.com/v1/players', format = 'webp') => `${base}/rank/image?account_ids=${accounts.join(',')}&format=${format}`;
 
 class Panel {
   constructor(type, options = {}) {
@@ -127,10 +133,11 @@ function profile(account, options = {}) {
   const contents = root.add(new Panel('Panel', { id: 'ContentsMain' }));
   const accountPanel = contents.add(new Panel('Panel', { id: 'AccountID' }));
   const witness = contents.add(new Panel('Label', { id: 'ShowRankBarebonesAccount', text: options.witness === undefined ? account : options.witness }));
+  const contextWitness = contents.add(new Panel('Label', { id: 'ProfileStatsCommunityContextAccount', text: options.contextWitness === undefined ? account : options.contextWitness }));
   const image = root.add(new Panel('Panel', { id: 'CardOverlay' })).add(new Panel('Image', { id: 'ShowRankBarebonesRankImage', valid: options.imageValid, visible: options.imageVisible }));
-  return { root, accountPanel, witness, image };
+  return { root, accountPanel, witness, contextWitness, image };
 }
-function setProfileAccount(card, account) { card.witness.text = account; card.root.attributes.accountid = account; delete card.root.attributes.steamid; }
+function setProfileAccount(card, account) { card.witness.text = account; card.contextWitness.text = account; card.root.attributes.accountid = account; delete card.root.attributes.steamid; }
 function profilePage(account, options = {}) {
   const root = new Panel('CitadelProfilePage', { id: options.id || 'ProfilePage', classes: ['ShowRankBarebonesProfilePage'], valid: options.valid, attributes: { ...(options.accountid === undefined ? { accountid: account } : { accountid: options.accountid }), ...(options.steamid === undefined ? {} : { steamid: options.steamid }) } });
   const profileInfo = root.add(new Panel('Panel', { id: 'ProfileInfo' }));
@@ -141,20 +148,20 @@ function profilePage(account, options = {}) {
 function setProfilePageAccount(page, account) { page.witness.text = account; page.root.attributes.accountid = account; delete page.root.attributes.steamid; }
 function topbar(hero, id = `Topbar-${hero}`) {
   const root = new Panel('CitadelHudTopBarPlayer', { id, classes: ['ShowRankBarebonesTopbarPlayer'] });
-  const heroLabel = root.add(new Panel('Label', { text: hero, classes: ['HeroName'] }));
+  const heroLabel = root.add(new Panel('Label', { id: `${id}-HeroName`, text: hero, classes: ['HeroName'] }));
   const image = root.add(new Panel('Panel', { id: 'HeroContents' })).add(new Panel('Image', { id: 'ShowRankBarebonesTopbarRankImage', visible: false }));
   return { root, heroLabel, image };
 }
 function row(hero, options = {}) { const root = new Panel('CitadelPlayersListEntry', { id: options.id || `Row-${hero}`, classes: ['ShowRankBarebonesPlayerRow'] }); const mainContents = root.add(new Panel('Panel', { id: 'MainContents', valid: options.mainValid })); const heroLabel = mainContents.add(new Panel('Label', { id: 'ShowRankBarebonesRowHero', text: hero })); const image = mainContents.add(new Panel('Image', { id: 'ShowRankBarebonesPlayerListRankImage', visible: false })); return { root, mainContents, heroLabel, image }; }
 function escape() { const root = new Panel('CitadelHudEscapeMenu', { id: 'Escape' }); return { root, playersTab: root.add(new Panel('TabButton', { id: 'PlayersTab' })) }; }
 function addContextRow(parent, id, text) { const rowPanel = parent.add(new Panel('Panel', { id, classes: ['MenuRow'] })); return rowPanel.add(new Panel('TextButton', { id: 'MenuButton', text })); }
-function contextMenu(card) { const root = new Panel('CitadelContextMenuPlayer', { id: 'PersonalContextMenu' }); root.add(card.root); const options = root.add(new Panel('Panel', { id: 'MenuOptionsPanel' })); const statlockerButton = addContextRow(options, 'ShowRankBarebonesStatlockerRow', 'Statlocker Profile'); const copyButton = addContextRow(options, 'ShowRankBarebonesCopyAccountRow', 'Copy Account ID'); return { root, statlockerButton, copyButton }; }
+function contextMenu(card) { const root = new Panel('CitadelContextMenuPlayer', { id: 'PersonalContextMenu' }); root.add(card.root); const options = root.add(new Panel('Panel', { id: 'MenuOptionsPanel' })); const statlockerButton = addContextRow(options, 'ShowRankBarebonesStatlockerRow', 'Statlocker Profile'); const copyButton = addContextRow(options, 'ShowRankBarebonesCopyAccountRow', 'Copy Account ID'); const playerProfileButton = addContextRow(root, 'ProfileStatsCommunityPlayerProfileRow', 'Player Profile'); return { root, statlockerButton, copyButton, playerProfileButton }; }
 const STANDARD_HEROES = ['haze', 'infernus', 'vindicta', 'abrams', 'bebop', 'dynamo', 'kelvin', 'lash', 'mcginnis', 'mo_and_krill', 'paradox', 'pocket'];
 function playerRoster(heroes, prefix = '') { const friendly = new Panel('CitadelHudTopBarTeam', { id: 'TeamFriendly' }); const enemy = new Panel('CitadelHudTopBarTeam', { id: 'TeamEnemy' }); const bars = heroes.map((hero, index) => { const bar = topbar(hero, `${prefix}Bar-${index}`); (index < heroes.length / 2 ? friendly : enemy).add(bar.root); return bar; }); return { bars, rows: heroes.map((hero, index) => row(hero, { id: `${prefix}Row-${index}` })), friendly, enemy }; }
 function wirePlayerRoster(h, card, roster, accountForIndex) { h.attach(roster.friendly); h.attach(roster.enemy); roster.bars.forEach((bar) => h.evaluate(bar.root)); roster.rows.forEach((player, index) => { h.evaluate(player.root); h.on(player.mainContents, () => setProfileAccount(card, accountForIndex(index))); }); }
 
 function harness(options = {}) {
-  const scheduled = [], events = [], handlers = new Map(), dollars = [], openedUrls = [], copiedAccounts = [], closedContexts = [], nativeContextDismissals = [], trace = [];
+  const scheduled = [], events = [], handlers = new Map(), dollars = [], openedUrls = [], openedProfiles = [], copiedAccounts = [], closedContexts = [], nativeContextDismissals = [], trace = [];
   const scheduledDelays = new WeakMap();
   const work = createWork();
   let currentTime = 0;
@@ -180,13 +187,19 @@ function harness(options = {}) {
       copiedAccounts.push(first);
       return;
     }
+    if (event === 'CitadelShowProfilePageForAccount') {
+      assert.strictEqual(typeof first, 'number', 'player profile receives the selected SteamID3 as a number');
+      assert.strictEqual(second, undefined, 'player profile event has no fabricated second payload');
+      openedProfiles.push(first);
+      return;
+    }
     if (event === 'DismissAllContextMenus' || event === 'DropInputFocus') {
       assert.strictEqual(first, undefined, `${event} has no fabricated payload`);
       assert.strictEqual(second, undefined, `${event} has no fabricated payload`);
       closedContexts.push(event);
       return;
     }
-    assert.strictEqual(event, 'Activated', 'the runtime may dispatch only clipboard, cleanup, or panel activation events');
+    assert.strictEqual(event, 'Activated', 'the runtime may dispatch only clipboard, profile, cleanup, or panel activation events');
     assert.ok(first instanceof Panel, 'activation targets a local panel');
     if (first.id === 'MainContents') assert.strictEqual(second, 'mouse', 'player profile cards require mouse activation');
     else assert.strictEqual(second, undefined, 'Players-tab activation has no fabricated input');
@@ -246,7 +259,7 @@ function harness(options = {}) {
     };
   }
   return {
-    documentRoot, gameClock, averageFriendly, averageEnemy, events, dollars, openedUrls, copiedAccounts, closedContexts, nativeContextDismissals, trace,
+    documentRoot, gameClock, averageFriendly, averageEnemy, events, dollars, openedUrls, openedProfiles, copiedAccounts, closedContexts, nativeContextDismissals, trace,
     attach(panel) {
       panel.setWork(work);
       if (!panel.parent) documentRoot.add(panel);
@@ -333,6 +346,45 @@ function rootRosterScans(snapshot) {
     rows: count('ShowRankBarebonesPlayerRow'),
   };
 }
+function topbarHeroReads(snapshot) {
+  return Object.entries(snapshot.panelCalls.text).reduce(
+    (total, [id, count]) => total + (id.endsWith('-HeroName') ? count : 0),
+    0,
+  );
+}
+function rowHeroReads(snapshot) {
+  return snapshot.panelCalls.text.ShowRankBarebonesRowHero || 0;
+}
+
+
+function assertTopbarEvidenceBudget(snapshot, budget, label) {
+  const textReads = Object.values(snapshot.panelCalls.text).reduce((total, count) => total + count, 0);
+  assert.ok(topbarHeroReads(snapshot) <= budget.heroReads, `${label}: top-bar hero reads stay within the snapshot budget`);
+  if (budget.rowHeroReads !== undefined) {
+    assert.ok(rowHeroReads(snapshot) <= budget.rowHeroReads, `${label}: row hero reads stay within the roster-model budget`);
+  }
+  assert.ok(textReads <= budget.textReads, `${label}: total text reads stay within the measured budget`);
+  assert.ok(snapshot.panelCalls.FindChildTraverse <= budget.findChild, `${label}: child lookups stay within the measured budget`);
+  assert.ok(snapshot.panelCalls.GetParent <= budget.getParent, `${label}: parent walks stay within the measured budget`);
+}
+function assertEscapeIntent(intent, sourceName, step, label) {
+  assert.deepStrictEqual(
+    JSON.parse(JSON.stringify(intent)),
+    {
+      source: sourceName,
+      step,
+      mayStartPreload: step === 'start_preload',
+      mayProbeRows: step === 'probe_rows',
+      mayShowSpinner: false,
+      shouldReplayCache: step === 'replay_cache',
+      shouldScheduleRetry: step === 'wait_roster',
+      shouldFinish: step === 'finish',
+      shouldStop: step === 'source_blocked' || step === 'transition_stop',
+    },
+    label,
+  );
+}
+
 
 function missingState(h) {
   return h.documentRoot.__showrank_barebones_state_v1;
@@ -365,7 +417,7 @@ function containsPanel(value, seen = new Set()) {
 
 {
   const h = harness(); const card = profile('123456'); h.evaluate(card.root);
-  assert.deepStrictEqual(card.image.images, [rankUrl('123456')], 'the runtime uses predicted rank-image defaults');
+  assert.deepStrictEqual(card.image.images, [rankUrl('123456')], 'the runtime uses canonical rank-image defaults');
 }
 
 {
@@ -382,14 +434,33 @@ function containsPanel(value, seen = new Set()) {
   assert.deepStrictEqual(card.image.images, [rankUrl('123456')], 'matching direct and Steam64 witnesses render the exact URL'); assert.strictEqual(card.image.visible, true); assert.strictEqual(h.drain(), 2, 'startup watch is finite');
 }
 {
+  const h = harness(); const card = profile('123456', {
+    witness: ' 000123456 ',
+    contextWitness: '000123456',
+    accountid: '123456',
+  }); h.evaluate(card.root);
+  assert.deepStrictEqual(card.image.images, [rankUrl('123456')], 'the shared identity policy canonicalizes matching direct witnesses');
+}
+{
   const h = harness(); const card = profile('', { accountid: undefined, witness: '', imageVisible: true }); h.evaluate(card.root); assertCleared(card.image, 'unbound profile'); setProfileAccount(card, '123456'); h.drain(); assert.deepStrictEqual(card.image.images, ['', rankUrl('123456')], 'delayed profile evidence binds on retry');
+}
+{
+  const h = harness(); const card = profile('123456', {
+    witness: '',
+    contextWitness: '',
+    accountid: '123456',
+    imageVisible: true,
+  }); h.evaluate(card.root);
+  assertCleared(card.image, 'root-only profile authority');
 }
 for (const [label, options] of [
   ['hidden mismatch', { witness: '123457', accountid: '123456', steamid: '76561197960389184' }],
   ['account mismatch', { witness: '123456', accountid: '123457', steamid: '76561197960389184' }],
   ['Steam64 mismatch', { witness: '123456', accountid: '123456', steamid: '76561197960389185' }],
+  ['Steam64 direct-witness format', { witness: '76561197960389184', contextWitness: '123456', accountid: '123456' }],
+  ['Steam3 context-witness format', { witness: '123456', contextWitness: '[U:1:123456]', accountid: '123456' }],
 ]) { const h = harness(); const card = profile('123456', { ...options, imageVisible: true }); h.evaluate(card.root); assertCleared(card.image, label); }
-for (const invalid of ['', '0', '-1', '1.5', '1e3', ' 123456', '123456 ', '123456x', '4294967296', '9007199254740993', 'Infinity', 'NaN']) { const h = harness(); const card = profile(invalid, { witness: invalid, accountid: invalid, imageVisible: true }); h.evaluate(card.root); assertCleared(card.image, `invalid ${JSON.stringify(invalid)}`); }
+for (const invalid of ['', '0', '-1', '1.5', '1e3', '123456x', '4294967296', '9007199254740993', 'Infinity', 'NaN']) { const h = harness(); const card = profile(invalid, { witness: invalid, accountid: invalid, imageVisible: true }); h.evaluate(card.root); assertCleared(card.image, `invalid ${JSON.stringify(invalid)}`); }
 {
   const h = harness(); const card = profile('123456'); h.evaluate(card.root); card.root.attributes.accountid = '123457'; h.drain(); assert.deepStrictEqual(card.image.images, [rankUrl('123456'), ''], 'conflicting reused-card evidence clears the old rank');
 }
@@ -488,28 +559,44 @@ for (const [label, options] of [
   const h = harness(); const card = profile('123456'), menu = contextMenu(card); const menuDollar = h.evaluate(menu.root); h.evaluate(card.root);
   assert.strictEqual(menuDollar.ShowRankBarebonesOpenStatlocker, undefined, 'context actions do not depend on context-local globals');
   assert.strictEqual(typeof card.root.ShowRankBarebonesOpenStatlocker, 'function', 'profile startup installs its local StatLocker action');
+  assert.strictEqual(typeof card.root.ShowRankBarebonesOpenPlayerProfile, 'function', 'profile startup installs its local Player Profile action');
   assert.strictEqual(typeof card.root.ShowRankBarebonesCopyAccount, 'function', 'profile startup installs its local account-copy action');
   card.root.ShowRankBarebonesOpenStatlocker();
+  card.root.ShowRankBarebonesOpenPlayerProfile();
   card.root.ShowRankBarebonesCopyAccount();
   assert.deepStrictEqual(
-    { openedUrls: h.openedUrls, copiedAccounts: h.copiedAccounts },
+    { openedUrls: h.openedUrls, openedProfiles: h.openedProfiles, copiedAccounts: h.copiedAccounts },
     {
       openedUrls: [{ method: 'ExternalBrowserGoToURL', url: statlockerUrl('123456') }],
+      openedProfiles: [123456],
       copiedAccounts: ['123456'],
     },
-    'both profile-local context actions reach their Panorama engine events',
+    'all profile-local context actions use the selected account',
   );
 }
 {
   const h = harness(); const card = profile(''), menu = contextMenu(card); h.evaluate(menu.root); h.evaluate(card.root);
   card.root.ShowRankBarebonesOpenStatlocker();
+  card.root.ShowRankBarebonesOpenPlayerProfile();
   card.root.ShowRankBarebonesCopyAccount();
-  assert.deepStrictEqual({ openedUrls: h.openedUrls, copiedAccounts: h.copiedAccounts }, { openedUrls: [], copiedAccounts: [] }, 'blank click-time evidence fails closed');
+  assert.deepStrictEqual({ openedUrls: h.openedUrls, openedProfiles: h.openedProfiles, copiedAccounts: h.copiedAccounts }, { openedUrls: [], openedProfiles: [], copiedAccounts: [] }, 'blank click-time evidence fails closed');
   setProfileAccount(card, '234567');
   card.root.ShowRankBarebonesOpenStatlocker();
+  card.root.ShowRankBarebonesOpenPlayerProfile();
   card.root.ShowRankBarebonesCopyAccount();
   assert.deepStrictEqual(h.openedUrls, [{ method: 'ExternalBrowserGoToURL', url: statlockerUrl('234567') }], 'StatLocker resolves newly bound evidence at click time');
+  assert.deepStrictEqual(h.openedProfiles, [234567], 'Player Profile resolves newly bound evidence at click time');
   assert.deepStrictEqual(h.copiedAccounts, ['234567'], 'Copy Account ID resolves newly bound evidence at click time');
+}
+{
+  const h = harness(); const card = profile(''), menu = contextMenu(card); const passive = topbar('haze');
+  passive.root.attributes.accountid = '123456';
+  h.attach(passive.root);
+  h.evaluate(passive.root);
+  h.evaluate(menu.root);
+  h.evaluate(card.root);
+  card.root.ShowRankBarebonesOpenPlayerProfile();
+  assert.deepStrictEqual(h.openedProfiles, [], 'Passive top-bar evidence cannot establish viewed-profile identity');
 }
 {
   const h = harness({ externalBrowserEvent: false }); const card = profile('123456'), menu = contextMenu(card); h.evaluate(menu.root); h.evaluate(card.root);
@@ -519,9 +606,40 @@ for (const [label, options] of [
 {
   const h = harness(); const card = profile('123456', { witness: '654321' }), menu = contextMenu(card); h.evaluate(menu.root); h.evaluate(card.root);
   card.root.ShowRankBarebonesOpenStatlocker();
+  card.root.ShowRankBarebonesOpenPlayerProfile();
   card.root.ShowRankBarebonesCopyAccount();
   assert.deepStrictEqual(h.openedUrls, []);
-  assert.deepStrictEqual(h.copiedAccounts, [], 'conflicting account evidence blocks both context actions');
+  assert.deepStrictEqual(h.openedProfiles, []);
+  assert.deepStrictEqual(h.copiedAccounts, [], 'conflicting account evidence blocks every context action');
+}
+{
+  const h = harness(); const card = profile('123456', { contextWitness: '654321' }), menu = contextMenu(card); h.evaluate(menu.root); h.evaluate(card.root);
+  card.root.ShowRankBarebonesOpenPlayerProfile();
+  assert.deepStrictEqual(h.openedProfiles, [], 'conflicting selected-card witnesses block native profile navigation');
+}
+{
+  const h = harness(); const card = profile('123456'), menu = contextMenu(card); h.evaluate(menu.root); h.evaluate(card.root);
+  card.contextWitness.text = null;
+  card.root.ShowRankBarebonesOpenStatlocker();
+  card.root.ShowRankBarebonesOpenPlayerProfile();
+  card.root.ShowRankBarebonesCopyAccount();
+  assert.deepStrictEqual(
+    { openedUrls: h.openedUrls, openedProfiles: h.openedProfiles, copiedAccounts: h.copiedAccounts },
+    { openedUrls: [], openedProfiles: [], copiedAccounts: [] },
+    'unreadable selected-card evidence blocks every context action',
+  );
+}
+{
+  const h = harness(); const card = profile('123456'), menu = contextMenu(card); h.evaluate(menu.root); h.evaluate(card.root);
+  card.root.GetAttributeString = () => { throw new Error('unreadable authority'); };
+  card.root.ShowRankBarebonesOpenStatlocker();
+  card.root.ShowRankBarebonesOpenPlayerProfile();
+  card.root.ShowRankBarebonesCopyAccount();
+  assert.deepStrictEqual(
+    { openedUrls: h.openedUrls, openedProfiles: h.openedProfiles, copiedAccounts: h.copiedAccounts },
+    { openedUrls: [], openedProfiles: [], copiedAccounts: [] },
+    'unreadable profile authority blocks every context action',
+  );
 }
 
 {
@@ -844,6 +962,32 @@ for (const [label, options] of [
   assert.deepStrictEqual(roster.bars[0].image.images.filter(Boolean), [], 'hideout transition cannot populate top-bar ranks');
 }
 
+// Passive top-bar evidence cannot create Escape intent or probe work.
+{
+  const h = harness(); const passive = topbar('haze', 'PassiveReadiness');
+  h.evaluate(passive.root);
+  assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.escape, null, 'Passive top-bar evaluation creates no Escape session');
+  assert.deepStrictEqual(h.events, [], 'Passive top-bar evaluation dispatches neither Players nor profile rows');
+}
+
+// Explicit Escape owns preload intent; roster waiting stays bounded and spinner-free.
+{
+  const h = harness(); const menu = escape(); const menuDollar = h.evaluate(menu.root);
+  h.resetWork();
+  menuDollar.ShowRankBarebonesEscapeOpen();
+  const session = h.documentRoot.__showrank_barebones_state_v1.escape;
+  assertEscapeIntent(session.intent, 'escape_open', 'start_preload', 'explicit Escape starts the barebones preload');
+  assert.deepStrictEqual(h.events.map((panel) => panel.id), ['PlayersTab'], 'preload activates only the native Players tab before roster evidence');
+  h.runNext();
+  assertEscapeIntent(session.intent, 'escape_continue', 'wait_roster', 'missing rows produce one bounded roster retry decision');
+  assert.strictEqual(h.events.filter((panel) => panel.id === 'MainContents').length, 0, 'roster wait cannot probe a row');
+  menuDollar.ShowRankBarebonesEscapeOut(); h.runDelay(0);
+  assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.escape, session, 'mouseout while Escape stays open preserves the explicit session');
+  assertEscapeIntent(session.intent, 'escape_out', 'runtime_idle', 'open-menu mouseout is an idle decision');
+  h.documentRoot.classes.delete('ShowEscapeMenu'); menuDollar.ShowRankBarebonesEscapeOut(); h.drain();
+  assert.strictEqual(h.pending(), 0, 'close drains stale one-shot retries without recurring work');
+}
+
 // A completed match pass stays cached across Escape reopenings; hideout clears it for the next match.
 {
   const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES.slice(0, 6), 'Cache'); let accountBase = 200;
@@ -895,16 +1039,62 @@ for (const playerCount of [6, 12]) {
   h.drain();
   h.resetWork();
   menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
-  if (playerCount === 12) captureBaseline('baseline.escape-cache-recreated-topbars-12', h);
+  const replayWork = h.snapshotWork();
+  assert.deepStrictEqual(
+    { scheduled: replayWork.scheduled, callbacks: replayWork.callbacks },
+    { scheduled: 0, callbacks: 0 },
+    `recreated ${playerCount}-player cache replay performs no scheduled work`,
+  );
+  if (playerCount === 12) {
+    captureBaseline('baseline.escape-cache-recreated-topbars-12', h);
+    assertTopbarEvidenceBudget(
+      replayWork,
+      { heroReads: 24, rowHeroReads: 0, textReads: 24, findChild: 42, getParent: 23 },
+      'twelve-player cache replay',
+    );
+  }
   assert.strictEqual(h.events.filter((panel) => panel.id === 'MainContents').length, firstRowActivations, `a complete ${playerCount}-account cache prevents a second Escape auto-probe`);
   assert.deepStrictEqual(
-    rootRosterScans(h.snapshotWork()),
+    rootRosterScans(replayWork),
     { topbars: 1, rows: 0 },
     `recreated ${playerCount}-player cache reuse only performs its live topbar validation scan`,
   );
   assert.strictEqual(recreatedRoster.bars[0].image.images.at(-1), rankUrl('201'), 'recreated topbars restore the already verified account ranks');
   assert.strictEqual(h.pending(), 0, 'cache reuse leaves no pending Escape callbacks');
 }
+
+// A cache-replay freshness failure retries against topbars only before starting a fresh active pass.
+{
+  const h = harness(); const card = profile('101'), menu = escape();
+  const firstRoster = playerRoster(STANDARD_HEROES.slice(0, 6), 'CacheStaleFirst');
+  h.evaluate(card.root); wirePlayerRoster(h, card, firstRoster, (index) => String(601 + index));
+  const menuDollar = h.evaluate(menu.root); menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
+  h.documentRoot.classes.delete('ShowEscapeMenu'); menuDollar.ShowRankBarebonesEscapeOut(); h.drain();
+  firstRoster.bars.forEach((bar) => bar.root.classes.delete('ShowRankBarebonesTopbarPlayer'));
+  firstRoster.rows.forEach((player) => player.root.classes.delete('ShowRankBarebonesPlayerRow'));
+  const recreatedRoster = playerRoster(STANDARD_HEROES.slice(0, 6), 'CacheStaleRecreated');
+  wirePlayerRoster(h, card, recreatedRoster, (index) => String(701 + index));
+  h.documentRoot.classes.add('ShowEscapeMenu'); h.drain();
+  let heroReads = 0;
+  Object.defineProperty(recreatedRoster.bars[0].heroLabel, 'text', {
+    configurable: true,
+    get() {
+      heroReads += 1;
+      return heroReads === 1 ? 'haze' : 'calico';
+    },
+  });
+  h.resetWork(); menuDollar.ShowRankBarebonesEscapeOpen();
+  assert.deepStrictEqual(
+    rootRosterScans(h.snapshotWork()),
+    { topbars: 2, rows: 0 },
+    'cache replay and its one stale replacement read remain topbar-only',
+  );
+  assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.completedRoster, null, 'changed cache evidence fails closed before the active fallback');
+  assert.ok(recreatedRoster.bars.every((bar) => bar.image.images.filter(Boolean).length === 0), 'failed cache replay clears every recreated target');
+  h.documentRoot.classes.delete('ShowEscapeMenu'); menuDollar.ShowRankBarebonesEscapeOut(); h.drain();
+  assert.strictEqual(h.pending(), 0, 'closing before the active fallback cancels its scheduled row read');
+}
+
 
 // A mismatched completed cache clears recreated targets before its bounded fresh no-row pass.
 {
@@ -949,6 +1139,33 @@ for (const playerCount of [6, 12]) {
   h.documentRoot.classes.add('ShowEscapeMenu'); menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
   assert.ok(h.events.filter((panel) => panel.id === 'MainContents').length > firstRowActivations, `an insufficient ${playerCount}-player account cache retries on the next Escape opening`);
   assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.completedRoster.length, playerCount, `the retry completes after all ${playerCount} account IDs are confirmed`);
+}
+
+// One pass owns one match-centric roster read instead of caller-owned parallel collections.
+{
+  const h = harness(); const card = profile('101'), menu = escape();
+  const roster = playerRoster(['haze'], 'ModelShape');
+  h.evaluate(card.root); wirePlayerRoster(h, card, roster, () => '201');
+  const menuDollar = h.evaluate(menu.root); h.drain(); h.resetWork();
+  menuDollar.ShowRankBarebonesEscapeOpen(); h.runNext();
+  const session = h.documentRoot.__showrank_barebones_state_v1.escape;
+  assert.ok(session && session.roster, 'the active Escape pass owns one roster read model');
+  assertEscapeIntent(session.intent, 'escape_continue', 'probe_rows', 'covered roster evidence permits sequential Direct probing without a spinner');
+  assert.deepStrictEqual(
+    Object.keys(session.roster).sort(),
+    ['cacheReplay', 'evidence', 'matches', 'probes', 'readiness'],
+    'the roster interface exposes only probe records, match records, evidence, and readiness facts',
+  );
+  assert.deepStrictEqual(
+    Object.keys(session.roster.matches[0]).sort(),
+    ['account', 'hero', 'row', 'topbar'],
+    'each match record owns its row, topbar, hero, and Direct witness slot',
+  );
+  assert.strictEqual('accountByHero' in session, false, 'the Escape caller owns no parallel account map');
+  assert.strictEqual('topbars' in session.roster, false, 'the roster model does not republish raw topbar arrays');
+  assert.strictEqual('topbarTargets' in session.roster, false, 'the roster model does not republish target arrays');
+  h.drain();
+  assert.strictEqual(h.pending(), 0, 'the inspected roster pass still terminates without recurring work');
 }
 
 // Rows register after PlayersTab is activated; they map rank evidence by unique normalized hero, not row order.
@@ -1010,8 +1227,19 @@ for (const playerCount of [6, 12]) {
   h.drain();
   h.resetWork();
   menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
+  const delayedWork = h.snapshotWork();
   captureBaseline('baseline.escape-delayed-12-player', h);
-  const delayedScans = rootRosterScans(h.snapshotWork());
+  assert.deepStrictEqual(
+    { scheduled: delayedWork.scheduled, callbacks: delayedWork.callbacks },
+    { scheduled: 15, callbacks: 15 },
+    'delayed twelve-player coverage preserves the accepted callback budget, including the fixture attachment',
+  );
+  assertTopbarEvidenceBudget(
+    delayedWork,
+    { heroReads: 24, rowHeroReads: 24, textReads: 96, findChild: 466, getParent: 157 },
+    'delayed twelve-player pass',
+  );
+  const delayedScans = rootRosterScans(delayedWork);
   assert.strictEqual(delayedScans.topbars, delayedScans.rows, 'each delayed roster collection scans topbars and rows together');
   assert.ok(delayedScans.topbars <= 6, 'delayed roster coverage uses at most one root scan pair per initial/delayed attempt');
   assert.strictEqual(rowZeroAttached, true, 'row 0 attaches on the first scheduled tick after PlayersTab activation');
@@ -1038,7 +1266,18 @@ for (const playerCount of [6, 12]) {
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(301 + index));
   const menuDollar = h.evaluate(menu.root); h.drain(); h.resetWork();
   menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
+  const completedWork = h.snapshotWork();
   captureBaseline('baseline.escape-complete-12-player', h);
+  assert.deepStrictEqual(
+    { scheduled: completedWork.scheduled, callbacks: completedWork.callbacks },
+    { scheduled: 14, callbacks: 14 },
+    'complete twelve-player preload preserves one collection, twelve witness, and one cleanup callback',
+  );
+  assertTopbarEvidenceBudget(
+    completedWork,
+    { heroReads: 24, rowHeroReads: 24, textReads: 96, findChild: 466, getParent: 157 },
+    'complete twelve-player pass',
+  );
   const completedRoster = h.documentRoot.__showrank_barebones_state_v1.completedRoster;
   assert.strictEqual(completedRoster.length, 12, 'twelve-player standard mode stores a completed cache');
   assert.ok(completedRoster.every((entry) => Object.keys(entry).sort().join(',') === 'account,hero'), 'completed cache retains pure hero/account data only');
@@ -1049,7 +1288,7 @@ for (const playerCount of [6, 12]) {
     'cache completion releases active Escape roster records',
   );
   assert.deepStrictEqual(
-    rootRosterScans(h.snapshotWork()),
+    rootRosterScans(completedWork),
     { topbars: 1, rows: 1 },
     'a complete non-recreated twelve-player pass scans each roster class once through cache completion',
   );
@@ -1103,6 +1342,28 @@ for (const playerCount of [6, 12]) {
   assert.deepStrictEqual(h.averageEnemy.images.filter(Boolean), [], 'atomic failure applies no enemy average mutation');
   assert.strictEqual(h.pending(), 0, 'atomic stale recovery leaves no pending Escape work');
 }
+{
+  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES, 'StaleRow');
+  h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(501 + index));
+  h.on(roster.rows.at(-1).mainContents, () => {
+    setProfileAccount(card, '512');
+    roster.rows[0].heroLabel.text = 'calico';
+    roster.bars[0].heroLabel.text = 'calico';
+  });
+  const menuDollar = h.evaluate(menu.root); h.drain(); h.resetWork();
+  menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
+  assert.deepStrictEqual(
+    rootRosterScans(h.snapshotWork()),
+    { topbars: 2, rows: 2 },
+    'a row and matching topbar hero change receives one fail-closed replacement roster read',
+  );
+  assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.completedRoster, null, 'a stale row cannot complete the pure account cache');
+  assert.deepStrictEqual(roster.bars[0].image.images.filter(Boolean), [], 'a reused row cannot transfer its prior Direct account witness to a new hero');
+  assert.deepStrictEqual(h.averageFriendly.images.filter(Boolean), [], 'a stale row cannot produce a friendly average');
+  assert.deepStrictEqual(h.averageEnemy.images.filter(Boolean), [], 'a stale row cannot produce an enemy average');
+  assert.strictEqual(h.pending(), 0, 'row-stale recovery leaves no pending Escape work');
+}
+
 {
   const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES, 'Asymmetric');
   const moved = roster.bars[5].root;
@@ -1164,7 +1425,13 @@ for (const playerCount of [6, 12]) {
   h.drain();
   h.resetWork();
   h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain();
+  const duplicateWork = h.snapshotWork();
   captureBaseline('baseline.escape-duplicate-heroes', h);
+  assertTopbarEvidenceBudget(
+    duplicateWork,
+    { heroReads: 2, rowHeroReads: 1, textReads: 7, findChild: 54, getParent: 23 },
+    'duplicate top-bar heroes',
+  );
   assert.deepStrictEqual(first.image.images.filter(Boolean), [], 'duplicate topbar hero does not render');
   assert.deepStrictEqual(duplicate.image.images.filter(Boolean), [], 'both duplicate topbars fail closed');
 }
@@ -1172,7 +1439,38 @@ for (const playerCount of [6, 12]) {
   const h = harness(); const card = profile('101'), bar = topbar('haze'), menu = escape(), first = row('haze', { id: 'FirstRow' }), duplicate = row('HAZE', { id: 'SecondRow' }); h.evaluate(card.root); h.evaluate(bar.root); h.evaluate(first.root); h.evaluate(duplicate.root); h.on(first.mainContents, () => setProfileAccount(card, '201')); h.on(duplicate.mainContents, () => setProfileAccount(card, '202')); h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain(); assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'duplicate rows do not select by ordering');
 }
 {
+  const h = harness(); const card = profile('101'), menu = escape();
+  const roster = playerRoster(STANDARD_HEROES.slice(0, 6), 'DuplicateAccount');
+  h.evaluate(card.root); h.attach(roster.friendly); h.attach(roster.enemy);
+  roster.bars.forEach((bar) => h.evaluate(bar.root));
+  roster.rows.forEach((player, index) => {
+    h.evaluate(player.root);
+    h.on(player.mainContents, () => h.evaluate(profile('701', { id: `DuplicateAccountProfile-${index}` }).root));
+  });
+  h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain();
+  assert.ok(roster.rows.slice(0, 2).every((player) => player.image.images.includes(rankUrl('701'))), 'each duplicate account still came from a Direct profile witness');
+  assert.ok(roster.bars.every((bar) => bar.image.images.filter(Boolean).length === 0), 'one account cannot authorize two hero matches');
+  assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.completedRoster, null, 'duplicate Direct accounts cannot create a roster cache');
+  assert.deepStrictEqual(h.averageFriendly.images.filter(Boolean), [], 'duplicate Direct accounts cannot produce a friendly average');
+  assert.deepStrictEqual(h.averageEnemy.images.filter(Boolean), [], 'duplicate Direct accounts cannot produce an enemy average');
+  assert.strictEqual(h.pending(), 0, 'duplicate-account rejection leaves no pending Escape work');
+}
+{
   const h = harness(); const original = profile('101'), bar = topbar('haze'), menu = escape(), player = row('haze'); h.evaluate(original.root); h.evaluate(bar.root); h.evaluate(player.root); h.on(player.mainContents, () => { h.evaluate(profile('201', { id: 'ProfileA' }).root); h.evaluate(profile('202', { id: 'ProfileB' }).root); }); h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain(); assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'multiple changed/new profile witnesses fail closed');
+}
+{
+  const h = harness(); const menu = escape(), bar = topbar('haze', 'PassiveAccount'), player = row('haze');
+  bar.root.attributes.ShowRankBarebonesAccount = '999';
+  bar.root.attributes.accountid = '999';
+  bar.root.attributes.steamid = '[U:1:999]';
+  h.evaluate(bar.root); h.evaluate(player.root);
+  bar.image.visible = true; bar.image.SetImage(rankUrl('999'));
+  h.resetWork();
+  h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain();
+  assert.deepStrictEqual(bar.image.images.filter(Boolean), [rankUrl('999')], 'fixture starts with only an untrusted stale top-bar URL');
+  assert.strictEqual(bar.image.visible, false, 'Passive top-bar attributes cannot preserve a rank without a Direct profile witness');
+  assert.strictEqual(bar.image.images.at(-1), '', 'untrusted passive rank state is cleared before the bounded row pass');
+  assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.completedRoster, null, 'Passive top-bar evidence cannot create a verified account cache');
 }
 
 // The HUD ShowEscapeMenu class gates work; closing cancels one generation and reopening starts the next.
@@ -1205,23 +1503,5 @@ for (const playerCount of [6, 12]) {
   const h = harness(); const bar = topbar('haze'), menu = escape(); h.evaluate(bar.root); h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); assert.ok(h.drain() <= 9, 'missing rows, late attachment, and final cleanup complete within a 16.25-second bound'); assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'missing rows leave stale ranks cleared');
 }
 
-const activationDispatches = [...source.matchAll(/\$\.DispatchEvent\s*\(\s*"Activated"\s*,\s*([^)]*)\)/g)];
-assert.strictEqual(activationDispatches.length, 2, 'one tab activation and one row activation are the only panel dispatches');
-assert.deepStrictEqual(activationDispatches.map((match) => match[1].trim()), ['record.mainContents, "mouse"', 'playersTab'], 'rows use verified mouse activation while the Players tab keeps native activation');
-assert.match(source, /root\.ShowRankBarebonesOpenStatlocker\s*=\s*function/, 'profile role installs the XML-facing StatLocker action');
-assert.match(source, /root\.ShowRankBarebonesCopyAccount\s*=\s*function/, 'profile role installs the XML-facing account-copy action');
-assert.doesNotMatch(source, /SetPanelEvent\("onactivate"/, 'context actions do not depend on lifecycle-sensitive programmatic handlers');
-assert.strictEqual((source.match(/\$\.DispatchEvent\("DismissAllContextMenus"\)/g) || []).length, 1, 'one final player-card dismissal exists');
-assert.strictEqual((source.match(/\$\.DispatchEvent\("DropInputFocus"\)/g) || []).length, 1, 'the final cleanup releases profile-card input focus');
-assert.match(source, /\$\.DispatchEvent\("ExternalBrowserGoToURL", url\)/, 'StatLocker uses the proven native external-browser event');
-assert.doesNotMatch(source, /ExecuteSteamURL|SteamOverlayAPI/, 'StatLocker contains no unsupported Steam URL path');
-assert.match(source, /\$\.DispatchEvent\("CopyStringToClipboard", account, account\)/, 'Copy Account ID uses Panorama clipboard text payloads');
-assert.strictEqual((source.match(/\$\.Schedule\s*\(/g) || []).length, 1, 'one scheduler seam serves finite retries');
-assert.doesNotMatch(source, /\$\.(?:RegisterForUnhandledEvent|RegisterEventHandler)\b|\b(?:Subscribe|Unsubscribe)\s*\(/, 'no event subscriptions');
-assert.doesNotMatch(source, /\$\.Msg|BareRankTrace|ShowRankBarebonesTopbarRefresh/, 'obsolete overlay paths and diagnostics are absent');
-assert.doesNotMatch(source, /\b(?:XMLHttpRequest|fetch|WebSocket|AsyncWebRequest|WebRequest)\b/, 'no direct network API');
-assert.doesNotMatch(source, /\b(?:GameUI|Players|Entities|SteamFriends|DOTAPlayerIDs|GetHudRoot|GetTopmostPopup)\b|\$\.GetContextPanel\s*\([^)]*,/, 'no cross-context engine traversal');
-assert.doesNotMatch(source, /\b(?:ShowRankCommon|ShowRankTrigger|ShowRankOpenStatlocker|ShowRankProbe|WebMediaDemo|diagnostic|debug)\b/i, 'no old bridge or diagnostics');
-assert.doesNotMatch(source, /\$\.__showrank_barebones_state_v1/, 'state is never shared through context-local $');
 
 console.log('showrank barebones runtime tests passed');

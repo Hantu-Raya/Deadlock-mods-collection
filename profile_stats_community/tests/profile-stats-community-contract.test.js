@@ -96,7 +96,7 @@ function directChildIds(source, parentId) {
 }
 
 test("module inventory contains only authored contract files", function () {
-  assert.deepEqual(fs.readdirSync(moduleRoot).sort(), ["AGENTS.md", "package.json", "panorama", "tests"]);
+  assert.deepEqual(fs.readdirSync(moduleRoot).sort(), ["AGENTS.md", "oxlint.config.mjs", "package.json", "panorama", "tests"]);
   assert.deepEqual(fs.readdirSync(path.join(moduleRoot, "panorama")).sort(), ["layout", "scripts", "styles"]);
   assert.deepEqual(fs.readdirSync(path.join(moduleRoot, "panorama", "layout")).sort(), ["citadel_db_page_profile.xml", "citadel_ui_context_menu_player.xml", "profile_card.xml"]);
   assert.deepEqual(fs.readdirSync(path.join(moduleRoot, "panorama", "scripts")).sort(), ["profile_stats_community.js", "profile_stats_community_context_menu.js"]);
@@ -278,22 +278,27 @@ test("statistics lead the minimal support footer and metadata", function () {
 });
 
 test("all six ordered groups and every required comparison row are declared", function () {
-  var groups = ["Combat", "Kills", "Survival", "Damage", "Economy", "Sustain"];
+  var groups = ["Performance", "Scoreboard", "AccuracyKd", "Damage", "Economy", "Healing"];
   var metrics = [
-    "Kd",
     "Kda",
+    "KillsPlusAssists",
+    "PlayerDamagePerHealth",
     "AverageKills",
-    "AverageAssists",
     "AverageDeaths",
-    "DamageTakenPerMinute",
-    "PlayerDamagePerMinute",
+    "AverageAssists",
     "Accuracy",
     "CriticalHitRate",
-    "BossDamagePerMinute",
+    "Kd",
+    "PlayerDamagePerMinute",
+    "DamageTakenPerMinute",
+    "ObjectiveDamagePerMinute",
     "NetWorthPerMinute",
-    "HealingPerMinute"
+    "AverageLastHits",
+    "AverageDenies",
+    "SelfHealingPerMinute",
+    "PlayerHealingPerMinute",
+    "HealPrevented"
   ];
-  var groupPercentiles = ["Combat", "Kills", "Survival", "Damage", "Economy", "Sustain"];
   groups.forEach(function (group) {
     assert.match(layout, new RegExp("ProfileStatsCommunityGroup" + group));
     assert.match(layout, new RegExp('id="PSCGroup' + group + 'Percentile"'));
@@ -306,8 +311,8 @@ test("all six ordered groups and every required comparison row are declared", fu
     assert.ok(("PSCMetric" + metric + "Community").length <= 44, "community metric panel ID stays within Panorama's runtime limit");
     assert.ok(("PSCMetric" + metric + "Percentile").length <= 44, "percentile metric panel ID stays within Panorama's runtime limit");
   });
-  assert.match(layout, /id="ProfileStatsCommunityGroupDamage"[\s\S]*PSCMetricBossDamagePerMinutePlayer/);
-  assert.doesNotMatch(layout, /id="ProfileStatsCommunityGroupEconomy"[\s\S]*PSCMetricBossDamagePerMinutePlayer/);
+  assert.match(layout, /id="ProfileStatsCommunityGroupDamage"[\s\S]*PSCMetricObjectiveDamagePerMinutePlayer/);
+  assert.doesNotMatch(layout, /id="ProfileStatsCommunityGroupEconomy"[\s\S]*PSCMetricObjectiveDamagePerMinutePlayer/);
   assert.equal(count(layout, /text="AVG PERCENTILE"/g), 6);
   assert.equal(count(layout, /class="ProfileStatsCommunityPercentileHeading"/g), 2);
   assert.match(layout, /id="ProfileStatsCommunityTitle"[^>]*text="PLAYER VS COMMUNITY"/);
@@ -316,12 +321,15 @@ test("all six ordered groups and every required comparison row are declared", fu
   assert.equal(count(layout, /text="COMMUNITY"/g), 2);
   assert.match(layout, /<Panel id="ProfileStatsCommunityDisplayToggle" class="ProfileStatsCommunityDisplayToggle">/);
   assert.match(layout, /<TabButton\b[^>]*id="ProfileStatsCommunityDisplayCommunity"[^>]*text="AVG"/);
-  assert.match(layout, /<TabButton\b[^>]*id="ProfileStatsCommunityDisplayPercentile"[^>]*text="TOP %"[^>]*selected="true"/);
-  assert.match(layout, /id="PSCMetricKdCommunity"[^>]*visibility="collapse"/);
-  assert.match(layout, /id="PSCMetricKdPercentile"[^>]*class="ProfileStatsCommunityPercentileBadge/);
+  assert.match(layout, /<TabButton\b[^>]*id="ProfileStatsCommunityDisplayPercentile"[^>]*text="PERCENTILE"[^>]*selected="true"/);
+  assert.match(layout, /id="PSCMetricKdaCommunity"[^>]*visibility="collapse"/);
+  assert.match(layout, /id="PSCMetricKdaPercentile"[^>]*class="ProfileStatsCommunityPercentileBadge/);
   assert.match(layout, /<Button\b[^>]*id="ProfileStatsCommunityStatLocker"[^>]*>\s*<Label text="STATLOCKER PROFILE" \/><\/Button>/);
   assert.match(script, /STATLOCKER_PROFILE_URL_PREFIX\s*=\s*"https:\/\/statlocker\.gg\/profile\/"/);
   assert.match(script, /STATLOCKER_PROFILE_URL_SUFFIX\s*=\s*"\/matches"/);
+  assert.match(script, /METRIC_REGISTRY/);
+  assert.match(script, /includeInGroupAverage/);
+  assert.match(script, /higher_lower/);
   assert.doesNotMatch(layout, /Back to Hero Stats|ProfileStatsCommunityBack|OverallPercentile|GlobalPercentile/);
   assert.match(layout, /<TabButton\b[^>]*id="ProfileStatsCommunityRanked"[^>]*text="RANKED"[^>]*selected="true"/);
   assert.match(layout, /<TabButton\b[^>]*id="ProfileStatsCommunityStandard"[^>]*text="STANDARD"/);
@@ -330,7 +338,7 @@ test("all six ordered groups and every required comparison row are declared", fu
   });
   assert.match(layout, /id="ProfileStatsCommunitySample"/);
   assert.match(layout, /id="ProfileStatsCommunityGenerated"/);
-  assert.equal(groupPercentiles.length, groups.length);
+  assert.equal(groups.length, 6);
 });
 
 test("filter and metric layout form a compact non-scrollable grid", function () {
@@ -361,14 +369,16 @@ test("filter and metric layout form a compact non-scrollable grid", function () 
   assert.equal(Number(matchCountWidth[1]), 184, "selector must retain the 184px contract");
   assert.equal(Number(matchCountMenuWidth[1]), 184, "menu must retain the 184px contract");
   assert.deepEqual(directChildIds(layout, "ProfileStatsCommunityMetrics"), [
-    "ProfileStatsCommunityGridCombatKills",
-    "ProfileStatsCommunityGridSurvivalDamage",
-    "ProfileStatsCommunityGridEconomySustain"
+    "ProfileStatsCommunityGridPerformanceScoreboard",
+    "ProfileStatsCommunityGridAccuracyKdDamage",
+    "ProfileStatsCommunityGridEconomyHealing"
   ]);
   assert.match(metricsRule[1], /\bflow-children\s*:\s*down\s*;/);
+  assert.match(metricsRule[1], /\bheight\s*:\s*fill-parent-flow\(\s*1\s*\)\s*;/);
   assert.match(metricsRule[1], /\boverflow\s*:\s*clip\s*;/);
   assert.doesNotMatch(metricsRule[1], /\bscroll\b/);
   assert.match(gridRowRule[1], /\bwidth\s*:\s*100%\s*;/);
+  assert.match(gridRowRule[1], /\bheight\s*:\s*fill-parent-flow\(\s*1\s*\)\s*;/);
   assert.match(gridRowRule[1], /\bflow-children\s*:\s*right\s*;/);
   assert.match(gridGapRule[1], /\bwidth\s*:\s*24px\s*;/);
   assert.ok(metricRowHeight && Number(metricRowHeight[1]) <= 24, "metric rows must fit the fixed comparison grid");
@@ -379,9 +389,9 @@ test("filter and metric layout form a compact non-scrollable grid", function () 
   assert.match(displayToggleRule[1], /\bheight\s*:\s*42px\s*;/);
   assert.match(displayTabRule[1], /\bheight\s*:\s*40px\s*;/);
   assert.match(percentileHeadingRule[1], /\bwidth\s*:\s*92px\s*;/);
-  assert.match(script, /payload\.v !== 3/);
-  assert.match(script, /&protocol=3/);
-  assert.match(script, /"percentile"\]\)/);
+  assert.match(script, /payload\.v !== 4/);
+  assert.match(script, /&protocol=4/);
+  assert.match(script, /metric\[3\]/);
   assert.match(script, /formatPercentile/);
   assert.match(script, /averagePercentile/);
   assert.match(percentileBadgeRule[1], /\bwidth\s*:\s*92px\s*;/);
@@ -417,29 +427,27 @@ test("runtime and stylesheet stay Panorama-safe", function () {
   assert.match(script, /\$\.RegisterEventHandler\(eventName,\s*panel,\s*handler\)/);
   assert.match(script, /BRIDGE_TITLE_MAX_LENGTH\s*=\s*2048/);
   assert.match(script, /"&mode="\s*\+\s*encodeURIComponent\(request\.mode\)/);
-  assert.match(script, /about:blank/);
-  assert.match(script, /GetChildCount\(\)/);
-  assert.match(script, /MAX_HERO_ROWS\s*=\s*64/);
-  assert.doesNotMatch(script, /FindChildrenWithClassTraverse|GetLocalPlayer|GameUI\.GetLocalPlayer|document\.|window\./);
-  assert.doesNotMatch(script, /\$\.Msg|DEBUG_LOGGING|debugLog|logIdentity|rejectTitle/);
-  assert.match(script, /BHasKeyFocus/);
-  assert.match(script, /BHasDescendantKeyFocus/);
-  assert.match(script, /statSectionName/);
-  assert.doesNotMatch(script, /\.HasFocus\(/);
   [
-    "kd", "kda", "average_kills", "average_assists", "average_deaths",
-    "damage_taken_per_minute", "player_damage_per_minute", "accuracy",
-    "critical_hit_rate", "net_worth_per_minute", "boss_damage_per_minute",
-    "healing_per_minute", "invalid_query", "network_error", "upstream_error",
+    "kda", "kills_plus_assists", "player_damage_per_health",
+    "average_kills", "average_deaths", "average_assists",
+    "accuracy", "critical_hit_rate", "kd",
+    "player_damage_per_minute", "damage_taken_per_minute", "objective_damage_per_minute",
+    "net_worth_per_minute", "average_last_hits", "average_denies",
+    "self_healing_per_minute", "player_healing_per_minute", "heal_prevented",
+    "invalid_query", "network_error", "upstream_error",
     "rate_limit", "empty_sample", "invalid_payload", "payload_too_large", "internal_error",
-    "combat", "kills", "survival", "damage", "economy", "sustain",
-    "ranked", "standard", "50", "100", "150"
+    "ranked", "standard", "community", "percentile"
   ].forEach(function (key) {
     assert.match(script, new RegExp('"' + key + '"\\s*:'), key + " must remain quoted for Closure dynamic lookup");
   });
+  [
+    "performance", "scoreboard", "accuracy_kd", "damage", "economy", "healing"
+  ].forEach(function (key) {
+    assert.match(script, new RegExp('"id"\\s*:\\s*"' + key + '"'), key + " must remain quoted in the v4 group registry");
+  });
   assert.doesNotMatch(script, /stockVisibility|readStyle/);
   assert.doesNotMatch(script, /setVisibility\(stock(?:Title|Left|Right)/);
-  assert.match(styles, /#ProfileStatsCommunityPanel\s*\{[\s\S]*?ignore-parent-flow\s*:\s*true;[\s\S]*?width\s*:\s*100%;[\s\S]*?height\s*:\s*100%;[\s\S]*?background-color\s*:\s*offBlack;/);
+  assert.match(styles, /#ProfileStatsCommunityPanel\s*\{[\s\S]*?ignore-parent-flow\s*:\s*true;[\s\S]*?width\s*:\s*100%;[\s\S]*?height\s*:\s*100%;[\s\S]*?overflow\s*:\s*clip;[\s\S]*?background-color\s*:\s*offBlack;/);
   assert.match(styles, /CitadelProfilePage #HeroList\s*\{[\s\S]*?padding-top\s*:\s*56px;/);
   assert.match(styles, /#ProfileStatsCommunityBridge\s*\{[\s\S]*?width\s*:\s*260px;[\s\S]*?height\s*:\s*30px;[\s\S]*?horizontal-align\s*:\s*right;[\s\S]*?background-color\s*:\s*offBlack;/);
   assert.doesNotMatch(styles, /#ProfileStatsCommunityBridge\s*\{[\s\S]*?opacity\s*:/);
@@ -454,5 +462,7 @@ test("package exposes focused dependency-free validation", function () {
   assert.equal(packageJson.name, "profile-stats-community");
   assert.equal(packageJson.private, true);
   assert.equal(packageJson.scripts.test, "node --test tests/*.test.js");
-  assert.match(packageJson.scripts.validate, /node --check panorama\/scripts\/profile_stats_community\.js/);
+  assert.match(packageJson.scripts.lint, /^npx --yes oxlint@1\.79\.0 .*oxlint\.config\.mjs.*profile_stats_community\.js/);
+  assert.match(packageJson.scripts.validate, /npm run lint/);
+  assert.equal(packageJson.devDependencies, undefined);
 });

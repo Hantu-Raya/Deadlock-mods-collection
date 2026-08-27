@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "validate": "npm test && node --check panorama/scripts/profile_stats_community.js && node --check panorama/scripts/profile_stats_community_context_menu.js"
+    "lint": "npx --yes oxlint@1.79.0 --config oxlint.config.mjs panorama/scripts/profile_stats_community.js panorama/scripts/profile_stats_community_context_menu.js",
+    "validate": "npm test && npm run lint && node --check panorama/scripts/profile_stats_community.js && node --check panorama/scripts/profile_stats_community_context_menu.js"
   }
 }

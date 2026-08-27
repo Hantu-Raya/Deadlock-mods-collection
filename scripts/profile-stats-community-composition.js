@@ -50,11 +50,12 @@ function composeText(template, fragment, placeholder, label) {
   return newline === '\r\n' ? composed.replace(/\n/g, '\r\n') : composed;
 }
 
-function compositionPaths(repositoryRoot) {
+function compositionPaths(repositoryRoot, hostRoot) {
   const root = path.resolve(repositoryRoot);
+  const resolvedHostRoot = path.resolve(hostRoot || path.join(root, 'showrank_barebones'));
   return {
-    runtimeTemplate: path.join(root, 'showrank_barebones', 'panorama', 'scripts', 'showrank_barebones.js'),
-    styleTemplate: path.join(root, 'showrank_barebones', 'panorama', 'styles', 'showrank_barebones_topbar.css'),
+    runtimeTemplate: path.join(resolvedHostRoot, 'panorama', 'scripts', 'showrank_barebones.js'),
+    styleTemplate: path.join(resolvedHostRoot, 'panorama', 'styles', 'showrank_barebones_topbar.css'),
     canonicalRuntimeTemplate: path.join(root, 'profile_stats_community', 'panorama', 'scripts', 'profile_stats_community.js'),
     canonicalContextRuntimeTemplate: path.join(root, 'profile_stats_community', 'panorama', 'scripts', 'profile_stats_community_context_menu.js'),
     canonicalStyle: path.join(root, 'profile_stats_community', 'panorama', 'styles', 'profile_stats_community.css'),
@@ -88,8 +89,8 @@ function composeProfileStatsCommunitySources(repositoryRoot) {
   };
 }
 
-function composeBarebonesSources(repositoryRoot) {
-  const paths = compositionPaths(repositoryRoot);
+function composeBarebonesSources(repositoryRoot, hostRoot) {
+  const paths = compositionPaths(repositoryRoot, hostRoot);
   const profileSources = composeProfileStatsCommunitySources(repositoryRoot);
   const runtimeTemplate = fs.readFileSync(paths.runtimeTemplate, 'utf8');
   const styleTemplate = fs.readFileSync(paths.styleTemplate, 'utf8');
@@ -118,8 +119,8 @@ function composeBarebonesSources(repositoryRoot) {
   };
 }
 
-function writeBarebonesSources(repositoryRoot, outputRoot) {
-  const composition = composeBarebonesSources(repositoryRoot);
+function writeBarebonesSources(repositoryRoot, outputRoot, hostRoot) {
+  const composition = composeBarebonesSources(repositoryRoot, hostRoot);
   const resolvedOutputRoot = path.resolve(outputRoot);
   const runtimeOutput = path.join(resolvedOutputRoot, 'panorama', 'scripts', 'showrank_barebones.js');
   const styleOutput = path.join(resolvedOutputRoot, 'panorama', 'styles', 'showrank_barebones_topbar.css');
@@ -170,11 +171,13 @@ if (require.main === module) {
   try {
     if (process.argv.length === 3) {
       writeBarebonesSources(repositoryRoot, process.argv[2]);
+    } else if (process.argv.length === 5 && process.argv[2] === '--host-root') {
+      writeBarebonesSources(repositoryRoot, process.argv[4], process.argv[3]);
     } else if (process.argv.length === 4 && process.argv[2] === '--profile-stats') {
       writeProfileStatsCommunitySources(repositoryRoot, process.argv[3]);
     } else {
       console.error(
-        'Usage: node scripts/profile-stats-community-composition.js [--profile-stats] <staged-source-root>',
+        'Usage: node scripts/profile-stats-community-composition.js [--host-root <host-root>] <staged-source-root>',
       );
       process.exitCode = 2;
     }

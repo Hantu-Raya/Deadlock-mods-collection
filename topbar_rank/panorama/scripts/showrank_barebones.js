@@ -1,6 +1,6 @@
 (function () {
     "use strict";
-    var STEAM64_BASE = "76561197960265728";
+    /* VIEWED_PROFILE_IDENTITY_POLICY: scripts/viewed-profile-identity-policy.js */
     var STATLOCKER_MATCHES_URL_PREFIX = "https://statlocker.gg/profile/";
     var STATLOCKER_MATCHES_URL_SUFFIX = "/matches";
     var RANK_API_BASE_URL = "https://api.deadlock-api.com/v1/players";
@@ -217,54 +217,14 @@
         value = value.replace(/^\s+|\s+$/g, "").toLowerCase();
         return value && value !== "#" ? value: "";
     }
-    function normalizeAccount(value) {
-        if (typeof value !== "string" || !/^[1-9][0-9]*$/.test(value) || value.length > 10 ||
-            (value.length === 10 && value > "4294967295")) {
-            return null;
-        }
-        return value;
-    }
-    function subtractSteamBase(value) {
-        var index;
-        var digit;
-        var baseDigit;
-        var borrow = 0;
-        var result = "";
-        if (value.length !== STEAM64_BASE.length || value < STEAM64_BASE) {
-            return null;
-        }
-        for (index = value.length - 1; index >= 0; index -= 1) {
-            digit = value.charCodeAt(index) - 48 - borrow;
-            baseDigit = STEAM64_BASE.charCodeAt(index) - 48;
-            if (digit < baseDigit) {
-                digit += 10;
-                borrow = 1;
-            } else {
-                borrow = 0;
-            }
-            result = String.fromCharCode(48 + digit - baseDigit) + result;
-        }
-        return normalizeAccount(result.replace(/^0+/, ""));
-    }
-    function normalizeIdentity(value) {
-        var steam3;
-        if (typeof value !== "string") {
-            return null;
-        }
-        steam3 = /^\[U:1:([1-9][0-9]*)\]$/.exec(value) || /^U:1:([1-9][0-9]*)$/.exec(value);
-        if (steam3) {
-            return normalizeAccount(steam3[1]);
-        }
-        if (/^[1-9][0-9]*$/.test(value) && value.length === STEAM64_BASE.length) {
-            return subtractSteamBase(value);
-        }
-        return normalizeAccount(value);
+    function canonicalAccountOrNull(value) {
+        return viewedProfileIdentityPolicy.canonicalAccount(value) || null;
     }
     function rankImageUrl(account) {
-        return RANK_API_BASE_URL + "/" + account + "/rank-predict/image?format=" + RANK_IMAGE_FORMAT;
+        return RANK_API_BASE_URL + "/" + account + "/rank/image?format=" + RANK_IMAGE_FORMAT;
     }
     function teamAverageImageUrl(accounts) {
-        return RANK_API_BASE_URL + "/rank-predict/image?account_ids=" + accounts.join(",") + "&format=" + RANK_IMAGE_FORMAT;
+        return RANK_API_BASE_URL + "/rank/image?account_ids=" + accounts.join(",") + "&format=" + RANK_IMAGE_FORMAT;
     }
     function setRankImage(record, account) {
         var image;
@@ -332,12 +292,19 @@
         }
     }
     function clearTopbars(shared) {
-        var scan;
+        var roots;
+        var index;
+        var target;
         if (!shared) {
             return;
         }
-        scan = scanEscapeTopbars(findByClass(shared.documentRoot, TOPBAR_PLAYER_CLASS));
-        clearTopbarRecords(scan.targets);
+        roots = findByClass(shared.documentRoot, TOPBAR_PLAYER_CLASS);
+        for (index = 0; roots && index < roots.length; index += 1) {
+            target = rankTarget(roots[index], "ShowRankBarebonesTopbarRankImage");
+            if (target) {
+                setRankImage(target, null);
+            }
+        }
         clearTeamAverages(shared.documentRoot);
         shared.escapeRendered = false;
     }
@@ -346,10 +313,9 @@
         if (!session) {
             return;
         }
-        session.rows = [];
         session.roster = null;
-        session.accountByHero = null;
         session.lastPlan = null;
+        session.intent = null;
         session.root = null;
         session.shared = null;
         shared.escape = null;
@@ -428,33 +394,28 @@
         }
     }
     function resolveProfileAccount(record) {
-        var account = null;
-        var hidden;
-        var accountId;
-        var steamId;
-        function accept(raw) {
-            var normalized;
-            if (raw === "") {
-                return true;
-            }
-            normalized = normalizeIdentity(raw);
-            if (!normalized || (account && account !== normalized)) {
-                return false;
-            }
-            account = normalized;
-            return true;
-        }
+        var identity;
         if (!record || !isValid(record.root) || !isValid(record.accountLabel)) {
             return null;
         }
-        hidden = readText(record.accountLabel);
-        accountId = readAttribute(record.root, "accountid");
-        steamId = readAttribute(record.root, "steamid");
-        if (hidden === null || accountId === null || steamId === null || !accept(hidden) || !accept(accountId) ||
-            !accept(steamId)) {
-            return null;
-        }
-        return account;
+        identity = viewedProfileIdentityPolicy.resolve({
+            value: readText(record.accountLabel),
+            format: "account"
+        }, [
+            {
+                value: isValid(record.contextAccountLabel) ? readText(record.contextAccountLabel) : "",
+                format: "account"
+            },
+            {
+                value: readAttribute(record.root, "accountid"),
+                format: "account"
+            },
+            {
+                value: readAttribute(record.root, "steamid"),
+                format: "identity"
+            }
+        ]);
+        return identity.state === "valid" ? identity.account : null;
     }
     function openStatlocker(record) {
         var account = resolveProfileAccount(record);
@@ -465,6 +426,18 @@
         url = STATLOCKER_MATCHES_URL_PREFIX + encodeURIComponent(account) + STATLOCKER_MATCHES_URL_SUFFIX;
         try {
             $.DispatchEvent("ExternalBrowserGoToURL", url);
+            return true;
+        } catch (ignore) {
+            return false;
+        }
+    }
+    function openPlayerProfile(record) {
+        var account = resolveProfileAccount(record);
+        if (!account) {
+            return false;
+        }
+        try {
+            $.DispatchEvent("CitadelShowProfilePageForAccount", Number(account));
             return true;
         } catch (ignore) {
             return false;
@@ -1177,11 +1150,13 @@
         var page = panel && panel.paneltype === "CitadelProfilePage";
         var accountLabel = findChild(panel, page ? "ShowRankBarebonesProfilePageAccount":
             "ShowRankBarebonesAccount", "Label");
+        var contextAccountLabel = page ? null : findChild(panel, "ProfileStatsCommunityContextAccount", "Label");
         var rankImage = findChild(panel, page ? "ShowRankBarebonesProfilePageRankImage":
             "ShowRankBarebonesRankImage", "Image");
         return isValid(panel) && isValid(accountLabel) && isValid(rankImage) ? {
             root: panel,
             accountLabel: accountLabel,
+            contextAccountLabel: contextAccountLabel,
             rankImage: rankImage,
             shownAccount: null,
             refreshToken: 0,
@@ -1189,15 +1164,18 @@
             stableSamples: 0
         } : null;
     }
-    function buildTopbarRecord(panel) {
+    function buildTopbarRecord(panel, rankImage) {
         var heroLabels = findByClass(panel, "HeroName");
         var heroLabel = heroLabels && heroLabels.length === 1 ? heroLabels[0]: null;
-        var rankImage = findChild(panel, "ShowRankBarebonesTopbarRankImage", "Image");
+        if (rankImage === undefined) {
+            rankImage = findChild(panel, "ShowRankBarebonesTopbarRankImage", "Image");
+        }
         return isValid(panel) && isValid(heroLabel) && isValid(rankImage) ? {
             root: panel,
             heroLabel: heroLabel,
             rankImage: rankImage,
             hero: "",
+            teamSide: "",
             shownAccount: null
         } : null;
     }
@@ -1236,7 +1214,6 @@
     }
     function scanEscapeRows(roots, preservedRows) {
         var rows = [];
-        var counts = Object.create(null);
         var index;
         var preservedIndex;
         var record;
@@ -1244,10 +1221,13 @@
         var target;
         var account;
         for (index = 0; roots && index < roots.length; index += 1) {
+            record = buildRowRecord(roots[index]);
+            hero = currentRowHero(record);
             account = null;
-            for (preservedIndex = 0; preservedRows && preservedIndex < preservedRows.length; preservedIndex += 1) {
-                if (preservedRows[preservedIndex].root === roots[index]) {
-                    account = normalizeAccount(preservedRows[preservedIndex].account);
+            for (preservedIndex = 0; hero && preservedRows && preservedIndex < preservedRows.length; preservedIndex += 1) {
+                if (preservedRows[preservedIndex].root === roots[index] &&
+                    preservedRows[preservedIndex].hero === hero) {
+                    account = canonicalAccountOrNull(preservedRows[preservedIndex].account);
                     break;
                 }
             }
@@ -1255,101 +1235,276 @@
             if (target && !account) {
                 setRankImage(target, null);
             }
-            record = buildRowRecord(roots[index]);
-            hero = currentRowHero(record);
             if (hero) {
                 record.hero = hero;
+                record.account = account;
                 rows.push(record);
-                counts[hero] = (counts[hero] || 0) + 1;
             }
         }
-        return {
-            rows: rows,
-            counts: counts
-        };
+        return rows;
     }
-    function scanEscapeTopbars(roots) {
-        var topbars = [];
+    function readTopbarEvidenceSnapshot(roots) {
+        var candidates = [];
         var targets = [];
+        var heroCounts = Object.create(null);
+        var duplicateHeroes = Object.create(null);
+        var uniqueHeroCount = 0;
         var index;
         var record;
         var target;
-        for (index = 0; roots && index < roots.length; index += 1) {
+        var hero;
+        roots = roots || [];
+        for (index = 0; index < roots.length; index += 1) {
             target = rankTarget(roots[index], "ShowRankBarebonesTopbarRankImage");
             if (target) {
                 targets.push(target);
             }
-            record = buildTopbarRecord(roots[index]);
-            if (record) {
-                topbars.push(record);
+            record = buildTopbarRecord(roots[index], target ? target.rankImage: null);
+            if (!record) {
+                continue;
+            }
+            hero = refreshTopbar(record);
+            record.hero = hero;
+            candidates.push(record);
+            if (!heroCounts[hero]) {
+                heroCounts[hero] = 1;
+                if (hero) {
+                    uniqueHeroCount += 1;
+                }
+            } else {
+                heroCounts[hero] += 1;
+                if (hero) {
+                    duplicateHeroes[hero] = true;
+                }
             }
         }
         return {
-            records: topbars,
-            targets: targets
+            candidates: candidates,
+            targets: targets,
+            heroCounts: heroCounts,
+            duplicateHeroes: duplicateHeroes,
+            uniqueHeroCount: uniqueHeroCount,
+            topbarCount: candidates.length,
+            teamSideCandidates: {
+                "friendly": [],
+                "enemy": []
+            },
+            sideFactsRead: false,
+            allTeamSidesKnown: false,
+            readiness: {
+                rankTargetsReady: candidates.length === roots.length && targets.length === roots.length,
+                completeUniqueTopbarRoster: candidates.length > 0 && uniqueHeroCount === candidates.length,
+                teamSidesReady: false
+            }
         };
     }
-    function indexTopbarHeroes(topbars, rowCounts, accounts) {
-        var counts = Object.create(null);
-        var unique = topbars.length > 0;
+    function hydrateTopbarSideEvidence(snapshot) {
+        var candidates;
+        var index;
+        var side;
+        if (!snapshot || snapshot.sideFactsRead) {
+            return !!(snapshot && snapshot.allTeamSidesKnown);
+        }
+        snapshot.sideFactsRead = true;
+        snapshot.allTeamSidesKnown = true;
+        candidates = snapshot.candidates;
+        for (index = 0; index < candidates.length; index += 1) {
+            side = detectTopbarTeamSide(candidates[index].root);
+            candidates[index].teamSide = side;
+            if (side === "friendly" || side === "enemy") {
+                snapshot.teamSideCandidates[side].push(candidates[index]);
+            } else {
+                snapshot.allTeamSidesKnown = false;
+            }
+        }
+        snapshot.readiness.teamSidesReady = snapshot.allTeamSidesKnown &&
+            snapshot.teamSideCandidates["friendly"].length === TEAM_AVERAGE_ACCOUNTS &&
+            snapshot.teamSideCandidates["enemy"].length === TEAM_AVERAGE_ACCOUNTS;
+        return snapshot.allTeamSidesKnown;
+    }
+    function buildRosterReadModel(rows, topbarEvidence, completedRoster, cacheReplay) {
+        var rowCounts = Object.create(null);
+        var rowsByHero = Object.create(null);
+        var seenRowAccounts = Object.create(null);
+        var cachedAccounts = Object.create(null);
+        var seenCachedAccounts = Object.create(null);
+        var matches = [];
+        var rowsUnique = true;
+        var topbarsUnique = !!(topbarEvidence &&
+            topbarEvidence.readiness.completeUniqueTopbarRoster);
+        var rowsCoverTopbars = topbarsUnique;
+        var cacheValid = !!(cacheReplay && topbarEvidence && completedRoster &&
+            topbarEvidence.candidates.length === completedRoster.length);
         var index;
         var hero;
-        for (index = 0; index < topbars.length; index += 1) {
-            hero = refreshTopbar(topbars[index]);
-            if (!hero || counts[hero] || accounts && !accounts[hero]) {
-                unique = false;
+        var account;
+        var row;
+        var candidate;
+        rows = rows || [];
+        for (index = 0; index < rows.length; index += 1) {
+            row = rows[index];
+            hero = row.hero;
+            rowCounts[hero] = (rowCounts[hero] || 0) + 1;
+            if (rowCounts[hero] > 1) {
+                rowsUnique = false;
+            } else {
+                rowsByHero[hero] = row;
             }
-            counts[hero] = (counts[hero] || 0) + 1;
-        }
-        if (!unique || !rowCounts) {
-            return {
-                counts: counts,
-                unique: unique,
-                rowsCoverTopbars: false
-            };
-        }
-        for (hero in counts) {
-            if (Object.prototype.hasOwnProperty.call(counts, hero) && rowCounts[hero] !== 1) {
-                return {
-                    counts: counts,
-                    unique: true,
-                    rowsCoverTopbars: false
-                };
+            account = canonicalAccountOrNull(row.account);
+            if (account && seenRowAccounts[account]) {
+                rowsUnique = false;
+            } else if (account) {
+                seenRowAccounts[account] = true;
             }
+        }
+        if (cacheValid) {
+            for (index = 0; index < completedRoster.length; index += 1) {
+                hero = normalizeHero(completedRoster[index].hero);
+                account = canonicalAccountOrNull(completedRoster[index].account);
+                if (!hero || !account || cachedAccounts[hero] || seenCachedAccounts[account]) {
+                    cacheValid = false;
+                    break;
+                }
+                cachedAccounts[hero] = account;
+                seenCachedAccounts[account] = true;
+            }
+        }
+        if (topbarEvidence) {
+            for (index = 0; index < topbarEvidence.candidates.length; index += 1) {
+                candidate = topbarEvidence.candidates[index];
+                hero = candidate.hero;
+                row = rowCounts[hero] === 1 ? rowsByHero[hero]: null;
+                account = cacheReplay ? canonicalAccountOrNull(cachedAccounts[hero]):
+                    canonicalAccountOrNull(row && row.account);
+                if (!row && !cacheReplay) {
+                    rowsCoverTopbars = false;
+                }
+                if (cacheReplay && !account) {
+                    cacheValid = false;
+                }
+                matches.push({
+                    hero: hero,
+                    row: row,
+                    topbar: candidate,
+                    account: account
+                });
+            }
+        } else {
+            topbarsUnique = false;
+            rowsCoverTopbars = false;
+            cacheValid = false;
         }
         return {
-            counts: counts,
-            unique: true,
-            rowsCoverTopbars: true
+            probes: rows,
+            matches: matches,
+            evidence: topbarEvidence,
+            cacheReplay: !!cacheReplay,
+            readiness: {
+                available: !!topbarEvidence,
+                supported: !!(topbarEvidence && topbarEvidence.readiness.rankTargetsReady &&
+                    (topbarEvidence.topbarCount === 6 || topbarEvidence.topbarCount === 12)),
+                rowsUnique: rowsUnique,
+                topbarsUnique: topbarsUnique,
+                rowsCoverTopbars: rowsCoverTopbars,
+                cacheValid: cacheValid
+            }
         };
     }
-    function readEscapeRoster(shared, preservedRows) {
+    function readRosterModel(shared, preservedRows, completedRoster, cacheReplay) {
         var documentRoot = shared && shared.documentRoot;
-        var rowRoots = findByClass(documentRoot, PLAYER_ROW_CLASS);
+        var rowRoots = cacheReplay ? []: findByClass(documentRoot, PLAYER_ROW_CLASS);
         var topbarRoots = findByClass(documentRoot, TOPBAR_PLAYER_CLASS);
-        var rowScan = scanEscapeRows(rowRoots, preservedRows);
-        var topbarScan;
-        var topbarIndex;
-        if (topbarRoots === null) {
-            return {
-                rows: rowScan.rows,
-                topbars: null,
-                topbarTargets: null,
-                supported: false,
-                topbarsUnique: false,
-                rowsCoverTopbars: false
-            };
-        }
-        topbarScan = scanEscapeTopbars(topbarRoots);
-        topbarIndex = indexTopbarHeroes(topbarScan.records, rowScan.counts);
-        return {
-            rows: rowScan.rows,
-            topbars: topbarScan.records,
-            topbarTargets: topbarScan.targets,
-            supported: topbarScan.records.length === 6 || topbarScan.records.length === 12,
-            topbarsUnique: topbarIndex.unique,
-            rowsCoverTopbars: topbarIndex.rowsCoverTopbars
+        var rows = scanEscapeRows(rowRoots, preservedRows);
+        var topbarEvidence = topbarRoots === null ? null: readTopbarEvidenceSnapshot(topbarRoots);
+        return buildRosterReadModel(rows, topbarEvidence, completedRoster, cacheReplay);
+    }
+    function escapeReadinessDecision(source, step) {
+        var decision = {
+            source: source,
+            step: step,
+            mayStartPreload: step === "start_preload",
+            mayProbeRows: step === "probe_rows",
+            shouldReplayCache: step === "replay_cache",
+            shouldScheduleRetry: step === "wait_roster",
+            shouldFinish: step === "finish",
+            shouldStop: step === "source_blocked" || step === "transition_stop"
         };
+        decision.mayShowSpinner = false;
+        return decision;
+    }
+    function classifyEscapeReadiness(input) {
+        var source = String(input && input.source || "");
+        var phase = String(input && input.phase || "");
+        var readiness = input && input.rosterReadiness;
+        var decision;
+        if (source !== "escape_open" && source !== "escape_out" && source !== "escape_continue") {
+            source = "passive";
+        }
+        decision = escapeReadinessDecision(source, "source_blocked");
+        if (source === "passive") {
+            return decision;
+        }
+        if (!input || input.transition !== "active") {
+            return escapeReadinessDecision(source, "transition_stop");
+        }
+        if (phase === "open") {
+            if (source !== "escape_open") {
+                return decision;
+            }
+            if (input.rootChanged) {
+                return escapeReadinessDecision(source, "replace_root");
+            }
+            if (!input.menuOpen) {
+                return escapeReadinessDecision(source, "transition_stop");
+            }
+            if (input.hasCache) {
+                return escapeReadinessDecision(source, "replay_cache");
+            }
+            if (input.latched) {
+                return escapeReadinessDecision(source, "runtime_idle");
+            }
+            return escapeReadinessDecision(source, "start_preload");
+        }
+        if (phase === "close") {
+            if (source !== "escape_out") {
+                return decision;
+            }
+            return escapeReadinessDecision(source, input.menuOpen ? "runtime_idle": "transition_stop");
+        }
+        if (source !== "escape_continue") {
+            return decision;
+        }
+        if (phase === "collect") {
+            if (input.started) {
+                return escapeReadinessDecision(source, "runtime_idle");
+            }
+            if (Number(input.attempt) >= Number(input.retryLimit) ||
+                Number(input.probeCount) > 0 && (!readiness || !readiness.available ||
+                    !readiness.supported || readiness.rowsCoverTopbars)) {
+                return escapeReadinessDecision(source, "probe_rows");
+            }
+            return escapeReadinessDecision(source, "wait_roster");
+        }
+        if (phase === "probe") {
+            if (input.finished) {
+                return escapeReadinessDecision(source, "runtime_idle");
+            }
+            if (Number(input.probeIndex) >= Number(input.probeCount)) {
+                return escapeReadinessDecision(source, "finish");
+            }
+            return escapeReadinessDecision(source, "probe_rows");
+        }
+        if (phase === "result") {
+            if (input.invalid || input.complete ||
+                Number(input.probeIndex) >= Number(input.probeCount)) {
+                return escapeReadinessDecision(source, "finish");
+            }
+            return escapeReadinessDecision(source, "probe_rows");
+        }
+        if (phase === "finish") {
+            return escapeReadinessDecision(source, "finish");
+        }
+        return decision;
     }
     function snapshotProfiles(documentRoot) {
         var profiles = scanRecords(documentRoot, PROFILE_CARD_CLASS, buildProfileRecord) || [];
@@ -1420,16 +1575,28 @@
         return session.cacheReplay ? isValid(session.root) && isEscapeMenuOpen(session.root) &&
             !isHideoutDocumentRoot(session.root): escapeIsCurrent(session, session.token);
     }
-    function hydrateRosterAccounts(session) {
-        var rows = session.roster && session.roster.rows;
-        var index;
-        var hero;
-        for (index = 0; rows && index < rows.length; index += 1) {
-            hero = rows[index].hero;
-            rows[index].account = normalizeAccount(session.accountByHero[hero]);
-        }
+    function rosterTopbarTargets(roster) {
+        return roster && roster.evidence ? roster.evidence.targets: null;
     }
-    function planTeamAverages(session, writes) {
+    function setRosterAccount(roster, hero, account) {
+        var index;
+        account = canonicalAccountOrNull(account);
+        if (!roster || !hero || !account) {
+            return false;
+        }
+        for (index = 0; index < roster.probes.length; index += 1) {
+            if (roster.probes[index].hero === hero) {
+                roster.probes[index].account = account;
+            }
+        }
+        for (index = 0; index < roster.matches.length; index += 1) {
+            if (roster.matches[index].hero === hero) {
+                roster.matches[index].account = account;
+            }
+        }
+        return true;
+    }
+    function planTeamAverages(roster, writes, documentRoot) {
         var accounts = {
             friendly: [],
             enemy: []
@@ -1443,11 +1610,15 @@
         var account;
         var friendlyImage;
         var enemyImage;
-        if (!session.roster || session.roster.topbars.length !== 12 || writes.length !== 12) {
+        if (!roster || roster.matches.length !== 12 || writes.length !== 12) {
+            return null;
+        }
+        if (!hydrateTopbarSideEvidence(roster.evidence) ||
+            !roster.evidence.readiness.teamSidesReady) {
             return null;
         }
         for (index = 0; index < writes.length; index += 1) {
-            side = detectTopbarTeamSide(writes[index].record.root);
+            side = writes[index].record.teamSide;
             account = writes[index].account;
             if ((side !== "friendly" && side !== "enemy") || seen[side][account]) {
                 return null;
@@ -1458,8 +1629,8 @@
         if (accounts.friendly.length !== TEAM_AVERAGE_ACCOUNTS || accounts.enemy.length !== TEAM_AVERAGE_ACCOUNTS) {
             return null;
         }
-        friendlyImage = findChild(session.shared.documentRoot, "ShowRankBarebonesAverageFriendlyImage", "Image");
-        enemyImage = findChild(session.shared.documentRoot, "ShowRankBarebonesAverageEnemyImage", "Image");
+        friendlyImage = findChild(documentRoot, "ShowRankBarebonesAverageFriendlyImage", "Image");
+        enemyImage = findChild(documentRoot, "ShowRankBarebonesAverageEnemyImage", "Image");
         if (!isValid(friendlyImage) || !isValid(enemyImage)) {
             return null;
         }
@@ -1470,94 +1641,10 @@
             enemyUrl: teamAverageImageUrl(accounts.enemy)
         };
     }
-    function indexRosterRows(session, roster) {
-        var rowsByHero = Object.create(null);
-        var rowCounts = Object.create(null);
-        var seenAccounts = Object.create(null);
-        var index;
-        var record;
-        var hero;
-        var account;
-        if (session.cacheReplay) {
-            return {
-                rowsByHero: rowsByHero,
-                rowCounts: rowCounts
-            };
-        }
-        for (index = 0; index < roster.rows.length; index += 1) {
-            record = roster.rows[index];
-            hero = currentRowHero(record);
-            if (!hero || hero !== record.hero) {
-                return {
-                    status: "stale"
-                };
-            }
-            if (rowCounts[hero]) {
-                return {
-                    status: "invalid"
-                };
-            }
-            rowCounts[hero] = 1;
-            account = normalizeAccount(record.account);
-            if (account && seenAccounts[account]) {
-                return {
-                    status: "invalid"
-                };
-            }
-            if (account) {
-                seenAccounts[account] = true;
-            }
-            rowsByHero[hero] = record;
-        }
-        return {
-            rowsByHero: rowsByHero,
-            rowCounts: rowCounts
-        };
-    }
-    function currentTopbarHero(record) {
-        return isValid(record.root) && isValid(record.heroLabel) && isValid(record.rankImage) ?
-            normalizeHero(readText(record.heroLabel)): "";
-    }
-    function appendRosterWrite(session, state, record) {
-        var hero = currentTopbarHero(record);
-        var account;
-        if (!hero || hero !== record.hero) {
-            return "stale";
-        }
-        if (state.seenHeroes[hero]) {
-            return "invalid";
-        }
-        state.seenHeroes[hero] = true;
-        account = normalizeAccount(session.accountByHero[hero]);
-        if (!session.cacheReplay && state.rowCounts[hero] !== 1) {
-            if (state.rowCounts[hero] > 1) {
-                return "invalid";
-            }
-            state.complete = false;
-            return "";
-        }
-        if (!account || state.seenAccounts[account]) {
-            if (account && state.seenAccounts[account]) {
-                return "invalid";
-            }
-            state.complete = false;
-            return "";
-        }
-        if (!session.cacheReplay && state.rowsByHero[hero].account !== account) {
-            return "stale";
-        }
-        state.seenAccounts[account] = true;
-        state.writes.push({
-            record: record,
-            hero: hero,
-            account: account
-        });
-        return "";
-    }
     function cacheRosterWrites(roster, writes, complete) {
         var cached = [];
         var index;
-        if (!complete || !roster.supported) {
+        if (!complete || !roster.readiness.supported) {
             return null;
         }
         for (index = 0; index < writes.length; index += 1) {
@@ -1566,72 +1653,89 @@
                 account: writes[index].account
             });
         }
-        return cached.length === roster.topbars.length ? cached: null;
+        return cached.length === roster.matches.length ? cached: null;
     }
     function planRosterWrites(session, terminal) {
         var roster = session && session.roster;
-        var rowIndex;
-        var state;
+        var seenAccounts = Object.create(null);
+        var writes = [];
+        var complete = true;
         var index;
-        var status;
-        if (!sessionIsCurrent(session) || !roster || roster.topbars === null) {
+        var match;
+        var record;
+        var account;
+        if (!sessionIsCurrent(session) || !roster || !roster.readiness.available) {
             return {
                 stale: true
             };
         }
-        if (!roster.topbarsUnique) {
+        if (!roster.readiness.topbarsUnique || !roster.readiness.rowsUnique ||
+            roster.cacheReplay && !roster.readiness.cacheValid) {
             return {
                 invalid: true
             };
         }
-        rowIndex = indexRosterRows(session, roster);
-        if (rowIndex.status) {
-            return rowIndex.status === "stale" ? {
-                stale: true
-            } : {
-                invalid: true
-            };
-        }
-        state = {
-            rowsByHero: rowIndex.rowsByHero,
-            rowCounts: rowIndex.rowCounts,
-            seenHeroes: Object.create(null),
-            seenAccounts: Object.create(null),
-            writes: [],
-            complete: true
-        };
-        for (index = 0; index < roster.topbars.length; index += 1) {
-            status = appendRosterWrite(session, state, roster.topbars[index]);
-            if (status) {
-                return status === "stale" ? {
+        for (index = 0; index < roster.matches.length; index += 1) {
+            match = roster.matches[index];
+            record = match.topbar;
+            if (!isValid(record.root) || !isValid(record.heroLabel) || !isValid(record.rankImage)) {
+                return {
                     stale: true
-                } : {
+                };
+            }
+            account = canonicalAccountOrNull(match.account);
+            if (!roster.cacheReplay && !match.row) {
+                complete = false;
+                continue;
+            }
+            if (!account) {
+                complete = false;
+                continue;
+            }
+            if (seenAccounts[account]) {
+                return {
                     invalid: true
                 };
             }
+            if (!roster.cacheReplay && match.row.account !== account) {
+                return {
+                    stale: true
+                };
+            }
+            seenAccounts[account] = true;
+            writes.push({
+                record: record,
+                row: match.row,
+                hero: match.hero,
+                account: account
+            });
         }
-        if (!terminal && (!state.complete || !roster.supported)) {
+        if (!terminal && (!complete || !roster.readiness.supported)) {
             return {
                 waiting: true
             };
         }
         return {
-            writes: state.writes,
-            complete: state.complete,
-            cached: cacheRosterWrites(roster, state.writes, state.complete),
-            average: state.complete ? planTeamAverages(session, state.writes): null
+            writes: writes,
+            complete: complete,
+            cached: cacheRosterWrites(roster, writes, complete),
+            average: complete ? planTeamAverages(roster, writes, session.shared.documentRoot): null
         };
     }
     function rosterPlanIsCurrent(session, plan) {
         var index;
         var record;
+        var row;
         if (!sessionIsCurrent(session)) {
             return false;
         }
         for (index = 0; index < plan.writes.length; index += 1) {
             record = plan.writes[index].record;
+            row = plan.writes[index].row;
             if (!isValid(record.root) || !isValid(record.heroLabel) || !isValid(record.rankImage) ||
-                normalizeHero(readText(record.heroLabel)) !== plan.writes[index].hero) {
+                normalizeHero(readText(record.heroLabel)) !== plan.writes[index].hero ||
+                !session.roster.cacheReplay && currentRowHero(row) !== plan.writes[index].hero ||
+                plan.average && !session.roster.cacheReplay && detectTopbarTeamSide(record.root) !== record.teamSide) {
                 return false;
             }
         }
@@ -1647,7 +1751,7 @@
             return "waiting";
         }
         if (plan.invalid) {
-            clearTopbarRecords(session.roster.topbarTargets || session.roster.topbars);
+            clearTopbarRecords(rosterTopbarTargets(session.roster));
             clearTeamAverages(session.shared.documentRoot);
             return "invalid";
         }
@@ -1668,21 +1772,23 @@
     }
     function renderRoster(session, terminal) {
         var result = applyRosterPlan(session, terminal);
+        var preservedRows;
         if (result !== "stale") {
             return result;
         }
         if (session.stalePlans >= 1) {
-            clearTopbarRecords(session.roster && (session.roster.topbarTargets || session.roster.topbars));
+            clearTopbarRecords(rosterTopbarTargets(session.roster));
             clearTeamAverages(session.shared.documentRoot);
             return "invalid";
         }
         session.stalePlans += 1;
-        session.roster = readEscapeRoster(session.shared, session.rows);
-        session.rows = session.roster.rows;
-        hydrateRosterAccounts(session);
+        preservedRows = !session.cacheReplay && session.roster ? session.roster.probes: null;
+        session.roster = session.cacheReplay ?
+            readRosterModel(session.shared, null, session.shared.completedRoster, true):
+            readRosterModel(session.shared, preservedRows, null, false);
         result = applyRosterPlan(session, terminal);
         if (result === "stale") {
-            clearTopbarRecords(session.roster && (session.roster.topbarTargets || session.roster.topbars));
+            clearTopbarRecords(rosterTopbarTargets(session.roster));
             clearTeamAverages(session.shared.documentRoot);
             return "invalid";
         }
@@ -1690,11 +1796,17 @@
     }
     function finishEscapePass(session) {
         var shared = session.shared;
+        var intent = classifyEscapeReadiness({
+            source: "escape_continue",
+            phase: "finish",
+            transition: !session.finished && escapeIsCurrent(session, session.token) ? "active": "stale"
+        });
         var result;
-        if (session.finished || !escapeIsCurrent(session, session.token)) {
+        session.intent = intent;
+        if (!intent.shouldFinish) {
             return;
         }
-        result = renderRoster(session, true);
+        result = session.lastPlan && session.lastPlan.cached ? "applied": renderRoster(session, true);
         session.finished = true;
         shared.completedRoster = result === "applied" && session.lastPlan && session.lastPlan.cached ?
             session.lastPlan.cached: null;
@@ -1710,34 +1822,59 @@
     }
     function completeRowProbe(session, record, account) {
         var result;
-        if (session.finished || !escapeIsCurrent(session, session.token)) {
+        var intent = classifyEscapeReadiness({
+            source: "escape_continue",
+            phase: "probe",
+            transition: escapeIsCurrent(session, session.token) ? "active": "stale",
+            finished: session.finished,
+            probeIndex: session.index,
+            probeCount: session.roster.probes.length
+        });
+        session.intent = intent;
+        if (!intent.mayProbeRows) {
+            if (intent.shouldFinish) {
+                finishEscapePass(session);
+            }
             return;
         }
         session.index += 1;
-        account = normalizeAccount(account);
+        account = canonicalAccountOrNull(account);
         if (account) {
-            record.account = account;
-            session.accountByHero[record.hero] = account;
+            setRosterAccount(session.roster, record.hero, account);
             setRankImage(record, account);
             result = renderRoster(session, false);
-            if (result === "invalid") {
-                finishEscapePass(session);
-                return;
-            }
-            if (session.lastPlan && session.lastPlan.cached) {
-                finishEscapePass(session);
-                return;
-            }
         }
-        if (session.index >= session.rows.length) {
+        intent = classifyEscapeReadiness({
+            source: "escape_continue",
+            phase: "result",
+            transition: "active",
+            invalid: result === "invalid",
+            complete: !!(session.lastPlan && session.lastPlan.cached),
+            probeIndex: session.index,
+            probeCount: session.roster.probes.length
+        });
+        session.intent = intent;
+        if (intent.shouldFinish) {
             finishEscapePass(session);
-            return;
+        } else if (intent.mayProbeRows) {
+            probeNextRow(session);
         }
-        probeNextRow(session);
     }
     function inspectRow(session, record, snapshot, attempt) {
+        var intent = classifyEscapeReadiness({
+            source: "escape_continue",
+            phase: "probe",
+            transition: escapeIsCurrent(session, session.token) ? "active": "stale",
+            finished: session.finished,
+            probeIndex: session.index,
+            probeCount: session.roster.probes.length
+        });
         var account;
-        if (session.finished || !escapeIsCurrent(session, session.token)) {
+        session.intent = intent;
+        if (!intent.mayProbeRows) {
+            if (intent.shouldFinish) {
+                finishEscapePass(session);
+            }
             return;
         }
         account = changedProfileAccount(session.shared.documentRoot, snapshot);
@@ -1752,16 +1889,25 @@
         }
     }
     function probeNextRow(session) {
+        var intent = classifyEscapeReadiness({
+            source: "escape_continue",
+            phase: "probe",
+            transition: escapeIsCurrent(session, session.token) ? "active": "stale",
+            finished: session.finished,
+            probeIndex: session.index,
+            probeCount: session.roster.probes.length
+        });
         var record;
         var snapshot;
-        if (session.finished || !escapeIsCurrent(session, session.token)) {
-            return;
-        }
-        if (session.index >= session.rows.length) {
+        session.intent = intent;
+        if (intent.shouldFinish) {
             finishEscapePass(session);
             return;
         }
-        record = session.rows[session.index];
+        if (!intent.mayProbeRows) {
+            return;
+        }
+        record = session.roster.probes[session.index];
         if (!isValid(record.mainContents)) {
             session.index += 1;
             probeNextRow(session);
@@ -1780,85 +1926,51 @@
         });
     }
     function collectEscapeRows(session, attempt) {
+        var intent = classifyEscapeReadiness({
+            source: "escape_continue",
+            phase: "collect",
+            transition: escapeIsCurrent(session, session.token) ? "active": "stale",
+            started: session.started,
+            attempt: attempt,
+            retryLimit: ESCAPE_ROW_DELAYS.length,
+            probeCount: 0
+        });
         var roster;
-        if (!escapeIsCurrent(session, session.token) || session.started) {
+        session.intent = intent;
+        if (intent.shouldStop || intent.step === "runtime_idle") {
             return;
         }
-        roster = readEscapeRoster(session.shared);
-        clearTopbarRecords(roster.topbarTargets || roster.topbars);
+        roster = readRosterModel(session.shared, null, null, false);
+        clearTopbarRecords(rosterTopbarTargets(roster));
         session.roster = roster;
-        session.rows = roster.rows;
-        hydrateRosterAccounts(session);
-        if (attempt >= ESCAPE_ROW_DELAYS.length || roster.rows.length > 0 && (roster.topbars === null ||
-            !roster.supported || roster.rowsCoverTopbars)) {
+        intent = classifyEscapeReadiness({
+            source: "escape_continue",
+            phase: "collect",
+            transition: "active",
+            started: false,
+            attempt: attempt,
+            retryLimit: ESCAPE_ROW_DELAYS.length,
+            probeCount: roster.probes.length,
+            rosterReadiness: roster.readiness
+        });
+        session.intent = intent;
+        if (intent.mayProbeRows) {
             session.started = true;
             probeNextRow(session);
             return;
         }
-        scheduleEscape(ESCAPE_ROW_DELAYS[attempt], session, session.token, function () {
-            collectEscapeRows(session, attempt + 1);
-        });
+        if (intent.shouldScheduleRetry) {
+            scheduleEscape(ESCAPE_ROW_DELAYS[attempt], session, session.token, function () {
+                collectEscapeRows(session, attempt + 1);
+            });
+        }
     }
-    function readCompletedTopbars(shared) {
-        var roots = findByClass(shared.documentRoot, TOPBAR_PLAYER_CLASS);
-        var scan;
-        var cached = shared.completedRoster;
-        var accounts = Object.create(null);
-        var seenAccounts = Object.create(null);
-        var index;
-        var hero;
-        var account;
-        var records;
-        var topbarTargets;
-        if (roots === null) {
-            return {
-                topbars: null,
-                topbarTargets: null,
-                accounts: null
-            };
-        }
-        scan = scanEscapeTopbars(roots);
-        records = scan.records;
-        topbarTargets = scan.targets;
-        if (!cached || records.length !== cached.length) {
-            return {
-                topbars: records,
-                topbarTargets: topbarTargets,
-                accounts: null
-            };
-        }
-        for (index = 0; index < cached.length; index += 1) {
-            hero = normalizeHero(cached[index].hero);
-            account = normalizeAccount(cached[index].account);
-            if (!hero || !account || accounts[hero] || seenAccounts[account]) {
-                return {
-                    topbars: records,
-                    topbarTargets: topbarTargets,
-                    accounts: null
-                };
-            }
-            accounts[hero] = account;
-            seenAccounts[account] = true;
-        }
-        if (!indexTopbarHeroes(records, null, accounts).unique) {
-            return {
-                topbars: records,
-                topbarTargets: topbarTargets,
-                accounts: null
-            };
-        }
-        return {
-            topbars: records,
-            topbarTargets: topbarTargets,
-            accounts: accounts
-        };
-    }
-    function reuseCompletedRoster(shared, escapeRoot) {
-        var current = readCompletedTopbars(shared);
+    function reuseCompletedRoster(shared, escapeRoot, intent) {
+        var roster = readRosterModel(shared, null, shared.completedRoster, true);
         var session;
         var result;
-        if (!current.accounts) {
-            clearTopbarRecords(current.topbarTargets || current.topbars);
+        if (!roster.readiness.cacheValid || !roster.readiness.topbarsUnique) {
+            clearTopbarRecords(rosterTopbarTargets(roster));
             clearTeamAverages(shared.documentRoot);
             shared.completedRoster = null;
             shared.escapeRendered = false;
@@ -1867,44 +1979,58 @@
         session = {
             shared: shared,
             root: escapeRoot,
-            roster: {
-                rows: [],
-                topbars: current.topbars,
-                topbarTargets: current.topbarTargets,
-                supported: true,
-                topbarsUnique: true
-            },
-            accountByHero: current.accounts,
+            roster: roster,
             cacheReplay: true,
-            stalePlans: 0
+            stalePlans: 0,
+            intent: intent
         };
         result = renderRoster(session, true);
         if (result === "applied" && session.lastPlan && session.lastPlan.cached) {
             return true;
         }
         shared.completedRoster = null;
-        clearTopbarRecords(session.roster.topbarTargets || session.roster.topbars);
+        clearTopbarRecords(rosterTopbarTargets(session.roster));
         clearTeamAverages(shared.documentRoot);
         shared.escapeRendered = false;
         return false;
     }
     function startEscapePass(escapeRoot) {
         var shared = getState(escapeRoot);
+        var transition = !shared || !isValid(escapeRoot) ? "unavailable":
+            isHideoutDocumentRoot(shared.documentRoot) ? "hideout": "active";
+        var intent = classifyEscapeReadiness({
+            source: "escape_open",
+            phase: "open",
+            transition: transition,
+            rootChanged: !!(shared && shared.escapeOpenLatched && shared.escapeRoot !== escapeRoot),
+            menuOpen: transition === "active" && isEscapeMenuOpen(escapeRoot),
+            hasCache: !!(shared && shared.completedRoster),
+            latched: !!(shared && shared.escapeOpenLatched)
+        });
         var playersTab;
         var session;
         state = shared || state;
-        if (!shared || !isValid(escapeRoot) || isHideoutDocumentRoot(shared.documentRoot)) {
-            if (!shared || !isValid(escapeRoot)) {
+        if (intent.shouldStop && transition !== "active") {
+            if (transition === "unavailable") {
                 state = null;
             }
             return;
         }
-        if (shared.escapeOpenLatched && shared.escapeRoot !== escapeRoot) {
+        if (intent.step === "replace_root") {
             shared.escapeToken += 1;
             releaseEscapeSession(shared);
             shared.escapeOpenLatched = false;
+            intent = classifyEscapeReadiness({
+                source: "escape_open",
+                phase: "open",
+                transition: "active",
+                rootChanged: false,
+                menuOpen: isEscapeMenuOpen(escapeRoot),
+                hasCache: !!shared.completedRoster,
+                latched: false
+            });
         }
-        if (!isEscapeMenuOpen(escapeRoot)) {
+        if (intent.shouldStop) {
             shared.escapeOpenLatched = false;
             shared.escapeRoot = null;
             if (shared.escape) {
@@ -1914,12 +2040,23 @@
             state = null;
             return;
         }
-        if (shared.completedRoster && reuseCompletedRoster(shared, escapeRoot)) {
-            shared.escapeOpenLatched = true;
-            shared.escapeRoot = escapeRoot;
-            return;
+        if (intent.shouldReplayCache) {
+            if (reuseCompletedRoster(shared, escapeRoot, intent)) {
+                shared.escapeOpenLatched = true;
+                shared.escapeRoot = escapeRoot;
+                return;
+            }
+            intent = classifyEscapeReadiness({
+                source: "escape_open",
+                phase: "open",
+                transition: "active",
+                rootChanged: false,
+                menuOpen: true,
+                hasCache: false,
+                latched: shared.escapeOpenLatched
+            });
         }
-        if (shared.escapeOpenLatched) {
+        if (!intent.mayStartPreload) {
             return;
         }
         shared.escapeOpenLatched = true;
@@ -1930,13 +2067,12 @@
             token: shared.escapeToken,
             root: escapeRoot,
             roster: null,
-            rows: [],
-            accountByHero: Object.create(null),
             index: 0,
             started: false,
             finished: false,
             stalePlans: 0,
-            lastPlan: null
+            lastPlan: null,
+            intent: intent
         };
         shared.escape = session;
         clearTeamAverages(shared.documentRoot);
@@ -1954,11 +2090,21 @@
     }
     function resetEscapePassAfterClose(escapeRoot) {
         var shared = getState(escapeRoot) || state;
+        var intent;
         if (!shared) {
             state = null;
             return;
         }
-        if (isEscapeMenuOpen(escapeRoot)) {
+        intent = classifyEscapeReadiness({
+            source: "escape_out",
+            phase: "close",
+            transition: "active",
+            menuOpen: isEscapeMenuOpen(escapeRoot)
+        });
+        if (!intent.shouldStop) {
+            if (shared.escape) {
+                shared.escape.intent = intent;
+            }
             return;
         }
         shared.escapeOpenLatched = false;
@@ -1966,6 +2112,9 @@
         shared.escapeToken += 1;
         releaseEscapeSession(shared);
         state = null;
+    }
+    function installProfileStatsCommunity() {
+        /* PROFILE_STATS_COMMUNITY_RUNTIME: profile_stats_community/panorama/scripts/profile_stats_community.js */
     }
     if (root && (root.paneltype === "CitadelProfileCard" || root.paneltype === "CitadelProfilePage")) {
         var profileRecord = buildProfileRecord(root);
@@ -1976,10 +2125,16 @@
             root.ShowRankBarebonesOpenStatlocker = function () {
                 return openStatlocker(profileRecord);
             };
+            root.ShowRankBarebonesOpenPlayerProfile = function () {
+                return openPlayerProfile(profileRecord);
+            };
             root.ShowRankBarebonesCopyAccount = function () {
                 return copyAccountId(profileRecord);
             };
             startProfileWatch(profileRecord, STARTUP_REFRESH_DELAYS, true);
+        }
+        if (root.paneltype === "CitadelProfilePage") {
+            installProfileStatsCommunity();
         }
     } else if (isValid(root) && root.paneltype === "CitadelHudTopBarPlayer") {
         var topbarRecord = buildTopbarRecord(root);

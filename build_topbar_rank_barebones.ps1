@@ -10,6 +10,7 @@ $root = $PSScriptRoot
 . (Join-Path $root 'scripts\source2_package_pipeline.ps1')
 
 $projectRoot = Join-Path $root 'topbar_rank'
+$compositionScript = Join-Path $root 'scripts\profile-stats-community-composition.js'
 $buildRoot = Join-Path $root '_topbar_rank_barebones_build'
 $stageSource = Join-Path $buildRoot 'src'
 $stageCompiled = Join-Path $buildRoot 'src_compiled'
@@ -160,6 +161,105 @@ function Get-TopbarRankSha256 {
     } finally { $stream.Dispose() }
 }
 
+function Invoke-TopbarRankClosureMinification {
+    param(
+        [Parameter(Mandatory = $true)][string]$ReadableSourcePath,
+        [Parameter(Mandatory = $true)][string]$StagedSourcePath,
+        [Parameter(Mandatory = $true)][string]$TemporaryRoot
+    )
+
+    $externsPath = Join-Path $TemporaryRoot 'topbar_rank_showrank_barebones.externs.js'
+    $minifiedPath = Join-Path $TemporaryRoot 'topbar_rank_showrank_barebones.min.js'
+    $dynamicLookupKeys = @(
+        'kda', 'kills_plus_assists', 'player_damage_per_health',
+        'average_kills', 'average_deaths', 'average_assists',
+        'accuracy', 'critical_hit_rate', 'kd',
+        'player_damage_per_minute', 'damage_taken_per_minute', 'objective_damage_per_minute',
+        'net_worth_per_minute', 'average_last_hits', 'average_denies',
+        'self_healing_per_minute', 'player_healing_per_minute', 'heal_prevented',
+        'invalid_query', 'network_error', 'upstream_error',
+        'rate_limit', 'empty_sample', 'invalid_payload', 'payload_too_large', 'internal_error',
+        'ranked', 'standard', 'community', 'percentile',
+        '50', '100', '150'
+    )
+    $protocolGroupIds = @(
+        'performance', 'scoreboard', 'accuracy_kd', 'damage', 'economy', 'healing'
+    )
+    New-Item -ItemType Directory -Path $TemporaryRoot -Force | Out-Null
+
+    try {
+        $propertyNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+        foreach ($match in [regex]::Matches([System.IO.File]::ReadAllText($ReadableSourcePath), '\.([A-Za-z_$][A-Za-z0-9_$]*)')) {
+            [void]$propertyNames.Add($match.Groups[1].Value)
+        }
+
+        $externs = [System.Collections.Generic.List[string]]::new()
+        $externs.Add('var $;')
+        $externs.Add('function DismissAllContextMenus() {}')
+        $externs.Add('function DropInputFocus() {}')
+        foreach ($propertyName in ($propertyNames | Sort-Object)) {
+            $externs.Add("Object.prototype.$propertyName;")
+        }
+        foreach ($dynamicLookupKey in $dynamicLookupKeys) {
+            $externs.Add("Object.prototype['$dynamicLookupKey'];")
+        }
+        [System.IO.File]::WriteAllLines($externsPath, $externs, [System.Text.UTF8Encoding]::new($false))
+
+        & npx --yes google-closure-compiler --js $StagedSourcePath --js_output_file $minifiedPath --externs $externsPath --compilation_level ADVANCED --language_in ECMASCRIPT5 --language_out ECMASCRIPT5 --warning_level QUIET
+        if ($LASTEXITCODE -ne 0) { throw "Topbar Rank Closure Compiler failed with exit code $LASTEXITCODE" }
+
+        if (-not (Test-Path -LiteralPath $minifiedPath)) {
+            throw "Topbar Rank Closure Compiler did not produce minified runtime: $minifiedPath"
+        }
+        $readableBytes = (Get-Item -LiteralPath $ReadableSourcePath).Length
+        $minifiedBytes = (Get-Item -LiteralPath $minifiedPath).Length
+        if ($minifiedBytes -lt 512) {
+            throw "Topbar Rank Closure Compiler output is implausibly small: $minifiedBytes bytes"
+        }
+        if ($minifiedBytes -ge $readableBytes) {
+            throw "Topbar Rank Closure Compiler output was not smaller than readable source: $minifiedBytes >= $readableBytes bytes"
+        }
+
+        & node --check $minifiedPath
+        if ($LASTEXITCODE -ne 0) { throw "Topbar Rank Closure Compiler output has invalid JavaScript syntax" }
+        $minifiedSource = [System.IO.File]::ReadAllText($minifiedPath)
+        foreach ($dynamicLookupKey in $dynamicLookupKeys) {
+            $objectKeyPattern = '(?:\{|,)\s*(?:"|'')?' + [regex]::Escape($dynamicLookupKey) + '(?:"|'')?:'
+            if (-not [regex]::IsMatch($minifiedSource, $objectKeyPattern)) {
+                throw "Topbar Rank Closure Compiler renamed dynamic lookup key: $dynamicLookupKey"
+            }
+        }
+        foreach ($protocolGroupId in $protocolGroupIds) {
+            $stringValuePattern = '["'']' + [regex]::Escape($protocolGroupId) + '["'']'
+            if (-not [regex]::IsMatch($minifiedSource, $stringValuePattern)) {
+                throw "Topbar Rank Closure Compiler removed protocol group ID: $protocolGroupId"
+            }
+        }
+
+        foreach ($publicFragment in @(
+            'ShowRankBarebonesRefresh',
+            'ShowRankBarebonesOpenStatlocker',
+            'ShowRankBarebonesOpenPlayerProfile',
+            'ShowRankBarebonesCopyAccount',
+            'ShowRankBarebonesEscapeOpen',
+            'ShowRankBarebonesEscapeOut',
+            'ShowRankBarebonesMissingWindowExpired'
+        )) {
+            if (-not (Select-String -LiteralPath $minifiedPath -Pattern $publicFragment -SimpleMatch -Quiet)) {
+                throw "Topbar Rank Closure Compiler output is missing required public fragment: $publicFragment"
+            }
+        }
+
+        Move-Item -LiteralPath $minifiedPath -Destination $StagedSourcePath -Force
+    } finally {
+        foreach ($temporaryPath in @($externsPath, $minifiedPath)) {
+            if (Test-Path -LiteralPath $temporaryPath) {
+                Remove-Item -LiteralPath $temporaryPath -Force
+            }
+        }
+    }
+}
+
 function Remove-TopbarRankInstallTemporary {
     param([Parameter(Mandatory = $true)][string]$Path, [Parameter(Mandatory = $true)][string]$AddonsRoot)
 
@@ -210,6 +310,12 @@ function Install-TopbarRankVpk {
 }
 
 Assert-TopbarRankProject
+if (-not (Test-Path -LiteralPath $compositionScript)) {
+    throw "Profile Stats Community composition script not found: $compositionScript"
+}
+Assert-PathUnderRoot -Path (Resolve-Path -LiteralPath $compositionScript).Path -RootPath $root
+& npm --prefix $projectRoot run validate
+if ($LASTEXITCODE -ne 0) { throw "Topbar Rank validation failed with exit code $LASTEXITCODE" }
 
 Remove-TreeUnderRoot -Path $buildRoot -RootPath $root -ExpectedLeaf '_topbar_rank_barebones_build'
 if (Test-Path -LiteralPath $vpkOutput) {
@@ -228,7 +334,31 @@ try {
         New-Item -ItemType Directory -Path (Split-Path -Parent $stagedPath) -Force | Out-Null
         Copy-Item -LiteralPath $sourcePath -Destination $stagedPath -Force
     }
-    Assert-TopbarRankAssetSet -Actual (Get-TopbarRankAssetPaths -RootPath $stageSource) -ExpectedAssets $requiredSourceAssets -Label 'Staged Topbar Rank source'
+    & node $compositionScript '--host-root' $projectRoot $stageSource
+    if ($LASTEXITCODE -ne 0) { throw "Profile Stats Community composition failed with exit code $LASTEXITCODE" }
+    Assert-TopbarRankAssetSet -Actual (Get-TopbarRankAssetPaths -RootPath $stageSource) -ExpectedAssets $requiredSourceAssets -Label 'Composed Topbar Rank source'
+    $readableRuntime = Join-Path $buildRoot 'topbar_rank_showrank_barebones.readable.js'
+    $stagedRuntime = Join-Path $stageSource 'panorama\scripts\showrank_barebones.js'
+    Copy-Item -LiteralPath $stagedRuntime -Destination $readableRuntime -Force
+    if ((Get-TopbarRankSha256 -Path $readableRuntime) -ne (Get-TopbarRankSha256 -Path $stagedRuntime)) {
+        throw 'Staged Topbar Rank runtime does not exactly match the composed readable source before minification.'
+    }
+    Invoke-TopbarRankClosureMinification -ReadableSourcePath $readableRuntime -StagedSourcePath $stagedRuntime -TemporaryRoot (Join-Path $buildRoot 'minify')
+    $hadRuntimeOverride = Test-Path Env:SHOWRANK_BAREBONES_RUNTIME
+    $previousRuntimeOverride = $env:SHOWRANK_BAREBONES_RUNTIME
+    try {
+        $env:SHOWRANK_BAREBONES_RUNTIME = $stagedRuntime
+        & node (Join-Path $projectRoot 'tests\showrank-barebones-runtime.test.js')
+        if ($LASTEXITCODE -ne 0) { throw "Minified Topbar Rank runtime test failed with exit code $LASTEXITCODE" }
+        & node (Join-Path $projectRoot 'tests\profile-stats-community-runtime.test.js')
+        if ($LASTEXITCODE -ne 0) { throw "Minified Topbar Rank Profile Stats Community runtime test failed with exit code $LASTEXITCODE" }
+    } finally {
+        if ($hadRuntimeOverride) {
+            $env:SHOWRANK_BAREBONES_RUNTIME = $previousRuntimeOverride
+        } else {
+            Remove-Item Env:SHOWRANK_BAREBONES_RUNTIME -ErrorAction SilentlyContinue
+        }
+    }
 
     if (-not (Test-Path -LiteralPath $compiler)) { throw "Source2 compiler not found: $compiler" }
     if (-not (Test-Path -LiteralPath $source2Viewer)) { throw "Source2Viewer CLI not found: $source2Viewer" }
