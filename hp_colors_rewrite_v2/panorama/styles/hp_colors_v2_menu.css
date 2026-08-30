@@ -1,0 +1,361 @@
+#HPColorsV2EditorRoot {
+  width: 100%;
+  height: 100%;
+  visibility: collapse;
+  z-index: 100;
+  overflow: noclip;
+}
+
+#HPColorsV2EditorRoot.Open {
+  visibility: visible;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2EditorBackdrop {
+  width: 100%;
+  height: 100%;
+  background-color: #080b0ccc;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2EditorShell {
+  width: 720px;
+  height: 620px;
+  horizontal-align: center;
+  vertical-align: middle;
+  flow-children: down;
+  background-color: #10130df5;
+  border: 1px solid #ffefd733;
+  box-shadow: #000000aa 0px 12px 32px 0px;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2Header {
+  width: 100%;
+  height: 96px;
+  flow-children: down;
+  padding: 22px 28px 18px 28px;
+  background-color: #171b14;
+  border-bottom: 1px solid #ffefd71f;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2Title {
+  color: #ffefd7;
+  font-size: 27px;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2Subtitle {
+  margin-top: 6px;
+  color: #a9b1a2;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2Body {
+  width: 100%;
+  height: fill-parent-flow(1);
+  flow-children: down;
+  padding: 18px 28px 8px 28px;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2Section {
+  width: 100%;
+  flow-children: down;
+  margin-bottom: 12px;
+  padding: 12px 16px 14px 16px;
+  background-color: #171b14;
+  border: 1px solid #ffefd716;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2SectionHeading {
+  width: 100%;
+  margin-bottom: 8px;
+  color: #5fe69e;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2SettingRow {
+  width: 100%;
+  min-height: 56px;
+  flow-children: right;
+  padding: 8px 0px;
+  border-top: 1px solid #ffefd70e;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2SettingCopy {
+  width: fill-parent-flow(1);
+  flow-children: down;
+  vertical-align: center;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2SettingTitle {
+  color: #ffefd7;
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2SettingHelp {
+  margin-top: 3px;
+  color: #8f988b;
+  font-size: 12px;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2Toggle {
+  width: 64px;
+  height: 30px;
+  margin-left: 18px;
+  vertical-align: center;
+  background-color: #343a31;
+  border: 1px solid #ffefd744;
+  box-shadow: fill #00000044 0px 2px 6px 0px;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2Toggle .HPColorsV2ToggleKnob {
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  vertical-align: center;
+  background-color: #8f988b;
+  border-radius: 11px;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2Toggle.Checked {
+  background-color: #2d7457;
+  border: 1px solid #5fe69e;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2Toggle.Checked .HPColorsV2ToggleKnob {
+  margin-left: 36px;
+  background-color: #ffefd7;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2Toggle:hover,
+#HPColorsV2EditorRoot .HPColorsV2Toggle:focus,
+#HPColorsV2EditorRoot .HPColorsV2ActionPrimary:hover,
+#HPColorsV2EditorRoot .HPColorsV2ActionPrimary:focus,
+#HPColorsV2EditorRoot .HPColorsV2ActionSecondary:hover,
+#HPColorsV2EditorRoot .HPColorsV2ActionSecondary:focus {
+  brightness: 1.25;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2ColorRow {
+  flow-children: right;
+  vertical-align: center;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2ColorSwatch {
+  width: 36px;
+  height: 30px;
+  border: 1px solid #ffefd766;
+  box-shadow: fill #00000055 0px 2px 6px 0px;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2ColorSwatch:hover,
+#HPColorsV2EditorRoot .HPColorsV2ColorSwatch:focus {
+  border: 2px solid #5fe69e;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2HexEntry {
+  width: 116px;
+  height: 30px;
+  margin-left: 10px;
+  padding: 5px 8px 4px 8px;
+  color: #ffefd7;
+  font-size: 15px;
+  text-align: center;
+  background-color: #0c100b;
+  border: 1px solid #ffefd733;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2HexEntry:focus {
+  border: 1px solid #5fe69e;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2Footer {
+  width: 100%;
+  height: 72px;
+  flow-children: right;
+  padding: 16px 28px 18px 28px;
+  background-color: #0d100c;
+  border-top: 1px solid #ffefd71f;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2FooterSpacer {
+  width: fill-parent-flow(1);
+}
+
+#HPColorsV2EditorRoot .HPColorsV2ActionPrimary,
+#HPColorsV2EditorRoot .HPColorsV2ActionSecondary {
+  min-width: 104px;
+  height: 38px;
+  margin-left: 10px;
+  padding: 0px 18px;
+  vertical-align: center;
+  border: 1px solid #5fe69e;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2ActionPrimary {
+  background-color: #2d7457;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2ActionSecondary {
+  background-color: #ffefd70e;
+  border: 1px solid #ffefd744;
+}
+
+#HPColorsV2EditorRoot .HPColorsV2ActionPrimary Label,
+#HPColorsV2EditorRoot .HPColorsV2ActionSecondary Label {
+  color: #ffefd7;
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  horizontal-align: center;
+  vertical-align: center;
+}
+
+#HPColorsV2PickerRoot {
+  width: 100%;
+  height: 100%;
+  visibility: collapse;
+  z-index: 200;
+  overflow: noclip;
+}
+
+#HPColorsV2PickerRoot.Open {
+  visibility: visible;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerBackdrop {
+  width: 100%;
+  height: 100%;
+  background-color: #050705dd;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerPanel {
+  width: 560px;
+  height: 420px;
+  horizontal-align: center;
+  vertical-align: middle;
+  flow-children: down;
+  padding: 24px 28px 22px 28px;
+  background-color: #11150ff8;
+  border: 1px solid #5fe69e88;
+  box-shadow: #000000bb 0px 14px 36px 0px;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerHeader {
+  width: 100%;
+  height: 64px;
+  flow-children: right;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerTitle {
+  width: fill-parent-flow(1);
+  color: #ffefd7;
+  font-size: 22px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  vertical-align: center;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerPreview {
+  width: 58px;
+  height: 38px;
+  margin-left: 12px;
+  border: 1px solid #ffefd788;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerHex {
+  width: 104px;
+  margin-left: 10px;
+  color: #ffefd7;
+  font-size: 16px;
+  text-align: center;
+  vertical-align: center;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerSliderRow {
+  width: 100%;
+  height: 62px;
+  flow-children: right;
+  vertical-align: center;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerSliderName {
+  width: 110px;
+  color: #a9b1a2;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  vertical-align: center;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerSliderHost {
+  width: fill-parent-flow(1);
+  height: 24px;
+  vertical-align: center;
+  margin-right: 12px;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerSliderValue {
+  width: 56px;
+  color: #ffefd7;
+  font-size: 13px;
+  text-align: right;
+  vertical-align: center;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerSlider.HorizontalSlider #SliderTrack {
+  height: 8px;
+  vertical-align: center;
+  background-color: #5fe69e66;
+  border-radius: 4px;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerSlider.HorizontalSlider #SliderTrackProgress {
+  height: 8px;
+  vertical-align: center;
+  background-color: #5fe69e;
+  border-radius: 4px;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerSlider.HorizontalSlider #SliderThumb {
+  width: 18px;
+  height: 18px;
+  vertical-align: center;
+  background-color: #ffefd7;
+  border: 2px solid #10130d;
+  border-radius: 9px;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerSlider.HorizontalSlider:hover #SliderThumb,
+#HPColorsV2PickerRoot .HPColorsV2PickerSlider.HorizontalSlider:focus #SliderThumb {
+  box-shadow: fill #5fe69eaa 0px 0px 8px 0px;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerHelp {
+  width: 100%;
+  margin-top: 8px;
+  color: #8f988b;
+  font-size: 12px;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerDone {
+  min-width: 108px;
+  height: 38px;
+  margin-top: 16px;
+  horizontal-align: right;
+  background-color: #2d7457;
+  border: 1px solid #5fe69e;
+}
+
+#HPColorsV2PickerRoot .HPColorsV2PickerDone Label {
+  color: #ffefd7;
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  horizontal-align: center;
+  vertical-align: center;
+}

@@ -1,0 +1,175 @@
+<root>
+  <styles>
+    <include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+    <include src="s2r://panorama/styles/hud_escape_menu.vcss_c" />
+    <include src="s2r://panorama/styles/hp_colors_v2_menu.vcss_c" />
+  </styles>
+  <scripts>
+    <include src="s2r://panorama/scripts/hp_colors_v2_contract.vjs_c" />
+    <include src="s2r://panorama/scripts/hp_colors_v2_menu.vjs_c" />
+  </scripts>
+  <CitadelHudEscapeMenu onload="$.HPColorsV2MenuBoot()" oncancel="if (!$.HPColorsV2MenuCancel()) $.DispatchEvent( &apos;CitadelResumePlaying&apos;, $.GetContextPanel())">
+    <Panel id="EscapeBackground" onactivate="if (!$.HPColorsV2MenuCancel()) $.DispatchEvent( &apos;CitadelResumePlaying&apos;, $.GetContextPanel())" />
+    <Panel id="LeftStripeBlur" />
+    <Panel id="LeftStripe" hittest="false">
+      <Panel id="Menu" hittest="false">
+        <Panel id="ContextualMenu">
+          <Panel class="MatchmakingOptions OptionGroup">
+            <Button id="matchmakingLeaveQueue" class="nav_menu_item primary endsession" onactivate="CitadelLeaveMatchmaking()">
+              <Label text="#menu_leave_queue" class="menuButtonLabel" antialias="true" />
+            </Button>
+            <Button id="matchmakingEditRoster" class="nav_menu_item primary" onactivate="CitadelEditMatchmakingRoster()">
+              <Panel class="MenuIcon" />
+              <Label text="#menu_edit_roster" class="menuButtonLabel" />
+            </Button>
+          </Panel>
+          <Panel class="ReconnectOptions OptionGroup">
+            <Button id="reconnectRejoin" class="nav_menu_item primary" onactivate="CitadelReconnect()" onmouseover="UIShowTextTooltip( #Citadel_Dashboard_RejoinTooltip )" onmouseout="UIHideTextTooltip()">
+              <Label text="#menu_rejoin" class="menuButtonLabel" />
+            </Button>
+            <Button id="reconnectAbandon" class="nav_menu_item primary endsession" onactivate="CitadelConfirmAbandonGame()">
+              <Label text="{s:reconnect_abandon_action}" class="menuButtonLabel" />
+            </Button>
+          </Panel>
+          <Button id="disconnect" class="nav_menu_item primary" onactivate="CitadelDisconnectFromGame()">
+            <Label text="#menu_disconnect" class="menuButtonLabel" />
+          </Button>
+          <Button id="abandon" class="nav_menu_item primary endsession" onactivate="CitadelConfirmAbandonGame()">
+            <Label text="{s:abandon_action}" class="menuButtonLabel" />
+          </Button>
+          <Button id="Unstick" class="nav_menu_item minor" onactivate="CitadelConCommand( &apos;unstick&apos; );" onmouseover="CitadelUIShowTextTooltip( &apos;#DevMenu_UnstickHeroTooltip&apos; )" onmouseout="CitadelUIHideTextTooltip()">
+            <Label text="#DevMenu_UnstickHero" class="menuButtonLabel" />
+          </Button>
+        </Panel>
+        <Button id="changehero" class="nav_menu_item primary" onactivate="CitadelEscapeMenuChangeHero()">
+          <Label text="#menu_changehero" class="menuButtonLabel" />
+        </Button>
+        <Panel id="SubOptions">
+          <Panel class="FeedbackRow">
+            <Button id="PlayerFeedback" class="nav_menu_item minor" onactivate="CitadelShowPlayerFeedbackPopup()">
+              <Label text="#Citadel_PlayerFeedback_Title" class="menuButtonLabel" />
+            </Button>
+          </Panel>
+          <Button id="HPColorsV2MenuButton" class="nav_menu_item minor" onactivate="$.HPColorsV2MenuOpen()">
+            <Label text="HP COLORS V2" class="menuButtonLabel" />
+          </Button>
+          <Panel class="SettingsRow">
+            <Button id="settings" class="nav_menu_item minor" onactivate="CitadelSettings()">
+              <Panel class="smallIcon GearIcon" />
+              <Label text="#menu_settings" class="menuButtonLabel" />
+            </Button>
+            <Button id="QuickMute" class="nav_menu_item minor" onactivate="CitadelMuteButtonClicked();" onmouseover="CitadelUIShowTextTooltip( &apos;#citadel_mute_game_audio&apos; )" onmouseout="CitadelUIHideTextTooltip()" />
+          </Panel>
+          <Button id="quit" onactivate="CitadelQuitConfirm()">
+            <Label text="#menu_exit_deadlock" />
+          </Button>
+        </Panel>
+      </Panel>
+    </Panel>
+    <CitadelPrivilegedFeatures id="PrivilegedFeatures" />
+    <CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="if (!$.HPColorsV2MenuCancel()) $.DispatchEvent( &apos;CitadelResumePlaying&apos;, $.GetContextPanel())" text="#menu_resume" />
+    <Panel id="RightSideBlur" hittest="false" />
+    <Panel id="RightSide" hittest="false">
+      <Panel id="PartySpacer" />
+      <Panel class="FriendsOrPlayersTabs">
+        <Panel class="Center">
+          <TabButton id="FriendsTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Friends_WindowTitle" selected="true" />
+          <TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" />
+        </Panel>
+      </Panel>
+      <Panel class="FriendsOrPlayersContents" hittest="false">
+        <TabContents id="FriendsTabContents" tabid="FriendsTab" group="people_list_tabs" hittest="false" selected="true">
+          <CitadelFriendsList id="FriendsList" />
+        </TabContents>
+        <TabContents id="PlayersTabContents" tabid="PlayersTab" group="people_list_tabs" hittest="false">
+          <CitadelPlayersList id="PlayersList" />
+        </TabContents>
+      </Panel>
+    </Panel>
+
+    <Panel id="HPColorsV2EditorRoot" class="HPColorsV2EditorRoot" hittest="true" oncancel="$.HPColorsV2MenuCancel()">
+      <Panel class="HPColorsV2EditorBackdrop" hittest="false" />
+      <Panel id="HPColorsV2EditorShell" class="HPColorsV2EditorShell" hittest="true" hittestchildren="true">
+        <Panel class="HPColorsV2Header">
+          <Label text="HP COLORS V2" class="HPColorsV2Title" />
+          <Label text="SESSION EDITOR" class="HPColorsV2Subtitle" />
+        </Panel>
+        <Panel class="HPColorsV2Body">
+          <Panel id="HPColorsV2Settings" class="HPColorsV2Section">
+          <Panel id="HPColorsV2MasterRow" class="HPColorsV2SettingRow">
+            <Panel class="HPColorsV2SettingCopy">
+              <Label text="MASTER" class="HPColorsV2SettingTitle" />
+              <Label text="Enable custom HP Colors for enemy and ally bars." class="HPColorsV2SettingHelp" />
+            </Panel>
+            <Button id="HPColorsV2MasterToggle" class="HPColorsV2Toggle">
+              <Panel class="HPColorsV2ToggleKnob" />
+            </Button>
+          </Panel>
+          <Panel id="HPColorsV2EnemyColorRow" class="HPColorsV2SettingRow HPColorsV2ColorRow">
+            <Panel class="HPColorsV2SettingCopy">
+              <Label text="ENEMY COLOR" class="HPColorsV2SettingTitle" />
+              <Label text="Color applied to enemy healthbar fills and ready icons." class="HPColorsV2SettingHelp" />
+            </Panel>
+            <Button id="HPColorsV2EnemyColorSwatch" class="HPColorsV2ColorSwatch" onactivate="$.HPColorsV2MenuOpenPicker( &apos;enemyColor&apos; )" />
+            <TextEntry id="HPColorsV2EnemyColorHex" class="HPColorsV2HexEntry" text="#FD4949" maxchars="7" />
+          </Panel>
+          <Panel id="HPColorsV2AllyColorRow" class="HPColorsV2SettingRow HPColorsV2ColorRow">
+            <Panel class="HPColorsV2SettingCopy">
+              <Label text="ALLY COLOR" class="HPColorsV2SettingTitle" />
+              <Label text="Color applied to ally healthbar fills and ready icons." class="HPColorsV2SettingHelp" />
+            </Panel>
+            <Button id="HPColorsV2AllyColorSwatch" class="HPColorsV2ColorSwatch" onactivate="$.HPColorsV2MenuOpenPicker( &apos;allyColor&apos; )" />
+            <TextEntry id="HPColorsV2AllyColorHex" class="HPColorsV2HexEntry" text="#FFEFD7" maxchars="7" />
+          </Panel>
+          <Panel id="HPColorsV2PipsRow" class="HPColorsV2SettingRow">
+            <Panel class="HPColorsV2SettingCopy">
+              <Label text="PIPS" class="HPColorsV2SettingTitle" />
+              <Label text="Show the stock health-pip labels on colored bars." class="HPColorsV2SettingHelp" />
+            </Panel>
+            <Button id="HPColorsV2PipsToggle" class="HPColorsV2Toggle">
+              <Panel class="HPColorsV2ToggleKnob" />
+            </Button>
+          </Panel>
+          </Panel>
+        </Panel>
+        <Panel class="HPColorsV2Footer">
+          <Button id="HPColorsV2ResetButton" class="HPColorsV2ActionSecondary" onactivate="$.HPColorsV2MenuReset()">
+            <Label text="RESET" />
+          </Button>
+          <Panel class="HPColorsV2FooterSpacer" />
+          <Button id="HPColorsV2DoneButton" class="HPColorsV2ActionPrimary" onactivate="$.HPColorsV2MenuDone()">
+            <Label text="DONE" />
+          </Button>
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsV2PickerRoot" class="HPColorsV2PickerRoot" hittest="false" hittestchildren="true">
+        <Button id="HPColorsV2PickerBackdrop" class="HPColorsV2PickerBackdrop" hittest="true" />
+        <Panel id="HPColorsV2PickerPanel" class="HPColorsV2PickerPanel" hittest="true" hittestchildren="true">
+          <Panel class="HPColorsV2PickerHeader">
+            <Label id="HPColorsV2PickerTitle" class="HPColorsV2PickerTitle" text="COLOR" />
+            <Panel id="HPColorsV2PickerPreview" class="HPColorsV2PickerPreview" />
+          </Panel>
+          <Label id="HPColorsV2PickerHex" class="HPColorsV2PickerHex" text="#FD4949" />
+          <Panel class="HPColorsV2PickerSliderRow">
+            <Label class="HPColorsV2PickerSliderName" text="HUE" />
+            <Panel id="HPColorsV2PickerHueSliderHost" class="HPColorsV2PickerSliderHost" hittest="false" hittestchildren="true" />
+            <Label id="HPColorsV2PickerHueValue" class="HPColorsV2PickerSliderValue" text="0°" />
+          </Panel>
+          <Panel class="HPColorsV2PickerSliderRow">
+            <Label class="HPColorsV2PickerSliderName" text="SATURATION" />
+            <Panel id="HPColorsV2PickerSaturationSliderHost" class="HPColorsV2PickerSliderHost" hittest="false" hittestchildren="true" />
+            <Label id="HPColorsV2PickerSaturationValue" class="HPColorsV2PickerSliderValue" text="0%" />
+          </Panel>
+          <Panel class="HPColorsV2PickerSliderRow">
+            <Label class="HPColorsV2PickerSliderName" text="LUMEN" />
+            <Panel id="HPColorsV2PickerLightnessSliderHost" class="HPColorsV2PickerSliderHost" hittest="false" hittestchildren="true" />
+            <Label id="HPColorsV2PickerLightnessValue" class="HPColorsV2PickerSliderValue" text="50%" />
+          </Panel>
+          <Button id="HPColorsV2PickerDone" class="HPColorsV2ActionPrimary HPColorsV2PickerDone">
+            <Label text="DONE" />
+          </Button>
+        </Panel>
+      </Panel>
+    </Panel>
+  </CitadelHudEscapeMenu>
+</root>
