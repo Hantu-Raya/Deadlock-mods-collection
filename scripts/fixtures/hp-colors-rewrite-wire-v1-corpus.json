@@ -1,0 +1,1038 @@
+{
+  "format": "hp-colors-rewrite-wire-corpus",
+  "version": 1,
+  "manifestSha256": "d4ba7a4e8c4b48c99e7dd55d587813b12b47cc6257c251758f126eaded2af2fa",
+  "hpcr2": {
+    "inputCode": "HPCR2{\"v\":[[0,false],[1,60],[2,60],[3,-300],[4,-200],[5,false],[6,false],[7,\"fixed\"],[8,\"#3D709F\"],[9,\"#60B606\"],[10,\"#83FB6D\"],[11,true],[12,true],[13,true],[14,\"#111109\"],[15,\"#345670\"],[16,\"#579BD7\"],[17,true],[18,false],[19,\"gradient\"],[20,\"#E4B173\"],[21,\"#07F6DA\"],[22,\"#2B3C41\"],[23,\"#4E81A8\"],[24,\"#71C70F\"],[25,\"#950C76\"],[26,\"custom\"],[27,\"#DB9744\"],[28,false],[29,\"percent\"],[30,72],[31,\"oracle\"],[32,-405],[33,-35],[34,\"custom\"],[35,\"gradient\"],[36,\"#1907E3\"],[37,\"#3C4D4A\"],[38,\"#5F92B1\"],[39,false],[40,true],[41,false],[42,0],[43,1],[44,false],[45,0],[46,30],[47,0],[48,true],[49,\"fixed\"],[50,\"#06D385\"],[51,true],[52,true],[53,true],[54,72],[55,-405],[56,-35],[57,true],[58,0],[59,30],[60,0],[61,true],[62,\"#AE1459\"],[63,true],[64,5],[65,1],[66,\"#3B29F5\"],[67,true],[68,true],[69,0],[70,true],[71,true]],\"c\":{\"enabled\":{\"slot\":1,\"minTier\":1,\"value\":false},\"widthScale\":{\"slot\":2,\"minTier\":2,\"value\":60},\"heightScale\":{\"slot\":3,\"minTier\":3,\"value\":60},\"positionX\":{\"slot\":4,\"minTier\":1,\"value\":-300},\"positionY\":{\"slot\":1,\"minTier\":2,\"value\":-200},\"enemyEnabled\":{\"slot\":2,\"minTier\":3,\"value\":false},\"enemyVisible\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyMode\":{\"slot\":4,\"minTier\":2,\"value\":\"fixed\"},\"enemyLow\":{\"slot\":1,\"minTier\":3,\"value\":\"#3D709F\"},\"enemyMid\":{\"slot\":2,\"minTier\":1,\"value\":\"#60B606\"},\"enemyHigh\":{\"slot\":3,\"minTier\":2,\"value\":\"#83FB6D\"},\"enemyTeamHigh\":{\"slot\":4,\"minTier\":3,\"value\":true},\"enemyHealing\":{\"slot\":1,\"minTier\":1,\"value\":\"#111109\"},\"enemyDelta\":{\"slot\":2,\"minTier\":2,\"value\":\"#345670\"},\"enemyBulletShield\":{\"slot\":3,\"minTier\":3,\"value\":\"#579BD7\"},\"allyEnabled\":{\"slot\":4,\"minTier\":1,\"value\":true},\"allyVisible\":{\"slot\":1,\"minTier\":2,\"value\":false},\"allyMode\":{\"slot\":2,\"minTier\":3,\"value\":\"gradient\"},\"allyLow\":{\"slot\":3,\"minTier\":1,\"value\":\"#E4B173\"},\"allyMid\":{\"slot\":4,\"minTier\":2,\"value\":\"#07F6DA\"},\"allyHigh\":{\"slot\":1,\"minTier\":3,\"value\":\"#2B3C41\"},\"allyHealing\":{\"slot\":2,\"minTier\":1,\"value\":\"#4E81A8\"},\"allyDelta\":{\"slot\":3,\"minTier\":2,\"value\":\"#71C70F\"},\"allyBulletShield\":{\"slot\":4,\"minTier\":3,\"value\":\"#950C76\"},\"ultMode\":{\"slot\":1,\"minTier\":1,\"value\":\"custom\"},\"ultCustom\":{\"slot\":2,\"minTier\":2,\"value\":\"#DB9744\"},\"readoutVisible\":{\"slot\":3,\"minTier\":3,\"value\":false},\"readoutFormat\":{\"slot\":4,\"minTier\":1,\"value\":\"percent\"},\"readoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"readoutFont\":{\"slot\":2,\"minTier\":3,\"value\":\"oracle\"},\"readoutOffsetX\":{\"slot\":3,\"minTier\":1,\"value\":-405},\"readoutOffsetY\":{\"slot\":4,\"minTier\":2,\"value\":-35},\"readoutColorMode\":{\"slot\":1,\"minTier\":3,\"value\":\"custom\"},\"readoutMode\":{\"slot\":2,\"minTier\":1,\"value\":\"gradient\"},\"readoutLow\":{\"slot\":3,\"minTier\":2,\"value\":\"#1907E3\"},\"readoutMid\":{\"slot\":4,\"minTier\":3,\"value\":\"#3C4D4A\"},\"readoutHigh\":{\"slot\":1,\"minTier\":1,\"value\":\"#5F92B1\"},\"pipsVisible\":{\"slot\":2,\"minTier\":2,\"value\":false},\"levelsVisible\":{\"slot\":4,\"minTier\":1,\"value\":false},\"lowThreshold\":{\"slot\":1,\"minTier\":2,\"value\":0},\"highThreshold\":{\"slot\":2,\"minTier\":3,\"value\":100},\"enemyPulseEnabled\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyPulseThreshold\":{\"slot\":4,\"minTier\":2,\"value\":0},\"enemyPulseBpm\":{\"slot\":1,\"minTier\":3,\"value\":30},\"enemyPulseIntensity\":{\"slot\":2,\"minTier\":1,\"value\":0},\"enemyPulseColorEnabled\":{\"slot\":3,\"minTier\":2,\"value\":true},\"enemyPulseColorMode\":{\"slot\":4,\"minTier\":3,\"value\":\"fixed\"},\"enemyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#06D385\"},\"enemyPulseHideBar\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyPulseReadout\":{\"slot\":3,\"minTier\":3,\"value\":true},\"enemyPulseReadoutModifiers\":{\"slot\":4,\"minTier\":1,\"value\":true},\"enemyPulseReadoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"enemyPulseReadoutOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-405},\"enemyPulseReadoutOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-35},\"allyPulseEnabled\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyPulseThreshold\":{\"slot\":1,\"minTier\":3,\"value\":0},\"allyPulseBpm\":{\"slot\":2,\"minTier\":1,\"value\":30},\"allyPulseIntensity\":{\"slot\":3,\"minTier\":2,\"value\":0},\"allyPulseColorEnabled\":{\"slot\":4,\"minTier\":3,\"value\":true},\"allyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#AE1459\"},\"enemyKillMarkerEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyKillMarkerThreshold\":{\"slot\":3,\"minTier\":3,\"value\":5},\"enemyKillMarkerWidth\":{\"slot\":4,\"minTier\":1,\"value\":1},\"enemyKillMarkerColor\":{\"slot\":1,\"minTier\":2,\"value\":\"#3B29F5\"},\"ghoulOpacityEnabled\":{\"slot\":2,\"minTier\":3,\"value\":true},\"ghoulOpacity\":{\"slot\":3,\"minTier\":1,\"value\":0},\"readoutMaxTeamColor\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyTeamHigh\":{\"slot\":1,\"minTier\":3,\"value\":true}}}",
+    "canonicalCode": "HPCR2{\"v\":[[0,false],[1,60],[2,60],[3,-300],[4,-200],[5,false],[6,false],[7,\"fixed\"],[8,\"#3D709F\"],[9,\"#60B606\"],[10,\"#83FB6D\"],[11,true],[14,\"#111109\"],[15,\"#345670\"],[16,\"#579BD7\"],[17,true],[18,false],[19,\"gradient\"],[20,\"#E4B173\"],[21,\"#07F6DA\"],[22,\"#2B3C41\"],[23,\"#4E81A8\"],[24,\"#71C70F\"],[25,\"#950C76\"],[26,\"custom\"],[27,\"#DB9744\"],[28,false],[29,\"percent\"],[30,72],[31,\"oracle\"],[32,-405],[33,-35],[34,\"custom\"],[35,\"gradient\"],[36,\"#1907E3\"],[37,\"#3C4D4A\"],[38,\"#5F92B1\"],[39,false],[40,true],[41,false],[42,0],[43,1],[44,false],[45,0],[46,30],[47,0],[48,true],[49,\"fixed\"],[50,\"#06D385\"],[51,true],[52,true],[53,true],[54,72],[55,-405],[56,-35],[57,true],[58,0],[59,30],[60,0],[61,true],[62,\"#AE1459\"],[63,true],[64,5],[65,1],[66,\"#3B29F5\"],[68,true],[69,0],[70,true],[71,true]],\"c\":{\"enabled\":{\"slot\":1,\"minTier\":1,\"value\":false},\"widthScale\":{\"slot\":2,\"minTier\":2,\"value\":60},\"heightScale\":{\"slot\":3,\"minTier\":3,\"value\":60},\"positionX\":{\"slot\":4,\"minTier\":1,\"value\":-300},\"positionY\":{\"slot\":1,\"minTier\":2,\"value\":-200},\"enemyEnabled\":{\"slot\":2,\"minTier\":3,\"value\":false},\"enemyVisible\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyMode\":{\"slot\":4,\"minTier\":2,\"value\":\"fixed\"},\"enemyLow\":{\"slot\":1,\"minTier\":3,\"value\":\"#3D709F\"},\"enemyMid\":{\"slot\":2,\"minTier\":1,\"value\":\"#60B606\"},\"enemyHigh\":{\"slot\":3,\"minTier\":2,\"value\":\"#83FB6D\"},\"enemyTeamHigh\":{\"slot\":4,\"minTier\":3,\"value\":true},\"enemyHealing\":{\"slot\":1,\"minTier\":1,\"value\":\"#111109\"},\"enemyDelta\":{\"slot\":2,\"minTier\":2,\"value\":\"#345670\"},\"enemyBulletShield\":{\"slot\":3,\"minTier\":3,\"value\":\"#579BD7\"},\"allyEnabled\":{\"slot\":4,\"minTier\":1,\"value\":true},\"allyVisible\":{\"slot\":1,\"minTier\":2,\"value\":false},\"allyMode\":{\"slot\":2,\"minTier\":3,\"value\":\"gradient\"},\"allyLow\":{\"slot\":3,\"minTier\":1,\"value\":\"#E4B173\"},\"allyMid\":{\"slot\":4,\"minTier\":2,\"value\":\"#07F6DA\"},\"allyHigh\":{\"slot\":1,\"minTier\":3,\"value\":\"#2B3C41\"},\"allyHealing\":{\"slot\":2,\"minTier\":1,\"value\":\"#4E81A8\"},\"allyDelta\":{\"slot\":3,\"minTier\":2,\"value\":\"#71C70F\"},\"allyBulletShield\":{\"slot\":4,\"minTier\":3,\"value\":\"#950C76\"},\"ultMode\":{\"slot\":1,\"minTier\":1,\"value\":\"custom\"},\"ultCustom\":{\"slot\":2,\"minTier\":2,\"value\":\"#DB9744\"},\"readoutVisible\":{\"slot\":3,\"minTier\":3,\"value\":false},\"readoutFormat\":{\"slot\":4,\"minTier\":1,\"value\":\"percent\"},\"readoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"readoutFont\":{\"slot\":2,\"minTier\":3,\"value\":\"oracle\"},\"readoutOffsetX\":{\"slot\":3,\"minTier\":1,\"value\":-405},\"readoutOffsetY\":{\"slot\":4,\"minTier\":2,\"value\":-35},\"readoutColorMode\":{\"slot\":1,\"minTier\":3,\"value\":\"custom\"},\"readoutMode\":{\"slot\":2,\"minTier\":1,\"value\":\"gradient\"},\"readoutLow\":{\"slot\":3,\"minTier\":2,\"value\":\"#1907E3\"},\"readoutMid\":{\"slot\":4,\"minTier\":3,\"value\":\"#3C4D4A\"},\"readoutHigh\":{\"slot\":1,\"minTier\":1,\"value\":\"#5F92B1\"},\"pipsVisible\":{\"slot\":2,\"minTier\":2,\"value\":false},\"levelsVisible\":{\"slot\":4,\"minTier\":1,\"value\":false},\"lowThreshold\":{\"slot\":1,\"minTier\":2,\"value\":0},\"highThreshold\":{\"slot\":2,\"minTier\":3,\"value\":100},\"enemyPulseEnabled\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyPulseThreshold\":{\"slot\":4,\"minTier\":2,\"value\":0},\"enemyPulseBpm\":{\"slot\":1,\"minTier\":3,\"value\":30},\"enemyPulseIntensity\":{\"slot\":2,\"minTier\":1,\"value\":0},\"enemyPulseColorEnabled\":{\"slot\":3,\"minTier\":2,\"value\":true},\"enemyPulseColorMode\":{\"slot\":4,\"minTier\":3,\"value\":\"fixed\"},\"enemyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#06D385\"},\"enemyPulseHideBar\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyPulseReadout\":{\"slot\":3,\"minTier\":3,\"value\":true},\"enemyPulseReadoutModifiers\":{\"slot\":4,\"minTier\":1,\"value\":true},\"enemyPulseReadoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"enemyPulseReadoutOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-405},\"enemyPulseReadoutOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-35},\"allyPulseEnabled\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyPulseThreshold\":{\"slot\":1,\"minTier\":3,\"value\":0},\"allyPulseBpm\":{\"slot\":2,\"minTier\":1,\"value\":30},\"allyPulseIntensity\":{\"slot\":3,\"minTier\":2,\"value\":0},\"allyPulseColorEnabled\":{\"slot\":4,\"minTier\":3,\"value\":true},\"allyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#AE1459\"},\"enemyKillMarkerEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyKillMarkerThreshold\":{\"slot\":3,\"minTier\":3,\"value\":5},\"enemyKillMarkerWidth\":{\"slot\":4,\"minTier\":1,\"value\":1},\"enemyKillMarkerColor\":{\"slot\":1,\"minTier\":2,\"value\":\"#3B29F5\"},\"ghoulOpacityEnabled\":{\"slot\":2,\"minTier\":3,\"value\":true},\"ghoulOpacity\":{\"slot\":3,\"minTier\":1,\"value\":0},\"readoutMaxTeamColor\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyTeamHigh\":{\"slot\":1,\"minTier\":3,\"value\":true}}}",
+    "activeValues": {
+      "enabled": false,
+      "widthScale": 60,
+      "heightScale": 60,
+      "positionX": -300,
+      "positionY": -200,
+      "enemyEnabled": false,
+      "enemyVisible": false,
+      "enemyMode": "fixed",
+      "enemyLow": "#3D709F",
+      "enemyMid": "#60B606",
+      "enemyHigh": "#83FB6D",
+      "enemyTeamHigh": true,
+      "enemyHealing": "#111109",
+      "enemyDelta": "#345670",
+      "enemyBulletShield": "#579BD7",
+      "allyEnabled": true,
+      "allyVisible": false,
+      "allyMode": "gradient",
+      "allyLow": "#E4B173",
+      "allyMid": "#07F6DA",
+      "allyHigh": "#2B3C41",
+      "allyHealing": "#4E81A8",
+      "allyDelta": "#71C70F",
+      "allyBulletShield": "#950C76",
+      "ultMode": "custom",
+      "ultCustom": "#DB9744",
+      "readoutVisible": false,
+      "readoutFormat": "percent",
+      "readoutSize": 72,
+      "readoutFont": "oracle",
+      "readoutOffsetX": -405,
+      "readoutOffsetY": -35,
+      "readoutColorMode": "custom",
+      "readoutMode": "gradient",
+      "readoutLow": "#1907E3",
+      "readoutMid": "#3C4D4A",
+      "readoutHigh": "#5F92B1",
+      "pipsVisible": false,
+      "precisePipsEnabled": true,
+      "levelsVisible": false,
+      "lowThreshold": 0,
+      "highThreshold": 1,
+      "enemyPulseEnabled": false,
+      "enemyPulseThreshold": 0,
+      "enemyPulseBpm": 30,
+      "enemyPulseIntensity": 0,
+      "enemyPulseColorEnabled": true,
+      "enemyPulseColorMode": "fixed",
+      "enemyPulseColor": "#06D385",
+      "enemyPulseHideBar": true,
+      "enemyPulseReadout": true,
+      "enemyPulseReadoutModifiers": true,
+      "enemyPulseReadoutSize": 72,
+      "enemyPulseReadoutOffsetX": -405,
+      "enemyPulseReadoutOffsetY": -35,
+      "allyPulseEnabled": true,
+      "allyPulseThreshold": 0,
+      "allyPulseBpm": 30,
+      "allyPulseIntensity": 0,
+      "allyPulseColorEnabled": true,
+      "allyPulseColor": "#AE1459",
+      "enemyKillMarkerEnabled": true,
+      "enemyKillMarkerThreshold": 5,
+      "enemyKillMarkerWidth": 1,
+      "enemyKillMarkerColor": "#3B29F5",
+      "ghoulOpacityEnabled": true,
+      "ghoulOpacity": 0,
+      "readoutMaxTeamColor": true,
+      "allyTeamHigh": true
+    },
+    "conditions": {
+      "enabled": {
+        "slot": 1,
+        "minTier": 1,
+        "value": false
+      },
+      "widthScale": {
+        "slot": 2,
+        "minTier": 2,
+        "value": 60
+      },
+      "heightScale": {
+        "slot": 3,
+        "minTier": 3,
+        "value": 60
+      },
+      "positionX": {
+        "slot": 4,
+        "minTier": 1,
+        "value": -300
+      },
+      "positionY": {
+        "slot": 1,
+        "minTier": 2,
+        "value": -200
+      },
+      "enemyEnabled": {
+        "slot": 2,
+        "minTier": 3,
+        "value": false
+      },
+      "enemyVisible": {
+        "slot": 3,
+        "minTier": 1,
+        "value": false
+      },
+      "enemyMode": {
+        "slot": 4,
+        "minTier": 2,
+        "value": "fixed"
+      },
+      "enemyLow": {
+        "slot": 1,
+        "minTier": 3,
+        "value": "#3D709F"
+      },
+      "enemyMid": {
+        "slot": 2,
+        "minTier": 1,
+        "value": "#60B606"
+      },
+      "enemyHigh": {
+        "slot": 3,
+        "minTier": 2,
+        "value": "#83FB6D"
+      },
+      "enemyTeamHigh": {
+        "slot": 4,
+        "minTier": 3,
+        "value": true
+      },
+      "enemyHealing": {
+        "slot": 1,
+        "minTier": 1,
+        "value": "#111109"
+      },
+      "enemyDelta": {
+        "slot": 2,
+        "minTier": 2,
+        "value": "#345670"
+      },
+      "enemyBulletShield": {
+        "slot": 3,
+        "minTier": 3,
+        "value": "#579BD7"
+      },
+      "allyEnabled": {
+        "slot": 4,
+        "minTier": 1,
+        "value": true
+      },
+      "allyVisible": {
+        "slot": 1,
+        "minTier": 2,
+        "value": false
+      },
+      "allyMode": {
+        "slot": 2,
+        "minTier": 3,
+        "value": "gradient"
+      },
+      "allyLow": {
+        "slot": 3,
+        "minTier": 1,
+        "value": "#E4B173"
+      },
+      "allyMid": {
+        "slot": 4,
+        "minTier": 2,
+        "value": "#07F6DA"
+      },
+      "allyHigh": {
+        "slot": 1,
+        "minTier": 3,
+        "value": "#2B3C41"
+      },
+      "allyHealing": {
+        "slot": 2,
+        "minTier": 1,
+        "value": "#4E81A8"
+      },
+      "allyDelta": {
+        "slot": 3,
+        "minTier": 2,
+        "value": "#71C70F"
+      },
+      "allyBulletShield": {
+        "slot": 4,
+        "minTier": 3,
+        "value": "#950C76"
+      },
+      "ultMode": {
+        "slot": 1,
+        "minTier": 1,
+        "value": "custom"
+      },
+      "ultCustom": {
+        "slot": 2,
+        "minTier": 2,
+        "value": "#DB9744"
+      },
+      "readoutVisible": {
+        "slot": 3,
+        "minTier": 3,
+        "value": false
+      },
+      "readoutFormat": {
+        "slot": 4,
+        "minTier": 1,
+        "value": "percent"
+      },
+      "readoutSize": {
+        "slot": 1,
+        "minTier": 2,
+        "value": 72
+      },
+      "readoutFont": {
+        "slot": 2,
+        "minTier": 3,
+        "value": "oracle"
+      },
+      "readoutOffsetX": {
+        "slot": 3,
+        "minTier": 1,
+        "value": -405
+      },
+      "readoutOffsetY": {
+        "slot": 4,
+        "minTier": 2,
+        "value": -35
+      },
+      "readoutColorMode": {
+        "slot": 1,
+        "minTier": 3,
+        "value": "custom"
+      },
+      "readoutMode": {
+        "slot": 2,
+        "minTier": 1,
+        "value": "gradient"
+      },
+      "readoutLow": {
+        "slot": 3,
+        "minTier": 2,
+        "value": "#1907E3"
+      },
+      "readoutMid": {
+        "slot": 4,
+        "minTier": 3,
+        "value": "#3C4D4A"
+      },
+      "readoutHigh": {
+        "slot": 1,
+        "minTier": 1,
+        "value": "#5F92B1"
+      },
+      "pipsVisible": {
+        "slot": 2,
+        "minTier": 2,
+        "value": false
+      },
+      "levelsVisible": {
+        "slot": 4,
+        "minTier": 1,
+        "value": false
+      },
+      "lowThreshold": {
+        "slot": 1,
+        "minTier": 2,
+        "value": 0
+      },
+      "highThreshold": {
+        "slot": 2,
+        "minTier": 3,
+        "value": 100
+      },
+      "enemyPulseEnabled": {
+        "slot": 3,
+        "minTier": 1,
+        "value": false
+      },
+      "enemyPulseThreshold": {
+        "slot": 4,
+        "minTier": 2,
+        "value": 0
+      },
+      "enemyPulseBpm": {
+        "slot": 1,
+        "minTier": 3,
+        "value": 30
+      },
+      "enemyPulseIntensity": {
+        "slot": 2,
+        "minTier": 1,
+        "value": 0
+      },
+      "enemyPulseColorEnabled": {
+        "slot": 3,
+        "minTier": 2,
+        "value": true
+      },
+      "enemyPulseColorMode": {
+        "slot": 4,
+        "minTier": 3,
+        "value": "fixed"
+      },
+      "enemyPulseColor": {
+        "slot": 1,
+        "minTier": 1,
+        "value": "#06D385"
+      },
+      "enemyPulseHideBar": {
+        "slot": 2,
+        "minTier": 2,
+        "value": true
+      },
+      "enemyPulseReadout": {
+        "slot": 3,
+        "minTier": 3,
+        "value": true
+      },
+      "enemyPulseReadoutModifiers": {
+        "slot": 4,
+        "minTier": 1,
+        "value": true
+      },
+      "enemyPulseReadoutSize": {
+        "slot": 1,
+        "minTier": 2,
+        "value": 72
+      },
+      "enemyPulseReadoutOffsetX": {
+        "slot": 2,
+        "minTier": 3,
+        "value": -405
+      },
+      "enemyPulseReadoutOffsetY": {
+        "slot": 3,
+        "minTier": 1,
+        "value": -35
+      },
+      "allyPulseEnabled": {
+        "slot": 4,
+        "minTier": 2,
+        "value": true
+      },
+      "allyPulseThreshold": {
+        "slot": 1,
+        "minTier": 3,
+        "value": 0
+      },
+      "allyPulseBpm": {
+        "slot": 2,
+        "minTier": 1,
+        "value": 30
+      },
+      "allyPulseIntensity": {
+        "slot": 3,
+        "minTier": 2,
+        "value": 0
+      },
+      "allyPulseColorEnabled": {
+        "slot": 4,
+        "minTier": 3,
+        "value": true
+      },
+      "allyPulseColor": {
+        "slot": 1,
+        "minTier": 1,
+        "value": "#AE1459"
+      },
+      "enemyKillMarkerEnabled": {
+        "slot": 2,
+        "minTier": 2,
+        "value": true
+      },
+      "enemyKillMarkerThreshold": {
+        "slot": 3,
+        "minTier": 3,
+        "value": 5
+      },
+      "enemyKillMarkerWidth": {
+        "slot": 4,
+        "minTier": 1,
+        "value": 1
+      },
+      "enemyKillMarkerColor": {
+        "slot": 1,
+        "minTier": 2,
+        "value": "#3B29F5"
+      },
+      "ghoulOpacityEnabled": {
+        "slot": 2,
+        "minTier": 3,
+        "value": true
+      },
+      "ghoulOpacity": {
+        "slot": 3,
+        "minTier": 1,
+        "value": 0
+      },
+      "readoutMaxTeamColor": {
+        "slot": 4,
+        "minTier": 2,
+        "value": true
+      },
+      "allyTeamHigh": {
+        "slot": 1,
+        "minTier": 3,
+        "value": true
+      }
+    }
+  },
+  "hpcrp1": {
+    "inputCode": "HPCRP1{\"records\":[{\"id\":\"baked_default\",\"kind\":\"baked\",\"name\":\"Rewrite Default\",\"mode\":\"off\",\"heroes\":[],\"values\":[[8,\"#FD4949\"],[20,\"#FFEFD7\"],[21,\"#FFEFD7\"],[22,\"#FFEFD7\"],[32,-30],[33,476]],\"conditions\":null},{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Exhaustive Wire\",\"mode\":\"selected\",\"heroes\":[\"hero_haze\"],\"values\":[[0,false],[1,60],[2,60],[3,-300],[4,-200],[5,false],[6,false],[7,\"fixed\"],[8,\"#3D709F\"],[9,\"#60B606\"],[10,\"#83FB6D\"],[11,true],[12,true],[13,true],[14,\"#111109\"],[15,\"#345670\"],[16,\"#579BD7\"],[17,true],[18,false],[19,\"gradient\"],[20,\"#E4B173\"],[21,\"#07F6DA\"],[22,\"#2B3C41\"],[23,\"#4E81A8\"],[24,\"#71C70F\"],[25,\"#950C76\"],[26,\"custom\"],[27,\"#DB9744\"],[28,false],[29,\"percent\"],[30,72],[31,\"oracle\"],[32,-405],[33,-35],[34,\"custom\"],[35,\"gradient\"],[36,\"#1907E3\"],[37,\"#3C4D4A\"],[38,\"#5F92B1\"],[39,false],[40,true],[41,false],[42,0],[43,1],[44,false],[45,0],[46,30],[47,0],[48,true],[49,\"fixed\"],[50,\"#06D385\"],[51,true],[52,true],[53,true],[54,72],[55,-405],[56,-35],[57,true],[58,0],[59,30],[60,0],[61,true],[62,\"#AE1459\"],[63,true],[64,5],[65,1],[66,\"#3B29F5\"],[67,true],[68,true],[69,0],[70,true],[71,true]],\"conditions\":{\"enabled\":{\"slot\":1,\"minTier\":1,\"value\":false},\"widthScale\":{\"slot\":2,\"minTier\":2,\"value\":60},\"heightScale\":{\"slot\":3,\"minTier\":3,\"value\":60},\"positionX\":{\"slot\":4,\"minTier\":1,\"value\":-300},\"positionY\":{\"slot\":1,\"minTier\":2,\"value\":-200},\"enemyEnabled\":{\"slot\":2,\"minTier\":3,\"value\":false},\"enemyVisible\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyMode\":{\"slot\":4,\"minTier\":2,\"value\":\"fixed\"},\"enemyLow\":{\"slot\":1,\"minTier\":3,\"value\":\"#3D709F\"},\"enemyMid\":{\"slot\":2,\"minTier\":1,\"value\":\"#60B606\"},\"enemyHigh\":{\"slot\":3,\"minTier\":2,\"value\":\"#83FB6D\"},\"enemyTeamHigh\":{\"slot\":4,\"minTier\":3,\"value\":true},\"enemyHealing\":{\"slot\":1,\"minTier\":1,\"value\":\"#111109\"},\"enemyDelta\":{\"slot\":2,\"minTier\":2,\"value\":\"#345670\"},\"enemyBulletShield\":{\"slot\":3,\"minTier\":3,\"value\":\"#579BD7\"},\"allyEnabled\":{\"slot\":4,\"minTier\":1,\"value\":true},\"allyVisible\":{\"slot\":1,\"minTier\":2,\"value\":false},\"allyMode\":{\"slot\":2,\"minTier\":3,\"value\":\"gradient\"},\"allyLow\":{\"slot\":3,\"minTier\":1,\"value\":\"#E4B173\"},\"allyMid\":{\"slot\":4,\"minTier\":2,\"value\":\"#07F6DA\"},\"allyHigh\":{\"slot\":1,\"minTier\":3,\"value\":\"#2B3C41\"},\"allyHealing\":{\"slot\":2,\"minTier\":1,\"value\":\"#4E81A8\"},\"allyDelta\":{\"slot\":3,\"minTier\":2,\"value\":\"#71C70F\"},\"allyBulletShield\":{\"slot\":4,\"minTier\":3,\"value\":\"#950C76\"},\"ultMode\":{\"slot\":1,\"minTier\":1,\"value\":\"custom\"},\"ultCustom\":{\"slot\":2,\"minTier\":2,\"value\":\"#DB9744\"},\"readoutVisible\":{\"slot\":3,\"minTier\":3,\"value\":false},\"readoutFormat\":{\"slot\":4,\"minTier\":1,\"value\":\"percent\"},\"readoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"readoutFont\":{\"slot\":2,\"minTier\":3,\"value\":\"oracle\"},\"readoutOffsetX\":{\"slot\":3,\"minTier\":1,\"value\":-405},\"readoutOffsetY\":{\"slot\":4,\"minTier\":2,\"value\":-35},\"readoutColorMode\":{\"slot\":1,\"minTier\":3,\"value\":\"custom\"},\"readoutMode\":{\"slot\":2,\"minTier\":1,\"value\":\"gradient\"},\"readoutLow\":{\"slot\":3,\"minTier\":2,\"value\":\"#1907E3\"},\"readoutMid\":{\"slot\":4,\"minTier\":3,\"value\":\"#3C4D4A\"},\"readoutHigh\":{\"slot\":1,\"minTier\":1,\"value\":\"#5F92B1\"},\"pipsVisible\":{\"slot\":2,\"minTier\":2,\"value\":false},\"levelsVisible\":{\"slot\":4,\"minTier\":1,\"value\":false},\"lowThreshold\":{\"slot\":1,\"minTier\":2,\"value\":0},\"highThreshold\":{\"slot\":2,\"minTier\":3,\"value\":100},\"enemyPulseEnabled\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyPulseThreshold\":{\"slot\":4,\"minTier\":2,\"value\":0},\"enemyPulseBpm\":{\"slot\":1,\"minTier\":3,\"value\":30},\"enemyPulseIntensity\":{\"slot\":2,\"minTier\":1,\"value\":0},\"enemyPulseColorEnabled\":{\"slot\":3,\"minTier\":2,\"value\":true},\"enemyPulseColorMode\":{\"slot\":4,\"minTier\":3,\"value\":\"fixed\"},\"enemyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#06D385\"},\"enemyPulseHideBar\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyPulseReadout\":{\"slot\":3,\"minTier\":3,\"value\":true},\"enemyPulseReadoutModifiers\":{\"slot\":4,\"minTier\":1,\"value\":true},\"enemyPulseReadoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"enemyPulseReadoutOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-405},\"enemyPulseReadoutOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-35},\"allyPulseEnabled\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyPulseThreshold\":{\"slot\":1,\"minTier\":3,\"value\":0},\"allyPulseBpm\":{\"slot\":2,\"minTier\":1,\"value\":30},\"allyPulseIntensity\":{\"slot\":3,\"minTier\":2,\"value\":0},\"allyPulseColorEnabled\":{\"slot\":4,\"minTier\":3,\"value\":true},\"allyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#AE1459\"},\"enemyKillMarkerEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyKillMarkerThreshold\":{\"slot\":3,\"minTier\":3,\"value\":5},\"enemyKillMarkerWidth\":{\"slot\":4,\"minTier\":1,\"value\":1},\"enemyKillMarkerColor\":{\"slot\":1,\"minTier\":2,\"value\":\"#3B29F5\"},\"ghoulOpacityEnabled\":{\"slot\":2,\"minTier\":3,\"value\":true},\"ghoulOpacity\":{\"slot\":3,\"minTier\":1,\"value\":0},\"readoutMaxTeamColor\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyTeamHigh\":{\"slot\":1,\"minTier\":3,\"value\":true}},\"hpv2\":{\"v\":1,\"values\":[[0,40],[1,16],[2,-300],[3,-200],[4,true],[5,\"#D3A06A\"],[6,\"gradient\"]],\"conditions\":{\"staminaWidth\":{\"slot\":2,\"minTier\":1,\"value\":40},\"staminaHeight\":{\"slot\":3,\"minTier\":2,\"value\":16},\"staminaOffsetX\":{\"slot\":4,\"minTier\":3,\"value\":-300},\"staminaOffsetY\":{\"slot\":1,\"minTier\":1,\"value\":-200},\"enemyStaminaColorEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyStaminaColor\":{\"slot\":3,\"minTier\":3,\"value\":\"#D3A06A\"},\"allyPulseColorMode\":{\"slot\":4,\"minTier\":1,\"value\":\"gradient\"}}}}],\"hiddenBakedPresetIds\":[],\"selectedPresetId\":\"user_0001\"}",
+    "canonicalCode": "HPCRP1{\"records\":[{\"id\":\"baked_default\",\"kind\":\"baked\",\"name\":\"Rewrite Default\",\"mode\":\"off\",\"heroes\":[],\"values\":[[8,\"#FD4949\"],[20,\"#FFEFD7\"],[21,\"#FFEFD7\"],[22,\"#FFEFD7\"],[32,-30],[33,476]],\"conditions\":null},{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Exhaustive Wire\",\"mode\":\"selected\",\"heroes\":[\"hero_haze\"],\"values\":[[0,false],[1,60],[2,60],[3,-300],[4,-200],[5,false],[6,false],[7,\"fixed\"],[8,\"#3D709F\"],[9,\"#60B606\"],[10,\"#83FB6D\"],[11,true],[14,\"#111109\"],[15,\"#345670\"],[16,\"#579BD7\"],[17,true],[18,false],[19,\"gradient\"],[20,\"#E4B173\"],[21,\"#07F6DA\"],[22,\"#2B3C41\"],[23,\"#4E81A8\"],[24,\"#71C70F\"],[25,\"#950C76\"],[26,\"custom\"],[27,\"#DB9744\"],[28,false],[29,\"percent\"],[30,72],[31,\"oracle\"],[32,-405],[33,-35],[34,\"custom\"],[35,\"gradient\"],[36,\"#1907E3\"],[37,\"#3C4D4A\"],[38,\"#5F92B1\"],[39,false],[40,true],[41,false],[42,0],[43,1],[44,false],[45,0],[46,30],[47,0],[48,true],[49,\"fixed\"],[50,\"#06D385\"],[51,true],[52,true],[53,true],[54,72],[55,-405],[56,-35],[57,true],[58,0],[59,30],[60,0],[61,true],[62,\"#AE1459\"],[63,true],[64,5],[65,1],[66,\"#3B29F5\"],[68,true],[69,0],[70,true],[71,true]],\"conditions\":{\"enabled\":{\"slot\":1,\"minTier\":1,\"value\":false},\"widthScale\":{\"slot\":2,\"minTier\":2,\"value\":60},\"heightScale\":{\"slot\":3,\"minTier\":3,\"value\":60},\"positionX\":{\"slot\":4,\"minTier\":1,\"value\":-300},\"positionY\":{\"slot\":1,\"minTier\":2,\"value\":-200},\"enemyEnabled\":{\"slot\":2,\"minTier\":3,\"value\":false},\"enemyVisible\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyMode\":{\"slot\":4,\"minTier\":2,\"value\":\"fixed\"},\"enemyLow\":{\"slot\":1,\"minTier\":3,\"value\":\"#3D709F\"},\"enemyMid\":{\"slot\":2,\"minTier\":1,\"value\":\"#60B606\"},\"enemyHigh\":{\"slot\":3,\"minTier\":2,\"value\":\"#83FB6D\"},\"enemyTeamHigh\":{\"slot\":4,\"minTier\":3,\"value\":true},\"enemyHealing\":{\"slot\":1,\"minTier\":1,\"value\":\"#111109\"},\"enemyDelta\":{\"slot\":2,\"minTier\":2,\"value\":\"#345670\"},\"enemyBulletShield\":{\"slot\":3,\"minTier\":3,\"value\":\"#579BD7\"},\"allyEnabled\":{\"slot\":4,\"minTier\":1,\"value\":true},\"allyVisible\":{\"slot\":1,\"minTier\":2,\"value\":false},\"allyMode\":{\"slot\":2,\"minTier\":3,\"value\":\"gradient\"},\"allyLow\":{\"slot\":3,\"minTier\":1,\"value\":\"#E4B173\"},\"allyMid\":{\"slot\":4,\"minTier\":2,\"value\":\"#07F6DA\"},\"allyHigh\":{\"slot\":1,\"minTier\":3,\"value\":\"#2B3C41\"},\"allyHealing\":{\"slot\":2,\"minTier\":1,\"value\":\"#4E81A8\"},\"allyDelta\":{\"slot\":3,\"minTier\":2,\"value\":\"#71C70F\"},\"allyBulletShield\":{\"slot\":4,\"minTier\":3,\"value\":\"#950C76\"},\"ultMode\":{\"slot\":1,\"minTier\":1,\"value\":\"custom\"},\"ultCustom\":{\"slot\":2,\"minTier\":2,\"value\":\"#DB9744\"},\"readoutVisible\":{\"slot\":3,\"minTier\":3,\"value\":false},\"readoutFormat\":{\"slot\":4,\"minTier\":1,\"value\":\"percent\"},\"readoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"readoutFont\":{\"slot\":2,\"minTier\":3,\"value\":\"oracle\"},\"readoutOffsetX\":{\"slot\":3,\"minTier\":1,\"value\":-405},\"readoutOffsetY\":{\"slot\":4,\"minTier\":2,\"value\":-35},\"readoutColorMode\":{\"slot\":1,\"minTier\":3,\"value\":\"custom\"},\"readoutMode\":{\"slot\":2,\"minTier\":1,\"value\":\"gradient\"},\"readoutLow\":{\"slot\":3,\"minTier\":2,\"value\":\"#1907E3\"},\"readoutMid\":{\"slot\":4,\"minTier\":3,\"value\":\"#3C4D4A\"},\"readoutHigh\":{\"slot\":1,\"minTier\":1,\"value\":\"#5F92B1\"},\"pipsVisible\":{\"slot\":2,\"minTier\":2,\"value\":false},\"levelsVisible\":{\"slot\":4,\"minTier\":1,\"value\":false},\"lowThreshold\":{\"slot\":1,\"minTier\":2,\"value\":0},\"highThreshold\":{\"slot\":2,\"minTier\":3,\"value\":100},\"enemyPulseEnabled\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyPulseThreshold\":{\"slot\":4,\"minTier\":2,\"value\":0},\"enemyPulseBpm\":{\"slot\":1,\"minTier\":3,\"value\":30},\"enemyPulseIntensity\":{\"slot\":2,\"minTier\":1,\"value\":0},\"enemyPulseColorEnabled\":{\"slot\":3,\"minTier\":2,\"value\":true},\"enemyPulseColorMode\":{\"slot\":4,\"minTier\":3,\"value\":\"fixed\"},\"enemyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#06D385\"},\"enemyPulseHideBar\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyPulseReadout\":{\"slot\":3,\"minTier\":3,\"value\":true},\"enemyPulseReadoutModifiers\":{\"slot\":4,\"minTier\":1,\"value\":true},\"enemyPulseReadoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"enemyPulseReadoutOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-405},\"enemyPulseReadoutOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-35},\"allyPulseEnabled\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyPulseThreshold\":{\"slot\":1,\"minTier\":3,\"value\":0},\"allyPulseBpm\":{\"slot\":2,\"minTier\":1,\"value\":30},\"allyPulseIntensity\":{\"slot\":3,\"minTier\":2,\"value\":0},\"allyPulseColorEnabled\":{\"slot\":4,\"minTier\":3,\"value\":true},\"allyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#AE1459\"},\"enemyKillMarkerEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyKillMarkerThreshold\":{\"slot\":3,\"minTier\":3,\"value\":5},\"enemyKillMarkerWidth\":{\"slot\":4,\"minTier\":1,\"value\":1},\"enemyKillMarkerColor\":{\"slot\":1,\"minTier\":2,\"value\":\"#3B29F5\"},\"ghoulOpacityEnabled\":{\"slot\":2,\"minTier\":3,\"value\":true},\"ghoulOpacity\":{\"slot\":3,\"minTier\":1,\"value\":0},\"readoutMaxTeamColor\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyTeamHigh\":{\"slot\":1,\"minTier\":3,\"value\":true}},\"hpv2\":{\"v\":1,\"values\":[[0,40],[1,16],[2,-300],[3,-200],[4,true],[5,\"#D3A06A\"],[6,\"gradient\"]],\"conditions\":{\"staminaWidth\":{\"slot\":2,\"minTier\":1,\"value\":40},\"staminaHeight\":{\"slot\":3,\"minTier\":2,\"value\":16},\"staminaOffsetX\":{\"slot\":4,\"minTier\":3,\"value\":-300},\"staminaOffsetY\":{\"slot\":1,\"minTier\":1,\"value\":-200},\"enemyStaminaColorEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyStaminaColor\":{\"slot\":3,\"minTier\":3,\"value\":\"#D3A06A\"},\"allyPulseColorMode\":{\"slot\":4,\"minTier\":1,\"value\":\"gradient\"}}}}],\"hiddenBakedPresetIds\":[],\"selectedPresetId\":\"user_0001\"}",
+    "selectedPresetId": "user_0001",
+    "activeValues": {
+      "enabled": false,
+      "widthScale": 60,
+      "heightScale": 60,
+      "positionX": -300,
+      "positionY": -200,
+      "enemyEnabled": false,
+      "enemyVisible": false,
+      "enemyMode": "fixed",
+      "enemyLow": "#3D709F",
+      "enemyMid": "#60B606",
+      "enemyHigh": "#83FB6D",
+      "enemyTeamHigh": true,
+      "enemyHealing": "#111109",
+      "enemyDelta": "#345670",
+      "enemyBulletShield": "#579BD7",
+      "allyEnabled": true,
+      "allyVisible": false,
+      "allyMode": "gradient",
+      "allyLow": "#E4B173",
+      "allyMid": "#07F6DA",
+      "allyHigh": "#2B3C41",
+      "allyHealing": "#4E81A8",
+      "allyDelta": "#71C70F",
+      "allyBulletShield": "#950C76",
+      "ultMode": "custom",
+      "ultCustom": "#DB9744",
+      "readoutVisible": false,
+      "readoutFormat": "percent",
+      "readoutSize": 72,
+      "readoutFont": "oracle",
+      "readoutOffsetX": -405,
+      "readoutOffsetY": -35,
+      "readoutColorMode": "custom",
+      "readoutMode": "gradient",
+      "readoutLow": "#1907E3",
+      "readoutMid": "#3C4D4A",
+      "readoutHigh": "#5F92B1",
+      "pipsVisible": false,
+      "precisePipsEnabled": true,
+      "levelsVisible": false,
+      "lowThreshold": 0,
+      "highThreshold": 1,
+      "enemyPulseEnabled": false,
+      "enemyPulseThreshold": 0,
+      "enemyPulseBpm": 30,
+      "enemyPulseIntensity": 0,
+      "enemyPulseColorEnabled": true,
+      "enemyPulseColorMode": "fixed",
+      "enemyPulseColor": "#06D385",
+      "enemyPulseHideBar": true,
+      "enemyPulseReadout": true,
+      "enemyPulseReadoutModifiers": true,
+      "enemyPulseReadoutSize": 72,
+      "enemyPulseReadoutOffsetX": -405,
+      "enemyPulseReadoutOffsetY": -35,
+      "allyPulseEnabled": true,
+      "allyPulseThreshold": 0,
+      "allyPulseBpm": 30,
+      "allyPulseIntensity": 0,
+      "allyPulseColorEnabled": true,
+      "allyPulseColor": "#AE1459",
+      "enemyKillMarkerEnabled": true,
+      "enemyKillMarkerThreshold": 5,
+      "enemyKillMarkerWidth": 1,
+      "enemyKillMarkerColor": "#3B29F5",
+      "ghoulOpacityEnabled": true,
+      "ghoulOpacity": 0,
+      "readoutMaxTeamColor": true,
+      "allyTeamHigh": true,
+      "staminaWidth": 40,
+      "staminaHeight": 16,
+      "staminaOffsetX": -300,
+      "staminaOffsetY": -200,
+      "enemyStaminaColorEnabled": true,
+      "enemyStaminaColor": "#D3A06A",
+      "allyPulseColorMode": "gradient"
+    },
+    "conditions": {
+      "enabled": {
+        "slot": 1,
+        "minTier": 1,
+        "value": false
+      },
+      "widthScale": {
+        "slot": 2,
+        "minTier": 2,
+        "value": 60
+      },
+      "heightScale": {
+        "slot": 3,
+        "minTier": 3,
+        "value": 60
+      },
+      "positionX": {
+        "slot": 4,
+        "minTier": 1,
+        "value": -300
+      },
+      "positionY": {
+        "slot": 1,
+        "minTier": 2,
+        "value": -200
+      },
+      "enemyEnabled": {
+        "slot": 2,
+        "minTier": 3,
+        "value": false
+      },
+      "enemyVisible": {
+        "slot": 3,
+        "minTier": 1,
+        "value": false
+      },
+      "enemyMode": {
+        "slot": 4,
+        "minTier": 2,
+        "value": "fixed"
+      },
+      "enemyLow": {
+        "slot": 1,
+        "minTier": 3,
+        "value": "#3D709F"
+      },
+      "enemyMid": {
+        "slot": 2,
+        "minTier": 1,
+        "value": "#60B606"
+      },
+      "enemyHigh": {
+        "slot": 3,
+        "minTier": 2,
+        "value": "#83FB6D"
+      },
+      "enemyTeamHigh": {
+        "slot": 4,
+        "minTier": 3,
+        "value": true
+      },
+      "enemyHealing": {
+        "slot": 1,
+        "minTier": 1,
+        "value": "#111109"
+      },
+      "enemyDelta": {
+        "slot": 2,
+        "minTier": 2,
+        "value": "#345670"
+      },
+      "enemyBulletShield": {
+        "slot": 3,
+        "minTier": 3,
+        "value": "#579BD7"
+      },
+      "allyEnabled": {
+        "slot": 4,
+        "minTier": 1,
+        "value": true
+      },
+      "allyVisible": {
+        "slot": 1,
+        "minTier": 2,
+        "value": false
+      },
+      "allyMode": {
+        "slot": 2,
+        "minTier": 3,
+        "value": "gradient"
+      },
+      "allyLow": {
+        "slot": 3,
+        "minTier": 1,
+        "value": "#E4B173"
+      },
+      "allyMid": {
+        "slot": 4,
+        "minTier": 2,
+        "value": "#07F6DA"
+      },
+      "allyHigh": {
+        "slot": 1,
+        "minTier": 3,
+        "value": "#2B3C41"
+      },
+      "allyHealing": {
+        "slot": 2,
+        "minTier": 1,
+        "value": "#4E81A8"
+      },
+      "allyDelta": {
+        "slot": 3,
+        "minTier": 2,
+        "value": "#71C70F"
+      },
+      "allyBulletShield": {
+        "slot": 4,
+        "minTier": 3,
+        "value": "#950C76"
+      },
+      "ultMode": {
+        "slot": 1,
+        "minTier": 1,
+        "value": "custom"
+      },
+      "ultCustom": {
+        "slot": 2,
+        "minTier": 2,
+        "value": "#DB9744"
+      },
+      "readoutVisible": {
+        "slot": 3,
+        "minTier": 3,
+        "value": false
+      },
+      "readoutFormat": {
+        "slot": 4,
+        "minTier": 1,
+        "value": "percent"
+      },
+      "readoutSize": {
+        "slot": 1,
+        "minTier": 2,
+        "value": 72
+      },
+      "readoutFont": {
+        "slot": 2,
+        "minTier": 3,
+        "value": "oracle"
+      },
+      "readoutOffsetX": {
+        "slot": 3,
+        "minTier": 1,
+        "value": -405
+      },
+      "readoutOffsetY": {
+        "slot": 4,
+        "minTier": 2,
+        "value": -35
+      },
+      "readoutColorMode": {
+        "slot": 1,
+        "minTier": 3,
+        "value": "custom"
+      },
+      "readoutMode": {
+        "slot": 2,
+        "minTier": 1,
+        "value": "gradient"
+      },
+      "readoutLow": {
+        "slot": 3,
+        "minTier": 2,
+        "value": "#1907E3"
+      },
+      "readoutMid": {
+        "slot": 4,
+        "minTier": 3,
+        "value": "#3C4D4A"
+      },
+      "readoutHigh": {
+        "slot": 1,
+        "minTier": 1,
+        "value": "#5F92B1"
+      },
+      "pipsVisible": {
+        "slot": 2,
+        "minTier": 2,
+        "value": false
+      },
+      "levelsVisible": {
+        "slot": 4,
+        "minTier": 1,
+        "value": false
+      },
+      "lowThreshold": {
+        "slot": 1,
+        "minTier": 2,
+        "value": 0
+      },
+      "highThreshold": {
+        "slot": 2,
+        "minTier": 3,
+        "value": 100
+      },
+      "enemyPulseEnabled": {
+        "slot": 3,
+        "minTier": 1,
+        "value": false
+      },
+      "enemyPulseThreshold": {
+        "slot": 4,
+        "minTier": 2,
+        "value": 0
+      },
+      "enemyPulseBpm": {
+        "slot": 1,
+        "minTier": 3,
+        "value": 30
+      },
+      "enemyPulseIntensity": {
+        "slot": 2,
+        "minTier": 1,
+        "value": 0
+      },
+      "enemyPulseColorEnabled": {
+        "slot": 3,
+        "minTier": 2,
+        "value": true
+      },
+      "enemyPulseColorMode": {
+        "slot": 4,
+        "minTier": 3,
+        "value": "fixed"
+      },
+      "enemyPulseColor": {
+        "slot": 1,
+        "minTier": 1,
+        "value": "#06D385"
+      },
+      "enemyPulseHideBar": {
+        "slot": 2,
+        "minTier": 2,
+        "value": true
+      },
+      "enemyPulseReadout": {
+        "slot": 3,
+        "minTier": 3,
+        "value": true
+      },
+      "enemyPulseReadoutModifiers": {
+        "slot": 4,
+        "minTier": 1,
+        "value": true
+      },
+      "enemyPulseReadoutSize": {
+        "slot": 1,
+        "minTier": 2,
+        "value": 72
+      },
+      "enemyPulseReadoutOffsetX": {
+        "slot": 2,
+        "minTier": 3,
+        "value": -405
+      },
+      "enemyPulseReadoutOffsetY": {
+        "slot": 3,
+        "minTier": 1,
+        "value": -35
+      },
+      "allyPulseEnabled": {
+        "slot": 4,
+        "minTier": 2,
+        "value": true
+      },
+      "allyPulseThreshold": {
+        "slot": 1,
+        "minTier": 3,
+        "value": 0
+      },
+      "allyPulseBpm": {
+        "slot": 2,
+        "minTier": 1,
+        "value": 30
+      },
+      "allyPulseIntensity": {
+        "slot": 3,
+        "minTier": 2,
+        "value": 0
+      },
+      "allyPulseColorEnabled": {
+        "slot": 4,
+        "minTier": 3,
+        "value": true
+      },
+      "allyPulseColor": {
+        "slot": 1,
+        "minTier": 1,
+        "value": "#AE1459"
+      },
+      "enemyKillMarkerEnabled": {
+        "slot": 2,
+        "minTier": 2,
+        "value": true
+      },
+      "enemyKillMarkerThreshold": {
+        "slot": 3,
+        "minTier": 3,
+        "value": 5
+      },
+      "enemyKillMarkerWidth": {
+        "slot": 4,
+        "minTier": 1,
+        "value": 1
+      },
+      "enemyKillMarkerColor": {
+        "slot": 1,
+        "minTier": 2,
+        "value": "#3B29F5"
+      },
+      "ghoulOpacityEnabled": {
+        "slot": 2,
+        "minTier": 3,
+        "value": true
+      },
+      "ghoulOpacity": {
+        "slot": 3,
+        "minTier": 1,
+        "value": 0
+      },
+      "readoutMaxTeamColor": {
+        "slot": 4,
+        "minTier": 2,
+        "value": true
+      },
+      "allyTeamHigh": {
+        "slot": 1,
+        "minTier": 3,
+        "value": true
+      },
+      "staminaWidth": {
+        "slot": 2,
+        "minTier": 1,
+        "value": 40
+      },
+      "staminaHeight": {
+        "slot": 3,
+        "minTier": 2,
+        "value": 16
+      },
+      "staminaOffsetX": {
+        "slot": 4,
+        "minTier": 3,
+        "value": -300
+      },
+      "staminaOffsetY": {
+        "slot": 1,
+        "minTier": 1,
+        "value": -200
+      },
+      "enemyStaminaColorEnabled": {
+        "slot": 2,
+        "minTier": 2,
+        "value": true
+      },
+      "enemyStaminaColor": {
+        "slot": 3,
+        "minTier": 3,
+        "value": "#D3A06A"
+      },
+      "allyPulseColorMode": {
+        "slot": 4,
+        "minTier": 1,
+        "value": "gradient"
+      }
+    }
+  },
+  "malformed": [
+    {
+      "id": "settings-malformed-json",
+      "protocol": "HPCR2",
+      "code": "HPCR2{",
+      "gameError": "INVALID HPCR2 CODE",
+      "builderError": "INVALID HPCR2 CODE"
+    },
+    {
+      "id": "settings-missing-condition-field",
+      "protocol": "HPCR2",
+      "code": "HPCR2{\"v\":[]}",
+      "gameError": "INVALID HPCR2 PAYLOAD",
+      "builderError": "INVALID HPCR2 PAYLOAD"
+    },
+    {
+      "id": "settings-pair-not-array",
+      "protocol": "HPCR2",
+      "code": "HPCR2{\"v\":[0],\"c\":{}}",
+      "gameError": "INVALID HPCR2 PAIR",
+      "builderError": "INVALID HPCR2 PAIR"
+    },
+    {
+      "id": "settings-duplicate-slot",
+      "protocol": "HPCR2",
+      "code": "HPCR2{\"v\":[[0,true],[0,false]],\"c\":{}}",
+      "gameError": "DUPLICATE HPCR2 SETTING",
+      "builderError": "DUPLICATE HPCR2 SETTING"
+    },
+    {
+      "id": "settings-unknown-slot",
+      "protocol": "HPCR2",
+      "code": "HPCR2{\"v\":[[72,true]],\"c\":{}}",
+      "gameError": "UNKNOWN HPCR2 SETTING",
+      "builderError": "UNKNOWN HPCR2 SETTING"
+    },
+    {
+      "id": "settings-invalid-boolean",
+      "protocol": "HPCR2",
+      "code": "HPCR2{\"v\":[[0,1]],\"c\":{}}",
+      "gameError": "INVALID SETTING: enabled",
+      "builderError": "INVALID SETTING: enabled"
+    },
+    {
+      "id": "settings-invalid-enum",
+      "protocol": "HPCR2",
+      "code": "HPCR2{\"v\":[[7,\"invalid\"]],\"c\":{}}",
+      "gameError": "INVALID SETTING: enemyMode",
+      "builderError": "INVALID SETTING: enemyMode"
+    },
+    {
+      "id": "settings-retired-condition",
+      "protocol": "HPCR2",
+      "code": "HPCR2{\"v\":[],\"c\":{\"excludeBuildings\":{\"slot\":1,\"minTier\":1,\"value\":true}}}",
+      "gameError": "INVALID HPCR2 CONDITIONS",
+      "builderError": "INVALID PRESET CONDITIONS"
+    },
+    {
+      "id": "settings-invalid-condition-tier",
+      "protocol": "HPCR2",
+      "code": "HPCR2{\"v\":[],\"c\":{\"enemyLow\":{\"slot\":1,\"minTier\":0,\"value\":\"#112233\"}}}",
+      "gameError": "INVALID HPCR2 CONDITIONS",
+      "builderError": "INVALID PRESET CONDITIONS"
+    },
+    {
+      "id": "preset-malformed-json",
+      "protocol": "HPCRP1",
+      "code": "HPCRP1{",
+      "gameError": "INVALID HPCRP1 CODE",
+      "builderError": "INVALID HPCRP1 CODE"
+    },
+    {
+      "id": "preset-empty-records",
+      "protocol": "HPCRP1",
+      "code": "HPCRP1{\"records\":[]}",
+      "gameError": "INVALID PRESET RECORDS",
+      "builderError": "INVALID HPCRP1 PAYLOAD"
+    },
+    {
+      "id": "preset-record-not-object",
+      "protocol": "HPCRP1",
+      "code": "HPCRP1{\"records\":[null]}",
+      "gameError": "INVALID PRESET RECORD",
+      "builderError": "INVALID PRESET RECORD"
+    },
+    {
+      "id": "preset-duplicate-id",
+      "protocol": "HPCRP1",
+      "code": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Test\",\"mode\":\"all\",\"heroes\":[],\"values\":[],\"conditions\":null},{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Test\",\"mode\":\"all\",\"heroes\":[],\"values\":[],\"conditions\":null}]}",
+      "gameError": "INVALID PRESET RECORD",
+      "builderError": "INVALID PRESET RECORD"
+    },
+    {
+      "id": "preset-invalid-user-id",
+      "protocol": "HPCRP1",
+      "code": "HPCRP1{\"records\":[{\"id\":\"preset_1\",\"kind\":\"user\",\"name\":\"Test\",\"mode\":\"all\",\"heroes\":[],\"values\":[],\"conditions\":null}]}",
+      "gameError": "INVALID USER PRESET SCOPE",
+      "builderError": "INVALID PRESET SCOPE"
+    },
+    {
+      "id": "preset-invalid-selection",
+      "protocol": "HPCRP1",
+      "code": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Test\",\"mode\":\"all\",\"heroes\":[],\"values\":[],\"conditions\":null}],\"selectedPresetId\":\"user_9999\"}",
+      "gameError": "INVALID IMPORTED SELECTION",
+      "builderError": "INVALID SELECTED PRESET"
+    },
+    {
+      "id": "preset-invalid-hidden-state",
+      "protocol": "HPCRP1",
+      "code": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Test\",\"mode\":\"all\",\"heroes\":[],\"values\":[],\"conditions\":null}],\"hiddenBakedPresetIds\":\"baked_default\"}",
+      "gameError": "INVALID HIDDEN BAKED PRESETS",
+      "builderError": null
+    },
+    {
+      "id": "preset-invalid-extension-version",
+      "protocol": "HPCRP1",
+      "code": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Test\",\"mode\":\"all\",\"heroes\":[],\"values\":[],\"conditions\":null,\"hpv2\":{\"v\":2,\"values\":[],\"conditions\":{}}}]}",
+      "gameError": "INVALID HPV2 PRESET EXTENSION",
+      "builderError": "INVALID HPV2 PRESET EXTENSION"
+    },
+    {
+      "id": "preset-duplicate-extension-slot",
+      "protocol": "HPCRP1",
+      "code": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Test\",\"mode\":\"all\",\"heroes\":[],\"values\":[],\"conditions\":null,\"hpv2\":{\"v\":1,\"values\":[[0,40],[0,41]],\"conditions\":{}}}]}",
+      "gameError": "INVALID HPV2 PRESET VALUE PAIR",
+      "builderError": "INVALID HPV2 PRESET VALUE PAIR"
+    },
+    {
+      "id": "preset-invalid-condition",
+      "protocol": "HPCRP1",
+      "code": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Test\",\"mode\":\"all\",\"heroes\":[],\"values\":[],\"conditions\":{\"enemyLow\":{\"slot\":1,\"minTier\":0,\"value\":\"#112233\"}}}]}",
+      "gameError": "INVALID PRESET CONDITIONS",
+      "builderError": "INVALID PRESET CONDITIONS"
+    },
+    {
+      "id": "preset-duplicate-legacy-slot",
+      "protocol": "HPCRP1",
+      "code": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Test\",\"mode\":\"all\",\"heroes\":[],\"values\":[[0,true],[0,false]],\"conditions\":null}]}",
+      "gameError": "DUPLICATE PRESET VALUE",
+      "builderError": "DUPLICATE PRESET SETTING"
+    },
+    {
+      "id": "preset-unknown-legacy-slot",
+      "protocol": "HPCRP1",
+      "code": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Test\",\"mode\":\"all\",\"heroes\":[],\"values\":[[72,true]],\"conditions\":null}]}",
+      "gameError": "INVALID PRESET VALUE PAIR",
+      "builderError": "UNKNOWN PRESET SETTING"
+    },
+    {
+      "id": "preset-invalid-baked-record",
+      "protocol": "HPCRP1",
+      "code": "HPCRP1{\"records\":[{\"id\":\"baked_default\",\"kind\":\"baked\",\"name\":\"Default\",\"mode\":\"off\",\"heroes\":[],\"values\":[],\"conditions\":null}]}",
+      "gameError": "INVALID BAKED PRESET",
+      "builderError": "INVALID BAKED PRESET"
+    }
+  ]
+}

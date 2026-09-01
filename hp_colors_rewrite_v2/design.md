@@ -33,7 +33,7 @@ The bar remains `height: 120px` and uses a trial `width: 750px`, 50% wider than 
 
 The alignment script caches `#UnitStatus`, `#UnitHealthbarsContainer`, and the pip label. A stable 0.25-second tick performs one context identity check, checks at most three segment classes, reads the cached pip text, and counts its characters without allocating an array. It performs no tree search, style write, or console output while segment and relevant pip count are unchanged.
 
-On a segment change, or a pip-count change while segment 2 is active, it computes one margin. It writes only if the value changed and emits one debug message. A destroyed context schedules no further callback.
+On a segment change, or a pip-count change while segment 2 is active, it computes one margin and writes only when the value changes.
 
 ## Alignment boundaries
 
@@ -67,5 +67,5 @@ Pending checks:
 
 ## Prior verified alignment proof
 
-The prior alignment-only VM test covered initial segment 1, eight unchanged ticks, segment 2 at 8, 12, and 16 pips, the segment-3 handoff at the same `100px` margin, exact debug text, no unchanged writes or logs, cached traversal behavior, and destroyed-context shutdown.
+The prior alignment-only VM test covered initial segment 1, eight unchanged ticks, segment 2 at 8, 12, and 16 pips, the segment-3 handoff at the same `100px` margin, cached traversal behavior, and destroyed-context shutdown.
 

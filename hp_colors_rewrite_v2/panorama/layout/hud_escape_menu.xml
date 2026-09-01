@@ -1,3 +1,4 @@
+<!-- Stock hud_escape_menu.xml from SteamDatabase/GameTracking-Deadlock with only HP Colors includes and panels added. -->
 <root>
   <styles>
     <include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
@@ -6,10 +7,11 @@
   </styles>
   <scripts>
     <include src="s2r://panorama/scripts/hp_colors_v2_contract.vjs_c" />
+    <include src="s2r://panorama/scripts/hp_colors_v2_state.vjs_c" />
     <include src="s2r://panorama/scripts/hp_colors_v2_menu.vjs_c" />
   </scripts>
-  <CitadelHudEscapeMenu onload="$.HPColorsV2MenuBoot()" oncancel="if (!$.HPColorsV2MenuCancel()) $.DispatchEvent( &apos;CitadelResumePlaying&apos;, $.GetContextPanel())">
-    <Panel id="EscapeBackground" onactivate="if (!$.HPColorsV2MenuCancel()) $.DispatchEvent( &apos;CitadelResumePlaying&apos;, $.GetContextPanel())" />
+  <CitadelHudEscapeMenu onload="$.HPColorsMenuBoot()" oncancel="if (!$.HPColorsMenuCancel()) $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel())">
+    <Panel id="EscapeBackground" onactivate="if (!$.HPColorsMenuCancel()) $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel())" />
     <Panel id="LeftStripeBlur" />
     <Panel id="LeftStripe" hittest="false">
       <Panel id="Menu" hittest="false">
@@ -50,7 +52,7 @@
               <Label text="#Citadel_PlayerFeedback_Title" class="menuButtonLabel" />
             </Button>
           </Panel>
-          <Button id="HPColorsV2MenuButton" class="nav_menu_item minor" onactivate="$.HPColorsV2MenuOpen()">
+          <Button id="HPColorsMenuButton" class="nav_menu_item minor">
             <Label text="HP COLORS V2" class="menuButtonLabel" />
           </Button>
           <Panel class="SettingsRow">
@@ -67,7 +69,7 @@
       </Panel>
     </Panel>
     <CitadelPrivilegedFeatures id="PrivilegedFeatures" />
-    <CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="if (!$.HPColorsV2MenuCancel()) $.DispatchEvent( &apos;CitadelResumePlaying&apos;, $.GetContextPanel())" text="#menu_resume" />
+    <CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="if (!$.HPColorsMenuCancel()) $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel())" text="#menu_resume" />
     <Panel id="RightSideBlur" hittest="false" />
     <Panel id="RightSide" hittest="false">
       <Panel id="PartySpacer" />
@@ -87,89 +89,851 @@
       </Panel>
     </Panel>
 
-    <Panel id="HPColorsV2EditorRoot" class="HPColorsV2EditorRoot" hittest="true" oncancel="$.HPColorsV2MenuCancel()">
-      <Panel class="HPColorsV2EditorBackdrop" hittest="false" />
-      <Panel id="HPColorsV2EditorShell" class="HPColorsV2EditorShell" hittest="true" hittestchildren="true">
-        <Panel class="HPColorsV2Header">
-          <Label text="HP COLORS V2" class="HPColorsV2Title" />
-          <Label text="SESSION EDITOR" class="HPColorsV2Subtitle" />
+    <Panel id="HPColorsEditorRoot" class="HPColorsEditorRoot" hittest="true">
+      <Panel class="HPColorsEditorBackdrop" hittest="false" />
+      <Panel id="HPColorsEditorShell" class="HPColorsEditorShell">
+        <Panel class="HPColorsEditorHeader">
+          <Panel class="HPColorsTitleBlock">
+            <Label text="HP COLORS V2" class="HPColorsTitle" />
+            <Label id="HPColorsHeaderCategory" text="OVERVIEW" class="HPColorsHeaderCategory" />
+          </Panel>
+          <Panel class="HPColorsHeaderRule" />
+          <CitadelHTMLPanel id="HPColorsSupporterTicker" class="HPColorsSupporterTicker" hittest="false" acceptsfocus="false" />
+          <Label id="HPColorsLiveStatus" text="LIVE" class="HPColorsLiveStatus" />
+          <Button id="HPColorsDonateButton" class="HPColorsDonateButton" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://ko-fi.com/hantuaraya&apos; );"><Label text="DONATE" /></Button>
         </Panel>
-        <Panel class="HPColorsV2Body">
-          <Panel id="HPColorsV2Settings" class="HPColorsV2Section">
-          <Panel id="HPColorsV2MasterRow" class="HPColorsV2SettingRow">
-            <Panel class="HPColorsV2SettingCopy">
-              <Label text="MASTER" class="HPColorsV2SettingTitle" />
-              <Label text="Enable custom HP Colors for enemy and ally bars." class="HPColorsV2SettingHelp" />
-            </Panel>
-            <Button id="HPColorsV2MasterToggle" class="HPColorsV2Toggle">
-              <Panel class="HPColorsV2ToggleKnob" />
+
+        <Panel class="HPColorsEditorBody">
+          <Panel class="HPColorsCategoryRail">
+            <Label text="HEALTHBAR CONTROL" class="HPColorsRailEyebrow" />
+            <Button id="HPColorsCategoryOverview" class="HPColorsCategoryButton Selected">
+              <Label text="01" class="HPColorsCategoryIndex" />
+              <Label text="OVERVIEW" class="HPColorsCategoryLabel" />
+            </Button>
+            <Button id="HPColorsCategoryEnemy" class="HPColorsCategoryButton">
+              <Label text="02" class="HPColorsCategoryIndex" />
+              <Label text="ENEMY" class="HPColorsCategoryLabel" />
+            </Button>
+            <Button id="HPColorsCategoryAlly" class="HPColorsCategoryButton">
+              <Label text="03" class="HPColorsCategoryIndex" />
+              <Label text="ALLY" class="HPColorsCategoryLabel" />
+            </Button>
+            <Button id="HPColorsCategoryReadout" class="HPColorsCategoryButton">
+              <Label text="04" class="HPColorsCategoryIndex" />
+              <Label text="HEALTH INFO" class="HPColorsCategoryLabel" />
             </Button>
           </Panel>
-          <Panel id="HPColorsV2EnemyColorRow" class="HPColorsV2SettingRow HPColorsV2ColorRow">
-            <Panel class="HPColorsV2SettingCopy">
-              <Label text="ENEMY COLOR" class="HPColorsV2SettingTitle" />
-              <Label text="Color applied to enemy healthbar fills and ready icons." class="HPColorsV2SettingHelp" />
+
+          <Panel class="HPColorsContent">
+            <Panel class="HPColorsTabStrip">
+              <Button id="HPColorsTab0" class="HPColorsTabButton Available Selected"><Label id="HPColorsTabLabel0" class="HPColorsTabLabel" /></Button>
+              <Button id="HPColorsTab1" class="HPColorsTabButton Available"><Label id="HPColorsTabLabel1" class="HPColorsTabLabel" /></Button>
+              <Button id="HPColorsTab2" class="HPColorsTabButton"><Label id="HPColorsTabLabel2" class="HPColorsTabLabel" /></Button>
+              <Button id="HPColorsTab3" class="HPColorsTabButton"><Label id="HPColorsTabLabel3" class="HPColorsTabLabel" /></Button>
+              <Button id="HPColorsTab4" class="HPColorsTabButton"><Label id="HPColorsTabLabel4" class="HPColorsTabLabel" /></Button>
             </Panel>
-            <Button id="HPColorsV2EnemyColorSwatch" class="HPColorsV2ColorSwatch" onactivate="$.HPColorsV2MenuOpenPicker( &apos;enemyColor&apos; )" />
-            <TextEntry id="HPColorsV2EnemyColorHex" class="HPColorsV2HexEntry" text="#FD4949" maxchars="7" />
+            <Panel class="HPColorsPage">
+              <Panel class="HPColorsPageHeading">
+                <Panel class="HPColorsPageHeadingCopy">
+                  <Label id="HPColorsPageEyebrow" text="OVERVIEW / MASTER" class="HPColorsPageEyebrow" />
+                  <Label id="HPColorsPageTitle" text="MASTER SWITCH" class="HPColorsPageTitle" />
+                </Panel>
+                <Button id="HPColorsPresetInfoToggle" class="HPColorsPresetInfoToggle"><Label text="INFO" /></Button>
+              </Panel>
+              <Panel class="HPColorsPageRule" />
+              <Label id="HPColorsPageDescription" text="Turn HP Colors V2 on or off. Your settings stay saved when it is off." class="HPColorsPageDescription" />
+              <Panel id="HPColorsSettingsList" class="HPColorsSettingsList">
+                <Panel id="HPColorsSettingsOverviewStatus" class="HPColorsSettingsPage Active">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="ENABLE HP COLORS V2" class="HPColorsSettingTitle" />
+                      <Label text="Turn HP Colors V2 on or off. Your other settings stay saved when it is off." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsMasterToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsOverviewLayout" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="BAR WIDTH" class="HPColorsSettingTitle" />
+                      <Label text="Set the width of every custom healthbar." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsWidthSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsWidthEntry" class="HPColorsNumberEntry" text="100" />
+                      <Label text="%" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="BAR HEIGHT" class="HPColorsSettingTitle" />
+                      <Label text="Set custom healthbar height for heroes, bosses, and sentries." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsHeightSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsHeightEntry" class="HPColorsNumberEntry" text="100" />
+                      <Label text="%" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="BAR X OFFSET" class="HPColorsSettingTitle" />
+                      <Label text="Move only the healthbar stack left or right. Unit and status icons stay in place." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsPositionXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsPositionXEntry" class="HPColorsNumberEntry" text="0" />
+                      <Label text="PX" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="BAR Y OFFSET" class="HPColorsSettingTitle" />
+                      <Label text="Move only the healthbar stack up or down. Unit and status icons stay in place." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsPositionYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsPositionYEntry" class="HPColorsNumberEntry" text="0" />
+                      <Label text="PX" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsOverviewHero" class="HPColorsSettingsPage HPColorsPresetWorkspace">
+                  <Panel class="HPColorsPresetSurface">
+                    <Panel class="HPColorsPresetHeading">
+                      <Panel class="HPColorsPresetHeadingCopy">
+                        <Label text="SESSION PRESETS" class="HPColorsHeroCardEyebrow" />
+                        <Label text="PRESET LIBRARY" class="HPColorsHeroCardTitle" />
+                      </Panel>
+                      <Label text="SESSION ONLY" class="HPColorsHeroSessionFlag" />
+                    </Panel>
+                    <Panel id="HPColorsPresetGuide" class="HPColorsPresetGuide">
+                      <Panel class="HPColorsHeroCardHelpBlock">
+                        <Label text="Presets created or changed here last until Deadlock closes." class="HPColorsHeroCardHelp" />
+                        <Button id="HPColorsPresetBuilderLink" class="HPColorsPresetBuilderLink" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://hantu-raya.github.io/hp-colors-preset-builder/hpv2/&apos; );"><Label text="Presets packaged with the V2 web builder return after restart." /></Button>
+                        <Label text="One preset VPK can contain both All Heroes and Selected Heroes presets." class="HPColorsHeroCardHelp" />
+                      </Panel>
+
+                      <Panel class="HPColorsPresetHeroContext">
+                        <Label text="ACTIVE HERO" class="HPColorsPresetContextLabel" />
+                        <Label id="HPColorsHeroIdentity" text="HERO: UNKNOWN" class="HPColorsPresetHeroValue" />
+                        <Panel class="HPColorsPresetRouting">
+                          <Label text="HOW PRESETS ARE CHOSEN" class="HPColorsPresetRoutingTitle" />
+                          <Label text="HERO-SPECIFIC FIRST  ·  OTHERWISE ALL HEROES" class="HPColorsPresetRoutingValue" />
+                          <Label text="If two presets cover the same hero, the higher one in the list wins." class="HPColorsPresetRoutingHelp" />
+                        </Panel>
+                      </Panel>
+                    </Panel>
+
+                    <Panel class="HPColorsPresetCreateBlock">
+                      <Panel class="HPColorsPresetCreateHeader">
+                        <Panel class="HPColorsPresetCreateHeading">
+                          <Label text="PRESET EDITOR" class="HPColorsHeroFieldLabel" />
+                          <Label id="HPColorsPresetSaveMode" text="CREATE A NEW PRESET" class="HPColorsPresetSaveMode" />
+                        </Panel>
+                        <Button id="HPColorsPresetNewButton" class="HPColorsSecondaryAction HPColorsPresetNewButton"><Label text="NEW PRESET" /></Button>
+                      </Panel>
+                      <Panel id="HPColorsPresetForm" class="HPColorsPresetForm">
+                        <Panel class="HPColorsPresetSaveControls">
+                          <TextEntry id="HPColorsPresetNameInput" class="HPColorsPresetNameInput" multiline="false" maxchars="48" placeholder="PRESET NAME" />
+                        </Panel>
+                        <Panel class="HPColorsHeroScopeBlock">
+                          <Panel class="HPColorsHeroScopeHeader">
+                            <Label text="APPLIES TO" class="HPColorsHeroFieldLabel" />
+                            <Label id="HPColorsCurrentScopeSummary" text="ALL HEROES" class="HPColorsCurrentScopeSummary" />
+                          </Panel>
+                          <Panel class="HPColorsSegment HPColorsCurrentScopeSegment">
+                            <Button id="HPColorsCurrentScopeAll" class="HPColorsSegmentButton"><Label text="ALL HEROES" /></Button>
+                            <Button id="HPColorsCurrentScopeSelected" class="HPColorsSegmentButton"><Label text="SELECT HEROES" /></Button>
+                          </Panel>
+                          <Label text="Selected Heroes overrides All Heroes for the heroes you choose. All Heroes covers everyone else." class="HPColorsPresetScopeHelp" />
+                        </Panel>
+                        <Panel class="HPColorsPresetFormActions">
+                          <Button id="HPColorsPresetSaveButton" class="HPColorsPrimaryAction HPColorsPresetSaveButton"><Label id="HPColorsPresetSaveButtonLabel" text="CREATE PRESET" /></Button>
+                          <Button id="HPColorsPresetCancelEditButton" class="HPColorsSecondaryAction HPColorsPresetCancelEditButton"><Label text="CANCEL" /></Button>
+                        </Panel>
+                      </Panel>
+                    </Panel>
+                    <Panel class="HPColorsPresetActionGuide">
+                      <Panel class="HPColorsPresetActionGuideRow">
+                        <Label text="CREATE PRESET" class="HPColorsPresetActionGuideLabel" />
+                        <Label text="Saves the current menu settings as a new library record. It does not change the live HUD." class="HPColorsPresetActionGuideHelp" />
+                      </Panel>
+                      <Panel class="HPColorsPresetActionGuideRow">
+                        <Label text="APPLY" class="HPColorsPresetActionGuideLabel" />
+                        <Label text="Loads the saved preset now. It does not edit the preset." class="HPColorsPresetActionGuideHelp" />
+                      </Panel>
+                      <Panel class="HPColorsPresetActionGuideRow">
+                        <Label text="SAVE &amp; APPLY" class="HPColorsPresetActionGuideLabel" />
+                        <Label text="Replaces the selected preset with the current menu settings, then loads it." class="HPColorsPresetActionGuideHelp" />
+                      </Panel>
+                    </Panel>
+
+                    <Label id="HPColorsPresetFeedback" text="" class="HPColorsPresetFeedback" />
+                    <Panel class="HPColorsPresetLibraryHeader">
+                      <Label text="PRESETS" class="HPColorsHeroFieldLabel" />
+                      <Label text="Click a session preset to edit it." class="HPColorsPresetLibraryHint" />
+                      <Button id="HPColorsPresetCopyAllButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="COPY ALL" /></Button>
+                      <Button id="HPColorsPresetImportButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="IMPORT" /></Button>
+                      <Button id="HPColorsPresetRestoreBakedButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="RESTORE BAKED" /></Button>
+                    </Panel>
+                    <Panel id="HPColorsPresetOptions" class="HPColorsPresetOptions" hittest="true" hittestchildren="true" />
+
+                  </Panel>
+
+
+                  <Panel class="HPColorsIdentityRuntime">
+                    <Label id="HPColorsHeroPhase" text="TRANSITIONING" />
+                    <Label id="HPColorsHeroDetail" text="" />
+                    <Button id="HPColorsHeroModeAuto" />
+                    <Button id="HPColorsHeroModeManual" />
+                    <Button id="HPColorsHeroModeOff" />
+                    <Panel id="HPColorsHeroManualRow">
+                      <Button id="HPColorsHeroManualButton"><Label id="HPColorsHeroManualValue" text="" /></Button>
+                    </Panel>
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsEnemyBar" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="ENEMY BAR COLORS" class="HPColorsSettingTitle" />
+                      <Label text="Turn custom colors for enemy healthbars on or off. Neutral units stay unchanged." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsEnemyToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="SHOW ENEMY HEALTHBAR" class="HPColorsSettingTitle" />
+                      <Label text="Show or hide enemy healthbars while health updates continue." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsEnemyVisibleToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="USE TEAM COLOR AT HIGH HP" class="HPColorsSettingTitle" />
+                      <Label text="Use each enemy's team color above the high-health threshold and at the top of a gradient." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsEnemyTeamHighToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="USE CUSTOM GHOUL OPACITY" class="HPColorsSettingTitle" />
+                      <Label text="Apply one opacity value to the ghoul healthbar and ultimate-ready background." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsGhoulOpacityToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsGhoulOpacityRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="GHOUL HUD OPACITY" class="HPColorsSettingTitle" />
+                      <Label text="0% is nearly invisible. 100% keeps normal opacity." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsGhoulOpacitySliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsGhoulOpacityEntry" class="HPColorsNumberEntry" text="100" />
+                      <Label text="%" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="COLOR MODE" class="HPColorsSettingTitle" />
+                      <Label text="Use fixed color steps or blend smoothly between them." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsEnemyModeFixed" class="HPColorsSegmentButton"><Label text="FIXED" /></Button>
+                      <Button id="HPColorsEnemyModeGradient" class="HPColorsSegmentButton"><Label text="GRADIENT" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsEnemyGradientRows" class="HPColorsGradientRows Active">
+                    <Panel class="HPColorsSettingRow HPColorsColorRow">
+                      <Panel class="HPColorsSettingCopy"><Label text="LOW COLOR" class="HPColorsSettingTitle" /><Label text="Use this color at or below the low-health threshold." class="HPColorsSettingHelp" /></Panel>
+                      <Button id="HPColorsEnemyLowSwatch" class="HPColorsColorSwatch" />
+                      <TextEntry id="HPColorsEnemyLowHex" class="HPColorsHexEntry" text="#FD4949" maxchars="7" />
+                    </Panel>
+                    <Panel class="HPColorsSettingRow HPColorsColorRow">
+                      <Panel class="HPColorsSettingCopy"><Label text="MID COLOR" class="HPColorsSettingTitle" /><Label text="Use this color between the low and high thresholds." class="HPColorsSettingHelp" /></Panel>
+                      <Button id="HPColorsEnemyMidSwatch" class="HPColorsColorSwatch" />
+                      <TextEntry id="HPColorsEnemyMidHex" class="HPColorsHexEntry" text="#FF7B00" maxchars="7" />
+                    </Panel>
+                    <Panel class="HPColorsSettingRow HPColorsColorRow">
+                      <Panel class="HPColorsSettingCopy"><Label text="HIGH COLOR" class="HPColorsSettingTitle" /><Label text="Use this color above the high-health threshold or at full health." class="HPColorsSettingHelp" /></Panel>
+                      <Button id="HPColorsEnemyHighSwatch" class="HPColorsColorSwatch" />
+                      <TextEntry id="HPColorsEnemyHighHex" class="HPColorsHexEntry" text="#00FF00" maxchars="7" />
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsSharedLowThresholdRow" class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="SHARED LOW THRESHOLD" class="HPColorsSettingTitle" /><Label text="One threshold used by enemy bars, ally bars, and custom HP text." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsSharedLowThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsSharedLowThresholdEntry" class="HPColorsNumberEntry" text="25" />
+                      <Label text="%" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsSharedHighThresholdRow" class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="SHARED HIGH THRESHOLD" class="HPColorsSettingTitle" /><Label text="One threshold used by enemy bars, ally bars, and custom HP text." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsSharedHighThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsSharedHighThresholdEntry" class="HPColorsNumberEntry" text="65" />
+                      <Label text="%" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsEnemyFeedback" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow HPColorsColorRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="HEALING COLOR" class="HPColorsSettingTitle" /><Label text="Set the color of the healing indicator." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyHealingSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsEnemyHealingHex" class="HPColorsHexEntry" text="#5FFF80" maxchars="7" />
+                  </Panel>
+                  <Panel class="HPColorsSettingRow HPColorsColorRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="RECENT DAMAGE COLOR" class="HPColorsSettingTitle" /><Label text="Set the color of the recent-damage indicator." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyDeltaSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsEnemyDeltaHex" class="HPColorsHexEntry" text="#FFE55B" maxchars="7" />
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsEnemyShields" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow HPColorsColorRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="SHIELD COLOR" class="HPColorsSettingTitle" /><Label text="Set the color of the shield indicator." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyShieldSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsEnemyShieldHex" class="HPColorsHexEntry" text="#FFFFFF" maxchars="7" />
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsAllyBar" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="ALLY BAR COLORS" class="HPColorsSettingTitle" /><Label text="Turn custom colors for ally healthbars on or off. Only ally bars use these colors." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="SHOW ALLY HEALTHBAR" class="HPColorsSettingTitle" /><Label text="Show or hide ally healthbars while health updates continue." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyVisibleToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="USE TEAM COLOR AT HIGH HP" class="HPColorsSettingTitle" />
+                      <Label text="Use each ally's team color above the high-health threshold and at the top of a gradient." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsAllyTeamHighToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="COLOR MODE" class="HPColorsSettingTitle" /><Label text="Use fixed color steps or blend smoothly between them. Ally thresholds match enemy thresholds." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsAllyModeFixed" class="HPColorsSegmentButton"><Label text="FIXED" /></Button>
+                      <Button id="HPColorsAllyModeGradient" class="HPColorsSegmentButton"><Label text="GRADIENT" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsAllyGradientRows" class="HPColorsGradientRows Active">
+                    <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="LOW COLOR" class="HPColorsSettingTitle" /><Label text="Use this color at or below the shared low-health threshold." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsAllyLowSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsAllyLowHex" class="HPColorsHexEntry" text="#FFEFD7" maxchars="7" /></Panel>
+                    <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="MID COLOR" class="HPColorsSettingTitle" /><Label text="Use this color between the shared low and high thresholds." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsAllyMidSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsAllyMidHex" class="HPColorsHexEntry" text="#FFEFD7" maxchars="7" /></Panel>
+                    <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="HIGH COLOR" class="HPColorsSettingTitle" /><Label text="Use this color above the shared high-health threshold or at full health." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsAllyHighSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsAllyHighHex" class="HPColorsHexEntry" text="#FFEFD7" maxchars="7" /></Panel>
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsAllyFeedback" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow HPColorsColorRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="HEALING COLOR" class="HPColorsSettingTitle" /><Label text="Set the color of the ally healing indicator." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyHealingSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsAllyHealingHex" class="HPColorsHexEntry" text="#5FFF80" maxchars="7" />
+                  </Panel>
+                  <Panel class="HPColorsSettingRow HPColorsColorRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="RECENT DAMAGE COLOR" class="HPColorsSettingTitle" /><Label text="Set the color of the ally recent-damage indicator." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyDeltaSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsAllyDeltaHex" class="HPColorsHexEntry" text="#504C47" maxchars="7" />
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsAllyShields" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow HPColorsColorRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="SHIELD COLOR" class="HPColorsSettingTitle" /><Label text="Set the color of the ally shield indicator." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyShieldSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsAllyShieldHex" class="HPColorsHexEntry" text="#FFFFFF" maxchars="7" />
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsReadoutNumber" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="SHOW HEALTH TEXT" class="HPColorsSettingTitle" /><Label text="Show current health, maximum health, or a percentage on enemy healthbars." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsReadoutToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="HEALTH TEXT FORMAT" class="HPColorsSettingTitle" /><Label text="Choose current and maximum health, percentage, or current health only." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsReadoutFormatHP" class="HPColorsSegmentButton"><Label text="HP" /></Button>
+                      <Button id="HPColorsReadoutFormatPercent" class="HPColorsSegmentButton"><Label text="%" /></Button>
+                      <Button id="HPColorsReadoutFormatCurrent" class="HPColorsSegmentButton"><Label text="CURRENT HP" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEXT SIZE" class="HPColorsSettingTitle" /><Label text="Set the size of the health text." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsReadoutSizeSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsReadoutSizeEntry" class="HPColorsNumberEntry" text="145" />
+                      <Label text="PX" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEXT FONT" class="HPColorsSettingTitle" /><Label text="Choose the default, Oracle, or Pulp font." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsReadoutFontDefault" class="HPColorsSegmentButton"><Label text="DEFAULT" /></Button>
+                      <Button id="HPColorsReadoutFontOracle" class="HPColorsSegmentButton"><Label text="ORACLE" /></Button>
+                      <Button id="HPColorsReadoutFontPulp" class="HPColorsSegmentButton"><Label text="PULP" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEXT COLOR" class="HPColorsSettingTitle" /><Label text="Match the final enemy bar color or use a separate color palette." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsReadoutColorBar" class="HPColorsSegmentButton"><Label text="BAR COLOR" /></Button>
+                      <Button id="HPColorsReadoutColorCustom" class="HPColorsSegmentButton"><Label text="CUSTOM" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEAM COLOR MAX HP" class="HPColorsSettingTitle" /><Label text="Color only the maximum HP value with the unit team color." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsReadoutMaxTeamColorToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsReadoutModeRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEXT COLOR MODE" class="HPColorsSettingTitle" /><Label text="Use fixed color steps or blend smoothly between them." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsReadoutModeFixed" class="HPColorsSegmentButton"><Label text="FIXED" /></Button>
+                      <Button id="HPColorsReadoutModeGradient" class="HPColorsSegmentButton"><Label text="GRADIENT" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsReadoutCustomRows" class="HPColorsGradientRows HPColorsConditionalRow">
+                    <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="LOW TEXT COLOR" class="HPColorsSettingTitle" /><Label text="Use this color at or below the low-health threshold." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsReadoutLowSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsReadoutLowHex" class="HPColorsHexEntry" text="#E16161" maxchars="7" /></Panel>
+                    <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="MID TEXT COLOR" class="HPColorsSettingTitle" /><Label text="Use this color between the low and high thresholds." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsReadoutMidSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsReadoutMidHex" class="HPColorsHexEntry" text="#FF7B00" maxchars="7" /></Panel>
+                    <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="HIGH TEXT COLOR" class="HPColorsSettingTitle" /><Label text="Use this color above the high-health threshold or at full health." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsReadoutHighSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsReadoutHighHex" class="HPColorsHexEntry" text="#FFFFFF" maxchars="7" /></Panel>
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsReadoutPlacement" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="HORIZONTAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move the health text left or right without moving the healthbar." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsReadoutOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsReadoutOffsetXEntry" class="HPColorsNumberEntry" text="-30" />
+                      <Label text="PX" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="VERTICAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move the health text up or down without changing the surrounding layout." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsReadoutOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsReadoutOffsetYEntry" class="HPColorsNumberEntry" text="476" />
+                      <Label text="PX" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                </Panel>
+                <Panel id="HPColorsSettingsReadoutLevels" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="SHOW HEALTH PIPS" class="HPColorsSettingTitle" />
+                      <Label text="Show health pips on enemy healthbars. Ally, neutral, and standard bars keep their normal pips." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsPipsVisibleToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="10 HP PER SMALL PIP" class="HPColorsSettingTitle" />
+                      <Label text="Count each small pip as 10 HP when calculating health text. Manual game configuration is required." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsPrecisePipsToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="SHOW ENEMY LEVELS" class="HPColorsSettingTitle" />
+                      <Label text="Show player levels on valid enemy-player healthbars." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsLevelsVisibleToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="ULTIMATE ICONS" class="HPColorsSettingTitle" />
+                      <Label text="Use one shared color rule for customized enemy and ally ultimate-ready icons." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsUltModeFollow" class="HPColorsSegmentButton"><Label text="FOLLOW BAR" /></Button>
+                      <Button id="HPColorsUltModeCustom" class="HPColorsSegmentButton"><Label text="CUSTOM" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsUltCustomRow" class="HPColorsSettingRow HPColorsColorRow HPColorsConditionalRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="SHARED CUSTOM ICON COLOR" class="HPColorsSettingTitle" /><Label text="Use this color for both enemy and ally ultimate-ready icons." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsUltCustomSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsUltCustomHex" class="HPColorsHexEntry" text="#E16161" maxchars="7" />
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsStamina" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="STAMINA BOX WIDTH" class="HPColorsSettingTitle" /><Label text="Set the exact width of each enemy stamina box." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsStaminaWidthSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsStaminaWidthEntry" class="HPColorsNumberEntry" text="110" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="STAMINA BOX HEIGHT" class="HPColorsSettingTitle" /><Label text="Set the exact height of each enemy stamina box." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsStaminaHeightSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsStaminaHeightEntry" class="HPColorsNumberEntry" text="44.8" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="STAMINA X OFFSET" class="HPColorsSettingTitle" /><Label text="Move the enemy stamina row left or right." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsStaminaOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsStaminaOffsetXEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="STAMINA Y OFFSET" class="HPColorsSettingTitle" /><Label text="Move the enemy stamina row up or down." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsStaminaOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsStaminaOffsetYEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="CUSTOM ENEMY STAMINA COLOR" class="HPColorsSettingTitle" /><Label text="Replace the stock enemy tint on filled stamina boxes and their borders." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyStaminaColorToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsEnemyStaminaColorRow" class="HPColorsSettingRow HPColorsColorRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="ENEMY STAMINA COLOR" class="HPColorsSettingTitle" /><Label text="Empty stamina interiors remain black." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyStaminaColorSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsEnemyStaminaColorHex" class="HPColorsHexEntry" text="#FD4949" maxchars="7" />
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsEnemyPulse" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="ENEMY LOW-HP PULSE" class="HPColorsSettingTitle" /><Label text="Pulse enemy healthbars when their health reaches the threshold." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyPulseToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE THRESHOLD" class="HPColorsSettingTitle" /><Label text="Set the enemy health percentage that starts the pulse." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseThresholdEntry" class="HPColorsNumberEntry" text="25" /><Label text="%" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE SPEED" class="HPColorsSettingTitle" /><Label text="Set how fast the pulse repeats." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseBpmSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseBpmEntry" class="HPColorsNumberEntry" text="75" /><Label text="BPM" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE INTENSITY" class="HPColorsSettingTitle" /><Label text="Choose how strongly the pulse changes the bar." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsEnemyPulseIntensitySubtle" class="HPColorsSegmentButton"><Label text="SUBTLE" /></Button>
+                      <Button id="HPColorsEnemyPulseIntensityMedium" class="HPColorsSegmentButton"><Label text="MEDIUM" /></Button>
+                      <Button id="HPColorsEnemyPulseIntensityIntense" class="HPColorsSegmentButton"><Label text="INTENSE" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="USE CUSTOM PULSE COLOR" class="HPColorsSettingTitle" /><Label text="Use one custom color while the pulse is active." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyPulseColorToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsEnemyPulseColorModeRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE COLOR MODE" class="HPColorsSettingTitle" /><Label text="Use a fixed custom color or pulse the custom color over the normal bar color." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsEnemyPulseColorModeFixed" class="HPColorsSegmentButton"><Label text="FIXED" /></Button>
+                      <Button id="HPColorsEnemyPulseColorModeGradient" class="HPColorsSegmentButton"><Label text="GRADIENT" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsEnemyPulseColorRow" class="HPColorsSettingRow HPColorsColorRow HPColorsConditionalRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE COLOR" class="HPColorsSettingTitle" /><Label text="Set the color used during the enemy pulse." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyPulseColorSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsEnemyPulseColorHex" class="HPColorsHexEntry" text="#FF2222" maxchars="7" />
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="HIDE BAR WHILE PULSING" class="HPColorsSettingTitle" /><Label text="Hide the enemy healthbar during the pulse." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyPulseHideBarToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE HEALTH TEXT" class="HPColorsSettingTitle" /><Label text="Pulse the enemy health text with the healthbar." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyPulseReadoutToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="CHANGE TEXT DURING PULSE" class="HPColorsSettingTitle" /><Label text="Use different health-text size and position during the pulse." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyPulseReadoutModifiersToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsEnemyPulseReadoutSizeRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE TEXT SIZE" class="HPColorsSettingTitle" /><Label text="Set the health-text size during the pulse." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseReadoutSizeSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseReadoutSizeEntry" class="HPColorsNumberEntry" text="145" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel id="HPColorsEnemyPulseReadoutOffsetXRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE TEXT HORIZONTAL" class="HPColorsSettingTitle" /><Label text="Move the health text left or right during the pulse." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseReadoutOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseReadoutOffsetXEntry" class="HPColorsNumberEntry" text="27" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel id="HPColorsEnemyPulseReadoutOffsetYRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE TEXT VERTICAL" class="HPColorsSettingTitle" /><Label text="Move the health text up or down during the pulse." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseReadoutOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseReadoutOffsetYEntry" class="HPColorsNumberEntry" text="500" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsEnemyKillMarker" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="SHOW KILL MARKER" class="HPColorsSettingTitle" /><Label text="Show a marker on visible enemy-player healthbars at the chosen health level." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyKillMarkerToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsEnemyKillMarkerThresholdRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="MARKER THRESHOLD" class="HPColorsSettingTitle" /><Label text="Set the health percentage where the marker appears." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyKillMarkerThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyKillMarkerThresholdEntry" class="HPColorsNumberEntry" text="25" /><Label text="%" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel id="HPColorsEnemyKillMarkerWidthRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="MARKER WIDTH" class="HPColorsSettingTitle" /><Label text="Set the marker width in pixels." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyKillMarkerWidthSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyKillMarkerWidthEntry" class="HPColorsNumberEntry" text="3" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel id="HPColorsEnemyKillMarkerColorRow" class="HPColorsSettingRow HPColorsColorRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="MARKER COLOR" class="HPColorsSettingTitle" /><Label text="Set the marker color." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsEnemyKillMarkerColorSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsEnemyKillMarkerColorHex" class="HPColorsHexEntry" text="#FF2222" maxchars="7" />
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsAllyPulse" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="ALLY LOW-HP PULSE" class="HPColorsSettingTitle" /><Label text="Pulse ally healthbars when their health reaches the threshold." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyPulseToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE THRESHOLD" class="HPColorsSettingTitle" /><Label text="Set the ally health percentage that starts the pulse." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsAllyPulseThresholdSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsAllyPulseThresholdEntry" class="HPColorsNumberEntry" text="25" /><Label text="%" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE SPEED" class="HPColorsSettingTitle" /><Label text="Set how fast the ally pulse repeats." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsAllyPulseBpmSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsAllyPulseBpmEntry" class="HPColorsNumberEntry" text="75" /><Label text="BPM" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE INTENSITY" class="HPColorsSettingTitle" /><Label text="Choose how strongly the pulse changes the ally bar." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsAllyPulseIntensitySubtle" class="HPColorsSegmentButton"><Label text="SUBTLE" /></Button>
+                      <Button id="HPColorsAllyPulseIntensityMedium" class="HPColorsSegmentButton"><Label text="MEDIUM" /></Button>
+                      <Button id="HPColorsAllyPulseIntensityIntense" class="HPColorsSegmentButton"><Label text="INTENSE" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="USE CUSTOM PULSE COLOR" class="HPColorsSettingTitle" /><Label text="Use one custom color while the ally pulse is active." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyPulseColorToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsAllyPulseColorModeRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE COLOR MODE" class="HPColorsSettingTitle" /><Label text="Use a fixed custom color or pulse the custom color over the normal ally bar color." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsAllyPulseColorModeFixed" class="HPColorsSegmentButton"><Label text="FIXED" /></Button>
+                      <Button id="HPColorsAllyPulseColorModeGradient" class="HPColorsSegmentButton"><Label text="GRADIENT" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsAllyPulseColorRow" class="HPColorsSettingRow HPColorsColorRow HPColorsConditionalRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE COLOR" class="HPColorsSettingTitle" /><Label text="Set the color used during the ally pulse." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyPulseColorSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsAllyPulseColorHex" class="HPColorsHexEntry" text="#FF2222" maxchars="7" />
+                  </Panel>
+                </Panel>
+              </Panel>
+            </Panel>
+            <Panel class="HPColorsEditorFooter">
+              <Button id="HPColorsPeekButton" class="HPColorsSecondaryAction">
+                <Label text="HOLD TO PEEK" />
+              </Button>
+              <Button id="HPColorsUndoButton" class="HPColorsSecondaryAction Disabled"><Label text="UNDO" /></Button>
+              <Button id="HPColorsResetSectionButton" class="HPColorsSecondaryAction"><Label text="RESET SECTION" /></Button>
+              <Button id="HPColorsTransferButton" class="HPColorsSecondaryAction"><Label text="IMPORT / EXPORT" /></Button>
+              <Panel class="HPColorsFooterSpacer" />
+              <Button id="HPColorsDoneButton" class="HPColorsPrimaryAction"><Label text="DONE" /></Button>
+            </Panel>
           </Panel>
-          <Panel id="HPColorsV2AllyColorRow" class="HPColorsV2SettingRow HPColorsV2ColorRow">
-            <Panel class="HPColorsV2SettingCopy">
-              <Label text="ALLY COLOR" class="HPColorsV2SettingTitle" />
-              <Label text="Color applied to ally healthbar fills and ready icons." class="HPColorsV2SettingHelp" />
-            </Panel>
-            <Button id="HPColorsV2AllyColorSwatch" class="HPColorsV2ColorSwatch" onactivate="$.HPColorsV2MenuOpenPicker( &apos;allyColor&apos; )" />
-            <TextEntry id="HPColorsV2AllyColorHex" class="HPColorsV2HexEntry" text="#FFEFD7" maxchars="7" />
-          </Panel>
-          <Panel id="HPColorsV2PipsRow" class="HPColorsV2SettingRow">
-            <Panel class="HPColorsV2SettingCopy">
-              <Label text="PIPS" class="HPColorsV2SettingTitle" />
-              <Label text="Show the stock health-pip labels on colored bars." class="HPColorsV2SettingHelp" />
-            </Panel>
-            <Button id="HPColorsV2PipsToggle" class="HPColorsV2Toggle">
-              <Panel class="HPColorsV2ToggleKnob" />
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsConditionDialog" class="HPColorsTransferDialog HPColorsConditionDialog" hittest="false" hittestchildren="true">
+        <Button class="HPColorsTransferDialogBackdrop" hittest="true" />
+        <Panel class="HPColorsTransferDialogPanel HPColorsConditionDialogPanel" hittest="true" hittestchildren="true">
+          <Label class="HPColorsTransferDialogEyebrow" text="ABILITY CONDITION" />
+          <Label id="HPColorsConditionTitle" class="HPColorsTransferDialogTitle" text="SETTING CONDITION" />
+          <Label id="HPColorsConditionStatus" class="HPColorsTransferDialogMessage HPColorsConditionStatus" text="SESSION ONLY" />
+          <Label class="HPColorsConditionSectionLabel" text="ABILITY · SELECT AN ABILITY AND REQUIRED TIER" />
+          <Panel class="HPColorsConditionAbilityChoices">
+            <Button id="HPColorsConditionSlot1" class="HPColorsConditionAbilityCard">
+              <Panel class="HPColorsConditionAbilityIcon">
+                <Panel class="HPColorsConditionAbilityFrame" />
+                <Panel class="HPColorsConditionAbilityTierFrame" />
+                <Image id="HPColorsConditionSlot1Image" class="HPColorsConditionAbilityArt" scaling="stretch-to-fit-preserve-aspect" />
+                <Label class="HPColorsConditionAbilityFallback" text="1" />
+              </Panel>
+              <Panel class="HPColorsConditionRequiredPips">
+                <Panel class="HPColorsConditionRequiredPip Pip1" />
+                <Panel class="HPColorsConditionRequiredPip Pip2" />
+                <Panel class="HPColorsConditionRequiredPip Pip3" />
+              </Panel>
+            </Button>
+            <Button id="HPColorsConditionSlot2" class="HPColorsConditionAbilityCard">
+              <Panel class="HPColorsConditionAbilityIcon">
+                <Panel class="HPColorsConditionAbilityFrame" />
+                <Panel class="HPColorsConditionAbilityTierFrame" />
+                <Image id="HPColorsConditionSlot2Image" class="HPColorsConditionAbilityArt" scaling="stretch-to-fit-preserve-aspect" />
+                <Label class="HPColorsConditionAbilityFallback" text="2" />
+              </Panel>
+              <Panel class="HPColorsConditionRequiredPips">
+                <Panel class="HPColorsConditionRequiredPip Pip1" />
+                <Panel class="HPColorsConditionRequiredPip Pip2" />
+                <Panel class="HPColorsConditionRequiredPip Pip3" />
+              </Panel>
+            </Button>
+            <Button id="HPColorsConditionSlot3" class="HPColorsConditionAbilityCard">
+              <Panel class="HPColorsConditionAbilityIcon">
+                <Panel class="HPColorsConditionAbilityFrame" />
+                <Panel class="HPColorsConditionAbilityTierFrame" />
+                <Image id="HPColorsConditionSlot3Image" class="HPColorsConditionAbilityArt" scaling="stretch-to-fit-preserve-aspect" />
+                <Label class="HPColorsConditionAbilityFallback" text="3" />
+              </Panel>
+              <Panel class="HPColorsConditionRequiredPips">
+                <Panel class="HPColorsConditionRequiredPip Pip1" />
+                <Panel class="HPColorsConditionRequiredPip Pip2" />
+                <Panel class="HPColorsConditionRequiredPip Pip3" />
+              </Panel>
+            </Button>
+            <Button id="HPColorsConditionSlot4" class="HPColorsConditionAbilityCard">
+              <Panel class="HPColorsConditionAbilityIcon">
+                <Panel class="HPColorsConditionAbilityFrame" />
+                <Panel class="HPColorsConditionAbilityTierFrame" />
+                <Image id="HPColorsConditionSlot4Image" class="HPColorsConditionAbilityArt" scaling="stretch-to-fit-preserve-aspect" />
+                <Label class="HPColorsConditionAbilityFallback" text="4" />
+              </Panel>
+              <Panel class="HPColorsConditionRequiredPips">
+                <Panel class="HPColorsConditionRequiredPip Pip1" />
+                <Panel class="HPColorsConditionRequiredPip Pip2" />
+                <Panel class="HPColorsConditionRequiredPip Pip3" />
+              </Panel>
             </Button>
           </Panel>
+          <Label class="HPColorsConditionSectionLabel" text="VALUE WHEN MATCHED" />
+          <Panel id="HPColorsConditionBooleanRow" class="HPColorsConditionValueRow">
+            <Button id="HPColorsConditionBooleanFalse" class="HPColorsConditionChoice"><Label text="OFF" /></Button>
+            <Button id="HPColorsConditionBooleanTrue" class="HPColorsConditionChoice"><Label text="ON" /></Button>
           </Panel>
-        </Panel>
-        <Panel class="HPColorsV2Footer">
-          <Button id="HPColorsV2ResetButton" class="HPColorsV2ActionSecondary" onactivate="$.HPColorsV2MenuReset()">
-            <Label text="RESET" />
-          </Button>
-          <Panel class="HPColorsV2FooterSpacer" />
-          <Button id="HPColorsV2DoneButton" class="HPColorsV2ActionPrimary" onactivate="$.HPColorsV2MenuDone()">
-            <Label text="DONE" />
-          </Button>
+          <Panel id="HPColorsConditionEnumRow" class="HPColorsConditionValueRow">
+            <Panel id="HPColorsConditionEnumOptions" class="HPColorsConditionChoices" />
+          </Panel>
+          <Panel id="HPColorsConditionNumberRow" class="HPColorsConditionValueRow">
+            <Panel id="HPColorsConditionNumberSliderHost" class="HPColorsConditionNumberSliderHost" />
+            <TextEntry id="HPColorsConditionNumberEntry" class="HPColorsNumberEntry HPColorsConditionNumberEntry" text="0" maxchars="5" />
+          </Panel>
+          <Panel id="HPColorsConditionColorRow" class="HPColorsConditionValueRow">
+            <Panel id="HPColorsConditionColorSwatch" class="HPColorsColorSwatch" hittest="true" />
+            <TextEntry id="HPColorsConditionColorEntry" class="HPColorsHexEntry" text="#FFFFFF" maxchars="7" />
+          </Panel>
+          <Label class="HPColorsConditionSessionNote" text="Conditions and presets remain available for this Deadlock session only." />
+          <Panel class="HPColorsTransferDialogActions">
+            <Button id="HPColorsConditionApplyButton" class="HPColorsPrimaryAction"><Label text="APPLY" /></Button>
+            <Button id="HPColorsConditionCancelButton" class="HPColorsSecondaryAction"><Label text="CANCEL" /></Button>
+            <Button id="HPColorsConditionRemoveButton" class="HPColorsSecondaryAction HPColorsConditionRemove"><Label text="REMOVE RULE" /></Button>
+          </Panel>
         </Panel>
       </Panel>
-      <Panel id="HPColorsV2PickerRoot" class="HPColorsV2PickerRoot" hittest="false" hittestchildren="true">
-        <Button id="HPColorsV2PickerBackdrop" class="HPColorsV2PickerBackdrop" hittest="true" />
-        <Panel id="HPColorsV2PickerPanel" class="HPColorsV2PickerPanel" hittest="true" hittestchildren="true">
-          <Panel class="HPColorsV2PickerHeader">
-            <Label id="HPColorsV2PickerTitle" class="HPColorsV2PickerTitle" text="COLOR" />
-            <Panel id="HPColorsV2PickerPreview" class="HPColorsV2PickerPreview" />
+      <Panel id="HPColorsResetDialog" class="HPColorsTransferDialog" hittest="false" hittestchildren="true">
+        <Button class="HPColorsTransferDialogBackdrop" hittest="true" />
+        <Panel class="HPColorsTransferDialogPanel HPColorsResetDialogPanel" hittest="true" hittestchildren="true">
+          <Label class="HPColorsTransferDialogEyebrow" text="RESET CURRENT SECTION" />
+          <Label id="HPColorsResetDialogTitle" class="HPColorsTransferDialogTitle" text="RESET SECTION" />
+          <Label id="HPColorsResetDialogMessage" class="HPColorsTransferDialogMessage" text="" />
+          <Panel class="HPColorsTransferDialogActions">
+            <Button id="HPColorsResetConfirmButton" class="HPColorsPrimaryAction"><Label text="RESET SECTION" /></Button>
+            <Button id="HPColorsResetCancelButton" class="HPColorsSecondaryAction"><Label text="CANCEL" /></Button>
           </Panel>
-          <Label id="HPColorsV2PickerHex" class="HPColorsV2PickerHex" text="#FD4949" />
-          <Panel class="HPColorsV2PickerSliderRow">
-            <Label class="HPColorsV2PickerSliderName" text="HUE" />
-            <Panel id="HPColorsV2PickerHueSliderHost" class="HPColorsV2PickerSliderHost" hittest="false" hittestchildren="true" />
-            <Label id="HPColorsV2PickerHueValue" class="HPColorsV2PickerSliderValue" text="0°" />
-          </Panel>
-          <Panel class="HPColorsV2PickerSliderRow">
-            <Label class="HPColorsV2PickerSliderName" text="SATURATION" />
-            <Panel id="HPColorsV2PickerSaturationSliderHost" class="HPColorsV2PickerSliderHost" hittest="false" hittestchildren="true" />
-            <Label id="HPColorsV2PickerSaturationValue" class="HPColorsV2PickerSliderValue" text="0%" />
-          </Panel>
-          <Panel class="HPColorsV2PickerSliderRow">
-            <Label class="HPColorsV2PickerSliderName" text="LUMEN" />
-            <Panel id="HPColorsV2PickerLightnessSliderHost" class="HPColorsV2PickerSliderHost" hittest="false" hittestchildren="true" />
-            <Label id="HPColorsV2PickerLightnessValue" class="HPColorsV2PickerSliderValue" text="50%" />
-          </Panel>
-          <Button id="HPColorsV2PickerDone" class="HPColorsV2ActionPrimary HPColorsV2PickerDone">
-            <Label text="DONE" />
-          </Button>
         </Panel>
       </Panel>
+      <Panel id="HPColorsTransferDialog" class="HPColorsTransferDialog" hittest="false" hittestchildren="true">
+        <Panel class="HPColorsTransferDialogBackdrop" hittest="false" />
+        <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">
+          <Label class="HPColorsTransferDialogEyebrow" text="SETTINGS CODE" />
+          <Label class="HPColorsTransferDialogTitle" text="IMPORT / EXPORT" />
+          <Label class="HPColorsTransferDialogMessage" text="Copy your current settings code, or paste a code and apply it." />
+          <TextEntry id="HPColorsTransferInput" class="HPColorsTransferInput" multiline="false" maxchars="4096" placeholder="PASTE SETTINGS CODE" />
+          <Label id="HPColorsTransferFeedback" class="HPColorsTransferFeedback" text="" />
+          <Panel class="HPColorsTransferDialogActions">
+            <Button id="HPColorsTransferExportButton" class="HPColorsPrimaryAction"><Label text="COPY CURRENT" /></Button>
+            <Button id="HPColorsTransferImportButton" class="HPColorsPrimaryAction"><Label text="IMPORT &amp; APPLY" /></Button>
+            <Button id="HPColorsTransferCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
+          </Panel>
+        </Panel>
+      </Panel>
+                <Panel id="HPColorsPresetTransferDialog" class="HPColorsTransferDialog" hittest="false" hittestchildren="true">
+                  <Panel class="HPColorsTransferDialogBackdrop" hittest="false" />
+                  <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">
+                    <Label class="HPColorsTransferDialogEyebrow" text="PRESETS" />
+                    <Label class="HPColorsTransferDialogTitle" text="IMPORT PRESETS" />
+                    <Label class="HPColorsTransferDialogMessage" text="Paste a preset code or bundle. Import adds presets to this session; it does not apply them." />
+                    <TextEntry id="HPColorsPresetTransferInput" class="HPColorsTransferInput" multiline="false" maxchars="32768" placeholder="PASTE PRESET CODE" />
+                    <Label id="HPColorsPresetTransferFeedback" class="HPColorsTransferFeedback" text="" />
+                    <Panel class="HPColorsTransferDialogActions">
+                      <Button id="HPColorsPresetTransferConfirmButton" class="HPColorsPrimaryAction"><Label text="IMPORT" /></Button>
+                      <Button id="HPColorsPresetTransferCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
+                    </Panel>
+                  </Panel>
+                </Panel>
+      <Panel id="HPColorsPrecisePipsDialog" class="HPColorsPrecisePipsDialog" hittest="false" hittestchildren="true">
+        <Panel class="HPColorsPrecisePipsDialogBackdrop" hittest="false" />
+        <Panel class="HPColorsPrecisePipsDialogPanel" hittest="true" hittestchildren="true">
+          <Label id="HPColorsPrecisePipsDialogTitle" class="HPColorsPrecisePipsDialogTitle" text="10 HP PER SMALL PIP" />
+          <Label id="HPColorsPrecisePipsDialogMessage" class="HPColorsPrecisePipsDialogMessage" text="" />
+          <Label id="HPColorsPrecisePipsDialogCommands" class="HPColorsPrecisePipsDialogCommands" text="" />
+          <Panel class="HPColorsPrecisePipsDialogActions">
+            <Button id="HPColorsPrecisePipsCopyButton" class="HPColorsPrimaryAction"><Label id="HPColorsPrecisePipsCopyLabel" text="COPY" /></Button>
+            <Button id="HPColorsPrecisePipsCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
+          </Panel>
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsHeroDialog" class="HPColorsHeroDialog" hittest="false" hittestchildren="true">
+        <Panel class="HPColorsTransferDialogBackdrop" hittest="false" />
+        <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">
+          <Label class="HPColorsTransferDialogEyebrow" text="HERO DETECTION" />
+          <Label class="HPColorsTransferDialogTitle" text="SELECT HERO" />
+          <Label class="HPColorsTransferDialogMessage" text="Choose the hero used for manual preset selection." />
+          <Panel id="HPColorsHeroOptions" class="HPColorsHeroOptions" hittest="true" hittestchildren="true" />
+          <Panel class="HPColorsTransferDialogActions">
+            <Button id="HPColorsHeroCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
+          </Panel>
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsScopeDialog" class="HPColorsHeroDialog" hittest="false" hittestchildren="true">
+        <Panel class="HPColorsTransferDialogBackdrop" hittest="false" />
+        <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">
+          <Label class="HPColorsTransferDialogEyebrow" text="PRESET TARGET" />
+          <Label class="HPColorsTransferDialogTitle" text="SELECT HEROES" />
+          <Label class="HPColorsTransferDialogMessage" text="Choose which heroes use Selected Heroes presets. Removing the last hero returns the target to All Heroes." />
+          <TextEntry id="HPColorsScopeSearch" class="HPColorsScopeSearch" placeholder="SEARCH HEROES" multiline="false" />
+          <Panel id="HPColorsScopeOptions" class="HPColorsHeroOptions HPColorsScopeOptions" hittest="true" hittestchildren="true" />
+          <Panel class="HPColorsTransferDialogActions">
+            <Button id="HPColorsScopeCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
+          </Panel>
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsPickerRoot" class="HPColorsPickerRoot" hittest="false" hittestchildren="true">
+        <Button id="HPColorsPickerBackdrop" class="HPColorsPickerBackdrop" hittest="true" />
+        <Panel id="HPColorsPickerPanel" class="HPColorsPickerPanel" hittest="true" hittestchildren="true">
+          <Panel class="HPColorsPickerHeader">
+            <Panel class="HPColorsPickerHeading">
+              <Label text="COLOR PALETTE" class="HPColorsPickerEyebrow" />
+              <Label id="HPColorsPickerTitle" text="COLOR" class="HPColorsPickerTitle" />
+            </Panel>
+            <Panel class="HPColorsPickerHeaderSpacer" />
+            <Panel id="HPColorsPickerPreview" class="HPColorsPickerPreview" />
+            <Label id="HPColorsPickerHex" text="#FFFFFF" class="HPColorsPickerHex" />
+          </Panel>
+          <Panel class="HPColorsPickerSliderRow">
+            <Label text="HUE" class="HPColorsPickerSliderName" />
+            <Panel id="HPColorsPickerHueSliderHost" class="HPColorsPickerSliderHost" hittest="false" hittestchildren="true" />
+            <Label id="HPColorsPickerHueValue" text="0°" class="HPColorsPickerSliderValue" />
+          </Panel>
+          <Panel class="HPColorsPickerSliderRow">
+            <Label text="SATURATION" class="HPColorsPickerSliderName" />
+            <Panel id="HPColorsPickerSaturationSliderHost" class="HPColorsPickerSliderHost" hittest="false" hittestchildren="true" />
+            <Label id="HPColorsPickerSaturationValue" text="0%" class="HPColorsPickerSliderValue" />
+          </Panel>
+          <Panel class="HPColorsPickerSliderRow">
+            <Label text="LIGHTNESS" class="HPColorsPickerSliderName" />
+            <Panel id="HPColorsPickerLumenSliderHost" class="HPColorsPickerSliderHost" hittest="false" hittestchildren="true" />
+            <Label id="HPColorsPickerLightnessValue" text="100%" class="HPColorsPickerSliderValue" />
+          </Panel>
+          <Label text="Drag the Hue, Saturation, and Lightness sliders to choose a color." class="HPColorsPickerHelp" />
+          <Button id="HPColorsPickerDone" class="HPColorsPickerDone"><Label text="DONE" /></Button>
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsPeekCapture" class="HPColorsPeekCapture" />
+    </Panel>
+    <Panel id="HPColorsRewritePresetStore"
+      class="hp_colors_rewrite_preset_store"
+      hittest="false"
+      hittestchildren="false"
+      style="width: 0px; height: 0px; visibility: collapse;"
+      hp_colors_rewrite_preset_contract="HPCRP1"
+      hp_colors_rewrite_preset_version="1">
+      <Label id="HPColorsRewritePreset_001"
+        class="hp_colors_rewrite_preset_entry"
+        text="" />
     </Panel>
   </CitadelHudEscapeMenu>
 </root>

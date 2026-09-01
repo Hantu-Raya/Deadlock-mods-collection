@@ -3,33 +3,32 @@
 
   var STABLE_INTERVAL_SEC = 0.25;
   var FAST_INTERVAL_SEC = 0.05;
+  var IDLE_INTERVAL_SEC = 1;
   var MAX_FAST_RETRIES = 20;
+  var ALLY_ATTR = "hp_colors_v2_ally";
   var SEGMENT_ONE_START_PIPS = 0;
   var SEGMENT_TWO_START_PIPS = 8;
   var SEGMENT_THREE_START_PIPS = 16;
   var SEGMENTS = [
-    { className: "maxhp_segment_1", marginRight: "-53.625px", counterTransform: "translateX(-136.375px) translateY(-180px)" },
-    { className: "maxhp_segment_2", marginRight: "-40.21875px", counterTransform: "translateX(-62.28125px) translateY(-180px)" },
-    { className: "maxhp_segment_3", marginRight: "244.6875px", counterTransform: "translateX(-99.6875px) translateY(-180px)" }
-  ];
-  var BAR_CLASSES = [
-    "bars_1",
-    "bars_2",
-    "bars_3",
-    "bars_4",
-    "bars_5",
-    "bars_6"
+    { className: "maxhp_segment_1", marginRight: "-53.625px" },
+    { className: "maxhp_segment_2", marginRight: "-40.21875px" },
+    { className: "maxhp_segment_3", marginRight: "244.6875px" }
   ];
 
   var context = null;
   var unitStatus = null;
-  var counterRow = null;
+  var counterContainer = null;
   var healthbars = null;
   var pipLabel = null;
   var lastSegment = 0;
   var lastPipCount = -1;
   var fastRetries = 0;
-  var wasReady = false;
+  var allyMarginOnly = false;
+  var baselineUnitStatus = null;
+  var baselineCounterContainer = null;
+  var unitStatusMargin = "";
+  var counterMargin = "";
+  var ownedMargin = null;
 
   function isValidPanel(panel) {
     try {
@@ -41,15 +40,72 @@
       return false;
     }
   }
+  function isDescendantOf(panel, ancestor) {
+    if (!panel || !ancestor) return false;
+    var current = panel;
+    for (var depth = 0; current && depth < 16; depth += 1) {
+      if (current === ancestor) return true;
+      if (typeof current.GetParent !== "function") return true;
+      try {
+        current = current.GetParent();
+      } catch (eParent) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  function restoreOwnedMargin() {
+    if (ownedMargin === null) return;
+    try {
+      if (
+        isValidPanel(baselineUnitStatus) &&
+        baselineUnitStatus.style.marginRight === ownedMargin
+      ) {
+        baselineUnitStatus.style.marginRight = unitStatusMargin;
+      }
+      if (
+        isValidPanel(baselineCounterContainer) &&
+        baselineCounterContainer.style.marginRight === ownedMargin
+      ) {
+        baselineCounterContainer.style.marginRight = counterMargin;
+      }
+    } catch (eRestore) {}
+    ownedMargin = null;
+  }
+
+  function captureBaselines() {
+    if (
+      unitStatus === baselineUnitStatus &&
+      counterContainer === baselineCounterContainer
+    ) {
+      return;
+    }
+    restoreOwnedMargin();
+    baselineUnitStatus = unitStatus;
+    baselineCounterContainer = counterContainer;
+    try {
+      unitStatusMargin = String(unitStatus.style.marginRight || "");
+      counterMargin = String(counterContainer.style.marginRight || "");
+    } catch (eBaseline) {
+      unitStatusMargin = "";
+      counterMargin = "";
+    }
+  }
 
   function clearPanels(nextContext) {
+    restoreOwnedMargin();
     context = nextContext || null;
     unitStatus = null;
-    counterRow = null;
+    counterContainer = null;
     healthbars = null;
     pipLabel = null;
+    baselineUnitStatus = null;
+    baselineCounterContainer = null;
     lastSegment = 0;
     lastPipCount = -1;
+    fastRetries = 0;
+    allyMarginOnly = false;
   }
 
   function getContext() {
@@ -74,12 +130,39 @@
       return null;
     }
   }
+  function readAllyMarker(panel) {
+    try {
+      return (
+        typeof panel.GetAttributeString === "function" &&
+        panel.GetAttributeString(ALLY_ATTR, "") === "1"
+      );
+    } catch (eAttribute) {
+      return false;
+    }
+  }
+
 
   function resolvePanels() {
     var root = getContext();
     if (!root) return false;
+    if (
+      (unitStatus && !isDescendantOf(unitStatus, root)) ||
+      (counterContainer && !isDescendantOf(counterContainer, root)) ||
+      (healthbars && !isDescendantOf(healthbars, root)) ||
+      (pipLabel && !isDescendantOf(pipLabel, healthbars))
+    ) {
+      clearPanels(root);
+    }
+    var nextAllyMarginOnly = readAllyMarker(root);
+    if (nextAllyMarginOnly !== allyMarginOnly) {
+      allyMarginOnly = nextAllyMarginOnly;
+      lastSegment = 0;
+      lastPipCount = -1;
+    }
     if (!isValidPanel(unitStatus)) unitStatus = findPanel(root, "UnitStatus");
-    if (!isValidPanel(counterRow)) counterRow = findPanel(root, "hp_counter_row");
+    if (!isValidPanel(counterContainer)) {
+      counterContainer = findPanel(root, "hp_counter_container");
+    }
     if (!isValidPanel(healthbars)) {
       healthbars = findPanel(root, "UnitHealthbarsContainer");
       pipLabel = null;
@@ -87,12 +170,13 @@
     if (isValidPanel(healthbars) && !isValidPanel(pipLabel)) {
       pipLabel = findPanel(healthbars, "unit_healthbar_pip_label");
     }
-    return (
+    var ready =
       isValidPanel(unitStatus) &&
-      isValidPanel(counterRow) &&
+      isValidPanel(counterContainer) &&
       isValidPanel(healthbars) &&
-      isValidPanel(pipLabel)
-    );
+      isValidPanel(pipLabel);
+    if (ready) captureBaselines();
+    return ready;
   }
 
   function hasClass(panel, className) {
@@ -111,20 +195,16 @@
     return 0;
   }
 
-  function currentBarsClass() {
-    var i;
-    for (i = 0; i < BAR_CLASSES.length; i += 1) {
-      if (hasClass(healthbars, BAR_CLASSES[i])) return BAR_CLASSES[i];
-    }
-    return "bars_unknown";
-  }
 
   function currentPipText() {
     try {
-      return String(pipLabel.text || "");
-    } catch (eText) {
-      return "";
-    }
+      var text = pipLabel.text === String(pipLabel.text) ? pipLabel.text : "";
+      if (text) return text;
+      if (typeof pipLabel.GetAttributeString === "function") {
+        return String(pipLabel.GetAttributeString("text", "") || "");
+      }
+    } catch (eText) {}
+    return "";
   }
 
   function countPips(pipText) {
@@ -165,35 +245,32 @@
     return String(Math.round(margin * 100) / 100) + "px";
   }
 
-  function applySegment(segment, pipText, pipCount) {
+  function applySegment(segment, pipCount) {
     var rule = SEGMENTS[segment - 1];
     var marginRight = marginRightFor(segment, pipCount);
-    if (!rule || !marginRight) return;
+    if (!rule || !marginRight) {
+      restoreOwnedMargin();
+      lastSegment = segment;
+      lastPipCount = pipCount;
+      return;
+    }
     try {
       if (unitStatus.style.marginRight !== marginRight) {
         unitStatus.style.marginRight = marginRight;
       }
-      if (counterRow.style.transform !== rule.counterTransform) {
-        counterRow.style.transform = rule.counterTransform;
+      if (counterContainer.style.marginRight !== marginRight) {
+        counterContainer.style.marginRight = marginRight;
       }
     } catch (eStyle) {
       return;
     }
-    $.Msg(
-      "[HPV2-ALIGN] segment=" + segment +
-      " class=" + rule.className +
-      " bars=" + currentBarsClass() +
-      " pipCount=" + pipCount +
-      " pip=\"" + pipText + "\"" +
-      " margin-right=" + marginRight +
-      " counter-transform=" + rule.counterTransform
-    );
+    ownedMargin = marginRight;
     lastSegment = segment;
     lastPipCount = pipCount;
   }
 
   function scheduleNext(ready) {
-    var delay = STABLE_INTERVAL_SEC;
+    var delay = ready ? STABLE_INTERVAL_SEC : IDLE_INTERVAL_SEC;
     if (!ready && fastRetries < MAX_FAST_RETRIES) {
       fastRetries += 1;
       delay = FAST_INTERVAL_SEC;
@@ -204,24 +281,20 @@
   function tick() {
     var ready = resolvePanels();
     if (!ready) {
-      if (wasReady && !context) return;
+      if (!context) return;
       scheduleNext(false);
       return;
     }
 
-    wasReady = true;
     fastRetries = MAX_FAST_RETRIES;
     var segment = currentSegment();
     var pipText = currentPipText();
     var pipCount = countPips(pipText);
     if (
-      segment !== 0 &&
-      (
-        segment !== lastSegment ||
-        ((segment === 1 || segment === 2) && pipCount !== lastPipCount)
-      )
+      segment !== lastSegment ||
+      ((segment === 1 || segment === 2) && pipCount !== lastPipCount)
     ) {
-      applySegment(segment, pipText, pipCount);
+      applySegment(segment, pipCount);
     }
     scheduleNext(true);
   }

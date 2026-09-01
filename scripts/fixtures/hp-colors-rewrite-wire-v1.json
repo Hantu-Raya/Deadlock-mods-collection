@@ -1,0 +1,921 @@
+{
+  "format": "hp-colors-rewrite-wire",
+  "version": 1,
+  "protocols": {
+    "settings": "HPCR2",
+    "presets": "HPCRP1",
+    "presetExtension": "hpv2",
+    "presetExtensionVersion": 1
+  },
+  "normalization": {
+    "integerNumbersByDefault": true,
+    "decimalPlaces": {
+      "staminaHeight": 1
+    },
+    "orderedThresholds": [
+      {
+        "lowerKey": "lowThreshold",
+        "upperKey": "highThreshold",
+        "minimumGap": 1
+      }
+    ]
+  },
+  "legacySlots": [
+    {
+      "slot": 0,
+      "key": "enabled",
+      "codecDefault": true,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 1,
+      "key": "widthScale",
+      "codecDefault": 100,
+      "type": "number",
+      "bounds": [
+        60,
+        230
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 2,
+      "key": "heightScale",
+      "codecDefault": 100,
+      "type": "number",
+      "bounds": [
+        60,
+        160
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 3,
+      "key": "positionX",
+      "codecDefault": 0,
+      "type": "number",
+      "bounds": [
+        -300,
+        300
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 4,
+      "key": "positionY",
+      "codecDefault": 0,
+      "type": "number",
+      "bounds": [
+        -200,
+        200
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 5,
+      "key": "enemyEnabled",
+      "codecDefault": true,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 6,
+      "key": "enemyVisible",
+      "codecDefault": true,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 7,
+      "key": "enemyMode",
+      "codecDefault": "gradient",
+      "type": "enum",
+      "bounds": null,
+      "enum": [
+        "fixed",
+        "gradient"
+      ],
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 8,
+      "key": "enemyLow",
+      "codecDefault": "#E16161",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 9,
+      "key": "enemyMid",
+      "codecDefault": "#FF7B00",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 10,
+      "key": "enemyHigh",
+      "codecDefault": "#00FF00",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 11,
+      "key": "enemyTeamHigh",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 12,
+      "key": "excludeBuildings",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": true,
+      "conditionEligible": false
+    },
+    {
+      "slot": 13,
+      "key": "excludeBosses",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": true,
+      "conditionEligible": false
+    },
+    {
+      "slot": 14,
+      "key": "enemyHealing",
+      "codecDefault": "#5FFF80",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 15,
+      "key": "enemyDelta",
+      "codecDefault": "#FFE55B",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 16,
+      "key": "enemyBulletShield",
+      "codecDefault": "#FFFFFF",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 17,
+      "key": "allyEnabled",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 18,
+      "key": "allyVisible",
+      "codecDefault": true,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 19,
+      "key": "allyMode",
+      "codecDefault": "fixed",
+      "type": "enum",
+      "bounds": null,
+      "enum": [
+        "fixed",
+        "gradient"
+      ],
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 20,
+      "key": "allyLow",
+      "codecDefault": "#E16161",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 21,
+      "key": "allyMid",
+      "codecDefault": "#FFED79",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 22,
+      "key": "allyHigh",
+      "codecDefault": "#70F8C1",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 23,
+      "key": "allyHealing",
+      "codecDefault": "#5FFF80",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 24,
+      "key": "allyDelta",
+      "codecDefault": "#504C47",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 25,
+      "key": "allyBulletShield",
+      "codecDefault": "#FFFFFF",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 26,
+      "key": "ultMode",
+      "codecDefault": "follow",
+      "type": "enum",
+      "bounds": null,
+      "enum": [
+        "follow",
+        "custom"
+      ],
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 27,
+      "key": "ultCustom",
+      "codecDefault": "#E16161",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 28,
+      "key": "readoutVisible",
+      "codecDefault": true,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 29,
+      "key": "readoutFormat",
+      "codecDefault": "hp",
+      "type": "enum",
+      "bounds": null,
+      "enum": [
+        "hp",
+        "percent",
+        "current"
+      ],
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 30,
+      "key": "readoutSize",
+      "codecDefault": 145,
+      "type": "number",
+      "bounds": [
+        72,
+        320
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 31,
+      "key": "readoutFont",
+      "codecDefault": "default",
+      "type": "enum",
+      "bounds": null,
+      "enum": [
+        "default",
+        "oracle",
+        "pulp"
+      ],
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 32,
+      "key": "readoutOffsetX",
+      "codecDefault": 27,
+      "type": "number",
+      "bounds": [
+        -405,
+        405
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 33,
+      "key": "readoutOffsetY",
+      "codecDefault": 500,
+      "type": "number",
+      "bounds": [
+        -35,
+        840
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 34,
+      "key": "readoutColorMode",
+      "codecDefault": "bar",
+      "type": "enum",
+      "bounds": null,
+      "enum": [
+        "bar",
+        "custom"
+      ],
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 35,
+      "key": "readoutMode",
+      "codecDefault": "fixed",
+      "type": "enum",
+      "bounds": null,
+      "enum": [
+        "fixed",
+        "gradient"
+      ],
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 36,
+      "key": "readoutLow",
+      "codecDefault": "#E16161",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 37,
+      "key": "readoutMid",
+      "codecDefault": "#FF7B00",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 38,
+      "key": "readoutHigh",
+      "codecDefault": "#FFFFFF",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 39,
+      "key": "pipsVisible",
+      "codecDefault": true,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 40,
+      "key": "precisePipsEnabled",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": false
+    },
+    {
+      "slot": 41,
+      "key": "levelsVisible",
+      "codecDefault": true,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 42,
+      "key": "lowThreshold",
+      "codecDefault": 25,
+      "type": "number",
+      "bounds": [
+        0,
+        99
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 43,
+      "key": "highThreshold",
+      "codecDefault": 65,
+      "type": "number",
+      "bounds": [
+        1,
+        100
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 44,
+      "key": "enemyPulseEnabled",
+      "codecDefault": true,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 45,
+      "key": "enemyPulseThreshold",
+      "codecDefault": 25,
+      "type": "number",
+      "bounds": [
+        0,
+        100
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 46,
+      "key": "enemyPulseBpm",
+      "codecDefault": 75,
+      "type": "number",
+      "bounds": [
+        30,
+        300
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 47,
+      "key": "enemyPulseIntensity",
+      "codecDefault": 1,
+      "type": "number",
+      "bounds": [
+        0,
+        2
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 48,
+      "key": "enemyPulseColorEnabled",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 49,
+      "key": "enemyPulseColorMode",
+      "codecDefault": "gradient",
+      "type": "enum",
+      "bounds": null,
+      "enum": [
+        "fixed",
+        "gradient"
+      ],
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 50,
+      "key": "enemyPulseColor",
+      "codecDefault": "#FF2222",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 51,
+      "key": "enemyPulseHideBar",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 52,
+      "key": "enemyPulseReadout",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 53,
+      "key": "enemyPulseReadoutModifiers",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 54,
+      "key": "enemyPulseReadoutSize",
+      "codecDefault": 145,
+      "type": "number",
+      "bounds": [
+        72,
+        320
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 55,
+      "key": "enemyPulseReadoutOffsetX",
+      "codecDefault": 27,
+      "type": "number",
+      "bounds": [
+        -405,
+        405
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 56,
+      "key": "enemyPulseReadoutOffsetY",
+      "codecDefault": 500,
+      "type": "number",
+      "bounds": [
+        -35,
+        840
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 57,
+      "key": "allyPulseEnabled",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 58,
+      "key": "allyPulseThreshold",
+      "codecDefault": 25,
+      "type": "number",
+      "bounds": [
+        0,
+        100
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 59,
+      "key": "allyPulseBpm",
+      "codecDefault": 75,
+      "type": "number",
+      "bounds": [
+        30,
+        300
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 60,
+      "key": "allyPulseIntensity",
+      "codecDefault": 1,
+      "type": "number",
+      "bounds": [
+        0,
+        2
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 61,
+      "key": "allyPulseColorEnabled",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 62,
+      "key": "allyPulseColor",
+      "codecDefault": "#FF2222",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 63,
+      "key": "enemyKillMarkerEnabled",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 64,
+      "key": "enemyKillMarkerThreshold",
+      "codecDefault": 25,
+      "type": "number",
+      "bounds": [
+        5,
+        80
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 65,
+      "key": "enemyKillMarkerWidth",
+      "codecDefault": 3,
+      "type": "number",
+      "bounds": [
+        1,
+        100
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 66,
+      "key": "enemyKillMarkerColor",
+      "codecDefault": "#FF2222",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 67,
+      "key": "excludeGhouls",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": true,
+      "conditionEligible": false
+    },
+    {
+      "slot": 68,
+      "key": "ghoulOpacityEnabled",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 69,
+      "key": "ghoulOpacity",
+      "codecDefault": 100,
+      "type": "number",
+      "bounds": [
+        0,
+        100
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 70,
+      "key": "readoutMaxTeamColor",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 71,
+      "key": "allyTeamHigh",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    }
+  ],
+  "extensionSlots": [
+    {
+      "slot": 0,
+      "key": "staminaWidth",
+      "codecDefault": 110,
+      "type": "number",
+      "bounds": [
+        40,
+        220
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 1,
+      "key": "staminaHeight",
+      "codecDefault": 44.8,
+      "type": "number",
+      "bounds": [
+        16,
+        90
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 2,
+      "key": "staminaOffsetX",
+      "codecDefault": 0,
+      "type": "number",
+      "bounds": [
+        -300,
+        300
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 3,
+      "key": "staminaOffsetY",
+      "codecDefault": 0,
+      "type": "number",
+      "bounds": [
+        -200,
+        200
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 4,
+      "key": "enemyStaminaColorEnabled",
+      "codecDefault": false,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 5,
+      "key": "enemyStaminaColor",
+      "codecDefault": "#FD4949",
+      "type": "color",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 6,
+      "key": "allyPulseColorMode",
+      "codecDefault": "fixed",
+      "type": "enum",
+      "bounds": null,
+      "enum": [
+        "fixed",
+        "gradient"
+      ],
+      "retired": false,
+      "conditionEligible": true
+    }
+  ]
+}
