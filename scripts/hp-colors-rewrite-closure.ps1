@@ -44,6 +44,21 @@ function Get-HpColorsRewriteClosureContract {
         'healthbar_probe.js' {
             return @('HP_COLORS_REWRITE_CONFIG', 'RegisterForUnhandledEvent', 'hp_counter')
         }
+        'hp_colors_v2_contract.js' {
+            return @('HPColorsV2ContractFactory', 'normalizeValues', 'enemyLow')
+        }
+        'hp_colors_v2_state.js' {
+            return @('HPColorsV2StateFactory', 'HPCRP1', 'preset_apply')
+        }
+        'hp_colors_v2_menu.js' {
+            return @('HPColorsMenuBoot', 'HPColorsMenuCancel', 'HP_COLORS_V2_CONFIG')
+        }
+        'unit_status_v2_colors.js' {
+            return @('HP_COLORS_V2_CONFIG', 'RegisterForUnhandledEvent', 'hp_counter')
+        }
+        'unit_status_v2_segment_align.js' {
+            return @('maxhp_segment_1', 'UnitHealthbarsContainer')
+        }
         'qollock_hp_colors_bridge.js' {
             return @('ToggleSettingsWindow', 'HPColorsMenuBoot', 'HPColorsMenuCancel')
         }
@@ -139,9 +154,21 @@ function Invoke-HpColorsRewriteClosureTests {
         [string]$QollockSourceRoot = ''
     )
 
+    $isV2 = Test-Path -LiteralPath (
+        Join-Path $SourceRoot 'panorama\scripts\hp_colors_v2_contract.js'
+    )
+    $testFilter = if ($isV2) {
+        'validate-hp-colors-rewrite-v2-*.test.js'
+    }
+    else {
+        'validate-hp-colors-rewrite-*.test.js'
+    }
     $testPaths = @(
-        Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot 'scripts') -Filter 'validate-hp-colors-rewrite-*.test.js' |
-            Where-Object { $_.Name -ne 'validate-hp-colors-rewrite-qollock.test.js' } |
+        Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot 'scripts') -Filter $testFilter |
+            Where-Object {
+                $_.Name -ne 'validate-hp-colors-rewrite-qollock.test.js' -and
+                ($isV2 -or $_.Name -notlike 'validate-hp-colors-rewrite-v2-*')
+            } |
             Sort-Object Name |
             ForEach-Object { $_.FullName }
     )

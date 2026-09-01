@@ -7,6 +7,7 @@ $ErrorActionPreference = 'Stop'
 
 $root = $PSScriptRoot
 . (Join-Path $root 'scripts\source2_package_pipeline.ps1')
+. (Join-Path $root 'scripts\hp-colors-rewrite-closure.ps1')
 
 $modSrc = Join-Path $root 'hp_colors_rewrite_v2'
 $modCompiled = Join-Path $root 'hp_colors_rewrite_v2_compiled'
@@ -21,17 +22,33 @@ $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
 )
 $vpkOut = Join-Path $root 'pak02_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak02_dir.vpk'
-$validator = Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-baseline.test.js'
+$validators = @(
+    (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-baseline.test.js'),
+    (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-editor.test.js'),
+    (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-parity.test.js'),
+    (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-state.test.js')
+)
 
+$assetManifest = @(
+    [pscustomobject]@{ Source = 'panorama\layout\hud_escape_menu.xml'; Packed = 'panorama/layout/hud_escape_menu.vxml_c' }
+    [pscustomobject]@{ Source = 'panorama\layout\unit_status_overlay_v2.xml'; Packed = 'panorama/layout/unit_status_overlay_v2.vxml_c' }
+    [pscustomobject]@{ Source = 'panorama\styles\hp_colors_v2_menu.css'; Packed = 'panorama/styles/hp_colors_v2_menu.vcss_c' }
+    [pscustomobject]@{ Source = 'panorama\styles\unit_status_v2.css'; Packed = 'panorama/styles/unit_status_v2.vcss_c' }
+    [pscustomobject]@{ Source = 'panorama\scripts\hp_colors_v2_contract.js'; Packed = 'panorama/scripts/hp_colors_v2_contract.vjs_c' }
+    [pscustomobject]@{ Source = 'panorama\scripts\hp_colors_v2_state.js'; Packed = 'panorama/scripts/hp_colors_v2_state.vjs_c' }
+    [pscustomobject]@{ Source = 'panorama\scripts\hp_colors_v2_menu.js'; Packed = 'panorama/scripts/hp_colors_v2_menu.vjs_c' }
+    [pscustomobject]@{ Source = 'panorama\scripts\unit_status_v2_colors.js'; Packed = 'panorama/scripts/unit_status_v2_colors.vjs_c' }
+    [pscustomobject]@{ Source = 'panorama\scripts\unit_status_v2_segment_align.js'; Packed = 'panorama/scripts/unit_status_v2_segment_align.vjs_c' }
+)
+$rewriteScripts = @(
+    $assetManifest |
+        Where-Object { $_.Source.EndsWith('.js') } |
+        ForEach-Object { $_.Source }
+)
+$expectedPackedAssets = @($assetManifest | ForEach-Object { $_.Packed })
 $requiredCompiled = @(
-    (Join-Path $compileStageOutput 'panorama\layout\hud_escape_menu.vxml_c'),
-    (Join-Path $compileStageOutput 'panorama\layout\unit_status_overlay_v2.vxml_c'),
-    (Join-Path $compileStageOutput 'panorama\styles\hp_colors_v2_menu.vcss_c'),
-    (Join-Path $compileStageOutput 'panorama\styles\unit_status_v2.vcss_c'),
-    (Join-Path $compileStageOutput 'panorama\scripts\hp_colors_v2_contract.vjs_c'),
-    (Join-Path $compileStageOutput 'panorama\scripts\hp_colors_v2_menu.vjs_c'),
-    (Join-Path $compileStageOutput 'panorama\scripts\unit_status_v2_colors.vjs_c'),
-    (Join-Path $compileStageOutput 'panorama\scripts\unit_status_v2_segment_align.vjs_c')
+    $expectedPackedAssets |
+        ForEach-Object { Join-Path $compileStageOutput $_.Replace('/', '\') }
 )
 
 function Require-Path {
@@ -63,10 +80,12 @@ function Get-Sha256 {
 Require-Path -Path $modSrc -Label 'HP Colors Rewrite v2 source folder'
 Require-Path -Path $compiler -Label 'Source 2 compiler'
 Require-Path -Path $vpkeditcli -Label 'vpkeditcli'
-Require-Path -Path $validator -Label 'HP Colors Rewrite v2 validator'
+foreach ($validator in $validators) {
+    Require-Path -Path $validator -Label 'HP Colors Rewrite v2 validator'
+}
 
 Write-Host "`n[1/5] Validating HP Colors Rewrite v2 source..." -ForegroundColor Cyan
-& node --test $validator
+& node --test $validators
 if ($LASTEXITCODE -ne 0) {
     throw "HP Colors Rewrite v2 validator failed with exit code $LASTEXITCODE"
 }
@@ -82,6 +101,11 @@ try {
     $stagePanorama = Join-Path $compileStageSource 'panorama'
     New-Item -ItemType Directory -Path $stagePanorama -Force | Out-Null
     Copy-Item -Path (Join-Path $modSrc 'panorama\*') -Destination $stagePanorama -Recurse -Force
+    Invoke-HpColorsRewriteClosureAdvanced `
+        -StageSourceRoot $compileStageSource `
+        -ScriptRelativePaths $rewriteScripts `
+        -WorkRoot $compileStageRoot
+    Invoke-HpColorsRewriteClosureTests -RepositoryRoot $root -SourceRoot $compileStageSource
 
 
     Write-Host "`n[3/5] Compiling HP Colors Rewrite v2..." -ForegroundColor Cyan
@@ -93,16 +117,6 @@ finally {
 }
 Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 
-$expectedPackedAssets = @(
-    'panorama/layout/hud_escape_menu.vxml_c',
-    'panorama/layout/unit_status_overlay_v2.vxml_c',
-    'panorama/styles/hp_colors_v2_menu.vcss_c',
-    'panorama/styles/unit_status_v2.vcss_c',
-    'panorama/scripts/hp_colors_v2_contract.vjs_c',
-    'panorama/scripts/hp_colors_v2_menu.vjs_c',
-    'panorama/scripts/unit_status_v2_colors.vjs_c',
-    'panorama/scripts/unit_status_v2_segment_align.vjs_c'
-)
 $compiledAssets = @(
     Get-ChildItem -LiteralPath $modCompiled -Recurse -File | ForEach-Object {
         $_.FullName.Substring($modCompiled.Length + 1).Replace('\', '/')
@@ -136,7 +150,7 @@ Write-Host "  Packed OK -> $vpkOut ($([math]::Round($vpkSize / 1KB, 1)) KB)" -Fo
 
 if ($SkipDeploy) {
     Write-Host "`n[5/5] Deployment skipped." -ForegroundColor Yellow
-    Write-Host "`nDone. Compile-only VPK -> $vpkOut" -ForegroundColor Yellow
+    Write-Host "`nHP Colors Rewrite v2 build complete. Compile-only VPK -> $vpkOut" -ForegroundColor Yellow
     return
 }
 
@@ -162,3 +176,4 @@ $destSize = (Get-Item -LiteralPath $vpkDest).Length
 Write-Host "  Deployed OK -> $vpkDest ($([math]::Round($destSize / 1KB, 1)) KB)" -ForegroundColor Green
 Write-Host "  SHA256 -> $deployedHash" -ForegroundColor DarkGray
 Write-Host "`nDone. Restart Deadlock and run the smoke test from hp_colors_rewrite_v2\FEATURES.md." -ForegroundColor Yellow
+Write-Host "HP Colors Rewrite v2 build complete" -ForegroundColor Green

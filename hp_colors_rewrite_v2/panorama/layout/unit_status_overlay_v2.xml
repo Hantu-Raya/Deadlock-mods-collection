@@ -53,6 +53,7 @@
 				<Panel id="unit_healthbar_border_parent">
 					<Panel id="unit_healthbar_active_parent">
 						<Panel id="unit_healthbar_lagging" />
+						<Panel id="hp_colors_pulse_overlay" hittest="false" />
 						<Label id="unit_healthbar_pip_label" text="{s:pip_text}" />
 						<Panel id="unit_healthbar_healing" />
 						<Panel id="unit_healthbar_delta" />
@@ -61,16 +62,28 @@
 						<Panel class="healthbar_border" />
 					</Panel>
 				</Panel>
+				<Panel id="hp_colors_kill_marker" hittest="false" />
 			</Panel>
 		</snippet>
 	</snippets>
 	<Panel class="WindowRoot" hittest="false">
 		<Label id="name" text="{s:name}" />
+				<Panel id="hp_counter_container" hittest="false" hittestchildren="false">
+					<Panel id="hp_counter_anchor" hittest="false" hittestchildren="false">
+						<Panel id="hp_counter_row" hittest="false" hittestchildren="false">
+							<Label id="hp_counter" text="" hittest="false" style="font-size: 145px; color: #FFFFFF; text-align: center; font-weight: bold; font-family: sans; width: fit-children; height: fit-children; min-width: 0px; white-space: nowrap; overflow: noclip; text-overflow: clip; text-shadow: 10px 10px 0px 200.0 offBlack; vertical-align: middle; z-index: 1000; visibility: collapse;" />
+							<Label id="hp_counter_max" text="" hittest="false" style="font-size: 145px; color: #FFFFFF; text-align: center; font-weight: bold; font-family: sans; width: fit-children; height: fit-children; min-width: 0px; white-space: nowrap; overflow: noclip; text-overflow: clip; text-shadow: 10px 10px 0px 200.0 offBlack; vertical-align: middle; z-index: 1000; visibility: collapse;" />
+						</Panel>
+					</Panel>
+				</Panel>
 		<CitadelStatusEffect id="StatusEffects" />
 		<Panel id="TargetableIndicator" />
 		<Panel id="StaminaContainer" />
 		<Panel id="UnitStatus" hittest="false">
 			<Panel id="InfoHealthContainer">
+				<Panel id="LevelContainer" class="NP_playerlevel_container">
+					<Label id="unit_level_label" class="NP_playerlevel" text="{i:player_level}" />
+				</Panel>
 				<Panel id="UnitInfoContainer" />
 				<Panel id="UnitHealthbarsContainer" />
 				<Panel id="UnitHealthbarContainer" class="old_bar">
@@ -86,14 +99,6 @@
 								<Panel id="unit_healthbar_bullet_shield" />
 								<Panel id="unit_healthbar_tech_shield" />
 							</Panel>
-						</Panel>
-					</Panel>
-				</Panel>
-				<Panel id="hp_counter_container" hittest="false" hittestchildren="false">
-					<Panel id="hp_counter_anchor" hittest="false" hittestchildren="false">
-						<Panel id="hp_counter_row" hittest="false" hittestchildren="false">
-							<Label id="hp_counter" text="" hittest="false" style="font-size: 145px; color: #FFFFFF; text-align: center; font-weight: bold; font-family: sans; width: fit-children; height: fit-children; min-width: 0px; white-space: nowrap; overflow: noclip; text-overflow: clip; text-shadow: 10px 10px 0px 200.0 offBlack; vertical-align: middle; z-index: 1000; visibility: collapse;" />
-							<Label id="hp_counter_max" text="" hittest="false" style="font-size: 145px; color: #FFFFFF; text-align: center; font-weight: bold; font-family: sans; width: fit-children; height: fit-children; min-width: 0px; white-space: nowrap; overflow: noclip; text-overflow: clip; text-shadow: 10px 10px 0px 200.0 offBlack; vertical-align: middle; z-index: 1000; visibility: collapse;" />
 						</Panel>
 					</Panel>
 				</Panel>

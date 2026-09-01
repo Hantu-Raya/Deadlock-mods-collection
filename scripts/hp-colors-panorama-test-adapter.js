@@ -150,7 +150,7 @@ class MockPanel {
         const prop = String(property);
         incrementCounter(this.operationCounts, 'styleWrites');
         this.__styleWrites.push({ property: prop, value });
-        target[property] = value;
+        target[property] = value === null ? '' : value;
         return true;
       },
       deleteProperty: (target, property) => {
@@ -607,7 +607,11 @@ function runHpColorsContractInVm(context) {
 
 function runHpColorsSourcesInVm(stateSource, menuSource, harness, options = {}) {
   const context = createVmContext(harness, options);
-  runHpColorsContractInVm(context);
+  if (options.settingsContractSource) {
+    runInVm(options.settingsContractSource, context, 'settings_contract.js');
+  } else {
+    runHpColorsContractInVm(context);
+  }
   runInVm(stateSource, context, 'hp_colors_state.js');
   runInVm(menuSource, context, 'hp_colors_menu.js');
   return context;
