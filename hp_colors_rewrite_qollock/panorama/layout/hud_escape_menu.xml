@@ -38,8 +38,8 @@
 		<include src="s2r://panorama/scripts/hp_colors_menu.vjs_c" />
 		<include src="s2r://panorama/scripts/qollock_hp_colors_bridge.vjs_c" />
 	</scripts>
-	<CitadelHudEscapeMenu oncancel="if ($.HPColorsMenuCancel && $.HPColorsMenuCancel()) {} else if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }" onload="$.HPColorsMenuBoot()">
-		<Panel id="EscapeBackground" onactivate="if ($.HPColorsMenuCancel && $.HPColorsMenuCancel()) {} else if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }" />
+	<CitadelHudEscapeMenu oncancel="if ($.HPColorsMenuCancel &amp;&amp; $.HPColorsMenuCancel()) {} else if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }" onload="$.HPColorsMenuBoot()">
+		<Panel id="EscapeBackground" onactivate="if ($.HPColorsMenuCancel &amp;&amp; $.HPColorsMenuCancel()) {} else if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }" />
 		<Panel id="SettingsWindow" hittest="true" onactivate="">
 			<Panel id="SettingsHeader">
 				<Label id="SettingsTitle" text="QOL LOCK" />
@@ -269,7 +269,7 @@
                     <Panel id="HPColorsPresetGuide" class="HPColorsPresetGuide">
                       <Panel class="HPColorsHeroCardHelpBlock">
                         <Label text="Presets created or changed here last until Deadlock closes." class="HPColorsHeroCardHelp" />
-                        <Button id="HPColorsPresetBuilderLink" class="HPColorsPresetBuilderLink" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://hantu-raya.github.io/hp-colors-preset-builder/v2/&apos; );"><Label text="Presets packaged with the V2 web builder return after restart." /></Button>
+                        <Button id="HPColorsPresetBuilderLink" class="HPColorsPresetBuilderLink" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://hantu-raya.github.io/hp-colors-preset-builder/hpv2/&apos; );"><Label text="Presets packaged with the V2 web builder return after restart." /></Button>
                         <Label text="One preset VPK can contain both All Heroes and Selected Heroes presets." class="HPColorsHeroCardHelp" />
                       </Panel>
 

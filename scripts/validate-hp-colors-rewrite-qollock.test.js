@@ -125,6 +125,11 @@ test('package layout refresh retains QOL healthbars and injects each owned asset
   }
   assert.doesNotMatch(escape, /qollock_settings_guard\.vjs_c/i);
   assertThresholdRowsOnEnemyBar(escape);
+  assert.equal((escape.match(/&amp;&amp;/g) || []).length, 2);
+  assert.doesNotMatch(
+    escape,
+    /&(?!amp;|apos;|quot;|lt;|gt;|#\d+;|#x[\da-f]+;)/i,
+  );
 
   assert.throws(
     () => buildHud(
