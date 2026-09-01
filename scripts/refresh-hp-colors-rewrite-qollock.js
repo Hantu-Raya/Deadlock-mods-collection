@@ -153,7 +153,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
     next = prefixHandler(
       next,
       'oncancel',
-      'if ($.HPColorsMenuCancel && $.HPColorsMenuCancel()) {} else ',
+      'if ($.HPColorsMenuCancel &amp;&amp; $.HPColorsMenuCancel()) {} else ',
       'Escape-menu root',
     );
     return next;
@@ -161,7 +161,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
   xml = replaceOnce(xml, /<Panel\b[^>]*id="EscapeBackground"[^>]*\/>/, (tag) => prefixHandler(
     tag,
     'onactivate',
-    'if ($.HPColorsMenuCancel && $.HPColorsMenuCancel()) {} else ',
+    'if ($.HPColorsMenuCancel &amp;&amp; $.HPColorsMenuCancel()) {} else ',
     'Escape background',
   ), 'Escape background');
   xml = replaceOnce(
