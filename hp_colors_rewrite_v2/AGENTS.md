@@ -2,7 +2,7 @@
 
 ## Scope
 
-`hp_colors_rewrite_v2/` ports every implemented feature from `hp_colors_rewrite/` onto the v2 unit-status layout. It keeps v2's live-bar lineage, segment aligner, stock panel geometry, red-and-cream editor branding, and `HP_COLORS_V2_CONFIG` transport.
+`hp_colors_rewrite_v2/` ports every implemented feature from `hp_colors_rewrite/` onto the v2 unit-status layout. It keeps v2's live-bar lineage, centered segment geometry, red-and-cream editor branding, and `HP_COLORS_V2_CONFIG` transport.
 
 The lane is session-scoped. Do not add durable persistence, Anita compatibility, Reset All, legacy v99 support, or ShowRank Barebones integration. HPCR2 settings codes and HPCRP1 preset codes remain byte-compatible with v1.
 
@@ -18,15 +18,13 @@ hud_escape_menu.xml
 
 unit_status_overlay_v2.xml
   -> hp_colors_v2_contract.js
-  -> unit_status_v2_colors.js
-  -> unit_status_v2_segment_align.js + unit_status_v2.css
+  -> unit_status_v2_colors.js + unit_status_v2.css
 ```
 
 - `hp_colors_v2_contract.js` owns the 72-key legacy codec, v2-only extension keys, shipped defaults, normalization, bounds, and enum policy.
 - `hp_colors_v2_state.js` owns canonical values, effective resolution, scopes, presets, conditions, Undo, import/export, and state transitions through one immutable `send()` and `read()` factory.
 - `hp_colors_v2_menu.js` owns Panorama panels, Escape lifecycle, rendering, HSL controls, replay, transport, builder seed hydration, and clipboard effects.
 - `unit_status_v2_colors.js` owns live-bar discovery, role and hero classification, colors, exclusions, feedback controls, dimensions, position, ultimate icons, readouts, pips, levels, pulses, and kill markers.
-- `unit_status_v2_segment_align.js` is the only owner of the right margin and base counter transform. User offsets must remain independent.
 
 Both consumers load the contract first, capture it, and remove the temporary factory from `$`.
 
@@ -38,7 +36,7 @@ Both consumers load the contract first, capture it, and remove the temporary fac
 - Keep neutral-first classification and reject unknown ownership.
 - Discover only the live `UnitHealthbarsContainer` lineage. Never style the hidden `old_bar` copy.
 - Cache panel references and unchanged writes. Long-lived scheduled work needs stale-generation checks.
-- The segment aligner owns segment margin and stock counter alignment. The renderer owns feature offsets and visibility.
+- For bar width, max-HP segments, X/Y position, levels, ultimate icons, or kill markers, read `design.md` and preserve its measured left-edge formula.
 - Use Source 2 CSS only. Keep passive overlays `hittest="false"` and hidden panels collapsed.
 
 ## Source and generated files

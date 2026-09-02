@@ -50,8 +50,8 @@
 {
 	width: fit-children;
 	height: fit-children;
-	width: 1000px;
-	height: 1000px;
+	width: 2000px;
+	height: 2000px;
 	flow-children: down;
 	vertical-align: bottom;
 	horizontal-align: middle;
@@ -59,7 +59,7 @@
 	padding: 0px;
 	overflow: noclip;
 	margin-top: -700px;
-	margin-right: -53.625px;
+	margin-right: -105.075px;
 }
 .boss_tier1 #UnitStatus
 {
@@ -113,6 +113,7 @@
 	z-index: 3;
 	flow-children: left;
 	visibility: visible;
+	margin-left: 422.5px;
 }
 
 
@@ -332,7 +333,7 @@
 	max-width: 750px;
 	vertical-align: middle;
 	overflow: noclip;
-	margin-left: 200px;
+	margin-left: 0px;
 	margin-bottom: 200px;
 	background-color: rgb(67, 12, 12);
 }
@@ -345,7 +346,7 @@
 	horizontal-align: middle;
 	vertical-align: center;
 	margin-top: -700px;
-	margin-right: -53.625px;
+	margin-right: -105.075px;
 	overflow: noclip;
 	ignore-parent-flow: true;
 }
@@ -424,7 +425,7 @@
 {
 	margin-top: 230px;
 	overflow: noclip;
-	horizontal-align: left;
+	horizontal-align: middle;
 	vertical-align: middle;
 	z-index: 0;
 	pre-transform-rotate2d: 0deg;
@@ -1185,16 +1186,17 @@
 	100% { brightness: 0.25; }
 }
 
-/* Rewrite V1 uses 70% of a 300px canvas. This 1000px canvas needs 21%. */
+/* Keep the 210px level badge unchanged inside the 2000px UnitStatus canvas. */
 .NP_playerlevel_container
 {
-	height: 21%;
+	height: 10.5%;
 	width: height-percentage(100%);
 	border: 20px solid Team1Color;
 	border-radius: 50%;
 	vertical-align: middle;
 	margin-top: 24px;
 	margin-right: 8px;
+	margin-left: 422.5px;
 	transform: translateX(-161px);
 	z-index: 200;
 	visibility: collapse;

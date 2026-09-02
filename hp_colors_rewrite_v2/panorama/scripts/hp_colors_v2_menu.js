@@ -16,7 +16,6 @@
   var PRESET_STORE_CONTRACT = "HPCRP1";
   var PRESET_STORE_VERSION = "1";
   var PRESET_STORE_MAX_HEX_LENGTH = 524288;
-  var presetStoreBootMessageShown = false;
   var PRECISE_PIPS_ENABLE_TEXT =
     '"citadel_unit_status_health_per_minor_pip" "10"\n' +
     '"citadel_unit_status_health_per_pip" "10"\n' +
@@ -652,7 +651,6 @@
   var replayGeneration = 0;
   var replayRunning = false;
   var replayDispatches = 0;
-  var serializedSnapshotRaw = "";
   var serializedReplayPayload = "";
   var lastClipboardCopied = null;
   Object.defineProperties(state, {
@@ -711,15 +709,10 @@
       if (effect.type === "session_replace") {
         writeMenuState(effect.raw);
       } else if (effect.type === "effective_publish") {
-        var payload = serializeChange(
-          effect.settingId,
-          effect.raw,
-          effect.revision,
-          effect.values,
-        );
+        var payload = serializeChange(effect.revision, effect.values);
         writeRootSnapshot(payload);
-        cacheReplayPayload(payload, payload);
-        dispatchChange(effect.settingId, payload, payload);
+        cacheReplayPayload(payload);
+        dispatchChange(payload);
         refreshSnapshotReplay();
       } else if (effect.type === "clipboard_write") {
         lastClipboardCopied = executeClipboardEffect(effect);
@@ -2821,15 +2814,12 @@
   }
 
 
-  function serializeChange(settingId, raw, revision, values) {
-    var view = values ? null : currentView();
-    var effectiveValues =
-      values || (view && view.effectiveValues ? view.effectiveValues : {});
+  function serializeChange(revision, values) {
     return JSON.stringify({
       magic_word: CONFIG_MAGIC,
       version: CONFIG_VERSION,
       revision: Number(revision) || 0,
-      values: effectiveValues,
+      values: values,
     });
   }
 
@@ -2854,18 +2844,9 @@
     }
   }
 
-  function cacheReplayPayload(raw, replayPayload) {
-    if (!raw) return;
-    serializedSnapshotRaw = raw;
-    var view = replayPayload ? null : currentView();
-    serializedReplayPayload =
-      replayPayload ||
-      serializeChange(
-        "*",
-        raw,
-        view ? view.effectiveRevision : 0,
-        view ? view.effectiveValues : {},
-      );
+  function cacheReplayPayload(payload) {
+    if (!payload) return;
+    serializedReplayPayload = payload;
   }
 
 
@@ -2886,15 +2867,6 @@
     }
   }
 
-  function logPresetStoreTransition() {
-    if (presetStoreBootMessageShown) return;
-    presetStoreBootMessageShown = true;
-    try {
-      $.Msg(
-        "[HP Colors Rewrite] preset store unavailable; using session/default state",
-      );
-    } catch {}
-  }
 
   function decodePresetStoreText(encoded) {
     var text = String(encoded || "");
@@ -2923,7 +2895,6 @@
       readPanelAttribute(store, PRESET_STORE_VERSION_ATTR) !==
         PRESET_STORE_VERSION
     ) {
-      logPresetStoreTransition();
       return "";
     }
     var label = null;
@@ -2932,12 +2903,10 @@
         store.FindChildTraverse && store.FindChildTraverse(PRESET_LABEL_ID);
     } catch {}
     if (!isValid(label) || !panelHasClass(label, PRESET_ENTRY_CLASS)) {
-      if (isValid(label)) logPresetStoreTransition();
       return "";
     }
     var decoded = decodePresetStoreText(readPanelText(label));
     if (decoded === null) {
-      logPresetStoreTransition();
       return "";
     }
     return decoded;
@@ -2972,12 +2941,9 @@
     }
   }
 
-  function dispatchChange(settingId, raw, serialized) {
+  function dispatchChange(serializedPayload) {
     try {
-      $.DispatchEvent(
-        EVENT_CHANNEL,
-        serialized || serializeChange(settingId, raw),
-      );
+      $.DispatchEvent(EVENT_CHANNEL, serializedPayload);
     } catch (error) {
       $.Msg("[HP Colors Rewrite] settings dispatch failed: " + String(error));
     }
@@ -3003,11 +2969,7 @@
         )
           return;
         replayDispatches += 1;
-        dispatchChange(
-          "*",
-          serializedSnapshotRaw,
-          serializedReplayPayload,
-        );
+        dispatchChange(serializedReplayPayload);
         scheduleSnapshotReplay(generation);
       });
     } catch {
@@ -3023,7 +2985,7 @@
       replayDispatches = 0;
       return;
     }
-    if (!serializedSnapshotRaw || !serializedReplayPayload) return;
+    if (!serializedReplayPayload) return;
     replayDispatches = 0;
     if (replayRunning) return;
     replayRunning = true;
@@ -4505,7 +4467,7 @@
     state.booted = true;
     sendState({ type: "session_open", publish: true });
     var effectiveRaw = readRootAttribute(CONFIG_ATTR);
-    if (effectiveRaw) cacheReplayPayload(effectiveRaw, effectiveRaw);
+    if (effectiveRaw) cacheReplayPayload(effectiveRaw);
     refreshSnapshotReplay();
     renderNavigation();
     restartIdentityWatch();

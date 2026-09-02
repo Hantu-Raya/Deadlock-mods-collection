@@ -303,6 +303,15 @@ class MockPanel {
     if (key === 'id') return this.id || fallback || '';
     return fallback || '';
   }
+  FindChild(id) {
+    incrementCounter(this.operationCounts, 'traversal');
+    incrementCounter(this.operationCounts, 'childrenReads');
+    if (!this.valid) return null;
+    for (const child of this.children) {
+      if (child && child.IsValid && child.IsValid() && child.id === id) return child;
+    }
+    return null;
+  }
   FindChildTraverse(id) {
     incrementCounter(this.operationCounts, 'traversal');
     incrementCounter(this.operationCounts, 'findTraversals');

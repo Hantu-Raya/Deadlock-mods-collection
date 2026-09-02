@@ -1,0 +1,89 @@
+{
+  "pak": "pak02_dir.vpk",
+  "packageOrder": [
+    "pak01 builder preset",
+    "pak02 HP Colors Rewrite v2 support runtime",
+    "pak03 pinned QOLLOCK"
+  ],
+  "qollockAuthority": "installed pak03_dir.vpk",
+  "refreshSwitch": "-RefreshFromInstalledQollock",
+  "requiredSources": [
+    "panorama/layout/hud.xml",
+    "panorama/layout/hud_escape_menu.xml",
+    "panorama/scripts/qollock_hp_colors_bridge.js",
+    "qollock-source.sha256"
+  ],
+  "requiredPinnedQollockAssets": [
+    "panorama/scripts/core/ql_namespace.vjs_c",
+    "panorama/scripts/core/ql_feature_registry.vjs_c",
+    "panorama/scripts/features/ql_feat_healthbar.vjs_c",
+    "panorama/scripts/manifests/ql_color_warnings/manifest.vjs_c",
+    "panorama/scripts/core/ql_app.vjs_c"
+  ],
+  "canonicalRewriteAssets": [
+    "panorama/layout/hud_escape_menu.vxml_c",
+    "panorama/layout/unit_status_overlay_v2.vxml_c",
+    "panorama/scripts/hp_colors_v2_contract.vjs_c",
+    "panorama/scripts/hp_colors_v2_state.vjs_c",
+    "panorama/scripts/hp_colors_v2_menu.vjs_c",
+    "panorama/scripts/unit_status_v2_colors.vjs_c",
+    "panorama/scripts/unit_status_v2_segment_align.vjs_c",
+    "panorama/styles/hp_colors_v2_menu.vcss_c",
+    "panorama/styles/unit_status_v2.vcss_c"
+  ],
+  "forbiddenSupportAssets": [
+    "panorama/scripts/hp_colors_v2_contract.js",
+    "panorama/scripts/hp_colors_v2_state.js",
+    "panorama/scripts/hp_colors_v2_menu.js",
+    "panorama/scripts/unit_status_v2_colors.js",
+    "panorama/scripts/unit_status_v2_segment_align.js",
+    "panorama/styles/hp_colors_v2_menu.css",
+    "panorama/styles/unit_status_v2.css",
+    "panorama/layout/unit_status_overlay_v2.xml",
+    "pak01_dir.vpk",
+    "pak03_dir.vpk"
+  ],
+  "forbiddenBuildInputs": [
+    "hp_colors_rewrite_v2_compiled",
+    "pak01_dir.vpk",
+    "pak03_dir.vpk"
+  ],
+  "requiredPackedAssets": [
+    "hud.vxml_c",
+    "hud_escape_menu.vxml_c",
+    "unit_status_overlay_v2.vxml_c",
+    "hp_colors_v2_contract.vjs_c",
+    "hp_colors_v2_state.vjs_c",
+    "hp_colors_v2_menu.vjs_c",
+    "unit_status_v2_colors.vjs_c",
+    "unit_status_v2_segment_align.vjs_c",
+    "qollock_hp_colors_bridge.vjs_c",
+    "hp_colors_v2_menu.vcss_c",
+    "unit_status_v2.vcss_c"
+  ],
+  "forbiddenPackedAssets": [
+    "hud.xml",
+    "hud_escape_menu.xml",
+    "unit_status_overlay_v2.xml",
+    "hp_colors_v2_contract.js",
+    "hp_colors_v2_state.js",
+    "hp_colors_v2_menu.js",
+    "unit_status_v2_colors.js",
+    "unit_status_v2_segment_align.js",
+    "qollock_hp_colors_bridge.js",
+    "hp_colors_v2_menu.css",
+    "unit_status_v2.css",
+    "qollock_runtime_guard.js",
+    "qollock_settings_guard.js",
+    "qollock_topbar_warning_guard.js",
+    "qollock_runtime_guard.vjs_c",
+    "qollock_settings_guard.vjs_c",
+    "qollock_topbar_warning_guard.vjs_c",
+    "node_modules",
+    "AGENTS.md",
+    "FEATURES.md",
+    "design.md",
+    "qollock-source.sha256",
+    "pak02-contract.json"
+  ]
+}

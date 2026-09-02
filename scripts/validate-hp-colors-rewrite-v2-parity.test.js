@@ -226,11 +226,12 @@ test('v2 overlay and renderer expose all advanced runtime owners', () => {
   ]) assert.match(renderer, new RegExp(token));
   assert.match(renderer, /HP_COLORS_V2_CONFIG/);
   assert.doesNotMatch(renderer, new RegExp('\\[HPV2-' + 'HBDBG\\]'));
+  assert.doesNotMatch(renderer, /\[DEBUG-HPV2-CENTER\]/);
   assert.doesNotMatch(renderer, /HP_COLORS_REWRITE_CONFIG/);
   assert.doesNotMatch(renderer, /excludeBuildings|excludeBosses|excludeGhouls/);
 });
 
-test('build declares the exact nine-asset source contract', () => {
+test('build declares the exact eight-asset source contract', () => {
   const build = read(buildPath);
   assert.match(build, /hp_colors_v2_state\.js/);
   assert.match(build, /hp_colors_v2_state\.vjs_c/);
@@ -246,9 +247,9 @@ test('build declares the exact nine-asset source contract', () => {
     manifestBlock[1].matchAll(/Packed\s*=\s*'([^']+)'/g),
     (match) => match[1],
   );
-  assert.equal(sources.length, 9);
-  assert.equal(new Set(sources).size, 9);
-  assert.equal(packed.length, 9);
-  assert.equal(new Set(packed).size, 9);
+  assert.equal(sources.length, 8);
+  assert.equal(new Set(sources).size, 8);
+  assert.equal(packed.length, 8);
+  assert.equal(new Set(packed).size, 8);
   assert.doesNotMatch(build, /showrank_barebones/i);
 });
