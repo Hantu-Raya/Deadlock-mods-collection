@@ -263,6 +263,10 @@ test('pak02 contract and wrapper enforce canonical reuse and pak02-only output',
     assert.ok(contract.forbiddenPackedAssets.includes(asset));
   }
   assert.ok(contract.forbiddenBuildInputs.includes('hp_colors_rewrite_v2_compiled'));
+  const retiredAligner = 'unit_status_v2_segment_align.vjs_c';
+  assert.ok(!contract.canonicalRewriteAssets.some((asset) => asset.endsWith(retiredAligner)));
+  assert.ok(!contract.requiredPackedAssets.includes(retiredAligner));
+  assert.ok(contract.forbiddenPackedAssets.includes(retiredAligner));
 
   const wrapper = read(buildWrapper);
   assert.match(wrapper, /Assert-QolSourceHashes/);
@@ -275,6 +279,7 @@ test('pak02 contract and wrapper enforce canonical reuse and pak02-only output',
   assert.match(wrapper, /refresh-hp-colors-rewrite-qollock\.js/);
   assert.match(wrapper, /\[switch\]\$SkipDeploy/);
   assert.doesNotMatch(wrapper, /pak01_dir\.vpk/);
+  assert.doesNotMatch(wrapper, /unit_status_v2_segment_align/);
 
   const canonicalWrapper = read(canonicalBuildWrapper);
   assert.match(canonicalWrapper, /\[switch\]\$SkipDeploy/);

@@ -26,7 +26,7 @@ Read `hp_colors_rewrite_v2/design.md` before changing bar width, max-HP segments
 
 ## Release state
 
-`GATES.md` is authoritative for automated evidence. The QOLLOCK build remains blocked until this exact upstream file is restored:
+`GATES.md` is authoritative for automated evidence. The QOLLOCK build accepts only this pinned upstream file:
 
 ```text
 G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak03_dir.vpk

@@ -40,8 +40,7 @@ $canonicalScripts = @(
     'panorama\scripts\hp_colors_v2_contract.js',
     'panorama\scripts\hp_colors_v2_state.js',
     'panorama\scripts\hp_colors_v2_menu.js',
-    'panorama\scripts\unit_status_v2_colors.js',
-    'panorama\scripts\unit_status_v2_segment_align.js'
+    'panorama\scripts\unit_status_v2_colors.js'
 )
 $compatibilityScripts = $canonicalScripts + @(
     'panorama\scripts\qollock_hp_colors_bridge.js'
@@ -52,7 +51,6 @@ $canonicalFiles = @(
     'panorama\scripts\hp_colors_v2_state.js',
     'panorama\scripts\hp_colors_v2_menu.js',
     'panorama\scripts\unit_status_v2_colors.js',
-    'panorama\scripts\unit_status_v2_segment_align.js',
     'panorama\styles\hp_colors_v2_menu.css',
     'panorama\styles\unit_status_v2.css'
 )
@@ -69,7 +67,6 @@ $expectedPackedAssets = @(
     'panorama/scripts/hp_colors_v2_state.vjs_c',
     'panorama/scripts/hp_colors_v2_menu.vjs_c',
     'panorama/scripts/unit_status_v2_colors.vjs_c',
-    'panorama/scripts/unit_status_v2_segment_align.vjs_c',
     'panorama/scripts/qollock_hp_colors_bridge.vjs_c',
     'panorama/styles/hp_colors_v2_menu.vcss_c',
     'panorama/styles/unit_status_v2.vcss_c'
