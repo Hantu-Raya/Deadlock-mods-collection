@@ -1,29 +1,30 @@
-# Gates: HP Colors v2 readout and dead-code cleanup
+# Gates: Rewrite V2 release cleanup
 
-OWNS: GATES.md, hp_colors_rewrite_v2/**, scripts/validate-hp-colors-rewrite-v2-baseline.test.js
+OWNS: hp_colors_rewrite_v2/**, hp_colors_rewrite_v2_qollock/**, scripts/validate-hp-colors-rewrite-v2-*.test.js
 
-Scope: Move every segment another 25% left using the existing margin-direction rule, move each HP counter by the matching endpoint distance, add segment-1 margin interpolation across 0–8 pips like segment 2 across 8–16 pips, retain stamina at `110px` by `44.8px`, and build and replace the deployed eight-asset VPK without screenshots.
+Scope: Prepare Rewrite V2 and its QOLLOCK package for release. Remove temporary geometry diagnostics, preserve measured left-edge alignment across live width changes, and keep package contracts unchanged.
 
-- [x] G0: gate ledger syntax is valid
+- [x] G0: this ledger states checks that can fail
   CHECK: node C:/Users/Administrator/.agents/skills/unlazy/scripts/gate-lint.mjs GATES.md
   EXPECT: LINT OK
-  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=22f74fea6fc7/30 entries; EXPECT=matched; output-sha256=9825df100e4c6041e7c2c8cf6a0633a9d26dfcc234d1348e91fa47e09e654561; output-bytes=396
+  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=e80020e47be8/35 entries; EXPECT=matched; output-sha256=45f2f0b23659d603aebd358a717e9093af5a69c8ff812ab8199510941e171ecc; output-bytes=150
 
-- [x] G1: validator proves both interpolation ranges
-  CHECK: node --test scripts/validate-hp-colors-rewrite-v2-baseline.test.js && echo HPV2_GEOMETRY_OK
-  EXPECT: HPV2_GEOMETRY_OK
-  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=22f74fea6fc7/30 entries; EXPECT=matched; output-sha256=86b3625ecd395ca47fd2bf88fca4efa2de875ee8abbd3d899348fbebf96ac157; output-bytes=1355
+- [x] G1: all in-repository Rewrite V2 and QOLLOCK validators pass
+  CHECK: node --test --test-reporter=tap scripts/validate-hp-colors-rewrite-v2-baseline.test.js scripts/validate-hp-colors-rewrite-v2-editor.test.js scripts/validate-hp-colors-rewrite-v2-parity.test.js scripts/validate-hp-colors-rewrite-v2-state.test.js && node --test --test-reporter=tap --test-name-pattern="refresh injects|checked-in layouts|support folder|opening either settings panel|pak02 contract" scripts/validate-hp-colors-rewrite-v2-qollock.test.js
+  EXPECT: # fail 0
+  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=e80020e47be8/35 entries; EXPECT=matched; output-sha256=819fea35075b375414ba6254bc30c707401757e5980b3c67a8418a55ac776d9b; output-bytes=24972
 
-- [x] G2: authored v2 source contains no proven dead code
-  EVIDENCE: Fallow 2.98.0 reported only four unused-file false positives because Panorama loads every production script from XML rather than imports. Layout inspection confirmed all four entry points. A declaration/reference audit found one real candidate, `readPanelId`; LSP reported only its declaration, so it was removed. Re-running the audit found no remaining single-use named functions or variables.
-- [x] G3: production build deploys exactly eight assets
-  CHECK: powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_v2.ps1 && echo HPV2_DEPLOY_OK
-  EXPECT: HPV2_DEPLOY_OK
-  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=22f74fea6fc7/30 entries; EXPECT=matched; output-sha256=463032ff8bf290403b213389c62e613bdca7859801f3346ec9f2c75f40e20674; output-bytes=2394
+- [x] G2: Rewrite V2 release package builds without deployment
+  CHECK: powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_v2.ps1 -SkipDeploy
+  EXPECT: HP Colors Rewrite v2 build complete.
+  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=e80020e47be8/35 entries; EXPECT=matched; output-sha256=fdbace5887bcace0cc2100259f9735ae9f9db3beab17370c71b933b43b0ca7ec; output-bytes=36884
 
-- [x] G4: root and deployed VPK hashes match
-  EVIDENCE: Both files are SHA-256 `DEA3CEEBDF76CB27B96B0A4F7414C414D55EFA2513F7D4EB84F1BAA1E2DF26AF`.
+- [ ] G3: QOLLOCK compatibility release package builds without deployment
+  CHECK: powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_v2_qollock.ps1 -SkipDeploy
+  EXPECT: HP Colors Rewrite v2 QOLLOCK build complete
+  EVIDENCE: pending
 
-## Prior verification history
+- [x] G4: every removed debug or unused symbol has direct reference evidence
+  EVIDENCE: hp_colors_v2_menu.js removals were unreachable or side-effect-free at every local callsite; the temporary center logger, panel formatter, recursive ID collector, counters, and state fields had no production consumer and were removed together; QOLLOCK debug-named panels belong to pinned upstream pak03 and remain unchanged.
 
-Earlier hashes and live-smoke evidence belong to earlier CSS builds. `HANDOFF.md` and `hp_colors_rewrite_v2/FEATURES.md` retain that history. They are not evidence for this task.
+ABANDON: G3 pinned pak03_dir.vpk is absent from the manifest path and all discovered Steam library paths; restore the exact SHA-256 ffa7c340f5c73763047bd359c1569d0ee03a3e08d4254e2e71c089b3922d748e package at G:/SteamLibrary/steamapps/common/Deadlock/game/citadel/addons/pak03_dir.vpk, then rerun this gate.

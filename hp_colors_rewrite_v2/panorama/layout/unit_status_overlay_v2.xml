@@ -6,7 +6,6 @@
 	<scripts>
 		<include src="s2r://panorama/scripts/hp_colors_v2_contract.vjs_c" />
 		<include src="s2r://panorama/scripts/unit_status_v2_colors.vjs_c" />
-		<include src="s2r://panorama/scripts/unit_status_v2_segment_align.vjs_c" />
 	</scripts>
 	<snippets>
 		<snippet name="StatusPanelSnippet">

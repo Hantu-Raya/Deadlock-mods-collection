@@ -43,12 +43,12 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 
 Implemented source files:
 
-- `panorama/layout/unit_status_overlay_v2.xml` preserves v2's live-bar geometry and loads the color renderer plus the segment aligner.
-- `panorama/scripts/unit_status_v2_colors.js` discovers and observes the live v2 healthbar inside its overlay context.
+- `panorama/layout/unit_status_overlay_v2.xml` preserves v2's live-bar geometry and loads the color renderer.
+- `panorama/scripts/unit_status_v2_colors.js` discovers and observes the live v2 healthbar, centers the complete segment container, and keeps the level badge and ultimate icon aligned to its measured left edge.
 
 ### Data path
 
-Each probe reads its local healthbar panels directly. Health samples drive colors, readout, pulse, kill-marker geometry, and local pip/level state. Production does not serialize or emit per-bar pip, width, shield, or health-percentage diagnostics.
+Each probe reads its local healthbar panels directly. Health samples drive colors, readout, pulse, kill-marker geometry, local pip/level state, and width-dependent accessory alignment. Production emits no per-bar geometry diagnostics.
 
 Replacement panels increment the local generation and reset cached sampling and presentation state.
 
@@ -108,7 +108,7 @@ Implemented controls:
 
 - Independent stock team-color endpoints for enemy and ally high health; unknown teams retain each relation's configured high color.
 - Full-ghoul-healthbar opacity applies independently of bar colors.
-- Horizontal and vertical translation of the complete healthbar stack without moving or scaling unit, ultimate, or level icons.
+- Horizontal and vertical translation of the complete healthbar stack. The unit stays fixed while the level badge and ultimate icon follow the bar's measured left edge.
 - One shared ultimate-ready icon rule: Follow Bar uses each customized relation's final bar color; Custom applies one color to enemy and ally icons even when their bar-color toggle is off.
 
 The renderer classifies relation, team, player, building, sentry, boss, and creature-class ghoul facts in the existing ancestry pass. Neutral classification remains authoritative. Building and boss facts restrict player-only level and kill-marker behavior. Sentry and minion facts select stock dimensions. Ghoul opacity applies one value to the cached `UnitHealthbarContainer` and `unit_info_bg`. Zero uses `opacity: 0.01` to preserve engine width updates. The slider and number entry stay disabled until custom ghoul opacity is enabled.
@@ -124,11 +124,11 @@ The v1 implementation passed its focused automated and in-game checks before thi
 5. Require neutral and unclassified bars to remain stock.
 6. Require late/replaced bars to receive the current snapshot.
 7. Enable team-high color on both teams; require the stock team color only above the high threshold and the configured high color for unknown-team bars.
-8. Move Bar X Offset and Bar Y Offset through positive, negative, and zero values; require only the complete bar stack to move while unit, ultimate, or level icons retain stock placement.
+8. Move Bar X Offset and Bar Y Offset through positive, negative, and zero values. Require the bar, level badge, and ultimate icon to move together while the unit stays fixed.
 9. Test ultimate-icon Follow Bar and Custom modes on enemies and allies. Require shared Custom changes to update both relations even when bar coloring is off, while neutral, unclassified, and bypassed icons return to stock.
 10. Drag each native Hue, Saturation, and Lumen slider; require the slider value, canonical hex, and visible bars to update live, then require one Undo to restore the color from before that slider gesture.
 11. Exercise Reset Section confirmation, Cancel, already-default feedback, and Undo. Require Reset Section and Undo to stay hidden on Presets, return on settings pages, and Escape to dismiss the reset dialog or palette before closing the editor.
-12. Exit and require config/role/data logs with no rewrite exceptions.
+12. Test `800`, `2100`, and `4100` max HP at default and changed widths. Require the level badge and ultimate icon to keep their left-edge gap, an `18%` kill marker to remain visible, reset to use the current live width, and the console to contain no Rewrite exceptions.
 
 
 ## Milestone 7: HP readout
@@ -138,7 +138,7 @@ Implemented controls:
 - Show or hide the enemy HP number.
 - Current/max HP, percentage, and current-only formats.
 - Font chooser with Default (`Retail Demo, Noto Sans, sans-serif`), Oracle (`VALVEOracle, Reaver, sans-serif`), and Pulp (`VALVEPulp, Noto Sans, sans-serif`). Runtime writes the expanded families because stock `sans`, `oracle`, and `block` are compile-time CSS aliases.
-- Text size plus direct horizontal (`-405px…405px`) and portable vertical (`-35px…840px`, default `500px`) offsets.
+- Text size plus direct horizontal (`-405px...405px`, default `-30px`) and portable vertical (`-35px...840px`, default `434px`) offsets.
 - Bar-derived or custom low/mid/high text colors. Bar Color inherits the enemy bar's Fixed/Gradient mode and shared thresholds. Custom enables its own Fixed/Gradient choice. The always-editable shared threshold pair lives under Enemy → Bar and also drives ally bars and custom HP text. The white label is tinted through `washColor`, matching the bar and legacy rendering path instead of assigning a darker flat `color`.
 - Optional team coloring for only the maximum-HP value. Current HP and the separator keep the active text color. Unknown teams keep that same text color.
 
@@ -259,7 +259,7 @@ The enemy pulse now animates both halves of the `current / maximum` HP readout. 
 
 Disabling enemy level display now reproduces v1 flow centering by shifting the ultimate indicator, healthbar, and HP readout left by half of the removed level badge's effective width. The existing enemy stamina page already provides width, height, two-axis position, and custom filled/border color controls while leaving ally and neutral stamina stock.
 
-Bar and HP-text offset ranges remain wider than the visible viewport by design. They support unusual UI scales and compositions; the root, healthbar, and readout panels use `overflow: noclip`, so only the screen edge crops an element moved offscreen.
+Bar and HP-text offset ranges remain wider than the visible viewport by design. Bar width scales the complete live bar around `50% 50%`; runtime never writes the engine-owned `width` or `max-width` that change with damage and max HP. The existing health pass samples the live width and updates the level badge and ultimate icon only when that width or the configured layout changes. Reset recomputes from the current live width. Production emits no geometry records.
 
 ## Priority 8 runtime measurement baseline
 

@@ -38,7 +38,6 @@ $assetManifest = @(
     [pscustomobject]@{ Source = 'panorama\scripts\hp_colors_v2_state.js'; Packed = 'panorama/scripts/hp_colors_v2_state.vjs_c' }
     [pscustomobject]@{ Source = 'panorama\scripts\hp_colors_v2_menu.js'; Packed = 'panorama/scripts/hp_colors_v2_menu.vjs_c' }
     [pscustomobject]@{ Source = 'panorama\scripts\unit_status_v2_colors.js'; Packed = 'panorama/scripts/unit_status_v2_colors.vjs_c' }
-    [pscustomobject]@{ Source = 'panorama\scripts\unit_status_v2_segment_align.js'; Packed = 'panorama/scripts/unit_status_v2_segment_align.vjs_c' }
 )
 $rewriteScripts = @(
     $assetManifest |

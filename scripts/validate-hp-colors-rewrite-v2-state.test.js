@@ -41,7 +41,7 @@ const wireManifestSource = fs.readFileSync(wireManifestPath);
 const WIRE_MANIFEST_SHA256 =
   'd4ba7a4e8c4b48c99e7dd55d587813b12b47cc6257c251758f126eaded2af2fa';
 const WIRE_CORPUS_SHA256 =
-  '51531ab1d3b18c4edaae01330e8d9244c465302868a54f54e6aaf1d3ef8e565e';
+  '0ece44bb3119db6bbea8bb0f8d5f659e3a84ea991e2a45ba14f01af748a9e01d';
 const wireManifest = JSON.parse(wireManifestSource);
 const wireCorpusSource = fs.readFileSync(
   path.join(__dirname, 'fixtures/hp-colors-rewrite-wire-v1-corpus.json'),
@@ -80,7 +80,7 @@ const DEFAULT_ENTRIES = [
   ['readoutSize', 145],
   ['readoutFont', 'default'],
   ['readoutOffsetX', -30],
-  ['readoutOffsetY', 476],
+  ['readoutOffsetY', 434],
   ['readoutColorMode', 'bar'],
   ['readoutMode', 'fixed'],
   ['readoutLow', '#E16161'],
@@ -636,7 +636,7 @@ test('schema and HPCR2 transfer use deterministic setting order and round-trip v
   assert.equal(copiedClipboard.purpose, 'settings');
   assert.equal(
     copiedClipboard.text,
-    'HPCR2{"v":[[1,120],[6,false],[8,"#FD4949"],[20,"#FFEFD7"],[21,"#FFEFD7"],[22,"#FFEFD7"],[32,-30],[33,476]],"c":{}}',
+    'HPCR2{"v":[[1,120],[6,false],[8,"#FD4949"],[20,"#FFEFD7"],[21,"#FFEFD7"],[22,"#FFEFD7"],[32,-30],[33,434]],"c":{}}',
   );
   assert.equal(copied.view.values.widthScale, 120);
   assert.equal(copied.view.values.enemyVisible, false);
@@ -705,7 +705,7 @@ test('HPCR2 exports and atomically imports ability conditions', () => {
       [21, '#FFEFD7'],
       [22, '#FFEFD7'],
       [32, -30],
-      [33, 476],
+      [33, 434],
     ],
     c: {
       enemyLow: { slot: 4, minTier: 3, value: '#123456' },

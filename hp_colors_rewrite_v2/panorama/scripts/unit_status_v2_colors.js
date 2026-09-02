@@ -12,6 +12,10 @@
   var CONFIG_ATTR = "hp_colors_v2_config";
   var CONFIG_VERSION = 2;
   var ALLY_ATTR = "hp_colors_v2_ally";
+  var SEGMENT_BASE_SCALE = 1.1;
+  var BASE_HEALTHBAR_WIDTH = 750;
+  var ACCESSORY_BASE_MARGIN_LEFT = 422.5;
+  var LEVEL_BASE_MARGIN_TOP = 24;
 
   if (!$.HPColorsV2ContractFactory || !$.HPColorsV2ContractFactory.create)
     throw new Error("HP Colors v2 settings contract unavailable");
@@ -311,7 +315,6 @@
     bar.levelWrapper =
       findAncestorWithClass(bar.parts.levelContainer, "enemy") ||
       findAncestorWithClass(bar.parts.activeParent, "enemy");
-    bar.stockHeight = 0;
     bar.dirty = true;
     try {
       if (context.SetAttributeString)
@@ -334,6 +337,7 @@
       healthbars: healthbars,
       unitStatus: unitStatus,
       activeParent: activeParent,
+      unitInfo: findWithin(infoHealth, "UnitInfoContainer"),
       ultBackground: findWithin(infoHealth, "unit_info_bg"),
       killMarker: findWithin(container, "hp_colors_kill_marker"),
       background: findWithin(container, "unit_healthbar_bg"),
@@ -446,6 +450,7 @@
   function sampleHealthPercent(bar) {
     var fillWidth = readPanelWidthRaw(bar.parts.fill);
     var totalParentWidth = readPanelWidthRaw(bar.parts.activeParent);
+    var liveBarWidth = readPanelWidthRaw(bar.parts.container);
     var shieldWidth =
       readPanelWidthRaw(bar.parts.bulletShield) +
       readPanelWidthRaw(bar.parts.techShield);
@@ -456,6 +461,8 @@
     var sampled = bar.healthSampled;
     var healthParentChanged =
       !sampled || healthParentWidth !== bar.sampleHealthParentWidth;
+    var barWidthChanged =
+      !sampled || liveBarWidth !== bar.sampleBarWidth;
     var previousPercent = bar.lastWidthPercent;
     var previousFillWidth = bar.sampleFillWidth;
     var fillChanged = !sampled || fillWidth !== previousFillWidth;
@@ -474,13 +481,18 @@
     bar.sampleFillWidth = fillWidth;
     bar.sampleTotalParentWidth = totalParentWidth;
     bar.sampleHealthParentWidth = healthParentWidth;
+    bar.sampleBarWidth = liveBarWidth;
     bar.markerGeometryChanged =
       bar.markerGeometryChanged || healthParentChanged;
     bar.pulseOverlayPercent = overlayPercent;
     if (healthParentWidth <= 0) {
       bar.lastWidthPercent = -1;
       bar.healthPresentationChanged =
-        !sampled || previousPercent >= 0 || fillChanged || healthParentChanged;
+        !sampled ||
+        previousPercent >= 0 ||
+        fillChanged ||
+        healthParentChanged ||
+        barWidthChanged;
       if (bar.healthPresentationChanged) bar.dirty = true;
       return -1;
     }
@@ -493,6 +505,7 @@
       percentChanged ||
       fillChanged ||
       healthParentChanged ||
+      barWidthChanged ||
       (bar.colorPulseActive && overlayChanged);
     bar.lastWidthPercent = widthPercent;
     if (bar.healthPresentationChanged) bar.dirty = true;
@@ -718,6 +731,22 @@
     }
   }
 
+  function setOptionalOwnedStyle(
+    panel,
+    property,
+    owned,
+    value,
+    baseline,
+    cache,
+    cacheKey,
+  ) {
+    if (owned) {
+      setStyle(panel, property, value, cache, cacheKey);
+      return;
+    }
+    setStyle(panel, property, baseline, cache, cacheKey);
+  }
+
   function setText(panel, value, cache, cacheKey) {
     if (!isValid(panel)) {
       if (cache) cache[cacheKey] = null;
@@ -805,35 +834,49 @@
 
   function layoutStyleDrift(bar) {
     return (
+      ((config.widthScale !== 100 || config.heightScale !== 100) &&
+        (cachedStyleDrift(
+          bar.parts.healthbars,
+          "preTransformScale2d",
+          bar.applied,
+          "segmentPreTransformScale2d",
+        ) ||
+          cachedStyleDrift(
+            bar.parts.healthbars,
+            "transformOrigin",
+            bar.applied,
+            "segmentTransformOrigin",
+          ))) ||
+      ((config.positionX !== 0 || config.positionY !== 0) &&
+        cachedStyleDrift(
+          bar.parts.healthbars,
+          "transform",
+          bar.applied,
+          "segmentTransform",
+        )) ||
       cachedStyleDrift(
-        bar.parts.healthbars,
-        "transform",
+        bar.parts.levelContainer,
+        "marginLeft",
         bar.applied,
-        "healthbarsTransform",
+        "levelAnchorMarginLeft",
       ) ||
       cachedStyleDrift(
-        bar.parts.healthbars,
-        "transformOrigin",
+        bar.parts.levelContainer,
+        "marginTop",
         bar.applied,
-        "healthbarsTransformOrigin",
+        "levelAnchorMarginTop",
       ) ||
       cachedStyleDrift(
-        bar.parts.container,
-        "height",
+        bar.parts.unitInfo,
+        "marginLeft",
         bar.applied,
-        "height",
+        "unitInfoAnchorMarginLeft",
       ) ||
       cachedStyleDrift(
-        bar.parts.container,
-        "transform",
+        bar.parts.unitInfo,
+        "marginTop",
         bar.applied,
-        "transform",
-      ) ||
-      cachedStyleDrift(
-        bar.parts.unitStatus,
-        "transform",
-        bar.applied,
-        "unitStatusTransform",
+        "unitInfoAnchorMarginTop",
       )
     );
   }
@@ -920,19 +963,31 @@
         parts.container,
         oldParts.container,
         oldBaseline.container,
-        ["opacity", "height", "transform"],
+        ["opacity"],
       ),
       healthbars: retainPanelBaseline(
         parts.healthbars,
         oldParts.healthbars,
         oldBaseline.healthbars,
-        ["transform", "transformOrigin"],
+        ["transform", "transformOrigin", "preTransformScale2d"],
       ),
       unitStatus: retainPanelBaseline(
         parts.unitStatus,
         oldParts.unitStatus,
         oldBaseline.unitStatus,
         ["transform"],
+      ),
+      levelContainer: retainPanelBaseline(
+        parts.levelContainer,
+        oldParts.levelContainer,
+        oldBaseline.levelContainer,
+        ["marginLeft", "marginTop"],
+      ),
+      unitInfo: retainPanelBaseline(
+        parts.unitInfo,
+        oldParts.unitInfo,
+        oldBaseline.unitInfo,
+        ["marginLeft", "marginTop"],
       ),
       ultBackground: retainPanelBaseline(
         parts.ultBackground,
@@ -1546,12 +1601,6 @@
     return (60 / bpm).toFixed(3) + "s";
   }
 
-  function updateStockDimensions(bar) {
-    var height = 120;
-    if (bar.isSentry || bar.isMinion) height = 70;
-    if (bar.stockHeight === height) return;
-    bar.stockHeight = height;
-  }
 
   function applyActiveCustomization(bar, role, panelBaseline) {
     var roleEnabled = role === "enemy" ? config.enemyEnabled : config.allyEnabled;
@@ -1723,27 +1772,37 @@
         config.enemyVisible &&
         !(pulseActive && config.enemyPulseHideBar),
     );
-    updateStockDimensions(bar);
-    var healthbarsTransform =
-      config.widthScale === 100
-        ? baselineStyle(panelBaseline.healthbars, "transform")
-        : "scaleX(" +
-          String(Math.round(config.widthScale * 10) / 1000) +
-          ")";
-    var healthbarsTransformOrigin =
-      config.widthScale === 100
-        ? baselineStyle(panelBaseline.healthbars, "transformOrigin")
-        : "200px 50%";
-    var height =
-      Math.round((bar.stockHeight * config.heightScale) / 100) + "px";
-    var unitStatusTransform =
-      config.positionX === 0 && config.positionY === 0
-        ? baselineStyle(panelBaseline.unitStatus, "transform")
-        : "translateX(" +
-          config.positionX +
-          "px) translateY(" +
-          config.positionY +
-          "px)";
+    var segmentScaleActive =
+      config.widthScale !== 100 || config.heightScale !== 100;
+    var segmentScale =
+      String(Math.round(SEGMENT_BASE_SCALE * config.widthScale) / 100) +
+      ", " +
+      String(Math.round(SEGMENT_BASE_SCALE * config.heightScale) / 100);
+    var segmentPositionActive =
+      config.positionX !== 0 || config.positionY !== 0;
+    var segmentTransform =
+      "translateX(" +
+      String(config.positionX) +
+      "px) translateY(" +
+      String(config.positionY) +
+      "px)";
+    var segmentScaleX =
+      Math.round(SEGMENT_BASE_SCALE * config.widthScale) / 100;
+    var liveBarWidth =
+      bar.sampleBarWidth || readPanelWidthRaw(bar.parts.container);
+    if (liveBarWidth <= 0) liveBarWidth = BASE_HEALTHBAR_WIDTH;
+    var accessoryOffsetX =
+      config.positionX +
+      (BASE_HEALTHBAR_WIDTH * SEGMENT_BASE_SCALE -
+        liveBarWidth * segmentScaleX) /
+        2;
+    var accessoryMarginLeft =
+      String(
+        Math.round((ACCESSORY_BASE_MARGIN_LEFT + accessoryOffsetX) * 100) / 100,
+      ) + "px";
+    var accessoryMarginTop = String(config.positionY) + "px";
+    var levelMarginTop =
+      String(LEVEL_BASE_MARGIN_TOP + config.positionY) + "px";
     var opacity =
       bar.isGhoul && config.ghoulOpacityEnabled
         ? config.ghoulOpacity <= 1
@@ -1797,35 +1856,70 @@
       bar.applied,
       "ultWashColor",
     );
-    setStyle(
+    setOptionalOwnedStyle(
+      bar.parts.healthbars,
+      "preTransformScale2d",
+      segmentScaleActive,
+      segmentScale,
+      baselineStyle(panelBaseline.healthbars, "preTransformScale2d"),
+      bar.applied,
+      "segmentPreTransformScale2d",
+    );
+    setOptionalOwnedStyle(
       bar.parts.healthbars,
       "transformOrigin",
-      healthbarsTransformOrigin,
+      segmentScaleActive,
+      "50% 50%",
+      baselineStyle(panelBaseline.healthbars, "transformOrigin"),
       bar.applied,
-      "healthbarsTransformOrigin",
+      "segmentTransformOrigin",
     );
-    setStyle(
+    setOptionalOwnedStyle(
       bar.parts.healthbars,
       "transform",
-      healthbarsTransform,
+      segmentPositionActive,
+      segmentTransform,
+      baselineStyle(panelBaseline.healthbars, "transform"),
       bar.applied,
-      "healthbarsTransform",
+      "segmentTransform",
     );
-    setStyle(bar.parts.container, "height", height, bar.applied, "height");
-    setStyle(
-      bar.parts.container,
-      "transform",
-      baselineStyle(panelBaseline.container, "transform"),
+    setOptionalOwnedStyle(
+      bar.parts.levelContainer,
+      "marginLeft",
+      true,
+      accessoryMarginLeft,
+      baselineStyle(panelBaseline.levelContainer, "marginLeft"),
       bar.applied,
-      "transform",
+      "levelAnchorMarginLeft",
     );
-    setStyle(
-      bar.parts.unitStatus,
-      "transform",
-      unitStatusTransform,
+    setOptionalOwnedStyle(
+      bar.parts.levelContainer,
+      "marginTop",
+      true,
+      levelMarginTop,
+      baselineStyle(panelBaseline.levelContainer, "marginTop"),
       bar.applied,
-      "unitStatusTransform",
+      "levelAnchorMarginTop",
     );
+    setOptionalOwnedStyle(
+      bar.parts.unitInfo,
+      "marginLeft",
+      true,
+      accessoryMarginLeft,
+      baselineStyle(panelBaseline.unitInfo, "marginLeft"),
+      bar.applied,
+      "unitInfoAnchorMarginLeft",
+    );
+    setOptionalOwnedStyle(
+      bar.parts.unitInfo,
+      "marginTop",
+      true,
+      accessoryMarginTop,
+      baselineStyle(panelBaseline.unitInfo, "marginTop"),
+      bar.applied,
+      "unitInfoAnchorMarginTop",
+    );
+
     setReadoutVisibility(
       bar,
       readoutVisibility,
@@ -1938,41 +2032,71 @@
         bar.applied,
         "ultBackgroundOpacity",
       );
-      setStyle(
+
+      setOptionalOwnedStyle(
+        bar.parts.healthbars,
+        "preTransformScale2d",
+        false,
+        "",
+        baselineStyle(panelBaseline.healthbars, "preTransformScale2d"),
+        bar.applied,
+        "segmentPreTransformScale2d",
+      );
+      setOptionalOwnedStyle(
         bar.parts.healthbars,
         "transformOrigin",
+        false,
+        "",
         baselineStyle(panelBaseline.healthbars, "transformOrigin"),
         bar.applied,
-        "healthbarsTransformOrigin",
+        "segmentTransformOrigin",
       );
-      setStyle(
+      setOptionalOwnedStyle(
         bar.parts.healthbars,
         "transform",
+        false,
+        "",
         baselineStyle(panelBaseline.healthbars, "transform"),
         bar.applied,
-        "healthbarsTransform",
+        "segmentTransform",
       );
-      setStyle(
-        bar.parts.container,
-        "height",
-        baselineStyle(panelBaseline.container, "height"),
+      setOptionalOwnedStyle(
+        bar.parts.levelContainer,
+        "marginLeft",
+        false,
+        "",
+        baselineStyle(panelBaseline.levelContainer, "marginLeft"),
         bar.applied,
-        "height",
+        "levelAnchorMarginLeft",
       );
-      setStyle(
-        bar.parts.container,
-        "transform",
-        baselineStyle(panelBaseline.container, "transform"),
+      setOptionalOwnedStyle(
+        bar.parts.levelContainer,
+        "marginTop",
+        false,
+        "",
+        baselineStyle(panelBaseline.levelContainer, "marginTop"),
         bar.applied,
-        "transform",
+        "levelAnchorMarginTop",
       );
-      setStyle(
-        bar.parts.unitStatus,
-        "transform",
-        baselineStyle(panelBaseline.unitStatus, "transform"),
+      setOptionalOwnedStyle(
+        bar.parts.unitInfo,
+        "marginLeft",
+        false,
+        "",
+        baselineStyle(panelBaseline.unitInfo, "marginLeft"),
         bar.applied,
-        "unitStatusTransform",
+        "unitInfoAnchorMarginLeft",
       );
+      setOptionalOwnedStyle(
+        bar.parts.unitInfo,
+        "marginTop",
+        false,
+        "",
+        baselineStyle(panelBaseline.unitInfo, "marginTop"),
+        bar.applied,
+        "unitInfoAnchorMarginTop",
+      );
+
       setReadoutVisibility(bar, "collapse", "collapse");
       setReadoutText(bar, "", "");
       setReadoutStyle(
@@ -2116,12 +2240,14 @@
     } catch {}
   }
 
+
   function reportData(bar) {
     if (!isComplete(bar.parts)) return;
     classifyTarget(bar);
     if (!bar.healthSampled || !colorRefreshEnabled(bar))
       sampleHealthPercent(bar);
-    updatePipMaximum(bar, readPipText(bar.parts.pipLabel));
+    var pipText = readPipText(bar.parts.pipLabel);
+    updatePipMaximum(bar, pipText);
     updateLevel(bar, readPipText(bar.parts.levelLabel));
     if (!bar.dirty && layoutStyleDrift(bar)) bar.dirty = true;
     if (bar.dirty) applyCustomization(bar);
@@ -2139,6 +2265,7 @@
       sampleFillWidth: 0,
       sampleTotalParentWidth: 0,
       sampleHealthParentWidth: 0,
+      sampleBarWidth: 0,
       markerGeometryChanged: false,
       pipText: "",
       pipProfile: null,
@@ -2162,7 +2289,6 @@
       isSentry: false,
       isMinion: false,
       isGhoul: false,
-      stockHeight: 0,
       seen: true,
       parts: parts,
     };
@@ -2182,6 +2308,29 @@
     clearPulse(bar);
     clearReadoutOwnership(bar);
     clearKillMarkerOwnership(bar);
+    if (previousParts.healthbars !== nextParts.healthbars) {
+      setStyle(
+        previousParts.healthbars,
+        "transform",
+        baselineStyle(previousBaseline.healthbars, "transform"),
+        bar.applied,
+        "segmentTransform",
+      );
+      setStyle(
+        previousParts.healthbars,
+        "transformOrigin",
+        baselineStyle(previousBaseline.healthbars, "transformOrigin"),
+        bar.applied,
+        "segmentTransformOrigin",
+      );
+      setStyle(
+        previousParts.healthbars,
+        "preTransformScale2d",
+        baselineStyle(previousBaseline.healthbars, "preTransformScale2d"),
+        bar.applied,
+        "segmentPreTransformScale2d",
+      );
+    }
     bar.parts = nextParts;
     bar.generation += 1;
     bar.dirty = true;
@@ -2205,7 +2354,7 @@
     bar.sampleFillWidth = 0;
     bar.sampleTotalParentWidth = 0;
     bar.sampleHealthParentWidth = 0;
-    bar.stockHeight = 0;
+    bar.sampleBarWidth = 0;
     return true;
   }
 

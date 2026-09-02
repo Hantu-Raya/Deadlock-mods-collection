@@ -262,7 +262,7 @@
   DEFAULTS.allyMid = "#FFEFD7";
   DEFAULTS.allyHigh = "#FFEFD7";
   DEFAULTS.readoutOffsetX = -30;
-  DEFAULTS.readoutOffsetY = 476;
+  DEFAULTS.readoutOffsetY = 434;
 
   var BOOLEAN_KEYS = {
     enabled: true,
