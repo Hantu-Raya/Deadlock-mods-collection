@@ -19,12 +19,10 @@ Scope: Prepare Rewrite V2 and its QOLLOCK package for release. Remove temporary 
   EXPECT: HP Colors Rewrite v2 build complete.
   EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=e80020e47be8/35 entries; EXPECT=matched; output-sha256=fdbace5887bcace0cc2100259f9735ae9f9db3beab17370c71b933b43b0ca7ec; output-bytes=36884
 
-- [ ] G3: QOLLOCK compatibility release package builds without deployment
+- [x] G3: QOLLOCK compatibility release package builds without deployment
   CHECK: powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_v2_qollock.ps1 -SkipDeploy
   EXPECT: HP Colors Rewrite v2 QOLLOCK build complete
-  EVIDENCE: pending
+  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=e80020e47be8/35 entries; EXPECT=matched; output-sha256=d5439acd4a2e4b566a95f5589610daac41c65b8599b7569557b750a8286d825c; output-bytes=29095
 
 - [x] G4: every removed debug or unused symbol has direct reference evidence
   EVIDENCE: hp_colors_v2_menu.js removals were unreachable or side-effect-free at every local callsite; the temporary center logger, panel formatter, recursive ID collector, counters, and state fields had no production consumer and were removed together; QOLLOCK debug-named panels belong to pinned upstream pak03 and remain unchanged.
-
-ABANDON: G3 pinned pak03_dir.vpk is absent from the manifest path and all discovered Steam library paths; restore the exact SHA-256 ffa7c340f5c73763047bd359c1569d0ee03a3e08d4254e2e71c089b3922d748e package at G:/SteamLibrary/steamapps/common/Deadlock/game/citadel/addons/pak03_dir.vpk, then rerun this gate.

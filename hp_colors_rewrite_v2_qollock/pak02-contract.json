@@ -27,7 +27,6 @@
     "panorama/scripts/hp_colors_v2_state.vjs_c",
     "panorama/scripts/hp_colors_v2_menu.vjs_c",
     "panorama/scripts/unit_status_v2_colors.vjs_c",
-    "panorama/scripts/unit_status_v2_segment_align.vjs_c",
     "panorama/styles/hp_colors_v2_menu.vcss_c",
     "panorama/styles/unit_status_v2.vcss_c"
   ],
@@ -56,7 +55,6 @@
     "hp_colors_v2_state.vjs_c",
     "hp_colors_v2_menu.vjs_c",
     "unit_status_v2_colors.vjs_c",
-    "unit_status_v2_segment_align.vjs_c",
     "qollock_hp_colors_bridge.vjs_c",
     "hp_colors_v2_menu.vcss_c",
     "unit_status_v2.vcss_c"
@@ -70,6 +68,7 @@
     "hp_colors_v2_menu.js",
     "unit_status_v2_colors.js",
     "unit_status_v2_segment_align.js",
+    "unit_status_v2_segment_align.vjs_c",
     "qollock_hp_colors_bridge.js",
     "hp_colors_v2_menu.css",
     "unit_status_v2.css",
