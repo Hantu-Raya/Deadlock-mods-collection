@@ -269,7 +269,11 @@ test('pak02 contract and wrapper enforce canonical reuse and pak02-only output',
   assert.ok(contract.forbiddenPackedAssets.includes(retiredAligner));
 
   const wrapper = read(buildWrapper);
-  assert.match(wrapper, /Assert-QolSourceHashes/);
+  assert.match(wrapper, /Get-VerifiedQolSource/);
+  assert.match(
+    wrapper,
+    /\$qollockPak = Get-VerifiedQolSource[\s\S]*Get-PackedVpkTree[\s\S]*-VpkPath \$qollockPak/,
+  );
   assert.match(wrapper, /Invoke-HpColorsRewriteClosureAdvanced/);
   assert.match(wrapper, /Invoke-HpColorsRewriteClosureTests/);
   assert.match(wrapper, /assetContract\.requiredPackedAssets/);

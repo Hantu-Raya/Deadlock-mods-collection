@@ -507,6 +507,10 @@
     }
   }
 
+  function pixels(value) {
+    return Math.round(value * 100) / 100 + "px";
+  }
+
 
 
 
@@ -1860,20 +1864,24 @@
     var accessoryAnchorOffsetX =
       accessoryScaleOffsetX +
       (config.accessoryAnchorEnabled ? config.positionX * segmentScaleX : 0);
-    var levelBaseMarginTop = alignedAccessoryMarginTop(
-      bar,
-      bar.parts.levelContainer,
-      "levelAnchorPanel",
-      "levelAnchorCenterY",
-      LEVEL_BASE_MARGIN_TOP,
-    );
-    var unitInfoBaseMarginTop = alignedAccessoryMarginTop(
-      bar,
-      bar.parts.unitInfo,
-      "unitInfoAnchorPanel",
-      "unitInfoAnchorCenterY",
-      0,
-    );
+    var levelBaseMarginTop = LEVEL_BASE_MARGIN_TOP;
+    var unitInfoBaseMarginTop = 0;
+    if (config.accessoryAnchorEnabled) {
+      levelBaseMarginTop = alignedAccessoryMarginTop(
+        bar,
+        bar.parts.levelContainer,
+        "levelAnchorPanel",
+        "levelAnchorCenterY",
+        LEVEL_BASE_MARGIN_TOP,
+      );
+      unitInfoBaseMarginTop = alignedAccessoryMarginTop(
+        bar,
+        bar.parts.unitInfo,
+        "unitInfoAnchorPanel",
+        "unitInfoAnchorCenterY",
+        0,
+      );
+    }
     var accessoryScaleOffsetY =
       -ACCESSORY_SCALE_CENTER_Y * (segmentScaleY - SEGMENT_BASE_SCALE);
     // Panorama splits a centered panel's vertical margin across both sides.
@@ -1883,44 +1891,24 @@
     var accessoryAnchorMarginLeft =
       ACCESSORY_BASE_MARGIN_LEFT + accessoryAnchorOffsetX;
     var accessoryWidthFactor = config.widthScale / 100;
-    var levelMarginLeft =
-      String(
-        Math.round(
-          (accessoryAnchorMarginLeft +
-            config.levelOffsetX * accessoryWidthFactor) *
-            100,
-        ) / 100,
-      ) + "px";
-    var unitInfoMarginLeft =
-      String(
-        Math.round(
-          (accessoryAnchorMarginLeft +
-            config.ultOffsetX * accessoryWidthFactor) *
-            100,
-        ) / 100,
-      ) + "px";
-    var levelMarginTop =
-      String(
-        Math.round(
-          ((config.accessoryAnchorEnabled
-            ? levelBaseMarginTop
-            : LEVEL_BASE_MARGIN_TOP) +
-            accessoryScaleOffsetY +
-            accessoryAnchorOffsetY +
-            config.levelOffsetY) *
-            100,
-        ) / 100,
-      ) + "px";
-    var unitInfoMarginTop =
-      String(
-        Math.round(
-          ((config.accessoryAnchorEnabled ? unitInfoBaseMarginTop : 0) +
-            accessoryScaleOffsetY +
-            accessoryAnchorOffsetY +
-            config.ultOffsetY) *
-            100,
-        ) / 100,
-      ) + "px";
+    var levelMarginLeft = pixels(
+      accessoryAnchorMarginLeft + config.levelOffsetX * accessoryWidthFactor,
+    );
+    var unitInfoMarginLeft = pixels(
+      accessoryAnchorMarginLeft + config.ultOffsetX * accessoryWidthFactor,
+    );
+    var levelMarginTop = pixels(
+      levelBaseMarginTop +
+        accessoryScaleOffsetY +
+        accessoryAnchorOffsetY +
+        config.levelOffsetY,
+    );
+    var unitInfoMarginTop = pixels(
+      unitInfoBaseMarginTop +
+        accessoryScaleOffsetY +
+        accessoryAnchorOffsetY +
+        config.ultOffsetY,
+    );
     var opacity =
       bar.isGhoul && config.ghoulOpacityEnabled
         ? config.ghoulOpacity <= 1

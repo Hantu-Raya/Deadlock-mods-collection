@@ -8,6 +8,10 @@ The engine owns `UnitHealthbarContainer.width` and `max-width`. Rewrite never wr
 
 Do not derive alignment from pip count, `maxhp_segment_*` classes, fill width, or health percentage. Those values describe health state, not the rendered bar boundary.
 
+## HP readout stacking
+
+`#hp_counter_container` and `#UnitStatus` are root siblings. The counter container appears first in XML, so its own `z-index: 30` raises both HP labels above the later stock panel. Keep the stacking value on the sibling container. A child label or `#hp_counter_anchor` cannot reliably escape its parent's sibling layer.
+
 ## Level and ultimate alignment
 
 The level badge and `#UnitInfoContainer` have independent X/Y offsets. Width scaling always preserves their relation to the rendered bar edge. Anchoring additionally follows bar translation:
