@@ -562,6 +562,26 @@
                     <Button id="HPColorsUltCustomSwatch" class="HPColorsColorSwatch" />
                     <TextEntry id="HPColorsUltCustomHex" class="HPColorsHexEntry" text="#E16161" maxchars="7" />
                   </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="ANCHOR INDICATORS TO BAR" class="HPColorsSettingTitle" /><Label text="Move the ultimate icon and level badge with the bar's X/Y offsets. Bar scale and their own offsets apply in either mode." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAccessoryAnchorToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="ULTIMATE HORIZONTAL POSITION" class="HPColorsSettingTitle" /><Label text="Move the ultimate icon left or right." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsUltOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsUltOffsetXEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="ULTIMATE VERTICAL POSITION" class="HPColorsSettingTitle" /><Label text="Move the ultimate icon up or down." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsUltOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsUltOffsetYEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="LEVEL HORIZONTAL POSITION" class="HPColorsSettingTitle" /><Label text="Move the level badge left or right." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsLevelOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsLevelOffsetXEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="LEVEL VERTICAL POSITION" class="HPColorsSettingTitle" /><Label text="Move the level badge up or down." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsLevelOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsLevelOffsetYEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
                 </Panel>
 
                 <Panel id="HPColorsSettingsStamina" class="HPColorsSettingsPage">

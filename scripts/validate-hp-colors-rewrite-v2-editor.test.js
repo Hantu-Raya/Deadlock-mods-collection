@@ -360,19 +360,22 @@ test('stamina section reset publishes defaults immediately', () => {
   assert.equal(configDispatches(fixture).length, beforeDispatchCount + 1);
 });
 
-test('overview layout reset applies immediately to the published snapshot', () => {
+test('overview layout reset applies negative X immediately despite a late slider mouse-up', () => {
   const fixture = bootMenu({
     version: 1,
     values: {
       widthScale: 230,
       heightScale: 160,
-      positionX: 300,
+      positionX: -200,
       positionY: 200,
     },
     scopes: [],
   });
   openEditor(fixture);
   selectOverviewLayout(fixture);
+  const slider = panel(fixture, 'HPColorsPositionXSlider');
+  const entry = panel(fixture, 'HPColorsPositionXEntry');
+  slider.events.onmousedown();
   const beforeConfig = readConfig(fixture);
 
   requestReset(fixture);
@@ -384,8 +387,14 @@ test('overview layout reset applies immediately to the published snapshot', () =
   assert.equal(resetState.values.heightScale, 100);
   assert.equal(resetState.values.positionX, 0);
   assert.equal(resetState.values.positionY, 0);
+  assert.equal(slider.value, 0);
+  assert.equal(entry.text, '0');
   assert.equal(resetConfig.revision, beforeConfig.revision + 1);
   assert.deepEqual(resetConfig.values, resetState.values);
+
+  slider.events.onmouseup();
+  assert.equal(readMenuState(fixture).values.positionX, 0);
+  assert.equal(readConfig(fixture).values.positionX, 0);
 });
 
 test('ally bar reset applies immediately to the published snapshot', () => {

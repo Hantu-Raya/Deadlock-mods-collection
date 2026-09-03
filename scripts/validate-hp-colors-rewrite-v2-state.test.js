@@ -39,9 +39,9 @@ const wireManifestPath = path.join(
 );
 const wireManifestSource = fs.readFileSync(wireManifestPath);
 const WIRE_MANIFEST_SHA256 =
-  'd4ba7a4e8c4b48c99e7dd55d587813b12b47cc6257c251758f126eaded2af2fa';
+  '743988f126566f6327d5b104740553f7769407af1c42b523ca278e87d6dfa16b';
 const WIRE_CORPUS_SHA256 =
-  '0ece44bb3119db6bbea8bb0f8d5f659e3a84ea991e2a45ba14f01af748a9e01d';
+  'acde5864b547333eba5683aa02e8f609848887540ad666faf1f6b7693d576238';
 const wireManifest = JSON.parse(wireManifestSource);
 const wireCorpusSource = fs.readFileSync(
   path.join(__dirname, 'fixtures/hp-colors-rewrite-wire-v1-corpus.json'),
@@ -125,6 +125,11 @@ const DEFAULT_ENTRIES = [
   ['enemyStaminaColorEnabled', false],
   ['enemyStaminaColor', '#FD4949'],
   ['allyPulseColorMode', 'fixed'],
+  ['accessoryAnchorEnabled', true],
+  ['ultOffsetX', 0],
+  ['ultOffsetY', 0],
+  ['levelOffsetX', 0],
+  ['levelOffsetY', 0],
 ];
 const DEFAULT_KEYS = DEFAULT_ENTRIES.map(([key]) => key);
 const DEFAULTS = Object.fromEntries(DEFAULT_ENTRIES);
@@ -1214,6 +1219,45 @@ test('gesture updates coalesce into one Undo transaction and cancel restores the
   const canceled = send(state, 'gesture_cancel', { key: 'enemyLow' });
   assert.equal(canceled.view.values.enemyLow, initial.values.enemyLow);
   assert.equal(canceled.view.undoAvailable, false);
+});
+
+test('layout reset cancels an active negative slider gesture', () => {
+  const state = createState();
+  send(state, 'gesture_begin', { key: 'positionX', value: -200 });
+  const reset = send(state, 'reset_request', {
+    keys: ['widthScale', 'heightScale', 'positionX', 'positionY'],
+  });
+  const confirmed = send(state, 'reset_confirm', {
+    token: reset.view.transactions.confirmation.token,
+  });
+  const lateMouseUp = send(state, 'gesture_end', {
+    key: 'positionX',
+    value: -200,
+  });
+
+  assert.equal(confirmed.view.values.positionX, 0);
+  assert.equal(confirmed.view.transactions.gesture, null);
+  assert.equal(lateMouseUp.status, 'rejected');
+  assert.equal(state.read().values.positionX, 0);
+});
+
+test('layout reset debug prints final negative offset state', () => {
+  const state = createState();
+  send(state, 'gesture_begin', { key: 'positionX', value: -200 });
+  const reset = send(state, 'reset_request', { keys: ['positionX'] });
+  const confirmed = send(state, 'reset_confirm', {
+    token: reset.view.transactions.confirmation.token,
+  });
+  const published = confirmed.effects.find(
+    (effect) => effect.type === 'effective_publish',
+  );
+  console.log(
+    'RESET DEBUG: before=-200 after=' +
+      confirmed.view.values.positionX +
+      ' published=' +
+      published.values.positionX,
+  );
+  assert.equal(published.values.positionX, 0);
 });
 
 test('reset and preset-remove confirmation tokens are shared, single-use, and stale-safe', () => {

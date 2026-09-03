@@ -85,6 +85,11 @@
     ghoulOpacity: 100,
     readoutMaxTeamColor: false,
     allyTeamHigh: false,
+    accessoryAnchorEnabled: true,
+    ultOffsetX: 0,
+    ultOffsetY: 0,
+    levelOffsetX: 0,
+    levelOffsetY: 0,
   };
 
   var DEFAULT_KEYS = [
@@ -164,6 +169,11 @@
     "enemyStaminaColorEnabled",
     "enemyStaminaColor",
     "allyPulseColorMode",
+    "accessoryAnchorEnabled",
+    "ultOffsetX",
+    "ultOffsetY",
+    "levelOffsetX",
+    "levelOffsetY",
   ];
   var HPV2_EXTENSION_KEYS = [
     "staminaWidth",
@@ -173,6 +183,11 @@
     "enemyStaminaColorEnabled",
     "enemyStaminaColor",
     "allyPulseColorMode",
+    "accessoryAnchorEnabled",
+    "ultOffsetX",
+    "ultOffsetY",
+    "levelOffsetX",
+    "levelOffsetY",
   ];
   var CODEC_KEYS = [
     "enabled",
@@ -287,6 +302,7 @@
     enemyKillMarkerEnabled: true,
     readoutMaxTeamColor: true,
     allyTeamHigh: true,
+    accessoryAnchorEnabled: true,
   };
 
   var COLOR_KEYS = {
@@ -350,6 +366,10 @@
     enemyPulseIntensity: [0, 2],
     allyPulseIntensity: [0, 2],
     highThreshold: [1, 100],
+    ultOffsetX: [-300, 300],
+    ultOffsetY: [-200, 200],
+    levelOffsetX: [-300, 300],
+    levelOffsetY: [-200, 200],
   };
 
   function isObjectValue(value) {

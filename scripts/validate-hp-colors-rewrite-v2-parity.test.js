@@ -50,8 +50,8 @@ test('v2 contract removes retired color exclusions and shares requested enemy de
   assert.equal(contract.version, 2);
   assert.equal(contract.magicWord, 'HP_COLORS_V2_CONFIG');
   assert.equal(contract.configAttribute, 'hp_colors_v2_config');
-  assert.equal(contract.keys.length, 76);
-  assert.equal(new Set(plain(contract.keys)).size, 76);
+  assert.equal(contract.keys.length, 81);
+  assert.equal(new Set(plain(contract.keys)).size, 81);
   for (const key of ['excludeBuildings', 'excludeBosses', 'excludeGhouls']) {
     assert.equal(contract.keys.includes(key), false);
     assert.equal(Object.hasOwn(contract.defaults, key), false);
@@ -77,6 +77,11 @@ test('v2 contract removes retired color exclusions and shares requested enemy de
     'enemyStaminaColorEnabled',
     'enemyStaminaColor',
     'allyPulseColorMode',
+    'accessoryAnchorEnabled',
+    'ultOffsetX',
+    'ultOffsetY',
+    'levelOffsetX',
+    'levelOffsetY',
   ]);
   assert.equal(contract.defaults.staminaWidth, 110);
   assert.equal(contract.defaults.staminaHeight, 44.8);
@@ -85,6 +90,11 @@ test('v2 contract removes retired color exclusions and shares requested enemy de
   assert.equal(contract.defaults.enemyStaminaColorEnabled, false);
   assert.equal(contract.defaults.enemyStaminaColor, '#FD4949');
   assert.equal(contract.defaults.allyPulseColorMode, 'fixed');
+  assert.equal(contract.defaults.accessoryAnchorEnabled, true);
+  assert.equal(contract.defaults.ultOffsetX, 0);
+  assert.equal(contract.defaults.ultOffsetY, 0);
+  assert.equal(contract.defaults.levelOffsetX, 0);
+  assert.equal(contract.defaults.levelOffsetY, 0);
 });
 
 test('v2 cold boot uses the requested gradient while HPCR2 keeps its v1 baseline', () => {

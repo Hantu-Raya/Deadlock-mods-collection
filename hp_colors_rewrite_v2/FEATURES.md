@@ -44,7 +44,7 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 Implemented source files:
 
 - `panorama/layout/unit_status_overlay_v2.xml` preserves v2's live-bar geometry and loads the color renderer.
-- `panorama/scripts/unit_status_v2_colors.js` discovers and observes the live v2 healthbar, centers the complete segment container, and keeps the level badge and ultimate icon aligned to its measured left edge.
+- `panorama/scripts/unit_status_v2_colors.js` discovers and observes the live v2 healthbar, centers the complete segment container, and gives the level badge and ultimate icon independent X/Y offsets with optional left-edge anchoring.
 
 ### Data path
 
@@ -108,7 +108,8 @@ Implemented controls:
 
 - Independent stock team-color endpoints for enemy and ally high health; unknown teams retain each relation's configured high color.
 - Full-ghoul-healthbar opacity applies independently of bar colors.
-- Horizontal and vertical translation of the complete healthbar stack. The unit stays fixed while the level badge and ultimate icon follow the bar's measured left edge.
+- Horizontal and vertical translation of the complete healthbar stack. The unit stays fixed. One shared toggle makes the level badge and ultimate icon follow the bar's measured left edge or remain at their stock positions.
+- Independent horizontal and vertical offsets for the level badge and ultimate icon. These offsets apply in both anchor modes.
 - One shared ultimate-ready icon rule: Follow Bar uses each customized relation's final bar color; Custom applies one color to enemy and ally icons even when their bar-color toggle is off.
 
 The renderer classifies relation, team, player, building, sentry, boss, and creature-class ghoul facts in the existing ancestry pass. Neutral classification remains authoritative. Building and boss facts restrict player-only level and kill-marker behavior. Sentry and minion facts select stock dimensions. Ghoul opacity applies one value to the cached `UnitHealthbarContainer` and `unit_info_bg`. Zero uses `opacity: 0.01` to preserve engine width updates. The slider and number entry stay disabled until custom ghoul opacity is enabled.
@@ -124,11 +125,12 @@ The v1 implementation passed its focused automated and in-game checks before thi
 5. Require neutral and unclassified bars to remain stock.
 6. Require late/replaced bars to receive the current snapshot.
 7. Enable team-high color on both teams; require the stock team color only above the high threshold and the configured high color for unknown-team bars.
-8. Move Bar X Offset and Bar Y Offset through positive, negative, and zero values. Require the bar, level badge, and ultimate icon to move together while the unit stays fixed.
-9. Test ultimate-icon Follow Bar and Custom modes on enemies and allies. Require shared Custom changes to update both relations even when bar coloring is off, while neutral, unclassified, and bypassed icons return to stock.
-10. Drag each native Hue, Saturation, and Lumen slider; require the slider value, canonical hex, and visible bars to update live, then require one Undo to restore the color from before that slider gesture.
-11. Exercise Reset Section confirmation, Cancel, already-default feedback, and Undo. Require Reset Section and Undo to stay hidden on Presets, return on settings pages, and Escape to dismiss the reset dialog or palette before closing the editor.
-12. Test `800`, `2100`, and `4100` max HP at default and changed widths. Require the level badge and ultimate icon to keep their left-edge gap, an `18%` kill marker to remain visible, reset to use the current live width, and the console to contain no Rewrite exceptions.
+8. Move Bar X Offset and Bar Y Offset through positive, negative, and zero values. With indicator anchoring enabled, require the bar, level badge, and ultimate icon to move together while each indicator keeps its custom offset.
+9. Disable indicator anchoring. Require bar position and width changes to stop moving the level badge and ultimate icon, then test each indicator's X/Y controls independently.
+10. Test ultimate-icon Follow Bar and Custom modes on enemies and allies. Require shared Custom changes to update both relations even when bar coloring is off, while neutral, unclassified, and bypassed icons return to stock.
+11. Drag each native Hue, Saturation, and Lumen slider; require the slider value, canonical hex, and visible bars to update live, then require one Undo to restore the color from before that slider gesture.
+12. Exercise Reset Section confirmation, Cancel, already-default feedback, and Undo. Require Reset Section and Undo to stay hidden on Presets, return on settings pages, and Escape to dismiss the reset dialog or palette before closing the editor.
+13. With indicator anchoring enabled, test `800`, `2100`, and `4100` max HP at default and changed widths. Require the level badge and ultimate icon to keep their left-edge gap, an `18%` kill marker to remain visible, reset to use the current live width, and the console to contain no Rewrite exceptions.
 
 
 ## Milestone 7: HP readout
@@ -251,7 +253,7 @@ Focused regressions cover strict import validation, all slots, tier thresholds a
 
 Rewrite v2 can resize and reposition the three enemy stamina boxes independently of the healthbar. Width, height, horizontal offset, vertical offset, and optional custom color are preset-scoped settings exposed in both the in-game editor and HPv2 web builder. Custom color applies to filled interiors and every border; `PipEmpty` and transient depleted states keep a black interior. Ally and neutral stamina remain stock, and disabling Rewrite or enemy ownership clears every inline stamina style.
 
-The six stamina values use a versioned `hpv2` extension inside HPCRP1 records. Existing HPCRP1 and legacy HPCR2 codes remain valid and retain stock stamina defaults. Focused runtime, codec, package-builder, preview, desktop, and mobile checks cover extension round-trips, exact geometry, empty-state transitions, reset behavior, and generated VPK hydration. A fresh-restart in-game smoke remains required for live Panorama confirmation.
+The stamina and accessory controls use a versioned `hpv2` extension inside HPCRP1 records. Existing HPCRP1 and legacy HPCR2 codes remain valid and use default stamina dimensions, enabled accessory anchoring, and zero accessory offsets. Focused runtime, codec, package-builder, preview, desktop, and mobile checks cover extension round-trips, exact geometry, empty-state transitions, reset behavior, and generated VPK hydration. A fresh-restart in-game smoke remains required for live Panorama confirmation.
 
 ## Milestone 20: feedback rendering fixes
 
