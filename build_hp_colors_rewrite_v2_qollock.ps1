@@ -101,7 +101,7 @@ function Get-Sha256 {
     }
 }
 
-function Assert-QolSourceHashes {
+function Get-VerifiedQolSource {
     param([Parameter(Mandatory = $true)][string]$Path)
     Require-Path -Path $Path -Label 'QOLLOCK source manifest'
     $entries = @(Get-Content -LiteralPath $Path | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
@@ -118,6 +118,7 @@ function Assert-QolSourceHashes {
     if ($actual -ne $expected) {
         throw "Pinned QOLLOCK package drifted. Expected=$expected Actual=$actual Source=$source"
     }
+    return (Resolve-Path -LiteralPath $source).Path
 }
 
 function Copy-StagedFile {
@@ -140,9 +141,9 @@ Require-Path -Path $compiler -Label 'Source 2 compiler'
 Require-Path -Path $vpkeditcli -Label 'vpkeditcli'
 Require-Path -Path $contractPath -Label 'pak02 asset contract'
 Require-Path -Path $refreshScript -Label 'QOLLOCK compatibility refresh script'
-Require-Path -Path $qollockPak -Label 'Pinned QOLLOCK package'
 
 if ($RefreshFromInstalledQollock) {
+    Require-Path -Path $qollockPak -Label 'Installed QOLLOCK package'
     Require-Path -Path $Source2ViewerPath -Label 'Source2Viewer CLI for QOLLOCK refresh'
     Write-Host "`n[0/5] Refreshing compatibility layouts from installed pak03..." -ForegroundColor Cyan
     Remove-TreeUnderRoot -Path $refreshRoot -RootPath $root -ExpectedLeaf 'refresh'
@@ -172,12 +173,12 @@ $assetContract = Get-Content -LiteralPath $contractPath -Raw | ConvertFrom-Json
 foreach ($requiredSource in @($assetContract.requiredSources)) {
     Require-Path -Path (Join-Path $supportSrc $requiredSource) -Label 'QOLLOCK compatibility source asset'
 }
+$qollockPak = Get-VerifiedQolSource -Path $manifestPath
 $qollockTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $qollockPak
 Assert-PackedVpkAssets `
     -Tree $qollockTree `
     -Label 'Pinned QOLLOCK pak03' `
     -Required @($assetContract.requiredPinnedQollockAssets)
-Assert-QolSourceHashes -Path $manifestPath
 
 Write-Host "`n[1/5] Validating HP Colors Rewrite v2 QOLLOCK source..." -ForegroundColor Cyan
 & node --test (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-qollock.test.js')

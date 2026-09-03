@@ -48,12 +48,9 @@
 
 #UnitStatus
 {
-	width: fit-children;
-	height: fit-children;
 	width: 2000px;
 	height: 2000px;
 	flow-children: down;
-	vertical-align: bottom;
 	horizontal-align: middle;
 	vertical-align: center;
 	padding: 0px;
@@ -240,12 +237,9 @@
 {
 	font-size: 120px;
 	color: UnitPowerLevelColor_Default;
-	visibility: visible;
-	text-align: center;
 	font-weight: bold;
 	font-family: sans;
 	text-transform: uppercase;
-	vertical-align: bottom;
 	text-shadow: 0px 0px 10px 12 DropshadowColor;
 	text-align: center;
 	vertical-align: middle;
@@ -257,8 +251,6 @@
 #bounty_gold_label
 {
 	font-size: 100px;
-	color: UnitPowerLevelColor_Default;
-	visibility: visible;
 	color: #46e2ac;
 	font-weight: bold;
 	font-family: sans;
@@ -326,7 +318,6 @@
 
 #UnitHealthbarContainer
 {
-	vertical-align: middle;
 	opacity-mask: none;
 	height: 120px;
 	width: 750px;
@@ -349,6 +340,7 @@
 	margin-right: -105.075px;
 	overflow: noclip;
 	ignore-parent-flow: true;
+	z-index: 30;
 }
 
 #hp_counter_anchor
@@ -592,7 +584,6 @@
 {
 	height: 100%;
 	width: 100%;
-	width: 100%;
 	horizontal-align: left;
 	flow-children: right;
 	padding: 0px;
@@ -601,14 +592,11 @@
 
 .healthbar_empty #unit_healthbar_active_parent
 {
-	background-color: rgb(0, 0, 0);
-	background-color: rgb(74, 15, 15);
 	background-color: offBlack;
 }
 
 .friend .healthbar_empty #unit_healthbar_active_parent
 {
-	background-color: rgb(0, 0, 0);
 	background-color: offBlack;
 }
 

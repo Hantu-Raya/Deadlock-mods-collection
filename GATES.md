@@ -1,30 +1,38 @@
-# Gates: Rewrite V2 automatic indicator centering
+# Gates: Rewrite V2 public release audit
 
-OWNS: hp_colors_rewrite_v2/**, hp_colors_rewrite_v2_qollock/**, scripts/validate-hp-colors-rewrite-v2-*.test.js, GATES.md, HANDOFF.md
-
-Scope: Derive the healthbar scale origin from live layout geometry so anchored indicators remain centered across max-HP layouts and height scales, preserve unanchored positioning, and deploy QOLLOCK.
+Scope: Audit the Rewrite V2 and QOLLOCK release lane, remove verified debug and dead code, simplify safe complexity, document the stacking rule, and keep the web-builder XML mirrors current.
 
 - [x] G0: this ledger states checks that can fail
   CHECK: node C:/Users/Administrator/.agents/skills/unlazy/scripts/gate-lint.mjs GATES.md
   EXPECT: LINT OK
   EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=22f74fea6fc7/30 entries; EXPECT=matched; output-sha256=48630b7361dd44ee870917b12c3d19b9d7bdea738aaca16bb04d4cab83b772d2; output-bytes=8
 
-- [x] G1: focused tests prove dynamic visible-center scaling and indicator alignment
-  CHECK: node --test --test-reporter=tap --test-name-pattern="visible bar center|complete segment surface|indicator geometry|layout reset" scripts/validate-hp-colors-rewrite-v2-baseline.test.js scripts/validate-hp-colors-rewrite-v2-editor.test.js scripts/validate-hp-colors-rewrite-v2-state.test.js
+- [x] G1: canonical and QOLLOCK runtime contracts pass
+  CHECK: node --test --test-reporter=tap scripts/validate-hp-colors-rewrite-v2-baseline.test.js scripts/validate-hp-colors-rewrite-v2-editor.test.js scripts/validate-hp-colors-rewrite-v2-parity.test.js scripts/validate-hp-colors-rewrite-v2-state.test.js scripts/validate-hp-colors-rewrite-v2-qollock.test.js
   EXPECT: # fail 0
-  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=22f74fea6fc7/30 entries; EXPECT=matched; output-sha256=ae530223262ea594cbeb36ed8a5f8d7347fdab8b9d69176f38505ee402622b99; output-bytes=2039
+  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=22f74fea6fc7/30 entries; EXPECT=matched; output-sha256=43370d2cb927c0cc4e34f176950b424f59cc485ed84557da4e850dd38d4206e0; output-bytes=25818
 
-- [x] G2: all canonical Rewrite V2 validators pass
-  CHECK: node --test --test-reporter=tap scripts/validate-hp-colors-rewrite-v2-baseline.test.js scripts/validate-hp-colors-rewrite-v2-editor.test.js scripts/validate-hp-colors-rewrite-v2-parity.test.js scripts/validate-hp-colors-rewrite-v2-state.test.js
-  EXPECT: # fail 0
-  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=22f74fea6fc7/30 entries; EXPECT=matched; output-sha256=f46f39141dbf429f4dea32410163224560b4589016004fd1df44de2f0276887b; output-bytes=24826
+- [x] G2: QOLLOCK release package builds without deployment
+  CHECK: powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_v2_qollock.ps1 -SkipDeploy
+  EXPECT: HP Colors Rewrite v2 QOLLOCK build complete
+  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=22f74fea6fc7/30 entries; EXPECT=matched; output-sha256=a4ecc425a0ce86f657c0db65913524578c74ea9c79668dd0035d538cea60480b; output-bytes=29414
 
-- [x] G3: QOLLOCK package builds and deploys automatic centering
-  CHECK: powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_v2_qollock.ps1
-  EXPECT: Deployed OK
-  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=22f74fea6fc7/30 entries; EXPECT=matched; output-sha256=4cb4710e181411e442d6a3bce622047b2bb97ba7bb495289bed8c25ac9c8a6e1; output-bytes=29763
+- [x] G3: canonical Rewrite V2 web-builder XML matches exactly
+  CHECK: cmd /d /c "fc /b hp_colors_rewrite_v2\panorama\layout\hud_escape_menu.xml D:\web\hp-colors-preset-builder\public\templates\hpv2_hp_colors_rewrite\panorama\layout\hud_escape_menu.xml >nul && echo XML_SYNC_OK"
+  EXPECT: XML_SYNC_OK
+  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=22f74fea6fc7/30 entries; EXPECT=matched; output-sha256=e43184d16f6f5940f3c4dbe43ccc55e8a85a435d07b11ac891d267d5ee9a0ab6; output-bytes=13
 
-- [x] G4: final debug run prints stable geometry and reset values
-  CHECK: node --test --test-reporter=spec --test-name-pattern="indicator geometry debug|layout reset debug" scripts/validate-hp-colors-rewrite-v2-baseline.test.js scripts/validate-hp-colors-rewrite-v2-state.test.js
-  EXPECT: ult=-619.75px,-510.25px
-  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=22f74fea6fc7/30 entries; EXPECT=matched; output-sha256=58000b3b40f58b3138b68cb7edd61d67671bb5e246bc761b9c51583ccf8f6aae; output-bytes=440
+- [x] G4: QOLLOCK Rewrite V2 web-builder XML matches exactly
+  CHECK: cmd /d /c "fc /b hp_colors_rewrite_v2_qollock\panorama\layout\hud_escape_menu.xml D:\web\hp-colors-preset-builder\public\templates\hpv2_hp_colors_rewrite_qollock\panorama\layout\hud_escape_menu.xml >nul && echo XML_SYNC_OK"
+  EXPECT: XML_SYNC_OK
+  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=22f74fea6fc7/30 entries; EXPECT=matched; output-sha256=e43184d16f6f5940f3c4dbe43ccc55e8a85a435d07b11ac891d267d5ee9a0ab6; output-bytes=13
+
+- [x] G5: web builder tests pass
+  CHECK: npm --prefix D:\web\hp-colors-preset-builder test
+  EXPECT: fail 0
+  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=22f74fea6fc7/30 entries; EXPECT=matched; output-sha256=c1cec488a41673914d6615b712b012edb874b0cba92f583f886bfdebd7ce0dd0; output-bytes=29309
+
+- [x] G6: web builder production build succeeds
+  CHECK: npm --prefix D:\web\hp-colors-preset-builder run build
+  EXPECT: Complete!
+  EVIDENCE: exit=0; shell=C:\WINDOWS\system32\cmd.exe; cwd=F:\Users\FoxOS_User\Desktop\Deadlock-mods-collection; path=22f74fea6fc7/30 entries; EXPECT=matched; output-sha256=7dc4b94a56a34ae6fbfd1c085f9c31a20af417e266417075feace9c16427d6c3; output-bytes=832

@@ -1241,7 +1241,7 @@ test('layout reset cancels an active negative slider gesture', () => {
   assert.equal(state.read().values.positionX, 0);
 });
 
-test('layout reset debug prints final negative offset state', () => {
+test('layout reset publishes the restored negative offset', () => {
   const state = createState();
   send(state, 'gesture_begin', { key: 'positionX', value: -200 });
   const reset = send(state, 'reset_request', { keys: ['positionX'] });
@@ -1250,12 +1250,6 @@ test('layout reset debug prints final negative offset state', () => {
   });
   const published = confirmed.effects.find(
     (effect) => effect.type === 'effective_publish',
-  );
-  console.log(
-    'RESET DEBUG: before=-200 after=' +
-      confirmed.view.values.positionX +
-      ' published=' +
-      published.values.positionX,
   );
   assert.equal(published.values.positionX, 0);
 });

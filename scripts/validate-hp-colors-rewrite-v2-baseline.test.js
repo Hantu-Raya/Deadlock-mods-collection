@@ -732,6 +732,7 @@ test('v2 CSS matches the supplied alignment screenshots', () => {
   assert.match(counterContainer, /margin-right\s*:\s*-105\.075px\s*;/);
   assert.match(counterContainer, /overflow\s*:\s*noclip\s*;/);
   assert.match(counterContainer, /ignore-parent-flow\s*:\s*true\s*;/);
+  assert.match(counterContainer, /z-index\s*:\s*30\s*;/);
   const counterAnchor = cssBlock(style, '#hp_counter_anchor');
   assert.match(counterAnchor, /width\s*:\s*750px\s*;/);
   assert.match(counterAnchor, /height\s*:\s*120px\s*;/);
@@ -1722,7 +1723,7 @@ test('indicator geometry stays aligned across scale and anchored offsets', () =>
   assert.equal(fixture.unitInfo.style.marginLeft, '734.5px');
 });
 
-test('indicator geometry debug prints computed live positions', () => {
+test('indicator geometry stays aligned at maximum scale and offset', () => {
   const fixture = makeStatusFixture('enemy', {
     enabled: true,
     enemyColor: '#123456',
@@ -1731,20 +1732,6 @@ test('indicator geometry debug prints computed live positions', () => {
     positionX: -200,
     positionY: -200,
   });
-  console.log(
-    'GEOMETRY DEBUG:',
-    'scale=' + fixture.healthbars.style.preTransformScale2d,
-    'origin=' + fixture.healthbars.style.transformOrigin,
-    'bar=' + fixture.healthbars.style.transform,
-    'level=' +
-      fixture.levelContainer.style.marginLeft +
-      ',' +
-      fixture.levelContainer.style.marginTop,
-    'ult=' +
-      fixture.unitInfo.style.marginLeft +
-      ',' +
-      fixture.unitInfo.style.marginTop,
-  );
   assert.equal(fixture.levelContainer.style.marginTop, '-516.25px');
   assert.equal(fixture.unitInfo.style.marginTop, '-510.25px');
 });
