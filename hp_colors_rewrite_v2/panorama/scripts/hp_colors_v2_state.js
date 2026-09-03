@@ -1972,6 +1972,7 @@
           delete conditions[keys[index]];
         }
         state.confirmation = null;
+        state.gesture = null;
         replaceEditor(values, conditions, true);
         return true;
       }, { settingId: "*" });

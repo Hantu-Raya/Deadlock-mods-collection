@@ -16,6 +16,7 @@
   var BASE_HEALTHBAR_WIDTH = 750;
   var ACCESSORY_BASE_MARGIN_LEFT = 422.5;
   var LEVEL_BASE_MARGIN_TOP = 24;
+  var ACCESSORY_SCALE_CENTER_Y = 212.5;
 
   if (!$.HPColorsV2ContractFactory || !$.HPColorsV2ContractFactory.create)
     throw new Error("HP Colors v2 settings contract unavailable");
@@ -441,6 +442,68 @@
       return Math.max(0, Number(panel.actuallayoutwidth) || 0);
     } catch {
       return 0;
+    }
+  }
+
+  function segmentTransformOrigin(bar) {
+    try {
+      var stackHeight = Number(bar.parts.healthbars.actuallayoutheight) || 0;
+      var visibleHeight = Number(bar.parts.container.actuallayoutheight) || 0;
+      var visibleTop = Number(bar.parts.container.actualyoffset) || 0;
+      if (stackHeight <= 0 || visibleHeight <= 0) return "50% 50%";
+      var centerPercent = Math.max(
+        0,
+        Math.min(100, ((visibleTop + visibleHeight / 2) / stackHeight) * 100),
+      );
+      return "50% " + Math.round(centerPercent * 100) / 100 + "%";
+    } catch {
+      return "50% 50%";
+    }
+  }
+
+  function visibleBarCenterY(bar) {
+    try {
+      var stackTop = Number(bar.parts.healthbars.actualyoffset);
+      var visibleTop = Number(bar.parts.container.actualyoffset);
+      var visibleHeight = Number(bar.parts.container.actuallayoutheight);
+      if (
+        !Number.isFinite(stackTop) ||
+        !Number.isFinite(visibleTop) ||
+        !Number.isFinite(visibleHeight) ||
+        visibleHeight <= 0
+      )
+        return null;
+      return stackTop + visibleTop + visibleHeight / 2;
+    } catch {
+      return null;
+    }
+  }
+
+  function alignedAccessoryMarginTop(
+    bar,
+    panel,
+    panelKey,
+    centerKey,
+    baseMargin,
+  ) {
+    var targetCenter = visibleBarCenterY(bar);
+    try {
+      var panelHeight = Number(panel.actuallayoutheight);
+      var panelTop = Number(panel.actualyoffset);
+      if (
+        targetCenter === null ||
+        !Number.isFinite(panelHeight) ||
+        !Number.isFinite(panelTop) ||
+        panelHeight <= 0
+      )
+        return baseMargin;
+      if (bar[panelKey] !== panel) {
+        bar[panelKey] = panel;
+        bar[centerKey] = panelTop + panelHeight / 2;
+      }
+      return baseMargin + (targetCenter - bar[centerKey]) * 2;
+    } catch {
+      return baseMargin;
     }
   }
 
@@ -1774,10 +1837,11 @@
     );
     var segmentScaleActive =
       config.widthScale !== 100 || config.heightScale !== 100;
-    var segmentScale =
-      String(Math.round(SEGMENT_BASE_SCALE * config.widthScale) / 100) +
-      ", " +
-      String(Math.round(SEGMENT_BASE_SCALE * config.heightScale) / 100);
+    var segmentScaleX =
+      Math.round(SEGMENT_BASE_SCALE * config.widthScale) / 100;
+    var segmentScaleY =
+      Math.round(SEGMENT_BASE_SCALE * config.heightScale) / 100;
+    var segmentScale = String(segmentScaleX) + ", " + String(segmentScaleY);
     var segmentPositionActive =
       config.positionX !== 0 || config.positionY !== 0;
     var segmentTransform =
@@ -1786,23 +1850,77 @@
       "px) translateY(" +
       String(config.positionY) +
       "px)";
-    var segmentScaleX =
-      Math.round(SEGMENT_BASE_SCALE * config.widthScale) / 100;
     var liveBarWidth =
       bar.sampleBarWidth || readPanelWidthRaw(bar.parts.container);
     if (liveBarWidth <= 0) liveBarWidth = BASE_HEALTHBAR_WIDTH;
-    var accessoryOffsetX =
-      config.positionX +
+    var accessoryScaleOffsetX =
       (BASE_HEALTHBAR_WIDTH * SEGMENT_BASE_SCALE -
         liveBarWidth * segmentScaleX) /
-        2;
-    var accessoryMarginLeft =
+      2;
+    var accessoryAnchorOffsetX =
+      accessoryScaleOffsetX +
+      (config.accessoryAnchorEnabled ? config.positionX * segmentScaleX : 0);
+    var levelBaseMarginTop = alignedAccessoryMarginTop(
+      bar,
+      bar.parts.levelContainer,
+      "levelAnchorPanel",
+      "levelAnchorCenterY",
+      LEVEL_BASE_MARGIN_TOP,
+    );
+    var unitInfoBaseMarginTop = alignedAccessoryMarginTop(
+      bar,
+      bar.parts.unitInfo,
+      "unitInfoAnchorPanel",
+      "unitInfoAnchorCenterY",
+      0,
+    );
+    var accessoryScaleOffsetY =
+      -ACCESSORY_SCALE_CENTER_Y * (segmentScaleY - SEGMENT_BASE_SCALE);
+    // Panorama splits a centered panel's vertical margin across both sides.
+    var accessoryAnchorOffsetY = config.accessoryAnchorEnabled
+      ? config.positionY * 2
+      : 0;
+    var accessoryAnchorMarginLeft =
+      ACCESSORY_BASE_MARGIN_LEFT + accessoryAnchorOffsetX;
+    var accessoryWidthFactor = config.widthScale / 100;
+    var levelMarginLeft =
       String(
-        Math.round((ACCESSORY_BASE_MARGIN_LEFT + accessoryOffsetX) * 100) / 100,
+        Math.round(
+          (accessoryAnchorMarginLeft +
+            config.levelOffsetX * accessoryWidthFactor) *
+            100,
+        ) / 100,
       ) + "px";
-    var accessoryMarginTop = String(config.positionY) + "px";
+    var unitInfoMarginLeft =
+      String(
+        Math.round(
+          (accessoryAnchorMarginLeft +
+            config.ultOffsetX * accessoryWidthFactor) *
+            100,
+        ) / 100,
+      ) + "px";
     var levelMarginTop =
-      String(LEVEL_BASE_MARGIN_TOP + config.positionY) + "px";
+      String(
+        Math.round(
+          ((config.accessoryAnchorEnabled
+            ? levelBaseMarginTop
+            : LEVEL_BASE_MARGIN_TOP) +
+            accessoryScaleOffsetY +
+            accessoryAnchorOffsetY +
+            config.levelOffsetY) *
+            100,
+        ) / 100,
+      ) + "px";
+    var unitInfoMarginTop =
+      String(
+        Math.round(
+          ((config.accessoryAnchorEnabled ? unitInfoBaseMarginTop : 0) +
+            accessoryScaleOffsetY +
+            accessoryAnchorOffsetY +
+            config.ultOffsetY) *
+            100,
+        ) / 100,
+      ) + "px";
     var opacity =
       bar.isGhoul && config.ghoulOpacityEnabled
         ? config.ghoulOpacity <= 1
@@ -1869,7 +1987,7 @@
       bar.parts.healthbars,
       "transformOrigin",
       segmentScaleActive,
-      "50% 50%",
+      segmentTransformOrigin(bar),
       baselineStyle(panelBaseline.healthbars, "transformOrigin"),
       bar.applied,
       "segmentTransformOrigin",
@@ -1887,7 +2005,7 @@
       bar.parts.levelContainer,
       "marginLeft",
       true,
-      accessoryMarginLeft,
+      levelMarginLeft,
       baselineStyle(panelBaseline.levelContainer, "marginLeft"),
       bar.applied,
       "levelAnchorMarginLeft",
@@ -1905,7 +2023,7 @@
       bar.parts.unitInfo,
       "marginLeft",
       true,
-      accessoryMarginLeft,
+      unitInfoMarginLeft,
       baselineStyle(panelBaseline.unitInfo, "marginLeft"),
       bar.applied,
       "unitInfoAnchorMarginLeft",
@@ -1914,7 +2032,7 @@
       bar.parts.unitInfo,
       "marginTop",
       true,
-      accessoryMarginTop,
+      unitInfoMarginTop,
       baselineStyle(panelBaseline.unitInfo, "marginTop"),
       bar.applied,
       "unitInfoAnchorMarginTop",

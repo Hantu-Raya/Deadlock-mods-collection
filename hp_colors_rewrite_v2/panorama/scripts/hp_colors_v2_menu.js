@@ -57,7 +57,7 @@
           name: "LAYOUT",
           title: "BAR LAYOUT",
           description:
-            "Resize and move the healthbar stack only. Unit, ultimate, and level icons keep their stock size and position.",
+            "Resize and move the healthbar stack. Indicators track its scale; anchoring also applies its X/Y offsets.",
           pageId: "HPColorsSettingsOverviewLayout",
           keys: ["widthScale", "heightScale", "positionX", "positionY"],
         },
@@ -233,7 +233,7 @@
           name: "INDICATORS",
           title: "INDICATORS",
           description:
-            "Control enemy health pips and levels plus the shared ultimate-ready icon color rule.",
+            "Control health pips, level visibility, ultimate color, and both indicators' positions.",
           pageId: "HPColorsSettingsReadoutLevels",
           keys: [
             "pipsVisible",
@@ -241,6 +241,11 @@
             "levelsVisible",
             "ultMode",
             "ultCustom",
+            "accessoryAnchorEnabled",
+            "ultOffsetX",
+            "ultOffsetY",
+            "levelOffsetX",
+            "levelOffsetY",
           ],
         },
         {
@@ -328,6 +333,10 @@
     },
     { id: "HPColorsPipsVisibleToggle", key: "pipsVisible" },
     { id: "HPColorsLevelsVisibleToggle", key: "levelsVisible" },
+    {
+      id: "HPColorsAccessoryAnchorToggle",
+      key: "accessoryAnchorEnabled",
+    },
     {
       id: "HPColorsEnemyStaminaColorToggle",
       key: "enemyStaminaColorEnabled",
@@ -476,6 +485,20 @@
     { base: "HPColorsHeight", key: "heightScale", min: 60, max: 160 },
     { base: "HPColorsPositionX", key: "positionX", min: -300, max: 300 },
     { base: "HPColorsPositionY", key: "positionY", min: -200, max: 200 },
+    { base: "HPColorsUltOffsetX", key: "ultOffsetX", min: -300, max: 300 },
+    { base: "HPColorsUltOffsetY", key: "ultOffsetY", min: -200, max: 200 },
+    {
+      base: "HPColorsLevelOffsetX",
+      key: "levelOffsetX",
+      min: -300,
+      max: 300,
+    },
+    {
+      base: "HPColorsLevelOffsetY",
+      key: "levelOffsetY",
+      min: -200,
+      max: 200,
+    },
     { base: "HPColorsStaminaWidth", key: "staminaWidth", min: 40, max: 220 },
     {
       base: "HPColorsStaminaHeight",

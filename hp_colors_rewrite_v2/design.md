@@ -2,7 +2,7 @@
 
 ## Healthbar geometry
 
-`#UnitStatus` is a fixed `2000px × 2000px` canvas. CSS centers `#UnitHealthbarsContainer` in that canvas. Runtime scales the complete segment container around `50% 50%` and translates it with the configured X/Y offset.
+`#UnitStatus` is a fixed `2000px × 2000px` canvas. CSS centers `#UnitHealthbarsContainer` in that canvas. Runtime reads the live segment stack and bar geometry, then places the scale origin at the visible bar center. Do not replace this with a fixed percentage because max-HP layouts change the bar's position inside the stack.
 
 The engine owns `UnitHealthbarContainer.width` and `max-width`. Rewrite never writes them. Max-HP changes can change the live width without changing the preset, so the existing health sample also reads `actuallayoutwidth` and reapplies layout only when that width changes.
 
@@ -10,16 +10,21 @@ Do not derive alignment from pip count, `maxhp_segment_*` classes, fill width, o
 
 ## Level and ultimate alignment
 
-The level badge and `#UnitInfoContainer` follow the bar's rendered left edge. They use the same horizontal offset calculation, while their existing CSS keeps their relative spacing:
+The level badge and `#UnitInfoContainer` have independent X/Y offsets. Width scaling always preserves their relation to the rendered bar edge. Anchoring additionally follows bar translation:
 
 ```text
-marginLeft = 422.5 + positionX + (825 - liveBarWidth × scaleX) / 2
+scaleOffsetX = (825 - liveBarWidth × scaleX) / 2
+anchorOffsetX = scaleOffsetX + (anchored ? positionX × scaleX : 0)
+levelMarginLeft = 422.5 + anchorOffsetX + levelOffsetX × widthScale / 100
+ultimateMarginLeft = 422.5 + anchorOffsetX + ultOffsetX × widthScale / 100
 scaleX = 1.1 × widthScale / 100
 ```
 
+The renderer measures the live bar center and each indicator's original center. It also applies vertical scale compensation, so both indicators visibly move as bar height changes. When anchoring is enabled, it converts the center difference into Panorama's centered-margin coordinates, then adds `positionY × 2` and the indicator's own Y offset. When anchoring is disabled, it ignores bar translation but still follows bar scale.
+
 At the default `750px` live width, the scaled bar begins at local X `587.5`. The `300px` UnitInfo panel begins at `422.5`, placing its center at `572.5`, or `15px` left of the bar. This gap keeps the ultimate icon off the bar and leaves low-percentage kill markers visible.
 
-Use the measured live bar width for every max-HP segment. Width changes and X offsets move the bar, level badge, and ultimate icon together. Y offsets move the same group vertically. Reset must recompute from the current live width instead of restoring a stale width.
+With anchoring disabled, bar X/Y offsets do not move the indicators. Width scaling still preserves their bar-edge relationship and scales each indicator's X offset by `widthScale / 100`. Their Y offsets remain independent. Reset enables anchoring and restores every accessory offset to zero.
 
 ## Kill marker
 

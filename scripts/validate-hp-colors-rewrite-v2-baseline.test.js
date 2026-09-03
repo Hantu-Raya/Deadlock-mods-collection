@@ -158,6 +158,7 @@ const MENU_CONTROL_IDS = [
   'HPColorsPickerLumenSliderHost',
   'HPColorsPrecisePipsToggle',
   'HPColorsPrecisePipsDialog',
+  'HPColorsAccessoryAnchorToggle',
   'HPColorsPrecisePipsDialogTitle',
   'HPColorsPrecisePipsDialogMessage',
   'HPColorsPrecisePipsDialogCommands',
@@ -179,6 +180,10 @@ const MENU_CONTROL_IDS = [
   'HPColorsGhoulOpacitySliderHost',
   'HPColorsPositionXSliderHost',
   'HPColorsPositionYSliderHost',
+  'HPColorsUltOffsetXSliderHost',
+  'HPColorsUltOffsetYSliderHost',
+  'HPColorsLevelOffsetXSliderHost',
+  'HPColorsLevelOffsetYSliderHost',
   'HPColorsReadoutSizeSliderHost',
   'HPColorsReadoutOffsetXSliderHost',
   'HPColorsReadoutOffsetYSliderHost',
@@ -284,6 +289,8 @@ function addLiveHealthbar(healthbars, harness, pipText, fillWidth, stockStyles) 
   const stockLayoutWidth = Number.parseFloat(stockStyles && stockStyles.width);
   const healthbar = healthbars.add(new MockPanel('UnitHealthbarContainer', {
     actuallayoutwidth: Number.isFinite(stockLayoutWidth) ? stockLayoutWidth : 750,
+    actuallayoutheight: 120,
+    actualyoffset: 0,
     style: {
       width: stockStyles ? stockStyles.width : '',
       maxWidth: stockStyles ? stockStyles.maxWidth : '',
@@ -497,6 +504,8 @@ function makeStatusFixture(
   }));
   const levelContainer = infoHealth.add(new MockPanel('LevelContainer', {
     classes: ['NP_playerlevel_container'],
+    actuallayoutheight: 210,
+    actualyoffset: 910,
     style: { visibility: '' },
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
@@ -508,6 +517,8 @@ function makeStatusFixture(
     operationCounts: harness.operationCounts,
   }));
   const unitInfo = infoHealth.add(new MockPanel('UnitInfoContainer', {
+    actuallayoutheight: 300,
+    actualyoffset: 850,
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));
@@ -563,6 +574,8 @@ function makeStatusFixture(
     }));
   }
   const healthbars = infoHealth.add(new MockPanel('UnitHealthbarsContainer', {
+    actuallayoutheight: 320,
+    actualyoffset: 955,
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));
@@ -1070,7 +1083,7 @@ test('v2 restores every owned bar value before dropping a live bar', () => {
   );
   assert.equal(fixture.fill.style.washColor, '#123456');
   assert.equal(fixture.healthbars.style.preTransformScale2d, '1.76, 1.54');
-  assert.equal(fixture.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(
     fixture.healthbars.style.transform,
     'translateX(80px) translateY(40px)',
@@ -1128,7 +1141,7 @@ test('v2 unregisters its config event and cancels work when context dies', () =>
   assert.equal(fixture.harness.scheduler.jobs.length, 0);
 });
 
-test('v2 applies bar layout to the max-HP segment container only', () => {
+test('v2 scales the segment container around the visible bar center', () => {
   const fixture = makeStatusFixture('enemy', {
     enabled: true,
     enemyColor: '#123456',
@@ -1139,7 +1152,7 @@ test('v2 applies bar layout to the max-HP segment container only', () => {
   });
 
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.53, 1.76');
-  assert.equal(fixture.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(
     fixture.healthbars.style.transform,
     'translateX(300px) translateY(200px)',
@@ -1151,6 +1164,14 @@ test('v2 applies bar layout to the max-HP segment container only', () => {
   assert.equal(fixture.healthbar.style.marginBottom, undefined);
   assert.equal(fixture.unitStatus.style.transform, '');
   assert.equal(fixture.counterContainer.style.transform, undefined);
+
+  fixture.healthbars.actuallayoutheight = 400;
+  fixture.healthbar.actualyoffset = 80;
+  fixture.healthbar.actuallayoutheight = 160;
+  dispatchColorSnapshot(fixture, 2, { widthScale: 150 });
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% 40%');
+  assert.equal(fixture.levelContainer.style.marginTop, '224px');
+  assert.equal(fixture.unitInfo.style.marginTop, '230px');
 });
 
 test('v2 preserves a positive custom offset without moving UnitStatus', () => {
@@ -1215,7 +1236,7 @@ test('v2 scales the max-HP segment container without changing the live bar', () 
 
   assert.equal(fixture.healthbars.style.transform, '');
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.53, 1.76');
-  assert.equal(fixture.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(fixture.healthbar.style.width, '');
   assert.equal(fixture.healthbar.style.maxWidth, '');
   assert.equal(fixture.healthbar.style.preTransformScale2d, '');
@@ -1259,7 +1280,7 @@ test('v2 overview layout reset applies immediately to an existing bar', () => {
     'translateX(300px) translateY(200px)',
   );
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.53, 1.76');
-  assert.equal(fixture.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(fixture.healthbar.style.width, stock.width);
   assert.equal(fixture.healthbar.style.maxWidth, stock.maxWidth);
   assert.equal(fixture.healthbar.style.preTransformScale2d, '');
@@ -1325,7 +1346,7 @@ test('v2 late optional panel discovery cannot contaminate the stock layout basel
     'translateX(300px) translateY(200px)',
   );
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.53, 1.76');
-  assert.equal(fixture.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(fixture.healthbar.style.width, stock.width);
   assert.equal(fixture.healthbar.style.maxWidth, stock.maxWidth);
   assert.equal(fixture.healthbar.style.preTransformScale2d, '');
@@ -1379,7 +1400,7 @@ test('v2 layout reset survives an incomplete required-part refresh', () => {
     true,
   );
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.53, 1.76');
-  assert.equal(fixture.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(
     fixture.healthbars.style.transform,
     'translateX(300px) translateY(200px)',
@@ -1537,7 +1558,7 @@ test('v2 preset apply updates layout and ally bar immediately on existing panels
     'translateX(300px) translateY(0px)',
   );
   assert.equal(enemy.healthbars.style.preTransformScale2d, '2.53, 1.1');
-  assert.equal(enemy.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(enemy.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(enemy.healthbar.style.width, '');
   assert.equal(enemy.healthbar.style.maxWidth, '');
   assert.equal(enemy.healthbar.style.preTransformScale2d, '');
@@ -1585,11 +1606,11 @@ test('v2 centers the complete segment surface as its width changes', () => {
   fixture.healthbars.AddClass('maxhp_segment_1');
   assert.equal(fixture.healthbars.style.transform, '');
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.53, 1.1');
-  assert.equal(fixture.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(fixture.levelContainer.style.marginLeft, '202.5px');
   assert.equal(fixture.levelContainer.style.marginTop, '24px');
   assert.equal(fixture.unitInfo.style.marginLeft, '202.5px');
-  assert.equal(fixture.unitInfo.style.marginTop, '0px');
+  assert.equal(fixture.unitInfo.style.marginTop, '30px');
   assert.equal(fixture.healthbar.style.width, '500px');
   assert.equal(fixture.unitStatus.style.transform, '');
   assert.equal(fixture.healthbar.style.maxWidth, '700px');
@@ -1606,7 +1627,7 @@ test('v2 centers the complete segment surface as its width changes', () => {
   fixture.harness.scheduler.runNext();
   assert.equal(fixture.healthbars.style.transform, '');
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.53, 1.1');
-  assert.equal(fixture.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(fixture.levelContainer.style.marginLeft, '44.38px');
   assert.equal(fixture.unitInfo.style.marginLeft, '44.38px');
   assert.equal(fixture.healthbar.style.width, '625px');
@@ -1624,7 +1645,7 @@ test('v2 centers the complete segment surface as its width changes', () => {
   assert.equal(fixture.levelContainer.style.marginLeft, '491.25px');
   assert.equal(fixture.levelContainer.style.marginTop, '24px');
   assert.equal(fixture.unitInfo.style.marginLeft, '491.25px');
-  assert.equal(fixture.unitInfo.style.marginTop, '0px');
+  assert.equal(fixture.unitInfo.style.marginTop, '30px');
   assert.equal(fixture.healthbar.style.width, '625px');
   assert.equal(fixture.healthbar.style.maxWidth, '700px');
   assert.equal(fixture.healthbar.style.preTransformScale2d, '');
@@ -1634,7 +1655,7 @@ test('v2 centers the complete segment surface as its width changes', () => {
   assert.equal(fixture.levelContainer.style.marginLeft, '422.5px');
   assert.equal(fixture.levelContainer.style.marginTop, '24px');
   assert.equal(fixture.unitInfo.style.marginLeft, '422.5px');
-  assert.equal(fixture.unitInfo.style.marginTop, '0px');
+  assert.equal(fixture.unitInfo.style.marginTop, '30px');
   assert.match(
     cssBlock(read(stylePath), '#UnitHealthbarsContainer'),
     /overflow\s*:\s*noclip\s*;/,
@@ -1648,6 +1669,84 @@ test('v2 centers the complete segment surface as its width changes', () => {
   assert.equal(fixture.levelContainer.style.marginTop, '');
   assert.equal(fixture.unitInfo.style.marginLeft, '');
   assert.equal(fixture.unitInfo.style.marginTop, '');
+});
+
+test('indicator geometry stays aligned across scale and anchored offsets', () => {
+  const fixture = makeStatusFixture('enemy', {
+    enabled: true,
+    enemyColor: '#123456',
+  });
+
+  dispatchColorSnapshot(fixture, 2, {
+    heightScale: 160,
+    positionY: 200,
+  });
+  assert.equal(fixture.levelContainer.style.marginTop, '283.75px');
+  assert.equal(fixture.unitInfo.style.marginTop, '289.75px');
+
+  dispatchColorSnapshot(fixture, 3, {
+    heightScale: 60,
+    positionY: -200,
+  });
+  assert.equal(fixture.levelContainer.style.marginTop, '-282.5px');
+  assert.equal(fixture.unitInfo.style.marginTop, '-276.5px');
+
+  dispatchColorSnapshot(fixture, 4, {
+    accessoryAnchorEnabled: false,
+    widthScale: 230,
+    heightScale: 100,
+    positionX: 80,
+    positionY: 30,
+    levelOffsetX: -63,
+    ultOffsetX: 245,
+  });
+  assert.equal(fixture.levelContainer.style.marginLeft, '-258.65px');
+  assert.equal(fixture.unitInfo.style.marginLeft, '449.75px');
+  assert.equal(fixture.levelContainer.style.marginTop, '24px');
+  assert.equal(fixture.unitInfo.style.marginTop, '0px');
+  assert.equal(
+    fixture.healthbars.style.transform,
+    'translateX(80px) translateY(30px)',
+  );
+
+  dispatchColorSnapshot(fixture, 5, {
+    accessoryAnchorEnabled: false,
+    widthScale: 60,
+    heightScale: 100,
+    positionX: 80,
+    positionY: 30,
+    levelOffsetX: -63,
+    ultOffsetX: 245,
+  });
+  assert.equal(fixture.levelContainer.style.marginLeft, '549.7px');
+  assert.equal(fixture.unitInfo.style.marginLeft, '734.5px');
+});
+
+test('indicator geometry debug prints computed live positions', () => {
+  const fixture = makeStatusFixture('enemy', {
+    enabled: true,
+    enemyColor: '#123456',
+    widthScale: 230,
+    heightScale: 160,
+    positionX: -200,
+    positionY: -200,
+  });
+  console.log(
+    'GEOMETRY DEBUG:',
+    'scale=' + fixture.healthbars.style.preTransformScale2d,
+    'origin=' + fixture.healthbars.style.transformOrigin,
+    'bar=' + fixture.healthbars.style.transform,
+    'level=' +
+      fixture.levelContainer.style.marginLeft +
+      ',' +
+      fixture.levelContainer.style.marginTop,
+    'ult=' +
+      fixture.unitInfo.style.marginLeft +
+      ',' +
+      fixture.unitInfo.style.marginTop,
+  );
+  assert.equal(fixture.levelContainer.style.marginTop, '-516.25px');
+  assert.equal(fixture.unitInfo.style.marginTop, '-510.25px');
 });
 
 test('v2 repairs custom segment geometry without owning parent clipping styles', () => {
@@ -1670,7 +1769,7 @@ test('v2 repairs custom segment geometry without owning parent clipping styles',
   assert.equal(fixture.healthbar.style.width, '750px');
   assert.equal(fixture.healthbar.style.maxWidth, '750px');
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.53, 1.1');
-  assert.equal(fixture.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(
     fixture.healthbars.style.transform,
     'translateX(300px) translateY(200px)',
@@ -1889,7 +1988,7 @@ test('v2 clears ultimate background opacity when customization turns off', () =>
   assert.equal(fixture.infoBg.style.opacity, '0.01');
   assert.equal(fixture.healthbars.style.transform, '');
   assert.equal(fixture.healthbars.style.preTransformScale2d, '1.76, 1.1');
-  assert.equal(fixture.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(fixture.healthbar.style.width, '');
   assert.equal(fixture.healthbar.style.maxWidth, '');
   assert.equal(fixture.healthbar.style.preTransformScale2d, '');
