@@ -192,11 +192,18 @@ test('style diagnostics distinguish cache hits, writes, invalid panels and failu
   flush();
   assert.deepEqual(f.reports()[0].style, { cacheHits: 1, writes: 2, invalidPanels: 1, writeErrors: 1 });
   assert.deepEqual(f.reports()[0].styleFailures, [{ panel: 'HealthFill', property: 'opacity', value: '1', error: 'Error: panel write failed' }]);
+  assert.deepEqual(f.reports()[0].styleWrites, [
+    { property: 'opacity', reason: 'valueChange', attempts: 2, panel: '', previous: '', requested: '1' },
+    { property: 'opacity', reason: 'nativeMismatch', attempts: 1, panel: '', previous: '0', requested: '1' },
+  ]);
   setStyle(broken, 'opacity', '1', cache, 'broken');
   f.advance(3000);
   flush();
   assert.deepEqual(f.reports()[1].style, { cacheHits: 0, writes: 0, invalidPanels: 0, writeErrors: 1 });
   assert.deepEqual(f.reports()[1].styleFailures, []);
+  assert.equal(f.reports()[1].styleWrites.length, 1);
+  assert.equal(f.reports()[1].styleWrites[0].attempts, 1);
+  assert.equal(f.reports()[1].styleWrites[0].panel, 'HealthFill');
 });
 
 test('distinct failure details remain bounded without losing report transport', t => {
@@ -257,4 +264,8 @@ test('alias restoration clears the base and preserves sibling inline styles', t 
   setStyle(panel, 'marginLeft', '', cache, 'marginLeft');
   assert.equal(f.profile.style.writes, writes);
   assert.equal(f.profile.style.writeErrors, 0);
+  f.advance(3000);
+  f.profile.wrap('flush', () => {})();
+  assert.ok(f.reports()[0].styleWrites.every(row => row.reason === 'aliasRestore'));
+  assert.equal(f.reports()[0].styleWrites.reduce((sum, row) => sum + row.attempts, 0), writes);
 });

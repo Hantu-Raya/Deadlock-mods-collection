@@ -39,6 +39,34 @@
       var profileStyleFailures = [];
       var profileStyleFailureKeys = [];
       var profileStyleFailuresLimited = false;
+      var profileStyleWrites = [];
+      var profileStyleWriteLookup = Object.create(null);
+      var profileStyleWritesLimited = false;
+
+      function profileStyleWrite(panel, property, value, reason) {
+        if (!profileStyle.active) return;
+        try {
+          var key = property + ":" + reason;
+          var row = profileStyleWriteLookup[key];
+          if (!row) {
+            if (profileStyleWrites.length >= 64) {
+              profileStyleWritesLimited = true;
+              return;
+            }
+            row = {
+              property: property,
+              reason: reason,
+              attempts: 0,
+              panel: String(panel.id || "").slice(0, 160),
+              previous: String(panel.style[property] || "").slice(0, 160),
+              requested: String(value).slice(0, 160),
+            };
+            profileStyleWriteLookup[key] = row;
+            profileStyleWrites.push(row);
+          }
+          row.attempts++;
+        } catch {}
+      }
       var profileContext = "ctx";
       try {
         profileContext =
@@ -183,6 +211,8 @@
           },
           styleFailures: profileStyleFailures,
           styleFailuresLimited: profileStyleFailuresLimited,
+          styleWrites: profileStyleWrites,
+          styleWritesLimited: profileStyleWritesLimited,
         };
         var output = "";
         try {
@@ -192,6 +222,9 @@
         profileMeasured = false;
         profileReportCount++;
         profileStyleFailures = [];
+        profileStyleWrites = [];
+        profileStyleWriteLookup = Object.create(null);
+        profileStyleWritesLimited = false;
         profileStyle.cacheHits = 0;
         profileStyle.writes = 0;
         profileStyle.invalidPanels = 0;
@@ -260,6 +293,7 @@
         ["wrap"]: profileWrap,
         ["style"]: profileStyle,
         ["styleError"]: profileStyleError,
+        ["styleWrite"]: profileStyleWrite,
       });
     }
   }

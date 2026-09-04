@@ -42,7 +42,9 @@
     return "";
   }
 
-  function writeNativeStyle(panel, property, value) {
+  function writeNativeStyle(panel, property, value, reason) {
+    if (styleProfile && styleProfile.active)
+      profiler["styleWrite"](panel, property, value, reason);
     try {
       panel.style[property] = value;
       if (styleProfile && styleProfile.active) styleProfile.writes++;
@@ -62,10 +64,10 @@
       var sibling = siblings[index];
       values[index] = sibling === property ? "" : String(panel.style[sibling] || "");
     }
-    writeNativeStyle(panel, base, null);
+    writeNativeStyle(panel, base, null, "aliasRestore");
     for (var restoreIndex = 0; restoreIndex < siblings.length; restoreIndex++) {
       if (values[restoreIndex] !== "")
-        writeNativeStyle(panel, siblings[restoreIndex], values[restoreIndex]);
+        writeNativeStyle(panel, siblings[restoreIndex], values[restoreIndex], "aliasRestore");
     }
   }
 
@@ -856,7 +858,8 @@
           clearStyleAlias(panel, property, aliasBase);
         }
       } else {
-        writeNativeStyle(panel, property, value === "" ? null : value);
+        writeNativeStyle(panel, property, value === "" ? null : value,
+          !cache ? "uncached" : cache[cacheKey] === value ? "nativeMismatch" : "valueChange");
       }
       if (cache) cache[cacheKey] = value;
     } catch {
