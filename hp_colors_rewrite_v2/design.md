@@ -8,6 +8,8 @@ The engine owns `UnitHealthbarContainer.width` and `max-width`. Rewrite never wr
 
 Do not derive alignment from pip count, `maxhp_segment_*` classes, fill width, or health percentage. Those values describe health state, not the rendered bar boundary.
 
+While customization is active, write X/Y translation explicitly, including zero after Layout Reset. Clearing the inline transform can defer the visible reset until another layout update. Restore the captured stock transform only when releasing ownership.
+
 ## HP readout stacking
 
 `#hp_counter_container` and `#UnitStatus` are root siblings. The counter container appears first in XML, so its own `z-index: 30` raises both HP labels above the later stock panel. Keep the stacking value on the sibling container. A child label or `#hp_counter_anchor` cannot reliably escape its parent's sibling layer.
@@ -18,11 +20,13 @@ The level badge and `#UnitInfoContainer` have independent X/Y offsets. Width sca
 
 ```text
 scaleOffsetX = (825 - liveBarWidth × scaleX) / 2
-anchorOffsetX = scaleOffsetX + (anchored ? positionX × scaleX : 0)
+anchorOffsetX = scaleOffsetX + (anchored ? positionX : 0)
 levelMarginLeft = 422.5 + anchorOffsetX + levelOffsetX × widthScale / 100
 ultimateMarginLeft = 422.5 + anchorOffsetX + ultOffsetX × widthScale / 100
 scaleX = 1.1 × widthScale / 100
 ```
+
+`pre-transform-scale2d` scales the bar before its translation. X translation is already in parent pixels; multiplying it by `scaleX` makes the indicators drift as width increases.
 
 The renderer measures the live bar center and each indicator's original center. It also applies vertical scale compensation, so both indicators visibly move as bar height changes. When anchoring is enabled, it converts the center difference into Panorama's centered-margin coordinates, then adds `positionY × 2` and the indicator's own Y offset. When anchoring is disabled, it ignores bar translation but still follows bar scale.
 
@@ -37,6 +41,10 @@ The kill marker remains a child of `UnitHealthbarContainer`. Its threshold uses 
 ## Runtime cost
 
 Bar width is sampled in the existing health pass. A changed width marks that bar dirty; cached style writes suppress unchanged assignments. Production contains no geometry traversal, geometry formatter, or `[DEBUG-HPV2-CENTER]` output.
+
+`resolveParts()` resolves the nearest bar ancestors in one guarded walk, retaining the eight-level ID and twelve-level WindowRoot limits. Child discovery still runs on each scan so reparenting, replacement, and late panels remain detectable. Scan and paint cadence are unchanged.
+
+`applyBarGeometry()` owns bar scale/translation and indicator alignment inside the renderer script. It samples the vertical bar center once for both indicators and does not allocate a geometry result object.
 
 ## Package
 

@@ -146,8 +146,11 @@ function loadSettingsContract() {
 function loadFactory() {
   const context = { $: {} };
   vm.runInNewContext(contractSource, context, { filename: contractPath });
+  const retainedGlobals = Object.keys(context.$).filter(
+    key => key !== 'HPColorsV2ContractFactory',
+  );
   vm.runInNewContext(stateSource, context, { filename: statePath });
-  assert.deepEqual(Object.keys(context.$), ['HPColorsV2StateFactory']);
+  assert.deepEqual(Object.keys(context.$), retainedGlobals.concat('HPColorsV2StateFactory'));
   const factory = context.$.HPColorsV2StateFactory;
   assert.equal(Object.isFrozen(factory), true);
   assert.deepEqual(Object.getOwnPropertyNames(factory), ['create']);
@@ -1266,31 +1269,89 @@ test('reset and preset-remove confirmation tokens are shared, single-use, and st
   const resetRequest = send(state, 'reset_request', { keys: ['enemyLow'] });
   assert.equal(resetRequest.status, 'committed');
   const resetToken = resetRequest.view.transactions.confirmation.token;
-  assert.equal(typeof resetToken, 'string');
   assert.equal(resetRequest.view.values.enemyLow, '#112233');
+
+  const canceled = send(state, 'reset_cancel', { token: resetToken });
+  assert.equal(canceled.status, 'committed');
+  assert.equal(canceled.view.transactions.confirmation, null);
+  assert.equal(canceled.view.values.enemyLow, before.values.enemyLow);
+
+  const resetReplay = send(state, 'reset_request', { keys: ['enemyLow'] });
+  const resetReplayToken = resetReplay.view.transactions.confirmation.token;
+  assert.notEqual(resetReplayToken, resetToken);
+  const staleReset = send(state, 'reset_confirm', { token: resetToken });
+  assert.equal(staleReset.status, 'rejected');
+  assert.equal(staleReset.code, 'INVALID_CONFIRMATION');
+  assert.equal(
+    staleReset.view.transactions.confirmation.token,
+    resetReplayToken,
+  );
+  assert.equal(staleReset.view.values.enemyLow, before.values.enemyLow);
+
+  const confirmedReset = send(state, 'reset_confirm', {
+    token: resetReplayToken,
+  });
+  assert.equal(confirmedReset.status, 'committed');
+  assert.equal(confirmedReset.view.values.enemyLow, DEFAULTS.enemyLow);
+  assert.equal(confirmedReset.view.transactions.confirmation, null);
+  assert.equal(
+    send(state, 'reset_confirm', { token: resetReplayToken }).status,
+    'rejected',
+  );
 
   const removeRequest = send(state, 'preset_remove_request', {
     id: 'user_0001',
   });
   const removeToken = removeRequest.view.transactions.confirmation.token;
-  assert.notEqual(removeToken, resetToken);
+  const removeCanceled = send(state, 'preset_remove_cancel', {
+    token: removeToken,
+  });
+  assert.equal(removeCanceled.status, 'committed');
+  assert.equal(removeCanceled.view.transactions.confirmation, null);
   assert.equal(
-    send(state, 'reset_confirm', { token: resetToken }).status,
-    'rejected',
+    removeCanceled.view.repository.allRows.some(
+      (candidate) => candidate.id === 'user_0001',
+    ),
+    true,
   );
-  assert.equal(state.read().values.enemyLow, before.values.enemyLow);
+  const removeReplay = send(state, 'preset_remove_request', {
+    id: 'user_0001',
+  });
+  const removeReplayToken =
+    removeReplay.view.transactions.confirmation.token;
+  assert.notEqual(removeReplayToken, removeToken);
 
-  const removed = send(state, 'preset_remove_confirm', { token: removeToken });
-  assert.equal(removed.view.repository.allRows.some((candidate) => candidate.id === 'user_0001'), false);
+  const staleRemove = send(state, 'preset_remove_confirm', {
+    token: removeToken,
+  });
+  assert.equal(staleRemove.status, 'rejected');
+  assert.equal(staleRemove.code, 'INVALID_CONFIRMATION');
+  assert.equal(
+    staleRemove.view.transactions.confirmation.token,
+    removeReplayToken,
+  );
+  assert.equal(
+    staleRemove.view.repository.allRows.some(
+      (candidate) => candidate.id === 'user_0001',
+    ),
+    true,
+  );
+
+  const removed = send(state, 'preset_remove_confirm', {
+    token: removeReplayToken,
+  });
+  assert.equal(
+    removed.view.repository.allRows.some(
+      (candidate) => candidate.id === 'user_0001',
+    ),
+    false,
+  );
   assert.equal(removed.view.repository.selectedId, null);
   assert.equal(removed.view.transactions.confirmation, null);
-
-  const resetAgain = send(state, 'reset_request', { keys: ['enemyLow'] });
-  const token = resetAgain.view.transactions.confirmation.token;
-  const canceled = send(state, 'reset_cancel', { token });
-  assert.equal(canceled.view.transactions.confirmation, null);
-  assert.equal(canceled.view.values.enemyLow, '#112233');
-  assert.equal(send(state, 'reset_confirm', { token }).status, 'rejected');
+  assert.equal(
+    send(state, 'preset_remove_confirm', { token: removeReplayToken }).status,
+    'rejected',
+  );
 });
 
 test('repository keeps baked rows first, selection inert, IDs monotonic, and updates in place', () => {
@@ -1668,6 +1729,30 @@ test('views are deeply frozen and reuse unchanged sections across no-op and live
   });
   assert.equal(noOp.view, changed.view);
   assert.equal(state.read(), changed.view);
+
+  const scoped = createState(
+    makeSession({
+      scopes: [
+        {
+          id: 'scope_current',
+          mode: 'selected',
+          heroes: ['hero_haze'],
+          values: { enemyLow: '#101010' },
+          conditions: {},
+        },
+      ],
+      userPresets: [rawPreset({ id: 'user_0001', name: 'Haze' })],
+    }),
+  );
+  const scopedInitial = scoped.read();
+  assertDeepFrozen(scopedInitial.currentScope);
+
+  const scopedSelected = send(scoped, 'preset_select', {
+    id: 'user_0001',
+  });
+  assert.equal(scopedSelected.view.scopes, scopedInitial.scopes);
+  assert.equal(scopedSelected.view.currentScope, scopedInitial.currentScope);
+  assertDeepFrozen(scopedSelected.view);
 });
 
 test('editor close clears interactions but keeps runtime conditions observable', () => {

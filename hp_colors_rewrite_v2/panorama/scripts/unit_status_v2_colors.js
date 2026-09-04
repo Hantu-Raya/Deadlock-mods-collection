@@ -23,6 +23,51 @@
   var settingsContract = $.HPColorsV2ContractFactory.create();
   delete $.HPColorsV2ContractFactory;
   var normalizeConfig = settingsContract.normalizeValues;
+  var profiler = $["HPColorsV2Profile"];
+  var styleProfile = profiler && profiler["style"];
+  var STYLE_ALIAS_GROUPS = {
+    margin: ["marginTop", "marginRight", "marginBottom", "marginLeft"],
+    font: ["fontFamily", "fontSize", "fontStyle", "fontWeight", "fontStretch"],
+    animation: ["animationName", "animationDuration", "animationTimingFunction",
+      "animationDelay", "animationIterationCount", "animationDirection", "animationFillMode", "animationFrameTime"],
+    border: ["borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+      "borderTopStyle", "borderRightStyle", "borderBottomStyle", "borderLeftStyle"],
+  };
+
+  function styleAliasBase(property) {
+    if (property === "marginLeft" || property === "marginTop") return "margin";
+    if (property === "fontSize" || property === "fontFamily") return "font";
+    if (property === "animationDuration") return "animation";
+    if (property === "borderColor") return "border";
+    return "";
+  }
+
+  function writeNativeStyle(panel, property, value) {
+    try {
+      panel.style[property] = value;
+      if (styleProfile && styleProfile.active) styleProfile.writes++;
+    } catch (error) {
+      if (styleProfile && styleProfile.active) {
+        styleProfile.writeErrors++;
+        profiler["styleError"](panelId(panel), property, value, error);
+      }
+      throw error;
+    }
+  }
+
+  function clearStyleAlias(panel, property, base) {
+    var siblings = STYLE_ALIAS_GROUPS[base];
+    var values = [];
+    for (var index = 0; index < siblings.length; index++) {
+      var sibling = siblings[index];
+      values[index] = sibling === property ? "" : String(panel.style[sibling] || "");
+    }
+    writeNativeStyle(panel, base, null);
+    for (var restoreIndex = 0; restoreIndex < siblings.length; restoreIndex++) {
+      if (values[restoreIndex] !== "")
+        writeNativeStyle(panel, siblings[restoreIndex], values[restoreIndex]);
+    }
+  }
 
   /* Values mirrored from the current stock unit_status.css relation rules. */
   var STOCK_TEAM1_COLOR = "#E7B659";
@@ -129,18 +174,6 @@
     }
   }
 
-  function findAncestor(panel, id) {
-    var current = panel;
-    for (var depth = 0; current && depth < 8; depth++) {
-      if (panelId(current) === id) return current;
-      try {
-        current = current.GetParent ? current.GetParent() : null;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
 
   function absoluteRoot(panel) {
     var current = panel;
@@ -326,11 +359,32 @@
 
 
   function resolveParts(activeParent) {
-    var container = findAncestor(activeParent, "UnitHealthbarContainer");
-    var infoHealth = findAncestor(activeParent, "InfoHealthContainer");
-    var unitStatus = findAncestor(activeParent, "UnitStatus");
-    var windowRoot = findAncestorWithClass(activeParent, "WindowRoot");
-    var healthbars = findAncestor(activeParent, "UnitHealthbarsContainer");
+    var container = null;
+    var infoHealth = null;
+    var unitStatus = null;
+    var healthbars = null;
+    var windowRoot = null;
+    var current = activeParent;
+    for (var depth = 0; current && depth < 12; depth++) {
+      if (depth < 8) {
+        var id = panelId(current);
+        if (!container && id === "UnitHealthbarContainer")
+          container = current;
+        if (!infoHealth && id === "InfoHealthContainer") infoHealth = current;
+        if (!unitStatus && id === "UnitStatus") unitStatus = current;
+        if (!healthbars && id === "UnitHealthbarsContainer")
+          healthbars = current;
+      }
+      if (!windowRoot && hasClass(current, "WindowRoot"))
+        windowRoot = current;
+      if (container && infoHealth && unitStatus && healthbars && windowRoot)
+        break;
+      try {
+        current = current.GetParent ? current.GetParent() : null;
+      } catch {
+        break;
+      }
+    }
     return {
       windowRoot: windowRoot,
       container: container,
@@ -357,6 +411,7 @@
       ultIcon: findWithin(infoHealth, "unit_ult_ready_icon"),
     };
   }
+
 
   function isDescendantOf(panel, ancestor) {
     if (!panel || !ancestor) return true;
@@ -485,8 +540,8 @@
     panelKey,
     centerKey,
     baseMargin,
+    targetCenter,
   ) {
-    var targetCenter = visibleBarCenterY(bar);
     try {
       var panelHeight = Number(panel.actuallayoutheight);
       var panelTop = Number(panel.actualyoffset);
@@ -780,6 +835,7 @@
 
   function setStyle(panel, property, value, cache, cacheKey) {
     if (!isValid(panel) || !panel.style) {
+      if (styleProfile && styleProfile.active) styleProfile.invalidPanels++;
       if (cache) cache[cacheKey] = null;
       return;
     }
@@ -787,10 +843,21 @@
       cache &&
       cache[cacheKey] === value &&
       styleMatches(panel, property, value)
-    )
+    ) {
+      if (styleProfile && styleProfile.active) styleProfile.cacheHits++;
       return;
+    }
     try {
-      panel.style[property] = value === "" ? null : value;
+      var aliasBase = value === "" ? styleAliasBase(property) : "";
+      if (aliasBase) {
+        if (String(panel.style[property] || "") === "") {
+          if (styleProfile && styleProfile.active) styleProfile.cacheHits++;
+        } else {
+          clearStyleAlias(panel, property, aliasBase);
+        }
+      } else {
+        writeNativeStyle(panel, property, value === "" ? null : value);
+      }
       if (cache) cache[cacheKey] = value;
     } catch {
       if (cache) cache[cacheKey] = null;
@@ -1037,12 +1104,6 @@
         oldParts.healthbars,
         oldBaseline.healthbars,
         ["transform", "transformOrigin", "preTransformScale2d"],
-      ),
-      unitStatus: retainPanelBaseline(
-        parts.unitStatus,
-        oldParts.unitStatus,
-        oldBaseline.unitStatus,
-        ["transform"],
       ),
       levelContainer: retainPanelBaseline(
         parts.levelContainer,
@@ -1669,6 +1730,144 @@
   }
 
 
+  function applyBarGeometry(bar, panelBaseline) {
+    var segmentScaleActive =
+      config.widthScale !== 100 || config.heightScale !== 100;
+    var segmentScaleX =
+      Math.round(SEGMENT_BASE_SCALE * config.widthScale) / 100;
+    var segmentScaleY =
+      Math.round(SEGMENT_BASE_SCALE * config.heightScale) / 100;
+    var segmentScale = String(segmentScaleX) + ", " + String(segmentScaleY);
+    var segmentTransform =
+      "translateX(" +
+      String(config.positionX) +
+      "px) translateY(" +
+      String(config.positionY) +
+      "px)";
+    var liveBarWidth =
+      bar.sampleBarWidth || readPanelWidthRaw(bar.parts.container);
+    if (liveBarWidth <= 0) liveBarWidth = BASE_HEALTHBAR_WIDTH;
+    var accessoryScaleOffsetX =
+      (BASE_HEALTHBAR_WIDTH * SEGMENT_BASE_SCALE -
+        liveBarWidth * segmentScaleX) /
+      2;
+    var accessoryAnchorOffsetX =
+      accessoryScaleOffsetX +
+      (config.accessoryAnchorEnabled ? config.positionX : 0);
+    var levelBaseMarginTop = LEVEL_BASE_MARGIN_TOP;
+    var unitInfoBaseMarginTop = 0;
+    var visibleCenter = config.accessoryAnchorEnabled
+      ? visibleBarCenterY(bar)
+      : null;
+    if (config.accessoryAnchorEnabled) {
+      levelBaseMarginTop = alignedAccessoryMarginTop(
+        bar,
+        bar.parts.levelContainer,
+        "levelAnchorPanel",
+        "levelAnchorCenterY",
+        LEVEL_BASE_MARGIN_TOP,
+        visibleCenter,
+      );
+      unitInfoBaseMarginTop = alignedAccessoryMarginTop(
+        bar,
+        bar.parts.unitInfo,
+        "unitInfoAnchorPanel",
+        "unitInfoAnchorCenterY",
+        0,
+        visibleCenter,
+      );
+    }
+    var accessoryScaleOffsetY =
+      -ACCESSORY_SCALE_CENTER_Y * (segmentScaleY - SEGMENT_BASE_SCALE);
+    // Panorama splits a centered panel's vertical margin across both sides.
+    var accessoryAnchorOffsetY = config.accessoryAnchorEnabled
+      ? config.positionY * 2
+      : 0;
+    var accessoryAnchorMarginLeft =
+      ACCESSORY_BASE_MARGIN_LEFT + accessoryAnchorOffsetX;
+    var accessoryWidthFactor = config.widthScale / 100;
+    var levelMarginLeft = pixels(
+      accessoryAnchorMarginLeft + config.levelOffsetX * accessoryWidthFactor,
+    );
+    var unitInfoMarginLeft = pixels(
+      accessoryAnchorMarginLeft + config.ultOffsetX * accessoryWidthFactor,
+    );
+    var levelMarginTop = pixels(
+      levelBaseMarginTop +
+        accessoryScaleOffsetY +
+        accessoryAnchorOffsetY +
+        config.levelOffsetY,
+    );
+    var unitInfoMarginTop = pixels(
+      unitInfoBaseMarginTop +
+        accessoryScaleOffsetY +
+        accessoryAnchorOffsetY +
+        config.ultOffsetY,
+    );
+    setOptionalOwnedStyle(
+      bar.parts.healthbars,
+      "preTransformScale2d",
+      segmentScaleActive,
+      segmentScale,
+      baselineStyle(panelBaseline.healthbars, "preTransformScale2d"),
+      bar.applied,
+      "segmentPreTransformScale2d",
+    );
+    setOptionalOwnedStyle(
+      bar.parts.healthbars,
+      "transformOrigin",
+      segmentScaleActive,
+      segmentTransformOrigin(bar),
+      baselineStyle(panelBaseline.healthbars, "transformOrigin"),
+      bar.applied,
+      "segmentTransformOrigin",
+    );
+    // Write zero explicitly on reset; clearing can wait for a later layout pass.
+    setStyle(
+      bar.parts.healthbars,
+      "transform",
+      segmentTransform,
+      bar.applied,
+      "segmentTransform",
+    );
+    setOptionalOwnedStyle(
+      bar.parts.levelContainer,
+      "marginLeft",
+      true,
+      levelMarginLeft,
+      baselineStyle(panelBaseline.levelContainer, "marginLeft"),
+      bar.applied,
+      "levelAnchorMarginLeft",
+    );
+    setOptionalOwnedStyle(
+      bar.parts.levelContainer,
+      "marginTop",
+      true,
+      levelMarginTop,
+      baselineStyle(panelBaseline.levelContainer, "marginTop"),
+      bar.applied,
+      "levelAnchorMarginTop",
+    );
+    setOptionalOwnedStyle(
+      bar.parts.unitInfo,
+      "marginLeft",
+      true,
+      unitInfoMarginLeft,
+      baselineStyle(panelBaseline.unitInfo, "marginLeft"),
+      bar.applied,
+      "unitInfoAnchorMarginLeft",
+    );
+    setOptionalOwnedStyle(
+      bar.parts.unitInfo,
+      "marginTop",
+      true,
+      unitInfoMarginTop,
+      baselineStyle(panelBaseline.unitInfo, "marginTop"),
+      bar.applied,
+      "unitInfoAnchorMarginTop",
+    );
+  }
+
   function applyActiveCustomization(bar, role, panelBaseline) {
     var roleEnabled = role === "enemy" ? config.enemyEnabled : config.allyEnabled;
     var colorsEnabled = roleEnabled;
@@ -1839,76 +2038,6 @@
         config.enemyVisible &&
         !(pulseActive && config.enemyPulseHideBar),
     );
-    var segmentScaleActive =
-      config.widthScale !== 100 || config.heightScale !== 100;
-    var segmentScaleX =
-      Math.round(SEGMENT_BASE_SCALE * config.widthScale) / 100;
-    var segmentScaleY =
-      Math.round(SEGMENT_BASE_SCALE * config.heightScale) / 100;
-    var segmentScale = String(segmentScaleX) + ", " + String(segmentScaleY);
-    var segmentPositionActive =
-      config.positionX !== 0 || config.positionY !== 0;
-    var segmentTransform =
-      "translateX(" +
-      String(config.positionX) +
-      "px) translateY(" +
-      String(config.positionY) +
-      "px)";
-    var liveBarWidth =
-      bar.sampleBarWidth || readPanelWidthRaw(bar.parts.container);
-    if (liveBarWidth <= 0) liveBarWidth = BASE_HEALTHBAR_WIDTH;
-    var accessoryScaleOffsetX =
-      (BASE_HEALTHBAR_WIDTH * SEGMENT_BASE_SCALE -
-        liveBarWidth * segmentScaleX) /
-      2;
-    var accessoryAnchorOffsetX =
-      accessoryScaleOffsetX +
-      (config.accessoryAnchorEnabled ? config.positionX * segmentScaleX : 0);
-    var levelBaseMarginTop = LEVEL_BASE_MARGIN_TOP;
-    var unitInfoBaseMarginTop = 0;
-    if (config.accessoryAnchorEnabled) {
-      levelBaseMarginTop = alignedAccessoryMarginTop(
-        bar,
-        bar.parts.levelContainer,
-        "levelAnchorPanel",
-        "levelAnchorCenterY",
-        LEVEL_BASE_MARGIN_TOP,
-      );
-      unitInfoBaseMarginTop = alignedAccessoryMarginTop(
-        bar,
-        bar.parts.unitInfo,
-        "unitInfoAnchorPanel",
-        "unitInfoAnchorCenterY",
-        0,
-      );
-    }
-    var accessoryScaleOffsetY =
-      -ACCESSORY_SCALE_CENTER_Y * (segmentScaleY - SEGMENT_BASE_SCALE);
-    // Panorama splits a centered panel's vertical margin across both sides.
-    var accessoryAnchorOffsetY = config.accessoryAnchorEnabled
-      ? config.positionY * 2
-      : 0;
-    var accessoryAnchorMarginLeft =
-      ACCESSORY_BASE_MARGIN_LEFT + accessoryAnchorOffsetX;
-    var accessoryWidthFactor = config.widthScale / 100;
-    var levelMarginLeft = pixels(
-      accessoryAnchorMarginLeft + config.levelOffsetX * accessoryWidthFactor,
-    );
-    var unitInfoMarginLeft = pixels(
-      accessoryAnchorMarginLeft + config.ultOffsetX * accessoryWidthFactor,
-    );
-    var levelMarginTop = pixels(
-      levelBaseMarginTop +
-        accessoryScaleOffsetY +
-        accessoryAnchorOffsetY +
-        config.levelOffsetY,
-    );
-    var unitInfoMarginTop = pixels(
-      unitInfoBaseMarginTop +
-        accessoryScaleOffsetY +
-        accessoryAnchorOffsetY +
-        config.ultOffsetY,
-    );
     var opacity =
       bar.isGhoul && config.ghoulOpacityEnabled
         ? config.ghoulOpacity <= 1
@@ -1962,69 +2091,7 @@
       bar.applied,
       "ultWashColor",
     );
-    setOptionalOwnedStyle(
-      bar.parts.healthbars,
-      "preTransformScale2d",
-      segmentScaleActive,
-      segmentScale,
-      baselineStyle(panelBaseline.healthbars, "preTransformScale2d"),
-      bar.applied,
-      "segmentPreTransformScale2d",
-    );
-    setOptionalOwnedStyle(
-      bar.parts.healthbars,
-      "transformOrigin",
-      segmentScaleActive,
-      segmentTransformOrigin(bar),
-      baselineStyle(panelBaseline.healthbars, "transformOrigin"),
-      bar.applied,
-      "segmentTransformOrigin",
-    );
-    setOptionalOwnedStyle(
-      bar.parts.healthbars,
-      "transform",
-      segmentPositionActive,
-      segmentTransform,
-      baselineStyle(panelBaseline.healthbars, "transform"),
-      bar.applied,
-      "segmentTransform",
-    );
-    setOptionalOwnedStyle(
-      bar.parts.levelContainer,
-      "marginLeft",
-      true,
-      levelMarginLeft,
-      baselineStyle(panelBaseline.levelContainer, "marginLeft"),
-      bar.applied,
-      "levelAnchorMarginLeft",
-    );
-    setOptionalOwnedStyle(
-      bar.parts.levelContainer,
-      "marginTop",
-      true,
-      levelMarginTop,
-      baselineStyle(panelBaseline.levelContainer, "marginTop"),
-      bar.applied,
-      "levelAnchorMarginTop",
-    );
-    setOptionalOwnedStyle(
-      bar.parts.unitInfo,
-      "marginLeft",
-      true,
-      unitInfoMarginLeft,
-      baselineStyle(panelBaseline.unitInfo, "marginLeft"),
-      bar.applied,
-      "unitInfoAnchorMarginLeft",
-    );
-    setOptionalOwnedStyle(
-      bar.parts.unitInfo,
-      "marginTop",
-      true,
-      unitInfoMarginTop,
-      baselineStyle(panelBaseline.unitInfo, "marginTop"),
-      bar.applied,
-      "unitInfoAnchorMarginTop",
-    );
+    applyBarGeometry(bar, panelBaseline);
 
     setReadoutVisibility(
       bar,
@@ -2593,10 +2660,44 @@
     reconcileBars();
     scanJob = $.Schedule(SCAN_INTERVAL_SEC, scan);
   }
+  if (profiler && typeof profiler["wrap"] === "function") {
+    resolveParts = profiler["wrap"]("resolveParts", resolveParts);
+    sampleHealthPercent = profiler["wrap"](
+      "sampleHealthPercent",
+      sampleHealthPercent,
+    );
+    applyBarGeometry = profiler["wrap"](
+      "applyBarGeometry",
+      applyBarGeometry,
+    );
+    applyCustomization = profiler["wrap"](
+      "applyCustomization",
+      applyCustomization,
+    );
+    syncPulse = profiler["wrap"]("syncPulse", syncPulse);
+    setStyle = profiler["wrap"]("setStyle", setStyle);
+    setOptionalOwnedStyle = profiler["wrap"]("setOptionalOwnedStyle", setOptionalOwnedStyle);
+    formatReadout = profiler["wrap"]("formatReadout", formatReadout);
+    applyKillMarker = profiler["wrap"]("applyKillMarker", applyKillMarker);
+    applyReadoutDecorations = profiler["wrap"](
+      "applyReadoutDecorations",
+      applyReadoutDecorations,
+    );
+    restoreInactiveCustomization = profiler["wrap"](
+      "restoreInactiveCustomization",
+      restoreInactiveCustomization,
+    );
+    inspectRootConfig = profiler["wrap"](
+      "inspectRootConfig",
+      inspectRootConfig,
+    );
+    reconcileBars = profiler["wrap"]("reconcileBars", reconcileBars);
+    paintColors = profiler["wrap"]("paintColors", paintColors);
+    scan = profiler["wrap"]("scan", scan);
+  }
   try {
     eventHandlerId = $.RegisterForUnhandledEvent(EVENT_CHANNEL, onConfigEvent);
   } catch (error) {}
-  inspectRootConfig();
   scan();
   paintColors();
 })();

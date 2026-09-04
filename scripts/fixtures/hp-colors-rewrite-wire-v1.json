@@ -916,6 +916,68 @@
       ],
       "retired": false,
       "conditionEligible": true
+    },
+    {
+      "slot": 7,
+      "key": "accessoryAnchorEnabled",
+      "codecDefault": true,
+      "type": "boolean",
+      "bounds": null,
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 8,
+      "key": "ultOffsetX",
+      "codecDefault": 0,
+      "type": "number",
+      "bounds": [
+        -300,
+        300
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 9,
+      "key": "ultOffsetY",
+      "codecDefault": 0,
+      "type": "number",
+      "bounds": [
+        -200,
+        200
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 10,
+      "key": "levelOffsetX",
+      "codecDefault": 0,
+      "type": "number",
+      "bounds": [
+        -300,
+        300
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
+    },
+    {
+      "slot": 11,
+      "key": "levelOffsetY",
+      "codecDefault": 0,
+      "type": "number",
+      "bounds": [
+        -200,
+        200
+      ],
+      "enum": null,
+      "retired": false,
+      "conditionEligible": true
     }
   ]
 }

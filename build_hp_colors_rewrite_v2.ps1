@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$SkipDeploy
+    [switch]$SkipDeploy,
+    [switch]$Profile
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,7 +27,8 @@ $validators = @(
     (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-baseline.test.js'),
     (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-editor.test.js'),
     (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-parity.test.js'),
-    (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-state.test.js')
+    (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-state.test.js'),
+    (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-profile.test.js')
 )
 
 $assetManifest = @(
@@ -103,7 +105,8 @@ try {
     Invoke-HpColorsRewriteClosureAdvanced `
         -StageSourceRoot $compileStageSource `
         -ScriptRelativePaths $rewriteScripts `
-        -WorkRoot $compileStageRoot
+        -WorkRoot $compileStageRoot `
+        -Profile:$Profile
     Invoke-HpColorsRewriteClosureTests -RepositoryRoot $root -SourceRoot $compileStageSource
 
 

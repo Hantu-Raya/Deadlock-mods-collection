@@ -375,6 +375,13 @@ function setMissingValue(values, key, value) {
   if (!Object.hasOwn(values, key)) values[key] = value;
 }
 
+function translation(transform) {
+  if (!transform || transform === 'none') return [0, 0];
+  const match = /^translateX\((-?[\d.]+)px\) translateY\((-?[\d.]+)px\)$/.exec(transform);
+  assert.ok(match, `unsupported translation: ${transform}`);
+  return [Number(match[1]), Number(match[2])];
+}
+
 function makeStatusFixture(
   role,
   values,
@@ -1033,6 +1040,40 @@ test('v2 scopes duplicate healthbar IDs to its own WindowRoot instance', () => {
   assert.equal(fixture.siblingFill.style.washColor, '');
 });
 
+test('v2 refreshes nearest bar ancestors after active-parent reparent', () => {
+  const fixture = makeStatusFixture('enemy', {
+    enabled: true,
+    enemyColor: '#123456',
+    widthScale: 230,
+  });
+  const replacement = fixture.healthbars.add(
+    new MockPanel('UnitHealthbarContainer', {
+      actuallayoutwidth: 500,
+      actuallayoutheight: 120,
+      findCounts: fixture.harness.findCounts,
+      operationCounts: fixture.harness.operationCounts,
+    }),
+  );
+  const replacementBackground = replacement.add(
+    new MockPanel('unit_healthbar_bg', {
+      findCounts: fixture.harness.findCounts,
+      operationCounts: fixture.harness.operationCounts,
+    }),
+  );
+  const replacementMissing = replacementBackground.add(
+    new MockPanel('unit_healthbar_missing', {
+      findCounts: fixture.harness.findCounts,
+      operationCounts: fixture.harness.operationCounts,
+    }),
+  );
+  fixture.activeParent.SetParent(replacementMissing);
+
+  fixture.harness.scheduler.runByDelay(1);
+
+  assert.equal(fixture.levelContainer.style.marginLeft, '202.5px');
+  assert.equal(fixture.unitInfo.style.marginLeft, '202.5px');
+});
+
 test('v2 rejects ambiguous relation ownership and restores stock styles', () => {
   const fixture = makeStatusFixture('ambiguous', {
     enabled: true,
@@ -1105,7 +1146,7 @@ test('v2 restores every owned bar value before dropping a live bar', () => {
   assert.equal(fixture.fill.style.washColor, '#FD4949');
   assert.equal(fixture.healthbars.style.preTransformScale2d, '');
   assert.equal(fixture.healthbars.style.transformOrigin, '');
-  assert.equal(fixture.healthbars.style.transform, '');
+  assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbar.style.height, stock.height);
   assert.equal(fixture.healthbar.style.transform, stock.transform);
   assert.equal(
@@ -1235,7 +1276,7 @@ test('v2 scales the max-HP segment container without changing the live bar', () 
     heightScale: 160,
   });
 
-  assert.equal(fixture.healthbars.style.transform, '');
+  assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.53, 1.76');
   assert.equal(fixture.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(fixture.healthbar.style.width, '');
@@ -1297,7 +1338,7 @@ test('v2 overview layout reset applies immediately to an existing bar', () => {
     positionY: 0,
   });
 
-  assert.equal(fixture.healthbars.style.transform, '');
+  assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbars.style.preTransformScale2d, '');
   assert.equal(fixture.healthbars.style.transformOrigin, '');
   assert.equal(fixture.healthbar.style.width, stock.width);
@@ -1370,7 +1411,7 @@ test('v2 late optional panel discovery cannot contaminate the stock layout basel
     positionY: 0,
   });
 
-  assert.equal(fixture.healthbars.style.transform, '');
+  assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbars.style.preTransformScale2d, '');
   assert.equal(fixture.healthbars.style.transformOrigin, '');
   assert.equal(fixture.healthbar.style.height, stock.height);
@@ -1428,7 +1469,7 @@ test('v2 layout reset survives an incomplete required-part refresh', () => {
 
   assert.equal(fixture.healthbars.style.preTransformScale2d, '');
   assert.equal(fixture.healthbars.style.transformOrigin, '');
-  assert.equal(fixture.healthbars.style.transform, '');
+  assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbar.style.preTransformScale2d, '');
   assert.equal(fixture.healthbar.style.transformOrigin, '');
   assert.equal(fixture.healthbar.style.height, '');
@@ -1452,51 +1493,6 @@ test('v2 scan repairs custom scale without touching engine-owned width', () => {
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.53, 1.1');
 });
 
-test('v2 resets inline layout styles through the Panorama null-clear path', () => {
-  const fixture = makeStatusFixture('enemy', {
-    enabled: true,
-    enemyColor: '#123456',
-    widthScale: 230,
-    heightScale: 160,
-    positionX: 300,
-    positionY: 200,
-  });
-  for (const panel of [
-    fixture.healthbars,
-    fixture.healthbar,
-    fixture.unitStatus,
-  ]) {
-    const values = { ...panel.style };
-    panel.style = new Proxy(values, {
-      set(target, property, value) {
-        if (value === '') return true;
-        if (value === null) delete target[property];
-        else target[property] = value;
-        return true;
-      },
-    });
-  }
-
-  dispatchColorSnapshot(fixture, 2, {
-    enabled: true,
-    enemyColor: '#123456',
-    widthScale: 100,
-    heightScale: 100,
-    positionX: 0,
-    positionY: 0,
-  });
-
-  assert.equal(fixture.healthbars.style.transform, undefined);
-  assert.equal(fixture.healthbars.style.preTransformScale2d, undefined);
-  assert.equal(fixture.healthbars.style.transformOrigin, undefined);
-  assert.equal(fixture.healthbar.style.preTransformScale2d, '');
-  assert.equal(fixture.healthbar.style.transformOrigin, '');
-  assert.equal(fixture.healthbar.style.width, '');
-  assert.equal(fixture.healthbar.style.maxWidth, '');
-  assert.equal(fixture.healthbar.style.marginLeft, undefined);
-  assert.equal(fixture.healthbar.style.marginBottom, undefined);
-  assert.equal(fixture.unitStatus.style.transform, '');
-});
 
 
 test('v2 ally bar reset applies immediately to an existing bar', () => {
@@ -1605,7 +1601,7 @@ test('v2 centers the complete segment surface as its width changes', () => {
     },
   );
   fixture.healthbars.AddClass('maxhp_segment_1');
-  assert.equal(fixture.healthbars.style.transform, '');
+  assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.53, 1.1');
   assert.equal(fixture.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(fixture.levelContainer.style.marginLeft, '202.5px');
@@ -1626,7 +1622,7 @@ test('v2 centers the complete segment surface as its width changes', () => {
   fixture.healthbars.AddClass('maxhp_segment_2');
   fixture.fill.actuallayoutwidth = 45;
   fixture.harness.scheduler.runNext();
-  assert.equal(fixture.healthbars.style.transform, '');
+  assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.53, 1.1');
   assert.equal(fixture.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(fixture.levelContainer.style.marginLeft, '44.38px');
@@ -1640,7 +1636,7 @@ test('v2 centers the complete segment surface as its width changes', () => {
     enemyColor: '#123456',
     widthScale: 100,
   });
-  assert.equal(fixture.healthbars.style.transform, '');
+  assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbars.style.preTransformScale2d, '');
   assert.equal(fixture.healthbars.style.transformOrigin, '');
   assert.equal(fixture.levelContainer.style.marginLeft, '491.25px');
@@ -1670,6 +1666,49 @@ test('v2 centers the complete segment surface as its width changes', () => {
   assert.equal(fixture.levelContainer.style.marginTop, '');
   assert.equal(fixture.unitInfo.style.marginLeft, '');
   assert.equal(fixture.unitInfo.style.marginTop, '');
+});
+
+test('ally and enemy icons follow bar translation without scaling the offset', () => {
+  for (const role of ['ally', 'enemy']) {
+    const fixture = makeStatusFixture(role, { widthScale: 230 });
+    const initialIconX = parseFloat(fixture.unitInfo.style.marginLeft);
+    const initialLevelX = parseFloat(fixture.levelContainer.style.marginLeft);
+    let revision = 1;
+    for (const positionX of [300, -300, 0]) {
+      dispatchColorSnapshot(fixture, ++revision, { widthScale: 230, positionX });
+      assert.equal(
+        parseFloat(fixture.unitInfo.style.marginLeft) - initialIconX,
+        positionX,
+        `${role} ultimate must translate by the same pixels as the bar`,
+      );
+      assert.equal(
+        parseFloat(fixture.levelContainer.style.marginLeft) - initialLevelX,
+        positionX,
+        `${role} level must translate by the same pixels as the bar`,
+      );
+    }
+  }
+});
+
+test('layout reset replaces a negative rendered translation before another layout update', () => {
+  for (const role of ['ally', 'enemy']) {
+    const fixture = makeStatusFixture(role, { widthScale: 230, positionX: -300 });
+    let renderedTransform = fixture.healthbars.style.transform;
+    const style = fixture.healthbars.style;
+    fixture.healthbars.style = new Proxy(style, {
+      set(target, property, value) {
+        // Clearing an inline style can defer CSS recomputation until layout.
+        if (property === 'transform' && value !== null && value !== '')
+          renderedTransform = value;
+        target[property] = value;
+        return true;
+      },
+    });
+    dispatchColorSnapshot(fixture, 2, {
+      widthScale: 100, heightScale: 100, positionX: 0, positionY: 0,
+    });
+    assert.deepEqual(translation(renderedTransform), [0, 0], role);
+  }
 });
 
 test('indicator geometry stays aligned across scale and anchored offsets', () => {
@@ -1973,7 +2012,7 @@ test('v2 clears ultimate background opacity when customization turns off', () =>
     widthScale: 160,
   });
   assert.equal(fixture.infoBg.style.opacity, '0.01');
-  assert.equal(fixture.healthbars.style.transform, '');
+  assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbars.style.preTransformScale2d, '1.76, 1.1');
   assert.equal(fixture.healthbars.style.transformOrigin, '50% 18.75%');
   assert.equal(fixture.healthbar.style.width, '');
@@ -1983,7 +2022,7 @@ test('v2 clears ultimate background opacity when customization turns off', () =>
 
   dispatchColorSnapshot(fixture, 2, { enabled: false });
   assert.equal(fixture.infoBg.style.opacity, '');
-  assert.equal(fixture.healthbars.style.transform, '');
+  assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbars.style.preTransformScale2d, '');
   assert.equal(fixture.healthbars.style.transformOrigin, '');
   assert.equal(fixture.healthbar.style.width, '');

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Rebuild HP Colors behind small, independently verifiable seams. The current rewrite owns the v1 healthbar renderer, a deep send/read Anita state module, ESC editor adapters, live settings transfer, transient hero identity, session-scoped hero settings, and session preset save/application.
+The rewrite owns the live v2 healthbar renderer, a session-scoped send/read state module, ESC editor adapters, live settings transfer, transient hero identity, scoped settings, and preset save/application.
 
 The layout overrides are based on current stock files in `SteamDatabase/GameTracking-Deadlock/game/citadel/pak01_dir/panorama/layout`. The rewrite changes them only by adding its script/style includes and owned panels.
 
@@ -68,6 +68,8 @@ Implemented source files:
 
 The v1 menu interactions are preserved by source parity. Rewrite v2 still needs a fresh in-game check.
 
+Menu startup resolves panels and creates controls before binding events or publishing settings. Missing controls and thrown creation errors leave startup available for an explicit retry. Repeated boot after success does not republish settings or start duplicate watches.
+
 ## Milestone 3: core healthbar customization
 
 Implemented controls:
@@ -125,11 +127,11 @@ The v1 implementation passed its focused automated and in-game checks before thi
 5. Require neutral and unclassified bars to remain stock.
 6. Require late/replaced bars to receive the current snapshot.
 7. Enable team-high color on both teams; require the stock team color only above the high threshold and the configured high color for unknown-team bars.
-8. Move Bar X Offset and Bar Y Offset through positive, negative, and zero values. With indicator anchoring enabled, require the bar, level badge, and ultimate icon to move together while each indicator keeps its custom offset.
-9. Disable indicator anchoring. Require bar position and width changes to stop moving the level badge and ultimate icon, then test each indicator's X/Y controls independently.
+8. At 230% Bar Width, move Bar X Offset through `0`, `300`, and `-300` on ally and enemy bars. With indicator anchoring enabled, require the bar, level badge, and ultimate icon to move by the same distance. Test Y offsets and independent indicator offsets too.
+9. Disable indicator anchoring. Bar position changes must leave the indicators in place; width changes must still preserve their scaled bar-edge relationship. Test each indicator's X/Y controls independently.
 10. Test ultimate-icon Follow Bar and Custom modes on enemies and allies. Require shared Custom changes to update both relations even when bar coloring is off, while neutral, unclassified, and bypassed icons return to stock.
 11. Drag each native Hue, Saturation, and Lumen slider; require the slider value, canonical hex, and visible bars to update live, then require one Undo to restore the color from before that slider gesture.
-12. Exercise Reset Section confirmation, Cancel, already-default feedback, and Undo. Require Reset Section and Undo to stay hidden on Presets, return on settings pages, and Escape to dismiss the reset dialog or palette before closing the editor.
+12. Exercise Reset Section confirmation, Cancel, already-default feedback, and Undo. Reset Layout after a negative X offset and require the bar to return immediately, without damage, another slider change, or a later layout update. Require Reset Section and Undo to stay hidden on Presets, return on settings pages, and Escape to dismiss the reset dialog or palette before closing the editor.
 13. With indicator anchoring enabled, test `800`, `2100`, and `4100` max HP at default and changed widths. Require the level badge and ultimate icon to keep their left-edge gap, an `18%` kill marker to remain visible, reset to use the current live width, and the console to contain no Rewrite exceptions.
 
 
@@ -261,7 +263,7 @@ The enemy pulse now animates both halves of the `current / maximum` HP readout. 
 
 Disabling enemy level display now reproduces v1 flow centering by shifting the ultimate indicator, healthbar, and HP readout left by half of the removed level badge's effective width. The existing enemy stamina page already provides width, height, two-axis position, and custom filled/border color controls while leaving ally and neutral stamina stock.
 
-Bar and HP-text offset ranges remain wider than the visible viewport by design. Bar width scales the complete live bar around `50% 50%`; runtime never writes the engine-owned `width` or `max-width` that change with damage and max HP. The existing health pass samples the live width and updates the level badge and ultimate icon only when that width or the configured layout changes. Reset recomputes from the current live width. Production emits no geometry records.
+Bar and HP-text offset ranges remain wider than the visible viewport by design. Bar width scales the complete live stack around the measured bar center; runtime never writes the engine-owned `width` or `max-width`. Anchored indicators follow X translation without multiplying it by width scale. Layout Reset writes zero translation explicitly instead of waiting for cleared-style recomputation. The existing health pass samples live width and updates alignment when width or configured layout changes. Production emits no geometry records.
 
 ## Priority 8 runtime measurement baseline
 
@@ -270,6 +272,53 @@ The 2026-08-15 detect-only diagnostic build recorded 37m35s of live gameplay. Ni
 The menu emitted 38 summaries and observed seven lifecycle changes, including three active-match exits. No rewrite script or runtime exceptions occurred. A targeted follow-up recorded an unchanged effective revision and preserved the active `user_0001` preset across one active-to-lobby exit. This predates immediate explicit Apply and is retained only as lifecycle evidence.
 
 The evidence does not justify a style watchdog, an explicit match-reset generation/acknowledgement path, or more clean-state work. The temporary counters were removed after recording the baseline. Repeat this measurement only if new live evidence contradicts it.
+
+## Refactor validation (2026-09-05)
+
+Confirmation requests now use distinct, single-use tokens; a cancelled reset or preset-removal request cannot confirm a later request. Removed unused private state and baseline fields, duplicate scope rendering, and the ancestor helper superseded by the consolidated discovery walk.
+
+`node scripts/measure-hp-colors-rewrite-v2-refactor.js --output <report.json>` measures equal ten-second synthetic windows after a one-second warmup. Set `HP_COLORS_REWRITE_SOURCE_ROOT` to compare a preserved source tree. Scenarios cover stable/active enemies, allies, no bars, replacement, layout reset, width editing, scope editing, and state updates.
+
+The preserved before/after runs reduced renderer parent reads from 550 to 370 per stable/active context, scope-editor class reads from 17,930 to 13,930, and newly frozen objects from 1,500 to 1,100 across 100 state edits. Observable snapshots, callback counts, and style writes were unchanged. Serialization work was unchanged. These are VM operation counts, not native CPU or FPS results; fresh live A/B captures and in-game smoke checks remain required for performance acceptance.
+
+## Console cost diagnostics
+
+Build the QOLLOCK diagnostic package with `powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_v2_qollock.ps1 -SkipDeploy -Profile`. The canonical wrapper accepts the same switches. Profiling is disabled in authored source and enabled only in build staging; omit `-Profile` for a normal package.
+
+After installing the diagnostic pak02 and fully restarting Deadlock, collect console lines beginning `[HPV2-PROFILE]`. Each context reports at most once every 3 seconds, after measured work, and stops after 400 reports, allowing roughly 20 minutes of continuous reporting. No extra polling loop is added. Restart to start a new capture.
+
+Reports are split into bounded JSON messages to avoid console truncation. Each `[HPV2-PROFILE]` message carries `context`, `reports`, one-based `part`, total `parts`, and a `data` fragment. Group by context and report number, require every part, concatenate `data` in part order, then parse the complete report. Do not treat each fragment as a separate timing window.
+
+The report's `style` counters distinguish `cacheHits` from successful native `writes`, `invalidPanels`, and `writeErrors` in `setStyle`. Cache hits require both the cached value and the current native value to match. Counters reset each window and stop at the report cap. They do not count style assignments outside `setStyle` or measure deferred layout cost.
+
+`styleFailures` reports newly observed failures with panel ID, property, attempted native value, and exception text. Each tuple is emitted once per context for the capture, not once per window. Fields are limited to 160 characters, and at most 32 distinct tuples are retained per context; `styleFailuresLimited` becomes true if more occur. Error counters continue counting duplicates and failures beyond that limit. Details use the same bounded message transport.
+
+Alias restoration clears the owning `margin`, `font`, `animation`, or `border` base property and reapplies unaffected inline sibling values. Already-unset aliases skip native writes. This avoids Panorama's rejection of null alias assignments without replacing inherited CSS with hardcoded defaults. `style.writes` counts individual native assignments, including sibling replay, so it can exceed the number of `setStyle` calls. Verify error counts and visual restoration in-game after deployment.
+
+Reports rank up to ten labels by `selfMs`, accumulated time excluding instrumented children. `topCalls` independently ranks up to ten instrumented functions by call count and includes `callsPerSecond`, inclusive `avgMs`, `selfMs`, `totalMs`, and `maxMs`. Counts cover each report window, not the entire capture; functions outside the instrumented set are not ranked. Windows still report when the coarse clock measures zero elapsed work. `totalMs` includes children, so do not sum inclusive totals. `maxMs` is the longest measured call, not a frame percentile; `slowest` identifies the longest call even if its label is outside the top ten. Renderer labels cover scan, discovery, health sampling, customization, geometry, pulse updates, readout formatting/decorations, kill markers, restoration, and style-setter calls. Style-setter calls include cache hits, not just native writes. `menu.*` and `state.*` cover editor polling, replay, rendering, transitions, effective values, serialization, and views.
+
+The clock is `performance.now` when available, otherwise coarse `Date.now`. Zero measurements do not prove a function is free. Timings include synchronous native calls but exclude deferred layout/rendering, GPU work, and unrelated game systems. Logging and instrumentation add overhead: use this package to locate costs, not for before/after FPS scoring. Keep VProf output alongside the diagnostic lines.
+
+### Performance preset pack
+
+Copy the complete contents of `performance-presets.txt` into the existing Presets import dialog. It adds eight All Heroes presets without applying one automatically. Select a preset and use Apply; existing presets remain available. These are importable session presets, not a change to the shipped default or the baked-preset wire format.
+
+Applying a preset prints `[HPV2-BENCHMARK]` with its name, ID, and transition ID in diagnostic builds, including reapplying an unchanged preset. Selection and import alone do not mark a benchmark. The first timing report after a marker can contain work from the previous preset; use the following complete window for comparison.
+
+Ordinary Apply updates existing preset rows' Selected/Active classes and status labels without rebuilding their controls. Edit, rename, and confirmation states retain full rendering. A nine-row VM preset-pack smoke reduced panel creation per ordinary Apply from 122 to zero and preserved Apply and Save & Apply behavior; live timing remains to be checked.
+
+| Preset | Workload |
+| --- | --- |
+| PERF 00 Disabled | Disable customization; scripts and discovery still run. This is not a no-mod baseline. |
+| PERF 01 Fixed | Fixed enemy/ally colors, normal geometry, no readout or pulses. |
+| PERF 02 Gradients | Fixed baseline with enemy/ally gradient colors. |
+| PERF 03 HP readout | Fixed baseline with current/max HP text. |
+| PERF 04 Geometry | Fixed baseline with 230% width, 160% height, and -150 X offset. |
+| PERF 05 Bar pulses | Fixed baseline with enemy/ally pulse thresholds at 100%. |
+| PERF 06 Readout + pulses | Bar-pulse case plus HP text and enemy readout pulsing. |
+| PERF 07 Combined stress | Gradients, scaled geometry, HP text, colored bar/text pulses, precise pips, and kill marker. |
+
+Use the same scene, visible enemy/ally count, damage sequence, and capture duration. Keep test targets below full health to trigger pulses. Close the editor and let the first report after Apply pass before comparing steady-state windows. Compare cases 02–05 against 01, and 06 against 05. Keep the combined case separate from feature-isolation results.
 
 ## Remaining limits and live checks
 

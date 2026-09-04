@@ -95,7 +95,8 @@ function Invoke-HpColorsRewriteClosureAdvanced {
     param(
         [Parameter(Mandatory = $true)][string]$StageSourceRoot,
         [Parameter(Mandatory = $true)][string[]]$ScriptRelativePaths,
-        [Parameter(Mandatory = $true)][string]$WorkRoot
+        [Parameter(Mandatory = $true)][string]$WorkRoot,
+        [switch]$Profile
     )
 
     $scriptPaths = @()
@@ -105,6 +106,21 @@ function Invoke-HpColorsRewriteClosureAdvanced {
             throw "Rewrite script missing from Closure stage: $scriptPath"
         }
         $scriptPaths += $scriptPath
+    }
+
+    if ($Profile) {
+        $profileContract = Join-Path $StageSourceRoot 'panorama\scripts\hp_colors_v2_contract.js'
+        $source = [System.IO.File]::ReadAllText($profileContract)
+        $marker = 'var PROFILE_ENABLED = false;'
+        if ([regex]::Matches($source, [regex]::Escape($marker)).Count -ne 1) {
+            throw 'Expected exactly one disabled v2 profiler marker in staged contract'
+        }
+        [System.IO.File]::WriteAllText(
+            $profileContract,
+            $source.Replace($marker, 'var PROFILE_ENABLED = true;'),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Write-Host '  DIAGNOSTIC BUILD: console timing enabled; do not use for FPS comparisons.' -ForegroundColor Yellow
     }
 
     $externsPath = Join-Path $WorkRoot 'hp-colors-rewrite-closure.externs.js'

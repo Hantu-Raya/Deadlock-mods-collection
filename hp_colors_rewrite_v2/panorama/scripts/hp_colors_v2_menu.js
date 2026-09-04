@@ -691,12 +691,6 @@
         return view.currentScope ? view.currentScope.conditions : view.conditions;
       },
     },
-    history: {
-      get: function () {
-        var view = currentView();
-        return { length: view && view.undoAvailable ? 1 : 0 };
-      },
-    },
   });
   var resetFeedbackGeneration = 0;
   function currentView() {
@@ -773,6 +767,24 @@
     var result = stateInstance.send(intent);
     state.view = result && result.view ? result.view : stateInstance.read();
     if (result) executeStateEffects(result.effects);
+    if (
+      $["HPColorsV2Profile"] &&
+      intent.type === "preset_apply" &&
+      result && result.outcome && result.outcome.status !== "rejected"
+    ) {
+      var rows = state.view.repository.rows;
+      for (var index = 0; index < rows.length; index++) {
+        if (rows[index].id !== intent.id) continue;
+        try {
+          $.Msg("[HPV2-BENCHMARK] " + JSON.stringify({
+            preset: rows[index].name,
+            id: rows[index].id,
+            transitionId: state.view.transitionId,
+          }));
+        } catch {}
+        break;
+      }
+    }
     return result;
   }
 
@@ -1410,13 +1422,8 @@
   }
 
   function heroDisplayName(heroKey, heroes) {
-    var list = heroes;
-    if (!list) {
-      var view = currentView();
-      list = view && view.heroes ? view.heroes : [];
-    }
-    for (var index = 0; index < list.length; index++) {
-      if (list[index].key === heroKey) return list[index].name;
+    for (var index = 0; index < heroes.length; index++) {
+      if (heroes[index].key === heroKey) return heroes[index].name;
     }
     return "";
   }
@@ -1543,43 +1550,47 @@
       : HERO_POLL_ACTIVE_SEC;
   }
 
+  function identityPoll(generation) {
+    if (generation !== identity.watchGeneration || !isValid(ui.absoluteRoot))
+      return;
+    var view = currentView();
+    if (!view || !view.identity) return;
+    var previousPhase = view.identity.phase;
+    var nextPhase = readLifecyclePhase();
+    if (nextPhase !== previousPhase) {
+      clearIdentityPanelRefs();
+      var lifecycleResult = sendState({
+        type: "lifecycle_observe",
+        epoch: view.identity.epoch + 1,
+        phase: nextPhase,
+      });
+      refreshEditorAfterIdentityChange(lifecycleResult);
+      renderIdentity();
+      sampleAbilityTiers();
+      restartIdentityWatch();
+      return;
+    }
+    view = currentView();
+    if (
+      view.identity.mode === HERO_MODE_AUTO &&
+      view.identity.phase === HERO_PHASE_ACTIVE
+    ) {
+      var heroResult = sendState({
+        type: "hero_observe",
+        epoch: view.identity.epoch,
+        heroName: readLocalHeroName(),
+      });
+      refreshEditorAfterIdentityChange(heroResult);
+    }
+    renderIdentity();
+    sampleAbilityTiers();
+    scheduleIdentityTick(generation, identityPollDelay());
+  }
+
   function scheduleIdentityTick(generation, delay) {
     try {
-      $.Schedule(delay, function identityTick() {
-        if (generation !== identity.watchGeneration || !isValid(ui.absoluteRoot))
-          return;
-        var view = currentView();
-        if (!view || !view.identity) return;
-        var previousPhase = view.identity.phase;
-        var nextPhase = readLifecyclePhase();
-        if (nextPhase !== previousPhase) {
-          clearIdentityPanelRefs();
-          var lifecycleResult = sendState({
-            type: "lifecycle_observe",
-            epoch: view.identity.epoch + 1,
-            phase: nextPhase,
-          });
-          refreshEditorAfterIdentityChange(lifecycleResult);
-          renderIdentity();
-          sampleAbilityTiers();
-          restartIdentityWatch();
-          return;
-        }
-        view = currentView();
-        if (
-          view.identity.mode === HERO_MODE_AUTO &&
-          view.identity.phase === HERO_PHASE_ACTIVE
-        ) {
-          var heroResult = sendState({
-            type: "hero_observe",
-            epoch: view.identity.epoch,
-            heroName: readLocalHeroName(),
-          });
-          refreshEditorAfterIdentityChange(heroResult);
-        }
-        renderIdentity();
-        sampleAbilityTiers();
-        scheduleIdentityTick(generation, identityPollDelay());
+      $.Schedule(delay, function () {
+        identityPoll(generation);
       });
     } catch {}
   }
@@ -1681,7 +1692,6 @@
       mode: mode,
       heroes: mode === HERO_SCOPE_SELECTED && row ? row.heroes : [],
     });
-    renderCurrentScope();
     renderPresetOptions();
     syncControls();
   }
@@ -1712,7 +1722,6 @@
       mode: next.length ? HERO_SCOPE_SELECTED : HERO_SCOPE_ALL,
       heroes: next,
     });
-    renderCurrentScope();
     renderPresetOptions();
     syncControls();
   }
@@ -2563,6 +2572,27 @@
     setPresetFeedback("CREATED " + name.toUpperCase() + ".", false);
   }
 
+  function refreshPresetActivity() {
+    if (presetFormOpen || presetInlineRenameId || presetDeleteConfirmId) {
+      renderPresetOptions();
+      return;
+    }
+    if (!isValid(ui.presetOptions)) return;
+    var repository = currentView().repository;
+    var rows = ui.presetOptions.Children();
+    for (var index = 0; index < rows.length; index++) {
+      var row = rows[index];
+      var id = row.GetAttributeString("hp_colors_preset_id", "");
+      var active = id === repository.activeId;
+      setClass(row, "Selected", id === repository.selectedId);
+      setClass(row, "Active", active);
+      setText(
+        row.FindChildTraverse("HPColorsPresetOptionStatus" + index),
+        active ? "ACTIVE" : "",
+      );
+    }
+  }
+
   function requestPresetApplication(id, savedFirst) {
     var preset = findPresetRecord(String(id || ""));
     if (!preset) {
@@ -2585,7 +2615,7 @@
       );
       return false;
     }
-    renderPresetOptions();
+    refreshPresetActivity();
     syncControls();
     setPresetFeedback(
       (savedFirst ? "SAVED & APPLIED " : "APPLIED ") +
@@ -2978,22 +3008,26 @@
     return REPLAY_IDLE_SEC;
   }
 
+  function snapshotReplay(generation) {
+    var view = currentView();
+    if (
+      !replayRunning ||
+      generation !== replayGeneration ||
+      !view ||
+      !view.effectiveValues ||
+      !view.effectiveValues.enabled ||
+      !isValid(ui.absoluteRoot)
+    )
+      return;
+    replayDispatches += 1;
+    dispatchChange(serializedReplayPayload);
+    scheduleSnapshotReplay(generation);
+  }
+
   function scheduleSnapshotReplay(generation) {
     try {
       $.Schedule(replayDelay(), function () {
-        var view = currentView();
-        if (
-          !replayRunning ||
-          generation !== replayGeneration ||
-          !view ||
-          !view.effectiveValues ||
-          !view.effectiveValues.enabled ||
-          !isValid(ui.absoluteRoot)
-        )
-          return;
-        replayDispatches += 1;
-        dispatchChange(serializedReplayPayload);
-        scheduleSnapshotReplay(generation);
+        snapshotReplay(generation);
       });
     } catch {
       replayRunning = false;
@@ -4351,59 +4385,7 @@
     bindConditionEditorControls();
   }
 
-  function boot() {
-    if (state.booted) return;
-    if (!resolvePanels()) {
-      $.Msg("[HP Colors Rewrite] menu boot failed: required panel missing");
-      return;
-    }
-    if (
-      !$.HPColorsV2StateFactory ||
-      !isCallable($.HPColorsV2StateFactory.create)
-    ) {
-      $.Msg("[HP Colors Rewrite] menu boot failed: HPColorsV2StateFactory missing");
-      return;
-    }
-    var rawSessionState = readRootAttribute(MENU_STATE_ATTR);
-    var publishedRaw = decodePublishedState(readRootAttribute(CONFIG_ATTR));
-    var builderPresetRaw = readBuilderPresetRaw();
-    try {
-      stateInstance = $.HPColorsV2StateFactory.create({
-        sessionRaw: rawSessionState || null,
-        publishedRaw: publishedRaw || null,
-        builderPresetRaw: builderPresetRaw,
-      });
-    } catch (error) {
-      $.Msg(
-        "[HP Colors Rewrite] menu boot failed: state factory create error: " +
-          String(error),
-      );
-      return;
-    }
-    if (
-      !stateInstance ||
-      !isCallable(stateInstance.send) ||
-      !isCallable(stateInstance.read)
-    ) {
-      $.Msg("[HP Colors Rewrite] menu boot failed: invalid state instance");
-      stateInstance = null;
-      return;
-    }
-    state.view = stateInstance.read();
-    if (!createSliders()) {
-      $.Msg("[HP Colors Rewrite] menu boot failed: slider host missing");
-      return;
-    }
-    if (!createHeroOptions()) {
-      $.Msg("[HP Colors Rewrite] menu boot failed: hero option host missing");
-      return;
-    }
-    if (!createScopeHeroOptions()) {
-      $.Msg("[HP Colors Rewrite] menu boot failed: scope option host missing");
-      return;
-    }
-
-
+  function bindMenuControls() {
     setPanelEvent(ui.menuButton, "onactivate", openEditor);
     setPanelEvent(ui.doneButton, "onactivate", closeEditor);
     setPanelEvent(ui.undoButton, "onactivate", undo);
@@ -4486,6 +4468,60 @@
     setPanelEvent(ui.precisePipsCopyButton, "onactivate", copyPrecisePipsText);
     setPanelEvent(ui.precisePipsCloseButton, "onactivate", closePrecisePipsDialog);
     setPanelEvent(ui.precisePipsDialog, "oncancel", closePrecisePipsDialog);
+  }
+
+  function boot() {
+    if (state.booted) return;
+    if (!resolvePanels()) {
+      $.Msg("[HP Colors Rewrite] menu boot failed: required panel missing");
+      return;
+    }
+    if (
+      !$.HPColorsV2StateFactory ||
+      !isCallable($.HPColorsV2StateFactory.create)
+    ) {
+      $.Msg("[HP Colors Rewrite] menu boot failed: HPColorsV2StateFactory missing");
+      return;
+    }
+    var rawSessionState = readRootAttribute(MENU_STATE_ATTR);
+    var publishedRaw = decodePublishedState(readRootAttribute(CONFIG_ATTR));
+    var builderPresetRaw = readBuilderPresetRaw();
+    try {
+      stateInstance = $.HPColorsV2StateFactory.create({
+        sessionRaw: rawSessionState || null,
+        publishedRaw: publishedRaw || null,
+        builderPresetRaw: builderPresetRaw,
+      });
+    } catch (error) {
+      $.Msg(
+        "[HP Colors Rewrite] menu boot failed: state factory create error: " +
+          String(error),
+      );
+      return;
+    }
+    if (
+      !stateInstance ||
+      !isCallable(stateInstance.send) ||
+      !isCallable(stateInstance.read)
+    ) {
+      $.Msg("[HP Colors Rewrite] menu boot failed: invalid state instance");
+      stateInstance = null;
+      return;
+    }
+    state.view = stateInstance.read();
+    try {
+      if (!createSliders() || !createHeroOptions() || !createScopeHeroOptions()) {
+        $.Msg("[HP Colors Rewrite] menu boot failed: control creation incomplete");
+        return;
+      }
+    } catch (error) {
+      $.Msg(
+        "[HP Colors Rewrite] menu boot failed: control creation error: " +
+          String(error),
+      );
+      return;
+    }
+    bindMenuControls();
 
     state.booted = true;
     sendState({ type: "session_open", publish: true });
@@ -4494,6 +4530,26 @@
     refreshSnapshotReplay();
     renderNavigation();
     restartIdentityWatch();
+  }
+
+  var profiler = $["HPColorsV2Profile"];
+  if (profiler && isCallable(profiler["wrap"])) {
+    boot = profiler["wrap"]("menu.boot", boot);
+    syncControls = profiler["wrap"]("menu.syncControls", syncControls);
+    renderPresetOptions = profiler["wrap"](
+      "menu.renderPresetOptions",
+      renderPresetOptions,
+    );
+    renderCurrentScope = profiler["wrap"](
+      "menu.renderCurrentScope",
+      renderCurrentScope,
+    );
+    executeStateEffects = profiler["wrap"](
+      "menu.executeStateEffects",
+      executeStateEffects,
+    );
+    identityPoll = profiler["wrap"]("menu.identityPoll", identityPoll);
+    snapshotReplay = profiler["wrap"]("menu.snapshotReplay", snapshotReplay);
   }
 
   $.HPColorsMenuBoot = boot;

@@ -983,6 +983,7 @@
       history: [],
       transitionId: 0,
       sessionOpen: true,
+      confirmationSerial: 0,
       confirmation: null,
       gesture: null,
       restoredEffectivePending:
@@ -1272,9 +1273,13 @@
     function makeView() {
       if (viewCache) return viewCache;
       var scopes = [];
+      var currentScope = null;
       var index;
-      for (index = 0; index < state.scopes.length; index++)
-        scopes.push(cloneScope(state.scopes[index]));
+      for (index = 0; index < state.scopes.length; index++) {
+        var projectedScope = cloneScope(state.scopes[index]);
+        scopes.push(projectedScope);
+        if (projectedScope.id === CURRENT_SCOPE_ID) currentScope = projectedScope;
+      }
       var current = currentScopeRow();
       var repository = projectRepository(current);
       var identity = state.identity;
@@ -1311,7 +1316,7 @@
         effectiveValues: copyValues(state.effectiveValues),
         effectiveRevision: state.effectiveRevision,
         scopes: scopes,
-        currentScope: current ? cloneScope(current) : null,
+        currentScope: currentScope,
         identity: viewIdentity,
         ability: viewAbility,
         repository: repository,
@@ -1824,12 +1829,11 @@
       }
       return commit("gesture_begin", function () {
         var before = currentScopeRow() ? historyRaw() : baseRaw();
-        var changed = false;
         var values = editableValues();
         if (hasValue && values[key] !== next) {
           var changedValues = copyValues(values);
           changedValues[key] = next;
-          changed = replaceEditor(
+          replaceEditor(
             changedValues,
             editableConditions(),
             false,
@@ -1838,7 +1842,6 @@
         state.gesture = {
           key: key,
           before: before,
-          changed: changed,
         };
         return true;
       }, { settingId: hasValue ? key : "*" });
@@ -1855,7 +1858,6 @@
         var changedValues = copyValues(editableValues());
         changedValues[key] = next;
         replaceEditor(changedValues, editableConditions(), false);
-        state.gesture.changed = true;
         return true;
       }, { settingId: key });
     }
@@ -1872,7 +1874,6 @@
           var changedValues = copyValues(values);
           changedValues[key] = next;
           replaceEditor(changedValues, editableConditions(), false);
-          gesture.changed = true;
         }
         var after = currentScopeRow() ? historyRaw() : baseRaw();
         if (after !== gesture.before) pushHistory(gesture.before);
@@ -2581,6 +2582,29 @@
 
     function read() {
       return makeView();
+    }
+
+    var profiler = $["HPColorsV2Profile"];
+    if (profiler && typeof profiler["wrap"] === "function") {
+      dispatch = profiler["wrap"]("state.dispatch", dispatch);
+      makeView = profiler["wrap"]("state.makeView", makeView);
+      resolveEffectiveSource = profiler["wrap"](
+        "state.resolveEffectiveSource",
+        resolveEffectiveSource,
+      );
+      materializeEffective = profiler["wrap"](
+        "state.materializeEffective",
+        materializeEffective,
+      );
+      refreshEffective = profiler["wrap"](
+        "state.refreshEffective",
+        refreshEffective,
+      );
+      commit = profiler["wrap"]("state.commit", commit);
+      baseRaw = profiler["wrap"]("state.baseRaw", baseRaw);
+      historyRaw = profiler["wrap"]("state.historyRaw", historyRaw);
+      sessionRaw = profiler["wrap"]("state.sessionRaw", sessionRaw);
+      effectiveRaw = profiler["wrap"]("state.effectiveRaw", effectiveRaw);
     }
 
     return Object.freeze({ send: dispatch, read: read });

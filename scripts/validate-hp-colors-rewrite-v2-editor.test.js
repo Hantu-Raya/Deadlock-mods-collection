@@ -166,6 +166,18 @@ function presetOption(fixture, presetId) {
   assert.fail(`expected preset option ${presetId}`);
 }
 
+function scopeOption(fixture, heroKey) {
+  const options = panel(fixture, 'HPColorsScopeOptions');
+  for (let index = 0; index < options.GetChildCount(); index += 1) {
+    const option = options.GetChild(index);
+    if (option.GetAttributeString('hp_colors_scope_hero_key', '') === heroKey) {
+      return option;
+    }
+  }
+  assert.fail(`expected scope option ${heroKey}`);
+}
+
+
 function settleHeroRoute(fixture, enemyLow) {
   fixture.harness.scheduler.runUntil(
     () => readConfig(fixture).values.enemyLow === enemyLow,
@@ -531,6 +543,92 @@ test('hero route changes refresh open editor controls and the published snapshot
   assert.equal(panel(fixture, 'HPColorsEnemyLowHex').text, '#333333');
 });
 
+test('Current scope controls keep mode, summaries, and hero options synchronized', () => {
+  const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+
+  const all = panel(fixture, 'HPColorsCurrentScopeAll');
+  const selected = panel(fixture, 'HPColorsCurrentScopeSelected');
+  const summary = panel(fixture, 'HPColorsCurrentScopeSummary');
+  const dialog = panel(fixture, 'HPColorsScopeDialog');
+  const close = panel(fixture, 'HPColorsScopeCloseButton');
+  const haze = scopeOption(fixture, 'hero_haze');
+  const shiv = scopeOption(fixture, 'hero_shiv');
+
+  assert.equal(all.BHasClass('Selected'), true);
+  assert.equal(selected.BHasClass('Selected'), false);
+  assert.equal(summary.text, 'ALL HEROES');
+  assert.equal(haze.BHasClass('Selected'), false);
+  assert.equal(shiv.BHasClass('Selected'), false);
+
+  selected.events.onactivate();
+  assert.equal(dialog.BHasClass('Open'), true);
+  haze.events.onactivate();
+
+  let current = readMenuState(fixture).scopes.find(
+    (scope) => scope.id === 'scope_current',
+  );
+  assert.ok(current);
+  assert.equal(current.mode, 'selected');
+  assert.deepEqual(current.heroes, ['hero_haze']);
+  assert.equal(all.BHasClass('Selected'), false);
+  assert.equal(selected.BHasClass('Selected'), true);
+  assert.equal(summary.text, 'Haze');
+  assert.equal(haze.BHasClass('Selected'), true);
+  assert.equal(shiv.BHasClass('Selected'), false);
+
+  close.events.onactivate();
+  assert.equal(dialog.BHasClass('Open'), false);
+  all.events.onactivate();
+
+  current = readMenuState(fixture).scopes.find(
+    (scope) => scope.id === 'scope_current',
+  );
+  assert.equal(current.mode, 'all');
+  assert.deepEqual(current.heroes, []);
+  assert.equal(all.BHasClass('Selected'), true);
+  assert.equal(selected.BHasClass('Selected'), false);
+  assert.equal(summary.text, 'ALL HEROES');
+  assert.equal(haze.BHasClass('Selected'), false);
+  assert.equal(shiv.BHasClass('Selected'), false);
+
+  selected.events.onactivate();
+  haze.events.onactivate();
+  shiv.events.onactivate();
+
+  current = readMenuState(fixture).scopes.find(
+    (scope) => scope.id === 'scope_current',
+  );
+  assert.equal(current.mode, 'selected');
+  assert.deepEqual(current.heroes, ['hero_haze', 'hero_shiv']);
+  assert.equal(summary.text, 'Haze, Shiv');
+  assert.equal(haze.BHasClass('Selected'), true);
+  assert.equal(shiv.BHasClass('Selected'), true);
+
+  haze.events.onactivate();
+  current = readMenuState(fixture).scopes.find(
+    (scope) => scope.id === 'scope_current',
+  );
+  assert.equal(current.mode, 'selected');
+  assert.deepEqual(current.heroes, ['hero_shiv']);
+  assert.equal(summary.text, 'Shiv');
+  assert.equal(haze.BHasClass('Selected'), false);
+  assert.equal(shiv.BHasClass('Selected'), true);
+
+  shiv.events.onactivate();
+  current = readMenuState(fixture).scopes.find(
+    (scope) => scope.id === 'scope_current',
+  );
+  assert.equal(current.mode, 'all');
+  assert.deepEqual(current.heroes, []);
+  assert.equal(all.BHasClass('Selected'), true);
+  assert.equal(selected.BHasClass('Selected'), false);
+  assert.equal(summary.text, 'ALL HEROES');
+  assert.equal(haze.BHasClass('Selected'), false);
+  assert.equal(shiv.BHasClass('Selected'), false);
+});
+
 test('stale settings clipboard callbacks cannot import into a reopened dialog', () => {
   const fixture = bootMenu(
     { version: 1, values: { widthScale: 100 }, scopes: [] },
@@ -677,6 +775,37 @@ test('menu boot can retry after a transient CreatePanel failure', () => {
     typeof panel(fixture, 'HPColorsMenuButton').events.onactivate,
     'function',
   );
+});
+
+test('menu boot contains thrown panel creation errors and an explicit retry recovers', () => {
+  const fixture = bootMenu(
+    { version: 1, values: { enemyLow: '#123456' }, scopes: [] },
+    {
+      beforeBoot(harness) {
+        const createPanel = harness.$.CreatePanel;
+        let failed = false;
+        harness.$.CreatePanel = (type, parent, id) => {
+          if (!failed && id === 'HPColorsHeroOption3') {
+            failed = true;
+            throw new Error('panel creation unavailable');
+          }
+          return createPanel(type, parent, id);
+        };
+      },
+    },
+  );
+  assert.equal(configDispatches(fixture).length, 0);
+  fixture.harness.$.HPColorsMenuBoot();
+  openEditor(fixture);
+  assert.equal(readConfig(fixture).values.enemyLow, '#123456');
+
+  const snapshot = fixture.harness.root.GetAttributeString(CONFIG_ATTR, '');
+  const dispatchCount = configDispatches(fixture).length;
+  const pendingJobs = fixture.harness.scheduler.jobs.length;
+  fixture.harness.$.HPColorsMenuBoot();
+  assert.equal(fixture.harness.root.GetAttributeString(CONFIG_ATTR, ''), snapshot);
+  assert.equal(configDispatches(fixture).length, dispatchCount);
+  assert.equal(fixture.harness.scheduler.jobs.length, pendingJobs);
 });
 
 test('color picker closes from its backdrop and condition swatches accept clicks', () => {

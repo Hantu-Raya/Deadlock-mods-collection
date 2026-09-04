@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [switch]$SkipDeploy,
+    [switch]$Profile,
     [switch]$RefreshFromInstalledQollock,
     [string]$Source2ViewerPath = ''
 )
@@ -203,7 +204,8 @@ try {
     Invoke-HpColorsRewriteClosureAdvanced `
         -StageSourceRoot $stageSource `
         -ScriptRelativePaths $compatibilityScripts `
-        -WorkRoot $buildRoot
+        -WorkRoot $buildRoot `
+        -Profile:$Profile
     Copy-Item -LiteralPath $canonicalSrc -Destination $canonicalClosureTestRoot -Recurse -Force
     foreach ($relativePath in $canonicalScripts) {
         Copy-StagedFile `

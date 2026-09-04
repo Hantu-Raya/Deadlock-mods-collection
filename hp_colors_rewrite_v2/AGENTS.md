@@ -2,7 +2,7 @@
 
 ## Scope
 
-`hp_colors_rewrite_v2/` ports every implemented feature from `hp_colors_rewrite/` onto the v2 unit-status layout. It keeps v2's live-bar lineage, centered segment geometry, red-and-cream editor branding, and `HP_COLORS_V2_CONFIG` transport.
+`hp_colors_rewrite_v2/` owns the session-scoped ESC editor and live v2 unit-status renderer. Keep its centered segment geometry and `HP_COLORS_V2_CONFIG` transport. Read `FEATURES.md` for feature behavior and manual smoke scenarios; use source and the build wrapper for current implementation details.
 
 The lane is session-scoped. Do not add durable persistence, Anita compatibility, Reset All, legacy v99 support, or ShowRank Barebones integration. HPCR2 settings codes and HPCRP1 preset codes remain byte-compatible with v1.
 
@@ -26,7 +26,15 @@ unit_status_overlay_v2.xml
 - `hp_colors_v2_menu.js` owns Panorama panels, Escape lifecycle, rendering, HSL controls, replay, transport, builder seed hydration, and clipboard effects.
 - `unit_status_v2_colors.js` owns live-bar discovery, role and hero classification, colors, exclusions, feedback controls, dimensions, position, ultimate icons, readouts, pips, levels, pulses, and kill markers.
 
-Both consumers load the contract first, capture it, and remove the temporary factory from `$`.
+The state module and renderer each capture the contract factory and remove it from `$`. The menu consumes `$.HPColorsV2StateFactory`; it does not load the contract directly.
+
+## Initialization
+
+- `hud_escape_menu.xml` calls `$.HPColorsMenuBoot()` on load. Resolve required panels, restore state, create dynamic controls, then bind events. Publish and start replay/identity watches only after setup succeeds.
+- Boot is idempotent after success. Failed control creation leaves boot retryable through another explicit call; there is no automatic retry loop. Preserve both missing-panel and thrown-API recovery.
+- Hydrate through the state factory with `{sessionRaw, publishedRaw, builderPresetRaw}`. Existing session state takes precedence over the optional read-only builder seed. Preserve the published effective snapshot while hero identity settles.
+- The renderer registers its config event handler before `scan()`. The first scan reads the root snapshot and discovers live panels, then `paintColors()` starts. Keep one scan loop and one paint loop per context.
+- Exercise startup changes in the editor VM validator, including failed setup, successful retry, and repeated boot without duplicate publication or scheduled work.
 
 ## Runtime rules
 
@@ -48,8 +56,12 @@ Edit only `hp_colors_rewrite_v2/` source, the focused validators under `scripts/
 Run:
 
 ```powershell
-node --test scripts/validate-hp-colors-rewrite-v2-baseline.test.js scripts/validate-hp-colors-rewrite-v2-editor.test.js scripts/validate-hp-colors-rewrite-v2-parity.test.js scripts/validate-hp-colors-rewrite-v2-state.test.js
+node --test scripts/validate-hp-colors-rewrite-v2-baseline.test.js scripts/validate-hp-colors-rewrite-v2-editor.test.js scripts/validate-hp-colors-rewrite-v2-parity.test.js scripts/validate-hp-colors-rewrite-v2-state.test.js scripts/validate-hp-colors-rewrite-v2-profile.test.js
 powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_v2.ps1 -SkipDeploy
 ```
+
+The build wrapper runs these validators again against source and Closure output, checks the compiled asset set and VPK contents, and writes root `pak02_dir.vpk`. `-SkipDeploy` leaves the installed addon untouched.
+
+For console profiling, add `-Profile` to either v2 build wrapper. It enables the contract's shared diagnostic collector only in staging; keep `PROFILE_ENABLED` false in authored source. Read `FEATURES.md` under Console cost diagnostics for timing limitations, report limits, and the importable performance preset pack. Do not compare diagnostic-package FPS with normal-package FPS.
 
 After deployment, restart Deadlock before the live smoke test. Verify enemy and ally rendering, fixed and gradient thresholds, exclusions, dimensions, position, feedback colors, ultimate icons, all readout modes, pips, levels, pulses, kill marker behavior, hero scopes, ability conditions, presets, HPCR2 settings transfer, HPCRP1 preset transfer, Escape cancel/resume behavior, and supported UI scales. Automated tests cannot prove live panel lineage, rendering, or frame cost.
