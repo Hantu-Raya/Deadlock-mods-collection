@@ -826,10 +826,13 @@
     return STOCK_DEFAULT_BULLET_SHIELD_COLOR;
   }
 
-  function styleMatches(panel, property, value) {
+  function styleMatches(panel, property, cache, cacheKey) {
     if (!isValid(panel) || !panel.style) return false;
     try {
-      return String(panel.style[property] || "") === String(value || "");
+      var native = cache && cache.nativeStyles && cache.nativeStyles[cacheKey];
+      if (!native || native.panel !== panel) return false;
+      return String(panel.style[property] || "") === native.value &&
+        (!native.base || String(panel.style[native.base] || "") === native.baseValue);
     } catch {
       return false;
     }
@@ -844,13 +847,15 @@
     if (
       cache &&
       cache[cacheKey] === value &&
-      styleMatches(panel, property, value)
+      styleMatches(panel, property, cache, cacheKey)
     ) {
       if (styleProfile && styleProfile.active) styleProfile.cacheHits++;
       return;
     }
     try {
-      var aliasBase = value === "" ? styleAliasBase(property) : "";
+      var base = styleAliasBase(property);
+      var previousBase = base ? String(panel.style[base] || "") : "";
+      var aliasBase = value === "" ? base : "";
       if (aliasBase) {
         if (String(panel.style[property] || "") === "") {
           if (styleProfile && styleProfile.active) styleProfile.cacheHits++;
@@ -861,7 +866,24 @@
         writeNativeStyle(panel, property, value === "" ? null : value,
           !cache ? "uncached" : cache[cacheKey] === value ? "nativeMismatch" : "valueChange");
       }
-      if (cache) cache[cacheKey] = value;
+      if (cache) {
+        var nativeStyles = cache.nativeStyles || (cache.nativeStyles = {});
+        var baseValue = base ? String(panel.style[base] || "") : "";
+        if (base) {
+          for (var key in nativeStyles) {
+            var sibling = nativeStyles[key];
+            if (sibling.panel === panel && sibling.base === base &&
+                sibling.baseValue === previousBase)
+              sibling.baseValue = baseValue;
+          }
+        }
+        var native = nativeStyles[cacheKey] || (nativeStyles[cacheKey] = {});
+        native.panel = panel;
+        native.value = String(panel.style[property] || "");
+        native.base = base;
+        native.baseValue = baseValue;
+        cache[cacheKey] = value;
+      }
     } catch {
       if (cache) cache[cacheKey] = null;
       return;
@@ -965,7 +987,7 @@
     return (
       cache &&
       Object.prototype.hasOwnProperty.call(cache, cacheKey) &&
-      !styleMatches(panel, property, cache[cacheKey])
+      !styleMatches(panel, property, cache, cacheKey)
     );
   }
 

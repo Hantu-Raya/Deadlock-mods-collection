@@ -269,3 +269,54 @@ test('alias restoration clears the base and preserves sibling inline styles', t 
   assert.ok(f.reports()[0].styleWrites.every(row => row.reason === 'aliasRestore'));
   assert.equal(f.reports()[0].styleWrites.reduce((sum, row) => sum + row.attempts, 0), writes);
 });
+
+test('native readback avoids normalized rewrites while repairing engine and panel changes', t => {
+  const f = enabledProfile(t);
+  if (!f) return;
+  const renderer = fs.readFileSync(path.join(path.dirname(authoredPath), 'unit_status_v2_colors.js'), 'utf8');
+  const seam = 'var STOCK_TEAM1_COLOR = "#E7B659";';
+  vm.runInContext(renderer.replace(seam, seam + '\n$.__setStyle = setStyle; $.__drift = cachedStyleDrift; return;'), f.context);
+  const setStyle = f.context.$.__setStyle;
+  const cache = {};
+  let color = '';
+  let left = '';
+  let top = '';
+  let writes = 0;
+  const panel = { style: new Proxy({}, {
+    get(target, key) {
+      if (key === 'washColor') return color;
+      if (key === 'margin') return left + ' ' + top;
+      return '';
+    },
+    set(target, key, value) {
+      writes++;
+      if (key === 'washColor') color = value + 'FF';
+      if (key === 'marginLeft') left = value;
+      if (key === 'marginTop') top = value;
+      return true;
+    },
+  }) };
+  setStyle(panel, 'washColor', '#FD4949', cache, 'color');
+  setStyle(panel, 'marginLeft', '30px', cache, 'left');
+  setStyle(panel, 'marginTop', '10px', cache, 'top');
+  for (let i = 0; i < 10; i++) {
+    setStyle(panel, 'washColor', '#FD4949', cache, 'color');
+    setStyle(panel, 'marginLeft', '30px', cache, 'left');
+    setStyle(panel, 'marginTop', '10px', cache, 'top');
+  }
+  assert.equal(writes, 3);
+  color = '#000000FF';
+  assert.equal(f.context.$.__drift(panel, 'washColor', cache, 'color'), true);
+  setStyle(panel, 'washColor', '#FD4949', cache, 'color');
+  assert.equal(color, '#FD4949FF');
+  left = '0px'; top = '0px';
+  setStyle(panel, 'marginLeft', '30px', cache, 'left');
+  assert.equal(f.context.$.__drift(panel, 'marginTop', cache, 'top'), true);
+  setStyle(panel, 'marginTop', '10px', cache, 'top');
+  assert.equal(left + ' ' + top, '30px 10px');
+  assert.equal(f.context.$.__drift(panel, 'marginLeft', cache, 'left'), false);
+  assert.equal(writes, 6);
+  const replacement = { style: {} };
+  setStyle(replacement, 'washColor', '#FD4949', cache, 'color');
+  assert.equal(replacement.style.washColor, '#FD4949');
+});
