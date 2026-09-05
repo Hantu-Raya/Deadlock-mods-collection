@@ -291,7 +291,7 @@ The normal wrapper builds standalone pak02 by default. With ShowRank Barebones p
 
 The QOLLOCK wrapper copies the same canonical runtime, derives packed assets from its package contract, and preserves the pinned pak03 dependency. Use `build_hp_colors_rewrite_v2_qollock.ps1 -RefreshFromInstalledQollock` when intentionally updating compatibility against a supplied pak03. Both wrappers accept `-SkipDeploy` for archive-only builds.
 
-Install only one pak02 variant and fully restart Deadlock. The normal archive includes standalone pak02 and an optional Barebones-compatible replacement; the QOLLOCK archive requires the matching pak03 and does not bundle it. The prior roughly 35-minute Barebones live capture had no logged style-write failures, and the user confirmed correct rendering. Automated release checks do not substitute for a fresh in-game check of the final packages.
+Install only one pak02 variant and fully restart Deadlock. The normal archive contains standalone pak02 only; the QOLLOCK archive requires the matching pak03 and does not bundle it. Barebones remains an opt-in build option, not an archive payload. The prior roughly 35-minute Barebones live capture had no logged style-write failures, and the user confirmed correct rendering. Automated release checks do not substitute for a fresh in-game check of the final packages.
 
 
 ## Remaining limits and live checks
