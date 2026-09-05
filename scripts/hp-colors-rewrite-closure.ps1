@@ -95,8 +95,7 @@ function Invoke-HpColorsRewriteClosureAdvanced {
     param(
         [Parameter(Mandatory = $true)][string]$StageSourceRoot,
         [Parameter(Mandatory = $true)][string[]]$ScriptRelativePaths,
-        [Parameter(Mandatory = $true)][string]$WorkRoot,
-        [switch]$Profile
+        [Parameter(Mandatory = $true)][string]$WorkRoot
     )
 
     $scriptPaths = @()
@@ -108,22 +107,8 @@ function Invoke-HpColorsRewriteClosureAdvanced {
         $scriptPaths += $scriptPath
     }
 
-    if ($Profile) {
-        $profileContract = Join-Path $StageSourceRoot 'panorama\scripts\hp_colors_v2_contract.js'
-        $source = [System.IO.File]::ReadAllText($profileContract)
-        $marker = 'var PROFILE_ENABLED = false;'
-        if ([regex]::Matches($source, [regex]::Escape($marker)).Count -ne 1) {
-            throw 'Expected exactly one disabled v2 profiler marker in staged contract'
-        }
-        [System.IO.File]::WriteAllText(
-            $profileContract,
-            $source.Replace($marker, 'var PROFILE_ENABLED = true;'),
-            [System.Text.UTF8Encoding]::new($false)
-        )
-        Write-Host '  DIAGNOSTIC BUILD: console timing enabled; do not use for FPS comparisons.' -ForegroundColor Yellow
-    }
-
     $externsPath = Join-Path $WorkRoot 'hp-colors-rewrite-closure.externs.js'
+
     New-HpColorsRewriteClosureExterns -ScriptPaths $scriptPaths -Path $externsPath | Out-Null
     try {
         foreach ($scriptPath in $scriptPaths) {
@@ -173,22 +158,34 @@ function Invoke-HpColorsRewriteClosureTests {
     $isV2 = Test-Path -LiteralPath (
         Join-Path $SourceRoot 'panorama\scripts\hp_colors_v2_contract.js'
     )
-    $testFilter = if ($isV2) {
-        'validate-hp-colors-rewrite-v2-*.test.js'
+    if ($isV2) {
+        $testPaths = @(
+            @(
+                'validate-hp-colors-rewrite-v2-baseline.test.js'
+                'validate-hp-colors-rewrite-v2-editor.test.js'
+                'validate-hp-colors-rewrite-v2-parity.test.js'
+                'validate-hp-colors-rewrite-v2-state.test.js'
+                'validate-hp-colors-rewrite-v2-style.test.js'
+            ) | ForEach-Object {
+                $testPath = Join-Path $RepositoryRoot "scripts\$_"
+                if (-not (Test-Path -LiteralPath $testPath)) {
+                    throw "HP Colors Rewrite v2 validator not found: $testPath"
+                }
+                $testPath
+            }
+        )
     }
     else {
-        'validate-hp-colors-rewrite-*.test.js'
+        $testPaths = @(
+            Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot 'scripts') -Filter 'validate-hp-colors-rewrite-*.test.js' |
+                Where-Object {
+                    $_.Name -ne 'validate-hp-colors-rewrite-qollock.test.js' -and
+                    $_.Name -notlike 'validate-hp-colors-rewrite-v2-*'
+                } |
+                Sort-Object Name |
+                ForEach-Object { $_.FullName }
+        )
     }
-    $testPaths = @(
-        Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot 'scripts') -Filter $testFilter |
-            Where-Object {
-                $_.Name -ne 'validate-hp-colors-rewrite-qollock.test.js' -and
-                $_.Name -ne 'validate-hp-colors-rewrite-v2-qollock.test.js' -and
-                ($isV2 -or $_.Name -notlike 'validate-hp-colors-rewrite-v2-*')
-            } |
-            Sort-Object Name |
-            ForEach-Object { $_.FullName }
-    )
     if ($testPaths.Count -eq 0) {
         throw 'No HP Colors Rewrite behavioral tests found'
     }

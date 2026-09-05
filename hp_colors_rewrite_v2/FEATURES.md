@@ -281,48 +281,18 @@ Confirmation requests now use distinct, single-use tokens; a cancelled reset or 
 
 The preserved before/after runs reduced renderer parent reads from 550 to 370 per stable/active context, scope-editor class reads from 17,930 to 13,930, and newly frozen objects from 1,500 to 1,100 across 100 state edits. Observable snapshots, callback counts, and style writes were unchanged. Serialization work was unchanged. These are VM operation counts, not native CPU or FPS results; fresh live A/B captures and in-game smoke checks remain required for performance acceptance.
 
-## Console cost diagnostics
+## Release 2.0.3
 
-For the normal Rewrite diagnostic package with ShowRank Barebones, first install Barebones with `powershell -ExecutionPolicy Bypass -File build_showrank_barebones.ps1 -Install`, then run `powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_v2.ps1 -Profile -ShowRankBarebones`. This deploys HP Colors as pak02 and uses Barebones from pak89. The compatibility switch composes the Barebones Escape script and open/out handlers into the staged HP layout while preserving HP editor cancellation. Canonical source remains standalone; omit `-ShowRankBarebones` when not using Barebones. Do not load QOLLOCK for this test.
+Native style caching compares unchanged requests against the post-assignment native readback. It avoids repeated writes caused by normalized colors, numbers, and transforms while retaining engine-change and replacement-panel repair. Alias restoration clears the owning base property and reapplies unaffected inline siblings, avoiding rejected null alias assignments. If neither an alias nor its base getter exposes a change, the cache cannot detect it.
 
-The normal wrapper's diagnostic build reports every 20 seconds for 120 reports per context, covering roughly 40 minutes of continuous reporting. The QOLLOCK wrapper's `-Profile` build remains at 3 seconds and 400 reports per context. Profiling is disabled in authored source and enabled only in build staging; omit `-Profile` for a release package. Add `-SkipDeploy` only when a build artifact without installation is wanted.
+Ordinary preset Apply updates existing rows instead of rebuilding their controls. Menu setup remains explicitly retryable after incomplete or failed panel creation. Temporary profiling, benchmark logging, timing switches, and their test fixtures have been removed; actionable boot/dispatch error messages remain.
 
-After installing diagnostic pak02, fully restart Deadlock and collect console lines beginning `[HPV2-PROFILE]`. Reports run after measured work, not on an extra timer. Idle or destroyed contexts can report less often or stop earlier; each newly created context has its own allowance. Restart to start a new capture.
+The normal wrapper builds standalone pak02 by default. With ShowRank Barebones pak89 installed, use `build_hp_colors_rewrite_v2.ps1 -ShowRankBarebones` to compose its Escape open/out handlers while preserving HP editor cancellation. This changes only the staged layout; the canonical runtime remains independent of ShowRank.
 
-Reports are split into bounded JSON messages to avoid console truncation. Each `[HPV2-PROFILE]` message carries `context`, `reports`, one-based `part`, total `parts`, and a `data` fragment. Group by context and report number, require every part, concatenate `data` in part order, then parse the complete report. Do not treat each fragment as a separate timing window.
+The QOLLOCK wrapper copies the same canonical runtime, derives packed assets from its package contract, and preserves the pinned pak03 dependency. Use `build_hp_colors_rewrite_v2_qollock.ps1 -RefreshFromInstalledQollock` when intentionally updating compatibility against a supplied pak03. Both wrappers accept `-SkipDeploy` for archive-only builds.
 
-The report's `style` counters distinguish `cacheHits` from successful native `writes`, `invalidPanels`, and `writeErrors` in `setStyle`. Cache hits require an unchanged request, the same panel, and native getters matching the readback captured after assignment. This avoids repeated writes caused by Panorama's normalized colors, numbers, and transforms. Alias checks also compare the owning base property. Our own sibling writes refresh matching base snapshots without masking an already-observed engine change. If neither an alias nor its base getter exposes a change, the cache cannot detect it. Counters reset each window and stop at the report cap. They do not count style assignments outside `setStyle` or measure deferred layout cost.
+Install only one pak02 variant and fully restart Deadlock. The normal archive includes standalone pak02 and an optional Barebones-compatible replacement; the QOLLOCK archive requires the matching pak03 and does not bundle it. The prior roughly 35-minute Barebones live capture had no logged style-write failures, and the user confirmed correct rendering. Automated release checks do not substitute for a fresh in-game check of the final packages.
 
-`styleWrites` groups native assignment attempts by property and cause: `valueChange` means the cached request differs, `nativeMismatch` means the request is unchanged but the native getter differs, `uncached` means no cache was supplied, and `aliasRestore` covers base clearing and sibling replay. Each group includes the first panel ID, previous native value, and requested value from that window, clipped to 160 characters. Samples read the native property only once per group per window. A mismatch may be getter normalization rather than an engine overwrite; compare the values before changing restoration behavior. Groups reset every window, are capped at 64, and set `styleWritesLimited` on overflow. Attempts include failed assignments; use `style.writes` for successful writes. These diagnostics do not change rendering policy.
-
-`styleFailures` reports newly observed failures with panel ID, property, attempted native value, and exception text. Each tuple is emitted once per context for the capture, not once per window. Fields are limited to 160 characters, and at most 32 distinct tuples are retained per context; `styleFailuresLimited` becomes true if more occur. Error counters continue counting duplicates and failures beyond that limit. Details use the same bounded message transport.
-
-Alias restoration clears the owning `margin`, `font`, `animation`, or `border` base property and reapplies unaffected inline sibling values. Already-unset aliases skip native writes. This avoids Panorama's rejection of null alias assignments without replacing inherited CSS with hardcoded defaults. `style.writes` counts individual native assignments, including sibling replay, so it can exceed the number of `setStyle` calls. Verify error counts and visual restoration in-game after deployment.
-
-Reports rank up to ten labels by `selfMs`, accumulated time excluding instrumented children. `topCalls` independently ranks up to ten instrumented functions by call count and includes `callsPerSecond`, inclusive `avgMs`, `selfMs`, `totalMs`, and `maxMs`. Counts cover each report window, not the entire capture; functions outside the instrumented set are not ranked. Windows still report when the coarse clock measures zero elapsed work. `totalMs` includes children, so do not sum inclusive totals. `maxMs` is the longest measured call, not a frame percentile; `slowest` identifies the longest call even if its label is outside the top ten. Renderer labels cover scan, discovery, health sampling, customization, geometry, pulse updates, readout formatting/decorations, kill markers, restoration, and style-setter calls. Style-setter calls include cache hits, not just native writes. `menu.*` and `state.*` cover editor polling, replay, rendering, transitions, effective values, serialization, and views.
-
-The clock is `performance.now` when available, otherwise coarse `Date.now`. Zero measurements do not prove a function is free. Timings include synchronous native calls but exclude deferred layout/rendering, GPU work, and unrelated game systems. Logging and instrumentation add overhead: use this package to locate costs, not for before/after FPS scoring. Keep VProf output alongside the diagnostic lines.
-
-### Performance preset pack
-
-Copy the complete contents of `performance-presets.txt` into the existing Presets import dialog. It adds eight All Heroes presets without applying one automatically. Select a preset and use Apply; existing presets remain available. These are importable session presets, not a change to the shipped default or the baked-preset wire format.
-
-Applying a preset prints `[HPV2-BENCHMARK]` with its name, ID, and transition ID in diagnostic builds, including reapplying an unchanged preset. Selection and import alone do not mark a benchmark. The first timing report after a marker can contain work from the previous preset; use the following complete window for comparison.
-
-Ordinary Apply updates existing preset rows' Selected/Active classes and status labels without rebuilding their controls. Edit, rename, and confirmation states retain full rendering. A nine-row VM preset-pack smoke reduced panel creation per ordinary Apply from 122 to zero and preserved Apply and Save & Apply behavior; live timing remains to be checked.
-
-| Preset | Workload |
-| --- | --- |
-| PERF 00 Disabled | Disable customization; scripts and discovery still run. This is not a no-mod baseline. |
-| PERF 01 Fixed | Fixed enemy/ally colors, normal geometry, no readout or pulses. |
-| PERF 02 Gradients | Fixed baseline with enemy/ally gradient colors. |
-| PERF 03 HP readout | Fixed baseline with current/max HP text. |
-| PERF 04 Geometry | Fixed baseline with 230% width, 160% height, and -150 X offset. |
-| PERF 05 Bar pulses | Fixed baseline with enemy/ally pulse thresholds at 100%. |
-| PERF 06 Readout + pulses | Bar-pulse case plus HP text and enemy readout pulsing. |
-| PERF 07 Combined stress | Gradients, scaled geometry, HP text, colored bar/text pulses, precise pips, and kill marker. |
-
-Use the same scene, visible enemy/ally count, damage sequence, and capture duration. Keep test targets below full health to trigger pulses. Close the editor and let the first report after Apply pass before comparing steady-state windows. Compare cases 02–05 against 01, and 06 against 05. Keep the combined case separate from feature-isolation results.
 
 ## Remaining limits and live checks
 

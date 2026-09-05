@@ -1,7 +1,6 @@
 [CmdletBinding()]
 param(
     [switch]$SkipDeploy,
-    [switch]$Profile,
     [switch]$ShowRankBarebones
 )
 
@@ -29,7 +28,7 @@ $validators = @(
     (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-editor.test.js'),
     (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-parity.test.js'),
     (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-state.test.js'),
-    (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-profile.test.js')
+    (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-style.test.js')
 )
 
 $assetManifest = @(
@@ -115,35 +114,11 @@ try {
     $stagePanorama = Join-Path $compileStageSource 'panorama'
     New-Item -ItemType Directory -Path $stagePanorama -Force | Out-Null
     Copy-Item -Path (Join-Path $modSrc 'panorama\*') -Destination $stagePanorama -Recurse -Force
-    if ($Profile) {
-        $profilePath = Join-Path $compileStageSource 'panorama\scripts\hp_colors_v2_contract.js'
-        $profileSource = [System.IO.File]::ReadAllText($profilePath)
-        foreach ($marker in @('var PROFILE_WINDOW_MS = 3000;', 'var PROFILE_MAX_REPORTS = 400;')) {
-            if ([regex]::Matches($profileSource, [regex]::Escape($marker)).Count -ne 1) {
-                throw "Expected exactly one profiler timing marker: $marker"
-            }
-        }
-        $profileSource = $profileSource.Replace('var PROFILE_WINDOW_MS = 3000;', 'var PROFILE_WINDOW_MS = 20000;')
-        $profileSource = $profileSource.Replace('var PROFILE_MAX_REPORTS = 400;', 'var PROFILE_MAX_REPORTS = 120;')
-        [System.IO.File]::WriteAllText($profilePath, $profileSource, [System.Text.UTF8Encoding]::new($false))
-        Write-Host '  Normal Rewrite diagnostics: 20-second reports, 120 reports per context (40 minutes).' -ForegroundColor Yellow
-    }
     Invoke-HpColorsRewriteClosureAdvanced `
         -StageSourceRoot $compileStageSource `
         -ScriptRelativePaths $rewriteScripts `
-        -WorkRoot $compileStageRoot `
-        -Profile:$Profile
-    $previousProfileWindow = $env:HP_COLORS_PROFILE_WINDOW_MS
-    $previousProfileReports = $env:HP_COLORS_PROFILE_MAX_REPORTS
-    try {
-        $env:HP_COLORS_PROFILE_WINDOW_MS = '20000'
-        $env:HP_COLORS_PROFILE_MAX_REPORTS = '120'
-        Invoke-HpColorsRewriteClosureTests -RepositoryRoot $root -SourceRoot $compileStageSource
-    }
-    finally {
-        $env:HP_COLORS_PROFILE_WINDOW_MS = $previousProfileWindow
-        $env:HP_COLORS_PROFILE_MAX_REPORTS = $previousProfileReports
-    }
+        -WorkRoot $compileStageRoot
+    Invoke-HpColorsRewriteClosureTests -RepositoryRoot $root -SourceRoot $compileStageSource
     if ($ShowRankBarebones) {
         $escapePath = Join-Path $compileStageSource 'panorama\layout\hud_escape_menu.xml'
         [xml]$escape = [System.IO.File]::ReadAllText($escapePath)

@@ -23,8 +23,6 @@
   var settingsContract = $.HPColorsV2ContractFactory.create();
   delete $.HPColorsV2ContractFactory;
   var normalizeConfig = settingsContract.normalizeValues;
-  var profiler = $["HPColorsV2Profile"];
-  var styleProfile = profiler && profiler["style"];
   var STYLE_ALIAS_GROUPS = {
     margin: ["marginTop", "marginRight", "marginBottom", "marginLeft"],
     font: ["fontFamily", "fontSize", "fontStyle", "fontWeight", "fontStretch"],
@@ -42,20 +40,6 @@
     return "";
   }
 
-  function writeNativeStyle(panel, property, value, reason) {
-    if (styleProfile && styleProfile.active)
-      profiler["styleWrite"](panel, property, value, reason);
-    try {
-      panel.style[property] = value;
-      if (styleProfile && styleProfile.active) styleProfile.writes++;
-    } catch (error) {
-      if (styleProfile && styleProfile.active) {
-        styleProfile.writeErrors++;
-        profiler["styleError"](panelId(panel), property, value, error);
-      }
-      throw error;
-    }
-  }
 
   function clearStyleAlias(panel, property, base) {
     var siblings = STYLE_ALIAS_GROUPS[base];
@@ -64,10 +48,10 @@
       var sibling = siblings[index];
       values[index] = sibling === property ? "" : String(panel.style[sibling] || "");
     }
-    writeNativeStyle(panel, base, null, "aliasRestore");
+    panel.style[base] = null;
     for (var restoreIndex = 0; restoreIndex < siblings.length; restoreIndex++) {
       if (values[restoreIndex] !== "")
-        writeNativeStyle(panel, siblings[restoreIndex], values[restoreIndex], "aliasRestore");
+        panel.style[siblings[restoreIndex]] = values[restoreIndex];
     }
   }
 
@@ -840,7 +824,6 @@
 
   function setStyle(panel, property, value, cache, cacheKey) {
     if (!isValid(panel) || !panel.style) {
-      if (styleProfile && styleProfile.active) styleProfile.invalidPanels++;
       if (cache) cache[cacheKey] = null;
       return;
     }
@@ -849,7 +832,6 @@
       cache[cacheKey] === value &&
       styleMatches(panel, property, cache, cacheKey)
     ) {
-      if (styleProfile && styleProfile.active) styleProfile.cacheHits++;
       return;
     }
     try {
@@ -857,14 +839,10 @@
       var previousBase = base ? String(panel.style[base] || "") : "";
       var aliasBase = value === "" ? base : "";
       if (aliasBase) {
-        if (String(panel.style[property] || "") === "") {
-          if (styleProfile && styleProfile.active) styleProfile.cacheHits++;
-        } else {
+        if (String(panel.style[property] || "") !== "")
           clearStyleAlias(panel, property, aliasBase);
-        }
       } else {
-        writeNativeStyle(panel, property, value === "" ? null : value,
-          !cache ? "uncached" : cache[cacheKey] === value ? "nativeMismatch" : "valueChange");
+        panel.style[property] = value === "" ? null : value;
       }
       if (cache) {
         var nativeStyles = cache.nativeStyles || (cache.nativeStyles = {});
@@ -2684,41 +2662,6 @@
     inspectRootConfig();
     reconcileBars();
     scanJob = $.Schedule(SCAN_INTERVAL_SEC, scan);
-  }
-  if (profiler && typeof profiler["wrap"] === "function") {
-    resolveParts = profiler["wrap"]("resolveParts", resolveParts);
-    sampleHealthPercent = profiler["wrap"](
-      "sampleHealthPercent",
-      sampleHealthPercent,
-    );
-    applyBarGeometry = profiler["wrap"](
-      "applyBarGeometry",
-      applyBarGeometry,
-    );
-    applyCustomization = profiler["wrap"](
-      "applyCustomization",
-      applyCustomization,
-    );
-    syncPulse = profiler["wrap"]("syncPulse", syncPulse);
-    setStyle = profiler["wrap"]("setStyle", setStyle);
-    setOptionalOwnedStyle = profiler["wrap"]("setOptionalOwnedStyle", setOptionalOwnedStyle);
-    formatReadout = profiler["wrap"]("formatReadout", formatReadout);
-    applyKillMarker = profiler["wrap"]("applyKillMarker", applyKillMarker);
-    applyReadoutDecorations = profiler["wrap"](
-      "applyReadoutDecorations",
-      applyReadoutDecorations,
-    );
-    restoreInactiveCustomization = profiler["wrap"](
-      "restoreInactiveCustomization",
-      restoreInactiveCustomization,
-    );
-    inspectRootConfig = profiler["wrap"](
-      "inspectRootConfig",
-      inspectRootConfig,
-    );
-    reconcileBars = profiler["wrap"]("reconcileBars", reconcileBars);
-    paintColors = profiler["wrap"]("paintColors", paintColors);
-    scan = profiler["wrap"]("scan", scan);
   }
   try {
     eventHandlerId = $.RegisterForUnhandledEvent(EVENT_CHANNEL, onConfigEvent);

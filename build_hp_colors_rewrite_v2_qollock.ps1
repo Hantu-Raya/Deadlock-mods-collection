@@ -1,7 +1,6 @@
 [CmdletBinding()]
 param(
     [switch]$SkipDeploy,
-    [switch]$Profile,
     [switch]$RefreshFromInstalledQollock,
     [string]$Source2ViewerPath = ''
 )
@@ -59,23 +58,6 @@ $supportFiles = @(
     'panorama\layout\hud.xml',
     'panorama\layout\hud_escape_menu.xml',
     'panorama\scripts\qollock_hp_colors_bridge.js'
-)
-$expectedPackedAssets = @(
-    'panorama/layout/hud.vxml_c',
-    'panorama/layout/hud_escape_menu.vxml_c',
-    'panorama/layout/unit_status_overlay_v2.vxml_c',
-    'panorama/scripts/hp_colors_v2_contract.vjs_c',
-    'panorama/scripts/hp_colors_v2_state.vjs_c',
-    'panorama/scripts/hp_colors_v2_menu.vjs_c',
-    'panorama/scripts/unit_status_v2_colors.vjs_c',
-    'panorama/scripts/qollock_hp_colors_bridge.vjs_c',
-    'panorama/styles/hp_colors_v2_menu.vcss_c',
-    'panorama/styles/unit_status_v2.vcss_c'
-)
-$requiredCompiled = @(
-    $expectedPackedAssets | ForEach-Object {
-        Join-Path $stageOutput $_.Replace('/', '\')
-    }
 )
 
 function Require-Path {
@@ -143,6 +125,22 @@ Require-Path -Path $vpkeditcli -Label 'vpkeditcli'
 Require-Path -Path $contractPath -Label 'pak02 asset contract'
 Require-Path -Path $refreshScript -Label 'QOLLOCK compatibility refresh script'
 
+$assetContract = Get-Content -LiteralPath $contractPath -Raw | ConvertFrom-Json
+$expectedPackedAssets = @(
+    $assetContract.requiredPackedAssets | ForEach-Object {
+        $normalized = $_.Replace('\', '/').TrimStart('/')
+        if (-not $normalized.StartsWith('panorama/')) {
+            $normalized = "panorama/$normalized"
+        }
+        $normalized
+    }
+)
+$requiredCompiled = @(
+    $expectedPackedAssets | ForEach-Object {
+        Join-Path $stageOutput $_.Replace('/', '\')
+    }
+)
+
 if ($RefreshFromInstalledQollock) {
     Require-Path -Path $qollockPak -Label 'Installed QOLLOCK package'
     Require-Path -Path $Source2ViewerPath -Label 'Source2Viewer CLI for QOLLOCK refresh'
@@ -170,7 +168,6 @@ if ($RefreshFromInstalledQollock) {
     }
 }
 
-$assetContract = Get-Content -LiteralPath $contractPath -Raw | ConvertFrom-Json
 foreach ($requiredSource in @($assetContract.requiredSources)) {
     Require-Path -Path (Join-Path $supportSrc $requiredSource) -Label 'QOLLOCK compatibility source asset'
 }
@@ -204,8 +201,7 @@ try {
     Invoke-HpColorsRewriteClosureAdvanced `
         -StageSourceRoot $stageSource `
         -ScriptRelativePaths $compatibilityScripts `
-        -WorkRoot $buildRoot `
-        -Profile:$Profile
+        -WorkRoot $buildRoot
     Copy-Item -LiteralPath $canonicalSrc -Destination $canonicalClosureTestRoot -Recurse -Force
     foreach ($relativePath in $canonicalScripts) {
         Copy-StagedFile `
@@ -248,7 +244,7 @@ $vpkTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut
 Assert-PackedVpkAssets `
     -Tree $vpkTree `
     -Label 'HP Colors Rewrite v2 QOLLOCK pak02' `
-    -Required @($assetContract.requiredPackedAssets) `
+    -Required $expectedPackedAssets `
     -Forbidden @($assetContract.forbiddenPackedAssets)
 Write-Host "  Packed OK -> $vpkOut" -ForegroundColor Green
 

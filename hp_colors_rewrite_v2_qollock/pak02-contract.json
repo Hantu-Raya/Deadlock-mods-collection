@@ -48,16 +48,16 @@
     "pak03_dir.vpk"
   ],
   "requiredPackedAssets": [
-    "hud.vxml_c",
-    "hud_escape_menu.vxml_c",
-    "unit_status_overlay_v2.vxml_c",
-    "hp_colors_v2_contract.vjs_c",
-    "hp_colors_v2_state.vjs_c",
-    "hp_colors_v2_menu.vjs_c",
-    "unit_status_v2_colors.vjs_c",
-    "qollock_hp_colors_bridge.vjs_c",
-    "hp_colors_v2_menu.vcss_c",
-    "unit_status_v2.vcss_c"
+    "panorama/layout/hud.vxml_c",
+    "panorama/layout/hud_escape_menu.vxml_c",
+    "panorama/layout/unit_status_overlay_v2.vxml_c",
+    "panorama/scripts/hp_colors_v2_contract.vjs_c",
+    "panorama/scripts/hp_colors_v2_state.vjs_c",
+    "panorama/scripts/hp_colors_v2_menu.vjs_c",
+    "panorama/scripts/unit_status_v2_colors.vjs_c",
+    "panorama/scripts/qollock_hp_colors_bridge.vjs_c",
+    "panorama/styles/hp_colors_v2_menu.vcss_c",
+    "panorama/styles/unit_status_v2.vcss_c"
   ],
   "forbiddenPackedAssets": [
     "hud.xml",

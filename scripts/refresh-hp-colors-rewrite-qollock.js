@@ -9,14 +9,6 @@ function fail(message) {
 }
 
 function replaceOnce(text, pattern, replacement, label) {
-  if (typeof pattern === 'string') {
-    const index = text.indexOf(pattern);
-    if (index < 0 || text.indexOf(pattern, index + pattern.length) >= 0) {
-      fail(`${label}: expected exactly one literal match`);
-    }
-    const value = typeof replacement === 'function' ? replacement(pattern) : replacement;
-    return text.slice(0, index) + value + text.slice(index + pattern.length);
-  }
   const matches = text.match(pattern);
   if (!matches || matches.length !== 1) {
     fail(`${label}: expected exactly one match, found ${matches ? matches.length : 0}`);
@@ -99,6 +91,21 @@ function buildHud(sourceXml, packageHash) {
 }
 
 function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
+  const isV2 = canonicalXml.includes('hp_colors_v2_contract.vjs_c');
+  const styleAsset = isV2
+    ? 'hp_colors_v2_menu.vcss_c'
+    : 'hp_colors_menu.vcss_c';
+  const scriptAssets = isV2
+    ? [
+      'hp_colors_v2_contract.vjs_c',
+      'hp_colors_v2_state.vjs_c',
+      'hp_colors_v2_menu.vjs_c',
+    ]
+    : [
+      'hp_colors_contract.vjs_c',
+      'hp_colors_state.vjs_c',
+      'hp_colors_menu.vjs_c',
+    ];
   for (const id of [
     'HPColorsMenuButton',
     'HPColorsEditorRoot',
@@ -131,20 +138,17 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
   xml = insertAfter(
     xml,
     /^\s*<include src="s2r:\/\/panorama\/styles\/ql_settings\.vcss_c" \/>/m,
-    '\n\t\t<include src="s2r://panorama/styles/hp_colors_menu.vcss_c" />',
+    `\n\t\t<include src="s2r://panorama/styles/${styleAsset}" />`,
     'Escape-menu style anchor',
   );
   const hpPresetStore = extractElementById(canonicalXml, 'Panel', 'HPColorsRewritePresetStore');
+  const scriptIncludes = scriptAssets
+    .concat('qollock_hp_colors_bridge.vjs_c')
+    .map((asset) => `\t\t<include src="s2r://panorama/scripts/${asset}" />`);
   xml = insertAfter(
     xml,
     /^\s*<include src="s2r:\/\/panorama\/scripts\/ql_settings\.vjs_c" \/>/m,
-    [
-      '',
-      '\t\t<include src="s2r://panorama/scripts/hp_colors_contract.vjs_c" />',
-      '\t\t<include src="s2r://panorama/scripts/hp_colors_state.vjs_c" />',
-      '\t\t<include src="s2r://panorama/scripts/hp_colors_menu.vjs_c" />',
-      '\t\t<include src="s2r://panorama/scripts/qollock_hp_colors_bridge.vjs_c" />',
-    ].join('\n'),
+    `\n${scriptIncludes.join('\n')}`,
     'Escape-menu script anchor',
   );
 
@@ -196,10 +200,8 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
     );
   }
   for (const asset of [
-    'hp_colors_menu.vcss_c',
-    'hp_colors_contract.vjs_c',
-    'hp_colors_state.vjs_c',
-    'hp_colors_menu.vjs_c',
+    styleAsset,
+    ...scriptAssets,
     'qollock_hp_colors_bridge.vjs_c',
   ]) {
     requireMatchCount(

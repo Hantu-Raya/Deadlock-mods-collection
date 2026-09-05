@@ -728,7 +728,7 @@
       } else if (effect.type === "effective_publish") {
         var payload = serializeChange(effect.revision, effect.values);
         writeRootSnapshot(payload);
-        cacheReplayPayload(payload);
+        serializedReplayPayload = payload;
         dispatchChange(payload);
         refreshSnapshotReplay();
       } else if (effect.type === "clipboard_write") {
@@ -767,24 +767,6 @@
     var result = stateInstance.send(intent);
     state.view = result && result.view ? result.view : stateInstance.read();
     if (result) executeStateEffects(result.effects);
-    if (
-      $["HPColorsV2Profile"] &&
-      intent.type === "preset_apply" &&
-      result && result.outcome && result.outcome.status !== "rejected"
-    ) {
-      var rows = state.view.repository.rows;
-      for (var index = 0; index < rows.length; index++) {
-        if (rows[index].id !== intent.id) continue;
-        try {
-          $.Msg("[HPV2-BENCHMARK] " + JSON.stringify({
-            preset: rows[index].name,
-            id: rows[index].id,
-            transitionId: state.view.transitionId,
-          }));
-        } catch {}
-        break;
-      }
-    }
     return result;
   }
 
@@ -2897,10 +2879,6 @@
     }
   }
 
-  function cacheReplayPayload(payload) {
-    if (!payload) return;
-    serializedReplayPayload = payload;
-  }
 
 
   function readRootAttribute(name) {
@@ -4526,31 +4504,12 @@
     state.booted = true;
     sendState({ type: "session_open", publish: true });
     var effectiveRaw = readRootAttribute(CONFIG_ATTR);
-    if (effectiveRaw) cacheReplayPayload(effectiveRaw);
+    if (effectiveRaw) serializedReplayPayload = effectiveRaw;
     refreshSnapshotReplay();
     renderNavigation();
     restartIdentityWatch();
   }
 
-  var profiler = $["HPColorsV2Profile"];
-  if (profiler && isCallable(profiler["wrap"])) {
-    boot = profiler["wrap"]("menu.boot", boot);
-    syncControls = profiler["wrap"]("menu.syncControls", syncControls);
-    renderPresetOptions = profiler["wrap"](
-      "menu.renderPresetOptions",
-      renderPresetOptions,
-    );
-    renderCurrentScope = profiler["wrap"](
-      "menu.renderCurrentScope",
-      renderCurrentScope,
-    );
-    executeStateEffects = profiler["wrap"](
-      "menu.executeStateEffects",
-      executeStateEffects,
-    );
-    identityPoll = profiler["wrap"]("menu.identityPoll", identityPoll);
-    snapshotReplay = profiler["wrap"]("menu.snapshotReplay", snapshotReplay);
-  }
 
   $.HPColorsMenuBoot = boot;
   $.HPColorsMenuCancel = cancel;

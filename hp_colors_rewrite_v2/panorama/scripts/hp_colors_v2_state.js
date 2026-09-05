@@ -2584,28 +2584,6 @@
       return makeView();
     }
 
-    var profiler = $["HPColorsV2Profile"];
-    if (profiler && typeof profiler["wrap"] === "function") {
-      dispatch = profiler["wrap"]("state.dispatch", dispatch);
-      makeView = profiler["wrap"]("state.makeView", makeView);
-      resolveEffectiveSource = profiler["wrap"](
-        "state.resolveEffectiveSource",
-        resolveEffectiveSource,
-      );
-      materializeEffective = profiler["wrap"](
-        "state.materializeEffective",
-        materializeEffective,
-      );
-      refreshEffective = profiler["wrap"](
-        "state.refreshEffective",
-        refreshEffective,
-      );
-      commit = profiler["wrap"]("state.commit", commit);
-      baseRaw = profiler["wrap"]("state.baseRaw", baseRaw);
-      historyRaw = profiler["wrap"]("state.historyRaw", historyRaw);
-      sessionRaw = profiler["wrap"]("state.sessionRaw", sessionRaw);
-      effectiveRaw = profiler["wrap"]("state.effectiveRaw", effectiveRaw);
-    }
 
     return Object.freeze({ send: dispatch, read: read });
   }

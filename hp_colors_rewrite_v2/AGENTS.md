@@ -4,7 +4,7 @@
 
 `hp_colors_rewrite_v2/` owns the session-scoped ESC editor and live v2 unit-status renderer. Keep its centered segment geometry and `HP_COLORS_V2_CONFIG` transport. Read `FEATURES.md` for feature behavior and manual smoke scenarios; use source and the build wrapper for current implementation details.
 
-The lane is session-scoped. Do not add durable persistence, Anita compatibility, Reset All, legacy v99 support, or ShowRank Barebones integration. HPCR2 settings codes and HPCRP1 preset codes remain byte-compatible with v1.
+The lane is session-scoped. Do not add durable persistence, Anita compatibility, Reset All, or legacy v99 support. HPCR2 settings codes and HPCRP1 preset codes remain byte-compatible with v1. ShowRank Barebones support is opt-in build-stage Escape composition; keep canonical runtime code independent.
 
 Package ownership is fixed: the Rewrite builder seed is pak01, the generic preset builder is pak96, and the Rewrite v2 runtime is pak02.
 
@@ -56,12 +56,12 @@ Edit only `hp_colors_rewrite_v2/` source, the focused validators under `scripts/
 Run:
 
 ```powershell
-node --test scripts/validate-hp-colors-rewrite-v2-baseline.test.js scripts/validate-hp-colors-rewrite-v2-editor.test.js scripts/validate-hp-colors-rewrite-v2-parity.test.js scripts/validate-hp-colors-rewrite-v2-state.test.js scripts/validate-hp-colors-rewrite-v2-profile.test.js
+node --test scripts/validate-hp-colors-rewrite-v2-baseline.test.js scripts/validate-hp-colors-rewrite-v2-editor.test.js scripts/validate-hp-colors-rewrite-v2-parity.test.js scripts/validate-hp-colors-rewrite-v2-state.test.js scripts/validate-hp-colors-rewrite-v2-style.test.js
 powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_v2.ps1 -SkipDeploy
 ```
 
 The build wrapper runs these validators again against source and Closure output, checks the compiled asset set and VPK contents, and writes root `pak02_dir.vpk`. `-SkipDeploy` leaves the installed addon untouched.
 
-For console profiling, add `-Profile` to either v2 build wrapper. It enables the contract's shared diagnostic collector only in staging; keep `PROFILE_ENABLED` false in authored source. Read `FEATURES.md` under Console cost diagnostics for timing limitations, report limits, and the importable performance preset pack. Do not compare diagnostic-package FPS with normal-package FPS.
+Release builds contain no temporary profiling collector or timing switches. Preserve native-style readback, alias restoration, and failed-write retry coverage in the style validator. Use `-ShowRankBarebones` only with its required pak89 installed; use the separate QOLLOCK wrapper for pak03 compatibility.
 
 After deployment, restart Deadlock before the live smoke test. Verify enemy and ally rendering, fixed and gradient thresholds, exclusions, dimensions, position, feedback colors, ultimate icons, all readout modes, pips, levels, pulses, kill marker behavior, hero scopes, ability conditions, presets, HPCR2 settings transfer, HPCRP1 preset transfer, Escape cancel/resume behavior, and supported UI scales. Automated tests cannot prove live panel lineage, rendering, or frame cost.

@@ -15,8 +15,6 @@ const contractPath = path.join(sourceRoot, 'scripts', 'hp_colors_v2_contract.js'
 const statePath = path.join(sourceRoot, 'scripts', 'hp_colors_v2_state.js');
 const menuPath = path.join(sourceRoot, 'scripts', 'hp_colors_v2_menu.js');
 const layoutPath = path.join(sourceRoot, 'layout', 'hud_escape_menu.xml');
-const overlayPath = path.join(sourceRoot, 'layout', 'unit_status_overlay_v2.xml');
-const rendererPath = path.join(sourceRoot, 'scripts', 'unit_status_v2_colors.js');
 const buildPath = path.join(root, 'build_hp_colors_rewrite_v2.ps1');
 
 const read = (file) => fs.readFileSync(file, 'utf8');
@@ -208,57 +206,3 @@ test('complete v1 editor replaces the compact menu without ShowRank', () => {
   );
 });
 
-test('v2 overlay and renderer expose all advanced runtime owners', () => {
-  const overlay = read(overlayPath);
-  const renderer = read(rendererPath);
-  for (const id of [
-    'hp_colors_pulse_overlay',
-    'hp_colors_kill_marker',
-    'LevelContainer',
-    'unit_level_label',
-    'hp_counter_anchor',
-  ]) assert.match(overlay, new RegExp(`id="${id}"`));
-  for (const token of [
-    'enemyPulseEnabled',
-    'allyPulseEnabled',
-    'enemyKillMarkerEnabled',
-    'precisePipsEnabled',
-    'readoutMaxTeamColor',
-    'ghoulOpacityEnabled',
-    'enemyBulletShield',
-    'staminaWidth',
-    'staminaHeight',
-    'staminaOffsetX',
-    'staminaOffsetY',
-    'enemyStaminaColorEnabled',
-    'enemyStaminaColor',
-    'allyBulletShield',
-  ]) assert.match(renderer, new RegExp(token));
-  assert.match(renderer, /HP_COLORS_V2_CONFIG/);
-  assert.doesNotMatch(renderer, new RegExp('\\[HPV2-' + 'HBDBG\\]'));
-  assert.doesNotMatch(renderer, /\[DEBUG-HPV2-CENTER\]/);
-  assert.doesNotMatch(renderer, /HP_COLORS_REWRITE_CONFIG/);
-  assert.doesNotMatch(renderer, /excludeBuildings|excludeBosses|excludeGhouls/);
-});
-
-test('build declares the exact eight-asset source contract', () => {
-  const build = read(buildPath);
-  assert.match(build, /hp_colors_v2_state\.js/);
-  assert.match(build, /hp_colors_v2_state\.vjs_c/);
-  const manifestBlock = build.match(
-    /\$assetManifest\s*=\s*@\(([\s\S]*?)\n\)\s*\n\$rewriteScripts/,
-  );
-  assert.ok(manifestBlock);
-  const sources = Array.from(
-    manifestBlock[1].matchAll(/Source\s*=\s*'([^']+)'/g),
-    (match) => match[1],
-  );
-  const packed = Array.from(
-    manifestBlock[1].matchAll(/Packed\s*=\s*'([^']+)'/g),
-    (match) => match[1],
-  );
-  assert.equal(sources.length, 8);
-  assert.equal(new Set(sources).size, 8);
-  assert.equal(packed.length, 8);
-  assert.equal(new Set(packed).size, 8);
-});

@@ -246,11 +246,16 @@ test('pak02 contract and wrapper enforce canonical reuse and pak02-only output',
   ]);
   assert.equal(contract.qollockAuthority, 'installed pak03_dir.vpk');
   assert.equal(contract.refreshSwitch, '-RefreshFromInstalledQollock');
+  assert.ok(contract.requiredPackedAssets.every((asset) => /^panorama\/.+/.test(asset)));
+  assert.equal(
+    new Set(contract.requiredPackedAssets).size,
+    contract.requiredPackedAssets.length,
+  );
   for (const asset of [
-    'unit_status_overlay_v2.vxml_c',
-    'hp_colors_v2_state.vjs_c',
-    'unit_status_v2_colors.vjs_c',
-    'qollock_hp_colors_bridge.vjs_c',
+    'panorama/layout/unit_status_overlay_v2.vxml_c',
+    'panorama/scripts/hp_colors_v2_state.vjs_c',
+    'panorama/scripts/unit_status_v2_colors.vjs_c',
+    'panorama/scripts/qollock_hp_colors_bridge.vjs_c',
   ]) {
     assert.ok(contract.requiredPackedAssets.includes(asset), asset);
   }
