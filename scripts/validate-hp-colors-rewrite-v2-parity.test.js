@@ -261,5 +261,4 @@ test('build declares the exact eight-asset source contract', () => {
   assert.equal(new Set(sources).size, 8);
   assert.equal(packed.length, 8);
   assert.equal(new Set(packed).size, 8);
-  assert.doesNotMatch(build, /showrank_barebones/i);
 });

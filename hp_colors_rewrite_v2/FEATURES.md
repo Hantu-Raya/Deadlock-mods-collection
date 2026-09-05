@@ -283,9 +283,11 @@ The preserved before/after runs reduced renderer parent reads from 550 to 370 pe
 
 ## Console cost diagnostics
 
-Build the QOLLOCK diagnostic package with `powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_v2_qollock.ps1 -SkipDeploy -Profile`. The canonical wrapper accepts the same switches. Profiling is disabled in authored source and enabled only in build staging; omit `-Profile` for a normal package.
+For the normal Rewrite diagnostic package with ShowRank Barebones, first install Barebones with `powershell -ExecutionPolicy Bypass -File build_showrank_barebones.ps1 -Install`, then run `powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_v2.ps1 -Profile -ShowRankBarebones`. This deploys HP Colors as pak02 and uses Barebones from pak89. The compatibility switch composes the Barebones Escape script and open/out handlers into the staged HP layout while preserving HP editor cancellation. Canonical source remains standalone; omit `-ShowRankBarebones` when not using Barebones. Do not load QOLLOCK for this test.
 
-After installing the diagnostic pak02 and fully restarting Deadlock, collect console lines beginning `[HPV2-PROFILE]`. Each context reports at most once every 3 seconds, after measured work, and stops after 400 reports, allowing roughly 20 minutes of continuous reporting. No extra polling loop is added. Restart to start a new capture.
+The normal wrapper's diagnostic build reports every 20 seconds for 120 reports per context, covering roughly 40 minutes of continuous reporting. The QOLLOCK wrapper's `-Profile` build remains at 3 seconds and 400 reports per context. Profiling is disabled in authored source and enabled only in build staging; omit `-Profile` for a release package. Add `-SkipDeploy` only when a build artifact without installation is wanted.
+
+After installing diagnostic pak02, fully restart Deadlock and collect console lines beginning `[HPV2-PROFILE]`. Reports run after measured work, not on an extra timer. Idle or destroyed contexts can report less often or stop earlier; each newly created context has its own allowance. Restart to start a new capture.
 
 Reports are split into bounded JSON messages to avoid console truncation. Each `[HPV2-PROFILE]` message carries `context`, `reports`, one-based `part`, total `parts`, and a `data` fragment. Group by context and report number, require every part, concatenate `data` in part order, then parse the complete report. Do not treat each fragment as a separate timing window.
 

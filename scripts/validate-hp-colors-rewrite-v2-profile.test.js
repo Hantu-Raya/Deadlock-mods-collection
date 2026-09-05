@@ -10,6 +10,8 @@ const authoredPath = path.resolve(__dirname, '../hp_colors_rewrite_v2/panorama/s
 const contractPath = process.env.HP_COLORS_REWRITE_SOURCE_ROOT
   ? path.join(process.env.HP_COLORS_REWRITE_SOURCE_ROOT, 'panorama/scripts/hp_colors_v2_contract.js')
   : authoredPath;
+const profileWindowMs = Number(process.env.HP_COLORS_PROFILE_WINDOW_MS || 3000);
+const profileMaxReports = Number(process.env.HP_COLORS_PROFILE_MAX_REPORTS || 400);
 
 function loadProfile(source, precise = true) {
   let now = 0;
@@ -65,16 +67,16 @@ test('normal authored contract performs no profiler clock reads', () => {
   assert.deepEqual(fixture.logs, []);
 });
 
-test('profile reports at three seconds, not before', t => {
+test('profile reports at the configured interval, not before', t => {
   const f = enabledProfile(t);
   if (!f) return;
   const work = f.profile.wrap('work', () => f.advance(1));
-  f.advance(2998);
+  f.advance(profileWindowMs - 2);
   work();
   assert.equal(f.reports().length, 0);
   work();
   assert.equal(f.reports().length, 1);
-  assert.equal(f.reports()[0].windowMs, 3000);
+  assert.equal(f.reports()[0].windowMs, profileWindowMs);
 });
 
 test('profile separates nested self time and preserves returns, receiver, and exceptions', t => {
@@ -95,7 +97,7 @@ test('profile separates nested self time and preserves returns, receiver, and ex
   const fails = f.profile.wrap('fails', () => { f.advance(2); throw error; });
   assert.throws(fails, actual => actual === error);
   assert.equal(f.reports().length, 0);
-  f.advance(15000);
+  f.advance(profileWindowMs);
   f.profile.wrap('flush', () => f.advance(1))();
   const report = f.reports()[0];
   assert.ok(report);
@@ -115,13 +117,13 @@ test('coarse-clock profiling bounds reports and rows over a long-lived context',
   if (!f) return;
   const callbacks = Array.from({ length: 10 }, (_, i) =>
     f.profile.wrap('work' + i, () => f.advance(i + 1)));
-  for (let window = 0; window < 405; window++) {
+  for (let window = 0; window < profileMaxReports + 5; window++) {
     for (const callback of callbacks) callback();
-    f.advance(15000);
+    f.advance(profileWindowMs);
     callbacks[0]();
   }
   const reports = f.reports();
-  assert.equal(reports.length, 400);
+  assert.equal(reports.length, profileMaxReports);
   assert.match(reports[0].clock, /Date/);
   assert.equal(reports[0].rows.length, 10);
   assert.equal(reports[0].rows[0].label, 'work9');
@@ -134,7 +136,7 @@ test('top calls ranks frequency independently of time and resets each window', t
     const work = f.profile.wrap('work' + index, () => f.advance(index + 1));
     for (let call = 0; call < 12 - index; call++) work();
   }
-  f.advance(3000);
+  f.advance(profileWindowMs);
   const flush = f.profile.wrap('flush', () => {});
   flush();
   const report = f.reports()[0];
@@ -146,7 +148,7 @@ test('top calls ranks frequency independently of time and resets each window', t
   assert.equal(report.topCalls[0].maxMs, 1);
   assert.equal(report.topCalls[0].callsPerSecond, Math.round(12000 / report.windowMs * 1000) / 1000);
   assert.notEqual(report.rows[0].label, report.topCalls[0].label);
-  f.advance(3000);
+  f.advance(profileWindowMs);
   flush();
   assert.equal(f.reports()[1].topCalls.length, 1);
   assert.equal(f.reports()[1].topCalls[0].label, 'flush');
@@ -159,7 +161,7 @@ test('full rankings survive the console message limit', t => {
   if (!f) return;
   const labels = Array.from({ length: 12 }, (_, i) => 'menu.renderPresetOptions' + i);
   for (const label of labels) f.profile.wrap(label, () => f.advance(1))();
-  f.advance(3000);
+  f.advance(profileWindowMs);
   f.profile.wrap('flush', () => {})();
   for (const line of f.logs) assert.ok(Buffer.byteLength(line, 'utf8') < 2000, 'console message would truncate');
   const report = f.reports()[0];
@@ -187,7 +189,7 @@ test('style diagnostics distinguish cache hits, writes, invalid panels and failu
   const broken = { id: 'HealthFill', style: new Proxy({}, { set() { throw new Error('panel write failed'); } }) };
   setStyle(broken, 'opacity', '1', cache, 'broken');
   assert.equal(cache.broken, null);
-  f.advance(3000);
+  f.advance(profileWindowMs);
   const flush = f.profile.wrap('flush', () => {});
   flush();
   assert.deepEqual(f.reports()[0].style, { cacheHits: 1, writes: 2, invalidPanels: 1, writeErrors: 1 });
@@ -197,7 +199,7 @@ test('style diagnostics distinguish cache hits, writes, invalid panels and failu
     { property: 'opacity', reason: 'nativeMismatch', attempts: 1, panel: '', previous: '0', requested: '1' },
   ]);
   setStyle(broken, 'opacity', '1', cache, 'broken');
-  f.advance(3000);
+  f.advance(profileWindowMs);
   flush();
   assert.deepEqual(f.reports()[1].style, { cacheHits: 0, writes: 0, invalidPanels: 0, writeErrors: 1 });
   assert.deepEqual(f.reports()[1].styleFailures, []);
@@ -210,7 +212,7 @@ test('distinct failure details remain bounded without losing report transport', 
   const f = enabledProfile(t);
   if (!f) return;
   for (let i = 0; i < 40; i++) f.profile.styleError('Panel' + i, 'color', '\u0000'.repeat(200), new Error('unsupported'));
-  f.advance(3000);
+  f.advance(profileWindowMs);
   f.profile.wrap('flush', () => {})();
   const report = f.reports()[0];
   assert.equal(report.styleFailures.length, 32);
@@ -264,7 +266,7 @@ test('alias restoration clears the base and preserves sibling inline styles', t 
   setStyle(panel, 'marginLeft', '', cache, 'marginLeft');
   assert.equal(f.profile.style.writes, writes);
   assert.equal(f.profile.style.writeErrors, 0);
-  f.advance(3000);
+  f.advance(profileWindowMs);
   f.profile.wrap('flush', () => {})();
   assert.ok(f.reports()[0].styleWrites.every(row => row.reason === 'aliasRestore'));
   assert.equal(f.reports()[0].styleWrites.reduce((sum, row) => sum + row.attempts, 0), writes);

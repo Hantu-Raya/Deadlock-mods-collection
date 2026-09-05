@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$SkipDeploy,
-    [switch]$Profile
+    [switch]$Profile,
+    [switch]$ShowRankBarebones
 )
 
 $ErrorActionPreference = 'Stop'
@@ -84,6 +85,18 @@ Require-Path -Path $vpkeditcli -Label 'vpkeditcli'
 foreach ($validator in $validators) {
     Require-Path -Path $validator -Label 'HP Colors Rewrite v2 validator'
 }
+if ($ShowRankBarebones) {
+    $barebonesLayout = Join-Path $root 'showrank_barebones\panorama\layout\hud_escape_menu.xml'
+    $barebonesPak = Join-Path (Split-Path $vpkDest -Parent) 'pak89_dir.vpk'
+    Require-Path -Path $barebonesLayout -Label 'ShowRank Barebones Escape layout'
+    Require-Path -Path $barebonesPak -Label 'Installed ShowRank Barebones pak89'
+    $barebonesTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $barebonesPak
+    Assert-PackedVpkAssets -Tree $barebonesTree -Label 'ShowRank Barebones dependency' -Required @(
+        'panorama/scripts/showrank_barebones.vjs_c',
+        'panorama/layout/players_list_entry.vxml_c',
+        'panorama/layout/citadel_hud_top_bar.vxml_c'
+    )
+}
 
 Write-Host "`n[1/5] Validating HP Colors Rewrite v2 source..." -ForegroundColor Cyan
 & node --test $validators
@@ -102,12 +115,58 @@ try {
     $stagePanorama = Join-Path $compileStageSource 'panorama'
     New-Item -ItemType Directory -Path $stagePanorama -Force | Out-Null
     Copy-Item -Path (Join-Path $modSrc 'panorama\*') -Destination $stagePanorama -Recurse -Force
+    if ($Profile) {
+        $profilePath = Join-Path $compileStageSource 'panorama\scripts\hp_colors_v2_contract.js'
+        $profileSource = [System.IO.File]::ReadAllText($profilePath)
+        foreach ($marker in @('var PROFILE_WINDOW_MS = 3000;', 'var PROFILE_MAX_REPORTS = 400;')) {
+            if ([regex]::Matches($profileSource, [regex]::Escape($marker)).Count -ne 1) {
+                throw "Expected exactly one profiler timing marker: $marker"
+            }
+        }
+        $profileSource = $profileSource.Replace('var PROFILE_WINDOW_MS = 3000;', 'var PROFILE_WINDOW_MS = 20000;')
+        $profileSource = $profileSource.Replace('var PROFILE_MAX_REPORTS = 400;', 'var PROFILE_MAX_REPORTS = 120;')
+        [System.IO.File]::WriteAllText($profilePath, $profileSource, [System.Text.UTF8Encoding]::new($false))
+        Write-Host '  Normal Rewrite diagnostics: 20-second reports, 120 reports per context (40 minutes).' -ForegroundColor Yellow
+    }
     Invoke-HpColorsRewriteClosureAdvanced `
         -StageSourceRoot $compileStageSource `
         -ScriptRelativePaths $rewriteScripts `
         -WorkRoot $compileStageRoot `
         -Profile:$Profile
-    Invoke-HpColorsRewriteClosureTests -RepositoryRoot $root -SourceRoot $compileStageSource
+    $previousProfileWindow = $env:HP_COLORS_PROFILE_WINDOW_MS
+    $previousProfileReports = $env:HP_COLORS_PROFILE_MAX_REPORTS
+    try {
+        $env:HP_COLORS_PROFILE_WINDOW_MS = '20000'
+        $env:HP_COLORS_PROFILE_MAX_REPORTS = '120'
+        Invoke-HpColorsRewriteClosureTests -RepositoryRoot $root -SourceRoot $compileStageSource
+    }
+    finally {
+        $env:HP_COLORS_PROFILE_WINDOW_MS = $previousProfileWindow
+        $env:HP_COLORS_PROFILE_MAX_REPORTS = $previousProfileReports
+    }
+    if ($ShowRankBarebones) {
+        $escapePath = Join-Path $compileStageSource 'panorama\layout\hud_escape_menu.xml'
+        [xml]$escape = [System.IO.File]::ReadAllText($escapePath)
+        [xml]$barebones = [System.IO.File]::ReadAllText($barebonesLayout)
+        $hostPanel = $escape.SelectSingleNode('/root/CitadelHudEscapeMenu')
+        $rankPanel = $barebones.SelectSingleNode('/root/CitadelHudEscapeMenu')
+        if ($null -eq $hostPanel -or $null -eq $rankPanel) {
+            throw 'Missing Escape root in HP Colors or ShowRank Barebones layout'
+        }
+        foreach ($include in $barebones.SelectNodes('/root/scripts/include')) {
+            [void]$escape.root.scripts.AppendChild($escape.ImportNode($include, $true))
+        }
+        foreach ($eventName in @('onload', 'onmouseover', 'onmouseout')) {
+            $rankHandler = $rankPanel.GetAttribute($eventName)
+            if ([string]::IsNullOrWhiteSpace($rankHandler)) {
+                throw "ShowRank Barebones is missing Escape handler: $eventName"
+            }
+            $existingHandler = $hostPanel.GetAttribute($eventName)
+            $hostPanel.SetAttribute($eventName, "$existingHandler; $rankHandler")
+        }
+        $escape.Save($escapePath)
+        Write-Host '  ShowRank Barebones Escape hooks composed; HP cancel behavior retained.' -ForegroundColor Green
+    }
 
 
     Write-Host "`n[3/5] Compiling HP Colors Rewrite v2..." -ForegroundColor Cyan
