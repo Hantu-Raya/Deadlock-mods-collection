@@ -1,0 +1,49 @@
+/* Reveal the native player accessory without overriding its engine-owned icon state. */
+.CLASS_PLAYER:not(.LocalPlayer) #UnitInfoContainer.unit_info_panel
+{
+	width: 300px;
+	height: width-percentage(100%);
+	vertical-align: middle;
+	visibility: visible;
+	overflow: noclip;
+}
+
+#HPV2UltimateOverlay, #HPV2UltimateFill, .HPV2UltimateArtwork
+{
+	width: 100%;
+	height: 100%;
+}
+
+#HPV2UltimateOverlay
+{
+	visibility: collapse;
+}
+
+/* Keep native visibility engine-owned; suppress duplicate artwork only while custom data is valid. */
+.HPV2UltimateActive #unit_ult_ready_icon
+{
+	opacity: 0;
+}
+
+.HPV2UltimateArtwork
+{
+	brightness: 2;
+}
+
+#HPV2UltimateDark
+{
+	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_ultready_bg_psd.vtex");
+	background-size: 100%;
+	brightness: 0.01;
+}
+
+#HPV2UltimateFill
+{
+	visibility: visible;
+	clip: radial(50% 50%, 0deg, 0deg);
+}
+
+.team1 .HPV2UltimateArtwork { wash-color: teamColor1; }
+.team2 .HPV2UltimateArtwork { wash-color: teamColor2; }
+.enemy .HPV2UltimateArtwork { wash-color: TeamEnemyColor; }
+.friend .HPV2UltimateArtwork { wash-color: TeamFriendColor; }

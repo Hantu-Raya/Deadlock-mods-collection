@@ -22,6 +22,7 @@ $assets = @(
     'panorama/scripts/test_pickup_profile.vjs_c',
     'panorama/layout/unit_status_overlay_v2.vxml_c',
     'panorama/layout/citadel_hud_top_bar.vxml_c',
+    'panorama/styles/test_world_ultimate.vcss_c',
     'panorama/layout/test_event_relay.vxml_c',
     'panorama/scripts/test_topbar_pickups.vjs_c',
     'panorama/scripts/test_event_bridge.vjs_c'
@@ -38,6 +39,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Pickup record grouping check failed' }
 if ($LASTEXITCODE -ne 0) { throw 'Pickup clock reset check failed' }
 & node (Join-Path $root 'test_hpv2\scripts\validate-local-player.js')
 if ($LASTEXITCODE -ne 0) { throw 'Pickup local-player exclusion check failed' }
+& node (Join-Path $root 'test_hpv2\scripts\validate-ultimate.js')
+if ($LASTEXITCODE -ne 0) { throw 'Native ultimate snapshot check failed' }
 
 & node --check (Join-Path $root 'test_hpv2\panorama\scripts\test_event_bridge.js')
 if ($LASTEXITCODE -ne 0) { throw 'Event probe syntax check failed' }
