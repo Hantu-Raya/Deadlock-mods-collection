@@ -21,8 +21,6 @@ for (const raw of supported) {
   assert.equal(JSON.parse(raw).magic_word, magic);
   assert.equal(mayContainScanGate(raw), true, raw);
 }
-assert.equal(mayContainScanGate(JSON.stringify({ magic_word: "HPV2_ULTIMATE_SNAPSHOT" })), true);
-assert.equal(mayContainScanGate('{"magic_word":"HPV2_ULTIMATE_\\u0053NAPSHOT"}'), true);
 for (const raw of ['null', '{}', '{"magic_word":"HPV2_PICKUP_SNAPSHOT","record":null}', '{"magic_word":"HP_COLORS_V2_CONFIG"}']) {
   assert.equal(mayContainScanGate(raw), false, raw);
 }

@@ -1,4 +1,4 @@
-<!-- Stock layout with pickup and ultimate-state transport scripts. -->
+<!-- Stock layout with pickup transport scripts. -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />

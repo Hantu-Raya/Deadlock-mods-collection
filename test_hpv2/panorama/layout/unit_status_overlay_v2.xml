@@ -2,7 +2,6 @@
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/unit_status_v2.vcss_c" />
-		<include src="s2r://panorama/styles/test_world_ultimate.vcss_c" />
 	</styles>
 	<scripts>
 		<include src="s2r://panorama/scripts/test_pickup_profile.vjs_c" />
@@ -23,7 +22,6 @@
 			<Panel class="unit_info_panel">
 				<Panel id="unit_info_bg">
 					<Image id="unit_ult_ready_icon" />
-					<Image id="HPV2UltimateProgress" hittest="false" />
 					<Image id="unit_info_icon" />
 					<Panel id="state_container">
 						<Image id="state_icon" />

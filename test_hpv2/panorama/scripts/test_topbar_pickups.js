@@ -62,174 +62,6 @@
   var pausePanel = null;
   var pauseIntervals = [];
   var paused = false;
-  var worldUltimate = null;
-  var worldUltimateFill = null;
-  var worldUltimateHost = null;
-  var ultimateReceivedAt = 0;
-  var ultimateName = "";
-  var ultimateAngle = null;
-  var ultimateTraceCount = 0;
-  var ultimateWorldTrace = "";
-  function unlockAngle(raw) {
-    var text = String(raw || "").replace(/<[^>]*>/g, "").replace(/[\s\u00a0\u202f]/g, "").toUpperCase();
-    if (/^\d{1,3}(?:,\d{3})+$/.test(text)) text = text.replace(/,/g, "");
-    var match = /^(\d+(?:[.,]\d+)?)([KM]?)$/.exec(text);
-    if (!match) return null;
-    var souls = Number(match[1].replace(",", ".")) * (match[2] === "K" ? 1000 : match[2] === "M" ? 1000000 : 1);
-    return isFinite(souls) ? Math.max(0, Math.min(1, (souls - 600) / 3200)) * 360 : null;
-  }
-
-
-  function parseUltimateClip(raw) {
-    var match = /^radial\(\s*50(?:\.0+)?%\s+50(?:\.0+)?%\s*,\s*0(?:\.0+)?deg\s*,\s*(\d+(?:\.\d+)?)deg\s*\)$/.exec(raw);
-    var angle = match ? Number(match[1]) : NaN;
-    return isFinite(angle) && angle >= 0 && angle <= 360 ? angle : null;
-  }
-
-  function validUltimates(message, now, since, previousAt) {
-    if (!message || message.magic_word !== "HPV2_ULTIMATE_SNAPSHOT" ||
-        typeof message.at !== "number" || !isFinite(message.at) ||
-        message.at > now || now - message.at >= 4000 || message.at < previousAt ||
-        message.since !== since || !Array.isArray(message.players) || message.players.length > 12) return false;
-    var names = Object.create(null);
-    for (var index = 0; index < message.players.length; index++) {
-      var item = message.players[index];
-      if (!Array.isArray(item) || item.length !== 2 ||
-          typeof item[0] !== "string" || !item[0] || item[0].length > 256 ||
-          item[0] !== item[0].trim().toUpperCase() || names[item[0]] ||
-          typeof item[1] !== "number" || !isFinite(item[1]) ||
-          item[1] < 0 || item[1] > 360) return false;
-      names[item[0]] = true;
-    }
-    return true;
-  }
-
-  function hideWorldUltimate() {
-    if (valid(worldUltimateFill) && ultimateAngle !== null) worldUltimateFill.style.clip = "radial(50% 50%, 0deg, 0deg)";
-    ultimateName = "";
-    ultimateAngle = null;
-  }
-
-  function discoverWorldUltimate() {
-    if (!valid(worldUltimateHost)) worldUltimateHost = context.FindChildTraverse("UnitInfoContainer");
-    if (!valid(worldUltimateHost)) return false;
-    if (!valid(namePanel)) namePanel = context.FindChildTraverse("name");
-    var name = readName(namePanel);
-    var show = context.BAscendantHasClass("CLASS_PLAYER") &&
-      !context.BAscendantHasClass("LocalPlayer") && !(name && name === localPlayerName);
-    if (worldUltimateHost.BHasClass("HPV2UltimateHost") !== show) worldUltimateHost.SetHasClass("HPV2UltimateHost", show);
-    if (!show) {
-      hideWorldUltimate();
-      return false;
-    }
-    if (!valid(worldUltimate)) {
-      worldUltimate = worldUltimateHost.FindChildTraverse("unit_info_bg");
-      worldUltimateFill = null;
-      ultimateAngle = null;
-      ultimateName = "";
-    }
-    if (valid(worldUltimate) && !valid(worldUltimateFill)) {
-      worldUltimateFill = worldUltimate.FindChildTraverse("HPV2UltimateProgress");
-      if (valid(worldUltimateFill)) worldUltimateFill.style.clip = "radial(50% 50%, 0deg, 0deg)";
-    }
-    return !!valid(worldUltimateFill);
-  }
-
-  function receiveUltimates(message, now) {
-    if (!validUltimates(message, now, sessionStartedAt, ultimateReceivedAt)) {
-      profile.count("ultimateRejected");
-      return;
-    }
-    if (!discoverWorldUltimate()) {
-      profile.count("ultimatePanelMissing");
-      return;
-    }
-    profile.count("ultimateReceived");
-    if (!valid(namePanel)) namePanel = context.FindChildTraverse("name");
-    var name = readName(namePanel);
-    var angle = null;
-    for (var index = 0; index < message.players.length; index++) {
-      if (message.players[index][0] === name) angle = message.players[index][1];
-    }
-    ultimateReceivedAt = message.at;
-    if (angle === null || !name || name === localPlayerName) {
-      profile.count("ultimateUnmatched");
-      hideWorldUltimate();
-      return;
-    }
-    if (ultimateAngle !== angle) worldUltimateFill.style.clip = "radial(50% 50%, 0deg, " + angle + "deg)";
-    if (ultimateTraceCount < 120) {
-      var nativeReady = worldUltimate.FindChildTraverse("unit_ult_ready_icon");
-      var trace = JSON.stringify({ role: "world", source: sourceId, angle: angle,
-        clip: String(worldUltimateFill.style.clip || ""),
-        nativeOpacity: valid(nativeReady) ? String(nativeReady.style.opacity || "") : "missing",
-        nativeVisibility: valid(nativeReady) ? String(nativeReady.style.visibility || "") : "missing" });
-      if (trace !== ultimateWorldTrace) {
-        ultimateWorldTrace = trace;
-        ultimateTraceCount++;
-        $.Msg("[test_hpv2][ultimate-state] " + trace);
-      }
-    }
-    if (!ultimateName) profile.count("ultimateShown");
-    ultimateAngle = angle;
-    ultimateName = name;
-  }
-
-  function ultimateTick() {
-    if (stopped || !valid(context)) return;
-    try {
-      var counts = Object.create(null);
-      var players = [];
-      for (var local = 0; local < localPlayerLabels.length; local++) {
-        var localName = readName(localPlayerLabels[local]);
-        if (localName) counts[localName] = (counts[localName] || 0) + 1;
-      }
-      for (var index = 0; index < rows.length; index++) {
-        var row = rows[index];
-        var name = row.ultimateName = readName(row.label);
-        if (name) counts[name] = (counts[name] || 0) + 1;
-      }
-      for (var next = 0; next < rows.length; next++) {
-        var current = rows[next];
-        var player = current.ultimateName;
-        if (!player || player.length > 256 || counts[player] !== 1 ||
-            !valid(current.ultimate) || current.label.BAscendantHasClass("LocalPlayer") ||
-            current.label.BAscendantHasClass("Dead") || current.label.BAscendantHasClass("Disconnected")) continue;
-        var angle = null;
-        if (current.label.BAscendantHasClass("UltimateUnlocked")) {
-          if (current.label.BAscendantHasClass("UltimateCooldownReady")) angle = 360;
-          else {
-            if (!valid(current.ultimateBackground)) current.ultimateBackground = current.ultimate.FindChildTraverse("UltimateStatusBG");
-            angle = valid(current.ultimateBackground) ? parseUltimateClip(String(current.ultimateBackground.style.clip || "")) : null;
-          }
-        } else if (valid(current.owner)) {
-          if (!valid(current.souls)) current.souls = current.owner.FindChildTraverse("SoulsValue");
-          angle = valid(current.souls) ? unlockAngle(current.souls.text) : null;
-        }
-        if (ultimateTraceCount < 120) {
-          if (!valid(current.ultimateBackground)) current.ultimateBackground = current.ultimate.FindChildTraverse("UltimateStatusBG");
-          var trace = JSON.stringify({ role: "hud", row: current.owner.id,
-            unlocked: current.label.BAscendantHasClass("UltimateUnlocked"),
-            ready: current.label.BAscendantHasClass("UltimateCooldownReady"),
-            nativeClip: valid(current.ultimateBackground) ? String(current.ultimateBackground.style.clip || "") : "missing",
-            angle: angle });
-          if (trace !== current.ultimateTrace) {
-            current.ultimateTrace = trace;
-            ultimateTraceCount++;
-            $.Msg("[test_hpv2][ultimate-state] " + trace);
-          }
-        }
-        if (angle !== null) players.push([player, angle]);
-      }
-      profile.count("ultimatePublishedPlayers", players.length);
-      if (players.length <= 12) $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
-        magic_word: "HPV2_ULTIMATE_SNAPSHOT", since: sessionStartedAt, at: Date.now(), players: players
-      }));
-    } catch (error) {
-      $.Msg("[test_hpv2][ultimate-error] " + String(error));
-    }
-    $.Schedule(1, ultimateTick);
-  }
   // Observation heartbeat plus HUD cleanup, with room for delayed updates.
   // Freshness is wall time even while the buff countdown is paused.
   var ttl = 24000;
@@ -412,7 +244,7 @@
 
   function mayContainScanGate(raw) {
     // Escaped keys/values must still reach JSON parsing and full gate validation.
-    return raw.indexOf("HPV2_PICKUP_SCAN_GATE") >= 0 || raw.indexOf("HPV2_ULTIMATE_SNAPSHOT") >= 0 || raw.indexOf("\\") >= 0;
+    return raw.indexOf("HPV2_PICKUP_SCAN_GATE") >= 0 || raw.indexOf("\\") >= 0;
   }
 
   function receiveSnapshot(raw) {
@@ -439,10 +271,6 @@
       }
       var now = Date.now();
       if (!topBar) {
-        if (message && message.magic_word === "HPV2_ULTIMATE_SNAPSHOT") {
-          receiveUltimates(message, now);
-          return false;
-        }
         if (message && message.magic_word === "HPV2_PICKUP_SCAN_GATE" &&
             typeof message.scan === "boolean" && typeof message.at === "number" &&
             typeof message.localName === "string" && message.localName.length <= 256 &&
@@ -453,8 +281,6 @@
           if (message.since > sessionStartedAt) {
             sessionStartedAt = message.since;
             publish("", 0);
-            hideWorldUltimate();
-            ultimateReceivedAt = 0;
           }
           scanEnabled = message.scan;
           localPlayerName = message.localName.trim().toUpperCase();
@@ -561,7 +387,7 @@
       for (var old = 0; old < rows.length; old++) {
         if (rows[old].label === label && rows[old].ultimate === ultimate) row = rows[old];
       }
-      next.push(row || { label: label, owner: owner, ultimate: ultimate, container: null, icons: [], rings: [], progressModels: [], mask: -1 });
+      next.push(row || { label: label, ultimate: ultimate, container: null, icons: [], rings: [], progressModels: [], mask: -1 });
       profile.count(row ? "rowReuses" : "newRows");
     }
     for (var previous = 0; previous < rows.length; previous++) {
@@ -818,8 +644,6 @@
     }
     if (!topBar) {
       try { publish("", 0); } catch (ignored) {}
-      try { hideWorldUltimate(); } catch (ignored) {}
-      try { if (valid(worldUltimateHost)) worldUltimateHost.RemoveClass("HPV2UltimateHost"); } catch (ignored) {}
     }
     if (topBar) reportTelemetry(Date.now(), true);
     profile.flush(true);
@@ -839,9 +663,6 @@
         updatePause(Date.now());
         renderRows();
       } else {
-        discoverWorldUltimate();
-        if (ultimateName && (Date.now() < ultimateReceivedAt || Date.now() - ultimateReceivedAt >= 4000 ||
-            readName(namePanel) !== ultimateName)) hideWorldUltimate();
         sampleUnit();
       }
     } catch (error) {
@@ -874,8 +695,6 @@
   render = profile.wrap("render", render);
   renderRows = profile.wrap("renderRows", renderRows);
   publishScanGate = profile.wrap("publishScanGate", publishScanGate);
-  ultimateTick = profile.wrap("ultimateTick", ultimateTick);
-  receiveUltimates = profile.wrap("receiveUltimates", receiveUltimates);
   tick = profile.wrap("tick", tick);
 
   try { listener = $.RegisterForUnhandledEvent("ClientUI_FireOutput", receiveSnapshot); }
@@ -885,5 +704,4 @@
   }
 
   tick();
-  if (topBar) ultimateTick();
 })();
