@@ -6,6 +6,8 @@
 	<scripts>
 		<include src="s2r://panorama/scripts/hp_colors_v2_contract.vjs_c" />
 		<include src="s2r://panorama/scripts/unit_status_v2_colors.vjs_c" />
+		<include src="s2r://panorama/scripts/test_event_bridge.vjs_c" />
+		<include src="s2r://panorama/scripts/test_topbar_pickups.vjs_c" />
 	</scripts>
 	<snippets>
 		<snippet name="StatusPanelSnippet">
@@ -21,6 +23,10 @@
 			<Panel class="unit_info_panel">
 				<Panel id="unit_info_bg">
 					<Image id="unit_ult_ready_icon" />
+					<Panel id="HPV2UltimateOverlay" hittest="false" hittestchildren="false">
+						<Panel id="HPV2UltimateDark" class="HPV2UltimateArtwork" />
+						<Image id="HPV2UltimateFill" class="HPV2UltimateArtwork" src="s2r://panorama/images/hpv2/ultimate_progress.vtex" />
+					</Panel>
 					<Image id="unit_info_icon" />
 					<Panel id="state_container">
 						<Image id="state_icon" />

@@ -62,6 +62,12 @@ function Get-HpColorsRewriteClosureContract {
         'qollock_hp_colors_bridge.js' {
             return @('ToggleSettingsWindow', 'HPColorsMenuBoot', 'HPColorsMenuCancel')
         }
+        'hp_colors_thirdeye_bridge.js' {
+            return @('HPColorsThirdEyeCloseWindow', 'HPColorsMenuBoot', 'HPColorsMenuCancel')
+        }
+        'hp_colors_thirdeye_window.js' {
+            return @('HPColorsThirdEyeCloseWindow', 'HPColorsMenuCancel', 'ThirdEye', 'setOpen', 'isOpen')
+        }
         default {
             throw "No Closure ADVANCED output contract for Rewrite script: $ScriptName"
         }
@@ -98,14 +104,15 @@ function Invoke-HpColorsRewriteClosureAdvanced {
         [Parameter(Mandatory = $true)][string]$WorkRoot
     )
 
-    $scriptPaths = @()
-    foreach ($relativePath in $ScriptRelativePaths) {
-        $scriptPath = Join-Path $StageSourceRoot $relativePath
-        if (-not (Test-Path -LiteralPath $scriptPath)) {
-            throw "Rewrite script missing from Closure stage: $scriptPath"
+    $scriptPaths = @(
+        foreach ($relativePath in $ScriptRelativePaths) {
+            $scriptPath = Join-Path $StageSourceRoot $relativePath
+            if (-not (Test-Path -LiteralPath $scriptPath)) {
+                throw "Rewrite script missing from Closure stage: $scriptPath"
+            }
+            $scriptPath
         }
-        $scriptPaths += $scriptPath
-    }
+    )
 
     $externsPath = Join-Path $WorkRoot 'hp-colors-rewrite-closure.externs.js'
 

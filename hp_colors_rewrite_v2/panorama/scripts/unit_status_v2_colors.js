@@ -112,6 +112,36 @@
   var scanJob = null;
   var paintJob = null;
   var stopped = false;
+  var configListeners = [];
+  var exportedGetConfig = function () {
+    return config;
+  };
+  var exportedGetUltimateProgressColor = function (angle) {
+    return ultimateProgressColor(angle, config);
+  };
+  var exportedOnConfigChanged = function (callback) {
+    if (typeof callback !== "function" || stopped) return function () {};
+    var slot = configListeners.length;
+    configListeners.push(callback);
+    try {
+      callback(config);
+    } catch {}
+    return function () {
+      if (configListeners[slot] === callback) configListeners[slot] = null;
+    };
+  };
+  context.HPV2GetNormalizedConfig = exportedGetConfig;
+  context.HPV2OnConfigChanged = exportedOnConfigChanged;
+  context.HPV2GetUltimateProgressColor = exportedGetUltimateProgressColor;
+  function notifyConfigListeners() {
+    for (var index = 0; index < configListeners.length; index++) {
+      var callback = configListeners[index];
+      if (typeof callback !== "function") continue;
+      try {
+        callback(config);
+      } catch {}
+    }
+  }
   var liveLineage = {
     healthbars: null,
     activeParent: null,
@@ -395,6 +425,7 @@
       counter: findWithin(windowRoot, "hp_counter"),
       counterMax: findWithin(windowRoot, "hp_counter_max"),
       ultIcon: findWithin(infoHealth, "unit_ult_ready_icon"),
+      ultOverlay: findWithin(infoHealth, "HPV2UltimateOverlay"),
     };
   }
 
@@ -411,6 +442,25 @@
       }
     }
     return false;
+  }
+  function ultimateTimerEnabled() {
+    return config.enabled !== false && config.ultimateTimerEnabled !== false;
+  }
+
+  function applyUltimateWash(bar, color) {
+    var parentColor =
+      ultimateTimerEnabled() && color
+        ? config.ultimateTimerColorMode === "follow"
+          ? color
+          : "#FFFFFF"
+        : "";
+    setStyle(
+      bar.parts && bar.parts.ultOverlay,
+      "washColor",
+      parentColor,
+      bar.applied,
+      "ultOverlayWashColor",
+    );
   }
 
 
@@ -750,6 +800,19 @@
       ((1 << 24) | (red << 16) | (green << 8) | blue)
         .toString(16)
         .slice(1)
+    );
+  }
+  function ultimateProgressColor(angle, settings) {
+    if (!settings || settings.ultimateTimerColorMode === "follow")
+      return "#FFFFFF";
+    if (settings.ultimateTimerColorMode === "fixed")
+      return angle >= 360
+        ? settings.ultimateTimerAvailableColor
+        : settings.ultimateTimerUnavailableColor;
+    return interpolateHex(
+      settings.ultimateTimerUnavailableColor,
+      settings.ultimateTimerAvailableColor,
+      angle / 360,
     );
   }
 
@@ -2030,6 +2093,7 @@
       if (pulseColorEnabled && pulseColorMode === "fixed") color = pulseColor;
       if (config.ultMode !== "custom") ultColor = color;
     }
+    applyUltimateWash(bar, ultColor);
     applyKillMarker(
       bar,
       role === "enemy" &&
@@ -2159,6 +2223,14 @@
       if (restoring) clearReadoutOwnership(bar);
       else applyReadoutDecorations(bar);
       var stockColor = stockUnitColor(bar);
+      var overlayColor = "";
+      if (!restoring && ultimateTimerEnabled()) {
+        overlayColor =
+          relationOwned && config.ultMode === "custom"
+            ? config.ultCustom
+            : stockColor;
+      }
+      applyUltimateWash(bar, overlayColor);
       setStyle(
         bar.parts.fill,
         "washColor",
@@ -2382,6 +2454,7 @@
         applyCustomization(bars[index]);
       }
       applyStaminaSurface();
+      notifyConfigListeners();
       return true;
     } catch {
       return false;
@@ -2394,6 +2467,8 @@
       configRoot = nextRoot;
       configRaw = "";
       configRevision = -1;
+      config = normalizeConfig(null);
+      notifyConfigListeners();
     }
     if (!isValid(configRoot) || !configRoot.GetAttributeString) return "";
     try {
@@ -2631,6 +2706,13 @@
         $.UnregisterForUnhandledEvent(EVENT_CHANNEL, eventHandlerId);
     } catch {}
     eventHandlerId = null;
+    configListeners.length = 0;
+    if (context.HPV2GetNormalizedConfig === exportedGetConfig)
+      context.HPV2GetNormalizedConfig = null;
+    if (context.HPV2OnConfigChanged === exportedOnConfigChanged)
+      context.HPV2OnConfigChanged = null;
+    if (context.HPV2GetUltimateProgressColor === exportedGetUltimateProgressColor)
+      context.HPV2GetUltimateProgressColor = null;
   }
 
   function paintColors() {

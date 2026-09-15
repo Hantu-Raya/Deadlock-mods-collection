@@ -59,7 +59,7 @@
           description:
             "Resize and move the healthbar stack. Indicators track its scale; anchoring also applies its X/Y offsets.",
           pageId: "HPColorsSettingsOverviewLayout",
-          keys: ["widthScale", "heightScale", "positionX", "positionY"],
+          keys: ["widthScale", "heightScale", "positionX", "positionY", "accessoryAnchorEnabled"],
         },
         {
           name: "PRESETS",
@@ -200,7 +200,7 @@
       ],
     },
     {
-      name: "HEALTH INFO",
+      name: "HUD DETAILS",
       tabs: [
         {
           name: "HP TEXT",
@@ -230,22 +230,56 @@
           keys: ["readoutOffsetX", "readoutOffsetY"],
         },
         {
-          name: "INDICATORS",
-          title: "INDICATORS",
+          name: "PIPS & LEVEL",
+          title: "HEALTH PIPS & PLAYER LEVEL",
           description:
-            "Control health pips, level visibility, ultimate color, and both indicators' positions.",
+            "Set health pips, level visibility, and level badge position.",
           pageId: "HPColorsSettingsReadoutLevels",
           keys: [
             "pipsVisible",
             "precisePipsEnabled",
             "levelsVisible",
-            "ultMode",
-            "ultCustom",
-            "accessoryAnchorEnabled",
-            "ultOffsetX",
-            "ultOffsetY",
             "levelOffsetX",
             "levelOffsetY",
+          ],
+        },
+        {
+          name: "PICKUPS",
+          title: "TOPBAR PICKUP TIMERS",
+          description:
+            "Show and style gun, movement, spirit, and survival timers beside the topbar ultimate icons.",
+          pageId: "HPColorsSettingsPickupTimers",
+          keys: [
+            "pickupTimersEnabled",
+            "pickupGunColor",
+            "pickupMovementColor",
+            "pickupSpiritColor",
+            "pickupSurvivalColor",
+            "pickupBackgroundDarkness",
+            "pickupGlyphColor",
+            "pickupSize",
+            "pickupSpacing",
+            "pickupOffsetX",
+            "pickupOffsetY",
+          ],
+        },
+        {
+          name: "ULTIMATE",
+          title: "ULTIMATE ICON & TIMER",
+          description:
+            "Set the base icon color, progress override, position, and cooldown visibility.",
+          pageId: "HPColorsSettingsUltimateTimer",
+          keys: [
+            "ultMode",
+            "ultCustom",
+            "ultimateTimerColorMode",
+            "ultimateTimerUnavailableColor",
+            "ultimateTimerAvailableColor",
+            "ultimateTimerEnabled",
+            "ultimateTimerSize",
+            "ultimateTimerDarkness",
+            "ultOffsetX",
+            "ultOffsetY",
           ],
         },
         {
@@ -287,6 +321,8 @@
     allyDelta: true,
     allyBulletShield: true,
     ultCustom: true,
+    ultimateTimerUnavailableColor: true,
+    ultimateTimerAvailableColor: true,
     readoutLow: true,
     readoutMid: true,
     readoutHigh: true,
@@ -294,6 +330,11 @@
     enemyKillMarkerColor: true,
     allyPulseColor: true,
     enemyStaminaColor: true,
+    pickupGunColor: true,
+    pickupMovementColor: true,
+    pickupSpiritColor: true,
+    pickupSurvivalColor: true,
+    pickupGlyphColor: true,
   };
   var COLOR_TITLES = {
     enemyLow: "ENEMY LOW",
@@ -308,13 +349,20 @@
     allyHealing: "ALLY HEALING",
     allyDelta: "ALLY RECENT DAMAGE",
     allyBulletShield: "ALLY SHIELD",
-    ultCustom: "ULTIMATE ICON",
+    ultCustom: "BASE ULTIMATE ICON COLOR",
+    ultimateTimerUnavailableColor: "ULTIMATE PROGRESS UNAVAILABLE",
+    ultimateTimerAvailableColor: "ULTIMATE PROGRESS READY",
     readoutLow: "HEALTH TEXT LOW",
     readoutMid: "HEALTH TEXT MID",
     readoutHigh: "HEALTH TEXT HIGH",
     enemyPulseColor: "ENEMY PULSE COLOR",
     enemyKillMarkerColor: "ENEMY KILL MARKER COLOR",
     enemyStaminaColor: "ENEMY STAMINA COLOR",
+    pickupGunColor: "PICKUP GUN COLOR",
+    pickupMovementColor: "PICKUP MOVEMENT COLOR",
+    pickupSpiritColor: "PICKUP SPIRIT COLOR",
+    pickupSurvivalColor: "PICKUP SURVIVAL COLOR",
+    pickupGlyphColor: "PICKUP GLYPH COLOR",
   };
 
   var TOGGLE_CONTROLS = [
@@ -367,6 +415,8 @@
       id: "HPColorsAllyPulseColorToggle",
       key: "allyPulseColorEnabled",
     },
+    { id: "HPColorsPickupTimersToggle", key: "pickupTimersEnabled" },
+    { id: "HPColorsUltimateTimerToggle", key: "ultimateTimerEnabled" },
   ];
   var MODE_CONTROLS = [
     { id: "HPColorsEnemyModeFixed", key: "enemyMode", value: "fixed" },
@@ -383,6 +433,21 @@
     },
     { id: "HPColorsUltModeFollow", key: "ultMode", value: "follow" },
     { id: "HPColorsUltModeCustom", key: "ultMode", value: "custom" },
+    {
+      id: "HPColorsUltimateTimerColorModeFollow",
+      key: "ultimateTimerColorMode",
+      value: "follow",
+    },
+    {
+      id: "HPColorsUltimateTimerColorModeFixed",
+      key: "ultimateTimerColorMode",
+      value: "fixed",
+    },
+    {
+      id: "HPColorsUltimateTimerColorModeGradient",
+      key: "ultimateTimerColorMode",
+      value: "gradient",
+    },
     {
       id: "HPColorsEnemyPulseColorModeFixed",
       key: "enemyPulseColorMode",
@@ -599,6 +664,49 @@
       min: 1,
       max: 100,
     },
+    {
+      base: "HPColorsPickupBackgroundDarkness",
+      key: "pickupBackgroundDarkness",
+      min: 0,
+      max: 100,
+    },
+    {
+      base: "HPColorsPickupSize",
+      key: "pickupSize",
+      min: 12,
+      max: 64,
+    },
+    {
+      base: "HPColorsPickupSpacing",
+      key: "pickupSpacing",
+      min: 0,
+      max: 16,
+    },
+    {
+      base: "HPColorsPickupOffsetX",
+      key: "pickupOffsetX",
+      min: -200,
+      max: 200,
+    },
+    {
+      base: "HPColorsPickupOffsetY",
+      key: "pickupOffsetY",
+      min: -100,
+      max: 100,
+    },
+    {
+      base: "HPColorsUltimateTimerSize",
+      key: "ultimateTimerSize",
+      min: 25,
+      max: 200,
+      increment: 5,
+    },
+    {
+      base: "HPColorsUltimateTimerDarkness",
+      key: "ultimateTimerDarkness",
+      min: 0,
+      max: 100,
+    },
   ];
   var COLOR_CONTROLS = [
     { base: "HPColorsEnemyLow", key: "enemyLow" },
@@ -609,6 +717,14 @@
     { base: "HPColorsEnemyShield", key: "enemyBulletShield" },
     { base: "HPColorsEnemyStaminaColor", key: "enemyStaminaColor" },
     { base: "HPColorsUltCustom", key: "ultCustom" },
+    {
+      base: "HPColorsUltimateTimerUnavailableColor",
+      key: "ultimateTimerUnavailableColor",
+    },
+    {
+      base: "HPColorsUltimateTimerAvailableColor",
+      key: "ultimateTimerAvailableColor",
+    },
     { base: "HPColorsAllyLow", key: "allyLow" },
     { base: "HPColorsAllyMid", key: "allyMid" },
     { base: "HPColorsAllyHigh", key: "allyHigh" },
@@ -621,6 +737,11 @@
     { base: "HPColorsReadoutLow", key: "readoutLow" },
     { base: "HPColorsReadoutMid", key: "readoutMid" },
     { base: "HPColorsReadoutHigh", key: "readoutHigh" },
+    { base: "HPColorsPickupGunColor", key: "pickupGunColor" },
+    { base: "HPColorsPickupMovementColor", key: "pickupMovementColor" },
+    { base: "HPColorsPickupSpiritColor", key: "pickupSpiritColor" },
+    { base: "HPColorsPickupSurvivalColor", key: "pickupSurvivalColor" },
+    { base: "HPColorsPickupGlyphColor", key: "pickupGlyphColor" },
   ];
   var REQUIRED_UI_PANEL_KEYS = (
     "menuButton editorRoot editorShell peekCapture peekButton doneButton " +
@@ -3946,6 +4067,18 @@
       "Active",
       values.ultMode === "custom",
     );
+    var ultimateTimerProgressColors =
+      values.ultimateTimerColorMode !== "follow";
+    setClass(
+      controlPanel("HPColorsUltimateTimerUnavailableColorRow"),
+      "Active",
+      ultimateTimerProgressColors,
+    );
+    setClass(
+      controlPanel("HPColorsUltimateTimerAvailableColorRow"),
+      "Active",
+      ultimateTimerProgressColors,
+    );
 
     setEnabled(controlPanel("HPColorsSharedLowThresholdSlider"), true);
     setEnabled(controlPanel("HPColorsSharedLowThresholdEntry"), true);
@@ -4223,7 +4356,7 @@
     }
     for (var categoryIndex = 0; categoryIndex < CATEGORY_BUTTON_IDS.length; categoryIndex++)
       ui.categoryButtons.push(find(CATEGORY_BUTTON_IDS[categoryIndex]));
-    for (var tabIndex = 0; tabIndex < 5; tabIndex++) {
+    for (var tabIndex = 0; tabIndex < 6; tabIndex++) {
       ui.tabButtons.push(find("HPColorsTab" + tabIndex));
       ui.tabLabels.push(find("HPColorsTabLabel" + tabIndex));
     }

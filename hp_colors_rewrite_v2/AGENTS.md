@@ -4,7 +4,7 @@
 
 `hp_colors_rewrite_v2/` owns the session-scoped ESC editor and live v2 unit-status renderer. Keep its centered segment geometry and `HP_COLORS_V2_CONFIG` transport. Read `FEATURES.md` for feature behavior and manual smoke scenarios; use source and the build wrapper for current implementation details.
 
-The lane is session-scoped. Do not add durable persistence, Anita compatibility, Reset All, or legacy v99 support. HPCR2 settings codes and HPCRP1 preset codes remain byte-compatible with v1. ShowRank Barebones support is opt-in build-stage Escape composition; keep canonical runtime code independent.
+The lane is session-scoped. Do not add durable persistence, Anita compatibility, Reset All, or legacy v99 support. Preserve legacy HPCR2 imports and HPCRP1 preset compatibility; current HPCR2 exports include the versioned `hpv2` extension for V2 settings. ShowRank Barebones support is opt-in build-stage Escape composition; keep canonical runtime code independent.
 
 Package ownership is fixed: the Rewrite builder seed is pak01, the generic preset builder is pak96, and the Rewrite v2 runtime is pak02.
 

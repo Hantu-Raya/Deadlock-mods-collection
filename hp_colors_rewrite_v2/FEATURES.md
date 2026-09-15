@@ -179,7 +179,7 @@ The marker is a rewrite-owned, non-interactive overlay directly under `UnitHealt
 
 ## Milestone 10: rewrite-native live transfer
 
-The editor copies a compact single-line code prefixed with `HPCR2`. Current exports always use `{"v":[...],"c":{...}}`: `v` contains sparse `[settingIndex, value]` pairs and `c` contains the complete typed ability-condition map, including `{}` when no conditions exist. Historical array-only `HPCR2[...]` inputs remain accepted as complete snapshots with zero conditions, so importing a nonconditional code clears conditions instead of inheriting them from the current hero scope. Export orders pairs by ascending index and omits values equal to shipped defaults. Indexes use the closed, append-only `DEFAULTS` order; unknown indexes, duplicate indexes, malformed values, invalid condition keys, ineligible settings, invalid slots or tiers, and mismatched condition value types reject the whole import before mutation. A valid import replaces the current editable values and conditions atomically, publishes once only when effective values change, and creates one Undo entry.
+The editor copies a compact single-line `HPCR2` code containing legacy `v` value pairs and `c` conditions plus an `hpv2` extension with version `1`, extension `values`, and extension `conditions`. Copy Settings includes every current setting and condition, including stamina, accessory placement, and pickup/ultimate timers. Sparse pairs omit codec defaults; an empty extension still resets a destination's V2 settings to those defaults. Historical array-only and `{v,c}` inputs remain accepted and preserve destination V2 settings and conditions they never contained. Invalid values, duplicate or unknown slots, malformed extensions, and invalid conditions reject the whole import before mutation. Valid imports replace the editable snapshot atomically and remain undoable. New extended codes require the updated V2 runtime or builder; older importers may reject them.
 
 ## Milestone 11: hero identity and match lifecycle
 
@@ -231,6 +231,8 @@ The former split Hero / Presets dashboard is now one full-width Preset Library. 
 
 The Preset Library can copy the selected record or a deterministic baked-before-user repository bundle as an `HPCRP1` clipboard code. Bundles include hidden baked state and selection but never include the synthetic Current scope row. Web-builder single and bundle exports explicitly hide baked **Rewrite Default** whenever they contain an All Heroes user preset, and XML first-boot hydration preserves that repository state. Import validates the entire code before mutation, preserves names, All Heroes/Selected Heroes scope, stable hero keys, frozen settings, baked display names, and canonical typed ability conditions, then appends user records with fresh monotonic IDs. Copy and import are repository-only: they never apply settings, enter Undo, increment revision, or dispatch configuration.
 
+HPCRP1 hero lists may arrive in any order and are normalized to catalogue order on import. Unknown IDs, duplicate IDs, and non-string entries reject the entire bundle without changing the repository.
+
 ## Milestone 17: confirmed section reset
 
 **Reset Section** now opens a blocking confirmation dialog for the active settings tab. Opening, cancelling, and already-default requests do not mutate menu state, enter Undo, increment revision, or dispatch configuration. Confirming resets the captured tab keys through the canonical replacement path, creates one Undo entry, and relies on effective-value equality to suppress irrelevant publication.
@@ -255,11 +257,11 @@ Focused regressions cover strict import validation, all slots, tier thresholds a
 
 Rewrite v2 can resize and reposition the three enemy stamina boxes independently of the healthbar. Width, height, horizontal offset, vertical offset, and optional custom color are preset-scoped settings exposed in both the in-game editor and HPv2 web builder. Custom color applies to filled interiors and every border; `PipEmpty` and transient depleted states keep a black interior. Ally and neutral stamina remain stock, and disabling Rewrite or enemy ownership clears every inline stamina style.
 
-The stamina and accessory controls use a versioned `hpv2` extension inside HPCRP1 records. Existing HPCRP1 and legacy HPCR2 codes remain valid and use default stamina dimensions, enabled accessory anchoring, and zero accessory offsets. Focused runtime, codec, package-builder, preview, desktop, and mobile checks cover extension round-trips, exact geometry, empty-state transitions, reset behavior, and generated VPK hydration. A fresh-restart in-game smoke remains required for live Panorama confirmation.
+The stamina and accessory controls use the versioned `hpv2` extension in HPCRP1 records and current HPCR2 settings codes. Older HPCRP1 records without the extension use default V2 settings; legacy HPCR2 imports preserve the destination's V2 settings. A fresh-restart in-game smoke remains required for live Panorama confirmation.
 
 ## Milestone 20: feedback rendering fixes
 
-The enemy pulse now animates both halves of the `current / maximum` HP readout. Ally custom pulse color has the same Fixed and Gradient modes as enemy pulse color, with Fixed replacing the active bar color and Gradient animating an overlay over the normal ally color. This v2-only mode is stored in the HPCRP1 `hpv2` extension and does not change HPCR2.
+The enemy pulse now animates both halves of the `current / maximum` HP readout. Ally custom pulse color has the same Fixed and Gradient modes as enemy pulse color, with Fixed replacing the active bar color and Gradient animating an overlay over the normal ally color. This V2-only mode is stored in the `hpv2` extension for both HPCRP1 and HPCR2.
 
 Disabling enemy level display now reproduces v1 flow centering by shifting the ultimate indicator, healthbar, and HP readout left by half of the removed level badge's effective width. The existing enemy stamina page already provides width, height, two-axis position, and custom filled/border color controls while leaving ally and neutral stamina stock.
 
@@ -292,6 +294,31 @@ The normal wrapper builds standalone pak02 by default. With ShowRank Barebones p
 The QOLLOCK wrapper copies the same canonical runtime, derives packed assets from its package contract, and preserves the pinned pak03 dependency. Use `build_hp_colors_rewrite_v2_qollock.ps1 -RefreshFromInstalledQollock` when intentionally updating compatibility against a supplied pak03. Both wrappers accept `-SkipDeploy` for archive-only builds.
 
 Install only one pak02 variant and fully restart Deadlock. The normal archive contains standalone pak02 only; the QOLLOCK archive requires the matching pak03 and does not bundle it. Barebones remains an opt-in build option, not an archive payload. The prior roughly 35-minute Barebones live capture had no logged style-write failures, and the user confirmed correct rendering. Automated release checks do not substitute for a fresh in-game check of the final packages.
+
+## Third Eye compatibility
+
+`build_hp_colors_rewrite_v2_thirdeye.ps1` builds the Rewrite v2 + Third Eye compatibility pak02. It runs `scripts/compose-hp-colors-rewrite-v2-thirdeye.js` with the pinned `hp_colors_rewrite_v2_thirdeye/source_snapshots/` inputs, copies the canonical HPv2 runtime at build time, and emits the extra `hp_colors_thirdeye_bridge.vjs_c`, `hp_colors_thirdeye_window.vjs_c`, and `features/topbar_ult_cooldown/feature.vjs_c` assets. The patched window is generated by `scripts/patch-hp-colors-thirdeye-window.js`; the canonical Rewrite runtime remains unmodified.
+
+Install the generated HPv2 preset-builder pak01, this compatibility pak02, and the unchanged Third Eye package at a lower priority (the verified package uses `pak47_dir.vpk`; a lower-priority pak03+ slot also works). The package pin is recorded in `hp_colors_rewrite_v2_thirdeye/thirdeye-source-pin.json`. `-ThirdEyePakPath <path>` validates a supplied package's SHA-256 and required Source 2 assets; `-SkipDeploy` can build from the pinned snapshots without an installed Third Eye package.
+
+Use only one pak02 variant. Do not combine Third Eye with ShowRank Barebones or a QOLLOCK/ShowRank triple stack. The compatibility Escape XML preserves HPColorsMenuBoot/HPColorsMenuCancel nested-cancel behavior, composes Third Eye close handling for Escape, backdrop, and EscapeButton, and closes Third Eye before HP COLORS opens. A fresh Deadlock restart is required after replacing any VPK.
+
+The topbar cooldown feature is generated from the pinned Third Eye source with one lookup fallback: HPv2 temporarily moves `UltimateStatus` under `HPV2PickupIndicators` while pickup icons are active. Third Eye must read the native cooldown through that wrapper as well as directly under `StatusRow`. The original feature toggle, polling interval, labels, and CSS visibility rules remain unchanged. The shared pickup renderer centers either supported cooldown label beneath the ultimate and restores its prior alignment when pickups expire.
+
+Run `node --test scripts/validate-hp-colors-rewrite-v2-thirdeye.test.js` for the delayed-hook, nested-cancel, and topbar cooldown reparenting regressions. After rebuilding, copy the generated compatibility Escape XML into the web builder's `public/templates/hpv2_hp_colors_rewrite_thirdeye/panorama/layout/hud_escape_menu.xml`. The browser preset and runtime must use the same merged layout. Before release, restart Deadlock and check both editors, nested dialogs, Escape/backdrop/Resume, preset hydration, and Third Eye's topbar cooldown before, during, and after HPv2 pickup icons; automated checks do not prove live rendering.
+
+
+## Pickup and ultimate timers
+
+The canonical pak02 now includes the combined timer runtime previously tested in `test_hp_colors_v2_showrank/`. HUD Details exposes pickup colors, background darkness, glyph color, size, spacing, and offsets, plus world ultimate cooldown visibility, scale, darkness, and Follow Icon / Fixed / Gradient progress colors. Timer settings and conditions use appended `hpv2` extension slots in both HPCRP1 and current HPCR2 exports; legacy codes remain accepted.
+
+The event-driven sibling relay, native progress sampling, identity/freshness guards, one-time disabled-pickup clearing, and unchanged ultimate-style suppression are retained. Ultimate scaling includes the backing background. The ultimate texture uses lossless PNG passthrough with one mip and no LOD.
+
+The native ultimate-ready icon takes priority. Snapshot updates and cleanup hide the custom overlay unless the native icon is present and collapsed; the timer no longer hides native ready artwork.
+
+Both normal and QOLLOCK builds include the timers. Do not install the standalone pickup pak04 alongside either pak02. ShowRank remains an optional staged composition, not a canonical dependency. Both wrappers write root `pak02_dir.vpk`, so preserve the normal package before building QOLLOCK.
+
+Use `-SkipDeploy -SkipPanoramaTests` for compile-only builds without mocked Panorama checks. Timer behavior checks and package checks still run. Latest live rendering and lifecycle behavior remain unverified; no FPS improvement is claimed.
 
 
 ## Remaining limits and live checks

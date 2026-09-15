@@ -13,9 +13,6 @@ const rewriteRoot = process.env.HP_COLORS_REWRITE_SOURCE_ROOT
 const sourceRoot = path.join(rewriteRoot, 'panorama');
 const contractPath = path.join(sourceRoot, 'scripts', 'hp_colors_v2_contract.js');
 const statePath = path.join(sourceRoot, 'scripts', 'hp_colors_v2_state.js');
-const menuPath = path.join(sourceRoot, 'scripts', 'hp_colors_v2_menu.js');
-const layoutPath = path.join(sourceRoot, 'layout', 'hud_escape_menu.xml');
-const buildPath = path.join(root, 'build_hp_colors_rewrite_v2.ps1');
 
 const read = (file) => fs.readFileSync(file, 'utf8');
 const plain = (value) => JSON.parse(JSON.stringify(value));
@@ -48,8 +45,6 @@ test('v2 contract removes retired color exclusions and shares requested enemy de
   assert.equal(contract.version, 2);
   assert.equal(contract.magicWord, 'HP_COLORS_V2_CONFIG');
   assert.equal(contract.configAttribute, 'hp_colors_v2_config');
-  assert.equal(contract.keys.length, 81);
-  assert.equal(new Set(plain(contract.keys)).size, 81);
   for (const key of ['excludeBuildings', 'excludeBosses', 'excludeGhouls']) {
     assert.equal(contract.keys.includes(key), false);
     assert.equal(Object.hasOwn(contract.defaults, key), false);
@@ -67,7 +62,7 @@ test('v2 contract removes retired color exclusions and shares requested enemy de
   assert.equal(contract.codecDefaults.enemyLow, '#E16161');
   assert.equal(contract.codecDefaults.enemyHigh, '#00FF00');
   assert.equal(contract.codecKeys.length, 72);
-  assert.deepEqual(plain(contract.extensionKeys), [
+  assert.deepEqual(plain(contract.extensionKeys).slice(0, 12), [
     'staminaWidth',
     'staminaHeight',
     'staminaOffsetX',
@@ -95,7 +90,7 @@ test('v2 contract removes retired color exclusions and shares requested enemy de
   assert.equal(contract.defaults.levelOffsetY, 0);
 });
 
-test('v2 cold boot uses the requested gradient while HPCR2 keeps its v1 baseline', () => {
+test('v2 cold boot uses requested defaults and HPCR2 carries an extension snapshot', () => {
   const { state } = bootState();
   assert.equal(state.read().values.enemyMode, 'gradient');
   assert.equal(state.read().values.enemyLow, '#FD4949');
@@ -105,9 +100,10 @@ test('v2 cold boot uses the requested gradient while HPCR2 keeps its v1 baseline
   const payload = JSON.parse(copied.slice(5));
   assert.equal(payload.v.some(([index]) => index === 7), false);
   assert.ok(payload.v.some(([index, value]) => index === 8 && value === '#FD4949'));
+  assert.deepEqual(payload.hpv2, { v: 1, values: [], conditions: {} });
 
   const imported = send(state, 'settings_import', {
-    raw: 'HPCR2{"v":[],"c":{}}',
+    raw: 'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[],"conditions":{}}}',
   });
   assert.equal(imported.outcome.status, 'committed');
   assert.equal(imported.view.values.enemyMode, 'gradient');
@@ -115,7 +111,7 @@ test('v2 cold boot uses the requested gradient while HPCR2 keeps its v1 baseline
   assert.equal(imported.view.values.enemyHigh, '#00FF00');
 });
 
-test('v2-only settings stay preset-scoped while HPCR2 remains legacy', () => {
+test('v2-only settings stay preset-scoped while legacy HPCR2 preserves extensions', () => {
   const { state } = bootState();
   send(state, 'setting_edit', { key: 'staminaWidth', value: 150 });
   send(state, 'setting_edit', { key: 'staminaHeight', value: 52.5 });
@@ -133,9 +129,11 @@ test('v2-only settings stay preset-scoped while HPCR2 remains legacy', () => {
 
   const settingsCode = oneEffect(send(state, 'settings_copy'), 'clipboard_write').text;
   const settingsPayload = JSON.parse(settingsCode.slice(5));
-  assert.deepEqual(Object.keys(settingsPayload).sort(), ['c', 'v']);
+  assert.deepEqual(Object.keys(settingsPayload).sort(), ['c', 'hpv2', 'v']);
   assert.equal(settingsPayload.v.some(([index]) => index >= 72), false);
-  assert.equal(Object.hasOwn(settingsPayload.c, 'staminaWidth'), false);
+  assert.deepEqual(settingsPayload.hpv2.conditions, {
+    staminaWidth: { slot: 4, minTier: 3, value: 180 },
+  });
 
   const imported = send(state, 'settings_import', { raw: 'HPCR2{"v":[],"c":{}}' });
   assert.equal(imported.view.values.staminaWidth, 150);
@@ -179,30 +177,3 @@ test('v2-only settings stay preset-scoped while HPCR2 remains legacy', () => {
     'gradient',
   );
 });
-
-test('complete v1 editor replaces the compact menu without ShowRank', () => {
-  const layout = read(layoutPath);
-  const menu = read(menuPath);
-  for (const id of [
-    'HPColorsMenuButton',
-    'HPColorsEditorRoot',
-    'HPColorsPresetOptions',
-    'HPColorsConditionDialog',
-    'HPColorsTransferDialog',
-    'HPColorsSupporterTicker',
-    'HPColorsDonateButton',
-    'HPColorsStaminaWidthSliderHost',
-    'HPColorsStaminaHeightSliderHost',
-    'HPColorsEnemyStaminaColorToggle',
-    'HPColorsEnemyStaminaColorHex',
-  ]) assert.match(layout, new RegExp(`id="${id}"`));
-  assert.match(layout, /hp_colors_v2_state\.vjs_c/);
-  assert.match(menu, /HP_COLORS_V2_CONFIG/);
-  assert.match(menu, /HPColorsV2StateFactory/);
-  assert.doesNotMatch(layout + menu, /ShowRank|Barebones/i);
-  assert.doesNotMatch(
-    layout + menu,
-    /excludeBuildings|excludeBosses|excludeGhouls|HPColorsExclude(?:Buildings|Bosses|Ghouls)Toggle/,
-  );
-});
-

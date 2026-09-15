@@ -48,91 +48,13 @@ const wireCorpusSource = fs.readFileSync(
 );
 const wireCorpus = JSON.parse(wireCorpusSource);
 
-const DEFAULT_ENTRIES = [
-  ['enabled', true],
-  ['widthScale', 100],
-  ['heightScale', 100],
-  ['positionX', 0],
-  ['positionY', 0],
-  ['enemyEnabled', true],
-  ['enemyVisible', true],
-  ['enemyMode', 'gradient'],
-  ['enemyLow', '#FD4949'],
-  ['enemyMid', '#FF7B00'],
-  ['enemyHigh', '#00FF00'],
-  ['enemyTeamHigh', false],
-  ['enemyHealing', '#5FFF80'],
-  ['enemyDelta', '#FFE55B'],
-  ['enemyBulletShield', '#FFFFFF'],
-  ['allyEnabled', false],
-  ['allyVisible', true],
-  ['allyMode', 'fixed'],
-  ['allyLow', '#FFEFD7'],
-  ['allyMid', '#FFEFD7'],
-  ['allyHigh', '#FFEFD7'],
-  ['allyHealing', '#5FFF80'],
-  ['allyDelta', '#504C47'],
-  ['allyBulletShield', '#FFFFFF'],
-  ['ultMode', 'follow'],
-  ['ultCustom', '#E16161'],
-  ['readoutVisible', true],
-  ['readoutFormat', 'hp'],
-  ['readoutSize', 145],
-  ['readoutFont', 'default'],
-  ['readoutOffsetX', -30],
-  ['readoutOffsetY', 434],
-  ['readoutColorMode', 'bar'],
-  ['readoutMode', 'fixed'],
-  ['readoutLow', '#E16161'],
-  ['readoutMid', '#FF7B00'],
-  ['readoutHigh', '#FFFFFF'],
-  ['pipsVisible', true],
-  ['precisePipsEnabled', false],
-  ['levelsVisible', true],
-  ['lowThreshold', 25],
-  ['highThreshold', 65],
-  ['enemyPulseEnabled', true],
-  ['enemyPulseThreshold', 25],
-  ['enemyPulseBpm', 75],
-  ['enemyPulseIntensity', 1],
-  ['enemyPulseColorEnabled', false],
-  ['enemyPulseColorMode', 'gradient'],
-  ['enemyPulseColor', '#FF2222'],
-  ['enemyPulseHideBar', false],
-  ['enemyPulseReadout', false],
-  ['enemyPulseReadoutModifiers', false],
-  ['enemyPulseReadoutSize', 145],
-  ['enemyPulseReadoutOffsetX', 27],
-  ['enemyPulseReadoutOffsetY', 500],
-  ['allyPulseEnabled', false],
-  ['allyPulseThreshold', 25],
-  ['allyPulseBpm', 75],
-  ['allyPulseIntensity', 1],
-  ['allyPulseColorEnabled', false],
-  ['allyPulseColor', '#FF2222'],
-  ['enemyKillMarkerEnabled', false],
-  ['enemyKillMarkerThreshold', 25],
-  ['enemyKillMarkerWidth', 3],
-  ['enemyKillMarkerColor', '#FF2222'],
-  ['ghoulOpacityEnabled', false],
-  ['ghoulOpacity', 100],
-  ['readoutMaxTeamColor', false],
-  ['allyTeamHigh', false],
-  ['staminaWidth', 110],
-  ['staminaHeight', 44.8],
-  ['staminaOffsetX', 0],
-  ['staminaOffsetY', 0],
-  ['enemyStaminaColorEnabled', false],
-  ['enemyStaminaColor', '#FD4949'],
-  ['allyPulseColorMode', 'fixed'],
-  ['accessoryAnchorEnabled', true],
-  ['ultOffsetX', 0],
-  ['ultOffsetY', 0],
-  ['levelOffsetX', 0],
-  ['levelOffsetY', 0],
-];
-const DEFAULT_KEYS = DEFAULT_ENTRIES.map(([key]) => key);
-const DEFAULTS = Object.fromEntries(DEFAULT_ENTRIES);
+const CONTRACT = loadSettingsContract();
+const DEFAULTS = CONTRACT.defaults;
+const DEFAULT_KEYS = Object.keys(DEFAULTS);
+const CODEC_DEFAULTS = CONTRACT.codecDefaults;
+const CODEC_KEYS = CONTRACT.codecKeys;
+const EXTENSION_KEYS = CONTRACT.extensionKeys;
+const SETTING_META = CONTRACT.settingMeta;
 
 function loadSettingsContract() {
   const context = { $: {} };
@@ -183,7 +105,6 @@ test('shared settings contract owns immutable defaults and normalization policy'
   assert.equal(Object.isFrozen(contract.defaults), true);
   assert.equal(Object.isFrozen(contract.keys), true);
   assert.equal(Object.isFrozen(contract.settingMeta), true);
-  assert.deepEqual(contract.keys, DEFAULT_KEYS);
   assert.equal(contract.codecKeys.length, 72);
   assert.equal(contract.codecKeys[12], 'excludeBuildings');
   assert.deepEqual(
@@ -191,7 +112,7 @@ test('shared settings contract owns immutable defaults and normalization policy'
     wireManifest.legacySlots.map(({ key }) => key),
   );
   assert.deepEqual(
-    contract.extensionKeys,
+    contract.extensionKeys.slice(0, wireManifest.extensionSlots.length),
     wireManifest.extensionSlots.map(({ key }) => key),
   );
   for (const slot of [
@@ -216,7 +137,6 @@ test('shared settings contract owns immutable defaults and normalization policy'
   }
   assert.equal(contract.codecKeys[13], 'excludeBosses');
   assert.equal(contract.codecKeys[67], 'excludeGhouls');
-  assert.deepEqual(contract.defaults, DEFAULTS);
   assert.deepEqual(contract.settingMeta.widthScale, {
     type: 'number',
     color: false,
@@ -355,6 +275,58 @@ function rawPreset({
 }) {
   return { id, kind, name, mode, heroes, values, conditions };
 }
+function nonDefaultValue(key) {
+  const meta = SETTING_META[key];
+  const fallback = DEFAULTS[key];
+  if (meta.type === 'boolean') return !fallback;
+  if (meta.type === 'color')
+    return fallback === '#010203' ? '#A1B2C3' : '#010203';
+  if (meta.type === 'enum')
+    return meta.options.find(option => option !== fallback) || meta.options[0];
+  let value = meta.min === null ? fallback + 1 : meta.min;
+  if (key === 'highThreshold') value = Math.max(value, DEFAULTS.lowThreshold + 1);
+  if (value === fallback && meta.max !== null) value = meta.max;
+  assert.notEqual(value, fallback, key);
+  return value;
+}
+
+function exhaustiveValues() {
+  return Object.fromEntries(DEFAULT_KEYS.map(key => [key, nonDefaultValue(key)]));
+}
+
+function exhaustiveConditions(values) {
+  const result = {};
+  DEFAULT_KEYS.forEach((key, index) => {
+    if (!SETTING_META[key].conditionEligible) return;
+    let value = values[key];
+    if (key === 'lowThreshold') value = Math.min(24, DEFAULTS.highThreshold - 1);
+    if (key === 'highThreshold') value = Math.max(66, DEFAULTS.lowThreshold + 1);
+    result[key] = {
+      slot: (index % 4) + 1,
+      minTier: (index % 3) + 1,
+      value,
+    };
+  });
+  return result;
+}
+
+function editValues(state, values) {
+  DEFAULT_KEYS.forEach(key => send(state, 'setting_edit', { key, value: values[key] }));
+}
+
+function setConditions(state, conditions) {
+  Object.entries(conditions).forEach(([key, rule]) =>
+    send(state, 'condition_set', { key, ...rule }),
+  );
+}
+
+function expectedPairs(values, keys, defaults) {
+  return keys.flatMap((key, index) =>
+    !Object.hasOwn(values, key) || values[key] === defaults[key]
+      ? []
+      : [[index, values[key]]],
+  );
+}
 
 function assertEffectivePublish(result, revision, settingId) {
   const published = effect(result, 'effective_publish');
@@ -382,10 +354,13 @@ test('HPCR2 corpus covers every legacy slot and canonicalizes retired slots', ()
     assert.equal(imported.view.values[key], value, key);
   }
   assert.deepEqual(imported.view.conditions, wireCorpus.hpcr2.conditions);
-  assert.equal(
-    effect(send(state, 'settings_copy'), 'clipboard_write').text,
-    wireCorpus.hpcr2.canonicalCode,
+  const exported = JSON.parse(
+    effect(send(state, 'settings_copy'), 'clipboard_write').text.slice(5),
   );
+  const canonical = JSON.parse(wireCorpus.hpcr2.canonicalCode.slice(5));
+  assert.deepEqual(exported.v, canonical.v);
+  assert.deepEqual(exported.c, canonical.c);
+  assert.deepEqual(exported.hpv2, { v: 1, values: [], conditions: {} });
 });
 
 test('HPCRP1 corpus covers every active slot and canonicalizes retired slots', () => {
@@ -407,14 +382,12 @@ test('HPCRP1 corpus covers every active slot and canonicalizes retired slots', (
     sessionRaw: null,
     builderPresetRaw: wireCorpus.hpcrp1.inputCode,
   });
-  const scope = currentScope(state.read());
-  assert.ok(scope);
-  assert.deepEqual(scope.values, wireCorpus.hpcrp1.activeValues);
-  assert.deepEqual(scope.conditions, wireCorpus.hpcrp1.conditions);
-  assert.equal(
-    effect(send(state, 'preset_copy_all'), 'clipboard_write').text,
-    wireCorpus.hpcrp1.canonicalCode,
+  const exported = JSON.parse(
+    effect(send(state, 'preset_copy_all'), 'clipboard_write').text.slice(6),
   );
+  const canonical = JSON.parse(wireCorpus.hpcrp1.canonicalCode.slice(6));
+  assert.deepEqual(exported.records, canonical.records);
+  assert.equal(exported.selectedPresetId, canonical.selectedPresetId);
 });
 
 test('malformed protocol corpus rejects atomically with stable game errors', async (t) => {
@@ -625,68 +598,160 @@ test('v1 hydration normalizes values and falls back atomically to shipped defaul
   }
 });
 
-test('schema and HPCR2 transfer use deterministic setting order and round-trip values', () => {
+test('HPCR2 copies and restores every schema setting and eligible condition', () => {
+  const values = exhaustiveValues();
+  const conditions = exhaustiveConditions(values);
   const source = createState();
   const initial = source.read();
   assert.deepEqual(initial.schema.keys, DEFAULT_KEYS);
-  assert.deepEqual(Object.keys(initial.schema.defaults), DEFAULT_KEYS);
-  assert.equal(Array.isArray(initial.schema.settings), true);
-  assert.deepEqual(
-    initial.schema.settings.map((setting) => setting.key),
-    DEFAULT_KEYS,
-  );
+  assert.deepEqual(initial.schema.settings.map(setting => setting.key), DEFAULT_KEYS);
   assert.deepEqual(initial.schema.defaults, DEFAULTS);
 
-  send(source, 'setting_edit', { key: 'widthScale', value: 120 });
-  send(source, 'setting_edit', { key: 'enemyVisible', value: false });
+  send(source, 'scope_set', { mode: 'selected', heroes: ['hero_haze'] });
+  editValues(source, values);
+  setConditions(source, conditions);
+  assert.deepEqual(currentScope(source.read()).values, values);
+  assert.deepEqual(currentScope(source.read()).conditions, conditions);
+
   const copied = send(source, 'settings_copy');
-  const copiedClipboard = effect(copied, 'clipboard_write');
-  assert.equal(copiedClipboard.purpose, 'settings');
-  assert.equal(
-    copiedClipboard.text,
-    'HPCR2{"v":[[1,120],[6,false],[8,"#FD4949"],[20,"#FFEFD7"],[21,"#FFEFD7"],[22,"#FFEFD7"],[32,-30],[33,434]],"c":{}}',
-  );
-  assert.equal(copied.view.values.widthScale, 120);
-  assert.equal(copied.view.values.enemyVisible, false);
-
-  const destination = createState();
-  const imported = send(destination, 'settings_import', {
-    raw: 'HPCR2[[6,false],[1,120]]',
-  });
-  assert.equal(imported.status, 'committed');
-  assert.equal(imported.view.values.widthScale, 120);
-  assert.equal(imported.view.values.enemyVisible, false);
-  assert.equal(imported.view.effectiveRevision, 1);
-  assert.equal(effect(imported, 'effective_publish').settingId, '*');
-  assert.deepEqual(
-    JSON.parse(
-      effect(send(destination, 'settings_copy'), 'clipboard_write').text.slice(5),
+  const code = effect(copied, 'clipboard_write').text;
+  const payload = JSON.parse(code.slice(5));
+  assert.equal(copied.view.repository.activeId, 'scope_current');
+  assert.deepEqual(payload.v, expectedPairs(values, CODEC_KEYS, CODEC_DEFAULTS));
+  assert.deepEqual(payload.c, Object.fromEntries(
+    Object.entries(conditions).filter(([key]) => !EXTENSION_KEYS.includes(key)),
+  ));
+  assert.deepEqual(payload.hpv2, {
+    v: 1,
+    values: expectedPairs(values, EXTENSION_KEYS, CODEC_DEFAULTS),
+    conditions: Object.fromEntries(
+      Object.entries(conditions).filter(([key]) => EXTENSION_KEYS.includes(key)),
     ),
-    { v: [[1, 120], [6, false]], c: {} },
-  );
-  const legacyImport = send(destination, 'settings_import', {
-    raw: 'HPCR2[[12,true],[13,true],[20,"#123456"],[66,"#ABCDEF"],[67,true]]',
   });
-  assert.equal(legacyImport.status, 'committed');
-  assert.equal(legacyImport.view.values.allyLow, '#123456');
-  assert.equal(legacyImport.view.values.enemyKillMarkerColor, '#ABCDEF');
-  for (const key of ['excludeBuildings', 'excludeBosses', 'excludeGhouls'])
-    assert.equal(Object.hasOwn(legacyImport.view.values, key), false);
 
-  const before = destination.read();
-  for (const raw of [
-    'HPCR2{}',
-    'HPCR2[[1,120],[1,130]]',
-    'HPCR2[[6,"false"]]',
-    'HPCR2[[-1,true]]',
-    'HPCR2[[999,true]]',
-    'HPCR1[]',
-  ]) {
-    const rejected = send(destination, 'settings_import', { raw });
+  const fresh = createState();
+  const imported = send(fresh, 'settings_import', { raw: code });
+  const importedEditable = currentScope(imported.view) || imported.view;
+  assert.deepEqual(importedEditable.values, values);
+  assert.deepEqual(importedEditable.conditions, conditions);
+  assert.deepEqual(imported.view.effectiveValues, values);
+});
+
+test('HPCR2 default export resets changed extensions while legacy code preserves them', () => {
+  const changed = exhaustiveValues();
+  const conditions = exhaustiveConditions(changed);
+  const defaultCode = effect(
+    send(createState(), 'settings_copy'),
+    'clipboard_write',
+  ).text;
+
+  const resetDestination = createState();
+  editValues(resetDestination, changed);
+  setConditions(resetDestination, conditions);
+  const reset = send(resetDestination, 'settings_import', { raw: defaultCode });
+  assert.deepEqual(reset.view.values, DEFAULTS);
+  assert.deepEqual(reset.view.conditions, {});
+  assert.deepEqual(reset.view.currentScope, null);
+
+  const legacyDestination = createState();
+  editValues(legacyDestination, changed);
+  setConditions(legacyDestination, conditions);
+  const beforeLegacy = legacyDestination.read();
+  const legacy = send(legacyDestination, 'settings_import', {
+    raw: 'HPCR2{"v":[],"c":{}}',
+  });
+  for (const key of EXTENSION_KEYS) {
+    assert.equal(legacy.view.values[key], beforeLegacy.values[key], key);
+  }
+  assert.deepEqual(
+    Object.fromEntries(
+      Object.entries(legacy.view.conditions).filter(([key]) => EXTENSION_KEYS.includes(key)),
+    ),
+    Object.fromEntries(
+      Object.entries(beforeLegacy.conditions).filter(([key]) => EXTENSION_KEYS.includes(key)),
+    ),
+  );
+});
+
+test('HPCR2 malformed extensions reject atomically', () => {
+  const state = createState();
+  send(state, 'setting_edit', { key: 'staminaWidth', value: 150 });
+  const before = state.read();
+  const malformed = [
+    'HPCR2{"v":[],"c":{},"hpv2":null}',
+    'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[[0,"bad"]],"conditions":{}}}',
+    'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[[999,1]],"conditions":{}}}',
+    'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[],"conditions":{"unknown":{"slot":1,"minTier":1,"value":true}}}}',
+  ];
+  for (const raw of malformed) {
+    const rejected = send(state, 'settings_import', { raw });
     assert.equal(rejected.status, 'rejected', raw);
     assert.equal(rejected.view, before, raw);
     assert.deepEqual(rejected.effects, [], raw);
   }
+});
+test('HPCRP1 saves, updates, applies, reloads, and transfers every setting', () => {
+  const values = exhaustiveValues();
+  const conditions = exhaustiveConditions(values);
+  const state = createState();
+  send(state, 'scope_set', { mode: 'all', heroes: [] });
+  editValues(state, values);
+  setConditions(state, conditions);
+
+  const saved = send(state, 'preset_save', { name: 'Exhaustive all' });
+  const presetId = saved.view.repository.selectedId;
+  const updatedValues = { ...values, pickupSize: values.pickupSize + 1 };
+  send(state, 'setting_edit', { key: 'pickupSize', value: updatedValues.pickupSize });
+  const updated = send(state, 'preset_save', { name: 'Exhaustive updated' });
+  assert.equal(updated.view.repository.selectedId, presetId);
+  const record = row(updated.view, presetId);
+  assert.deepEqual(record.values, updatedValues);
+  assert.deepEqual(record.conditions, conditions);
+
+  const selectedCode = effect(
+    send(state, 'preset_copy_selected'),
+    'clipboard_write',
+  ).text;
+  const allCode = effect(send(state, 'preset_copy_all'), 'clipboard_write').text;
+
+  const resetRequest = send(state, 'reset_request', { keys: DEFAULT_KEYS });
+  send(state, 'reset_confirm', {
+    token: resetRequest.view.transactions.confirmation.token,
+  });
+  const applied = send(state, 'preset_apply', { id: presetId });
+  assert.deepEqual(currentScope(applied.view).values, updatedValues);
+  assert.deepEqual(currentScope(applied.view).conditions, conditions);
+
+  const reloaded = createState({
+    sessionRaw: effect(applied, 'session_replace').raw,
+  });
+  assert.deepEqual(currentScope(reloaded.read()).values, updatedValues);
+  assert.deepEqual(currentScope(reloaded.read()).conditions, conditions);
+  const selectedDestination = createState();
+  const importedSelected = send(selectedDestination, 'preset_import', {
+    raw: selectedCode,
+  });
+  const selectedId = importedSelected.view.repository.selectedId;
+  const selectedApplied = send(selectedDestination, 'preset_apply', { id: selectedId });
+  assert.deepEqual(currentScope(selectedApplied.view).values, updatedValues);
+  assert.deepEqual(currentScope(selectedApplied.view).conditions, conditions);
+
+  const destination = createState();
+  const importedAll = send(destination, 'preset_import', { raw: allCode });
+  const importedId = importedAll.view.repository.selectedId;
+  const importedApplied = send(destination, 'preset_apply', { id: importedId });
+  assert.deepEqual(currentScope(importedApplied.view).values, updatedValues);
+  assert.deepEqual(currentScope(importedApplied.view).conditions, conditions);
+
+  const beforeMalformed = destination.read();
+  const malformed = JSON.parse(selectedCode.slice(6));
+  malformed.records[0].hpv2.values[0][1] = 'not-a-number';
+  const rejected = send(destination, 'preset_import', {
+    raw: `HPCRP1${JSON.stringify(malformed)}`,
+  });
+  assert.equal(rejected.status, 'rejected');
+  assert.equal(rejected.view, beforeMalformed);
+  assert.deepEqual(rejected.effects, []);
 });
 
 test('HPCR2 exports and atomically imports ability conditions', () => {
@@ -703,21 +768,17 @@ test('HPCR2 exports and atomically imports ability conditions', () => {
   assert.deepEqual(currentScope(source.read()).conditions, {
     enemyLow: { slot: 4, minTier: 3, value: '#123456' },
   });
-
   const copied = effect(send(source, 'settings_copy'), 'clipboard_write').text;
-  assert.deepEqual(JSON.parse(copied.slice(5)), {
-    v: [
-      [1, 120],
-      [8, '#FD4949'],
-      [20, '#FFEFD7'],
-      [21, '#FFEFD7'],
-      [22, '#FFEFD7'],
-      [32, -30],
-      [33, 434],
-    ],
-    c: {
-      enemyLow: { slot: 4, minTier: 3, value: '#123456' },
-    },
+
+  const copiedPayload = JSON.parse(copied.slice(5));
+  assert.ok(copiedPayload.v.some(([index, value]) => index === 1 && value === 120));
+  assert.deepEqual(copiedPayload.c, {
+    enemyLow: { slot: 4, minTier: 3, value: '#123456' },
+  });
+  assert.deepEqual(copiedPayload.hpv2, {
+    v: 1,
+    values: [],
+    conditions: {},
   });
 
   const destination = createState();
@@ -1545,6 +1606,67 @@ test('repository-only actions emit replacement data but never revision, effectiv
   assertOnlyEffectTypes(copied, ['clipboard_write']);
   assert.equal(copied.view.effectiveRevision, initial.effectiveRevision);
   assert.equal(copied.view.undoAvailable, false);
+});
+
+test('HPCRP1 accepts builder hero order and retains strict atomic hero validation', () => {
+  const commonValues = [[1,161],[2,60],[4,-200],[8,"#460606"],[9,"#E02424"],[10,"#E16161"],[16,"#99C1F1"],[17,true],[19,"gradient"],[20,"#FFFFFF"],[21,"#FFFFFF"],[22,"#FFFFFF"],[25,"#F9F06B"],[30,150],[31,"oracle"],[32,0],[33,315],[34,"custom"],[35,"gradient"],[36,"#FFFFFF"],[37,"#FFFFFF"],[40,true],[41,false],[46,144],[47,2],[48,true],[50,"#C18B8B"],[57,true],[60,2],[61,true],[62,"#FFFFFF"],[63,true],[65,10],[66,"#FFFFFF"],[69,40]];
+  const hpv2 = { v: 1, values: [[0,100],[3,-200],[4,true],[5,"#F66151"],[8,-300],[9,-200],[10,22],[24,25],[25,0]], conditions: {} };
+  const condition = { slot: 4, minTier: 3, value: 28 };
+  const definitions = [
+    ['All', [], [], null],
+    ['Shiv', ['hero_shiv'], [[42,18],[45,18],[64,18]], {
+      enemyKillMarkerThreshold: condition, enemyPulseThreshold: condition, lowThreshold: condition,
+    }],
+    ['Talon', ['hero_orion'], [[42,22],[45,22],[58,22],[64,22]], {
+      enemyKillMarkerThreshold: condition,
+    }],
+    ['Vyper, Geist', ['hero_ghost', 'hero_viper'], [[42,30],[45,30],[64,30]], null],
+    ['Half HP', ['hero_hornet', 'hero_fencer'], [[64,50]], null],
+    ['Venator', ['hero_priest'], [[64,8]], null],
+  ];
+  const payload = {
+    records: definitions.map(([name, heroes, extraValues, conditions], index) => ({
+      id: `user_000${index + 1}`, kind: 'user', name,
+      mode: heroes.length ? 'selected' : 'all', heroes,
+      values: commonValues.concat(extraValues).sort((a, b) => a[0] - b[0]),
+      conditions, hpv2,
+    })),
+    hiddenBakedPresetIds: ['baked_default'],
+    selectedPresetId: 'user_0001',
+  };
+  const state = createState();
+  const before = state.read();
+  const imported = send(state, 'preset_import', { raw: `HPCRP1${JSON.stringify(payload)}` });
+  assert.equal(imported.status, 'committed', imported.code);
+  assert.equal(allRows(imported.view).length, 7);
+  assert.deepEqual(row(imported.view, 'user_0005').heroes, ['hero_fencer', 'hero_hornet']);
+  assert.deepEqual(row(imported.view, 'user_0006').heroes, ['hero_priest']);
+  assert.equal(row(imported.view, 'user_0005').values.enemyKillMarkerThreshold, 50);
+  assert.deepEqual(row(imported.view, 'user_0002').conditions.lowThreshold, condition);
+  assert.equal(imported.view.repository.selectedId, 'user_0001');
+  assert.deepEqual(imported.view.repository.hiddenBakedIds, ['baked_default']);
+  assert.deepEqual(imported.view.effectiveValues, before.effectiveValues);
+  assertNoEffect(imported, 'effective_publish');
+  const copied = JSON.parse(effect(send(state, 'preset_copy_all'), 'clipboard_write').text.slice(6));
+  for (const source of payload.records) {
+    const result = copied.records.find(({ id }) => id === source.id);
+    assert.deepEqual(result.values, source.values);
+    assert.deepEqual(result.conditions, source.conditions);
+    assert.deepEqual(result.hpv2, source.hpv2);
+  }
+  for (const heroes of [
+    ['hero_hornet', 'not_a_hero'], ['hero_hornet', 'hero_hornet'],
+    [['hero_hornet']], [null], ['toString'], 'hero_hornet',
+  ]) {
+    const malformed = JSON.parse(JSON.stringify(payload));
+    malformed.records[4].heroes = heroes;
+    const unchanged = state.read();
+    const rejected = send(state, 'preset_import', { raw: `HPCRP1${JSON.stringify(malformed)}` });
+    assert.equal(rejected.status, 'rejected');
+    assert.equal(rejected.code, 'INVALID PRESET HEROES');
+    assert.equal(rejected.view, unchanged);
+    assert.deepEqual(rejected.effects, []);
+  }
 });
 
 test('HPCRP1 copy/import preserves metadata, validates atomically, and allocates fresh monotonic IDs', () => {

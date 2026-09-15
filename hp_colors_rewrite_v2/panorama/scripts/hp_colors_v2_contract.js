@@ -90,6 +90,23 @@
     ultOffsetY: 0,
     levelOffsetX: 0,
     levelOffsetY: 0,
+    pickupTimersEnabled: true,
+    pickupGunColor: "#EC9719",
+    pickupMovementColor: "#6E65EA",
+    pickupSpiritColor: "#CE90FF",
+    pickupSurvivalColor: "#7BBA1D",
+    pickupBackgroundDarkness: 70,
+    pickupGlyphColor: "#10130D",
+    pickupSize: 22,
+    pickupSpacing: 1,
+    pickupOffsetX: 0,
+    pickupOffsetY: 0,
+    ultimateTimerEnabled: true,
+    ultimateTimerSize: 100,
+    ultimateTimerDarkness: 99,
+    ultimateTimerColorMode: "follow",
+    ultimateTimerUnavailableColor: "#E16161",
+    ultimateTimerAvailableColor: "#7BBA1D",
   };
 
   var DEFAULT_KEYS = [
@@ -174,6 +191,23 @@
     "ultOffsetY",
     "levelOffsetX",
     "levelOffsetY",
+    "pickupTimersEnabled",
+    "pickupGunColor",
+    "pickupMovementColor",
+    "pickupSpiritColor",
+    "pickupSurvivalColor",
+    "pickupBackgroundDarkness",
+    "pickupGlyphColor",
+    "pickupSize",
+    "pickupSpacing",
+    "pickupOffsetX",
+    "pickupOffsetY",
+    "ultimateTimerEnabled",
+    "ultimateTimerSize",
+    "ultimateTimerDarkness",
+    "ultimateTimerColorMode",
+    "ultimateTimerUnavailableColor",
+    "ultimateTimerAvailableColor",
   ];
   var HPV2_EXTENSION_KEYS = [
     "staminaWidth",
@@ -188,6 +222,23 @@
     "ultOffsetY",
     "levelOffsetX",
     "levelOffsetY",
+    "pickupTimersEnabled",
+    "pickupGunColor",
+    "pickupMovementColor",
+    "pickupSpiritColor",
+    "pickupSurvivalColor",
+    "pickupBackgroundDarkness",
+    "pickupGlyphColor",
+    "pickupSize",
+    "pickupSpacing",
+    "pickupOffsetX",
+    "pickupOffsetY",
+    "ultimateTimerEnabled",
+    "ultimateTimerSize",
+    "ultimateTimerDarkness",
+    "ultimateTimerColorMode",
+    "ultimateTimerUnavailableColor",
+    "ultimateTimerAvailableColor",
   ];
   var CODEC_KEYS = [
     "enabled",
@@ -297,12 +348,14 @@
     enemyPulseHideBar: true,
     enemyPulseReadout: true,
     enemyPulseReadoutModifiers: true,
+    enemyKillMarkerEnabled: true,
     allyPulseEnabled: true,
     allyPulseColorEnabled: true,
-    enemyKillMarkerEnabled: true,
     readoutMaxTeamColor: true,
     allyTeamHigh: true,
     accessoryAnchorEnabled: true,
+    pickupTimersEnabled: true,
+    ultimateTimerEnabled: true,
   };
 
   var COLOR_KEYS = {
@@ -326,12 +379,20 @@
     enemyPulseColor: true,
     allyPulseColor: true,
     enemyKillMarkerColor: true,
+    pickupGunColor: true,
+    pickupMovementColor: true,
+    pickupSpiritColor: true,
+    pickupSurvivalColor: true,
+    pickupGlyphColor: true,
+    ultimateTimerUnavailableColor: true,
+    ultimateTimerAvailableColor: true,
   };
 
   var ENUM_OPTIONS = {
     enemyMode: ["fixed", "gradient"],
     allyMode: ["fixed", "gradient"],
     ultMode: ["follow", "custom"],
+    ultimateTimerColorMode: ["follow", "fixed", "gradient"],
     readoutFormat: ["hp", "percent", "current"],
     readoutFont: ["default", "oracle", "pulp"],
     readoutColorMode: ["bar", "custom"],
@@ -370,6 +431,23 @@
     ultOffsetY: [-200, 200],
     levelOffsetX: [-300, 300],
     levelOffsetY: [-200, 200],
+    pickupBackgroundDarkness: [0, 100],
+    pickupSize: [12, 64],
+    pickupSpacing: [0, 16],
+    pickupOffsetX: [-200, 200],
+    pickupOffsetY: [-100, 100],
+    ultimateTimerSize: [25, 200],
+    ultimateTimerDarkness: [0, 100],
+  };
+
+  var NUMBER_STEPS = {
+    pickupBackgroundDarkness: 1,
+    pickupSize: 1,
+    pickupSpacing: 1,
+    pickupOffsetX: 1,
+    pickupOffsetY: 1,
+    ultimateTimerSize: 5,
+    ultimateTimerDarkness: 1,
   };
 
   function isObjectValue(value) {
@@ -420,10 +498,12 @@
     return /^#[0-9A-F]{6}$/.test(raw) ? raw : fallback;
   }
 
-  function clampNumber(value, min, max, fallback) {
+  function clampNumber(value, min, max, fallback, step) {
     var number = Number(value);
     if (!isFinite(number)) number = fallback;
-    return Math.max(min, Math.min(max, Math.round(number)));
+    var increment = Number(step) || 1;
+    number = Math.round(number / increment) * increment;
+    return Math.max(min, Math.min(max, number));
   }
 
   function clampDecimalNumber(value, min, max, fallback, decimalPlaces) {
@@ -467,7 +547,13 @@
       return clampDecimalNumber(value, 16, 90, fallback[key], 1);
     var bounds = NUMBER_BOUNDS[key];
     if (bounds)
-      return clampNumber(value, bounds[0], bounds[1], fallback[key]);
+      return clampNumber(
+        value,
+        bounds[0],
+        bounds[1],
+        fallback[key],
+        NUMBER_STEPS[key],
+      );
     return value;
   }
 
@@ -548,6 +634,7 @@
     colorKeys: COLOR_KEYS,
     enumOptions: ENUM_OPTIONS,
     numberBounds: NUMBER_BOUNDS,
+    numberSteps: NUMBER_STEPS,
     settingMeta: SETTING_META,
     copyValues: copyValues,
     normalizeColor: normalizeColor,

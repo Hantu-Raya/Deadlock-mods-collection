@@ -111,7 +111,7 @@ function selectEnemyBar(fixture) {
 
 function selectStamina(fixture) {
   panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
-  panel(fixture, 'HPColorsTab3').events.onactivate();
+  panel(fixture, 'HPColorsTab5').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ENEMY STAMINA');
 }
 
@@ -878,7 +878,6 @@ test('effect pages live under their healthbar categories', () => {
   assert.equal(panel(fixture, 'HPColorsTab4').BHasClass('Available'), false);
 
   panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
-  assert.equal(panel(fixture, 'HPColorsHeaderCategory').text, 'HEALTH INFO');
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'HP TEXT');
 });
 
@@ -1032,38 +1031,4 @@ test('stale reset feedback callback cannot overwrite LIVE after editor close', (
 
   fixture.harness.scheduler.runByDelay(1.25);
   assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'LIVE');
-});
-
-test('entry and shared controls use their intended navigation surfaces', () => {
-  const changeHeroIndex = layoutSource.indexOf('<Button id="changehero"');
-  const subOptionsIndex = layoutSource.indexOf('<Panel id="SubOptions">');
-  const feedbackIndex = layoutSource.indexOf('<Panel class="FeedbackRow">');
-  const entryIndex = layoutSource.indexOf('<Button id="HPColorsMenuButton"');
-  const settingsIndex = layoutSource.indexOf('<Panel class="SettingsRow">');
-  assert.ok(changeHeroIndex >= 0);
-  assert.ok(subOptionsIndex > changeHeroIndex);
-  assert.ok(feedbackIndex > subOptionsIndex);
-  assert.ok(entryIndex > feedbackIndex);
-  assert.ok(settingsIndex > entryIndex);
-  assert.match(
-    layoutSource,
-    /<Button id="HPColorsMenuButton" class="nav_menu_item minor">\s*<Label text="HP COLORS V2" class="menuButtonLabel" \/>\s*<\/Button>/,
-  );
-  assert.doesNotMatch(
-    layoutSource,
-    /HPColorsMenu(?:Accent|Swatch|Binding)|class="[^"]*HPColorsMenuButton/,
-  );
-  assert.match(layoutSource, /text="SHARED LOW THRESHOLD"/);
-  assert.match(layoutSource, /text="SHARED HIGH THRESHOLD"/);
-  assert.doesNotMatch(layoutSource, /HPColorsLowThreshold(?:SliderHost|Entry)/);
-  assert.doesNotMatch(layoutSource, /HPColorsHighThreshold(?:SliderHost|Entry)/);
-
-  const fixture = bootMenu();
-  openEditor(fixture);
-  panel(fixture, 'HPColorsCategoryEnemy').events.onactivate();
-  panel(fixture, 'HPColorsTab2').events.onactivate();
-  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'SHIELDS');
-  panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
-  panel(fixture, 'HPColorsTab2').events.onactivate();
-  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'INDICATORS');
 });

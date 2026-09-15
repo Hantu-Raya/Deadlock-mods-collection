@@ -227,10 +227,11 @@
 }
 
 .HPColorsTabButton {
+  width: fill-parent-flow(1);
   height: 56px;
-  min-width: 150px;
+  min-width: 0px;
   margin-right: 8px;
-  padding: 0px 14px;
+  padding: 0px 8px;
   visibility: collapse;
   border-bottom: 2px solid #5fe69e00;
   transition-property: brightness, border;

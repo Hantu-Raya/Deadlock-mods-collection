@@ -2,7 +2,8 @@
 param(
     [switch]$SkipDeploy,
     [switch]$RefreshFromInstalledQollock,
-    [string]$Source2ViewerPath = ''
+    [string]$Source2ViewerPath = '',
+    [switch]$SkipPanoramaTests
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,6 +32,7 @@ $qollockPak = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak
 $manifestPath = Join-Path $supportSrc 'qollock-source.sha256'
 $contractPath = Join-Path $supportSrc 'pak02-contract.json'
 $refreshScript = Join-Path $root 'scripts\refresh-hp-colors-rewrite-qollock.js'
+$timerValidator = Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-timers.js'
 $canonicalEscapeMenu = Join-Path $canonicalSrc 'panorama\layout\hud_escape_menu.xml'
 if ([string]::IsNullOrWhiteSpace($Source2ViewerPath)) {
     $Source2ViewerPath = Join-Path $root '.tmp\vrf-cli-19.2\Source2Viewer-CLI.exe'
@@ -52,7 +54,12 @@ $canonicalFiles = @(
     'panorama\scripts\hp_colors_v2_menu.js',
     'panorama\scripts\unit_status_v2_colors.js',
     'panorama\styles\hp_colors_v2_menu.css',
-    'panorama\styles\unit_status_v2.css'
+    'panorama\styles\unit_status_v2.css',
+    'panorama\layout\test_event_relay.xml',
+    'panorama\scripts\test_event_bridge.js',
+    'panorama\scripts\test_topbar_pickups.js',
+    'panorama\images\hpv2\ultimate_progress.png',
+    'panorama\images\hpv2\ultimate_progress.vtex'
 )
 $supportFiles = @(
     'panorama\layout\hud.xml',
@@ -60,6 +67,10 @@ $supportFiles = @(
     'panorama\scripts\qollock_hp_colors_bridge.js'
 )
 
+$timerScripts = @(
+    'panorama\scripts\test_event_bridge.js',
+    'panorama\scripts\test_topbar_pickups.js'
+)
 function Require-Path {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
@@ -124,6 +135,8 @@ Require-Path -Path $compiler -Label 'Source 2 compiler'
 Require-Path -Path $vpkeditcli -Label 'vpkeditcli'
 Require-Path -Path $contractPath -Label 'pak02 asset contract'
 Require-Path -Path $refreshScript -Label 'QOLLOCK compatibility refresh script'
+Require-Path -Path $timerValidator -Label 'HP Colors Rewrite v2 timer validator'
+Require-Path -Path $Source2ViewerPath -Label 'Source2Viewer CLI'
 
 $assetContract = Get-Content -LiteralPath $contractPath -Raw | ConvertFrom-Json
 $expectedPackedAssets = @(
@@ -172,16 +185,32 @@ foreach ($requiredSource in @($assetContract.requiredSources)) {
     Require-Path -Path (Join-Path $supportSrc $requiredSource) -Label 'QOLLOCK compatibility source asset'
 }
 $qollockPak = Get-VerifiedQolSource -Path $manifestPath
-$qollockTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $qollockPak
+$qollockTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $qollockPak -Source2ViewerPath $Source2ViewerPath
 Assert-PackedVpkAssets `
     -Tree $qollockTree `
     -Label 'Pinned QOLLOCK pak03' `
     -Required @($assetContract.requiredPinnedQollockAssets)
 
 Write-Host "`n[1/5] Validating HP Colors Rewrite v2 QOLLOCK source..." -ForegroundColor Cyan
-& node --test (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-qollock.test.js')
+& node $timerValidator $canonicalSrc
 if ($LASTEXITCODE -ne 0) {
-    throw "HP Colors Rewrite v2 QOLLOCK validator failed with exit code $LASTEXITCODE"
+    throw "HP Colors Rewrite v2 QOLLOCK timer validator failed with exit code $LASTEXITCODE"
+}
+foreach ($relativePath in $canonicalScripts + $timerScripts) {
+    & node --check (Join-Path $canonicalSrc $relativePath)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Runtime script syntax check failed: $relativePath"
+    }
+}
+& node --check (Join-Path $supportSrc 'panorama\scripts\qollock_hp_colors_bridge.js')
+if ($LASTEXITCODE -ne 0) {
+    throw 'Runtime script syntax check failed: panorama\scripts\qollock_hp_colors_bridge.js'
+}
+if (-not $SkipPanoramaTests) {
+    & node --test (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-qollock.test.js')
+    if ($LASTEXITCODE -ne 0) {
+        throw "HP Colors Rewrite v2 QOLLOCK validator failed with exit code $LASTEXITCODE"
+    }
 }
 
 Write-Host "`n[2/5] Preparing Closure ADVANCED compatibility runtime..." -ForegroundColor Cyan
@@ -198,22 +227,57 @@ try {
     foreach ($relativePath in $supportFiles) {
         Copy-StagedFile -RelativePath $relativePath -SourceRoot $supportSrc -DestinationRoot $stageSource -Label 'QOLLOCK compatibility'
     }
+    # Preserve the pinned QOLLOCK topbar panels while sharing canonical timer hooks.
+    & $Source2ViewerPath -i $qollockPak -o $stageSource -d -f 'panorama/layout/citadel_hud_top_bar.vxml_c'
+    if ($LASTEXITCODE -ne 0) { throw 'Pinned QOLLOCK topbar decompilation failed' }
+    $topbarPath = Join-Path $stageSource 'panorama\layout\citadel_hud_top_bar.xml'
+    Require-Path -Path $topbarPath -Label 'Pinned QOLLOCK topbar layout'
+    [xml]$topbar = [System.IO.File]::ReadAllText($topbarPath)
+    [xml]$canonicalTopbar = [System.IO.File]::ReadAllText((Join-Path $canonicalSrc 'panorama\layout\citadel_hud_top_bar.xml'))
+    $topbarRoot = $topbar.SelectSingleNode('/root/CitadelHudTopBar')
+    $canonicalTopbarRoot = $canonicalTopbar.SelectSingleNode('/root/CitadelHudTopBar')
+    if ($null -eq $topbarRoot -or $null -eq $canonicalTopbarRoot) {
+        throw 'Missing topbar root in QOLLOCK or canonical timer layout'
+    }
+    $topbarScripts = $topbar.SelectSingleNode('/root/scripts')
+    if ($null -eq $topbarScripts) {
+        $topbarScripts = $topbar.CreateElement('scripts')
+        [void]$topbar.root.InsertBefore($topbarScripts, $topbarRoot)
+    }
+    foreach ($include in $canonicalTopbar.SelectNodes('/root/scripts/include')) {
+        $asset = $include.GetAttribute('src')
+        if ($null -eq $topbarScripts.SelectSingleNode("include[@src='$asset']")) {
+            [void]$topbarScripts.AppendChild($topbar.ImportNode($include, $true))
+        }
+    }
+    $topbarRoot.SetAttribute('class', ($topbarRoot.GetAttribute('class') + ' ' + $canonicalTopbarRoot.GetAttribute('class')).Trim())
+    $topbar.Save($topbarPath)
     Invoke-HpColorsRewriteClosureAdvanced `
         -StageSourceRoot $stageSource `
         -ScriptRelativePaths $compatibilityScripts `
         -WorkRoot $buildRoot
-    Copy-Item -LiteralPath $canonicalSrc -Destination $canonicalClosureTestRoot -Recurse -Force
-    foreach ($relativePath in $canonicalScripts) {
-        Copy-StagedFile `
-            -RelativePath $relativePath `
-            -SourceRoot $stageSource `
-            -DestinationRoot $canonicalClosureTestRoot `
-            -Label 'Closure ADVANCED Rewrite v2'
+    & node $timerValidator $stageSource
+    if ($LASTEXITCODE -ne 0) { throw 'Closure timer validation failed' }
+    foreach ($relativePath in $compatibilityScripts + $timerScripts) {
+        & node --check (Join-Path $stageSource $relativePath)
+        if ($LASTEXITCODE -ne 0) {
+            throw "Closure runtime script syntax check failed: $relativePath"
+        }
     }
-    Invoke-HpColorsRewriteClosureTests `
-        -RepositoryRoot $root `
-        -SourceRoot $canonicalClosureTestRoot `
-        -QollockSourceRoot $stageSource
+    if (-not $SkipPanoramaTests) {
+        Copy-Item -LiteralPath $canonicalSrc -Destination $canonicalClosureTestRoot -Recurse -Force
+        foreach ($relativePath in $canonicalScripts) {
+            Copy-StagedFile `
+                -RelativePath $relativePath `
+                -SourceRoot $stageSource `
+                -DestinationRoot $canonicalClosureTestRoot `
+                -Label 'Closure ADVANCED Rewrite v2'
+        }
+        Invoke-HpColorsRewriteClosureTests `
+            -RepositoryRoot $root `
+            -SourceRoot $canonicalClosureTestRoot `
+            -QollockSourceRoot $stageSource
+    }
 
     Write-Host "`n[3/5] Compiling HP Colors Rewrite v2 QOLLOCK runtime..." -ForegroundColor Cyan
     Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $stageSource -RequiredOutputs $requiredCompiled -TimeoutSeconds 120
@@ -240,7 +304,7 @@ if ($assetDifference.Count -gt 0) {
 
 Write-Host "`n[4/5] Packing pak02_dir.vpk..." -ForegroundColor Cyan
 Invoke-VpkPack -VpkEditCli $vpkeditcli -InputDir $compiledOut -OutputPath $vpkOut
-$vpkTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut
+$vpkTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut -Source2ViewerPath $Source2ViewerPath
 Assert-PackedVpkAssets `
     -Tree $vpkTree `
     -Label 'HP Colors Rewrite v2 QOLLOCK pak02' `

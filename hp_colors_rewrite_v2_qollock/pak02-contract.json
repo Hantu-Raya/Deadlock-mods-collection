@@ -14,6 +14,7 @@
     "qollock-source.sha256"
   ],
   "requiredPinnedQollockAssets": [
+    "panorama/layout/citadel_hud_top_bar.vxml_c",
     "panorama/scripts/core/ql_namespace.vjs_c",
     "panorama/scripts/core/ql_feature_registry.vjs_c",
     "panorama/scripts/features/ql_feat_healthbar.vjs_c",
@@ -28,7 +29,12 @@
     "panorama/scripts/hp_colors_v2_menu.vjs_c",
     "panorama/scripts/unit_status_v2_colors.vjs_c",
     "panorama/styles/hp_colors_v2_menu.vcss_c",
-    "panorama/styles/unit_status_v2.vcss_c"
+    "panorama/styles/unit_status_v2.vcss_c",
+    "panorama/layout/citadel_hud_top_bar.vxml_c",
+    "panorama/layout/test_event_relay.vxml_c",
+    "panorama/scripts/test_event_bridge.vjs_c",
+    "panorama/scripts/test_topbar_pickups.vjs_c",
+    "panorama/images/hpv2/ultimate_progress.vtex_c"
   ],
   "forbiddenSupportAssets": [
     "panorama/scripts/hp_colors_v2_contract.js",
@@ -39,6 +45,12 @@
     "panorama/styles/hp_colors_v2_menu.css",
     "panorama/styles/unit_status_v2.css",
     "panorama/layout/unit_status_overlay_v2.xml",
+    "panorama/layout/citadel_hud_top_bar.xml",
+    "panorama/layout/test_event_relay.xml",
+    "panorama/scripts/test_event_bridge.js",
+    "panorama/scripts/test_topbar_pickups.js",
+    "panorama/images/hpv2/ultimate_progress.png",
+    "panorama/images/hpv2/ultimate_progress.vtex",
     "pak01_dir.vpk",
     "pak03_dir.vpk"
   ],
@@ -57,7 +69,12 @@
     "panorama/scripts/unit_status_v2_colors.vjs_c",
     "panorama/scripts/qollock_hp_colors_bridge.vjs_c",
     "panorama/styles/hp_colors_v2_menu.vcss_c",
-    "panorama/styles/unit_status_v2.vcss_c"
+    "panorama/styles/unit_status_v2.vcss_c",
+    "panorama/layout/citadel_hud_top_bar.vxml_c",
+    "panorama/layout/test_event_relay.vxml_c",
+    "panorama/scripts/test_event_bridge.vjs_c",
+    "panorama/scripts/test_topbar_pickups.vjs_c",
+    "panorama/images/hpv2/ultimate_progress.vtex_c"
   ],
   "forbiddenPackedAssets": [
     "hud.xml",
@@ -72,6 +89,11 @@
     "qollock_hp_colors_bridge.js",
     "hp_colors_v2_menu.css",
     "unit_status_v2.css",
+    "citadel_hud_top_bar.xml",
+    "test_event_relay.xml",
+    "test_event_bridge.js",
+    "test_topbar_pickups.js",
+    "ultimate_progress.png",
     "qollock_runtime_guard.js",
     "qollock_settings_guard.js",
     "qollock_topbar_warning_guard.js",

@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$SkipDeploy,
-    [switch]$ShowRankBarebones
+    [switch]$ShowRankBarebones,
+    [switch]$SkipPanoramaTests
 )
 
 $ErrorActionPreference = 'Stop'
@@ -21,6 +22,10 @@ $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
     (Join-Path $root 'vpk cli\vpkeditcli.exe'),
     (Join-Path $root 'passive_items_mod_release\compiler\vpkeditcli.exe')
 )
+$viewer = Get-RepoToolPath -ToolName 'Source2Viewer-CLI.exe' -Candidates @(
+    (Join-Path $root '.tmp\vrf-cli-19.2\Source2Viewer-CLI.exe'),
+    (Join-Path $root '.tmp\source2viewer-cli\Source2Viewer-CLI.exe')
+)
 $vpkOut = Join-Path $root 'pak02_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak02_dir.vpk'
 $validators = @(
@@ -30,6 +35,7 @@ $validators = @(
     (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-state.test.js'),
     (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-style.test.js')
 )
+$timerValidator = Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-timers.js'
 
 $assetManifest = @(
     [pscustomobject]@{ Source = 'panorama\layout\hud_escape_menu.xml'; Packed = 'panorama/layout/hud_escape_menu.vxml_c' }
@@ -40,10 +46,15 @@ $assetManifest = @(
     [pscustomobject]@{ Source = 'panorama\scripts\hp_colors_v2_state.js'; Packed = 'panorama/scripts/hp_colors_v2_state.vjs_c' }
     [pscustomobject]@{ Source = 'panorama\scripts\hp_colors_v2_menu.js'; Packed = 'panorama/scripts/hp_colors_v2_menu.vjs_c' }
     [pscustomobject]@{ Source = 'panorama\scripts\unit_status_v2_colors.js'; Packed = 'panorama/scripts/unit_status_v2_colors.vjs_c' }
+    [pscustomobject]@{ Source = 'panorama\layout\citadel_hud_top_bar.xml'; Packed = 'panorama/layout/citadel_hud_top_bar.vxml_c' }
+    [pscustomobject]@{ Source = 'panorama\layout\test_event_relay.xml'; Packed = 'panorama/layout/test_event_relay.vxml_c' }
+    [pscustomobject]@{ Source = 'panorama\scripts\test_event_bridge.js'; Packed = 'panorama/scripts/test_event_bridge.vjs_c' }
+    [pscustomobject]@{ Source = 'panorama\scripts\test_topbar_pickups.js'; Packed = 'panorama/scripts/test_topbar_pickups.vjs_c' }
+    [pscustomobject]@{ Source = 'panorama\images\hpv2\ultimate_progress.vtex'; Packed = 'panorama/images/hpv2/ultimate_progress.vtex_c' }
 )
 $rewriteScripts = @(
     $assetManifest |
-        Where-Object { $_.Source.EndsWith('.js') } |
+        Where-Object { $_.Source.EndsWith('.js') -and -not $_.Source.Contains('\test_') } |
         ForEach-Object { $_.Source }
 )
 $expectedPackedAssets = @($assetManifest | ForEach-Object { $_.Packed })
@@ -89,7 +100,7 @@ if ($ShowRankBarebones) {
     $barebonesPak = Join-Path (Split-Path $vpkDest -Parent) 'pak89_dir.vpk'
     Require-Path -Path $barebonesLayout -Label 'ShowRank Barebones Escape layout'
     Require-Path -Path $barebonesPak -Label 'Installed ShowRank Barebones pak89'
-    $barebonesTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $barebonesPak
+    $barebonesTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $barebonesPak -Source2ViewerPath $viewer
     Assert-PackedVpkAssets -Tree $barebonesTree -Label 'ShowRank Barebones dependency' -Required @(
         'panorama/scripts/showrank_barebones.vjs_c',
         'panorama/layout/players_list_entry.vxml_c',
@@ -98,9 +109,17 @@ if ($ShowRankBarebones) {
 }
 
 Write-Host "`n[1/5] Validating HP Colors Rewrite v2 source..." -ForegroundColor Cyan
-& node --test $validators
-if ($LASTEXITCODE -ne 0) {
-    throw "HP Colors Rewrite v2 validator failed with exit code $LASTEXITCODE"
+& node $timerValidator $modSrc
+if ($LASTEXITCODE -ne 0) { throw 'HP Colors Rewrite v2 timer validation failed' }
+foreach ($asset in $assetManifest | Where-Object { $_.Source.EndsWith('.js') }) {
+    & node --check (Join-Path $modSrc $asset.Source)
+    if ($LASTEXITCODE -ne 0) { throw "Runtime script syntax check failed: $($asset.Source)" }
+}
+if (-not $SkipPanoramaTests) {
+    & node --test $validators
+    if ($LASTEXITCODE -ne 0) {
+        throw "HP Colors Rewrite v2 validator failed with exit code $LASTEXITCODE"
+    }
 }
 
 Write-Host "`n[2/5] Preparing HP Colors Rewrite v2 source..." -ForegroundColor Cyan
@@ -118,7 +137,11 @@ try {
         -StageSourceRoot $compileStageSource `
         -ScriptRelativePaths $rewriteScripts `
         -WorkRoot $compileStageRoot
-    Invoke-HpColorsRewriteClosureTests -RepositoryRoot $root -SourceRoot $compileStageSource
+    & node $timerValidator $compileStageSource
+    if ($LASTEXITCODE -ne 0) { throw 'Closure timer validation failed' }
+    if (-not $SkipPanoramaTests) {
+        Invoke-HpColorsRewriteClosureTests -RepositoryRoot $root -SourceRoot $compileStageSource
+    }
     if ($ShowRankBarebones) {
         $escapePath = Join-Path $compileStageSource 'panorama\layout\hud_escape_menu.xml'
         [xml]$escape = [System.IO.File]::ReadAllText($escapePath)
@@ -140,6 +163,22 @@ try {
             $hostPanel.SetAttribute($eventName, "$existingHandler; $rankHandler")
         }
         $escape.Save($escapePath)
+        $topbarPath = Join-Path $compileStageSource 'panorama\layout\citadel_hud_top_bar.xml'
+        $barebonesTopbarPath = Join-Path $root 'showrank_barebones\panorama\layout\citadel_hud_top_bar.xml'
+        [xml]$topbar = [System.IO.File]::ReadAllText($topbarPath)
+        [xml]$barebonesTopbar = [System.IO.File]::ReadAllText($barebonesTopbarPath)
+        foreach ($include in $barebonesTopbar.SelectNodes("/root/styles/include[contains(@src,'showrank_barebones')]")) {
+            [void]$topbar.root.styles.AppendChild($topbar.ImportNode($include, $true))
+        }
+        foreach ($panelId in @('ShowRankBarebonesNotificationRoot', 'ShowRankBarebonesTeamAverageLayer')) {
+            $rankLayer = $barebonesTopbar.SelectSingleNode("//*[@id='$panelId']")
+            if ($null -eq $rankLayer) { throw "ShowRank Barebones topbar is missing $panelId" }
+            $anchorId = if ($panelId -eq 'ShowRankBarebonesNotificationRoot') { 'GradientBacker' } else { 'StretBrawlContainer' }
+            $anchor = $topbar.SelectSingleNode("/root/CitadelHudTopBar/*[@id='$anchorId']")
+            if ($null -eq $anchor) { throw "Timer topbar is missing $anchorId" }
+            [void]$anchor.ParentNode.InsertBefore($topbar.ImportNode($rankLayer, $true), $anchor)
+        }
+        $topbar.Save($topbarPath)
         Write-Host '  ShowRank Barebones Escape hooks composed; HP cancel behavior retained.' -ForegroundColor Green
     }
 
@@ -169,7 +208,7 @@ if ($assetDifference.Count -gt 0) {
 
 Write-Host "`n[4/5] Packing pak02_dir.vpk..." -ForegroundColor Cyan
 Invoke-VpkPack -VpkEditCli $vpkeditcli -InputDir $modCompiled -OutputPath $vpkOut
-$vpkTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut
+$vpkTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut -Source2ViewerPath $viewer
 $forbiddenPackedAssets = @(
     'node_modules',
     'AGENTS.md',
@@ -178,6 +217,8 @@ $forbiddenPackedAssets = @(
     '.xml',
     '.css',
     '.js',
+    '.png',
+    'ultimate_progress.vtex ',
     'healthbar_logic'
 )
 Assert-PackedVpkAssets -Tree $vpkTree -Label 'HP Colors Rewrite v2 VPK' -Required $expectedPackedAssets -Forbidden $forbiddenPackedAssets

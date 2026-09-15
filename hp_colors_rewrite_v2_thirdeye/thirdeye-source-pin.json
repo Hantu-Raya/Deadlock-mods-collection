@@ -1,0 +1,31 @@
+{
+  "schema": "HPV2_THIRDEYE_SOURCE_PIN_1",
+  "packageSha256": "666967f1ae96d855cc2ae3ec42565ccaea83fc7d52cb735692de04d4cf63e95f",
+  "snapshotSha256": {
+    "escape": "e059afa34302f396b57d1e3a78aa667ed05386c0c66784865575a863c0d76cea",
+    "window": "ea12fd40c956e0b432d7646c50ed83c486335d67312adcea7664ccbfab19b4cc",
+    "namespace": "2ca1a8a7ae35b8e374143e2b092b56773b89dd44e7ed044463c507c71ac3b17d",
+    "topbarUltCooldown": "f920c997ed632041919e88bd16134863f674b07d2ab791c00c28b77a29ca7050"
+  },
+  "snapshotPaths": {
+    "escape": "source_snapshots/hud_escape_menu.xml",
+    "window": "source_snapshots/window.js",
+    "namespace": "source_snapshots/namespace.js",
+    "topbarUltCooldown": "source_snapshots/topbar_ult_cooldown.js"
+  },
+  "runtimeExtraSources": [
+    "panorama/scripts/hp_colors_thirdeye_bridge.js",
+    "panorama/scripts/hp_colors_thirdeye_window.js",
+    "panorama/scripts/features/topbar_ult_cooldown/feature.js"
+  ],
+  "requiredThirdEyeAssets": [
+    "panorama/layout/hud_escape_menu.vxml_c",
+    "panorama/scripts/core/namespace.vjs_c",
+    "panorama/scripts/core/registry.vjs_c",
+    "panorama/scripts/ui/renderer.vjs_c",
+    "panorama/scripts/ui/window.vjs_c",
+    "panorama/scripts/features/topbar_ult_cooldown/feature.vjs_c",
+    "panorama/layout/citadel_hud_top_bar_player.vxml_c",
+    "panorama/styles/thirdeye/features/topbar_ult_cooldown.vcss_c"
+  ]
+}
