@@ -91,8 +91,10 @@ function installCefBridge(harness, profile, panel, options = {}) {
     failNavigations: 0,
     // false models a client that never sends HTMLURLChanged.
     urlEvents: true,
+    // Loads of this exact address always end on http://error/.
+    failUrl: null,
   }, options);
-  const stats = { navigations: 0, reads: 0, writes: 0, deletes: 0, titles: [] };
+  const stats = { navigations: 0, reads: 0, writes: 0, deletes: 0, titles: [], urls: [] };
   let page = null;
 
   function deliver(title) {
@@ -166,15 +168,16 @@ function installCefBridge(harness, profile, panel, options = {}) {
       return;
     }
     stats.navigations += 1;
+    stats.urls.push(text);
     page = null;
     if (opts.placeholderSec !== null)
       harness.scheduler.schedule(opts.placeholderSec, () => commit('about:blank', 'about:blank'));
     if (!opts.commit) return;
-    const failed = stats.navigations <= opts.failNavigations;
+    const failed = stats.navigations <= opts.failNavigations || text === opts.failUrl;
     loading = harness.scheduler.schedule(opts.navLatencySec, () => {
       loading = null;
       if (failed) commit('http://error/', 'http://error/');
-      else commit('file:///', 'Index of /');
+      else commit(text === 'file://' ? 'file:///' : text, 'Index of /');
     });
   };
   return stats;
@@ -454,7 +457,7 @@ test('unreadable or future-schema saves stay read-only and are never replaced by
 test('a bridge that never becomes ready boots on defaults without writing', () => {
   const profile = createProfile();
   const fixture = launch(profile, { label: 'no page commit', bridge: { commit: false } });
-  fixture.run(15000);
+  fixture.run(45000);
   assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
   assert.equal(fixture.renderer().enabled, true);
   assert.equal(fixture.renderer().widthScale, DEFAULT_WIDTH);
@@ -694,7 +697,7 @@ test('no script reaches the page until file:// has loaded, so the load is never 
   assert.equal(fixture.bridge.aborted, undefined, 'the file:// load was never interrupted');
   assert.equal(fixture.renderer().widthScale, 205);
   assert.equal(fixture.status(), 'SAVED');
-  assert.match(fixture.harness.logs.join('\n'), /bridge ready \(inject 1\)/);
+  assert.match(fixture.harness.logs.join('\n'), /bridge ready at file:\/\/\/ \(load 1, inject 1\)/);
   record(fixture);
 });
 
@@ -703,12 +706,25 @@ test('a load that ends on http://error/ is retried', () => {
   const profile = createProfile({
     [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 212 }), 1),
   });
-  const fixture = launch(profile, { label: 'failed load', bridge: { failNavigations: 2 } });
-  fixture.run(20000);
-  assert.equal(fixture.bridge.navigations, 3);
+  const fixture = launch(profile, { label: 'failed load', bridge: { failNavigations: 3 } });
+  fixture.run(40000);
+  assert.deepEqual(fixture.bridge.urls, ['file://', 'file:///C:/', 'file://', 'file:///C:/']);
   assert.equal(fixture.renderer().widthScale, 212);
   assert.equal(fixture.status(), 'SAVED');
   assert.match(fixture.harness.logs.join('\n'), /page load failed at http:\/\/error\//);
+  record(fixture);
+});
+
+test('if bare file:// never loads, the C: listing still reaches the same save', () => {
+  const factory = loadStorageCodec();
+  const profile = createProfile({
+    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 214 }), 1),
+  });
+  const fixture = launch(profile, { label: 'file:// always fails', bridge: { failUrl: 'file://' } });
+  fixture.run(20000);
+  assert.equal(fixture.renderer().widthScale, 214);
+  assert.equal(fixture.status(), 'SAVED');
+  assert.match(fixture.harness.logs.join('\n'), /bridge ready at file:\/\/\/C:\/ \(load 2/);
   record(fixture);
 });
 
