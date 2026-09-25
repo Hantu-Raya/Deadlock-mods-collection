@@ -41,6 +41,7 @@ if ([string]::IsNullOrWhiteSpace($Source2ViewerPath)) {
 $canonicalScripts = @(
     'panorama\scripts\hp_colors_v2_contract.js',
     'panorama\scripts\hp_colors_v2_state.js',
+    'panorama\scripts\hp_colors_v2_storage.js',
     'panorama\scripts\hp_colors_v2_menu.js',
     'panorama\scripts\unit_status_v2_colors.js'
 )
@@ -51,6 +52,7 @@ $canonicalFiles = @(
     'panorama\layout\unit_status_overlay_v2.xml',
     'panorama\scripts\hp_colors_v2_contract.js',
     'panorama\scripts\hp_colors_v2_state.js',
+    'panorama\scripts\hp_colors_v2_storage.js',
     'panorama\scripts\hp_colors_v2_menu.js',
     'panorama\scripts\unit_status_v2_colors.js',
     'panorama\styles\hp_colors_v2_menu.css',

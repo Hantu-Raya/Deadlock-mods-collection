@@ -853,23 +853,14 @@
     if (!data || !isObjectValue(data) || Array.isArray(data)) data = null;
     return data;
   }
-  function rawValueIsEmpty(raw) {
-    if (raw === null || raw === undefined) return true;
-    return (
-      isStringValue(raw) &&
-      raw.replace(/^\s+|\s+$/g, "") === ""
-    );
-  }
 
   function initialState(rawSessionState) {
     var envelope = parseRawState(rawSessionState);
     var wrapped =
       envelope &&
       (Object.prototype.hasOwnProperty.call(envelope, "sessionRaw") ||
-        Object.prototype.hasOwnProperty.call(envelope, "publishedRaw") ||
-        Object.prototype.hasOwnProperty.call(envelope, "builderPresetRaw"));
+        Object.prototype.hasOwnProperty.call(envelope, "publishedRaw"));
     var sessionRaw = wrapped ? envelope.sessionRaw : rawSessionState;
-    var builderPresetRaw = wrapped ? envelope.builderPresetRaw : null;
     var data = parseRawState(sessionRaw);
     var published = parseRawState(wrapped ? envelope.publishedRaw : null);
     if (!published || published.version !== 1 || !published.values)
@@ -900,45 +891,6 @@
       users,
     );
     var selectedId = isMenuState ? String(data.selectedPresetId || "") : "";
-    var builderApplied = false;
-    if (rawValueIsEmpty(sessionRaw) && !isMenuState) {
-      var parsedBuilder = parsePresetTransfer(builderPresetRaw);
-      if (!parsedBuilder.error) {
-        var seededUsers = [];
-        var builderSelectedId = String(parsedBuilder.selectedPresetId || "");
-        var builderIndex;
-        for (builderIndex = 0; builderIndex < parsedBuilder.records.length; builderIndex++) {
-          if (parsedBuilder.records[builderIndex].kind === "user")
-            seededUsers.push(parsedBuilder.records[builderIndex]);
-        }
-        users = normalizeUserPresets(seededUsers);
-        if (parsedBuilder.hasRepositoryState)
-          hidden = parsedBuilder.hiddenBakedPresetIds.slice(0);
-        nextNumber = nextUserPresetNumber(1, users);
-        selectedId = "";
-        for (builderIndex = 0; builderIndex < users.length; builderIndex++) {
-          if (users[builderIndex].id === builderSelectedId) {
-            selectedId = builderSelectedId;
-            break;
-          }
-        }
-        if (selectedId) {
-          for (builderIndex = 0; builderIndex < users.length; builderIndex++) {
-            if (users[builderIndex].id !== selectedId) continue;
-            scopes = normalizeScopes([{
-              id: CURRENT_SCOPE_ID,
-              mode: users[builderIndex].mode,
-              heroes: users[builderIndex].heroes.slice(0),
-              values: copyValues(users[builderIndex].values),
-              conditions: normalizeConditions(users[builderIndex].conditions),
-              sourcePresetId: users[builderIndex].id,
-            }]);
-            builderApplied = true;
-            break;
-          }
-        }
-      }
-    }
     var userIds = {};
     var index;
     for (index = 0; index < users.length; index++) userIds[users[index].id] = true;
@@ -954,8 +906,7 @@
       initialScopeIndex++
     ) {
       if (
-        (!builderApplied &&
-          scopes[initialScopeIndex].id === CURRENT_SCOPE_ID) ||
+        scopes[initialScopeIndex].id === CURRENT_SCOPE_ID ||
         scopes[initialScopeIndex].mode === HERO_SCOPE_ALL
       ) {
         initialSource = scopes[initialScopeIndex];
@@ -1000,8 +951,7 @@
       confirmationSerial: 0,
       confirmation: null,
       gesture: null,
-      restoredEffectivePending:
-        (!!published && !builderApplied) || (builderApplied && !initialSource),
+      restoredEffectivePending: !!published,
       identity: {
         mode: HERO_MODE_AUTO,
         phase: HERO_PHASE_TRANSITIONING,

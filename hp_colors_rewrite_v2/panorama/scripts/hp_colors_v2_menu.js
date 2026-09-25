@@ -8,14 +8,20 @@
   var CONFIG_VERSION = 2;
   var SUPPORTER_TICKER_URL =
     "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/";
-  var PRESET_STORE_ID = "HPColorsRewritePresetStore";
-  var PRESET_LABEL_ID = "HPColorsRewritePreset_001";
-  var PRESET_ENTRY_CLASS = "hp_colors_rewrite_preset_entry";
-  var PRESET_STORE_CONTRACT_ATTR = "hp_colors_rewrite_preset_contract";
-  var PRESET_STORE_VERSION_ATTR = "hp_colors_rewrite_preset_version";
-  var PRESET_STORE_CONTRACT = "HPCRP1";
-  var PRESET_STORE_VERSION = "1";
-  var PRESET_STORE_MAX_HEX_LENGTH = 524288;
+  // Durable save state shared across ESC layout reloads in one game process.
+  // STORE_STATUS_ATTR: "" (no read yet), "ok", "blocked", or "forgotten".
+  // STORE_ACK_ATTR: checksum of the last durable body the store holds (or the
+  // body that Forget chose not to keep), so a warm reload never rewrites it.
+  // HYDRATION_ATTR tells unit-status renderers to keep stock bars while a cold
+  // boot is still restoring saved settings.
+  var STORE_STATUS_ATTR = "hp_colors_v2_store_status";
+  var STORE_ACK_ATTR = "hp_colors_v2_store_ack";
+  var HYDRATION_ATTR = "hp_colors_v2_hydration";
+  var STORE_PANEL_ID = "HPColorsV2Store";
+  var LEGACY_PRESET_STORE_ID = "HPColorsRewritePresetStore";
+  var PERSIST_DEBOUNCE_SEC = 1.5;
+  var PERSIST_FAILURE_LIMIT = 3;
+  var FORGET_CONFIRM_SEC = 4;
   var PRECISE_PIPS_ENABLE_TEXT =
     '"citadel_unit_status_health_per_minor_pip" "10"\n' +
     '"citadel_unit_status_health_per_pip" "10"\n' +
@@ -841,9 +847,12 @@
     "precisePipsCloseButton pickerRoot pickerPanel pickerBackdrop " +
     "pickerDone pickerHueHost pickerSaturationHost pickerLumenHost"
   ).split(" ");
+  // Save UI panels stay optional: an old builder pak01 layout lacks them, and
+  // the editor must still boot there to show the stale-layout warning.
   var OPTIONAL_UI_PANEL_KEYS = (
     "supporterTicker pickerTitle pickerPreview pickerHex pickerHueValue " +
-    "pickerSaturationValue pickerLightnessValue"
+    "pickerSaturationValue pickerLightnessValue storeForgetButton " +
+    "storeForgetLabel"
   ).split(" ");
   var UI_PANEL_ID_OVERRIDES = {
     resetButton: "HPColorsResetSectionButton",
@@ -867,6 +876,23 @@
   var replayDispatches = 0;
   var serializedReplayPayload = "";
   var lastClipboardCopied = null;
+  var storage = null;
+  var hydration = { phase: "idle", raw: null };
+  var persist = {
+    gate: "unknown",
+    ackHash: "",
+    pendingBody: "",
+    timer: null,
+    inFlight: false,
+    failures: 0,
+    lastError: "",
+    forgotten: false,
+    forgetting: false,
+    legacyLayout: false,
+  };
+  var forgetConfirmGeneration = 0;
+  var forgetConfirming = false;
+  var resetFeedbackText = "";
   Object.defineProperties(state, {
     values: {
       get: function () {
@@ -916,6 +942,7 @@
       if (!effect || !effect.type) continue;
       if (effect.type === "session_replace") {
         writeMenuState(effect.raw);
+        schedulePersist(effect.raw);
       } else if (effect.type === "effective_publish") {
         var payload = serializeChange(effect.revision, effect.values);
         writeRootSnapshot(payload);
@@ -1022,7 +1049,8 @@
     presetRestoreBakedButton: null,
     presetGuide: null,
     presetInfoToggle: null,
-    presetStorePanel: null,
+    storeForgetButton: null,
+    storeForgetLabel: null,
     resetDialog: null,
     resetDialogTitle: null,
     resetDialogMessage: null,
@@ -2160,7 +2188,7 @@
           name.AddClass("Editable");
           name.text =
             presetDisplayName(preset) +
-            (preset.kind === "baked" ? "  ·  BAKED" : "  ·  SESSION");
+            (preset.kind === "baked" ? "  ·  BAKED" : "  ·  SAVED");
           name.hittest = true;
           setPanelEvent(name, "onactivate", function () {
             beginInlinePresetRename(preset.id);
@@ -3080,58 +3108,292 @@
       return "";
     }
   }
-  function readPanelAttribute(panel, name) {
-    if (!isValid(panel) || !panel.GetAttributeString) return "";
+  function writeRootAttribute(name, value) {
+    if (!isValid(ui.absoluteRoot) || !ui.absoluteRoot.SetAttributeString)
+      return false;
     try {
-      return String(panel.GetAttributeString(name, "") || "");
+      if (
+        !ui.absoluteRoot.GetAttributeString ||
+        ui.absoluteRoot.GetAttributeString(name, "") !== value
+      )
+        ui.absoluteRoot.SetAttributeString(name, value);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // -- Durable save --
+
+  function storeLog(message) {
+    $.Msg("[HP Colors Rewrite][store] " + message);
+  }
+
+  function storeChecksum(text) {
+    var factory = $.HPColorsV2StorageFactory;
+    return factory && factory.codec ? factory.codec.checksum(String(text)) : "";
+  }
+
+  // effectiveRevision moves with hero and ability transitions that change no
+  // saved setting, so it is not part of what the store compares or keeps.
+  function durableBody(raw) {
+    try {
+      var data = JSON.parse(raw);
+      if (!data || typeof data !== "object" || Array.isArray(data)) return "";
+      delete data.effectiveRevision;
+      return JSON.stringify(data);
     } catch {
       return "";
     }
   }
 
-
-  function decodePresetStoreText(encoded) {
-    var text = String(encoded || "");
-    if (!text) return "";
-    if (
-      text.length > PRESET_STORE_MAX_HEX_LENGTH ||
-      text.length % 4 !== 0 ||
-      !/^(?:[0-9A-F]{4})+$/.test(text)
-    )
-      return null;
-    var codeUnits = [];
-    for (var index = 0; index < text.length; index += 4) {
-      var codeUnit = parseInt(text.slice(index, index + 4), 16);
-      if (!isFinite(codeUnit)) return null;
-      codeUnits.push(String.fromCharCode(codeUnit));
+  function isRestorableBody(body) {
+    try {
+      var data = JSON.parse(body);
+      return !!(
+        data &&
+        typeof data === "object" &&
+        data.version === 1 &&
+        data.values &&
+        typeof data.values === "object"
+      );
+    } catch {
+      return false;
     }
-    return codeUnits.join("");
   }
 
-  function readBuilderPresetRaw() {
-    var store = ui.presetStorePanel;
-    if (!isValid(store)) return "";
-    if (
-      readPanelAttribute(store, PRESET_STORE_CONTRACT_ATTR) !==
-        PRESET_STORE_CONTRACT ||
-      readPanelAttribute(store, PRESET_STORE_VERSION_ATTR) !==
-        PRESET_STORE_VERSION
-    ) {
-      return "";
+  function ensureStorage() {
+    if (storage) return storage;
+    var legacyPanel = find(LEGACY_PRESET_STORE_ID);
+    var storePanel = find(STORE_PANEL_ID);
+    persist.legacyLayout = isValid(legacyPanel) || !isValid(storePanel);
+    if (persist.legacyLayout)
+      storeLog("old preset VPK layout detected: delete pak01_dir.vpk from citadel/addons");
+    var factory = $.HPColorsV2StorageFactory;
+    if (!factory || !isCallable(factory.create) || !isValid(storePanel)) {
+      storeLog("unavailable: storage module or panel missing");
+      return null;
     }
-    var label = null;
+    storage = factory.create({ panel: storePanel });
+    storage.start();
+    return storage;
+  }
+
+  function setGate(gate) {
+    persist.gate = gate;
+    if (gate === "open")
+      writeRootAttribute(STORE_STATUS_ATTR, persist.forgotten ? "forgotten" : "ok");
+    else if (gate === "blocked") writeRootAttribute(STORE_STATUS_ATTR, "blocked");
+    renderStoreStatus();
+  }
+
+  // Writes stay closed until a read in this process proves what the store
+  // holds, so defaults can never replace a save that failed to load.
+  function restoreProcessGate(sessionRaw) {
+    var status = readRootAttribute(STORE_STATUS_ATTR);
+    persist.ackHash = readRootAttribute(STORE_ACK_ATTR);
+    persist.forgotten = status === "forgotten";
+    if (!storage || status === "blocked") {
+      setGate("blocked");
+      return;
+    }
+    if (status === "ok" || status === "forgotten") {
+      setGate("open");
+      return;
+    }
+    var expected = durableBody(sessionRaw);
+    persist.gate = "checking";
+    renderStoreStatus();
+    storage.load(function (outcome) {
+      if (!isValid(context) || persist.gate !== "checking") return;
+      if (outcome.kind === "absent") {
+        persist.ackHash = "";
+        setGate("open");
+      } else if (outcome.kind === "valid" && outcome.body === expected) {
+        persist.ackHash = storeChecksum(expected);
+        writeRootAttribute(STORE_ACK_ATTR, persist.ackHash);
+        setGate("open");
+      } else {
+        storeLog("session differs from the unverified store: saving paused");
+        setGate("blocked");
+        return;
+      }
+      schedulePersist(readRootAttribute(MENU_STATE_ATTR));
+    });
+  }
+
+  function applyLoadOutcome(outcome) {
+    var kind = outcome ? outcome.kind : "error";
+    if (kind === "valid" && !isRestorableBody(outcome.body)) kind = "corrupt";
+    if (kind === "valid") {
+      persist.ackHash = storeChecksum(outcome.body);
+      writeRootAttribute(STORE_ACK_ATTR, persist.ackHash);
+      setGate("open");
+      storeLog(
+        "restored saved settings" +
+          (outcome.source === "previous" ? " from the backup record" : ""),
+      );
+      return outcome.body;
+    }
+    if (kind === "absent") {
+      persist.ackHash = "";
+      writeRootAttribute(STORE_ACK_ATTR, "");
+      setGate("open");
+      storeLog("no saved settings yet");
+      return null;
+    }
+    storeLog(
+      "saved settings unreadable (" + kind +
+        (outcome && outcome.error ? ": " + outcome.error : "") +
+        "); saving paused so the stored data is kept",
+    );
+    setGate("blocked");
+    return null;
+  }
+
+  function cancelPersistTimer() {
+    if (persist.timer === null) return;
     try {
-      label =
-        store.FindChildTraverse && store.FindChildTraverse(PRESET_LABEL_ID);
+      $.CancelScheduled(persist.timer);
     } catch {}
-    if (!isValid(label) || !panelHasClass(label, PRESET_ENTRY_CLASS)) {
-      return "";
+    persist.timer = null;
+  }
+
+  function schedulePersist(raw) {
+    var body = durableBody(raw);
+    if (!body) return;
+    persist.pendingBody = body;
+    if (persist.gate !== "open") return;
+    if (!persist.inFlight && storeChecksum(body) === persist.ackHash) {
+      persist.pendingBody = "";
+      cancelPersistTimer();
+      renderStoreStatus();
+      return;
     }
-    var decoded = decodePresetStoreText(readPanelText(label));
-    if (decoded === null) {
-      return "";
+    if (persist.timer === null) {
+      try {
+        persist.timer = $.Schedule(PERSIST_DEBOUNCE_SEC, function () {
+          persist.timer = null;
+          flushPersist();
+        });
+      } catch {
+        persist.timer = null;
+      }
     }
-    return decoded;
+    renderStoreStatus();
+  }
+
+  function flushPersist() {
+    cancelPersistTimer();
+    if (persist.inFlight || persist.gate !== "open" || !storage || !persist.pendingBody) {
+      renderStoreStatus();
+      return;
+    }
+    var body = persist.pendingBody;
+    var hash = storeChecksum(body);
+    persist.pendingBody = "";
+    if (hash === persist.ackHash) {
+      renderStoreStatus();
+      return;
+    }
+    persist.inFlight = true;
+    renderStoreStatus();
+    storage.save(body, function (result) {
+      persist.inFlight = false;
+      if (!isValid(context)) return;
+      if (result && result.ok) {
+        persist.ackHash = hash;
+        persist.failures = 0;
+        persist.lastError = "";
+        persist.forgotten = false;
+        writeRootAttribute(STORE_ACK_ATTR, hash);
+        writeRootAttribute(STORE_STATUS_ATTR, "ok");
+      } else if (!result || result.error !== "superseded") {
+        persist.failures += 1;
+        persist.lastError = result ? String(result.error || "") : "";
+        if (!persist.pendingBody) persist.pendingBody = body;
+        storeLog("save failed: " + persist.lastError);
+        renderStoreStatus();
+        return;
+      }
+      if (persist.pendingBody) schedulePersist(readRootAttribute(MENU_STATE_ATTR));
+      else renderStoreStatus();
+    });
+  }
+
+  function resetForgetConfirm() {
+    forgetConfirming = false;
+    forgetConfirmGeneration += 1;
+    setText(ui.storeForgetLabel, "FORGET SAVED");
+    setClass(ui.storeForgetButton, "Confirming", false);
+  }
+
+  // Forget removes only this mod's two keys. Live settings stay; the next
+  // deliberate edit saves again because the kept body is recorded as acked.
+  function requestForget() {
+    if (!storage || persist.gate !== "open" || persist.forgetting) {
+      renderStoreStatus();
+      return;
+    }
+    if (!forgetConfirming) {
+      forgetConfirming = true;
+      forgetConfirmGeneration += 1;
+      var generation = forgetConfirmGeneration;
+      setText(ui.storeForgetLabel, "CONFIRM FORGET");
+      setClass(ui.storeForgetButton, "Confirming", true);
+      try {
+        $.Schedule(FORGET_CONFIRM_SEC, function () {
+          if (generation === forgetConfirmGeneration) resetForgetConfirm();
+        });
+      } catch {}
+      return;
+    }
+    resetForgetConfirm();
+    cancelPersistTimer();
+    persist.pendingBody = "";
+    var keptHash = storeChecksum(durableBody(readRootAttribute(MENU_STATE_ATTR)));
+    persist.forgetting = true;
+    renderStoreStatus();
+    storage.forget(function (result) {
+      persist.forgetting = false;
+      if (!isValid(context)) return;
+      if (result && result.ok) {
+        persist.ackHash = keptHash;
+        persist.forgotten = true;
+        persist.failures = 0;
+        persist.lastError = "";
+        writeRootAttribute(STORE_ACK_ATTR, keptHash);
+        writeRootAttribute(STORE_STATUS_ATTR, "forgotten");
+        showResetFeedback("SAVE CLEARED");
+      } else {
+        storeLog("forget failed: " + String(result && result.error));
+        showResetFeedback("FORGET FAILED");
+      }
+    });
+  }
+
+  function storeStatusText() {
+    if (persist.legacyLayout) return "OLD PRESET VPK";
+    if (hydration.phase === "pending" || persist.gate === "checking") return "LOADING";
+    if (persist.gate !== "open") return "SAVE UNAVAILABLE";
+    if (persist.lastError === "too_large") return "SAVE TOO LARGE";
+    if (persist.failures >= PERSIST_FAILURE_LIMIT) return "SAVE UNAVAILABLE";
+    if (persist.inFlight || persist.timer !== null || persist.forgetting) return "SAVING";
+    if (persist.forgotten) return "SAVE CLEARED";
+    return "SAVED";
+  }
+
+  function renderStoreStatus() {
+    var text = storeStatusText();
+    setClass(
+      ui.liveStatus,
+      "StoreWarning",
+      text === "OLD PRESET VPK" ||
+        text === "SAVE UNAVAILABLE" ||
+        text === "SAVE TOO LARGE",
+    );
+    setEnabled(ui.storeForgetButton, !!storage && persist.gate === "open");
+    setText(ui.liveStatus, resetFeedbackText || text);
   }
 
   function writeMenuState(raw) {
@@ -3222,11 +3484,13 @@
   function showResetFeedback(text) {
     resetFeedbackGeneration += 1;
     var generation = resetFeedbackGeneration;
-    setText(ui.liveStatus, text || "LIVE");
+    resetFeedbackText = text || "";
+    renderStoreStatus();
     try {
       $.Schedule(1.25, function () {
-        if (generation === resetFeedbackGeneration)
-          setText(ui.liveStatus, "LIVE");
+        if (generation !== resetFeedbackGeneration) return;
+        resetFeedbackText = "";
+        renderStoreStatus();
       });
     } catch {}
   }
@@ -4306,6 +4570,7 @@
     presetInlineRenameInput = null;
     presetDeleteConfirmId = "";
     sendState({ type: "editor_close" });
+    flushPersist();
     endPeek();
     state.open = false;
     setClass(ui.editorRoot, "Open", false);
@@ -4416,7 +4681,6 @@
       ui.escapeRoot = context;
     }
     ui.absoluteRoot = absoluteRoot(ui.escapeRoot);
-    ui.presetStorePanel = find(PRESET_STORE_ID);
     resolveUiPanels(REQUIRED_UI_PANEL_KEYS);
     resolveUiPanels(OPTIONAL_UI_PANEL_KEYS);
 
@@ -4568,7 +4832,8 @@
   }
 
   function bindMenuControls() {
-    setPanelEvent(ui.menuButton, "onactivate", openEditor);
+    setPanelEvent(ui.menuButton, "onactivate", requestOpen);
+    setPanelEvent(ui.storeForgetButton, "onactivate", requestForget);
     setPanelEvent(ui.doneButton, "onactivate", closeEditor);
     setPanelEvent(ui.undoButton, "onactivate", undo);
     setPanelEvent(ui.resetButton, "onactivate", requestSectionReset);
@@ -4652,8 +4917,45 @@
     setPanelEvent(ui.precisePipsDialog, "oncancel", closePrecisePipsDialog);
   }
 
+  function requestOpen() {
+    if (state.booted) {
+      openEditor();
+      return;
+    }
+    setClass(ui.menuButton, "Loading", true);
+  }
+
+  // Cold boot: nothing in this process has written the session attribute, so
+  // saved settings come from the store. Warm boot (layout reload) keeps the
+  // session attribute, which is always newer than the store.
+  function beginHydration() {
+    ensureStorage();
+    var sessionRaw = readRootAttribute(MENU_STATE_ATTR);
+    if (sessionRaw) {
+      hydration = { phase: "done", raw: sessionRaw };
+      writeRootAttribute(HYDRATION_ATTR, "done");
+      restoreProcessGate(sessionRaw);
+      return;
+    }
+    if (!storage) {
+      hydration = { phase: "done", raw: null };
+      writeRootAttribute(HYDRATION_ATTR, "done");
+      setGate("blocked");
+      return;
+    }
+    hydration = { phase: "pending", raw: null };
+    writeRootAttribute(HYDRATION_ATTR, "pending");
+    renderStoreStatus();
+    storage.load(function (outcome) {
+      if (!isValid(context) || hydration.phase !== "pending") return;
+      hydration = { phase: "done", raw: applyLoadOutcome(outcome) };
+      writeRootAttribute(HYDRATION_ATTR, "done");
+      boot();
+    });
+  }
+
   function boot() {
-    if (state.booted) return;
+    if (state.booted || hydration.phase === "pending") return;
     if (!resolvePanels()) {
       $.Msg("[HP Colors Rewrite] menu boot failed: required panel missing");
       return;
@@ -4665,14 +4967,14 @@
       $.Msg("[HP Colors Rewrite] menu boot failed: HPColorsV2StateFactory missing");
       return;
     }
-    var rawSessionState = readRootAttribute(MENU_STATE_ATTR);
+    setPanelEvent(ui.menuButton, "onactivate", requestOpen);
+    if (hydration.phase === "idle") beginHydration();
+    if (state.booted || hydration.phase !== "done") return;
     var publishedRaw = decodePublishedState(readRootAttribute(CONFIG_ATTR));
-    var builderPresetRaw = readBuilderPresetRaw();
     try {
       stateInstance = $.HPColorsV2StateFactory.create({
-        sessionRaw: rawSessionState || null,
+        sessionRaw: hydration.raw || null,
         publishedRaw: publishedRaw || null,
-        builderPresetRaw: builderPresetRaw,
       });
     } catch (error) {
       $.Msg(
@@ -4706,11 +5008,13 @@
     bindMenuControls();
 
     state.booted = true;
+    setClass(ui.menuButton, "Loading", false);
     sendState({ type: "session_open", publish: true });
     var effectiveRaw = readRootAttribute(CONFIG_ATTR);
     if (effectiveRaw) serializedReplayPayload = effectiveRaw;
     refreshSnapshotReplay();
     renderNavigation();
+    renderStoreStatus();
     restartIdentityWatch();
   }
 

@@ -357,10 +357,11 @@ test('HPCRP1 corpus covers every active slot and canonicalizes retired slots', (
     wireManifest.extensionSlots.map(({ slot }) => slot),
   );
 
-  const state = createState({
-    sessionRaw: null,
-    builderPresetRaw: wireCorpus.hpcrp1.inputCode,
-  });
+  const state = createState();
+  assert.equal(
+    send(state, 'preset_import', { raw: wireCorpus.hpcrp1.inputCode }).status,
+    'committed',
+  );
   const exported = JSON.parse(
     effect(send(state, 'preset_copy_all'), 'clipboard_write').text.slice(6),
   );
@@ -450,52 +451,6 @@ test('settling restored identity republishes an unchanged effective snapshot', (
   assert.equal(settled.view.effectiveValues.enemyLow, '#22AA44');
   assert.equal(settled.view.effectiveRevision, 8);
   assertEffectivePublish(settled, 8, '*');
-});
-
-test('builder hydration waits for a selected hero before applying its preset', () => {
-  const source = createState(
-    makeSession({
-      userPresets: [
-        rawPreset({
-          id: 'user_0001',
-          name: 'Haze',
-          mode: 'selected',
-          heroes: ['hero_haze'],
-          values: { enemyLow: '#22AA44' },
-        }),
-      ],
-      selectedPresetId: 'user_0001',
-    }),
-  );
-  const builderPresetRaw = effect(
-    send(source, 'preset_copy_all'),
-    'clipboard_write',
-  ).text;
-  const hydrated = createState({
-    sessionRaw: null,
-    builderPresetRaw,
-  });
-
-  assert.equal(hydrated.read().repository.selectedId, 'user_0001');
-  assert.equal(hydrated.read().currentScope.mode, 'selected');
-  assert.equal(hydrated.read().values.enemyLow, DEFAULTS.enemyLow);
-  assert.equal(hydrated.read().effectiveValues.enemyLow, DEFAULTS.enemyLow);
-
-  const activated = send(hydrated, 'lifecycle_observe', {
-    epoch: 1,
-    phase: 'active',
-  });
-  assert.equal(activated.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
-  const sampled = send(hydrated, 'hero_observe', {
-    epoch: 1,
-    heroName: 'HAZE',
-  });
-  assert.equal(sampled.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
-  const settled = send(hydrated, 'hero_observe', {
-    epoch: 1,
-    heroName: 'HAZE',
-  });
-  assert.equal(settled.view.effectiveValues.enemyLow, '#22AA44');
 });
 
 test('v1 hydration normalizes values and falls back atomically to shipped defaults', () => {

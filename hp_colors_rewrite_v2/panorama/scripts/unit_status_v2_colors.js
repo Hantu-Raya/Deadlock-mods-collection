@@ -12,6 +12,14 @@
   var CONFIG_ATTR = "hp_colors_v2_config";
   var CONFIG_VERSION = 2;
   var ALLY_ATTR = "hp_colors_v2_ally";
+  // Bars stay stock until a published config arrives. While the editor reports
+  // a cold-boot restore in progress the wait lasts as long as the restore does
+  // (its own deadlines are terminal); without that signal, defaults apply after
+  // a short grace. HYDRATION_WAIT_MAX_MS only guards an editor that died
+  // mid-restore.
+  var HYDRATION_ATTR = "hp_colors_v2_hydration";
+  var CONFIG_GRACE_MS = 3000;
+  var HYDRATION_WAIT_MAX_MS = 180000;
   var SEGMENT_BASE_SCALE = 1.1;
   var BASE_HEALTHBAR_WIDTH = 750;
   var ACCESSORY_BASE_MARGIN_LEFT = 422.5;
@@ -119,7 +127,9 @@
   var bars = [];
   var configRoot = null;
   var configRaw = "";
-  var config = normalizeConfig(null);
+  var config = normalizeConfig({ enabled: false });
+  var awaitingConfig = true;
+  var awaitingSince = nowMs();
   var configRevision = -1;
   var lastColorChangeAt = 0;
   var eventHandlerId = null;
@@ -2276,6 +2286,7 @@
           );
       configRaw = raw;
       configRevision = revision;
+      awaitingConfig = false;
       for (var index = 0; index < bars.length; index++) {
         bars[index].dirty = true;
         applyCustomization(bars[index]);
@@ -2294,7 +2305,9 @@
       configRoot = nextRoot;
       configRaw = "";
       configRevision = -1;
-      config = normalizeConfig(null);
+      config = normalizeConfig({ enabled: false });
+      awaitingConfig = true;
+      awaitingSince = nowMs();
       notifyConfigListeners();
     }
     if (!isValid(configRoot) || !configRoot.GetAttributeString) return "";
@@ -2308,6 +2321,34 @@
   function inspectRootConfig() {
     var raw = readRootConfig();
     if (raw && raw !== configRaw) applyConfigRaw(raw);
+    if (awaitingConfig) resolveAwaitedConfig();
+  }
+
+  function nowMs() {
+    return Date.now ? Date.now() : +new Date();
+  }
+
+  function restoringSavedSettings() {
+    if (!isValid(configRoot) || !configRoot.GetAttributeString) return false;
+    try {
+      return configRoot.GetAttributeString(HYDRATION_ATTR, "") === "pending";
+    } catch {
+      return false;
+    }
+  }
+
+  function resolveAwaitedConfig() {
+    var waited = nowMs() - awaitingSince;
+    if (waited < (restoringSavedSettings() ? HYDRATION_WAIT_MAX_MS : CONFIG_GRACE_MS))
+      return;
+    awaitingConfig = false;
+    config = normalizeConfig(null);
+    for (var index = 0; index < bars.length; index++) {
+      bars[index].dirty = true;
+      applyCustomization(bars[index]);
+    }
+    applyStaminaSurface();
+    notifyConfigListeners();
   }
 
   function onConfigEvent(payload) {

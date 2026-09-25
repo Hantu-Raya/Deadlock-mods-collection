@@ -107,6 +107,29 @@
   white-space: nowrap;
 }
 
+.HPColorsLiveStatus.StoreWarning {
+  color: #e16161;
+  border-left: 2px solid #e16161;
+}
+
+#HPColorsMenuButton.Loading {
+  opacity: 0.5;
+}
+
+/* Hidden storage browser: same collapsed-wrapper geometry the file:// store
+   needs to commit its page; it never takes layout or input. */
+.HPColorsV2StoreWrap {
+  width: 100%;
+  height: 100%;
+  visibility: collapse;
+}
+
+.HPColorsV2Store {
+  width: 100%;
+  height: 100%;
+  opacity: 0.01;
+}
+
 .HPColorsDonateButton {
   min-width: 82px;
   height: 34px;
@@ -1156,19 +1179,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   margin-top: 0px;
 }
 
-.HPColorsPresetBuilderLink Label {
-  font-family: sans;
-  font-size: 13px;
-  line-height: 18px;
-  color: #5fe69e;
-  text-decoration: underline;
-}
-
-.HPColorsPresetBuilderLink:hover Label,
-.HPColorsPresetBuilderLink:focus Label {
-  brightness: 1.35;
-}
-
 .HPColorsHeroCardHelp {
   width: 100%;
   margin-top: 7px;
@@ -1416,6 +1426,10 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 .HPColorsPresetLibraryAction Label {
   horizontal-align: center;
   font-size: 10px;
+}
+
+.HPColorsStoreForgetButton.Confirming Label {
+  color: #e16161;
 }
 
 .HPColorsScopeSearch {
