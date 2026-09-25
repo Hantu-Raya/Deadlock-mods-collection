@@ -435,6 +435,7 @@ function makeStatusFixture(
     pip,
     counter,
     counterContainer: counterCanvas.container,
+    counterAnchor: counterCanvas.anchor,
     counterMax,
     activeParent,
     healthbars,
@@ -540,6 +541,52 @@ test('v2 clears readouts while live geometry is invalid and restores them later'
   fixture.harness.scheduler.runNext();
   assert.equal(fixture.counter.text, '150 / ');
   assert.equal(fixture.counterMax.text, '600');
+});
+
+test('v2 ally health text is opt-in, independently styled, and live without ally bar colors', () => {
+  const stock = makeStatusFixture('ally', { enabled: true, readoutVisible: true });
+  assert.equal(stock.counter.text, '');
+  assert.equal(stock.counter.style.visibility, 'collapse');
+
+  const fixture = makeStatusFixture('ally', {
+    enabled: true,
+    allyEnabled: false,
+    readoutVisible: false,
+    allyReadoutVisible: true,
+    allyReadoutFormat: 'percent',
+    allyReadoutColorMode: 'custom',
+    allyReadoutMode: 'fixed',
+    allyReadoutLow: '#112233',
+    allyReadoutMid: '#445566',
+    allyReadoutHigh: '#778899',
+    allyReadoutSize: 200,
+    allyReadoutFont: 'oracle',
+    allyReadoutOffsetX: 10,
+    allyReadoutOffsetY: 450,
+  });
+  assert.equal(fixture.counter.text, '50%');
+  assert.equal(fixture.counter.style.visibility, 'visible');
+  assert.equal(fixture.counterMax.style.visibility, 'collapse');
+  assert.equal(fixture.counter.style.washColor, '#445566');
+  assert.equal(fixture.counter.style.fontSize, '200px');
+  assert.equal(fixture.counter.style.fontFamily, 'VALVEOracle, Reaver, sans-serif');
+  assert.equal(
+    fixture.counterAnchor.style.transform,
+    'translate3d(-17px, -50px, 0px)',
+  );
+
+  fixture.fill.actuallayoutwidth = 10;
+  fixture.harness.scheduler.runNext();
+  assert.equal(fixture.counter.text, '10%');
+  assert.equal(fixture.counter.style.washColor, '#112233');
+
+  const enemy = makeStatusFixture('enemy', {
+    enabled: true,
+    readoutVisible: false,
+    allyReadoutVisible: true,
+  });
+  assert.equal(enemy.counter.text, '');
+  assert.equal(enemy.counter.style.visibility, 'collapse');
 });
 
 test('v2 retries one incomplete live bar without polling complete bars', () => {

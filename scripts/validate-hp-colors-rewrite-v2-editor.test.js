@@ -871,7 +871,9 @@ test('effect pages live under their healthbar categories', () => {
   panel(fixture, 'HPColorsCategoryAlly').events.onactivate();
   panel(fixture, 'HPColorsTab3').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ALLY PULSE');
-  assert.equal(panel(fixture, 'HPColorsTab4').BHasClass('Available'), false);
+  panel(fixture, 'HPColorsTab4').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ALLY HP TEXT');
+  assert.equal(panel(fixture, 'HPColorsTab5').BHasClass('Available'), false);
 
   panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'HP TEXT');

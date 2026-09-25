@@ -934,6 +934,76 @@
                     <TextEntry id="HPColorsAllyPulseColorHex" class="HPColorsHexEntry" text="#FF2222" maxchars="7" />
                   </Panel>
                 </Panel>
+
+                <Panel id="HPColorsSettingsAllyReadout" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="SHOW HEALTH TEXT" class="HPColorsSettingTitle" /><Label text="Show current health, maximum health, or a percentage on ally healthbars." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyReadoutToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="HEALTH TEXT FORMAT" class="HPColorsSettingTitle" /><Label text="Choose current and maximum health, percentage, or current health only." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsAllyReadoutFormatHP" class="HPColorsSegmentButton"><Label text="HP" /></Button>
+                      <Button id="HPColorsAllyReadoutFormatPercent" class="HPColorsSegmentButton"><Label text="%" /></Button>
+                      <Button id="HPColorsAllyReadoutFormatCurrent" class="HPColorsSegmentButton"><Label text="CURRENT HP" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEXT SIZE" class="HPColorsSettingTitle" /><Label text="Set the size of the ally health text." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsAllyReadoutSizeSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsAllyReadoutSizeEntry" class="HPColorsNumberEntry" text="145" />
+                      <Label text="PX" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEXT FONT" class="HPColorsSettingTitle" /><Label text="Choose the default, Oracle, or Pulp font." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsAllyReadoutFontDefault" class="HPColorsSegmentButton"><Label text="DEFAULT" /></Button>
+                      <Button id="HPColorsAllyReadoutFontOracle" class="HPColorsSegmentButton"><Label text="ORACLE" /></Button>
+                      <Button id="HPColorsAllyReadoutFontPulp" class="HPColorsSegmentButton"><Label text="PULP" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEXT COLOR" class="HPColorsSettingTitle" /><Label text="Match the ally bar colors or use a separate color palette." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsAllyReadoutColorBar" class="HPColorsSegmentButton"><Label text="BAR COLOR" /></Button>
+                      <Button id="HPColorsAllyReadoutColorCustom" class="HPColorsSegmentButton"><Label text="CUSTOM" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEAM COLOR MAX HP" class="HPColorsSettingTitle" /><Label text="Color only the maximum HP value with the unit team color." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyReadoutMaxTeamColorToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsAllyReadoutModeRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEXT COLOR MODE" class="HPColorsSettingTitle" /><Label text="Use fixed color steps or blend smoothly between them." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsAllyReadoutModeFixed" class="HPColorsSegmentButton"><Label text="FIXED" /></Button>
+                      <Button id="HPColorsAllyReadoutModeGradient" class="HPColorsSegmentButton"><Label text="GRADIENT" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsAllyReadoutCustomRows" class="HPColorsGradientRows HPColorsConditionalRow">
+                    <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="LOW TEXT COLOR" class="HPColorsSettingTitle" /><Label text="Use this color at or below the low-health threshold." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsAllyReadoutLowSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsAllyReadoutLowHex" class="HPColorsHexEntry" text="#E16161" maxchars="7" /></Panel>
+                    <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="MID TEXT COLOR" class="HPColorsSettingTitle" /><Label text="Use this color between the low and high thresholds." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsAllyReadoutMidSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsAllyReadoutMidHex" class="HPColorsHexEntry" text="#FF7B00" maxchars="7" /></Panel>
+                    <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="HIGH TEXT COLOR" class="HPColorsSettingTitle" /><Label text="Use this color above the high-health threshold or at full health." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsAllyReadoutHighSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsAllyReadoutHighHex" class="HPColorsHexEntry" text="#FFFFFF" maxchars="7" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="HORIZONTAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move the ally health text left or right without moving the healthbar." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsAllyReadoutOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsAllyReadoutOffsetXEntry" class="HPColorsNumberEntry" text="-30" />
+                      <Label text="PX" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="VERTICAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move the ally health text up or down without changing the surrounding layout." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsAllyReadoutOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsAllyReadoutOffsetYEntry" class="HPColorsNumberEntry" text="434" />
+                      <Label text="PX" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                </Panel>
               </Panel>
             </Panel>
             <Panel class="HPColorsEditorFooter">
