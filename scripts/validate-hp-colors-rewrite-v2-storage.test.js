@@ -70,6 +70,10 @@ function installCefBridge(harness, profile, panel, options = {}) {
     commit: true,
     navLatencySec: 0.8,
     replyLatencySec: 0.05,
+    // Live Deadlock delivers each HTMLTitle twice (console.log 2026-09-26:
+    // the echoed "Index of /" arrived after readiness and broke the first
+    // read). The echo lands after the page has already answered.
+    echoLatencySec: 0.12,
     duplicateReplies: false,
     quotaChars: Infinity,
   }, options);
@@ -84,6 +88,8 @@ function installCefBridge(harness, profile, panel, options = {}) {
       if (typeof handler === 'function') handler(panel, cut);
     };
     harness.scheduler.schedule(opts.replyLatencySec, fire);
+    if (opts.echoLatencySec !== null)
+      harness.scheduler.schedule(opts.replyLatencySec + opts.echoLatencySec, fire);
     if (opts.duplicateReplies) harness.scheduler.schedule(opts.replyLatencySec, fire);
   }
 
