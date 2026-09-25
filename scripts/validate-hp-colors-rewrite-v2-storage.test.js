@@ -175,7 +175,7 @@ function installLayoutPanels(harness, layout) {
 function launch(profile, options = {}) {
   const harness = createPanoramaHarness({ now: profile.clock });
   installLayoutPanels(harness, options.layout || layoutSource);
-  installTopBarIdentityTree(harness, { heroName: 'SHIV', gameTime: '00:01' });
+  const identityTree = installTopBarIdentityTree(harness, { heroName: 'SHIV', gameTime: '00:01' });
   for (const [key, value] of Object.entries(options.rootAttrs || {}))
     harness.root.SetAttributeString(key, value);
   const storePanel = harness.root.FindChildTraverse('HPColorsV2Store');
@@ -195,6 +195,7 @@ function launch(profile, options = {}) {
   const fixture = {
     harness,
     bridge,
+    identityTree,
     status: () => panelById(harness, 'HPColorsLiveStatus').text,
     renderer: () => harness.root.HPV2GetNormalizedConfig(),
     attr: (name) => harness.root.GetAttributeString(name, ''),
@@ -545,10 +546,13 @@ test('duplicate replies, quota exhaustion, and oversize saves fail safely', () =
   const full = launch(fullProfile, { label: 'quota exhausted', bridge: { quotaChars: 400 } });
   full.run(2000);
   openEditor(full);
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    setWidth(full, 140 + attempt);
-    full.run(2000);
-  }
+  setWidth(full, 140);
+  full.run(2000);
+  // Audit finding 4: the first failure used to read SAVED with nothing stored.
+  assert.equal(full.status(), 'SAVE RETRYING');
+  const writesAfterFirstFailure = full.bridge.writes;
+  full.run(20000);
+  assert.ok(full.bridge.writes > writesAfterFirstFailure, 'failed saves retry without another edit');
   assert.equal(full.status(), 'SAVE UNAVAILABLE');
   assert.equal(fullProfile.disk.has(KEY_CURRENT), false);
   assertOtherModsUntouched(fullProfile);
@@ -737,5 +741,106 @@ test('an unreadable reply title is logged and the stored save is left untouched'
   closeEditor(fixture);
   fixture.run(8000);
   assert.equal(profile.disk.get(KEY_CURRENT), record0);
+  record(fixture);
+});
+
+// -- GPT-6-Astra audit regressions (2026-09-26) --
+
+function rawRecord(envelope) {
+  const payload = Buffer.from(JSON.stringify(envelope)).toString('base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  return `HPV2S1.${loadStorageCodec().codec.checksum(payload)}.${payload}`;
+}
+
+test('audit 1: a newer-schema save is never replaced by the older backup', () => {
+  const future = rawRecord({ m: 'HPV2STORE', s: 9, t: 1, b: { version: 1, values: {} } });
+  const backup = loadStorageCodec().codec.encodeRecord(savedBody({ widthScale: 130 }), 1);
+  const profile = createProfile({ [KEY_CURRENT]: future, [KEY_PREVIOUS]: backup });
+  const fixture = launch(profile, { label: 'audit 1 future current' });
+  fixture.run(10000);
+  assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
+  openEditor(fixture);
+  setWidth(fixture, 199);
+  closeEditor(fixture);
+  fixture.run(10000);
+  assert.equal(fixture.bridge.writes, 0);
+  assert.equal(profile.disk.get(KEY_CURRENT), future);
+  assert.equal(profile.disk.get(KEY_PREVIOUS), backup);
+  record(fixture);
+});
+
+test('audit 2: a checksum-valid but unusable current falls back and never replaces the backup', () => {
+  const backup = loadStorageCodec().codec.encodeRecord(savedBody({ widthScale: 135 }), 1);
+  for (const [label, current] of [
+    ['wrong magic', rawRecord({ m: 'SOMETHING', s: 2, t: 1, b: { version: 1, values: {} } })],
+    ['no values', rawRecord({ m: 'HPV2STORE', s: 2, t: 1, b: { version: 1 } })],
+  ]) {
+    const profile = createProfile({ [KEY_CURRENT]: current, [KEY_PREVIOUS]: backup });
+    const fixture = launch(profile, { label: `audit 2 ${label}` });
+    fixture.run(10000);
+    assert.equal(fixture.renderer().widthScale, 135, `${label}: restored from the backup`);
+    assert.equal(fixture.status(), 'SAVED');
+    openEditor(fixture);
+    setWidth(fixture, 145);
+    closeEditor(fixture);
+    fixture.run(10000);
+    assert.equal(storedEditedWidth(profile), 145);
+    const previous = profile.disk.get(KEY_PREVIOUS);
+    assert.notEqual(previous, current, `${label}: the unusable record never becomes the backup`);
+    assert.equal(storedRecord(profile, KEY_PREVIOUS).kind, 'valid', `${label}: the backup stays valid`);
+    record(fixture);
+  }
+});
+
+test('audit 3: Forget stays forgotten through automatic hero routing', () => {
+  const profile = createProfile({
+    [KEY_CURRENT]: loadStorageCodec().codec.encodeRecord(JSON.stringify({
+      version: 1,
+      values: {},
+      conditions: {},
+      scopes: [],
+      userPresets: [{
+        id: 'user_0001', name: 'Haze', mode: 'selected', heroes: ['hero_haze'],
+        values: { widthScale: 222 }, conditions: {},
+      }],
+      nextUserPresetNumber: 2,
+    }), 1),
+  });
+  const fixture = launch(profile, { label: 'audit 3 forget + hero switch' });
+  fixture.run(6000);
+  openEditor(fixture);
+  const forget = panelById(fixture.harness, 'HPColorsStoreForgetButton');
+  forget.events.onactivate();
+  forget.events.onactivate();
+  closeEditor(fixture);
+  fixture.run(6000);
+  assert.equal(profile.disk.has(KEY_CURRENT), false);
+
+  fixture.identityTree.setHeroName('HAZE');
+  fixture.run(20000);
+  assert.equal(fixture.renderer().widthScale, 222, 'automatic routing applied the Haze preset');
+  assert.equal(profile.disk.has(KEY_CURRENT), false, 'routing does not recreate the save');
+  assert.equal(fixture.status(), 'SAVE CLEARED');
+
+  openEditor(fixture);
+  setWidth(fixture, 150);
+  closeEditor(fixture);
+  fixture.run(6000);
+  assert.equal(profile.disk.has(KEY_CURRENT), true, 'a deliberate edit saves again');
+  assert.equal(fixture.status(), 'SAVED');
+  record(fixture);
+});
+
+test('audit 5: a lost first page title still gets the page injected', () => {
+  const profile = createProfile({
+    [KEY_CURRENT]: loadStorageCodec().codec.encodeRecord(savedBody({ widthScale: 215 }), 1),
+  });
+  const fixture = launch(profile, {
+    label: 'audit 5 lost first title',
+    bridge: { dropTitle: dropFirst((title) => title === 'Index of /') },
+  });
+  fixture.run(20000);
+  assert.equal(fixture.renderer().widthScale, 215);
+  assert.equal(fixture.status(), 'SAVED');
   record(fixture);
 });
