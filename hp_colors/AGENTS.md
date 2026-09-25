@@ -103,6 +103,8 @@ Do not ship verbose match-reset logs, debug bridges, `console.log`, or `$.Msg` i
 - Storage key: `anita_v1_hp_colors`.
 - Current storage version: `99`.
 - `$.persistentStorage` is not used and must not be restored.
+- Compact payloads store only non-default values using aliases.
+- Current values are mirrored to root/Hud attributes and `GameUI.CustomUIConfig().__hpColorsCfgRaw`.
 - Runtime does not parse compact aliases; compact-token parsing belongs to Anita/import/preset paths.
 
 If you add, remove, or rename a persisted setting, update these together:
@@ -114,6 +116,15 @@ If you add, remove, or rename a persisted setting, update these together:
 - `hp_colors/scripts/validate-schema.js`
 
 `validate-schema.js` enforces exact Anita schema default vs runtime `DEFAULTS` parity.
+
+Current setting groups:
+
+- General: `hp_enabled`, `hp_bg_visible`, `hp_mode`, `hp_low_threshold`, `hp_high_threshold`, `hp_team_colors`, `hp_skip_buildings`, `hp_info_health_margin_top`, `hp_healthbar_height`
+- Enemy colors: `hp_ult_color_enabled`, `hp_ult_color_custom`, `hp_color_low`, `hp_color_mid`, `hp_color_high`, `hp_heal_color`, `hp_delta_color`, `hp_bullet_shield_color`
+- Enemy pulse: `hp_pulse_enabled`, `hp_pulse_threshold`, `hp_pulse_bpm`, `hp_pulse_intensity`, `hp_pulse_color_enabled`, `hp_pulse_color_mode`, `hp_pulse_color`, `hp_pulse_hide_bar`, `hp_pulse_text_enabled`, `hp_pulse_text_scale`, `hp_pulse_text_position`
+- Enemy counter: `hp_counter_visible`, `hp_counter_size`, `hp_counter_position`, `hp_counter_format`, `hp_text_color_mode`, `hp_level_number_visible`, `hp_pip_visible`, `hp_text_color_low`, `hp_text_color_mid`, `hp_text_color_high`
+- Ally bars: `hp_friend_enabled`, `hp_friend_color_low`, `hp_friend_color_mid`, `hp_friend_color_high`, `hp_friend_heal_color`, `hp_friend_delta_color`, `hp_friend_bullet_shield_color`, `hp_friend_pulse_enabled`, `hp_friend_pulse_threshold`, `hp_friend_pulse_bpm`, `hp_friend_pulse_intensity`, `hp_friend_pulse_color_enabled`, `hp_friend_pulse_color`
+- Kill marker: `hp_kill_zone_enabled`, `hp_kill_zone_threshold`, `hp_kill_zone_color`, `hp_kill_zone_width`
 
 ## Preset and hero-scope rules
 

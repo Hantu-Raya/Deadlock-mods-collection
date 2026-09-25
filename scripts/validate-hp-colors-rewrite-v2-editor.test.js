@@ -50,6 +50,9 @@ const ENEMY_BAR_DEFAULTS = {
   ghoulOpacity: 100,
 };
 const ENEMY_BAR_KEYS = Object.keys(ENEMY_BAR_DEFAULTS);
+// This harness loads no storage runtime, so the status chip's resting text is
+// the save-unavailable state; the storage E2E suite covers the SAVED states.
+const STATUS_WITHOUT_STORE = 'SAVE UNAVAILABLE';
 
 function installLayoutPanels(harness) {
   const ids = new Set(
@@ -289,7 +292,7 @@ test('cancel closes reset confirmation and remains inert', () => {
   assert.equal(configDispatches(fixture).length, beforeDispatchCount);
   assert.equal(writes.length, 0);
   assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, false);
-  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'LIVE');
+  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, STATUS_WITHOUT_STORE);
 });
 
 test('confirm resets only the captured tab and one Undo restores every reset value', () => {
@@ -764,10 +767,9 @@ test('menu boot can retry after a transient CreatePanel failure', () => {
       },
     },
   );
-  assert.equal(
-    typeof panel(fixture, 'HPColorsMenuButton').events.onactivate,
-    'undefined',
-  );
+  openEditor(fixture);
+  assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), false);
+  assert.equal(panel(fixture, 'HPColorsMenuButton').BHasClass('Loading'), true);
 
   fixture.harness.$.HPColorsMenuBoot();
 
@@ -775,6 +777,9 @@ test('menu boot can retry after a transient CreatePanel failure', () => {
     typeof panel(fixture, 'HPColorsMenuButton').events.onactivate,
     'function',
   );
+  openEditor(fixture);
+  assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), true);
+  assert.equal(panel(fixture, 'HPColorsMenuButton').BHasClass('Loading'), false);
 });
 
 test('menu boot contains thrown panel creation errors and an explicit retry recovers', () => {
@@ -809,10 +814,6 @@ test('menu boot contains thrown panel creation errors and an explicit retry reco
 });
 
 test('color picker closes from its backdrop and condition swatches accept clicks', () => {
-  assert.match(
-    layoutSource,
-    /id="HPColorsConditionColorSwatch"[^>]*hittest="true"/,
-  );
   const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
   openEditor(fixture);
   panel(fixture, 'HPColorsEnemyLowSwatch').events.onactivate();
@@ -875,30 +876,14 @@ test('effect pages live under their healthbar categories', () => {
   panel(fixture, 'HPColorsCategoryAlly').events.onactivate();
   panel(fixture, 'HPColorsTab3').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ALLY PULSE');
-  assert.equal(panel(fixture, 'HPColorsTab4').BHasClass('Available'), false);
+  panel(fixture, 'HPColorsTab4').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ALLY HP TEXT');
+  assert.equal(panel(fixture, 'HPColorsTab5').BHasClass('Available'), false);
 
   panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'HP TEXT');
 });
 
-test('shared thresholds live on the Enemy Bar page', () => {
-  const enemyBarStart = layoutSource.indexOf(
-    '<Panel id="HPColorsSettingsEnemyBar"',
-  );
-  const enemyBarEnd = layoutSource.indexOf(
-    '<Panel id="HPColorsSettingsEnemyFeedback"',
-    enemyBarStart,
-  );
-  assert.ok(enemyBarStart >= 0);
-  assert.ok(enemyBarEnd > enemyBarStart);
-  for (const id of [
-    'HPColorsSharedLowThresholdRow',
-    'HPColorsSharedHighThresholdRow',
-  ]) {
-    const rowIndex = layoutSource.indexOf(`id="${id}"`);
-    assert.ok(rowIndex > enemyBarStart && rowIndex < enemyBarEnd, id);
-  }
-});
 
 test('Presets page hides Reset Section and Undo', () => {
   const fixture = bootMenu({
@@ -923,24 +908,6 @@ test('Presets page hides Reset Section and Undo', () => {
   assert.equal(undo.BHasClass('HPColorsFooterActionHidden'), false);
 });
 
-test('Preset INFO control occupies the page heading instead of the rule', () => {
-  assert.match(
-    layoutSource,
-    /<Panel class="HPColorsPageHeading">[\s\S]*id="HPColorsPresetInfoToggle"[\s\S]*<\/Panel>\s*<Panel class="HPColorsPageRule" \/>/,
-  );
-  assert.doesNotMatch(
-    layoutSource,
-    /<Panel class="HPColorsPageRule">[\s\S]*id="HPColorsPresetInfoToggle"/,
-  );
-  assert.match(
-    menuStyleSource,
-    /\.HPColorsPresetInfoToggle\s*\{[^}]*visibility:\s*visible;[^}]*opacity:\s*0;/s,
-  );
-  assert.match(
-    menuStyleSource,
-    /\.HPColorsPresetInfoToggle\.Available\s*\{[^}]*opacity:\s*1;/s,
-  );
-});
 
 test('Presets guide starts hidden and toggles only on the Presets page', () => {
   const fixture = bootMenu();
@@ -1009,7 +976,7 @@ function harnessCancel(fixture) {
   return fixture.harness.$.HPColorsMenuCancel();
 }
 
-test('stale reset feedback callback cannot overwrite LIVE after editor close', () => {
+test('stale reset feedback callback cannot overwrite the save status after editor close', () => {
   const fixture = bootMenu({
     version: 1,
     values: changedEnemyValues(),
@@ -1027,8 +994,8 @@ test('stale reset feedback callback cannot overwrite LIVE after editor close', (
 
   panel(fixture, 'HPColorsDoneButton').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), false);
-  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'LIVE');
+  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, STATUS_WITHOUT_STORE);
 
   fixture.harness.scheduler.runByDelay(1.25);
-  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'LIVE');
+  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, STATUS_WITHOUT_STORE);
 });

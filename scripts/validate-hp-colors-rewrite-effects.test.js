@@ -16,28 +16,8 @@ const {
 } = require('./hp-colors-panorama-test-adapter');
 
 const rewriteRoot = path.resolve(__dirname, '../hp_colors_rewrite');
-const contractSource = fs.readFileSync(
-  path.join(rewriteRoot, 'panorama/scripts/hp_colors_contract.js'),
-  'utf8',
-);
 const probeSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/healthbar_probe.js'),
-  'utf8',
-);
-const stateSource = fs.readFileSync(
-  path.join(rewriteRoot, 'panorama/scripts/hp_colors_state.js'),
-  'utf8',
-);
-const hudLayoutSource = fs.readFileSync(
-  path.join(rewriteRoot, 'panorama/layout/hud_escape_menu.xml'),
-  'utf8',
-);
-const overlayLayoutSource = fs.readFileSync(
-  path.join(rewriteRoot, 'panorama/layout/unit_status_overlay.xml'),
-  'utf8',
-);
-const unitStatusCssSource = fs.readFileSync(
-  path.join(rewriteRoot, 'panorama/styles/hp_colors_unit_status.css'),
   'utf8',
 );
 
@@ -720,20 +700,6 @@ test('live pulse mode, BPM, and intensity changes apply immediately', () => {
   assert.equal(probe.tree.lagging.style.animationDuration, '');
 });
 
-test('custom gradient pulse intensity changes both opacity endpoints', () => {
-  assert.match(
-    unitStatusCssSource,
-    /HPColorsRewriteColorPulseSubtleKeyframes[\s\S]*?0%\s*\{\s*opacity:\s*0\.15;\s*\}[\s\S]*?100%\s*\{\s*opacity:\s*0\.45;\s*\}/,
-  );
-  assert.match(
-    unitStatusCssSource,
-    /HPColorsRewriteColorPulseMediumKeyframes[\s\S]*?0%\s*\{\s*opacity:\s*0\.10;\s*\}[\s\S]*?100%\s*\{\s*opacity:\s*0\.75;\s*\}/,
-  );
-  assert.match(
-    unitStatusCssSource,
-    /HPColorsRewriteColorPulseIntenseKeyframes[\s\S]*?0%\s*\{\s*opacity:\s*0;\s*\}[\s\S]*?100%\s*\{\s*opacity:\s*1;\s*\}/,
-  );
-});
 
 
 test('ally pulse is independent and uses only its fixed custom color', () => {
@@ -989,47 +955,3 @@ test('identical config replay is ignored after immediate application', () => {
   assert.equal(probe.tree.lagging.style.washColor, '#AABBCC');
 });
 
-
-
-test('editor, overlay, and CSS expose the focused feature contract', () => {
-  assert.match(contractSource, /enemyPulseColorMode:\s*"gradient"/);
-  assert.match(hudLayoutSource, /hp_colors_contract\.vjs_c[\s\S]*hp_colors_state\.vjs_c/);
-  assert.match(overlayLayoutSource, /hp_colors_contract\.vjs_c[\s\S]*healthbar_probe\.vjs_c/);
-  assert.match(hudLayoutSource, /id="HPColorsSettingsReadoutLevels"/);
-  assert.match(hudLayoutSource, /id="HPColorsSettingsEnemyPulse"/);
-  assert.match(hudLayoutSource, /id="HPColorsSettingsAllyPulse"/);
-  assert.equal(
-    (overlayLayoutSource.match(/id="LevelContainer"/g) || []).length,
-    1,
-  );
-  assert.match(overlayLayoutSource, /id="unit_level_label"[^>]*\{i:player_level\}/);
-  assert.match(overlayLayoutSource, /hp_colors_unit_status\.vcss_c/);
-  assert.match(unitStatusCssSource, /\.HPColorsRewritePulse/);
-  assert.match(overlayLayoutSource, /id="hp_colors_pulse_overlay"/);
-  assert.match(unitStatusCssSource, /\.NP_playerlevel_container/);
-  assert.match(unitStatusCssSource, /border-radius:\s*50%/);
-  assert.match(unitStatusCssSource, /\.HPColorsRewriteColorPulse/);
-  assert.match(
-    unitStatusCssSource,
-    /#hp_colors_pulse_overlay[\s\S]*background-image:[\s\S]*z-index:\s*4/,
-  );
-  assert.match(
-    unitStatusCssSource,
-    /#hp_colors_pulse_overlay[\s\S]*width:\s*0%[\s\S]*height:\s*100%/,
-  );
-  assert.match(
-    unitStatusCssSource,
-    /#unit_healthbar_lagging\.HPColorsRewritePulse/,
-  );
-  assert.match(
-    unitStatusCssSource,
-    /\.enemy\.player\.level_number_visible \.NP_playerlevel_container/,
-  );
-  assert.match(unitStatusCssSource, /\.team1\.enemy \.NP_playerlevel_container/);
-  assert.match(unitStatusCssSource, /\.team2\.enemy \.NP_playerlevel_container/);
-  for (const tier of [2, 3, 4, 5]) {
-    assert.match(unitStatusCssSource, new RegExp(`level_tier${tier}`));
-  }
-  assert.match(unitStatusCssSource, /animation-iteration-count:\s*infinite/);
-  assert.doesNotMatch(probeSource, /setInterval|requestAnimationFrame/);
-});

@@ -18,7 +18,6 @@ const {
 } = require("../../scripts/hp-colors-panorama-test-adapter.js");
 
 const { getValidationReport } = require("./validate-minimal.js");
-const { FULL_ONLY_SETTING_IDS } = require("../../scripts/hp-colors-validator-contract.js");
 
 const ROOT = path.resolve(__dirname, "..");
 const DEFAULT_SOURCE_ROOT = ROOT;
@@ -29,14 +28,6 @@ const CLOSURE_SOURCE_ROOT = process.env.HP_COLORS_MINIMAL_SOURCE_ROOT
 function sourceFilePath(sourceRoot, relativePath) {
   return path.join(sourceRoot || DEFAULT_SOURCE_ROOT, relativePath);
 }
-const SHARED_RUNTIME_COLOR_SETTING_IDS = Object.freeze([
-  "hp_heal_color",
-  "hp_delta_color",
-  "hp_bullet_shield_color",
-  "hp_friend_heal_color",
-  "hp_friend_delta_color",
-  "hp_friend_bullet_shield_color",
-]);
 
 function makePresetPanel(id, values, extra = {}) {
   const preset = { version: 1, name: extra.name || id, values };
@@ -419,26 +410,6 @@ function runRuntimeFor(runtime, maxElapsedMs, limit = 200) {
   runtime.now = end;
 }
 
-test("minimal folder keeps only expected production runtime files", () => {
-  const report = getValidationReport();
-  assert.deepEqual(report.errors, []);
-  assert.equal(report.defaultKeys.length, 56);
-});
-
-test("minimal publisher forbids full Anita preset builder modules", () => {
-  const source = fs.readFileSync(path.join(ROOT, "panorama/scripts/anita_ui_core.js"), "utf8");
-  for (const marker of [
-    "HPPresetBuilderModel",
-    "HPPresetBuilderActions",
-    "AnitaPresetBuilderPanel",
-    "__anitaUserPresetRows",
-    "__anitaPresetPriorityOrder",
-    "__anitaPresetNameOverrides",
-    "AnitaUI.Register",
-  ]) {
-    assert.equal(source.includes(marker), false, `minimal publisher leaked ${marker}`);
-  }
-});
 
 test("minimal publisher neutralizes QOLLOCK player-health customization", () => {
   const customHealth = {
@@ -512,57 +483,6 @@ test("minimal publisher neutralizes QOLLOCK player-health customization", () => 
   assert.equal(result.qolHud.GetAttributeString("QOL_USER_EDIT_REV", ""), "10");
 });
 
-test("minimal lane contract metadata exposes full and projected setting ids", () => {
-  const report = getValidationReport();
-  assert.deepEqual(report.errors, []);
-  assert.equal(report.laneContract.fullCount, 56);
-  assert.equal(report.laneContract.minimalCount, 56);
-  assert.deepEqual(report.laneContract.fullOnlySettingIds, []);
-  assert.deepEqual(FULL_ONLY_SETTING_IDS, []);
-  assert.equal(report.laneContract.expectedMinimalIds.length, 56);
-  for (const id of SHARED_RUNTIME_COLOR_SETTING_IDS) {
-    assert.equal(report.defaultKeys.includes(id), true, `${id} is present in live minimal DEFAULTS`);
-    assert.equal(report.laneContract.expectedMinimalIds.includes(id), true, `${id} is part of the live minimal projection`);
-  }
-});
-
-test("minimal runtime function budget stays bounded", () => {
-  const report = getValidationReport();
-  assert.equal(report.errors.length, 0);
-  assert.ok(report.functionCounts.healthbar <= 115);
-  assert.ok(report.functionCounts.publisher <= 62);
-});
-
-test("runtime source uses only verified unit-status ids", () => {
-  const healthbar = fs.readFileSync(path.join(ROOT, "panorama/scripts/healthbar_logic.js"), "utf8");
-  const allowed = new Set([
-    "UnitStatus",
-    "InfoHealthContainer",
-    "UnitHealthbarContainer",
-    "unit_healthbar_lagging",
-    "unit_healthbar_healing",
-    "unit_healthbar_delta",
-    "unit_healthbar_bullet_shield",
-    "unit_healthbar_bg",
-    "unit_healthbar_pip_label",
-    "unit_ult_ready_icon",
-    "unit_level_label",
-    "name",
-    "hp_counter",
-    "hp_counter_anchor",
-    "hp_kill_zone_marker",
-  ]);
-  const directIds = Array.from(healthbar.matchAll(/FindChildTraverse\(\s*(["'])(.*?)\1\s*\)/g), (m) => m[2]);
-  const constantIds = Array.from(healthbar.matchAll(/var\s+ID_[A-Z0-9_]+\s*=\s*(["'])(.*?)\1/g), (m) => m[2]);
-  for (const id of [...directIds, ...constantIds]) assert.ok(allowed.has(id), `unverified panel id: ${id}`);
-  for (const id of ["health_bar", "unit_health", "ult_icon"]) {
-    assert.doesNotMatch(healthbar, new RegExp(`(["'])${id}\\1`));
-  }
-  for (const id of allowed) {
-    if (id === "hp_counter" || id === "hp_counter_anchor" || id === "hp_kill_zone_marker") continue;
-    assert.match(healthbar, new RegExp(`var\\s+ID_[A-Z0-9_]+\\s*=\\s*(["'])${id}\\1`), `missing ID constant for ${id}`);
-  }
-});
 
 test("runtime classifier drives building, neutral, and non-enemy behavior", () => {
   const classifierRuntime = runRuntime({

@@ -12,6 +12,14 @@
   var CONFIG_ATTR = "hp_colors_v2_config";
   var CONFIG_VERSION = 2;
   var ALLY_ATTR = "hp_colors_v2_ally";
+  // Bars stay stock until a published config arrives. While the editor reports
+  // a cold-boot restore in progress the wait lasts as long as the restore does
+  // (its own deadlines are terminal); without that signal, defaults apply after
+  // a short grace. HYDRATION_WAIT_MAX_MS only guards an editor that died
+  // mid-restore.
+  var HYDRATION_ATTR = "hp_colors_v2_hydration";
+  var CONFIG_GRACE_MS = 3000;
+  var HYDRATION_WAIT_MAX_MS = 180000;
   var SEGMENT_BASE_SCALE = 1.1;
   var BASE_HEALTHBAR_WIDTH = 750;
   var ACCESSORY_BASE_MARGIN_LEFT = 422.5;
@@ -100,12 +108,28 @@
     "pulseMaximumReadoutSubtleClass",
     "pulseMaximumReadoutIntenseClass",
   ];
+  var READOUT_FIELDS = ["Visible", "Format", "Size", "Font", "OffsetX", "OffsetY",
+    "ColorMode", "Mode", "Low", "Mid", "High", "MaxTeamColor"];
+  // Role -> config key per readout field; enemy keys predate the ally copy.
+  var READOUT_KEYS = { enemy: {}, ally: {} };
+  for (var readoutFieldIndex = 0; readoutFieldIndex < READOUT_FIELDS.length; readoutFieldIndex++) {
+    var readoutField = READOUT_FIELDS[readoutFieldIndex];
+    READOUT_KEYS.enemy[readoutField] = "readout" + readoutField;
+    READOUT_KEYS.ally[readoutField] = "allyReadout" + readoutField;
+  }
+  var READOUT_FONTS = {
+    oracle: "VALVEOracle, Reaver, sans-serif",
+    pulp: "VALVEPulp, Noto Sans, sans-serif",
+  };
+  var DEFAULT_READOUT_FONT = "Retail Demo, Noto Sans, sans-serif";
 
   var context = $.GetContextPanel();
   var bars = [];
   var configRoot = null;
   var configRaw = "";
-  var config = normalizeConfig(null);
+  var config = normalizeConfig({ enabled: false });
+  var awaitingConfig = true;
+  var awaitingSince = nowMs();
   var configRevision = -1;
   var lastColorChangeAt = 0;
   var eventHandlerId = null;
@@ -768,14 +792,13 @@
     };
   }
 
-  function formatReadout(bar) {
+  function formatReadout(bar, format) {
     bar.readoutMaximumText = "";
     if (bar.lastWidthPercent < 0) return "";
-    if (config.readoutFormat === "percent")
-      return String(bar.lastWidthPercent) + "%";
+    if (format === "percent") return String(bar.lastWidthPercent) + "%";
     var health = readoutHealth(bar);
     if (health.maximum <= 0) return "";
-    if (config.readoutFormat === "current") return String(health.current);
+    if (format === "current") return String(health.current);
     bar.readoutMaximumText = String(health.maximum);
     return health.current + " / ";
   }
@@ -931,22 +954,6 @@
     }
   }
 
-  function setOptionalOwnedStyle(
-    panel,
-    property,
-    owned,
-    value,
-    baseline,
-    cache,
-    cacheKey,
-  ) {
-    if (owned) {
-      setStyle(panel, property, value, cache, cacheKey);
-      return;
-    }
-    setStyle(panel, property, baseline, cache, cacheKey);
-  }
-
   function setText(panel, value, cache, cacheKey) {
     if (!isValid(panel)) {
       if (cache) cache[cacheKey] = null;
@@ -1033,52 +1040,16 @@
   }
 
   function layoutStyleDrift(bar) {
-    return (
-      ((config.widthScale !== 100 || config.heightScale !== 100) &&
-        (cachedStyleDrift(
-          bar.parts.healthbars,
-          "preTransformScale2d",
-          bar.applied,
-          "segmentPreTransformScale2d",
-        ) ||
-          cachedStyleDrift(
-            bar.parts.healthbars,
-            "transformOrigin",
-            bar.applied,
-            "segmentTransformOrigin",
-          ))) ||
-      ((config.positionX !== 0 || config.positionY !== 0) &&
-        cachedStyleDrift(
-          bar.parts.healthbars,
-          "transform",
-          bar.applied,
-          "segmentTransform",
-        )) ||
-      cachedStyleDrift(
-        bar.parts.levelContainer,
-        "marginLeft",
-        bar.applied,
-        "levelAnchorMarginLeft",
-      ) ||
-      cachedStyleDrift(
-        bar.parts.levelContainer,
-        "marginTop",
-        bar.applied,
-        "levelAnchorMarginTop",
-      ) ||
-      cachedStyleDrift(
-        bar.parts.unitInfo,
-        "marginLeft",
-        bar.applied,
-        "unitInfoAnchorMarginLeft",
-      ) ||
-      cachedStyleDrift(
-        bar.parts.unitInfo,
-        "marginTop",
-        bar.applied,
-        "unitInfoAnchorMarginTop",
-      )
-    );
+    var scaled = config.widthScale !== 100 || config.heightScale !== 100;
+    var moved = config.positionX !== 0 || config.positionY !== 0;
+    for (var index = 0; index < GEOMETRY_STYLES.length; index++) {
+      // Entries 0-1 are scale styles, 2 is the segment translation.
+      if ((index < 2 && !scaled) || (index === 2 && !moved)) continue;
+      var entry = GEOMETRY_STYLES[index];
+      if (cachedStyleDrift(bar.parts[entry[0]], entry[1], bar.applied, entry[2]))
+        return true;
+    }
+    return false;
   }
 
 
@@ -1092,31 +1063,92 @@
     );
   }
 
-  function setReadoutVisibility(bar, current, maximum) {
+  function setReadoutStyle(bar, property, value, key) {
+    setStyle(bar.parts.counter, property, value, bar.applied, "readout" + key);
+    setStyle(
+      bar.parts.counterMax,
+      property,
+      value,
+      bar.applied,
+      "readoutMaximum" + key,
+    );
+  }
+
+  // keys: READOUT_KEYS entry, or null to clear. low/mid/high/mode: the bar colors.
+  function applyReadout(bar, keys, low, mid, high, mode, pulseModifiers) {
+    var text = keys ? formatReadout(bar, config[keys.Format]) : "";
+    var maximumText = keys ? bar.readoutMaximumText : "";
+    var color = "";
+    var maximumColor = "";
+    var fontSize = "";
+    var fontFamily = "";
+    var transform = "";
+    if (keys) {
+      if (config[keys.ColorMode] === "custom") {
+        low = config[keys.Low];
+        mid = config[keys.Mid];
+        high = config[keys.High];
+        mode = config[keys.Mode];
+      }
+      color = (mode === "gradient" ? gradientColor : fixedColor)(
+        bar.lastWidthPercent,
+        low,
+        mid,
+        high,
+      );
+      maximumColor =
+        maximumText && config[keys.MaxTeamColor]
+          ? teamHighColor(bar.team, color)
+          : color;
+      fontSize =
+        (pulseModifiers ? config.enemyPulseReadoutSize : config[keys.Size]) +
+        "px";
+      fontFamily = READOUT_FONTS[config[keys.Font]] || DEFAULT_READOUT_FONT;
+      transform =
+        "translate3d(" +
+        ((pulseModifiers
+          ? config.enemyPulseReadoutOffsetX
+          : config[keys.OffsetX]) -
+          27) +
+        "px, " +
+        ((pulseModifiers
+          ? config.enemyPulseReadoutOffsetY
+          : config[keys.OffsetY]) -
+          500) +
+        "px, 0px)";
+    }
     setStyle(
       bar.parts.counter,
       "visibility",
-      current,
+      text ? "visible" : "collapse",
       bar.applied,
       "readoutVisibility",
     );
     setStyle(
       bar.parts.counterMax,
       "visibility",
-      maximum,
+      maximumText ? "visible" : "collapse",
       bar.applied,
       "readoutMaximumVisibility",
     );
-  }
-
-  function setReadoutStyle(bar, property, value, key, maximumKey) {
-    setStyle(bar.parts.counter, property, value, bar.applied, key);
+    setReadoutText(bar, text, maximumText);
+    setReadoutStyle(bar, "fontSize", fontSize, "FontSize");
+    setReadoutStyle(bar, "height", keys ? "fit-children" : "", "Height");
+    setReadoutStyle(bar, "fontFamily", fontFamily, "FontFamily");
+    setStyle(
+      bar.parts.counterAnchor,
+      "transform",
+      transform,
+      bar.applied,
+      "readoutTransform",
+    );
+    setStyle(bar.parts.counter, "washColor", color, bar.applied, "readoutWashColor");
     setStyle(
       bar.parts.counterMax,
-      property,
-      value,
+      "washColor",
+      maximumColor,
       bar.applied,
-      maximumKey,
+      "readoutMaximumWashColor",
     );
   }
 
@@ -1870,21 +1902,22 @@
         accessoryAnchorOffsetY +
         config.ultOffsetY,
     );
-    setOptionalOwnedStyle(
+    setStyle(
       bar.parts.healthbars,
       "preTransformScale2d",
-      segmentScaleActive,
-      segmentScale,
-      baselineStyle(panelBaseline.healthbars, "preTransformScale2d"),
+      segmentScaleActive
+        ? segmentScale
+        : baselineStyle(panelBaseline.healthbars, "preTransformScale2d"),
       bar.applied,
       "segmentPreTransformScale2d",
     );
-    setOptionalOwnedStyle(
+    // Origin needs three native layout reads; only pay for them while scaled.
+    setStyle(
       bar.parts.healthbars,
       "transformOrigin",
-      segmentScaleActive,
-      segmentTransformOrigin(bar),
-      baselineStyle(panelBaseline.healthbars, "transformOrigin"),
+      segmentScaleActive
+        ? segmentTransformOrigin(bar)
+        : baselineStyle(panelBaseline.healthbars, "transformOrigin"),
       bar.applied,
       "segmentTransformOrigin",
     );
@@ -1896,42 +1929,59 @@
       bar.applied,
       "segmentTransform",
     );
-    setOptionalOwnedStyle(
+    setStyle(
       bar.parts.levelContainer,
       "marginLeft",
-      true,
       levelMarginLeft,
-      baselineStyle(panelBaseline.levelContainer, "marginLeft"),
       bar.applied,
       "levelAnchorMarginLeft",
     );
-    setOptionalOwnedStyle(
+    setStyle(
       bar.parts.levelContainer,
       "marginTop",
-      true,
       levelMarginTop,
-      baselineStyle(panelBaseline.levelContainer, "marginTop"),
       bar.applied,
       "levelAnchorMarginTop",
     );
-    setOptionalOwnedStyle(
+    setStyle(
       bar.parts.unitInfo,
       "marginLeft",
-      true,
       unitInfoMarginLeft,
-      baselineStyle(panelBaseline.unitInfo, "marginLeft"),
       bar.applied,
       "unitInfoAnchorMarginLeft",
     );
-    setOptionalOwnedStyle(
+    setStyle(
       bar.parts.unitInfo,
       "marginTop",
-      true,
       unitInfoMarginTop,
-      baselineStyle(panelBaseline.unitInfo, "marginTop"),
       bar.applied,
       "unitInfoAnchorMarginTop",
     );
+  }
+
+  // [part, property, cache key] for every geometry style the bar owns.
+  var GEOMETRY_STYLES = [
+    ["healthbars", "preTransformScale2d", "segmentPreTransformScale2d"],
+    ["healthbars", "transformOrigin", "segmentTransformOrigin"],
+    ["healthbars", "transform", "segmentTransform"],
+    ["levelContainer", "marginLeft", "levelAnchorMarginLeft"],
+    ["levelContainer", "marginTop", "levelAnchorMarginTop"],
+    ["unitInfo", "marginLeft", "unitInfoAnchorMarginLeft"],
+    ["unitInfo", "marginTop", "unitInfoAnchorMarginTop"],
+  ];
+
+  function restoreBarGeometry(bar, parts, panelBaseline, onlyPart) {
+    for (var index = 0; index < GEOMETRY_STYLES.length; index++) {
+      var entry = GEOMETRY_STYLES[index];
+      if (onlyPart && entry[0] !== onlyPart) continue;
+      setStyle(
+        parts[entry[0]],
+        entry[1],
+        baselineStyle(panelBaseline[entry[0]], entry[1]),
+        bar.applied,
+        entry[2],
+      );
+    }
   }
 
   function applyActiveCustomization(bar, role, panelBaseline) {
@@ -1973,51 +2023,9 @@
     var ultColor = stockColor;
     if (config.ultMode === "custom") ultColor = config.ultCustom;
     else if (colorsEnabled) ultColor = color;
-    var readoutEnabled = role === "enemy" && config.readoutVisible;
-    bar.readoutMaximumText = "";
-    var readoutText = readoutEnabled ? formatReadout(bar) : "";
-    var readoutVisibility = readoutText ? "visible" : "collapse";
-    var readoutMaximumText = readoutEnabled
-      ? bar.readoutMaximumText
-      : "";
-    var readoutMaximumVisibility = readoutMaximumText
-      ? "visible"
-      : "collapse";
-    var readoutLow =
-      config.readoutColorMode === "custom" ? config.readoutLow : low;
-    var readoutMid =
-      config.readoutColorMode === "custom" ? config.readoutMid : mid;
-    var readoutHigh =
-      config.readoutColorMode === "custom" ? config.readoutHigh : high;
-    var readoutMode =
-      config.readoutColorMode === "custom" ? config.readoutMode : mode;
-    var readoutColor = readoutEnabled
-      ? readoutMode === "gradient"
-        ? gradientColor(
-            bar.lastWidthPercent,
-            readoutLow,
-            readoutMid,
-            readoutHigh,
-          )
-        : fixedColor(
-            bar.lastWidthPercent,
-            readoutLow,
-            readoutMid,
-            readoutHigh,
-          )
-      : "";
-    var readoutMaximumColor =
-      readoutMaximumText && config.readoutMaxTeamColor
-        ? teamHighColor(bar.team, readoutColor)
-        : readoutColor;
-    var readoutFontSize = "";
-    var readoutFontFamily =
-      config.readoutFont === "oracle"
-        ? "VALVEOracle, Reaver, sans-serif"
-        : config.readoutFont === "pulp"
-          ? "VALVEPulp, Noto Sans, sans-serif"
-          : "Retail Demo, Noto Sans, sans-serif";
-    var readoutTransform = "";
+    var readoutKeys = config[READOUT_KEYS[role].Visible]
+      ? READOUT_KEYS[role]
+      : null;
 
     var pulseEnabled =
       colorsEnabled &&
@@ -2028,37 +2036,11 @@
         : config.allyPulseThreshold;
     var shouldPulse =
       pulseEnabled && bar.lastWidthPercent <= pulseThreshold;
+    var enemyReadoutPulse = role === "enemy" && shouldPulse && !!readoutKeys;
     var pulseReadoutAnimationActive =
-      role === "enemy" &&
-      shouldPulse &&
-      config.enemyPulseReadout &&
-      readoutEnabled;
+      enemyReadoutPulse && config.enemyPulseReadout;
     var pulseReadoutModifiersActive =
-      role === "enemy" &&
-      shouldPulse &&
-      config.enemyPulseReadoutModifiers &&
-      readoutEnabled;
-    if (readoutEnabled)
-      readoutFontSize =
-        (pulseReadoutModifiersActive
-          ? config.enemyPulseReadoutSize
-          : config.readoutSize) + "px";
-    if (readoutEnabled) {
-      var readoutOffsetX =
-        (pulseReadoutModifiersActive
-          ? config.enemyPulseReadoutOffsetX
-          : config.readoutOffsetX) - 27;
-      var readoutOffsetY =
-        (pulseReadoutModifiersActive
-          ? config.enemyPulseReadoutOffsetY
-          : config.readoutOffsetY) - 500;
-      readoutTransform =
-        "translate3d(" +
-        readoutOffsetX +
-        "px, " +
-        readoutOffsetY +
-        "px, 0px)";
-    }
+      enemyReadoutPulse && config.enemyPulseReadoutModifiers;
     var pulseIntensity =
       role === "enemy"
         ? config.enemyPulseIntensity
@@ -2160,53 +2142,14 @@
     );
     applyBarGeometry(bar, panelBaseline);
 
-    setReadoutVisibility(
+    applyReadout(
       bar,
-      readoutVisibility,
-      readoutMaximumVisibility,
-    );
-    setReadoutText(bar, readoutText, readoutMaximumText);
-    setReadoutStyle(
-      bar,
-      "fontSize",
-      readoutFontSize,
-      "readoutFontSize",
-      "readoutMaximumFontSize",
-    );
-    setReadoutStyle(
-      bar,
-      "height",
-      readoutEnabled ? "fit-children" : "",
-      "readoutHeight",
-      "readoutMaximumHeight",
-    );
-    setReadoutStyle(
-      bar,
-      "fontFamily",
-      readoutFontFamily,
-      "readoutFontFamily",
-      "readoutMaximumFontFamily",
-    );
-    setStyle(
-      bar.parts.counterAnchor,
-      "transform",
-      readoutTransform,
-      bar.applied,
-      "readoutTransform",
-    );
-    setStyle(
-      bar.parts.counter,
-      "washColor",
-      readoutColor,
-      bar.applied,
-      "readoutWashColor",
-    );
-    setStyle(
-      bar.parts.counterMax,
-      "washColor",
-      readoutMaximumColor,
-      bar.applied,
-      "readoutMaximumWashColor",
+      readoutKeys,
+      low,
+      mid,
+      high,
+      mode,
+      pulseReadoutModifiersActive,
     );
     bar.dirty = 0;
   }
@@ -2281,114 +2224,8 @@
         "ultBackgroundOpacity",
       );
 
-      setOptionalOwnedStyle(
-        bar.parts.healthbars,
-        "preTransformScale2d",
-        false,
-        "",
-        baselineStyle(panelBaseline.healthbars, "preTransformScale2d"),
-        bar.applied,
-        "segmentPreTransformScale2d",
-      );
-      setOptionalOwnedStyle(
-        bar.parts.healthbars,
-        "transformOrigin",
-        false,
-        "",
-        baselineStyle(panelBaseline.healthbars, "transformOrigin"),
-        bar.applied,
-        "segmentTransformOrigin",
-      );
-      setOptionalOwnedStyle(
-        bar.parts.healthbars,
-        "transform",
-        false,
-        "",
-        baselineStyle(panelBaseline.healthbars, "transform"),
-        bar.applied,
-        "segmentTransform",
-      );
-      setOptionalOwnedStyle(
-        bar.parts.levelContainer,
-        "marginLeft",
-        false,
-        "",
-        baselineStyle(panelBaseline.levelContainer, "marginLeft"),
-        bar.applied,
-        "levelAnchorMarginLeft",
-      );
-      setOptionalOwnedStyle(
-        bar.parts.levelContainer,
-        "marginTop",
-        false,
-        "",
-        baselineStyle(panelBaseline.levelContainer, "marginTop"),
-        bar.applied,
-        "levelAnchorMarginTop",
-      );
-      setOptionalOwnedStyle(
-        bar.parts.unitInfo,
-        "marginLeft",
-        false,
-        "",
-        baselineStyle(panelBaseline.unitInfo, "marginLeft"),
-        bar.applied,
-        "unitInfoAnchorMarginLeft",
-      );
-      setOptionalOwnedStyle(
-        bar.parts.unitInfo,
-        "marginTop",
-        false,
-        "",
-        baselineStyle(panelBaseline.unitInfo, "marginTop"),
-        bar.applied,
-        "unitInfoAnchorMarginTop",
-      );
-
-      setReadoutVisibility(bar, "collapse", "collapse");
-      setReadoutText(bar, "", "");
-      setReadoutStyle(
-        bar,
-        "fontSize",
-        "",
-        "readoutFontSize",
-        "readoutMaximumFontSize",
-      );
-      setReadoutStyle(
-        bar,
-        "height",
-        "",
-        "readoutHeight",
-        "readoutMaximumHeight",
-      );
-      setReadoutStyle(
-        bar,
-        "fontFamily",
-        "",
-        "readoutFontFamily",
-        "readoutMaximumFontFamily",
-      );
-      setStyle(
-        bar.parts.counterAnchor,
-        "transform",
-        "",
-        bar.applied,
-        "readoutTransform",
-      );
-      setStyle(
-        bar.parts.counter,
-        "washColor",
-        "",
-        bar.applied,
-        "readoutWashColor",
-      );
-      setStyle(
-        bar.parts.counterMax,
-        "washColor",
-        "",
-        bar.applied,
-        "readoutMaximumWashColor",
-      );
+      restoreBarGeometry(bar, bar.parts, panelBaseline);
+      applyReadout(bar, null);
       bar.dirty = 0;
       return true;
     }
@@ -2449,6 +2286,7 @@
           );
       configRaw = raw;
       configRevision = revision;
+      awaitingConfig = false;
       for (var index = 0; index < bars.length; index++) {
         bars[index].dirty = true;
         applyCustomization(bars[index]);
@@ -2467,7 +2305,9 @@
       configRoot = nextRoot;
       configRaw = "";
       configRevision = -1;
-      config = normalizeConfig(null);
+      config = normalizeConfig({ enabled: false });
+      awaitingConfig = true;
+      awaitingSince = nowMs();
       notifyConfigListeners();
     }
     if (!isValid(configRoot) || !configRoot.GetAttributeString) return "";
@@ -2481,6 +2321,34 @@
   function inspectRootConfig() {
     var raw = readRootConfig();
     if (raw && raw !== configRaw) applyConfigRaw(raw);
+    if (awaitingConfig) resolveAwaitedConfig();
+  }
+
+  function nowMs() {
+    return Date.now ? Date.now() : +new Date();
+  }
+
+  function restoringSavedSettings() {
+    if (!isValid(configRoot) || !configRoot.GetAttributeString) return false;
+    try {
+      return configRoot.GetAttributeString(HYDRATION_ATTR, "") === "pending";
+    } catch {
+      return false;
+    }
+  }
+
+  function resolveAwaitedConfig() {
+    var waited = nowMs() - awaitingSince;
+    if (waited < (restoringSavedSettings() ? HYDRATION_WAIT_MAX_MS : CONFIG_GRACE_MS))
+      return;
+    awaitingConfig = false;
+    config = normalizeConfig(null);
+    for (var index = 0; index < bars.length; index++) {
+      bars[index].dirty = true;
+      applyCustomization(bars[index]);
+    }
+    applyStaminaSurface();
+    notifyConfigListeners();
   }
 
   function onConfigEvent(payload) {
@@ -2495,7 +2363,7 @@
   function reportData(bar) {
     if (!isComplete(bar.parts)) return;
     classifyTarget(bar);
-    if (!bar.healthSampled || !colorRefreshEnabled(bar))
+    if (!bar.healthSampled || !healthRefreshEnabled(bar))
       sampleHealthPercent(bar);
     var pipText = readPipText(bar.parts.pipLabel);
     updatePipMaximum(bar, pipText);
@@ -2503,28 +2371,31 @@
     if (!bar.dirty && layoutStyleDrift(bar)) bar.dirty = true;
     if (bar.dirty) applyCustomization(bar);
   }
+  // Per-panel samples; cleared on creation and whenever the part set changes.
+  function resetBarSamples(bar) {
+    bar.levelWrapper = null;
+    bar.levelText = "";
+    bar.level = 0;
+    bar.levelTier = null;
+    bar.pipText = null;
+    bar.pipProfile = null;
+    bar.rawMaximumHealth = 0;
+    bar.lastWidthPercent = -1;
+    bar.healthSampled = false;
+    bar.healthPresentationChanged = false;
+    bar.pulseOverlayPercent = -1;
+    bar.sampleFillWidth = 0;
+    bar.sampleTotalParentWidth = 0;
+    bar.sampleHealthParentWidth = 0;
+    bar.sampleBarWidth = 0;
+  }
 
   function addBar(parts) {
     var bar = {
       generation: 1,
       dirty: true,
-      lastWidthPercent: -1,
-      healthSampled: false,
-      healthPresentationChanged: false,
-      pulseOverlayPercent: -1,
       partsRetryJob: null,
-      sampleFillWidth: 0,
-      sampleTotalParentWidth: 0,
-      sampleHealthParentWidth: 0,
-      sampleBarWidth: 0,
       markerGeometryChanged: false,
-      pipText: "",
-      pipProfile: null,
-      rawMaximumHealth: 0,
-      levelText: "",
-      level: 0,
-      levelTier: null,
-      levelWrapper: null,
       applied: {},
       pulseActive: false,
       colorPulseActive: false,
@@ -2543,6 +2414,7 @@
       seen: true,
       parts: parts,
     };
+    resetBarSamples(bar);
     bar.panelBaseline = capturePanelBaseline(bar);
     bars.push(bar);
     reportData(bar);
@@ -2559,29 +2431,8 @@
     clearPulse(bar);
     clearReadoutOwnership(bar);
     clearKillMarkerOwnership(bar);
-    if (previousParts.healthbars !== nextParts.healthbars) {
-      setStyle(
-        previousParts.healthbars,
-        "transform",
-        baselineStyle(previousBaseline.healthbars, "transform"),
-        bar.applied,
-        "segmentTransform",
-      );
-      setStyle(
-        previousParts.healthbars,
-        "transformOrigin",
-        baselineStyle(previousBaseline.healthbars, "transformOrigin"),
-        bar.applied,
-        "segmentTransformOrigin",
-      );
-      setStyle(
-        previousParts.healthbars,
-        "preTransformScale2d",
-        baselineStyle(previousBaseline.healthbars, "preTransformScale2d"),
-        bar.applied,
-        "segmentPreTransformScale2d",
-      );
-    }
+    if (previousParts.healthbars !== nextParts.healthbars)
+      restoreBarGeometry(bar, previousParts, previousBaseline, "healthbars");
     bar.parts = nextParts;
     bar.generation += 1;
     bar.dirty = true;
@@ -2591,21 +2442,7 @@
       previousParts,
       previousBaseline,
     );
-    bar.levelWrapper = null;
-    bar.levelText = "";
-    bar.level = 0;
-    bar.levelTier = null;
-    bar.pipText = null;
-    bar.pipProfile = null;
-    bar.rawMaximumHealth = 0;
-    bar.lastWidthPercent = -1;
-    bar.healthSampled = false;
-    bar.healthPresentationChanged = false;
-    bar.pulseOverlayPercent = -1;
-    bar.sampleFillWidth = 0;
-    bar.sampleTotalParentWidth = 0;
-    bar.sampleHealthParentWidth = 0;
-    bar.sampleBarWidth = 0;
+    resetBarSamples(bar);
     return true;
   }
 
@@ -2638,16 +2475,18 @@
     }
     reconcileStaminaSurface(staminaBar);
   }
-  function colorRefreshEnabled(bar) {
+  // Paint-loop sampling runs while colors or HP text depend on live health.
+  function healthRefreshEnabled(bar) {
     if (!config.enabled) return false;
-    if (bar.role === "enemy") return config.enemyEnabled;
-    if (bar.role === "ally") return config.allyEnabled;
+    if (bar.role === "enemy") return config.enemyEnabled || config.readoutVisible;
+    if (bar.role === "ally")
+      return config.allyEnabled || config.allyReadoutVisible;
     return false;
   }
 
   function refreshColor(bar) {
     if (!isComplete(bar.parts)) return false;
-    if (!colorRefreshEnabled(bar)) {
+    if (!healthRefreshEnabled(bar)) {
       if (!bar.dirty) return false;
       applyCustomization(bar);
       return true;

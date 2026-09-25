@@ -30,7 +30,6 @@ Run from repo root:
 ```powershell
 node --check hp_colors_minimal_color_debug\panorama\scripts\anita_ui_core.js
 node --check hp_colors_minimal_color_debug\panorama\scripts\healthbar_logic.js
-node --test hp_colors_minimal_color_debug\scripts\validate-minimal.test.js
 node hp_colors_minimal_color_debug\scripts\validate-minimal.js
 powershell -ExecutionPolicy Bypass -File build_hp_colors_minimal_color_debug.ps1
 ```

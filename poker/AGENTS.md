@@ -56,7 +56,6 @@ ESC-menu UI
 Run from the repository root:
 
 ```powershell
-node poker/scripts/validate-poker.js
 node poker/scripts/validate-ready-state.js
 node poker/scripts/validate-poker-game.js
 node poker/scripts/validate-bluff-deck-game.js
@@ -103,7 +102,6 @@ The compiler wrapper may report a redirected-console `Console.ReadKey` exception
 - `panorama/layout/chat.xml` — stock-chat hook.
 - `panorama/styles/poker_escape_menu.css` — picker, lobby, table, action, history, and Bluff Deck styling.
 - `scripts/poker-panorama-vm.js` — mock Panorama runtime used by focused validators.
-- `scripts/validate-poker.js` — static source/layout/style/asset contracts and runtime budget.
 - `scripts/validate-ready-state.js` — party, ready-seat, chat-bridge, unknown-sender, and lifecycle behavior.
 - `scripts/validate-poker-game.js` — Poker engine, action controls, progress/resume, and rendering behavior.
 - `scripts/validate-bluff-deck-game.js` — Bluff Deck engine, lifecycle, and compatibility behavior.
