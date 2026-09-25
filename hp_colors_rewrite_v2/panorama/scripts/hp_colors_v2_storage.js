@@ -399,14 +399,12 @@
       var title = arguments.length > 1 ? eventTitle : panelOrTitle;
       if (typeof title !== "string" || !title) return;
       if (title.indexOf(TITLE_PREFIX) !== 0) {
-        // Any other title means a document committed. Before readiness that is
-        // the signal to install the page object; afterwards it means the page
-        // was replaced, so the object is gone and the in-flight request with it.
-        if (ready) {
-          ready = false;
-          injectAttempts = 0;
-          if (active) fail(active, "page_reset");
-        }
+        // Any other title means a document committed: the signal to install
+        // the page object. Deadlock delivers HTMLTitle twice, so after
+        // readiness a plain title is only that echo. This bridge never
+        // navigates again, so it is ignored; re-injecting would also set a
+        // title that could swallow the in-flight reply.
+        if (ready) return;
         if (injectAttempts < MAX_INJECT_ATTEMPTS) {
           injectAttempts += 1;
           sendScript(pageScript());
