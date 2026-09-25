@@ -27,7 +27,7 @@ From the repository root:
 powershell -ExecutionPolicy Bypass -File .\build_topbar_rank_barebones.ps1
 ```
 
-The builder first runs the focused source contracts, copies only the edition inventory into staging, composes the current runtime and style with `--host-root`, then compiles and validates the staged outputs. Use `-KeepStaging` to retain the composed sources. Use `-Install` only to place the result at:
+The builder checks the required edition inventory, copies only those assets into staging, composes the current runtime and style with `--host-root`, then compiles and validates the staged outputs. Use `-KeepStaging` to retain the composed sources. Use `-Install` only to place the result at:
 
 ```text
 G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak89_dir.vpk

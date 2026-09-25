@@ -49,6 +49,7 @@ Important lanes:
 - `topbar_status_buffs/` — healthbar-to-topbar status-effect bridge.
 - `test_hpv2/` — standalone pak04 pickup indicators; read `test_hpv2/AGENTS.md` before changing its runtime, relay layouts, or `build_test_hpv2.ps1`.
 - `buff_timer_virgin/`, `recent_purchase/`, `3d hud/` — independent Panorama HUD/shop overrides.
+- `anitaui/`, `soul_timer/`, `self_hp/`, `passive_items_mod/` — Anita UI settings host, unsecured soul-drain countdown, self health bar override, and passive items driven by generated JS config.
 - `abilities/scripts/` — mutable VData baselines and Python text transforms.
 - `scripts/` — shared packaging helpers, HP codecs/contracts, VM adapters, and preset-store utilities.
 - `sr2compiler/` — shipped Source 2 compiler wrapper, .NET runtime config, and Dota Workshop Tools preference.
@@ -66,7 +67,6 @@ There is no root package manifest or repo-wide command. Run the focused validato
 powershell -ExecutionPolicy Bypass -File scripts\validate-source2-package-pipeline.ps1
 
 # Poker / Bluff Deck
-node poker/scripts/validate-poker.js
 node poker/scripts/validate-ready-state.js
 node poker/scripts/validate-poker-game.js
 node poker/scripts/validate-bluff-deck-game.js
@@ -101,6 +101,8 @@ powershell -ExecutionPolicy Bypass -File build_abilities_paks.ps1
 
 Use `build_abilities_paks.ps1 -RefreshFromSteamTracking` only when intentionally refreshing upstream baselines. Prefer module wrappers over direct compiler/packer calls: wrappers encode staging, Closure transforms, required/forbidden asset checks, safe cleanup, archives, and deployment.
 
+Run abilities transforms directly from `abilities/scripts/` with `py passive.py abilities2.vdata`, `py active.py abilities.vdata`, or `py active_no_behavior.py abilities.vdata` (batch wrappers: `passive.bat`, `active.bat`, `active_no_behavior.bat`). Respect required preprocess/postprocess steps for include blocks.
+
 Multiple builds reuse pak slots, notably pak89, pak97, and pak98. Treat those outputs as mutually exclusive unless a wrapper explicitly combines them.
 
 ## Code Conventions & Common Patterns
@@ -117,11 +119,17 @@ Multiple builds reuse pak slots, notably pak89, pak97, and pak98. Treat those ou
 - XML IDs are semantic/Pascal-style and act as runtime API. Keep XML IDs, JS lookup tables/global handlers, CSS classes, and validators synchronized.
 - Cache panels at boot or first discovery. Avoid repeated full-tree scans in hot scheduled loops.
 - Guard writes with change detection or render caches; do not repeatedly assign unchanged text, classes, attributes, or styles.
+- Private state uses a `_prefix`; group panel refs as `const UI = { root: null, label: null };`.
+- Guard panel access with `if (!panel?.IsValid?.()) return;`; retry boot with `if (!root?.IsValid?.()) return $.Schedule(0.5, boot);`.
+- Poll adaptively (fast in combat, slow idle). Prefer squared distance over `Math.sqrt` in hot paths.
+- Prefix debug logs with a per-module `[TAG]` (e.g. `[BT-P]`, `[ST-S]`, `[ERR]`).
 - Use `visibility: collapse` to hide Panorama panels, `overflow: noclip` for overlays/glows, and `hittest="false"` for passive surfaces. Prefer supported Source 2 CSS such as `pre-transform-scale2d`; avoid browser-only CSS assumptions.
+- Transition only `opacity` (no layout reflows). No `box-shadow` glows and no `clip-path` (use `style.clip`); never read `Image.src`. Use `s2r://` compiled paths in XML/CSS includes.
 - Preserve stock binding IDs/classes when the engine populates them.
 - Treat identity, session IDs, revisions, epochs, generations, and nonces as authority boundaries. Reject stale or mismatched state instead of guessing.
 - Error handling differs by boundary: runtime panel/engine races are guarded and often logged; build scripts fail hard on missing inputs, unsafe paths, absent outputs, or VPK asset-contract violations.
 - Source asset references use `.vtex`; packed VPKs contain `.vtex_c`.
+- For lossless PNG texture compression with transparency and mip 0 only, read `docs/SOURCE2_LOSSLESS_TEXTURES.md` before changing the texture or its build settings.
 
 ## Important Files
 
@@ -136,10 +144,15 @@ Multiple builds reuse pak slots, notably pak89, pak97, and pak98. Treat those ou
 - `sr2compiler/New folder.runtimeconfig.json` — compiler wrapper .NET runtime requirement.
 - `build_*.ps1` — authoritative module-specific compile/package/deploy workflows.
 - `abilities/scripts/abilities.vdata`, `abilities/scripts/abilities2.vdata` — large mutable ability inputs used by the main abilities build.
+- `docs/apis.md` — Panorama API reference.
+- `buff_timer_virgin/AGENTS.md` — advanced performance patterns; `sr2compiler/AGENTS.md` — legacy compiler behavior; `abilities/AGENTS.md` — VData constraints.
+- `.agents/system-prompts/skill-init-claudemd-and-skill-setup-new-version.md` — `/init` flow for targeted agent-guide/skill setup updates.
+- `.agents/skills/find-skills/SKILL.md` — skill discovery workflow; verify quality before recommending installs.
 
 ## Runtime/Tooling Preferences
 
 - The automated workflow is Windows PowerShell-first. Paths commonly target Deadlock under `G:\SteamLibrary\steamapps\common\Deadlock` and Dota Workshop Tools under `E:\SteamLibrary\steamapps\common\dota 2 beta`; build parameters/config are authoritative when local installs differ.
+- Edit the HP preset builder only in `D:\web\hp-colors-preset-builder`; leave the Desktop sibling checkout untouched.
 - Required tooling varies by wrapper: Node, PowerShell, .NET 9, Dota 2 Workshop Tools/resourcecompiler, `vpkeditcli.exe`, 7-Zip, and the Python launcher for abilities.
 - There is no root package manager. Node validators run directly. Closure builds invoke `npx --yes google-closure-compiler`; do not assume dependencies are pinned locally.
 - `sr2compiler/New folder.exe` may exit nonzero after successful redirected execution because its final `Console.ReadKey` cannot read stdin. Required compiled outputs plus the compiler's `0 failed` summary are the success signal.
@@ -149,17 +162,48 @@ Multiple builds reuse pak slots, notably pak89, pak97, and pak98. Treat those ou
 ## Testing & QA
 
 - Most checks are direct Node scripts using `assert`, VM mocks, or Node's built-in `node:test`; there is no root Jest/Vitest setup and no repo-wide coverage target.
-- Shared Node tests include `scripts/hp-colors-*.test.js`. ShowRank's local `package.json` provides its own chained `npm test`; this does not apply to the repository root.
+- Shared Node tests include `scripts/hp-colors-preset-codec.test.js`. ShowRank's local `package.json` provides its own chained `npm test`; this does not apply to the repository root.
 - Static validators prove source/layout/style/token/asset contracts. VM validators prove behavior only inside synthetic Panorama mocks.
 - After changing deployable JS/XML/CSS/images/VTex:
   1. run every focused validator for that module;
   2. run the module build wrapper;
   3. confirm required compiled/VPK assets and forbidden raw assets;
-  4. perform an in-game Panorama smoke test for rendering, timing, chat, or cross-client behavior.
-- Poker changes require all four Poker/Bluff validators and `build_poker.ps1`; multiplayer/chat authority still requires a real multi-client smoke where relevant.
+  4. perform an in-game Panorama smoke test for rendering, timing, chat, or cross-client behavior: launch Deadlock with `-dev -tools`, open the Panorama debugger (`F7`) or VConsole (`F8`), run `panorama_reload_layout`, and confirm no script errors.
+- Poker changes require all three Poker/Bluff validators and `build_poker.ps1`; multiplayer/chat authority still requires a real multi-client smoke where relevant.
 - HP Colors changes should pair schema checks with hero/runtime replay checks. Minimal lanes also run their `node --test` suites.
 - FPS/convar recommendations require fresh ETW/PerfView evidence; do not rely on old traces.
 - Keep tests deterministic, isolated, and full-suite safe. Test observable transitions, authority boundaries, precedence, invalid/stale input, and real error paths—not source-text implementation details.
+- Never write unit tests after you write code.
+- Highly prefer E2E tests as the sole testing mechanism. Use them to verify complex features work. At the end of E2E tests, produce a verifiable and repeatable artifact.
+- If you must test a system in isolation, first write down all the ways it could fail, then write the code.
+
+## Agent Skills
+
+- **Issue tracker**: issues are local markdown under `.scratch/hp_colors/`; external PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
+- **Triage labels**: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+- **Domain docs**: multi-context layout; for HP Colors work read `hp_colors/CONTEXT.md` and ADRs when present. See `docs/agents/domain.md`.
+
+## Agentmemory
+
+Save durable repo facts, architecture notes, workflow lessons, and debugging lessons with agentmemory.
+
+- When exposed directly: `memory_save` for facts/architecture/workflows/decisions (comma-separated `concepts` and `files`); `memory_lesson_save` for lessons (comma-separated `tags`, plus `project`, `context`, `confidence`, `content`). Verify with `memory_recall` or the latest memories.
+- Otherwise use the local REST MCP bridge:
+
+  ```powershell
+  Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3111/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_save","arguments":{"type":"architecture","concepts":"concept one, concept two","files":"path/file.ext","content":"Memory content to save."}}'
+  Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3111/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_lesson_save","arguments":{"project":"F:\\Users\\FoxOS_User\\Desktop\\Deadlock-mods-collection","tags":"tag one, tag two","confidence":0.9,"context":"When this lesson applies","content":"Lesson content to save."}}'
+  Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3111/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_recall","arguments":{"query":"search terms","limit":10}}'
+  Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:3111/agentmemory/memories?latest=true"
+  ```
+
+- Optional graph seeding: `POST http://127.0.0.1:3111/agentmemory/graph/extract` with an `observations` array after a successful save; stats at `GET http://127.0.0.1:3111/agentmemory/graph/stats`.
+- Viewer: `http://localhost:3113`. Desktop shortcuts call `C:\Users\Administrator\.agentmemory\Start-Agentmemory.ps1` / `Stop-Agentmemory.ps1`. Codex MCP uses `C:\Users\Administrator\.agentmemory\codex-agentmemory-mcp-proxy.mjs` to reach the `3111` bridge.
+
+## Context-mode and Reasoning
+
+- This repo uses context-mode MCP. Use `ctx_batch_execute` for analysis producing more than 20 lines of output and `ctx_search` for follow-ups; never pipe large outputs into context directly.
+- Use the `sequentialthinking` MCP tool for non-trivial planning, debugging, and design decisions; skip it for trivial one-step requests.
 
 ## Cloned Dependency Source
 

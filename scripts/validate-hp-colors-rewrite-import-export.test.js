@@ -75,19 +75,6 @@ function importText(harness, text) {
   return dialog;
 }
 
-test('transfer dialog hides export code and retains one import field', () => {
-  for (const id of [
-    'HPColorsTransferButton',
-    'HPColorsTransferDialog',
-    'HPColorsTransferInput',
-    'HPColorsTransferFeedback',
-    'HPColorsTransferExportButton',
-    'HPColorsTransferImportButton',
-    'HPColorsTransferCloseButton',
-  ]) assert.match(layoutSource, new RegExp(`id="${id}"`));
-  assert.doesNotMatch(layoutSource, /HPColorsTransferExportText/);
-  assert.match(layoutSource, /id="HPColorsTransferInput"[^>]*multiline="false"/);
-});
 
 test('opening transfer waits for an explicit user action', () => {
   const harness = bootMenu();

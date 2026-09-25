@@ -44,7 +44,6 @@ Card texture source set for the Panorama poker renderer. This folder owns the ra
 
 - Runtime asset mapping: `poker/panorama/scripts/poker_escape_menu.js` functions `getCardImageKey()`, `getCardImageAsset()`, `getCardImageSrc()`, `getCardArtClass()`, `setImageSource()`, and `createCardArt()`.
 - Runtime styling: `poker/panorama/styles/poker_escape_menu.css` selectors `.PokerCard`, `.PokerCard.Small`, `.PokerCardVtexArt`, `.PokerCard.RedSuit .PokerCardVtexArt`, and `.PokerCardArt.Hidden .PokerCardVtexArt`.
-- Static validation: `poker/scripts/validate-poker.js` enforces required PNG names, 512x512 dimensions, PNG color type 6/RGBA, and at least one transparent alpha pixel per card image.
 - Build/pack validation: `build_poker.ps1` requires compiled outputs for all nine card assets and forbids raw card `.png`/`.vtex` assets in `pak01_dir.vpk`.
 - Documentation source of truth: `poker/CONTEXT.md` section `Card Asset Pipeline` mirrors the public contract for expected files and packaging behavior.
 

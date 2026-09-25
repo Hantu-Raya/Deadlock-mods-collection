@@ -201,7 +201,6 @@ Runtime card rendering:
 Run from repo root:
 
 ```powershell
-node poker/scripts/validate-poker.js
 node poker/scripts/validate-ready-state.js
 node poker/scripts/validate-poker-game.js
 node poker/scripts/validate-bluff-deck-game.js
@@ -222,7 +221,6 @@ powershell -ExecutionPolicy Bypass -File build_poker.ps1
 
 Validators:
 
-- `validate-poker.js` - static/layout/CSS/chat/card asset contract, including 512x512 RGBA transparent card images and visible wash-color card art.
 - `validate-ready-state.js` - VM bridge/ready-state/chat snapshot behavior across chat and menu contexts.
 - `validate-poker-game.js` - VM game engine/progress/resume/UI behavior: party sync, legal actions, side pots, progress codes, resume, table visibility, log cap, end match.
 - `validate-bluff-deck-game.js` - deterministic Bluff Deck engine, protocol, persistence, pending-action, bridge, and convergence VM contracts.

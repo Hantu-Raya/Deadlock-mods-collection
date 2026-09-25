@@ -23,7 +23,7 @@ Poker-specific Panorama image namespace. It groups the texture sources used by t
 - Runtime source: `poker/panorama/scripts/poker_escape_menu.js` functions `getCardImageKey()`, `getCardImageAsset()`, `getCardImageSrc()`, and `createCardArt()`.
 - CSS source: `poker/panorama/styles/poker_escape_menu.css` selectors `.PokerCardVtexArt`, `.PokerCard.RedSuit .PokerCardVtexArt`, and `.PokerCardArt.Hidden .PokerCardVtexArt`.
 - Build source: `build_poker.ps1` variables `$cardAssetsSrc`, `$cardAssetsOut`, `$requiredCardAssets`, `$requiredTextureOutputs`, `$requiredPackedAssets`, and `$forbiddenRawCardAssets`.
-- Validator source: `poker/scripts/validate-poker.js` constant `CARD_IMAGE_DIR` and `REQUIRED_CARD_IMAGE_NAMES`.
+- Build validation: `build_poker.ps1` requires and packages the compiled card assets.
 
 ## Invariants
 

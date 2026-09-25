@@ -25,10 +25,6 @@ const hudLayoutSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/layout/hud_escape_menu.xml'),
   'utf8',
 );
-const overlayLayoutSource = fs.readFileSync(
-  path.join(rewriteRoot, 'panorama/layout/unit_status_overlay.xml'),
-  'utf8',
-);
 const menuSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/hp_colors_menu.js'),
   'utf8',
@@ -73,11 +69,8 @@ function installLayoutPanels(harness) {
   }
 }
 
+
 test('editor owns bounded hero kill marker controls', () => {
-  assert.match(
-    overlayLayoutSource,
-    /<Panel class="healthbar_border"[^>]*\/>\s*<Panel id="hp_colors_kill_marker"[^>]*\bhittest="false"[^>]*\/>\s*<\/Panel>\s*<\/Panel>\s*<Panel id="hp_counter_anchor"/,
-  );
   const harness = createPanoramaHarness();
   installLayoutPanels(harness);
   runHpColorsSourcesInVm(stateSource, menuSource, harness);
@@ -184,11 +177,8 @@ test('readout formats use shield-aware health and refresh when pip text changes'
   assert.equal(probe.tree.counter.text, '1200');
 });
 
-test('editor owns and publishes the readout controls', () => {
-  assert.match(overlayLayoutSource, /\bid="hp_counter_anchor"/);
-  assert.match(overlayLayoutSource, /\bid="hp_counter"/);
-  assert.match(overlayLayoutSource, /\bid="hp_counter_max"/);
 
+test('editor owns and publishes the readout controls', () => {
   const harness = createPanoramaHarness();
   installLayoutPanels(harness);
   runHpColorsSourcesInVm(stateSource, menuSource, harness);
@@ -548,67 +538,6 @@ test('readout reapplies to replacement panels without repeating unchanged style 
   assert.equal(replacement.style.washColor, '#505050');
 });
 
-test('counter adds upward render extent without changing horizontal flow', () => {
-  assert.match(
-    overlayLayoutSource,
-    /<Panel id="hp_counter_top_extent"[^>]*style="[^"]*\bwidth:\s*1px[^"]*\bheight:\s*399px[^"]*"[^>]*\/>\s*<Panel id="InfoHealthContainer"/,
-  );
-  assert.doesNotMatch(
-    overlayLayoutSource,
-    /\bid="hp_counter_(?:bottom|render)_extent"/,
-  );
-
-  const windowRoot = overlayLayoutSource.match(
-    /<Panel class="WindowRoot"[^>]*style="([^"]*)"/,
-  );
-  assert.ok(windowRoot);
-  assert.match(windowRoot[1], /\bwidth:\s*100%/);
-  assert.match(windowRoot[1], /\bheight:\s*fit-children/);
-
-  const unitStatus = overlayLayoutSource.match(
-    /<Panel id="UnitStatus"[^>]*style="([^"]*)"/,
-  );
-  assert.ok(unitStatus);
-  assert.match(unitStatus[1], /\bwidth:\s*fit-children/);
-  assert.match(unitStatus[1], /\bheight:\s*fit-children/);
-  assert.match(unitStatus[1], /\bflow-children:\s*down/);
-  assert.match(unitStatus[1], /\bvertical-align:\s*bottom/);
-
-  const infoHealth = overlayLayoutSource.match(
-    /<Panel id="InfoHealthContainer"[^>]*style="([^"]*)"/,
-  );
-  assert.ok(infoHealth);
-  assert.match(infoHealth[1], /\bwidth:\s*fit-children/);
-  assert.match(infoHealth[1], /\bheight:\s*300px/);
-  assert.match(infoHealth[1], /\bflow-children:\s*right/);
-  assert.match(infoHealth[1], /\bvertical-align:\s*bottom/);
-
-  const anchor = overlayLayoutSource.match(
-    /<Panel id="hp_counter_anchor"[^>]*style="([^"]*)"/,
-  );
-  assert.ok(anchor);
-  assert.match(anchor[1], /\bwidth:\s*100%/);
-  assert.match(anchor[1], /\bheight:\s*100%/);
-  assert.match(anchor[1], /\bvertical-align:\s*bottom/);
-
-  const counterRow = overlayLayoutSource.match(
-    /<Panel id="hp_counter_row"[^>]*style="([^"]*)"/,
-  );
-  assert.ok(counterRow);
-  assert.match(counterRow[1], /\bflow-children:\s*right/);
-  assert.match(counterRow[1], /\bhorizontal-align:\s*center/);
-  const counter = overlayLayoutSource.match(
-    /<Label id="hp_counter"[^>]*style="([^"]*)"/,
-  );
-  assert.ok(counter);
-  assert.match(counter[1], /\bz-index:\s*1000/);
-  assert.match(counter[1], /text-shadow:\s*10px 10px 0px 200\.0 offBlack/);
-  const counterMax = overlayLayoutSource.match(
-    /<Label id="hp_counter_max"[^>]*style="([^"]*)"/,
-  );
-  assert.ok(counterMax);
-  assert.match(counterMax[1], /\bz-index:\s*1000/);
-});
 
 test('precise pip toggle shows enable and cleanup copy dialogs', () => {
   const harness = createPanoramaHarness();

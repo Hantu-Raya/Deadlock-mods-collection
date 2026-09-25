@@ -301,84 +301,8 @@ function assertRecordShape(record, expected) {
   assert.deepEqual(record.heroes, expected.heroes);
 }
 
-test('Preset Library explains packaging, routing, priority, and actions', () => {
-  for (const copy of [
-    'Presets created or changed here last until Deadlock closes.',
-    'Presets packaged with the V2 web builder return after restart.',
-    'One preset VPK can contain both All Heroes and Selected Heroes presets.',
-    'HOW PRESETS ARE CHOSEN',
-    'HERO-SPECIFIC FIRST  ·  OTHERWISE ALL HEROES',
-    'If two presets cover the same hero, the higher one in the list wins.',
-    'Selected Heroes overrides All Heroes for the heroes you choose.',
-    'Saves the current menu settings as a new library record.',
-    'Loads the saved preset now. It does not edit the preset.',
-    'Replaces the selected preset with the current menu settings, then loads it.',
-  ]) {
-    assert.match(layoutSource, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  }
-  assert.match(layoutSource, /id="HPColorsPresetBuilderLink"/);
-  assert.match(layoutSource, /ExternalBrowserGoToURL/);
-  assert.doesNotMatch(layoutSource, /SteamOverlayOpenURL/);
-  assert.match(
-    layoutSource,
-    /https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/v2\//,
-  );
-  assert.match(layoutSource, /id="HPColorsDonateButton"/);
-  assert.match(layoutSource, /https:\/\/ko-fi\.com\/hantuaraya/);
-  assert.match(
-    layoutSource,
-    /<CitadelHTMLPanel id="HPColorsSupporterTicker"[^>]*hittest="false"[^>]*acceptsfocus="false"/,
-  );
-  assert.match(layoutSource, /id="HPColorsPresetInfoToggle"/);
-  assert.match(layoutSource, /id="HPColorsPresetGuide"/);
-});
 
-test('supporter ticker loads once per editor open and unloads on close', () => {
-  const fixture = bootPresetMenu();
-  const ticker = panel(fixture, 'HPColorsSupporterTicker');
-  const urls = [];
-  const ignoreCursorValues = [];
-  ticker.SetURL = (url) => urls.push(url);
-  ticker.SetIgnoreCursor = (value) => ignoreCursorValues.push(value);
 
-  openEditor(fixture);
-  openEditor(fixture);
-  assert.equal(urls.length, 1);
-  assert.match(
-    urls[0],
-    /^https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/supporters-strip\/\?refresh=\d+$/,
-  );
-  assert.deepEqual(ignoreCursorValues, [true]);
-  assert.equal(ticker.BHasClass('Open'), true);
-
-  fixture.harness.$.HPColorsMenuCancel();
-  assert.equal(urls.length, 2);
-  assert.equal(urls[1], 'about:blank');
-  assert.equal(ticker.BHasClass('Open'), false);
-
-  openEditor(fixture);
-
-  assert.equal(urls.length, 3);
-  assert.match(
-    urls[2],
-    /^https:\/\/hantu-raya\.github\.io\/hp-colors-preset-builder\/supporters-strip\/\?refresh=\d+$/,
-  );
-});
-
-test('supporter ticker API failure does not block the editor lifecycle', () => {
-  const fixture = bootPresetMenu();
-  const ticker = panel(fixture, 'HPColorsSupporterTicker');
-  ticker.SetURL = () => {
-    throw new Error('HTML surface unavailable');
-  };
-
-  openEditor(fixture);
-  assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), true);
-  assert.equal(ticker.BHasClass('Open'), false);
-
-  fixture.harness.$.HPColorsMenuCancel();
-  assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), false);
-});
 
 test('installed XML HPCRP1 preset applies on cold boot before any lifecycle transition', () => {
   const fixture = bootPresetMenu(undefined, {

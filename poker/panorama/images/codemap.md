@@ -22,7 +22,6 @@ Static Panorama image source root for the Poker ESC-menu module. This directory 
 - Runtime consumer: `poker/panorama/scripts/poker_escape_menu.js` via `Image` panels and `s2r://panorama/images/poker/cards/...` paths.
 - Style consumer: `poker/panorama/styles/poker_escape_menu.css` tints white alpha-mask card art through `wash-color`.
 - Build/deploy consumer: `build_poker.ps1` compiles card VTEX textures and verifies required packed assets.
-- Static validator: `poker/scripts/validate-poker.js` checks required card PNGs, dimensions, RGBA color type, and transparent alpha.
 
 ## Invariants
 

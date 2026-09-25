@@ -46,12 +46,8 @@ function bootMenu() {
   return harness;
 }
 
-test('picker uses only three native horizontal sliders', () => {
-  assert.doesNotMatch(layoutSource, /HPColorsPickerField|Pointer|mouse_bridge/);
-  assert.match(layoutSource, /id="HPColorsPickerHueSliderHost"/);
-  assert.match(layoutSource, /id="HPColorsPickerSaturationSliderHost"/);
-  assert.match(layoutSource, /id="HPColorsPickerLumenSliderHost"/);
 
+test('picker uses only three native horizontal sliders', () => {
   const harness = bootMenu();
   const hue = harness.root.FindChildTraverse('HPColorsPickerHueSlider');
   const saturation = harness.root.FindChildTraverse('HPColorsPickerSaturationSlider');

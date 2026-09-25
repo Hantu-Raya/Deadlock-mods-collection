@@ -35,7 +35,7 @@ Source Panorama surface for the Poker ESC-menu mod. This subtree owns the runtim
 
 - Parent module map: [../codemap.md](../codemap.md).
 - Runtime source maps: [scripts/codemap.md](scripts/codemap.md), [layout/codemap.md](layout/codemap.md), [styles/codemap.md](styles/codemap.md), [images/codemap.md](images/codemap.md).
-- Validators: `poker/scripts/validate-poker.js`, `poker/scripts/validate-ready-state.js`, and `poker/scripts/validate-poker-game.js` load these Panorama sources into static/VM checks.
+- Validators: `poker/scripts/validate-ready-state.js` and `poker/scripts/validate-poker-game.js` execute VM behavior checks over these Panorama sources.
 - Build wrapper: `../build_poker.ps1` compiles this subtree through `sr2compiler/New folder.exe`, Dota `resourcecompiler.exe`, and `vpkeditcli.exe` via the repo package pipeline.
 
 ## Invariants
