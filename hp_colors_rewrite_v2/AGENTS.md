@@ -12,9 +12,10 @@ Package ownership: the Rewrite v2 runtime is pak02 and the generic preset builde
 
 - A hidden `CitadelHTMLPanel#HPColorsV2Store` opens `file://`; its localStorage lives in Steam's CEF profile. Panorama drives the page with `SetURL("javascript:...")`; the page answers through `HTMLTitle` titles prefixed `HPV2S1:`.
 - Keys are data, not configuration: `hantu.hpcolors.v2/state` and `hantu.hpcolors.v2/state.prev`. Never read, write, or delete any other key on the shared origin (Third Eye and QOLLOCK live there).
-- Records are `HPV2S1.<fnv1a32>.<base64url envelope>`; classify absent/valid/corrupt/unsupported before normalizing. A corrupt current record falls back to `prev` and is never rotated over it.
+- Records are `HPV2S1.<fnv1a32>.<base64url envelope>`; envelope schema 2 embeds the body object (schema 1 string bodies still load). Classify absent/valid/corrupt/unsupported, including body shape, before normalizing. A corrupt or absent current falls back to `prev`; a newer-schema current never does. A commit rotates the current record into `prev` only when its checksum matches the record this bridge validated or wrote.
+- Accept page readiness only from a `file:` hello; the panel's about:blank placeholder answers too and is replaced a moment later.
 - Writes stay closed until a read in this process proves what the store holds. Failed, corrupt, or future-schema reads block saving for the process instead of overwriting with defaults.
-- The saved body is `sessionRaw` without `effectiveRevision`. Saves debounce 1.5 s, flush on editor close, skip unchanged bodies, and keep one active plus one replaceable pending write.
+- The saved body is `sessionRaw` without `effectiveRevision` and with only non-default values. Saves throttle at 1.5 s, flush on editor close, skip unchanged bodies, retry failures with backoff (status SAVE RETRYING, then SAVE UNAVAILABLE), and keep one active plus one replaceable pending write. After Forget, only a deliberate edit (not `AUTOMATIC_INTENTS`) creates a save again.
 - Root attrs `hp_colors_v2_store_status`, `hp_colors_v2_store_ack`, and `hp_colors_v2_hydration` carry process evidence across ESC layout reloads. Renderers keep bars stock while hydration is `pending`.
 
 ## Source ownership

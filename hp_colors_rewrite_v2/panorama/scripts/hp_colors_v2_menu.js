@@ -21,6 +21,17 @@
   var LEGACY_PRESET_STORE_ID = "HPColorsRewritePresetStore";
   var PERSIST_DEBOUNCE_SEC = 1.5;
   var PERSIST_FAILURE_LIMIT = 3;
+  var PERSIST_RETRY_SEC = 3;
+  // State changes the menu makes by itself. After Forget they must not
+  // recreate the save; only a deliberate edit does.
+  var AUTOMATIC_INTENTS = {
+    session_open: true,
+    session_close: true,
+    editor_close: true,
+    hero_observe: true,
+    lifecycle_observe: true,
+    ability_observe: true,
+  };
   var FORGET_CONFIRM_SEC = 4;
   var PRECISE_PIPS_ENABLE_TEXT =
     '"citadel_unit_status_health_per_minor_pip" "10"\n' +
@@ -935,14 +946,14 @@
 
 
 
-  function executeStateEffects(effects) {
+  function executeStateEffects(effects, deliberate) {
     if (!Array.isArray(effects)) return;
     for (var index = 0; index < effects.length; index++) {
       var effect = effects[index];
       if (!effect || !effect.type) continue;
       if (effect.type === "session_replace") {
         writeMenuState(effect.raw);
-        schedulePersist(effect.raw);
+        schedulePersist(effect.raw, deliberate);
       } else if (effect.type === "effective_publish") {
         var payload = serializeChange(effect.revision, effect.values);
         writeRootSnapshot(payload);
@@ -984,7 +995,7 @@
     lastClipboardCopied = null;
     var result = stateInstance.send(intent);
     state.view = result && result.view ? result.view : stateInstance.read();
-    if (result) executeStateEffects(result.effects);
+    if (result) executeStateEffects(result.effects, !AUTOMATIC_INTENTS[intent.type]);
     return result;
   }
 
@@ -3181,21 +3192,6 @@
     return JSON.stringify(data);
   }
 
-  function isRestorableBody(body) {
-    try {
-      var data = JSON.parse(body);
-      return !!(
-        data &&
-        typeof data === "object" &&
-        data.version === 1 &&
-        data.values &&
-        typeof data.values === "object"
-      );
-    } catch {
-      return false;
-    }
-  }
-
   function ensureStorage() {
     if (storage) return storage;
     var legacyPanel = find(LEGACY_PRESET_STORE_ID);
@@ -3256,13 +3252,12 @@
         return;
       }
       setGate("open");
-      schedulePersist(readRootAttribute(MENU_STATE_ATTR));
+      schedulePersist(readRootAttribute(MENU_STATE_ATTR), false);
     });
   }
 
   function applyLoadOutcome(outcome) {
     var kind = outcome ? outcome.kind : "error";
-    if (kind === "valid" && !isRestorableBody(outcome.body)) kind = "corrupt";
     if (kind === "valid") {
       markSaved(storeChecksum(outcome.body));
       setGate("open");
@@ -3297,13 +3292,21 @@
 
   // Called for every session change, so it only records the latest raw
   // session; serialization and comparison wait for the debounced flush.
-  function schedulePersist(raw) {
+  // After Forget, only a deliberate edit may create a save again.
+  function schedulePersist(raw, deliberate) {
     if (!raw) return;
+    if (persist.forgotten) {
+      if (!deliberate) return;
+      persist.forgotten = false;
+    }
     persist.pendingRaw = raw;
-    if (persist.gate !== "open") return;
-    if (persist.timer === null) {
+    armPersist(PERSIST_DEBOUNCE_SEC);
+  }
+
+  function armPersist(delay) {
+    if (persist.gate === "open" && persist.timer === null) {
       try {
-        persist.timer = $.Schedule(PERSIST_DEBOUNCE_SEC, function () {
+        persist.timer = $.Schedule(delay, function () {
           persist.timer = null;
           flushPersist();
         });
@@ -3325,6 +3328,8 @@
     var body = durableBody(raw);
     var hash = body ? storeChecksum(body) : persist.ackHash;
     if (hash === persist.ackHash) {
+      persist.failures = 0;
+      persist.lastError = "";
       renderStoreStatus();
       return;
     }
@@ -3336,17 +3341,19 @@
       if (result && result.ok) {
         persist.failures = 0;
         persist.lastError = "";
-        persist.forgotten = false;
         markSaved(hash, "ok");
-      } else {
-        persist.failures += 1;
-        persist.lastError = result ? String(result.error || "") : "";
-        if (!persist.pendingRaw) persist.pendingRaw = raw;
-        storeLog("save failed: " + persist.lastError);
-        renderStoreStatus();
+        if (persist.pendingRaw) armPersist(PERSIST_DEBOUNCE_SEC);
+        else renderStoreStatus();
         return;
       }
-      if (persist.pendingRaw) schedulePersist(persist.pendingRaw);
+      // Keep the newest unsaved session and retry with backoff; an oversized
+      // save waits for a change that makes it smaller.
+      persist.failures += 1;
+      persist.lastError = result ? String(result.error || "") : "";
+      if (!persist.pendingRaw) persist.pendingRaw = raw;
+      storeLog("save failed (" + persist.failures + "): " + persist.lastError);
+      if (persist.lastError !== "too_large" && persist.failures < PERSIST_FAILURE_LIMIT)
+        armPersist(PERSIST_RETRY_SEC * persist.failures);
       else renderStoreStatus();
     });
   }
@@ -3406,6 +3413,7 @@
     if (persist.gate !== "open") return "SAVE UNAVAILABLE";
     if (persist.lastError === "too_large") return "SAVE TOO LARGE";
     if (persist.failures >= PERSIST_FAILURE_LIMIT) return "SAVE UNAVAILABLE";
+    if (persist.failures > 0) return "SAVE RETRYING";
     if (persist.inFlight || persist.timer !== null || persist.forgetting) return "SAVING";
     if (persist.forgotten) return "SAVE CLEARED";
     return "SAVED";
@@ -3418,6 +3426,7 @@
       "StoreWarning",
       text === "OLD PRESET VPK" ||
         text === "SAVE UNAVAILABLE" ||
+        text === "SAVE RETRYING" ||
         text === "SAVE TOO LARGE",
     );
     setEnabled(ui.storeForgetButton, !!storage && persist.gate === "open");

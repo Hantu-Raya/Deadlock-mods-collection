@@ -126,9 +126,23 @@
     return RECORD_TAG + "." + checksum(payload) + "." + payload;
   }
 
+  // A restorable body is a v1 session object with a values map.
+  function parseBody(text) {
+    try {
+      var data = JSON.parse(text);
+      return data && typeof data === "object" && data.version === 1 &&
+        data.values && typeof data.values === "object"
+        ? text
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
   // Classifies before anything trusts the content: absent, corrupt (framing,
-  // checksum, encoding, or envelope damage), unsupported (a newer schema
-  // written by a later build), or valid with the body as JSON text.
+  // checksum, encoding, envelope, or body damage), unsupported (a newer
+  // schema written by a later build), or valid with the body as JSON text
+  // and the record's checksum as `sum`.
   function classifyRecord(record) {
     if (record === null || record === undefined) return { kind: "absent" };
     if (typeof record !== "string") return { kind: "corrupt" };
@@ -148,16 +162,17 @@
     }
     if (!envelope || typeof envelope !== "object" || envelope.m !== ENVELOPE_MAGIC)
       return { kind: "corrupt" };
-    var body = null;
-    if (envelope.s === 1 && typeof envelope.b === "string" && envelope.b) body = envelope.b;
-    else if (envelope.s === 2 && envelope.b && typeof envelope.b === "object")
-      body = JSON.stringify(envelope.b);
-    else if (Number.isInteger(envelope.s) && envelope.s > ENVELOPE_SCHEMA)
+    if (Number.isInteger(envelope.s) && envelope.s > ENVELOPE_SCHEMA)
       return { kind: "unsupported", schema: envelope.s };
+    var body = null;
+    if (envelope.s === 1 && typeof envelope.b === "string") body = parseBody(envelope.b);
+    else if (envelope.s === 2 && envelope.b && typeof envelope.b === "object")
+      body = parseBody(JSON.stringify(envelope.b));
     if (!body) return { kind: "corrupt" };
     return {
       kind: "valid",
       body: body,
+      sum: parts[1],
       savedAt: Number.isFinite(envelope.t) ? envelope.t : 0,
     };
   }
@@ -165,16 +180,18 @@
   // -- Page script --
   //
   // Installed once per document on one namespaced object; every call is
-  // idempotent so Panorama can resend an exchange whose reply was lost. Write
-  // chunks are staged by index and a committed request id answers "done"
-  // again. A commit rotates a valid current record to the previous key, then
-  // stores the new record; a corrupt current record is never rotated. The
-  // hello carries the page address so Panorama can reject the placeholder
-  // document the panel shows before `file://` commits.
+  // idempotent so Panorama can resend an exchange whose reply was lost. Only
+  // one request is ever in flight, so the page keeps one staging buffer, one
+  // read snapshot, and the last committed write id (a resent final chunk
+  // answers "done" again). A commit moves the current record to the previous
+  // key only when its checksum matches `e`, the record Panorama fully
+  // validated; otherwise the existing backup is kept. The hello carries the
+  // page address so Panorama can reject the placeholder document the panel
+  // shows before `file://` commits.
   function pageScript() {
     return (
-      "(function(w){if(w.__hpv2s&&w.__hpv2s.v===2){w.__hpv2s.hello();return;}" +
-      "var s={v:2,q:0,st:{},dn:{}};" +
+      "(function(w){if(w.__hpv2s&&w.__hpv2s.v===3){w.__hpv2s.hello();return;}" +
+      "var s={v:3,q:0};" +
       "function send(m){m.q=++s.q;try{w.document.title='" +
       TITLE_PREFIX +
       "'+JSON.stringify(m);}catch(e){}}" +
@@ -183,24 +200,25 @@
       RECORD_TAG +
       "'&&sum(p[2])===p[1];}" +
       "s.hello=function(){send({i:'ready',o:'ready',ok:true,h:''+w.location.href});};" +
-      "s.w=function(id,k,pk,p,n,c){try{" +
-      "if(s.dn[id]){send({i:id,o:'w',ok:true,p:p,n:n,d:1});return;}" +
-      "var b=s.st[id]||(s.st[id]={c:0,a:[]});" +
-      "if(b.a[p]===undefined){b.a[p]=c;b.c++;}" +
+      "s.w=function(id,k,pk,p,n,c,e){try{" +
+      "if(s.dn===id){send({i:id,o:'w',ok:true,p:p,n:n,d:1});return;}" +
+      "if(s.si!==id){s.si=id;s.st={c:0,a:[]};}" +
+      "var b=s.st;if(b.a[p]===undefined){b.a[p]=c;b.c++;}" +
       "if(b.c<n){send({i:id,o:'w',ok:true,p:p,n:n});return;}" +
-      "var v=b.a.join('');delete s.st[id];" +
+      "var v=b.a.join('');s.si=null;s.st=null;" +
       "if(!ok(v)){send({i:id,o:'w',ok:false,e:'checksum'});return;}" +
       "var L=w.localStorage,cur=L.getItem(k);" +
-      "if(cur!==null&&cur!==v&&ok(cur))L.setItem(pk,cur);" +
-      "L.setItem(k,v);s.dn[id]=1;send({i:id,o:'w',ok:true,p:p,n:n,d:1});" +
-      "}catch(e){delete s.st[id];send({i:id,o:'w',ok:false,e:''+e});}};" +
-      "s.r=function(id,k,p,z){try{var v=w.localStorage.getItem(k);" +
+      "if(e&&cur!==null&&cur!==v&&cur.split('.')[1]===e&&ok(cur))L.setItem(pk,cur);" +
+      "L.setItem(k,v);s.dn=id;send({i:id,o:'w',ok:true,p:p,n:n,d:1});" +
+      "}catch(x){s.si=null;s.st=null;send({i:id,o:'w',ok:false,e:''+x});}};" +
+      "s.r=function(id,k,p,z){try{" +
+      "if(s.ri!==id){s.ri=id;s.rv=w.localStorage.getItem(k);}var v=s.rv;" +
       "if(v===null){send({i:id,o:'r',ok:true,x:0,p:p});return;}" +
       "var n=Math.max(1,Math.ceil(v.length/z));" +
       "send({i:id,o:'r',ok:true,x:1,p:p,n:n,v:v.slice(p*z,(p+1)*z)});" +
-      "}catch(e){send({i:id,o:'r',ok:false,e:''+e});}};" +
+      "}catch(x){s.ri=null;send({i:id,o:'r',ok:false,e:''+x});}};" +
       "s.d=function(id,ks){try{for(var i=0;i<ks.length;i++)w.localStorage.removeItem(ks[i]);" +
-      "send({i:id,o:'d',ok:true});}catch(e){send({i:id,o:'d',ok:false,e:''+e});}};" +
+      "send({i:id,o:'d',ok:true});}catch(x){send({i:id,o:'d',ok:false,e:''+x});}};" +
       "w.__hpv2s=s;s.hello();})(window);void(0);"
     );
   }
@@ -251,6 +269,9 @@
     var active = null;
     var queue = [];
     var diagnostics = 0;
+    // Checksum of the current record this bridge fully validated or wrote;
+    // only that record may be rotated into the backup key.
+    var trustedSum = "";
 
     function clearTimer(handle) {
       if (handle !== null) cancelScheduled(handle);
@@ -306,7 +327,7 @@
           request.part + "," + request.total + "," +
           JSON.stringify(
             request.record.slice(request.part * CHUNK_CHARS, (request.part + 1) * CHUNK_CHARS),
-          ) + ")";
+          ) + "," + JSON.stringify(trustedSum) + ")";
       return "window.__hpv2s&&window.__hpv2s.d(" + args + "," +
         JSON.stringify([KEY_PREVIOUS, KEY_CURRENT]) + ")";
     }
@@ -396,7 +417,11 @@
     function onWrite(request, message) {
       if (message.p !== request.part) return;
       var last = request.part + 1 === request.total;
-      if (message.d === 1) return last ? settle(request, { ok: true }) : fail(request, "malformed");
+      if (message.d === 1) {
+        if (!last) return fail(request, "malformed");
+        trustedSum = request.record.split(".")[1];
+        return settle(request, { ok: true });
+      }
       if (last) return fail(request, "malformed");
       advance(request);
     }
@@ -509,6 +534,9 @@
         markUnavailable("navigate");
         return false;
       }
+      // Injection normally follows the page's first title; if that title is
+      // lost, the timer injects anyway (a placeholder's hello is rejected).
+      reinjectTimer = later(REINJECT_SEC, inject);
       return true;
     }
 
@@ -518,12 +546,15 @@
       enqueue({ op: "read", key: key, chunks: [], total: 0, callback: callback });
     }
 
-    // Reads current, then previous only when current is not usable.
+    // Reads current, then previous only when current is corrupt or absent. A
+    // newer-schema current record stops here: falling back would let this
+    // build overwrite data it cannot read.
     function load(callback) {
       readKey(KEY_CURRENT, function (current) {
         if (!current.ok) return callback({ kind: "error", error: current.error });
         var currentRecord = classifyRecord(current.record);
-        if (currentRecord.kind === "valid") {
+        trustedSum = currentRecord.kind === "valid" ? currentRecord.sum : "";
+        if (currentRecord.kind === "valid" || currentRecord.kind === "unsupported") {
           currentRecord.source = "current";
           return callback(currentRecord);
         }
@@ -535,11 +566,11 @@
             previousRecord.recoveredFrom = currentRecord.kind;
             return callback(previousRecord);
           }
-          if (currentRecord.kind === "absent" && previousRecord.kind === "absent")
-            return callback({ kind: "absent" });
-          if (currentRecord.kind === "unsupported" || previousRecord.kind === "unsupported")
-            return callback({ kind: "unsupported" });
-          callback({ kind: "corrupt" });
+          callback({
+            kind: currentRecord.kind === "absent" && previousRecord.kind === "absent"
+              ? "absent"
+              : previousRecord.kind === "unsupported" ? "unsupported" : "corrupt",
+          });
         });
       });
     }
@@ -557,7 +588,13 @@
 
     function forget(callback) {
       dropQueuedWrites();
-      enqueue({ op: "delete", callback: callback });
+      enqueue({
+        op: "delete",
+        callback: function (result) {
+          if (result.ok) trustedSum = "";
+          if (isCallable(callback)) callback(result);
+        },
+      });
     }
 
     function dispose() {
