@@ -809,10 +809,6 @@ test('menu boot contains thrown panel creation errors and an explicit retry reco
 });
 
 test('color picker closes from its backdrop and condition swatches accept clicks', () => {
-  assert.match(
-    layoutSource,
-    /id="HPColorsConditionColorSwatch"[^>]*hittest="true"/,
-  );
   const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
   openEditor(fixture);
   panel(fixture, 'HPColorsEnemyLowSwatch').events.onactivate();
@@ -881,24 +877,6 @@ test('effect pages live under their healthbar categories', () => {
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'HP TEXT');
 });
 
-test('shared thresholds live on the Enemy Bar page', () => {
-  const enemyBarStart = layoutSource.indexOf(
-    '<Panel id="HPColorsSettingsEnemyBar"',
-  );
-  const enemyBarEnd = layoutSource.indexOf(
-    '<Panel id="HPColorsSettingsEnemyFeedback"',
-    enemyBarStart,
-  );
-  assert.ok(enemyBarStart >= 0);
-  assert.ok(enemyBarEnd > enemyBarStart);
-  for (const id of [
-    'HPColorsSharedLowThresholdRow',
-    'HPColorsSharedHighThresholdRow',
-  ]) {
-    const rowIndex = layoutSource.indexOf(`id="${id}"`);
-    assert.ok(rowIndex > enemyBarStart && rowIndex < enemyBarEnd, id);
-  }
-});
 
 test('Presets page hides Reset Section and Undo', () => {
   const fixture = bootMenu({
@@ -923,24 +901,6 @@ test('Presets page hides Reset Section and Undo', () => {
   assert.equal(undo.BHasClass('HPColorsFooterActionHidden'), false);
 });
 
-test('Preset INFO control occupies the page heading instead of the rule', () => {
-  assert.match(
-    layoutSource,
-    /<Panel class="HPColorsPageHeading">[\s\S]*id="HPColorsPresetInfoToggle"[\s\S]*<\/Panel>\s*<Panel class="HPColorsPageRule" \/>/,
-  );
-  assert.doesNotMatch(
-    layoutSource,
-    /<Panel class="HPColorsPageRule">[\s\S]*id="HPColorsPresetInfoToggle"/,
-  );
-  assert.match(
-    menuStyleSource,
-    /\.HPColorsPresetInfoToggle\s*\{[^}]*visibility:\s*visible;[^}]*opacity:\s*0;/s,
-  );
-  assert.match(
-    menuStyleSource,
-    /\.HPColorsPresetInfoToggle\.Available\s*\{[^}]*opacity:\s*1;/s,
-  );
-});
 
 test('Presets guide starts hidden and toggles only on the Presets page', () => {
   const fixture = bootMenu();

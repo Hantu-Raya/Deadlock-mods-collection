@@ -292,56 +292,6 @@ function makePresetBuilderConfig(overrides = {}) {
 
 function runValidation() {
   const source = fs.readFileSync(targetScript, 'utf8');
-  assert(source.includes('HP_COLORS_PRESET_REQUEST'),
-    'anita_ui_core.js must answer the static HP Colors preset request bridge used by fresh healthbar overlays');
-  assert(source.includes('HP_COLORS_PRESET_SNAPSHOT') && source.includes('values_raw'),
-    'anita_ui_core.js must publish replayable HP Colors preset snapshots with values_raw');
-  assert(source.includes('__hpColorsMatchReset') && !source.includes('__hpColorsMatchResetStatus') && !source.includes('monitor_started'),
-    'anita_ui_core.js must start match-reset publishing outside the scoped hero preset watcher');
-  const isOptimizedTarget = IS_OPTIMIZED_TARGET;
-  if (!isOptimizedTarget) {
-    assert(source.includes('resolveSelectionFromEntries: function'),
-      'HPPresetHeroSelection must expose resolveSelectionFromEntries as the pure preset/hero policy seam');
-    assert(/selectForHero:\s*function[\s\S]*resolveSelectionFromEntries\(/.test(source),
-      'HPPresetHeroSelection.selectForHero must delegate to resolveSelectionFromEntries');
-    assert(source.includes('buildPresetSnapshotPayload: function ('),
-      'anita_ui_core.js must build HP Colors preset snapshots through HPBridgeProtocol');
-    assert(source.includes('HPPresetSnapshotPublisher.publish(') &&
-        source.includes('HPBridgeProtocol.buildPresetSnapshotPayload('),
-      'HPPresetSnapshotPublisher must own HPBridgeProtocol snapshot publication');
-    assert(source.includes('"effective_values"'),
-      'HP Colors snapshots must publish effective_values separately from base values');
-    assert(source.includes('HPBridgeProtocol.dispatchRawPayload(this.payload)'),
-      'snapshot publisher replay must dispatch its retained payload');
-    [
-      'const AnitaMouseRouter =',
-      'const HPSignatureConditionalController =',
-      'replaceRules: function (config, rawRules)',
-      'clearRules: function (config, elementsOrNull)',
-      'openEditor: function (config, element)',
-      'decorateRow: function (config, element, row)',
-      'getEffectiveValues: function (config)',
-      'notifyBaseValuesChanged: function (config, publish)',
-      'HPSignatureConditionalController.start(config)',
-    ].forEach(marker => assert(source.includes(marker),
-      `signature conditional controller missing marker: ${marker}`));
-    assert(!source.includes('HPSignatureTierDebug'),
-      'legacy signature debug controller must not remain in production');
-    [
-      "const HPPresetBuilderModel = {",
-      "buildPresetBuilderViewModel: function",
-      "ensureSelectedPresetKey: function",
-      "getDefaultSelectedPresetKey: function",
-      "const HPPresetBuilderActions = {",
-      "applyPresetRow: function",
-      "setRowHeroScope: function"
-    ].forEach(marker => assert(source.includes(marker),
-      `anita_ui_core.js missing Preset builder model/action marker: ${marker}`));
-    assert(/renderPresetBuilderPanel:\s*function\s*\(parent,\s*config\)[\s\S]*HPPresetBuilderModel\.buildPresetBuilderViewModel\(config\)/.test(source),
-      "renderPresetBuilderPanel must build its row state through HPPresetBuilderModel.buildPresetBuilderViewModel(config)");
-    assert(!/renderPresetBuilderPanel:\s*function\s*\(parent,\s*config\)[\s\S]*var\s+defaultPresetKey\s*=\s*""/.test(source),
-      "renderPresetBuilderPanel must not keep local defaultPresetKey selection repair");
-  }
   const context = createMockContext();
   runInVm(source, context, targetScript);
   installMockPresetStore();

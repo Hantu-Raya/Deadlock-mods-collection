@@ -12,7 +12,7 @@
 - `panorama/scripts/poker_chat_debug.js` — chat-row polling bridge that extracts sender/channel/content and dispatches `ClientUI_FireOutput` JSON.
 - `panorama/styles/poker_escape_menu.css` — Anita-style visual system and class-driven affordances.
 - `panorama/images/poker/cards/` — source PNG/VTEX card masks compiled into packed `.vtex_c` textures.
-- `scripts/validate-poker.js`, `scripts/validate-ready-state.js`, `scripts/validate-poker-game.js`, `scripts/validate-bluff-deck-game.js` — focused static, bridge, Poker compatibility, and Bluff Deck behavioral validators.
+- `scripts/validate-ready-state.js`, `scripts/validate-poker-game.js`, and `scripts/validate-bluff-deck-game.js` — focused bridge, Poker compatibility, and Bluff Deck behavioral validators.
 - `../build_poker.ps1` — compile, texture-build, pack, verify, and deploy wrapper for `pak01_dir.vpk`.
 
 ## Directory Map
@@ -25,8 +25,8 @@
 | `panorama/styles/` | Visual system and Source 2 Panorama CSS classes for lobby/table/cards/players/actions/log affordances. | [panorama/styles/codemap.md](panorama/styles/codemap.md) |
 | `panorama/images/` | Source image namespace for Poker card textures. | [panorama/images/codemap.md](panorama/images/codemap.md) |
 | `panorama/images/poker/` | Poker-specific image namespace and card asset grouping. | [panorama/images/poker/codemap.md](panorama/images/poker/codemap.md) |
-| `panorama/images/poker/cards/` | Required 512x512 RGBA PNG masks plus paired `.vtex` descriptors for rank/suit card art. | [panorama/images/poker/cards/codemap.md](panorama/images/poker/cards/codemap.md) |
-| `scripts/` | Validator harnesses for Poker static contracts, ready/chat bridge behavior, and VM game/progress/resume behavior. | No codemap generated; validators are intentionally excluded from cartography source tracking. |
+| `panorama/images/poker/cards/` | Required rank/suit card assets compiled into packed `.vtex_c` textures. | [panorama/images/poker/cards/codemap.md](panorama/images/poker/cards/codemap.md) |
+| `scripts/` | Validator harnesses for ready/chat bridge behavior and VM game/progress/resume behavior. | No codemap generated; validators are intentionally excluded from cartography source tracking. |
 
 ## Architecture Summary
 
@@ -82,7 +82,6 @@ Card art is rendered from logical `s2r://panorama/images/poker/cards/*.vtex` URL
 Run focused validators from the repository root:
 
 ```powershell
-node poker/scripts/validate-poker.js
 node poker/scripts/validate-ready-state.js
 node poker/scripts/validate-poker-game.js
 node poker/scripts/validate-bluff-deck-game.js
@@ -91,7 +90,6 @@ powershell -ExecutionPolicy Bypass -File build_poker.ps1
 
 Validator scope:
 
-- `validate-poker.js` — static XML/CSS/chat/card and runtime-topology contract.
 - `validate-ready-state.js` — chat bridge, ready-state snapshots, delayed unknown-sender behavior, and Bluff bridge queue/poll contracts.
 - `validate-poker-game.js` — Poker engine/progress/resume/UI behavior plus shared Poker/Bluff compatibility boundaries.
 - `validate-bluff-deck-game.js` — deterministic Bluff Deck rules, protocol, committed hydration, actions, bridge timing, and convergence.

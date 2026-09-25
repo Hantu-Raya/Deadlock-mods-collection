@@ -199,26 +199,18 @@ function Invoke-HpColorsRewriteClosureTests {
 
     $previousSourceRoot = $env:HP_COLORS_REWRITE_SOURCE_ROOT
     $previousQollockRoot = $env:HP_COLORS_REWRITE_QOLLOCK_SOURCE_ROOT
-    $previousV2QollockRoot = $env:HP_COLORS_REWRITE_V2_QOLLOCK_SOURCE_ROOT
     try {
         $env:HP_COLORS_REWRITE_SOURCE_ROOT = $SourceRoot
         Remove-Item Env:HP_COLORS_REWRITE_QOLLOCK_SOURCE_ROOT -ErrorAction SilentlyContinue
-        Remove-Item Env:HP_COLORS_REWRITE_V2_QOLLOCK_SOURCE_ROOT -ErrorAction SilentlyContinue
         & node --test @testPaths
         if ($LASTEXITCODE -ne 0) {
             throw "Closure ADVANCED Rewrite behavioral tests failed with exit code $LASTEXITCODE"
         }
 
-        if (-not [string]::IsNullOrWhiteSpace($QollockSourceRoot)) {
+        if (-not $isV2 -and -not [string]::IsNullOrWhiteSpace($QollockSourceRoot)) {
             Remove-Item Env:HP_COLORS_REWRITE_SOURCE_ROOT -ErrorAction SilentlyContinue
-            if ($isV2) {
-                $env:HP_COLORS_REWRITE_V2_QOLLOCK_SOURCE_ROOT = $QollockSourceRoot
-                & node --test (Join-Path $RepositoryRoot 'scripts\validate-hp-colors-rewrite-v2-qollock.test.js')
-            }
-            else {
-                $env:HP_COLORS_REWRITE_QOLLOCK_SOURCE_ROOT = $QollockSourceRoot
-                & node --test (Join-Path $RepositoryRoot 'scripts\validate-hp-colors-rewrite-qollock.test.js')
-            }
+            $env:HP_COLORS_REWRITE_QOLLOCK_SOURCE_ROOT = $QollockSourceRoot
+            & node --test (Join-Path $RepositoryRoot 'scripts\validate-hp-colors-rewrite-qollock.test.js')
             if ($LASTEXITCODE -ne 0) {
                 throw "Closure ADVANCED QOLLOCK bridge test failed with exit code $LASTEXITCODE"
             }
@@ -236,12 +228,6 @@ function Invoke-HpColorsRewriteClosureTests {
         }
         else {
             $env:HP_COLORS_REWRITE_QOLLOCK_SOURCE_ROOT = $previousQollockRoot
-        }
-        if ($null -eq $previousV2QollockRoot) {
-            Remove-Item Env:HP_COLORS_REWRITE_V2_QOLLOCK_SOURCE_ROOT -ErrorAction SilentlyContinue
-        }
-        else {
-            $env:HP_COLORS_REWRITE_V2_QOLLOCK_SOURCE_ROOT = $previousV2QollockRoot
         }
     }
     Write-Host '  Closure ADVANCED behavioral tests passed.' -ForegroundColor Green

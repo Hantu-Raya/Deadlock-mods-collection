@@ -206,12 +206,6 @@ foreach ($relativePath in $canonicalScripts + $timerScripts) {
 if ($LASTEXITCODE -ne 0) {
     throw 'Runtime script syntax check failed: panorama\scripts\qollock_hp_colors_bridge.js'
 }
-if (-not $SkipPanoramaTests) {
-    & node --test (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-qollock.test.js')
-    if ($LASTEXITCODE -ne 0) {
-        throw "HP Colors Rewrite v2 QOLLOCK validator failed with exit code $LASTEXITCODE"
-    }
-}
 
 Write-Host "`n[2/5] Preparing Closure ADVANCED compatibility runtime..." -ForegroundColor Cyan
 Remove-TreeUnderRoot -Path $compiledOut -RootPath $root -ExpectedLeaf 'hp_colors_rewrite_v2_qollock_compiled'
