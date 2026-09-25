@@ -39,7 +39,13 @@
   var EXCHANGE_TIMEOUT_SEC = 3;
   var EXCHANGE_RETRIES = 3;
   var TRANSFER_DEADLINE_SEC = 90;
-  var DIAGNOSTIC_LOG_LIMIT = 6;
+  // A failed load (Steam shows http://error/) is retried this many times.
+  var MAX_NAVIGATIONS = 4;
+  var NAVIGATE_RETRY_SEC = 1;
+  // Without any HTMLURLChanged event by then, fall back to title-driven
+  // injection so a client without that event still works.
+  var URL_EVENT_GRACE_SEC = 6;
+  var DIAGNOSTIC_LOG_LIMIT = 8;
 
   var BASE64_ALPHABET =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
@@ -223,8 +229,9 @@
     );
   }
 
-  // Only the committed file:// document has storage; the placeholder the
-  // panel raises first (about:blank) is replaced a moment later.
+  // Only the committed file:// document has storage. The panel shows an
+  // about:blank placeholder first, and a script sent there while file:// is
+  // still loading can abort that load (live: the page ended at http://error/).
   function isStoragePage(href) {
     return typeof href === "string" && href.indexOf("file:") === 0;
   }
@@ -262,6 +269,10 @@
     var ready = false;
     var unavailable = false;
     var pageTitle = "";
+    var pageUrl = "";
+    var sawUrlEvent = false;
+    var titleOnly = false;
+    var navigations = 0;
     var injects = 0;
     var readyTimer = null;
     var reinjectTimer = null;
@@ -451,17 +462,49 @@
       pump();
     }
 
-    // Installs the page object into the document that raised the last plain
-    // title; if no usable hello follows, that document is injected again.
+    // Installs the page object, only into a loaded file:// document (or, on a
+    // client without URL events, after the grace period). If no usable hello
+    // follows, the same document is injected again.
     function inject() {
       reinjectTimer = clearTimer(reinjectTimer);
       if (ready || injects >= MAX_INJECTS_PER_PAGE) return;
+      if (!isStoragePage(pageUrl) && !titleOnly) return;
       injects += 1;
       run(pageScript());
-      reinjectTimer = later(REINJECT_SEC, function () {
-        reinjectTimer = null;
-        inject();
-      });
+      reinjectTimer = later(REINJECT_SEC, inject);
+    }
+
+    function navigate() {
+      pageUrl = "";
+      pageTitle = "";
+      injects = 0;
+      navigations += 1;
+      try {
+        panel.SetURL(PAGE_URL);
+        return true;
+      } catch (error) {
+        markUnavailable("navigate");
+        return false;
+      }
+    }
+
+    function onUrl(panelOrUrl, eventUrl) {
+      if (!alive || ready) return;
+      var url = String(arguments.length > 1 ? eventUrl : panelOrUrl || "");
+      sawUrlEvent = true;
+      pageUrl = url;
+      // Titles seen so far belonged to the previous document.
+      pageTitle = "";
+      if (isStoragePage(url)) {
+        // Inject once the listing has a title; the timer covers a lost title.
+        if (pageTitle) inject();
+        else reinjectTimer = later(REINJECT_SEC, inject);
+        return;
+      }
+      if (!url || url === "about:blank") return;
+      diagnose("page load failed at " + url.slice(0, 40) + " (load " + navigations + ")");
+      if (navigations < MAX_NAVIGATIONS) later(NAVIGATE_RETRY_SEC, navigate);
+      else markUnavailable("navigate_failed");
     }
 
     function onTitle(panelOrTitle, eventTitle) {
@@ -469,10 +512,9 @@
       var title = arguments.length > 1 ? eventTitle : panelOrTitle;
       if (typeof title !== "string" || !title) return;
       if (title.indexOf(TITLE_PREFIX) !== 0) {
-        // A plain title means a document committed. Deadlock delivers every
-        // HTMLTitle twice, so a repeat of the same title is ignored; after
-        // readiness plain titles are only echoes (this bridge never navigates
-        // again).
+        // A plain title means a document finished loading. Deadlock delivers
+        // every HTMLTitle twice, so a repeat is ignored; after readiness plain
+        // titles are only echoes (the bridge never navigates again).
         if (ready || title === pageTitle) return;
         pageTitle = title;
         injects = 0;
@@ -524,20 +566,23 @@
         markUnavailable("register");
         return false;
       }
+      try {
+        $.RegisterEventHandler("HTMLURLChanged", panel, onUrl);
+      } catch (error) {
+        titleOnly = true;
+      }
       readyTimer = later(READY_TIMEOUT_SEC, function () {
         readyTimer = null;
         if (!ready) markUnavailable("ready_timeout");
       });
-      try {
-        panel.SetURL(PAGE_URL);
-      } catch (error) {
-        markUnavailable("navigate");
-        return false;
-      }
-      // Injection normally follows the page's first title; if that title is
-      // lost, the timer injects anyway (a placeholder's hello is rejected).
-      reinjectTimer = later(REINJECT_SEC, inject);
-      return true;
+      later(URL_EVENT_GRACE_SEC, function () {
+        if (ready || sawUrlEvent) return;
+        diagnose("no page URL events; injecting by title");
+        titleOnly = true;
+        injects = 0;
+        inject();
+      });
+      return navigate();
     }
 
     // -- Public operations --
