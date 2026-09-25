@@ -13,7 +13,12 @@
   // key lives under one namespace owned by this mod. Changing a key orphans
   // saved data: treat these strings as data, not configuration.
 
-  var PAGE_URL = "file://";
+  // Every file: URL shares one localStorage origin, so both addresses reach
+  // the same save. Loads alternate between them: bare file:// sometimes ends
+  // on http://error/ (live console.log 2026-09-26 06:18 and 06:28, four
+  // quick reloads all failed), and file:///C:/ lists one drive instead of
+  // the root. On a client where one address never loads, the other still can.
+  var PAGE_URLS = ["file://", "file:///C:/"];
   var KEY_CURRENT = "hantu.hpcolors.v2/state";
   var KEY_PREVIOUS = "hantu.hpcolors.v2/state.prev";
   var TITLE_PREFIX = "HPV2S1:";
@@ -33,15 +38,16 @@
   // READY_TIMEOUT_SEC to answer (re-injected every REINJECT_SEC); each
   // exchange is resent up to EXCHANGE_RETRIES times; a whole request is
   // capped so a trickling page cannot hold the queue.
-  var READY_TIMEOUT_SEC = 12;
+  var READY_TIMEOUT_SEC = 40;
   var REINJECT_SEC = 2;
   var MAX_INJECTS_PER_PAGE = 6;
   var EXCHANGE_TIMEOUT_SEC = 3;
   var EXCHANGE_RETRIES = 3;
   var TRANSFER_DEADLINE_SEC = 90;
-  // A failed load (Steam shows http://error/) is retried this many times.
-  var MAX_NAVIGATIONS = 4;
-  var NAVIGATE_RETRY_SEC = 1;
+  // A failed load (Steam shows http://error/) is retried with backoff:
+  // 1, 2, 4, 8, 8 seconds between loads.
+  var MAX_NAVIGATIONS = 6;
+  var NAVIGATE_RETRY_MAX_SEC = 8;
   // Without any HTMLURLChanged event by then, fall back to title-driven
   // injection so a client without that event still works.
   var URL_EVENT_GRACE_SEC = 6;
@@ -458,7 +464,7 @@
       ready = true;
       readyTimer = clearTimer(readyTimer);
       reinjectTimer = clearTimer(reinjectTimer);
-      log("bridge ready (inject " + injects + ")");
+      log("bridge ready at " + String(href).slice(0, 40) + " (load " + navigations + ", inject " + injects + ")");
       pump();
     }
 
@@ -480,7 +486,7 @@
       injects = 0;
       navigations += 1;
       try {
-        panel.SetURL(PAGE_URL);
+        panel.SetURL(PAGE_URLS[(navigations - 1) % PAGE_URLS.length]);
         return true;
       } catch (error) {
         markUnavailable("navigate");
@@ -503,7 +509,8 @@
       }
       if (!url || url === "about:blank") return;
       diagnose("page load failed at " + url.slice(0, 40) + " (load " + navigations + ")");
-      if (navigations < MAX_NAVIGATIONS) later(NAVIGATE_RETRY_SEC, navigate);
+      if (navigations < MAX_NAVIGATIONS)
+        later(Math.min(NAVIGATE_RETRY_MAX_SEC, Math.pow(2, navigations - 1)), navigate);
       else markUnavailable("navigate_failed");
     }
 
