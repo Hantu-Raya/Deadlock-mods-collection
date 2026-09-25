@@ -84,6 +84,13 @@ function installCefBridge(harness, profile, panel, options = {}) {
     // raises its own title before file:// commits (live console.log
     // 2026-09-26 05:36/05:43: "ready" from it, then every read unanswered).
     placeholderSec: null,
+    // Live console.log 2026-09-26 06:18: a script sent while file:// was
+    // still loading aborted the load and the panel landed on http://error/.
+    abortLoadOnScript: true,
+    // The first N loads end at http://error/ on their own.
+    failNavigations: 0,
+    // false models a client that never sends HTMLURLChanged.
+    urlEvents: true,
   }, options);
   const stats = { navigations: 0, reads: 0, writes: 0, deletes: 0, titles: [] };
   let page = null;
@@ -133,9 +140,23 @@ function installCefBridge(harness, profile, panel, options = {}) {
     return vm.createContext(context);
   }
 
+  let loading = null;
+  function commit(href, title) {
+    page = newPage(href);
+    if (opts.urlEvents && typeof panel.events.HTMLURLChanged === 'function')
+      panel.events.HTMLURLChanged(panel, href);
+    deliver(title);
+  }
+
   panel.SetURL = (url) => {
     const text = String(url);
     if (text.startsWith('javascript:')) {
+      if (loading && opts.abortLoadOnScript) {
+        harness.scheduler.cancel(loading);
+        loading = null;
+        stats.aborted = (stats.aborted || 0) + 1;
+        harness.scheduler.schedule(0.05, () => commit('http://error/', 'http://error/'));
+      }
       if (!page) return;
       const code = decodeURIComponent(text.slice('javascript:'.length));
       if (code.includes('__hpv2s.r(')) stats.reads += 1;
@@ -146,16 +167,14 @@ function installCefBridge(harness, profile, panel, options = {}) {
     }
     stats.navigations += 1;
     page = null;
-    if (opts.placeholderSec !== null) {
-      harness.scheduler.schedule(opts.placeholderSec, () => {
-        page = newPage('about:blank');
-        deliver('about:blank');
-      });
-    }
+    if (opts.placeholderSec !== null)
+      harness.scheduler.schedule(opts.placeholderSec, () => commit('about:blank', 'about:blank'));
     if (!opts.commit) return;
-    harness.scheduler.schedule(opts.navLatencySec, () => {
-      page = newPage();
-      deliver('Index of /');
+    const failed = stats.navigations <= opts.failNavigations;
+    loading = harness.scheduler.schedule(opts.navLatencySec, () => {
+      loading = null;
+      if (failed) commit('http://error/', 'http://error/');
+      else commit('file:///', 'Index of /');
     });
   };
   return stats;
@@ -658,27 +677,50 @@ test('a lost save acknowledgement is resent without rotating the backup twice', 
   record(fixture);
 });
 
-// Live console.log 2026-09-26 05:36 and 05:43: "bridge ready (inject 1)",
-// then every read went unanswered. The hello came from the panel's
-// about:blank placeholder, which file:// replaced a moment later, so the
-// reads reached a document without the page object.
-test('a hello from the about:blank placeholder is ignored until file:// commits', () => {
+// Live console.log 2026-09-26 05:36, 05:43 and 06:18: the first script went
+// into the panel's about:blank placeholder while file:// was still loading;
+// the load then failed to http://error/ (or the reads vanished with the
+// placeholder). Scripts now wait for a loaded file:// document.
+test('no script reaches the page until file:// has loaded, so the load is never aborted', () => {
   const factory = loadStorageCodec();
   const profile = createProfile({
     [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 205 }), 1),
   });
   const fixture = launch(profile, {
-    label: 'placeholder hello',
-    // The placeholder answers the first injection, then file:// replaces it
-    // before that hello is delivered: the live failure's order.
-    bridge: { placeholderSec: 0.1, navLatencySec: 0.18 },
+    label: 'placeholder during load',
+    bridge: { placeholderSec: 0.1, navLatencySec: 0.8 },
   });
   fixture.run(20000);
+  assert.equal(fixture.bridge.aborted, undefined, 'the file:// load was never interrupted');
   assert.equal(fixture.renderer().widthScale, 205);
   assert.equal(fixture.status(), 'SAVED');
-  const logs = fixture.harness.logs.join('\n');
-  assert.match(logs, /ignored hello from placeholder page about:blank/);
-  assert.match(logs, /bridge ready \(inject 1\)/, 'the file:// document is injected once');
+  assert.match(fixture.harness.logs.join('\n'), /bridge ready \(inject 1\)/);
+  record(fixture);
+});
+
+test('a load that ends on http://error/ is retried', () => {
+  const factory = loadStorageCodec();
+  const profile = createProfile({
+    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 212 }), 1),
+  });
+  const fixture = launch(profile, { label: 'failed load', bridge: { failNavigations: 2 } });
+  fixture.run(20000);
+  assert.equal(fixture.bridge.navigations, 3);
+  assert.equal(fixture.renderer().widthScale, 212);
+  assert.equal(fixture.status(), 'SAVED');
+  assert.match(fixture.harness.logs.join('\n'), /page load failed at http:\/\/error\//);
+  record(fixture);
+});
+
+test('a client without URL events falls back to title-driven injection', () => {
+  const factory = loadStorageCodec();
+  const profile = createProfile({
+    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 218 }), 1),
+  });
+  const fixture = launch(profile, { label: 'no URL events', bridge: { urlEvents: false } });
+  fixture.run(20000);
+  assert.equal(fixture.renderer().widthScale, 218);
+  assert.equal(fixture.status(), 'SAVED');
   record(fixture);
 });
 
