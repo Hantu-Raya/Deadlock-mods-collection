@@ -76,12 +76,18 @@ function installCefBridge(harness, profile, panel, options = {}) {
     echoLatencySec: 0.12,
     duplicateReplies: false,
     quotaChars: Infinity,
+    // (title) => true drops that title and its echo, like a lost HTMLTitle.
+    dropTitle: null,
   }, options);
   const stats = { navigations: 0, reads: 0, writes: 0, deletes: 0, titles: [] };
   let page = null;
 
   function deliver(title) {
     const cut = String(title).slice(0, TITLE_LIMIT);
+    if (opts.dropTitle && opts.dropTitle(cut)) {
+      stats.dropped = (stats.dropped || 0) + 1;
+      return;
+    }
     const fire = () => {
       stats.titles.push(cut.slice(0, 48));
       const handler = panel.events.HTMLTitle;
@@ -409,7 +415,7 @@ test('unreadable or future-schema saves stay read-only and are never replaced by
 test('a bridge that never becomes ready boots on defaults without writing', () => {
   const profile = createProfile();
   const fixture = launch(profile, { label: 'no page commit', bridge: { commit: false } });
-  fixture.run(6000);
+  fixture.run(15000);
   assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
   assert.equal(fixture.renderer().enabled, true);
   assert.equal(fixture.renderer().widthScale, DEFAULT_WIDTH);
@@ -541,4 +547,91 @@ test('duplicate replies, quota exhaustion, and oversize saves fail safely', () =
   });
   storage.save('x'.repeat(factory.limits.chunkChars * factory.limits.maxChunks), (result) => results.push(result));
   assert.equal(JSON.stringify(results), JSON.stringify([{ ok: false, error: 'too_large' }]));
+});
+
+// Live console.log 2026-09-26 05:36: "bridge ready" then the first read timed
+// out and saving stayed off. Replies can be lost or late at game start.
+function dropFirst(predicate, count = 1) {
+  let left = count;
+  return (title) => {
+    if (left > 0 && predicate(title)) {
+      left -= 1;
+      return true;
+    }
+    return false;
+  };
+}
+
+test('lost replies at game start are resent and the save still loads', () => {
+  const factory = loadStorageCodec();
+  const profile = createProfile({
+    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 145 }), 1),
+  });
+  let lostHello = 1;
+  let lostRead = 2;
+  const fixture = launch(profile, {
+    label: 'lost hello and read replies',
+    bridge: {
+      dropTitle(title) {
+        if (lostHello > 0 && title.includes('"o":"ready"')) { lostHello -= 1; return true; }
+        if (lostRead > 0 && title.includes('"o":"r"')) { lostRead -= 1; return true; }
+        return false;
+      },
+    },
+  });
+  fixture.run(20000);
+  assert.equal(fixture.renderer().widthScale, 145);
+  assert.equal(fixture.status(), 'SAVED');
+  const logs = fixture.harness.logs.join('\n');
+  assert.match(logs, /resending \(1\/3\)/);
+  assert.match(logs, /resending \(2\/3\)/);
+  assert.match(logs, /restored saved settings/);
+  record(fixture);
+});
+
+test('replies slower than the exchange timeout are still accepted', () => {
+  const factory = loadStorageCodec();
+  const profile = createProfile({
+    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 155 }), 1),
+  });
+  const fixture = launch(profile, {
+    label: 'late replies',
+    bridge: { replyLatencySec: 4 },
+  });
+  fixture.run(30000);
+  assert.equal(fixture.renderer().widthScale, 155);
+  assert.equal(fixture.status(), 'SAVED');
+
+  openEditor(fixture);
+  setWidth(fixture, 165);
+  closeEditor(fixture);
+  fixture.run(30000);
+  assert.equal(JSON.parse(storedRecord(profile).body).values.widthScale, 165);
+  assert.equal(fixture.status(), 'SAVED');
+  record(fixture);
+});
+
+test('a lost save acknowledgement is resent without rotating the backup twice', () => {
+  const factory = loadStorageCodec();
+  const profile = createProfile({
+    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 120 }), 1),
+  });
+  const fixture = launch(profile, {
+    label: 'lost write ack',
+    bridge: { dropTitle: dropFirst((title) => title.includes('"d":1')) },
+  });
+  fixture.run(4000);
+  openEditor(fixture);
+  setWidth(fixture, 175);
+  closeEditor(fixture);
+  fixture.run(20000);
+  assert.equal(fixture.status(), 'SAVED');
+  assert.equal(JSON.parse(storedRecord(profile).body).values.widthScale, 175);
+  assert.equal(
+    JSON.parse(storedRecord(profile, KEY_PREVIOUS).body).values.widthScale,
+    120,
+    'the retried commit keeps the older save as the backup',
+  );
+  assert.match(fixture.harness.logs.join('\n'), /no reply to write/);
+  record(fixture);
 });

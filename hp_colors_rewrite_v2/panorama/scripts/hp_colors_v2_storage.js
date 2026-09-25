@@ -28,12 +28,17 @@
   var MAX_CHUNKS = 64;
   var TITLE_MAX_CHARS = 4096;
 
-  // Each exchange must progress within EXCHANGE_TIMEOUT_SEC; the whole request
-  // is also capped so a trickling page cannot hold the queue indefinitely.
-  var READY_TIMEOUT_SEC = 4;
-  var EXCHANGE_TIMEOUT_SEC = 5;
-  var TRANSFER_DEADLINE_SEC = 60;
-  var MAX_INJECT_ATTEMPTS = 5;
+  // Game start is slow and HTMLTitle can drop or delay a reply. A committed
+  // page gets READY_TIMEOUT_SEC to answer (re-injected every REINJECT_SEC).
+  // Each exchange is resent up to EXCHANGE_RETRIES times after
+  // EXCHANGE_TIMEOUT_SEC without a reply; the whole request is also capped so
+  // a trickling page cannot hold the queue indefinitely.
+  var READY_TIMEOUT_SEC = 12;
+  var REINJECT_SEC = 2;
+  var EXCHANGE_TIMEOUT_SEC = 3;
+  var EXCHANGE_RETRIES = 3;
+  var TRANSFER_DEADLINE_SEC = 90;
+  var MAX_INJECT_ATTEMPTS = 6;
 
   var BASE64_ALPHABET =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
@@ -169,13 +174,15 @@
   //
   // Installed once per document on one namespaced object. The page only stores
   // opaque records and checks their checksum; Panorama owns every decision.
-  // Writes stage all chunks, then commit in order: a valid current record is
-  // rotated to the previous key, then the new record becomes current. A
-  // corrupt current record is never rotated, so a valid backup survives.
+  // Every call is idempotent so Panorama can resend any exchange whose reply
+  // was lost: write chunks are staged by index, and a committed request id
+  // answers "done" again. A commit rotates a valid current record to the
+  // previous key, then stores the new record; a corrupt current record is
+  // never rotated, so a valid backup survives.
   function pageScript() {
     return (
-      "(function(w){if(w.__hpv2s&&w.__hpv2s.v===1){w.__hpv2s.hello();return;}" +
-      "var s={v:1,q:0,st:{}};" +
+      "(function(w){if(w.__hpv2s&&w.__hpv2s.v===2){w.__hpv2s.hello();return;}" +
+      "var s={v:2,q:0,st:{},dn:{}};" +
       "function send(m){m.q=++s.q;try{w.document.title='" +
       TITLE_PREFIX +
       "'+JSON.stringify(m);}catch(e){}}" +
@@ -184,14 +191,16 @@
       RECORD_TAG +
       "'&&sum(p[2])===p[1];}" +
       "s.hello=function(){send({i:'ready',o:'ready',ok:true,h:''+w.location.href});};" +
-      "s.w=function(id,k,pk,p,n,c){try{if(p===0)s.st[id]='';" +
-      "if(typeof s.st[id]!=='string'){send({i:id,o:'w',ok:false,e:'order'});return;}" +
-      "s.st[id]+=c;if(p+1<n){send({i:id,o:'w',ok:true,p:p,n:n});return;}" +
-      "var v=s.st[id];delete s.st[id];" +
+      "s.w=function(id,k,pk,p,n,c){try{" +
+      "if(s.dn[id]){send({i:id,o:'w',ok:true,p:p,n:n,d:1});return;}" +
+      "var b=s.st[id]||(s.st[id]={c:0,a:[]});" +
+      "if(b.a[p]===undefined){b.a[p]=c;b.c++;}" +
+      "if(b.c<n){send({i:id,o:'w',ok:true,p:p,n:n});return;}" +
+      "var v=b.a.join('');delete s.st[id];" +
       "if(!ok(v)){send({i:id,o:'w',ok:false,e:'checksum'});return;}" +
       "var L=w.localStorage,cur=L.getItem(k);" +
       "if(cur!==null&&cur!==v&&ok(cur))L.setItem(pk,cur);" +
-      "L.setItem(k,v);send({i:id,o:'w',ok:true,p:p,n:n,d:1});" +
+      "L.setItem(k,v);s.dn[id]=1;send({i:id,o:'w',ok:true,p:p,n:n,d:1});" +
       "}catch(e){delete s.st[id];send({i:id,o:'w',ok:false,e:''+e});}};" +
       "s.r=function(id,k,p,z){try{var v=w.localStorage.getItem(k);" +
       "if(v===null){send({i:id,o:'r',ok:true,x:0,p:p});return;}" +
@@ -237,7 +246,9 @@
     var ready = false;
     var unavailable = false;
     var injectAttempts = 0;
+    var lastPageTitle = "";
     var readyTimer = null;
+    var reinjectTimer = null;
     var requestSerial = 0;
     var active = null;
     var queue = [];
@@ -275,12 +286,25 @@
       settle(request, { ok: false, error: code });
     }
 
+    // A lost or late reply is normal at game start, so an exchange is resent
+    // before the request fails. Every page call is idempotent, and a late
+    // reply to the original send is accepted like the resent one.
     function armExchange(request) {
       request.exchangeTimer = clearTimer(request.exchangeTimer);
       var requestGeneration = generation;
       request.exchangeTimer = schedule(EXCHANGE_TIMEOUT_SEC, function () {
         request.exchangeTimer = null;
-        if (alive(requestGeneration) && active === request) fail(request, "timeout");
+        if (!alive(requestGeneration) || active !== request) return;
+        if (request.retries >= EXCHANGE_RETRIES) {
+          fail(request, "timeout");
+          return;
+        }
+        request.retries += 1;
+        log(
+          "no reply to " + request.op + " part " + request.part +
+            "; resending (" + request.retries + "/" + EXCHANGE_RETRIES + ")",
+        );
+        transmit(request);
       });
     }
 
@@ -338,6 +362,7 @@
     function enqueue(request) {
       request.id = "h" + String(++requestSerial);
       request.part = 0;
+      request.retries = 0;
       request.exchangeTimer = null;
       request.deadlineTimer = null;
       if (unavailable) {
@@ -369,6 +394,7 @@
       request.received += message.v;
       if (request.part + 1 < request.total) {
         request.part += 1;
+        request.retries = 0;
         transmit(request);
         return;
       }
@@ -383,6 +409,7 @@
       }
       if (request.part + 1 >= request.total) return fail(request, "malformed");
       request.part += 1;
+      request.retries = 0;
       transmit(request);
     }
 
@@ -390,8 +417,23 @@
       if (ready) return;
       ready = true;
       readyTimer = clearTimer(readyTimer);
-      log("bridge ready");
+      reinjectTimer = clearTimer(reinjectTimer);
+      log("bridge ready (inject " + injectAttempts + ")");
       pump();
+    }
+
+    // Installs the page object after a document committed. If its hello is
+    // lost, the same committed document is injected again after a pause.
+    function inject() {
+      if (ready || injectAttempts >= MAX_INJECT_ATTEMPTS) return;
+      injectAttempts += 1;
+      sendScript(pageScript());
+      reinjectTimer = clearTimer(reinjectTimer);
+      var injectGeneration = generation;
+      reinjectTimer = schedule(REINJECT_SEC, function () {
+        reinjectTimer = null;
+        if (alive(injectGeneration) && !ready) inject();
+      });
     }
 
     function onTitle(panelOrTitle, eventTitle) {
@@ -400,15 +442,13 @@
       if (typeof title !== "string" || !title) return;
       if (title.indexOf(TITLE_PREFIX) !== 0) {
         // Any other title means a document committed: the signal to install
-        // the page object. Deadlock delivers HTMLTitle twice, so after
-        // readiness a plain title is only that echo. This bridge never
-        // navigates again, so it is ignored; re-injecting would also set a
-        // title that could swallow the in-flight reply.
-        if (ready) return;
-        if (injectAttempts < MAX_INJECT_ATTEMPTS) {
-          injectAttempts += 1;
-          sendScript(pageScript());
-        }
+        // the page object. Deadlock delivers each HTMLTitle twice; the echo of
+        // a title already handled is ignored so it cannot send a second
+        // script that races the first exchange. This bridge never navigates
+        // again, so plain titles after readiness are only echoes.
+        if (ready || title === lastPageTitle) return;
+        lastPageTitle = title;
+        inject();
         return;
       }
       if (title.length > TITLE_MAX_CHARS) return;
@@ -439,6 +479,7 @@
       unavailable = true;
       ready = false;
       readyTimer = clearTimer(readyTimer);
+      reinjectTimer = clearTimer(reinjectTimer);
       log("bridge unavailable: " + code);
       failAll("unavailable");
     }
@@ -538,6 +579,7 @@
     function dispose() {
       generation = 0;
       readyTimer = clearTimer(readyTimer);
+      reinjectTimer = clearTimer(reinjectTimer);
       if (active) {
         active.exchangeTimer = clearTimer(active.exchangeTimer);
         active.deadlineTimer = clearTimer(active.deadlineTimer);
