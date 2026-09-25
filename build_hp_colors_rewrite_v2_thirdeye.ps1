@@ -51,6 +51,7 @@ $mergedEscape = Join-Path $compatSrc 'panorama\layout\hud_escape_menu.xml'
 $canonicalClosureScripts = @(
     'panorama\scripts\hp_colors_v2_contract.js',
     'panorama\scripts\hp_colors_v2_state.js',
+    'panorama\scripts\hp_colors_v2_storage.js',
     'panorama\scripts\hp_colors_v2_menu.js',
     'panorama\scripts\unit_status_v2_colors.js'
 )

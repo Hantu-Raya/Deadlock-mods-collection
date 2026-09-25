@@ -99,6 +99,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pa
     ? [
       'hp_colors_v2_contract.vjs_c',
       'hp_colors_v2_state.vjs_c',
+      'hp_colors_v2_storage.vjs_c',
       'hp_colors_v2_menu.vjs_c',
     ]
     : [
@@ -106,12 +107,15 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pa
       'hp_colors_state.vjs_c',
       'hp_colors_menu.vjs_c',
     ];
+  // v1 keeps its read-only builder preset store; v2 replaced it with the
+  // durable storage panel.
+  const storePanelId = isV2 ? 'HPColorsV2StoreWrap' : 'HPColorsRewritePresetStore';
   for (const id of [
     'HPColorsMenuButton',
     'HPColorsEditorRoot',
     'HPColorsSupporterTicker',
     'HPColorsAllyTeamHighToggle',
-    'HPColorsRewritePresetStore',
+    storePanelId,
   ]) {
     requireMatchCount(
       sourceXml,
@@ -141,7 +145,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pa
     `\n\t\t<include src="s2r://panorama/styles/${styleAsset}" />`,
     'Escape-menu style anchor',
   );
-  const hpPresetStore = extractElementById(canonicalXml, 'Panel', 'HPColorsRewritePresetStore');
+  const hpStorePanel = extractElementById(canonicalXml, 'Panel', storePanelId);
   const scriptIncludes = scriptAssets
     .concat('qollock_hp_colors_bridge.vjs_c')
     .map((asset) => `\t\t<include src="s2r://panorama/scripts/${asset}" />`);
@@ -182,7 +186,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pa
   xml = replaceOnce(
     xml,
     /\s*<\/CitadelHudEscapeMenu>/,
-    `\n${hpEditor}\n${hpPresetStore}\n\t</CitadelHudEscapeMenu>`,
+    `\n${hpEditor}\n${hpStorePanel}\n\t</CitadelHudEscapeMenu>`,
     'Escape-menu editor insertion',
   );
   for (const id of [
@@ -190,7 +194,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pa
     'HPColorsEditorRoot',
     'HPColorsSupporterTicker',
     'HPColorsAllyTeamHighToggle',
-    'HPColorsRewritePresetStore',
+    storePanelId,
   ]) {
     requireMatchCount(
       xml,

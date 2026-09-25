@@ -50,6 +50,9 @@ const ENEMY_BAR_DEFAULTS = {
   ghoulOpacity: 100,
 };
 const ENEMY_BAR_KEYS = Object.keys(ENEMY_BAR_DEFAULTS);
+// This harness loads no storage runtime, so the status chip's resting text is
+// the save-unavailable state; the storage E2E suite covers the SAVED states.
+const STATUS_WITHOUT_STORE = 'SAVE UNAVAILABLE';
 
 function installLayoutPanels(harness) {
   const ids = new Set(
@@ -289,7 +292,7 @@ test('cancel closes reset confirmation and remains inert', () => {
   assert.equal(configDispatches(fixture).length, beforeDispatchCount);
   assert.equal(writes.length, 0);
   assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, false);
-  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'LIVE');
+  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, STATUS_WITHOUT_STORE);
 });
 
 test('confirm resets only the captured tab and one Undo restores every reset value', () => {
@@ -764,10 +767,9 @@ test('menu boot can retry after a transient CreatePanel failure', () => {
       },
     },
   );
-  assert.equal(
-    typeof panel(fixture, 'HPColorsMenuButton').events.onactivate,
-    'undefined',
-  );
+  openEditor(fixture);
+  assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), false);
+  assert.equal(panel(fixture, 'HPColorsMenuButton').BHasClass('Loading'), true);
 
   fixture.harness.$.HPColorsMenuBoot();
 
@@ -775,6 +777,9 @@ test('menu boot can retry after a transient CreatePanel failure', () => {
     typeof panel(fixture, 'HPColorsMenuButton').events.onactivate,
     'function',
   );
+  openEditor(fixture);
+  assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), true);
+  assert.equal(panel(fixture, 'HPColorsMenuButton').BHasClass('Loading'), false);
 });
 
 test('menu boot contains thrown panel creation errors and an explicit retry recovers', () => {
@@ -971,7 +976,7 @@ function harnessCancel(fixture) {
   return fixture.harness.$.HPColorsMenuCancel();
 }
 
-test('stale reset feedback callback cannot overwrite LIVE after editor close', () => {
+test('stale reset feedback callback cannot overwrite the save status after editor close', () => {
   const fixture = bootMenu({
     version: 1,
     values: changedEnemyValues(),
@@ -989,8 +994,8 @@ test('stale reset feedback callback cannot overwrite LIVE after editor close', (
 
   panel(fixture, 'HPColorsDoneButton').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), false);
-  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'LIVE');
+  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, STATUS_WITHOUT_STORE);
 
   fixture.harness.scheduler.runByDelay(1.25);
-  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'LIVE');
+  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, STATUS_WITHOUT_STORE);
 });

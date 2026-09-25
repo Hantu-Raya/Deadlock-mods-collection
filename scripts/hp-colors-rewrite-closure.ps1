@@ -50,6 +50,9 @@ function Get-HpColorsRewriteClosureContract {
         'hp_colors_v2_state.js' {
             return @('HPColorsV2StateFactory', 'HPCRP1', 'preset_apply')
         }
+        'hp_colors_v2_storage.js' {
+            return @('HPColorsV2StorageFactory', 'hantu.hpcolors.v2/', 'HPV2S1', 'HTMLTitle')
+        }
         'hp_colors_v2_menu.js' {
             return @('HPColorsMenuBoot', 'HPColorsMenuCancel', 'HP_COLORS_V2_CONFIG')
         }
@@ -173,6 +176,7 @@ function Invoke-HpColorsRewriteClosureTests {
                 'validate-hp-colors-rewrite-v2-parity.test.js'
                 'validate-hp-colors-rewrite-v2-state.test.js'
                 'validate-hp-colors-rewrite-v2-style.test.js'
+                'validate-hp-colors-rewrite-v2-storage.test.js'
             ) | ForEach-Object {
                 $testPath = Join-Path $RepositoryRoot "scripts\$_"
                 if (-not (Test-Path -LiteralPath $testPath)) {
