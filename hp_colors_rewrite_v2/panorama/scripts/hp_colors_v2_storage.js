@@ -13,12 +13,12 @@
   // key lives under one namespace owned by this mod. Changing a key orphans
   // saved data: treat these strings as data, not configuration.
 
-  // Every file: URL shares one localStorage origin, so both addresses reach
-  // the same save. Loads alternate between them: bare file:// sometimes ends
-  // on http://error/ (live console.log 2026-09-26 06:18 and 06:28, four
-  // quick reloads all failed), and file:///C:/ lists one drive instead of
-  // the root. On a client where one address never loads, the other still can.
-  var PAGE_URLS = ["file://", "file:///C:/"];
+  // Every file: URL shares one localStorage origin ("file://"), so both
+  // addresses reach the same save. Live console.log 2026-09-26: bare file://
+  // ended on http://error/ in three runs in a row (06:18, 06:28, 06:33) while
+  // file:///C:/ loaded first time, so the C: listing goes first; bare file://
+  // stays as the fallback for clients without a C: drive (Proton/Linux).
+  var PAGE_URLS = ["file:///C:/", "file://"];
   var KEY_CURRENT = "hantu.hpcolors.v2/state";
   var KEY_PREVIOUS = "hantu.hpcolors.v2/state.prev";
   var TITLE_PREFIX = "HPV2S1:";

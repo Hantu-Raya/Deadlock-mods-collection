@@ -697,7 +697,7 @@ test('no script reaches the page until file:// has loaded, so the load is never 
   assert.equal(fixture.bridge.aborted, undefined, 'the file:// load was never interrupted');
   assert.equal(fixture.renderer().widthScale, 205);
   assert.equal(fixture.status(), 'SAVED');
-  assert.match(fixture.harness.logs.join('\n'), /bridge ready at file:\/\/\/ \(load 1, inject 1\)/);
+  assert.match(fixture.harness.logs.join('\n'), /bridge ready at file:\/\/\/C:\/ \(load 1, inject 1\)/);
   record(fixture);
 });
 
@@ -708,23 +708,23 @@ test('a load that ends on http://error/ is retried', () => {
   });
   const fixture = launch(profile, { label: 'failed load', bridge: { failNavigations: 3 } });
   fixture.run(40000);
-  assert.deepEqual(fixture.bridge.urls, ['file://', 'file:///C:/', 'file://', 'file:///C:/']);
+  assert.deepEqual(fixture.bridge.urls, ['file:///C:/', 'file://', 'file:///C:/', 'file://']);
   assert.equal(fixture.renderer().widthScale, 212);
   assert.equal(fixture.status(), 'SAVED');
   assert.match(fixture.harness.logs.join('\n'), /page load failed at http:\/\/error\//);
   record(fixture);
 });
 
-test('if bare file:// never loads, the C: listing still reaches the same save', () => {
+test('if the C: listing never loads, bare file:// still reaches the same save', () => {
   const factory = loadStorageCodec();
   const profile = createProfile({
     [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 214 }), 1),
   });
-  const fixture = launch(profile, { label: 'file:// always fails', bridge: { failUrl: 'file://' } });
+  const fixture = launch(profile, { label: 'file:///C:/ always fails', bridge: { failUrl: 'file:///C:/' } });
   fixture.run(20000);
   assert.equal(fixture.renderer().widthScale, 214);
   assert.equal(fixture.status(), 'SAVED');
-  assert.match(fixture.harness.logs.join('\n'), /bridge ready at file:\/\/\/C:\/ \(load 2/);
+  assert.match(fixture.harness.logs.join('\n'), /bridge ready at file:\/\/\/ \(load 2/);
   record(fixture);
 });
 
