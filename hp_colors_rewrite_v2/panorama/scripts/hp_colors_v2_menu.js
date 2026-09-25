@@ -881,7 +881,7 @@
   var persist = {
     gate: "unknown",
     ackHash: "",
-    pendingBody: "",
+    pendingRaw: "",
     timer: null,
     inFlight: false,
     failures: 0,
@@ -3130,21 +3130,55 @@
   }
 
   function storeChecksum(text) {
-    var factory = $.HPColorsV2StorageFactory;
-    return factory && factory.codec ? factory.codec.checksum(String(text)) : "";
+    return $.HPColorsV2StorageFactory.codec.checksum(String(text));
   }
 
-  // effectiveRevision moves with hero and ability transitions that change no
-  // saved setting, so it is not part of what the store compares or keeps.
+  // Shipped defaults, read once through the state seam; hydration may need
+  // them before the menu's own state instance exists.
+  var shippedDefaults = null;
+  function storeDefaults() {
+    if (!shippedDefaults)
+      shippedDefaults = $.HPColorsV2StateFactory.create({
+        sessionRaw: null,
+        publishedRaw: null,
+      }).read().schema.defaults;
+    return shippedDefaults;
+  }
+  function dropDefaults(values, defaults) {
+    if (!values || typeof values !== "object") return values;
+    var sparse = {};
+    for (var key in values) {
+      if (
+        Object.prototype.hasOwnProperty.call(values, key) &&
+        values[key] !== defaults[key]
+      )
+        sparse[key] = values[key];
+    }
+    return sparse;
+  }
+
+  // What the store keeps: the session without effectiveRevision (it moves
+  // with hero and ability transitions that change no setting) and with only
+  // non-default values. Hydration refills defaults through normalizeValues,
+  // so a value left at default follows the shipped default in later builds.
   function durableBody(raw) {
+    var data = null;
     try {
-      var data = JSON.parse(raw);
-      if (!data || typeof data !== "object" || Array.isArray(data)) return "";
-      delete data.effectiveRevision;
-      return JSON.stringify(data);
+      data = JSON.parse(raw);
     } catch {
       return "";
     }
+    if (!data || typeof data !== "object" || Array.isArray(data)) return "";
+    var defaults = storeDefaults();
+    delete data.effectiveRevision;
+    data.values = dropDefaults(data.values, defaults);
+    var lists = [data.scopes, data.userPresets];
+    for (var listIndex = 0; listIndex < lists.length; listIndex++) {
+      var rows = Array.isArray(lists[listIndex]) ? lists[listIndex] : [];
+      for (var rowIndex = 0; rowIndex < rows.length; rowIndex++)
+        if (rows[rowIndex]) rows[rowIndex].values = dropDefaults(rows[rowIndex].values, defaults);
+    }
+    return JSON.stringify(data);
   }
 
   function isRestorableBody(body) {
@@ -3179,6 +3213,12 @@
     return storage;
   }
 
+  function markSaved(hash, status) {
+    persist.ackHash = hash;
+    writeRootAttribute(STORE_ACK_ATTR, hash);
+    if (status) writeRootAttribute(STORE_STATUS_ATTR, status);
+  }
+
   function setGate(gate) {
     persist.gate = gate;
     if (gate === "open")
@@ -3208,16 +3248,14 @@
       if (!isValid(context) || persist.gate !== "checking") return;
       if (outcome.kind === "absent") {
         persist.ackHash = "";
-        setGate("open");
       } else if (outcome.kind === "valid" && outcome.body === expected) {
-        persist.ackHash = storeChecksum(expected);
-        writeRootAttribute(STORE_ACK_ATTR, persist.ackHash);
-        setGate("open");
+        markSaved(storeChecksum(expected));
       } else {
         storeLog("session differs from the unverified store: saving paused");
         setGate("blocked");
         return;
       }
+      setGate("open");
       schedulePersist(readRootAttribute(MENU_STATE_ATTR));
     });
   }
@@ -3226,8 +3264,7 @@
     var kind = outcome ? outcome.kind : "error";
     if (kind === "valid" && !isRestorableBody(outcome.body)) kind = "corrupt";
     if (kind === "valid") {
-      persist.ackHash = storeChecksum(outcome.body);
-      writeRootAttribute(STORE_ACK_ATTR, persist.ackHash);
+      markSaved(storeChecksum(outcome.body));
       setGate("open");
       storeLog(
         "restored saved settings" +
@@ -3236,8 +3273,7 @@
       return outcome.body;
     }
     if (kind === "absent") {
-      persist.ackHash = "";
-      writeRootAttribute(STORE_ACK_ATTR, "");
+      markSaved("");
       setGate("open");
       storeLog("no saved settings yet");
       return null;
@@ -3259,17 +3295,12 @@
     persist.timer = null;
   }
 
+  // Called for every session change, so it only records the latest raw
+  // session; serialization and comparison wait for the debounced flush.
   function schedulePersist(raw) {
-    var body = durableBody(raw);
-    if (!body) return;
-    persist.pendingBody = body;
+    if (!raw) return;
+    persist.pendingRaw = raw;
     if (persist.gate !== "open") return;
-    if (!persist.inFlight && storeChecksum(body) === persist.ackHash) {
-      persist.pendingBody = "";
-      cancelPersistTimer();
-      renderStoreStatus();
-      return;
-    }
     if (persist.timer === null) {
       try {
         persist.timer = $.Schedule(PERSIST_DEBOUNCE_SEC, function () {
@@ -3285,13 +3316,14 @@
 
   function flushPersist() {
     cancelPersistTimer();
-    if (persist.inFlight || persist.gate !== "open" || !storage || !persist.pendingBody) {
+    var raw = persist.pendingRaw;
+    if (persist.inFlight || persist.gate !== "open" || !storage || !raw) {
       renderStoreStatus();
       return;
     }
-    var body = persist.pendingBody;
-    var hash = storeChecksum(body);
-    persist.pendingBody = "";
+    persist.pendingRaw = "";
+    var body = durableBody(raw);
+    var hash = body ? storeChecksum(body) : persist.ackHash;
     if (hash === persist.ackHash) {
       renderStoreStatus();
       return;
@@ -3302,21 +3334,19 @@
       persist.inFlight = false;
       if (!isValid(context)) return;
       if (result && result.ok) {
-        persist.ackHash = hash;
         persist.failures = 0;
         persist.lastError = "";
         persist.forgotten = false;
-        writeRootAttribute(STORE_ACK_ATTR, hash);
-        writeRootAttribute(STORE_STATUS_ATTR, "ok");
-      } else if (!result || result.error !== "superseded") {
+        markSaved(hash, "ok");
+      } else {
         persist.failures += 1;
         persist.lastError = result ? String(result.error || "") : "";
-        if (!persist.pendingBody) persist.pendingBody = body;
+        if (!persist.pendingRaw) persist.pendingRaw = raw;
         storeLog("save failed: " + persist.lastError);
         renderStoreStatus();
         return;
       }
-      if (persist.pendingBody) schedulePersist(readRootAttribute(MENU_STATE_ATTR));
+      if (persist.pendingRaw) schedulePersist(persist.pendingRaw);
       else renderStoreStatus();
     });
   }
@@ -3350,7 +3380,7 @@
     }
     resetForgetConfirm();
     cancelPersistTimer();
-    persist.pendingBody = "";
+    persist.pendingRaw = "";
     var keptHash = storeChecksum(durableBody(readRootAttribute(MENU_STATE_ATTR)));
     persist.forgetting = true;
     renderStoreStatus();
@@ -3358,12 +3388,10 @@
       persist.forgetting = false;
       if (!isValid(context)) return;
       if (result && result.ok) {
-        persist.ackHash = keptHash;
         persist.forgotten = true;
         persist.failures = 0;
         persist.lastError = "";
-        writeRootAttribute(STORE_ACK_ATTR, keptHash);
-        writeRootAttribute(STORE_STATUS_ATTR, "forgotten");
+        markSaved(keptHash, "forgotten");
         showResetFeedback("SAVE CLEARED");
       } else {
         storeLog("forget failed: " + String(result && result.error));

@@ -14,34 +14,32 @@
   // saved data: treat these strings as data, not configuration.
 
   var PAGE_URL = "file://";
-  var KEY_NAMESPACE = "hantu.hpcolors.v2/";
-  var KEY_CURRENT = KEY_NAMESPACE + "state";
-  var KEY_PREVIOUS = KEY_NAMESPACE + "state.prev";
+  var KEY_CURRENT = "hantu.hpcolors.v2/state";
+  var KEY_PREVIOUS = "hantu.hpcolors.v2/state.prev";
   var TITLE_PREFIX = "HPV2S1:";
   var RECORD_TAG = "HPV2S1";
   var ENVELOPE_MAGIC = "HPV2STORE";
-  var ENVELOPE_SCHEMA = 1;
+  // Schema 1 held the body as a JSON string; schema 2 embeds it as an object,
+  // which avoids escaping every quote twice. Both are read; 2 is written.
+  var ENVELOPE_SCHEMA = 2;
 
-  // A title carries at most 4096 characters. Records are base64url, so a
-  // 3000-character slice plus the reply frame stays well below that.
+  // Measured live: 3000-character replies arrive intact, and each title
+  // carries at most 4096 characters.
   var CHUNK_CHARS = 3000;
   var MAX_CHUNKS = 64;
   var TITLE_MAX_CHARS = 4096;
-  // Reads shrink their reply chunk down to this when replies go missing.
-  var MIN_READ_CHUNK = 375;
-  var DROPPED_TITLE_LOG_LIMIT = 6;
 
-  // Game start is slow and HTMLTitle can drop or delay a reply. A committed
-  // page gets READY_TIMEOUT_SEC to answer (re-injected every REINJECT_SEC).
-  // Each exchange is resent up to EXCHANGE_RETRIES times after
-  // EXCHANGE_TIMEOUT_SEC without a reply; the whole request is also capped so
-  // a trickling page cannot hold the queue indefinitely.
+  // Live Deadlock can lose or delay an HTMLTitle at game start. The page gets
+  // READY_TIMEOUT_SEC to answer (re-injected every REINJECT_SEC); each
+  // exchange is resent up to EXCHANGE_RETRIES times; a whole request is
+  // capped so a trickling page cannot hold the queue.
   var READY_TIMEOUT_SEC = 12;
   var REINJECT_SEC = 2;
+  var MAX_INJECTS_PER_PAGE = 6;
   var EXCHANGE_TIMEOUT_SEC = 3;
   var EXCHANGE_RETRIES = 3;
   var TRANSFER_DEADLINE_SEC = 90;
-  var MAX_INJECT_ATTEMPTS = 6;
+  var DIAGNOSTIC_LOG_LIMIT = 6;
 
   var BASE64_ALPHABET =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
@@ -59,62 +57,55 @@
   }
 
   // -- Record codec (pure) --
+  //
+  // A record is `HPV2S1.<fnv1a32 of payload>.<base64url payload>`. Base64url
+  // keeps the payload inert inside a javascript: URL, which the browser
+  // percent-decodes, and inside a JSON title.
 
   function utf8Bytes(text) {
-    var encoded = encodeURIComponent(text);
+    var escaped = encodeURIComponent(text);
     var bytes = [];
-    for (var index = 0; index < encoded.length; index++) {
-      var char = encoded.charAt(index);
-      if (char === "%") {
-        bytes.push(parseInt(encoded.slice(index + 1, index + 3), 16));
+    for (var index = 0; index < escaped.length; index++) {
+      if (escaped.charAt(index) === "%") {
+        bytes.push(parseInt(escaped.slice(index + 1, index + 3), 16));
         index += 2;
       } else {
-        bytes.push(char.charCodeAt(0));
+        bytes.push(escaped.charCodeAt(index));
       }
     }
     return bytes;
   }
 
-  function utf8Text(bytes) {
-    var escaped = "";
-    for (var index = 0; index < bytes.length; index++) {
-      var hex = bytes[index].toString(16);
-      escaped += "%" + (hex.length < 2 ? "0" + hex : hex);
-    }
-    return decodeURIComponent(escaped);
-  }
-
   function base64UrlEncode(text) {
     var bytes = utf8Bytes(text);
-    var out = "";
+    var out = [];
     for (var index = 0; index < bytes.length; index += 3) {
       var chunk =
-        (bytes[index] << 16) |
-        ((bytes[index + 1] || 0) << 8) |
-        (bytes[index + 2] || 0);
-      out += BASE64_ALPHABET.charAt((chunk >> 18) & 63);
-      out += BASE64_ALPHABET.charAt((chunk >> 12) & 63);
-      if (index + 1 < bytes.length) out += BASE64_ALPHABET.charAt((chunk >> 6) & 63);
-      if (index + 2 < bytes.length) out += BASE64_ALPHABET.charAt(chunk & 63);
+        (bytes[index] << 16) | ((bytes[index + 1] || 0) << 8) | (bytes[index + 2] || 0);
+      out.push(BASE64_ALPHABET.charAt((chunk >> 18) & 63));
+      out.push(BASE64_ALPHABET.charAt((chunk >> 12) & 63));
+      if (index + 1 < bytes.length) out.push(BASE64_ALPHABET.charAt((chunk >> 6) & 63));
+      if (index + 2 < bytes.length) out.push(BASE64_ALPHABET.charAt(chunk & 63));
     }
-    return out;
+    return out.join("");
   }
 
   function base64UrlDecode(encoded) {
     if (!/^[A-Za-z0-9_-]*$/.test(encoded) || encoded.length % 4 === 1)
       throw new Error("invalid base64url");
-    var bytes = [];
+    var escaped = [];
     var bits = 0;
     var buffer = 0;
     for (var index = 0; index < encoded.length; index++) {
-      buffer = (buffer << 6) | BASE64_ALPHABET.indexOf(encoded.charAt(index));
+      buffer = ((buffer << 6) | BASE64_ALPHABET.indexOf(encoded.charAt(index))) & 0xffffff;
       bits += 6;
       if (bits >= 8) {
         bits -= 8;
-        bytes.push((buffer >> bits) & 255);
+        var byte = (buffer >> bits) & 255;
+        escaped.push(byte < 16 ? "%0" + byte.toString(16) : "%" + byte.toString(16));
       }
     }
-    return utf8Text(bytes);
+    return decodeURIComponent(escaped.join(""));
   }
 
   function checksum(text) {
@@ -126,21 +117,18 @@
     return ("0000000" + hash.toString(16)).slice(-8);
   }
 
+  // `body` must be a JSON object text; it is embedded as an object.
   function encodeRecord(body, savedAt) {
     var payload = base64UrlEncode(
-      JSON.stringify({
-        m: ENVELOPE_MAGIC,
-        s: ENVELOPE_SCHEMA,
-        t: savedAt,
-        b: body,
-      }),
+      '{"m":"' + ENVELOPE_MAGIC + '","s":' + ENVELOPE_SCHEMA +
+        ',"t":' + Number(savedAt || 0) + ',"b":' + body + "}",
     );
     return RECORD_TAG + "." + checksum(payload) + "." + payload;
   }
 
   // Classifies before anything trusts the content: absent, corrupt (framing,
   // checksum, encoding, or envelope damage), unsupported (a newer schema
-  // written by a later build), or valid.
+  // written by a later build), or valid with the body as JSON text.
   function classifyRecord(record) {
     if (record === null || record === undefined) return { kind: "absent" };
     if (typeof record !== "string") return { kind: "corrupt" };
@@ -160,28 +148,29 @@
     }
     if (!envelope || typeof envelope !== "object" || envelope.m !== ENVELOPE_MAGIC)
       return { kind: "corrupt" };
-    if (envelope.s !== ENVELOPE_SCHEMA) {
-      return Number.isInteger(envelope.s) && envelope.s > ENVELOPE_SCHEMA
-        ? { kind: "unsupported", schema: envelope.s }
-        : { kind: "corrupt" };
-    }
-    if (typeof envelope.b !== "string" || !envelope.b) return { kind: "corrupt" };
+    var body = null;
+    if (envelope.s === 1 && typeof envelope.b === "string" && envelope.b) body = envelope.b;
+    else if (envelope.s === 2 && envelope.b && typeof envelope.b === "object")
+      body = JSON.stringify(envelope.b);
+    else if (Number.isInteger(envelope.s) && envelope.s > ENVELOPE_SCHEMA)
+      return { kind: "unsupported", schema: envelope.s };
+    if (!body) return { kind: "corrupt" };
     return {
       kind: "valid",
-      body: envelope.b,
+      body: body,
       savedAt: Number.isFinite(envelope.t) ? envelope.t : 0,
     };
   }
 
   // -- Page script --
   //
-  // Installed once per document on one namespaced object. The page only stores
-  // opaque records and checks their checksum; Panorama owns every decision.
-  // Every call is idempotent so Panorama can resend any exchange whose reply
-  // was lost: write chunks are staged by index, and a committed request id
-  // answers "done" again. A commit rotates a valid current record to the
-  // previous key, then stores the new record; a corrupt current record is
-  // never rotated, so a valid backup survives.
+  // Installed once per document on one namespaced object; every call is
+  // idempotent so Panorama can resend an exchange whose reply was lost. Write
+  // chunks are staged by index and a committed request id answers "done"
+  // again. A commit rotates a valid current record to the previous key, then
+  // stores the new record; a corrupt current record is never rotated. The
+  // hello carries the page address so Panorama can reject the placeholder
+  // document the panel shows before `file://` commits.
   function pageScript() {
     return (
       "(function(w){if(w.__hpv2s&&w.__hpv2s.v===2){w.__hpv2s.hello();return;}" +
@@ -216,6 +205,12 @@
     );
   }
 
+  // Only the committed file:// document has storage; the placeholder the
+  // panel raises first (about:blank) is replaced a moment later.
+  function isStoragePage(href) {
+    return typeof href === "string" && href.indexOf("file:") === 0;
+  }
+
   // -- Bridge --
 
   function create(options) {
@@ -244,39 +239,48 @@
         $.Msg("[HP Colors Rewrite][store] " + message);
       };
 
-    var generation = 1;
+    var alive = true;
     var started = false;
     var ready = false;
     var unavailable = false;
-    var injectAttempts = 0;
-    var readChunk = CHUNK_CHARS;
-    var droppedTitleLogs = 0;
-    var lastPageTitle = "";
+    var pageTitle = "";
+    var injects = 0;
     var readyTimer = null;
     var reinjectTimer = null;
-    var requestSerial = 0;
+    var serial = 0;
     var active = null;
     var queue = [];
-
-    function alive(requestGeneration) {
-      return generation > 0 && requestGeneration === generation;
-    }
+    var diagnostics = 0;
 
     function clearTimer(handle) {
-      if (handle !== null && handle !== undefined) cancelScheduled(handle);
+      if (handle !== null) cancelScheduled(handle);
       return null;
     }
 
-    function sendScript(code) {
-      if (!isValid(panel) || !isCallable(panel.SetURL)) return false;
+    function later(seconds, callback) {
+      return schedule(seconds, function () {
+        if (alive) callback();
+      });
+    }
+
+    function diagnose(message) {
+      if (diagnostics >= DIAGNOSTIC_LOG_LIMIT) return;
+      diagnostics += 1;
+      log(message);
+    }
+
+    function run(code) {
+      if (!isValid(panel)) return false;
       try {
-        panel.SetURL("javascript:" + code);
+        panel.SetURL("javascript:" + code + ";void(0);");
         return true;
       } catch (error) {
-        log("SetURL threw: " + String(error));
+        diagnose("SetURL threw: " + String(error));
         return false;
       }
     }
+
+    // -- Request queue: one request in flight, one reply per exchange --
 
     function settle(request, result) {
       if (active !== request) return;
@@ -291,111 +295,83 @@
       settle(request, { ok: false, error: code });
     }
 
-    // A lost or late reply is normal at game start, so an exchange is resent
-    // before the request fails. Every page call is idempotent, and a late
-    // reply to the original send is accepted like the resent one. A read that
-    // gets no reply first retries with smaller reply chunks, in case the
-    // title channel cuts long titles, then falls back to plain resends.
-    function armExchange(request) {
+    function exchangeCode(request) {
+      var args = JSON.stringify(request.id);
+      if (request.op === "read")
+        return "window.__hpv2s&&window.__hpv2s.r(" + args + "," +
+          JSON.stringify(request.key) + "," + request.part + "," + CHUNK_CHARS + ")";
+      if (request.op === "write")
+        return "window.__hpv2s&&window.__hpv2s.w(" + args + "," +
+          JSON.stringify(KEY_CURRENT) + "," + JSON.stringify(KEY_PREVIOUS) + "," +
+          request.part + "," + request.total + "," +
+          JSON.stringify(
+            request.record.slice(request.part * CHUNK_CHARS, (request.part + 1) * CHUNK_CHARS),
+          ) + ")";
+      return "window.__hpv2s&&window.__hpv2s.d(" + args + "," +
+        JSON.stringify([KEY_PREVIOUS, KEY_CURRENT]) + ")";
+    }
+
+    // Sends the current exchange. A missing reply resends it (page calls are
+    // idempotent); a late reply to an earlier send is accepted all the same.
+    function transmit(request) {
       request.exchangeTimer = clearTimer(request.exchangeTimer);
-      var requestGeneration = generation;
-      request.exchangeTimer = schedule(EXCHANGE_TIMEOUT_SEC, function () {
+      request.exchangeTimer = later(EXCHANGE_TIMEOUT_SEC, function () {
         request.exchangeTimer = null;
-        if (!alive(requestGeneration) || active !== request) return;
-        if (request.op === "read" && request.chunk > MIN_READ_CHUNK) {
-          request.chunk = Math.max(MIN_READ_CHUNK, Math.floor(request.chunk / 2));
-          readChunk = request.chunk;
-          // A fresh id keeps late replies cut at the old size from mixing in.
-          request.id = "h" + String(++requestSerial);
-          request.part = 0;
-          request.total = 0;
-          request.received = "";
-          request.retries = 0;
-          log("no reply to read; retrying with " + request.chunk + "-character chunks");
-          transmit(request);
-          return;
-        }
-        if (request.retries >= EXCHANGE_RETRIES) {
-          fail(request, "timeout");
-          return;
-        }
+        if (active !== request) return;
+        if (request.retries >= EXCHANGE_RETRIES) return fail(request, "timeout");
         request.retries += 1;
-        log(
+        diagnose(
           "no reply to " + request.op + " part " + request.part +
             "; resending (" + request.retries + "/" + EXCHANGE_RETRIES + ")",
         );
         transmit(request);
       });
+      if (!run(exchangeCode(request))) fail(request, "send_failed");
     }
 
-    function transmit(request) {
-      var id = JSON.stringify(request.id);
-      var code;
-      if (request.op === "read") {
-        code =
-          "window.__hpv2s&&window.__hpv2s.r(" +
-          id + "," + JSON.stringify(request.key) + "," +
-          request.part + "," + request.chunk + ");void(0);";
-      } else if (request.op === "write") {
-        code =
-          "window.__hpv2s&&window.__hpv2s.w(" +
-          id + "," + JSON.stringify(KEY_CURRENT) + "," +
-          JSON.stringify(KEY_PREVIOUS) + "," + request.part + "," +
-          request.total + "," +
-          JSON.stringify(
-            request.record.slice(
-              request.part * CHUNK_CHARS,
-              (request.part + 1) * CHUNK_CHARS,
-            ),
-          ) +
-          ");void(0);";
-      } else {
-        code =
-          "window.__hpv2s&&window.__hpv2s.d(" + id + "," +
-          JSON.stringify([KEY_PREVIOUS, KEY_CURRENT]) + ");void(0);";
-      }
-      armExchange(request);
-      if (!sendScript(code)) fail(request, "send_failed");
+    function advance(request) {
+      request.part += 1;
+      request.retries = 0;
+      transmit(request);
     }
 
     function pump() {
       if (active || !ready || !queue.length) return;
       var request = queue.shift();
       active = request;
-      var requestGeneration = generation;
-      request.deadlineTimer = schedule(TRANSFER_DEADLINE_SEC, function () {
+      request.deadlineTimer = later(TRANSFER_DEADLINE_SEC, function () {
         request.deadlineTimer = null;
-        if (alive(requestGeneration) && active === request) fail(request, "deadline");
+        if (active === request) fail(request, "deadline");
       });
       transmit(request);
     }
 
-    function failAll(code) {
-      var pending = queue;
-      queue = [];
-      if (active) fail(active, code);
-      for (var index = 0; index < pending.length; index++)
-        if (isCallable(pending[index].callback))
-          pending[index].callback({ ok: false, error: code });
-    }
-
     function enqueue(request) {
-      request.id = "h" + String(++requestSerial);
+      if (unavailable) {
+        if (isCallable(request.callback)) request.callback({ ok: false, error: "unavailable" });
+        return;
+      }
+      request.id = "h" + String(++serial);
       request.part = 0;
       request.retries = 0;
       request.exchangeTimer = null;
       request.deadlineTimer = null;
-      if (unavailable) {
-        if (isCallable(request.callback))
-          request.callback({ ok: false, error: "unavailable" });
-        return;
-      }
-      if (request.op === "read") request.chunk = readChunk;
       queue.push(request);
       pump();
     }
 
-    function onReadReply(request, message) {
+    // Replaces a queued write with a newer one instead of growing a backlog.
+    function dropQueuedWrites() {
+      queue = queue.filter(function (request) {
+        if (request.op !== "write") return true;
+        if (isCallable(request.callback)) request.callback({ ok: false, error: "superseded" });
+        return false;
+      });
+    }
+
+    // -- Replies --
+
+    function onRead(request, message) {
       if (message.p !== request.part) return;
       if (message.x === 0) {
         if (request.part !== 0) return fail(request, "changed");
@@ -404,110 +380,92 @@
       if (
         message.x !== 1 ||
         typeof message.v !== "string" ||
-        message.v.length > request.chunk ||
+        message.v.length > CHUNK_CHARS ||
         !Number.isInteger(message.n) ||
         message.n < 1 ||
-        message.n > Math.ceil((CHUNK_CHARS * MAX_CHUNKS) / request.chunk) ||
+        message.n > MAX_CHUNKS ||
         (request.total && message.n !== request.total)
       )
         return fail(request, "malformed");
       request.total = message.n;
-      request.received += message.v;
-      if (request.part + 1 < request.total) {
-        request.part += 1;
-        request.retries = 0;
-        transmit(request);
+      request.chunks.push(message.v);
+      if (request.part + 1 < request.total) return advance(request);
+      settle(request, { ok: true, record: request.chunks.join("") });
+    }
+
+    function onWrite(request, message) {
+      if (message.p !== request.part) return;
+      var last = request.part + 1 === request.total;
+      if (message.d === 1) return last ? settle(request, { ok: true }) : fail(request, "malformed");
+      if (last) return fail(request, "malformed");
+      advance(request);
+    }
+
+    function onReply(message) {
+      var request = active;
+      if (!request || message.i !== request.id) return;
+      if (message.ok !== true)
+        return fail(request, "page:" + String(message.e || "error").slice(0, 120));
+      if (request.op === "read" && message.o === "r") onRead(request, message);
+      else if (request.op === "write" && message.o === "w") onWrite(request, message);
+      else if (request.op === "delete" && message.o === "d") settle(request, { ok: true });
+    }
+
+    // -- Page lifecycle --
+
+    function onReady(href) {
+      if (ready) return;
+      if (!isStoragePage(href)) {
+        diagnose("ignored hello from placeholder page " + String(href).slice(0, 40));
         return;
       }
-      settle(request, { ok: true, record: request.received });
-    }
-
-    function onWriteReply(request, message) {
-      if (message.p !== request.part) return;
-      if (message.d === 1) {
-        if (request.part + 1 !== request.total) return fail(request, "malformed");
-        return settle(request, { ok: true });
-      }
-      if (request.part + 1 >= request.total) return fail(request, "malformed");
-      request.part += 1;
-      request.retries = 0;
-      transmit(request);
-    }
-
-    function onReady() {
-      if (ready) return;
       ready = true;
       readyTimer = clearTimer(readyTimer);
       reinjectTimer = clearTimer(reinjectTimer);
-      log("bridge ready (inject " + injectAttempts + ")");
+      log("bridge ready (inject " + injects + ")");
       pump();
     }
 
-    // Installs the page object after a document committed. If its hello is
-    // lost, the same committed document is injected again after a pause.
+    // Installs the page object into the document that raised the last plain
+    // title; if no usable hello follows, that document is injected again.
     function inject() {
-      if (ready || injectAttempts >= MAX_INJECT_ATTEMPTS) return;
-      injectAttempts += 1;
-      sendScript(pageScript());
       reinjectTimer = clearTimer(reinjectTimer);
-      var injectGeneration = generation;
-      reinjectTimer = schedule(REINJECT_SEC, function () {
+      if (ready || injects >= MAX_INJECTS_PER_PAGE) return;
+      injects += 1;
+      run(pageScript());
+      reinjectTimer = later(REINJECT_SEC, function () {
         reinjectTimer = null;
-        if (alive(injectGeneration) && !ready) inject();
+        inject();
       });
     }
 
     function onTitle(panelOrTitle, eventTitle) {
-      if (generation <= 0) return;
+      if (!alive) return;
       var title = arguments.length > 1 ? eventTitle : panelOrTitle;
       if (typeof title !== "string" || !title) return;
       if (title.indexOf(TITLE_PREFIX) !== 0) {
-        // Any other title means a document committed: the signal to install
-        // the page object. Deadlock delivers each HTMLTitle twice; the echo of
-        // a title already handled is ignored so it cannot send a second
-        // script that races the first exchange. This bridge never navigates
-        // again, so plain titles after readiness are only echoes.
-        if (ready || title === lastPageTitle) return;
-        lastPageTitle = title;
+        // A plain title means a document committed. Deadlock delivers every
+        // HTMLTitle twice, so a repeat of the same title is ignored; after
+        // readiness plain titles are only echoes (this bridge never navigates
+        // again).
+        if (ready || title === pageTitle) return;
+        pageTitle = title;
+        injects = 0;
         inject();
         return;
       }
-      if (title.length > TITLE_MAX_CHARS) {
-        noteDroppedTitle("oversize", title);
-        return;
-      }
       var message = null;
-      try {
-        message = JSON.parse(title.slice(TITLE_PREFIX.length));
-      } catch {
-        noteDroppedTitle("unparseable", title);
+      if (title.length <= TITLE_MAX_CHARS) {
+        try {
+          message = JSON.parse(title.slice(TITLE_PREFIX.length));
+        } catch {}
+      }
+      if (!message || typeof message !== "object") {
+        diagnose("ignored unreadable reply title (" + title.length + " chars)");
         return;
       }
-      if (!message || typeof message !== "object") return;
-      if (message.o === "ready" && message.i === "ready") {
-        onReady();
-        return;
-      }
-      var request = active;
-      if (!request || message.i !== request.id) return;
-      if (message.ok !== true) {
-        fail(request, "page:" + String(message.e || "error").slice(0, 120));
-        return;
-      }
-      if (request.op === "read" && message.o === "r") onReadReply(request, message);
-      else if (request.op === "write" && message.o === "w") onWriteReply(request, message);
-      else if (request.op === "delete" && message.o === "d") settle(request, { ok: true });
-    }
-
-    // A reply that cannot be read is otherwise invisible; its length shows
-    // whether the title channel cut it. Bounded so a bad page cannot spam.
-    function noteDroppedTitle(reason, title) {
-      if (droppedTitleLogs >= DROPPED_TITLE_LOG_LIMIT) return;
-      droppedTitleLogs += 1;
-      log(
-        "ignored " + reason + " reply title (" + title.length + " chars, ends \"" +
-          title.slice(-12) + "\")",
-      );
+      if (message.o === "ready" && message.i === "ready") onReady(message.h);
+      else onReply(message);
     }
 
     function markUnavailable(code) {
@@ -517,18 +475,22 @@
       readyTimer = clearTimer(readyTimer);
       reinjectTimer = clearTimer(reinjectTimer);
       log("bridge unavailable: " + code);
-      failAll("unavailable");
+      var pending = active ? [active].concat(queue) : queue;
+      active = null;
+      queue = [];
+      for (var index = 0; index < pending.length; index++) {
+        pending[index].exchangeTimer = clearTimer(pending[index].exchangeTimer);
+        pending[index].deadlineTimer = clearTimer(pending[index].deadlineTimer);
+        if (isCallable(pending[index].callback))
+          pending[index].callback({ ok: false, error: "unavailable" });
+      }
     }
 
     function start() {
-      if (started) return true;
+      if (started) return !unavailable;
       started = true;
       if (!isValid(panel) || !isCallable(panel.SetURL)) {
         markUnavailable("panel");
-        return false;
-      }
-      if (!isCallable($.RegisterEventHandler)) {
-        markUnavailable("events");
         return false;
       }
       try {
@@ -537,10 +499,9 @@
         markUnavailable("register");
         return false;
       }
-      var startGeneration = generation;
-      readyTimer = schedule(READY_TIMEOUT_SEC, function () {
+      readyTimer = later(READY_TIMEOUT_SEC, function () {
         readyTimer = null;
-        if (alive(startGeneration) && !ready) markUnavailable("ready_timeout");
+        if (!ready) markUnavailable("ready_timeout");
       });
       try {
         panel.SetURL(PAGE_URL);
@@ -551,8 +512,10 @@
       return true;
     }
 
+    // -- Public operations --
+
     function readKey(key, callback) {
-      enqueue({ op: "read", key: key, received: "", total: 0, callback: callback });
+      enqueue({ op: "read", key: key, chunks: [], total: 0, callback: callback });
     }
 
     // Reads current, then previous only when current is not usable.
@@ -581,21 +544,6 @@
       });
     }
 
-    function dropQueuedWrites() {
-      var kept = [];
-      for (var index = 0; index < queue.length; index++) {
-        if (queue[index].op === "write") {
-          if (isCallable(queue[index].callback))
-            queue[index].callback({ ok: false, error: "superseded" });
-        } else {
-          kept.push(queue[index]);
-        }
-      }
-      queue = kept;
-    }
-
-    // One active write plus at most one queued write: a newer body replaces
-    // the queued one instead of growing a backlog.
     function save(body, callback) {
       var record = encodeRecord(String(body), now());
       var total = Math.max(1, Math.ceil(record.length / CHUNK_CHARS));
@@ -613,7 +561,7 @@
     }
 
     function dispose() {
-      generation = 0;
+      alive = false;
       readyTimer = clearTimer(readyTimer);
       reinjectTimer = clearTimer(reinjectTimer);
       if (active) {
@@ -631,28 +579,12 @@
       save: save,
       forget: forget,
       dispose: dispose,
-      isReady: function () {
-        return ready;
-      },
-      isUnavailable: function () {
-        return unavailable;
-      },
-      isBusy: function () {
-        return !!active || queue.length > 0;
-      },
     });
   }
 
   $.HPColorsV2StorageFactory = Object.freeze({
     create: create,
-    keys: Object.freeze({ current: KEY_CURRENT, previous: KEY_PREVIOUS }),
-    limits: Object.freeze({
-      chunkChars: CHUNK_CHARS,
-      maxChunks: MAX_CHUNKS,
-      readyTimeoutSec: READY_TIMEOUT_SEC,
-      exchangeTimeoutSec: EXCHANGE_TIMEOUT_SEC,
-      transferDeadlineSec: TRANSFER_DEADLINE_SEC,
-    }),
+    limits: Object.freeze({ chunkChars: CHUNK_CHARS, maxChunks: MAX_CHUNKS }),
     codec: Object.freeze({
       encodeRecord: encodeRecord,
       classifyRecord: classifyRecord,
