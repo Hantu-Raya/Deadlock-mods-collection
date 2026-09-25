@@ -197,6 +197,27 @@
             "allyPulseColorMode",
           ],
         },
+        {
+          name: "HP TEXT",
+          title: "ALLY HP TEXT",
+          description:
+            "Show ally HP as current and maximum, percentage, or current only, then style and place it.",
+          pageId: "HPColorsSettingsAllyReadout",
+          keys: [
+            "allyReadoutVisible",
+            "allyReadoutFormat",
+            "allyReadoutSize",
+            "allyReadoutFont",
+            "allyReadoutColorMode",
+            "allyReadoutMode",
+            "allyReadoutLow",
+            "allyReadoutMid",
+            "allyReadoutHigh",
+            "allyReadoutMaxTeamColor",
+            "allyReadoutOffsetX",
+            "allyReadoutOffsetY",
+          ],
+        },
       ],
     },
     {
@@ -307,35 +328,6 @@
     "HPColorsCategoryAlly",
     "HPColorsCategoryReadout",
   ];
-  var COLOR_KEYS = {
-    enemyLow: true,
-    enemyMid: true,
-    enemyHigh: true,
-    enemyHealing: true,
-    enemyDelta: true,
-    enemyBulletShield: true,
-    allyLow: true,
-    allyMid: true,
-    allyHigh: true,
-    allyHealing: true,
-    allyDelta: true,
-    allyBulletShield: true,
-    ultCustom: true,
-    ultimateTimerUnavailableColor: true,
-    ultimateTimerAvailableColor: true,
-    readoutLow: true,
-    readoutMid: true,
-    readoutHigh: true,
-    enemyPulseColor: true,
-    enemyKillMarkerColor: true,
-    allyPulseColor: true,
-    enemyStaminaColor: true,
-    pickupGunColor: true,
-    pickupMovementColor: true,
-    pickupSpiritColor: true,
-    pickupSurvivalColor: true,
-    pickupGlyphColor: true,
-  };
   var COLOR_TITLES = {
     enemyLow: "ENEMY LOW",
     enemyMid: "ENEMY MID",
@@ -355,6 +347,9 @@
     readoutLow: "HEALTH TEXT LOW",
     readoutMid: "HEALTH TEXT MID",
     readoutHigh: "HEALTH TEXT HIGH",
+    allyReadoutLow: "ALLY HEALTH TEXT LOW",
+    allyReadoutMid: "ALLY HEALTH TEXT MID",
+    allyReadoutHigh: "ALLY HEALTH TEXT HIGH",
     enemyPulseColor: "ENEMY PULSE COLOR",
     enemyKillMarkerColor: "ENEMY KILL MARKER COLOR",
     enemyStaminaColor: "ENEMY STAMINA COLOR",
@@ -378,6 +373,11 @@
     {
       id: "HPColorsReadoutMaxTeamColorToggle",
       key: "readoutMaxTeamColor",
+    },
+    { id: "HPColorsAllyReadoutToggle", key: "allyReadoutVisible" },
+    {
+      id: "HPColorsAllyReadoutMaxTeamColorToggle",
+      key: "allyReadoutMaxTeamColor",
     },
     { id: "HPColorsPipsVisibleToggle", key: "pipsVisible" },
     { id: "HPColorsLevelsVisibleToggle", key: "levelsVisible" },
@@ -544,6 +544,52 @@
       key: "readoutMode",
       value: "gradient",
     },
+    { id: "HPColorsAllyReadoutFormatHP", key: "allyReadoutFormat", value: "hp" },
+    {
+      id: "HPColorsAllyReadoutFormatPercent",
+      key: "allyReadoutFormat",
+      value: "percent",
+    },
+    {
+      id: "HPColorsAllyReadoutFormatCurrent",
+      key: "allyReadoutFormat",
+      value: "current",
+    },
+    {
+      id: "HPColorsAllyReadoutFontDefault",
+      key: "allyReadoutFont",
+      value: "default",
+    },
+    {
+      id: "HPColorsAllyReadoutFontOracle",
+      key: "allyReadoutFont",
+      value: "oracle",
+    },
+    {
+      id: "HPColorsAllyReadoutFontPulp",
+      key: "allyReadoutFont",
+      value: "pulp",
+    },
+    {
+      id: "HPColorsAllyReadoutColorBar",
+      key: "allyReadoutColorMode",
+      value: "bar",
+    },
+    {
+      id: "HPColorsAllyReadoutColorCustom",
+      key: "allyReadoutColorMode",
+      value: "custom",
+    },
+    {
+      id: "HPColorsAllyReadoutModeFixed",
+      key: "allyReadoutMode",
+      value: "fixed",
+    },
+    {
+      id: "HPColorsAllyReadoutModeGradient",
+      key: "allyReadoutMode",
+      value: "gradient",
+    },
   ];
   var SLIDER_CONTROLS = [
     { base: "HPColorsWidth", key: "widthScale", min: 60, max: 230 },
@@ -595,6 +641,24 @@
     {
       base: "HPColorsReadoutOffsetY",
       key: "readoutOffsetY",
+      min: -35,
+      max: 840,
+    },
+    {
+      base: "HPColorsAllyReadoutSize",
+      key: "allyReadoutSize",
+      min: 72,
+      max: 320,
+    },
+    {
+      base: "HPColorsAllyReadoutOffsetX",
+      key: "allyReadoutOffsetX",
+      min: -405,
+      max: 405,
+    },
+    {
+      base: "HPColorsAllyReadoutOffsetY",
+      key: "allyReadoutOffsetY",
       min: -35,
       max: 840,
     },
@@ -737,12 +801,18 @@
     { base: "HPColorsReadoutLow", key: "readoutLow" },
     { base: "HPColorsReadoutMid", key: "readoutMid" },
     { base: "HPColorsReadoutHigh", key: "readoutHigh" },
+    { base: "HPColorsAllyReadoutLow", key: "allyReadoutLow" },
+    { base: "HPColorsAllyReadoutMid", key: "allyReadoutMid" },
+    { base: "HPColorsAllyReadoutHigh", key: "allyReadoutHigh" },
     { base: "HPColorsPickupGunColor", key: "pickupGunColor" },
     { base: "HPColorsPickupMovementColor", key: "pickupMovementColor" },
     { base: "HPColorsPickupSpiritColor", key: "pickupSpiritColor" },
     { base: "HPColorsPickupSurvivalColor", key: "pickupSurvivalColor" },
     { base: "HPColorsPickupGlyphColor", key: "pickupGlyphColor" },
   ];
+  var COLOR_KEYS = {};
+  for (var colorControlIndex = 0; colorControlIndex < COLOR_CONTROLS.length; colorControlIndex++)
+    COLOR_KEYS[COLOR_CONTROLS[colorControlIndex].key] = true;
   var REQUIRED_UI_PANEL_KEYS = (
     "menuButton editorRoot editorShell peekCapture peekButton doneButton " +
     "undoButton resetButton resetDialog resetDialogTitle resetDialogMessage " +
@@ -4050,18 +4120,8 @@
       allyPulseColorActive,
     );
 
-    var customReadoutColors = values.readoutColorMode === "custom";
-    setClass(
-      controlPanel("HPColorsReadoutCustomRows"),
-      "Active",
-      customReadoutColors,
-    );
-    syncDependentRow(
-      "HPColorsReadoutModeRow",
-      customReadoutColors,
-      "HPColorsReadoutModeFixed",
-      "HPColorsReadoutModeGradient",
-    );
+    syncReadoutColorRows("HPColorsReadout", values.readoutColorMode);
+    syncReadoutColorRows("HPColorsAllyReadout", values.allyReadoutColorMode);
     setClass(
       controlPanel("HPColorsUltCustomRow"),
       "Active",
@@ -4084,6 +4144,17 @@
     setEnabled(controlPanel("HPColorsSharedLowThresholdEntry"), true);
     setEnabled(controlPanel("HPColorsSharedHighThresholdSlider"), true);
     setEnabled(controlPanel("HPColorsSharedHighThresholdEntry"), true);
+  }
+
+  function syncReadoutColorRows(base, colorMode) {
+    var custom = colorMode === "custom";
+    setClass(controlPanel(base + "CustomRows"), "Active", custom);
+    syncDependentRow(
+      base + "ModeRow",
+      custom,
+      base + "ModeFixed",
+      base + "ModeGradient",
+    );
   }
 
   function syncControls() {

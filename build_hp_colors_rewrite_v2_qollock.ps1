@@ -28,7 +28,7 @@ $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
 )
 $vpkOut = Join-Path $root 'pak02_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak02_dir.vpk'
-$qollockPak = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak03_dir.vpk'
+$qollockPak = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak60_dir.vpk'
 $manifestPath = Join-Path $supportSrc 'qollock-source.sha256'
 $contractPath = Join-Path $supportSrc 'pak02-contract.json'
 $refreshScript = Join-Path $root 'scripts\refresh-hp-colors-rewrite-qollock.js'
@@ -61,8 +61,8 @@ $canonicalFiles = @(
     'panorama\images\hpv2\ultimate_progress.png',
     'panorama\images\hpv2\ultimate_progress.vtex'
 )
+# QOLLOCK keeps its own hud.xml; pak02 overrides only the Escape menu and topbar.
 $supportFiles = @(
-    'panorama\layout\hud.xml',
     'panorama\layout\hud_escape_menu.xml',
     'panorama\scripts\qollock_hp_colors_bridge.js'
 )
@@ -157,23 +157,15 @@ $requiredCompiled = @(
 if ($RefreshFromInstalledQollock) {
     Require-Path -Path $qollockPak -Label 'Installed QOLLOCK package'
     Require-Path -Path $Source2ViewerPath -Label 'Source2Viewer CLI for QOLLOCK refresh'
-    Write-Host "`n[0/5] Refreshing compatibility layouts from installed pak03..." -ForegroundColor Cyan
+    Write-Host "`n[0/5] Refreshing the Escape-menu layout from installed QOLLOCK..." -ForegroundColor Cyan
     Remove-TreeUnderRoot -Path $refreshRoot -RootPath $root -ExpectedLeaf 'refresh'
     New-Item -ItemType Directory -Path $refreshRoot -Force | Out-Null
-    $compiledHud = Join-Path $refreshRoot 'hud.vxml_c'
-    $compiledEscapeMenu = Join-Path $refreshRoot 'hud_escape_menu.vxml_c'
-    $decompiledHud = Join-Path $refreshRoot 'hud.xml'
-    $decompiledEscapeMenu = Join-Path $refreshRoot 'hud_escape_menu.xml'
+    $decompiledEscapeMenu = Join-Path $refreshRoot 'panorama\layout\hud_escape_menu.xml'
     try {
-        & $vpkeditcli $qollockPak --extract 'panorama/layout/hud.vxml_c' --output $compiledHud --no-progress
-        if ($LASTEXITCODE -ne 0) { throw "QOLLOCK HUD extraction failed with exit code $LASTEXITCODE" }
-        & $vpkeditcli $qollockPak --extract 'panorama/layout/hud_escape_menu.vxml_c' --output $compiledEscapeMenu --no-progress
-        if ($LASTEXITCODE -ne 0) { throw "QOLLOCK Escape-menu extraction failed with exit code $LASTEXITCODE" }
-        & $Source2ViewerPath -i $compiledHud -o $decompiledHud -d
-        if ($LASTEXITCODE -ne 0) { throw "QOLLOCK HUD decompilation failed with exit code $LASTEXITCODE" }
-        & $Source2ViewerPath -i $compiledEscapeMenu -o $decompiledEscapeMenu -d
+        & $Source2ViewerPath -i $qollockPak -o $refreshRoot -d -f 'panorama/layout/hud_escape_menu.vxml_c'
         if ($LASTEXITCODE -ne 0) { throw "QOLLOCK Escape-menu decompilation failed with exit code $LASTEXITCODE" }
-        & node $refreshScript $qollockPak $decompiledHud $decompiledEscapeMenu $canonicalEscapeMenu $supportSrc $manifestPath
+        Require-Path -Path $decompiledEscapeMenu -Label 'Decompiled QOLLOCK Escape menu'
+        & node $refreshScript $qollockPak '-' $decompiledEscapeMenu $canonicalEscapeMenu $supportSrc $manifestPath
         if ($LASTEXITCODE -ne 0) { throw "QOLLOCK compatibility refresh failed with exit code $LASTEXITCODE" }
     }
     finally {
@@ -188,7 +180,7 @@ $qollockPak = Get-VerifiedQolSource -Path $manifestPath
 $qollockTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $qollockPak -Source2ViewerPath $Source2ViewerPath
 Assert-PackedVpkAssets `
     -Tree $qollockTree `
-    -Label 'Pinned QOLLOCK pak03' `
+    -Label 'Pinned QOLLOCK' `
     -Required @($assetContract.requiredPinnedQollockAssets)
 
 Write-Host "`n[1/5] Validating HP Colors Rewrite v2 QOLLOCK source..." -ForegroundColor Cyan
