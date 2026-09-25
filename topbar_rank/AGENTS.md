@@ -83,7 +83,7 @@ Use `-Install` only when the user explicitly asks. The builder refuses installat
 - Do not add browser networking APIs, unbounded polling, debug logging, cross-context bridges, or a second identity/cache implementation.
 - Keep the 23-file source and packed inventories exact.
 - Update both editions for shared rank/profile changes. Update only alert for missing-enemy behavior.
-- Update root builders, package scripts, contract tests, and the browser merger when edition source paths or public contracts change.
+- Update root builders, package scripts, runtime tests, and the browser merger when edition source paths or public contracts change.
 
 ## Verification
 

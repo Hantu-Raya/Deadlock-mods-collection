@@ -183,4 +183,4 @@ Validators depend on stable hooks:
 - Layout sources: `poker/panorama/layout/hud_escape_menu.xml` defines the ESC Poker panel IDs consumed by `poker_escape_menu.js`; `poker/panorama/layout/chat.xml` loads `poker_chat_debug.js` into the stock chat context.
 - Styles: `poker/panorama/styles/poker_escape_menu.css` defines the classes toggled here (`PokerHidden`, `Open`, `Active`, `Eligible`, `Disabled`, `ReadOnly`, card suit/current/folded/eliminated classes, table seat position classes).
 - Assets: `poker/panorama/images/poker/cards/*.vtex` logical paths are referenced at runtime; compiled `.vtex_c` assets are produced by the build pipeline, not referenced directly.
-- Validators: `poker/scripts/validate-poker.js`, `poker/scripts/validate-ready-state.js`, `poker/scripts/validate-poker-game.js`, and `poker/scripts/validate-bluff-deck-game.js` load the test hooks and enforce static/VM contracts.
+- Validators: `poker/scripts/validate-ready-state.js`, `poker/scripts/validate-poker-game.js`, and `poker/scripts/validate-bluff-deck-game.js` load test hooks and exercise VM behavior.

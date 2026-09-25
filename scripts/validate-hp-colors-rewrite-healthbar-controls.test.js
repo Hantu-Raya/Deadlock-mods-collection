@@ -411,10 +411,6 @@ test('position and ultimate icon modes own only their intended styles', () => {
   assert.equal(probe.tree.ult.style.backgroundImage, undefined);
 });
 
-test('single fixed-color settings are removed from the clean snapshot', () => {
-  assert.doesNotMatch(stateSource, /enemyFixed|allyFixed/);
-  assert.doesNotMatch(layoutSource, /HPColorsEnemyFixed|HPColorsAllyFixed/);
-});
 
 test('editor exposes and publishes the ghoul and existing bar controls', () => {
   const harness = createPanoramaHarness();

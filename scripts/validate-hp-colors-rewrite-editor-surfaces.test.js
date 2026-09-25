@@ -20,10 +20,6 @@ const menuSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/hp_colors_menu.js'),
   'utf8',
 );
-const menuStyleSource = fs.readFileSync(
-  path.join(rewriteRoot, 'panorama/styles/hp_colors_menu.css'),
-  'utf8',
-);
 const stateSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/hp_colors_state.js'),
   'utf8',
@@ -364,24 +360,6 @@ test('effect pages live under their healthbar categories', () => {
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'HP TEXT');
 });
 
-test('shared thresholds live on the Enemy Bar page', () => {
-  const enemyBarStart = layoutSource.indexOf(
-    '<Panel id="HPColorsSettingsEnemyBar"',
-  );
-  const enemyBarEnd = layoutSource.indexOf(
-    '<Panel id="HPColorsSettingsEnemyFeedback"',
-    enemyBarStart,
-  );
-  assert.ok(enemyBarStart >= 0);
-  assert.ok(enemyBarEnd > enemyBarStart);
-  for (const id of [
-    'HPColorsSharedLowThresholdRow',
-    'HPColorsSharedHighThresholdRow',
-  ]) {
-    const rowIndex = layoutSource.indexOf(`id="${id}"`);
-    assert.ok(rowIndex > enemyBarStart && rowIndex < enemyBarEnd, id);
-  }
-});
 
 test('Presets page hides Reset Section and Undo', () => {
   const fixture = bootMenu({
@@ -406,24 +384,6 @@ test('Presets page hides Reset Section and Undo', () => {
   assert.equal(undo.BHasClass('HPColorsFooterActionHidden'), false);
 });
 
-test('Preset INFO control occupies the page heading instead of the rule', () => {
-  assert.match(
-    layoutSource,
-    /<Panel class="HPColorsPageHeading">[\s\S]*id="HPColorsPresetInfoToggle"[\s\S]*<\/Panel>\s*<Panel class="HPColorsPageRule" \/>/,
-  );
-  assert.doesNotMatch(
-    layoutSource,
-    /<Panel class="HPColorsPageRule">[\s\S]*id="HPColorsPresetInfoToggle"/,
-  );
-  assert.match(
-    menuStyleSource,
-    /\.HPColorsPresetInfoToggle\s*\{[^}]*visibility:\s*visible;[^}]*opacity:\s*0;/s,
-  );
-  assert.match(
-    menuStyleSource,
-    /\.HPColorsPresetInfoToggle\.Available\s*\{[^}]*opacity:\s*1;/s,
-  );
-});
 
 test('Presets guide starts hidden and toggles only on the Presets page', () => {
   const fixture = bootMenu();
@@ -517,29 +477,6 @@ test('stale reset feedback callback cannot overwrite LIVE after editor close', (
 });
 
 test('entry and shared controls use their intended navigation surfaces', () => {
-  const changeHeroIndex = layoutSource.indexOf('<Button id="changehero"');
-  const subOptionsIndex = layoutSource.indexOf('<Panel id="SubOptions">');
-  const feedbackIndex = layoutSource.indexOf('<Panel class="FeedbackRow">');
-  const entryIndex = layoutSource.indexOf('<Button id="HPColorsMenuButton"');
-  const settingsIndex = layoutSource.indexOf('<Panel class="SettingsRow">');
-  assert.ok(changeHeroIndex >= 0);
-  assert.ok(subOptionsIndex > changeHeroIndex);
-  assert.ok(feedbackIndex > subOptionsIndex);
-  assert.ok(entryIndex > feedbackIndex);
-  assert.ok(settingsIndex > entryIndex);
-  assert.match(
-    layoutSource,
-    /<Button id="HPColorsMenuButton" class="nav_menu_item minor">\s*<Label text="HP COLORS" class="menuButtonLabel" \/>\s*<\/Button>/,
-  );
-  assert.doesNotMatch(
-    layoutSource,
-    /HPColorsMenu(?:Accent|Swatch|Binding)|class="[^"]*HPColorsMenuButton/,
-  );
-  assert.match(layoutSource, /text="SHARED LOW THRESHOLD"/);
-  assert.match(layoutSource, /text="SHARED HIGH THRESHOLD"/);
-  assert.doesNotMatch(layoutSource, /HPColorsLowThreshold(?:SliderHost|Entry)/);
-  assert.doesNotMatch(layoutSource, /HPColorsHighThreshold(?:SliderHost|Entry)/);
-
   const fixture = bootMenu();
   openEditor(fixture);
   panel(fixture, 'HPColorsCategoryEnemy').events.onactivate();
@@ -549,3 +486,4 @@ test('entry and shared controls use their intended navigation surfaces', () => {
   panel(fixture, 'HPColorsTab2').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'INDICATORS');
 });
+

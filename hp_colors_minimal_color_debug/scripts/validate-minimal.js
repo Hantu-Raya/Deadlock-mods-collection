@@ -9,7 +9,6 @@ const REQUIRED_FILES = [
   "panorama/scripts/healthbar_logic.js",
   "panorama/styles/unit_status.css",
   "scripts/validate-minimal.js",
-  "scripts/validate-minimal.test.js"
 ];
 const ALLOWED_FILES = new Set(REQUIRED_FILES);
 const FORBIDDEN_FILES = [

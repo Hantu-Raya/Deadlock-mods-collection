@@ -18,7 +18,7 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 
 ### HP readout and stock indicators
 
-- Current/max, percentage, and current-only HP formats.
+- Current/max, percentage, and current-only HP formats for enemies, plus an opt-in, independently styled ally copy.
 - Size, bounded placement, stock-derived or custom colors, and optional pulse-specific presentation.
 - Health-pip visibility and optional precise 10-HP calculation with manual `gameinfo.gi` copy/reset guidance.
 - Enemy-player level visibility and tier styling without writing engine-owned text.
@@ -35,7 +35,6 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 
 ### Deliberately deferred
 
-- Durable persistence and restart selection, pending a proven writable storage backend.
 - Detached tooltips and a grouped two-axis position picker are intentionally omitted.
 - Legacy v99 encoding, Anita tokens, aliases, bridge keys, and preset-store VPK compatibility.
 
@@ -267,6 +266,12 @@ Disabling enemy level display now reproduces v1 flow centering by shifting the u
 
 Bar and HP-text offset ranges remain wider than the visible viewport by design. Bar width scales the complete live stack around the measured bar center; runtime never writes the engine-owned `width` or `max-width`. Anchored indicators follow X translation without multiplying it by width scale. Layout Reset writes zero translation explicitly instead of waiting for cleared-style recomputation. The existing health pass samples live width and updates alignment when width or configured layout changes. Production emits no geometry records.
 
+## Milestone 21: ally HP text
+
+**Ally → HP TEXT** exposes the enemy HP-text controls for ally bars: visibility, format, size, font, Bar Color or Custom Fixed/Gradient low/mid/high colors, team-colored maximum HP, and horizontal/vertical offsets. Ally text is off by default and never changes enemy text. Bar Color follows the ally bar's colors and mode with the shared thresholds. Enemy pulse text modifiers stay enemy-only.
+
+The twelve `allyReadout*` settings append to the versioned `hpv2` extension, so HPCR2 and HPCRP1 codes without them keep their defaults. Health sampling now stays on the paint cadence whenever colors or HP text for that relation are visible, so text shown with relation colors off updates at the same rate as colored bars. The ally default offsets copy the enemy defaults. Ally bars do not have the enemy level badge, so ally text alignment needs an in-game check.
+
 ## Priority 8 runtime measurement baseline
 
 The 2026-08-15 detect-only diagnostic build recorded 37m35s of live gameplay. Ninety isolated probe contexts emitted 1,291 bounded summaries. They reported zero transient, confirmed, or recovered rewrite-owned style drift; zero duplicate scan or paint schedules; and 83 part replacements. Every context observed zero-width geometry, but 88 of 90 ended at the normal 1.5-second idle paint cadence and the remaining two were in the 0.25-second recent-change window. The only released-style signal was the intentional `visibility: collapse` cleanup on 83 replaced kill-marker panels.
@@ -291,15 +296,15 @@ Ordinary preset Apply updates existing rows instead of rebuilding their controls
 
 The normal wrapper builds standalone pak02 by default. With ShowRank Barebones pak89 installed, use `build_hp_colors_rewrite_v2.ps1 -ShowRankBarebones` to compose its Escape open/out handlers while preserving HP editor cancellation. This changes only the staged layout; the canonical runtime remains independent of ShowRank.
 
-The QOLLOCK wrapper copies the same canonical runtime, derives packed assets from its package contract, and preserves the pinned pak03 dependency. Use `build_hp_colors_rewrite_v2_qollock.ps1 -RefreshFromInstalledQollock` when intentionally updating compatibility against a supplied pak03. Both wrappers accept `-SkipDeploy` for archive-only builds.
+The QOLLOCK wrapper copies the same canonical runtime, derives packed assets from its package contract, and preserves the pinned QOLLOCK 4.0 `pak60_dir.vpk` dependency. It overrides only the Escape menu (QOLLOCK's menu plus the HP COLORS V2 button and editor) and the topbar (QOLLOCK's topbar plus pickup-timer includes); QOLLOCK's own `hud.xml` stays authoritative, so pak02 never ships a stale copy of it. Use `build_hp_colors_rewrite_v2_qollock.ps1 -RefreshFromInstalledQollock` when intentionally updating compatibility against a supplied QOLLOCK package. Both wrappers accept `-SkipDeploy` for archive-only builds.
 
-Install only one pak02 variant and fully restart Deadlock. The normal archive contains standalone pak02 only; the QOLLOCK archive requires the matching pak03 and does not bundle it. Barebones remains an opt-in build option, not an archive payload. The prior roughly 35-minute Barebones live capture had no logged style-write failures, and the user confirmed correct rendering. Automated release checks do not substitute for a fresh in-game check of the final packages.
+Install only one pak02 variant and fully restart Deadlock. The normal archive contains standalone pak02 only; the QOLLOCK archive requires the matching QOLLOCK 4.0 pak60 and does not bundle it. Barebones remains an opt-in build option, not an archive payload. The prior roughly 35-minute Barebones live capture had no logged style-write failures, and the user confirmed correct rendering. Automated release checks do not substitute for a fresh in-game check of the final packages.
 
 ## Third Eye compatibility
 
 `build_hp_colors_rewrite_v2_thirdeye.ps1` builds the Rewrite v2 + Third Eye compatibility pak02. It runs `scripts/compose-hp-colors-rewrite-v2-thirdeye.js` with the pinned `hp_colors_rewrite_v2_thirdeye/source_snapshots/` inputs, copies the canonical HPv2 runtime at build time, and emits the extra `hp_colors_thirdeye_bridge.vjs_c`, `hp_colors_thirdeye_window.vjs_c`, and `features/topbar_ult_cooldown/feature.vjs_c` assets. The patched window is generated by `scripts/patch-hp-colors-thirdeye-window.js`; the canonical Rewrite runtime remains unmodified.
 
-Install the generated HPv2 preset-builder pak01, this compatibility pak02, and the unchanged Third Eye package at a lower priority (the verified package uses `pak47_dir.vpk`; a lower-priority pak03+ slot also works). The package pin is recorded in `hp_colors_rewrite_v2_thirdeye/thirdeye-source-pin.json`. `-ThirdEyePakPath <path>` validates a supplied package's SHA-256 and required Source 2 assets; `-SkipDeploy` can build from the pinned snapshots without an installed Third Eye package.
+Install this compatibility pak02 and the unchanged Third Eye package at a lower priority (the verified package uses `pak47_dir.vpk`; a lower-priority pak03+ slot also works). Do not install an old HPv2 builder pak01: it overrides the ESC layout and disables saving. The package pin is recorded in `hp_colors_rewrite_v2_thirdeye/thirdeye-source-pin.json`. `-ThirdEyePakPath <path>` validates a supplied package's SHA-256 and required Source 2 assets; `-SkipDeploy` can build from the pinned snapshots without an installed Third Eye package.
 
 Use only one pak02 variant. Do not combine Third Eye with ShowRank Barebones or a QOLLOCK/ShowRank triple stack. The compatibility Escape XML preserves HPColorsMenuBoot/HPColorsMenuCancel nested-cancel behavior, composes Third Eye close handling for Escape, backdrop, and EscapeButton, and closes Third Eye before HP COLORS opens. A fresh Deadlock restart is required after replacing any VPK.
 
@@ -321,6 +326,14 @@ Both normal and QOLLOCK builds include the timers. Do not install the standalone
 Use `-SkipDeploy -SkipPanoramaTests` for compile-only builds without mocked Panorama checks. Timer behavior checks and package checks still run. Latest live rendering and lifecycle behavior remain unverified; no FPS improvement is claimed.
 
 
+## Durable local save
+
+Settings, scopes, user presets, conditions, and repository metadata save automatically on this PC and return after a game restart. A hidden `CitadelHTMLPanel` opens `file://`, whose localStorage Steam keeps in its CEF profile; only the keys `hantu.hpcolors.v2/state` and `hantu.hpcolors.v2/state.prev` are touched, so Third Eye and QOLLOCK saves on the same origin are unaffected. Saves store only values that differ from the shipped defaults (a typical save is about 330 characters), wait 1.5 s after the first change, flush when the editor closes, skip unchanged state, and keep the previous valid record as a backup. A value left at its default follows the shipped default in later builds.
+
+Cold boot keeps healthbars stock until the save is restored, however long the restore takes, then applies it once. If the store cannot be read, or holds corrupt or newer-format data, the game runs on defaults and saving stays paused for that session so the stored data is never overwritten. A failed save retries on its own. The status chip shows LOADING, SAVING, SAVED, SAVE RETRYING, SAVE CLEARED, SAVE TOO LARGE, SAVE UNAVAILABLE, or OLD PRESET VPK (an old builder pak01 is installed; delete it). **FORGET SAVED** (click twice) deletes only the two v2 keys and keeps the current live settings; automatic hero routing does not recreate the save, and the next deliberate edit saves again.
+
+The web-builder pak01 seed is retired; HPCR2/HPCRP1 codes remain the sharing and off-PC backup path. Clearing Steam's browser cache, reinstalling Steam, or moving PCs loses the local save.
+
 ## Remaining limits and live checks
 
-Settings, scopes, user presets, and ability conditions remain session-scoped because the Phase 0 runtime probe found no writable native `$.persistentStorage` interface. Durable persistence, restart selection, Anita compatibility, and Reset All remain out of scope. The external pak96 builder stays build-time and read-only. Rewrite v2 still needs real-game checks for identity discovery, locale behavior, lifecycle transitions, Presets, popup placement, and supported UI scales.
+Anita compatibility and Reset All remain out of scope. The external pak96 builder stays build-time and read-only. Rewrite v2 still needs real-game checks for durable save across restarts, identity discovery, locale behavior, lifecycle transitions, Presets, popup placement, and supported UI scales.

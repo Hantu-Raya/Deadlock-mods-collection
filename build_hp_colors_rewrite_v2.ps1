@@ -44,6 +44,7 @@ $assetManifest = @(
     [pscustomobject]@{ Source = 'panorama\styles\unit_status_v2.css'; Packed = 'panorama/styles/unit_status_v2.vcss_c' }
     [pscustomobject]@{ Source = 'panorama\scripts\hp_colors_v2_contract.js'; Packed = 'panorama/scripts/hp_colors_v2_contract.vjs_c' }
     [pscustomobject]@{ Source = 'panorama\scripts\hp_colors_v2_state.js'; Packed = 'panorama/scripts/hp_colors_v2_state.vjs_c' }
+    [pscustomobject]@{ Source = 'panorama\scripts\hp_colors_v2_storage.js'; Packed = 'panorama/scripts/hp_colors_v2_storage.vjs_c' }
     [pscustomobject]@{ Source = 'panorama\scripts\hp_colors_v2_menu.js'; Packed = 'panorama/scripts/hp_colors_v2_menu.vjs_c' }
     [pscustomobject]@{ Source = 'panorama\scripts\unit_status_v2_colors.js'; Packed = 'panorama/scripts/unit_status_v2_colors.vjs_c' }
     [pscustomobject]@{ Source = 'panorama\layout\citadel_hud_top_bar.xml'; Packed = 'panorama/layout/citadel_hud_top_bar.vxml_c' }

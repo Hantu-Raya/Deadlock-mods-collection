@@ -90,7 +90,7 @@ function buildHud(sourceXml, packageHash) {
   );
 }
 
-function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
+function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pak03') {
   const isV2 = canonicalXml.includes('hp_colors_v2_contract.vjs_c');
   const styleAsset = isV2
     ? 'hp_colors_v2_menu.vcss_c'
@@ -99,6 +99,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
     ? [
       'hp_colors_v2_contract.vjs_c',
       'hp_colors_v2_state.vjs_c',
+      'hp_colors_v2_storage.vjs_c',
       'hp_colors_v2_menu.vjs_c',
     ]
     : [
@@ -106,31 +107,34 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
       'hp_colors_state.vjs_c',
       'hp_colors_menu.vjs_c',
     ];
+  // v1 keeps its read-only builder preset store; v2 replaced it with the
+  // durable storage panel.
+  const storePanelId = isV2 ? 'HPColorsV2StoreWrap' : 'HPColorsRewritePresetStore';
   for (const id of [
     'HPColorsMenuButton',
     'HPColorsEditorRoot',
     'HPColorsSupporterTicker',
     'HPColorsAllyTeamHighToggle',
-    'HPColorsRewritePresetStore',
+    storePanelId,
   ]) {
     requireMatchCount(
       sourceXml,
       new RegExp(`id="${id}"`, 'g'),
       0,
-      `pak03 Escape-menu pre-existing ${id}`,
+      `${sourceLabel} Escape-menu pre-existing ${id}`,
     );
   }
   requireMatchCount(
     sourceXml,
     /s2r:\/\/panorama\/(?:scripts|styles)\/(?:hp_colors_|qollock_(?:settings|hp_colors)_guard)[^"]*\.(?:vjs|vcss)_c/g,
     0,
-    'pak03 Escape-menu pre-existing compatibility includes',
+    `${sourceLabel} Escape-menu pre-existing compatibility includes`,
   );
   requireMatchCount(
     sourceXml,
     /id="ModSettingsBtn"/g,
     1,
-    'pak03 QOLLOCK settings button',
+    `${sourceLabel} QOLLOCK settings button`,
   );
   let xml = sourceXml;
   const hpButton = extractElementById(canonicalXml, 'Button', 'HPColorsMenuButton');
@@ -141,7 +145,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
     `\n\t\t<include src="s2r://panorama/styles/${styleAsset}" />`,
     'Escape-menu style anchor',
   );
-  const hpPresetStore = extractElementById(canonicalXml, 'Panel', 'HPColorsRewritePresetStore');
+  const hpStorePanel = extractElementById(canonicalXml, 'Panel', storePanelId);
   const scriptIncludes = scriptAssets
     .concat('qollock_hp_colors_bridge.vjs_c')
     .map((asset) => `\t\t<include src="s2r://panorama/scripts/${asset}" />`);
@@ -182,7 +186,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
   xml = replaceOnce(
     xml,
     /\s*<\/CitadelHudEscapeMenu>/,
-    `\n${hpEditor}\n${hpPresetStore}\n\t</CitadelHudEscapeMenu>`,
+    `\n${hpEditor}\n${hpStorePanel}\n\t</CitadelHudEscapeMenu>`,
     'Escape-menu editor insertion',
   );
   for (const id of [
@@ -190,7 +194,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
     'HPColorsEditorRoot',
     'HPColorsSupporterTicker',
     'HPColorsAllyTeamHighToggle',
-    'HPColorsRewritePresetStore',
+    storePanelId,
   ]) {
     requireMatchCount(
       xml,
@@ -214,7 +218,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash) {
   return replaceOnce(
     xml,
     /^<!-- xml reconstructed[^\n]*-->/,
-    `<!-- Generated from pak03 SHA-256 ${packageHash} by refresh-hp-colors-rewrite-qollock.js -->`,
+    `<!-- Generated from ${sourceLabel} SHA-256 ${packageHash} by refresh-hp-colors-rewrite-qollock.js -->`,
     'Escape-menu generated header',
   );
 }
@@ -229,24 +233,25 @@ function main() {
     manifestPath,
   ] = process.argv.slice(2);
   if (!pakPath || !packageHudPath || !packageEscapePath || !canonicalEscapePath || !supportRoot || !manifestPath) {
-    console.error('Usage: node scripts/refresh-hp-colors-rewrite-qollock.js <pak03_dir.vpk> <decompiled hud.xml> <decompiled hud_escape_menu.xml> <canonical hud_escape_menu.xml> <support root> <hash manifest>');
+    console.error('Usage: node scripts/refresh-hp-colors-rewrite-qollock.js <qollock pakNN_dir.vpk> <decompiled hud.xml | -> <decompiled hud_escape_menu.xml> <canonical hud_escape_menu.xml> <support root> <hash manifest>');
     process.exit(2);
   }
 
   const packageBytes = fs.readFileSync(pakPath);
   const packageHash = crypto.createHash('sha256').update(packageBytes).digest('hex');
-  const packageHud = fs.readFileSync(packageHudPath, 'utf8');
+  const sourceLabel = path.basename(pakPath).replace(/_dir\.vpk$/i, '');
   const packageEscape = fs.readFileSync(packageEscapePath, 'utf8');
   const canonicalEscape = fs.readFileSync(canonicalEscapePath, 'utf8');
-  const hud = buildHud(packageHud, packageHash);
-  const escapeMenu = buildEscapeMenu(packageEscape, canonicalEscape, packageHash);
+  // '-' skips the HUD: Rewrite v2 leaves QOLLOCK's own hud.xml in charge.
+  const hud = packageHudPath === '-' ? null : buildHud(fs.readFileSync(packageHudPath, 'utf8'), packageHash);
+  const escapeMenu = buildEscapeMenu(packageEscape, canonicalEscape, packageHash, sourceLabel);
 
   const layoutRoot = path.join(supportRoot, 'panorama', 'layout');
   fs.mkdirSync(layoutRoot, { recursive: true });
-  fs.writeFileSync(path.join(layoutRoot, 'hud.xml'), hud, 'utf8');
+  if (hud !== null) fs.writeFileSync(path.join(layoutRoot, 'hud.xml'), hud, 'utf8');
   fs.writeFileSync(path.join(layoutRoot, 'hud_escape_menu.xml'), escapeMenu, 'utf8');
   fs.writeFileSync(manifestPath, `${packageHash}  ${pakPath.replaceAll('\\', '/')}\n`, 'utf8');
-  console.log(`[QOLLOCK REFRESH] Generated compatibility layouts from pak03 ${packageHash}.`);
+  console.log(`[QOLLOCK REFRESH] Generated compatibility layouts from ${sourceLabel} ${packageHash}.`);
 }
 
 if (require.main === module) main();
