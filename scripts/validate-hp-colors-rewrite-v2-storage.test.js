@@ -78,12 +78,14 @@ function installCefBridge(harness, profile, panel, options = {}) {
     quotaChars: Infinity,
     // (title) => true drops that title and its echo, like a lost HTMLTitle.
     dropTitle: null,
+    // Titles longer than this arrive cut short, like a capped title channel.
+    titleLimit: TITLE_LIMIT,
   }, options);
   const stats = { navigations: 0, reads: 0, writes: 0, deletes: 0, titles: [] };
   let page = null;
 
   function deliver(title) {
-    const cut = String(title).slice(0, TITLE_LIMIT);
+    const cut = String(title).slice(0, opts.titleLimit);
     if (opts.dropTitle && opts.dropTitle(cut)) {
       stats.dropped = (stats.dropped || 0) + 1;
       return;
@@ -260,6 +262,13 @@ function loadStorageCodec() {
   vm.runInContext(storageSource, vm.createContext({ $, Math, JSON, Number, String, Date }));
   codecFactory = $.HPColorsV2StorageFactory;
   return codecFactory;
+}
+
+// The width the editor shows: the Current scope once one exists, else base.
+function storedEditedWidth(profile) {
+  const body = JSON.parse(storedRecord(profile).body);
+  const current = (body.scopes || []).find((scope) => scope.id === 'scope_current');
+  return (current || body).values.widthScale;
 }
 
 function assertOtherModsUntouched(profile) {
@@ -583,8 +592,7 @@ test('lost replies at game start are resent and the save still loads', () => {
   assert.equal(fixture.renderer().widthScale, 145);
   assert.equal(fixture.status(), 'SAVED');
   const logs = fixture.harness.logs.join('\n');
-  assert.match(logs, /resending \(1\/3\)/);
-  assert.match(logs, /resending \(2\/3\)/);
+  assert.match(logs, /no reply to read/);
   assert.match(logs, /restored saved settings/);
   record(fixture);
 });
@@ -598,15 +606,15 @@ test('replies slower than the exchange timeout are still accepted', () => {
     label: 'late replies',
     bridge: { replyLatencySec: 4 },
   });
-  fixture.run(30000);
+  fixture.run(60000);
   assert.equal(fixture.renderer().widthScale, 155);
   assert.equal(fixture.status(), 'SAVED');
 
   openEditor(fixture);
   setWidth(fixture, 165);
   closeEditor(fixture);
-  fixture.run(30000);
-  assert.equal(JSON.parse(storedRecord(profile).body).values.widthScale, 165);
+  fixture.run(60000);
+  assert.equal(storedEditedWidth(profile), 165);
   assert.equal(fixture.status(), 'SAVED');
   record(fixture);
 });
@@ -633,5 +641,39 @@ test('a lost save acknowledgement is resent without rotating the backup twice', 
     'the retried commit keeps the older save as the backup',
   );
   assert.match(fixture.harness.logs.join('\n'), /no reply to write/);
+  record(fixture);
+});
+
+// Live console.log 2026-09-26 05:43: every read of a saved record went
+// unanswered on the second launch while tiny replies worked. Model a title
+// channel that cuts long titles.
+test('a title channel that cuts long replies still restores through smaller chunks', () => {
+  const profile = createProfile();
+  const seed = launch(profile, { label: 'cut titles seed' });
+  seed.run(2000);
+  openEditor(seed);
+  setWidth(seed, 185);
+  createPreset(seed, 'Cut Title Preset');
+  closeEditor(seed);
+  seed.run(8000);
+  assert.ok(profile.disk.get(KEY_CURRENT).length > 3000, 'save spans several chunks');
+
+  const fixture = launch(profile, {
+    label: 'cut titles restore',
+    bridge: { titleLimit: 1800 },
+  });
+  fixture.run(60000);
+  assert.equal(fixture.renderer().widthScale, 185);
+  assert.equal(fixture.status(), 'SAVED');
+  assert.deepEqual(menuState(fixture).userPresets.map((preset) => preset.name), ['Cut Title Preset']);
+  const logs = fixture.harness.logs.join('\n');
+  assert.match(logs, /ignored unparseable reply title \(1800 chars/);
+  assert.match(logs, /retrying with 1500-character chunks/);
+
+  openEditor(fixture);
+  setWidth(fixture, 190);
+  closeEditor(fixture);
+  fixture.run(20000);
+  assert.equal(storedEditedWidth(profile), 190);
   record(fixture);
 });

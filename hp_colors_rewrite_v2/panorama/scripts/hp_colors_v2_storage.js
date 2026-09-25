@@ -27,6 +27,9 @@
   var CHUNK_CHARS = 3000;
   var MAX_CHUNKS = 64;
   var TITLE_MAX_CHARS = 4096;
+  // Reads shrink their reply chunk down to this when replies go missing.
+  var MIN_READ_CHUNK = 375;
+  var DROPPED_TITLE_LOG_LIMIT = 6;
 
   // Game start is slow and HTMLTitle can drop or delay a reply. A committed
   // page gets READY_TIMEOUT_SEC to answer (re-injected every REINJECT_SEC).
@@ -246,6 +249,8 @@
     var ready = false;
     var unavailable = false;
     var injectAttempts = 0;
+    var readChunk = CHUNK_CHARS;
+    var droppedTitleLogs = 0;
     var lastPageTitle = "";
     var readyTimer = null;
     var reinjectTimer = null;
@@ -288,13 +293,28 @@
 
     // A lost or late reply is normal at game start, so an exchange is resent
     // before the request fails. Every page call is idempotent, and a late
-    // reply to the original send is accepted like the resent one.
+    // reply to the original send is accepted like the resent one. A read that
+    // gets no reply first retries with smaller reply chunks, in case the
+    // title channel cuts long titles, then falls back to plain resends.
     function armExchange(request) {
       request.exchangeTimer = clearTimer(request.exchangeTimer);
       var requestGeneration = generation;
       request.exchangeTimer = schedule(EXCHANGE_TIMEOUT_SEC, function () {
         request.exchangeTimer = null;
         if (!alive(requestGeneration) || active !== request) return;
+        if (request.op === "read" && request.chunk > MIN_READ_CHUNK) {
+          request.chunk = Math.max(MIN_READ_CHUNK, Math.floor(request.chunk / 2));
+          readChunk = request.chunk;
+          // A fresh id keeps late replies cut at the old size from mixing in.
+          request.id = "h" + String(++requestSerial);
+          request.part = 0;
+          request.total = 0;
+          request.received = "";
+          request.retries = 0;
+          log("no reply to read; retrying with " + request.chunk + "-character chunks");
+          transmit(request);
+          return;
+        }
         if (request.retries >= EXCHANGE_RETRIES) {
           fail(request, "timeout");
           return;
@@ -315,7 +335,7 @@
         code =
           "window.__hpv2s&&window.__hpv2s.r(" +
           id + "," + JSON.stringify(request.key) + "," +
-          request.part + "," + CHUNK_CHARS + ");void(0);";
+          request.part + "," + request.chunk + ");void(0);";
       } else if (request.op === "write") {
         code =
           "window.__hpv2s&&window.__hpv2s.w(" +
@@ -370,6 +390,7 @@
           request.callback({ ok: false, error: "unavailable" });
         return;
       }
+      if (request.op === "read") request.chunk = readChunk;
       queue.push(request);
       pump();
     }
@@ -383,10 +404,10 @@
       if (
         message.x !== 1 ||
         typeof message.v !== "string" ||
-        message.v.length > CHUNK_CHARS ||
+        message.v.length > request.chunk ||
         !Number.isInteger(message.n) ||
         message.n < 1 ||
-        message.n > MAX_CHUNKS ||
+        message.n > Math.ceil((CHUNK_CHARS * MAX_CHUNKS) / request.chunk) ||
         (request.total && message.n !== request.total)
       )
         return fail(request, "malformed");
@@ -451,11 +472,15 @@
         inject();
         return;
       }
-      if (title.length > TITLE_MAX_CHARS) return;
+      if (title.length > TITLE_MAX_CHARS) {
+        noteDroppedTitle("oversize", title);
+        return;
+      }
       var message = null;
       try {
         message = JSON.parse(title.slice(TITLE_PREFIX.length));
       } catch {
+        noteDroppedTitle("unparseable", title);
         return;
       }
       if (!message || typeof message !== "object") return;
@@ -472,6 +497,17 @@
       if (request.op === "read" && message.o === "r") onReadReply(request, message);
       else if (request.op === "write" && message.o === "w") onWriteReply(request, message);
       else if (request.op === "delete" && message.o === "d") settle(request, { ok: true });
+    }
+
+    // A reply that cannot be read is otherwise invisible; its length shows
+    // whether the title channel cut it. Bounded so a bad page cannot spam.
+    function noteDroppedTitle(reason, title) {
+      if (droppedTitleLogs >= DROPPED_TITLE_LOG_LIMIT) return;
+      droppedTitleLogs += 1;
+      log(
+        "ignored " + reason + " reply title (" + title.length + " chars, ends \"" +
+          title.slice(-12) + "\")",
+      );
     }
 
     function markUnavailable(code) {
