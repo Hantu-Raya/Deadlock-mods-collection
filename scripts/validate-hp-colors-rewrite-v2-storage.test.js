@@ -89,10 +89,12 @@ function installCefBridge(harness, profile, panel, options = {}) {
     abortLoadOnScript: true,
     // The first N loads end at http://error/ on their own.
     failNavigations: 0,
-    // false models a client that never sends HTMLURLChanged.
-    urlEvents: true,
     // Loads of this exact address always end on http://error/.
     failUrl: null,
+    // Each HTMLURLChanged also arrives twice, like HTMLTitle.
+    duplicateUrlEvents: false,
+    // The first load reports http://error/ this long before it commits file:.
+    strayErrorSec: null,
   }, options);
   const stats = { navigations: 0, reads: 0, writes: 0, deletes: 0, titles: [], urls: [] };
   let page = null;
@@ -145,8 +147,10 @@ function installCefBridge(harness, profile, panel, options = {}) {
   let loading = null;
   function commit(href, title) {
     page = newPage(href);
-    if (opts.urlEvents && typeof panel.events.HTMLURLChanged === 'function')
+    if (typeof panel.events.HTMLURLChanged === 'function') {
       panel.events.HTMLURLChanged(panel, href);
+      if (opts.duplicateUrlEvents) panel.events.HTMLURLChanged(panel, href);
+    }
     deliver(title);
   }
 
@@ -173,6 +177,8 @@ function installCefBridge(harness, profile, panel, options = {}) {
     if (opts.placeholderSec !== null)
       harness.scheduler.schedule(opts.placeholderSec, () => commit('about:blank', 'about:blank'));
     if (!opts.commit) return;
+    if (opts.strayErrorSec !== null && stats.navigations === 1)
+      harness.scheduler.schedule(opts.strayErrorSec, () => panel.events.HTMLURLChanged(panel, 'http://error/'));
     const failed = stats.navigations <= opts.failNavigations || text === opts.failUrl;
     loading = harness.scheduler.schedule(opts.navLatencySec, () => {
       loading = null;
@@ -594,8 +600,7 @@ test('duplicate replies, quota exhaustion, and oversize saves fail safely', () =
   assert.equal(JSON.stringify(results), JSON.stringify([{ ok: false, error: 'too_large' }]));
 });
 
-// Live console.log 2026-09-26 05:36: "bridge ready" then the first read timed
-// out and saving stayed off. Replies can be lost or late at game start.
+// A lost reply fails the request; the editor's save retry is the only retry.
 function dropFirst(predicate, count = 1) {
   let left = count;
   return (title) => {
@@ -607,55 +612,42 @@ function dropFirst(predicate, count = 1) {
   };
 }
 
-test('lost replies at game start are resent and the save still loads', () => {
+test('a lost first read is asked once more, and the save loads', () => {
   const factory = loadStorageCodec();
   const profile = createProfile({
     [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 145 }), 1),
   });
-  let lostHello = 1;
-  let lostRead = 2;
   const fixture = launch(profile, {
-    label: 'lost hello and read replies',
-    bridge: {
-      dropTitle(title) {
-        if (lostHello > 0 && title.includes('"o":"ready"')) { lostHello -= 1; return true; }
-        if (lostRead > 0 && title.includes('"o":"r"')) { lostRead -= 1; return true; }
-        return false;
-      },
-    },
+    label: 'lost first read reply',
+    bridge: { dropTitle: dropFirst((title) => title.includes('"o":"r"')) },
   });
   fixture.run(20000);
   assert.equal(fixture.renderer().widthScale, 145);
   assert.equal(fixture.status(), 'SAVED');
-  const logs = fixture.harness.logs.join('\n');
-  assert.match(logs, /no reply to read/);
-  assert.match(logs, /restored saved settings/);
+  assert.match(fixture.harness.logs.join('\n'), /no reply to read part 0/);
   record(fixture);
 });
 
-test('replies slower than the exchange timeout are still accepted', () => {
+test('two lost reads block saving and keep the stored record', () => {
   const factory = loadStorageCodec();
-  const profile = createProfile({
-    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 155 }), 1),
-  });
+  const record0 = factory.codec.encodeRecord(savedBody({ widthScale: 145 }), 1);
+  const profile = createProfile({ [KEY_CURRENT]: record0 });
   const fixture = launch(profile, {
-    label: 'late replies',
-    bridge: { replyLatencySec: 4 },
+    label: 'read replies lost twice',
+    bridge: { dropTitle: dropFirst((title) => title.includes('"o":"r"'), 2) },
   });
-  fixture.run(60000);
-  assert.equal(fixture.renderer().widthScale, 155);
-  assert.equal(fixture.status(), 'SAVED');
-
+  fixture.run(20000);
+  assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
   openEditor(fixture);
-  setWidth(fixture, 165);
+  setWidth(fixture, 190);
   closeEditor(fixture);
-  fixture.run(60000);
-  assert.equal(storedEditedWidth(profile), 165);
-  assert.equal(fixture.status(), 'SAVED');
+  fixture.run(8000);
+  assert.equal(fixture.bridge.writes, 0);
+  assert.equal(profile.disk.get(KEY_CURRENT), record0);
   record(fixture);
 });
 
-test('a lost save acknowledgement is resent without rotating the backup twice', () => {
+test('a lost save acknowledgement is retried by the editor without rotating the backup twice', () => {
   const factory = loadStorageCodec();
   const profile = createProfile({
     [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 120 }), 1),
@@ -676,7 +668,7 @@ test('a lost save acknowledgement is resent without rotating the backup twice', 
     120,
     'the retried commit keeps the older save as the backup',
   );
-  assert.match(fixture.harness.logs.join('\n'), /no reply to write/);
+  assert.match(fixture.harness.logs.join('\n'), /save failed \(1\): timeout/);
   record(fixture);
 });
 
@@ -697,21 +689,20 @@ test('no script reaches the page until file:// has loaded, so the load is never 
   assert.equal(fixture.bridge.aborted, undefined, 'the file:// load was never interrupted');
   assert.equal(fixture.renderer().widthScale, 205);
   assert.equal(fixture.status(), 'SAVED');
-  assert.match(fixture.harness.logs.join('\n'), /bridge ready at file:\/\/\/C:\/ \(load 1, inject 1\)/);
+  assert.match(fixture.harness.logs.join('\n'), /bridge ready at file:\/\/\/C:\/ \(load 1\)/);
   record(fixture);
 });
 
-test('a load that ends on http://error/ is retried', () => {
+test('when both addresses end on http://error/, saving is unavailable and the save is kept', () => {
   const factory = loadStorageCodec();
-  const profile = createProfile({
-    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 212 }), 1),
-  });
-  const fixture = launch(profile, { label: 'failed load', bridge: { failNavigations: 3 } });
-  fixture.run(40000);
-  assert.deepEqual(fixture.bridge.urls, ['file:///C:/', 'file://', 'file:///C:/', 'file://']);
-  assert.equal(fixture.renderer().widthScale, 212);
-  assert.equal(fixture.status(), 'SAVED');
-  assert.match(fixture.harness.logs.join('\n'), /page load failed at http:\/\/error\//);
+  const record0 = factory.codec.encodeRecord(savedBody({ widthScale: 212 }), 1);
+  const profile = createProfile({ [KEY_CURRENT]: record0 });
+  const fixture = launch(profile, { label: 'both loads fail', bridge: { failNavigations: 2 } });
+  fixture.run(30000);
+  assert.deepEqual(fixture.bridge.urls, ['file:///C:/', 'file://']);
+  assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
+  assert.match(fixture.harness.logs.join('\n'), /bridge unavailable: load_failed/);
+  assert.equal(profile.disk.get(KEY_CURRENT), record0);
   record(fixture);
 });
 
@@ -728,14 +719,35 @@ test('if the C: listing never loads, bare file:// still reaches the same save', 
   record(fixture);
 });
 
-test('a client without URL events falls back to title-driven injection', () => {
+test('doubled URL events move to the next address once', () => {
   const factory = loadStorageCodec();
   const profile = createProfile({
-    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 218 }), 1),
+    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 216 }), 1),
   });
-  const fixture = launch(profile, { label: 'no URL events', bridge: { urlEvents: false } });
+  const fixture = launch(profile, {
+    label: 'doubled URL events',
+    bridge: { failNavigations: 1, duplicateUrlEvents: true },
+  });
   fixture.run(20000);
-  assert.equal(fixture.renderer().widthScale, 218);
+  assert.deepEqual(fixture.bridge.urls, ['file:///C:/', 'file://']);
+  assert.equal(fixture.renderer().widthScale, 216);
+  assert.equal(fixture.status(), 'SAVED');
+  record(fixture);
+});
+
+test('a load that reports an error and then commits keeps its page', () => {
+  const factory = loadStorageCodec();
+  const profile = createProfile({
+    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 217 }), 1),
+  });
+  const fixture = launch(profile, { label: 'error then commit', bridge: { strayErrorSec: 0.3 } });
+  fixture.run(10000);
+  assert.deepEqual(fixture.bridge.urls, ['file:///C:/']);
+  openEditor(fixture);
+  setWidth(fixture, 196);
+  closeEditor(fixture);
+  fixture.run(8000);
+  assert.equal(storedEditedWidth(profile), 196);
   assert.equal(fixture.status(), 'SAVED');
   record(fixture);
 });

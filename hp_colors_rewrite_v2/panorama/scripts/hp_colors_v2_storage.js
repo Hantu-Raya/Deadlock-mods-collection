@@ -34,24 +34,13 @@
   var MAX_CHUNKS = 64;
   var TITLE_MAX_CHARS = 4096;
 
-  // Live Deadlock can lose or delay an HTMLTitle at game start. The page gets
-  // READY_TIMEOUT_SEC to answer (re-injected every REINJECT_SEC); each
-  // exchange is resent up to EXCHANGE_RETRIES times; a whole request is
-  // capped so a trickling page cannot hold the queue.
-  var READY_TIMEOUT_SEC = 40;
-  var REINJECT_SEC = 2;
-  var MAX_INJECTS_PER_PAGE = 6;
-  var EXCHANGE_TIMEOUT_SEC = 3;
-  var EXCHANGE_RETRIES = 3;
-  var TRANSFER_DEADLINE_SEC = 90;
-  // A failed load (Steam shows http://error/) is retried with backoff:
-  // 1, 2, 4, 8, 8 seconds between loads.
-  var MAX_NAVIGATIONS = 6;
-  var NAVIGATE_RETRY_MAX_SEC = 8;
-  // Without any HTMLURLChanged event by then, fall back to title-driven
-  // injection so a client without that event still works.
-  var URL_EVENT_GRACE_SEC = 6;
-  var DIAGNOSTIC_LOG_LIMIT = 8;
+  // A lost reply fails the request; the editor's save retry is the only
+  // retry layer. Earlier "lost titles" were replies from the about:blank
+  // placeholder, not a lossy channel (live console.log 2026-09-26).
+  var READY_TIMEOUT_SEC = 20;
+  var EXCHANGE_TIMEOUT_SEC = 5;
+  // Injects anyway if the loaded listing raises no title in this time.
+  var INJECT_FALLBACK_SEC = 2;
 
   var BASE64_ALPHABET =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
@@ -191,15 +180,13 @@
 
   // -- Page script --
   //
-  // Installed once per document on one namespaced object; every call is
-  // idempotent so Panorama can resend an exchange whose reply was lost. Only
-  // one request is ever in flight, so the page keeps one staging buffer, one
-  // read snapshot, and the last committed write id (a resent final chunk
-  // answers "done" again). A commit moves the current record to the previous
-  // key only when its checksum matches `e`, the record Panorama fully
-  // validated; otherwise the existing backup is kept. The hello carries the
-  // page address so Panorama can reject the placeholder document the panel
-  // shows before `file://` commits.
+  // Installed once per document on one namespaced object. Only one request
+  // is ever in flight, so the page keeps one staging buffer and one read
+  // snapshot. A commit moves the current record to the previous key only
+  // when its checksum matches `e`, the record Panorama fully validated;
+  // otherwise the existing backup is kept. The hello carries the page
+  // address so Panorama can reject the placeholder document the panel shows
+  // before `file://` commits.
   function pageScript() {
     return (
       "(function(w){if(w.__hpv2s&&w.__hpv2s.v===3){w.__hpv2s.hello();return;}" +
@@ -213,7 +200,6 @@
       "'&&sum(p[2])===p[1];}" +
       "s.hello=function(){send({i:'ready',o:'ready',ok:true,h:''+w.location.href});};" +
       "s.w=function(id,k,pk,p,n,c,e){try{" +
-      "if(s.dn===id){send({i:id,o:'w',ok:true,p:p,n:n,d:1});return;}" +
       "if(s.si!==id){s.si=id;s.st={c:0,a:[]};}" +
       "var b=s.st;if(b.a[p]===undefined){b.a[p]=c;b.c++;}" +
       "if(b.c<n){send({i:id,o:'w',ok:true,p:p,n:n});return;}" +
@@ -221,7 +207,7 @@
       "if(!ok(v)){send({i:id,o:'w',ok:false,e:'checksum'});return;}" +
       "var L=w.localStorage,cur=L.getItem(k);" +
       "if(e&&cur!==null&&cur!==v&&cur.split('.')[1]===e&&ok(cur))L.setItem(pk,cur);" +
-      "L.setItem(k,v);s.dn=id;send({i:id,o:'w',ok:true,p:p,n:n,d:1});" +
+      "L.setItem(k,v);send({i:id,o:'w',ok:true,p:p,n:n,d:1});" +
       "}catch(x){s.si=null;s.st=null;send({i:id,o:'w',ok:false,e:''+x});}};" +
       "s.r=function(id,k,p,z){try{" +
       "if(s.ri!==id){s.ri=id;s.rv=w.localStorage.getItem(k);}var v=s.rv;" +
@@ -274,18 +260,16 @@
     var started = false;
     var ready = false;
     var unavailable = false;
-    var pageTitle = "";
     var pageUrl = "";
-    var sawUrlEvent = false;
-    var titleOnly = false;
+    var injected = false;
     var navigations = 0;
-    var injects = 0;
     var readyTimer = null;
-    var reinjectTimer = null;
+    var injectTimer = null;
+    var navigateTimer = null;
+    var exchangeTimer = null;
     var serial = 0;
     var active = null;
     var queue = [];
-    var diagnostics = 0;
     // Checksum of the current record this bridge fully validated or wrote;
     // only that record may be rotated into the backup key.
     var trustedSum = "";
@@ -301,19 +285,13 @@
       });
     }
 
-    function diagnose(message) {
-      if (diagnostics >= DIAGNOSTIC_LOG_LIMIT) return;
-      diagnostics += 1;
-      log(message);
-    }
-
     function run(code) {
       if (!isValid(panel)) return false;
       try {
         panel.SetURL("javascript:" + code + ";void(0);");
         return true;
       } catch (error) {
-        diagnose("SetURL threw: " + String(error));
+        log("SetURL threw: " + String(error));
         return false;
       }
     }
@@ -323,8 +301,7 @@
     function settle(request, result) {
       if (active !== request) return;
       active = null;
-      request.exchangeTimer = clearTimer(request.exchangeTimer);
-      request.deadlineTimer = clearTimer(request.deadlineTimer);
+      exchangeTimer = clearTimer(exchangeTimer);
       pump();
       if (isCallable(request.callback)) request.callback(result);
     }
@@ -349,39 +326,25 @@
         JSON.stringify([KEY_PREVIOUS, KEY_CURRENT]) + ")";
     }
 
-    // Sends the current exchange. A missing reply resends it (page calls are
-    // idempotent); a late reply to an earlier send is accepted all the same.
     function transmit(request) {
-      request.exchangeTimer = clearTimer(request.exchangeTimer);
-      request.exchangeTimer = later(EXCHANGE_TIMEOUT_SEC, function () {
-        request.exchangeTimer = null;
-        if (active !== request) return;
-        if (request.retries >= EXCHANGE_RETRIES) return fail(request, "timeout");
-        request.retries += 1;
-        diagnose(
-          "no reply to " + request.op + " part " + request.part +
-            "; resending (" + request.retries + "/" + EXCHANGE_RETRIES + ")",
-        );
-        transmit(request);
+      exchangeTimer = clearTimer(exchangeTimer);
+      exchangeTimer = later(EXCHANGE_TIMEOUT_SEC, function () {
+        exchangeTimer = null;
+        log("no reply to " + request.op + " part " + request.part);
+        fail(request, "timeout");
       });
       if (!run(exchangeCode(request))) fail(request, "send_failed");
     }
 
     function advance(request) {
       request.part += 1;
-      request.retries = 0;
       transmit(request);
     }
 
     function pump() {
       if (active || !ready || !queue.length) return;
-      var request = queue.shift();
-      active = request;
-      request.deadlineTimer = later(TRANSFER_DEADLINE_SEC, function () {
-        request.deadlineTimer = null;
-        if (active === request) fail(request, "deadline");
-      });
-      transmit(request);
+      active = queue.shift();
+      transmit(active);
     }
 
     function enqueue(request) {
@@ -391,9 +354,6 @@
       }
       request.id = "h" + String(++serial);
       request.part = 0;
-      request.retries = 0;
-      request.exchangeTimer = null;
-      request.deadlineTimer = null;
       queue.push(request);
       pump();
     }
@@ -458,60 +418,57 @@
     function onReady(href) {
       if (ready) return;
       if (!isStoragePage(href)) {
-        diagnose("ignored hello from placeholder page " + String(href).slice(0, 40));
+        log("ignored hello from placeholder page " + String(href).slice(0, 40));
         return;
       }
       ready = true;
       readyTimer = clearTimer(readyTimer);
-      reinjectTimer = clearTimer(reinjectTimer);
-      log("bridge ready at " + String(href).slice(0, 40) + " (load " + navigations + ", inject " + injects + ")");
+      injectTimer = clearTimer(injectTimer);
+      log("bridge ready at " + String(href).slice(0, 40) + " (load " + navigations + ")");
       pump();
     }
 
-    // Installs the page object, only into a loaded file:// document (or, on a
-    // client without URL events, after the grace period). If no usable hello
-    // follows, the same document is injected again.
+    // Installs the page object once, only into a loaded file:// document: a
+    // script sent while the load is pending can abort it to http://error/.
     function inject() {
-      reinjectTimer = clearTimer(reinjectTimer);
-      if (ready || injects >= MAX_INJECTS_PER_PAGE) return;
-      if (!isStoragePage(pageUrl) && !titleOnly) return;
-      injects += 1;
-      run(pageScript());
-      reinjectTimer = later(REINJECT_SEC, inject);
+      injectTimer = clearTimer(injectTimer);
+      if (ready || unavailable || injected || !isStoragePage(pageUrl)) return;
+      injected = true;
+      if (!run(pageScript())) markUnavailable("inject");
     }
 
     function navigate() {
+      navigateTimer = null;
+      if (ready || unavailable || navigations >= PAGE_URLS.length) return;
       pageUrl = "";
-      pageTitle = "";
-      injects = 0;
+      injected = false;
       navigations += 1;
       try {
-        panel.SetURL(PAGE_URLS[(navigations - 1) % PAGE_URLS.length]);
-        return true;
+        panel.SetURL(PAGE_URLS[navigations - 1]);
       } catch (error) {
         markUnavailable("navigate");
-        return false;
       }
     }
 
+    // Each address is loaded once; a load that ends anywhere but file: moves
+    // on to the next address.
     function onUrl(panelOrUrl, eventUrl) {
-      if (!alive || ready) return;
+      if (!alive || ready || unavailable) return;
       var url = String(arguments.length > 1 ? eventUrl : panelOrUrl || "");
-      sawUrlEvent = true;
       pageUrl = url;
-      // Titles seen so far belonged to the previous document.
-      pageTitle = "";
       if (isStoragePage(url)) {
-        // Inject once the listing has a title; the timer covers a lost title.
-        if (pageTitle) inject();
-        else reinjectTimer = later(REINJECT_SEC, inject);
+        // A late commit wins over a pending move to the next address.
+        navigateTimer = clearTimer(navigateTimer);
+        // The listing's title triggers the inject; this covers a lost title.
+        injectTimer = clearTimer(injectTimer);
+        injectTimer = later(INJECT_FALLBACK_SEC, inject);
         return;
       }
-      if (!url || url === "about:blank") return;
-      diagnose("page load failed at " + url.slice(0, 40) + " (load " + navigations + ")");
-      if (navigations < MAX_NAVIGATIONS)
-        later(Math.min(NAVIGATE_RETRY_MAX_SEC, Math.pow(2, navigations - 1)), navigate);
-      else markUnavailable("navigate_failed");
+      // A repeated error event for the same load changes nothing.
+      if (!url || url === "about:blank" || navigateTimer !== null) return;
+      log("page load failed at " + url.slice(0, 40) + " (load " + navigations + ")");
+      if (navigations < PAGE_URLS.length) navigateTimer = later(1, navigate);
+      else markUnavailable("load_failed");
     }
 
     function onTitle(panelOrTitle, eventTitle) {
@@ -519,12 +476,7 @@
       var title = arguments.length > 1 ? eventTitle : panelOrTitle;
       if (typeof title !== "string" || !title) return;
       if (title.indexOf(TITLE_PREFIX) !== 0) {
-        // A plain title means a document finished loading. Deadlock delivers
-        // every HTMLTitle twice, so a repeat is ignored; after readiness plain
-        // titles are only echoes (the bridge never navigates again).
-        if (ready || title === pageTitle) return;
-        pageTitle = title;
-        injects = 0;
+        // A plain title means a document finished loading.
         inject();
         return;
       }
@@ -535,7 +487,7 @@
         } catch {}
       }
       if (!message || typeof message !== "object") {
-        diagnose("ignored unreadable reply title (" + title.length + " chars)");
+        log("ignored unreadable reply title (" + title.length + " chars)");
         return;
       }
       if (message.o === "ready" && message.i === "ready") onReady(message.h);
@@ -547,14 +499,14 @@
       unavailable = true;
       ready = false;
       readyTimer = clearTimer(readyTimer);
-      reinjectTimer = clearTimer(reinjectTimer);
+      injectTimer = clearTimer(injectTimer);
+      navigateTimer = clearTimer(navigateTimer);
+      exchangeTimer = clearTimer(exchangeTimer);
       log("bridge unavailable: " + code);
       var pending = active ? [active].concat(queue) : queue;
       active = null;
       queue = [];
       for (var index = 0; index < pending.length; index++) {
-        pending[index].exchangeTimer = clearTimer(pending[index].exchangeTimer);
-        pending[index].deadlineTimer = clearTimer(pending[index].deadlineTimer);
         if (isCallable(pending[index].callback))
           pending[index].callback({ ok: false, error: "unavailable" });
       }
@@ -569,33 +521,36 @@
       }
       try {
         $.RegisterEventHandler("HTMLTitle", panel, onTitle);
+        $.RegisterEventHandler("HTMLURLChanged", panel, onUrl);
       } catch (error) {
         markUnavailable("register");
         return false;
-      }
-      try {
-        $.RegisterEventHandler("HTMLURLChanged", panel, onUrl);
-      } catch (error) {
-        titleOnly = true;
       }
       readyTimer = later(READY_TIMEOUT_SEC, function () {
         readyTimer = null;
         if (!ready) markUnavailable("ready_timeout");
       });
-      later(URL_EVENT_GRACE_SEC, function () {
-        if (ready || sawUrlEvent) return;
-        diagnose("no page URL events; injecting by title");
-        titleOnly = true;
-        injects = 0;
-        inject();
-      });
-      return navigate();
+      navigate();
+      return !unavailable;
     }
 
     // -- Public operations --
 
-    function readKey(key, callback) {
-      enqueue({ op: "read", key: key, chunks: [], total: 0, callback: callback });
+    // A read that times out is asked once more under a fresh request id (a
+    // late reply to the first id stays ignored). Without it one slow reply at
+    // game start would block saving for the whole process.
+    function readKey(key, callback, retried) {
+      enqueue({
+        op: "read",
+        key: key,
+        chunks: [],
+        total: 0,
+        callback: function (result) {
+          if (!result.ok && result.error === "timeout" && !retried)
+            return readKey(key, callback, true);
+          callback(result);
+        },
+      });
     }
 
     // Reads current, then previous only when current is corrupt or absent. A
@@ -652,11 +607,9 @@
     function dispose() {
       alive = false;
       readyTimer = clearTimer(readyTimer);
-      reinjectTimer = clearTimer(reinjectTimer);
-      if (active) {
-        active.exchangeTimer = clearTimer(active.exchangeTimer);
-        active.deadlineTimer = clearTimer(active.deadlineTimer);
-      }
+      injectTimer = clearTimer(injectTimer);
+      navigateTimer = clearTimer(navigateTimer);
+      exchangeTimer = clearTimer(exchangeTimer);
       active = null;
       queue = [];
       ready = false;
