@@ -80,6 +80,10 @@ function installCefBridge(harness, profile, panel, options = {}) {
     dropTitle: null,
     // Titles longer than this arrive cut short, like a capped title channel.
     titleLimit: TITLE_LIMIT,
+    // Seconds after navigation when the panel's about:blank placeholder
+    // raises its own title before file:// commits (live console.log
+    // 2026-09-26 05:36/05:43: "ready" from it, then every read unanswered).
+    placeholderSec: null,
   }, options);
   const stats = { navigations: 0, reads: 0, writes: 0, deletes: 0, titles: [] };
   let page = null;
@@ -110,16 +114,17 @@ function installCefBridge(harness, profile, panel, options = {}) {
     return total + (extraKey ? extraKey.length + String(extraValue).length : 0);
   }
 
-  function newPage() {
-    const localStorage = {
+  function newPage(href = 'file:///') {
+    const denied = () => { throw new Error('Access is denied for this document.'); };
+    const localStorage = href.startsWith('file:') ? {
       getItem: (key) => (profile.disk.has(key) ? profile.disk.get(key) : null),
       setItem: (key, value) => {
         if (usedChars(key, value) > opts.quotaChars) throw new Error('QuotaExceededError');
         profile.disk.set(key, String(value));
       },
       removeItem: (key) => { profile.disk.delete(key); },
-    };
-    const context = { JSON, Math, String, localStorage, location: { href: 'file:///' } };
+    } : { getItem: denied, setItem: denied, removeItem: denied };
+    const context = { JSON, Math, String, localStorage, location: { href } };
     context.window = context;
     context.document = {
       set title(value) { deliver(value); },
@@ -141,6 +146,12 @@ function installCefBridge(harness, profile, panel, options = {}) {
     }
     stats.navigations += 1;
     page = null;
+    if (opts.placeholderSec !== null) {
+      harness.scheduler.schedule(opts.placeholderSec, () => {
+        page = newPage('about:blank');
+        deliver('about:blank');
+      });
+    }
     if (!opts.commit) return;
     harness.scheduler.schedule(opts.navLatencySec, () => {
       page = newPage();
@@ -335,7 +346,7 @@ test('first launch saves, and a restart restores settings and presets without a 
 });
 
 test('a restore slower than five seconds keeps bars stock until it lands', () => {
-  // A multi-chunk save: settings plus several presets from a real session.
+  // Settings plus several presets from a real session behind a slow page.
   const profile = createProfile();
   const seed = launch(profile, { label: 'slow seed' });
   seed.run(2000);
@@ -345,11 +356,10 @@ test('a restore slower than five seconds keeps bars stock until it lands', () =>
   closeEditor(seed);
   seed.run(6000);
   const record0 = profile.disk.get(KEY_CURRENT);
-  assert.ok(record0.length > 2 * 3000, 'seeded save spans several chunks');
 
   const slow = launch(profile, {
     label: 'slow restore',
-    bridge: { navLatencySec: 0.8, replyLatencySec: 1.4 },
+    bridge: { navLatencySec: 3, replyLatencySec: 1.4 },
   });
   const startedAt = slow.harness.now;
   let restoredAt = 0;
@@ -644,36 +654,88 @@ test('a lost save acknowledgement is resent without rotating the backup twice', 
   record(fixture);
 });
 
-// Live console.log 2026-09-26 05:43: every read of a saved record went
-// unanswered on the second launch while tiny replies worked. Model a title
-// channel that cuts long titles.
-test('a title channel that cuts long replies still restores through smaller chunks', () => {
-  const profile = createProfile();
-  const seed = launch(profile, { label: 'cut titles seed' });
-  seed.run(2000);
-  openEditor(seed);
-  setWidth(seed, 185);
-  createPreset(seed, 'Cut Title Preset');
-  closeEditor(seed);
-  seed.run(8000);
-  assert.ok(profile.disk.get(KEY_CURRENT).length > 3000, 'save spans several chunks');
-
-  const fixture = launch(profile, {
-    label: 'cut titles restore',
-    bridge: { titleLimit: 1800 },
+// Live console.log 2026-09-26 05:36 and 05:43: "bridge ready (inject 1)",
+// then every read went unanswered. The hello came from the panel's
+// about:blank placeholder, which file:// replaced a moment later, so the
+// reads reached a document without the page object.
+test('a hello from the about:blank placeholder is ignored until file:// commits', () => {
+  const factory = loadStorageCodec();
+  const profile = createProfile({
+    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 205 }), 1),
   });
-  fixture.run(60000);
-  assert.equal(fixture.renderer().widthScale, 185);
+  const fixture = launch(profile, {
+    label: 'placeholder hello',
+    // The placeholder answers the first injection, then file:// replaces it
+    // before that hello is delivered: the live failure's order.
+    bridge: { placeholderSec: 0.1, navLatencySec: 0.18 },
+  });
+  fixture.run(20000);
+  assert.equal(fixture.renderer().widthScale, 205);
   assert.equal(fixture.status(), 'SAVED');
-  assert.deepEqual(menuState(fixture).userPresets.map((preset) => preset.name), ['Cut Title Preset']);
   const logs = fixture.harness.logs.join('\n');
-  assert.match(logs, /ignored unparseable reply title \(1800 chars/);
-  assert.match(logs, /retrying with 1500-character chunks/);
+  assert.match(logs, /ignored hello from placeholder page about:blank/);
+  assert.match(logs, /bridge ready \(inject 1\)/, 'the file:// document is injected once');
+  record(fixture);
+});
 
+test('saves from the first local-save build (schema 1) still restore and upgrade', () => {
+  const body = savedBody({ widthScale: 195, enemyLow: '#ABCDEF' });
+  const payload = Buffer.from(JSON.stringify({ m: 'HPV2STORE', s: 1, t: 1, b: body }))
+    .toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  const profile = createProfile({
+    [KEY_CURRENT]: `HPV2S1.${loadStorageCodec().codec.checksum(payload)}.${payload}`,
+  });
+  const fixture = launch(profile, { label: 'schema 1 restore' });
+  fixture.run(8000);
+  assert.equal(fixture.renderer().widthScale, 195);
+  assert.equal(fixture.renderer().enemyLow, '#ABCDEF');
+  openEditor(fixture);
+  setWidth(fixture, 200);
+  closeEditor(fixture);
+  fixture.run(8000);
+  const stored = profile.disk.get(KEY_CURRENT).split('.')[2];
+  assert.equal(JSON.parse(Buffer.from(stored, 'base64').toString('utf8')).s, 2);
+  assert.equal(storedEditedWidth(profile), 200);
+  record(fixture);
+});
+
+test('saves keep only non-default values, and a restart fills the rest', () => {
+  const profile = createProfile();
+  const first = launch(profile, { label: 'sparse save' });
+  first.run(2000);
+  openEditor(first);
+  setWidth(first, 210);
+  createPreset(first, 'Sparse');
+  closeEditor(first);
+  first.run(4000);
+  const body = JSON.parse(storedRecord(profile).body);
+  assert.deepEqual(Object.keys(body.values), ['widthScale']);
+  assert.deepEqual(Object.keys(body.userPresets[0].values), ['widthScale']);
+  assert.ok(profile.disk.get(KEY_CURRENT).length < 3000, 'a typical save is one chunk');
+
+  const restart = launch(profile, { label: 'sparse restore' });
+  restart.run(6000);
+  assert.equal(restart.renderer().widthScale, 210);
+  assert.equal(restart.renderer().heightScale, 100, 'omitted values restore to defaults');
+  assert.equal(menuState(restart).userPresets[0].values.enemyLow, '#FD4949');
+  record(restart, { recordChars: profile.disk.get(KEY_CURRENT).length });
+});
+
+test('an unreadable reply title is logged and the stored save is left untouched', () => {
+  const factory = loadStorageCodec();
+  const record0 = factory.codec.encodeRecord(
+    JSON.stringify({ version: 1, values: { widthScale: 185 }, note: 'x'.repeat(4000) }),
+    1,
+  );
+  const profile = createProfile({ [KEY_CURRENT]: record0 });
+  const fixture = launch(profile, { label: 'cut titles', bridge: { titleLimit: 1800 } });
+  fixture.run(30000);
+  assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
+  assert.match(fixture.harness.logs.join('\n'), /ignored unreadable reply title \(1800 chars\)/);
   openEditor(fixture);
   setWidth(fixture, 190);
   closeEditor(fixture);
-  fixture.run(20000);
-  assert.equal(storedEditedWidth(profile), 190);
+  fixture.run(8000);
+  assert.equal(profile.disk.get(KEY_CURRENT), record0);
   record(fixture);
 });
