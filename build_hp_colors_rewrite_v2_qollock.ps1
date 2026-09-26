@@ -3,9 +3,7 @@ param(
     [switch]$SkipDeploy,
     [switch]$RefreshFromInstalledQollock,
     [string]$Source2ViewerPath = '',
-    [switch]$SkipPanoramaTests,
-    # Build against QOLLOCK 4.0.0 (pak47, hp_colors_rewrite_v2_qollock4) instead of 3.2.0 (pak03).
-    [switch]$Qollock4
+    [switch]$SkipPanoramaTests
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,9 +13,9 @@ $root = $PSScriptRoot
 . (Join-Path $root 'scripts\hp-colors-rewrite-closure.ps1')
 
 $canonicalSrc = Join-Path $root 'hp_colors_rewrite_v2'
-# The bridge script is shared by both QOLLOCK pins.
-$bridgeSrc = Join-Path $root 'hp_colors_rewrite_v2_qollock'
-$supportSrc = if ($Qollock4) { Join-Path $root 'hp_colors_rewrite_v2_qollock4' } else { $bridgeSrc }
+# QOLLOCK 4.0.0 (addons\pak47_dir.vpk) layout, pin, contract and bridge.
+$supportSrc = Join-Path $root 'hp_colors_rewrite_v2_qollock'
+$bridgeSrc = $supportSrc
 $compiledOut = Join-Path $root 'hp_colors_rewrite_v2_qollock_compiled'
 $buildRoot = Join-Path $root '_hp_colors_rewrite_v2_qollock_build'
 $stageSource = Join-Path $buildRoot 'hp_colors_rewrite_v2_qollock'
@@ -32,11 +30,7 @@ $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
 )
 $vpkOut = Join-Path $root 'pak02_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak02_dir.vpk'
-$qollockPak = if ($Qollock4) {
-    'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak47_dir.vpk'
-} else {
-    'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak03_dir.vpk'
-}
+$qollockPak = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak47_dir.vpk'
 $manifestPath = Join-Path $supportSrc 'qollock-source.sha256'
 $contractPath = Join-Path $supportSrc 'pak02-contract.json'
 $refreshScript = Join-Path $root 'scripts\refresh-hp-colors-rewrite-qollock.js'

@@ -592,6 +592,8 @@
                       <Label text="Show HP numbers to the nearest 10 instead of 100. Needs 3 lines added to a game file. Turning it on shows you how." class="HPColorsSettingHelp" />
                     </Panel>
                     <Button id="HPColorsPrecisePipsToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                    <!-- Keeps this toggle in line with rows that have a condition button. -->
+                    <Panel class="HPColorsConditionIndicator HPColorsConditionSpacer" hittest="false" />
                   </Panel>
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">
