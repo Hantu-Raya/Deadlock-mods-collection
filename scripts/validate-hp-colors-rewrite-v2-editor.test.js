@@ -206,7 +206,10 @@ function panelAncestryById(xml) {
     const opening = token.match(/^<([A-Za-z][\w.-]*)/);
     if (!opening) continue;
     const id = token.match(/\bid="([^"]+)"/)?.[1] || '';
-    if (id) ancestry.set(id, stack.map((entry) => entry.id).filter(Boolean));
+    if (id) {
+      assert.ok(!ancestry.has(id), `duplicate XML id ${id}`);
+      ancestry.set(id, stack.map((entry) => entry.id).filter(Boolean));
+    }
     if (!token.endsWith('/>')) stack.push({ tag: opening[1], id });
   }
   assert.equal(stack.length, 0, 'XML tags must be balanced');
@@ -1076,8 +1079,10 @@ test('every setting key has one tab owner and its controls live in that XML page
   for (const category of categories)
     assert.ok(category.tabs.length <= 6, `${category.name} must fit six tab slots`);
 
+  // CATEGORY_DEFS and control maps come from canonical source; layoutSource may be a lane layout.
   for (const tab of tabs) {
     assert.ok(pageAncestry.has(tab.pageId), `missing page ${tab.pageId}`);
+    assert.equal(pageAncestry.get(tab.pageId).at(-1), 'HPColorsSettingsList', `${tab.pageId} must be a direct settings page`);
     for (const key of tab.keys) {
       if (!keyOwners.has(key)) keyOwners.set(key, []);
       keyOwners.get(key).push(tab);

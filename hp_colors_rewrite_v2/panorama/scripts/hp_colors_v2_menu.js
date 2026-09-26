@@ -846,7 +846,7 @@
   var OPTIONAL_UI_PANEL_KEYS = (
     "supporterTicker pickerTitle pickerPreview pickerHex pickerHueValue " +
     "pickerSaturationValue pickerLightnessValue storeForgetButton " +
-    "storeForgetLabel presetHiddenRow storeRow"
+    "storeForgetLabel presetHiddenRow"
   ).split(" ");
   var UI_PANEL_ID_OVERRIDES = {
     resetButton: "HPColorsResetSectionButton",
@@ -1041,7 +1041,6 @@
     presetTransferCloseButton: null,
     presetRestoreBakedButton: null,
     presetHiddenRow: null,
-    storeRow: null,
     storeForgetButton: null,
     storeForgetLabel: null,
     resetDialog: null,
@@ -2503,9 +2502,10 @@
   }
 
 
-  function focusSelectedPresetRow() {
+  function focusSelectedPresetRow(presetId) {
     var view = currentView();
-    var selectedId = view && view.repository ? view.repository.selectedId : "";
+    var selectedId =
+      presetId || (view && view.repository ? view.repository.selectedId : "");
     if (!selectedId || !isValid(ui.presetOptions)) return;
     var rows = ui.presetOptions.Children();
     for (var index = 0; index < rows.length; index++) {
@@ -2572,6 +2572,8 @@
     presetInlineRenameId = "";
     renderPresetOptions();
     setPresetFeedback("REWRITE DEFAULT RESTORED.", false);
+    // RESTORE collapses with its row; move focus to the restored preset.
+    focusSelectedPresetRow("baked_default");
   }
 
   function copySelectedPreset() {
@@ -2745,7 +2747,7 @@
     if (!result || !result.outcome || result.outcome.status === "rejected") {
       setPresetFeedback(
         editing
-          ? "COULD NOT SAVE " + name.toUpperCase() + ". NOTHING CHANGED."
+          ? "COULD NOT UPDATE " + name.toUpperCase() + ". NOTHING CHANGED."
           : "COULD NOT CREATE " + name.toUpperCase() + ". NOTHING CHANGED.",
         true,
       );
