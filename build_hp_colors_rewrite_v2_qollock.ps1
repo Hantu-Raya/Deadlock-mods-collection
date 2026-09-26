@@ -28,7 +28,7 @@ $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
 )
 $vpkOut = Join-Path $root 'pak02_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak02_dir.vpk'
-$qollockPak = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak60_dir.vpk'
+$qollockPak = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak03_dir.vpk'
 $manifestPath = Join-Path $supportSrc 'qollock-source.sha256'
 $contractPath = Join-Path $supportSrc 'pak02-contract.json'
 $refreshScript = Join-Path $root 'scripts\refresh-hp-colors-rewrite-qollock.js'

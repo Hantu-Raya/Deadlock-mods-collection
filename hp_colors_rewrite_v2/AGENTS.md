@@ -76,6 +76,6 @@ The build wrapper runs these validators again against source and Closure output,
 
 The storage suite is end-to-end: it boots the real menu, storage, and renderer against a disk-backed fake Steam page across simulated restarts and writes `.tmp/hpv2-storage-e2e.json`.
 
-Release builds contain no temporary profiling collector or timing switches. Preserve native-style readback, alias restoration, and failed-write retry coverage in the style validator. Use `-ShowRankBarebones` only with its required pak89 installed; use the separate QOLLOCK wrapper for QOLLOCK 4.0 (`pak60_dir.vpk`) compatibility.
+Release builds contain no temporary profiling collector or timing switches. Preserve native-style readback, alias restoration, and failed-write retry coverage in the style validator. Use `-ShowRankBarebones` only with its required pak89 installed; use the separate QOLLOCK wrapper for QOLLOCK compatibility (currently pinned to QOLLOCK 3.2.0 `pak03_dir.vpk` until 4.0 is released).
 
 After deployment, restart Deadlock before the live smoke test. Verify enemy and ally rendering, fixed and gradient thresholds, exclusions, dimensions, position, feedback colors, ultimate icons, all readout modes, pips, levels, pulses, kill marker behavior, hero scopes, ability conditions, presets, HPCR2 settings transfer, HPCRP1 preset transfer, Escape cancel/resume behavior, and supported UI scales. Automated tests cannot prove live panel lineage, rendering, or frame cost.

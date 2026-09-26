@@ -1,4 +1,4 @@
-<!-- Generated from pak60 SHA-256 26631899f6af549c983349e0f3eea9f3b289319f2e41e0027b1841e8b8437076 by refresh-hp-colors-rewrite-qollock.js -->
+<!-- Generated from pak03 SHA-256 ffa7c340f5c73763047bd359c1569d0ee03a3e08d4254e2e71c089b3922d748e by refresh-hp-colors-rewrite-qollock.js -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
@@ -7,9 +7,7 @@
 		<include src="s2r://panorama/styles/hp_colors_v2_menu.vcss_c" />
 	</styles>
 	<scripts>
-		<include src="s2r://panorama/scripts/core/ql_namespace.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_utils.vjs_c" />
-		<include src="s2r://panorama/scripts/core/ql_panel_helpers.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_shared_presets.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_bridge.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_config.vjs_c" />
@@ -34,27 +32,6 @@
 		<include src="s2r://panorama/scripts/ql_settings_tooltips.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_settings_persistence.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_update_checker.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/ql_settings_metadata.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/ql_settings_tabs.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/renderer.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/layout.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/breadcrumb.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/search.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/drag.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/window.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/presets.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/modal.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/config_tab.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/cloud_sync.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/support.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/audio.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/console_tab.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/arcade_tab.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/dev_tab.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/gameplay_tabs.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/theme.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/controls.vjs_c" />
-		<include src="s2r://panorama/scripts/ui/friends.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_settings.vjs_c" />
 		<include src="s2r://panorama/scripts/hp_colors_v2_contract.vjs_c" />
 		<include src="s2r://panorama/scripts/hp_colors_v2_state.vjs_c" />
