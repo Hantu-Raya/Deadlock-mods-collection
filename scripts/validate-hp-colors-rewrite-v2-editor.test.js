@@ -1195,7 +1195,7 @@ test('stale reset feedback callback cannot overwrite the save status after edito
   assert.equal(panel(fixture, 'HPColorsLiveStatus').text, STATUS_WITHOUT_STORE);
 });
 
-test('entering the hideout shows HIDEOUT and drops the hero route to the all-heroes preset', () => {
+function bootHideoutRouting() {
   const fixture = bootMenu({
     version: 1,
     values: { enemyLow: '#111111' },
@@ -1213,6 +1213,15 @@ test('entering the hideout shows HIDEOUT and drops the hero route to the all-her
       {
         id: 'user_0002',
         kind: 'user',
+        name: 'Abrams',
+        mode: 'selected',
+        heroes: ['hero_atlas'],
+        values: { enemyLow: '#444444' },
+        conditions: null,
+      },
+      {
+        id: 'user_0003',
+        kind: 'user',
         name: 'All Heroes',
         mode: 'all',
         heroes: [],
@@ -1223,7 +1232,30 @@ test('entering the hideout shows HIDEOUT and drops the hero route to the all-her
   }, { heroName: 'HAZE' });
   settleHeroRoute(fixture, '#222222');
   openEditor(fixture);
+  return fixture;
+}
 
+function addHideoutCrosshair(fixture, heroClass) {
+  const alive = fixture.identityTree.hud.add(new MockPanel('gameplay_hud_alive'));
+  const crosshair = alive.add(new MockPanel('crosshair'));
+  return crosshair.add(new MockPanel('progress', { classes: [heroClass] }));
+}
+
+test('hideout detects the hero from the crosshair class, including aliases, and follows a swap', () => {
+  const fixture = bootHideoutRouting();
+  fixture.identityTree.hud.AddClass('connectedToHideout');
+  const progress = addHideoutCrosshair(fixture, 'bull');
+  settleHeroRoute(fixture, '#444444');
+  assert.equal(panel(fixture, 'HPColorsHeroIdentity').text, 'HERO: Abrams');
+
+  progress.RemoveClass('bull');
+  progress.AddClass('hero_haze');
+  settleHeroRoute(fixture, '#222222');
+  assert.equal(panel(fixture, 'HPColorsHeroIdentity').text, 'HERO: Haze');
+});
+
+test('hideout without a crosshair hero drops to the all-heroes preset and shows HIDEOUT', () => {
+  const fixture = bootHideoutRouting();
   fixture.identityTree.hud.AddClass('connectedToHideout');
   settleHeroRoute(fixture, '#333333');
   assert.equal(panel(fixture, 'HPColorsHeroIdentity').text, 'HERO: UNKNOWN · HIDEOUT');
