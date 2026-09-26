@@ -1535,9 +1535,8 @@
           : "";
         identity.status = identity.effectiveHeroKey ? "overridden" : "unknown";
       } else {
-        identity.effectiveHeroKey = phaseDetectsHero(identity.phase)
-          ? identity.detectedHeroKey
-          : "";
+        identity.effectiveHeroKey =
+          identity.phase === HERO_PHASE_ACTIVE ? identity.detectedHeroKey : "";
         identity.status = identity.effectiveHeroKey
           ? "settled"
           : identity.candidateHeroKey
@@ -1545,10 +1544,6 @@
             : "unknown";
       }
       return previous !== identity.effectiveHeroKey;
-    }
-
-    function phaseDetectsHero(phase) {
-      return phase === HERO_PHASE_ACTIVE || phase === HERO_PHASE_HIDEOUT;
     }
 
     function clearAutoIdentity() {
@@ -2018,6 +2013,7 @@
       if (epoch < state.identity.epoch) return reject("lifecycle_observe", "STALE_EPOCH");
       if (epoch === state.identity.epoch && intent.phase === state.identity.phase)
         return noop("lifecycle_observe", "NO_CHANGE");
+      var releasedRestoredEffective = false;
       return commit("lifecycle_observe", function () {
         var epochChanged = epoch !== state.identity.epoch;
         var phaseChanged = intent.phase !== state.identity.phase;
@@ -2030,7 +2026,22 @@
         }
         var heroChanged = updateIdentityEffective();
         if (heroChanged) applyAutomaticRoute();
+        // The hideout HUD exposes no local hero, so Auto drops any hero
+        // route (and a held cold-boot snapshot) instead of keeping it.
+        if (
+          phaseChanged &&
+          intent.phase === HERO_PHASE_HIDEOUT &&
+          state.identity.mode === HERO_MODE_AUTO
+        ) {
+          releasedRestoredEffective = state.restoredEffectivePending;
+          state.restoredEffectivePending = false;
+          applyNoHeroRoute(currentScopeRow());
+        }
         return true;
+      }, {
+        forceEffective: function () {
+          return releasedRestoredEffective;
+        },
       });
     }
 
@@ -2043,19 +2054,9 @@
       )
         return reject("hero_observe", "INVALID_EPOCH");
       if (epoch !== state.identity.epoch) return reject("hero_observe", "STALE_EPOCH");
-      if (
-        state.identity.mode !== HERO_MODE_AUTO ||
-        !phaseDetectsHero(state.identity.phase)
-      )
+      if (state.identity.mode !== HERO_MODE_AUTO || state.identity.phase !== HERO_PHASE_ACTIVE)
         return noop("hero_observe", "IDENTITY_INACTIVE");
-      // The hideout samples a stable key from the crosshair; matches sample the
-      // topbar retail name.
-      var nextHeroKey =
-        intent.heroKey !== undefined
-          ? Object.prototype.hasOwnProperty.call(HERO_BY_KEY, intent.heroKey)
-            ? intent.heroKey
-            : ""
-          : HERO_BY_RETAIL_NAME[normalizeRetailName(intent.heroName)] || "";
+      var nextHeroKey = HERO_BY_RETAIL_NAME[normalizeRetailName(intent.heroName)] || "";
       if (
         nextHeroKey &&
         nextHeroKey === state.identity.detectedHeroKey &&
@@ -2100,14 +2101,6 @@
         var changed = updateIdentityEffective();
         if (changed) state.ability.tiers = [-1, -1, -1, -1];
         if (changed) applyAutomaticRoute();
-        // No hero found in the hideout: drop any hero route rather than keep it.
-        if (
-          identity.phase === HERO_PHASE_HIDEOUT &&
-          identity.sampledActive &&
-          !identity.effectiveHeroKey &&
-          !identity.candidateHeroKey
-        )
-          applyNoHeroRoute(currentScopeRow());
         return restoredEffectivePending !== state.restoredEffectivePending;
       }, {
         forceEffective: function () {

@@ -1084,8 +1084,6 @@
     localPlayer: null,
     heroNameLabel: null,
     gameTime: null,
-    crosshair: null,
-    heroProgress: null,
     watchGeneration: 0,
     renderSignature: "",
     optionPanels: [],
@@ -1296,8 +1294,6 @@
     identity.localPlayer = null;
     identity.heroNameLabel = null;
     identity.gameTime = null;
-    identity.crosshair = null;
-    identity.heroProgress = null;
   }
 
   function identitySignalHasClass(className) {
@@ -1619,63 +1615,6 @@
     return readPanelText(resolveHeroNameLabel());
   }
 
-  // Crosshair progress classes that differ from the stable key and its bare
-  // token (same table as 3d hud/panorama/scripts/3d_hero_dynamic.js).
-  var CROSSHAIR_HERO_ALIASES = {
-    bull: "hero_atlas",
-    engineer: "hero_forge",
-    sumo: "hero_dynamo",
-    archer: "hero_orion",
-    digger: "hero_krill",
-    pocket: "hero_synth",
-    apollo: "hero_fencer",
-    geist: "hero_ghost",
-  };
-
-  function crosshairHeroKey(panel, heroes) {
-    if (!isValid(panel)) return "";
-    for (var index = 0; index < heroes.length; index++) {
-      var key = heroes[index].key;
-      if (panelHasClass(panel, key) || panelHasClass(panel, key.slice(5)))
-        return key;
-    }
-    for (var alias in CROSSHAIR_HERO_ALIASES) {
-      if (panelHasClass(panel, alias)) return CROSSHAIR_HERO_ALIASES[alias];
-    }
-    return "";
-  }
-
-  // The hideout has no topbar card; the engine tags the ability crosshair's
-  // progress panel with the local hero's class instead.
-  function readCrosshairHeroKey() {
-    var view = currentView();
-    var heroes = view && view.heroes ? view.heroes : [];
-    var cached = crosshairHeroKey(identity.heroProgress, heroes);
-    if (cached) return cached;
-    identity.heroProgress = null;
-    if (!resolveIdentityRoot()) return "";
-    if (!isValid(identity.crosshair)) {
-      var hudRoot = isValid(identity.hud) ? identity.hud : identity.root;
-      identity.crosshair = findChild(
-        findChild(hudRoot, "gameplay_hud_alive"),
-        "crosshair",
-      );
-    }
-    if (!isValid(identity.crosshair)) return "";
-    var children = [];
-    try {
-      children = identity.crosshair.Children() || [];
-    } catch {}
-    for (var index = 0; index < children.length; index++) {
-      if (String(children[index].id || "") !== "progress") continue;
-      var key = crosshairHeroKey(children[index], heroes);
-      if (!key) continue;
-      identity.heroProgress = children[index];
-      return key;
-    }
-    return "";
-  }
-
   function heroDisplayName(heroKey, heroes) {
     for (var index = 0; index < heroes.length; index++) {
       if (heroes[index].key === heroKey) return heroes[index].name;
@@ -1803,7 +1742,9 @@
   function identityPollDelay() {
     var view = currentView();
     var phase = view && view.identity ? view.identity.phase : HERO_PHASE_TRANSITIONING;
-    return phase === HERO_PHASE_LOBBY || phase === HERO_PHASE_POST_MATCH
+    return phase === HERO_PHASE_LOBBY ||
+      phase === HERO_PHASE_HIDEOUT ||
+      phase === HERO_PHASE_POST_MATCH
       ? HERO_POLL_INACTIVE_SEC
       : HERO_POLL_ACTIVE_SEC;
   }
@@ -1831,22 +1772,13 @@
     view = currentView();
     if (
       view.identity.mode === HERO_MODE_AUTO &&
-      (view.identity.phase === HERO_PHASE_ACTIVE ||
-        view.identity.phase === HERO_PHASE_HIDEOUT)
+      view.identity.phase === HERO_PHASE_ACTIVE
     ) {
-      var heroResult = sendState(
-        view.identity.phase === HERO_PHASE_HIDEOUT
-          ? {
-            type: "hero_observe",
-            epoch: view.identity.epoch,
-            heroKey: readCrosshairHeroKey(),
-          }
-          : {
-            type: "hero_observe",
-            epoch: view.identity.epoch,
-            heroName: readLocalHeroName(),
-          },
-      );
+      var heroResult = sendState({
+        type: "hero_observe",
+        epoch: view.identity.epoch,
+        heroName: readLocalHeroName(),
+      });
       refreshEditorAfterIdentityChange(heroResult);
     }
     renderIdentity();
