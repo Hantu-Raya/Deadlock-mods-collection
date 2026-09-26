@@ -1,4 +1,4 @@
-<!-- Generated from pak03 SHA-256 ffa7c340f5c73763047bd359c1569d0ee03a3e08d4254e2e71c089b3922d748e by refresh-hp-colors-rewrite-qollock.js -->
+<!-- Generated from pak47 SHA-256 02087730f0f89951a05fcd7c0861628b50bd9ed4fa10d02829ef8f797be38f6a by refresh-hp-colors-rewrite-qollock.js -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
@@ -7,7 +7,9 @@
 		<include src="s2r://panorama/styles/hp_colors_v2_menu.vcss_c" />
 	</styles>
 	<scripts>
+		<include src="s2r://panorama/scripts/core/ql_namespace.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_utils.vjs_c" />
+		<include src="s2r://panorama/scripts/core/ql_panel_helpers.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_shared_presets.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_bridge.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_config.vjs_c" />
@@ -31,7 +33,31 @@
 		<include src="s2r://panorama/scripts/ql_settings_previews.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_settings_tooltips.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_settings_persistence.vjs_c" />
+		<include src="s2r://panorama/scripts/core/ql_persistence.vjs_c" />
+		<include src="s2r://panorama/scripts/core/ql_storage_bridge.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_update_checker.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/ql_settings_metadata.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/ql_settings_tabs.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/renderer.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/layout.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/breadcrumb.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/search.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/drag.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/window.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/presets.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/modal.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/config_tab.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/cloud_sync.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/support.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/audio.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/console_tab.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/arcade_tab.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/visual_check.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/dev_tab.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/gameplay_tabs.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/theme.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/controls.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/friends.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_settings.vjs_c" />
 		<include src="s2r://panorama/scripts/hp_colors_v2_contract.vjs_c" />
 		<include src="s2r://panorama/scripts/hp_colors_v2_state.vjs_c" />
@@ -147,6 +173,7 @@
 				</TabContents>
 			</Panel>
 		</Panel>
+		<CitadelHTMLPanel id="QOLStorageBridge" class="QOLStorageBridge" hittest="false" acceptsfocus="false" />
 <Panel id="HPColorsEditorRoot" class="HPColorsEditorRoot" hittest="true">
       <Panel class="HPColorsEditorBackdrop" hittest="false" />
       <Panel id="HPColorsEditorShell" class="HPColorsEditorShell">
@@ -567,6 +594,8 @@
                       <Label text="Show HP numbers to the nearest 10 instead of 100. Needs 3 lines added to a game file. Turning it on shows you how." class="HPColorsSettingHelp" />
                     </Panel>
                     <Button id="HPColorsPrecisePipsToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                    <!-- Keeps this toggle in line with rows that have a condition button. -->
+                    <Panel class="HPColorsConditionIndicator HPColorsConditionSpacer" hittest="false" />
                   </Panel>
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">

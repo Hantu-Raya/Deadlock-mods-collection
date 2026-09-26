@@ -2,13 +2,12 @@
   "pak": "pak02_dir.vpk",
   "packageOrder": [
     "pak02 HP Colors Rewrite v2 support runtime",
-    "pak03 pinned QOLLOCK 3.2.0"
+    "pak47 pinned QOLLOCK 4.0.0"
   ],
-  "qollockAuthority": "installed pak03_dir.vpk",
+  "qollockAuthority": "installed pak47_dir.vpk",
   "refreshSwitch": "-RefreshFromInstalledQollock",
   "requiredSources": [
     "panorama/layout/hud_escape_menu.xml",
-    "panorama/scripts/qollock_hp_colors_bridge.js",
     "qollock-source.sha256"
   ],
   "requiredPinnedQollockAssets": [
@@ -19,6 +18,7 @@
     "panorama/scripts/manifests/ql_healthbar/manifest.vjs_c",
     "panorama/scripts/manifests/ql_color_warnings/manifest.vjs_c",
     "panorama/scripts/core/ql_app.vjs_c",
+    "panorama/scripts/ui/window.vjs_c",
     "panorama/scripts/ql_settings.vjs_c"
   ],
   "canonicalRewriteAssets": [
