@@ -208,6 +208,16 @@ function buildEscapeMenu({ canonicalXml, thirdEyeXml, bridgeAsset, windowAsset, 
   merged = replaceOnce(merged, /<styles>[\s\S]*?<\/styles>/, `<styles>\n${styleBody}\n\t</styles>`, 'merged style includes');
   merged = replaceOnce(merged, /<scripts>[\s\S]*?<\/scripts>/, `<scripts>\n${scriptBody}\n\t</scripts>`, 'merged script includes');
   merged = replaceOnce(merged, settingsRowPattern, (match) => `${match}\n${hpRow}`, 'HP button insertion');
+  // Stock #SubOptions is bottom-anchored and grows upward 32px per row. Third
+  // Eye and HP rows add two, so lift the bottom-anchored primaries by 64px.
+  for (const [id, marginBottom] of [['te_PlayButton', 484], ['te_WatchButton', 414], ['changehero', 344]]) {
+    merged = replaceOnce(
+      merged,
+      new RegExp(`<Button id="${id}"[^>]*>`),
+      (tag) => setAttribute(tag, 'style', `margin-bottom: ${marginBottom}px;`, id),
+      `${id} lift`,
+    );
+  }
   merged = replaceLiteralOnce(
     merged,
     thirdEyeButton,
@@ -285,12 +295,12 @@ function buildEscapeMenu({ canonicalXml, thirdEyeXml, bridgeAsset, windowAsset, 
 function buildTopbarUltimateFeature(source) {
   return replaceLiteralOnce(
     source,
-    '            var ultimate = statusRow.FindChild("UltimateStatus");',
+    '            const ultimate = statusRow.FindChild("UltimateStatus");',
     [
-      '            var ultimate = statusRow.FindChild("UltimateStatus");',
+      '            let ultimate = statusRow.FindChild("UltimateStatus");',
       '            // HPv2 wraps the native ultimate while pickup indicators are active.',
       '            if (!thirdEye.core.panel.isAlive(ultimate)) {',
-      '                var pickups = statusRow.FindChild("HPV2PickupIndicators");',
+      '                const pickups = statusRow.FindChild("HPV2PickupIndicators");',
       '                if (thirdEye.core.panel.isAlive(pickups)) {',
       '                    ultimate = pickups.FindChild("UltimateStatus");',
       '                }',

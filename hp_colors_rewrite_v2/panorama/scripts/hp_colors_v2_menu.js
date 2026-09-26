@@ -55,36 +55,29 @@
   var HERO_SCOPE_SELECTED = "selected";
   var HERO_PHASE_TRANSITIONING = "transitioning";
   var HERO_PHASE_LOBBY = "lobby";
+  var HERO_PHASE_HIDEOUT = "hideout";
   var HERO_PHASE_ACTIVE = "active";
   var HERO_PHASE_POST_MATCH = "post_match";
 
   var CATEGORY_DEFS = [
     {
-      name: "OVERVIEW",
+      name: "GENERAL",
       tabs: [
         {
           name: "MASTER",
-          title: "MASTER SWITCH",
+          title: "MASTER SWITCH & THRESHOLDS",
           description:
-            "Turn HP Colors on or off, then use Peek to review enemy and ally bars.",
+            "Turn HP Colors on or off, then set the shared low and high HP thresholds that every enemy, ally, and HP-text color rule uses.",
           pageId: "HPColorsSettingsOverviewStatus",
-          keys: ["enabled"],
+          keys: ["enabled", "lowThreshold", "highThreshold"],
         },
         {
           name: "LAYOUT",
           title: "BAR LAYOUT",
           description:
-            "Resize and move the healthbar stack. Indicators track its scale; anchoring also applies its X/Y offsets.",
+            "Resize and move the whole healthbar stack; anchoring makes the ultimate icon and level badge follow the bar's X/Y offsets.",
           pageId: "HPColorsSettingsOverviewLayout",
           keys: ["widthScale", "heightScale", "positionX", "positionY", "accessoryAnchorEnabled"],
-        },
-        {
-          name: "PRESETS",
-          title: "PRESET LIBRARY",
-          description:
-            "Build All Heroes and Selected Heroes presets, then set their automatic priority.",
-          pageId: "HPColorsSettingsOverviewHero",
-          keys: [],
         },
       ],
     },
@@ -95,7 +88,7 @@
           name: "BAR",
           title: "ENEMY BAR",
           description:
-            "Choose fixed low, mid, and high colors or blend between them. Neutral units keep their default bars.",
+            "Turn enemy bar colors on, show or hide enemy bars, pick fixed or gradient low/mid/high colors, and set ghoul bar opacity.",
           pageId: "HPColorsSettingsEnemyBar",
           keys: [
             "enemyEnabled",
@@ -104,34 +97,45 @@
             "enemyLow",
             "enemyMid",
             "enemyHigh",
-            "lowThreshold",
-            "highThreshold",
             "enemyTeamHigh",
             "ghoulOpacityEnabled",
             "ghoulOpacity",
           ],
         },
         {
-          name: "HEAL & DAMAGE",
-          title: "HEAL & DAMAGE",
+          name: "HEAL & SHIELD",
+          title: "ENEMY HEALING, DAMAGE & SHIELD",
           description:
-            "Choose the colors for healing and recent damage on enemy bars.",
+            "Choose the colors for healing, recent damage, and bullet shields on enemy bars.",
           pageId: "HPColorsSettingsEnemyFeedback",
-          keys: ["enemyHealing", "enemyDelta"],
+          keys: ["enemyHealing", "enemyDelta", "enemyBulletShield"],
         },
         {
-          name: "SHIELDS",
-          title: "SHIELDS",
+          name: "HP TEXT",
+          title: "ENEMY HP TEXT",
           description:
-            "Choose the color for enemy shield indicators.",
-          pageId: "HPColorsSettingsEnemyShields",
-          keys: ["enemyBulletShield"],
+            "Show enemy HP as current and maximum, percentage, or current only, then set its size, font, colors, and position.",
+          pageId: "HPColorsSettingsReadoutNumber",
+          keys: [
+            "readoutVisible",
+            "readoutFormat",
+            "readoutSize",
+            "readoutFont",
+            "readoutColorMode",
+            "readoutMode",
+            "readoutLow",
+            "readoutMid",
+            "readoutHigh",
+            "readoutMaxTeamColor",
+            "readoutOffsetX",
+            "readoutOffsetY",
+          ],
         },
         {
           name: "PULSE",
           title: "ENEMY PULSE",
           description:
-            "Make enemy bars pulse when their health reaches the threshold.",
+            "Make enemy bars pulse at a low-HP threshold, and choose what the bar and HP text do while pulsing.",
           pageId: "HPColorsSettingsEnemyPulse",
           keys: [
             "enemyPulseEnabled",
@@ -153,7 +157,7 @@
           name: "KILL MARKER",
           title: "ENEMY KILL MARKER",
           description:
-            "Show a marker on visible enemy player healthbars at your chosen health threshold.",
+            "Show a marker line on enemy player bars at the HP threshold you choose, then set its width and color.",
           pageId: "HPColorsSettingsEnemyKillMarker",
           keys: [
             "enemyKillMarkerEnabled",
@@ -171,7 +175,7 @@
           name: "BAR",
           title: "ALLY BAR",
           description:
-            "Choose fixed low, mid, and high ally colors or blend between them using the shared thresholds.",
+            "Turn ally bar colors on, show or hide ally bars, and pick fixed or gradient low/mid/high colors using the shared thresholds.",
           pageId: "HPColorsSettingsAllyBar",
           keys: [
             "allyEnabled",
@@ -184,41 +188,18 @@
           ],
         },
         {
-          name: "HEAL & DAMAGE",
-          title: "HEAL & DAMAGE",
+          name: "HEAL & SHIELD",
+          title: "ALLY HEALING, DAMAGE & SHIELD",
           description:
-            "Choose the colors for healing and recent damage on ally bars.",
+            "Choose the colors for healing, recent damage, and bullet shields on ally bars.",
           pageId: "HPColorsSettingsAllyFeedback",
-          keys: ["allyHealing", "allyDelta"],
-        },
-        {
-          name: "SHIELDS",
-          title: "ALLY SHIELDS",
-          description: "Choose the color for ally bullet shields.",
-          pageId: "HPColorsSettingsAllyShields",
-          keys: ["allyBulletShield"],
-        },
-        {
-          name: "PULSE",
-          title: "ALLY PULSE",
-          description:
-            "Make ally bars pulse when their health reaches the threshold.",
-          pageId: "HPColorsSettingsAllyPulse",
-          keys: [
-            "allyPulseEnabled",
-            "allyPulseThreshold",
-            "allyPulseBpm",
-            "allyPulseIntensity",
-            "allyPulseColorEnabled",
-            "allyPulseColor",
-            "allyPulseColorMode",
-          ],
+          keys: ["allyHealing", "allyDelta", "allyBulletShield"],
         },
         {
           name: "HP TEXT",
           title: "ALLY HP TEXT",
           description:
-            "Show ally HP as current and maximum, percentage, or current only, then style and place it.",
+            "Show ally HP as current and maximum, percentage, or current only, then set its size, font, colors, and position.",
           pageId: "HPColorsSettingsAllyReadout",
           keys: [
             "allyReadoutVisible",
@@ -235,43 +216,32 @@
             "allyReadoutOffsetY",
           ],
         },
+        {
+          name: "PULSE",
+          title: "ALLY PULSE",
+          description:
+            "Make ally bars pulse at a low-HP threshold, with optional fixed or gradient pulse colors.",
+          pageId: "HPColorsSettingsAllyPulse",
+          keys: [
+            "allyPulseEnabled",
+            "allyPulseThreshold",
+            "allyPulseBpm",
+            "allyPulseIntensity",
+            "allyPulseColorEnabled",
+            "allyPulseColor",
+            "allyPulseColorMode",
+          ],
+        },
       ],
     },
     {
-      name: "HUD DETAILS",
+      name: "INDICATORS",
       tabs: [
-        {
-          name: "HP TEXT",
-          title: "HP TEXT",
-          description:
-            "Choose how enemy HP appears: current and maximum, percentage, or current only.",
-          pageId: "HPColorsSettingsReadoutNumber",
-          keys: [
-            "readoutVisible",
-            "readoutFormat",
-            "readoutSize",
-            "readoutFont",
-            "readoutColorMode",
-            "readoutMode",
-            "readoutLow",
-            "readoutMid",
-            "readoutHigh",
-            "readoutMaxTeamColor",
-          ],
-        },
-        {
-          name: "TEXT POSITION",
-          title: "TEXT POSITION",
-          description:
-            "Move the HP text without moving the healthbar or unit icon.",
-          pageId: "HPColorsSettingsReadoutPlacement",
-          keys: ["readoutOffsetX", "readoutOffsetY"],
-        },
         {
           name: "PIPS & LEVEL",
           title: "HEALTH PIPS & PLAYER LEVEL",
           description:
-            "Set health pips, level visibility, and level badge position.",
+            "Show or hide health pips and enemy level badges, move the level badge, and count 10 HP per small pip.",
           pageId: "HPColorsSettingsReadoutLevels",
           keys: [
             "pipsVisible",
@@ -282,30 +252,10 @@
           ],
         },
         {
-          name: "PICKUPS",
-          title: "TOPBAR PICKUP TIMERS",
-          description:
-            "Show and style gun, movement, spirit, and survival timers beside the topbar ultimate icons.",
-          pageId: "HPColorsSettingsPickupTimers",
-          keys: [
-            "pickupTimersEnabled",
-            "pickupGunColor",
-            "pickupMovementColor",
-            "pickupSpiritColor",
-            "pickupSurvivalColor",
-            "pickupBackgroundDarkness",
-            "pickupGlyphColor",
-            "pickupSize",
-            "pickupSpacing",
-            "pickupOffsetX",
-            "pickupOffsetY",
-          ],
-        },
-        {
           name: "ULTIMATE",
-          title: "ULTIMATE ICON & TIMER",
+          title: "ULTIMATE ICON & COOLDOWN",
           description:
-            "Set the base icon color, progress override, position, and cooldown visibility.",
+            "Color, scale, darken, and move the ultimate icon on healthbars, and show cooldown progress with your own ready/unavailable colors.",
           pageId: "HPColorsSettingsUltimateTimer",
           keys: [
             "ultMode",
@@ -324,7 +274,7 @@
           name: "STAMINA",
           title: "ENEMY STAMINA",
           description:
-            "Resize, move, and recolor enemy stamina pips without changing ally or neutral indicators.",
+            "Resize, move, and recolor the enemy stamina boxes without touching ally or neutral stamina.",
           pageId: "HPColorsSettingsStamina",
           keys: [
             "staminaWidth",
@@ -335,6 +285,39 @@
             "enemyStaminaColor",
           ],
         },
+        {
+          name: "PICKUP TIMERS",
+          title: "TOPBAR PICKUP TIMERS",
+          description:
+            "Show and style the gun, movement, spirit, and survival pickup timers beside the topbar ultimate icons.",
+          pageId: "HPColorsSettingsPickupTimers",
+          keys: [
+            "pickupTimersEnabled",
+            "pickupGunColor",
+            "pickupMovementColor",
+            "pickupSpiritColor",
+            "pickupSurvivalColor",
+            "pickupBackgroundDarkness",
+            "pickupGlyphColor",
+            "pickupSize",
+            "pickupSpacing",
+            "pickupOffsetX",
+            "pickupOffsetY",
+          ],
+        },
+      ],
+    },
+    {
+      name: "PRESETS",
+      tabs: [
+        {
+          name: "LIBRARY",
+          title: "PRESET LIBRARY",
+          description:
+            "Presets are named snapshots of your settings: a Selected Heroes preset wins for its heroes, otherwise the first All Heroes preset, otherwise Rewrite Default.",
+          pageId: "HPColorsSettingsOverviewHero",
+          keys: [],
+        },
       ],
     },
   ];
@@ -344,6 +327,7 @@
     "HPColorsCategoryEnemy",
     "HPColorsCategoryAlly",
     "HPColorsCategoryReadout",
+    "HPColorsCategoryPresets",
   ];
   var COLOR_TITLES = {
     enemyLow: "ENEMY LOW",
@@ -850,8 +834,8 @@
     "presetCancelEditButton presetOptions presetFeedback " +
     "presetRestoreBakedButton presetCopyAllButton presetImportButton " +
     "presetTransferDialog presetTransferInput presetTransferFeedback " +
-    "presetTransferConfirmButton presetTransferCloseButton presetGuide " +
-    "presetInfoToggle headerCategory liveStatus pageEyebrow pageTitle " +
+    "presetTransferConfirmButton presetTransferCloseButton " +
+    "headerCategory liveStatus pageEyebrow pageTitle " +
     "pageDescription precisePipsToggle precisePipsDialog " +
     "precisePipsDialogTitle precisePipsDialogMessage " +
     "precisePipsDialogCommands precisePipsCopyLabel precisePipsCopyButton " +
@@ -863,7 +847,7 @@
   var OPTIONAL_UI_PANEL_KEYS = (
     "supporterTicker pickerTitle pickerPreview pickerHex pickerHueValue " +
     "pickerSaturationValue pickerLightnessValue storeForgetButton " +
-    "storeForgetLabel"
+    "storeForgetLabel presetHiddenRow"
   ).split(" ");
   var UI_PANEL_ID_OVERRIDES = {
     resetButton: "HPColorsResetSectionButton",
@@ -1008,7 +992,6 @@
     condition: false,
   };
   var pickerGestureActive = false;
-  var presetGuideVisible = false;
   var ui = {
     categoryButtons: [],
     tabButtons: [],
@@ -1058,8 +1041,7 @@
     presetTransferConfirmButton: null,
     presetTransferCloseButton: null,
     presetRestoreBakedButton: null,
-    presetGuide: null,
-    presetInfoToggle: null,
+    presetHiddenRow: null,
     storeForgetButton: null,
     storeForgetLabel: null,
     resetDialog: null,
@@ -1586,7 +1568,7 @@
   function readLifecyclePhase() {
     if (!resolveIdentityRoot()) return HERO_PHASE_TRANSITIONING;
     if (identitySignalHasClass("connectedToHideout"))
-      return HERO_PHASE_LOBBY;
+      return HERO_PHASE_HIDEOUT;
     if (
       identitySignalHasClass("GameStatePostGame") ||
       identitySignalHasClass("GameStatePostGamePlayOfTheGame")
@@ -1642,6 +1624,7 @@
 
   function phaseDisplayName(phase) {
     if (phase === HERO_PHASE_LOBBY) return "LOBBY";
+    if (phase === HERO_PHASE_HIDEOUT) return "HIDEOUT";
     if (phase === HERO_PHASE_ACTIVE) return "ACTIVE";
     if (phase === HERO_PHASE_POST_MATCH) return "POST MATCH";
     return "TRANSITIONING";
@@ -1712,6 +1695,8 @@
           "UNKNOWN");
       detailText = "Waiting for a second matching local-HUD sample.";
     } else if (identityView.phase !== HERO_PHASE_ACTIVE) {
+      // The runtime phase label is collapsed; surface the phase here.
+      identityText += " · " + phaseDisplayName(identityView.phase);
       detailText = "Auto detection waits for an active match.";
     }
     setClass(
@@ -1757,7 +1742,9 @@
   function identityPollDelay() {
     var view = currentView();
     var phase = view && view.identity ? view.identity.phase : HERO_PHASE_TRANSITIONING;
-    return phase === HERO_PHASE_LOBBY || phase === HERO_PHASE_POST_MATCH
+    return phase === HERO_PHASE_LOBBY ||
+      phase === HERO_PHASE_HIDEOUT ||
+      phase === HERO_PHASE_POST_MATCH
       ? HERO_POLL_INACTIVE_SEC
       : HERO_POLL_ACTIVE_SEC;
   }
@@ -2199,7 +2186,7 @@
           name.AddClass("Editable");
           name.text =
             presetDisplayName(preset) +
-            (preset.kind === "baked" ? "  ·  BAKED" : "  ·  SAVED");
+            (preset.kind === "baked" ? "  ·  BUILT-IN" : "");
           name.hittest = true;
           setPanelEvent(name, "onactivate", function () {
             beginInlinePresetRename(preset.id);
@@ -2249,7 +2236,7 @@
           option,
           "HPColorsPresetRowApply" + optionIndex,
           "HPColorsPresetRowApply",
-          editingPreset ? "SAVE & APPLY" : "APPLY",
+          editingPreset ? "UPDATE & APPLY" : "APPLY",
           true,
           function () {
             if (editingPreset) {
@@ -2281,7 +2268,7 @@
       repository.hiddenBakedIds &&
       repository.hiddenBakedIds.length
     );
-    setClass(ui.presetRestoreBakedButton, "Active", hasHiddenBaked);
+    setClass(ui.presetHiddenRow, "Visible", hasHiddenBaked);
     if (isValid(ui.presetRestoreBakedButton)) {
       try {
         if (ui.presetRestoreBakedButton.enabled !== hasHiddenBaked)
@@ -2299,11 +2286,11 @@
       ui.presetSaveMode,
       editPreset
         ? "EDITING " + presetDisplayName(editPreset).toUpperCase()
-        : "CREATE A NEW PRESET",
+        : "NEW PRESET FROM CURRENT SETTINGS",
     );
     setText(
       ui.presetSaveButtonLabel,
-      editPreset ? "SAVE & APPLY" : "CREATE PRESET",
+      editPreset ? "UPDATE & APPLY" : "CREATE PRESET",
     );
     setClass(ui.presetForm, "Active", presetFormOpen);
     setClass(ui.presetNewButton, "FormOpen", presetFormOpen);
@@ -2327,7 +2314,7 @@
     renderPresetOptions();
     syncPresetSaveForm(true);
     setPresetFeedback(
-      "CREATE PRESET SAVES YOUR CURRENT MENU SETTINGS AS A NEW RECORD.",
+      "CREATE PRESET STORES YOUR CURRENT SETTINGS AS A NEW PRESET.",
       false,
     );
     focus(ui.presetNameInput);
@@ -2339,7 +2326,7 @@
     presetEditId = "";
     renderPresetOptions();
     syncPresetSaveForm(true);
-    setPresetFeedback("PRESET EDIT CANCELED. NOTHING CHANGED.", false);
+    setPresetFeedback("EDIT CANCELED. NOTHING CHANGED.", false);
   }
 
   function selectPresetForRowAction(id) {
@@ -2371,7 +2358,7 @@
       presetFormOpen
         ? "EDITING " +
             presetDisplayName(preset).toUpperCase() +
-            ". SAVE & APPLY REPLACES THIS PRESET WITH YOUR CURRENT MENU SETTINGS, THEN LOADS IT."
+            ". UPDATE & APPLY REPLACES IT WITH YOUR CURRENT SETTINGS."
         : "SELECTED " +
             presetDisplayName(preset).toUpperCase() +
             ". APPLY LOADS THIS PRESET NOW. IT DOES NOT EDIT THE PRESET.",
@@ -2521,9 +2508,10 @@
   }
 
 
-  function focusSelectedPresetRow() {
+  function focusSelectedPresetRow(presetId) {
     var view = currentView();
-    var selectedId = view && view.repository ? view.repository.selectedId : "";
+    var selectedId =
+      presetId || (view && view.repository ? view.repository.selectedId : "");
     if (!selectedId || !isValid(ui.presetOptions)) return;
     var rows = ui.presetOptions.Children();
     for (var index = 0; index < rows.length; index++) {
@@ -2589,7 +2577,9 @@
     sendState({ type: "preset_restore_baked" });
     presetInlineRenameId = "";
     renderPresetOptions();
-    setPresetFeedback("RESTORED BAKED PRESETS.", false);
+    setPresetFeedback("REWRITE DEFAULT RESTORED.", false);
+    // RESTORE collapses with its row; move focus to the restored preset.
+    focusSelectedPresetRow("baked_default");
   }
 
   function copySelectedPreset() {
@@ -2611,7 +2601,7 @@
     var result = sendState({ type: "preset_copy_all" });
     var failed = !clipboardEffectSucceeded(result);
     setPresetFeedback(
-      failed ? "NO PRESETS TO COPY." : "COPIED PRESETS.",
+      failed ? "NO PRESETS TO COPY." : "COPIED ALL PRESETS.",
       failed,
     );
   }
@@ -2763,7 +2753,7 @@
     if (!result || !result.outcome || result.outcome.status === "rejected") {
       setPresetFeedback(
         editing
-          ? "COULD NOT SAVE " + name.toUpperCase() + ". NOTHING CHANGED."
+          ? "COULD NOT UPDATE " + name.toUpperCase() + ". NOTHING CHANGED."
           : "COULD NOT CREATE " + name.toUpperCase() + ". NOTHING CHANGED.",
         true,
       );
@@ -2810,7 +2800,7 @@
     if (!preset) {
       setPresetFeedback(
         savedFirst
-          ? "PRESET SAVED, BUT IT COULD NOT BE APPLIED."
+          ? "PRESET UPDATED, BUT IT COULD NOT BE APPLIED."
           : "THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.",
         true,
       );
@@ -2821,7 +2811,7 @@
     if (!outcome || outcome.status === "rejected") {
       setPresetFeedback(
         savedFirst
-          ? "PRESET SAVED, BUT IT COULD NOT BE APPLIED."
+          ? "PRESET UPDATED, BUT IT COULD NOT BE APPLIED."
           : "COULD NOT APPLY THAT PRESET. NOTHING CHANGED.",
         true,
       );
@@ -2830,7 +2820,7 @@
     refreshPresetActivity();
     syncControls();
     setPresetFeedback(
-      (savedFirst ? "SAVED & APPLIED " : "APPLIED ") +
+      (savedFirst ? "UPDATED & APPLIED " : "APPLIED ") +
         presetDisplayName(preset).toUpperCase() +
         ".",
       false,
@@ -4482,25 +4472,6 @@
     renderCurrentScope();
   }
 
-  function syncPresetGuide(presetPageActive) {
-    setClass(ui.presetInfoToggle, "Available", presetPageActive);
-    setClass(
-      ui.presetInfoToggle,
-      "Active",
-      presetPageActive && presetGuideVisible,
-    );
-    setClass(
-      ui.presetGuide,
-      "Visible",
-      presetPageActive && presetGuideVisible,
-    );
-    setEnabled(ui.presetInfoToggle, presetPageActive);
-  }
-
-  function togglePresetGuide() {
-    presetGuideVisible = !presetGuideVisible;
-    syncPresetGuide(true);
-  }
 
   function renderNavigation() {
     var category = CATEGORY_DEFS[state.categoryIndex];
@@ -4552,7 +4523,6 @@
         ui.settingsPages[pageIndex].id === activeTab.pageId,
       );
     }
-    syncPresetGuide(presetPageActive);
     syncControls();
   }
 
@@ -4741,11 +4711,18 @@
     var requiredPanels = [ui.escapeRoot, ui.absoluteRoot];
     for (var keyIndex = 0; keyIndex < REQUIRED_UI_PANEL_KEYS.length; keyIndex++)
       requiredPanels.push(ui[REQUIRED_UI_PANEL_KEYS[keyIndex]]);
+    var legacyLayout =
+      isValid(find(LEGACY_PRESET_STORE_ID)) || !isValid(find(STORE_PANEL_ID));
+    // Retired builder layouts have only the original four rail buttons; keep
+    // them bootable so the header can explain that the old pak01 must be removed.
+    var categoryButtons = legacyLayout
+      ? ui.categoryButtons.slice(0, CATEGORY_BUTTON_IDS.length - 1)
+      : ui.categoryButtons;
     return (
       panelsAreValid(requiredPanels) &&
       panelsAreValid(ui.conditionSlotButtons) &&
       panelsAreValid(ui.conditionSlotImages) &&
-      panelsAreValid(ui.categoryButtons) &&
+      panelsAreValid(categoryButtons) &&
       panelsAreValid(ui.tabButtons) &&
       panelsAreValid(ui.tabLabels) &&
       panelsAreValid(ui.settingsPages)
@@ -4840,7 +4817,6 @@
   }
 
   function bindControls() {
-    setPanelEvent(ui.presetInfoToggle, "onactivate", togglePresetGuide);
     for (var index = 0; index < TOGGLE_CONTROLS.length; index++) {
       var toggle = TOGGLE_CONTROLS[index];
       bindToggle(toggle.id, toggle.key);

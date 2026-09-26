@@ -11,6 +11,7 @@
   var HERO_MODE_OFF = "off";
   var HERO_PHASE_TRANSITIONING = "transitioning";
   var HERO_PHASE_LOBBY = "lobby";
+  var HERO_PHASE_HIDEOUT = "hideout";
   var HERO_PHASE_ACTIVE = "active";
   var HERO_PHASE_POST_MATCH = "post_match";
   var HISTORY_LIMIT = 40;
@@ -1565,7 +1566,6 @@
       var heroKey = state.identity.effectiveHeroKey;
       if (!heroKey) return false;
       var current = currentScopeRow();
-      var allFallback = null;
       var index;
       for (index = 0; index < state.userPresets.length; index++) {
         var preset = state.userPresets[index];
@@ -1576,7 +1576,6 @@
           if (current && current.sourcePresetId === preset.id) return false;
           return applyPresetInternal(preset);
         }
-        if (!allFallback && preset.mode === HERO_SCOPE_ALL) allFallback = preset;
       }
       if (
         current &&
@@ -1584,16 +1583,24 @@
         current.heroes.indexOf(heroKey) >= 0
       )
         return false;
+      return applyNoHeroRoute(current);
+    }
+
+    function applyNoHeroRoute(current) {
+      var allFallback = null;
+      for (var index = 0; index < state.userPresets.length; index++) {
+        if (state.userPresets[index].mode === HERO_SCOPE_ALL) {
+          allFallback = state.userPresets[index];
+          break;
+        }
+      }
       if (
         allFallback &&
         (!current || current.sourcePresetId !== allFallback.id)
       )
         return applyPresetInternal(allFallback);
-      if (current && current.mode === HERO_SCOPE_SELECTED) {
-        var baked = findPreset(DEFAULT_PRESET_ID);
-        if (!presetMatchesCurrent(baked)) return applyPresetInternal(baked);
-        return false;
-      }
+      if (current && current.mode === HERO_SCOPE_SELECTED)
+        return applyPresetInternal(findPreset(DEFAULT_PRESET_ID));
       return false;
     }
 
@@ -1995,6 +2002,7 @@
       if (
         intent.phase !== HERO_PHASE_TRANSITIONING &&
         intent.phase !== HERO_PHASE_LOBBY &&
+        intent.phase !== HERO_PHASE_HIDEOUT &&
         intent.phase !== HERO_PHASE_ACTIVE &&
         intent.phase !== HERO_PHASE_POST_MATCH
       )
@@ -2002,19 +2010,31 @@
       if (epoch < state.identity.epoch) return reject("lifecycle_observe", "STALE_EPOCH");
       if (epoch === state.identity.epoch && intent.phase === state.identity.phase)
         return noop("lifecycle_observe", "NO_CHANGE");
+      var releasedRestoredEffective = false;
       return commit("lifecycle_observe", function () {
-        var epochChanged = epoch !== state.identity.epoch;
         var phaseChanged = intent.phase !== state.identity.phase;
         state.identity.epoch = epoch;
         state.identity.phase = intent.phase;
-        if (epochChanged || phaseChanged) {
-          clearAutoIdentity();
-          state.ability.tiers = [-1, -1, -1, -1];
-          state.confirmation = null;
+        clearAutoIdentity();
+        state.ability.tiers = [-1, -1, -1, -1];
+        state.confirmation = null;
+        updateIdentityEffective();
+        // Auto deliberately stays unknown in the hideout. Drop its hero
+        // route and release any held cold-boot snapshot.
+        if (
+          phaseChanged &&
+          intent.phase === HERO_PHASE_HIDEOUT &&
+          state.identity.mode === HERO_MODE_AUTO
+        ) {
+          releasedRestoredEffective = state.restoredEffectivePending;
+          state.restoredEffectivePending = false;
+          applyNoHeroRoute(currentScopeRow());
         }
-        var heroChanged = updateIdentityEffective();
-        if (heroChanged) applyAutomaticRoute();
         return true;
+      }, {
+        forceEffective: function () {
+          return releasedRestoredEffective;
+        },
       });
     }
 

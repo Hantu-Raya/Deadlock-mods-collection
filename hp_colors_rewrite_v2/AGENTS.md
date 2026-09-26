@@ -6,7 +6,7 @@
 
 Settings, scopes, presets, and conditions persist on this PC through `hp_colors_v2_storage.js`. Do not add Anita compatibility, Reset All, or legacy v99 support. Preserve legacy HPCR2 imports and HPCRP1 preset compatibility; current HPCR2 exports include the versioned `hpv2` extension for V2 settings. ShowRank Barebones support is opt-in build-stage Escape composition; keep canonical runtime code independent.
 
-Package ownership: the Rewrite v2 runtime is pak02 and the generic preset builder is pak96. v2 no longer reads a builder pak01 seed; an installed old pak01 overrides the ESC layout, and the menu reports it as `OLD PRESET VPK`.
+Package ownership: the Rewrite v2 runtime is pak02 and the generic preset builder is pak96. v2 no longer reads a builder pak01 seed; an installed old pak01 overrides the ESC layout, and the menu reports it as `OLD PRESET VPK`. That legacy layout has only four rail buttons, so it boots without the PRESETS page until pak01 is removed.
 
 ## Durable save
 
@@ -76,6 +76,6 @@ The build wrapper runs these validators again against source and Closure output,
 
 The storage suite is end-to-end: it boots the real menu, storage, and renderer against a disk-backed fake Steam page across simulated restarts and writes `.tmp/hpv2-storage-e2e.json`.
 
-Release builds contain no temporary profiling collector or timing switches. Preserve native-style readback, alias restoration, and failed-write retry coverage in the style validator. Use `-ShowRankBarebones` only with its required pak89 installed; use the separate QOLLOCK wrapper for QOLLOCK 4.0 (`pak60_dir.vpk`) compatibility.
+Release builds contain no temporary profiling collector or timing switches. Preserve native-style readback, alias restoration, and failed-write retry coverage in the style validator. Use `-ShowRankBarebones` only with its required pak89 installed; use the separate QOLLOCK wrapper for QOLLOCK compatibility (default: QOLLOCK 3.2.0 `pak03_dir.vpk` from `hp_colors_rewrite_v2_qollock/`; `-Qollock4`: QOLLOCK 4.0 `pak60_dir.vpk` from `hp_colors_rewrite_v2_qollock4/`; both share the one bridge script in `hp_colors_rewrite_v2_qollock/`).
 
 After deployment, restart Deadlock before the live smoke test. Verify enemy and ally rendering, fixed and gradient thresholds, exclusions, dimensions, position, feedback colors, ultimate icons, all readout modes, pips, levels, pulses, kill marker behavior, hero scopes, ability conditions, presets, HPCR2 settings transfer, HPCRP1 preset transfer, Escape cancel/resume behavior, and supported UI scales. Automated tests cannot prove live panel lineage, rendering, or frame cost.
