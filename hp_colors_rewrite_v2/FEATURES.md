@@ -189,6 +189,8 @@ The lifecycle watcher classifies lobby/pregame, active match, post-match, and tr
 
 Stable Auto observations now avoid state churn without weakening detection. Once a retail name matches the settled hero and no preset is waiting, the state module returns a no-op; repeated unknown samples cap after the required two observations. The watcher still reads the live label every second, so hero changes retain the same two-sample settling and epoch guards.
 
+The Hideout (`connectedToHideout`) is its own `hideout` phase, shown as `MATCH: HIDEOUT` and polled like lobby. Its HUD exposes no local hero, so detection stays unknown there. Entering it in **Auto** drops any hero route: the first all-heroes preset applies, otherwise a hero-specific current falls back to Rewrite Default, and a held cold-boot snapshot is released. Manual Override and Off keep their routes, and pregame lobby keeps the last route. As with a hero swap, unsaved tweaks to a hero-specific current are replaced; use UPDATE & APPLY to keep them.
+
 ## Milestone 12: hero scopes and effective settings
 
 The menu keeps the canonical global base separate from ordered, session-scoped snapshot rows. Each row normalizes to **Off**, **All Heroes**, or **Selected Heroes**; selected hero keys are validated against the stable catalogue, deduplicated, and sorted in catalogue order, while an empty Selected row becomes Off. Resolution checks the first matching Selected row, then the first All Heroes row, then the global base. Unknown identity never selects a hero row, but All Heroes remains an explicit fallback.

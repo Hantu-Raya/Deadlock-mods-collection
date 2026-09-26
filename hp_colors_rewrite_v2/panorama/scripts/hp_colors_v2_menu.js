@@ -55,6 +55,7 @@
   var HERO_SCOPE_SELECTED = "selected";
   var HERO_PHASE_TRANSITIONING = "transitioning";
   var HERO_PHASE_LOBBY = "lobby";
+  var HERO_PHASE_HIDEOUT = "hideout";
   var HERO_PHASE_ACTIVE = "active";
   var HERO_PHASE_POST_MATCH = "post_match";
 
@@ -1567,7 +1568,7 @@
   function readLifecyclePhase() {
     if (!resolveIdentityRoot()) return HERO_PHASE_TRANSITIONING;
     if (identitySignalHasClass("connectedToHideout"))
-      return HERO_PHASE_LOBBY;
+      return HERO_PHASE_HIDEOUT;
     if (
       identitySignalHasClass("GameStatePostGame") ||
       identitySignalHasClass("GameStatePostGamePlayOfTheGame")
@@ -1623,6 +1624,7 @@
 
   function phaseDisplayName(phase) {
     if (phase === HERO_PHASE_LOBBY) return "LOBBY";
+    if (phase === HERO_PHASE_HIDEOUT) return "HIDEOUT";
     if (phase === HERO_PHASE_ACTIVE) return "ACTIVE";
     if (phase === HERO_PHASE_POST_MATCH) return "POST MATCH";
     return "TRANSITIONING";
@@ -1738,7 +1740,9 @@
   function identityPollDelay() {
     var view = currentView();
     var phase = view && view.identity ? view.identity.phase : HERO_PHASE_TRANSITIONING;
-    return phase === HERO_PHASE_LOBBY || phase === HERO_PHASE_POST_MATCH
+    return phase === HERO_PHASE_LOBBY ||
+      phase === HERO_PHASE_HIDEOUT ||
+      phase === HERO_PHASE_POST_MATCH
       ? HERO_POLL_INACTIVE_SEC
       : HERO_POLL_ACTIVE_SEC;
   }
