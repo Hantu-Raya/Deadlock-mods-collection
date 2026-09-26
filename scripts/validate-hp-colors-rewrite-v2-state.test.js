@@ -1934,6 +1934,14 @@ test('Auto hideout entry drops a hero preset to the all-heroes preset', () => {
   assertEffectivePublish(hideout, hideout.view.effectiveRevision);
   assert.equal(hideout.view.effectiveValues.enemyLow, '#333333');
 
+  // Auto deliberately stays unknown in the hideout.
+  const observed = send(state, 'hero_observe', { epoch: 2, heroName: 'HAZE' });
+  assert.equal(observed.code, 'IDENTITY_INACTIVE');
+  assert.equal(observed.view.identity.effectiveHeroKey, '');
+  assertNoEffect(observed, 'effective_publish');
+  const same = send(state, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(same.status, 'noop');
+
   // Already on the no-hero route: re-entering must not churn the revision.
   const revision = hideout.view.effectiveRevision;
   send(state, 'lifecycle_observe', { epoch: 3, phase: 'transitioning' });
@@ -1958,18 +1966,46 @@ test('Auto hideout entry without an all-heroes preset falls back to Rewrite Defa
 });
 
 test('hideout entry releases a restored cold-boot snapshot', () => {
-  const state = createState({
-    sessionRaw: JSON.stringify(makeSession({ values: { enemyLow: '#111111' } })),
-    publishedRaw: JSON.stringify({
-      version: 1,
-      revision: 7,
-      values: { enemyLow: '#22AA44' },
-    }),
-  });
-  assert.equal(state.read().effectiveValues.enemyLow, '#22AA44');
-  const hideout = send(state, 'lifecycle_observe', { epoch: 1, phase: 'hideout' });
-  assert.equal(hideout.view.effectiveValues.enemyLow, '#111111');
-  assertEffectivePublish(hideout, 8);
+  for (const published of ['#22AA44', '#111111']) {
+    const state = createState({
+      sessionRaw: JSON.stringify(makeSession({ values: { enemyLow: '#111111' } })),
+      publishedRaw: JSON.stringify({
+        version: 1,
+        revision: 7,
+        values: { enemyLow: published },
+      }),
+    });
+    assert.equal(state.read().effectiveValues.enemyLow, published);
+    const hideout = send(state, 'lifecycle_observe', { epoch: 1, phase: 'hideout' });
+    assert.equal(hideout.view.effectiveValues.enemyLow, '#111111');
+    assertEffectivePublish(hideout, 8);
+  }
+});
+
+test('hideout keeps a custom Current without an all-heroes preset, and the first all-heroes preset wins', () => {
+  const custom = createState(makeSession({ values: { enemyLow: '#444444' } }));
+  send(custom, 'hero_mode', { mode: 'auto' });
+  const before = custom.read();
+  const hideout = send(custom, 'lifecycle_observe', { epoch: 1, phase: 'hideout' });
+  assert.equal(hideout.view.repository.activeId, before.repository.activeId);
+  assert.equal(hideout.view.effectiveValues.enemyLow, '#444444');
+  assert.equal(hideout.view.effectiveRevision, before.effectiveRevision);
+  assertNoEffect(hideout, 'effective_publish');
+
+  const state = createState(makeSession({
+    userPresets: [
+      rawPreset({ id: 'user_0001', name: 'Haze', mode: 'selected', heroes: ['hero_haze'], values: { enemyLow: '#111111' } }),
+      rawPreset({ id: 'user_0002', name: 'All A', mode: 'all', values: { enemyLow: '#222222' } }),
+      rawPreset({ id: 'user_0003', name: 'All B', mode: 'all', values: { enemyLow: '#333333' } }),
+    ],
+  }));
+  send(state, 'hero_mode', { mode: 'auto' });
+  send(state, 'lifecycle_observe', { epoch: 1, phase: 'active' });
+  send(state, 'hero_observe', { epoch: 1, heroName: 'HAZE' });
+  send(state, 'hero_observe', { epoch: 1, heroName: 'HAZE' });
+  const entry = send(state, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(entry.view.repository.activeId, 'user_0002');
+  assert.equal(entry.view.effectiveValues.enemyLow, '#222222');
 });
 
 test('hideout keeps Manual and Off routes, and pregame lobby keeps the hero preset', () => {
