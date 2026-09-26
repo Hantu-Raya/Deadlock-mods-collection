@@ -1194,3 +1194,37 @@ test('stale reset feedback callback cannot overwrite the save status after edito
   fixture.harness.scheduler.runByDelay(1.25);
   assert.equal(panel(fixture, 'HPColorsLiveStatus').text, STATUS_WITHOUT_STORE);
 });
+
+test('entering the hideout shows HIDEOUT and drops the hero route to the all-heroes preset', () => {
+  const fixture = bootMenu({
+    version: 1,
+    values: { enemyLow: '#111111' },
+    scopes: [],
+    userPresets: [
+      {
+        id: 'user_0001',
+        kind: 'user',
+        name: 'Haze',
+        mode: 'selected',
+        heroes: ['hero_haze'],
+        values: { enemyLow: '#222222' },
+        conditions: null,
+      },
+      {
+        id: 'user_0002',
+        kind: 'user',
+        name: 'All Heroes',
+        mode: 'all',
+        heroes: [],
+        values: { enemyLow: '#333333' },
+        conditions: null,
+      },
+    ],
+  }, { heroName: 'HAZE' });
+  settleHeroRoute(fixture, '#222222');
+  openEditor(fixture);
+
+  fixture.identityTree.hud.AddClass('connectedToHideout');
+  settleHeroRoute(fixture, '#333333');
+  assert.equal(panel(fixture, 'HPColorsHeroPhase').text, 'MATCH: HIDEOUT');
+});

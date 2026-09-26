@@ -1895,3 +1895,99 @@ test('session close invalidates interactions and stale callbacks while preservin
   assert.equal(reopened.view.transactions.confirmation, null);
   assert.equal(reopened.view.transactions.gesture, null);
 });
+
+function hazeRoutedState({ withAll = true } = {}) {
+  const userPresets = [
+    rawPreset({
+      id: 'user_0001',
+      name: 'Haze',
+      mode: 'selected',
+      heroes: ['hero_haze'],
+      values: { enemyLow: '#111111' },
+    }),
+  ];
+  if (withAll) {
+    userPresets.push(rawPreset({
+      id: 'user_0003',
+      name: 'All Heroes',
+      mode: 'all',
+      values: { enemyLow: '#333333' },
+    }));
+  }
+  const state = createState(makeSession({ userPresets }));
+  send(state, 'hero_mode', { mode: 'auto' });
+  send(state, 'lifecycle_observe', { epoch: 1, phase: 'active' });
+  send(state, 'hero_observe', { epoch: 1, heroName: 'HAZE' });
+  const routed = send(state, 'hero_observe', { epoch: 1, heroName: 'HAZE' });
+  assert.equal(routed.view.repository.activeId, 'user_0001');
+  assert.equal(routed.view.effectiveValues.enemyLow, '#111111');
+  return state;
+}
+
+test('Auto hideout entry drops a hero preset to the all-heroes preset', () => {
+  const state = hazeRoutedState();
+  const hideout = send(state, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(hideout.status, 'committed');
+  assert.equal(hideout.view.identity.phase, 'hideout');
+  assert.equal(hideout.view.identity.effectiveHeroKey, '');
+  assert.equal(hideout.view.repository.activeId, 'user_0003');
+  assertEffectivePublish(hideout, hideout.view.effectiveRevision);
+  assert.equal(hideout.view.effectiveValues.enemyLow, '#333333');
+
+  // Already on the no-hero route: re-entering must not churn the revision.
+  const revision = hideout.view.effectiveRevision;
+  send(state, 'lifecycle_observe', { epoch: 3, phase: 'transitioning' });
+  const again = send(state, 'lifecycle_observe', { epoch: 4, phase: 'hideout' });
+  assert.equal(again.view.repository.activeId, 'user_0003');
+  assert.equal(again.view.effectiveRevision, revision);
+  assertNoEffect(again, 'effective_publish');
+
+  // Leaving the hideout for a match routes by hero again.
+  send(state, 'lifecycle_observe', { epoch: 5, phase: 'active' });
+  send(state, 'hero_observe', { epoch: 5, heroName: 'HAZE' });
+  const back = send(state, 'hero_observe', { epoch: 5, heroName: 'HAZE' });
+  assert.equal(back.view.repository.activeId, 'user_0001');
+  assert.equal(back.view.effectiveValues.enemyLow, '#111111');
+});
+
+test('Auto hideout entry without an all-heroes preset falls back to Rewrite Default', () => {
+  const state = hazeRoutedState({ withAll: false });
+  const hideout = send(state, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(hideout.view.repository.activeId, 'baked_default');
+  assert.equal(hideout.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
+});
+
+test('hideout entry releases a restored cold-boot snapshot', () => {
+  const state = createState({
+    sessionRaw: JSON.stringify(makeSession({ values: { enemyLow: '#111111' } })),
+    publishedRaw: JSON.stringify({
+      version: 1,
+      revision: 7,
+      values: { enemyLow: '#22AA44' },
+    }),
+  });
+  assert.equal(state.read().effectiveValues.enemyLow, '#22AA44');
+  const hideout = send(state, 'lifecycle_observe', { epoch: 1, phase: 'hideout' });
+  assert.equal(hideout.view.effectiveValues.enemyLow, '#111111');
+  assertEffectivePublish(hideout, 8);
+});
+
+test('hideout keeps Manual and Off routes, and pregame lobby keeps the hero preset', () => {
+  const manual = hazeRoutedState();
+  send(manual, 'hero_mode', { mode: 'manual' });
+  send(manual, 'hero_manual', { heroKey: 'hero_haze' });
+  const manualHideout = send(manual, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(manualHideout.view.repository.activeId, 'user_0001');
+
+  const off = hazeRoutedState();
+  send(off, 'hero_mode', { mode: 'off' });
+  const offHideout = send(off, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(offHideout.view.repository.activeId, 'user_0001');
+
+  const lobby = hazeRoutedState();
+  const pregame = send(lobby, 'lifecycle_observe', { epoch: 2, phase: 'lobby' });
+  assert.equal(pregame.view.repository.activeId, 'user_0001');
+
+  const bogus = send(lobby, 'lifecycle_observe', { epoch: 3, phase: 'hideaway' });
+  assert.equal(bogus.status, 'rejected');
+});
