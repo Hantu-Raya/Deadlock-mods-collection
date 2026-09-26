@@ -1226,5 +1226,5 @@ test('entering the hideout shows HIDEOUT and drops the hero route to the all-her
 
   fixture.identityTree.hud.AddClass('connectedToHideout');
   settleHeroRoute(fixture, '#333333');
-  assert.equal(panel(fixture, 'HPColorsHeroPhase').text, 'MATCH: HIDEOUT');
+  assert.equal(panel(fixture, 'HPColorsHeroIdentity').text, 'HERO: UNKNOWN · HIDEOUT');
 });
