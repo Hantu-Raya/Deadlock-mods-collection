@@ -347,6 +347,7 @@
   width: 100%;
   height: fill-parent-flow(1);
   margin-top: 18px;
+  flow-children: down;
   overflow: squish scroll;
 }
 

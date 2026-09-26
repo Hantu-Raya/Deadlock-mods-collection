@@ -197,17 +197,21 @@ function buildEscapeMenu({ canonicalXml, thirdEyeXml, bridgeAsset, windowAsset, 
   const thirdEyeButton = extractElementById(thirdEyeXml, 'Button', 'ThirdEyeSettingsBtn');
   const settingsRowPattern = /[ \t]*<Panel class="SettingsRow">[\s\S]*?<Button id="ThirdEyeSettingsBtn"[\s\S]*?<\/Button>[\s\S]*?<\/Panel>/g;
   requireMatchCount(thirdEyeXml, settingsRowPattern, 1, 'ThirdEye settings row');
-  const hpRow = [
-    '        <Panel class="SettingsRow">',
-    hpButton,
-    '        </Panel>',
-  ].join('\n');
+  // Stock #SubOptions is bottom-anchored and grows upward per row; a second
+  // extra row runs into SWAP HERO, so the HP button shares Third Eye's row.
+  const hpRowButton = hpButton.replace(/<Button\b[^>]*>/, (tag) =>
+    setAttribute(tag, 'style', 'margin-left: 20px;', 'HP menu button'));
   let merged = thirdEyeXml;
   const styleBody = mergedStyles.map((asset) => includeLine(asset)).join('\n');
   const scriptBody = mergedScripts.map((asset) => includeLine(asset)).join('\n');
   merged = replaceOnce(merged, /<styles>[\s\S]*?<\/styles>/, `<styles>\n${styleBody}\n\t</styles>`, 'merged style includes');
   merged = replaceOnce(merged, /<scripts>[\s\S]*?<\/scripts>/, `<scripts>\n${scriptBody}\n\t</scripts>`, 'merged script includes');
-  merged = replaceOnce(merged, settingsRowPattern, (match) => `${match}\n${hpRow}`, 'HP button insertion');
+  merged = replaceOnce(
+    merged,
+    settingsRowPattern,
+    (match) => match.replace(/([ \t]*)<\/Panel>$/, `${hpRowButton}\n$1</Panel>`),
+    'HP button insertion',
+  );
   merged = replaceLiteralOnce(
     merged,
     thirdEyeButton,

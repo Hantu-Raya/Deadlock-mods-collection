@@ -128,12 +128,10 @@
 							<Label text="Third Eye" class="menuButtonLabel" />
 							<Image class="smallIcon" src="s2r://panorama/images/icons/icon_gear.vsvg" />
 						</Button>
-					</Panel>
-        <Panel class="SettingsRow">
-<Button id="HPColorsMenuButton" class="nav_menu_item minor">
+<Button id="HPColorsMenuButton" class="nav_menu_item minor" style="margin-left: 20px;">
             <Label text="HP COLORS V2" class="menuButtonLabel" />
           </Button>
-        </Panel>
+					</Panel>
 					<Button id="quit" onactivate="CitadelQuitConfirm()">
 						<Label text="#menu_exit_deadlock" />
 					</Button>
