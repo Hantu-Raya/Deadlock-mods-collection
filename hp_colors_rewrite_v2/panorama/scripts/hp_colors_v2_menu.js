@@ -1695,6 +1695,8 @@
           "UNKNOWN");
       detailText = "Waiting for a second matching local-HUD sample.";
     } else if (identityView.phase !== HERO_PHASE_ACTIVE) {
+      // The runtime phase label is collapsed; surface the phase here.
+      identityText += " · " + phaseDisplayName(identityView.phase);
       detailText = "Auto detection waits for an active match.";
     }
     setClass(
