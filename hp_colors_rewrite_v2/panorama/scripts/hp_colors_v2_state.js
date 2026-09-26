@@ -1599,11 +1599,8 @@
         (!current || current.sourcePresetId !== allFallback.id)
       )
         return applyPresetInternal(allFallback);
-      if (current && current.mode === HERO_SCOPE_SELECTED) {
-        var baked = findPreset(DEFAULT_PRESET_ID);
-        if (!presetMatchesCurrent(baked)) return applyPresetInternal(baked);
-        return false;
-      }
+      if (current && current.mode === HERO_SCOPE_SELECTED)
+        return applyPresetInternal(findPreset(DEFAULT_PRESET_ID));
       return false;
     }
 
@@ -2015,19 +2012,15 @@
         return noop("lifecycle_observe", "NO_CHANGE");
       var releasedRestoredEffective = false;
       return commit("lifecycle_observe", function () {
-        var epochChanged = epoch !== state.identity.epoch;
         var phaseChanged = intent.phase !== state.identity.phase;
         state.identity.epoch = epoch;
         state.identity.phase = intent.phase;
-        if (epochChanged || phaseChanged) {
-          clearAutoIdentity();
-          state.ability.tiers = [-1, -1, -1, -1];
-          state.confirmation = null;
-        }
-        var heroChanged = updateIdentityEffective();
-        if (heroChanged) applyAutomaticRoute();
-        // The hideout HUD exposes no local hero, so Auto drops any hero
-        // route (and a held cold-boot snapshot) instead of keeping it.
+        clearAutoIdentity();
+        state.ability.tiers = [-1, -1, -1, -1];
+        state.confirmation = null;
+        updateIdentityEffective();
+        // Auto deliberately stays unknown in the hideout. Drop its hero
+        // route and release any held cold-boot snapshot.
         if (
           phaseChanged &&
           intent.phase === HERO_PHASE_HIDEOUT &&
