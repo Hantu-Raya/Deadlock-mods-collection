@@ -334,46 +334,6 @@
   background-color: gradient(linear, 0% 0%, 100% 0%, from(#5fe69e77), color-stop(0.35, #ffefd71f), to(#ffefd700));
 }
 
-.HPColorsPresetInfoToggle {
-  width: 62px;
-  height: 26px;
-  margin-top: 7px;
-  margin-left: 16px;
-  vertical-align: top;
-  visibility: visible;
-  opacity: 0;
-  background-color: #11140f;
-  border: 1px solid #5fe69e55;
-  transition-property: opacity, brightness, background-color, border;
-  transition-duration: 0.1s;
-  transition-timing-function: ease-out;
-}
-
-.HPColorsPresetInfoToggle.Available {
-  opacity: 1;
-}
-
-.HPColorsPresetInfoToggle Label {
-  horizontal-align: center;
-  vertical-align: center;
-  font-family: oracle;
-  font-size: 10px;
-  font-weight: bold;
-  color: #5fe69eaa;
-  letter-spacing: 1px;
-}
-
-.HPColorsPresetInfoToggle:hover,
-.HPColorsPresetInfoToggle:focus,
-.HPColorsPresetInfoToggle.Active {
-  brightness: 1.2;
-  background-color: #5fe69e1a;
-  border: 1px solid #5fe69e88;
-}
-
-.HPColorsPresetInfoToggle.Active Label {
-  color: #5fe69e;
-}
 
 .HPColorsPageDescription {
   width: 100%;
@@ -1132,135 +1092,26 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   border-left: 2px solid #5fe69e66;
 }
 
-.HPColorsPresetHeading {
-  width: 100%;
-  flow-children: right;
-}
-
-.HPColorsPresetHeadingCopy {
-  width: fill-parent-flow(1);
-  flow-children: down;
-}
-
-.HPColorsPresetGuide {
-  width: 100%;
-  visibility: collapse;
-  flow-children: down;
-}
-
-.HPColorsPresetGuide.Visible {
-  visibility: visible;
-}
-
-.HPColorsHeroCardEyebrow,
-.HPColorsHeroFieldLabel,
-.HPColorsPresetContextLabel {
+.HPColorsHeroFieldLabel {
   font-family: oracle;
   font-size: 11px;
   color: #ffefd766;
   letter-spacing: 2px;
 }
 
-.HPColorsHeroCardTitle {
-  margin-top: 4px;
-  font-family: oracle;
-  font-size: 24px;
-  color: #ffefd7;
-  letter-spacing: 1px;
-}
 
-.HPColorsHeroCardHelpBlock {
-  width: 100%;
-  margin-top: 7px;
-  flow-children: down;
-}
 
-.HPColorsHeroCardHelpBlock .HPColorsHeroCardHelp {
-  margin-top: 0px;
-}
-
-.HPColorsHeroCardHelp {
-  width: 100%;
-  margin-top: 7px;
-  font-family: sans;
-  font-size: 13px;
-  line-height: 18px;
-  color: #ffefd780;
-  white-space: normal;
-}
-
-.HPColorsHeroSessionFlag {
-  padding: 5px 8px;
-  vertical-align: center;
-  font-family: oracle;
-  font-size: 10px;
-  color: #e7c77d;
-  letter-spacing: 1px;
-  background-color: #e7c77d12;
-  border: 1px solid #e7c77d33;
-}
-
-.HPColorsPresetHeroContext {
-  width: 100%;
-  min-height: 76px;
-  margin-top: 14px;
-  padding: 8px 12px;
-  flow-children: right;
-  background-color: #050705;
-  border-left: 2px solid #5fe69e66;
-}
-
-.HPColorsPresetContextLabel {
-  width: 108px;
-  vertical-align: center;
-}
 
 .HPColorsPresetHeroValue {
-  width: 190px;
+  width: 142px;
   vertical-align: center;
   font-family: oracle;
-  font-size: 13px;
-  font-weight: bold;
-  color: #5fe69e;
+  font-size: 12px;
+  color: #ffefd799;
   letter-spacing: 1px;
   text-overflow: shrink;
 }
 
-.HPColorsPresetRouting {
-  width: fill-parent-flow(1);
-  vertical-align: center;
-  flow-children: down;
-}
-
-.HPColorsPresetRoutingTitle {
-  width: 100%;
-  font-family: oracle;
-  font-size: 10px;
-  color: #ffefd766;
-  letter-spacing: 1px;
-  text-align: right;
-}
-
-.HPColorsPresetRoutingValue {
-  width: 100%;
-  margin-top: 3px;
-  font-family: oracle;
-  font-size: 10px;
-  color: #ffefd7aa;
-  letter-spacing: 1px;
-  text-align: right;
-  text-overflow: shrink;
-}
-
-.HPColorsPresetRoutingHelp {
-  width: 100%;
-  margin-top: 3px;
-  font-family: sans;
-  font-size: 11px;
-  color: #ffefd766;
-  text-align: right;
-  white-space: normal;
-}
 
 .HPColorsPresetCreateBlock {
   width: 100%;
@@ -1370,54 +1221,26 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 }
 
 .HPColorsPresetLibraryHeader .HPColorsHeroFieldLabel {
-  width: fill-parent-flow(1);
+  width: 84px;
 }
 
 .HPColorsPresetLibraryHint {
+  width: fill-parent-flow(1);
   font-family: oracle;
   font-size: 10px;
   color: #ffefd766;
   letter-spacing: 1px;
-  text-align: right;
+  text-align: left;
+  text-overflow: shrink;
 }
 
-.HPColorsPresetActionGuide {
-  width: 100%;
-  margin-top: 8px;
-  padding: 8px 12px;
-  flow-children: down;
-  background-color: #050705;
-  border-left: 2px solid #e7c77d55;
-}
-
-.HPColorsPresetActionGuideRow {
-  width: 100%;
-  min-height: 22px;
-  flow-children: right;
-}
-
-.HPColorsPresetActionGuideLabel {
-  width: 132px;
-  font-family: oracle;
-  font-size: 10px;
-  color: #e7c77d;
-  letter-spacing: 1px;
-}
-
-.HPColorsPresetActionGuideHelp {
-  width: fill-parent-flow(1);
-  font-family: sans;
-  font-size: 11px;
-  color: #ffefd780;
-  white-space: normal;
-}
 
 .HPColorsIdentityRuntime {
   visibility: collapse;
 }
 
 .HPColorsPresetLibraryAction {
-  min-width: 88px;
+  min-width: 100px;
   height: 32px;
   margin-left: 8px;
   padding: 0px 10px;
@@ -1430,6 +1253,72 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsStoreForgetButton.Confirming Label {
   color: #e16161;
+}
+
+.HPColorsPresetHiddenRow {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 8px;
+  padding: 5px 12px;
+  flow-children: right;
+  visibility: collapse;
+  background-color: #050705;
+  border-left: 2px solid #e7c77d55;
+}
+
+.HPColorsPresetHiddenRow.Visible {
+  visibility: visible;
+}
+
+.HPColorsPresetHiddenMessage {
+  width: fill-parent-flow(1);
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 11px;
+  color: #e7c77d;
+  letter-spacing: 1px;
+  white-space: normal;
+}
+
+.HPColorsStoreRow {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 12px;
+  flow-children: right;
+  background-color: #050705;
+  border-top: 1px solid #ffefd712;
+  border-left: 2px solid #5fe69e55;
+}
+
+.HPColorsStoreCopy {
+  width: fill-parent-flow(1);
+  flow-children: down;
+}
+
+.HPColorsStoreEyebrow {
+  width: 100%;
+  font-family: oracle;
+  font-size: 11px;
+  color: #ffefd7aa;
+  letter-spacing: 1px;
+}
+
+.HPColorsStoreHelp {
+  width: 100%;
+  margin-top: 4px;
+  font-family: sans;
+  font-size: 11px;
+  line-height: 15px;
+  color: #ffefd766;
+  white-space: normal;
+}
+
+.HPColorsStoreForgetButton {
+  min-width: 132px;
+  height: 36px;
+  margin-left: 12px;
+  padding: 0px 12px;
+  vertical-align: center;
 }
 
 .HPColorsScopeSearch {
@@ -1733,13 +1622,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 
 
-.HPColorsPresetRestoreBakedButton {
-  visibility: collapse;
-}
-
-.HPColorsPresetRestoreBakedButton.Active {
-  visibility: visible;
-}
 
 .HPColorsConditionIndicator {
   width: 30px;
