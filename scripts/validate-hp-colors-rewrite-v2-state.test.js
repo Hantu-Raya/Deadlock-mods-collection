@@ -1924,40 +1924,64 @@ function hazeRoutedState({ withAll = true } = {}) {
   return state;
 }
 
-test('Auto hideout entry drops a hero preset to the all-heroes preset', () => {
+function observeHideout(state, epoch, heroKey) {
+  send(state, 'hero_observe', { epoch, heroKey });
+  return send(state, 'hero_observe', { epoch, heroKey });
+}
+
+test('hideout entry waits for samples, then an undetected hero drops to the all-heroes preset', () => {
   const state = hazeRoutedState();
-  const hideout = send(state, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
-  assert.equal(hideout.status, 'committed');
-  assert.equal(hideout.view.identity.phase, 'hideout');
+  const entry = send(state, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(entry.status, 'committed');
+  assert.equal(entry.view.identity.phase, 'hideout');
+  assert.equal(entry.view.repository.activeId, 'user_0001');
+  assertNoEffect(entry, 'effective_publish');
+
+  const hideout = observeHideout(state, 2, '');
   assert.equal(hideout.view.identity.effectiveHeroKey, '');
   assert.equal(hideout.view.repository.activeId, 'user_0003');
-  assertEffectivePublish(hideout, hideout.view.effectiveRevision);
   assert.equal(hideout.view.effectiveValues.enemyLow, '#333333');
+  assertEffectivePublish(hideout, hideout.view.effectiveRevision);
 
-  // Already on the no-hero route: re-entering must not churn the revision.
+  // Already on the no-hero route: more empty samples must not churn.
   const revision = hideout.view.effectiveRevision;
-  send(state, 'lifecycle_observe', { epoch: 3, phase: 'transitioning' });
-  const again = send(state, 'lifecycle_observe', { epoch: 4, phase: 'hideout' });
-  assert.equal(again.view.repository.activeId, 'user_0003');
+  const again = send(state, 'hero_observe', { epoch: 2, heroKey: '' });
   assert.equal(again.view.effectiveRevision, revision);
   assertNoEffect(again, 'effective_publish');
 
-  // Leaving the hideout for a match routes by hero again.
-  send(state, 'lifecycle_observe', { epoch: 5, phase: 'active' });
-  send(state, 'hero_observe', { epoch: 5, heroName: 'HAZE' });
-  const back = send(state, 'hero_observe', { epoch: 5, heroName: 'HAZE' });
+  // Leaving the hideout for a match routes by the topbar name again.
+  send(state, 'lifecycle_observe', { epoch: 3, phase: 'active' });
+  send(state, 'hero_observe', { epoch: 3, heroName: 'HAZE' });
+  const back = send(state, 'hero_observe', { epoch: 3, heroName: 'HAZE' });
   assert.equal(back.view.repository.activeId, 'user_0001');
-  assert.equal(back.view.effectiveValues.enemyLow, '#111111');
 });
 
-test('Auto hideout entry without an all-heroes preset falls back to Rewrite Default', () => {
+test('undetected hideout hero without an all-heroes preset falls back to Rewrite Default', () => {
   const state = hazeRoutedState({ withAll: false });
-  const hideout = send(state, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  send(state, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  const hideout = observeHideout(state, 2, '');
   assert.equal(hideout.view.repository.activeId, 'baked_default');
   assert.equal(hideout.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
 });
 
-test('hideout entry releases a restored cold-boot snapshot', () => {
+test('hideout routes a detected hero key and follows a swap', () => {
+  const state = hazeRoutedState();
+  send(state, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  const shiv = observeHideout(state, 2, 'hero_shiv');
+  assert.equal(shiv.view.identity.effectiveHeroKey, 'hero_shiv');
+  assert.equal(shiv.view.repository.activeId, 'user_0003');
+
+  const haze = observeHideout(state, 2, 'hero_haze');
+  assert.equal(haze.view.identity.effectiveHeroKey, 'hero_haze');
+  assert.equal(haze.view.repository.activeId, 'user_0001');
+  assert.equal(haze.view.effectiveValues.enemyLow, '#111111');
+
+  const bogus = observeHideout(state, 2, 'hero_bogus');
+  assert.equal(bogus.view.identity.effectiveHeroKey, '');
+  assert.equal(bogus.view.repository.activeId, 'user_0003');
+});
+
+test('hideout releases a restored cold-boot snapshot after sampling', () => {
   const state = createState({
     sessionRaw: JSON.stringify(makeSession({ values: { enemyLow: '#111111' } })),
     publishedRaw: JSON.stringify({
@@ -1966,18 +1990,21 @@ test('hideout entry releases a restored cold-boot snapshot', () => {
       values: { enemyLow: '#22AA44' },
     }),
   });
+  send(state, 'lifecycle_observe', { epoch: 1, phase: 'hideout' });
   assert.equal(state.read().effectiveValues.enemyLow, '#22AA44');
-  const hideout = send(state, 'lifecycle_observe', { epoch: 1, phase: 'hideout' });
-  assert.equal(hideout.view.effectiveValues.enemyLow, '#111111');
-  assertEffectivePublish(hideout, 8);
+  const sampled = observeHideout(state, 1, '');
+  assert.equal(sampled.view.effectiveValues.enemyLow, '#111111');
+  assertEffectivePublish(sampled, 8);
 });
 
-test('hideout keeps Manual and Off routes, and pregame lobby keeps the hero preset', () => {
+test('hideout keeps Manual and Off routes, and pregame lobby ignores hero samples', () => {
   const manual = hazeRoutedState();
   send(manual, 'hero_mode', { mode: 'manual' });
   send(manual, 'hero_manual', { heroKey: 'hero_haze' });
-  const manualHideout = send(manual, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
-  assert.equal(manualHideout.view.repository.activeId, 'user_0001');
+  send(manual, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  const manualSample = send(manual, 'hero_observe', { epoch: 2, heroKey: '' });
+  assert.equal(manualSample.code, 'IDENTITY_INACTIVE');
+  assert.equal(manualSample.view.repository.activeId, 'user_0001');
 
   const off = hazeRoutedState();
   send(off, 'hero_mode', { mode: 'off' });
@@ -1985,8 +2012,10 @@ test('hideout keeps Manual and Off routes, and pregame lobby keeps the hero pres
   assert.equal(offHideout.view.repository.activeId, 'user_0001');
 
   const lobby = hazeRoutedState();
-  const pregame = send(lobby, 'lifecycle_observe', { epoch: 2, phase: 'lobby' });
-  assert.equal(pregame.view.repository.activeId, 'user_0001');
+  send(lobby, 'lifecycle_observe', { epoch: 2, phase: 'lobby' });
+  const lobbySample = send(lobby, 'hero_observe', { epoch: 2, heroKey: 'hero_shiv' });
+  assert.equal(lobbySample.code, 'IDENTITY_INACTIVE');
+  assert.equal(lobbySample.view.repository.activeId, 'user_0001');
 
   const bogus = send(lobby, 'lifecycle_observe', { epoch: 3, phase: 'hideaway' });
   assert.equal(bogus.status, 'rejected');
