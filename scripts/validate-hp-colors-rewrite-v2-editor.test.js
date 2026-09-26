@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
@@ -20,6 +21,10 @@ const layoutSource = fs.readFileSync(
 );
 const menuSource = fs.readFileSync(
   path.join(rewriteRoot, 'panorama/scripts/hp_colors_v2_menu.js'),
+  'utf8',
+);
+const canonicalMenuSource = fs.readFileSync(
+  path.resolve(__dirname, '../hp_colors_rewrite_v2/panorama/scripts/hp_colors_v2_menu.js'),
   'utf8',
 );
 const menuStyleSource = fs.readFileSync(
@@ -43,8 +48,6 @@ const ENEMY_BAR_DEFAULTS = {
   enemyLow: '#FD4949',
   enemyMid: '#FF7B00',
   enemyHigh: '#00FF00',
-  lowThreshold: 25,
-  highThreshold: 65,
   enemyTeamHigh: false,
   ghoulOpacityEnabled: false,
   ghoulOpacity: 100,
@@ -114,7 +117,7 @@ function selectEnemyBar(fixture) {
 
 function selectStamina(fixture) {
   panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
-  panel(fixture, 'HPColorsTab5').events.onactivate();
+  panel(fixture, 'HPColorsTab2').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ENEMY STAMINA');
 }
 
@@ -178,6 +181,39 @@ function scopeOption(fixture, heroKey) {
     }
   }
   assert.fail(`expected scope option ${heroKey}`);
+}
+
+function extractArrayDeclaration(source, name) {
+  const declaration = source.match(
+    new RegExp(`\\bvar ${name} = (\\[[\\s\\S]*?\\n  \\]);`),
+  );
+  assert.ok(declaration, `expected ${name} array declaration`);
+  return vm.runInNewContext(declaration[1]);
+}
+
+function panelAncestryById(xml) {
+  const ancestry = new Map();
+  const stack = [];
+  const tokens = xml.match(/<!--[\s\S]*?-->|<\/?[A-Za-z][^>]*>/g) || [];
+  for (const token of tokens) {
+    if (token.startsWith('<!--')) continue;
+    const closing = token.match(/^<\/([A-Za-z][\w.-]*)/);
+    if (closing) {
+      const opened = stack.pop();
+      assert.equal(opened && opened.tag, closing[1], `closed ${closing[1]} in order`);
+      continue;
+    }
+    const opening = token.match(/^<([A-Za-z][\w.-]*)/);
+    if (!opening) continue;
+    const id = token.match(/\bid="([^"]+)"/)?.[1] || '';
+    if (id) {
+      assert.ok(!ancestry.has(id), `duplicate XML id ${id}`);
+      ancestry.set(id, stack.map((entry) => entry.id).filter(Boolean));
+    }
+    if (!token.endsWith('/>')) stack.push({ tag: opening[1], id });
+  }
+  assert.equal(stack.length, 0, 'XML tags must be balanced');
+  return ancestry;
 }
 
 
@@ -339,6 +375,31 @@ test('confirm resets only the captured tab and one Undo restores every reset val
   assert.equal(configDispatches(fixture).length, beforeDispatchCount + 2);
   assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, false);
   assert.equal(panel(fixture, 'HPColorsUndoButton').BHasClass('Disabled'), true);
+});
+
+test('master section reset owns the shared thresholds', () => {
+  const fixture = bootMenu({
+    version: 1,
+    values: {
+      enabled: false,
+      lowThreshold: 10,
+      highThreshold: 90,
+      enemyLow: '#111111',
+    },
+    scopes: [],
+  });
+  openEditor(fixture);
+  const beforeConfig = readConfig(fixture);
+
+  requestReset(fixture);
+  confirmReset(fixture);
+
+  const resetValues = readMenuState(fixture).values;
+  assert.equal(resetValues.enabled, true);
+  assert.equal(resetValues.lowThreshold, 25);
+  assert.equal(resetValues.highThreshold, 65);
+  assert.equal(resetValues.enemyLow, '#111111');
+  assert.equal(readConfig(fixture).revision, beforeConfig.revision + 1);
 });
 
 test('stamina section reset publishes defaults immediately', () => {
@@ -549,7 +610,8 @@ test('hero route changes refresh open editor controls and the published snapshot
 test('Current scope controls keep mode, summaries, and hero options synchronized', () => {
   const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
   openEditor(fixture);
-  panel(fixture, 'HPColorsTab2').events.onactivate();
+  panel(fixture, 'HPColorsCategoryPresets').events.onactivate();
+  panel(fixture, 'HPColorsTab0').events.onactivate();
 
   const all = panel(fixture, 'HPColorsCurrentScopeAll');
   const selected = panel(fixture, 'HPColorsCurrentScopeSelected');
@@ -673,6 +735,79 @@ test('stale preset clipboard callbacks cannot affect a reopened dialog', () => {
   );
 });
 
+test('Preset Library keeps create separate and exposes the new restore flow', () => {
+  const fixture = bootMenu({
+    version: 1,
+    values: { enemyLow: '#111111' },
+    scopes: [],
+    userPresets: [
+      {
+        id: 'user_0001',
+        kind: 'user',
+        name: 'Shiv Colors',
+        mode: 'all',
+        heroes: [],
+        values: { enemyLow: '#222222' },
+        conditions: null,
+      },
+    ],
+  });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCategoryPresets').events.onactivate();
+  panel(fixture, 'HPColorsTab0').events.onactivate();
+
+  assert.equal(
+    panel(fixture, 'HPColorsPageDescription').text,
+    'Presets are named snapshots of your settings: a Selected Heroes preset wins for its heroes, otherwise the first All Heroes preset, otherwise Rewrite Default.',
+  );
+  assert.equal(
+    presetOption(fixture, 'baked_default')
+      .FindChildrenWithClassTraverse('HPColorsPresetOptionName')[0].text,
+    'Rewrite Default  ·  BUILT-IN',
+  );
+
+  const beforeConfig = readConfig(fixture);
+  panel(fixture, 'HPColorsPresetNewButton').events.onactivate();
+  assert.equal(
+    panel(fixture, 'HPColorsPresetSaveMode').text,
+    'NEW PRESET FROM CURRENT SETTINGS',
+  );
+  assert.equal(
+    panel(fixture, 'HPColorsPresetFeedback').text,
+    'CREATE PRESET STORES YOUR CURRENT SETTINGS AS A NEW PRESET.',
+  );
+  panel(fixture, 'HPColorsPresetNameInput').text = 'Fresh Snapshot';
+  panel(fixture, 'HPColorsPresetSaveButton').events.onactivate();
+  assert.deepEqual(readConfig(fixture), beforeConfig);
+  assert.ok(
+    readMenuState(fixture).userPresets.some(
+      (preset) => preset.name === 'Fresh Snapshot',
+    ),
+  );
+  assert.equal(panel(fixture, 'HPColorsPresetHiddenRow').BHasClass('Visible'), true);
+  panel(fixture, 'HPColorsPresetRestoreBakedButton').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPresetHiddenRow').BHasClass('Visible'), false);
+  assert.equal(
+    panel(fixture, 'HPColorsPresetFeedback').text,
+    'REWRITE DEFAULT RESTORED.',
+  );
+
+  presetOption(fixture, 'user_0001').events.onactivate();
+  assert.equal(
+    panel(fixture, 'HPColorsPresetSaveButtonLabel').text,
+    'UPDATE & APPLY',
+  );
+  assert.equal(
+    panel(fixture, 'HPColorsPresetFeedback').text,
+    'EDITING SHIV COLORS. UPDATE & APPLY REPLACES IT WITH YOUR CURRENT SETTINGS.',
+  );
+  panel(fixture, 'HPColorsPresetCancelEditButton').events.onactivate();
+  assert.equal(
+    panel(fixture, 'HPColorsPresetFeedback').text,
+    'EDIT CANCELED. NOTHING CHANGED.',
+  );
+});
+
 test('editor close clears inline rename and delete confirmation transients', () => {
   const fixture = bootMenu({
     version: 1,
@@ -748,6 +883,24 @@ test('menu boot can retry after a required panel appears', () => {
     typeof panel(fixture, 'HPColorsMenuButton').events.onactivate,
     'function',
   );
+});
+
+test('retired builder layout without the fifth rail button still shows its warning', () => {
+  const fixture = bootMenu(
+    { version: 1, values: {}, scopes: [] },
+    {
+      beforeBoot(harness) {
+        harness.root
+          .FindChildTraverse('HPColorsCategoryPresets')
+          .DeleteAsync();
+        harness.root.FindChildTraverse('HPColorsV2Store').DeleteAsync();
+      },
+    },
+  );
+
+  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'OLD PRESET VPK');
+  openEditor(fixture);
+  selectEnemyBar(fixture);
 });
 
 test('menu boot can retry after a transient CreatePanel failure', () => {
@@ -874,14 +1027,83 @@ test('effect pages live under their healthbar categories', () => {
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ENEMY KILL MARKER');
 
   panel(fixture, 'HPColorsCategoryAlly').events.onactivate();
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ALLY HP TEXT');
   panel(fixture, 'HPColorsTab3').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ALLY PULSE');
-  panel(fixture, 'HPColorsTab4').events.onactivate();
-  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ALLY HP TEXT');
+  assert.equal(panel(fixture, 'HPColorsTab4').BHasClass('Available'), false);
   assert.equal(panel(fixture, 'HPColorsTab5').BHasClass('Available'), false);
 
   panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
-  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'HP TEXT');
+  panel(fixture, 'HPColorsTab0').events.onactivate();
+  assert.equal(
+    panel(fixture, 'HPColorsPageTitle').text,
+    'HEALTH PIPS & PLAYER LEVEL',
+  );
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ENEMY STAMINA');
+});
+
+test('every setting key has one tab owner and its controls live in that XML page', () => {
+  const categories = extractArrayDeclaration(canonicalMenuSource, 'CATEGORY_DEFS');
+  const toggles = extractArrayDeclaration(canonicalMenuSource, 'TOGGLE_CONTROLS');
+  const modes = extractArrayDeclaration(canonicalMenuSource, 'MODE_CONTROLS');
+  const sliders = extractArrayDeclaration(canonicalMenuSource, 'SLIDER_CONTROLS');
+  const colors = extractArrayDeclaration(canonicalMenuSource, 'COLOR_CONTROLS');
+  const defaultKeys = Object.keys(readConfig(bootMenu()).values).sort();
+  const keyOwners = new Map();
+  const controlIdsByKey = new Map();
+
+  function addControl(key, id) {
+    if (!controlIdsByKey.has(key)) controlIdsByKey.set(key, []);
+    controlIdsByKey.get(key).push(id);
+  }
+  for (const toggle of toggles) addControl(toggle.key, toggle.id);
+  for (const mode of modes) addControl(mode.key, mode.id);
+  for (const slider of sliders) {
+    addControl(slider.key, `${slider.base}SliderHost`);
+    addControl(slider.key, `${slider.base}Entry`);
+  }
+  for (const color of colors) {
+    addControl(color.key, `${color.base}Swatch`);
+    addControl(color.key, `${color.base}Hex`);
+  }
+  addControl('precisePipsEnabled', 'HPColorsPrecisePipsToggle');
+
+  const pageAncestry = panelAncestryById(layoutSource);
+  const tabs = categories.flatMap((category) => category.tabs);
+  assert.deepEqual(
+    [...categories].map((category) => category.name),
+    ['GENERAL', 'ENEMY', 'ALLY', 'INDICATORS', 'PRESETS'],
+  );
+  for (const category of categories)
+    assert.ok(category.tabs.length <= 6, `${category.name} must fit six tab slots`);
+
+  // CATEGORY_DEFS and control maps come from canonical source; layoutSource may be a lane layout.
+  for (const tab of tabs) {
+    assert.ok(pageAncestry.has(tab.pageId), `missing page ${tab.pageId}`);
+    assert.equal(pageAncestry.get(tab.pageId).at(-1), 'HPColorsSettingsList', `${tab.pageId} must be a direct settings page`);
+    for (const key of tab.keys) {
+      if (!keyOwners.has(key)) keyOwners.set(key, []);
+      keyOwners.get(key).push(tab);
+    }
+  }
+
+  assert.deepEqual([...keyOwners.keys()].sort(), defaultKeys);
+  for (const key of defaultKeys) {
+    const owners = keyOwners.get(key);
+    assert.equal(owners.length, 1, `${key} must belong to exactly one tab`);
+    const controlIds = controlIdsByKey.get(key);
+    assert.ok(controlIds && controlIds.length, `${key} must have controls`);
+    for (const controlId of controlIds) {
+      const ancestors = pageAncestry.get(controlId);
+      assert.ok(ancestors, `missing XML control ${controlId} for ${key}`);
+      assert.ok(
+        ancestors.includes(owners[0].pageId),
+        `${controlId} for ${key} must be inside ${owners[0].pageId}`,
+      );
+    }
+  }
 });
 
 
@@ -892,7 +1114,8 @@ test('Presets page hides Reset Section and Undo', () => {
     scopes: [],
   });
   openEditor(fixture);
-  panel(fixture, 'HPColorsTab2').events.onactivate();
+  panel(fixture, 'HPColorsCategoryPresets').events.onactivate();
+  panel(fixture, 'HPColorsTab0').events.onactivate();
 
   const reset = panel(fixture, 'HPColorsResetSectionButton');
   const undo = panel(fixture, 'HPColorsUndoButton');
@@ -909,34 +1132,6 @@ test('Presets page hides Reset Section and Undo', () => {
 });
 
 
-test('Presets guide starts hidden and toggles only on the Presets page', () => {
-  const fixture = bootMenu();
-  openEditor(fixture);
-
-  const info = panel(fixture, 'HPColorsPresetInfoToggle');
-  const guide = panel(fixture, 'HPColorsPresetGuide');
-  assert.equal(info.BHasClass('Available'), false);
-  assert.equal(info.enabled, false);
-  assert.equal(guide.BHasClass('Visible'), false);
-
-  panel(fixture, 'HPColorsTab2').events.onactivate();
-  assert.equal(info.BHasClass('Available'), true);
-  assert.equal(info.enabled, true);
-  assert.equal(guide.BHasClass('Visible'), false);
-
-  info.events.onactivate();
-  assert.equal(info.BHasClass('Active'), true);
-  assert.equal(guide.BHasClass('Visible'), true);
-
-  info.events.onactivate();
-  assert.equal(info.BHasClass('Active'), false);
-  assert.equal(guide.BHasClass('Visible'), false);
-
-  panel(fixture, 'HPColorsCategoryEnemy').events.onactivate();
-  assert.equal(info.BHasClass('Available'), false);
-  assert.equal(info.enabled, false);
-  assert.equal(guide.BHasClass('Visible'), false);
-});
 
 test('Escape closes reset confirmation before closing the editor', () => {
   const fixture = bootMenu({
@@ -998,4 +1193,38 @@ test('stale reset feedback callback cannot overwrite the save status after edito
 
   fixture.harness.scheduler.runByDelay(1.25);
   assert.equal(panel(fixture, 'HPColorsLiveStatus').text, STATUS_WITHOUT_STORE);
+});
+
+test('entering the hideout shows HIDEOUT and drops the hero route to the all-heroes preset', () => {
+  const fixture = bootMenu({
+    version: 1,
+    values: { enemyLow: '#111111' },
+    scopes: [],
+    userPresets: [
+      {
+        id: 'user_0001',
+        kind: 'user',
+        name: 'Haze',
+        mode: 'selected',
+        heroes: ['hero_haze'],
+        values: { enemyLow: '#222222' },
+        conditions: null,
+      },
+      {
+        id: 'user_0002',
+        kind: 'user',
+        name: 'All Heroes',
+        mode: 'all',
+        heroes: [],
+        values: { enemyLow: '#333333' },
+        conditions: null,
+      },
+    ],
+  }, { heroName: 'HAZE' });
+  settleHeroRoute(fixture, '#222222');
+  openEditor(fixture);
+
+  fixture.identityTree.hud.AddClass('connectedToHideout');
+  settleHeroRoute(fixture, '#333333');
+  assert.equal(panel(fixture, 'HPColorsHeroIdentity').text, 'HERO: UNKNOWN · HIDEOUT');
 });

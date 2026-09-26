@@ -3,7 +3,9 @@ param(
     [switch]$SkipDeploy,
     [switch]$RefreshFromInstalledQollock,
     [string]$Source2ViewerPath = '',
-    [switch]$SkipPanoramaTests
+    [switch]$SkipPanoramaTests,
+    # Build against QOLLOCK 4.0 (pak60, hp_colors_rewrite_v2_qollock4) instead of 3.2.0 (pak03).
+    [switch]$Qollock4
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,7 +15,9 @@ $root = $PSScriptRoot
 . (Join-Path $root 'scripts\hp-colors-rewrite-closure.ps1')
 
 $canonicalSrc = Join-Path $root 'hp_colors_rewrite_v2'
-$supportSrc = Join-Path $root 'hp_colors_rewrite_v2_qollock'
+# The bridge script is shared by both QOLLOCK pins.
+$bridgeSrc = Join-Path $root 'hp_colors_rewrite_v2_qollock'
+$supportSrc = if ($Qollock4) { Join-Path $root 'hp_colors_rewrite_v2_qollock4' } else { $bridgeSrc }
 $compiledOut = Join-Path $root 'hp_colors_rewrite_v2_qollock_compiled'
 $buildRoot = Join-Path $root '_hp_colors_rewrite_v2_qollock_build'
 $stageSource = Join-Path $buildRoot 'hp_colors_rewrite_v2_qollock'
@@ -28,7 +32,11 @@ $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
 )
 $vpkOut = Join-Path $root 'pak02_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak02_dir.vpk'
-$qollockPak = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak60_dir.vpk'
+$qollockPak = if ($Qollock4) {
+    'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak60_dir.vpk'
+} else {
+    'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak03_dir.vpk'
+}
 $manifestPath = Join-Path $supportSrc 'qollock-source.sha256'
 $contractPath = Join-Path $supportSrc 'pak02-contract.json'
 $refreshScript = Join-Path $root 'scripts\refresh-hp-colors-rewrite-qollock.js'
@@ -65,9 +73,9 @@ $canonicalFiles = @(
 )
 # QOLLOCK keeps its own hud.xml; pak02 overrides only the Escape menu and topbar.
 $supportFiles = @(
-    'panorama\layout\hud_escape_menu.xml',
-    'panorama\scripts\qollock_hp_colors_bridge.js'
+    'panorama\layout\hud_escape_menu.xml'
 )
+$bridgeFile = 'panorama\scripts\qollock_hp_colors_bridge.js'
 
 $timerScripts = @(
     'panorama\scripts\test_event_bridge.js',
@@ -196,7 +204,7 @@ foreach ($relativePath in $canonicalScripts + $timerScripts) {
         throw "Runtime script syntax check failed: $relativePath"
     }
 }
-& node --check (Join-Path $supportSrc 'panorama\scripts\qollock_hp_colors_bridge.js')
+& node --check (Join-Path $bridgeSrc $bridgeFile)
 if ($LASTEXITCODE -ne 0) {
     throw 'Runtime script syntax check failed: panorama\scripts\qollock_hp_colors_bridge.js'
 }
@@ -215,6 +223,7 @@ try {
     foreach ($relativePath in $supportFiles) {
         Copy-StagedFile -RelativePath $relativePath -SourceRoot $supportSrc -DestinationRoot $stageSource -Label 'QOLLOCK compatibility'
     }
+    Copy-StagedFile -RelativePath $bridgeFile -SourceRoot $bridgeSrc -DestinationRoot $stageSource -Label 'QOLLOCK bridge'
     # Preserve the pinned QOLLOCK topbar panels while sharing canonical timer hooks.
     & $Source2ViewerPath -i $qollockPak -o $stageSource -d -f 'panorama/layout/citadel_hud_top_bar.vxml_c'
     if ($LASTEXITCODE -ne 0) { throw 'Pinned QOLLOCK topbar decompilation failed' }
