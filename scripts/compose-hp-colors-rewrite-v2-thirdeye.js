@@ -285,12 +285,12 @@ function buildEscapeMenu({ canonicalXml, thirdEyeXml, bridgeAsset, windowAsset, 
 function buildTopbarUltimateFeature(source) {
   return replaceLiteralOnce(
     source,
-    '            var ultimate = statusRow.FindChild("UltimateStatus");',
+    '            const ultimate = statusRow.FindChild("UltimateStatus");',
     [
-      '            var ultimate = statusRow.FindChild("UltimateStatus");',
+      '            let ultimate = statusRow.FindChild("UltimateStatus");',
       '            // HPv2 wraps the native ultimate while pickup indicators are active.',
       '            if (!thirdEye.core.panel.isAlive(ultimate)) {',
-      '                var pickups = statusRow.FindChild("HPV2PickupIndicators");',
+      '                const pickups = statusRow.FindChild("HPV2PickupIndicators");',
       '                if (thirdEye.core.panel.isAlive(pickups)) {',
       '                    ultimate = pickups.FindChild("UltimateStatus");',
       '                }',

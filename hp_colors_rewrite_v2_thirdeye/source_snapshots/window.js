@@ -6,32 +6,101 @@
 {
     "use strict";
 
-    var thirdEye = globalThis.ThirdEye;
-    if (!thirdEye || !thirdEye.core || !thirdEye.ui || !thirdEye.ui.renderer) {
+    const thirdEye = globalThis.ThirdEye;
+    if (
+        !thirdEye || !thirdEye.core || !thirdEye.core.logger
+        || !thirdEye.ui || !thirdEye.ui.renderer
+    ) {
         $.Msg("[third-eye] window: dependencies missing --- aborting");
         return;
     }
 
-    var registry = thirdEye.core.registry;
-    var renderer = thirdEye.ui.renderer;
+    const registry = thirdEye.core.registry;
+    const renderer = thirdEye.ui.renderer;
+
+    // Backup is not a layout entry --- window.js appends it --- so its id lives
+    // here rather than in the data file.
+    const BACKUP_TAB_ID = "__backup__";
 
     // -- State --
-    var _window = null;
-    var _tabList = null;
-    var _content = null;
-    var _activeTab = "";
-    var _tabButtons = [];
-    var _searchInjected = false;
+    let _window = null;
+    let _tabList = null;
+    let _content = null;
+    let _activeTab = "";
+    let _tabButtons = [];
+    let _searchInjected = false;
+    // The rail hides developerOnly tabs until the version footer is clicked.
+    // Session-scoped on purpose: a UI flag is not worth a store or attribute
+    // write, and closing the game is a fine way to put the tab away.
+    let _isDeveloperUnlocked = false;
 
     // -- Hud attribute helpers --
 
-    function _readAttribute()
+    // Reads the `thirdeye_config` attribute --- the canonical config JSON.
+    function _readConfigAttribute()
     {
-        var hud = thirdEye.core.hud.findHud();
+        const hud = thirdEye.core.hud.findHud();
         if (!hud) { return null; }
-        var raw;
+        let raw;
         try {
             raw = hud.GetAttributeString("thirdeye_config", "");
+        } catch (e) {
+            return null;
+        }
+        if (!raw) { return null; }
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Reads both mechanisms' last-run times, which the HUD publishes to
+    // `thirdeye_storage_at` and `thirdeye_build_at`. Neither store is reachable
+    // from here --- the CEF page is HUD-only and the build machine needs the
+    // shop --- so attributes are the only path. 0 means "never recorded", which
+    // the renderer shows as a reason rather than inventing a date.
+    function _readStorageStatus()
+    {
+        const hud = thirdEye.core.hud.findHud();
+        if (!hud) { return { storeAt: 0, storeAbsolute: false, buildAt: 0, buildAbsolute: false }; }
+
+        // The value carries its own mark ("<epoch>z" = absolute), so it is parsed
+        // rather than Number()ed --- coercing here would silently drop the one
+        // thing that says how the time should be read.
+        function readStamp(name)
+        {
+            try {
+                return thirdEye.core.codec._parseStamp(hud.GetAttributeString(name, ""));
+            } catch (e) {
+                return { epoch: 0, isAbsolute: false };
+            }
+        }
+
+        const store = readStamp("thirdeye_storage_at");
+        const build = readStamp("thirdeye_build_at");
+        return {
+            storeAt: store.epoch,
+            storeAbsolute: store.isAbsolute,
+            buildAt: build.epoch,
+            buildAbsolute: build.isAbsolute,
+        };
+    }
+
+    // The HUD's outcome for the last build run, from the `thirdeye_buildsync`
+    // attribute it already writes on every terminal stage. The button's own
+    // flash fires when the request is *sent*, so it cannot report a result ---
+    // this is the channel that can, and until now nothing read it.
+    //
+    // Returns null when there is nothing to report, which is the honest state
+    // before any run this session.
+    function _readBuildsyncResult()
+    {
+        const hud = thirdEye.core.hud.findHud();
+        if (!hud) { return null; }
+        let raw;
+        try {
+            raw = hud.GetAttributeString("thirdeye_buildsync", "");
         } catch (e) {
             return null;
         }
@@ -47,16 +116,16 @@
 
     function _findShell()
     {
-        var root = thirdEye.core.panel.findRoot();
+        const root = thirdEye.core.panel.findRoot();
         if (!root) { return null; }
 
-        var shell = root.FindChildTraverse("ThirdEyeWindow");
+        const shell = root.FindChildTraverse("ThirdEyeWindow");
         if (!shell || !thirdEye.core.panel.isAlive(shell)) { return null; }
 
         shell.hittest = true;
         shell.canfocus = true;
         // Consume clicks so they don't fall through to EscapeBackground
-        shell.SetPanelEvent("onactivate", function()
+        shell.SetPanelEvent("onactivate", () =>
         {});
 
         _window = shell;
@@ -68,6 +137,142 @@
 
     // -- Tab rendering --
 
+    function _createRailHeading(text)
+    {
+        const heading = thirdEye.core.panel.create("Label", _tabList, "");
+        if (heading) {
+            heading.SetHasClass("TETabHeading", true);
+            heading.text = text;
+        }
+    }
+
+    function _createRailSpacer()
+    {
+        const spacer = thirdEye.core.panel.create("Panel", _tabList, "");
+        if (spacer) { spacer.SetHasClass("TETabSpacer", true); }
+    }
+
+    // Returns the rail's { id, panel } record for a tab, or null when the
+    // engine refused the button --- callers push it into _tabButtons only when
+    // it exists.
+    function _createTabButton(tabCfg)
+    {
+        let tab = null;
+        try {
+            tab = $.CreatePanel("Button", _tabList, "");
+        } catch (e) {
+            return null;
+        }
+        if (!tab) { return null; }
+
+        tab.SetHasClass("TETab", true);
+        let tabLabel = null;
+        try {
+            tabLabel = $.CreatePanel("Label", tab, "");
+        } catch (e) {}
+        if (tabLabel) { tabLabel.text = tabCfg.name || tabCfg.id; }
+
+        tab.SetPanelEvent("onactivate", () =>
+        {
+            _openTab(tabCfg.id);
+        });
+
+        return { id: tabCfg.id, panel: tab };
+    }
+
+    // Appended rather than declared in layout.js: Backup is not a feature group,
+    // and nothing else in the settings data needs to enumerate it.
+    function _createBackupTab()
+    {
+        return _createTabButton({ id: BACKUP_TAB_ID, name: "Backup" });
+    }
+
+    // The version footer doubles as the Developer tab's only door. The rail
+    // shows nothing while it is locked, so this label carries the click target
+    // and an Unlocked state saying the tab is currently up. It gives no hover
+    // feedback: a version stamp that reacts to the mouse advertises itself.
+    function _createVersionFooter()
+    {
+        const version = thirdEye.core.panel.create("Label", _tabList, "");
+        if (!version) { return; }
+
+        version.SetHasClass("TESidebarVersion", true);
+        version.SetHasClass("Unlocked", _isDeveloperUnlocked);
+        version.text = `Third Eye ${thirdEye.VERSION}`;
+        // Labels are hit-testable by default (the game's own layouts put
+        // onactivate on bare Labels), but this one is the only way back to the
+        // Developer tab, so the property is set rather than assumed.
+        version.hittest = true;
+        version.SetPanelEvent("onactivate", _toggleDeveloper);
+    }
+
+    // One path for every rail click, so the search state, the active-tab record
+    // and the rendered pane cannot drift apart.
+    function _openTab(tabId)
+    {
+        if (thirdEye.ui.search && thirdEye.ui.search.isSearching()) {
+            thirdEye.ui.search.clear();
+        }
+        _activeTab = tabId;
+        _highlightActiveTab();
+        if (tabId === BACKUP_TAB_ID) {
+            _renderBackupTab();
+        } else {
+            _renderSection(tabId);
+        }
+    }
+
+    // Which layout tab the version footer gates. Read from the data rather than
+    // repeated here, so the rail and this gate cannot disagree about it.
+    function _findGatedTabId()
+    {
+        const layout = thirdEye.ui.layout || [];
+        for (const tabCfg of layout) {
+            if (tabCfg.developerOnly) { return tabCfg.id; }
+        }
+        return "";
+    }
+
+    // Version click: reveal the Developer tab and open it, or hide it again.
+    //
+    // The rebuild is deferred one frame because the label handling this click
+    // sits inside the subtree RemoveAndDeleteChildren is about to replace, and
+    // the engine makes no promise about deleting a panel mid-dispatch.
+    function _toggleDeveloper()
+    {
+        const previousTab = _activeTab;
+        const gatedId = _findGatedTabId();
+        _isDeveloperUnlocked = !_isDeveloperUnlocked;
+
+        $.Schedule(0, () =>
+        {
+            if (!_tabList || !thirdEye.core.panel.isAlive(_tabList)) { return; }
+            _rebuildTabs();
+
+            if (_isDeveloperUnlocked && gatedId) {
+                _activeTab = gatedId;
+            } else if (_activeTab === gatedId) {
+                // The active tab just left _tabButtons; point at one that still
+                // exists, or the next open falls back to a blank pane.
+                _activeTab = _tabButtons.length > 0 ? _tabButtons[0].id : "";
+            }
+
+            // Only re-render when the visible pane actually changed: locking
+            // from another tab should not cost that tab its scroll position.
+            if (_activeTab !== previousTab && _activeTab) {
+                _openTab(_activeTab);
+            } else {
+                _highlightActiveTab();
+            }
+        });
+    }
+
+    /** Whether the rail is currently showing the gated Developer tab. */
+    function isDeveloperUnlocked()
+    {
+        return _isDeveloperUnlocked;
+    }
+
     function _rebuildTabs()
     {
         if (!_tabList || !thirdEye.core.panel.isAlive(_tabList)) { return; }
@@ -77,102 +282,44 @@
         } catch (e) {}
 
         _tabButtons = [];
-        var layout = thirdEye.ui.layout;
+        const layout = thirdEye.ui.layout;
         if (!layout || !layout.length) { return; }
 
-        for (var tabIndex = 0; tabIndex < layout.length; tabIndex++) {
-            var tabCfg = layout[tabIndex];
-
+        for (const tabCfg of layout) {
             // Headings and spacers are rail decoration. Neither may be pushed
             // into _tabButtons: setOpen falls back to _tabButtons[0].id when
             // the stored active tab is gone, and a decoration at index 0 has
             // no matching layout id, so the window would open to a blank pane.
             if (tabCfg.heading) {
-                var heading = thirdEye.core.panel.create("Label", _tabList, "");
-                if (heading) {
-                    heading.SetHasClass("TETabHeading", true);
-                    heading.text = tabCfg.heading;
-                }
+                _createRailHeading(tabCfg.heading);
                 continue;
             }
             if (tabCfg.spacer) {
-                var spacer = thirdEye.core.panel.create("Panel", _tabList, "");
-                if (spacer) { spacer.SetHasClass("TETabSpacer", true); }
+                _createRailSpacer();
                 continue;
             }
+            // Gated tabs are absent until the version footer is clicked ---
+            // absent from the rail and from _tabButtons, which is what keeps
+            // setOpen's fallback from ever landing on a hidden tab.
+            if (tabCfg.developerOnly && !_isDeveloperUnlocked) { continue; }
 
-            var tab = null;
-            try {
-                tab = $.CreatePanel("Button", _tabList, "");
-            } catch (e) {
-                continue;
-            }
-            if (!tab) { continue; }
-            tab.SetHasClass("TETab", true);
-            var tabLabel = null;
-            try {
-                tabLabel = $.CreatePanel("Label", tab, "");
-            } catch (e) {}
-            if (tabLabel) { tabLabel.text = tabCfg.name || tabCfg.id; }
-            tab.SetPanelEvent(
-                "onactivate",
-                function(id)
-                {
-                    return function()
-                    {
-                        if (thirdEye.ui.search && thirdEye.ui.search.isSearching()) {
-                            thirdEye.ui.search.clear();
-                        }
-                        _activeTab = id;
-                        _highlightActiveTab();
-                        _renderSection(id);
-                    };
-                }(tabCfg.id)
-            );
-            _tabButtons.push({ id: tabCfg.id, panel: tab });
+            const tab = _createTabButton(tabCfg);
+            if (tab) { _tabButtons.push(tab); }
         }
 
-        // Always add Backup tab at the end. It renders under the "System"
-        // heading only because that heading is last in layout.js --- appending
-        // here keeps Backup out of the data, but couples it to that ordering.
-        var utab = null;
-        try {
-            utab = $.CreatePanel("Button", _tabList, "");
-        } catch (e) {}
-        if (utab) {
-            utab.SetHasClass("TETab", true);
-            var ulabel = null;
-            try {
-                ulabel = $.CreatePanel("Label", utab, "");
-            } catch (e) {}
-            if (ulabel) { ulabel.text = "Backup"; }
-            utab.SetPanelEvent("onactivate", function()
-            {
-                if (thirdEye.ui.search && thirdEye.ui.search.isSearching()) {
-                    thirdEye.ui.search.clear();
-                }
-                _activeTab = "__backup__";
-                _highlightActiveTab();
-                _renderBackupTab();
-            });
-            _tabButtons.push({ id: "__backup__", panel: utab });
-        }
+        const backupTab = _createBackupTab();
+        if (backupTab) { _tabButtons.push(backupTab); }
 
         // Footer, not a tab --- kept out of _tabButtons for the same reason as
         // the headings above.
-        var version = thirdEye.core.panel.create("Label", _tabList, "");
-        if (version) {
-            version.SetHasClass("TESidebarVersion", true);
-            version.text = "Third Eye " + thirdEye.VERSION;
-        }
+        _createVersionFooter();
 
         _highlightActiveTab();
     }
 
     function _highlightActiveTab()
     {
-        for (var i = 0; i < _tabButtons.length; i++) {
-            var t = _tabButtons[i];
+        for (const t of _tabButtons) {
             if (thirdEye.core.panel.isAlive(t.panel)) {
                 t.panel.SetHasClass("Active", t.id === _activeTab);
             }
@@ -181,13 +328,12 @@
 
     // -- Subsection save/restore --
 
-    var _subsectionSaved = {};
+    const _subsectionSaved = {};
 
     function _subSaveAndDisable(name, childIds)
     {
-        var states = {};
-        for (var i = 0; i < childIds.length; i++) {
-            var childId = childIds[i];
+        const states = {};
+        for (const childId of childIds) {
             states[childId] = registry.get(childId, "enabled");
             registry.set(childId, "enabled", false);
         }
@@ -196,10 +342,9 @@
 
     function _subRestore(name, childIds)
     {
-        var states = _subsectionSaved[name] || {};
-        for (var i = 0; i < childIds.length; i++) {
-            var childId = childIds[i];
-            var saved = states.hasOwnProperty(childId) ? states[childId] : true;
+        const states = _subsectionSaved[name] || {};
+        for (const childId of childIds) {
+            const saved = states.hasOwnProperty(childId) ? states[childId] : true;
             registry.set(childId, "enabled", saved);
         }
         delete _subsectionSaved[name];
@@ -209,13 +354,12 @@
 
     function _resolveFeatures(layoutFeatures)
     {
-        var result = [];
-        for (var i = 0; i < layoutFeatures.length; i++) {
-            var entry = layoutFeatures[i];
-            var featureId = (typeof entry === "string") ? entry : entry.id;
-            var manifest = registry.getManifest(featureId);
+        const result = [];
+        for (const entry of layoutFeatures) {
+            const featureId = (typeof entry === "string") ? entry : entry.id;
+            const manifest = registry.getManifest(featureId);
             if (!manifest) { continue; }
-            var feat = {
+            const feat = {
                 id: manifest.id,
                 name: manifest.name,
                 settings: manifest.settings,
@@ -235,21 +379,21 @@
             _content.RemoveAndDeleteChildren();
         } catch (e) {}
 
-        var layout = thirdEye.ui.layout;
+        const layout = thirdEye.ui.layout;
         if (!layout) { return; }
 
-        var tabCfg = null;
-        for (var tabIndex = 0; tabIndex < layout.length; tabIndex++) {
-            if (layout[tabIndex].id === tabId) {
-                tabCfg = layout[tabIndex];
+        let tabCfg = null;
+        for (const entry of layout) {
+            if (entry.id === tabId) {
+                tabCfg = entry;
                 break;
             }
         }
         if (!tabCfg) { return; }
 
-        var subsections = tabCfg.subsections;
+        const subsections = tabCfg.subsections;
         if (!subsections || subsections.length === 0) {
-            var empty = null;
+            let empty = null;
             try {
                 empty = $.CreatePanel("Label", _content, "");
             } catch (e) {}
@@ -260,21 +404,20 @@
             return;
         }
 
-        for (var i = 0; i < subsections.length; i++) {
-            var subsection = subsections[i];
-            var features = _resolveFeatures(subsection.features);
+        for (const subsection of subsections) {
+            const features = _resolveFeatures(subsection.features);
 
             if (!subsection.name) {
                 // Standalone features --- no subsection header
                 _renderFeatureList(_content, features);
             } else {
                 // Subsection with parent toggle
-                var childIds = [];
-                for (var ci = 0; ci < features.length; ci++) {
-                    childIds.push(features[ci].id);
+                const childIds = [];
+                for (const feature of features) {
+                    childIds.push(feature.id);
                 }
 
-                var body = renderer.createSubsectionHeader(
+                const body = renderer.createSubsectionHeader(
                     _content,
                     subsection.name,
                     !_subsectionSaved.hasOwnProperty(subsection.name),
@@ -297,18 +440,23 @@
             }
         }
 
-        // Developer tab also exposes a loader-popup preview for in-game styling.
-        if (tabId === "developer") {
-            renderer.createPreviewButton(_content);
+        // The gated tab also exposes a loader-popup preview for in-game styling.
+        // Routed through the buildsync path so the menu closes the same way
+        // save/load do --- the preview button used to resume on its own, which
+        // left this window's Visible class set across the resume.
+        if (tabCfg.developerOnly === true) {
+            renderer.createPreviewButton(_content, ({ flashStatus }) =>
+            {
+                _requestBuildSync("preview", null, flashStatus, false);
+            });
         }
     }
 
     function _renderFeatureList(parent, features)
     {
-        for (var featureIndex = 0; featureIndex < features.length; featureIndex++) {
-            var feature = features[featureIndex];
-            var hideToggle = feature.hideToggle === true;
-            var featBody;
+        for (const feature of features) {
+            const hideToggle = feature.hideToggle === true;
+            let featBody;
 
             // styleKey features keep their header --- the renderer puts the
             // style dropdown in the header's control slot. Only hideToggle
@@ -320,7 +468,7 @@
                 // createFeatureHeader creates the row in parent immediately;
                 // it returns a setBody(b) closure so we can wire the body after
                 // creating it below the header.
-                var _setBody = renderer.createFeatureHeader(
+                const _setBody = renderer.createFeatureHeader(
                     parent,
                     feature.id,
                     feature.name,
@@ -343,10 +491,9 @@
                 }
             }
 
-            var settings = feature.settings;
-            for (var i = 0; i < settings.length; i++) {
-                var setting = settings[i];
-                var value = registry.get(feature.id, setting.key);
+            const settings = feature.settings;
+            for (const setting of settings) {
+                const value = registry.get(feature.id, setting.key);
                 renderer.createControl(
                     featBody,
                     feature.id,
@@ -371,52 +518,77 @@
             _content.RemoveAndDeleteChildren();
         } catch (e) {}
         renderer.createExport(_content);
-        renderer.createImport(_content, function(count)
+        renderer.createImport(_content, (count) =>
         {
             if (count > 0) {
                 _rebuildTabs();
-                if (_activeTab !== "__backup__") {
+                if (_activeTab !== BACKUP_TAB_ID) {
                     _renderSection(_activeTab);
                 }
             }
         });
-        renderer.createSaveToBuild(_content, function(buttonLabel)
-        {
-            _requestBuildSync("save", buttonLabel, "Save Config");
-        });
-        renderer.createLoadFromBuild(_content, function(buttonLabel)
-        {
-            _requestBuildSync("load", buttonLabel, "Load from Build");
-        });
+        // One row, two actions: the caption names the mechanism once instead of
+        // each block naming its own action twice.
+        renderer.createBuildActions(
+            _content,
+            ({ flashStatus }) => { _requestBuildSync("save", null, flashStatus); },
+            ({ flashStatus }) => { _requestBuildSync("load", null, flashStatus); }
+        );
+        renderer.createBuildOutcome(_content, _readBuildsyncResult);
+        renderer.createStorageStatus(_content, _readStorageStatus);
     }
 
-    // Request the HUD machine to save (export + persist) or load (restore from
-    // the storage build) through thirdeye_buildsync, then close the menu. `label`
-    // is flashed with "Hideout-Only" when the shop isn't reachable.
-    function _requestBuildSync(action, label, revertText)
+    // Ask the HUD to act, through thirdeye_buildsync.
+    //
+    // Every action here drives the build machine, which needs the shop --- so
+    // all of them are hideout-gated and all of them close the menu, because the
+    // machine switches the player's hero. The durable store is deliberately not
+    // reachable from this function: it autosaves on its own, so it has no button
+    // and needs no gate.
+    //
+    // `flash` is the button block's flashStatus(msg, tone); it owns the revert
+    // timer, so callers get consistent feedback without touching labels here.
+    function _requestBuildSync(action, label, flash, hideoutOnly)
     {
-        var hud = thirdEye.core.hud.findHud();
+        const hud = thirdEye.core.hud.findHud();
         if (!hud) { return; }
 
-        if (!thirdEye.core.hud.isInHideout()) {
-            if (label && thirdEye.core.panel.isAlive(label)) {
-                label.text = "Hideout-Only";
-                $.Schedule(2.0, function()
-                {
-                    if (thirdEye.core.panel.isAlive(label)) {
-                        label.text = revertText;
-                    }
-                });
-            }
+        function say(message, tone)
+        {
+            if (typeof flash === "function") { flash(message, tone); }
+        }
+
+        if (hideoutOnly !== false && !thirdEye.core.hud.isInHideout()) {
+            say("Hideout-Only", "warn");
             return;
         }
 
-        var blob = { action: action, status: "pending", _rev: Date.now() };
+        const blob = { action, status: "pending", _rev: Date.now() };
         if (action === "save") { blob.token = registry.exportConfig(); }
-        try { hud.SetAttributeString("thirdeye_buildsync", JSON.stringify(blob)); } catch (e) {}
+        try {
+            hud.SetAttributeString("thirdeye_buildsync", JSON.stringify(blob));
+        } catch (e) {
+            // Nothing crosses to the HUD isolate without this write --- the
+            // request is dropped and the button looks inert.
+            thirdEye.core.logger.error(
+                "ui.window.buildsync",
+                `${action} request failed: ${e}`
+            );
+            say("Failed", "bad");
+            return;
+        }
+
+        // The request is on its way, not done. "Saved" here would be a claim the
+        // code has not earned --- the machine has not even opened the shop yet
+        // --- and the menu closes on the next line, so anything printed now is
+        // gone before a result could exist. The real outcome is written by the
+        // HUD to `thirdeye_buildsync` and rendered on the Backup tab.
+        say("Requested…", null);
 
         setOpen(false);
-        try { $.DispatchEvent("CitadelResumePlaying"); } catch (e2) {}
+        try {
+            $.DispatchEvent("CitadelResumePlaying");
+        } catch (e2) {}
     }
 
     // -- Open/Close --
@@ -429,7 +601,7 @@
         if (open) {
             // Inject search bar on first open (once per EM session)
             if (!_searchInjected && thirdEye.ui.search) {
-                var header = _window.FindChildTraverse(
+                const header = _window.FindChildTraverse(
                     "ThirdEyeWindowHeader"
                 );
                 if (header && thirdEye.core.panel.isAlive(header)) {
@@ -437,10 +609,10 @@
                         header,
                         _content,
                         _tabList,
-                        function()
+                        () =>
                         {
                             // On clear: restore active tab view
-                            if (_activeTab === "__backup__") {
+                            if (_activeTab === BACKUP_TAB_ID) {
                                 _renderBackupTab();
                             } else {
                                 _renderSection(_activeTab);
@@ -454,19 +626,19 @@
 
             // Deferred: hydrate from attribute (canonical state), then render.
             // EM loads feature manifests directly --- no bus round-trip needed.
-            $.Schedule(0.05, function()
+            $.Schedule(0.05, () =>
             {
                 _rebuildTabs();
 
-                var blob = _readAttribute();
+                const blob = _readConfigAttribute();
                 if (blob && blob.values) {
                     registry.applyRemoteSync(blob);
                 }
 
                 // Restore last active tab, or pick first section
-                var _found = false;
-                for (var tabIndex = 0; tabIndex < _tabButtons.length; tabIndex++) {
-                    if (_tabButtons[tabIndex].id === _activeTab) {
+                let _found = false;
+                for (const btn of _tabButtons) {
+                    if (btn.id === _activeTab) {
                         _found = true;
                         break;
                     }
@@ -476,7 +648,7 @@
                 }
                 if (_tabButtons.length > 0) {
                     _highlightActiveTab();
-                    if (_activeTab === "__backup__") {
+                    if (_activeTab === BACKUP_TAB_ID) {
                         _renderBackupTab();
                     } else {
                         _renderSection(_activeTab);
@@ -508,13 +680,13 @@
     function _hookEscapeMenu()
     {
         // Find the EM root and EscapeBackground from the panel tree
-        var root = thirdEye.core.panel.findRoot();
+        const root = thirdEye.core.panel.findRoot();
         if (!root) { return; }
 
-        var em = root.FindChildTraverse("EscapeMenu");
+        const em = root.FindChildTraverse("EscapeMenu");
         if (em && thirdEye.core.panel.isAlive(em)) {
             // Esc key: close window if open, otherwise resume
-            em.SetPanelEvent("oncancel", function()
+            em.SetPanelEvent("oncancel", () =>
             {
                 if (isOpen()) {
                     setOpen(false);
@@ -526,10 +698,10 @@
             });
         }
 
-        var bg = root.FindChildTraverse("EscapeBackground");
+        const bg = root.FindChildTraverse("EscapeBackground");
         if (bg && thirdEye.core.panel.isAlive(bg)) {
             // Click backdrop: close window if open, otherwise resume
-            bg.SetPanelEvent("onactivate", function()
+            bg.SetPanelEvent("onactivate", () =>
             {
                 if (isOpen()) {
                     setOpen(false);
@@ -544,8 +716,8 @@
 
     // -- Boot --
 
-    var MAX_BOOT_ATTEMPTS = 30;
-    var _bootAttempts = 0;
+    const MAX_BOOT_ATTEMPTS = 30;
+    let _bootAttempts = 0;
 
     function boot()
     {
@@ -553,14 +725,12 @@
             _bootAttempts++;
             if (_bootAttempts >= MAX_BOOT_ATTEMPTS) {
                 $.Msg(
-                    "[third-eye] window: shell not found after "
-                        + MAX_BOOT_ATTEMPTS + " attempts --- giving up"
+                    `[third-eye] window: shell not found after ${MAX_BOOT_ATTEMPTS} attempts --- giving up`
                 );
                 return;
             }
             $.Msg(
-                "[third-eye] window: shell not found --- retrying ("
-                    + _bootAttempts + "/" + MAX_BOOT_ATTEMPTS + ")"
+                `[third-eye] window: shell not found --- retrying (${_bootAttempts}/${MAX_BOOT_ATTEMPTS})`
             );
             $.Schedule(0.5, boot);
             return;
@@ -576,9 +746,10 @@
     }
 
     thirdEye.ui.window = {
-        setOpen: setOpen,
-        toggle: toggle,
-        isOpen: isOpen,
+        setOpen,
+        toggle,
+        isOpen,
+        isDeveloperUnlocked,
     };
 
     $.Msg("[third-eye] window module loaded");
