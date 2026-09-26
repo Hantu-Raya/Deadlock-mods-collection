@@ -44,10 +44,22 @@ function patchWindowSource(source, { sourceHash, marker = '' } = {}) {
     'ThirdEye Escape lifecycle hook',
   );
 
+  // Quote every exported member so Closure ADVANCED keeps the names. ALPHA-4
+  // wrote `name: name`; ALPHA-6 uses shorthand and adds isDeveloperUnlocked.
   patched = replaceOnce(
     patched,
-    /    thirdEye\.ui\.window = \{\r?\n        setOpen: setOpen,\r?\n        toggle: toggle,\r?\n        isOpen: isOpen,\r?\n    \};/,
-    '    thirdEye.ui["window"] = {\n        "setOpen": setOpen,\n        "toggle": toggle,\n        "isOpen": isOpen,\n    };',
+    /    thirdEye\.ui\.window = \{\r?\n((?:        [A-Za-z_$][\w$]*(?:: [A-Za-z_$][\w$]*)?,\r?\n)+)    \};/g,
+    (match, body) => {
+      const members = body.split(/\r?\n/).filter(Boolean).map((line) => {
+        const [key, value = key] = line.trim().replace(/,$/, '').split(/:\s*/);
+        if (key !== value) fail(`window export ${key} is not bound to a same-named function`);
+        return `        "${key}": ${key},`;
+      });
+      for (const name of ['setOpen', 'toggle', 'isOpen']) {
+        if (!members.includes(`        "${name}": ${name},`)) fail(`window export lost ${name}`);
+      }
+      return `    thirdEye.ui["window"] = {\n${members.join('\n')}\n    };`;
+    },
     'stable ThirdEye window export',
   );
 
