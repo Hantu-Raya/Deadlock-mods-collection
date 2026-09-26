@@ -1,4 +1,4 @@
-<!-- Generated from pak60 SHA-256 26631899f6af549c983349e0f3eea9f3b289319f2e41e0027b1841e8b8437076 by refresh-hp-colors-rewrite-qollock.js -->
+<!-- Generated from pak47 SHA-256 02087730f0f89951a05fcd7c0861628b50bd9ed4fa10d02829ef8f797be38f6a by refresh-hp-colors-rewrite-qollock.js -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
@@ -33,6 +33,8 @@
 		<include src="s2r://panorama/scripts/ql_settings_previews.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_settings_tooltips.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_settings_persistence.vjs_c" />
+		<include src="s2r://panorama/scripts/core/ql_persistence.vjs_c" />
+		<include src="s2r://panorama/scripts/core/ql_storage_bridge.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_update_checker.vjs_c" />
 		<include src="s2r://panorama/scripts/ui/ql_settings_metadata.vjs_c" />
 		<include src="s2r://panorama/scripts/ui/ql_settings_tabs.vjs_c" />
@@ -50,6 +52,7 @@
 		<include src="s2r://panorama/scripts/ui/audio.vjs_c" />
 		<include src="s2r://panorama/scripts/ui/console_tab.vjs_c" />
 		<include src="s2r://panorama/scripts/ui/arcade_tab.vjs_c" />
+		<include src="s2r://panorama/scripts/ui/visual_check.vjs_c" />
 		<include src="s2r://panorama/scripts/ui/dev_tab.vjs_c" />
 		<include src="s2r://panorama/scripts/ui/gameplay_tabs.vjs_c" />
 		<include src="s2r://panorama/scripts/ui/theme.vjs_c" />
@@ -170,6 +173,7 @@
 				</TabContents>
 			</Panel>
 		</Panel>
+		<CitadelHTMLPanel id="QOLStorageBridge" class="QOLStorageBridge" hittest="false" acceptsfocus="false" />
 <Panel id="HPColorsEditorRoot" class="HPColorsEditorRoot" hittest="true">
       <Panel class="HPColorsEditorBackdrop" hittest="false" />
       <Panel id="HPColorsEditorShell" class="HPColorsEditorShell">

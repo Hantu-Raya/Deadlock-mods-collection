@@ -56,13 +56,15 @@
     "pak01_dir.vpk",
     "pak03_dir.vpk",
     "pak60_dir.vpk",
+    "pak47_dir.vpk",
     "panorama/layout/hud.xml"
   ],
   "forbiddenBuildInputs": [
     "hp_colors_rewrite_v2_compiled",
     "pak01_dir.vpk",
     "pak03_dir.vpk",
-    "pak60_dir.vpk"
+    "pak60_dir.vpk",
+    "pak47_dir.vpk"
   ],
   "requiredPackedAssets": [
     "panorama/layout/hud_escape_menu.vxml_c",

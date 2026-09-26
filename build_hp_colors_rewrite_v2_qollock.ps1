@@ -4,7 +4,7 @@ param(
     [switch]$RefreshFromInstalledQollock,
     [string]$Source2ViewerPath = '',
     [switch]$SkipPanoramaTests,
-    # Build against QOLLOCK 4.0 (pak60, hp_colors_rewrite_v2_qollock4) instead of 3.2.0 (pak03).
+    # Build against QOLLOCK 4.0.0 (pak47, hp_colors_rewrite_v2_qollock4) instead of 3.2.0 (pak03).
     [switch]$Qollock4
 )
 
@@ -33,7 +33,7 @@ $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
 $vpkOut = Join-Path $root 'pak02_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak02_dir.vpk'
 $qollockPak = if ($Qollock4) {
-    'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak60_dir.vpk'
+    'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak47_dir.vpk'
 } else {
     'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak03_dir.vpk'
 }
