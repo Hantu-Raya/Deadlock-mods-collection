@@ -20,7 +20,7 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 
 - Current/max, percentage, and current-only HP formats for enemies, plus an opt-in, independently styled ally copy.
 - Size, bounded placement, stock-derived or custom colors, and optional pulse-specific presentation.
-- Health-pip visibility and optional precise 10-HP calculation with manual `gameinfo.gi` copy/reset guidance.
+- Health-pip visibility and optional **More Precise HP Text** (10-HP calculation) with manual `gameinfo.gi` copy/reset guidance.
 - Enemy-player level visibility and tier styling without writing engine-owned text.
 
 ### Editor and settings
