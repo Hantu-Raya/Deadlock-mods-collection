@@ -6,7 +6,7 @@
 
 Settings, scopes, presets, and conditions persist on this PC through `hp_colors_v2_storage.js`. Do not add Anita compatibility, Reset All, or legacy v99 support. Preserve legacy HPCR2 imports and HPCRP1 preset compatibility; current HPCR2 exports include the versioned `hpv2` extension for V2 settings. ShowRank Barebones support is opt-in build-stage Escape composition; keep canonical runtime code independent.
 
-Package ownership: the Rewrite v2 runtime is pak02 and the generic preset builder is pak96. v2 no longer reads a builder pak01 seed; an installed old pak01 overrides the ESC layout, and the menu reports it as `OLD PRESET VPK`.
+Package ownership: the Rewrite v2 runtime is pak02 and the generic preset builder is pak96. v2 no longer reads a builder pak01 seed; an installed old pak01 overrides the ESC layout, and the menu reports it as `OLD PRESET VPK`. That legacy layout has only four rail buttons, so it boots without the PRESETS page until pak01 is removed.
 
 ## Durable save
 

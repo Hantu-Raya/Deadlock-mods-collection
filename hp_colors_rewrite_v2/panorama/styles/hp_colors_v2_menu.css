@@ -1132,10 +1132,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   flow-children: down;
 }
 
-.HPColorsPresetCreateHeading .HPColorsHeroFieldLabel {
-  margin: 0px;
-}
-
 .HPColorsPresetSaveMode {
   margin-top: 4px;
   font-family: oracle;

@@ -258,13 +258,13 @@
                     <Label id="HPColorsPresetFeedback" text="" class="HPColorsPresetFeedback" />
                     <Panel class="HPColorsPresetLibraryHeader">
                       <Label text="PRESETS" class="HPColorsHeroFieldLabel" />
-                      <Label text="Click one of your presets to rename it or update it from your current settings." class="HPColorsPresetLibraryHint" />
+                      <Label text="Click a preset to rename or update it." class="HPColorsPresetLibraryHint" />
                       <Label id="HPColorsHeroIdentity" text="HERO: UNKNOWN" class="HPColorsPresetHeroValue" />
                       <Button id="HPColorsPresetCopyAllButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="COPY PRESETS" /></Button>
                       <Button id="HPColorsPresetImportButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="IMPORT PRESETS" /></Button>
                     </Panel>
                     <Panel id="HPColorsPresetHiddenRow" class="HPColorsPresetHiddenRow">
-                      <Label text="REWRITE DEFAULT IS HIDDEN · IT STILL APPLIES WHEN NO PRESET MATCHES" class="HPColorsPresetHiddenMessage" />
+                      <Label text="REWRITE DEFAULT IS HIDDEN · IT REMAINS THE FALLBACK WHEN NO PRESET MATCHES" class="HPColorsPresetHiddenMessage" />
                       <Button id="HPColorsPresetRestoreBakedButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="RESTORE" /></Button>
                     </Panel>
                     <Panel id="HPColorsPresetOptions" class="HPColorsPresetOptions" hittest="true" hittestchildren="true" />
